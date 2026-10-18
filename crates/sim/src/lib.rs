@@ -176,8 +176,8 @@ impl State {
     /// what the replay fixtures check (ADR 0002). Two things are left out on
     /// purpose. The track never changes after `new`, so it is the replay's
     /// `track` field instead. Rapier's contact manifolds and warm-start
-    /// impulses are not reachable per body, so a difference there is caught
-    /// one tick later when it reaches a body's velocity.
+    /// impulses are not hashed; a difference there reaches a body's velocity
+    /// on the next tick and is caught then.
     pub fn hash(&self) -> u64 {
         let mut hasher = hash::Fnv1a::new();
         hasher.write(&self.rng.get_seed());

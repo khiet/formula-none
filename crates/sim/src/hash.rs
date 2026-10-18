@@ -1,5 +1,5 @@
 //! A platform-independent hash of sim state, so the native and wasm builds
-//! can be compared tick by tick (ADR 0002). `std`'s default hasher is
+//! can be compared (ADR 0002). `std`'s default hasher is
 //! deliberately unstable across versions, which would make every fixture a
 //! moving target; FNV-1a over the raw bytes never changes.
 
