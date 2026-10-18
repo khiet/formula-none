@@ -21,7 +21,8 @@ crates/server     authoritative server binary
 apps/web          Vite + Three.js client (TypeScript strict)
 tools/            workspace packages that are not shipped (repo-checks)
 infra/            OpenTofu for the single-instance AWS environment
-assets/           track layouts, the Blender export and the exported glTF plus sidecars
+assets/           track layouts, the Blender export and the exported glTF plus sidecars;
+                  replay fixtures for the determinism gate
 docs/             GLOSSARY.md and adr/
 ```
 
@@ -38,6 +39,9 @@ Rust (from the repo root):
 - Build: `cargo build --workspace`
 - Lint: `cargo clippy --all-targets -- -D warnings`
 - Test: `cargo nextest run`
+- Re-record the replay fixtures after an intended rules change:
+  `cargo run -p sim --example replay -- --update assets/replays/*.replay.json`
+  (see `assets/replays/README.md`)
 
 Web (from the repo root, after `pnpm install`):
 
@@ -57,7 +61,8 @@ Tracks (needs Blender on `PATH`; see `assets/tracks/README.md`):
 
 CI (`.github/workflows/ci.yml`) runs on every PR: clippy with warnings as
 errors, nextest, the wasm build of the bridge, Biome, typecheck, Vitest, the
-web build and the Playwright smoke test.
+web build, the Playwright smoke test, and the replay determinism job that
+reruns the fixtures under `assets/replays` natively and in wasm.
 
 ## Working here
 

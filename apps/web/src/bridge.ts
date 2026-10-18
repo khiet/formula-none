@@ -1,7 +1,12 @@
 // The only module that touches the wasm bindings (ADR 0003). Everything else
 // sees plain objects: a KartInput in, KartTransforms out. Biome's
 // noRestrictedImports rejects any other import of ./generated/bridge.
-import init, { ticks_per_second, Race as WasmRace } from "./generated/bridge/bridge.js";
+import init, {
+  replay_hash_interval_ticks,
+  replay_hashes,
+  ticks_per_second,
+  Race as WasmRace,
+} from "./generated/bridge/bridge.js";
 
 /** One kart's controls for one tick: steer -1..1, throttle 0..1, brake 0..1. */
 export interface KartInput {
@@ -30,6 +35,12 @@ export interface Race {
   step(inputs: readonly KartInput[], dt: number): void;
   /** One transform per kart in grid order, as of the last step. */
   kartTransforms(): KartTransform[];
+  /**
+   * The sim's hash of everything that influences future ticks, as of the last
+   * step. Bit-identical native and in wasm for the same race and inputs,
+   * which is what a replay fixture pins (ADR 0002).
+   */
+  stateHash(): bigint;
 }
 
 export interface Bridge {
@@ -42,6 +53,15 @@ export interface Bridge {
    * `kartCount`.
    */
   createRace(seed: bigint, kartCount: number, sidecar: string): Race;
+  /** A replay's hashes are kept every this many ticks. */
+  readonly replayHashIntervalTicks: number;
+  /**
+   * Rerun a replay (the JSON the sim's `replay` module documents) in wasm on
+   * the track described by `sidecar` and report the state hash at every
+   * `replayHashIntervalTicks`th tick. Throws, with the sim's reason, when the
+   * replay is unreadable or the sidecar is not the replay's track.
+   */
+  replayHashes(replay: string, sidecar: string): bigint[];
 }
 
 // Buffer layouts the bridge crate documents on Race::step and Race::kart_transforms.
@@ -58,17 +78,26 @@ export async function loadBridge(wasm?: BufferSource): Promise<Bridge> {
   await init(wasm === undefined ? undefined : { module_or_path: wasm });
   return {
     ticksPerSecond: ticks_per_second(),
+    replayHashIntervalTicks: replay_hash_interval_ticks(),
     createRace(seed, kartCount, sidecar) {
-      let race: WasmRace;
-      try {
-        race = new WasmRace(seed, kartCount, sidecar);
-      } catch (reason) {
-        // The bridge rejects with a plain string so its native tests can run.
-        throw new Error(typeof reason === "string" ? reason : String(reason));
-      }
-      return new BridgedRace(race, kartCount);
+      return new BridgedRace(
+        rethrown(() => new WasmRace(seed, kartCount, sidecar)),
+        kartCount,
+      );
+    },
+    replayHashes(replay, sidecar) {
+      return Array.from(rethrown(() => replay_hashes(replay, sidecar)));
     },
   };
+}
+
+/** The bridge rejects with a plain string so its native tests can run; make it an Error. */
+function rethrown<T>(call: () => T): T {
+  try {
+    return call();
+  } catch (reason) {
+    throw new Error(typeof reason === "string" ? reason : String(reason));
+  }
 }
 
 class BridgedRace implements Race {
@@ -93,6 +122,10 @@ class BridgedRace implements Race {
       this.#inputs[at + 2] = input.brake;
     });
     this.#race.step(this.#inputs, dt);
+  }
+
+  stateHash(): bigint {
+    return this.#race.state_hash();
   }
 
   kartTransforms(): KartTransform[] {

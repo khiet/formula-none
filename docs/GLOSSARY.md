@@ -81,6 +81,19 @@ The client replacing its predicted state with a snapshot and replaying the
 inputs the server has not yet acknowledged. The visible correction is blended
 over up to six frames rather than snapped.
 
+### replay
+
+A race as `{seed, track, inputs[]}`: enough to rerun it anywhere. Inputs are
+run-length encoded into segments, one input per kart in grid order for a run
+of ticks. A replay committed under `assets/replays` with the state hashes it
+reported is a fixture of the determinism gate.
+
+### state hash
+
+A platform-independent hash of everything in the sim that influences future
+ticks. A replay reports it after every 60th tick; the native and wasm builds
+must report the same values for the same replay.
+
 ## Track
 
 ### sidecar

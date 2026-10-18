@@ -1,0 +1,243 @@
+{
+  "version": 1,
+  "seed": "2",
+  "track": "oval",
+  "segments": [
+    {
+      "ticks": 90,
+      "inputs": [
+        {
+          "steer": 0.0,
+          "throttle": 1.0,
+          "brake": 0.0
+        },
+        {
+          "steer": 0.0,
+          "throttle": 1.0,
+          "brake": 0.0
+        },
+        {
+          "steer": 0.0,
+          "throttle": 1.0,
+          "brake": 0.0
+        },
+        {
+          "steer": 0.0,
+          "throttle": 1.0,
+          "brake": 0.0
+        },
+        {
+          "steer": 0.0,
+          "throttle": 1.0,
+          "brake": 0.0
+        },
+        {
+          "steer": 0.0,
+          "throttle": 1.0,
+          "brake": 0.0
+        },
+        {
+          "steer": 0.0,
+          "throttle": 1.0,
+          "brake": 0.0
+        },
+        {
+          "steer": 0.0,
+          "throttle": 1.0,
+          "brake": 0.0
+        }
+      ]
+    },
+    {
+      "ticks": 60,
+      "inputs": [
+        {
+          "steer": 0.0,
+          "throttle": 0.0,
+          "brake": 1.0
+        },
+        {
+          "steer": 0.0,
+          "throttle": 0.0,
+          "brake": 1.0
+        },
+        {
+          "steer": 0.0,
+          "throttle": 0.0,
+          "brake": 0.0
+        },
+        {
+          "steer": 0.0,
+          "throttle": 0.0,
+          "brake": 0.0
+        },
+        {
+          "steer": 0.0,
+          "throttle": 1.0,
+          "brake": 0.0
+        },
+        {
+          "steer": 0.0,
+          "throttle": 1.0,
+          "brake": 0.0
+        },
+        {
+          "steer": 0.0,
+          "throttle": 1.0,
+          "brake": 0.0
+        },
+        {
+          "steer": 0.0,
+          "throttle": 1.0,
+          "brake": 0.0
+        }
+      ]
+    },
+    {
+      "ticks": 120,
+      "inputs": [
+        {
+          "steer": 0.0,
+          "throttle": 1.0,
+          "brake": 0.0
+        },
+        {
+          "steer": 0.0,
+          "throttle": 1.0,
+          "brake": 0.0
+        },
+        {
+          "steer": 0.0,
+          "throttle": 1.0,
+          "brake": 0.0
+        },
+        {
+          "steer": 0.0,
+          "throttle": 1.0,
+          "brake": 0.0
+        },
+        {
+          "steer": 0.0,
+          "throttle": 1.0,
+          "brake": 0.0
+        },
+        {
+          "steer": 0.0,
+          "throttle": 1.0,
+          "brake": 0.0
+        },
+        {
+          "steer": 0.0,
+          "throttle": 1.0,
+          "brake": 0.0
+        },
+        {
+          "steer": 0.0,
+          "throttle": 1.0,
+          "brake": 0.0
+        }
+      ]
+    },
+    {
+      "ticks": 120,
+      "inputs": [
+        {
+          "steer": -1.0,
+          "throttle": 1.0,
+          "brake": 0.0
+        },
+        {
+          "steer": 1.0,
+          "throttle": 1.0,
+          "brake": 0.0
+        },
+        {
+          "steer": -1.0,
+          "throttle": 1.0,
+          "brake": 0.0
+        },
+        {
+          "steer": 1.0,
+          "throttle": 1.0,
+          "brake": 0.0
+        },
+        {
+          "steer": -1.0,
+          "throttle": 1.0,
+          "brake": 0.0
+        },
+        {
+          "steer": 1.0,
+          "throttle": 1.0,
+          "brake": 0.0
+        },
+        {
+          "steer": -1.0,
+          "throttle": 1.0,
+          "brake": 0.0
+        },
+        {
+          "steer": 1.0,
+          "throttle": 1.0,
+          "brake": 0.0
+        }
+      ]
+    },
+    {
+      "ticks": 150,
+      "inputs": [
+        {
+          "steer": 0.0,
+          "throttle": 1.0,
+          "brake": 0.0
+        },
+        {
+          "steer": 0.0,
+          "throttle": 1.0,
+          "brake": 0.0
+        },
+        {
+          "steer": 0.0,
+          "throttle": 1.0,
+          "brake": 0.0
+        },
+        {
+          "steer": 0.0,
+          "throttle": 1.0,
+          "brake": 0.0
+        },
+        {
+          "steer": 0.0,
+          "throttle": 1.0,
+          "brake": 0.0
+        },
+        {
+          "steer": 0.0,
+          "throttle": 1.0,
+          "brake": 0.0
+        },
+        {
+          "steer": 0.0,
+          "throttle": 1.0,
+          "brake": 0.0
+        },
+        {
+          "steer": 0.0,
+          "throttle": 1.0,
+          "brake": 0.0
+        }
+      ]
+    }
+  ],
+  "hashes": [
+    "93c2662eb4d539f8",
+    "02d7d2608b00ce43",
+    "2b0e4fd3bca3d275",
+    "b82af76c0aff269c",
+    "9bdef95b51da0a94",
+    "603eb527f4762754",
+    "29e142578aa919b6",
+    "1185a63000310a75",
+    "c546978bec7fc80e"
+  ]
+}

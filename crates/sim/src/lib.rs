@@ -5,20 +5,26 @@
 //! The public seam is [`step`]: feed a [`State`] one tick of [`KartInput`]
 //! per kart and get the next state back. Everything a renderer needs is read
 //! through [`State::kart_transforms`]. A race runs on a [`Track`] loaded from
-//! the sidecar exported next to its glTF.
+//! the sidecar exported next to its glTF. A [`Replay`] reruns a race and
+//! [`State::hash`] tells whether two runs agree.
 
+mod hash;
+pub mod replay;
 pub mod track;
 pub mod tuning;
 
+pub use replay::{Replay, ReplayError, Segment};
 pub use track::{Checkpoint, Placement, Surface, SurfaceMesh, Track, TrackError};
 
 use rand_chacha::rand_core::SeedableRng;
 use rand_chacha::ChaCha8Rng;
 use rapier3d::prelude::*;
+use serde::{Deserialize, Serialize};
+use std::hash::Hasher;
 
 /// One kart's controls for one tick, already mapped from whatever device
 /// produced them. Bots and humans both speak this.
-#[derive(Debug, Clone, Copy, PartialEq, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Default, Serialize, Deserialize)]
 pub struct KartInput {
     /// -1 is full left, 1 is full right.
     pub steer: f32,
@@ -42,10 +48,6 @@ pub struct KartTransform {
 /// Everything the sim knows about a race. Owns the physics world and the
 /// RNG, so a `State` plus an input sequence replays identically anywhere.
 pub struct State {
-    #[expect(
-        dead_code,
-        reason = "consumed by item rolls and bots in later milestones"
-    )]
     rng: ChaCha8Rng,
     track: Track,
     karts: Vec<Kart>,
@@ -165,6 +167,33 @@ impl State {
     /// The surface under a kart's centre.
     pub fn kart_surface(&self, kart: usize) -> Surface {
         self.surface_at(self.kart_transforms()[kart].position)
+    }
+
+    /// A hash of everything that influences future ticks: the RNG and, per
+    /// kart, its speed and its body's position, heading, velocities and
+    /// sleep state, including the timer that puts a resting body to sleep.
+    /// Bit-identical on every platform for bit-identical states, which is
+    /// what the replay fixtures check (ADR 0002). Two things are left out on
+    /// purpose. The track never changes after `new`, so it is the replay's
+    /// `track` field instead. Rapier's contact manifolds and warm-start
+    /// impulses are not hashed; a difference there reaches a body's velocity
+    /// on the next tick and is caught then.
+    pub fn hash(&self) -> u64 {
+        let mut hasher = hash::Fnv1a::new();
+        hasher.write(&self.rng.get_seed());
+        hasher.write_u64(self.rng.get_stream());
+        hasher.write_u128(self.rng.get_word_pos());
+        for kart in &self.karts {
+            let body = &self.physics.bodies[kart.body];
+            hasher.write_f32(kart.speed);
+            hasher.write_f32s(body.translation().to_array());
+            hasher.write_f32s(body.rotation().to_array());
+            hasher.write_f32s(body.linvel().to_array());
+            hasher.write_f32s(body.angvel().to_array());
+            hasher.write_f32(body.activation().time_since_can_sleep);
+            hasher.write_u8(u8::from(body.is_sleeping()));
+        }
+        hasher.finish()
     }
 
     /// One transform per kart, in grid order.

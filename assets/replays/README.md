@@ -1,0 +1,42 @@
+# Replay fixtures
+
+A race replay is `{seed, track, inputs[]}`. Each file here is one replay
+with the state hash the sim reported at every 60th tick when it was
+recorded. Two tests rerun every file and hold the sim to those hashes:
+`crates/sim/tests/replay.rs` natively and `apps/web/src/replay.test.ts`
+through the wasm build. That is the cross-platform determinism gate (ADR
+0002): if the two builds ever disagree on the rules, one of them fails here.
+Neither test compares the builds directly; each compares its build with the
+recorded hashes, so both passing means the builds agree. The `Replay
+determinism (native vs wasm)` CI job runs both on every PR.
+
+`crates/sim/src/replay.rs` documents the format. Inputs are run-length
+encoded, one input per kart in grid order; the seed is a decimal string and
+each hash 16 hex digits, since a JSON number cannot carry every u64.
+
+## Record a fixture from a browser session
+
+Drive in the client (`pnpm --filter web dev`, `?track=oval` for the oval),
+then press `R`. The browser downloads `<track>.replay.json`: the inputs of
+every tick so far and the wasm sim's hashes. Move it here under a
+descriptive name ending in `.replay.json`; both tests pick it up by listing
+this directory.
+
+## Re-record after changing the rules
+
+A change to the sim changes every hash. Once the change is intended, rerun
+the fixtures natively and write the new hashes back:
+
+```sh
+cargo run -p sim --example replay -- --update assets/replays/*.replay.json
+```
+
+Without `--update` the same command reports and fails on any difference.
+The wasm test then confirms the wasm build agrees with the new hashes.
+
+## What the set must cover
+
+`the_fixture_set_exercises_kart_contact_off_track_walls_and_both_tracks`
+in the sim's tests requires the set, taken together, to have karts
+touching, karts on sand and grass, a lone kart held by a wall, and a run on
+each track, so trimming the set cannot quietly weaken the gate.

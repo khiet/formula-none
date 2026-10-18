@@ -1,0 +1,61 @@
+{
+  "version": 1,
+  "seed": "1",
+  "track": "oval",
+  "segments": [
+    {
+      "ticks": 5,
+      "inputs": [
+        {
+          "steer": 0.0,
+          "throttle": 0.0,
+          "brake": 0.0
+        }
+      ]
+    },
+    {
+      "ticks": 31,
+      "inputs": [
+        {
+          "steer": 0.0,
+          "throttle": 1.0,
+          "brake": 0.0
+        }
+      ]
+    },
+    {
+      "ticks": 90,
+      "inputs": [
+        {
+          "steer": -1.0,
+          "throttle": 1.0,
+          "brake": 0.0
+        }
+      ]
+    },
+    {
+      "ticks": 2,
+      "inputs": [
+        {
+          "steer": 0.0,
+          "throttle": 1.0,
+          "brake": 0.0
+        }
+      ]
+    },
+    {
+      "ticks": 1,
+      "inputs": [
+        {
+          "steer": 0.0,
+          "throttle": 0.0,
+          "brake": 0.0
+        }
+      ]
+    }
+  ],
+  "hashes": [
+    "ba6acac9b037b073",
+    "619c075fd6e79004"
+  ]
+}

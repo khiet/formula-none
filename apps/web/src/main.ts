@@ -2,6 +2,7 @@ import { loadBridge } from "./bridge";
 import { createInstrumentPanel } from "./instrument-panel";
 import { keyboardKartInput } from "./keyboard";
 import { createRaceView } from "./race-view";
+import { downloadReplay, recordReplay } from "./replay";
 import { fetchSidecar, selectTrack } from "./track";
 
 // M0: one kart on a greybox track, the local player at slot 0. The seed is
@@ -12,12 +13,20 @@ const KART_COUNT = 1;
 const LOCAL_KART = 0;
 /** Ticks run per frame at most, so a stalled tab catches up instead of spiralling. */
 const MAX_TICKS_PER_FRAME = 5;
+/** Downloads the session so far as a replay fixture (assets/replays/README.md). */
+const DOWNLOAD_REPLAY_KEY = "r";
 
 async function main(container: HTMLElement): Promise<void> {
   const track = selectTrack(window.location.search);
   const [bridge, sidecar] = await Promise.all([loadBridge(), fetchSidecar(track)]);
   const tickSeconds = 1 / bridge.ticksPerSecond;
   const race = bridge.createRace(SEED, KART_COUNT, sidecar);
+  const recorder = recordReplay(bridge, SEED, track.name, race);
+  window.addEventListener("keydown", (event) => {
+    if (event.key === DOWNLOAD_REPLAY_KEY) {
+      downloadReplay(recorder, document);
+    }
+  });
   const input = keyboardKartInput(window);
   const view = await createRaceView(container, KART_COUNT, track.gltfUrl);
   const panel = createInstrumentPanel(container);
@@ -39,7 +48,9 @@ async function main(container: HTMLElement): Promise<void> {
     unsimulatedSeconds += Math.min((now - last) / 1000, MAX_TICKS_PER_FRAME * tickSeconds);
     last = now;
     while (unsimulatedSeconds >= tickSeconds) {
-      race.step([input.current()], tickSeconds);
+      const inputs = [input.current()];
+      race.step(inputs, tickSeconds);
+      recorder.record(inputs);
       unsimulatedSeconds -= tickSeconds;
     }
     present();
