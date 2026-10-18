@@ -180,6 +180,37 @@ fn karts_start_on_the_spawn_grid_in_slot_order() {
 }
 
 #[test]
+fn a_spawn_slot_yaw_turns_the_kart_counter_clockwise_seen_from_above() {
+    // Yaw is radians about +Y, so a quarter turn from -Z faces -X. The
+    // exporter and the sim must agree on this or every grid faces wrong.
+    let quarter = std::f32::consts::FRAC_PI_2;
+    let sidecar = OVAL.replacen(
+        "\"spawn_grid\":[{\"position\":[28.0,0.0,4.0],\"yaw\":0.0}",
+        &format!("\"spawn_grid\":[{{\"position\":[28.0,0.0,4.0],\"yaw\":{quarter}}}"),
+        1,
+    );
+    assert_ne!(
+        sidecar, OVAL,
+        "slot 0 of the oval is where this test expects it"
+    );
+    let mut state = State::new(SEED, 1, Track::from_sidecar(&sidecar).unwrap());
+    let spawn = state.kart_transforms()[0];
+    for _ in 0..ticks(1.0) {
+        state = step(state, &[throttle()], DT);
+    }
+    let kart = state.kart_transforms()[0];
+
+    assert!(
+        kart.position[0] < spawn.position[0] - 1.0,
+        "drove toward -X: {kart:?}"
+    );
+    assert!(
+        (kart.position[2] - spawn.position[2]).abs() < 0.1,
+        "held its line: {kart:?}"
+    );
+}
+
+#[test]
 #[should_panic(expected = "spawn slots")]
 fn more_karts_than_spawn_slots_is_a_caller_error() {
     State::new(SEED, 9, oval());
