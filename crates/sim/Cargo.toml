@@ -7,6 +7,9 @@ license.workspace = true
 publish.workspace = true
 
 [dependencies]
+# The sim's own trigonometry goes through libm, as Rapier's does under
+# enhanced-determinism, so a platform's libm never changes a rule.
+libm = "0.2"
 rand_chacha = { version = "0.10", default-features = false }
 rapier3d = { version = "0.36", features = ["enhanced-determinism"] }
 serde = { version = "1", features = ["derive"] }

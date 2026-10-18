@@ -1644,6 +1644,7 @@ dependencies = [
 name = "sim"
 version = "0.1.0"
 dependencies = [
+ "libm",
  "rand_chacha 0.10.0",
  "rapier3d",
  "serde",

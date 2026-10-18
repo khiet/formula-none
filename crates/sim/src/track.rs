@@ -66,6 +66,37 @@ pub struct Checkpoint {
     pub half_width: f32,
 }
 
+impl Checkpoint {
+    /// How far through a move from `before` to `after` the checkpoint was
+    /// crossed, as a fraction of the move, or `None` when it was not: a
+    /// crossing goes from behind the line to on or past it, in the
+    /// direction of travel, within `half_width` of the centre where it met
+    /// the line. Height is ignored; a checkpoint reaches up and down
+    /// without limit. A move that starts on the line never counts, so a
+    /// kart sitting on it crosses once, not every tick.
+    pub(crate) fn crossed_between(&self, before: [f32; 3], after: [f32; 3]) -> Option<f32> {
+        let (sin, cos) = libm::sincosf(self.yaw);
+        // Yaw zero faces -Z; the direction of travel through the checkpoint
+        // and its line, to the right of that direction, seen from above.
+        let travel = [-sin, -cos];
+        let line = [cos, -sin];
+        let along = |point: [f32; 3]| {
+            (point[0] - self.position[0]) * travel[0] + (point[2] - self.position[2]) * travel[1]
+        };
+        let (start, end) = (along(before), along(after));
+        if !(start < 0.0 && end >= 0.0) {
+            return None;
+        }
+        let t = start / (start - end);
+        let met = [
+            before[0] + (after[0] - before[0]) * t,
+            before[2] + (after[2] - before[2]) * t,
+        ];
+        let across = (met[0] - self.position[0]) * line[0] + (met[1] - self.position[2]) * line[1];
+        (across.abs() <= self.half_width).then_some(t)
+    }
+}
+
 /// One tagged collision mesh: a flat position buffer and a triangle index
 /// buffer, as exported.
 #[derive(Debug, Clone, PartialEq, Deserialize)]
@@ -110,6 +141,10 @@ pub struct Track {
     surfaces: Vec<SurfaceMesh>,
     /// One collision shape per surface mesh, in `surfaces` order.
     shapes: Vec<SharedShape>,
+    /// Spline progress at each centreline point, with the lap length as one
+    /// more entry at the end so the closing segment has both ends.
+    progress_at_point: Vec<f32>,
+    checkpoint_progress: Vec<f32>,
 }
 
 impl fmt::Debug for Track {
@@ -205,6 +240,24 @@ impl Track {
             .map_err(|error| TrackError::Invalid(format!("{}: {error:?}", mesh.name)))?;
             shapes.push(shape);
         }
+        let mut progress_at_point = Vec::with_capacity(sidecar.centreline.len() + 1);
+        let mut progress = 0.0;
+        for (a, b) in sidecar
+            .centreline
+            .iter()
+            .zip(sidecar.centreline.iter().cycle().skip(1))
+        {
+            progress_at_point.push(progress);
+            progress += Vec3::from(*a).distance(Vec3::from(*b));
+        }
+        progress_at_point.push(progress);
+        let checkpoint_progress = sidecar
+            .checkpoints
+            .iter()
+            .map(|checkpoint| {
+                progress_along(&sidecar.centreline, &progress_at_point, checkpoint.position)
+            })
+            .collect();
         Ok(Self {
             name: sidecar.name,
             centreline: sidecar.centreline,
@@ -214,6 +267,8 @@ impl Track {
             spawn_grid: sidecar.spawn_grid,
             surfaces: sidecar.surfaces,
             shapes,
+            progress_at_point,
+            checkpoint_progress,
         })
     }
 
@@ -229,17 +284,67 @@ impl Track {
 
     /// Length of one lap along the centreline, in metres.
     pub fn spline_length(&self) -> f32 {
-        let points = &self.centreline;
-        points
-            .iter()
-            .zip(points.iter().cycle().skip(1))
-            .map(|(a, b)| Vec3::from(*a).distance(Vec3::from(*b)))
-            .sum()
+        *self
+            .progress_at_point
+            .last()
+            .expect("a centreline has points")
+    }
+
+    /// The spline progress of `point`: metres along the centreline from the
+    /// start line to the nearest point on it, in `0..spline_length()`. Only
+    /// x and z count, so a hopping kart reads the same as one on the
+    /// asphalt beneath it.
+    pub fn progress_at(&self, point: [f32; 3]) -> f32 {
+        progress_along(&self.centreline, &self.progress_at_point, point)
+    }
+
+    /// Spline progress unwrapped around the start line for ordering karts
+    /// past the same checkpoint: the one further along the lap reads
+    /// higher. A kart on the grid behind the line is a few metres short of
+    /// zero, not nearly a lap ahead, and a kart past the line that missed
+    /// the start checkpoint is a little past the lap's length.
+    pub fn lap_relative_progress(&self, checkpoint: usize, spline_progress: f32) -> f32 {
+        let lap = self.spline_length();
+        let anchor = self.checkpoint_progress[checkpoint];
+        let mut ahead = spline_progress - anchor;
+        if ahead > lap / 2.0 {
+            ahead -= lap;
+        } else if ahead <= -lap / 2.0 {
+            ahead += lap;
+        }
+        anchor + ahead
+    }
+
+    /// The centreline point `progress` metres from the start line, wrapped
+    /// around the lap; where a kart following the centreline would be.
+    pub fn point_at(&self, progress: f32) -> [f32; 3] {
+        let lap = self.spline_length();
+        let progress = progress.rem_euclid(lap);
+        let index = self
+            .progress_at_point
+            .partition_point(|&at| at <= progress)
+            .saturating_sub(1)
+            .min(self.centreline.len() - 1);
+        let start = self.progress_at_point[index];
+        let end = self.progress_at_point[index + 1];
+        let t = if end > start {
+            (progress - start) / (end - start)
+        } else {
+            0.0
+        };
+        let a = Vec3::from(self.centreline[index]);
+        let b = Vec3::from(self.centreline[(index + 1) % self.centreline.len()]);
+        a.lerp(b, t).to_array()
     }
 
     /// Gates in lap order; the first is the start line.
     pub fn checkpoints(&self) -> &[Checkpoint] {
         &self.checkpoints
+    }
+
+    /// The spline progress of each checkpoint's centre, in lap order.
+    pub fn checkpoint_progress(&self) -> &[f32] {
+        &self.checkpoint_progress
     }
 
     pub fn item_boxes(&self) -> &[Placement] {
@@ -265,5 +370,40 @@ impl Track {
             .iter()
             .map(|mesh| mesh.surface)
             .zip(self.shapes.iter())
+    }
+}
+
+/// `Track::progress_at` over the parts of a track it reads, so the
+/// checkpoints' progress can be found while the track is still being built.
+fn progress_along(centreline: &[[f32; 3]], progress_at_point: &[f32], point: [f32; 3]) -> f32 {
+    let (px, pz) = (point[0], point[2]);
+    let mut best = (f32::INFINITY, 0.0);
+    for (index, (a, b)) in centreline
+        .iter()
+        .zip(centreline.iter().cycle().skip(1))
+        .enumerate()
+    {
+        let (ax, az) = (a[0], a[2]);
+        let (dx, dz) = (b[0] - ax, b[2] - az);
+        let length_squared = dx * dx + dz * dz;
+        let t = if length_squared > 0.0 {
+            (((px - ax) * dx + (pz - az) * dz) / length_squared).clamp(0.0, 1.0)
+        } else {
+            0.0
+        };
+        let (nx, nz) = (ax + dx * t, az + dz * t);
+        let distance_squared = (px - nx) * (px - nx) + (pz - nz) * (pz - nz);
+        if distance_squared < best.0 {
+            let start = progress_at_point[index];
+            let end = progress_at_point[index + 1];
+            best = (distance_squared, start + (end - start) * t);
+        }
+    }
+    // The last point of the closing segment is the start line again.
+    let lap = progress_at_point[progress_at_point.len() - 1];
+    if best.1 >= lap {
+        best.1 - lap
+    } else {
+        best.1
     }
 }

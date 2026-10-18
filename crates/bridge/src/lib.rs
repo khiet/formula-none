@@ -13,11 +13,22 @@ use wasm_bindgen::prelude::*;
 /// item, hold item. A button is pressed when its float is not zero.
 const FLOATS_PER_INPUT: usize = 6;
 
+/// Written in the standings buffer where a kart has no best lap yet; a lap
+/// time is never negative.
+const NO_BEST_LAP: f32 = -1.0;
+
 /// Fixed sim rate, so the client's tick loop reads the tuned value instead of
 /// repeating it (ADR 0014).
 #[wasm_bindgen]
 pub fn ticks_per_second() -> u32 {
     sim::tuning::TICKS_PER_SECOND
+}
+
+/// Laps in a race, so the Instrument panel's lap counter reads the tuned
+/// value (ADR 0014).
+#[wasm_bindgen]
+pub fn laps_per_race() -> u32 {
+    sim::tuning::LAPS_PER_RACE
 }
 
 /// The kart's width, height and length in metres, so the View draws the box
@@ -180,6 +191,29 @@ impl Race {
                     tier,
                     charge_s,
                 ])
+            })
+            .collect()
+    }
+
+    /// Six floats per kart in grid order: race position from 1, the lap the
+    /// kart is on from 1 (staying on the last once the race's laps are
+    /// done), the last checkpoint crossed in order (0 is the start line),
+    /// spline progress in metres along the centreline, seconds into the
+    /// current lap, and the best lap in seconds or -1 before a lap is
+    /// completed. `sim::State::standings` documents the ordering.
+    pub fn standings(&self) -> Vec<f32> {
+        self.state()
+            .standings()
+            .iter()
+            .flat_map(|standing| {
+                [
+                    standing.position as f32,
+                    standing.lap() as f32,
+                    standing.checkpoint as f32,
+                    standing.spline_progress,
+                    standing.lap_time_s,
+                    standing.best_lap_s.unwrap_or(NO_BEST_LAP),
+                ]
             })
             .collect()
     }

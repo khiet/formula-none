@@ -118,3 +118,39 @@ describe("bridge wrapper", () => {
     expect(() => race.step([IDLE_INPUT, IDLE_INPUT, IDLE_INPUT], DT)).toThrow(RangeError);
   });
 });
+
+describe("standings", () => {
+  it("reports a kart on the grid in first place on lap one with no best lap, and the race's lap count", async () => {
+    const bridge = await loadBridge(wasm);
+    expect(bridge.lapsPerRace).toBe(3);
+    const race = bridge.createRace(7n, 2, OVAL);
+    const [pole, second] = race.standings();
+    expect(pole).toEqual({
+      position: 1,
+      lap: 1,
+      checkpoint: 0,
+      splineProgress: expect.any(Number),
+      lapTimeSeconds: 0,
+      bestLapSeconds: null,
+    });
+    expect(second?.position).toBe(2);
+    // The grid is just behind the start line, at the far end of the lap.
+    expect(pole?.splineProgress).toBeGreaterThan(400);
+  });
+
+  it("times the lap, crosses gates in order and swaps positions as the sim reports them", async () => {
+    const bridge = await loadBridge(wasm);
+    const race = bridge.createRace(7n, 2, OVAL);
+    // Pole idles while the second kart drives up the straight past it and checkpoint 1.
+    for (let tick = 0; tick < 180; tick++) {
+      race.step([IDLE_INPUT, THROTTLE], DT);
+    }
+    const [pole, driven] = race.standings();
+    expect(driven?.position).toBe(1);
+    expect(pole?.position).toBe(2);
+    expect(driven?.checkpoint).toBe(1);
+    expect(driven?.lapTimeSeconds).toBeCloseTo(3, 1);
+    expect(pole?.lapTimeSeconds).toBeCloseTo(3, 1);
+    expect(driven?.bestLapSeconds).toBeNull();
+  });
+});

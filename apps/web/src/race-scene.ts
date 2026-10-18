@@ -45,14 +45,15 @@ export async function createRaceScene(
   const input = combinedKartInput(keyboardKartInput(window), gamepadKartInput(navigator));
   const view = await createRaceView(container, KART_COUNT, bridge.kartSize, track.gltfUrl);
   const camera = createChaseCamera();
-  const panel = createInstrumentPanel(container);
+  const panel = createInstrumentPanel(container, bridge.lapsPerRace);
 
   const present = (frameSeconds: number) => {
     const transforms = race.kartTransforms();
     const local = transforms[LOCAL_KART];
-    if (local) {
+    const standing = race.standings()[LOCAL_KART];
+    if (local && standing) {
       view.update(transforms, camera.update(local, frameSeconds));
-      panel.update(local);
+      panel.update(local, standing);
     }
   };
   present(0);

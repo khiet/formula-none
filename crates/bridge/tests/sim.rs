@@ -4,7 +4,7 @@
 
 use bridge::Race;
 use sim::tuning::{
-    HOP_AIRTIME_S, KART_HALF_HEIGHT_M, KART_HALF_LENGTH_M, KART_HALF_WIDTH_M,
+    HOP_AIRTIME_S, KART_HALF_HEIGHT_M, KART_HALF_LENGTH_M, KART_HALF_WIDTH_M, LAPS_PER_RACE,
     MINI_TURBO_BLUE_CHARGE_S, TICKS_PER_SECOND,
 };
 use sim::{DriftDirection, MiniTurbo, Surface, Track};
@@ -16,6 +16,9 @@ const DT: f32 = 1.0 / TICKS_PER_SECOND as f32;
 const FLOATS_PER_KART: usize = 12;
 /// Floats per kart in the input buffer: steer, throttle, brake, hop, use item, hold item.
 const FLOATS_PER_INPUT: usize = 6;
+/// Floats per kart in the standings buffer: position, lap, checkpoint,
+/// spline progress, lap time, best lap.
+const FLOATS_PER_STANDING: usize = 6;
 
 fn race(seed: u64, kart_count: usize) -> Race {
     Race::new(seed, kart_count, OVAL).expect("the oval fixture loads")
@@ -166,6 +169,45 @@ fn the_buffer_is_the_sim_crates_readouts_for_the_same_race() {
         "the kart left the asphalt"
     );
     assert_eq!(buffer[8], f32::from(state.kart_surface(0).code()));
+}
+
+#[test]
+fn the_standings_buffer_is_the_sim_crates_standings_for_the_same_race() {
+    let throttle = [0.0, 1.0, 0.0, 0.0, 0.0, 0.0];
+    let idle = [0.0; FLOATS_PER_INPUT];
+    let mut state = sim::State::new(42, 2, Track::from_sidecar(OVAL).unwrap());
+    let mut race = race(42, 2);
+    // Long enough for the second kart to pass pole and the first checkpoint.
+    for _ in 0..3 * TICKS_PER_SECOND {
+        state = sim::step(
+            state,
+            &[
+                sim::KartInput::default(),
+                sim::KartInput {
+                    throttle: 1.0,
+                    ..sim::KartInput::default()
+                },
+            ],
+            DT,
+        );
+        race.step(&[idle, throttle].concat(), DT);
+    }
+
+    let buffer = race.standings();
+    assert_eq!(buffer.len(), 2 * FLOATS_PER_STANDING);
+    for (chunk, expected) in buffer.chunks(FLOATS_PER_STANDING).zip(state.standings()) {
+        assert_eq!(chunk[0], expected.position as f32);
+        assert_eq!(chunk[1], expected.lap() as f32);
+        assert_eq!(chunk[2], expected.checkpoint as f32);
+        assert_eq!(chunk[3], expected.spline_progress);
+        assert_eq!(chunk[4], expected.lap_time_s);
+        assert_eq!(expected.best_lap_s, None);
+        assert_eq!(chunk[5], -1.0, "no best lap yet");
+    }
+    assert_eq!(buffer[0], 2.0, "pole was passed");
+    assert_eq!(buffer[FLOATS_PER_STANDING], 1.0);
+    assert_eq!(buffer[FLOATS_PER_STANDING + 2], 1.0, "past the first gate");
+    assert_eq!(bridge::laps_per_race(), LAPS_PER_RACE);
 }
 
 #[test]
