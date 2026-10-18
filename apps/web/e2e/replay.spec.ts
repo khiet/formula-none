@@ -17,8 +17,6 @@ const POLL_TIMEOUT_MS = 20_000;
 // the countdown readout, the speed readout, or the recording itself, since
 // every R press downloads the session so far.
 test("pressing R downloads the session as a replay fixture", async ({ page }) => {
-  // Three polls, each allowed the full poll timeout, after the countdown.
-  test.setTimeout(4 * POLL_TIMEOUT_MS);
   // The recording starts with the countdown; a press during it would stall
   // the kart, so the drive waits for Go.
   await startRace(page, `/?track=${TRACK}`);

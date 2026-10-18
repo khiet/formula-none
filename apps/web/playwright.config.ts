@@ -2,6 +2,9 @@ import { defineConfig } from "@playwright/test";
 
 export default defineConfig({
   testDir: "./e2e",
+  // Every spec waits through the race's countdown and then on sim time, and
+  // a CI runner steps the sim far slower than real time.
+  timeout: 120_000,
   // The dev server and, behind its /api proxy, the real Rust server: the
   // connection specs reach it over the WebSocket fallback (ADR 0011).
   webServer: [

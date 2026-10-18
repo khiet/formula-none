@@ -43,7 +43,6 @@ test("backing up the Brands Patch grid for two seconds shows the wrong-way warni
   // The warning needs two seconds of sim time and clearing most of another.
   // A CI runner steps the sim far slower than real time, so the waits are
   // sized in wall time with room to spare.
-  test.setTimeout(120_000);
   await startRace(page, "/");
   const speed = page.locator('[data-instrument="speed"]');
   const wrongWay = page.locator('[data-instrument="wrong-way"]');
