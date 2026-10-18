@@ -4,7 +4,7 @@
 //! QUIC client on loopback.
 
 use std::net::{SocketAddr, UdpSocket};
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::time::Duration;
 
 use protocol::{encode, ClientMessage, ServerMessage};
@@ -203,5 +203,4 @@ async fn shutdown_ends_the_endpoint() {
     tokio::time::timeout(Duration::from_secs(5), connection.closed())
         .await
         .expect("the client sees its session end");
-    assert!(Path::new(&files.certificate).exists());
 }

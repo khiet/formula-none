@@ -72,10 +72,4 @@ describe("ping", () => {
     await vi.advanceTimersByTimeAsync(1_000);
     await rejected;
   });
-
-  it("decodePong reports bytes that are not a pong with the protocol's reason", async () => {
-    const bridge = await loadBridge(wasm);
-    expect(() => bridge.decodePong(new Uint8Array([0xff, 0xff]))).toThrow(/malformed/);
-    expect(bridge.webTransportTimeoutMs).toBe(3_000);
-  });
 });

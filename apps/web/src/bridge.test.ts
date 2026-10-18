@@ -54,6 +54,15 @@ describe("bridge wrapper", () => {
     expect(seen.has("missing")).toBe(false);
   });
 
+  it("encodes a Ping and decodes a Pong as the protocol does, and reports the transport timeout", async () => {
+    const bridge = await loadBridge(wasm);
+    // Postcard: variant 0, then the nonce as a varint (crates/protocol/tests).
+    expect(bridge.encodePing(42)).toEqual(new Uint8Array([0, 42]));
+    expect(bridge.decodePong(new Uint8Array([0, 42]))).toBe(42);
+    expect(() => bridge.decodePong(new Uint8Array([0xff, 0xff]))).toThrow(/malformed/);
+    expect(bridge.webTransportTimeoutMs).toBe(3_000);
+  });
+
   it("rejects a sidecar the sim cannot race on with the sim's reason", async () => {
     const bridge = await loadBridge(wasm);
     expect(() => bridge.createRace(7n, 1, "{}")).toThrow(/sidecar/);
