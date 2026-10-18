@@ -86,6 +86,12 @@ pub const MINI_TURBO_ORANGE_BOOST_S: f32 = 1.0;
 pub const MINI_TURBO_BOOST_FACTOR: f32 = 1.3;
 pub const BOOST_PAD_S: f32 = 1.0;
 pub const BOOST_PAD_FACTOR: f32 = 1.4;
+/// The pad is a rectangle on the surface, this big either side of its
+/// placement along and across the direction it faces; a kart whose centre
+/// is on it while on the ground is boosted. Narrower than the asphalt, so a
+/// pad can be missed on purpose.
+pub const BOOST_PAD_HALF_LENGTH_M: f32 = 2.0;
+pub const BOOST_PAD_HALF_WIDTH_M: f32 = 3.0;
 /// Pressing accelerate inside this window before Go gives a start boost;
 /// earlier stalls the kart for `START_STALL_S`.
 pub const START_BOOST_WINDOW_S: f32 = 0.3;

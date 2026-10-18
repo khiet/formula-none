@@ -165,9 +165,11 @@ fn steering_right_turns_the_kart_clockwise_seen_from_above() {
 
 #[test]
 fn top_speed_is_capped_however_long_the_throttle_is_held() {
+    // Half as long again as reaching top speed takes, which ends well
+    // inside the straight's clear 100 m.
     let state = run(
         race(1),
-        vec![accelerate(); ticks(3.0 * ACCELERATION_TO_TOP_S)],
+        vec![accelerate(); ticks(1.5 * ACCELERATION_TO_TOP_S)],
     );
     let before = only_kart(&state);
     let after = only_kart(&step(state, &[accelerate()], DT));

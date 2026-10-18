@@ -161,6 +161,9 @@ pub struct Standing {
     pub lap_time_s: f32,
     /// The fastest lap completed so far.
     pub best_lap_s: Option<f32>,
+    /// Spline progress has been falling for the tuned time: the kart is
+    /// going the wrong way. Stays up until progress rises again.
+    pub wrong_way: bool,
 }
 
 impl Standing {
@@ -182,6 +185,21 @@ pub struct State {
 
 struct Kart {
     body: RigidBodyHandle,
+    collider: ColliderHandle,
+    /// The unit direction the handling model sent the kart this tick: its
+    /// facing, turned by the slip angle in a drift. What a wall bump
+    /// measures the surviving speed along.
+    travel: Vec3,
+    /// Unit normals, pointing at the kart, of the walls it ended the last
+    /// tick against. The next tick's handling sends no velocity into them.
+    walls: Vec<Vec3>,
+    /// Seconds the kart has been outside the world without a break; it
+    /// respawns when this reaches the tuned delay.
+    out_of_world_s: f32,
+    /// Seconds spline progress has been falling without rising; the
+    /// wrong-way warning shows once this reaches the tuned time. Standing
+    /// still neither adds to it nor clears it.
+    wrong_way_s: f32,
     /// Speed along the kart's facing, metres per second. Held outside Rapier
     /// so contacts and friction never leak into the handling model.
     speed: f32,
@@ -196,8 +214,14 @@ struct Kart {
     /// drift on landing takes. `None` when it hopped straight.
     hop_direction: Option<DriftDirection>,
     drift: Option<Drift>,
-    /// Seconds of mini-turbo boost left; zero or less when not boosting.
+    /// Whether the kart was on a boost pad last tick, so a pad fires once,
+    /// as the kart enters it, and its clock runs from there.
+    on_boost_pad: bool,
+    /// Seconds of boost left; zero or less when not boosting.
     boost_left_s: f32,
+    /// Top speed multiplier while boosting: the mini-turbo's or the boost
+    /// pad's, whichever started last.
+    boost_factor: f32,
     laps_completed: u32,
     /// The last checkpoint crossed in order this lap. The grid starts at 0,
     /// the start line, so the first lap begins at the first tick.
@@ -234,15 +258,22 @@ struct Physics {
     ccd: CCDSolver,
 }
 
+use tuning::{BOOST_PAD_FACTOR, BOOST_PAD_S, RESPAWN_DELAY_S, WRONG_WAY_WARNING_S};
 use tuning::{
     DRIFT_ENTRY_SPEED_FRACTION, GRAVITY_M_PER_S2, HOP_AIRTIME_S, KART_EDGE_RADIUS_M,
     KART_HALF_HEIGHT_M, KART_HALF_LENGTH_M, KART_HALF_WIDTH_M, LAPS_PER_RACE,
-    MINI_TURBO_BOOST_FACTOR, TOP_SPEED_M_PER_S,
+    MINI_TURBO_BOOST_FACTOR, OFF_TRACK_SPEED_FACTOR, TOP_SPEED_M_PER_S,
 };
 
 /// A surface query starts this far above the asked point, so a point lying
 /// exactly on a surface still finds it despite rounding.
 const SURFACE_PROBE_RISE_M: f32 = 0.1;
+
+/// How far ahead of a kart Rapier looks for contacts: past the farthest a
+/// kart moves in one tick at the biggest boost, so no wall is entered
+/// before it is seen.
+const WALL_PREDICTION_M: f32 =
+    2.0 * BOOST_PAD_FACTOR * TOP_SPEED_M_PER_S / tuning::TICKS_PER_SECOND as f32;
 
 /// Stands in for a missing best lap in the hash; a lap time is never negative.
 const NO_BEST_LAP: f32 = -1.0;
@@ -279,10 +310,13 @@ impl State {
                     // Steering is a yaw we set each tick; the box must never
                     // tip or roll from a contact.
                     .enabled_rotations(false, true, false)
+                    // Contacts are predicted this far ahead, so a kart
+                    // meets a wall where it stands instead of inside it.
+                    .soft_ccd_prediction(WALL_PREDICTION_M)
                     .build();
                 let body = physics.bodies.insert(body);
                 // The body's length runs along -Z, its facing.
-                physics.colliders.insert_with_parent(
+                let collider = physics.colliders.insert_with_parent(
                     ColliderBuilder::round_cuboid(
                         KART_HALF_WIDTH_M - KART_EDGE_RADIUS_M,
                         KART_HALF_HEIGHT_M - KART_EDGE_RADIUS_M,
@@ -297,12 +331,19 @@ impl State {
                 );
                 Kart {
                     body,
+                    collider,
+                    travel: Vec3::NEG_Z,
+                    walls: Vec::new(),
+                    out_of_world_s: 0.0,
+                    wrong_way_s: 0.0,
                     speed: 0.0,
                     airtime_left_s: 0.0,
                     hop_was_held: false,
                     hop_direction: None,
                     drift: None,
+                    on_boost_pad: false,
                     boost_left_s: 0.0,
+                    boost_factor: 1.0,
                     laps_completed: 0,
                     checkpoint: 0,
                     spline_progress: track.progress_at(slot.position),
@@ -328,23 +369,7 @@ impl State {
     /// What lies under `point`: the topmost tagged surface at or below it,
     /// or `OutOfWorld` when there is none. Karts are never an answer.
     pub fn surface_at(&self, point: [f32; 3]) -> Surface {
-        let ray = Ray::new(
-            Vec3::from(point) + Vec3::Y * SURFACE_PROBE_RISE_M,
-            Vec3::NEG_Y,
-        );
-        let physics = &self.physics;
-        let pipeline = physics.broad_phase.as_query_pipeline(
-            physics.narrow_phase.query_dispatcher(),
-            &physics.bodies,
-            &physics.colliders,
-            QueryFilter::only_fixed(),
-        );
-        pipeline
-            .cast_ray(&ray, f32::MAX, true)
-            .and_then(|(collider, _)| {
-                Surface::from_code(physics.colliders[collider].user_data as u8)
-            })
-            .unwrap_or(Surface::OutOfWorld)
+        self.physics.surface_at(point)
     }
 
     /// The surface under a kart's centre.
@@ -374,7 +399,15 @@ impl State {
             hasher.write_f32(kart.hop_direction.map_or(0.0, DriftDirection::steer_sign));
             hasher.write_f32(kart.drift.map_or(0.0, |drift| drift.direction.steer_sign()));
             hasher.write_f32(kart.drift.map_or(0.0, |drift| drift.charge_s));
+            hasher.write_u8(u8::from(kart.on_boost_pad));
             hasher.write_f32(kart.boost_left_s);
+            hasher.write_f32(kart.boost_factor);
+            hasher.write_u64(kart.walls.len() as u64);
+            for wall in &kart.walls {
+                hasher.write_f32s(wall.to_array());
+            }
+            hasher.write_f32(kart.out_of_world_s);
+            hasher.write_f32(kart.wrong_way_s);
             hasher.write_u32(kart.laps_completed);
             hasher.write_u64(kart.checkpoint as u64);
             hasher.write_f32(kart.spline_progress);
@@ -424,6 +457,7 @@ impl State {
                 spline_progress: kart.spline_progress,
                 lap_time_s: kart.lap_time_s,
                 best_lap_s: kart.best_lap_s,
+                wrong_way: kart.wrong_way_s >= WRONG_WAY_WARNING_S,
             })
             .collect()
     }
@@ -451,8 +485,18 @@ impl State {
 /// kart in grid order; the caller must supply exactly as many as there are karts.
 pub fn step(mut state: State, inputs: &[KartInput], dt: f32) -> State {
     assert_eq!(inputs.len(), state.karts.len(), "one input per kart");
-    for (kart, input) in state.karts.iter_mut().zip(inputs) {
+    let surfaces: Vec<Surface> = state
+        .karts
+        .iter()
+        .map(|kart| {
+            state
+                .physics
+                .surface_at(state.physics.bodies[kart.body].translation().to_array())
+        })
+        .collect();
+    for ((kart, input), surface) in state.karts.iter_mut().zip(inputs).zip(surfaces) {
         let body = &mut state.physics.bodies[kart.body];
+        let position = body.translation().to_array();
         // Keep whatever vertical velocity gravity and the plane have agreed
         // on, unless this tick's hop launches the kart.
         let mut vertical = body.linvel().y;
@@ -469,6 +513,7 @@ pub fn step(mut state: State, inputs: &[KartInput], dt: f32) -> State {
                 // speed to slide just ends it.
                 if !input.hop {
                     kart.boost_left_s = drift.mini_turbo().boost_s();
+                    kart.boost_factor = MINI_TURBO_BOOST_FACTOR;
                 }
                 kart.drift = None;
             }
@@ -479,9 +524,21 @@ pub fn step(mut state: State, inputs: &[KartInput], dt: f32) -> State {
         }
         kart.hop_was_held = input.hop;
         kart.speed = next_speed(kart.speed, input, dt);
+        // Off the asphalt the kart is held to the cap, not dragged down to
+        // it, so it slows the tick it leaves the track. The cap reads the
+        // surface below the kart, so a hop over a patch does not clear it.
+        if surface.slows_karts() {
+            kart.speed = kart.speed.min(OFF_TRACK_SPEED_FACTOR * TOP_SPEED_M_PER_S);
+        }
+        let on_boost_pad = !kart.airborne() && state.track.on_a_boost_pad(position);
+        if on_boost_pad && !kart.on_boost_pad {
+            kart.boost_left_s = BOOST_PAD_S;
+            kart.boost_factor = BOOST_PAD_FACTOR;
+        }
+        kart.on_boost_pad = on_boost_pad;
         if kart.boost_left_s > 0.0 {
             kart.boost_left_s -= dt;
-            kart.speed = TOP_SPEED_M_PER_S * MINI_TURBO_BOOST_FACTOR;
+            kart.speed = TOP_SPEED_M_PER_S * kart.boost_factor;
         }
         let (steer, slip) = match kart.drift {
             Some(drift) => (
@@ -491,8 +548,17 @@ pub fn step(mut state: State, inputs: &[KartInput], dt: f32) -> State {
             None => (input.steer.clamp(-1.0, 1.0), 0.0),
         };
         let forward = *body.rotation() * Rotation::from_rotation_y(slip) * Vec3::NEG_Z;
-        body.set_linvel(forward * kart.speed + Vec3::Y * vertical, true);
+        // A wall the kart is against takes the velocity into it, and the
+        // speed with it, before the solver sees either; otherwise the kart
+        // would press into the wall a little every tick.
+        let mut velocity = forward * kart.speed;
+        if !kart.walls.is_empty() {
+            velocity = stopped_by_walls(velocity, &kart.walls);
+            kart.speed = forward.dot(velocity);
+        }
+        body.set_linvel(velocity + Vec3::Y * vertical, true);
         body.set_angvel(Vec3::Y * yaw_rate(kart.speed, steer), true);
+        kart.travel = forward;
     }
     let before: Vec<[f32; 3]> = state
         .karts
@@ -500,13 +566,128 @@ pub fn step(mut state: State, inputs: &[KartInput], dt: f32) -> State {
         .map(|kart| state.physics.bodies[kart.body].translation().to_array())
         .collect();
     state.physics.step(dt);
-    for (kart, before) in state.karts.iter_mut().zip(before) {
-        let after = state.physics.bodies[kart.body].translation().to_array();
-        kart.spline_progress = state.track.progress_at(after);
+    for (kart, mut before) in state.karts.iter_mut().zip(before) {
+        bump_off_walls(kart, &mut state.physics, dt);
+        let mut after = state.physics.bodies[kart.body].translation().to_array();
+        if state.physics.surface_at(after) == Surface::OutOfWorld {
+            kart.out_of_world_s += dt;
+            if kart.out_of_world_s >= RESPAWN_DELAY_S {
+                after = respawn(kart, &state.track, &mut state.physics);
+                // A teleport is not a move: it crosses no gate.
+                before = after;
+            }
+        } else {
+            kart.out_of_world_s = 0.0;
+        }
+        let progress = state.track.progress_at(after);
+        // Progress wraps at the start line; the shorter way round says
+        // which way the kart went.
+        let moved = state.track.lap_relative_progress(kart.checkpoint, progress)
+            - state
+                .track
+                .lap_relative_progress(kart.checkpoint, kart.spline_progress);
+        if moved < 0.0 {
+            kart.wrong_way_s += dt;
+        } else if moved > 0.0 {
+            kart.wrong_way_s = 0.0;
+        }
+        kart.spline_progress = progress;
         kart.lap_time_s += dt;
         cross_checkpoint(kart, &state.track, before, after, dt);
     }
     state
+}
+
+/// A contact point this close to a wall at the end of the tick counts as
+/// touching it; contacts further off are the solver's look-ahead.
+const WALL_TOUCH_M: f32 = 0.01;
+
+/// `velocity` with its component into each of `walls` removed, so the
+/// motion into a wall stops and the motion along it is kept. Motion away
+/// from a wall is left alone.
+fn stopped_by_walls(mut velocity: Vec3, walls: &[Vec3]) -> Vec3 {
+    for &normal in walls {
+        let into = velocity.dot(normal);
+        if into < 0.0 {
+            velocity -= normal * into;
+        }
+    }
+    velocity
+}
+
+/// The wall stops the kart with a bump and no bounce. Every wall the kart
+/// ends the tick against is remembered for the next tick's handling, and a
+/// wall met this tick takes the velocity into it there and then: the
+/// velocity along the wall is kept and the kart's speed becomes what is
+/// left along its travel. A kart facing straight at a wall stops dead; one
+/// scraping along at an angle loses the share of its speed that pointed
+/// into the wall each tick, so it slows until it steers away.
+fn bump_off_walls(kart: &mut Kart, physics: &mut Physics, dt: f32) {
+    let velocity = physics.bodies[kart.body].linvel();
+    kart.walls.clear();
+    for pair in physics.narrow_phase.contact_pairs_with(kart.collider) {
+        let other = if pair.collider1 == kart.collider {
+            pair.collider2
+        } else {
+            pair.collider1
+        };
+        if physics.colliders[other].user_data != u128::from(Surface::Wall.code()) {
+            continue;
+        }
+        for manifold in pair.manifolds() {
+            // Rapier's normal points from the first collider to the second;
+            // the rule wants it pointing out of the wall, toward the kart.
+            let normal = if pair.collider1 == kart.collider {
+                -manifold.data.normal
+            } else {
+                manifold.data.normal
+            };
+            // Contact distances are from the start of the tick; the kart's
+            // velocity says where it ended up.
+            let closing = velocity.dot(normal) * dt;
+            if manifold
+                .points
+                .iter()
+                .any(|contact| contact.dist + closing <= WALL_TOUCH_M)
+            {
+                kart.walls.push(normal);
+            }
+        }
+    }
+    let stopped = stopped_by_walls(velocity, &kart.walls);
+    if stopped != velocity {
+        physics.bodies[kart.body].set_linvel(stopped, true);
+        kart.speed = kart.travel.dot(stopped);
+    }
+}
+
+/// Put the kart back on the track at its last checkpoint, at rest and
+/// facing the next one, with nothing carried over from before it fell.
+/// Returns where it now stands.
+fn respawn(kart: &mut Kart, track: &Track, physics: &mut Physics) -> [f32; 3] {
+    let checkpoints = track.checkpoints();
+    let here = checkpoints[kart.checkpoint].position;
+    let next = checkpoints[(kart.checkpoint + 1) % checkpoints.len()].position;
+    // Yaw zero faces -Z and grows counter-clockwise seen from above.
+    let yaw = libm::atan2f(here[0] - next[0], here[2] - next[2]);
+    let facing = Rotation::from_rotation_y(yaw);
+    let position = Vec3::from(here) + Vec3::Y * KART_HALF_HEIGHT_M;
+    let body = &mut physics.bodies[kart.body];
+    body.set_translation(position, true);
+    body.set_rotation(facing, true);
+    body.set_linvel(Vec3::ZERO, true);
+    body.set_angvel(Vec3::ZERO, true);
+    kart.speed = 0.0;
+    kart.airtime_left_s = 0.0;
+    kart.hop_direction = None;
+    kart.drift = None;
+    kart.on_boost_pad = false;
+    kart.boost_left_s = 0.0;
+    kart.travel = facing * Vec3::NEG_Z;
+    kart.walls.clear();
+    kart.out_of_world_s = 0.0;
+    kart.wrong_way_s = 0.0;
+    position.to_array()
 }
 
 /// Credit the kart with the checkpoint its move from `before` to `after`
@@ -630,6 +811,25 @@ impl Physics {
             soft_bodies: SoftBodySet::new(),
             ccd: CCDSolver::new(),
         }
+    }
+
+    /// The topmost tagged surface at or below `point`, or `OutOfWorld` when
+    /// there is none. Karts are never an answer.
+    fn surface_at(&self, point: [f32; 3]) -> Surface {
+        let ray = Ray::new(
+            Vec3::from(point) + Vec3::Y * SURFACE_PROBE_RISE_M,
+            Vec3::NEG_Y,
+        );
+        let pipeline = self.broad_phase.as_query_pipeline(
+            self.narrow_phase.query_dispatcher(),
+            &self.bodies,
+            &self.colliders,
+            QueryFilter::only_fixed(),
+        );
+        pipeline
+            .cast_ray(&ray, f32::MAX, true)
+            .and_then(|(collider, _)| Surface::from_code(self.colliders[collider].user_data as u8))
+            .unwrap_or(Surface::OutOfWorld)
     }
 
     /// Register newly inserted colliders with the broad phase so scene queries

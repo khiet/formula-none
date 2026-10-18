@@ -16,6 +16,7 @@ import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { WebGPURenderer } from "three/webgpu";
 import type { KartSize, KartTransform } from "./bridge";
 import type { CameraPose } from "./chase-camera";
+import { type DustTell, dustTell } from "./dust";
 import { type SparkTell, sparkTell } from "./sparks";
 
 /** Far enough to see across Brands Patch from any point on it. */
@@ -29,6 +30,8 @@ const COWL_LENGTH = 0.4;
 const COWL_COLOUR = 0x222222;
 /** The placeholder spark: one ball at each rear wheel, this fraction of the kart's height across. */
 const SPARK_RADIUS = 0.25;
+/** The placeholder dust puff: one ball behind the kart, this fraction of the kart's height across. */
+const DUST_RADIUS = 0.6;
 
 export interface RaceView {
   /** Move every kart mesh to the transforms the sim reports and the camera to `camera`. */
@@ -95,6 +98,7 @@ export async function createRaceView(
         kart.mesh.position.set(...transform.position);
         kart.mesh.quaternion.set(...transform.rotation);
         kart.showSparks(sparkTell(transform.drift));
+        kart.showDust(dustTell(transform));
       });
       camera.position.set(...pose.position);
       camera.lookAt(target.set(...pose.target));
@@ -109,13 +113,16 @@ interface PlaceholderKart {
   readonly mesh: Group;
   /** Show the spark tell at the rear wheels in its colour, or hide it for `null`. */
   showSparks(tell: SparkTell | null): void;
+  /** Show the dust tell behind the kart in its colour, or hide it for `null`. */
+  showDust(tell: DustTell | null): void;
 }
 
 /**
  * The placeholder kart until the glTF kart lands (ADR 0007): the box the sim
  * collides with in the livery colour, with a dark cowl over the rear half so
- * the facing reads from behind and from the side, and a spark ball at each
- * rear wheel for the drift's Feedback.
+ * the facing reads from behind and from the side, a spark ball at each
+ * rear wheel for the drift's Feedback and a dust ball behind it for the
+ * run-off's.
  */
 function placeholderKart(size: KartSize, livery: Color): PlaceholderKart {
   const kart = new Group();
@@ -145,12 +152,25 @@ function placeholderKart(size: KartSize, livery: Color): PlaceholderKart {
   }
   sparks.visible = false;
   kart.add(sparks);
+
+  const dustMaterial = new MeshBasicMaterial({ color: 0xffffff });
+  const dust = new Mesh(new SphereGeometry(size.height * DUST_RADIUS), dustMaterial);
+  // Low behind the rear bumper, where the wheels would throw it.
+  dust.position.set(0, -size.height / 2, size.length / 2 + size.height * DUST_RADIUS);
+  dust.visible = false;
+  kart.add(dust);
   return {
     mesh: kart,
     showSparks(tell) {
       sparks.visible = tell !== null;
       if (tell !== null) {
         sparkMaterial.color.setHex(tell.colour);
+      }
+    },
+    showDust(tell) {
+      dust.visible = tell !== null;
+      if (tell !== null) {
+        dustMaterial.color.setHex(tell.colour);
       }
     },
   };

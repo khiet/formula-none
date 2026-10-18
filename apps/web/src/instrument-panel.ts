@@ -13,7 +13,11 @@ export interface LapReadouts {
   readonly lap: string;
   readonly lapTime: string;
   readonly bestLap: string;
+  /** The wrong-way warning, or empty while the kart goes the right way. */
+  readonly wrongWay: string;
 }
+
+const WRONG_WAY_WARNING = "WRONG WAY";
 
 /**
  * The HUD over the Race View. Reads state; never drives it. Each readout is
@@ -35,6 +39,8 @@ export function createInstrumentPanel(
   const lap = instrument("lap");
   const lapTime = instrument("lap-time");
   const bestLap = instrument("best-lap");
+  const wrongWay = instrument("wrong-way");
+  wrongWay.hidden = true;
   const speed = instrument("speed", formatSpeed(0));
   // The surface readout is a greybox aid: it shows the sidecar and the
   // mesh agree about where the kart is.
@@ -54,6 +60,8 @@ export function createInstrumentPanel(
     surface,
     " ",
     connection,
+    " ",
+    wrongWay,
   );
   container.append(panel);
 
@@ -64,6 +72,8 @@ export function createInstrumentPanel(
       lap.textContent = readouts.lap;
       lapTime.textContent = readouts.lapTime;
       bestLap.textContent = readouts.bestLap;
+      wrongWay.textContent = readouts.wrongWay;
+      wrongWay.hidden = readouts.wrongWay === "";
       speed.textContent = formatSpeed(local.speed);
       surface.textContent = local.surface;
     },
@@ -80,6 +90,7 @@ export function lapReadouts(standing: Standing, lapsPerRace: number): LapReadout
     lap: `Lap ${standing.lap}/${lapsPerRace}`,
     lapTime: formatLapTime(standing.lapTimeSeconds),
     bestLap: `Best ${standing.bestLapSeconds === null ? "--:--.---" : formatLapTime(standing.bestLapSeconds)}`,
+    wrongWay: standing.wrongWay ? WRONG_WAY_WARNING : "",
   };
 }
 

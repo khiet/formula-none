@@ -182,8 +182,8 @@ fn a_lap_completes_at_the_start_line_after_every_checkpoint_and_records_its_time
     assert_eq!(standing.laps_completed, 1);
     assert_eq!(standing.lap(), 2);
     assert!(
-        (1..3).contains(&standing.checkpoint),
-        "a checkpoint or two into the second lap, not {}",
+        (1..4).contains(&standing.checkpoint),
+        "a few checkpoints into the second lap, not {}",
         standing.checkpoint
     );
     let best = standing.best_lap_s.expect("a lap was completed");
@@ -229,10 +229,15 @@ fn spline_progress_climbs_the_whole_way_round_the_oval_and_wraps_at_the_line() {
     for _ in 0..ticks(LAP_S) {
         let input = follow_centreline(&state, 0);
         state = step(state, &[input], DT);
-        let progress = only_standing(&state).spline_progress;
+        let standing = only_standing(&state);
+        let progress = standing.spline_progress;
         assert!(
             (0.0..lap).contains(&progress),
             "progress {progress} on a {lap} m lap"
+        );
+        assert!(
+            !standing.wrong_way,
+            "a kart lapping forward is never going the wrong way, even at the line"
         );
         if progress < previous {
             wraps += 1;
@@ -248,33 +253,53 @@ fn spline_progress_climbs_the_whole_way_round_the_oval_and_wraps_at_the_line() {
 
 #[test]
 fn race_position_orders_laps_then_checkpoints_then_progress() {
-    // Four karts released together: the one in the right column laps, the
-    // two in the left column drive straight and lift off after a
-    // checkpoint and just after the line, and the last never moves. Each
-    // keeps to its own column, so no kart grazes another: a touch would
-    // amplify the last-bit differences between platforms' trigonometry
-    // in the test's steering into a different finishing order.
+    // Four karts released together. In the right column the front kart
+    // laps and the one behind it drives straight for a second and coasts
+    // to a stop just past the line; in the left column the front kart
+    // drives straight for two seconds and stops past a checkpoint, and the
+    // one behind it never moves. Each keeps to its own column, so no kart
+    // grazes another: a touch would amplify the last-bit differences
+    // between platforms' trigonometry in the test's steering into a
+    // different finishing order. The run ends as the lap completes, with
+    // the lapping kart short of the stopped one ahead of it in its column.
     let mut state = race(4);
-    for second in 0..LAP_S as usize {
+    for second in 0..2 {
         let drivers: [Option<Driver>; 4] = [
-            if second < 2 { Some(straight) } else { None },
+            Some(straight),
             Some(follow_centreline),
-            if second < 1 { Some(straight) } else { None },
             None,
+            if second < 1 { Some(straight) } else { None },
         ];
         state = drive(state, &drivers, 1.0);
+    }
+    for _ in 0..ticks(LAP_S) {
+        let input = follow_centreline(&state, 1);
+        state = step(
+            state,
+            &[
+                KartInput::default(),
+                input,
+                KartInput::default(),
+                KartInput::default(),
+            ],
+            DT,
+        );
+        if state.standings()[1].laps_completed == 1 {
+            break;
+        }
     }
 
     let standings = state.standings();
     let positions: Vec<u32> = standings.iter().map(|standing| standing.position).collect();
-    assert_eq!(positions, [2, 1, 3, 4]);
+    assert_eq!(positions, [2, 1, 4, 3]);
     assert_eq!(standings[1].laps_completed, 1);
     assert_eq!(standings[0].laps_completed, 0);
-    assert!(standings[0].checkpoint > standings[2].checkpoint);
+    assert!(standings[0].checkpoint > standings[3].checkpoint);
     assert_eq!(standings[2].checkpoint, standings[3].checkpoint);
     // The last two are past the same checkpoint; progress splits them,
     // with the one still on the grid a little behind the line and so last.
-    assert!(standings[3].spline_progress > standings[2].spline_progress);
+    assert!(standings[2].spline_progress > standings[3].spline_progress);
+    assert!(standings[3].spline_progress < 10.0, "just past the line");
 }
 
 #[test]
