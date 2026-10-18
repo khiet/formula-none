@@ -24,13 +24,19 @@ command_id=$(aws ssm send-command \
   --query Command.CommandId --output text)
 echo "deploying $commit to $instance_id (command $command_id)"
 
-# The invocation appears a moment after the command is accepted; a lookup
-# before then is an error, treated like Pending.
+# The invocation appears a moment after the command is accepted, so that
+# one error reads as Pending; any other error (wrong instance, missing
+# permission) fails at once rather than after the timeout.
+error_file=$(mktemp)
+trap 'rm -f "$error_file"' EXIT
 deadline=$(( $(date +%s) + 600 ))
 while :; do
-  status=$(aws ssm get-command-invocation \
-    --command-id "$command_id" --instance-id "$instance_id" \
-    --query Status --output text 2>/dev/null || echo Pending)
+  if ! status=$(aws ssm get-command-invocation \
+      --command-id "$command_id" --instance-id "$instance_id" \
+      --query Status --output text 2>"$error_file"); then
+    grep -q InvocationDoesNotExist "$error_file" || { cat "$error_file" >&2; exit 1; }
+    status=Pending
+  fi
   case $status in
     Pending | InProgress | Delayed) ;;
     *) break ;;

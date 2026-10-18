@@ -23,12 +23,12 @@ trap 'rm -f "$body_file"' EXIT
 
 while :; do
   failure=""
-  read -r status type < <(probe /api/health)
+  read -r status content_type < <(probe /api/health)
   [[ $status == 200 ]] || failure="health answered $status"
 
   if [[ -z $failure ]]; then
-    read -r status type < <(probe /api/version)
-    deployed=$(sed -n 's/.*"commit":"\([^"]*\)".*/\1/p' "$body_file")
+    read -r status content_type < <(probe /api/version)
+    deployed=$(sed -n 's/.*"commit": *"\([^"]*\)".*/\1/p' "$body_file")
     if [[ $status != 200 ]]; then
       failure="version answered $status"
     elif [[ $deployed != "$commit" ]]; then
@@ -37,8 +37,8 @@ while :; do
   fi
 
   if [[ -z $failure ]]; then
-    read -r status type < <(probe /)
-    [[ $status == 200 && $type == text/html* ]] || failure="client answered $status ${type:-}"
+    read -r status content_type < <(probe /)
+    [[ $status == 200 && $content_type == text/html* ]] || failure="client answered $status ${content_type:-}"
   fi
 
   if [[ -z $failure ]]; then
