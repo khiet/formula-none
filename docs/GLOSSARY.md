@@ -48,6 +48,12 @@ Distance along the track centreline. Race position is ordered by lap, then
 checkpoint index, then spline progress. Decreasing spline progress for two
 seconds triggers the wrong-way warning.
 
+### standing
+
+Where a kart is in the race: its race position, laps completed, last
+checkpoint crossed in order, spline progress, lap time and best lap. The sim
+reports one per kart every tick; the Instrument panel shows the local kart's.
+
 ### hop
 
 A short jump (0.3 s airtime) that starts a drift when it lands while the kart

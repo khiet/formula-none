@@ -5,6 +5,7 @@ import init, {
   decode_pong,
   encode_ping,
   kart_size_m,
+  laps_per_race,
   ping_resend_s,
   ping_timeout_s,
   replay_hash_interval_ticks,
@@ -66,11 +67,29 @@ export interface KartTransform {
   readonly drift: Drift | null;
 }
 
+/**
+ * Where a kart stands in the race, as the Instrument panel shows it: race
+ * position from 1, the lap it is on from 1 (staying on the last once the
+ * race's laps are done), the last checkpoint crossed in order (0 is the
+ * start line), spline progress in metres along the centreline, seconds into
+ * the current lap, and the best lap once one is completed.
+ */
+export interface Standing {
+  readonly position: number;
+  readonly lap: number;
+  readonly checkpoint: number;
+  readonly splineProgress: number;
+  readonly lapTimeSeconds: number;
+  readonly bestLapSeconds: number | null;
+}
+
 export interface Race {
   /** Advance one tick of `dt` seconds; one input per kart in grid order. */
   step(inputs: readonly KartInput[], dt: number): void;
   /** One transform per kart in grid order, as of the last step. */
   kartTransforms(): KartTransform[];
+  /** One standing per kart in grid order, with positions as of the last step. */
+  standings(): Standing[];
   /**
    * The sim's hash of everything that influences future ticks, as of the last
    * step. Bit-identical native and in wasm for the same race and inputs,
@@ -89,6 +108,8 @@ export interface Bridge {
   readonly ticksPerSecond: number;
   /** The kart's box, read from the sim's tuning so the View never repeats it (ADR 0014). */
   readonly kartSize: KartSize;
+  /** Laps in a race, from the sim's tuning (ADR 0014). */
+  readonly lapsPerRace: number;
   /**
    * A race on the track described by `sidecar` (the JSON exported next to its
    * glTF) with `kartCount` karts on its spawn grid. Throws, with the sim's
@@ -118,6 +139,7 @@ export interface Bridge {
 // Buffer layouts the bridge crate documents on Race::step and Race::kart_transforms.
 const FLOATS_PER_INPUT = 6;
 const FLOATS_PER_TRANSFORM = 12;
+const FLOATS_PER_STANDING = 6;
 /** Surface codes in the transform buffer, as `sim::Surface::code` numbers them. */
 const SURFACES: readonly Surface[] = ["asphalt", "sand", "grass", "wall", "out of world"];
 /** Drift directions by the buffer's sign: -1 left, 1 right. */
@@ -134,6 +156,7 @@ export async function loadBridge(wasm?: BufferSource): Promise<Bridge> {
   return {
     ticksPerSecond: ticks_per_second(),
     kartSize: kartSize(),
+    lapsPerRace: laps_per_race(),
     replayHashIntervalTicks: replay_hash_interval_ticks(),
     createRace(seed, kartCount, sidecar) {
       return new BridgedRace(
@@ -202,6 +225,31 @@ class BridgedRace implements Race {
 
   stateHash(): bigint {
     return this.#race.state_hash();
+  }
+
+  standings(): Standing[] {
+    const buffer = this.#race.standings();
+    if (buffer.length !== this.#kartCount * FLOATS_PER_STANDING) {
+      throw new RangeError(
+        `standings buffer has ${buffer.length} floats for ${this.#kartCount} karts`,
+      );
+    }
+    const standings: Standing[] = [];
+    for (let slot = 0; slot < this.#kartCount; slot++) {
+      const at = slot * FLOATS_PER_STANDING;
+      const read = (offset: number): number => buffer[at + offset] as number;
+      const bestLapSeconds = read(5);
+      standings.push({
+        position: read(0),
+        lap: read(1),
+        checkpoint: read(2),
+        splineProgress: read(3),
+        lapTimeSeconds: read(4),
+        // The bridge writes a negative best lap before a lap is completed.
+        bestLapSeconds: bestLapSeconds < 0 ? null : bestLapSeconds,
+      });
+    }
+    return standings;
   }
 
   kartTransforms(): KartTransform[] {

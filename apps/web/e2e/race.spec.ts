@@ -15,6 +15,12 @@ for (const [name, url, throttleKey] of [
     const surface = page.locator('[data-instrument="surface"]');
     await expect(speed).toHaveText("0.0 m/s");
     await expect(surface).toHaveText("asphalt");
+    // The Instrument panel's lap readouts come from the sim: alone on the
+    // grid, first on lap one, the lap clock running and no best lap yet.
+    await expect(page.locator('[data-instrument="position"]')).toHaveText("1st");
+    await expect(page.locator('[data-instrument="lap"]')).toHaveText("Lap 1/3");
+    await expect(page.locator('[data-instrument="best-lap"]')).toHaveText("Best --:--.---");
+    await expect(page.locator('[data-instrument="lap-time"]')).not.toHaveText("0:00.000");
 
     await page.keyboard.down(throttleKey);
     await expect
