@@ -39,17 +39,31 @@ export interface KartSize {
 /** What is under a kart; the sim's surface tags. */
 export type Surface = "asphalt" | "sand" | "grass" | "wall" | "out of world";
 
+/** Which way a drift turns the kart; fixed by the steer at the hop. */
+export type DriftDirection = "left" | "right";
+
+/** The mini-turbo tiers a drift charges through, in order. */
+export type MiniTurbo = "none" | "blue" | "orange";
+
+/** A drift under way: its direction, how long it has been held and the tier that has charged. */
+export interface Drift {
+  readonly direction: DriftDirection;
+  readonly chargeSeconds: number;
+  readonly miniTurbo: MiniTurbo;
+}
+
 /**
  * What the View and the Instrument panel need per kart: position in metres,
  * unit quaternion [x, y, z, w], speed in metres per second along the kart's
- * facing (negative backing up) and the surface under the kart. Y up;
- * identity rotation faces -Z.
+ * facing (negative backing up), the surface under the kart and the drift
+ * under way, if any. Y up; identity rotation faces -Z.
  */
 export interface KartTransform {
   readonly position: readonly [number, number, number];
   readonly rotation: readonly [number, number, number, number];
   readonly speed: number;
   readonly surface: Surface;
+  readonly drift: Drift | null;
 }
 
 export interface Race {
@@ -103,9 +117,13 @@ export interface Bridge {
 
 // Buffer layouts the bridge crate documents on Race::step and Race::kart_transforms.
 const FLOATS_PER_INPUT = 6;
-const FLOATS_PER_TRANSFORM = 9;
+const FLOATS_PER_TRANSFORM = 12;
 /** Surface codes in the transform buffer, as `sim::Surface::code` numbers them. */
 const SURFACES: readonly Surface[] = ["asphalt", "sand", "grass", "wall", "out of world"];
+/** Drift directions by the buffer's sign: -1 left, 1 right. */
+const DRIFT_DIRECTIONS: Readonly<Record<number, DriftDirection>> = { [-1]: "left", 1: "right" };
+/** Mini-turbo tiers in the buffer's order. */
+const MINI_TURBOS: readonly MiniTurbo[] = ["none", "blue", "orange"];
 
 /**
  * Load the wasm module once. Pass `wasm` bytes when there is no document
@@ -206,8 +224,22 @@ class BridgedRace implements Race {
         rotation: [read(3), read(4), read(5), read(6)],
         speed: read(7),
         surface,
+        drift: drift(read(9), read(10), read(11), slot),
       });
     }
     return transforms;
   }
+}
+
+/** The drift three buffer floats describe, or null when the direction is 0. */
+function drift(direction: number, tier: number, chargeSeconds: number, slot: number): Drift | null {
+  if (direction === 0) {
+    return null;
+  }
+  const turning = DRIFT_DIRECTIONS[direction];
+  const miniTurbo = MINI_TURBOS[tier];
+  if (turning === undefined || miniTurbo === undefined) {
+    throw new RangeError(`unknown drift ${direction} at tier ${tier} for kart ${slot}`);
+  }
+  return { direction: turning, chargeSeconds, miniTurbo };
 }

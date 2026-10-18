@@ -3,7 +3,17 @@
 //! deliberately unstable across versions, which would make every fixture a
 //! moving target; FNV-1a over the raw bytes never changes.
 
+use crate::DriftDirection;
 use std::hash::Hasher;
+
+/// A drift direction, or its absence, as one byte for the hash.
+pub(crate) fn direction_code(direction: Option<DriftDirection>) -> u8 {
+    match direction {
+        None => 0,
+        Some(DriftDirection::Left) => 1,
+        Some(DriftDirection::Right) => 2,
+    }
+}
 
 /// 64-bit FNV-1a. Floats are fed as their IEEE bit patterns, so two states
 /// hash equal exactly when every float is bit-identical: `-0.0` and `0.0`

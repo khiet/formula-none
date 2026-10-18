@@ -4,12 +4,13 @@
 
 use bridge::Race;
 use sim::tuning::{KART_HALF_HEIGHT_M, KART_HALF_LENGTH_M, KART_HALF_WIDTH_M, TICKS_PER_SECOND};
-use sim::{Surface, Track};
+use sim::{DriftDirection, MiniTurbo, Surface, Track};
 
 const OVAL: &str = include_str!("../../../assets/tracks/oval/oval.track.json");
 const DT: f32 = 1.0 / TICKS_PER_SECOND as f32;
-/// Floats per kart in the kart buffer: position xyz, rotation xyzw, speed, surface code.
-const FLOATS_PER_KART: usize = 9;
+/// Floats per kart in the kart buffer: position xyz, rotation xyzw, speed,
+/// surface code, drift direction, mini-turbo tier, drift charge.
+const FLOATS_PER_KART: usize = 12;
 /// Floats per kart in the input buffer: steer, throttle, brake, hop, use item, hold item.
 const FLOATS_PER_INPUT: usize = 6;
 
@@ -18,7 +19,7 @@ fn race(seed: u64, kart_count: usize) -> Race {
 }
 
 #[test]
-fn kart_buffer_holds_nine_floats_per_kart_on_the_spawn_grid_in_slot_order() {
+fn kart_buffer_holds_twelve_floats_per_kart_on_the_spawn_grid_in_slot_order() {
     let race = race(7, 3);
     let buffer = race.kart_transforms();
     let track = Track::from_sidecar(OVAL).unwrap();
@@ -39,7 +40,55 @@ fn kart_buffer_holds_nine_floats_per_kart_on_the_spawn_grid_in_slot_order() {
             f32::from(Surface::Asphalt.code()),
             "karts spawn on asphalt"
         );
+        assert_eq!(kart[9..12], [0.0, 0.0, 0.0], "karts spawn out of a drift");
     }
+}
+
+#[test]
+fn the_buffer_reports_a_drift_its_direction_tier_and_charge_as_the_sim_does() {
+    let hop_left = sim::KartInput {
+        steer: -1.0,
+        throttle: 1.0,
+        hop: true,
+        ..sim::KartInput::default()
+    };
+    let mut state = sim::State::new(42, 1, Track::from_sidecar(OVAL).unwrap());
+    let mut race = race(42, 1);
+    // Up to speed, then a hop into a left drift held 1.2 s: past the airtime
+    // and the blue charge, short of orange.
+    for tick in 0..3 * TICKS_PER_SECOND + 6 * TICKS_PER_SECOND / 5 {
+        let input = if tick < 3 * TICKS_PER_SECOND {
+            sim::KartInput {
+                steer: 0.0,
+                hop: false,
+                ..hop_left
+            }
+        } else {
+            hop_left
+        };
+        state = sim::step(state, &[input], DT);
+        race.step(
+            &[
+                input.steer,
+                input.throttle,
+                0.0,
+                f32::from(input.hop),
+                0.0,
+                0.0,
+            ],
+            DT,
+        );
+    }
+
+    let drift = state.kart_transforms()[0]
+        .drift
+        .expect("the sim is drifting");
+    assert_eq!(drift.direction, DriftDirection::Left);
+    assert_eq!(drift.mini_turbo(), MiniTurbo::Blue);
+    let buffer = race.kart_transforms();
+    assert_eq!(buffer[9], -1.0, "left");
+    assert_eq!(buffer[10], 1.0, "blue");
+    assert_eq!(buffer[11], drift.charge_s);
 }
 
 #[test]
