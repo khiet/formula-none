@@ -12,7 +12,8 @@
       "!**/node_modules",
       "!**/target",
       "!**/src/generated",
-      "!assets/tracks"
+      "!assets/tracks",
+      "!assets/replays"
     ]
   },
   "formatter": {

@@ -66,3 +66,30 @@ jobs:
         run: pnpm --filter web exec playwright install --with-deps chromium
       - name: Playwright smoke test
         run: pnpm test:e2e
+
+  replay:
+    name: Replay determinism (native vs wasm)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - uses: Swatinem/rust-cache@v2
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-nextest,wasm-pack
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # Every fixture under assets/replays, held to its recorded hashes by
+      # the native build and then by the wasm build (ADR 0002).
+      - name: Native replay of the fixtures
+        run: cargo nextest run -p sim --test replay --profile ci
+      - name: Build the bridge to wasm
+        run: pnpm build:bridge
+      - name: Wasm replay of the fixtures
+        run: pnpm --filter web exec vitest run src/replay.test.ts

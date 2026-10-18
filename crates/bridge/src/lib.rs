@@ -5,7 +5,7 @@
 //! readouts. Flat buffers cross the wasm boundary once per tick instead of
 //! once per kart per field.
 
-use sim::{KartInput, State, Track};
+use sim::{KartInput, Replay, State, Track};
 use wasm_bindgen::prelude::*;
 
 /// Floats per kart in the input buffer: steer, throttle, brake.
@@ -16,6 +16,26 @@ const FLOATS_PER_INPUT: usize = 3;
 #[wasm_bindgen]
 pub fn ticks_per_second() -> u32 {
     sim::tuning::TICKS_PER_SECOND
+}
+
+/// How often a recording keeps the state hash, so the browser's recorder
+/// and the fixtures agree on the gate's resolution (ADR 0014).
+#[wasm_bindgen]
+pub fn replay_hash_interval_ticks() -> u32 {
+    sim::tuning::REPLAY_HASH_INTERVAL_TICKS
+}
+
+/// The replay runner, in wasm: rerun `replay` (the JSON `sim::replay`
+/// documents) on the track described by `sidecar` and report the state hash
+/// at every `sim::tuning::REPLAY_HASH_INTERVAL_TICKS`th tick. The native
+/// runner is `sim::Replay::run`; the determinism gate holds the two to the
+/// same hashes (ADR 0002). Fails, with the sim's reason, when the replay is
+/// unreadable or the sidecar is not the replay's track.
+#[wasm_bindgen]
+pub fn replay_hashes(replay: &str, sidecar: &str) -> Result<Vec<u64>, String> {
+    let replay = Replay::from_json(replay).map_err(|error| error.to_string())?;
+    let track = Track::from_sidecar(sidecar).map_err(|error| error.to_string())?;
+    replay.run(track).map_err(|error| error.to_string())
 }
 
 /// One race's sim, owned by the browser for prediction of the local kart.
@@ -92,6 +112,13 @@ impl Race {
                     .chain([kart.speed, f32::from(state.kart_surface(slot).code())])
             })
             .collect()
+    }
+
+    /// `sim::State::hash` of the race as of the last step: everything that
+    /// influences future ticks, bit-identical across platforms. A recording
+    /// keeps it at every `sim::tuning::REPLAY_HASH_INTERVAL_TICKS`th tick.
+    pub fn state_hash(&self) -> u64 {
+        self.state().hash()
     }
 
     fn state(&self) -> &State {

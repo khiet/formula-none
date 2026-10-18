@@ -111,3 +111,38 @@ fn a_short_input_buffer_is_rejected_and_the_race_stays_usable() {
     race.step(&[0.0; 2 * FLOATS_PER_INPUT], DT);
     assert_eq!(race.kart_transforms().len(), 2 * FLOATS_PER_KART);
 }
+
+#[test]
+fn the_state_hash_is_the_sim_crates_hash_for_the_same_race() {
+    let mut state = sim::State::new(42, 2, Track::from_sidecar(OVAL).unwrap());
+    let mut race = race(42, 2);
+    assert_eq!(race.state_hash(), state.hash());
+    let turn = sim::KartInput {
+        steer: 1.0,
+        throttle: 1.0,
+        brake: 0.0,
+    };
+    let straight = sim::KartInput {
+        steer: 0.0,
+        throttle: 1.0,
+        brake: 0.0,
+    };
+    for _ in 0..TICKS_PER_SECOND {
+        state = sim::step(state, &[turn, straight], DT);
+        race.step(&[1.0, 1.0, 0.0, 0.0, 1.0, 0.0], DT);
+    }
+    assert_eq!(race.state_hash(), state.hash());
+}
+
+#[test]
+fn replay_hashes_runs_a_replay_json_on_a_sidecar_and_reports_the_sims_hashes() {
+    const REPLAY: &str = include_str!("../../../assets/replays/oval-solo.replay.json");
+    let replay = sim::Replay::from_json(REPLAY).unwrap();
+    let expected = replay.run(Track::from_sidecar(OVAL).unwrap()).unwrap();
+    assert_eq!(bridge::replay_hashes(REPLAY, OVAL), Ok(expected));
+    assert!(bridge::replay_hashes("{}", OVAL).is_err());
+    assert!(
+        bridge::replay_hashes(&REPLAY.replace("\"oval\"", "\"brands-patch\""), OVAL).is_err(),
+        "the sidecar must be the replay's track"
+    );
+}

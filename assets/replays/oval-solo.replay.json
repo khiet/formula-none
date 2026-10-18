@@ -1,0 +1,98 @@
+{
+  "version": 1,
+  "seed": 1,
+  "track": "oval",
+  "segments": [
+    {
+      "ticks": 360,
+      "inputs": [
+        {
+          "steer": 0.0,
+          "throttle": 1.0,
+          "brake": 0.0
+        }
+      ]
+    },
+    {
+      "ticks": 150,
+      "inputs": [
+        {
+          "steer": -1.0,
+          "throttle": 1.0,
+          "brake": 0.0
+        }
+      ]
+    },
+    {
+      "ticks": 120,
+      "inputs": [
+        {
+          "steer": 0.0,
+          "throttle": 1.0,
+          "brake": 0.0
+        }
+      ]
+    },
+    {
+      "ticks": 60,
+      "inputs": [
+        {
+          "steer": 0.0,
+          "throttle": 0.0,
+          "brake": 1.0
+        }
+      ]
+    },
+    {
+      "ticks": 60,
+      "inputs": [
+        {
+          "steer": 0.0,
+          "throttle": 0.0,
+          "brake": 0.0
+        }
+      ]
+    },
+    {
+      "ticks": 150,
+      "inputs": [
+        {
+          "steer": 1.0,
+          "throttle": 1.0,
+          "brake": 0.0
+        }
+      ]
+    },
+    {
+      "ticks": 240,
+      "inputs": [
+        {
+          "steer": 0.0,
+          "throttle": 1.0,
+          "brake": 0.0
+        }
+      ]
+    }
+  ],
+  "hashes": [
+    "aaccd3d599e32e9c",
+    "4a9e8d2212cb8646",
+    "1857b487facd7b62",
+    "9bb5dc6af00db66f",
+    "762cfbc8f4fd251a",
+    "e1627d9062323487",
+    "84a137c5b0e95a1b",
+    "3f2e258e33d3d6f3",
+    "d1905306a73ee180",
+    "70f2e73b3f623d84",
+    "36b6b3ed58d16800",
+    "27f205583b8262bb",
+    "e74424c3e3730490",
+    "c6ed716066ff5454",
+    "bfcb6b2fa8072d12",
+    "2c1a8e3c9a6aae88",
+    "0a07a285268b17b2",
+    "e334d68b65ce8a15",
+    "cdd564284720bfc7"
+  ]
+}

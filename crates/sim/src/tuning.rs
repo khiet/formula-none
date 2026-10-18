@@ -11,6 +11,9 @@ pub const SNAPSHOTS_PER_SECOND: u32 = 30;
 pub const INTERPOLATION_DELAY_S: f32 = 0.1;
 /// Upper bound on the frames a reconciliation correction is blended over.
 pub const RECONCILIATION_BLEND_FRAMES: u32 = 6;
+/// A replay reports the state hash after every this-many ticks: once a
+/// second, the determinism gate's resolution (ADR 0002).
+pub const REPLAY_HASH_INTERVAL_TICKS: u32 = TICKS_PER_SECOND;
 
 // Race.
 
