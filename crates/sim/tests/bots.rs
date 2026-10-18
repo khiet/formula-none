@@ -411,3 +411,49 @@ fn a_scripted_idle_driver_finishes_last_and_every_bot_finishes() {
     assert_eq!(standings[0].laps_completed, 0);
     assert_eq!(standings[0].position, 8);
 }
+
+/// The oval with slot 0 moved onto the sand at the apex of the first turn,
+/// facing the wall that rings it 12 m outside the centreline, so a bot from
+/// that slot drives straight into the wall.
+fn oval_with_slot_0_facing_the_first_turns_wall() -> Track {
+    let mut sidecar: serde_json::Value = serde_json::from_str(OVAL).expect("valid JSON");
+    sidecar["spawn_grid"][0] = serde_json::json!({ "position": [0.0, 0.0, -139.5], "yaw": 0.0 });
+    Track::from_sidecar(&sidecar.to_string()).expect("the moved-slot oval loads")
+}
+
+#[test]
+fn a_bot_held_by_a_wall_backs_up_and_drives_on() {
+    let mut state = State::with_bots(SEED, 0, 1, oval_with_slot_0_facing_the_first_turns_wall());
+    let start = state.standings()[0].spline_progress;
+    let mut stopped_at = None;
+    let mut backed_up = false;
+    let mut back_on_the_asphalt = None;
+    for tick in 0..ticks(15.0) {
+        state = step(state, &[], DT);
+        let kart = state.kart_transforms()[0];
+        if stopped_at.is_none() && tick > 10 && kart.speed.abs() < 0.01 {
+            stopped_at = Some(tick);
+        }
+        if stopped_at.is_some() && kart.speed < -1.0 {
+            backed_up = true;
+        }
+        if backed_up && state.kart_surface(0) == Surface::Asphalt && kart.speed > 10.0 {
+            back_on_the_asphalt = Some(tick);
+            break;
+        }
+    }
+    let stopped = stopped_at.expect("the wall stopped the bot");
+    assert!(
+        backed_up,
+        "the bot never backed up after stopping at tick {stopped}"
+    );
+    let rejoined = back_on_the_asphalt.expect("the bot never got back on the track at speed");
+    assert!(
+        rejoined < ticks(10.0),
+        "rejoined the track at tick {rejoined}, stopped at tick {stopped}"
+    );
+    assert!(
+        state.standings()[0].spline_progress > start + 10.0,
+        "and is on its way round"
+    );
+}
