@@ -1,13 +1,7 @@
 //! The bot driver (ADR 0002). A bot is handed what any observer of the race
-//! can read, the track and its own kart's transform and standing, and
-//! answers with the [`KartInput`] a human's controller would. It never sees
-//! a kart's state beyond those readouts, so a bot-driven kart is just a kart
-//! whose input comes from here instead of a device.
-//!
-//! The technique: steer toward a point on its line a lookahead ahead, slow
-//! for corners too tight for full lock, and hop into a drift as a corner
-//! comes up, holding it until the corner passes or it needs the other
-//! direction. All numbers are tuned in [`crate::tuning`].
+//! can read, the track and every kart's transform and standing, and answers
+//! with the [`KartInput`] a human's controller would, so a bot-driven kart is
+//! just a kart whose input comes from here instead of a device.
 
 use crate::tuning::{
     BOT_AVOID_HALF_WIDTH_M, BOT_BRAKE_HORIZON_S, BOT_CORNER_SAMPLE_M, BOT_CORNER_SPEED_FRACTION,
@@ -60,8 +54,8 @@ pub fn drive(
     };
     let mut steer = pursuit_steer(kart, target);
 
-    // Held still by a wall or a kart for the tuned time, the bot backs up
-    // for the tuned time, swinging its nose toward its line, then goes on.
+    // Stalled for the tuned time, the bot backs up for the tuned time with
+    // its nose swinging toward the target, then drives on.
     if memory.reversing_s <= 0.0 && kart.speed.abs() < BOT_STALL_SPEED_M_PER_S {
         memory.stalled_s += dt;
         if memory.stalled_s >= BOT_STALL_S {
@@ -73,7 +67,8 @@ pub fn drive(
     }
     if memory.reversing_s > 0.0 {
         memory.reversing_s -= dt;
-        // Backing up swings the nose the other way to the steer.
+        // Reversing turns the kart the other way for a steer, so the nose
+        // still swings toward the target.
         return KartInput {
             steer: -steer,
             brake: 1.0,
@@ -153,10 +148,9 @@ fn kart_in_the_way(karts: &[KartTransform], slot: usize) -> Option<usize> {
 }
 
 /// Where to aim to pass a kart at `position`, `progress` along the lap:
-/// level with it, the tuned gap to the side of it with the more track, and
-/// no nearer the centreline than the bot's own line already is on that
-/// side. The line runs right of the centreline, so a kart left of the line
-/// is passed on the right and one on or right of it on the left.
+/// level with it and the tuned gap beside it, on the right when it is left
+/// of the bot's line and never nearer the centreline than the line, else on
+/// the left.
 fn pass_point(track: &Track, progress: f32, position: [f32; 3]) -> [f32; 2] {
     let centre = track.point_at(progress);
     let [tx, tz] = track.direction_at(progress);
@@ -169,13 +163,10 @@ fn pass_point(track: &Track, progress: f32, position: [f32; 3]) -> [f32; 2] {
     line_point(track, progress, right)
 }
 
-/// Steer toward `target`, in `KartInput::steer` units. Pure pursuit: the
-/// lock that turns the kart along the arc from where it is to the target,
-/// given how fast it is going and how fast it steers at that speed. In a
-/// drift the kart travels outside its nose by the slip angle, so the arc
-/// starts along its travel, and the drift turns on its own at a strength
-/// the steer only trims, so the lock is mapped into what the steer can ask
-/// of the drift.
+/// Steer toward `target`, in `KartInput::steer` units: the lock whose yaw
+/// rate at the kart's speed follows the arc from its travel to the target.
+/// In a drift the travel sits outside the nose by the slip angle, and the
+/// lock is mapped to the trim the steer has over the drift's own turn.
 fn pursuit_steer(kart: &KartTransform, target: [f32; 2]) -> f32 {
     let slip = kart.drift.map_or(0.0, |drift| {
         drift.direction.steer_sign() * DRIFT_SLIP_ANGLE_RAD
@@ -220,7 +211,7 @@ fn sharpest_ahead(track: &Track, progress: f32, speed: f32) -> f32 {
 /// The speed a bot aims for through a turn of `curvature`: the tuned fraction
 /// of the fastest speed at which full lock still holds the turn's radius,
 /// given that the steer rate falls with speed. A straight asks for more than
-/// any top speed, banded or boosted, so the throttle stays down along it.
+/// any top speed, banded or boosted, so the throttle stays open along it.
 fn corner_speed(curvature: f32) -> f32 {
     // Full lock turns a kart at speed v with radius v / rate(v), where
     // rate(v) = low + (top - low) * v / TOP; solving radius = 1 / curvature

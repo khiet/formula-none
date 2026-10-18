@@ -20,9 +20,9 @@ JSON number cannot carry every u64.
 
 Drive in the client (`pnpm --filter web dev`, `?track=oval` for the oval),
 then press `R`. The browser downloads `<track>.replay.json`: your inputs
-for every tick so far, the seven bots' count and the wasm sim's hashes. Move it here under a
-descriptive name ending in `.replay.json`; both tests pick it up by listing
-this directory.
+for every tick so far, the bots' count and the wasm sim's hashes. Move it
+here under a descriptive name ending in `.replay.json`; both tests pick it
+up by listing this directory.
 
 ## Re-record after changing the rules
 

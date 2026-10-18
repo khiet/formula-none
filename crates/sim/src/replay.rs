@@ -1,8 +1,9 @@
 //! A race replay: `{seed, track, bots, inputs[]}`, enough to rerun a race
 //! anywhere (ADR 0002). Bots drive themselves from the seed, so a replay
-//! carries how many there were and only the humans' inputs. Rerunning reports [`State::hash`] at every
-//! [`REPLAY_HASH_INTERVAL_TICKS`]th tick; a fixture carries the hashes a
-//! previous run reported so a later run, native or wasm, can be held to them.
+//! carries how many there were and only the humans' inputs. Rerunning
+//! reports [`State::hash`] at every [`REPLAY_HASH_INTERVAL_TICKS`]th tick; a
+//! fixture carries the hashes a previous run reported so a later run, native
+//! or wasm, can be held to them.
 //!
 //! The JSON form is the one the web app records and the fixtures under
 //! `assets/replays` use:
@@ -31,9 +32,9 @@
 //! Inputs are run-length encoded: a segment holds one input per human kart
 //! in grid order and the number of consecutive ticks it was held. A missing
 //! button reads as unpressed, and a missing bot count as none, so a replay
-//! recorded before either existed still runs. The seed and the hashes are 64-bit values, which JSON numbers cannot
-//! carry exactly, so the seed is written as a decimal string and each hash as
-//! 16 hex digits.
+//! recorded before either existed still runs. The seed and the hashes are
+//! 64-bit values, which JSON numbers cannot carry exactly, so the seed is
+//! written as a decimal string and each hash as 16 hex digits.
 
 use crate::tuning::REPLAY_HASH_INTERVAL_TICKS;
 use crate::{step, KartInput, State, Track};

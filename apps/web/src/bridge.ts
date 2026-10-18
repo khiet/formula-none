@@ -88,7 +88,10 @@ export interface Standing {
 }
 
 export interface Race {
-  /** Advance one tick of `dt` seconds; one input per human kart in grid order. The bots drive themselves. */
+  /**
+   * Advance one tick of `dt` seconds; one input per human kart in grid order.
+   * The bots drive themselves.
+   */
   step(inputs: readonly KartInput[], dt: number): void;
   /** One transform per kart in grid order, as of the last step. */
   kartTransforms(): KartTransform[];
@@ -114,7 +117,10 @@ export interface Bridge {
   readonly kartSize: KartSize;
   /** Laps in a race, from the sim's tuning (ADR 0014). */
   readonly lapsPerRace: number;
-  /** Karts on the grid, from the sim's tuning; bots fill the slots the humans leave (ADR 0014). */
+  /**
+   * Karts on the grid, from the sim's tuning; bots fill the slots the humans
+   * leave (ADR 0014).
+   */
   readonly kartsPerRace: number;
   /**
    * A race on the track described by `sidecar` (the JSON exported next to its

@@ -8,8 +8,8 @@ import { createRaceView } from "./race-view";
 import { downloadReplay, recordReplay } from "./replay";
 import type { TrackFiles } from "./track";
 
-// M1: the local player alone at slot 0 and bots on the rest of the grid.
-// The seed is fixed until rooms hand one out.
+// Until rooms hand out the players and the seed: one local human at slot 0,
+// bots on the rest of the grid, and a fixed seed.
 const SEED = 1n;
 const HUMAN_COUNT = 1;
 const LOCAL_KART = 0;

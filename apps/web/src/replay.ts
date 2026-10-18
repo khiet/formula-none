@@ -19,7 +19,10 @@ export interface ReplayFile {
   /** Decimal, as a string: a JSON number cannot carry every u64. */
   readonly seed: string;
   readonly track: string;
-  /** Bot karts behind the humans; they drive themselves from the seed, so the segments carry no input for them. */
+  /**
+   * Bot karts behind the humans; they drive themselves from the seed, so the
+   * segments carry no input for them.
+   */
   readonly bots: number;
   readonly segments: readonly Segment[];
   /** 16 hex digits each. */

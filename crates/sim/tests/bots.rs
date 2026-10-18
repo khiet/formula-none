@@ -199,11 +199,10 @@ fn throttle_humans(mut state: State, humans: usize, seconds: f32) -> State {
     state
 }
 
-/// The oval with its second grid slot moved onto the back straight, half a
-/// lap short of the line with the back straight ahead of it, and its boost
-/// pads removed: a bot from that slot
-/// starts far behind a kart on the grid and passes it before it laps, and
-/// its speed is never a pad's.
+/// The oval with its second grid slot moved onto the back straight, about
+/// half a lap short of the line, and its boost pads removed: a bot from that
+/// slot starts far behind a kart on the grid and passes it before it laps,
+/// and its speed is never a pad's.
 fn oval_with_slot_1_on_the_back_straight_and_no_boost_pads() -> Track {
     const BACK_STRAIGHT_PROGRESS_M: f32 = 230.0;
     let oval = oval();

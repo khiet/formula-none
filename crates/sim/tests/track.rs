@@ -423,8 +423,8 @@ fn a_kart_drives_brands_patch_without_falling_through() {
 #[test]
 fn direction_and_curvature_follow_the_centreline_with_a_left_turn_positive() {
     let track = oval();
-    // The front straight runs along -Z from the line; the first turn is a
-    // 30 m left-hander centred on (0, -100), its apex due west of the start.
+    // The front straight runs along -Z from the line at x = 30; the first
+    // turn is a 30 m left-hander centred on (0, -100).
     let [dx, dz] = track.direction_at(50.0);
     assert!(
         dx.abs() < 0.01 && (dz + 1.0).abs() < 0.01,

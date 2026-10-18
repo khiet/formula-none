@@ -188,8 +188,7 @@ pub struct State {
     /// Human karts first, then bots: `step`'s inputs are the humans', in
     /// grid order.
     karts: Vec<Kart>,
-    /// How many of `karts` are humans; fixed at `new`, so the count is kept
-    /// rather than recounted from the karts' bots every tick.
+    /// The first this many `karts` are humans; fixed for the race.
     humans: usize,
     physics: Physics,
 }
@@ -403,11 +402,11 @@ impl State {
         self.karts[slot].bot.is_some()
     }
 
-    /// The rubber band on a kart's top speed for the coming tick: a bot far
-    /// ahead of every human along the spline is held to the tuned minimum,
-    /// one far behind the nearest human is let up to the tuned maximum, and
-    /// the scale runs linearly between over the tuned range. A human's kart,
-    /// or a bot in a race with no humans, is scaled by one.
+    /// The rubber band on a kart's top speed for the coming tick: a bot the
+    /// tuned range or more ahead of the nearest human along the spline is
+    /// held to the tuned minimum, one that far behind is let up to the tuned
+    /// maximum, and the scale runs linearly between. A human's kart, or a
+    /// bot in a race with no humans, is scaled by one.
     pub fn rubber_band(&self, slot: usize) -> f32 {
         if !self.is_bot(slot) || self.humans == 0 {
             return 1.0;
@@ -450,9 +449,10 @@ impl State {
     /// what the replay fixtures check (ADR 0002). A bot's memory is hashed
     /// with its kart. Three things are left out on purpose. The track and
     /// the split between human and bot slots never change after `new`, so
-    /// they are the replay's `track` and `bots` fields instead. Rapier's contact manifolds and warm-start impulses
-    /// are not hashed; a difference there reaches a body's velocity on the
-    /// next tick and is caught then.
+    /// they are the replay's `track` and `bots` fields instead. Rapier's
+    /// contact manifolds and warm-start impulses are not hashed; a
+    /// difference there reaches a body's velocity on the next tick and is
+    /// caught then.
     pub fn hash(&self) -> u64 {
         let mut hasher = hash::Fnv1a::new();
         hasher.write(&self.rng.get_seed());
@@ -557,7 +557,7 @@ impl State {
 /// as of the last tick.
 pub fn step(mut state: State, inputs: &[KartInput], dt: f32) -> State {
     assert_eq!(inputs.len(), state.humans, "one input per human kart");
-    // With no bots the readouts the bots drive from are not worth building.
+    // Skip building the readouts when no bot needs them.
     let inputs: Vec<KartInput> = if state.humans == state.karts.len() {
         inputs.to_vec()
     } else {
@@ -829,8 +829,8 @@ fn landing_drift(kart: &Kart, input: &KartInput) -> Option<Drift> {
 /// Speed after one tick: throttle ramps toward `top_speed` and brake toward
 /// a standstill, each at its tuned rate, and the brake on its own carries on
 /// into reverse. With neither held the kart coasts toward a standstill and
-/// stays there. `top_speed` is the tuned top speed under the kart's rubber
-/// band; the rates are the tuned top speed's whatever the band.
+/// stays there. `top_speed` is the cap under the kart's rubber band; the
+/// ramp rates stay the tuned top speed's.
 fn next_speed(speed: f32, input: &KartInput, dt: f32, top_speed: f32) -> f32 {
     use tuning::{
         ACCELERATION_TO_TOP_S, BRAKE_TO_STOP_S, COAST_TO_STOP_S, REVERSE_TOP_SPEED_M_PER_S,

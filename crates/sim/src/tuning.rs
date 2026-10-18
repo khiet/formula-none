@@ -165,17 +165,17 @@ pub const BOT_RUBBER_BAND_RANGE_M: f32 = 100.0;
 /// tighter than this, in radians per metre: a turn of 33 m radius or less.
 pub const BOT_DRIFT_CURVATURE_RAD_PER_M: f32 = 0.03;
 /// A bot slows for a corner to this fraction of the fastest speed full
-/// steer lock holds the corner's radius at. Below 1, so a bot leaves the
-/// corner with speed in hand for a human to take.
+/// steer lock holds the corner's radius at. Below 1, so a human can carry
+/// more speed through a corner than a bot.
 pub const BOT_CORNER_SPEED_FRACTION: f32 = 0.85;
 /// How far ahead a bot looks for a corner to slow for, in seconds of its
 /// current speed.
 pub const BOT_BRAKE_HORIZON_S: f32 = 1.0;
 /// Metres between the centreline samples a bot checks for a corner ahead.
-/// Finer than the shortest arc on either track, so no corner is skipped.
+/// Finer than any corner's arc, so no corner is skipped.
 pub const BOT_CORNER_SAMPLE_M: f32 = 2.0;
-/// Metres right of the centreline a bot's line runs. The pipes stand on the
-/// inside of the corners, left of the centreline on a counter-clockwise lap.
+/// Metres right of the centreline a bot's line runs; every pipe stands left
+/// of the centreline.
 pub const BOT_LINE_RIGHT_OF_CENTRE_M: f32 = 2.5;
 /// The least a bot steers into a corner it hops for, so the hop fixes the
 /// drift toward the corner even when its line asks for less.

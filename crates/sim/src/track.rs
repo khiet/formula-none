@@ -12,9 +12,10 @@ use std::fmt;
 /// The sidecar layout this build reads; `assets/tracks/export.py` writes it.
 pub const SIDECAR_VERSION: u32 = 1;
 
-/// Metres of centreline a direction or curvature reading spans. Wider than
-/// the export's point spacing, so the reading is the turn's and not one
-/// vertex's; narrower than any corner, so a corner reads at full strength.
+/// Metres of centreline a direction reading spans, and the distance between
+/// the two directions a curvature reading compares. Wider than the export's
+/// 1 m point spacing, so the reading is the turn's and not one vertex's;
+/// narrower than any corner, so a corner reads at full strength.
 const CURVATURE_WINDOW_M: f32 = 4.0;
 
 /// What is under a point on the track. Four of these are exported as tagged
