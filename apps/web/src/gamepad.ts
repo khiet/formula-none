@@ -12,7 +12,7 @@ export interface GamepadSource {
   getGamepads(): readonly (GamepadLike | null)[];
 }
 
-// The W3C "standard" gamepad layout, which every common pad reports.
+// Indices in the W3C "standard" gamepad layout.
 const LEFT_STICK_X = 0;
 const BOTTOM_FACE_BUTTON = 0;
 const LEFT_FACE_BUTTON = 2;

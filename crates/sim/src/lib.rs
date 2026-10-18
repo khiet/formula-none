@@ -34,7 +34,7 @@ pub struct KartInput {
     pub throttle: f32,
     /// 0 to 1. Held on its own past a standstill, it backs the kart up.
     pub brake: f32,
-    /// The hop button is down. Carried through recordings and the wire
+    /// The hop button is down. Carried through the bridge and recordings
     /// already; `step` does not read the buttons until hop, drift and items
     /// become rules.
     #[serde(default)]

@@ -16,9 +16,9 @@ import init, {
 
 /**
  * One kart's controls for one tick, whichever device produced them: steer
- * -1..1, throttle 0..1, brake 0..1 (held past a standstill, it backs the
- * kart up), the hop button held, the item button pressed this tick, and the
- * item button held.
+ * -1..1, throttle 0..1, brake 0..1 (held on its own past a standstill, it
+ * backs the kart up), the hop button held, the item button pressed this
+ * tick, and the item button held.
  */
 export interface KartInput {
   readonly steer: number;

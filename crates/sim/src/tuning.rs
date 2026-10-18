@@ -36,8 +36,8 @@ pub const RACE_END_GRACE_S: f32 = 20.0;
 /// Seconds of decreasing spline progress before the wrong-way warning.
 pub const WRONG_WAY_WARNING_S: f32 = 2.0;
 
-// World. Metres and seconds; the kart is a box of these dimensions until the
-// glTF kart lands (ADR 0007), and its collider stays this box after.
+// World. Metres and seconds. The kart's collider is a box of these
+// dimensions; the View draws the same box until the glTF kart lands (ADR 0007).
 
 pub const GRAVITY_M_PER_S2: f32 = -9.81;
 /// Half the kart's length, nose to tail along its facing.
@@ -59,8 +59,8 @@ pub const STEER_RATE_LOW_SPEED_RAD_PER_S: f32 = 2.2;
 pub const STEER_RATE_TOP_SPEED_RAD_PER_S: f32 = 1.2;
 /// Seconds from top speed to a standstill under full brake.
 pub const BRAKE_TO_STOP_S: f32 = 1.5;
-/// A brake held past the standstill backs the kart up, at the brake's rate,
-/// no faster than this.
+/// A brake held on its own past the standstill backs the kart up, at the
+/// brake's rate, no faster than this.
 pub const REVERSE_TOP_SPEED_M_PER_S: f32 = 8.0;
 /// Seconds from top speed to a standstill with no throttle and no brake.
 pub const COAST_TO_STOP_S: f32 = 4.0;

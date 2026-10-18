@@ -266,7 +266,7 @@ fn brake_with_the_throttle_held_stops_the_kart_and_holds_it_there() {
     };
     let at_top_speed = run(race(1), vec![accelerate(); ticks(ACCELERATION_TO_TOP_S)]);
     // The throttle fights the brake, so this takes longer than the tuned
-    // braking time; well short of the 100 m the straight stays clear.
+    // braking time and ends within the 100 m the straight stays clear.
     let stopped = run(at_top_speed, vec![both; ticks(2.0 * ACCELERATION_TO_TOP_S)]);
     let before = only_kart(&stopped);
     let after = only_kart(&step(stopped, &[both], DT));

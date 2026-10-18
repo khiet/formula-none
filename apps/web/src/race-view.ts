@@ -112,7 +112,7 @@ function placeholderKart(size: KartSize, livery: Color): Group {
     new BoxGeometry(size.width * COWL_WIDTH, size.height * COWL_HEIGHT, size.length * COWL_LENGTH),
     new MeshStandardMaterial({ color: COWL_COLOUR }),
   );
-  // On top of the box, centred on the rear half; the kart faces -Z, so the rear is +Z.
+  // On top of the box, over its rear; the kart faces -Z, so the rear is +Z.
   cowl.position.set(0, size.height * (0.5 + COWL_HEIGHT / 2), (size.length * COWL_LENGTH) / 2);
   kart.add(cowl);
   return kart;
