@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { type KartInput, loadBridge } from "./bridge";
+import { type KartInput, type KartTransform, loadBridge } from "./bridge";
 
 // The real wasm build, loaded from bytes because Node has no fetch for
 // import.meta.url. `pnpm build:bridge` must have run first.
@@ -34,16 +34,21 @@ describe("bridge wrapper", () => {
 
   it("replays the same seed and inputs to the same transform", async () => {
     const bridge = await loadBridge(wasm);
-    const drive = (): ReturnType<typeof race.kartTransforms> => {
+    const drive = (): KartTransform[] => {
       const race = bridge.createRace(99n, 1);
       for (let tick = 0; tick < 120; tick++) {
         race.step([{ steer: tick < 60 ? 0 : 1, throttle: 1, brake: 0 }], DT);
       }
       return race.kartTransforms();
     };
-    const race = bridge.createRace(99n, 1);
-    void race;
 
     expect(drive()).toEqual(drive());
+  });
+
+  it("refuses an input list that does not match the kart count", async () => {
+    const bridge = await loadBridge(wasm);
+    const race = bridge.createRace(7n, 2);
+    expect(() => race.step([IDLE], DT)).toThrow(RangeError);
+    expect(() => race.step([IDLE, IDLE, IDLE], DT)).toThrow(RangeError);
   });
 });

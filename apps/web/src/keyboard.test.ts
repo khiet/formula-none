@@ -11,8 +11,16 @@ function fakeKeyboard() {
     ) {
       listeners.set(type, listener);
     },
-    press(key: string) {
-      listeners.get("keydown")?.({ key, preventDefault() {} });
+    /** Returns whether the key's default browser action was prevented. */
+    press(key: string): boolean {
+      let prevented = false;
+      listeners.get("keydown")?.({
+        key,
+        preventDefault() {
+          prevented = true;
+        },
+      });
+      return prevented;
     },
     release(key: string) {
       listeners.get("keyup")?.({ key, preventDefault() {} });
@@ -49,6 +57,13 @@ describe("arrow keys map to one kart input", () => {
     expect(input.current().steer).toBe(0);
     keyboard.release("ArrowLeft");
     expect(input.current().steer).toBe(1);
+  });
+
+  it("stops arrow keys scrolling the page but leaves other keys alone", () => {
+    const keyboard = fakeKeyboard();
+    keyboardKartInput(keyboard);
+    expect(keyboard.press("ArrowUp")).toBe(true);
+    expect(keyboard.press("Tab")).toBe(false);
   });
 
   it("releasing every key returns to idle", () => {

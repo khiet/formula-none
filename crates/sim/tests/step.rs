@@ -1,7 +1,7 @@
 //! The sim's public seam: `step(state, inputs, dt)`. Tests drive a kart with
 //! input sequences and assert the transforms the sim reports, never internals.
 
-use sim::tuning::{ACCELERATION_TO_TOP_S, TICKS_PER_SECOND, TOP_SPEED_M_PER_S};
+use sim::tuning::{ACCELERATION_TO_TOP_S, COAST_TO_STOP_S, TICKS_PER_SECOND, TOP_SPEED_M_PER_S};
 use sim::{step, KartInput, KartTransform, State};
 
 const DT: f32 = 1.0 / TICKS_PER_SECOND as f32;
@@ -148,6 +148,36 @@ fn brake_brings_a_moving_kart_to_a_stop() {
     let before = only_kart(&stopped);
     let after = only_kart(&step(stopped, &[brake], DT));
 
+    assert!(distance_travelled(&before, &after) / DT < 0.01);
+}
+
+#[test]
+fn releasing_the_throttle_coasts_to_a_stop_in_the_tuned_time() {
+    let accelerate = KartInput {
+        throttle: 1.0,
+        ..KartInput::default()
+    };
+    let at_top_speed = run(
+        State::new(SEED, 1),
+        vec![accelerate; ticks(ACCELERATION_TO_TOP_S)],
+    );
+    let halfway = run(
+        at_top_speed,
+        vec![KartInput::default(); ticks(COAST_TO_STOP_S / 2.0)],
+    );
+    let before = only_kart(&halfway);
+    let still_rolling = step(halfway, &[KartInput::default()], DT);
+    assert!(
+        distance_travelled(&before, &only_kart(&still_rolling)) / DT > 1.0,
+        "halfway through the coast the kart is still moving"
+    );
+
+    let stopped = run(
+        still_rolling,
+        vec![KartInput::default(); ticks(COAST_TO_STOP_S / 2.0) + 1],
+    );
+    let before = only_kart(&stopped);
+    let after = only_kart(&step(stopped, &[KartInput::default()], DT));
     assert!(distance_travelled(&before, &after) / DT < 0.01);
 }
 
