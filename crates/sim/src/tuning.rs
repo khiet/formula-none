@@ -171,6 +171,9 @@ pub const BOT_CORNER_SPEED_FRACTION: f32 = 0.85;
 /// How far ahead a bot looks for a corner to slow for, in seconds of its
 /// current speed.
 pub const BOT_BRAKE_HORIZON_S: f32 = 1.0;
+/// Metres between the centreline samples a bot checks for a corner ahead.
+/// Finer than the shortest arc on either track, so no corner is skipped.
+pub const BOT_CORNER_SAMPLE_M: f32 = 2.0;
 /// Metres right of the centreline a bot's line runs. The pipes stand on the
 /// inside of the corners, left of the centreline on a counter-clockwise lap.
 pub const BOT_LINE_RIGHT_OF_CENTRE_M: f32 = 2.5;
@@ -197,6 +200,7 @@ const _: () = {
     assert!(MINI_TURBO_ORANGE_BOOST_S > MINI_TURBO_BLUE_BOOST_S);
     assert!(BOT_RUBBER_BAND_MIN_FACTOR < 1.0 && 1.0 < BOT_RUBBER_BAND_MAX_FACTOR);
     assert!(0.0 < BOT_RUBBER_BAND_RANGE_M);
+    assert!(0.0 < BOT_CORNER_SAMPLE_M && BOT_CORNER_SAMPLE_M <= BOT_LOOKAHEAD_M);
     assert!(0.0 < BOT_CORNER_SPEED_FRACTION && BOT_CORNER_SPEED_FRACTION <= 1.0);
     assert!(0.0 < BOT_HOP_STEER && BOT_HOP_STEER <= 1.0);
     assert!(BOT_AVOID_HALF_WIDTH_M > KART_HALF_WIDTH_M);

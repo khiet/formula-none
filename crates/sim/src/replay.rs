@@ -172,7 +172,7 @@ impl Replay {
 
     /// Human karts, as the first segment has inputs; zero for an empty
     /// replay.
-    pub fn kart_count(&self) -> usize {
+    pub fn human_count(&self) -> usize {
         self.segments
             .first()
             .map_or(0, |segment| segment.inputs.len())
@@ -192,10 +192,10 @@ impl Replay {
                 got: track.name().to_owned(),
             });
         }
-        let karts = self.kart_count();
-        if karts + self.bots > track.spawn_grid().len() {
+        let humans = self.human_count();
+        if humans + self.bots > track.spawn_grid().len() {
             return Err(ReplayError::TooManyKarts {
-                karts: karts + self.bots,
+                karts: humans + self.bots,
                 slots: track.spawn_grid().len(),
             });
         }
@@ -203,17 +203,17 @@ impl Replay {
             .segments
             .iter()
             .enumerate()
-            .find(|(_, segment)| segment.inputs.len() != karts)
+            .find(|(_, segment)| segment.inputs.len() != humans)
         {
             return Err(ReplayError::UnevenSegments {
                 segment,
                 karts: uneven.inputs.len(),
-                first: karts,
+                first: humans,
             });
         }
 
         let dt = 1.0 / crate::tuning::TICKS_PER_SECOND as f32;
-        let mut state = State::with_bots(self.seed, karts, self.bots, track);
+        let mut state = State::with_bots(self.seed, humans, self.bots, track);
         let mut hashes =
             Vec::with_capacity((self.tick_count() / REPLAY_HASH_INTERVAL_TICKS) as usize);
         let mut tick = 0;

@@ -188,6 +188,9 @@ pub struct State {
     /// Human karts first, then bots: `step`'s inputs are the humans', in
     /// grid order.
     karts: Vec<Kart>,
+    /// How many of `karts` are humans; fixed at `new`, so the count is kept
+    /// rather than recounted from the karts' bots every tick.
+    humans: usize,
     physics: Physics,
 }
 
@@ -381,6 +384,7 @@ impl State {
             rng: ChaCha8Rng::seed_from_u64(seed),
             track,
             karts,
+            humans,
             physics,
         }
     }
@@ -391,7 +395,7 @@ impl State {
 
     /// Karts driven from `step`'s inputs: the first this many grid slots.
     pub fn human_count(&self) -> usize {
-        self.karts.iter().filter(|kart| kart.bot.is_none()).count()
+        self.humans
     }
 
     /// Whether the kart in `slot` is driven by a bot.
@@ -405,8 +409,7 @@ impl State {
     /// the scale runs linearly between over the tuned range. A human's kart,
     /// or a bot in a race with no humans, is scaled by one.
     pub fn rubber_band(&self, slot: usize) -> f32 {
-        let humans = self.human_count();
-        if !self.is_bot(slot) || humans == 0 {
+        if !self.is_bot(slot) || self.humans == 0 {
             return 1.0;
         }
         let distance = |kart: &Kart| {
@@ -416,7 +419,7 @@ impl State {
                     .lap_relative_progress(kart.checkpoint, kart.spline_progress)
         };
         let bot = distance(&self.karts[slot]);
-        let ahead_of_nearest = self.karts[..humans]
+        let ahead_of_nearest = self.karts[..self.humans]
             .iter()
             .map(|human| bot - distance(human))
             .min_by(|a, b| a.abs().total_cmp(&b.abs()))
@@ -553,12 +556,9 @@ impl State {
 /// are humans. The bots' inputs come from [`bot::drive`], given the readouts
 /// as of the last tick.
 pub fn step(mut state: State, inputs: &[KartInput], dt: f32) -> State {
-    assert_eq!(
-        inputs.len(),
-        state.human_count(),
-        "one input per human kart"
-    );
-    let inputs: Vec<KartInput> = if inputs.len() == state.karts.len() {
+    assert_eq!(inputs.len(), state.humans, "one input per human kart");
+    // With no bots the readouts the bots drive from are not worth building.
+    let inputs: Vec<KartInput> = if state.humans == state.karts.len() {
         inputs.to_vec()
     } else {
         let transforms = state.kart_transforms();
@@ -882,15 +882,21 @@ fn drift_slip(direction: DriftDirection) -> f32 {
 /// and a near-stationary kart barely turns at all. Full lock is 1; a drift
 /// may ask for more.
 fn yaw_rate(speed: f32, steer: f32) -> f32 {
+    use tuning::STEER_FULL_EFFECT_SPEED_M_PER_S;
+    let grip = (speed.abs() / STEER_FULL_EFFECT_SPEED_M_PER_S).clamp(0.0, 1.0);
+    -steer * steer_rate(speed) * grip * speed.signum()
+}
+
+/// The yaw rate full lock gives at `speed`: the tuned low-speed rate
+/// falling to the tuned top-speed rate. Shared with the bot, so its model
+/// of the handling is the handling.
+pub(crate) fn steer_rate(speed: f32) -> f32 {
     use tuning::{
-        STEER_FULL_EFFECT_SPEED_M_PER_S, STEER_RATE_LOW_SPEED_RAD_PER_S,
-        STEER_RATE_TOP_SPEED_RAD_PER_S, TOP_SPEED_M_PER_S,
+        STEER_RATE_LOW_SPEED_RAD_PER_S, STEER_RATE_TOP_SPEED_RAD_PER_S, TOP_SPEED_M_PER_S,
     };
     let speed_fraction = (speed.abs() / TOP_SPEED_M_PER_S).clamp(0.0, 1.0);
-    let rate = STEER_RATE_LOW_SPEED_RAD_PER_S
-        + (STEER_RATE_TOP_SPEED_RAD_PER_S - STEER_RATE_LOW_SPEED_RAD_PER_S) * speed_fraction;
-    let grip = (speed.abs() / STEER_FULL_EFFECT_SPEED_M_PER_S).clamp(0.0, 1.0);
-    -steer * rate * grip * speed.signum()
+    STEER_RATE_LOW_SPEED_RAD_PER_S
+        + (STEER_RATE_TOP_SPEED_RAD_PER_S - STEER_RATE_LOW_SPEED_RAD_PER_S) * speed_fraction
 }
 
 impl Physics {

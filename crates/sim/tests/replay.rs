@@ -74,7 +74,7 @@ const REPLAY: &str = r#"{
 #[test]
 fn a_replay_reruns_its_inputs_and_hashes_the_state_at_every_60th_tick() {
     let replay = Replay::from_json(REPLAY).expect("the replay parses");
-    assert_eq!(replay.kart_count(), 1);
+    assert_eq!(replay.human_count(), 1);
     assert_eq!(replay.tick_count(), 150);
     assert_eq!(REPLAY_HASH_INTERVAL_TICKS, 60);
 
@@ -233,7 +233,7 @@ fn the_fixture_set_exercises_kart_contact_off_track_walls_both_tracks_and_a_mini
     let mut boosted = false;
     for (_, replay) in fixtures() {
         tracks.insert(replay.track.clone());
-        let mut state = State::new(replay.seed, replay.kart_count(), sidecar(&replay.track));
+        let mut state = State::new(replay.seed, replay.human_count(), sidecar(&replay.track));
         for segment in &replay.segments {
             for _ in 0..segment.ticks {
                 let before = state.kart_transforms();
@@ -304,7 +304,7 @@ fn a_replay_with_bots_reruns_them_from_the_seed_and_carries_their_count() {
     let replay = Replay::from_json(&json).unwrap();
     assert_eq!(replay.bots, bots);
     assert_eq!(
-        replay.kart_count(),
+        replay.human_count(),
         1,
         "the segments hold the humans' inputs"
     );

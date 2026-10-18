@@ -10,17 +10,13 @@
 //! direction. All numbers are tuned in [`crate::tuning`].
 
 use crate::tuning::{
-    BOT_AVOID_HALF_WIDTH_M, BOT_BRAKE_HORIZON_S, BOT_CORNER_SPEED_FRACTION,
+    BOT_AVOID_HALF_WIDTH_M, BOT_BRAKE_HORIZON_S, BOT_CORNER_SAMPLE_M, BOT_CORNER_SPEED_FRACTION,
     BOT_DRIFT_CURVATURE_RAD_PER_M, BOT_HOP_STEER, BOT_LINE_RIGHT_OF_CENTRE_M, BOT_LOOKAHEAD_M,
     BOT_PASS_GAP_M, BOT_REVERSE_S, BOT_STALL_S, BOT_STALL_SPEED_M_PER_S, DRIFT_SLIP_ANGLE_RAD,
     DRIFT_TURN_NEUTRAL, DRIFT_TURN_STEER_RANGE, STEER_RATE_LOW_SPEED_RAD_PER_S,
     STEER_RATE_TOP_SPEED_RAD_PER_S, TOP_SPEED_M_PER_S,
 };
 use crate::{DriftDirection, KartInput, KartTransform, Standing, Track};
-
-/// Metres between the centreline samples a bot checks for a corner ahead.
-/// Finer than the shortest arc on either track, so no corner is skipped.
-const CORNER_SAMPLE_M: f32 = 2.0;
 
 /// What a bot carries from one tick to the next: how long it has been
 /// stalled, and how long it still backs up. Steers the next tick, so
@@ -194,7 +190,7 @@ fn pursuit_steer(kart: &KartTransform, target: [f32; 2]) -> f32 {
     // curvature 2 sin(angle) / distance; the yaw rate for it is that times
     // the speed, and the lock is the yaw rate over the rate full lock gives.
     let curvature = 2.0 * rightward / distance;
-    let lock = kart.speed.abs() * curvature / steer_rate(kart.speed);
+    let lock = kart.speed.abs() * curvature / crate::steer_rate(kart.speed);
     match kart.drift {
         None => lock.clamp(-1.0, 1.0),
         // A drift turns its own way at the neutral strength, trimmed by the
@@ -207,23 +203,15 @@ fn pursuit_steer(kart: &KartTransform, target: [f32; 2]) -> f32 {
     }
 }
 
-/// The yaw rate full lock gives at `speed`, as the handling model has it:
-/// the tuned low-speed rate falling to the tuned top-speed rate.
-fn steer_rate(speed: f32) -> f32 {
-    let fraction = (speed.abs() / TOP_SPEED_M_PER_S).clamp(0.0, 1.0);
-    STEER_RATE_LOW_SPEED_RAD_PER_S
-        + (STEER_RATE_TOP_SPEED_RAD_PER_S - STEER_RATE_LOW_SPEED_RAD_PER_S) * fraction
-}
-
 /// The sharpest curvature, unsigned, of the centreline from the kart to as
 /// far as it travels in the brake horizon, and no nearer than the lookahead.
 fn sharpest_ahead(track: &Track, progress: f32, speed: f32) -> f32 {
     let horizon = (speed * BOT_BRAKE_HORIZON_S).max(BOT_LOOKAHEAD_M);
-    let samples = (horizon / CORNER_SAMPLE_M) as usize;
+    let samples = (horizon / BOT_CORNER_SAMPLE_M) as usize;
     (0..=samples)
         .map(|sample| {
             track
-                .curvature_at(progress + sample as f32 * CORNER_SAMPLE_M)
+                .curvature_at(progress + sample as f32 * BOT_CORNER_SAMPLE_M)
                 .abs()
         })
         .fold(0.0, f32::max)
