@@ -2,9 +2,11 @@ import { loadBridge } from "./bridge";
 import { createInstrumentPanel } from "./instrument-panel";
 import { keyboardKartInput } from "./keyboard";
 import { createRaceView } from "./race-view";
+import { fetchSidecar, selectTrack } from "./track";
 
-// M0: one kart, one plane, the local player at slot 0. The seed is fixed
-// until rooms hand one out.
+// M0: one kart on a greybox track, the local player at slot 0. The seed is
+// fixed until rooms hand one out; the track comes from `?track=` until rooms
+// pick it.
 const SEED = 1n;
 const KART_COUNT = 1;
 const LOCAL_KART = 0;
@@ -12,11 +14,12 @@ const LOCAL_KART = 0;
 const MAX_TICKS_PER_FRAME = 5;
 
 async function main(container: HTMLElement): Promise<void> {
-  const bridge = await loadBridge();
+  const track = selectTrack(window.location.search);
+  const [bridge, sidecar] = await Promise.all([loadBridge(), fetchSidecar(track)]);
   const tickSeconds = 1 / bridge.ticksPerSecond;
-  const race = bridge.createRace(SEED, KART_COUNT);
+  const race = bridge.createRace(SEED, KART_COUNT, sidecar);
   const input = keyboardKartInput(window);
-  const view = await createRaceView(container, KART_COUNT);
+  const view = await createRaceView(container, KART_COUNT, track.gltfUrl);
   const panel = createInstrumentPanel(container);
 
   const present = () => {

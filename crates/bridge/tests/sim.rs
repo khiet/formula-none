@@ -1,40 +1,60 @@
-//! The bridge's surface as the web app sees it: create, step with a flat
-//! input buffer, read a flat transform buffer. Native tests; the wasm build
-//! of the same code is checked in CI.
+//! The bridge's surface as the web app sees it: create a race on a sidecar,
+//! step with a flat input buffer, read a flat kart buffer. Native tests; the
+//! wasm build of the same code is checked in CI.
 
 use bridge::Race;
-use sim::tuning::TICKS_PER_SECOND;
+use sim::tuning::{KART_HALF_EXTENT_M, TICKS_PER_SECOND};
+use sim::{Surface, Track};
 
+const OVAL: &str = include_str!("../../../assets/tracks/oval/oval.track.json");
 const DT: f32 = 1.0 / TICKS_PER_SECOND as f32;
-/// Floats per kart in the transform buffer: position xyz, rotation xyzw, speed.
-const FLOATS_PER_KART: usize = 8;
+/// Floats per kart in the kart buffer: position xyz, rotation xyzw, speed, surface code.
+const FLOATS_PER_KART: usize = 9;
 /// Floats per kart in the input buffer: steer, throttle, brake.
 const FLOATS_PER_INPUT: usize = 3;
 
+fn race(seed: u64, kart_count: usize) -> Race {
+    Race::new(seed, kart_count, OVAL).expect("the oval fixture loads")
+}
+
 #[test]
-fn transform_buffer_holds_seven_floats_per_kart_in_grid_order() {
-    let race = Race::new(7, 3);
+fn kart_buffer_holds_nine_floats_per_kart_on_the_spawn_grid_in_slot_order() {
+    let race = race(7, 3);
     let buffer = race.kart_transforms();
+    let grid = Track::from_sidecar(OVAL).unwrap();
 
     assert_eq!(buffer.len(), 3 * FLOATS_PER_KART);
-    let xs: Vec<f32> = buffer.chunks(FLOATS_PER_KART).map(|kart| kart[0]).collect();
-    assert!(
-        xs[0] < xs[1] && xs[1] < xs[2],
-        "grid slots run left to right: {xs:?}"
-    );
-    for kart in buffer.chunks(FLOATS_PER_KART) {
+    for (kart, slot) in buffer.chunks(FLOATS_PER_KART).zip(grid.spawn_grid()) {
+        assert_eq!(kart[0], slot.position[0]);
+        assert!((kart[1] - slot.position[1] - KART_HALF_EXTENT_M).abs() < 1e-5);
+        assert_eq!(kart[2], slot.position[2]);
         assert_eq!(
             kart[3..7],
             [0.0, 0.0, 0.0, 1.0],
-            "karts spawn with identity rotation"
+            "the oval's grid faces -Z, so karts spawn with identity rotation"
         );
         assert_eq!(kart[7], 0.0, "karts spawn at rest");
+        assert_eq!(
+            kart[8],
+            f32::from(Surface::Asphalt.code()),
+            "karts spawn on asphalt"
+        );
     }
 }
 
 #[test]
+fn an_unusable_sidecar_or_too_many_karts_is_an_error_not_a_panic() {
+    assert!(Race::new(7, 1, "not json").is_err());
+    assert!(Race::new(7, 1, &OVAL.replacen("\"version\":1", "\"version\":9", 1)).is_err());
+    assert!(
+        Race::new(7, 9, OVAL).is_err(),
+        "the oval has eight spawn slots"
+    );
+}
+
+#[test]
 fn step_applies_each_karts_input_from_the_flat_buffer() {
-    let mut race = Race::new(7, 2);
+    let mut race = race(7, 2);
     let spawn = race.kart_transforms();
     let mut inputs = vec![0.0; 2 * FLOATS_PER_INPUT];
     inputs[1] = 1.0; // kart 0: full throttle, kart 1: nothing
@@ -53,15 +73,16 @@ fn step_applies_each_karts_input_from_the_flat_buffer() {
 }
 
 #[test]
-fn the_buffer_is_the_sim_crates_transforms_for_the_same_race() {
+fn the_buffer_is_the_sim_crates_readouts_for_the_same_race() {
     let input = sim::KartInput {
         steer: 0.5,
         throttle: 1.0,
         brake: 0.0,
     };
-    let mut state = sim::State::new(42, 1);
-    let mut race = Race::new(42, 1);
-    for _ in 0..TICKS_PER_SECOND {
+    let mut state = sim::State::new(42, 1, Track::from_sidecar(OVAL).unwrap());
+    let mut race = race(42, 1);
+    // Long enough to steer off the asphalt, so the surface code changes too.
+    for _ in 0..3 * TICKS_PER_SECOND {
         state = sim::step(state, &[input], DT);
         race.step(&[input.steer, input.throttle, input.brake], DT);
     }
@@ -71,11 +92,17 @@ fn the_buffer_is_the_sim_crates_transforms_for_the_same_race() {
     assert_eq!(buffer[..3], expected.position);
     assert_eq!(buffer[3..7], expected.rotation);
     assert_eq!(buffer[7], expected.speed);
+    assert_ne!(
+        state.kart_surface(0),
+        Surface::Asphalt,
+        "the kart left the asphalt"
+    );
+    assert_eq!(buffer[8], f32::from(state.kart_surface(0).code()));
 }
 
 #[test]
 fn a_short_input_buffer_is_rejected_and_the_race_stays_usable() {
-    let mut race = Race::new(7, 2);
+    let mut race = race(7, 2);
     let rejected = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
         race.step(&[0.0, 1.0, 0.0], DT);
     }));

@@ -4,9 +4,13 @@
 //!
 //! The public seam is [`step`]: feed a [`State`] one tick of [`KartInput`]
 //! per kart and get the next state back. Everything a renderer needs is read
-//! through [`State::kart_transforms`].
+//! through [`State::kart_transforms`]. A race runs on a [`Track`] loaded from
+//! the sidecar exported next to its glTF.
 
+pub mod track;
 pub mod tuning;
+
+pub use track::{Checkpoint, Placement, Surface, SurfaceMesh, Track, TrackError};
 
 use rand_chacha::rand_core::SeedableRng;
 use rand_chacha::ChaCha8Rng;
@@ -43,6 +47,7 @@ pub struct State {
         reason = "consumed by item rolls and bots in later milestones"
     )]
     rng: ChaCha8Rng,
+    track: Track,
     karts: Vec<Kart>,
     physics: Physics,
 }
@@ -69,64 +74,97 @@ struct Physics {
     ccd: CCDSolver,
 }
 
-use tuning::{GRAVITY_M_PER_S2, GRID_SPACING_M, KART_HALF_EXTENT_M};
+use tuning::{GRAVITY_M_PER_S2, KART_EDGE_RADIUS_M, KART_HALF_EXTENT_M};
 
-/// Half extents of the flat plane karts drive on until there is a track.
-const PLANE_HALF_EXTENT_M: f32 = 200.0;
-const PLANE_HALF_THICKNESS_M: f32 = 0.5;
+/// A surface query starts this far above the asked point, so a point lying
+/// exactly on a surface still finds it despite rounding.
+const SURFACE_PROBE_RISE_M: f32 = 0.1;
 
 impl State {
-    /// A fresh race with `kart_count` karts lined up on the grid, facing -Z.
-    pub fn new(seed: u64, kart_count: usize) -> Self {
-        let mut physics = Physics::new();
-        let plane = RigidBodyBuilder::fixed()
-            .translation(Vec3::new(0.0, -PLANE_HALF_THICKNESS_M, 0.0))
-            .build();
-        let plane = physics.bodies.insert(plane);
-        physics.colliders.insert_with_parent(
-            ColliderBuilder::cuboid(
-                PLANE_HALF_EXTENT_M,
-                PLANE_HALF_THICKNESS_M,
-                PLANE_HALF_EXTENT_M,
-            )
-            .friction(0.0)
-            .build(),
-            plane,
-            &mut physics.bodies,
+    /// A fresh race on `track` with `kart_count` karts on its spawn grid, in
+    /// slot order. `kart_count` must not exceed the track's spawn slots.
+    pub fn new(seed: u64, kart_count: usize, track: Track) -> Self {
+        assert!(
+            kart_count <= track.spawn_grid().len(),
+            "{} karts but the track has {} spawn slots",
+            kart_count,
+            track.spawn_grid().len()
         );
+        let mut physics = Physics::new();
+        let ground = physics.bodies.insert(RigidBodyBuilder::fixed().build());
+        for (surface, shape) in track.colliders() {
+            physics.colliders.insert_with_parent(
+                ColliderBuilder::new(shape.clone())
+                    .friction(0.0)
+                    .user_data(u128::from(surface.code()))
+                    .build(),
+                ground,
+                &mut physics.bodies,
+            );
+        }
 
-        let grid_width = GRID_SPACING_M * (kart_count as f32 - 1.0);
-        let karts = (0..kart_count)
+        let karts = track.spawn_grid()[..kart_count]
+            .iter()
             .map(|slot| {
-                let x = slot as f32 * GRID_SPACING_M - grid_width / 2.0;
                 let body = RigidBodyBuilder::dynamic()
-                    .translation(Vec3::new(x, KART_HALF_EXTENT_M, 0.0))
+                    .translation(Vec3::from(slot.position) + Vec3::Y * KART_HALF_EXTENT_M)
+                    .rotation(Vec3::Y * slot.yaw)
                     // Steering is a yaw we set each tick; the box must never
                     // tip or roll from a contact.
                     .enabled_rotations(false, true, false)
                     .build();
                 let body = physics.bodies.insert(body);
+                let core = KART_HALF_EXTENT_M - KART_EDGE_RADIUS_M;
                 physics.colliders.insert_with_parent(
-                    ColliderBuilder::cuboid(
-                        KART_HALF_EXTENT_M,
-                        KART_HALF_EXTENT_M,
-                        KART_HALF_EXTENT_M,
-                    )
-                    .friction(0.0)
-                    .restitution(0.0)
-                    .build(),
+                    ColliderBuilder::round_cuboid(core, core, core, KART_EDGE_RADIUS_M)
+                        .friction(0.0)
+                        .restitution(0.0)
+                        .build(),
                     body,
                     &mut physics.bodies,
                 );
                 Kart { body, speed: 0.0 }
             })
             .collect();
+        physics.index_colliders();
 
         Self {
             rng: ChaCha8Rng::seed_from_u64(seed),
+            track,
             karts,
             physics,
         }
+    }
+
+    pub fn track(&self) -> &Track {
+        &self.track
+    }
+
+    /// What lies under `point`: the topmost tagged surface at or below it,
+    /// or `OutOfWorld` when there is none. Karts are never an answer.
+    pub fn surface_at(&self, point: [f32; 3]) -> Surface {
+        let ray = Ray::new(
+            Vec3::from(point) + Vec3::Y * SURFACE_PROBE_RISE_M,
+            Vec3::NEG_Y,
+        );
+        let physics = &self.physics;
+        let pipeline = physics.broad_phase.as_query_pipeline(
+            physics.narrow_phase.query_dispatcher(),
+            &physics.bodies,
+            &physics.colliders,
+            QueryFilter::only_fixed(),
+        );
+        pipeline
+            .cast_ray(&ray, f32::MAX, true)
+            .and_then(|(collider, _)| {
+                Surface::from_code(physics.colliders[collider].user_data as u8)
+            })
+            .unwrap_or(Surface::OutOfWorld)
+    }
+
+    /// The surface under a kart's centre.
+    pub fn kart_surface(&self, kart: usize) -> Surface {
+        self.surface_at(self.kart_transforms()[kart].position)
     }
 
     /// One transform per kart, in grid order.
@@ -210,6 +248,21 @@ impl Physics {
             soft_bodies: SoftBodySet::new(),
             ccd: CCDSolver::new(),
         }
+    }
+
+    /// Register newly inserted colliders with the broad phase so scene queries
+    /// see the track before the first tick; `step` does this itself later.
+    fn index_colliders(&mut self) {
+        CollisionPipeline::new().step(
+            self.integration.prediction_distance(),
+            &mut self.islands,
+            &mut self.broad_phase,
+            &mut self.narrow_phase,
+            &mut self.bodies,
+            &mut self.colliders,
+            &(),
+            &(),
+        );
     }
 
     fn step(&mut self, dt: f32) {

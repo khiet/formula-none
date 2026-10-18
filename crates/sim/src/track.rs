@@ -1,0 +1,268 @@
+//! A track as the sim sees it: the sidecar exported from Blender next to the
+//! glTF (ADR 0007). The sim reads this and never the mesh, so the picture can
+//! change without touching a rule.
+//!
+//! Everything is in the glTF frame the renderer uses: metres, Y up, a kart
+//! with yaw zero faces -Z, and yaw grows counter-clockwise seen from above.
+
+use rapier3d::prelude::{SharedShape, TriMeshFlags, Vec3};
+use serde::Deserialize;
+use std::fmt;
+
+/// The sidecar layout this build reads; `assets/tracks/export.py` writes it.
+pub const SIDECAR_VERSION: u32 = 1;
+
+/// What is under a point on the track. Four of these are exported as tagged
+/// meshes; `OutOfWorld` is the answer when nothing lies below a point.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Surface {
+    Asphalt,
+    Sand,
+    Grass,
+    Wall,
+    OutOfWorld,
+}
+
+impl Surface {
+    /// A stable small integer for crossing the wasm boundary; `from_code`
+    /// inverts it.
+    pub const fn code(self) -> u8 {
+        match self {
+            Surface::Asphalt => 0,
+            Surface::Sand => 1,
+            Surface::Grass => 2,
+            Surface::Wall => 3,
+            Surface::OutOfWorld => 4,
+        }
+    }
+
+    pub const fn from_code(code: u8) -> Option<Self> {
+        Some(match code {
+            0 => Surface::Asphalt,
+            1 => Surface::Sand,
+            2 => Surface::Grass,
+            3 => Surface::Wall,
+            4 => Surface::OutOfWorld,
+            _ => return None,
+        })
+    }
+}
+
+/// Something placed on the track: a point on the surface and a facing.
+#[derive(Debug, Clone, Copy, PartialEq, Deserialize)]
+pub struct Placement {
+    pub position: [f32; 3],
+    /// Radians about +Y; zero faces -Z.
+    pub yaw: f32,
+}
+
+/// An ordered gate across the track. A kart passes it when it crosses the
+/// gate's plane within `half_width` of its centre, heading along `yaw`.
+#[derive(Debug, Clone, Copy, PartialEq, Deserialize)]
+pub struct Checkpoint {
+    pub position: [f32; 3],
+    pub yaw: f32,
+    pub half_width: f32,
+}
+
+/// One tagged collision mesh: a flat position buffer and a triangle index
+/// buffer, as exported.
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+pub struct SurfaceMesh {
+    pub name: String,
+    pub surface: Surface,
+    pub positions: Vec<f32>,
+    pub indices: Vec<u32>,
+}
+
+impl SurfaceMesh {
+    pub fn vertices(&self) -> impl Iterator<Item = [f32; 3]> + '_ {
+        self.positions.as_chunks::<3>().0.iter().copied()
+    }
+
+    pub fn triangles(&self) -> impl Iterator<Item = [u32; 3]> + '_ {
+        self.indices.as_chunks::<3>().0.iter().copied()
+    }
+}
+
+#[derive(Deserialize)]
+struct Sidecar {
+    version: u32,
+    name: String,
+    centreline: Vec<[f32; 3]>,
+    checkpoints: Vec<Checkpoint>,
+    item_boxes: Vec<Placement>,
+    boost_pads: Vec<Placement>,
+    spawn_grid: Vec<Placement>,
+    surfaces: Vec<SurfaceMesh>,
+}
+
+/// A loaded, validated track. Cloning shares the collision shapes.
+#[derive(Clone)]
+pub struct Track {
+    name: String,
+    centreline: Vec<[f32; 3]>,
+    checkpoints: Vec<Checkpoint>,
+    item_boxes: Vec<Placement>,
+    boost_pads: Vec<Placement>,
+    spawn_grid: Vec<Placement>,
+    surfaces: Vec<SurfaceMesh>,
+    /// One collision shape per surface mesh, in `surfaces` order.
+    shapes: Vec<SharedShape>,
+}
+
+impl fmt::Debug for Track {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Track")
+            .field("name", &self.name)
+            .field("spline_length", &self.spline_length())
+            .field("checkpoints", &self.checkpoints.len())
+            .field("surfaces", &self.surfaces.len())
+            .finish_non_exhaustive()
+    }
+}
+
+#[derive(Debug)]
+pub enum TrackError {
+    Json(serde_json::Error),
+    UnsupportedVersion(u32),
+    Invalid(String),
+}
+
+impl fmt::Display for TrackError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            TrackError::Json(error) => write!(f, "sidecar is not valid JSON: {error}"),
+            TrackError::UnsupportedVersion(version) => {
+                write!(f, "sidecar version {version} is not {SIDECAR_VERSION}")
+            }
+            TrackError::Invalid(reason) => write!(f, "sidecar is invalid: {reason}"),
+        }
+    }
+}
+
+impl std::error::Error for TrackError {}
+
+impl From<serde_json::Error> for TrackError {
+    fn from(error: serde_json::Error) -> Self {
+        TrackError::Json(error)
+    }
+}
+
+impl Track {
+    /// Parse and validate a sidecar. Every error a race could hit later is
+    /// reported here, so a `Track` that exists can be raced on.
+    pub fn from_sidecar(json: &str) -> Result<Self, TrackError> {
+        let sidecar: Sidecar = serde_json::from_str(json)?;
+        if sidecar.version != SIDECAR_VERSION {
+            return Err(TrackError::UnsupportedVersion(sidecar.version));
+        }
+        let invalid = |reason: String| Err(TrackError::Invalid(reason));
+        if sidecar.centreline.len() < 3 {
+            return invalid("the centreline needs at least three points".into());
+        }
+        if sidecar.checkpoints.is_empty() {
+            return invalid("a track needs at least one checkpoint".into());
+        }
+        if sidecar.spawn_grid.is_empty() {
+            return invalid("a track needs at least one spawn slot".into());
+        }
+        let mut shapes = Vec::with_capacity(sidecar.surfaces.len());
+        for mesh in &sidecar.surfaces {
+            if mesh.surface == Surface::OutOfWorld {
+                return invalid(format!("{}: out of world is not a mesh tag", mesh.name));
+            }
+            if mesh.positions.len() % 3 != 0 || mesh.indices.len() % 3 != 0 {
+                return invalid(format!(
+                    "{}: positions and indices must come in threes",
+                    mesh.name
+                ));
+            }
+            let vertices: Vec<Vec3> = mesh.vertices().map(Vec3::from).collect();
+            let triangles: Vec<[u32; 3]> = mesh.triangles().collect();
+            if triangles.is_empty() {
+                return invalid(format!("{}: no triangles", mesh.name));
+            }
+            if let Some(index) = triangles
+                .iter()
+                .flatten()
+                .find(|&&index| index as usize >= vertices.len())
+            {
+                return invalid(format!(
+                    "{}: index {index} is past the last vertex",
+                    mesh.name
+                ));
+            }
+            // Merged vertices let Rapier smooth over the seams between a
+            // ribbon's triangles, so a kart does not catch on them.
+            let shape = SharedShape::trimesh_with_flags(
+                vertices,
+                triangles,
+                TriMeshFlags::FIX_INTERNAL_EDGES,
+            )
+            .map_err(|error| TrackError::Invalid(format!("{}: {error:?}", mesh.name)))?;
+            shapes.push(shape);
+        }
+        Ok(Self {
+            name: sidecar.name,
+            centreline: sidecar.centreline,
+            checkpoints: sidecar.checkpoints,
+            item_boxes: sidecar.item_boxes,
+            boost_pads: sidecar.boost_pads,
+            spawn_grid: sidecar.spawn_grid,
+            surfaces: sidecar.surfaces,
+            shapes,
+        })
+    }
+
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+
+    /// The centreline as a closed polyline in the direction of travel,
+    /// starting at the start line. Spline progress is distance along it.
+    pub fn centreline(&self) -> &[[f32; 3]] {
+        &self.centreline
+    }
+
+    /// Length of one lap along the centreline, in metres.
+    pub fn spline_length(&self) -> f32 {
+        let points = &self.centreline;
+        points
+            .iter()
+            .zip(points.iter().cycle().skip(1))
+            .map(|(a, b)| Vec3::from(*a).distance(Vec3::from(*b)))
+            .sum()
+    }
+
+    /// Gates in lap order; the first is the start line.
+    pub fn checkpoints(&self) -> &[Checkpoint] {
+        &self.checkpoints
+    }
+
+    pub fn item_boxes(&self) -> &[Placement] {
+        &self.item_boxes
+    }
+
+    pub fn boost_pads(&self) -> &[Placement] {
+        &self.boost_pads
+    }
+
+    /// Start positions in grid order; slot 0 is pole.
+    pub fn spawn_grid(&self) -> &[Placement] {
+        &self.spawn_grid
+    }
+
+    pub fn surfaces(&self) -> &[SurfaceMesh] {
+        &self.surfaces
+    }
+
+    /// Each surface mesh's tag and collision shape, in `surfaces` order.
+    pub(crate) fn colliders(&self) -> impl Iterator<Item = (Surface, &SharedShape)> + '_ {
+        self.surfaces
+            .iter()
+            .map(|mesh| mesh.surface)
+            .zip(self.shapes.iter())
+    }
+}

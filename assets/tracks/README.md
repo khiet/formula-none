@@ -1,0 +1,72 @@
+# Tracks
+
+Two tracks, each exported from Blender as a glTF the View draws and a
+sidecar the sim reads (ADR 0007):
+
+| Track                | Role                              | Files                                   |
+| -------------------- | --------------------------------- | --------------------------------------- |
+| `oval`               | test fixture for the sim's tests  | `oval/oval.glb`, `oval/oval.track.json` |
+| `brands-patch`       | the race track, greybox materials | `brands-patch/brands-patch.glb`, `...track.json` |
+
+## Export
+
+One command, with Blender 4.2 or newer on `PATH` (`brew install --cask
+blender` on macOS):
+
+```sh
+pnpm export:tracks
+```
+
+It runs `blender --background --python assets/tracks/build.py -- all`,
+which builds each track's scene from its layout, writes the glTF and the
+sidecar, and saves a `.blend` beside them for inspection (ignored by git).
+Commit the glTF and sidecar: CI has no Blender, and the sim's tests include
+the sidecars.
+
+## Sources
+
+The Blender source of a track is a Python layout, `trackgen/layouts/<name>.py`,
+so it diffs and reviews like code. A layout lays the centreline turtle-style
+from straights and arcs, then hangs everything else on it by arc length:
+asphalt and run-off widths, walls, pipes, elevation (hills and the jump
+ramp), checkpoint count, item box rows and boost pads. The spawn grid is
+always eight slots behind the start line. `trackgen/` is pure Python so a
+layout can be checked without Blender:
+
+```sh
+python3 -c "import sys; sys.path.insert(0, 'assets/tracks'); \
+  from trackgen.layouts import load; print(load('oval').path.length)"
+```
+
+`build.py` turns a layout into a Blender scene; `export.py` turns any scene
+that follows the conventions below into the two files. A track modelled by
+hand in Blender goes through the same exporter:
+
+```sh
+blender my-track.blend --background --python assets/tracks/export.py -- my-track assets/tracks/my-track
+```
+
+## Scene conventions
+
+- Collection `Track`: mesh objects with a `surface` custom property, one of
+  `asphalt`, `sand`, `grass` or `wall`. Pipes are walls. These go into the
+  glTF and, triangulated, into the sidecar as collision meshes. Wind faces
+  so their normals point out of the surface; the physics relies on it.
+- A curve object `Centreline`: one closed POLY or BEZIER spline run in the
+  direction of travel, starting at the start line. Spline progress is
+  distance along it.
+- Collections `Checkpoints`, `ItemBoxes`, `BoostPads`, `SpawnGrid`: empties
+  ordered by name, facing along their local +Y. Checkpoints carry a
+  `half_width` custom property.
+
+Blender is Z up; the sidecar is written in the glTF frame (metres, Y up, -Z
+forward, yaw in radians about +Y with zero facing -Z) so it matches the
+mesh. `crates/sim/src/track.rs` documents the sidecar's fields and is the
+reader to keep in step with `export.py`.
+
+## Greybox rules
+
+Placeholder materials only, one flat colour per surface, until M1 passes its
+feel gate (ADR 0007). The sand run-off slopes five centimetres down to the
+grass so no two surfaces share a plane, which keeps "what is under this
+point" unambiguous.

@@ -21,7 +21,7 @@ crates/server     authoritative server binary
 apps/web          Vite + Three.js client (TypeScript strict)
 tools/            workspace packages that are not shipped (repo-checks)
 infra/            OpenTofu for the single-instance AWS environment
-assets/           Blender sources and exported glTF
+assets/           track layouts, the Blender export and the exported glTF plus sidecars
 docs/             GLOSSARY.md and adr/
 ```
 
@@ -48,6 +48,12 @@ Web (from the repo root, after `pnpm install`):
 - Lint: `pnpm lint` (`pnpm lint:fix` applies Biome's fixes)
 - Typecheck: `pnpm -r typecheck`
 - Test: `pnpm test` (`pnpm test:e2e` runs Playwright against the dev server)
+
+Tracks (needs Blender on `PATH`; see `assets/tracks/README.md`):
+
+- Export: `pnpm export:tracks` writes each track's glTF and sidecar under
+  `assets/tracks/<name>/`; rerun after changing a layout and commit the
+  output, since the sim's tests read the sidecars
 
 CI (`.github/workflows/ci.yml`) runs on every PR: clippy with warnings as
 errors, nextest, the wasm build of the bridge, Biome, typecheck, Vitest, the

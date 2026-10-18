@@ -81,6 +81,20 @@ The client replacing its predicted state with a snapshot and replaying the
 inputs the server has not yet acknowledged. The visible correction is blended
 over up to six frames rather than snapped.
 
+## Track
+
+### sidecar
+
+The data file exported from Blender next to a track's glTF: the centreline,
+checkpoints, item box and boost pad positions, the spawn grid and the tagged
+collision meshes. The sim reads the sidecar and never the glTF.
+
+### surface tag
+
+What is under a point on the track: asphalt, sand, grass, wall, or out of
+world when nothing is below it. Collision meshes in the sidecar carry the
+first four; the sim answers with the topmost one under a point.
+
 ## Client
 
 ### Scene
