@@ -21,6 +21,18 @@ and the karts' transforms and standings, and answers with the same input
 struct a human's controller produces. Bots start on the grid behind the
 humans.
 
+### phase
+
+Where a race is: Countdown, Racing or Finished. Sim state, stepped like
+every other rule, so a solo race in the browser and a room on the server
+run the same lifecycle. Countdown holds the karts on the grid for the 3-2-1
+count; a throttle press in the last 0.3 s sets up a 1.0 s start boost at
++30 percent and a press before that a 1.0 s stall. Racing runs the laps and
+ends 20 s after the first finisher or when every kart has finished; the
+unfinished are placed by progress at that point. Finished freezes the
+standings as the results. A room's Countdown and Racing states follow the
+race's phase, and its Results state its Finished.
+
 ### rubber band
 
 The scale on a bot's top speed by its spline distance from the nearest
@@ -66,9 +78,12 @@ seconds triggers the wrong-way warning.
 ### standing
 
 Where a kart is in the race: its race position, laps completed, last
-checkpoint crossed in order, spline progress, lap time, best lap and whether
-the wrong-way warning is up. The sim reports one per kart every tick; the
-Instrument panel shows the local kart's.
+checkpoint crossed in order, spline progress, lap time, best lap, finish
+time once it has finished and whether the wrong-way warning is up. The sim
+reports one per kart every tick; the Instrument panel shows the local
+kart's, and the Results Scene lists every kart's once the race is Finished.
+Finishers hold their places in finishing order whatever they do after the
+line.
 
 ### hop
 
@@ -146,7 +161,8 @@ The part of a Scene that renders the world. The Race Scene has one View, the
 ### Instrument panel
 
 The HUD overlaid on a View: position, lap, lap time, best lap, item slot,
-wrong-way warning and connection banner. Reads state; never drives it.
+wrong-way warning, connection banner and the countdown's count over the
+View. Reads state; never drives it.
 
 ### Presentation
 

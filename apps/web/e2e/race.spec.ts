@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { startRace } from "./scenes";
 
 // The whole chain in a real browser, on each track: glTF and sidecar load,
 // a key, keyboard mapping, wasm sim on the track's colliders with seven
@@ -11,7 +12,7 @@ for (const [name, url, throttleKey] of [
   ["the oval", "/?track=oval", "w"],
 ] as const) {
   test(`holding ${throttleKey} drives the kart along ${name}`, async ({ page }) => {
-    await page.goto(url);
+    await startRace(page, url);
     const speed = page.locator('[data-instrument="speed"]');
     const surface = page.locator('[data-instrument="surface"]');
     await expect(speed).toHaveText("0.0 m/s");
@@ -42,8 +43,7 @@ test("backing up the Brands Patch grid for two seconds shows the wrong-way warni
   // The warning needs two seconds of sim time and clearing most of another.
   // A CI runner steps the sim far slower than real time, so the waits are
   // sized in wall time with room to spare.
-  test.setTimeout(120_000);
-  await page.goto("/");
+  await startRace(page, "/");
   const speed = page.locator('[data-instrument="speed"]');
   const wrongWay = page.locator('[data-instrument="wrong-way"]');
   await expect(speed).toHaveText("0.0 m/s");
@@ -64,7 +64,7 @@ test("backing up the Brands Patch grid for two seconds shows the wrong-way warni
 });
 
 test("holding the brake at a standstill backs the kart up", async ({ page }) => {
-  await page.goto("/?track=oval");
+  await startRace(page, "/?track=oval");
   const speed = page.locator('[data-instrument="speed"]');
   await expect(speed).toHaveText("0.0 m/s");
   await page.keyboard.down("ArrowDown");

@@ -6,11 +6,20 @@ use sim::tuning::{
     BOT_LOOKAHEAD_M, BOT_RUBBER_BAND_MAX_FACTOR, BOT_RUBBER_BAND_MIN_FACTOR, LAPS_PER_RACE,
     MINI_TURBO_ORANGE_BOOST_S, TICKS_PER_SECOND, TOP_SPEED_M_PER_S,
 };
-use sim::{step, KartInput, State, Surface, Track};
+use sim::{step, KartInput, Phase, State, Surface, Track};
 
 const OVAL: &str = include_str!("../../../assets/tracks/oval/oval.track.json");
 const DT: f32 = 1.0 / TICKS_PER_SECOND as f32;
 const SEED: u64 = 0x5EED;
+
+/// The race past its countdown, every kart idle on the grid until Go.
+fn started(mut state: State) -> State {
+    let inputs = vec![KartInput::default(); state.human_count()];
+    while matches!(state.phase(), Phase::Countdown { .. }) {
+        state = step(state, &inputs, DT);
+    }
+    state
+}
 
 fn oval() -> Track {
     Track::from_sidecar(OVAL).expect("the oval fixture loads")
@@ -31,7 +40,7 @@ fn idle_humans(mut state: State, humans: usize, seconds: f32) -> State {
 
 #[test]
 fn a_bot_fills_the_slot_behind_the_human_and_drives_off_without_an_input() {
-    let state = State::with_bots(SEED, 1, 1, oval());
+    let state = started(State::with_bots(SEED, 1, 1, oval()));
     let grid = state.kart_transforms();
     assert_eq!(grid.len(), 2, "one human and one bot");
     assert_eq!(state.standings().len(), 2);
@@ -71,7 +80,7 @@ const LAP_S: f32 = 20.0;
 
 #[test]
 fn a_bot_alone_laps_the_oval_three_times_without_leaving_the_asphalt() {
-    let mut state = State::with_bots(SEED, 0, 1, oval());
+    let mut state = started(State::with_bots(SEED, 0, 1, oval()));
     let mut lap_times = Vec::new();
     for _ in 0..ticks(LAPS_PER_RACE as f32 * LAP_S) {
         state = step(state, &[], DT);
@@ -161,7 +170,7 @@ fn a_bot_drifts_through_each_hairpin_of_brands_patch_on_every_lap() {
         "Brands Patch has two hairpins: {hairpins:?}"
     );
     let laps = 2;
-    let mut state = State::with_bots(SEED, 0, 1, track);
+    let mut state = started(State::with_bots(SEED, 0, 1, track));
     let mut drifted_in: Vec<Vec<bool>> = vec![vec![false; hairpins.len()]; laps];
     for _ in 0..ticks(laps as f32 * 45.0) {
         state = step(state, &[], DT);
@@ -220,12 +229,12 @@ fn oval_with_slot_1_on_the_back_straight_and_no_boost_pads() -> Track {
 fn the_rubber_band_hurries_a_bot_far_behind_and_slows_one_far_ahead_within_the_tuned_bounds() {
     // The human idles on the grid; the bot starts over 100 m behind it on
     // the back straight, passes it and runs over 100 m ahead.
-    let mut state = State::with_bots(
+    let mut state = started(State::with_bots(
         SEED,
         1,
         1,
         oval_with_slot_1_on_the_back_straight_and_no_boost_pads(),
-    );
+    ));
     assert_eq!(state.rubber_band(0), 1.0, "a human is never banded");
     assert_eq!(
         state.rubber_band(1),
@@ -293,7 +302,7 @@ fn the_rubber_band_hurries_a_bot_far_behind_and_slows_one_far_ahead_within_the_t
 
 #[test]
 fn a_bot_in_a_race_with_no_humans_has_no_rubber_band() {
-    let state = State::with_bots(SEED, 0, 2, oval());
+    let state = started(State::with_bots(SEED, 0, 2, oval()));
     let state = idle_humans(state, 0, 5.0);
     assert_eq!(state.rubber_band(0), 1.0);
     assert_eq!(state.rubber_band(1), 1.0);
@@ -348,14 +357,14 @@ fn perfect_driver(state: &State, kart: usize) -> KartInput {
 }
 
 /// Race one human driven by `driver` against seven bots on the oval until
-/// every kart has finished its laps or `seconds` are up. Returns the
-/// finishing order as grid slots, who finished first and then the rest by
-/// race position when the run ends, and the state at the end.
+/// the race ends or `seconds` are up. Returns the finishing order as grid
+/// slots, who finished first and then the rest by race position when the
+/// run ends, and the state at the end.
 fn race_against_seven_bots(
     driver: Option<fn(&State, usize) -> KartInput>,
     seconds: f32,
 ) -> (Vec<usize>, State) {
-    let mut state = State::with_bots(SEED, 1, 7, oval());
+    let mut state = started(State::with_bots(SEED, 1, 7, oval()));
     let mut finished: Vec<usize> = Vec::new();
     for _ in 0..ticks(seconds) {
         let input = driver.map_or(KartInput::default(), |driver| driver(&state, 0));
@@ -369,7 +378,7 @@ fn race_against_seven_bots(
         // Two finishing on one tick are ordered by race position.
         done.sort_by_key(|&slot| standings[slot].position);
         finished.extend(done);
-        if finished.len() == standings.len() {
+        if state.phase() == Phase::Finished {
             break;
         }
     }
@@ -393,15 +402,26 @@ fn a_scripted_perfect_driver_beats_all_seven_bots() {
 }
 
 #[test]
-fn a_scripted_idle_driver_finishes_last_and_every_bot_finishes() {
+fn a_scripted_idle_driver_is_last_when_a_bot_finishes_and_the_race_ends() {
     let (order, state) = race_against_seven_bots(None, RACE_S);
     assert_eq!(order[7], 0, "finishing order by grid slot: {order:?}");
+    assert_eq!(
+        state.phase(),
+        Phase::Finished,
+        "the race ended within {RACE_S} s"
+    );
     let standings = state.standings();
+    assert!(
+        standings[1..].iter().any(|s| s.finish_time_s.is_some()),
+        "a bot finished its laps"
+    );
+    // The race ends the tuned grace after the first finisher; no bot is so
+    // far behind that it is still short of its last lap then.
     assert!(
         standings[1..]
             .iter()
-            .all(|s| s.laps_completed >= LAPS_PER_RACE),
-        "every bot finished its laps: {:?}",
+            .all(|s| s.laps_completed >= LAPS_PER_RACE - 1),
+        "every bot is on its last lap or finished: {:?}",
         standings
             .iter()
             .map(|s| s.laps_completed)
@@ -422,7 +442,12 @@ fn oval_with_slot_0_facing_the_first_turns_wall() -> Track {
 
 #[test]
 fn a_bot_held_by_a_wall_backs_up_and_drives_on() {
-    let mut state = State::with_bots(SEED, 0, 1, oval_with_slot_0_facing_the_first_turns_wall());
+    let mut state = started(State::with_bots(
+        SEED,
+        0,
+        1,
+        oval_with_slot_0_facing_the_first_turns_wall(),
+    ));
     let start = state.standings()[0].spline_progress;
     let mut stopped_at = None;
     let mut backed_up = false;

@@ -27,6 +27,37 @@
         color: #fff;
         font: 1.25rem/1 ui-monospace, SFMono-Regular, Menlo, monospace;
       }
+      [data-instrument="countdown"] {
+        position: fixed;
+        top: 40%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        font-size: 8rem;
+        font-weight: bold;
+        text-shadow: 0 0 1rem #000;
+      }
+      #title-scene,
+      #results-scene {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 1rem;
+        height: 100%;
+        color: #fff;
+        font: 1.25rem/1.4 system-ui, sans-serif;
+      }
+      #results-scene ol {
+        padding: 0;
+        list-style: none;
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      }
+      #title-scene button,
+      #results-scene button {
+        padding: 0.5rem 1.5rem;
+        font: inherit;
+        cursor: pointer;
+      }
     </style>
   </head>
   <body>

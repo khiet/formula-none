@@ -6,16 +6,17 @@
 //! once per kart per field.
 
 use protocol::{ClientMessage, ServerMessage};
-use sim::{KartInput, Replay, State, Track};
+use sim::{KartInput, Phase, Replay, State, Track};
 use wasm_bindgen::prelude::*;
 
 /// Floats per kart in the input buffer: steer, throttle, brake, hop, use
 /// item, hold item. A button is pressed when its float is not zero.
 const FLOATS_PER_INPUT: usize = 6;
 
-/// Written in the standings buffer where a kart has no best lap yet; a lap
-/// time is never negative.
-const NO_BEST_LAP: f32 = -1.0;
+/// Written in the standings and phase buffers where a kart has no best lap
+/// or finish time yet, and where the grace has not started; a time is never
+/// negative.
+const NO_TIME: f32 = -1.0;
 
 /// Fixed sim rate, so the client's tick loop reads the tuned value instead of
 /// repeating it (ADR 0014).
@@ -210,12 +211,13 @@ impl Race {
             .collect()
     }
 
-    /// Seven floats per kart in grid order: race position from 1, the lap
+    /// Eight floats per kart in grid order: race position from 1, the lap
     /// the kart is on from 1 (staying on the last once the race's laps are
     /// done), the last checkpoint crossed in order (0 is the start line),
     /// spline progress in metres along the centreline, seconds into the
     /// current lap, the best lap in seconds or -1 before a lap is
-    /// completed, and 1 while the wrong-way warning is up, else 0.
+    /// completed, 1 while the wrong-way warning is up, else 0, and the race
+    /// clock at the kart's finish or -1 while it is still racing.
     /// `sim::State::standings` documents the ordering.
     pub fn standings(&self) -> Vec<f32> {
         self.state()
@@ -228,11 +230,31 @@ impl Race {
                     standing.checkpoint as f32,
                     standing.spline_progress,
                     standing.lap_time_s,
-                    standing.best_lap_s.unwrap_or(NO_BEST_LAP),
+                    standing.best_lap_s.unwrap_or(NO_TIME),
                     f32::from(u8::from(standing.wrong_way)),
+                    standing.finish_time_s.unwrap_or(NO_TIME),
                 ]
             })
             .collect()
+    }
+
+    /// Three floats for where the race is (`sim::Phase`): the phase as
+    /// `sim::Phase::code` (0 countdown, 1 racing, 2 finished); then the
+    /// countdown's seconds to Go, or the race clock in seconds while racing,
+    /// or 0 once finished; then the seconds left of the grace after the
+    /// first finisher, or -1 before anyone has finished and once the race
+    /// is over.
+    pub fn phase(&self) -> Vec<f32> {
+        let phase = self.state().phase();
+        let (seconds, grace_left_s) = match phase {
+            Phase::Countdown { remaining_s } => (remaining_s, NO_TIME),
+            Phase::Racing {
+                elapsed_s,
+                grace_left_s,
+            } => (elapsed_s, grace_left_s.unwrap_or(NO_TIME)),
+            Phase::Finished => (0.0, NO_TIME),
+        };
+        vec![f32::from(phase.code()), seconds, grace_left_s]
     }
 
     /// `sim::State::hash` of the race as of the last step: everything that

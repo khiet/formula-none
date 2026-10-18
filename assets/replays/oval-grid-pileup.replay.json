@@ -2,7 +2,77 @@
   "version": 1,
   "seed": "2",
   "track": "oval",
+  "bots": 0,
   "segments": [
+    {
+      "ticks": 181,
+      "inputs": [
+        {
+          "steer": 0.0,
+          "throttle": 0.0,
+          "brake": 0.0,
+          "hop": false,
+          "useItem": false,
+          "holdItem": false
+        },
+        {
+          "steer": 0.0,
+          "throttle": 0.0,
+          "brake": 0.0,
+          "hop": false,
+          "useItem": false,
+          "holdItem": false
+        },
+        {
+          "steer": 0.0,
+          "throttle": 0.0,
+          "brake": 0.0,
+          "hop": false,
+          "useItem": false,
+          "holdItem": false
+        },
+        {
+          "steer": 0.0,
+          "throttle": 0.0,
+          "brake": 0.0,
+          "hop": false,
+          "useItem": false,
+          "holdItem": false
+        },
+        {
+          "steer": 0.0,
+          "throttle": 0.0,
+          "brake": 0.0,
+          "hop": false,
+          "useItem": false,
+          "holdItem": false
+        },
+        {
+          "steer": 0.0,
+          "throttle": 0.0,
+          "brake": 0.0,
+          "hop": false,
+          "useItem": false,
+          "holdItem": false
+        },
+        {
+          "steer": 0.0,
+          "throttle": 0.0,
+          "brake": 0.0,
+          "hop": false,
+          "useItem": false,
+          "holdItem": false
+        },
+        {
+          "steer": 0.0,
+          "throttle": 0.0,
+          "brake": 0.0,
+          "hop": false,
+          "useItem": false,
+          "holdItem": false
+        }
+      ]
+    },
     {
       "ticks": 90,
       "inputs": [
@@ -350,14 +420,17 @@
     }
   ],
   "hashes": [
-    "453590b9b7a5f031",
-    "23bca5d84548f1a4",
-    "5ccc3fa31b50a98b",
-    "67c91611ce190dd4",
-    "0061f3bc92a46651",
-    "8ef262dd754f8dce",
-    "a130a9234bb8b60b",
-    "3f6c48ec7cafe990",
-    "fe881661225fd993"
+    "bb085d5d4dca2860",
+    "0be1097570664f9d",
+    "680a186e5c822fc0",
+    "f080dfb5070e1c7f",
+    "3cd287f3042da30f",
+    "c0e573e7b9dcb233",
+    "0f99feecc71092fa",
+    "9bcab2b97ad69e6e",
+    "41ab110c52e07976",
+    "d4581d5bae856a37",
+    "4aee44da6adcf3ef",
+    "21b421631a703311"
   ]
 }

@@ -12,6 +12,10 @@
 //! puts bot karts on the grid behind the humans, and `step` has [`bot`]
 //! drive them from the same readouts and into the same input struct a human
 //! uses, before it applies anyone's input.
+//!
+//! A race has a beginning and an end, and both are rules: [`State::phase`]
+//! walks Countdown, Racing and Finished through `step`, so a room on the
+//! server can drive the lifecycle a solo race in the browser does.
 
 pub mod bot;
 mod hash;
@@ -150,13 +154,71 @@ impl MiniTurbo {
     }
 }
 
+/// Where the race is. Every value here is read from `step`, never from a
+/// clock outside the sim, so a replay carries the whole lifecycle.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum Phase {
+    /// The karts are held on the grid; Go comes when `remaining_s` runs out.
+    /// A throttle press now sets up the start: a boost inside the tuned
+    /// window before Go, a stall before that.
+    Countdown { remaining_s: f32 },
+    /// The laps are being raced; `elapsed_s` is the race clock, which
+    /// finish times are read against. Once the first kart finishes
+    /// `grace_left_s` counts down the tuned grace, and the race ends when
+    /// it runs out or every kart has finished, whichever comes first.
+    Racing {
+        elapsed_s: f32,
+        grace_left_s: Option<f32>,
+    },
+    /// Over: the standings are the results and `step` changes nothing.
+    Finished,
+}
+
+impl Phase {
+    /// The phase as one byte in lifecycle order, for the hash and the bridge.
+    pub fn code(self) -> u8 {
+        match self {
+            Self::Countdown { .. } => 0,
+            Self::Racing { .. } => 1,
+            Self::Finished => 2,
+        }
+    }
+}
+
+/// What a kart's throttle during the countdown set up for Go.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Start {
+    /// No press yet: a plain start.
+    Clean,
+    /// Pressed inside the tuned window: the start boost.
+    Boost,
+    /// Pressed before the window: the stall. A later press never undoes it.
+    Stall,
+}
+
+impl Start {
+    /// One byte for the hash.
+    fn code(self) -> u8 {
+        match self {
+            Self::Clean => 0,
+            Self::Boost => 1,
+            Self::Stall => 2,
+        }
+    }
+}
+
 /// Where a kart stands in the race: what the Instrument panel shows and
 /// what race position is ordered by. One per kart from [`State::standings`].
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Standing {
-    /// Race position, 1 for the leader. Ordered by laps completed, then
-    /// checkpoint, then spline progress; a dead heat keeps grid order.
+    /// Race position, 1 for the leader. Finishers first in finishing order,
+    /// then the rest by laps completed, then checkpoint, then spline
+    /// progress; a dead heat keeps grid order.
     pub position: u32,
+    /// The race clock as the kart completed the race's laps; `None` while
+    /// it is still racing. Final once set: nothing after the line moves a
+    /// finisher's place.
+    pub finish_time_s: Option<f32>,
     pub laps_completed: u32,
     /// The last checkpoint crossed in order this lap; 0 is the start line,
     /// which the grid counts as having crossed.
@@ -191,6 +253,7 @@ pub struct State {
     /// The first this many `karts` are humans; fixed for the race.
     humans: usize,
     physics: Physics,
+    phase: Phase,
 }
 
 struct Kart {
@@ -237,14 +300,26 @@ struct Kart {
     boost_factor: f32,
     laps_completed: u32,
     /// The last checkpoint crossed in order this lap. The grid starts at 0,
-    /// the start line, so the first lap begins at the first tick.
+    /// the start line, so the first lap begins at Go.
     checkpoint: usize,
     spline_progress: f32,
     lap_time_s: f32,
     best_lap_s: Option<f32>,
+    /// What the throttle during the countdown set up; applied at Go.
+    start: Start,
+    /// Seconds of stall left after Go; no control does anything until it
+    /// runs out. Zero or less when not stalled.
+    stall_left_s: f32,
+    /// The race clock at the finish; `None` while the kart is racing. A
+    /// finished kart counts no more laps and its lap clock stops.
+    finish_time_s: Option<f32>,
 }
 
 impl Kart {
+    fn finished(&self) -> bool {
+        self.finish_time_s.is_some()
+    }
+
     fn airborne(&self) -> bool {
         self.airtime_left_s > 0.0
     }
@@ -274,6 +349,10 @@ struct Physics {
 use tuning::{BOOST_PAD_FACTOR, BOOST_PAD_S, RESPAWN_DELAY_S, WRONG_WAY_WARNING_S};
 use tuning::{BOT_RUBBER_BAND_MAX_FACTOR, BOT_RUBBER_BAND_MIN_FACTOR, BOT_RUBBER_BAND_RANGE_M};
 use tuning::{
+    COUNTDOWN_S, RACE_END_GRACE_S, START_BOOST_FACTOR, START_BOOST_S, START_BOOST_WINDOW_S,
+    START_STALL_S,
+};
+use tuning::{
     DRIFT_ENTRY_SPEED_FRACTION, GRAVITY_M_PER_S2, HOP_AIRTIME_S, KART_EDGE_RADIUS_M,
     KART_HALF_HEIGHT_M, KART_HALF_LENGTH_M, KART_HALF_WIDTH_M, LAPS_PER_RACE,
     MINI_TURBO_BOOST_FACTOR, OFF_TRACK_SPEED_FACTOR, TOP_SPEED_M_PER_S,
@@ -289,20 +368,21 @@ const SURFACE_PROBE_RISE_M: f32 = 0.1;
 const WALL_PREDICTION_M: f32 =
     2.0 * BOOST_PAD_FACTOR * TOP_SPEED_M_PER_S / tuning::TICKS_PER_SECOND as f32;
 
-/// Stands in for a missing best lap in the hash; a lap time is never negative.
-const NO_BEST_LAP: f32 = -1.0;
+/// Stands in for a missing best lap, finish time or grace in the hash; none
+/// of them is ever negative.
+const NO_TIME: f32 = -1.0;
 
 impl State {
     /// A fresh race on `track` with `kart_count` human karts on its spawn
-    /// grid, in slot order. `kart_count` must not exceed the track's spawn
-    /// slots.
+    /// grid, in slot order, at the top of its countdown. `kart_count` must
+    /// not exceed the track's spawn slots.
     pub fn new(seed: u64, kart_count: usize, track: Track) -> Self {
         Self::with_bots(seed, kart_count, 0, track)
     }
 
     /// A fresh race on `track` with `humans` karts on the front of its spawn
-    /// grid and `bots` karts on the slots behind them. Together they must
-    /// not exceed the track's spawn slots.
+    /// grid and `bots` karts on the slots behind them, at the top of its
+    /// countdown. Together they must not exceed the track's spawn slots.
     pub fn with_bots(seed: u64, humans: usize, bots: usize, track: Track) -> Self {
         let kart_count = humans + bots;
         assert!(
@@ -374,6 +454,9 @@ impl State {
                     spline_progress: track.progress_at(slot.position),
                     lap_time_s: 0.0,
                     best_lap_s: None,
+                    start: Start::Clean,
+                    stall_left_s: 0.0,
+                    finish_time_s: None,
                 }
             })
             .collect();
@@ -385,11 +468,19 @@ impl State {
             karts,
             humans,
             physics,
+            phase: Phase::Countdown {
+                remaining_s: COUNTDOWN_S,
+            },
         }
     }
 
     pub fn track(&self) -> &Track {
         &self.track
+    }
+
+    /// Where the race is, as of the last tick.
+    pub fn phase(&self) -> Phase {
+        self.phase
     }
 
     /// Karts driven from `step`'s inputs: the first this many grid slots.
@@ -442,9 +533,10 @@ impl State {
         self.surface_at(self.kart_transforms()[kart].position)
     }
 
-    /// A hash of everything that influences future ticks: the RNG and, per
-    /// kart, its speed and its body's position, heading, velocities and
-    /// sleep state, including the timer that puts a resting body to sleep.
+    /// A hash of everything that influences future ticks: the phase and its
+    /// clocks, the RNG and, per kart, its speed and its body's position,
+    /// heading, velocities and sleep state, including the timer that puts
+    /// a resting body to sleep.
     /// Bit-identical on every platform for bit-identical states, which is
     /// what the replay fixtures check (ADR 0002). A bot's memory is hashed
     /// with its kart. Three things are left out on purpose. The track and
@@ -455,6 +547,18 @@ impl State {
     /// caught then.
     pub fn hash(&self) -> u64 {
         let mut hasher = hash::Fnv1a::new();
+        hasher.write_u8(self.phase.code());
+        match self.phase {
+            Phase::Countdown { remaining_s } => hasher.write_f32(remaining_s),
+            Phase::Racing {
+                elapsed_s,
+                grace_left_s,
+            } => {
+                hasher.write_f32(elapsed_s);
+                hasher.write_f32(grace_left_s.unwrap_or(NO_TIME));
+            }
+            Phase::Finished => {}
+        }
         hasher.write(&self.rng.get_seed());
         hasher.write_u64(self.rng.get_stream());
         hasher.write_u128(self.rng.get_word_pos());
@@ -479,7 +583,10 @@ impl State {
             hasher.write_u64(kart.checkpoint as u64);
             hasher.write_f32(kart.spline_progress);
             hasher.write_f32(kart.lap_time_s);
-            hasher.write_f32(kart.best_lap_s.unwrap_or(NO_BEST_LAP));
+            hasher.write_f32(kart.best_lap_s.unwrap_or(NO_TIME));
+            hasher.write_u8(kart.start.code());
+            hasher.write_f32(kart.stall_left_s);
+            hasher.write_f32(kart.finish_time_s.unwrap_or(NO_TIME));
             if let Some(memory) = &kart.bot {
                 hasher.write_f32s(memory.timers());
             }
@@ -497,11 +604,15 @@ impl State {
     /// last tick so an overtake shows the tick it happens.
     pub fn standings(&self) -> Vec<Standing> {
         let mut order: Vec<usize> = (0..self.karts.len()).collect();
-        // Stable, so karts level on every key keep grid order.
+        // Stable, so karts level on every key keep grid order. A finish time
+        // sorts a finisher ahead of everyone still racing and among the
+        // other finishers.
         order.sort_by(|&a, &b| {
             let (a, b) = (&self.karts[a], &self.karts[b]);
-            b.laps_completed
-                .cmp(&a.laps_completed)
+            let finish = |kart: &Kart| kart.finish_time_s.unwrap_or(f32::INFINITY);
+            finish(a)
+                .total_cmp(&finish(b))
+                .then(b.laps_completed.cmp(&a.laps_completed))
                 .then(b.checkpoint.cmp(&a.checkpoint))
                 .then(
                     self.track
@@ -522,6 +633,7 @@ impl State {
             .zip(positions)
             .map(|(kart, position)| Standing {
                 position,
+                finish_time_s: kart.finish_time_s,
                 laps_completed: kart.laps_completed,
                 checkpoint: kart.checkpoint,
                 spline_progress: kart.spline_progress,
@@ -555,8 +667,51 @@ impl State {
 /// human kart in grid order; the caller must supply exactly as many as there
 /// are humans. The bots' inputs come from [`bot::drive`], given the readouts
 /// as of the last tick.
+///
+/// During the countdown nothing moves and only the throttle is read, for
+/// the start boost and the stall; the bots sit it out. Once the race has
+/// finished the state is returned as it was.
 pub fn step(mut state: State, inputs: &[KartInput], dt: f32) -> State {
     assert_eq!(inputs.len(), state.humans, "one input per human kart");
+    let (elapsed_s, grace_left_s) = match state.phase {
+        Phase::Finished => return state,
+        Phase::Countdown { remaining_s } => {
+            for (kart, input) in state.karts.iter_mut().zip(inputs) {
+                if input.throttle > 0.0 && kart.start == Start::Clean {
+                    kart.start = if remaining_s <= START_BOOST_WINDOW_S {
+                        Start::Boost
+                    } else {
+                        Start::Stall
+                    };
+                }
+            }
+            let remaining_s = remaining_s - dt;
+            if remaining_s > 0.0 {
+                state.phase = Phase::Countdown { remaining_s };
+            } else {
+                // Go: the race clock starts with the next tick.
+                for kart in &mut state.karts {
+                    match kart.start {
+                        Start::Clean => {}
+                        Start::Boost => {
+                            kart.boost_left_s = START_BOOST_S;
+                            kart.boost_factor = START_BOOST_FACTOR;
+                        }
+                        Start::Stall => kart.stall_left_s = START_STALL_S,
+                    }
+                }
+                state.phase = Phase::Racing {
+                    elapsed_s: 0.0,
+                    grace_left_s: None,
+                };
+            }
+            return state;
+        }
+        Phase::Racing {
+            elapsed_s,
+            grace_left_s,
+        } => (elapsed_s + dt, grace_left_s),
+    };
     // Skip building the readouts when no bot needs them.
     let inputs: Vec<KartInput> = if state.humans == state.karts.len() {
         inputs.to_vec()
@@ -591,6 +746,13 @@ pub fn step(mut state: State, inputs: &[KartInput], dt: f32) -> State {
         .zip(surfaces)
         .zip(top_speeds)
     {
+        // A stalled kart sits dead to every control until the stall runs out.
+        let input = if kart.stall_left_s > 0.0 {
+            kart.stall_left_s -= dt;
+            &KartInput::default()
+        } else {
+            input
+        };
         let body = &mut state.physics.bodies[kart.body];
         let position = body.translation().to_array();
         // Keep whatever vertical velocity gravity and the plane have agreed
@@ -688,10 +850,35 @@ pub fn step(mut state: State, inputs: &[KartInput], dt: f32) -> State {
             kart.wrong_way_s = 0.0;
         }
         kart.spline_progress = progress;
-        kart.lap_time_s += dt;
-        cross_checkpoint(kart, &state.track, before, after, dt);
+        if !kart.finished() {
+            kart.lap_time_s += dt;
+            cross_checkpoint(kart, &state.track, before, after, dt, elapsed_s);
+        }
     }
+    state.phase = next_phase(&state.karts, elapsed_s, grace_left_s, dt);
     state
+}
+
+/// The phase after a racing tick that ended at `elapsed_s` with
+/// `grace_left_s` as it stood before the tick: the grace starts the tick
+/// the first kart finishes, and the race ends when the grace runs out or
+/// every kart has finished.
+fn next_phase(karts: &[Kart], elapsed_s: f32, grace_left_s: Option<f32>, dt: f32) -> Phase {
+    if karts.iter().all(Kart::finished) {
+        return Phase::Finished;
+    }
+    let grace_left_s = match grace_left_s {
+        Some(left) => Some(left - dt),
+        None if karts.iter().any(Kart::finished) => Some(RACE_END_GRACE_S),
+        None => None,
+    };
+    if grace_left_s.is_some_and(|left| left <= 0.0) {
+        return Phase::Finished;
+    }
+    Phase::Racing {
+        elapsed_s,
+        grace_left_s,
+    }
 }
 
 /// A contact point this close to a wall at the end of the tick counts as
@@ -788,23 +975,37 @@ fn respawn(kart: &mut Kart, track: &Track, physics: &mut Physics) -> [f32; 3] {
 
 /// Credit the kart with the checkpoint its move from `before` to `after`
 /// crossed, when it is the next in order; a lap completes at the start
-/// line after the last one. The lap's time ends where the move met the
-/// line, so lap times are finer than a tick, and the next lap's clock
-/// starts with the rest of the tick.
-fn cross_checkpoint(kart: &mut Kart, track: &Track, before: [f32; 3], after: [f32; 3], dt: f32) {
+/// line after the last one, and the race's last lap finishes the kart. The
+/// lap's time ends where the move met the line, so lap times and finish
+/// times are finer than a tick, and the next lap's clock starts with the
+/// rest of the tick. `elapsed_s` is the race clock at the end of the tick.
+fn cross_checkpoint(
+    kart: &mut Kart,
+    track: &Track,
+    before: [f32; 3],
+    after: [f32; 3],
+    dt: f32,
+    elapsed_s: f32,
+) {
     let checkpoints = track.checkpoints();
     let next = (kart.checkpoint + 1) % checkpoints.len();
     let Some(fraction) = checkpoints[next].crossed_between(before, after) else {
         return;
     };
     if next == 0 {
-        let lap_time_s = kart.lap_time_s - dt * (1.0 - fraction);
+        let rest_of_tick_s = dt * (1.0 - fraction);
+        let lap_time_s = kart.lap_time_s - rest_of_tick_s;
         kart.laps_completed += 1;
         kart.best_lap_s = Some(
             kart.best_lap_s
                 .map_or(lap_time_s, |best| best.min(lap_time_s)),
         );
-        kart.lap_time_s = dt * (1.0 - fraction);
+        if kart.laps_completed >= LAPS_PER_RACE {
+            kart.finish_time_s = Some(elapsed_s - rest_of_tick_s);
+            kart.lap_time_s = lap_time_s;
+        } else {
+            kart.lap_time_s = rest_of_tick_s;
+        }
     }
     kart.checkpoint = next;
 }

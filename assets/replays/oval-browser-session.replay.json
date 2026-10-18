@@ -2,7 +2,21 @@
   "version": 1,
   "seed": "1",
   "track": "oval",
+  "bots": 0,
   "segments": [
+    {
+      "ticks": 181,
+      "inputs": [
+        {
+          "steer": 0.0,
+          "throttle": 0.0,
+          "brake": 0.0,
+          "hop": false,
+          "useItem": false,
+          "holdItem": false
+        }
+      ]
+    },
     {
       "ticks": 5,
       "inputs": [
@@ -70,7 +84,10 @@
     }
   ],
   "hashes": [
-    "38f07c1bd320924a",
-    "2f13be515110216b"
+    "c864a9d0264b1761",
+    "d3e4f3991cf1d09c",
+    "65916788dbf00581",
+    "4a2926bfaf00876e",
+    "749930a03112aadd"
   ]
 }

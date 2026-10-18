@@ -30,8 +30,10 @@ pub const PING_RESEND_S: f32 = 0.5;
 /// Karts on the grid; empty slots are filled by bots at Start.
 pub const KARTS_PER_RACE: usize = 8;
 pub const LAPS_PER_RACE: u32 = 3;
-/// Seconds after the first finisher before the race ends and unfinished
-/// humans are handed to bots.
+/// Seconds the karts are held on the grid before Go: the 3-2-1 count.
+pub const COUNTDOWN_S: f32 = 3.0;
+/// Seconds after the first finisher before the race ends, with the karts
+/// still racing placed by progress.
 pub const RACE_END_GRACE_S: f32 = 20.0;
 /// Seconds of decreasing spline progress before the wrong-way warning.
 pub const WRONG_WAY_WARNING_S: f32 = 2.0;
@@ -206,6 +208,8 @@ const _: () = {
     assert!(BOT_AVOID_HALF_WIDTH_M > KART_HALF_WIDTH_M);
     assert!(BOT_PASS_GAP_M > 2.0 * KART_HALF_WIDTH_M);
     assert!(BOT_STALL_SPEED_M_PER_S * ACCELERATION_TO_TOP_S / TOP_SPEED_M_PER_S < BOT_STALL_S);
+    assert!(0.0 < START_BOOST_WINDOW_S && START_BOOST_WINDOW_S < COUNTDOWN_S);
+    assert!(0.0 < RACE_END_GRACE_S);
     assert!(SNAPSHOTS_PER_SECOND <= TICKS_PER_SECOND);
     assert!(TICKS_PER_SECOND.is_multiple_of(SNAPSHOTS_PER_SECOND));
     assert!(0.0 < DRIFT_ENTRY_SPEED_FRACTION && DRIFT_ENTRY_SPEED_FRACTION < 1.0);

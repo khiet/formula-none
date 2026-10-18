@@ -85,7 +85,24 @@ export interface Standing {
   readonly lapTimeSeconds: number;
   readonly bestLapSeconds: number | null;
   readonly wrongWay: boolean;
+  /** The race clock as the kart finished its laps; null while it is still racing. */
+  readonly finishTimeSeconds: number | null;
 }
+
+/**
+ * Where the race is, as the sim's `Phase` has it: the countdown holding the
+ * karts on the grid with the seconds to Go, the race with its clock and,
+ * once the first kart has finished, the seconds of grace left before the
+ * race ends, or finished, when the standings are the results.
+ */
+export type Phase =
+  | { readonly kind: "countdown"; readonly remainingSeconds: number }
+  | {
+      readonly kind: "racing";
+      readonly elapsedSeconds: number;
+      readonly graceLeftSeconds: number | null;
+    }
+  | { readonly kind: "finished" };
 
 export interface Race {
   /**
@@ -97,6 +114,8 @@ export interface Race {
   kartTransforms(): KartTransform[];
   /** One standing per kart in grid order, with positions as of the last step. */
   standings(): Standing[];
+  /** Where the race is, as of the last step. */
+  phase(): Phase;
   /**
    * The sim's hash of everything that influences future ticks, as of the last
    * step. Bit-identical native and in wasm for the same race and inputs,
@@ -149,10 +168,14 @@ export interface Bridge {
   decodePong(bytes: Uint8Array): number;
 }
 
-// Buffer layouts the bridge crate documents on Race::step, Race::kart_transforms and Race::standings.
+// Buffer layouts the bridge crate documents on Race::step, Race::kart_transforms,
+// Race::standings and Race::phase.
 const FLOATS_PER_INPUT = 6;
 const FLOATS_PER_TRANSFORM = 12;
-const FLOATS_PER_STANDING = 7;
+const FLOATS_PER_STANDING = 8;
+const FLOATS_PER_PHASE = 3;
+/** Phase codes in the phase buffer, in the sim's order. */
+const PHASES = ["countdown", "racing", "finished"] as const;
 /** Surface codes in the transform buffer, as `sim::Surface::code` numbers them. */
 const SURFACES: readonly Surface[] = ["asphalt", "sand", "grass", "wall", "out of world"];
 /** Drift directions by the buffer's sign: -1 left, 1 right. */
@@ -255,19 +278,42 @@ class BridgedRace implements Race {
     for (let slot = 0; slot < this.#kartCount; slot++) {
       const at = slot * FLOATS_PER_STANDING;
       const read = (offset: number): number => buffer[at + offset] as number;
-      const bestLapSeconds = read(5);
       standings.push({
         position: read(0),
         lap: read(1),
         checkpoint: read(2),
         splineProgress: read(3),
         lapTimeSeconds: read(4),
-        // The bridge writes a negative best lap before a lap is completed.
-        bestLapSeconds: bestLapSeconds < 0 ? null : bestLapSeconds,
+        bestLapSeconds: timeOrNull(read(5)),
         wrongWay: read(6) !== 0,
+        finishTimeSeconds: timeOrNull(read(7)),
       });
     }
     return standings;
+  }
+
+  phase(): Phase {
+    const buffer = this.#race.phase();
+    const [code, seconds, grace] = buffer;
+    if (
+      buffer.length !== FLOATS_PER_PHASE ||
+      code === undefined ||
+      seconds === undefined ||
+      grace === undefined
+    ) {
+      throw new RangeError(`phase buffer has ${buffer.length} floats`);
+    }
+    const kind = PHASES[code];
+    switch (kind) {
+      case "countdown":
+        return { kind, remainingSeconds: seconds };
+      case "racing":
+        return { kind, elapsedSeconds: seconds, graceLeftSeconds: timeOrNull(grace) };
+      case "finished":
+        return { kind };
+      default:
+        throw new RangeError(`unknown phase code ${code}`);
+    }
   }
 
   kartTransforms(): KartTransform[] {
@@ -295,6 +341,11 @@ class BridgedRace implements Race {
     }
     return transforms;
   }
+}
+
+/** The bridge writes a negative time where there is none yet: no best lap, no finish, no grace. */
+function timeOrNull(seconds: number): number | null {
+  return seconds < 0 ? null : seconds;
 }
 
 /** The drift three buffer floats describe, or null when the direction is 0. */

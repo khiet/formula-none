@@ -4,18 +4,27 @@
 //! the grid a few metres behind the line (layouts/oval.py).
 
 use sim::tuning::{BOT_LOOKAHEAD_M, LAPS_PER_RACE, TICKS_PER_SECOND};
-use sim::{step, KartInput, Standing, State, Track};
+use sim::{step, KartInput, Phase, Standing, State, Track};
 
 const OVAL: &str = include_str!("../../../assets/tracks/oval/oval.track.json");
 const DT: f32 = 1.0 / TICKS_PER_SECOND as f32;
 const SEED: u64 = 0x5EED;
+
+/// The race past its countdown, every kart idle on the grid until Go.
+fn started(mut state: State) -> State {
+    let inputs = vec![KartInput::default(); state.human_count()];
+    while matches!(state.phase(), Phase::Countdown { .. }) {
+        state = step(state, &inputs, DT);
+    }
+    state
+}
 
 fn oval() -> Track {
     Track::from_sidecar(OVAL).expect("the oval fixture loads")
 }
 
 fn race(kart_count: usize) -> State {
-    State::new(SEED, kart_count, oval())
+    started(State::new(SEED, kart_count, oval()))
 }
 
 fn ticks(seconds: f32) -> usize {
@@ -166,7 +175,7 @@ fn oval_with_a_narrow_first_checkpoint() -> Track {
 
 #[test]
 fn a_checkpoint_passed_outside_its_width_is_not_crossed_and_later_ones_wait_for_it() {
-    let state = State::new(SEED, 1, oval_with_a_narrow_first_checkpoint());
+    let state = started(State::new(SEED, 1, oval_with_a_narrow_first_checkpoint()));
     let state = run(state, std::iter::repeat_n(throttle(), ticks(5.0)));
 
     let z = state.kart_transforms()[0].position[2];
@@ -201,7 +210,7 @@ fn brands_patch_counts_its_checkpoints_the_same_way() {
         include_str!("../../../assets/tracks/brands-patch/brands-patch.track.json");
     let track = Track::from_sidecar(BRANDS_PATCH).expect("Brands Patch loads");
     let lap = track.spline_length();
-    let state = State::new(SEED, 2, track);
+    let state = started(State::new(SEED, 2, track));
     assert!(
         state.standings()[0].spline_progress > lap - 30.0,
         "the grid is behind the line"
@@ -346,7 +355,7 @@ fn oval_with_a_level_front_row() -> Track {
 
 #[test]
 fn a_dead_heat_keeps_grid_order() {
-    let state = State::new(SEED, 2, oval_with_a_level_front_row());
+    let state = started(State::new(SEED, 2, oval_with_a_level_front_row()));
     let standings = state.standings();
     assert_eq!(standings[0].spline_progress, standings[1].spline_progress);
     assert_eq!(standings[0].position, 1);

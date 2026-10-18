@@ -7,8 +7,14 @@ function fakeKeyboard() {
   type KeyListener = (event: { key: string; preventDefault(): void }) => void;
   const listeners = new Map<string, KeyListener | (() => void)>();
   return {
-    addEventListener(type: string, listener: KeyListener | (() => void)) {
+    addEventListener(
+      type: string,
+      listener: KeyListener | (() => void),
+      options?: AddEventListenerOptions,
+    ) {
       listeners.set(type, listener);
+      // As the DOM does: an aborted signal drops the listener.
+      options?.signal?.addEventListener("abort", () => listeners.delete(type));
     },
     blur() {
       (listeners.get("blur") as (() => void) | undefined)?.();
@@ -136,6 +142,19 @@ describe("keys map to one kart input", () => {
     expect(keyboard.press("ArrowUp")).toBe(true);
     expect(keyboard.press(" ")).toBe(true);
     expect(keyboard.press("Tab")).toBe(false);
+  });
+
+  it("stops listening once its signal is aborted, so a Scene that goes away takes its keys", () => {
+    const keyboard = fakeKeyboard();
+    const listeners = new AbortController();
+    const input = keyboardKartInput(keyboard, listeners.signal);
+
+    keyboard.press("ArrowUp");
+    expect(input.current().throttle).toBe(1);
+    listeners.abort();
+    keyboard.press("ArrowDown");
+    keyboard.release("ArrowUp");
+    expect(input.current()).toEqual({ ...IDLE_INPUT, throttle: 1 });
   });
 
   it("losing focus releases every held key", () => {

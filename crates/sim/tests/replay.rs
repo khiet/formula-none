@@ -7,10 +7,19 @@
 use sim::tuning::{
     KART_HALF_LENGTH_M, REPLAY_HASH_INTERVAL_TICKS, TICKS_PER_SECOND, TOP_SPEED_M_PER_S,
 };
-use sim::{step, KartInput, Replay, Segment, State, Surface, Track};
+use sim::{step, KartInput, Phase, Replay, Segment, State, Surface, Track};
 
 const OVAL: &str = include_str!("../../../assets/tracks/oval/oval.track.json");
 const DT: f32 = 1.0 / TICKS_PER_SECOND as f32;
+
+/// The race past its countdown, every kart idle on the grid until Go.
+fn started(mut state: State) -> State {
+    let inputs = vec![KartInput::default(); state.human_count()];
+    while matches!(state.phase(), Phase::Countdown { .. }) {
+        state = step(state, &inputs, DT);
+    }
+    state
+}
 
 fn race(seed: u64, kart_count: usize) -> State {
     State::new(
@@ -46,16 +55,35 @@ fn the_seed_is_part_of_the_hash() {
 #[test]
 fn every_kart_is_part_of_the_hash() {
     assert_ne!(race(7, 1).hash(), race(7, 2).hash());
-    let still = step(race(7, 2), &[KartInput::default(); 2], DT);
-    let second_drives = step(race(7, 2), &[KartInput::default(), THROTTLE], DT);
+    let still = step(started(race(7, 2)), &[KartInput::default(); 2], DT);
+    let second_drives = step(started(race(7, 2)), &[KartInput::default(), THROTTLE], DT);
     assert_ne!(still.hash(), second_drives.hash());
 }
 
 #[test]
+fn the_phase_its_clocks_and_a_karts_start_are_part_of_the_hash() {
+    let idle = [KartInput::default()];
+    let one_tick_in = step(race(7, 1), &idle, DT);
+    let two_ticks_in = step(step(race(7, 1), &idle, DT), &idle, DT);
+    assert_ne!(
+        one_tick_in.hash(),
+        two_ticks_in.hash(),
+        "the countdown's clock, since nothing else moves"
+    );
+    assert_ne!(race(7, 1).hash(), started(race(7, 1)).hash(), "the phase");
+    let pressed_early = step(race(7, 1), &[THROTTLE], DT);
+    assert_ne!(
+        one_tick_in.hash(),
+        pressed_early.hash(),
+        "a stall set up during the countdown"
+    );
+}
+
+#[test]
 fn speed_position_and_heading_are_part_of_the_hash() {
-    let idle = step(race(7, 1), &[KartInput::default()], DT);
-    let driving = step(race(7, 1), &[THROTTLE], DT);
-    let turning = step(race(7, 1), &[TURN], DT);
+    let idle = step(started(race(7, 1)), &[KartInput::default()], DT);
+    let driving = step(started(race(7, 1)), &[THROTTLE], DT);
+    let turning = step(started(race(7, 1)), &[TURN], DT);
     assert_ne!(idle.hash(), driving.hash(), "speed and position");
     assert_ne!(driving.hash(), turning.hash(), "heading");
 }

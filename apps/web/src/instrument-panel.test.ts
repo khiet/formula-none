@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Standing } from "./bridge";
-import { lapReadouts } from "./instrument-panel";
+import { lapReadouts, phaseReadout } from "./instrument-panel";
 
 const onTheGrid: Standing = {
   position: 1,
@@ -10,6 +10,7 @@ const onTheGrid: Standing = {
   lapTimeSeconds: 0,
   bestLapSeconds: null,
   wrongWay: false,
+  finishTimeSeconds: null,
 };
 
 describe("lap readouts", () => {
@@ -43,5 +44,24 @@ describe("lap readouts", () => {
     const ordinal = (position: number): string =>
       lapReadouts({ ...onTheGrid, position }, 3).position;
     expect([2, 4, 5, 8].map(ordinal)).toEqual(["2nd", "4th", "5th", "8th"]);
+  });
+});
+
+describe("phase readout", () => {
+  it("counts 3, 2, 1 down the countdown, whole seconds rounded up", () => {
+    expect(phaseReadout({ kind: "countdown", remainingSeconds: 3 })).toBe("3");
+    expect(phaseReadout({ kind: "countdown", remainingSeconds: 2.01 })).toBe("3");
+    expect(phaseReadout({ kind: "countdown", remainingSeconds: 2 })).toBe("2");
+    expect(phaseReadout({ kind: "countdown", remainingSeconds: 0.3 })).toBe("1");
+  });
+
+  it("shows GO for the first second of the race and nothing after", () => {
+    expect(phaseReadout({ kind: "racing", elapsedSeconds: 0, graceLeftSeconds: null })).toBe("GO");
+    expect(phaseReadout({ kind: "racing", elapsedSeconds: 0.9, graceLeftSeconds: null })).toBe(
+      "GO",
+    );
+    expect(phaseReadout({ kind: "racing", elapsedSeconds: 1, graceLeftSeconds: null })).toBe("");
+    expect(phaseReadout({ kind: "racing", elapsedSeconds: 40, graceLeftSeconds: 12 })).toBe("");
+    expect(phaseReadout({ kind: "finished" })).toBe("");
   });
 });
