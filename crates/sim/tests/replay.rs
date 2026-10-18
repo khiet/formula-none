@@ -243,13 +243,15 @@ fn the_fixture_set_exercises_kart_contact_off_track_walls_both_tracks_and_a_mini
                     drifted |= kart.drift.is_some();
                     boosted |= kart.speed > TOP_SPEED_M_PER_S;
                     // Only a wall takes most of a lone kart's speed in one
-                    // tick while the throttle is held; the brake takes
-                    // more than a second over it.
+                    // tick while the throttle is held and the kart stays
+                    // put: the brake takes more than a second over it, and
+                    // a respawn moves the kart to a checkpoint.
                     let throttled = segment.inputs[slot].throttle > 0.5;
                     if transforms.len() == 1
                         && throttled
                         && before[slot].speed > 5.0
                         && kart.speed < 0.25 * before[slot].speed
+                        && distance(&before[slot], kart) < 1.0
                     {
                         held_by_a_wall = true;
                     }
