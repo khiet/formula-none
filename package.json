@@ -7,6 +7,7 @@
     "node": ">=22"
   },
   "scripts": {
+    "build:bridge": "wasm-pack build crates/bridge --target web --out-dir ../../apps/web/src/generated/bridge --out-name bridge --no-pack",
     "build": "pnpm -r build",
     "lint": "biome ci .",
     "lint:fix": "biome check --write .",

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { listRepoDir, readRepoFile } from "./repo";
+import { listRepoDir, listRepoFiles, readRepoFile } from "./repo";
 
 // The one-way dependency rule from ADR 0006, read off the manifests so a
 // dependency in the wrong direction fails CI.
@@ -10,6 +10,12 @@ const ALLOWED_CRATE_DEPS: Record<string, string[]> = {
   server: ["sim", "protocol"],
 };
 const CRATES = Object.keys(ALLOWED_CRATE_DEPS);
+
+// Crates that would tie the sim to a runtime or a platform (ADR 0002).
+const SIM_FORBIDDEN_CRATES = ["tokio", "wasm-bindgen", "js-sys", "web-sys"];
+
+/** The one web module allowed to import the generated wasm bindings (ADR 0003). */
+const BRIDGE_WRAPPER = "apps/web/src/bridge.ts";
 
 /**
  * Workspace crates a Cargo manifest names as a dependency, in any form Cargo
@@ -36,6 +42,20 @@ describe("one-way dependency rule", () => {
       expect(forbidden).toEqual([]);
     },
   );
+
+  it.each(SIM_FORBIDDEN_CRATES)("sim does not depend on %s", (crate) => {
+    const manifest = readRepoFile("crates/sim/Cargo.toml");
+    expect(manifest).not.toMatch(new RegExp(`^${crate}\\s*[=.]|dependencies\\.${crate}\\]`, "m"));
+  });
+
+  it("only the wrapper module imports the generated bridge", () => {
+    const importers = listRepoFiles("apps/web/src").filter(
+      (file) =>
+        !file.startsWith("apps/web/src/generated/") &&
+        /from\s+["'][^"']*generated\/bridge\//.test(readRepoFile(file)),
+    );
+    expect(importers).toEqual([BRIDGE_WRAPPER]);
+  });
 
   it("the web app reaches into the Cargo workspace only through the bridge", () => {
     const pkg = JSON.parse(readRepoFile("apps/web/package.json")) as {

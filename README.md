@@ -7,12 +7,19 @@ the server; Three.js for the picture.
 ## Getting started
 
 Requirements: Rust stable (via rustup; `rust-toolchain.toml` adds clippy,
-rustfmt and the wasm target), `cargo-nextest`, Node 22 and pnpm 11.
+rustfmt and the wasm target), `cargo-nextest`, `wasm-pack`, Node 22 and
+pnpm 11.
 
 ```sh
-cargo install cargo-nextest --locked
+cargo install cargo-nextest wasm-pack --locked
 pnpm install
+pnpm build:bridge
 ```
+
+`pnpm build:bridge` compiles the bridge crate to WebAssembly into
+`apps/web/src/generated/bridge` (ignored by git). The web app, its typecheck
+and its tests need it; rerun it after changing `crates/sim` or
+`crates/bridge`.
 
 | Side | Build                    | Lint                                        | Test               |
 | ---- | ------------------------ | ------------------------------------------- | ------------------ |

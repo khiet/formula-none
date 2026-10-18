@@ -29,6 +29,12 @@ pub const TOP_SPEED_M_PER_S: f32 = 30.0;
 pub const ACCELERATION_TO_TOP_S: f32 = 2.5;
 pub const STEER_RATE_LOW_SPEED_RAD_PER_S: f32 = 2.2;
 pub const STEER_RATE_TOP_SPEED_RAD_PER_S: f32 = 1.2;
+/// Seconds from top speed to a standstill under full brake.
+pub const BRAKE_TO_STOP_S: f32 = 1.5;
+/// Seconds from top speed to a standstill with no throttle and no brake.
+pub const COAST_TO_STOP_S: f32 = 4.0;
+/// Below this speed a kart barely steers, so it never pivots in place.
+pub const STEER_FULL_EFFECT_SPEED_M_PER_S: f32 = 1.0;
 pub const HOP_AIRTIME_S: f32 = 0.3;
 /// A landing hop starts a drift only above this fraction of top speed.
 pub const DRIFT_ENTRY_SPEED_FRACTION: f32 = 0.4;
@@ -116,4 +122,5 @@ const _: () = {
     assert!(TICKS_PER_SECOND.is_multiple_of(SNAPSHOTS_PER_SECOND));
     assert!(0.0 < DRIFT_ENTRY_SPEED_FRACTION && DRIFT_ENTRY_SPEED_FRACTION < 1.0);
     assert!(0.0 < OFF_TRACK_SPEED_FACTOR && OFF_TRACK_SPEED_FACTOR < 1.0);
+    assert!(BRAKE_TO_STOP_S < COAST_TO_STOP_S);
 };
