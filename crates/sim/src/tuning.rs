@@ -23,6 +23,14 @@ pub const RACE_END_GRACE_S: f32 = 20.0;
 /// Seconds of decreasing spline progress before the wrong-way warning.
 pub const WRONG_WAY_WARNING_S: f32 = 2.0;
 
+// World. Metres and seconds; the kart is a cube until the glTF kart lands.
+
+pub const GRAVITY_M_PER_S2: f32 = -9.81;
+/// Half the kart's side, so the cube is one metre across.
+pub const KART_HALF_EXTENT_M: f32 = 0.5;
+/// Lateral gap between grid slots at the start line.
+pub const GRID_SPACING_M: f32 = 2.0;
+
 // Handling. Speeds are metres per second; boosts scale top speed.
 
 pub const TOP_SPEED_M_PER_S: f32 = 30.0;

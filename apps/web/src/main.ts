@@ -19,26 +19,27 @@ async function main(container: HTMLElement): Promise<void> {
   const view = await createRaceView(container, KART_COUNT);
   const panel = createInstrumentPanel(container);
 
-  let transforms = race.kartTransforms();
-  view.update(transforms, LOCAL_KART);
+  const present = () => {
+    const transforms = race.kartTransforms();
+    view.update(transforms, LOCAL_KART);
+    const local = transforms[LOCAL_KART];
+    if (local) {
+      panel.update(local);
+    }
+  };
+  present();
 
   // Fixed-step loop: the sim ticks at its own rate however often frames come.
-  let carry = 0;
+  let unsimulatedSeconds = 0;
   let last = performance.now();
   const frame = (now: number) => {
-    carry += Math.min((now - last) / 1000, MAX_TICKS_PER_FRAME * tickSeconds);
+    unsimulatedSeconds += Math.min((now - last) / 1000, MAX_TICKS_PER_FRAME * tickSeconds);
     last = now;
-    while (carry >= tickSeconds) {
-      const before = transforms[LOCAL_KART];
+    while (unsimulatedSeconds >= tickSeconds) {
       race.step([input.current()], tickSeconds);
-      transforms = race.kartTransforms();
-      const after = transforms[LOCAL_KART];
-      if (after) {
-        panel.update(before, after, tickSeconds);
-      }
-      carry -= tickSeconds;
+      unsimulatedSeconds -= tickSeconds;
     }
-    view.update(transforms, LOCAL_KART);
+    present();
     view.render();
     requestAnimationFrame(frame);
   };

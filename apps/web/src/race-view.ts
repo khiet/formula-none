@@ -9,7 +9,7 @@ import {
   PerspectiveCamera,
   PlaneGeometry,
   Quaternion,
-  Scene,
+  Scene as ThreeScene,
   Vector3,
 } from "three";
 import { WebGPURenderer } from "three/webgpu";
@@ -20,12 +20,13 @@ const CAMERA_OFFSET = new Vector3(0, 4, 8);
 const CAMERA_LOOK_AHEAD = new Vector3(0, 0.5, -4);
 const KART_SIZE_M = 1;
 const PLANE_SIZE_M = 400;
+/** Liveries tell karts apart; eight, assigned in grid order until rooms assign them. */
+const LIVERIES = 8;
 
 export interface RaceView {
   /** Move every kart mesh to the transforms the sim reports and follow the local one. */
   update(transforms: readonly KartTransform[], localKart: number): void;
   render(): void;
-  dispose(): void;
 }
 
 /**
@@ -40,8 +41,9 @@ export async function createRaceView(container: HTMLElement, kartCount: number):
   renderer.setSize(container.clientWidth, container.clientHeight);
   container.appendChild(renderer.domElement);
 
-  const scene = new Scene();
-  scene.background = new Color(0x87ceeb);
+  // Three's scene graph, not a glossary Scene: this View belongs to the Race Scene.
+  const world = new ThreeScene();
+  world.background = new Color(0x87ceeb);
   const camera = new PerspectiveCamera(
     60,
     container.clientWidth / container.clientHeight,
@@ -54,28 +56,27 @@ export async function createRaceView(container: HTMLElement, kartCount: number):
     new MeshStandardMaterial({ color: 0x4a7a3a }),
   );
   plane.rotation.x = -Math.PI / 2;
-  scene.add(plane);
-  scene.add(new GridHelper(PLANE_SIZE_M, PLANE_SIZE_M / 4, 0x2f4f2f, 0x2f4f2f));
+  world.add(plane);
+  world.add(new GridHelper(PLANE_SIZE_M, PLANE_SIZE_M / 4, 0x2f4f2f, 0x2f4f2f));
 
   const sun = new DirectionalLight(0xffffff, 2);
   sun.position.set(20, 40, 10);
-  scene.add(sun, new AmbientLight(0xffffff, 0.6));
+  world.add(sun, new AmbientLight(0xffffff, 0.6));
 
   const karts = Array.from({ length: kartCount }, (_, slot) => {
     const kart = new Mesh(
       new BoxGeometry(KART_SIZE_M, KART_SIZE_M, KART_SIZE_M),
-      new MeshStandardMaterial({ color: new Color().setHSL(slot / 8, 0.8, 0.5) }),
+      new MeshStandardMaterial({ color: new Color().setHSL(slot / LIVERIES, 0.8, 0.5) }),
     );
-    scene.add(kart);
+    world.add(kart);
     return kart;
   });
 
-  const onResize = () => {
+  window.addEventListener("resize", () => {
     renderer.setSize(container.clientWidth, container.clientHeight);
     camera.aspect = container.clientWidth / container.clientHeight;
     camera.updateProjectionMatrix();
-  };
-  window.addEventListener("resize", onResize);
+  });
 
   const rotation = new Quaternion();
   const offset = new Vector3();
@@ -96,12 +97,7 @@ export async function createRaceView(container: HTMLElement, kartCount: number):
       }
     },
     render: () => {
-      renderer.render(scene, camera);
-    },
-    dispose() {
-      window.removeEventListener("resize", onResize);
-      renderer.dispose();
-      renderer.domElement.remove();
+      renderer.render(world, camera);
     },
   };
 }

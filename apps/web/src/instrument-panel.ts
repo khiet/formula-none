@@ -1,8 +1,8 @@
 import type { KartTransform } from "./bridge";
 
 export interface InstrumentPanel {
-  /** Show the local kart's speed, derived from how far it moved over the last tick. */
-  update(before: KartTransform | undefined, after: KartTransform, tickSeconds: number): void;
+  /** Show the local kart's readouts from what the sim reports. */
+  update(local: KartTransform): void;
 }
 
 /**
@@ -19,18 +19,10 @@ export function createInstrumentPanel(container: HTMLElement): InstrumentPanel {
   container.append(panel);
 
   return {
-    update(before, after, tickSeconds) {
-      const metresPerSecond = before ? distance(before, after) / tickSeconds : 0;
-      speed.textContent = formatSpeed(metresPerSecond);
+    update(local) {
+      speed.textContent = formatSpeed(local.speed);
     },
   };
-}
-
-function distance(a: KartTransform, b: KartTransform): number {
-  const dx = b.position[0] - a.position[0];
-  const dy = b.position[1] - a.position[1];
-  const dz = b.position[2] - a.position[2];
-  return Math.hypot(dx, dy, dz);
 }
 
 function formatSpeed(metresPerSecond: number): string {

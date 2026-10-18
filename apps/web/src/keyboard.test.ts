@@ -3,18 +3,19 @@ import { keyboardKartInput } from "./keyboard";
 
 /** The slice of a DOM EventTarget the keyboard mapping listens to. */
 function fakeKeyboard() {
-  const listeners = new Map<string, (event: { key: string; preventDefault(): void }) => void>();
+  type KeyListener = (event: { key: string; preventDefault(): void }) => void;
+  const listeners = new Map<string, KeyListener | (() => void)>();
   return {
-    addEventListener(
-      type: string,
-      listener: (event: { key: string; preventDefault(): void }) => void,
-    ) {
+    addEventListener(type: string, listener: KeyListener | (() => void)) {
       listeners.set(type, listener);
+    },
+    blur() {
+      (listeners.get("blur") as (() => void) | undefined)?.();
     },
     /** Returns whether the key's default browser action was prevented. */
     press(key: string): boolean {
       let prevented = false;
-      listeners.get("keydown")?.({
+      (listeners.get("keydown") as KeyListener | undefined)?.({
         key,
         preventDefault() {
           prevented = true;
@@ -23,7 +24,7 @@ function fakeKeyboard() {
       return prevented;
     },
     release(key: string) {
-      listeners.get("keyup")?.({ key, preventDefault() {} });
+      (listeners.get("keyup") as KeyListener | undefined)?.({ key, preventDefault() {} });
     },
   };
 }
@@ -64,6 +65,14 @@ describe("arrow keys map to one kart input", () => {
     keyboardKartInput(keyboard);
     expect(keyboard.press("ArrowUp")).toBe(true);
     expect(keyboard.press("Tab")).toBe(false);
+  });
+
+  it("losing focus releases every held key", () => {
+    const keyboard = fakeKeyboard();
+    const input = keyboardKartInput(keyboard);
+    keyboard.press("ArrowUp");
+    keyboard.blur();
+    expect(input.current()).toEqual({ steer: 0, throttle: 0, brake: 0 });
   });
 
   it("releasing every key returns to idle", () => {

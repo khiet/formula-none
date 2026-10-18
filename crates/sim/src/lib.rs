@@ -24,18 +24,20 @@ pub struct KartInput {
     pub brake: f32,
 }
 
-/// Where a kart is, in metres and as a unit quaternion `[x, y, z, w]`. Y is
-/// up and a kart with identity rotation faces -Z, matching Three.js.
+/// What the renderer and the Instrument panel need per kart: where it is, in
+/// metres and as a unit quaternion `[x, y, z, w]`, and how fast it is going.
+/// Y is up and a kart with identity rotation faces -Z, matching Three.js.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct KartTransform {
     pub position: [f32; 3],
     pub rotation: [f32; 4],
+    /// Metres per second along the kart's facing.
+    pub speed: f32,
 }
 
 /// Everything the sim knows about a race. Owns the physics world and the
 /// RNG, so a `State` plus an input sequence replays identically anywhere.
 pub struct State {
-    tick: u64,
     #[expect(
         dead_code,
         reason = "consumed by item rolls and bots in later milestones"
@@ -67,14 +69,11 @@ struct Physics {
     ccd: CCDSolver,
 }
 
-const GRAVITY_M_PER_S2: f32 = -9.81;
-/// Half extents of the kart's box, so the cube is one metre a side.
-const KART_HALF_EXTENT_M: f32 = 0.5;
-/// Half extents of the flat plane karts drive on.
+use tuning::{GRAVITY_M_PER_S2, GRID_SPACING_M, KART_HALF_EXTENT_M};
+
+/// Half extents of the flat plane karts drive on until there is a track.
 const PLANE_HALF_EXTENT_M: f32 = 200.0;
 const PLANE_HALF_THICKNESS_M: f32 = 0.5;
-/// Lateral gap between grid slots.
-const GRID_SPACING_M: f32 = 2.0;
 
 impl State {
     /// A fresh race with `kart_count` karts lined up on the grid, facing -Z.
@@ -124,16 +123,10 @@ impl State {
             .collect();
 
         Self {
-            tick: 0,
             rng: ChaCha8Rng::seed_from_u64(seed),
             karts,
             physics,
         }
-    }
-
-    /// Ticks stepped since the race was created.
-    pub fn tick(&self) -> u64 {
-        self.tick
     }
 
     /// One transform per kart, in grid order.
@@ -147,6 +140,7 @@ impl State {
                 KartTransform {
                     position: [position.x, position.y, position.z],
                     rotation: [rotation.x, rotation.y, rotation.z, rotation.w],
+                    speed: kart.speed,
                 }
             })
             .collect()
@@ -167,7 +161,6 @@ pub fn step(mut state: State, inputs: &[KartInput], dt: f32) -> State {
         body.set_angvel(Vec3::Y * yaw_rate(kart.speed, input.steer), true);
     }
     state.physics.step(dt);
-    state.tick += 1;
     state
 }
 

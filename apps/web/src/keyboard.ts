@@ -6,6 +6,7 @@ export interface KeySource {
     type: "keydown" | "keyup",
     listener: (event: { readonly key: string; preventDefault(): void }) => void,
   ): void;
+  addEventListener(type: "blur", listener: () => void): void;
 }
 
 export interface KartInputSource {
@@ -31,6 +32,10 @@ export function keyboardKartInput(source: KeySource): KartInputSource {
   });
   source.addEventListener("keyup", (event) => {
     held.delete(event.key);
+  });
+  // Keyup never arrives for a key released in another window.
+  source.addEventListener("blur", () => {
+    held.clear();
   });
   const axis = (key: string): number => (held.has(key) ? 1 : 0);
   return {

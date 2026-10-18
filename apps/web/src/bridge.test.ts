@@ -30,6 +30,8 @@ describe("bridge wrapper", () => {
     expect(after[1]?.position[0]).toBeCloseTo(spawn[1]?.position[0] ?? Number.NaN, 2);
     expect(after[1]?.position[2]).toBeCloseTo(spawn[1]?.position[2] ?? Number.NaN, 2);
     expect(after[0]?.rotation).toEqual([0, 0, 0, 1]);
+    expect(after[0]?.speed).toBeGreaterThan(5);
+    expect(after[1]?.speed).toBe(0);
   });
 
   it("replays the same seed and inputs to the same transform", async () => {

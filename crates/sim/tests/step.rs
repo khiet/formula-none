@@ -24,7 +24,7 @@ fn only_kart(state: &State) -> KartTransform {
     transforms[0]
 }
 
-/// Horizontal distance from the spawn point.
+/// Horizontal distance between two transforms.
 fn distance_travelled(before: &KartTransform, after: &KartTransform) -> f32 {
     let dx = after.position[0] - before.position[0];
     let dz = after.position[2] - before.position[2];
