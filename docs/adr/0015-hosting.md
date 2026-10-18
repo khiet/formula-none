@@ -35,3 +35,22 @@ hard cost ceiling (ADR 0017).
 - A single instance means a deploy or a crash ends races in progress;
   acceptable at friends scale.
 - The OpenTofu plan is reviewed by hand; nothing applies from CI.
+
+## Cost estimate
+
+On-demand list prices for eu-west-2 as read on 2026-10-18, for the resources
+`infra/` applies; usage figures are friends-scale guesses.
+
+| Resource                                    | Basis                            | USD / month |
+| ------------------------------------------- | -------------------------------- | ----------: |
+| t4g.small, always on                        | 730 h at 0.0188                  |       13.72 |
+| Root volume, gp3 20 GiB                     | 20 GiB at 0.0928                 |        1.86 |
+| Elastic IP (public IPv4 charge)             | 730 h at 0.005                   |        3.65 |
+| ECR, ten images kept                        | about 2 GB at 0.10               |        0.20 |
+| CloudWatch Logs, 14-day retention           | about 1 GB ingested at 0.5675    |        0.57 |
+| Data transfer out                           | inside the 100 GB free tier      |        0.00 |
+| SSM Session Manager, Run Command, IAM, OIDC | no charge                        |        0.00 |
+
+Total: about USD 20 a month, under the USD 25 ceiling of ADR 0017. The
+hosted zone for `sushimafia.com` already exists and is not created here; it
+costs USD 0.50 a month wherever it lives.

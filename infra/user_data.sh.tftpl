@@ -1,0 +1,17 @@
+#!/bin/bash
+# First boot: Docker from the AL2023 repositories, the Compose plugin from
+# its GitHub release, and the directory the deploy document works in.
+set -euxo pipefail
+
+dnf install -y docker
+systemctl enable --now docker
+usermod -aG docker ec2-user
+
+install -d /usr/local/lib/docker/cli-plugins
+curl -fsSL \
+  "https://github.com/docker/compose/releases/download/${compose_version}/docker-compose-linux-aarch64" \
+  -o /usr/local/lib/docker/cli-plugins/docker-compose
+chmod +x /usr/local/lib/docker/cli-plugins/docker-compose
+docker compose version
+
+install -d -o ec2-user -g ec2-user /opt/formula-none
