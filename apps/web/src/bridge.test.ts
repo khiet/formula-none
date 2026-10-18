@@ -87,6 +87,30 @@ describe("bridge wrapper", () => {
     expect(drive()).toEqual(drive());
   });
 
+  it("reports a hop landed into a drift, with its direction and charge tier", async () => {
+    const bridge = await loadBridge(wasm);
+    const race = bridge.createRace(7n, 1, OVAL);
+    const hopRight: KartInput = { ...TURN, hop: true };
+    for (let tick = 0; tick < 180; tick++) {
+      race.step([THROTTLE], DT);
+    }
+    expect(race.kartTransforms()[0]?.drift).toBeNull();
+    // 1.2 s with the button down: past the 0.3 s airtime and the 0.8 s blue
+    // charge, short of orange at 1.6 s.
+    for (let tick = 0; tick < 72; tick++) {
+      race.step([hopRight], DT);
+    }
+    const drift = race.kartTransforms()[0]?.drift;
+    expect(drift?.direction).toBe("right");
+    expect(drift?.miniTurbo).toBe("blue");
+    expect(drift?.chargeSeconds).toBeGreaterThan(0.8);
+    expect(drift?.chargeSeconds).toBeLessThan(1);
+
+    race.step([THROTTLE], DT);
+    expect(race.kartTransforms()[0]?.drift).toBeNull();
+    expect(race.kartTransforms()[0]?.speed).toBeGreaterThan(30);
+  });
+
   it("refuses an input list that does not match the kart count", async () => {
     const bridge = await loadBridge(wasm);
     const race = bridge.createRace(7n, 2, OVAL);

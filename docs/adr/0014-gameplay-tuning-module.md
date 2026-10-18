@@ -31,3 +31,22 @@ architecture change.
 - Tests that depend on a tuned value read it from the module rather than
   repeating the number.
 - Kart stats per character are deferred; all karts read the same constants.
+
+## M1 feel gate
+
+Issue 10 carries the gate: "drift feels good" by hand on the two reference
+machines, Chrome and Firefox on each. The values the gate is judged against
+are the ones in `sim::tuning` at the commit that records the verdict; the
+drift values added for it are the PRD's hop, entry speed, charge and boost
+numbers plus three the PRD left to feel: a neutral drift turns as hard as
+full lock (`DRIFT_TURN_NEUTRAL` 1.0), inward steer tightens and
+counter-steer widens it by half of full lock (`DRIFT_TURN_STEER_RANGE`
+0.5), and the nose leads the direction of travel by 0.3 rad
+(`DRIFT_SLIP_ANGLE_RAD`).
+
+Verdicts, one line per machine and browser, filled in by the developer:
+
+- Developer's Mac, Chrome: pending
+- Developer's Mac, Firefox: pending
+- Mid-range Windows laptop, Chrome: pending
+- Mid-range Windows laptop, Firefox: pending

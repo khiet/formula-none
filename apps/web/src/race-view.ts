@@ -5,8 +5,10 @@ import {
   DirectionalLight,
   Group,
   Mesh,
+  MeshBasicMaterial,
   MeshStandardMaterial,
   PerspectiveCamera,
+  SphereGeometry,
   Scene as ThreeScene,
   Vector3,
 } from "three";
@@ -14,6 +16,7 @@ import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { WebGPURenderer } from "three/webgpu";
 import type { KartSize, KartTransform } from "./bridge";
 import type { CameraPose } from "./chase-camera";
+import { type SparkTell, sparkTell } from "./sparks";
 
 /** Far enough to see across Brands Patch from any point on it. */
 const CAMERA_FAR_M = 1000;
@@ -24,6 +27,8 @@ const COWL_WIDTH = 0.6;
 const COWL_HEIGHT = 0.5;
 const COWL_LENGTH = 0.4;
 const COWL_COLOUR = 0x222222;
+/** The placeholder spark: one ball at each rear wheel, this fraction of the kart's height across. */
+const SPARK_RADIUS = 0.25;
 
 export interface RaceView {
   /** Move every kart mesh to the transforms the sim reports and the camera to `camera`. */
@@ -69,7 +74,7 @@ export async function createRaceView(
 
   const karts = Array.from({ length: kartCount }, (_, slot) => {
     const kart = placeholderKart(kartSize, new Color().setHSL(slot / LIVERIES, 0.8, 0.5));
-    world.add(kart);
+    world.add(kart.mesh);
     return kart;
   });
 
@@ -83,8 +88,13 @@ export async function createRaceView(
   return {
     update(transforms, pose) {
       transforms.forEach((transform, slot) => {
-        karts[slot]?.position.set(...transform.position);
-        karts[slot]?.quaternion.set(...transform.rotation);
+        const kart = karts[slot];
+        if (kart === undefined) {
+          return;
+        }
+        kart.mesh.position.set(...transform.position);
+        kart.mesh.quaternion.set(...transform.rotation);
+        kart.showSparks(sparkTell(transform.drift));
       });
       camera.position.set(...pose.position);
       camera.lookAt(target.set(...pose.target));
@@ -95,12 +105,19 @@ export async function createRaceView(
   };
 }
 
+interface PlaceholderKart {
+  readonly mesh: Group;
+  /** Show the spark tell at the rear wheels in its colour, or hide it for `null`. */
+  showSparks(tell: SparkTell | null): void;
+}
+
 /**
  * The placeholder kart until the glTF kart lands (ADR 0007): the box the sim
  * collides with in the livery colour, with a dark cowl over the rear half so
- * the facing reads from behind and from the side.
+ * the facing reads from behind and from the side, and a spark ball at each
+ * rear wheel for the drift's Feedback.
  */
-function placeholderKart(size: KartSize, livery: Color): Group {
+function placeholderKart(size: KartSize, livery: Color): PlaceholderKart {
   const kart = new Group();
   kart.add(
     new Mesh(
@@ -115,5 +132,26 @@ function placeholderKart(size: KartSize, livery: Color): Group {
   // On top of the box, over its rear; the kart faces -Z, so the rear is +Z.
   cowl.position.set(0, size.height * (0.5 + COWL_HEIGHT / 2), (size.length * COWL_LENGTH) / 2);
   kart.add(cowl);
-  return kart;
+
+  // Unlit so the colour reads as the tier whatever the sun does.
+  const sparkMaterial = new MeshBasicMaterial({ color: 0xffffff });
+  const sparks = new Group();
+  const geometry = new SphereGeometry(size.height * SPARK_RADIUS);
+  for (const side of [-1, 1]) {
+    const spark = new Mesh(geometry, sparkMaterial);
+    // Centred on each rear bottom corner of the box, where a wheel would be.
+    spark.position.set((side * size.width) / 2, -size.height / 2, size.length / 2);
+    sparks.add(spark);
+  }
+  sparks.visible = false;
+  kart.add(sparks);
+  return {
+    mesh: kart,
+    showSparks(tell) {
+      sparks.visible = tell !== null;
+      if (tell !== null) {
+        sparkMaterial.color.setHex(tell.colour);
+      }
+    },
+  };
 }

@@ -151,11 +151,13 @@ impl Race {
         self.state = Some(sim::step(state, &inputs, dt));
     }
 
-    /// Nine floats per kart in grid order: position x, y, z, rotation
+    /// Twelve floats per kart in grid order: position x, y, z, rotation
     /// quaternion x, y, z, w, speed in metres per second along the kart's
-    /// facing (negative backing up), then the surface
-    /// under the kart as `sim::Surface::code` (0 asphalt, 1 sand, 2 grass,
-    /// 3 wall, 4 out of world). Y is up; identity rotation faces -Z.
+    /// facing (negative backing up), the surface under the kart as
+    /// `sim::Surface::code` (0 asphalt, 1 sand, 2 grass, 3 wall, 4 out of
+    /// world), the drift direction (-1 left, 1 right, 0 not drifting), the
+    /// mini-turbo tier the drift has charged (0 none, 1 blue, 2 orange) and
+    /// the seconds of drift charge. Y is up; identity rotation faces -Z.
     pub fn kart_transforms(&self) -> Vec<f32> {
         let state = self.state();
         state
@@ -163,10 +165,21 @@ impl Race {
             .iter()
             .enumerate()
             .flat_map(|(slot, kart)| {
-                kart.position
-                    .into_iter()
-                    .chain(kart.rotation)
-                    .chain([kart.speed, f32::from(state.kart_surface(slot).code())])
+                let (direction, tier, charge_s) = match kart.drift {
+                    Some(drift) => (
+                        drift.direction.steer_sign(),
+                        f32::from(drift.mini_turbo().code()),
+                        drift.charge_s,
+                    ),
+                    None => (0.0, 0.0, 0.0),
+                };
+                kart.position.into_iter().chain(kart.rotation).chain([
+                    kart.speed,
+                    f32::from(state.kart_surface(slot).code()),
+                    direction,
+                    tier,
+                    charge_s,
+                ])
             })
             .collect()
     }

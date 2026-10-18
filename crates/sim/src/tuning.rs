@@ -69,6 +69,16 @@ pub const STEER_FULL_EFFECT_SPEED_M_PER_S: f32 = 1.0;
 pub const HOP_AIRTIME_S: f32 = 0.3;
 /// A landing hop starts a drift only above this fraction of top speed.
 pub const DRIFT_ENTRY_SPEED_FRACTION: f32 = 0.4;
+/// How hard a drift turns with the stick centred, as a multiple of full
+/// steer lock off a drift.
+pub const DRIFT_TURN_NEUTRAL: f32 = 1.0;
+/// How much full inward steer tightens a drift's turn, and full
+/// counter-steer widens it, as a multiple of full lock. Less than the
+/// neutral strength so counter-steer never turns the kart the other way.
+pub const DRIFT_TURN_STEER_RANGE: f32 = 0.5;
+/// Radians between where a drifting kart points and where it travels; the
+/// nose leads into the corner by this much.
+pub const DRIFT_SLIP_ANGLE_RAD: f32 = 0.3;
 pub const MINI_TURBO_BLUE_CHARGE_S: f32 = 0.8;
 pub const MINI_TURBO_BLUE_BOOST_S: f32 = 0.6;
 pub const MINI_TURBO_ORANGE_CHARGE_S: f32 = 1.6;
@@ -152,6 +162,7 @@ const _: () = {
     assert!(SNAPSHOTS_PER_SECOND <= TICKS_PER_SECOND);
     assert!(TICKS_PER_SECOND.is_multiple_of(SNAPSHOTS_PER_SECOND));
     assert!(0.0 < DRIFT_ENTRY_SPEED_FRACTION && DRIFT_ENTRY_SPEED_FRACTION < 1.0);
+    assert!(0.0 <= DRIFT_TURN_STEER_RANGE && DRIFT_TURN_STEER_RANGE < DRIFT_TURN_NEUTRAL);
     assert!(0.0 < OFF_TRACK_SPEED_FACTOR && OFF_TRACK_SPEED_FACTOR < 1.0);
     assert!(BRAKE_TO_STOP_S < COAST_TO_STOP_S);
     assert!(0.0 < REVERSE_TOP_SPEED_M_PER_S && REVERSE_TOP_SPEED_M_PER_S < TOP_SPEED_M_PER_S);

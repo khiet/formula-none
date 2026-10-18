@@ -1,0 +1,111 @@
+{
+  "version": 1,
+  "seed": "10",
+  "track": "oval",
+  "segments": [
+    {
+      "ticks": 180,
+      "inputs": [
+        {
+          "steer": 0.0,
+          "throttle": 1.0,
+          "brake": 0.0,
+          "hop": false,
+          "useItem": false,
+          "holdItem": false
+        }
+      ]
+    },
+    {
+      "ticks": 120,
+      "inputs": [
+        {
+          "steer": 1.0,
+          "throttle": 1.0,
+          "brake": 0.0,
+          "hop": true,
+          "useItem": false,
+          "holdItem": false
+        }
+      ]
+    },
+    {
+      "ticks": 90,
+      "inputs": [
+        {
+          "steer": 0.0,
+          "throttle": 1.0,
+          "brake": 0.0,
+          "hop": false,
+          "useItem": false,
+          "holdItem": false
+        }
+      ]
+    },
+    {
+      "ticks": 120,
+      "inputs": [
+        {
+          "steer": -1.0,
+          "throttle": 1.0,
+          "brake": 0.0,
+          "hop": true,
+          "useItem": false,
+          "holdItem": false
+        }
+      ]
+    },
+    {
+      "ticks": 60,
+      "inputs": [
+        {
+          "steer": 0.0,
+          "throttle": 1.0,
+          "brake": 0.0,
+          "hop": false,
+          "useItem": false,
+          "holdItem": false
+        }
+      ]
+    },
+    {
+      "ticks": 20,
+      "inputs": [
+        {
+          "steer": 1.0,
+          "throttle": 1.0,
+          "brake": 0.0,
+          "hop": true,
+          "useItem": false,
+          "holdItem": false
+        }
+      ]
+    },
+    {
+      "ticks": 90,
+      "inputs": [
+        {
+          "steer": 0.0,
+          "throttle": 1.0,
+          "brake": 0.0,
+          "hop": false,
+          "useItem": false,
+          "holdItem": false
+        }
+      ]
+    }
+  ],
+  "hashes": [
+    "8ec6629d764fb178",
+    "ab8767ac8eb744b8",
+    "1b56341bff0d9d10",
+    "34118b26082583a9",
+    "69d5f8372fb029f5",
+    "e02c8160f3c2f279",
+    "1467ecfaed28f342",
+    "1bab16ce16ef03af",
+    "9d19532fac7932a6",
+    "8930e04f9fc70828",
+    "54d1e5a328c78460"
+  ]
+}

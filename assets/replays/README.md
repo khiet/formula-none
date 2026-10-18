@@ -36,7 +36,10 @@ The wasm test then confirms the wasm build agrees with the new hashes.
 
 ## What the set must cover
 
-`the_fixture_set_exercises_kart_contact_off_track_walls_and_both_tracks`
+`the_fixture_set_exercises_kart_contact_off_track_walls_both_tracks_and_a_mini_turbo`
 in the sim's tests requires the set, taken together, to have karts
-touching, karts on sand and grass, a lone kart held by a wall, and a run on
-each track, so trimming the set cannot quietly weaken the gate.
+touching, karts on sand and grass, a lone kart held by a wall, a run on
+each track, and a drift released into a mini-turbo, so trimming the set
+cannot quietly weaken the gate. `oval-hop-drift.replay.json` was written by
+hand for the last of those: a hop into each drift direction, one held to
+orange and one to blue, and one let go before blue.
