@@ -136,7 +136,7 @@ export interface Bridge {
   decodePong(bytes: Uint8Array): number;
 }
 
-// Buffer layouts the bridge crate documents on Race::step and Race::kart_transforms.
+// Buffer layouts the bridge crate documents on Race::step, Race::kart_transforms and Race::standings.
 const FLOATS_PER_INPUT = 6;
 const FLOATS_PER_TRANSFORM = 12;
 const FLOATS_PER_STANDING = 6;

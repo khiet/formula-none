@@ -244,6 +244,9 @@ use tuning::{
 /// exactly on a surface still finds it despite rounding.
 const SURFACE_PROBE_RISE_M: f32 = 0.1;
 
+/// Stands in for a missing best lap in the hash; a lap time is never negative.
+const NO_BEST_LAP: f32 = -1.0;
+
 impl State {
     /// A fresh race on `track` with `kart_count` karts on its spawn grid, in
     /// slot order. `kart_count` must not exceed the track's spawn slots.
@@ -376,7 +379,7 @@ impl State {
             hasher.write_u64(kart.checkpoint as u64);
             hasher.write_f32(kart.spline_progress);
             hasher.write_f32(kart.lap_time_s);
-            hasher.write_f32(kart.best_lap_s.unwrap_or(-1.0));
+            hasher.write_f32(kart.best_lap_s.unwrap_or(NO_BEST_LAP));
             hasher.write_f32s(body.translation().to_array());
             hasher.write_f32s(body.rotation().to_array());
             hasher.write_f32s(body.linvel().to_array());
@@ -398,8 +401,13 @@ impl State {
                 .cmp(&a.laps_completed)
                 .then(b.checkpoint.cmp(&a.checkpoint))
                 .then(
-                    self.lap_relative_progress(b)
-                        .total_cmp(&self.lap_relative_progress(a)),
+                    self.track
+                        .lap_relative_progress(b.checkpoint, b.spline_progress)
+                        .total_cmp(
+                            &self
+                                .track
+                                .lap_relative_progress(a.checkpoint, a.spline_progress),
+                        ),
                 )
         });
         let mut positions = vec![0; self.karts.len()];
@@ -418,23 +426,6 @@ impl State {
                 best_lap_s: kart.best_lap_s,
             })
             .collect()
-    }
-
-    /// Spline progress unwrapped around the start line so that, between two
-    /// karts past the same checkpoint, the one further along the lap reads
-    /// higher: a kart on the grid behind the line is a few metres short of
-    /// zero, not nearly a lap ahead, and a kart past the line that missed
-    /// the start gate is a little past the lap's length.
-    fn lap_relative_progress(&self, kart: &Kart) -> f32 {
-        let lap = self.track.spline_length();
-        let anchor = self.track.checkpoint_progress()[kart.checkpoint];
-        let mut ahead = kart.spline_progress - anchor;
-        if ahead > lap / 2.0 {
-            ahead -= lap;
-        } else if ahead <= -lap / 2.0 {
-            ahead += lap;
-        }
-        anchor + ahead
     }
 
     /// One transform per kart, in grid order.
@@ -513,23 +504,32 @@ pub fn step(mut state: State, inputs: &[KartInput], dt: f32) -> State {
         let after = state.physics.bodies[kart.body].translation().to_array();
         kart.spline_progress = state.track.progress_at(after);
         kart.lap_time_s += dt;
-        // Gates count only in order: the one after the last crossed, and
-        // for a lap to complete, the start line after the last gate.
-        let checkpoints = state.track.checkpoints();
-        let next = (kart.checkpoint + 1) % checkpoints.len();
-        if checkpoints[next].crossed_between(before, after) {
-            if next == 0 {
-                kart.laps_completed += 1;
-                kart.best_lap_s = Some(
-                    kart.best_lap_s
-                        .map_or(kart.lap_time_s, |best| best.min(kart.lap_time_s)),
-                );
-                kart.lap_time_s = 0.0;
-            }
-            kart.checkpoint = next;
-        }
+        cross_checkpoint(kart, &state.track, before, after, dt);
     }
     state
+}
+
+/// Count the checkpoint a kart's move from `before` to `after` crossed, if
+/// it was the next one in order: checkpoints count only in order, and a
+/// lap completes at the start line after the last of them. A completed
+/// lap's time ends where the move met the line, so lap times are finer
+/// than a tick, and the next lap's clock starts with the rest of the tick.
+fn cross_checkpoint(kart: &mut Kart, track: &Track, before: [f32; 3], after: [f32; 3], dt: f32) {
+    let checkpoints = track.checkpoints();
+    let next = (kart.checkpoint + 1) % checkpoints.len();
+    let Some(fraction) = checkpoints[next].crossed_between(before, after) else {
+        return;
+    };
+    if next == 0 {
+        let lap_time_s = kart.lap_time_s - dt * (1.0 - fraction);
+        kart.laps_completed += 1;
+        kart.best_lap_s = Some(
+            kart.best_lap_s
+                .map_or(lap_time_s, |best| best.min(lap_time_s)),
+        );
+        kart.lap_time_s = dt * (1.0 - fraction);
+    }
+    kart.checkpoint = next;
 }
 
 /// The upward speed that brings a kart back to the track after the tuned
