@@ -41,6 +41,9 @@ Rust (from the repo root):
 
 Web (from the repo root, after `pnpm install`):
 
+- Bridge to wasm: `pnpm build:bridge` (needs `wasm-pack`; rerun after
+  changing sim or bridge; output is gitignored and the other web commands
+  need it)
 - Build: `pnpm build`
 - Lint: `pnpm lint` (`pnpm lint:fix` applies Biome's fixes)
 - Typecheck: `pnpm -r typecheck`

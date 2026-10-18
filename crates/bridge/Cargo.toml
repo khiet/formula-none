@@ -12,6 +12,7 @@ crate-type = ["cdylib", "rlib"]
 [dependencies]
 sim = { path = "../sim" }
 protocol = { path = "../protocol" }
+wasm-bindgen = "0.2"
 
 [lints]
 workspace = true
