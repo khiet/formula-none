@@ -1,0 +1,12 @@
+[workspace]
+resolver = "2"
+members = ["crates/sim", "crates/protocol", "crates/bridge", "crates/server"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+publish = false
+
+[workspace.lints.clippy]
+all = "warn"

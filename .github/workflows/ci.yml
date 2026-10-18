@@ -1,0 +1,58 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  rust:
+    name: Rust (clippy, nextest)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+          targets: wasm32-unknown-unknown
+      - uses: Swatinem/rust-cache@v2
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-nextest
+      - name: Clippy, warnings as errors
+        run: cargo clippy --workspace --all-targets -- -D warnings
+      - name: Tests
+        run: cargo nextest run --workspace --profile ci
+      - name: Bridge builds for wasm
+        run: cargo build -p bridge --target wasm32-unknown-unknown
+
+  web:
+    name: Web (Biome, Vitest)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Biome
+        run: pnpm lint
+      - name: Typecheck
+        run: pnpm -r typecheck
+      - name: Vitest
+        run: pnpm test
+      - name: Build
+        run: pnpm build
+      - name: Install Playwright browser
+        run: pnpm --filter web exec playwright install --with-deps chromium
+      - name: Playwright smoke test
+        run: pnpm test:e2e
