@@ -156,6 +156,10 @@ describe("infra", () => {
         "ssm:GetCommandInvocation",
         "ssm:SendCommand",
       ]);
+      // The document the role may run is the only one, and it is the deploy.
+      const [documentName, document] = only(Object.entries(resourcesOfType("aws_ssm_document")));
+      expect(documentName).toBe("deploy");
+      expect(document.document_type).toBe("Command");
       // GetAuthorizationToken takes no resource; everything else is pinned.
       expect(byAction.get("ecr:GetAuthorizationToken")).toEqual(["*"]);
       expect(byAction.get("ecr:PutImage")).toEqual([ref("aws_ecr_repository.server.arn")]);
