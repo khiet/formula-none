@@ -12,8 +12,9 @@ export interface PingCodec {
  * One round trip over `connection`: resolves with the milliseconds from the
  * first Ping until the Pong carrying its nonce came back, or rejects after
  * the timeout. The Ping is sent again every resend interval meanwhile,
- * because a datagram may be lost; a WebSocket answers each copy and the
- * first Pong wins. Other messages, and Pongs for other nonces, are left alone.
+ * because a datagram may be lost; the server answers every copy it receives
+ * and the first Pong wins. Other messages, and Pongs for other nonces, are
+ * left alone.
  */
 export function ping(
   connection: Connection,

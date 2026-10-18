@@ -5,8 +5,8 @@
 //!   (default `0.0.0.0:8080`; Caddy proxies to it).
 //! - `TLS_CERT` and `TLS_KEY`: the PEM files Caddy writes; set both and the
 //!   server terminates QUIC for WebTransport on `WEBTRANSPORT_ADDR` (default
-//!   `0.0.0.0:4433`, published as 443 UDP). Unset, WebTransport is off and
-//!   only the fallback serves, as in local development.
+//!   `0.0.0.0:4433`, published as 443 UDP). Without both, WebTransport is
+//!   off and only the fallback serves, as in local development.
 
 use std::net::SocketAddr;
 use std::time::Duration;
@@ -53,8 +53,8 @@ fn webtransport_config() -> std::io::Result<Option<WebTransportConfig>> {
     }))
 }
 
-/// Bind once the certificate exists, then serve until shutdown. Binding
-/// waits in the background so health answers from the first second.
+/// Bind once the certificate exists, then serve until shutdown. `main` runs
+/// the HTTP side alongside, so waiting here does not hold up health.
 async fn serve_webtransport(config: WebTransportConfig, shutdown: Shutdown) -> std::io::Result<()> {
     let bound = tokio::select! {
         () = shutdown.wait() => return Ok(()),

@@ -1,13 +1,13 @@
 // One connection interface over two transports (ADR 0011): WebTransport
 // first, carrying each message as a datagram, and WebSocket when
-// WebTransport is not ready within the timeout, carrying the same bytes as
-// binary messages. Callers never learn which until they ask.
+// WebTransport is unavailable or not ready in time, carrying the same bytes
+// as binary messages. Callers see one `Connection`; `transport` says which.
 
 export type Transport = "webtransport" | "websocket";
 
 export interface Connection {
   readonly transport: Transport;
-  /** Send one message's bytes; a datagram may be lost, a WebSocket message never. */
+  /** Send one message's bytes; over WebTransport it is a datagram and may be lost. */
   send(bytes: Uint8Array): void;
   /** Called with each message's bytes as it arrives. */
   onMessage(listener: (bytes: Uint8Array) => void): void;
@@ -62,7 +62,8 @@ export interface ConnectOptions {
 
 /**
  * Connect over WebTransport, or over WebSocket when WebTransport is
- * unavailable, fails, or is not ready in time. Rejects only when both fail.
+ * unavailable, fails, or is not ready in time. Rejects only when the
+ * WebSocket fails too.
  */
 export async function connect(
   options: ConnectOptions,
@@ -70,8 +71,8 @@ export async function connect(
 ): Promise<Connection> {
   const { WebTransport } = transports;
   if (options.webTransportUrl !== undefined && WebTransport !== undefined) {
-    // A browser may refuse the session before it exists (a URL it will not
-    // reach, a policy); that is the fallback's case too.
+    // The constructor itself throws for a URL or policy the browser rejects;
+    // that is a fallback case too.
     let transport: WebTransportLike | undefined;
     try {
       transport = new WebTransport(options.webTransportUrl);
@@ -142,7 +143,7 @@ function overWebTransport(transport: WebTransportLike): Connection {
       for (const listener of listeners) listener(value);
     }
   })();
-  // The session ending is the normal way reading stops; neither is an error here.
+  // Either promise rejecting means the session ended, which is not an error here.
   const closed = Promise.race([transport.closed, reading]).then(
     () => undefined,
     () => undefined,
@@ -150,7 +151,7 @@ function overWebTransport(transport: WebTransportLike): Connection {
   return {
     transport: "webtransport",
     send(bytes) {
-      // Datagrams are fire-and-forget; a write that fails has closed the transport.
+      // A write rejects only once the session has ended, which `closed` already reports.
       writer.write(bytes).catch(() => {});
     },
     onMessage(listener) {
@@ -195,7 +196,7 @@ function overWebSocket(socket: WebSocketLike): Promise<Connection> {
   });
 }
 
-/** The same bytes over a plain ArrayBuffer, which is what a WebSocket sends; wasm memory already is one. */
+/** The bytes backed by a plain ArrayBuffer, which `WebSocket.send` takes; copied only when they are not already. */
 function overArrayBuffer(bytes: Uint8Array): Uint8Array<ArrayBuffer> {
   return bytes.buffer instanceof ArrayBuffer
     ? (bytes as Uint8Array<ArrayBuffer>)

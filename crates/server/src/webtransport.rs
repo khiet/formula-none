@@ -48,9 +48,8 @@ struct Pems {
 }
 
 impl WebTransportServer {
-    /// Bind once the certificate files can be read. Caddy writes them a
-    /// moment after its own first start, so this waits for them rather
-    /// than failing; the HTTP side serves health meanwhile.
+    /// Bind once the certificate files can be read, polling until then: on
+    /// a first deploy Caddy has not obtained the certificate yet.
     pub async fn bind(config: WebTransportConfig) -> std::io::Result<Self> {
         let mut waiting = false;
         let (loaded, identity) = loop {
@@ -81,8 +80,9 @@ impl WebTransportServer {
         self.endpoint.local_addr()
     }
 
-    /// Accept sessions and answer their datagrams until `shutdown` resolves;
-    /// open sessions are closed then, so a deploy never waits on a player.
+    /// Accept sessions, answer their datagrams and reload a renewed
+    /// certificate until `shutdown` resolves; open sessions are closed then,
+    /// so a deploy never waits on a player.
     pub async fn run(self, shutdown: Shutdown) -> std::io::Result<()> {
         let Self {
             endpoint,
@@ -123,7 +123,7 @@ async fn session(connection: wtransport::Connection, shutdown: Shutdown) {
             received = connection.receive_datagram() => {
                 let Ok(datagram) = received else { return };
                 if let Some(reply) = ping::reply(&datagram) {
-                    // A lost reply is the client's to notice; datagrams are unreliable by design.
+                    // A failed send is the client's to notice: it resends an unanswered Ping.
                     let _ = connection.send_datagram(reply);
                 }
             }

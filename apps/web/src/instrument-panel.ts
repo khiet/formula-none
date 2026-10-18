@@ -3,7 +3,7 @@ import type { KartTransform } from "./bridge";
 export interface InstrumentPanel {
   /** Show the local kart's readouts from what the sim reports. */
   update(local: KartTransform): void;
-  /** The connection banner: which transport reached the server and how fast, or why not. */
+  /** The connection readout: which transport reached the server and how fast, or that none did. */
   connection(status: string): void;
 }
 

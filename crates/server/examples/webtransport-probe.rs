@@ -1,7 +1,7 @@
 //! One WebTransport handshake against a deployed server, for the deploy
 //! smoke test (ADR 0016): connect through the system's trusted roots, send a
 //! Ping datagram, print the round-trip time of its Pong. Exits non-zero when
-//! any step fails within the budget.
+//! a step fails or the budget runs out.
 //!
 //! ```sh
 //! cargo run -p server --example webtransport-probe -- https://formulanone.sushimafia.com/wt
@@ -26,8 +26,9 @@ use wtransport::ClientConfig;
 
 const BUDGET: Duration = Duration::from_secs(10);
 
-/// Prefers an IPv4 address: the site has only an A record and a laptop's
-/// `localhost` resolves to `::1` first, where Docker does not publish UDP.
+/// Prefers an IPv4 address: the site has only an A record, and a laptop's
+/// `localhost` resolves to `::1` first, where the local Compose stack was
+/// seen not to answer QUIC.
 struct Ipv4First;
 
 impl DnsResolver for Ipv4First {
