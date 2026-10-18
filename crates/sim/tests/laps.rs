@@ -229,10 +229,15 @@ fn spline_progress_climbs_the_whole_way_round_the_oval_and_wraps_at_the_line() {
     for _ in 0..ticks(LAP_S) {
         let input = follow_centreline(&state, 0);
         state = step(state, &[input], DT);
-        let progress = only_standing(&state).spline_progress;
+        let standing = only_standing(&state);
+        let progress = standing.spline_progress;
         assert!(
             (0.0..lap).contains(&progress),
             "progress {progress} on a {lap} m lap"
+        );
+        assert!(
+            !standing.wrong_way,
+            "a kart lapping forward is never going the wrong way, even at the line"
         );
         if progress < previous {
             wraps += 1;

@@ -551,3 +551,114 @@ fn cutting_the_chicane_through_the_sand_is_slower_than_driving_it() {
         exit - entry
     );
 }
+
+#[test]
+fn a_boost_pad_facing_the_other_way_boosts_a_kart_on_it_and_not_one_beside_it() {
+    use sim::tuning::{BOOST_PAD_HALF_LENGTH_M, BOOST_PAD_HALF_WIDTH_M};
+    // The back straight's pad at (-30, -55) faces +Z. One kart drives up
+    // its centre from 45 m back; another drives the same way just outside
+    // its width.
+    let track = Track::from_sidecar(OVAL).expect("the oval loads");
+    let pad = track.boost_pads()[0];
+    assert_eq!(pad.position, [-30.0, 0.0, -55.0]);
+    assert!(
+        (pad.yaw.abs() - std::f32::consts::PI).abs() < 1e-3,
+        "faces +Z"
+    );
+    let facing_plus_z = std::f32::consts::PI;
+    let beside = BOOST_PAD_HALF_WIDTH_M + 0.6;
+
+    let mut on_the_pad = State::new(
+        SEED,
+        1,
+        oval_with_slot_0_at([-30.0, 0.0, -100.0], facing_plus_z),
+    );
+    let mut first_boost = None;
+    for _ in 0..ticks(4.0) {
+        on_the_pad = step(on_the_pad, &[throttle()], DT);
+        let kart = on_the_pad.kart_transforms()[0];
+        if kart.speed > TOP_SPEED_M_PER_S && first_boost.is_none() {
+            first_boost = Some(kart.position);
+        }
+    }
+    let first_boost = first_boost.expect("the pad boosted the kart on it");
+    assert!(
+        (first_boost[2] - pad.position[2]).abs() < BOOST_PAD_HALF_LENGTH_M + 1.0,
+        "boosted on the pad, not at {first_boost:?}"
+    );
+
+    let mut beside_the_pad = State::new(
+        SEED,
+        1,
+        oval_with_slot_0_at([-30.0 - beside, 0.0, -100.0], facing_plus_z),
+    );
+    for _ in 0..ticks(4.0) {
+        beside_the_pad = step(beside_the_pad, &[throttle()], DT);
+        let kart = beside_the_pad.kart_transforms()[0];
+        assert!(
+            kart.speed <= TOP_SPEED_M_PER_S,
+            "boosted beside the pad: {kart:?}"
+        );
+    }
+    assert!(
+        beside_the_pad.kart_transforms()[0].position[2] > pad.position[2] + 10.0,
+        "drove past the pad"
+    );
+}
+
+#[test]
+fn a_hop_carries_the_karts_speed_over_the_sand_until_it_lands() {
+    use sim::tuning::KART_HALF_HEIGHT_M;
+    // Slot 0 moved to the right of the front straight and turned a little
+    // right, so it drifts toward the sand at x = 36 while getting up to
+    // speed, and hops just before it reaches the edge.
+    let mut state = State::new(SEED, 1, oval_with_slot_0_at([33.0, 0.0, 4.0], -0.08));
+    let cap = OFF_TRACK_SPEED_FACTOR * TOP_SPEED_M_PER_S;
+    let mut hop = false;
+    let mut speed_at_the_hop = 0.0;
+    let mut airborne_over_sand = 0;
+    let mut landed_on_sand = None;
+    for _ in 0..ticks(6.0) {
+        let surface = state.kart_surface(0);
+        let before = state.kart_transforms()[0];
+        if !hop && before.position[0] >= 35.8 {
+            hop = true;
+            speed_at_the_hop = before.speed;
+        }
+        state = step(state, &[KartInput { hop, ..throttle() }], DT);
+        let kart = state.kart_transforms()[0];
+        if surface != Surface::Sand {
+            continue;
+        }
+        if kart.position[1] > KART_HALF_HEIGHT_M + 0.05 {
+            airborne_over_sand += 1;
+            assert!(
+                kart.speed >= speed_at_the_hop - 0.01,
+                "slowed in the air over the sand: {kart:?}"
+            );
+        } else {
+            // The body is back at rest height a tick or two before the
+            // hop's airtime runs out; the cap lands with the airtime.
+            let mut speeds = vec![kart.speed];
+            for _ in 0..3 {
+                state = step(state, &[KartInput { hop, ..throttle() }], DT);
+                speeds.push(state.kart_transforms()[0].speed);
+            }
+            landed_on_sand = Some(speeds);
+            break;
+        }
+    }
+    assert!(
+        speed_at_the_hop > cap + 2.0,
+        "hopped at {speed_at_the_hop} m/s"
+    );
+    assert!(
+        airborne_over_sand >= 5,
+        "{airborne_over_sand} ticks in the air over the sand"
+    );
+    let landed = landed_on_sand.expect("came down on the sand");
+    assert!(
+        landed.last().is_some_and(|&speed| speed <= cap + 0.01),
+        "capped within a few ticks of touching down: {landed:?}"
+    );
+}
