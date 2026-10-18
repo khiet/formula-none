@@ -16,7 +16,7 @@ commit=${1:?usage: deploy/smoke.sh <commit-sha> [base-url]}
 base_url=${2:-https://formulanone.sushimafia.com}
 deadline=$(( $(date +%s) + ${SMOKE_TIMEOUT:-120} ))
 here=$(cd "$(dirname "$0")" && pwd)
-probe=${SMOKE_WEBTRANSPORT_PROBE:-cargo run --quiet --release --manifest-path "$here/../Cargo.toml" -p server --example webtransport-probe --}
+webtransport_probe=${SMOKE_WEBTRANSPORT_PROBE:-cargo run --quiet --release --manifest-path "$here/../Cargo.toml" -p server --example webtransport-probe --}
 
 # Prints "<status> <content-type>" for a path; "000" when nothing answered.
 probe() {
@@ -50,7 +50,7 @@ while :; do
   # The handshake goes to the server's own QUIC listener on the site's
   # port; the path is the one the client uses (apps/web/src/connection.ts).
   if [[ -z $failure ]]; then
-    $probe "$base_url/wt" || failure="webtransport handshake failed"
+    $webtransport_probe "$base_url/wt" || failure="webtransport handshake failed"
   fi
 
   if [[ -z $failure ]]; then

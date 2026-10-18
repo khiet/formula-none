@@ -7,8 +7,10 @@ use std::time::{Duration, Instant};
 use protocol::{decode, encode, ClientMessage, ServerMessage};
 use wtransport::{ClientConfig, Endpoint};
 
-/// How often an unanswered Ping is sent again.
-const RESEND: Duration = Duration::from_millis(500);
+/// How often an unanswered Ping is sent again, as the client does it.
+fn resend_interval() -> Duration {
+    Duration::from_secs_f32(sim::tuning::PING_RESEND_S)
+}
 
 /// Connect to `url` with `config` and measure one Ping round trip, giving
 /// up after `budget`.
@@ -31,7 +33,8 @@ pub async fn webtransport_round_trip(
     let ping = encode(&ClientMessage::Ping { nonce });
     let sent_at = Instant::now();
     connection.send_datagram(ping.clone())?;
-    let mut resend = tokio::time::interval_at((sent_at + RESEND).into(), RESEND);
+    let resend = resend_interval();
+    let mut resend = tokio::time::interval_at((sent_at + resend).into(), resend);
     loop {
         tokio::select! {
             _ = tokio::time::sleep_until(deadline.into()) => return Err(ProbeError::Timeout("pong")),

@@ -4,6 +4,8 @@
 import init, {
   decode_pong,
   encode_ping,
+  ping_resend_s,
+  ping_timeout_s,
   replay_hash_interval_ticks,
   replay_hashes,
   ticks_per_second,
@@ -46,6 +48,11 @@ export interface Race {
   stateHash(): bigint;
 }
 
+export interface PingTiming {
+  readonly timeoutMs: number;
+  readonly resendMs: number;
+}
+
 export interface Bridge {
   /** The sim's fixed tick rate; `step` is meant to be called this often with dt = 1 / rate. */
   readonly ticksPerSecond: number;
@@ -67,6 +74,8 @@ export interface Bridge {
   replayHashes(replay: string, sidecar: string): bigint[];
   /** How long WebTransport may take to connect before the WebSocket fallback (ADR 0011). */
   readonly webTransportTimeoutMs: number;
+  /** How long a Ping waits for its Pong, and how often it is sent again meanwhile. */
+  readonly pingTiming: PingTiming;
   /** The wire bytes of a Ping carrying `nonce`; the server answers a Pong with the same nonce. */
   encodePing(nonce: number): Uint8Array;
   /** The nonce of the Pong `bytes` carry. Throws, with the protocol's reason, for anything else. */
@@ -98,6 +107,7 @@ export async function loadBridge(wasm?: BufferSource): Promise<Bridge> {
       return Array.from(rethrown(() => replay_hashes(replay, sidecar)));
     },
     webTransportTimeoutMs: webtransport_connect_timeout_s() * 1000,
+    pingTiming: { timeoutMs: ping_timeout_s() * 1000, resendMs: ping_resend_s() * 1000 },
     encodePing(nonce) {
       return encode_ping(nonce);
     },

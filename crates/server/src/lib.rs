@@ -1,5 +1,6 @@
-//! The server's HTTP surface. `main` binds a listener and serves [`app`];
-//! tests drive the router directly or through a socket.
+//! The server's transports: the HTTP surface with the WebSocket fallback,
+//! served by [`serve`], and WebTransport in [`webtransport`]. `main` binds
+//! both; tests drive the router directly or through a socket.
 
 use axum::routing::get;
 use axum::{Json, Router};

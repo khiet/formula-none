@@ -61,6 +61,7 @@ describe("bridge wrapper", () => {
     expect(bridge.decodePong(new Uint8Array([0, 42]))).toBe(42);
     expect(() => bridge.decodePong(new Uint8Array([0xff, 0xff]))).toThrow(/malformed/);
     expect(bridge.webTransportTimeoutMs).toBe(3_000);
+    expect(bridge.pingTiming).toEqual({ timeoutMs: 5_000, resendMs: 500 });
   });
 
   it("rejects a sidecar the sim cannot race on with the sim's reason", async () => {

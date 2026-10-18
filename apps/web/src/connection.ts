@@ -70,11 +70,20 @@ export async function connect(
 ): Promise<Connection> {
   const { WebTransport } = transports;
   if (options.webTransportUrl !== undefined && WebTransport !== undefined) {
-    const transport = new WebTransport(options.webTransportUrl);
-    if (await readyWithin(transport, options.webTransportTimeoutMs)) {
-      return overWebTransport(transport);
+    // A browser may refuse the session before it exists (a URL it will not
+    // reach, a policy); that is the fallback's case too.
+    let transport: WebTransportLike | undefined;
+    try {
+      transport = new WebTransport(options.webTransportUrl);
+    } catch {
+      transport = undefined;
     }
-    transport.close();
+    if (transport !== undefined) {
+      if (await readyWithin(transport, options.webTransportTimeoutMs)) {
+        return overWebTransport(transport);
+      }
+      transport.close();
+    }
   }
   return overWebSocket(new transports.WebSocket(options.webSocketUrl));
 }

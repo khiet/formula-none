@@ -179,6 +179,45 @@ async fn a_renewed_certificate_is_served_without_a_restart() {
 }
 
 #[tokio::test]
+async fn a_half_written_renewal_is_skipped_until_the_files_agree() {
+    let files = files();
+    let first = write_identity(&files).await;
+    let server = WebTransportServer::bind(config(free_port(), &files))
+        .await
+        .unwrap();
+    let addr = server.local_addr().unwrap();
+    let (_stop, shutdown) = Shutdown::pair();
+    let running = tokio::spawn(server.run(shutdown));
+
+    // Caddy has written the new certificate but not yet its key.
+    let renewed = Identity::self_signed(["localhost", "127.0.0.1"]).unwrap();
+    renewed
+        .certificate_chain()
+        .store_pemfile(&files.certificate)
+        .await
+        .unwrap();
+    tokio::time::sleep(POLL * 4).await;
+    assert!(
+        !running.is_finished(),
+        "the server survives a mismatched pair"
+    );
+    webtransport_round_trip(pinned(&first), &url(addr), Duration::from_secs(5))
+        .await
+        .expect("the first certificate is still served");
+
+    renewed
+        .private_key()
+        .store_secret_pemfile(&files.private_key)
+        .await
+        .unwrap();
+    tokio::time::sleep(POLL * 4).await;
+    let hash = renewed.certificate_chain().as_slice()[0].hash();
+    webtransport_round_trip(pinned(&hash), &url(addr), Duration::from_secs(5))
+        .await
+        .expect("the renewed certificate is served once its key is there");
+}
+
+#[tokio::test]
 async fn shutdown_ends_the_endpoint() {
     let files = files();
     write_identity(&files).await;

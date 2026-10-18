@@ -1,3 +1,4 @@
+import type { PingTiming } from "./bridge";
 import type { Connection } from "./connection";
 
 /** The protocol's Ping and Pong, as the bridge encodes and decodes them. */
@@ -8,32 +9,40 @@ export interface PingCodec {
 }
 
 /**
- * One round trip over `connection`: resolves with the milliseconds until the
- * Pong carrying this Ping's nonce came back, or rejects after `timeoutMs`.
- * Other messages, and Pongs for other nonces, are left alone.
+ * One round trip over `connection`: resolves with the milliseconds from the
+ * first Ping until the Pong carrying its nonce came back, or rejects after
+ * the timeout. The Ping is sent again every resend interval meanwhile,
+ * because a datagram may be lost; a WebSocket answers each copy and the
+ * first Pong wins. Other messages, and Pongs for other nonces, are left alone.
  */
 export function ping(
   connection: Connection,
   codec: PingCodec,
   nonce: number,
-  timeoutMs: number,
+  timing: PingTiming,
   now: () => number = () => performance.now(),
 ): Promise<number> {
   return new Promise((resolve, reject) => {
-    const timer = setTimeout(() => reject(new Error(`no pong within ${timeoutMs} ms`)), timeoutMs);
-    connection.onMessage((bytes) => {
+    const bytes = codec.encodePing(nonce);
+    const sentAt = now();
+    const resend = setInterval(() => connection.send(bytes), timing.resendMs);
+    const timer = setTimeout(() => {
+      clearInterval(resend);
+      reject(new Error(`no pong within ${timing.timeoutMs} ms`));
+    }, timing.timeoutMs);
+    connection.onMessage((received) => {
       let answered: number;
       try {
-        answered = codec.decodePong(bytes);
+        answered = codec.decodePong(received);
       } catch {
         return;
       }
       if (answered === nonce) {
+        clearInterval(resend);
         clearTimeout(timer);
         resolve(now() - sentAt);
       }
     });
-    const sentAt = now();
-    connection.send(codec.encodePing(nonce));
+    connection.send(bytes);
   });
 }

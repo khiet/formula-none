@@ -20,6 +20,10 @@ pub const REPLAY_HASH_INTERVAL_TICKS: u32 = TICKS_PER_SECOND;
 /// How long the client gives WebTransport to connect before it falls back
 /// to WebSocket.
 pub const WEBTRANSPORT_CONNECT_TIMEOUT_S: f32 = 3.0;
+/// How long a Ping waits for its Pong before the server counts as unreachable.
+pub const PING_TIMEOUT_S: f32 = 5.0;
+/// How often an unanswered Ping is sent again; a datagram may be lost.
+pub const PING_RESEND_S: f32 = 0.5;
 
 // Race.
 

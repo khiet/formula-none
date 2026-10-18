@@ -109,7 +109,9 @@ Renewal needs no rebuild and no restart. Caddy renews by rewriting the same
 two files; the server re-reads them once a minute and, when their bytes
 change, reloads the TLS configuration of its running QUIC endpoint
 (`crates/server/src/webtransport.rs`), logging `webtransport reloaded
-certificate`. Sessions already open keep their handshake; new ones get the
+certificate`. A poll that lands between Caddy writing the certificate and
+its key sees a pair that does not match and keeps the loaded one until the
+next poll. Sessions already open keep their handshake; new ones get the
 renewed certificate. On a first deploy, when Caddy has not obtained a
 certificate yet, the server serves health and the WebSocket at once and
 starts WebTransport as soon as the files appear.

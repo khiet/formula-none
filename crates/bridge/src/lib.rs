@@ -46,6 +46,18 @@ pub fn webtransport_connect_timeout_s() -> f32 {
     sim::tuning::WEBTRANSPORT_CONNECT_TIMEOUT_S
 }
 
+/// How long a Ping waits for its Pong (ADR 0014).
+#[wasm_bindgen]
+pub fn ping_timeout_s() -> f32 {
+    sim::tuning::PING_TIMEOUT_S
+}
+
+/// How often an unanswered Ping is sent again (ADR 0014).
+#[wasm_bindgen]
+pub fn ping_resend_s() -> f32 {
+    sim::tuning::PING_RESEND_S
+}
+
 /// The bytes of a `protocol::ClientMessage::Ping` carrying `nonce`; the
 /// server answers with a Pong carrying the same nonce whichever transport
 /// delivers it (ADR 0011).

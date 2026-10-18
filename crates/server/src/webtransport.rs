@@ -11,6 +11,9 @@ use std::path::PathBuf;
 use std::time::Duration;
 
 use wtransport::endpoint::endpoint_side::Server;
+use wtransport::tls::rustls::crypto::ring::default_provider;
+use wtransport::tls::rustls::pki_types::{CertificateDer, PrivateKeyDer};
+use wtransport::tls::rustls::sign::CertifiedKey;
 use wtransport::{Endpoint, Identity, ServerConfig};
 
 use crate::{ping, Shutdown};
@@ -158,6 +161,10 @@ async fn reload_on_change(
     }
 }
 
+/// Read and validate the pair. Caddy rewrites the two files one after the
+/// other, so a poll can land between them; a certificate that does not
+/// match the key is reported as unreadable rather than built into a TLS
+/// configuration, which would abort the server.
 async fn load(config: &WebTransportConfig) -> std::io::Result<(Pems, Identity)> {
     let pems = Pems {
         certificate: tokio::fs::read(&config.certificate).await?,
@@ -166,6 +173,15 @@ async fn load(config: &WebTransportConfig) -> std::io::Result<(Pems, Identity)> 
     let identity = Identity::load_pemfiles(&config.certificate, &config.private_key)
         .await
         .map_err(std::io::Error::other)?;
+    let chain: Vec<CertificateDer<'static>> = identity
+        .certificate_chain()
+        .as_slice()
+        .iter()
+        .map(|certificate| CertificateDer::from(certificate.der().to_vec()))
+        .collect();
+    let key = PrivateKeyDer::try_from(identity.private_key().secret_der().to_vec())
+        .map_err(std::io::Error::other)?;
+    CertifiedKey::from_der(chain, key, &default_provider()).map_err(std::io::Error::other)?;
     Ok((pems, identity))
 }
 

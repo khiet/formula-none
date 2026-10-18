@@ -170,6 +170,21 @@ describe("connect", () => {
     expect((await connecting).transport).toBe("websocket");
   });
 
+  it("falls back when the browser refuses the WebTransport session up front", async () => {
+    class RefusingWebTransport extends FakeWebTransport {
+      constructor(url: string) {
+        super(url);
+        throw new TypeError("WebTransport is not allowed here");
+      }
+    }
+    const connecting = connect(URLS, {
+      WebTransport: RefusingWebTransport,
+      WebSocket: FakeWebSocket,
+    });
+    FakeWebSocket.instances[0]?.open();
+    expect((await connecting).transport).toBe("websocket");
+  });
+
   it("goes straight to WebSocket when the browser has no WebTransport", async () => {
     const connecting = connect(URLS, { WebSocket: FakeWebSocket });
     FakeWebSocket.instances[0]?.open();

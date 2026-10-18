@@ -17,8 +17,6 @@ const LOCAL_KART = 0;
 const MAX_TICKS_PER_FRAME = 5;
 /** Downloads the session so far as a replay fixture (assets/replays/README.md). */
 const DOWNLOAD_REPLAY_KEY = "r";
-/** How long the banner waits for the first Pong before reporting the server unreachable. */
-const PING_TIMEOUT_MS = 5_000;
 
 /**
  * M0(b): reach the server, WebTransport first and WebSocket as the fallback,
@@ -32,7 +30,7 @@ async function reportConnection(bridge: Bridge, panel: InstrumentPanel): Promise
       webTransportTimeoutMs: bridge.webTransportTimeoutMs,
     });
     const nonce = Math.floor(Math.random() * 0x1_0000_0000);
-    const rtt = await ping(connection, bridge, nonce, PING_TIMEOUT_MS);
+    const rtt = await ping(connection, bridge, nonce, bridge.pingTiming);
     panel.connection(`${connection.transport} ${Math.round(rtt)} ms`);
     connection.closed.then(() => panel.connection("offline"));
   } catch (error) {

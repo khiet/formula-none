@@ -1,5 +1,6 @@
 //! The bridge's protocol surface: the browser encodes and decodes messages
-//! through it so the wire format exists only in Rust (ADR 0004).
+//! through it (ADR 0003), so both transports carry the protocol's own bytes
+//! (ADR 0011).
 
 use bridge::{decode_pong, encode_ping};
 use protocol::{decode, encode, ClientMessage, ServerMessage};

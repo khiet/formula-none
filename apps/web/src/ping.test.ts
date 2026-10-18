@@ -36,12 +36,14 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
+const TIMING = { timeoutMs: 1_000, resendMs: 300 };
+
 describe("ping", () => {
   it("sends the protocol's Ping and resolves with the round-trip time of its Pong", async () => {
     const bridge = await loadBridge(wasm);
     const far = fakeConnection();
     let clock = 100;
-    const pinging = ping(far.connection, bridge, 42, 1_000, () => clock);
+    const pinging = ping(far.connection, bridge, 42, TIMING, () => clock);
     // Postcard: variant 0, then the nonce as a varint (crates/protocol/tests).
     expect(far.sent).toEqual([new Uint8Array([0, 42])]);
     clock = 112;
@@ -53,7 +55,7 @@ describe("ping", () => {
     vi.useFakeTimers();
     const bridge = await loadBridge(wasm);
     const far = fakeConnection();
-    const pinging = ping(far.connection, bridge, 7, 1_000);
+    const pinging = ping(far.connection, bridge, 7, TIMING);
     far.receive(new Uint8Array([0xff, 0xff]));
     far.receive(bridge.encodePing(7));
     far.receive(new Uint8Array([0, 8]));
@@ -62,11 +64,24 @@ describe("ping", () => {
     await expect(pinging).resolves.toBeGreaterThanOrEqual(0);
   });
 
+  it("sends the Ping again every resend interval until the Pong arrives, then stops", async () => {
+    vi.useFakeTimers();
+    const bridge = await loadBridge(wasm);
+    const far = fakeConnection();
+    const pinging = ping(far.connection, bridge, 3, TIMING);
+    await vi.advanceTimersByTimeAsync(650);
+    expect(far.sent).toHaveLength(3);
+    far.receive(new Uint8Array([0, 3]));
+    await pinging;
+    await vi.advanceTimersByTimeAsync(2_000);
+    expect(far.sent).toHaveLength(3);
+  });
+
   it("rejects when no pong arrives in time", async () => {
     vi.useFakeTimers();
     const bridge = await loadBridge(wasm);
     const far = fakeConnection();
-    const rejected = expect(ping(far.connection, bridge, 1, 1_000)).rejects.toThrow(
+    const rejected = expect(ping(far.connection, bridge, 1, TIMING)).rejects.toThrow(
       /no pong within 1000 ms/,
     );
     await vi.advanceTimersByTimeAsync(1_000);
