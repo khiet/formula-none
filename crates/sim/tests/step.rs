@@ -273,6 +273,23 @@ fn releasing_the_brake_while_reversing_coasts_to_a_stop() {
 }
 
 #[test]
+fn throttle_while_backing_up_drives_the_kart_forward_again() {
+    let spawn = only_kart(&race(1));
+    let reversing = run(race(1), vec![brake(); ticks(1.0)]);
+    let behind = only_kart(&reversing);
+    assert!(
+        behind.position[2] > spawn.position[2] + 1.0,
+        "backed up first"
+    );
+
+    let recovering = run(reversing, vec![accelerate(); ticks(1.0)]);
+    let before = only_kart(&recovering);
+    let after = only_kart(&step(recovering, &[accelerate()], DT));
+    assert!(forward_speed(&before, &after) > 1.0);
+    assert!(after.speed > 0.0);
+}
+
+#[test]
 fn steering_while_reversing_swings_the_nose_the_other_way() {
     let reverse_right = KartInput {
         steer: 1.0,

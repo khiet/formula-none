@@ -94,18 +94,6 @@ describe("bridge wrapper", () => {
     expect(drive()).toEqual(drive());
   });
 
-  it("backs the kart up when the brake is held at a standstill", async () => {
-    const bridge = await loadBridge(wasm);
-    const race = bridge.createRace(7n, 1, OVAL);
-    const spawn = race.kartTransforms()[0];
-    for (let tick = 0; tick < 60; tick++) {
-      race.step([{ ...IDLE, brake: 1 }], DT);
-    }
-    const after = race.kartTransforms()[0];
-    expect(after?.speed).toBeLessThan(0);
-    expect(after?.position[2]).toBeGreaterThan((spawn?.position[2] ?? 0) + 1);
-  });
-
   it("refuses an input list that does not match the kart count", async () => {
     const bridge = await loadBridge(wasm);
     const race = bridge.createRace(7n, 2, OVAL);
