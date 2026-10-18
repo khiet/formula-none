@@ -20,7 +20,7 @@ const THROTTLE = "ArrowUp";
 const BRAKE = "ArrowDown";
 const KART_KEYS = new Set([STEER_LEFT, STEER_RIGHT, THROTTLE, BRAKE]);
 
-/** Arrow keys to one kart's input. Held keys are read, never events, so a tick never misses a key. */
+/** Arrow keys to one kart's input, read from the keys held when `current()` is called. */
 export function keyboardKartInput(source: KeySource): KartInputSource {
   const held = new Set<string>();
   source.addEventListener("keydown", (event) => {

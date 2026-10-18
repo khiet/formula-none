@@ -2,8 +2,9 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { type KartInput, type KartTransform, loadBridge } from "./bridge";
 
-// The real wasm build, loaded from bytes because Node has no fetch for
-// import.meta.url. `pnpm build:bridge` must have run first.
+// The real wasm build, loaded from bytes because the default loader fetches
+// the module URL and fetch rejects file: URLs in Node. `pnpm build:bridge`
+// must have run first.
 const wasm = readFileSync(new URL("./generated/bridge/bridge_bg.wasm", import.meta.url));
 const DT = 1 / 60;
 const IDLE: KartInput = { steer: 0, throttle: 0, brake: 0 };
