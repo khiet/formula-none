@@ -1,0 +1,14 @@
+# The build runs inside the image; nothing generated on the host goes in.
+.git
+target
+node_modules
+**/node_modules
+apps/web/dist
+apps/web/src/generated
+apps/web/test-results
+apps/web/playwright-report
+infra
+docs
+assets/tracks/*/*.blend
+assets/tracks/*/*.blend1
+deploy/release

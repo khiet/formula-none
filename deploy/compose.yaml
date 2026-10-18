@@ -1,0 +1,46 @@
+# The stack the deploy document runs on the instance (ADR 0015). The image
+# carries this file, the Caddyfile and the built client under /release; the
+# document copies that directory out of the pulled image and runs Compose
+# from it, so the deployed commit and its stack definition never drift apart.
+#
+# Caddy terminates TLS with a Let's Encrypt certificate kept in caddy_data
+# and serves the client; everything under /api is proxied to the server.
+# The server publishes nothing; it listens on the Compose network only.
+#
+# The project name pins the volume names so a deploy from any directory
+# finds the same certificate.
+name: formula-none
+
+services:
+  caddy:
+    image: caddy:2.10.2
+    restart: unless-stopped
+    # 443 TCP only: HTTP/3 is off (see the Caddyfile) so 443 UDP stays free
+    # for the server's own QUIC listener (ADR 0011).
+    ports:
+      - "443:443/tcp"
+    environment:
+      SITE_ADDRESS: ${SITE_ADDRESS:-formulanone.sushimafia.com}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./www:/srv:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    logging: &logging
+      driver: awslogs
+      options:
+        awslogs-region: eu-west-2
+        awslogs-group: /formula-none/server
+        # One stream per service, continued across restarts.
+        tag: "{{.Name}}"
+    depends_on:
+      - server
+
+  server:
+    image: ${SERVER_IMAGE}
+    restart: unless-stopped
+    logging: *logging
+
+volumes:
+  caddy_data:
+  caddy_config:

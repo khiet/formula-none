@@ -1,0 +1,17 @@
+# Overrides for running the stack on a laptop: no CloudWatch, and Caddy
+# serves https://localhost with its own local CA instead of Let's Encrypt.
+#
+#   SERVER_IMAGE=formula-none:dev docker compose \
+#     -f deploy/compose.yaml -f deploy/compose.local.yaml up
+#
+# The Caddyfile and client come from the release bundle in the image; see
+# deploy/README.md for extracting it first.
+services:
+  caddy:
+    environment:
+      SITE_ADDRESS: localhost
+    logging:
+      driver: local
+  server:
+    logging:
+      driver: local

@@ -16,7 +16,7 @@ importers:
         version: 7.0.2
       vitest:
         specifier: 5.0.5
-        version: 5.0.5(@types/node@24.10.1)(vite@8.3.4(@types/node@24.10.1))
+        version: 5.0.5(@types/node@24.10.1)(vite@8.3.4(@types/node@24.10.1)(yaml@2.8.1))
 
   apps/web:
     dependencies:
@@ -35,10 +35,10 @@ importers:
         version: 7.0.2
       vite:
         specifier: 8.3.4
-        version: 8.3.4(@types/node@24.10.1)
+        version: 8.3.4(@types/node@24.10.1)(yaml@2.8.1)
       vitest:
         specifier: 5.0.5
-        version: 5.0.5(@types/node@24.10.1)(vite@8.3.4(@types/node@24.10.1))
+        version: 5.0.5(@types/node@24.10.1)(vite@8.3.4(@types/node@24.10.1)(yaml@2.8.1))
 
   tools/repo-checks:
     devDependencies:
@@ -53,7 +53,10 @@ importers:
         version: 7.0.2
       vitest:
         specifier: 5.0.5
-        version: 5.0.5(@types/node@22.20.5)(vite@8.3.4(@types/node@22.20.5))
+        version: 5.0.5(@types/node@22.20.5)(vite@8.3.4(@types/node@22.20.5)(yaml@2.8.1))
+      yaml:
+        specifier: 2.8.1
+        version: 2.8.1
 
 packages:
 
@@ -688,6 +691,11 @@ packages:
     engines: {node: '>=20.11'}
     hasBin: true
 
+  yaml@2.8.1:
+    resolution: {integrity: sha512-lcYcMxX2PO9XMGvAJkJ3OsNMw+/7FKes7/hgerGUYWIoWu5j/+YQqcZr5JnPZWzOsEBgMbSbiSTn/dv/69Mkpw==}
+    engines: {node: '>= 14.6'}
+    hasBin: true
+
 snapshots:
 
   '@biomejs/biome@2.5.15':
@@ -886,23 +894,23 @@ snapshots:
   '@typescript/typescript-win32-x64@7.0.2':
     optional: true
 
-  '@vitest/mocker@5.0.5(vite@8.3.4(@types/node@22.20.5))':
+  '@vitest/mocker@5.0.5(vite@8.3.4(@types/node@22.20.5)(yaml@2.8.1))':
     dependencies:
       '@jridgewell/trace-mapping': 0.3.31
       '@vitest/spy': 5.0.5
       estree-walker: 3.0.3
       magic-string: 1.4.3
     optionalDependencies:
-      vite: 8.3.4(@types/node@22.20.5)
+      vite: 8.3.4(@types/node@22.20.5)(yaml@2.8.1)
 
-  '@vitest/mocker@5.0.5(vite@8.3.4(@types/node@24.10.1))':
+  '@vitest/mocker@5.0.5(vite@8.3.4(@types/node@24.10.1)(yaml@2.8.1))':
     dependencies:
       '@jridgewell/trace-mapping': 0.3.31
       '@vitest/spy': 5.0.5
       estree-walker: 3.0.3
       magic-string: 1.4.3
     optionalDependencies:
-      vite: 8.3.4(@types/node@24.10.1)
+      vite: 8.3.4(@types/node@24.10.1)(yaml@2.8.1)
 
   '@vitest/spy@5.0.5': {}
 
@@ -1084,7 +1092,7 @@ snapshots:
 
   universalify@2.0.1: {}
 
-  vite@8.3.4(@types/node@22.20.5):
+  vite@8.3.4(@types/node@22.20.5)(yaml@2.8.1):
     dependencies:
       lightningcss: 1.33.0
       picomatch: 4.0.7
@@ -1094,8 +1102,9 @@ snapshots:
     optionalDependencies:
       '@types/node': 22.20.5
       fsevents: 2.3.3
+      yaml: 2.8.1
 
-  vite@8.3.4(@types/node@24.10.1):
+  vite@8.3.4(@types/node@24.10.1)(yaml@2.8.1):
     dependencies:
       lightningcss: 1.33.0
       picomatch: 4.0.7
@@ -1105,11 +1114,12 @@ snapshots:
     optionalDependencies:
       '@types/node': 24.10.1
       fsevents: 2.3.3
+      yaml: 2.8.1
 
-  vitest@5.0.5(@types/node@22.20.5)(vite@8.3.4(@types/node@22.20.5)):
+  vitest@5.0.5(@types/node@22.20.5)(vite@8.3.4(@types/node@22.20.5)(yaml@2.8.1)):
     dependencies:
       '@types/chai': 5.2.3
-      '@vitest/mocker': 5.0.5(vite@8.3.4(@types/node@22.20.5))
+      '@vitest/mocker': 5.0.5(vite@8.3.4(@types/node@22.20.5)(yaml@2.8.1))
       chai: 6.3.0
       es-module-lexer: 2.3.2
       expect-type: 1.4.0
@@ -1120,17 +1130,17 @@ snapshots:
       tinybench: 6.2.2
       tinyexec: 1.3.1
       tinyglobby: 0.2.17
-      vite: 8.3.4(@types/node@22.20.5)
+      vite: 8.3.4(@types/node@22.20.5)(yaml@2.8.1)
       why-is-node-running: 3.2.1
     optionalDependencies:
       '@types/node': 22.20.5
     transitivePeerDependencies:
       - msw
 
-  vitest@5.0.5(@types/node@24.10.1)(vite@8.3.4(@types/node@24.10.1)):
+  vitest@5.0.5(@types/node@24.10.1)(vite@8.3.4(@types/node@24.10.1)(yaml@2.8.1)):
     dependencies:
       '@types/chai': 5.2.3
-      '@vitest/mocker': 5.0.5(vite@8.3.4(@types/node@24.10.1))
+      '@vitest/mocker': 5.0.5(vite@8.3.4(@types/node@24.10.1)(yaml@2.8.1))
       chai: 6.3.0
       es-module-lexer: 2.3.2
       expect-type: 1.4.0
@@ -1141,7 +1151,7 @@ snapshots:
       tinybench: 6.2.2
       tinyexec: 1.3.1
       tinyglobby: 0.2.17
-      vite: 8.3.4(@types/node@24.10.1)
+      vite: 8.3.4(@types/node@24.10.1)(yaml@2.8.1)
       why-is-node-running: 3.2.1
     optionalDependencies:
       '@types/node': 24.10.1
@@ -1149,3 +1159,5 @@ snapshots:
       - msw
 
   why-is-node-running@3.2.1: {}
+
+  yaml@2.8.1: {}

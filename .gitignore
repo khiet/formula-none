@@ -16,6 +16,9 @@ infra/**/*.tfstate
 infra/**/*.tfstate.backup
 infra/**/.terraform.lock.hcl
 
+# Release bundle extracted from a local image (deploy/README.md)
+deploy/release
+
 # OS and editors
 .DS_Store
 

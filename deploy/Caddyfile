@@ -1,0 +1,24 @@
+# Caddy terminates HTTPS for the one hostname and serves the built client
+# from /srv; the API is the server's. Port 80 is closed at the security
+# group, so only the TLS-ALPN-01 challenge on 443 can succeed; Caddy falls
+# back to it by itself.
+{
+	# No HTTP/3: 443 UDP belongs to the server's own QUIC listener (ADR 0011).
+	servers {
+		protocols h1 h2
+	}
+}
+
+{$SITE_ADDRESS:formulanone.sushimafia.com} {
+	encode zstd gzip
+
+	handle /api/* {
+		reverse_proxy server:8080
+	}
+
+	handle {
+		root * /srv
+		try_files {path} /index.html
+		file_server
+	}
+}

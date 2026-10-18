@@ -21,6 +21,8 @@ crates/server     authoritative server binary
 apps/web          Vite + Three.js client (TypeScript strict)
 tools/            workspace packages that are not shipped (repo-checks)
 infra/            OpenTofu for the single-instance AWS environment
+deploy/           Compose stack, Caddyfile, and the deploy and smoke scripts;
+                  the Dockerfile at the root packages them with the server
 assets/           track layouts, the Blender export and the exported glTF plus sidecars;
                   replay fixtures for the determinism gate
 docs/             GLOSSARY.md and adr/
