@@ -18,6 +18,10 @@ type Service = {
   ports?: string[];
   volumes?: string[];
   restart?: string;
+  environment?: Record<string, string>;
+  user?: string;
+  cap_drop?: string[];
+  read_only?: boolean;
 };
 
 /** The workflow expression for the pushed commit, as the YAML spells it. */
@@ -69,15 +73,33 @@ describe("Compose stack", () => {
     expect(compose.name).toBe("formula-none");
   });
 
-  it("publishes only 443 TCP, through caddy; the server stays internal", () => {
+  it("publishes 443 TCP through caddy and 443 UDP through the server, nothing else", () => {
     expect(compose.services.caddy?.ports).toEqual(["443:443/tcp"]);
-    expect(compose.services.server?.ports).toBeUndefined();
+    expect(compose.services.server?.ports).toEqual(["443:4433/udp"]);
+    expect(compose.services.server?.environment?.WEBTRANSPORT_ADDR).toBe("0.0.0.0:4433");
   });
 
   it("keeps the certificate in a named volume that outlives the containers", () => {
     const mounts = compose.services.caddy?.volumes ?? [];
     expect(mounts).toContain("caddy_data:/data");
     expect(Object.keys(compose.volumes ?? {})).toContain("caddy_data");
+  });
+
+  // The server terminates QUIC with the certificate Caddy obtained (ADR
+  // 0011): it reads Caddy's volume, never a copy, so a renewal reaches it.
+  it("hands the server Caddy's certificate files read-only, with no capabilities", () => {
+    const server = compose.services.server;
+    expect(server?.volumes).toEqual(["caddy_data:/data:ro"]);
+    const site = "formulanone.sushimafia.com";
+    const issuer = "/data/caddy/certificates/acme-v02.api.letsencrypt.org-directory";
+    const expand = (value: string | undefined) =>
+      value?.replaceAll(`\${SITE_ADDRESS:-${site}}`, site);
+    expect(expand(server?.environment?.TLS_CERT)).toBe(`${issuer}/${site}/${site}.crt`);
+    expect(expand(server?.environment?.TLS_KEY)).toBe(`${issuer}/${site}/${site}.key`);
+    // Caddy's key is root-only, so the server runs as root with nothing else.
+    expect(server?.user).toBe("0:0");
+    expect(server?.cap_drop).toEqual(["ALL"]);
+    expect(server?.read_only).toBe(true);
   });
 
   it("runs the image the deploy document names", () => {

@@ -2,10 +2,15 @@
 // sees plain objects: a KartInput in, KartTransforms out. Biome's
 // noRestrictedImports rejects any other import of ./generated/bridge.
 import init, {
+  decode_pong,
+  encode_ping,
+  ping_resend_s,
+  ping_timeout_s,
   replay_hash_interval_ticks,
   replay_hashes,
   ticks_per_second,
   Race as WasmRace,
+  webtransport_connect_timeout_s,
 } from "./generated/bridge/bridge.js";
 
 /** One kart's controls for one tick: steer -1..1, throttle 0..1, brake 0..1. */
@@ -43,6 +48,11 @@ export interface Race {
   stateHash(): bigint;
 }
 
+export interface PingTiming {
+  readonly timeoutMs: number;
+  readonly resendMs: number;
+}
+
 export interface Bridge {
   /** The sim's fixed tick rate; `step` is meant to be called this often with dt = 1 / rate. */
   readonly ticksPerSecond: number;
@@ -62,6 +72,14 @@ export interface Bridge {
    * replay is unreadable or the sidecar is not the replay's track.
    */
   replayHashes(replay: string, sidecar: string): bigint[];
+  /** How long WebTransport may take to connect before the WebSocket fallback (ADR 0011). */
+  readonly webTransportTimeoutMs: number;
+  /** How long a Ping waits for its Pong, and how often it is sent again meanwhile. */
+  readonly pingTiming: PingTiming;
+  /** The wire bytes of a Ping carrying `nonce`; the server answers a Pong with the same nonce. */
+  encodePing(nonce: number): Uint8Array;
+  /** The nonce of the Pong `bytes` carry. Throws, with the protocol's reason, for anything else. */
+  decodePong(bytes: Uint8Array): number;
 }
 
 // Buffer layouts the bridge crate documents on Race::step and Race::kart_transforms.
@@ -87,6 +105,14 @@ export async function loadBridge(wasm?: BufferSource): Promise<Bridge> {
     },
     replayHashes(replay, sidecar) {
       return Array.from(rethrown(() => replay_hashes(replay, sidecar)));
+    },
+    webTransportTimeoutMs: webtransport_connect_timeout_s() * 1000,
+    pingTiming: { timeoutMs: ping_timeout_s() * 1000, resendMs: ping_resend_s() * 1000 },
+    encodePing(nonce) {
+      return encode_ping(nonce);
+    },
+    decodePong(bytes) {
+      return rethrown(() => decode_pong(bytes));
     },
   };
 }

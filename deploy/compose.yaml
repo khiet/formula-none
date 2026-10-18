@@ -4,8 +4,11 @@
 # from it, so the deployed commit and its stack definition never drift apart.
 #
 # Caddy terminates TLS with a Let's Encrypt certificate kept in caddy_data
-# and serves the client; everything under /api is proxied to the server.
-# The server publishes nothing; it listens on the Compose network only.
+# and serves the client; everything under /api, the WebSocket fallback
+# included, is proxied to the server. The server terminates QUIC itself on
+# 443 UDP for WebTransport (ADR 0011) with the same certificate, read from
+# Caddy's volume: a renewal is a rewrite of those files, which the server
+# picks up by itself (deploy/README.md).
 #
 # The project name pins the volume names so a deploy from any directory
 # finds the same certificate.
@@ -39,6 +42,25 @@ services:
   server:
     image: ${SERVER_IMAGE}
     restart: unless-stopped
+    # 443 UDP is QUIC for WebTransport; HTTP stays on the Compose network.
+    ports:
+      - "443:4433/udp"
+    environment:
+      WEBTRANSPORT_ADDR: 0.0.0.0:4433
+      # Where Caddy keeps the certificate it obtained for the site.
+      TLS_CERT: /data/caddy/certificates/acme-v02.api.letsencrypt.org-directory/${SITE_ADDRESS:-formulanone.sushimafia.com}/${SITE_ADDRESS:-formulanone.sushimafia.com}.crt
+      TLS_KEY: /data/caddy/certificates/acme-v02.api.letsencrypt.org-directory/${SITE_ADDRESS:-formulanone.sushimafia.com}/${SITE_ADDRESS:-formulanone.sushimafia.com}.key
+    volumes:
+      - caddy_data:/data:ro
+    # Caddy writes its private key readable by root only, so the server runs
+    # as root to read it; every capability is dropped and the filesystem is
+    # read-only so that uid buys nothing else.
+    user: "0:0"
+    cap_drop:
+      - ALL
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
     logging: *logging
 
 volumes:

@@ -5,6 +5,7 @@
 //! readouts. Flat buffers cross the wasm boundary once per tick instead of
 //! once per kart per field.
 
+use protocol::{ClientMessage, ServerMessage};
 use sim::{KartInput, Replay, State, Track};
 use wasm_bindgen::prelude::*;
 
@@ -36,6 +37,43 @@ pub fn replay_hashes(replay: &str, sidecar: &str) -> Result<Vec<u64>, String> {
     let replay = Replay::from_json(replay).map_err(|error| error.to_string())?;
     let track = Track::from_sidecar(sidecar).map_err(|error| error.to_string())?;
     replay.run(track).map_err(|error| error.to_string())
+}
+
+/// How long the client gives WebTransport before falling back to WebSocket
+/// (ADR 0011), read from the tuned value (ADR 0014).
+#[wasm_bindgen]
+pub fn webtransport_connect_timeout_s() -> f32 {
+    sim::tuning::WEBTRANSPORT_CONNECT_TIMEOUT_S
+}
+
+/// How long a Ping waits for its Pong (ADR 0014).
+#[wasm_bindgen]
+pub fn ping_timeout_s() -> f32 {
+    sim::tuning::PING_TIMEOUT_S
+}
+
+/// How often an unanswered Ping is sent again (ADR 0014).
+#[wasm_bindgen]
+pub fn ping_resend_s() -> f32 {
+    sim::tuning::PING_RESEND_S
+}
+
+/// The bytes of a `protocol::ClientMessage::Ping` carrying `nonce`; the
+/// server answers with a Pong carrying the same nonce whichever transport
+/// delivers it (ADR 0011).
+#[wasm_bindgen]
+pub fn encode_ping(nonce: u32) -> Vec<u8> {
+    protocol::encode(&ClientMessage::Ping { nonce })
+}
+
+/// The nonce of the `protocol::ServerMessage::Pong` that `bytes` carry.
+/// Fails, with the reason, when they carry anything else.
+#[wasm_bindgen]
+pub fn decode_pong(bytes: &[u8]) -> Result<u32, String> {
+    match protocol::decode::<ServerMessage>(bytes) {
+        Ok(ServerMessage::Pong { nonce }) => Ok(nonce),
+        Err(error) => Err(error.to_string()),
+    }
 }
 
 /// One race's sim, owned by the browser for prediction of the local kart.

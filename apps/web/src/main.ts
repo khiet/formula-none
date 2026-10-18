@@ -1,6 +1,8 @@
-import { loadBridge } from "./bridge";
-import { createInstrumentPanel } from "./instrument-panel";
+import { type Bridge, loadBridge } from "./bridge";
+import { connect, serverUrls } from "./connection";
+import { createInstrumentPanel, type InstrumentPanel } from "./instrument-panel";
 import { keyboardKartInput } from "./keyboard";
+import { ping } from "./ping";
 import { createRaceView } from "./race-view";
 import { downloadReplay, recordReplay } from "./replay";
 import { fetchSidecar, selectTrack } from "./track";
@@ -16,6 +18,27 @@ const MAX_TICKS_PER_FRAME = 5;
 /** Downloads the session so far as a replay fixture (assets/replays/README.md). */
 const DOWNLOAD_REPLAY_KEY = "r";
 
+/**
+ * M0(b): reach the server, WebTransport first and WebSocket as the fallback,
+ * and show which answered and how fast. The race runs locally either way, so
+ * no failure here is fatal.
+ */
+async function reportConnection(bridge: Bridge, panel: InstrumentPanel): Promise<void> {
+  try {
+    const connection = await connect({
+      ...serverUrls(window.location),
+      webTransportTimeoutMs: bridge.webTransportTimeoutMs,
+    });
+    const nonce = Math.floor(Math.random() * 0x1_0000_0000);
+    const rtt = await ping(connection, bridge, nonce, bridge.pingTiming);
+    panel.connection(`${connection.transport} ${Math.round(rtt)} ms`);
+    connection.closed.then(() => panel.connection("offline"));
+  } catch (error) {
+    console.warn("no connection to the server", error);
+    panel.connection("offline");
+  }
+}
+
 async function main(container: HTMLElement): Promise<void> {
   const track = selectTrack(window.location.search);
   const [bridge, sidecar] = await Promise.all([loadBridge(), fetchSidecar(track)]);
@@ -30,6 +53,7 @@ async function main(container: HTMLElement): Promise<void> {
   const input = keyboardKartInput(window);
   const view = await createRaceView(container, KART_COUNT, track.gltfUrl);
   const panel = createInstrumentPanel(container);
+  void reportConnection(bridge, panel);
 
   const present = () => {
     const transforms = race.kartTransforms();

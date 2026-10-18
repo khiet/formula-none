@@ -3,6 +3,8 @@ import type { KartTransform } from "./bridge";
 export interface InstrumentPanel {
   /** Show the local kart's readouts from what the sim reports. */
   update(local: KartTransform): void;
+  /** The connection readout: which transport reached the server and how fast, or that none did. */
+  connection(status: string): void;
 }
 
 /**
@@ -19,13 +21,19 @@ export function createInstrumentPanel(container: HTMLElement): InstrumentPanel {
   // mesh agree about where the kart is.
   const surface = document.createElement("span");
   surface.dataset.instrument = "surface";
-  panel.append(speed, " ", surface);
+  const connection = document.createElement("span");
+  connection.dataset.instrument = "connection";
+  connection.textContent = "connecting";
+  panel.append(speed, " ", surface, " ", connection);
   container.append(panel);
 
   return {
     update(local) {
       speed.textContent = formatSpeed(local.speed);
       surface.textContent = local.surface;
+    },
+    connection(status) {
+      connection.textContent = status;
     },
   };
 }

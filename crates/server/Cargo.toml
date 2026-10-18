@@ -9,9 +9,11 @@ publish.workspace = true
 [dependencies]
 sim = { path = "../sim" }
 protocol = { path = "../protocol" }
-axum = "0.8.9"
-tokio = { version = "1.53.3", features = ["rt-multi-thread", "macros", "signal", "net"] }
+axum = { version = "0.8.9", features = ["ws"] }
+tokio = { version = "1.53.3", features = ["rt-multi-thread", "macros", "signal", "net", "sync", "time", "fs"] }
 serde = { version = "1.0.229", features = ["derive"] }
+wtransport = "0.7"
+futures-util = { version = "0.3.34", default-features = false, features = ["std"] }
 
 [lints]
 workspace = true
@@ -19,4 +21,7 @@ workspace = true
 [dev-dependencies]
 http-body-util = "0.1.5"
 serde_json = "1.0.154"
+tempfile = "3.27.0"
+tokio-tungstenite = "0.29"
 tower = { version = "0.5.3", features = ["util"] }
+wtransport = { version = "0.7", features = ["dangerous-configuration"] }
