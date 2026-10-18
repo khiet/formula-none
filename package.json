@@ -8,6 +8,7 @@
   },
   "scripts": {
     "build:bridge": "wasm-pack build crates/bridge --target web --out-dir ../../apps/web/src/generated/bridge --out-name bridge --no-pack",
+    "export:tracks": "blender --background --python assets/tracks/build.py -- all",
     "build": "pnpm -r build",
     "lint": "biome ci .",
     "lint:fix": "biome check --write .",

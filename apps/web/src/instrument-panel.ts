@@ -15,12 +15,17 @@ export function createInstrumentPanel(container: HTMLElement): InstrumentPanel {
   const speed = document.createElement("span");
   speed.dataset.instrument = "speed";
   speed.textContent = formatSpeed(0);
-  panel.append(speed);
+  // The surface readout is a greybox aid: it shows the sidecar and the
+  // mesh agree about where the kart is.
+  const surface = document.createElement("span");
+  surface.dataset.instrument = "surface";
+  panel.append(speed, " ", surface);
   container.append(panel);
 
   return {
     update(local) {
       speed.textContent = formatSpeed(local.speed);
+      surface.textContent = local.surface;
     },
   };
 }

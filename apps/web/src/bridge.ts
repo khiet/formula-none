@@ -10,15 +10,19 @@ export interface KartInput {
   readonly brake: number;
 }
 
+/** What is under a kart; the sim's surface tags. */
+export type Surface = "asphalt" | "sand" | "grass" | "wall" | "out of world";
+
 /**
  * What the View and the Instrument panel need per kart: position in metres,
- * unit quaternion [x, y, z, w] and speed in metres per second. Y up; identity
- * rotation faces -Z.
+ * unit quaternion [x, y, z, w], speed in metres per second and the surface
+ * under the kart. Y up; identity rotation faces -Z.
  */
 export interface KartTransform {
   readonly position: readonly [number, number, number];
   readonly rotation: readonly [number, number, number, number];
   readonly speed: number;
+  readonly surface: Surface;
 }
 
 export interface Race {
@@ -31,12 +35,20 @@ export interface Race {
 export interface Bridge {
   /** The sim's fixed tick rate; `step` is meant to be called this often with dt = 1 / rate. */
   readonly ticksPerSecond: number;
-  createRace(seed: bigint, kartCount: number): Race;
+  /**
+   * A race on the track described by `sidecar` (the JSON exported next to its
+   * glTF) with `kartCount` karts on its spawn grid. Throws, with the sim's
+   * reason, when the sidecar is unusable or has fewer spawn slots than
+   * `kartCount`.
+   */
+  createRace(seed: bigint, kartCount: number, sidecar: string): Race;
 }
 
 // Buffer layouts the bridge crate documents on Race::step and Race::kart_transforms.
 const FLOATS_PER_INPUT = 3;
-const FLOATS_PER_TRANSFORM = 8;
+const FLOATS_PER_TRANSFORM = 9;
+/** Surface codes in the transform buffer, as `sim::Surface::code` numbers them. */
+const SURFACES: readonly Surface[] = ["asphalt", "sand", "grass", "wall", "out of world"];
 
 /**
  * Load the wasm module once. Pass `wasm` bytes when there is no document
@@ -46,8 +58,15 @@ export async function loadBridge(wasm?: BufferSource): Promise<Bridge> {
   await init(wasm === undefined ? undefined : { module_or_path: wasm });
   return {
     ticksPerSecond: ticks_per_second(),
-    createRace(seed, kartCount) {
-      return new BridgedRace(new WasmRace(seed, kartCount), kartCount);
+    createRace(seed, kartCount, sidecar) {
+      let race: WasmRace;
+      try {
+        race = new WasmRace(seed, kartCount, sidecar);
+      } catch (reason) {
+        // The bridge rejects with a plain string so its native tests can run.
+        throw new Error(typeof reason === "string" ? reason : String(reason));
+      }
+      return new BridgedRace(race, kartCount);
     },
   };
 }
@@ -87,10 +106,15 @@ class BridgedRace implements Race {
     for (let slot = 0; slot < this.#kartCount; slot++) {
       const at = slot * FLOATS_PER_TRANSFORM;
       const read = (offset: number): number => buffer[at + offset] as number;
+      const surface = SURFACES[read(8)];
+      if (surface === undefined) {
+        throw new RangeError(`unknown surface code ${read(8)} for kart ${slot}`);
+      }
       transforms.push({
         position: [read(0), read(1), read(2)],
         rotation: [read(3), read(4), read(5), read(6)],
         speed: read(7),
+        surface,
       });
     }
     return transforms;

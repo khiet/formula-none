@@ -1,10 +1,11 @@
 //! Thin WebAssembly surface over `sim` and `protocol`; holds no game rules.
 //!
-//! The web app talks to [`Race`] and nothing else: create a race, step it with
-//! one flat buffer of inputs, read one flat buffer of transforms. Flat buffers
-//! cross the wasm boundary once per tick instead of once per kart per field.
+//! The web app talks to [`Race`] and nothing else: create a race on a track,
+//! step it with one flat buffer of inputs, read one flat buffer of kart
+//! readouts. Flat buffers cross the wasm boundary once per tick instead of
+//! once per kart per field.
 
-use sim::{KartInput, State};
+use sim::{KartInput, State, Track};
 use wasm_bindgen::prelude::*;
 
 /// Floats per kart in the input buffer: steer, throttle, brake.
@@ -27,12 +28,24 @@ pub struct Race {
 
 #[wasm_bindgen]
 impl Race {
-    /// A fresh race from `seed` with `kart_count` karts on the grid.
+    /// A fresh race from `seed` on the track described by `sidecar` (the JSON
+    /// exported next to the track's glTF) with `kart_count` karts on its
+    /// spawn grid. Fails when the sidecar is unusable or has fewer spawn slots
+    /// than `kart_count`; the reason is a plain string so the same code runs
+    /// in native tests.
     #[wasm_bindgen(constructor)]
-    pub fn new(seed: u64, kart_count: usize) -> Self {
-        Self {
-            state: Some(State::new(seed, kart_count)),
+    pub fn new(seed: u64, kart_count: usize, sidecar: &str) -> Result<Race, String> {
+        let track = Track::from_sidecar(sidecar).map_err(|error| error.to_string())?;
+        if kart_count > track.spawn_grid().len() {
+            return Err(format!(
+                "{kart_count} karts but {} has {} spawn slots",
+                track.name(),
+                track.spawn_grid().len()
+            ));
         }
+        Ok(Self {
+            state: Some(State::new(seed, kart_count, track)),
+        })
     }
 
     /// Advance one tick of `dt` seconds. `inputs` holds three floats per kart
@@ -62,18 +75,21 @@ impl Race {
         self.state = Some(sim::step(state, &inputs, dt));
     }
 
-    /// Eight floats per kart in grid order: position x, y, z, rotation
-    /// quaternion x, y, z, w, then speed in metres per second. Y is up;
-    /// identity rotation faces -Z.
+    /// Nine floats per kart in grid order: position x, y, z, rotation
+    /// quaternion x, y, z, w, speed in metres per second, then the surface
+    /// under the kart as `sim::Surface::code` (0 asphalt, 1 sand, 2 grass,
+    /// 3 wall, 4 out of world). Y is up; identity rotation faces -Z.
     pub fn kart_transforms(&self) -> Vec<f32> {
-        self.state()
+        let state = self.state();
+        state
             .kart_transforms()
             .iter()
-            .flat_map(|kart| {
+            .enumerate()
+            .flat_map(|(slot, kart)| {
                 kart.position
                     .into_iter()
                     .chain(kart.rotation)
-                    .chain([kart.speed])
+                    .chain([kart.speed, f32::from(state.kart_surface(slot).code())])
             })
             .collect()
     }

@@ -3,23 +3,23 @@ import {
   BoxGeometry,
   Color,
   DirectionalLight,
-  GridHelper,
   Mesh,
   MeshStandardMaterial,
   PerspectiveCamera,
-  PlaneGeometry,
   Quaternion,
   Scene as ThreeScene,
   Vector3,
 } from "three";
+import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { WebGPURenderer } from "three/webgpu";
 import type { KartTransform } from "./bridge";
 
 /** Distance behind and above the local kart the chase camera sits. */
 const CAMERA_OFFSET = new Vector3(0, 4, 8);
 const CAMERA_LOOK_AHEAD = new Vector3(0, 0.5, -4);
+/** Far enough to see across Brands Patch from any point on it. */
+const CAMERA_FAR_M = 1000;
 const KART_SIZE_M = 1;
-const PLANE_SIZE_M = 400;
 /** Liveries tell karts apart; eight, assigned in grid order until rooms assign them. */
 const LIVERIES = 8;
 
@@ -30,11 +30,16 @@ export interface RaceView {
 }
 
 /**
- * The Race Scene's View: a flat plane and one cube per kart, drawn by
- * Three.js from the transforms the bridge reports. Picks WebGPU when the
- * browser has it and WebGL otherwise.
+ * The Race Scene's View: the track's glTF and one cube per kart, drawn by
+ * Three.js from the transforms the bridge reports. The track mesh is
+ * Presentation only; the sim has its own copy of the geometry from the
+ * sidecar. Picks WebGPU when the browser has it and WebGL otherwise.
  */
-export async function createRaceView(container: HTMLElement, kartCount: number): Promise<RaceView> {
+export async function createRaceView(
+  container: HTMLElement,
+  kartCount: number,
+  trackGltfUrl: string,
+): Promise<RaceView> {
   const renderer = new WebGPURenderer({ antialias: true });
   await renderer.init();
   renderer.setPixelRatio(window.devicePixelRatio);
@@ -48,16 +53,11 @@ export async function createRaceView(container: HTMLElement, kartCount: number):
     60,
     container.clientWidth / container.clientHeight,
     0.1,
-    500,
+    CAMERA_FAR_M,
   );
 
-  const plane = new Mesh(
-    new PlaneGeometry(PLANE_SIZE_M, PLANE_SIZE_M),
-    new MeshStandardMaterial({ color: 0x4a7a3a }),
-  );
-  plane.rotation.x = -Math.PI / 2;
-  world.add(plane);
-  world.add(new GridHelper(PLANE_SIZE_M, PLANE_SIZE_M / 4, 0x2f4f2f, 0x2f4f2f));
+  const track = await new GLTFLoader().loadAsync(trackGltfUrl);
+  world.add(track.scene);
 
   const sun = new DirectionalLight(0xffffff, 2);
   sun.position.set(20, 40, 10);

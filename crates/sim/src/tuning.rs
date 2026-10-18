@@ -28,8 +28,10 @@ pub const WRONG_WAY_WARNING_S: f32 = 2.0;
 pub const GRAVITY_M_PER_S2: f32 = -9.81;
 /// Half the kart's side, so the cube is one metre across.
 pub const KART_HALF_EXTENT_M: f32 = 0.5;
-/// Lateral gap between grid slots at the start line.
-pub const GRID_SPACING_M: f32 = 2.0;
+/// Rounding on the kart's collision cube, inside `KART_HALF_EXTENT_M`. A
+/// sharp-edged cube catches on the seams between track triangles; a rounded
+/// one slides over them.
+pub const KART_EDGE_RADIUS_M: f32 = 0.05;
 
 // Handling. Speeds are metres per second; boosts scale top speed.
 
@@ -131,4 +133,5 @@ const _: () = {
     assert!(0.0 < DRIFT_ENTRY_SPEED_FRACTION && DRIFT_ENTRY_SPEED_FRACTION < 1.0);
     assert!(0.0 < OFF_TRACK_SPEED_FACTOR && OFF_TRACK_SPEED_FACTOR < 1.0);
     assert!(BRAKE_TO_STOP_S < COAST_TO_STOP_S);
+    assert!(0.0 < KART_EDGE_RADIUS_M && KART_EDGE_RADIUS_M < KART_HALF_EXTENT_M);
 };

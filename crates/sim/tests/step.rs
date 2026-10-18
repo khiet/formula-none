@@ -1,11 +1,22 @@
 //! The sim's public seam: `step(state, inputs, dt)`. Tests drive a kart with
 //! input sequences and assert the transforms the sim reports, never internals.
+//! Races run on the oval fixture, whose front straight is clear for 100 m
+//! past the start line and runs along -Z.
 
 use sim::tuning::{ACCELERATION_TO_TOP_S, COAST_TO_STOP_S, TICKS_PER_SECOND, TOP_SPEED_M_PER_S};
-use sim::{step, KartInput, KartTransform, State};
+use sim::{step, KartInput, KartTransform, State, Track};
 
+const OVAL: &str = include_str!("../../../assets/tracks/oval/oval.track.json");
 const DT: f32 = 1.0 / TICKS_PER_SECOND as f32;
 const SEED: u64 = 0x5EED;
+
+fn race(kart_count: usize) -> State {
+    State::new(
+        SEED,
+        kart_count,
+        Track::from_sidecar(OVAL).expect("the oval fixture loads"),
+    )
+}
 
 fn run(mut state: State, inputs: impl IntoIterator<Item = KartInput>) -> State {
     for input in inputs {
@@ -54,10 +65,10 @@ fn drive_then_turn() -> Vec<KartInput> {
 
 #[test]
 fn same_seed_and_inputs_give_the_same_final_transform() {
-    let first = run(State::new(SEED, 1), drive_then_turn());
-    let second = run(State::new(SEED, 1), drive_then_turn());
+    let first = run(race(1), drive_then_turn());
+    let second = run(race(1), drive_then_turn());
 
-    let spawn = only_kart(&State::new(SEED, 1));
+    let spawn = only_kart(&race(1));
     assert!(
         distance_travelled(&spawn, &only_kart(&first)) > 1.0,
         "the sequence must actually move the kart for the comparison to mean anything"
@@ -66,9 +77,9 @@ fn same_seed_and_inputs_give_the_same_final_transform() {
 }
 
 #[test]
-fn a_kart_with_no_input_rests_on_the_plane() {
-    let spawn = only_kart(&State::new(SEED, 1));
-    let settled = run(State::new(SEED, 1), vec![KartInput::default(); ticks(2.0)]);
+fn a_kart_with_no_input_rests_on_the_track() {
+    let spawn = only_kart(&race(1));
+    let settled = run(race(1), vec![KartInput::default(); ticks(2.0)]);
     let after = only_kart(&settled);
 
     assert!(distance_travelled(&spawn, &after) < 0.01);
@@ -85,10 +96,7 @@ fn full_throttle_reaches_top_speed_in_the_tuned_time() {
         ..KartInput::default()
     };
     // One tick past the tuned ramp so the comparison is not on the boundary.
-    let state = run(
-        State::new(SEED, 1),
-        vec![accelerate; ticks(ACCELERATION_TO_TOP_S) + 1],
-    );
+    let state = run(race(1), vec![accelerate; ticks(ACCELERATION_TO_TOP_S) + 1]);
     let before = only_kart(&state);
     let state = step(state, &[accelerate], DT);
     let after = only_kart(&state);
@@ -102,12 +110,12 @@ fn full_throttle_reaches_top_speed_in_the_tuned_time() {
 
 #[test]
 fn throttle_moves_the_kart_forward_along_its_facing() {
-    let spawn = only_kart(&State::new(SEED, 1));
+    let spawn = only_kart(&race(1));
     let accelerate = KartInput {
         throttle: 1.0,
         ..KartInput::default()
     };
-    let after = only_kart(&run(State::new(SEED, 1), vec![accelerate; ticks(1.0)]));
+    let after = only_kart(&run(race(1), vec![accelerate; ticks(1.0)]));
 
     // Karts spawn facing -Z, the Three.js forward convention.
     assert!(after.position[2] < spawn.position[2] - 1.0);
@@ -125,8 +133,8 @@ fn steering_right_turns_the_kart_clockwise_seen_from_above() {
         steer: -1.0,
         ..turn_right
     };
-    let right = only_kart(&run(State::new(SEED, 1), vec![turn_right; ticks(0.5)]));
-    let left = only_kart(&run(State::new(SEED, 1), vec![turn_left; ticks(0.5)]));
+    let right = only_kart(&run(race(1), vec![turn_right; ticks(0.5)]));
+    let left = only_kart(&run(race(1), vec![turn_left; ticks(0.5)]));
 
     // Clockwise from above is a negative rotation about +Y.
     assert!(yaw(&right) < -0.1);
@@ -143,7 +151,7 @@ fn brake_brings_a_moving_kart_to_a_stop() {
         brake: 1.0,
         ..KartInput::default()
     };
-    let moving = run(State::new(SEED, 1), vec![accelerate; ticks(1.0)]);
+    let moving = run(race(1), vec![accelerate; ticks(1.0)]);
     let stopped = run(moving, vec![brake; ticks(3.0)]);
     let before = only_kart(&stopped);
     let after = only_kart(&step(stopped, &[brake], DT));
@@ -157,10 +165,7 @@ fn releasing_the_throttle_coasts_to_a_stop_in_the_tuned_time() {
         throttle: 1.0,
         ..KartInput::default()
     };
-    let at_top_speed = run(
-        State::new(SEED, 1),
-        vec![accelerate; ticks(ACCELERATION_TO_TOP_S)],
-    );
+    let at_top_speed = run(race(1), vec![accelerate; ticks(ACCELERATION_TO_TOP_S)]);
     let halfway = run(
         at_top_speed,
         vec![KartInput::default(); ticks(COAST_TO_STOP_S / 2.0)],
@@ -187,11 +192,11 @@ fn each_kart_gets_its_own_input_and_transform() {
         throttle: 1.0,
         ..KartInput::default()
     };
-    let mut state = State::new(SEED, 2);
+    let mut state = race(2);
     for _ in 0..ticks(1.0) {
         state = step(state, &[accelerate, KartInput::default()], DT);
     }
-    let spawn = State::new(SEED, 2).kart_transforms();
+    let spawn = race(2).kart_transforms();
     let after = state.kart_transforms();
 
     assert_eq!(after.len(), 2);
