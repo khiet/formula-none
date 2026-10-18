@@ -323,71 +323,33 @@ fn bots_fill_the_slots_behind_the_humans_and_step_takes_only_the_humans_inputs()
     );
 }
 
-/// Full throttle toward a point a little right of the centreline ahead of
-/// the kart: laps the oval clear of the pipes, as the sim's tests do.
-fn follow_centreline(state: &sim::State, kart: usize) -> sim::KartInput {
-    let transform = state.kart_transforms()[kart];
-    let progress = state.standings()[kart].spline_progress;
-    let track = state.track();
-    let ahead = track.point_at(progress + sim::tuning::BOT_LOOKAHEAD_M);
-    let further = track.point_at(progress + sim::tuning::BOT_LOOKAHEAD_M + 1.0);
-    let (tx, tz) = (further[0] - ahead[0], further[2] - ahead[2]);
-    let travel = (tx * tx + tz * tz).sqrt().max(f32::EPSILON);
-    let target = [ahead[0] - tz / travel * 2.5, ahead[2] + tx / travel * 2.5];
-    let (dx, dz) = (
-        target[0] - transform.position[0],
-        target[1] - transform.position[2],
-    );
-    let length = (dx * dx + dz * dz).sqrt().max(f32::EPSILON);
-    let [x, y, z, w] = transform.rotation;
-    let yaw = (2.0 * (w * y + x * z)).atan2(1.0 - 2.0 * (y * y + z * z));
-    let (sin, cos) = yaw.sin_cos();
-    let rightward = (dx * cos - dz * sin) / length;
-    sim::KartInput {
-        steer: (rightward * 4.0).clamp(-1.0, 1.0),
-        throttle: 1.0,
-        ..sim::KartInput::default()
-    }
-}
-
 #[test]
 fn the_phase_buffer_walks_countdown_racing_and_finished_as_the_sim_does() {
     use sim::tuning::{COUNTDOWN_S, LAPS_PER_RACE, RACE_END_GRACE_S};
-    let mut race = race(42, 2);
+    let mut race = Race::new(42, 1, 1, OVAL).expect("a human and a bot fit the oval");
     assert_eq!(race.phase(), vec![COUNTDOWN, COUNTDOWN_S, -1.0]);
-    go(&mut race, 2);
+    go(&mut race, 1);
     assert_eq!(race.phase(), vec![RACING, 0.0, -1.0]);
 
-    // Pole idles; the kart in the other column laps the oval, and the
+    // The human idles on the grid while the bot laps the oval, and the
     // sim's race is stepped alongside to say what the buffers should hold.
-    let mut state = started(sim::State::new(42, 2, Track::from_sidecar(OVAL).unwrap()));
+    let idle = [0.0; FLOATS_PER_INPUT];
+    let mut state = started(sim::State::with_bots(
+        42,
+        1,
+        1,
+        Track::from_sidecar(OVAL).unwrap(),
+    ));
     let mut ticks = 0;
     while state.standings()[1].laps_completed < LAPS_PER_RACE {
-        let input = follow_centreline(&state, 1);
-        state = sim::step(state, &[sim::KartInput::default(), input], DT);
-        race.step(
-            &[
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                input.steer,
-                input.throttle,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-            ],
-            DT,
-        );
+        state = sim::step(state, &[sim::KartInput::default()], DT);
+        race.step(&idle, DT);
         ticks += 1;
         assert!(ticks < 90 * TICKS_PER_SECOND, "three laps take under 90 s");
     }
     let finish = state.standings()[1]
         .finish_time_s
-        .expect("the lapping kart finished");
+        .expect("the bot finished");
     let phase = race.phase();
     assert_eq!(phase[0], RACING);
     assert!(
@@ -402,11 +364,10 @@ fn the_phase_buffer_walks_countdown_racing_and_finished_as_the_sim_does() {
     );
     let standings = race.standings();
     assert_eq!(standings[FLOATS_PER_STANDING + 7], finish);
-    assert_eq!(standings[7], -1.0, "pole has not finished");
+    assert_eq!(standings[7], -1.0, "the human has not finished");
     assert_eq!(standings[FLOATS_PER_STANDING], 1.0, "the finisher leads");
 
     // Idle through the grace, with a tick for the timer's rounding.
-    let idle = [0.0; 2 * FLOATS_PER_INPUT];
     for _ in 0..(RACE_END_GRACE_S * TICKS_PER_SECOND as f32) as u32 + 1 {
         race.step(&idle, DT);
     }

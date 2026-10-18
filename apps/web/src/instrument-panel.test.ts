@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Standing } from "./bridge";
-import { formatLapTime, lapReadouts, phaseReadout } from "./instrument-panel";
+import { lapReadouts, phaseReadout } from "./instrument-panel";
 
 const onTheGrid: Standing = {
   position: 1,
@@ -44,11 +44,6 @@ describe("lap readouts", () => {
     const ordinal = (position: number): string =>
       lapReadouts({ ...onTheGrid, position }, 3).position;
     expect([2, 4, 5, 8].map(ordinal)).toEqual(["2nd", "4th", "5th", "8th"]);
-  });
-
-  it("formats a lap time as minutes, seconds and milliseconds", () => {
-    expect(formatLapTime(0)).toBe("0:00.000");
-    expect(formatLapTime(61.5)).toBe("1:01.500");
   });
 });
 

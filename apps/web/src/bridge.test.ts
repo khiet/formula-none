@@ -54,6 +54,39 @@ describe("race phase", () => {
     expect(human?.speed).toBe(0);
     expect(bot?.speed).toBeGreaterThan(1);
   });
+
+  it("reports the grace once the bot finishes, its finish time, and the end of the race", async () => {
+    const bridge = await loadBridge(wasm);
+    const race = started(bridge.createRace(7n, 1, 1, OVAL), 1);
+    // The human idles on the grid; the bot laps the oval three times.
+    let ticks = 0;
+    while (race.standings()[1]?.finishTimeSeconds === null) {
+      race.step([IDLE_INPUT], DT);
+      ticks += 1;
+      expect(ticks, "three laps take under 90 s").toBeLessThan(90 * 60);
+    }
+    const [human, bot] = race.standings();
+    expect(bot?.lap).toBe(bridge.lapsPerRace);
+    expect(bot?.finishTimeSeconds).toBeCloseTo(ticks * DT, 1);
+    expect(bot?.position).toBe(1);
+    expect(human?.finishTimeSeconds).toBeNull();
+    const phase = race.phase();
+    expect(phase.kind).toBe("racing");
+    if (phase.kind === "racing") {
+      expect(phase.graceLeftSeconds).toBeCloseTo(20, 4);
+    }
+
+    // Twenty seconds of grace, with a tick for the timer's rounding.
+    for (let tick = 0; tick < 20 * 60 + 1; tick++) {
+      race.step([IDLE_INPUT], DT);
+    }
+    expect(race.phase()).toEqual({ kind: "finished" });
+    expect(race.standings()[0]?.position).toBe(2);
+    // Over: nothing moves however the race is stepped.
+    const hash = race.stateHash();
+    race.step([THROTTLE], DT);
+    expect(race.stateHash()).toBe(hash);
+  });
 });
 
 describe("bridge wrapper", () => {

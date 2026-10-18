@@ -55,9 +55,28 @@ fn the_seed_is_part_of_the_hash() {
 #[test]
 fn every_kart_is_part_of_the_hash() {
     assert_ne!(race(7, 1).hash(), race(7, 2).hash());
-    let still = step(race(7, 2), &[KartInput::default(); 2], DT);
-    let second_drives = step(race(7, 2), &[KartInput::default(), THROTTLE], DT);
+    let still = step(started(race(7, 2)), &[KartInput::default(); 2], DT);
+    let second_drives = step(started(race(7, 2)), &[KartInput::default(), THROTTLE], DT);
     assert_ne!(still.hash(), second_drives.hash());
+}
+
+#[test]
+fn the_phase_its_clocks_and_a_karts_start_are_part_of_the_hash() {
+    let idle = [KartInput::default()];
+    let one_tick_in = step(race(7, 1), &idle, DT);
+    let two_ticks_in = step(step(race(7, 1), &idle, DT), &idle, DT);
+    assert_ne!(
+        one_tick_in.hash(),
+        two_ticks_in.hash(),
+        "the countdown's clock, since nothing else moves"
+    );
+    assert_ne!(race(7, 1).hash(), started(race(7, 1)).hash(), "the phase");
+    let pressed_early = step(race(7, 1), &[THROTTLE], DT);
+    assert_ne!(
+        one_tick_in.hash(),
+        pressed_early.hash(),
+        "a stall set up during the countdown"
+    );
 }
 
 #[test]
