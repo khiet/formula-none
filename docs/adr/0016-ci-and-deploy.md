@@ -24,7 +24,8 @@ and `compose up`. The same deploy is one command runnable by hand. A smoke
 script hits the health endpoint and performs one WebTransport handshake
 after each deploy and fails the job if either fails.
 
-The scaffold wires nextest, clippy, Biome and Vitest; the remaining steps
+The scaffold wires clippy, nextest, the wasm build, Biome, Vitest and the
+Playwright smoke test; the replay hash, the ts-rs diff check and the deploy
 join the workflow with the features they check.
 
 ## Consequences

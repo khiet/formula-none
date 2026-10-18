@@ -27,8 +27,8 @@ docs/             GLOSSARY.md and adr/
 
 Dependencies flow one way: web depends on the bridge; the bridge and the
 server depend on sim and protocol; sim depends on nothing in the repo. The
-repo-checks tests read the manifests and fail when a dependency points the
-wrong way. `crates/sim/src/tuning.rs` is the single home for gameplay, item,
+repo-checks tests read the Cargo manifests and the web app's package.json and
+fail CI when a dependency points the wrong way. `crates/sim/src/tuning.rs` is the single home for gameplay, item,
 bot and network constants (ADR 0014).
 
 ## Commands
@@ -43,10 +43,12 @@ Web (from the repo root, after `pnpm install`):
 
 - Build: `pnpm build`
 - Lint: `pnpm lint` (`pnpm lint:fix` applies Biome's fixes)
+- Typecheck: `pnpm -r typecheck`
 - Test: `pnpm test` (`pnpm test:e2e` runs Playwright against the dev server)
 
-CI runs the lint and test commands on every PR; see
-`.github/workflows/ci.yml`.
+CI (`.github/workflows/ci.yml`) runs on every PR: clippy with warnings as
+errors, nextest, the wasm build of the bridge, Biome, typecheck, Vitest, the
+web build and the Playwright smoke test.
 
 ## Working here
 

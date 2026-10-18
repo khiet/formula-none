@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { readRepoFile } from "./repo";
 
-// The vocabulary the PRD (issue 1) says agents must share. Each term is a
+// The vocabulary the PRD says agents must share. Each term is a
 // definition heading in docs/GLOSSARY.md.
 const REQUIRED_TERMS = [
   "kart",

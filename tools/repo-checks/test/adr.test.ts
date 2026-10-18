@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { listRepoDir, readRepoFile } from "./repo";
 
-// One ADR per decision in the PRD's Implementation Decisions (issue 1), in
-// the PRD's order. The file name is the contract; the number is its position.
-const DECISIONS = [
+// One ADR per decision in the PRD's Implementation Decisions, in the PRD's
+// order. The file name is the contract; the number is its position.
+const DECISION_SLUGS = [
   "stack",
   "sim-crate-and-seam",
   "wasm-bridge",
@@ -24,7 +24,7 @@ const DECISIONS = [
   "metrics",
 ];
 
-const expectedFiles = DECISIONS.map(
+const expectedFiles = DECISION_SLUGS.map(
   (slug, index) => `${String(index + 1).padStart(4, "0")}-${slug}.md`,
 );
 

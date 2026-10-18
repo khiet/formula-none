@@ -1,15 +1,26 @@
-//! The tuning module is the public home of every constant; these values are
-//! the PRD's, so a change here is a tuning decision, not a refactor.
+//! Invariants of the item roll table. Tests read the values from the module
+//! rather than repeating them, so retuning never breaks them unless it breaks
+//! a rule. Invariants between plain constants are `const` asserts in the
+//! module itself.
 
-use sim::tuning;
+use sim::tuning::{self, ITEM_ROLL_WEIGHTS};
 
 #[test]
-fn sim_ticks_sixty_times_a_second() {
-    assert_eq!(tuning::TICKS_PER_SECOND, 60);
+fn item_roll_weights_cover_every_grid_slot_once() {
+    let mut next_position = 1;
+    for band in ITEM_ROLL_WEIGHTS {
+        let (first, last) = band.positions;
+        assert_eq!(first, next_position, "bands must be contiguous");
+        assert!(first <= last);
+        next_position = last + 1;
+    }
+    assert_eq!(usize::from(next_position - 1), tuning::KARTS_PER_RACE);
 }
 
 #[test]
-fn a_race_is_three_laps_for_eight_karts() {
-    assert_eq!(tuning::LAPS_PER_RACE, 3);
-    assert_eq!(tuning::KARTS_PER_RACE, 8);
+fn each_item_roll_band_sums_to_one_hundred_percent() {
+    for band in ITEM_ROLL_WEIGHTS {
+        let total = u32::from(band.hazard) + u32::from(band.boost) + u32::from(band.homing);
+        assert_eq!(total, 100, "band {:?}", band.positions);
+    }
 }

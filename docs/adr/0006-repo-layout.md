@@ -29,8 +29,8 @@ repo.
 
 ## Consequences
 
-- A dependency in the wrong direction is a build failure, enforced by the
-  repo-checks tests reading the Cargo manifests.
+- A dependency in the wrong direction fails CI: the repo-checks tests read
+  the Cargo manifests and the web app's package.json.
 - One issue, one branch, one PR; every PR runs the full CI (ADR 0016).
 - Rust and web tooling are versioned together, so a scaffold change is one
   commit.

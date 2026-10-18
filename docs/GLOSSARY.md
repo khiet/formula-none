@@ -10,7 +10,7 @@ glossary where they fit.
 ### kart
 
 One racer's vehicle, driven by a human or a bot. All karts are identical at
-v1; a kart's livery is the only thing that tells it apart.
+v1; the livery and the nickname floating over it tell one from another.
 
 ### room
 
