@@ -75,7 +75,7 @@ impl Checkpoint {
     /// without limit. A move that starts on the line never counts, so a
     /// kart sitting on it crosses once, not every tick.
     pub(crate) fn crossed_between(&self, before: [f32; 3], after: [f32; 3]) -> Option<f32> {
-        let (sin, cos) = self.yaw.sin_cos();
+        let (sin, cos) = libm::sincosf(self.yaw);
         // Yaw zero faces -Z; the direction of travel through the checkpoint
         // and its line, to the right of that direction, seen from above.
         let travel = [-sin, -cos];

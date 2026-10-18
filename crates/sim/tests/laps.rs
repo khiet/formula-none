@@ -248,23 +248,18 @@ fn spline_progress_climbs_the_whole_way_round_the_oval_and_wraps_at_the_line() {
 
 #[test]
 fn race_position_orders_laps_then_checkpoints_then_progress() {
-    // Three drivers released together: the first laps, the second lifts
-    // off after a few checkpoints, the third just after the line; the
-    // fourth never moves.
+    // Four karts released together: the one in the right column laps, the
+    // two in the left column drive straight and lift off after a
+    // checkpoint and just after the line, and the last never moves. Each
+    // keeps to its own column, so no kart grazes another: a touch would
+    // amplify the last-bit differences between platforms' trigonometry
+    // in the test's steering into a different finishing order.
     let mut state = race(4);
     for second in 0..LAP_S as usize {
         let drivers: [Option<Driver>; 4] = [
+            if second < 2 { Some(straight) } else { None },
             Some(follow_centreline),
-            if second < 6 {
-                Some(follow_centreline)
-            } else {
-                None
-            },
-            if second < 1 {
-                Some(follow_centreline)
-            } else {
-                None
-            },
+            if second < 1 { Some(straight) } else { None },
             None,
         ];
         state = drive(state, &drivers, 1.0);
@@ -272,10 +267,10 @@ fn race_position_orders_laps_then_checkpoints_then_progress() {
 
     let standings = state.standings();
     let positions: Vec<u32> = standings.iter().map(|standing| standing.position).collect();
-    assert_eq!(positions, [1, 2, 3, 4]);
-    assert_eq!(standings[0].laps_completed, 1);
-    assert_eq!(standings[1].laps_completed, 0);
-    assert!(standings[1].checkpoint > standings[2].checkpoint);
+    assert_eq!(positions, [2, 1, 3, 4]);
+    assert_eq!(standings[1].laps_completed, 1);
+    assert_eq!(standings[0].laps_completed, 0);
+    assert!(standings[0].checkpoint > standings[2].checkpoint);
     assert_eq!(standings[2].checkpoint, standings[3].checkpoint);
     // The last two are past the same checkpoint; progress splits them,
     // with the one still on the grid a little behind the line and so last.
