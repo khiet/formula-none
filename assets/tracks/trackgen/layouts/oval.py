@@ -26,7 +26,8 @@ LINE_AFTER_TURN_M = 25.0
 TURN_RADIUS_M = 30.0
 PIPE_INTO_TURN_M = 8.0
 LEFT_GRID_COLUMN_X = TURN_RADIUS_M - GRID_COLUMN_OFFSET_M
-# Half the asphalt: the pad's centre, so its tuned half-width reaches the edge.
+# Where the front straight's pad is centred: halfway across the right half of
+# the asphalt, so with the sim's tuned pad width it covers that half.
 FRONT_PAD_RIGHT_OF_CENTRE_M = 3.0
 
 

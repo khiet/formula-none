@@ -24,12 +24,16 @@ fn throttle() -> KartInput {
     }
 }
 
-/// The oval with spawn slot 0 moved to `position` facing `yaw`, so a kart
-/// can be started anywhere on or beside the track.
-fn oval_with_slot_0_at(position: [f32; 3], yaw: f32) -> Track {
-    let mut sidecar: serde_json::Value = serde_json::from_str(OVAL).expect("valid JSON");
+/// The track in `sidecar` with spawn slot 0 moved to `position` facing
+/// `yaw`, so a kart can be started anywhere on or beside the track.
+fn with_slot_0_at(sidecar: &str, position: [f32; 3], yaw: f32) -> Track {
+    let mut sidecar: serde_json::Value = serde_json::from_str(sidecar).expect("valid JSON");
     sidecar["spawn_grid"][0] = serde_json::json!({ "position": position, "yaw": yaw });
-    Track::from_sidecar(&sidecar.to_string()).expect("the moved oval loads")
+    Track::from_sidecar(&sidecar.to_string()).expect("the track with a moved slot loads")
+}
+
+fn oval_with_slot_0_at(position: [f32; 3], yaw: f32) -> Track {
+    with_slot_0_at(OVAL, position, yaw)
 }
 
 #[test]
@@ -81,7 +85,7 @@ fn sand_and_grass_cap_the_speed_at_the_off_track_fraction_of_top_speed() {
 }
 
 #[test]
-fn a_boost_pad_gives_the_tuned_boost_for_the_tuned_time_after_the_kart_leaves_it() {
+fn a_boost_pad_gives_the_tuned_boost_for_the_tuned_time_from_the_tick_it_is_entered() {
     use sim::tuning::{BOOST_PAD_FACTOR, BOOST_PAD_HALF_LENGTH_M, BOOST_PAD_S};
     // Slot 1 at x = 32 drives up the front straight over the pad centred
     // on (33, -60), reaching top speed well before it, while pole idles.
@@ -123,17 +127,8 @@ fn a_boost_pad_gives_the_tuned_boost_for_the_tuned_time_after_the_kart_leaves_it
         first < pad_z + BOOST_PAD_HALF_LENGTH_M && first > pad_z - BOOST_PAD_HALF_LENGTH_M - 1.0,
         "the boost starts the first tick begun on the pad, not at z {first}"
     );
-    // The clock runs from the last tick on the pad; the kart crosses the pad
-    // in a few ticks at boosted speed.
-    let on_the_pad = boosted_z
-        .iter()
-        .filter(|&&z| (z - pad_z).abs() <= BOOST_PAD_HALF_LENGTH_M)
-        .count();
-    assert!(
-        (1..10).contains(&on_the_pad),
-        "{on_the_pad} ticks on the pad"
-    );
-    let expected = on_the_pad + ticks(BOOST_PAD_S);
+    // The clock runs from entering the pad, however long the kart is on it.
+    let expected = ticks(BOOST_PAD_S);
     assert!(
         (expected - 1..=expected + 1).contains(&boosted_z.len()),
         "boosted for {} ticks, expected about {expected}",
@@ -482,11 +477,8 @@ fn brands_patch_before_the_chicane(before_m: f32) -> (Track, f32, f32) {
         ahead[0] < spawn[0] && (ahead[2] - spawn[2]).abs() < 1e-3,
         "the hill straight runs along -X"
     );
-    let mut sidecar: serde_json::Value = serde_json::from_str(BRANDS_PATCH).expect("valid JSON");
-    sidecar["spawn_grid"][0] =
-        serde_json::json!({ "position": spawn, "yaw": std::f32::consts::FRAC_PI_2 });
     (
-        Track::from_sidecar(&sidecar.to_string()).expect("the moved track loads"),
+        with_slot_0_at(BRANDS_PATCH, spawn, std::f32::consts::FRAC_PI_2),
         entry,
         exit,
     )
@@ -494,7 +486,7 @@ fn brands_patch_before_the_chicane(before_m: f32) -> (Track, f32, f32) {
 
 /// Drive slot 0 by `driver` until its spline progress passes `until`:
 /// the ticks it took and the surfaces it crossed.
-fn time_to(
+fn ticks_and_surfaces_to_pass(
     track: Track,
     until: f32,
     driver: impl Fn(&State) -> KartInput,
@@ -525,15 +517,16 @@ fn cutting_the_chicane_through_the_sand_is_slower_than_driving_it() {
     // the straight line between them crosses the sand on the inside of the
     // middle bend.
     let exit_point = track.point_at(exit);
-    let (cut_ticks, cut_surfaces) = time_to(track.clone(), finish, |state| {
+    let (cut_ticks, cut_surfaces) = ticks_and_surfaces_to_pass(track.clone(), finish, |state| {
         aim(state, [exit_point[0], exit_point[2]])
     });
-    let (driven_ticks, driven_surfaces) = time_to(track.clone(), finish, |state| {
-        let ahead = state
-            .track()
-            .point_at(state.standings()[0].spline_progress + LOOKAHEAD_M);
-        aim(state, [ahead[0], ahead[2]])
-    });
+    let (driven_ticks, driven_surfaces) =
+        ticks_and_surfaces_to_pass(track.clone(), finish, |state| {
+            let ahead = state
+                .track()
+                .point_at(state.standings()[0].spline_progress + LOOKAHEAD_M);
+            aim(state, [ahead[0], ahead[2]])
+        });
 
     assert!(
         cut_surfaces.contains(&Surface::Sand),
@@ -607,7 +600,7 @@ fn a_boost_pad_facing_the_other_way_boosts_a_kart_on_it_and_not_one_beside_it() 
 }
 
 #[test]
-fn a_hop_carries_the_karts_speed_over_the_sand_until_it_lands() {
+fn a_hop_over_the_sand_does_not_escape_the_cap() {
     use sim::tuning::KART_HALF_HEIGHT_M;
     // Slot 0 moved to the right of the front straight and turned a little
     // right, so it drifts toward the sand at x = 36 while getting up to
@@ -617,7 +610,7 @@ fn a_hop_carries_the_karts_speed_over_the_sand_until_it_lands() {
     let mut hop = false;
     let mut speed_at_the_hop = 0.0;
     let mut airborne_over_sand = 0;
-    let mut landed_on_sand = None;
+    let mut landed = false;
     for _ in 0..ticks(6.0) {
         let surface = state.kart_surface(0);
         let before = state.kart_transforms()[0];
@@ -630,21 +623,15 @@ fn a_hop_carries_the_karts_speed_over_the_sand_until_it_lands() {
         if surface != Surface::Sand {
             continue;
         }
+        // The cap reads what is below the kart, in the air or on the ground.
+        assert!(
+            kart.speed <= cap + 0.01,
+            "escaped the cap over the sand: {kart:?}"
+        );
         if kart.position[1] > KART_HALF_HEIGHT_M + 0.05 {
             airborne_over_sand += 1;
-            assert!(
-                kart.speed >= speed_at_the_hop - 0.01,
-                "slowed in the air over the sand: {kart:?}"
-            );
-        } else {
-            // The body is back at rest height a tick or two before the
-            // hop's airtime runs out; the cap lands with the airtime.
-            let mut speeds = vec![kart.speed];
-            for _ in 0..3 {
-                state = step(state, &[KartInput { hop, ..throttle() }], DT);
-                speeds.push(state.kart_transforms()[0].speed);
-            }
-            landed_on_sand = Some(speeds);
+        } else if airborne_over_sand > 0 {
+            landed = true;
             break;
         }
     }
@@ -656,9 +643,5 @@ fn a_hop_carries_the_karts_speed_over_the_sand_until_it_lands() {
         airborne_over_sand >= 5,
         "{airborne_over_sand} ticks in the air over the sand"
     );
-    let landed = landed_on_sand.expect("came down on the sand");
-    assert!(
-        landed.last().is_some_and(|&speed| speed <= cap + 0.01),
-        "capped within a few ticks of touching down: {landed:?}"
-    );
+    assert!(landed, "came down on the sand");
 }

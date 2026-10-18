@@ -214,6 +214,9 @@ struct Kart {
     /// drift on landing takes. `None` when it hopped straight.
     hop_direction: Option<DriftDirection>,
     drift: Option<Drift>,
+    /// Whether the kart was on a boost pad last tick, so a pad fires once,
+    /// as the kart enters it, and its clock runs from there.
+    on_boost_pad: bool,
     /// Seconds of boost left; zero or less when not boosting.
     boost_left_s: f32,
     /// Top speed multiplier while boosting: the mini-turbo's or the boost
@@ -338,6 +341,7 @@ impl State {
                     hop_was_held: false,
                     hop_direction: None,
                     drift: None,
+                    on_boost_pad: false,
                     boost_left_s: 0.0,
                     boost_factor: 1.0,
                     laps_completed: 0,
@@ -395,6 +399,7 @@ impl State {
             hasher.write_f32(kart.hop_direction.map_or(0.0, DriftDirection::steer_sign));
             hasher.write_f32(kart.drift.map_or(0.0, |drift| drift.direction.steer_sign()));
             hasher.write_f32(kart.drift.map_or(0.0, |drift| drift.charge_s));
+            hasher.write_u8(u8::from(kart.on_boost_pad));
             hasher.write_f32(kart.boost_left_s);
             hasher.write_f32(kart.boost_factor);
             hasher.write_u64(kart.walls.len() as u64);
@@ -519,15 +524,18 @@ pub fn step(mut state: State, inputs: &[KartInput], dt: f32) -> State {
         }
         kart.hop_was_held = input.hop;
         kart.speed = next_speed(kart.speed, input, dt);
-        // Off the asphalt the kart loses traction: a cap, not a drag, so it
-        // slows the tick it leaves the track. A hop clears a patch untouched.
-        if !kart.airborne() && surface.slows_karts() {
+        // Off the asphalt the kart is held to the cap, not dragged down to
+        // it, so it slows the tick it leaves the track. The cap reads the
+        // surface below the kart, so a hop over a patch does not clear it.
+        if surface.slows_karts() {
             kart.speed = kart.speed.min(OFF_TRACK_SPEED_FACTOR * TOP_SPEED_M_PER_S);
         }
-        if !kart.airborne() && state.track.on_a_boost_pad(position) {
+        let on_boost_pad = !kart.airborne() && state.track.on_a_boost_pad(position);
+        if on_boost_pad && !kart.on_boost_pad {
             kart.boost_left_s = BOOST_PAD_S;
             kart.boost_factor = BOOST_PAD_FACTOR;
         }
+        kart.on_boost_pad = on_boost_pad;
         if kart.boost_left_s > 0.0 {
             kart.boost_left_s -= dt;
             kart.speed = TOP_SPEED_M_PER_S * kart.boost_factor;
@@ -673,6 +681,7 @@ fn respawn(kart: &mut Kart, track: &Track, physics: &mut Physics) -> [f32; 3] {
     kart.airtime_left_s = 0.0;
     kart.hop_direction = None;
     kart.drift = None;
+    kart.on_boost_pad = false;
     kart.boost_left_s = 0.0;
     kart.travel = facing * Vec3::NEG_Z;
     kart.walls.clear();
