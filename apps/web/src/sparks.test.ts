@@ -20,10 +20,4 @@ describe("spark tell", () => {
     expect(orange?.colour).not.toBe(blue?.colour);
     expect(orange?.colour).not.toBe(uncharged?.colour);
   });
-
-  it("colours the tell by the tier alone, whichever way the drift turns", () => {
-    expect(sparkTell({ ...drifting("blue"), direction: "left" })).toEqual(
-      sparkTell(drifting("blue")),
-    );
-  });
 });

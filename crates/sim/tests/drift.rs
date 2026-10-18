@@ -4,9 +4,9 @@
 //! and runs along -Z, and assert what `kart_transforms` reports.
 
 use sim::tuning::{
-    ACCELERATION_TO_TOP_S, DRIFT_ENTRY_SPEED_FRACTION, HOP_AIRTIME_S, MINI_TURBO_BLUE_BOOST_S,
-    MINI_TURBO_BLUE_CHARGE_S, MINI_TURBO_BOOST_FACTOR, MINI_TURBO_ORANGE_BOOST_S,
-    MINI_TURBO_ORANGE_CHARGE_S, TICKS_PER_SECOND, TOP_SPEED_M_PER_S,
+    ACCELERATION_TO_TOP_S, DRIFT_ENTRY_SPEED_FRACTION, DRIFT_SLIP_ANGLE_RAD, HOP_AIRTIME_S,
+    MINI_TURBO_BLUE_BOOST_S, MINI_TURBO_BLUE_CHARGE_S, MINI_TURBO_BOOST_FACTOR,
+    MINI_TURBO_ORANGE_BOOST_S, MINI_TURBO_ORANGE_CHARGE_S, TICKS_PER_SECOND, TOP_SPEED_M_PER_S,
 };
 use sim::{step, DriftDirection, KartInput, KartTransform, MiniTurbo, State, Track};
 
@@ -341,4 +341,50 @@ fn a_drift_that_slows_below_the_entry_speed_ends_with_no_boost() {
 
     let released = step(slowed, &[accelerate()], DT);
     assert!(measured_speed(released, accelerate()) < TOP_SPEED_M_PER_S);
+}
+
+#[test]
+fn holding_the_hop_button_through_a_landing_does_not_hop_again() {
+    let hold = KartInput {
+        hop: true,
+        ..accelerate()
+    };
+    let ground = only_kart(&at_top_speed()).position[1];
+    // A straight hop lands into no drift, so a held button has nothing to
+    // keep; it must not bounce the kart either.
+    let landed = landed(at_top_speed(), hold);
+    let mut state = landed;
+    for _ in 0..ticks(HOP_AIRTIME_S) {
+        state = step(state, &[hold], DT);
+        let height = only_kart(&state).position[1] - ground;
+        assert!(height.abs() < 0.02, "stayed on the track: {height} m up");
+    }
+
+    let released = step(state, &[accelerate()], DT);
+    let hopped_again = run(released, vec![hold; ticks(HOP_AIRTIME_S / 2.0)]);
+    assert!(
+        only_kart(&hopped_again).position[1] > ground + 0.05,
+        "a fresh press hops"
+    );
+}
+
+#[test]
+fn a_drifting_kart_travels_outside_its_facing_by_the_tuned_slip_angle() {
+    let held = KartInput {
+        steer: 0.0,
+        ..hop_right()
+    };
+    let before = only_kart(&drifting_right());
+    let after = only_kart(&step(drifting_right(), &[held], DT));
+    // The heading of the path, in the yaw convention: 0 is -Z, positive is
+    // anticlockwise from above. A right drift points right of its path.
+    let dx = after.position[0] - before.position[0];
+    let dz = after.position[2] - before.position[2];
+    let travel = (-dx).atan2(-dz);
+    let facing = (yaw(&before) + yaw(&after)) / 2.0;
+    let slip = travel - facing;
+    assert!(
+        (slip - DRIFT_SLIP_ANGLE_RAD).abs() < 0.05,
+        "expected the path {DRIFT_SLIP_ANGLE_RAD} rad left of the nose, measured {slip}"
+    );
 }
