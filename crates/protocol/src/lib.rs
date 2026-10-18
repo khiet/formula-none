@@ -1,2 +1,2 @@
-//! Wire messages between client and server. Defined once here; the
-//! TypeScript types in the web app are generated from these definitions.
+//! Wire messages between client and server, defined once here. The web app's
+//! TypeScript types are generated from this crate, never written by hand.

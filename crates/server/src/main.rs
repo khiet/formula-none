@@ -1,3 +1,3 @@
-//! Authoritative server binary. Runs one `sim` per room and speaks `protocol`.
+//! Authoritative server binary: the only place race outcomes are decided.
 
 fn main() {}
