@@ -1,0 +1,17 @@
+[package]
+name = "bridge"
+description = "WebAssembly bridge: the only crate the web app talks to."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+sim = { path = "../sim" }
+protocol = { path = "../protocol" }
+
+[lints]
+workspace = true
