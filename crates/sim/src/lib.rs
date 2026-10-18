@@ -59,7 +59,7 @@ pub struct KartTransform {
     pub rotation: [f32; 4],
     /// Metres per second along the kart's facing; negative when backing up.
     pub speed: f32,
-    /// The drift the kart is in, or `None` on the ground or in the air.
+    /// The drift the kart is in; `None` when it is not drifting.
     pub drift: Option<Drift>,
 }
 
@@ -158,9 +158,9 @@ struct Kart {
     /// Speed along the kart's facing, metres per second. Held outside Rapier
     /// so contacts and friction never leak into the handling model.
     speed: f32,
-    /// Seconds of hop airtime left; zero or less on the ground. The rule
-    /// counts down rather than asking Rapier for a contact, so landing is
-    /// the same tick on every platform.
+    /// Seconds of hop airtime left; zero or less on the ground. A timer
+    /// rather than a Rapier contact, so the landing tick never depends on
+    /// contact tolerances.
     airtime_left_s: f32,
     /// Whether the hop button was down last tick, so a hop needs a fresh
     /// press: holding the button through a landing never hops again.

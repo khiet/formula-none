@@ -139,7 +139,7 @@ function placeholderKart(size: KartSize, livery: Color): PlaceholderKart {
   const geometry = new SphereGeometry(size.height * SPARK_RADIUS);
   for (const side of [-1, 1]) {
     const spark = new Mesh(geometry, sparkMaterial);
-    // Just outside each rear wheel, at the bottom edge of the box.
+    // Centred on each rear bottom corner of the box, where a wheel would be.
     spark.position.set((side * size.width) / 2, -size.height / 2, size.length / 2);
     sparks.add(spark);
   }
