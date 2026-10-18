@@ -88,7 +88,7 @@ pub const BOOST_PAD_S: f32 = 1.0;
 pub const BOOST_PAD_FACTOR: f32 = 1.4;
 /// The pad is a rectangle on the surface, this big either side of its
 /// placement along and across the direction it faces; a kart whose centre
-/// is on it while on the ground is boosted. Half the asphalt wide, so a
+/// is on it while on the ground is boosted. Narrower than the asphalt, so a
 /// pad can be missed on purpose.
 pub const BOOST_PAD_HALF_LENGTH_M: f32 = 2.0;
 pub const BOOST_PAD_HALF_WIDTH_M: f32 = 3.0;

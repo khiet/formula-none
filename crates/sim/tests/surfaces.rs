@@ -161,7 +161,8 @@ fn oval_with_a_wall(
             }
         }
     }
-    // Corner index: bit 0 is the far end, bit 1 the top, bit 2 the near face.
+    // Corner index: bit 0 is the end `along` points to, bit 1 the top, bit 2
+    // the face `normal` points out of.
     let quads = [
         [0, 1, 3, 2],
         [4, 5, 7, 6],
