@@ -7,6 +7,7 @@
     "test": "vitest run"
   },
   "devDependencies": {
+    "@cdktf/hcl2json": "0.21.0",
     "@types/node": "22.20.5",
     "typescript": "7.0.2",
     "vitest": "5.0.5"

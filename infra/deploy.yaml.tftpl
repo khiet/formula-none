@@ -1,0 +1,20 @@
+schemaVersion: "2.2"
+description: Pull the server image for one commit and restart the Compose stack.
+parameters:
+  ImageTag:
+    type: String
+    description: Tag of the image in the ECR repository, normally the commit SHA.
+    allowedPattern: "^[A-Za-z0-9._-]{1,128}$"
+mainSteps:
+  - action: aws:runShellScript
+    name: deploy
+    inputs:
+      timeoutSeconds: "600"
+      workingDirectory: ${work_dir}
+      runCommand:
+        - set -euo pipefail
+        - aws ecr get-login-password --region ${region} | docker login --username AWS --password-stdin ${registry}
+        - export SERVER_IMAGE="${repository_url}:{{ ImageTag }}"
+        - docker compose pull
+        - docker compose up -d --remove-orphans
+        - docker image prune -f

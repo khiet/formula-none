@@ -44,4 +44,13 @@ describe("ADRs", () => {
     expect(adr).toMatch(/^## Decision/m);
     expect(adr).toMatch(/^## Consequences/m);
   });
+
+  // The applied environment is costed in the hosting record and stays under
+  // the ceiling that ADR 0017 sets.
+  it("the hosting ADR records a monthly cost estimate under USD 25", () => {
+    const hosting = readRepoFile("docs/adr/0015-hosting.md");
+    const total = /^Total: about USD (\d+(?:\.\d+)?) a month/m.exec(hosting);
+    expect(total).not.toBeNull();
+    expect(Number(total?.[1])).toBeLessThan(25);
+  });
 });
