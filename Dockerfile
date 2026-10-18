@@ -61,4 +61,6 @@ COPY --from=server-build /server /usr/local/bin/server
 COPY deploy/compose.yaml deploy/Caddyfile /release/
 COPY --from=web-build /src/apps/web/dist /release/www
 EXPOSE 8080
+# QUIC for WebTransport, when TLS_CERT and TLS_KEY are set (deploy/compose.yaml).
+EXPOSE 4433/udp
 ENTRYPOINT ["/usr/local/bin/server"]

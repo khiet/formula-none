@@ -7,7 +7,7 @@ use serde_json::Value;
 use tower::ServiceExt;
 
 async fn get(path: &str) -> (StatusCode, Value) {
-    let app = server::app("0123abcd");
+    let app = server::app("0123abcd", server::Shutdown::pair().1);
     let response = app
         .oneshot(Request::get(path).body(Body::empty()).unwrap())
         .await

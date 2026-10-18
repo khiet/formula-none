@@ -28,3 +28,21 @@ the WebTransport round trip through real TLS, is the named stack risk.
 - The server terminates its own QUIC with the same certificate Caddy obtains
   (ADR 0015).
 - Safari support is best effort because of its WebTransport status.
+
+## Outcome
+
+M0(b) landed inside the time-box (issue 7, 2026-10-18), so WebTransport
+stays the first transport and the fallback decision above stands.
+
+- The server terminates QUIC with wtransport on 443 UDP, reading the
+  certificate files Caddy writes to its volume and reloading its TLS
+  configuration when they change, so a renewal needs no rebuild or restart.
+- The M0(b) round trip is a `Ping` datagram answered by a `Pong`; the
+  WebSocket fallback at `/api/ws` carries the same postcard bytes, and the
+  client encodes and decodes them through the bridge so the wire format
+  exists only in Rust.
+- The client's `connect` tries WebTransport for
+  `sim::tuning::WEBTRANSPORT_CONNECT_TIMEOUT_S` (3 s) and falls back to the
+  WebSocket; both return the same `Connection` interface.
+- Every deploy's smoke test performs one WebTransport handshake with the
+  deployed certificate and fails the job when it does not round-trip.

@@ -1,16 +1,22 @@
 #!/usr/bin/env bash
 # Smoke-test a deploy: the client, health and version must answer at the
-# base URL, and version must name the commit that was deployed. Retries
+# base URL, version must name the commit that was deployed, and one
+# WebTransport handshake must round-trip a message (ADR 0016). Retries
 # until SMOKE_TIMEOUT seconds (default 120) have passed, because Compose
 # returns before the server listens and Caddy may still be fetching its
 # first certificate. Exits non-zero on any miss, which fails the deploy job.
 #
 # Usage: deploy/smoke.sh <commit-sha> [base-url]
+# Env:   SMOKE_WEBTRANSPORT_PROBE  command that takes the WebTransport URL
+#        and exits non-zero when the handshake fails (default: the probe
+#        example in the server crate, built on first use)
 set -euo pipefail
 
 commit=${1:?usage: deploy/smoke.sh <commit-sha> [base-url]}
 base_url=${2:-https://formulanone.sushimafia.com}
 deadline=$(( $(date +%s) + ${SMOKE_TIMEOUT:-120} ))
+here=$(cd "$(dirname "$0")" && pwd)
+probe=${SMOKE_WEBTRANSPORT_PROBE:-cargo run --quiet --release --manifest-path "$here/../Cargo.toml" -p server --example webtransport-probe --}
 
 # Prints "<status> <content-type>" for a path; "000" when nothing answered.
 probe() {
@@ -39,6 +45,12 @@ while :; do
   if [[ -z $failure ]]; then
     read -r status content_type < <(probe /)
     [[ $status == 200 && $content_type == text/html* ]] || failure="client answered $status ${content_type:-}"
+  fi
+
+  # The handshake goes to the server's own QUIC listener on the site's
+  # port; the path is the one the client uses (apps/web/src/connection.ts).
+  if [[ -z $failure ]]; then
+    $probe "$base_url/wt" || failure="webtransport handshake failed"
   fi
 
   if [[ -z $failure ]]; then

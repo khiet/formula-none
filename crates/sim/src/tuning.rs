@@ -15,6 +15,12 @@ pub const RECONCILIATION_BLEND_FRAMES: u32 = 6;
 /// second, the determinism gate's resolution (ADR 0002).
 pub const REPLAY_HASH_INTERVAL_TICKS: u32 = TICKS_PER_SECOND;
 
+// Network (ADR 0011).
+
+/// How long the client gives WebTransport to connect before it falls back
+/// to WebSocket.
+pub const WEBTRANSPORT_CONNECT_TIMEOUT_S: f32 = 3.0;
+
 // Race.
 
 /// Karts on the grid; empty slots are filled by bots at Start.
