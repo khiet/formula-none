@@ -31,6 +31,13 @@ pub fn laps_per_race() -> u32 {
     sim::tuning::LAPS_PER_RACE
 }
 
+/// Karts on the grid; the slots the humans leave empty are filled by bots
+/// at Start (ADR 0014).
+#[wasm_bindgen]
+pub fn karts_per_race() -> usize {
+    sim::tuning::KARTS_PER_RACE
+}
+
 /// The kart's width, height and length in metres, so the View draws the box
 /// the sim collides with (ADR 0014).
 #[wasm_bindgen]
@@ -111,13 +118,20 @@ pub struct Race {
 #[wasm_bindgen]
 impl Race {
     /// A fresh race from `seed` on the track described by `sidecar` (the JSON
-    /// exported next to the track's glTF) with `kart_count` karts on its
-    /// spawn grid. Fails when the sidecar is unusable or has fewer spawn slots
-    /// than `kart_count`; the reason is a plain string so the same code runs
-    /// in native tests.
+    /// exported next to the track's glTF) with `human_count` karts on the
+    /// front of its spawn grid and `bot_count` bot-driven karts on the slots
+    /// behind them. Fails when the sidecar is unusable or has fewer spawn
+    /// slots than the karts; the reason is a plain string so the same code
+    /// runs in native tests.
     #[wasm_bindgen(constructor)]
-    pub fn new(seed: u64, kart_count: usize, sidecar: &str) -> Result<Race, String> {
+    pub fn new(
+        seed: u64,
+        human_count: usize,
+        bot_count: usize,
+        sidecar: &str,
+    ) -> Result<Race, String> {
         let track = Track::from_sidecar(sidecar).map_err(|error| error.to_string())?;
+        let kart_count = human_count + bot_count;
         if kart_count > track.spawn_grid().len() {
             return Err(format!(
                 "{kart_count} karts but {} has {} spawn slots",
@@ -126,19 +140,20 @@ impl Race {
             ));
         }
         Ok(Self {
-            state: Some(State::new(seed, kart_count, track)),
+            state: Some(State::with_bots(seed, human_count, bot_count, track)),
         })
     }
 
-    /// Advance one tick of `dt` seconds. `inputs` holds six floats per kart
-    /// in grid order: steer, throttle, brake, then the hop, use item and hold
-    /// item buttons as 0 or 1. Its length must be six times the kart count.
+    /// Advance one tick of `dt` seconds. `inputs` holds six floats per human
+    /// kart in grid order: steer, throttle, brake, then the hop, use item
+    /// and hold item buttons as 0 or 1. Its length must be six times the
+    /// human count; the bots drive themselves.
     pub fn step(&mut self, inputs: &[f32], dt: f32) {
         // Checked before the state is taken so a bad call leaves the race usable.
         assert_eq!(
             inputs.len(),
-            self.state().kart_transforms().len() * FLOATS_PER_INPUT,
-            "one input per kart"
+            self.state().human_count() * FLOATS_PER_INPUT,
+            "one input per human kart"
         );
         let inputs: Vec<KartInput> = inputs
             .as_chunks::<FLOATS_PER_INPUT>()

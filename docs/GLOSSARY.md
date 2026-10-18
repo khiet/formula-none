@@ -12,6 +12,21 @@ glossary where they fit.
 One racer's vehicle, driven by a human or a bot. All karts are identical at
 v1; the livery and the nickname floating over it tell one from another.
 
+### bot
+
+The driver inside the sim for a kart no human drives: the slots humans leave
+empty at Start, and a human's kart once they disconnect or the race ends
+without them. A bot reads only what any observer of the race can, the track
+and the karts' transforms and standings, and answers with the same input
+struct a human's controller produces. Bots start on the grid behind the
+humans.
+
+### rubber band
+
+The scale on a bot's top speed by its spline distance from the nearest
+human: slower far ahead, faster far behind, between the tuned bounds. A
+human's kart is never banded.
+
 ### room
 
 A lobby identified by a four-letter code from an unambiguous alphabet. Holds
@@ -90,10 +105,11 @@ over up to six frames rather than snapped.
 
 ### replay
 
-A race as `{seed, track, inputs[]}`: enough to rerun it anywhere. Inputs are
-run-length encoded into segments, one input per kart in grid order for a run
-of ticks. A replay committed under `assets/replays` with the state hashes it
-reported is a fixture of the determinism gate.
+A race as `{seed, track, bots, inputs[]}`: enough to rerun it anywhere.
+Inputs are run-length encoded into segments, one input per human kart in
+grid order for a run of ticks; the bots drive themselves from the seed. A
+replay committed under `assets/replays` with the state hashes it reported is
+a fixture of the determinism gate.
 
 ### state hash
 

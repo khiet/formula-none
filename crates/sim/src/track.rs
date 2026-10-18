@@ -12,6 +12,12 @@ use std::fmt;
 /// The sidecar layout this build reads; `assets/tracks/export.py` writes it.
 pub const SIDECAR_VERSION: u32 = 1;
 
+/// Metres of centreline a direction reading spans, and the distance between
+/// the two directions a curvature reading compares. Wider than the export's
+/// 1 m point spacing, so the reading is the turn's and not one vertex's;
+/// narrower than any corner, so a corner reads at full strength.
+const CURVATURE_WINDOW_M: f32 = 4.0;
+
 /// What is under a point on the track. Four of these are exported as tagged
 /// meshes; `OutOfWorld` is the answer when nothing lies below a point.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize)]
@@ -355,6 +361,31 @@ impl Track {
         let a = Vec3::from(self.centreline[index]);
         let b = Vec3::from(self.centreline[(index + 1) % self.centreline.len()]);
         a.lerp(b, t).to_array()
+    }
+
+    /// The unit direction of travel along the centreline at `progress`, as
+    /// `[x, z]`: the chord across the curvature window centred there, so a
+    /// polyline vertex does not read as a kink.
+    pub fn direction_at(&self, progress: f32) -> [f32; 2] {
+        let behind = self.point_at(progress - CURVATURE_WINDOW_M / 2.0);
+        let ahead = self.point_at(progress + CURVATURE_WINDOW_M / 2.0);
+        let (dx, dz) = (ahead[0] - behind[0], ahead[2] - behind[2]);
+        let length = libm::sqrtf(dx * dx + dz * dz).max(f32::EPSILON);
+        [dx / length, dz / length]
+    }
+
+    /// How sharply the centreline turns at `progress`, in radians per metre
+    /// of travel: positive turning left (counter-clockwise seen from above),
+    /// negative turning right, zero on a straight. The reciprocal is the
+    /// turn's radius.
+    pub fn curvature_at(&self, progress: f32) -> f32 {
+        let [ax, az] = self.direction_at(progress - CURVATURE_WINDOW_M / 2.0);
+        let [bx, bz] = self.direction_at(progress + CURVATURE_WINDOW_M / 2.0);
+        // Facing -Z, left is -X, so a left turn swings the direction's cross
+        // product negative.
+        let cross = ax * bz - az * bx;
+        let dot = ax * bx + az * bz;
+        -libm::atan2f(cross, dot) / CURVATURE_WINDOW_M
     }
 
     /// Gates in lap order; the first is the start line.

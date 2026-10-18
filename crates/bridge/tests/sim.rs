@@ -21,7 +21,7 @@ const FLOATS_PER_INPUT: usize = 6;
 const FLOATS_PER_STANDING: usize = 7;
 
 fn race(seed: u64, kart_count: usize) -> Race {
-    Race::new(seed, kart_count, OVAL).expect("the oval fixture loads")
+    Race::new(seed, kart_count, 0, OVAL).expect("the oval fixture loads")
 }
 
 #[test]
@@ -112,10 +112,10 @@ fn the_kart_size_is_the_tuned_box() {
 
 #[test]
 fn an_unusable_sidecar_or_too_many_karts_is_an_error_not_a_panic() {
-    assert!(Race::new(7, 1, "not json").is_err());
-    assert!(Race::new(7, 1, &OVAL.replacen("\"version\":1", "\"version\":9", 1)).is_err());
+    assert!(Race::new(7, 1, 0, "not json").is_err());
+    assert!(Race::new(7, 1, 0, &OVAL.replacen("\"version\":1", "\"version\":9", 1)).is_err());
     assert!(
-        Race::new(7, 9, OVAL).is_err(),
+        Race::new(7, 9, 0, OVAL).is_err(),
         "the oval has eight spawn slots"
     );
 }
@@ -268,5 +268,27 @@ fn replay_hashes_runs_a_replay_json_on_a_sidecar_and_reports_the_sims_hashes() {
     assert!(
         bridge::replay_hashes(&REPLAY.replace("\"oval\"", "\"brands-patch\""), OVAL).is_err(),
         "the sidecar must be the replay's track"
+    );
+}
+
+#[test]
+fn bots_fill_the_slots_behind_the_humans_and_step_takes_only_the_humans_inputs() {
+    assert_eq!(bridge::karts_per_race(), sim::tuning::KARTS_PER_RACE);
+    let mut race = Race::new(7, 1, 2, OVAL).expect("one human and two bots fit the oval");
+    assert_eq!(race.kart_transforms().len(), 3 * FLOATS_PER_KART);
+    assert_eq!(race.standings().len(), 3 * FLOATS_PER_STANDING);
+    let idle = [0.0; FLOATS_PER_INPUT];
+    for _ in 0..3 * TICKS_PER_SECOND {
+        race.step(&idle, DT);
+    }
+    // Both bots drove past the idle human: it is last.
+    assert_eq!(race.standings()[0], 3.0);
+    assert!(
+        race.kart_transforms()[2 * FLOATS_PER_KART + 7] > 20.0,
+        "the second bot is at speed"
+    );
+    assert!(
+        Race::new(7, 1, 8, OVAL).is_err(),
+        "nine karts do not fit the oval's grid"
     );
 }

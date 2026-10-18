@@ -158,6 +158,40 @@ pub const BOT_ITEM_USE_DELAY_S: f32 = 2.0;
 /// faster far behind.
 pub const BOT_RUBBER_BAND_MIN_FACTOR: f32 = 0.92;
 pub const BOT_RUBBER_BAND_MAX_FACTOR: f32 = 1.08;
+/// Metres along the spline from the nearest human at which the rubber band
+/// reaches its full effect; the scale is linear in between.
+pub const BOT_RUBBER_BAND_RANGE_M: f32 = 100.0;
+/// A bot hops into a drift when the centreline at its lookahead curves
+/// tighter than this, in radians per metre: a turn of 33 m radius or less.
+pub const BOT_DRIFT_CURVATURE_RAD_PER_M: f32 = 0.03;
+/// A bot slows for a corner to this fraction of the fastest speed full
+/// steer lock holds the corner's radius at. Below 1, so a human can carry
+/// more speed through a corner than a bot.
+pub const BOT_CORNER_SPEED_FRACTION: f32 = 0.85;
+/// How far ahead a bot looks for a corner to slow for, in seconds of its
+/// current speed.
+pub const BOT_BRAKE_HORIZON_S: f32 = 1.0;
+/// Metres between the centreline samples a bot checks for a corner ahead.
+/// Finer than any corner's arc, so no corner is skipped.
+pub const BOT_CORNER_SAMPLE_M: f32 = 2.0;
+/// Metres right of the centreline a bot's line runs; every pipe stands left
+/// of the centreline.
+pub const BOT_LINE_RIGHT_OF_CENTRE_M: f32 = 2.5;
+/// The least a bot steers into a corner it hops for, so the hop fixes the
+/// drift toward the corner even when its line asks for less.
+pub const BOT_HOP_STEER: f32 = 0.25;
+/// A kart ahead within the lookahead and this far either side of a bot's
+/// travel is in its way: a kart's width with room to spare.
+pub const BOT_AVOID_HALF_WIDTH_M: f32 = 2.0;
+/// Centre to centre, how far beside a kart in its way a bot aims to pass.
+pub const BOT_PASS_GAP_M: f32 = 2.5;
+/// Under this speed a bot counts as stalled: held by a wall or a kart.
+pub const BOT_STALL_SPEED_M_PER_S: f32 = 1.0;
+/// Seconds stalled before a bot backs up. Longer than a standing start
+/// takes to get going, so no bot reverses off the grid.
+pub const BOT_STALL_S: f32 = 1.0;
+/// Seconds a bot backs up before it drives on again.
+pub const BOT_REVERSE_S: f32 = 1.0;
 
 // Invariants between tuned values, checked at compile time so a retune that
 // breaks a rule fails the build rather than a race.
@@ -165,6 +199,13 @@ const _: () = {
     assert!(MINI_TURBO_ORANGE_CHARGE_S > MINI_TURBO_BLUE_CHARGE_S);
     assert!(MINI_TURBO_ORANGE_BOOST_S > MINI_TURBO_BLUE_BOOST_S);
     assert!(BOT_RUBBER_BAND_MIN_FACTOR < 1.0 && 1.0 < BOT_RUBBER_BAND_MAX_FACTOR);
+    assert!(0.0 < BOT_RUBBER_BAND_RANGE_M);
+    assert!(0.0 < BOT_CORNER_SAMPLE_M && BOT_CORNER_SAMPLE_M <= BOT_LOOKAHEAD_M);
+    assert!(0.0 < BOT_CORNER_SPEED_FRACTION && BOT_CORNER_SPEED_FRACTION <= 1.0);
+    assert!(0.0 < BOT_HOP_STEER && BOT_HOP_STEER <= 1.0);
+    assert!(BOT_AVOID_HALF_WIDTH_M > KART_HALF_WIDTH_M);
+    assert!(BOT_PASS_GAP_M > 2.0 * KART_HALF_WIDTH_M);
+    assert!(BOT_STALL_SPEED_M_PER_S * ACCELERATION_TO_TOP_S / TOP_SPEED_M_PER_S < BOT_STALL_S);
     assert!(SNAPSHOTS_PER_SECOND <= TICKS_PER_SECOND);
     assert!(TICKS_PER_SECOND.is_multiple_of(SNAPSHOTS_PER_SECOND));
     assert!(0.0 < DRIFT_ENTRY_SPEED_FRACTION && DRIFT_ENTRY_SPEED_FRACTION < 1.0);

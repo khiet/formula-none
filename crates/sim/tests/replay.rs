@@ -74,7 +74,7 @@ const REPLAY: &str = r#"{
 #[test]
 fn a_replay_reruns_its_inputs_and_hashes_the_state_at_every_60th_tick() {
     let replay = Replay::from_json(REPLAY).expect("the replay parses");
-    assert_eq!(replay.kart_count(), 1);
+    assert_eq!(replay.human_count(), 1);
     assert_eq!(replay.tick_count(), 150);
     assert_eq!(REPLAY_HASH_INTERVAL_TICKS, 60);
 
@@ -140,6 +140,7 @@ fn replay_of(track: &str, segments: Vec<Segment>) -> Replay {
     Replay {
         seed: 7,
         track: track.to_owned(),
+        bots: 0,
         segments,
         hashes: Vec::new(),
     }
@@ -232,7 +233,7 @@ fn the_fixture_set_exercises_kart_contact_off_track_walls_both_tracks_and_a_mini
     let mut boosted = false;
     for (_, replay) in fixtures() {
         tracks.insert(replay.track.clone());
-        let mut state = State::new(replay.seed, replay.kart_count(), sidecar(&replay.track));
+        let mut state = State::new(replay.seed, replay.human_count(), sidecar(&replay.track));
         for segment in &replay.segments {
             for _ in 0..segment.ticks {
                 let before = state.kart_transforms();
@@ -286,4 +287,53 @@ fn distance(a: &sim::KartTransform, b: &sim::KartTransform) -> f32 {
         .map(|axis| (a.position[axis] - b.position[axis]).powi(2))
         .sum::<f32>()
         .sqrt()
+}
+
+#[test]
+fn a_replay_with_bots_reruns_them_from_the_seed_and_carries_their_count() {
+    let bots = 2;
+    let json = Replay {
+        seed: 7,
+        track: "oval".to_owned(),
+        bots,
+        segments: vec![held(120, 1)],
+        hashes: Vec::new(),
+    }
+    .to_json();
+    assert!(json.contains("\"bots\": 2"), "{json}");
+    let replay = Replay::from_json(&json).unwrap();
+    assert_eq!(replay.bots, bots);
+    assert_eq!(
+        replay.human_count(),
+        1,
+        "the segments hold the humans' inputs"
+    );
+
+    let hashes = replay
+        .run(Track::from_sidecar(OVAL).unwrap())
+        .expect("the replay runs with its bots");
+    let mut state = State::with_bots(7, 1, bots, Track::from_sidecar(OVAL).unwrap());
+    let mut expected = Vec::new();
+    for tick in 1..=120 {
+        state = step(state, &[THROTTLE], DT);
+        if tick % 60 == 0 {
+            expected.push(state.hash());
+        }
+    }
+    assert_eq!(hashes, expected);
+    assert_eq!(state.kart_transforms().len(), 3);
+
+    // Bots count against the grid too.
+    let error = Replay {
+        bots: 8,
+        ..replay.clone()
+    }
+    .run(Track::from_sidecar(OVAL).unwrap())
+    .unwrap_err();
+    assert!(error.to_string().contains("9 karts"), "{error}");
+}
+
+#[test]
+fn a_replay_recorded_before_bots_existed_has_none() {
+    assert_eq!(Replay::from_json(REPLAY).unwrap().bots, 0);
 }

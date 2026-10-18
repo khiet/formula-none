@@ -419,3 +419,46 @@ fn a_kart_drives_brands_patch_without_falling_through() {
     );
     assert_eq!(state.kart_surface(0), Surface::Asphalt);
 }
+
+#[test]
+fn direction_and_curvature_follow_the_centreline_with_a_left_turn_positive() {
+    let track = oval();
+    // The front straight runs along -Z from the line at x = 30; the first
+    // turn is a 30 m left-hander centred on (0, -100).
+    let [dx, dz] = track.direction_at(50.0);
+    assert!(
+        dx.abs() < 0.01 && (dz + 1.0).abs() < 0.01,
+        "front straight: [{dx}, {dz}]"
+    );
+    assert!(
+        track.curvature_at(50.0).abs() < 1e-3,
+        "a straight has no curvature"
+    );
+
+    let apex = 100.0 + std::f32::consts::PI * 30.0 / 2.0;
+    let point = track.point_at(apex);
+    assert!(
+        point[0].abs() < 1.0 && (point[2] + 130.0).abs() < 1.0,
+        "apex at {point:?}"
+    );
+    let [dx, dz] = track.direction_at(apex);
+    assert!(
+        (dx + 1.0).abs() < 0.05 && dz.abs() < 0.05,
+        "heading west: [{dx}, {dz}]"
+    );
+    let curvature = track.curvature_at(apex);
+    assert!(
+        (curvature - 1.0 / 30.0).abs() < 0.003,
+        "a 30 m left turn reads +1/30 per metre, not {curvature}"
+    );
+
+    // Brands Patch's chicane has a right-hand middle arc of 14 m.
+    let brands = brands_patch();
+    let sharpest_right = (0..brands.spline_length() as u32)
+        .map(|at| brands.curvature_at(at as f32))
+        .fold(0.0_f32, f32::min);
+    assert!(
+        (sharpest_right + 1.0 / 14.0).abs() < 0.01,
+        "a right turn reads negative: {sharpest_right}"
+    );
+}

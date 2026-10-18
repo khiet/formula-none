@@ -7,7 +7,13 @@
 //! through [`State::kart_transforms`]. A race runs on a [`Track`] loaded from
 //! the sidecar exported next to its glTF. A [`Replay`] reruns a race and
 //! [`State::hash`] tells whether two runs agree.
+//!
+//! Bots live here too (ADR 0002): a race built with [`State::with_bots`]
+//! puts bot karts on the grid behind the humans, and `step` has [`bot`]
+//! drive them from the same readouts and into the same input struct a human
+//! uses, before it applies anyone's input.
 
+pub mod bot;
 mod hash;
 pub mod replay;
 pub mod track;
@@ -179,13 +185,20 @@ impl Standing {
 pub struct State {
     rng: ChaCha8Rng,
     track: Track,
+    /// Human karts first, then bots: `step`'s inputs are the humans', in
+    /// grid order.
     karts: Vec<Kart>,
+    /// The first this many `karts` are humans; fixed for the race.
+    humans: usize,
     physics: Physics,
 }
 
 struct Kart {
     body: RigidBodyHandle,
     collider: ColliderHandle,
+    /// The bot driving this kart, with what it remembers; `None` for a
+    /// human's kart.
+    bot: Option<bot::Memory>,
     /// The unit direction the handling model sent the kart this tick: its
     /// facing, turned by the slip angle in a drift. What a wall bump
     /// measures the surviving speed along.
@@ -259,6 +272,7 @@ struct Physics {
 }
 
 use tuning::{BOOST_PAD_FACTOR, BOOST_PAD_S, RESPAWN_DELAY_S, WRONG_WAY_WARNING_S};
+use tuning::{BOT_RUBBER_BAND_MAX_FACTOR, BOT_RUBBER_BAND_MIN_FACTOR, BOT_RUBBER_BAND_RANGE_M};
 use tuning::{
     DRIFT_ENTRY_SPEED_FRACTION, GRAVITY_M_PER_S2, HOP_AIRTIME_S, KART_EDGE_RADIUS_M,
     KART_HALF_HEIGHT_M, KART_HALF_LENGTH_M, KART_HALF_WIDTH_M, LAPS_PER_RACE,
@@ -279,9 +293,18 @@ const WALL_PREDICTION_M: f32 =
 const NO_BEST_LAP: f32 = -1.0;
 
 impl State {
-    /// A fresh race on `track` with `kart_count` karts on its spawn grid, in
-    /// slot order. `kart_count` must not exceed the track's spawn slots.
+    /// A fresh race on `track` with `kart_count` human karts on its spawn
+    /// grid, in slot order. `kart_count` must not exceed the track's spawn
+    /// slots.
     pub fn new(seed: u64, kart_count: usize, track: Track) -> Self {
+        Self::with_bots(seed, kart_count, 0, track)
+    }
+
+    /// A fresh race on `track` with `humans` karts on the front of its spawn
+    /// grid and `bots` karts on the slots behind them. Together they must
+    /// not exceed the track's spawn slots.
+    pub fn with_bots(seed: u64, humans: usize, bots: usize, track: Track) -> Self {
+        let kart_count = humans + bots;
         assert!(
             kart_count <= track.spawn_grid().len(),
             "{} karts but the track has {} spawn slots",
@@ -303,7 +326,8 @@ impl State {
 
         let karts = track.spawn_grid()[..kart_count]
             .iter()
-            .map(|slot| {
+            .enumerate()
+            .map(|(index, slot)| {
                 let body = RigidBodyBuilder::dynamic()
                     .translation(Vec3::from(slot.position) + Vec3::Y * KART_HALF_HEIGHT_M)
                     .rotation(Vec3::Y * slot.yaw)
@@ -332,6 +356,7 @@ impl State {
                 Kart {
                     body,
                     collider,
+                    bot: (index >= humans).then_some(bot::Memory::default()),
                     travel: Vec3::NEG_Z,
                     walls: Vec::new(),
                     out_of_world_s: 0.0,
@@ -358,12 +383,52 @@ impl State {
             rng: ChaCha8Rng::seed_from_u64(seed),
             track,
             karts,
+            humans,
             physics,
         }
     }
 
     pub fn track(&self) -> &Track {
         &self.track
+    }
+
+    /// Karts driven from `step`'s inputs: the first this many grid slots.
+    pub fn human_count(&self) -> usize {
+        self.humans
+    }
+
+    /// Whether the kart in `slot` is driven by a bot.
+    pub fn is_bot(&self, slot: usize) -> bool {
+        self.karts[slot].bot.is_some()
+    }
+
+    /// The rubber band on a kart's top speed for the coming tick: a bot the
+    /// tuned range or more ahead of the nearest human along the spline is
+    /// held to the tuned minimum, one that far behind is let up to the tuned
+    /// maximum, and the scale runs linearly between. A human's kart, or a
+    /// bot in a race with no humans, is scaled by one.
+    pub fn rubber_band(&self, slot: usize) -> f32 {
+        if !self.is_bot(slot) || self.humans == 0 {
+            return 1.0;
+        }
+        let distance = |kart: &Kart| {
+            kart.laps_completed as f32 * self.track.spline_length()
+                + self
+                    .track
+                    .lap_relative_progress(kart.checkpoint, kart.spline_progress)
+        };
+        let bot = distance(&self.karts[slot]);
+        let ahead_of_nearest = self.karts[..self.humans]
+            .iter()
+            .map(|human| bot - distance(human))
+            .min_by(|a, b| a.abs().total_cmp(&b.abs()))
+            .expect("a race with humans has a nearest one");
+        let fraction = (ahead_of_nearest / BOT_RUBBER_BAND_RANGE_M).clamp(-1.0, 1.0);
+        if fraction > 0.0 {
+            1.0 - fraction * (1.0 - BOT_RUBBER_BAND_MIN_FACTOR)
+        } else {
+            1.0 - fraction * (BOT_RUBBER_BAND_MAX_FACTOR - 1.0)
+        }
     }
 
     /// What lies under `point`: the topmost tagged surface at or below it,
@@ -381,11 +446,13 @@ impl State {
     /// kart, its speed and its body's position, heading, velocities and
     /// sleep state, including the timer that puts a resting body to sleep.
     /// Bit-identical on every platform for bit-identical states, which is
-    /// what the replay fixtures check (ADR 0002). Two things are left out on
-    /// purpose. The track never changes after `new`, so it is the replay's
-    /// `track` field instead. Rapier's contact manifolds and warm-start
-    /// impulses are not hashed; a difference there reaches a body's velocity
-    /// on the next tick and is caught then.
+    /// what the replay fixtures check (ADR 0002). A bot's memory is hashed
+    /// with its kart. Three things are left out on purpose. The track and
+    /// the split between human and bot slots never change after `new`, so
+    /// they are the replay's `track` and `bots` fields instead. Rapier's
+    /// contact manifolds and warm-start impulses are not hashed; a
+    /// difference there reaches a body's velocity on the next tick and is
+    /// caught then.
     pub fn hash(&self) -> u64 {
         let mut hasher = hash::Fnv1a::new();
         hasher.write(&self.rng.get_seed());
@@ -413,6 +480,9 @@ impl State {
             hasher.write_f32(kart.spline_progress);
             hasher.write_f32(kart.lap_time_s);
             hasher.write_f32(kart.best_lap_s.unwrap_or(NO_BEST_LAP));
+            if let Some(memory) = &kart.bot {
+                hasher.write_f32s(memory.timers());
+            }
             hasher.write_f32s(body.translation().to_array());
             hasher.write_f32s(body.rotation().to_array());
             hasher.write_f32s(body.linvel().to_array());
@@ -482,9 +552,29 @@ impl State {
 }
 
 /// Advance the race by one tick of `dt` seconds. `inputs` holds one entry per
-/// kart in grid order; the caller must supply exactly as many as there are karts.
+/// human kart in grid order; the caller must supply exactly as many as there
+/// are humans. The bots' inputs come from [`bot::drive`], given the readouts
+/// as of the last tick.
 pub fn step(mut state: State, inputs: &[KartInput], dt: f32) -> State {
-    assert_eq!(inputs.len(), state.karts.len(), "one input per kart");
+    assert_eq!(inputs.len(), state.humans, "one input per human kart");
+    // Skip building the readouts when no bot needs them.
+    let inputs: Vec<KartInput> = if state.humans == state.karts.len() {
+        inputs.to_vec()
+    } else {
+        let transforms = state.kart_transforms();
+        let standings = state.standings();
+        let track = &state.track;
+        let mut inputs = inputs.to_vec();
+        for (slot, kart) in state.karts.iter_mut().enumerate() {
+            if let Some(memory) = &mut kart.bot {
+                inputs.push(bot::drive(track, &transforms, &standings, slot, memory, dt));
+            }
+        }
+        inputs
+    };
+    let top_speeds: Vec<f32> = (0..state.karts.len())
+        .map(|slot| TOP_SPEED_M_PER_S * state.rubber_band(slot))
+        .collect();
     let surfaces: Vec<Surface> = state
         .karts
         .iter()
@@ -494,7 +584,13 @@ pub fn step(mut state: State, inputs: &[KartInput], dt: f32) -> State {
                 .surface_at(state.physics.bodies[kart.body].translation().to_array())
         })
         .collect();
-    for ((kart, input), surface) in state.karts.iter_mut().zip(inputs).zip(surfaces) {
+    for (((kart, input), surface), top_speed) in state
+        .karts
+        .iter_mut()
+        .zip(&inputs)
+        .zip(surfaces)
+        .zip(top_speeds)
+    {
         let body = &mut state.physics.bodies[kart.body];
         let position = body.translation().to_array();
         // Keep whatever vertical velocity gravity and the plane have agreed
@@ -523,7 +619,7 @@ pub fn step(mut state: State, inputs: &[KartInput], dt: f32) -> State {
             vertical = hop_launch_speed();
         }
         kart.hop_was_held = input.hop;
-        kart.speed = next_speed(kart.speed, input, dt);
+        kart.speed = next_speed(kart.speed, input, dt, top_speed);
         // Off the asphalt the kart is held to the cap, not dragged down to
         // it, so it slows the tick it leaves the track. The cap reads the
         // surface below the kart, so a hop over a patch does not clear it.
@@ -730,11 +826,12 @@ fn landing_drift(kart: &Kart, input: &KartInput) -> Option<Drift> {
     })
 }
 
-/// Speed after one tick: throttle ramps toward top speed and brake toward a
-/// standstill, each at its tuned rate, and the brake on its own carries on
+/// Speed after one tick: throttle ramps toward `top_speed` and brake toward
+/// a standstill, each at its tuned rate, and the brake on its own carries on
 /// into reverse. With neither held the kart coasts toward a standstill and
-/// stays there.
-fn next_speed(speed: f32, input: &KartInput, dt: f32) -> f32 {
+/// stays there. `top_speed` is the cap under the kart's rubber band; the
+/// ramp rates stay the tuned top speed's.
+fn next_speed(speed: f32, input: &KartInput, dt: f32, top_speed: f32) -> f32 {
     use tuning::{
         ACCELERATION_TO_TOP_S, BRAKE_TO_STOP_S, COAST_TO_STOP_S, REVERSE_TOP_SPEED_M_PER_S,
         TOP_SPEED_M_PER_S,
@@ -758,7 +855,7 @@ fn next_speed(speed: f32, input: &KartInput, dt: f32) -> f32 {
     } else {
         -REVERSE_TOP_SPEED_M_PER_S
     };
-    (coasted + (accelerate - braking) * dt).clamp(floor, TOP_SPEED_M_PER_S)
+    (coasted + (accelerate - braking) * dt).clamp(floor, top_speed)
 }
 
 /// The steer a drift turns with, in the units of `KartInput::steer` but
@@ -785,15 +882,21 @@ fn drift_slip(direction: DriftDirection) -> f32 {
 /// and a near-stationary kart barely turns at all. Full lock is 1; a drift
 /// may ask for more.
 fn yaw_rate(speed: f32, steer: f32) -> f32 {
+    use tuning::STEER_FULL_EFFECT_SPEED_M_PER_S;
+    let grip = (speed.abs() / STEER_FULL_EFFECT_SPEED_M_PER_S).clamp(0.0, 1.0);
+    -steer * steer_rate(speed) * grip * speed.signum()
+}
+
+/// The yaw rate full lock gives at `speed`: the tuned low-speed rate
+/// falling to the tuned top-speed rate. Shared with the bot, so its model
+/// of the handling is the handling.
+pub(crate) fn steer_rate(speed: f32) -> f32 {
     use tuning::{
-        STEER_FULL_EFFECT_SPEED_M_PER_S, STEER_RATE_LOW_SPEED_RAD_PER_S,
-        STEER_RATE_TOP_SPEED_RAD_PER_S, TOP_SPEED_M_PER_S,
+        STEER_RATE_LOW_SPEED_RAD_PER_S, STEER_RATE_TOP_SPEED_RAD_PER_S, TOP_SPEED_M_PER_S,
     };
     let speed_fraction = (speed.abs() / TOP_SPEED_M_PER_S).clamp(0.0, 1.0);
-    let rate = STEER_RATE_LOW_SPEED_RAD_PER_S
-        + (STEER_RATE_TOP_SPEED_RAD_PER_S - STEER_RATE_LOW_SPEED_RAD_PER_S) * speed_fraction;
-    let grip = (speed.abs() / STEER_FULL_EFFECT_SPEED_M_PER_S).clamp(0.0, 1.0);
-    -steer * rate * grip * speed.signum()
+    STEER_RATE_LOW_SPEED_RAD_PER_S
+        + (STEER_RATE_TOP_SPEED_RAD_PER_S - STEER_RATE_LOW_SPEED_RAD_PER_S) * speed_fraction
 }
 
 impl Physics {

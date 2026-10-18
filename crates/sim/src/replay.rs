@@ -1,7 +1,9 @@
-//! A race replay: `{seed, track, inputs[]}`, enough to rerun a race anywhere
-//! (ADR 0002). Rerunning reports [`State::hash`] at every
-//! [`REPLAY_HASH_INTERVAL_TICKS`]th tick; a fixture carries the hashes a
-//! previous run reported so a later run, native or wasm, can be held to them.
+//! A race replay: `{seed, track, bots, inputs[]}`, enough to rerun a race
+//! anywhere (ADR 0002). Bots drive themselves from the seed, so a replay
+//! carries how many there were and only the humans' inputs. Rerunning
+//! reports [`State::hash`] at every [`REPLAY_HASH_INTERVAL_TICKS`]th tick; a
+//! fixture carries the hashes a previous run reported so a later run, native
+//! or wasm, can be held to them.
 //!
 //! The JSON form is the one the web app records and the fixtures under
 //! `assets/replays` use:
@@ -11,6 +13,7 @@
 //!   "version": 1,
 //!   "seed": "7",
 //!   "track": "oval",
+//!   "bots": 0,
 //!   "segments": [
 //!     {
 //!       "ticks": 90,
@@ -26,12 +29,12 @@
 //! }
 //! ```
 //!
-//! Inputs are run-length encoded: a segment holds one input per kart in grid
-//! order and the number of consecutive ticks it was held. A missing button
-//! reads as unpressed, so a replay recorded before the buttons existed still
-//! runs. The seed and the hashes are 64-bit values, which JSON numbers cannot
-//! carry exactly, so the seed is written as a decimal string and each hash as
-//! 16 hex digits.
+//! Inputs are run-length encoded: a segment holds one input per human kart
+//! in grid order and the number of consecutive ticks it was held. A missing
+//! button reads as unpressed, and a missing bot count as none, so a replay
+//! recorded before either existed still runs. The seed and the hashes are
+//! 64-bit values, which JSON numbers cannot carry exactly, so the seed is
+//! written as a decimal string and each hash as 16 hex digits.
 
 use crate::tuning::REPLAY_HASH_INTERVAL_TICKS;
 use crate::{step, KartInput, State, Track};
@@ -46,6 +49,8 @@ pub struct Replay {
     pub seed: u64,
     /// The track's name as its sidecar gives it.
     pub track: String,
+    /// Bot karts on the grid behind the humans; they need no inputs.
+    pub bots: usize,
     pub segments: Vec<Segment>,
     /// [`State::hash`] after every [`REPLAY_HASH_INTERVAL_TICKS`]th tick, as
     /// recorded. Empty until a run has been recorded against the replay.
@@ -60,12 +65,15 @@ struct ReplayFile {
     #[serde(with = "decimal_seed")]
     seed: u64,
     track: String,
+    #[serde(default)]
+    bots: usize,
     segments: Vec<Segment>,
     #[serde(with = "hex_hashes")]
     hashes: Vec<u64>,
 }
 
-/// One input per kart in grid order, held for `ticks` consecutive ticks.
+/// One input per human kart in grid order, held for `ticks` consecutive
+/// ticks.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Segment {
     pub ticks: u32,
@@ -82,7 +90,8 @@ pub enum ReplayError {
         expected: String,
         got: String,
     },
-    /// The first segment has this many karts, but the track's grid has fewer slots.
+    /// The first segment's humans and the bots make this many karts, but the
+    /// track's grid has fewer slots.
     TooManyKarts {
         karts: usize,
         slots: usize,
@@ -143,6 +152,7 @@ impl Replay {
         Ok(Self {
             seed: wire.seed,
             track: wire.track,
+            bots: wire.bots,
             segments: wire.segments,
             hashes: wire.hashes,
         })
@@ -154,14 +164,16 @@ impl Replay {
             version: VERSION,
             seed: self.seed,
             track: self.track.clone(),
+            bots: self.bots,
             segments: self.segments.clone(),
             hashes: self.hashes.clone(),
         };
         serde_json::to_string_pretty(&wire).expect("a replay has no unserialisable field")
     }
 
-    /// Karts in the first segment; zero for an empty replay.
-    pub fn kart_count(&self) -> usize {
+    /// Human karts, as the first segment has inputs; zero for an empty
+    /// replay.
+    pub fn human_count(&self) -> usize {
         self.segments
             .first()
             .map_or(0, |segment| segment.inputs.len())
@@ -181,10 +193,10 @@ impl Replay {
                 got: track.name().to_owned(),
             });
         }
-        let karts = self.kart_count();
-        if karts > track.spawn_grid().len() {
+        let humans = self.human_count();
+        if humans + self.bots > track.spawn_grid().len() {
             return Err(ReplayError::TooManyKarts {
-                karts,
+                karts: humans + self.bots,
                 slots: track.spawn_grid().len(),
             });
         }
@@ -192,17 +204,17 @@ impl Replay {
             .segments
             .iter()
             .enumerate()
-            .find(|(_, segment)| segment.inputs.len() != karts)
+            .find(|(_, segment)| segment.inputs.len() != humans)
         {
             return Err(ReplayError::UnevenSegments {
                 segment,
                 karts: uneven.inputs.len(),
-                first: karts,
+                first: humans,
             });
         }
 
         let dt = 1.0 / crate::tuning::TICKS_PER_SECOND as f32;
-        let mut state = State::new(self.seed, karts, track);
+        let mut state = State::with_bots(self.seed, humans, self.bots, track);
         let mut hashes =
             Vec::with_capacity((self.tick_count() / REPLAY_HASH_INTERVAL_TICKS) as usize);
         let mut tick = 0;
