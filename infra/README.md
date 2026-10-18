@@ -29,8 +29,8 @@ on the public AMI parameters and `route53:ListHostedZones`. If the
 tofu apply -var dns_aws_profile=<profile>
 ```
 
-Port 80 is closed, so Caddy must obtain the certificate with the TLS-ALPN
-challenge; it does so by itself when HTTP-01 cannot bind.
+Inbound port 80 is closed, so Let's Encrypt cannot reach an HTTP-01
+challenge; Caddy falls back to TLS-ALPN-01 on 443 by itself.
 
 ## Reaching the instance
 
@@ -48,8 +48,9 @@ The deploy workflow assumes `github_actions_role_arn`, pushes to
 `ecr_repository_url` tagged with the commit, and runs the
 `deploy_document_name` document against `instance_id` with that tag as
 `ImageTag`. The document logs in to ECR, pulls, and runs `compose up` in
-`/opt/formula-none`; the Compose file itself is placed there by the deploy
-(ADR 0016). The same command by hand:
+`/opt/formula-none`. Nothing here writes the Compose file; the deploy
+pipeline (ADR 0016) must put it there before the first run. The same command
+by hand:
 
 ```sh
 aws ssm send-command --profile neconote \

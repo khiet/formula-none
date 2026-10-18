@@ -17,7 +17,6 @@ let resources: Resources;
 let dataSources: Resources;
 let variables: Record<string, Block>;
 
-/** Resolve a plain `${var.name}` reference to the variable's default; other values pass through. */
 function resolved(value: unknown): unknown {
   if (typeof value !== "string") return value;
   const match = /^\$\{var\.(\w+)\}$/.exec(value);
@@ -99,9 +98,9 @@ describe("infra", () => {
 
   describe("GitHub Actions role", () => {
     // Every statement across the role's own policy documents, flattened.
-    function statementsOf(role: Block): Block[] {
+    function statementsOf(roleName: string): Block[] {
       const policies = Object.values(resourcesOfType("aws_iam_role_policy")).filter(
-        (policy) => policy.role === ref(`aws_iam_role.${role.__name}.id`),
+        (policy) => policy.role === ref(`aws_iam_role.${roleName}.id`),
       );
       return policies.flatMap((policy) => {
         const match = /^\$\{data\.aws_iam_policy_document\.(\w+)\.json\}$/.exec(
@@ -112,13 +111,14 @@ describe("infra", () => {
       });
     }
 
-    function deployRole(): Block {
-      const [name, role] = only(
-        Object.entries(resourcesOfType("aws_iam_role")).filter(([, role]) =>
-          (role.assume_role_policy as string).includes("github"),
+    function deployRoleName(): string {
+      const [name] = only(
+        Object.entries(resourcesOfType("aws_iam_role")).filter(
+          ([, role]) =>
+            role.assume_role_policy === ref("data.aws_iam_policy_document.github_trust.json"),
         ),
       );
-      return { ...role, __name: name };
+      return name;
     }
 
     it("is assumable only by this repository's main branch through GitHub's OIDC provider", () => {
@@ -135,16 +135,17 @@ describe("infra", () => {
       expect(conditions["token.actions.githubusercontent.com:sub"]).toEqual([
         `repo:${ref("var.github_repository")}:ref:refs/heads/main`,
       ]);
-      expect(resolved(ref("var.github_repository"))).toBe("khiet/formula-none");
+      expect(variables.github_repository?.default).toBe("khiet/formula-none");
     });
 
     it("may push to the one repository and run the one deploy document, and nothing else", () => {
-      const statements = statementsOf(deployRole());
-      const byAction = new Map<string, unknown>();
-      for (const statement of statements) {
-        for (const action of statement.actions as string[])
-          byAction.set(action, statement.resources);
-      }
+      const statements = statementsOf(deployRoleName());
+      const grants = statements.flatMap((statement) =>
+        (statement.actions as string[]).map((action) => [action, statement.resources] as const),
+      );
+      const byAction = new Map(grants);
+      // One grant per action, so no statement widens another unnoticed.
+      expect(grants).toHaveLength(byAction.size);
       expect([...byAction.keys()].sort()).toEqual([
         "ecr:BatchCheckLayerAvailability",
         "ecr:BatchGetImage",
@@ -156,7 +157,6 @@ describe("infra", () => {
         "ssm:GetCommandInvocation",
         "ssm:SendCommand",
       ]);
-      // The document the role may run is the only one, and it is the deploy.
       const [documentName, document] = only(Object.entries(resourcesOfType("aws_ssm_document")));
       expect(documentName).toBe("deploy");
       expect(document.document_type).toBe("Command");

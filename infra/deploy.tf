@@ -11,5 +11,6 @@ resource "aws_ssm_document" "deploy" {
     region         = var.region
     registry       = split("/", aws_ecr_repository.server.repository_url)[0]
     repository_url = aws_ecr_repository.server.repository_url
+    work_dir       = local.work_dir
   })
 }

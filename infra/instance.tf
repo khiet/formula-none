@@ -74,6 +74,7 @@ resource "aws_instance" "server" {
 
   user_data = templatefile("${path.module}/user_data.sh.tftpl", {
     compose_version = var.compose_version
+    work_dir        = local.work_dir
   })
   user_data_replace_on_change = true
 
@@ -88,7 +89,7 @@ resource "aws_instance" "server" {
   }
 
   # A newer AMI must not replace the running server on an unrelated apply;
-  # rebuild deliberately by tainting the instance.
+  # rebuild deliberately with `tofu apply -replace=aws_instance.server`.
   lifecycle {
     ignore_changes = [ami]
   }

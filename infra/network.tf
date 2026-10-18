@@ -52,7 +52,7 @@ resource "aws_security_group" "instance" {
 
 resource "aws_vpc_security_group_ingress_rule" "https_tcp" {
   security_group_id = aws_security_group.instance.id
-  description       = "HTTPS and WebTransport fallback"
+  description       = "HTTPS, including the WebSocket fallback"
   ip_protocol       = "tcp"
   from_port         = 443
   to_port           = 443

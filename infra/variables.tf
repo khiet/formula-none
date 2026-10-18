@@ -11,8 +11,9 @@ variable "dns_aws_profile" {
 }
 
 variable "region" {
-  type    = string
-  default = "eu-west-2"
+  description = "London: closest to the players (ADR 0015)."
+  type        = string
+  default     = "eu-west-2"
 }
 
 variable "zone_name" {
@@ -34,8 +35,9 @@ variable "github_repository" {
 }
 
 variable "instance_type" {
-  type    = string
-  default = "t4g.small"
+  description = "The one arm64 instance the cost ceiling allows (ADR 0017)."
+  type        = string
+  default     = "t4g.small"
 }
 
 variable "root_volume_gib" {
@@ -45,8 +47,9 @@ variable "root_volume_gib" {
 }
 
 variable "log_retention_days" {
-  type    = number
-  default = 14
+  description = "How long container logs stay in CloudWatch."
+  type        = number
+  default     = 14
 }
 
 variable "compose_version" {
