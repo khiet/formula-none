@@ -76,8 +76,8 @@ impl Checkpoint {
     /// kart sitting on it crosses once, not every tick.
     pub(crate) fn crossed_between(&self, before: [f32; 3], after: [f32; 3]) -> Option<f32> {
         let (sin, cos) = self.yaw.sin_cos();
-        // Yaw zero faces -Z; the direction of travel through the gate and
-        // the gate's line, to the right of that direction, seen from above.
+        // Yaw zero faces -Z; the direction of travel through the checkpoint
+        // and its line, to the right of that direction, seen from above.
         let travel = [-sin, -cos];
         let line = [cos, -sin];
         let along = |point: [f32; 3]| {
@@ -142,9 +142,8 @@ pub struct Track {
     /// One collision shape per surface mesh, in `surfaces` order.
     shapes: Vec<SharedShape>,
     /// Spline progress at each centreline point, with the lap length as one
-    /// more entry at the end so each closing segment has both ends.
+    /// more entry at the end so the closing segment has both ends.
     progress_at_point: Vec<f32>,
-    /// Spline progress of each checkpoint's centre, in `checkpoints` order.
     checkpoint_progress: Vec<f32>,
 }
 
@@ -293,8 +292,8 @@ impl Track {
 
     /// The spline progress of `point`: metres along the centreline from the
     /// start line to the nearest point on it, in `0..spline_length()`. Only
-    /// x and z count, so a kart in the air or on a kerb reads the same as
-    /// one on the asphalt beneath it.
+    /// x and z count, so a hopping kart reads the same as one on the
+    /// asphalt beneath it.
     pub fn progress_at(&self, point: [f32; 3]) -> f32 {
         progress_along(&self.centreline, &self.progress_at_point, point)
     }

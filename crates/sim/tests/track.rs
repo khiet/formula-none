@@ -138,7 +138,7 @@ fn spline_progress_runs_from_the_start_line_through_each_checkpoint_and_back_to_
             track.name()
         );
         for (checkpoint, &at) in track.checkpoints().iter().zip(progress) {
-            // The gate's centre is on the centreline, so progress and the
+            // The checkpoint's centre is on the centreline, so progress and the
             // point at it are inverses there; height is not part of progress.
             let point = track.point_at(at);
             let off = (point[0] - checkpoint.position[0]).hypot(point[2] - checkpoint.position[2]);

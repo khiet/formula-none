@@ -1,7 +1,7 @@
 //! Lap counting and race position at the sim's public seam: drive karts on
-//! the oval fixture and read `standings`. The oval's twelve checkpoints run
-//! down the front straight along -Z from the start line at z = 0, with the
-//! grid a few metres behind it (layouts/oval.py).
+//! the oval fixture and read `standings`. The oval's front straight runs
+//! along -Z from the start line at z = 0 through its first checkpoints, with
+//! the grid a few metres behind the line (layouts/oval.py).
 
 use sim::tuning::{BOT_LOOKAHEAD_M, LAPS_PER_RACE, TICKS_PER_SECOND};
 use sim::{step, KartInput, Standing, State, Track};

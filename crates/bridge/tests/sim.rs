@@ -177,7 +177,7 @@ fn the_standings_buffer_is_the_sim_crates_standings_for_the_same_race() {
     let idle = [0.0; FLOATS_PER_INPUT];
     let mut state = sim::State::new(42, 2, Track::from_sidecar(OVAL).unwrap());
     let mut race = race(42, 2);
-    // Long enough for the second kart to pass pole and the first gate.
+    // Long enough for the second kart to pass pole and the first checkpoint.
     for _ in 0..3 * TICKS_PER_SECOND {
         state = sim::step(
             state,

@@ -141,7 +141,7 @@ describe("standings", () => {
   it("times the lap, crosses gates in order and swaps positions as the sim reports them", async () => {
     const bridge = await loadBridge(wasm);
     const race = bridge.createRace(7n, 2, OVAL);
-    // Pole idles while the second kart drives up the straight past it and gate 1.
+    // Pole idles while the second kart drives up the straight past it and checkpoint 1.
     for (let tick = 0; tick < 180; tick++) {
       race.step([IDLE_INPUT, THROTTLE], DT);
     }

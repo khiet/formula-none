@@ -509,11 +509,11 @@ pub fn step(mut state: State, inputs: &[KartInput], dt: f32) -> State {
     state
 }
 
-/// Count the checkpoint a kart's move from `before` to `after` crossed, if
-/// it was the next one in order: checkpoints count only in order, and a
-/// lap completes at the start line after the last of them. A completed
-/// lap's time ends where the move met the line, so lap times are finer
-/// than a tick, and the next lap's clock starts with the rest of the tick.
+/// Credit the kart with the checkpoint its move from `before` to `after`
+/// crossed, when it is the next in order; a lap completes at the start
+/// line after the last one. The lap's time ends where the move met the
+/// line, so lap times are finer than a tick, and the next lap's clock
+/// starts with the rest of the tick.
 fn cross_checkpoint(kart: &mut Kart, track: &Track, before: [f32; 3], after: [f32; 3], dt: f32) {
     let checkpoints = track.checkpoints();
     let next = (kart.checkpoint + 1) % checkpoints.len();
