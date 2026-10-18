@@ -1,6 +1,7 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { type KartInput, loadBridge } from "./bridge";
+import { IDLE_INPUT } from "./input";
 import { type ReplayFile, recordReplay } from "./replay";
 
 // The wasm half of the determinism gate (ADR 0002): the committed fixtures
@@ -66,14 +67,7 @@ describe("replay determinism", () => {
 });
 
 describe("replay recorder", () => {
-  const THROTTLE: KartInput = {
-    steer: 0,
-    throttle: 1,
-    brake: 0,
-    hop: false,
-    useItem: false,
-    holdItem: false,
-  };
+  const THROTTLE: KartInput = { ...IDLE_INPUT, throttle: 1 };
   const TURN: KartInput = { ...THROTTLE, steer: -1 };
   const HOP: KartInput = { ...THROTTLE, hop: true };
 

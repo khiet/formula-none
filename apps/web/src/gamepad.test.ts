@@ -1,15 +1,6 @@
 import { describe, expect, it } from "vitest";
-import type { KartInput } from "./bridge";
 import { type GamepadLike, gamepadKartInput } from "./gamepad";
-
-const IDLE: KartInput = {
-  steer: 0,
-  throttle: 0,
-  brake: 0,
-  hop: false,
-  useItem: false,
-  holdItem: false,
-};
+import { IDLE_INPUT } from "./input";
 
 /**
  * A standard-mapping gamepad as the Gamepad API reports it: left stick X on
@@ -43,14 +34,14 @@ function fakeNavigator(...pads: (GamepadLike | null)[]) {
 
 describe("a standard gamepad maps to one kart input", () => {
   it("is idle without a gamepad", () => {
-    expect(gamepadKartInput(fakeNavigator()).current()).toEqual(IDLE);
-    expect(gamepadKartInput(fakeNavigator(null, null)).current()).toEqual(IDLE);
+    expect(gamepadKartInput(fakeNavigator()).current()).toEqual(IDLE_INPUT);
+    expect(gamepadKartInput(fakeNavigator(null, null)).current()).toEqual(IDLE_INPUT);
   });
 
   it("right trigger is throttle, left trigger is brake, the left stick steers", () => {
     const navigator = fakeNavigator(pad({ stickX: 1, rightTrigger: 0.5, leftTrigger: 0.25 }));
     expect(gamepadKartInput(navigator).current()).toEqual({
-      ...IDLE,
+      ...IDLE_INPUT,
       steer: 1,
       throttle: 0.5,
       brake: 0.25,

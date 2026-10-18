@@ -85,7 +85,7 @@ describe("the chase camera", () => {
     expectClose(pose.position, [-6, 2.8, 0], 1);
   });
 
-  it("only reads the transforms it is given, so it cannot reach the sim", () => {
+  it("leaves the transform it reads untouched", () => {
     const camera = createChaseCamera();
     const frozen = kart(0.4, [1, 0.3, 2]);
     expect(() => camera.update(frozen, FRAME_S)).not.toThrow();

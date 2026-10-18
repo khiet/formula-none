@@ -118,7 +118,7 @@ fn the_buffer_is_the_sim_crates_readouts_for_the_same_race() {
 #[test]
 fn a_short_input_buffer_is_rejected_and_the_race_stays_usable() {
     let mut race = race(7, 2);
-    // Three floats per kart was the buffer before the buttons; it is short now.
+    // One kart's worth of floats for a two-kart race.
     let rejected = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
         race.step(&[0.0, 1.0, 0.0, 0.0, 1.0, 0.0], DT);
     }));

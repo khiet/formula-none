@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { type KartInput, type KartTransform, loadBridge } from "./bridge";
+import { IDLE_INPUT } from "./input";
 
 // The real wasm build, loaded from bytes because the default loader fetches
 // the module URL and fetch rejects file: URLs in Node. `pnpm build:bridge`
@@ -11,15 +12,7 @@ const OVAL = readFileSync(
   "utf8",
 );
 const DT = 1 / 60;
-const IDLE: KartInput = {
-  steer: 0,
-  throttle: 0,
-  brake: 0,
-  hop: false,
-  useItem: false,
-  holdItem: false,
-};
-const THROTTLE: KartInput = { ...IDLE, throttle: 1 };
+const THROTTLE: KartInput = { ...IDLE_INPUT, throttle: 1 };
 const TURN: KartInput = { ...THROTTLE, steer: 1 };
 
 describe("bridge wrapper", () => {
@@ -36,7 +29,7 @@ describe("bridge wrapper", () => {
     const race = bridge.createRace(7n, 2, OVAL);
     const spawn = race.kartTransforms();
     for (let tick = 0; tick < 60; tick++) {
-      race.step([THROTTLE, IDLE], DT);
+      race.step([THROTTLE, IDLE_INPUT], DT);
     }
     const after = race.kartTransforms();
 
@@ -97,7 +90,7 @@ describe("bridge wrapper", () => {
   it("refuses an input list that does not match the kart count", async () => {
     const bridge = await loadBridge(wasm);
     const race = bridge.createRace(7n, 2, OVAL);
-    expect(() => race.step([IDLE], DT)).toThrow(RangeError);
-    expect(() => race.step([IDLE, IDLE, IDLE], DT)).toThrow(RangeError);
+    expect(() => race.step([IDLE_INPUT], DT)).toThrow(RangeError);
+    expect(() => race.step([IDLE_INPUT, IDLE_INPUT, IDLE_INPUT], DT)).toThrow(RangeError);
   });
 });

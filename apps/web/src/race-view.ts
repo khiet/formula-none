@@ -19,6 +19,11 @@ import type { CameraPose } from "./chase-camera";
 const CAMERA_FAR_M = 1000;
 /** Liveries tell karts apart; eight, assigned in grid order until rooms assign them. */
 const LIVERIES = 8;
+/** The placeholder kart's cowl as fractions of the kart box, sitting over its rear half. */
+const COWL_WIDTH = 0.6;
+const COWL_HEIGHT = 0.5;
+const COWL_LENGTH = 0.4;
+const COWL_COLOUR = 0x222222;
 
 export interface RaceView {
   /** Move every kart mesh to the transforms the sim reports and the camera to `camera`. */
@@ -104,11 +109,11 @@ function placeholderKart(size: KartSize, livery: Color): Group {
     ),
   );
   const cowl = new Mesh(
-    new BoxGeometry(size.width * 0.6, size.height * 0.5, size.length * 0.4),
-    new MeshStandardMaterial({ color: 0x222222 }),
+    new BoxGeometry(size.width * COWL_WIDTH, size.height * COWL_HEIGHT, size.length * COWL_LENGTH),
+    new MeshStandardMaterial({ color: COWL_COLOUR }),
   );
-  // The kart faces -Z, so the rear half is +Z.
-  cowl.position.set(0, size.height * 0.75, size.length * 0.2);
+  // On top of the box, centred on the rear half; the kart faces -Z, so the rear is +Z.
+  cowl.position.set(0, size.height * (0.5 + COWL_HEIGHT / 2), (size.length * COWL_LENGTH) / 2);
   kart.add(cowl);
   return kart;
 }

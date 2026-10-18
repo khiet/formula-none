@@ -32,10 +32,11 @@ pub struct KartInput {
     pub steer: f32,
     /// 0 to 1.
     pub throttle: f32,
-    /// 0 to 1. Held past a standstill, it backs the kart up.
+    /// 0 to 1. Held on its own past a standstill, it backs the kart up.
     pub brake: f32,
-    /// The hop button is down. A hop starts on the tick it goes down and a
-    /// drift lasts while it stays down.
+    /// The hop button is down. Carried through recordings and the wire
+    /// already; `step` does not read the buttons until hop, drift and items
+    /// become rules.
     #[serde(default)]
     pub hop: bool,
     /// The item button went down this tick.
@@ -250,9 +251,10 @@ pub fn step(mut state: State, inputs: &[KartInput], dt: f32) -> State {
     state
 }
 
-/// Speed after one tick: throttle ramps toward top speed and brake toward
-/// reverse top speed, each at its tuned rate; with neither held the kart
-/// coasts toward a standstill and stays there.
+/// Speed after one tick: throttle ramps toward top speed and brake toward a
+/// standstill, each at its tuned rate, and the brake on its own carries on
+/// into reverse. With neither held the kart coasts toward a standstill and
+/// stays there.
 fn next_speed(speed: f32, input: &KartInput, dt: f32) -> f32 {
     use tuning::{
         ACCELERATION_TO_TOP_S, BRAKE_TO_STOP_S, COAST_TO_STOP_S, REVERSE_TOP_SPEED_M_PER_S,
@@ -269,7 +271,15 @@ fn next_speed(speed: f32, input: &KartInput, dt: f32) -> f32 {
     } else {
         speed
     };
-    (coasted + (accelerate - braking) * dt).clamp(-REVERSE_TOP_SPEED_M_PER_S, TOP_SPEED_M_PER_S)
+    // With the throttle held the brake stops the kart and holds it; it never
+    // backs up a kart that was going forward, and never speeds up one that
+    // was already backing up.
+    let floor = if throttle > 0.0 {
+        speed.min(0.0)
+    } else {
+        -REVERSE_TOP_SPEED_M_PER_S
+    };
+    (coasted + (accelerate - braking) * dt).clamp(floor, TOP_SPEED_M_PER_S)
 }
 
 /// Yaw rate for a steer input: positive steer turns a kart moving forward

@@ -1,30 +1,21 @@
 import { describe, expect, it } from "vitest";
 import type { KartInput } from "./bridge";
-import { combinedKartInput, type KartInputSource } from "./input";
-
-const IDLE: KartInput = {
-  steer: 0,
-  throttle: 0,
-  brake: 0,
-  hop: false,
-  useItem: false,
-  holdItem: false,
-};
+import { combinedKartInput, IDLE_INPUT, type KartInputSource } from "./input";
 
 function source(input: Partial<KartInput>): KartInputSource {
-  return { current: () => ({ ...IDLE, ...input }) };
+  return { current: () => ({ ...IDLE_INPUT, ...input }) };
 }
 
 describe("keyboard and gamepad combine into one input", () => {
   it("is idle when every device is", () => {
-    expect(combinedKartInput(source({}), source({})).current()).toEqual(IDLE);
+    expect(combinedKartInput(source({}), source({})).current()).toEqual(IDLE_INPUT);
   });
 
   it("takes each axis from the device pushing it hardest, so swapping devices needs no setting", () => {
     const keyboard = source({ throttle: 1, steer: -1 });
     const gamepad = source({ throttle: 0.4, steer: 0.2, brake: 0.3 });
     expect(combinedKartInput(keyboard, gamepad).current()).toEqual({
-      ...IDLE,
+      ...IDLE_INPUT,
       steer: -1,
       throttle: 1,
       brake: 0.3,

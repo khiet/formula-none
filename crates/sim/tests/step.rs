@@ -259,6 +259,23 @@ fn holding_the_brake_past_a_stop_reverses_up_to_the_tuned_reverse_top_speed() {
 }
 
 #[test]
+fn brake_with_the_throttle_held_stops_the_kart_and_holds_it_there() {
+    let both = KartInput {
+        brake: 1.0,
+        ..accelerate()
+    };
+    let at_top_speed = run(race(1), vec![accelerate(); ticks(ACCELERATION_TO_TOP_S)]);
+    // The throttle fights the brake, so this takes longer than the tuned
+    // braking time; well short of the 100 m the straight stays clear.
+    let stopped = run(at_top_speed, vec![both; ticks(2.0 * ACCELERATION_TO_TOP_S)]);
+    let before = only_kart(&stopped);
+    let after = only_kart(&step(stopped, &[both], DT));
+
+    assert!(distance_travelled(&before, &after) / DT < 0.01);
+    assert_eq!(after.speed, 0.0, "held at the standstill, not backing up");
+}
+
+#[test]
 fn releasing_the_brake_while_reversing_coasts_to_a_stop() {
     let reversing = run(race(1), vec![brake(); ticks(1.0)]);
     let coasted = run(

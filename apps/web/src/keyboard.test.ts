@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { KartInput } from "./bridge";
+import { IDLE_INPUT } from "./input";
 import { keyboardKartInput } from "./keyboard";
 
 /** The slice of a DOM EventTarget the keyboard mapping listens to. */
@@ -30,20 +30,11 @@ function fakeKeyboard() {
   };
 }
 
-const IDLE: KartInput = {
-  steer: 0,
-  throttle: 0,
-  brake: 0,
-  hop: false,
-  useItem: false,
-  holdItem: false,
-};
-
 describe("keys map to one kart input", () => {
   it("is idle until a key is held", () => {
     const keyboard = fakeKeyboard();
     const input = keyboardKartInput(keyboard);
-    expect(input.current()).toEqual(IDLE);
+    expect(input.current()).toEqual(IDLE_INPUT);
   });
 
   it("up is throttle, down is brake, left and right steer", () => {
@@ -52,12 +43,12 @@ describe("keys map to one kart input", () => {
 
     keyboard.press("ArrowUp");
     keyboard.press("ArrowRight");
-    expect(input.current()).toEqual({ ...IDLE, steer: 1, throttle: 1 });
+    expect(input.current()).toEqual({ ...IDLE_INPUT, steer: 1, throttle: 1 });
 
     keyboard.release("ArrowRight");
     keyboard.press("ArrowLeft");
     keyboard.press("ArrowDown");
-    expect(input.current()).toEqual({ ...IDLE, steer: -1, throttle: 1, brake: 1 });
+    expect(input.current()).toEqual({ ...IDLE_INPUT, steer: -1, throttle: 1, brake: 1 });
   });
 
   it("WASD drive the kart as the arrows do, whichever case the key arrives in", () => {
@@ -66,7 +57,7 @@ describe("keys map to one kart input", () => {
 
     keyboard.press("w");
     keyboard.press("d");
-    expect(input.current()).toEqual({ ...IDLE, steer: 1, throttle: 1 });
+    expect(input.current()).toEqual({ ...IDLE_INPUT, steer: 1, throttle: 1 });
 
     // Shift held for the item button turns the letters upper case.
     keyboard.release("D");
@@ -153,7 +144,7 @@ describe("keys map to one kart input", () => {
     keyboard.press("ArrowUp");
     keyboard.press("Shift");
     keyboard.blur();
-    expect(input.current()).toEqual(IDLE);
+    expect(input.current()).toEqual(IDLE_INPUT);
   });
 
   it("releasing every key returns to idle", () => {
@@ -162,6 +153,6 @@ describe("keys map to one kart input", () => {
     keyboard.press("ArrowUp");
     input.current();
     keyboard.release("ArrowUp");
-    expect(input.current()).toEqual(IDLE);
+    expect(input.current()).toEqual(IDLE_INPUT);
   });
 });
