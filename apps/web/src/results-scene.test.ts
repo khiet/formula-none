@@ -24,10 +24,11 @@ const standings: readonly Standing[] = [
   standing(2),
 ];
 const isBot = (slot: number): boolean => slot > 0;
+const results = { standings, localKart: 0, isBot };
 
 describe("results rows", () => {
   it("lists every kart in finishing order with its name and best lap, unfinished karts included", () => {
-    expect(resultsRows(standings, 0, isBot)).toEqual([
+    expect(resultsRows(results)).toEqual([
       { position: "1st", name: "Bot 2", bestLap: "0:15.000", finished: true },
       { position: "2nd", name: "Bot 3", bestLap: "0:16.000", finished: true },
       { position: "3rd", name: "You", bestLap: "0:16.200", finished: false },
@@ -35,7 +36,7 @@ describe("results rows", () => {
   });
 
   it("leaves the best lap blank for a kart that completed none", () => {
-    const rows = resultsRows([standing(1, { bestLapSeconds: null })], 0, isBot);
+    const rows = resultsRows({ ...results, standings: [standing(1, { bestLapSeconds: null })] });
     expect(rows[0]?.bestLap).toBe("--:--.---");
   });
 });
@@ -43,7 +44,7 @@ describe("results rows", () => {
 describe("Results Scene", () => {
   it("shows the rows in order and offers Rematch and Leave", () => {
     const container = document.createElement("div");
-    const scene = createResultsScene(container, resultsRows(standings, 0, isBot), {
+    const scene = createResultsScene(container, resultsRows(results), {
       rematch() {},
       leave() {},
     });

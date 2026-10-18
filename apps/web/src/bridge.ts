@@ -295,15 +295,20 @@ class BridgedRace implements Race {
   phase(): Phase {
     const buffer = this.#race.phase();
     const [code, seconds, grace] = buffer;
-    if (buffer.length !== FLOATS_PER_PHASE || code === undefined) {
+    if (
+      buffer.length !== FLOATS_PER_PHASE ||
+      code === undefined ||
+      seconds === undefined ||
+      grace === undefined
+    ) {
       throw new RangeError(`phase buffer has ${buffer.length} floats`);
     }
     const kind = PHASES[code];
     switch (kind) {
       case "countdown":
-        return { kind, remainingSeconds: seconds ?? 0 };
+        return { kind, remainingSeconds: seconds };
       case "racing":
-        return { kind, elapsedSeconds: seconds ?? 0, graceLeftSeconds: timeOrNull(grace ?? -1) };
+        return { kind, elapsedSeconds: seconds, graceLeftSeconds: timeOrNull(grace) };
       case "finished":
         return { kind };
       default:

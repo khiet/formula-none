@@ -1,5 +1,13 @@
 import type { Standing } from "./bridge";
-import { formatLapTime, ordinal } from "./instrument-panel";
+import { formatLapTime, NO_LAP_TIME, ordinal } from "./format";
+
+/** What the Results Scene needs from a finished race. */
+export interface RaceResults {
+  /** The final standings, one per kart in grid order. */
+  readonly standings: readonly Standing[];
+  readonly localKart: number;
+  isBot(slot: number): boolean;
+}
 
 /** One line of the results: a kart's place, who drove it and its best lap, as printed. */
 export interface ResultRow {
@@ -22,7 +30,6 @@ export interface ResultsHandlers {
   leave(): void;
 }
 
-const NO_BEST_LAP = "--:--.---";
 const NOT_FINISHED = "(not finished)";
 
 /**
@@ -30,11 +37,7 @@ const NOT_FINISHED = "(not finished)";
  * is "You" and any other by its grid slot counted from 1, until rooms bring
  * nicknames.
  */
-export function resultsRows(
-  standings: readonly Standing[],
-  localKart: number,
-  isBot: (slot: number) => boolean,
-): ResultRow[] {
+export function resultsRows({ standings, localKart, isBot }: RaceResults): ResultRow[] {
   return standings
     .map((standing, slot) => ({ standing, slot }))
     .sort((a, b) => a.standing.position - b.standing.position)
@@ -42,7 +45,7 @@ export function resultsRows(
       position: ordinal(standing.position),
       name: slot === localKart ? "You" : `${isBot(slot) ? "Bot" : "Kart"} ${slot + 1}`,
       bestLap:
-        standing.bestLapSeconds === null ? NO_BEST_LAP : formatLapTime(standing.bestLapSeconds),
+        standing.bestLapSeconds === null ? NO_LAP_TIME : formatLapTime(standing.bestLapSeconds),
       finished: standing.finishTimeSeconds !== null,
     }));
 }

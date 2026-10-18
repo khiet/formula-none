@@ -1,4 +1,5 @@
 import type { KartTransform, Phase, Standing } from "./bridge";
+import { formatLapTime, NO_LAP_TIME, ordinal } from "./format";
 
 export interface InstrumentPanel {
   /** Show the local kart's readouts and the race's phase from what the sim reports. */
@@ -117,25 +118,9 @@ export function lapReadouts(standing: Standing, lapsPerRace: number): LapReadout
     position: ordinal(standing.position),
     lap: `Lap ${standing.lap}/${lapsPerRace}`,
     lapTime: formatLapTime(standing.lapTimeSeconds),
-    bestLap: `Best ${standing.bestLapSeconds === null ? "--:--.---" : formatLapTime(standing.bestLapSeconds)}`,
+    bestLap: `Best ${standing.bestLapSeconds === null ? NO_LAP_TIME : formatLapTime(standing.bestLapSeconds)}`,
     wrongWay: standing.wrongWay ? WRONG_WAY_WARNING : "",
   };
-}
-
-/** 1st, 2nd, 3rd, 4th and so on, for the eight positions a race can have. */
-export function ordinal(position: number): string {
-  const suffix = { 1: "st", 2: "nd", 3: "rd" }[position] ?? "th";
-  return `${position}${suffix}`;
-}
-
-/** Minutes, seconds and milliseconds: 1:15.457. */
-export function formatLapTime(seconds: number): string {
-  const wholeMilliseconds = Math.round(seconds * 1000);
-  const minutes = Math.floor(wholeMilliseconds / 60_000);
-  const rest = wholeMilliseconds - minutes * 60_000;
-  const wholeSeconds = Math.floor(rest / 1000);
-  const milliseconds = rest - wholeSeconds * 1000;
-  return `${minutes}:${String(wholeSeconds).padStart(2, "0")}.${String(milliseconds).padStart(3, "0")}`;
 }
 
 function formatSpeed(metresPerSecond: number): string {

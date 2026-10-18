@@ -1,6 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { expect, type Page, test } from "@playwright/test";
 import type { ReplayFile } from "../src/replay";
+import { startRace } from "./scenes";
 
 const TRACK = "oval";
 /** Long enough for a headless runner that delivers only a few frames a second. */
@@ -18,13 +19,9 @@ const POLL_TIMEOUT_MS = 20_000;
 test("pressing R downloads the session as a replay fixture", async ({ page }) => {
   // Three polls, each allowed the full poll timeout, after the countdown.
   test.setTimeout(4 * POLL_TIMEOUT_MS);
-  await page.goto(`/?track=${TRACK}`);
-  await page.getByRole("button", { name: "Race" }).click();
   // The recording starts with the countdown; a press during it would stall
   // the kart, so the drive waits for Go.
-  await expect(page.locator('[data-instrument="countdown"]')).toBeHidden({
-    timeout: POLL_TIMEOUT_MS,
-  });
+  await startRace(page, `/?track=${TRACK}`);
   const speed = page.locator('[data-instrument="speed"]');
   await expect(speed).toHaveText("0.0 m/s");
 

@@ -132,7 +132,8 @@ fn started(state: State) -> State {
 
 #[test]
 fn the_karts_wait_on_the_grid_in_slot_order_through_the_countdown_then_go() {
-    let state = race(3);
+    // Bots drive themselves, so the countdown must hold them too.
+    let mut state = State::with_bots(SEED, 1, 2, oval());
     assert_eq!(
         state.phase(),
         Phase::Countdown {
@@ -141,10 +142,6 @@ fn the_karts_wait_on_the_grid_in_slot_order_through_the_countdown_then_go() {
     );
     let grid = state.kart_transforms();
     let slots = state.track().spawn_grid().to_vec();
-
-    // Bots drive themselves, so the countdown must hold them too.
-    let state = State::with_bots(SEED, 1, 2, oval());
-    let mut state = state;
     let mut countdown_ticks = 0;
     while !racing(&state) {
         state = step(state, &[throttle()], DT);
@@ -212,7 +209,13 @@ fn pressing_accelerate_before_the_window_stalls_the_kart_for_the_tuned_time() {
     // The press comes at the first tick and is held through Go.
     let state = drive_until(race(1), &[straight], COUNTDOWN_S + 1.0, racing);
     let grid = state.kart_transforms()[0];
-    let state = drive(state, &[straight], START_STALL_S - 2.0 * DT);
+    // Nor does the brake back a stalled kart off the grid.
+    let brake: Driver = |_, _| KartInput {
+        brake: 1.0,
+        ..KartInput::default()
+    };
+    let state = drive(state, &[brake], START_STALL_S / 2.0);
+    let state = drive(state, &[straight], START_STALL_S / 2.0 - 2.0 * DT);
     let stalled = state.kart_transforms()[0];
     assert_eq!(stalled.speed, 0.0, "stalled just before the tuned time");
     assert_eq!(stalled.position[0], grid.position[0]);

@@ -1,4 +1,4 @@
-import type { Bridge, Standing } from "./bridge";
+import type { Bridge } from "./bridge";
 import { createChaseCamera } from "./chase-camera";
 import { gamepadKartInput } from "./gamepad";
 import { combinedKartInput } from "./input";
@@ -6,6 +6,7 @@ import { createInstrumentPanel, type InstrumentPanel } from "./instrument-panel"
 import { keyboardKartInput } from "./keyboard";
 import { createRaceView } from "./race-view";
 import { downloadReplay, recordReplay } from "./replay";
+import type { RaceResults } from "./results-scene";
 import type { TrackFiles } from "./track";
 
 // Until rooms hand out the players and the seed: one local human at slot 0,
@@ -17,14 +18,6 @@ const LOCAL_KART = 0;
 const MAX_TICKS_PER_FRAME = 5;
 /** Downloads the session so far as a replay fixture (assets/replays/README.md). */
 const DOWNLOAD_REPLAY_KEY = "r";
-
-/** What the Results Scene needs from a finished race. */
-export interface RaceResults {
-  /** The final standings, one per kart in grid order. */
-  readonly standings: readonly Standing[];
-  readonly localKart: number;
-  isBot(slot: number): boolean;
-}
 
 export interface RaceScene {
   /** The HUD over the View; the connection readout is written from outside the Scene. */

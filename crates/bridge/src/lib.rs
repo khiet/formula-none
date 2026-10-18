@@ -238,20 +238,23 @@ impl Race {
             .collect()
     }
 
-    /// Three floats for where the race is (`sim::Phase`): the phase as 0
-    /// countdown, 1 racing, 2 finished; then the countdown's seconds to Go,
+    /// Three floats for where the race is (`sim::Phase`): the phase as
+    /// `sim::Phase::code` (0 countdown, 1 racing, 2 finished); then the
+    /// countdown's seconds to Go,
     /// or the race clock in seconds while racing, or 0 once finished; then
     /// the seconds left of the grace after the first finisher, or -1 before
     /// anyone has finished and once the race is over.
     pub fn phase(&self) -> Vec<f32> {
-        match self.state().phase() {
-            Phase::Countdown { remaining_s } => vec![0.0, remaining_s, NO_TIME],
+        let phase = self.state().phase();
+        let (seconds, grace_left_s) = match phase {
+            Phase::Countdown { remaining_s } => (remaining_s, NO_TIME),
             Phase::Racing {
                 elapsed_s,
                 grace_left_s,
-            } => vec![1.0, elapsed_s, grace_left_s.unwrap_or(NO_TIME)],
-            Phase::Finished => vec![2.0, 0.0, NO_TIME],
-        }
+            } => (elapsed_s, grace_left_s.unwrap_or(NO_TIME)),
+            Phase::Finished => (0.0, NO_TIME),
+        };
+        vec![f32::from(phase.code()), seconds, grace_left_s]
     }
 
     /// `sim::State::hash` of the race as of the last step: everything that

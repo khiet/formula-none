@@ -68,20 +68,16 @@ async function main(container: HTMLElement): Promise<void> {
     connection.show(race.panel);
     const results = await race.finished;
     race.dispose();
-    const scene = createResultsScene(
-      container,
-      resultsRows(results.standings, results.localKart, results.isBot),
-      {
-        rematch() {
-          scene.dispose();
-          showRace().catch(fail);
-        },
-        leave() {
-          scene.dispose();
-          showTitle();
-        },
+    const scene = createResultsScene(container, resultsRows(results), {
+      rematch() {
+        scene.dispose();
+        showRace().catch(fail);
       },
-    );
+      leave() {
+        scene.dispose();
+        showTitle();
+      },
+    });
   };
   showTitle();
 }

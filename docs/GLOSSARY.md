@@ -161,7 +161,8 @@ The part of a Scene that renders the world. The Race Scene has one View, the
 ### Instrument panel
 
 The HUD overlaid on a View: position, lap, lap time, best lap, item slot,
-wrong-way warning and connection banner. Reads state; never drives it.
+wrong-way warning, connection banner and the countdown's count over the
+View. Reads state; never drives it.
 
 ### Presentation
 

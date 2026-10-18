@@ -1,18 +1,5 @@
-import { expect, type Page, test } from "@playwright/test";
-
-/**
- * From the Title Scene into a solo race and through its countdown: the
- * sim holds the karts until Go, so nothing drives before the count is
- * over. A CI runner steps the sim far slower than real time, so the wait
- * is sized in wall time with room to spare.
- */
-async function startRace(page: Page, url: string): Promise<void> {
-  await page.goto(url);
-  await page.getByRole("button", { name: "Race" }).click();
-  const countdown = page.locator('[data-instrument="countdown"]');
-  await expect(countdown).toHaveText(/^[321]$/);
-  await expect(countdown).toBeHidden({ timeout: 60_000 });
-}
+import { expect, test } from "@playwright/test";
+import { startRace } from "./scenes";
 
 // The whole chain in a real browser, on each track: glTF and sidecar load,
 // a key, keyboard mapping, wasm sim on the track's colliders with seven

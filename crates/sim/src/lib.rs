@@ -174,6 +174,17 @@ pub enum Phase {
     Finished,
 }
 
+impl Phase {
+    /// The phase as one byte in lifecycle order, for the hash and the bridge.
+    pub fn code(self) -> u8 {
+        match self {
+            Self::Countdown { .. } => 0,
+            Self::Racing { .. } => 1,
+            Self::Finished => 2,
+        }
+    }
+}
+
 /// What a kart's throttle during the countdown set up for Go.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Start {
@@ -296,7 +307,7 @@ struct Kart {
     best_lap_s: Option<f32>,
     /// What the throttle during the countdown set up; applied at Go.
     start: Start,
-    /// Seconds of stall left after Go; the throttle does nothing until it
+    /// Seconds of stall left after Go; no control does anything until it
     /// runs out. Zero or less when not stalled.
     stall_left_s: f32,
     /// The race clock at the finish; `None` while the kart is racing. A
@@ -536,20 +547,17 @@ impl State {
     /// caught then.
     pub fn hash(&self) -> u64 {
         let mut hasher = hash::Fnv1a::new();
+        hasher.write_u8(self.phase.code());
         match self.phase {
-            Phase::Countdown { remaining_s } => {
-                hasher.write_u8(0);
-                hasher.write_f32(remaining_s);
-            }
+            Phase::Countdown { remaining_s } => hasher.write_f32(remaining_s),
             Phase::Racing {
                 elapsed_s,
                 grace_left_s,
             } => {
-                hasher.write_u8(1);
                 hasher.write_f32(elapsed_s);
                 hasher.write_f32(grace_left_s.unwrap_or(NO_TIME));
             }
-            Phase::Finished => hasher.write_u8(2),
+            Phase::Finished => {}
         }
         hasher.write(&self.rng.get_seed());
         hasher.write_u64(self.rng.get_stream());
@@ -665,7 +673,7 @@ impl State {
 /// finished the state is returned as it was.
 pub fn step(mut state: State, inputs: &[KartInput], dt: f32) -> State {
     assert_eq!(inputs.len(), state.humans, "one input per human kart");
-    let elapsed_s = match state.phase {
+    let (elapsed_s, grace_left_s) = match state.phase {
         Phase::Finished => return state,
         Phase::Countdown { remaining_s } => {
             for (kart, input) in state.karts.iter_mut().zip(inputs) {
@@ -699,7 +707,10 @@ pub fn step(mut state: State, inputs: &[KartInput], dt: f32) -> State {
             }
             return state;
         }
-        Phase::Racing { elapsed_s, .. } => elapsed_s + dt,
+        Phase::Racing {
+            elapsed_s,
+            grace_left_s,
+        } => (elapsed_s + dt, grace_left_s),
     };
     // Skip building the readouts when no bot needs them.
     let inputs: Vec<KartInput> = if state.humans == state.karts.len() {
@@ -735,6 +746,13 @@ pub fn step(mut state: State, inputs: &[KartInput], dt: f32) -> State {
         .zip(surfaces)
         .zip(top_speeds)
     {
+        // A stalled kart sits dead to every control until the stall runs out.
+        let input = if kart.stall_left_s > 0.0 {
+            kart.stall_left_s -= dt;
+            &KartInput::default()
+        } else {
+            input
+        };
         let body = &mut state.physics.bodies[kart.body];
         let position = body.translation().to_array();
         // Keep whatever vertical velocity gravity and the plane have agreed
@@ -763,16 +781,6 @@ pub fn step(mut state: State, inputs: &[KartInput], dt: f32) -> State {
             vertical = hop_launch_speed();
         }
         kart.hop_was_held = input.hop;
-        // A stalled kart's throttle does nothing until the stall runs out.
-        let input = if kart.stall_left_s > 0.0 {
-            kart.stall_left_s -= dt;
-            &KartInput {
-                throttle: 0.0,
-                ..*input
-            }
-        } else {
-            input
-        };
         kart.speed = next_speed(kart.speed, input, dt, top_speed);
         // Off the asphalt the kart is held to the cap, not dragged down to
         // it, so it slows the tick it leaves the track. The cap reads the
@@ -847,17 +855,15 @@ pub fn step(mut state: State, inputs: &[KartInput], dt: f32) -> State {
             cross_checkpoint(kart, &state.track, before, after, dt, elapsed_s);
         }
     }
-    state.phase = next_phase(&state.karts, elapsed_s, state.phase, dt);
+    state.phase = next_phase(&state.karts, elapsed_s, grace_left_s, dt);
     state
 }
 
-/// The racing phase after a tick that ended at `elapsed_s`: the grace
-/// starts the tick the first kart finishes, and the race ends when the
-/// grace runs out or every kart has finished.
-fn next_phase(karts: &[Kart], elapsed_s: f32, phase: Phase, dt: f32) -> Phase {
-    let Phase::Racing { grace_left_s, .. } = phase else {
-        unreachable!("only a racing tick advances the phase")
-    };
+/// The phase after a racing tick that ended at `elapsed_s` with
+/// `grace_left_s` as it stood before the tick: the grace starts the tick
+/// the first kart finishes, and the race ends when the grace runs out or
+/// every kart has finished.
+fn next_phase(karts: &[Kart], elapsed_s: f32, grace_left_s: Option<f32>, dt: f32) -> Phase {
     if karts.iter().all(Kart::finished) {
         return Phase::Finished;
     }
