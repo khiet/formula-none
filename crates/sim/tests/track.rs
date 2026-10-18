@@ -121,6 +121,31 @@ fn checkpoints_run_in_lap_order_from_the_start_line() {
 }
 
 #[test]
+fn spline_progress_runs_from_the_start_line_through_each_checkpoint_and_back_to_its_point() {
+    for track in [oval(), brands_patch()] {
+        let lap = track.spline_length();
+        let progress = track.checkpoint_progress();
+        assert_eq!(progress.len(), track.checkpoints().len());
+        assert_eq!(progress[0], 0.0, "{}: the start line is at zero", track.name());
+        assert!(
+            progress.windows(2).all(|pair| pair[0] < pair[1]) && progress[11] < lap,
+            "{}: checkpoints out of lap order: {progress:?}",
+            track.name()
+        );
+        for (checkpoint, &at) in track.checkpoints().iter().zip(progress) {
+            // The gate's centre is on the centreline, so progress and the
+            // point at it are inverses there; height is not part of progress.
+            let point = track.point_at(at);
+            let off = (point[0] - checkpoint.position[0]).hypot(point[2] - checkpoint.position[2]);
+            assert!(off < 0.1, "{}: gate at {at} m is {off} m off its point", track.name());
+            assert!((track.progress_at(checkpoint.position) - at).abs() < 1e-3);
+        }
+        assert_eq!(track.point_at(lap), track.point_at(0.0), "a lap wraps");
+        assert_eq!(track.point_at(-1.0), track.point_at(lap - 1.0));
+    }
+}
+
+#[test]
 fn the_spawn_grid_sits_just_behind_the_start_line_facing_it() {
     let track = oval();
     let start = track.checkpoints()[0];
