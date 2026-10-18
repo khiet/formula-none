@@ -102,6 +102,27 @@ describe("replay recorder", () => {
     expect(bridge.replayHashes(json, oval)).toEqual(hashes);
   });
 
+  it("starts a new segment when any one kart's input changes", async () => {
+    const bridge = await loadBridge(wasm);
+    const race = bridge.createRace(9n, 2, sidecar("oval"));
+    const recorder = recordReplay(bridge, 9n, "oval", race);
+    for (const inputs of [
+      [THROTTLE, THROTTLE],
+      [THROTTLE, THROTTLE],
+      [THROTTLE, TURN],
+      [THROTTLE, THROTTLE],
+    ]) {
+      race.step(inputs, DT);
+      recorder.recorded(inputs);
+    }
+    const file = JSON.parse(recorder.toJSON()) as { segments: unknown[] };
+    expect(file.segments).toEqual([
+      { ticks: 2, inputs: [THROTTLE, THROTTLE] },
+      { ticks: 1, inputs: [THROTTLE, TURN] },
+      { ticks: 1, inputs: [THROTTLE, THROTTLE] },
+    ]);
+  });
+
   it("starts empty", async () => {
     const bridge = await loadBridge(wasm);
     const recorder = recordReplay(bridge, 1n, "oval", bridge.createRace(1n, 1, sidecar("oval")));

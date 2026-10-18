@@ -5,7 +5,7 @@
 //! fixtures through the wasm build.
 
 use sim::tuning::{REPLAY_HASH_INTERVAL_TICKS, TICKS_PER_SECOND};
-use sim::{step, KartInput, Replay, State, Surface, Track};
+use sim::{step, KartInput, Replay, Segment, State, Surface, Track};
 
 const OVAL: &str = include_str!("../../../assets/tracks/oval/oval.track.json");
 const DT: f32 = 1.0 / TICKS_PER_SECOND as f32;
@@ -109,35 +109,41 @@ fn a_replay_round_trips_through_json_with_its_hashes_as_hex() {
     assert_eq!(again.to_json(), json);
 }
 
+fn replay_of(track: &str, segments: Vec<Segment>) -> Replay {
+    Replay {
+        seed: 7,
+        track: track.to_owned(),
+        segments,
+        hashes: Vec::new(),
+    }
+}
+
+fn held(ticks: u32, karts: usize) -> Segment {
+    Segment {
+        ticks,
+        inputs: vec![THROTTLE; karts],
+    }
+}
+
 #[test]
 fn a_replay_rejects_the_wrong_track_too_many_karts_or_an_uneven_grid() {
-    let replay = Replay::from_json(&REPLAY.replace("\"oval\"", "\"brands-patch\"")).unwrap();
-    let error = replay.run(Track::from_sidecar(OVAL).unwrap()).unwrap_err();
+    let oval = || Track::from_sidecar(OVAL).unwrap();
+
+    let error = replay_of("brands-patch", vec![held(60, 1)])
+        .run(oval())
+        .unwrap_err();
     assert!(error.to_string().contains("brands-patch"), "{error}");
     assert!(error.to_string().contains("oval"), "{error}");
 
-    let nine = r#"[{"steer":0,"throttle":0,"brake":0},{"steer":0,"throttle":0,"brake":0},{"steer":0,"throttle":0,"brake":0},{"steer":0,"throttle":0,"brake":0},{"steer":0,"throttle":0,"brake":0},{"steer":0,"throttle":0,"brake":0},{"steer":0,"throttle":0,"brake":0},{"steer":0,"throttle":0,"brake":0},{"steer":0,"throttle":0,"brake":0}]"#;
-    let replay = Replay::from_json(&REPLAY.replacen(
-        r#"[{ "steer": 0.0, "throttle": 1.0, "brake": 0.0 }]"#,
-        nine,
-        1,
-    ))
-    .unwrap();
-    assert!(
-        replay.run(Track::from_sidecar(OVAL).unwrap()).is_err(),
-        "nine karts on an eight-slot grid, and a second segment with one"
-    );
-
-    let two_then_one = REPLAY.replacen(
-        r#"[{ "steer": 0.0, "throttle": 1.0, "brake": 0.0 }]"#,
-        r#"[{ "steer": 0.0, "throttle": 1.0, "brake": 0.0 }, { "steer": 0.0, "throttle": 1.0, "brake": 0.0 }]"#,
-        1,
-    );
-    let error = Replay::from_json(&two_then_one)
-        .unwrap()
-        .run(Track::from_sidecar(OVAL).unwrap())
+    let error = replay_of("oval", vec![held(60, 9)])
+        .run(oval())
         .unwrap_err();
-    assert!(error.to_string().contains("segment"), "{error}");
+    assert!(error.to_string().contains("8 spawn slots"), "{error}");
+
+    let error = replay_of("oval", vec![held(60, 2), held(60, 1)])
+        .run(oval())
+        .unwrap_err();
+    assert!(error.to_string().contains("segment 1"), "{error}");
 
     assert!(Replay::from_json("{}").is_err());
     assert!(Replay::from_json(&REPLAY.replace("\"version\": 1", "\"version\": 2")).is_err());

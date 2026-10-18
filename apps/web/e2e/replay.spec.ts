@@ -40,10 +40,4 @@ test("pressing R downloads the session as a replay fixture", async ({ page }) =>
   expect(replay.segments.some((segment) => segment.inputs[0]?.steer === -1)).toBe(true);
   expect(replay.hashes.length).toBeGreaterThanOrEqual(2);
   expect(replay.hashes.every((hash) => /^[0-9a-f]{16}$/.test(hash))).toBe(true);
-  // Kept for the recording step below, so a committed fixture can come from
-  // a real browser session.
-  if (process.env.REPLAY_OUT) {
-    const { copyFile } = await import("node:fs/promises");
-    await copyFile(path, process.env.REPLAY_OUT);
-  }
 });
