@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { IDLE_INPUT } from "./input";
 import { keyboardKartInput } from "./keyboard";
 
 /** The slice of a DOM EventTarget the keyboard mapping listens to. */
@@ -29,11 +30,11 @@ function fakeKeyboard() {
   };
 }
 
-describe("arrow keys map to one kart input", () => {
+describe("keys map to one kart input", () => {
   it("is idle until a key is held", () => {
     const keyboard = fakeKeyboard();
     const input = keyboardKartInput(keyboard);
-    expect(input.current()).toEqual({ steer: 0, throttle: 0, brake: 0 });
+    expect(input.current()).toEqual(IDLE_INPUT);
   });
 
   it("up is throttle, down is brake, left and right steer", () => {
@@ -42,12 +43,29 @@ describe("arrow keys map to one kart input", () => {
 
     keyboard.press("ArrowUp");
     keyboard.press("ArrowRight");
-    expect(input.current()).toEqual({ steer: 1, throttle: 1, brake: 0 });
+    expect(input.current()).toEqual({ ...IDLE_INPUT, steer: 1, throttle: 1 });
 
     keyboard.release("ArrowRight");
     keyboard.press("ArrowLeft");
     keyboard.press("ArrowDown");
-    expect(input.current()).toEqual({ steer: -1, throttle: 1, brake: 1 });
+    expect(input.current()).toEqual({ ...IDLE_INPUT, steer: -1, throttle: 1, brake: 1 });
+  });
+
+  it("WASD drive the kart as the arrows do, whichever case the key arrives in", () => {
+    const keyboard = fakeKeyboard();
+    const input = keyboardKartInput(keyboard);
+
+    keyboard.press("w");
+    keyboard.press("d");
+    expect(input.current()).toEqual({ ...IDLE_INPUT, steer: 1, throttle: 1 });
+
+    // Shift held for the item button turns the letters upper case.
+    keyboard.release("D");
+    keyboard.press("A");
+    keyboard.press("S");
+    expect(input.current()).toMatchObject({ steer: -1, throttle: 1, brake: 1 });
+    keyboard.release("W");
+    expect(input.current().throttle).toBe(0);
   });
 
   it("opposite steer keys held together cancel out", () => {
@@ -60,10 +78,63 @@ describe("arrow keys map to one kart input", () => {
     expect(input.current().steer).toBe(1);
   });
 
-  it("stops arrow keys scrolling the page but leaves other keys alone", () => {
+  it("an arrow and its letter held together are one press", () => {
+    const keyboard = fakeKeyboard();
+    const input = keyboardKartInput(keyboard);
+    keyboard.press("ArrowUp");
+    keyboard.press("w");
+    expect(input.current().throttle).toBe(1);
+    keyboard.release("w");
+    expect(input.current().throttle).toBe(1);
+  });
+
+  it("space is the hop button, held while down", () => {
+    const keyboard = fakeKeyboard();
+    const input = keyboardKartInput(keyboard);
+    keyboard.press(" ");
+    expect(input.current().hop).toBe(true);
+    expect(input.current().hop).toBe(true);
+    keyboard.release(" ");
+    expect(input.current().hop).toBe(false);
+  });
+
+  it("shift is the item button: used on the tick it goes down, held after", () => {
+    const keyboard = fakeKeyboard();
+    const input = keyboardKartInput(keyboard);
+    keyboard.press("Shift");
+    expect(input.current()).toMatchObject({ useItem: true, holdItem: true });
+    expect(input.current()).toMatchObject({ useItem: false, holdItem: true });
+    keyboard.release("Shift");
+    expect(input.current()).toMatchObject({ useItem: false, holdItem: false });
+    keyboard.press("Shift");
+    expect(input.current().useItem).toBe(true);
+  });
+
+  it("a held key's repeat does not press the item button again", () => {
+    const keyboard = fakeKeyboard();
+    const input = keyboardKartInput(keyboard);
+    keyboard.press("Shift");
+    input.current();
+    keyboard.press("Shift");
+    expect(input.current()).toMatchObject({ useItem: false, holdItem: true });
+  });
+
+  it("a tap between two ticks still lands on the next one", () => {
+    const keyboard = fakeKeyboard();
+    const input = keyboardKartInput(keyboard);
+    keyboard.press(" ");
+    keyboard.release(" ");
+    keyboard.press("Shift");
+    keyboard.release("Shift");
+    expect(input.current()).toMatchObject({ hop: true, useItem: true, holdItem: true });
+    expect(input.current()).toMatchObject({ hop: false, useItem: false, holdItem: false });
+  });
+
+  it("stops the mapped keys scrolling the page but leaves other keys alone", () => {
     const keyboard = fakeKeyboard();
     keyboardKartInput(keyboard);
     expect(keyboard.press("ArrowUp")).toBe(true);
+    expect(keyboard.press(" ")).toBe(true);
     expect(keyboard.press("Tab")).toBe(false);
   });
 
@@ -71,15 +142,17 @@ describe("arrow keys map to one kart input", () => {
     const keyboard = fakeKeyboard();
     const input = keyboardKartInput(keyboard);
     keyboard.press("ArrowUp");
+    keyboard.press("Shift");
     keyboard.blur();
-    expect(input.current()).toEqual({ steer: 0, throttle: 0, brake: 0 });
+    expect(input.current()).toEqual(IDLE_INPUT);
   });
 
   it("releasing every key returns to idle", () => {
     const keyboard = fakeKeyboard();
     const input = keyboardKartInput(keyboard);
     keyboard.press("ArrowUp");
+    input.current();
     keyboard.release("ArrowUp");
-    expect(input.current()).toEqual({ steer: 0, throttle: 0, brake: 0 });
+    expect(input.current()).toEqual(IDLE_INPUT);
   });
 });

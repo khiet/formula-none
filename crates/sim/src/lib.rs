@@ -23,15 +23,28 @@ use serde::{Deserialize, Serialize};
 use std::hash::Hasher;
 
 /// One kart's controls for one tick, already mapped from whatever device
-/// produced them. Bots and humans both speak this.
+/// produced them. Bots and humans both speak this. The buttons default to
+/// unpressed so a replay recorded before they existed still runs.
 #[derive(Debug, Clone, Copy, PartialEq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct KartInput {
     /// -1 is full left, 1 is full right.
     pub steer: f32,
     /// 0 to 1.
     pub throttle: f32,
-    /// 0 to 1.
+    /// 0 to 1. Held on its own past a standstill, it backs the kart up.
     pub brake: f32,
+    /// The hop button is down. Carried through the bridge and recordings
+    /// already; `step` does not read the buttons until hop, drift and items
+    /// become rules.
+    #[serde(default)]
+    pub hop: bool,
+    /// The item button went down this tick.
+    #[serde(default)]
+    pub use_item: bool,
+    /// The item button is down, this tick included.
+    #[serde(default)]
+    pub hold_item: bool,
 }
 
 /// What the renderer and the Instrument panel need per kart: where it is, in
@@ -41,7 +54,7 @@ pub struct KartInput {
 pub struct KartTransform {
     pub position: [f32; 3],
     pub rotation: [f32; 4],
-    /// Metres per second along the kart's facing.
+    /// Metres per second along the kart's facing; negative when backing up.
     pub speed: f32,
 }
 
@@ -76,7 +89,9 @@ struct Physics {
     ccd: CCDSolver,
 }
 
-use tuning::{GRAVITY_M_PER_S2, KART_EDGE_RADIUS_M, KART_HALF_EXTENT_M};
+use tuning::{
+    GRAVITY_M_PER_S2, KART_EDGE_RADIUS_M, KART_HALF_HEIGHT_M, KART_HALF_LENGTH_M, KART_HALF_WIDTH_M,
+};
 
 /// A surface query starts this far above the asked point, so a point lying
 /// exactly on a surface still finds it despite rounding.
@@ -109,19 +124,24 @@ impl State {
             .iter()
             .map(|slot| {
                 let body = RigidBodyBuilder::dynamic()
-                    .translation(Vec3::from(slot.position) + Vec3::Y * KART_HALF_EXTENT_M)
+                    .translation(Vec3::from(slot.position) + Vec3::Y * KART_HALF_HEIGHT_M)
                     .rotation(Vec3::Y * slot.yaw)
                     // Steering is a yaw we set each tick; the box must never
                     // tip or roll from a contact.
                     .enabled_rotations(false, true, false)
                     .build();
                 let body = physics.bodies.insert(body);
-                let core = KART_HALF_EXTENT_M - KART_EDGE_RADIUS_M;
+                // The body's length runs along -Z, its facing.
                 physics.colliders.insert_with_parent(
-                    ColliderBuilder::round_cuboid(core, core, core, KART_EDGE_RADIUS_M)
-                        .friction(0.0)
-                        .restitution(0.0)
-                        .build(),
+                    ColliderBuilder::round_cuboid(
+                        KART_HALF_WIDTH_M - KART_EDGE_RADIUS_M,
+                        KART_HALF_HEIGHT_M - KART_EDGE_RADIUS_M,
+                        KART_HALF_LENGTH_M - KART_EDGE_RADIUS_M,
+                        KART_EDGE_RADIUS_M,
+                    )
+                    .friction(0.0)
+                    .restitution(0.0)
+                    .build(),
                     body,
                     &mut physics.bodies,
                 );
@@ -231,35 +251,51 @@ pub fn step(mut state: State, inputs: &[KartInput], dt: f32) -> State {
     state
 }
 
-/// Speed after one tick: throttle ramps toward top speed, brake and coasting
-/// ramp toward zero, each at its tuned rate.
+/// Speed after one tick: throttle ramps toward top speed and brake toward a
+/// standstill, each at its tuned rate, and the brake on its own carries on
+/// into reverse. With neither held the kart coasts toward a standstill and
+/// stays there.
 fn next_speed(speed: f32, input: &KartInput, dt: f32) -> f32 {
-    use tuning::{ACCELERATION_TO_TOP_S, BRAKE_TO_STOP_S, COAST_TO_STOP_S, TOP_SPEED_M_PER_S};
+    use tuning::{
+        ACCELERATION_TO_TOP_S, BRAKE_TO_STOP_S, COAST_TO_STOP_S, REVERSE_TOP_SPEED_M_PER_S,
+        TOP_SPEED_M_PER_S,
+    };
     let throttle = input.throttle.clamp(0.0, 1.0);
     let brake = input.brake.clamp(0.0, 1.0);
     let accelerate = throttle * TOP_SPEED_M_PER_S / ACCELERATION_TO_TOP_S;
     let braking = brake * TOP_SPEED_M_PER_S / BRAKE_TO_STOP_S;
-    let coast = if throttle == 0.0 && brake == 0.0 {
-        TOP_SPEED_M_PER_S / COAST_TO_STOP_S
+    let coasted = if throttle == 0.0 && brake == 0.0 {
+        let coast = TOP_SPEED_M_PER_S / COAST_TO_STOP_S * dt;
+        // Toward zero from either side, never through it.
+        speed - speed.clamp(-coast, coast)
     } else {
-        0.0
+        speed
     };
-    (speed + (accelerate - braking - coast) * dt).clamp(0.0, TOP_SPEED_M_PER_S)
+    // With the throttle held the brake stops the kart and holds it; it never
+    // backs up a kart that was going forward, and never speeds up one that
+    // was already backing up.
+    let floor = if throttle > 0.0 {
+        speed.min(0.0)
+    } else {
+        -REVERSE_TOP_SPEED_M_PER_S
+    };
+    (coasted + (accelerate - braking) * dt).clamp(floor, TOP_SPEED_M_PER_S)
 }
 
-/// Yaw rate for a steer input: positive steer turns right, which is a negative
-/// rotation about +Y. Faster karts steer slower, and a near-stationary kart
-/// barely turns at all.
+/// Yaw rate for a steer input: positive steer turns a kart moving forward
+/// right, which is a negative rotation about +Y, and swings the nose of a
+/// kart backing up the other way, as a car's does. Faster karts steer slower,
+/// and a near-stationary kart barely turns at all.
 fn yaw_rate(speed: f32, steer: f32) -> f32 {
     use tuning::{
         STEER_FULL_EFFECT_SPEED_M_PER_S, STEER_RATE_LOW_SPEED_RAD_PER_S,
         STEER_RATE_TOP_SPEED_RAD_PER_S, TOP_SPEED_M_PER_S,
     };
-    let speed_fraction = (speed / TOP_SPEED_M_PER_S).clamp(0.0, 1.0);
+    let speed_fraction = (speed.abs() / TOP_SPEED_M_PER_S).clamp(0.0, 1.0);
     let rate = STEER_RATE_LOW_SPEED_RAD_PER_S
         + (STEER_RATE_TOP_SPEED_RAD_PER_S - STEER_RATE_LOW_SPEED_RAD_PER_S) * speed_fraction;
-    let grip = (speed / STEER_FULL_EFFECT_SPEED_M_PER_S).clamp(0.0, 1.0);
-    -steer.clamp(-1.0, 1.0) * rate * grip
+    let grip = (speed.abs() / STEER_FULL_EFFECT_SPEED_M_PER_S).clamp(0.0, 1.0);
+    -steer.clamp(-1.0, 1.0) * rate * grip * speed.signum()
 }
 
 impl Physics {

@@ -3,41 +3,45 @@ import {
   BoxGeometry,
   Color,
   DirectionalLight,
+  Group,
   Mesh,
   MeshStandardMaterial,
   PerspectiveCamera,
-  Quaternion,
   Scene as ThreeScene,
   Vector3,
 } from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { WebGPURenderer } from "three/webgpu";
-import type { KartTransform } from "./bridge";
+import type { KartSize, KartTransform } from "./bridge";
+import type { CameraPose } from "./chase-camera";
 
-/** Distance behind and above the local kart the chase camera sits. */
-const CAMERA_OFFSET = new Vector3(0, 4, 8);
-const CAMERA_LOOK_AHEAD = new Vector3(0, 0.5, -4);
 /** Far enough to see across Brands Patch from any point on it. */
 const CAMERA_FAR_M = 1000;
-const KART_SIZE_M = 1;
 /** Liveries tell karts apart; eight, assigned in grid order until rooms assign them. */
 const LIVERIES = 8;
+/** The placeholder kart's cowl as fractions of the kart box, sitting over its rear half. */
+const COWL_WIDTH = 0.6;
+const COWL_HEIGHT = 0.5;
+const COWL_LENGTH = 0.4;
+const COWL_COLOUR = 0x222222;
 
 export interface RaceView {
-  /** Move every kart mesh to the transforms the sim reports and follow the local one. */
-  update(transforms: readonly KartTransform[], localKart: number): void;
+  /** Move every kart mesh to the transforms the sim reports and the camera to `camera`. */
+  update(transforms: readonly KartTransform[], camera: CameraPose): void;
   render(): void;
 }
 
 /**
- * The Race Scene's View: the track's glTF and one cube per kart, drawn by
- * Three.js from the transforms the bridge reports. The track mesh is
- * Presentation only; the sim has its own copy of the geometry from the
- * sidecar. Picks WebGPU when the browser has it and WebGL otherwise.
+ * The Race Scene's View: the track's glTF and one box per kart, drawn by
+ * Three.js from the transforms the bridge reports and the pose the chase
+ * camera computes. The track mesh is Presentation only; the sim has its own
+ * copy of the geometry from the sidecar. Picks WebGPU when the browser has
+ * it and WebGL otherwise.
  */
 export async function createRaceView(
   container: HTMLElement,
   kartCount: number,
+  kartSize: KartSize,
   trackGltfUrl: string,
 ): Promise<RaceView> {
   const renderer = new WebGPURenderer({ antialias: true });
@@ -64,10 +68,7 @@ export async function createRaceView(
   world.add(sun, new AmbientLight(0xffffff, 0.6));
 
   const karts = Array.from({ length: kartCount }, (_, slot) => {
-    const kart = new Mesh(
-      new BoxGeometry(KART_SIZE_M, KART_SIZE_M, KART_SIZE_M),
-      new MeshStandardMaterial({ color: new Color().setHSL(slot / LIVERIES, 0.8, 0.5) }),
-    );
+    const kart = placeholderKart(kartSize, new Color().setHSL(slot / LIVERIES, 0.8, 0.5));
     world.add(kart);
     return kart;
   });
@@ -78,26 +79,41 @@ export async function createRaceView(
     camera.updateProjectionMatrix();
   });
 
-  const rotation = new Quaternion();
-  const offset = new Vector3();
-  const lookAt = new Vector3();
+  const target = new Vector3();
   return {
-    update(transforms, localKart) {
+    update(transforms, pose) {
       transforms.forEach((transform, slot) => {
         karts[slot]?.position.set(...transform.position);
         karts[slot]?.quaternion.set(...transform.rotation);
       });
-      const local = transforms[localKart];
-      if (local) {
-        rotation.set(...local.rotation);
-        offset.copy(CAMERA_OFFSET).applyQuaternion(rotation);
-        camera.position.set(...local.position).add(offset);
-        lookAt.copy(CAMERA_LOOK_AHEAD).applyQuaternion(rotation).add(camera.position).sub(offset);
-        camera.lookAt(lookAt);
-      }
+      camera.position.set(...pose.position);
+      camera.lookAt(target.set(...pose.target));
     },
     render: () => {
       renderer.render(world, camera);
     },
   };
+}
+
+/**
+ * The placeholder kart until the glTF kart lands (ADR 0007): the box the sim
+ * collides with in the livery colour, with a dark cowl over the rear half so
+ * the facing reads from behind and from the side.
+ */
+function placeholderKart(size: KartSize, livery: Color): Group {
+  const kart = new Group();
+  kart.add(
+    new Mesh(
+      new BoxGeometry(size.width, size.height, size.length),
+      new MeshStandardMaterial({ color: livery }),
+    ),
+  );
+  const cowl = new Mesh(
+    new BoxGeometry(size.width * COWL_WIDTH, size.height * COWL_HEIGHT, size.length * COWL_LENGTH),
+    new MeshStandardMaterial({ color: COWL_COLOUR }),
+  );
+  // On top of the box, over its rear; the kart faces -Z, so the rear is +Z.
+  cowl.position.set(0, size.height * (0.5 + COWL_HEIGHT / 2), (size.length * COWL_LENGTH) / 2);
+  kart.add(cowl);
+  return kart;
 }

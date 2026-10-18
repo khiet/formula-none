@@ -9,7 +9,10 @@
         {
           "steer": 0.0,
           "throttle": 1.0,
-          "brake": 0.0
+          "brake": 0.0,
+          "hop": false,
+          "useItem": false,
+          "holdItem": false
         }
       ]
     },
@@ -19,7 +22,10 @@
         {
           "steer": -1.0,
           "throttle": 1.0,
-          "brake": 0.0
+          "brake": 0.0,
+          "hop": false,
+          "useItem": false,
+          "holdItem": false
         }
       ]
     },
@@ -29,7 +35,10 @@
         {
           "steer": 0.0,
           "throttle": 1.0,
-          "brake": 0.0
+          "brake": 0.0,
+          "hop": false,
+          "useItem": false,
+          "holdItem": false
         }
       ]
     },
@@ -39,7 +48,10 @@
         {
           "steer": 0.0,
           "throttle": 0.0,
-          "brake": 1.0
+          "brake": 1.0,
+          "hop": false,
+          "useItem": false,
+          "holdItem": false
         }
       ]
     },
@@ -49,7 +61,10 @@
         {
           "steer": 0.0,
           "throttle": 0.0,
-          "brake": 0.0
+          "brake": 0.0,
+          "hop": false,
+          "useItem": false,
+          "holdItem": false
         }
       ]
     },
@@ -59,7 +74,10 @@
         {
           "steer": 1.0,
           "throttle": 1.0,
-          "brake": 0.0
+          "brake": 0.0,
+          "hop": false,
+          "useItem": false,
+          "holdItem": false
         }
       ]
     },
@@ -69,30 +87,33 @@
         {
           "steer": 0.0,
           "throttle": 1.0,
-          "brake": 0.0
+          "brake": 0.0,
+          "hop": false,
+          "useItem": false,
+          "holdItem": false
         }
       ]
     }
   ],
   "hashes": [
-    "a1424b900e33f65c",
-    "4cc073886c6075a6",
-    "81aec4416c48da82",
-    "1f0ef67418b8d8df",
-    "ab493f9699a82d09",
-    "6e92b126b6f5e477",
-    "8cd4be514beedd4b",
-    "01e994440f2633a3",
-    "4cc0b55c97b7b980",
-    "2d42373c2025c7c4",
-    "2e0332f39efbe800",
-    "c01b8606a417157c",
-    "bad84cd49d4f5590",
-    "31fa2f0e85f07394",
-    "7c546893d1e3bf32",
-    "b353b4b1a0c0bb08",
-    "0448e00aae0923d2",
-    "9447c685fbbca1e5",
-    "aadcbb78e495c3b7"
+    "420d60e9d74191b5",
+    "4c1bc01a84492067",
+    "5c5a1c9cedc1afe3",
+    "2b56f5d089601012",
+    "e48904d28a238b89",
+    "36aec643323f7983",
+    "63dc85764168d671",
+    "9fbccfef9bab4392",
+    "b84dceb237155d48",
+    "9ec43c633ddbe5dc",
+    "04c325ee1dd70da1",
+    "69c37921bb51f06e",
+    "5c5b2bfa5692b7c4",
+    "cd61ea748eb0cecf",
+    "0d3970ccb4dbf331",
+    "b9afde0a959691b8",
+    "0fe6d9d80d409ea6",
+    "02f9824818b6281c",
+    "16c9dc648f0f95d0"
   ]
 }

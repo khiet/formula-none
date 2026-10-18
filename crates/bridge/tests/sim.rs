@@ -3,15 +3,15 @@
 //! wasm build of the same code is checked in CI.
 
 use bridge::Race;
-use sim::tuning::{KART_HALF_EXTENT_M, TICKS_PER_SECOND};
+use sim::tuning::{KART_HALF_HEIGHT_M, KART_HALF_LENGTH_M, KART_HALF_WIDTH_M, TICKS_PER_SECOND};
 use sim::{Surface, Track};
 
 const OVAL: &str = include_str!("../../../assets/tracks/oval/oval.track.json");
 const DT: f32 = 1.0 / TICKS_PER_SECOND as f32;
 /// Floats per kart in the kart buffer: position xyz, rotation xyzw, speed, surface code.
 const FLOATS_PER_KART: usize = 9;
-/// Floats per kart in the input buffer: steer, throttle, brake.
-const FLOATS_PER_INPUT: usize = 3;
+/// Floats per kart in the input buffer: steer, throttle, brake, hop, use item, hold item.
+const FLOATS_PER_INPUT: usize = 6;
 
 fn race(seed: u64, kart_count: usize) -> Race {
     Race::new(seed, kart_count, OVAL).expect("the oval fixture loads")
@@ -26,7 +26,7 @@ fn kart_buffer_holds_nine_floats_per_kart_on_the_spawn_grid_in_slot_order() {
     assert_eq!(buffer.len(), 3 * FLOATS_PER_KART);
     for (kart, slot) in buffer.chunks(FLOATS_PER_KART).zip(track.spawn_grid()) {
         assert_eq!(kart[0], slot.position[0]);
-        assert!((kart[1] - slot.position[1] - KART_HALF_EXTENT_M).abs() < 1e-5);
+        assert!((kart[1] - slot.position[1] - KART_HALF_HEIGHT_M).abs() < 1e-5);
         assert_eq!(kart[2], slot.position[2]);
         assert_eq!(
             kart[3..7],
@@ -40,6 +40,18 @@ fn kart_buffer_holds_nine_floats_per_kart_on_the_spawn_grid_in_slot_order() {
             "karts spawn on asphalt"
         );
     }
+}
+
+#[test]
+fn the_kart_size_is_the_tuned_box() {
+    assert_eq!(
+        bridge::kart_size_m(),
+        vec![
+            2.0 * KART_HALF_WIDTH_M,
+            2.0 * KART_HALF_HEIGHT_M,
+            2.0 * KART_HALF_LENGTH_M
+        ]
+    );
 }
 
 #[test]
@@ -77,14 +89,17 @@ fn the_buffer_is_the_sim_crates_readouts_for_the_same_race() {
     let input = sim::KartInput {
         steer: 0.5,
         throttle: 1.0,
-        brake: 0.0,
+        ..sim::KartInput::default()
     };
     let mut state = sim::State::new(42, 1, Track::from_sidecar(OVAL).unwrap());
     let mut race = race(42, 1);
     // Long enough to steer off the asphalt, so the surface code changes too.
     for _ in 0..3 * TICKS_PER_SECOND {
         state = sim::step(state, &[input], DT);
-        race.step(&[input.steer, input.throttle, input.brake], DT);
+        race.step(
+            &[input.steer, input.throttle, input.brake, 0.0, 0.0, 0.0],
+            DT,
+        );
     }
 
     let expected = state.kart_transforms()[0];
@@ -103,8 +118,9 @@ fn the_buffer_is_the_sim_crates_readouts_for_the_same_race() {
 #[test]
 fn a_short_input_buffer_is_rejected_and_the_race_stays_usable() {
     let mut race = race(7, 2);
+    // One kart's worth of floats for a two-kart race.
     let rejected = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-        race.step(&[0.0, 1.0, 0.0], DT);
+        race.step(&[0.0, 1.0, 0.0, 0.0, 1.0, 0.0], DT);
     }));
     assert!(rejected.is_err(), "a short buffer must be rejected");
 
@@ -120,16 +136,15 @@ fn the_state_hash_is_the_sim_crates_hash_for_the_same_race() {
     let turn = sim::KartInput {
         steer: 1.0,
         throttle: 1.0,
-        brake: 0.0,
+        ..sim::KartInput::default()
     };
-    let straight = sim::KartInput {
-        steer: 0.0,
-        throttle: 1.0,
-        brake: 0.0,
-    };
+    let straight = sim::KartInput { steer: 0.0, ..turn };
     for _ in 0..TICKS_PER_SECOND {
         state = sim::step(state, &[turn, straight], DT);
-        race.step(&[1.0, 1.0, 0.0, 0.0, 1.0, 0.0], DT);
+        race.step(
+            &[1.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0],
+            DT,
+        );
     }
     assert_eq!(race.state_hash(), state.hash());
 }

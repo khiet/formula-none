@@ -9,14 +9,27 @@ use protocol::{ClientMessage, ServerMessage};
 use sim::{KartInput, Replay, State, Track};
 use wasm_bindgen::prelude::*;
 
-/// Floats per kart in the input buffer: steer, throttle, brake.
-const FLOATS_PER_INPUT: usize = 3;
+/// Floats per kart in the input buffer: steer, throttle, brake, hop, use
+/// item, hold item. A button is pressed when its float is not zero.
+const FLOATS_PER_INPUT: usize = 6;
 
 /// Fixed sim rate, so the client's tick loop reads the tuned value instead of
 /// repeating it (ADR 0014).
 #[wasm_bindgen]
 pub fn ticks_per_second() -> u32 {
     sim::tuning::TICKS_PER_SECOND
+}
+
+/// The kart's width, height and length in metres, so the View draws the box
+/// the sim collides with (ADR 0014).
+#[wasm_bindgen]
+pub fn kart_size_m() -> Vec<f32> {
+    use sim::tuning::{KART_HALF_HEIGHT_M, KART_HALF_LENGTH_M, KART_HALF_WIDTH_M};
+    vec![
+        2.0 * KART_HALF_WIDTH_M,
+        2.0 * KART_HALF_HEIGHT_M,
+        2.0 * KART_HALF_LENGTH_M,
+    ]
 }
 
 /// How often a recording keeps the state hash, so the browser's recorder
@@ -106,9 +119,9 @@ impl Race {
         })
     }
 
-    /// Advance one tick of `dt` seconds. `inputs` holds three floats per kart
-    /// in grid order: steer, throttle, brake. Its length must be three times
-    /// the kart count.
+    /// Advance one tick of `dt` seconds. `inputs` holds six floats per kart
+    /// in grid order: steer, throttle, brake, then the hop, use item and hold
+    /// item buttons as 0 or 1. Its length must be six times the kart count.
     pub fn step(&mut self, inputs: &[f32], dt: f32) {
         // Checked before the state is taken so a bad call leaves the race usable.
         assert_eq!(
@@ -120,11 +133,16 @@ impl Race {
             .as_chunks::<FLOATS_PER_INPUT>()
             .0
             .iter()
-            .map(|&[steer, throttle, brake]| KartInput {
-                steer,
-                throttle,
-                brake,
-            })
+            .map(
+                |&[steer, throttle, brake, hop, use_item, hold_item]| KartInput {
+                    steer,
+                    throttle,
+                    brake,
+                    hop: hop != 0.0,
+                    use_item: use_item != 0.0,
+                    hold_item: hold_item != 0.0,
+                },
+            )
             .collect();
         let state = self
             .state
@@ -134,7 +152,8 @@ impl Race {
     }
 
     /// Nine floats per kart in grid order: position x, y, z, rotation
-    /// quaternion x, y, z, w, speed in metres per second, then the surface
+    /// quaternion x, y, z, w, speed in metres per second along the kart's
+    /// facing (negative backing up), then the surface
     /// under the kart as `sim::Surface::code` (0 asphalt, 1 sand, 2 grass,
     /// 3 wall, 4 out of world). Y is up; identity rotation faces -Z.
     pub fn kart_transforms(&self) -> Vec<f32> {
