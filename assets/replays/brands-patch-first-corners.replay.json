@@ -2,7 +2,45 @@
   "version": 1,
   "seed": "3",
   "track": "brands-patch",
+  "bots": 0,
   "segments": [
+    {
+      "ticks": 181,
+      "inputs": [
+        {
+          "steer": 0.0,
+          "throttle": 0.0,
+          "brake": 0.0,
+          "hop": false,
+          "useItem": false,
+          "holdItem": false
+        },
+        {
+          "steer": 0.0,
+          "throttle": 0.0,
+          "brake": 0.0,
+          "hop": false,
+          "useItem": false,
+          "holdItem": false
+        },
+        {
+          "steer": 0.0,
+          "throttle": 0.0,
+          "brake": 0.0,
+          "hop": false,
+          "useItem": false,
+          "holdItem": false
+        },
+        {
+          "steer": 0.0,
+          "throttle": 0.0,
+          "brake": 0.0,
+          "hop": false,
+          "useItem": false,
+          "holdItem": false
+        }
+      ]
+    },
     {
       "ticks": 240,
       "inputs": [
@@ -264,20 +302,23 @@
     }
   ],
   "hashes": [
-    "17e8ed279845f408",
-    "db8daf4984948dcd",
-    "998157bd43091abe",
-    "58a993eefa5de08c",
-    "20c34a3bfa95824f",
-    "83debd3b5fc884e2",
-    "78d6ee76a93a4824",
-    "214af4592361d3ca",
-    "4d89130aa05dd47e",
-    "acaab40435b985fa",
-    "394f49c5f5fb3b49",
-    "d2dd02ff2684ef48",
-    "c826c168e7104068",
-    "20ef0bc5dce0dd40",
-    "fabdc9bfe3ba8da7"
+    "67ca6db5db0da5cd",
+    "52e8ed8f4a6321ac",
+    "86ffe4b4ec2f1a2d",
+    "40c9d4118498f135",
+    "c7245350f53c70a5",
+    "b5d520aad9f50b0e",
+    "5215ba9cd603096d",
+    "1dc827c90e00d721",
+    "ff9951015feb6337",
+    "6c49b5cab9fb330a",
+    "9bd0e36ed52ea9a9",
+    "9e66bfc884f56861",
+    "dd2db62dc204d1f3",
+    "d5f12b159d66406a",
+    "a400fb37d421d7fc",
+    "1d9f96bec41a6605",
+    "86ceba7c9b69a206",
+    "2e7d073e8971d61c"
   ]
 }

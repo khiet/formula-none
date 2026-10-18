@@ -37,6 +37,8 @@ export interface RaceView {
   /** Move every kart mesh to the transforms the sim reports and the camera to `camera`. */
   update(transforms: readonly KartTransform[], camera: CameraPose): void;
   render(): void;
+  /** Take the canvas off the page and free the renderer. */
+  dispose(): void;
 }
 
 /**
@@ -81,11 +83,12 @@ export async function createRaceView(
     return kart;
   });
 
-  window.addEventListener("resize", () => {
+  const resize = () => {
     renderer.setSize(container.clientWidth, container.clientHeight);
     camera.aspect = container.clientWidth / container.clientHeight;
     camera.updateProjectionMatrix();
-  });
+  };
+  window.addEventListener("resize", resize);
 
   const target = new Vector3();
   return {
@@ -105,6 +108,11 @@ export async function createRaceView(
     },
     render: () => {
       renderer.render(world, camera);
+    },
+    dispose() {
+      window.removeEventListener("resize", resize);
+      renderer.dispose();
+      renderer.domElement.remove();
     },
   };
 }

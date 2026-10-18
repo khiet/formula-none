@@ -6,6 +6,7 @@ import { expect, test } from "@playwright/test";
 // smoke test (deploy/smoke.sh) covers it.
 test("the Instrument panel reports a round trip to the server", async ({ page }) => {
   await page.goto("/");
+  await page.getByRole("button", { name: "Race" }).click();
   const connection = page.locator('[data-instrument="connection"]');
   await expect(connection).toHaveText(/^websocket \d+ ms$/, { timeout: 10_000 });
 });

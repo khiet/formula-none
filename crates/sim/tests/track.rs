@@ -3,13 +3,22 @@
 //! `assets/tracks` are the inputs; their layouts document the numbers used.
 
 use sim::tuning::{KART_HALF_HEIGHT_M, TICKS_PER_SECOND};
-use sim::{step, KartInput, State, Surface, Track, TrackError};
+use sim::{step, KartInput, Phase, State, Surface, Track, TrackError};
 
 const OVAL: &str = include_str!("../../../assets/tracks/oval/oval.track.json");
 const BRANDS_PATCH: &str =
     include_str!("../../../assets/tracks/brands-patch/brands-patch.track.json");
 const DT: f32 = 1.0 / TICKS_PER_SECOND as f32;
 const SEED: u64 = 0x5EED;
+
+/// The race past its countdown, every kart idle on the grid until Go.
+fn started(mut state: State) -> State {
+    let inputs = vec![KartInput::default(); state.human_count()];
+    while matches!(state.phase(), Phase::Countdown { .. }) {
+        state = step(state, &inputs, DT);
+    }
+    state
+}
 
 fn oval() -> Track {
     Track::from_sidecar(OVAL).expect("the oval fixture loads")
@@ -197,7 +206,7 @@ fn a_sidecar_the_sim_cannot_race_on_is_rejected() {
 #[test]
 fn karts_start_on_the_spawn_grid_in_slot_order() {
     let track = oval();
-    let state = State::new(SEED, 8, track.clone());
+    let state = started(State::new(SEED, 8, track.clone()));
     let transforms = state.kart_transforms();
 
     assert_eq!(transforms.len(), 8);
@@ -227,7 +236,7 @@ fn a_spawn_slot_yaw_turns_the_kart_counter_clockwise_seen_from_above() {
         sidecar, OVAL,
         "slot 0 of the oval is where this test expects it"
     );
-    let mut state = State::new(SEED, 1, Track::from_sidecar(&sidecar).unwrap());
+    let mut state = started(State::new(SEED, 1, Track::from_sidecar(&sidecar).unwrap()));
     let spawn = state.kart_transforms()[0];
     for _ in 0..ticks(1.0) {
         state = step(state, &[throttle()], DT);
@@ -247,13 +256,13 @@ fn a_spawn_slot_yaw_turns_the_kart_counter_clockwise_seen_from_above() {
 #[test]
 #[should_panic(expected = "spawn slots")]
 fn more_karts_than_spawn_slots_is_a_caller_error() {
-    State::new(SEED, 9, oval());
+    started(State::new(SEED, 9, oval()));
 }
 
 #[test]
 fn every_spawn_slot_is_on_asphalt_before_the_first_tick() {
     for track in [oval(), brands_patch()] {
-        let state = State::new(SEED, 8, track);
+        let state = started(State::new(SEED, 8, track));
         for kart in 0..8 {
             assert_eq!(
                 state.kart_surface(kart),
@@ -269,7 +278,7 @@ fn every_spawn_slot_is_on_asphalt_before_the_first_tick() {
 fn the_surface_beside_the_track_is_sand_then_grass_then_nothing() {
     // The oval's front straight: centreline at x = 30, asphalt 6 m either
     // side, sand for 6 m beyond, grass for 40 m beyond the track's bounds.
-    let state = State::new(SEED, 1, oval());
+    let state = started(State::new(SEED, 1, oval()));
     let at = |x: f32| state.surface_at([x, 0.0, 4.0]);
 
     assert_eq!(at(30.0), Surface::Asphalt);
@@ -282,7 +291,7 @@ fn the_surface_beside_the_track_is_sand_then_grass_then_nothing() {
 #[test]
 fn walls_and_pipes_read_as_wall_from_above() {
     let track = oval();
-    let state = State::new(SEED, 1, track.clone());
+    let state = started(State::new(SEED, 1, track.clone()));
     let walls: Vec<_> = track
         .surfaces()
         .iter()
@@ -325,7 +334,7 @@ fn walls_and_pipes_read_as_wall_from_above() {
 fn a_kart_driving_into_a_pipe_stops_at_it() {
     // Oval slot 0 drives up the front straight, into the first turn and
     // head on into the pipe centred on its column at z = -107.67.
-    let mut state = State::new(SEED, 1, oval());
+    let mut state = started(State::new(SEED, 1, oval()));
     for _ in 0..ticks(7.0) {
         state = step(state, &[throttle()], DT);
         let kart = state.kart_transforms()[0];
@@ -357,7 +366,7 @@ fn held_by_the_first_turns_wall(
 ) {
     let radius =
         |position: [f32; 3]| (position[0] - turn_centre[0]).hypot(position[2] - turn_centre[1]);
-    let mut state = State::new(SEED, slot + 1, track);
+    let mut state = started(State::new(SEED, slot + 1, track));
     let mut inputs = vec![KartInput::default(); slot + 1];
     inputs[slot] = throttle();
     for _ in 0..ticks(8.0) {
@@ -402,7 +411,7 @@ fn a_kart_driving_into_a_brands_patch_wall_is_held_by_it() {
 
 #[test]
 fn a_kart_drives_brands_patch_without_falling_through() {
-    let mut state = State::new(SEED, 1, brands_patch());
+    let mut state = started(State::new(SEED, 1, brands_patch()));
     let spawn = state.kart_transforms()[0];
     for _ in 0..ticks(3.0) {
         state = step(state, &[throttle()], DT);

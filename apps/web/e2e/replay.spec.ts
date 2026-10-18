@@ -13,12 +13,18 @@ const POLL_TIMEOUT_MS = 20_000;
 //
 // The sim ticks only as fast as frames arrive, so wall-clock time says
 // nothing about sim progress. Each phase waits on observable state instead:
-// the speed readout, or the recording itself, since every R press downloads
-// the session so far.
+// the countdown readout, the speed readout, or the recording itself, since
+// every R press downloads the session so far.
 test("pressing R downloads the session as a replay fixture", async ({ page }) => {
-  // Three polls, each allowed the full poll timeout.
-  test.setTimeout(3 * POLL_TIMEOUT_MS);
+  // Three polls, each allowed the full poll timeout, after the countdown.
+  test.setTimeout(4 * POLL_TIMEOUT_MS);
   await page.goto(`/?track=${TRACK}`);
+  await page.getByRole("button", { name: "Race" }).click();
+  // The recording starts with the countdown; a press during it would stall
+  // the kart, so the drive waits for Go.
+  await expect(page.locator('[data-instrument="countdown"]')).toBeHidden({
+    timeout: POLL_TIMEOUT_MS,
+  });
   const speed = page.locator('[data-instrument="speed"]');
   await expect(speed).toHaveText("0.0 m/s");
 
@@ -41,9 +47,10 @@ test("pressing R downloads the session as a replay fixture", async ({ page }) =>
   expect(replay.track).toBe(TRACK);
   // Seven bots fill the grid; the segments carry the player's input only.
   expect(replay.bots).toBe(7);
-  // Straight, steering, straight again: consecutive ticks with the same
-  // inputs share a segment.
-  expect(replay.segments.length).toBeGreaterThanOrEqual(3);
+  // Idle through the countdown, then straight, steering, straight again:
+  // consecutive ticks with the same inputs share a segment.
+  expect(replay.segments.length).toBeGreaterThanOrEqual(4);
+  expect(replay.segments[0]?.inputs[0]).toMatchObject({ steer: 0, throttle: 0 });
   expect(replay.segments.every((segment) => segment.inputs.length === 1)).toBe(true);
   expect(replay.segments.at(-2)?.inputs[0]).toMatchObject({ steer: -1, throttle: 1 });
   expect(replay.segments.at(-1)?.inputs[0]).toMatchObject({ steer: 0, throttle: 1 });

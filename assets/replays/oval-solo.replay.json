@@ -2,7 +2,21 @@
   "version": 1,
   "seed": "1",
   "track": "oval",
+  "bots": 0,
   "segments": [
+    {
+      "ticks": 181,
+      "inputs": [
+        {
+          "steer": 0.0,
+          "throttle": 0.0,
+          "brake": 0.0,
+          "hop": false,
+          "useItem": false,
+          "holdItem": false
+        }
+      ]
+    },
     {
       "ticks": 360,
       "inputs": [
@@ -96,24 +110,27 @@
     }
   ],
   "hashes": [
-    "8a041d1c893b714a",
-    "6eb80feaeecbd669",
-    "bbed6a482561ca16",
-    "989bf96af7feb373",
-    "0b022abeb0922169",
-    "eeeb18f9a6e8b00e",
-    "09b886995982a866",
-    "f718e2bc5a7ae506",
-    "77fd52f60cf5a4e1",
-    "7f905a40926f446a",
-    "bb1de7ff7063b1a3",
-    "911e2818512ce283",
-    "3443b6cf19422f29",
-    "d8cd55b9f2b90b5c",
-    "a74ed0664c088d5d",
-    "aac2ca34d73b56b6",
-    "4443abe98894c7ca",
-    "481b6485eecebf86",
-    "c67a0f20710d5b97"
+    "c864a9d0264b1761",
+    "d3e4f3991cf1d09c",
+    "65916788dbf00581",
+    "9bdfcdd5f4df1ed2",
+    "4bd35ecd11fc955c",
+    "297ab16144c08204",
+    "c6935e4e3573513f",
+    "00cb524eb72a1ba0",
+    "79f8943d11f216e2",
+    "ebec76b6a5ff74dd",
+    "fb0c6123f3db9f52",
+    "e6c4b5c4d609a8ff",
+    "d37217bb56639dab",
+    "688515c38cccc1bc",
+    "c5ea83915d373ced",
+    "294176c893d37686",
+    "d0fb61d06963dca5",
+    "a49e61cec1215432",
+    "b524a7e2c4e92a02",
+    "41b90de9f13a01af",
+    "37586f08d52570ce",
+    "f6d7e342d1b3e718"
   ]
 }

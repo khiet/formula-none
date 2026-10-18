@@ -5,11 +5,20 @@
 //! beyond, grass to x = 70 and nothing past it (layouts/oval.py).
 
 use sim::tuning::{KART_HALF_WIDTH_M, OFF_TRACK_SPEED_FACTOR, TICKS_PER_SECOND, TOP_SPEED_M_PER_S};
-use sim::{step, KartInput, State, Surface, Track};
+use sim::{step, KartInput, Phase, State, Surface, Track};
 
 const OVAL: &str = include_str!("../../../assets/tracks/oval/oval.track.json");
 const DT: f32 = 1.0 / TICKS_PER_SECOND as f32;
 const SEED: u64 = 0x5EED;
+
+/// The race past its countdown, every kart idle on the grid until Go.
+fn started(mut state: State) -> State {
+    let inputs = vec![KartInput::default(); state.human_count()];
+    while matches!(state.phase(), Phase::Countdown { .. }) {
+        state = step(state, &inputs, DT);
+    }
+    state
+}
 /// A quarter turn clockwise seen from above: from facing -Z to facing +X.
 const FACING_PLUS_X: f32 = -std::f32::consts::FRAC_PI_2;
 
@@ -40,11 +49,11 @@ fn oval_with_slot_0_at(position: [f32; 3], yaw: f32) -> Track {
 fn sand_and_grass_cap_the_speed_at_the_off_track_fraction_of_top_speed() {
     // From the infield grass at x = 0 across the front straight: grass to
     // x = 18, sand to 24, asphalt to 36, sand to 42, grass beyond.
-    let mut state = State::new(
+    let mut state = started(State::new(
         SEED,
         1,
         oval_with_slot_0_at([0.0, 0.0, -20.0], FACING_PLUS_X),
-    );
+    ));
     let cap = OFF_TRACK_SPEED_FACTOR * TOP_SPEED_M_PER_S;
     let mut fastest_off_track: f32 = 0.0;
     let mut fastest_on_asphalt: f32 = 0.0;
@@ -89,7 +98,11 @@ fn a_boost_pad_gives_the_tuned_boost_for_the_tuned_time_from_the_tick_it_is_ente
     use sim::tuning::{BOOST_PAD_FACTOR, BOOST_PAD_HALF_LENGTH_M, BOOST_PAD_S};
     // Slot 1 at x = 32 drives up the front straight over the pad centred
     // on (33, -60), reaching top speed well before it, while pole idles.
-    let mut state = State::new(SEED, 2, Track::from_sidecar(OVAL).expect("the oval loads"));
+    let mut state = started(State::new(
+        SEED,
+        2,
+        Track::from_sidecar(OVAL).expect("the oval loads"),
+    ));
     let pad = state.track().boost_pads()[1].position;
     assert_eq!(
         pad,
@@ -212,7 +225,7 @@ fn dot(a: [f32; 3], b: [f32; 3]) -> f32 {
 /// Positions of slot 0 after each of `seconds` of full throttle, from the
 /// one before the first tick, with the speed readout after each tick.
 fn drive_straight(track: Track, seconds: f32) -> Vec<([f32; 3], f32)> {
-    let mut state = State::new(SEED, 1, track);
+    let mut state = started(State::new(SEED, 1, track));
     let mut trace = vec![(state.kart_transforms()[0].position, 0.0)];
     for _ in 0..ticks(seconds) {
         state = step(state, &[throttle()], DT);
@@ -333,11 +346,11 @@ fn a_kart_out_of_the_world_for_the_tuned_time_respawns_at_its_last_checkpoint_fa
     use sim::tuning::{KART_HALF_HEIGHT_M, RESPAWN_DELAY_S};
     // Slot 0 turned to face +X drives off the front straight, across the
     // run-off and the grass, and over the edge of the world at x = 70.
-    let mut state = State::new(
+    let mut state = started(State::new(
         SEED,
         1,
         oval_with_slot_0_at([28.0, 0.0, 4.0], FACING_PLUS_X),
-    );
+    ));
     let start = state.track().checkpoints()[0].position;
     let next = state.track().checkpoints()[1].position;
     assert!(
@@ -406,7 +419,11 @@ fn backing_up_for_the_tuned_time_raises_the_wrong_way_warning_until_progress_inc
     };
     // Reversing from the grid moves the kart away from the line it faces:
     // spline progress falls from the first tick.
-    let mut state = State::new(SEED, 1, Track::from_sidecar(OVAL).expect("the oval loads"));
+    let mut state = started(State::new(
+        SEED,
+        1,
+        Track::from_sidecar(OVAL).expect("the oval loads"),
+    ));
     let mut warned_at = None;
     for tick in 0..ticks(WRONG_WAY_WARNING_S + 1.0) {
         state = step(state, &[brake], DT);
@@ -492,7 +509,7 @@ fn ticks_and_surfaces_to_pass(
     until: f32,
     driver: impl Fn(&State) -> KartInput,
 ) -> (usize, Vec<Surface>) {
-    let mut state = State::new(SEED, 1, track);
+    let mut state = started(State::new(SEED, 1, track));
     let mut surfaces = Vec::new();
     for tick in 0..ticks(20.0) {
         let input = driver(&state);
@@ -562,11 +579,11 @@ fn a_boost_pad_facing_the_other_way_boosts_a_kart_on_it_and_not_one_beside_it() 
     let facing_plus_z = std::f32::consts::PI;
     let beside = BOOST_PAD_HALF_WIDTH_M + 0.6;
 
-    let mut on_the_pad = State::new(
+    let mut on_the_pad = started(State::new(
         SEED,
         1,
         oval_with_slot_0_at([-30.0, 0.0, -100.0], facing_plus_z),
-    );
+    ));
     let mut first_boost = None;
     for _ in 0..ticks(4.0) {
         on_the_pad = step(on_the_pad, &[throttle()], DT);
@@ -581,11 +598,11 @@ fn a_boost_pad_facing_the_other_way_boosts_a_kart_on_it_and_not_one_beside_it() 
         "boosted on the pad, not at {first_boost:?}"
     );
 
-    let mut beside_the_pad = State::new(
+    let mut beside_the_pad = started(State::new(
         SEED,
         1,
         oval_with_slot_0_at([-30.0 - beside, 0.0, -100.0], facing_plus_z),
-    );
+    ));
     for _ in 0..ticks(4.0) {
         beside_the_pad = step(beside_the_pad, &[throttle()], DT);
         let kart = beside_the_pad.kart_transforms()[0];
@@ -606,7 +623,11 @@ fn a_hop_over_the_sand_does_not_escape_the_cap() {
     // Slot 0 moved to the right of the front straight and turned a little
     // right, so it drifts toward the sand at x = 36 while getting up to
     // speed, and hops just before it reaches the edge.
-    let mut state = State::new(SEED, 1, oval_with_slot_0_at([33.0, 0.0, 4.0], -0.08));
+    let mut state = started(State::new(
+        SEED,
+        1,
+        oval_with_slot_0_at([33.0, 0.0, 4.0], -0.08),
+    ));
     let cap = OFF_TRACK_SPEED_FACTOR * TOP_SPEED_M_PER_S;
     let mut hop = false;
     let mut speed_at_the_hop = 0.0;

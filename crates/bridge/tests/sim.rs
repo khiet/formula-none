@@ -17,11 +17,39 @@ const FLOATS_PER_KART: usize = 12;
 /// Floats per kart in the input buffer: steer, throttle, brake, hop, use item, hold item.
 const FLOATS_PER_INPUT: usize = 6;
 /// Floats per kart in the standings buffer: position, lap, checkpoint,
-/// spline progress, lap time, best lap, wrong way.
-const FLOATS_PER_STANDING: usize = 7;
+/// spline progress, lap time, best lap, wrong way, finish time.
+const FLOATS_PER_STANDING: usize = 8;
+/// Phase codes in the phase buffer.
+const COUNTDOWN: f32 = 0.0;
+const RACING: f32 = 1.0;
+const FINISHED: f32 = 2.0;
 
 fn race(seed: u64, kart_count: usize) -> Race {
     Race::new(seed, kart_count, 0, OVAL).expect("the oval fixture loads")
+}
+
+/// Step the race idle through its countdown.
+fn go(race: &mut Race, humans: usize) {
+    let idle = vec![0.0; humans * FLOATS_PER_INPUT];
+    while race.phase()[0] == COUNTDOWN {
+        race.step(&idle, DT);
+    }
+}
+
+/// The sim's race past its countdown, every kart idle on the grid until Go.
+fn started(mut state: sim::State) -> sim::State {
+    let inputs = vec![sim::KartInput::default(); state.human_count()];
+    while matches!(state.phase(), sim::Phase::Countdown { .. }) {
+        state = sim::step(state, &inputs, DT);
+    }
+    state
+}
+
+/// A race with `humans` humans and `bots` bots, past its countdown.
+fn started_race(seed: u64, humans: usize, bots: usize) -> Race {
+    let mut race = Race::new(seed, humans, bots, OVAL).expect("the karts fit the oval");
+    go(&mut race, humans);
+    race
 }
 
 #[test]
@@ -58,8 +86,8 @@ fn the_buffer_reports_a_drift_its_direction_tier_and_charge_as_the_sim_does() {
         hop: true,
         ..sim::KartInput::default()
     };
-    let mut state = sim::State::new(42, 1, Track::from_sidecar(OVAL).unwrap());
-    let mut race = race(42, 1);
+    let mut state = started(sim::State::new(42, 1, Track::from_sidecar(OVAL).unwrap()));
+    let mut race = started_race(42, 1, 0);
     // Up to speed, then a hop into a left drift held just past blue.
     let to_speed = 3 * TICKS_PER_SECOND;
     let hold = ((HOP_AIRTIME_S + MINI_TURBO_BLUE_CHARGE_S + 0.1) * TICKS_PER_SECOND as f32) as u32;
@@ -122,7 +150,7 @@ fn an_unusable_sidecar_or_too_many_karts_is_an_error_not_a_panic() {
 
 #[test]
 fn step_applies_each_karts_input_from_the_flat_buffer() {
-    let mut race = race(7, 2);
+    let mut race = started_race(7, 2, 0);
     let spawn = race.kart_transforms();
     let mut inputs = vec![0.0; 2 * FLOATS_PER_INPUT];
     inputs[1] = 1.0; // kart 0: full throttle, kart 1: nothing
@@ -147,8 +175,8 @@ fn the_buffer_is_the_sim_crates_readouts_for_the_same_race() {
         throttle: 1.0,
         ..sim::KartInput::default()
     };
-    let mut state = sim::State::new(42, 1, Track::from_sidecar(OVAL).unwrap());
-    let mut race = race(42, 1);
+    let mut state = started(sim::State::new(42, 1, Track::from_sidecar(OVAL).unwrap()));
+    let mut race = started_race(42, 1, 0);
     // Long enough to steer off the asphalt, so the surface code changes too.
     for _ in 0..3 * TICKS_PER_SECOND {
         state = sim::step(state, &[input], DT);
@@ -175,8 +203,8 @@ fn the_buffer_is_the_sim_crates_readouts_for_the_same_race() {
 fn the_standings_buffer_is_the_sim_crates_standings_for_the_same_race() {
     let throttle = [0.0, 1.0, 0.0, 0.0, 0.0, 0.0];
     let idle = [0.0; FLOATS_PER_INPUT];
-    let mut state = sim::State::new(42, 2, Track::from_sidecar(OVAL).unwrap());
-    let mut race = race(42, 2);
+    let mut state = started(sim::State::new(42, 2, Track::from_sidecar(OVAL).unwrap()));
+    let mut race = started_race(42, 2, 0);
     // Long enough for the second kart to pass pole and the first checkpoint.
     for _ in 0..3 * TICKS_PER_SECOND {
         state = sim::step(
@@ -205,6 +233,8 @@ fn the_standings_buffer_is_the_sim_crates_standings_for_the_same_race() {
         assert_eq!(chunk[5], -1.0, "no best lap yet");
         assert!(!expected.wrong_way);
         assert_eq!(chunk[6], 0.0, "both face the right way");
+        assert_eq!(expected.finish_time_s, None);
+        assert_eq!(chunk[7], -1.0, "neither has finished");
     }
     assert_eq!(buffer[0], 2.0, "pole was passed");
     assert_eq!(buffer[FLOATS_PER_STANDING], 1.0);
@@ -216,7 +246,7 @@ fn the_standings_buffer_is_the_sim_crates_standings_for_the_same_race() {
 fn the_standings_buffer_flags_a_kart_going_the_wrong_way() {
     use sim::tuning::WRONG_WAY_WARNING_S;
     let brake = [0.0, 0.0, 1.0, 0.0, 0.0, 0.0];
-    let mut race = race(42, 1);
+    let mut race = started_race(42, 1, 0);
     // Backing away from the line for longer than the warning takes.
     for _ in 0..(WRONG_WAY_WARNING_S * TICKS_PER_SECOND as f32) as u32 + 2 {
         race.step(&brake, DT);
@@ -239,8 +269,8 @@ fn a_short_input_buffer_is_rejected_and_the_race_stays_usable() {
 
 #[test]
 fn the_state_hash_is_the_sim_crates_hash_for_the_same_race() {
-    let mut state = sim::State::new(42, 2, Track::from_sidecar(OVAL).unwrap());
-    let mut race = race(42, 2);
+    let mut state = started(sim::State::new(42, 2, Track::from_sidecar(OVAL).unwrap()));
+    let mut race = started_race(42, 2, 0);
     assert_eq!(race.state_hash(), state.hash());
     let turn = sim::KartInput {
         steer: 1.0,
@@ -274,7 +304,7 @@ fn replay_hashes_runs_a_replay_json_on_a_sidecar_and_reports_the_sims_hashes() {
 #[test]
 fn bots_fill_the_slots_behind_the_humans_and_step_takes_only_the_humans_inputs() {
     assert_eq!(bridge::karts_per_race(), sim::tuning::KARTS_PER_RACE);
-    let mut race = Race::new(7, 1, 2, OVAL).expect("one human and two bots fit the oval");
+    let mut race = started_race(7, 1, 2);
     assert_eq!(race.kart_transforms().len(), 3 * FLOATS_PER_KART);
     assert_eq!(race.standings().len(), 3 * FLOATS_PER_STANDING);
     let idle = [0.0; FLOATS_PER_INPUT];
@@ -291,4 +321,95 @@ fn bots_fill_the_slots_behind_the_humans_and_step_takes_only_the_humans_inputs()
         Race::new(7, 1, 8, OVAL).is_err(),
         "nine karts do not fit the oval's grid"
     );
+}
+
+/// Full throttle toward a point a little right of the centreline ahead of
+/// the kart: laps the oval clear of the pipes, as the sim's tests do.
+fn follow_centreline(state: &sim::State, kart: usize) -> sim::KartInput {
+    let transform = state.kart_transforms()[kart];
+    let progress = state.standings()[kart].spline_progress;
+    let track = state.track();
+    let ahead = track.point_at(progress + sim::tuning::BOT_LOOKAHEAD_M);
+    let further = track.point_at(progress + sim::tuning::BOT_LOOKAHEAD_M + 1.0);
+    let (tx, tz) = (further[0] - ahead[0], further[2] - ahead[2]);
+    let travel = (tx * tx + tz * tz).sqrt().max(f32::EPSILON);
+    let target = [ahead[0] - tz / travel * 2.5, ahead[2] + tx / travel * 2.5];
+    let (dx, dz) = (
+        target[0] - transform.position[0],
+        target[1] - transform.position[2],
+    );
+    let length = (dx * dx + dz * dz).sqrt().max(f32::EPSILON);
+    let [x, y, z, w] = transform.rotation;
+    let yaw = (2.0 * (w * y + x * z)).atan2(1.0 - 2.0 * (y * y + z * z));
+    let (sin, cos) = yaw.sin_cos();
+    let rightward = (dx * cos - dz * sin) / length;
+    sim::KartInput {
+        steer: (rightward * 4.0).clamp(-1.0, 1.0),
+        throttle: 1.0,
+        ..sim::KartInput::default()
+    }
+}
+
+#[test]
+fn the_phase_buffer_walks_countdown_racing_and_finished_as_the_sim_does() {
+    use sim::tuning::{COUNTDOWN_S, LAPS_PER_RACE, RACE_END_GRACE_S};
+    let mut race = race(42, 2);
+    assert_eq!(race.phase(), vec![COUNTDOWN, COUNTDOWN_S, -1.0]);
+    go(&mut race, 2);
+    assert_eq!(race.phase(), vec![RACING, 0.0, -1.0]);
+
+    // Pole idles; the kart in the other column laps the oval, and the
+    // sim's race is stepped alongside to say what the buffers should hold.
+    let mut state = started(sim::State::new(42, 2, Track::from_sidecar(OVAL).unwrap()));
+    let mut ticks = 0;
+    while state.standings()[1].laps_completed < LAPS_PER_RACE {
+        let input = follow_centreline(&state, 1);
+        state = sim::step(state, &[sim::KartInput::default(), input], DT);
+        race.step(
+            &[
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                input.steer,
+                input.throttle,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+            ],
+            DT,
+        );
+        ticks += 1;
+        assert!(ticks < 90 * TICKS_PER_SECOND, "three laps take under 90 s");
+    }
+    let finish = state.standings()[1]
+        .finish_time_s
+        .expect("the lapping kart finished");
+    let phase = race.phase();
+    assert_eq!(phase[0], RACING);
+    assert!(
+        (phase[1] - ticks as f32 * DT).abs() < 0.01,
+        "race clock {}",
+        phase[1]
+    );
+    assert!(
+        (phase[2] - RACE_END_GRACE_S).abs() < 1e-5,
+        "grace {}",
+        phase[2]
+    );
+    let standings = race.standings();
+    assert_eq!(standings[FLOATS_PER_STANDING + 7], finish);
+    assert_eq!(standings[7], -1.0, "pole has not finished");
+    assert_eq!(standings[FLOATS_PER_STANDING], 1.0, "the finisher leads");
+
+    // Idle through the grace, with a tick for the timer's rounding.
+    let idle = [0.0; 2 * FLOATS_PER_INPUT];
+    for _ in 0..(RACE_END_GRACE_S * TICKS_PER_SECOND as f32) as u32 + 1 {
+        race.step(&idle, DT);
+    }
+    assert_eq!(race.phase(), vec![FINISHED, 0.0, -1.0]);
+    assert_eq!(race.standings()[FLOATS_PER_STANDING + 7], finish);
 }

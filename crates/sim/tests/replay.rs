@@ -7,10 +7,19 @@
 use sim::tuning::{
     KART_HALF_LENGTH_M, REPLAY_HASH_INTERVAL_TICKS, TICKS_PER_SECOND, TOP_SPEED_M_PER_S,
 };
-use sim::{step, KartInput, Replay, Segment, State, Surface, Track};
+use sim::{step, KartInput, Phase, Replay, Segment, State, Surface, Track};
 
 const OVAL: &str = include_str!("../../../assets/tracks/oval/oval.track.json");
 const DT: f32 = 1.0 / TICKS_PER_SECOND as f32;
+
+/// The race past its countdown, every kart idle on the grid until Go.
+fn started(mut state: State) -> State {
+    let inputs = vec![KartInput::default(); state.human_count()];
+    while matches!(state.phase(), Phase::Countdown { .. }) {
+        state = step(state, &inputs, DT);
+    }
+    state
+}
 
 fn race(seed: u64, kart_count: usize) -> State {
     State::new(
@@ -53,9 +62,9 @@ fn every_kart_is_part_of_the_hash() {
 
 #[test]
 fn speed_position_and_heading_are_part_of_the_hash() {
-    let idle = step(race(7, 1), &[KartInput::default()], DT);
-    let driving = step(race(7, 1), &[THROTTLE], DT);
-    let turning = step(race(7, 1), &[TURN], DT);
+    let idle = step(started(race(7, 1)), &[KartInput::default()], DT);
+    let driving = step(started(race(7, 1)), &[THROTTLE], DT);
+    let turning = step(started(race(7, 1)), &[TURN], DT);
     assert_ne!(idle.hash(), driving.hash(), "speed and position");
     assert_ne!(driving.hash(), turning.hash(), "heading");
 }

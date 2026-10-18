@@ -24,6 +24,12 @@ for every tick so far, the bots' count and the wasm sim's hashes. Move it
 here under a descriptive name ending in `.replay.json`; both tests pick it
 up by listing this directory.
 
+A race begins with its countdown, and a recording starts with the race, so
+every fixture opens with the countdown's ticks: idle inputs for a clean
+start, or the throttle for a start boost or a stall. The fixtures recorded
+before the countdown existed were given an idle segment of its length in
+front of their drive, so the drive itself is as it was recorded.
+
 ## Re-record after changing the rules
 
 A change to the sim changes every hash. Once the change is intended, rerun

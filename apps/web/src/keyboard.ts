@@ -5,8 +5,9 @@ export interface KeySource {
   addEventListener(
     type: "keydown" | "keyup",
     listener: (event: { readonly key: string; preventDefault(): void }) => void,
+    options?: AddEventListenerOptions,
   ): void;
-  addEventListener(type: "blur", listener: () => void): void;
+  addEventListener(type: "blur", listener: () => void, options?: AddEventListenerOptions): void;
 }
 
 type Action = "left" | "right" | "throttle" | "brake" | "hop" | "item";
@@ -33,35 +34,49 @@ function normalise(key: string): string {
 /**
  * The keys held when `current()` is called, as one kart's input. A key that
  * went down and up again between two reads counts as held for the next one,
- * so a tap shorter than a tick still lands.
+ * so a tap shorter than a tick still lands. Aborting `signal` stops
+ * listening, so a Scene that goes away takes its keys with it.
  */
-export function keyboardKartInput(source: KeySource): KartInputSource {
+export function keyboardKartInput(source: KeySource, signal?: AbortSignal): KartInputSource {
   const held = new Set<string>();
   const tapped = new Set<string>();
   let itemPressed = false;
-  source.addEventListener("keydown", (event) => {
-    const key = normalise(event.key);
-    if (!KEY_ACTIONS.has(key)) {
-      return;
-    }
-    // Arrows and space scroll the page otherwise.
-    event.preventDefault();
-    // A held key repeats keydown; only the first one is a press.
-    if (!held.has(key)) {
-      itemPressed ||= KEY_ACTIONS.get(key) === "item";
-      tapped.add(key);
-    }
-    held.add(key);
-  });
-  source.addEventListener("keyup", (event) => {
-    held.delete(normalise(event.key));
-  });
+  const options: AddEventListenerOptions = signal === undefined ? {} : { signal };
+  source.addEventListener(
+    "keydown",
+    (event) => {
+      const key = normalise(event.key);
+      if (!KEY_ACTIONS.has(key)) {
+        return;
+      }
+      // Arrows and space scroll the page otherwise.
+      event.preventDefault();
+      // A held key repeats keydown; only the first one is a press.
+      if (!held.has(key)) {
+        itemPressed ||= KEY_ACTIONS.get(key) === "item";
+        tapped.add(key);
+      }
+      held.add(key);
+    },
+    options,
+  );
+  source.addEventListener(
+    "keyup",
+    (event) => {
+      held.delete(normalise(event.key));
+    },
+    options,
+  );
   // Keyup never arrives for a key released in another window.
-  source.addEventListener("blur", () => {
-    held.clear();
-    tapped.clear();
-    itemPressed = false;
-  });
+  source.addEventListener(
+    "blur",
+    () => {
+      held.clear();
+      tapped.clear();
+      itemPressed = false;
+    },
+    options,
+  );
 
   const down = (action: Action): boolean => {
     for (const [key, mapped] of KEY_ACTIONS) {

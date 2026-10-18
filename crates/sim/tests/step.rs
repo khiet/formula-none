@@ -8,18 +8,27 @@ use sim::tuning::{
     STEER_RATE_LOW_SPEED_RAD_PER_S, STEER_RATE_TOP_SPEED_RAD_PER_S, TICKS_PER_SECOND,
     TOP_SPEED_M_PER_S,
 };
-use sim::{step, KartInput, KartTransform, State, Track};
+use sim::{step, KartInput, KartTransform, Phase, State, Track};
 
 const OVAL: &str = include_str!("../../../assets/tracks/oval/oval.track.json");
 const DT: f32 = 1.0 / TICKS_PER_SECOND as f32;
 const SEED: u64 = 0x5EED;
 
+/// The race past its countdown, every kart idle on the grid until Go.
+fn started(mut state: State) -> State {
+    let inputs = vec![KartInput::default(); state.human_count()];
+    while matches!(state.phase(), Phase::Countdown { .. }) {
+        state = step(state, &inputs, DT);
+    }
+    state
+}
+
 fn race(kart_count: usize) -> State {
-    State::new(
+    started(State::new(
         SEED,
         kart_count,
         Track::from_sidecar(OVAL).expect("the oval fixture loads"),
-    )
+    ))
 }
 
 fn run(mut state: State, inputs: impl IntoIterator<Item = KartInput>) -> State {
