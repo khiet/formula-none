@@ -31,8 +31,8 @@ pub fn app(commit: &'static str) -> Router {
 }
 
 /// Serve `app` on `listener` until `shutdown` resolves, then finish the
-/// connections in flight and return. Idle connections are closed, so a
-/// SIGTERM turns into an exit well inside Docker's ten-second grace period.
+/// requests in flight and return. Idle connections are closed rather than
+/// waited on, so the return is prompt; a container restart depends on that.
 pub async fn serve(
     listener: TcpListener,
     app: Router,

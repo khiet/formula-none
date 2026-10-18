@@ -1,7 +1,7 @@
 # The stack the deploy document runs on the instance (ADR 0015). The image
 # carries this file, the Caddyfile and the built client under /release; the
-# document copies that directory next to itself and runs Compose from it, so
-# the deployed commit and its stack definition never drift apart.
+# document copies that directory out of the pulled image and runs Compose
+# from it, so the deployed commit and its stack definition never drift apart.
 #
 # Caddy terminates TLS with a Let's Encrypt certificate kept in caddy_data
 # and serves the client; everything under /api is proxied to the server.
