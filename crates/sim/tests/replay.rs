@@ -4,7 +4,7 @@
 //! sim produced when they were recorded; the web app's tests run the same
 //! fixtures through the wasm build.
 
-use sim::tuning::{REPLAY_HASH_INTERVAL_TICKS, TICKS_PER_SECOND};
+use sim::tuning::{KART_HALF_LENGTH_M, REPLAY_HASH_INTERVAL_TICKS, TICKS_PER_SECOND};
 use sim::{step, KartInput, Replay, Segment, State, Surface, Track};
 
 const OVAL: &str = include_str!("../../../assets/tracks/oval/oval.track.json");
@@ -22,11 +22,13 @@ const THROTTLE: KartInput = KartInput {
     steer: 0.0,
     throttle: 1.0,
     brake: 0.0,
+    hop: false,
+    use_item: false,
+    hold_item: false,
 };
 const TURN: KartInput = KartInput {
     steer: 1.0,
-    throttle: 1.0,
-    brake: 0.0,
+    ..THROTTLE
 };
 
 #[test]
@@ -91,6 +93,32 @@ fn a_replay_reruns_its_inputs_and_hashes_the_state_at_every_60th_tick() {
         hashes.len(),
         2,
         "ticks 60 and 120; the last 30 ticks are not hashed"
+    );
+}
+
+#[test]
+fn a_replay_recorded_before_the_buttons_existed_reads_them_as_unpressed() {
+    let replay = Replay::from_json(REPLAY).unwrap();
+    assert_eq!(replay.segments[0].inputs, vec![THROTTLE]);
+
+    let pressed = KartInput {
+        hop: true,
+        use_item: true,
+        hold_item: true,
+        ..THROTTLE
+    };
+    let json = replay_of(
+        "oval",
+        vec![Segment {
+            ticks: 1,
+            inputs: vec![pressed],
+        }],
+    )
+    .to_json();
+    assert!(json.contains("\"useItem\": true"), "{json}");
+    assert_eq!(
+        Replay::from_json(&json).unwrap().segments[0].inputs,
+        vec![pressed]
     );
 }
 
@@ -228,9 +256,11 @@ fn the_fixture_set_exercises_kart_contact_off_track_walls_and_both_tracks() {
         );
     }
     assert!(held_by_a_wall, "no lone kart is held by a wall");
-    // Karts are one metre across, so centres this close are in contact.
+    // Centres within a kart's length of each other are in contact or about
+    // to be, whichever way the two karts face.
+    let touching = 2.0 * KART_HALF_LENGTH_M + 0.05;
     assert!(
-        closest_karts < 1.05,
+        closest_karts < touching,
         "no two karts touch: closest {closest_karts:.2} m"
     );
 }

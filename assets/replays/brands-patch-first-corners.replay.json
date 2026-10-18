@@ -9,22 +9,34 @@
         {
           "steer": 0.0,
           "throttle": 1.0,
-          "brake": 0.0
+          "brake": 0.0,
+          "hop": false,
+          "useItem": false,
+          "holdItem": false
         },
         {
           "steer": 0.0,
           "throttle": 1.0,
-          "brake": 0.0
+          "brake": 0.0,
+          "hop": false,
+          "useItem": false,
+          "holdItem": false
         },
         {
           "steer": 0.0,
           "throttle": 1.0,
-          "brake": 0.0
+          "brake": 0.0,
+          "hop": false,
+          "useItem": false,
+          "holdItem": false
         },
         {
           "steer": 0.0,
           "throttle": 1.0,
-          "brake": 0.0
+          "brake": 0.0,
+          "hop": false,
+          "useItem": false,
+          "holdItem": false
         }
       ]
     },
@@ -34,22 +46,34 @@
         {
           "steer": -1.0,
           "throttle": 1.0,
-          "brake": 0.0
+          "brake": 0.0,
+          "hop": false,
+          "useItem": false,
+          "holdItem": false
         },
         {
           "steer": -1.0,
           "throttle": 1.0,
-          "brake": 0.0
+          "brake": 0.0,
+          "hop": false,
+          "useItem": false,
+          "holdItem": false
         },
         {
           "steer": 0.0,
           "throttle": 1.0,
-          "brake": 0.0
+          "brake": 0.0,
+          "hop": false,
+          "useItem": false,
+          "holdItem": false
         },
         {
           "steer": -1.0,
           "throttle": 1.0,
-          "brake": 0.0
+          "brake": 0.0,
+          "hop": false,
+          "useItem": false,
+          "holdItem": false
         }
       ]
     },
@@ -59,22 +83,34 @@
         {
           "steer": 0.0,
           "throttle": 1.0,
-          "brake": 0.0
+          "brake": 0.0,
+          "hop": false,
+          "useItem": false,
+          "holdItem": false
         },
         {
           "steer": 0.0,
           "throttle": 1.0,
-          "brake": 0.0
+          "brake": 0.0,
+          "hop": false,
+          "useItem": false,
+          "holdItem": false
         },
         {
           "steer": 0.0,
           "throttle": 1.0,
-          "brake": 0.0
+          "brake": 0.0,
+          "hop": false,
+          "useItem": false,
+          "holdItem": false
         },
         {
           "steer": 0.0,
           "throttle": 1.0,
-          "brake": 0.0
+          "brake": 0.0,
+          "hop": false,
+          "useItem": false,
+          "holdItem": false
         }
       ]
     },
@@ -84,22 +120,34 @@
         {
           "steer": 1.0,
           "throttle": 1.0,
-          "brake": 0.0
+          "brake": 0.0,
+          "hop": false,
+          "useItem": false,
+          "holdItem": false
         },
         {
           "steer": 0.0,
           "throttle": 1.0,
-          "brake": 0.0
+          "brake": 0.0,
+          "hop": false,
+          "useItem": false,
+          "holdItem": false
         },
         {
           "steer": 1.0,
           "throttle": 1.0,
-          "brake": 0.0
+          "brake": 0.0,
+          "hop": false,
+          "useItem": false,
+          "holdItem": false
         },
         {
           "steer": 1.0,
           "throttle": 1.0,
-          "brake": 0.0
+          "brake": 0.0,
+          "hop": false,
+          "useItem": false,
+          "holdItem": false
         }
       ]
     },
@@ -109,22 +157,34 @@
         {
           "steer": 0.0,
           "throttle": 1.0,
-          "brake": 0.0
+          "brake": 0.0,
+          "hop": false,
+          "useItem": false,
+          "holdItem": false
         },
         {
           "steer": -1.0,
           "throttle": 1.0,
-          "brake": 0.0
+          "brake": 0.0,
+          "hop": false,
+          "useItem": false,
+          "holdItem": false
         },
         {
           "steer": 0.0,
           "throttle": 1.0,
-          "brake": 0.0
+          "brake": 0.0,
+          "hop": false,
+          "useItem": false,
+          "holdItem": false
         },
         {
           "steer": 0.0,
           "throttle": 1.0,
-          "brake": 0.0
+          "brake": 0.0,
+          "hop": false,
+          "useItem": false,
+          "holdItem": false
         }
       ]
     },
@@ -134,22 +194,34 @@
         {
           "steer": -1.0,
           "throttle": 1.0,
-          "brake": 0.0
+          "brake": 0.0,
+          "hop": false,
+          "useItem": false,
+          "holdItem": false
         },
         {
           "steer": -1.0,
           "throttle": 1.0,
-          "brake": 0.0
+          "brake": 0.0,
+          "hop": false,
+          "useItem": false,
+          "holdItem": false
         },
         {
           "steer": -1.0,
           "throttle": 1.0,
-          "brake": 0.0
+          "brake": 0.0,
+          "hop": false,
+          "useItem": false,
+          "holdItem": false
         },
         {
           "steer": -1.0,
           "throttle": 1.0,
-          "brake": 0.0
+          "brake": 0.0,
+          "hop": false,
+          "useItem": false,
+          "holdItem": false
         }
       ]
     },
@@ -159,41 +231,53 @@
         {
           "steer": 0.0,
           "throttle": 1.0,
-          "brake": 0.0
+          "brake": 0.0,
+          "hop": false,
+          "useItem": false,
+          "holdItem": false
         },
         {
           "steer": 0.0,
           "throttle": 1.0,
-          "brake": 0.0
+          "brake": 0.0,
+          "hop": false,
+          "useItem": false,
+          "holdItem": false
         },
         {
           "steer": 0.0,
           "throttle": 1.0,
-          "brake": 0.0
+          "brake": 0.0,
+          "hop": false,
+          "useItem": false,
+          "holdItem": false
         },
         {
           "steer": 0.0,
           "throttle": 1.0,
-          "brake": 0.0
+          "brake": 0.0,
+          "hop": false,
+          "useItem": false,
+          "holdItem": false
         }
       ]
     }
   ],
   "hashes": [
-    "9c8875187e3a9c57",
-    "fd7ada778a9793ea",
-    "2b4bea45edca5adf",
-    "84811cd44ed85c7a",
-    "78cb8878b16f5182",
-    "4385013cf4e6b728",
-    "0dc75ea5227f6e58",
-    "c9533e7cf2fbed11",
-    "89bbab1357f5a020",
-    "7b63025f53f377ca",
-    "cb10ebc6610b80b1",
-    "2801e9e7f60340c9",
-    "bf860afee89fbb77",
-    "e1624072769e143b",
-    "5128a6e63adf4593"
+    "7c764c95cfdf88fa",
+    "8f3bbcafa3971ead",
+    "0c0f28499230276b",
+    "0ced974dc436eafd",
+    "6261b17198a28073",
+    "12336e650d2a561a",
+    "d645131c42813899",
+    "257f68313a9db089",
+    "d19932692626ee39",
+    "aa10dd9d5eb34ddb",
+    "541152da33b3f664",
+    "1415258b98894371",
+    "8f64d2877399007c",
+    "3a56b8a0a4e09be5",
+    "be2b6e85922da03d"
   ]
 }

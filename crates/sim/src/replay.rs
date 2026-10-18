@@ -12,16 +12,26 @@
 //!   "seed": "7",
 //!   "track": "oval",
 //!   "segments": [
-//!     { "ticks": 90, "inputs": [{ "steer": 0.0, "throttle": 1.0, "brake": 0.0 }] }
+//!     {
+//!       "ticks": 90,
+//!       "inputs": [
+//!         {
+//!           "steer": 0.0, "throttle": 1.0, "brake": 0.0,
+//!           "hop": false, "useItem": false, "holdItem": false
+//!         }
+//!       ]
+//!     }
 //!   ],
 //!   "hashes": ["3e0ad4e84a0b22c7"]
 //! }
 //! ```
 //!
 //! Inputs are run-length encoded: a segment holds one input per kart in grid
-//! order and the number of consecutive ticks it was held. The seed and the
-//! hashes are 64-bit values, which JSON numbers cannot carry exactly, so the
-//! seed is written as a decimal string and each hash as 16 hex digits.
+//! order and the number of consecutive ticks it was held. A missing button
+//! reads as unpressed, so a replay recorded before the buttons existed still
+//! runs. The seed and the hashes are 64-bit values, which JSON numbers cannot
+//! carry exactly, so the seed is written as a decimal string and each hash as
+//! 16 hex digits.
 
 use crate::tuning::REPLAY_HASH_INTERVAL_TICKS;
 use crate::{step, KartInput, State, Track};

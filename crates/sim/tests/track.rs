@@ -2,7 +2,7 @@
 //! what is under a point, drive into things. The exported fixtures under
 //! `assets/tracks` are the inputs; their layouts document the numbers used.
 
-use sim::tuning::{KART_HALF_EXTENT_M, TICKS_PER_SECOND};
+use sim::tuning::{KART_HALF_HEIGHT_M, TICKS_PER_SECOND};
 use sim::{step, KartInput, State, Surface, Track, TrackError};
 
 const OVAL: &str = include_str!("../../../assets/tracks/oval/oval.track.json");
@@ -170,7 +170,7 @@ fn karts_start_on_the_spawn_grid_in_slot_order() {
     for (kart, slot) in transforms.iter().zip(track.spawn_grid()) {
         assert_eq!(kart.position[0], slot.position[0]);
         assert_eq!(kart.position[2], slot.position[2]);
-        assert!((kart.position[1] - slot.position[1] - KART_HALF_EXTENT_M).abs() < 1e-5);
+        assert!((kart.position[1] - slot.position[1] - KART_HALF_HEIGHT_M).abs() < 1e-5);
         assert_eq!(
             kart.rotation,
             [0.0, 0.0, 0.0, 1.0],
@@ -306,7 +306,7 @@ fn a_kart_driving_into_a_pipe_stops_at_it() {
         "never reached the pipe: {kart:?}"
     );
     assert!(
-        (kart.position[1] - KART_HALF_EXTENT_M).abs() < 0.2,
+        (kart.position[1] - KART_HALF_HEIGHT_M).abs() < 0.2,
         "left the ground: {kart:?}"
     );
 }
@@ -341,7 +341,7 @@ fn held_by_the_first_turns_wall(
         "never reached the wall: {kart:?}"
     );
     assert!(
-        (kart.position[1] - KART_HALF_EXTENT_M + 0.05).abs() < 0.2,
+        (kart.position[1] - KART_HALF_HEIGHT_M + 0.05).abs() < 0.2,
         "left the ground: {kart:?}"
     );
     assert_eq!(
@@ -380,7 +380,7 @@ fn a_kart_drives_brands_patch_without_falling_through() {
         "drove up the straight: {kart:?}"
     );
     assert!(
-        (kart.position[1] - KART_HALF_EXTENT_M).abs() < 0.1,
+        (kart.position[1] - KART_HALF_HEIGHT_M).abs() < 0.1,
         "fell or flew: {kart:?}"
     );
     assert_eq!(state.kart_surface(0), Surface::Asphalt);

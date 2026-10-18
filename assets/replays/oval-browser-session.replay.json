@@ -9,7 +9,10 @@
         {
           "steer": 0.0,
           "throttle": 0.0,
-          "brake": 0.0
+          "brake": 0.0,
+          "hop": false,
+          "useItem": false,
+          "holdItem": false
         }
       ]
     },
@@ -19,7 +22,10 @@
         {
           "steer": 0.0,
           "throttle": 1.0,
-          "brake": 0.0
+          "brake": 0.0,
+          "hop": false,
+          "useItem": false,
+          "holdItem": false
         }
       ]
     },
@@ -29,7 +35,10 @@
         {
           "steer": -1.0,
           "throttle": 1.0,
-          "brake": 0.0
+          "brake": 0.0,
+          "hop": false,
+          "useItem": false,
+          "holdItem": false
         }
       ]
     },
@@ -39,7 +48,10 @@
         {
           "steer": 0.0,
           "throttle": 1.0,
-          "brake": 0.0
+          "brake": 0.0,
+          "hop": false,
+          "useItem": false,
+          "holdItem": false
         }
       ]
     },
@@ -49,13 +61,16 @@
         {
           "steer": 0.0,
           "throttle": 0.0,
-          "brake": 0.0
+          "brake": 0.0,
+          "hop": false,
+          "useItem": false,
+          "holdItem": false
         }
       ]
     }
   ],
   "hashes": [
-    "ba6acac9b037b073",
-    "619c075fd6e79004"
+    "78e9a64e739f21a5",
+    "25e35f325a68e90a"
   ]
 }

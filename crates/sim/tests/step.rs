@@ -3,7 +3,11 @@
 //! Races run on the oval fixture, whose front straight is clear for 100 m
 //! past the start line and runs along -Z.
 
-use sim::tuning::{ACCELERATION_TO_TOP_S, COAST_TO_STOP_S, TICKS_PER_SECOND, TOP_SPEED_M_PER_S};
+use sim::tuning::{
+    ACCELERATION_TO_TOP_S, BRAKE_TO_STOP_S, COAST_TO_STOP_S, REVERSE_TOP_SPEED_M_PER_S,
+    STEER_RATE_LOW_SPEED_RAD_PER_S, STEER_RATE_TOP_SPEED_RAD_PER_S, TICKS_PER_SECOND,
+    TOP_SPEED_M_PER_S,
+};
 use sim::{step, KartInput, KartTransform, State, Track};
 
 const OVAL: &str = include_str!("../../../assets/tracks/oval/oval.track.json");
@@ -48,17 +52,40 @@ fn yaw(transform: &KartTransform) -> f32 {
     (2.0 * (w * y + x * z)).atan2(1.0 - 2.0 * (y * y + z * z))
 }
 
-fn drive_then_turn() -> Vec<KartInput> {
-    let accelerate = KartInput {
+/// Signed speed along -Z between two transforms of a kart facing -Z: positive
+/// is forward. Read from positions so the test never trusts the readout alone.
+fn forward_speed(before: &KartTransform, after: &KartTransform) -> f32 {
+    (before.position[2] - after.position[2]) / DT
+}
+
+/// Yaw rate measured over one more tick of `input`, in radians per second.
+fn measured_yaw_rate(state: State, input: KartInput) -> f32 {
+    let before = yaw(&only_kart(&state));
+    let after = yaw(&only_kart(&step(state, &[input], DT)));
+    (after - before) / DT
+}
+
+fn accelerate() -> KartInput {
+    KartInput {
         throttle: 1.0,
         ..KartInput::default()
-    };
+    }
+}
+
+fn brake() -> KartInput {
+    KartInput {
+        brake: 1.0,
+        ..KartInput::default()
+    }
+}
+
+fn drive_then_turn() -> Vec<KartInput> {
     let turn = KartInput {
         throttle: 1.0,
         steer: 1.0,
         ..KartInput::default()
     };
-    let mut inputs = vec![accelerate; ticks(3.0)];
+    let mut inputs = vec![accelerate(); ticks(3.0)];
     inputs.extend(vec![turn; ticks(2.0)]);
     inputs
 }
@@ -91,14 +118,13 @@ fn a_kart_with_no_input_rests_on_the_track() {
 
 #[test]
 fn full_throttle_reaches_top_speed_in_the_tuned_time() {
-    let accelerate = KartInput {
-        throttle: 1.0,
-        ..KartInput::default()
-    };
     // One tick past the tuned ramp so the comparison is not on the boundary.
-    let state = run(race(1), vec![accelerate; ticks(ACCELERATION_TO_TOP_S) + 1]);
+    let state = run(
+        race(1),
+        vec![accelerate(); ticks(ACCELERATION_TO_TOP_S) + 1],
+    );
     let before = only_kart(&state);
-    let state = step(state, &[accelerate], DT);
+    let state = step(state, &[accelerate()], DT);
     let after = only_kart(&state);
 
     let speed = distance_travelled(&before, &after) / DT;
@@ -111,11 +137,7 @@ fn full_throttle_reaches_top_speed_in_the_tuned_time() {
 #[test]
 fn throttle_moves_the_kart_forward_along_its_facing() {
     let spawn = only_kart(&race(1));
-    let accelerate = KartInput {
-        throttle: 1.0,
-        ..KartInput::default()
-    };
-    let after = only_kart(&run(race(1), vec![accelerate; ticks(1.0)]));
+    let after = only_kart(&run(race(1), vec![accelerate(); ticks(1.0)]));
 
     // Karts spawn facing -Z, the Three.js forward convention.
     assert!(after.position[2] < spawn.position[2] - 1.0);
@@ -142,30 +164,130 @@ fn steering_right_turns_the_kart_clockwise_seen_from_above() {
 }
 
 #[test]
-fn brake_brings_a_moving_kart_to_a_stop() {
-    let accelerate = KartInput {
-        throttle: 1.0,
+fn top_speed_is_capped_however_long_the_throttle_is_held() {
+    let state = run(
+        race(1),
+        vec![accelerate(); ticks(3.0 * ACCELERATION_TO_TOP_S)],
+    );
+    let before = only_kart(&state);
+    let after = only_kart(&step(state, &[accelerate()], DT));
+
+    assert!(forward_speed(&before, &after) <= TOP_SPEED_M_PER_S + 0.01);
+    assert_eq!(after.speed, TOP_SPEED_M_PER_S);
+}
+
+#[test]
+fn steer_rate_is_the_tuned_low_speed_value_when_barely_rolling() {
+    // A few ticks of throttle: rolling, but a small fraction of top speed.
+    let rolling = run(race(1), vec![accelerate(); 8]);
+    let speed = only_kart(&rolling).speed;
+    assert!(
+        speed > 1.0 && speed < 0.1 * TOP_SPEED_M_PER_S,
+        "{speed} m/s"
+    );
+    let turn = KartInput {
+        steer: 1.0,
         ..KartInput::default()
     };
-    let brake = KartInput {
-        brake: 1.0,
-        ..KartInput::default()
+
+    let rate = measured_yaw_rate(rolling, turn).abs();
+    assert!(
+        (rate - STEER_RATE_LOW_SPEED_RAD_PER_S).abs() < 0.1,
+        "expected about {STEER_RATE_LOW_SPEED_RAD_PER_S} rad/s, measured {rate}"
+    );
+}
+
+#[test]
+fn steer_rate_falls_to_the_tuned_top_speed_value() {
+    let at_top_speed = run(
+        race(1),
+        vec![accelerate(); ticks(ACCELERATION_TO_TOP_S) + 1],
+    );
+    let turn = KartInput {
+        steer: 1.0,
+        ..accelerate()
     };
-    let moving = run(race(1), vec![accelerate; ticks(1.0)]);
-    let stopped = run(moving, vec![brake; ticks(3.0)]);
-    let before = only_kart(&stopped);
-    let after = only_kart(&step(stopped, &[brake], DT));
+
+    let rate = measured_yaw_rate(at_top_speed, turn).abs();
+    assert!(
+        (rate - STEER_RATE_TOP_SPEED_RAD_PER_S).abs() < 0.02,
+        "expected about {STEER_RATE_TOP_SPEED_RAD_PER_S} rad/s, measured {rate}"
+    );
+}
+
+#[test]
+fn full_brake_from_top_speed_stops_in_the_tuned_time() {
+    let at_top_speed = run(
+        race(1),
+        vec![accelerate(); ticks(ACCELERATION_TO_TOP_S) + 1],
+    );
+    // A tick moves the kart at the speed it reaches that tick, so the last
+    // tick before the tuned time is the last one that still rolls forward.
+    let nearly_stopped = run(at_top_speed, vec![brake(); ticks(BRAKE_TO_STOP_S) - 2]);
+    let before = only_kart(&nearly_stopped);
+    let last_rolling = step(nearly_stopped, &[brake()], DT);
+    assert!(
+        forward_speed(&before, &only_kart(&last_rolling)) > 0.1,
+        "still rolling forward one tick before the tuned time"
+    );
+
+    let before = only_kart(&last_rolling);
+    let after = only_kart(&step(last_rolling, &[brake()], DT));
+    assert!(forward_speed(&before, &after).abs() < 0.5);
+}
+
+#[test]
+fn holding_the_brake_past_a_stop_reverses_up_to_the_tuned_reverse_top_speed() {
+    let spawn = only_kart(&race(1));
+    let reversing = run(race(1), vec![brake(); ticks(2.0)]);
+    let before = only_kart(&reversing);
+    let after = only_kart(&step(reversing, &[brake()], DT));
+
+    assert!(
+        after.position[2] > spawn.position[2] + 1.0,
+        "moved backward (+Z)"
+    );
+    let speed = forward_speed(&before, &after);
+    assert!(
+        (speed + REVERSE_TOP_SPEED_M_PER_S).abs() < 0.5,
+        "expected about -{REVERSE_TOP_SPEED_M_PER_S} m/s, measured {speed}"
+    );
+    assert_eq!(
+        after.speed, -REVERSE_TOP_SPEED_M_PER_S,
+        "the readout is signed"
+    );
+}
+
+#[test]
+fn releasing_the_brake_while_reversing_coasts_to_a_stop() {
+    let reversing = run(race(1), vec![brake(); ticks(1.0)]);
+    let coasted = run(
+        reversing,
+        vec![KartInput::default(); ticks(COAST_TO_STOP_S)],
+    );
+    let before = only_kart(&coasted);
+    let after = only_kart(&step(coasted, &[KartInput::default()], DT));
 
     assert!(distance_travelled(&before, &after) / DT < 0.01);
+    assert_eq!(after.speed, 0.0);
+}
+
+#[test]
+fn steering_while_reversing_swings_the_nose_the_other_way() {
+    let reverse_right = KartInput {
+        steer: 1.0,
+        ..brake()
+    };
+    let reversing = run(race(1), vec![brake(); ticks(1.0)]);
+
+    // Forward, steer right turns clockwise (negative yaw); backing up with
+    // the same steer swings the nose anticlockwise, as a car does.
+    assert!(measured_yaw_rate(reversing, reverse_right) > 0.5);
 }
 
 #[test]
 fn releasing_the_throttle_coasts_to_a_stop_in_the_tuned_time() {
-    let accelerate = KartInput {
-        throttle: 1.0,
-        ..KartInput::default()
-    };
-    let at_top_speed = run(race(1), vec![accelerate; ticks(ACCELERATION_TO_TOP_S)]);
+    let at_top_speed = run(race(1), vec![accelerate(); ticks(ACCELERATION_TO_TOP_S)]);
     let halfway = run(
         at_top_speed,
         vec![KartInput::default(); ticks(COAST_TO_STOP_S / 2.0)],
@@ -188,13 +310,9 @@ fn releasing_the_throttle_coasts_to_a_stop_in_the_tuned_time() {
 
 #[test]
 fn each_kart_gets_its_own_input_and_transform() {
-    let accelerate = KartInput {
-        throttle: 1.0,
-        ..KartInput::default()
-    };
     let mut state = race(2);
     for _ in 0..ticks(1.0) {
-        state = step(state, &[accelerate, KartInput::default()], DT);
+        state = step(state, &[accelerate(), KartInput::default()], DT);
     }
     let spawn = race(2).kart_transforms();
     let after = state.kart_transforms();

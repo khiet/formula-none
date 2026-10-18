@@ -36,13 +36,18 @@ pub const RACE_END_GRACE_S: f32 = 20.0;
 /// Seconds of decreasing spline progress before the wrong-way warning.
 pub const WRONG_WAY_WARNING_S: f32 = 2.0;
 
-// World. Metres and seconds; the kart is a cube until the glTF kart lands.
+// World. Metres and seconds; the kart is a box of these dimensions until the
+// glTF kart lands (ADR 0007), and its collider stays this box after.
 
 pub const GRAVITY_M_PER_S2: f32 = -9.81;
-/// Half the kart's side, so the cube is one metre across.
-pub const KART_HALF_EXTENT_M: f32 = 0.5;
-/// Rounding on the kart's collision cube, inside `KART_HALF_EXTENT_M`. A
-/// sharp-edged cube catches on the seams between track triangles; a rounded
+/// Half the kart's length, nose to tail along its facing.
+pub const KART_HALF_LENGTH_M: f32 = 0.9;
+/// Half the kart's width, wheel to wheel.
+pub const KART_HALF_WIDTH_M: f32 = 0.6;
+/// Half the kart's height; a kart at rest sits this far above the surface.
+pub const KART_HALF_HEIGHT_M: f32 = 0.3;
+/// Rounding on the kart's collision box, inside every half extent. A
+/// sharp-edged box catches on the seams between track triangles; a rounded
 /// one slides over them.
 pub const KART_EDGE_RADIUS_M: f32 = 0.05;
 
@@ -54,6 +59,9 @@ pub const STEER_RATE_LOW_SPEED_RAD_PER_S: f32 = 2.2;
 pub const STEER_RATE_TOP_SPEED_RAD_PER_S: f32 = 1.2;
 /// Seconds from top speed to a standstill under full brake.
 pub const BRAKE_TO_STOP_S: f32 = 1.5;
+/// A brake held past the standstill backs the kart up, at the brake's rate,
+/// no faster than this.
+pub const REVERSE_TOP_SPEED_M_PER_S: f32 = 8.0;
 /// Seconds from top speed to a standstill with no throttle and no brake.
 pub const COAST_TO_STOP_S: f32 = 4.0;
 /// Below this speed a kart barely steers, so it never pivots in place.
@@ -146,5 +154,9 @@ const _: () = {
     assert!(0.0 < DRIFT_ENTRY_SPEED_FRACTION && DRIFT_ENTRY_SPEED_FRACTION < 1.0);
     assert!(0.0 < OFF_TRACK_SPEED_FACTOR && OFF_TRACK_SPEED_FACTOR < 1.0);
     assert!(BRAKE_TO_STOP_S < COAST_TO_STOP_S);
-    assert!(0.0 < KART_EDGE_RADIUS_M && KART_EDGE_RADIUS_M < KART_HALF_EXTENT_M);
+    assert!(0.0 < REVERSE_TOP_SPEED_M_PER_S && REVERSE_TOP_SPEED_M_PER_S < TOP_SPEED_M_PER_S);
+    assert!(0.0 < KART_EDGE_RADIUS_M);
+    assert!(KART_EDGE_RADIUS_M < KART_HALF_LENGTH_M);
+    assert!(KART_EDGE_RADIUS_M < KART_HALF_WIDTH_M);
+    assert!(KART_EDGE_RADIUS_M < KART_HALF_HEIGHT_M);
 };
