@@ -32,6 +32,24 @@ for (const [name, url, throttleKey] of [
   });
 }
 
+test("backing up the Brands Patch grid for two seconds shows the wrong-way warning until the kart drives on", async ({
+  page,
+}) => {
+  await page.goto("/");
+  const speed = page.locator('[data-instrument="speed"]');
+  const wrongWay = page.locator('[data-instrument="wrong-way"]');
+  await expect(speed).toHaveText("0.0 m/s");
+  await expect(wrongWay).toBeHidden();
+  // Reversing from the grid takes the kart away from the line it faces.
+  await page.keyboard.down("ArrowDown");
+  await expect(wrongWay).toHaveText("WRONG WAY", { timeout: 5_000 });
+  await expect(wrongWay).toBeVisible();
+  await page.keyboard.up("ArrowDown");
+  await page.keyboard.down("ArrowUp");
+  await expect(wrongWay).toBeHidden({ timeout: 5_000 });
+  await page.keyboard.up("ArrowUp");
+});
+
 test("holding the brake at a standstill backs the kart up", async ({ page }) => {
   await page.goto("/?track=oval");
   const speed = page.locator('[data-instrument="speed"]');

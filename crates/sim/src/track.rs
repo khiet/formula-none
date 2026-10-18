@@ -47,6 +47,12 @@ impl Surface {
             _ => return None,
         })
     }
+
+    /// Whether a kart on this surface is held to the off-track speed cap:
+    /// the run-off, not the track, a wall top or thin air.
+    pub const fn slows_karts(self) -> bool {
+        matches!(self, Surface::Sand | Surface::Grass)
+    }
 }
 
 /// Something placed on the track: a point on the surface and a facing.
@@ -55,6 +61,20 @@ pub struct Placement {
     pub position: [f32; 3],
     /// Radians about +Y; zero faces -Z.
     pub yaw: f32,
+}
+
+impl Placement {
+    /// Whether `point` lies within `half_length` of this placement along
+    /// the direction it faces and `half_width` across it. Height is
+    /// ignored; what is placed sits on the surface under the point.
+    pub fn covers(&self, point: [f32; 3], half_length: f32, half_width: f32) -> bool {
+        let (sin, cos) = libm::sincosf(self.yaw);
+        let (dx, dz) = (point[0] - self.position[0], point[2] - self.position[2]);
+        // Yaw zero faces -Z; the right of that facing, seen from above, is +X.
+        let along = -dx * sin - dz * cos;
+        let across = dx * cos - dz * sin;
+        along.abs() <= half_length && across.abs() <= half_width
+    }
 }
 
 /// An ordered gate across the track: a centre, the direction of travel
@@ -353,6 +373,15 @@ impl Track {
 
     pub fn boost_pads(&self) -> &[Placement] {
         &self.boost_pads
+    }
+
+    /// Whether `point` is on a boost pad: the tuned rectangle around a
+    /// pad's placement.
+    pub fn on_a_boost_pad(&self, point: [f32; 3]) -> bool {
+        use crate::tuning::{BOOST_PAD_HALF_LENGTH_M, BOOST_PAD_HALF_WIDTH_M};
+        self.boost_pads
+            .iter()
+            .any(|pad| pad.covers(point, BOOST_PAD_HALF_LENGTH_M, BOOST_PAD_HALF_WIDTH_M))
     }
 
     /// Start positions in grid order; slot 0 is pole.

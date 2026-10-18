@@ -17,8 +17,8 @@ const FLOATS_PER_KART: usize = 12;
 /// Floats per kart in the input buffer: steer, throttle, brake, hop, use item, hold item.
 const FLOATS_PER_INPUT: usize = 6;
 /// Floats per kart in the standings buffer: position, lap, checkpoint,
-/// spline progress, lap time, best lap.
-const FLOATS_PER_STANDING: usize = 6;
+/// spline progress, lap time, best lap, wrong way.
+const FLOATS_PER_STANDING: usize = 7;
 
 fn race(seed: u64, kart_count: usize) -> Race {
     Race::new(seed, kart_count, OVAL).expect("the oval fixture loads")
@@ -203,11 +203,25 @@ fn the_standings_buffer_is_the_sim_crates_standings_for_the_same_race() {
         assert_eq!(chunk[4], expected.lap_time_s);
         assert_eq!(expected.best_lap_s, None);
         assert_eq!(chunk[5], -1.0, "no best lap yet");
+        assert!(!expected.wrong_way);
+        assert_eq!(chunk[6], 0.0, "both face the right way");
     }
     assert_eq!(buffer[0], 2.0, "pole was passed");
     assert_eq!(buffer[FLOATS_PER_STANDING], 1.0);
     assert_eq!(buffer[FLOATS_PER_STANDING + 2], 1.0, "past the first gate");
     assert_eq!(bridge::laps_per_race(), LAPS_PER_RACE);
+}
+
+#[test]
+fn the_standings_buffer_flags_a_kart_going_the_wrong_way() {
+    use sim::tuning::WRONG_WAY_WARNING_S;
+    let brake = [0.0, 0.0, 1.0, 0.0, 0.0, 0.0];
+    let mut race = race(42, 1);
+    // Backing away from the line for longer than the warning takes.
+    for _ in 0..(WRONG_WAY_WARNING_S * TICKS_PER_SECOND as f32) as u32 + 2 {
+        race.step(&brake, DT);
+    }
+    assert_eq!(race.standings()[6], 1.0, "wrong way");
 }
 
 #[test]

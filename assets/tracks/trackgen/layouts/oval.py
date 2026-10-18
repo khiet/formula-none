@@ -11,7 +11,11 @@ on the numbers below:
 - one pipe stands 8 m into the first turn, centred on spawn slot 0's
   column, so a kart that drives straight from slot 0 meets it head on;
 - a wall rings the outside of both turns 12 m from the centreline, so a
-  kart that drives straight from slot 1 scrapes along it.
+  kart that drives straight from slot 1 scrapes along it;
+- the front straight's boost pad covers the right half of the asphalt, 60 m
+  past the line, so a kart from slot 1 crosses it and one from slot 0 does
+  not; the back straight's pad is centred 45 m in, far enough before the
+  second turn that a pad boost has run out by the turn.
 """
 
 from ..layout import GRID_COLUMN_OFFSET_M, BoostPad, ItemRow, Layout, Pipe, Wall
@@ -22,6 +26,8 @@ LINE_AFTER_TURN_M = 25.0
 TURN_RADIUS_M = 30.0
 PIPE_INTO_TURN_M = 8.0
 LEFT_GRID_COLUMN_X = TURN_RADIUS_M - GRID_COLUMN_OFFSET_M
+# Half the asphalt: the pad's centre, so its tuned half-width reaches the edge.
+FRONT_PAD_RIGHT_OF_CENTRE_M = 3.0
 
 
 def offset_reaching_x(sample: Sample, x: float) -> float:
@@ -56,7 +62,7 @@ LAYOUT = Layout(
         ItemRow(path.segment("back").s_start + 60.0),
     ],
     boost_pads=[
-        BoostPad(path.segment("back").s_start + 100.0),
-        BoostPad(path.segment("front-out").s_start + 60.0),
+        BoostPad(path.segment("back").s_start + 45.0),
+        BoostPad(path.segment("front-out").s_start + 60.0, offset=-FRONT_PAD_RIGHT_OF_CENTRE_M),
     ],
 )

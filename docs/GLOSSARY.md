@@ -51,8 +51,9 @@ seconds triggers the wrong-way warning.
 ### standing
 
 Where a kart is in the race: its race position, laps completed, last
-checkpoint crossed in order, spline progress, lap time and best lap. The sim
-reports one per kart every tick; the Instrument panel shows the local kart's.
+checkpoint crossed in order, spline progress, lap time, best lap and whether
+the wrong-way warning is up. The sim reports one per kart every tick; the
+Instrument panel shows the local kart's.
 
 ### hop
 

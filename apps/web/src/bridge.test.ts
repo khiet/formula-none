@@ -132,6 +132,7 @@ describe("standings", () => {
       splineProgress: expect.any(Number),
       lapTimeSeconds: 0,
       bestLapSeconds: null,
+      wrongWay: false,
     });
     expect(second?.position).toBe(2);
     // The grid is just behind the start line, at the far end of the lap.
@@ -152,5 +153,22 @@ describe("standings", () => {
     expect(driven?.lapTimeSeconds).toBeCloseTo(3, 1);
     expect(pole?.lapTimeSeconds).toBeCloseTo(3, 1);
     expect(driven?.bestLapSeconds).toBeNull();
+    expect(driven?.wrongWay).toBe(false);
+  });
+
+  it("raises the wrong-way warning after backing away from the line for the tuned time", async () => {
+    const bridge = await loadBridge(wasm);
+    const race = bridge.createRace(7n, 1, OVAL);
+    const brake = { ...IDLE_INPUT, brake: 1 };
+    // Two seconds of reversing, as the sim's tuning has it, plus a tick.
+    for (let tick = 0; tick < 121; tick++) {
+      race.step([brake], DT);
+    }
+    expect(race.standings()[0]?.wrongWay).toBe(true);
+    // Rolling forward again clears it.
+    for (let tick = 0; tick < 60; tick++) {
+      race.step([THROTTLE], DT);
+    }
+    expect(race.standings()[0]?.wrongWay).toBe(false);
   });
 });

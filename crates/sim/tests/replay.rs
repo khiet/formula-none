@@ -242,10 +242,15 @@ fn the_fixture_set_exercises_kart_contact_off_track_walls_both_tracks_and_a_mini
                     surfaces.insert(state.kart_surface(slot));
                     drifted |= kart.drift.is_some();
                     boosted |= kart.speed > TOP_SPEED_M_PER_S;
-                    // A lone kart that wants to move but barely does is
-                    // pushing against a wall; nothing else can hold it.
-                    let moved = distance(&before[slot], kart);
-                    if transforms.len() == 1 && kart.speed > 5.0 && moved < 0.25 * kart.speed * DT {
+                    // Only a wall takes most of a lone kart's speed in one
+                    // tick while the throttle is held; the brake takes
+                    // more than a second over it.
+                    let throttled = segment.inputs[slot].throttle > 0.5;
+                    if transforms.len() == 1
+                        && throttled
+                        && before[slot].speed > 5.0
+                        && kart.speed < 0.25 * before[slot].speed
+                    {
                         held_by_a_wall = true;
                     }
                     for other in &transforms[slot + 1..] {

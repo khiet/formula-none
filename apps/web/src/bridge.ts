@@ -72,7 +72,9 @@ export interface KartTransform {
  * position from 1, the lap it is on from 1 (staying on the last once the
  * race's laps are done), the last checkpoint crossed in order (0 is the
  * start line), spline progress in metres along the centreline, seconds into
- * the current lap, and the best lap once one is completed.
+ * the current lap, the best lap once one is completed, and whether the
+ * wrong-way warning is up (spline progress has fallen for the tuned time
+ * and has not risen since).
  */
 export interface Standing {
   readonly position: number;
@@ -81,6 +83,7 @@ export interface Standing {
   readonly splineProgress: number;
   readonly lapTimeSeconds: number;
   readonly bestLapSeconds: number | null;
+  readonly wrongWay: boolean;
 }
 
 export interface Race {
@@ -139,7 +142,7 @@ export interface Bridge {
 // Buffer layouts the bridge crate documents on Race::step, Race::kart_transforms and Race::standings.
 const FLOATS_PER_INPUT = 6;
 const FLOATS_PER_TRANSFORM = 12;
-const FLOATS_PER_STANDING = 6;
+const FLOATS_PER_STANDING = 7;
 /** Surface codes in the transform buffer, as `sim::Surface::code` numbers them. */
 const SURFACES: readonly Surface[] = ["asphalt", "sand", "grass", "wall", "out of world"];
 /** Drift directions by the buffer's sign: -1 left, 1 right. */
@@ -247,6 +250,7 @@ class BridgedRace implements Race {
         lapTimeSeconds: read(4),
         // The bridge writes a negative best lap before a lap is completed.
         bestLapSeconds: bestLapSeconds < 0 ? null : bestLapSeconds,
+        wrongWay: read(6) !== 0,
       });
     }
     return standings;

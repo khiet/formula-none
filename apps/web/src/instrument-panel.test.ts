@@ -9,6 +9,7 @@ const onTheGrid: Standing = {
   splineProgress: 434,
   lapTimeSeconds: 0,
   bestLapSeconds: null,
+  wrongWay: false,
 };
 
 describe("lap readouts", () => {
@@ -18,7 +19,13 @@ describe("lap readouts", () => {
       lap: "Lap 1/3",
       lapTime: "0:00.000",
       bestLap: "Best --:--.---",
+      wrongWay: "",
     });
+  });
+
+  it("prints the wrong-way warning only while the sim reports it", () => {
+    expect(lapReadouts({ ...onTheGrid, wrongWay: true }, 3).wrongWay).toBe("WRONG WAY");
+    expect(lapReadouts(onTheGrid, 3).wrongWay).toBe("");
   });
 
   it("shows position as an ordinal, the lap clock in minutes and the best lap once there is one", () => {

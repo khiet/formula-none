@@ -195,12 +195,13 @@ impl Race {
             .collect()
     }
 
-    /// Six floats per kart in grid order: race position from 1, the lap the
-    /// kart is on from 1 (staying on the last once the race's laps are
+    /// Seven floats per kart in grid order: race position from 1, the lap
+    /// the kart is on from 1 (staying on the last once the race's laps are
     /// done), the last checkpoint crossed in order (0 is the start line),
     /// spline progress in metres along the centreline, seconds into the
-    /// current lap, and the best lap in seconds or -1 before a lap is
-    /// completed. `sim::State::standings` documents the ordering.
+    /// current lap, the best lap in seconds or -1 before a lap is
+    /// completed, and 1 while the wrong-way warning is up, else 0.
+    /// `sim::State::standings` documents the ordering.
     pub fn standings(&self) -> Vec<f32> {
         self.state()
             .standings()
@@ -213,6 +214,7 @@ impl Race {
                     standing.spline_progress,
                     standing.lap_time_s,
                     standing.best_lap_s.unwrap_or(NO_BEST_LAP),
+                    f32::from(u8::from(standing.wrong_way)),
                 ]
             })
             .collect()
