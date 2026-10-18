@@ -240,10 +240,10 @@ impl Race {
 
     /// Three floats for where the race is (`sim::Phase`): the phase as
     /// `sim::Phase::code` (0 countdown, 1 racing, 2 finished); then the
-    /// countdown's seconds to Go,
-    /// or the race clock in seconds while racing, or 0 once finished; then
-    /// the seconds left of the grace after the first finisher, or -1 before
-    /// anyone has finished and once the race is over.
+    /// countdown's seconds to Go, or the race clock in seconds while racing,
+    /// or 0 once finished; then the seconds left of the grace after the
+    /// first finisher, or -1 before anyone has finished and once the race
+    /// is over.
     pub fn phase(&self) -> Vec<f32> {
         let phase = self.state().phase();
         let (seconds, grace_left_s) = match phase {

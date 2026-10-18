@@ -229,7 +229,7 @@ fn pressing_accelerate_before_the_window_stalls_the_kart_for_the_tuned_time() {
         "moved off the grid"
     );
 
-    // A press after the stall came was also too early: it changes nothing.
+    // A clean start is well ahead by the time the stall is over.
     let clean = drive(started(race(1)), &[straight], START_STALL_S + 0.5);
     assert!(
         clean.kart_transforms()[0].speed > going.speed + 5.0,
@@ -353,8 +353,8 @@ fn the_race_ends_the_tuned_grace_after_the_first_finisher_and_places_the_rest_by
 
 #[test]
 fn finishing_order_is_final_whatever_a_finisher_does_after_the_line() {
-    // Pole finishes and backs over the line again, curving onto the sand
-    // out of the way; second, held on the grid for a while, finishes later
+    // Pole finishes and backs over the line again, curving out of the
+    // racing line; second, held on the grid for a while, finishes later
     // and is just past the line, ahead of pole by progress alone.
     let state = started(race(2));
     let state = drive(state, &[follow_centreline, idle], 8.0);
@@ -367,7 +367,7 @@ fn finishing_order_is_final_whatever_a_finisher_does_after_the_line() {
     assert_eq!(state.standings()[0].position, 1);
     let best = state.standings()[0].best_lap_s;
     let lap_time = state.standings()[0].lap_time_s;
-    // Backing up with a little steer swings the tail toward the outside.
+    // Backing up with a little steer curves the kart out of the racing line.
     let reverse_aside: Driver = |_, _| KartInput {
         brake: 1.0,
         steer: 0.08,

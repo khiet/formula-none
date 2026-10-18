@@ -14,8 +14,8 @@
 //! uses, before it applies anyone's input.
 //!
 //! A race has a beginning and an end, and both are rules: [`State::phase`]
-//! walks Countdown, Racing and Finished, so a room on the server and a solo
-//! race in the browser drive the same lifecycle through `step`.
+//! walks Countdown, Racing and Finished through `step`, so a room on the
+//! server can drive the lifecycle a solo race in the browser does.
 
 pub mod bot;
 mod hash;
@@ -604,9 +604,9 @@ impl State {
     /// last tick so an overtake shows the tick it happens.
     pub fn standings(&self) -> Vec<Standing> {
         let mut order: Vec<usize> = (0..self.karts.len()).collect();
-        // Stable, so karts level on every key keep grid order. A finisher
-        // sorts ahead of everyone still racing, which laps completed already
-        // gives; its finish time sorts it among the other finishers.
+        // Stable, so karts level on every key keep grid order. A finish time
+        // sorts a finisher ahead of everyone still racing and among the
+        // other finishers.
         order.sort_by(|&a, &b| {
             let (a, b) = (&self.karts[a], &self.karts[b]);
             let finish = |kart: &Kart| kart.finish_time_s.unwrap_or(f32::INFINITY);
