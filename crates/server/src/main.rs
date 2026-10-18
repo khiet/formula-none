@@ -23,6 +23,7 @@ async fn shutdown_signal() {
 async fn main() -> std::io::Result<()> {
     let addr = std::env::var("LISTEN_ADDR").unwrap_or_else(|_| "0.0.0.0:8080".to_string());
     let listener = TcpListener::bind(&addr).await?;
-    println!("server {COMMIT} listening on {addr}");
+    // The bound address, not the configured one: port 0 resolves here.
+    println!("server {COMMIT} listening on {}", listener.local_addr()?);
     server::serve(listener, server::app(COMMIT), shutdown_signal()).await
 }

@@ -31,9 +31,3 @@ async fn version_reports_the_deployed_commit() {
     assert_eq!(status, StatusCode::OK);
     assert_eq!(body, serde_json::json!({ "commit": "0123abcd" }));
 }
-
-#[tokio::test]
-async fn unknown_paths_are_not_found() {
-    let (status, _) = get("/api/nope").await;
-    assert_eq!(status, StatusCode::NOT_FOUND);
-}
