@@ -66,8 +66,16 @@ describe("replay determinism", () => {
 });
 
 describe("replay recorder", () => {
-  const THROTTLE: KartInput = { steer: 0, throttle: 1, brake: 0 };
-  const TURN: KartInput = { steer: -1, throttle: 1, brake: 0 };
+  const THROTTLE: KartInput = {
+    steer: 0,
+    throttle: 1,
+    brake: 0,
+    hop: false,
+    useItem: false,
+    holdItem: false,
+  };
+  const TURN: KartInput = { ...THROTTLE, steer: -1 };
+  const HOP: KartInput = { ...THROTTLE, hop: true };
 
   it("records a browser session as a replay the wasm runner reproduces", async () => {
     const bridge = await loadBridge(wasm);
@@ -99,7 +107,7 @@ describe("replay recorder", () => {
     expect(bridge.replayHashes(json, oval)).toEqual(hashes);
   });
 
-  it("starts a new segment when any one kart's input changes", async () => {
+  it("starts a new segment when any one kart's input changes, buttons included", async () => {
     const bridge = await loadBridge(wasm);
     const race = bridge.createRace(9n, 2, sidecar("oval"));
     const recorder = recordReplay(bridge, 9n, "oval", race);
@@ -108,6 +116,7 @@ describe("replay recorder", () => {
       [THROTTLE, THROTTLE],
       [THROTTLE, TURN],
       [THROTTLE, THROTTLE],
+      [HOP, THROTTLE],
     ]) {
       race.step(inputs, 1 / bridge.ticksPerSecond);
       recorder.record(inputs);
@@ -117,7 +126,9 @@ describe("replay recorder", () => {
       { ticks: 2, inputs: [THROTTLE, THROTTLE] },
       { ticks: 1, inputs: [THROTTLE, TURN] },
       { ticks: 1, inputs: [THROTTLE, THROTTLE] },
+      { ticks: 1, inputs: [HOP, THROTTLE] },
     ]);
+    expect(() => bridge.replayHashes(recorder.toJSON(), sidecar("oval"))).not.toThrow();
   });
 
   it("keeps a seed a JSON number could not", async () => {

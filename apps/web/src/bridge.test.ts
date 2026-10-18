@@ -11,13 +11,24 @@ const OVAL = readFileSync(
   "utf8",
 );
 const DT = 1 / 60;
-const IDLE: KartInput = { steer: 0, throttle: 0, brake: 0 };
-const THROTTLE: KartInput = { steer: 0, throttle: 1, brake: 0 };
+const IDLE: KartInput = {
+  steer: 0,
+  throttle: 0,
+  brake: 0,
+  hop: false,
+  useItem: false,
+  holdItem: false,
+};
+const THROTTLE: KartInput = { ...IDLE, throttle: 1 };
+const TURN: KartInput = { ...THROTTLE, steer: 1 };
 
 describe("bridge wrapper", () => {
-  it("reports the sim's 60 Hz tick rate", async () => {
+  it("reports the sim's 60 Hz tick rate and its kart box", async () => {
     const bridge = await loadBridge(wasm);
     expect(bridge.ticksPerSecond).toBe(60);
+    expect(bridge.kartSize.width).toBeCloseTo(1.2);
+    expect(bridge.kartSize.height).toBeCloseTo(0.6);
+    expect(bridge.kartSize.length).toBeCloseTo(1.8);
   });
 
   it("steps each kart by its own input and reports transforms in grid order", async () => {
@@ -46,7 +57,7 @@ describe("bridge wrapper", () => {
     const race = bridge.createRace(7n, 1, OVAL);
     const seen = new Set<string>();
     for (let tick = 0; tick < 180; tick++) {
-      race.step([{ steer: 1, throttle: 1, brake: 0 }], DT);
+      race.step([TURN], DT);
       seen.add(race.kartTransforms()[0]?.surface ?? "missing");
     }
     expect(seen.has("asphalt")).toBe(true);
@@ -75,12 +86,24 @@ describe("bridge wrapper", () => {
     const drive = (): KartTransform[] => {
       const race = bridge.createRace(99n, 1, OVAL);
       for (let tick = 0; tick < 120; tick++) {
-        race.step([{ steer: tick < 60 ? 0 : 1, throttle: 1, brake: 0 }], DT);
+        race.step([tick < 60 ? THROTTLE : TURN], DT);
       }
       return race.kartTransforms();
     };
 
     expect(drive()).toEqual(drive());
+  });
+
+  it("backs the kart up when the brake is held at a standstill", async () => {
+    const bridge = await loadBridge(wasm);
+    const race = bridge.createRace(7n, 1, OVAL);
+    const spawn = race.kartTransforms()[0];
+    for (let tick = 0; tick < 60; tick++) {
+      race.step([{ ...IDLE, brake: 1 }], DT);
+    }
+    const after = race.kartTransforms()[0];
+    expect(after?.speed).toBeLessThan(0);
+    expect(after?.position[2]).toBeGreaterThan((spawn?.position[2] ?? 0) + 1);
   });
 
   it("refuses an input list that does not match the kart count", async () => {

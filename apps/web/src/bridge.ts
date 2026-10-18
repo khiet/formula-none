@@ -4,6 +4,7 @@
 import init, {
   decode_pong,
   encode_ping,
+  kart_size_m,
   ping_resend_s,
   ping_timeout_s,
   replay_hash_interval_ticks,
@@ -13,11 +14,26 @@ import init, {
   webtransport_connect_timeout_s,
 } from "./generated/bridge/bridge.js";
 
-/** One kart's controls for one tick: steer -1..1, throttle 0..1, brake 0..1. */
+/**
+ * One kart's controls for one tick, whichever device produced them: steer
+ * -1..1, throttle 0..1, brake 0..1 (held past a standstill, it backs the
+ * kart up), the hop button held, the item button pressed this tick, and the
+ * item button held.
+ */
 export interface KartInput {
   readonly steer: number;
   readonly throttle: number;
   readonly brake: number;
+  readonly hop: boolean;
+  readonly useItem: boolean;
+  readonly holdItem: boolean;
+}
+
+/** The box the sim collides with, in metres; the View draws the same box. */
+export interface KartSize {
+  readonly width: number;
+  readonly height: number;
+  readonly length: number;
 }
 
 /** What is under a kart; the sim's surface tags. */
@@ -25,8 +41,9 @@ export type Surface = "asphalt" | "sand" | "grass" | "wall" | "out of world";
 
 /**
  * What the View and the Instrument panel need per kart: position in metres,
- * unit quaternion [x, y, z, w], speed in metres per second and the surface
- * under the kart. Y up; identity rotation faces -Z.
+ * unit quaternion [x, y, z, w], speed in metres per second along the kart's
+ * facing (negative backing up) and the surface under the kart. Y up;
+ * identity rotation faces -Z.
  */
 export interface KartTransform {
   readonly position: readonly [number, number, number];
@@ -56,6 +73,8 @@ export interface PingTiming {
 export interface Bridge {
   /** The sim's fixed tick rate; `step` is meant to be called this often with dt = 1 / rate. */
   readonly ticksPerSecond: number;
+  /** The kart's box, read from the sim's tuning so the View never repeats it (ADR 0014). */
+  readonly kartSize: KartSize;
   /**
    * A race on the track described by `sidecar` (the JSON exported next to its
    * glTF) with `kartCount` karts on its spawn grid. Throws, with the sim's
@@ -83,7 +102,7 @@ export interface Bridge {
 }
 
 // Buffer layouts the bridge crate documents on Race::step and Race::kart_transforms.
-const FLOATS_PER_INPUT = 3;
+const FLOATS_PER_INPUT = 6;
 const FLOATS_PER_TRANSFORM = 9;
 /** Surface codes in the transform buffer, as `sim::Surface::code` numbers them. */
 const SURFACES: readonly Surface[] = ["asphalt", "sand", "grass", "wall", "out of world"];
@@ -96,6 +115,7 @@ export async function loadBridge(wasm?: BufferSource): Promise<Bridge> {
   await init(wasm === undefined ? undefined : { module_or_path: wasm });
   return {
     ticksPerSecond: ticks_per_second(),
+    kartSize: kartSize(),
     replayHashIntervalTicks: replay_hash_interval_ticks(),
     createRace(seed, kartCount, sidecar) {
       return new BridgedRace(
@@ -115,6 +135,15 @@ export async function loadBridge(wasm?: BufferSource): Promise<Bridge> {
       return rethrown(() => decode_pong(bytes));
     },
   };
+}
+
+/** The three floats the bridge documents on `kart_size_m`: width, height, length. */
+function kartSize(): KartSize {
+  const [width, height, length] = kart_size_m();
+  if (width === undefined || height === undefined || length === undefined) {
+    throw new RangeError("the bridge's kart size is not three floats");
+  }
+  return { width, height, length };
 }
 
 /** The bridge rejects with a plain string so its native tests can run; make it an Error. */
@@ -146,6 +175,9 @@ class BridgedRace implements Race {
       this.#inputs[at] = input.steer;
       this.#inputs[at + 1] = input.throttle;
       this.#inputs[at + 2] = input.brake;
+      this.#inputs[at + 3] = Number(input.hop);
+      this.#inputs[at + 4] = Number(input.useItem);
+      this.#inputs[at + 5] = Number(input.holdItem);
     });
     this.#race.step(this.#inputs, dt);
   }

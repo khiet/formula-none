@@ -46,7 +46,14 @@ export function recordReplay(
   return {
     track,
     record(inputs) {
-      const copy = inputs.map(({ steer, throttle, brake }) => ({ steer, throttle, brake }));
+      const copy = inputs.map(({ steer, throttle, brake, hop, useItem, holdItem }) => ({
+        steer,
+        throttle,
+        brake,
+        hop,
+        useItem,
+        holdItem,
+      }));
       const last = segments.at(-1);
       if (last !== undefined && sameInputs(last.inputs, copy)) {
         last.ticks += 1;
@@ -68,12 +75,18 @@ export function recordReplay(
 function sameInputs(a: readonly KartInput[], b: readonly KartInput[]): boolean {
   return (
     a.length === b.length &&
-    a.every(
-      (input, slot) =>
-        input.steer === b[slot]?.steer &&
-        input.throttle === b[slot]?.throttle &&
-        input.brake === b[slot]?.brake,
-    )
+    a.every((input, slot) => {
+      const other = b[slot];
+      return (
+        other !== undefined &&
+        input.steer === other.steer &&
+        input.throttle === other.throttle &&
+        input.brake === other.brake &&
+        input.hop === other.hop &&
+        input.useItem === other.useItem &&
+        input.holdItem === other.holdItem
+      );
+    })
   );
 }
 
