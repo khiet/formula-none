@@ -23,7 +23,7 @@ from trackgen.layout import Placement, TrackGeometry, build  # noqa: E402
 from trackgen.layouts import NAMES, load  # noqa: E402
 
 # Placeholder colours only (ADR 0007): one flat tone per surface so the
-# greybox reads at a glance and nobody mistakes it for art.
+# greybox reads at a glance.
 MATERIALS = {
     "asphalt": (0.23, 0.23, 0.25, 1.0),
     "sand": (0.85, 0.76, 0.48, 1.0),
@@ -46,7 +46,8 @@ def material(name: str) -> bpy.types.Material:
     mat.node_tree.nodes["Principled BSDF"].inputs["Base Color"].default_value = MATERIALS[name]
     mat.node_tree.nodes["Principled BSDF"].inputs["Roughness"].default_value = 0.9
     mat.diffuse_color = MATERIALS[name]
-    # Exported as double-sided so a ribbon reads from either side.
+    # The glTF exporter writes the material double-sided when culling is off,
+    # so a ribbon reads from either side.
     mat.use_backface_culling = False
     return mat
 

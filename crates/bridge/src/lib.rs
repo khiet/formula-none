@@ -30,8 +30,9 @@ pub struct Race {
 impl Race {
     /// A fresh race from `seed` on the track described by `sidecar` (the JSON
     /// exported next to the track's glTF) with `kart_count` karts on its
-    /// spawn grid. Fails with the sim's reason when the sidecar is unusable;
-    /// the reason is a plain string so the same code runs in native tests.
+    /// spawn grid. Fails when the sidecar is unusable or has fewer spawn slots
+    /// than `kart_count`; the reason is a plain string so the same code runs
+    /// in native tests.
     #[wasm_bindgen(constructor)]
     pub fn new(seed: u64, kart_count: usize, sidecar: &str) -> Result<Race, String> {
         let track = Track::from_sidecar(sidecar).map_err(|error| error.to_string())?;

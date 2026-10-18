@@ -20,7 +20,7 @@ for (const [name, url] of [
       .poll(async () => Number.parseFloat((await speed.textContent()) ?? "0"), { timeout: 5_000 })
       .toBeGreaterThan(5);
     await page.keyboard.up("ArrowUp");
-    // Still on the track: the sim found asphalt under the kart as it drove.
+    // Still on the asphalt after driving up the straight.
     await expect(surface).toHaveText("asphalt");
   });
 }

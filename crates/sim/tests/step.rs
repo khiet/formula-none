@@ -1,6 +1,6 @@
 //! The sim's public seam: `step(state, inputs, dt)`. Tests drive a kart with
 //! input sequences and assert the transforms the sim reports, never internals.
-//! Races run on the oval fixture, whose front straight is clear for 50 m
+//! Races run on the oval fixture, whose front straight is clear for 100 m
 //! past the start line and runs along -Z.
 
 use sim::tuning::{ACCELERATION_TO_TOP_S, COAST_TO_STOP_S, TICKS_PER_SECOND, TOP_SPEED_M_PER_S};

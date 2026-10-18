@@ -37,8 +37,9 @@ export interface Bridge {
   readonly ticksPerSecond: number;
   /**
    * A race on the track described by `sidecar` (the JSON exported next to its
-   * glTF) with `kartCount` karts on its spawn grid. Throws when the sim
-   * cannot race on the sidecar.
+   * glTF) with `kartCount` karts on its spawn grid. Throws, with the sim's
+   * reason, when the sidecar is unusable or has fewer spawn slots than
+   * `kartCount`.
    */
   createRace(seed: bigint, kartCount: number, sidecar: string): Race;
 }

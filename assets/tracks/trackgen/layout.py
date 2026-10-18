@@ -15,9 +15,9 @@ SAND = "sand"
 GRASS = "grass"
 WALL = "wall"
 
-# The grass slab sits this far below the asphalt so the sand run-off slopes
-# down to it instead of lying in the same plane, which would make "which
-# surface is under this point" ambiguous.
+# The grass slab sits this far below the asphalt and the sand slopes down to
+# it, so no two surfaces are coplanar and the surface under a point is never
+# ambiguous.
 GRASS_DROP_M = 0.05
 GRASS_MARGIN_M = 40.0
 WALL_THICKNESS_M = 0.5
@@ -26,9 +26,9 @@ PIPE_RADIUS_M = 1.5
 PIPE_HEIGHT_M = 2.0
 
 # The eight-slot spawn grid: two staggered columns of four, pole in front on
-# the left, each row five metres behind the last, the right column half a
-# row back. Slot order is grid order. Placements snap to the nearest
-# centreline sample, so distances along the track are whole metres.
+# the left, the right column set back. Slot order is grid order. Placements
+# snap to the nearest centreline sample, so these distances hold to within
+# half a `SAMPLE_STEP_M`.
 GRID_SLOTS = 8
 GRID_ROW_SPACING_M = 5.0
 GRID_COLUMN_OFFSET_M = 2.0

@@ -151,8 +151,7 @@ impl From<serde_json::Error> for TrackError {
 }
 
 impl Track {
-    /// Parse and validate a sidecar. Every error a race could hit later is
-    /// reported here, so a `Track` that exists can be raced on.
+    /// Parse and validate a sidecar; a `Track` that exists can be raced on.
     pub fn from_sidecar(json: &str) -> Result<Self, TrackError> {
         let sidecar: Sidecar = serde_json::from_str(json)?;
         if sidecar.version != SIDECAR_VERSION {
@@ -194,8 +193,10 @@ impl Track {
                     mesh.name
                 ));
             }
-            // Merged vertices let Rapier smooth over the seams between a
-            // ribbon's triangles, so a kart does not catch on them.
+            // Contact normals at a seam come from the adjacent triangles, so
+            // a kart slides over a ribbon's edges instead of catching on them.
+            // The flag also discards back-face contacts, so every exported
+            // mesh must be wound outward.
             let shape = SharedShape::trimesh_with_flags(
                 vertices,
                 triangles,
