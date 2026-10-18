@@ -144,6 +144,33 @@ impl MiniTurbo {
     }
 }
 
+/// Where a kart stands in the race: what the Instrument panel shows and
+/// what race position is ordered by. One per kart from [`State::standings`].
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Standing {
+    /// Race position, 1 for the leader. Ordered by laps completed, then
+    /// checkpoint, then spline progress; a dead heat keeps grid order.
+    pub position: u32,
+    pub laps_completed: u32,
+    /// The last checkpoint crossed in order this lap; 0 is the start line,
+    /// which the grid counts as having crossed.
+    pub checkpoint: usize,
+    /// Metres along the centreline from the start line, in `0..lap length`.
+    pub spline_progress: f32,
+    /// Seconds since this lap began; the first lap begins at the first tick.
+    pub lap_time_s: f32,
+    /// The fastest lap completed so far.
+    pub best_lap_s: Option<f32>,
+}
+
+impl Standing {
+    /// The lap the kart is on, from 1; a kart that has completed the race's
+    /// laps stays on the last one.
+    pub fn lap(&self) -> u32 {
+        (self.laps_completed + 1).min(LAPS_PER_RACE)
+    }
+}
+
 /// Everything the sim knows about a race. Owns the physics world and the
 /// RNG, so a `State` plus an input sequence replays identically anywhere.
 pub struct State {
@@ -171,6 +198,13 @@ struct Kart {
     drift: Option<Drift>,
     /// Seconds of mini-turbo boost left; zero or less when not boosting.
     boost_left_s: f32,
+    laps_completed: u32,
+    /// The last checkpoint crossed in order this lap. The grid starts at 0,
+    /// the start line, so the first lap begins at the first tick.
+    checkpoint: usize,
+    spline_progress: f32,
+    lap_time_s: f32,
+    best_lap_s: Option<f32>,
 }
 
 impl Kart {
@@ -202,8 +236,8 @@ struct Physics {
 
 use tuning::{
     DRIFT_ENTRY_SPEED_FRACTION, GRAVITY_M_PER_S2, HOP_AIRTIME_S, KART_EDGE_RADIUS_M,
-    KART_HALF_HEIGHT_M, KART_HALF_LENGTH_M, KART_HALF_WIDTH_M, MINI_TURBO_BOOST_FACTOR,
-    TOP_SPEED_M_PER_S,
+    KART_HALF_HEIGHT_M, KART_HALF_LENGTH_M, KART_HALF_WIDTH_M, LAPS_PER_RACE,
+    MINI_TURBO_BOOST_FACTOR, TOP_SPEED_M_PER_S,
 };
 
 /// A surface query starts this far above the asked point, so a point lying
@@ -266,6 +300,11 @@ impl State {
                     hop_direction: None,
                     drift: None,
                     boost_left_s: 0.0,
+                    laps_completed: 0,
+                    checkpoint: 0,
+                    spline_progress: track.progress_at(slot.position),
+                    lap_time_s: 0.0,
+                    best_lap_s: None,
                 }
             })
             .collect();
@@ -333,6 +372,11 @@ impl State {
             hasher.write_f32(kart.drift.map_or(0.0, |drift| drift.direction.steer_sign()));
             hasher.write_f32(kart.drift.map_or(0.0, |drift| drift.charge_s));
             hasher.write_f32(kart.boost_left_s);
+            hasher.write_u32(kart.laps_completed);
+            hasher.write_u64(kart.checkpoint as u64);
+            hasher.write_f32(kart.spline_progress);
+            hasher.write_f32(kart.lap_time_s);
+            hasher.write_f32(kart.best_lap_s.unwrap_or(-1.0));
             hasher.write_f32s(body.translation().to_array());
             hasher.write_f32s(body.rotation().to_array());
             hasher.write_f32s(body.linvel().to_array());
@@ -341,6 +385,56 @@ impl State {
             hasher.write_u8(u8::from(body.is_sleeping()));
         }
         hasher.finish()
+    }
+
+    /// One standing per kart, in grid order, with race positions as of the
+    /// last tick so an overtake shows the tick it happens.
+    pub fn standings(&self) -> Vec<Standing> {
+        let mut order: Vec<usize> = (0..self.karts.len()).collect();
+        // Stable, so karts level on every key keep grid order.
+        order.sort_by(|&a, &b| {
+            let (a, b) = (&self.karts[a], &self.karts[b]);
+            b.laps_completed
+                .cmp(&a.laps_completed)
+                .then(b.checkpoint.cmp(&a.checkpoint))
+                .then(
+                    self.lap_relative_progress(b)
+                        .total_cmp(&self.lap_relative_progress(a)),
+                )
+        });
+        let mut positions = vec![0; self.karts.len()];
+        for (place, &slot) in order.iter().enumerate() {
+            positions[slot] = place as u32 + 1;
+        }
+        self.karts
+            .iter()
+            .zip(positions)
+            .map(|(kart, position)| Standing {
+                position,
+                laps_completed: kart.laps_completed,
+                checkpoint: kart.checkpoint,
+                spline_progress: kart.spline_progress,
+                lap_time_s: kart.lap_time_s,
+                best_lap_s: kart.best_lap_s,
+            })
+            .collect()
+    }
+
+    /// Spline progress unwrapped around the start line so that, between two
+    /// karts past the same checkpoint, the one further along the lap reads
+    /// higher: a kart on the grid behind the line is a few metres short of
+    /// zero, not nearly a lap ahead, and a kart past the line that missed
+    /// the start gate is a little past the lap's length.
+    fn lap_relative_progress(&self, kart: &Kart) -> f32 {
+        let lap = self.track.spline_length();
+        let anchor = self.track.checkpoint_progress()[kart.checkpoint];
+        let mut ahead = kart.spline_progress - anchor;
+        if ahead > lap / 2.0 {
+            ahead -= lap;
+        } else if ahead <= -lap / 2.0 {
+            ahead += lap;
+        }
+        anchor + ahead
     }
 
     /// One transform per kart, in grid order.
@@ -409,7 +503,32 @@ pub fn step(mut state: State, inputs: &[KartInput], dt: f32) -> State {
         body.set_linvel(forward * kart.speed + Vec3::Y * vertical, true);
         body.set_angvel(Vec3::Y * yaw_rate(kart.speed, steer), true);
     }
+    let before: Vec<[f32; 3]> = state
+        .karts
+        .iter()
+        .map(|kart| state.physics.bodies[kart.body].translation().to_array())
+        .collect();
     state.physics.step(dt);
+    for (kart, before) in state.karts.iter_mut().zip(before) {
+        let after = state.physics.bodies[kart.body].translation().to_array();
+        kart.spline_progress = state.track.progress_at(after);
+        kart.lap_time_s += dt;
+        // Gates count only in order: the one after the last crossed, and
+        // for a lap to complete, the start line after the last gate.
+        let checkpoints = state.track.checkpoints();
+        let next = (kart.checkpoint + 1) % checkpoints.len();
+        if checkpoints[next].crossed_between(before, after) {
+            if next == 0 {
+                kart.laps_completed += 1;
+                kart.best_lap_s = Some(
+                    kart.best_lap_s
+                        .map_or(kart.lap_time_s, |best| best.min(kart.lap_time_s)),
+                );
+                kart.lap_time_s = 0.0;
+            }
+            kart.checkpoint = next;
+        }
+    }
     state
 }
 

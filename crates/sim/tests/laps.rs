@@ -1,0 +1,326 @@
+//! Lap counting and race position at the sim's public seam: drive karts on
+//! the oval fixture and read `standings`. The oval's twelve checkpoints run
+//! down the front straight along -Z from the start line at z = 0, with the
+//! grid a few metres behind it (layouts/oval.py).
+
+use sim::tuning::{LAPS_PER_RACE, TICKS_PER_SECOND};
+use sim::{step, KartInput, Standing, State, Track};
+
+const OVAL: &str = include_str!("../../../assets/tracks/oval/oval.track.json");
+const DT: f32 = 1.0 / TICKS_PER_SECOND as f32;
+const SEED: u64 = 0x5EED;
+
+fn oval() -> Track {
+    Track::from_sidecar(OVAL).expect("the oval fixture loads")
+}
+
+fn race(kart_count: usize) -> State {
+    State::new(SEED, kart_count, oval())
+}
+
+fn ticks(seconds: f32) -> usize {
+    (seconds * TICKS_PER_SECOND as f32).round() as usize
+}
+
+fn throttle() -> KartInput {
+    KartInput {
+        throttle: 1.0,
+        ..KartInput::default()
+    }
+}
+
+fn straight(_: &State, _: usize) -> KartInput {
+    throttle()
+}
+
+fn only_standing(state: &State) -> Standing {
+    let standings = state.standings();
+    assert_eq!(standings.len(), 1);
+    standings[0]
+}
+
+#[test]
+fn a_kart_on_the_grid_is_on_lap_one_at_the_start_line_in_first_place() {
+    let standing = only_standing(&race(1));
+
+    assert_eq!(standing.position, 1);
+    assert_eq!(standing.lap(), 1);
+    assert_eq!(standing.laps_completed, 0);
+    assert_eq!(standing.checkpoint, 0);
+    assert_eq!(standing.lap_time_s, 0.0);
+    assert_eq!(standing.best_lap_s, None);
+    // The grid sits just behind the line: the far end of the lap.
+    let lap = oval().spline_length();
+    assert!(
+        standing.spline_progress > lap - 30.0 && standing.spline_progress < lap,
+        "progress {} on a {lap} m lap",
+        standing.spline_progress
+    );
+}
+
+fn run(mut state: State, inputs: impl IntoIterator<Item = KartInput>) -> State {
+    for input in inputs {
+        state = step(state, &[input], DT);
+    }
+    state
+}
+
+/// Yaw in radians recovered from the rotation quaternion `[x, y, z, w]`.
+fn yaw(rotation: [f32; 4]) -> f32 {
+    let [x, y, z, w] = rotation;
+    (2.0 * (w * y + x * z)).atan2(1.0 - 2.0 * (y * y + z * z))
+}
+
+/// Full throttle, steering toward a line a little right of the centreline
+/// some way ahead of the kart: enough to lap the oval on the asphalt and
+/// clear of the pipe that stands just left of the centreline in each turn.
+fn follow_centreline(state: &State, kart: usize) -> KartInput {
+    const LOOKAHEAD_M: f32 = 12.0;
+    const RIGHT_OF_CENTRE_M: f32 = 2.5;
+    const STEER_GAIN: f32 = 4.0;
+    let transform = state.kart_transforms()[kart];
+    let progress = state.standings()[kart].spline_progress;
+    let track = state.track();
+    let ahead = track.point_at(progress + LOOKAHEAD_M);
+    let further = track.point_at(progress + LOOKAHEAD_M + 1.0);
+    // Right of the direction of travel (dx, dz), seen from above, is (-dz, dx).
+    let (tx, tz) = (further[0] - ahead[0], further[2] - ahead[2]);
+    let travel = (tx * tx + tz * tz).sqrt().max(f32::EPSILON);
+    let target = [
+        ahead[0] - tz / travel * RIGHT_OF_CENTRE_M,
+        ahead[2] + tx / travel * RIGHT_OF_CENTRE_M,
+    ];
+    let (dx, dz) = (
+        target[0] - transform.position[0],
+        target[1] - transform.position[2],
+    );
+    let length = (dx * dx + dz * dz).sqrt().max(f32::EPSILON);
+    // Positive steer turns the kart right; right of a yaw is (cos, -sin) in x, z.
+    let (sin, cos) = yaw(transform.rotation).sin_cos();
+    let rightward = (dx * cos - dz * sin) / length;
+    KartInput {
+        steer: (rightward * STEER_GAIN).clamp(-1.0, 1.0),
+        throttle: 1.0,
+        ..KartInput::default()
+    }
+}
+
+/// What steers a kart in a multi-kart test: reads the state and the kart's
+/// grid slot, returns its input for the tick.
+type Driver = fn(&State, usize) -> KartInput;
+
+/// Step every kart in `drivers` by its own driver for `seconds`; a `None`
+/// driver leaves its kart idle.
+fn drive(mut state: State, drivers: &[Option<Driver>], seconds: f32) -> State {
+    for _ in 0..ticks(seconds) {
+        let inputs: Vec<KartInput> = drivers
+            .iter()
+            .enumerate()
+            .map(|(kart, driver)| driver.map_or(KartInput::default(), |driver| driver(&state, kart)))
+            .collect();
+        state = step(state, &inputs, DT);
+    }
+    state
+}
+
+/// A lap at top speed takes about 15 s; this is enough for one from the grid.
+const LAP_S: f32 = 20.0;
+
+#[test]
+fn driving_up_the_front_straight_crosses_the_gates_in_order() {
+    let state = race(1);
+    let gates: Vec<f32> = state.track().checkpoints()[..3]
+        .iter()
+        .map(|gate| gate.position[2])
+        .collect();
+    let mut crossed = vec![only_standing(&state).checkpoint];
+    let mut state = state;
+    for _ in 0..ticks(5.0) {
+        state = step(state, &[throttle()], DT);
+        let standing = only_standing(&state);
+        if crossed.last() != Some(&standing.checkpoint) {
+            let z = state.kart_transforms()[0].position[2];
+            // The gate was crossed this tick, so the kart is just past it.
+            assert!(
+                z <= gates[standing.checkpoint] && z > gates[standing.checkpoint] - 1.0,
+                "gate {} at z {} crossed with the kart at z {z}",
+                standing.checkpoint,
+                gates[standing.checkpoint]
+            );
+            crossed.push(standing.checkpoint);
+        }
+    }
+    assert_eq!(crossed, [0, 1, 2]);
+    assert_eq!(only_standing(&state).laps_completed, 0);
+}
+
+/// The oval with gate 1 narrowed to a metre either side of the centreline,
+/// so a kart driving straight from slot 0, two metres left of it, misses it.
+fn oval_with_a_narrow_first_gate() -> Track {
+    let mut sidecar: serde_json::Value = serde_json::from_str(OVAL).expect("valid JSON");
+    sidecar["checkpoints"][1]["half_width"] = serde_json::json!(1.0);
+    Track::from_sidecar(&sidecar.to_string()).expect("the narrowed oval loads")
+}
+
+#[test]
+fn a_gate_passed_outside_its_width_is_not_crossed_and_later_gates_wait_for_it() {
+    let state = State::new(SEED, 1, oval_with_a_narrow_first_gate());
+    let state = run(state, std::iter::repeat_n(throttle(), ticks(5.0)));
+
+    let z = state.kart_transforms()[0].position[2];
+    assert!(z < -80.0, "the kart is past gates 1 and 2 at z {z}");
+    assert_eq!(only_standing(&state).checkpoint, 0);
+}
+
+#[test]
+fn a_lap_completes_at_the_start_line_after_every_gate_and_records_its_time() {
+    let state = drive(race(1), &[Some(follow_centreline)], LAP_S);
+
+    let standing = only_standing(&state);
+    assert_eq!(standing.laps_completed, 1);
+    assert_eq!(standing.lap(), 2);
+    assert!(
+        (1..3).contains(&standing.checkpoint),
+        "a gate or two into the second lap, not {}",
+        standing.checkpoint
+    );
+    let best = standing.best_lap_s.expect("a lap was completed");
+    assert!((14.0..LAP_S).contains(&best), "best lap {best} s");
+    assert!(standing.lap_time_s < LAP_S - best, "the new lap's clock started at zero");
+    assert_eq!(state.kart_surface(0), sim::Surface::Asphalt);
+}
+
+
+#[test]
+fn spline_progress_climbs_the_whole_way_round_the_oval_and_wraps_at_the_line() {
+    let mut state = race(1);
+    let lap = state.track().spline_length();
+    let mut previous = only_standing(&state).spline_progress;
+    let mut wraps = 0;
+    for _ in 0..ticks(LAP_S) {
+        let input = follow_centreline(&state, 0);
+        state = step(state, &[input], DT);
+        let progress = only_standing(&state).spline_progress;
+        assert!((0.0..lap).contains(&progress), "progress {progress} on a {lap} m lap");
+        if progress < previous {
+            wraps += 1;
+            assert!(
+                previous > lap - 2.0 && progress < 2.0,
+                "progress fell from {previous} to {progress} away from the start line"
+            );
+        }
+        previous = progress;
+    }
+    assert_eq!(wraps, 2, "the grid is behind the line, then one lap");
+}
+
+#[test]
+fn race_position_orders_laps_then_checkpoints_then_progress() {
+    // Three drivers released together: the first laps, the second lifts
+    // off after a few gates, the third just after the line; the fourth
+    // never moves.
+    let mut state = race(4);
+    for second in 0..LAP_S as usize {
+        let drivers: [Option<Driver>; 4] = [
+            Some(follow_centreline),
+            if second < 6 { Some(follow_centreline) } else { None },
+            if second < 1 { Some(follow_centreline) } else { None },
+            None,
+        ];
+        state = drive(state, &drivers, 1.0);
+    }
+
+    let standings = state.standings();
+    let positions: Vec<u32> = standings.iter().map(|standing| standing.position).collect();
+    assert_eq!(positions, [1, 2, 3, 4]);
+    assert_eq!(standings[0].laps_completed, 1);
+    assert_eq!(standings[1].laps_completed, 0);
+    assert!(standings[1].checkpoint > standings[2].checkpoint);
+    assert_eq!(standings[2].checkpoint, standings[3].checkpoint);
+    // The last two are past the same gate; progress splits them, with the
+    // one still on the grid a little behind the line and so last.
+    assert!(standings[3].spline_progress > standings[2].spline_progress);
+}
+
+#[test]
+fn an_overtake_registers_the_tick_it_happens() {
+    // Pole idles while the kart behind it on the other column drives past.
+    let mut state = race(2);
+    let mut swapped_at = None;
+    for tick in 0..ticks(3.0) {
+        state = step(state, &[KartInput::default(), throttle()], DT);
+        let standings = state.standings();
+        if standings[1].position == 1 {
+            swapped_at = Some(tick);
+            break;
+        }
+    }
+    let tick = swapped_at.expect("the driven kart gets past the idle one");
+    let [idle, driven] = state.kart_transforms()[..] else {
+        unreachable!("two karts")
+    };
+    assert!(
+        driven.position[2] < idle.position[2],
+        "swapped at tick {tick} with the driven kart at z {} and the idle at z {}",
+        driven.position[2],
+        idle.position[2]
+    );
+    assert_eq!(
+        state.standings().iter().map(|s| s.position).collect::<Vec<_>>(),
+        [2, 1]
+    );
+}
+
+/// The oval with its second grid slot moved level with pole, so two karts
+/// start with the same spline progress.
+fn oval_with_a_level_front_row() -> Track {
+    let mut sidecar: serde_json::Value = serde_json::from_str(OVAL).expect("valid JSON");
+    let pole_z = sidecar["spawn_grid"][0]["position"][2].clone();
+    sidecar["spawn_grid"][1]["position"][2] = pole_z;
+    Track::from_sidecar(&sidecar.to_string()).expect("the levelled oval loads")
+}
+
+#[test]
+fn a_dead_heat_keeps_grid_order() {
+    let state = State::new(SEED, 2, oval_with_a_level_front_row());
+    let standings = state.standings();
+    assert_eq!(standings[0].spline_progress, standings[1].spline_progress);
+    assert_eq!(standings[0].position, 1);
+    assert_eq!(standings[1].position, 2);
+
+    // Still level after driving straight side by side, still in grid order.
+    let state = drive(state, &[Some(straight), Some(straight)], 2.0);
+    let standings = state.standings();
+    assert_eq!(standings[0].spline_progress, standings[1].spline_progress);
+    assert!(standings[0].spline_progress > 10.0, "both drove past the line");
+    assert_eq!(standings[0].position, 1);
+    assert_eq!(standings[1].position, 2);
+}
+
+#[test]
+fn three_laps_of_the_oval_end_with_the_lap_counter_at_three_and_a_best_lap() {
+    let mut state = race(1);
+    let mut lap_times = Vec::new();
+    let mut laps_seen = 0;
+    for _ in 0..ticks(3.0 * LAP_S) {
+        let input = follow_centreline(&state, 0);
+        state = step(state, &[input], DT);
+        let standing = only_standing(&state);
+        if standing.laps_completed > laps_seen {
+            laps_seen = standing.laps_completed;
+            lap_times.push(standing.best_lap_s.expect("a lap just completed"));
+        }
+        if laps_seen == LAPS_PER_RACE {
+            break;
+        }
+    }
+
+    let standing = only_standing(&state);
+    assert_eq!(standing.laps_completed, 3);
+    assert_eq!(standing.lap(), 3, "the counter stays on the last lap");
+    assert_eq!(lap_times.len(), 3);
+    // The first lap starts from a standstill, so a flying lap is the best.
+    let best = standing.best_lap_s.expect("three laps were completed");
+    assert!(best < lap_times[0], "best {best} s, first lap {} s", lap_times[0]);
+    assert!(lap_times.windows(2).all(|pair| pair[1] <= pair[0]), "{lap_times:?}");
+}
