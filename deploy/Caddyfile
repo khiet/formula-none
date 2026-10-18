@@ -1,0 +1,23 @@
+# Caddy terminates HTTPS for the one hostname and serves the built client
+# from /srv; the API is the server's. Let's Encrypt is reached over
+# TLS-ALPN-01 on 443, since port 80 is closed at the security group.
+{
+	# No HTTP/3: 443 UDP belongs to the server's own QUIC listener (ADR 0011).
+	servers {
+		protocols h1 h2
+	}
+}
+
+{$SITE_ADDRESS:formulanone.sushimafia.com} {
+	encode zstd gzip
+
+	handle /api/* {
+		reverse_proxy server:8080
+	}
+
+	handle {
+		root * /srv
+		try_files {path} /index.html
+		file_server
+	}
+}

@@ -9,6 +9,15 @@ publish.workspace = true
 [dependencies]
 sim = { path = "../sim" }
 protocol = { path = "../protocol" }
+axum = "0.8.9"
+tokio = { version = "1.53.3", features = ["rt-multi-thread", "macros", "signal", "net"] }
+serde = { version = "1.0.229", features = ["derive"] }
 
 [lints]
 workspace = true
+
+[dev-dependencies]
+http-body-util = "0.1.5"
+serde_json = "1.0.154"
+tokio = { version = "1.53.3", features = ["io-util", "sync", "time"] }
+tower = { version = "0.5.3", features = ["util"] }

@@ -47,16 +47,24 @@ Grafana is reached the same way, with a port forward (ADR 0015).
 The deploy workflow assumes `github_actions_role_arn`, pushes to
 `ecr_repository_url` tagged with the commit, and runs the
 `deploy_document_name` document against `instance_id` with that tag as
-`ImageTag`. The document logs in to ECR, pulls, and runs `compose up` in
-`/opt/formula-none`. Nothing here writes the Compose file; the deploy
-pipeline (ADR 0016) must put it there before the first run. The same command
-by hand:
+`ImageTag`. The document logs in to ECR, pulls the image, copies the release
+bundle it carries (Compose file, Caddyfile, built client) to
+`/opt/formula-none/release`, and runs `compose pull` and `up` from there.
+Nothing here writes the Compose file; it travels inside the image, so the
+stack definition always matches the deployed commit.
+
+After an apply, give the workflow the two values it cannot derive:
 
 ```sh
-aws ssm send-command --profile neconote \
-  --document-name "$(tofu output -raw deploy_document_name)" \
-  --instance-ids "$(tofu output -raw instance_id)" \
-  --parameters ImageTag=<commit-sha>
+gh variable set AWS_DEPLOY_ROLE_ARN --body "$(tofu output -raw github_actions_role_arn)"
+gh variable set AWS_INSTANCE_ID --body "$(tofu output -raw instance_id)"
+```
+
+The same deploy by hand, including the smoke test, is one command
+(`deploy/README.md`):
+
+```sh
+AWS_PROFILE=neconote deploy/deploy.sh <commit-sha>
 ```
 
 ## Checks

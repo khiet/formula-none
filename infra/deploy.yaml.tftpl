@@ -1,5 +1,5 @@
 schemaVersion: "2.2"
-description: Pull the server image for one commit and restart the Compose stack.
+description: Pull the server image for one commit and restart the Compose stack from the bundle it carries.
 parameters:
   ImageTag:
     type: String
@@ -15,6 +15,12 @@ mainSteps:
         - set -euo pipefail
         - aws ecr get-login-password --region ${region} | docker login --username AWS --password-stdin ${registry}
         - export SERVER_IMAGE="${repository_url}:{{ ImageTag }}"
-        - docker compose pull
-        - docker compose up -d --remove-orphans
+        - docker pull "$SERVER_IMAGE"
+        # The image carries its Compose file, Caddyfile and built client
+        # under /release; the stack always runs from the deployed commit's copy.
+        - container=$(docker create "$SERVER_IMAGE")
+        - rm -rf release.next && docker cp "$container:/release" release.next && docker rm "$container"
+        - rm -rf release && mv release.next release
+        - docker compose -f release/compose.yaml pull
+        - docker compose -f release/compose.yaml up -d --remove-orphans
         - docker image prune -f
