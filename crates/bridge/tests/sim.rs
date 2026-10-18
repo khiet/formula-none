@@ -3,7 +3,10 @@
 //! wasm build of the same code is checked in CI.
 
 use bridge::Race;
-use sim::tuning::{KART_HALF_HEIGHT_M, KART_HALF_LENGTH_M, KART_HALF_WIDTH_M, TICKS_PER_SECOND};
+use sim::tuning::{
+    HOP_AIRTIME_S, KART_HALF_HEIGHT_M, KART_HALF_LENGTH_M, KART_HALF_WIDTH_M,
+    MINI_TURBO_BLUE_CHARGE_S, TICKS_PER_SECOND,
+};
 use sim::{DriftDirection, MiniTurbo, Surface, Track};
 
 const OVAL: &str = include_str!("../../../assets/tracks/oval/oval.track.json");
@@ -54,10 +57,11 @@ fn the_buffer_reports_a_drift_its_direction_tier_and_charge_as_the_sim_does() {
     };
     let mut state = sim::State::new(42, 1, Track::from_sidecar(OVAL).unwrap());
     let mut race = race(42, 1);
-    // Up to speed, then a hop into a left drift held 1.2 s: past the airtime
-    // and the blue charge, short of orange.
-    for tick in 0..3 * TICKS_PER_SECOND + 6 * TICKS_PER_SECOND / 5 {
-        let input = if tick < 3 * TICKS_PER_SECOND {
+    // Up to speed, then a hop into a left drift held just past blue.
+    let to_speed = 3 * TICKS_PER_SECOND;
+    let hold = ((HOP_AIRTIME_S + MINI_TURBO_BLUE_CHARGE_S + 0.1) * TICKS_PER_SECOND as f32) as u32;
+    for tick in 0..to_speed + hold {
+        let input = if tick < to_speed {
             sim::KartInput {
                 steer: 0.0,
                 hop: false,

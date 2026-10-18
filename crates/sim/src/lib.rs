@@ -49,7 +49,7 @@ pub struct KartInput {
     pub hold_item: bool,
 }
 
-/// What the renderer and the Instrument panel need per kart: where it is, in
+/// What the View and the Instrument panel need per kart: where it is, in
 /// metres and as a unit quaternion `[x, y, z, w]`, how fast it is going, and
 /// the drift under way. Y is up and a kart with identity rotation faces -Z,
 /// matching Three.js.
@@ -71,8 +71,9 @@ pub enum DriftDirection {
 }
 
 impl DriftDirection {
-    /// The steer value that turns this way: -1 left, 1 right.
-    fn steer_sign(self) -> f32 {
+    /// The steer value that turns this way, which is also how the bridge
+    /// carries the direction.
+    pub fn steer_sign(self) -> f32 {
         match self {
             Self::Left => -1.0,
             Self::Right => 1.0,
@@ -123,6 +124,15 @@ pub enum MiniTurbo {
 }
 
 impl MiniTurbo {
+    /// The tier as one byte in charge order, for the hash and the bridge.
+    pub fn code(self) -> u8 {
+        match self {
+            Self::None => 0,
+            Self::Blue => 1,
+            Self::Orange => 2,
+        }
+    }
+
     /// How long releasing this tier boosts the kart.
     fn boost_s(self) -> f32 {
         use tuning::{MINI_TURBO_BLUE_BOOST_S, MINI_TURBO_ORANGE_BOOST_S};
@@ -167,6 +177,12 @@ impl Kart {
     fn airborne(&self) -> bool {
         self.airtime_left_s > 0.0
     }
+}
+
+/// Fast enough to slide: what a landing needs to start a drift and a drift
+/// needs to go on.
+fn fast_enough_to_drift(speed: f32) -> bool {
+    speed > DRIFT_ENTRY_SPEED_FRACTION * TOP_SPEED_M_PER_S
 }
 
 /// Rapier's working sets. One struct so `step` passes them around as a unit.
@@ -313,10 +329,8 @@ impl State {
             hasher.write_f32(kart.speed);
             hasher.write_f32(kart.airtime_left_s);
             hasher.write_u8(u8::from(kart.hop_was_held));
-            hasher.write_u8(hash::direction_code(kart.hop_direction));
-            hasher.write_u8(hash::direction_code(
-                kart.drift.map(|drift| drift.direction),
-            ));
+            hasher.write_f32(kart.hop_direction.map_or(0.0, DriftDirection::steer_sign));
+            hasher.write_f32(kart.drift.map_or(0.0, |drift| drift.direction.steer_sign()));
             hasher.write_f32(kart.drift.map_or(0.0, |drift| drift.charge_s));
             hasher.write_f32(kart.boost_left_s);
             hasher.write_f32s(body.translation().to_array());
@@ -363,7 +377,7 @@ pub fn step(mut state: State, inputs: &[KartInput], dt: f32) -> State {
                 kart.drift = landing_drift(kart, input);
             }
         } else if let Some(drift) = &mut kart.drift {
-            if input.hop && kart.speed >= DRIFT_ENTRY_SPEED_FRACTION * TOP_SPEED_M_PER_S {
+            if input.hop && fast_enough_to_drift(kart.speed) {
                 drift.charge_s += dt;
             } else {
                 // Letting go releases what the drift charged; losing the
@@ -410,8 +424,7 @@ fn hop_launch_speed() -> f32 {
 /// lands, and is going fast enough to slide.
 fn landing_drift(kart: &Kart, input: &KartInput) -> Option<Drift> {
     let direction = kart.hop_direction?;
-    let fast_enough = kart.speed >= DRIFT_ENTRY_SPEED_FRACTION * TOP_SPEED_M_PER_S;
-    (input.hop && input.steer != 0.0 && fast_enough).then_some(Drift {
+    (input.hop && input.steer != 0.0 && fast_enough_to_drift(kart.speed)).then_some(Drift {
         direction,
         charge_s: 0.0,
     })

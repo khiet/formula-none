@@ -6,7 +6,7 @@
 //! once per kart per field.
 
 use protocol::{ClientMessage, ServerMessage};
-use sim::{DriftDirection, KartInput, MiniTurbo, Replay, State, Track};
+use sim::{KartInput, Replay, State, Track};
 use wasm_bindgen::prelude::*;
 
 /// Floats per kart in the input buffer: steer, throttle, brake, hop, use
@@ -167,15 +167,8 @@ impl Race {
             .flat_map(|(slot, kart)| {
                 let (direction, tier, charge_s) = match kart.drift {
                     Some(drift) => (
-                        match drift.direction {
-                            DriftDirection::Left => -1.0,
-                            DriftDirection::Right => 1.0,
-                        },
-                        match drift.mini_turbo() {
-                            MiniTurbo::None => 0.0,
-                            MiniTurbo::Blue => 1.0,
-                            MiniTurbo::Orange => 2.0,
-                        },
+                        drift.direction.steer_sign(),
+                        f32::from(drift.mini_turbo().code()),
                         drift.charge_s,
                     ),
                     None => (0.0, 0.0, 0.0),

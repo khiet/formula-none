@@ -16,7 +16,7 @@ import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { WebGPURenderer } from "three/webgpu";
 import type { KartSize, KartTransform } from "./bridge";
 import type { CameraPose } from "./chase-camera";
-import { sparkTell } from "./sparks";
+import { type SparkTell, sparkTell } from "./sparks";
 
 /** Far enough to see across Brands Patch from any point on it. */
 const CAMERA_FAR_M = 1000;
@@ -94,11 +94,7 @@ export async function createRaceView(
         }
         kart.mesh.position.set(...transform.position);
         kart.mesh.quaternion.set(...transform.rotation);
-        const tell = sparkTell(transform.drift);
-        kart.sparks.visible = tell !== null;
-        if (tell !== null) {
-          kart.sparkMaterial.color.setHex(tell.colour);
-        }
+        kart.showSparks(sparkTell(transform.drift));
       });
       camera.position.set(...pose.position);
       camera.lookAt(target.set(...pose.target));
@@ -111,9 +107,8 @@ export async function createRaceView(
 
 interface PlaceholderKart {
   readonly mesh: Group;
-  /** The spark tell at the rear wheels; hidden off a drift. */
-  readonly sparks: Group;
-  readonly sparkMaterial: MeshBasicMaterial;
+  /** Show the spark tell at the rear wheels in its colour, or hide it for `null`. */
+  showSparks(tell: SparkTell | null): void;
 }
 
 /**
@@ -150,5 +145,13 @@ function placeholderKart(size: KartSize, livery: Color): PlaceholderKart {
   }
   sparks.visible = false;
   kart.add(sparks);
-  return { mesh: kart, sparks, sparkMaterial };
+  return {
+    mesh: kart,
+    showSparks(tell) {
+      sparks.visible = tell !== null;
+      if (tell !== null) {
+        sparkMaterial.color.setHex(tell.colour);
+      }
+    },
+  };
 }

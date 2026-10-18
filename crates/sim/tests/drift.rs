@@ -65,19 +65,19 @@ fn a_hop_lifts_the_kart_and_lands_it_after_the_tuned_airtime() {
         "in the air halfway through the airtime"
     );
 
-    let landed = run(midair, vec![hop; ticks(HOP_AIRTIME_S / 2.0) + 3]);
+    let after_landing = run(midair, vec![hop; ticks(HOP_AIRTIME_S / 2.0) + 3]);
     assert!(
-        (only_kart(&landed).position[1] - ground).abs() < 0.02,
+        (only_kart(&after_landing).position[1] - ground).abs() < 0.02,
         "back on the track just after the airtime"
     );
     assert!(
-        only_kart(&landed).speed > 0.9 * TOP_SPEED_M_PER_S,
+        only_kart(&after_landing).speed > 0.9 * TOP_SPEED_M_PER_S,
         "a hop does not cost speed"
     );
 }
 
-/// Hop and steer right, held through the landing: the drift the technique
-/// is for. `hold` is kept down after landing.
+/// Hop and steer right with the throttle down: held through the landing,
+/// the drift the technique is for.
 fn hop_right() -> KartInput {
     KartInput {
         hop: true,
@@ -352,8 +352,7 @@ fn holding_the_hop_button_through_a_landing_does_not_hop_again() {
     let ground = only_kart(&at_top_speed()).position[1];
     // A straight hop lands into no drift, so a held button has nothing to
     // keep; it must not bounce the kart either.
-    let landed = landed(at_top_speed(), hold);
-    let mut state = landed;
+    let mut state = landed(at_top_speed(), hold);
     for _ in 0..ticks(HOP_AIRTIME_S) {
         state = step(state, &[hold], DT);
         let height = only_kart(&state).position[1] - ground;
