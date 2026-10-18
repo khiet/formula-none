@@ -90,9 +90,9 @@ over up to six frames rather than snapped.
 
 ### replay
 
-A race as `{seed, track, inputs[]}`: enough to rerun it anywhere. Inputs are
-run-length encoded into segments, one input per kart in grid order for a run
-of ticks. A replay committed under `assets/replays` with the state hashes it
+A race as `{seed, track, bots, inputs[]}`: enough to rerun it anywhere.
+Inputs are run-length encoded into segments, one input per human kart in
+grid order for a run of ticks; the bots drive themselves from the seed. A replay committed under `assets/replays` with the state hashes it
 reported is a fixture of the determinism gate.
 
 ### state hash

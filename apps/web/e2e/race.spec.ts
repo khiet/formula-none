@@ -1,10 +1,11 @@
 import { expect, test } from "@playwright/test";
 
 // The whole chain in a real browser, on each track: glTF and sidecar load,
-// a key, keyboard mapping, wasm sim on the track's colliders, transforms
-// back out, Instrument panel readouts. Brands Patch is the default; the oval
-// fixture is selected by query string. The arrows drive one track and WASD
-// the other, so both layouts are covered.
+// a key, keyboard mapping, wasm sim on the track's colliders with seven
+// bots on the grid behind the player, transforms back out, Instrument panel
+// readouts. Brands Patch is the default; the oval fixture is selected by
+// query string. The arrows drive one track and WASD the other, so both
+// layouts are covered.
 for (const [name, url, throttleKey] of [
   ["Brands Patch", "/", "ArrowUp"],
   ["the oval", "/?track=oval", "w"],
@@ -15,10 +16,13 @@ for (const [name, url, throttleKey] of [
     const surface = page.locator('[data-instrument="surface"]');
     await expect(speed).toHaveText("0.0 m/s");
     await expect(surface).toHaveText("asphalt");
-    // The Instrument panel's lap readouts come from the sim: alone on the
-    // grid, first on lap one, the lap clock running and no best lap yet.
-    await expect(page.locator('[data-instrument="position"]')).toHaveText("1st");
+    // The Instrument panel's lap readouts come from the sim: on lap one, the
+    // lap clock running and no best lap yet, and last once the seven bots
+    // behind on the grid have driven past the idle kart.
     await expect(page.locator('[data-instrument="lap"]')).toHaveText("Lap 1/3");
+    await expect(page.locator('[data-instrument="position"]')).toHaveText("8th", {
+      timeout: 30_000,
+    });
     await expect(page.locator('[data-instrument="best-lap"]')).toHaveText("Best --:--.---");
     await expect(page.locator('[data-instrument="lap-time"]')).not.toHaveText("0:00.000");
 
@@ -44,6 +48,11 @@ test("backing up the Brands Patch grid for two seconds shows the wrong-way warni
   const wrongWay = page.locator('[data-instrument="wrong-way"]');
   await expect(speed).toHaveText("0.0 m/s");
   await expect(wrongWay).toBeHidden();
+  // Once the bots behind on the grid have all gone past, the straight
+  // behind the kart is clear to back up along.
+  await expect(page.locator('[data-instrument="position"]')).toHaveText("8th", {
+    timeout: 30_000,
+  });
   // Reversing from the grid takes the kart away from the line it faces.
   await page.keyboard.down("ArrowDown");
   await expect(wrongWay).toHaveText("WRONG WAY", { timeout: 60_000 });

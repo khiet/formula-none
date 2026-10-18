@@ -1,6 +1,6 @@
 # Replay fixtures
 
-A race replay is `{seed, track, inputs[]}`. Each file here is one replay
+A race replay is `{seed, track, bots, inputs[]}`. Each file here is one replay
 with the state hash the sim reported at every 60th tick when it was
 recorded. Two tests rerun every file and hold the sim to those hashes:
 `crates/sim/tests/replay.rs` natively and `apps/web/src/replay.test.ts`
@@ -11,14 +11,16 @@ recorded hashes, so both passing means the builds agree. The `Replay
 determinism (native vs wasm)` CI job runs both on every PR.
 
 `crates/sim/src/replay.rs` documents the format. Inputs are run-length
-encoded, one input per kart in grid order; the seed is a decimal string and
-each hash 16 hex digits, since a JSON number cannot carry every u64.
+encoded, one input per human kart in grid order; the bots behind them on
+the grid drive themselves from the seed, so the file carries only their
+count. The seed is a decimal string and each hash 16 hex digits, since a
+JSON number cannot carry every u64.
 
 ## Record a fixture from a browser session
 
 Drive in the client (`pnpm --filter web dev`, `?track=oval` for the oval),
-then press `R`. The browser downloads `<track>.replay.json`: the inputs of
-every tick so far and the wasm sim's hashes. Move it here under a
+then press `R`. The browser downloads `<track>.replay.json`: your inputs
+for every tick so far, the seven bots' count and the wasm sim's hashes. Move it here under a
 descriptive name ending in `.replay.json`; both tests pick it up by listing
 this directory.
 

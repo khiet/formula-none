@@ -26,7 +26,7 @@ describe("bridge wrapper", () => {
 
   it("steps each kart by its own input and reports transforms in grid order", async () => {
     const bridge = await loadBridge(wasm);
-    const race = bridge.createRace(7n, 2, OVAL);
+    const race = bridge.createRace(7n, 2, 0, OVAL);
     const spawn = race.kartTransforms();
     for (let tick = 0; tick < 60; tick++) {
       race.step([THROTTLE, IDLE_INPUT], DT);
@@ -47,7 +47,7 @@ describe("bridge wrapper", () => {
 
   it("reports the surface under a kart that steers off the asphalt", async () => {
     const bridge = await loadBridge(wasm);
-    const race = bridge.createRace(7n, 1, OVAL);
+    const race = bridge.createRace(7n, 1, 0, OVAL);
     const seen = new Set<string>();
     for (let tick = 0; tick < 180; tick++) {
       race.step([TURN], DT);
@@ -70,14 +70,14 @@ describe("bridge wrapper", () => {
 
   it("rejects a sidecar the sim cannot race on with the sim's reason", async () => {
     const bridge = await loadBridge(wasm);
-    expect(() => bridge.createRace(7n, 1, "{}")).toThrow(/sidecar/);
-    expect(() => bridge.createRace(7n, 9, OVAL)).toThrow(/spawn slots/);
+    expect(() => bridge.createRace(7n, 1, 0, "{}")).toThrow(/sidecar/);
+    expect(() => bridge.createRace(7n, 9, 0, OVAL)).toThrow(/spawn slots/);
   });
 
   it("replays the same seed and inputs to the same transform", async () => {
     const bridge = await loadBridge(wasm);
     const drive = (): KartTransform[] => {
-      const race = bridge.createRace(99n, 1, OVAL);
+      const race = bridge.createRace(99n, 1, 0, OVAL);
       for (let tick = 0; tick < 120; tick++) {
         race.step([tick < 60 ? THROTTLE : TURN], DT);
       }
@@ -89,7 +89,7 @@ describe("bridge wrapper", () => {
 
   it("reports a hop landed into a drift, with its direction and charge tier", async () => {
     const bridge = await loadBridge(wasm);
-    const race = bridge.createRace(7n, 1, OVAL);
+    const race = bridge.createRace(7n, 1, 0, OVAL);
     const hopRight: KartInput = { ...TURN, hop: true };
     for (let tick = 0; tick < 180; tick++) {
       race.step([THROTTLE], DT);
@@ -113,9 +113,27 @@ describe("bridge wrapper", () => {
 
   it("refuses an input list that does not match the kart count", async () => {
     const bridge = await loadBridge(wasm);
-    const race = bridge.createRace(7n, 2, OVAL);
+    const race = bridge.createRace(7n, 2, 0, OVAL);
     expect(() => race.step([IDLE_INPUT], DT)).toThrow(RangeError);
     expect(() => race.step([IDLE_INPUT, IDLE_INPUT, IDLE_INPUT], DT)).toThrow(RangeError);
+  });
+
+  it("fills the grid behind the human with bots that drive themselves", async () => {
+    const bridge = await loadBridge(wasm);
+    expect(bridge.kartsPerRace).toBe(8);
+    const race = bridge.createRace(7n, 1, bridge.kartsPerRace - 1, OVAL);
+    expect(race.kartTransforms()).toHaveLength(8);
+    expect(race.standings()).toHaveLength(8);
+    // Only the human's input is given; eight would be a caller error.
+    expect(() => race.step(Array(8).fill(IDLE_INPUT), DT)).toThrow(RangeError);
+    for (let tick = 0; tick < 180; tick++) {
+      race.step([IDLE_INPUT], DT);
+    }
+    const [human, ...bots] = race.kartTransforms();
+    expect(human?.speed).toBe(0);
+    expect(bots.every((bot) => bot.speed > 20)).toBe(true);
+    expect(race.standings()[0]?.position).toBe(8);
+    expect(() => bridge.createRace(7n, 1, 8, OVAL)).toThrow(/spawn slots/);
   });
 });
 
@@ -123,7 +141,7 @@ describe("standings", () => {
   it("reports a kart on the grid in first place on lap one with no best lap, and the race's lap count", async () => {
     const bridge = await loadBridge(wasm);
     expect(bridge.lapsPerRace).toBe(3);
-    const race = bridge.createRace(7n, 2, OVAL);
+    const race = bridge.createRace(7n, 2, 0, OVAL);
     const [pole, second] = race.standings();
     expect(pole).toEqual({
       position: 1,
@@ -141,7 +159,7 @@ describe("standings", () => {
 
   it("times the lap, crosses gates in order and swaps positions as the sim reports them", async () => {
     const bridge = await loadBridge(wasm);
-    const race = bridge.createRace(7n, 2, OVAL);
+    const race = bridge.createRace(7n, 2, 0, OVAL);
     // Pole idles while the second kart drives up the straight past it and checkpoint 1.
     for (let tick = 0; tick < 180; tick++) {
       race.step([IDLE_INPUT, THROTTLE], DT);
@@ -158,7 +176,7 @@ describe("standings", () => {
 
   it("raises the wrong-way warning after backing away from the line for the tuned time", async () => {
     const bridge = await loadBridge(wasm);
-    const race = bridge.createRace(7n, 1, OVAL);
+    const race = bridge.createRace(7n, 1, 0, OVAL);
     const brake = { ...IDLE_INPUT, brake: 1 };
     // Two seconds of reversing, as the sim's tuning has it, plus a tick.
     for (let tick = 0; tick < 121; tick++) {

@@ -39,6 +39,8 @@ test("pressing R downloads the session as a replay fixture", async ({ page }) =>
 
   expect(replay.version).toBe(1);
   expect(replay.track).toBe(TRACK);
+  // Seven bots fill the grid; the segments carry the player's input only.
+  expect(replay.bots).toBe(7);
   // Straight, steering, straight again: consecutive ticks with the same
   // inputs share a segment.
   expect(replay.segments.length).toBeGreaterThanOrEqual(3);

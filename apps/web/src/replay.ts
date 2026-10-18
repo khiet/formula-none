@@ -7,7 +7,7 @@ import type { TrackName } from "./track";
 
 export interface ReplayRecorder {
   readonly track: TrackName;
-  /** Call once per tick, after `race` stepped with `inputs`. */
+  /** Call once per tick, after `race` stepped with the humans' `inputs`. */
   record(inputs: readonly KartInput[]): void;
   /** The session so far as a replay fixture, pretty-printed like the committed ones. */
   toJSON(): string;
@@ -19,6 +19,8 @@ export interface ReplayFile {
   /** Decimal, as a string: a JSON number cannot carry every u64. */
   readonly seed: string;
   readonly track: string;
+  /** Bot karts behind the humans; they drive themselves from the seed, so the segments carry no input for them. */
+  readonly bots: number;
   readonly segments: readonly Segment[];
   /** 16 hex digits each. */
   readonly hashes: readonly string[];
@@ -30,14 +32,16 @@ export interface Segment {
 }
 
 /**
- * Record `race`, which was created from `seed` on `track`, from its first
- * tick. Consecutive ticks with the same inputs share a segment, and the
- * race's hash is kept at every `bridge.replayHashIntervalTicks`th tick.
+ * Record `race`, which was created from `seed` on `track` with `bots` bot
+ * karts, from its first tick. Consecutive ticks with the same inputs share a
+ * segment, and the race's hash is kept at every
+ * `bridge.replayHashIntervalTicks`th tick.
  */
 export function recordReplay(
   bridge: Bridge,
   seed: bigint,
   track: TrackName,
+  bots: number,
   race: Race,
 ): ReplayRecorder {
   const segments: { ticks: number; inputs: KartInput[] }[] = [];
@@ -66,7 +70,14 @@ export function recordReplay(
       }
     },
     toJSON() {
-      const file: ReplayFile = { version: 1, seed: seed.toString(), track, segments, hashes };
+      const file: ReplayFile = {
+        version: 1,
+        seed: seed.toString(),
+        track,
+        bots,
+        segments,
+        hashes,
+      };
       return `${JSON.stringify(file, null, 2)}\n`;
     },
   };

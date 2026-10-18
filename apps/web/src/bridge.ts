@@ -5,6 +5,7 @@ import init, {
   decode_pong,
   encode_ping,
   kart_size_m,
+  karts_per_race,
   laps_per_race,
   ping_resend_s,
   ping_timeout_s,
@@ -87,7 +88,7 @@ export interface Standing {
 }
 
 export interface Race {
-  /** Advance one tick of `dt` seconds; one input per kart in grid order. */
+  /** Advance one tick of `dt` seconds; one input per human kart in grid order. The bots drive themselves. */
   step(inputs: readonly KartInput[], dt: number): void;
   /** One transform per kart in grid order, as of the last step. */
   kartTransforms(): KartTransform[];
@@ -113,13 +114,16 @@ export interface Bridge {
   readonly kartSize: KartSize;
   /** Laps in a race, from the sim's tuning (ADR 0014). */
   readonly lapsPerRace: number;
+  /** Karts on the grid, from the sim's tuning; bots fill the slots the humans leave (ADR 0014). */
+  readonly kartsPerRace: number;
   /**
    * A race on the track described by `sidecar` (the JSON exported next to its
-   * glTF) with `kartCount` karts on its spawn grid. Throws, with the sim's
-   * reason, when the sidecar is unusable or has fewer spawn slots than
-   * `kartCount`.
+   * glTF) with `humanCount` karts on the front of its spawn grid and
+   * `botCount` bot-driven karts on the slots behind them. Throws, with the
+   * sim's reason, when the sidecar is unusable or has fewer spawn slots than
+   * the karts.
    */
-  createRace(seed: bigint, kartCount: number, sidecar: string): Race;
+  createRace(seed: bigint, humanCount: number, botCount: number, sidecar: string): Race;
   /** A replay's hashes are kept every this many ticks. */
   readonly replayHashIntervalTicks: number;
   /**
@@ -160,11 +164,13 @@ export async function loadBridge(wasm?: BufferSource): Promise<Bridge> {
     ticksPerSecond: ticks_per_second(),
     kartSize: kartSize(),
     lapsPerRace: laps_per_race(),
+    kartsPerRace: karts_per_race(),
     replayHashIntervalTicks: replay_hash_interval_ticks(),
-    createRace(seed, kartCount, sidecar) {
+    createRace(seed, humanCount, botCount, sidecar) {
       return new BridgedRace(
-        rethrown(() => new WasmRace(seed, kartCount, sidecar)),
-        kartCount,
+        rethrown(() => new WasmRace(seed, humanCount, botCount, sidecar)),
+        humanCount,
+        humanCount + botCount,
       );
     },
     replayHashes(replay, sidecar) {
@@ -201,18 +207,20 @@ function rethrown<T>(call: () => T): T {
 
 class BridgedRace implements Race {
   readonly #race: WasmRace;
+  readonly #humanCount: number;
   readonly #kartCount: number;
   readonly #inputs: Float32Array;
 
-  constructor(race: WasmRace, kartCount: number) {
+  constructor(race: WasmRace, humanCount: number, kartCount: number) {
     this.#race = race;
+    this.#humanCount = humanCount;
     this.#kartCount = kartCount;
-    this.#inputs = new Float32Array(kartCount * FLOATS_PER_INPUT);
+    this.#inputs = new Float32Array(humanCount * FLOATS_PER_INPUT);
   }
 
   step(inputs: readonly KartInput[], dt: number): void {
-    if (inputs.length !== this.#kartCount) {
-      throw new RangeError(`expected ${this.#kartCount} inputs, got ${inputs.length}`);
+    if (inputs.length !== this.#humanCount) {
+      throw new RangeError(`expected ${this.#humanCount} inputs, got ${inputs.length}`);
     }
     inputs.forEach((input, slot) => {
       const at = slot * FLOATS_PER_INPUT;

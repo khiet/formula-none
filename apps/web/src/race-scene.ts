@@ -8,10 +8,10 @@ import { createRaceView } from "./race-view";
 import { downloadReplay, recordReplay } from "./replay";
 import type { TrackFiles } from "./track";
 
-// M0: one kart, the local player at slot 0. The seed is fixed until rooms
-// hand one out.
+// M1: the local player alone at slot 0 and bots on the rest of the grid.
+// The seed is fixed until rooms hand one out.
 const SEED = 1n;
-const KART_COUNT = 1;
+const HUMAN_COUNT = 1;
 const LOCAL_KART = 0;
 /** Ticks run per frame at most, so a stalled tab catches up instead of spiralling. */
 const MAX_TICKS_PER_FRAME = 5;
@@ -24,9 +24,10 @@ export interface RaceScene {
 }
 
 /**
- * The Race Scene: the local kart's sim stepped at the tuned rate from the
- * keyboard and the gamepad, its one View drawn every frame from the chase
- * camera, and the Instrument panel over it. Runs until the page goes away.
+ * The Race Scene: the sim stepped at the tuned rate from the keyboard and
+ * the gamepad for the local kart, with bots driving the rest of the grid,
+ * its one View drawn every frame from the chase camera, and the Instrument
+ * panel over it. Runs until the page goes away.
  */
 export async function createRaceScene(
   container: HTMLElement,
@@ -35,15 +36,16 @@ export async function createRaceScene(
   sidecar: string,
 ): Promise<RaceScene> {
   const tickSeconds = 1 / bridge.ticksPerSecond;
-  const race = bridge.createRace(SEED, KART_COUNT, sidecar);
-  const recorder = recordReplay(bridge, SEED, track.name, race);
+  const botCount = bridge.kartsPerRace - HUMAN_COUNT;
+  const race = bridge.createRace(SEED, HUMAN_COUNT, botCount, sidecar);
+  const recorder = recordReplay(bridge, SEED, track.name, botCount, race);
   window.addEventListener("keydown", (event) => {
     if (event.key === DOWNLOAD_REPLAY_KEY) {
       downloadReplay(recorder, document);
     }
   });
   const input = combinedKartInput(keyboardKartInput(window), gamepadKartInput(navigator));
-  const view = await createRaceView(container, KART_COUNT, bridge.kartSize, track.gltfUrl);
+  const view = await createRaceView(container, bridge.kartsPerRace, bridge.kartSize, track.gltfUrl);
   const camera = createChaseCamera();
   const panel = createInstrumentPanel(container, bridge.lapsPerRace);
 
