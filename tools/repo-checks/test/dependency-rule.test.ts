@@ -10,9 +10,14 @@ const ALLOWED_CRATE_DEPS: Record<string, string[]> = {
   server: ["sim", "protocol"],
 };
 
-/** Names of workspace crates a Cargo manifest depends on via `path = ...`. */
+/**
+ * Names of workspace crates a Cargo manifest depends on, in either form Cargo
+ * accepts: `sim = { path = "../sim" }` or a `[dependencies.sim]` table.
+ */
 function workspaceDeps(manifest: string): string[] {
-  return [...manifest.matchAll(/^(\w+)\s*=\s*\{[^}]*\bpath\s*=/gm)].map((match) => match[1] ?? "");
+  const inline = manifest.matchAll(/^([\w-]+)\s*=\s*\{[^}]*\bpath\s*=/gm);
+  const tables = manifest.matchAll(/^\[(?:[\w-]+-)?dependencies\.([\w-]+)\]/gm);
+  return [...inline, ...tables].map((match) => match[1] ?? "");
 }
 
 describe("one-way dependency rule", () => {
