@@ -46,11 +46,13 @@ impl Race {
             "one input per kart"
         );
         let inputs: Vec<KartInput> = inputs
-            .chunks_exact(FLOATS_PER_INPUT)
-            .map(|kart| KartInput {
-                steer: kart[0],
-                throttle: kart[1],
-                brake: kart[2],
+            .as_chunks::<FLOATS_PER_INPUT>()
+            .0
+            .iter()
+            .map(|&[steer, throttle, brake]| KartInput {
+                steer,
+                throttle,
+                brake,
             })
             .collect();
         let state = self
