@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import type { ReplayFile } from "../src/replay";
 
 // The documented way to record a fixture: drive, press R, and the browser
 // downloads the session as a replay with the hashes the wasm sim reported.
@@ -26,13 +27,7 @@ test("pressing R downloads the session as a replay fixture", async ({ page }) =>
 
   const path = await download.path();
   const { readFile } = await import("node:fs/promises");
-  const replay = JSON.parse(await readFile(path, "utf8")) as {
-    version: number;
-    seed: number;
-    track: string;
-    segments: { ticks: number; inputs: { steer: number; throttle: number; brake: number }[] }[];
-    hashes: string[];
-  };
+  const replay = JSON.parse(await readFile(path, "utf8")) as ReplayFile;
   expect(replay.version).toBe(1);
   expect(replay.track).toBe("oval");
   expect(replay.segments.length).toBeGreaterThanOrEqual(3);

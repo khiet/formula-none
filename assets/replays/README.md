@@ -6,10 +6,13 @@ recorded. Two tests rerun every file and hold the sim to those hashes:
 `crates/sim/tests/replay.rs` natively and `apps/web/src/replay.test.ts`
 through the wasm build. That is the cross-platform determinism gate (ADR
 0002): if the two builds ever disagree on the rules, one of them fails here.
-The `Replay determinism` CI job runs both on every PR.
+Neither test compares the builds directly; each compares its build with the
+recorded hashes, so both passing means the builds agree. The `Replay
+determinism (native vs wasm)` CI job runs both on every PR.
 
 `crates/sim/src/replay.rs` documents the format. Inputs are run-length
-encoded, one input per kart in grid order; hashes are 16 hex digits.
+encoded, one input per kart in grid order; the seed is a decimal string and
+each hash 16 hex digits, since a JSON number cannot carry every u64.
 
 ## Record a fixture from a browser session
 

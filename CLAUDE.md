@@ -61,7 +61,8 @@ Tracks (needs Blender on `PATH`; see `assets/tracks/README.md`):
 
 CI (`.github/workflows/ci.yml`) runs on every PR: clippy with warnings as
 errors, nextest, the wasm build of the bridge, Biome, typecheck, Vitest, the
-web build and the Playwright smoke test.
+web build, the Playwright smoke test, and the replay determinism job that
+reruns the fixtures under `assets/replays` natively and in wasm.
 
 ## Working here
 

@@ -24,7 +24,7 @@ async function main(container: HTMLElement): Promise<void> {
   const recorder = recordReplay(bridge, SEED, track.name, race);
   window.addEventListener("keydown", (event) => {
     if (event.key === DOWNLOAD_REPLAY_KEY) {
-      downloadReplay(recorder, track.name, document);
+      downloadReplay(recorder, document);
     }
   });
   const input = keyboardKartInput(window);
@@ -50,7 +50,7 @@ async function main(container: HTMLElement): Promise<void> {
     while (unsimulatedSeconds >= tickSeconds) {
       const inputs = [input.current()];
       race.step(inputs, tickSeconds);
-      recorder.recorded(inputs);
+      recorder.record(inputs);
       unsimulatedSeconds -= tickSeconds;
     }
     present();

@@ -30,30 +30,17 @@ fn main() -> ExitCode {
 
     let mut diverged = false;
     for path in &paths {
-        let json = std::fs::read_to_string(path).unwrap_or_else(|error| {
-            eprintln!("{path}: {error}");
-            std::process::exit(1)
-        });
-        let mut replay = Replay::from_json(&json).unwrap_or_else(|error| {
-            eprintln!("{path}: {error}");
-            std::process::exit(1)
-        });
-        let hashes = replay.run(track(&replay.track)).unwrap_or_else(|error| {
-            eprintln!("{path}: {error}");
-            std::process::exit(1)
-        });
-        let hex: Vec<String> = hashes.iter().map(|hash| format!("{hash:016x}")).collect();
-        println!("{path}: {} ticks, {}", replay.tick_count(), hex.join(" "));
-        if hashes == replay.hashes {
-            continue;
-        }
-        if update {
-            replay.hashes = hashes;
-            std::fs::write(path, replay.to_json() + "\n").expect("the fixture is writable");
-            println!("{path}: hashes re-recorded");
-        } else {
-            eprintln!("{path}: hashes differ from the recording");
-            diverged = true;
+        match check(path, update) {
+            Ok(Outcome::Agrees) => {}
+            Ok(Outcome::ReRecorded) => println!("{path}: hashes re-recorded"),
+            Ok(Outcome::Differs) => {
+                eprintln!("{path}: hashes differ from the recording");
+                diverged = true;
+            }
+            Err(error) => {
+                eprintln!("{path}: {error}");
+                return ExitCode::FAILURE;
+            }
         }
     }
     if diverged {
@@ -63,12 +50,34 @@ fn main() -> ExitCode {
     }
 }
 
-fn track(name: &str) -> Track {
+enum Outcome {
+    Agrees,
+    Differs,
+    ReRecorded,
+}
+
+/// Rerun one fixture, print its hashes, and compare them with the recording;
+/// with `update`, write differing hashes back instead of reporting them.
+fn check(path: &str, update: bool) -> Result<Outcome, Box<dyn std::error::Error>> {
+    let mut replay = Replay::from_json(&std::fs::read_to_string(path)?)?;
+    let hashes = replay.run(track(&replay.track)?)?;
+    let hex: Vec<String> = hashes.iter().map(|hash| format!("{hash:016x}")).collect();
+    println!("{path}: {} ticks, {}", replay.tick_count(), hex.join(" "));
+    if hashes == replay.hashes {
+        return Ok(Outcome::Agrees);
+    }
+    if !update {
+        return Ok(Outcome::Differs);
+    }
+    replay.hashes = hashes;
+    std::fs::write(path, replay.to_json() + "\n")?;
+    Ok(Outcome::ReRecorded)
+}
+
+fn track(name: &str) -> Result<Track, Box<dyn std::error::Error>> {
     let path = Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("../../assets/tracks")
         .join(name)
         .join(format!("{name}.track.json"));
-    let sidecar = std::fs::read_to_string(&path)
-        .unwrap_or_else(|error| panic!("{}: {error}", path.display()));
-    Track::from_sidecar(&sidecar).unwrap_or_else(|error| panic!("{}: {error}", path.display()))
+    Ok(Track::from_sidecar(&std::fs::read_to_string(path)?)?)
 }

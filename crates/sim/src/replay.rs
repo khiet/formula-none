@@ -9,7 +9,7 @@
 //! ```json
 //! {
 //!   "version": 1,
-//!   "seed": 7,
+//!   "seed": "7",
 //!   "track": "oval",
 //!   "segments": [
 //!     { "ticks": 90, "inputs": [{ "steer": 0.0, "throttle": 1.0, "brake": 0.0 }] }
@@ -19,8 +19,9 @@
 //! ```
 //!
 //! Inputs are run-length encoded: a segment holds one input per kart in grid
-//! order and the number of consecutive ticks it was held. Hashes are 64-bit
-//! values written as 16 hex digits, since JSON numbers cannot carry them.
+//! order and the number of consecutive ticks it was held. The seed and the
+//! hashes are 64-bit values, which JSON numbers cannot carry exactly, so the
+//! seed is written as a decimal string and each hash as 16 hex digits.
 
 use crate::tuning::REPLAY_HASH_INTERVAL_TICKS;
 use crate::{step, KartInput, State, Track};
@@ -44,8 +45,9 @@ pub struct Replay {
 /// The JSON form: a [`Replay`] plus the format version, so a file from a
 /// later format fails to parse instead of replaying wrongly.
 #[derive(Serialize, Deserialize)]
-struct Wire {
+struct ReplayFile {
     version: u32,
+    #[serde(with = "decimal_seed")]
     seed: u64,
     track: String,
     segments: Vec<Segment>,
@@ -124,7 +126,7 @@ impl From<serde_json::Error> for ReplayError {
 
 impl Replay {
     pub fn from_json(json: &str) -> Result<Self, ReplayError> {
-        let wire: Wire = serde_json::from_str(json)?;
+        let wire: ReplayFile = serde_json::from_str(json)?;
         if wire.version != VERSION {
             return Err(ReplayError::Version(wire.version));
         }
@@ -138,7 +140,7 @@ impl Replay {
 
     /// Pretty-printed, so a fixture diffs by segment.
     pub fn to_json(&self) -> String {
-        let wire = Wire {
+        let wire = ReplayFile {
             version: VERSION,
             seed: self.seed,
             track: self.track.clone(),
@@ -204,6 +206,21 @@ impl Replay {
             }
         }
         Ok(hashes)
+    }
+}
+
+mod decimal_seed {
+    use serde::de::{Deserializer, Error};
+    use serde::{Deserialize, Serializer};
+
+    pub fn serialize<S: Serializer>(seed: &u64, serializer: S) -> Result<S::Ok, S::Error> {
+        serializer.serialize_str(&seed.to_string())
+    }
+
+    pub fn deserialize<'de, D: Deserializer<'de>>(deserializer: D) -> Result<u64, D::Error> {
+        let seed = String::deserialize(deserializer)?;
+        seed.parse()
+            .map_err(|_| D::Error::custom(format!("seed {seed:?} is not a decimal u64")))
     }
 }
 

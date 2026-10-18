@@ -171,11 +171,13 @@ impl State {
 
     /// A hash of everything that influences future ticks: the RNG and, per
     /// kart, its speed and its body's position, heading, velocities and
-    /// sleep state. Bit-identical on every platform for bit-identical states,
-    /// which is what the replay fixtures check (ADR 0002). The track is not
-    /// hashed: it never changes after `new`, so it is the replay's `track`
-    /// field instead. Rapier's solver caches are not hashed either; any
-    /// difference in them reaches a body's velocity on the next tick.
+    /// sleep state, including the timer that puts a resting body to sleep.
+    /// Bit-identical on every platform for bit-identical states, which is
+    /// what the replay fixtures check (ADR 0002). Two things are left out on
+    /// purpose. The track never changes after `new`, so it is the replay's
+    /// `track` field instead. Rapier's contact manifolds and warm-start
+    /// impulses are not reachable per body, so a difference there is caught
+    /// one tick later when it reaches a body's velocity.
     pub fn hash(&self) -> u64 {
         let mut hasher = hash::Fnv1a::new();
         hasher.write(&self.rng.get_seed());
@@ -188,6 +190,7 @@ impl State {
             hasher.write_f32s(body.rotation().to_array());
             hasher.write_f32s(body.linvel().to_array());
             hasher.write_f32s(body.angvel().to_array());
+            hasher.write_f32(body.activation().time_since_can_sleep);
             hasher.write_u8(u8::from(body.is_sleeping()));
         }
         hasher.finish()

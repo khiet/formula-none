@@ -6,15 +6,27 @@ import type { Bridge, KartInput, Race } from "./bridge";
 import type { TrackName } from "./track";
 
 export interface ReplayRecorder {
+  readonly track: TrackName;
   /** Call once per tick, after `race` stepped with `inputs`. */
-  recorded(inputs: readonly KartInput[]): void;
+  record(inputs: readonly KartInput[]): void;
   /** The session so far as a replay fixture, pretty-printed like the committed ones. */
   toJSON(): string;
 }
 
-interface Segment {
-  ticks: number;
-  inputs: KartInput[];
+/** The fixture file's shape; the sim reads the seed and the hashes as u64. */
+export interface ReplayFile {
+  readonly version: 1;
+  /** Decimal, as a string: a JSON number cannot carry every u64. */
+  readonly seed: string;
+  readonly track: string;
+  readonly segments: readonly Segment[];
+  /** 16 hex digits each. */
+  readonly hashes: readonly string[];
+}
+
+export interface Segment {
+  readonly ticks: number;
+  readonly inputs: readonly KartInput[];
 }
 
 /**
@@ -28,11 +40,12 @@ export function recordReplay(
   track: TrackName,
   race: Race,
 ): ReplayRecorder {
-  const segments: Segment[] = [];
+  const segments: { ticks: number; inputs: KartInput[] }[] = [];
   const hashes: string[] = [];
   let ticks = 0;
   return {
-    recorded(inputs) {
+    track,
+    record(inputs) {
       const copy = inputs.map(({ steer, throttle, brake }) => ({ steer, throttle, brake }));
       const last = segments.at(-1);
       if (last !== undefined && sameInputs(last.inputs, copy)) {
@@ -46,9 +59,8 @@ export function recordReplay(
       }
     },
     toJSON() {
-      // The seed is a JSON number: it fits while rooms hand out small seeds,
-      // and the sim reads it as u64 either way.
-      return `${JSON.stringify({ version: 1, seed: Number(seed), track, segments, hashes }, null, 2)}\n`;
+      const file: ReplayFile = { version: 1, seed: seed.toString(), track, segments, hashes };
+      return `${JSON.stringify(file, null, 2)}\n`;
     },
   };
 }
@@ -66,15 +78,11 @@ function sameInputs(a: readonly KartInput[], b: readonly KartInput[]): boolean {
 }
 
 /** Hand the recording to the browser as a download named after the track. */
-export function downloadReplay(
-  recorder: ReplayRecorder,
-  track: TrackName,
-  document: Document,
-): void {
+export function downloadReplay(recorder: ReplayRecorder, document: Document): void {
   const url = URL.createObjectURL(new Blob([recorder.toJSON()], { type: "application/json" }));
   const anchor = document.createElement("a");
   anchor.href = url;
-  anchor.download = `${track}.replay.json`;
+  anchor.download = `${recorder.track}.replay.json`;
   anchor.click();
   URL.revokeObjectURL(url);
 }
