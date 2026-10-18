@@ -35,6 +35,10 @@ for (const [name, url, throttleKey] of [
 test("backing up the Brands Patch grid for two seconds shows the wrong-way warning until the kart drives on", async ({
   page,
 }) => {
+  // The warning needs two seconds of sim time and clearing most of another.
+  // A CI runner steps the sim far slower than real time, so the waits are
+  // sized in wall time with room to spare.
+  test.setTimeout(120_000);
   await page.goto("/");
   const speed = page.locator('[data-instrument="speed"]');
   const wrongWay = page.locator('[data-instrument="wrong-way"]');
@@ -42,11 +46,11 @@ test("backing up the Brands Patch grid for two seconds shows the wrong-way warni
   await expect(wrongWay).toBeHidden();
   // Reversing from the grid takes the kart away from the line it faces.
   await page.keyboard.down("ArrowDown");
-  await expect(wrongWay).toHaveText("WRONG WAY", { timeout: 5_000 });
+  await expect(wrongWay).toHaveText("WRONG WAY", { timeout: 60_000 });
   await expect(wrongWay).toBeVisible();
   await page.keyboard.up("ArrowDown");
   await page.keyboard.down("ArrowUp");
-  await expect(wrongWay).toBeHidden({ timeout: 5_000 });
+  await expect(wrongWay).toBeHidden({ timeout: 30_000 });
   await page.keyboard.up("ArrowUp");
 });
 
