@@ -41,12 +41,12 @@ fn centreline_index(track: &Track, point: [f32; 3]) -> usize {
 }
 
 #[test]
-fn the_oval_fixture_has_eight_checkpoints_on_a_438_metre_lap() {
+fn the_oval_fixture_has_twelve_checkpoints_on_a_438_metre_lap() {
     let track = oval();
     // Two 125 m straights joined by 30 m radius turns (layouts/oval.py).
     let expected_length = 2.0 * 125.0 + 2.0 * std::f32::consts::PI * 30.0;
 
-    assert_eq!(track.checkpoints().len(), 8);
+    assert_eq!(track.checkpoints().len(), 12);
     assert!(
         (track.spline_length() - expected_length).abs() < 0.5,
         "lap is {} m, expected about {expected_length}",
@@ -311,34 +311,59 @@ fn a_kart_driving_into_a_pipe_stops_at_it() {
     );
 }
 
-#[test]
-fn a_kart_driving_into_a_wall_is_held_by_it() {
-    // Oval slot 1 at x = 32 drives straight off the first turn's asphalt,
-    // across the sand and grass, and into the wall that rings the turn 42 m
-    // from its centre at (0, -100). The wall turns it rather than stopping it.
-    let turn_centre = [0.0_f32, -100.0];
+/// Drive `slot` straight ahead for eight seconds into the first turn, whose
+/// outer wall rings `turn_centre` (x, z) at `wall_radius`, standing on the
+/// outer edge of the sand. The kart must never cross the wall and must end
+/// up scraping along it, still on the sand.
+fn held_by_the_first_turns_wall(
+    track: Track,
+    slot: usize,
+    turn_centre: [f32; 2],
+    wall_radius: f32,
+) {
     let radius =
         |position: [f32; 3]| (position[0] - turn_centre[0]).hypot(position[2] - turn_centre[1]);
-    let mut state = State::new(SEED, 2, oval());
-    let idle = KartInput::default();
+    let mut state = State::new(SEED, slot + 1, track);
+    let mut inputs = vec![KartInput::default(); slot + 1];
+    inputs[slot] = throttle();
     for _ in 0..ticks(8.0) {
-        state = step(state, &[idle, throttle()], DT);
-        let kart = state.kart_transforms()[1];
+        state = step(state, &inputs, DT);
+        let kart = state.kart_transforms()[slot];
         let in_the_turn = kart.position[2] < turn_centre[1];
         assert!(
-            !in_the_turn || radius(kart.position) < 42.0,
+            !in_the_turn || radius(kart.position) < wall_radius,
             "went through the wall: {kart:?}"
         );
     }
-    let kart = state.kart_transforms()[1];
+    let kart = state.kart_transforms()[slot];
     assert!(
-        radius(kart.position) > 40.5,
+        radius(kart.position) > wall_radius - 1.5,
         "never reached the wall: {kart:?}"
     );
     assert!(
         (kart.position[1] - KART_HALF_EXTENT_M + 0.05).abs() < 0.2,
         "left the ground: {kart:?}"
     );
+    assert_eq!(
+        state.kart_surface(slot),
+        Surface::Sand,
+        "pinned to the wall on the sand"
+    );
+}
+
+#[test]
+fn a_kart_driving_into_the_ovals_wall_is_held_by_it() {
+    // Slot 1 at x = 32; the first turn is centred on (0, -100) with a 30 m
+    // radius, and the wall stands 12 m outside the centreline.
+    held_by_the_first_turns_wall(oval(), 1, [0.0, -100.0], 42.0);
+}
+
+#[test]
+fn a_kart_driving_into_a_brands_patch_wall_is_held_by_it() {
+    // Slot 0 at x = 78; hairpin one is centred on (62, -70) with an 18 m
+    // radius and its pipes stand clear of that line, so the wall 12 m
+    // outside the centreline is the first thing it meets.
+    held_by_the_first_turns_wall(brands_patch(), 0, [62.0, -70.0], 30.0);
 }
 
 #[test]

@@ -57,8 +57,8 @@ pub struct Placement {
     pub yaw: f32,
 }
 
-/// An ordered gate across the track. A kart passes it when it crosses the
-/// gate's plane within `half_width` of its centre, heading along `yaw`.
+/// An ordered gate across the track: a centre, the direction of travel
+/// through it and how far it reaches to either side.
 #[derive(Debug, Clone, Copy, PartialEq, Deserialize)]
 pub struct Checkpoint {
     pub position: [f32; 3],

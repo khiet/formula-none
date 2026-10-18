@@ -45,7 +45,7 @@ LAYOUT = Layout(
     path=path,
     asphalt_half_width=6.0,
     runoff_width=6.0,
-    checkpoint_count=8,
+    checkpoint_count=12,
     walls=[Wall(("turn-1",), side=-1), Wall(("turn-2",), side=-1)],
     pipes=[
         Pipe(pipe_1_s, offset=offset_reaching_x(path.at(pipe_1_s), LEFT_GRID_COLUMN_X)),

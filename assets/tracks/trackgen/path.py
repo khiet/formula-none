@@ -23,10 +23,6 @@ class Sample:
     """1 / radius, positive turning left, zero on a straight."""
 
     @property
-    def tangent(self) -> tuple[float, float]:
-        return (math.cos(self.heading), math.sin(self.heading))
-
-    @property
     def left_normal(self) -> tuple[float, float]:
         return (-math.sin(self.heading), math.cos(self.heading))
 

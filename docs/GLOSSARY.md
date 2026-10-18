@@ -89,11 +89,11 @@ The data file exported from Blender next to a track's glTF: the centreline,
 checkpoints, item box and boost pad positions, the spawn grid and the tagged
 collision meshes. The sim reads the sidecar and never the glTF.
 
-### surface tag
+### surface
 
 What is under a point on the track: asphalt, sand, grass, wall, or out of
-world when nothing is below it. Collision meshes in the sidecar carry the
-first four; the sim answers with the topmost one under a point.
+world when nothing is below it. Collision meshes in the sidecar are tagged
+with the first four; the sim answers with the topmost one under a point.
 
 ## Client
 

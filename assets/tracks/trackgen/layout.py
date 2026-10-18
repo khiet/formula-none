@@ -3,7 +3,6 @@ builder that turns it into meshes and placements for Blender."""
 
 from __future__ import annotations
 
-import math
 from dataclasses import dataclass, field
 
 from . import mesh
@@ -202,9 +201,3 @@ def build(layout: Layout) -> TrackGeometry:
 
     centreline = [(sample.x, sample.y, h) for sample, h in zip(path.samples, height)]
     return TrackGeometry(centreline, surfaces, checkpoints, item_boxes, boost_pads, spawn_grid)
-
-
-def heading_to_yaw(heading: float) -> float:
-    """Blender heading (radians counter-clockwise from +X) to the sidecar's yaw: radians
-    about +Y in the glTF frame, zero facing -Z, the same sense seen from above."""
-    return (heading - math.pi / 2.0 + math.pi) % math.tau - math.pi

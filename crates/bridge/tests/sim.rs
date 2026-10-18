@@ -21,10 +21,10 @@ fn race(seed: u64, kart_count: usize) -> Race {
 fn kart_buffer_holds_nine_floats_per_kart_on_the_spawn_grid_in_slot_order() {
     let race = race(7, 3);
     let buffer = race.kart_transforms();
-    let grid = Track::from_sidecar(OVAL).unwrap();
+    let track = Track::from_sidecar(OVAL).unwrap();
 
     assert_eq!(buffer.len(), 3 * FLOATS_PER_KART);
-    for (kart, slot) in buffer.chunks(FLOATS_PER_KART).zip(grid.spawn_grid()) {
+    for (kart, slot) in buffer.chunks(FLOATS_PER_KART).zip(track.spawn_grid()) {
         assert_eq!(kart[0], slot.position[0]);
         assert!((kart[1] - slot.position[1] - KART_HALF_EXTENT_M).abs() < 1e-5);
         assert_eq!(kart[2], slot.position[2]);
