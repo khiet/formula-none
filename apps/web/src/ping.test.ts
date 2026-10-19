@@ -57,7 +57,7 @@ describe("ping", () => {
     const far = fakeConnection();
     const pinging = ping(far.connection, bridge, 7, TIMING);
     far.receive(new Uint8Array([0xff, 0xff]));
-    far.receive(bridge.encodePing(7));
+    far.receive(bridge.encodeClientMessage({ ping: { nonce: 7 } }));
     far.receive(new Uint8Array([0, 8]));
     await vi.advanceTimersByTimeAsync(999);
     far.receive(new Uint8Array([0, 7]));

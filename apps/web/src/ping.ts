@@ -1,11 +1,14 @@
-import type { PingTiming } from "./bridge";
+import type { MessageCodec, PingTiming } from "./bridge";
 import type { Connection } from "./connection";
 
-/** The protocol's Ping and Pong, as the bridge encodes and decodes them. */
-export interface PingCodec {
-  encodePing(nonce: number): Uint8Array;
-  /** Throws for bytes that are not a Pong. */
-  decodePong(bytes: Uint8Array): number;
+/** The Pong `bytes` carry, or null for bytes that are anything else. */
+function pongNonce(codec: MessageCodec, bytes: Uint8Array): number | null {
+  try {
+    const message = codec.decodeServerMessage(bytes);
+    return typeof message === "object" && "pong" in message ? message.pong.nonce : null;
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -18,13 +21,13 @@ export interface PingCodec {
  */
 export function ping(
   connection: Connection,
-  codec: PingCodec,
+  codec: MessageCodec,
   nonce: number,
   timing: PingTiming,
   now: () => number = () => performance.now(),
 ): Promise<number> {
   return new Promise((resolve, reject) => {
-    const bytes = codec.encodePing(nonce);
+    const bytes = codec.encodeClientMessage({ ping: { nonce } });
     const sentAt = now();
     const resend = setInterval(() => connection.send(bytes), timing.resendMs);
     const timer = setTimeout(() => {
@@ -32,13 +35,7 @@ export function ping(
       reject(new Error(`no pong within ${timing.timeoutMs} ms`));
     }, timing.timeoutMs);
     connection.onMessage((received) => {
-      let answered: number;
-      try {
-        answered = codec.decodePong(received);
-      } catch {
-        return;
-      }
-      if (answered === nonce) {
+      if (pongNonce(codec, received) === nonce) {
         clearInterval(resend);
         clearTimeout(timer);
         resolve(now() - sentAt);

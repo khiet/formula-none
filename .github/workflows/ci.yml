@@ -54,6 +54,14 @@ jobs:
       # The wrapper, its tests and the app import the generated bindings.
       - name: Build the bridge to wasm
         run: pnpm build:bridge
+      # The committed TypeScript types are what the protocol crate generates,
+      # or the PR forgot to regenerate them (ADR 0004). `add -N` makes a new
+      # file show in the diff too.
+      - name: Generated protocol types are current
+        run: |
+          pnpm generate:protocol
+          git add -N apps/web/src/generated/protocol
+          git diff --exit-code -- apps/web/src/generated/protocol
       - name: Biome
         run: pnpm lint
       - name: Typecheck

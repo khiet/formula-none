@@ -50,6 +50,9 @@ Web (from the repo root, after `pnpm install`):
 - Bridge to wasm: `pnpm build:bridge` (needs `wasm-pack`; rerun after
   changing sim or bridge; output is gitignored and the other web commands
   need it)
+- Regenerate the protocol's TypeScript types and fixtures after changing
+  `crates/protocol`: `pnpm generate:protocol` (output is committed under
+  `apps/web/src/generated/protocol`; CI fails on a stale copy)
 - Build: `pnpm build`
 - Lint: `pnpm lint` (`pnpm lint:fix` applies Biome's fixes)
 - Typecheck: `pnpm -r typecheck`
@@ -62,9 +65,10 @@ Tracks (needs Blender on `PATH`; see `assets/tracks/README.md`):
   output, since the sim's tests read the sidecars
 
 CI (`.github/workflows/ci.yml`) runs on every PR: clippy with warnings as
-errors, nextest, the wasm build of the bridge, Biome, typecheck, Vitest, the
-web build, the Playwright smoke test, and the replay determinism job that
-reruns the fixtures under `assets/replays` natively and in wasm.
+errors, nextest, the wasm build of the bridge, the protocol codegen diff,
+Biome, typecheck, Vitest, the web build, the Playwright smoke test, and the
+replay determinism job that reruns the fixtures under `assets/replays`
+natively and in wasm.
 
 ## Working here
 
