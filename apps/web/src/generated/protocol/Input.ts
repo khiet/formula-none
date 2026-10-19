@@ -13,7 +13,7 @@ export type Input = {
  */
 sequence: number, 
 /**
- * -127 is full left, 127 is full right.
+ * -127 and below is full left, 127 is full right.
  */
 steer: number, 
 /**

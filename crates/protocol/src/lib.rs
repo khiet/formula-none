@@ -61,7 +61,7 @@ pub struct Input {
     /// Counts up by one per input sent; snapshots acknowledge the last one
     /// applied so the client knows which inputs to replay (ADR 0009).
     pub sequence: u32,
-    /// -127 is full left, 127 is full right.
+    /// -127 and below is full left, 127 is full right.
     pub steer: i8,
     /// 0 is off, 255 is full.
     pub throttle: u8,

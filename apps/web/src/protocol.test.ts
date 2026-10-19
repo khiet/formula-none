@@ -114,7 +114,7 @@ describe("generated protocol types", () => {
     const bridge = await loadBridge(wasm);
     const snapshot = fixtures.server.find((fixture) => fixture.name === "snapshot");
     const decoded = bridge.decodeServerMessage(new Uint8Array(snapshot?.bytes ?? []));
-    if (typeof decoded === "string" || !("snapshot" in decoded)) {
+    if (!("snapshot" in decoded)) {
       throw new Error("not a snapshot");
     }
     const kart = decoded.snapshot.karts[1];

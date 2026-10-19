@@ -78,19 +78,22 @@ struct Fixtures {
     server: Vec<Fixture>,
 }
 
+/// Named as serde names the variant, which is how the Vitest side matches
+/// a fixture to a member of the generated union.
 #[derive(Serialize)]
 struct Fixture {
-    name: &'static str,
+    name: String,
     bytes: Vec<u8>,
     message: serde_json::Value,
 }
 
 fn fixtures() -> Result<String, Box<dyn Error>> {
-    fn fixture<M: Serialize>((name, message): (&'static str, M)) -> Fixture {
+    fn fixture<M: Serialize>(message: M) -> Fixture {
+        let json = serde_json::to_value(&message).expect("messages are JSON-encodable");
         Fixture {
-            name,
+            name: variant_name(&json),
             bytes: encode(&message),
-            message: serde_json::to_value(&message).expect("messages are JSON-encodable"),
+            message: json,
         }
     }
     let fixtures = Fixtures {
@@ -100,4 +103,16 @@ fn fixtures() -> Result<String, Box<dyn Error>> {
     let mut json = serde_json::to_string_pretty(&fixtures)?;
     json.push('\n');
     Ok(json)
+}
+
+/// An externally tagged variant with fields is a one-key object and a unit
+/// variant a string; either way the name is what serde wrote.
+fn variant_name(message: &serde_json::Value) -> String {
+    match message {
+        serde_json::Value::String(name) => name.clone(),
+        serde_json::Value::Object(fields) if fields.len() == 1 => {
+            fields.keys().next().cloned().unwrap_or_default()
+        }
+        other => panic!("a message is a tagged variant, not {other}"),
+    }
 }

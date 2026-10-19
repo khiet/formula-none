@@ -42,4 +42,5 @@ Landed with issue 15 (2026-10-19).
   in the generated shape through serde-wasm-bindgen, so the web app never
   sees postcard bytes other than to send and receive them.
 - At eight karts the busy sample snapshot is 458 bytes and an input late in
-  a race 9 bytes; the tests hold both within a quarter of the budgets.
+  a race, when its sequence takes three bytes, 10; the tests hold both
+  within a quarter of the budgets.

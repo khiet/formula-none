@@ -1,96 +1,66 @@
 //! One value of every message type. The Rust round-trip tests run over
 //! them, and the generator writes them next to the TypeScript types as
 //! fixtures, so Vitest decodes the bytes the Rust encoder produced for every
-//! message type (ADR 0004). A new variant needs a sample here; the tests on
-//! both sides fail until it has one.
+//! message type (ADR 0004). A new variant needs a sample here: the Vitest
+//! side holds the fixtures to the generated union and fails to compile
+//! until it has one.
 
 use crate::{
     ClientMessage, DriftDirection, DriftSnapshot, Event, EventKind, FinalStanding, Input, Item,
     KartSnapshot, Player, PlayerState, Refusal, Room, RoomState, ServerMessage, Snapshot,
     PROTOCOL_VERSION,
 };
-use serde::Serialize;
 
-/// Every [`ClientMessage`] variant once, named as serde names the variant.
-pub fn client() -> Vec<(&'static str, ClientMessage)> {
+/// Every [`ClientMessage`] variant once.
+pub fn client() -> Vec<ClientMessage> {
     vec![
-        ("ping", ClientMessage::Ping { nonce: 0xdead_beef }),
-        (
-            "join",
-            ClientMessage::Join {
-                version: PROTOCOL_VERSION,
-                room: "BXQF".to_owned(),
-                nickname: "khiet".to_owned(),
-            },
-        ),
-        ("input", ClientMessage::Input(input())),
-        ("ready", ClientMessage::Ready { ready: true }),
-        ("start", ClientMessage::Start),
-        ("leave", ClientMessage::Leave),
+        ClientMessage::Ping { nonce: 0xdead_beef },
+        ClientMessage::Join {
+            version: PROTOCOL_VERSION,
+            room: "BXQF".to_owned(),
+            nickname: "khiet".to_owned(),
+        },
+        ClientMessage::Input(input()),
+        ClientMessage::Ready { ready: true },
+        ClientMessage::Start,
+        ClientMessage::Leave,
     ]
 }
 
-/// Every [`ServerMessage`] variant once, named as serde names the variant.
-pub fn server() -> Vec<(&'static str, ServerMessage)> {
+/// Every [`ServerMessage`] variant once.
+pub fn server() -> Vec<ServerMessage> {
     vec![
-        ("pong", ServerMessage::Pong { nonce: 0xdead_beef }),
-        (
-            "joined",
-            ServerMessage::Joined {
-                slot: 1,
-                room: room(),
-            },
-        ),
-        (
-            "refused",
-            ServerMessage::Refused(Refusal::VersionMismatch {
-                server: PROTOCOL_VERSION,
-            }),
-        ),
-        ("room", ServerMessage::Room(room())),
-        (
-            "countdown",
-            ServerMessage::Countdown {
-                seed: 0x0123_4567_89ab_cdef,
-                track: "brands-patch".to_owned(),
-            },
-        ),
-        ("snapshot", ServerMessage::Snapshot(snapshot())),
-        (
-            "results",
-            ServerMessage::Results {
-                standings: vec![
-                    FinalStanding {
-                        kart: 1,
-                        position: 1,
-                        finish_time_s: Some(121.5),
-                        best_lap_s: Some(39.25),
-                    },
-                    FinalStanding {
-                        kart: 0,
-                        position: 2,
-                        finish_time_s: None,
-                        best_lap_s: None,
-                    },
-                ],
-            },
-        ),
+        ServerMessage::Pong { nonce: 0xdead_beef },
+        ServerMessage::Joined {
+            slot: 1,
+            room: room(),
+        },
+        ServerMessage::Refused(Refusal::VersionMismatch {
+            server: PROTOCOL_VERSION,
+        }),
+        ServerMessage::Room(room()),
+        ServerMessage::Countdown {
+            seed: 0x0123_4567_89ab_cdef,
+            track: "brands-patch".to_owned(),
+        },
+        ServerMessage::Snapshot(snapshot()),
+        ServerMessage::Results {
+            standings: vec![
+                FinalStanding {
+                    kart: 1,
+                    position: 1,
+                    finish_time_s: Some(121.5),
+                    best_lap_s: Some(39.25),
+                },
+                FinalStanding {
+                    kart: 0,
+                    position: 2,
+                    finish_time_s: None,
+                    best_lap_s: None,
+                },
+            ],
+        },
     ]
-}
-
-/// The name serde gives `message`'s variant: the key of the one-entry
-/// object an externally tagged variant with fields becomes, or the string a
-/// unit variant becomes.
-pub fn variant_name<M: Serialize>(message: &M) -> String {
-    match serde_json::to_value(message).expect("messages hold nothing JSON cannot encode") {
-        serde_json::Value::String(name) => name,
-        serde_json::Value::Object(fields) => fields
-            .into_iter()
-            .next()
-            .map(|(name, _)| name)
-            .expect("a tagged variant has its name as the one key"),
-        other => panic!("a message is a tagged variant, not {other}"),
-    }
 }
 
 /// Mid-corner, hopping, item button just pressed.
