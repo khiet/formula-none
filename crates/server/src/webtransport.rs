@@ -141,10 +141,21 @@ async fn run(connection: wtransport::Connection, rooms: Rooms, shutdown: Shutdow
     ));
     let mut reliable: Option<SendStream> = None;
     let mut waiting_for_stream: Vec<Vec<u8>> = Vec::new();
-    let mut reading_stream = None;
+    let mut reading_stream: Option<tokio::task::JoinHandle<()>> = None;
     loop {
+        let stream_ended = async {
+            match reading_stream.as_mut() {
+                Some(reading) => {
+                    let _ = reading.await;
+                }
+                None => std::future::pending().await,
+            }
+        };
         tokio::select! {
             () = shutdown.wait() => break,
+            // The reliable lane is the session: the client closing it, or a
+            // frame that is not one of ours, ends the session with it.
+            () = stream_ended => break,
             sending = outbound_rx.recv() => match sending {
                 // A failed send is the client's to notice: it resends an unanswered Ping.
                 Some(Outgoing { lane: Lane::Datagram, bytes }) => {

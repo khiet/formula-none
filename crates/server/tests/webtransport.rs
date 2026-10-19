@@ -323,3 +323,28 @@ async fn the_room_rides_the_reliable_stream_and_the_snapshots_ride_datagrams() {
     let message: ServerMessage = protocol::decode(datagram.payload().as_ref()).unwrap();
     assert!(matches!(message, ServerMessage::Snapshot(_)), "{message:?}");
 }
+
+#[tokio::test]
+async fn a_frame_longer_than_the_tuned_bound_ends_the_session() {
+    let files = files();
+    write_identity(&files).await;
+    let server = WebTransportServer::bind(config(free_port(), &files), rooms())
+        .await
+        .unwrap();
+    let addr = server.local_addr().unwrap();
+    let (_stop, shutdown) = Shutdown::pair();
+    tokio::spawn(server.run(shutdown));
+
+    let connection = Endpoint::client(trusting())
+        .unwrap()
+        .connect(url(addr))
+        .await
+        .unwrap();
+    let (mut send, _recv) = connection.open_bi().await.unwrap().await.unwrap();
+    send.write_all(&(sim::tuning::RELIABLE_FRAME_MAX_BYTES + 1).to_le_bytes())
+        .await
+        .unwrap();
+    tokio::time::timeout(Duration::from_secs(5), connection.closed())
+        .await
+        .expect("the server closes the session");
+}

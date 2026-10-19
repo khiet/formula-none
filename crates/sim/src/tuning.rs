@@ -29,8 +29,7 @@ pub const PING_RESEND_S: f32 = 0.5;
 /// keeps the first copy of each id.
 pub const SNAPSHOT_EVENT_REPEATS: usize = 2;
 /// The longest message one frame of the reliable stream may carry; a frame
-/// claiming more is not a client of ours, and the server stops reading the
-/// stream.
+/// claiming more is not a client of ours and ends the session.
 pub const RELIABLE_FRAME_MAX_BYTES: u32 = 64 * 1024;
 
 // Rooms (ADR 0012).
