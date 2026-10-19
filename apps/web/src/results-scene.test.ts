@@ -35,6 +35,13 @@ describe("results rows", () => {
     ]);
   });
 
+  it("names another human by the nickname the room gave, and by slot without one", () => {
+    const humans = { ...results, isBot: (slot: number) => slot > 1 };
+    expect(resultsRows(humans).map((row) => row.name)).toEqual(["Kart 2", "Bot 3", "You"]);
+    const named = { ...humans, nickname: (slot: number) => (slot === 1 ? "ada" : undefined) };
+    expect(resultsRows(named).map((row) => row.name)).toEqual(["ada", "Bot 3", "You"]);
+  });
+
   it("leaves the best lap blank for a kart that completed none", () => {
     const rows = resultsRows({ ...results, standings: [standing(1, { bestLapSeconds: null })] });
     expect(rows[0]?.bestLap).toBe("--:--.---");

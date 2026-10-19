@@ -62,6 +62,11 @@ fn config(bind: SocketAddr, files: &Files) -> WebTransportConfig {
     }
 }
 
+/// A registry these sessions never reach: they only Ping.
+fn rooms() -> server::Rooms {
+    server::Rooms::new(Shutdown::pair().1)
+}
+
 fn pinned(hash: &Sha256Digest) -> ClientConfig {
     ClientConfig::builder()
         .with_bind_default()
@@ -86,7 +91,7 @@ fn url(addr: SocketAddr) -> String {
 async fn a_ping_datagram_comes_back_as_a_pong_with_its_nonce() {
     let files = files();
     write_identity(&files).await;
-    let server = WebTransportServer::bind(config(free_port(), &files))
+    let server = WebTransportServer::bind(config(free_port(), &files), rooms())
         .await
         .unwrap();
     let addr = server.local_addr().unwrap();
@@ -115,7 +120,7 @@ async fn a_ping_datagram_comes_back_as_a_pong_with_its_nonce() {
 async fn the_probe_reports_a_round_trip_over_the_wire() {
     let files = files();
     let hash = write_identity(&files).await;
-    let server = WebTransportServer::bind(config(free_port(), &files))
+    let server = WebTransportServer::bind(config(free_port(), &files), rooms())
         .await
         .unwrap();
     let addr = server.local_addr().unwrap();
@@ -139,7 +144,7 @@ async fn the_probe_fails_when_nothing_answers() {
 async fn binding_waits_for_caddy_to_write_the_certificate() {
     let files = files();
     let bind = free_port();
-    let binding = tokio::spawn(WebTransportServer::bind(config(bind, &files)));
+    let binding = tokio::spawn(WebTransportServer::bind(config(bind, &files), rooms()));
     tokio::time::sleep(POLL * 4).await;
     assert!(!binding.is_finished(), "bound without a certificate");
 
@@ -156,7 +161,7 @@ async fn binding_waits_for_caddy_to_write_the_certificate() {
 async fn a_renewed_certificate_is_served_without_a_restart() {
     let files = files();
     let first = write_identity(&files).await;
-    let server = WebTransportServer::bind(config(free_port(), &files))
+    let server = WebTransportServer::bind(config(free_port(), &files), rooms())
         .await
         .unwrap();
     let addr = server.local_addr().unwrap();
@@ -182,7 +187,7 @@ async fn a_renewed_certificate_is_served_without_a_restart() {
 async fn a_half_written_renewal_is_skipped_until_the_files_agree() {
     let files = files();
     let first = write_identity(&files).await;
-    let server = WebTransportServer::bind(config(free_port(), &files))
+    let server = WebTransportServer::bind(config(free_port(), &files), rooms())
         .await
         .unwrap();
     let addr = server.local_addr().unwrap();
@@ -221,7 +226,7 @@ async fn a_half_written_renewal_is_skipped_until_the_files_agree() {
 async fn shutdown_ends_the_endpoint() {
     let files = files();
     write_identity(&files).await;
-    let server = WebTransportServer::bind(config(free_port(), &files))
+    let server = WebTransportServer::bind(config(free_port(), &files), rooms())
         .await
         .unwrap();
     let addr = server.local_addr().unwrap();

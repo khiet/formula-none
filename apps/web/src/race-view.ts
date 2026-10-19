@@ -17,12 +17,11 @@ import { WebGPURenderer } from "three/webgpu";
 import type { KartSize, KartTransform } from "./bridge";
 import type { CameraPose } from "./chase-camera";
 import { type DustTell, dustTell } from "./dust";
+import { liveryColour } from "./livery";
 import { type SparkTell, sparkTell } from "./sparks";
 
 /** Far enough to see across Brands Patch from any point on it. */
 const CAMERA_FAR_M = 1000;
-/** Liveries tell karts apart; eight, assigned in grid order until rooms assign them. */
-const LIVERIES = 8;
 /** The placeholder kart's cowl as fractions of the kart box, sitting over its rear half. */
 const COWL_WIDTH = 0.6;
 const COWL_HEIGHT = 0.5;
@@ -78,7 +77,8 @@ export async function createRaceView(
   world.add(sun, new AmbientLight(0xffffff, 0.6));
 
   const karts = Array.from({ length: kartCount }, (_, slot) => {
-    const kart = placeholderKart(kartSize, new Color().setHSL(slot / LIVERIES, 0.8, 0.5));
+    const { hue, saturation, lightness } = liveryColour(slot);
+    const kart = placeholderKart(kartSize, new Color().setHSL(hue, saturation, lightness));
     world.add(kart.mesh);
     return kart;
   });

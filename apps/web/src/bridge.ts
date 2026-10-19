@@ -9,11 +9,14 @@ import init, {
   kart_size_m,
   karts_per_race,
   laps_per_race,
+  nickname_max_chars,
+  nickname_min_chars,
   ping_resend_s,
   ping_timeout_s,
   protocol_version,
   replay_hash_interval_ticks,
   replay_hashes,
+  room_code_length,
   ticks_per_second,
   Race as WasmRace,
   webtransport_connect_timeout_s,
@@ -133,6 +136,12 @@ export interface PingTiming {
   readonly resendMs: number;
 }
 
+/** Bounds on a nickname's length in characters, inclusive. */
+export interface NicknameChars {
+  readonly min: number;
+  readonly max: number;
+}
+
 /**
  * The protocol's messages as the bridge carries them across the wasm
  * boundary: a value of a generated type in, the postcard bytes out, and back
@@ -187,6 +196,10 @@ export interface Bridge extends MessageCodec {
   readonly webTransportTimeoutMs: number;
   /** How long a Ping waits for its Pong, and how often it is sent again meanwhile. */
   readonly pingTiming: PingTiming;
+  /** How long a nickname may be, from the sim's tuning (ADR 0014). */
+  readonly nicknameChars: NicknameChars;
+  /** Letters in a room code (ADR 0012). */
+  readonly roomCodeLength: number;
 }
 
 // Buffer layouts the bridge crate documents on Race::step, Race::kart_transforms,
@@ -229,6 +242,8 @@ export async function loadBridge(wasm?: BufferSource): Promise<Bridge> {
     },
     webTransportTimeoutMs: webtransport_connect_timeout_s() * 1000,
     pingTiming: { timeoutMs: ping_timeout_s() * 1000, resendMs: ping_resend_s() * 1000 },
+    nicknameChars: { min: nickname_min_chars(), max: nickname_max_chars() },
+    roomCodeLength: room_code_length(),
     encodeClientMessage(message) {
       return rethrown(() => encode_client_message(message));
     },

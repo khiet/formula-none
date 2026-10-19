@@ -119,7 +119,8 @@ pub struct Room {
     /// Four letters from the unambiguous alphabet.
     pub code: String,
     pub state: RoomState,
-    /// In join order, which is grid order and livery order.
+    /// In slot order. A joiner takes the lowest free slot, so a room nobody
+    /// has left lists its players in join order.
     pub players: Vec<Player>,
 }
 
@@ -138,10 +139,12 @@ pub enum RoomState {
 #[derive(Serialize, Deserialize, TS, Debug, Clone, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct Player {
-    /// The player's kart's index in snapshots and results.
+    /// The player's seat in the room, kept for their whole stay, and their
+    /// kart's index in snapshots and results.
     pub slot: u8,
     pub nickname: String,
-    /// Index into the eight liveries, assigned in join order.
+    /// Index into the eight liveries; the slot's, so it follows join order
+    /// and stays with the player.
     pub livery: u8,
     pub state: PlayerState,
     /// Whether this player can press Start; exactly one player in a room is.
@@ -152,6 +155,8 @@ pub struct Player {
 #[derive(Serialize, Deserialize, TS, Debug, Clone, Copy, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub enum PlayerState {
+    /// The session's state from its Join until the room answers; a seated
+    /// player is at least Unready, so no `Player` on the wire is Joining.
     Joining,
     Unready,
     Ready,

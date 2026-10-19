@@ -14,6 +14,7 @@ tokio = { version = "1.53.3", features = ["rt-multi-thread", "macros", "signal",
 serde = { version = "1.0.229", features = ["derive"] }
 wtransport = "0.7"
 futures-util = { version = "0.3.34", default-features = false, features = ["std"] }
+rand = "0.9"
 
 [lints]
 workspace = true
@@ -22,6 +23,7 @@ workspace = true
 http-body-util = "0.1.5"
 serde_json = "1.0.154"
 tempfile = "3.27.0"
+tokio = { version = "1.53.3", features = ["test-util"] }
 tokio-tungstenite = "0.29"
 tower = { version = "0.5.3", features = ["util"] }
 wtransport = { version = "0.7", features = ["dangerous-configuration"] }

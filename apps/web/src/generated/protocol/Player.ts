@@ -6,11 +6,13 @@ import type { PlayerState } from "./PlayerState";
  */
 export type Player = { 
 /**
- * The player's kart's index in snapshots and results.
+ * The player's seat in the room, kept for their whole stay, and their
+ * kart's index in snapshots and results.
  */
 slot: number, nickname: string, 
 /**
- * Index into the eight liveries, assigned in join order.
+ * Index into the eight liveries; the slot's, so it follows join order
+ * and stays with the player.
  */
 livery: number, state: PlayerState, 
 /**

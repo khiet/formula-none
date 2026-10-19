@@ -2,16 +2,23 @@
 //! served by [`serve`], and WebTransport in [`webtransport`]. `main` binds
 //! both; tests drive the router directly or through a socket.
 
-use axum::routing::get;
+use axum::extract::State;
+use axum::http::StatusCode;
+use axum::routing::{get, post};
 use axum::{Json, Router};
 use serde::Serialize;
 use tokio::net::TcpListener;
 use tokio::sync::watch;
 
-mod ping;
+pub mod fake_transport;
 pub mod probe;
+pub mod room;
+pub mod rooms;
+pub mod session;
 mod websocket;
 pub mod webtransport;
+
+pub use rooms::Rooms;
 
 #[derive(Serialize)]
 struct Health {
@@ -27,17 +34,37 @@ struct Version {
     commit: &'static str,
 }
 
+/// The answer to a room create: the code the creator shares (ADR 0012).
+#[derive(Serialize)]
+struct CreatedRoom {
+    code: String,
+}
+
+async fn create_room(State(state): State<AppState>) -> (StatusCode, Json<CreatedRoom>) {
+    let code = state.rooms.create();
+    (StatusCode::CREATED, Json(CreatedRoom { code }))
+}
+
+/// What every route shares: the rooms and the stop signal.
+#[derive(Clone)]
+pub(crate) struct AppState {
+    pub(crate) rooms: Rooms,
+    pub(crate) shutdown: Shutdown,
+}
+
 /// Every route the server answers; `commit` is what the version endpoint
-/// reports. Sessions end when `shutdown` resolves.
-pub fn app(commit: &'static str, shutdown: Shutdown) -> Router {
+/// reports and `rooms` is where a create puts a room and a session finds
+/// one. Sessions end when `shutdown` resolves.
+pub fn app(commit: &'static str, rooms: Rooms, shutdown: Shutdown) -> Router {
     Router::new()
         .route("/api/health", get(health))
         .route(
             "/api/version",
             get(move || async move { Json(Version { commit }) }),
         )
+        .route("/api/rooms", post(create_room))
         .route("/api/ws", get(websocket::upgrade))
-        .with_state(shutdown)
+        .with_state(AppState { rooms, shutdown })
 }
 
 /// Serve `app` on `listener` until `shutdown` resolves, then finish the

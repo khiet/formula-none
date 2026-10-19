@@ -92,6 +92,26 @@ pub fn ping_resend_s() -> f32 {
     sim::tuning::PING_RESEND_S
 }
 
+/// The fewest characters a nickname may have (ADR 0014); the Title Scene
+/// validates against it.
+#[wasm_bindgen]
+pub fn nickname_min_chars() -> usize {
+    sim::tuning::NICKNAME_MIN_CHARS
+}
+
+/// The most characters a nickname may have (ADR 0014).
+#[wasm_bindgen]
+pub fn nickname_max_chars() -> usize {
+    sim::tuning::NICKNAME_MAX_CHARS
+}
+
+/// Letters in a room code (ADR 0012), so the Title Scene's code field is
+/// sized to it.
+#[wasm_bindgen]
+pub fn room_code_length() -> usize {
+    sim::tuning::ROOM_CODE_LENGTH
+}
+
 /// The protocol version this build speaks (ADR 0013). The generated
 /// `PROTOCOL_VERSION` is the same constant; the web app checks they agree.
 #[wasm_bindgen]

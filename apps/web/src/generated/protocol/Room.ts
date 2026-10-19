@@ -11,6 +11,7 @@ export type Room = {
  */
 code: string, state: RoomState, 
 /**
- * In join order, which is grid order and livery order.
+ * In slot order. A joiner takes the lowest free slot, so a room nobody
+ * has left lists its players in join order.
  */
 players: Array<Player>, };

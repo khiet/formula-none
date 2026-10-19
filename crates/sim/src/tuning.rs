@@ -25,6 +25,20 @@ pub const PING_TIMEOUT_S: f32 = 5.0;
 /// How often an unanswered Ping is sent again; a datagram may be lost.
 pub const PING_RESEND_S: f32 = 0.5;
 
+// Rooms (ADR 0012).
+
+/// Letters a room code is drawn from: the alphabet without I, L and O,
+/// which read as digits in a chat message or over a shoulder.
+pub const ROOM_CODE_ALPHABET: &str = "ABCDEFGHJKMNPQRSTUVWXYZ";
+pub const ROOM_CODE_LENGTH: usize = 4;
+/// Players a room holds; every human gets a kart, so no more than the grid.
+pub const ROOM_PLAYERS_MAX: usize = KARTS_PER_RACE;
+/// Seconds after the last human leaves before a room enters Closing.
+pub const ROOM_CLOSE_AFTER_EMPTY_S: f32 = 300.0;
+/// Bounds on a nickname's length in characters.
+pub const NICKNAME_MIN_CHARS: usize = 2;
+pub const NICKNAME_MAX_CHARS: usize = 12;
+
 // Race.
 
 /// Karts on the grid; empty slots are filled by bots at Start.
@@ -211,6 +225,9 @@ const _: () = {
     assert!(0.0 < START_BOOST_WINDOW_S && START_BOOST_WINDOW_S < COUNTDOWN_S);
     assert!(0.0 < RACE_END_GRACE_S);
     assert!(SNAPSHOTS_PER_SECOND <= TICKS_PER_SECOND);
+    assert!(ROOM_PLAYERS_MAX <= KARTS_PER_RACE);
+    assert!(0 < NICKNAME_MIN_CHARS && NICKNAME_MIN_CHARS <= NICKNAME_MAX_CHARS);
+    assert!(0.0 < ROOM_CLOSE_AFTER_EMPTY_S);
     assert!(TICKS_PER_SECOND.is_multiple_of(SNAPSHOTS_PER_SECOND));
     assert!(0.0 < DRIFT_ENTRY_SPEED_FRACTION && DRIFT_ENTRY_SPEED_FRACTION < 1.0);
     assert!(0.0 <= DRIFT_TURN_STEER_RANGE && DRIFT_TURN_STEER_RANGE < DRIFT_TURN_NEUTRAL);
