@@ -117,8 +117,11 @@ async function main(container: HTMLElement): Promise<void> {
     let client: RoomClient;
     let link: Connection | undefined;
     try {
+      // Room messages must all arrive, in order, which the WebTransport
+      // connection cannot promise until it carries the reliable stream
+      // (ADR 0011); until then the room rides the WebSocket.
       link = await connect({
-        ...serverUrls(window.location),
+        webSocketUrl: serverUrls(window.location).webSocketUrl,
         webTransportTimeoutMs: bridge.webTransportTimeoutMs,
       });
       client = await joinRoom(link, bridge, { code, nickname });

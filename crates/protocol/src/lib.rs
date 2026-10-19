@@ -155,6 +155,8 @@ pub struct Player {
 #[derive(Serialize, Deserialize, TS, Debug, Clone, Copy, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub enum PlayerState {
+    /// The session's state from its Join until the room answers; a seated
+    /// player is at least Unready, so no `Player` on the wire is Joining.
     Joining,
     Unready,
     Ready,
