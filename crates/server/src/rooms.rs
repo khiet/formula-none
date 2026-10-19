@@ -4,6 +4,10 @@
 //! rules in [`crate::room`], tells every player what changed, runs the
 //! room's race in [`crate::race`] at the tick rate, and closes the room
 //! once it has stood empty for the tuned time (ADR 0012).
+//!
+//! A seat is reached through one connection at a time. A rejoin with the
+//! seat's session token moves it to the new connection, and whatever the
+//! old one sends or reports after that, its drop included, is ignored.
 
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex, Weak};
@@ -18,7 +22,7 @@ use tokio::time::{Instant, Interval, MissedTickBehavior};
 
 use crate::lane::{Outbound, Outgoing};
 use crate::race::{Race, TICK_S};
-use crate::room::{HostedRoom, Left};
+use crate::room::{HostedRoom, Left, Started};
 use crate::{tracks, Shutdown};
 
 /// Every room on this server. Cheap to clone; every clone is the same
@@ -48,18 +52,38 @@ enum Command {
         version: u16,
         nickname: String,
         outbound: Outbound,
-        reply: oneshot::Sender<Result<u8, Refusal>>,
+        reply: oneshot::Sender<Result<Seated, Refusal>>,
     },
-    /// A message from the player in `slot`.
-    Message { slot: u8, message: ClientMessage },
-    /// The player in `slot` lost their connection without a Leave.
-    Dropped { slot: u8 },
+    /// Take back the seat `token` holds.
+    Rejoin {
+        token: String,
+        outbound: Outbound,
+        reply: oneshot::Sender<Result<Seated, Refusal>>,
+    },
+    /// A message from the player in `slot` over `connection`.
+    Message {
+        slot: u8,
+        connection: u64,
+        message: ClientMessage,
+    },
+    /// The player in `slot` lost `connection` without a Leave.
+    Dropped { slot: u8, connection: u64 },
+}
+
+/// Where a join or rejoin put the session: the seat and the connection
+/// that reaches it.
+struct Seated {
+    slot: u8,
+    connection: u64,
 }
 
 /// A player's membership of a room, held by their session: the messages
 /// they send go through it, and dropping it tells the room they are gone.
 pub struct Membership {
     slot: u8,
+    /// Which of the seat's connections this is; the room ignores one it has
+    /// since moved the seat from.
+    connection: u64,
     commands: mpsc::UnboundedSender<Command>,
     /// Set by [`Membership::leave`], so the drop does not report a second
     /// departure against a seat another player may hold by then.
@@ -77,6 +101,7 @@ impl Membership {
         // The room is gone when this fails; the session is about to learn so.
         let _ = self.commands.send(Command::Message {
             slot: self.slot,
+            connection: self.connection,
             message,
         });
     }
@@ -86,6 +111,7 @@ impl Membership {
         self.left = true;
         let _ = self.commands.send(Command::Message {
             slot: self.slot,
+            connection: self.connection,
             message: ClientMessage::Leave,
         });
     }
@@ -94,7 +120,10 @@ impl Membership {
 impl Drop for Membership {
     fn drop(&mut self) {
         if !self.left {
-            let _ = self.commands.send(Command::Dropped { slot: self.slot });
+            let _ = self.commands.send(Command::Dropped {
+                slot: self.slot,
+                connection: self.connection,
+            });
         }
     }
 }
@@ -190,6 +219,42 @@ impl Rooms {
         nickname: String,
         outbound: Outbound,
     ) -> Result<Membership, Refusal> {
+        self.seat(code, version, |reply| Command::Join {
+            version,
+            nickname,
+            outbound,
+            reply,
+        })
+        .await
+    }
+
+    /// Take back the seat `token` holds in the room with `code` over a new
+    /// connection, as [`Self::join`] seats a new player. Mid-race the
+    /// player's kart is theirs again and the room sends the Countdown after
+    /// `Joined`, so a client that lost the race can rebuild it (ADR 0012).
+    pub async fn rejoin(
+        &self,
+        code: &str,
+        version: u16,
+        token: String,
+        outbound: Outbound,
+    ) -> Result<Membership, Refusal> {
+        self.seat(code, version, |reply| Command::Rejoin {
+            token,
+            outbound,
+            reply,
+        })
+        .await
+    }
+
+    /// Send the room with `code` the command `ask` makes and wait for the
+    /// seat it answers with.
+    async fn seat(
+        &self,
+        code: &str,
+        version: u16,
+        ask: impl FnOnce(oneshot::Sender<Result<Seated, Refusal>>) -> Command,
+    ) -> Result<Membership, Refusal> {
         let code = code.trim().to_ascii_uppercase();
         if version != protocol::PROTOCOL_VERSION {
             return Err(Refusal::VersionMismatch {
@@ -206,21 +271,29 @@ impl Rooms {
             .ok_or(Refusal::UnknownRoom)?;
         let (reply, answer) = oneshot::channel();
         commands
-            .send(Command::Join {
-                version,
-                nickname,
-                outbound,
-                reply,
-            })
+            .send(ask(reply))
             .map_err(|_| Refusal::UnknownRoom)?;
         // A room that closed between the lookup and the answer drops the reply.
-        let slot = answer.await.map_err(|_| Refusal::UnknownRoom)??;
+        let Seated { slot, connection } = answer.await.map_err(|_| Refusal::UnknownRoom)??;
         Ok(Membership {
             slot,
+            connection,
             commands,
             left: false,
         })
     }
+}
+
+/// A session token: 128 random bits in hex, which nobody guesses into
+/// another player's seat.
+fn fresh_token(rng: &mut impl Rng) -> String {
+    format!("{:032x}", rng.random::<u128>())
+}
+
+/// The connection a seat is reached through now.
+struct Connection {
+    id: u64,
+    outbound: Outbound,
 }
 
 /// A code of the tuned length from the unambiguous alphabet.
@@ -230,10 +303,12 @@ fn fresh_code(rng: &mut impl Rng) -> String {
     rng.sample_iter(letter).take(ROOM_CODE_LENGTH).collect()
 }
 
-/// A race under way in a room task: the race, the clock that ticks it and
-/// how long its ticks have taken.
+/// A race under way in a room task: the race and how it started, the
+/// clock that ticks it and how long its ticks have taken.
 struct Running {
     race: Race,
+    /// Sent again to a player who rejoins mid-race.
+    started: Started,
     ticks: Interval,
     timing: Timing,
 }
@@ -245,13 +320,14 @@ struct TickOutcome {
 }
 
 impl Running {
-    fn start(race: Race) -> Self {
+    fn start(race: Race, started: Started) -> Self {
         let mut ticks = tokio::time::interval(Duration::from_secs_f32(TICK_S));
         // Ticks the server fell behind on run back to back, so the sim keeps
         // its time instead of skipping ticks.
         ticks.set_missed_tick_behavior(MissedTickBehavior::Burst);
         Self {
             race,
+            started,
             ticks,
             timing: Timing::default(),
         }
@@ -261,9 +337,18 @@ impl Running {
     /// move the room along with the race's phase. Timed against the tick
     /// budget from before the step until the broadcasts are queued; the
     /// transports send them later.
-    fn tick(&mut self, room: &mut HostedRoom, players: &mut HashMap<u8, Outbound>) -> TickOutcome {
+    fn tick(
+        &mut self,
+        room: &mut HostedRoom,
+        players: &mut HashMap<u8, Connection>,
+    ) -> TickOutcome {
         let started_at = Instant::now();
         let ticked = self.race.tick();
+        // A silent player keeps their connection: their next input is them
+        // back, and a client that hears nothing reconnects by itself.
+        for slot in ticked.silenced {
+            room.disconnect(slot);
+        }
         if !ticked.events.is_empty() {
             broadcast(players, &ServerMessage::Events(ticked.events), None);
         }
@@ -345,7 +430,8 @@ async fn run(
     shutdown: Shutdown,
 ) {
     let close_after = Duration::from_secs_f32(ROOM_CLOSE_AFTER_EMPTY_S);
-    let mut players: HashMap<u8, Outbound> = HashMap::new();
+    let mut players: HashMap<u8, Connection> = HashMap::new();
+    let mut connections = 0..;
     let mut empty_since = Some(Instant::now());
     let mut running: Option<Running> = None;
     // Event ids count up per room, across its races, so a client's
@@ -402,20 +488,60 @@ async fn run(
                         outbound,
                         reply,
                     } => {
-                        let joined = room.join(version, &nickname);
-                        if let Ok(slot) = joined {
+                        let token = fresh_token(&mut rand::rng());
+                        let joined = room.join(version, &nickname, token.clone()).map(|slot| {
+                            let id = connections.next().expect("connection ids never run out");
                             let _ = outbound.send(Outgoing::from_server(&ServerMessage::Joined {
                                 slot,
                                 room: room.view(),
+                                token,
                             }));
-                            players.insert(slot, outbound);
+                            players.insert(slot, Connection { id, outbound });
                             told_already = Some(slot);
-                        }
+                            Seated { slot, connection: id }
+                        });
                         let _ = reply.send(joined);
                     }
-                    Command::Message { slot, message } => match message {
+                    Command::Rejoin {
+                        token,
+                        outbound,
+                        reply,
+                    } => {
+                        let rejoined = room.rejoin(&token).map(|slot| {
+                            let id = connections.next().expect("connection ids never run out");
+                            let _ = outbound.send(Outgoing::from_server(&ServerMessage::Joined {
+                                slot,
+                                room: room.view(),
+                                token,
+                            }));
+                            if let Some(running) = running.as_mut() {
+                                running.race.hand_back(slot);
+                                let Started { seed, track, grid } = running.started.clone();
+                                let _ = outbound.send(Outgoing::from_server(
+                                    &ServerMessage::Countdown { seed, track, grid },
+                                ));
+                            }
+                            let old = players.insert(slot, Connection { id, outbound });
+                            if let Some(old) = old {
+                                let _ = old
+                                    .outbound
+                                    .send(Outgoing::from_server(&ServerMessage::Replaced));
+                            }
+                            told_already = Some(slot);
+                            Seated { slot, connection: id }
+                        });
+                        let _ = reply.send(rejoined);
+                    }
+                    Command::Message { slot, connection, .. }
+                    | Command::Dropped { slot, connection }
+                        if players.get(&slot).map(|current| current.id) != Some(connection) => {}
+                    Command::Message { slot, message, .. } => match message {
                         ClientMessage::Input(input) => {
                             if let Some(running) = running.as_mut() {
+                                // Heard from again after falling silent.
+                                if room.reconnect(slot) {
+                                    running.race.hand_back(slot);
+                                }
                                 running.race.receive(slot, input);
                             }
                         }
@@ -426,12 +552,15 @@ async fn run(
                             if let Some(started) = room.start(slot, rand::random()) {
                                 let track = tracks::load(&started.track)
                                     .expect("a room races a track the server has");
-                                running = Some(Running::start(Race::new(
-                                    started.seed,
-                                    track,
-                                    started.grid.clone(),
-                                    next_event_id,
-                                )));
+                                running = Some(Running::start(
+                                    Race::new(
+                                        started.seed,
+                                        track,
+                                        started.grid.clone(),
+                                        next_event_id,
+                                    ),
+                                    started.clone(),
+                                ));
                                 broadcast(
                                     &players,
                                     &ServerMessage::Countdown {
@@ -447,11 +576,13 @@ async fn run(
                             room.rematch(slot);
                         }
                         ClientMessage::Leave => depart(&mut room, &mut players, running.as_mut(), slot),
-                        // The session answers a Ping; a second Join has no
-                        // meaning in a room.
-                        ClientMessage::Ping { .. } | ClientMessage::Join { .. } => {}
+                        // The session answers a Ping; a second Join or
+                        // Rejoin has no meaning in a room.
+                        ClientMessage::Ping { .. }
+                        | ClientMessage::Join { .. }
+                        | ClientMessage::Rejoin { .. } => {}
                     },
-                    Command::Dropped { slot } => depart(&mut room, &mut players, running.as_mut(), slot),
+                    Command::Dropped { slot, .. } => depart(&mut room, &mut players, running.as_mut(), slot),
                 }
             }
         }
@@ -475,35 +606,28 @@ async fn run(
     }
 }
 
-/// The player leaves or drops; a seat that frees stops receiving, and a
-/// kart whose player is gone mid-race holds no controls.
+/// The player leaves or drops: they stop receiving, and mid-race a bot
+/// drives their kart; a player already handed to a bot for falling silent
+/// only stops receiving.
 fn depart(
     room: &mut HostedRoom,
-    players: &mut HashMap<u8, Outbound>,
+    players: &mut HashMap<u8, Connection>,
     running: Option<&mut Running>,
     slot: u8,
 ) {
-    match room.leave(slot) {
-        Left::Unknown => {}
-        Left::Removed => {
-            players.remove(&slot);
-        }
-        Left::Disconnected => {
-            players.remove(&slot);
-            if let Some(running) = running {
-                running.race.release(slot);
-            }
-        }
+    players.remove(&slot);
+    if let (Left::Disconnected, Some(running)) = (room.leave(slot), running) {
+        running.race.hand_to_bot(slot);
     }
 }
 
 /// Send `message` to every connected player but `except`.
-fn broadcast(players: &HashMap<u8, Outbound>, message: &ServerMessage, except: Option<u8>) {
+fn broadcast(players: &HashMap<u8, Connection>, message: &ServerMessage, except: Option<u8>) {
     let outgoing = Outgoing::from_server(message);
-    for (slot, outbound) in players {
+    for (slot, connection) in players {
         if Some(*slot) != except {
             // A player whose session has gone is dropped by their own command.
-            let _ = outbound.send(outgoing.clone());
+            let _ = connection.outbound.send(outgoing.clone());
         }
     }
 }

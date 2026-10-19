@@ -1,0 +1,286 @@
+//! A connection lost mid-race (ADR 0012), driven through the fake
+//! transport: a bot drives the kart of a human who drops or falls silent,
+//! the session token the join dealt takes the seat back, any other token
+//! is refused, and a human who never comes back is raced to the results by
+//! the bot and their seat freed there.
+
+mod common;
+
+use common::race_together;
+use protocol::{Input, PlayerState, Refusal, Room, RoomState, ServerMessage, Snapshot};
+use server::fake_transport::{Client, Conditions, Harness};
+use sim::tuning::{CONNECTION_SILENCE_S, COUNTDOWN_S, KARTS_PER_RACE, TICKS_PER_SECOND};
+
+fn seconds(ticks: u32) -> f32 {
+    ticks as f32 / TICKS_PER_SECOND as f32
+}
+
+fn speed(snapshot: &Snapshot, kart: usize) -> f32 {
+    let [x, y, z] = snapshot.karts[kart].velocity;
+    (x * x + y * y + z * z).sqrt()
+}
+
+fn input(sequence: u32, throttle: u8, brake: u8) -> Input {
+    Input {
+        sequence,
+        steer: 0,
+        throttle,
+        brake,
+        hop: false,
+        use_item: false,
+        hold_item: false,
+    }
+}
+
+/// The next room update `pick` accepts, skipping the rest.
+async fn room_where(client: &mut Client, pick: impl Fn(&Room) -> bool) -> Room {
+    loop {
+        let room = client.next_room().await.expect("the room goes on");
+        if pick(&room) {
+            return room;
+        }
+    }
+}
+
+/// The first snapshot at or past `at_s` on the race clock.
+async fn snapshot_at(client: &mut Client, at_s: f32) -> Snapshot {
+    loop {
+        let snapshot = client.next_snapshot().await.expect("the race goes on");
+        if seconds(snapshot.tick) >= at_s {
+            return snapshot;
+        }
+    }
+}
+
+/// Two humans racing the oval: the first is the one whose connection the
+/// test plays with, the second watches.
+async fn two_racing(harness: &mut Harness) -> (String, Client, Client) {
+    let code = harness.create_room();
+    let mut players = vec![harness.connect(), harness.connect()];
+    race_together(&code, &mut players).await;
+    let watcher = players.pop().unwrap();
+    let player = players.pop().unwrap();
+    (code, player, watcher)
+}
+
+#[tokio::test(start_paused = true)]
+async fn a_bot_drives_a_dropped_humans_kart_until_their_token_rejoins_and_hands_it_back() {
+    let mut harness = Harness::new(Conditions::PERFECT);
+    let (code, player, mut watcher) = two_racing(&mut harness).await;
+    let token = player.token().expect("the join dealt a token").to_owned();
+
+    player.disconnect();
+    let room = room_where(&mut watcher, |room| {
+        room.players[0].state == PlayerState::Disconnected
+    })
+    .await;
+    assert_eq!(room.players.len(), 2, "the seat is kept");
+    // Nobody sends kart 0 an input, yet it races.
+    let snapshot = snapshot_at(&mut watcher, COUNTDOWN_S + 4.0).await;
+    assert!(
+        speed(&snapshot, 0) > 15.0,
+        "the bot drives the kart: {:?}",
+        snapshot.karts[0]
+    );
+
+    let mut back = harness.connect();
+    let (slot, room) = back.rejoin(&code, &token).await.unwrap();
+    assert_eq!(slot, 0, "the same seat");
+    assert_eq!(room.players[0].state, PlayerState::Racing);
+    assert_eq!(
+        back.token(),
+        Some(token.as_str()),
+        "a rejoin keeps the token"
+    );
+    let countdown = back.next_countdown().await.unwrap();
+    assert_eq!(
+        countdown.grid,
+        vec![0, 1],
+        "the race under way, to rebuild from"
+    );
+    room_where(&mut watcher, |room| {
+        room.players[0].state == PlayerState::Racing
+    })
+    .await;
+
+    // The rejoined client brakes from its own first sequence: the server
+    // applies its inputs and the kart stops under them.
+    let mut sequence = 0;
+    let stopped = loop {
+        let snapshot = back.next_snapshot().await.unwrap();
+        sequence += 1;
+        back.send_input(input(sequence, 0, u8::MAX));
+        if snapshot.acknowledged[0] > 0 && speed(&snapshot, 0) < 0.5 {
+            break snapshot;
+        }
+        assert!(
+            sequence < 10 * TICKS_PER_SECOND,
+            "the kart never stopped: {:?}",
+            snapshot.karts[0]
+        );
+    };
+    assert!(stopped.acknowledged[0] <= sequence);
+}
+
+#[tokio::test(start_paused = true)]
+async fn a_rejoin_with_any_other_token_is_refused_and_the_seat_waits_for_its_own() {
+    let mut harness = Harness::new(Conditions::PERFECT);
+    let (code, player, mut watcher) = two_racing(&mut harness).await;
+    let token = player.token().unwrap().to_owned();
+    let other_token = watcher.token().unwrap().to_owned();
+    player.disconnect();
+    room_where(&mut watcher, |room| {
+        room.players[0].state == PlayerState::Disconnected
+    })
+    .await;
+
+    let mut stranger = harness.connect();
+    assert_eq!(
+        stranger
+            .rejoin(&code, "00000000000000000000000000000000")
+            .await,
+        Err(Refusal::UnknownSession)
+    );
+    assert_eq!(stranger.recv().await, None, "a refusal ends the session");
+    // The watcher's own token names the watcher's seat, not the empty one.
+    let mut impostor = harness.connect();
+    let (slot, _) = impostor.rejoin(&code, &other_token).await.unwrap();
+    assert_eq!(slot, 1);
+
+    let mut back = harness.connect();
+    let (slot, _) = back.rejoin(&code, &token).await.unwrap();
+    assert_eq!(slot, 0);
+}
+
+#[tokio::test(start_paused = true)]
+async fn a_rejoin_while_the_old_connection_lives_replaces_it() {
+    let mut harness = Harness::new(Conditions::PERFECT);
+    let (code, mut player, mut watcher) = two_racing(&mut harness).await;
+    let token = player.token().unwrap().to_owned();
+
+    let mut second = harness.connect();
+    let (slot, _) = second.rejoin(&code, &token).await.unwrap();
+    assert_eq!(slot, 0);
+    assert_eq!(
+        player
+            .next_where(|message| match message {
+                ServerMessage::Replaced => Some(()),
+                _ => None,
+            })
+            .await,
+        Some(()),
+        "the old connection is told"
+    );
+
+    // The old connection going now is not the player going, who races on
+    // over the new one.
+    player.disconnect();
+    let mut sequence = 0;
+    loop {
+        let snapshot = second.next_snapshot().await.unwrap();
+        sequence += 1;
+        second.send_input(input(sequence, 0, 0));
+        if seconds(snapshot.tick) >= COUNTDOWN_S + CONNECTION_SILENCE_S + 1.0 {
+            break;
+        }
+    }
+    assert_eq!(
+        harness.rooms().view(&code).unwrap().players[0].state,
+        PlayerState::Racing
+    );
+    assert!(watcher.next_snapshot().await.is_some());
+}
+
+#[tokio::test(start_paused = true)]
+async fn a_human_silent_for_the_tuned_time_is_handed_to_a_bot_and_their_next_input_takes_it_back() {
+    let mut harness = Harness::new(Conditions::PERFECT);
+    let (_, mut player, mut watcher) = two_racing(&mut harness).await;
+
+    // The player drives from Go, then goes quiet on a connection that
+    // stays up: a blip on the way to the server.
+    let mut sequence = 0;
+    loop {
+        let snapshot = player.next_snapshot().await.unwrap();
+        if seconds(snapshot.tick) >= COUNTDOWN_S {
+            sequence += 1;
+            player.send_input(input(sequence, u8::MAX, 0));
+        }
+        if seconds(snapshot.tick) >= COUNTDOWN_S + 1.0 {
+            break;
+        }
+    }
+    let went_quiet = snapshot_at(&mut watcher, COUNTDOWN_S + 1.0).await.tick;
+    let room = room_where(&mut watcher, |room| {
+        room.players[0].state == PlayerState::Disconnected
+    })
+    .await;
+    assert_eq!(room.state, RoomState::Racing);
+    let handed_at = watcher.next_snapshot().await.unwrap().tick;
+    let silent_s = seconds(handed_at - went_quiet);
+    assert!(
+        (silent_s - CONNECTION_SILENCE_S).abs() <= 0.25,
+        "handed to a bot after {silent_s} s"
+    );
+
+    // The connection never dropped, so the next input is the player back.
+    sequence += 1;
+    player.send_input(input(sequence, u8::MAX, 0));
+    room_where(&mut watcher, |room| {
+        room.players[0].state == PlayerState::Racing
+    })
+    .await;
+}
+
+#[tokio::test(start_paused = true)]
+async fn a_human_who_never_comes_back_is_raced_to_the_results_by_the_bot_and_their_seat_freed() {
+    let mut harness = Harness::new(Conditions::PERFECT);
+    let (code, player, mut watcher) = two_racing(&mut harness).await;
+    let token = player.token().unwrap().to_owned();
+    player.disconnect();
+
+    let standings = watcher.next_results().await.unwrap();
+    assert_eq!(standings.len(), KARTS_PER_RACE);
+    let dropped = standings
+        .iter()
+        .find(|standing| standing.kart == 0)
+        .unwrap();
+    let idle = standings
+        .iter()
+        .find(|standing| standing.kart == 1)
+        .unwrap();
+    assert!(
+        dropped.position < idle.position,
+        "the bot raced the dropped human's kart past the idle one: {dropped:?} {idle:?}"
+    );
+    assert_eq!(
+        idle.finish_time_s, None,
+        "the idle human is placed by progress"
+    );
+    let room = room_where(&mut watcher, |room| room.state == RoomState::Results).await;
+    assert_eq!(room.players.len(), 1, "the dropped human's seat freed");
+    assert_eq!(room.players[0].state, PlayerState::Finished);
+
+    let mut late = harness.connect();
+    assert_eq!(
+        late.rejoin(&code, &token).await,
+        Err(Refusal::UnknownSession),
+        "the race the seat was kept for is over"
+    );
+}
+
+#[tokio::test(start_paused = true)]
+async fn a_new_player_is_still_refused_mid_race() {
+    let mut harness = Harness::new(Conditions::PERFECT);
+    let (code, player, mut watcher) = two_racing(&mut harness).await;
+    player.disconnect();
+    room_where(&mut watcher, |room| {
+        room.players[0].state == PlayerState::Disconnected
+    })
+    .await;
+    let mut newcomer = harness.connect();
+    assert_eq!(
+        newcomer.join(&code, "new").await,
+        Err(Refusal::RoomRacing),
+        "a kept seat is not a free one"
+    );
+}

@@ -114,7 +114,7 @@ async fn a_join_over_the_socket_seats_the_player_and_the_session_keeps_answering
     });
     socket.send(Message::Binary(join.into())).await.unwrap();
     let joined: ServerMessage = decode(&next_binary(&mut socket).await).unwrap();
-    let ServerMessage::Joined { slot, room } = joined else {
+    let ServerMessage::Joined { slot, room, .. } = joined else {
         panic!("expected Joined, got {joined:?}");
     };
     assert_eq!(slot, 0);

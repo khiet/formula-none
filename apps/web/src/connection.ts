@@ -231,8 +231,12 @@ async function overWebTransport(transport: WebTransportLike): Promise<Connection
 function overWebSocket(socket: WebSocketLike): Promise<Connection> {
   socket.binaryType = "arraybuffer";
   const listeners = new Set<(bytes: Uint8Array) => void>();
+  let open = true;
   const closed = new Promise<void>((resolve) => {
-    socket.addEventListener("close", () => resolve());
+    socket.addEventListener("close", () => {
+      open = false;
+      resolve();
+    });
   });
   socket.addEventListener("message", (event) => {
     if (event.data instanceof ArrayBuffer) {
@@ -245,15 +249,17 @@ function overWebSocket(socket: WebSocketLike): Promise<Connection> {
     socket.addEventListener("open", () => {
       resolve({
         transport: "websocket",
-        // One channel carries both lanes.
+        // One channel carries both lanes. Once it has closed a send is
+        // dropped, as WebTransport's are, rather than logged by the browser.
         send(bytes) {
-          socket.send(overArrayBuffer(bytes));
+          if (open) socket.send(overArrayBuffer(bytes));
         },
         onMessage(listener) {
           listeners.add(listener);
         },
         closed,
         close() {
+          open = false;
           socket.close();
         },
       });

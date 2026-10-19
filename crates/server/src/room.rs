@@ -6,7 +6,10 @@
 //! A player's slot is their seat: the lowest free one at join, kept until
 //! they leave, and the livery and the kart index that go with it. Slots
 //! never shift under a player, so the slot a client learns from `Joined`
-//! names it for the whole stay.
+//! names it for the whole stay. The seat also holds the session token the
+//! join dealt, which takes it back after a lost connection: mid-race the
+//! player is Disconnected and a bot drives their kart until the token
+//! rejoins or the race ends (ADR 0012).
 
 use protocol::{Player, PlayerState, Refusal, Room, RoomState, PROTOCOL_VERSION};
 use sim::tuning::{NICKNAME_MAX_CHARS, ROOM_PLAYERS_MAX};
@@ -29,6 +32,7 @@ pub struct HostedRoom {
 struct Seat {
     player: Player,
     joined_at: u64,
+    token: String,
 }
 
 /// What a leave did to the room, so the task knows whether the kart stays.
@@ -39,7 +43,7 @@ pub enum Left {
     /// Mid-race, so the kart stays for a bot to drive (ADR 0012): the
     /// player is Disconnected.
     Disconnected,
-    /// No such player.
+    /// No such player, or one already Disconnected.
     Unknown,
 }
 
@@ -87,12 +91,13 @@ impl HostedRoom {
             .count()
     }
 
-    /// Seat a player and hand back their slot, or the reason they were
-    /// refused. The version is checked first so an old client is told to
-    /// reload whatever else is wrong (ADR 0013). The first player to join
-    /// becomes the creator. The nickname is trimmed and cut to the tuned
-    /// length; the client validates it before sending.
-    pub fn join(&mut self, version: u16, nickname: &str) -> Result<u8, Refusal> {
+    /// Seat a player holding session `token` and hand back their slot, or
+    /// the reason they were refused. The version is checked first so an old
+    /// client is told to reload whatever else is wrong (ADR 0013). The first
+    /// player to join becomes the creator. The nickname is trimmed and cut
+    /// to the tuned length; the client validates it before sending. The
+    /// caller deals the token and must not deal one twice.
+    pub fn join(&mut self, version: u16, nickname: &str, token: String) -> Result<u8, Refusal> {
         if version != PROTOCOL_VERSION {
             return Err(Refusal::VersionMismatch {
                 server: PROTOCOL_VERSION,
@@ -117,8 +122,57 @@ impl HostedRoom {
                 creator,
             },
             joined_at: self.joins,
+            token,
         });
         Ok(slot as u8)
+    }
+
+    /// Hand back the seat `token` holds, the player Racing again if they
+    /// were Disconnected; any other token is refused. Whether the player's
+    /// old connection is gone or not, the seat is the new one's.
+    pub fn rejoin(&mut self, token: &str) -> Result<u8, Refusal> {
+        let slot = self
+            .seats
+            .iter()
+            .flatten()
+            .find(|seat| seat.token == token)
+            .map(|seat| seat.player.slot)
+            .ok_or(Refusal::UnknownSession)?;
+        self.reconnect(slot);
+        Ok(slot)
+    }
+
+    /// The player's connection went mid-race: they are Disconnected and
+    /// their kart is a bot's to drive, and the creator role moves on. True
+    /// when the room changed; between races there is no kart to keep.
+    pub fn disconnect(&mut self, slot: u8) -> bool {
+        if !matches!(self.state, RoomState::Countdown | RoomState::Racing) {
+            return false;
+        }
+        let Some(player) = self.player_mut(slot) else {
+            return false;
+        };
+        if player.state != PlayerState::Racing {
+            return false;
+        }
+        player.state = PlayerState::Disconnected;
+        player.creator = false;
+        self.hand_over_creator();
+        true
+    }
+
+    /// The Disconnected player is back before the race ended: Racing
+    /// again, though the creator role stays where it went. True when the
+    /// room changed.
+    pub fn reconnect(&mut self, slot: u8) -> bool {
+        let Some(player) = self.player_mut(slot) else {
+            return false;
+        };
+        if player.state != PlayerState::Disconnected {
+            return false;
+        }
+        player.state = PlayerState::Racing;
+        true
     }
 
     /// Set the player's ready state; true when the room changed. Only an
@@ -219,28 +273,23 @@ impl HostedRoom {
     /// Disconnected. The creator role passes to the earliest-joined
     /// connected player left, so the room never gets stuck.
     pub fn leave(&mut self, slot: u8) -> Left {
-        let Some(seat) = self.seats.get_mut(usize::from(slot)) else {
+        if self.player(slot).is_none() {
             return Left::Unknown;
-        };
-        let Some(current) = seat.as_mut() else {
-            return Left::Unknown;
-        };
-        let left = match self.state {
+        }
+        match self.state {
             RoomState::Countdown | RoomState::Racing => {
-                if current.player.state == PlayerState::Disconnected {
-                    return Left::Unknown;
+                if self.disconnect(slot) {
+                    Left::Disconnected
+                } else {
+                    Left::Unknown
                 }
-                current.player.state = PlayerState::Disconnected;
-                current.player.creator = false;
-                Left::Disconnected
             }
             RoomState::Open | RoomState::Results | RoomState::Closing => {
-                *seat = None;
+                self.seats[usize::from(slot)] = None;
+                self.hand_over_creator();
                 Left::Removed
             }
-        };
-        self.hand_over_creator();
-        left
+        }
     }
 
     /// Nobody has been here for the tuned time: the room is Closing and

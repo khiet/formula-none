@@ -129,6 +129,7 @@ impl Harness {
         Client {
             to_server: up,
             from_server,
+            token: None,
         }
     }
 
@@ -172,6 +173,8 @@ impl Lanes {
 pub struct Client {
     to_server: Lanes,
     from_server: mpsc::UnboundedReceiver<Vec<u8>>,
+    /// The session token the last `Joined` dealt.
+    token: Option<String>,
 }
 
 impl Client {
@@ -220,8 +223,31 @@ impl Client {
             room: code.to_owned(),
             nickname: nickname.to_owned(),
         });
+        self.joined().await
+    }
+
+    /// Take back the seat `token` holds in `code`, answered with the slot
+    /// and the room, or the refusal.
+    pub async fn rejoin(&mut self, code: &str, token: &str) -> Result<(u8, Room), Refusal> {
+        self.send(&ClientMessage::Rejoin {
+            version: PROTOCOL_VERSION,
+            room: code.to_owned(),
+            token: token.to_owned(),
+        });
+        self.joined().await
+    }
+
+    /// The session token the server dealt this client, once it has joined.
+    pub fn token(&self) -> Option<&str> {
+        self.token.as_deref()
+    }
+
+    async fn joined(&mut self) -> Result<(u8, Room), Refusal> {
         match self.recv().await {
-            Some(ServerMessage::Joined { slot, room }) => Ok((slot, room)),
+            Some(ServerMessage::Joined { slot, room, token }) => {
+                self.token = Some(token);
+                Ok((slot, room))
+            }
             Some(ServerMessage::Refused(refusal)) => Err(refusal),
             other => panic!("a Join is answered with Joined or Refused, not {other:?}"),
         }

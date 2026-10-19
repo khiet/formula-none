@@ -52,6 +52,13 @@ pub const WEBTRANSPORT_CONNECT_TIMEOUT_S: f32 = 3.0;
 pub const PING_TIMEOUT_S: f32 = 5.0;
 /// How often an unanswered Ping is sent again; a datagram may be lost.
 pub const PING_RESEND_S: f32 = 0.5;
+/// Silence that counts as a lost connection mid-race (ADR 0012): a client
+/// that has heard nothing from the server for this long shows the
+/// connection banner and reconnects, and a human the server has heard no
+/// input from for this long is handed to a bot.
+pub const CONNECTION_SILENCE_S: f32 = 2.0;
+/// How long a client waits after a failed reconnect before the next try.
+pub const RECONNECT_RETRY_S: f32 = 1.0;
 /// Snapshots an event is repeated in after the first that carries it, so a
 /// lost datagram or two still leaves a client with every event; the client
 /// keeps the first copy of each id.

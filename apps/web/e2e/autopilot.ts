@@ -146,6 +146,7 @@ export function autopilot(page: Page, bridge: Bridge, line: Centreline): Autopil
       } catch {
         return;
       }
+      if (typeof message === "string") return;
       if ("joined" in message) {
         slot = message.joined.slot;
       } else if ("countdown" in message) {

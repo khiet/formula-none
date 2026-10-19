@@ -25,6 +25,11 @@ pub fn client() -> Vec<ClientMessage> {
         ClientMessage::Start,
         ClientMessage::Rematch,
         ClientMessage::Leave,
+        ClientMessage::Rejoin {
+            version: PROTOCOL_VERSION,
+            room: "BXQF".to_owned(),
+            token: token(),
+        },
     ]
 }
 
@@ -35,6 +40,7 @@ pub fn server() -> Vec<ServerMessage> {
         ServerMessage::Joined {
             slot: 1,
             room: room(),
+            token: token(),
         },
         ServerMessage::Refused(Refusal::VersionMismatch {
             server: PROTOCOL_VERSION,
@@ -63,7 +69,13 @@ pub fn server() -> Vec<ServerMessage> {
                 },
             ],
         },
+        ServerMessage::Replaced,
     ]
+}
+
+/// A session token as the server deals them: 128 random bits in hex.
+pub fn token() -> String {
+    "0123456789abcdef0123456789abcdef".to_owned()
 }
 
 /// Mid-corner, hopping, item button just pressed.

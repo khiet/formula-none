@@ -2,6 +2,7 @@
 // sees plain objects: a KartInput in, KartTransforms out. Biome's
 // noRestrictedImports rejects any other import of ./generated/bridge.
 import init, {
+  connection_silence_s,
   countdown_s,
   decode_client_message,
   decode_server_message,
@@ -15,6 +16,7 @@ import init, {
   ping_resend_s,
   ping_timeout_s,
   protocol_version,
+  reconnect_retry_s,
   replay_hash_interval_ticks,
   replay_hashes,
   room_code_length,
@@ -175,6 +177,13 @@ export interface PingTiming {
   readonly resendMs: number;
 }
 
+export interface ReconnectTiming {
+  /** Silence from the server mid-race that counts as a lost connection. */
+  readonly silenceMs: number;
+  /** The wait after a failed reconnect before the next try. */
+  readonly retryMs: number;
+}
+
 /** Bounds on a nickname's length in characters, inclusive. */
 export interface NicknameChars {
   readonly min: number;
@@ -244,6 +253,8 @@ export interface Bridge extends MessageCodec {
   readonly webTransportTimeoutMs: number;
   /** How long a Ping waits for its Pong, and how often it is sent again meanwhile. */
   readonly pingTiming: PingTiming;
+  /** When a race's connection counts as lost, and how often it is tried again (ADR 0012). */
+  readonly reconnectTiming: ReconnectTiming;
   /** How long a nickname may be, from the sim's tuning (ADR 0014). */
   readonly nicknameChars: NicknameChars;
   /** Letters in a room code (ADR 0012). */
@@ -298,6 +309,10 @@ export async function loadBridge(wasm?: BufferSource): Promise<Bridge> {
     },
     webTransportTimeoutMs: webtransport_connect_timeout_s() * 1000,
     pingTiming: { timeoutMs: ping_timeout_s() * 1000, resendMs: ping_resend_s() * 1000 },
+    reconnectTiming: {
+      silenceMs: connection_silence_s() * 1000,
+      retryMs: reconnect_retry_s() * 1000,
+    },
     nicknameChars: { min: nickname_min_chars(), max: nickname_max_chars() },
     roomCodeLength: room_code_length(),
     encodeClientMessage(message) {

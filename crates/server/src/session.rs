@@ -2,7 +2,8 @@
 //! bytes it sends come in on a channel and the bytes it is sent go out on
 //! another, so the WebSocket, WebTransport and the fake transport all drive
 //! the same code. A Ping is answered at any time; the first Join seats the
-//! client in a room, or refuses it and ends the session.
+//! client in a room, or the first Rejoin takes back the seat it held, and
+//! a refusal of either ends the session.
 
 use protocol::{decode, ClientMessage, ServerMessage};
 use tokio::sync::mpsc;
@@ -62,7 +63,21 @@ pub async fn run(rooms: Rooms, channels: Channels, shutdown: Shutdown) {
                     return;
                 }
             },
-            (ClientMessage::Join { .. }, Some(_)) => {}
+            (
+                ClientMessage::Rejoin {
+                    version,
+                    room,
+                    token,
+                },
+                None,
+            ) => match rooms.rejoin(&room, version, token, outbound.clone()).await {
+                Ok(rejoined) => membership = Some(rejoined),
+                Err(refusal) => {
+                    let _ = outbound.send(Outgoing::from_server(&ServerMessage::Refused(refusal)));
+                    return;
+                }
+            },
+            (ClientMessage::Join { .. } | ClientMessage::Rejoin { .. }, Some(_)) => {}
             // A Leave ends the session: a Join is the first message on a
             // connection, so the client connects again for another room.
             (ClientMessage::Leave, Some(_)) => {

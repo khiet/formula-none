@@ -23,7 +23,7 @@ use ts_rs::TS;
 /// [`ClientMessage::Join`] and the server refuses a mismatch with
 /// [`Refusal::VersionMismatch`] (ADR 0013). The generator exports it next to
 /// the types, so the web app reads the same constant.
-pub const PROTOCOL_VERSION: u16 = 2;
+pub const PROTOCOL_VERSION: u16 = 3;
 
 /// What a client sends the server.
 #[derive(Serialize, Deserialize, TS, Debug, Clone, PartialEq)]
@@ -53,6 +53,15 @@ pub enum ClientMessage {
     Rematch,
     /// Leave the room on purpose, as opposed to dropping the connection.
     Leave,
+    /// The first message on a connection that takes back a seat: the one
+    /// [`ServerMessage::Joined`] gave this session token in the room with
+    /// this code. Answered like a Join; mid-race the kart is the player's
+    /// again and the Countdown follows (ADR 0012).
+    Rejoin {
+        version: u16,
+        room: String,
+        token: String,
+    },
 }
 
 /// One kart's controls for one tick, quantised to a byte each so the message
@@ -102,9 +111,10 @@ impl Input {
 pub enum ServerMessage {
     /// The answer to a [`ClientMessage::Ping`] with that ping's nonce.
     Pong { nonce: u32 },
-    /// The join was accepted: the player's slot, which is also their kart's
-    /// index in every snapshot, and the room as it stands.
-    Joined { slot: u8, room: Room },
+    /// The join was accepted: the player's slot, the room as it stands, and
+    /// the session token a [`ClientMessage::Rejoin`] takes the seat back
+    /// with, kept secret by the client. A rejoin keeps the token.
+    Joined { slot: u8, room: Room, token: String },
     /// The join was refused for this reason; the connection then closes.
     Refused(Refusal),
     /// The room after a change to it: a player joined, left, readied or
@@ -129,6 +139,9 @@ pub enum ServerMessage {
     Events(Vec<Event>),
     /// The standings once the race is Finished, in finishing order.
     Results { standings: Vec<FinalStanding> },
+    /// Another connection rejoined with this session's token, so this one
+    /// hears nothing more; the client stops rather than rejoining back.
+    Replaced,
 }
 
 /// Why a [`ClientMessage::Join`] was refused.
@@ -144,6 +157,10 @@ pub enum Refusal {
     /// The client speaks another protocol version than the server; the
     /// player reloads to get the client that matches (ADR 0013).
     VersionMismatch { server: u16 },
+    /// No seat in the room holds the rejoin's session token: the seat was
+    /// freed when the race it was kept for ended, or the token was never
+    /// this room's.
+    UnknownSession,
 }
 
 /// A room as every player in it sees it (ADR 0012).

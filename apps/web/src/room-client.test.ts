@@ -1,75 +1,13 @@
 import { describe, expect, it } from "vitest";
-import type { MessageCodec } from "./bridge";
-import type { Connection, Lane } from "./connection";
-import type {
-  ClientMessage,
-  Event,
-  KartSnapshot,
-  Room,
-  ServerMessage,
-  Snapshot,
-} from "./generated/protocol";
+import { fakeConnection, jsonCodec } from "./fake-connection";
+import type { Event, KartSnapshot, Room, Snapshot } from "./generated/protocol";
 import { PROTOCOL_VERSION } from "./generated/protocol";
 import { IDLE_INPUT } from "./input";
-import { joinRoom, quantiseInput, RefusedError, refusalMessage } from "./room-client";
+import { joinRoom, quantiseInput, RefusedError, refusalMessage, rejoinRoom } from "./room-client";
 
-// The wire format is the bridge's; here JSON stands in for it, so the test
-// reads the messages the client sends and feeds it the server's replies.
-const codec: MessageCodec = {
-  encodeClientMessage: (message) => new TextEncoder().encode(JSON.stringify(message)),
-  decodeClientMessage: (bytes) => JSON.parse(new TextDecoder().decode(bytes)) as ClientMessage,
-  encodeServerMessage: (message) => new TextEncoder().encode(JSON.stringify(message)),
-  decodeServerMessage: (bytes) => JSON.parse(new TextDecoder().decode(bytes)) as ServerMessage,
-};
+const codec = jsonCodec;
 
-interface FakeConnection extends Connection {
-  readonly sent: ClientMessage[];
-  /** The lane of each message in `sent`. */
-  readonly lanes: Lane[];
-  /** Deliver a message as if from the server. */
-  receive(message: ServerMessage): void;
-  /** End the connection from the server's side. */
-  end(): void;
-  readonly closedByClient: boolean;
-}
-
-function fakeConnection(): FakeConnection {
-  const sent: ClientMessage[] = [];
-  const lanes: Lane[] = [];
-  const listeners = new Set<(bytes: Uint8Array) => void>();
-  let end: () => void = () => {};
-  const closed = new Promise<void>((resolve) => {
-    end = resolve;
-  });
-  let closedByClient = false;
-  return {
-    transport: "websocket",
-    sent,
-    lanes,
-    send(bytes, lane = "reliable") {
-      sent.push(codec.decodeClientMessage(bytes));
-      lanes.push(lane);
-    },
-    onMessage(listener) {
-      listeners.add(listener);
-    },
-    closed,
-    close() {
-      closedByClient = true;
-      end();
-    },
-    receive(message) {
-      const bytes = codec.encodeServerMessage(message);
-      for (const listener of listeners) listener(bytes);
-    },
-    end() {
-      end();
-    },
-    get closedByClient() {
-      return closedByClient;
-    },
-  };
-}
+const TOKEN = "0123456789abcdef0123456789abcdef";
 
 const ROOM: Room = {
   code: "BXQF",
@@ -87,10 +25,11 @@ describe("joinRoom", () => {
     expect(connection.sent).toEqual([
       { join: { version: PROTOCOL_VERSION, room: "BXQF", nickname: "ada" } },
     ]);
-    connection.receive({ joined: { slot: 1, room: ROOM } });
+    connection.receive({ joined: { slot: 1, room: ROOM, token: TOKEN } });
     const client = await joining;
     expect(client.slot).toBe(1);
     expect(client.room).toEqual(ROOM);
+    expect(client.token).toBe(TOKEN);
   });
 
   it("rejects with the refusal and its message when refused", async () => {
@@ -114,7 +53,7 @@ describe("joinRoom", () => {
   it("follows the room through its updates, hands over Countdown, and reports the end", async () => {
     const connection = fakeConnection();
     const joining = joinRoom(connection, codec, { code: "BXQF", nickname: "ada" });
-    connection.receive({ joined: { slot: 1, room: ROOM } });
+    connection.receive({ joined: { slot: 1, room: ROOM, token: TOKEN } });
     const client = await joining;
 
     const seen: Room[] = [];
@@ -149,7 +88,7 @@ describe("joinRoom", () => {
   it("sends Ready, Start, Rematch and Leave on the reliable lane, and Leave closes the connection", async () => {
     const connection = fakeConnection();
     const joining = joinRoom(connection, codec, { code: "BXQF", nickname: "ada" });
-    connection.receive({ joined: { slot: 1, room: ROOM } });
+    connection.receive({ joined: { slot: 1, room: ROOM, token: TOKEN } });
     const client = await joining;
     connection.sent.length = 0;
     connection.lanes.length = 0;
@@ -173,7 +112,7 @@ describe("joinRoom", () => {
   it("stops a listener that unsubscribed", async () => {
     const connection = fakeConnection();
     const joining = joinRoom(connection, codec, { code: "BXQF", nickname: "ada" });
-    connection.receive({ joined: { slot: 1, room: ROOM } });
+    connection.receive({ joined: { slot: 1, room: ROOM, token: TOKEN } });
     const client = await joining;
     const seen: Room[] = [];
     const stop = client.onRoom((room) => seen.push(room));
@@ -211,7 +150,7 @@ describe("the race side of the room client", () => {
   async function racing() {
     const connection = fakeConnection();
     const joining = joinRoom(connection, codec, { code: "BXQF", nickname: "ada" });
-    connection.receive({ joined: { slot: 1, room: ROOM } });
+    connection.receive({ joined: { slot: 1, room: ROOM, token: TOKEN } });
     const client = await joining;
     connection.receive({
       countdown: { seed: 1 as unknown as bigint, track: "brands-patch", grid: [0, 1] },
@@ -298,6 +237,101 @@ describe("the race side of the room client", () => {
   });
 });
 
+describe("taking the seat back (ADR 0012)", () => {
+  const SEED = 7 as unknown as bigint;
+  const COUNTDOWN = { seed: SEED, track: "brands-patch", grid: [0, 1] };
+
+  async function racing() {
+    const first = fakeConnection();
+    const joining = joinRoom(first, codec, { code: "BXQF", nickname: "ada" });
+    first.receive({ joined: { slot: 1, room: ROOM, token: TOKEN } });
+    const client = await joining;
+    first.receive({ countdown: COUNTDOWN });
+    return { first, client };
+  }
+
+  it("rejoins with the session token and resolves on Joined", async () => {
+    const connection = fakeConnection();
+    const rejoining = rejoinRoom(connection, codec, { code: "bxqf", token: TOKEN });
+    expect(connection.sent).toEqual([
+      { rejoin: { version: PROTOCOL_VERSION, room: "BXQF", token: TOKEN } },
+    ]);
+    connection.receive({ joined: { slot: 1, room: ROOM, token: TOKEN } });
+    const client = await rejoining;
+    expect(client.slot).toBe(1);
+    expect(client.token).toBe(TOKEN);
+  });
+
+  it("rejects a rejoin the room no longer has a seat for", async () => {
+    const connection = fakeConnection();
+    const rejoining = rejoinRoom(connection, codec, { code: "BXQF", token: TOKEN });
+    connection.receive({ refused: "unknownSession" });
+    await expect(rejoining).rejects.toMatchObject({ refusal: "unknownSession" });
+  });
+
+  it("knows the race under way from its Countdown until its Results", async () => {
+    const { first, client } = await racing();
+    expect(client.race).toEqual({ ...COUNTDOWN, seed: 7n });
+    first.receive({ results: { standings: [] } });
+    expect(client.race).toBeUndefined();
+  });
+
+  it("resumes over a new connection: same listeners, the old one closed and ignored, the race carried on", async () => {
+    const { first, client } = await racing();
+    const ticks: number[] = [];
+    const countdowns: unknown[] = [];
+    client.onSnapshot((received) => ticks.push(received.tick));
+    client.onCountdown((countdown) => countdowns.push(countdown));
+    first.receive({ snapshot: snapshot(10) });
+    expect(client.sendInput(IDLE_INPUT)).toBe(1);
+
+    const second = fakeConnection();
+    const resuming = client.resume(second);
+    expect(first.closedByClient).toBe(true);
+    expect(second.sent).toEqual([
+      { rejoin: { version: PROTOCOL_VERSION, room: "BXQF", token: TOKEN } },
+    ]);
+    second.receive({ joined: { slot: 1, room: ROOM, token: TOKEN } });
+    await resuming;
+    // The server sends the race under way again; it is not a new one, so
+    // the sequence and the tick order run on.
+    second.receive({ countdown: COUNTDOWN });
+    first.receive({ snapshot: snapshot(20) });
+    second.receive({ snapshot: snapshot(8) });
+    second.receive({ snapshot: snapshot(30) });
+    expect(ticks).toEqual([10, 30]);
+    expect(countdowns).toEqual([]);
+    expect(client.sendInput(IDLE_INPUT)).toBe(2);
+    expect(second.lanes.at(-1)).toBe("datagram");
+    // The next race is a new one.
+    second.receive({ countdown: { ...COUNTDOWN, seed: 8 as unknown as bigint } });
+    expect(countdowns).toHaveLength(1);
+  });
+
+  it("rejects a resume the server refuses", async () => {
+    const { client } = await racing();
+    const second = fakeConnection();
+    const resuming = client.resume(second);
+    second.receive({ refused: "unknownSession" });
+    await expect(resuming).rejects.toBeInstanceOf(RefusedError);
+  });
+
+  it("tells each message as heard, and stops on Replaced with the connection closed", async () => {
+    const { first, client } = await racing();
+    let heard = 0;
+    client.onHeard(() => {
+      heard += 1;
+    });
+    first.receive({ snapshot: snapshot(2) });
+    first.receive({ room: ROOM });
+    expect(heard).toBe(2);
+    expect(client.replaced).toBe(false);
+    first.receive("replaced");
+    expect(client.replaced).toBe(true);
+    expect(first.closedByClient).toBe(true);
+  });
+});
+
 describe("quantiseInput", () => {
   it("clamps each axis to its byte", () => {
     expect(quantiseInput({ ...IDLE_INPUT, steer: 3, throttle: -1, brake: 2 }, 9)).toMatchObject({
@@ -314,6 +348,7 @@ describe("refusalMessage", () => {
     expect(refusalMessage("unknownRoom")).toBe("No room has that code");
     expect(refusalMessage("roomFull")).toBe("That room is full");
     expect(refusalMessage("roomRacing")).toBe("That room is mid-race; join after the race");
+    expect(refusalMessage("unknownSession")).toBe("That race is over; join the room again");
     expect(refusalMessage({ versionMismatch: { server: 2 } })).toBe(
       "Your game is out of date: reload the page",
     );

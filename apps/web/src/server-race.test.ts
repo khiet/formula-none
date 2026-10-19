@@ -107,8 +107,13 @@ function fakeClient(): FakeClient {
     };
   return {
     slot: 1,
+    token: "0123456789abcdef0123456789abcdef",
     room: { code: "BXQF", state: "racing", players: [] },
+    race: undefined,
+    replaced: false,
     closed: new Promise(() => {}),
+    resume: () => Promise.resolve(),
+    onHeard: () => () => {},
     inputs,
     onRoom: () => () => {},
     onCountdown: () => () => {},

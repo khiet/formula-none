@@ -11,8 +11,8 @@ use protocol::{
     DriftDirection, DriftSnapshot, Event, EventKind, FinalStanding, Input, KartSnapshot, Snapshot,
 };
 use sim::tuning::{
-    INPUT_QUEUE_MAX_TICKS, INPUT_QUEUE_START_TICKS, KARTS_PER_RACE, SNAPSHOTS_PER_SECOND,
-    SNAPSHOT_EVENT_REPEATS, TICKS_PER_SECOND,
+    CONNECTION_SILENCE_S, INPUT_QUEUE_MAX_TICKS, INPUT_QUEUE_START_TICKS, KARTS_PER_RACE,
+    SNAPSHOTS_PER_SECOND, SNAPSHOT_EVENT_REPEATS, TICKS_PER_SECOND,
 };
 use sim::{KartInput, Phase, RaceEvent, State, Track};
 
@@ -57,10 +57,25 @@ struct HumanInput {
     /// Received and not yet applied, by sequence, every one newer than
     /// `sequence`.
     queued: BTreeMap<u32, KartInput>,
+    /// Ticks since the last input arrived; `None` until the first does, so
+    /// a client still loading the race is not taken for a lost one, and
+    /// while a bot drives the kart.
+    silent_ticks: Option<u32>,
 }
 
 impl HumanInput {
+    /// Inputs for a human taking their kart back from a bot: nothing held,
+    /// and the silence counted from now, since a client back on a new
+    /// connection counts its sequences from wherever it pleases.
+    fn handed_back() -> Self {
+        Self {
+            silent_ticks: Some(0),
+            ..Self::default()
+        }
+    }
+
     fn receive(&mut self, input: Input) {
+        self.silent_ticks = Some(0);
         if input.sequence > self.sequence {
             self.queued.insert(input.sequence, kart_input(input));
             self.newest = self.newest.max(input.sequence);
@@ -99,6 +114,9 @@ pub struct Ticked {
     pub go: bool,
     /// The race ended this tick: the results, in finishing order.
     pub results: Option<Vec<FinalStanding>>,
+    /// The players heard nothing from for the tuned silence, whose karts a
+    /// bot drives from this tick (ADR 0012).
+    pub silenced: Vec<u8>,
 }
 
 impl Race {
@@ -137,14 +155,31 @@ impl Race {
         self.humans[kart].receive(input);
     }
 
-    /// The player is gone: their kart holds no controls for the rest of the
-    /// race, since a room mid-race refuses joins.
-    pub fn release(&mut self, slot: u8) {
+    /// The player's connection is gone: a bot drives their kart from the
+    /// next tick and what they sent is dropped, until [`Self::hand_back`].
+    pub fn hand_to_bot(&mut self, slot: u8) {
         if let Some(kart) = self.kart_of(slot) {
+            self.state_mut().hand_to_bot(kart);
             let human = &mut self.humans[kart];
             human.applied = KartInput::default();
             human.queued.clear();
+            human.silent_ticks = None;
         }
+    }
+
+    /// The player is back: their inputs drive their kart again from the
+    /// first one received now, whatever sequence it carries.
+    pub fn hand_back(&mut self, slot: u8) {
+        if let Some(kart) = self.kart_of(slot) {
+            self.state_mut().hand_back(kart);
+            self.humans[kart] = HumanInput::handed_back();
+        }
+    }
+
+    fn state_mut(&mut self) -> &mut State {
+        self.state
+            .as_mut()
+            .expect("state is only absent during a tick")
     }
 
     /// The id the next event gets; a rematch's race continues from it.
@@ -156,6 +191,7 @@ impl Race {
     /// told about it. The caller stops ticking once `results` comes back: a
     /// later tick would report the results again.
     pub fn tick(&mut self) -> Ticked {
+        let silenced = self.silence();
         let state = self
             .state
             .take()
@@ -190,7 +226,27 @@ impl Race {
             snapshot,
             go,
             results,
+            silenced,
         }
+    }
+
+    /// Count a tick of silence against every human heard from before, and
+    /// hand to a bot each one silent for the tuned time.
+    fn silence(&mut self) -> Vec<u8> {
+        let limit = (CONNECTION_SILENCE_S * TICKS_PER_SECOND as f32).round() as u32;
+        let mut silenced = Vec::new();
+        for kart in 0..self.humans.len() {
+            let Some(ticks) = &mut self.humans[kart].silent_ticks else {
+                continue;
+            };
+            *ticks += 1;
+            if *ticks >= limit {
+                let slot = self.grid[kart];
+                self.hand_to_bot(slot);
+                silenced.push(slot);
+            }
+        }
+        silenced
     }
 
     /// The state at this tick with every event since the last snapshot and

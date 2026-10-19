@@ -38,6 +38,7 @@ const CLIENT_KINDS = {
   start: true,
   rematch: true,
   leave: true,
+  rejoin: true,
 } satisfies Record<Kind<ClientMessage>, true>;
 const SERVER_KINDS = {
   pong: true,
@@ -48,6 +49,7 @@ const SERVER_KINDS = {
   snapshot: true,
   events: true,
   results: true,
+  replaced: true,
 } satisfies Record<Kind<ServerMessage>, true>;
 
 /**
@@ -116,7 +118,7 @@ describe("generated protocol types", () => {
     const bridge = await loadBridge(wasm);
     const snapshot = fixtures.server.find((fixture) => fixture.name === "snapshot");
     const decoded = bridge.decodeServerMessage(new Uint8Array(snapshot?.bytes ?? []));
-    if (!("snapshot" in decoded)) {
+    if (typeof decoded === "string" || !("snapshot" in decoded)) {
       throw new Error("not a snapshot");
     }
     const kart = decoded.snapshot.karts[1];

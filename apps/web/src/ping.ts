@@ -5,7 +5,7 @@ import type { Connection } from "./connection";
 function pongNonce(codec: MessageCodec, bytes: Uint8Array): number | null {
   try {
     const message = codec.decodeServerMessage(bytes);
-    return "pong" in message ? message.pong.nonce : null;
+    return typeof message === "object" && "pong" in message ? message.pong.nonce : null;
   } catch {
     return null;
   }

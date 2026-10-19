@@ -146,6 +146,7 @@ describe("bridge wrapper", () => {
     expect(() => bridge.decodeServerMessage(new Uint8Array([0xff, 0xff]))).toThrow(/malformed/);
     expect(bridge.webTransportTimeoutMs).toBe(3_000);
     expect(bridge.pingTiming).toEqual({ timeoutMs: 5_000, resendMs: 500 });
+    expect(bridge.reconnectTiming).toEqual({ silenceMs: 2_000, retryMs: 1_000 });
   });
 
   it("reports the room's tuned bounds for the Title Scene to validate against", async () => {

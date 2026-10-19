@@ -8,4 +8,4 @@ import type { Snapshot } from "./Snapshot";
 /**
  * What the server sends a client.
  */
-export type ServerMessage = { "pong": { nonce: number, } } | { "joined": { slot: number, room: Room, } } | { "refused": Refusal } | { "room": Room } | { "countdown": { seed: bigint, track: string, grid: Array<number>, } } | { "snapshot": Snapshot } | { "events": Array<Event> } | { "results": { standings: Array<FinalStanding>, } };
+export type ServerMessage = { "pong": { nonce: number, } } | { "joined": { slot: number, room: Room, token: string, } } | { "refused": Refusal } | { "room": Room } | { "countdown": { seed: bigint, track: string, grid: Array<number>, } } | { "snapshot": Snapshot } | { "events": Array<Event> } | { "results": { standings: Array<FinalStanding>, } } | "replaced";

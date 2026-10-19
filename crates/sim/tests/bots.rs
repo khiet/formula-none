@@ -481,3 +481,65 @@ fn a_bot_held_by_a_wall_backs_up_and_drives_on() {
         "and is on its way round"
     );
 }
+
+#[test]
+fn a_humans_kart_handed_to_a_bot_drives_itself_until_handed_back() {
+    let mut state = started(State::with_bots(SEED, 1, 0, oval()));
+    let grid = state.kart_transforms()[0];
+    state.hand_to_bot(0);
+    assert!(state.is_bot(0));
+    assert_eq!(state.human_count(), 1, "the kart is still the human's");
+
+    // The human's idle input is still given, and ignored: the bot drives.
+    let state = idle_humans(state, 1, 3.0);
+    let driven = state.kart_transforms()[0];
+    assert!(
+        driven.position[2] < grid.position[2] - 30.0 && driven.speed > 20.0,
+        "the bot drove the kart off the grid: {:?} at {} m/s",
+        driven.position,
+        driven.speed
+    );
+    assert_eq!(
+        state.rubber_band(0),
+        1.0,
+        "a human's kart is never banded, whoever drives it"
+    );
+
+    // Handed back, the idle human's input holds the kart again: it coasts
+    // down rather than driving on.
+    let mut state = state;
+    state.hand_back(0);
+    assert!(!state.is_bot(0));
+    let state = idle_humans(state, 1, 6.0);
+    assert!(
+        state.kart_transforms()[0].speed.abs() < 0.5,
+        "the kart coasted to a stop at {} m/s",
+        state.kart_transforms()[0].speed
+    );
+}
+
+#[test]
+fn a_human_handed_to_a_bot_in_the_countdown_sets_up_no_start() {
+    // A held throttle before the window stalls a human's start; a bot sits
+    // the countdown out, so a kart handed over before Go starts clean.
+    let mut handed = State::with_bots(SEED, 1, 0, oval());
+    handed.hand_to_bot(0);
+    let mut stalled = State::with_bots(SEED, 1, 0, oval());
+    let throttle = [KartInput {
+        throttle: 1.0,
+        ..KartInput::default()
+    }];
+    while matches!(handed.phase(), Phase::Countdown { .. }) {
+        handed = step(handed, &throttle, DT);
+        stalled = step(stalled, &throttle, DT);
+    }
+    for _ in 0..ticks(0.5) {
+        handed = step(handed, &throttle, DT);
+        stalled = step(stalled, &throttle, DT);
+    }
+    assert!(handed.kart_transforms()[0].speed > 1.0, "the bot is away");
+    assert!(
+        stalled.kart_transforms()[0].speed.abs() < 0.01,
+        "the human stalled"
+    );
+}

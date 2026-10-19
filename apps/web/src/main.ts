@@ -1,13 +1,15 @@
 import { type Bridge, loadBridge } from "./bridge";
-import { type Connection, connect, serverUrls } from "./connection";
+import { connect, serverUrls } from "./connection";
 import type { InstrumentPanel } from "./instrument-panel";
 import { loadNickname, saveNickname } from "./nickname";
 import { ping } from "./ping";
 import { createRaceScene, localRaceRun, type RaceRun } from "./race-scene";
+import { type Gone, keepConnected, type RaceLink } from "./reconnect";
 import { createResultsScene, type RaceResults, resultsRows } from "./results-scene";
-import { type Countdown, joinRoom, RefusedError, type RoomClient } from "./room-client";
+import { type Countdown, joinRoom, RefusedError, type RoomClient, rejoinRoom } from "./room-client";
 import { roomFromSearch, roomLink, roomSearch } from "./room-link";
 import { createRoomScene } from "./room-scene";
+import { forgetSession, loadSession, saveSession } from "./room-session";
 import { createServerRace } from "./server-race";
 import { createTitleScene } from "./title-scene";
 import { fetchSidecar, isTrackName, selectTrack, TRACKS, type TrackFiles } from "./track";
@@ -17,8 +19,11 @@ interface ConnectionReadout {
   show(panel: InstrumentPanel): void;
 }
 
-/** What the Title says when the server goes away under a race (ADR 0005). */
-const CONNECTION_LOST_MID_RACE = "Lost the connection to the server: the race is over";
+/** What the Title says when a race's connection is gone for good (ADR 0005, ADR 0012). */
+const RACE_GONE: Readonly<Record<Gone, string>> = {
+  refused: "Lost the connection to the server: the race is over",
+  replaced: "The race went on in another tab",
+};
 
 /**
  * M0(b): reach the server, WebTransport first and WebSocket as the fallback,
@@ -124,26 +129,47 @@ async function main(container: HTMLElement): Promise<void> {
     );
   };
 
+  const connectToServer = () =>
+    connect({
+      ...serverUrls(window.location),
+      webTransportTimeoutMs: bridge.webTransportTimeoutMs,
+    });
+
+  /**
+   * Into the room over a new connection: by the session token kept for it,
+   * which takes back a seat held mid-race, or else as a new player.
+   */
+  const openRoom = async (nickname: string, code: string): Promise<RoomClient> => {
+    const token = loadSession(window.localStorage, code);
+    if (token !== undefined) {
+      try {
+        return await rejoinRoom(await connectToServer(), bridge, { code, token });
+      } catch (error) {
+        // The seat went with the race it was kept for; any other refusal
+        // the Join below meets too.
+        if (!(error instanceof RefusedError)) throw error;
+        forgetSession(window.localStorage);
+      }
+    }
+    return joinRoom(await connectToServer(), bridge, { code, nickname });
+  };
+
   /** Join the room and show it, or come back to the Title with the reason. */
   const enterRoom = async (nickname: string, code: string) => {
     saveNickname(window.localStorage, nickname);
     let client: RoomClient;
-    let link: Connection | undefined;
     try {
-      link = await connect({
-        ...serverUrls(window.location),
-        webTransportTimeoutMs: bridge.webTransportTimeoutMs,
-      });
-      client = await joinRoom(link, bridge, { code, nickname });
+      client = await openRoom(nickname, code);
     } catch (error) {
-      // The server closes a refused connection itself; any other failure leaves ours to close.
-      link?.close();
+      // The server closes a refused connection itself, and a connection the
+      // server never answered is closed by the page going.
       const message =
         error instanceof RefusedError ? error.message : "Could not reach the server; try again";
       if (!(error instanceof RefusedError)) console.warn("could not join the room", error);
       showTitle(message, code);
       return;
     }
+    saveSession(window.localStorage, { code: client.room.code, token: client.token });
     // Refreshing the page comes back to the room.
     window.history.replaceState(null, "", roomSearch(client.room.code));
     showRoom(client);
@@ -152,10 +178,16 @@ async function main(container: HTMLElement): Promise<void> {
   /** Leave the room and take its code out of the page's link. */
   const leaveRoom = (client: RoomClient) => {
     client.leave();
+    forgetSession(window.localStorage);
     window.history.replaceState(null, "", window.location.pathname);
   };
 
   const showRoom = (client: RoomClient) => {
+    // Back in a race under way: a rejoin mid-race goes straight to it.
+    if (client.race !== undefined) {
+      showRoomRace(client, client.race).catch(fail);
+      return;
+    }
     // Cleared when the Scene moves on, so a connection lost later is not
     // reported against a room the player is no longer looking at.
     let waiting = true;
@@ -210,6 +242,10 @@ async function main(container: HTMLElement): Promise<void> {
     const run = createServerRace(bridge, client, countdown, client.slot, sidecar);
     const nickname = (kart: number) =>
       players.find((player) => player.slot === countdown.grid[kart])?.nickname;
+    const link = keepConnected(client, {
+      timing: bridge.reconnectTiming,
+      connect: connectToServer,
+    });
     await showRace(
       track,
       run,
@@ -224,7 +260,7 @@ async function main(container: HTMLElement): Promise<void> {
           showTitle();
         },
       },
-      client.closed,
+      link,
     );
   };
 
@@ -243,26 +279,29 @@ async function main(container: HTMLElement): Promise<void> {
 
   /**
    * Race `run` on `track` to its results, then show them. A room's race
-   * that loses its server mid-race goes back to the Title with a message,
-   * as a deploy under a race does (ADR 0005).
+   * shows the connection banner while `link` reconnects, and goes back to
+   * the Title with a message once its connection is gone for good, as a
+   * deploy under a race does (ADR 0005, ADR 0012).
    */
   const showRace = async (
     track: TrackFiles,
     run: RaceRun,
     nickname: (kart: number) => string | undefined,
     handlers: RaceHandlers,
-    lost?: Promise<void>,
+    link?: RaceLink,
   ) => {
     const race = await createRaceScene(container, bridge, track, run, nickname);
     connection.show(race.panel);
     let racing = true;
-    lost?.then(() => {
+    link?.onLost((lost) => race.panel.connectionLost(lost));
+    link?.gone.then((gone) => {
       if (!racing) return;
       racing = false;
       race.dispose();
-      showTitle(CONNECTION_LOST_MID_RACE);
+      showTitle(RACE_GONE[gone]);
     });
     const finished = await race.finished;
+    link?.dispose();
     if (!racing) return;
     racing = false;
     race.dispose();
