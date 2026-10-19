@@ -10,9 +10,7 @@ use std::collections::VecDeque;
 use protocol::{
     DriftDirection, DriftSnapshot, Event, EventKind, FinalStanding, Input, KartSnapshot, Snapshot,
 };
-use sim::tuning::{
-    KARTS_PER_RACE, SNAPSHOTS_PER_SECOND, SNAPSHOT_EVENT_REPEATS, TICKS_PER_SECOND,
-};
+use sim::tuning::{KARTS_PER_RACE, SNAPSHOTS_PER_SECOND, SNAPSHOT_EVENT_REPEATS, TICKS_PER_SECOND};
 use sim::{KartInput, Phase, RaceEvent, State, Track};
 
 /// Seconds of one tick: the sim's `dt` and the budget a tick's work must fit
@@ -162,8 +160,7 @@ impl Race {
             .chain(self.repeated.iter().flatten())
             .copied()
             .collect();
-        self.repeated
-            .push_front(std::mem::take(&mut self.pending));
+        self.repeated.push_front(std::mem::take(&mut self.pending));
         self.repeated.truncate(SNAPSHOT_EVENT_REPEATS);
         let standings = state.standings();
         let karts = state

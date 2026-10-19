@@ -105,7 +105,10 @@ async fn the_countdown_reaches_every_client_with_the_grid_in_room_order_and_the_
     let mut harness = Harness::new(Conditions::PERFECT);
     let (code, mut players, countdowns) = racing_room(&mut harness, 3).await;
     for countdown in &countdowns {
-        assert_eq!(countdown, &countdowns[0], "every client builds the same race");
+        assert_eq!(
+            countdown, &countdowns[0],
+            "every client builds the same race"
+        );
     }
     assert_eq!(countdowns[0].track, TRACK);
     assert_eq!(countdowns[0].grid, vec![0, 1, 2], "humans in room order");
@@ -120,7 +123,10 @@ async fn the_countdown_reaches_every_client_with_the_grid_in_room_order_and_the_
     // the tick that went.
     let room = players[0].next_room().await.unwrap();
     assert_eq!(room.state, RoomState::Racing);
-    assert_eq!(harness.rooms().view(&code).unwrap().state, RoomState::Racing);
+    assert_eq!(
+        harness.rooms().view(&code).unwrap().state,
+        RoomState::Racing
+    );
     let snapshot = players[0].next_snapshot().await.unwrap();
     assert!(
         seconds(snapshot.tick) >= COUNTDOWN_S,
@@ -164,7 +170,9 @@ async fn snapshots_come_at_the_snapshot_rate_in_tick_order_and_acknowledge_the_n
     let snapshot = player.next_snapshot().await.unwrap();
     assert_eq!(snapshot.acknowledged[0], 5, "never back to an older one");
     assert!(
-        snapshot.acknowledged[1..].iter().all(|&sequence| sequence == 0),
+        snapshot.acknowledged[1..]
+            .iter()
+            .all(|&sequence| sequence == 0),
         "a bot's kart acknowledges nothing"
     );
 }
@@ -186,7 +194,11 @@ async fn an_input_that_arrives_out_of_order_is_outranked_by_the_newer_one_alread
         snapshot = player.next_snapshot().await.unwrap();
     }
     assert_eq!(snapshot.acknowledged[0], 10);
-    assert!(speed(&snapshot, 0) > 5.0, "driving: {:?}", snapshot.karts[0]);
+    assert!(
+        speed(&snapshot, 0) > 5.0,
+        "driving: {:?}",
+        snapshot.karts[0]
+    );
 }
 
 #[tokio::test(start_paused = true)]
@@ -224,7 +236,10 @@ async fn inputs_survive_a_lossy_jittery_link_and_the_acknowledgement_never_goes_
             snapshot.acknowledged[0]
         );
         acknowledged = snapshot.acknowledged[0];
-        assert!(acknowledged <= sequence, "only what was sent is acknowledged");
+        assert!(
+            acknowledged <= sequence,
+            "only what was sent is acknowledged"
+        );
         if seconds(snapshot.tick) > COUNTDOWN_S + 3.0 && speed(&snapshot, 0) > 5.0 {
             moving = true;
         }
@@ -320,9 +335,15 @@ async fn events_are_never_lost_on_a_lossy_link_and_every_id_is_distinct() {
         }
     }
     let ids: BTreeSet<u32> = on_the_stream.iter().map(|event| event.id).collect();
-    assert_eq!(ids.len(), on_the_stream.len(), "no id repeats on the stream");
+    assert_eq!(
+        ids.len(),
+        on_the_stream.len(),
+        "no id repeats on the stream"
+    );
     assert!(
-        in_snapshots.iter().all(|id| ids.contains(id) || *id > *ids.iter().max().unwrap()),
+        in_snapshots
+            .iter()
+            .all(|id| ids.contains(id) || *id > *ids.iter().max().unwrap()),
         "a snapshot repeats only events the stream carries"
     );
     assert!(
@@ -369,7 +390,10 @@ async fn the_race_ends_the_tuned_grace_after_the_first_finisher_and_the_results_
 
     assert_eq!(results.len(), KARTS_PER_RACE);
     assert_eq!(
-        results.iter().map(|standing| standing.position).collect::<Vec<_>>(),
+        results
+            .iter()
+            .map(|standing| standing.position)
+            .collect::<Vec<_>>(),
         (1..=KARTS_PER_RACE as u8).collect::<Vec<_>>(),
         "in finishing order"
     );
@@ -378,12 +402,15 @@ async fn the_race_ends_the_tuned_grace_after_the_first_finisher_and_the_results_
         "a bot won: {:?}",
         results[0]
     );
-    let human = results
-        .iter()
-        .find(|standing| standing.kart == 0)
-        .unwrap();
-    assert_eq!(human.position, KARTS_PER_RACE as u8, "the idle human is last");
-    assert_eq!(human.finish_time_s, None, "placed by progress, not finished");
+    let human = results.iter().find(|standing| standing.kart == 0).unwrap();
+    assert_eq!(
+        human.position, KARTS_PER_RACE as u8,
+        "the idle human is last"
+    );
+    assert_eq!(
+        human.finish_time_s, None,
+        "placed by progress, not finished"
+    );
     assert_eq!(human.best_lap_s, None);
     assert!(
         results
@@ -397,7 +424,10 @@ async fn the_race_ends_the_tuned_grace_after_the_first_finisher_and_the_results_
     let room = player.next_room().await.unwrap();
     assert_eq!(room.state, RoomState::Results);
     assert_eq!(room.players[0].state, PlayerState::Finished);
-    assert_eq!(harness.rooms().view(&code).unwrap().state, RoomState::Results);
+    assert_eq!(
+        harness.rooms().view(&code).unwrap().state,
+        RoomState::Results
+    );
 }
 
 /// Everything until the Results, as one idle player sees them: the highest
@@ -405,9 +435,16 @@ async fn the_race_ends_the_tuned_grace_after_the_first_finisher_and_the_results_
 async fn results_of(player: &mut Client) -> (u32, Vec<protocol::FinalStanding>) {
     let mut highest_id = 0;
     loop {
-        match player.recv().await.expect("the race goes on to its results") {
+        match player
+            .recv()
+            .await
+            .expect("the race goes on to its results")
+        {
             ServerMessage::Events(events) => {
-                highest_id = events.iter().map(|event| event.id).fold(highest_id, u32::max);
+                highest_id = events
+                    .iter()
+                    .map(|event| event.id)
+                    .fold(highest_id, u32::max);
             }
             ServerMessage::Results { standings } => return (highest_id, standings),
             _ => {}
@@ -523,11 +560,18 @@ async fn a_player_who_leaves_mid_race_frees_their_seat_at_the_results_and_the_re
     let mut snapshot = players[0].next_snapshot().await.unwrap();
     while speed(&snapshot, 1) > 0.5 {
         snapshot = players[0].next_snapshot().await.unwrap();
-        assert!(seconds(snapshot.tick) < COUNTDOWN_S + 30.0, "the left kart coasts to a stop");
+        assert!(
+            seconds(snapshot.tick) < COUNTDOWN_S + 30.0,
+            "the left kart coasts to a stop"
+        );
     }
 
     let (_, results) = results_of(&mut players[0]).await;
-    assert_eq!(results.len(), KARTS_PER_RACE, "the left kart was still raced");
+    assert_eq!(
+        results.len(),
+        KARTS_PER_RACE,
+        "the left kart was still raced"
+    );
     let room = players[0].next_room().await.unwrap();
     assert_eq!(room.state, RoomState::Results);
     assert_eq!(room.players.len(), 1, "the seat freed at the results");
@@ -556,7 +600,10 @@ async fn a_room_whose_finishers_all_leave_can_still_start_from_results() {
     newcomer.send(&ClientMessage::Start);
     let countdown = newcomer.next_countdown().await.unwrap();
     assert_eq!(countdown.grid, vec![1]);
-    assert_eq!(newcomer.next_room().await.unwrap().state, RoomState::Countdown);
+    assert_eq!(
+        newcomer.next_room().await.unwrap().state,
+        RoomState::Countdown
+    );
 }
 
 #[tokio::test(start_paused = true)]
@@ -567,10 +614,12 @@ async fn stopping_the_server_mid_race_ends_every_session() {
     harness.stop();
     for player in &mut players {
         assert_eq!(
-            player.next_where(|message| match message {
-                ServerMessage::Results { .. } => Some(()),
-                _ => None,
-            }).await,
+            player
+                .next_where(|message| match message {
+                    ServerMessage::Results { .. } => Some(()),
+                    _ => None,
+                })
+                .await,
             None,
             "no results come: the session ended"
         );

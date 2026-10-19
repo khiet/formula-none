@@ -278,7 +278,12 @@ impl Running {
             broadcast(players, &ServerMessage::Results { standings }, None);
             room.finish();
             // A seat that freed at the finish stops receiving.
-            let seated: Vec<u8> = room.view().players.iter().map(|player| player.slot).collect();
+            let seated: Vec<u8> = room
+                .view()
+                .players
+                .iter()
+                .map(|player| player.slot)
+                .collect();
             players.retain(|slot, _| seated.contains(slot));
         }
         self.timing.record(started_at.elapsed());

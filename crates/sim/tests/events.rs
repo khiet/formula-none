@@ -203,5 +203,8 @@ fn coming_back_from_out_of_the_world_reports_a_respawn_on_that_tick() {
         );
         was_out = out;
     }
-    panic!("the kart never respawned within {} s", RESPAWN_DELAY_S + 6.5);
+    panic!(
+        "the kart never respawned within {} s",
+        RESPAWN_DELAY_S + 6.5
+    );
 }
