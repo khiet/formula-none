@@ -183,6 +183,41 @@ async fn snapshots_come_at_the_snapshot_rate_in_tick_order_and_acknowledge_one_s
 }
 
 #[tokio::test(start_paused = true)]
+async fn a_client_far_ahead_is_caught_up_to_and_one_back_from_a_stall_is_heard_again() {
+    let mut harness = Harness::new(Conditions::PERFECT);
+    let (_, mut players, _) = racing_room(&mut harness, 1).await;
+    let player = &mut players[0];
+    while seconds(player.next_snapshot().await.unwrap().tick) < COUNTDOWN_S + 0.5 {}
+
+    // Ten inputs at once: the server starts no further than the tuned depth
+    // behind the newest, dropping the oldest.
+    for sequence in 1..=10 {
+        player.send_input(input(sequence, 0));
+    }
+    let first = player.next_snapshot().await.unwrap().acknowledged[0];
+    assert!(first >= 10 - INPUT_QUEUE_MAX_TICKS, "acknowledged {first}");
+
+    // Then the client stalls: the server runs the tuned depth past the
+    // newest and waits there, and the client's next inputs drive the kart.
+    let held = 10 + INPUT_QUEUE_MAX_TICKS;
+    while player.next_snapshot().await.unwrap().acknowledged[0] < held {}
+    assert_eq!(player.next_snapshot().await.unwrap().acknowledged[0], held);
+    for sequence in held + 1..=held + 2 {
+        player.send_input(input(sequence, u8::MAX));
+    }
+    let mut snapshot = player.next_snapshot().await.unwrap();
+    while seconds(snapshot.tick) < COUNTDOWN_S + 2.5 {
+        snapshot = player.next_snapshot().await.unwrap();
+    }
+    assert!(snapshot.acknowledged[0] > held);
+    assert!(
+        speed(&snapshot, 0) > 5.0,
+        "driving: {:?}",
+        snapshot.karts[0]
+    );
+}
+
+#[tokio::test(start_paused = true)]
 async fn inputs_that_arrive_out_of_order_are_applied_in_sequence_order() {
     let mut harness = Harness::new(Conditions::PERFECT);
     let (_, mut players, _) = racing_room(&mut harness, 1).await;
