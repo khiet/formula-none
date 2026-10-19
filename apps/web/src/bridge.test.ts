@@ -347,6 +347,31 @@ describe("prediction", () => {
     expect(prediction.kartTransform().position[0]).toBeCloseTo(x + 1, 4);
     expect(() => prediction.reconcile({ ...snapshot, tick: 236, karts: [] })).toThrow(/kart 0/);
   });
+
+  it("carries the item a snapshot says the own kart holds through the prediction", async () => {
+    const bridge = await loadBridge(wasm);
+    const prediction = bridge.createPrediction(7n, 0, OVAL);
+    for (let sequence = 1; sequence <= 10; sequence++) {
+      prediction.tick(wire(IDLE_INPUT, sequence));
+    }
+    const [x, y, z] = prediction.kartTransform().position;
+    const holding: KartSnapshot = {
+      position: [x, y, z],
+      rotation: [0, 0, 0, 1],
+      velocity: [0, 0, 0],
+      drift: null,
+      racePosition: 1,
+      lap: 1,
+      checkpoint: 0,
+      splineProgress: 0,
+      wrongWay: false,
+      heldItem: "homing",
+      spinOutS: null,
+    };
+    prediction.reconcile({ tick: 10, acknowledged: [4], karts: [holding], events: [] });
+    expect(prediction.kartTransform().heldItem).toBe("homing");
+    expect(prediction.interpolatedKartTransforms()[0]?.heldItem).toBe("homing");
+  });
 });
 
 describe("items", () => {
