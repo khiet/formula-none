@@ -46,6 +46,13 @@ up to eight players, has a creator, and moves through Open, Countdown, Racing,
 Results and Closing. A room enters Closing five minutes after the last human
 leaves.
 
+### session token
+
+The secret a room deals a player at their join, which takes their seat back
+over a new connection. Mid-race a bot drives the kart of a Disconnected
+player until the token rejoins or the race ends; the seat, and the token
+with it, is freed at the results.
+
 ### creator
 
 The player who can press Start in a room. The role passes to the next player

@@ -284,7 +284,8 @@ pub struct State {
     /// Human karts first, then bots: `step`'s inputs are the humans', in
     /// grid order.
     karts: Vec<Kart>,
-    /// The first this many `karts` are humans; fixed for the race.
+    /// The first this many `karts` are humans'; fixed for the race, though
+    /// a bot may drive one for a while (see [`State::hand_to_bot`]).
     humans: usize,
     physics: Physics,
     phase: Phase,
@@ -297,8 +298,8 @@ pub struct State {
 struct Kart {
     body: RigidBodyHandle,
     collider: ColliderHandle,
-    /// The bot driving this kart, with what it remembers; `None` for a
-    /// human's kart.
+    /// The bot driving this kart, with what it remembers; `None` while its
+    /// human drives it.
     bot: Option<bot::Memory>,
     /// The unit direction the handling model sent the kart this tick: its
     /// facing, turned by the slip angle in a drift. What a wall bump
@@ -549,13 +550,33 @@ impl State {
         self.karts[slot].bot.is_some()
     }
 
+    /// A bot drives the human's kart in `slot` from the next tick, with no
+    /// memory of its own yet; `step` still takes the kart's input and
+    /// ignores it. The server does this while it has lost the human.
+    /// `slot` must be a human's.
+    pub fn hand_to_bot(&mut self, slot: usize) {
+        assert!(slot < self.humans, "kart {slot} is not a human's");
+        let kart = &mut self.karts[slot];
+        if kart.bot.is_none() {
+            kart.bot = Some(bot::Memory::default());
+        }
+    }
+
+    /// The human drives their kart in `slot` again from the next tick.
+    /// `slot` must be a human's.
+    pub fn hand_back(&mut self, slot: usize) {
+        assert!(slot < self.humans, "kart {slot} is not a human's");
+        self.karts[slot].bot = None;
+    }
+
     /// The rubber band on a kart's top speed for the coming tick: a bot the
     /// tuned range or more ahead of the nearest human along the spline is
     /// held to the tuned minimum, one that far behind is let up to the tuned
-    /// maximum, and the scale runs linearly between. A human's kart, or a
-    /// bot in a race with no humans, is scaled by one.
+    /// maximum, and the scale runs linearly between. A human's kart, even
+    /// one a bot drives for now, or a bot in a race with no humans, is
+    /// scaled by one.
     pub fn rubber_band(&self, slot: usize) -> f32 {
-        if !self.is_bot(slot) || self.humans == 0 {
+        if slot < self.humans || self.humans == 0 {
             return 1.0;
         }
         let distance = |kart: &Kart| {
@@ -595,7 +616,8 @@ impl State {
     /// a resting body to sleep.
     /// Bit-identical on every platform for bit-identical states, which is
     /// what the replay fixtures check (ADR 0002). A bot's memory is hashed
-    /// with its kart. Three things are left out on purpose. The track and
+    /// with its kart, so a human's kart a bot drives hashes apart from one
+    /// its human does. Three things are left out on purpose. The track and
     /// the split between human and bot slots never change after `new`, so
     /// they are the replay's `track` and `bots` fields instead. Rapier's
     /// contact manifolds and warm-start impulses are not hashed; a
@@ -723,7 +745,8 @@ impl State {
 /// Advance the race by one tick of `dt` seconds. `inputs` holds one entry per
 /// human kart in grid order; the caller must supply exactly as many as there
 /// are humans. The bots' inputs come from [`bot::drive`], given the readouts
-/// as of the last tick.
+/// as of the last tick, and so does that of a human's kart a bot drives for
+/// now, whose entry in `inputs` is ignored.
 ///
 /// During the countdown nothing moves and only the throttle is read, for
 /// the start boost and the stall; the bots sit it out. Once the race has
@@ -735,7 +758,7 @@ pub fn step(mut state: State, inputs: &[KartInput], dt: f32) -> State {
         Phase::Finished => return state,
         Phase::Countdown { remaining_s } => {
             for (kart, input) in state.karts.iter_mut().zip(inputs) {
-                if input.throttle > 0.0 && kart.start == Start::Clean {
+                if kart.bot.is_none() && input.throttle > 0.0 && kart.start == Start::Clean {
                     kart.start = if remaining_s <= START_BOOST_WINDOW_S {
                         Start::Boost
                     } else {
@@ -765,19 +788,21 @@ pub fn step(mut state: State, inputs: &[KartInput], dt: f32) -> State {
         } => (elapsed_s + dt, grace_left_s),
     };
     // Skip building the readouts when no bot needs them.
-    let inputs: Vec<KartInput> = if state.humans == state.karts.len() {
+    let inputs: Vec<KartInput> = if state.karts.iter().all(|kart| kart.bot.is_none()) {
         inputs.to_vec()
     } else {
         let transforms = state.kart_transforms();
         let standings = state.standings();
         let track = &state.track;
-        let mut inputs = inputs.to_vec();
-        for (slot, kart) in state.karts.iter_mut().enumerate() {
-            if let Some(memory) = &mut kart.bot {
-                inputs.push(bot::drive(track, &transforms, &standings, slot, memory, dt));
-            }
-        }
-        inputs
+        state
+            .karts
+            .iter_mut()
+            .enumerate()
+            .map(|(slot, kart)| match &mut kart.bot {
+                Some(memory) => bot::drive(track, &transforms, &standings, slot, memory, dt),
+                None => inputs[slot],
+            })
+            .collect()
     };
     let top_speeds: Vec<f32> = (0..state.karts.len())
         .map(|slot| TOP_SPEED_M_PER_S * state.rubber_band(slot))

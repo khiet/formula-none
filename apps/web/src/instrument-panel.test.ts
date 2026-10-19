@@ -1,6 +1,12 @@
+// @vitest-environment jsdom
 import { describe, expect, it } from "vitest";
 import type { Standing } from "./bridge";
-import { lapReadouts, phaseReadout } from "./instrument-panel";
+import {
+  CONNECTION_LOST_BANNER,
+  createInstrumentPanel,
+  lapReadouts,
+  phaseReadout,
+} from "./instrument-panel";
 
 const onTheGrid: Standing = {
   position: 1,
@@ -63,5 +69,19 @@ describe("phase readout", () => {
     expect(phaseReadout({ kind: "racing", elapsedSeconds: 1, graceLeftSeconds: null })).toBe("");
     expect(phaseReadout({ kind: "racing", elapsedSeconds: 40, graceLeftSeconds: 12 })).toBe("");
     expect(phaseReadout({ kind: "finished" })).toBe("");
+  });
+});
+
+describe("the connection banner", () => {
+  it("is down until the connection is lost, and down again once it is back", () => {
+    const container = document.createElement("div");
+    const panel = createInstrumentPanel(container, 3);
+    const banner = container.querySelector<HTMLElement>('[data-instrument="connection-banner"]');
+    expect(banner?.textContent).toBe(CONNECTION_LOST_BANNER);
+    expect(banner?.hidden).toBe(true);
+    panel.connectionLost(true);
+    expect(banner?.hidden).toBe(false);
+    panel.connectionLost(false);
+    expect(banner?.hidden).toBe(true);
   });
 });

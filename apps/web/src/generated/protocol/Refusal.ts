@@ -3,4 +3,4 @@
 /**
  * Why a [`ClientMessage::Join`] was refused.
  */
-export type Refusal = "unknownRoom" | "roomFull" | "roomRacing" | { "versionMismatch": { server: number, } };
+export type Refusal = "unknownRoom" | "roomFull" | "roomRacing" | { "versionMismatch": { server: number, } } | "unknownSession" | "sessionInUse";

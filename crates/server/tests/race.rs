@@ -5,9 +5,12 @@
 //! rematch and the join between races. Under tokio's paused clock a whole
 //! race costs only the CPU time of its ticks.
 
+mod common;
+
 use std::collections::BTreeSet;
 use std::time::Duration;
 
+use common::{seconds, speed};
 use protocol::{
     ClientMessage, Event, EventKind, Input, PlayerState, RoomState, ServerMessage, Snapshot,
 };
@@ -89,15 +92,6 @@ fn input(sequence: u32, throttle: u8) -> Input {
         use_item: false,
         hold_item: false,
     }
-}
-
-fn speed(snapshot: &Snapshot, kart: usize) -> f32 {
-    let [x, y, z] = snapshot.karts[kart].velocity;
-    (x * x + y * y + z * z).sqrt()
-}
-
-fn seconds(ticks: u32) -> f32 {
-    ticks as f32 / TICKS_PER_SECOND as f32
 }
 
 #[tokio::test(start_paused = true)]
@@ -587,7 +581,7 @@ async fn a_player_who_leaves_mid_race_frees_their_seat_at_the_results_and_the_re
     let mut harness = Harness::new(Conditions::PERFECT);
     let (_, mut players, _) = racing_room(&mut harness, 2).await;
     let leaver = players.remove(1);
-    // The leaver is driving when they go; their kart holds no controls after.
+    // The leaver is driving when they go; a bot drives their kart after.
     let mut snapshot = players[0].next_snapshot().await.unwrap();
     while seconds(snapshot.tick) < COUNTDOWN_S {
         snapshot = players[0].next_snapshot().await.unwrap();
@@ -602,20 +596,13 @@ async fn a_player_who_leaves_mid_race_frees_their_seat_at_the_results_and_the_re
     let room = players[0].next_room().await.unwrap();
     assert_eq!(room.players.len(), 2);
     assert_eq!(room.players[1].state, PlayerState::Disconnected);
-    let mut snapshot = players[0].next_snapshot().await.unwrap();
-    while speed(&snapshot, 1) > 0.5 {
-        snapshot = players[0].next_snapshot().await.unwrap();
-        assert!(
-            seconds(snapshot.tick) < COUNTDOWN_S + 30.0,
-            "the left kart coasts to a stop"
-        );
-    }
 
     let (_, results) = results_of(&mut players[0]).await;
-    assert_eq!(
-        results.len(),
-        KARTS_PER_RACE,
-        "the left kart was still raced"
+    assert_eq!(results.len(), KARTS_PER_RACE);
+    let left = results.iter().find(|standing| standing.kart == 1).unwrap();
+    assert!(
+        left.finish_time_s.is_some(),
+        "the bot drove the left kart to the finish: {left:?}"
     );
     let room = players[0].next_room().await.unwrap();
     assert_eq!(room.state, RoomState::Results);

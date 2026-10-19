@@ -43,3 +43,24 @@ The race flow landed with issue 17 (2026-10-19).
   all leave never sticks.
 - The karts are in room order with the bots behind the humans; the
   Countdown names the slot driving each human kart.
+
+Disconnect and rejoin landed with issue 20 (2026-10-19).
+
+- `Joined` deals a session token, which a `Rejoin` presents to take the
+  seat back. Mid-race the kart is the player's again from the rejoin, and
+  the server sends the Countdown of the race under way so a client that
+  lost it can rebuild it. Any other token is refused as an unknown session;
+  a rejoin mid-race while the old connection lives moves the seat to the
+  new one and tells the old one it was replaced. Between races such a
+  rejoin is refused, so a second tab of one browser joins as a new player.
+- The server counts a human it has heard no input from for the tuned
+  silence (two seconds) as Disconnected and hands their kart to a bot, as
+  it does on a dropped connection; their next input on a connection that
+  never dropped hands it back. The silence is counted from the first input,
+  so a client still loading the race is not taken for a lost one, and a
+  rejoin counts it afresh. A silent player whose connection still holds at
+  the finish is told the results and keeps their seat.
+- The client shows the connection banner after the same silence from the
+  server, or when its connection ends, and rejoins over a new connection
+  until it is back or refused. It keeps the token in local storage, so the
+  room's link reopened in the same browser rejoins the race too.

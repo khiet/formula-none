@@ -6,6 +6,8 @@ export interface InstrumentPanel {
   update(local: KartTransform, standing: Standing, phase: Phase): void;
   /** The connection readout: which transport reached the server and how fast, or that none did. */
   connection(status: string): void;
+  /** Show the connection banner while a room's race has lost the server, and take it down once back. */
+  connectionLost(lost: boolean): void;
   /** Take the panel off the page. */
   dispose(): void;
 }
@@ -21,6 +23,7 @@ export interface LapReadouts {
 }
 
 const WRONG_WAY_WARNING = "WRONG WAY";
+export const CONNECTION_LOST_BANNER = "Connection lost: reconnecting";
 /** How long GO stays up after the countdown. Presentation, so not the sim's to tune. */
 const GO_S = 1;
 
@@ -46,6 +49,8 @@ export function createInstrumentPanel(
   const bestLap = instrument("best-lap");
   const wrongWay = instrument("wrong-way");
   wrongWay.hidden = true;
+  const banner = instrument("connection-banner", CONNECTION_LOST_BANNER);
+  banner.hidden = true;
   const countdown = instrument("countdown");
   countdown.hidden = true;
   const speed = instrument("speed", formatSpeed(0));
@@ -69,6 +74,7 @@ export function createInstrumentPanel(
     connection,
     " ",
     wrongWay,
+    banner,
     countdown,
   );
   container.append(panel);
@@ -90,6 +96,9 @@ export function createInstrumentPanel(
     },
     connection(status) {
       connection.textContent = status;
+    },
+    connectionLost(lost) {
+      banner.hidden = !lost;
     },
     dispose() {
       panel.remove();

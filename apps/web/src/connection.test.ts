@@ -309,6 +309,32 @@ describe("connect", () => {
     await expect(socketConnection.closed).resolves.toBeUndefined();
     expect(FakeWebSocket.instances[0]?.closeCalls).toBe(1);
   });
+
+  it("drops what is sent over a WebSocket after it closed, as a datagram on a closed session is", async () => {
+    // A race reconnecting keeps sending its inputs; the browser logs an
+    // error for each one a closed socket is handed.
+    const connecting = connect(URLS, { WebSocket: FakeWebSocket });
+    const socket = FakeWebSocket.instances[0] as FakeWebSocket;
+    socket.open();
+    const connection = await connecting;
+    connection.send(PING);
+    socket.fail();
+    connection.send(PING, "datagram");
+    connection.send(JOIN);
+    expect(socket.sent).toEqual([PING]);
+  });
+
+  it("drops what is sent over a WebSocket the client is closing", async () => {
+    const connecting = connect(URLS, { WebSocket: FakeWebSocket });
+    const socket = FakeWebSocket.instances[0] as FakeWebSocket;
+    socket.open();
+    const connection = await connecting;
+    // The browser's close event comes later; the socket is closing meanwhile.
+    socket.close = () => {};
+    connection.close();
+    connection.send(PING);
+    expect(socket.sent).toEqual([]);
+  });
 });
 
 describe("readFrames", () => {

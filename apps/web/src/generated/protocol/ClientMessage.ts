@@ -4,4 +4,4 @@ import type { Input } from "./Input";
 /**
  * What a client sends the server.
  */
-export type ClientMessage = { "ping": { nonce: number, } } | { "join": { version: number, room: string, nickname: string, } } | { "input": Input } | { "ready": { ready: boolean, } } | "start" | "rematch" | "leave";
+export type ClientMessage = { "ping": { nonce: number, } } | { "join": { version: number, room: string, nickname: string, } } | { "input": Input } | { "ready": { ready: boolean, } } | "start" | "rematch" | "leave" | { "rejoin": { version: number, room: string, token: string, } };

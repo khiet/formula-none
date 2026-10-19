@@ -54,7 +54,8 @@ pub fn server_lane(message: &ServerMessage) -> Lane {
         | ServerMessage::Room(_)
         | ServerMessage::Countdown { .. }
         | ServerMessage::Events(_)
-        | ServerMessage::Results { .. } => Lane::Reliable,
+        | ServerMessage::Results { .. }
+        | ServerMessage::Replaced => Lane::Reliable,
     }
 }
 
@@ -65,6 +66,7 @@ pub fn client_lane(message: &ClientMessage) -> Lane {
         | ClientMessage::Ready { .. }
         | ClientMessage::Start
         | ClientMessage::Rematch
-        | ClientMessage::Leave => Lane::Reliable,
+        | ClientMessage::Leave
+        | ClientMessage::Rejoin { .. } => Lane::Reliable,
     }
 }

@@ -103,6 +103,19 @@ pub fn ping_resend_s() -> f32 {
     sim::tuning::PING_RESEND_S
 }
 
+/// Silence from the server mid-race before the client shows the connection
+/// banner and reconnects (ADR 0012).
+#[wasm_bindgen]
+pub fn connection_silence_s() -> f32 {
+    sim::tuning::CONNECTION_SILENCE_S
+}
+
+/// How long a failed reconnect waits before the next try (ADR 0014).
+#[wasm_bindgen]
+pub fn reconnect_retry_s() -> f32 {
+    sim::tuning::RECONNECT_RETRY_S
+}
+
 /// The fewest characters a nickname may have (ADR 0014); the Title Scene
 /// validates against it.
 #[wasm_bindgen]
