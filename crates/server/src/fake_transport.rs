@@ -174,7 +174,10 @@ impl Client {
 fn pump(
     conditions: Conditions,
     seed: u64,
-) -> (mpsc::UnboundedSender<Vec<u8>>, mpsc::UnboundedReceiver<Vec<u8>>) {
+) -> (
+    mpsc::UnboundedSender<Vec<u8>>,
+    mpsc::UnboundedReceiver<Vec<u8>>,
+) {
     let (into, mut travelling) = mpsc::unbounded_channel::<Vec<u8>>();
     let (out, arrived) = mpsc::unbounded_channel();
     tokio::spawn(async move {

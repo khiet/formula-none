@@ -27,6 +27,7 @@ pub async fn run(rooms: Rooms, channels: Channels, shutdown: Shutdown) {
     let mut membership: Option<Membership> = None;
     loop {
         let bytes = tokio::select! {
+            biased;
             () = shutdown.wait() => return,
             received = inbound.recv() => match received {
                 Some(bytes) => bytes,

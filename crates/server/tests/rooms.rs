@@ -7,7 +7,8 @@ use std::time::Duration;
 use protocol::{ClientMessage, PlayerState, Refusal, RoomState, ServerMessage, PROTOCOL_VERSION};
 use server::fake_transport::{Client, Conditions, Harness};
 use sim::tuning::{
-    ROOM_CLOSE_AFTER_EMPTY_S, ROOM_CODE_ALPHABET, ROOM_CODE_LENGTH, ROOM_PLAYERS_MAX,
+    NICKNAME_MAX_CHARS, ROOM_CLOSE_AFTER_EMPTY_S, ROOM_CODE_ALPHABET, ROOM_CODE_LENGTH,
+    ROOM_PLAYERS_MAX,
 };
 
 /// A room with `count` players in it, in join order, each holding its slot.
@@ -77,8 +78,24 @@ async fn the_code_is_read_as_typed_and_an_unknown_one_is_refused_and_ends_the_se
             Err(Refusal::UnknownRoom),
             "{wrong:?}"
         );
-        assert_eq!(client.recv().await, None, "the session ends after a refusal");
+        assert_eq!(
+            client.recv().await,
+            None,
+            "the session ends after a refusal"
+        );
     }
+}
+
+#[tokio::test]
+async fn a_nickname_is_trimmed_and_cut_to_the_tuned_length() {
+    let mut harness = Harness::new(Conditions::PERFECT);
+    let code = harness.create_room();
+    let mut client = harness.connect();
+    let (_, room) = client
+        .join(&code, &format!("  {} ", "x".repeat(NICKNAME_MAX_CHARS + 5)))
+        .await
+        .unwrap();
+    assert_eq!(room.players[0].nickname, "x".repeat(NICKNAME_MAX_CHARS));
 }
 
 #[tokio::test]
@@ -97,7 +114,9 @@ async fn a_client_on_another_protocol_version_is_told_the_servers_so_it_reloads(
     let code = harness.create_room();
     let mut stale = harness.connect();
     assert_eq!(
-        stale.join_as_version(&code, "khiet", PROTOCOL_VERSION + 1).await,
+        stale
+            .join_as_version(&code, "khiet", PROTOCOL_VERSION + 1)
+            .await,
         Err(Refusal::VersionMismatch {
             server: PROTOCOL_VERSION
         })
@@ -311,7 +330,8 @@ async fn codes_come_from_the_unambiguous_alphabet_and_never_repeat_while_open() 
     for code in &codes {
         assert_eq!(code.len(), ROOM_CODE_LENGTH);
         assert!(
-            code.chars().all(|letter| ROOM_CODE_ALPHABET.contains(letter)),
+            code.chars()
+                .all(|letter| ROOM_CODE_ALPHABET.contains(letter)),
             "{code}"
         );
     }

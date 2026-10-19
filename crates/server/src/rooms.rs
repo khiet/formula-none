@@ -121,7 +121,9 @@ impl Rooms {
         let (commands, inbox) = mpsc::unbounded_channel();
         let room = HostedRoom::new(code.clone());
         let (publish, view) = watch::channel(room.view());
-        registry.rooms.insert(code.clone(), RoomHandle { commands, view });
+        registry
+            .rooms
+            .insert(code.clone(), RoomHandle { commands, view });
         tokio::spawn(run(
             room,
             inbox,
@@ -237,7 +239,10 @@ async fn run(
                 None => std::future::pending().await,
             }
         };
+        // Shutdown first: a stopping server does not report the sessions it
+        // is itself ending as departures.
         let command = tokio::select! {
+            biased;
             () = shutdown.wait() => break,
             () = closing => {
                 room.close();
@@ -292,8 +297,9 @@ async fn run(
                 }
                 // The session answers a Ping; a second Join and a race
                 // input have no meaning in a room before the race (issue 17).
-                ClientMessage::Ping { .. } | ClientMessage::Join { .. } | ClientMessage::Input(_) => {
-                }
+                ClientMessage::Ping { .. }
+                | ClientMessage::Join { .. }
+                | ClientMessage::Input(_) => {}
             },
             Command::Dropped { slot } => {
                 if room.leave(slot) != Left::Unknown {

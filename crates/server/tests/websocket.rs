@@ -5,7 +5,9 @@
 use std::time::Duration;
 
 use futures_util::{SinkExt, StreamExt};
-use protocol::{encode, ClientMessage, ServerMessage};
+use protocol::{
+    decode, encode, ClientMessage, PlayerState, Refusal, ServerMessage, PROTOCOL_VERSION,
+};
 use server::Shutdown;
 use tokio::net::TcpListener;
 use tokio::task::JoinHandle;
@@ -17,15 +19,27 @@ type Socket = WebSocketStream<MaybeTlsStream<tokio::net::TcpStream>>;
 /// A server on a free port and a WebSocket connected to it; the sender
 /// stops the server.
 async fn connected() -> (Socket, tokio::sync::watch::Sender<bool>, JoinHandle<()>) {
+    let (socket, stop, serving, _) = connected_with_rooms().await;
+    (socket, stop, serving)
+}
+
+/// As [`connected`], with the server's rooms so a test can create one.
+async fn connected_with_rooms() -> (
+    Socket,
+    tokio::sync::watch::Sender<bool>,
+    JoinHandle<()>,
+    server::Rooms,
+) {
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let addr = listener.local_addr().unwrap();
     let (stop, shutdown) = Shutdown::pair();
-    let app = server::app("0123abcd", server::Rooms::new(shutdown.clone()), shutdown.clone());
+    let rooms = server::Rooms::new(shutdown.clone());
+    let app = server::app("0123abcd", rooms.clone(), shutdown.clone());
     let serving = tokio::spawn(async move {
         server::serve(listener, app, shutdown).await.unwrap();
     });
     let (socket, _) = connect_async(format!("ws://{addr}/api/ws")).await.unwrap();
-    (socket, stop, serving)
+    (socket, stop, serving, rooms)
 }
 
 async fn next_binary(socket: &mut Socket) -> Vec<u8> {
@@ -77,6 +91,65 @@ async fn shutdown_closes_an_open_session_and_the_server_returns_promptly() {
         .await
         .expect("serve returns within 2 s with a session open")
         .unwrap();
+    let closed = tokio::time::timeout(Duration::from_secs(2), async {
+        while let Some(frame) = socket.next().await {
+            if matches!(frame, Ok(Message::Close(_)) | Err(_)) {
+                return true;
+            }
+        }
+        true
+    })
+    .await;
+    assert_eq!(closed, Ok(true), "the client sees the session end");
+}
+
+#[tokio::test]
+async fn a_join_over_the_socket_seats_the_player_and_the_session_keeps_answering_pings() {
+    let (mut socket, _stop, _serving, rooms) = connected_with_rooms().await;
+    let code = rooms.create();
+    let join = encode(&ClientMessage::Join {
+        version: PROTOCOL_VERSION,
+        room: code.clone(),
+        nickname: "khiet".to_owned(),
+    });
+    socket.send(Message::Binary(join.into())).await.unwrap();
+    let joined: ServerMessage = decode(&next_binary(&mut socket).await).unwrap();
+    let ServerMessage::Joined { slot, room } = joined else {
+        panic!("expected Joined, got {joined:?}");
+    };
+    assert_eq!(slot, 0);
+    assert_eq!(room.code, code);
+    assert_eq!(room.players[0].nickname, "khiet");
+
+    // Room messages reach the room, and a Ping is still the session's to answer.
+    let ready = encode(&ClientMessage::Ready { ready: true });
+    socket.send(Message::Binary(ready.into())).await.unwrap();
+    let update: ServerMessage = decode(&next_binary(&mut socket).await).unwrap();
+    let ServerMessage::Room(room) = update else {
+        panic!("expected Room, got {update:?}");
+    };
+    assert_eq!(room.players[0].state, PlayerState::Ready);
+    let ping = encode(&ClientMessage::Ping { nonce: 9 });
+    socket.send(Message::Binary(ping.into())).await.unwrap();
+    assert_eq!(
+        next_binary(&mut socket).await,
+        encode(&ServerMessage::Pong { nonce: 9 })
+    );
+}
+
+#[tokio::test]
+async fn a_refused_join_is_answered_and_then_the_server_closes_the_socket() {
+    let (mut socket, _stop, _serving) = connected().await;
+    let join = encode(&ClientMessage::Join {
+        version: PROTOCOL_VERSION,
+        room: "ZZZZ".to_owned(),
+        nickname: "khiet".to_owned(),
+    });
+    socket.send(Message::Binary(join.into())).await.unwrap();
+    assert_eq!(
+        next_binary(&mut socket).await,
+        encode(&ServerMessage::Refused(Refusal::UnknownRoom))
+    );
     let closed = tokio::time::timeout(Duration::from_secs(2), async {
         while let Some(frame) = socket.next().await {
             if matches!(frame, Ok(Message::Close(_)) | Err(_)) {

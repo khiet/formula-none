@@ -133,7 +133,8 @@ impl HostedRoom {
         } else {
             PlayerState::Unready
         };
-        if !matches!(player.state, PlayerState::Unready | PlayerState::Ready) || player.state == next
+        if !matches!(player.state, PlayerState::Unready | PlayerState::Ready)
+            || player.state == next
         {
             return false;
         }
@@ -145,7 +146,9 @@ impl HostedRoom {
     /// every player is Ready. The creator's Start button follows this.
     pub fn can_start(&self) -> bool {
         matches!(self.state, RoomState::Open | RoomState::Results)
-            && self.players().all(|player| player.state == PlayerState::Ready)
+            && self
+                .players()
+                .all(|player| player.state == PlayerState::Ready)
             && self.players().next().is_some()
     }
 

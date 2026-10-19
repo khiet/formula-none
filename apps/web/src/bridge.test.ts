@@ -142,6 +142,12 @@ describe("bridge wrapper", () => {
     expect(bridge.pingTiming).toEqual({ timeoutMs: 5_000, resendMs: 500 });
   });
 
+  it("reports the room's tuned bounds for the Title Scene to validate against", async () => {
+    const bridge = await loadBridge(wasm);
+    expect(bridge.nicknameChars).toEqual({ min: 2, max: 12 });
+    expect(bridge.roomCodeLength).toBe(4);
+  });
+
   it("rejects a sidecar the sim cannot race on with the sim's reason", async () => {
     const bridge = await loadBridge(wasm);
     expect(() => bridge.createRace(7n, 1, 0, "{}")).toThrow(/sidecar/);

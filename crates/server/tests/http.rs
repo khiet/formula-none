@@ -3,10 +3,10 @@
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use axum::Router;
-use protocol::RoomState;
-use sim::tuning::{ROOM_CODE_ALPHABET, ROOM_CODE_LENGTH};
 use http_body_util::BodyExt;
+use protocol::RoomState;
 use serde_json::Value;
+use sim::tuning::{ROOM_CODE_ALPHABET, ROOM_CODE_LENGTH};
 use tower::ServiceExt;
 
 fn app() -> (Router, server::Rooms) {
@@ -44,11 +44,17 @@ async fn version_reports_the_deployed_commit() {
 #[tokio::test]
 async fn creating_a_room_answers_with_its_code_and_opens_it() {
     let (app, rooms) = app();
-    let (status, body) = send(app, Request::post("/api/rooms").body(Body::empty()).unwrap()).await;
+    let (status, body) = send(
+        app,
+        Request::post("/api/rooms").body(Body::empty()).unwrap(),
+    )
+    .await;
     assert_eq!(status, StatusCode::CREATED);
     let code = body["code"].as_str().expect("a code");
     assert_eq!(code.len(), ROOM_CODE_LENGTH);
-    assert!(code.chars().all(|letter| ROOM_CODE_ALPHABET.contains(letter)));
+    assert!(code
+        .chars()
+        .all(|letter| ROOM_CODE_ALPHABET.contains(letter)));
     let room = rooms.view(code).expect("the room is open");
     assert_eq!(room.state, RoomState::Open);
     assert!(room.players.is_empty());
