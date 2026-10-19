@@ -3,8 +3,9 @@
 //! The client here is the browser's tick loop in Rust: it reconciles each
 //! snapshot as it arrives and hands it to the interpolation of the other
 //! karts, then predicts the tick with the input it sends against those
-//! karts where it draws them. The scripted driver is the bot's driving, reading the kart as the client
-//! draws it, so the run hops into the oval's drifts.
+//! karts where it draws them. The scripted driver is the bot's driving,
+//! reading the kart as the client draws it, so the run hops into the oval's
+//! drifts.
 
 mod common;
 

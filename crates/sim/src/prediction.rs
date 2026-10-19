@@ -3,9 +3,9 @@
 //! `step` on a race holding only that kart on the static track, so it runs
 //! the server's rules and nothing else. The other karts are the snapshots':
 //! each tick they stand where the client draws them, as kinematic bodies
-//! the own kart meets and cannot push. Kart-to-kart contact is the server's
-//! to resolve, so a kart driven into another is stopped here at least as
-//! hard as there, and never predicted past where the server puts it.
+//! the own kart meets and cannot push, so it never drives through one.
+//! Kart-to-kart contact is the server's to resolve; a kart drawn 100 ms
+//! behind can leave a small correction after a touch.
 //!
 //! Each tick the client steps the prediction with the input it sends. Each
 //! snapshot is held against what the prediction said of the kart at the
@@ -49,7 +49,8 @@ pub struct SnapshotKart {
 
 /// One player's kart as their client predicts it.
 pub struct Prediction {
-    /// The kart's grid slot, which the other karts are counted around.
+    /// The kart's grid slot: its entry among the karts `tick` is given is
+    /// skipped.
     kart: usize,
     /// A kinematic body for each other kart in grid order, once the client
     /// has drawn the other karts.

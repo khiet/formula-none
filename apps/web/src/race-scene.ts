@@ -98,9 +98,9 @@ export function localRaceRun(
  * The Race Scene: the run ticked at the tuned rate from the keyboard and
  * the gamepad for the local kart, its one View drawn every frame from the
  * chase camera with every other kart named over it, by `nickname` for the
- * humans the room named, and the Instrument panel over it. The run carries the race
- * from its countdown to its finish; the Scene keeps drawing the finished
- * race until it is disposed.
+ * humans the room named, and the Instrument panel over it. The run carries
+ * the race from its countdown to its finish; the Scene keeps drawing the
+ * finished race until it is disposed.
  */
 export async function createRaceScene(
   container: HTMLElement,

@@ -346,9 +346,9 @@ impl Prediction {
     }
 
     /// Predict one tick from `input`, a value of the generated `Input` type
-    /// as the client sends it this tick, against the other karts where the
-    /// interpolation, run on a tick, now draws them. Fails, with the reason,
-    /// when the value is not one.
+    /// as the client sends it this tick, after running the interpolation a
+    /// tick on, against the other karts where it now draws them. Fails,
+    /// with the reason, when the value is not one.
     pub fn tick(&mut self, input: JsValue) -> Result<(), String> {
         let input: Input =
             serde_wasm_bindgen::from_value(input).map_err(|error| error.to_string())?;

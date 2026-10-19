@@ -1,10 +1,10 @@
 // A race run from the server's snapshots (ADR 0009): the player's own kart
 // is predicted here from the inputs it sends the server each tick and
 // reconciled with each snapshot, every other kart is interpolated between
-// the snapshots the tuned delay behind the newest, and the readouts the Instrument panel needs that a
-// snapshot does not carry are kept from the events. The race clock is the
-// prediction's, so the countdown shown is the one the player's inputs meet
-// on the server.
+// the snapshots the tuned delay behind the newest, and the readouts the
+// Instrument panel needs that a snapshot does not carry are kept from the
+// events. The race clock is the prediction's, so the countdown shown is the
+// one the player's inputs meet on the server.
 
 import type { Bridge, Phase, Standing } from "./bridge";
 import type { FinalStanding, Snapshot } from "./generated/protocol";

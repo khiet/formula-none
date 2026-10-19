@@ -20,7 +20,7 @@ pub const INTERPOLATION_CLOCK_GAIN: f32 = 0.05;
 pub const INTERPOLATION_CLOCK_SLEW: f32 = 0.1;
 /// A kart drawn further than this per tick between two snapshots was put
 /// there, by a respawn, and is not drawn in between: twice the biggest
-/// boost's top speed, so a kart thrown by a contact still counts as driving.
+/// boost's top speed, a margin over the fastest a kart drives.
 pub const INTERPOLATION_TELEPORT_M_PER_TICK: f32 =
     2.0 * BOOST_PAD_FACTOR * TOP_SPEED_M_PER_S / TICKS_PER_SECOND as f32;
 /// Further than this from its target, as after a stalled tab, the

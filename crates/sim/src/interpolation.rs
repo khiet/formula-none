@@ -5,13 +5,10 @@
 //! smoothly as before.
 //!
 //! The render clock runs one tick per client tick, nudged toward the delay
-//! behind the newest snapshot by a share of how far it is off, so it follows
-//! the server's rate and not each snapshot's jitter. Between snapshots the
-//! newest counts as the ticks since it arrived further on, up to the next
-//! one's due, so the clock is not pulled back and forth at the snapshot
-//! rate, and a lost snapshot holds it back only a little. It never runs past the newest
-//! snapshot: what the client has not received is never read, and a kart
-//! starved of snapshots waits at the newest rather than guessing on.
+//! behind the newest snapshot, so it follows the server's rate and not each
+//! snapshot's jitter or loss. It never runs past the newest snapshot: what
+//! the client has not received is never read, and a kart starved of
+//! snapshots waits at the newest rather than guessing on.
 //!
 //! A kart that moved further between two snapshots than any kart can drive
 //! was put there, by a respawn; it is drawn where it was until the snapshot
@@ -51,8 +48,9 @@ impl Interpolation {
     }
 
     /// Hold the snapshot of `tick`, which said `karts` of every kart in grid
-    /// order. One the render clock has passed, or already held, changes
-    /// nothing; one that arrives after a newer one fills its place.
+    /// order. One older than both the render clock and the earliest held,
+    /// or already held, changes nothing; one that arrives after a newer one
+    /// fills its place.
     pub fn push(&mut self, tick: u32, karts: Vec<SnapshotKart>) {
         let passed = self
             .render_tick
@@ -87,6 +85,9 @@ impl Interpolation {
         let (Some(render), Some(&(newest, _))) = (self.render_tick, self.snapshots.back()) else {
             return;
         };
+        // Counting the ticks since the newest arrived, up to the next one's
+        // due, keeps the clock from being pulled back and forth at the
+        // snapshot rate.
         let due = self.since_newest.min(TICKS_PER_SNAPSHOT - 1);
         let target = (newest + due) as f32 - DELAY_TICKS;
         self.since_newest += 1;

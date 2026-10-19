@@ -53,9 +53,10 @@ export interface RaceView {
 /**
  * The Race Scene's View: the track's glTF and one box per kart, drawn by
  * Three.js from the transforms the bridge reports and the pose the chase
- * camera computes, with a name floating over each kart the Scene labels. The track mesh is Presentation only; the sim has its own
- * copy of the geometry from the sidecar. Picks WebGPU when the browser has
- * it and WebGL otherwise.
+ * camera computes, with a name floating over each kart the Scene labels.
+ * The track mesh is Presentation only; the sim has its own copy of the
+ * geometry from the sidecar. Picks WebGPU when the browser has it and WebGL
+ * otherwise.
  */
 export async function createRaceView(
   container: HTMLElement,
