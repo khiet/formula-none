@@ -287,36 +287,22 @@ async fn run(
                                 seed: started.seed,
                                 track: started.track,
                             },
+                            None,
                         );
                     }
                 }
-                ClientMessage::Leave => {
-                    if room.leave(slot) != Left::Unknown {
-                        players.remove(&slot);
-                    }
-                }
+                ClientMessage::Leave => depart(&mut room, &mut players, slot),
                 // The session answers a Ping; a second Join and a race
-                // input have no meaning in a room before the race (issue 17).
+                // input have no meaning in a room before the race.
                 ClientMessage::Ping { .. }
                 | ClientMessage::Join { .. }
                 | ClientMessage::Input(_) => {}
             },
-            Command::Dropped { slot } => {
-                if room.leave(slot) != Left::Unknown {
-                    players.remove(&slot);
-                }
-            }
+            Command::Dropped { slot } => depart(&mut room, &mut players, slot),
         }
         let after = room.view();
         if after != before {
-            let message = ServerMessage::Room(after.clone());
-            let bytes = encode(&message);
-            for (slot, outbound) in &players {
-                if Some(*slot) != told_already {
-                    // A player whose session has gone is dropped by their own command.
-                    let _ = outbound.send(bytes.clone());
-                }
-            }
+            broadcast(&players, &ServerMessage::Room(after.clone()), told_already);
             let _ = publish.send(after);
         }
         empty_since = match (room.connected_count(), empty_since) {
@@ -334,10 +320,20 @@ async fn run(
     }
 }
 
-fn broadcast(players: &HashMap<u8, Outbound>, message: &ServerMessage) {
+/// The player leaves or drops; a seat that frees stops receiving.
+fn depart(room: &mut HostedRoom, players: &mut HashMap<u8, Outbound>, slot: u8) {
+    if room.leave(slot) != Left::Unknown {
+        players.remove(&slot);
+    }
+}
+
+/// Send `message` to every connected player but `except`.
+fn broadcast(players: &HashMap<u8, Outbound>, message: &ServerMessage, except: Option<u8>) {
     let bytes = encode(message);
-    for outbound in players.values() {
-        // A player whose session has gone is dropped by their own command.
-        let _ = outbound.send(bytes.clone());
+    for (slot, outbound) in players {
+        if Some(*slot) != except {
+            // A player whose session has gone is dropped by their own command.
+            let _ = outbound.send(bytes.clone());
+        }
     }
 }

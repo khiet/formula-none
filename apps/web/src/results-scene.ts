@@ -1,4 +1,5 @@
 import type { Standing } from "./bridge";
+import { button } from "./controls";
 import { formatLapTime, NO_LAP_TIME, ordinal } from "./format";
 
 /** What the Results Scene needs from a finished race. */
@@ -82,14 +83,6 @@ export function createResultsScene(
     item.textContent = cells.join(" ");
     list.append(item);
   }
-  const button = (name: string, label: string, press: () => void): HTMLButtonElement => {
-    const element = document.createElement("button");
-    element.type = "button";
-    element.name = name;
-    element.textContent = label;
-    element.addEventListener("click", press);
-    return element;
-  };
   scene.append(
     heading,
     list,

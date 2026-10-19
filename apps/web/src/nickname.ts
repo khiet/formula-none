@@ -1,5 +1,5 @@
 // The nickname a player types once on the Title Scene and keeps across
-// visits (issue 16). Validated against the sim's tuned bounds, which the
+// visits. Validated against the sim's tuned bounds, which the
 // bridge reports, so the client and the server agree on them.
 
 import type { NicknameChars } from "./bridge";

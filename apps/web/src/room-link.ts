@@ -1,4 +1,4 @@
-// A room is shared as a link that carries its code (issue 16): the page's
+// A room is shared as a link that carries its code: the page's
 // own URL with `?room=CODE`, so opening it lands in the room. The code is
 // read however it was typed; the server reads it in upper case.
 

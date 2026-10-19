@@ -1,3 +1,4 @@
+import { button } from "./controls";
 import type { Player, Room } from "./generated/protocol";
 import { liveryCss } from "./livery";
 
@@ -58,14 +59,6 @@ export function createRoomScene(
   const players = document.createElement("ul");
   players.className = "players";
 
-  const button = (name: string, label: string, press: () => void): HTMLButtonElement => {
-    const element = document.createElement("button");
-    element.type = "button";
-    element.name = name;
-    element.textContent = label;
-    element.addEventListener("click", press);
-    return element;
-  };
   let current = view.room;
   const me = (): Player | undefined => current.players.find((player) => player.slot === view.slot);
   const ready = button("ready", "Ready", () => handlers.ready(me()?.state !== "ready"));
@@ -98,10 +91,12 @@ export function createRoomScene(
     );
     const local = me();
     const everyoneReady = current.players.every((player) => player.state === "ready");
+    // Mirrors the server's rule: between races, once every player is ready.
+    const canStart = everyoneReady && (current.state === "open" || current.state === "results");
     ready.textContent = local?.state === "ready" ? "Unready" : "Ready";
     ready.hidden = !(local?.state === "ready" || local?.state === "unready");
     start.hidden = local?.creator !== true;
-    start.disabled = !everyoneReady;
+    start.disabled = !canStart;
     status.textContent =
       current.state !== "open"
         ? "Starting"

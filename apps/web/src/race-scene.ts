@@ -43,7 +43,7 @@ export interface RaceScene {
  * its one View drawn every frame from the chase camera, and the Instrument
  * panel over it. The sim runs the race from its countdown to its finish;
  * the Scene keeps drawing the finished race until it is disposed. The other
- * humans' karts hold idle until the server drives them (issue 17).
+ * humans' karts hold idle until the server drives them.
  */
 export async function createRaceScene(
   container: HTMLElement,

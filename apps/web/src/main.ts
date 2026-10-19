@@ -176,7 +176,7 @@ async function main(container: HTMLElement): Promise<void> {
   /**
    * The race a room starts: every client builds the same sim from the
    * server's seed with one kart per player in slot order, the local player
-   * driving theirs; the server takes over the others with issue 17.
+   * driving theirs; the server takes over the others with the server-run race.
    */
   const showRoomRace = async (client: RoomClient, countdown: Countdown) => {
     const players = client.room.players;

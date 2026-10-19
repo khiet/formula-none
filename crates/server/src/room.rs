@@ -66,10 +66,6 @@ impl HostedRoom {
         &self.code
     }
 
-    pub fn state(&self) -> RoomState {
-        self.state
-    }
-
     /// The room as every player sees it: the players in slot order.
     pub fn view(&self) -> Room {
         Room {

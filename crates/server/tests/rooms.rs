@@ -246,7 +246,10 @@ async fn the_creator_role_passes_to_the_next_player_when_the_creator_leaves() {
     let (slot, room) = newcomer.join(&code, "new").await.unwrap();
     assert_eq!(slot, 0);
     assert_eq!(room.players[0].livery, 0);
-    assert!(!room.players[0].creator, "the creator stays the creator");
+    assert!(
+        !room.players[0].creator,
+        "a newcomer never takes the creator role"
+    );
 }
 
 #[tokio::test]
@@ -344,7 +347,7 @@ async fn codes_come_from_the_unambiguous_alphabet_and_never_repeat_while_open() 
 }
 
 #[tokio::test(start_paused = true)]
-async fn the_lobby_works_the_same_over_a_slow_jittery_link() {
+async fn the_room_works_the_same_over_a_slow_jittery_link() {
     let mut harness = Harness::new(Conditions {
         delay: Duration::from_millis(100),
         jitter: Duration::from_millis(40),

@@ -1,4 +1,5 @@
 import type { NicknameChars } from "./bridge";
+import { button } from "./controls";
 import { validateNickname } from "./nickname";
 import { normaliseCode } from "./room-link";
 
@@ -63,15 +64,6 @@ export function createTitleScene(
   const message = document.createElement("p");
   message.dataset.message = "";
   message.textContent = options.message;
-
-  const button = (name: string, label: string, press: () => void): HTMLButtonElement => {
-    const element = document.createElement("button");
-    element.type = "button";
-    element.name = name;
-    element.textContent = label;
-    element.addEventListener("click", press);
-    return element;
-  };
 
   const show = (text: string) => {
     message.textContent = text;

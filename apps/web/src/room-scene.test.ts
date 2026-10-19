@@ -113,5 +113,6 @@ describe("Room Scene", () => {
     });
     expect(status()).toBe("Starting");
     expect(button("ready").hidden).toBe(true);
+    expect(button("start").disabled).toBe(true);
   });
 });
