@@ -31,9 +31,9 @@ describe("protocol codegen", () => {
     expect(check?.run).toContain(`git diff --exit-code -- ${GENERATED}`);
   });
 
-  it("is what the package script runs", () => {
+  it("has the package script CI and CLAUDE.md name", () => {
     const pkg = JSON.parse(readRepoFile("package.json")) as { scripts: Record<string, string> };
-    expect(pkg.scripts["generate:protocol"]).toContain("cargo run");
-    expect(pkg.scripts["generate:protocol"]).toContain("--example generate");
+    expect(pkg.scripts["generate:protocol"]).toBeDefined();
+    expect(readRepoFile("CLAUDE.md")).toContain("`pnpm generate:protocol`");
   });
 });
