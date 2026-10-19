@@ -119,6 +119,18 @@ describe("bridge wrapper", () => {
     expect(after[1]?.speed).toBe(0);
   });
 
+  it("answers the surface under any point, the mini-turbo tier of a charge, and the countdown", async () => {
+    const bridge = await loadBridge(wasm);
+    const race = bridge.createRace(7n, 1, 0, OVAL);
+    const grid = race.kartTransforms()[0]?.position ?? [0, 0, 0];
+    expect(race.surfaceAt(grid)).toBe("asphalt");
+    expect(race.surfaceAt([1000, 0, 1000])).toBe("out of world");
+    expect(bridge.miniTurboTier(0)).toBe("none");
+    expect(bridge.miniTurboTier(0.8)).toBe("blue");
+    expect(bridge.miniTurboTier(1.6)).toBe("orange");
+    expect(bridge.countdownSeconds).toBe(3);
+  });
+
   it("reports the surface under a kart that steers off the asphalt", async () => {
     const bridge = await loadBridge(wasm);
     const race = started(bridge.createRace(7n, 1, 0, OVAL), 1);

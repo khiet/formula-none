@@ -415,7 +415,7 @@ async fn results_of(player: &mut Client) -> (u32, Vec<protocol::FinalStanding>) 
 }
 
 #[tokio::test(start_paused = true)]
-async fn a_human_who_drives_completes_the_laps_and_finishes() {
+async fn a_humans_inputs_drive_their_kart_through_the_first_gate() {
     let mut harness = Harness::new(Conditions::PERFECT);
     let (_, mut players, _) = racing_room(&mut harness, 1).await;
     let player = &mut players[0];
@@ -506,16 +506,56 @@ async fn a_player_who_leaves_mid_race_frees_their_seat_at_the_results_and_the_re
     let mut harness = Harness::new(Conditions::PERFECT);
     let (_, mut players, _) = racing_room(&mut harness, 2).await;
     let leaver = players.remove(1);
+    // The leaver is driving when they go; their kart holds no controls after.
+    let mut snapshot = players[0].next_snapshot().await.unwrap();
+    while seconds(snapshot.tick) < COUNTDOWN_S {
+        snapshot = players[0].next_snapshot().await.unwrap();
+    }
+    leaver.send_input(input(1, u8::MAX));
+    while speed(&snapshot, 1) < 5.0 {
+        snapshot = players[0].next_snapshot().await.unwrap();
+    }
     leaver.send(&ClientMessage::Leave);
     let room = players[0].next_room().await.unwrap();
     assert_eq!(room.players.len(), 2);
     assert_eq!(room.players[1].state, PlayerState::Disconnected);
+    let mut snapshot = players[0].next_snapshot().await.unwrap();
+    while speed(&snapshot, 1) > 0.5 {
+        snapshot = players[0].next_snapshot().await.unwrap();
+        assert!(seconds(snapshot.tick) < COUNTDOWN_S + 30.0, "the left kart coasts to a stop");
+    }
 
     let (_, results) = results_of(&mut players[0]).await;
     assert_eq!(results.len(), KARTS_PER_RACE, "the left kart was still raced");
     let room = players[0].next_room().await.unwrap();
     assert_eq!(room.state, RoomState::Results);
     assert_eq!(room.players.len(), 1, "the seat freed at the results");
+}
+
+#[tokio::test(start_paused = true)]
+async fn a_room_whose_finishers_all_leave_can_still_start_from_results() {
+    let mut harness = Harness::new(Conditions::PERFECT);
+    let (code, mut players, _) = racing_room(&mut harness, 1).await;
+    results_of(&mut players[0]).await;
+    players[0].next_room().await.unwrap();
+
+    // The newcomer joins while the room shows Results; the finisher leaves
+    // without a Rematch, so the newcomer is the creator of a Results room.
+    let mut newcomer = harness.connect();
+    newcomer.join(&code, "new").await.unwrap();
+    players[0].next_room().await.unwrap();
+    players.remove(0).send(&ClientMessage::Leave);
+    let room = newcomer.next_room().await.unwrap();
+    assert_eq!(room.state, RoomState::Results);
+    assert_eq!(room.players.len(), 1);
+    assert!(room.players[0].creator);
+
+    newcomer.send(&ClientMessage::Ready { ready: true });
+    newcomer.next_room().await.unwrap();
+    newcomer.send(&ClientMessage::Start);
+    let countdown = newcomer.next_countdown().await.unwrap();
+    assert_eq!(countdown.grid, vec![1]);
+    assert_eq!(newcomer.next_room().await.unwrap().state, RoomState::Countdown);
 }
 
 #[tokio::test(start_paused = true)]
