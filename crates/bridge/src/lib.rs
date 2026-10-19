@@ -6,6 +6,8 @@
 //! once per kart per field.
 
 use protocol::{ClientMessage, ServerMessage};
+use serde::de::DeserializeOwned;
+use serde::Serialize;
 use sim::{KartInput, Phase, Replay, State, Track};
 use wasm_bindgen::prelude::*;
 
@@ -90,22 +92,55 @@ pub fn ping_resend_s() -> f32 {
     sim::tuning::PING_RESEND_S
 }
 
-/// The bytes of a `protocol::ClientMessage::Ping` carrying `nonce`; the
-/// server answers with a Pong carrying the same nonce whichever transport
-/// delivers it (ADR 0011).
+/// The protocol version this build speaks (ADR 0013). The generated
+/// `PROTOCOL_VERSION` is the same constant; the web app checks they agree.
 #[wasm_bindgen]
-pub fn encode_ping(nonce: u32) -> Vec<u8> {
-    protocol::encode(&ClientMessage::Ping { nonce })
+pub fn protocol_version() -> u16 {
+    protocol::PROTOCOL_VERSION
 }
 
-/// The nonce of the `protocol::ServerMessage::Pong` that `bytes` carry.
-/// Fails, with the reason, when they carry anything else.
+/// The wire bytes of the `ClientMessage` the JavaScript value `message`
+/// holds, in the shape the generated TypeScript types give it. Fails, with
+/// the reason, when the value is not a message.
 #[wasm_bindgen]
-pub fn decode_pong(bytes: &[u8]) -> Result<u32, String> {
-    match protocol::decode::<ServerMessage>(bytes) {
-        Ok(ServerMessage::Pong { nonce }) => Ok(nonce),
-        Err(error) => Err(error.to_string()),
-    }
+pub fn encode_client_message(message: JsValue) -> Result<Vec<u8>, String> {
+    encode_message::<ClientMessage>(message)
+}
+
+/// The `ClientMessage` that `bytes` carry, as a JavaScript value of the
+/// generated type. Fails, with the reason, when they carry anything else.
+#[wasm_bindgen]
+pub fn decode_client_message(bytes: &[u8]) -> Result<JsValue, String> {
+    decode_message::<ClientMessage>(bytes)
+}
+
+/// The wire bytes of the `ServerMessage` the JavaScript value `message`
+/// holds; see [`encode_client_message`].
+#[wasm_bindgen]
+pub fn encode_server_message(message: JsValue) -> Result<Vec<u8>, String> {
+    encode_message::<ServerMessage>(message)
+}
+
+/// The `ServerMessage` that `bytes` carry; see [`decode_client_message`].
+#[wasm_bindgen]
+pub fn decode_server_message(bytes: &[u8]) -> Result<JsValue, String> {
+    decode_message::<ServerMessage>(bytes)
+}
+
+/// A message leaves wasm in the shape the generated types describe: a
+/// missing `Option` is `null`, not `undefined`, and a `u64` is a `bigint`.
+const TO_JS: serde_wasm_bindgen::Serializer = serde_wasm_bindgen::Serializer::new()
+    .serialize_missing_as_null(true)
+    .serialize_large_number_types_as_bigints(true);
+
+fn encode_message<M: DeserializeOwned + Serialize>(message: JsValue) -> Result<Vec<u8>, String> {
+    let message: M = serde_wasm_bindgen::from_value(message).map_err(|error| error.to_string())?;
+    Ok(protocol::encode(&message))
+}
+
+fn decode_message<M: DeserializeOwned + Serialize>(bytes: &[u8]) -> Result<JsValue, String> {
+    let message: M = protocol::decode(bytes).map_err(|error| error.to_string())?;
+    message.serialize(&TO_JS).map_err(|error| error.to_string())
 }
 
 /// One race's sim, owned by the browser for prediction of the local kart.

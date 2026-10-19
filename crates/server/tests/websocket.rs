@@ -53,13 +53,16 @@ async fn a_ping_comes_back_as_a_pong_with_its_nonce() {
 }
 
 #[tokio::test]
-async fn bytes_that_are_not_a_message_are_ignored_and_the_session_continues() {
+async fn bytes_that_are_not_a_message_the_server_answers_are_ignored_and_the_session_continues() {
     let (mut socket, _stop, _serving) = connected().await;
     socket
         .send(Message::Binary(vec![0xff, 0xff].into()))
         .await
         .unwrap();
     socket.send(Message::text("hello")).await.unwrap();
+    // A room message is well formed but has no handler until the rooms land.
+    let start = encode(&ClientMessage::Start);
+    socket.send(Message::Binary(start.into())).await.unwrap();
     let ping = encode(&ClientMessage::Ping { nonce: 1 });
     socket.send(Message::Binary(ping.into())).await.unwrap();
     let answer = next_binary(&mut socket).await;

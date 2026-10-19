@@ -2,19 +2,23 @@
 // sees plain objects: a KartInput in, KartTransforms out. Biome's
 // noRestrictedImports rejects any other import of ./generated/bridge.
 import init, {
-  decode_pong,
-  encode_ping,
+  decode_client_message,
+  decode_server_message,
+  encode_client_message,
+  encode_server_message,
   kart_size_m,
   karts_per_race,
   laps_per_race,
   ping_resend_s,
   ping_timeout_s,
+  protocol_version,
   replay_hash_interval_ticks,
   replay_hashes,
   ticks_per_second,
   Race as WasmRace,
   webtransport_connect_timeout_s,
 } from "./generated/bridge/bridge.js";
+import type { ClientMessage, ServerMessage } from "./generated/protocol";
 
 /**
  * One kart's controls for one tick, whichever device produced them: steer
@@ -129,7 +133,28 @@ export interface PingTiming {
   readonly resendMs: number;
 }
 
-export interface Bridge {
+/**
+ * The protocol's messages as the bridge carries them across the wasm
+ * boundary: a value of a generated type in, the postcard bytes out, and back
+ * (ADR 0004). The web app never reads or writes the bytes itself.
+ */
+export interface MessageCodec {
+  /** Throws, with the protocol's reason, when `message` is not a ClientMessage. */
+  encodeClientMessage(message: ClientMessage): Uint8Array;
+  /** Throws, with the protocol's reason, for bytes that are not a ClientMessage. */
+  decodeClientMessage(bytes: Uint8Array): ClientMessage;
+  /** Throws, with the protocol's reason, when `message` is not a ServerMessage. */
+  encodeServerMessage(message: ServerMessage): Uint8Array;
+  /** Throws, with the protocol's reason, for bytes that are not a ServerMessage. */
+  decodeServerMessage(bytes: Uint8Array): ServerMessage;
+}
+
+export interface Bridge extends MessageCodec {
+  /**
+   * The protocol version this wasm build speaks; the same constant the
+   * generated types export (ADR 0013).
+   */
+  readonly protocolVersion: number;
   /** The sim's fixed tick rate; `step` is meant to be called this often with dt = 1 / rate. */
   readonly ticksPerSecond: number;
   /** The kart's box, read from the sim's tuning so the View never repeats it (ADR 0014). */
@@ -162,10 +187,6 @@ export interface Bridge {
   readonly webTransportTimeoutMs: number;
   /** How long a Ping waits for its Pong, and how often it is sent again meanwhile. */
   readonly pingTiming: PingTiming;
-  /** The wire bytes of a Ping carrying `nonce`; the server answers a Pong with the same nonce. */
-  encodePing(nonce: number): Uint8Array;
-  /** The nonce of the Pong `bytes` carry. Throws, with the protocol's reason, for anything else. */
-  decodePong(bytes: Uint8Array): number;
 }
 
 // Buffer layouts the bridge crate documents on Race::step, Race::kart_transforms,
@@ -190,6 +211,7 @@ const MINI_TURBOS: readonly MiniTurbo[] = ["none", "blue", "orange"];
 export async function loadBridge(wasm?: BufferSource): Promise<Bridge> {
   await init(wasm === undefined ? undefined : { module_or_path: wasm });
   return {
+    protocolVersion: protocol_version(),
     ticksPerSecond: ticks_per_second(),
     kartSize: kartSize(),
     lapsPerRace: laps_per_race(),
@@ -207,11 +229,17 @@ export async function loadBridge(wasm?: BufferSource): Promise<Bridge> {
     },
     webTransportTimeoutMs: webtransport_connect_timeout_s() * 1000,
     pingTiming: { timeoutMs: ping_timeout_s() * 1000, resendMs: ping_resend_s() * 1000 },
-    encodePing(nonce) {
-      return encode_ping(nonce);
+    encodeClientMessage(message) {
+      return rethrown(() => encode_client_message(message));
     },
-    decodePong(bytes) {
-      return rethrown(() => decode_pong(bytes));
+    decodeClientMessage(bytes) {
+      return rethrown(() => decode_client_message(bytes) as ClientMessage);
+    },
+    encodeServerMessage(message) {
+      return rethrown(() => encode_server_message(message));
+    },
+    decodeServerMessage(bytes) {
+      return rethrown(() => decode_server_message(bytes) as ServerMessage);
     },
   };
 }

@@ -1,20 +1,24 @@
 //! Every message encodes to bytes and decodes back to itself through the
-//! protocol's public seam (ADR 0004).
+//! protocol's public seam (ADR 0004). The samples are the same values the
+//! generated TypeScript is checked against in Vitest, which also holds them
+//! to one per variant of the generated unions.
 
-use protocol::{decode, encode, ClientMessage, DecodeError, ServerMessage};
+use protocol::{decode, encode, samples, ClientMessage, DecodeError, ServerMessage};
 
 #[test]
-fn ping_round_trips() {
-    let message = ClientMessage::Ping { nonce: 0xdead_beef };
-    let decoded: ClientMessage = decode(&encode(&message)).unwrap();
-    assert_eq!(decoded, message);
+fn every_client_message_round_trips() {
+    for message in samples::client() {
+        let decoded: ClientMessage = decode(&encode(&message)).unwrap();
+        assert_eq!(decoded, message);
+    }
 }
 
 #[test]
-fn pong_round_trips() {
-    let message = ServerMessage::Pong { nonce: 7 };
-    let decoded: ServerMessage = decode(&encode(&message)).unwrap();
-    assert_eq!(decoded, message);
+fn every_server_message_round_trips() {
+    for message in samples::server() {
+        let decoded: ServerMessage = decode(&encode(&message)).unwrap();
+        assert_eq!(decoded, message);
+    }
 }
 
 #[test]

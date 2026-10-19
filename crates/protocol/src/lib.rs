@@ -1,26 +1,286 @@
 //! Wire messages between client and server, defined once here. The web app's
-//! TypeScript types are generated from this crate, never written by hand.
+//! TypeScript types are generated from this crate by `examples/generate.rs`
+//! (`pnpm generate:protocol`), never written by hand; CI fails when the
+//! committed output is stale (ADR 0004).
 //!
-//! Every message is serialised with postcard (ADR 0004). The encoding is
-//! the same whichever transport carries it (ADR 0011).
+//! Every message is serialised with postcard (ADR 0004), which carries no
+//! field names and no tags beyond a variant index, so every enum here is
+//! externally tagged (postcard cannot decode the other serde taggings) and
+//! the order of variants and fields is part of the wire format. The encoding
+//! is the same whichever transport carries it (ADR 0011).
+//!
+//! The same serde definitions give the messages their JavaScript shape in
+//! the bridge, so a TypeScript value of a generated type is a message.
+
+pub mod samples;
 
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use std::fmt;
+use ts_rs::TS;
+
+/// Bumped on every change to a message shape. The client sends it in
+/// [`ClientMessage::Join`] and the server refuses a mismatch with
+/// [`Refusal::VersionMismatch`] (ADR 0013). The generator exports it next to
+/// the types, so the web app reads the same constant.
+pub const PROTOCOL_VERSION: u16 = 1;
 
 /// What a client sends the server.
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, TS, Debug, Clone, PartialEq)]
+#[serde(rename_all = "camelCase", rename_all_fields = "camelCase")]
 pub enum ClientMessage {
     /// Ask for a [`ServerMessage::Pong`] carrying the same nonce; the M0(b)
     /// round trip that proves a transport.
     Ping { nonce: u32 },
+    /// The first message on a connection: join the room with this code under
+    /// this nickname, speaking this protocol version. Answered with
+    /// [`ServerMessage::Joined`] or [`ServerMessage::Refused`].
+    Join {
+        version: u16,
+        room: String,
+        nickname: String,
+    },
+    /// One tick's controls, sent at the tick rate on a datagram (ADR 0010).
+    Input(Input),
+    /// Toggle the player's ready state in the room.
+    Ready { ready: bool },
+    /// Start the race; honoured only from the creator once every human is
+    /// ready.
+    Start,
+    /// Leave the room on purpose, as opposed to dropping the connection.
+    Leave,
+}
+
+/// One kart's controls for one tick, quantised to a byte each so the message
+/// stays near the eight-byte budget (ADR 0010).
+#[derive(Serialize, Deserialize, TS, Debug, Clone, Copy, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct Input {
+    /// Counts up by one per input sent; snapshots acknowledge the last one
+    /// applied so the client knows which inputs to replay (ADR 0009).
+    pub sequence: u32,
+    /// -127 and below is full left, 127 is full right.
+    pub steer: i8,
+    /// 0 is off, 255 is full.
+    pub throttle: u8,
+    /// 0 is off, 255 is full.
+    pub brake: u8,
+    /// The hop button is down.
+    pub hop: bool,
+    /// The item button went down this tick.
+    pub use_item: bool,
+    /// The item button is held, which keeps a dropped hazard behind the kart.
+    pub hold_item: bool,
 }
 
 /// What the server sends a client.
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, TS, Debug, Clone, PartialEq)]
+#[serde(rename_all = "camelCase", rename_all_fields = "camelCase")]
 pub enum ServerMessage {
     /// The answer to a [`ClientMessage::Ping`] with that ping's nonce.
     Pong { nonce: u32 },
+    /// The join was accepted: the player's slot, which is also their kart's
+    /// index in every snapshot, and the room as it stands.
+    Joined { slot: u8, room: Room },
+    /// The join was refused for this reason; the connection then closes.
+    Refused(Refusal),
+    /// The room after a change to it: a player joined, left, readied or
+    /// became the creator, or the room changed state.
+    Room(Room),
+    /// The race is starting: every client creates the sim from this seed on
+    /// this track and runs the countdown in it (ADR 0002).
+    Countdown { seed: u64, track: String },
+    /// The authoritative state at a tick, on a datagram at the snapshot rate
+    /// (ADR 0010).
+    Snapshot(Snapshot),
+    /// The standings once the race is Finished, in finishing order.
+    Results { standings: Vec<FinalStanding> },
+}
+
+/// Why a [`ClientMessage::Join`] was refused.
+#[derive(Serialize, Deserialize, TS, Debug, Clone, Copy, PartialEq, Eq)]
+#[serde(rename_all = "camelCase", rename_all_fields = "camelCase")]
+pub enum Refusal {
+    /// No room has that code.
+    UnknownRoom,
+    /// The room already holds eight players.
+    RoomFull,
+    /// The room is between Countdown and Results; join after the race.
+    RoomRacing,
+    /// The client speaks another protocol version than the server; the
+    /// player reloads to get the client that matches (ADR 0013).
+    VersionMismatch { server: u16 },
+}
+
+/// A room as every player in it sees it (ADR 0012).
+#[derive(Serialize, Deserialize, TS, Debug, Clone, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct Room {
+    /// Four letters from the unambiguous alphabet.
+    pub code: String,
+    pub state: RoomState,
+    /// In join order, which is grid order and livery order.
+    pub players: Vec<Player>,
+}
+
+/// The room state machine (ADR 0012).
+#[derive(Serialize, Deserialize, TS, Debug, Clone, Copy, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub enum RoomState {
+    Open,
+    Countdown,
+    Racing,
+    Results,
+    Closing,
+}
+
+/// One player in a room.
+#[derive(Serialize, Deserialize, TS, Debug, Clone, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct Player {
+    /// The player's kart's index in snapshots and results.
+    pub slot: u8,
+    pub nickname: String,
+    /// Index into the eight liveries, assigned in join order.
+    pub livery: u8,
+    pub state: PlayerState,
+    /// Whether this player can press Start; exactly one player in a room is.
+    pub creator: bool,
+}
+
+/// The player state machine within a room (ADR 0012).
+#[derive(Serialize, Deserialize, TS, Debug, Clone, Copy, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub enum PlayerState {
+    Joining,
+    Unready,
+    Ready,
+    Racing,
+    Finished,
+    Disconnected,
+}
+
+/// The server's state of every kart at a tick, with what the client needs
+/// to reconcile its prediction against it (ADR 0009).
+#[derive(Serialize, Deserialize, TS, Debug, Clone, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct Snapshot {
+    pub tick: u32,
+    /// The last input sequence applied, per kart slot; 0 for a bot's slot
+    /// and for a client that has sent nothing yet.
+    pub acknowledged: Vec<u32>,
+    /// One per kart in grid order.
+    pub karts: Vec<KartSnapshot>,
+    /// Since the previous snapshot, and repeated in the next two; the id
+    /// de-duplicates a repeat (ADR 0011).
+    pub events: Vec<Event>,
+}
+
+/// One kart's state in a snapshot. Metres, seconds and metres per second;
+/// Y up; the rotation is a unit quaternion [x, y, z, w].
+#[derive(Serialize, Deserialize, TS, Debug, Clone, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct KartSnapshot {
+    pub position: [f32; 3],
+    pub rotation: [f32; 4],
+    pub velocity: [f32; 3],
+    /// The drift under way, if any.
+    pub drift: Option<DriftSnapshot>,
+    /// The lap the kart is on, from 1.
+    pub lap: u8,
+    /// The last checkpoint crossed in order; 0 is the start line.
+    pub checkpoint: u8,
+    /// Distance along the centreline.
+    pub spline_progress: f32,
+    /// The item in the kart's slot, if any.
+    pub held_item: Option<Item>,
+    /// Seconds of spin-out left, while the kart is spun out.
+    pub spin_out_s: Option<f32>,
+}
+
+/// A drift under way: its direction, fixed at the hop, and the seconds it
+/// has been held, which is what the mini-turbo tier is read from.
+#[derive(Serialize, Deserialize, TS, Debug, Clone, Copy, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct DriftSnapshot {
+    pub direction: DriftDirection,
+    pub charge_s: f32,
+}
+
+/// Which way a drift turns the kart.
+#[derive(Serialize, Deserialize, TS, Debug, Clone, Copy, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub enum DriftDirection {
+    Left,
+    Right,
+}
+
+/// The items a kart can hold.
+#[derive(Serialize, Deserialize, TS, Debug, Clone, Copy, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub enum Item {
+    /// A burst of speed.
+    Boost,
+    /// Dropped behind the kart; spins out whoever hits it.
+    Hazard,
+    /// Follows the track to the kart ahead and spins it out.
+    Homing,
+}
+
+/// Something that happened on the server between two snapshots. Clients
+/// only show it; the sim on the server decided it.
+#[derive(Serialize, Deserialize, TS, Debug, Clone, Copy, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct Event {
+    /// Counts up per room; a client that has seen this id drops the repeat.
+    pub id: u32,
+    pub kind: EventKind,
+}
+
+/// What an [`Event`] was. `kart` is the slot it happened to.
+#[derive(Serialize, Deserialize, TS, Debug, Clone, Copy, PartialEq)]
+#[serde(rename_all = "camelCase", rename_all_fields = "camelCase")]
+pub enum EventKind {
+    ItemPicked {
+        kart: u8,
+        item: Item,
+    },
+    ItemFired {
+        kart: u8,
+        item: Item,
+    },
+    /// `kart` was spun out by an item `by` fired or dropped.
+    Hit {
+        kart: u8,
+        by: u8,
+    },
+    LapCompleted {
+        kart: u8,
+        lap: u8,
+        lap_time_s: f32,
+    },
+    Finished {
+        kart: u8,
+        position: u8,
+        finish_time_s: f32,
+    },
+    Respawned {
+        kart: u8,
+    },
+}
+
+/// One kart's place in the results.
+#[derive(Serialize, Deserialize, TS, Debug, Clone, Copy, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct FinalStanding {
+    pub kart: u8,
+    /// Race position from 1.
+    pub position: u8,
+    /// The race clock as the kart finished its laps; none when the race
+    /// ended first and the kart was placed by progress.
+    pub finish_time_s: Option<f32>,
+    /// None when the kart completed no lap.
+    pub best_lap_s: Option<f32>,
 }
 
 /// The bytes a message travels as.
