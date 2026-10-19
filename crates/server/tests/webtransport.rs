@@ -248,3 +248,103 @@ async fn shutdown_ends_the_endpoint() {
         .await
         .expect("the client sees its session end");
 }
+
+/// One message on the reliable stream, framed as the server frames its
+/// own: four little-endian length bytes, then the message.
+async fn write_frame(stream: &mut wtransport::SendStream, message: &ClientMessage) {
+    let bytes = encode(message);
+    stream
+        .write_all(&(bytes.len() as u32).to_le_bytes())
+        .await
+        .unwrap();
+    stream.write_all(&bytes).await.unwrap();
+}
+
+async fn read_frame(stream: &mut wtransport::RecvStream) -> ServerMessage {
+    let mut length = [0u8; 4];
+    stream.read_exact(&mut length).await.unwrap();
+    let mut bytes = vec![0u8; u32::from_le_bytes(length) as usize];
+    stream.read_exact(&mut bytes).await.unwrap();
+    protocol::decode(&bytes).unwrap()
+}
+
+#[tokio::test]
+async fn the_room_rides_the_reliable_stream_and_the_snapshots_ride_datagrams() {
+    let files = files();
+    write_identity(&files).await;
+    // The room's task lives as long as the shutdown handle's sender.
+    let (_stop, shutdown) = Shutdown::pair();
+    let rooms = server::Rooms::new(shutdown.clone());
+    let code = rooms.create();
+    let server = WebTransportServer::bind(config(free_port(), &files), rooms)
+        .await
+        .unwrap();
+    let addr = server.local_addr().unwrap();
+    tokio::spawn(server.run(shutdown));
+
+    let connection = Endpoint::client(trusting())
+        .unwrap()
+        .connect(url(addr))
+        .await
+        .unwrap();
+    let (mut send, mut recv) = connection.open_bi().await.unwrap().await.unwrap();
+    write_frame(
+        &mut send,
+        &ClientMessage::Join {
+            version: protocol::PROTOCOL_VERSION,
+            room: code,
+            nickname: "khiet".to_owned(),
+        },
+    )
+    .await;
+    let joined = tokio::time::timeout(Duration::from_secs(2), read_frame(&mut recv))
+        .await
+        .expect("Joined on the stream within 2 s");
+    let ServerMessage::Joined { slot: 0, .. } = joined else {
+        panic!("expected Joined, got {joined:?}");
+    };
+    write_frame(&mut send, &ClientMessage::Ready { ready: true }).await;
+    write_frame(&mut send, &ClientMessage::Start).await;
+    let mut countdown = None;
+    while countdown.is_none() {
+        match read_frame(&mut recv).await {
+            ServerMessage::Countdown { grid, .. } => countdown = Some(grid),
+            ServerMessage::Room(_) => {}
+            other => panic!("unexpected {other:?} on the stream"),
+        }
+    }
+    assert_eq!(countdown, Some(vec![0]));
+
+    // Snapshots come as datagrams, never on the stream.
+    let datagram = tokio::time::timeout(Duration::from_secs(2), connection.receive_datagram())
+        .await
+        .expect("a snapshot datagram within 2 s")
+        .unwrap();
+    let message: ServerMessage = protocol::decode(datagram.payload().as_ref()).unwrap();
+    assert!(matches!(message, ServerMessage::Snapshot(_)), "{message:?}");
+}
+
+#[tokio::test]
+async fn a_frame_longer_than_the_tuned_bound_ends_the_session() {
+    let files = files();
+    write_identity(&files).await;
+    let server = WebTransportServer::bind(config(free_port(), &files), rooms())
+        .await
+        .unwrap();
+    let addr = server.local_addr().unwrap();
+    let (_stop, shutdown) = Shutdown::pair();
+    tokio::spawn(server.run(shutdown));
+
+    let connection = Endpoint::client(trusting())
+        .unwrap()
+        .connect(url(addr))
+        .await
+        .unwrap();
+    let (mut send, _recv) = connection.open_bi().await.unwrap().await.unwrap();
+    send.write_all(&(sim::tuning::RELIABLE_FRAME_MAX_BYTES + 1).to_le_bytes())
+        .await
+        .unwrap();
+    tokio::time::timeout(Duration::from_secs(5), connection.closed())
+        .await
+        .expect("the server closes the session");
+}

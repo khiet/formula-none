@@ -10,7 +10,7 @@ publish.workspace = true
 sim = { path = "../sim" }
 protocol = { path = "../protocol" }
 axum = { version = "0.8.9", features = ["ws"] }
-tokio = { version = "1.53.3", features = ["rt-multi-thread", "macros", "signal", "net", "sync", "time", "fs"] }
+tokio = { version = "1.53.3", features = ["rt-multi-thread", "macros", "signal", "net", "sync", "time", "fs", "io-util"] }
 serde = { version = "1.0.229", features = ["derive"] }
 wtransport = "0.7"
 futures-util = { version = "0.3.34", default-features = false, features = ["std"] }

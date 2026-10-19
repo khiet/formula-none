@@ -24,3 +24,20 @@ same sim as the browser, and must fit in one small container (ADR 0017).
 - A deploy restarts the binary and ends any race in progress; rooms in Open
   state must survive a restart in under 10 s.
 - Structured logs and metrics (ADR 0018) are emitted from this binary.
+
+## Outcome
+
+Landed with issue 17 (2026-10-19).
+
+- The room task in `crates/server/src/rooms.rs` owns the race: on the
+  creator's Start it builds `crates/server/src/race.rs` from the room's
+  grid and ticks it from a tokio interval at the tick rate, applying the
+  newest input each human has sent and sending the snapshots and events.
+- Track sidecars are compiled into the binary (`crates/server/src/tracks.rs`),
+  so the distroless container needs no asset volume.
+- Each race ends with one log line giving its tick count, mean and longest
+  tick and how many ticks overran the budget; the metrics of ADR 0018
+  replace it later. One such line from a debug build on a laptop read a
+  mean of about 1.4 ms per tick of eight karts against the 16.7 ms budget.
+- A deploy's shutdown ends every session; a client whose connection ends
+  mid-race goes back to the Title Scene with a message.

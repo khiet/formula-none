@@ -23,6 +23,7 @@ pub fn client() -> Vec<ClientMessage> {
         ClientMessage::Input(input()),
         ClientMessage::Ready { ready: true },
         ClientMessage::Start,
+        ClientMessage::Rematch,
         ClientMessage::Leave,
     ]
 }
@@ -42,8 +43,10 @@ pub fn server() -> Vec<ServerMessage> {
         ServerMessage::Countdown {
             seed: 0x0123_4567_89ab_cdef,
             track: "brands-patch".to_owned(),
+            grid: vec![0, 1],
         },
         ServerMessage::Snapshot(snapshot()),
+        ServerMessage::Events(every_event_kind()),
         ServerMessage::Results {
             standings: vec![
                 FinalStanding {
@@ -119,9 +122,11 @@ pub fn snapshot() -> Snapshot {
                     },
                     charge_s: 0.75,
                 }),
+                race_position: slot + 1,
                 lap: 2,
                 checkpoint: 11 - slot,
                 spline_progress: 640.0 - along * 10.0,
+                wrong_way: slot == 5,
                 held_item: match slot % 3 {
                     0 => Some(Item::Hazard),
                     1 => None,

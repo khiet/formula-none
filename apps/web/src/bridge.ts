@@ -2,6 +2,7 @@
 // sees plain objects: a KartInput in, KartTransforms out. Biome's
 // noRestrictedImports rejects any other import of ./generated/bridge.
 import init, {
+  countdown_s,
   decode_client_message,
   decode_server_message,
   encode_client_message,
@@ -9,6 +10,7 @@ import init, {
   kart_size_m,
   karts_per_race,
   laps_per_race,
+  mini_turbo_tier,
   nickname_max_chars,
   nickname_min_chars,
   ping_resend_s,
@@ -129,6 +131,8 @@ export interface Race {
    * which is what a replay fixture pins (ADR 0002).
    */
   stateHash(): bigint;
+  /** What lies under `position` on this race's track; karts are never an answer. */
+  surfaceAt(position: readonly [number, number, number]): Surface;
 }
 
 export interface PingTiming {
@@ -170,6 +174,10 @@ export interface Bridge extends MessageCodec {
   readonly kartSize: KartSize;
   /** Laps in a race, from the sim's tuning (ADR 0014). */
   readonly lapsPerRace: number;
+  /** Seconds the karts are held on the grid before Go (ADR 0014). */
+  readonly countdownSeconds: number;
+  /** The mini-turbo tier a drift held for `chargeSeconds` has reached: the sim's rule. */
+  miniTurboTier(chargeSeconds: number): MiniTurbo;
   /**
    * Karts on the grid, from the sim's tuning; bots fill the slots the humans
    * leave (ADR 0014).
@@ -228,6 +236,14 @@ export async function loadBridge(wasm?: BufferSource): Promise<Bridge> {
     ticksPerSecond: ticks_per_second(),
     kartSize: kartSize(),
     lapsPerRace: laps_per_race(),
+    countdownSeconds: countdown_s(),
+    miniTurboTier(chargeSeconds) {
+      const tier = MINI_TURBOS[mini_turbo_tier(chargeSeconds)];
+      if (tier === undefined) {
+        throw new RangeError(`unknown mini-turbo tier for ${chargeSeconds} s`);
+      }
+      return tier;
+    },
     kartsPerRace: karts_per_race(),
     replayHashIntervalTicks: replay_hash_interval_ticks(),
     createRace(seed, humanCount, botCount, sidecar) {
@@ -308,6 +324,15 @@ class BridgedRace implements Race {
 
   stateHash(): bigint {
     return this.#race.state_hash();
+  }
+
+  surfaceAt([x, y, z]: readonly [number, number, number]): Surface {
+    const code = this.#race.surface_at(x, y, z);
+    const surface = SURFACES[code];
+    if (surface === undefined) {
+      throw new RangeError(`unknown surface code ${code}`);
+    }
+    return surface;
   }
 
   standings(): Standing[] {

@@ -374,3 +374,30 @@ fn the_phase_buffer_walks_countdown_racing_and_finished_as_the_sim_does() {
     assert_eq!(race.phase(), vec![FINISHED, 0.0, -1.0]);
     assert_eq!(race.standings()[FLOATS_PER_STANDING + 7], finish);
 }
+
+#[test]
+fn surface_at_answers_for_any_point_with_the_sims_surface() {
+    let race = race(7, 1);
+    let track = Track::from_sidecar(OVAL).unwrap();
+    let [x, y, z] = track.spawn_grid()[0].position;
+    assert_eq!(race.surface_at(x, y, z), Surface::Asphalt.code());
+    assert_eq!(race.surface_at(x, y + 500.0, z), Surface::Asphalt.code());
+    assert_eq!(
+        race.surface_at(1000.0, y, 1000.0),
+        Surface::OutOfWorld.code()
+    );
+}
+
+#[test]
+fn mini_turbo_tier_and_countdown_are_the_sims() {
+    assert_eq!(bridge::mini_turbo_tier(0.0), MiniTurbo::None.code());
+    assert_eq!(
+        bridge::mini_turbo_tier(MINI_TURBO_BLUE_CHARGE_S),
+        MiniTurbo::Blue.code()
+    );
+    assert_eq!(
+        bridge::mini_turbo_tier(sim::tuning::MINI_TURBO_ORANGE_CHARGE_S),
+        MiniTurbo::Orange.code()
+    );
+    assert_eq!(bridge::countdown_s(), sim::tuning::COUNTDOWN_S);
+}

@@ -14,10 +14,13 @@ use wtransport::endpoint::endpoint_side::Server;
 use wtransport::tls::rustls::crypto::ring::default_provider;
 use wtransport::tls::rustls::pki_types::{CertificateDer, PrivateKeyDer};
 use wtransport::tls::rustls::sign::CertifiedKey;
-use wtransport::{Endpoint, Identity, ServerConfig};
+use wtransport::{Endpoint, Identity, RecvStream, SendStream, ServerConfig};
 
 use tokio::sync::mpsc;
 
+use sim::tuning::RELIABLE_FRAME_MAX_BYTES;
+
+use crate::lane::{Lane, Outgoing};
 use crate::rooms::Rooms;
 use crate::session::{self, Channels};
 use crate::Shutdown;
@@ -123,9 +126,11 @@ async fn accept_sessions(endpoint: &Endpoint<Server>, rooms: Rooms, shutdown: Sh
     }
 }
 
-/// Pump the session's datagrams into a session and its answers back until
-/// it ends or the server stops. Every message rides a datagram for now; the
-/// reliable stream for room and race events comes with the race (ADR 0011).
+/// Pump the connection into a session and the session's answers back until
+/// it ends or the server stops. Datagrams carry the datagram lane. The
+/// client opens one bidirectional stream, which carries the reliable lane
+/// both ways as length-prefixed frames (ADR 0011); a reliable message due
+/// before the stream is open waits for it.
 async fn run(connection: wtransport::Connection, rooms: Rooms, shutdown: Shutdown) {
     let (inbound_tx, inbound) = mpsc::unbounded_channel();
     let (outbound, mut outbound_rx) = mpsc::unbounded_channel();
@@ -134,14 +139,36 @@ async fn run(connection: wtransport::Connection, rooms: Rooms, shutdown: Shutdow
         Channels { inbound, outbound },
         shutdown.clone(),
     ));
+    let mut reliable: Option<SendStream> = None;
+    let mut waiting_for_stream: Vec<Vec<u8>> = Vec::new();
+    let mut reading_stream: Option<tokio::task::JoinHandle<()>> = None;
     loop {
+        let stream_ended = async {
+            match reading_stream.as_mut() {
+                Some(reading) => {
+                    let _ = reading.await;
+                }
+                None => std::future::pending().await,
+            }
+        };
         tokio::select! {
             () = shutdown.wait() => break,
+            // The reliable lane is the session: the client closing it, or a
+            // frame that is not one of ours, ends the session with it.
+            () = stream_ended => break,
             sending = outbound_rx.recv() => match sending {
                 // A failed send is the client's to notice: it resends an unanswered Ping.
-                Some(bytes) => {
+                Some(Outgoing { lane: Lane::Datagram, bytes }) => {
                     let _ = connection.send_datagram(bytes);
                 }
+                Some(Outgoing { lane: Lane::Reliable, bytes }) => match reliable.as_mut() {
+                    Some(stream) => {
+                        if write_frame(stream, &bytes).await.is_err() {
+                            break;
+                        }
+                    }
+                    None => waiting_for_stream.push(bytes),
+                },
                 None => break,
             },
             received = connection.receive_datagram() => {
@@ -150,9 +177,70 @@ async fn run(connection: wtransport::Connection, rooms: Rooms, shutdown: Shutdow
                     break;
                 }
             }
+            accepted = connection.accept_bi(), if reliable.is_none() => {
+                let Ok((mut send, recv)) = accepted else { break };
+                let mut failed = false;
+                for bytes in waiting_for_stream.drain(..) {
+                    if write_frame(&mut send, &bytes).await.is_err() {
+                        failed = true;
+                        break;
+                    }
+                }
+                if failed {
+                    break;
+                }
+                reliable = Some(send);
+                reading_stream = Some(tokio::spawn(read_frames(recv, inbound_tx.clone())));
+            }
         }
     }
     session.abort();
+    if let Some(reading) = reading_stream {
+        reading.abort();
+    }
+}
+
+/// One message on the reliable stream: its length as four little-endian
+/// bytes, then its bytes.
+async fn write_frame(stream: &mut SendStream, bytes: &[u8]) -> Result<(), FrameError> {
+    let length = u32::try_from(bytes.len()).map_err(|_| FrameError::TooLong)?;
+    stream
+        .write_all(&length.to_le_bytes())
+        .await
+        .map_err(|_| FrameError::StreamEnded)?;
+    stream
+        .write_all(bytes)
+        .await
+        .map_err(|_| FrameError::StreamEnded)
+}
+
+/// Why a frame could not be written.
+#[derive(Debug)]
+enum FrameError {
+    TooLong,
+    StreamEnded,
+}
+
+/// Hand every frame on the stream to the session until the stream ends or
+/// a frame claims more than `RELIABLE_FRAME_MAX_BYTES`.
+async fn read_frames(mut stream: RecvStream, inbound: mpsc::UnboundedSender<Vec<u8>>) {
+    loop {
+        let mut length = [0u8; 4];
+        if stream.read_exact(&mut length).await.is_err() {
+            return;
+        }
+        let length = u32::from_le_bytes(length);
+        if length > RELIABLE_FRAME_MAX_BYTES {
+            return;
+        }
+        let mut bytes = vec![0u8; length as usize];
+        if stream.read_exact(&mut bytes).await.is_err() {
+            return;
+        }
+        if inbound.send(bytes).is_err() {
+            return;
+        }
+    }
 }
 
 /// Re-read the files every poll and swap the identity in when they changed.

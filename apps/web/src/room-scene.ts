@@ -32,6 +32,25 @@ const STATE_LABELS: Readonly<Record<Player["state"], string>> = {
   disconnected: "Disconnected",
 };
 
+/** What the room's state line says. */
+export function roomStatus(state: Room["state"], everyoneReady: boolean, creator: boolean): string {
+  switch (state) {
+    case "countdown":
+    case "racing":
+      return "Racing";
+    case "results":
+      return "Race over: everyone back from the results readies up for the next";
+    case "closing":
+      return "This room has closed";
+    case "open":
+      return everyoneReady
+        ? creator
+          ? "Everyone is ready: press Start"
+          : "Everyone is ready: waiting for the creator to start"
+        : "Waiting for everyone to be ready";
+  }
+}
+
 /**
  * The Room Scene (ADR 0012): the code and link to share, every player with
  * their livery and whether they are ready, the local player's ready toggle,
@@ -97,14 +116,7 @@ export function createRoomScene(
     ready.hidden = !(local?.state === "ready" || local?.state === "unready");
     start.hidden = local?.creator !== true;
     start.disabled = !canStart;
-    status.textContent =
-      current.state !== "open"
-        ? "Starting"
-        : everyoneReady
-          ? local?.creator
-            ? "Everyone is ready: press Start"
-            : "Everyone is ready: waiting for the creator to start"
-          : "Waiting for everyone to be ready";
+    status.textContent = roomStatus(current.state, everyoneReady, local?.creator === true);
   };
   render();
 

@@ -12,10 +12,12 @@ const wasm = readFileSync(new URL("./generated/bridge/bridge_bg.wasm", import.me
 function fakeConnection() {
   const listeners: Array<(bytes: Uint8Array) => void> = [];
   const sent: Uint8Array[] = [];
+  const lanes: string[] = [];
   const connection: Connection = {
     transport: "websocket",
-    send(bytes) {
+    send(bytes, lane = "reliable") {
       sent.push(bytes);
+      lanes.push(lane);
     },
     onMessage(listener) {
       listeners.push(listener);
@@ -26,6 +28,7 @@ function fakeConnection() {
   return {
     connection,
     sent,
+    lanes,
     receive(bytes: Uint8Array) {
       for (const listener of listeners) listener(bytes);
     },
@@ -46,6 +49,8 @@ describe("ping", () => {
     const pinging = ping(far.connection, bridge, 42, TIMING, () => clock);
     // Postcard: variant 0, then the nonce as a varint (crates/protocol/tests).
     expect(far.sent).toEqual([new Uint8Array([0, 42])]);
+    // The probe of a transport rides a datagram (ADR 0011).
+    expect(far.lanes).toEqual(["datagram"]);
     clock = 112;
     far.receive(new Uint8Array([0, 42]));
     await expect(pinging).resolves.toBe(12);

@@ -3,11 +3,12 @@ import { type Connection, connect, serverUrls } from "./connection";
 import type { InstrumentPanel } from "./instrument-panel";
 import { loadNickname, saveNickname } from "./nickname";
 import { ping } from "./ping";
-import { createRaceScene, type RaceSetup } from "./race-scene";
+import { createRaceScene, localRaceRun, type RaceRun } from "./race-scene";
 import { createResultsScene, type RaceResults, resultsRows } from "./results-scene";
 import { type Countdown, joinRoom, RefusedError, type RoomClient } from "./room-client";
 import { roomFromSearch, roomLink, roomSearch } from "./room-link";
 import { createRoomScene } from "./room-scene";
+import { createServerRace } from "./server-race";
 import { createTitleScene } from "./title-scene";
 import { fetchSidecar, isTrackName, selectTrack, TRACKS, type TrackFiles } from "./track";
 
@@ -16,10 +17,13 @@ interface ConnectionReadout {
   show(panel: InstrumentPanel): void;
 }
 
+/** What the Title says when the server goes away under a race (ADR 0005). */
+const CONNECTION_LOST_MID_RACE = "Lost the connection to the server: the race is over";
+
 /**
  * M0(b): reach the server, WebTransport first and WebSocket as the fallback,
- * and show which answered and how fast. The race runs locally either way, so
- * no failure here is fatal.
+ * and show which answered and how fast. The solo race runs locally, so no
+ * failure here is fatal.
  */
 function reportConnection(bridge: Bridge): ConnectionReadout {
   let status = "connecting";
@@ -69,10 +73,19 @@ function trackNamed(name: string): TrackFiles {
   return isTrackName(name) ? TRACKS[name] : selectTrack("");
 }
 
+/** What the Results Scene offers after a race. */
+interface RaceHandlers {
+  /** Rematch from the results. */
+  rematch(): void;
+  /** Leave from the results, back to the Title. */
+  leave(): void;
+}
+
 // The Scenes in order: Title into a room or a solo race, the Room Scene into
 // the race on the creator's Start, the race into its results, and the
-// results back into another race or the Title. A solo race takes its track
-// from `?track=`; a room's comes from the server.
+// results back into the room or another solo race, or the Title. A solo
+// race takes its track from `?track=` and runs the sim here; a room's comes
+// from the server, which runs the race (ADR 0009).
 async function main(container: HTMLElement): Promise<void> {
   const bridge = await loadBridge();
   const connection = reportConnection(bridge);
@@ -117,11 +130,8 @@ async function main(container: HTMLElement): Promise<void> {
     let client: RoomClient;
     let link: Connection | undefined;
     try {
-      // Room messages must all arrive, in order, which the WebTransport
-      // connection cannot promise until it carries the reliable stream
-      // (ADR 0011); until then the room rides the WebSocket.
       link = await connect({
-        webSocketUrl: serverUrls(window.location).webSocketUrl,
+        ...serverUrls(window.location),
         webTransportTimeoutMs: bridge.webTransportTimeoutMs,
       });
       client = await joinRoom(link, bridge, { code, nickname });
@@ -137,6 +147,12 @@ async function main(container: HTMLElement): Promise<void> {
     // Refreshing the page comes back to the room.
     window.history.replaceState(null, "", roomSearch(client.room.code));
     showRoom(client);
+  };
+
+  /** Leave the room and take its code out of the page's link. */
+  const leaveRoom = (client: RoomClient) => {
+    client.leave();
+    window.history.replaceState(null, "", window.location.pathname);
   };
 
   const showRoom = (client: RoomClient) => {
@@ -155,21 +171,27 @@ async function main(container: HTMLElement): Promise<void> {
         start: () => client.start(),
         leave() {
           waiting = false;
-          client.leave();
+          leaveRoom(client);
+          stop();
           scene.dispose();
-          window.history.replaceState(null, "", window.location.pathname);
           showTitle();
         },
       },
     );
-    client.onRoom((room) => scene.update(room));
-    client.onCountdown((countdown) => {
+    const stopRoom = client.onRoom((room) => scene.update(room));
+    const stopCountdown = client.onCountdown((countdown) => {
       waiting = false;
+      stop();
       scene.dispose();
       showRoomRace(client, countdown).catch(fail);
     });
+    const stop = () => {
+      stopRoom();
+      stopCountdown();
+    };
     client.closed.then(() => {
       if (waiting) {
+        stop();
         scene.dispose();
         showTitle("Lost the connection to the room", client.room.code);
       }
@@ -177,53 +199,82 @@ async function main(container: HTMLElement): Promise<void> {
   };
 
   /**
-   * The race a room starts: every client builds the same sim from the
-   * server's seed with one kart per player in slot order, the local player
-   * driving theirs; the server takes over the others with the server-run race.
+   * The race a room starts: the server runs it and every client draws its
+   * snapshots; the local player's kart is the one their slot has on the
+   * grid, and the names come from the room as it stood at the Countdown.
    */
   const showRoomRace = async (client: RoomClient, countdown: Countdown) => {
+    const track = trackNamed(countdown.track);
+    const sidecar = await fetchSidecar(track);
     const players = client.room.players;
-    const setup: RaceSetup = {
-      seed: countdown.seed,
-      humanCount: players.length,
-      localKart: players.findIndex((player) => player.slot === client.slot),
-    };
-    const nickname = (kart: number) => players[kart]?.nickname;
-    await showRace(trackNamed(countdown.track), setup, nickname, () => {
-      client.leave();
-      window.history.replaceState(null, "", window.location.pathname);
+    const run = createServerRace(bridge, client, countdown, client.slot, sidecar);
+    const nickname = (kart: number) =>
+      players.find((player) => player.slot === countdown.grid[kart])?.nickname;
+    await showRace(
+      track,
+      run,
+      nickname,
+      {
+        rematch() {
+          client.rematch();
+          showRoom(client);
+        },
+        leave() {
+          leaveRoom(client);
+          showTitle();
+        },
+      },
+      client.closed,
+    );
+  };
+
+  const showSoloRace = async () => {
+    const sidecar = await fetchSidecar(soloTrack);
+    const run = localRaceRun(bridge, soloTrack.name, sidecar);
+    await showRace(soloTrack, run, () => undefined, {
+      rematch() {
+        showSoloRace().catch(fail);
+      },
+      leave() {
+        showTitle();
+      },
     });
   };
 
-  const showSoloRace = () =>
-    showRace(
-      soloTrack,
-      undefined,
-      () => undefined,
-      () => {},
-    );
-
+  /**
+   * Race `run` on `track` to its results, then show them. A room's race
+   * that loses its server mid-race goes back to the Title with a message,
+   * as a deploy under a race does (ADR 0005).
+   */
   const showRace = async (
     track: TrackFiles,
-    setup: RaceSetup | undefined,
+    run: RaceRun,
     nickname: (kart: number) => string | undefined,
-    onLeave: () => void,
+    handlers: RaceHandlers,
+    lost?: Promise<void>,
   ) => {
-    const sidecar = await fetchSidecar(track);
-    const race = await createRaceScene(container, bridge, track, sidecar, setup);
+    const race = await createRaceScene(container, bridge, track, run);
     connection.show(race.panel);
+    let racing = true;
+    lost?.then(() => {
+      if (!racing) return;
+      racing = false;
+      race.dispose();
+      showTitle(CONNECTION_LOST_MID_RACE);
+    });
     const finished = await race.finished;
+    if (!racing) return;
+    racing = false;
     race.dispose();
     const results: RaceResults = { ...finished, nickname };
     const scene = createResultsScene(container, resultsRows(results), {
       rematch() {
         scene.dispose();
-        showRace(track, setup, nickname, onLeave).catch(fail);
+        handlers.rematch();
       },
       leave() {
         scene.dispose();
-        onLeave();
-        showTitle();
+        handlers.leave();
       },
     });
   };

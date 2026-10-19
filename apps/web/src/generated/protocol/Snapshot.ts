@@ -8,8 +8,8 @@ import type { KartSnapshot } from "./KartSnapshot";
  */
 export type Snapshot = { tick: number, 
 /**
- * The last input sequence applied, per kart slot; 0 for a bot's slot
- * and for a client that has sent nothing yet.
+ * The last input sequence applied, per kart in grid order; 0 for a
+ * bot's kart and for a client that has sent nothing yet.
  */
 acknowledged: Array<number>, 
 /**

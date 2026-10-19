@@ -179,7 +179,7 @@ async fn start_is_honoured_only_from_the_creator_once_every_human_is_ready() {
         let ServerMessage::Countdown { track, .. } = countdown else {
             panic!("expected Countdown, got {countdown:?}");
         };
-        assert_eq!(track, "brands-patch");
+        assert_eq!(track, server::fake_transport::TRACK);
     }
     let room = same_update(&mut players).await;
     assert_eq!(room.state, RoomState::Countdown);
@@ -375,7 +375,7 @@ async fn the_room_works_the_same_over_a_slow_jittery_link() {
 }
 
 #[tokio::test(start_paused = true)]
-async fn loss_on_the_fake_link_drops_messages() {
+async fn loss_on_the_fake_link_drops_datagrams_but_never_the_reliable_lane() {
     let mut harness = Harness::new(Conditions {
         delay: Duration::ZERO,
         jitter: Duration::ZERO,
@@ -384,11 +384,10 @@ async fn loss_on_the_fake_link_drops_messages() {
     });
     let code = harness.create_room();
     let mut client = harness.connect();
-    client.send(&ClientMessage::Join {
-        version: PROTOCOL_VERSION,
-        room: code,
-        nickname: "khiet".to_owned(),
-    });
+    // A Join rides the reliable lane, so it arrives whatever the loss.
+    client.join(&code, "khiet").await.unwrap();
+    // A Ping rides a datagram, and so would its Pong: nothing comes back.
+    client.send(&ClientMessage::Ping { nonce: 7 });
     assert_eq!(client.recv().await, None);
 }
 

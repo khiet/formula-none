@@ -104,15 +104,28 @@ describe("Room Scene", () => {
     expect(container.childElementCount).toBe(0);
   });
 
-  it("says the race is starting once the room leaves Open", () => {
-    const { status, button, view } = scene(0);
+  it("says the room is racing once it leaves Open, and that the race is over at Results", () => {
+    const { status, button, view, rows } = scene(0);
     view.update({
       ...ROOM,
       state: "countdown",
       players: ROOM.players.map((player) => ({ ...player, state: "racing" })),
     });
-    expect(status()).toBe("Starting");
+    expect(status()).toBe("Racing");
     expect(button("ready").hidden).toBe(true);
+    expect(button("start").disabled).toBe(true);
+    // Back from the results before the others: they are still Finished.
+    view.update({
+      ...ROOM,
+      state: "results",
+      players: ROOM.players.map((player, index) => ({
+        ...player,
+        state: index === 0 ? "unready" : "finished",
+      })),
+    });
+    expect(status()).toMatch(/^Race over/);
+    expect(rows().map((row) => row.state)).toEqual(["unready", "finished"]);
+    expect(button("ready").hidden).toBe(false);
     expect(button("start").disabled).toBe(true);
   });
 });

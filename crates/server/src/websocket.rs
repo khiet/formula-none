@@ -7,6 +7,7 @@ use axum::extract::State;
 use axum::response::Response;
 use tokio::sync::mpsc;
 
+use crate::lane::Outgoing;
 use crate::session::{self, Channels};
 use crate::{AppState, Shutdown};
 
@@ -32,7 +33,7 @@ async fn run(socket: WebSocket, state: AppState) {
 async fn pump(
     mut socket: WebSocket,
     inbound: mpsc::UnboundedSender<Vec<u8>>,
-    mut outbound: mpsc::UnboundedReceiver<Vec<u8>>,
+    mut outbound: mpsc::UnboundedReceiver<Outgoing>,
     shutdown: Shutdown,
 ) {
     loop {
@@ -43,7 +44,8 @@ async fn pump(
             }
             // The session dropped its end: it refused the client or the client left.
             sending = outbound.recv() => match sending {
-                Some(bytes) => {
+                // One channel carries both lanes (ADR 0011).
+                Some(Outgoing { bytes, .. }) => {
                     if socket.send(Message::Binary(bytes.into())).await.is_err() {
                         return;
                     }

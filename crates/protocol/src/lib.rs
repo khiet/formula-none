@@ -23,7 +23,7 @@ use ts_rs::TS;
 /// [`ClientMessage::Join`] and the server refuses a mismatch with
 /// [`Refusal::VersionMismatch`] (ADR 0013). The generator exports it next to
 /// the types, so the web app reads the same constant.
-pub const PROTOCOL_VERSION: u16 = 1;
+pub const PROTOCOL_VERSION: u16 = 2;
 
 /// What a client sends the server.
 #[derive(Serialize, Deserialize, TS, Debug, Clone, PartialEq)]
@@ -47,6 +47,10 @@ pub enum ClientMessage {
     /// Start the race; honoured only from the creator once every human is
     /// ready.
     Start,
+    /// Back from the results to the room for another race: the player is
+    /// Unready again and the room, if it was still showing Results, is Open
+    /// (ADR 0012).
+    Rematch,
     /// Leave the room on purpose, as opposed to dropping the connection.
     Leave,
 }
@@ -88,11 +92,22 @@ pub enum ServerMessage {
     /// became the creator, or the room changed state.
     Room(Room),
     /// The race is starting: every client creates the sim from this seed on
-    /// this track and runs the countdown in it (ADR 0002).
-    Countdown { seed: u64, track: String },
+    /// this track and runs the countdown in it (ADR 0002). `grid` is the
+    /// room slot of each human kart in grid order, so a kart index in a
+    /// snapshot or an event names a player through it; the karts behind
+    /// the humans, up to the race's grid, are bots.
+    Countdown {
+        seed: u64,
+        track: String,
+        grid: Vec<u8>,
+    },
     /// The authoritative state at a tick, on a datagram at the snapshot rate
     /// (ADR 0010).
     Snapshot(Snapshot),
+    /// What happened this tick, on the reliable stream; the same events
+    /// ride the next snapshot and the two after it, so a client keeps the
+    /// first copy of each id it sees (ADR 0011).
+    Events(Vec<Event>),
     /// The standings once the race is Finished, in finishing order.
     Results { standings: Vec<FinalStanding> },
 }
@@ -139,8 +154,8 @@ pub enum RoomState {
 #[derive(Serialize, Deserialize, TS, Debug, Clone, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct Player {
-    /// The player's seat in the room, kept for their whole stay, and their
-    /// kart's index in snapshots and results.
+    /// The player's seat in the room, kept for their whole stay. A race's
+    /// Countdown says which kart the seat drives.
     pub slot: u8,
     pub nickname: String,
     /// Index into the eight liveries; the slot's, so it follows join order
@@ -171,8 +186,8 @@ pub enum PlayerState {
 #[serde(rename_all = "camelCase")]
 pub struct Snapshot {
     pub tick: u32,
-    /// The last input sequence applied, per kart slot; 0 for a bot's slot
-    /// and for a client that has sent nothing yet.
+    /// The last input sequence applied, per kart in grid order; 0 for a
+    /// bot's kart and for a client that has sent nothing yet.
     pub acknowledged: Vec<u32>,
     /// One per kart in grid order.
     pub karts: Vec<KartSnapshot>,
@@ -191,12 +206,16 @@ pub struct KartSnapshot {
     pub velocity: [f32; 3],
     /// The drift under way, if any.
     pub drift: Option<DriftSnapshot>,
+    /// Race position from 1, as the sim orders it.
+    pub race_position: u8,
     /// The lap the kart is on, from 1.
     pub lap: u8,
     /// The last checkpoint crossed in order; 0 is the start line.
     pub checkpoint: u8,
     /// Distance along the centreline.
     pub spline_progress: f32,
+    /// The wrong-way warning is up for this kart.
+    pub wrong_way: bool,
     /// The item in the kart's slot, if any.
     pub held_item: Option<Item>,
     /// Seconds of spin-out left, while the kart is spun out.

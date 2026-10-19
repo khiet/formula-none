@@ -15,7 +15,9 @@
 //!
 //! A race has a beginning and an end, and both are rules: [`State::phase`]
 //! walks Countdown, Racing and Finished through `step`, so a room on the
-//! server can drive the lifecycle a solo race in the browser does.
+//! server can drive the lifecycle a solo race in the browser does. What a
+//! tick changed that the players are told about, a lap completed, a finish
+//! or a respawn, is read from [`State::events`] after that tick.
 
 pub mod bot;
 mod hash;
@@ -69,6 +71,10 @@ pub struct KartTransform {
     pub rotation: [f32; 4],
     /// Metres per second along the kart's facing; negative when backing up.
     pub speed: f32,
+    /// The body's velocity in metres per second, which a snapshot carries:
+    /// the speed along the travel, which a drift slips from the facing, and
+    /// the vertical motion of a hop or a fall.
+    pub velocity: [f32; 3],
     /// The drift the kart is in; `None` when it is not drifting.
     pub drift: Option<Drift>,
 }
@@ -152,6 +158,29 @@ impl MiniTurbo {
             Self::Orange => MINI_TURBO_ORANGE_BOOST_S,
         }
     }
+}
+
+/// Something a tick changed that the players are told about. The server
+/// turns these into the protocol's events; a client only shows them.
+/// `kart` is the grid index.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum RaceEvent {
+    /// The kart crossed the start line after every checkpoint: `lap` is the
+    /// lap just completed, from 1, and `lap_time_s` its time.
+    LapCompleted {
+        kart: usize,
+        lap: u32,
+        lap_time_s: f32,
+    },
+    /// The kart completed the race's laps, taking `position` among the
+    /// finishers at `finish_time_s` on the race clock.
+    Finished {
+        kart: usize,
+        position: u32,
+        finish_time_s: f32,
+    },
+    /// The kart was put back on the track at its last checkpoint.
+    Respawned { kart: usize },
 }
 
 /// Where the race is. Every value here is read from `step`, never from a
@@ -254,6 +283,9 @@ pub struct State {
     humans: usize,
     physics: Physics,
     phase: Phase,
+    /// What the last tick changed that the players are told about. Not
+    /// hashed: nothing here influences a future tick.
+    events: Vec<RaceEvent>,
 }
 
 struct Kart {
@@ -471,6 +503,7 @@ impl State {
             phase: Phase::Countdown {
                 remaining_s: COUNTDOWN_S,
             },
+            events: Vec::new(),
         }
     }
 
@@ -481,6 +514,13 @@ impl State {
     /// Where the race is, as of the last tick.
     pub fn phase(&self) -> Phase {
         self.phase
+    }
+
+    /// What the last tick changed that the players are told about, in the
+    /// order it happened; empty after a tick that changed nothing of the
+    /// kind. A finish follows the completion of the kart's last lap.
+    pub fn events(&self) -> &[RaceEvent] {
+        &self.events
     }
 
     /// Karts driven from `step`'s inputs: the first this many grid slots.
@@ -656,6 +696,7 @@ impl State {
                     position: [position.x, position.y, position.z],
                     rotation: [rotation.x, rotation.y, rotation.z, rotation.w],
                     speed: kart.speed,
+                    velocity: body.linvel().to_array(),
                     drift: kart.drift,
                 }
             })
@@ -673,6 +714,7 @@ impl State {
 /// finished the state is returned as it was.
 pub fn step(mut state: State, inputs: &[KartInput], dt: f32) -> State {
     assert_eq!(inputs.len(), state.humans, "one input per human kart");
+    state.events.clear();
     let (elapsed_s, grace_left_s) = match state.phase {
         Phase::Finished => return state,
         Phase::Countdown { remaining_s } => {
@@ -824,13 +866,15 @@ pub fn step(mut state: State, inputs: &[KartInput], dt: f32) -> State {
         .map(|kart| state.physics.bodies[kart.body].translation().to_array())
         .collect();
     state.physics.step(dt);
-    for (kart, mut before) in state.karts.iter_mut().zip(before) {
+    let mut finished_this_tick = Vec::new();
+    for (index, (kart, mut before)) in state.karts.iter_mut().zip(before).enumerate() {
         bump_off_walls(kart, &mut state.physics, dt);
         let mut after = state.physics.bodies[kart.body].translation().to_array();
         if state.physics.surface_at(after) == Surface::OutOfWorld {
             kart.out_of_world_s += dt;
             if kart.out_of_world_s >= RESPAWN_DELAY_S {
                 after = respawn(kart, &state.track, &mut state.physics);
+                state.events.push(RaceEvent::Respawned { kart: index });
                 // A teleport is not a move: it crosses no gate.
                 before = after;
             }
@@ -852,7 +896,31 @@ pub fn step(mut state: State, inputs: &[KartInput], dt: f32) -> State {
         kart.spline_progress = progress;
         if !kart.finished() {
             kart.lap_time_s += dt;
-            cross_checkpoint(kart, &state.track, before, after, dt, elapsed_s);
+            if let Some(lap_time_s) =
+                cross_checkpoint(kart, &state.track, before, after, dt, elapsed_s)
+            {
+                state.events.push(RaceEvent::LapCompleted {
+                    kart: index,
+                    lap: kart.laps_completed,
+                    lap_time_s,
+                });
+                if let Some(finish_time_s) = kart.finish_time_s {
+                    finished_this_tick.push((index, finish_time_s));
+                }
+            }
+        }
+    }
+    // Places are read once every kart has moved, so two karts finishing on
+    // the same tick are placed by their finish times, as the standings are.
+    if !finished_this_tick.is_empty() {
+        let standings = state.standings();
+        finished_this_tick.sort_by(|a, b| a.1.total_cmp(&b.1));
+        for (index, finish_time_s) in finished_this_tick {
+            state.events.push(RaceEvent::Finished {
+                kart: index,
+                position: standings[index].position,
+                finish_time_s,
+            });
         }
     }
     state.phase = next_phase(&state.karts, elapsed_s, grace_left_s, dt);
@@ -979,6 +1047,7 @@ fn respawn(kart: &mut Kart, track: &Track, physics: &mut Physics) -> [f32; 3] {
 /// lap's time ends where the move met the line, so lap times and finish
 /// times are finer than a tick, and the next lap's clock starts with the
 /// rest of the tick. `elapsed_s` is the race clock at the end of the tick.
+/// Returns the time of the lap the move completed, if it completed one.
 fn cross_checkpoint(
     kart: &mut Kart,
     track: &Track,
@@ -986,12 +1055,11 @@ fn cross_checkpoint(
     after: [f32; 3],
     dt: f32,
     elapsed_s: f32,
-) {
+) -> Option<f32> {
     let checkpoints = track.checkpoints();
     let next = (kart.checkpoint + 1) % checkpoints.len();
-    let Some(fraction) = checkpoints[next].crossed_between(before, after) else {
-        return;
-    };
+    let fraction = checkpoints[next].crossed_between(before, after)?;
+    let mut completed = None;
     if next == 0 {
         let rest_of_tick_s = dt * (1.0 - fraction);
         let lap_time_s = kart.lap_time_s - rest_of_tick_s;
@@ -1006,8 +1074,10 @@ fn cross_checkpoint(
         } else {
             kart.lap_time_s = rest_of_tick_s;
         }
+        completed = Some(lap_time_s);
     }
     kart.checkpoint = next;
+    completed
 }
 
 /// The upward speed that brings a kart back to the track after the tuned
