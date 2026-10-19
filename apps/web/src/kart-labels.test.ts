@@ -3,7 +3,14 @@ import type { KartTransform } from "./bridge";
 import { kartLabels } from "./kart-labels";
 
 function at(position: readonly [number, number, number]): KartTransform {
-  return { position, rotation: [0, 0, 0, 1], speed: 0, surface: "asphalt", drift: null };
+  return {
+    position,
+    rotation: [0, 0, 0, 1],
+    speed: 0,
+    surface: "asphalt",
+    drift: null,
+    heldItem: null,
+  };
 }
 
 const names = ["You", "ada", "Bot 3"];

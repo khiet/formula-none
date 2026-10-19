@@ -8,6 +8,7 @@ import init, {
   decode_server_message,
   encode_client_message,
   encode_server_message,
+  item_box_respawn_s,
   kart_size_m,
   karts_per_race,
   laps_per_race,
@@ -25,7 +26,7 @@ import init, {
   Race as WasmRace,
   webtransport_connect_timeout_s,
 } from "./generated/bridge/bridge.js";
-import type { ClientMessage, Input, ServerMessage, Snapshot } from "./generated/protocol";
+import type { ClientMessage, Input, Item, ServerMessage, Snapshot } from "./generated/protocol";
 
 /**
  * One kart's controls for one tick, whichever device produced them: steer
@@ -68,8 +69,9 @@ export interface Drift {
 /**
  * What the View and the Instrument panel need per kart: position in metres,
  * unit quaternion [x, y, z, w], speed in metres per second along the kart's
- * facing (negative backing up), the surface under the kart and the drift
- * under way, if any. Y up; identity rotation faces -Z.
+ * facing (negative backing up), the surface under the kart, the drift
+ * under way, if any, and the item in the kart's slot, if any. Y up;
+ * identity rotation faces -Z.
  */
 export interface KartTransform {
   readonly position: readonly [number, number, number];
@@ -77,6 +79,13 @@ export interface KartTransform {
   readonly speed: number;
   readonly surface: Surface;
   readonly drift: Drift | null;
+  readonly heldItem: Item | null;
+}
+
+/** Where an item box stands on the track: metres, and a yaw about +Y, zero facing -Z. */
+export interface ItemBox {
+  readonly position: readonly [number, number, number];
+  readonly yaw: number;
 }
 
 /**
@@ -127,6 +136,10 @@ export interface Race {
   standings(): Standing[];
   /** Where the race is, as of the last step. */
   phase(): Phase;
+  /** The track's item boxes, in the sidecar's order; fixed for the race. */
+  itemBoxes(): ItemBox[];
+  /** Whether each item box, in the same order, is there to take as of the last step. */
+  itemBoxesPresent(): boolean[];
   /**
    * The sim's hash of everything that influences future ticks, as of the last
    * step. Bit-identical native and in wasm for the same race and inputs,
@@ -220,6 +233,8 @@ export interface Bridge extends MessageCodec {
   readonly lapsPerRace: number;
   /** Seconds the karts are held on the grid before Go (ADR 0014). */
   readonly countdownSeconds: number;
+  /** Seconds a taken item box is gone before it is back (ADR 0014). */
+  readonly itemBoxRespawnSeconds: number;
   /**
    * Karts on the grid, from the sim's tuning; bots fill the slots the humans
    * leave (ADR 0014).
@@ -265,7 +280,8 @@ export interface Bridge extends MessageCodec {
 // Race::standings and Race::phase; a Prediction's transform and phase are laid
 // out as a Race's.
 const FLOATS_PER_INPUT = 6;
-const FLOATS_PER_TRANSFORM = 12;
+const FLOATS_PER_TRANSFORM = 13;
+const FLOATS_PER_ITEM_BOX = 4;
 const FLOATS_PER_STANDING = 8;
 const FLOATS_PER_PHASE = 3;
 /** Phase codes in the phase buffer, in the sim's order. */
@@ -276,6 +292,8 @@ const SURFACES: readonly Surface[] = ["asphalt", "sand", "grass", "wall", "out o
 const DRIFT_DIRECTIONS: Readonly<Record<number, DriftDirection>> = { [-1]: "left", 1: "right" };
 /** Mini-turbo tiers in the buffer's order. */
 const MINI_TURBOS: readonly MiniTurbo[] = ["none", "blue", "orange"];
+/** Items by the buffer's code less one; code 0 is an empty slot. */
+const ITEMS: readonly Item[] = ["boost", "hazard", "homing"];
 
 /**
  * Load the wasm module once. Pass `wasm` bytes when there is no document
@@ -289,6 +307,7 @@ export async function loadBridge(wasm?: BufferSource): Promise<Bridge> {
     kartSize: kartSize(),
     lapsPerRace: laps_per_race(),
     countdownSeconds: countdown_s(),
+    itemBoxRespawnSeconds: item_box_respawn_s(),
     kartsPerRace: karts_per_race(),
     replayHashIntervalTicks: replay_hash_interval_ticks(),
     createRace(seed, humanCount, botCount, sidecar) {
@@ -410,6 +429,23 @@ class BridgedRace implements Race {
     return phaseFrom(this.#race.phase());
   }
 
+  itemBoxes(): ItemBox[] {
+    const buffer = this.#race.item_boxes();
+    if (buffer.length % FLOATS_PER_ITEM_BOX !== 0) {
+      throw new RangeError(`item box buffer has ${buffer.length} floats`);
+    }
+    const boxes: ItemBox[] = [];
+    for (let at = 0; at < buffer.length; at += FLOATS_PER_ITEM_BOX) {
+      const read = (offset: number): number => buffer[at + offset] as number;
+      boxes.push({ position: [read(0), read(1), read(2)], yaw: read(3) });
+    }
+    return boxes;
+  }
+
+  itemBoxesPresent(): boolean[] {
+    return Array.from(this.#race.item_boxes_present(), (present) => present !== 0);
+  }
+
   kartTransforms(): KartTransform[] {
     const buffer = this.#race.kart_transforms();
     if (buffer.length !== this.#kartCount * FLOATS_PER_TRANSFORM) {
@@ -471,7 +507,7 @@ class BridgedPrediction implements Prediction {
   }
 }
 
-/** The kart transform whose twelve floats start at `at`; `slot` names the kart in errors. */
+/** The kart transform whose thirteen floats start at `at`; `slot` names the kart in errors. */
 function transformAt(buffer: Float32Array, at: number, slot: number): KartTransform {
   const read = (offset: number): number => buffer[at + offset] as number;
   const surface = SURFACES[read(8)];
@@ -484,7 +520,20 @@ function transformAt(buffer: Float32Array, at: number, slot: number): KartTransf
     speed: read(7),
     surface,
     drift: drift(read(9), read(10), read(11), slot),
+    heldItem: heldItem(read(12), slot),
   };
+}
+
+/** The item a buffer code names, or null for the empty slot's 0. */
+function heldItem(code: number, slot: number): Item | null {
+  if (code === 0) {
+    return null;
+  }
+  const item = ITEMS[code - 1];
+  if (item === undefined) {
+    throw new RangeError(`unknown item code ${code} for kart ${slot}`);
+  }
+  return item;
 }
 
 /** The phase the three floats of a phase buffer describe. */

@@ -4,12 +4,23 @@
 // the snapshots the tuned delay behind the newest, and the readouts the
 // Instrument panel needs that a snapshot does not carry are kept from the
 // events. The race clock is the prediction's, so the countdown shown is the
-// one the player's inputs meet on the server.
+// one the player's inputs meet on the server. Every item outcome is the
+// server's event: the slot shows the item the server rolled and the boxes
+// it reports taken, and a press only predicts the fire until the server's
+// event confirms it.
 
 import type { Bridge, Phase, Standing } from "./bridge";
-import type { FinalStanding, Snapshot } from "./generated/protocol";
-import type { RaceRun } from "./race-scene";
+import type { FinalStanding, Item, Snapshot } from "./generated/protocol";
+import type { ItemSlot } from "./instrument-panel";
+import { ITEM_FIRE_FLASH_S, type RaceRun } from "./race-scene";
 import { type Countdown, quantiseInput, type RoomClient } from "./room-client";
+
+/**
+ * How long a predicted fire shows before the server is taken not to have
+ * fired: the press was lost on the way, or the slot was already empty on
+ * the server. Longer than a round trip with a repeat or two.
+ */
+export const PREDICTED_FIRE_TIMEOUT_S = 1;
 
 export interface ServerRace extends RaceRun {
   /**
@@ -49,6 +60,16 @@ export function createServerRace(
   const lapTimes: number[][] = Array.from({ length: kartCount }, () => []);
   const finishTimes: (number | null)[] = Array<number | null>(kartCount).fill(null);
   let results: readonly FinalStanding[] | undefined;
+  const ticks = (seconds: number) => Math.round(seconds * bridge.ticksPerSecond);
+  /** The item the server says the local kart holds. */
+  let heldItem: Item | null = null;
+  /** Ticks left of a fire predicted from a press the server has not confirmed; 0 for none. */
+  let predictedFireTicksLeft = 0;
+  /** Ticks left of the flash after the server's fire. */
+  let flashTicksLeft = 0;
+  const boxes = track.itemBoxes();
+  /** Ticks until each box the server reported taken is back; 0 while it is there. */
+  const boxTicksLeft: number[] = Array<number>(boxes.length).fill(0);
 
   const stopSnapshots = client.onSnapshot((snapshot) => {
     latest = snapshot;
@@ -60,6 +81,20 @@ export function createServerRace(
       lapTimes[kind.lapCompleted.kart]?.push(kind.lapCompleted.lapTimeS);
     } else if ("finished" in kind) {
       finishTimes[kind.finished.kart] = kind.finished.finishTimeS;
+    } else if ("itemPicked" in kind) {
+      const { kart, item, itemBox } = kind.itemPicked;
+      if (itemBox < boxTicksLeft.length) {
+        boxTicksLeft[itemBox] = ticks(bridge.itemBoxRespawnSeconds);
+      }
+      if (kart === localKart) {
+        heldItem = item;
+      }
+    } else if ("itemFired" in kind && kind.itemFired.kart === localKart) {
+      // The server's word on the fire, predicted or not: the item is gone
+      // and the fire plays out.
+      heldItem = null;
+      predictedFireTicksLeft = 0;
+      flashTicksLeft = ticks(ITEM_FIRE_FLASH_S);
     }
   });
   const stopResults = client.onResults((standings) => {
@@ -72,6 +107,15 @@ export function createServerRace(
     tick(input) {
       const sequence = client.sendInput(input);
       prediction.tick(quantiseInput(input, sequence));
+      if (input.useItem && heldItem !== null && predictedFireTicksLeft === 0) {
+        predictedFireTicksLeft = ticks(PREDICTED_FIRE_TIMEOUT_S);
+      } else {
+        predictedFireTicksLeft = Math.max(predictedFireTicksLeft - 1, 0);
+      }
+      flashTicksLeft = Math.max(flashTicksLeft - 1, 0);
+      for (let box = 0; box < boxTicksLeft.length; box++) {
+        boxTicksLeft[box] = Math.max((boxTicksLeft[box] ?? 0) - 1, 0);
+      }
     },
     kartTransforms() {
       const interpolated = prediction.interpolatedKartTransforms();
@@ -108,6 +152,11 @@ export function createServerRace(
       // server's; the panel shows nothing of it.
       return prediction.phase();
     },
+    itemSlot(): ItemSlot {
+      return { item: heldItem, firing: predictedFireTicksLeft > 0 || flashTicksLeft > 0 };
+    },
+    itemBoxes: () => boxes,
+    itemBoxesPresent: () => boxTicksLeft.map((left) => left <= 0),
     correctionsPerSecond: () => prediction.correctionsPerSecond(),
     dispose() {
       stopSnapshots();

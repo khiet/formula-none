@@ -10,8 +10,8 @@ use protocol::{ClientMessage, Input, KartSnapshot, ServerMessage, Snapshot};
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 use sim::{
-    Drift, DriftDirection, KartInput, KartTransform, Phase, Replay, SnapshotKart, State, Surface,
-    Track,
+    Drift, DriftDirection, Item, KartInput, KartTransform, Phase, Replay, SnapshotKart, State,
+    Surface, Track,
 };
 use wasm_bindgen::prelude::*;
 
@@ -69,6 +69,14 @@ pub fn replay_hash_interval_ticks() -> u32 {
 #[wasm_bindgen]
 pub fn countdown_s() -> f32 {
     sim::tuning::COUNTDOWN_S
+}
+
+/// Seconds a taken item box is gone before it is back (ADR 0014), so a
+/// client racing from the server's events hides a box for as long as the
+/// server does.
+#[wasm_bindgen]
+pub fn item_box_respawn_s() -> f32 {
+    sim::tuning::ITEM_BOX_RESPAWN_S
 }
 
 /// The replay runner, in wasm: rerun `replay` (the JSON `sim::replay`
@@ -257,13 +265,15 @@ impl Race {
         self.state = Some(sim::step(state, &inputs, dt));
     }
 
-    /// Twelve floats per kart in grid order: position x, y, z, rotation
+    /// Thirteen floats per kart in grid order: position x, y, z, rotation
     /// quaternion x, y, z, w, speed in metres per second along the kart's
     /// facing (negative backing up), the surface under the kart as
     /// `sim::Surface::code` (0 asphalt, 1 sand, 2 grass, 3 wall, 4 out of
     /// world), the drift direction (-1 left, 1 right, 0 not drifting), the
-    /// mini-turbo tier the drift has charged (0 none, 1 blue, 2 orange) and
-    /// the seconds of drift charge. Y is up; identity rotation faces -Z.
+    /// mini-turbo tier the drift has charged (0 none, 1 blue, 2 orange),
+    /// the seconds of drift charge and the item in the kart's slot as
+    /// `sim::Item::code` (0 empty, 1 boost, 2 hazard, 3 homing). Y is up;
+    /// identity rotation faces -Z.
     pub fn kart_transforms(&self) -> Vec<f32> {
         let state = self.state();
         state
@@ -298,6 +308,31 @@ impl Race {
                     standing.finish_time_s.unwrap_or(NO_TIME),
                 ]
             })
+            .collect()
+    }
+
+    /// Four floats per item box of the track, in the sidecar's order: its
+    /// position x, y, z and its yaw in radians about +Y, zero facing -Z.
+    /// Fixed for the race; the View places a box at each.
+    pub fn item_boxes(&self) -> Vec<f32> {
+        self.state()
+            .track()
+            .item_boxes()
+            .iter()
+            .flat_map(|item_box| {
+                let [x, y, z] = item_box.position;
+                [x, y, z, item_box.yaw]
+            })
+            .collect()
+    }
+
+    /// One float per item box of the track, in the sidecar's order: 1
+    /// while the box is there to take, 0 while it is gone after a pickup.
+    pub fn item_boxes_present(&self) -> Vec<f32> {
+        self.state()
+            .item_boxes_present()
+            .into_iter()
+            .map(|present| f32::from(u8::from(present)))
             .collect()
     }
 
@@ -435,8 +470,8 @@ impl Prediction {
     }
 }
 
-/// One kart's twelve floats, as `Race::kart_transforms` documents them.
-fn transform_floats(kart: &KartTransform, surface: Surface) -> [f32; 12] {
+/// One kart's thirteen floats, as `Race::kart_transforms` documents them.
+fn transform_floats(kart: &KartTransform, surface: Surface) -> [f32; 13] {
     let (direction, tier, charge_s) = match kart.drift {
         Some(drift) => (
             drift.direction.steer_sign(),
@@ -460,6 +495,7 @@ fn transform_floats(kart: &KartTransform, surface: Surface) -> [f32; 12] {
         direction,
         tier,
         charge_s,
+        f32::from(kart.held_item.map_or(0, Item::code)),
     ]
 }
 
@@ -476,6 +512,15 @@ fn phase_floats(phase: Phase) -> [f32; 3] {
     [f32::from(phase.code()), seconds, grace_left_s]
 }
 
+/// The sim's item for the protocol's.
+fn item(item: protocol::Item) -> Item {
+    match item {
+        protocol::Item::Boost => Item::Boost,
+        protocol::Item::Hazard => Item::Hazard,
+        protocol::Item::Homing => Item::Homing,
+    }
+}
+
 /// What a protocol snapshot says of one kart, in the sim's terms.
 fn snapshot_kart(kart: &KartSnapshot) -> SnapshotKart {
     SnapshotKart {
@@ -489,6 +534,7 @@ fn snapshot_kart(kart: &KartSnapshot) -> SnapshotKart {
             },
             charge_s: drift.charge_s,
         }),
+        held_item: kart.held_item.map(item),
         lap: u32::from(kart.lap),
         checkpoint: usize::from(kart.checkpoint),
         spline_progress: kart.spline_progress,

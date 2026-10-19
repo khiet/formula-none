@@ -28,8 +28,8 @@ use crate::tuning::{
     COUNTDOWN_S, KART_HALF_LENGTH_M, RECONCILIATION_BLEND_TICKS, RECONCILIATION_TOLERANCE_M, TICK_S,
 };
 use crate::{
-    clock_after, drift_slip, kart_collider, step, Drift, Kart, KartInput, KartTransform, Phase,
-    Standing, State, Surface, Track,
+    clock_after, drift_slip, kart_collider, step, Drift, Item, Kart, KartInput, KartTransform,
+    Phase, Standing, State, Surface, Track,
 };
 
 /// What a snapshot says of one kart, in the sim's terms. Metres, seconds and
@@ -40,6 +40,9 @@ pub struct SnapshotKart {
     pub rotation: [f32; 4],
     pub velocity: [f32; 3],
     pub drift: Option<Drift>,
+    /// The item in the kart's slot, which the server rolled; the
+    /// prediction's own roll is only a stand-in until a snapshot says.
+    pub held_item: Option<Item>,
     /// The lap the kart is on, from 1, as [`Standing::lap`] counts it.
     pub lap: u32,
     /// The last checkpoint crossed in order; 0 is the start line.
@@ -386,7 +389,7 @@ impl Prediction {
 
 /// Whether the snapshot puts the kart where the record does, to the tuned
 /// tolerance: its position, its nose, the tick of travel its velocity
-/// makes, its drift and its place in the lap.
+/// makes, its drift, its item and its place in the lap.
 fn agrees(record: &KartRecord, kart: &SnapshotKart) -> bool {
     let nose = |rotation: Rotation| rotation * Vec3::NEG_Z * KART_HALF_LENGTH_M;
     let near = |a: Vec3, b: Vec3| a.distance(b) <= RECONCILIATION_TOLERANCE_M;
@@ -405,6 +408,7 @@ fn agrees(record: &KartRecord, kart: &SnapshotKart) -> bool {
         )
         && near(record.linvel * TICK_S, Vec3::from(kart.velocity) * TICK_S)
         && drift
+        && record.kart.held_item == kart.held_item
         && lap(&record.kart) == kart.lap
         && record.kart.checkpoint == kart.checkpoint
 }
@@ -430,6 +434,7 @@ impl KartRecord {
         let slip = kart.drift.map_or(0.0, |drift| drift_slip(drift.direction));
         kart.travel = rotation * Rotation::from_rotation_y(slip) * Vec3::NEG_Z;
         kart.speed = kart.travel.dot(velocity);
+        kart.held_item = snapshot.held_item;
         if lap(kart) != snapshot.lap {
             kart.laps_completed = snapshot.lap.saturating_sub(1);
         }

@@ -348,3 +348,16 @@ describe("prediction", () => {
     expect(() => prediction.reconcile({ ...snapshot, tick: 236, karts: [] })).toThrow(/kart 0/);
   });
 });
+
+describe("items", () => {
+  it("reports the empty slot, the track's boxes and the tuned respawn", async () => {
+    const bridge = await loadBridge(wasm);
+    expect(bridge.itemBoxRespawnSeconds).toBe(3);
+    const race = bridge.createRace(7n, 1, 0, OVAL);
+    expect(race.kartTransforms()[0]?.heldItem).toBeNull();
+    const boxes = race.itemBoxes();
+    expect(boxes).toHaveLength(8);
+    expect(boxes[0]).toEqual({ position: [-34.5, 0, -70], yaw: expect.closeTo(-Math.PI, 5) });
+    expect(race.itemBoxesPresent()).toEqual(Array<boolean>(8).fill(true));
+  });
+});

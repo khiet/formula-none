@@ -163,6 +163,7 @@ fn every_event_kind() -> Vec<Event> {
         EventKind::ItemPicked {
             kart: 3,
             item: Item::Homing,
+            item_box: 5,
         },
         EventKind::ItemFired {
             kart: 3,

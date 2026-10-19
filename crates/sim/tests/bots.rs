@@ -356,15 +356,24 @@ fn perfect_driver(state: &State, kart: usize) -> KartInput {
     }
 }
 
-/// Race one human driven by `driver` against seven bots on the oval until
-/// the race ends or `seconds` are up. Returns the finishing order as grid
-/// slots, who finished first and then the rest by race position when the
-/// run ends, and the state at the end.
+/// The oval without its item boxes: a race of driving alone, with no boost
+/// to even the field and no traffic from a boosted kart.
+fn oval_without_item_boxes() -> Track {
+    let mut sidecar: serde_json::Value = serde_json::from_str(OVAL).expect("valid JSON");
+    sidecar["item_boxes"] = serde_json::json!([]);
+    Track::from_sidecar(&sidecar.to_string()).expect("the oval without boxes loads")
+}
+
+/// Race one human driven by `driver` against seven bots on the oval without
+/// its item boxes until the race ends or `seconds` are up, so the race
+/// compares the driving; the bots' items are covered in `items.rs`.
+/// Returns the finishing order as grid slots, who finished first and then
+/// the rest by race position when the run ends, and the state at the end.
 fn race_against_seven_bots(
     driver: Option<fn(&State, usize) -> KartInput>,
     seconds: f32,
 ) -> (Vec<usize>, State) {
-    let mut state = started(State::with_bots(SEED, 1, 7, oval()));
+    let mut state = started(State::with_bots(SEED, 1, 7, oval_without_item_boxes()));
     let mut finished: Vec<usize> = Vec::new();
     for _ in 0..ticks(seconds) {
         let input = driver.map_or(KartInput::default(), |driver| driver(&state, 0));

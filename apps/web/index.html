@@ -27,6 +27,20 @@
         color: #fff;
         font: 1.25rem/1 ui-monospace, SFMono-Regular, Menlo, monospace;
       }
+      [data-instrument="item"] {
+        display: inline-block;
+        min-width: 4.5em;
+        text-align: center;
+        border: 1px solid rgba(255, 255, 255, 0.4);
+        border-radius: 0.25rem;
+      }
+      [data-instrument="item"][data-item-state="held"] {
+        color: #ffcc33;
+      }
+      [data-instrument="item"][data-item-state="firing"] {
+        color: #000;
+        background: #ffcc33;
+      }
       [data-instrument="countdown"] {
         position: fixed;
         top: 40%;

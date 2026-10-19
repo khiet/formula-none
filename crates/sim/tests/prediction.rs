@@ -36,6 +36,7 @@ fn snapshot_of(state: &State) -> SnapshotKart {
         rotation: transform.rotation,
         velocity: transform.velocity,
         drift: transform.drift,
+        held_item: transform.held_item,
         lap: standing.lap(),
         checkpoint: standing.checkpoint,
         spline_progress: standing.spline_progress,
@@ -217,5 +218,52 @@ fn the_predicted_countdown_runs_ahead_of_the_snapshots_by_the_inputs_in_flight()
     assert!(
         (remaining_s - expected).abs() < 1e-4,
         "{remaining_s} s left"
+    );
+}
+
+#[test]
+fn the_snapshots_item_is_taken_without_a_correction_and_firing_it_is_predicted() {
+    use sim::tuning::{ITEM_BOOST_FACTOR, TOP_SPEED_M_PER_S};
+    use sim::Item;
+    let (mut prediction, grid) = on_the_grid();
+    assert_eq!(prediction.kart_transform().held_item, None);
+
+    // The server rolled the kart a boost from a box the prediction did not
+    // see taken; the kart is where it was predicted, so nothing moves.
+    let mut holding = grid;
+    holding.held_item = Some(Item::Boost);
+    assert_eq!(prediction.reconcile(12, 5, &holding), 0.0);
+    assert_eq!(prediction.corrections(), 0);
+    assert_eq!(prediction.kart_transform().held_item, Some(Item::Boost));
+
+    // Past Go, the press fires the boost the server gave: the predicted
+    // kart is at the boosted speed the tick it is pressed.
+    let throttle = KartInput {
+        throttle: 1.0,
+        ..KartInput::default()
+    };
+    let mut sequence = 10;
+    while !matches!(prediction.phase(), Phase::Racing { .. }) {
+        sequence += 1;
+        prediction.tick(sequence, KartInput::default(), &[]);
+    }
+    for _ in 0..30 {
+        sequence += 1;
+        prediction.tick(sequence, throttle, &[]);
+    }
+    prediction.tick(
+        sequence + 1,
+        KartInput {
+            use_item: true,
+            ..throttle
+        },
+        &[],
+    );
+    let kart = prediction.kart_transform();
+    assert_eq!(kart.held_item, None);
+    assert!(
+        (kart.speed - ITEM_BOOST_FACTOR * TOP_SPEED_M_PER_S).abs() < 1e-3,
+        "boosted: {} m/s",
+        kart.speed
     );
 }

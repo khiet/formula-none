@@ -3,8 +3,9 @@ import type { Bridge, KartInput, KartTransform, Phase, Prediction, Race } from "
 import { TOKEN } from "./fake-connection";
 import type { Event, FinalStanding, Input, KartSnapshot, Snapshot } from "./generated/protocol";
 import { IDLE_INPUT } from "./input";
+import { ITEM_FIRE_FLASH_S } from "./race-scene";
 import { type Countdown, quantiseInput, type RoomClient } from "./room-client";
-import { createServerRace } from "./server-race";
+import { createServerRace, PREDICTED_FIRE_TIMEOUT_S } from "./server-race";
 
 // The run reads the server's snapshots and events through the room client;
 // the bridge here is only what the run asks of it: the tuning, a race it
@@ -16,12 +17,16 @@ const TICKS_PER_SECOND = 60;
 const COUNTDOWN_S = 3;
 const KARTS = 8;
 
+const ITEM_BOX_RESPAWN_S = 3;
+const ITEM_BOXES = 8;
+
 const GRID_TRANSFORM: KartTransform = {
   position: [1, 0.3, 2],
   rotation: [0, 0, 0, 1],
   speed: 0,
   surface: "asphalt",
   drift: null,
+  heldItem: null,
 };
 
 const PREDICTED: KartTransform = {
@@ -30,6 +35,7 @@ const PREDICTED: KartTransform = {
   speed: 20,
   surface: "asphalt",
   drift: null,
+  heldItem: "hazard",
 };
 
 interface FakePrediction extends Prediction {
@@ -54,9 +60,13 @@ const bridge = {
   countdownSeconds: COUNTDOWN_S,
   kartsPerRace: KARTS,
   lapsPerRace: 3,
+  itemBoxRespawnSeconds: ITEM_BOX_RESPAWN_S,
   createRace: () =>
     ({
       kartTransforms: () => Array<KartTransform>(KARTS).fill(GRID_TRANSFORM),
+      itemBoxes: () =>
+        Array.from({ length: ITEM_BOXES }, (_, box) => ({ position: [box, 0, -70], yaw: 0 })),
+      itemBoxesPresent: () => Array<boolean>(ITEM_BOXES).fill(true),
     }) as unknown as Race,
   createPrediction(_seed: bigint, kart: number): Prediction {
     const made: FakePrediction = {
@@ -220,6 +230,7 @@ describe("createServerRace", () => {
       speed: 12,
       surface: "sand",
       drift: { direction: "left", chargeSeconds: 1, miniTurbo: "blue" },
+      heldItem: null,
     };
     prediction().interpolated = Array<KartTransform>(KARTS).fill(interpolated);
     const [first, own, third] = run.kartTransforms();
@@ -275,5 +286,85 @@ describe("createServerRace", () => {
     run.dispose();
     client.snapshot(snapshot(180 + 60 * 131, [{ racePosition: 5 }]));
     expect(run.standings()[0]?.position).toBe(1);
+  });
+
+  const DT = 1 / TICKS_PER_SECOND;
+  const picked = (id: number, kart: number, itemBox = 2): Event => ({
+    id,
+    kind: { itemPicked: { kart, item: "boost", itemBox } },
+  });
+  const fired = (id: number, kart: number): Event => ({
+    id,
+    kind: { itemFired: { kart, item: "boost" } },
+  });
+
+  it("shows the item the server rolled for the local kart, not the prediction's, until the server fires it", () => {
+    const client = fakeClient();
+    const run = createServerRace(bridge, client, COUNTDOWN, 0, "{}");
+    expect(run.itemSlot()).toEqual({ item: null, firing: false });
+    client.event(picked(1, 1));
+    expect(run.itemSlot()).toEqual({ item: null, firing: false });
+    client.event(picked(2, 0));
+    expect(run.itemSlot()).toEqual({ item: "boost", firing: false });
+    // A bot's fire is not the local kart's; the local kart's empties the
+    // slot and shows the fire for the flash.
+    client.event(fired(3, 1));
+    expect(run.itemSlot()).toEqual({ item: "boost", firing: false });
+    client.event(fired(4, 0));
+    expect(run.itemSlot()).toEqual({ item: null, firing: true });
+    for (let tick = 0; tick < ITEM_FIRE_FLASH_S * TICKS_PER_SECOND; tick++) {
+      run.tick(IDLE_INPUT, DT);
+    }
+    expect(run.itemSlot()).toEqual({ item: null, firing: false });
+  });
+
+  it("predicts the fire from the press and reconciles it with the server's event", () => {
+    const client = fakeClient();
+    const run = createServerRace(bridge, client, COUNTDOWN, 0, "{}");
+    client.event(picked(1, 0));
+    run.tick({ ...IDLE_INPUT, useItem: true }, DT);
+    expect(run.itemSlot()).toEqual({ item: "boost", firing: true });
+    run.tick(IDLE_INPUT, DT);
+    expect(run.itemSlot()).toEqual({ item: "boost", firing: true });
+    // The server's word: the item is gone, and the fire plays out.
+    client.event(fired(2, 0));
+    expect(run.itemSlot()).toEqual({ item: null, firing: true });
+    for (let tick = 0; tick < ITEM_FIRE_FLASH_S * TICKS_PER_SECOND; tick++) {
+      run.tick(IDLE_INPUT, DT);
+    }
+    expect(run.itemSlot()).toEqual({ item: null, firing: false });
+    // A press with nothing held predicts nothing.
+    run.tick({ ...IDLE_INPUT, useItem: true }, DT);
+    expect(run.itemSlot()).toEqual({ item: null, firing: false });
+  });
+
+  it("gives up a predicted fire the server never confirms and shows the item still held", () => {
+    const client = fakeClient();
+    const run = createServerRace(bridge, client, COUNTDOWN, 0, "{}");
+    client.event(picked(1, 0));
+    run.tick({ ...IDLE_INPUT, useItem: true }, DT);
+    for (let tick = 1; tick < PREDICTED_FIRE_TIMEOUT_S * TICKS_PER_SECOND; tick++) {
+      run.tick(IDLE_INPUT, DT);
+      expect(run.itemSlot()).toEqual({ item: "boost", firing: true });
+    }
+    run.tick(IDLE_INPUT, DT);
+    expect(run.itemSlot()).toEqual({ item: "boost", firing: false });
+  });
+
+  it("hides a box the server reports taken for the tuned respawn", () => {
+    const client = fakeClient();
+    const run = createServerRace(bridge, client, COUNTDOWN, 0, "{}");
+    expect(run.itemBoxes()).toHaveLength(ITEM_BOXES);
+    expect(run.itemBoxesPresent()).toEqual(Array<boolean>(ITEM_BOXES).fill(true));
+    client.event(picked(1, 3, 5));
+    const present = run.itemBoxesPresent();
+    expect(present[5]).toBe(false);
+    expect(present.filter(Boolean)).toHaveLength(ITEM_BOXES - 1);
+    for (let tick = 1; tick < ITEM_BOX_RESPAWN_S * TICKS_PER_SECOND; tick++) {
+      run.tick(IDLE_INPUT, DT);
+      expect(run.itemBoxesPresent()[5]).toBe(false);
+    }
+    run.tick(IDLE_INPUT, DT);
+    expect(run.itemBoxesPresent()[5]).toBe(true);
   });
 });

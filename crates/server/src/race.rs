@@ -8,7 +8,8 @@
 use std::collections::{BTreeMap, VecDeque};
 
 use protocol::{
-    DriftDirection, DriftSnapshot, Event, EventKind, FinalStanding, Input, KartSnapshot, Snapshot,
+    DriftDirection, DriftSnapshot, Event, EventKind, FinalStanding, Input, Item, KartSnapshot,
+    Snapshot,
 };
 use sim::tuning::{
     CONNECTION_SILENCE_S, INPUT_QUEUE_MAX_TICKS, INPUT_QUEUE_START_TICKS, KARTS_PER_RACE,
@@ -278,7 +279,7 @@ impl Race {
                 checkpoint: standing.checkpoint as u8,
                 spline_progress: standing.spline_progress,
                 wrong_way: standing.wrong_way,
-                held_item: None,
+                held_item: transform.held_item.map(wire_item),
                 spin_out_s: None,
             })
             .collect();
@@ -326,6 +327,27 @@ fn event_kind(event: RaceEvent) -> EventKind {
             finish_time_s,
         },
         RaceEvent::Respawned { kart } => EventKind::Respawned { kart: kart as u8 },
+        RaceEvent::ItemPicked {
+            kart,
+            item,
+            item_box,
+        } => EventKind::ItemPicked {
+            kart: kart as u8,
+            item: wire_item(item),
+            item_box: item_box as u8,
+        },
+        RaceEvent::ItemFired { kart, item } => EventKind::ItemFired {
+            kart: kart as u8,
+            item: wire_item(item),
+        },
+    }
+}
+
+fn wire_item(item: sim::Item) -> Item {
+    match item {
+        sim::Item::Boost => Item::Boost,
+        sim::Item::Hazard => Item::Hazard,
+        sim::Item::Homing => Item::Homing,
     }
 }
 

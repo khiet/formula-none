@@ -16,8 +16,9 @@
 //! A race has a beginning and an end, and both are rules: [`State::phase`]
 //! walks Countdown, Racing and Finished through `step`, so a room on the
 //! server can drive the lifecycle a solo race in the browser does. What a
-//! tick changed that the players are told about, a lap completed, a finish
-//! or a respawn, is read from [`State::events`] after that tick.
+//! tick changed that the players are told about, a lap completed, a finish,
+//! a respawn, an item taken or fired, is read from [`State::events`] after
+//! that tick.
 
 pub mod bot;
 mod hash;
@@ -32,7 +33,7 @@ pub use prediction::{Prediction, SnapshotKart};
 pub use replay::{Replay, ReplayError, Segment};
 pub use track::{Checkpoint, Placement, Surface, SurfaceMesh, Track, TrackError};
 
-use rand_chacha::rand_core::SeedableRng;
+use rand_chacha::rand_core::{Rng, SeedableRng};
 use rand_chacha::ChaCha8Rng;
 use rapier3d::prelude::*;
 use serde::{Deserialize, Serialize};
@@ -56,20 +57,20 @@ pub struct KartInput {
     /// mini-turbo.
     #[serde(default)]
     pub hop: bool,
-    /// The item button went down this tick. Carried through the bridge and
-    /// recordings already; `step` does not read the item buttons until
-    /// items become rules.
+    /// The item button went down this tick: fires the item the kart holds.
     #[serde(default)]
     pub use_item: bool,
-    /// The item button is down, this tick included.
+    /// The item button is down, this tick included. Carried through the
+    /// bridge and recordings already; `step` does not read it until a held
+    /// hazard becomes a rule.
     #[serde(default)]
     pub hold_item: bool,
 }
 
 /// What the View and the Instrument panel need per kart: where it is, in
-/// metres and as a unit quaternion `[x, y, z, w]`, how fast it is going, and
-/// the drift under way. Y is up and a kart with identity rotation faces -Z,
-/// matching Three.js.
+/// metres and as a unit quaternion `[x, y, z, w]`, how fast it is going,
+/// the drift under way and the item it holds. Y is up and a kart with
+/// identity rotation faces -Z, matching Three.js.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct KartTransform {
     pub position: [f32; 3],
@@ -82,6 +83,52 @@ pub struct KartTransform {
     pub velocity: [f32; 3],
     /// The drift the kart is in; `None` when it is not drifting.
     pub drift: Option<Drift>,
+    /// The item in the kart's slot; `None` while the slot is empty.
+    pub held_item: Option<Item>,
+}
+
+/// The items a kart can hold: what an item box rolls. Only the boost does
+/// anything when fired so far; a hazard or a homing projectile fires to no
+/// effect until its rules land.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Item {
+    /// A burst of speed: the tuned factor on top speed for the tuned time.
+    Boost,
+    /// Dropped behind the kart; spins out whoever hits it.
+    Hazard,
+    /// Follows the track to the kart ahead and spins it out.
+    Homing,
+}
+
+impl Item {
+    /// The item as one byte, for the hash and the bridge; 0 is left for an
+    /// empty slot.
+    pub fn code(self) -> u8 {
+        match self {
+            Self::Boost => 1,
+            Self::Hazard => 2,
+            Self::Homing => 3,
+        }
+    }
+
+    /// The item a roll in `0..100` picks for a kart in race `position`,
+    /// from the tuned weights of the position's band: the first `hazard`
+    /// percent are the hazard, the next `boost` the boost and the rest the
+    /// homing projectile. A position past the last band rolls as the last.
+    fn rolled(position: u32, roll: u32) -> Self {
+        let band = ITEM_ROLL_WEIGHTS
+            .iter()
+            .find(|band| position <= u32::from(band.positions.1))
+            .or(ITEM_ROLL_WEIGHTS.last())
+            .expect("the roll table has a band");
+        if roll < u32::from(band.hazard) {
+            Self::Hazard
+        } else if roll < u32::from(band.hazard) + u32::from(band.boost) {
+            Self::Boost
+        } else {
+            Self::Homing
+        }
+    }
 }
 
 /// Which way a drift turns the kart. Fixed by the steer at the hop.
@@ -186,6 +233,15 @@ pub enum RaceEvent {
     },
     /// The kart was put back on the track at its last checkpoint.
     Respawned { kart: usize },
+    /// The kart took `item_box`, an index into the track's item boxes, and
+    /// rolled `item` into its slot.
+    ItemPicked {
+        kart: usize,
+        item: Item,
+        item_box: usize,
+    },
+    /// The kart fired the item it held; its slot is empty again.
+    ItemFired { kart: usize, item: Item },
 }
 
 /// Where the race is. Every value here is read from `step`, never from a
@@ -292,6 +348,9 @@ pub struct State {
     /// What the last tick changed that the players are told about. Not
     /// hashed: nothing here influences a future tick.
     events: Vec<RaceEvent>,
+    /// Seconds until each of the track's item boxes is back, in the
+    /// track's order; zero or less while the box is there to take.
+    item_box_respawn_s: Vec<f32>,
 }
 
 #[derive(Clone)]
@@ -352,6 +411,9 @@ struct Kart {
     /// The race clock at the finish; `None` while the kart is racing. A
     /// finished kart counts no more laps and its lap clock stops.
     finish_time_s: Option<f32>,
+    /// The item in the kart's one slot. While it holds one it drives over
+    /// item boxes without taking them.
+    held_item: Option<Item>,
 }
 
 impl Kart {
@@ -408,6 +470,10 @@ use tuning::{
     DRIFT_ENTRY_SPEED_FRACTION, GRAVITY_M_PER_S2, HOP_AIRTIME_S, KART_EDGE_RADIUS_M,
     KART_HALF_HEIGHT_M, KART_HALF_LENGTH_M, KART_HALF_WIDTH_M, LAPS_PER_RACE,
     MINI_TURBO_BOOST_FACTOR, OFF_TRACK_SPEED_FACTOR, TOP_SPEED_M_PER_S,
+};
+use tuning::{
+    ITEM_BOOST_FACTOR, ITEM_BOOST_S, ITEM_BOX_HALF_LENGTH_M, ITEM_BOX_HALF_WIDTH_M,
+    ITEM_BOX_RESPAWN_S, ITEM_ROLL_WEIGHTS,
 };
 
 /// A surface query starts this far above the asked point, so a point lying
@@ -506,6 +572,7 @@ impl State {
                     start: Start::Clean,
                     stall_left_s: 0.0,
                     finish_time_s: None,
+                    held_item: None,
                 }
             })
             .collect();
@@ -513,6 +580,7 @@ impl State {
 
         Self {
             rng: ChaCha8Rng::seed_from_u64(seed),
+            item_box_respawn_s: vec![0.0; track.item_boxes().len()],
             track,
             karts,
             humans,
@@ -548,6 +616,16 @@ impl State {
     /// Whether the kart in `slot` is driven by a bot.
     pub fn is_bot(&self, slot: usize) -> bool {
         self.karts[slot].bot.is_some()
+    }
+
+    /// Whether each of the track's item boxes, in the track's order, is
+    /// there to take as of the last tick; a taken box is back the tuned
+    /// time after it was taken.
+    pub fn item_boxes_present(&self) -> Vec<bool> {
+        self.item_box_respawn_s
+            .iter()
+            .map(|&respawn_s| respawn_s <= 0.0)
+            .collect()
     }
 
     /// A bot drives the human's kart in `slot` from the next tick, with no
@@ -611,9 +689,9 @@ impl State {
     }
 
     /// A hash of everything that influences future ticks: the phase and its
-    /// clocks, the RNG and, per kart, its speed and its body's position,
-    /// heading, velocities and sleep state, including the timer that puts
-    /// a resting body to sleep.
+    /// clocks, the RNG, the item boxes' respawn clocks and, per kart, its
+    /// speed, its item and its body's position, heading, velocities and
+    /// sleep state, including the timer that puts a resting body to sleep.
     /// Bit-identical on every platform for bit-identical states, which is
     /// what the replay fixtures check (ADR 0002). A bot's memory is hashed
     /// with its kart, so a human's kart a bot drives hashes apart from one
@@ -640,6 +718,7 @@ impl State {
         hasher.write(&self.rng.get_seed());
         hasher.write_u64(self.rng.get_stream());
         hasher.write_u128(self.rng.get_word_pos());
+        hasher.write_f32s(self.item_box_respawn_s.iter().copied());
         for kart in &self.karts {
             let body = &self.physics.bodies[kart.body];
             hasher.write_f32(kart.speed);
@@ -665,6 +744,7 @@ impl State {
             hasher.write_u8(kart.start.code());
             hasher.write_f32(kart.stall_left_s);
             hasher.write_f32(kart.finish_time_s.unwrap_or(NO_TIME));
+            hasher.write_u8(kart.held_item.map_or(0, Item::code));
             if let Some(memory) = &kart.bot {
                 hasher.write_f32s(memory.timers());
             }
@@ -736,9 +816,27 @@ impl State {
                     speed: kart.speed,
                     velocity: body.linvel().to_array(),
                     drift: kart.drift,
+                    held_item: kart.held_item,
                 }
             })
             .collect()
+    }
+
+    /// Take the item box `item_box` into the slot of the kart in `slot`,
+    /// rolling the item by the kart's race position as of `standings`, and
+    /// start the box's respawn clock.
+    fn pick_up(&mut self, slot: usize, item_box: usize, standings: &[Standing]) {
+        // The top 32 bits of the draw scaled to the table's hundred, so the
+        // roll is as even as the draw.
+        let roll = ((u64::from(self.rng.next_u32()) * 100) >> 32) as u32;
+        let item = Item::rolled(standings[slot].position, roll);
+        self.karts[slot].held_item = Some(item);
+        self.item_box_respawn_s[item_box] = ITEM_BOX_RESPAWN_S;
+        self.events.push(RaceEvent::ItemPicked {
+            kart: slot,
+            item,
+            item_box,
+        });
     }
 }
 
@@ -804,6 +902,50 @@ pub fn step(mut state: State, inputs: &[KartInput], dt: f32) -> State {
             })
             .collect()
     };
+    // Fires come before pickups, so a press on the tick a box is taken
+    // fires what the kart held, never what it has just rolled.
+    for (slot, input) in inputs.iter().enumerate() {
+        let kart = &mut state.karts[slot];
+        if kart.stall_left_s > 0.0 || !input.use_item {
+            continue;
+        }
+        if let Some(item) = kart.held_item.take() {
+            if item == Item::Boost {
+                kart.boost_left_s = ITEM_BOOST_S;
+                kart.boost_factor = ITEM_BOOST_FACTOR;
+            }
+            state.events.push(RaceEvent::ItemFired { kart: slot, item });
+        }
+    }
+    // Taken boxes come back on their clocks; a kart standing on one takes
+    // it the tick it is back. A kart holding an item drives over boxes.
+    for respawn_s in &mut state.item_box_respawn_s {
+        if *respawn_s > 0.0 {
+            *respawn_s -= dt;
+        }
+    }
+    let mut standings = None;
+    for slot in 0..state.karts.len() {
+        if state.karts[slot].held_item.is_some() {
+            continue;
+        }
+        let position = state.physics.bodies[state.karts[slot].body]
+            .translation()
+            .to_array();
+        let taken = state
+            .track
+            .item_boxes()
+            .iter()
+            .zip(&state.item_box_respawn_s)
+            .position(|(item_box, &respawn_s)| {
+                respawn_s <= 0.0
+                    && item_box.covers(position, ITEM_BOX_HALF_LENGTH_M, ITEM_BOX_HALF_WIDTH_M)
+            });
+        if let Some(item_box) = taken {
+            let standings = standings.get_or_insert_with(|| state.standings());
+            state.pick_up(slot, item_box, standings);
+        }
+    }
     let top_speeds: Vec<f32> = (0..state.karts.len())
         .map(|slot| TOP_SPEED_M_PER_S * state.rubber_band(slot))
         .collect();

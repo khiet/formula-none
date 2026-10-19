@@ -172,7 +172,14 @@ pub const RESPAWN_DELAY_S: f32 = 1.5;
 
 // Items.
 
+/// Seconds after a box is taken before it is back to take again.
 pub const ITEM_BOX_RESPAWN_S: f32 = 3.0;
+/// A box is taken by a kart whose centre is within this much of its
+/// placement along the direction it faces and across it. The boxes of a
+/// row stand 3 m apart, so the widths meet without overlapping and a kart
+/// between two takes one.
+pub const ITEM_BOX_HALF_LENGTH_M: f32 = 1.0;
+pub const ITEM_BOX_HALF_WIDTH_M: f32 = 1.5;
 pub const ITEM_BOOST_S: f32 = 1.5;
 pub const ITEM_BOOST_FACTOR: f32 = 1.4;
 /// Metres behind the kart a hazard is dropped.
@@ -274,6 +281,10 @@ const _: () = {
     assert!(BOT_PASS_GAP_M > 2.0 * KART_HALF_WIDTH_M);
     assert!(BOT_STALL_SPEED_M_PER_S * ACCELERATION_TO_TOP_S / TOP_SPEED_M_PER_S < BOT_STALL_S);
     assert!(0.0 < START_BOOST_WINDOW_S && START_BOOST_WINDOW_S < COUNTDOWN_S);
+    assert!(0.0 < ITEM_BOX_RESPAWN_S);
+    assert!(0.0 < ITEM_BOX_HALF_LENGTH_M && 0.0 < ITEM_BOX_HALF_WIDTH_M);
+    assert!(0.0 < ITEM_BOOST_S && 1.0 < ITEM_BOOST_FACTOR);
+    assert!(0.0 < BOT_ITEM_USE_DELAY_S);
     assert!(0.0 < RACE_END_GRACE_S);
     assert!(SNAPSHOTS_PER_SECOND <= TICKS_PER_SECOND);
     assert!(0 < SNAPSHOT_EVENT_REPEATS);

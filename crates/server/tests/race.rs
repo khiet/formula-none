@@ -305,7 +305,8 @@ async fn an_event_comes_once_on_the_reliable_lane_and_in_three_snapshots_under_i
     let (_, mut players, _) = racing_room(&mut harness, 1).await;
     let player = &mut players[0];
 
-    // The first event is a bot completing a lap behind the idle human.
+    // The first event is a bot's, behind the idle human: an item taken on
+    // the back straight.
     let first = loop {
         match next_events_or_snapshot(player).await.unwrap() {
             Ok(events) => break events,
@@ -314,7 +315,7 @@ async fn an_event_comes_once_on_the_reliable_lane_and_in_three_snapshots_under_i
     };
     let event = first[0];
     assert!(
-        matches!(event.kind, EventKind::LapCompleted { lap: 1, .. }),
+        matches!(event.kind, EventKind::ItemPicked { kart, .. } if kart >= 1),
         "{event:?}"
     );
 
@@ -386,9 +387,11 @@ async fn events_are_never_lost_on_a_lossy_link_and_every_id_is_distinct() {
     assert!(
         on_the_stream.iter().all(|event| matches!(
             event.kind,
-            EventKind::LapCompleted { kart, .. } if usize::from(kart) >= 1
+            EventKind::LapCompleted { kart, .. }
+                | EventKind::ItemPicked { kart, .. }
+                | EventKind::ItemFired { kart, .. } if usize::from(kart) >= 1
         )),
-        "the idle human completes nothing; the bots lap: {on_the_stream:?}"
+        "the idle human does nothing; the bots race: {on_the_stream:?}"
     );
 }
 
@@ -656,4 +659,102 @@ async fn stopping_the_server_mid_race_ends_every_session() {
             "no results come: the session ended"
         );
     }
+}
+
+#[tokio::test(start_paused = true)]
+async fn an_item_pickup_and_its_fire_are_server_events_the_snapshots_repeat_and_show() {
+    use sim::tuning::BOT_ITEM_USE_DELAY_S;
+    let mut harness = Harness::new(Conditions::PERFECT);
+    let (_, mut players, _) = racing_room(&mut harness, 1).await;
+    let player = &mut players[0];
+
+    // The idle human watches the bots; the first through the oval's boxes
+    // takes one, which the reliable lane reports with the box taken.
+    let mut last_tick = 0;
+    let picked = loop {
+        match next_events_or_snapshot(player).await.unwrap() {
+            Ok(events) => {
+                if let Some(event) = events
+                    .iter()
+                    .find(|event| matches!(event.kind, EventKind::ItemPicked { .. }))
+                {
+                    break *event;
+                }
+            }
+            Err(snapshot) => {
+                assert!(
+                    snapshot.karts.iter().all(|kart| kart.held_item.is_none()),
+                    "no item before the first pickup is reported"
+                );
+                last_tick = snapshot.tick;
+            }
+        }
+    };
+    let EventKind::ItemPicked {
+        kart,
+        item,
+        item_box,
+    } = picked.kind
+    else {
+        unreachable!()
+    };
+    assert!(kart >= 1, "a bot took it: {picked:?}");
+    assert!(
+        usize::from(item_box) < KARTS_PER_RACE,
+        "one of the oval's boxes"
+    );
+    let picked_tick = last_tick;
+
+    // The snapshots repeat the pickup under its id and show the item in
+    // the kart's slot until the bot fires it, within the tuned delay; the
+    // fire is reported the same way and empties the slot.
+    let mut pickup_repeats = 0;
+    let mut fired = None;
+    let mut fire_repeats = 0;
+    let mut after_fire = 0;
+    while after_fire < 3 {
+        match next_events_or_snapshot(player).await.unwrap() {
+            Ok(events) => {
+                assert!(
+                    events.iter().all(|event| event.id != picked.id),
+                    "once on the reliable lane"
+                );
+                if let Some(event) = events.iter().find(|event| {
+                    matches!(event.kind, EventKind::ItemFired { kart: by, .. } if by == kart)
+                }) {
+                    assert_eq!(fired, None, "fired once");
+                    assert_eq!(event.kind, EventKind::ItemFired { kart, item });
+                    assert!(event.id > picked.id);
+                    fired = Some(*event);
+                    assert!(
+                        seconds(last_tick - picked_tick) <= BOT_ITEM_USE_DELAY_S + 0.1,
+                        "fired {} s after the pickup",
+                        seconds(last_tick - picked_tick)
+                    );
+                }
+            }
+            Err(snapshot) => {
+                last_tick = snapshot.tick;
+                let held = snapshot.karts[usize::from(kart)].held_item;
+                pickup_repeats += snapshot
+                    .events
+                    .iter()
+                    .filter(|event| **event == picked)
+                    .count();
+                match fired {
+                    None => assert_eq!(held, Some(item), "held until fired"),
+                    Some(fired) => {
+                        fire_repeats += snapshot
+                            .events
+                            .iter()
+                            .filter(|event| **event == fired)
+                            .count();
+                        after_fire += 1;
+                    }
+                }
+            }
+        }
+    }
+    assert_eq!(pickup_repeats, 3, "the pickup rode three snapshots");
+    assert_eq!(fire_repeats, 3, "the fire rode three snapshots");
 }

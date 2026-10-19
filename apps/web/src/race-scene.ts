@@ -1,8 +1,8 @@
-import type { Bridge, KartInput, KartTransform, Phase, Standing } from "./bridge";
+import type { Bridge, ItemBox, KartInput, KartTransform, Phase, Standing } from "./bridge";
 import { createChaseCamera } from "./chase-camera";
 import { gamepadKartInput } from "./gamepad";
 import { combinedKartInput, IDLE_INPUT } from "./input";
-import { createInstrumentPanel, type InstrumentPanel } from "./instrument-panel";
+import { createInstrumentPanel, type InstrumentPanel, type ItemSlot } from "./instrument-panel";
 import { kartLabels } from "./kart-labels";
 import { keyboardKartInput } from "./keyboard";
 import { createRaceView } from "./race-view";
@@ -39,6 +39,12 @@ export interface RaceRun {
   /** One standing per kart in grid order, as of the last tick. */
   standings(): Standing[];
   phase(): Phase;
+  /** The local kart's item slot, as of the last tick. */
+  itemSlot(): ItemSlot;
+  /** The track's item boxes, in the sidecar's order; fixed for the race. */
+  itemBoxes(): readonly ItemBox[];
+  /** Whether each item box, in the same order, is there to take, as of the last tick. */
+  itemBoxesPresent(): readonly boolean[];
   /** The run as a replay fixture, when the rules ran here to record. */
   readonly replay?: ReplayRecorder;
   /** Let go of whatever the run follows; called when the Scene is disposed. */
@@ -47,6 +53,8 @@ export interface RaceRun {
 
 /** Ticks run per frame at most, so a stalled tab catches up instead of spiralling. */
 const MAX_TICKS_PER_FRAME = 5;
+/** How long the item slot shows the fire after the item leaves it. Presentation, so not the sim's to tune. */
+export const ITEM_FIRE_FLASH_S = 0.5;
 /** Downloads the session so far as a replay fixture (assets/replays/README.md). */
 const DOWNLOAD_REPLAY_KEY = "r";
 
@@ -79,17 +87,30 @@ export function localRaceRun(
   const race = bridge.createRace(setup.seed, setup.humanCount, botCount, sidecar);
   const replay = recordReplay(bridge, setup.seed, track, botCount, race);
   const inputs: KartInput[] = Array<KartInput>(setup.humanCount).fill(IDLE_INPUT);
+  const boxes = race.itemBoxes();
+  const heldItem = () => race.kartTransforms()[setup.localKart]?.heldItem ?? null;
+  // The only way an item leaves the slot here is the fire, which the sim
+  // applies the tick it is pressed; the slot shows it for the flash.
+  let flashTicksLeft = 0;
   return {
     humanCount: setup.humanCount,
     localKart: setup.localKart,
     tick(input, dt) {
       inputs[setup.localKart] = input;
+      const before = heldItem();
       race.step(inputs, dt);
       replay.record(inputs);
+      flashTicksLeft =
+        before !== null && heldItem() === null
+          ? Math.round(ITEM_FIRE_FLASH_S * bridge.ticksPerSecond)
+          : Math.max(flashTicksLeft - 1, 0);
     },
     kartTransforms: () => race.kartTransforms(),
     standings: () => race.standings(),
     phase: () => race.phase(),
+    itemSlot: () => ({ item: heldItem(), firing: flashTicksLeft > 0 }),
+    itemBoxes: () => boxes,
+    itemBoxesPresent: () => race.itemBoxesPresent(),
     replay,
   };
 }
@@ -128,7 +149,13 @@ export async function createRaceScene(
     keyboardKartInput(window, listeners.signal),
     gamepadKartInput(navigator),
   );
-  const view = await createRaceView(container, bridge.kartsPerRace, bridge.kartSize, track.gltfUrl);
+  const view = await createRaceView(
+    container,
+    bridge.kartsPerRace,
+    bridge.kartSize,
+    track.gltfUrl,
+    run.itemBoxes(),
+  );
   const camera = createChaseCamera();
   const panel = createInstrumentPanel(container, bridge.lapsPerRace);
 
@@ -144,8 +171,9 @@ export async function createRaceScene(
         transforms,
         kartLabels(transforms, run.localKart, name),
         camera.update(local, frameSeconds),
+        run.itemBoxesPresent(),
       );
-      panel.update(local, standing, run.phase());
+      panel.update(local, standing, run.phase(), run.itemSlot());
     }
   };
   present(0);

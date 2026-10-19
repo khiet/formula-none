@@ -1,9 +1,26 @@
 import type { KartTransform, Phase, Standing } from "./bridge";
 import { formatLapTime, NO_LAP_TIME, ordinal } from "./format";
+import type { Item } from "./generated/protocol";
+
+/**
+ * The local kart's item slot as the run reports it: the item the server
+ * says is held, and whether the fire is showing, predicted from the press
+ * or confirmed by the server's event.
+ */
+export interface ItemSlot {
+  readonly item: Item | null;
+  readonly firing: boolean;
+}
+
+/** The item slot as the panel prints it: the item's name and the slot's state. */
+export interface ItemReadout {
+  readonly text: string;
+  readonly state: "empty" | "held" | "firing";
+}
 
 export interface InstrumentPanel {
-  /** Show the local kart's readouts and the race's phase from what the sim reports. */
-  update(local: KartTransform, standing: Standing, phase: Phase): void;
+  /** Show the local kart's readouts, the race's phase and the item slot from what the run reports. */
+  update(local: KartTransform, standing: Standing, phase: Phase, slot: ItemSlot): void;
   /** The connection readout: which transport reached the server and how fast, or that none did. */
   connection(status: string): void;
   /** Show the connection banner while a room's race has lost the server, and take it down once back. */
@@ -49,6 +66,8 @@ export function createInstrumentPanel(
   const bestLap = instrument("best-lap");
   const wrongWay = instrument("wrong-way");
   wrongWay.hidden = true;
+  const item = instrument("item");
+  item.dataset.itemState = "empty";
   const banner = instrument("connection-banner", CONNECTION_LOST_BANNER);
   banner.hidden = true;
   const countdown = instrument("countdown");
@@ -67,6 +86,8 @@ export function createInstrumentPanel(
     " ",
     bestLap,
     " ",
+    item,
+    " ",
     speed,
     " ",
     surface,
@@ -80,7 +101,7 @@ export function createInstrumentPanel(
   container.append(panel);
 
   return {
-    update(local, standing, phase) {
+    update(local, standing, phase, slot) {
       const readouts = lapReadouts(standing, lapsPerRace);
       position.textContent = readouts.position;
       lap.textContent = readouts.lap;
@@ -90,6 +111,9 @@ export function createInstrumentPanel(
       wrongWay.hidden = readouts.wrongWay === "";
       speed.textContent = formatSpeed(local.speed);
       surface.textContent = local.surface;
+      const held = itemReadout(slot);
+      item.textContent = held.text;
+      item.dataset.itemState = held.state;
       const count = phaseReadout(phase);
       countdown.textContent = count;
       countdown.hidden = count === "";
@@ -129,6 +153,20 @@ export function lapReadouts(standing: Standing, lapsPerRace: number): LapReadout
     lapTime: formatLapTime(standing.lapTimeSeconds),
     bestLap: `Best ${standing.bestLapSeconds === null ? NO_LAP_TIME : formatLapTime(standing.bestLapSeconds)}`,
     wrongWay: standing.wrongWay ? WRONG_WAY_WARNING : "",
+  };
+}
+
+const ITEM_NAMES: Readonly<Record<Item, string>> = {
+  boost: "Boost",
+  hazard: "Hazard",
+  homing: "Homing",
+};
+
+/** What the panel prints for the item slot: the item's name, in the firing state while the fire shows. */
+export function itemReadout(slot: ItemSlot): ItemReadout {
+  return {
+    text: slot.item === null ? "" : ITEM_NAMES[slot.item],
+    state: slot.firing ? "firing" : slot.item === null ? "empty" : "held",
   };
 }
 
