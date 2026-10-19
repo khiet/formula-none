@@ -1,5 +1,5 @@
-// The controls the Scenes share, built the same way so tests and styles
-// find them the same way: a button is addressable by its name.
+// The controls the Scenes share. A button is addressable by its name, so
+// tests and styles find it without knowing which Scene built it.
 
 export function button(name: string, label: string, press: () => void): HTMLButtonElement {
   const element = document.createElement("button");

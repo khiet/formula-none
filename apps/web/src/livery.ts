@@ -1,5 +1,5 @@
-// The eight liveries (ADR 0007): one fixed colour per slot, so the kart in
-// the View and the player in the Room Scene wear the same one.
+// The eight liveries: one fixed colour per slot, so the kart in the View
+// and the player in the Room Scene wear the same one.
 
 export const LIVERIES = 8;
 

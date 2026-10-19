@@ -167,8 +167,8 @@ impl Rooms {
             .collect()
     }
 
-    /// Seat a client in the room with `code`. The code is read as the
-    /// player typed it, in either case. On success the room has already
+    /// Seat a client in the room with `code`, read in either case with the
+    /// spaces around it ignored. On success the room has already
     /// sent `Joined` through `outbound` and will send every later change
     /// there; the membership forwards the player's messages.
     pub async fn join(

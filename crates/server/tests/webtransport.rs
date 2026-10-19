@@ -62,7 +62,7 @@ fn config(bind: SocketAddr, files: &Files) -> WebTransportConfig {
     }
 }
 
-/// A registry nobody stops: these sessions only Ping.
+/// A registry these sessions never reach: they only Ping.
 fn rooms() -> server::Rooms {
     server::Rooms::new(Shutdown::pair().1)
 }

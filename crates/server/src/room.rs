@@ -37,8 +37,8 @@ struct Seat {
 pub enum Left {
     /// The player is gone from the room; the seat is free.
     Removed,
-    /// Mid-race, so the kart stays and a bot drives it: the player is
-    /// Disconnected until Results.
+    /// Mid-race, so the kart stays for a bot to drive (ADR 0012): the
+    /// player is Disconnected.
     Disconnected,
     /// No such player.
     Unknown,

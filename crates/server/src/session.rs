@@ -35,7 +35,7 @@ pub async fn run(rooms: Rooms, channels: Channels, shutdown: Shutdown) {
             },
         };
         let Ok(message) = decode::<ClientMessage>(&bytes) else {
-            // Not a message: the client carries on, as before the rooms.
+            // Not a message: the client carries on.
             continue;
         };
         match (message, &membership) {
