@@ -280,7 +280,7 @@ fn the_snapshots_item_is_taken_without_a_correction_and_firing_it_is_predicted()
 
 #[test]
 fn the_prediction_takes_no_box_and_fills_its_slot_from_the_snapshots_alone() {
-    // The oval with a box under slot 0: the server's kart takes it at Go,
+    // The oval with a box under slot 0: the server's kart picks it up at Go,
     // the prediction's kart stands on it through Go with an empty slot.
     let mut sidecar: serde_json::Value = serde_json::from_str(OVAL).expect("valid JSON");
     let slot = sidecar["spawn_grid"][0]["position"].clone();
@@ -300,7 +300,7 @@ fn the_prediction_takes_no_box_and_fills_its_slot_from_the_snapshots_alone() {
         prediction.tick(sequence, KartInput::default(), &[]);
     }
     let held = server.kart_transforms()[0].held_item;
-    assert!(held.is_some(), "the server's kart took the box");
+    assert!(held.is_some(), "the server's kart picked up the box");
     assert_eq!(prediction.kart_transform().held_item, None);
 
     // The snapshot's word fills the slot.

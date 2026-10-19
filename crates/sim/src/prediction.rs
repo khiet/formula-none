@@ -148,7 +148,7 @@ impl Prediction {
         let mut state = State::on_spawn_slots(seed, 1, kart..kart + 1, track);
         // A box's roll is the server's: its RNG serves every kart's pickups
         // in the order they happen, which this race of one cannot follow.
-        // So the boxes are never here to take, and the slot holds only
+        // So the boxes are never here to pick up, and the slot holds only
         // what the snapshots say, which a press then fires as the server
         // fires it.
         state.item_box_respawn_s = vec![f32::INFINITY; state.item_box_respawn_s.len()];

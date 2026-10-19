@@ -177,9 +177,9 @@ pub const RESPAWN_DELAY_S: f32 = 1.5;
 
 // Items.
 
-/// Seconds after a box is taken before it is back to take again.
+/// Seconds after a box is picked up before it is back to pick up again.
 pub const ITEM_BOX_RESPAWN_S: f32 = 3.0;
-/// A box is taken by a kart whose centre is within this much of its
+/// A box is picked up by a kart whose centre is within this much of its
 /// placement along the direction it faces and across it. The boxes of a
 /// row stand 3 m apart, so the widths meet without overlapping and a kart
 /// between two takes one.

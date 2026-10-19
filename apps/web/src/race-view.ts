@@ -42,7 +42,7 @@ export interface RaceView {
   /**
    * Move every kart mesh to the transforms the sim reports, hang `labels`
    * where they say and hide every other kart's, move the camera to
-   * `camera`, and show each item box that is there to take.
+   * `camera`, and show each item box that is there to pick up.
    */
   update(
     transforms: readonly KartTransform[],

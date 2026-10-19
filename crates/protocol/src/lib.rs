@@ -308,7 +308,7 @@ pub struct Event {
 #[derive(Serialize, Deserialize, TS, Debug, Clone, Copy, PartialEq)]
 #[serde(rename_all = "camelCase", rename_all_fields = "camelCase")]
 pub enum EventKind {
-    /// `kart` took `item_box`, an index into the track's item boxes, which
+    /// `kart` picked up `item_box`, an index into the track's item boxes, which
     /// is gone until the tuned respawn, and rolled `item` into its slot.
     ItemPicked {
         kart: u8,

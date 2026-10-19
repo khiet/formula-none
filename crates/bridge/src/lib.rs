@@ -78,7 +78,7 @@ pub fn predicted_fire_timeout_s() -> f32 {
     sim::tuning::PREDICTED_FIRE_TIMEOUT_S
 }
 
-/// Seconds a taken item box is gone before it is back (ADR 0014), so a
+/// Seconds a picked-up item box is gone before it is back (ADR 0014), so a
 /// client racing from the server's events hides a box for as long as the
 /// server does.
 #[wasm_bindgen]
@@ -334,7 +334,7 @@ impl Race {
     }
 
     /// One float per item box of the track, in the sidecar's order: 1
-    /// while the box is there to take, 0 while it is gone after a pickup.
+    /// while the box is there to pick up, 0 while it is gone after a pickup.
     pub fn item_boxes_present(&self) -> Vec<f32> {
         self.state()
             .item_boxes_present()

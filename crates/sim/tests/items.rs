@@ -71,7 +71,7 @@ fn a_kart_on_a_box_picks_up_an_item_and_the_box_comes_back_the_tuned_time_later(
         "empty slot on the grid"
     );
 
-    // The first racing tick: the kart stands on the box and takes it.
+    // The first racing tick: the kart stands on the box and picks it up.
     let state = step(state, &[KartInput::default()], DT);
     let [RaceEvent::ItemPicked {
         kart: 0,
@@ -94,7 +94,7 @@ fn a_kart_on_a_box_picks_up_an_item_and_the_box_comes_back_the_tuned_time_later(
     );
     assert_eq!(state.kart_transforms()[0].held_item, None);
 
-    // The box comes back the tuned time after it was taken, and the kart
+    // The box comes back the tuned time after it was picked up, and the kart
     // still standing on it takes it again.
     let mut since_pickup = 1;
     let picked_again_after = loop {
@@ -145,7 +145,7 @@ fn a_kart_holding_an_item_takes_no_box_until_it_fires() {
         "the box is back and untaken"
     );
 
-    // Fired, the slot is empty, and the box under the kart is taken the
+    // Fired, the slot is empty, and the box under the kart is picked up the
     // same tick.
     let state = step(state, &[fire()], DT);
     let [RaceEvent::ItemFired { kart: 0, item }, RaceEvent::ItemPicked { kart: 0, .. }] =
@@ -163,7 +163,7 @@ const ROLL_SEEDS: u64 = 60;
 
 #[test]
 fn the_roll_is_weighted_by_the_race_position_band_over_many_seeds() {
-    // Eight idle humans, each on a box under its slot, take one each at
+    // Eight idle humans, each on a box under its slot, pick one up each at
     // Go, so one race rolls once in every race position.
     let karts = tuning::KARTS_PER_RACE;
     let mut rolls: Vec<[u32; 3]> = vec![[0; 3]; karts];

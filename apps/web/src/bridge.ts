@@ -139,7 +139,7 @@ export interface Race {
   phase(): Phase;
   /** The track's item boxes, in the sidecar's order; fixed for the race. */
   itemBoxes(): ItemBox[];
-  /** Whether each item box, in the same order, is there to take as of the last step. */
+  /** Whether each item box, in the same order, is there to pick up as of the last step. */
   itemBoxesPresent(): boolean[];
   /**
    * The sim's hash of everything that influences future ticks, as of the last
@@ -234,7 +234,7 @@ export interface Bridge extends MessageCodec {
   readonly lapsPerRace: number;
   /** Seconds the karts are held on the grid before Go (ADR 0014). */
   readonly countdownSeconds: number;
-  /** Seconds a taken item box is gone before it is back (ADR 0014). */
+  /** Seconds a picked-up item box is gone before it is back (ADR 0014). */
   readonly itemBoxRespawnSeconds: number;
   /** How long a fire predicted from a press shows before the server is taken not to have fired (ADR 0014). */
   readonly predictedFireTimeoutSeconds: number;

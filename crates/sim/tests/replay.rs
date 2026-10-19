@@ -88,7 +88,7 @@ fn speed_position_and_heading_are_part_of_the_hash() {
     assert_ne!(driving.hash(), turning.hash(), "heading");
 }
 
-/// The oval with one item box, under spawn slot 0, taken at Go.
+/// The oval with one item box, under spawn slot 0, picked up at Go.
 fn boxed_oval() -> Track {
     let mut sidecar: serde_json::Value = serde_json::from_str(OVAL).expect("valid JSON");
     let slot = sidecar["spawn_grid"][0]["position"].clone();

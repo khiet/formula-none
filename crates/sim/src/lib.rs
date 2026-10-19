@@ -17,7 +17,7 @@
 //! walks Countdown, Racing and Finished through `step`, so a room on the
 //! server can drive the lifecycle a solo race in the browser does. What a
 //! tick changed that the players are told about, a lap completed, a finish,
-//! a respawn, an item taken or fired, is read from [`State::events`] after
+//! a respawn, an item picked up or fired, is read from [`State::events`] after
 //! that tick.
 
 pub mod bot;
@@ -233,7 +233,7 @@ pub enum RaceEvent {
     },
     /// The kart was put back on the track at its last checkpoint.
     Respawned { kart: usize },
-    /// The kart took `item_box`, an index into the track's item boxes, and
+    /// The kart picked up `item_box`, an index into the track's item boxes, and
     /// rolled `item` into its slot.
     ItemPicked {
         kart: usize,
@@ -349,7 +349,7 @@ pub struct State {
     /// hashed: nothing here influences a future tick.
     events: Vec<RaceEvent>,
     /// Seconds until each of the track's item boxes is back, in the
-    /// track's order; zero or less while the box is there to take.
+    /// track's order; zero or less while the box is there to pick up.
     item_box_respawn_s: Vec<f32>,
 }
 
@@ -623,7 +623,7 @@ impl State {
     }
 
     /// Whether each of the track's item boxes, in the track's order, is
-    /// there to take as of the last tick; a taken box is back the tuned
+    /// there to pick up as of the last tick; a picked-up box is back the tuned
     /// time after it was taken.
     pub fn item_boxes_present(&self) -> Vec<bool> {
         self.item_box_respawn_s
@@ -907,7 +907,7 @@ pub fn step(mut state: State, inputs: &[KartInput], dt: f32) -> State {
             })
             .collect()
     };
-    // Fires come before pickups, so a press on the tick a box is taken
+    // Fires come before pickups, so a press on the tick a box is picked up
     // fires what the kart held, never what it has just rolled. A stalled
     // kart's press is as dead as its other controls.
     for (slot, input) in inputs.iter().enumerate() {
@@ -925,8 +925,8 @@ pub fn step(mut state: State, inputs: &[KartInput], dt: f32) -> State {
             state.events.push(RaceEvent::ItemFired { kart: slot, item });
         }
     }
-    // Taken boxes come back on their clocks; a kart standing on one takes
-    // it the tick it is back. A kart holding an item drives over boxes.
+    // Picked-up boxes come back on their clocks; a kart standing on one
+    // picks it up the tick it is back. A kart holding an item drives over boxes.
     for respawn_s in &mut state.item_box_respawn_s {
         if *respawn_s > 0.0 {
             *respawn_s -= dt;
@@ -940,7 +940,7 @@ pub fn step(mut state: State, inputs: &[KartInput], dt: f32) -> State {
         let position = state.physics.bodies[state.karts[slot].body]
             .translation()
             .to_array();
-        let taken = state
+        let picked = state
             .track
             .item_boxes()
             .iter()
@@ -949,7 +949,7 @@ pub fn step(mut state: State, inputs: &[KartInput], dt: f32) -> State {
                 respawn_s <= 0.0
                     && item_box.covers(position, ITEM_BOX_HALF_LENGTH_M, ITEM_BOX_HALF_WIDTH_M)
             });
-        if let Some(item_box) = taken {
+        if let Some(item_box) = picked {
             let standings = standings.get_or_insert_with(|| state.standings());
             state.pick_up(slot, item_box, standings);
         }

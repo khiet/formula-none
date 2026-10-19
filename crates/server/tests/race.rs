@@ -307,7 +307,7 @@ async fn an_event_comes_once_on_the_reliable_lane_and_in_three_snapshots_under_i
     let (_, mut players, _) = racing_room(&mut harness, 1).await;
     let player = &mut players[0];
 
-    // The first event is a bot's, behind the idle human: an item taken on
+    // The first event is a bot's, behind the idle human: an item picked up on
     // the back straight.
     let first = loop {
         match next_events_or_snapshot(player).await.unwrap() {
@@ -671,7 +671,7 @@ async fn an_item_pickup_and_its_fire_are_server_events_the_snapshots_repeat_and_
     let player = &mut players[0];
 
     // The idle human watches the bots; the first through the oval's boxes
-    // takes one, which the reliable lane reports with the box taken.
+    // picks one up, which the reliable lane reports with the box.
     let mut last_tick = 0;
     let picked = loop {
         match next_events_or_snapshot(player).await.unwrap() {

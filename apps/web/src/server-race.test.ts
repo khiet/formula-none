@@ -368,7 +368,7 @@ describe("createServerRace", () => {
     expect(run.itemSlot()).toEqual({ item: null, firing: true });
   });
 
-  it("hides a box the server reports taken for the tuned respawn", () => {
+  it("hides a box the server reports picked up for the tuned respawn", () => {
     const client = fakeClient();
     const run = createServerRace(bridge, client, COUNTDOWN, 0, "{}");
     expect(run.itemBoxes()).toHaveLength(ITEM_BOXES);

@@ -43,7 +43,7 @@ export interface RaceRun {
   itemSlot(): ItemSlot;
   /** The track's item boxes, in the sidecar's order; fixed for the race. */
   itemBoxes(): readonly ItemBox[];
-  /** Whether each item box, in the same order, is there to take, as of the last tick. */
+  /** Whether each item box, in the same order, is there to pick up, as of the last tick. */
   itemBoxesPresent(): readonly boolean[];
   /** The run as a replay fixture, when the rules ran here to record. */
   readonly replay?: ReplayRecorder;

@@ -68,7 +68,7 @@ export function createServerRace(
   /** Ticks left of the flash after the server's fire. */
   let flashTicksLeft = 0;
   const boxes = track.itemBoxes();
-  /** Ticks until each box the server reported taken is back; 0 while it is there. */
+  /** Ticks until each box the server reported picked up is back; 0 while it is there. */
   const boxTicksLeft: number[] = Array<number>(boxes.length).fill(0);
 
   const stopSnapshots = client.onSnapshot((snapshot) => {

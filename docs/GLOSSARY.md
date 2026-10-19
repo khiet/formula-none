@@ -109,6 +109,28 @@ The boost released at the end of a long enough drift: blue at 0.8 s of drift
 (0.6 s boost), orange at 1.6 s (1.0 s boost), both at +30 percent top speed.
 Shown by sparks at the wheels while charging.
 
+### item box
+
+One of a track's fixed pickup spots, from the sidecar: eight per track, in
+rows across the asphalt. A kart whose centre is on a box with an empty item
+slot picks it up; the box is gone for three seconds and comes back. Every
+pickup is a server event naming the box, so every screen hides the same one.
+
+### item slot
+
+A kart's one place for an item: a boost, a hazard or a homing projectile.
+Full, the kart drives over boxes without picking them up; a press of the
+item button fires what it holds and empties it. Every fire is a server
+event; the Instrument panel shows the local kart's slot, with the fire
+predicted from the press until the server's event confirms it.
+
+### roll
+
+The item a pickup puts in the slot, drawn on the sim's RNG with weights by
+the kart's race position band: the leaders mostly hazards, the back of the
+field mostly homing. Only the server rolls; a client's prediction never
+picks up a box and holds what the snapshots say.
+
 ### spin-out
 
 A kart stopped and spun by an item for a fixed time (1 s). Every spin-out is a
