@@ -11,14 +11,13 @@
 use protocol::{Player, PlayerState, Refusal, Room, RoomState, PROTOCOL_VERSION};
 use sim::tuning::{NICKNAME_MAX_CHARS, ROOM_PLAYERS_MAX};
 
-/// The track every room races until rooms pick one.
-pub const TRACK: &str = "brands-patch";
-
 /// The room as the server holds it: the view every player gets plus the
 /// order players joined in, which creator handover follows.
 #[derive(Debug, Clone)]
 pub struct HostedRoom {
     code: String,
+    /// The track the room's races run on.
+    track: &'static str,
     state: RoomState,
     /// One entry per slot; `None` is a free seat.
     seats: Vec<Option<Seat>>,
@@ -44,18 +43,23 @@ pub enum Left {
     Unknown,
 }
 
-/// The race the creator started.
+/// The race the creator started: what every client builds its sim from,
+/// and the slot driving each human kart in grid order, so the karts are in
+/// room order with the bots behind them.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Started {
     pub seed: u64,
     pub track: String,
+    pub grid: Vec<u8>,
 }
 
 impl HostedRoom {
-    /// An Open room with every seat free.
-    pub fn new(code: String) -> Self {
+    /// An Open room with every seat free, racing `track`, one of
+    /// [`crate::tracks`].
+    pub fn on_track(code: String, track: &'static str) -> Self {
         Self {
             code,
+            track,
             state: RoomState::Open,
             seats: vec![None; ROOM_PLAYERS_MAX],
             joins: 0,
@@ -162,8 +166,52 @@ impl HostedRoom {
         }
         Some(Started {
             seed,
-            track: TRACK.to_owned(),
+            track: self.track.to_owned(),
+            grid: self.players().map(|player| player.slot).collect(),
         })
+    }
+
+    /// The countdown is over: the room is Racing. Nothing changes unless it
+    /// was in Countdown.
+    pub fn racing(&mut self) -> bool {
+        if self.state != RoomState::Countdown {
+            return false;
+        }
+        self.state = RoomState::Racing;
+        true
+    }
+
+    /// The race is over: the room shows Results and every player who is
+    /// still here is Finished. A seat whose player disconnected mid-race
+    /// frees now; a bot drove its kart only until Results (ADR 0012).
+    pub fn finish(&mut self) {
+        self.state = RoomState::Results;
+        for seat in &mut self.seats {
+            match seat {
+                Some(current) if current.player.state == PlayerState::Disconnected => *seat = None,
+                Some(current) => current.player.state = PlayerState::Finished,
+                None => {}
+            }
+        }
+        self.hand_over_creator();
+    }
+
+    /// The player is back from the results for another race: Unready, and
+    /// the room is Open again if it was still showing Results, so the next
+    /// race is started the way the first was. True when the room changed;
+    /// a player who is not Finished has nothing to come back from.
+    pub fn rematch(&mut self, slot: u8) -> bool {
+        let Some(player) = self.player_mut(slot) else {
+            return false;
+        };
+        if player.state != PlayerState::Finished {
+            return false;
+        }
+        player.state = PlayerState::Unready;
+        if self.state == RoomState::Results {
+            self.state = RoomState::Open;
+        }
+        true
     }
 
     /// The player leaves, on purpose or by losing the connection. Between

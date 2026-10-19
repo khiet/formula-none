@@ -46,3 +46,16 @@ stays the first transport and the fallback decision above stands.
   WebSocket; both return the same `Connection` interface.
 - Every deploy's smoke test performs one WebTransport handshake with the
   deployed certificate and fails the job when it does not round-trip.
+
+The reliable stream landed with issue 17 (2026-10-19).
+
+- Each message rides a lane (`crates/server/src/lane.rs`): inputs,
+  snapshots and the Ping round trip on datagrams; everything else,
+  including every event, on one bidirectional stream the client opens,
+  carrying each message as four little-endian length bytes and the
+  message. Events ride the reliable stream once and the next three
+  snapshots besides; the client keeps the first copy of each id.
+- The WebSocket fallback carries both lanes on the socket unchanged.
+- The fake transport gives each lane its own behaviour: the reliable lane
+  keeps its order and loses nothing; the datagram lane loses and reorders
+  under the tuned conditions.

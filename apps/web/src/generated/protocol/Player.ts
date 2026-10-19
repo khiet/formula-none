@@ -6,8 +6,8 @@ import type { PlayerState } from "./PlayerState";
  */
 export type Player = { 
 /**
- * The player's seat in the room, kept for their whole stay, and their
- * kart's index in snapshots and results.
+ * The player's seat in the room, kept for their whole stay. A race's
+ * Countdown says which kart the seat drives.
  */
 slot: number, nickname: string, 
 /**

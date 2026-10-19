@@ -161,3 +161,57 @@ async fn a_refused_join_is_answered_and_then_the_server_closes_the_socket() {
     .await;
     assert_eq!(closed, Ok(true), "the client sees the session end");
 }
+
+#[tokio::test]
+async fn the_race_flows_over_the_one_channel_too() {
+    // The fallback carries both lanes on the socket (ADR 0011): the
+    // countdown and the events as binary messages like the snapshots.
+    let (mut socket, _stop, _serving, rooms) = connected_with_rooms().await;
+    let code = rooms.create();
+    for message in [
+        ClientMessage::Join {
+            version: PROTOCOL_VERSION,
+            room: code,
+            nickname: "khiet".to_owned(),
+        },
+        ClientMessage::Ready { ready: true },
+        ClientMessage::Start,
+    ] {
+        socket
+            .send(Message::Binary(encode(&message).into()))
+            .await
+            .unwrap();
+    }
+    let mut countdown = None;
+    let mut snapshot = None;
+    let mut input_sequence = 0;
+    while countdown.is_none() || snapshot.is_none() {
+        let message: ServerMessage = decode(&next_binary(&mut socket).await).unwrap();
+        match message {
+            ServerMessage::Countdown { grid, .. } => countdown = Some(grid),
+            ServerMessage::Snapshot(received) => {
+                input_sequence += 1;
+                let input = ClientMessage::Input(protocol::Input {
+                    sequence: input_sequence,
+                    steer: 0,
+                    throttle: 0,
+                    brake: 0,
+                    hop: false,
+                    use_item: false,
+                    hold_item: false,
+                });
+                socket
+                    .send(Message::Binary(encode(&input).into()))
+                    .await
+                    .unwrap();
+                if received.acknowledged[0] > 0 {
+                    snapshot = Some(received);
+                }
+            }
+            ServerMessage::Joined { .. } | ServerMessage::Room(_) | ServerMessage::Events(_) => {}
+            other => panic!("unexpected {other:?}"),
+        }
+    }
+    assert_eq!(countdown, Some(vec![0]));
+    assert_eq!(snapshot.unwrap().karts.len(), sim::tuning::KARTS_PER_RACE);
+}

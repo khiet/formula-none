@@ -1,25 +1,25 @@
 //! The rooms the server hosts: a registry by code and one tokio task per
 //! room (ADR 0005). A session finds its room here, hands it a channel to
 //! the client and forwards the client's messages; the task applies the
-//! rules in [`crate::room`], tells every player what changed and closes the
-//! room once it has stood empty for the tuned time (ADR 0012).
+//! rules in [`crate::room`], tells every player what changed, runs the
+//! room's race in [`crate::race`] at the tick rate, and closes the room
+//! once it has stood empty for the tuned time (ADR 0012).
 
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex, Weak};
 use std::time::Duration;
 
-use protocol::{encode, ClientMessage, Refusal, Room, ServerMessage};
+use protocol::{ClientMessage, Refusal, Room, ServerMessage};
 use rand::distr::slice::Choose;
 use rand::Rng;
 use sim::tuning::{ROOM_CLOSE_AFTER_EMPTY_S, ROOM_CODE_ALPHABET, ROOM_CODE_LENGTH};
 use tokio::sync::{mpsc, oneshot, watch};
-use tokio::time::Instant;
+use tokio::time::{Instant, Interval, MissedTickBehavior};
 
+use crate::lane::{Outbound, Outgoing};
+use crate::race::{Race, Timing, TICK_S};
 use crate::room::{HostedRoom, Left};
-use crate::Shutdown;
-
-/// Bytes on their way to one client, whichever transport carries them.
-pub type Outbound = mpsc::UnboundedSender<Vec<u8>>;
+use crate::{tracks, Shutdown};
 
 /// Every room on this server. Cheap to clone; every clone is the same
 /// registry.
@@ -27,6 +27,8 @@ pub type Outbound = mpsc::UnboundedSender<Vec<u8>>;
 pub struct Rooms {
     registry: Arc<Mutex<Registry>>,
     shutdown: Shutdown,
+    /// The track every room created here races.
+    track: &'static str,
 }
 
 #[derive(Default)]
@@ -98,11 +100,21 @@ impl Drop for Membership {
 }
 
 impl Rooms {
-    /// An empty registry. Room tasks end when `shutdown` resolves.
+    /// An empty registry whose rooms race the default track. Room tasks end
+    /// when `shutdown` resolves.
     pub fn new(shutdown: Shutdown) -> Self {
+        Self::on_track(shutdown, tracks::DEFAULT)
+    }
+
+    /// An empty registry whose rooms race `track`, which must be one the
+    /// server has (the fake transport's tests race the oval, which is
+    /// quicker).
+    pub fn on_track(shutdown: Shutdown, track: &'static str) -> Self {
+        assert!(tracks::sidecar(track).is_some(), "no track called {track}");
         Self {
             registry: Arc::default(),
             shutdown,
+            track,
         }
     }
 
@@ -119,7 +131,7 @@ impl Rooms {
             }
         };
         let (commands, inbox) = mpsc::unbounded_channel();
-        let room = HostedRoom::new(code.clone());
+        let room = HostedRoom::on_track(code.clone(), self.track);
         let (publish, view) = watch::channel(room.view());
         registry
             .rooms
@@ -218,10 +230,26 @@ fn fresh_code(rng: &mut impl Rng) -> String {
     rng.sample_iter(letter).take(ROOM_CODE_LENGTH).collect()
 }
 
-/// The room task: apply each command to the room, tell the players, and
-/// close the room once it has been empty for the tuned time or the server
-/// stops. Removes itself from the registry when it ends, so a closed code
-/// reads as unknown.
+/// A race under way in a room task: the race and the clock that ticks it.
+struct Running {
+    race: Race,
+    ticks: Interval,
+}
+
+impl Running {
+    fn start(race: Race) -> Self {
+        let mut ticks = tokio::time::interval(Duration::from_secs_f32(TICK_S));
+        // A tick the server fell behind on is run as soon as it can be, so
+        // the sim keeps its time; the interval only waits when ahead.
+        ticks.set_missed_tick_behavior(MissedTickBehavior::Burst);
+        Self { race, ticks }
+    }
+}
+
+/// The room task: apply each command to the room, tick its race, tell the
+/// players, and close the room once it has been empty for the tuned time
+/// or the server stops. Removes itself from the registry when it ends, so
+/// a closed code reads as unknown.
 async fn run(
     mut room: HostedRoom,
     mut inbox: mpsc::UnboundedReceiver<Command>,
@@ -232,6 +260,10 @@ async fn run(
     let close_after = Duration::from_secs_f32(ROOM_CLOSE_AFTER_EMPTY_S);
     let mut players: HashMap<u8, Outbound> = HashMap::new();
     let mut empty_since = Some(Instant::now());
+    let mut running: Option<Running> = None;
+    // Event ids count up per room, across its races, so a client's
+    // de-duplication never meets an id again (ADR 0011).
+    let mut next_event_id = 1;
     loop {
         let closing = async {
             match empty_since {
@@ -239,9 +271,18 @@ async fn run(
                 None => std::future::pending().await,
             }
         };
+        let tick = async {
+            match running.as_mut() {
+                Some(running) => running.ticks.tick().await,
+                None => std::future::pending().await,
+            }
+        };
+        let before = room.view();
+        // The joiner learns the room from Joined, not from the update too.
+        let mut told_already = None;
         // Shutdown first: a stopping server does not report the sessions it
         // is itself ending as departures.
-        let command = tokio::select! {
+        tokio::select! {
             biased;
             () = shutdown.wait() => break,
             () = closing => {
@@ -249,56 +290,90 @@ async fn run(
                 let _ = publish.send(room.view());
                 break;
             }
-            command = inbox.recv() => match command {
-                Some(command) => command,
-                None => break,
-            },
-        };
-        let before = room.view();
-        // The joiner learns the room from Joined, not from the update too.
-        let mut told_already = None;
-        match command {
-            Command::Join {
-                version,
-                nickname,
-                outbound,
-                reply,
-            } => {
-                let joined = room.join(version, &nickname);
-                if let Ok(slot) = joined {
-                    let _ = outbound.send(encode(&ServerMessage::Joined {
-                        slot,
-                        room: room.view(),
-                    }));
-                    players.insert(slot, outbound);
-                    told_already = Some(slot);
+            _ = tick => {
+                let running_race = running.as_mut().expect("the tick arm only runs with a race");
+                let ticked = running_race.race.tick();
+                if !ticked.events.is_empty() {
+                    broadcast(&players, &ServerMessage::Events(ticked.events), None);
                 }
-                let _ = reply.send(joined);
+                if let Some(snapshot) = ticked.snapshot {
+                    broadcast(&players, &ServerMessage::Snapshot(snapshot), None);
+                }
+                if ticked.go {
+                    room.racing();
+                }
+                if let Some(standings) = ticked.results {
+                    broadcast(&players, &ServerMessage::Results { standings }, None);
+                    room.finish();
+                    // A seat that freed at the finish stops receiving.
+                    let seated: Vec<u8> = room.view().players.iter().map(|player| player.slot).collect();
+                    players.retain(|slot, _| seated.contains(slot));
+                    let finished = running.take().expect("the race that just finished");
+                    next_event_id = finished.race.next_event_id();
+                    log_timing(room.code(), finished.race.timing());
+                }
             }
-            Command::Message { slot, message } => match message {
-                ClientMessage::Ready { ready } => {
-                    room.ready(slot, ready);
-                }
-                ClientMessage::Start => {
-                    if let Some(started) = room.start(slot, rand::random()) {
-                        broadcast(
-                            &players,
-                            &ServerMessage::Countdown {
-                                seed: started.seed,
-                                track: started.track,
-                            },
-                            None,
-                        );
+            command = inbox.recv() => {
+                let Some(command) = command else { break };
+                match command {
+                    Command::Join {
+                        version,
+                        nickname,
+                        outbound,
+                        reply,
+                    } => {
+                        let joined = room.join(version, &nickname);
+                        if let Ok(slot) = joined {
+                            let _ = outbound.send(Outgoing::from_server(&ServerMessage::Joined {
+                                slot,
+                                room: room.view(),
+                            }));
+                            players.insert(slot, outbound);
+                            told_already = Some(slot);
+                        }
+                        let _ = reply.send(joined);
                     }
+                    Command::Message { slot, message } => match message {
+                        ClientMessage::Input(input) => {
+                            if let Some(running) = running.as_mut() {
+                                running.race.receive(slot, input);
+                            }
+                        }
+                        ClientMessage::Ready { ready } => {
+                            room.ready(slot, ready);
+                        }
+                        ClientMessage::Start => {
+                            if let Some(started) = room.start(slot, rand::random()) {
+                                let track = tracks::load(&started.track)
+                                    .expect("a room races a track the server has");
+                                running = Some(Running::start(Race::new(
+                                    started.seed,
+                                    track,
+                                    started.grid.clone(),
+                                    next_event_id,
+                                )));
+                                broadcast(
+                                    &players,
+                                    &ServerMessage::Countdown {
+                                        seed: started.seed,
+                                        track: started.track,
+                                        grid: started.grid,
+                                    },
+                                    None,
+                                );
+                            }
+                        }
+                        ClientMessage::Rematch => {
+                            room.rematch(slot);
+                        }
+                        ClientMessage::Leave => depart(&mut room, &mut players, running.as_mut(), slot),
+                        // The session answers a Ping; a second Join has no
+                        // meaning in a room.
+                        ClientMessage::Ping { .. } | ClientMessage::Join { .. } => {}
+                    },
+                    Command::Dropped { slot } => depart(&mut room, &mut players, running.as_mut(), slot),
                 }
-                ClientMessage::Leave => depart(&mut room, &mut players, slot),
-                // The session answers a Ping; a second Join and a race
-                // input have no meaning in a room before the race.
-                ClientMessage::Ping { .. }
-                | ClientMessage::Join { .. }
-                | ClientMessage::Input(_) => {}
-            },
-            Command::Dropped { slot } => depart(&mut room, &mut players, slot),
+            }
         }
         let after = room.view();
         if after != before {
@@ -320,20 +395,47 @@ async fn run(
     }
 }
 
-/// The player leaves or drops; a seat that frees stops receiving.
-fn depart(room: &mut HostedRoom, players: &mut HashMap<u8, Outbound>, slot: u8) {
-    if room.leave(slot) != Left::Unknown {
-        players.remove(&slot);
+/// The player leaves or drops; a seat that frees stops receiving, and a
+/// kart whose player is gone mid-race holds no controls.
+fn depart(
+    room: &mut HostedRoom,
+    players: &mut HashMap<u8, Outbound>,
+    running: Option<&mut Running>,
+    slot: u8,
+) {
+    match room.leave(slot) {
+        Left::Unknown => {}
+        Left::Removed => {
+            players.remove(&slot);
+        }
+        Left::Disconnected => {
+            players.remove(&slot);
+            if let Some(running) = running {
+                running.race.release(slot);
+            }
+        }
     }
 }
 
 /// Send `message` to every connected player but `except`.
 fn broadcast(players: &HashMap<u8, Outbound>, message: &ServerMessage, except: Option<u8>) {
-    let bytes = encode(message);
+    let outgoing = Outgoing::from_server(message);
     for (slot, outbound) in players {
         if Some(*slot) != except {
             // A player whose session has gone is dropped by their own command.
-            let _ = outbound.send(bytes.clone());
+            let _ = outbound.send(outgoing.clone());
         }
     }
+}
+
+/// The tick budget check until metrics land (ADR 0018): one line per race.
+fn log_timing(code: &str, timing: Timing) {
+    println!(
+        "room {code} race over: {} ticks, mean {:.2} ms, longest {:.2} ms, {} over the {:.1} ms budget",
+        timing.ticks,
+        timing.mean().as_secs_f64() * 1000.0,
+        timing.longest.as_secs_f64() * 1000.0,
+        timing.over_budget,
+        f64::from(TICK_S) * 1000.0,
+    );
 }

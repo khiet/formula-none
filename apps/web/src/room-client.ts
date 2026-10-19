@@ -1,31 +1,54 @@
-// The client's side of a room (ADR 0012): join over a connection, follow
-// the room through its updates, send the player's ready, Start and Leave,
-// and hand the Countdown on when the creator starts the race. Messages
-// travel as the bridge encodes them; this module never reads the bytes.
+// The client's side of a room (ADR 0012) and of the race it runs (ADR
+// 0009): join over a connection, follow the room through its updates, send
+// the player's ready, Start, Rematch and Leave, and once the creator starts
+// the race hand on the Countdown, every snapshot in tick order, every
+// event once and the results, while sending the player's inputs with a
+// sequence the snapshots acknowledge. Messages travel as the bridge
+// encodes them; this module never reads the bytes.
 
-import type { MessageCodec } from "./bridge";
+import type { KartInput, MessageCodec } from "./bridge";
 import type { Connection } from "./connection";
-import type { Refusal, Room } from "./generated/protocol";
+import type { Event, FinalStanding, Refusal, Room, Snapshot } from "./generated/protocol";
 import { PROTOCOL_VERSION } from "./generated/protocol";
 import { normaliseCode } from "./room-link";
 
-/** The race starting: every client builds the sim from these (ADR 0002). */
+/**
+ * The race starting: every client builds the sim from these (ADR 0002).
+ * `grid` is the room slot of each human kart in grid order; the karts
+ * behind them are bots.
+ */
 export interface Countdown {
   readonly seed: bigint;
   readonly track: string;
+  readonly grid: readonly number[];
 }
+
+/** Stops the listener; calling it again does nothing. */
+export type Unsubscribe = () => void;
 
 export interface RoomClient {
   /** This player's slot, which names them in every room update. */
   readonly slot: number;
   /** The room as of its last update. */
   readonly room: Room;
-  onRoom(listener: (room: Room) => void): void;
-  onCountdown(listener: (countdown: Countdown) => void): void;
+  onRoom(listener: (room: Room) => void): Unsubscribe;
+  onCountdown(listener: (countdown: Countdown) => void): Unsubscribe;
+  /** Each snapshot newer than the last one delivered; a late or repeated one is dropped. */
+  onSnapshot(listener: (snapshot: Snapshot) => void): Unsubscribe;
+  /** Each event once, whether it came on the reliable lane or in a snapshot's repeat (ADR 0011). */
+  onEvent(listener: (event: Event) => void): Unsubscribe;
+  onResults(listener: (standings: readonly FinalStanding[]) => void): Unsubscribe;
   /** Resolves once the connection has ended, however it ended. */
   readonly closed: Promise<void>;
   ready(ready: boolean): void;
   start(): void;
+  /** Back to the room for another race. */
+  rematch(): void;
+  /**
+   * Send one tick's controls on the datagram lane under the next sequence,
+   * which is returned; the sequence restarts at 1 with each Countdown.
+   */
+  sendInput(input: KartInput): number;
   /** Leave the room and close the connection; a Join is the first message on a connection. */
   leave(): void;
 }
@@ -64,6 +87,38 @@ export function refusalMessage(refusal: Refusal): string {
   }
 }
 
+/** Event ids the client remembers; ids count up, so older ones cannot come again. */
+const REMEMBERED_EVENT_IDS = 1024;
+
+/**
+ * The wire form of one tick's controls: each axis to one byte, as the
+ * protocol's `Input` carries it. The server undoes this; the sim on both
+ * sides sees the same quantised value.
+ */
+export function quantiseInput(
+  input: KartInput,
+  sequence: number,
+): {
+  sequence: number;
+  steer: number;
+  throttle: number;
+  brake: number;
+  hop: boolean;
+  useItem: boolean;
+  holdItem: boolean;
+} {
+  const unit = (value: number) => Math.round(Math.min(Math.max(value, 0), 1) * 255);
+  return {
+    sequence,
+    steer: Math.round(Math.min(Math.max(input.steer, -1), 1) * 127),
+    throttle: unit(input.throttle),
+    brake: unit(input.brake),
+    hop: input.hop,
+    useItem: input.useItem,
+    holdItem: input.holdItem,
+  };
+}
+
 /**
  * Join the room over `connection`: resolves with the room client once the
  * server answers Joined, rejects with a `RefusedError` when it refuses, and
@@ -79,6 +134,35 @@ export function joinRoom(
     let slot = 0;
     const roomListeners = new Set<(room: Room) => void>();
     const countdownListeners = new Set<(countdown: Countdown) => void>();
+    const snapshotListeners = new Set<(snapshot: Snapshot) => void>();
+    const eventListeners = new Set<(event: Event) => void>();
+    const resultsListeners = new Set<(standings: readonly FinalStanding[]) => void>();
+    const subscribe =
+      <L>(listeners: Set<L>) =>
+      (listener: L): Unsubscribe => {
+        listeners.add(listener);
+        return () => {
+          listeners.delete(listener);
+        };
+      };
+
+    // The race's bookkeeping, reset by each Countdown.
+    let newestTick = 0;
+    let sequence = 0;
+    const seenEvents = new Set<number>();
+    let highestEventId = 0;
+    const deliverEvent = (event: Event) => {
+      if (seenEvents.has(event.id) || event.id <= highestEventId - REMEMBERED_EVENT_IDS) return;
+      seenEvents.add(event.id);
+      if (event.id > highestEventId) {
+        highestEventId = event.id;
+        for (const id of seenEvents) {
+          if (id <= highestEventId - REMEMBERED_EVENT_IDS) seenEvents.delete(id);
+        }
+      }
+      for (const listener of eventListeners) listener(event);
+    };
+
     connection.onMessage((bytes) => {
       let message: ReturnType<MessageCodec["decodeServerMessage"]>;
       try {
@@ -87,6 +171,7 @@ export function joinRoom(
         // Not a message; the server sends only messages, so this is noise on the wire.
         return;
       }
+      if (typeof message === "string") return;
       if ("joined" in message) {
         if (room !== undefined) return;
         room = message.joined.room;
@@ -98,11 +183,26 @@ export function joinRoom(
         room = message.room;
         for (const listener of roomListeners) listener(room);
       } else if ("countdown" in message) {
+        newestTick = 0;
+        sequence = 0;
         const countdown: Countdown = {
           seed: BigInt(message.countdown.seed),
           track: message.countdown.track,
+          grid: message.countdown.grid,
         };
         for (const listener of countdownListeners) listener(countdown);
+      } else if ("snapshot" in message) {
+        const { snapshot } = message;
+        // Events ride the snapshot too, so a lost reliable frame still
+        // reaches the listeners; the id says whether they have seen it.
+        for (const event of snapshot.events) deliverEvent(event);
+        if (snapshot.tick <= newestTick) return;
+        newestTick = snapshot.tick;
+        for (const listener of snapshotListeners) listener(snapshot);
+      } else if ("events" in message) {
+        for (const event of message.events) deliverEvent(event);
+      } else if ("results" in message) {
+        for (const listener of resultsListeners) listener(message.results.standings);
       }
     });
     connection.closed.then(() => reject(new Error("connection closed before the room answered")));
@@ -112,18 +212,28 @@ export function joinRoom(
       get room() {
         return room as Room;
       },
-      onRoom(listener) {
-        roomListeners.add(listener);
-      },
-      onCountdown(listener) {
-        countdownListeners.add(listener);
-      },
+      onRoom: subscribe(roomListeners),
+      onCountdown: subscribe(countdownListeners),
+      onSnapshot: subscribe(snapshotListeners),
+      onEvent: subscribe(eventListeners),
+      onResults: subscribe(resultsListeners),
       closed: connection.closed,
       ready(ready) {
         connection.send(codec.encodeClientMessage({ ready: { ready } }));
       },
       start() {
         connection.send(codec.encodeClientMessage("start"));
+      },
+      rematch() {
+        connection.send(codec.encodeClientMessage("rematch"));
+      },
+      sendInput(input) {
+        sequence += 1;
+        connection.send(
+          codec.encodeClientMessage({ input: quantiseInput(input, sequence) }),
+          "datagram",
+        );
+        return sequence;
       },
       leave() {
         connection.send(codec.encodeClientMessage("leave"));

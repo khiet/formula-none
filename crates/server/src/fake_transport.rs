@@ -1,16 +1,25 @@
 //! An in-process stand-in for the network: a server with its rooms and up
 //! to a grid of clients, joined by channels that add delay, jitter and loss
-//! on the way. The room tests run on it, and the netcode tickets extend it
-//! (ADR 0009, ADR 0012). Run under tokio's paused clock, a five-minute
-//! wait takes no time at all.
+//! on the way. The room and race tests run on it (ADR 0009, ADR 0012). Run
+//! under tokio's paused clock, a five-minute wait or a whole race takes
+//! only the CPU time of its ticks.
+//!
+//! Each direction has the two lanes of ADR 0011: the reliable lane keeps
+//! its order and loses nothing, as a stream does; the datagram lane, which
+//! inputs and snapshots ride, loses each message with the tuned
+//! probability and delays each on its own, so a later one can overtake.
 
 use std::time::Duration;
 
-use protocol::{decode, encode, ClientMessage, Refusal, Room, ServerMessage, PROTOCOL_VERSION};
+use protocol::{
+    decode, ClientMessage, Event, FinalStanding, Input, Refusal, Room, ServerMessage, Snapshot,
+    PROTOCOL_VERSION,
+};
 use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
 use tokio::sync::{mpsc, watch};
 
+use crate::lane::{Lane, Outgoing};
 use crate::rooms::Rooms;
 use crate::session::{self, Channels};
 use crate::Shutdown;
@@ -20,11 +29,11 @@ use crate::Shutdown;
 pub struct Conditions {
     /// Base one-way delay.
     pub delay: Duration,
-    /// Each message's delay varies by up to this much either way. Messages
-    /// keep their order, as on a reliable channel; the unreliable lane that
-    /// reorders is the netcode tickets' to add.
+    /// Each message's delay varies by up to this much either way. The
+    /// reliable lane keeps its order regardless; the datagram lane may
+    /// reorder.
     pub jitter: Duration,
-    /// Probability in 0..=1 that a message never arrives.
+    /// Probability in 0..=1 that a datagram never arrives.
     pub loss: f64,
     /// Seeds the loss and jitter draws, so a run repeats.
     pub seed: u64,
@@ -44,6 +53,11 @@ impl Conditions {
 /// clock; generous because paused time passes only while every task waits.
 const RECEIVE_TIMEOUT: Duration = Duration::from_secs(10);
 
+/// The race the fake transport's rooms run: the oval, which a bot laps in
+/// a fraction of the time Brands Patch takes, so a test through a whole
+/// race costs seconds of CPU rather than tens.
+pub const TRACK: &str = "oval";
+
 /// A server and the network to it. Dropping it stops the server.
 pub struct Harness {
     rooms: Rooms,
@@ -54,10 +68,16 @@ pub struct Harness {
 }
 
 impl Harness {
+    /// A server whose rooms race [`TRACK`].
     pub fn new(conditions: Conditions) -> Self {
+        Self::on_track(conditions, TRACK)
+    }
+
+    /// A server whose rooms race `track`.
+    pub fn on_track(conditions: Conditions, track: &'static str) -> Self {
         let (stop, shutdown) = Shutdown::pair();
         Self {
-            rooms: Rooms::new(shutdown.clone()),
+            rooms: Rooms::on_track(shutdown.clone(), track),
             conditions,
             shutdown,
             stop,
@@ -78,8 +98,26 @@ impl Harness {
     /// A client connected to the server through the fake network, not yet
     /// in any room.
     pub fn connect(&mut self) -> Client {
-        let (client_to_server, server_inbound) = pump(self.conditions, self.next_seed());
-        let (server_outbound, client_from_server) = pump(self.conditions, self.next_seed());
+        let (server_inbound_tx, server_inbound) = mpsc::unbounded_channel();
+        let reliable_up = reliable_lane(self.conditions, self.next_seed(), server_inbound_tx.clone());
+        let datagram_up = datagram_lane(self.conditions, self.next_seed(), server_inbound_tx);
+
+        let (from_server_tx, from_server) = mpsc::unbounded_channel();
+        let reliable_down = reliable_lane(self.conditions, self.next_seed(), from_server_tx.clone());
+        let datagram_down = datagram_lane(self.conditions, self.next_seed(), from_server_tx);
+        let (server_outbound, mut lanes) = mpsc::unbounded_channel::<Outgoing>();
+        tokio::spawn(async move {
+            while let Some(Outgoing { lane, bytes }) = lanes.recv().await {
+                let sent = match lane {
+                    Lane::Reliable => reliable_down.send(bytes),
+                    Lane::Datagram => datagram_down.send(bytes),
+                };
+                if sent.is_err() {
+                    return;
+                }
+            }
+        });
+
         tokio::spawn(session::run(
             self.rooms.clone(),
             Channels {
@@ -89,8 +127,9 @@ impl Harness {
             self.shutdown.clone(),
         ));
         Client {
-            to_server: client_to_server,
-            from_server: client_from_server,
+            reliable: reliable_up,
+            datagram: datagram_up,
+            from_server,
         }
     }
 
@@ -108,14 +147,33 @@ impl Harness {
 /// One client's end of the fake network. Dropping it is the connection
 /// dropping without a Leave.
 pub struct Client {
-    to_server: mpsc::UnboundedSender<Vec<u8>>,
+    reliable: mpsc::UnboundedSender<Vec<u8>>,
+    datagram: mpsc::UnboundedSender<Vec<u8>>,
     from_server: mpsc::UnboundedReceiver<Vec<u8>>,
 }
 
+/// What a Countdown tells a client.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Countdown {
+    pub seed: u64,
+    pub track: String,
+    pub grid: Vec<u8>,
+}
+
 impl Client {
+    /// Send on the lane the message's kind rides (ADR 0011).
     pub fn send(&self, message: &ClientMessage) {
+        let Outgoing { lane, bytes } = Outgoing::from_client(message);
         // A closed session is what `recv` reports; a send into it is dropped.
-        let _ = self.to_server.send(encode(message));
+        let _ = match lane {
+            Lane::Reliable => self.reliable.send(bytes),
+            Lane::Datagram => self.datagram.send(bytes),
+        };
+    }
+
+    /// One tick's controls, on the datagram lane.
+    pub fn send_input(&self, input: Input) {
+        self.send(&ClientMessage::Input(input));
     }
 
     /// The next message from the server, or `None` once the server has
@@ -152,15 +210,59 @@ impl Client {
         }
     }
 
-    /// The next Room message, skipping any other kind; `None` once the
+    /// The next message `pick` accepts, skipping any other; `None` once the
     /// session has ended or nothing arrives in time.
-    pub async fn next_room(&mut self) -> Option<Room> {
+    pub async fn next_where<T>(&mut self, pick: impl Fn(ServerMessage) -> Option<T>) -> Option<T> {
         loop {
-            match self.recv().await? {
-                ServerMessage::Room(room) => return Some(room),
-                _ => continue,
+            if let Some(picked) = pick(self.recv().await?) {
+                return Some(picked);
             }
         }
+    }
+
+    /// The next Room message, skipping any other kind.
+    pub async fn next_room(&mut self) -> Option<Room> {
+        self.next_where(|message| match message {
+            ServerMessage::Room(room) => Some(room),
+            _ => None,
+        })
+        .await
+    }
+
+    /// The next Countdown, skipping any other kind.
+    pub async fn next_countdown(&mut self) -> Option<Countdown> {
+        self.next_where(|message| match message {
+            ServerMessage::Countdown { seed, track, grid } => Some(Countdown { seed, track, grid }),
+            _ => None,
+        })
+        .await
+    }
+
+    /// The next Snapshot, skipping any other kind.
+    pub async fn next_snapshot(&mut self) -> Option<Snapshot> {
+        self.next_where(|message| match message {
+            ServerMessage::Snapshot(snapshot) => Some(snapshot),
+            _ => None,
+        })
+        .await
+    }
+
+    /// The next Events message, skipping any other kind.
+    pub async fn next_events(&mut self) -> Option<Vec<Event>> {
+        self.next_where(|message| match message {
+            ServerMessage::Events(events) => Some(events),
+            _ => None,
+        })
+        .await
+    }
+
+    /// The next Results, skipping any other kind.
+    pub async fn next_results(&mut self) -> Option<Vec<FinalStanding>> {
+        self.next_where(|message| match message {
+            ServerMessage::Results { standings } => Some(standings),
+            _ => None,
+        })
+        .await
     }
 
     /// Drop the connection without a Leave.
@@ -169,17 +271,39 @@ impl Client {
     }
 }
 
-/// A one-way channel through the fake network: what goes in comes out
-/// after the conditions' delay, in order, unless lost.
-fn pump(
+/// The reliable lane one way: what goes in comes out of `into` after the
+/// conditions' delay, in order and never lost.
+fn reliable_lane(
     conditions: Conditions,
     seed: u64,
-) -> (
-    mpsc::UnboundedSender<Vec<u8>>,
-    mpsc::UnboundedReceiver<Vec<u8>>,
-) {
-    let (into, mut travelling) = mpsc::unbounded_channel::<Vec<u8>>();
-    let (out, arrived) = mpsc::unbounded_channel();
+    into: mpsc::UnboundedSender<Vec<u8>>,
+) -> mpsc::UnboundedSender<Vec<u8>> {
+    let (sender, mut travelling) = mpsc::unbounded_channel::<Vec<u8>>();
+    tokio::spawn(async move {
+        let mut rng = StdRng::seed_from_u64(seed);
+        while let Some(bytes) = travelling.recv().await {
+            // Waiting here, before the next message is read, keeps the order.
+            let delay = one_way_delay(conditions, &mut rng);
+            if !delay.is_zero() {
+                tokio::time::sleep(delay).await;
+            }
+            if into.send(bytes).is_err() {
+                return;
+            }
+        }
+    });
+    sender
+}
+
+/// The datagram lane one way: each message is lost with the tuned
+/// probability, and otherwise travels on its own, so one delayed more than
+/// the next arrives after it.
+fn datagram_lane(
+    conditions: Conditions,
+    seed: u64,
+    into: mpsc::UnboundedSender<Vec<u8>>,
+) -> mpsc::UnboundedSender<Vec<u8>> {
+    let (sender, mut travelling) = mpsc::unbounded_channel::<Vec<u8>>();
     tokio::spawn(async move {
         let mut rng = StdRng::seed_from_u64(seed);
         while let Some(bytes) = travelling.recv().await {
@@ -187,15 +311,20 @@ fn pump(
                 continue;
             }
             let delay = one_way_delay(conditions, &mut rng);
-            if !delay.is_zero() {
-                tokio::time::sleep(delay).await;
-            }
-            if out.send(bytes).is_err() {
-                return;
+            if delay.is_zero() {
+                if into.send(bytes).is_err() {
+                    return;
+                }
+            } else {
+                let into = into.clone();
+                tokio::spawn(async move {
+                    tokio::time::sleep(delay).await;
+                    let _ = into.send(bytes);
+                });
             }
         }
     });
-    (into, arrived)
+    sender
 }
 
 fn one_way_delay(conditions: Conditions, rng: &mut impl Rng) -> Duration {

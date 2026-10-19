@@ -4,10 +4,11 @@
 //! the same code. A Ping is answered at any time; the first Join seats the
 //! client in a room, or refuses it and ends the session.
 
-use protocol::{decode, encode, ClientMessage, ServerMessage};
+use protocol::{decode, ClientMessage, ServerMessage};
 use tokio::sync::mpsc;
 
-use crate::rooms::{Membership, Outbound, Rooms};
+use crate::lane::{Outbound, Outgoing};
+use crate::rooms::{Membership, Rooms};
 use crate::Shutdown;
 
 /// The client's side of a session: bytes in, bytes out. A transport pumps
@@ -41,7 +42,7 @@ pub async fn run(rooms: Rooms, channels: Channels, shutdown: Shutdown) {
         match (message, &membership) {
             (ClientMessage::Ping { nonce }, _) => {
                 if outbound
-                    .send(encode(&ServerMessage::Pong { nonce }))
+                    .send(Outgoing::from_server(&ServerMessage::Pong { nonce }))
                     .is_err()
                 {
                     return;
@@ -57,7 +58,7 @@ pub async fn run(rooms: Rooms, channels: Channels, shutdown: Shutdown) {
             ) => match rooms.join(&room, version, nickname, outbound.clone()).await {
                 Ok(joined) => membership = Some(joined),
                 Err(refusal) => {
-                    let _ = outbound.send(encode(&ServerMessage::Refused(refusal)));
+                    let _ = outbound.send(Outgoing::from_server(&ServerMessage::Refused(refusal)));
                     return;
                 }
             },

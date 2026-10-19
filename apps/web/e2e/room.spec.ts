@@ -63,6 +63,22 @@ test("a friend joins the room from the shared link and both can race", async ({
       timeout: 60_000,
     });
   }
+
+  // The server runs the race (ADR 0009): the six bots behind the two idle
+  // humans drive past them, and the creator's throttle reaches the server
+  // and moves their kart in everyone's snapshots.
+  for (const someone of [page, friend]) {
+    await expect(someone.locator('[data-instrument="lap"]')).toHaveText("Lap 1/3");
+    await expect(someone.locator('[data-instrument="position"]')).toHaveText(/^[78]th$/, {
+      timeout: 90_000,
+    });
+  }
+  await page.keyboard.down("ArrowUp");
+  const speed = page.locator('[data-instrument="speed"]');
+  await expect
+    .poll(async () => Number.parseFloat((await speed.textContent()) ?? "0"), { timeout: 20_000 })
+    .toBeGreaterThan(5);
+  await page.keyboard.up("ArrowUp");
   await friendContext.close();
 });
 

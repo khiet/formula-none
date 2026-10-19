@@ -27,3 +27,15 @@ load together, so they are decided once.
 - Snapshot size is a budget: a new per-kart field costs eight times its size
   thirty times a second.
 - Delta compression is deferred to v1.1.
+
+## Outcome
+
+Landed with issue 17 (2026-10-19).
+
+- The server steps the sim from a tokio interval at the tick rate and
+  sends a snapshot every second tick.
+- A snapshot carries, per kart, two readouts the list above does not name
+  because they are the sim's rules rather than derivable state: the race
+  position and whether the wrong-way warning is up. With them the busy
+  sample snapshot is 474 bytes at eight karts, inside the budget's
+  tolerance.

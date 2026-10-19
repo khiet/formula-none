@@ -12,6 +12,10 @@ export type KartSnapshot = { position: [number, number, number], rotation: [numb
  */
 drift: DriftSnapshot | null, 
 /**
+ * Race position from 1, as the sim orders it.
+ */
+racePosition: number, 
+/**
  * The lap the kart is on, from 1.
  */
 lap: number, 
@@ -23,6 +27,10 @@ checkpoint: number,
  * Distance along the centreline.
  */
 splineProgress: number, 
+/**
+ * The wrong-way warning is up for this kart.
+ */
+wrongWay: boolean, 
 /**
  * The item in the kart's slot, if any.
  */

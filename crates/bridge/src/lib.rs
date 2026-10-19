@@ -60,6 +60,26 @@ pub fn replay_hash_interval_ticks() -> u32 {
     sim::tuning::REPLAY_HASH_INTERVAL_TICKS
 }
 
+/// Seconds the karts are held on the grid before Go (ADR 0014), so a
+/// client racing from snapshots reads the count from the server's tick.
+#[wasm_bindgen]
+pub fn countdown_s() -> f32 {
+    sim::tuning::COUNTDOWN_S
+}
+
+/// The mini-turbo tier a drift of `charge_s` seconds has reached, as
+/// `sim::MiniTurbo::code` (0 none, 1 blue, 2 orange): the sim's rule, so a
+/// snapshot's drift charge shows the same sparks a local drift does.
+#[wasm_bindgen]
+pub fn mini_turbo_tier(charge_s: f32) -> u8 {
+    sim::Drift {
+        direction: sim::DriftDirection::Left,
+        charge_s,
+    }
+    .mini_turbo()
+    .code()
+}
+
 /// The replay runner, in wasm: rerun `replay` (the JSON `sim::replay`
 /// documents) on the track described by `sidecar` and report the state hash
 /// at every `sim::tuning::REPLAY_HASH_INTERVAL_TICKS`th tick. The native
@@ -317,6 +337,14 @@ impl Race {
     /// keeps it at every `sim::tuning::REPLAY_HASH_INTERVAL_TICKS`th tick.
     pub fn state_hash(&self) -> u64 {
         self.state().hash()
+    }
+
+    /// What lies under the point, as `sim::Surface::code` (0 asphalt, 1
+    /// sand, 2 grass, 3 wall, 4 out of world): the track's answer, so a
+    /// kart drawn from a snapshot gets the same surface readout a local
+    /// kart does.
+    pub fn surface_at(&self, x: f32, y: f32, z: f32) -> u8 {
+        self.state().surface_at([x, y, z]).code()
     }
 
     fn state(&self) -> &State {

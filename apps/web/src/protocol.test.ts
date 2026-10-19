@@ -36,6 +36,7 @@ const CLIENT_KINDS = {
   input: true,
   ready: true,
   start: true,
+  rematch: true,
   leave: true,
 } satisfies Record<Kind<ClientMessage>, true>;
 const SERVER_KINDS = {
@@ -45,6 +46,7 @@ const SERVER_KINDS = {
   room: true,
   countdown: true,
   snapshot: true,
+  events: true,
   results: true,
 } satisfies Record<Kind<ServerMessage>, true>;
 

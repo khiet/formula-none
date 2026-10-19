@@ -30,3 +30,16 @@ authority; other karts must move smoothly over real internet latency.
   assert this.
 - Target: no visible correction of your own kart at 100 ms RTT with 2
   percent loss.
+
+## Outcome
+
+Server authority landed with issue 17 (2026-10-19); prediction (issue 18)
+and interpolation (issue 19) follow.
+
+- The server applies the newest input sequence each human has sent and
+  holds it until a newer one arrives, so a lost or reordered datagram
+  changes nothing; each snapshot acknowledges the sequence applied per
+  kart.
+- Until prediction lands, every client draws every kart, its own included,
+  where the newest snapshot puts it (`apps/web/src/server-race.ts`); a
+  snapshot older than the newest seen is dropped.
