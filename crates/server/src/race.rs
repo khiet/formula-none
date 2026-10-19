@@ -1,9 +1,9 @@
 //! One room's race on the server, the only place its outcome is decided
-//! (ADR 0009): the sim stepped at the tick rate from the latest input each
-//! human has sent, the snapshots and events the players are told, and the
-//! results once it is over. Pure bookkeeping with no clock and no channel,
-//! so the room task in `rooms` decides when a tick happens and where its
-//! output goes, and this module decides what a tick produces.
+//! (ADR 0009): the sim stepped from the latest input each human has sent,
+//! the snapshots and events the players are told, and the results once it
+//! is over. Pure bookkeeping with no clock and no channel: the room task in
+//! `rooms` decides when a tick happens and where its output goes; this
+//! module decides what a tick produces.
 
 use std::collections::VecDeque;
 
@@ -18,7 +18,6 @@ use sim::{KartInput, Phase, RaceEvent, State, Track};
 /// Seconds of one tick: the sim's `dt` and the budget a tick's work must fit
 /// in for the server to keep up (ADR 0010).
 pub const TICK_S: f32 = 1.0 / TICKS_PER_SECOND as f32;
-/// Ticks between snapshots.
 const TICKS_PER_SNAPSHOT: u32 = TICKS_PER_SECOND / SNAPSHOTS_PER_SECOND;
 
 /// A race in progress: the sim and what the players have sent it.
@@ -52,7 +51,7 @@ struct HumanInput {
 pub struct Ticked {
     /// What happened this tick, for the reliable stream.
     pub events: Vec<Event>,
-    /// Every snapshot-rate tick, for the datagram lane.
+    /// Present every `TICKS_PER_SNAPSHOT`th tick, for the datagram lane.
     pub snapshot: Option<Snapshot>,
     /// The countdown ended this tick: the room is Racing.
     pub go: bool,
@@ -100,7 +99,8 @@ impl Race {
         }
     }
 
-    /// The player is gone: their kart holds no controls until they are back.
+    /// The player is gone: their kart holds no controls for the rest of the
+    /// race, since a room mid-race refuses joins.
     pub fn release(&mut self, slot: u8) {
         if let Some(kart) = self.kart_of(slot) {
             self.humans[kart].latest = KartInput::default();
@@ -113,7 +113,8 @@ impl Race {
     }
 
     /// Step one tick from the inputs held, and gather what the players are
-    /// told about it. A finished race changes nothing and produces nothing.
+    /// told about it. The caller stops ticking once `results` comes back: a
+    /// later tick would report the results again.
     pub fn tick(&mut self) -> Ticked {
         let state = self
             .state

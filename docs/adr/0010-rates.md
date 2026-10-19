@@ -37,5 +37,5 @@ Landed with issue 17 (2026-10-19).
 - A snapshot carries, per kart, two readouts the list above does not name
   because they are the sim's rules rather than derivable state: the race
   position and whether the wrong-way warning is up. With them the busy
-  sample snapshot is 474 bytes at eight karts, inside the budget's
-  tolerance.
+  sample snapshot in the protocol's fixtures is 474 bytes at eight karts,
+  against the roughly 400 estimated above.

@@ -183,7 +183,7 @@ impl HostedRoom {
 
     /// The race is over: the room shows Results and every player who is
     /// still here is Finished. A seat whose player disconnected mid-race
-    /// frees now; a bot drove its kart only until Results (ADR 0012).
+    /// frees now (ADR 0012).
     pub fn finish(&mut self) {
         self.state = RoomState::Results;
         for seat in &mut self.seats {

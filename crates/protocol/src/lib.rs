@@ -104,9 +104,9 @@ pub enum ServerMessage {
     /// The authoritative state at a tick, on a datagram at the snapshot rate
     /// (ADR 0010).
     Snapshot(Snapshot),
-    /// What happened since the last tick's events, on the reliable stream;
-    /// the same events ride the next two snapshots too, so a client keeps
-    /// the first copy of each id it sees (ADR 0011).
+    /// What happened this tick, on the reliable stream; the same events
+    /// ride the next snapshot and the two after it, so a client keeps the
+    /// first copy of each id it sees (ADR 0011).
     Events(Vec<Event>),
     /// The standings once the race is Finished, in finishing order.
     Results { standings: Vec<FinalStanding> },

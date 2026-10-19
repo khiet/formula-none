@@ -238,17 +238,17 @@ struct Running {
     timing: Timing,
 }
 
-/// What one tick did to the room, for the task to tell the players.
+/// What one tick did to the room, for the task to act on.
 struct TickOutcome {
-    /// The race ended: the results have been sent and the race is over.
+    /// The results went out this tick; the task retires the race.
     finished: bool,
 }
 
 impl Running {
     fn start(race: Race) -> Self {
         let mut ticks = tokio::time::interval(Duration::from_secs_f32(TICK_S));
-        // A tick the server fell behind on is run as soon as it can be, so
-        // the sim keeps its time; the interval only waits when ahead.
+        // Ticks the server fell behind on run back to back, so the sim keeps
+        // its time instead of skipping ticks.
         ticks.set_missed_tick_behavior(MissedTickBehavior::Burst);
         Self {
             race,
@@ -258,8 +258,9 @@ impl Running {
     }
 
     /// One tick: step the race, send what it produced to the players and
-    /// move the room along with the race's phase. The whole of it is timed
-    /// against the tick budget, the sending included.
+    /// move the room along with the race's phase. Timed against the tick
+    /// budget from before the step until the broadcasts are queued; the
+    /// transports send them later.
     fn tick(&mut self, room: &mut HostedRoom, players: &mut HashMap<u8, Outbound>) -> TickOutcome {
         let started_at = Instant::now();
         let ticked = self.race.tick();

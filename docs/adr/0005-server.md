@@ -37,7 +37,7 @@ Landed with issue 17 (2026-10-19).
   so the distroless container needs no asset volume.
 - Each race ends with one log line giving its tick count, mean and longest
   tick and how many ticks overran the budget; the metrics of ADR 0018
-  replace it later. A debug build on a laptop ticks eight karts in about
-  1.4 ms against the 16.7 ms budget.
+  replace it later. One such line from a debug build on a laptop read a
+  mean of about 1.4 ms per tick of eight karts against the 16.7 ms budget.
 - A deploy's shutdown ends every session; a client whose connection ends
   mid-race goes back to the Title Scene with a message.

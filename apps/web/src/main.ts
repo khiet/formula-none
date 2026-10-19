@@ -73,7 +73,7 @@ function trackNamed(name: string): TrackFiles {
   return isTrackName(name) ? TRACKS[name] : selectTrack("");
 }
 
-/** What the Results Scene offers after a race, and what ends it early. */
+/** What the Results Scene offers after a race. */
 interface RaceHandlers {
   /** Rematch from the results. */
   rematch(): void;
@@ -149,7 +149,7 @@ async function main(container: HTMLElement): Promise<void> {
     showRoom(client);
   };
 
-  /** Back to the Title, out of the room's link. */
+  /** Leave the room and take its code out of the page's link. */
   const leaveRoom = (client: RoomClient) => {
     client.leave();
     window.history.replaceState(null, "", window.location.pathname);

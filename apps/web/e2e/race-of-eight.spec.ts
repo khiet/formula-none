@@ -13,9 +13,9 @@ import { autopilot, centreline } from "./autopilot";
 // CI job.
 
 test.skip(!!process.env.CI, "eight WebGL tabs through a whole race are a local smoke test");
-// Headed, so the tabs render on the GPU as a player's do: eight tabs on the
-// headless software renderer get a few frames a second each, and inputs
-// that late run the autopilot's kart wide of the gates.
+// Headed, so the tabs render on the GPU as a player's do: in a local run,
+// eight tabs on the headless software renderer got a few frames a second
+// each, and inputs that late ran the autopilot's kart wide of the gates.
 test.use({ headless: false });
 test.setTimeout(900_000);
 

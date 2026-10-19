@@ -31,7 +31,7 @@ export const SOLO_RACE: RaceSetup = { seed: 1n, humanCount: 1, localKart: 0 };
 export interface RaceRun {
   readonly humanCount: number;
   readonly localKart: number;
-  /** Advance one tick of `dt` seconds with the local player's input. */
+  /** One tick of `dt` seconds with the local player's input: stepped here, or sent to the server. */
   tick(input: KartInput, dt: number): void;
   /** One transform per kart in grid order, as of the last tick. */
   kartTransforms(): KartTransform[];

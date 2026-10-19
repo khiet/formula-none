@@ -211,7 +211,7 @@ enum FrameError {
 }
 
 /// Hand every frame on the stream to the session until the stream ends or
-/// a frame is too long to be one of ours.
+/// a frame claims more than `RELIABLE_FRAME_MAX_BYTES`.
 async fn read_frames(mut stream: RecvStream, inbound: mpsc::UnboundedSender<Vec<u8>>) {
     loop {
         let mut length = [0u8; 4];

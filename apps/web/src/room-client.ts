@@ -49,7 +49,7 @@ export interface RoomClient {
    * which is returned; the sequence restarts at 1 with each Countdown.
    */
   sendInput(input: KartInput): number;
-  /** Leave the room and close the connection; a Join is the first message on a connection. */
+  /** Leave the room and close the connection; a session takes one Join, so another room needs a new connection. */
   leave(): void;
 }
 
@@ -144,9 +144,9 @@ export function joinRoom(
       };
 
     // The race's bookkeeping, reset by each Countdown. Event ids count up
-    // for the room's whole stay, across its races, so once a race is over
-    // every id up to its highest is spent: a late snapshot repeating one
-    // after the next Countdown is dropped without remembering the id.
+    // for the room's whole stay, so every id up to the last race's highest
+    // is spent: a late snapshot repeating one after the next Countdown is
+    // dropped without the id being remembered.
     let newestTick = 0;
     let sequence = 0;
     let spentEventIds = 0;
