@@ -12,8 +12,12 @@ const SEED: u64 = 0x5EED;
 /// A quarter turn clockwise seen from above: from facing -Z to facing +X.
 const FACING_PLUS_X: f32 = -std::f32::consts::FRAC_PI_2;
 
+/// The oval without its item boxes, so a kart on the racing line reports
+/// only the lap, the finish and the respawn; `items.rs` covers the rest.
 fn oval() -> Track {
-    Track::from_sidecar(OVAL).expect("the oval fixture loads")
+    let mut sidecar: serde_json::Value = serde_json::from_str(OVAL).expect("valid JSON");
+    sidecar["item_boxes"] = serde_json::json!([]);
+    Track::from_sidecar(&sidecar.to_string()).expect("the oval without boxes loads")
 }
 
 fn ticks(seconds: f32) -> usize {

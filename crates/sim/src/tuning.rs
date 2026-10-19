@@ -59,6 +59,11 @@ pub const PING_RESEND_S: f32 = 0.5;
 pub const CONNECTION_SILENCE_S: f32 = 2.0;
 /// How long a client waits after a failed reconnect before the next try.
 pub const RECONNECT_RETRY_S: f32 = 1.0;
+/// How long a client shows the fire it predicted from a press before it
+/// takes the server not to have fired, because the slot was already empty
+/// there. Longer than a round trip, so a press whose datagram was lost and
+/// fired from the next one still confirms in time.
+pub const PREDICTED_FIRE_TIMEOUT_S: f32 = 1.0;
 /// Snapshots an event is repeated in after the first that carries it, so a
 /// lost datagram or two still leaves a client with every event; the client
 /// keeps the first copy of each id.
@@ -172,7 +177,14 @@ pub const RESPAWN_DELAY_S: f32 = 1.5;
 
 // Items.
 
+/// Seconds after a box is picked up before it is back to pick up again.
 pub const ITEM_BOX_RESPAWN_S: f32 = 3.0;
+/// A box is picked up by a kart whose centre is within this much of its
+/// placement along the direction it faces and across it. The boxes of a
+/// row stand 3 m apart, so the widths meet without overlapping and a kart
+/// between two takes one.
+pub const ITEM_BOX_HALF_LENGTH_M: f32 = 1.0;
+pub const ITEM_BOX_HALF_WIDTH_M: f32 = 1.5;
 pub const ITEM_BOOST_S: f32 = 1.5;
 pub const ITEM_BOOST_FACTOR: f32 = 1.4;
 /// Metres behind the kart a hazard is dropped.
@@ -192,8 +204,12 @@ pub struct ItemRollWeights {
     pub homing: u8,
 }
 
+/// What each band's weights sum to: a roll in `0..ITEM_ROLL_PERCENT` picks
+/// one item.
+pub const ITEM_ROLL_PERCENT: u32 = 100;
+
 /// Roll weights by race position. Bands are contiguous and cover every grid
-/// slot; each band's weights sum to 100 so a roll in 0..100 picks one item.
+/// slot; each band's weights sum to `ITEM_ROLL_PERCENT`.
 pub const ITEM_ROLL_WEIGHTS: [ItemRollWeights; 3] = [
     ItemRollWeights {
         positions: (1, 2),
@@ -219,7 +235,8 @@ pub const ITEM_ROLL_WEIGHTS: [ItemRollWeights; 3] = [
 
 /// Metres ahead on the centreline spline a bot steers toward.
 pub const BOT_LOOKAHEAD_M: f32 = 12.0;
-/// Seconds after pickup within which a bot uses an item if a target exists.
+/// Seconds after pickup by which a bot has used its item; it fires sooner
+/// on a straight.
 pub const BOT_ITEM_USE_DELAY_S: f32 = 2.0;
 /// Top speed scale by distance to the nearest human: slower far ahead,
 /// faster far behind.
@@ -274,6 +291,11 @@ const _: () = {
     assert!(BOT_PASS_GAP_M > 2.0 * KART_HALF_WIDTH_M);
     assert!(BOT_STALL_SPEED_M_PER_S * ACCELERATION_TO_TOP_S / TOP_SPEED_M_PER_S < BOT_STALL_S);
     assert!(0.0 < START_BOOST_WINDOW_S && START_BOOST_WINDOW_S < COUNTDOWN_S);
+    assert!(0.0 < ITEM_BOX_RESPAWN_S);
+    assert!(0.0 < ITEM_BOX_HALF_LENGTH_M && 0.0 < ITEM_BOX_HALF_WIDTH_M);
+    assert!(0.0 < ITEM_BOOST_S && 1.0 < ITEM_BOOST_FACTOR);
+    assert!(0.0 < BOT_ITEM_USE_DELAY_S);
+    assert!(0.0 < PREDICTED_FIRE_TIMEOUT_S);
     assert!(0.0 < RACE_END_GRACE_S);
     assert!(SNAPSHOTS_PER_SECOND <= TICKS_PER_SECOND);
     assert!(0 < SNAPSHOT_EVENT_REPEATS);

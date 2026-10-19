@@ -347,4 +347,43 @@ describe("prediction", () => {
     expect(prediction.kartTransform().position[0]).toBeCloseTo(x + 1, 4);
     expect(() => prediction.reconcile({ ...snapshot, tick: 236, karts: [] })).toThrow(/kart 0/);
   });
+
+  it("carries the item a snapshot says the own kart holds through the prediction", async () => {
+    const bridge = await loadBridge(wasm);
+    const prediction = bridge.createPrediction(7n, 0, OVAL);
+    for (let sequence = 1; sequence <= 10; sequence++) {
+      prediction.tick(wire(IDLE_INPUT, sequence));
+    }
+    const [x, y, z] = prediction.kartTransform().position;
+    const holding: KartSnapshot = {
+      position: [x, y, z],
+      rotation: [0, 0, 0, 1],
+      velocity: [0, 0, 0],
+      drift: null,
+      racePosition: 1,
+      lap: 1,
+      checkpoint: 0,
+      splineProgress: 0,
+      wrongWay: false,
+      heldItem: "homing",
+      spinOutS: null,
+    };
+    prediction.reconcile({ tick: 10, acknowledged: [4], karts: [holding], events: [] });
+    expect(prediction.kartTransform().heldItem).toBe("homing");
+    expect(prediction.interpolatedKartTransforms()[0]?.heldItem).toBe("homing");
+  });
+});
+
+describe("items", () => {
+  it("reports the empty slot, the track's boxes and the tuned respawn", async () => {
+    const bridge = await loadBridge(wasm);
+    expect(bridge.itemBoxRespawnSeconds).toBe(3);
+    expect(bridge.predictedFireTimeoutSeconds).toBe(1);
+    const race = bridge.createRace(7n, 1, 0, OVAL);
+    expect(race.kartTransforms()[0]?.heldItem).toBeNull();
+    const boxes = race.itemBoxes();
+    expect(boxes).toHaveLength(8);
+    expect(boxes[0]).toEqual({ position: [-34.5, 0, -70], yaw: expect.closeTo(-Math.PI, 5) });
+    expect(race.itemBoxesPresent()).toEqual(Array<boolean>(8).fill(true));
+  });
 });

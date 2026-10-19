@@ -167,5 +167,6 @@ fn between(from: &SnapshotKart, to: &SnapshotKart, ticks: u32, share: f32) -> Ka
         speed: velocity.dot(rotation * Vec3::NEG_Z),
         velocity: velocity.to_array(),
         drift: from.drift,
+        held_item: from.held_item,
     }
 }

@@ -15,7 +15,7 @@ import {
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { CSS2DObject, CSS2DRenderer } from "three/addons/renderers/CSS2DRenderer.js";
 import { WebGPURenderer } from "three/webgpu";
-import type { KartSize, KartTransform } from "./bridge";
+import type { ItemBox, KartSize, KartTransform } from "./bridge";
 import type { CameraPose } from "./chase-camera";
 import { type DustTell, dustTell } from "./dust";
 import type { KartLabel } from "./kart-labels";
@@ -33,17 +33,22 @@ const COWL_COLOUR = 0x222222;
 const SPARK_RADIUS = 0.25;
 /** The placeholder dust puff: one ball behind the kart, this fraction of the kart's height across. */
 const DUST_RADIUS = 0.6;
+/** The placeholder item box: a cube this many metres across, floating this high, in this colour. */
+const ITEM_BOX_SIZE_M = 1;
+const ITEM_BOX_HEIGHT_M = 1;
+const ITEM_BOX_COLOUR = 0xffcc33;
 
 export interface RaceView {
   /**
    * Move every kart mesh to the transforms the sim reports, hang `labels`
-   * where they say and hide every other kart's, and move the camera to
-   * `camera`.
+   * where they say and hide every other kart's, move the camera to
+   * `camera`, and show each item box that is there to pick up.
    */
   update(
     transforms: readonly KartTransform[],
     labels: readonly KartLabel[],
     camera: CameraPose,
+    itemBoxesPresent: readonly boolean[],
   ): void;
   render(): void;
   /** Take the canvas off the page and free the renderer. */
@@ -51,18 +56,19 @@ export interface RaceView {
 }
 
 /**
- * The Race Scene's View: the track's glTF and one box per kart, drawn by
- * Three.js from the transforms the bridge reports and the pose the chase
- * camera computes, with a name floating over each kart the Scene labels.
- * The track mesh is Presentation only; the sim has its own copy of the
- * geometry from the sidecar. Picks WebGPU when the browser has it and WebGL
- * otherwise.
+ * The Race Scene's View: the track's glTF, one box per kart and one per
+ * item box, drawn by Three.js from the transforms the bridge reports and
+ * the pose the chase camera computes, with a name floating over each kart
+ * the Scene labels. The track mesh is Presentation only; the sim has its
+ * own copy of the geometry from the sidecar. Picks WebGPU when the browser
+ * has it and WebGL otherwise.
  */
 export async function createRaceView(
   container: HTMLElement,
   kartCount: number,
   kartSize: KartSize,
   trackGltfUrl: string,
+  itemBoxes: readonly ItemBox[],
 ): Promise<RaceView> {
   const renderer = new WebGPURenderer({ antialias: true });
   await renderer.init();
@@ -99,6 +105,18 @@ export async function createRaceView(
     return kart;
   });
 
+  // Unlit so a box reads from any angle, whatever the sun does.
+  const boxGeometry = new BoxGeometry(ITEM_BOX_SIZE_M, ITEM_BOX_SIZE_M, ITEM_BOX_SIZE_M);
+  const boxMaterial = new MeshBasicMaterial({ color: ITEM_BOX_COLOUR });
+  const boxes = itemBoxes.map((itemBox) => {
+    const mesh = new Mesh(boxGeometry, boxMaterial);
+    const [x, y, z] = itemBox.position;
+    mesh.position.set(x, y + ITEM_BOX_HEIGHT_M, z);
+    mesh.rotation.y = itemBox.yaw;
+    world.add(mesh);
+    return mesh;
+  });
+
   const labels = Array.from({ length: kartCount }, () => {
     const element = document.createElement("div");
     element.className = "kart-label";
@@ -118,7 +136,10 @@ export async function createRaceView(
 
   const target = new Vector3();
   return {
-    update(transforms, kartLabels, pose) {
+    update(transforms, kartLabels, pose, itemBoxesPresent) {
+      boxes.forEach((mesh, box) => {
+        mesh.visible = itemBoxesPresent[box] ?? true;
+      });
       transforms.forEach((transform, slot) => {
         const kart = karts[slot];
         if (kart === undefined) {

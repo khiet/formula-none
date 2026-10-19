@@ -3,7 +3,14 @@ import type { KartTransform, Surface } from "./bridge";
 import { dustTell } from "./dust";
 
 function kartOn(surface: Surface, speed = 10): KartTransform {
-  return { position: [0, 0, 0], rotation: [0, 0, 0, 1], speed, surface, drift: null };
+  return {
+    position: [0, 0, 0],
+    rotation: [0, 0, 0, 1],
+    speed,
+    surface,
+    drift: null,
+    heldItem: null,
+  };
 }
 
 describe("dust tell", () => {

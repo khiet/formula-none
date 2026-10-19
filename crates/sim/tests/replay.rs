@@ -88,6 +88,49 @@ fn speed_position_and_heading_are_part_of_the_hash() {
     assert_ne!(driving.hash(), turning.hash(), "heading");
 }
 
+/// The oval with one item box, under spawn slot 0, picked up at Go.
+fn boxed_oval() -> Track {
+    let mut sidecar: serde_json::Value = serde_json::from_str(OVAL).expect("valid JSON");
+    let slot = sidecar["spawn_grid"][0]["position"].clone();
+    sidecar["item_boxes"] = serde_json::json!([{ "position": slot, "yaw": 0.0 }]);
+    Track::from_sidecar(&sidecar.to_string()).expect("the boxed oval loads")
+}
+
+/// A one-kart race on the boxed oval one tick past Go, with the item the
+/// box rolled from `seed` in the kart's slot.
+fn holding(seed: u64) -> (State, sim::Item) {
+    let state = step(
+        started(State::new(seed, 1, boxed_oval())),
+        &[KartInput::default()],
+        DT,
+    );
+    let [sim::RaceEvent::ItemPicked { item, .. }] = state.events() else {
+        panic!("one pickup: {:?}", state.events());
+    };
+    let item = *item;
+    (state, item)
+}
+
+#[test]
+fn a_karts_item_is_part_of_the_hash() {
+    // The seeds are tried until the roll is a hazard, which fires to no
+    // effect: the two states then differ in the kart's slot and nothing
+    // else.
+    let seed = (0..)
+        .find(|&seed| holding(seed).1 == sim::Item::Hazard)
+        .expect("some seed rolls a hazard");
+    let idle = step(holding(seed).0, &[KartInput::default()], DT);
+    let fired = step(
+        holding(seed).0,
+        &[KartInput {
+            use_item: true,
+            ..KartInput::default()
+        }],
+        DT,
+    );
+    assert_ne!(idle.hash(), fired.hash(), "the slot emptied");
+}
+
 const REPLAY: &str = r#"{
   "version": 1,
   "seed": "7",

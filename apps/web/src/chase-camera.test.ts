@@ -17,6 +17,7 @@ function kart(yaw: number, position: readonly [number, number, number]): KartTra
     speed: 0,
     surface: "asphalt",
     drift: null,
+    heldItem: null,
   });
 }
 

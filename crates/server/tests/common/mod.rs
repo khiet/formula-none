@@ -74,6 +74,11 @@ pub fn snapshot_kart(kart: &KartSnapshot) -> SnapshotKart {
             },
             charge_s: drift.charge_s,
         }),
+        held_item: kart.held_item.map(|item| match item {
+            protocol::Item::Boost => sim::Item::Boost,
+            protocol::Item::Hazard => sim::Item::Hazard,
+            protocol::Item::Homing => sim::Item::Homing,
+        }),
         lap: u32::from(kart.lap),
         checkpoint: usize::from(kart.checkpoint),
         spline_progress: kart.spline_progress,

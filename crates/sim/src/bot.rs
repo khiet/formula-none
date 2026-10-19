@@ -5,26 +5,28 @@
 
 use crate::tuning::{
     BOT_AVOID_HALF_WIDTH_M, BOT_BRAKE_HORIZON_S, BOT_CORNER_SAMPLE_M, BOT_CORNER_SPEED_FRACTION,
-    BOT_DRIFT_CURVATURE_RAD_PER_M, BOT_HOP_STEER, BOT_LINE_RIGHT_OF_CENTRE_M, BOT_LOOKAHEAD_M,
-    BOT_PASS_GAP_M, BOT_REVERSE_S, BOT_STALL_S, BOT_STALL_SPEED_M_PER_S, DRIFT_SLIP_ANGLE_RAD,
-    DRIFT_TURN_NEUTRAL, DRIFT_TURN_STEER_RANGE, STEER_RATE_LOW_SPEED_RAD_PER_S,
-    STEER_RATE_TOP_SPEED_RAD_PER_S, TOP_SPEED_M_PER_S,
+    BOT_DRIFT_CURVATURE_RAD_PER_M, BOT_HOP_STEER, BOT_ITEM_USE_DELAY_S, BOT_LINE_RIGHT_OF_CENTRE_M,
+    BOT_LOOKAHEAD_M, BOT_PASS_GAP_M, BOT_REVERSE_S, BOT_STALL_S, BOT_STALL_SPEED_M_PER_S,
+    DRIFT_SLIP_ANGLE_RAD, DRIFT_TURN_NEUTRAL, DRIFT_TURN_STEER_RANGE,
+    STEER_RATE_LOW_SPEED_RAD_PER_S, STEER_RATE_TOP_SPEED_RAD_PER_S, TOP_SPEED_M_PER_S,
 };
 use crate::{DriftDirection, KartInput, KartTransform, Standing, Track};
 
 /// What a bot carries from one tick to the next: how long it has been
-/// stalled, and how long it still backs up. Steers the next tick, so
-/// [`crate::State::hash`] covers it.
+/// stalled, how long it still backs up, and how long it has held its
+/// item. Steers the next tick, so [`crate::State::hash`] covers it.
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
 pub struct Memory {
     stalled_s: f32,
     reversing_s: f32,
+    /// Seconds the bot has seen an item in its slot; zero while it is empty.
+    item_held_s: f32,
 }
 
 impl Memory {
-    /// The two timers, for the hash.
-    pub(crate) fn timers(&self) -> [f32; 2] {
-        [self.stalled_s, self.reversing_s]
+    /// The timers, for the hash.
+    pub(crate) fn timers(&self) -> [f32; 3] {
+        [self.stalled_s, self.reversing_s, self.item_held_s]
     }
 }
 
@@ -105,13 +107,27 @@ pub fn drive(
     } else {
         (1.0, 0.0)
     };
+
+    // An item is fired on the first straight after it is picked up, with
+    // no corner to slow for, and in any case once it has been held for the
+    // tuned delay.
+    let use_item = match kart.held_item {
+        Some(_) => {
+            memory.item_held_s += dt;
+            (!corner && brake == 0.0) || memory.item_held_s >= BOT_ITEM_USE_DELAY_S
+        }
+        None => {
+            memory.item_held_s = 0.0;
+            false
+        }
+    };
     KartInput {
         steer,
         throttle,
         brake,
         hop,
-        use_item: false,
-        hold_item: false,
+        use_item,
+        hold_item: use_item,
     }
 }
 

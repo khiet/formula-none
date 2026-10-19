@@ -1,9 +1,10 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from "vitest";
-import type { Standing } from "./bridge";
+import type { KartTransform, Standing } from "./bridge";
 import {
   CONNECTION_LOST_BANNER,
   createInstrumentPanel,
+  itemReadout,
   lapReadouts,
   phaseReadout,
 } from "./instrument-panel";
@@ -83,5 +84,46 @@ describe("the connection banner", () => {
     expect(banner?.hidden).toBe(false);
     panel.connectionLost(false);
     expect(banner?.hidden).toBe(true);
+  });
+});
+
+describe("the item slot", () => {
+  it("names the item held, in a state that says whether it is being fired", () => {
+    expect(itemReadout({ item: null, firing: false })).toEqual({ text: "", state: "empty" });
+    expect(itemReadout({ item: "boost", firing: false })).toEqual({ text: "Boost", state: "held" });
+    expect(itemReadout({ item: "hazard", firing: false })).toEqual({
+      text: "Hazard",
+      state: "held",
+    });
+    expect(itemReadout({ item: "homing", firing: true })).toEqual({
+      text: "Homing",
+      state: "firing",
+    });
+    expect(itemReadout({ item: null, firing: true })).toEqual({ text: "", state: "firing" });
+  });
+
+  it("shows the slot the run reports on every update", () => {
+    const container = document.createElement("div");
+    const panel = createInstrumentPanel(container, 3);
+    const slot = container.querySelector<HTMLElement>('[data-instrument="item"]');
+    const local: KartTransform = {
+      position: [0, 0.3, 0],
+      rotation: [0, 0, 0, 1],
+      speed: 0,
+      surface: "asphalt",
+      drift: null,
+      heldItem: null,
+    };
+    const racing = { kind: "racing", elapsedSeconds: 5, graceLeftSeconds: null } as const;
+    expect(slot?.textContent).toBe("");
+    expect(slot?.dataset.itemState).toBe("empty");
+    panel.update(local, onTheGrid, racing, { item: "boost", firing: false });
+    expect(slot?.textContent).toBe("Boost");
+    expect(slot?.dataset.itemState).toBe("held");
+    panel.update(local, onTheGrid, racing, { item: "boost", firing: true });
+    expect(slot?.dataset.itemState).toBe("firing");
+    panel.update(local, onTheGrid, racing, { item: null, firing: false });
+    expect(slot?.textContent).toBe("");
+    expect(slot?.dataset.itemState).toBe("empty");
   });
 });
