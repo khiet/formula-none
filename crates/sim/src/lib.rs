@@ -21,11 +21,13 @@
 
 pub mod bot;
 mod hash;
+pub mod interpolation;
 pub mod prediction;
 pub mod replay;
 pub mod track;
 pub mod tuning;
 
+pub use interpolation::Interpolation;
 pub use prediction::{Prediction, SnapshotKart};
 pub use replay::{Replay, ReplayError, Segment};
 pub use track::{Checkpoint, Placement, Surface, SurfaceMesh, Track, TrackError};
@@ -361,6 +363,19 @@ impl Kart {
     }
 }
 
+/// The box a kart collides with. Its length runs along -Z, its facing.
+fn kart_collider() -> Collider {
+    ColliderBuilder::round_cuboid(
+        KART_HALF_WIDTH_M - KART_EDGE_RADIUS_M,
+        KART_HALF_HEIGHT_M - KART_EDGE_RADIUS_M,
+        KART_HALF_LENGTH_M - KART_EDGE_RADIUS_M,
+        KART_EDGE_RADIUS_M,
+    )
+    .friction(0.0)
+    .restitution(0.0)
+    .build()
+}
+
 /// Fast enough to slide: what a landing needs to start a drift and a drift
 /// needs to go on.
 fn fast_enough_to_drift(speed: f32) -> bool {
@@ -461,17 +476,8 @@ impl State {
                     .soft_ccd_prediction(WALL_PREDICTION_M)
                     .build();
                 let body = physics.bodies.insert(body);
-                // The body's length runs along -Z, its facing.
                 let collider = physics.colliders.insert_with_parent(
-                    ColliderBuilder::round_cuboid(
-                        KART_HALF_WIDTH_M - KART_EDGE_RADIUS_M,
-                        KART_HALF_HEIGHT_M - KART_EDGE_RADIUS_M,
-                        KART_HALF_LENGTH_M - KART_EDGE_RADIUS_M,
-                        KART_EDGE_RADIUS_M,
-                    )
-                    .friction(0.0)
-                    .restitution(0.0)
-                    .build(),
+                    kart_collider(),
                     body,
                     &mut physics.bodies,
                 );

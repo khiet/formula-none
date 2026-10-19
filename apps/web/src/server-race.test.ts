@@ -3,13 +3,13 @@ import type { Bridge, KartInput, KartTransform, Phase, Prediction, Race } from "
 import type { Event, FinalStanding, Input, KartSnapshot, Snapshot } from "./generated/protocol";
 import { IDLE_INPUT } from "./input";
 import { type Countdown, quantiseInput, type RoomClient } from "./room-client";
-import { createServerRace, speedAlongFacing } from "./server-race";
+import { createServerRace } from "./server-race";
 
 // The run reads the server's snapshots and events through the room client;
 // the bridge here is only what the run asks of it: the tuning, a race it
-// never steps, for the grid and the surface under a point, and the own
-// kart's prediction, which records what it is given and reports what the
-// test sets.
+// never steps, for the grid, and the own kart's prediction, which records
+// what it is given and reports what the test sets, the other karts'
+// interpolation included.
 
 const TICKS_PER_SECOND = 60;
 const COUNTDOWN_S = 3;
@@ -36,6 +36,7 @@ interface FakePrediction extends Prediction {
   readonly inputs: Input[];
   readonly snapshots: Snapshot[];
   clock: Phase;
+  interpolated: KartTransform[];
 }
 
 let predictions: FakePrediction[] = [];
@@ -52,12 +53,9 @@ const bridge = {
   countdownSeconds: COUNTDOWN_S,
   kartsPerRace: KARTS,
   lapsPerRace: 3,
-  miniTurboTier: (chargeSeconds: number) =>
-    chargeSeconds >= 1.6 ? "orange" : chargeSeconds >= 0.8 ? "blue" : "none",
   createRace: () =>
     ({
       kartTransforms: () => Array<KartTransform>(KARTS).fill(GRID_TRANSFORM),
-      surfaceAt: ([x]: readonly [number, number, number]) => (x > 100 ? "out of world" : "asphalt"),
     }) as unknown as Race,
   createPrediction(_seed: bigint, kart: number): Prediction {
     const made: FakePrediction = {
@@ -65,6 +63,7 @@ const bridge = {
       inputs: [],
       snapshots: [],
       clock: { kind: "countdown", remainingSeconds: COUNTDOWN_S },
+      interpolated: [],
       tick(input) {
         this.inputs.push(input);
       },
@@ -73,6 +72,9 @@ const bridge = {
         return 0;
       },
       kartTransform: () => PREDICTED,
+      interpolatedKartTransforms() {
+        return [...this.interpolated];
+      },
       phase() {
         return this.clock;
       },
@@ -204,45 +206,20 @@ describe("createServerRace", () => {
     expect(run.correctionsPerSecond()).toBe(0.5);
   });
 
-  it("draws the other karts from the newest snapshot, with the sim's surface and the drift's tier", () => {
-    const client = fakeClient();
-    const run = createServerRace(bridge, client, COUNTDOWN, 1, "{}");
-    client.snapshot(
-      snapshot(200, [
-        {},
-        {
-          position: [500, 0, 0],
-          drift: { direction: "left", chargeS: 1.0 },
-          velocity: [0, 0, 5],
-        },
-      ]),
-    );
-    client.snapshot(
-      snapshot(200, [
-        {},
-        {},
-        {
-          position: [500, 0, 0],
-          drift: { direction: "left", chargeS: 1.0 },
-          velocity: [0, 0, 5],
-        },
-      ]),
-    );
-    const [first, own, third] = run.kartTransforms();
-    expect(first).toEqual({
+  it("draws the other karts where the interpolation puts them, the own kart where it is predicted", () => {
+    const run = createServerRace(bridge, fakeClient(), COUNTDOWN, 1, "{}");
+    const interpolated: KartTransform = {
       position: [10, 0.3, -20],
       rotation: [0, 0, 0, 1],
       speed: 12,
-      surface: "asphalt",
-      drift: null,
-    });
-    // The snapshot's word on the own kart reaches the View through the prediction.
+      surface: "sand",
+      drift: { direction: "left", chargeSeconds: 1, miniTurbo: "blue" },
+    };
+    prediction().interpolated = Array<KartTransform>(KARTS).fill(interpolated);
+    const [first, own, third] = run.kartTransforms();
+    expect(first).toEqual(interpolated);
     expect(own).toEqual(PREDICTED);
-    expect(third).toMatchObject({
-      surface: "out of world",
-      speed: -5,
-      drift: { direction: "left", chargeSeconds: 1.0, miniTurbo: "blue" },
-    });
+    expect(third).toEqual(interpolated);
   });
 
   it("reads the race clock from the prediction and the lap clocks from the events", () => {
@@ -292,16 +269,5 @@ describe("createServerRace", () => {
     run.dispose();
     client.snapshot(snapshot(180 + 60 * 131, [{ racePosition: 5 }]));
     expect(run.standings()[0]?.position).toBe(1);
-  });
-});
-
-describe("speedAlongFacing", () => {
-  it("is the velocity along -Z for an unturned kart, and along the facing once turned", () => {
-    expect(speedAlongFacing([0, 0, -12], [0, 0, 0, 1])).toBeCloseTo(12);
-    expect(speedAlongFacing([0, 0, 12], [0, 0, 0, 1])).toBeCloseTo(-12);
-    // A quarter turn about +Y faces -X.
-    const half = Math.SQRT1_2;
-    expect(speedAlongFacing([-9, 0, 0], [0, half, 0, half])).toBeCloseTo(9);
-    expect(speedAlongFacing([0, 0, -9], [0, half, 0, half])).toBeCloseTo(0);
   });
 });

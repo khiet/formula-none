@@ -13,10 +13,12 @@ import {
   Vector3,
 } from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
+import { CSS2DObject, CSS2DRenderer } from "three/addons/renderers/CSS2DRenderer.js";
 import { WebGPURenderer } from "three/webgpu";
 import type { KartSize, KartTransform } from "./bridge";
 import type { CameraPose } from "./chase-camera";
 import { type DustTell, dustTell } from "./dust";
+import type { KartLabel } from "./kart-labels";
 import { liveryColour } from "./livery";
 import { type SparkTell, sparkTell } from "./sparks";
 
@@ -33,8 +35,16 @@ const SPARK_RADIUS = 0.25;
 const DUST_RADIUS = 0.6;
 
 export interface RaceView {
-  /** Move every kart mesh to the transforms the sim reports and the camera to `camera`. */
-  update(transforms: readonly KartTransform[], camera: CameraPose): void;
+  /**
+   * Move every kart mesh to the transforms the sim reports, hang `labels`
+   * where they say and hide every other kart's, and move the camera to
+   * `camera`.
+   */
+  update(
+    transforms: readonly KartTransform[],
+    labels: readonly KartLabel[],
+    camera: CameraPose,
+  ): void;
   render(): void;
   /** Take the canvas off the page and free the renderer. */
   dispose(): void;
@@ -43,7 +53,7 @@ export interface RaceView {
 /**
  * The Race Scene's View: the track's glTF and one box per kart, drawn by
  * Three.js from the transforms the bridge reports and the pose the chase
- * camera computes. The track mesh is Presentation only; the sim has its own
+ * camera computes, with a name floating over each kart the Scene labels. The track mesh is Presentation only; the sim has its own
  * copy of the geometry from the sidecar. Picks WebGPU when the browser has
  * it and WebGL otherwise.
  */
@@ -58,6 +68,11 @@ export async function createRaceView(
   renderer.setPixelRatio(window.devicePixelRatio);
   renderer.setSize(container.clientWidth, container.clientHeight);
   container.appendChild(renderer.domElement);
+  // The labels are page text laid over the canvas where the camera sees their anchors.
+  const labelRenderer = new CSS2DRenderer();
+  labelRenderer.setSize(container.clientWidth, container.clientHeight);
+  labelRenderer.domElement.dataset.kartLabels = "";
+  container.appendChild(labelRenderer.domElement);
 
   // Three's scene graph, not a glossary Scene: this View belongs to the Race Scene.
   const world = new ThreeScene();
@@ -83,8 +98,18 @@ export async function createRaceView(
     return kart;
   });
 
+  const labels = Array.from({ length: kartCount }, () => {
+    const element = document.createElement("div");
+    element.className = "kart-label";
+    const label = new CSS2DObject(element);
+    label.visible = false;
+    world.add(label);
+    return label;
+  });
+
   const resize = () => {
     renderer.setSize(container.clientWidth, container.clientHeight);
+    labelRenderer.setSize(container.clientWidth, container.clientHeight);
     camera.aspect = container.clientWidth / container.clientHeight;
     camera.updateProjectionMatrix();
   };
@@ -92,7 +117,7 @@ export async function createRaceView(
 
   const target = new Vector3();
   return {
-    update(transforms, pose) {
+    update(transforms, kartLabels, pose) {
       transforms.forEach((transform, slot) => {
         const kart = karts[slot];
         if (kart === undefined) {
@@ -103,16 +128,30 @@ export async function createRaceView(
         kart.showSparks(sparkTell(transform.drift));
         kart.showDust(dustTell(transform));
       });
+      for (const label of labels) {
+        label.visible = false;
+      }
+      for (const { kart, text, anchor } of kartLabels) {
+        const label = labels[kart];
+        if (label === undefined) {
+          continue;
+        }
+        label.visible = true;
+        label.position.set(...anchor);
+        label.element.textContent = text;
+      }
       camera.position.set(...pose.position);
       camera.lookAt(target.set(...pose.target));
     },
     render: () => {
       renderer.render(world, camera);
+      labelRenderer.render(world, camera);
     },
     dispose() {
       window.removeEventListener("resize", resize);
       renderer.dispose();
       renderer.domElement.remove();
+      labelRenderer.domElement.remove();
     },
   };
 }

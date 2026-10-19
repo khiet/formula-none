@@ -99,10 +99,16 @@ impl Harness {
     /// A client connected to the server through the fake network, not yet
     /// in any room.
     pub fn connect(&mut self) -> Client {
+        self.connect_under(self.conditions)
+    }
+
+    /// A client whose network to the server has its own `conditions`, the
+    /// harness's other clients keeping theirs; the seed is the harness's.
+    pub fn connect_under(&mut self, conditions: Conditions) -> Client {
         let (server_inbound_tx, server_inbound) = mpsc::unbounded_channel();
-        let up = self.lanes(server_inbound_tx);
+        let up = self.lanes(conditions, server_inbound_tx);
         let (from_server_tx, from_server) = mpsc::unbounded_channel();
-        let down = self.lanes(from_server_tx);
+        let down = self.lanes(conditions, from_server_tx);
         let (server_outbound, mut outgoing) = mpsc::unbounded_channel::<Outgoing>();
         tokio::spawn(async move {
             while let Some(message) = outgoing.recv().await {
@@ -126,11 +132,11 @@ impl Harness {
         }
     }
 
-    /// Both lanes one way, ending in `into`.
-    fn lanes(&mut self, into: mpsc::UnboundedSender<Vec<u8>>) -> Lanes {
+    /// Both lanes one way under `conditions`, ending in `into`.
+    fn lanes(&mut self, conditions: Conditions, into: mpsc::UnboundedSender<Vec<u8>>) -> Lanes {
         Lanes {
-            reliable: reliable_lane(self.conditions, self.next_seed(), into.clone()),
-            datagram: datagram_lane(self.conditions, self.next_seed(), into),
+            reliable: reliable_lane(conditions, self.next_seed(), into.clone()),
+            datagram: datagram_lane(conditions, self.next_seed(), into),
         }
     }
 

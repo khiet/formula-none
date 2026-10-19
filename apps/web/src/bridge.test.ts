@@ -120,15 +120,8 @@ describe("bridge wrapper", () => {
     expect(after[1]?.speed).toBe(0);
   });
 
-  it("answers the surface under any point, the mini-turbo tier of a charge, and the countdown", async () => {
+  it("answers the countdown", async () => {
     const bridge = await loadBridge(wasm);
-    const race = bridge.createRace(7n, 1, 0, OVAL);
-    const grid = race.kartTransforms()[0]?.position ?? [0, 0, 0];
-    expect(race.surfaceAt(grid)).toBe("asphalt");
-    expect(race.surfaceAt([1000, 0, 1000])).toBe("out of world");
-    expect(bridge.miniTurboTier(0)).toBe("none");
-    expect(bridge.miniTurboTier(0.8)).toBe("blue");
-    expect(bridge.miniTurboTier(1.6)).toBe("orange");
     expect(bridge.countdownSeconds).toBe(3);
   });
 
@@ -319,6 +312,7 @@ describe("prediction", () => {
   it("is moved by a snapshot that disagrees, and counts the correction", async () => {
     const bridge = await loadBridge(wasm);
     const prediction = bridge.createPrediction(7n, 0, OVAL);
+    expect(prediction.interpolatedKartTransforms()).toEqual([]);
     // Idle on the grid through the countdown and a second of the race.
     for (let sequence = 1; sequence <= 240; sequence++) {
       prediction.tick(wire(IDLE_INPUT, sequence));
@@ -339,6 +333,10 @@ describe("prediction", () => {
     };
     const snapshot: Snapshot = { tick: 234, acknowledged: [230], karts: [aside], events: [] };
     expect(prediction.reconcile(snapshot)).toBeCloseTo(1, 3);
+    // The snapshot's karts are drawn too, with the sim's surface under them.
+    const [drawn] = prediction.interpolatedKartTransforms();
+    expect(drawn?.position[0]).toBeCloseTo(x + 1, 4);
+    expect(drawn).toMatchObject({ speed: 0, surface: "asphalt", drift: null });
     expect(prediction.correctionsPerSecond()).toBeCloseTo(1, 3);
     // Blended: drawn where it was, then on to the snapshot's word.
     expect(prediction.kartTransform().position[0]).toBeCloseTo(x, 4);

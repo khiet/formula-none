@@ -1,7 +1,11 @@
 //! The player's own kart, predicted in the browser so it answers the
 //! controls the tick they change (ADR 0009). The prediction is this crate's
 //! `step` on a race holding only that kart on the static track, so it runs
-//! the server's rules and nothing else; the other karts are the snapshots'.
+//! the server's rules and nothing else. The other karts are the snapshots':
+//! each tick they stand where the client draws them, as kinematic bodies
+//! the own kart meets and cannot push. Kart-to-kart contact is the server's
+//! to resolve, so a kart driven into another is stopped here at least as
+//! hard as there, and never predicted past where the server puts it.
 //!
 //! Each tick the client steps the prediction with the input it sends. Each
 //! snapshot is held against what the prediction said of the kart at the
@@ -24,8 +28,8 @@ use crate::tuning::{
     COUNTDOWN_S, KART_HALF_LENGTH_M, RECONCILIATION_BLEND_TICKS, RECONCILIATION_TOLERANCE_M, TICK_S,
 };
 use crate::{
-    clock_after, drift_slip, step, Drift, Kart, KartInput, KartTransform, Phase, Standing, State,
-    Surface, Track,
+    clock_after, drift_slip, kart_collider, step, Drift, Kart, KartInput, KartTransform, Phase,
+    Standing, State, Surface, Track,
 };
 
 /// What a snapshot says of one kart, in the sim's terms. Metres, seconds and
@@ -45,6 +49,11 @@ pub struct SnapshotKart {
 
 /// One player's kart as their client predicts it.
 pub struct Prediction {
+    /// The kart's grid slot, which the other karts are counted around.
+    kart: usize,
+    /// A kinematic body for each other kart in grid order, once the client
+    /// has drawn the other karts.
+    others: Vec<RigidBodyHandle>,
     /// A race with the one kart, on its own spawn slot. Its phase is the
     /// race clock at `tick` and never Finished: the server's race ends, not
     /// this one, and a finished kart drives on until it does. `None` only
@@ -75,7 +84,16 @@ struct Entry {
     /// The server tick the input is predicted to be applied at.
     tick: u32,
     input: KartInput,
+    /// Where the other karts stood at the end of the tick.
+    others: Vec<Placed>,
     after: KartRecord,
+}
+
+/// Where a kart stands and which way it faces.
+#[derive(Clone, Copy)]
+struct Placed {
+    translation: Vec3,
+    rotation: Rotation,
 }
 
 /// Everything about a kart that a later tick reads, so a rewind can put it
@@ -125,9 +143,12 @@ impl Prediction {
             sequence: 0,
             tick: 0,
             input: KartInput::default(),
+            others: Vec::new(),
             after: state.record(),
         };
         Self {
+            kart,
+            others: Vec::new(),
             state: Some(state),
             tick: 0,
             entries: VecDeque::from([spawn]),
@@ -147,15 +168,27 @@ impl Prediction {
     }
 
     /// Step the kart one tick with the input the client sends the server
-    /// this tick under `sequence`. `input` must be what the server will
-    /// read, the wire's bytes back in the unit range, and the sequences
-    /// must count up by one from 1.
-    pub fn tick(&mut self, sequence: u32, input: KartInput) {
-        self.advance(input);
+    /// this tick under `sequence`, against `karts`, every kart in grid
+    /// order as the client draws them this tick; this kart's own entry is
+    /// not read, and before the client draws any it is empty. `input` must
+    /// be what the server will read, the wire's bytes back in the unit
+    /// range, and the sequences must count up by one from 1.
+    pub fn tick(&mut self, sequence: u32, input: KartInput, karts: &[KartTransform]) {
+        let others: Vec<Placed> = karts
+            .iter()
+            .enumerate()
+            .filter(|&(slot, _)| slot != self.kart)
+            .map(|(_, kart)| Placed {
+                translation: Vec3::from(kart.position),
+                rotation: Rotation::from_array(kart.rotation).normalize(),
+            })
+            .collect();
+        self.advance(input, &others);
         self.entries.push_back(Entry {
             sequence,
             tick: self.tick,
             input,
+            others,
             after: self.state().record(),
         });
         if let Phase::Racing { .. } = self.state().phase {
@@ -205,6 +238,8 @@ impl Prediction {
         let mut record = anchor.after.clone();
         record.take(kart);
         let clock = self.clock;
+        let anchor_others = self.entries[0].others.clone();
+        self.place_others(&anchor_others, true);
         let state = self.state_mut();
         state.restore(&record);
         state.phase = clock;
@@ -214,7 +249,9 @@ impl Prediction {
         anchor.after = record;
         for index in 1..self.entries.len() {
             let input = self.entries[index].input;
-            self.advance(input);
+            let others = std::mem::take(&mut self.entries[index].others);
+            self.advance(input, &others);
+            self.entries[index].others = others;
             let after = self.state().record();
             let entry = &mut self.entries[index];
             entry.tick = self.tick;
@@ -255,6 +292,11 @@ impl Prediction {
         self.state().kart_surface(0)
     }
 
+    /// What lies under `point` on the track; karts are never an answer.
+    pub fn surface_at(&self, point: [f32; 3]) -> Surface {
+        self.state().surface_at(point)
+    }
+
     /// The predicted kart's standing; its race position counts only itself.
     pub fn standing(&self) -> Standing {
         self.state().standings()[0]
@@ -279,8 +321,10 @@ impl Prediction {
         self.corrections as f32 / (self.ticks as f32 * TICK_S)
     }
 
-    /// One tick of the sim, with the race clock kept the server's.
-    fn advance(&mut self, input: KartInput) {
+    /// One tick of the sim against the other karts moving to `others`, with
+    /// the race clock kept the server's.
+    fn advance(&mut self, input: KartInput, others: &[Placed]) {
+        self.place_others(others, false);
         let state = self
             .state
             .take()
@@ -290,6 +334,40 @@ impl Prediction {
         state.phase = clock;
         self.state = Some(state);
         self.tick += 1;
+    }
+
+    /// Stand the other karts at `others`: there and then when `teleport`,
+    /// else by the end of the next step, so the own kart meets them moving.
+    /// A kart seen for the first time is put there.
+    fn place_others(&mut self, others: &[Placed], teleport: bool) {
+        let state = self
+            .state
+            .as_mut()
+            .expect("state is only absent during a step");
+        let physics = &mut state.physics;
+        while self.others.len() < others.len() {
+            let placed = others[self.others.len()];
+            let body = physics.bodies.insert(
+                RigidBodyBuilder::kinematic_position_based()
+                    .translation(placed.translation)
+                    .rotation(placed.rotation.to_scaled_axis())
+                    .build(),
+            );
+            physics
+                .colliders
+                .insert_with_parent(kart_collider(), body, &mut physics.bodies);
+            self.others.push(body);
+        }
+        for (&body, placed) in self.others.iter().zip(others) {
+            let body = &mut physics.bodies[body];
+            if teleport {
+                body.set_translation(placed.translation, true);
+                body.set_rotation(placed.rotation, true);
+            } else {
+                body.set_next_kinematic_translation(placed.translation);
+                body.set_next_kinematic_rotation(placed.rotation);
+            }
+        }
     }
 
     fn state(&self) -> &State {

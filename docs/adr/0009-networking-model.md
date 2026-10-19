@@ -66,3 +66,31 @@ input queue of ADR 0019, which replaces the input handling recorded above.
   local bodies (issue 19).
 - The Instrument panel's countdown and race clock are the prediction's: the
   clock at the tick the player's inputs meet on the server.
+
+Interpolation landed with issue 19 (2026-10-19).
+
+- The client draws the other karts with `sim::Interpolation`, between the
+  two snapshots it holds either side of a render clock
+  `INTERPOLATION_DELAY_S` behind the newest. The clock runs a tick per
+  client tick, nudged toward the delay by at most
+  `INTERPOLATION_CLOCK_SLEW` of a tick, and never past the newest snapshot
+  held, so it reads no snapshot the client has not received. A kart that
+  moved further between two snapshots than any kart drives was respawned,
+  and is drawn where it was until the snapshot that has it in its new
+  place.
+- The prediction places the other karts where the client draws them, as
+  kinematic bodies, every tick it predicts and every tick it replays. The
+  own kart meets them and cannot push them.
+- The fake-transport tests hold the render clock at or behind the newest
+  snapshot at up to 50 ms jitter, 100 ms behind it on average. At 100 ms
+  RTT with 2 percent loss, they hold every kart within
+  `RECONCILIATION_VISIBLE_CORRECTION_M` of where it is drawn without loss.
+  The prediction test of issue 18 no longer leaves out snapshots after a
+  touch.
+- Driving the own kart into a kart the server pushes on leaves a few
+  centimetres of overrun to correct: the other kart is drawn 100 ms
+  behind, so the own kart meets it late. With no lag compensation, the
+  test holds that under `RECONCILIATION_VISIBLE_CORRECTION_M`. Without the
+  kinematic bodies it is most of a metre.
+- A nickname label floats over every kart but the player's own: the
+  room's nickname for a human, "Bot" and the grid slot for a bot.
