@@ -161,8 +161,7 @@ async function main(container: HTMLElement): Promise<void> {
     try {
       client = await takeSeat(nickname, code);
     } catch (error) {
-      // The server closes a refused connection itself, and a connection the
-      // server never answered is closed by the page going.
+      // The server closes a refused connection itself.
       const message =
         error instanceof RefusedError ? error.message : "Could not reach the server; try again";
       if (!(error instanceof RefusedError)) console.warn("could not join the room", error);

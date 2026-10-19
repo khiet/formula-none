@@ -158,8 +158,8 @@ pub enum Refusal {
     /// player reloads to get the client that matches (ADR 0013).
     VersionMismatch { server: u16 },
     /// No seat in the room holds the rejoin's session token: the seat was
-    /// freed when the race it was kept for ended, or the token was never
-    /// this room's.
+    /// freed, at the end of the race it was kept for or when its player
+    /// left, or the token was never this room's.
     UnknownSession,
 }
 

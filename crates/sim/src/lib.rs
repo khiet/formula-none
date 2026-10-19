@@ -552,7 +552,7 @@ impl State {
 
     /// A bot drives the human's kart in `slot` from the next tick, with no
     /// memory of its own yet; `step` still takes the kart's input and
-    /// ignores it. The server does this when the human's connection goes.
+    /// ignores it. The server does this while it has lost the human.
     /// `slot` must be a human's.
     pub fn hand_to_bot(&mut self, slot: usize) {
         assert!(slot < self.humans, "kart {slot} is not a human's");

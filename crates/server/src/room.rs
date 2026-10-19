@@ -8,8 +8,8 @@
 //! never shift under a player, so the slot a client learns from `Joined`
 //! names it for the whole stay. The seat also holds the session token the
 //! join dealt, which takes it back after a lost connection: mid-race the
-//! player is Disconnected and a bot drives their kart until the token
-//! rejoins or the race ends (ADR 0012).
+//! player is Disconnected and a bot drives their kart until they are back
+//! or the race ends (ADR 0012).
 
 use protocol::{Player, PlayerState, Refusal, Room, RoomState, PROTOCOL_VERSION};
 use sim::tuning::{NICKNAME_MAX_CHARS, ROOM_PLAYERS_MAX};

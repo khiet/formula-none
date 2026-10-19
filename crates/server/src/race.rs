@@ -155,7 +155,7 @@ impl Race {
         self.humans[kart].receive(input);
     }
 
-    /// The player's connection is gone: a bot drives their kart from the
+    /// The player is gone or silent: a bot drives their kart from the
     /// next tick and what they sent is dropped, until [`Self::hand_back`].
     pub fn hand_to_bot(&mut self, slot: u8) {
         if let Some(kart) = self.kart_of(slot) {
