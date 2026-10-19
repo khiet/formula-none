@@ -87,10 +87,9 @@ Interpolation landed with issue 19 (2026-10-19).
   `RECONCILIATION_VISIBLE_CORRECTION_M` of where it is drawn without loss.
   The prediction test of issue 18 no longer leaves out snapshots after a
   touch.
-- Driving the own kart into a kart the server pushes on leaves a few
-  centimetres of overrun to correct: the other kart is drawn 100 ms
-  behind, so the own kart meets it late. With no lag compensation, the
-  test holds that under `RECONCILIATION_VISIBLE_CORRECTION_M`. Without the
-  kinematic bodies it is most of a metre.
-- A nickname label floats over every kart but the player's own: the
-  room's nickname for a human, "Bot" and the grid slot for a bot.
+- Driving the own kart into another kart leaves a few centimetres of
+  overrun to correct once the server pushes the other kart on: it is
+  drawn 100 ms behind, overlapping the own kart, and the contact pushes
+  the own kart out ahead of it. With no lag compensation, the test holds
+  that under `RECONCILIATION_VISIBLE_CORRECTION_M`. Without the kinematic
+  bodies it is most of a metre.

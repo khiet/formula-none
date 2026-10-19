@@ -50,8 +50,7 @@ export function kartName(
 }
 
 /**
- * The results from the final standings, in finishing order, each kart
- * named by `kartName`.
+ * The results from the final standings, in finishing order.
  */
 export function resultsRows(results: RaceResults): ResultRow[] {
   return results.standings

@@ -22,17 +22,15 @@ use std::collections::VecDeque;
 use rapier3d::prelude::*;
 
 use crate::tuning::{
-    BOOST_PAD_FACTOR, INTERPOLATION_CLOCK_GAIN, INTERPOLATION_CLOCK_SLEW, INTERPOLATION_DELAY_S,
-    INTERPOLATION_RESYNC_S, SNAPSHOTS_PER_SECOND, TICKS_PER_SECOND, TICK_S, TOP_SPEED_M_PER_S,
+    INTERPOLATION_CLOCK_GAIN, INTERPOLATION_CLOCK_SLEW, INTERPOLATION_DELAY_S,
+    INTERPOLATION_RESYNC_S, INTERPOLATION_TELEPORT_M_PER_TICK, SNAPSHOTS_PER_SECOND,
+    TICKS_PER_SECOND,
 };
 use crate::{KartTransform, SnapshotKart};
 
 const DELAY_TICKS: f32 = INTERPOLATION_DELAY_S * TICKS_PER_SECOND as f32;
 const TICKS_PER_SNAPSHOT: u32 = TICKS_PER_SECOND / SNAPSHOTS_PER_SECOND;
 const RESYNC_TICKS: f32 = INTERPOLATION_RESYNC_S * TICKS_PER_SECOND as f32;
-/// Further than any kart drives in a tick: twice the biggest boost's top
-/// speed, so a kart thrown by a contact is still driving.
-const FARTHEST_DRIVE_PER_TICK_M: f32 = 2.0 * BOOST_PAD_FACTOR * TOP_SPEED_M_PER_S * TICK_S;
 
 /// Every kart of a room's race as the snapshots have it, drawn the tuned
 /// delay behind the newest.
@@ -102,7 +100,8 @@ impl Interpolation {
         };
         let render = render.min(newest as f32);
         self.render_tick = Some(render);
-        // Keep the last snapshot at or before the clock and everything after.
+        // The clock never runs back, so only the earlier of the pair it is
+        // between will be read again.
         while self.snapshots.len() > 1 && self.snapshots[1].0 as f32 <= render {
             self.snapshots.pop_front();
         }
@@ -151,7 +150,7 @@ impl Interpolation {
 /// drift is `from`'s. A kart put somewhere new is at `from` until `to`.
 fn between(from: &SnapshotKart, to: &SnapshotKart, ticks: u32, share: f32) -> KartTransform {
     let moved = Vec3::from(from.position).distance(Vec3::from(to.position));
-    let share = if moved > ticks as f32 * FARTHEST_DRIVE_PER_TICK_M {
+    let share = if moved > ticks as f32 * INTERPOLATION_TELEPORT_M_PER_TICK {
         share.floor()
     } else {
         share

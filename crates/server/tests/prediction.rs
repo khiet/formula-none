@@ -186,10 +186,11 @@ async fn driving_into_another_kart_never_predicts_the_own_kart_visibly_past_wher
         "the karts never touched: {closest_m} m apart at the closest"
     );
     let overrun = overruns_m.iter().copied().fold(f32::MIN, f32::max);
-    // The other kart is drawn 100 ms behind and the server pushes it on,
-    // so the own kart meets it a little late and overlapping; with no lag
-    // compensation (ADR 0009) that leaves a few centimetres to correct,
-    // where driving through it would leave most of a metre.
+    // Once pushed, the other kart is drawn 100 ms behind where the server
+    // has it, overlapping the own kart, which the contact pushes out ahead
+    // of it; with no lag compensation (ADR 0009) that leaves a few
+    // centimetres to correct, where driving through it leaves most of a
+    // metre.
     assert!(
         overrun < RECONCILIATION_VISIBLE_CORRECTION_M,
         "the own kart was predicted {overrun} m past where the server put it"
