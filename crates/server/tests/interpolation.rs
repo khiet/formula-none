@@ -7,7 +7,7 @@
 
 mod common;
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::time::Duration;
 
 use common::{race_together, snapshot_kart};
@@ -32,16 +32,19 @@ struct Respawn {
 
 /// One client tick: every snapshot that has arrived goes to the
 /// interpolation, then it advances. `newest` keeps the newest snapshot tick
-/// held. Returns each respawn the snapshots carry, repeats included.
+/// held and `held` every tick a snapshot arrived for. Returns each respawn
+/// the snapshots carry, repeats included.
 fn client_tick(
     player: &mut Client,
     interpolation: &mut Interpolation,
     newest: &mut u32,
+    held: &mut BTreeSet<u32>,
 ) -> Vec<Respawn> {
     let mut respawned = Vec::new();
     while let Some(message) = player.try_recv() {
         if let ServerMessage::Snapshot(snapshot) = message {
             *newest = (*newest).max(snapshot.tick);
+            held.insert(snapshot.tick);
             for event in &snapshot.events {
                 if let EventKind::Respawned { kart } = event.kind {
                     respawned.push(Respawn {
@@ -78,6 +81,7 @@ async fn at_any_jitter_the_other_karts_are_drawn_100_ms_behind_the_newest_snapsh
         let mut interpolation = Interpolation::new();
         let mut ticks = tokio::time::interval(TICK);
         let mut newest = 0;
+        let mut held = BTreeSet::new();
         let mut lags = Vec::new();
         // The newest snapshot itself lands up to the jitter early or late.
         let jitter_ticks = jitter_ms as f32 * TICKS_PER_SECOND as f32 / 1000.0;
@@ -85,7 +89,7 @@ async fn at_any_jitter_the_other_karts_are_drawn_100_ms_behind_the_newest_snapsh
         let end_tick = ((COUNTDOWN_S + 10.0) * TICKS_PER_SECOND as f32) as u32;
         while newest < end_tick {
             ticks.tick().await;
-            client_tick(&mut player, &mut interpolation, &mut newest);
+            client_tick(&mut player, &mut interpolation, &mut newest, &mut held);
             let Some(render) = interpolation.render_tick() else {
                 continue;
             };
@@ -134,6 +138,7 @@ async fn at_a_100_ms_round_trip_and_2_percent_loss_the_other_karts_are_drawn_whe
 
     let mut drawn = [Interpolation::new(), Interpolation::new()];
     let mut newest = [0, 0];
+    let mut held = [BTreeSet::new(), BTreeSet::new()];
     let mut ticks = tokio::time::interval(TICK);
     let mut gaps = 0;
     let mut largest = (0.0, 0, 0);
@@ -148,10 +153,10 @@ async fn at_a_100_ms_round_trip_and_2_percent_loss_the_other_karts_are_drawn_whe
     while newest[0] < end_tick {
         ticks.tick().await;
         let before = newest[1];
-        for respawn in client_tick(&mut reference, &mut drawn[0], &mut newest[0]) {
+        for respawn in client_tick(&mut reference, &mut drawn[0], &mut newest[0], &mut held[0]) {
             respawns.entry(respawn.id).or_insert(respawn);
         }
-        client_tick(&mut lossy, &mut drawn[1], &mut newest[1]);
+        client_tick(&mut lossy, &mut drawn[1], &mut newest[1], &mut held[1]);
         if before > 0 && newest[1] > before + TICKS_PER_SNAPSHOT {
             gaps += 1;
         }
@@ -166,6 +171,16 @@ async fn at_a_100_ms_round_trip_and_2_percent_loss_the_other_karts_are_drawn_whe
         }
         let [expected, actual] = karts;
         let render = drawn[0].render_tick().unwrap_or(0.0);
+        // Across a lost snapshot the lossy client has nothing to draw from
+        // but the snapshots either side, and behind the newest its clock
+        // lags: those ticks are the loss, not the interpolation.
+        let lossy_render = drawn[1].render_tick().unwrap_or(0.0) as u32;
+        let interval_start = lossy_render / TICKS_PER_SNAPSHOT * TICKS_PER_SNAPSHOT;
+        let across_a_gap = !held[1].contains(&interval_start)
+            || !held[1].contains(&(interval_start + TICKS_PER_SNAPSHOT));
+        if newest[1] < newest[0] || across_a_gap {
+            continue;
+        }
         let respawning = |kart: usize| {
             respawns.values().any(|respawn: &Respawn| {
                 respawn.kart == kart
