@@ -7,54 +7,40 @@
 
 mod common;
 
+use std::collections::BTreeMap;
 use std::time::Duration;
 
-use common::snapshot_kart;
-use protocol::{ClientMessage, EventKind, PlayerState, ServerMessage};
+use common::{race_together, snapshot_kart};
+use protocol::{EventKind, ServerMessage};
 use server::fake_transport::{Client, Conditions, Harness};
 use sim::tuning::{
-    COUNTDOWN_S, INTERPOLATION_DELAY_S, RECONCILIATION_VISIBLE_CORRECTION_M, SNAPSHOTS_PER_SECOND,
-    TICKS_PER_SECOND,
+    COUNTDOWN_S, INTERPOLATION_DELAY_S, KARTS_PER_RACE, RECONCILIATION_VISIBLE_CORRECTION_M,
+    SNAPSHOTS_PER_SECOND, TICKS_PER_SECOND,
 };
 use sim::Interpolation;
 
 const TICK: Duration = Duration::from_nanos(1_000_000_000 / TICKS_PER_SECOND as u64);
 const TICKS_PER_SNAPSHOT: u32 = TICKS_PER_SECOND / SNAPSHOTS_PER_SECOND;
 const DELAY_TICKS: f32 = INTERPOLATION_DELAY_S * TICKS_PER_SECOND as f32;
-
-/// A player alone in a room that has started its race, and its kart.
-async fn racing_alone(harness: &mut Harness) -> (Client, usize) {
-    let code = harness.create_room();
-    let mut player = harness.connect();
-    let (slot, _) = player.join(&code, "watcher").await.unwrap();
-    player.send(&ClientMessage::Ready { ready: true });
-    player.next_room().await.unwrap();
-    player.send(&ClientMessage::Start);
-    let countdown = player.next_countdown().await.unwrap();
-    let kart = countdown
-        .grid
-        .iter()
-        .position(|&seat| seat == slot)
-        .expect("the player is on the grid");
-    (player, kart)
-}
+/// Further in a tick than any kart drives, even at the biggest boost.
+const LEAP_M: f32 = 2.0;
 
 /// One client tick: every snapshot that has arrived goes to the
 /// interpolation, then it advances. `newest` keeps the newest snapshot tick
-/// held. Returns each kart the snapshots say respawned, with the tick of
-/// the snapshot that said so.
+/// held. Returns each respawn the snapshots carry, repeats included, as the
+/// event's id, the kart and the tick of the snapshot that carried it.
 fn client_tick(
     player: &mut Client,
     interpolation: &mut Interpolation,
     newest: &mut u32,
-) -> Vec<(usize, u32)> {
+) -> Vec<(u32, usize, u32)> {
     let mut respawned = Vec::new();
     while let Some(message) = player.try_recv() {
         if let ServerMessage::Snapshot(snapshot) = message {
             *newest = (*newest).max(snapshot.tick);
             for event in &snapshot.events {
                 if let EventKind::Respawned { kart } = event.kind {
-                    respawned.push((usize::from(kart), snapshot.tick));
+                    respawned.push((event.id, usize::from(kart), snapshot.tick));
                 }
             }
             interpolation.push(
@@ -77,7 +63,10 @@ async fn at_any_jitter_the_other_karts_are_drawn_100_ms_behind_the_newest_snapsh
             loss: 0.0,
             seed: 19,
         });
-        let (mut player, _) = racing_alone(&mut harness).await;
+        let code = harness.create_room();
+        let mut players = [harness.connect()];
+        race_together(&code, &mut players).await;
+        let [mut player] = players;
         let mut interpolation = Interpolation::new();
         let mut ticks = tokio::time::interval(TICK);
         let mut newest = 0;
@@ -117,27 +106,15 @@ async fn at_a_100_ms_round_trip_and_2_percent_loss_the_other_karts_are_drawn_whe
     };
     let mut harness = Harness::new(lossless);
     let code = harness.create_room();
-    let mut reference = harness.connect();
-    let mut lossy = harness.connect_under(Conditions {
-        loss: 0.02,
-        ..lossless
-    });
-    reference.join(&code, "reference").await.unwrap();
-    lossy.join(&code, "lossy").await.unwrap();
-    for player in [&reference, &lossy] {
-        player.send(&ClientMessage::Ready { ready: true });
-    }
-    while !reference
-        .next_room()
-        .await
-        .unwrap()
-        .players
-        .iter()
-        .all(|player| player.state == PlayerState::Ready)
-    {}
-    reference.send(&ClientMessage::Start);
-    reference.next_countdown().await.unwrap();
-    lossy.next_countdown().await.unwrap();
+    let mut players = [
+        harness.connect(),
+        harness.connect_under(Conditions {
+            loss: 0.02,
+            ..lossless
+        }),
+    ];
+    race_together(&code, &mut players).await;
+    let [mut reference, mut lossy] = players;
 
     let mut drawn = [Interpolation::new(), Interpolation::new()];
     let mut newest = [0, 0];
@@ -145,21 +122,34 @@ async fn at_a_100_ms_round_trip_and_2_percent_loss_the_other_karts_are_drawn_whe
     let mut gaps = 0;
     let mut largest = (0.0, 0, 0);
     // A respawn is a jump on purpose, drawn on whichever tick each clock
-    // reaches it; a kart is not compared around one.
-    let mut respawns = Vec::new();
+    // reaches it; a kart is not compared around one. By event id.
+    let mut respawns = BTreeMap::new();
+    // Each kart's drawn position without loss a tick ago, and the ticks on
+    // which it moved further than any kart drives.
+    let mut last_drawn: Vec<[f32; 3]> = Vec::new();
+    let mut leaps = vec![0; KARTS_PER_RACE];
     let end_tick = ((COUNTDOWN_S + 20.0) * TICKS_PER_SECOND as f32) as u32;
     while newest[0] < end_tick {
         ticks.tick().await;
         let before = newest[1];
-        respawns.extend(client_tick(&mut reference, &mut drawn[0], &mut newest[0]));
+        for (id, kart, tick) in client_tick(&mut reference, &mut drawn[0], &mut newest[0]) {
+            respawns.entry(id).or_insert((kart, tick));
+        }
         client_tick(&mut lossy, &mut drawn[1], &mut newest[1]);
         if before > 0 && newest[1] > before + TICKS_PER_SNAPSHOT {
             gaps += 1;
         }
         let [expected, actual] = [drawn[0].kart_transforms(), drawn[1].kart_transforms()];
         let render = drawn[0].render_tick().unwrap_or(0.0);
+        for (kart, (last, now)) in last_drawn.iter().zip(&expected).enumerate() {
+            let [x, y, z] = difference(now.position, *last);
+            if (x * x + y * y + z * z).sqrt() > LEAP_M {
+                leaps[kart] += 1;
+            }
+        }
+        last_drawn = expected.iter().map(|kart| kart.position).collect();
         let respawning = |kart: usize| {
-            respawns.iter().any(|&(respawned, tick)| {
+            respawns.values().any(|&(respawned, tick)| {
                 respawned == kart && (render - tick as f32).abs() <= 2.0 * TICKS_PER_SNAPSHOT as f32
             })
         };
@@ -176,6 +166,14 @@ async fn at_a_100_ms_round_trip_and_2_percent_loss_the_other_karts_are_drawn_whe
     }
 
     assert!(gaps > 5, "only {gaps} gaps in the snapshots");
+    // Put back on the track, a kart is drawn there in one move, never
+    // streaking across the track between.
+    assert!(!respawns.is_empty(), "no kart respawned");
+    let mut respawned = vec![0; KARTS_PER_RACE];
+    for &(kart, _) in respawns.values() {
+        respawned[kart] += 1;
+    }
+    assert_eq!(leaps, respawned, "leaps per kart against respawns per kart");
     let (off, kart, tick) = largest;
     assert!(
         off < RECONCILIATION_VISIBLE_CORRECTION_M,

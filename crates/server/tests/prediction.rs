@@ -10,8 +10,8 @@ mod common;
 
 use std::time::Duration;
 
-use common::{read, snapshot_kart, wire};
-use protocol::{ClientMessage, PlayerState, ServerMessage};
+use common::{race_together, read, snapshot_kart, wire};
+use protocol::{ClientMessage, ServerMessage};
 use server::fake_transport::{Conditions, Harness, TRACK};
 use sim::bot::{self, Memory};
 use sim::tuning::{
@@ -121,26 +121,9 @@ async fn driving_into_another_kart_never_predicts_the_own_kart_visibly_past_wher
     let code = harness.create_room();
     // Three humans: the oval's grid stands the third directly behind the
     // first, which never drives, and the second beside them.
-    let mut players = Vec::new();
-    for nickname in ["parked", "beside", "driver"] {
-        let mut player = harness.connect();
-        player.join(&code, nickname).await.unwrap();
-        players.push(player);
-    }
-    for player in &players {
-        player.send(&ClientMessage::Ready { ready: true });
-    }
-    while !players[0]
-        .next_room()
-        .await
-        .unwrap()
-        .players
-        .iter()
-        .all(|player| player.state == PlayerState::Ready)
-    {}
-    players[0].send(&ClientMessage::Start);
-    let mut driver = players.pop().unwrap();
-    let countdown = driver.next_countdown().await.unwrap();
+    let mut players = [harness.connect(), harness.connect(), harness.connect()];
+    let countdown = race_together(&code, &mut players).await.remove(2);
+    let [_parked, _beside, mut driver] = players;
     let (parked, kart) = (0, 2);
 
     let mut interpolation = Interpolation::new();

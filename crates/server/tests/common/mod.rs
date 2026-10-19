@@ -3,8 +3,36 @@
 //! Each test binary compiles this module and uses only some of it.
 #![allow(dead_code)]
 
-use protocol::{DriftDirection, Input, KartSnapshot};
+use protocol::{ClientMessage, DriftDirection, Input, KartSnapshot, PlayerState};
+use server::fake_transport::Client;
+use server::room::Started;
 use sim::{Drift, KartInput, SnapshotKart};
+
+/// Every one of `players` joins `code`, in order, and readies; once the
+/// first sees them all ready it starts the race. Returns each one's
+/// Countdown, in the same order.
+pub async fn race_together(code: &str, players: &mut [Client]) -> Vec<Started> {
+    for (index, player) in players.iter_mut().enumerate() {
+        player.join(code, &format!("player{index}")).await.unwrap();
+    }
+    for player in players.iter() {
+        player.send(&ClientMessage::Ready { ready: true });
+    }
+    while !players[0]
+        .next_room()
+        .await
+        .unwrap()
+        .players
+        .iter()
+        .all(|player| player.state == PlayerState::Ready)
+    {}
+    players[0].send(&ClientMessage::Start);
+    let mut countdowns = Vec::new();
+    for player in players.iter_mut() {
+        countdowns.push(player.next_countdown().await.unwrap());
+    }
+    countdowns
+}
 
 /// The wire input for the sim's: each control quantised to its byte, as the
 /// browser's room client sends it.
