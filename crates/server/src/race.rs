@@ -69,8 +69,8 @@ impl HumanInput {
 
     /// The controls for the coming tick.
     fn next(&mut self) -> KartInput {
-        // The first input waits for company, so the queue starts deep
-        // enough that a late datagram is already there when it is needed.
+        // The first input waits for a second, so the queue starts one input
+        // ahead and a datagram that lands a little late is still in time.
         let waiting_to_start = self.sequence == 0 && self.queued.len() < INPUT_QUEUE_START_TICKS;
         let ahead_of_client = self.sequence >= self.newest + INPUT_QUEUE_MAX_TICKS;
         if waiting_to_start || ahead_of_client {

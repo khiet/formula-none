@@ -26,7 +26,7 @@ const TICK: Duration = Duration::from_nanos(1_000_000_000 / TICKS_PER_SECOND as 
 /// Centre to centre, past any reach at which two karts' boxes can touch.
 const CONTACT_REACH_M: f32 = 2.0 * (KART_HALF_LENGTH_M + KART_HALF_WIDTH_M);
 /// Ticks after a snapshot that showed a kart within reach for which a
-/// correction may still be the touch's: the round trip and a snapshot more.
+/// correction may still be the touch's; well over the round trip.
 const AFTER_CONTACT_TICKS: u32 = TICKS_PER_SECOND / 4;
 
 /// The wire input for the sim's: each control quantised to its byte, as the

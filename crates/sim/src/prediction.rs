@@ -14,7 +14,7 @@
 //! once a snapshot of tick T acknowledges sequence A, sequence A + n is
 //! applied at tick T + n: the prediction lays its inputs out on the
 //! server's ticks by that lead and replays them there. The lead moves only
-//! when the client's inputs run late or the server drops some to catch up.
+//! when the client stalls or the server drops inputs to catch up.
 
 use std::collections::VecDeque;
 
@@ -177,8 +177,7 @@ impl Prediction {
             self.clock = clock_after(self.clock, TICK_S);
             self.clock_tick += 1;
         }
-        // Until an input lands the server holds the kart on the grid, as the
-        // prediction does; there is no lead to lay the inputs out by yet.
+        // With nothing acknowledged there is no lead to lay the inputs out by.
         if acknowledged == 0 {
             return 0.0;
         }

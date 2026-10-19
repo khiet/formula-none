@@ -46,7 +46,8 @@ pub const SNAPSHOT_EVENT_REPEATS: usize = 2;
 /// further ahead and it waits, so a client back from a stall is heard again.
 pub const INPUT_QUEUE_MAX_TICKS: u32 = 3;
 /// Inputs the server holds for a human before it applies the first, so the
-/// queue starts with one in hand and a late datagram is there when needed.
+/// queue starts one input ahead and a datagram that lands a little late is
+/// still in time.
 pub const INPUT_QUEUE_START_TICKS: usize = 2;
 /// The longest message one frame of the reliable stream may carry; a frame
 /// claiming more is not a client of ours and ends the session.
