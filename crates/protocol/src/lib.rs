@@ -52,9 +52,7 @@ pub enum ClientMessage {
 }
 
 /// One kart's controls for one tick, quantised to a byte each so the message
-/// stays near the eight-byte budget (ADR 0010). The sim's clamping makes the
-/// quantisation lossless in effect: a byte of steer is finer than a frame of
-/// steering.
+/// stays near the eight-byte budget (ADR 0010).
 #[derive(Serialize, Deserialize, TS, Debug, Clone, Copy, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct Input {

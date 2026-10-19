@@ -27,9 +27,9 @@ const fixtures = JSON.parse(
 /** The name serde gives a message's variant: a unit variant is its name, any other is the one key. */
 type Kind<M> = M extends string ? M : keyof M;
 
-// A record keyed by every variant of the generated union, so adding a
-// variant in Rust without a sample fails to compile here, and a sample
-// without a variant fails too.
+// A record keyed by every variant of the generated union: a variant added in
+// Rust fails to compile here until it is listed, and the first test then
+// wants its fixture.
 const CLIENT_KINDS = {
   ping: true,
   join: true,

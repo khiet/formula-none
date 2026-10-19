@@ -101,8 +101,8 @@ pub fn room() -> Room {
 }
 
 /// A busy moment two minutes into a race with eight karts: two drifting,
-/// three holding items, one spun out, and the events of the last tick. The
-/// byte budget in ADR 0010 is measured against this.
+/// five holding items, one spun out, and every kind of event since the
+/// previous snapshot. The byte budget in ADR 0010 is measured against this.
 pub fn snapshot() -> Snapshot {
     let karts = (0..8u8)
         .map(|slot| {

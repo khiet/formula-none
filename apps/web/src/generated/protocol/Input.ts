@@ -2,9 +2,7 @@
 
 /**
  * One kart's controls for one tick, quantised to a byte each so the message
- * stays near the eight-byte budget (ADR 0010). The sim's clamping makes the
- * quantisation lossless in effect: a byte of steer is finer than a frame of
- * steering.
+ * stays near the eight-byte budget (ADR 0010).
  */
 export type Input = { 
 /**

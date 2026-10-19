@@ -16,7 +16,7 @@ fn within_tolerance(size: usize, budget: usize) -> bool {
 
 #[test]
 fn an_input_message_is_roughly_eight_bytes() {
-    // A sequence late in a long race, when the varint is at its widest.
+    // Ten minutes in, when the sequence takes three bytes.
     let message = ClientMessage::Input(Input {
         sequence: 60 * 60 * 10,
         ..samples::input()
