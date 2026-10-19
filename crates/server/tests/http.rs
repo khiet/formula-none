@@ -9,10 +9,16 @@ use serde_json::Value;
 use sim::tuning::{ROOM_CODE_ALPHABET, ROOM_CODE_LENGTH};
 use tower::ServiceExt;
 
-fn app() -> (Router, server::Rooms) {
-    let shutdown = server::Shutdown::pair().1;
+/// The router with its rooms; the stop sender comes along because dropping
+/// it stops the server, and a room task that sees that exits.
+fn app() -> (Router, server::Rooms, tokio::sync::watch::Sender<bool>) {
+    let (stop, shutdown) = server::Shutdown::pair();
     let rooms = server::Rooms::new(shutdown.clone());
-    (server::app("0123abcd", rooms.clone(), shutdown), rooms)
+    (
+        server::app("0123abcd", rooms.clone(), shutdown),
+        rooms,
+        stop,
+    )
 }
 
 async fn send(app: Router, request: Request<Body>) -> (StatusCode, Value) {
@@ -24,7 +30,8 @@ async fn send(app: Router, request: Request<Body>) -> (StatusCode, Value) {
 }
 
 async fn get(path: &str) -> (StatusCode, Value) {
-    send(app().0, Request::get(path).body(Body::empty()).unwrap()).await
+    let (app, _, _stop) = app();
+    send(app, Request::get(path).body(Body::empty()).unwrap()).await
 }
 
 #[tokio::test]
@@ -43,12 +50,14 @@ async fn version_reports_the_deployed_commit() {
 
 #[tokio::test]
 async fn creating_a_room_answers_with_its_code_and_opens_it() {
-    let (app, rooms) = app();
+    let (app, rooms, _stop) = app();
     let (status, body) = send(
         app,
         Request::post("/api/rooms").body(Body::empty()).unwrap(),
     )
     .await;
+    // Let the room's task run once: the room must still be open after it has.
+    tokio::task::yield_now().await;
     assert_eq!(status, StatusCode::CREATED);
     let code = body["code"].as_str().expect("a code");
     assert_eq!(code.len(), ROOM_CODE_LENGTH);
