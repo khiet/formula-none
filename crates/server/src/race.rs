@@ -16,9 +16,9 @@ use sim::tuning::{
 };
 use sim::{KartInput, Phase, RaceEvent, State, Track};
 
-/// Seconds of one tick: the sim's `dt` and the budget a tick's work must fit
-/// in for the server to keep up (ADR 0010).
-pub const TICK_S: f32 = 1.0 / TICKS_PER_SECOND as f32;
+/// The sim's `dt`, and the budget a tick's work must fit in for the server
+/// to keep up (ADR 0010).
+pub use sim::tuning::TICK_S;
 const TICKS_PER_SNAPSHOT: u32 = TICKS_PER_SECOND / SNAPSHOTS_PER_SECOND;
 
 /// A race in progress: the sim and what the players have sent it.

@@ -7,6 +7,8 @@
 /// Fixed sim rate on both client and server.
 pub const TICKS_PER_SECOND: u32 = 60;
 pub const SNAPSHOTS_PER_SECOND: u32 = 30;
+/// Seconds of one tick: the `dt` every step on either side is run with.
+pub const TICK_S: f32 = 1.0 / TICKS_PER_SECOND as f32;
 /// How far behind the newest snapshot other karts are rendered.
 pub const INTERPOLATION_DELAY_S: f32 = 0.1;
 /// Upper bound on the frames a reconciliation correction is blended over.

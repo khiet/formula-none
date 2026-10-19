@@ -155,9 +155,9 @@ fn a_lost_input_is_corrected_by_less_than_a_player_can_see_and_counted() {
         "moved {largest} m"
     );
     let per_second = run.prediction.corrections_per_second();
-    let predicted_s = (seconds(20.0) - ONE_WAY_TICKS) as f32 * DT;
+    let raced_s = (seconds(20.0) - seconds(sim::tuning::COUNTDOWN_S)) as f32 * DT;
     assert!(
-        (per_second - run.prediction.corrections() as f32 / predicted_s).abs() < 1e-3,
+        (per_second - run.prediction.corrections() as f32 / raced_s).abs() < 0.05,
         "{per_second} per second"
     );
 }

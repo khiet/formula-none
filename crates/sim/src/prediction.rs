@@ -22,15 +22,12 @@ use rapier3d::prelude::*;
 
 use crate::tuning::{
     COUNTDOWN_S, KART_HALF_LENGTH_M, RECONCILIATION_BLEND_FRAMES, RECONCILIATION_TOLERANCE_M,
-    TICKS_PER_SECOND,
+    TICK_S,
 };
 use crate::{
     clock_after, drift_slip, step, Drift, Kart, KartInput, KartTransform, Phase, Standing, State,
     Surface, Track,
 };
-
-/// The server's `dt`: a replayed tick must be the tick the server ran.
-const TICK_S: f32 = 1.0 / TICKS_PER_SECOND as f32;
 
 /// What a snapshot says of one kart, in the sim's terms. Metres, seconds and
 /// metres per second; Y up; the rotation is a unit quaternion [x, y, z, w].
@@ -67,7 +64,8 @@ pub struct Prediction {
     /// were last laid out by; `None` before an acknowledgement.
     lead: Option<u32>,
     corrections: u32,
-    /// Ticks predicted, which the corrections per second are read over.
+    /// Racing ticks predicted, which the corrections per second are read
+    /// over; the countdown holds the kart still, so it corrects nothing.
     ticks: u32,
     blend: Blend,
 }
@@ -161,7 +159,9 @@ impl Prediction {
             input,
             after: self.state().record(),
         });
-        self.ticks += 1;
+        if let Phase::Racing { .. } = self.state().phase {
+            self.ticks += 1;
+        }
         self.blend.frames_left = self.blend.frames_left.saturating_sub(1);
     }
 
@@ -202,7 +202,8 @@ impl Prediction {
             return 0.0;
         }
 
-        let before = self.kart_transform();
+        let drawn = self.kart_transform();
+        let predicted = self.state().kart_transforms()[0].position;
         let mut record = anchor.after.clone();
         record.take(kart);
         let clock = self.clock;
@@ -223,10 +224,10 @@ impl Prediction {
         }
 
         let after = self.state().kart_transforms()[0];
-        let moved = Vec3::from(before.position).distance(Vec3::from(after.position));
+        let moved = Vec3::from(predicted).distance(Vec3::from(after.position));
         self.blend = Blend {
-            position: Vec3::from(before.position) - Vec3::from(after.position),
-            rotation: Rotation::from_array(before.rotation)
+            position: Vec3::from(drawn.position) - Vec3::from(after.position),
+            rotation: Rotation::from_array(drawn.rotation)
                 * Rotation::from_array(after.rotation).inverse(),
             frames_left: RECONCILIATION_BLEND_FRAMES,
         };
@@ -272,8 +273,7 @@ impl Prediction {
         self.corrections
     }
 
-    /// The corrections over the seconds predicted so far; 0 before the
-    /// first tick.
+    /// The corrections over the seconds raced so far; 0 before Go.
     pub fn corrections_per_second(&self) -> f32 {
         if self.ticks == 0 {
             return 0.0;

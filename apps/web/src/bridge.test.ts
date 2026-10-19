@@ -319,7 +319,8 @@ describe("prediction", () => {
   it("is moved by a snapshot that disagrees, and counts the correction", async () => {
     const bridge = await loadBridge(wasm);
     const prediction = bridge.createPrediction(7n, 0, OVAL);
-    for (let sequence = 1; sequence <= 60; sequence++) {
+    // Idle on the grid through the countdown and a second of the race.
+    for (let sequence = 1; sequence <= 240; sequence++) {
       prediction.tick(wire(IDLE_INPUT, sequence));
     }
     const [x, y, z] = prediction.kartTransform().position;
@@ -336,15 +337,15 @@ describe("prediction", () => {
       heldItem: null,
       spinOutS: null,
     };
-    const snapshot: Snapshot = { tick: 54, acknowledged: [50], karts: [aside], events: [] };
+    const snapshot: Snapshot = { tick: 234, acknowledged: [230], karts: [aside], events: [] };
     expect(prediction.reconcile(snapshot)).toBeCloseTo(1, 3);
     expect(prediction.correctionsPerSecond()).toBeCloseTo(1, 3);
     // Blended: drawn where it was, then on to the snapshot's word.
     expect(prediction.kartTransform().position[0]).toBeCloseTo(x, 4);
-    for (let sequence = 61; sequence <= 66; sequence++) {
+    for (let sequence = 241; sequence <= 246; sequence++) {
       prediction.tick(wire(IDLE_INPUT, sequence));
     }
     expect(prediction.kartTransform().position[0]).toBeCloseTo(x + 1, 4);
-    expect(() => prediction.reconcile({ ...snapshot, tick: 56, karts: [] })).toThrow(/kart 0/);
+    expect(() => prediction.reconcile({ ...snapshot, tick: 236, karts: [] })).toThrow(/kart 0/);
   });
 });

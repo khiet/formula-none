@@ -13,7 +13,7 @@ import { type Countdown, quantiseInput, type RoomClient } from "./room-client";
 
 export interface ServerRace extends RaceRun {
   /**
-   * Reconciliation corrections of the own kart per second predicted, which
+   * Reconciliation corrections of the own kart per second raced, which
    * the client reports at race end (ADR 0018).
    */
   correctionsPerSecond(): number;
@@ -121,7 +121,8 @@ export function createServerRace(
     },
     phase(): Phase {
       if (results !== undefined) return { kind: "finished" };
-      // The grace is the server's to count; the panel shows nothing of it.
+      // The prediction's clock never counts the grace, which is the
+      // server's; the panel shows nothing of it.
       return prediction.phase();
     },
     correctionsPerSecond: () => prediction.correctionsPerSecond(),

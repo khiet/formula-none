@@ -155,7 +155,7 @@ export interface Prediction {
    * results end the race.
    */
   phase(): Phase;
-  /** Snapshots that moved the predicted kart further than rounding, per second predicted. */
+  /** Snapshots that moved the predicted kart further than rounding, per second raced. */
   correctionsPerSecond(): number;
 }
 

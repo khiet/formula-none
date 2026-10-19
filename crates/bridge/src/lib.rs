@@ -412,12 +412,8 @@ impl Prediction {
         phase_floats(self.inner.phase()).to_vec()
     }
 
-    /// Snapshots that moved the predicted kart further than rounding.
-    pub fn corrections(&self) -> u32 {
-        self.inner.corrections()
-    }
-
-    /// The corrections over the seconds predicted so far.
+    /// Snapshots that moved the predicted kart further than rounding, over
+    /// the seconds raced so far.
     pub fn corrections_per_second(&self) -> f32 {
         self.inner.corrections_per_second()
     }
