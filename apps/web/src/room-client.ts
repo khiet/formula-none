@@ -121,6 +121,8 @@ export function refusalMessage(refusal: Refusal): string {
       return "That room is mid-race; join after the race";
     case "unknownSession":
       return "That race is over; join the room again";
+    case "sessionInUse":
+      return "You are already in that room in another tab";
     default:
       return "The room refused the join";
   }

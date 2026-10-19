@@ -50,8 +50,9 @@ Disconnect and rejoin landed with issue 20 (2026-10-19).
   seat back. Mid-race the kart is the player's again from the rejoin, and
   the server sends the Countdown of the race under way so a client that
   lost it can rebuild it. Any other token is refused as an unknown session;
-  a rejoin while the old connection lives moves the seat to the new one and
-  tells the old one it was replaced.
+  a rejoin mid-race while the old connection lives moves the seat to the
+  new one and tells the old one it was replaced. Between races such a
+  rejoin is refused, so a second tab of one browser joins as a new player.
 - The server counts a human it has heard no input from for the tuned
   silence (two seconds) as Disconnected and hands their kart to a bot, as
   it does on a dropped connection; their next input on a connection that

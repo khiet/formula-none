@@ -265,31 +265,26 @@ async fn a_human_who_never_comes_back_is_raced_to_the_results_by_the_bot_and_the
 }
 
 #[tokio::test(start_paused = true)]
-async fn a_rejoin_between_races_moves_the_seat_and_starts_no_race() {
+async fn a_rejoin_between_races_is_refused_while_the_seat_is_held_so_a_second_tab_joins_afresh() {
     let mut harness = Harness::new(Conditions::PERFECT);
     let code = harness.create_room();
     let mut player = harness.connect();
     player.join(&code, "ada").await.unwrap();
     let token = player.token().unwrap().to_owned();
 
-    let mut back = harness.connect();
-    let (slot, room) = back.rejoin(&code, &token).await.unwrap();
-    assert_eq!(slot, 0);
-    assert_eq!(room.state, RoomState::Open);
-    assert_eq!(room.players.len(), 1, "the same seat, not a second one");
-    assert_eq!(room.players[0].state, PlayerState::Unready);
-    assert_eq!(player.recv().await, Some(ServerMessage::Replaced));
-    back.send(&protocol::ClientMessage::Ready { ready: true });
+    let mut second_tab = harness.connect();
     assert_eq!(
-        back.recv().await,
-        Some(ServerMessage::Room(Room {
-            players: vec![protocol::Player {
-                state: PlayerState::Ready,
-                ..room.players[0].clone()
-            }],
-            ..room
-        })),
-        "the new connection is the player's, with no Countdown before it"
+        second_tab.rejoin(&code, &token).await,
+        Err(Refusal::SessionInUse)
+    );
+    let mut second_tab = harness.connect();
+    let (slot, room) = second_tab.join(&code, "ada").await.unwrap();
+    assert_eq!(slot, 1, "a new player beside the first");
+    assert_eq!(room.players.len(), 2);
+    assert_eq!(
+        player.next_room().await.unwrap().players.len(),
+        2,
+        "the first tab keeps its seat and hears of the second"
     );
 }
 

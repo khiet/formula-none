@@ -347,6 +347,7 @@ describe("refusalMessage", () => {
     expect(refusalMessage("roomFull")).toBe("That room is full");
     expect(refusalMessage("roomRacing")).toBe("That room is mid-race; join after the race");
     expect(refusalMessage("unknownSession")).toBe("That race is over; join the room again");
+    expect(refusalMessage("sessionInUse")).toBe("You are already in that room in another tab");
     expect(refusalMessage({ versionMismatch: { server: 2 } })).toBe(
       "Your game is out of date: reload the page",
     );

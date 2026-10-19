@@ -139,8 +139,9 @@ pub enum ServerMessage {
     Events(Vec<Event>),
     /// The standings once the race is Finished, in finishing order.
     Results { standings: Vec<FinalStanding> },
-    /// Another connection rejoined with this session's token, so this one
-    /// hears nothing more; the client stops rather than rejoining back.
+    /// Another connection rejoined mid-race with this session's token, so
+    /// this one hears nothing more; the client stops rather than rejoining
+    /// back.
     Replaced,
 }
 
@@ -161,6 +162,10 @@ pub enum Refusal {
     /// freed, at the end of the race it was kept for or when its player
     /// left, or the token was never this room's.
     UnknownSession,
+    /// Between races the seat's own connection still holds it, so the
+    /// client joins as a new player instead: a second tab of one browser
+    /// is a second player. Mid-race a rejoin takes the seat over.
+    SessionInUse,
 }
 
 /// A room as every player in it sees it (ADR 0012).

@@ -5,9 +5,10 @@
 //! room's race in [`crate::race`] at the tick rate, and closes the room
 //! once it has stood empty for the tuned time (ADR 0012).
 //!
-//! A seat is reached through one connection at a time. A rejoin with the
-//! seat's session token moves it to the new connection, and whatever the
-//! old one sends or reports after that, its drop included, is ignored.
+//! A seat is reached through one connection at a time. A rejoin mid-race
+//! with the seat's session token moves it to the new connection, and
+//! whatever the old one sends or reports after that, its drop included, is
+//! ignored.
 
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex, Weak};
@@ -507,7 +508,9 @@ async fn run(
                         outbound,
                         reply,
                     } => {
-                        let rejoined = room.rejoin(&token).map(|slot| {
+                        let rejoined = room
+                            .rejoin(&token, |slot| players.contains_key(&slot))
+                            .map(|slot| {
                             let id = connections.next().expect("connection ids never run out");
                             let countdown = running.as_mut().map(|running| {
                                 running.race.hand_back(slot);

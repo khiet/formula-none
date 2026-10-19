@@ -128,9 +128,11 @@ impl HostedRoom {
     }
 
     /// Hand back the seat `token` holds, the player Racing again if they
-    /// were Disconnected; any other token is refused. Whether the player's
-    /// old connection is gone or not, the seat is the new one's.
-    pub fn rejoin(&mut self, token: &str) -> Result<u8, Refusal> {
+    /// were Disconnected; any other token is refused. Mid-race the seat is
+    /// the new connection's even while `connected` says the old one holds
+    /// it, since the server may not have noticed a lost one yet; between
+    /// races that is refused, so a second tab joins as a new player.
+    pub fn rejoin(&mut self, token: &str, connected: impl Fn(u8) -> bool) -> Result<u8, Refusal> {
         let slot = self
             .seats
             .iter()
@@ -138,6 +140,10 @@ impl HostedRoom {
             .find(|seat| seat.token == token)
             .map(|seat| seat.player.slot)
             .ok_or(Refusal::UnknownSession)?;
+        let racing = matches!(self.state, RoomState::Countdown | RoomState::Racing);
+        if !racing && connected(slot) {
+            return Err(Refusal::SessionInUse);
+        }
         self.reconnect(slot);
         Ok(slot)
     }
