@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Connection } from "./connection";
 import { type FakeConnection, fakeConnection, jsonCodec } from "./fake-connection";
 import type { Room, ServerMessage } from "./generated/protocol";
+import { PROTOCOL_VERSION } from "./generated/protocol";
 import { keepConnected } from "./reconnect";
 import { joinRoom } from "./room-client";
 
@@ -63,7 +64,7 @@ describe("keeping a race connected (ADR 0012)", () => {
     expect(first.closedByClient).toBe(true);
     const second = opened[0] as FakeConnection;
     expect(second.sent).toEqual([
-      { rejoin: { version: expect.any(Number), room: "BXQF", token: TOKEN } },
+      { rejoin: { version: PROTOCOL_VERSION, room: "BXQF", token: TOKEN } },
     ]);
 
     second.receive(JOINED);

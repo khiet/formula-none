@@ -215,6 +215,11 @@ async fn a_human_silent_for_the_tuned_time_is_handed_to_a_bot_and_their_next_inp
     })
     .await;
     assert_eq!(room.state, RoomState::Racing);
+    assert_eq!(
+        room.players[1].state,
+        PlayerState::Racing,
+        "a client yet to send its first input is not silent"
+    );
     let handed_at = watcher.next_snapshot().await.unwrap().tick;
     let silent_s = seconds(handed_at - went_quiet);
     assert!(
@@ -269,18 +274,30 @@ async fn a_human_who_never_comes_back_is_raced_to_the_results_by_the_bot_and_the
 }
 
 #[tokio::test(start_paused = true)]
-async fn a_new_player_is_still_refused_mid_race() {
+async fn a_rejoin_between_races_moves_the_seat_and_starts_no_race() {
     let mut harness = Harness::new(Conditions::PERFECT);
-    let (code, player, mut watcher) = two_racing(&mut harness).await;
-    player.disconnect();
-    room_where(&mut watcher, |room| {
-        room.players[0].state == PlayerState::Disconnected
-    })
-    .await;
-    let mut newcomer = harness.connect();
+    let code = harness.create_room();
+    let mut player = harness.connect();
+    player.join(&code, "ada").await.unwrap();
+    let token = player.token().unwrap().to_owned();
+
+    let mut back = harness.connect();
+    let (slot, room) = back.rejoin(&code, &token).await.unwrap();
+    assert_eq!(slot, 0);
+    assert_eq!(room.state, RoomState::Open);
+    assert_eq!(room.players.len(), 1, "the same seat, not a second one");
+    assert_eq!(room.players[0].state, PlayerState::Unready);
+    assert_eq!(player.recv().await, Some(ServerMessage::Replaced));
+    back.send(&protocol::ClientMessage::Ready { ready: true });
     assert_eq!(
-        newcomer.join(&code, "new").await,
-        Err(Refusal::RoomRacing),
-        "a kept seat is not a free one"
+        back.recv().await,
+        Some(ServerMessage::Room(Room {
+            players: vec![protocol::Player {
+                state: PlayerState::Ready,
+                ..room.players[0].clone()
+            }],
+            ..room
+        })),
+        "the new connection is the player's, with no Countdown before it"
     );
 }
