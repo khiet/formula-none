@@ -1,7 +1,7 @@
 //! Prediction of the own kart at its public seam: `Prediction::tick` with
 //! each input the client sends and `Prediction::reconcile` with each
 //! snapshot, against a server played here by `step` on a race of its own,
-//! applying one sequence per tick as the room's race does (ADR 0009). The
+//! applying one sequence per tick as the room's race does (ADR 0019). The
 //! network between them is a fixed delay each way in ticks, with the
 //! inputs it loses picked by sequence. The scripted driver is the bot's
 //! driving, reading the kart as the client draws it, so it hops into the
@@ -11,7 +11,7 @@ use std::collections::VecDeque;
 
 use sim::bot::{self, Memory};
 use sim::tuning::{
-    RECONCILIATION_BLEND_FRAMES, RECONCILIATION_TOLERANCE_M, RECONCILIATION_VISIBLE_CORRECTION_M,
+    RECONCILIATION_BLEND_TICKS, RECONCILIATION_TOLERANCE_M, RECONCILIATION_VISIBLE_CORRECTION_M,
     SNAPSHOTS_PER_SECOND, TICKS_PER_SECOND,
 };
 use sim::{step, KartInput, Phase, Prediction, SnapshotKart, State, Track};
@@ -176,7 +176,7 @@ fn on_the_grid() -> (Prediction, SnapshotKart) {
 }
 
 #[test]
-fn a_correction_is_blended_from_where_the_kart_was_drawn_over_the_tuned_frames() {
+fn a_correction_is_blended_from_where_the_kart_was_drawn_over_the_tuned_ticks() {
     let (mut prediction, grid) = on_the_grid();
     let drawn = prediction.kart_transform().position;
     let mut aside = grid;
@@ -187,12 +187,12 @@ fn a_correction_is_blended_from_where_the_kart_was_drawn_over_the_tuned_frames()
     assert_eq!(prediction.corrections(), 1);
     assert_eq!(prediction.kart_transform().position, drawn, "no jump");
     let mut sequence = 10;
-    for frame in 1..=RECONCILIATION_BLEND_FRAMES {
+    for tick in 1..=RECONCILIATION_BLEND_TICKS {
         sequence += 1;
         prediction.tick(sequence, KartInput::default());
         let x = prediction.kart_transform().position[0];
-        let expected = drawn[0] + frame as f32 / RECONCILIATION_BLEND_FRAMES as f32;
-        assert!((x - expected).abs() < 1e-4, "frame {frame}: x {x}");
+        let expected = drawn[0] + tick as f32 / RECONCILIATION_BLEND_TICKS as f32;
+        assert!((x - expected).abs() < 1e-4, "tick {tick}: x {x}");
     }
 }
 

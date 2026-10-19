@@ -11,7 +11,7 @@ export type Snapshot = { tick: number,
  * The input sequence applied at this tick, per kart in grid order; 0
  * for a bot's kart and before a client's first input is applied. The
  * server applies one sequence a tick, so the client knows the tick
- * each later input meets (ADR 0009).
+ * each later input meets (ADR 0019).
  */
 acknowledged: Array<number>, 
 /**

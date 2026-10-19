@@ -1,8 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { listRepoDir, readRepoFile } from "./repo";
 
-// One ADR per decision in the PRD's Implementation Decisions, in the PRD's
-// order. The file name is the contract; the number is its position.
+// One ADR per decision: the PRD's Implementation Decisions in the PRD's
+// order, then each decision taken since. The file name is the contract; the
+// number is its position.
 const DECISION_SLUGS = [
   "stack",
   "sim-crate-and-seam",
@@ -22,6 +23,7 @@ const DECISION_SLUGS = [
   "ci-and-deploy",
   "cost-ceiling",
   "metrics",
+  "server-input-queue",
 ];
 
 const expectedFiles = DECISION_SLUGS.map(

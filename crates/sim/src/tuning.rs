@@ -11,15 +11,16 @@ pub const SNAPSHOTS_PER_SECOND: u32 = 30;
 pub const TICK_S: f32 = 1.0 / TICKS_PER_SECOND as f32;
 /// How far behind the newest snapshot other karts are rendered.
 pub const INTERPOLATION_DELAY_S: f32 = 0.1;
-/// Upper bound on the frames a reconciliation correction is blended over.
-pub const RECONCILIATION_BLEND_FRAMES: u32 = 6;
+/// Sim ticks a reconciliation correction is blended over: the six frames of
+/// ADR 0009 at the sim's rate, so the blend lasts as long on any display.
+pub const RECONCILIATION_BLEND_TICKS: u32 = 6;
 /// A snapshot that puts the own kart within this many metres of where the
 /// client predicted it, and its nose and next tick's travel as close, agrees
 /// with the prediction: the difference is rounding, not a correction.
 pub const RECONCILIATION_TOLERANCE_M: f32 = 0.001;
 /// The largest correction of the own kart a player cannot see in the chase
-/// camera: blended over the tuned frames it moves the kart under 5 cm a
-/// frame, against the half metre a frame the kart travels at top speed.
+/// camera: blended over the tuned ticks it moves the kart under 5 cm a
+/// tick, against the half metre a tick the kart travels at top speed.
 /// The target at 100 ms RTT with 2 percent loss is to stay under it
 /// (ADR 0009).
 pub const RECONCILIATION_VISIBLE_CORRECTION_M: f32 = 0.25;
@@ -255,7 +256,7 @@ const _: () = {
     assert!(SNAPSHOTS_PER_SECOND <= TICKS_PER_SECOND);
     assert!(0 < SNAPSHOT_EVENT_REPEATS);
     assert!(0 < INPUT_QUEUE_START_TICKS && INPUT_QUEUE_START_TICKS as u32 <= INPUT_QUEUE_MAX_TICKS);
-    assert!(0 < RECONCILIATION_BLEND_FRAMES);
+    assert!(0 < RECONCILIATION_BLEND_TICKS);
     assert!(0.0 < RECONCILIATION_TOLERANCE_M);
     assert!(RECONCILIATION_TOLERANCE_M < RECONCILIATION_VISIBLE_CORRECTION_M);
     assert!(RELIABLE_FRAME_MAX_BYTES > 1024);

@@ -60,8 +60,8 @@ second.
 ### snapshot
 
 The server's authoritative state of every kart at a tick, sent at 30 Hz
-together with the last acknowledged input sequence per client and the events
-since the previous snapshot.
+together with the input sequence applied at that tick per client and the
+events since the previous snapshot.
 
 ### checkpoint
 

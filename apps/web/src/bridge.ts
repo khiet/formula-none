@@ -140,7 +140,7 @@ export interface Race {
  * The player's own kart in a room's race, predicted in this browser by the
  * sim the server runs (ADR 0009): stepped with each input the client sends,
  * and reconciled with each snapshot it receives, any correction blended out
- * over the tuned frames.
+ * over the tuned ticks.
  */
 export interface Prediction {
   /** Predict one tick from the input the client sends the server this tick. */

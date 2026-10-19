@@ -43,7 +43,7 @@ pub struct Race {
 /// the first is applied, tick by tick the next sequence's controls are, so
 /// the tick an input is applied at is fixed by its sequence and a datagram
 /// that lands late or never arrives costs one tick of the last controls,
-/// never a skip or a slip of every later input (ADR 0009). The sequence
+/// never a skip or a slip of every later input (ADR 0019). The sequence
 /// stops for a client that falls the tuned depth behind it, and jumps for
 /// one the tuned depth ahead of it.
 #[derive(Debug, Clone, Default)]

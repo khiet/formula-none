@@ -8,9 +8,9 @@
 //! snapshot's tick: when the two agree nothing happens, and when they do not
 //! the prediction rewinds to the snapshot and replays every input the
 //! server has yet to apply. The jump that leaves in the kart is counted as
-//! a correction and blended out of the drawn kart over the tuned frames.
+//! a correction and blended out of the drawn kart over the tuned ticks.
 //!
-//! The server applies one sequence per tick, in order (ADR 0009), so
+//! The server applies one sequence per tick, in order (ADR 0019), so
 //! once a snapshot of tick T acknowledges sequence A, sequence A + n is
 //! applied at tick T + n: the prediction lays its inputs out on the
 //! server's ticks by that lead and replays them there. The lead moves only
@@ -21,8 +21,7 @@ use std::collections::VecDeque;
 use rapier3d::prelude::*;
 
 use crate::tuning::{
-    COUNTDOWN_S, KART_HALF_LENGTH_M, RECONCILIATION_BLEND_FRAMES, RECONCILIATION_TOLERANCE_M,
-    TICK_S,
+    COUNTDOWN_S, KART_HALF_LENGTH_M, RECONCILIATION_BLEND_TICKS, RECONCILIATION_TOLERANCE_M, TICK_S,
 };
 use crate::{
     clock_after, drift_slip, step, Drift, Kart, KartInput, KartTransform, Phase, Standing, State,
@@ -92,23 +91,23 @@ struct KartRecord {
 
 /// What is left of the last correction to blend out of the drawn kart: the
 /// drawn kart is offset from the predicted one by this much, scaled by the
-/// frames left over the tuned frames.
+/// ticks left over the tuned ticks.
 #[derive(Clone, Copy)]
 struct Blend {
     position: Vec3,
     rotation: Rotation,
-    frames_left: u32,
+    ticks_left: u32,
 }
 
 impl Blend {
     const NONE: Self = Self {
         position: Vec3::ZERO,
         rotation: Rotation::IDENTITY,
-        frames_left: 0,
+        ticks_left: 0,
     };
 
     fn share(&self) -> f32 {
-        self.frames_left as f32 / RECONCILIATION_BLEND_FRAMES as f32
+        self.ticks_left as f32 / RECONCILIATION_BLEND_TICKS as f32
     }
 }
 
@@ -162,7 +161,7 @@ impl Prediction {
         if let Phase::Racing { .. } = self.state().phase {
             self.ticks += 1;
         }
-        self.blend.frames_left = self.blend.frames_left.saturating_sub(1);
+        self.blend.ticks_left = self.blend.ticks_left.saturating_sub(1);
     }
 
     /// Hold the snapshot of `snapshot_tick`, which acknowledged `acknowledged`
@@ -228,7 +227,7 @@ impl Prediction {
             position: Vec3::from(drawn.position) - Vec3::from(after.position),
             rotation: Rotation::from_array(drawn.rotation)
                 * Rotation::from_array(after.rotation).inverse(),
-            frames_left: RECONCILIATION_BLEND_FRAMES,
+            ticks_left: RECONCILIATION_BLEND_TICKS,
         };
         if moved > RECONCILIATION_TOLERANCE_M {
             self.corrections += 1;

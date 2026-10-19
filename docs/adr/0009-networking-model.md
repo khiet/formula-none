@@ -2,7 +2,8 @@
 
 ## Status
 
-Accepted (2026-10-18)
+Accepted (2026-10-18). The input handling in its Outcome is superseded by
+ADR 0019.
 
 ## Context
 
@@ -44,32 +45,24 @@ and interpolation (issue 19) follow.
   where the newest snapshot puts it (`apps/web/src/server-race.ts`); a
   snapshot older than the newest seen is dropped.
 
-Prediction landed with issue 18 (2026-10-19), and with it a change to how
-the server takes inputs: holding the newest skipped one input and repeated
-another whenever a datagram landed either side of a tick, and no
-prediction can follow a skip it cannot see.
+Prediction landed with issue 18 (2026-10-19), together with the server
+input queue of ADR 0019, which replaces the input handling recorded above.
 
-- The server applies one sequence per tick, in order, once it holds the
-  tuned two (`crates/server/src/race.rs`), so the tick an input is applied
-  at is fixed by its sequence. A sequence that has not arrived by its tick
-  is applied as the last controls and is not applied later. The server
-  waits for a client that falls the tuned three ticks behind it and drops
-  inputs from one the same distance ahead of it.
-- A snapshot acknowledges the sequence applied at its tick, so sequence
-  A + n will be applied at tick T + n; the client lays its inputs out on
-  the server's ticks by that lead.
 - The client predicts its own kart with `sim::Prediction`: the sim's
   `step` on a race of that one kart on the static track, through the
-  bridge, so prediction runs the server's rules and nothing else. A
-  snapshot that agrees with the prediction at its tick to the tuned
-  millimetre changes nothing; one that does not is rewound to and the
-  later inputs replayed, and the jump is counted and blended out over the
-  tuned six frames. Snapshot fields the prediction does not read stay its
-  own: they ran the same rules on the same inputs.
+  bridge, so prediction runs the server's rules and nothing else. It lays
+  its inputs out on the server's ticks by the lead the snapshots
+  acknowledge (ADR 0019).
+- A snapshot that agrees with the prediction at its tick, to the tuned
+  millimetre, changes nothing. When one does not, the prediction rewinds to
+  it and replays the later inputs. The jump is counted and blended out over
+  `RECONCILIATION_BLEND_TICKS`: six sim ticks, the six frames above at the
+  sim's rate, the same on any display. Snapshot fields the prediction does
+  not read stay its own, because it ran the same rules on the same inputs.
 - The fake-transport test holds the own kart's corrections under
   `RECONCILIATION_VISIBLE_CORRECTION_M` (0.25 m) at 100 ms RTT with 2
-  percent loss, leaving out snapshots after the kart has touched another:
-  kart contact is the server's alone until the other karts are local
-  bodies (issue 19).
-- The Instrument panel's countdown and race clock are the prediction's,
-  the clock at the tick the player's inputs meet on the server.
+  percent loss. It leaves out snapshots after the kart has touched another,
+  because kart contact is the server's alone until the other karts are
+  local bodies (issue 19).
+- The Instrument panel's countdown and race clock are the prediction's: the
+  clock at the tick the player's inputs meet on the server.
