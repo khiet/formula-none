@@ -20,7 +20,7 @@ async fn connected() -> (Socket, tokio::sync::watch::Sender<bool>, JoinHandle<()
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let addr = listener.local_addr().unwrap();
     let (stop, shutdown) = Shutdown::pair();
-    let app = server::app("0123abcd", shutdown.clone());
+    let app = server::app("0123abcd", server::Rooms::new(shutdown.clone()), shutdown.clone());
     let serving = tokio::spawn(async move {
         server::serve(listener, app, shutdown).await.unwrap();
     });
@@ -60,7 +60,7 @@ async fn bytes_that_are_not_a_message_the_server_answers_are_ignored_and_the_ses
         .await
         .unwrap();
     socket.send(Message::text("hello")).await.unwrap();
-    // A room message is well formed but has no handler until the rooms land.
+    // A room message before a Join has no room to go to.
     let start = encode(&ClientMessage::Start);
     socket.send(Message::Binary(start.into())).await.unwrap();
     let ping = encode(&ClientMessage::Ping { nonce: 1 });

@@ -7,6 +7,8 @@ export interface RaceResults {
   readonly standings: readonly Standing[];
   readonly localKart: number;
   isBot(slot: number): boolean;
+  /** The nickname of the human driving `slot`, when the race had a room to say. */
+  nickname?(slot: number): string | undefined;
 }
 
 /** One line of the results: a kart's place, who drove it and its best lap, as printed. */
@@ -34,16 +36,21 @@ const NOT_FINISHED = "(not finished)";
 
 /**
  * The results from the final standings, in finishing order: the local kart
- * is "You" and any other by its grid slot counted from 1, until rooms bring
- * nicknames.
+ * is "You", another human is their nickname when the room gave one, and
+ * anyone else is named by their grid slot counted from 1.
  */
-export function resultsRows({ standings, localKart, isBot }: RaceResults): ResultRow[] {
+export function resultsRows({ standings, localKart, isBot, nickname }: RaceResults): ResultRow[] {
+  const name = (slot: number): string => {
+    if (slot === localKart) return "You";
+    if (isBot(slot)) return `Bot ${slot + 1}`;
+    return nickname?.(slot) ?? `Kart ${slot + 1}`;
+  };
   return standings
     .map((standing, slot) => ({ standing, slot }))
     .sort((a, b) => a.standing.position - b.standing.position)
     .map(({ standing, slot }) => ({
       position: ordinal(standing.position),
-      name: slot === localKart ? "You" : `${isBot(slot) ? "Bot" : "Kart"} ${slot + 1}`,
+      name: name(slot),
       bestLap:
         standing.bestLapSeconds === null ? NO_LAP_TIME : formatLapTime(standing.bestLapSeconds),
       finished: standing.finishTimeSeconds !== null,

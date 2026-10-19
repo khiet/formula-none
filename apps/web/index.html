@@ -37,6 +37,7 @@
         text-shadow: 0 0 1rem #000;
       }
       #title-scene,
+      #room-scene,
       #results-scene {
         display: flex;
         flex-direction: column;
@@ -53,10 +54,59 @@
         font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
       }
       #title-scene button,
+      #room-scene button,
       #results-scene button {
         padding: 0.5rem 1.5rem;
         font: inherit;
         cursor: pointer;
+      }
+      #title-scene input {
+        padding: 0.5rem 0.75rem;
+        font: inherit;
+        width: 12ch;
+      }
+      #title-scene input[name="code"] {
+        width: 6ch;
+        text-transform: uppercase;
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      }
+      .title-row,
+      .room-buttons {
+        display: flex;
+        gap: 0.5rem;
+      }
+      #title-scene [data-message] {
+        min-height: 1.4em;
+        margin: 0;
+        color: #ffb347;
+      }
+      #room-scene [data-room-code] {
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        letter-spacing: 0.1em;
+      }
+      #room-scene a {
+        color: #9cf;
+      }
+      #room-scene .players {
+        display: grid;
+        grid-template-columns: auto auto auto;
+        gap: 0.5rem 1rem;
+        align-items: center;
+        min-width: 24rem;
+        margin: 0;
+        padding: 0;
+        list-style: none;
+      }
+      #room-scene .players li {
+        display: contents;
+      }
+      #room-scene .livery {
+        width: 1.5rem;
+        height: 1.5rem;
+        border-radius: 50%;
+      }
+      #room-scene .state {
+        color: #bbb;
       }
     </style>
   </head>

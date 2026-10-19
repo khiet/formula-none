@@ -3,7 +3,7 @@ import { expect, type Page } from "@playwright/test";
 /** From the Title Scene into a solo race on `url`'s track. */
 export async function enterRace(page: Page, url: string): Promise<void> {
   await page.goto(url);
-  await page.getByRole("button", { name: "Race" }).click();
+  await page.getByRole("button", { name: "Solo race" }).click();
 }
 
 /**

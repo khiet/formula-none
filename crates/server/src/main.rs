@@ -12,7 +12,7 @@ use std::net::SocketAddr;
 use std::time::Duration;
 
 use server::webtransport::{WebTransportConfig, WebTransportServer};
-use server::Shutdown;
+use server::{Rooms, Shutdown};
 use tokio::net::TcpListener;
 use tokio::signal::unix::{signal, SignalKind};
 
@@ -55,10 +55,14 @@ fn webtransport_config() -> std::io::Result<Option<WebTransportConfig>> {
 
 /// Bind once the certificate exists, then serve until shutdown. `main` runs
 /// the HTTP side alongside, so waiting here does not hold up health.
-async fn serve_webtransport(config: WebTransportConfig, shutdown: Shutdown) -> std::io::Result<()> {
+async fn serve_webtransport(
+    config: WebTransportConfig,
+    rooms: Rooms,
+    shutdown: Shutdown,
+) -> std::io::Result<()> {
     let bound = tokio::select! {
         () = shutdown.wait() => return Ok(()),
-        bound = WebTransportServer::bind(config) => bound?,
+        bound = WebTransportServer::bind(config, rooms) => bound?,
     };
     bound.run(shutdown).await
 }
@@ -79,14 +83,15 @@ async fn main() -> std::io::Result<()> {
         shutdown_signal().await;
         let _ = stop.send(true);
     });
+    let rooms = Rooms::new(shutdown.clone());
     let http = server::serve(
         listener,
-        server::app(COMMIT, shutdown.clone()),
+        server::app(COMMIT, rooms.clone(), shutdown.clone()),
         shutdown.clone(),
     );
     let quic = async {
         match webtransport {
-            Some(config) => serve_webtransport(config, shutdown).await,
+            Some(config) => serve_webtransport(config, rooms, shutdown).await,
             None => Ok(()),
         }
     };

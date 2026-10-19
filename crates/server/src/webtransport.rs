@@ -16,7 +16,11 @@ use wtransport::tls::rustls::pki_types::{CertificateDer, PrivateKeyDer};
 use wtransport::tls::rustls::sign::CertifiedKey;
 use wtransport::{Endpoint, Identity, ServerConfig};
 
-use crate::{ping, Shutdown};
+use tokio::sync::mpsc;
+
+use crate::rooms::Rooms;
+use crate::session::{self, Channels};
+use crate::Shutdown;
 
 /// Where to listen and which files hold the certificate.
 #[derive(Clone, Debug)]
@@ -37,6 +41,7 @@ pub struct WebTransportServer {
     endpoint: Endpoint<Server>,
     config: WebTransportConfig,
     loaded: Pems,
+    rooms: Rooms,
 }
 
 /// The file bytes an identity was built from, so a rewrite is noticed by
@@ -50,7 +55,7 @@ struct Pems {
 impl WebTransportServer {
     /// Bind once the certificate files can be read, polling until then: on
     /// a first deploy Caddy has not obtained the certificate yet.
-    pub async fn bind(config: WebTransportConfig) -> std::io::Result<Self> {
+    pub async fn bind(config: WebTransportConfig, rooms: Rooms) -> std::io::Result<Self> {
         let mut waiting = false;
         let (loaded, identity) = loop {
             match load(&config).await {
@@ -73,6 +78,7 @@ impl WebTransportServer {
             endpoint,
             config,
             loaded,
+            rooms,
         })
     }
 
@@ -88,10 +94,11 @@ impl WebTransportServer {
             endpoint,
             config,
             loaded,
+            rooms,
         } = self;
         tokio::select! {
             () = shutdown.wait() => {}
-            () = accept_sessions(&endpoint, shutdown.clone()) => {}
+            () = accept_sessions(&endpoint, rooms, shutdown.clone()) => {}
             () = reload_on_change(&endpoint, &config, loaded) => {}
         }
         endpoint.close(wtransport::VarInt::from_u32(0), b"server stopping");
@@ -99,10 +106,11 @@ impl WebTransportServer {
     }
 }
 
-async fn accept_sessions(endpoint: &Endpoint<Server>, shutdown: Shutdown) {
+async fn accept_sessions(endpoint: &Endpoint<Server>, rooms: Rooms, shutdown: Shutdown) {
     loop {
         let incoming = endpoint.accept().await;
         let shutdown = shutdown.clone();
+        let rooms = rooms.clone();
         tokio::spawn(async move {
             let Ok(request) = incoming.await else {
                 return;
@@ -110,25 +118,41 @@ async fn accept_sessions(endpoint: &Endpoint<Server>, shutdown: Shutdown) {
             let Ok(connection) = request.accept().await else {
                 return;
             };
-            session(connection, shutdown).await;
+            run(connection, rooms, shutdown).await;
         });
     }
 }
 
-/// Answer the session's datagrams until it ends or the server stops.
-async fn session(connection: wtransport::Connection, shutdown: Shutdown) {
+/// Pump the session's datagrams into a session and its answers back until
+/// it ends or the server stops. Every message rides a datagram for now; the
+/// reliable stream for room and race events comes with the race (ADR 0011).
+async fn run(connection: wtransport::Connection, rooms: Rooms, shutdown: Shutdown) {
+    let (inbound_tx, inbound) = mpsc::unbounded_channel();
+    let (outbound, mut outbound_rx) = mpsc::unbounded_channel();
+    let session = tokio::spawn(session::run(
+        rooms,
+        Channels { inbound, outbound },
+        shutdown.clone(),
+    ));
     loop {
         tokio::select! {
-            () = shutdown.wait() => return,
+            () = shutdown.wait() => break,
+            sending = outbound_rx.recv() => match sending {
+                // A failed send is the client's to notice: it resends an unanswered Ping.
+                Some(bytes) => {
+                    let _ = connection.send_datagram(bytes);
+                }
+                None => break,
+            },
             received = connection.receive_datagram() => {
-                let Ok(datagram) = received else { return };
-                if let Some(reply) = ping::reply(&datagram) {
-                    // A failed send is the client's to notice: it resends an unanswered Ping.
-                    let _ = connection.send_datagram(reply);
+                let Ok(datagram) = received else { break };
+                if inbound_tx.send(datagram.to_vec()).is_err() {
+                    break;
                 }
             }
         }
     }
+    session.abort();
 }
 
 /// Re-read the files every poll and swap the identity in when they changed.

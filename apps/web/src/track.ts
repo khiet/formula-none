@@ -37,7 +37,7 @@ export function selectTrack(search: string): TrackFiles {
   return TRACKS[name];
 }
 
-function isTrackName(name: string): name is TrackName {
+export function isTrackName(name: string): name is TrackName {
   return Object.hasOwn(TRACKS, name);
 }
 
