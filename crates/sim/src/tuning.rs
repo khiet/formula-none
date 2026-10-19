@@ -24,6 +24,13 @@ pub const WEBTRANSPORT_CONNECT_TIMEOUT_S: f32 = 3.0;
 pub const PING_TIMEOUT_S: f32 = 5.0;
 /// How often an unanswered Ping is sent again; a datagram may be lost.
 pub const PING_RESEND_S: f32 = 0.5;
+/// Snapshots an event is repeated in after the first that carries it, so a
+/// lost datagram or two still leaves a client with every event; the client
+/// keeps the first copy of each id.
+pub const SNAPSHOT_EVENT_REPEATS: usize = 2;
+/// The longest message one frame of the reliable stream may carry; a frame
+/// claiming more is not a client of ours and ends the session.
+pub const RELIABLE_FRAME_MAX_BYTES: u32 = 64 * 1024;
 
 // Rooms (ADR 0012).
 
@@ -225,6 +232,8 @@ const _: () = {
     assert!(0.0 < START_BOOST_WINDOW_S && START_BOOST_WINDOW_S < COUNTDOWN_S);
     assert!(0.0 < RACE_END_GRACE_S);
     assert!(SNAPSHOTS_PER_SECOND <= TICKS_PER_SECOND);
+    assert!(0 < SNAPSHOT_EVENT_REPEATS);
+    assert!(RELIABLE_FRAME_MAX_BYTES > 1024);
     assert!(ROOM_PLAYERS_MAX <= KARTS_PER_RACE);
     assert!(0 < NICKNAME_MIN_CHARS && NICKNAME_MIN_CHARS <= NICKNAME_MAX_CHARS);
     assert!(0.0 < ROOM_CLOSE_AFTER_EMPTY_S);

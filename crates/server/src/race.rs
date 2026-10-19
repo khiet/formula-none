@@ -6,12 +6,13 @@
 //! output goes, and this module decides what a tick produces.
 
 use std::collections::VecDeque;
-use std::time::{Duration, Instant};
 
 use protocol::{
     DriftDirection, DriftSnapshot, Event, EventKind, FinalStanding, Input, KartSnapshot, Snapshot,
 };
-use sim::tuning::{KARTS_PER_RACE, SNAPSHOTS_PER_SECOND, TICKS_PER_SECOND};
+use sim::tuning::{
+    KARTS_PER_RACE, SNAPSHOTS_PER_SECOND, SNAPSHOT_EVENT_REPEATS, TICKS_PER_SECOND,
+};
 use sim::{KartInput, Phase, RaceEvent, State, Track};
 
 /// Seconds of one tick: the sim's `dt` and the budget a tick's work must fit
@@ -19,9 +20,6 @@ use sim::{KartInput, Phase, RaceEvent, State, Track};
 pub const TICK_S: f32 = 1.0 / TICKS_PER_SECOND as f32;
 /// Ticks between snapshots.
 const TICKS_PER_SNAPSHOT: u32 = TICKS_PER_SECOND / SNAPSHOTS_PER_SECOND;
-/// Snapshots an event is repeated in after the first that carries it, so a
-/// lost datagram or two still leaves a client with every event (ADR 0011).
-const EVENT_REPEATS: usize = 2;
 
 /// A race in progress: the sim and what the players have sent it.
 pub struct Race {
@@ -39,7 +37,6 @@ pub struct Race {
     /// Each earlier snapshot's new events, newest first, for as long as
     /// they are repeated.
     repeated: VecDeque<Vec<Event>>,
-    timing: Timing,
 }
 
 /// The newest input a human has sent, held until a newer sequence arrives
@@ -63,36 +60,6 @@ pub struct Ticked {
     pub results: Option<Vec<FinalStanding>>,
 }
 
-/// How long the ticks of a race took on the server, for the log line that
-/// checks the budget until metrics land (ADR 0018).
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
-pub struct Timing {
-    pub ticks: u32,
-    pub total: Duration,
-    pub longest: Duration,
-    /// Ticks whose work took longer than a tick.
-    pub over_budget: u32,
-}
-
-impl Timing {
-    fn record(&mut self, took: Duration) {
-        self.ticks += 1;
-        self.total += took;
-        self.longest = self.longest.max(took);
-        if took > Duration::from_secs_f32(TICK_S) {
-            self.over_budget += 1;
-        }
-    }
-
-    pub fn mean(&self) -> Duration {
-        if self.ticks == 0 {
-            Duration::ZERO
-        } else {
-            self.total / self.ticks
-        }
-    }
-}
-
 impl Race {
     /// A race from `seed` on `track` with one human kart per slot in `grid`,
     /// in that order, and bots on the rest of the grid, at the top of its
@@ -109,7 +76,6 @@ impl Race {
             next_event_id: first_event_id,
             pending: Vec::new(),
             repeated: VecDeque::new(),
-            timing: Timing::default(),
         }
     }
 
@@ -146,14 +112,9 @@ impl Race {
         self.next_event_id
     }
 
-    pub fn timing(&self) -> Timing {
-        self.timing
-    }
-
     /// Step one tick from the inputs held, and gather what the players are
     /// told about it. A finished race changes nothing and produces nothing.
     pub fn tick(&mut self) -> Ticked {
-        let started_at = Instant::now();
         let state = self
             .state
             .take()
@@ -183,7 +144,6 @@ impl Race {
         let go = was_counting_down && matches!(state.phase(), Phase::Racing { .. });
         let results = matches!(state.phase(), Phase::Finished).then(|| results(&state));
         self.state = Some(state);
-        self.timing.record(started_at.elapsed());
         Ticked {
             events,
             snapshot,
@@ -203,7 +163,7 @@ impl Race {
             .collect();
         self.repeated
             .push_front(std::mem::take(&mut self.pending));
-        self.repeated.truncate(EVENT_REPEATS);
+        self.repeated.truncate(SNAPSHOT_EVENT_REPEATS);
         let standings = state.standings();
         let karts = state
             .kart_transforms()

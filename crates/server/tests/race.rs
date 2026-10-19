@@ -11,7 +11,8 @@ use std::time::Duration;
 use protocol::{
     ClientMessage, Event, EventKind, Input, PlayerState, RoomState, ServerMessage, Snapshot,
 };
-use server::fake_transport::{Client, Conditions, Countdown, Harness, TRACK};
+use server::fake_transport::{Client, Conditions, Harness, TRACK};
+use server::room::Started;
 use sim::tuning::{
     COUNTDOWN_S, KARTS_PER_RACE, RACE_END_GRACE_S, SNAPSHOTS_PER_SECOND, TICKS_PER_SECOND,
 };
@@ -38,7 +39,7 @@ async fn room_of(harness: &mut Harness, code: &str, count: usize) -> Vec<Client>
 
 /// Everyone readies, the creator starts, and every client's Countdown is
 /// handed back in slot order.
-async fn start_race(players: &mut [Client]) -> Vec<Countdown> {
+async fn start_race(players: &mut [Client]) -> Vec<Started> {
     for player in players.iter() {
         player.send(&ClientMessage::Ready { ready: true });
     }
@@ -70,7 +71,7 @@ async fn start_race(players: &mut [Client]) -> Vec<Countdown> {
 }
 
 /// A room of `count` players already racing, and their Countdowns.
-async fn racing_room(harness: &mut Harness, count: usize) -> (String, Vec<Client>, Vec<Countdown>) {
+async fn racing_room(harness: &mut Harness, count: usize) -> (String, Vec<Client>, Vec<Started>) {
     let code = harness.create_room();
     let mut players = room_of(harness, &code, count).await;
     let countdowns = start_race(&mut players).await;
@@ -247,7 +248,7 @@ async fn next_events_or_snapshot(client: &mut Client) -> Option<Result<Vec<Event
 }
 
 #[tokio::test(start_paused = true)]
-async fn an_event_comes_once_on_the_reliable_lane_and_in_the_next_three_snapshots_under_its_id() {
+async fn an_event_comes_once_on_the_reliable_lane_and_in_three_snapshots_under_its_id() {
     let mut harness = Harness::new(Conditions::PERFECT);
     let (_, mut players, _) = racing_room(&mut harness, 1).await;
     let player = &mut players[0];

@@ -146,15 +146,17 @@ export function autopilot(page: Page, bridge: Bridge, line: Centreline): Autopil
       } catch {
         return;
       }
-      if (typeof message === "string") return;
       if ("joined" in message) {
         slot = message.joined.slot;
       } else if ("countdown" in message) {
         kart = message.countdown.grid.indexOf(slot);
+      } else if ("events" in message) {
+        for (const { kind } of message.events) {
+          if ("lapCompleted" in kind && kind.lapCompleted.kart === kart) laps += 1;
+        }
       } else if ("snapshot" in message && kart >= 0) {
         const mine = message.snapshot.karts[kart];
         if (mine === undefined) return;
-        laps = mine.lap;
         // Throttle before the start window would stall the kart.
         const { tick } = message.snapshot;
         const countingDown = tick < bridge.countdownSeconds * bridge.ticksPerSecond;

@@ -17,7 +17,7 @@ use tokio::sync::{mpsc, oneshot, watch};
 use tokio::time::{Instant, Interval, MissedTickBehavior};
 
 use crate::lane::{Outbound, Outgoing};
-use crate::race::{Race, Timing, TICK_S};
+use crate::race::{Race, TICK_S};
 use crate::room::{HostedRoom, Left};
 use crate::{tracks, Shutdown};
 
@@ -230,10 +230,18 @@ fn fresh_code(rng: &mut impl Rng) -> String {
     rng.sample_iter(letter).take(ROOM_CODE_LENGTH).collect()
 }
 
-/// A race under way in a room task: the race and the clock that ticks it.
+/// A race under way in a room task: the race, the clock that ticks it and
+/// how long its ticks have taken.
 struct Running {
     race: Race,
     ticks: Interval,
+    timing: Timing,
+}
+
+/// What one tick did to the room, for the task to tell the players.
+struct TickOutcome {
+    /// The race ended: the results have been sent and the race is over.
+    finished: bool,
 }
 
 impl Running {
@@ -242,7 +250,80 @@ impl Running {
         // A tick the server fell behind on is run as soon as it can be, so
         // the sim keeps its time; the interval only waits when ahead.
         ticks.set_missed_tick_behavior(MissedTickBehavior::Burst);
-        Self { race, ticks }
+        Self {
+            race,
+            ticks,
+            timing: Timing::default(),
+        }
+    }
+
+    /// One tick: step the race, send what it produced to the players and
+    /// move the room along with the race's phase. The whole of it is timed
+    /// against the tick budget, the sending included.
+    fn tick(&mut self, room: &mut HostedRoom, players: &mut HashMap<u8, Outbound>) -> TickOutcome {
+        let started_at = Instant::now();
+        let ticked = self.race.tick();
+        if !ticked.events.is_empty() {
+            broadcast(players, &ServerMessage::Events(ticked.events), None);
+        }
+        if let Some(snapshot) = ticked.snapshot {
+            broadcast(players, &ServerMessage::Snapshot(snapshot), None);
+        }
+        if ticked.go {
+            room.racing();
+        }
+        let finished = ticked.results.is_some();
+        if let Some(standings) = ticked.results {
+            broadcast(players, &ServerMessage::Results { standings }, None);
+            room.finish();
+            // A seat that freed at the finish stops receiving.
+            let seated: Vec<u8> = room.view().players.iter().map(|player| player.slot).collect();
+            players.retain(|slot, _| seated.contains(slot));
+        }
+        self.timing.record(started_at.elapsed());
+        TickOutcome { finished }
+    }
+}
+
+/// How long the ticks of a race took on the server, for the log line that
+/// checks the budget until metrics land (ADR 0018).
+#[derive(Debug, Clone, Copy, Default)]
+struct Timing {
+    ticks: u32,
+    total: Duration,
+    longest: Duration,
+    /// Ticks whose work took longer than a tick.
+    over_budget: u32,
+}
+
+impl Timing {
+    fn record(&mut self, took: Duration) {
+        self.ticks += 1;
+        self.total += took;
+        self.longest = self.longest.max(took);
+        if took > Duration::from_secs_f32(TICK_S) {
+            self.over_budget += 1;
+        }
+    }
+
+    fn mean(&self) -> Duration {
+        if self.ticks == 0 {
+            Duration::ZERO
+        } else {
+            self.total / self.ticks
+        }
+    }
+
+    /// The budget check until metrics land (ADR 0018): one line per race.
+    fn log(&self, code: &str, ending: &str) {
+        println!(
+            "room {code} race {ending}: {} ticks, mean {:.2} ms, longest {:.2} ms, {} over the {:.1} ms budget",
+            self.ticks,
+            self.mean().as_secs_f64() * 1000.0,
+            self.longest.as_secs_f64() * 1000.0,
+            self.over_budget,
+            f64::from(TICK_S) * 1000.0,
+        );
     }
 }
 
@@ -284,33 +365,26 @@ async fn run(
         // is itself ending as departures.
         tokio::select! {
             biased;
-            () = shutdown.wait() => break,
+            () = shutdown.wait() => {
+                if let Some(running) = &running {
+                    running.timing.log(room.code(), "cut short by the server stopping");
+                }
+                break;
+            }
             () = closing => {
                 room.close();
                 let _ = publish.send(room.view());
                 break;
             }
             _ = tick => {
-                let running_race = running.as_mut().expect("the tick arm only runs with a race");
-                let ticked = running_race.race.tick();
-                if !ticked.events.is_empty() {
-                    broadcast(&players, &ServerMessage::Events(ticked.events), None);
-                }
-                if let Some(snapshot) = ticked.snapshot {
-                    broadcast(&players, &ServerMessage::Snapshot(snapshot), None);
-                }
-                if ticked.go {
-                    room.racing();
-                }
-                if let Some(standings) = ticked.results {
-                    broadcast(&players, &ServerMessage::Results { standings }, None);
-                    room.finish();
-                    // A seat that freed at the finish stops receiving.
-                    let seated: Vec<u8> = room.view().players.iter().map(|player| player.slot).collect();
-                    players.retain(|slot, _| seated.contains(slot));
+                let outcome = running
+                    .as_mut()
+                    .expect("the tick arm only runs with a race")
+                    .tick(&mut room, &mut players);
+                if outcome.finished {
                     let finished = running.take().expect("the race that just finished");
                     next_event_id = finished.race.next_event_id();
-                    log_timing(room.code(), finished.race.timing());
+                    finished.timing.log(room.code(), "over");
                 }
             }
             command = inbox.recv() => {
@@ -426,16 +500,4 @@ fn broadcast(players: &HashMap<u8, Outbound>, message: &ServerMessage, except: O
             let _ = outbound.send(outgoing.clone());
         }
     }
-}
-
-/// The tick budget check until metrics land (ADR 0018): one line per race.
-fn log_timing(code: &str, timing: Timing) {
-    println!(
-        "room {code} race over: {} ticks, mean {:.2} ms, longest {:.2} ms, {} over the {:.1} ms budget",
-        timing.ticks,
-        timing.mean().as_secs_f64() * 1000.0,
-        timing.longest.as_secs_f64() * 1000.0,
-        timing.over_budget,
-        f64::from(TICK_S) * 1000.0,
-    );
 }

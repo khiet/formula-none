@@ -53,8 +53,9 @@ The reliable stream landed with issue 17 (2026-10-19).
   snapshots and the Ping round trip on datagrams; everything else,
   including every event, on one bidirectional stream the client opens,
   carrying each message as four little-endian length bytes and the
-  message. Events ride the reliable stream once and the next three
-  snapshots besides; the client keeps the first copy of each id.
+  message. Events ride the reliable stream once and, besides, the snapshot
+  they are new in and the tuned two after it; the client keeps the first
+  copy of each id.
 - The WebSocket fallback carries both lanes on the socket unchanged.
 - The fake transport gives each lane its own behaviour: the reliable lane
   keeps its order and loses nothing; the datagram lane loses and reorders

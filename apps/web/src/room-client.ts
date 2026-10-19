@@ -87,9 +87,6 @@ export function refusalMessage(refusal: Refusal): string {
   }
 }
 
-/** Event ids the client remembers; ids count up, so older ones cannot come again. */
-const REMEMBERED_EVENT_IDS = 1024;
-
 /**
  * The wire form of one tick's controls: each axis to one byte, as the
  * protocol's `Input` carries it. The server undoes this; the sim on both
@@ -146,20 +143,19 @@ export function joinRoom(
         };
       };
 
-    // The race's bookkeeping, reset by each Countdown.
+    // The race's bookkeeping, reset by each Countdown. Event ids count up
+    // for the room's whole stay, across its races, so once a race is over
+    // every id up to its highest is spent: a late snapshot repeating one
+    // after the next Countdown is dropped without remembering the id.
     let newestTick = 0;
     let sequence = 0;
-    const seenEvents = new Set<number>();
+    let spentEventIds = 0;
     let highestEventId = 0;
+    const seenEvents = new Set<number>();
     const deliverEvent = (event: Event) => {
-      if (seenEvents.has(event.id) || event.id <= highestEventId - REMEMBERED_EVENT_IDS) return;
+      if (event.id <= spentEventIds || seenEvents.has(event.id)) return;
       seenEvents.add(event.id);
-      if (event.id > highestEventId) {
-        highestEventId = event.id;
-        for (const id of seenEvents) {
-          if (id <= highestEventId - REMEMBERED_EVENT_IDS) seenEvents.delete(id);
-        }
-      }
+      highestEventId = Math.max(highestEventId, event.id);
       for (const listener of eventListeners) listener(event);
     };
 
@@ -171,7 +167,6 @@ export function joinRoom(
         // Not a message; the server sends only messages, so this is noise on the wire.
         return;
       }
-      if (typeof message === "string") return;
       if ("joined" in message) {
         if (room !== undefined) return;
         room = message.joined.room;
@@ -185,6 +180,8 @@ export function joinRoom(
       } else if ("countdown" in message) {
         newestTick = 0;
         sequence = 0;
+        spentEventIds = highestEventId;
+        seenEvents.clear();
         const countdown: Countdown = {
           seed: BigInt(message.countdown.seed),
           track: message.countdown.track,

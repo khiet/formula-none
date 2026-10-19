@@ -867,14 +867,14 @@ pub fn step(mut state: State, inputs: &[KartInput], dt: f32) -> State {
         .collect();
     state.physics.step(dt);
     let mut finished_this_tick = Vec::new();
-    for (slot, (kart, mut before)) in state.karts.iter_mut().zip(before).enumerate() {
+    for (index, (kart, mut before)) in state.karts.iter_mut().zip(before).enumerate() {
         bump_off_walls(kart, &mut state.physics, dt);
         let mut after = state.physics.bodies[kart.body].translation().to_array();
         if state.physics.surface_at(after) == Surface::OutOfWorld {
             kart.out_of_world_s += dt;
             if kart.out_of_world_s >= RESPAWN_DELAY_S {
                 after = respawn(kart, &state.track, &mut state.physics);
-                state.events.push(RaceEvent::Respawned { kart: slot });
+                state.events.push(RaceEvent::Respawned { kart: index });
                 // A teleport is not a move: it crosses no gate.
                 before = after;
             }
@@ -900,12 +900,12 @@ pub fn step(mut state: State, inputs: &[KartInput], dt: f32) -> State {
                 cross_checkpoint(kart, &state.track, before, after, dt, elapsed_s)
             {
                 state.events.push(RaceEvent::LapCompleted {
-                    kart: slot,
+                    kart: index,
                     lap: kart.laps_completed,
                     lap_time_s,
                 });
                 if let Some(finish_time_s) = kart.finish_time_s {
-                    finished_this_tick.push((slot, finish_time_s));
+                    finished_this_tick.push((index, finish_time_s));
                 }
             }
         }
@@ -915,10 +915,10 @@ pub fn step(mut state: State, inputs: &[KartInput], dt: f32) -> State {
     if !finished_this_tick.is_empty() {
         let standings = state.standings();
         finished_this_tick.sort_by(|a, b| a.1.total_cmp(&b.1));
-        for (slot, finish_time_s) in finished_this_tick {
+        for (index, finish_time_s) in finished_this_tick {
             state.events.push(RaceEvent::Finished {
-                kart: slot,
-                position: standings[slot].position,
+                kart: index,
+                position: standings[index].position,
                 finish_time_s,
             });
         }

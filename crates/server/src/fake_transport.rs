@@ -20,6 +20,7 @@ use rand::{Rng, SeedableRng};
 use tokio::sync::{mpsc, watch};
 
 use crate::lane::{Lane, Outgoing};
+use crate::room::Started;
 use crate::rooms::Rooms;
 use crate::session::{self, Channels};
 use crate::Shutdown;
@@ -99,20 +100,13 @@ impl Harness {
     /// in any room.
     pub fn connect(&mut self) -> Client {
         let (server_inbound_tx, server_inbound) = mpsc::unbounded_channel();
-        let reliable_up = reliable_lane(self.conditions, self.next_seed(), server_inbound_tx.clone());
-        let datagram_up = datagram_lane(self.conditions, self.next_seed(), server_inbound_tx);
-
+        let up = self.lanes(server_inbound_tx);
         let (from_server_tx, from_server) = mpsc::unbounded_channel();
-        let reliable_down = reliable_lane(self.conditions, self.next_seed(), from_server_tx.clone());
-        let datagram_down = datagram_lane(self.conditions, self.next_seed(), from_server_tx);
-        let (server_outbound, mut lanes) = mpsc::unbounded_channel::<Outgoing>();
+        let down = self.lanes(from_server_tx);
+        let (server_outbound, mut outgoing) = mpsc::unbounded_channel::<Outgoing>();
         tokio::spawn(async move {
-            while let Some(Outgoing { lane, bytes }) = lanes.recv().await {
-                let sent = match lane {
-                    Lane::Reliable => reliable_down.send(bytes),
-                    Lane::Datagram => datagram_down.send(bytes),
-                };
-                if sent.is_err() {
+            while let Some(message) = outgoing.recv().await {
+                if down.send(message).is_err() {
                     return;
                 }
             }
@@ -127,9 +121,16 @@ impl Harness {
             self.shutdown.clone(),
         ));
         Client {
-            reliable: reliable_up,
-            datagram: datagram_up,
+            to_server: up,
             from_server,
+        }
+    }
+
+    /// Both lanes one way, ending in `into`.
+    fn lanes(&mut self, into: mpsc::UnboundedSender<Vec<u8>>) -> Lanes {
+        Lanes {
+            reliable: reliable_lane(self.conditions, self.next_seed(), into.clone()),
+            datagram: datagram_lane(self.conditions, self.next_seed(), into),
         }
     }
 
@@ -144,31 +145,34 @@ impl Harness {
     }
 }
 
+/// The two lanes one way through the fake network.
+struct Lanes {
+    reliable: mpsc::UnboundedSender<Vec<u8>>,
+    datagram: mpsc::UnboundedSender<Vec<u8>>,
+}
+
+impl Lanes {
+    /// Fails once the far end is gone.
+    fn send(&self, Outgoing { lane, bytes }: Outgoing) -> Result<(), ()> {
+        match lane {
+            Lane::Reliable => self.reliable.send(bytes).map_err(|_| ()),
+            Lane::Datagram => self.datagram.send(bytes).map_err(|_| ()),
+        }
+    }
+}
+
 /// One client's end of the fake network. Dropping it is the connection
 /// dropping without a Leave.
 pub struct Client {
-    reliable: mpsc::UnboundedSender<Vec<u8>>,
-    datagram: mpsc::UnboundedSender<Vec<u8>>,
+    to_server: Lanes,
     from_server: mpsc::UnboundedReceiver<Vec<u8>>,
-}
-
-/// What a Countdown tells a client.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Countdown {
-    pub seed: u64,
-    pub track: String,
-    pub grid: Vec<u8>,
 }
 
 impl Client {
     /// Send on the lane the message's kind rides (ADR 0011).
     pub fn send(&self, message: &ClientMessage) {
-        let Outgoing { lane, bytes } = Outgoing::from_client(message);
         // A closed session is what `recv` reports; a send into it is dropped.
-        let _ = match lane {
-            Lane::Reliable => self.reliable.send(bytes),
-            Lane::Datagram => self.datagram.send(bytes),
-        };
+        let _ = self.to_server.send(Outgoing::from_client(message));
     }
 
     /// One tick's controls, on the datagram lane.
@@ -229,10 +233,11 @@ impl Client {
         .await
     }
 
-    /// The next Countdown, skipping any other kind.
-    pub async fn next_countdown(&mut self) -> Option<Countdown> {
+    /// The next Countdown, skipping any other kind, as the race the room
+    /// started.
+    pub async fn next_countdown(&mut self) -> Option<Started> {
         self.next_where(|message| match message {
-            ServerMessage::Countdown { seed, track, grid } => Some(Countdown { seed, track, grid }),
+            ServerMessage::Countdown { seed, track, grid } => Some(Started { seed, track, grid }),
             _ => None,
         })
         .await

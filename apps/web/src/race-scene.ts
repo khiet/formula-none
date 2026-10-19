@@ -144,7 +144,7 @@ export async function createRaceScene(
   const finished = new Promise<RaceResults>((resolve) => {
     settle = resolve;
   });
-  const isBot = (slot: number): boolean => slot >= run.humanCount;
+  const isBot = (kart: number): boolean => kart >= run.humanCount;
 
   // Fixed-step loop: the run ticks at the sim's rate however often frames come.
   let unsimulatedSeconds = 0;

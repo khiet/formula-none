@@ -19,7 +19,6 @@ test.skip(!!process.env.CI, "eight WebGL tabs through a whole race are a local s
 test.use({ headless: false });
 test.setTimeout(900_000);
 
-const TABS = 8;
 const WASM = new URL("../src/generated/bridge/bridge_bg.wasm", import.meta.url);
 
 async function roomCode(page: Page): Promise<string> {
@@ -31,6 +30,8 @@ async function roomCode(page: Page): Promise<string> {
 test("eight tabs complete a three-lap race on Brands Patch", async ({ browser }) => {
   const bridge = await loadBridge(readFileSync(WASM));
   const line = centreline();
+  // One tab per kart on the grid, so no bot races.
+  const TABS = bridge.kartsPerRace;
   const contexts: BrowserContext[] = [];
   const pages: Page[] = [];
   for (let tab = 0; tab < TABS; tab++) {
@@ -66,14 +67,14 @@ test("eight tabs complete a three-lap race on Brands Patch", async ({ browser })
   // every tab reaches the results with every kart placed.
   await expect
     .poll(() => driver.laps(), { timeout: 480_000, intervals: [2_000] })
-    .toBeGreaterThanOrEqual(3);
+    .toBeGreaterThanOrEqual(bridge.lapsPerRace);
   for (const page of pages) {
     await expect(page.locator("#results-scene")).toBeVisible({ timeout: 300_000 });
     await expect(page.locator("li[data-result]")).toHaveCount(TABS);
   }
   await expect(creator.locator("li[data-result='1st']")).toContainText("You");
   await expect(creator.locator("li[data-result='1st']")).not.toContainText("(not finished)");
-  await expect(creator.locator("li[data-result='8th']")).toContainText("(not finished)");
+  await expect(creator.locator(`li[data-result='${TABS}th']`)).toContainText("(not finished)");
 
   // Rematch brings the room back, with everyone still seated.
   await creator.getByRole("button", { name: "Rematch" }).click();

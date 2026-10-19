@@ -18,14 +18,12 @@ use wtransport::{Endpoint, Identity, RecvStream, SendStream, ServerConfig};
 
 use tokio::sync::mpsc;
 
+use sim::tuning::RELIABLE_FRAME_MAX_BYTES;
+
 use crate::lane::{Lane, Outgoing};
 use crate::rooms::Rooms;
 use crate::session::{self, Channels};
 use crate::Shutdown;
-
-/// The longest message the reliable stream accepts in one frame; anything
-/// claiming more is not a client of ours and ends the session.
-pub const MAX_FRAME_BYTES: u32 = 64 * 1024;
 
 /// Where to listen and which files hold the certificate.
 #[derive(Clone, Debug)]
@@ -221,7 +219,7 @@ async fn read_frames(mut stream: RecvStream, inbound: mpsc::UnboundedSender<Vec<
             return;
         }
         let length = u32::from_le_bytes(length);
-        if length > MAX_FRAME_BYTES {
+        if length > RELIABLE_FRAME_MAX_BYTES {
             return;
         }
         let mut bytes = vec![0u8; length as usize];
