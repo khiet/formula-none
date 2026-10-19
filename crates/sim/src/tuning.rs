@@ -60,9 +60,9 @@ pub const CONNECTION_SILENCE_S: f32 = 2.0;
 /// How long a client waits after a failed reconnect before the next try.
 pub const RECONNECT_RETRY_S: f32 = 1.0;
 /// How long a client shows the fire it predicted from a press before it
-/// takes the server not to have fired: the press was lost on the way, or
-/// the slot was already empty there. Longer than a round trip with a
-/// resend or two.
+/// takes the server not to have fired, because the slot was already empty
+/// there. Longer than a round trip, so a press whose datagram was lost and
+/// fired from the next one still confirms in time.
 pub const PREDICTED_FIRE_TIMEOUT_S: f32 = 1.0;
 /// Snapshots an event is repeated in after the first that carries it, so a
 /// lost datagram or two still leaves a client with every event; the client

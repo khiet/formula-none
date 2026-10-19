@@ -59,8 +59,8 @@ export function createServerRace(
   /**
    * Whether an item event has named the local kart yet. Until one has, as
    * after a rejoin mid-race, the snapshots say what the slot holds; from
-   * then on the events do, since an event is heard before the snapshot of
-   * its tick.
+   * then on only the events do, so a snapshot sent before a fire cannot
+   * put the item back.
    */
   let slotHeardOf = false;
   /** Ticks left of a fire predicted from a press the server has not confirmed; 0 for none. */

@@ -44,8 +44,7 @@ pub struct SnapshotKart {
     pub rotation: [f32; 4],
     pub velocity: [f32; 3],
     pub drift: Option<Drift>,
-    /// The item in the kart's slot, which the server rolled; the
-    /// prediction's own roll is only a stand-in until a snapshot says.
+    /// The item in the kart's slot, which only the server rolls.
     pub held_item: Option<Item>,
     /// The lap the kart is on, from 1, as [`Standing::lap`] counts it.
     pub lap: u32,
