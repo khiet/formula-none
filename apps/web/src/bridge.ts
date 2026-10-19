@@ -20,10 +20,11 @@ import init, {
   replay_hashes,
   room_code_length,
   ticks_per_second,
+  Prediction as WasmPrediction,
   Race as WasmRace,
   webtransport_connect_timeout_s,
 } from "./generated/bridge/bridge.js";
-import type { ClientMessage, ServerMessage } from "./generated/protocol";
+import type { ClientMessage, Input, ServerMessage, Snapshot } from "./generated/protocol";
 
 /**
  * One kart's controls for one tick, whichever device produced them: steer
@@ -135,6 +136,29 @@ export interface Race {
   surfaceAt(position: readonly [number, number, number]): Surface;
 }
 
+/**
+ * The player's own kart in a room's race, predicted in this browser by the
+ * sim the server runs (ADR 0009): stepped with each input the client sends,
+ * and reconciled with each snapshot it receives, any correction blended out
+ * over the tuned ticks.
+ */
+export interface Prediction {
+  /** Predict one tick from the input the client sends the server this tick. */
+  tick(input: Input): void;
+  /** Reconcile with a snapshot; returns how far the predicted kart moved for it, in metres. */
+  reconcile(snapshot: Snapshot): number;
+  /** The kart as it is drawn, as of the last tick or snapshot. */
+  kartTransform(): KartTransform;
+  /**
+   * The race clock at the predicted kart's tick: the countdown the
+   * player's inputs meet on the server. Never finished; the server's
+   * results end the race.
+   */
+  phase(): Phase;
+  /** Snapshots that moved the predicted kart further than rounding, per second raced. */
+  correctionsPerSecond(): number;
+}
+
 export interface PingTiming {
   readonly timeoutMs: number;
   readonly resendMs: number;
@@ -191,6 +215,13 @@ export interface Bridge extends MessageCodec {
    * the karts.
    */
   createRace(seed: bigint, humanCount: number, botCount: number, sidecar: string): Race;
+  /**
+   * The prediction of the kart on grid slot `kart` in the race from `seed`
+   * on the track described by `sidecar`, at the top of its countdown.
+   * Throws, with the sim's reason, when the sidecar is unusable or its grid
+   * has no such slot.
+   */
+  createPrediction(seed: bigint, kart: number, sidecar: string): Prediction;
   /** A replay's hashes are kept every this many ticks. */
   readonly replayHashIntervalTicks: number;
   /**
@@ -211,7 +242,8 @@ export interface Bridge extends MessageCodec {
 }
 
 // Buffer layouts the bridge crate documents on Race::step, Race::kart_transforms,
-// Race::standings and Race::phase.
+// Race::standings and Race::phase; a Prediction's transform and phase are laid
+// out as a Race's.
 const FLOATS_PER_INPUT = 6;
 const FLOATS_PER_TRANSFORM = 12;
 const FLOATS_PER_STANDING = 8;
@@ -251,6 +283,12 @@ export async function loadBridge(wasm?: BufferSource): Promise<Bridge> {
         rethrown(() => new WasmRace(seed, humanCount, botCount, sidecar)),
         humanCount,
         humanCount + botCount,
+      );
+    },
+    createPrediction(seed, kart, sidecar) {
+      return new BridgedPrediction(
+        rethrown(() => new WasmPrediction(seed, kart, sidecar)),
+        kart,
       );
     },
     replayHashes(replay, sidecar) {
@@ -361,27 +399,7 @@ class BridgedRace implements Race {
   }
 
   phase(): Phase {
-    const buffer = this.#race.phase();
-    const [code, seconds, grace] = buffer;
-    if (
-      buffer.length !== FLOATS_PER_PHASE ||
-      code === undefined ||
-      seconds === undefined ||
-      grace === undefined
-    ) {
-      throw new RangeError(`phase buffer has ${buffer.length} floats`);
-    }
-    const kind = PHASES[code];
-    switch (kind) {
-      case "countdown":
-        return { kind, remainingSeconds: seconds };
-      case "racing":
-        return { kind, elapsedSeconds: seconds, graceLeftSeconds: timeOrNull(grace) };
-      case "finished":
-        return { kind };
-      default:
-        throw new RangeError(`unknown phase code ${code}`);
-    }
+    return phaseFrom(this.#race.phase());
   }
 
   kartTransforms(): KartTransform[] {
@@ -393,21 +411,83 @@ class BridgedRace implements Race {
     }
     const transforms: KartTransform[] = [];
     for (let slot = 0; slot < this.#kartCount; slot++) {
-      const at = slot * FLOATS_PER_TRANSFORM;
-      const read = (offset: number): number => buffer[at + offset] as number;
-      const surface = SURFACES[read(8)];
-      if (surface === undefined) {
-        throw new RangeError(`unknown surface code ${read(8)} for kart ${slot}`);
-      }
-      transforms.push({
-        position: [read(0), read(1), read(2)],
-        rotation: [read(3), read(4), read(5), read(6)],
-        speed: read(7),
-        surface,
-        drift: drift(read(9), read(10), read(11), slot),
-      });
+      transforms.push(transformAt(buffer, slot * FLOATS_PER_TRANSFORM, slot));
     }
     return transforms;
+  }
+}
+
+class BridgedPrediction implements Prediction {
+  readonly #prediction: WasmPrediction;
+  readonly #kart: number;
+
+  constructor(prediction: WasmPrediction, kart: number) {
+    this.#prediction = prediction;
+    this.#kart = kart;
+  }
+
+  tick(input: Input): void {
+    rethrown(() => this.#prediction.tick(input));
+  }
+
+  reconcile(snapshot: Snapshot): number {
+    return rethrown(() => this.#prediction.reconcile(snapshot, this.#kart));
+  }
+
+  kartTransform(): KartTransform {
+    const buffer = this.#prediction.kart_transform();
+    if (buffer.length !== FLOATS_PER_TRANSFORM) {
+      throw new RangeError(`transform buffer has ${buffer.length} floats for one kart`);
+    }
+    return transformAt(buffer, 0, this.#kart);
+  }
+
+  phase(): Phase {
+    return phaseFrom(this.#prediction.phase());
+  }
+
+  correctionsPerSecond(): number {
+    return this.#prediction.corrections_per_second();
+  }
+}
+
+/** The kart transform whose twelve floats start at `at`; `slot` names the kart in errors. */
+function transformAt(buffer: Float32Array, at: number, slot: number): KartTransform {
+  const read = (offset: number): number => buffer[at + offset] as number;
+  const surface = SURFACES[read(8)];
+  if (surface === undefined) {
+    throw new RangeError(`unknown surface code ${read(8)} for kart ${slot}`);
+  }
+  return {
+    position: [read(0), read(1), read(2)],
+    rotation: [read(3), read(4), read(5), read(6)],
+    speed: read(7),
+    surface,
+    drift: drift(read(9), read(10), read(11), slot),
+  };
+}
+
+/** The phase the three floats of a phase buffer describe. */
+function phaseFrom(buffer: Float32Array): Phase {
+  const [code, seconds, grace] = buffer;
+  if (
+    buffer.length !== FLOATS_PER_PHASE ||
+    code === undefined ||
+    seconds === undefined ||
+    grace === undefined
+  ) {
+    throw new RangeError(`phase buffer has ${buffer.length} floats`);
+  }
+  const kind = PHASES[code];
+  switch (kind) {
+    case "countdown":
+      return { kind, remainingSeconds: seconds };
+    case "racing":
+      return { kind, elapsedSeconds: seconds, graceLeftSeconds: timeOrNull(grace) };
+    case "finished":
+      return { kind };
+    default:
+      throw new RangeError(`unknown phase code ${code}`);
   }
 }
 

@@ -7,10 +7,23 @@
 /// Fixed sim rate on both client and server.
 pub const TICKS_PER_SECOND: u32 = 60;
 pub const SNAPSHOTS_PER_SECOND: u32 = 30;
+/// Seconds of one tick: the `dt` every step on either side is run with.
+pub const TICK_S: f32 = 1.0 / TICKS_PER_SECOND as f32;
 /// How far behind the newest snapshot other karts are rendered.
 pub const INTERPOLATION_DELAY_S: f32 = 0.1;
-/// Upper bound on the frames a reconciliation correction is blended over.
-pub const RECONCILIATION_BLEND_FRAMES: u32 = 6;
+/// Sim ticks a reconciliation correction is blended over: the six frames of
+/// ADR 0009 at the sim's rate, so the blend lasts as long on any display.
+pub const RECONCILIATION_BLEND_TICKS: u32 = 6;
+/// A snapshot that puts the own kart within this many metres of where the
+/// client predicted it, and its nose and next tick's travel as close, agrees
+/// with the prediction: the difference is rounding, not a correction.
+pub const RECONCILIATION_TOLERANCE_M: f32 = 0.001;
+/// The largest correction of the own kart a player cannot see in the chase
+/// camera: blended over the tuned ticks it moves the kart under 5 cm a
+/// tick, against the half metre a tick the kart travels at top speed.
+/// The target at 100 ms RTT with 2 percent loss is to stay under it
+/// (ADR 0009).
+pub const RECONCILIATION_VISIBLE_CORRECTION_M: f32 = 0.25;
 /// A replay reports the state hash after every this-many ticks: once a
 /// second, the determinism gate's resolution (ADR 0002).
 pub const REPLAY_HASH_INTERVAL_TICKS: u32 = TICKS_PER_SECOND;
@@ -28,6 +41,15 @@ pub const PING_RESEND_S: f32 = 0.5;
 /// lost datagram or two still leaves a client with every event; the client
 /// keeps the first copy of each id.
 pub const SNAPSHOT_EVENT_REPEATS: usize = 2;
+/// How far, in ticks, the sequence the server applies may run from the
+/// newest input it has received for a human: further behind and it drops
+/// inputs to catch up, so a client whose clock runs fast adds no more delay;
+/// further ahead and it waits, so a client back from a stall is heard again.
+pub const INPUT_QUEUE_MAX_TICKS: u32 = 3;
+/// Inputs the server holds for a human before it applies the first, so the
+/// queue starts one input ahead and a datagram that lands a little late is
+/// still in time.
+pub const INPUT_QUEUE_START_TICKS: usize = 2;
 /// The longest message one frame of the reliable stream may carry; a frame
 /// claiming more is not a client of ours and ends the session.
 pub const RELIABLE_FRAME_MAX_BYTES: u32 = 64 * 1024;
@@ -233,6 +255,10 @@ const _: () = {
     assert!(0.0 < RACE_END_GRACE_S);
     assert!(SNAPSHOTS_PER_SECOND <= TICKS_PER_SECOND);
     assert!(0 < SNAPSHOT_EVENT_REPEATS);
+    assert!(0 < INPUT_QUEUE_START_TICKS && INPUT_QUEUE_START_TICKS as u32 <= INPUT_QUEUE_MAX_TICKS);
+    assert!(0 < RECONCILIATION_BLEND_TICKS);
+    assert!(0.0 < RECONCILIATION_TOLERANCE_M);
+    assert!(RECONCILIATION_TOLERANCE_M < RECONCILIATION_VISIBLE_CORRECTION_M);
     assert!(RELIABLE_FRAME_MAX_BYTES > 1024);
     assert!(ROOM_PLAYERS_MAX <= KARTS_PER_RACE);
     assert!(0 < NICKNAME_MIN_CHARS && NICKNAME_MIN_CHARS <= NICKNAME_MAX_CHARS);

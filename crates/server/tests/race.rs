@@ -14,7 +14,8 @@ use protocol::{
 use server::fake_transport::{Client, Conditions, Harness, TRACK};
 use server::room::Started;
 use sim::tuning::{
-    COUNTDOWN_S, KARTS_PER_RACE, RACE_END_GRACE_S, SNAPSHOTS_PER_SECOND, TICKS_PER_SECOND,
+    COUNTDOWN_S, INPUT_QUEUE_MAX_TICKS, INPUT_QUEUE_START_TICKS, KARTS_PER_RACE, RACE_END_GRACE_S,
+    SNAPSHOTS_PER_SECOND, TICKS_PER_SECOND,
 };
 
 const TICKS_PER_SNAPSHOT: u32 = TICKS_PER_SECOND / SNAPSHOTS_PER_SECOND;
@@ -136,7 +137,7 @@ async fn the_countdown_reaches_every_client_with_the_grid_in_room_order_and_the_
 }
 
 #[tokio::test(start_paused = true)]
-async fn snapshots_come_at_the_snapshot_rate_in_tick_order_and_acknowledge_the_newest_input() {
+async fn snapshots_come_at_the_snapshot_rate_in_tick_order_and_acknowledge_one_sequence_a_tick() {
     let mut harness = Harness::new(Conditions::PERFECT);
     let (_, mut players, _) = racing_room(&mut harness, 1).await;
     let player = &mut players[0];
@@ -151,24 +152,28 @@ async fn snapshots_come_at_the_snapshot_rate_in_tick_order_and_acknowledge_the_n
         last_tick = snapshot.tick;
     }
 
-    // The newest sequence is what the sim applies: an older one arriving
-    // after it, or a repeat, changes nothing.
-    player.send_input(input(1, 0));
-    let snapshot = player.next_snapshot().await.unwrap();
-    let snapshot = if snapshot.acknowledged[0] == 1 {
-        snapshot
-    } else {
-        player.next_snapshot().await.unwrap()
-    };
-    assert_eq!(snapshot.acknowledged[0], 1);
-    player.send_input(input(5, 0));
+    // Four inputs at once are applied one a tick, in order; past the
+    // newest the server runs on the last controls for the tuned depth, in
+    // case the next is lost, then waits for the client.
+    for sequence in 1..=4 {
+        player.send_input(input(sequence, 0));
+    }
+    let held = 4 + INPUT_QUEUE_MAX_TICKS;
+    let mut acknowledged = 0;
+    while acknowledged < held {
+        let snapshot = player.next_snapshot().await.unwrap();
+        let next = snapshot.acknowledged[0];
+        assert!(
+            next >= acknowledged && next - acknowledged <= TICKS_PER_SNAPSHOT,
+            "acknowledged {next} after {acknowledged}"
+        );
+        acknowledged = next;
+    }
+    // An older sequence, or a repeat, changes nothing.
     player.send_input(input(3, 0));
-    player.send_input(input(5, 0));
-    player.next_snapshot().await.unwrap();
+    player.send_input(input(4, 0));
     let snapshot = player.next_snapshot().await.unwrap();
-    assert_eq!(snapshot.acknowledged[0], 5);
-    let snapshot = player.next_snapshot().await.unwrap();
-    assert_eq!(snapshot.acknowledged[0], 5, "never back to an older one");
+    assert_eq!(snapshot.acknowledged[0], held, "never back, never past");
     assert!(
         snapshot.acknowledged[1..]
             .iter()
@@ -178,22 +183,58 @@ async fn snapshots_come_at_the_snapshot_rate_in_tick_order_and_acknowledge_the_n
 }
 
 #[tokio::test(start_paused = true)]
-async fn an_input_that_arrives_out_of_order_is_outranked_by_the_newer_one_already_applied() {
+async fn a_client_far_ahead_is_caught_up_to_and_one_back_from_a_stall_is_heard_again() {
+    let mut harness = Harness::new(Conditions::PERFECT);
+    let (_, mut players, _) = racing_room(&mut harness, 1).await;
+    let player = &mut players[0];
+    while seconds(player.next_snapshot().await.unwrap().tick) < COUNTDOWN_S + 0.5 {}
+
+    // Ten inputs at once: the server starts no further than the tuned depth
+    // behind the newest, dropping the oldest.
+    for sequence in 1..=10 {
+        player.send_input(input(sequence, 0));
+    }
+    let first = player.next_snapshot().await.unwrap().acknowledged[0];
+    assert!(first >= 10 - INPUT_QUEUE_MAX_TICKS, "acknowledged {first}");
+
+    // Then the client stalls: the server runs the tuned depth past the
+    // newest and waits there, and the client's next inputs drive the kart.
+    let held = 10 + INPUT_QUEUE_MAX_TICKS;
+    while player.next_snapshot().await.unwrap().acknowledged[0] < held {}
+    assert_eq!(player.next_snapshot().await.unwrap().acknowledged[0], held);
+    for sequence in held + 1..=held + 2 {
+        player.send_input(input(sequence, u8::MAX));
+    }
+    let mut snapshot = player.next_snapshot().await.unwrap();
+    while seconds(snapshot.tick) < COUNTDOWN_S + 2.5 {
+        snapshot = player.next_snapshot().await.unwrap();
+    }
+    assert!(snapshot.acknowledged[0] > held);
+    assert!(
+        speed(&snapshot, 0) > 5.0,
+        "driving: {:?}",
+        snapshot.karts[0]
+    );
+}
+
+#[tokio::test(start_paused = true)]
+async fn inputs_that_arrive_out_of_order_are_applied_in_sequence_order() {
     let mut harness = Harness::new(Conditions::PERFECT);
     let (_, mut players, _) = racing_room(&mut harness, 1).await;
     let player = &mut players[0];
     // Past Go, so the throttle moves the kart.
     while seconds(player.next_snapshot().await.unwrap().tick) < COUNTDOWN_S + 0.5 {}
 
-    // Sequence 10 says go; 8 and 9, late, say stop. The kart goes.
-    player.send_input(input(10, u8::MAX));
-    player.send_input(input(9, 0));
-    player.send_input(input(8, 0));
+    // Sequence 3 says go; 1 and 2, overtaken on the way, say stop. They are
+    // applied first, and the kart goes.
+    player.send_input(input(3, u8::MAX));
+    player.send_input(input(2, 0));
+    player.send_input(input(1, 0));
     let mut snapshot = player.next_snapshot().await.unwrap();
     while seconds(snapshot.tick) < COUNTDOWN_S + 2.0 {
         snapshot = player.next_snapshot().await.unwrap();
     }
-    assert_eq!(snapshot.acknowledged[0], 10);
+    assert!(snapshot.acknowledged[0] >= 3);
     assert!(
         speed(&snapshot, 0) > 5.0,
         "driving: {:?}",
@@ -236,9 +277,11 @@ async fn inputs_survive_a_lossy_jittery_link_and_the_acknowledgement_never_goes_
             snapshot.acknowledged[0]
         );
         acknowledged = snapshot.acknowledged[0];
+        // A lost input's tick still uses up its sequence, so the server may
+        // run the tuned depth past the newest it has.
         assert!(
-            acknowledged <= sequence,
-            "only what was sent is acknowledged"
+            acknowledged <= sequence + INPUT_QUEUE_MAX_TICKS,
+            "acknowledged {acknowledged} with {sequence} sent"
         );
         if seconds(snapshot.tick) > COUNTDOWN_S + 3.0 && speed(&snapshot, 0) > 5.0 {
             moving = true;
@@ -549,7 +592,9 @@ async fn a_player_who_leaves_mid_race_frees_their_seat_at_the_results_and_the_re
     while seconds(snapshot.tick) < COUNTDOWN_S {
         snapshot = players[0].next_snapshot().await.unwrap();
     }
-    leaver.send_input(input(1, u8::MAX));
+    for sequence in 1..=INPUT_QUEUE_START_TICKS as u32 {
+        leaver.send_input(input(sequence, u8::MAX));
+    }
     while speed(&snapshot, 1) < 5.0 {
         snapshot = players[0].next_snapshot().await.unwrap();
     }

@@ -1,16 +1,22 @@
-// A race run from the server's snapshots (ADR 0009): every kart, the local
-// one included, is drawn where the last snapshot put it, the player's
-// inputs go to the server each tick, and the readouts the Instrument panel
-// needs that a snapshot does not carry are kept from the events and the
-// tick. Prediction of the own kart comes next; until then this is the
-// whole client side of a room's race.
+// A race run from the server's snapshots (ADR 0009): the player's own kart
+// is predicted here from the inputs it sends the server each tick and
+// reconciled with each snapshot, every other kart is drawn where the last
+// snapshot put it, and the readouts the Instrument panel needs that a
+// snapshot does not carry are kept from the events. The race clock is the
+// prediction's, so the countdown shown is the one the player's inputs meet
+// on the server.
 
-import type { Bridge, Phase, Standing } from "./bridge";
+import type { Bridge, KartTransform, Phase, Standing } from "./bridge";
 import type { FinalStanding, Snapshot } from "./generated/protocol";
 import type { RaceRun } from "./race-scene";
-import type { Countdown, RoomClient } from "./room-client";
+import { type Countdown, quantiseInput, type RoomClient } from "./room-client";
 
 export interface ServerRace extends RaceRun {
+  /**
+   * Reconciliation corrections of the own kart per second raced, which
+   * the client reports at race end (ADR 0018).
+   */
+  correctionsPerSecond(): number;
   /** Stop following the room client; the run keeps its last readouts. */
   dispose(): void;
 }
@@ -36,7 +42,7 @@ export function createServerRace(
   const kartCount = bridge.kartsPerRace;
   // Never stepped: it answers for the track and stands the karts on the grid.
   const track = bridge.createRace(countdown.seed, humanCount, kartCount - humanCount, sidecar);
-  const tickSeconds = 1 / bridge.ticksPerSecond;
+  const prediction = bridge.createPrediction(countdown.seed, localKart, sidecar);
 
   let latest: Snapshot | undefined;
   /** Each kart's completed lap times, in order. */
@@ -46,6 +52,7 @@ export function createServerRace(
 
   const stopSnapshots = client.onSnapshot((snapshot) => {
     latest = snapshot;
+    prediction.reconcile(snapshot);
   });
   const stopEvents = client.onEvent(({ kind }) => {
     if (typeof kind === "string") return;
@@ -59,38 +66,39 @@ export function createServerRace(
     results = standings;
   });
 
-  /** The race clock the newest snapshot's tick reads, or null during the countdown. */
-  const elapsed = (): number | null => {
-    if (latest === undefined) return null;
-    const seconds = latest.tick * tickSeconds - bridge.countdownSeconds;
-    return seconds < 0 ? null : seconds;
-  };
+  /** Every kart where `snapshot` puts it, with the sim's surface under it. */
+  function fromSnapshot(snapshot: Snapshot): KartTransform[] {
+    return snapshot.karts.map((kart) => ({
+      position: kart.position,
+      rotation: kart.rotation,
+      speed: speedAlongFacing(kart.velocity, kart.rotation),
+      surface: track.surfaceAt(kart.position),
+      drift:
+        kart.drift === null
+          ? null
+          : {
+              direction: kart.drift.direction,
+              chargeSeconds: kart.drift.chargeS,
+              miniTurbo: bridge.miniTurboTier(kart.drift.chargeS),
+            },
+    }));
+  }
 
   return {
     humanCount,
     localKart,
     tick(input) {
-      client.sendInput(input);
+      const sequence = client.sendInput(input);
+      prediction.tick(quantiseInput(input, sequence));
     },
     kartTransforms() {
-      if (latest === undefined) return track.kartTransforms();
-      return latest.karts.map((kart) => ({
-        position: kart.position,
-        rotation: kart.rotation,
-        speed: speedAlongFacing(kart.velocity, kart.rotation),
-        surface: track.surfaceAt(kart.position),
-        drift:
-          kart.drift === null
-            ? null
-            : {
-                direction: kart.drift.direction,
-                chargeSeconds: kart.drift.chargeS,
-                miniTurbo: bridge.miniTurboTier(kart.drift.chargeS),
-              },
-      }));
+      const others = latest === undefined ? track.kartTransforms() : fromSnapshot(latest);
+      others[localKart] = prediction.kartTransform();
+      return others;
     },
     standings() {
-      const raceClock = elapsed() ?? 0;
+      const clock = prediction.phase();
+      const raceClock = clock.kind === "racing" ? clock.elapsedSeconds : 0;
       return Array.from({ length: kartCount }, (_, kart): Standing => {
         const snapshot = latest?.karts[kart];
         const final = results?.find((standing) => standing.kart === kart);
@@ -113,14 +121,11 @@ export function createServerRace(
     },
     phase(): Phase {
       if (results !== undefined) return { kind: "finished" };
-      const seconds = elapsed();
-      if (seconds === null) {
-        const ticked = latest === undefined ? 0 : latest.tick * tickSeconds;
-        return { kind: "countdown", remainingSeconds: bridge.countdownSeconds - ticked };
-      }
-      // The grace is the server's to count; the panel shows nothing of it.
-      return { kind: "racing", elapsedSeconds: seconds, graceLeftSeconds: null };
+      // The prediction's clock never counts the grace, which is the
+      // server's; the panel shows nothing of it.
+      return prediction.phase();
     },
+    correctionsPerSecond: () => prediction.correctionsPerSecond(),
     dispose() {
       stopSnapshots();
       stopEvents();

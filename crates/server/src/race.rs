@@ -1,21 +1,24 @@
 //! One room's race on the server, the only place its outcome is decided
-//! (ADR 0009): the sim stepped from the latest input each human has sent,
+//! (ADR 0009): the sim stepped from each human's inputs a sequence a tick,
 //! the snapshots and events the players are told, and the results once it
 //! is over. Pure bookkeeping with no clock and no channel: the room task in
 //! `rooms` decides when a tick happens and where its output goes; this
 //! module decides what a tick produces.
 
-use std::collections::VecDeque;
+use std::collections::{BTreeMap, VecDeque};
 
 use protocol::{
     DriftDirection, DriftSnapshot, Event, EventKind, FinalStanding, Input, KartSnapshot, Snapshot,
 };
-use sim::tuning::{KARTS_PER_RACE, SNAPSHOTS_PER_SECOND, SNAPSHOT_EVENT_REPEATS, TICKS_PER_SECOND};
+use sim::tuning::{
+    INPUT_QUEUE_MAX_TICKS, INPUT_QUEUE_START_TICKS, KARTS_PER_RACE, SNAPSHOTS_PER_SECOND,
+    SNAPSHOT_EVENT_REPEATS, TICKS_PER_SECOND,
+};
 use sim::{KartInput, Phase, RaceEvent, State, Track};
 
-/// Seconds of one tick: the sim's `dt` and the budget a tick's work must fit
-/// in for the server to keep up (ADR 0010).
-pub const TICK_S: f32 = 1.0 / TICKS_PER_SECOND as f32;
+/// The sim's `dt`, and the budget a tick's work must fit in for the server
+/// to keep up (ADR 0010).
+pub use sim::tuning::TICK_S;
 const TICKS_PER_SNAPSHOT: u32 = TICKS_PER_SECOND / SNAPSHOTS_PER_SECOND;
 
 /// A race in progress: the sim and what the players have sent it.
@@ -36,12 +39,53 @@ pub struct Race {
     repeated: VecDeque<Vec<Event>>,
 }
 
-/// The newest input a human has sent, held until a newer sequence arrives
-/// so a lost or late datagram leaves the kart doing what it was told last.
-#[derive(Debug, Clone, Copy, Default)]
+/// What a human has sent, applied one sequence per tick in order: once
+/// the first is applied, tick by tick the next sequence's controls are, so
+/// the tick an input is applied at is fixed by its sequence and a datagram
+/// that lands late or never arrives costs one tick of the last controls,
+/// never a skip or a slip of every later input (ADR 0019). The sequence
+/// stops for a client that falls the tuned depth behind it, and jumps for
+/// one the tuned depth ahead of it.
+#[derive(Debug, Clone, Default)]
 struct HumanInput {
-    latest: KartInput,
+    /// The controls applied last tick.
+    applied: KartInput,
+    /// The sequence applied last tick; 0 before the first.
     sequence: u32,
+    /// The newest sequence received.
+    newest: u32,
+    /// Received and not yet applied, by sequence, every one newer than
+    /// `sequence`.
+    queued: BTreeMap<u32, KartInput>,
+}
+
+impl HumanInput {
+    fn receive(&mut self, input: Input) {
+        if input.sequence > self.sequence {
+            self.queued.insert(input.sequence, kart_input(input));
+            self.newest = self.newest.max(input.sequence);
+        }
+    }
+
+    /// The controls for the coming tick.
+    fn next(&mut self) -> KartInput {
+        // The first input waits for a second, so the queue starts one input
+        // ahead and a datagram that lands a little late is still in time.
+        let waiting_to_start = self.sequence == 0 && self.queued.len() < INPUT_QUEUE_START_TICKS;
+        let ahead_of_client = self.sequence >= self.newest + INPUT_QUEUE_MAX_TICKS;
+        if waiting_to_start || ahead_of_client {
+            return self.applied;
+        }
+        let sequence = (self.sequence + 1).max(self.newest.saturating_sub(INPUT_QUEUE_MAX_TICKS));
+        while let Some(entry) = self.queued.first_entry() {
+            if *entry.key() > sequence {
+                break;
+            }
+            self.applied = entry.remove();
+        }
+        self.sequence = sequence;
+        self.applied
+    }
 }
 
 /// What one tick produced for the players.
@@ -90,18 +134,16 @@ impl Race {
         let Some(kart) = self.kart_of(slot) else {
             return;
         };
-        let human = &mut self.humans[kart];
-        if input.sequence > human.sequence {
-            human.sequence = input.sequence;
-            human.latest = kart_input(input);
-        }
+        self.humans[kart].receive(input);
     }
 
     /// The player is gone: their kart holds no controls for the rest of the
     /// race, since a room mid-race refuses joins.
     pub fn release(&mut self, slot: u8) {
         if let Some(kart) = self.kart_of(slot) {
-            self.humans[kart].latest = KartInput::default();
+            let human = &mut self.humans[kart];
+            human.applied = KartInput::default();
+            human.queued.clear();
         }
     }
 
@@ -119,7 +161,7 @@ impl Race {
             .take()
             .expect("state is only absent during a tick");
         let was_counting_down = matches!(state.phase(), Phase::Countdown { .. });
-        let inputs: Vec<KartInput> = self.humans.iter().map(|human| human.latest).collect();
+        let inputs: Vec<KartInput> = self.humans.iter_mut().map(HumanInput::next).collect();
         let state = sim::step(state, &inputs, TICK_S);
         self.tick += 1;
 
@@ -201,9 +243,9 @@ impl Race {
 /// The sim's input for a wire input: each byte back to the unit range.
 fn kart_input(input: Input) -> KartInput {
     KartInput {
-        steer: (f32::from(input.steer) / f32::from(i8::MAX)).clamp(-1.0, 1.0),
-        throttle: f32::from(input.throttle) / f32::from(u8::MAX),
-        brake: f32::from(input.brake) / f32::from(u8::MAX),
+        steer: input.steer_unit(),
+        throttle: input.throttle_unit(),
+        brake: input.brake_unit(),
         hop: input.hop,
         use_item: input.use_item,
         hold_item: input.hold_item,

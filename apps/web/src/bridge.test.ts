@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { type KartInput, type KartTransform, loadBridge, type Race } from "./bridge";
+import type { Input, KartSnapshot, Snapshot } from "./generated/protocol";
 import { IDLE_INPUT } from "./input";
 
 // The real wasm build, loaded from bytes because the default loader fetches
@@ -281,5 +282,70 @@ describe("standings", () => {
       race.step([THROTTLE], DT);
     }
     expect(race.standings()[0]?.wrongWay).toBe(false);
+  });
+});
+
+describe("prediction", () => {
+  /** The wire input for `input` under `sequence`; the throttle and steer used here quantise exactly. */
+  const wire = (input: KartInput, sequence: number): Input => ({
+    sequence,
+    steer: Math.round(input.steer * 127),
+    throttle: Math.round(input.throttle * 255),
+    brake: Math.round(input.brake * 255),
+    hop: input.hop,
+    useItem: input.useItem,
+    holdItem: input.holdItem,
+  });
+
+  it("stands the kart on its grid slot and drives it by the sim's rules from the inputs sent", async () => {
+    const bridge = await loadBridge(wasm);
+    const race = bridge.createRace(7n, 2, 0, OVAL);
+    const prediction = bridge.createPrediction(7n, 1, OVAL);
+    expect(prediction.kartTransform()).toEqual(race.kartTransforms()[1]);
+    expect(prediction.phase()).toEqual({ kind: "countdown", remainingSeconds: 3 });
+
+    // Through the countdown and a second of throttle, as the server would
+    // step the same kart from the same inputs.
+    for (let sequence = 1; sequence <= 240; sequence++) {
+      const input = sequence > 180 ? THROTTLE : IDLE_INPUT;
+      prediction.tick(wire(input, sequence));
+      race.step([IDLE_INPUT, input], DT);
+    }
+    expect(prediction.kartTransform()).toEqual(race.kartTransforms()[1]);
+    expect(prediction.phase().kind).toBe("racing");
+    expect(prediction.correctionsPerSecond()).toBe(0);
+  });
+
+  it("is moved by a snapshot that disagrees, and counts the correction", async () => {
+    const bridge = await loadBridge(wasm);
+    const prediction = bridge.createPrediction(7n, 0, OVAL);
+    // Idle on the grid through the countdown and a second of the race.
+    for (let sequence = 1; sequence <= 240; sequence++) {
+      prediction.tick(wire(IDLE_INPUT, sequence));
+    }
+    const [x, y, z] = prediction.kartTransform().position;
+    const aside: KartSnapshot = {
+      position: [x + 1, y, z],
+      rotation: [0, 0, 0, 1],
+      velocity: [0, 0, 0],
+      drift: null,
+      racePosition: 1,
+      lap: 1,
+      checkpoint: 0,
+      splineProgress: 0,
+      wrongWay: false,
+      heldItem: null,
+      spinOutS: null,
+    };
+    const snapshot: Snapshot = { tick: 234, acknowledged: [230], karts: [aside], events: [] };
+    expect(prediction.reconcile(snapshot)).toBeCloseTo(1, 3);
+    expect(prediction.correctionsPerSecond()).toBeCloseTo(1, 3);
+    // Blended: drawn where it was, then on to the snapshot's word.
+    expect(prediction.kartTransform().position[0]).toBeCloseTo(x, 4);
+    for (let sequence = 241; sequence <= 246; sequence++) {
+      prediction.tick(wire(IDLE_INPUT, sequence));
+    }
+    expect(prediction.kartTransform().position[0]).toBeCloseTo(x + 1, 4);
+    expect(() => prediction.reconcile({ ...snapshot, tick: 236, karts: [] })).toThrow(/kart 0/);
   });
 });

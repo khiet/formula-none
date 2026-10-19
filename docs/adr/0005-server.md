@@ -2,7 +2,8 @@
 
 ## Status
 
-Accepted (2026-10-18)
+Accepted (2026-10-18). The input handling in its Outcome is superseded by
+ADR 0019.
 
 ## Context
 

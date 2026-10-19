@@ -21,10 +21,12 @@
 
 pub mod bot;
 mod hash;
+pub mod prediction;
 pub mod replay;
 pub mod track;
 pub mod tuning;
 
+pub use prediction::{Prediction, SnapshotKart};
 pub use replay::{Replay, ReplayError, Segment};
 pub use track::{Checkpoint, Placement, Surface, SurfaceMesh, Track, TrackError};
 
@@ -33,6 +35,7 @@ use rand_chacha::ChaCha8Rng;
 use rapier3d::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::hash::Hasher;
+use std::ops::Range;
 
 /// One kart's controls for one tick, already mapped from whatever device
 /// produced them. Bots and humans both speak this. The buttons default to
@@ -288,6 +291,7 @@ pub struct State {
     events: Vec<RaceEvent>,
 }
 
+#[derive(Clone)]
 struct Kart {
     body: RigidBodyHandle,
     collider: ColliderHandle,
@@ -423,6 +427,12 @@ impl State {
             kart_count,
             track.spawn_grid().len()
         );
+        Self::on_spawn_slots(seed, humans, 0..kart_count, track)
+    }
+
+    /// A fresh race with one kart on each of `slots` of the spawn grid, in
+    /// order, the first `humans` of them human, at the top of its countdown.
+    fn on_spawn_slots(seed: u64, humans: usize, slots: Range<usize>, track: Track) -> Self {
         let mut physics = Physics::new();
         let ground = physics.bodies.insert(RigidBodyBuilder::fixed().build());
         for (surface, shape) in track.colliders() {
@@ -436,7 +446,7 @@ impl State {
             );
         }
 
-        let karts = track.spawn_grid()[..kart_count]
+        let karts = track.spawn_grid()[slots]
             .iter()
             .enumerate()
             .map(|(index, slot)| {
@@ -727,11 +737,9 @@ pub fn step(mut state: State, inputs: &[KartInput], dt: f32) -> State {
                     };
                 }
             }
-            let remaining_s = remaining_s - dt;
-            if remaining_s > 0.0 {
-                state.phase = Phase::Countdown { remaining_s };
-            } else {
-                // Go: the race clock starts with the next tick.
+            state.phase = clock_after(state.phase, dt);
+            // Go: what the countdown set up takes effect.
+            if let Phase::Racing { .. } = state.phase {
                 for kart in &mut state.karts {
                     match kart.start {
                         Start::Clean => {}
@@ -742,10 +750,6 @@ pub fn step(mut state: State, inputs: &[KartInput], dt: f32) -> State {
                         Start::Stall => kart.stall_left_s = START_STALL_S,
                     }
                 }
-                state.phase = Phase::Racing {
-                    elapsed_s: 0.0,
-                    grace_left_s: None,
-                };
             }
             return state;
         }
@@ -925,6 +929,33 @@ pub fn step(mut state: State, inputs: &[KartInput], dt: f32) -> State {
     }
     state.phase = next_phase(&state.karts, elapsed_s, grace_left_s, dt);
     state
+}
+
+/// The race clock one tick of `dt` on: the countdown runs down to Go, and
+/// from Go the race clock runs, starting with the tick after. The end of
+/// the race is not the clock's to call; `next_phase` decides it.
+fn clock_after(phase: Phase, dt: f32) -> Phase {
+    match phase {
+        Phase::Countdown { remaining_s } => {
+            let remaining_s = remaining_s - dt;
+            if remaining_s > 0.0 {
+                Phase::Countdown { remaining_s }
+            } else {
+                Phase::Racing {
+                    elapsed_s: 0.0,
+                    grace_left_s: None,
+                }
+            }
+        }
+        Phase::Racing {
+            elapsed_s,
+            grace_left_s,
+        } => Phase::Racing {
+            elapsed_s: elapsed_s + dt,
+            grace_left_s,
+        },
+        Phase::Finished => Phase::Finished,
+    }
 }
 
 /// The phase after a racing tick that ended at `elapsed_s` with
