@@ -71,19 +71,6 @@ pub fn countdown_s() -> f32 {
     sim::tuning::COUNTDOWN_S
 }
 
-/// The mini-turbo tier a drift of `charge_s` seconds has reached, as
-/// `sim::MiniTurbo::code` (0 none, 1 blue, 2 orange): the sim's rule, so a
-/// snapshot's drift charge shows the same sparks a local drift does.
-#[wasm_bindgen]
-pub fn mini_turbo_tier(charge_s: f32) -> u8 {
-    sim::Drift {
-        direction: sim::DriftDirection::Left,
-        charge_s,
-    }
-    .mini_turbo()
-    .code()
-}
-
 /// The replay runner, in wasm: rerun `replay` (the JSON `sim::replay`
 /// documents) on the track described by `sidecar` and report the state hash
 /// at every `sim::tuning::REPLAY_HASH_INTERVAL_TICKS`th tick. The native
@@ -318,14 +305,6 @@ impl Race {
         self.state().hash()
     }
 
-    /// What lies under the point, as `sim::Surface::code` (0 asphalt, 1
-    /// sand, 2 grass, 3 wall, 4 out of world): the track's answer, so a
-    /// kart drawn from a snapshot gets the same surface readout a local
-    /// kart does.
-    pub fn surface_at(&self, x: f32, y: f32, z: f32) -> u8 {
-        self.state().surface_at([x, y, z]).code()
-    }
-
     fn state(&self) -> &State {
         self.state
             .as_ref()
@@ -334,12 +313,15 @@ impl Race {
 }
 
 /// The player's own kart in a room's race, predicted here from the inputs
-/// the client sends and reconciled with the snapshots it receives (ADR
-/// 0009). `sim::Prediction` documents the rules; this only carries the
-/// protocol's messages to it.
+/// the client sends and reconciled with the snapshots it receives, and the
+/// other karts interpolated between those snapshots, which the prediction
+/// meets as kinematic bodies (ADR 0009). `sim::Prediction` and
+/// `sim::Interpolation` document the rules; this only carries the
+/// protocol's messages to them.
 #[wasm_bindgen]
 pub struct Prediction {
     inner: sim::Prediction,
+    interpolation: sim::Interpolation,
 }
 
 #[wasm_bindgen]
@@ -359,15 +341,18 @@ impl Prediction {
         }
         Ok(Self {
             inner: sim::Prediction::new(seed, kart, track),
+            interpolation: sim::Interpolation::new(),
         })
     }
 
     /// Predict one tick from `input`, a value of the generated `Input` type
-    /// as the client sends it this tick. Fails, with the reason, when the
-    /// value is not one.
+    /// as the client sends it this tick, after running the interpolation a
+    /// tick on, against the other karts where it now draws them. Fails,
+    /// with the reason, when the value is not one.
     pub fn tick(&mut self, input: JsValue) -> Result<(), String> {
         let input: Input =
             serde_wasm_bindgen::from_value(input).map_err(|error| error.to_string())?;
+        self.interpolation.advance();
         self.inner.tick(
             input.sequence,
             KartInput {
@@ -378,14 +363,16 @@ impl Prediction {
                 use_item: input.use_item,
                 hold_item: input.hold_item,
             },
+            &self.interpolation.kart_transforms(),
         );
         Ok(())
     }
 
     /// Reconcile with `snapshot`, a value of the generated `Snapshot` type,
-    /// in which this kart is `kart`. Returns how far the predicted kart
-    /// moved for it, in metres. Fails, with the reason, when the value is
-    /// not a snapshot or has no such kart.
+    /// in which this kart is `kart`, and hand it to the interpolation.
+    /// Returns how far the predicted kart moved for it, in metres. Fails,
+    /// with the reason, when the value is not a snapshot or has no such
+    /// kart.
     pub fn reconcile(&mut self, snapshot: JsValue, kart: usize) -> Result<f32, String> {
         let snapshot: Snapshot =
             serde_wasm_bindgen::from_value(snapshot).map_err(|error| error.to_string())?;
@@ -394,6 +381,10 @@ impl Prediction {
         else {
             return Err(format!("kart {kart} is not in the snapshot"));
         };
+        self.interpolation.push(
+            snapshot.tick,
+            snapshot.karts.iter().map(snapshot_kart).collect(),
+        );
         Ok(self
             .inner
             .reconcile(snapshot.tick, acknowledged, &snapshot_kart(own)))
@@ -403,6 +394,18 @@ impl Prediction {
     /// gives each kart.
     pub fn kart_transform(&self) -> Vec<f32> {
         transform_floats(&self.inner.kart_transform(), self.inner.kart_surface()).to_vec()
+    }
+
+    /// Every kart where the interpolation draws it, in grid order, in the
+    /// twelve floats `Race::kart_transforms` gives each, with the surface
+    /// under it; empty before the first snapshot. This kart's entry is the
+    /// snapshots', not the prediction's.
+    pub fn interpolated_kart_transforms(&self) -> Vec<f32> {
+        self.interpolation
+            .kart_transforms()
+            .iter()
+            .flat_map(|kart| transform_floats(kart, self.inner.surface_at(kart.position)))
+            .collect()
     }
 
     /// The race clock at the predicted kart's tick, in the three floats

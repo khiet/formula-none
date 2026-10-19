@@ -10,7 +10,6 @@ import init, {
   kart_size_m,
   karts_per_race,
   laps_per_race,
-  mini_turbo_tier,
   nickname_max_chars,
   nickname_min_chars,
   ping_resend_s,
@@ -132,23 +131,35 @@ export interface Race {
    * which is what a replay fixture pins (ADR 0002).
    */
   stateHash(): bigint;
-  /** What lies under `position` on this race's track; karts are never an answer. */
-  surfaceAt(position: readonly [number, number, number]): Surface;
 }
 
 /**
  * The player's own kart in a room's race, predicted in this browser by the
  * sim the server runs (ADR 0009): stepped with each input the client sends,
  * and reconciled with each snapshot it receives, any correction blended out
- * over the tuned ticks.
+ * over the tuned ticks. The other karts are interpolated between the
+ * snapshots, the tuned delay behind the newest, and the own kart meets them
+ * there as bodies it cannot push.
  */
 export interface Prediction {
-  /** Predict one tick from the input the client sends the server this tick. */
+  /**
+   * Run the interpolation a tick on, then predict one tick from the input
+   * the client sends the server this tick.
+   */
   tick(input: Input): void;
-  /** Reconcile with a snapshot; returns how far the predicted kart moved for it, in metres. */
+  /**
+   * Reconcile with a snapshot and hand it to the interpolation; returns how
+   * far the predicted kart moved for it, in metres.
+   */
   reconcile(snapshot: Snapshot): number;
   /** The kart as it is drawn, as of the last tick or snapshot. */
   kartTransform(): KartTransform;
+  /**
+   * Every kart in grid order where the interpolation draws it, the own kart
+   * by the snapshots rather than the prediction; empty before the first
+   * snapshot.
+   */
+  interpolatedKartTransforms(): KartTransform[];
   /**
    * The race clock at the predicted kart's tick: the countdown the
    * player's inputs meet on the server. Never finished; the server's
@@ -200,8 +211,6 @@ export interface Bridge extends MessageCodec {
   readonly lapsPerRace: number;
   /** Seconds the karts are held on the grid before Go (ADR 0014). */
   readonly countdownSeconds: number;
-  /** The mini-turbo tier a drift held for `chargeSeconds` has reached: the sim's rule. */
-  miniTurboTier(chargeSeconds: number): MiniTurbo;
   /**
    * Karts on the grid, from the sim's tuning; bots fill the slots the humans
    * leave (ADR 0014).
@@ -269,13 +278,6 @@ export async function loadBridge(wasm?: BufferSource): Promise<Bridge> {
     kartSize: kartSize(),
     lapsPerRace: laps_per_race(),
     countdownSeconds: countdown_s(),
-    miniTurboTier(chargeSeconds) {
-      const tier = MINI_TURBOS[mini_turbo_tier(chargeSeconds)];
-      if (tier === undefined) {
-        throw new RangeError(`unknown mini-turbo tier for ${chargeSeconds} s`);
-      }
-      return tier;
-    },
     kartsPerRace: karts_per_race(),
     replayHashIntervalTicks: replay_hash_interval_ticks(),
     createRace(seed, humanCount, botCount, sidecar) {
@@ -364,15 +366,6 @@ class BridgedRace implements Race {
     return this.#race.state_hash();
   }
 
-  surfaceAt([x, y, z]: readonly [number, number, number]): Surface {
-    const code = this.#race.surface_at(x, y, z);
-    const surface = SURFACES[code];
-    if (surface === undefined) {
-      throw new RangeError(`unknown surface code ${code}`);
-    }
-    return surface;
-  }
-
   standings(): Standing[] {
     const buffer = this.#race.standings();
     if (buffer.length !== this.#kartCount * FLOATS_PER_STANDING) {
@@ -440,6 +433,18 @@ class BridgedPrediction implements Prediction {
       throw new RangeError(`transform buffer has ${buffer.length} floats for one kart`);
     }
     return transformAt(buffer, 0, this.#kart);
+  }
+
+  interpolatedKartTransforms(): KartTransform[] {
+    const buffer = this.#prediction.interpolated_kart_transforms();
+    if (buffer.length % FLOATS_PER_TRANSFORM !== 0) {
+      throw new RangeError(`transform buffer has ${buffer.length} floats`);
+    }
+    const transforms: KartTransform[] = [];
+    for (let slot = 0; slot < buffer.length / FLOATS_PER_TRANSFORM; slot++) {
+      transforms.push(transformAt(buffer, slot * FLOATS_PER_TRANSFORM, slot));
+    }
+    return transforms;
   }
 
   phase(): Phase {

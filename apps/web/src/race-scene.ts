@@ -3,10 +3,11 @@ import { createChaseCamera } from "./chase-camera";
 import { gamepadKartInput } from "./gamepad";
 import { combinedKartInput, IDLE_INPUT } from "./input";
 import { createInstrumentPanel, type InstrumentPanel } from "./instrument-panel";
+import { kartLabels } from "./kart-labels";
 import { keyboardKartInput } from "./keyboard";
 import { createRaceView } from "./race-view";
 import { downloadReplay, type ReplayRecorder, recordReplay } from "./replay";
-import type { RaceResults } from "./results-scene";
+import { kartName, type RaceResults } from "./results-scene";
 import type { TrackFiles, TrackName } from "./track";
 
 /**
@@ -96,15 +97,17 @@ export function localRaceRun(
 /**
  * The Race Scene: the run ticked at the tuned rate from the keyboard and
  * the gamepad for the local kart, its one View drawn every frame from the
- * chase camera, and the Instrument panel over it. The run carries the race
- * from its countdown to its finish; the Scene keeps drawing the finished
- * race until it is disposed.
+ * chase camera with every other kart named over it, by `nickname` for the
+ * humans the room named, and the Instrument panel over it. The run carries
+ * the race from its countdown to its finish; the Scene keeps drawing the
+ * finished race until it is disposed.
  */
 export async function createRaceScene(
   container: HTMLElement,
   bridge: Bridge,
   track: TrackFiles,
   run: RaceRun,
+  nickname: (kart: number) => string | undefined,
 ): Promise<RaceScene> {
   const tickSeconds = 1 / bridge.ticksPerSecond;
   // Every listener the Scene adds is dropped together on dispose.
@@ -129,12 +132,19 @@ export async function createRaceScene(
   const camera = createChaseCamera();
   const panel = createInstrumentPanel(container, bridge.lapsPerRace);
 
+  const isBot = (kart: number): boolean => kart >= run.humanCount;
+  const name = (kart: number): string =>
+    kartName({ localKart: run.localKart, isBot, nickname }, kart);
   const present = (frameSeconds: number) => {
     const transforms = run.kartTransforms();
     const local = transforms[run.localKart];
     const standing = run.standings()[run.localKart];
     if (local && standing) {
-      view.update(transforms, camera.update(local, frameSeconds));
+      view.update(
+        transforms,
+        kartLabels(transforms, run.localKart, name),
+        camera.update(local, frameSeconds),
+      );
       panel.update(local, standing, run.phase());
     }
   };
@@ -144,7 +154,6 @@ export async function createRaceScene(
   const finished = new Promise<RaceResults>((resolve) => {
     settle = resolve;
   });
-  const isBot = (kart: number): boolean => kart >= run.humanCount;
 
   // Fixed-step loop: the run ticks at the sim's rate however often frames come.
   let unsimulatedSeconds = 0;

@@ -253,7 +253,7 @@ async function main(container: HTMLElement): Promise<void> {
     handlers: RaceHandlers,
     lost?: Promise<void>,
   ) => {
-    const race = await createRaceScene(container, bridge, track, run);
+    const race = await createRaceScene(container, bridge, track, run, nickname);
     connection.show(race.panel);
     let racing = true;
     lost?.then(() => {

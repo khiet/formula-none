@@ -118,6 +118,13 @@ The client replacing its predicted state with a snapshot and replaying the
 inputs the server has not yet acknowledged. The visible correction is blended
 over up to six frames rather than snapped.
 
+### interpolation
+
+How the client draws the other karts: between the two snapshots it has
+received either side of a render clock 100 ms behind the newest, never
+past the newest. The own kart's prediction meets them there as kinematic
+bodies it cannot push.
+
 ### replay
 
 A race as `{seed, track, bots, inputs[]}`: enough to rerun it anywhere.

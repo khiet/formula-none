@@ -36,22 +36,29 @@ export interface ResultsHandlers {
 const NOT_FINISHED = "(not finished)";
 
 /**
- * The results from the final standings, in finishing order: the local kart
- * is "You", another human is their nickname when the room gave one, and
- * anyone else is named by their grid slot counted from 1.
+ * Who drove `slot`, as the race names them: the local kart is "You", a bot
+ * is "Bot" and its grid slot counted from 1, and another human is their
+ * nickname when the room gave one, else "Kart" and their slot.
  */
-export function resultsRows({ standings, localKart, isBot, nickname }: RaceResults): ResultRow[] {
-  const name = (slot: number): string => {
-    if (slot === localKart) return "You";
-    if (isBot(slot)) return `Bot ${slot + 1}`;
-    return nickname?.(slot) ?? `Kart ${slot + 1}`;
-  };
-  return standings
+export function kartName(
+  { localKart, isBot, nickname }: Pick<RaceResults, "localKart" | "isBot" | "nickname">,
+  slot: number,
+): string {
+  if (slot === localKart) return "You";
+  if (isBot(slot)) return `Bot ${slot + 1}`;
+  return nickname?.(slot) ?? `Kart ${slot + 1}`;
+}
+
+/**
+ * The results from the final standings, in finishing order.
+ */
+export function resultsRows(results: RaceResults): ResultRow[] {
+  return results.standings
     .map((standing, slot) => ({ standing, slot }))
     .sort((a, b) => a.standing.position - b.standing.position)
     .map(({ standing, slot }) => ({
       position: ordinal(standing.position),
-      name: name(slot),
+      name: kartName(results, slot),
       bestLap:
         standing.bestLapSeconds === null ? NO_LAP_TIME : formatLapTime(standing.bestLapSeconds),
       finished: standing.finishTimeSeconds !== null,

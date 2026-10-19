@@ -1,12 +1,12 @@
 // A race run from the server's snapshots (ADR 0009): the player's own kart
 // is predicted here from the inputs it sends the server each tick and
-// reconciled with each snapshot, every other kart is drawn where the last
-// snapshot put it, and the readouts the Instrument panel needs that a
-// snapshot does not carry are kept from the events. The race clock is the
-// prediction's, so the countdown shown is the one the player's inputs meet
-// on the server.
+// reconciled with each snapshot, every other kart is interpolated between
+// the snapshots the tuned delay behind the newest, and the readouts the
+// Instrument panel needs that a snapshot does not carry are kept from the
+// events. The race clock is the prediction's, so the countdown shown is the
+// one the player's inputs meet on the server.
 
-import type { Bridge, KartTransform, Phase, Standing } from "./bridge";
+import type { Bridge, Phase, Standing } from "./bridge";
 import type { FinalStanding, Snapshot } from "./generated/protocol";
 import type { RaceRun } from "./race-scene";
 import { type Countdown, quantiseInput, type RoomClient } from "./room-client";
@@ -40,7 +40,7 @@ export function createServerRace(
     throw new RangeError(`slot ${localSlot} is not on the grid ${countdown.grid.join(",")}`);
   }
   const kartCount = bridge.kartsPerRace;
-  // Never stepped: it answers for the track and stands the karts on the grid.
+  // Never stepped: it stands the karts on the grid until the first snapshot.
   const track = bridge.createRace(countdown.seed, humanCount, kartCount - humanCount, sidecar);
   const prediction = bridge.createPrediction(countdown.seed, localKart, sidecar);
 
@@ -66,24 +66,6 @@ export function createServerRace(
     results = standings;
   });
 
-  /** Every kart where `snapshot` puts it, with the sim's surface under it. */
-  function fromSnapshot(snapshot: Snapshot): KartTransform[] {
-    return snapshot.karts.map((kart) => ({
-      position: kart.position,
-      rotation: kart.rotation,
-      speed: speedAlongFacing(kart.velocity, kart.rotation),
-      surface: track.surfaceAt(kart.position),
-      drift:
-        kart.drift === null
-          ? null
-          : {
-              direction: kart.drift.direction,
-              chargeSeconds: kart.drift.chargeS,
-              miniTurbo: bridge.miniTurboTier(kart.drift.chargeS),
-            },
-    }));
-  }
-
   return {
     humanCount,
     localKart,
@@ -92,9 +74,10 @@ export function createServerRace(
       prediction.tick(quantiseInput(input, sequence));
     },
     kartTransforms() {
-      const others = latest === undefined ? track.kartTransforms() : fromSnapshot(latest);
-      others[localKart] = prediction.kartTransform();
-      return others;
+      const interpolated = prediction.interpolatedKartTransforms();
+      const karts = interpolated.length === 0 ? track.kartTransforms() : interpolated;
+      karts[localKart] = prediction.kartTransform();
+      return karts;
     },
     standings() {
       const clock = prediction.phase();
@@ -132,23 +115,4 @@ export function createServerRace(
       stopResults();
     },
   };
-}
-
-/**
- * The velocity's component along the kart's facing: the speed the panel
- * prints, negative when backing up. A kart with identity rotation faces
- * -Z; the quaternion is [x, y, z, w].
- */
-export function speedAlongFacing(
-  velocity: readonly [number, number, number],
-  rotation: readonly [number, number, number, number],
-): number {
-  const [x, y, z, w] = rotation;
-  // -Z rotated by the quaternion: the negated third column of its matrix.
-  const forward = [-2 * (x * z + w * y), -2 * (y * z - w * x), -(1 - 2 * (x * x + y * y))];
-  return (
-    velocity[0] * (forward[0] ?? 0) +
-    velocity[1] * (forward[1] ?? 0) +
-    velocity[2] * (forward[2] ?? 0)
-  );
 }

@@ -121,7 +121,7 @@ fn race(ticks: u32, lost: impl Fn(u32) -> bool) -> Run {
             DT,
         );
         sequence += 1;
-        prediction.tick(sequence, input);
+        prediction.tick(sequence, input, &[]);
         if !lost(sequence) {
             inputs_in_flight.push_back((tick + 1 + ONE_WAY_TICKS, sequence, input));
         }
@@ -167,7 +167,7 @@ fn a_lost_input_is_corrected_by_less_than_a_player_can_see_and_counted() {
 fn on_the_grid() -> (Prediction, SnapshotKart) {
     let mut prediction = Prediction::new(SEED, 0, oval());
     for sequence in 1..=10 {
-        prediction.tick(sequence, KartInput::default());
+        prediction.tick(sequence, KartInput::default(), &[]);
     }
     let grid = snapshot_of(&State::new(SEED, 1, oval()));
     prediction.reconcile(10, 4, &grid);
@@ -189,7 +189,7 @@ fn a_correction_is_blended_from_where_the_kart_was_drawn_over_the_tuned_ticks() 
     let mut sequence = 10;
     for tick in 1..=RECONCILIATION_BLEND_TICKS {
         sequence += 1;
-        prediction.tick(sequence, KartInput::default());
+        prediction.tick(sequence, KartInput::default(), &[]);
         let x = prediction.kart_transform().position[0];
         let expected = drawn[0] + tick as f32 / RECONCILIATION_BLEND_TICKS as f32;
         assert!((x - expected).abs() < 1e-4, "tick {tick}: x {x}");
