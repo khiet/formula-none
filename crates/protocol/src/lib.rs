@@ -77,6 +77,25 @@ pub struct Input {
     pub hold_item: bool,
 }
 
+impl Input {
+    /// The steer in the unit range the sim reads: -1 is full left, 1 full
+    /// right. The server and the client's prediction both read it here, so
+    /// they step the same kart (ADR 0009).
+    pub fn steer_unit(&self) -> f32 {
+        (f32::from(self.steer) / f32::from(i8::MAX)).clamp(-1.0, 1.0)
+    }
+
+    /// The throttle in the unit range the sim reads.
+    pub fn throttle_unit(&self) -> f32 {
+        f32::from(self.throttle) / f32::from(u8::MAX)
+    }
+
+    /// The brake in the unit range the sim reads.
+    pub fn brake_unit(&self) -> f32 {
+        f32::from(self.brake) / f32::from(u8::MAX)
+    }
+}
+
 /// What the server sends a client.
 #[derive(Serialize, Deserialize, TS, Debug, Clone, PartialEq)]
 #[serde(rename_all = "camelCase", rename_all_fields = "camelCase")]
@@ -186,8 +205,10 @@ pub enum PlayerState {
 #[serde(rename_all = "camelCase")]
 pub struct Snapshot {
     pub tick: u32,
-    /// The last input sequence applied, per kart in grid order; 0 for a
-    /// bot's kart and for a client that has sent nothing yet.
+    /// The input sequence applied at this tick, per kart in grid order; 0
+    /// for a bot's kart and before a client's first input is applied. The
+    /// server applies one sequence a tick, so the client knows the tick
+    /// each later input meets (ADR 0009).
     pub acknowledged: Vec<u32>,
     /// One per kart in grid order.
     pub karts: Vec<KartSnapshot>,

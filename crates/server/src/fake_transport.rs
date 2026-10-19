@@ -189,6 +189,13 @@ impl Client {
         Some(decode(&bytes).expect("the server sends only messages"))
     }
 
+    /// The next message from the server if one has arrived, without
+    /// waiting: what a client's tick loop reads between ticks.
+    pub fn try_recv(&mut self) -> Option<ServerMessage> {
+        let bytes = self.from_server.try_recv().ok()?;
+        Some(decode(&bytes).expect("the server sends only messages"))
+    }
+
     /// Join `code` as `nickname` at this build's protocol version, answered
     /// with the slot and the room, or the refusal.
     pub async fn join(&mut self, code: &str, nickname: &str) -> Result<(u8, Room), Refusal> {

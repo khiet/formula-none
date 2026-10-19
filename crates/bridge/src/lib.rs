@@ -1,14 +1,18 @@
 //! Thin WebAssembly surface over `sim` and `protocol`; holds no game rules.
 //!
-//! The web app talks to [`Race`] and nothing else: create a race on a track,
-//! step it with one flat buffer of inputs, read one flat buffer of kart
-//! readouts. Flat buffers cross the wasm boundary once per tick instead of
-//! once per kart per field.
+//! The web app talks to [`Race`] and [`Prediction`]: create a race on a
+//! track, step it with one flat buffer of inputs, read one flat buffer of
+//! kart readouts; or predict the player's own kart in a room's race from the
+//! inputs it sends and the snapshots it receives. Flat buffers cross the
+//! wasm boundary once per tick instead of once per kart per field.
 
-use protocol::{ClientMessage, ServerMessage};
+use protocol::{ClientMessage, Input, KartSnapshot, ServerMessage, Snapshot};
 use serde::de::DeserializeOwned;
 use serde::Serialize;
-use sim::{KartInput, Phase, Replay, State, Track};
+use sim::{
+    Drift, DriftDirection, KartInput, KartTransform, Phase, Replay, SnapshotKart, State, Surface,
+    Track,
+};
 use wasm_bindgen::prelude::*;
 
 /// Floats per kart in the input buffer: steer, throttle, brake, hop, use
@@ -266,23 +270,7 @@ impl Race {
             .kart_transforms()
             .iter()
             .enumerate()
-            .flat_map(|(slot, kart)| {
-                let (direction, tier, charge_s) = match kart.drift {
-                    Some(drift) => (
-                        drift.direction.steer_sign(),
-                        f32::from(drift.mini_turbo().code()),
-                        drift.charge_s,
-                    ),
-                    None => (0.0, 0.0, 0.0),
-                };
-                kart.position.into_iter().chain(kart.rotation).chain([
-                    kart.speed,
-                    f32::from(state.kart_surface(slot).code()),
-                    direction,
-                    tier,
-                    charge_s,
-                ])
-            })
+            .flat_map(|(slot, kart)| transform_floats(kart, state.kart_surface(slot)))
             .collect()
     }
 
@@ -320,16 +308,7 @@ impl Race {
     /// first finisher, or -1 before anyone has finished and once the race
     /// is over.
     pub fn phase(&self) -> Vec<f32> {
-        let phase = self.state().phase();
-        let (seconds, grace_left_s) = match phase {
-            Phase::Countdown { remaining_s } => (remaining_s, NO_TIME),
-            Phase::Racing {
-                elapsed_s,
-                grace_left_s,
-            } => (elapsed_s, grace_left_s.unwrap_or(NO_TIME)),
-            Phase::Finished => (0.0, NO_TIME),
-        };
-        vec![f32::from(phase.code()), seconds, grace_left_s]
+        phase_floats(self.state().phase()).to_vec()
     }
 
     /// `sim::State::hash` of the race as of the last step: everything that
@@ -351,5 +330,155 @@ impl Race {
         self.state
             .as_ref()
             .expect("state is only absent during a step")
+    }
+}
+
+/// The player's own kart in a room's race, predicted here from the inputs
+/// the client sends and reconciled with the snapshots it receives (ADR
+/// 0009). `sim::Prediction` documents the rules; this only carries the
+/// protocol's messages to it.
+#[wasm_bindgen]
+pub struct Prediction {
+    inner: sim::Prediction,
+}
+
+#[wasm_bindgen]
+impl Prediction {
+    /// The kart on grid slot `kart` of the race from `seed` on the track
+    /// described by `sidecar`, at the top of its countdown. Fails when the
+    /// sidecar is unusable or its grid has no such slot.
+    #[wasm_bindgen(constructor)]
+    pub fn new(seed: u64, kart: usize, sidecar: &str) -> Result<Prediction, String> {
+        let track = Track::from_sidecar(sidecar).map_err(|error| error.to_string())?;
+        if kart >= track.spawn_grid().len() {
+            return Err(format!(
+                "kart {kart} but {} has {} spawn slots",
+                track.name(),
+                track.spawn_grid().len()
+            ));
+        }
+        Ok(Self {
+            inner: sim::Prediction::new(seed, kart, track),
+        })
+    }
+
+    /// Predict one tick from `input`, a value of the generated `Input` type
+    /// as the client sends it this tick. Fails, with the reason, when the
+    /// value is not one.
+    pub fn tick(&mut self, input: JsValue) -> Result<(), String> {
+        let input: Input =
+            serde_wasm_bindgen::from_value(input).map_err(|error| error.to_string())?;
+        self.inner.tick(
+            input.sequence,
+            KartInput {
+                steer: input.steer_unit(),
+                throttle: input.throttle_unit(),
+                brake: input.brake_unit(),
+                hop: input.hop,
+                use_item: input.use_item,
+                hold_item: input.hold_item,
+            },
+        );
+        Ok(())
+    }
+
+    /// Reconcile with `snapshot`, a value of the generated `Snapshot` type,
+    /// in which this kart is `kart`. Returns how far the predicted kart
+    /// moved for it, in metres. Fails, with the reason, when the value is
+    /// not a snapshot or has no such kart.
+    pub fn reconcile(&mut self, snapshot: JsValue, kart: usize) -> Result<f32, String> {
+        let snapshot: Snapshot =
+            serde_wasm_bindgen::from_value(snapshot).map_err(|error| error.to_string())?;
+        let (Some(own), Some(&acknowledged)) =
+            (snapshot.karts.get(kart), snapshot.acknowledged.get(kart))
+        else {
+            return Err(format!("kart {kart} is not in the snapshot"));
+        };
+        Ok(self
+            .inner
+            .reconcile(snapshot.tick, acknowledged, &snapshot_kart(own)))
+    }
+
+    /// The kart as it is drawn, in the twelve floats `Race::kart_transforms`
+    /// gives each kart.
+    pub fn kart_transform(&self) -> Vec<f32> {
+        transform_floats(&self.inner.kart_transform(), self.inner.kart_surface()).to_vec()
+    }
+
+    /// The race clock at the predicted kart's tick, in the three floats
+    /// `Race::phase` gives; never finished, since the server's results end
+    /// the race.
+    pub fn phase(&self) -> Vec<f32> {
+        phase_floats(self.inner.phase()).to_vec()
+    }
+
+    /// Snapshots that moved the predicted kart further than rounding.
+    pub fn corrections(&self) -> u32 {
+        self.inner.corrections()
+    }
+
+    /// The corrections over the seconds predicted so far.
+    pub fn corrections_per_second(&self) -> f32 {
+        self.inner.corrections_per_second()
+    }
+}
+
+/// One kart's twelve floats, as `Race::kart_transforms` documents them.
+fn transform_floats(kart: &KartTransform, surface: Surface) -> [f32; 12] {
+    let (direction, tier, charge_s) = match kart.drift {
+        Some(drift) => (
+            drift.direction.steer_sign(),
+            f32::from(drift.mini_turbo().code()),
+            drift.charge_s,
+        ),
+        None => (0.0, 0.0, 0.0),
+    };
+    let [x, y, z] = kart.position;
+    let [qx, qy, qz, qw] = kart.rotation;
+    [
+        x,
+        y,
+        z,
+        qx,
+        qy,
+        qz,
+        qw,
+        kart.speed,
+        f32::from(surface.code()),
+        direction,
+        tier,
+        charge_s,
+    ]
+}
+
+/// The three floats `Race::phase` documents.
+fn phase_floats(phase: Phase) -> [f32; 3] {
+    let (seconds, grace_left_s) = match phase {
+        Phase::Countdown { remaining_s } => (remaining_s, NO_TIME),
+        Phase::Racing {
+            elapsed_s,
+            grace_left_s,
+        } => (elapsed_s, grace_left_s.unwrap_or(NO_TIME)),
+        Phase::Finished => (0.0, NO_TIME),
+    };
+    [f32::from(phase.code()), seconds, grace_left_s]
+}
+
+/// What a protocol snapshot says of one kart, in the sim's terms.
+fn snapshot_kart(kart: &KartSnapshot) -> SnapshotKart {
+    SnapshotKart {
+        position: kart.position,
+        rotation: kart.rotation,
+        velocity: kart.velocity,
+        drift: kart.drift.map(|drift| Drift {
+            direction: match drift.direction {
+                protocol::DriftDirection::Left => DriftDirection::Left,
+                protocol::DriftDirection::Right => DriftDirection::Right,
+            },
+            charge_s: drift.charge_s,
+        }),
+        lap: u32::from(kart.lap),
+        checkpoint: usize::from(kart.checkpoint),
+        spline_progress: kart.spline_progress,
     }
 }
