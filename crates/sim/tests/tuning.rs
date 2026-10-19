@@ -3,7 +3,7 @@
 //! a rule. Invariants between plain constants are `const` asserts in the
 //! module itself.
 
-use sim::tuning::{self, ITEM_ROLL_WEIGHTS};
+use sim::tuning::{self, ITEM_ROLL_PERCENT, ITEM_ROLL_WEIGHTS};
 
 #[test]
 fn item_roll_weights_cover_every_grid_slot_once() {
@@ -18,9 +18,9 @@ fn item_roll_weights_cover_every_grid_slot_once() {
 }
 
 #[test]
-fn each_item_roll_band_sums_to_one_hundred_percent() {
+fn each_item_roll_band_sums_to_the_rolls_percent() {
     for band in ITEM_ROLL_WEIGHTS {
         let total = u32::from(band.hazard) + u32::from(band.boost) + u32::from(band.homing);
-        assert_eq!(total, 100, "band {:?}", band.positions);
+        assert_eq!(total, ITEM_ROLL_PERCENT, "band {:?}", band.positions);
     }
 }

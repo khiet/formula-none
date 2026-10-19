@@ -22,6 +22,8 @@ const DT: f32 = 1.0 / TICKS_PER_SECOND as f32;
 const TICKS_PER_SNAPSHOT: u32 = TICKS_PER_SECOND / SNAPSHOTS_PER_SECOND;
 /// 100 ms round trip at the tick rate, split evenly.
 const ONE_WAY_TICKS: u32 = 3;
+/// Ticks a hand keeps the item button down after pressing it: 100 ms.
+const HAND_HOLD_TICKS: u32 = 6;
 
 fn oval() -> Track {
     Track::from_sidecar(OVAL).expect("the oval fixture loads")
@@ -67,6 +69,7 @@ fn race(ticks: u32, lost: impl Fn(u32) -> bool) -> Run {
     let mut server = State::new(SEED, 1, oval());
     let mut prediction = Prediction::new(SEED, 0, oval());
     let mut memory = Memory::default();
+    let mut item_held_ticks = 0;
     let mut inputs_in_flight: VecDeque<(u32, u32, KartInput)> = VecDeque::new();
     let mut snapshots_in_flight: VecDeque<InFlight> = VecDeque::new();
     let mut arrived = Vec::new();
@@ -113,7 +116,7 @@ fn race(ticks: u32, lost: impl Fn(u32) -> bool) -> Run {
                 &snapshot.kart,
             ));
         }
-        let input = bot::drive(
+        let mut input = bot::drive(
             prediction.track(),
             &[prediction.kart_transform()],
             &[prediction.standing()],
@@ -121,6 +124,13 @@ fn race(ticks: u32, lost: impl Fn(u32) -> bool) -> Run {
             &mut memory,
             DT,
         );
+        // A hand holds the item button past the tick it goes down, so a
+        // lost press is still seen held by the server.
+        if input.use_item {
+            item_held_ticks = HAND_HOLD_TICKS;
+        }
+        input.hold_item |= item_held_ticks > 0;
+        item_held_ticks = item_held_ticks.saturating_sub(1);
         sequence += 1;
         prediction.tick(sequence, input, &[]);
         if !lost(sequence) {
@@ -266,4 +276,34 @@ fn the_snapshots_item_is_taken_without_a_correction_and_firing_it_is_predicted()
         "boosted: {} m/s",
         kart.speed
     );
+}
+
+#[test]
+fn the_prediction_takes_no_box_and_fills_its_slot_from_the_snapshots_alone() {
+    // The oval with a box under slot 0: the server's kart takes it at Go,
+    // the prediction's kart stands on it through Go with an empty slot.
+    let mut sidecar: serde_json::Value = serde_json::from_str(OVAL).expect("valid JSON");
+    let slot = sidecar["spawn_grid"][0]["position"].clone();
+    sidecar["item_boxes"] = serde_json::json!([{ "position": slot, "yaw": 0.0 }]);
+    let track = Track::from_sidecar(&sidecar.to_string()).expect("the boxed oval loads");
+    let mut server = State::new(SEED, 1, track.clone());
+    let mut prediction = Prediction::new(SEED, 0, track);
+    let mut sequence = 0;
+    while !matches!(server.phase(), Phase::Racing { .. }) {
+        server = step(server, &[KartInput::default()], DT);
+        sequence += 1;
+        prediction.tick(sequence, KartInput::default(), &[]);
+    }
+    for _ in 0..3 {
+        server = step(server, &[KartInput::default()], DT);
+        sequence += 1;
+        prediction.tick(sequence, KartInput::default(), &[]);
+    }
+    let held = server.kart_transforms()[0].held_item;
+    assert!(held.is_some(), "the server's kart took the box");
+    assert_eq!(prediction.kart_transform().held_item, None);
+
+    // The snapshot's word fills the slot.
+    prediction.reconcile(sequence, sequence, &snapshot_of(&server));
+    assert_eq!(prediction.kart_transform().held_item, held);
 }

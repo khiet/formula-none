@@ -60,9 +60,9 @@ pub struct KartInput {
     /// The item button went down this tick: fires the item the kart holds.
     #[serde(default)]
     pub use_item: bool,
-    /// The item button is down, this tick included. Carried through the
-    /// bridge and recordings already; `step` does not read it until a held
-    /// hazard becomes a rule.
+    /// The item button is down, this tick included. Its first tick down
+    /// fires too, so a press whose datagram was lost on the way to the
+    /// server still fires from the next tick the button is seen held.
     #[serde(default)]
     pub hold_item: bool,
 }
@@ -111,7 +111,7 @@ impl Item {
         }
     }
 
-    /// The item a roll in `0..100` picks for a kart in race `position`,
+    /// The item a roll in `0..ITEM_ROLL_PERCENT` picks for a kart in race `position`,
     /// from the tuned weights of the position's band: the first `hazard`
     /// percent are the hazard, the next `boost` the boost and the rest the
     /// homing projectile. A position past the last band rolls as the last.
@@ -414,6 +414,9 @@ struct Kart {
     /// The item in the kart's one slot. While it holds one it drives over
     /// item boxes without taking them.
     held_item: Option<Item>,
+    /// Whether the item button was down last tick, so a held button fires
+    /// once, as it goes down, and holding it through a pickup fires nothing.
+    item_was_held: bool,
 }
 
 impl Kart {
@@ -473,7 +476,7 @@ use tuning::{
 };
 use tuning::{
     ITEM_BOOST_FACTOR, ITEM_BOOST_S, ITEM_BOX_HALF_LENGTH_M, ITEM_BOX_HALF_WIDTH_M,
-    ITEM_BOX_RESPAWN_S, ITEM_ROLL_WEIGHTS,
+    ITEM_BOX_RESPAWN_S, ITEM_ROLL_PERCENT, ITEM_ROLL_WEIGHTS,
 };
 
 /// A surface query starts this far above the asked point, so a point lying
@@ -573,6 +576,7 @@ impl State {
                     stall_left_s: 0.0,
                     finish_time_s: None,
                     held_item: None,
+                    item_was_held: false,
                 }
             })
             .collect();
@@ -745,6 +749,7 @@ impl State {
             hasher.write_f32(kart.stall_left_s);
             hasher.write_f32(kart.finish_time_s.unwrap_or(NO_TIME));
             hasher.write_u8(kart.held_item.map_or(0, Item::code));
+            hasher.write_u8(u8::from(kart.item_was_held));
             if let Some(memory) = &kart.bot {
                 hasher.write_f32s(memory.timers());
             }
@@ -826,9 +831,9 @@ impl State {
     /// rolling the item by the kart's race position as of `standings`, and
     /// start the box's respawn clock.
     fn pick_up(&mut self, slot: usize, item_box: usize, standings: &[Standing]) {
-        // The top 32 bits of the draw scaled to the table's hundred, so the
-        // roll is as even as the draw.
-        let roll = ((u64::from(self.rng.next_u32()) * 100) >> 32) as u32;
+        // The draw scaled down to the table's range, so the roll is as even
+        // as the draw.
+        let roll = ((u64::from(self.rng.next_u32()) * u64::from(ITEM_ROLL_PERCENT)) >> 32) as u32;
         let item = Item::rolled(standings[slot].position, roll);
         self.karts[slot].held_item = Some(item);
         self.item_box_respawn_s[item_box] = ITEM_BOX_RESPAWN_S;
@@ -903,10 +908,13 @@ pub fn step(mut state: State, inputs: &[KartInput], dt: f32) -> State {
             .collect()
     };
     // Fires come before pickups, so a press on the tick a box is taken
-    // fires what the kart held, never what it has just rolled.
+    // fires what the kart held, never what it has just rolled. A stalled
+    // kart's press is as dead as its other controls.
     for (slot, input) in inputs.iter().enumerate() {
         let kart = &mut state.karts[slot];
-        if kart.stall_left_s > 0.0 || !input.use_item {
+        let pressed = input.use_item || (input.hold_item && !kart.item_was_held);
+        kart.item_was_held = input.hold_item;
+        if kart.stall_left_s > 0.0 || !pressed {
             continue;
         }
         if let Some(item) = kart.held_item.take() {

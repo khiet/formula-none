@@ -378,6 +378,7 @@ describe("items", () => {
   it("reports the empty slot, the track's boxes and the tuned respawn", async () => {
     const bridge = await loadBridge(wasm);
     expect(bridge.itemBoxRespawnSeconds).toBe(3);
+    expect(bridge.predictedFireTimeoutSeconds).toBe(1);
     const race = bridge.createRace(7n, 1, 0, OVAL);
     expect(race.kartTransforms()[0]?.heldItem).toBeNull();
     const boxes = race.itemBoxes();

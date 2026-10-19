@@ -127,7 +127,7 @@ pub fn drive(
         brake,
         hop,
         use_item,
-        hold_item: false,
+        hold_item: use_item,
     }
 }
 

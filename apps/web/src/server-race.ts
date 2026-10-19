@@ -15,13 +15,6 @@ import type { ItemSlot } from "./instrument-panel";
 import { ITEM_FIRE_FLASH_S, type RaceRun } from "./race-scene";
 import { type Countdown, quantiseInput, type RoomClient } from "./room-client";
 
-/**
- * How long a predicted fire shows before the server is taken not to have
- * fired: the press was lost on the way, or the slot was already empty on
- * the server. Longer than a round trip with a repeat or two.
- */
-export const PREDICTED_FIRE_TIMEOUT_S = 1;
-
 export interface ServerRace extends RaceRun {
   /**
    * Reconciliation corrections of the own kart per second raced, which
@@ -63,6 +56,13 @@ export function createServerRace(
   const ticks = (seconds: number) => Math.round(seconds * bridge.ticksPerSecond);
   /** The item the server says the local kart holds. */
   let heldItem: Item | null = null;
+  /**
+   * Whether an item event has named the local kart yet. Until one has, as
+   * after a rejoin mid-race, the snapshots say what the slot holds; from
+   * then on the events do, since an event is heard before the snapshot of
+   * its tick.
+   */
+  let slotHeardOf = false;
   /** Ticks left of a fire predicted from a press the server has not confirmed; 0 for none. */
   let predictedFireTicksLeft = 0;
   /** Ticks left of the flash after the server's fire. */
@@ -74,6 +74,9 @@ export function createServerRace(
   const stopSnapshots = client.onSnapshot((snapshot) => {
     latest = snapshot;
     prediction.reconcile(snapshot);
+    if (!slotHeardOf) {
+      heldItem = snapshot.karts[localKart]?.heldItem ?? null;
+    }
   });
   const stopEvents = client.onEvent(({ kind }) => {
     if (typeof kind === "string") return;
@@ -88,11 +91,13 @@ export function createServerRace(
       }
       if (kart === localKart) {
         heldItem = item;
+        slotHeardOf = true;
       }
     } else if ("itemFired" in kind && kind.itemFired.kart === localKart) {
       // The server's word on the fire, predicted or not: the item is gone
       // and the fire plays out.
       heldItem = null;
+      slotHeardOf = true;
       predictedFireTicksLeft = 0;
       flashTicksLeft = ticks(ITEM_FIRE_FLASH_S);
     }
@@ -108,7 +113,7 @@ export function createServerRace(
       const sequence = client.sendInput(input);
       prediction.tick(quantiseInput(input, sequence));
       if (input.useItem && heldItem !== null && predictedFireTicksLeft === 0) {
-        predictedFireTicksLeft = ticks(PREDICTED_FIRE_TIMEOUT_S);
+        predictedFireTicksLeft = ticks(bridge.predictedFireTimeoutSeconds);
       } else {
         predictedFireTicksLeft = Math.max(predictedFireTicksLeft - 1, 0);
       }

@@ -59,6 +59,11 @@ pub const PING_RESEND_S: f32 = 0.5;
 pub const CONNECTION_SILENCE_S: f32 = 2.0;
 /// How long a client waits after a failed reconnect before the next try.
 pub const RECONNECT_RETRY_S: f32 = 1.0;
+/// How long a client shows the fire it predicted from a press before it
+/// takes the server not to have fired: the press was lost on the way, or
+/// the slot was already empty there. Longer than a round trip with a
+/// resend or two.
+pub const PREDICTED_FIRE_TIMEOUT_S: f32 = 1.0;
 /// Snapshots an event is repeated in after the first that carries it, so a
 /// lost datagram or two still leaves a client with every event; the client
 /// keeps the first copy of each id.
@@ -199,8 +204,12 @@ pub struct ItemRollWeights {
     pub homing: u8,
 }
 
+/// What each band's weights sum to: a roll in `0..ITEM_ROLL_PERCENT` picks
+/// one item.
+pub const ITEM_ROLL_PERCENT: u32 = 100;
+
 /// Roll weights by race position. Bands are contiguous and cover every grid
-/// slot; each band's weights sum to 100 so a roll in 0..100 picks one item.
+/// slot; each band's weights sum to `ITEM_ROLL_PERCENT`.
 pub const ITEM_ROLL_WEIGHTS: [ItemRollWeights; 3] = [
     ItemRollWeights {
         positions: (1, 2),
@@ -226,7 +235,8 @@ pub const ITEM_ROLL_WEIGHTS: [ItemRollWeights; 3] = [
 
 /// Metres ahead on the centreline spline a bot steers toward.
 pub const BOT_LOOKAHEAD_M: f32 = 12.0;
-/// Seconds after pickup within which a bot uses an item if a target exists.
+/// Seconds after pickup by which a bot has used its item; it fires sooner
+/// on a straight.
 pub const BOT_ITEM_USE_DELAY_S: f32 = 2.0;
 /// Top speed scale by distance to the nearest human: slower far ahead,
 /// faster far behind.
@@ -285,6 +295,7 @@ const _: () = {
     assert!(0.0 < ITEM_BOX_HALF_LENGTH_M && 0.0 < ITEM_BOX_HALF_WIDTH_M);
     assert!(0.0 < ITEM_BOOST_S && 1.0 < ITEM_BOOST_FACTOR);
     assert!(0.0 < BOT_ITEM_USE_DELAY_S);
+    assert!(0.0 < PREDICTED_FIRE_TIMEOUT_S);
     assert!(0.0 < RACE_END_GRACE_S);
     assert!(SNAPSHOTS_PER_SECOND <= TICKS_PER_SECOND);
     assert!(0 < SNAPSHOT_EVENT_REPEATS);

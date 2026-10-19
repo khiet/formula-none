@@ -16,7 +16,8 @@ use std::time::Duration;
 
 use protocol::{ClientMessage, Refusal, Room, ServerMessage};
 use rand::distr::slice::Choose;
-use rand::Rng;
+use rand::rngs::StdRng;
+use rand::{Rng, SeedableRng};
 use sim::tuning::{ROOM_CLOSE_AFTER_EMPTY_S, ROOM_CODE_ALPHABET, ROOM_CODE_LENGTH};
 use tokio::sync::{mpsc, oneshot, watch};
 use tokio::time::{Instant, Interval, MissedTickBehavior};
@@ -34,6 +35,26 @@ pub struct Rooms {
     shutdown: Shutdown,
     /// The track every room created here races.
     track: &'static str,
+    /// Where every race's seed comes from.
+    seeds: RaceSeeds,
+}
+
+/// The source of race seeds: the OS's entropy on the server, so no two
+/// races are alike, or a seeded generator under the fake transport, so a
+/// test's races, and the items they roll, repeat from run to run.
+#[derive(Clone)]
+enum RaceSeeds {
+    Entropy,
+    Seeded(Arc<Mutex<StdRng>>),
+}
+
+impl RaceSeeds {
+    fn next(&self) -> u64 {
+        match self {
+            Self::Entropy => rand::random(),
+            Self::Seeded(rng) => rng.lock().expect("seed lock").random(),
+        }
+    }
 }
 
 #[derive(Default)]
@@ -145,6 +166,16 @@ impl Rooms {
             registry: Arc::default(),
             shutdown,
             track,
+            seeds: RaceSeeds::Entropy,
+        }
+    }
+
+    /// `on_track`, with every race seeded from `seed` in start order, so a
+    /// run under the fake transport repeats.
+    pub fn seeded(shutdown: Shutdown, track: &'static str, seed: u64) -> Self {
+        Self {
+            seeds: RaceSeeds::Seeded(Arc::new(Mutex::new(StdRng::seed_from_u64(seed)))),
+            ..Self::on_track(shutdown, track)
         }
     }
 
@@ -172,6 +203,7 @@ impl Rooms {
             publish,
             Arc::downgrade(&self.registry),
             self.shutdown.clone(),
+            self.seeds.clone(),
         ));
         code
     }
@@ -434,6 +466,7 @@ async fn run(
     publish: watch::Sender<Room>,
     registry: Weak<Mutex<Registry>>,
     shutdown: Shutdown,
+    seeds: RaceSeeds,
 ) {
     let close_after = Duration::from_secs_f32(ROOM_CLOSE_AFTER_EMPTY_S);
     let mut players: HashMap<u8, Connection> = HashMap::new();
@@ -550,7 +583,7 @@ async fn run(
                             room.ready(slot, ready);
                         }
                         ClientMessage::Start => {
-                            if let Some(started) = room.start(slot, rand::random()) {
+                            if let Some(started) = room.start(slot, seeds.next()) {
                                 let track = tracks::load(&started.track)
                                     .expect("a room races a track the server has");
                                 running = Some(Running::start(

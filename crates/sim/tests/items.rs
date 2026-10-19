@@ -337,3 +337,43 @@ fn a_bot_fires_what_it_picks_up_within_the_tuned_delay() {
     }
     panic!("the bot fired {fired:?} in 60 s");
 }
+
+#[test]
+fn the_item_button_held_down_fires_once_as_it_goes_down() {
+    let hold = KartInput {
+        hold_item: true,
+        ..KartInput::default()
+    };
+    let state = holding(Item::Hazard);
+    let state = step(state, &[hold], DT);
+    assert_eq!(
+        state.events(),
+        &[RaceEvent::ItemFired {
+            kart: 0,
+            item: Item::Hazard
+        }],
+        "the button going down fires without a press being reported"
+    );
+    // Held through the box coming back under the kart, the button fires
+    // nothing more; let go and pressed again, it fires the new item.
+    let mut state = state;
+    for _ in 0..ticks(ITEM_BOX_RESPAWN_S) + 2 {
+        state = step(state, &[hold], DT);
+        assert!(
+            !state
+                .events()
+                .iter()
+                .any(|event| matches!(event, RaceEvent::ItemFired { .. })),
+            "{:?}",
+            state.events()
+        );
+    }
+    assert!(state.kart_transforms()[0].held_item.is_some());
+    let state = step(state, &[KartInput::default()], DT);
+    let state = step(state, &[hold], DT);
+    assert!(
+        matches!(state.events(), [RaceEvent::ItemFired { kart: 0, .. }, ..]),
+        "{:?}",
+        state.events()
+    );
+}

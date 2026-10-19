@@ -22,6 +22,8 @@ use sim::{Interpolation, KartInput, Prediction, Track};
 
 const OVAL: &str = include_str!("../../../assets/tracks/oval/oval.track.json");
 const TICK: Duration = Duration::from_nanos(1_000_000_000 / TICKS_PER_SECOND as u64);
+/// Ticks a hand keeps the item button down after pressing it: 100 ms.
+const HAND_HOLD_TICKS: u32 = 6;
 
 #[tokio::test(start_paused = true)]
 async fn at_a_100_ms_round_trip_and_2_percent_loss_the_own_kart_is_corrected_out_of_sight() {
@@ -52,6 +54,9 @@ async fn at_a_100_ms_round_trip_and_2_percent_loss_the_own_kart_is_corrected_out
         Track::from_sidecar(OVAL).expect("the oval fixture loads"),
     );
     let mut memory = Memory::default();
+    // A hand holds the item button past the tick it goes down; a lost
+    // press is then still seen held by the server.
+    let mut item_held_ticks = 0;
     let mut ticks = tokio::time::interval(TICK);
     let mut sequence = 0;
     let mut corrections_m = Vec::new();
@@ -74,7 +79,7 @@ async fn at_a_100_ms_round_trip_and_2_percent_loss_the_own_kart_is_corrected_out
                 ));
             }
         }
-        let input = bot::drive(
+        let mut input = bot::drive(
             prediction.track(),
             &[prediction.kart_transform()],
             &[prediction.standing()],
@@ -82,6 +87,11 @@ async fn at_a_100_ms_round_trip_and_2_percent_loss_the_own_kart_is_corrected_out
             &mut memory,
             TICK.as_secs_f32(),
         );
+        if input.use_item {
+            item_held_ticks = HAND_HOLD_TICKS;
+        }
+        input.hold_item |= item_held_ticks > 0;
+        item_held_ticks = item_held_ticks.saturating_sub(1);
         sequence += 1;
         let input = wire(sequence, input);
         interpolation.advance();

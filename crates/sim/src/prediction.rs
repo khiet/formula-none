@@ -7,6 +7,10 @@
 //! Kart-to-kart contact is the server's to resolve; a kart drawn 100 ms
 //! behind can leave a small correction after a touch.
 //!
+//! The one thing the prediction never runs is the item roll: the slot is
+//! the snapshots' word, so a fire is predicted only once the server has
+//! said what the kart holds.
+//!
 //! Each tick the client steps the prediction with the input it sends. Each
 //! snapshot is held against what the prediction said of the kart at the
 //! snapshot's tick: when the two agree nothing happens, and when they do not
@@ -142,7 +146,13 @@ impl Prediction {
             "kart {kart} but the track has {} spawn slots",
             track.spawn_grid().len()
         );
-        let state = State::on_spawn_slots(seed, 1, kart..kart + 1, track);
+        let mut state = State::on_spawn_slots(seed, 1, kart..kart + 1, track);
+        // A box's roll is the server's: its RNG serves every kart's pickups
+        // in the order they happen, which this race of one cannot follow.
+        // So the boxes are never here to take, and the slot holds only
+        // what the snapshots say, which a press then fires as the server
+        // fires it.
+        state.item_box_respawn_s = vec![f32::INFINITY; state.item_box_respawn_s.len()];
         let spawn = Entry {
             sequence: 0,
             tick: 0,

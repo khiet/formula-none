@@ -22,6 +22,8 @@ use sim::tuning::{
 };
 
 const TICKS_PER_SNAPSHOT: u32 = TICKS_PER_SECOND / SNAPSHOTS_PER_SECOND;
+/// The sidecar of the track the harness races, for what the track holds.
+const OVAL_SIDECAR: &str = include_str!("../../../assets/tracks/oval/oval.track.json");
 
 /// A room with `count` players in it, in join order, each holding its slot.
 async fn room_of(harness: &mut Harness, code: &str, count: usize) -> Vec<Client> {
@@ -699,10 +701,11 @@ async fn an_item_pickup_and_its_fire_are_server_events_the_snapshots_repeat_and_
         unreachable!()
     };
     assert!(kart >= 1, "a bot took it: {picked:?}");
-    assert!(
-        usize::from(item_box) < KARTS_PER_RACE,
-        "one of the oval's boxes"
-    );
+    let boxes = sim::Track::from_sidecar(OVAL_SIDECAR)
+        .expect("the oval loads")
+        .item_boxes()
+        .len();
+    assert!(usize::from(item_box) < boxes, "one of the oval's boxes");
     let picked_tick = last_tick;
 
     // The snapshots repeat the pickup under its id and show the item in

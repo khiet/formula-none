@@ -74,11 +74,12 @@ impl Harness {
         Self::on_track(conditions, TRACK)
     }
 
-    /// A server whose rooms race `track`.
+    /// A server whose rooms race `track`, their seeds drawn from the
+    /// conditions' seed so a run repeats.
     pub fn on_track(conditions: Conditions, track: &'static str) -> Self {
         let (stop, shutdown) = Shutdown::pair();
         Self {
-            rooms: Rooms::on_track(shutdown.clone(), track),
+            rooms: Rooms::seeded(shutdown.clone(), track, conditions.seed),
             conditions,
             shutdown,
             stop,

@@ -71,6 +71,13 @@ pub fn countdown_s() -> f32 {
     sim::tuning::COUNTDOWN_S
 }
 
+/// How long a client shows a fire it predicted from a press before it
+/// takes the server not to have fired (ADR 0014).
+#[wasm_bindgen]
+pub fn predicted_fire_timeout_s() -> f32 {
+    sim::tuning::PREDICTED_FIRE_TIMEOUT_S
+}
+
 /// Seconds a taken item box is gone before it is back (ADR 0014), so a
 /// client racing from the server's events hides a box for as long as the
 /// server does.

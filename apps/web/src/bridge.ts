@@ -16,6 +16,7 @@ import init, {
   nickname_min_chars,
   ping_resend_s,
   ping_timeout_s,
+  predicted_fire_timeout_s,
   protocol_version,
   reconnect_retry_s,
   replay_hash_interval_ticks,
@@ -235,6 +236,8 @@ export interface Bridge extends MessageCodec {
   readonly countdownSeconds: number;
   /** Seconds a taken item box is gone before it is back (ADR 0014). */
   readonly itemBoxRespawnSeconds: number;
+  /** How long a fire predicted from a press shows before the server is taken not to have fired (ADR 0014). */
+  readonly predictedFireTimeoutSeconds: number;
   /**
    * Karts on the grid, from the sim's tuning; bots fill the slots the humans
    * leave (ADR 0014).
@@ -308,6 +311,7 @@ export async function loadBridge(wasm?: BufferSource): Promise<Bridge> {
     lapsPerRace: laps_per_race(),
     countdownSeconds: countdown_s(),
     itemBoxRespawnSeconds: item_box_respawn_s(),
+    predictedFireTimeoutSeconds: predicted_fire_timeout_s(),
     kartsPerRace: karts_per_race(),
     replayHashIntervalTicks: replay_hash_interval_ticks(),
     createRace(seed, humanCount, botCount, sidecar) {

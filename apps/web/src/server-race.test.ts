@@ -5,7 +5,7 @@ import type { Event, FinalStanding, Input, KartSnapshot, Snapshot } from "./gene
 import { IDLE_INPUT } from "./input";
 import { ITEM_FIRE_FLASH_S } from "./race-scene";
 import { type Countdown, quantiseInput, type RoomClient } from "./room-client";
-import { createServerRace, PREDICTED_FIRE_TIMEOUT_S } from "./server-race";
+import { createServerRace } from "./server-race";
 
 // The run reads the server's snapshots and events through the room client;
 // the bridge here is only what the run asks of it: the tuning, a race it
@@ -18,6 +18,7 @@ const COUNTDOWN_S = 3;
 const KARTS = 8;
 
 const ITEM_BOX_RESPAWN_S = 3;
+const PREDICTED_FIRE_TIMEOUT_S = 1;
 const ITEM_BOXES = 8;
 
 const GRID_TRANSFORM: KartTransform = {
@@ -61,6 +62,7 @@ const bridge = {
   kartsPerRace: KARTS,
   lapsPerRace: 3,
   itemBoxRespawnSeconds: ITEM_BOX_RESPAWN_S,
+  predictedFireTimeoutSeconds: PREDICTED_FIRE_TIMEOUT_S,
   createRace: () =>
     ({
       kartTransforms: () => Array<KartTransform>(KARTS).fill(GRID_TRANSFORM),
@@ -349,6 +351,21 @@ describe("createServerRace", () => {
     }
     run.tick(IDLE_INPUT, DT);
     expect(run.itemSlot()).toEqual({ item: "boost", firing: false });
+  });
+
+  it("fills the slot from the snapshots until the first item event names the local kart, as after a rejoin", () => {
+    const client = fakeClient();
+    const run = createServerRace(bridge, client, COUNTDOWN, 0, "{}");
+    client.snapshot(snapshot(60, [{ heldItem: "homing" }]));
+    expect(run.itemSlot()).toEqual({ item: "homing", firing: false });
+    client.snapshot(snapshot(62, [{ heldItem: null }]));
+    expect(run.itemSlot()).toEqual({ item: null, firing: false });
+    // From the first event on, a snapshot sent before the fire no longer
+    // puts the item back.
+    client.event(picked(1, 0));
+    client.event(fired(2, 0));
+    client.snapshot(snapshot(64, [{ heldItem: "boost" }]));
+    expect(run.itemSlot()).toEqual({ item: null, firing: true });
   });
 
   it("hides a box the server reports taken for the tuned respawn", () => {
