@@ -139,7 +139,7 @@ async function main(container: HTMLElement): Promise<void> {
    * Into the room over a new connection: by the session token kept for it,
    * which takes back a seat held mid-race, or else as a new player.
    */
-  const openRoom = async (nickname: string, code: string): Promise<RoomClient> => {
+  const takeSeat = async (nickname: string, code: string): Promise<RoomClient> => {
     const token = loadSession(window.localStorage, code);
     if (token !== undefined) {
       try {
@@ -159,7 +159,7 @@ async function main(container: HTMLElement): Promise<void> {
     saveNickname(window.localStorage, nickname);
     let client: RoomClient;
     try {
-      client = await openRoom(nickname, code);
+      client = await takeSeat(nickname, code);
     } catch (error) {
       // The server closes a refused connection itself, and a connection the
       // server never answered is closed by the page going.

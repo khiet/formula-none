@@ -1,13 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { fakeConnection, jsonCodec } from "./fake-connection";
+import { fakeConnection, jsonCodec, TOKEN } from "./fake-connection";
 import type { Event, KartSnapshot, Room, Snapshot } from "./generated/protocol";
 import { PROTOCOL_VERSION } from "./generated/protocol";
 import { IDLE_INPUT } from "./input";
 import { joinRoom, quantiseInput, RefusedError, refusalMessage, rejoinRoom } from "./room-client";
 
 const codec = jsonCodec;
-
-const TOKEN = "0123456789abcdef0123456789abcdef";
 
 const ROOM: Room = {
   code: "BXQF",

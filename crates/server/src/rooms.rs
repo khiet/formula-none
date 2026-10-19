@@ -361,6 +361,11 @@ impl Running {
         let finished = ticked.results.is_some();
         if let Some(standings) = ticked.results {
             broadcast(players, &ServerMessage::Results { standings }, None);
+            // Silent is not gone: a player whose connection still holds is
+            // told the results and keeps the seat a Disconnected one loses.
+            for &slot in players.keys() {
+                room.reconnect(slot);
+            }
             room.finish();
             // A seat that freed at the finish stops receiving.
             let seated: Vec<u8> = room
@@ -491,12 +496,7 @@ async fn run(
                         let token = fresh_token(&mut rand::rng());
                         let joined = room.join(version, &nickname, token.clone()).map(|slot| {
                             let id = connections.next().expect("connection ids never run out");
-                            let _ = outbound.send(Outgoing::from_server(&ServerMessage::Joined {
-                                slot,
-                                room: room.view(),
-                                token,
-                            }));
-                            players.insert(slot, Connection { id, outbound });
+                            seat(&room, &mut players, slot, token, Connection { id, outbound });
                             told_already = Some(slot);
                             Seated { slot, connection: id }
                         });
@@ -509,19 +509,17 @@ async fn run(
                     } => {
                         let rejoined = room.rejoin(&token).map(|slot| {
                             let id = connections.next().expect("connection ids never run out");
-                            let _ = outbound.send(Outgoing::from_server(&ServerMessage::Joined {
-                                slot,
-                                room: room.view(),
-                                token,
-                            }));
-                            if let Some(running) = running.as_mut() {
+                            let countdown = running.as_mut().map(|running| {
                                 running.race.hand_back(slot);
                                 let Started { seed, track, grid } = running.started.clone();
-                                let _ = outbound.send(Outgoing::from_server(
-                                    &ServerMessage::Countdown { seed, track, grid },
-                                ));
+                                ServerMessage::Countdown { seed, track, grid }
+                            });
+                            let connection = Connection { id, outbound };
+                            let new = connection.outbound.clone();
+                            let old = seat(&room, &mut players, slot, token, connection);
+                            if let Some(countdown) = countdown {
+                                let _ = new.send(Outgoing::from_server(&countdown));
                             }
-                            let old = players.insert(slot, Connection { id, outbound });
                             if let Some(old) = old {
                                 let _ = old
                                     .outbound
@@ -604,6 +602,25 @@ async fn run(
             .rooms
             .remove(room.code());
     }
+}
+
+/// Make `connection` the one that reaches `slot`, telling it `Joined` with
+/// `token`; the connection it replaces, if any, is handed back.
+fn seat(
+    room: &HostedRoom,
+    players: &mut HashMap<u8, Connection>,
+    slot: u8,
+    token: String,
+    connection: Connection,
+) -> Option<Connection> {
+    let _ = connection
+        .outbound
+        .send(Outgoing::from_server(&ServerMessage::Joined {
+            slot,
+            room: room.view(),
+            token,
+        }));
+    players.insert(slot, connection)
 }
 
 /// The player leaves or drops: they stop receiving, and mid-race a bot

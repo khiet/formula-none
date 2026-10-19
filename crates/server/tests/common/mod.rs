@@ -3,9 +3,10 @@
 //! Each test binary compiles this module and uses only some of it.
 #![allow(dead_code)]
 
-use protocol::{ClientMessage, DriftDirection, Input, KartSnapshot, PlayerState};
+use protocol::{ClientMessage, DriftDirection, Input, KartSnapshot, PlayerState, Snapshot};
 use server::fake_transport::Client;
 use server::room::Started;
+use sim::tuning::TICKS_PER_SECOND;
 use sim::{Drift, KartInput, SnapshotKart};
 
 /// Every one of `players` joins `code`, in order, and readies; once the
@@ -77,4 +78,15 @@ pub fn snapshot_kart(kart: &KartSnapshot) -> SnapshotKart {
         checkpoint: usize::from(kart.checkpoint),
         spline_progress: kart.spline_progress,
     }
+}
+
+/// A kart's speed in a snapshot, in metres per second.
+pub fn speed(snapshot: &Snapshot, kart: usize) -> f32 {
+    let [x, y, z] = snapshot.karts[kart].velocity;
+    (x * x + y * y + z * z).sqrt()
+}
+
+/// Ticks on the race clock in seconds.
+pub fn seconds(ticks: u32) -> f32 {
+    ticks as f32 / TICKS_PER_SECOND as f32
 }

@@ -1,13 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Connection } from "./connection";
-import { type FakeConnection, fakeConnection, jsonCodec } from "./fake-connection";
+import { type FakeConnection, fakeConnection, jsonCodec, TOKEN } from "./fake-connection";
 import type { Room, ServerMessage } from "./generated/protocol";
 import { PROTOCOL_VERSION } from "./generated/protocol";
 import { keepConnected } from "./reconnect";
 import { joinRoom } from "./room-client";
 
 const TIMING = { silenceMs: 2_000, retryMs: 1_000 };
-const TOKEN = "0123456789abcdef0123456789abcdef";
 const ROOM: Room = {
   code: "BXQF",
   state: "racing",

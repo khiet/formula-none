@@ -6,6 +6,9 @@ import type { MessageCodec } from "./bridge";
 import type { Connection, Lane } from "./connection";
 import type { ClientMessage, ServerMessage } from "./generated/protocol";
 
+/** A session token as the server deals them. */
+export const TOKEN = "0123456789abcdef0123456789abcdef";
+
 export const jsonCodec: MessageCodec = {
   encodeClientMessage: (message) => new TextEncoder().encode(JSON.stringify(message)),
   decodeClientMessage: (bytes) => JSON.parse(new TextDecoder().decode(bytes)) as ClientMessage,

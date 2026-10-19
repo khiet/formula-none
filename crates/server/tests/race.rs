@@ -5,9 +5,12 @@
 //! rematch and the join between races. Under tokio's paused clock a whole
 //! race costs only the CPU time of its ticks.
 
+mod common;
+
 use std::collections::BTreeSet;
 use std::time::Duration;
 
+use common::{seconds, speed};
 use protocol::{
     ClientMessage, Event, EventKind, Input, PlayerState, RoomState, ServerMessage, Snapshot,
 };
@@ -89,15 +92,6 @@ fn input(sequence: u32, throttle: u8) -> Input {
         use_item: false,
         hold_item: false,
     }
-}
-
-fn speed(snapshot: &Snapshot, kart: usize) -> f32 {
-    let [x, y, z] = snapshot.karts[kart].velocity;
-    (x * x + y * y + z * z).sqrt()
-}
-
-fn seconds(ticks: u32) -> f32 {
-    ticks as f32 / TICKS_PER_SECOND as f32
 }
 
 #[tokio::test(start_paused = true)]

@@ -56,7 +56,9 @@ Disconnect and rejoin landed with issue 20 (2026-10-19).
   silence (two seconds) as Disconnected and hands their kart to a bot, as
   it does on a dropped connection; their next input on a connection that
   never dropped hands it back. The silence is counted from the first input,
-  so a client still loading the race is not taken for a lost one.
+  so a client still loading the race is not taken for a lost one, and a
+  rejoin counts it afresh. A silent player whose connection still holds at
+  the finish is told the results and keeps their seat.
 - The client shows the connection banner after the same silence from the
   server, or when its connection ends, and rejoins over a new connection
   until it is back or refused. It keeps the token in local storage, so the

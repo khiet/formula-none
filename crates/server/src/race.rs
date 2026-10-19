@@ -64,14 +64,14 @@ struct HumanInput {
 }
 
 impl HumanInput {
-    /// Inputs for a human taking their kart back from a bot: nothing held,
-    /// and the silence counted from now, since a client back on a new
-    /// connection counts its sequences from wherever it pleases.
-    fn handed_back() -> Self {
-        Self {
-            silent_ticks: Some(0),
-            ..Self::default()
-        }
+    /// Count a tick without an input; true the tick the silence reaches
+    /// `limit`. A human not yet heard from is never silent.
+    fn silent_for(&mut self, limit: u32) -> bool {
+        let Some(ticks) = &mut self.silent_ticks else {
+            return false;
+        };
+        *ticks += 1;
+        *ticks >= limit
     }
 
     fn receive(&mut self, input: Input) {
@@ -168,11 +168,12 @@ impl Race {
     }
 
     /// The player is back: their inputs drive their kart again from the
-    /// first one received now, whatever sequence it carries.
+    /// first one received now, whatever sequence it carries, and their
+    /// silence counts from that first one, as at the start of the race.
     pub fn hand_back(&mut self, slot: u8) {
         if let Some(kart) = self.kart_of(slot) {
             self.state_mut().hand_back(kart);
-            self.humans[kart] = HumanInput::handed_back();
+            self.humans[kart] = HumanInput::default();
         }
     }
 
@@ -236,11 +237,7 @@ impl Race {
         let limit = (CONNECTION_SILENCE_S * TICKS_PER_SECOND as f32).round() as u32;
         let mut silenced = Vec::new();
         for kart in 0..self.humans.len() {
-            let Some(ticks) = &mut self.humans[kart].silent_ticks else {
-                continue;
-            };
-            *ticks += 1;
-            if *ticks >= limit {
+            if self.humans[kart].silent_for(limit) {
                 let slot = self.grid[kart];
                 self.hand_to_bot(slot);
                 silenced.push(slot);

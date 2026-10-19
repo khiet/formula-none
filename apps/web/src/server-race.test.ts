@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import type { Bridge, KartInput, KartTransform, Phase, Prediction, Race } from "./bridge";
+import { TOKEN } from "./fake-connection";
 import type { Event, FinalStanding, Input, KartSnapshot, Snapshot } from "./generated/protocol";
 import { IDLE_INPUT } from "./input";
 import { type Countdown, quantiseInput, type RoomClient } from "./room-client";
@@ -107,7 +108,7 @@ function fakeClient(): FakeClient {
     };
   return {
     slot: 1,
-    token: "0123456789abcdef0123456789abcdef",
+    token: TOKEN,
     room: { code: "BXQF", state: "racing", players: [] },
     race: undefined,
     replaced: false,

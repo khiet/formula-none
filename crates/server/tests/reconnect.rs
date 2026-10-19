@@ -6,19 +6,10 @@
 
 mod common;
 
-use common::race_together;
+use common::{race_together, seconds, speed};
 use protocol::{Input, PlayerState, Refusal, Room, RoomState, ServerMessage, Snapshot};
 use server::fake_transport::{Client, Conditions, Harness};
 use sim::tuning::{CONNECTION_SILENCE_S, COUNTDOWN_S, KARTS_PER_RACE, TICKS_PER_SECOND};
-
-fn seconds(ticks: u32) -> f32 {
-    ticks as f32 / TICKS_PER_SECOND as f32
-}
-
-fn speed(snapshot: &Snapshot, kart: usize) -> f32 {
-    let [x, y, z] = snapshot.karts[kart].velocity;
-    (x * x + y * y + z * z).sqrt()
-}
 
 fn input(sequence: u32, throttle: u8, brake: u8) -> Input {
     Input {
@@ -300,4 +291,29 @@ async fn a_rejoin_between_races_moves_the_seat_and_starts_no_race() {
         })),
         "the new connection is the player's, with no Countdown before it"
     );
+}
+
+#[tokio::test(start_paused = true)]
+async fn a_player_silent_but_still_connected_at_the_finish_keeps_their_seat_and_gets_the_results() {
+    let mut harness = Harness::new(Conditions::PERFECT);
+    let (_, mut player, mut watcher) = two_racing(&mut harness).await;
+    // A few inputs, then nothing: a tab in the background through the end.
+    for sequence in 1..=3 {
+        player.send_input(input(sequence, 0, 0));
+    }
+    room_where(&mut watcher, |room| {
+        room.players[0].state == PlayerState::Disconnected
+    })
+    .await;
+
+    assert!(
+        player.next_results().await.is_some(),
+        "still told the results"
+    );
+    let room = room_where(&mut watcher, |room| room.state == RoomState::Results).await;
+    assert_eq!(room.players.len(), 2, "the seat is kept");
+    assert!(room
+        .players
+        .iter()
+        .all(|player| player.state == PlayerState::Finished));
 }
