@@ -1,13 +1,17 @@
 //! The wire budgets from ADR 0010: an input near 8 bytes at 60 Hz, a
-//! snapshot near 400 bytes at eight karts and 30 Hz. Held with a tolerance
-//! so a field can be added without moving the budget, and so the budget
-//! still catches a field that does not belong.
+//! snapshot near 400 bytes at eight karts and 30 Hz, grown to what the
+//! ADR's Outcome records as the rules landed. Held with a tolerance so a
+//! field can be added without moving the budget, and so the budget still
+//! catches a field that does not belong.
 
 use protocol::{encode, samples, ClientMessage, Input, ServerMessage, Snapshot};
 
 /// The budget is "roughly" this many bytes.
 const INPUT_BUDGET: usize = 8;
-const SNAPSHOT_BUDGET: usize = 400;
+/// ADR 0010 estimated 400; its Outcome records the busy sample at 505
+/// bytes once the hazards and the projectiles rode along, and holds it
+/// there.
+const SNAPSHOT_BUDGET: usize = 500;
 
 /// A quarter either way.
 fn within_tolerance(size: usize, budget: usize) -> bool {
@@ -26,7 +30,7 @@ fn an_input_message_is_roughly_eight_bytes() {
 }
 
 #[test]
-fn a_snapshot_for_eight_karts_is_roughly_four_hundred_bytes() {
+fn a_snapshot_for_eight_karts_is_roughly_five_hundred_bytes() {
     let snapshot = samples::snapshot();
     assert_eq!(snapshot.karts.len(), 8);
     let size = encode(&ServerMessage::Snapshot(snapshot)).len();
@@ -41,6 +45,7 @@ fn the_snapshot_sample_is_a_busy_mid_race_moment() {
         karts,
         events,
         hazards,
+        projectiles,
         ..
     } = samples::snapshot();
     assert!(karts.iter().any(|kart| kart.drift.is_some()));
@@ -48,4 +53,5 @@ fn the_snapshot_sample_is_a_busy_mid_race_moment() {
     assert!(karts.iter().any(|kart| kart.spin_out_s.is_some()));
     assert!(!events.is_empty());
     assert!(!hazards.is_empty());
+    assert!(!projectiles.is_empty());
 }

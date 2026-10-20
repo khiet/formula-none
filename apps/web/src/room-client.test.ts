@@ -137,7 +137,7 @@ const KART: KartSnapshot = {
 };
 
 function snapshot(tick: number, events: Event[] = []): Snapshot {
-  return { tick, acknowledged: [0, 0], karts: [KART, KART], events, hazards: [] };
+  return { tick, acknowledged: [0, 0], karts: [KART, KART], events, hazards: [], projectiles: [] };
 }
 
 function lapEvent(id: number, kart: number): Event {

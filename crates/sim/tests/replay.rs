@@ -113,9 +113,9 @@ fn holding(seed: u64) -> (State, sim::Item) {
 
 #[test]
 fn a_karts_item_is_part_of_the_hash() {
-    // The seeds are tried until the roll is a homing projectile, which
-    // fires to no effect: the two states then differ in the kart's slot and
-    // nothing else.
+    // The seeds are tried until the roll is a homing projectile, which a
+    // lone kart fires to no effect, having nobody ahead: the two states
+    // then differ in the kart's slot and nothing else.
     let seed = (0..)
         .find(|&seed| holding(seed).1 == sim::Item::Homing)
         .expect("some seed rolls a homing projectile");
@@ -162,6 +162,64 @@ fn a_hazards_place_is_part_of_the_hash() {
     );
     assert_ne!(early.hazards(), late.hazards());
     assert_ne!(early.hash(), late.hash(), "the hazard moved");
+}
+
+#[test]
+fn a_projectiles_place_is_part_of_the_hash() {
+    // Two karts stand on the grid, the one on the second slot with a
+    // projectile; it fires a tick earlier in one race than the other and
+    // both then stand still, so only the projectiles lie in different
+    // places. Three ticks, short of the projectile reaching the pole kart.
+    let boxed = || {
+        let mut sidecar: serde_json::Value = serde_json::from_str(OVAL).expect("valid JSON");
+        let slot = sidecar["spawn_grid"][1]["position"].clone();
+        sidecar["item_boxes"] = serde_json::json!([{ "position": slot, "yaw": 0.0 }]);
+        Track::from_sidecar(&sidecar.to_string()).expect("the boxed oval loads")
+    };
+    let rolls_a_projectile = |seed: u64| {
+        let state = step(
+            started(State::new(seed, 2, boxed())),
+            &[KartInput::default(); 2],
+            DT,
+        );
+        state.events().iter().any(|event| {
+            matches!(
+                event,
+                sim::RaceEvent::ItemPicked {
+                    kart: 1,
+                    item: sim::Item::Homing,
+                    ..
+                }
+            )
+        })
+    };
+    let seed = (0..)
+        .find(|&seed| rolls_a_projectile(seed))
+        .expect("some seed rolls a projectile");
+    let fire_at = |fire_tick: u32| {
+        let mut state = step(
+            started(State::new(seed, 2, boxed())),
+            &[KartInput::default(); 2],
+            DT,
+        );
+        for tick in 0..3 {
+            let fire = KartInput {
+                use_item: tick == fire_tick,
+                ..KartInput::default()
+            };
+            state = step(state, &[KartInput::default(), fire], DT);
+        }
+        state
+    };
+    let (early, late) = (fire_at(0), fire_at(1));
+    assert_eq!(
+        early.kart_transforms(),
+        late.kart_transforms(),
+        "the karts stood alike"
+    );
+    assert_eq!(early.projectiles().len(), 1);
+    assert_ne!(early.projectiles(), late.projectiles());
+    assert_ne!(early.hash(), late.hash(), "the projectile moved");
 }
 
 const REPLAY: &str = r#"{

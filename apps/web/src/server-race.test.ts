@@ -1,5 +1,13 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import type { Bridge, KartInput, KartTransform, Phase, Prediction, Race } from "./bridge";
+import type {
+  Bridge,
+  KartInput,
+  KartTransform,
+  Phase,
+  Prediction,
+  Projectile,
+  Race,
+} from "./bridge";
 import { TOKEN } from "./fake-connection";
 import type {
   Event,
@@ -56,6 +64,7 @@ interface FakePrediction extends Prediction {
   readonly snapshots: Snapshot[];
   clock: Phase;
   interpolated: KartTransform[];
+  projectiles: Projectile[];
 }
 
 let predictions: FakePrediction[] = [];
@@ -91,6 +100,7 @@ const bridge = {
       snapshots: [],
       clock: { kind: "countdown", remainingSeconds: COUNTDOWN_S },
       interpolated: [],
+      projectiles: [],
       tick(input) {
         this.inputs.push(input);
       },
@@ -101,6 +111,9 @@ const bridge = {
       kartTransform: () => PREDICTED,
       interpolatedKartTransforms() {
         return [...this.interpolated];
+      },
+      interpolatedProjectiles() {
+        return [...this.projectiles];
       },
       phase() {
         return this.clock;
@@ -194,6 +207,7 @@ function snapshot(
     karts: Array.from({ length: KARTS }, (_, kart) => ({ ...KART, ...karts[kart] })),
     events: [],
     hazards,
+    projectiles: [],
   };
 }
 
@@ -419,6 +433,15 @@ describe("createServerRace", () => {
     expect(trailed?.position[0]).toBeCloseTo(20 + HAZARD_DROP_DISTANCE_M, 5);
     expect(trailed?.position[1]).toBeCloseTo(0.3 - KART_HEIGHT_M / 2, 5);
     expect(trailed?.position[2]).toBeCloseTo(-50, 5);
+  });
+
+  it("draws the projectiles where the interpolation has them between the snapshots", () => {
+    const client = fakeClient();
+    const run = createServerRace(bridge, client, COUNTDOWN, 0, "{}");
+    expect(run.projectiles()).toEqual([]);
+    const flying: Projectile = { position: [12, 0, -30], owner: 1, target: 0 };
+    prediction().projectiles = [flying];
+    expect(run.projectiles()).toEqual([flying]);
   });
 
   it("hides a box the server reports picked up for the tuned respawn", () => {

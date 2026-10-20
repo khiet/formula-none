@@ -11,6 +11,7 @@ export type { Item } from "./Item";
 export type { KartSnapshot } from "./KartSnapshot";
 export type { Player } from "./Player";
 export type { PlayerState } from "./PlayerState";
+export type { ProjectileSnapshot } from "./ProjectileSnapshot";
 export type { Refusal } from "./Refusal";
 export type { Room } from "./Room";
 export type { RoomState } from "./RoomState";

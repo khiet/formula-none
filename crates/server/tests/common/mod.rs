@@ -3,11 +3,16 @@
 //! Each test binary compiles this module and uses only some of it.
 #![allow(dead_code)]
 
-use protocol::{ClientMessage, DriftDirection, Input, KartSnapshot, PlayerState, Snapshot};
+use std::collections::BTreeMap;
+
+use protocol::{
+    ClientMessage, DriftDirection, Event, FinalStanding, Input, KartSnapshot, PlayerState,
+    ServerMessage, Snapshot,
+};
 use server::fake_transport::Client;
 use server::room::Started;
-use sim::tuning::TICKS_PER_SECOND;
-use sim::{Drift, KartInput, SnapshotKart};
+use sim::tuning::{BOT_LOOKAHEAD_M, TICKS_PER_SECOND};
+use sim::{Drift, KartInput, Projectile, SnapshotKart, Track};
 
 /// Every one of `players` joins `code`, in order, and readies; once the
 /// first sees them all ready it starts the race. Returns each one's
@@ -33,6 +38,35 @@ pub async fn race_together(code: &str, players: &mut [Client]) -> Vec<Started> {
         countdowns.push(player.next_countdown().await.unwrap());
     }
     countdowns
+}
+
+/// What one client has heard of a race: every event on the reliable lane,
+/// in order, every snapshot by tick, and the results once they come.
+#[derive(Default)]
+pub struct Heard {
+    pub events: Vec<Event>,
+    pub snapshots: BTreeMap<u32, Snapshot>,
+    pub results: Option<Vec<FinalStanding>>,
+}
+
+impl Heard {
+    /// Take in everything `client` has received since the last call.
+    pub fn hear(&mut self, client: &mut Client) {
+        while let Some(message) = client.try_recv() {
+            match message {
+                ServerMessage::Snapshot(snapshot) => {
+                    self.snapshots.insert(snapshot.tick, snapshot);
+                }
+                ServerMessage::Events(events) => self.events.extend(events),
+                ServerMessage::Results { standings } => self.results = Some(standings),
+                _ => {}
+            }
+        }
+    }
+
+    pub fn newest(&self) -> Option<&Snapshot> {
+        self.snapshots.values().next_back()
+    }
 }
 
 /// The wire input for the sim's: each control quantised to its byte, as the
@@ -86,6 +120,19 @@ pub fn snapshot_kart(kart: &KartSnapshot) -> SnapshotKart {
     }
 }
 
+/// The projectiles a snapshot carries, in the sim's terms.
+pub fn projectiles(snapshot: &Snapshot) -> Vec<Projectile> {
+    snapshot
+        .projectiles
+        .iter()
+        .map(|projectile| Projectile {
+            position: projectile.position,
+            owner: usize::from(projectile.owner),
+            target: usize::from(projectile.target),
+        })
+        .collect()
+}
+
 /// A kart's speed in a snapshot, in metres per second.
 pub fn speed(snapshot: &Snapshot, kart: usize) -> f32 {
     let [x, y, z] = snapshot.karts[kart].velocity;
@@ -95,4 +142,33 @@ pub fn speed(snapshot: &Snapshot, kart: usize) -> f32 {
 /// Ticks on the race clock in seconds.
 pub fn seconds(ticks: u32) -> f32 {
     ticks as f32 / TICKS_PER_SECOND as f32
+}
+
+/// Full throttle along the bots' line, the tuned distance right of the
+/// centreline, from where the snapshot has the kart.
+pub fn follow_the_line(track: &Track, kart: &KartSnapshot) -> KartInput {
+    const RIGHT_OF_CENTRE_M: f32 = 2.5;
+    const STEER_GAIN: f32 = 4.0;
+    let progress = kart.spline_progress;
+    let ahead = track.point_at(progress + BOT_LOOKAHEAD_M);
+    let further = track.point_at(progress + BOT_LOOKAHEAD_M + 1.0);
+    // Right of the direction of travel (dx, dz), seen from above, is (-dz, dx).
+    let (tx, tz) = (further[0] - ahead[0], further[2] - ahead[2]);
+    let travel = (tx * tx + tz * tz).sqrt().max(f32::EPSILON);
+    let target = [
+        ahead[0] - tz / travel * RIGHT_OF_CENTRE_M,
+        ahead[2] + tx / travel * RIGHT_OF_CENTRE_M,
+    ];
+    let (dx, dz) = (target[0] - kart.position[0], target[1] - kart.position[2]);
+    let length = (dx * dx + dz * dz).sqrt().max(f32::EPSILON);
+    let [qx, qy, qz, qw] = kart.rotation;
+    let yaw = (2.0 * (qw * qy + qx * qz)).atan2(1.0 - 2.0 * (qy * qy + qz * qz));
+    // Positive steer turns the kart right; right of a yaw is (cos, -sin) in x, z.
+    let (sin, cos) = yaw.sin_cos();
+    let rightward = (dx * cos - dz * sin) / length;
+    KartInput {
+        steer: (rightward * STEER_GAIN).clamp(-1.0, 1.0),
+        throttle: 1.0,
+        ..KartInput::default()
+    }
 }

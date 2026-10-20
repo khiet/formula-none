@@ -23,7 +23,7 @@ use ts_rs::TS;
 /// [`ClientMessage::Join`] and the server refuses a mismatch with
 /// [`Refusal::VersionMismatch`] (ADR 0013). The generator exports it next to
 /// the types, so the web app reads the same constant.
-pub const PROTOCOL_VERSION: u16 = 5;
+pub const PROTOCOL_VERSION: u16 = 6;
 
 /// What a client sends the server.
 #[derive(Serialize, Deserialize, TS, Debug, Clone, PartialEq)]
@@ -239,6 +239,24 @@ pub struct Snapshot {
     pub events: Vec<Event>,
     /// Every hazard on the track at this tick, in the order they were fired.
     pub hazards: Vec<HazardSnapshot>,
+    /// Every homing projectile in flight at this tick, in the order they
+    /// were fired.
+    pub projectiles: Vec<ProjectileSnapshot>,
+}
+
+/// A homing projectile in flight: where it is, whose it is and which kart
+/// it chases. The client draws it between snapshots as it draws the
+/// karts; a projectile in one snapshot and not the next hit, or was
+/// destroyed, between them.
+#[derive(Serialize, Deserialize, TS, Debug, Clone, Copy, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct ProjectileSnapshot {
+    /// Its centre, in metres.
+    pub position: [f32; 3],
+    /// The kart that fired it, in grid order.
+    pub owner: u8,
+    /// The kart it chases, in grid order.
+    pub target: u8,
 }
 
 /// A hazard on the track: where it lies, whose it is and whether that kart
@@ -336,8 +354,9 @@ pub enum EventKind {
         kart: u8,
         item: Item,
     },
-    /// `kart` was spun out by an item `by` fired or dropped: stopped, with
-    /// its inputs ignored, for the tuned time, which the snapshots carry.
+    /// `kart` was spun out by an item `by` fired or dropped, a hazard it
+    /// ran into or a projectile that reached it: stopped, with its inputs
+    /// ignored, for the tuned time, which the snapshots carry.
     Hit {
         kart: u8,
         by: u8,

@@ -352,6 +352,10 @@ impl Prediction {
         let mut state = step(state, &[input], TICK_S);
         state.phase = clock;
         state.hazards.clear();
+        // A projectile the predicted kart fires has no kart ahead in this
+        // race of one and is wasted; cleared all the same, so the hit
+        // stays the server's whatever a targetless fire comes to do.
+        state.projectiles.clear();
         self.state = Some(state);
         self.tick += 1;
     }
