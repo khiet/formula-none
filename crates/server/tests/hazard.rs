@@ -7,11 +7,10 @@
 
 mod common;
 
-use std::collections::BTreeMap;
 use std::time::Duration;
 
-use common::{follow_the_line, race_together, seconds, speed, wire};
-use protocol::{Event, EventKind, Item, ServerMessage, Snapshot};
+use common::{follow_the_line, race_together, seconds, speed, wire, Heard};
+use protocol::{Event, EventKind, Item, Snapshot};
 use server::fake_transport::{Conditions, Harness};
 use sim::tuning::{COUNTDOWN_S, SPIN_OUT_S, TICKS_PER_SECOND};
 use sim::{KartInput, Track};
@@ -21,19 +20,7 @@ const TICK: Duration = Duration::from_nanos(1_000_000_000 / TICKS_PER_SECOND as 
 /// Give up if nobody has been hit by then.
 const DEADLINE_S: f32 = 90.0;
 
-/// What one client has heard: every event on the reliable lane, in order,
-/// and every snapshot by tick.
-#[derive(Default)]
-struct Heard {
-    events: Vec<Event>,
-    snapshots: BTreeMap<u32, Snapshot>,
-}
-
 impl Heard {
-    fn newest(&self) -> Option<&Snapshot> {
-        self.snapshots.values().next_back()
-    }
-
     fn hit(&self) -> Option<Event> {
         self.events
             .iter()
@@ -79,16 +66,8 @@ async fn a_hit_is_the_servers_call_and_both_clients_see_the_same_hit_and_spin_ou
     loop {
         ticks.tick().await;
         for (player, heard) in players.iter_mut().zip(&mut heard) {
-            while let Some(message) = player.try_recv() {
-                match message {
-                    ServerMessage::Snapshot(snapshot) => {
-                        heard.snapshots.insert(snapshot.tick, snapshot);
-                    }
-                    ServerMessage::Events(events) => heard.events.extend(events),
-                    ServerMessage::Results { .. } => panic!("the race ended with nobody hit"),
-                    _ => {}
-                }
-            }
+            heard.hear(player);
+            assert!(heard.results.is_none(), "the race ended with nobody hit");
         }
         if heard.iter().all(Heard::heard_the_hit) {
             break;

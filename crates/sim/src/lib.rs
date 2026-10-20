@@ -543,13 +543,13 @@ use tuning::{
 };
 use tuning::{
     HOMING_LOCK_RANGE_M, HOMING_LOOKAHEAD_M, HOMING_RADIUS_M, HOMING_SPEED_FACTOR,
-    HOMING_WITHOUT_TARGET_DESPAWNS,
+    HOMING_WITHOUT_TARGET_IS_WASTED,
 };
 
 // The sim builds only the wasted fire for a projectile with no kart ahead
 // (the decision is recorded with the constant); flipping it needs the
 // circling projectile written first.
-const _: () = assert!(HOMING_WITHOUT_TARGET_DESPAWNS);
+const _: () = assert!(HOMING_WITHOUT_TARGET_IS_WASTED);
 
 /// A surface query starts this far above the asked point, so a point lying
 /// exactly on a surface still finds it despite rounding.

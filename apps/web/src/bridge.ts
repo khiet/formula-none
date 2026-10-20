@@ -492,16 +492,11 @@ class BridgedRace implements Race {
   }
 
   hazards(): Hazard[] {
-    const buffer = this.#race.hazards();
-    if (buffer.length % FLOATS_PER_HAZARD !== 0) {
-      throw new RangeError(`hazard buffer has ${buffer.length} floats`);
-    }
-    const hazards: Hazard[] = [];
-    for (let at = 0; at < buffer.length; at += FLOATS_PER_HAZARD) {
-      const read = (offset: number): number => buffer[at + offset] as number;
-      hazards.push({ position: [read(0), read(1), read(2)], owner: read(3), held: read(4) !== 0 });
-    }
-    return hazards;
+    return recordsFrom(this.#race.hazards(), FLOATS_PER_HAZARD, "hazard", (read) => ({
+      position: [read(0), read(1), read(2)],
+      owner: read(3),
+      held: read(4) !== 0,
+    }));
   }
 
   projectiles(): Projectile[] {
@@ -575,15 +570,32 @@ class BridgedPrediction implements Prediction {
 
 /** The projectiles a buffer of five floats each describes. */
 function projectilesFrom(buffer: Float32Array): Projectile[] {
-  if (buffer.length % FLOATS_PER_PROJECTILE !== 0) {
-    throw new RangeError(`projectile buffer has ${buffer.length} floats`);
+  return recordsFrom(buffer, FLOATS_PER_PROJECTILE, "projectile", (read) => ({
+    position: [read(0), read(1), read(2)],
+    owner: read(3),
+    target: read(4),
+  }));
+}
+
+/**
+ * The records a buffer of `floatsPer` floats each describes, each built
+ * from a reader of its floats by offset; `what` names the record in the
+ * error for a buffer that does not divide.
+ */
+function recordsFrom<T>(
+  buffer: Float32Array,
+  floatsPer: number,
+  what: string,
+  build: (read: (offset: number) => number) => T,
+): T[] {
+  if (buffer.length % floatsPer !== 0) {
+    throw new RangeError(`${what} buffer has ${buffer.length} floats`);
   }
-  const projectiles: Projectile[] = [];
-  for (let at = 0; at < buffer.length; at += FLOATS_PER_PROJECTILE) {
-    const read = (offset: number): number => buffer[at + offset] as number;
-    projectiles.push({ position: [read(0), read(1), read(2)], owner: read(3), target: read(4) });
+  const records: T[] = [];
+  for (let at = 0; at < buffer.length; at += floatsPer) {
+    records.push(build((offset) => buffer[at + offset] as number));
   }
-  return projectiles;
+  return records;
 }
 
 /** The kart transform whose fourteen floats start at `at`; `slot` names the kart in errors. */

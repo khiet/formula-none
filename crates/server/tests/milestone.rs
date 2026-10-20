@@ -6,11 +6,11 @@
 
 mod common;
 
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeSet;
 use std::time::Duration;
 
-use common::{follow_the_line, race_together, seconds, wire};
-use protocol::{Event, EventKind, FinalStanding, Item, ServerMessage, Snapshot};
+use common::{follow_the_line, race_together, seconds, wire, Heard};
+use protocol::{EventKind, Item};
 use server::fake_transport::{Conditions, Harness};
 use sim::tuning::{COUNTDOWN_S, KARTS_PER_RACE, TICKS_PER_SECOND};
 use sim::Track;
@@ -23,14 +23,6 @@ const DEADLINE_S: f32 = 240.0;
 /// Each kart sets off this long after the one before it, so the field is
 /// spread out and every roll band is drawn from.
 const STAGGER_S: f32 = 1.0;
-
-/// What one client has heard.
-#[derive(Default)]
-struct Heard {
-    events: Vec<Event>,
-    snapshots: BTreeMap<u32, Snapshot>,
-    results: Option<Vec<FinalStanding>>,
-}
 
 #[tokio::test(start_paused = true)]
 async fn eight_clients_race_with_all_three_items_and_hear_the_same_race() {
@@ -48,21 +40,12 @@ async fn eight_clients_race_with_all_three_items_and_hear_the_same_race() {
     loop {
         ticks.tick().await;
         for (player, heard) in players.iter_mut().zip(&mut heard) {
-            while let Some(message) = player.try_recv() {
-                match message {
-                    ServerMessage::Snapshot(snapshot) => {
-                        heard.snapshots.insert(snapshot.tick, snapshot);
-                    }
-                    ServerMessage::Events(events) => heard.events.extend(events),
-                    ServerMessage::Results { standings } => heard.results = Some(standings),
-                    _ => {}
-                }
-            }
+            heard.hear(player);
         }
         if heard.iter().all(|heard| heard.results.is_some()) {
             break;
         }
-        let Some(newest) = heard[0].snapshots.values().next_back() else {
+        let Some(newest) = heard[0].newest() else {
             continue;
         };
         let elapsed = seconds(newest.tick);

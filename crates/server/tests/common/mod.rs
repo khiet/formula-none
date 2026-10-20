@@ -3,7 +3,12 @@
 //! Each test binary compiles this module and uses only some of it.
 #![allow(dead_code)]
 
-use protocol::{ClientMessage, DriftDirection, Input, KartSnapshot, PlayerState, Snapshot};
+use std::collections::BTreeMap;
+
+use protocol::{
+    ClientMessage, DriftDirection, Event, FinalStanding, Input, KartSnapshot, PlayerState,
+    ServerMessage, Snapshot,
+};
 use server::fake_transport::Client;
 use server::room::Started;
 use sim::tuning::{BOT_LOOKAHEAD_M, TICKS_PER_SECOND};
@@ -33,6 +38,35 @@ pub async fn race_together(code: &str, players: &mut [Client]) -> Vec<Started> {
         countdowns.push(player.next_countdown().await.unwrap());
     }
     countdowns
+}
+
+/// What one client has heard of a race: every event on the reliable lane,
+/// in order, every snapshot by tick, and the results once they come.
+#[derive(Default)]
+pub struct Heard {
+    pub events: Vec<Event>,
+    pub snapshots: BTreeMap<u32, Snapshot>,
+    pub results: Option<Vec<FinalStanding>>,
+}
+
+impl Heard {
+    /// Take in everything `client` has received since the last call.
+    pub fn hear(&mut self, client: &mut Client) {
+        while let Some(message) = client.try_recv() {
+            match message {
+                ServerMessage::Snapshot(snapshot) => {
+                    self.snapshots.insert(snapshot.tick, snapshot);
+                }
+                ServerMessage::Events(events) => self.events.extend(events),
+                ServerMessage::Results { standings } => self.results = Some(standings),
+                _ => {}
+            }
+        }
+    }
+
+    pub fn newest(&self) -> Option<&Snapshot> {
+        self.snapshots.values().next_back()
+    }
 }
 
 /// The wire input for the sim's: each control quantised to its byte, as the

@@ -12,8 +12,8 @@ mod common;
 use std::collections::BTreeMap;
 use std::time::Duration;
 
-use common::{follow_the_line, race_together, seconds, wire};
-use protocol::{Event, EventKind, Item, ProjectileSnapshot, ServerMessage, Snapshot};
+use common::{follow_the_line, race_together, seconds, wire, Heard};
+use protocol::{Event, EventKind, Item, ProjectileSnapshot, Snapshot};
 use server::fake_transport::{Conditions, Harness};
 use sim::tuning::{COUNTDOWN_S, SPIN_OUT_S, TICKS_PER_SECOND};
 use sim::Track;
@@ -27,19 +27,7 @@ const WAIT_ON_THE_GRID_S: f32 = 6.0;
 /// The chaser's kart on the grid.
 const CHASER: u8 = 1;
 
-/// What one client has heard: every event on the reliable lane, in order,
-/// and every snapshot by tick.
-#[derive(Default)]
-struct Heard {
-    events: Vec<Event>,
-    snapshots: BTreeMap<u32, Snapshot>,
-}
-
 impl Heard {
-    fn newest(&self) -> Option<&Snapshot> {
-        self.snapshots.values().next_back()
-    }
-
     /// The first hit the chaser scored.
     fn hit(&self) -> Option<Event> {
         self.events
@@ -109,18 +97,11 @@ async fn a_projectiles_fire_flight_and_hit_are_the_servers_and_both_clients_see_
     loop {
         ticks.tick().await;
         for (player, heard) in players.iter_mut().zip(&mut heard) {
-            while let Some(message) = player.try_recv() {
-                match message {
-                    ServerMessage::Snapshot(snapshot) => {
-                        heard.snapshots.insert(snapshot.tick, snapshot);
-                    }
-                    ServerMessage::Events(events) => heard.events.extend(events),
-                    ServerMessage::Results { .. } => {
-                        panic!("the race ended before the chaser's projectile hit")
-                    }
-                    _ => {}
-                }
-            }
+            heard.hear(player);
+            assert!(
+                heard.results.is_none(),
+                "the race ended before the chaser's projectile hit"
+            );
         }
         if heard.iter().all(Heard::heard_the_hit) {
             break;

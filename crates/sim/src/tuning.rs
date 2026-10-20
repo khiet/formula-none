@@ -217,7 +217,7 @@ pub const HOMING_RADIUS_M: f32 = 0.5;
 /// that circles the lap until a kart is ahead of it, is not taken, since
 /// it would let the leader mine the track for whoever passes. The sim
 /// builds only the wasted fire and refuses to compile if this is flipped.
-pub const HOMING_WITHOUT_TARGET_DESPAWNS: bool = true;
+pub const HOMING_WITHOUT_TARGET_IS_WASTED: bool = true;
 
 /// Item roll weights for one band of race positions, in percent.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -324,7 +324,6 @@ const _: () = {
     assert!(0.0 < ITEM_BOOST_S && 1.0 < ITEM_BOOST_FACTOR);
     assert!(0.0 < HAZARD_RADIUS_M && 0.0 < HAZARD_LIFETIME_S && 0.0 < SPIN_OUT_S);
     assert!(0.0 < HAZARD_DROP_DISTANCE_M);
-    // Faster than any boost, so no target outruns a projectile.
     assert!(HOMING_SPEED_FACTOR > BOOST_PAD_FACTOR && HOMING_SPEED_FACTOR > ITEM_BOOST_FACTOR);
     assert!(0.0 < HOMING_LOOKAHEAD_M && 0.0 < HOMING_LOCK_RANGE_M && 0.0 < HOMING_RADIUS_M);
     // A tick of flight never carries a projectile from outside its radius

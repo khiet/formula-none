@@ -1,10 +1,12 @@
 import {
   AmbientLight,
   BoxGeometry,
+  type BufferGeometry,
   Color,
   ConeGeometry,
   DirectionalLight,
   Group,
+  type Material,
   Mesh,
   MeshBasicMaterial,
   MeshStandardMaterial,
@@ -135,14 +137,20 @@ export async function createRaceView(
     return mesh;
   });
 
-  // Cones are made as hazards appear and hidden, never removed, as they
-  // go, so a race of many drops never churns the scene graph.
-  const hazardGeometry = new ConeGeometry(HAZARD_CONE_RADIUS_M, HAZARD_CONE_HEIGHT_M);
-  const hazardMaterial = new MeshBasicMaterial({ color: HAZARD_COLOUR });
-  const hazardMeshes: Mesh[] = [];
-  const projectileGeometry = new SphereGeometry(PROJECTILE_RADIUS_M);
-  const projectileMaterial = new MeshBasicMaterial({ color: PROJECTILE_COLOUR });
-  const projectileMeshes: Mesh[] = [];
+  // Meshes are made as hazards and projectiles appear and hidden, never
+  // removed, as they go, so a race of many never churns the scene graph.
+  const cones = meshPool(
+    world,
+    new ConeGeometry(HAZARD_CONE_RADIUS_M, HAZARD_CONE_HEIGHT_M),
+    new MeshBasicMaterial({ color: HAZARD_COLOUR }),
+    HAZARD_CONE_HEIGHT_M / 2,
+  );
+  const balls = meshPool(
+    world,
+    new SphereGeometry(PROJECTILE_RADIUS_M),
+    new MeshBasicMaterial({ color: PROJECTILE_COLOUR }),
+    PROJECTILE_HEIGHT_M,
+  );
 
   const labels = Array.from({ length: kartCount }, () => {
     const element = document.createElement("div");
@@ -184,32 +192,8 @@ export async function createRaceView(
         kart.showSparks(sparkTell(transform.drift));
         kart.showDust(dustTell(transform));
       });
-      while (hazardMeshes.length < hazards.length) {
-        const mesh = new Mesh(hazardGeometry, hazardMaterial);
-        world.add(mesh);
-        hazardMeshes.push(mesh);
-      }
-      hazardMeshes.forEach((mesh, index) => {
-        const hazard = hazards[index];
-        mesh.visible = hazard !== undefined;
-        if (hazard !== undefined) {
-          const [x, y, z] = hazard.position;
-          mesh.position.set(x, y + HAZARD_CONE_HEIGHT_M / 2, z);
-        }
-      });
-      while (projectileMeshes.length < projectiles.length) {
-        const mesh = new Mesh(projectileGeometry, projectileMaterial);
-        world.add(mesh);
-        projectileMeshes.push(mesh);
-      }
-      projectileMeshes.forEach((mesh, index) => {
-        const projectile = projectiles[index];
-        mesh.visible = projectile !== undefined;
-        if (projectile !== undefined) {
-          const [x, y, z] = projectile.position;
-          mesh.position.set(x, y + PROJECTILE_HEIGHT_M, z);
-        }
-      });
+      cones.show(hazards);
+      balls.show(projectiles);
       for (const label of labels) {
         label.visible = false;
       }
@@ -234,6 +218,41 @@ export async function createRaceView(
       renderer.dispose();
       renderer.domElement.remove();
       labelRenderer.domElement.remove();
+    },
+  };
+}
+
+interface MeshPool {
+  /** One mesh at each of `placed`, `lift` metres over its position; the rest hidden. */
+  show(placed: readonly { readonly position: readonly [number, number, number] }[]): void;
+}
+
+/**
+ * Meshes of one shape in `world`, made as they are needed and hidden,
+ * never removed, when not, so a race of many never churns the scene graph.
+ */
+function meshPool(
+  world: ThreeScene,
+  geometry: BufferGeometry,
+  material: Material,
+  lift: number,
+): MeshPool {
+  const meshes: Mesh[] = [];
+  return {
+    show(placed) {
+      while (meshes.length < placed.length) {
+        const mesh = new Mesh(geometry, material);
+        world.add(mesh);
+        meshes.push(mesh);
+      }
+      meshes.forEach((mesh, index) => {
+        const item = placed[index];
+        mesh.visible = item !== undefined;
+        if (item !== undefined) {
+          const [x, y, z] = item.position;
+          mesh.position.set(x, y + lift, z);
+        }
+      });
     },
   };
 }

@@ -38,7 +38,7 @@ const RESYNC_TICKS: f32 = INTERPOLATION_RESYNC_S * TICKS_PER_SECOND as f32;
 pub struct Interpolation {
     /// The snapshots received, in tick order, from the last at or before the
     /// render clock on.
-    snapshots: VecDeque<Held>,
+    snapshots: VecDeque<HeldSnapshot>,
     /// The server tick the karts are drawn at; `None` before a snapshot.
     render_tick: Option<f32>,
     /// Client ticks advanced since the newest snapshot arrived.
@@ -46,7 +46,7 @@ pub struct Interpolation {
 }
 
 /// What one snapshot said, as far as the drawing reads it.
-struct Held {
+struct HeldSnapshot {
     tick: u32,
     karts: Vec<SnapshotKart>,
     projectiles: Vec<Projectile>,
@@ -82,7 +82,7 @@ impl Interpolation {
         }
         self.snapshots.insert(
             at,
-            Held {
+            HeldSnapshot {
                 tick,
                 karts,
                 projectiles,
@@ -179,7 +179,7 @@ impl Interpolation {
     /// is from the earlier to the later, as a share; the first held twice
     /// when the clock is before it, and the newest twice when past it.
     /// `None` before the first snapshot.
-    fn pair(&self) -> Option<(&Held, &Held, f32)> {
+    fn pair(&self) -> Option<(&HeldSnapshot, &HeldSnapshot, f32)> {
         let render = self.render_tick?;
         let after = self
             .snapshots

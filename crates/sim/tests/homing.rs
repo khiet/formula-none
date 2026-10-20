@@ -40,13 +40,18 @@ fn started(mut state: State) -> State {
     state
 }
 
-/// A race of `humans` karts one tick past Go, each of `rolls` standing on a
-/// box under its slot and holding the item named: the seeds are tried in
-/// order until one rolls them all.
-fn holding(humans: usize, rolls: &[(usize, Item)]) -> State {
+/// A race of `humans` karts and `bots` bots one tick past Go, each of
+/// `rolls` standing on a box under its slot and holding the item named:
+/// the seeds are tried in order until one rolls them all.
+fn holding_with_bots(humans: usize, bots: usize, rolls: &[(usize, Item)]) -> State {
     let slots: Vec<usize> = rolls.iter().map(|&(slot, _)| slot).collect();
     for seed in 0.. {
-        let state = started(State::new(seed, humans, oval_with_boxes_under(&slots)));
+        let state = started(State::with_bots(
+            seed,
+            humans,
+            bots,
+            oval_with_boxes_under(&slots),
+        ));
         let state = step(state, &vec![KartInput::default(); humans], DT);
         let rolled = rolls.iter().all(|&(slot, wanted)| {
             state.events().iter().any(|event| {
@@ -58,6 +63,11 @@ fn holding(humans: usize, rolls: &[(usize, Item)]) -> State {
         }
     }
     unreachable!()
+}
+
+/// `holding_with_bots` for a race of humans only.
+fn holding(humans: usize, rolls: &[(usize, Item)]) -> State {
+    holding_with_bots(humans, 0, rolls)
 }
 
 fn drive() -> KartInput {
@@ -202,7 +212,7 @@ fn the_target_is_the_kart_next_ahead_by_race_position_not_the_leader() {
 
 #[test]
 fn a_projectile_fired_with_no_kart_ahead_is_wasted() {
-    // The decision `HOMING_WITHOUT_TARGET_DESPAWNS` records.
+    // The decision `HOMING_WITHOUT_TARGET_IS_WASTED` records.
     let state = step(holding(1, &[(0, Item::Homing)]), &[tap()], DT);
     assert_eq!(
         state.events(),
@@ -339,35 +349,12 @@ fn a_projectile_is_spent_on_a_target_already_spun_out() {
     panic!("the second projectile never reached kart 0");
 }
 
-/// The race past its countdown with `bots` bots and no humans.
-fn bots_holding(bots: usize, rolls: &[(usize, Item)]) -> State {
-    let slots: Vec<usize> = rolls.iter().map(|&(slot, _)| slot).collect();
-    for seed in 0.. {
-        let state = started(State::with_bots(
-            seed,
-            0,
-            bots,
-            oval_with_boxes_under(&slots),
-        ));
-        let state = step(state, &[], DT);
-        let rolled = rolls.iter().all(|&(slot, wanted)| {
-            state.events().iter().any(|event| {
-                matches!(event, RaceEvent::ItemPicked { kart, item, .. } if *kart == slot && *item == wanted)
-            })
-        });
-        if rolled {
-            return state;
-        }
-    }
-    unreachable!()
-}
-
 #[test]
 fn a_bot_fires_a_projectile_within_the_tuned_delay_when_a_kart_is_ahead_and_holds_it_while_leading()
 {
     // The bot on the second slot rolls a projectile at Go with the pole
     // bot ahead of it: it fires within the delay and the pole bot is hit.
-    let mut state = bots_holding(2, &[(1, Item::Homing)]);
+    let mut state = holding_with_bots(0, 2, &[(1, Item::Homing)]);
     let mut fired_at = None;
     for tick in 0..ticks(BOT_ITEM_USE_DELAY_S + 4.0) {
         state = step(state, &[], DT);
@@ -389,7 +376,7 @@ fn a_bot_fires_a_projectile_within_the_tuned_delay_when_a_kart_is_ahead_and_hold
     assert!(fired_at.is_some(), "the bot never fired");
 
     // The pole bot rolls a projectile with nobody ahead: it keeps it.
-    let mut state = bots_holding(2, &[(0, Item::Homing)]);
+    let mut state = holding_with_bots(0, 2, &[(0, Item::Homing)]);
     for _ in 0..ticks(2.0) {
         state = step(state, &[], DT);
         assert_eq!(state.standings()[0].position, 1, "the pole bot leads");
