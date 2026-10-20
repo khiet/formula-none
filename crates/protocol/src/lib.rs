@@ -23,7 +23,7 @@ use ts_rs::TS;
 /// [`ClientMessage::Join`] and the server refuses a mismatch with
 /// [`Refusal::VersionMismatch`] (ADR 0013). The generator exports it next to
 /// the types, so the web app reads the same constant.
-pub const PROTOCOL_VERSION: u16 = 4;
+pub const PROTOCOL_VERSION: u16 = 5;
 
 /// What a client sends the server.
 #[derive(Serialize, Deserialize, TS, Debug, Clone, PartialEq)]
@@ -237,6 +237,21 @@ pub struct Snapshot {
     /// Since the previous snapshot, and repeated in the next two; the id
     /// de-duplicates a repeat (ADR 0011).
     pub events: Vec<Event>,
+    /// Every hazard on the track at this tick, in the order they were fired.
+    pub hazards: Vec<HazardSnapshot>,
+}
+
+/// A hazard on the track: where it lies, whose it is and whether that kart
+/// is still trailing it, in which case the client draws it the tuned drop
+/// distance behind the kart as it draws that kart.
+#[derive(Serialize, Deserialize, TS, Debug, Clone, Copy, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct HazardSnapshot {
+    /// Its centre, on the surface, in metres.
+    pub position: [f32; 3],
+    /// The kart that fired it, in grid order.
+    pub owner: u8,
+    pub held: bool,
 }
 
 /// One kart's state in a snapshot. Metres, seconds and metres per second;
@@ -320,7 +335,8 @@ pub enum EventKind {
         kart: u8,
         item: Item,
     },
-    /// `kart` was spun out by an item `by` fired or dropped.
+    /// `kart` was spun out by an item `by` fired or dropped: stopped, with
+    /// its inputs ignored, for the tuned time, which the snapshots carry.
     Hit {
         kart: u8,
         by: u8,

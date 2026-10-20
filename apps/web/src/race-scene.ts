@@ -1,4 +1,4 @@
-import type { Bridge, ItemBox, KartInput, KartTransform, Phase, Standing } from "./bridge";
+import type { Bridge, Hazard, ItemBox, KartInput, KartTransform, Phase, Standing } from "./bridge";
 import { createChaseCamera } from "./chase-camera";
 import { gamepadKartInput } from "./gamepad";
 import { combinedKartInput, IDLE_INPUT } from "./input";
@@ -45,6 +45,8 @@ export interface RaceRun {
   itemBoxes(): readonly ItemBox[];
   /** Whether each item box, in the same order, is there to pick up, as of the last tick. */
   itemBoxesPresent(): readonly boolean[];
+  /** The hazards on the track where the View draws them, as of the last tick. */
+  hazards(): readonly Hazard[];
   /** The run as a replay fixture, when the rules ran here to record. */
   readonly replay?: ReplayRecorder;
   /** Let go of whatever the run follows; called when the Scene is disposed. */
@@ -111,6 +113,7 @@ export function localRaceRun(
     itemSlot: () => ({ item: heldItem(), firing: flashTicksLeft > 0 }),
     itemBoxes: () => boxes,
     itemBoxesPresent: () => race.itemBoxesPresent(),
+    hazards: () => race.hazards(),
     replay,
   };
 }
@@ -155,6 +158,7 @@ export async function createRaceScene(
     bridge.kartSize,
     track.gltfUrl,
     run.itemBoxes(),
+    bridge.spinOutSeconds,
   );
   const camera = createChaseCamera();
   const panel = createInstrumentPanel(container, bridge.lapsPerRace);
@@ -172,6 +176,7 @@ export async function createRaceScene(
         kartLabels(transforms, run.localKart, name),
         camera.update(local, frameSeconds),
         run.itemBoxesPresent(),
+        run.hazards(),
       );
       panel.update(local, standing, run.phase(), run.itemSlot());
     }

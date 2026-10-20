@@ -7,9 +7,12 @@
 //! Kart-to-kart contact is the server's to resolve; a kart drawn 100 ms
 //! behind can leave a small correction after a touch.
 //!
-//! The one thing the prediction never runs is the item roll: the slot is
-//! the snapshots' word, so a fire is predicted only once the server has
-//! said what the kart holds.
+//! Two things the prediction never runs. The item roll: the slot is the
+//! snapshots' word, so a fire is predicted only once the server has said
+//! what the kart holds. And the hazards: a hazard the predicted kart fires
+//! is gone from this race the same tick, so the kart never hits one here;
+//! a hit is the server's, and reaches the kart as the spin-out timer in a
+//! snapshot, which holds it still through the replay.
 //!
 //! Each tick the client steps the prediction with the input it sends. Each
 //! snapshot is held against what the prediction said of the kart at the
@@ -46,6 +49,9 @@ pub struct SnapshotKart {
     pub drift: Option<Drift>,
     /// The item in the kart's slot, which only the server rolls.
     pub held_item: Option<Item>,
+    /// Seconds of spin-out left, while the kart is spun out; only the
+    /// server decides a hit.
+    pub spin_out_s: Option<f32>,
     /// The lap the kart is on, from 1, as [`Standing::lap`] counts it.
     pub lap: u32,
     /// The last checkpoint crossed in order; 0 is the start line.
@@ -345,6 +351,7 @@ impl Prediction {
         let clock = clock_after(state.phase, TICK_S);
         let mut state = step(state, &[input], TICK_S);
         state.phase = clock;
+        state.hazards.clear();
         self.state = Some(state);
         self.tick += 1;
     }
@@ -398,7 +405,7 @@ impl Prediction {
 
 /// Whether the snapshot puts the kart where the record does, to the tuned
 /// tolerance: its position, its nose, the tick of travel its velocity
-/// makes, its drift, its item and its place in the lap.
+/// makes, its drift, its item, its spin-out and its place in the lap.
 fn agrees(record: &KartRecord, kart: &SnapshotKart) -> bool {
     let nose = |rotation: Rotation| rotation * Vec3::NEG_Z * KART_HALF_LENGTH_M;
     let near = |a: Vec3, b: Vec3| a.distance(b) <= RECONCILIATION_TOLERANCE_M;
@@ -418,6 +425,8 @@ fn agrees(record: &KartRecord, kart: &SnapshotKart) -> bool {
         && near(record.linvel * TICK_S, Vec3::from(kart.velocity) * TICK_S)
         && drift
         && record.kart.held_item == kart.held_item
+        && (record.kart.spin_out_left_s.max(0.0) - kart.spin_out_s.unwrap_or(0.0)).abs()
+            < TICK_S / 2.0
         && lap(&record.kart) == kart.lap
         && record.kart.checkpoint == kart.checkpoint
 }
@@ -444,6 +453,7 @@ impl KartRecord {
         kart.travel = rotation * Rotation::from_rotation_y(slip) * Vec3::NEG_Z;
         kart.speed = kart.travel.dot(velocity);
         kart.held_item = snapshot.held_item;
+        kart.spin_out_left_s = snapshot.spin_out_s.unwrap_or(0.0);
         if lap(kart) != snapshot.lap {
             kart.laps_completed = snapshot.lap.saturating_sub(1);
         }
@@ -475,5 +485,6 @@ impl State {
         body.set_rotation(record.rotation, true);
         body.set_linvel(record.linvel, true);
         body.set_angvel(record.angvel, true);
+        body.lock_translations(kart.spun_out(), true);
     }
 }

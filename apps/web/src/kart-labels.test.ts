@@ -10,6 +10,7 @@ function at(position: readonly [number, number, number]): KartTransform {
     surface: "asphalt",
     drift: null,
     heldItem: null,
+    spinOutSeconds: null,
   };
 }
 

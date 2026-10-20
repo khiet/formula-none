@@ -20,7 +20,7 @@
       "name": "join",
       "bytes": [
         1,
-        4,
+        5,
         4,
         66,
         88,
@@ -37,7 +37,7 @@
         "join": {
           "nickname": "khiet",
           "room": "BXQF",
-          "version": 4
+          "version": 5
         }
       }
     },
@@ -103,7 +103,7 @@
       "name": "rejoin",
       "bytes": [
         7,
-        4,
+        5,
         4,
         66,
         88,
@@ -147,7 +147,7 @@
         "rejoin": {
           "room": "BXQF",
           "token": "0123456789abcdef0123456789abcdef",
-          "version": 4
+          "version": 5
         }
       }
     }
@@ -265,12 +265,12 @@
       "bytes": [
         2,
         3,
-        4
+        5
       ],
       "message": {
         "refused": {
           "versionMismatch": {
-            "server": 4
+            "server": 5
           }
         }
       }
@@ -846,7 +846,22 @@
         66,
         46,
         5,
-        4
+        4,
+        1,
+        0,
+        0,
+        164,
+        65,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        50,
+        194,
+        3,
+        1
       ],
       "message": {
         "snapshot": {
@@ -916,6 +931,17 @@
                   "kart": 4
                 }
               }
+            }
+          ],
+          "hazards": [
+            {
+              "held": true,
+              "owner": 3,
+              "position": [
+                20.5,
+                0.0,
+                -44.5
+              ]
             }
           ],
           "karts": [

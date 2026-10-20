@@ -39,6 +39,7 @@ fn snapshot_of(state: &State) -> SnapshotKart {
         velocity: transform.velocity,
         drift: transform.drift,
         held_item: transform.held_item,
+        spin_out_s: transform.spin_out_s,
         lap: standing.lap(),
         checkpoint: standing.checkpoint,
         spline_progress: standing.spline_progress,
@@ -53,10 +54,12 @@ struct InFlight {
     kart: SnapshotKart,
 }
 
-/// What a run saw: every reconciliation's correction, in metres.
+/// What a run saw: every reconciliation's correction, in metres, and the
+/// client ticks the predicted kart showed a spin-out.
 struct Run {
     prediction: Prediction,
     corrections_m: Vec<f32>,
+    spun_out_ticks: u32,
 }
 
 /// One kart raced for `ticks` server ticks: once the first input lands
@@ -64,18 +67,55 @@ struct Run {
 /// standing in for one that never arrived, and snapshots every other tick;
 /// the client starts its countdown when the race's first message reaches
 /// it and sends one input per tick. Inputs whose sequence `lost` picks
-/// never arrive.
+/// never arrive. The scripted driver is the bot's driving.
 fn race(ticks: u32, lost: impl Fn(u32) -> bool) -> Run {
-    let mut server = State::new(SEED, 1, oval());
-    let mut prediction = Prediction::new(SEED, 0, oval());
     let mut memory = Memory::default();
     let mut item_held_ticks = 0;
+    race_with(
+        ticks,
+        lost,
+        State::new(SEED, 1, oval()),
+        |prediction, _| {
+            let mut input = bot::drive(
+                prediction.track(),
+                &[prediction.kart_transform()],
+                &[prediction.standing()],
+                0,
+                &mut memory,
+                DT,
+            );
+            // A hand holds the item button past the tick it goes down, so a
+            // lost press is still seen held by the server.
+            if input.use_item {
+                item_held_ticks = HAND_HOLD_TICKS;
+            }
+            input.hold_item |= item_held_ticks > 0;
+            item_held_ticks = item_held_ticks.saturating_sub(1);
+            input
+        },
+        |_| Vec::new(),
+    )
+}
+
+/// [`race`] on `server`, whose first kart is the one predicted, driven by
+/// `driver` from the prediction as the client draws it at each client
+/// tick; the server's other humans are driven by `others`, one input each
+/// per server tick.
+fn race_with(
+    ticks: u32,
+    lost: impl Fn(u32) -> bool,
+    mut server: State,
+    mut driver: impl FnMut(&Prediction, u32) -> KartInput,
+    mut others: impl FnMut(u32) -> Vec<KartInput>,
+) -> Run {
+    let mut prediction = Prediction::new(SEED, 0, server.track().clone());
     let mut inputs_in_flight: VecDeque<(u32, u32, KartInput)> = VecDeque::new();
     let mut snapshots_in_flight: VecDeque<InFlight> = VecDeque::new();
     let mut arrived = Vec::new();
     let mut applied = (0, KartInput::default());
     let mut sequence = 0;
     let mut corrections_m = Vec::new();
+    let mut spun_out_ticks = 0;
     for tick in 1..=ticks {
         while inputs_in_flight
             .front()
@@ -92,7 +132,9 @@ fn race(ticks: u32, lost: impl Fn(u32) -> bool) -> Run {
                 .map_or(applied.1, |&(_, input)| input);
             applied = (next, input);
         }
-        server = step(server, &[applied.1], DT);
+        let mut inputs = vec![applied.1];
+        inputs.extend(others(tick));
+        server = step(server, &inputs, DT);
         if tick.is_multiple_of(TICKS_PER_SNAPSHOT) {
             snapshots_in_flight.push_back(InFlight {
                 arrives: tick + ONE_WAY_TICKS,
@@ -116,23 +158,10 @@ fn race(ticks: u32, lost: impl Fn(u32) -> bool) -> Run {
                 &snapshot.kart,
             ));
         }
-        let mut input = bot::drive(
-            prediction.track(),
-            &[prediction.kart_transform()],
-            &[prediction.standing()],
-            0,
-            &mut memory,
-            DT,
-        );
-        // A hand holds the item button past the tick it goes down, so a
-        // lost press is still seen held by the server.
-        if input.use_item {
-            item_held_ticks = HAND_HOLD_TICKS;
-        }
-        input.hold_item |= item_held_ticks > 0;
-        item_held_ticks = item_held_ticks.saturating_sub(1);
+        let input = driver(&prediction, tick);
         sequence += 1;
         prediction.tick(sequence, input, &[]);
+        spun_out_ticks += u32::from(prediction.kart_transform().spin_out_s.is_some());
         if !lost(sequence) {
             inputs_in_flight.push_back((tick + 1 + ONE_WAY_TICKS, sequence, input));
         }
@@ -140,6 +169,7 @@ fn race(ticks: u32, lost: impl Fn(u32) -> bool) -> Run {
     Run {
         prediction,
         corrections_m,
+        spun_out_ticks,
     }
 }
 
@@ -306,4 +336,105 @@ fn the_prediction_takes_no_box_and_fills_its_slot_from_the_snapshots_alone() {
     // The snapshot's word fills the slot.
     prediction.reconcile(sequence, sequence, &snapshot_of(&server));
     assert_eq!(prediction.kart_transform().held_item, held);
+}
+
+/// Full throttle toward the point `lookahead` metres down the track in the
+/// lane `lane_x` metres from the oval's front straight, which runs along
+/// -Z: the pursuit steer of the bot's driving, without the rest of it.
+fn down_the_lane(kart: &sim::KartTransform, lane_x: f32) -> KartInput {
+    const LOOKAHEAD_M: f32 = 12.0;
+    let [x, y, z, w] = kart.rotation;
+    let yaw = (2.0 * (w * y + x * z)).atan2(1.0 - 2.0 * (y * y + z * z));
+    let (dx, dz) = (lane_x - kart.position[0], -LOOKAHEAD_M);
+    let distance = (dx * dx + dz * dz).sqrt();
+    let (sin, cos) = yaw.sin_cos();
+    let rightward = (dx * cos - dz * sin) / distance;
+    KartInput {
+        steer: (rightward * 4.0).clamp(-1.0, 1.0),
+        throttle: 1.0,
+        ..KartInput::default()
+    }
+}
+
+#[test]
+fn a_hit_the_server_decides_reaches_the_prediction_as_one_correction_and_the_spin_out_holds_it() {
+    use sim::{Item, RaceEvent};
+    // Two humans: the own kart on slot 0 and, on slot 1 beside it, a kart
+    // standing on a box that rolls it a hazard at Go. The seeds are tried
+    // in order until one does.
+    let mut sidecar: serde_json::Value = serde_json::from_str(OVAL).expect("valid JSON");
+    let slot = sidecar["spawn_grid"][1]["position"].clone();
+    sidecar["item_boxes"] = serde_json::json!([{ "position": slot, "yaw": 0.0 }]);
+    let track = Track::from_sidecar(&sidecar.to_string()).expect("the boxed oval loads");
+    let idle = [KartInput::default(); 2];
+    let (seed, go) = (0..)
+        .find_map(|seed| {
+            let mut state = State::new(seed, 2, track.clone());
+            let mut tick = 0;
+            while !matches!(state.phase(), Phase::Racing { .. }) {
+                state = step(state, &idle, DT);
+                tick += 1;
+            }
+            let state = step(state, &idle, DT);
+            let rolled = state.events().contains(&RaceEvent::ItemPicked {
+                kart: 1,
+                item: Item::Hazard,
+                item_box: 0,
+            });
+            rolled.then_some((seed, tick + 1))
+        })
+        .expect("a seed rolls a hazard");
+    let server = State::new(seed, 2, track.clone());
+
+    // The other kart fires its hazard the tick after it has it, trails it
+    // up the lane it stands in at full throttle and drops it two seconds
+    // on; the own kart waits a second after Go, then drives up that lane.
+    let other = |tick: u32| {
+        vec![KartInput {
+            throttle: f32::from(u8::from(tick > go)),
+            use_item: tick == go + 1,
+            hold_item: tick > go && tick < go + seconds(2.0),
+            ..KartInput::default()
+        }]
+    };
+    let lane_x = track.spawn_grid()[1].position[0] + 0.5;
+    let driver = |prediction: &Prediction, tick: u32| {
+        if tick < go + seconds(1.0) {
+            KartInput::default()
+        } else {
+            down_the_lane(&prediction.kart_transform(), lane_x)
+        }
+    };
+    let run = race_with(seconds(9.0), |_| false, server, driver, other);
+
+    assert_eq!(
+        run.prediction.corrections(),
+        1,
+        "the hit is the one correction: {:?}",
+        run.corrections_m
+    );
+    let hit = run
+        .corrections_m
+        .iter()
+        .position(|&moved| moved > RECONCILIATION_TOLERANCE_M)
+        .expect("the hit corrected the kart");
+    assert!(
+        run.corrections_m[hit..]
+            .iter()
+            .skip(1)
+            .all(|&moved| moved <= RECONCILIATION_TOLERANCE_M),
+        "every snapshot after the hit agreed: {:?}",
+        &run.corrections_m[hit..]
+    );
+    // The snapshot that carried the hit reached the client a one-way trip
+    // after it; the timer it brought ran the rest of the spin-out.
+    let spin_out = seconds(sim::tuning::SPIN_OUT_S);
+    assert!(
+        (spin_out - 2 * ONE_WAY_TICKS..=spin_out).contains(&run.spun_out_ticks),
+        "spun out for {} ticks, expected about {spin_out}",
+        run.spun_out_ticks
+    );
+    let kart = run.prediction.kart_transform();
+    assert_eq!(kart.spin_out_s, None, "recovered by the end");
+    assert!(kart.speed > 5.0, "driving on at {} m/s", kart.speed);
 }

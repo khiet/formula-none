@@ -5,6 +5,7 @@ export type { DriftSnapshot } from "./DriftSnapshot";
 export type { Event } from "./Event";
 export type { EventKind } from "./EventKind";
 export type { FinalStanding } from "./FinalStanding";
+export type { HazardSnapshot } from "./HazardSnapshot";
 export type { Input } from "./Input";
 export type { Item } from "./Item";
 export type { KartSnapshot } from "./KartSnapshot";

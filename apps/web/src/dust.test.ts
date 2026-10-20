@@ -10,6 +10,7 @@ function kartOn(surface: Surface, speed = 10): KartTransform {
     surface,
     drift: null,
     heldItem: null,
+    spinOutSeconds: null,
   };
 }
 

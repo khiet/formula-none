@@ -6,9 +6,9 @@
 //! until it has one.
 
 use crate::{
-    ClientMessage, DriftDirection, DriftSnapshot, Event, EventKind, FinalStanding, Input, Item,
-    KartSnapshot, Player, PlayerState, Refusal, Room, RoomState, ServerMessage, Snapshot,
-    PROTOCOL_VERSION,
+    ClientMessage, DriftDirection, DriftSnapshot, Event, EventKind, FinalStanding, HazardSnapshot,
+    Input, Item, KartSnapshot, Player, PlayerState, Refusal, Room, RoomState, ServerMessage,
+    Snapshot, PROTOCOL_VERSION,
 };
 
 /// Every [`ClientMessage`] variant once.
@@ -116,8 +116,9 @@ pub fn room() -> Room {
 }
 
 /// A busy moment two minutes into a race with eight karts: two drifting,
-/// five holding items, one spun out, and every kind of event since the
-/// previous snapshot. The byte budget in ADR 0010 is measured against this.
+/// five holding items, one spun out, a hazard trailed behind a kart, and
+/// every kind of event since the previous snapshot. The byte budget in ADR
+/// 0010 is measured against this.
 pub fn snapshot() -> Snapshot {
     let karts = (0..8u8)
         .map(|slot| {
@@ -153,6 +154,11 @@ pub fn snapshot() -> Snapshot {
         acknowledged: vec![7195, 7198, 0, 0, 0, 0, 0, 0],
         karts,
         events: every_event_kind(),
+        hazards: vec![HazardSnapshot {
+            position: [20.5, 0.0, -44.5],
+            owner: 3,
+            held: true,
+        }],
     }
 }
 

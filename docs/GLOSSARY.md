@@ -131,10 +131,20 @@ the kart's race position band: the leaders mostly hazards, the back of the
 field mostly homing. Only the server rolls; a client's prediction never
 picks up a box and holds what the snapshots say.
 
+### hazard
+
+The defending item. Fired, it drops 1 m behind the kart, on the surface;
+with the item button held it trails there until the button is let go. It
+spins out the first kart to reach it and is used up, never the kart that
+dropped it until that kart has driven clear of it, and a dropped hazard is
+gone after 30 s. Every snapshot carries the hazards on the track; a client
+draws a trailed one behind the kart as it draws that kart.
+
 ### spin-out
 
-A kart stopped and spun by an item for a fixed time (1 s). Every spin-out is a
-server event; clients only show it.
+A kart stopped and spun by an item for a fixed time (1 s): dead to its
+controls and moved by nothing until the time runs out. Every spin-out is a
+server event, and the snapshots carry the time left; clients only show it.
 
 ### livery
 

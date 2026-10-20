@@ -17,8 +17,8 @@
 //! walks Countdown, Racing and Finished through `step`, so a room on the
 //! server can drive the lifecycle a solo race in the browser does. What a
 //! tick changed that the players are told about, a lap completed, a finish,
-//! a respawn, an item picked up or fired, is read from [`State::events`] after
-//! that tick.
+//! a respawn, an item picked up or fired, a spin-out, is read from
+//! [`State::events`] after that tick.
 
 pub mod bot;
 mod hash;
@@ -85,11 +85,13 @@ pub struct KartTransform {
     pub drift: Option<Drift>,
     /// The item in the kart's slot; `None` while the slot is empty.
     pub held_item: Option<Item>,
+    /// Seconds of spin-out left, while the kart is spun out: stopped, with
+    /// its inputs ignored. The View spins it for the duration.
+    pub spin_out_s: Option<f32>,
 }
 
-/// The items a kart can hold: what an item box rolls. Only the boost does
-/// anything when fired so far; a hazard or a homing projectile fires to no
-/// effect until its rules land.
+/// The items a kart can hold: what an item box rolls. The homing projectile
+/// fires to no effect until its rules land.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Item {
     /// A burst of speed: the tuned factor on top speed for the tuned time.
@@ -98,6 +100,32 @@ pub enum Item {
     Hazard,
     /// Follows the track to the kart ahead and spins it out.
     Homing,
+}
+
+/// A hazard on the track, as the View draws it: where it lies, whose it is
+/// and whether that kart is still trailing it behind itself.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Hazard {
+    /// Its centre, on the surface, in metres.
+    pub position: [f32; 3],
+    /// The grid index of the kart that fired it.
+    pub owner: usize,
+    /// Trailing the tuned distance behind its owner while the owner holds
+    /// the item button; dropped where it is once the button is let go.
+    pub held: bool,
+}
+
+/// A hazard as the rules keep it: what the View sees, plus how long it has
+/// left and whether its owner has got clear of it since the drop.
+#[derive(Debug, Clone, Copy, PartialEq)]
+struct PlacedHazard {
+    hazard: Hazard,
+    /// Seconds until a dropped hazard is gone; a held one does not age.
+    lifetime_left_s: f32,
+    /// Whether the owner has been out of the hazard's reach since firing
+    /// it. Until then the owner cannot hit it: the drop puts it right
+    /// behind the kart, and a hold keeps it there.
+    clear_of_owner: bool,
 }
 
 impl Item {
@@ -242,6 +270,9 @@ pub enum RaceEvent {
     },
     /// The kart fired the item it held; its slot is empty again.
     ItemFired { kart: usize, item: Item },
+    /// The kart hit a hazard `by` fired and is spun out: stopped, with its
+    /// inputs ignored, for the tuned time.
+    SpunOut { kart: usize, by: usize },
 }
 
 /// Where the race is. Every value here is read from `step`, never from a
@@ -351,6 +382,8 @@ pub struct State {
     /// Seconds until each of the track's item boxes is back, in the
     /// track's order; zero or less while the box is there to pick up.
     item_box_respawn_s: Vec<f32>,
+    /// The hazards on the track, in the order they were fired.
+    hazards: Vec<PlacedHazard>,
 }
 
 #[derive(Clone)]
@@ -417,6 +450,9 @@ struct Kart {
     /// Whether the item button was down last tick, so a held button fires
     /// once, as it goes down, and holding it through a pickup fires nothing.
     item_was_held: bool,
+    /// Seconds of spin-out left after a hit; the kart is stopped and dead to
+    /// every control until it runs out. Zero or less when not spun out.
+    spin_out_left_s: f32,
 }
 
 impl Kart {
@@ -426,6 +462,15 @@ impl Kart {
 
     fn airborne(&self) -> bool {
         self.airtime_left_s > 0.0
+    }
+
+    fn spun_out(&self) -> bool {
+        self.spin_out_left_s > 0.0
+    }
+
+    /// Dead to every control: stalled at Go or spun out by an item.
+    fn ignores_inputs(&self) -> bool {
+        self.stall_left_s > 0.0 || self.spun_out()
     }
 }
 
@@ -475,8 +520,9 @@ use tuning::{
     MINI_TURBO_BOOST_FACTOR, OFF_TRACK_SPEED_FACTOR, TOP_SPEED_M_PER_S,
 };
 use tuning::{
-    ITEM_BOOST_FACTOR, ITEM_BOOST_S, ITEM_BOX_HALF_LENGTH_M, ITEM_BOX_HALF_WIDTH_M,
-    ITEM_BOX_RESPAWN_S, ITEM_ROLL_PERCENT, ITEM_ROLL_WEIGHTS,
+    HAZARD_DROP_DISTANCE_M, HAZARD_LIFETIME_S, HAZARD_RADIUS_M, ITEM_BOOST_FACTOR, ITEM_BOOST_S,
+    ITEM_BOX_HALF_LENGTH_M, ITEM_BOX_HALF_WIDTH_M, ITEM_BOX_RESPAWN_S, ITEM_ROLL_PERCENT,
+    ITEM_ROLL_WEIGHTS, SPIN_OUT_S,
 };
 
 /// A surface query starts this far above the asked point, so a point lying
@@ -577,6 +623,7 @@ impl State {
                     finish_time_s: None,
                     held_item: None,
                     item_was_held: false,
+                    spin_out_left_s: 0.0,
                 }
             })
             .collect();
@@ -585,6 +632,7 @@ impl State {
         Self {
             rng: ChaCha8Rng::seed_from_u64(seed),
             item_box_respawn_s: vec![0.0; track.item_boxes().len()],
+            hazards: Vec::new(),
             track,
             karts,
             humans,
@@ -630,6 +678,12 @@ impl State {
             .iter()
             .map(|&respawn_s| respawn_s <= 0.0)
             .collect()
+    }
+
+    /// The hazards on the track as of the last tick, in the order they were
+    /// fired.
+    pub fn hazards(&self) -> Vec<Hazard> {
+        self.hazards.iter().map(|placed| placed.hazard).collect()
     }
 
     /// A bot drives the human's kart in `slot` from the next tick, with no
@@ -723,6 +777,14 @@ impl State {
         hasher.write_u64(self.rng.get_stream());
         hasher.write_u128(self.rng.get_word_pos());
         hasher.write_f32s(self.item_box_respawn_s.iter().copied());
+        hasher.write_u64(self.hazards.len() as u64);
+        for placed in &self.hazards {
+            hasher.write_f32s(placed.hazard.position);
+            hasher.write_u64(placed.hazard.owner as u64);
+            hasher.write_u8(u8::from(placed.hazard.held));
+            hasher.write_f32(placed.lifetime_left_s);
+            hasher.write_u8(u8::from(placed.clear_of_owner));
+        }
         for kart in &self.karts {
             let body = &self.physics.bodies[kart.body];
             hasher.write_f32(kart.speed);
@@ -750,6 +812,7 @@ impl State {
             hasher.write_f32(kart.finish_time_s.unwrap_or(NO_TIME));
             hasher.write_u8(kart.held_item.map_or(0, Item::code));
             hasher.write_u8(u8::from(kart.item_was_held));
+            hasher.write_f32(kart.spin_out_left_s);
             if let Some(memory) = &kart.bot {
                 hasher.write_f32s(memory.timers());
             }
@@ -822,6 +885,7 @@ impl State {
                     velocity: body.linvel().to_array(),
                     drift: kart.drift,
                     held_item: kart.held_item,
+                    spin_out_s: kart.spun_out().then_some(kart.spin_out_left_s),
                 }
             })
             .collect()
@@ -908,19 +972,34 @@ pub fn step(mut state: State, inputs: &[KartInput], dt: f32) -> State {
             .collect()
     };
     // Fires come before pickups, so a press on the tick a box is picked up
-    // fires what the kart held, never what it has just rolled. A stalled
-    // kart's press is as dead as its other controls.
+    // fires what the kart held, never what it has just rolled. A stalled or
+    // spun-out kart's press is as dead as its other controls.
     for (slot, input) in inputs.iter().enumerate() {
         let kart = &mut state.karts[slot];
         let pressed = input.use_item || (input.hold_item && !kart.item_was_held);
         kart.item_was_held = input.hold_item;
-        if kart.stall_left_s > 0.0 || !pressed {
+        if kart.ignores_inputs() || !pressed {
             continue;
         }
         if let Some(item) = kart.held_item.take() {
-            if item == Item::Boost {
-                kart.boost_left_s = ITEM_BOOST_S;
-                kart.boost_factor = ITEM_BOOST_FACTOR;
+            match item {
+                Item::Boost => {
+                    kart.boost_left_s = ITEM_BOOST_S;
+                    kart.boost_factor = ITEM_BOOST_FACTOR;
+                }
+                Item::Hazard => {
+                    let body = &state.physics.bodies[kart.body];
+                    state.hazards.push(PlacedHazard {
+                        hazard: Hazard {
+                            position: behind(body.translation(), body.rotation()),
+                            owner: slot,
+                            held: true,
+                        },
+                        lifetime_left_s: HAZARD_LIFETIME_S,
+                        clear_of_owner: false,
+                    });
+                }
+                Item::Homing => {}
             }
             state.events.push(RaceEvent::ItemFired { kart: slot, item });
         }
@@ -966,21 +1045,31 @@ pub fn step(mut state: State, inputs: &[KartInput], dt: f32) -> State {
                 .surface_at(state.physics.bodies[kart.body].translation().to_array())
         })
         .collect();
-    for (((kart, input), surface), top_speed) in state
+    // Whether each kart holds the item button this tick, as the controls
+    // reach the handling: a kart dead to its controls holds nothing.
+    let mut holds = vec![false; state.karts.len()];
+    for ((((kart, input), surface), top_speed), hold) in state
         .karts
         .iter_mut()
         .zip(&inputs)
         .zip(surfaces)
         .zip(top_speeds)
+        .zip(&mut holds)
     {
-        // A stalled kart sits dead to every control until the stall runs out.
-        let input = if kart.stall_left_s > 0.0 {
+        // A stalled or spun-out kart sits dead to every control until its
+        // time runs out.
+        let input = if kart.ignores_inputs() {
             kart.stall_left_s -= dt;
+            kart.spin_out_left_s -= dt;
             &KartInput::default()
         } else {
             input
         };
+        *hold = input.hold_item;
         let body = &mut state.physics.bodies[kart.body];
+        // A spun-out kart stands where it is, whatever runs into it; the
+        // tick its spin-out runs out it moves again.
+        body.lock_translations(kart.spun_out(), true);
         let position = body.translation().to_array();
         // Keep whatever vertical velocity gravity and the plane have agreed
         // on, unless this tick's hop launches the kart.
@@ -1024,6 +1113,13 @@ pub fn step(mut state: State, inputs: &[KartInput], dt: f32) -> State {
         if kart.boost_left_s > 0.0 {
             kart.boost_left_s -= dt;
             kart.speed = TOP_SPEED_M_PER_S * kart.boost_factor;
+        }
+        // A spin-out stops the kart whatever else it had going, a boost
+        // included: a prediction that learns of a hit from a snapshot still
+        // holds a boost the snapshot does not carry.
+        if kart.spun_out() {
+            kart.speed = 0.0;
+            kart.boost_left_s = 0.0;
         }
         let (steer, slip) = match kart.drift {
             Some(drift) => (
@@ -1095,6 +1191,51 @@ pub fn step(mut state: State, inputs: &[KartInput], dt: f32) -> State {
             }
         }
     }
+    // A held hazard trails its owner to where the owner ended the tick;
+    // letting go of the button, or losing the controls, leaves it there.
+    for placed in &mut state.hazards {
+        if !placed.hazard.held {
+            continue;
+        }
+        let owner = &state.karts[placed.hazard.owner];
+        if holds[placed.hazard.owner] {
+            let body = &state.physics.bodies[owner.body];
+            placed.hazard.position = behind(body.translation(), body.rotation());
+        } else {
+            placed.hazard.held = false;
+        }
+    }
+    // A dropped hazard ages away; one still lying there spins out the first
+    // kart to reach it, its owner included once the owner has got clear of
+    // it, and is used up. A kart already spun out hits nothing more.
+    let mut hazards = std::mem::take(&mut state.hazards);
+    hazards.retain_mut(|placed| {
+        if !placed.hazard.held {
+            placed.lifetime_left_s -= dt;
+            if placed.lifetime_left_s <= 0.0 {
+                return false;
+            }
+        }
+        for (slot, kart) in state.karts.iter_mut().enumerate() {
+            let body = &mut state.physics.bodies[kart.body];
+            let reached = reaches(body.translation(), body.rotation(), placed.hazard.position);
+            if slot == placed.hazard.owner && !placed.clear_of_owner {
+                placed.clear_of_owner = !reached;
+                continue;
+            }
+            if !reached || kart.spun_out() {
+                continue;
+            }
+            spin_out(kart, body);
+            state.events.push(RaceEvent::SpunOut {
+                kart: slot,
+                by: placed.hazard.owner,
+            });
+            return false;
+        }
+        true
+    });
+    state.hazards = hazards;
     // Places are read once every kart has moved, so two karts finishing on
     // the same tick are placed by their finish times, as the standings are.
     if !finished_this_tick.is_empty() {
@@ -1290,6 +1431,42 @@ fn cross_checkpoint(
     }
     kart.checkpoint = next;
     completed
+}
+
+/// Where a hazard dropped by a kart standing at `translation` facing
+/// `rotation` lies: the tuned distance behind the kart, on the surface
+/// under its centre.
+fn behind(translation: Vec3, rotation: &Rotation) -> [f32; 3] {
+    let rear = *rotation * Vec3::Z;
+    (translation + rear * HAZARD_DROP_DISTANCE_M - Vec3::Y * KART_HALF_HEIGHT_M).to_array()
+}
+
+/// Whether a kart standing at `translation` facing `rotation` reaches a
+/// hazard centred at `hazard`: the hazard's centre lies within the tuned
+/// radius of the kart's collision box, seen from above.
+fn reaches(translation: Vec3, rotation: &Rotation, hazard: [f32; 3]) -> bool {
+    let local = rotation.inverse() * (Vec3::from(hazard) - translation);
+    let nearest = Vec3::new(
+        local.x.clamp(-KART_HALF_WIDTH_M, KART_HALF_WIDTH_M),
+        0.0,
+        local.z.clamp(-KART_HALF_LENGTH_M, KART_HALF_LENGTH_M),
+    );
+    let (dx, dz) = (local.x - nearest.x, local.z - nearest.z);
+    dx * dx + dz * dz <= HAZARD_RADIUS_M * HAZARD_RADIUS_M
+}
+
+/// Stop the kart where it is and start its spin-out: nothing it was doing,
+/// a drift, a boost or a hop, carries on, no control reaches it and no
+/// kart pushes it until the spin-out runs out.
+fn spin_out(kart: &mut Kart, body: &mut RigidBody) {
+    kart.spin_out_left_s = SPIN_OUT_S;
+    kart.speed = 0.0;
+    kart.drift = None;
+    kart.hop_direction = None;
+    kart.boost_left_s = 0.0;
+    body.set_linvel(Vec3::ZERO, true);
+    body.set_angvel(Vec3::ZERO, true);
+    body.lock_translations(true, true);
 }
 
 /// The upward speed that brings a kart back to the track after the tuned

@@ -1,7 +1,14 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import type { Bridge, KartInput, KartTransform, Phase, Prediction, Race } from "./bridge";
 import { TOKEN } from "./fake-connection";
-import type { Event, FinalStanding, Input, KartSnapshot, Snapshot } from "./generated/protocol";
+import type {
+  Event,
+  FinalStanding,
+  HazardSnapshot,
+  Input,
+  KartSnapshot,
+  Snapshot,
+} from "./generated/protocol";
 import { IDLE_INPUT } from "./input";
 import { ITEM_FIRE_FLASH_S } from "./race-scene";
 import { type Countdown, quantiseInput, type RoomClient } from "./room-client";
@@ -20,6 +27,8 @@ const KARTS = 8;
 const ITEM_BOX_RESPAWN_S = 3;
 const PREDICTED_FIRE_TIMEOUT_S = 1;
 const ITEM_BOXES = 8;
+const HAZARD_DROP_DISTANCE_M = 1;
+const KART_HEIGHT_M = 0.6;
 
 const GRID_TRANSFORM: KartTransform = {
   position: [1, 0.3, 2],
@@ -28,6 +37,7 @@ const GRID_TRANSFORM: KartTransform = {
   surface: "asphalt",
   drift: null,
   heldItem: null,
+  spinOutSeconds: null,
 };
 
 const PREDICTED: KartTransform = {
@@ -37,6 +47,7 @@ const PREDICTED: KartTransform = {
   surface: "asphalt",
   drift: null,
   heldItem: "hazard",
+  spinOutSeconds: null,
 };
 
 interface FakePrediction extends Prediction {
@@ -63,6 +74,9 @@ const bridge = {
   lapsPerRace: 3,
   itemBoxRespawnSeconds: ITEM_BOX_RESPAWN_S,
   predictedFireTimeoutSeconds: PREDICTED_FIRE_TIMEOUT_S,
+  hazardDropDistanceM: HAZARD_DROP_DISTANCE_M,
+  spinOutSeconds: 1,
+  kartSize: { width: 1.2, height: KART_HEIGHT_M, length: 1.8 },
   createRace: () =>
     ({
       kartTransforms: () => Array<KartTransform>(KARTS).fill(GRID_TRANSFORM),
@@ -169,12 +183,17 @@ const KART: KartSnapshot = {
   spinOutS: null,
 };
 
-function snapshot(tick: number, karts: Partial<KartSnapshot>[] = []): Snapshot {
+function snapshot(
+  tick: number,
+  karts: Partial<KartSnapshot>[] = [],
+  hazards: HazardSnapshot[] = [],
+): Snapshot {
   return {
     tick,
     acknowledged: Array<number>(KARTS).fill(0),
     karts: Array.from({ length: KARTS }, (_, kart) => ({ ...KART, ...karts[kart] })),
     events: [],
+    hazards,
   };
 }
 
@@ -233,6 +252,7 @@ describe("createServerRace", () => {
       surface: "sand",
       drift: { direction: "left", chargeSeconds: 1, miniTurbo: "blue" },
       heldItem: null,
+      spinOutSeconds: null,
     };
     prediction().interpolated = Array<KartTransform>(KARTS).fill(interpolated);
     const [first, own, third] = run.kartTransforms();
@@ -366,6 +386,39 @@ describe("createServerRace", () => {
     client.event(fired(2, 0));
     client.snapshot(snapshot(64, [{ heldItem: "boost" }]));
     expect(run.itemSlot()).toEqual({ item: null, firing: true });
+  });
+
+  it("draws the newest snapshot's hazards, a trailed one behind the kart that trails it as that kart is drawn", () => {
+    const client = fakeClient();
+    const run = createServerRace(bridge, client, COUNTDOWN, 0, "{}");
+    expect(run.hazards()).toEqual([]);
+    const dropped: HazardSnapshot = { position: [5, 0, -30], owner: 2, held: false };
+    client.snapshot(snapshot(60, [], [dropped, { position: [9, 0, -9], owner: 0, held: true }]));
+    // The own kart is drawn where it is predicted, facing -Z: its hazard
+    // trails the drop distance behind, on the surface under it.
+    const [x, y, z] = PREDICTED.position;
+    expect(run.hazards()).toEqual([
+      dropped,
+      {
+        position: [x, y - KART_HEIGHT_M / 2, z + HAZARD_DROP_DISTANCE_M],
+        owner: 0,
+        held: true,
+      },
+    ]);
+    // Another kart's trailed hazard follows that kart where the
+    // interpolation draws it, turned with the kart: a quarter turn about
+    // +Y faces it -X, so its rear is +X.
+    const interpolated: KartTransform = {
+      ...GRID_TRANSFORM,
+      position: [20, 0.3, -50],
+      rotation: [0, Math.SQRT1_2, 0, Math.SQRT1_2],
+    };
+    prediction().interpolated = Array<KartTransform>(KARTS).fill(interpolated);
+    client.snapshot(snapshot(62, [], [{ position: [0, 0, 0], owner: 3, held: true }]));
+    const [trailed] = run.hazards();
+    expect(trailed?.position[0]).toBeCloseTo(20 + HAZARD_DROP_DISTANCE_M, 5);
+    expect(trailed?.position[1]).toBeCloseTo(0.3 - KART_HEIGHT_M / 2, 5);
+    expect(trailed?.position[2]).toBeCloseTo(-50, 5);
   });
 
   it("hides a box the server reports picked up for the tuned respawn", () => {

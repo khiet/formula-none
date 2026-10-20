@@ -2,12 +2,14 @@ import {
   AmbientLight,
   BoxGeometry,
   Color,
+  ConeGeometry,
   DirectionalLight,
   Group,
   Mesh,
   MeshBasicMaterial,
   MeshStandardMaterial,
   PerspectiveCamera,
+  Quaternion,
   SphereGeometry,
   Scene as ThreeScene,
   Vector3,
@@ -15,7 +17,7 @@ import {
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { CSS2DObject, CSS2DRenderer } from "three/addons/renderers/CSS2DRenderer.js";
 import { WebGPURenderer } from "three/webgpu";
-import type { ItemBox, KartSize, KartTransform } from "./bridge";
+import type { Hazard, ItemBox, KartSize, KartTransform } from "./bridge";
 import type { CameraPose } from "./chase-camera";
 import { type DustTell, dustTell } from "./dust";
 import type { KartLabel } from "./kart-labels";
@@ -37,18 +39,26 @@ const DUST_RADIUS = 0.6;
 const ITEM_BOX_SIZE_M = 1;
 const ITEM_BOX_HEIGHT_M = 1;
 const ITEM_BOX_COLOUR = 0xffcc33;
+/** The placeholder hazard: a cone this wide and tall, in this colour. */
+const HAZARD_RADIUS_M = 0.5;
+const HAZARD_HEIGHT_M = 0.6;
+const HAZARD_COLOUR = 0xff5522;
+/** A spun-out kart turns this many times over its spin-out. */
+const SPIN_OUT_TURNS = 2;
 
 export interface RaceView {
   /**
-   * Move every kart mesh to the transforms the sim reports, hang `labels`
-   * where they say and hide every other kart's, move the camera to
-   * `camera`, and show each item box that is there to pick up.
+   * Move every kart mesh to the transforms the sim reports, spinning one
+   * that is spun out, hang `labels` where they say and hide every other
+   * kart's, move the camera to `camera`, show each item box that is there
+   * to pick up and a marker at each hazard.
    */
   update(
     transforms: readonly KartTransform[],
     labels: readonly KartLabel[],
     camera: CameraPose,
     itemBoxesPresent: readonly boolean[],
+    hazards: readonly Hazard[],
   ): void;
   render(): void;
   /** Take the canvas off the page and free the renderer. */
@@ -59,9 +69,11 @@ export interface RaceView {
  * The Race Scene's View: the track's glTF, one box per kart and one per
  * item box, drawn by Three.js from the transforms the bridge reports and
  * the pose the chase camera computes, with a name floating over each kart
- * the Scene labels. The track mesh is Presentation only; the sim has its
- * own copy of the geometry from the sidecar. Picks WebGPU when the browser
- * has it and WebGL otherwise.
+ * the Scene labels, and a cone at each hazard. The track mesh is
+ * Presentation only; the sim has its own copy of the geometry from the
+ * sidecar. A spun-out kart is turned about its axis over `spinOutSeconds`,
+ * the spin-out's Feedback. Picks WebGPU when the browser has it and WebGL
+ * otherwise.
  */
 export async function createRaceView(
   container: HTMLElement,
@@ -69,6 +81,7 @@ export async function createRaceView(
   kartSize: KartSize,
   trackGltfUrl: string,
   itemBoxes: readonly ItemBox[],
+  spinOutSeconds: number,
 ): Promise<RaceView> {
   const renderer = new WebGPURenderer({ antialias: true });
   await renderer.init();
@@ -117,6 +130,11 @@ export async function createRaceView(
     return mesh;
   });
 
+  // One cone per hazard, made as hazards appear and hidden as they go.
+  const hazardGeometry = new ConeGeometry(HAZARD_RADIUS_M, HAZARD_HEIGHT_M);
+  const hazardMaterial = new MeshBasicMaterial({ color: HAZARD_COLOUR });
+  const hazardMeshes: Mesh[] = [];
+
   const labels = Array.from({ length: kartCount }, () => {
     const element = document.createElement("div");
     element.className = "kart-label";
@@ -135,8 +153,10 @@ export async function createRaceView(
   window.addEventListener("resize", resize);
 
   const target = new Vector3();
+  const spin = new Quaternion();
+  const up = new Vector3(0, 1, 0);
   return {
-    update(transforms, kartLabels, pose, itemBoxesPresent) {
+    update(transforms, kartLabels, pose, itemBoxesPresent, hazards) {
       boxes.forEach((mesh, box) => {
         mesh.visible = itemBoxesPresent[box] ?? true;
       });
@@ -147,8 +167,26 @@ export async function createRaceView(
         }
         kart.mesh.position.set(...transform.position);
         kart.mesh.quaternion.set(...transform.rotation);
+        if (transform.spinOutSeconds !== null) {
+          kart.mesh.quaternion.multiply(
+            spin.setFromAxisAngle(up, spinOutAngle(transform.spinOutSeconds, spinOutSeconds)),
+          );
+        }
         kart.showSparks(sparkTell(transform.drift));
         kart.showDust(dustTell(transform));
+      });
+      while (hazardMeshes.length < hazards.length) {
+        const mesh = new Mesh(hazardGeometry, hazardMaterial);
+        world.add(mesh);
+        hazardMeshes.push(mesh);
+      }
+      hazardMeshes.forEach((mesh, index) => {
+        const hazard = hazards[index];
+        mesh.visible = hazard !== undefined;
+        if (hazard !== undefined) {
+          const [x, y, z] = hazard.position;
+          mesh.position.set(x, y + HAZARD_HEIGHT_M / 2, z);
+        }
       });
       for (const label of labels) {
         label.visible = false;
@@ -176,6 +214,16 @@ export async function createRaceView(
       labelRenderer.domElement.remove();
     },
   };
+}
+
+/**
+ * How far round a spun-out kart has turned, in radians, with `left` seconds
+ * of a spin-out of `total` to go: the tuned turns over the whole spin-out,
+ * so the kart faces where the sim has it again as the spin-out ends.
+ */
+export function spinOutAngle(left: number, total: number): number {
+  const elapsed = Math.min(Math.max(total - left, 0), total);
+  return (2 * Math.PI * SPIN_OUT_TURNS * elapsed) / total;
 }
 
 interface PlaceholderKart {

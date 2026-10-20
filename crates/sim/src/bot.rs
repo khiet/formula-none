@@ -5,28 +5,37 @@
 
 use crate::tuning::{
     BOT_AVOID_HALF_WIDTH_M, BOT_BRAKE_HORIZON_S, BOT_CORNER_SAMPLE_M, BOT_CORNER_SPEED_FRACTION,
-    BOT_DRIFT_CURVATURE_RAD_PER_M, BOT_HOP_STEER, BOT_ITEM_USE_DELAY_S, BOT_LINE_RIGHT_OF_CENTRE_M,
-    BOT_LOOKAHEAD_M, BOT_PASS_GAP_M, BOT_REVERSE_S, BOT_STALL_S, BOT_STALL_SPEED_M_PER_S,
-    DRIFT_SLIP_ANGLE_RAD, DRIFT_TURN_NEUTRAL, DRIFT_TURN_STEER_RANGE,
+    BOT_DRIFT_CURVATURE_RAD_PER_M, BOT_HAZARD_HOLD_S, BOT_HOP_STEER, BOT_ITEM_USE_DELAY_S,
+    BOT_LINE_RIGHT_OF_CENTRE_M, BOT_LOOKAHEAD_M, BOT_PASS_GAP_M, BOT_REVERSE_S, BOT_STALL_S,
+    BOT_STALL_SPEED_M_PER_S, DRIFT_SLIP_ANGLE_RAD, DRIFT_TURN_NEUTRAL, DRIFT_TURN_STEER_RANGE,
     STEER_RATE_LOW_SPEED_RAD_PER_S, STEER_RATE_TOP_SPEED_RAD_PER_S, TOP_SPEED_M_PER_S,
 };
-use crate::{DriftDirection, KartInput, KartTransform, Standing, Track};
+use crate::{DriftDirection, Item, KartInput, KartTransform, Standing, Track};
 
 /// What a bot carries from one tick to the next: how long it has been
-/// stalled, how long it still backs up, and how long it has held its
-/// item. Steers the next tick, so [`crate::State::hash`] covers it.
+/// stalled, how long it still backs up, how long it has held its item and
+/// how long it still trails a fired hazard. Steers the next tick, so
+/// [`crate::State::hash`] covers it.
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
 pub struct Memory {
     stalled_s: f32,
     reversing_s: f32,
     /// Seconds the bot has seen an item in its slot; zero while it is empty.
     item_held_s: f32,
+    /// Seconds the bot keeps the item button down after firing a hazard,
+    /// trailing it; zero or less once dropped.
+    hazard_hold_left_s: f32,
 }
 
 impl Memory {
     /// The timers, for the hash.
-    pub(crate) fn timers(&self) -> [f32; 3] {
-        [self.stalled_s, self.reversing_s, self.item_held_s]
+    pub(crate) fn timers(&self) -> [f32; 4] {
+        [
+            self.stalled_s,
+            self.reversing_s,
+            self.item_held_s,
+            self.hazard_hold_left_s,
+        ]
     }
 }
 
@@ -110,7 +119,8 @@ pub fn drive(
 
     // An item is fired on the first straight after it is picked up, with
     // no corner to slow for, and in any case once it has been held for the
-    // tuned delay.
+    // tuned delay. A fired hazard is trailed for the tuned time, then
+    // dropped.
     let use_item = match kart.held_item {
         Some(_) => {
             memory.item_held_s += dt;
@@ -121,13 +131,18 @@ pub fn drive(
             false
         }
     };
+    if use_item && kart.held_item == Some(Item::Hazard) {
+        memory.hazard_hold_left_s = BOT_HAZARD_HOLD_S;
+    }
+    let hold_item = use_item || memory.hazard_hold_left_s > 0.0;
+    memory.hazard_hold_left_s -= dt;
     KartInput {
         steer,
         throttle,
         brake,
         hop,
         use_item,
-        hold_item: use_item,
+        hold_item,
     }
 }
 

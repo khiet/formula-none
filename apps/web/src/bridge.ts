@@ -8,6 +8,7 @@ import init, {
   decode_server_message,
   encode_client_message,
   encode_server_message,
+  hazard_drop_distance_m,
   item_box_respawn_s,
   kart_size_m,
   karts_per_race,
@@ -22,6 +23,7 @@ import init, {
   replay_hash_interval_ticks,
   replay_hashes,
   room_code_length,
+  spin_out_s,
   ticks_per_second,
   Prediction as WasmPrediction,
   Race as WasmRace,
@@ -71,8 +73,9 @@ export interface Drift {
  * What the View and the Instrument panel need per kart: position in metres,
  * unit quaternion [x, y, z, w], speed in metres per second along the kart's
  * facing (negative backing up), the surface under the kart, the drift
- * under way, if any, and the item in the kart's slot, if any. Y up;
- * identity rotation faces -Z.
+ * under way, if any, the item in the kart's slot, if any, and the seconds
+ * of spin-out left while the kart is spun out. Y up; identity rotation
+ * faces -Z.
  */
 export interface KartTransform {
   readonly position: readonly [number, number, number];
@@ -81,12 +84,23 @@ export interface KartTransform {
   readonly surface: Surface;
   readonly drift: Drift | null;
   readonly heldItem: Item | null;
+  readonly spinOutSeconds: number | null;
 }
 
 /** Where an item box stands on the track: metres, and a yaw about +Y, zero facing -Z. */
 export interface ItemBox {
   readonly position: readonly [number, number, number];
   readonly yaw: number;
+}
+
+/**
+ * A hazard on the track as the View draws it: its centre on the surface in
+ * metres, the kart that fired it, and whether that kart still trails it.
+ */
+export interface Hazard {
+  readonly position: readonly [number, number, number];
+  readonly owner: number;
+  readonly held: boolean;
 }
 
 /**
@@ -141,6 +155,8 @@ export interface Race {
   itemBoxes(): ItemBox[];
   /** Whether each item box, in the same order, is there to pick up as of the last step. */
   itemBoxesPresent(): boolean[];
+  /** The hazards on the track as of the last step, in the order they were fired. */
+  hazards(): Hazard[];
   /**
    * The sim's hash of everything that influences future ticks, as of the last
    * step. Bit-identical native and in wasm for the same race and inputs,
@@ -238,6 +254,10 @@ export interface Bridge extends MessageCodec {
   readonly itemBoxRespawnSeconds: number;
   /** How long a fire predicted from a press shows before the server is taken not to have fired (ADR 0014). */
   readonly predictedFireTimeoutSeconds: number;
+  /** Metres behind a kart a trailed hazard rides (ADR 0014). */
+  readonly hazardDropDistanceM: number;
+  /** How long a spin-out lasts (ADR 0014), which the spin animation runs once over. */
+  readonly spinOutSeconds: number;
   /**
    * Karts on the grid, from the sim's tuning; bots fill the slots the humans
    * leave (ADR 0014).
@@ -283,8 +303,9 @@ export interface Bridge extends MessageCodec {
 // Race::standings and Race::phase; a Prediction's transform and phase are laid
 // out as a Race's.
 const FLOATS_PER_INPUT = 6;
-const FLOATS_PER_TRANSFORM = 13;
+const FLOATS_PER_TRANSFORM = 14;
 const FLOATS_PER_ITEM_BOX = 4;
+const FLOATS_PER_HAZARD = 5;
 const FLOATS_PER_STANDING = 8;
 const FLOATS_PER_PHASE = 3;
 /** Phase codes in the phase buffer, in the sim's order. */
@@ -312,6 +333,8 @@ export async function loadBridge(wasm?: BufferSource): Promise<Bridge> {
     countdownSeconds: countdown_s(),
     itemBoxRespawnSeconds: item_box_respawn_s(),
     predictedFireTimeoutSeconds: predicted_fire_timeout_s(),
+    hazardDropDistanceM: hazard_drop_distance_m(),
+    spinOutSeconds: spin_out_s(),
     kartsPerRace: karts_per_race(),
     replayHashIntervalTicks: replay_hash_interval_ticks(),
     createRace(seed, humanCount, botCount, sidecar) {
@@ -450,6 +473,19 @@ class BridgedRace implements Race {
     return Array.from(this.#race.item_boxes_present(), (present) => present !== 0);
   }
 
+  hazards(): Hazard[] {
+    const buffer = this.#race.hazards();
+    if (buffer.length % FLOATS_PER_HAZARD !== 0) {
+      throw new RangeError(`hazard buffer has ${buffer.length} floats`);
+    }
+    const hazards: Hazard[] = [];
+    for (let at = 0; at < buffer.length; at += FLOATS_PER_HAZARD) {
+      const read = (offset: number): number => buffer[at + offset] as number;
+      hazards.push({ position: [read(0), read(1), read(2)], owner: read(3), held: read(4) !== 0 });
+    }
+    return hazards;
+  }
+
   kartTransforms(): KartTransform[] {
     const buffer = this.#race.kart_transforms();
     if (buffer.length !== this.#kartCount * FLOATS_PER_TRANSFORM) {
@@ -511,7 +547,7 @@ class BridgedPrediction implements Prediction {
   }
 }
 
-/** The kart transform whose thirteen floats start at `at`; `slot` names the kart in errors. */
+/** The kart transform whose fourteen floats start at `at`; `slot` names the kart in errors. */
 function transformAt(buffer: Float32Array, at: number, slot: number): KartTransform {
   const read = (offset: number): number => buffer[at + offset] as number;
   const surface = SURFACES[read(8)];
@@ -525,6 +561,7 @@ function transformAt(buffer: Float32Array, at: number, slot: number): KartTransf
     surface,
     drift: drift(read(9), read(10), read(11), slot),
     heldItem: heldItem(read(12), slot),
+    spinOutSeconds: read(13) > 0 ? read(13) : null,
   };
 }
 

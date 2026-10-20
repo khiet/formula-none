@@ -7,9 +7,11 @@
 // one the player's inputs meet on the server. Every item outcome is the
 // server's event: the slot shows the item the server rolled and the boxes
 // it reports taken, and a press only predicts the fire until the server's
-// event confirms it.
+// event confirms it. The hazards are the newest snapshot's; one a kart
+// still trails is drawn behind that kart where the kart is drawn, so it
+// follows the predicted own kart and the interpolated others.
 
-import type { Bridge, Phase, Standing } from "./bridge";
+import type { Bridge, Hazard, KartTransform, Phase, Standing } from "./bridge";
 import type { FinalStanding, Item, Snapshot } from "./generated/protocol";
 import type { ItemSlot } from "./instrument-panel";
 import { ITEM_FIRE_FLASH_S, type RaceRun } from "./race-scene";
@@ -162,6 +164,19 @@ export function createServerRace(
     },
     itemBoxes: () => boxes,
     itemBoxesPresent: () => boxTicksLeft.map((left) => left <= 0),
+    hazards(): Hazard[] {
+      if (latest === undefined) return [];
+      const karts = this.kartTransforms();
+      return latest.hazards.map((hazard) => {
+        const holder = hazard.held ? karts[hazard.owner] : undefined;
+        return holder === undefined
+          ? hazard
+          : {
+              ...hazard,
+              position: behind(holder, bridge.hazardDropDistanceM, bridge.kartSize.height),
+            };
+      });
+    },
     correctionsPerSecond: () => prediction.correctionsPerSecond(),
     dispose() {
       stopSnapshots();
@@ -169,4 +184,18 @@ export function createServerRace(
       stopResults();
     },
   };
+}
+
+/** The point `distance` metres behind `kart`, on the surface under its centre. */
+function behind(
+  kart: KartTransform,
+  distance: number,
+  kartHeight: number,
+): readonly [number, number, number] {
+  // The kart faces -Z, so its rear is +Z turned by its yaw.
+  const [qx, qy, qz, qw] = kart.rotation;
+  const rearX = 2 * (qx * qz + qw * qy);
+  const rearZ = 1 - 2 * (qx * qx + qy * qy);
+  const [x, y, z] = kart.position;
+  return [x + rearX * distance, y - kartHeight / 2, z + rearZ * distance];
 }
