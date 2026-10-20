@@ -384,7 +384,7 @@ fn the_prediction_never_spins_its_kart_out_on_a_hazard_it_dropped() {
     assert!(end[2] > start[2] + 10.0, "backed well past the drop");
 }
 
-/// Full throttle toward the point the bot's lookahead down the lane at
+/// Full throttle toward the point the bot's lookahead ahead in the lane at
 /// `lane_x` on the oval's front straight, which runs along -Z: the pursuit
 /// steer of the bot's driving, without the rest of it.
 fn down_the_lane(kart: &sim::KartTransform, lane_x: f32) -> KartInput {

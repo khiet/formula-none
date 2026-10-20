@@ -100,8 +100,8 @@ async fn a_hit_is_the_servers_call_and_both_clients_see_the_same_hit_and_spin_ou
 
     let mut heard = [Heard::default(), Heard::default()];
     let mut sequences = [0u32; 2];
-    // The dropper's hazard is fired once and trailed from then on; parked,
-    // it waits for someone to run into it.
+    // Whether the dropper has fired its hazard, which it trails from then
+    // on, parked on the line.
     let mut trailing = false;
     let mut ticks = tokio::time::interval(TICK);
     let deadline = seconds(0) + DEADLINE_S;

@@ -1455,8 +1455,8 @@ fn reaches(translation: Vec3, rotation: &Rotation, hazard: [f32; 3]) -> bool {
     dx * dx + dz * dz <= HAZARD_RADIUS_M * HAZARD_RADIUS_M
 }
 
-/// Stop the kart where it is and start its spin-out: nothing it was doing,
-/// a drift, a boost or a hop, carries on, no control reaches it and no
+/// Stop the kart where it is and start its spin-out: a drift or a boost
+/// ends, a hop lands without a drift, and no control reaches it and no
 /// kart pushes it until the spin-out runs out.
 fn spin_out(kart: &mut Kart, body: &mut RigidBody) {
     kart.spin_out_left_s = SPIN_OUT_S;

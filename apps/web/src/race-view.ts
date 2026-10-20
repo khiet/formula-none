@@ -40,7 +40,7 @@ const DUST_RADIUS = 0.6;
 const ITEM_BOX_SIZE_M = 1;
 const ITEM_BOX_HEIGHT_M = 1;
 const ITEM_BOX_COLOUR = 0xffcc33;
-/** The placeholder hazard until the glTF lands (ADR 0007): a cone, sized to read as something to avoid. */
+/** The placeholder hazard (ADR 0007): a cone. */
 const HAZARD_CONE_RADIUS_M = 0.5;
 const HAZARD_CONE_HEIGHT_M = 0.6;
 const HAZARD_COLOUR = 0xff5522;
@@ -129,7 +129,8 @@ export async function createRaceView(
     return mesh;
   });
 
-  // One cone per hazard, made as hazards appear and hidden as they go.
+  // Cones are made as hazards appear and hidden, never removed, as they
+  // go, so a race of many drops never churns the scene graph.
   const hazardGeometry = new ConeGeometry(HAZARD_CONE_RADIUS_M, HAZARD_CONE_HEIGHT_M);
   const hazardMaterial = new MeshBasicMaterial({ color: HAZARD_COLOUR });
   const hazardMeshes: Mesh[] = [];

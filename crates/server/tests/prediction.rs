@@ -26,8 +26,8 @@ const TICK: Duration = Duration::from_nanos(1_000_000_000 / TICKS_PER_SECOND as 
 const HAND_HOLD_TICKS: u32 = 6;
 /// The one-way delay of the ADR 0009 target: 100 ms round trip.
 const ONE_WAY: Duration = Duration::from_millis(50);
-/// Seconds a kart restarting from a spin-out spends among the karts that
-/// caught it up, whose stale drawn positions it may be shoved by.
+/// Seconds after a spin-out during which contact with karts drawn 100 ms
+/// behind may still correct the restarting kart.
 const RESTART_IN_THE_PACK_S: f32 = 3.0;
 /// Ticks after a hit's snapshot during which a correction is the hit's: the
 /// spin-out and the restart in the pack it leaves the kart in.
@@ -83,11 +83,11 @@ async fn at_a_100_ms_round_trip_and_2_percent_loss_the_own_kart_is_corrected_out
                     snapshot.tick,
                     snapshot.karts.iter().map(snapshot_kart).collect(),
                 );
-                // A hit is the server's alone: the snapshot that first
-                // brings its spin-out corrects the kart by however far it
-                // was predicted on past the hazard, and the kart then sets
-                // off again among karts drawn 100 ms behind, whose contact
-                // ADR 0009 leaves uncompensated. Neither is the loss's.
+                // A hit is the server's alone: the snapshot that brings its
+                // spin-out corrects the kart by however far it was predicted
+                // on past the hazard, and the restart that follows meets
+                // karts drawn 100 ms behind, a contact ADR 0009 leaves
+                // uncompensated. Neither correction is the loss's.
                 if snapshot.karts[kart].spin_out_s.is_some()
                     && prediction.kart_transform().spin_out_s.is_none()
                 {
