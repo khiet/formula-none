@@ -434,6 +434,6 @@ describe("items", () => {
     expect(boxes[0]).toEqual({ position: [-34.5, 0, -70], yaw: expect.closeTo(-Math.PI, 5) });
     expect(race.itemBoxesPresent()).toEqual(Array<boolean>(8).fill(true));
     expect(race.hazards()).toEqual([]);
-    expect(bridge.hazardDropDistanceM).toBe(1);
+    expect(bridge.hazardDropDistanceMetres).toBe(1);
   });
 });

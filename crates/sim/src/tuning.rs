@@ -190,8 +190,8 @@ pub const ITEM_BOOST_FACTOR: f32 = 1.4;
 /// Metres behind the kart a hazard is dropped.
 pub const HAZARD_DROP_DISTANCE_M: f32 = 1.0;
 /// A kart whose collision box comes within this much of a hazard's centre
-/// hits it. Less than the drop distance less the kart's half length, so a
-/// dropped hazard sits just clear of the kart that dropped it.
+/// hits it. A fresh drop lies within its owner's reach; the owner is spared
+/// by having to get clear of it first, not by this.
 pub const HAZARD_RADIUS_M: f32 = 0.5;
 /// Seconds a dropped hazard lies on the track before it is gone; a held
 /// hazard does not age.
@@ -245,7 +245,8 @@ pub const BOT_LOOKAHEAD_M: f32 = 12.0;
 /// Seconds after pickup by which a bot has used its item; it fires sooner
 /// on a straight.
 pub const BOT_ITEM_USE_DELAY_S: f32 = 2.0;
-/// Seconds a bot trails a fired hazard behind itself before dropping it.
+/// Seconds a bot trails a fired hazard behind itself before dropping it;
+/// no longer than it would hold an unused item.
 pub const BOT_HAZARD_HOLD_S: f32 = 1.5;
 /// Top speed scale by distance to the nearest human: slower far ahead,
 /// faster far behind.
@@ -304,9 +305,9 @@ const _: () = {
     assert!(0.0 < ITEM_BOX_HALF_LENGTH_M && 0.0 < ITEM_BOX_HALF_WIDTH_M);
     assert!(0.0 < ITEM_BOOST_S && 1.0 < ITEM_BOOST_FACTOR);
     assert!(0.0 < HAZARD_RADIUS_M && 0.0 < HAZARD_LIFETIME_S && 0.0 < SPIN_OUT_S);
-    assert!(HAZARD_RADIUS_M < HAZARD_DROP_DISTANCE_M);
+    assert!(0.0 < HAZARD_DROP_DISTANCE_M);
     assert!(0.0 < BOT_ITEM_USE_DELAY_S);
-    assert!(0.0 < BOT_HAZARD_HOLD_S);
+    assert!(0.0 < BOT_HAZARD_HOLD_S && BOT_HAZARD_HOLD_S <= BOT_ITEM_USE_DELAY_S);
     assert!(0.0 < PREDICTED_FIRE_TIMEOUT_S);
     assert!(0.0 < RACE_END_GRACE_S);
     assert!(SNAPSHOTS_PER_SECOND <= TICKS_PER_SECOND);

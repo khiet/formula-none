@@ -251,6 +251,7 @@ pub struct HazardSnapshot {
     pub position: [f32; 3],
     /// The kart that fired it, in grid order.
     pub owner: u8,
+    /// Whether that kart still trails it, so it moves with the kart.
     pub held: bool,
 }
 

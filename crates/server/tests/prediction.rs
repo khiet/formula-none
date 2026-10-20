@@ -24,14 +24,20 @@ const OVAL: &str = include_str!("../../../assets/tracks/oval/oval.track.json");
 const TICK: Duration = Duration::from_nanos(1_000_000_000 / TICKS_PER_SECOND as u64);
 /// Ticks a hand keeps the item button down after pressing it: 100 ms.
 const HAND_HOLD_TICKS: u32 = 6;
+/// The one-way delay of the ADR 0009 target: 100 ms round trip.
+const ONE_WAY: Duration = Duration::from_millis(50);
+/// Seconds a kart restarting from a spin-out spends among the karts that
+/// caught it up, whose stale drawn positions it may be shoved by.
+const RESTART_IN_THE_PACK_S: f32 = 3.0;
 /// Ticks after a hit's snapshot during which a correction is the hit's: the
 /// spin-out and the restart in the pack it leaves the kart in.
-const HIT_AFTERMATH_TICKS: u32 = ((sim::tuning::SPIN_OUT_S + 3.0) * TICKS_PER_SECOND as f32) as u32;
+const HIT_AFTERMATH_TICKS: u32 =
+    ((sim::tuning::SPIN_OUT_S + RESTART_IN_THE_PACK_S) * TICKS_PER_SECOND as f32) as u32;
 
 #[tokio::test(start_paused = true)]
 async fn at_a_100_ms_round_trip_and_2_percent_loss_the_own_kart_is_corrected_out_of_sight() {
     let mut harness = Harness::new(Conditions {
-        delay: Duration::from_millis(50),
+        delay: ONE_WAY,
         jitter: Duration::ZERO,
         loss: 0.02,
         seed: 18,
@@ -141,7 +147,7 @@ async fn at_a_100_ms_round_trip_and_2_percent_loss_the_own_kart_is_corrected_out
         "the loss corrected nothing, so it never reached the prediction"
     );
     // A hit moves the kart back by at most the round trip's travel.
-    let round_trip_m = 2.0 * 0.05 * sim::tuning::TOP_SPEED_M_PER_S;
+    let round_trip_m = 2.0 * ONE_WAY.as_secs_f32() * sim::tuning::TOP_SPEED_M_PER_S;
     assert!(
         hits_m.iter().all(|&moved| moved <= round_trip_m),
         "a hit corrected by more than the round trip: {hits_m:?}"

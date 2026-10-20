@@ -74,7 +74,7 @@ const bridge = {
   lapsPerRace: 3,
   itemBoxRespawnSeconds: ITEM_BOX_RESPAWN_S,
   predictedFireTimeoutSeconds: PREDICTED_FIRE_TIMEOUT_S,
-  hazardDropDistanceM: HAZARD_DROP_DISTANCE_M,
+  hazardDropDistanceMetres: HAZARD_DROP_DISTANCE_M,
   spinOutSeconds: 1,
   kartSize: { width: 1.2, height: KART_HEIGHT_M, length: 1.8 },
   createRace: () =>

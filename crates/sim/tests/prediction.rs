@@ -384,14 +384,14 @@ fn the_prediction_never_spins_its_kart_out_on_a_hazard_it_dropped() {
     assert!(end[2] > start[2] + 10.0, "backed well past the drop");
 }
 
-/// Full throttle toward the point `lookahead` metres down the track in the
-/// lane `lane_x` metres from the oval's front straight, which runs along
-/// -Z: the pursuit steer of the bot's driving, without the rest of it.
+/// Full throttle toward the point the bot's lookahead down the lane at
+/// `lane_x` on the oval's front straight, which runs along -Z: the pursuit
+/// steer of the bot's driving, without the rest of it.
 fn down_the_lane(kart: &sim::KartTransform, lane_x: f32) -> KartInput {
-    const LOOKAHEAD_M: f32 = 12.0;
+    use sim::tuning::BOT_LOOKAHEAD_M;
     let [x, y, z, w] = kart.rotation;
     let yaw = (2.0 * (w * y + x * z)).atan2(1.0 - 2.0 * (y * y + z * z));
-    let (dx, dz) = (lane_x - kart.position[0], -LOOKAHEAD_M);
+    let (dx, dz) = (lane_x - kart.position[0], -BOT_LOOKAHEAD_M);
     let distance = (dx * dx + dz * dz).sqrt();
     let (sin, cos) = yaw.sin_cos();
     let rightward = (dx * cos - dz * sin) / distance;

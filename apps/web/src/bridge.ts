@@ -255,7 +255,7 @@ export interface Bridge extends MessageCodec {
   /** How long a fire predicted from a press shows before the server is taken not to have fired (ADR 0014). */
   readonly predictedFireTimeoutSeconds: number;
   /** Metres behind a kart a trailed hazard rides (ADR 0014). */
-  readonly hazardDropDistanceM: number;
+  readonly hazardDropDistanceMetres: number;
   /** How long a spin-out lasts (ADR 0014), which the spin animation runs once over. */
   readonly spinOutSeconds: number;
   /**
@@ -333,7 +333,7 @@ export async function loadBridge(wasm?: BufferSource): Promise<Bridge> {
     countdownSeconds: countdown_s(),
     itemBoxRespawnSeconds: item_box_respawn_s(),
     predictedFireTimeoutSeconds: predicted_fire_timeout_s(),
-    hazardDropDistanceM: hazard_drop_distance_m(),
+    hazardDropDistanceMetres: hazard_drop_distance_m(),
     spinOutSeconds: spin_out_s(),
     kartsPerRace: karts_per_race(),
     replayHashIntervalTicks: replay_hash_interval_ticks(),

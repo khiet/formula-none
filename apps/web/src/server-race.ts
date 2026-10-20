@@ -173,7 +173,7 @@ export function createServerRace(
           ? hazard
           : {
               ...hazard,
-              position: behind(holder, bridge.hazardDropDistanceM, bridge.kartSize.height),
+              position: behind(holder, bridge.hazardDropDistanceMetres, bridge.kartSize.height),
             };
       });
     },

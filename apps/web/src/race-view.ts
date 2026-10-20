@@ -40,9 +40,9 @@ const DUST_RADIUS = 0.6;
 const ITEM_BOX_SIZE_M = 1;
 const ITEM_BOX_HEIGHT_M = 1;
 const ITEM_BOX_COLOUR = 0xffcc33;
-/** The placeholder hazard: a cone this wide and tall, in this colour. */
-const HAZARD_RADIUS_M = 0.5;
-const HAZARD_HEIGHT_M = 0.6;
+/** The placeholder hazard until the glTF lands (ADR 0007): a cone, sized to read as something to avoid. */
+const HAZARD_CONE_RADIUS_M = 0.5;
+const HAZARD_CONE_HEIGHT_M = 0.6;
 const HAZARD_COLOUR = 0xff5522;
 
 export interface RaceView {
@@ -130,7 +130,7 @@ export async function createRaceView(
   });
 
   // One cone per hazard, made as hazards appear and hidden as they go.
-  const hazardGeometry = new ConeGeometry(HAZARD_RADIUS_M, HAZARD_HEIGHT_M);
+  const hazardGeometry = new ConeGeometry(HAZARD_CONE_RADIUS_M, HAZARD_CONE_HEIGHT_M);
   const hazardMaterial = new MeshBasicMaterial({ color: HAZARD_COLOUR });
   const hazardMeshes: Mesh[] = [];
 
@@ -184,7 +184,7 @@ export async function createRaceView(
         mesh.visible = hazard !== undefined;
         if (hazard !== undefined) {
           const [x, y, z] = hazard.position;
-          mesh.position.set(x, y + HAZARD_HEIGHT_M / 2, z);
+          mesh.position.set(x, y + HAZARD_CONE_HEIGHT_M / 2, z);
         }
       });
       for (const label of labels) {

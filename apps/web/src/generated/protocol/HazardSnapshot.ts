@@ -13,4 +13,8 @@ position: [number, number, number],
 /**
  * The kart that fired it, in grid order.
  */
-owner: number, held: boolean, };
+owner: number, 
+/**
+ * Whether that kart still trails it, so it moves with the kart.
+ */
+held: boolean, };
