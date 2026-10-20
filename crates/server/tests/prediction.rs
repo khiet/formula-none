@@ -24,11 +24,20 @@ const OVAL: &str = include_str!("../../../assets/tracks/oval/oval.track.json");
 const TICK: Duration = Duration::from_nanos(1_000_000_000 / TICKS_PER_SECOND as u64);
 /// Ticks a hand keeps the item button down after pressing it: 100 ms.
 const HAND_HOLD_TICKS: u32 = 6;
+/// The one-way delay of the ADR 0009 target: 100 ms round trip.
+const ONE_WAY: Duration = Duration::from_millis(50);
+/// Seconds after a spin-out during which contact with karts drawn 100 ms
+/// behind may still correct the restarting kart.
+const RESTART_IN_THE_PACK_S: f32 = 3.0;
+/// Ticks after a hit's snapshot during which a correction is the hit's: the
+/// spin-out and the restart in the pack it leaves the kart in.
+const HIT_AFTERMATH_TICKS: u32 =
+    ((sim::tuning::SPIN_OUT_S + RESTART_IN_THE_PACK_S) * TICKS_PER_SECOND as f32) as u32;
 
 #[tokio::test(start_paused = true)]
 async fn at_a_100_ms_round_trip_and_2_percent_loss_the_own_kart_is_corrected_out_of_sight() {
     let mut harness = Harness::new(Conditions {
-        delay: Duration::from_millis(50),
+        delay: ONE_WAY,
         jitter: Duration::ZERO,
         loss: 0.02,
         seed: 18,
@@ -60,6 +69,8 @@ async fn at_a_100_ms_round_trip_and_2_percent_loss_the_own_kart_is_corrected_out
     let mut ticks = tokio::time::interval(TICK);
     let mut sequence = 0;
     let mut corrections_m = Vec::new();
+    let mut hits_m = Vec::new();
+    let mut hit_tick = None;
     let mut newest_tick = 0;
     // Twenty seconds of racing: both of the oval's turns, each lap.
     let end_tick = ((COUNTDOWN_S + 20.0) * TICKS_PER_SECOND as f32) as u32;
@@ -72,11 +83,28 @@ async fn at_a_100_ms_round_trip_and_2_percent_loss_the_own_kart_is_corrected_out
                     snapshot.tick,
                     snapshot.karts.iter().map(snapshot_kart).collect(),
                 );
-                corrections_m.push(prediction.reconcile(
+                // A hit is the server's alone: the snapshot that brings its
+                // spin-out corrects the kart by however far it was predicted
+                // on past the hazard, and the restart that follows meets
+                // karts drawn 100 ms behind, a contact ADR 0009 leaves
+                // uncompensated. Neither correction is the loss's.
+                if snapshot.karts[kart].spin_out_s.is_some()
+                    && prediction.kart_transform().spin_out_s.is_none()
+                {
+                    hit_tick = Some(snapshot.tick);
+                }
+                let moved = prediction.reconcile(
                     snapshot.tick,
                     snapshot.acknowledged[kart],
                     &snapshot_kart(&snapshot.karts[kart]),
-                ));
+                );
+                let after_a_hit =
+                    hit_tick.is_some_and(|hit| snapshot.tick <= hit + HIT_AFTERMATH_TICKS);
+                if after_a_hit {
+                    hits_m.push(moved);
+                } else {
+                    corrections_m.push(moved);
+                }
             }
         }
         let mut input = bot::drive(
@@ -115,8 +143,14 @@ async fn at_a_100_ms_round_trip_and_2_percent_loss_the_own_kart_is_corrected_out
         "corrected by {largest} m"
     );
     assert!(
-        prediction.corrections() > 0,
+        corrections_m.iter().any(|&moved| moved > 0.0),
         "the loss corrected nothing, so it never reached the prediction"
+    );
+    // A hit moves the kart back by at most the round trip's travel.
+    let round_trip_m = 2.0 * ONE_WAY.as_secs_f32() * sim::tuning::TOP_SPEED_M_PER_S;
+    assert!(
+        hits_m.iter().all(|&moved| moved <= round_trip_m),
+        "a hit corrected by more than the round trip: {hits_m:?}"
     );
 }
 

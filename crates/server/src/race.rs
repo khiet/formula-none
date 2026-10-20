@@ -8,8 +8,8 @@
 use std::collections::{BTreeMap, VecDeque};
 
 use protocol::{
-    DriftDirection, DriftSnapshot, Event, EventKind, FinalStanding, Input, Item, KartSnapshot,
-    Snapshot,
+    DriftDirection, DriftSnapshot, Event, EventKind, FinalStanding, HazardSnapshot, Input, Item,
+    KartSnapshot, Snapshot,
 };
 use sim::tuning::{
     CONNECTION_SILENCE_S, INPUT_QUEUE_MAX_TICKS, INPUT_QUEUE_START_TICKS, KARTS_PER_RACE,
@@ -280,7 +280,16 @@ impl Race {
                 spline_progress: standing.spline_progress,
                 wrong_way: standing.wrong_way,
                 held_item: transform.held_item.map(wire_item),
-                spin_out_s: None,
+                spin_out_s: transform.spin_out_s,
+            })
+            .collect();
+        let hazards = state
+            .hazards()
+            .iter()
+            .map(|hazard| HazardSnapshot {
+                position: hazard.position,
+                owner: hazard.owner as u8,
+                held: hazard.held,
             })
             .collect();
         let mut acknowledged: Vec<u32> = self.humans.iter().map(|human| human.sequence).collect();
@@ -290,6 +299,7 @@ impl Race {
             acknowledged,
             karts,
             events,
+            hazards,
         }
     }
 }
@@ -339,6 +349,10 @@ fn event_kind(event: RaceEvent) -> EventKind {
         RaceEvent::ItemFired { kart, item } => EventKind::ItemFired {
             kart: kart as u8,
             item: wire_item(item),
+        },
+        RaceEvent::SpunOut { kart, by } => EventKind::Hit {
+            kart: kart as u8,
+            by: by as u8,
         },
     }
 }

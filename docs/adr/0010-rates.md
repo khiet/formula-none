@@ -39,3 +39,6 @@ Landed with issue 17 (2026-10-19).
   position and whether the wrong-way warning is up. With them the busy
   sample snapshot in the protocol's fixtures is 474 bytes at eight karts,
   against the roughly 400 estimated above.
+- Issue 22 (2026-10-20) added the hazards on the track to every snapshot:
+  position, owner and whether the owner still trails it, since a trailed
+  hazard moves every tick. The busy sample, with one hazard, is 490 bytes.

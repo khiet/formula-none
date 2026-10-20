@@ -168,5 +168,6 @@ fn between(from: &SnapshotKart, to: &SnapshotKart, ticks: u32, share: f32) -> Ka
         velocity: velocity.to_array(),
         drift: from.drift,
         held_item: from.held_item,
+        spin_out_s: from.spin_out_s,
     }
 }

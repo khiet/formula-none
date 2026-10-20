@@ -113,12 +113,12 @@ fn holding(seed: u64) -> (State, sim::Item) {
 
 #[test]
 fn a_karts_item_is_part_of_the_hash() {
-    // The seeds are tried until the roll is a hazard, which fires to no
-    // effect: the two states then differ in the kart's slot and nothing
-    // else.
+    // The seeds are tried until the roll is a homing projectile, which
+    // fires to no effect: the two states then differ in the kart's slot and
+    // nothing else.
     let seed = (0..)
-        .find(|&seed| holding(seed).1 == sim::Item::Hazard)
-        .expect("some seed rolls a hazard");
+        .find(|&seed| holding(seed).1 == sim::Item::Homing)
+        .expect("some seed rolls a homing projectile");
     let idle = step(holding(seed).0, &[KartInput::default()], DT);
     let fired = step(
         holding(seed).0,
@@ -129,6 +129,39 @@ fn a_karts_item_is_part_of_the_hash() {
         DT,
     );
     assert_ne!(idle.hash(), fired.hash(), "the slot emptied");
+}
+
+#[test]
+fn a_hazards_place_is_part_of_the_hash() {
+    // Two karts fire the same hazard and drive the same way, one letting
+    // go of the button a tick before the other: the karts end up alike and
+    // only the hazards lie in different places.
+    let seed = (0..)
+        .find(|&seed| holding(seed).1 == sim::Item::Hazard)
+        .expect("some seed rolls a hazard");
+    let hold_until = |release_tick: u32| {
+        let mut state = holding(seed).0;
+        for tick in 0..30 {
+            state = step(
+                state,
+                &[KartInput {
+                    throttle: 1.0,
+                    hold_item: tick < release_tick,
+                    ..KartInput::default()
+                }],
+                DT,
+            );
+        }
+        state
+    };
+    let (early, late) = (hold_until(10), hold_until(11));
+    assert_eq!(
+        early.kart_transforms(),
+        late.kart_transforms(),
+        "the karts drove alike"
+    );
+    assert_ne!(early.hazards(), late.hazards());
+    assert_ne!(early.hash(), late.hash(), "the hazard moved");
 }
 
 const REPLAY: &str = r#"{

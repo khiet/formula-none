@@ -332,7 +332,13 @@ describe("prediction", () => {
       heldItem: null,
       spinOutS: null,
     };
-    const snapshot: Snapshot = { tick: 234, acknowledged: [230], karts: [aside], events: [] };
+    const snapshot: Snapshot = {
+      tick: 234,
+      acknowledged: [230],
+      karts: [aside],
+      events: [],
+      hazards: [],
+    };
     expect(prediction.reconcile(snapshot)).toBeCloseTo(1, 3);
     // The snapshot's karts are drawn too, with the sim's surface under them.
     const [drawn] = prediction.interpolatedKartTransforms();
@@ -368,9 +374,51 @@ describe("prediction", () => {
       heldItem: "homing",
       spinOutS: null,
     };
-    prediction.reconcile({ tick: 10, acknowledged: [4], karts: [holding], events: [] });
+    prediction.reconcile({
+      tick: 10,
+      acknowledged: [4],
+      karts: [holding],
+      events: [],
+      hazards: [],
+    });
     expect(prediction.kartTransform().heldItem).toBe("homing");
     expect(prediction.interpolatedKartTransforms()[0]?.heldItem).toBe("homing");
+  });
+
+  it("takes the spin-out a snapshot says the own kart is in and counts it down", async () => {
+    const bridge = await loadBridge(wasm);
+    expect(bridge.spinOutSeconds).toBe(1);
+    const prediction = bridge.createPrediction(7n, 0, OVAL);
+    // Idle on the grid through the countdown and a second of the race.
+    for (let sequence = 1; sequence <= 240; sequence++) {
+      prediction.tick(wire(IDLE_INPUT, sequence));
+    }
+    expect(prediction.kartTransform().spinOutSeconds).toBeNull();
+    const [x, y, z] = prediction.kartTransform().position;
+    const spun: KartSnapshot = {
+      position: [x, y, z],
+      rotation: [0, 0, 0, 1],
+      velocity: [0, 0, 0],
+      drift: null,
+      racePosition: 1,
+      lap: 1,
+      checkpoint: 0,
+      splineProgress: 0,
+      wrongWay: false,
+      heldItem: null,
+      spinOutS: 0.5,
+    };
+    prediction.reconcile({
+      tick: 234,
+      acknowledged: [230],
+      karts: [spun],
+      events: [],
+      hazards: [],
+    });
+    // Input 230 met tick 234, so input 240 meets tick 244: ten ticks of
+    // the spin-out have run by the predicted kart's tick.
+    expect(prediction.kartTransform().spinOutSeconds).toBeCloseTo(0.5 - 10 * DT, 4);
+    expect(prediction.interpolatedKartTransforms()[0]?.spinOutSeconds).toBe(0.5);
   });
 });
 
@@ -385,5 +433,7 @@ describe("items", () => {
     expect(boxes).toHaveLength(8);
     expect(boxes[0]).toEqual({ position: [-34.5, 0, -70], yaw: expect.closeTo(-Math.PI, 5) });
     expect(race.itemBoxesPresent()).toEqual(Array<boolean>(8).fill(true));
+    expect(race.hazards()).toEqual([]);
+    expect(bridge.hazardDropDistanceMetres).toBe(1);
   });
 });

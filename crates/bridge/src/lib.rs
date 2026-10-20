@@ -86,6 +86,20 @@ pub fn item_box_respawn_s() -> f32 {
     sim::tuning::ITEM_BOX_RESPAWN_S
 }
 
+/// Metres behind a kart a trailed hazard rides (ADR 0014), so a client
+/// draws a hazard a snapshot says is held where the server keeps it.
+#[wasm_bindgen]
+pub fn hazard_drop_distance_m() -> f32 {
+    sim::tuning::HAZARD_DROP_DISTANCE_M
+}
+
+/// Seconds a spin-out lasts (ADR 0014), so the View's spin animation runs
+/// once over it.
+#[wasm_bindgen]
+pub fn spin_out_s() -> f32 {
+    sim::tuning::SPIN_OUT_S
+}
+
 /// The replay runner, in wasm: rerun `replay` (the JSON `sim::replay`
 /// documents) on the track described by `sidecar` and report the state hash
 /// at every `sim::tuning::REPLAY_HASH_INTERVAL_TICKS`th tick. The native
@@ -272,14 +286,15 @@ impl Race {
         self.state = Some(sim::step(state, &inputs, dt));
     }
 
-    /// Thirteen floats per kart in grid order: position x, y, z, rotation
+    /// Fourteen floats per kart in grid order: position x, y, z, rotation
     /// quaternion x, y, z, w, speed in metres per second along the kart's
     /// facing (negative backing up), the surface under the kart as
     /// `sim::Surface::code` (0 asphalt, 1 sand, 2 grass, 3 wall, 4 out of
     /// world), the drift direction (-1 left, 1 right, 0 not drifting), the
     /// mini-turbo tier the drift has charged (0 none, 1 blue, 2 orange),
-    /// the seconds of drift charge and the item in the kart's slot as
-    /// `sim::Item::code` (0 empty, 1 boost, 2 hazard, 3 homing). Y is up;
+    /// the seconds of drift charge, the item in the kart's slot as
+    /// `sim::Item::code` (0 empty, 1 boost, 2 hazard, 3 homing) and the
+    /// seconds of spin-out left, 0 when the kart is not spun out. Y is up;
     /// identity rotation faces -Z.
     pub fn kart_transforms(&self) -> Vec<f32> {
         let state = self.state();
@@ -340,6 +355,26 @@ impl Race {
             .item_boxes_present()
             .into_iter()
             .map(|present| f32::from(u8::from(present)))
+            .collect()
+    }
+
+    /// Five floats per hazard on the track, in the order they were fired:
+    /// its position x, y, z, the grid index of the kart that fired it, and
+    /// 1 while that kart still trails it, else 0.
+    pub fn hazards(&self) -> Vec<f32> {
+        self.state()
+            .hazards()
+            .iter()
+            .flat_map(|hazard| {
+                let [x, y, z] = hazard.position;
+                [
+                    x,
+                    y,
+                    z,
+                    hazard.owner as f32,
+                    f32::from(u8::from(hazard.held)),
+                ]
+            })
             .collect()
     }
 
@@ -445,14 +480,14 @@ impl Prediction {
             .reconcile(snapshot.tick, acknowledged, &snapshot_kart(own)))
     }
 
-    /// The kart as it is drawn, in the twelve floats `Race::kart_transforms`
+    /// The kart as it is drawn, in the fourteen floats `Race::kart_transforms`
     /// gives each kart.
     pub fn kart_transform(&self) -> Vec<f32> {
         transform_floats(&self.inner.kart_transform(), self.inner.kart_surface()).to_vec()
     }
 
     /// Every kart where the interpolation draws it, in grid order, in the
-    /// twelve floats `Race::kart_transforms` gives each, with the surface
+    /// fourteen floats `Race::kart_transforms` gives each, with the surface
     /// under it; empty before the first snapshot. This kart's entry is the
     /// snapshots', not the prediction's.
     pub fn interpolated_kart_transforms(&self) -> Vec<f32> {
@@ -477,8 +512,8 @@ impl Prediction {
     }
 }
 
-/// One kart's thirteen floats, as `Race::kart_transforms` documents them.
-fn transform_floats(kart: &KartTransform, surface: Surface) -> [f32; 13] {
+/// One kart's fourteen floats, as `Race::kart_transforms` documents them.
+fn transform_floats(kart: &KartTransform, surface: Surface) -> [f32; 14] {
     let (direction, tier, charge_s) = match kart.drift {
         Some(drift) => (
             drift.direction.steer_sign(),
@@ -503,6 +538,7 @@ fn transform_floats(kart: &KartTransform, surface: Surface) -> [f32; 13] {
         tier,
         charge_s,
         f32::from(kart.held_item.map_or(0, Item::code)),
+        kart.spin_out_s.unwrap_or(0.0),
     ]
 }
 
@@ -542,6 +578,7 @@ fn snapshot_kart(kart: &KartSnapshot) -> SnapshotKart {
             charge_s: drift.charge_s,
         }),
         held_item: kart.held_item.map(item),
+        spin_out_s: kart.spin_out_s,
         lap: u32::from(kart.lap),
         checkpoint: usize::from(kart.checkpoint),
         spline_progress: kart.spline_progress,

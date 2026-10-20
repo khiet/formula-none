@@ -79,6 +79,7 @@ pub fn snapshot_kart(kart: &KartSnapshot) -> SnapshotKart {
             protocol::Item::Hazard => sim::Item::Hazard,
             protocol::Item::Homing => sim::Item::Homing,
         }),
+        spin_out_s: kart.spin_out_s,
         lap: u32::from(kart.lap),
         checkpoint: usize::from(kart.checkpoint),
         spline_progress: kart.spline_progress,

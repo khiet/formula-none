@@ -14,7 +14,7 @@ const ROOM: Room = {
 };
 const JOINED: ServerMessage = { joined: { slot: 0, room: ROOM, token: TOKEN } };
 const SNAPSHOT: ServerMessage = {
-  snapshot: { tick: 1, acknowledged: [0], karts: [], events: [] },
+  snapshot: { tick: 1, acknowledged: [0], karts: [], events: [], hazards: [] },
 };
 
 /** A racing room client, and the connections a reconnect is handed, in order. */

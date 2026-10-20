@@ -18,6 +18,7 @@ function kart(yaw: number, position: readonly [number, number, number]): KartTra
     surface: "asphalt",
     drift: null,
     heldItem: null,
+    spinOutSeconds: null,
   });
 }
 
