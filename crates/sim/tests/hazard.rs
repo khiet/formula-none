@@ -312,6 +312,26 @@ fn a_held_hazard_does_not_age_and_spins_out_the_kart_that_runs_into_it_from_behi
         "stopped short of kart 0: {} m apart",
         z2 - z0
     );
+
+    // Backed into while spun out, kart 2 stands where it is and stops
+    // kart 0 instead.
+    let spun_at = state.kart_transforms()[2].position;
+    for _ in 0..ticks(0.6) {
+        state = step(state, &[reverse(), idle, idle], DT);
+        assert!(state.kart_transforms()[2].spin_out_s.is_some());
+    }
+    let [x2, _, z2] = state.kart_transforms()[2].position;
+    assert!(
+        (x2 - spun_at[0]).abs() < 1e-3 && (z2 - spun_at[2]).abs() < 1e-3,
+        "pushed from {spun_at:?} to {:?}",
+        [x2, z2]
+    );
+    let [_, _, z0] = state.kart_transforms()[0].position;
+    assert!(
+        z2 - z0 <= 2.0 * KART_HALF_LENGTH_M + 0.1,
+        "kart 0 never reached it: {} m apart",
+        z2 - z0
+    );
 }
 
 #[test]

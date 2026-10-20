@@ -23,6 +23,7 @@ import { type DustTell, dustTell } from "./dust";
 import type { KartLabel } from "./kart-labels";
 import { liveryColour } from "./livery";
 import { type SparkTell, sparkTell } from "./sparks";
+import { spinOutAngle } from "./spin";
 
 /** Far enough to see across Brands Patch from any point on it. */
 const CAMERA_FAR_M = 1000;
@@ -43,8 +44,6 @@ const ITEM_BOX_COLOUR = 0xffcc33;
 const HAZARD_RADIUS_M = 0.5;
 const HAZARD_HEIGHT_M = 0.6;
 const HAZARD_COLOUR = 0xff5522;
-/** A spun-out kart turns this many times over its spin-out. */
-const SPIN_OUT_TURNS = 2;
 
 export interface RaceView {
   /**
@@ -214,16 +213,6 @@ export async function createRaceView(
       labelRenderer.domElement.remove();
     },
   };
-}
-
-/**
- * How far round a spun-out kart has turned, in radians, with `left` seconds
- * of a spin-out of `total` to go: the tuned turns over the whole spin-out,
- * so the kart faces where the sim has it again as the spin-out ends.
- */
-export function spinOutAngle(left: number, total: number): number {
-  const elapsed = Math.min(Math.max(total - left, 0), total);
-  return (2 * Math.PI * SPIN_OUT_TURNS * elapsed) / total;
 }
 
 interface PlaceholderKart {

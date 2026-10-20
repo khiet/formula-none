@@ -338,6 +338,52 @@ fn the_prediction_takes_no_box_and_fills_its_slot_from_the_snapshots_alone() {
     assert_eq!(prediction.kart_transform().held_item, held);
 }
 
+#[test]
+fn the_prediction_never_spins_its_kart_out_on_a_hazard_it_dropped() {
+    use sim::Item;
+    // The snapshot gives the kart a hazard; the press drops it behind the
+    // kart and the kart drives on and backs into where it fell, which on
+    // the server would spin it out. Here the hit is left to the server.
+    let (mut prediction, grid) = on_the_grid();
+    let mut holding = grid;
+    holding.held_item = Some(Item::Hazard);
+    prediction.reconcile(12, 5, &holding);
+    let mut sequence = 10;
+    let mut tick = |prediction: &mut Prediction, input: KartInput| {
+        sequence += 1;
+        prediction.tick(sequence, input, &[]);
+    };
+    while !matches!(prediction.phase(), Phase::Racing { .. }) {
+        tick(&mut prediction, KartInput::default());
+    }
+    tick(
+        &mut prediction,
+        KartInput {
+            use_item: true,
+            ..KartInput::default()
+        },
+    );
+    assert_eq!(prediction.kart_transform().held_item, None, "fired");
+    let throttle = KartInput {
+        throttle: 1.0,
+        ..KartInput::default()
+    };
+    for _ in 0..seconds(1.5) {
+        tick(&mut prediction, throttle);
+    }
+    let reverse = KartInput {
+        brake: 1.0,
+        ..KartInput::default()
+    };
+    let start = prediction.kart_transform().position;
+    for _ in 0..seconds(8.0) {
+        tick(&mut prediction, reverse);
+        assert_eq!(prediction.kart_transform().spin_out_s, None);
+    }
+    let end = prediction.kart_transform().position;
+    assert!(end[2] > start[2] + 10.0, "backed well past the drop");
+}
+
 /// Full throttle toward the point `lookahead` metres down the track in the
 /// lane `lane_x` metres from the oval's front straight, which runs along
 /// -Z: the pursuit steer of the bot's driving, without the rest of it.
