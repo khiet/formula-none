@@ -49,8 +49,7 @@ impl Heard {
         })
     }
 
-    /// The first snapshot that carries `event`, which shows the state the
-    /// tick after it at the latest.
+    /// The first snapshot that carries `event`: the state in its aftermath.
     fn snapshot_carrying(&self, event: Event) -> Option<&Snapshot> {
         self.snapshots
             .values()

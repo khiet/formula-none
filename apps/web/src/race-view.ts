@@ -137,8 +137,6 @@ export async function createRaceView(
     return mesh;
   });
 
-  // Meshes are made as hazards and projectiles appear and hidden, never
-  // removed, as they go, so a race of many never churns the scene graph.
   const cones = meshPool(
     world,
     new ConeGeometry(HAZARD_CONE_RADIUS_M, HAZARD_CONE_HEIGHT_M),

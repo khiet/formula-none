@@ -149,7 +149,7 @@ impl Interpolation {
     /// snapshot still carries, matched by owner and target in fired
     /// order, is drawn between the two; one it no longer carries reached
     /// its target between them and stays where the earlier had it until
-    /// the clock passes the earlier. One fired between them is not drawn
+    /// the clock passes the later. One fired between them is not drawn
     /// until the clock reaches the later. Empty before the first snapshot.
     pub fn projectiles(&self) -> Vec<Projectile> {
         let Some((from, to, share)) = self.pair() else {

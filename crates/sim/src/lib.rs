@@ -781,7 +781,7 @@ impl State {
 
     /// A hash of everything that influences future ticks: the phase and its
     /// clocks, the RNG, the item boxes' respawn clocks, the hazards and
-    /// projectiles out and, per kart, its speed, its item and its body's
+    /// projectiles and, per kart, its speed, its item and its body's
     /// position, heading, velocities and sleep state, including the timer
     /// that puts a resting body to sleep.
     /// Bit-identical on every platform for bit-identical states, which is
