@@ -119,12 +119,14 @@ pub fn drive(
 
     // An item is fired on the first straight after it is picked up, with
     // no corner to slow for, and in any case once it has been held for the
-    // tuned delay. A fired hazard is trailed for the tuned time, then
-    // dropped.
+    // tuned delay. A projectile needs a kart ahead to chase, so a leading
+    // bot keeps it until it is passed. A fired hazard is trailed for the
+    // tuned time, then dropped.
+    let has_target = kart.held_item != Some(Item::Homing) || standings[slot].position > 1;
     let use_item = match kart.held_item {
         Some(_) => {
             memory.item_held_s += dt;
-            (!corner && brake == 0.0) || memory.item_held_s >= BOT_ITEM_USE_DELAY_S
+            has_target && ((!corner && brake == 0.0) || memory.item_held_s >= BOT_ITEM_USE_DELAY_S)
         }
         None => {
             memory.item_held_s = 0.0;

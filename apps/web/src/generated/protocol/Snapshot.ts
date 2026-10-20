@@ -2,6 +2,7 @@
 import type { Event } from "./Event";
 import type { HazardSnapshot } from "./HazardSnapshot";
 import type { KartSnapshot } from "./KartSnapshot";
+import type { ProjectileSnapshot } from "./ProjectileSnapshot";
 
 /**
  * The server's state of every kart at a tick, with what the client needs
@@ -27,4 +28,9 @@ events: Array<Event>,
 /**
  * Every hazard on the track at this tick, in the order they were fired.
  */
-hazards: Array<HazardSnapshot>, };
+hazards: Array<HazardSnapshot>, 
+/**
+ * Every homing projectile in flight at this tick, in the order they
+ * were fired.
+ */
+projectiles: Array<ProjectileSnapshot>, };

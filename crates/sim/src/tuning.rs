@@ -198,8 +198,26 @@ pub const HAZARD_RADIUS_M: f32 = 0.5;
 pub const HAZARD_LIFETIME_S: f32 = 30.0;
 /// Seconds a kart hit by an item is stopped, with its inputs ignored.
 pub const SPIN_OUT_S: f32 = 1.0;
-/// Homing projectile speed as a multiple of top speed.
+/// Homing projectile speed as a multiple of top speed: faster than any
+/// boost, so a target cannot outrun it.
 pub const HOMING_SPEED_FACTOR: f32 = 1.6;
+/// Metres ahead on the centreline a projectile steers for while it
+/// travels the spline, so it merges onto the line from wherever it was
+/// fired instead of snapping to it.
+pub const HOMING_LOOKAHEAD_M: f32 = 8.0;
+/// Within this many metres of its target a projectile leaves the spline
+/// and flies straight at the kart, so a kart off the centreline is hit
+/// rather than passed.
+pub const HOMING_LOCK_RANGE_M: f32 = 10.0;
+/// A projectile whose centre comes within this much of its target's
+/// collision box hits it.
+pub const HOMING_RADIUS_M: f32 = 0.5;
+/// What a homing projectile fired with no kart ahead, the leader's, does:
+/// it is wasted, the fire spawning nothing. The alternative, a projectile
+/// that circles the lap until a kart is ahead of it, is not taken, since
+/// it would let the leader mine the track for whoever passes. The sim
+/// builds only the wasted fire and refuses to compile if this is flipped.
+pub const HOMING_WITHOUT_TARGET_DESPAWNS: bool = true;
 
 /// Item roll weights for one band of race positions, in percent.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -306,6 +324,15 @@ const _: () = {
     assert!(0.0 < ITEM_BOOST_S && 1.0 < ITEM_BOOST_FACTOR);
     assert!(0.0 < HAZARD_RADIUS_M && 0.0 < HAZARD_LIFETIME_S && 0.0 < SPIN_OUT_S);
     assert!(0.0 < HAZARD_DROP_DISTANCE_M);
+    // Faster than any boost, so no target outruns a projectile.
+    assert!(HOMING_SPEED_FACTOR > BOOST_PAD_FACTOR && HOMING_SPEED_FACTOR > ITEM_BOOST_FACTOR);
+    assert!(0.0 < HOMING_LOOKAHEAD_M && 0.0 < HOMING_LOCK_RANGE_M && 0.0 < HOMING_RADIUS_M);
+    // A tick of flight never carries a projectile from outside its radius
+    // of the target's box to past the box.
+    assert!(
+        HOMING_SPEED_FACTOR * TOP_SPEED_M_PER_S / (TICKS_PER_SECOND as f32)
+            < 2.0 * (HOMING_RADIUS_M + KART_HALF_LENGTH_M)
+    );
     assert!(0.0 < BOT_ITEM_USE_DELAY_S);
     assert!(0.0 < BOT_HAZARD_HOLD_S && BOT_HAZARD_HOLD_S <= BOT_ITEM_USE_DELAY_S);
     assert!(0.0 < PREDICTED_FIRE_TIMEOUT_S);

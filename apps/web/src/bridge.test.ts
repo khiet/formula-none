@@ -338,6 +338,7 @@ describe("prediction", () => {
       karts: [aside],
       events: [],
       hazards: [],
+      projectiles: [],
     };
     expect(prediction.reconcile(snapshot)).toBeCloseTo(1, 3);
     // The snapshot's karts are drawn too, with the sim's surface under them.
@@ -380,6 +381,7 @@ describe("prediction", () => {
       karts: [holding],
       events: [],
       hazards: [],
+      projectiles: [],
     });
     expect(prediction.kartTransform().heldItem).toBe("homing");
     expect(prediction.interpolatedKartTransforms()[0]?.heldItem).toBe("homing");
@@ -414,6 +416,7 @@ describe("prediction", () => {
       karts: [spun],
       events: [],
       hazards: [],
+      projectiles: [],
     });
     // Input 230 met tick 234, so input 240 meets tick 244: ten ticks of
     // the spin-out have run by the predicted kart's tick.
@@ -434,6 +437,78 @@ describe("items", () => {
     expect(boxes[0]).toEqual({ position: [-34.5, 0, -70], yaw: expect.closeTo(-Math.PI, 5) });
     expect(race.itemBoxesPresent()).toEqual(Array<boolean>(8).fill(true));
     expect(race.hazards()).toEqual([]);
+    expect(race.projectiles()).toEqual([]);
     expect(bridge.hazardDropDistanceMetres).toBe(1);
+  });
+
+  it("reports a projectile in flight from the sim, and from the snapshots as the interpolation draws it", async () => {
+    const bridge = await loadBridge(wasm);
+    // Two karts race solo through the bridge: a projectile fired by kart 1
+    // at kart 0 is read back with its owner and target. The seeds are
+    // tried until a kart on a box under its slot rolls one; the sim's own
+    // tests cover its flight.
+    const sidecar = JSON.parse(OVAL) as {
+      spawn_grid: { position: [number, number, number] }[];
+      item_boxes: { position: [number, number, number]; yaw: number }[];
+    };
+    sidecar.item_boxes.push({ position: sidecar.spawn_grid[1]?.position ?? [0, 0, 0], yaw: 0 });
+    const boxed = JSON.stringify(sidecar);
+    const tick = 1 / bridge.ticksPerSecond;
+    const fire: KartInput = { ...IDLE_INPUT, useItem: true };
+    let fired = false;
+    for (let seed = 0n; seed < 50n && !fired; seed++) {
+      const race = bridge.createRace(seed, 2, 0, boxed);
+      while (race.phase().kind === "countdown") race.step([IDLE_INPUT, IDLE_INPUT], tick);
+      race.step([IDLE_INPUT, IDLE_INPUT], tick);
+      if (race.kartTransforms()[1]?.heldItem !== "homing") continue;
+      for (let t = 0; t < bridge.ticksPerSecond; t++) race.step([THROTTLE, IDLE_INPUT], tick);
+      race.step([THROTTLE, fire], tick);
+      const [projectile] = race.projectiles();
+      expect(projectile).toMatchObject({ owner: 1, target: 0 });
+      expect(projectile?.position[0]).toBeCloseTo(32, 0);
+      fired = true;
+    }
+    expect(fired, "some seed rolls kart 1 a projectile").toBe(true);
+
+    const prediction = bridge.createPrediction(7n, 0, OVAL);
+    expect(prediction.interpolatedProjectiles()).toEqual([]);
+    const snapshot = (tick: number, x: number): Snapshot => ({
+      tick,
+      acknowledged: [0],
+      karts: [
+        {
+          position: [28, 0.3, 4],
+          rotation: [0, 0, 0, 1],
+          velocity: [0, 0, 0],
+          drift: null,
+          racePosition: 1,
+          lap: 1,
+          checkpoint: 0,
+          splineProgress: 0,
+          wrongWay: false,
+          heldItem: null,
+          spinOutS: null,
+        },
+      ],
+      events: [],
+      hazards: [],
+      projectiles: [{ position: [x, 0, -10], owner: 1, target: 0 }],
+    });
+    for (let t = 0; t < 6; t++) prediction.reconcile(snapshot(2 * t, t));
+    const idle: Input = {
+      sequence: 0,
+      steer: 0,
+      throttle: 0,
+      brake: 0,
+      hop: false,
+      useItem: false,
+      holdItem: false,
+    };
+    for (let t = 0; t < 12; t++) prediction.tick({ ...idle, sequence: t + 1 });
+    const [drawn] = prediction.interpolatedProjectiles();
+    expect(drawn).toMatchObject({ owner: 1, target: 0 });
+    // Drawn the tuned delay behind the newest, between two snapshots.
+    expect(drawn?.position[0]).toBeGreaterThan(0);
+    expect(drawn?.position[0]).toBeLessThan(5);
   });
 });

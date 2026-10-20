@@ -10,8 +10,8 @@ use protocol::{ClientMessage, Input, KartSnapshot, ServerMessage, Snapshot};
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 use sim::{
-    Drift, DriftDirection, Item, KartInput, KartTransform, Phase, Replay, SnapshotKart, State,
-    Surface, Track,
+    Drift, DriftDirection, Item, KartInput, KartTransform, Phase, Projectile, Replay, SnapshotKart,
+    State, Surface, Track,
 };
 use wasm_bindgen::prelude::*;
 
@@ -378,6 +378,13 @@ impl Race {
             .collect()
     }
 
+    /// Five floats per homing projectile in flight, in the order they were
+    /// fired: its position x, y, z, the grid index of the kart that fired
+    /// it and the grid index of the kart it chases.
+    pub fn projectiles(&self) -> Vec<f32> {
+        projectile_floats(self.state().projectiles())
+    }
+
     /// Three floats for where the race is (`sim::Phase`): the phase as
     /// `sim::Phase::code` (0 countdown, 1 racing, 2 finished); then the
     /// countdown's seconds to Go, or the race clock in seconds while racing,
@@ -474,6 +481,15 @@ impl Prediction {
         self.interpolation.push(
             snapshot.tick,
             snapshot.karts.iter().map(snapshot_kart).collect(),
+            snapshot
+                .projectiles
+                .iter()
+                .map(|projectile| Projectile {
+                    position: projectile.position,
+                    owner: usize::from(projectile.owner),
+                    target: usize::from(projectile.target),
+                })
+                .collect(),
         );
         Ok(self
             .inner
@@ -496,6 +512,13 @@ impl Prediction {
             .iter()
             .flat_map(|kart| transform_floats(kart, self.inner.surface_at(kart.position)))
             .collect()
+    }
+
+    /// Every projectile in flight where the interpolation draws it, in
+    /// the five floats `Race::projectiles` gives each; empty before the
+    /// first snapshot.
+    pub fn interpolated_projectiles(&self) -> Vec<f32> {
+        projectile_floats(&self.interpolation.projectiles())
     }
 
     /// The race clock at the predicted kart's tick, in the three floats
@@ -540,6 +563,17 @@ fn transform_floats(kart: &KartTransform, surface: Surface) -> [f32; 14] {
         f32::from(kart.held_item.map_or(0, Item::code)),
         kart.spin_out_s.unwrap_or(0.0),
     ]
+}
+
+/// The five floats per projectile `Race::projectiles` documents.
+fn projectile_floats(projectiles: &[Projectile]) -> Vec<f32> {
+    projectiles
+        .iter()
+        .flat_map(|projectile| {
+            let [x, y, z] = projectile.position;
+            [x, y, z, projectile.owner as f32, projectile.target as f32]
+        })
+        .collect()
 }
 
 /// The three floats `Race::phase` documents.

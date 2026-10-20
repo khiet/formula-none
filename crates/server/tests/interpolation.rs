@@ -10,7 +10,7 @@ mod common;
 use std::collections::{BTreeMap, BTreeSet};
 use std::time::Duration;
 
-use common::{race_together, snapshot_kart};
+use common::{projectiles, race_together, snapshot_kart};
 use protocol::{EventKind, ServerMessage};
 use server::fake_transport::{Client, Conditions, Harness};
 use sim::tuning::{
@@ -57,6 +57,7 @@ fn client_tick(
             interpolation.push(
                 snapshot.tick,
                 snapshot.karts.iter().map(snapshot_kart).collect(),
+                projectiles(&snapshot),
             );
         }
     }

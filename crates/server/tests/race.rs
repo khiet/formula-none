@@ -391,9 +391,10 @@ async fn events_are_never_lost_on_a_lossy_link_and_every_id_is_distinct() {
             event.kind,
             EventKind::LapCompleted { kart, .. }
                 | EventKind::ItemPicked { kart, .. }
-                | EventKind::ItemFired { kart, .. } if usize::from(kart) >= 1
+                | EventKind::ItemFired { kart, .. }
+                | EventKind::Hit { kart, .. } if usize::from(kart) >= 1
         )),
-        "the idle human does nothing; the bots race: {on_the_stream:?}"
+        "the idle human does nothing; the bots race and hit each other: {on_the_stream:?}"
     );
 }
 

@@ -42,3 +42,10 @@ Landed with issue 17 (2026-10-19).
 - Issue 22 (2026-10-20) added the hazards on the track to every snapshot:
   position, owner and whether the owner still trails it, since a trailed
   hazard moves every tick. The busy sample, with one hazard, is 490 bytes.
+- Issue 23 (2026-10-20) added the homing projectiles in flight to every
+  snapshot: position, owner and target, since a projectile moves every
+  tick and the client draws it between snapshots as it draws the karts.
+  The busy sample, with one hazard and one projectile, is 505 bytes, past
+  the quarter over 400 the size test allowed; the test now holds the
+  sample to a quarter either side of 500, so the gate still catches a
+  per-kart field that does not belong.

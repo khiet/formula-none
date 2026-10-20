@@ -104,6 +104,16 @@ export interface Hazard {
 }
 
 /**
+ * A homing projectile in flight as the View draws it: its centre in metres,
+ * the kart that fired it and the kart it chases.
+ */
+export interface Projectile {
+  readonly position: readonly [number, number, number];
+  readonly owner: number;
+  readonly target: number;
+}
+
+/**
  * Where a kart stands in the race, as the Instrument panel shows it: race
  * position from 1, the lap it is on from 1 (staying on the last once the
  * race's laps are done), the last checkpoint crossed in order (0 is the
@@ -157,6 +167,8 @@ export interface Race {
   itemBoxesPresent(): boolean[];
   /** The hazards on the track as of the last step, in the order they were fired. */
   hazards(): Hazard[];
+  /** The projectiles in flight as of the last step, in the order they were fired. */
+  projectiles(): Projectile[];
   /**
    * The sim's hash of everything that influences future ticks, as of the last
    * step. Bit-identical native and in wasm for the same race and inputs,
@@ -192,6 +204,11 @@ export interface Prediction {
    * snapshot.
    */
   interpolatedKartTransforms(): KartTransform[];
+  /**
+   * Every projectile in flight where the interpolation draws it, between
+   * the snapshots as the other karts are; empty before the first snapshot.
+   */
+  interpolatedProjectiles(): Projectile[];
   /**
    * The race clock at the predicted kart's tick: the countdown the
    * player's inputs meet on the server. Never finished; the server's
@@ -306,6 +323,7 @@ const FLOATS_PER_INPUT = 6;
 const FLOATS_PER_TRANSFORM = 14;
 const FLOATS_PER_ITEM_BOX = 4;
 const FLOATS_PER_HAZARD = 5;
+const FLOATS_PER_PROJECTILE = 5;
 const FLOATS_PER_STANDING = 8;
 const FLOATS_PER_PHASE = 3;
 /** Phase codes in the phase buffer, in the sim's order. */
@@ -486,6 +504,10 @@ class BridgedRace implements Race {
     return hazards;
   }
 
+  projectiles(): Projectile[] {
+    return projectilesFrom(this.#race.projectiles());
+  }
+
   kartTransforms(): KartTransform[] {
     const buffer = this.#race.kart_transforms();
     if (buffer.length !== this.#kartCount * FLOATS_PER_TRANSFORM) {
@@ -538,6 +560,10 @@ class BridgedPrediction implements Prediction {
     return transforms;
   }
 
+  interpolatedProjectiles(): Projectile[] {
+    return projectilesFrom(this.#prediction.interpolated_projectiles());
+  }
+
   phase(): Phase {
     return phaseFrom(this.#prediction.phase());
   }
@@ -545,6 +571,19 @@ class BridgedPrediction implements Prediction {
   correctionsPerSecond(): number {
     return this.#prediction.corrections_per_second();
   }
+}
+
+/** The projectiles a buffer of five floats each describes. */
+function projectilesFrom(buffer: Float32Array): Projectile[] {
+  if (buffer.length % FLOATS_PER_PROJECTILE !== 0) {
+    throw new RangeError(`projectile buffer has ${buffer.length} floats`);
+  }
+  const projectiles: Projectile[] = [];
+  for (let at = 0; at < buffer.length; at += FLOATS_PER_PROJECTILE) {
+    const read = (offset: number): number => buffer[at + offset] as number;
+    projectiles.push({ position: [read(0), read(1), read(2)], owner: read(3), target: read(4) });
+  }
+  return projectiles;
 }
 
 /** The kart transform whose fourteen floats start at `at`; `slot` names the kart in errors. */

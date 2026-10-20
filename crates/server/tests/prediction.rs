@@ -11,7 +11,7 @@ mod common;
 
 use std::time::Duration;
 
-use common::{race_together, read, snapshot_kart, wire};
+use common::{projectiles, race_together, read, snapshot_kart, wire};
 use protocol::{ClientMessage, ServerMessage};
 use server::fake_transport::{Conditions, Harness, TRACK};
 use sim::bot::{self, Memory};
@@ -82,6 +82,7 @@ async fn at_a_100_ms_round_trip_and_2_percent_loss_the_own_kart_is_corrected_out
                 interpolation.push(
                     snapshot.tick,
                     snapshot.karts.iter().map(snapshot_kart).collect(),
+                    projectiles(&snapshot),
                 );
                 // A hit is the server's alone: the snapshot that brings its
                 // spin-out corrects the kart by however far it was predicted
@@ -210,6 +211,7 @@ async fn driving_into_another_kart_never_predicts_the_own_kart_visibly_past_wher
                 interpolation.push(
                     snapshot.tick,
                     snapshot.karts.iter().map(snapshot_kart).collect(),
+                    projectiles(&snapshot),
                 );
                 prediction.reconcile(
                     snapshot.tick,

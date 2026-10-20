@@ -90,8 +90,7 @@ pub struct KartTransform {
     pub spin_out_s: Option<f32>,
 }
 
-/// The items a kart can hold: what an item box rolls. The homing projectile
-/// fires to no effect until its rules land.
+/// The items a kart can hold: what an item box rolls.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Item {
     /// A burst of speed: the tuned factor on top speed for the tuned time.
@@ -100,6 +99,21 @@ pub enum Item {
     Hazard,
     /// Follows the track to the kart ahead and spins it out.
     Homing,
+}
+
+/// A homing projectile in flight, as the View draws it: where it is, whose
+/// it is and which kart it chases. It flies the spline at the tuned speed
+/// toward the kart that was next ahead of its owner by race position when
+/// it was fired, and is used up on reaching that kart: on a hazard the
+/// kart trails, which goes with it, else on the kart, which spins out.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Projectile {
+    /// Its centre, at the centreline's height where it is, in metres.
+    pub position: [f32; 3],
+    /// The grid index of the kart that fired it.
+    pub owner: usize,
+    /// The grid index of the kart it chases.
+    pub target: usize,
 }
 
 /// A hazard on the track, as the View draws it: where it lies, whose it is
@@ -270,8 +284,9 @@ pub enum RaceEvent {
     },
     /// The kart fired the item it held; its slot is empty again.
     ItemFired { kart: usize, item: Item },
-    /// The kart hit a hazard `by` fired and is spun out: stopped, with its
-    /// inputs ignored, for the tuned time.
+    /// The kart hit a hazard `by` fired, or was hit by a projectile `by`
+    /// fired, and is spun out: stopped, with its inputs ignored, for the
+    /// tuned time.
     SpunOut { kart: usize, by: usize },
 }
 
@@ -384,6 +399,8 @@ pub struct State {
     item_box_respawn_s: Vec<f32>,
     /// The hazards on the track, in the order they were fired.
     hazards: Vec<PlacedHazard>,
+    /// The projectiles in flight, in the order they were fired.
+    projectiles: Vec<Projectile>,
 }
 
 #[derive(Clone)]
@@ -524,6 +541,15 @@ use tuning::{
     ITEM_BOX_HALF_LENGTH_M, ITEM_BOX_HALF_WIDTH_M, ITEM_BOX_RESPAWN_S, ITEM_ROLL_PERCENT,
     ITEM_ROLL_WEIGHTS, SPIN_OUT_S,
 };
+use tuning::{
+    HOMING_LOCK_RANGE_M, HOMING_LOOKAHEAD_M, HOMING_RADIUS_M, HOMING_SPEED_FACTOR,
+    HOMING_WITHOUT_TARGET_DESPAWNS,
+};
+
+// The sim builds only the wasted fire for a projectile with no kart ahead
+// (the decision is recorded with the constant); flipping it needs the
+// circling projectile written first.
+const _: () = assert!(HOMING_WITHOUT_TARGET_DESPAWNS);
 
 /// A surface query starts this far above the asked point, so a point lying
 /// exactly on a surface still finds it despite rounding.
@@ -633,6 +659,7 @@ impl State {
             rng: ChaCha8Rng::seed_from_u64(seed),
             item_box_respawn_s: vec![0.0; track.item_boxes().len()],
             hazards: Vec::new(),
+            projectiles: Vec::new(),
             track,
             karts,
             humans,
@@ -684,6 +711,12 @@ impl State {
     /// fired.
     pub fn hazards(&self) -> Vec<Hazard> {
         self.hazards.iter().map(|placed| placed.hazard).collect()
+    }
+
+    /// The projectiles in flight as of the last tick, in the order they
+    /// were fired.
+    pub fn projectiles(&self) -> &[Projectile] {
+        &self.projectiles
     }
 
     /// A bot drives the human's kart in `slot` from the next tick, with no
@@ -747,9 +780,10 @@ impl State {
     }
 
     /// A hash of everything that influences future ticks: the phase and its
-    /// clocks, the RNG, the item boxes' respawn clocks and, per kart, its
-    /// speed, its item and its body's position, heading, velocities and
-    /// sleep state, including the timer that puts a resting body to sleep.
+    /// clocks, the RNG, the item boxes' respawn clocks, the hazards and
+    /// projectiles out and, per kart, its speed, its item and its body's
+    /// position, heading, velocities and sleep state, including the timer
+    /// that puts a resting body to sleep.
     /// Bit-identical on every platform for bit-identical states, which is
     /// what the replay fixtures check (ADR 0002). A bot's memory is hashed
     /// with its kart, so a human's kart a bot drives hashes apart from one
@@ -784,6 +818,12 @@ impl State {
             hasher.write_u8(u8::from(placed.hazard.held));
             hasher.write_f32(placed.lifetime_left_s);
             hasher.write_u8(u8::from(placed.clear_of_owner));
+        }
+        hasher.write_u64(self.projectiles.len() as u64);
+        for projectile in &self.projectiles {
+            hasher.write_f32s(projectile.position);
+            hasher.write_u64(projectile.owner as u64);
+            hasher.write_u64(projectile.target as u64);
         }
         for kart in &self.karts {
             let body = &self.physics.bodies[kart.body];
@@ -971,6 +1011,9 @@ pub fn step(mut state: State, inputs: &[KartInput], dt: f32) -> State {
             })
             .collect()
     };
+    // Race positions as of the last tick: what a projectile picks its
+    // target by and a pickup rolls by.
+    let standings = state.standings();
     // Fires come before pickups, so a press on the tick a box is picked up
     // fires what the kart held, never what it has just rolled. A stalled or
     // spun-out kart's press is as dead as its other controls.
@@ -999,7 +1042,18 @@ pub fn step(mut state: State, inputs: &[KartInput], dt: f32) -> State {
                         clear_of_owner: false,
                     });
                 }
-                Item::Homing => {}
+                // Fired with no kart ahead, the leader's projectile is
+                // wasted: the fire is reported and nothing flies.
+                Item::Homing => {
+                    if let Some(target) = kart_ahead(&standings, slot) {
+                        let here = state.physics.bodies[kart.body].translation();
+                        state.projectiles.push(Projectile {
+                            position: at_centreline_height(&state.track, here),
+                            owner: slot,
+                            target,
+                        });
+                    }
+                }
             }
             state.events.push(RaceEvent::ItemFired { kart: slot, item });
         }
@@ -1011,7 +1065,6 @@ pub fn step(mut state: State, inputs: &[KartInput], dt: f32) -> State {
             *respawn_s -= dt;
         }
     }
-    let mut standings = None;
     for slot in 0..state.karts.len() {
         if state.karts[slot].held_item.is_some() {
             continue;
@@ -1029,8 +1082,7 @@ pub fn step(mut state: State, inputs: &[KartInput], dt: f32) -> State {
                     && item_box.covers(position, ITEM_BOX_HALF_LENGTH_M, ITEM_BOX_HALF_WIDTH_M)
             });
         if let Some(item_box) = picked {
-            let standings = standings.get_or_insert_with(|| state.standings());
-            state.pick_up(slot, item_box, standings);
+            state.pick_up(slot, item_box, &standings);
         }
     }
     let top_speeds: Vec<f32> = (0..state.karts.len())
@@ -1218,7 +1270,12 @@ pub fn step(mut state: State, inputs: &[KartInput], dt: f32) -> State {
         }
         for (slot, kart) in state.karts.iter_mut().enumerate() {
             let body = &mut state.physics.bodies[kart.body];
-            let reached = reaches(body.translation(), body.rotation(), placed.hazard.position);
+            let reached = reaches(
+                body.translation(),
+                body.rotation(),
+                placed.hazard.position,
+                HAZARD_RADIUS_M,
+            );
             if slot == placed.hazard.owner && !placed.clear_of_owner {
                 placed.clear_of_owner = !reached;
                 continue;
@@ -1236,6 +1293,42 @@ pub fn step(mut state: State, inputs: &[KartInput], dt: f32) -> State {
         true
     });
     state.hazards = hazards;
+    // A projectile flies after its target and is used up on reaching the
+    // kart: on a hazard the kart trails, which goes with it, else on the
+    // kart itself, which spins out unless it already is.
+    let mut projectiles = std::mem::take(&mut state.projectiles);
+    projectiles.retain_mut(|projectile| {
+        let target = &mut state.karts[projectile.target];
+        let body = &mut state.physics.bodies[target.body];
+        fly(projectile, &state.track, body.translation(), dt);
+        if !reaches(
+            body.translation(),
+            body.rotation(),
+            projectile.position,
+            HOMING_RADIUS_M,
+        ) {
+            return true;
+        }
+        let shield = state
+            .hazards
+            .iter()
+            .position(|placed| placed.hazard.held && placed.hazard.owner == projectile.target);
+        match shield {
+            Some(index) => {
+                state.hazards.remove(index);
+            }
+            None if !target.spun_out() => {
+                spin_out(target, body);
+                state.events.push(RaceEvent::SpunOut {
+                    kart: projectile.target,
+                    by: projectile.owner,
+                });
+            }
+            None => {}
+        }
+        false
+    });
+    state.projectiles = projectiles;
     // Places are read once every kart has moved, so two karts finishing on
     // the same tick are placed by their finish times, as the standings are.
     if !finished_this_tick.is_empty() {
@@ -1442,17 +1535,56 @@ fn behind(translation: Vec3, rotation: &Rotation) -> [f32; 3] {
 }
 
 /// Whether a kart standing at `translation` facing `rotation` reaches a
-/// hazard centred at `hazard`: the hazard's centre lies within the tuned
-/// radius of the kart's collision box, seen from above.
-fn reaches(translation: Vec3, rotation: &Rotation, hazard: [f32; 3]) -> bool {
-    let local = rotation.inverse() * (Vec3::from(hazard) - translation);
+/// hazard or a projectile centred at `point`: the point lies within
+/// `radius` of the kart's collision box, seen from above.
+fn reaches(translation: Vec3, rotation: &Rotation, point: [f32; 3], radius: f32) -> bool {
+    let local = rotation.inverse() * (Vec3::from(point) - translation);
     let nearest = Vec3::new(
         local.x.clamp(-KART_HALF_WIDTH_M, KART_HALF_WIDTH_M),
         0.0,
         local.z.clamp(-KART_HALF_LENGTH_M, KART_HALF_LENGTH_M),
     );
     let (dx, dz) = (local.x - nearest.x, local.z - nearest.z);
-    dx * dx + dz * dz <= HAZARD_RADIUS_M * HAZARD_RADIUS_M
+    dx * dx + dz * dz <= radius * radius
+}
+
+/// The kart next ahead of the one in `slot` by race position, as
+/// `standings` has it; `None` when that kart leads.
+fn kart_ahead(standings: &[Standing], slot: usize) -> Option<usize> {
+    standings
+        .iter()
+        .position(|standing| standing.position + 1 == standings[slot].position)
+}
+
+/// `point` brought to the height of the centreline nearest it, where a
+/// projectile rides.
+fn at_centreline_height(track: &Track, point: Vec3) -> [f32; 3] {
+    let height = track.point_at(track.progress_at(point.to_array()))[1];
+    [point.x, height, point.z]
+}
+
+/// Fly the projectile one tick of `dt` seconds at the tuned speed: along
+/// the centreline, steering for the point the tuned lookahead ahead of
+/// where it is, until its target at `target` is within the tuned lock
+/// range, then straight at the target. Seen from above; the height is the
+/// centreline's where it ends up.
+fn fly(projectile: &mut Projectile, track: &Track, target: Vec3, dt: f32) {
+    let here = Vec3::from(projectile.position);
+    let to_target = Vec3::new(target.x - here.x, 0.0, target.z - here.z);
+    let aim = if to_target.length() <= HOMING_LOCK_RANGE_M {
+        to_target
+    } else {
+        let progress = track.progress_at(projectile.position);
+        let ahead = track.point_at(progress + HOMING_LOOKAHEAD_M);
+        Vec3::new(ahead[0] - here.x, 0.0, ahead[2] - here.z)
+    };
+    let reach = HOMING_SPEED_FACTOR * TOP_SPEED_M_PER_S * dt;
+    let moved = if aim.length() <= reach {
+        aim
+    } else {
+        aim.normalize() * reach
+    };
+    projectile.position = at_centreline_height(track, here + moved);
 }
 
 /// Stop the kart where it is and start its spin-out: a drift or a boost

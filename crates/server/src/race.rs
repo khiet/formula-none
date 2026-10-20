@@ -9,7 +9,7 @@ use std::collections::{BTreeMap, VecDeque};
 
 use protocol::{
     DriftDirection, DriftSnapshot, Event, EventKind, FinalStanding, HazardSnapshot, Input, Item,
-    KartSnapshot, Snapshot,
+    KartSnapshot, ProjectileSnapshot, Snapshot,
 };
 use sim::tuning::{
     CONNECTION_SILENCE_S, INPUT_QUEUE_MAX_TICKS, INPUT_QUEUE_START_TICKS, KARTS_PER_RACE,
@@ -292,6 +292,15 @@ impl Race {
                 held: hazard.held,
             })
             .collect();
+        let projectiles = state
+            .projectiles()
+            .iter()
+            .map(|projectile| ProjectileSnapshot {
+                position: projectile.position,
+                owner: projectile.owner as u8,
+                target: projectile.target as u8,
+            })
+            .collect();
         let mut acknowledged: Vec<u32> = self.humans.iter().map(|human| human.sequence).collect();
         acknowledged.resize(standings.len(), 0);
         Snapshot {
@@ -300,6 +309,7 @@ impl Race {
             karts,
             events,
             hazards,
+            projectiles,
         }
     }
 }

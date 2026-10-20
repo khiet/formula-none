@@ -140,6 +140,16 @@ dropped it until that kart has driven clear of it, and a dropped hazard is
 gone after 30 s. Every snapshot carries the hazards on the track; a client
 draws a trailed one behind the kart as it draws that kart.
 
+### homing projectile
+
+The attacking item. Fired, it chases the kart next ahead of its owner by
+race position: along the spline at 1.6 times top speed, steering for a
+point ahead on the centreline, and straight at the kart once within lock
+range. Reaching the kart it is used up: on a hazard the kart trails, which
+goes with it, else on the kart, which spins out. Fired by the leader, with
+no kart ahead, it is wasted. Every snapshot carries the projectiles in
+flight; a client draws them between snapshots as it draws the other karts.
+
 ### spin-out
 
 A kart stopped and spun by an item for a fixed time (1 s): dead to its

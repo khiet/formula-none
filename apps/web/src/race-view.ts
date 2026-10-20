@@ -17,7 +17,7 @@ import {
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { CSS2DObject, CSS2DRenderer } from "three/addons/renderers/CSS2DRenderer.js";
 import { WebGPURenderer } from "three/webgpu";
-import type { Hazard, ItemBox, KartSize, KartTransform } from "./bridge";
+import type { Hazard, ItemBox, KartSize, KartTransform, Projectile } from "./bridge";
 import type { CameraPose } from "./chase-camera";
 import { type DustTell, dustTell } from "./dust";
 import type { KartLabel } from "./kart-labels";
@@ -44,13 +44,17 @@ const ITEM_BOX_COLOUR = 0xffcc33;
 const HAZARD_CONE_RADIUS_M = 0.5;
 const HAZARD_CONE_HEIGHT_M = 0.6;
 const HAZARD_COLOUR = 0xff5522;
+/** The placeholder projectile (ADR 0007): a ball, flying this high over where the sim has it. */
+const PROJECTILE_RADIUS_M = 0.4;
+const PROJECTILE_HEIGHT_M = 0.6;
+const PROJECTILE_COLOUR = 0xdd2222;
 
 export interface RaceView {
   /**
    * Move every kart mesh to the transforms the sim reports, spinning one
    * that is spun out, hang `labels` where they say and hide every other
    * kart's, move the camera to `camera`, show each item box that is there
-   * to pick up and a marker at each hazard.
+   * to pick up, a marker at each hazard and a ball at each projectile.
    */
   update(
     transforms: readonly KartTransform[],
@@ -58,6 +62,7 @@ export interface RaceView {
     camera: CameraPose,
     itemBoxesPresent: readonly boolean[],
     hazards: readonly Hazard[],
+    projectiles: readonly Projectile[],
   ): void;
   render(): void;
   /** Take the canvas off the page and free the renderer. */
@@ -68,7 +73,8 @@ export interface RaceView {
  * The Race Scene's View: the track's glTF, one box per kart and one per
  * item box, drawn by Three.js from the transforms the bridge reports and
  * the pose the chase camera computes, with a name floating over each kart
- * the Scene labels, and a cone at each hazard. The track mesh is
+ * the Scene labels, a cone at each hazard and a ball at each projectile.
+ * The track mesh is
  * Presentation only; the sim has its own copy of the geometry from the
  * sidecar. A spun-out kart is turned about its axis over `spinOutSeconds`,
  * the spin-out's Feedback. Picks WebGPU when the browser has it and WebGL
@@ -134,6 +140,9 @@ export async function createRaceView(
   const hazardGeometry = new ConeGeometry(HAZARD_CONE_RADIUS_M, HAZARD_CONE_HEIGHT_M);
   const hazardMaterial = new MeshBasicMaterial({ color: HAZARD_COLOUR });
   const hazardMeshes: Mesh[] = [];
+  const projectileGeometry = new SphereGeometry(PROJECTILE_RADIUS_M);
+  const projectileMaterial = new MeshBasicMaterial({ color: PROJECTILE_COLOUR });
+  const projectileMeshes: Mesh[] = [];
 
   const labels = Array.from({ length: kartCount }, () => {
     const element = document.createElement("div");
@@ -156,7 +165,7 @@ export async function createRaceView(
   const spin = new Quaternion();
   const up = new Vector3(0, 1, 0);
   return {
-    update(transforms, kartLabels, pose, itemBoxesPresent, hazards) {
+    update(transforms, kartLabels, pose, itemBoxesPresent, hazards, projectiles) {
       boxes.forEach((mesh, box) => {
         mesh.visible = itemBoxesPresent[box] ?? true;
       });
@@ -186,6 +195,19 @@ export async function createRaceView(
         if (hazard !== undefined) {
           const [x, y, z] = hazard.position;
           mesh.position.set(x, y + HAZARD_CONE_HEIGHT_M / 2, z);
+        }
+      });
+      while (projectileMeshes.length < projectiles.length) {
+        const mesh = new Mesh(projectileGeometry, projectileMaterial);
+        world.add(mesh);
+        projectileMeshes.push(mesh);
+      }
+      projectileMeshes.forEach((mesh, index) => {
+        const projectile = projectiles[index];
+        mesh.visible = projectile !== undefined;
+        if (projectile !== undefined) {
+          const [x, y, z] = projectile.position;
+          mesh.position.set(x, y + PROJECTILE_HEIGHT_M, z);
         }
       });
       for (const label of labels) {

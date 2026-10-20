@@ -10,45 +10,16 @@ mod common;
 use std::collections::BTreeMap;
 use std::time::Duration;
 
-use common::{race_together, seconds, speed, wire};
-use protocol::{Event, EventKind, Item, KartSnapshot, ServerMessage, Snapshot};
+use common::{follow_the_line, race_together, seconds, speed, wire};
+use protocol::{Event, EventKind, Item, ServerMessage, Snapshot};
 use server::fake_transport::{Conditions, Harness};
-use sim::tuning::{BOT_LOOKAHEAD_M, COUNTDOWN_S, SPIN_OUT_S, TICKS_PER_SECOND};
+use sim::tuning::{COUNTDOWN_S, SPIN_OUT_S, TICKS_PER_SECOND};
 use sim::{KartInput, Track};
 
 const OVAL: &str = include_str!("../../../assets/tracks/oval/oval.track.json");
 const TICK: Duration = Duration::from_nanos(1_000_000_000 / TICKS_PER_SECOND as u64);
 /// Give up if nobody has been hit by then.
 const DEADLINE_S: f32 = 90.0;
-
-/// Full throttle along the bots' line, the tuned distance right of the
-/// centreline, from where the snapshot has the kart.
-fn follow_the_line(track: &Track, kart: &KartSnapshot) -> KartInput {
-    const RIGHT_OF_CENTRE_M: f32 = 2.5;
-    const STEER_GAIN: f32 = 4.0;
-    let progress = kart.spline_progress;
-    let ahead = track.point_at(progress + BOT_LOOKAHEAD_M);
-    let further = track.point_at(progress + BOT_LOOKAHEAD_M + 1.0);
-    // Right of the direction of travel (dx, dz), seen from above, is (-dz, dx).
-    let (tx, tz) = (further[0] - ahead[0], further[2] - ahead[2]);
-    let travel = (tx * tx + tz * tz).sqrt().max(f32::EPSILON);
-    let target = [
-        ahead[0] - tz / travel * RIGHT_OF_CENTRE_M,
-        ahead[2] + tx / travel * RIGHT_OF_CENTRE_M,
-    ];
-    let (dx, dz) = (target[0] - kart.position[0], target[1] - kart.position[2]);
-    let length = (dx * dx + dz * dz).sqrt().max(f32::EPSILON);
-    let [qx, qy, qz, qw] = kart.rotation;
-    let yaw = (2.0 * (qw * qy + qx * qz)).atan2(1.0 - 2.0 * (qy * qy + qz * qz));
-    // Positive steer turns the kart right; right of a yaw is (cos, -sin) in x, z.
-    let (sin, cos) = yaw.sin_cos();
-    let rightward = (dx * cos - dz * sin) / length;
-    KartInput {
-        steer: (rightward * STEER_GAIN).clamp(-1.0, 1.0),
-        throttle: 1.0,
-        ..KartInput::default()
-    }
-}
 
 /// What one client has heard: every event on the reliable lane, in order,
 /// and every snapshot by tick.

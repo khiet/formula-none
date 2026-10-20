@@ -9,9 +9,11 @@
 // it reports taken, and a press only predicts the fire until the server's
 // event confirms it. The hazards are the newest snapshot's; one a kart
 // still trails is drawn behind that kart where the kart is drawn, so it
-// follows the predicted own kart and the interpolated others.
+// follows the predicted own kart and the interpolated others. The
+// projectiles are drawn between the snapshots as the other karts are, so
+// one reaches its target as the target is drawn spinning.
 
-import type { Bridge, Hazard, KartTransform, Phase, Standing } from "./bridge";
+import type { Bridge, Hazard, KartTransform, Phase, Projectile, Standing } from "./bridge";
 import type { FinalStanding, Item, Snapshot } from "./generated/protocol";
 import type { ItemSlot } from "./instrument-panel";
 import { ITEM_FIRE_FLASH_S, type RaceRun } from "./race-scene";
@@ -177,6 +179,7 @@ export function createServerRace(
             };
       });
     },
+    projectiles: (): Projectile[] => prediction.interpolatedProjectiles(),
     correctionsPerSecond: () => prediction.correctionsPerSecond(),
     dispose() {
       stopSnapshots();
