@@ -25,11 +25,12 @@ import type { CameraPose } from "./chase-camera";
 import { createDustEmitter } from "./dust";
 import type { KartLabel } from "./kart-labels";
 import { dressKart, fitKart, type KartFit } from "./kart-model";
+import { createKartShadows } from "./kart-shadows";
 import { livery, liveryCss } from "./livery";
 import { createParticles } from "./particles";
 import { createSparkEmitter } from "./sparks";
 import { spinOutAngle } from "./spin";
-import { particleMesh, tyreMarkMesh } from "./tell-meshes";
+import { particleMesh, shadowDiscMesh, trackProbe, tyreMarkMesh } from "./tell-meshes";
 import { createTyreMarks } from "./tyre-marks";
 
 /** Far enough to see across Brands Patch from any point on it. */
@@ -102,8 +103,9 @@ export interface ViewAssets {
  * mechanic's Feedback is drawn from the transforms and the phase alone:
  * tyre marks under a drift, sparks once a tier has charged, drifting or
  * holding for the rocket start, dust on the run-off and at the wheels of a
- * stalled kart, and a spun-out kart turned about its axis over
- * `spinOutSeconds`. Picks WebGPU when the browser has it and WebGL
+ * stalled kart, a spun-out kart turned about its axis over
+ * `spinOutSeconds`, and a shadow disc on the track under every kart so a
+ * hop's height reads against the ground. Picks WebGPU when the browser has it and WebGL
  * otherwise.
  */
 export async function createRaceView(
@@ -177,7 +179,11 @@ export async function createRaceView(
     new MeshBasicMaterial({ transparent: true, opacity: DUST_OPACITY, depthWrite: false }),
     (size, life) => size * Math.min(life / DUST_FADE_SHARE, 1),
   );
-  world.add(marks.mesh, sparkMesh.mesh, dustMesh.mesh);
+  // The discs find the surface in the View's track mesh, which is the only
+  // one here; the sim's copy is never asked.
+  const shadows = createKartShadows(kartCount, trackProbe(track.scene));
+  const shadowMesh = shadowDiscMesh(shadows, kartSize);
+  world.add(marks.mesh, sparkMesh.mesh, dustMesh.mesh, shadowMesh.mesh);
 
   // Unlit so a box reads from any angle, whatever the sun does.
   const boxGeometry = new BoxGeometry(ITEM_BOX_SIZE_M, ITEM_BOX_SIZE_M, ITEM_BOX_SIZE_M);
@@ -259,9 +265,11 @@ export async function createRaceView(
       tyreMarks.update(transforms, frameSeconds);
       sparks.update(frameSeconds);
       dust.update(frameSeconds);
+      shadows.update(transforms);
       marks.update();
       sparkMesh.update();
       dustMesh.update();
+      shadowMesh.update();
       cones.show(hazards);
       balls.show(projectiles);
       for (const label of labels) {

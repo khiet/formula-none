@@ -168,6 +168,54 @@ describe("the chase camera", () => {
     }
   });
 
+  it("follows a hop by a bounded fraction of the kart's rise and settles back", () => {
+    const camera = createChaseCamera(TUNING);
+    const rest = camera.update(kart(0, [0, 0.3, 0]), FRAME_S);
+    // The sim's hop: 0.3 s of airtime under gravity, peaking about 11 cm up.
+    const airtime = 0.3;
+    const launch = (9.8 * airtime) / 2;
+    const peak = (launch * launch) / (2 * 9.8);
+    let cameraRise = 0;
+    let kartRiseInFrame = 0;
+    for (let frame = 1; frame * FRAME_S <= airtime; frame++) {
+      const t = frame * FRAME_S;
+      const y = 0.3 + launch * t - 4.9 * t * t;
+      const pose = camera.update(kart(0, [0, y, 0], { airborne: true }), FRAME_S);
+      cameraRise = Math.max(cameraRise, pose.position[1] - rest.position[1]);
+      kartRiseInFrame = Math.max(kartRiseInFrame, y - pose.target[1]);
+      // The look target rises with the camera, so the kart moves in the frame.
+      expect(pose.position[1] - pose.target[1]).toBeCloseTo(3.2, 9);
+    }
+    expect(cameraRise).toBeGreaterThan(0);
+    expect(cameraRise).toBeLessThan(peak / 3);
+    expect(kartRiseInFrame).toBeGreaterThan((peak * 2) / 3);
+    for (let frame = 0; frame < 2 * 60; frame++) {
+      camera.update(kart(0, [0, 0.3, 0]), FRAME_S);
+    }
+    expectClose(camera.update(kart(0, [0, 0.3, 0]), FRAME_S).position, rest.position, 2);
+  });
+
+  it("follows a slope without falling far behind and settles at the new height", () => {
+    const camera = createChaseCamera(TUNING);
+    camera.update(kart(0, [0, 0.3, 0]), FRAME_S);
+    // Brands Patch's climb: 2 m of elevation, here over 3 s at speed.
+    let previousY = Number.NEGATIVE_INFINITY;
+    for (let frame = 1; frame <= 3 * 60; frame++) {
+      const y = 0.3 + (2 * frame) / (3 * 60);
+      const pose = camera.update(kart(0, [0, y, 0]), FRAME_S);
+      expect(pose.position[1]).toBeGreaterThanOrEqual(previousY);
+      expect(pose.position[1]).toBeLessThanOrEqual(y + 3.2);
+      expect(pose.position[1]).toBeGreaterThan(y + 3.2 - 0.5);
+      previousY = pose.position[1];
+    }
+    for (let frame = 0; frame < 2 * 60; frame++) {
+      camera.update(kart(0, [0, 2.3, 0]), FRAME_S);
+    }
+    const settled = camera.update(kart(0, [0, 2.3, 0]), FRAME_S);
+    expectClose(settled.position, [0, 5.5, 6], 2);
+    expectClose(settled.target, [0, 2.3, -4], 2);
+  });
+
   it("leaves the transform it reads untouched", () => {
     const camera = createChaseCamera(TUNING);
     const frozen = kart(0.4, [1, 0.3, 2]);
