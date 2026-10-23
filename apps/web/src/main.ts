@@ -14,7 +14,14 @@ import { createRoomScene } from "./room-scene";
 import { forgetSession, loadSession, saveSession } from "./room-session";
 import { createServerRace } from "./server-race";
 import { createTitleScene } from "./title-scene";
-import { fetchSidecar, isTrackName, selectTrack, TRACKS, type TrackFiles } from "./track";
+import {
+  centrelineOf,
+  fetchSidecar,
+  isTrackName,
+  selectTrack,
+  TRACKS,
+  type TrackFiles,
+} from "./track";
 
 /** The connection readout, kept across Race Scenes: each new panel shows the latest status. */
 interface ConnectionReadout {
@@ -281,6 +288,7 @@ async function main(container: HTMLElement): Promise<void> {
     });
     await showRace(
       track,
+      sidecar,
       run,
       nickname,
       {
@@ -300,7 +308,7 @@ async function main(container: HTMLElement): Promise<void> {
   const showSoloRace = async () => {
     const sidecar = await fetchSidecar(soloTrack);
     const run = localRaceRun(bridge, soloTrack.name, sidecar);
-    await showRace(soloTrack, run, () => undefined, {
+    await showRace(soloTrack, sidecar, run, () => undefined, {
       rematch() {
         showSoloRace().catch(fail);
       },
@@ -311,19 +319,29 @@ async function main(container: HTMLElement): Promise<void> {
   };
 
   /**
-   * Race `run` on `track` to its results, then show them. A room's race
-   * shows the connection banner while `link` reconnects, and goes back to
-   * the Title with a message once its connection is gone for good, as a
-   * deploy under a race does (ADR 0005, ADR 0012).
+   * Race `run` on `track`, whose `sidecar` draws the course map, to its
+   * results, then show them. A room's race shows the connection banner
+   * while `link` reconnects, and goes back to the Title with a message once
+   * its connection is gone for good, as a deploy under a race does (ADR
+   * 0005, ADR 0012).
    */
   const showRace = async (
     track: TrackFiles,
+    sidecar: string,
     run: RaceRun,
     nickname: (kart: number) => string | undefined,
     handlers: RaceHandlers,
     link?: RaceLink,
   ) => {
-    const race = await createRaceScene(container, bridge, track, run, nickname, audio.race());
+    const race = await createRaceScene(
+      container,
+      bridge,
+      track,
+      centrelineOf(sidecar),
+      run,
+      nickname,
+      audio.race(),
+    );
     connection.show(race.panel);
     let racing = true;
     link?.onLost((lost) => race.panel.connectionLost(lost));

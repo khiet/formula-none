@@ -7,6 +7,9 @@ import ovalSidecar from "../../../assets/tracks/oval/oval.track.json?url";
 
 export type TrackName = "brands-patch" | "oval";
 
+/** A point in the world's metres: x, y up, z. */
+export type WorldPoint = readonly [number, number, number];
+
 export interface TrackFiles {
   readonly name: TrackName;
   /** The mesh, for the View. */
@@ -47,4 +50,26 @@ export async function fetchSidecar(track: TrackFiles): Promise<string> {
     throw new Error(`could not load the ${track.name} sidecar: ${response.status}`);
   }
   return response.text();
+}
+
+/**
+ * The centreline the course map draws, read from the sidecar's text. The
+ * rest of the sidecar is the sim's to read; the client takes only this.
+ * Throws when the text has no centreline of 3-vectors.
+ */
+export function centrelineOf(sidecar: string): readonly WorldPoint[] {
+  const parsed: unknown = JSON.parse(sidecar);
+  const centreline =
+    typeof parsed === "object" && parsed !== null && "centreline" in parsed
+      ? parsed.centreline
+      : undefined;
+  if (
+    !Array.isArray(centreline) ||
+    !centreline.every(
+      (point) => Array.isArray(point) && point.length === 3 && point.every(Number.isFinite),
+    )
+  ) {
+    throw new TypeError("the sidecar has no centreline of 3-vectors");
+  }
+  return centreline as WorldPoint[];
 }

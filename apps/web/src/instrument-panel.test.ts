@@ -8,6 +8,35 @@ import {
   lapReadouts,
   phaseReadout,
 } from "./instrument-panel";
+import { liveryCss } from "./livery";
+
+// A square loop, so the map's fit is easy to read: the grid faces -z.
+const course = {
+  centreline: [
+    [0, 0, 0],
+    [0, 0, -100],
+    [100, 0, -100],
+    [100, 0, 0],
+  ],
+  kartCount: 3,
+  ownKart: 1,
+} as const;
+
+function at(position: readonly [number, number, number]): KartTransform {
+  return {
+    position,
+    rotation: [0, 0, 0, 1],
+    speed: 0,
+    surface: "asphalt",
+    drift: null,
+    heldItem: null,
+    spinOutSeconds: null,
+    airborne: false,
+    boostSeconds: null,
+    start: "clean",
+    stallSeconds: null,
+  };
+}
 
 const onTheGrid: Standing = {
   position: 1,
@@ -76,7 +105,7 @@ describe("phase readout", () => {
 describe("the connection banner", () => {
   it("is down until the connection is lost, and down again once it is back", () => {
     const container = document.createElement("div");
-    const panel = createInstrumentPanel(container, 3);
+    const panel = createInstrumentPanel(container, 3, course);
     const banner = container.querySelector<HTMLElement>('[data-instrument="connection-banner"]');
     expect(banner?.textContent).toBe(CONNECTION_LOST_BANNER);
     expect(banner?.hidden).toBe(true);
@@ -104,31 +133,90 @@ describe("the item slot", () => {
 
   it("shows the slot the run reports on every update", () => {
     const container = document.createElement("div");
-    const panel = createInstrumentPanel(container, 3);
+    const panel = createInstrumentPanel(container, 3, course);
     const slot = container.querySelector<HTMLElement>('[data-instrument="item"]');
-    const local: KartTransform = {
-      position: [0, 0.3, 0],
-      rotation: [0, 0, 0, 1],
-      speed: 0,
-      surface: "asphalt",
-      drift: null,
-      heldItem: null,
-      spinOutSeconds: null,
-      airborne: false,
-      boostSeconds: null,
-      start: "clean",
-      stallSeconds: null,
-    };
+    const local = at([0, 0.3, 0]);
     const racing = { kind: "racing", elapsedSeconds: 5, graceLeftSeconds: null } as const;
     expect(slot?.textContent).toBe("");
     expect(slot?.dataset.itemState).toBe("empty");
-    panel.update(local, onTheGrid, racing, { item: "boost", firing: false });
+    panel.update(local, onTheGrid, racing, { item: "boost", firing: false }, [local]);
     expect(slot?.textContent).toBe("Boost");
     expect(slot?.dataset.itemState).toBe("held");
-    panel.update(local, onTheGrid, racing, { item: "boost", firing: true });
+    panel.update(local, onTheGrid, racing, { item: "boost", firing: true }, [local]);
     expect(slot?.dataset.itemState).toBe("firing");
-    panel.update(local, onTheGrid, racing, { item: null, firing: false });
+    panel.update(local, onTheGrid, racing, { item: null, firing: false }, [local]);
     expect(slot?.textContent).toBe("");
     expect(slot?.dataset.itemState).toBe("empty");
+  });
+});
+
+describe("the course map", () => {
+  const racing = { kind: "racing", elapsedSeconds: 5, graceLeftSeconds: null } as const;
+  const markerAt = (marker: Element | null | undefined): [number, number] => [
+    Number(marker?.getAttribute("cx")),
+    Number(marker?.getAttribute("cy")),
+  ];
+
+  it("outlines the track from the centreline with a start tick", () => {
+    const container = document.createElement("div");
+    createInstrumentPanel(container, 3, course);
+    const map = container.querySelector<SVGSVGElement>('svg[data-instrument="course-map"]');
+    expect(map).not.toBeNull();
+    const outline = map?.querySelector("path");
+    expect(outline?.getAttribute("d")).toMatch(/^M .* Z$/);
+    expect(outline?.getAttribute("fill")).toBe("none");
+    expect(map?.querySelector("line")).not.toBeNull();
+  });
+
+  it("moves a kart's marker with its transform, down the map as it drives along +z", () => {
+    const container = document.createElement("div");
+    const panel = createInstrumentPanel(container, 3, course);
+    const own = at([50, 0.3, -50]);
+    const standing = onTheGrid;
+    panel.update(own, standing, racing, { item: null, firing: false }, [
+      at([0, 0.3, 0]),
+      own,
+      at([100, 0.3, -100]),
+    ]);
+    const marker = container.querySelector('[data-instrument="course-map"] [data-kart="2"]');
+    const [u0, v0] = markerAt(marker);
+    panel.update(own, standing, racing, { item: null, firing: false }, [
+      at([0, 0.3, 0]),
+      own,
+      at([100, 0.3, -40]),
+    ]);
+    const [u1, v1] = markerAt(marker);
+    expect(u1).toBe(u0);
+    expect(v1).toBeGreaterThan(v0);
+    // The own kart sits at the centre of the square, so at the map's centre.
+    const [ownU, ownV] = markerAt(
+      container.querySelector('[data-instrument="course-map"] [data-kart="1"]'),
+    );
+    expect(ownU).toBeCloseTo(50);
+    expect(ownV).toBeCloseTo(50);
+  });
+
+  it("marks every kart in its livery, the own kart larger, ringed and on top", () => {
+    const container = document.createElement("div");
+    const panel = createInstrumentPanel(container, 3, course);
+    const own = at([0, 0.3, 0]);
+    panel.update(own, onTheGrid, racing, { item: null, firing: false }, [own, own, own]);
+    const markers = [
+      ...container.querySelectorAll<SVGCircleElement>('[data-instrument="course-map"] [data-kart]'),
+    ];
+    expect(markers.map((marker) => marker.dataset.kart)).toEqual(["0", "2", "1"]);
+    expect(markers.map((marker) => marker.getAttribute("fill"))).toEqual([
+      liveryCss(0),
+      liveryCss(2),
+      liveryCss(1),
+    ]);
+    const ownMarker = container.querySelector<SVGCircleElement>(
+      '[data-instrument="course-map"] [data-own]',
+    );
+    expect(ownMarker?.dataset.kart).toBe("1");
+    expect(ownMarker?.getAttribute("stroke")).toBe("#fff");
+    const radius = (marker: Element | null) => Number(marker?.getAttribute("r"));
+    expect(radius(ownMarker)).toBeGreaterThan(radius(markers[0] ?? null));
+    expect(container.querySelectorAll('[data-instrument="course-map"] [data-own]')).toHaveLength(1);
   });
 });
