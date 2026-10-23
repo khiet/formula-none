@@ -375,8 +375,9 @@ def along_outside(
 ) -> Iterator[Placement]:
     """Spots every `spacing` metres along `segments`, `setback` metres beyond the wall on `side`, facing the track.
 
-    The first spot is half a spacing in, so a run of them sits centred on
-    the range; the range wraps past the start line like a wall's.
+    The first spot is half a spacing in and the last at least half a spacing
+    short, so nothing overhangs the range; the range wraps past the start
+    line like a wall's.
     """
     path = layout.path
     s_start = path.segment(segments[0]).s_start

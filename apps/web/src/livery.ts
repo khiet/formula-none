@@ -1,8 +1,7 @@
 // The eight liveries: one fixed colour per slot, so the kart in the View
-// and the player in the Room Scene wear the same one. Picked by hand for
-// distance between every pair, not walked around the hue wheel: at race
-// distance two hues forty-five degrees apart blur together, two lightnesses
-// do not.
+// and the player in the Room Scene wear the same one. Picked by hand so
+// every pair stands apart at race distance (livery.test.ts holds the
+// margin); a walk around the hue wheel puts neighbours too close.
 
 export const LIVERIES = 8;
 

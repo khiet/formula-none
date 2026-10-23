@@ -50,8 +50,8 @@ MODELS = {
     "grandStand": "grandStand.glb",
     "overhead": "overhead.glb",
 }
-# Lettering is extruded this deep and kept to flat faces, so a track of
-# forty boards stays cheap to draw.
+# Deep enough for the lettering to read as a letter from the track and no
+# deeper: every millimetre is more faces on every board.
 TEXT_EXTRUDE_M = 0.03
 
 
