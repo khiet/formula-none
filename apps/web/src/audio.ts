@@ -93,21 +93,22 @@ export interface RaceAudio {
   stop(): void;
 }
 
-/** Levels under the mix, so the SFX read over the engine and the music sits under both. */
-const ENGINE_LEVEL = 0.12;
-const SFX_LEVEL = 0.8;
-const MUSIC_LEVEL = 0.35;
+/** Each toggle's level under the mix: the SFX read over the engine, and the music sits under both. */
+const LEVELS: Readonly<Record<keyof AudioSettings, number>> = {
+  engine: 0.12,
+  sfx: 0.8,
+  music: 0.35,
+};
+const TOGGLES = Object.keys(LEVELS) as (keyof AudioSettings)[];
 /** The engine note glides to each frame's pitch over this long, so it never clicks. */
 const ENGINE_GLIDE_S = 0.04;
 
-/** The decoded files, once the context exists to decode them. */
+/** The decoded files, once the context exists to decode them, and the gain each toggle sets. */
 interface Sounds {
   readonly context: SoundContext;
   readonly sfx: Partial<Record<SoundCue, AudioBuffer>>;
   readonly music: AudioBuffer | undefined;
-  readonly engineGain: SoundGain;
-  readonly sfxGain: SoundGain;
-  readonly musicGain: SoundGain;
+  readonly gains: Readonly<Record<keyof AudioSettings, SoundGain>>;
 }
 
 export function createAudio(options: AudioOptions): Audio {
@@ -139,9 +140,9 @@ export function createAudio(options: AudioOptions): Audio {
     }
   };
 
-  const gainOf = (context: SoundContext, level: number, on: boolean): SoundGain => {
+  const gainOf = (context: SoundContext, toggle: keyof AudioSettings): SoundGain => {
     const gain = context.createGain();
-    gain.gain.value = on ? level : 0;
+    gain.gain.value = settings[toggle] ? LEVELS[toggle] : 0;
     gain.connect(context.destination);
     return gain;
   };
@@ -163,9 +164,11 @@ export function createAudio(options: AudioOptions): Audio {
       context,
       sfx,
       music,
-      engineGain: gainOf(context, ENGINE_LEVEL, settings.engine),
-      sfxGain: gainOf(context, SFX_LEVEL, settings.sfx),
-      musicGain: gainOf(context, MUSIC_LEVEL, settings.music),
+      gains: {
+        engine: gainOf(context, "engine"),
+        sfx: gainOf(context, "sfx"),
+        music: gainOf(context, "music"),
+      },
     };
     live?.begin(sounds);
   };
@@ -174,14 +177,18 @@ export function createAudio(options: AudioOptions): Audio {
     settings(next) {
       settings = next;
       if (sounds === undefined) return;
-      sounds.engineGain.gain.value = next.engine ? ENGINE_LEVEL : 0;
-      sounds.sfxGain.gain.value = next.sfx ? SFX_LEVEL : 0;
-      sounds.musicGain.gain.value = next.music ? MUSIC_LEVEL : 0;
+      for (const toggle of TOGGLES) {
+        sounds.gains[toggle].gain.value = next[toggle] ? LEVELS[toggle] : 0;
+      }
       live?.music(next.music);
     },
     unlock() {
       if (unlocking === undefined) {
-        unlocking = makeSounds();
+        // A context that could not be made is tried again on the next gesture.
+        unlocking = makeSounds().catch((error: unknown) => {
+          unlocking = undefined;
+          throw error;
+        });
         return unlocking;
       }
       return unlocking.then(() => {
@@ -233,7 +240,7 @@ class LiveRace {
     const engine = sounds.context.createOscillator();
     engine.type = "sawtooth";
     engine.frequency.value = enginePitchHz(this.#last?.speed ?? 0, this.#topSpeed);
-    engine.connect(sounds.engineGain);
+    engine.connect(sounds.gains.engine);
     engine.start();
     this.#engine = engine;
     this.music(this.#settings().music);
@@ -247,7 +254,7 @@ class LiveRace {
       const loop = sounds.context.createBufferSource();
       loop.buffer = sounds.music;
       loop.loop = true;
-      loop.connect(sounds.musicGain);
+      loop.connect(sounds.gains.music);
       loop.start();
       this.#music = loop;
     } else if (!on && this.#music !== undefined) {
@@ -274,7 +281,7 @@ class LiveRace {
       if (buffer === undefined) continue;
       const shot = sounds.context.createBufferSource();
       shot.buffer = buffer;
-      shot.connect(sounds.sfxGain);
+      shot.connect(sounds.gains.sfx);
       shot.start();
     }
   }

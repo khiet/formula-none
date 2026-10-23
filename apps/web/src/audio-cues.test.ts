@@ -8,6 +8,7 @@ const STILL: SoundReading = {
   miniTurbo: null,
   item: null,
   spunOut: false,
+  boostSeconds: null,
   lap: 1,
   finished: false,
 };
@@ -25,15 +26,34 @@ describe("soundCues", () => {
     expect(soundCues(up, STILL)).toEqual([]);
   });
 
-  it("plays the mini-turbo when a charged drift ends, and nothing for an uncharged one", () => {
-    expect(soundCues({ ...STILL, miniTurbo: "blue" }, STILL)).toEqual(["miniTurbo"]);
-    expect(soundCues({ ...STILL, miniTurbo: "orange" }, STILL)).toEqual(["miniTurbo"]);
+  it("plays the mini-turbo when a charged drift ends into its boost, and nothing for an uncharged one", () => {
+    const boosting = { ...STILL, boostSeconds: 0.6 };
+    expect(soundCues({ ...STILL, miniTurbo: "blue" }, boosting)).toEqual(["miniTurbo"]);
+    expect(soundCues({ ...STILL, miniTurbo: "orange" }, boosting)).toEqual(["miniTurbo"]);
     expect(soundCues({ ...STILL, miniTurbo: "none" }, STILL)).toEqual([]);
+    // A boost from a pad with no drift ending is not a release either.
+    expect(soundCues(STILL, boosting)).toEqual([]);
+    // Let go while a pad's boost still runs: the boost lengthens, so it is heard.
+    expect(
+      soundCues(
+        { ...STILL, miniTurbo: "blue", boostSeconds: 0.2 },
+        { ...STILL, boostSeconds: 0.6 },
+      ),
+    ).toEqual(["miniTurbo"]);
     // Charging through the tiers is the sparks' tell, not a sound.
     expect(soundCues({ ...STILL, miniTurbo: "none" }, { ...STILL, miniTurbo: "blue" })).toEqual([]);
     expect(soundCues({ ...STILL, miniTurbo: "blue" }, { ...STILL, miniTurbo: "orange" })).toEqual(
       [],
     );
+  });
+
+  it("plays no mini-turbo for a charged drift that ends without its boost", () => {
+    // Spun out mid-charge: the hit, and only the hit.
+    expect(soundCues({ ...STILL, miniTurbo: "orange" }, { ...STILL, spunOut: true })).toEqual([
+      "hit",
+    ]);
+    // Slowed below drift speed, or respawned: the drift just ends.
+    expect(soundCues({ ...STILL, miniTurbo: "blue" }, STILL)).toEqual([]);
   });
 
   it("plays the pickup as the slot fills and the fire as it empties", () => {
@@ -74,6 +94,7 @@ describe("soundReading", () => {
     heldItem: null,
     spinOutSeconds: 0.4,
     airborne: true,
+    boostSeconds: null,
   };
   const standing: Standing = {
     position: 3,
@@ -93,6 +114,7 @@ describe("soundReading", () => {
       miniTurbo: "blue",
       item: null,
       spunOut: true,
+      boostSeconds: null,
       lap: 2,
       finished: false,
     });
@@ -100,7 +122,7 @@ describe("soundReading", () => {
 
   it("takes the item from the slot, which a room's race fills from the server's events", () => {
     const reading = soundReading(
-      { ...kart, drift: null, spinOutSeconds: null },
+      { ...kart, drift: null, spinOutSeconds: null, boostSeconds: 0.5 },
       { ...standing, finishTimeSeconds: 61.2 },
       { item: "homing", firing: false },
     );
@@ -108,6 +130,7 @@ describe("soundReading", () => {
       miniTurbo: null,
       spunOut: false,
       item: "homing",
+      boostSeconds: 0.5,
       finished: true,
     });
   });
@@ -122,7 +145,7 @@ describe("enginePitchHz", () => {
     expect(enginePitchHz(15, 30)).toBeCloseTo((idle + top) / 2, 6);
     expect(enginePitchHz(-15, 30)).toBeCloseTo((idle + top) / 2, 6);
     expect(enginePitchHz(39, 30)).toBeGreaterThan(top);
-    // A boost pad's 1.4 is the fastest a kart goes; nothing climbs beyond it.
+    // Past the headroom left for the boosts, nothing climbs further.
     expect(enginePitchHz(90, 30)).toBe(enginePitchHz(45, 30));
   });
 });

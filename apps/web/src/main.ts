@@ -108,9 +108,10 @@ async function main(container: HTMLElement): Promise<void> {
   // The sound files load now; the AudioContext waits for the first gesture,
   // which the browser's autoplay rule asks for (ADR 0008). Any press or key
   // is one, so the Title's buttons unlock it before any race.
+  let audioSettings = loadAudioSettings(window.localStorage);
   const audio = createAudio({
-    settings: loadAudioSettings(window.localStorage),
-    topSpeedMetresPerSecond: bridge.topSpeedMetresPerSecond,
+    settings: audioSettings,
+    topSpeedMetresPerSecond: bridge.cameraTuning.topSpeedMetresPerSecond,
     fetchBytes,
     createContext: () => new AudioContext(),
   });
@@ -130,7 +131,7 @@ async function main(container: HTMLElement): Promise<void> {
         nickname: loadNickname(window.localStorage),
         code,
         message,
-        audio: loadAudioSettings(window.localStorage),
+        audio: audioSettings,
         nicknameChars: bridge.nicknameChars,
         roomCodeLength: bridge.roomCodeLength,
       },
@@ -153,6 +154,7 @@ async function main(container: HTMLElement): Promise<void> {
           showSoloRace().catch(fail);
         },
         audio(settings) {
+          audioSettings = settings;
           saveAudioSettings(window.localStorage, settings);
           audio.settings(settings);
         },

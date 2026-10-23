@@ -78,9 +78,10 @@ export interface Drift {
  * unit quaternion [x, y, z, w], speed in metres per second along the kart's
  * facing (negative backing up), the surface under the kart, the drift
  * under way, if any, the item in the kart's slot, if any, the seconds of
- * spin-out left while the kart is spun out, and whether the kart is in a
- * hop's airtime (only ever true of a kart the sim steps here: the own kart
- * and a local race's). Y up; identity rotation faces -Z.
+ * spin-out left while the kart is spun out, whether the kart is in a hop's
+ * airtime and the seconds of boost left while a boost holds it over top
+ * speed (the last two only ever set for a kart the sim steps here: the own
+ * kart and a local race's). Y up; identity rotation faces -Z.
  */
 export interface KartTransform {
   readonly position: readonly [number, number, number];
@@ -91,6 +92,7 @@ export interface KartTransform {
   readonly heldItem: Item | null;
   readonly spinOutSeconds: number | null;
   readonly airborne: boolean;
+  readonly boostSeconds: number | null;
 }
 
 /** Where an item box stands on the track: metres, and a yaw about +Y, zero facing -Z. */
@@ -292,8 +294,6 @@ export interface Bridge extends MessageCodec {
   readonly hazardDropDistanceMetres: number;
   /** How long a spin-out lasts (ADR 0014), which the spin animation runs once over. */
   readonly spinOutSeconds: number;
-  /** The kart's top speed before any boost (ADR 0014), which the engine note's pitch is scaled to. */
-  readonly topSpeedMetresPerSecond: number;
   /** The chase camera's pull-back and shake, from the sim's tuning (ADR 0020). */
   readonly cameraTuning: CameraTuning;
   /**
@@ -341,7 +341,7 @@ export interface Bridge extends MessageCodec {
 // Race::standings and Race::phase; a Prediction's transform and phase are laid
 // out as a Race's.
 const FLOATS_PER_INPUT = 6;
-const FLOATS_PER_TRANSFORM = 15;
+const FLOATS_PER_TRANSFORM = 16;
 const FLOATS_PER_ITEM_BOX = 4;
 const FLOATS_PER_HAZARD = 5;
 const FLOATS_PER_PROJECTILE = 5;
@@ -374,7 +374,6 @@ export async function loadBridge(wasm?: BufferSource): Promise<Bridge> {
     predictedFireTimeoutSeconds: predicted_fire_timeout_s(),
     hazardDropDistanceMetres: hazard_drop_distance_m(),
     spinOutSeconds: spin_out_s(),
-    topSpeedMetresPerSecond: top_speed_m_per_s(),
     cameraTuning: {
       topSpeedMetresPerSecond: top_speed_m_per_s(),
       pullBackMetres: camera_pull_back_m(),
@@ -626,7 +625,7 @@ function recordsFrom<T>(
   return records;
 }
 
-/** The kart transform whose fifteen floats start at `at`; `slot` names the kart in errors. */
+/** The kart transform whose sixteen floats start at `at`; `slot` names the kart in errors. */
 function transformAt(buffer: Float32Array, at: number, slot: number): KartTransform {
   const read = (offset: number): number => buffer[at + offset] as number;
   const surface = SURFACES[read(8)];
@@ -642,6 +641,7 @@ function transformAt(buffer: Float32Array, at: number, slot: number): KartTransf
     heldItem: heldItem(read(12), slot),
     spinOutSeconds: read(13) > 0 ? read(13) : null,
     airborne: read(14) !== 0,
+    boostSeconds: read(15) > 0 ? read(15) : null,
   };
 }
 

@@ -136,11 +136,6 @@ describe("bridge wrapper", () => {
     expect(bridge.cameraTuning.shakeAmplitudeMetres).toBeGreaterThan(0);
   });
 
-  it("reads the top speed the engine note is scaled to from the sim", async () => {
-    const bridge = await loadBridge(wasm);
-    expect(bridge.topSpeedMetresPerSecond).toBe(30);
-  });
-
   it("reports the surface under a kart that steers off the asphalt", async () => {
     const bridge = await loadBridge(wasm);
     const race = started(bridge.createRace(7n, 1, 0, OVAL), 1);
@@ -217,6 +212,9 @@ describe("bridge wrapper", () => {
     race.step([THROTTLE], DT);
     expect(race.kartTransforms()[0]?.drift).toBeNull();
     expect(race.kartTransforms()[0]?.speed).toBeGreaterThan(30);
+    // The release's tell: the blue boost's 0.6 s, less the tick just stepped,
+    // whatever the oval's boost pad had left.
+    expect(race.kartTransforms()[0]?.boostSeconds).toBeCloseTo(0.6 - DT, 3);
   });
 
   it("refuses an input list that does not match the kart count", async () => {

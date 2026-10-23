@@ -91,6 +91,10 @@ pub struct KartTransform {
     /// Whether the kart is in a hop's airtime; the hop's tell. Only a sim
     /// stepped here knows: a snapshot does not carry it.
     pub airborne: bool,
+    /// Seconds of boost left, while a mini-turbo, boost pad, item or start
+    /// boost holds the kart over top speed; the release's tell. Only a sim
+    /// stepped here knows: a snapshot does not carry it.
+    pub boost_s: Option<f32>,
 }
 
 /// The items a kart can hold: what an item box rolls.
@@ -930,6 +934,7 @@ impl State {
                     held_item: kart.held_item,
                     spin_out_s: kart.spun_out().then_some(kart.spin_out_left_s),
                     airborne: kart.airborne(),
+                    boost_s: (kart.boost_left_s > 0.0).then_some(kart.boost_left_s),
                 }
             })
             .collect()

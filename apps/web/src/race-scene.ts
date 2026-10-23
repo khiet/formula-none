@@ -148,7 +148,7 @@ export async function createRaceScene(
   track: TrackFiles,
   run: RaceRun,
   nickname: (kart: number) => string | undefined,
-  audio?: RaceAudio,
+  audio: RaceAudio,
 ): Promise<RaceScene> {
   const tickSeconds = 1 / bridge.ticksPerSecond;
   // Every listener the Scene adds is dropped together on dispose.
@@ -199,10 +199,10 @@ export async function createRaceScene(
       );
       const slot = run.itemSlot();
       panel.update(local, standing, run.phase(), slot);
-      audio?.update(soundReading(local, standing, slot));
+      audio.update(soundReading(local, standing, slot));
     }
   };
-  audio?.start();
+  audio.start();
   present(0);
 
   let settle: (results: RaceResults) => void = () => {};
@@ -239,7 +239,7 @@ export async function createRaceScene(
     dispose() {
       cancelAnimationFrame(frameHandle);
       listeners.abort();
-      audio?.stop();
+      audio.stop();
       run.dispose?.();
       view.dispose();
       panel.dispose();

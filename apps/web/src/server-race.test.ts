@@ -47,6 +47,7 @@ const GRID_TRANSFORM: KartTransform = {
   heldItem: null,
   spinOutSeconds: null,
   airborne: false,
+  boostSeconds: null,
 };
 
 const PREDICTED: KartTransform = {
@@ -58,6 +59,7 @@ const PREDICTED: KartTransform = {
   heldItem: "hazard",
   spinOutSeconds: null,
   airborne: false,
+  boostSeconds: null,
 };
 
 interface FakePrediction extends Prediction {
@@ -87,7 +89,6 @@ const bridge = {
   predictedFireTimeoutSeconds: PREDICTED_FIRE_TIMEOUT_S,
   hazardDropDistanceMetres: HAZARD_DROP_DISTANCE_M,
   spinOutSeconds: 1,
-  airborne: false,
   kartSize: { width: 1.2, height: KART_HEIGHT_M, length: 1.8 },
   createRace: () =>
     ({
@@ -271,6 +272,7 @@ describe("createServerRace", () => {
       heldItem: null,
       spinOutSeconds: null,
       airborne: false,
+      boostSeconds: null,
     };
     prediction().interpolated = Array<KartTransform>(KARTS).fill(interpolated);
     const [first, own, third] = run.kartTransforms();

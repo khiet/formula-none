@@ -21,6 +21,7 @@ const STILL: SoundReading = {
   miniTurbo: null,
   item: null,
   spunOut: false,
+  boostSeconds: null,
   lap: 1,
   finished: false,
 };
@@ -332,7 +333,7 @@ describe("the SFX", () => {
     const race = audio.race();
     race.start();
     race.update({ ...STILL, miniTurbo: "orange", item: "hazard" });
-    race.update(STILL);
+    race.update({ ...STILL, boostSeconds: 0.6 });
     expect(played("miniTurbo")).toBe(1);
     expect(played("itemFire")).toBe(1);
   });

@@ -21,6 +21,7 @@ function kart(
     heldItem: null,
     spinOutSeconds: null,
     airborne: false,
+    boostSeconds: null,
   };
 }
 

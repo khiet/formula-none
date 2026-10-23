@@ -289,6 +289,13 @@ fn assert_boosts_for(charge_s: f32, boost_s: f32) {
         None,
         "the release ends the drift"
     );
+    let reported = only_kart(&released)
+        .boost_s
+        .expect("the release reports the boost it starts");
+    assert!(
+        (reported - boost_s).abs() < 2.0 * DT,
+        "the boost starts at the tuned {boost_s} s, reported {reported}"
+    );
     let boosted = TOP_SPEED_M_PER_S * MINI_TURBO_BOOST_FACTOR;
 
     let early = run(released, vec![accelerate(); ticks(boost_s / 2.0)]);
@@ -303,6 +310,7 @@ fn assert_boosts_for(charge_s: f32, boost_s: f32) {
         released_after(charge_s),
         vec![accelerate(); ticks(boost_s) + 3],
     );
+    assert_eq!(only_kart(&over).boost_s, None, "the boost has run out");
     let speed = measured_speed(over, accelerate());
     assert!(
         speed <= TOP_SPEED_M_PER_S + 0.01,

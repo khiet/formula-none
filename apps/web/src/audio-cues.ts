@@ -23,6 +23,8 @@ export interface SoundReading {
   readonly miniTurbo: MiniTurbo | null;
   readonly item: Item | null;
   readonly spunOut: boolean;
+  /** Seconds of boost left while one holds the kart over top speed; null off a boost. */
+  readonly boostSeconds: number | null;
   readonly lap: number;
   readonly finished: boolean;
 }
@@ -39,29 +41,35 @@ export function soundReading(
     miniTurbo: kart.drift?.miniTurbo ?? null,
     item: slot.item,
     spunOut: kart.spinOutSeconds !== null,
+    boostSeconds: kart.boostSeconds,
     lap: standing.lap,
     finished: standing.finishTimeSeconds !== null,
   };
 }
 
-/** A drift that ends at this tier releases a mini-turbo; at `none` it just ends. */
+/** Only a drift at one of these tiers has a mini-turbo to release. */
 const CHARGED: readonly MiniTurbo[] = ["blue", "orange"];
 
 /**
  * The cues the change from `before` to `after` calls for, in a fixed
  * order: the hop as the kart leaves the ground, the mini-turbo as a
- * charged drift ends, the pickup as the slot fills and the fire as it
- * empties, the hit as a spin-out begins, and the lap as the count rises
- * or the kart finishes. Nothing from the first reading: there is no change
- * to hear yet.
+ * charged drift ends into a boost (a charged drift a spin-out, a respawn
+ * or lost speed ends has no release to hear; a boost that starts or
+ * lengthens is the release, so one let go mid pad boost still sounds
+ * unless the pad's boost had longer to run), the pickup as the slot fills
+ * and the fire as it empties, the hit as a spin-out begins, and the lap as
+ * the count rises or the kart finishes. Nothing from the first reading:
+ * there is no change to hear yet.
  */
 export function soundCues(before: SoundReading | undefined, after: SoundReading): SoundCue[] {
   if (before === undefined) return [];
   const cues: SoundCue[] = [];
   if (!before.airborne && after.airborne) cues.push("hop");
-  if (before.miniTurbo !== null && CHARGED.includes(before.miniTurbo) && after.miniTurbo === null) {
-    cues.push("miniTurbo");
-  }
+  const charged = before.miniTurbo !== null && CHARGED.includes(before.miniTurbo);
+  const boostBegan =
+    after.boostSeconds !== null &&
+    (before.boostSeconds === null || after.boostSeconds > before.boostSeconds);
+  if (charged && after.miniTurbo === null && boostBegan) cues.push("miniTurbo");
   if (before.item === null && after.item !== null) cues.push("itemPickup");
   if (before.item !== null && after.item === null) cues.push("itemFire");
   if (!before.spunOut && after.spunOut) cues.push("hit");
@@ -72,7 +80,11 @@ export function soundCues(before: SoundReading | undefined, after: SoundReading)
 /** The engine note at a standstill and at top speed. */
 const ENGINE_IDLE_HZ = 70;
 const ENGINE_TOP_HZ = 260;
-/** The fastest a boost takes a kart over top speed; the note climbs no further. */
+/**
+ * Headroom over top speed for the boosts, which the sim tunes (ADR 0014);
+ * the note climbs no further. A Presentation choice, not a rule, so the
+ * sim's boost factors are not repeated here.
+ */
 const ENGINE_MAX_SPEED_FRACTION = 1.5;
 
 /**

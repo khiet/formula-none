@@ -13,8 +13,8 @@ const OVAL: &str = include_str!("../../../assets/tracks/oval/oval.track.json");
 const DT: f32 = 1.0 / TICKS_PER_SECOND as f32;
 /// Floats per kart in the kart buffer: position xyz, rotation xyzw, speed,
 /// surface code, drift direction, mini-turbo tier, drift charge, held item,
-/// spin-out left.
-const FLOATS_PER_KART: usize = 15;
+/// spin-out left, airborne, boost left.
+const FLOATS_PER_KART: usize = 16;
 /// Floats per kart in the input buffer: steer, throttle, brake, hop, use item, hold item.
 const FLOATS_PER_INPUT: usize = 6;
 /// Floats per kart in the standings buffer: position, lap, checkpoint,
@@ -54,7 +54,7 @@ fn started_race(seed: u64, humans: usize, bots: usize) -> Race {
 }
 
 #[test]
-fn kart_buffer_holds_fifteen_floats_per_kart_on_the_spawn_grid_in_slot_order() {
+fn kart_buffer_holds_sixteen_floats_per_kart_on_the_spawn_grid_in_slot_order() {
     let race = race(7, 3);
     let buffer = race.kart_transforms();
     let track = Track::from_sidecar(OVAL).unwrap();
@@ -79,6 +79,7 @@ fn kart_buffer_holds_fifteen_floats_per_kart_on_the_spawn_grid_in_slot_order() {
         assert_eq!(kart[12], 0.0, "karts spawn with an empty item slot");
         assert_eq!(kart[13], 0.0, "karts spawn out of a spin-out");
         assert_eq!(kart[14], 0.0, "karts spawn on the ground");
+        assert_eq!(kart[15], 0.0, "karts spawn without a boost");
     }
 }
 

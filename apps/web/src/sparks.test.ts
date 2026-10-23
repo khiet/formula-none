@@ -20,6 +20,7 @@ function kart(drift: Drift | null): KartTransform {
     heldItem: null,
     spinOutSeconds: null,
     airborne: false,
+    boostSeconds: null,
   };
 }
 
