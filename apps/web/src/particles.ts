@@ -42,7 +42,7 @@ export interface Particles {
    * Every live particle, oldest first within one lap of the store.
    * `particle` is reused between calls: copy what is kept.
    */
-  forEach(visit: (particle: Particle, slot: number) => void): void;
+  forEach(visit: (particle: Particle) => void): void;
 }
 
 /**
@@ -109,7 +109,7 @@ export function createParticles(options: ParticleOptions): Particles {
         particle.colour = colours[slot] ?? 0;
         particle.size = (sizes[slot] ?? 0) * (1 + growth * age);
         particle.life = 1 - age / lifetime;
-        visit(particle, slot);
+        visit(particle);
       }
     },
   };

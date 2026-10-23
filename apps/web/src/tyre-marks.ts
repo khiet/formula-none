@@ -13,8 +13,9 @@ export interface TyreMark {
 export interface TyreMarks {
   /**
    * Lay a mark under each rear wheel of every kart that was drifting last
-   * frame and still is, from where the wheel was to where it is, and age
-   * every mark by `dtSeconds`.
+   * frame and still is, from where its last mark ended to where the wheel
+   * is once that is a mark's length away, and age every mark by
+   * `dtSeconds`.
    */
   update(transforms: readonly KartTransform[], dtSeconds: number): void;
   /**
@@ -33,20 +34,26 @@ export interface TyreMarkOptions {
   readonly capacityPerWheel?: number;
 }
 
-/** Four seconds of corner at 60 frames a second. */
-const DEFAULT_CAPACITY_PER_WHEEL = 240;
+/**
+ * A mark is laid once the wheel is this far from the last one, whatever
+ * the frame rate, so a trail is the same at 120 Hz as at 60: short enough
+ * to follow a drift's arc, long enough that top speed lays a hundred a
+ * second.
+ */
+const MARK_LENGTH_M = 0.3;
 const DEFAULT_LIFETIME_S = 4;
-/** A wheel that has moved less than this between frames laid no mark. */
-const MIN_MARK_LENGTH_M = 0.001;
+/** A lifetime of marks at top speed; a boost past it replaces the oldest a little early. */
+const DEFAULT_CAPACITY_PER_WHEEL = 400;
 const SIDES: readonly Side[] = [-1, 1];
 
 /**
  * The Feedback for a drift (GLOSSARY): rubber laid under the rear wheels for
  * as long as the sim reports the kart drifting, fading over its life. The
- * trail breaks when the drift ends, so two drifts never join. A fixed ring
- * of marks is overwritten oldest first and nothing is allocated per frame,
- * so eight karts drifting at once lay marks at a steady cost. Presentation
- * only: reads transforms, never input.
+ * trail breaks when the drift ends, so two drifts never join. Marks are
+ * laid by distance travelled, not per frame, and a fixed ring of them is
+ * overwritten oldest first with nothing allocated per frame, so eight karts
+ * drifting at once lay marks at a steady cost at any frame rate.
+ * Presentation only: reads transforms, never input.
  */
 export function createTyreMarks(
   kartCount: number,
@@ -62,7 +69,7 @@ export function createTyreMarks(
   const ages = new Float32Array(capacity).fill(lifetime);
   /** The slot the next mark goes in: the oldest once the store has filled. */
   let head = 0;
-  /** Where each wheel was last frame while drifting, or NaN when it was not. */
+  /** Where each wheel's trail ends while it drifts, or NaN when it does not. */
   const lastWheel = new Float32Array(kartCount * SIDES.length * 3).fill(Number.NaN);
   const wheel: Vec3 = [0, 0, 0];
   const mark = { from: [0, 0, 0] as Vec3, to: [0, 0, 0] as Vec3, strength: 0 };
@@ -83,17 +90,18 @@ export function createTyreMarks(
             return;
           }
           rearWheel(transform, side, size, wheel);
-          if (!Number.isNaN(lastX)) {
-            const lastY = lastWheel[at + 1] ?? 0;
-            const lastZ = lastWheel[at + 2] ?? 0;
-            if (
-              Math.hypot(wheel[0] - lastX, wheel[1] - lastY, wheel[2] - lastZ) >= MIN_MARK_LENGTH_M
-            ) {
-              ends.set([lastX, lastY, lastZ, wheel[0], wheel[1], wheel[2]], head * 6);
-              ages[head] = 0;
-              head = (head + 1) % capacity;
-            }
+          if (Number.isNaN(lastX)) {
+            lastWheel.set(wheel, at);
+            return;
           }
+          const lastY = lastWheel[at + 1] ?? 0;
+          const lastZ = lastWheel[at + 2] ?? 0;
+          if (Math.hypot(wheel[0] - lastX, wheel[1] - lastY, wheel[2] - lastZ) < MARK_LENGTH_M) {
+            return;
+          }
+          ends.set([lastX, lastY, lastZ, wheel[0], wheel[1], wheel[2]], head * 6);
+          ages[head] = 0;
+          head = (head + 1) % capacity;
           lastWheel.set(wheel, at);
         });
       }

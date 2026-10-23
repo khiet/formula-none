@@ -37,9 +37,9 @@ const FLOATS_PER_VERTEX = 3;
 
 /**
  * Every tyre mark as a quad of the tyre's width, faded by its strength.
- * The quad's corners are rewritten only for a mark that has changed since
- * the last frame, which is the one laid this frame, and only the strength
- * of every live mark is uploaded per frame.
+ * The quad's corners are rewritten, and uploaded, only for a mark laid
+ * since the last frame; the strength of every live mark is uploaded per
+ * frame.
  */
 export function tyreMarkMesh(marks: TyreMarks): TellMesh {
   const geometry = new BufferGeometry();
@@ -79,26 +79,25 @@ export function tyreMarkMesh(marks: TyreMarks): TellMesh {
         const run = Math.hypot(dx, dz) || 1;
         const ax = (-dz / run) * (TYRE_WIDTH_M / 2);
         const az = (dx / run) * (TYRE_WIDTH_M / 2);
+        // The corners are stored as float32, so the comparison rounds the
+        // same way or every live mark would count as changed every frame.
         const changed =
-          corners[at] !== fx - ax || corners[at + 2] !== fz - az || corners[at + 9] !== tx + ax;
+          corners[at] !== Math.fround(fx - ax) ||
+          corners[at + 2] !== Math.fround(fz - az) ||
+          corners[at + 9] !== Math.fround(tx + ax);
         if (changed) {
-          corners.set(
-            [
-              fx - ax,
-              fy + MARK_LIFT_M,
-              fz - az,
-              fx + ax,
-              fy + MARK_LIFT_M,
-              fz + az,
-              tx - ax,
-              ty + MARK_LIFT_M,
-              tz - az,
-              tx + ax,
-              ty + MARK_LIFT_M,
-              tz + az,
-            ],
-            at,
-          );
+          corners[at] = fx - ax;
+          corners[at + 1] = fy + MARK_LIFT_M;
+          corners[at + 2] = fz - az;
+          corners[at + 3] = fx + ax;
+          corners[at + 4] = fy + MARK_LIFT_M;
+          corners[at + 5] = fz + az;
+          corners[at + 6] = tx - ax;
+          corners[at + 7] = ty + MARK_LIFT_M;
+          corners[at + 8] = tz - az;
+          corners[at + 9] = tx + ax;
+          corners[at + 10] = ty + MARK_LIFT_M;
+          corners[at + 11] = tz + az;
           cornerAttribute.addUpdateRange(at, VERTICES_PER_MARK * FLOATS_PER_VERTEX);
           cornerAttribute.needsUpdate = true;
         }

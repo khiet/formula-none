@@ -102,6 +102,23 @@ describe("tyre marks", () => {
     expect(spans.every((span) => Math.abs(span + 0.5) < 1e-6)).toBe(true);
   });
 
+  it("lays marks by distance travelled, so a faster frame rate lays no more of them", () => {
+    const marks = createTyreMarks(1, SIZE);
+    // Twenty frames over 2 m: a mark every 0.3 m, or a frame later when
+    // the store's float32 rounds a step just short, so six or seven a wheel.
+    for (let frame = 0; frame <= 20; frame++) {
+      marks.update([kart([0, 0.3, -0.1 * frame], DRIFT)], FRAME_S / 2);
+    }
+    const laid = marksOf(marks);
+    expect(laid.length).toBeGreaterThanOrEqual(10);
+    expect(laid.length).toBeLessThanOrEqual(14);
+    for (const mark of laid) {
+      const length = mark.from[2] - mark.to[2];
+      expect(length).toBeGreaterThanOrEqual(0.3 - 1e-6);
+      expect(length).toBeLessThanOrEqual(0.4 + 1e-6);
+    }
+  });
+
   it("lays nothing for a drifting kart that has not moved", () => {
     const marks = createTyreMarks(1, SIZE);
     marks.update([kart([0, 0.3, 0], DRIFT)], FRAME_S);

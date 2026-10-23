@@ -37,7 +37,7 @@ export function toWorld(kart: KartTransform, x: number, y: number, z: number, ou
   return out;
 }
 
-/** The kart's unit direction `[x, y, z]`, given in its frame, in world axes, written to `out`. */
+/** The vector `[x, y, z]` turned by the unit quaternion `[qx, qy, qz, qw]`, written to `out`. */
 export function rotate(
   [qx, qy, qz, qw]: readonly [number, number, number, number],
   x: number,

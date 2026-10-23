@@ -3,7 +3,7 @@ import type { CameraTuning, KartTransform } from "./bridge";
 import { createChaseCamera } from "./chase-camera";
 
 const FRAME_S = 1 / 60;
-/** The sim's values at the time of writing; the camera reads them from the bridge in the app. */
+/** The PRD's camera values; in the app the camera reads the live ones from the bridge. */
 const TUNING: CameraTuning = {
   topSpeedMetresPerSecond: 30,
   pullBackMetres: 1,

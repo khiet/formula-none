@@ -41,6 +41,8 @@ const SPARK_RISE_MAX_M_PER_S = 3;
 const SPARK_LIFETIME_S = 0.25;
 const SPARK_SIZE_M = 0.08;
 const SIDES: readonly Side[] = [-1, 1];
+/** The most emission a frame can owe, so a stalled tab does not empty the pool in one burst. */
+const MAX_OWED_S = 0.1;
 
 /**
  * Throws sparks off the rear wheels of a kart whose drift has charged a
@@ -72,7 +74,11 @@ export function createSparkEmitter(
       if (tell === null) {
         return;
       }
-      owed += SPARKS_PER_WHEEL_PER_S * dtSeconds;
+      // A stalled frame throws a burst, not a frame's worth of the stall.
+      owed = Math.min(
+        owed + SPARKS_PER_WHEEL_PER_S * dtSeconds,
+        SPARKS_PER_WHEEL_PER_S * MAX_OWED_S,
+      );
       if (owed < 1) {
         return;
       }

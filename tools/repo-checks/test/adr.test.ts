@@ -24,6 +24,7 @@ const DECISION_SLUGS = [
   "cost-ceiling",
   "metrics",
   "server-input-queue",
+  "camera-tuning",
 ];
 
 const expectedFiles = DECISION_SLUGS.map(

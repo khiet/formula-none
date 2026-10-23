@@ -45,6 +45,8 @@ const PUFF_RISE_M_PER_S = 0.8;
 const PUFF_SPREAD_OF_WIDTH = 0.8;
 const PUFF_LIFETIME_S = 0.8;
 const PUFF_SIZE_M = 0.3;
+/** The most emission a frame can owe, so a stalled tab does not empty the pool in one burst. */
+const MAX_OWED_S = 0.1;
 
 /**
  * Puffs dust off the rear bumper of a kart the dust tell shows for, at a
@@ -75,7 +77,8 @@ export function createDustEmitter(
       if (tell === null) {
         return;
       }
-      owed += PUFFS_PER_S * dtSeconds;
+      // A stalled frame throws a burst, not a frame's worth of the stall.
+      owed = Math.min(owed + PUFFS_PER_S * dtSeconds, PUFFS_PER_S * MAX_OWED_S);
       if (owed < 1) {
         return;
       }
