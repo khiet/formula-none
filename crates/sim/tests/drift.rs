@@ -267,6 +267,16 @@ fn holding_the_drift_charges_blue_then_orange_at_the_tuned_times() {
     );
 }
 
+/// The release reports the boost it starts, at the tuned length less at
+/// most the tick that reported it.
+fn assert_boost_of(reported: Option<f32>, boost_s: f32) {
+    let reported = reported.expect("the release reports a boost");
+    assert!(
+        (reported - boost_s).abs() < 2.0 * DT,
+        "a {boost_s} s boost, reported {reported}"
+    );
+}
+
 /// The kart on the tick its hop lands into a right drift, before the first
 /// tick of charge, so a hold from here is counted in whole ticks.
 fn just_landed_right() -> State {
@@ -288,14 +298,6 @@ fn boost_after_ticks(held: usize) -> Option<f32> {
     };
     let charged = run(just_landed_right(), vec![hold; held]);
     only_kart(&step(charged, &[accelerate()], DT)).boost_s
-}
-
-fn assert_boost_of(reported: Option<f32>, boost_s: f32) {
-    let reported = reported.expect("the release reports a boost");
-    assert!(
-        (reported - boost_s).abs() < 2.0 * DT,
-        "a {boost_s} s boost, reported {reported}"
-    );
 }
 
 #[test]
@@ -336,13 +338,7 @@ fn assert_boosts_for(charge_s: f32, boost_s: f32) {
         None,
         "the release ends the drift"
     );
-    let reported = only_kart(&released)
-        .boost_s
-        .expect("the release reports the boost it starts");
-    assert!(
-        (reported - boost_s).abs() < 2.0 * DT,
-        "the boost starts at the tuned {boost_s} s, reported {reported}"
-    );
+    assert_boost_of(only_kart(&released).boost_s, boost_s);
     let boosted = TOP_SPEED_M_PER_S * MINI_TURBO_BOOST_FACTOR;
 
     let early = run(released, vec![accelerate(); ticks(boost_s / 2.0)]);
