@@ -34,7 +34,7 @@ export interface RaceLink {
   dispose(): void;
 }
 
-/** How often within the silence the clock is read, so the banner is late by at most this share. */
+/** How often within the silence the clock is read, so the banner is late by at most this share, or two after a stall. */
 const CHECKS_PER_SILENCE = 8;
 
 export function keepConnected(client: RoomClient, options: KeepConnectedOptions): RaceLink {
@@ -42,6 +42,8 @@ export function keepConnected(client: RoomClient, options: KeepConnectedOptions)
   const { silenceMs, retryMs } = options.timing;
   const listeners = new Set<(lost: boolean) => void>();
   let heardAt = now();
+  /** The last check saw silence it could not confirm: it ran late, with the client's own stall behind it. */
+  let unconfirmed = false;
   let lost = false;
   let over = false;
   let finish: (gone: Gone) => void = () => {};
@@ -51,6 +53,7 @@ export function keepConnected(client: RoomClient, options: KeepConnectedOptions)
 
   const stopHeard = client.onHeard(() => {
     heardAt = now();
+    unconfirmed = false;
   });
   const report = (next: boolean) => {
     if (lost === next) return;
@@ -111,18 +114,27 @@ export function keepConnected(client: RoomClient, options: KeepConnectedOptions)
     }
   };
 
-  // Silence is time the client spent awake without a message. A check that
-  // comes late was held up by the client itself, a long frame or a paused
-  // tab, and the messages that piled up behind the stall are still unread,
-  // so the stall comes off the silence instead of counting against the server.
+  // A check a whole check late was held up by the client itself, a long
+  // frame or a paused tab, and the messages that piled up behind the stall
+  // may still be unread, so the silence it sees is unconfirmed: it leaves
+  // the call to the next check, by when they have landed or nothing has
+  // come. Only hearing from the server re-arms the deferral, so a client
+  // slow at every check still catches a silent server within two checks of
+  // the tuned silence, while one kept slow by a live server never reads its
+  // own stalls as the server's.
   const interval = silenceMs / CHECKS_PER_SILENCE;
   let checkedAt = now();
   const checking = setInterval(() => {
     const at = now();
-    const stalled = Math.max(0, at - checkedAt - interval);
+    const stalled = at - checkedAt >= 2 * interval;
     checkedAt = at;
-    heardAt += stalled;
-    if (!lost && !over && at - heardAt >= silenceMs) reconnect();
+    if (lost || over) return;
+    if (stalled && !unconfirmed) {
+      unconfirmed = true;
+      return;
+    }
+    unconfirmed = false;
+    if (at - heardAt >= silenceMs) reconnect();
   }, interval);
   watch();
 
