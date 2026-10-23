@@ -25,6 +25,7 @@ const DECISION_SLUGS = [
   "metrics",
   "server-input-queue",
   "camera-tuning",
+  "kart-contact",
 ];
 
 const expectedFiles = DECISION_SLUGS.map(

@@ -473,7 +473,11 @@ impl KartRecord {
         kart.drift = snapshot.drift;
         let slip = kart.drift.map_or(0.0, |drift| drift_slip(drift.direction));
         kart.travel = rotation * Rotation::from_rotation_y(slip) * Vec3::NEG_Z;
-        kart.speed = kart.travel.dot(velocity);
+        // A snapshot does not carry the bump a touch left, so the
+        // prediction's own stands, from the touch it saw against the
+        // kinematic stand-in; the speed is what the velocity holds along
+        // the travel once that bump is taken off, as the sim built it.
+        kart.speed = kart.travel.dot(velocity - kart.bump);
         kart.held_item = snapshot.held_item;
         kart.spin_out_left_s = snapshot.spin_out_s.unwrap_or(0.0);
         if let Phase::Racing { elapsed_s, .. } = clock {

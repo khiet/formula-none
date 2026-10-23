@@ -195,6 +195,26 @@ pub const OFF_TRACK_SPEED_FACTOR: f32 = 0.55;
 /// Seconds outside the world bounds before respawn at the last checkpoint.
 pub const RESPAWN_DELAY_S: f32 = 1.5;
 
+// Kart contact. Two karts that touch bounce apart: each takes a bump, a
+// velocity away from the other that the handling adds to its own and that
+// dies away over the tuned time, and the one that drove into the other
+// loses speed. Karts never push each other along.
+
+/// Metres per second the least a touch pushes each kart away from the
+/// other, so karts rubbing side by side part.
+pub const KART_BUMP_MIN_M_PER_S: f32 = 2.0;
+/// The share of the closing speed the pair bounces apart with, on top of
+/// the least bump, half to each kart: at 1 the two fly apart as fast as
+/// they met, at 0 they only stop closing. With the speed the driver loses
+/// on top, 1 gives a kart rammed square a short recoil, as in Mario Kart.
+pub const KART_BUMP_RESTITUTION: f32 = 1.0;
+/// Seconds for a bump to decay to a third; it is gone within a few.
+pub const KART_BUMP_DECAY_S: f32 = 0.3;
+/// The share of the closing speed a kart driving square into another
+/// loses from its own; a glancing touch loses the share times how square
+/// it was, and a kart hit from behind or beside loses none.
+pub const KART_BUMP_SPEED_LOSS: f32 = 0.5;
+
 // Items.
 
 /// Seconds after a box is picked up before it is back to pick up again.

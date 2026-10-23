@@ -3,8 +3,9 @@
 //! Tests read the same transforms and standings a human's kart reports.
 
 use sim::tuning::{
-    BOT_LOOKAHEAD_M, BOT_RUBBER_BAND_MAX_FACTOR, BOT_RUBBER_BAND_MIN_FACTOR, BOT_START_HOLD_S,
-    COUNTDOWN_S, LAPS_PER_RACE, MINI_TURBO_ORANGE_BOOST_S, TICKS_PER_SECOND, TOP_SPEED_M_PER_S,
+    BOT_LOOKAHEAD_M, BOT_RUBBER_BAND_MAX_FACTOR, BOT_RUBBER_BAND_MIN_FACTOR,
+    BOT_STALL_SPEED_M_PER_S, BOT_START_HOLD_S, COUNTDOWN_S, LAPS_PER_RACE,
+    MINI_TURBO_ORANGE_BOOST_S, TICKS_PER_SECOND, TOP_SPEED_M_PER_S,
 };
 use sim::{step, KartInput, Phase, State, Surface, Track};
 
@@ -473,7 +474,9 @@ fn a_bot_held_by_a_wall_backs_up_and_drives_on() {
     for tick in 0..ticks(15.0) {
         state = step(state, &[], DT);
         let kart = state.kart_transforms()[0];
-        if stopped_at.is_none() && tick > 10 && kart.speed.abs() < 0.01 {
+        // The wall holds the kart at its corner to a crawl the bot counts
+        // as a stall.
+        if stopped_at.is_none() && tick > 10 && kart.speed.abs() < BOT_STALL_SPEED_M_PER_S {
             stopped_at = Some(tick);
         }
         if stopped_at.is_some() && kart.speed < -1.0 {
