@@ -1,14 +1,13 @@
 // The surface under a kart, read off the View's own copy of the track mesh
-// by raycasting in Three.js. The bridge offers no surface query, and
-// Presentation never asks the sim (GLOSSARY: Presentation); the View has the
-// mesh anyway, so the shadow discs find the road here.
+// by raycasting in Three.js: the bridge offers no surface query, and
+// Presentation never asks the sim.
 
 import { type Object3D, Raycaster, Vector3 } from "three";
 import type { SurfaceProbe } from "./kart-shadows";
 
 /** A probe starts its ray this far above the kart's centre, so a kart pressed into the road is still over it. */
 const PROBE_FROM_ABOVE_M = 1;
-/** What a probe reports for a surface whose mesh carries no normals. */
+/** The normal reported for a hit that carries none, which only a line or point object gives. */
 const WORLD_UP = new Vector3(0, 1, 0);
 
 /**

@@ -26,9 +26,9 @@ const YAW_SPRING_DAMPING = 2 * Math.sqrt(YAW_SPRING_STIFFNESS);
 /**
  * A spring on the camera's height toward the kart's, critically damped like
  * the yaw's. Soft enough that a 0.3 s hop lifts the camera by under a third
- * of the kart's rise, so the kart climbs in the frame; stiff enough that
- * Brands Patch's 2 m of elevation is followed within a third of a metre
- * and the camera settles at a new height in about a second and a half.
+ * of the kart's rise, so the kart climbs in the frame; stiff enough that the
+ * camera trails Brands Patch's 2 m climb by under a metre and settles at the
+ * new height within about two seconds.
  */
 const HEIGHT_SPRING_STIFFNESS = 16;
 const HEIGHT_SPRING_DAMPING = 2 * Math.sqrt(HEIGHT_SPRING_STIFFNESS);

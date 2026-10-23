@@ -177,7 +177,7 @@ const SHADOW_SEGMENTS = 32;
  * changing.
  */
 export function shadowDiscMesh(shadows: KartShadows, size: KartSize): TellMesh {
-  // A unit circle facing +Y; each instance scales it to the kart's footprint.
+  // A unit circle facing +Y; each instance scales it to the disc's size.
   const geometry = new CircleGeometry(0.5, SHADOW_SEGMENTS).rotateX(-Math.PI / 2);
   const material = new MeshBasicNodeMaterial();
   material.color = new Color(SHADOW_COLOUR);

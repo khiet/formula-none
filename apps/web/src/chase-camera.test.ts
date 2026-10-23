@@ -172,8 +172,7 @@ describe("the chase camera", () => {
     const camera = createChaseCamera(TUNING);
     const rest = camera.update(kart(0, [0, 0.3, 0]), FRAME_S);
     // A model of the sim's hop: 0.3 s of airtime under its gravity, peaking
-    // about 11 cm up. The test owns these figures; a retuned hop in the sim
-    // would not change what the camera must do with one.
+    // about 11 cm up.
     const airtime = 0.3;
     const gravity = 9.81;
     const launch = (gravity * airtime) / 2;
@@ -201,7 +200,7 @@ describe("the chase camera", () => {
   it("follows a slope without falling far behind and settles at the new height", () => {
     const camera = createChaseCamera(TUNING);
     camera.update(kart(0, [0, 0.3, 0]), FRAME_S);
-    // Brands Patch's climb: 2 m of elevation, here over 3 s at speed.
+    // Brands Patch's climb: 2 m of elevation, taken here over 3 s.
     let previousY = Number.NEGATIVE_INFINITY;
     for (let frame = 1; frame <= 3 * 60; frame++) {
       const y = 0.3 + (2 * frame) / (3 * 60);

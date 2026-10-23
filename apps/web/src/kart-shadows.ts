@@ -2,7 +2,7 @@
 // kart, however high the kart is. The disc is what gives a hop its height
 // on screen, since the chase camera follows the kart's height only loosely.
 // Presentation only, decided from the transforms the bridge reports and a
-// probe of the View's track mesh; the sim and bridge are not consulted.
+// probe of the View's track mesh; the sim is never asked.
 
 import type { KartTransform } from "./bridge";
 import { rotate, type Vec3 } from "./kart-frame";
@@ -13,7 +13,7 @@ export interface SurfaceHit {
   readonly normal: readonly [number, number, number];
 }
 
-/** Finds the surface under a point; the View implements it against the track mesh. */
+/** Finds the surface under a point; track-probe.ts implements it against the View's track mesh. */
 export interface SurfaceProbe {
   /** The nearest surface straight below `[x, y, z]`, or undefined with nothing below. */
   under(x: number, y: number, z: number): SurfaceHit | undefined;
@@ -25,7 +25,7 @@ export interface ShadowDisc {
   readonly visible: boolean;
   readonly position: Readonly<Vec3>;
   readonly normal: Readonly<Vec3>;
-  /** The kart's heading, unit length, in world metres; the disc is aligned to it. */
+  /** The kart's heading, unit length, in the world's frame; the disc is aligned to it. */
   readonly forward: Readonly<Vec3>;
 }
 
@@ -46,8 +46,7 @@ interface MutableDisc {
 /**
  * A disc per slot, placed each frame on whatever `probe` finds below the
  * kart's centre: remote karts get one too, since their interpolated height
- * rises on a hop like the local kart's. The discs are reused across frames,
- * so an update allocates nothing.
+ * rises on a hop like the local kart's. The discs are reused across frames.
  */
 export function createKartShadows(kartCount: number, probe: SurfaceProbe): KartShadows {
   const discs: MutableDisc[] = Array.from({ length: kartCount }, () => ({
