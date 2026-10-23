@@ -88,12 +88,14 @@ pub struct KartTransform {
     /// Seconds of spin-out left, while the kart is spun out: stopped, with
     /// its inputs ignored. The View spins it for the duration.
     pub spin_out_s: Option<f32>,
-    /// Whether the kart is in a hop's airtime; the hop's tell. Only a sim
-    /// stepped here knows: a snapshot does not carry it.
+    /// Whether the kart is in a hop's airtime; the hop's tell. Only the sim
+    /// that steps the kart reports it: a snapshot does not carry it, so an
+    /// interpolated kart is never airborne.
     pub airborne: bool,
     /// Seconds of boost left, while a mini-turbo, boost pad, item or start
-    /// boost holds the kart over top speed; the release's tell. Only a sim
-    /// stepped here knows: a snapshot does not carry it.
+    /// boost holds the kart over top speed; the release's tell. Only the sim
+    /// that steps the kart reports it: a snapshot does not carry it, so an
+    /// interpolated kart never boosts.
     pub boost_s: Option<f32>,
 }
 

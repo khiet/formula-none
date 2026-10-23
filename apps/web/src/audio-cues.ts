@@ -1,8 +1,8 @@
-// What the race sounds like, decided from state alone (ADR 0008): the
-// engine's pitch from the own kart's speed, and each SFX from the change
-// between two readings of the own kart. Presentation, so it reads the sim's
-// reports and never the inputs: a hop sounds when the kart leaves the
-// ground, not when the button goes down.
+// What the race sounds like (ADR 0008): the engine's pitch from the own
+// kart's speed, and each SFX from the change between two readings of the
+// own kart. Presentation, so it reads what the sim reports and never the
+// inputs: a hop sounds when the kart leaves the ground, not when the
+// button goes down.
 
 import type { KartTransform, MiniTurbo, Standing } from "./bridge";
 import type { Item } from "./generated/protocol";
@@ -13,8 +13,8 @@ export type SoundCue = "hop" | "miniTurbo" | "itemPickup" | "itemFire" | "hit" |
 
 /**
  * What the own kart sounds like at one moment. The item is the slot's,
- * not the transform's: a room's race fills the slot from the server's
- * events, which the prediction never sees (ADR 0009).
+ * not the transform's: in a room's race the slot follows the server's item
+ * events while the transform repeats the last snapshot's item (ADR 0009).
  */
 export interface SoundReading {
   readonly speed: number;
@@ -29,7 +29,7 @@ export interface SoundReading {
   readonly finished: boolean;
 }
 
-/** The reading of `kart` in `standing` with `slot`, as the Race Scene has them this frame. */
+/** The own kart's reading from its transform, standing and item slot this frame. */
 export function soundReading(
   kart: KartTransform,
   standing: Standing,
@@ -52,14 +52,12 @@ const CHARGED: readonly MiniTurbo[] = ["blue", "orange"];
 
 /**
  * The cues the change from `before` to `after` calls for, in a fixed
- * order: the hop as the kart leaves the ground, the mini-turbo as a
- * charged drift ends into a boost (a charged drift a spin-out, a respawn
- * or lost speed ends has no release to hear; a boost that starts or
- * lengthens is the release, so one let go mid pad boost still sounds
- * unless the pad's boost had longer to run), the pickup as the slot fills
- * and the fire as it empties, the hit as a spin-out begins, and the lap as
- * the count rises or the kart finishes. Nothing from the first reading:
- * there is no change to hear yet.
+ * order: the hop as the kart leaves the ground; the mini-turbo as a charged
+ * drift ends and a boost starts or lengthens (a drift a spin-out, a respawn
+ * or lost speed ends has no release to hear, and a release that cuts a
+ * pad's longer boost short is not heard); the pickup as the slot fills and
+ * the fire as it empties; the hit as a spin-out begins; the lap as the
+ * count rises or the kart finishes. Nothing from the first reading.
  */
 export function soundCues(before: SoundReading | undefined, after: SoundReading): SoundCue[] {
   if (before === undefined) return [];
@@ -81,16 +79,16 @@ export function soundCues(before: SoundReading | undefined, after: SoundReading)
 const ENGINE_IDLE_HZ = 70;
 const ENGINE_TOP_HZ = 260;
 /**
- * Headroom over top speed for the boosts, which the sim tunes (ADR 0014);
- * the note climbs no further. A Presentation choice, not a rule, so the
- * sim's boost factors are not repeated here.
+ * Headroom over top speed for the boosts; the note climbs no further. A
+ * Presentation ceiling, chosen here rather than read from the sim's boost
+ * factors (ADR 0014).
  */
 const ENGINE_MAX_SPEED_FRACTION = 1.5;
 
 /**
- * The engine note's pitch for `speed`, either way along the kart: from idle
- * at a standstill, linear in speed over `topSpeed`, to the pitch at the
- * fastest boost.
+ * The engine note's pitch for `speed`, forward or backing up: idle at a
+ * standstill, linear in speed over `topSpeed`, and flat past the boosts'
+ * headroom.
  */
 export function enginePitchHz(speed: number, topSpeed: number): number {
   const fraction = Math.min(Math.abs(speed) / topSpeed, ENGINE_MAX_SPEED_FRACTION);

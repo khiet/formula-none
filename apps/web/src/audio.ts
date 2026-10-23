@@ -1,9 +1,10 @@
-// The game's sound over Web Audio (ADR 0008). The files are fetched as
-// the page loads and decoded the moment a gesture lets an AudioContext
-// start, so the first play is never late and the browser never warns of
-// autoplay. One race at a time sounds: an oscillator for the engine, a
-// one-shot source per SFX and a looping source for the music, each behind
-// a gain its toggle sets. Presentation: it reads readings, never state.
+// The game's sound over Web Audio (ADR 0008). The files are fetched at
+// creation and decoded as soon as a gesture lets an AudioContext start, so
+// no decode waits for a first play and the browser never warns of autoplay.
+// One race sounds at a time: an oscillator for the engine, a one-shot
+// source per SFX and a looping source for the music, each behind the gain
+// its toggle sets. Presentation: it reads the own kart's readings and
+// changes no sim state.
 
 import hitUrl from "../../../assets/audio/hit.wav?url";
 import hopUrl from "../../../assets/audio/hop.wav?url";
@@ -63,11 +64,11 @@ export interface SoundContext {
 
 export interface AudioOptions {
   readonly settings: AudioSettings;
-  /** The speed the engine note reaches its top pitch at; the sim's top speed. */
+  /** The sim's top speed, which the engine note's pitch is scaled to. */
   readonly topSpeedMetresPerSecond: number;
   /** Fetch one sound file's bytes; called for every file at creation. */
   fetchBytes(url: string): Promise<ArrayBuffer>;
-  /** Make the AudioContext; called once, inside the first user gesture. */
+  /** Make the AudioContext; called by `unlock` inside a user gesture, again only if it threw. */
   createContext(): SoundContext;
 }
 
@@ -80,27 +81,27 @@ export interface Audio {
    * sound; a later call resumes a context the browser has suspended.
    */
   unlock(): Promise<void>;
-  /** The sound of one race; stop the last before starting the next. */
+  /** The sound of one race; starting it stops the race sounding before. */
   race(): RaceAudio;
 }
 
 export interface RaceAudio {
   /** The engine idling and the music looping, as the toggles allow, until `stop`. */
   start(): void;
-  /** Follow the own kart one frame on: the engine's pitch from its speed, and the SFX its changes call for. */
+  /** The own kart's reading this frame: the engine's pitch from its speed, the SFX from its changes since the last. */
   update(reading: SoundReading): void;
   /** Engine off, music stopped; later updates are silent. */
   stop(): void;
 }
 
-/** Each toggle's level under the mix: the SFX read over the engine, and the music sits under both. */
+/** Each toggle's gain in the mix; the SFX read over the music, and the engine's constant note sits lowest. */
 const LEVELS: Readonly<Record<keyof AudioSettings, number>> = {
   engine: 0.12,
   sfx: 0.8,
   music: 0.35,
 };
 const TOGGLES = Object.keys(LEVELS) as (keyof AudioSettings)[];
-/** The engine note glides to each frame's pitch over this long, so it never clicks. */
+/** The time constant the engine note glides to each frame's pitch with, so the pitch never jumps. */
 const ENGINE_GLIDE_S = 0.04;
 
 /** The decoded files, once the context exists to decode them, and the gain each toggle sets. */
@@ -246,7 +247,7 @@ class LiveRace {
     this.music(this.#settings().music);
   }
 
-  /** Loop the music while `on`; a loop is started where none plays and stopped where one does. */
+  /** Start the music loop when `on` and none plays; stop it when not `on`. */
   music(on: boolean): void {
     const sounds = this.#sounds;
     if (sounds === undefined) return;

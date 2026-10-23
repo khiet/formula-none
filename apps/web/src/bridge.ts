@@ -80,8 +80,9 @@ export interface Drift {
  * under way, if any, the item in the kart's slot, if any, the seconds of
  * spin-out left while the kart is spun out, whether the kart is in a hop's
  * airtime and the seconds of boost left while a boost holds it over top
- * speed (the last two only ever set for a kart the sim steps here: the own
- * kart and a local race's). Y up; identity rotation faces -Z.
+ * speed (the last two only for a kart this client steps: the own kart of a
+ * room's race and every kart of a local race; an interpolated kart reports
+ * neither). Y up; identity rotation faces -Z.
  */
 export interface KartTransform {
   readonly position: readonly [number, number, number];

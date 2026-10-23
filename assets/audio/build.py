@@ -109,7 +109,7 @@ CHORDS = [
     (174.61, 220.00, 261.63),  # F A C
 ]
 # A lead line over the chords, one note per half beat, as semitone offsets
-# from C4; None rests.
+# from C4 played an octave up; None rests.
 LEAD = [
     0, 4, 7, 4, 7, 12, 7, 4,
     -5, 2, 7, 2, 7, 11, 7, 2,

@@ -172,7 +172,7 @@ interface Harness {
   readonly contexts: FakeContext[];
   /** The one context made, once unlock has made it. */
   context(): FakeContext;
-  /** Whether a source playing the file of `cue` has been started. */
+  /** How many sources playing the file of `cue` have been started. */
   played(cue: SoundCue): number;
   engine(): FakeOscillator;
   music(): FakeSource[];

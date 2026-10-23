@@ -37,6 +37,6 @@ export function saveAudioSettings(storage: Storage, settings: AudioSettings): vo
   try {
     storage.setItem(STORAGE_KEY, JSON.stringify(settings));
   } catch {
-    // A private window or a full store: the defaults come back next time.
+    // A private window or a full store; the next visit loads what was saved before.
   }
 }
