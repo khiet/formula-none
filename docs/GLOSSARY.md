@@ -173,6 +173,18 @@ A kart stopped and spun by an item for a fixed time (1 s): dead to its
 controls and moved by nothing until the time runs out. Every spin-out is a
 server event, and the snapshots carry the time left; clients only show it.
 
+### bump
+
+The velocity a kart carries away from a kart or wall it touched, decaying
+over a fixed time (0.3 s to a third) and then gone. The handling adds it to
+the kart's own velocity every tick, so a touch throws the pair apart instead
+of letting one push the other along; the kart that drove in loses speed and
+the kart hit keeps its own. A new bump replaces one under way, never adds
+to it. A contact never turns a kart: only steering does. Resolved on the
+server; the client's prediction runs the same rule against the other karts'
+kinematic stand-ins and keeps its own bump on a rewind, since a snapshot
+does not carry one.
+
 ### livery
 
 The fixed colour that tells one kart from another. Eight liveries, assigned in

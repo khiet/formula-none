@@ -9,7 +9,9 @@ mod common;
 use common::{race_together, seconds, speed};
 use protocol::{Input, PlayerState, Refusal, Room, RoomState, ServerMessage, Snapshot};
 use server::fake_transport::{Client, Conditions, Harness};
-use sim::tuning::{CONNECTION_SILENCE_S, COUNTDOWN_S, KARTS_PER_RACE, TICKS_PER_SECOND};
+use sim::tuning::{
+    CONNECTION_SILENCE_S, COUNTDOWN_S, INPUT_QUEUE_MAX_TICKS, KARTS_PER_RACE, TICKS_PER_SECOND,
+};
 
 fn input(sequence: u32, throttle: u8, brake: u8) -> Input {
     Input {
@@ -110,7 +112,14 @@ async fn a_bot_drives_a_dropped_humans_kart_until_their_token_rejoins_and_hands_
             snapshot.karts[0]
         );
     };
-    assert!(stopped.acknowledged[0] <= sequence);
+    // The acknowledgement is the sequence applied, which runs on a tick
+    // ahead of a client sending one input per snapshot, up to the queue's
+    // depth (ADR 0019): never further than that past what was sent.
+    assert!(
+        stopped.acknowledged[0] <= sequence + INPUT_QUEUE_MAX_TICKS,
+        "acknowledged {} with {sequence} sent",
+        stopped.acknowledged[0]
+    );
 }
 
 #[tokio::test(start_paused = true)]

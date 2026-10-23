@@ -2,22 +2,23 @@
 //! between the snapshots it has received, 100 ms behind the newest, through
 //! the fake transport. The client here is the browser's tick loop in Rust:
 //! it hands each snapshot to the interpolation as it arrives, then advances
-//! the interpolation one tick. The watching player sends nothing, so its
-//! kart waits on the grid while the bots race.
+//! the interpolation one tick. A watching player sends nothing, so its
+//! kart waits on the grid while the bots race; the loss test's reference
+//! player drives over the edge of the world so a respawn is drawn.
 
 mod common;
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::time::Duration;
 
-use common::{projectiles, race_together, snapshot_kart};
+use common::{projectiles, race_together, snapshot_kart, wire};
 use protocol::{EventKind, ServerMessage};
 use server::fake_transport::{Client, Conditions, Harness};
 use sim::tuning::{
     COUNTDOWN_S, INTERPOLATION_DELAY_S, INTERPOLATION_TELEPORT_M_PER_TICK, KARTS_PER_RACE,
     RECONCILIATION_VISIBLE_CORRECTION_M, SNAPSHOTS_PER_SECOND, TICKS_PER_SECOND,
 };
-use sim::Interpolation;
+use sim::{Interpolation, KartInput, KartTransform};
 
 const TICK: Duration = Duration::from_nanos(1_000_000_000 / TICKS_PER_SECOND as u64);
 const TICKS_PER_SNAPSHOT: u32 = TICKS_PER_SECOND / SNAPSHOTS_PER_SECOND;
@@ -120,7 +121,9 @@ async fn at_any_jitter_the_other_karts_are_drawn_100_ms_behind_the_newest_snapsh
 async fn at_a_100_ms_round_trip_and_2_percent_loss_the_other_karts_are_drawn_where_they_would_be_without_it(
 ) {
     // A seed whose race rolls no bot the start boost, so the bots leave the
-    // two watching karts on the grid untouched.
+    // two karts on the grid untouched. From Go the reference player drives
+    // off the front straight and over the edge of the world: a respawn,
+    // the one jump a kart is drawn in one move.
     let lossless = Conditions {
         delay: Duration::from_millis(50),
         jitter: Duration::ZERO,
@@ -152,7 +155,9 @@ async fn at_a_100_ms_round_trip_and_2_percent_loss_the_other_karts_are_drawn_whe
     // moved further than any kart drives.
     let mut last_drawn: [Vec<[f32; 3]>; 2] = Default::default();
     let mut leaps = [vec![0; KARTS_PER_RACE], vec![0; KARTS_PER_RACE]];
-    let end_tick = ((COUNTDOWN_S + 20.0) * TICKS_PER_SECOND as f32) as u32;
+    let go_tick = (COUNTDOWN_S * TICKS_PER_SECOND as f32) as u32;
+    let end_tick = go_tick + 20 * TICKS_PER_SECOND;
+    let mut sequence = 0;
     while newest[0] < end_tick {
         ticks.tick().await;
         let before = newest[1];
@@ -164,6 +169,15 @@ async fn at_a_100_ms_round_trip_and_2_percent_loss_the_other_karts_are_drawn_whe
             gaps += 1;
         }
         let karts = [drawn[0].kart_transforms(), drawn[1].kart_transforms()];
+        // One input a tick, as the browser sends them; idle until Go, so
+        // the throttle sets up no rocket start.
+        sequence += 1;
+        let own = if newest[0] >= go_tick {
+            karts[0].first().map_or(KartInput::default(), toward_plus_x)
+        } else {
+            KartInput::default()
+        };
+        reference.send_input(wire(sequence, own));
         for ((karts, last), leaps) in karts.iter().zip(&mut last_drawn).zip(&mut leaps) {
             for (kart, (now, last)) in karts.iter().zip(last.iter()).enumerate() {
                 if distance(now.position, *last) > INTERPOLATION_TELEPORT_M_PER_TICK {
@@ -223,6 +237,22 @@ async fn at_a_100_ms_round_trip_and_2_percent_loss_the_other_karts_are_drawn_whe
         off < RECONCILIATION_VISIBLE_CORRECTION_M,
         "kart {kart} was drawn {off} m from where the snapshots put it, by tick {tick}"
     );
+}
+
+/// Full throttle, steering the kart round to face +X: off the oval's
+/// front straight, across the run-off and over the edge of the world.
+fn toward_plus_x(kart: &KartTransform) -> KartInput {
+    const STEER_GAIN: f32 = 4.0;
+    let [qx, qy, qz, qw] = kart.rotation;
+    let yaw = (2.0 * (qw * qy + qx * qz)).atan2(1.0 - 2.0 * (qy * qy + qz * qz));
+    // Positive steer turns the kart right; right of a yaw is (cos, -sin)
+    // in x, z, so +X is this far to the right of the nose.
+    let rightward = yaw.cos();
+    KartInput {
+        steer: (rightward * STEER_GAIN).clamp(-1.0, 1.0),
+        throttle: 1.0,
+        ..KartInput::default()
+    }
 }
 
 fn distance(a: [f32; 3], b: [f32; 3]) -> f32 {
