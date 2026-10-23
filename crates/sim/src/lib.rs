@@ -337,9 +337,9 @@ impl Phase {
 }
 
 /// What a kart's rocket start comes to (GLOSSARY): during the countdown the
-/// tier the throttle hold so far would earn were it held through Go, so
-/// the tiers come as the hold lengthens, and from Go the verdict, from the
-/// hold that ended there.
+/// tier the throttle hold so far has reached, so the tiers come as the hold
+/// lengthens and a hold that has tipped into a stall reads as one, and from
+/// Go the verdict, from the hold that ended there.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Start {
     /// No hold, or one under the weak edge: a plain start.
@@ -1422,7 +1422,6 @@ pub fn step(mut state: State, inputs: &[KartInput], dt: f32) -> State {
 /// Whether a bot kart rolls the full boost at Go, drawn on the race's RNG
 /// at the tuned chance.
 fn rolls_the_start_boost(rng: &mut ChaCha8Rng) -> bool {
-    // The draw scaled to the unit range, so the roll is as even as the draw.
     (f64::from(rng.next_u32()) / f64::from(u32::MAX)) < f64::from(BOT_START_BOOST_CHANCE)
 }
 

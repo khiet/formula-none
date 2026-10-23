@@ -11,7 +11,7 @@ use protocol::{
 };
 use server::fake_transport::Client;
 use server::room::Started;
-use sim::tuning::{BOT_LOOKAHEAD_M, BOT_START_HOLD_S, TICKS_PER_SECOND};
+use sim::tuning::{BOT_LOOKAHEAD_M, BOT_START_HOLD_S, COUNTDOWN_S, TICKS_PER_SECOND};
 use sim::{Drift, KartInput, Phase, Projectile, SnapshotKart, Track};
 
 /// Every one of `players` joins `code`, in order, and readies; once the
@@ -161,6 +161,21 @@ pub fn with_rocket_start(phase: Phase, then: KartInput) -> KartInput {
             ..KartInput::default()
         },
         _ => then,
+    }
+}
+
+/// A test that needs the bots to pass idle karts clean pins a seed whose
+/// race rolls no bot a rocket start; this holds the snapshots just before
+/// Go to that, so a reseed that breaks the premise fails here and not in
+/// the race it spoils. `humans` bots sit on the grid's front slots.
+pub fn assert_no_bot_rocket_starts(snapshot: &Snapshot, humans: usize) {
+    if (COUNTDOWN_S - 0.2..COUNTDOWN_S).contains(&seconds(snapshot.tick)) {
+        assert!(
+            snapshot.karts[humans..]
+                .iter()
+                .all(|kart| kart.start == protocol::Start::Clean),
+            "a bot rolled a rocket start; the seed must roll none"
+        );
     }
 }
 

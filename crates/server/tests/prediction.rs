@@ -162,7 +162,7 @@ async fn at_a_100_ms_round_trip_and_2_percent_loss_the_own_kart_is_corrected_out
 async fn driving_into_another_kart_never_predicts_the_own_kart_visibly_past_where_the_server_puts_it(
 ) {
     // A seed whose race rolls no bot a rocket start, so the one contact is
-    // the one driven into; the first snapshots before Go check that.
+    // the one driven into.
     let mut harness = Harness::new(Conditions {
         delay: Duration::from_millis(50),
         jitter: Duration::ZERO,
@@ -203,15 +203,7 @@ async fn driving_into_another_kart_never_predicts_the_own_kart_visibly_past_wher
         while let Some(message) = driver.try_recv() {
             if let ServerMessage::Snapshot(snapshot) = message {
                 newest_tick = newest_tick.max(snapshot.tick);
-                if (COUNTDOWN_S - 0.2..COUNTDOWN_S).contains(&common::seconds(snapshot.tick)) {
-                    assert!(
-                        snapshot
-                            .karts
-                            .iter()
-                            .all(|kart| kart.start == protocol::Start::Clean),
-                        "a bot rolled a rocket start; the seed must roll none"
-                    );
-                }
+                common::assert_no_bot_rocket_starts(&snapshot, 3);
                 let [_, _, own_z] = snapshot.karts[kart].position;
                 let [_, _, parked_z] = snapshot.karts[parked].position;
                 closest_m = closest_m.min(own_z - parked_z);

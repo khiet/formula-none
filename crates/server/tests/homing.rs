@@ -12,7 +12,10 @@ mod common;
 use std::collections::BTreeMap;
 use std::time::Duration;
 
-use common::{follow_the_line, race_together, seconds, wire, with_rocket_start, Heard};
+use common::{
+    assert_no_bot_rocket_starts, follow_the_line, race_together, seconds, wire, with_rocket_start,
+    Heard,
+};
 use protocol::{Event, EventKind, Item, ProjectileSnapshot, Snapshot};
 use server::fake_transport::{Conditions, Harness};
 use sim::tuning::{COUNTDOWN_S, SPIN_OUT_S, TICKS_PER_SECOND};
@@ -84,8 +87,7 @@ impl Heard {
 #[tokio::test(start_paused = true)]
 async fn a_projectiles_fire_flight_and_hit_are_the_servers_and_both_clients_see_the_same() {
     // A seed whose race rolls no bot a rocket start, so the bots pass the
-    // waiting chaser clean and it chases from the back of the field; the
-    // last snapshots before Go check that.
+    // waiting chaser clean and it chases from the back of the field.
     let mut harness = Harness::new(Conditions {
         seed: 2,
         ..Conditions::PERFECT
@@ -119,14 +121,7 @@ async fn a_projectiles_fire_flight_and_hit_are_the_servers_and_both_clients_see_
             elapsed < DEADLINE_S,
             "no hit of the chaser's in {DEADLINE_S} s"
         );
-        if (COUNTDOWN_S - 0.2..COUNTDOWN_S).contains(&elapsed) {
-            assert!(
-                newest.karts[2..]
-                    .iter()
-                    .all(|kart| kart.start == protocol::Start::Clean),
-                "a bot rolled a rocket start; the seed must roll none"
-            );
-        }
+        assert_no_bot_rocket_starts(newest, 2);
         // The leader rocket-starts as a bot times it, then drives the line
         // from Go, holding whatever it rolls.
         let input = with_rocket_start(
