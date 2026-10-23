@@ -42,7 +42,7 @@ heldItem: Item | null,
 spinOutS: number | null, 
 /**
  * The kart's rocket start: during the countdown the tier its throttle
- * hold so far would earn, and from Go the verdict.
+ * hold so far has reached, and from Go the verdict.
  */
 start: Start, 
 /**
