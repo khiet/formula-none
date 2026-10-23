@@ -26,6 +26,11 @@ for (const [name, url, throttleKey] of [
     });
     await expect(page.locator('[data-instrument="best-lap"]')).toHaveText("Best --:--.---");
     await expect(page.locator('[data-instrument="lap-time"]')).not.toHaveText("0:00.000");
+    // The course map in the corner, with a marker per kart and the own kart's ringed.
+    const courseMap = page.locator('[data-instrument="course-map"]');
+    await expect(courseMap).toBeVisible();
+    await expect(courseMap.locator("[data-kart]")).toHaveCount(8);
+    await expect(courseMap.locator("[data-own]")).toHaveAttribute("data-kart", "0");
 
     await page.keyboard.down(throttleKey);
     await expect

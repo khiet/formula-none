@@ -48,3 +48,25 @@ export async function fetchSidecar(track: TrackFiles): Promise<string> {
   }
   return response.text();
 }
+
+/**
+ * The centreline the course map draws, read from the sidecar's text. The
+ * rest of the sidecar is the sim's to read; the client takes only this.
+ * Throws when the text has no centreline of 3-vectors.
+ */
+export function centrelineOf(sidecar: string): readonly (readonly [number, number, number])[] {
+  const parsed: unknown = JSON.parse(sidecar);
+  const centreline =
+    typeof parsed === "object" && parsed !== null && "centreline" in parsed
+      ? parsed.centreline
+      : undefined;
+  if (
+    !Array.isArray(centreline) ||
+    !centreline.every(
+      (point) => Array.isArray(point) && point.length === 3 && point.every(Number.isFinite),
+    )
+  ) {
+    throw new TypeError("the sidecar has no centreline of 3-vectors");
+  }
+  return centreline as (readonly [number, number, number])[];
+}

@@ -11,6 +11,7 @@ import type {
   Standing,
 } from "./bridge";
 import { createChaseCamera } from "./chase-camera";
+import type { WorldPoint } from "./course-map";
 import { gamepadKartInput } from "./gamepad";
 import { combinedKartInput, IDLE_INPUT } from "./input";
 import { createInstrumentPanel, type InstrumentPanel, type ItemSlot } from "./instrument-panel";
@@ -137,15 +138,17 @@ export function localRaceRun(
  * The Race Scene: the run ticked at the tuned rate from the keyboard and
  * the gamepad for the local kart, its one View drawn every frame from the
  * chase camera with every other kart named over it, by `nickname` for the
- * humans the room named, and the Instrument panel over it. `audio` sounds
- * the race from the own kart's readings and is stopped with the Scene. The
- * run carries the race from its countdown to its finish; the Scene keeps
- * drawing the finished race until it is disposed.
+ * humans the room named, and the Instrument panel over it with the course
+ * map drawn from `centreline`. `audio` sounds the race from the own kart's
+ * readings and is stopped with the Scene. The run carries the race from its
+ * countdown to its finish; the Scene keeps drawing the finished race until
+ * it is disposed.
  */
 export async function createRaceScene(
   container: HTMLElement,
   bridge: Bridge,
   track: TrackFiles,
+  centreline: readonly WorldPoint[],
   run: RaceRun,
   nickname: (kart: number) => string | undefined,
   audio: RaceAudio,
@@ -178,7 +181,11 @@ export async function createRaceScene(
     bridge.spinOutSeconds,
   );
   const camera = createChaseCamera(bridge.cameraTuning);
-  const panel = createInstrumentPanel(container, bridge.lapsPerRace);
+  const panel = createInstrumentPanel(container, bridge.lapsPerRace, {
+    centreline,
+    kartCount: bridge.kartsPerRace,
+    ownKart: run.localKart,
+  });
 
   const isBot = (kart: number): boolean => kart >= run.humanCount;
   const name = (kart: number): string =>
@@ -200,7 +207,7 @@ export async function createRaceScene(
         frameSeconds,
       );
       const slot = run.itemSlot();
-      panel.update(local, standing, phase, slot);
+      panel.update(local, standing, phase, slot, transforms);
       audio.update(soundReading(local, standing, slot, phase));
     }
   };

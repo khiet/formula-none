@@ -1,4 +1,5 @@
 import type { KartTransform, Phase, Standing } from "./bridge";
+import { type CourseSetup, createCourseMap } from "./course-map";
 import { formatLapTime, NO_LAP_TIME, ordinal } from "./format";
 import type { Item } from "./generated/protocol";
 
@@ -19,8 +20,18 @@ export interface ItemReadout {
 }
 
 export interface InstrumentPanel {
-  /** Show the local kart's readouts, the race's phase and the item slot from what the run reports. */
-  update(local: KartTransform, standing: Standing, phase: Phase, slot: ItemSlot): void;
+  /**
+   * Show the local kart's readouts, the race's phase and the item slot from
+   * what the run reports, and every kart on the course map at `transforms`,
+   * the same ones the View draws this frame.
+   */
+  update(
+    local: KartTransform,
+    standing: Standing,
+    phase: Phase,
+    slot: ItemSlot,
+    transforms: readonly KartTransform[],
+  ): void;
   /** The connection readout: which transport reached the server and how fast, or that none did. */
   connection(status: string): void;
   /** Show the connection banner while a room's race has lost the server, and take it down once back. */
@@ -45,12 +56,14 @@ export const CONNECTION_LOST_BANNER = "Connection lost: reconnecting";
 const GO_S = 1;
 
 /**
- * The HUD over the Race View. Reads state; never drives it. Each readout is
- * addressable by `data-instrument` so tests and styles find it the same way.
+ * The HUD over the Race View, with the course map of `course` in its
+ * corner. Reads state; never drives it. Each readout is addressable by
+ * `data-instrument` so tests and styles find it the same way.
  */
 export function createInstrumentPanel(
   container: HTMLElement,
   lapsPerRace: number,
+  course: CourseSetup,
 ): InstrumentPanel {
   const panel = document.createElement("div");
   panel.id = "instrument-panel";
@@ -77,6 +90,7 @@ export function createInstrumentPanel(
   // mesh agree about where the kart is.
   const surface = instrument("surface");
   const connection = instrument("connection", "connecting");
+  const courseMap = createCourseMap(course);
   panel.append(
     position,
     " ",
@@ -97,11 +111,13 @@ export function createInstrumentPanel(
     wrongWay,
     banner,
     countdown,
+    courseMap.element,
   );
   container.append(panel);
 
   return {
-    update(local, standing, phase, slot) {
+    update(local, standing, phase, slot, transforms) {
+      courseMap.update(transforms);
       const readouts = lapReadouts(standing, lapsPerRace);
       position.textContent = readouts.position;
       lap.textContent = readouts.lap;

@@ -234,8 +234,16 @@ The part of a Scene that renders the world. The Race Scene has one View, the
 ### Instrument panel
 
 The HUD overlaid on a View: position, lap, lap time, best lap, item slot,
-wrong-way warning, connection banner and the countdown's count over the
-View. Reads state; never drives it.
+wrong-way warning, connection banner, the countdown's count over the View
+and the course map. Reads state; never drives it.
+
+### course map
+
+The track's outline seen from above in a corner of the Instrument panel,
+drawn from the sidecar's centreline with a start/finish tick, and a marker
+per kart in its livery at the transform the View draws that frame. The own
+kart's marker is larger and ringed. The map is fixed: it never rotates with
+the own kart.
 
 ### Presentation
 
