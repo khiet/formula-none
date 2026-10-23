@@ -1,10 +1,11 @@
 import type { KartTransform } from "./bridge";
 
 /**
- * Metres above a kart's centre its label floats: over the placeholder box
- * and its cowl, clear of the kart in the chase camera.
+ * Metres above a kart's centre its label floats: clear of the driver's
+ * helmet, which stands about a metre over the centre, so the name never
+ * covers the face.
  */
-const LABEL_RISE_M = 1;
+const LABEL_RISE_M = 1.5;
 
 /** A name floating over another kart: which kart, what it says, and where it hangs in the world. */
 export interface KartLabel {
@@ -16,8 +17,7 @@ export interface KartLabel {
 /**
  * One label per kart but the local one, named by `name` and hung over where
  * `transforms` put the kart this frame, so it follows the kart wherever the
- * View draws it. Plain text for now: the placeholder for the nickname
- * label's art.
+ * View draws it.
  */
 export function kartLabels(
   transforms: readonly KartTransform[],

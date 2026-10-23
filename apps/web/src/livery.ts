@@ -1,24 +1,36 @@
 // The eight liveries: one fixed colour per slot, so the kart in the View
-// and the player in the Room Scene wear the same one.
+// and the player in the Room Scene wear the same one. Picked by hand so
+// every pair stands apart at race distance (livery.test.ts holds the
+// margin); a walk around the hue wheel puts neighbours too close.
 
 export const LIVERIES = 8;
 
-/** A livery's hue, saturation and lightness; the hue walks the wheel once over the grid. */
-export interface LiveryColour {
-  /** 0..1 around the wheel. */
-  readonly hue: number;
-  /** 0..1. */
-  readonly saturation: number;
-  /** 0..1. */
-  readonly lightness: number;
+export interface Livery {
+  /** sRGB, as a Three colour takes it. */
+  readonly hex: number;
 }
 
-export function liveryColour(livery: number): LiveryColour {
-  return { hue: (livery % LIVERIES) / LIVERIES, saturation: 0.8, lightness: 0.5 };
+// Red, blue, yellow, green, orange, purple, white, black.
+const PALETTE: readonly Livery[] = [
+  { hex: 0xd62828 },
+  { hex: 0x1f5fd1 },
+  { hex: 0xf5c400 },
+  { hex: 0x2a9d3a },
+  { hex: 0xf77f00 },
+  { hex: 0x8e3fbf },
+  { hex: 0xf2f2f2 },
+  { hex: 0x202020 },
+];
+
+export function livery(slot: number): Livery {
+  const paint = PALETTE[slot % LIVERIES];
+  if (paint === undefined) {
+    throw new RangeError(`no livery for slot ${slot}`);
+  }
+  return paint;
 }
 
-/** The livery as CSS, for the Room Scene's swatches. */
-export function liveryCss(livery: number): string {
-  const { hue, saturation, lightness } = liveryColour(livery);
-  return `hsl(${Math.round(hue * 360)}deg ${Math.round(saturation * 100)}% ${Math.round(lightness * 100)}%)`;
+/** The livery as CSS, for the Room Scene's swatches and the kart labels. */
+export function liveryCss(slot: number): string {
+  return `#${livery(slot).hex.toString(16).padStart(6, "0")}`;
 }

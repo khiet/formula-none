@@ -1,4 +1,5 @@
-"""Triangle meshes for the greybox: ribbons along the path, box walls, pipes, the grass slab.
+"""Triangle meshes for a track: ribbons along the path, box walls, pipes, the grass slab, and
+the scenery's stripes, checkers and boards.
 
 A mesh is `(vertices, faces)` with vertices as `(x, y, z)` tuples and faces
 as index tuples, which is what Blender's `from_pydata` takes. Faces may be
@@ -101,3 +102,44 @@ def slab(min_x: float, min_y: float, max_x: float, max_y: float, z: float) -> Me
     """A flat rectangle at height `z`."""
     vertices: list[Vertex] = [(min_x, min_y, z), (max_x, min_y, z), (max_x, max_y, z), (min_x, max_y, z)]
     return vertices, [(0, 1, 2, 3)]
+
+
+def subset(source: Mesh, faces: list[Face]) -> Mesh:
+    """`faces` of `source` as a mesh of their own, with only the vertices they use."""
+    vertices, _ = source
+    index: dict[int, int] = {}
+    kept: list[Vertex] = []
+    remapped: list[Face] = []
+    for face in faces:
+        new_face = []
+        for v in face:
+            if v not in index:
+                index[v] = len(kept)
+                kept.append(vertices[v])
+            new_face.append(index[v])
+        remapped.append(tuple(new_face))
+    return kept, remapped
+
+
+def striped(source: Mesh, stripe: int) -> tuple[Mesh, Mesh]:
+    """A ribbon split into two meshes whose quads alternate every `stripe` quads, in face order."""
+    _, faces = source
+    first = [face for i, face in enumerate(faces) if (i // stripe) % 2 == 0]
+    second = [face for i, face in enumerate(faces) if (i // stripe) % 2 == 1]
+    return subset(source, first), subset(source, second)
+
+
+def quad(a: Vertex, b: Vertex, c: Vertex, d: Vertex) -> Mesh:
+    """One four-sided face, wound as given."""
+    return [a, b, c, d], [(0, 1, 2, 3)]
+
+
+def merge(meshes: list[Mesh]) -> Mesh:
+    """One mesh from many, faces re-indexed; nothing is welded."""
+    vertices: list[Vertex] = []
+    faces: list[Face] = []
+    for mesh_vertices, mesh_faces in meshes:
+        base = len(vertices)
+        vertices.extend(mesh_vertices)
+        faces.extend(tuple(base + v for v in face) for face in mesh_faces)
+    return vertices, faces

@@ -12,7 +12,10 @@ export interface ChaseCamera {
 }
 
 const BEHIND_M = 6;
-const ABOVE_M = 2.5;
+// High enough that the line of sight to the look-ahead point clears the
+// driver's helmet, a metre over the kart's centre, so the own kart never
+// hides the road ahead.
+const ABOVE_M = 3.2;
 const LOOK_AHEAD_M = 4;
 /**
  * A spring on the camera's yaw toward the kart's. Critically damped, so it

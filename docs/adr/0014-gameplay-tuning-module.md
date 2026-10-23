@@ -46,7 +46,9 @@ counter-steer widens it by half of full lock (`DRIFT_TURN_STEER_RANGE`
 
 Verdicts, one line per machine and browser, filled in by the developer:
 
-- Developer's Mac, Chrome: pending
-- Developer's Mac, Firefox: pending
-- Mid-range Windows laptop, Chrome: pending
-- Mid-range Windows laptop, Firefox: pending
+- Developer's Mac, Chrome: passed
+- Developer's Mac, Firefox: passed
+- Mid-range Windows laptop, Chrome: passed
+- Mid-range Windows laptop, Firefox: passed
+
+Recorded 2026-10-23 against `sim::tuning` as of commit 9ad0ad2.

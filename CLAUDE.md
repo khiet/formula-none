@@ -24,7 +24,8 @@ infra/            OpenTofu for the single-instance AWS environment
 deploy/           Compose stack, Caddyfile, and the deploy and smoke scripts;
                   the Dockerfile at the root packages them with the server
 assets/           track layouts, the Blender export and the exported glTF plus sidecars;
-                  replay fixtures for the determinism gate
+                  the Kenney kart and its export; replay fixtures for the
+                  determinism gate; LICENSES.md for what came from where
 docs/             GLOSSARY.md and adr/
 ```
 
@@ -63,6 +64,8 @@ Tracks (needs Blender on `PATH`; see `assets/tracks/README.md`):
 - Export: `pnpm export:tracks` writes each track's glTF and sidecar under
   `assets/tracks/<name>/`; rerun after changing a layout and commit the
   output, since the sim's tests read the sidecars
+- Kart: `pnpm export:karts` rebuilds `assets/karts/kart.glb` from the
+  vendored Kenney kart; rerun after changing `assets/karts/build.py`
 
 CI (`.github/workflows/ci.yml`) runs on every PR: clippy with warnings as
 errors, nextest, the wasm build of the bridge, the protocol codegen diff,

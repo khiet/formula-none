@@ -10,6 +10,7 @@
     "build:bridge": "wasm-pack build crates/bridge --target web --out-dir ../../apps/web/src/generated/bridge --out-name bridge --no-pack",
     "generate:protocol": "cargo run -q -p protocol --example generate",
     "export:tracks": "blender --background --python assets/tracks/build.py -- all",
+    "export:karts": "blender --background --python assets/karts/build.py",
     "build": "pnpm -r build",
     "lint": "biome ci .",
     "lint:fix": "biome check --write .",
