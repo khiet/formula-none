@@ -77,6 +77,34 @@ describe("keeping a race connected (ADR 0012)", () => {
     expect(banner).toEqual([true, false]);
   });
 
+  it("does not take its own stall for the server's silence", async () => {
+    const { first, connect, banner } = await racing();
+    await vi.advanceTimersByTimeAsync(1_000);
+    first.receive(SNAPSHOT);
+    // The page is frozen past the silence: no check runs and nothing is read.
+    vi.setSystemTime(Date.now() + 3_000);
+    // The overdue check runs before the messages that queued behind the stall.
+    await vi.advanceTimersByTimeAsync(TIMING.silenceMs / 8);
+    // Then the race goes on as before.
+    for (let tick = 0; tick < 5; tick++) {
+      first.receive(SNAPSHOT);
+      await vi.advanceTimersByTimeAsync(TIMING.silenceMs / 2);
+    }
+    expect(connect).not.toHaveBeenCalled();
+    expect(banner).toEqual([]);
+    expect(first.closedByClient).toBe(false);
+  });
+
+  it("still reconnects once a stall is over and the server stays silent", async () => {
+    const { connect, banner } = await racing();
+    vi.setSystemTime(Date.now() + 3_000);
+    await vi.advanceTimersByTimeAsync(TIMING.silenceMs / 2);
+    expect(connect).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(TIMING.silenceMs);
+    expect(connect).toHaveBeenCalledTimes(1);
+    expect(banner).toEqual([true]);
+  });
+
   it("reconnects at once when the connection ends", async () => {
     const { first, connect, banner } = await racing();
     first.end();

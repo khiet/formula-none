@@ -111,9 +111,19 @@ export function keepConnected(client: RoomClient, options: KeepConnectedOptions)
     }
   };
 
+  // Silence is time the client spent awake without a message. A check that
+  // comes late was held up by the client itself, a long frame or a paused
+  // tab, and the messages that piled up behind the stall are still unread,
+  // so the stall comes off the silence instead of counting against the server.
+  const interval = silenceMs / CHECKS_PER_SILENCE;
+  let checkedAt = now();
   const checking = setInterval(() => {
-    if (!lost && !over && now() - heardAt >= silenceMs) reconnect();
-  }, silenceMs / CHECKS_PER_SILENCE);
+    const at = now();
+    const stalled = Math.max(0, at - checkedAt - interval);
+    checkedAt = at;
+    heardAt += stalled;
+    if (!lost && !over && at - heardAt >= silenceMs) reconnect();
+  }, interval);
   watch();
 
   return {
