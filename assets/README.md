@@ -1,12 +1,16 @@
 # Assets
 
-Blender sources and exported glTF (ADR 0007). Placeholder primitives until
-milestone M1 passes its feel gate; Kenney CC0 kits afterwards. Everything in
-here is CC0.
+Blender sources and exported glTF (ADR 0007). Everything in here is CC0;
+`LICENSES.md` says what came from where.
 
-`tracks/` holds the two tracks: the oval test fixture and greybox Brands
-Patch. Each is exported as a glTF for the View and a sidecar for the sim
-carrying the centreline, checkpoints, item box and boost pad positions, the
-spawn grid and the tagged collision meshes (asphalt, sand, grass, wall). The
-sim reads the sidecar, never the mesh. `tracks/README.md` has the export
-command and the scene conventions.
+`karts/` holds the kart the View draws, built from Kenney's Car Kit with
+its paint in one swappable material. `karts/README.md` has the export
+command.
+
+`tracks/` holds the two tracks: the oval test fixture and Brands Patch.
+Each is exported as a glTF for the View and a sidecar for the sim carrying
+the centreline, checkpoints, item box and boost pad positions, the spawn
+grid and the tagged collision meshes (asphalt, sand, grass, wall). The sim
+reads the sidecar, never the mesh, so the scenery in the glTF (kerbs,
+hoardings, stands) never touches the rules. `tracks/README.md` has the
+export command and the scene conventions.

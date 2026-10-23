@@ -10,6 +10,9 @@ scene follows these conventions:
 - Collection `Track`: mesh objects with a `surface` custom property, one of
   asphalt, sand, grass or wall. These go into the glTF and, triangulated,
   into the sidecar as collision geometry.
+- Collection `Scenery`, optional: anything drawn and never collided with,
+  such as kerbs, hoardings and stands. It goes into the glTF only, so a
+  change to it leaves the sidecar, and the sim, untouched.
 - A curve object named `Centreline`, one closed POLY or BEZIER spline, run
   in the direction of travel starting at the start line.
 - Collections `Checkpoints`, `ItemBoxes`, `BoostPads` and `SpawnGrid` hold
@@ -34,6 +37,7 @@ from mathutils.geometry import interpolate_bezier
 SIDECAR_VERSION = 1
 SURFACE_TAGS = ("asphalt", "sand", "grass", "wall")
 TRACK_COLLECTION = "Track"
+SCENERY_COLLECTION = "Scenery"
 CENTRELINE_OBJECT = "Centreline"
 PLACEMENT_COLLECTIONS = {
     "checkpoints": "Checkpoints",
@@ -151,12 +155,18 @@ def write_sidecar(data: dict, path: Path) -> None:
 
 
 def export_glb(path: Path) -> None:
-    """Only the `Track` collection goes into the glTF; the data collections stay in the sidecar."""
+    """The `Track` and `Scenery` collections go into the glTF; the data collections stay in the sidecar."""
     bpy.context.view_layer.update()
+    for obj in bpy.context.scene.objects:
+        obj.select_set(False)
+    for name in (TRACK_COLLECTION, SCENERY_COLLECTION):
+        collection = bpy.data.collections.get(name)
+        for obj in collection.all_objects if collection is not None else ():
+            obj.select_set(True)
     bpy.ops.export_scene.gltf(
         filepath=str(path),
         export_format="GLB",
-        collection=TRACK_COLLECTION,
+        use_selection=True,
         export_apply=True,
         export_yup=True,
         export_cameras=False,

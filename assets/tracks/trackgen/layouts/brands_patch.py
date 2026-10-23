@@ -1,14 +1,16 @@
-"""Greybox Brands Patch: the final layout with placeholder materials.
+"""Brands Patch: the race track.
 
 A counter-clockwise loop of about 800 m: the start/finish straight up the
 east side, hairpin one at the top, a run back down into a right-hander, the
 hill on the westbound straight, the chicane, hairpin two at the west end, the
 jump ramp on the long eastbound straight and a sweeping final corner. Pipes
 stand on the inside of both hairpins. The start line is at s = 0 on the
-east straight, which runs along +Y (glTF -Z).
+east straight, which runs along +Y (glTF -Z). The scenery: grandstands and
+sponsor hoardings along the outside of the start straight and the return,
+hoardings round the final corner, and the gantry over the line.
 """
 
-from ..layout import BoostPad, ItemRow, Layout, Pipe, Wall
+from ..layout import BoostPad, Decor, Grandstands, Hoardings, ItemRow, Layout, Pipe, Wall
 from ..path import Hill, Ramp, Turtle
 
 EAST_STRAIGHT_X = 80.0
@@ -71,4 +73,13 @@ LAYOUT = Layout(
         Hill(hill.s_start + 30.0, hill.s_end - 30.0, HILL_CREST_M),
         Ramp(ramp_start, ramp_start + RAMP_LENGTH_M, RAMP_HEIGHT_M),
     ],
+    decor=Decor(
+        hoardings=[
+            Hoardings(("grid", "start"), side=-1),
+            Hoardings(("return",), side=1),
+            Hoardings(("final",), side=-1),
+        ],
+        grandstands=[Grandstands(("grid", "start"), side=-1)],
+        gantry=True,
+    ),
 )

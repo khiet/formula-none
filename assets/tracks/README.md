@@ -6,7 +6,7 @@ sidecar the sim reads (ADR 0007):
 | Track                | Role                              | Files                                   |
 | -------------------- | --------------------------------- | --------------------------------------- |
 | `oval`               | test fixture for the sim's tests  | `oval/oval.glb`, `oval/oval.track.json` |
-| `brands-patch`       | the race track, greybox materials | `brands-patch/brands-patch.glb`, `...track.json` |
+| `brands-patch`       | the race track                    | `brands-patch/brands-patch.glb`, `...track.json` |
 
 ## Export
 
@@ -29,8 +29,10 @@ The Blender source of a track is a Python layout, `trackgen/layouts/<name>.py`,
 so it diffs and reviews like code. A layout lays the centreline turtle-style
 from straights and arcs, then hangs everything else on it by arc length:
 asphalt and run-off widths, walls, pipes, elevation (hills and the jump
-ramp), checkpoint count, item box rows and boost pads. The spawn grid is
-always eight slots behind the start line. `trackgen/` is pure Python so a
+ramp), checkpoint count, item box rows and boost pads, and its decor:
+which segments get sponsor hoardings and grandstands, and whether the
+start line gets its gantry. The spawn grid is always eight slots behind
+the start line. `trackgen/` is pure Python so a
 layout can be checked without Blender:
 
 ```sh
@@ -52,6 +54,12 @@ blender my-track.blend --background --python assets/tracks/export.py -- my-track
   `asphalt`, `sand`, `grass` or `wall`. Pipes are walls. These go into the
   glTF and, triangulated, into the sidecar as collision meshes. Wind faces
   so their normals point out of the surface; the physics relies on it.
+  The asphalt carries a UV map, across the ribbon from its left edge and
+  along it in metres of arc length, for the tyre marks to be laid in.
+- Collection `Scenery`, optional: meshes drawn and never collided with,
+  which go into the glTF only. A change here leaves the sidecar, and so
+  the sim and the replay fixtures, untouched; `git diff` on the sidecar
+  after an export is the check.
 - A curve object `Centreline`: one closed POLY or BEZIER spline run in the
   direction of travel, starting at the start line. Spline progress is
   distance along it.
@@ -64,9 +72,17 @@ forward, yaw in radians about +Y with zero facing -Z) so it matches the
 mesh. `crates/sim/src/track.rs` documents the sidecar's fields and is the
 reader to keep in step with `export.py`.
 
-## Greybox rules
+## Art rules
 
-Placeholder materials only, one flat colour per surface, until M1 passes its
-feel gate (ADR 0007). The sand run-off slopes five centimetres down to the
-grass so no two surfaces share a plane, which keeps "what is under this
-point" unambiguous.
+Flat colours in the 16-bit kart racer's key, one material per surface and
+per piece of scenery, no textures: the palette is `MATERIALS` in
+`build.py`. The scenery is the generator's kerbs on every corner and the
+start line's checkers, plus what a layout's decor asks for: hoardings with
+the sponsors in `trackgen/sponsors.py` (invented, every one), grandstands
+and the gantry from Kenney's Racing Kit in `kenney/` (CC0, see
+`../LICENSES.md`). Original names only; nothing may resemble a real
+sponsor, a Nintendo character or circuit (ADR 0007).
+
+The sand run-off slopes five centimetres down to the grass so no two
+surfaces share a plane, which keeps "what is under this point"
+unambiguous.
