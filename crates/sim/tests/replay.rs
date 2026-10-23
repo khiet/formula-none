@@ -380,10 +380,11 @@ fn every_committed_fixture_replays_to_the_hashes_it_was_recorded_with() {
 
 /// What the fixture set must exercise for the gate to mean anything: karts
 /// touching (the contact solver), karts off the asphalt and a lone kart held
-/// by a wall (the track colliders), both tracks, a drift released into each
-/// mini-turbo tier (the cornering rules), and a rocket start boosting at Go and
-/// another stalling there (the start rule). A fixture that only drives up a
-/// straight would pass on a sim with most of its rules broken.
+/// by a wall (the track colliders), both tracks, a drift released into blue
+/// and another into orange (the cornering rules), and a rocket start
+/// boosting at Go and another stalling there (the start rule). A fixture
+/// that only drives up a straight would pass on a sim with most of its
+/// rules broken.
 #[test]
 fn the_fixture_set_exercises_kart_contact_off_track_walls_both_tracks_both_mini_turbos_a_rocket_start_and_a_stall(
 ) {

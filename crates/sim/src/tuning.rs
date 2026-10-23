@@ -365,7 +365,7 @@ pub const CAMERA_SHAKE_S: f32 = 0.3;
 /// away over the shake.
 pub const CAMERA_SHAKE_AMPLITUDE_M: f32 = 0.15;
 
-/// Whether `seconds` is a whole number of ticks, within a tick's rounding.
+/// Whether `seconds` is a whole number of ticks, within float rounding.
 const fn is_whole_ticks(seconds: f32) -> bool {
     let ticks = seconds * TICKS_PER_SECOND as f32;
     let rounded = (ticks + 0.5) as u32 as f32;
@@ -378,8 +378,8 @@ const fn is_whole_ticks(seconds: f32) -> bool {
 const _: () = {
     assert!(MINI_TURBO_ORANGE_CHARGE_S > MINI_TURBO_BLUE_CHARGE_S);
     assert!(MINI_TURBO_ORANGE_BOOST_S > MINI_TURBO_BLUE_BOOST_S);
-    // Charge thresholds land on whole ticks so a tier pays on a tick, not
-    // between two.
+    // Charge thresholds are whole ticks so each tuned value names the tick
+    // its tier pays on.
     assert!(is_whole_ticks(MINI_TURBO_BLUE_CHARGE_S));
     assert!(is_whole_ticks(MINI_TURBO_ORANGE_CHARGE_S));
     assert!(BOT_RUBBER_BAND_MIN_FACTOR < 1.0 && 1.0 < BOT_RUBBER_BAND_MAX_FACTOR);
