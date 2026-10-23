@@ -5,7 +5,7 @@
 //! in slot 0's column at x = 28 and one at x = 31 drive side by side.
 
 use sim::tuning::{KART_HALF_LENGTH_M, KART_HALF_WIDTH_M, TICKS_PER_SECOND, TOP_SPEED_M_PER_S};
-use sim::{step, KartInput, KartTransform, Phase, Prediction, State, Track};
+use sim::{step, KartInput, KartTransform, Phase, Prediction, SnapshotKart, State, Track};
 
 const OVAL: &str = include_str!("../../../assets/tracks/oval/oval.track.json");
 const DT: f32 = 1.0 / TICKS_PER_SECOND as f32;
@@ -264,6 +264,93 @@ fn the_prediction_bounces_the_own_kart_off_a_kart_the_snapshots_draw() {
             kart.position
         );
     }
+}
+
+/// The own kart of `prediction` as a snapshot would carry it: the server
+/// agreeing with the prediction to the metre, with no bump of its own.
+fn snapshot_of(prediction: &Prediction) -> SnapshotKart {
+    let transform = prediction.kart_transform();
+    let standing = prediction.standing();
+    SnapshotKart {
+        position: transform.position,
+        rotation: transform.rotation,
+        velocity: transform.velocity,
+        drift: transform.drift,
+        held_item: transform.held_item,
+        spin_out_s: transform.spin_out_s,
+        start: transform.start,
+        stall_s: transform.stall_s,
+        lap: standing.lap(),
+        checkpoint: standing.checkpoint,
+        spline_progress: standing.spline_progress,
+    }
+}
+
+#[test]
+fn a_correction_during_a_bump_keeps_the_own_karts_speed_and_recoil() {
+    // The own kart at full throttle into the kart standing 10 m up its
+    // column, as above; the tick after the touch a snapshot puts it a
+    // hand's width aside, so the prediction rewinds to the snapshot.
+    let track = oval_with_slots(&[([28.0, 0.0, 4.0], 0.0), ([28.0, 0.0, -6.0], 0.0)]);
+    let mut prediction = Prediction::new(SEED, 0, track.clone());
+    let standing = started(State::new(SEED, 2, track)).kart_transforms();
+    let countdown = ticks(sim::tuning::COUNTDOWN_S) as u32;
+    let drive = |sequence: u32| {
+        if sequence <= countdown {
+            KartInput::default()
+        } else {
+            input(1.0, 0.0)
+        }
+    };
+    let mut sequence = 0;
+    let mut last_speed = 0.0;
+    loop {
+        sequence += 1;
+        prediction.tick(sequence, drive(sequence), &standing);
+        let speed = prediction.kart_transform().speed;
+        if speed < last_speed - 1.0 {
+            break;
+        }
+        last_speed = speed;
+        assert!(
+            sequence < countdown + ticks(3.0) as u32,
+            "the own kart is slowed by a hit"
+        );
+    }
+    sequence += 1;
+    prediction.tick(sequence, drive(sequence), &standing);
+    let before = prediction.kart_transform();
+    let mut aside = snapshot_of(&prediction);
+    aside.position[0] += 0.3;
+
+    let moved = prediction.reconcile(sequence, sequence, &aside);
+    assert!(
+        (moved - 0.3).abs() < 0.05,
+        "rewound to the snapshot: moved {moved} m"
+    );
+    // A snapshot carries no bump, so the prediction keeps its own and
+    // reads the speed from the snapshot's velocity with that bump taken
+    // off, instead of counting the bump against the speed twice.
+    let after = prediction.kart_transform();
+    assert!(
+        (after.speed - before.speed).abs() < 0.5,
+        "the rewind keeps the speed the touch left: {} then {}",
+        before.speed,
+        after.speed
+    );
+    let mut recoiled = false;
+    for _ in 0..ticks(0.5) {
+        sequence += 1;
+        prediction.tick(sequence, drive(sequence), &standing);
+        let kart = prediction.kart_transform();
+        recoiled |= kart.velocity[2] > 0.5;
+        assert!(
+            kart.position[2] > standing[1].position[2] + NOSE_TO_TAIL_M - 0.2,
+            "never through the standing kart: {:?}",
+            kart.position
+        );
+    }
+    assert!(recoiled, "the recoil goes on after the correction");
 }
 
 /// The unit direction the kart's nose points along the ground.

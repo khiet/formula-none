@@ -223,14 +223,16 @@ fn dot(a: [f32; 3], b: [f32; 3]) -> f32 {
 }
 
 /// Positions of slot 0 after each of `seconds` of full throttle, from the
-/// one before the first tick, with the speed readout after each tick.
-fn drive_straight(track: Track, seconds: f32) -> Vec<([f32; 3], f32)> {
+/// one before the first tick, with the speed readout and the yaw after
+/// each tick.
+fn drive_straight(track: Track, seconds: f32) -> Vec<([f32; 3], f32, f32)> {
     let mut state = started(State::new(SEED, 1, track));
-    let mut trace = vec![(state.kart_transforms()[0].position, 0.0)];
+    let first = state.kart_transforms()[0];
+    let mut trace = vec![(first.position, 0.0, yaw(first.rotation))];
     for _ in 0..ticks(seconds) {
         state = step(state, &[throttle()], DT);
         let kart = state.kart_transforms()[0];
-        trace.push((kart.position, kart.speed));
+        trace.push((kart.position, kart.speed, yaw(kart.rotation)));
     }
     trace
 }
@@ -267,14 +269,18 @@ fn a_wall_met_at_an_angle_stops_the_motion_into_it_and_keeps_the_motion_along_it
         at_the_wall > 0.5 && at_the_wall < 1.3,
         "stopped with its corner at the wall, {at_the_wall} m from its centre"
     );
-    // The corner that hit first swings the kart round along the wall, so
-    // its centre may come as close as a kart lying flat against it, but
-    // never closer, and never moves back out.
+    // The wall holds the kart at the corner that hit, with the heading it
+    // arrived with: it is never swung round flat along the wall, pushed
+    // into it, or bounced back out.
     let flat_against = 0.25 + KART_HALF_WIDTH_M;
     for pair in trace[impact..impact + ticks(1.0)].windows(2) {
-        let [(previous, _), (position, speed)] = pair else {
+        let [(previous, _, _), (position, speed, yaw)] = pair else {
             unreachable!()
         };
+        assert!(
+            yaw.abs() < 1e-3,
+            "turned by the wall: {yaw} rad from the column's heading"
+        );
         assert!(
             toward(*position) > flat_against - 0.02,
             "pushed into the wall: {position:?}"
@@ -319,7 +325,7 @@ fn a_wall_met_head_on_stops_the_kart_dead_without_a_bounce() {
         "stopped dead: {} m/s",
         trace[impact + 1].1
     );
-    for (position, speed) in &trace[impact + 1..impact + ticks(1.0)] {
+    for (position, speed, _) in &trace[impact + 1..impact + ticks(1.0)] {
         assert!(
             (position[2] - stopped_z).abs() < 0.03,
             "moved after the stop: {position:?}"
