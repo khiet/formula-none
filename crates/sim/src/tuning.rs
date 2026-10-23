@@ -305,6 +305,20 @@ pub const BOT_STALL_S: f32 = 1.0;
 /// Seconds a bot backs up before it drives on again.
 pub const BOT_REVERSE_S: f32 = 1.0;
 
+// Camera (ADR 0020). Presentation reads these through the bridge; the sim
+// never does. They live here so a feel pass tunes the camera in the same
+// one-file diff as the handling it answers to.
+
+/// Metres the chase camera sits further behind the kart at top speed than
+/// at a standstill, scaling with speed in between, so speed is felt; a
+/// boost past top speed pulls it back further still.
+pub const CAMERA_PULL_BACK_M: f32 = 1.0;
+/// Seconds the chase camera shakes after the own kart is hit.
+pub const CAMERA_SHAKE_S: f32 = 0.3;
+/// How far the shake throws the camera off its pose at its start; it dies
+/// away over the shake.
+pub const CAMERA_SHAKE_AMPLITUDE_M: f32 = 0.15;
+
 // Invariants between tuned values, checked at compile time so a retune that
 // breaks a rule fails the build rather than a race.
 const _: () = {
@@ -336,6 +350,10 @@ const _: () = {
     assert!(0.0 < BOT_HAZARD_HOLD_S && BOT_HAZARD_HOLD_S <= BOT_ITEM_USE_DELAY_S);
     assert!(0.0 < PREDICTED_FIRE_TIMEOUT_S);
     assert!(0.0 < RACE_END_GRACE_S);
+    assert!(0.0 <= CAMERA_PULL_BACK_M);
+    assert!(0.0 < CAMERA_SHAKE_S && 0.0 <= CAMERA_SHAKE_AMPLITUDE_M);
+    // The shake is over before the spin-out it answers to ends.
+    assert!(CAMERA_SHAKE_S < SPIN_OUT_S);
     assert!(SNAPSHOTS_PER_SECOND <= TICKS_PER_SECOND);
     assert!(0 < SNAPSHOT_EVENT_REPEATS);
     assert!(0 < INPUT_QUEUE_START_TICKS && INPUT_QUEUE_START_TICKS as u32 <= INPUT_QUEUE_MAX_TICKS);

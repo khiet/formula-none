@@ -1,4 +1,4 @@
-import type { KartTransform } from "./bridge";
+import type { CameraTuning, KartTransform } from "./bridge";
 
 /** Where the Race View's camera sits and what it looks at, in world metres. */
 export interface CameraPose {
@@ -25,17 +25,30 @@ const YAW_SPRING_STIFFNESS = 20;
 const YAW_SPRING_DAMPING = 2 * Math.sqrt(YAW_SPRING_STIFFNESS);
 /** The spring integrates in steps no longer than this, so a stalled frame cannot fling it. */
 const MAX_SPRING_STEP_S = 1 / 60;
+/**
+ * The shake's three axes oscillate at these rates in hertz: unequal and
+ * well under half the frame rate, so the jolt reads as a rattle rather
+ * than a pattern or a strobe.
+ */
+const SHAKE_HZ: readonly [number, number, number] = [13, 17, 11];
 
 /**
  * A third-person camera behind and above the local kart. Its yaw lags the
  * kart's through a damped spring, so a corner swings the kart across the
  * frame before the camera follows, and it looks a little ahead of the kart
- * along the kart's own heading. Presentation only: it reads transforms the
- * sim reported and never touches the sim.
+ * along the kart's own heading. It sits further back the faster the kart
+ * goes, the tuned pull-back at top speed, and rattles for the tuned time
+ * when the sim reports the kart hit, that is when its spin-out begins.
+ * Presentation only: it reads transforms the sim reported and never touches
+ * the sim.
  */
-export function createChaseCamera(): ChaseCamera {
+export function createChaseCamera(tuning: CameraTuning): ChaseCamera {
   let yaw: number | undefined;
   let yawVelocity = 0;
+  /** Whether the kart was spun out last frame; a spin-out beginning is the hit. */
+  let wasSpunOut: boolean | undefined;
+  /** Seconds into the shake, or past its end when there is none. */
+  let shakeAge = tuning.shakeSeconds;
   return {
     update(kart, dtSeconds) {
       const kartYaw = yawOf(kart.rotation);
@@ -48,14 +61,56 @@ export function createChaseCamera(): ChaseCamera {
         yawVelocity += (YAW_SPRING_STIFFNESS * stretch - YAW_SPRING_DAMPING * yawVelocity) * dt;
         yaw += yawVelocity * dt;
       }
+
+      const spunOut = kart.spinOutSeconds !== null;
+      if (spunOut && wasSpunOut === false) {
+        shakeAge = 0;
+      } else {
+        shakeAge = Math.min(shakeAge + dtSeconds, tuning.shakeSeconds);
+      }
+      wasSpunOut = spunOut;
+      const [sx, sy, sz] = shake(shakeAge, tuning);
+
+      // Speed, not boost: a boost shows as the speed it gives, and a boost
+      // past top speed pulls back past the tuned metre.
+      const behind =
+        BEHIND_M +
+        (Math.max(kart.speed, 0) / tuning.topSpeedMetresPerSecond) * tuning.pullBackMetres;
       const [x, y, z] = kart.position;
       return {
         // A kart with no yaw faces -Z, so behind it is +Z.
-        position: [x + Math.sin(yaw) * BEHIND_M, y + ABOVE_M, z + Math.cos(yaw) * BEHIND_M],
-        target: [x - Math.sin(kartYaw) * LOOK_AHEAD_M, y, z - Math.cos(kartYaw) * LOOK_AHEAD_M],
+        position: [
+          x + Math.sin(yaw) * behind + sx,
+          y + ABOVE_M + sy,
+          z + Math.cos(yaw) * behind + sz,
+        ],
+        // The target jolts with the position, so the hit shoves the whole frame.
+        target: [
+          x - Math.sin(kartYaw) * LOOK_AHEAD_M + sx,
+          y + sy,
+          z - Math.cos(kartYaw) * LOOK_AHEAD_M + sz,
+        ],
       };
     },
   };
+}
+
+/**
+ * The shake's throw `age` seconds into it: the tuned amplitude on each axis
+ * at the start, dying away linearly to nothing at the tuned length, and
+ * nothing after. No randomness, so a test can hold the pose exactly.
+ */
+function shake(age: number, tuning: CameraTuning): readonly [number, number, number] {
+  if (age >= tuning.shakeSeconds) {
+    return [0, 0, 0];
+  }
+  const envelope = tuning.shakeAmplitudeMetres * (1 - age / tuning.shakeSeconds);
+  // Cosines, so the first frame of the shake is already thrown.
+  return [
+    envelope * Math.cos(2 * Math.PI * SHAKE_HZ[0] * age),
+    envelope * Math.cos(2 * Math.PI * SHAKE_HZ[1] * age),
+    envelope * Math.cos(2 * Math.PI * SHAKE_HZ[2] * age),
+  ];
 }
 
 /** Yaw about +Y from a unit quaternion `[x, y, z, w]`. */

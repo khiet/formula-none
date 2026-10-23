@@ -173,7 +173,7 @@ export async function createRaceScene(
     run.itemBoxes(),
     bridge.spinOutSeconds,
   );
-  const camera = createChaseCamera();
+  const camera = createChaseCamera(bridge.cameraTuning);
   const panel = createInstrumentPanel(container, bridge.lapsPerRace);
 
   const isBot = (kart: number): boolean => kart >= run.humanCount;
@@ -191,6 +191,7 @@ export async function createRaceScene(
         run.itemBoxesPresent(),
         run.hazards(),
         run.projectiles(),
+        frameSeconds,
       );
       panel.update(local, standing, run.phase(), run.itemSlot());
     }

@@ -22,19 +22,32 @@ import { CSS2DObject, CSS2DRenderer } from "three/addons/renderers/CSS2DRenderer
 import { WebGPURenderer } from "three/webgpu";
 import type { Hazard, ItemBox, KartSize, KartTransform, Projectile } from "./bridge";
 import type { CameraPose } from "./chase-camera";
-import { type DustTell, dustTell } from "./dust";
+import { createDustEmitter } from "./dust";
 import type { KartLabel } from "./kart-labels";
 import { dressKart, fitKart, type KartFit } from "./kart-model";
 import { livery, liveryCss } from "./livery";
-import { type SparkTell, sparkTell } from "./sparks";
+import { createParticles } from "./particles";
+import { createSparkEmitter } from "./sparks";
 import { spinOutAngle } from "./spin";
+import { particleMesh, tyreMarkMesh } from "./tell-meshes";
+import { createTyreMarks } from "./tyre-marks";
 
 /** Far enough to see across Brands Patch from any point on it. */
 const CAMERA_FAR_M = 1000;
-/** The placeholder spark: one ball at each rear wheel, this fraction of the kart's height across. */
-const SPARK_RADIUS = 0.25;
-/** The placeholder dust puff: one ball behind the kart, this fraction of the kart's height across. */
-const DUST_RADIUS = 0.6;
+/**
+ * Particles live at once across the grid: eight karts' worth of sparks at
+ * both wheels through their quarter-second life, and of puffs through
+ * theirs, with room over. A pool full earlier drops its oldest.
+ */
+const SPARK_CAPACITY = 320;
+const DUST_CAPACITY = 256;
+/** Sparks fall like embers; dust hangs, slows and spreads. */
+const SPARK_GRAVITY_M_PER_S2 = 9.8;
+const DUST_DRAG_PER_S = 2;
+const DUST_GROWTH_PER_S = 2;
+const DUST_OPACITY = 0.55;
+/** A puff shrinks away over the last share of its life. */
+const DUST_FADE_SHARE = 0.4;
 /** The placeholder item box: a cube this many metres across, floating this high, in this colour. */
 const ITEM_BOX_SIZE_M = 1;
 const ITEM_BOX_HEIGHT_M = 1;
@@ -51,7 +64,8 @@ const PROJECTILE_COLOUR = 0xdd2222;
 export interface RaceView {
   /**
    * Move every kart mesh to the transforms the sim reports, spinning one
-   * that is spun out, hang `labels` where they say and hide every other
+   * that is spun out, run every kart's tells `frameSeconds` on from what
+   * the transforms say, hang `labels` where they say and hide every other
    * kart's, move the camera to `camera`, show each item box that is there
    * to pick up, a marker at each hazard and a ball at each projectile.
    */
@@ -62,6 +76,7 @@ export interface RaceView {
     itemBoxesPresent: readonly boolean[],
     hazards: readonly Hazard[],
     projectiles: readonly Projectile[],
+    frameSeconds: number,
   ): void;
   render(): void;
   /** Take the canvas off the page and free the renderer. */
@@ -80,10 +95,11 @@ export interface ViewAssets {
  * transforms the bridge reports and the pose the chase camera computes,
  * with a name floating over each kart the Scene labels, a cone at each
  * hazard and a ball at each projectile. The track mesh is Presentation
- * only; the sim has its own copy of the geometry from the sidecar. A
- * spun-out kart is turned about its axis over `spinOutSeconds`, the
- * spin-out's Feedback. Picks WebGPU when the browser has it and WebGL
- * otherwise.
+ * only; the sim has its own copy of the geometry from the sidecar. Every
+ * mechanic's Feedback is drawn from the transforms alone: tyre marks under
+ * a drift, sparks once a tier has charged, dust on the run-off, and a
+ * spun-out kart turned about its axis over `spinOutSeconds`. Picks WebGPU
+ * when the browser has it and WebGL otherwise.
  */
 export async function createRaceView(
   container: HTMLElement,
@@ -128,10 +144,35 @@ export async function createRaceView(
   const box = new Box3().setFromObject(kartModel.scene);
   const fit = fitKart({ min: box.min.toArray(), max: box.max.toArray() }, kartSize);
   const karts = Array.from({ length: kartCount }, (_, slot) => {
-    const kart = kartPresentation(dressKart(kartModel.scene, livery(slot).hex), fit, kartSize);
-    world.add(kart.mesh);
+    const kart = kartPresentation(dressKart(kartModel.scene, livery(slot).hex), fit);
+    world.add(kart);
     return kart;
   });
+
+  const tyreMarks = createTyreMarks(kartCount, kartSize);
+  const marks = tyreMarkMesh(tyreMarks);
+  const sparks = createParticles({ capacity: SPARK_CAPACITY, gravity: SPARK_GRAVITY_M_PER_S2 });
+  const sparkEmitter = createSparkEmitter(sparks, kartSize);
+  // Unlit so the tier's colour reads whatever the sun does; a spark shrinks as it dies.
+  const sparkMesh = particleMesh(
+    sparks,
+    new BoxGeometry(1, 1, 1),
+    new MeshBasicMaterial(),
+    (size, life) => size * life,
+  );
+  const dust = createParticles({
+    capacity: DUST_CAPACITY,
+    drag: DUST_DRAG_PER_S,
+    growth: DUST_GROWTH_PER_S,
+  });
+  const dustEmitter = createDustEmitter(dust, kartSize);
+  const dustMesh = particleMesh(
+    dust,
+    new SphereGeometry(0.5, 6, 4),
+    new MeshBasicMaterial({ transparent: true, opacity: DUST_OPACITY, depthWrite: false }),
+    (size, life) => size * Math.min(life / DUST_FADE_SHARE, 1),
+  );
+  world.add(marks.mesh, sparkMesh.mesh, dustMesh.mesh);
 
   // Unlit so a box reads from any angle, whatever the sun does.
   const boxGeometry = new BoxGeometry(ITEM_BOX_SIZE_M, ITEM_BOX_SIZE_M, ITEM_BOX_SIZE_M);
@@ -181,7 +222,7 @@ export async function createRaceView(
   const spin = new Quaternion();
   const up = new Vector3(0, 1, 0);
   return {
-    update(transforms, kartLabels, pose, itemBoxesPresent, hazards, projectiles) {
+    update(transforms, kartLabels, pose, itemBoxesPresent, hazards, projectiles, frameSeconds) {
       boxes.forEach((mesh, box) => {
         mesh.visible = itemBoxesPresent[box] ?? true;
       });
@@ -190,16 +231,22 @@ export async function createRaceView(
         if (kart === undefined) {
           return;
         }
-        kart.mesh.position.set(...transform.position);
-        kart.mesh.quaternion.set(...transform.rotation);
+        kart.position.set(...transform.position);
+        kart.quaternion.set(...transform.rotation);
         if (transform.spinOutSeconds !== null) {
-          kart.mesh.quaternion.multiply(
+          kart.quaternion.multiply(
             spin.setFromAxisAngle(up, spinOutAngle(transform.spinOutSeconds, spinOutSeconds)),
           );
         }
-        kart.showSparks(sparkTell(transform.drift));
-        kart.showDust(dustTell(transform));
+        sparkEmitter.emit(transform, frameSeconds);
+        dustEmitter.emit(transform, frameSeconds);
       });
+      tyreMarks.update(transforms, frameSeconds);
+      sparks.update(frameSeconds);
+      dust.update(frameSeconds);
+      marks.update();
+      sparkMesh.update();
+      dustMesh.update();
       cones.show(hazards);
       balls.show(projectiles);
       for (const label of labels) {
@@ -265,58 +312,15 @@ function meshPool(
   };
 }
 
-interface KartPresentation {
-  readonly mesh: Group;
-  /** Show the spark tell at the rear wheels in its colour, or hide it for `null`. */
-  showSparks(tell: SparkTell | null): void;
-  /** Show the dust tell behind the kart in its colour, or hide it for `null`. */
-  showDust(tell: DustTell | null): void;
-}
-
 /**
  * One kart on the grid: `model`, already in its livery, fitted into the box
- * the sim collides with, a spark ball at each rear corner of that box for
- * the drift's Feedback and a dust ball behind it for the run-off's. The
- * balls are the placeholder tells (ADR 0007) until the mechanic tells land.
+ * the sim collides with. Its tells are drawn by the View's shared meshes
+ * from the transform, not hung on the kart.
  */
-function kartPresentation(model: Object3D, fit: KartFit, size: KartSize): KartPresentation {
+function kartPresentation(model: Object3D, fit: KartFit): Group {
   const kart = new Group();
   model.scale.setScalar(fit.scale);
   model.position.set(0, fit.groundY, fit.centreZ);
   kart.add(model);
-
-  // Unlit so the colour reads as the tier whatever the sun does.
-  const sparkMaterial = new MeshBasicMaterial({ color: 0xffffff });
-  const sparks = new Group();
-  const geometry = new SphereGeometry(size.height * SPARK_RADIUS);
-  for (const side of [-1, 1]) {
-    const spark = new Mesh(geometry, sparkMaterial);
-    // Centred on each rear bottom corner of the box, where a wheel would be.
-    spark.position.set((side * size.width) / 2, -size.height / 2, size.length / 2);
-    sparks.add(spark);
-  }
-  sparks.visible = false;
-  kart.add(sparks);
-
-  const dustMaterial = new MeshBasicMaterial({ color: 0xffffff });
-  const dust = new Mesh(new SphereGeometry(size.height * DUST_RADIUS), dustMaterial);
-  // Low behind the rear bumper, where the wheels would throw it.
-  dust.position.set(0, -size.height / 2, size.length / 2 + size.height * DUST_RADIUS);
-  dust.visible = false;
-  kart.add(dust);
-  return {
-    mesh: kart,
-    showSparks(tell) {
-      sparks.visible = tell !== null;
-      if (tell !== null) {
-        sparkMaterial.color.setHex(tell.colour);
-      }
-    },
-    showDust(tell) {
-      dust.visible = tell !== null;
-      if (tell !== null) {
-        dustMaterial.color.setHex(tell.colour);
-      }
-    },
-  };
+  return kart;
 }

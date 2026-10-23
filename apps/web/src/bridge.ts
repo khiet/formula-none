@@ -2,6 +2,9 @@
 // sees plain objects: a KartInput in, KartTransforms out. Biome's
 // noRestrictedImports rejects any other import of ./generated/bridge.
 import init, {
+  camera_pull_back_m,
+  camera_shake_amplitude_m,
+  camera_shake_s,
   connection_silence_s,
   countdown_s,
   decode_client_message,
@@ -25,6 +28,7 @@ import init, {
   room_code_length,
   spin_out_s,
   ticks_per_second,
+  top_speed_m_per_s,
   Prediction as WasmPrediction,
   Race as WasmRace,
   webtransport_connect_timeout_s,
@@ -253,6 +257,17 @@ export interface MessageCodec {
   decodeServerMessage(bytes: Uint8Array): ServerMessage;
 }
 
+/** What the chase camera reads from the sim's tuning (ADR 0020): the speed its pull-back is scaled to, and the hit's shake. */
+export interface CameraTuning {
+  readonly topSpeedMetresPerSecond: number;
+  /** How much further back the camera sits at top speed than at a standstill. */
+  readonly pullBackMetres: number;
+  /** How long the camera shakes after the own kart is hit. */
+  readonly shakeSeconds: number;
+  /** How far the shake throws the camera as it starts. */
+  readonly shakeAmplitudeMetres: number;
+}
+
 export interface Bridge extends MessageCodec {
   /**
    * The protocol version this wasm build speaks; the same constant the
@@ -275,6 +290,8 @@ export interface Bridge extends MessageCodec {
   readonly hazardDropDistanceMetres: number;
   /** How long a spin-out lasts (ADR 0014), which the spin animation runs once over. */
   readonly spinOutSeconds: number;
+  /** The chase camera's pull-back and shake, from the sim's tuning (ADR 0020). */
+  readonly cameraTuning: CameraTuning;
   /**
    * Karts on the grid, from the sim's tuning; bots fill the slots the humans
    * leave (ADR 0014).
@@ -353,6 +370,12 @@ export async function loadBridge(wasm?: BufferSource): Promise<Bridge> {
     predictedFireTimeoutSeconds: predicted_fire_timeout_s(),
     hazardDropDistanceMetres: hazard_drop_distance_m(),
     spinOutSeconds: spin_out_s(),
+    cameraTuning: {
+      topSpeedMetresPerSecond: top_speed_m_per_s(),
+      pullBackMetres: camera_pull_back_m(),
+      shakeSeconds: camera_shake_s(),
+      shakeAmplitudeMetres: camera_shake_amplitude_m(),
+    },
     kartsPerRace: karts_per_race(),
     replayHashIntervalTicks: replay_hash_interval_ticks(),
     createRace(seed, humanCount, botCount, sidecar) {
