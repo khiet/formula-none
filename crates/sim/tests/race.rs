@@ -204,7 +204,7 @@ fn off_the_line(state: State) -> f32 {
     step(state, &[throttle()], DT).kart_transforms()[0].speed
 }
 
-/// The full throttle `seconds` on from `state`, the speed at the end.
+/// The speed after `seconds` of full throttle from `state`.
 fn speed_after(state: State, seconds: f32) -> f32 {
     drive(state, &[straight], seconds).kart_transforms()[0].speed
 }
@@ -268,14 +268,14 @@ fn a_hold_from_the_one_or_later_starts_clean() {
         0.0 < speed && speed < 1.0,
         "a crawl off the line: {speed} m/s"
     );
-    // A clean start pulls away under its own acceleration.
+    // The same crawl as a start with no hold.
     let clean = started(race(1));
     assert_eq!(off_the_line(clean), speed);
 }
 
 #[test]
 fn a_hold_released_before_go_starts_clean_whatever_its_length() {
-    // Held from the first half of the 2 and let go on the tick before Go.
+    // Held from the 2 appearing and let go on the countdown's last tick.
     let let_go_at_go: Driver = |state, _| match state.phase() {
         Phase::Countdown { remaining_s } if remaining_s > START_STALL_HOLD_S => idle(state, 0),
         Phase::Countdown { remaining_s } if remaining_s < 1.5 * DT => idle(state, 0),
@@ -371,7 +371,7 @@ fn the_throttle_counts_as_held_only_above_the_threshold() {
 #[test]
 fn the_tier_the_hold_so_far_would_earn_is_reported_as_it_charges() {
     // Pressed as the 3 appeared and held: the tiers come as the hold
-    // lengthens, and the stall shows as the orange would, by design.
+    // lengthens, and a hold that has tipped into a stall reads as one.
     let mut state = race(1);
     let mut seen = Vec::new();
     while !racing(&state) {

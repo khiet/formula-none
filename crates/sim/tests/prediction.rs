@@ -500,8 +500,8 @@ fn rocket_start_at_the_full_edge(lose_the_press: bool) -> Run {
             _ => true,
         };
         if pressed && press_sequence.get().is_none() {
-            // The sequence this input is sent under: one per client tick
-            // from the first one after the one-way trip.
+            // The sequence `race_with` sends this input under: one per
+            // tick from the first after the one-way trip.
             press_sequence.set(Some(tick - ONE_WAY_TICKS));
         }
         KartInput {

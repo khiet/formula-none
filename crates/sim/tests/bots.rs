@@ -578,7 +578,6 @@ fn bots_roll_the_full_boost_or_a_clean_start_from_the_seed_and_never_stall() {
             .iter()
             .map(|kart| kart.start)
             .collect();
-        // Rolled from the seed: the same seed rolls the same starts.
         let again = started(State::with_bots(seed, 0, 7, oval()));
         let repeat: Vec<Start> = again
             .kart_transforms()

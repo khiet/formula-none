@@ -86,7 +86,7 @@ impl Heard {
 
 #[tokio::test(start_paused = true)]
 async fn a_projectiles_fire_flight_and_hit_are_the_servers_and_both_clients_see_the_same() {
-    // A seed whose race rolls no bot a rocket start, so the bots pass the
+    // A seed whose race rolls no bot the start boost, so the bots pass the
     // waiting chaser clean and it chases from the back of the field.
     let mut harness = Harness::new(Conditions {
         seed: 2,

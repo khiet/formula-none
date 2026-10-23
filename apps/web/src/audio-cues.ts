@@ -39,7 +39,7 @@ export interface SoundReading {
   readonly finished: boolean;
   /** The count the Instrument panel shows: 3, 2, 1, GO, or nothing the rest of the race. */
   readonly count: string;
-  /** The rocket start's charge, the tier the hold so far would earn, while the countdown runs; null from Go. */
+  /** The rocket start's charge, the tier the hold so far has reached, while the countdown runs; null from Go. */
   readonly charge: Start | null;
   readonly stalled: boolean;
 }

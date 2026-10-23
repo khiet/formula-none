@@ -298,7 +298,7 @@ pub struct KartSnapshot {
     /// Seconds of spin-out left, while the kart is spun out.
     pub spin_out_s: Option<f32>,
     /// The kart's rocket start: during the countdown the tier its throttle
-    /// hold so far would earn, and from Go the verdict.
+    /// hold so far has reached, and from Go the verdict.
     pub start: Start,
     /// Seconds of stall left, while the kart is stalled at Go.
     pub stall_s: Option<f32>,

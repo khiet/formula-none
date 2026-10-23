@@ -32,7 +32,7 @@ const CHARGE_TIERS: Readonly<Record<Start, MiniTurbo>> = {
  * The Feedback for a mini-turbo charge and a rocket start's (GLOSSARY):
  * sparks at the wheels in blue once blue has charged and orange once orange
  * has, and nothing before a tier charges or off a drift; and, while the
- * countdown runs, in the colour of the tier the hold so far would earn,
+ * countdown runs, in the colour of the tier the hold so far has reached,
  * which `charge` is. Presentation only; reads state.
  */
 export function sparkTell(drift: Drift | null, charge: Start | null = null): SparkTell | null {

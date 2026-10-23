@@ -253,7 +253,7 @@ describe("bridge wrapper", () => {
   it("fills the grid behind the human with bots that drive themselves", async () => {
     const bridge = await loadBridge(wasm);
     expect(bridge.kartsPerRace).toBe(8);
-    // A seed that rolls no bot a rocket start, so none shoves the idle human.
+    // A seed that rolls no bot the start boost, so none shoves the idle human.
     const race = started(bridge.createRace(181n, 1, bridge.kartsPerRace - 1, OVAL), 1);
     expect(race.kartTransforms()).toHaveLength(8);
     expect(race.standings()).toHaveLength(8);

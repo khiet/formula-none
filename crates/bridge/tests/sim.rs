@@ -313,7 +313,7 @@ fn replay_hashes_runs_a_replay_json_on_a_sidecar_and_reports_the_sims_hashes() {
 #[test]
 fn bots_fill_the_slots_behind_the_humans_and_step_takes_only_the_humans_inputs() {
     assert_eq!(bridge::karts_per_race(), sim::tuning::KARTS_PER_RACE);
-    // A seed that rolls neither bot a rocket start, so both pass the idle
+    // A seed that rolls neither bot the start boost, so both pass the idle
     // human instead of shoving it along.
     let mut race = started_race(4, 1, 2);
     assert_eq!(race.kart_transforms().len(), 3 * FLOATS_PER_KART);

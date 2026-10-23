@@ -421,9 +421,8 @@ impl Prediction {
 /// Whether the snapshot puts the kart where the record does, to the tuned
 /// tolerance: its position, its nose, the tick of travel its velocity
 /// makes, its drift, its item, its spin-out, its stall, its place in the
-/// lap and, once `racing`, its rocket start's verdict. During the countdown
-/// the snapshot's start is the server's reading of a hold the prediction
-/// is still ahead of, so it is not held against the record.
+/// lap and, once `racing`, its rocket start's verdict; during the countdown
+/// the start is not compared, since `take` adopts it only from Go.
 fn agrees(record: &KartRecord, kart: &SnapshotKart, racing: bool) -> bool {
     let nose = |rotation: Rotation| rotation * Vec3::NEG_Z * KART_HALF_LENGTH_M;
     let near = |a: Vec3, b: Vec3| a.distance(b) <= RECONCILIATION_TOLERANCE_M;
@@ -462,8 +461,8 @@ impl KartRecord {
     /// prediction's, which ran the same rules on the same inputs; the speed
     /// the handling holds is read back from the velocity, as the sim reads
     /// it after a wall. From Go, a rocket start verdict other than the
-    /// prediction's replaces what the prediction's gave the kart at Go with
-    /// what the server's did, run down by the ticks since.
+    /// prediction's replaces the boost or stall the prediction gave the
+    /// kart at Go with the server's, run down by the ticks since.
     fn take(&mut self, snapshot: &SnapshotKart, clock: Phase) {
         let rotation = Rotation::from_array(snapshot.rotation).normalize();
         let velocity = Vec3::from(snapshot.velocity);

@@ -97,8 +97,8 @@ pub struct KartTransform {
     /// that steps the kart reports it: a snapshot does not carry it, so an
     /// interpolated kart never boosts.
     pub boost_s: Option<f32>,
-    /// The kart's rocket start: the tier its hold would earn while the
-    /// countdown runs, the sparks' tell, and the verdict from Go.
+    /// The kart's rocket start: while the countdown runs the tier its hold
+    /// so far has reached, the sparks' tell, and from Go the verdict.
     pub start: Start,
     /// Seconds of stall left, while the kart is stalled at Go: dead to
     /// every control, as in a spin-out. The sputter's tell.
@@ -338,8 +338,8 @@ impl Phase {
 
 /// What a kart's rocket start comes to (GLOSSARY): during the countdown the
 /// tier the throttle hold so far has reached, so the tiers come as the hold
-/// lengthens and a hold that has tipped into a stall reads as one, and from
-/// Go the verdict, from the hold that ended there.
+/// lengthens and a hold that has tipped into a stall reads as one; from Go
+/// the verdict.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Start {
     /// No hold, or one under the weak edge: a plain start.
@@ -363,7 +363,7 @@ impl Start {
         }
     }
 
-    /// What a hold of `hold_s` earns at Go. The hold is read off the
+    /// The tier a hold of `hold_s` earns. The hold is read off the
     /// countdown's clock, which runs down a tick of `dt` at a time, so each
     /// edge is read to the nearest half tick: a hold that began as the 2
     /// appeared is the full boost, not the stall.
@@ -491,17 +491,15 @@ struct Kart {
     spline_progress: f32,
     lap_time_s: f32,
     best_lap_s: Option<f32>,
-    /// The count the throttle hold under way began at, as the first held
-    /// tick read it; `None` while the throttle is up. The hold's length is
-    /// this less the count now, so it ends at Go with the count at the
-    /// press: what the rocket start is read from.
+    /// The count the throttle hold under way began at, read before that
+    /// tick's clock ran down; `None` while the throttle is up. The hold's
+    /// length is this less the count now.
     start_hold_from_s: Option<f32>,
-    /// The tier the hold so far would earn, as of the last countdown tick;
-    /// from Go, the verdict, which was applied there.
+    /// The tier the hold so far has reached, as of the last countdown tick;
+    /// from Go, the verdict, applied there.
     start: Start,
-    /// When a bot kart that rolled the boost begins its hold: the count it
-    /// presses the throttle at. Zero for a bot that rolled a clean start,
-    /// and for a human's kart, whose human presses.
+    /// The count a bot kart that rolled the boost presses the throttle at.
+    /// Zero for a bot that rolled a clean start and for a human's kart.
     bot_start_hold_s: f32,
     /// Seconds of stall left after Go; no control does anything until it
     /// runs out. Zero or less when not stalled.
@@ -1022,10 +1020,10 @@ impl State {
 ///
 /// During the countdown nothing moves and only the throttle is read, for
 /// the rocket start: the count the hold under way began at, Go's tick
-/// included, decides the start. A bot kart holds from the count it rolled
-/// at the race's start, if it rolled the boost; a human's kart a bot drives
-/// for now holds nothing, so it starts clean. Once the race has finished
-/// the state is returned as it was.
+/// included, decides the start. A bot kart that rolled the boost at spawn
+/// holds from `BOT_START_HOLD_S`; a human's kart a bot drives for now
+/// holds nothing, so it starts clean. Once the race has finished the state
+/// is returned as it was.
 pub fn step(mut state: State, inputs: &[KartInput], dt: f32) -> State {
     assert_eq!(inputs.len(), state.humans, "one input per human kart");
     state.events.clear();
@@ -1419,8 +1417,8 @@ pub fn step(mut state: State, inputs: &[KartInput], dt: f32) -> State {
     state
 }
 
-/// Whether a bot kart rolls the full boost at Go, drawn on the race's RNG
-/// at the tuned chance.
+/// Whether a bot kart rolls the full boost, drawn on the race's RNG at the
+/// tuned chance.
 fn rolls_the_start_boost(rng: &mut ChaCha8Rng) -> bool {
     (f64::from(rng.next_u32()) / f64::from(u32::MAX)) < f64::from(BOT_START_BOOST_CHANCE)
 }

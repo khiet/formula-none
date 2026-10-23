@@ -89,9 +89,10 @@ export interface Drift {
  * airtime and the seconds of boost left while a boost holds it over top
  * speed (the last two only for a kart this client steps: the own kart of a
  * room's race and every kart of a local race; an interpolated kart reports
- * neither), the kart's rocket start (the tier its throttle hold would earn
- * while the countdown runs, the verdict from Go) and the seconds of stall
- * left while the kart is stalled at Go. Y up; identity rotation faces -Z.
+ * neither), the kart's rocket start (the tier its throttle hold so far has
+ * reached while the countdown runs, the verdict from Go) and the seconds
+ * of stall left while the kart is stalled at Go. Y up; identity rotation
+ * faces -Z.
  */
 export interface KartTransform {
   readonly position: readonly [number, number, number];

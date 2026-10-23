@@ -161,7 +161,7 @@ async fn at_a_100_ms_round_trip_and_2_percent_loss_the_own_kart_is_corrected_out
 #[tokio::test(start_paused = true)]
 async fn driving_into_another_kart_never_predicts_the_own_kart_visibly_past_where_the_server_puts_it(
 ) {
-    // A seed whose race rolls no bot a rocket start, so the one contact is
+    // A seed whose race rolls no bot the start boost, so the one contact is
     // the one driven into.
     let mut harness = Harness::new(Conditions {
         delay: Duration::from_millis(50),

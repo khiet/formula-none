@@ -168,8 +168,7 @@ pub const BOOST_PAD_HALF_WIDTH_M: f32 = 3.0;
 // Rocket start (GLOSSARY). What the throttle hold ending at Go earns is
 // read from the hold's length; a release before Go resets it. The edges
 // approximate Mario Kart 8 Deluxe as its guides describe the timing, with
-// Mario Kart Wii's data-mined 2.0 s burnout for the stall; a measurement
-// from a capture is a one-line change here.
+// Mario Kart Wii's data-mined 2.0 s burnout for the stall.
 
 /// The throttle counts as held above this, so a finger resting on an
 /// analog trigger never stalls the kart.

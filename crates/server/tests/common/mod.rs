@@ -152,8 +152,8 @@ pub fn seconds(ticks: u32) -> f32 {
 }
 
 /// The rocket start as a bot times it, then `then`: through the countdown
-/// the throttle is down from the tuned count, which earns the full boost at
-/// Go, and once the race is on the input is `then`'s.
+/// the throttle is held from `BOT_START_HOLD_S`, which earns the full boost
+/// at Go, and from Go the input is `then`.
 pub fn with_rocket_start(phase: Phase, then: KartInput) -> KartInput {
     match phase {
         Phase::Countdown { remaining_s } => KartInput {
@@ -165,9 +165,9 @@ pub fn with_rocket_start(phase: Phase, then: KartInput) -> KartInput {
 }
 
 /// A test that needs the bots to pass idle karts clean pins a seed whose
-/// race rolls no bot a rocket start; this holds the snapshots just before
+/// race rolls no bot the start boost; this holds the snapshots just before
 /// Go to that, so a reseed that breaks the premise fails here and not in
-/// the race it spoils. `humans` bots sit on the grid's front slots.
+/// the race it spoils. The first `humans` slots are the humans'.
 pub fn assert_no_bot_rocket_starts(snapshot: &Snapshot, humans: usize) {
     if (COUNTDOWN_S - 0.2..COUNTDOWN_S).contains(&seconds(snapshot.tick)) {
         assert!(
