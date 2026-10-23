@@ -1,8 +1,9 @@
-//! How karts push back on each other, at the sim's public seam: start two
+//! How karts bounce off each other, at the sim's public seam: start two
 //! karts on the oval's front straight, drive one into the other and read
 //! the transforms the sim reports. The oval's front straight runs along
-//! -Z at x = 30 with asphalt 6 m either side (layouts/oval.py), so a kart
-//! in slot 0's column at x = 28 and one at x = 31 drive side by side.
+//! -Z at x = 30 with asphalt 6 m either side (trackgen/layouts/oval.py),
+//! so a kart in slot 0's column at x = 28 and one at x = 31 drive side by
+//! side.
 
 use sim::tuning::{
     KART_BUMP_DECAY_S, KART_BUMP_SPEED_LOSS, KART_HALF_LENGTH_M, KART_HALF_WIDTH_M,
@@ -105,7 +106,7 @@ fn first_hit(trace: &[[KartTransform; 2]]) -> usize {
 
 /// A hit square into a standing kart costs the driver the tuned share of
 /// the closing speed, its own; this much of the speed may survive, with a
-/// tick of acceleration on top.
+/// tenth to spare for the tick's acceleration and the solver's part.
 const SURVIVING_SPEED_SHARE: f32 = 1.0 - KART_BUMP_SPEED_LOSS + 0.1;
 
 /// Seconds for a bump to decay to nothing a kart could show: five of its
@@ -281,7 +282,7 @@ fn the_prediction_bounces_the_own_kart_off_a_kart_the_snapshots_draw() {
 }
 
 /// The own kart of `prediction` as a snapshot would carry it: the server
-/// agreeing with the prediction to the metre, with no bump of its own.
+/// agreeing with the prediction exactly. A snapshot carries no bump.
 fn snapshot_of(prediction: &Prediction) -> SnapshotKart {
     let transform = prediction.kart_transform();
     let standing = prediction.standing();

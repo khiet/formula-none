@@ -201,7 +201,8 @@ pub fn follow_the_line(track: &Track, kart: &KartSnapshot) -> KartInput {
 }
 
 /// The steer that turns a kart at `position`, facing by `rotation`, toward
-/// `target` on the ground: full lock a quarter turn off, straight on it.
+/// `target` on the ground: full lock from about 15 degrees off, easing to
+/// straight on it.
 pub fn steer_toward(position: [f32; 3], rotation: [f32; 4], target: [f32; 2]) -> f32 {
     const STEER_GAIN: f32 = 4.0;
     let (dx, dz) = (target[0] - position[0], target[1] - position[2]);

@@ -1293,9 +1293,9 @@ pub fn step(mut state: State, inputs: &[KartInput], dt: f32) -> State {
         .map(|kart| state.physics.bodies[kart.body].translation().to_array())
         .collect();
     // The velocities the handling sent the karts off with, and the bumps
-    // in them, before the solver's contacts bent them: what a touch
-    // between karts is judged by, and what a wall's hold leaves the speed
-    // from.
+    // in them, before the solver's contacts bent them: a touch between
+    // karts is judged by the velocities, and a wall's hold reads the speed
+    // with the bump taken off.
     let sent_velocities: Vec<Vec3> = state
         .karts
         .iter()
@@ -1643,8 +1643,8 @@ fn decayed_bump(bump: Vec3, dt: f32) -> Vec3 {
 
 /// Karts bounce off each other: the kart in `index` that ended the tick
 /// touching another takes a bump away from it, the least one plus the
-/// tuned share of the speed the two closed at, judged by the velocities
-/// the handling sent them off with; and when it was driving into the
+/// tuned share of half the speed the two closed at, judged by the
+/// velocities the handling sent them off with; and when it was driving into the
 /// other it loses the tuned share of that closing speed, scaled by how
 /// square it hit, the way it was going, forward or in reverse. A bump
 /// already under way is raised to the new one, never added to, so a touch

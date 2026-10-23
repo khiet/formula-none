@@ -206,7 +206,7 @@ pub const KART_BUMP_MIN_M_PER_S: f32 = 2.0;
 /// The share of the closing speed the pair bounces apart with, on top of
 /// the least bump, half to each kart: at 1 the two fly apart as fast as
 /// they met, at 0 they only stop closing. With the speed the driver loses
-/// on top, 1 gives a kart rammed square a short recoil, as in Mario Kart.
+/// on top, 1 gives a kart rammed square a short recoil.
 pub const KART_BUMP_RESTITUTION: f32 = 1.0;
 /// Seconds for a bump to decay to a third; it is gone within a few.
 pub const KART_BUMP_DECAY_S: f32 = 0.3;
