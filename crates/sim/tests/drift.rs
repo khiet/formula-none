@@ -267,6 +267,47 @@ fn holding_the_drift_charges_blue_then_orange_at_the_tuned_times() {
     );
 }
 
+/// The kart on the tick its hop lands into a right drift, before the first
+/// tick of charge, so a hold from here is counted in whole ticks.
+fn just_landed_right() -> State {
+    let mut state = step(at_top_speed(), &[hop_right()], DT);
+    while only_kart(&state).drift.is_none() {
+        state = step(state, &[hop_right()], DT);
+    }
+    let drift = only_kart(&state).drift.expect("drifting");
+    assert_eq!(drift.charge_s, 0.0, "the landing tick charges nothing");
+    state
+}
+
+/// The boost the kart reports the tick a right drift is let go after exactly
+/// `held` ticks of charge with the stick centred.
+fn boost_after_ticks(held: usize) -> Option<f32> {
+    let hold = KartInput {
+        steer: 0.0,
+        ..hop_right()
+    };
+    let charged = run(just_landed_right(), vec![hold; held]);
+    only_kart(&step(charged, &[accelerate()], DT)).boost_s
+}
+
+fn assert_boost_of(reported: Option<f32>, boost_s: f32) {
+    let reported = reported.expect("the release reports a boost");
+    assert!(
+        (reported - boost_s).abs() < 2.0 * DT,
+        "a {boost_s} s boost, reported {reported}"
+    );
+}
+
+#[test]
+fn each_tier_pays_on_the_tick_its_charge_is_reached_and_the_tier_below_one_tick_earlier() {
+    let blue = ticks(MINI_TURBO_BLUE_CHARGE_S);
+    let orange = ticks(MINI_TURBO_ORANGE_CHARGE_S);
+    assert_eq!(boost_after_ticks(blue - 1), None, "one tick short of blue");
+    assert_boost_of(boost_after_ticks(blue), MINI_TURBO_BLUE_BOOST_S);
+    assert_boost_of(boost_after_ticks(orange - 1), MINI_TURBO_BLUE_BOOST_S);
+    assert_boost_of(boost_after_ticks(orange), MINI_TURBO_ORANGE_BOOST_S);
+}
+
 /// Speed between the last two ticks of `state`, read from positions so the
 /// test never trusts the readout alone.
 fn measured_speed(state: State, input: KartInput) -> f32 {

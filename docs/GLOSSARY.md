@@ -122,8 +122,8 @@ charges a mini-turbo.
 
 ### mini-turbo
 
-The boost released at the end of a long enough drift: blue at 0.8 s of drift
-(0.6 s boost), orange at 1.6 s (1.0 s boost), both at +30 percent top speed.
+The boost released at the end of a long enough drift: blue at 0.3 s of drift
+(0.6 s boost), orange at 0.6 s (1.0 s boost), both at +30 percent top speed.
 Shown by sparks at the wheels while charging.
 
 ### item box

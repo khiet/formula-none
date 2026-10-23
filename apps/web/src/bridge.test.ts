@@ -197,17 +197,17 @@ describe("bridge wrapper", () => {
     // The hop's tell: in the air from the press through the 0.3 s airtime.
     race.step([hopRight], DT);
     expect(race.kartTransforms()[0]?.airborne).toBe(true);
-    // 1.2 s with the button down: past the 0.3 s airtime and the 0.8 s blue
-    // charge, short of orange at 1.6 s.
-    for (let tick = 0; tick < 71; tick++) {
+    // 0.75 s with the button down: past the 0.3 s airtime and the 0.3 s blue
+    // charge, short of orange at 0.6 s.
+    for (let tick = 0; tick < 44; tick++) {
       race.step([hopRight], DT);
     }
     expect(race.kartTransforms()[0]?.airborne).toBe(false);
     const drift = race.kartTransforms()[0]?.drift;
     expect(drift?.direction).toBe("right");
     expect(drift?.miniTurbo).toBe("blue");
-    expect(drift?.chargeSeconds).toBeGreaterThan(0.8);
-    expect(drift?.chargeSeconds).toBeLessThan(1);
+    expect(drift?.chargeSeconds).toBeGreaterThan(0.3);
+    expect(drift?.chargeSeconds).toBeLessThan(0.6);
 
     race.step([THROTTLE], DT);
     expect(race.kartTransforms()[0]?.drift).toBeNull();
