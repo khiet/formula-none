@@ -15,11 +15,12 @@ texture and is committed; CI has no Blender.
 from __future__ import annotations
 
 import colorsys
-import sys
+import math
 from collections import defaultdict
 from pathlib import Path
 
 import bpy
+from mathutils import Matrix
 
 HERE = Path(__file__).resolve().parent
 SOURCE = HERE / "kenney" / "kart-oobi.glb"
@@ -115,6 +116,15 @@ def build() -> None:
             flatten(obj, atlas, painted=obj.name in PAINTED_OBJECTS)
     root = bpy.data.objects[PAINTED_OBJECTS[0]]
     root.name = "kart"
+    # Kenney's kart drives along glTF +Z; the sim's drives along -Z. Turn the
+    # meshes and the wheel positions about, so the file needs no transform.
+    about_face = Matrix.Rotation(math.pi, 4, "Z")
+    for obj in bpy.data.objects:
+        if obj.type == "MESH":
+            obj.data.transform(about_face)
+            obj.data.update()
+        if obj.parent is not None:
+            obj.location = about_face @ obj.location
     # Nothing references the atlas now; dropping it keeps it out of the export.
     bpy.data.materials.remove(bpy.data.materials["colormap"])
     bpy.data.images.remove(bpy.data.images["colormap"])

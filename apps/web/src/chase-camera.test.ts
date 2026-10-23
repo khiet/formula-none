@@ -35,10 +35,10 @@ function yawOf(position: readonly number[], around: readonly number[]): number {
 }
 
 describe("the chase camera", () => {
-  it("sits 6 m behind and 2.5 m above the kart and looks 4 m ahead of it", () => {
+  it("sits 6 m behind and 3.2 m above the kart and looks 4 m ahead of it", () => {
     const camera = createChaseCamera();
     const pose = camera.update(kart(0, [10, 0.3, -20]), FRAME_S);
-    expectClose(pose.position, [10, 2.8, -14]);
+    expectClose(pose.position, [10, 3.5, -14]);
     expectClose(pose.target, [10, 0.3, -24]);
   });
 
@@ -62,7 +62,7 @@ describe("the chase camera", () => {
       previous = yaw;
     }
     const settled = camera.update(facingPlusX, FRAME_S);
-    expectClose(settled.position, [-6, 2.8, 0], 2);
+    expectClose(settled.position, [-6, 3.5, 0], 2);
   });
 
   it("looks ahead along the kart's own heading while it still lags", () => {
@@ -85,7 +85,7 @@ describe("the chase camera", () => {
     camera.update(kart(0, [0, 0.3, 0]), FRAME_S);
     const pose = camera.update(kart(-Math.PI / 2, [0, 0.3, 0]), 2);
     expect(pose.position.every(Number.isFinite)).toBe(true);
-    expectClose(pose.position, [-6, 2.8, 0], 1);
+    expectClose(pose.position, [-6, 3.5, 0], 1);
   });
 
   it("leaves the transform it reads untouched", () => {
