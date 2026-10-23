@@ -136,6 +136,11 @@ describe("bridge wrapper", () => {
     expect(bridge.cameraTuning.shakeAmplitudeMetres).toBeGreaterThan(0);
   });
 
+  it("reads the top speed the engine note is scaled to from the sim", async () => {
+    const bridge = await loadBridge(wasm);
+    expect(bridge.topSpeedMetresPerSecond).toBe(30);
+  });
+
   it("reports the surface under a kart that steers off the asphalt", async () => {
     const bridge = await loadBridge(wasm);
     const race = started(bridge.createRace(7n, 1, 0, OVAL), 1);

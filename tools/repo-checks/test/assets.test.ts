@@ -26,4 +26,10 @@ describe("asset licences", () => {
     expect(licences).toContain("`karts/kart.glb`");
     expect(licences).toContain("`tracks/*/*.glb`");
   });
+
+  // The music loop's licence is an acceptance criterion of its own (ADR 0008).
+  it("record the synthesised sounds and the music loop as CC0", () => {
+    expect(licences).toContain("`audio/*.wav`");
+    expect(existsSync(join(ROOT, "assets/audio/music-loop.wav"))).toBe(true);
+  });
 });

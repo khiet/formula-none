@@ -363,6 +363,41 @@ describe("the SFX", () => {
   });
 });
 
+describe("a sound that fails to load", () => {
+  it("is dropped on its own, while the rest play", async () => {
+    const fetched: string[] = [];
+    const contexts: FakeContext[] = [];
+    const audio = createAudio({
+      settings: DEFAULT_AUDIO_SETTINGS,
+      topSpeedMetresPerSecond: TOP_SPEED,
+      fetchBytes(url) {
+        fetched.push(url);
+        return url === SOUND_URLS.hop
+          ? Promise.reject(new Error("404"))
+          : Promise.resolve(bytesOf(url));
+      },
+      createContext() {
+        const context = fakeContext();
+        contexts.push(context);
+        return context;
+      },
+    });
+    await audio.unlock();
+    const context = contexts[0];
+    if (context === undefined) throw new Error("no context was made");
+    expect(context.decoded).toHaveLength(6);
+    const race = audio.race();
+    race.start();
+    race.update(STILL);
+    race.update({ ...STILL, airborne: true, lap: 2 });
+    const playing = context.sources
+      .filter((source) => source.started > 0)
+      .map((source) => (source.buffer as unknown as FakeBuffer | null)?.url);
+    expect(playing).toContain(SOUND_URLS.lap);
+    expect(playing).not.toContain(SOUND_URLS.hop);
+  });
+});
+
 describe("the music loop", () => {
   it("loops from the race's start to its stop", async () => {
     const { audio, music } = harness();
