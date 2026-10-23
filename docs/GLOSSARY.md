@@ -175,8 +175,9 @@ server event, and the snapshots carry the time left; clients only show it.
 
 ### bump
 
-The velocity a kart carries away from a kart or wall it touched, decaying
-over a fixed time (0.3 s to a third) and then gone. The handling adds it to
+The velocity a kart carries away from a kart it touched, decaying over a
+fixed time (0.3 s to a third) and then gone. A wall gives none: it holds
+the kart at the corner that met it, with no bounce. The handling adds it to
 the kart's own velocity every tick, so a touch throws the pair apart instead
 of letting one push the other along; the kart that drove in loses speed and
 the kart hit keeps its own. A new bump replaces one under way, never adds

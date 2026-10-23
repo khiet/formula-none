@@ -291,7 +291,7 @@ fn a_wall_met_at_an_angle_stops_the_motion_into_it_and_keeps_the_motion_along_it
         );
         assert!(
             *speed < TOP_SPEED_M_PER_S * 0.75,
-            "the bump cost speed: {speed}"
+            "the wall cost speed: {speed}"
         );
         assert!(
             (position[1] - 0.3).abs() < 0.1,

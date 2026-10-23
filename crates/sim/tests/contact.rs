@@ -4,7 +4,10 @@
 //! -Z at x = 30 with asphalt 6 m either side (layouts/oval.py), so a kart
 //! in slot 0's column at x = 28 and one at x = 31 drive side by side.
 
-use sim::tuning::{KART_HALF_LENGTH_M, KART_HALF_WIDTH_M, TICKS_PER_SECOND, TOP_SPEED_M_PER_S};
+use sim::tuning::{
+    KART_BUMP_DECAY_S, KART_BUMP_SPEED_LOSS, KART_HALF_LENGTH_M, KART_HALF_WIDTH_M,
+    TICKS_PER_SECOND, TOP_SPEED_M_PER_S,
+};
 use sim::{step, KartInput, KartTransform, Phase, Prediction, SnapshotKart, State, Track};
 
 const OVAL: &str = include_str!("../../../assets/tracks/oval/oval.track.json");
@@ -85,15 +88,29 @@ fn first_touch(trace: &[[KartTransform; 2]], touching: f32) -> usize {
 /// this of touching met this tick or the next.
 const TOUCH_MARGIN_M: f32 = 0.5;
 
-/// The first tick the driver in slot 0 loses speed to a hit while the
-/// throttle is held: more than a tick of acceleration could give back.
-fn first_hit(trace: &[[KartTransform; 2]]) -> usize {
-    trace
+/// The first tick a kart driving with the throttle held loses speed to a
+/// hit: more than a tick of acceleration could give back.
+fn first_slowed(speeds: impl IntoIterator<Item = f32>) -> Option<usize> {
+    let speeds: Vec<f32> = speeds.into_iter().collect();
+    speeds
         .windows(2)
-        .position(|pair| pair[1][0].speed < pair[0][0].speed - 1.0)
+        .position(|pair| pair[1] < pair[0] - 1.0)
         .map(|index| index + 1)
-        .expect("the driver is slowed by a hit")
 }
+
+/// The first tick the driver in slot 0 is slowed by a hit.
+fn first_hit(trace: &[[KartTransform; 2]]) -> usize {
+    first_slowed(trace.iter().map(|karts| karts[0].speed)).expect("the driver is slowed by a hit")
+}
+
+/// A hit square into a standing kart costs the driver the tuned share of
+/// the closing speed, its own; this much of the speed may survive, with a
+/// tick of acceleration on top.
+const SURVIVING_SPEED_SHARE: f32 = 1.0 - KART_BUMP_SPEED_LOSS + 0.1;
+
+/// Seconds for a bump to decay to nothing a kart could show: five of its
+/// decay times leave under a percent of it.
+const BUMP_SPENT_S: f32 = 5.0 * KART_BUMP_DECAY_S;
 
 #[test]
 fn a_kart_driven_into_the_back_of_another_bounces_off_and_slows_instead_of_pushing_it_along() {
@@ -109,8 +126,8 @@ fn a_kart_driven_into_the_back_of_another_bounces_off_and_slows_instead_of_pushi
     let (before, after) = (trace[touch - 1][0], trace[touch][0]);
     assert!(before.speed > 10.0, "reached the idle kart at speed");
     assert!(
-        after.speed < 0.6 * before.speed,
-        "the hit cost the driver half the closing speed: {} then {}",
+        after.speed < SURVIVING_SPEED_SHARE * before.speed,
+        "the hit cost the driver the tuned share of the closing speed: {} then {}",
         before.speed,
         after.speed
     );
@@ -209,11 +226,11 @@ fn a_bump_dies_away_and_the_kart_hit_comes_to_rest_again() {
         pushed > 5.0,
         "the kart hit is shunted on up the column: {pushed} m/s"
     );
-    let settled = trace[touch + ticks(1.5)][1];
+    let settled = trace[touch + ticks(BUMP_SPENT_S)][1];
     let moving = (settled.velocity[0].powi(2) + settled.velocity[2].powi(2)).sqrt();
     assert!(
         moving < 0.1,
-        "a second and a half on the push is spent and the kart stands: {moving} m/s"
+        "{BUMP_SPENT_S} s on the push is spent and the kart stands: {moving} m/s"
     );
 }
 
@@ -237,19 +254,16 @@ fn the_prediction_bounces_the_own_kart_off_a_kart_the_snapshots_draw() {
         trace.push(prediction.kart_transform());
     }
     let gap = |kart: &KartTransform| kart.position[2] - standing[1].position[2];
-    let touch = trace
-        .windows(2)
-        .position(|pair| pair[1].speed < pair[0].speed - 1.0)
-        .map(|index| index + 1)
-        .expect("the own kart is slowed by a hit");
+    let touch =
+        first_slowed(trace.iter().map(|kart| kart.speed)).expect("the own kart is slowed by a hit");
     assert!(
         gap(&trace[touch]) < NOSE_TO_TAIL_M + TOUCH_MARGIN_M,
         "the hit is the touch: {:.2} m apart",
         gap(&trace[touch])
     );
     assert!(
-        trace[touch].speed < 0.6 * trace[touch - 1].speed,
-        "the hit cost the own kart half the closing speed: {} then {}",
+        trace[touch].speed < SURVIVING_SPEED_SHARE * trace[touch - 1].speed,
+        "the hit cost the own kart the tuned share of the closing speed: {} then {}",
         trace[touch - 1].speed,
         trace[touch].speed
     );
@@ -303,15 +317,11 @@ fn a_correction_during_a_bump_keeps_the_own_karts_speed_and_recoil() {
         }
     };
     let mut sequence = 0;
-    let mut last_speed = 0.0;
-    loop {
+    let mut speeds = Vec::new();
+    while first_slowed(speeds.iter().copied()).is_none() {
         sequence += 1;
         prediction.tick(sequence, drive(sequence), &standing);
-        let speed = prediction.kart_transform().speed;
-        if speed < last_speed - 1.0 {
-            break;
-        }
-        last_speed = speed;
+        speeds.push(prediction.kart_transform().speed);
         assert!(
             sequence < countdown + ticks(3.0) as u32,
             "the own kart is slowed by a hit"
