@@ -11,8 +11,8 @@ use protocol::{
 };
 use server::fake_transport::Client;
 use server::room::Started;
-use sim::tuning::{BOT_LOOKAHEAD_M, TICKS_PER_SECOND};
-use sim::{Drift, KartInput, Projectile, SnapshotKart, Track};
+use sim::tuning::{BOT_LOOKAHEAD_M, BOT_START_HOLD_S, TICKS_PER_SECOND};
+use sim::{Drift, KartInput, Phase, Projectile, SnapshotKart, Track};
 
 /// Every one of `players` joins `code`, in order, and readies; once the
 /// first sees them all ready it starts the race. Returns each one's
@@ -114,6 +114,13 @@ pub fn snapshot_kart(kart: &KartSnapshot) -> SnapshotKart {
             protocol::Item::Homing => sim::Item::Homing,
         }),
         spin_out_s: kart.spin_out_s,
+        start: match kart.start {
+            protocol::Start::Clean => sim::Start::Clean,
+            protocol::Start::WeakBoost => sim::Start::WeakBoost,
+            protocol::Start::FullBoost => sim::Start::FullBoost,
+            protocol::Start::Stall => sim::Start::Stall,
+        },
+        stall_s: kart.stall_s,
         lap: u32::from(kart.lap),
         checkpoint: usize::from(kart.checkpoint),
         spline_progress: kart.spline_progress,
@@ -142,6 +149,19 @@ pub fn speed(snapshot: &Snapshot, kart: usize) -> f32 {
 /// Ticks on the race clock in seconds.
 pub fn seconds(ticks: u32) -> f32 {
     ticks as f32 / TICKS_PER_SECOND as f32
+}
+
+/// The rocket start as a bot times it, then `then`: through the countdown
+/// the throttle is down from the tuned count, which earns the full boost at
+/// Go, and once the race is on the input is `then`'s.
+pub fn with_rocket_start(phase: Phase, then: KartInput) -> KartInput {
+    match phase {
+        Phase::Countdown { remaining_s } => KartInput {
+            throttle: f32::from(u8::from(remaining_s <= BOT_START_HOLD_S)),
+            ..KartInput::default()
+        },
+        _ => then,
+    }
 }
 
 /// Full throttle along the bots' line, the tuned distance right of the

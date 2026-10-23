@@ -119,11 +119,13 @@ async fn at_any_jitter_the_other_karts_are_drawn_100_ms_behind_the_newest_snapsh
 #[tokio::test(start_paused = true)]
 async fn at_a_100_ms_round_trip_and_2_percent_loss_the_other_karts_are_drawn_where_they_would_be_without_it(
 ) {
+    // A seed whose race rolls no bot a rocket start, so the bots leave the
+    // two watching karts on the grid untouched.
     let lossless = Conditions {
         delay: Duration::from_millis(50),
         jitter: Duration::ZERO,
         loss: 0.0,
-        seed: 19,
+        seed: 2,
     };
     let mut harness = Harness::new(lossless);
     let code = harness.create_room();

@@ -227,7 +227,8 @@ describe("bridge wrapper", () => {
   it("fills the grid behind the human with bots that drive themselves", async () => {
     const bridge = await loadBridge(wasm);
     expect(bridge.kartsPerRace).toBe(8);
-    const race = started(bridge.createRace(7n, 1, bridge.kartsPerRace - 1, OVAL), 1);
+    // A seed that rolls no bot a rocket start, so none shoves the idle human.
+    const race = started(bridge.createRace(181n, 1, bridge.kartsPerRace - 1, OVAL), 1);
     expect(race.kartTransforms()).toHaveLength(8);
     expect(race.standings()).toHaveLength(8);
     // Only the human's input is given; eight would be a caller error.
@@ -350,6 +351,8 @@ describe("prediction", () => {
       wrongWay: false,
       heldItem: null,
       spinOutS: null,
+      start: "clean",
+      stallS: null,
     };
     const snapshot: Snapshot = {
       tick: 234,
@@ -393,6 +396,8 @@ describe("prediction", () => {
       wrongWay: false,
       heldItem: "homing",
       spinOutS: null,
+      start: "clean",
+      stallS: null,
     };
     prediction.reconcile({
       tick: 10,
@@ -428,6 +433,8 @@ describe("prediction", () => {
       wrongWay: false,
       heldItem: null,
       spinOutS: 0.5,
+      start: "clean",
+      stallS: null,
     };
     prediction.reconcile({
       tick: 234,
@@ -507,6 +514,8 @@ describe("items", () => {
           wrongWay: false,
           heldItem: null,
           spinOutS: null,
+          start: "clean",
+          stallS: null,
         },
       ],
       events: [],

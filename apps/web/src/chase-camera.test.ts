@@ -32,6 +32,8 @@ function kart(
     spinOutSeconds: null,
     airborne: false,
     boostSeconds: null,
+    start: "clean",
+    stallSeconds: null,
     ...rest,
   });
 }

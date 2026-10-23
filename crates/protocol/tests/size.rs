@@ -51,6 +51,10 @@ fn the_snapshot_sample_is_a_busy_mid_race_moment() {
     assert!(karts.iter().any(|kart| kart.drift.is_some()));
     assert!(karts.iter().any(|kart| kart.held_item.is_some()));
     assert!(karts.iter().any(|kart| kart.spin_out_s.is_some()));
+    assert!(karts.iter().any(|kart| kart.stall_s.is_some()));
+    assert!(karts
+        .iter()
+        .any(|kart| kart.start != protocol::Start::Clean));
     assert!(!events.is_empty());
     assert!(!hazards.is_empty());
     assert!(!projectiles.is_empty());

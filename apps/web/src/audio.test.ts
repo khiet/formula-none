@@ -24,6 +24,9 @@ const STILL: SoundReading = {
   boostSeconds: null,
   lap: 1,
   finished: false,
+  count: "",
+  charge: null,
+  stalled: false,
 };
 
 /** A decoded file stands in for its AudioBuffer: the test only asks which was played. */
@@ -233,17 +236,17 @@ describe("preloading and the autoplay rule", () => {
   it("fetches every sound at creation and makes no AudioContext until a gesture unlocks it", async () => {
     const { audio, fetched, contexts, context } = harness();
     expect(new Set(fetched)).toEqual(new Set([...Object.values(SOUND_URLS), MUSIC_URL]));
-    expect(fetched).toHaveLength(7);
+    expect(fetched).toHaveLength(10);
     await settled();
     expect(contexts).toHaveLength(0);
     await audio.unlock();
     expect(contexts).toHaveLength(1);
     expect(context().resumes).toBe(1);
     // Decoded once, from the bytes already fetched, so the first play is not late.
-    expect(context().decoded).toHaveLength(7);
+    expect(context().decoded).toHaveLength(10);
     await audio.unlock();
     expect(contexts).toHaveLength(1);
-    expect(context().decoded).toHaveLength(7);
+    expect(context().decoded).toHaveLength(10);
   });
 
   it("resumes a context the browser suspended on a later gesture", async () => {
@@ -309,6 +312,9 @@ describe("the SFX", () => {
     ["itemPickup", { item: "boost" }],
     ["hit", { spunOut: true }],
     ["lap", { lap: 2 }],
+    ["countdownBeep", { count: "3" }],
+    ["go", { count: "GO" }],
+    ["sputter", { stalled: true }],
   ];
 
   it.each(CUES)(
@@ -386,7 +392,7 @@ describe("a sound that fails to load", () => {
     await audio.unlock();
     const context = contexts[0];
     if (context === undefined) throw new Error("no context was made");
-    expect(context.decoded).toHaveLength(6);
+    expect(context.decoded).toHaveLength(9);
     const race = audio.race();
     race.start();
     race.update(STILL);

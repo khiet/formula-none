@@ -17,6 +17,8 @@ function kartOn(surface: Surface, speed = 10): KartTransform {
     spinOutSeconds: null,
     airborne: false,
     boostSeconds: null,
+    start: "clean",
+    stallSeconds: null,
   };
 }
 
@@ -44,7 +46,20 @@ describe("dust tell", () => {
     expect(dustTell(kartOn("sand", -5))).not.toBeNull();
     expect(dustTell(kartOn("sand", 0))).toBeNull();
   });
+
+  it("puffs at the rear wheels through a stall, even on the asphalt at a standstill", () => {
+    const stall = dustTell(stalled());
+    expect(stall).not.toBeNull();
+    expect(stall?.at).toBe("wheels");
+    expect(stall?.colour).not.toBe(dustTell(kartOn("sand"))?.colour);
+    expect(dustTell(kartOn("sand"))?.at).toBe("bumper");
+  });
 });
+
+/** A kart stalled at Go, on the grid's asphalt. */
+function stalled(): KartTransform {
+  return { ...kartOn("asphalt", 0), stallSeconds: 1.5 };
+}
 
 describe("dust emitter", () => {
   it("puffs dust off the back of a kart on the run-off, in the surface's colour", () => {
@@ -61,6 +76,23 @@ describe("dust emitter", () => {
       expect(puff.position[2]).toBeGreaterThan(SIZE.length / 4);
       expect(puff.position[1]).toBeLessThan(0.3);
       expect(Math.abs(puff.position[0])).toBeLessThan(SIZE.width);
+    }
+  });
+
+  it("puffs dust at the rear wheels of a stalled kart", () => {
+    const particles = createParticles({ capacity: 64 });
+    const emitter = createDustEmitter(particles, SIZE, () => 0.5);
+    for (let frame = 0; frame < 6; frame++) {
+      emitter.emit(stalled(), FRAME_S);
+    }
+    const puffs = particlesOf(particles);
+    expect(puffs.length).toBeGreaterThan(0);
+    for (const puff of puffs) {
+      expect(puff.colour).toBe(dustTell(stalled())?.colour);
+      // At a rear wheel: out at the kart's side, low, behind its middle.
+      expect(Math.abs(puff.position[0])).toBeGreaterThan(SIZE.width / 4);
+      expect(puff.position[1]).toBeLessThan(0.3);
+      expect(puff.position[2]).toBeGreaterThan(SIZE.length / 4);
     }
   });
 

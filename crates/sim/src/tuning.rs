@@ -164,12 +164,33 @@ pub const BOOST_PAD_FACTOR: f32 = 1.4;
 /// pad can be missed on purpose.
 pub const BOOST_PAD_HALF_LENGTH_M: f32 = 2.0;
 pub const BOOST_PAD_HALF_WIDTH_M: f32 = 3.0;
-/// Pressing accelerate inside this window before Go gives a start boost;
-/// earlier stalls the kart for `START_STALL_S`.
-pub const START_BOOST_WINDOW_S: f32 = 0.3;
-pub const START_BOOST_S: f32 = 1.0;
-pub const START_BOOST_FACTOR: f32 = 1.3;
-pub const START_STALL_S: f32 = 1.0;
+
+// Rocket start (GLOSSARY). What the throttle hold ending at Go earns is
+// read from the hold's length; a release before Go resets it. The edges
+// approximate Mario Kart 8 Deluxe as its guides describe the timing, with
+// Mario Kart Wii's data-mined 2.0 s burnout for the stall; a measurement
+// from a capture is a one-line change here.
+
+/// The throttle counts as held above this, so a finger resting on an
+/// analog trigger never stalls the kart.
+pub const START_THROTTLE_HELD: f32 = 0.5;
+/// A hold longer than this, begun before the 2 appeared, stalls the kart.
+pub const START_STALL_HOLD_S: f32 = 2.0;
+/// A hold at least this long, begun in the first half of the 2, earns the
+/// full boost.
+pub const START_FULL_BOOST_HOLD_S: f32 = 1.5;
+/// A hold at least this long, begun in the second half of the 2, earns the
+/// weak boost; a shorter one, begun at the 1 or later, starts clean.
+pub const START_WEAK_BOOST_HOLD_S: f32 = 1.0;
+/// The full boost: the boost item's values.
+pub const START_BOOST_S: f32 = ITEM_BOOST_S;
+pub const START_BOOST_FACTOR: f32 = ITEM_BOOST_FACTOR;
+/// The weak boost: the blue mini-turbo's values.
+pub const START_WEAK_BOOST_S: f32 = MINI_TURBO_BLUE_BOOST_S;
+pub const START_WEAK_BOOST_FACTOR: f32 = MINI_TURBO_BOOST_FACTOR;
+/// Seconds a stalled kart sits dead to every control after Go, as in a
+/// spin-out.
+pub const START_STALL_S: f32 = 2.0;
 /// Top speed fraction on sand and grass.
 pub const OFF_TRACK_SPEED_FACTOR: f32 = 0.55;
 /// Seconds outside the world bounds before respawn at the last checkpoint.
@@ -304,6 +325,12 @@ pub const BOT_STALL_SPEED_M_PER_S: f32 = 1.0;
 pub const BOT_STALL_S: f32 = 1.0;
 /// Seconds a bot backs up before it drives on again.
 pub const BOT_REVERSE_S: f32 = 1.0;
+/// The chance a bot rolls the full boost at Go, from the race's seed once
+/// per race; otherwise it starts clean. A bot never stalls.
+pub const BOT_START_BOOST_CHANCE: f32 = 0.5;
+/// How long a bot that rolled the boost holds the throttle before Go:
+/// midway through the full boost's window, clear of both edges.
+pub const BOT_START_HOLD_S: f32 = (START_FULL_BOOST_HOLD_S + START_STALL_HOLD_S) / 2.0;
 
 // Camera (ADR 0020). Presentation reads these through the bridge; the sim
 // never does. They live here so a feel pass tunes the camera in the same
@@ -332,7 +359,14 @@ const _: () = {
     assert!(BOT_AVOID_HALF_WIDTH_M > KART_HALF_WIDTH_M);
     assert!(BOT_PASS_GAP_M > 2.0 * KART_HALF_WIDTH_M);
     assert!(BOT_STALL_SPEED_M_PER_S * ACCELERATION_TO_TOP_S / TOP_SPEED_M_PER_S < BOT_STALL_S);
-    assert!(0.0 < START_BOOST_WINDOW_S && START_BOOST_WINDOW_S < COUNTDOWN_S);
+    assert!(0.0 < START_THROTTLE_HELD && START_THROTTLE_HELD < 1.0);
+    assert!(0.0 < START_WEAK_BOOST_HOLD_S && START_WEAK_BOOST_HOLD_S < START_FULL_BOOST_HOLD_S);
+    assert!(START_FULL_BOOST_HOLD_S < START_STALL_HOLD_S && START_STALL_HOLD_S < COUNTDOWN_S);
+    assert!(0.0 < START_WEAK_BOOST_S && START_WEAK_BOOST_S < START_BOOST_S);
+    assert!(1.0 < START_WEAK_BOOST_FACTOR && START_WEAK_BOOST_FACTOR <= START_BOOST_FACTOR);
+    assert!(0.0 < START_STALL_S);
+    assert!(0.0 <= BOT_START_BOOST_CHANCE && BOT_START_BOOST_CHANCE <= 1.0);
+    assert!(START_FULL_BOOST_HOLD_S < BOT_START_HOLD_S && BOT_START_HOLD_S < START_STALL_HOLD_S);
     assert!(0.0 < ITEM_BOX_RESPAWN_S);
     assert!(0.0 < ITEM_BOX_HALF_LENGTH_M && 0.0 < ITEM_BOX_HALF_WIDTH_M);
     assert!(0.0 < ITEM_BOOST_S && 1.0 < ITEM_BOOST_FACTOR);

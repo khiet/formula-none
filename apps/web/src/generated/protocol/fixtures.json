@@ -20,7 +20,7 @@
       "name": "join",
       "bytes": [
         1,
-        6,
+        7,
         4,
         66,
         88,
@@ -37,7 +37,7 @@
         "join": {
           "nickname": "khiet",
           "room": "BXQF",
-          "version": 6
+          "version": 7
         }
       }
     },
@@ -103,7 +103,7 @@
       "name": "rejoin",
       "bytes": [
         7,
-        6,
+        7,
         4,
         66,
         88,
@@ -147,7 +147,7 @@
         "rejoin": {
           "room": "BXQF",
           "token": "0123456789abcdef0123456789abcdef",
-          "version": 6
+          "version": 7
         }
       }
     }
@@ -265,12 +265,12 @@
       "bytes": [
         2,
         3,
-        6
+        7
       ],
       "message": {
         "refused": {
           "versionMismatch": {
-            "server": 6
+            "server": 7
           }
         }
       }
@@ -441,6 +441,8 @@
         0,
         0,
         0,
+        0,
+        0,
         160,
         65,
         154,
@@ -495,6 +497,8 @@
         0,
         0,
         0,
+        1,
+        0,
         0,
         0,
         220,
@@ -546,6 +550,8 @@
         0,
         1,
         0,
+        0,
+        2,
         0,
         0,
         0,
@@ -599,6 +605,8 @@
         1,
         1,
         0,
+        3,
+        0,
         0,
         0,
         42,
@@ -647,6 +655,8 @@
         0,
         170,
         67,
+        0,
+        0,
         0,
         0,
         0,
@@ -707,6 +717,8 @@
         1,
         0,
         0,
+        1,
+        0,
         0,
         0,
         102,
@@ -763,6 +775,8 @@
         0,
         0,
         63,
+        2,
+        0,
         0,
         0,
         130,
@@ -814,6 +828,12 @@
         0,
         0,
         0,
+        3,
+        1,
+        154,
+        153,
+        153,
+        63,
         6,
         41,
         0,
@@ -979,6 +999,8 @@
               ],
               "spinOutS": null,
               "splineProgress": 640.0,
+              "stallS": null,
+              "start": "clean",
               "velocity": [
                 21.0,
                 0.0,
@@ -1008,6 +1030,8 @@
               ],
               "spinOutS": null,
               "splineProgress": 565.0,
+              "stallS": null,
+              "start": "weakBoost",
               "velocity": [
                 21.0,
                 0.0,
@@ -1034,6 +1058,8 @@
               ],
               "spinOutS": null,
               "splineProgress": 490.0,
+              "stallS": null,
+              "start": "fullBoost",
               "velocity": [
                 21.0,
                 0.0,
@@ -1060,6 +1086,8 @@
               ],
               "spinOutS": null,
               "splineProgress": 415.0,
+              "stallS": null,
+              "start": "stall",
               "velocity": [
                 21.0,
                 0.0,
@@ -1086,6 +1114,8 @@
               ],
               "spinOutS": null,
               "splineProgress": 340.0,
+              "stallS": null,
+              "start": "clean",
               "velocity": [
                 21.0,
                 0.0,
@@ -1115,6 +1145,8 @@
               ],
               "spinOutS": null,
               "splineProgress": 265.0,
+              "stallS": null,
+              "start": "weakBoost",
               "velocity": [
                 21.0,
                 0.0,
@@ -1141,6 +1173,8 @@
               ],
               "spinOutS": 0.5,
               "splineProgress": 190.0,
+              "stallS": null,
+              "start": "fullBoost",
               "velocity": [
                 21.0,
                 0.0,
@@ -1167,6 +1201,8 @@
               ],
               "spinOutS": null,
               "splineProgress": 115.0,
+              "stallS": 1.2000000476837158,
+              "start": "stall",
               "velocity": [
                 21.0,
                 0.0,

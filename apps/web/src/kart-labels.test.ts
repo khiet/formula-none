@@ -13,6 +13,8 @@ function at(position: readonly [number, number, number]): KartTransform {
     spinOutSeconds: null,
     airborne: false,
     boostSeconds: null,
+    start: "clean",
+    stallSeconds: null,
   };
 }
 

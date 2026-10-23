@@ -3,8 +3,8 @@
 //! Tests read the same transforms and standings a human's kart reports.
 
 use sim::tuning::{
-    BOT_LOOKAHEAD_M, BOT_RUBBER_BAND_MAX_FACTOR, BOT_RUBBER_BAND_MIN_FACTOR, LAPS_PER_RACE,
-    MINI_TURBO_ORANGE_BOOST_S, TICKS_PER_SECOND, TOP_SPEED_M_PER_S,
+    BOT_LOOKAHEAD_M, BOT_RUBBER_BAND_MAX_FACTOR, BOT_RUBBER_BAND_MIN_FACTOR, BOT_START_HOLD_S,
+    COUNTDOWN_S, LAPS_PER_RACE, MINI_TURBO_ORANGE_BOOST_S, TICKS_PER_SECOND, TOP_SPEED_M_PER_S,
 };
 use sim::{step, KartInput, Phase, State, Surface, Track};
 
@@ -258,14 +258,15 @@ fn the_rubber_band_hurries_a_bot_far_behind_and_slows_one_far_ahead_within_the_t
         if was_behind && !behind {
             level_band = Some(band);
         }
-        // A mini-turbo scales the tuned top speed, not the banded one, so
-        // a drift and the boost it releases are left out.
+        // A mini-turbo or a start boost scales the tuned top speed, not
+        // the banded one, so a drift and the boost it releases are left
+        // out, and so is any boost under way.
         since_drift_s = if bot.drift.is_some() {
             0.0
         } else {
             since_drift_s + DT
         };
-        if since_drift_s > MINI_TURBO_ORANGE_BOOST_S + DT {
+        if since_drift_s > MINI_TURBO_ORANGE_BOOST_S + DT && bot.boost_s.is_none() {
             if behind {
                 fastest_behind = fastest_behind.max(bot.speed);
             } else {
@@ -314,14 +315,21 @@ fn yaw(rotation: [f32; 4]) -> f32 {
     (2.0 * (w * y + x * z)).atan2(1.0 - 2.0 * (y * y + z * z))
 }
 
-/// A scripted perfect driver for the oval: full throttle the whole way,
-/// steering at a line a little right of the centreline a lookahead ahead
-/// (clear of the pipes on the inside of the turns), and hopping into a
-/// drift held through each turn so the exit releases a mini-turbo.
+/// A scripted perfect driver for the oval: the rocket start timed as a bot
+/// times it, then full throttle the whole way, steering at a line a little
+/// right of the centreline a lookahead ahead (clear of the pipes on the
+/// inside of the turns), and hopping into a drift held through each turn
+/// so the exit releases a mini-turbo.
 fn perfect_driver(state: &State, kart: usize) -> KartInput {
     const RIGHT_OF_CENTRE_M: f32 = 2.5;
     const STEER_GAIN: f32 = 4.0;
     const TURN_CURVATURE: f32 = 0.02;
+    if let Phase::Countdown { remaining_s } = state.phase() {
+        return KartInput {
+            throttle: f32::from(u8::from(remaining_s <= BOT_START_HOLD_S)),
+            ..KartInput::default()
+        };
+    }
     let transform = state.kart_transforms()[kart];
     let progress = state.standings()[kart].spline_progress;
     let track = state.track();
@@ -364,18 +372,19 @@ fn oval_without_item_boxes() -> Track {
     Track::from_sidecar(&sidecar.to_string()).expect("the oval without boxes loads")
 }
 
-/// Race one human driven by `driver` against seven bots on the oval without
-/// its item boxes until the race ends or `seconds` are up, so the race
-/// compares the driving; the bots' items are covered in `items.rs`.
-/// Returns the finishing order as grid slots, who finished first and then
-/// the rest by race position when the run ends, and the state at the end.
+/// Race one human driven by `driver`, from the top of the countdown,
+/// against seven bots on the oval without its item boxes until the race
+/// ends or `seconds` of racing are up, so the race compares the driving;
+/// the bots' items are covered in `items.rs`. Returns the finishing order
+/// as grid slots, who finished first and then the rest by race position
+/// when the run ends, and the state at the end.
 fn race_against_seven_bots(
     driver: Option<fn(&State, usize) -> KartInput>,
     seconds: f32,
 ) -> (Vec<usize>, State) {
-    let mut state = started(State::with_bots(SEED, 1, 7, oval_without_item_boxes()));
+    let mut state = State::with_bots(SEED, 1, 7, oval_without_item_boxes());
     let mut finished: Vec<usize> = Vec::new();
-    for _ in 0..ticks(seconds) {
+    for _ in 0..ticks(seconds + COUNTDOWN_S) {
         let input = driver.map_or(KartInput::default(), |driver| driver(&state, 0));
         state = step(state, &[input], DT);
         let standings = state.standings();
@@ -485,8 +494,11 @@ fn a_bot_held_by_a_wall_backs_up_and_drives_on() {
         rejoined < ticks(10.0),
         "rejoined the track at tick {rejoined}, stopped at tick {stopped}"
     );
+    let rejoined_at = state.standings()[0].spline_progress;
+    assert!(rejoined_at > start, "past where it started");
+    let state = idle_humans(state, 0, 1.0);
     assert!(
-        state.standings()[0].spline_progress > start + 10.0,
+        state.standings()[0].spline_progress > rejoined_at + 10.0,
         "and is on its way round"
     );
 }
@@ -551,4 +563,51 @@ fn a_human_handed_to_a_bot_in_the_countdown_sets_up_no_start() {
         stalled.kart_transforms()[0].speed.abs() < 0.01,
         "the human stalled"
     );
+}
+
+#[test]
+fn bots_roll_the_full_boost_or_a_clean_start_from_the_seed_and_never_stall() {
+    use sim::tuning::START_BOOST_FACTOR;
+    use sim::Start;
+    let mut boosted = 0;
+    let mut clean = 0;
+    for seed in 0..4 {
+        let state = started(State::with_bots(seed, 0, 7, oval()));
+        let verdicts: Vec<Start> = state
+            .kart_transforms()
+            .iter()
+            .map(|kart| kart.start)
+            .collect();
+        // Rolled from the seed: the same seed rolls the same starts.
+        let again = started(State::with_bots(seed, 0, 7, oval()));
+        let repeat: Vec<Start> = again
+            .kart_transforms()
+            .iter()
+            .map(|kart| kart.start)
+            .collect();
+        assert_eq!(verdicts, repeat, "seed {seed} rolls the same starts twice");
+        let state = step(state, &[], DT);
+        for (slot, kart) in state.kart_transforms().iter().enumerate() {
+            match verdicts[slot] {
+                Start::FullBoost => {
+                    boosted += 1;
+                    assert_eq!(
+                        kart.speed,
+                        TOP_SPEED_M_PER_S * START_BOOST_FACTOR,
+                        "seed {seed} bot {slot} off the line at the boosted top speed"
+                    );
+                }
+                Start::Clean => {
+                    clean += 1;
+                    assert!(
+                        0.0 < kart.speed && kart.speed < 1.0,
+                        "seed {seed} bot {slot} crawls off the line: {} m/s",
+                        kart.speed
+                    );
+                }
+                other => panic!("seed {seed} bot {slot} rolled {other:?}"),
+            }
+        }
+    }
+    assert!(boosted > 0 && clean > 0, "{boosted} boosted, {clean} clean");
 }

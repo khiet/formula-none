@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Drift, KartSize, KartTransform, MiniTurbo } from "./bridge";
+import type { Start } from "./generated/protocol";
 import { createParticles, type Particle } from "./particles";
 import { createSparkEmitter, sparkTell } from "./sparks";
 
@@ -10,7 +11,7 @@ function drifting(miniTurbo: MiniTurbo): Drift {
   return { direction: "right", chargeSeconds: 0, miniTurbo };
 }
 
-function kart(drift: Drift | null): KartTransform {
+function kart(drift: Drift | null, start: Start = "clean"): KartTransform {
   return {
     position: [0, 0.3, 0],
     rotation: [0, 0, 0, 1],
@@ -21,6 +22,8 @@ function kart(drift: Drift | null): KartTransform {
     spinOutSeconds: null,
     airborne: false,
     boostSeconds: null,
+    start,
+    stallSeconds: null,
   };
 }
 
@@ -53,6 +56,13 @@ describe("spark tell", () => {
     expect(blue).not.toBeNull();
     expect(orange).not.toBeNull();
     expect(orange?.colour).not.toBe(blue?.colour);
+  });
+
+  it("shows a rocket start's charge in the tier's colour, with no warning past the full tier", () => {
+    expect(sparkTell(null, "clean")).toBeNull();
+    expect(sparkTell(null, "weakBoost")).toEqual(sparkTell(drifting("blue")));
+    expect(sparkTell(null, "fullBoost")).toEqual(sparkTell(drifting("orange")));
+    expect(sparkTell(null, "stall")).toEqual(sparkTell(drifting("orange")));
   });
 });
 
@@ -89,6 +99,23 @@ describe("spark emitter", () => {
       emitter.emit(kart(null), FRAME_S);
     }
     expect(particlesOf(particles)).toEqual([]);
+  });
+
+  it("throws sparks for a kart charging its rocket start while the countdown runs, and none after", () => {
+    const particles = createParticles({ capacity: 64, gravity: 9.8 });
+    const emitter = createSparkEmitter(particles, SIZE, fixedRandom());
+    emitter.emit(kart(null, "fullBoost"), FRAME_S, true);
+    const colours = new Set(particlesOf(particles).map((spark) => spark.colour));
+    expect([...colours]).toEqual([sparkTell(drifting("orange"))?.colour]);
+
+    // From Go the verdict stands on the transform, but the charge is over.
+    const after = createParticles({ capacity: 64, gravity: 9.8 });
+    const later = createSparkEmitter(after, SIZE, fixedRandom());
+    for (let frame = 0; frame < 30; frame++) {
+      later.emit(kart(null, "fullBoost"), FRAME_S, false);
+      later.emit(kart(null, "clean"), FRAME_S, true);
+    }
+    expect(particlesOf(after)).toEqual([]);
   });
 
   it("colours orange's sparks orange", () => {

@@ -41,8 +41,9 @@ fn started(mut state: State) -> State {
 }
 
 /// A race of `humans` karts and `bots` bots one tick past Go, each of
-/// `rolls` standing on a box under its slot and holding the item named:
-/// the seeds are tried in order until one rolls them all.
+/// `rolls` standing on a box under its slot and holding the item named,
+/// with every bot rolling the same rocket start so the items decide the
+/// race and not the start: the seeds are tried in order until one does.
 fn holding_with_bots(humans: usize, bots: usize, rolls: &[(usize, Item)]) -> State {
     let slots: Vec<usize> = rolls.iter().map(|&(slot, _)| slot).collect();
     for seed in 0.. {
@@ -52,13 +53,16 @@ fn holding_with_bots(humans: usize, bots: usize, rolls: &[(usize, Item)]) -> Sta
             bots,
             oval_with_boxes_under(&slots),
         ));
+        let even_start = state.kart_transforms()[humans..]
+            .windows(2)
+            .all(|pair| pair[0].start == pair[1].start);
         let state = step(state, &vec![KartInput::default(); humans], DT);
         let rolled = rolls.iter().all(|&(slot, wanted)| {
             state.events().iter().any(|event| {
                 matches!(event, RaceEvent::ItemPicked { kart, item, .. } if *kart == slot && *item == wanted)
             })
         });
-        if rolled {
+        if rolled && even_start {
             return state;
         }
     }

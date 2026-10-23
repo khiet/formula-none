@@ -188,6 +188,7 @@ export async function createRaceScene(
     const local = transforms[run.localKart];
     const standing = run.standings()[run.localKart];
     if (local && standing) {
+      const phase = run.phase();
       view.update(
         transforms,
         kartLabels(transforms, run.localKart, name),
@@ -195,11 +196,12 @@ export async function createRaceScene(
         run.itemBoxesPresent(),
         run.hazards(),
         run.projectiles(),
+        phase,
         frameSeconds,
       );
       const slot = run.itemSlot();
-      panel.update(local, standing, run.phase(), slot);
-      audio.update(soundReading(local, standing, slot));
+      panel.update(local, standing, phase, slot);
+      audio.update(soundReading(local, standing, slot, phase));
     }
   };
   audio.start();

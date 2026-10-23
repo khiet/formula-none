@@ -2,10 +2,12 @@
 // creation and decoded as soon as a gesture lets an AudioContext start, so
 // no decode waits for a first play and the browser never warns of autoplay.
 // One race sounds at a time: an oscillator for the engine, a one-shot
-// source per SFX and a looping source for the music, each behind the gain
-// its toggle sets. Presentation: it reads the own kart's readings and
-// changes no sim state.
+// source per SFX (the sputter's file runs the stall's length) and a looping
+// source for the music, each behind the gain its toggle sets. Presentation:
+// it reads the own kart's readings and changes no sim state.
 
+import countdownBeepUrl from "../../../assets/audio/countdown-beep.wav?url";
+import goUrl from "../../../assets/audio/go.wav?url";
 import hitUrl from "../../../assets/audio/hit.wav?url";
 import hopUrl from "../../../assets/audio/hop.wav?url";
 import itemFireUrl from "../../../assets/audio/item-fire.wav?url";
@@ -13,15 +15,19 @@ import itemPickupUrl from "../../../assets/audio/item-pickup.wav?url";
 import lapUrl from "../../../assets/audio/lap.wav?url";
 import miniTurboUrl from "../../../assets/audio/mini-turbo.wav?url";
 import musicUrl from "../../../assets/audio/music-loop.wav?url";
+import sputterUrl from "../../../assets/audio/sputter.wav?url";
 import { enginePitchHz, type SoundCue, type SoundReading, soundCues } from "./audio-cues";
 import type { AudioSettings } from "./audio-settings";
 
 export const SOUND_URLS: Readonly<Record<SoundCue, string>> = {
+  countdownBeep: countdownBeepUrl,
+  go: goUrl,
   hop: hopUrl,
   miniTurbo: miniTurboUrl,
   itemPickup: itemPickupUrl,
   itemFire: itemFireUrl,
   hit: hitUrl,
+  sputter: sputterUrl,
   lap: lapUrl,
 };
 export const MUSIC_URL: string = musicUrl;
@@ -240,7 +246,11 @@ class LiveRace {
     this.#sounds = sounds;
     const engine = sounds.context.createOscillator();
     engine.type = "sawtooth";
-    engine.frequency.value = enginePitchHz(this.#last?.speed ?? 0, this.#topSpeed);
+    engine.frequency.value = enginePitchHz(
+      this.#last?.speed ?? 0,
+      this.#topSpeed,
+      this.#last?.charge ?? null,
+    );
     engine.connect(sounds.gains.engine);
     engine.start();
     this.#engine = engine;
@@ -272,7 +282,7 @@ class LiveRace {
     const sounds = this.#sounds;
     if (sounds === undefined) return;
     this.#engine?.frequency.setTargetAtTime(
-      enginePitchHz(reading.speed, this.#topSpeed),
+      enginePitchHz(reading.speed, this.#topSpeed, reading.charge),
       sounds.context.currentTime,
       ENGINE_GLIDE_S,
     );
