@@ -77,6 +77,55 @@ describe("keeping a race connected (ADR 0012)", () => {
     expect(banner).toEqual([true, false]);
   });
 
+  it("does not take its own stall for the server's silence", async () => {
+    const { first, connect, banner } = await racing();
+    await vi.advanceTimersByTimeAsync(1_000);
+    first.receive(SNAPSHOT);
+    // The page is frozen past the silence: no check runs and nothing is read.
+    vi.setSystemTime(Date.now() + 3_000);
+    // The overdue check runs before the messages that queued behind the stall.
+    await vi.advanceTimersByTimeAsync(TIMING.silenceMs / 8);
+    // Then the race goes on as before.
+    for (let tick = 0; tick < 5; tick++) {
+      first.receive(SNAPSHOT);
+      await vi.advanceTimersByTimeAsync(TIMING.silenceMs / 2);
+    }
+    expect(connect).not.toHaveBeenCalled();
+    expect(banner).toEqual([]);
+    expect(first.closedByClient).toBe(false);
+  });
+
+  it("still reconnects once a stall is over and the server stays silent", async () => {
+    const { connect, banner } = await racing();
+    vi.setSystemTime(Date.now() + 3_000);
+    // The overdue check leaves the call to the next one, in case the
+    // server's messages are still queued behind the stall.
+    await vi.advanceTimersByTimeAsync(TIMING.silenceMs / 8);
+    expect(connect).not.toHaveBeenCalled();
+    // Nothing came: the silence was the server's.
+    await vi.advanceTimersByTimeAsync(TIMING.silenceMs / 8);
+    expect(connect).toHaveBeenCalledTimes(1);
+    expect(banner).toEqual([true]);
+  });
+
+  it("catches a silent server when every check runs late", async () => {
+    const { first, connect, banner } = await racing();
+    // A client this slow misses every other check, yet its messages keep it quiet.
+    const slow = async () => {
+      vi.setSystemTime(Date.now() + TIMING.silenceMs / 8);
+      await vi.advanceTimersByTimeAsync(TIMING.silenceMs / 8);
+    };
+    for (let tick = 0; tick < 8; tick++) {
+      first.receive(SNAPSHOT);
+      await slow();
+    }
+    expect(connect).not.toHaveBeenCalled();
+    // Once the server stops, the silence is caught within two checks of the tuned time.
+    for (let tick = 0; tick < 5; tick++) await slow();
+    expect(connect).toHaveBeenCalledTimes(1);
+    expect(banner).toEqual([true]);
+  });
+
   it("reconnects at once when the connection ends", async () => {
     const { first, connect, banner } = await racing();
     first.end();
