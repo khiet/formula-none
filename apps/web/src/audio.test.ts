@@ -277,6 +277,10 @@ describe("the engine note", () => {
     expect(engine().frequency.value).toBeCloseTo((idle + top) / 2, 6);
     race.update({ ...STILL, speed: -TOP_SPEED / 2 });
     expect(engine().frequency.value).toBeCloseTo((idle + top) / 2, 6);
+    // Revving on the grid as the rocket start charges, at a standstill.
+    race.update({ ...STILL, charge: "fullBoost" });
+    expect(engine().frequency.value).toBeGreaterThan(idle);
+    expect(engine().frequency.value).toBeLessThanOrEqual(top);
     race.stop();
     expect(engine().stopped).toBe(1);
   });
