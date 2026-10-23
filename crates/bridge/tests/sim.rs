@@ -13,7 +13,7 @@ const OVAL: &str = include_str!("../../../assets/tracks/oval/oval.track.json");
 const DT: f32 = 1.0 / TICKS_PER_SECOND as f32;
 /// Floats per kart in the kart buffer: position xyz, rotation xyzw, speed,
 /// surface code, drift direction, mini-turbo tier, drift charge, held item,
-/// spin-out left, airborne, boost left.
+/// spin-out left, airborne, boost left, rocket start, stall left.
 const FLOATS_PER_KART: usize = 18;
 /// Floats per kart in the input buffer: steer, throttle, brake, hop, use item, hold item.
 const FLOATS_PER_INPUT: usize = 6;
