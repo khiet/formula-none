@@ -1,23 +1,113 @@
 import { describe, expect, it } from "vitest";
-import type { Drift, MiniTurbo } from "./bridge";
-import { sparkTell } from "./sparks";
+import type { Drift, KartSize, KartTransform, MiniTurbo } from "./bridge";
+import { createParticles, type Particle } from "./particles";
+import { createSparkEmitter, sparkTell } from "./sparks";
+
+const SIZE: KartSize = { width: 1.2, height: 0.6, length: 1.8 };
+const FRAME_S = 1 / 60;
 
 function drifting(miniTurbo: MiniTurbo): Drift {
   return { direction: "right", chargeSeconds: 0, miniTurbo };
 }
 
+function kart(drift: Drift | null): KartTransform {
+  return {
+    position: [0, 0.3, 0],
+    rotation: [0, 0, 0, 1],
+    speed: 25,
+    surface: "asphalt",
+    drift,
+    heldItem: null,
+    spinOutSeconds: null,
+  };
+}
+
+function particlesOf(particles: ReturnType<typeof createParticles>): Particle[] {
+  const out: Particle[] = [];
+  particles.forEach((particle) => {
+    out.push({ ...particle, position: [...particle.position] });
+  });
+  return out;
+}
+
+/** A fixed sequence standing in for Math.random, so a test's sparks fly the same way every run. */
+function fixedRandom(): () => number {
+  let seed = 1;
+  return () => {
+    seed = (seed * 48271) % 2147483647;
+    return seed / 2147483647;
+  };
+}
+
 describe("spark tell", () => {
-  it("shows no sparks off a drift", () => {
+  it("shows no sparks off a drift or while the drift has charged nothing yet", () => {
     expect(sparkTell(null)).toBeNull();
+    expect(sparkTell(drifting("none"))).toBeNull();
   });
 
-  it("shows sparks through a drift and changes colour at blue and at orange", () => {
-    const uncharged = sparkTell(drifting("none"));
+  it("shows sparks once blue has charged and changes colour at orange", () => {
     const blue = sparkTell(drifting("blue"));
     const orange = sparkTell(drifting("orange"));
-    expect(uncharged).not.toBeNull();
-    expect(blue?.colour).not.toBe(uncharged?.colour);
+    expect(blue).not.toBeNull();
+    expect(orange).not.toBeNull();
     expect(orange?.colour).not.toBe(blue?.colour);
-    expect(orange?.colour).not.toBe(uncharged?.colour);
+  });
+});
+
+describe("spark emitter", () => {
+  it("throws sparks off the rear wheels, backward and low, while a tier is charged", () => {
+    const particles = createParticles({ capacity: 64, gravity: 9.8 });
+    const emitter = createSparkEmitter(particles, SIZE, fixedRandom());
+    emitter.emit(kart(drifting("blue")), FRAME_S);
+    const born = particlesOf(particles);
+    expect(born.length).toBeGreaterThan(0);
+    for (const spark of born) {
+      expect(spark.colour).toBe(sparkTell(drifting("blue"))?.colour);
+      expect(Math.abs(spark.position[0])).toBeLessThan(SIZE.width / 2 + 0.1);
+      expect(Math.abs(spark.position[0])).toBeGreaterThan(SIZE.width / 4);
+      expect(spark.position[1]).toBeLessThan(0.2);
+      expect(spark.position[2]).toBeGreaterThan(0);
+    }
+    for (let frame = 0; frame < 6; frame++) {
+      particles.update(FRAME_S);
+    }
+    const flown = particlesOf(particles);
+    expect(flown).toHaveLength(born.length);
+    flown.forEach((spark, index) => {
+      // Behind the kart, which faces -Z, is +Z.
+      expect(spark.position[2]).toBeGreaterThan((born[index]?.position[2] ?? 0) + 0.1);
+    });
+  });
+
+  it("throws nothing while the drift is uncharged or over", () => {
+    const particles = createParticles({ capacity: 64 });
+    const emitter = createSparkEmitter(particles, SIZE, fixedRandom());
+    for (let frame = 0; frame < 30; frame++) {
+      emitter.emit(kart(drifting("none")), FRAME_S);
+      emitter.emit(kart(null), FRAME_S);
+    }
+    expect(particlesOf(particles)).toEqual([]);
+  });
+
+  it("colours orange's sparks orange", () => {
+    const particles = createParticles({ capacity: 64 });
+    const emitter = createSparkEmitter(particles, SIZE, fixedRandom());
+    emitter.emit(kart(drifting("orange")), FRAME_S);
+    const colours = new Set(particlesOf(particles).map((spark) => spark.colour));
+    expect([...colours]).toEqual([sparkTell(drifting("orange"))?.colour]);
+  });
+
+  it("spreads its sparks over the frames at a steady rate", () => {
+    const particles = createParticles({ capacity: 512 });
+    const emitter = createSparkEmitter(particles, SIZE, fixedRandom());
+    for (let frame = 0; frame < 30; frame++) {
+      emitter.emit(kart(drifting("blue")), FRAME_S);
+    }
+    const halfSecond = particlesOf(particles).length;
+    for (let frame = 0; frame < 30; frame++) {
+      emitter.emit(kart(drifting("blue")), FRAME_S);
+    }
+    expect(particlesOf(particles).length).toBeCloseTo(2 * halfSecond, -1);
+    expect(halfSecond).toBeGreaterThan(10);
   });
 });

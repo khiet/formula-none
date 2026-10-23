@@ -125,6 +125,17 @@ describe("bridge wrapper", () => {
     expect(bridge.countdownSeconds).toBe(3);
   });
 
+  it("reads the chase camera's tuning from the sim: top speed, pull-back and shake", async () => {
+    const bridge = await loadBridge(wasm);
+    expect(bridge.cameraTuning).toEqual({
+      topSpeedMetresPerSecond: 30,
+      pullBackMetres: 1,
+      shakeSeconds: expect.closeTo(0.3, 5),
+      shakeAmplitudeMetres: expect.any(Number),
+    });
+    expect(bridge.cameraTuning.shakeAmplitudeMetres).toBeGreaterThan(0);
+  });
+
   it("reports the surface under a kart that steers off the asphalt", async () => {
     const bridge = await loadBridge(wasm);
     const race = started(bridge.createRace(7n, 1, 0, OVAL), 1);
