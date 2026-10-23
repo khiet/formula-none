@@ -8,6 +8,7 @@
 import {
   BufferAttribute,
   BufferGeometry,
+  CircleGeometry,
   Color,
   DoubleSide,
   InstancedMesh,
@@ -15,10 +16,13 @@ import {
   Matrix4,
   Mesh,
   type Object3D,
+  Vector3,
 } from "three";
-import { attribute } from "three/tsl";
+import { attribute, float, smoothstep, uv } from "three/tsl";
 import { MeshBasicNodeMaterial } from "three/webgpu";
+import type { KartSize } from "./bridge";
 import { TYRE_WIDTH_M } from "./kart-frame";
+import type { KartShadows } from "./kart-shadows";
 import type { Particles } from "./particles";
 import type { TyreMarks } from "./tyre-marks";
 
@@ -146,6 +150,83 @@ export function particleMesh(
       if (mesh.instanceColor !== null) {
         mesh.instanceColor.needsUpdate = true;
       }
+    },
+  };
+}
+
+/** A shadow disc: dark and see-through, the same whatever the kart's height. */
+const SHADOW_COLOUR = 0x000000;
+const SHADOW_OPACITY = 0.8;
+/** The disc is full strength out to this share of its radius and fades to nothing at the edge. */
+const SHADOW_SOFT_FROM = 0.8;
+/**
+ * The disc is this much wider than the kart's box each way: the chase
+ * camera looks down on the kart's roof, which covers the footprint itself,
+ * so the disc has to show round the kart's sides and tail to be seen.
+ */
+const SHADOW_SPREAD = 1.5;
+/** Discs sit this far over the surface so they do not fight its faces for depth. */
+const SHADOW_LIFT_M = 0.03;
+const SHADOW_SEGMENTS = 32;
+
+/**
+ * Every visible shadow disc as one instance of a circle a little wider
+ * than the kart's footprint, laid on the surface along its normal and
+ * turned to the kart's heading. Constant size and opacity: the height of a
+ * hop is read from the gap between kart and disc, not from the disc
+ * changing.
+ */
+export function shadowDiscMesh(shadows: KartShadows, size: KartSize): TellMesh {
+  // A unit circle facing +Y; each instance scales it to the disc's size.
+  const geometry = new CircleGeometry(0.5, SHADOW_SEGMENTS).rotateX(-Math.PI / 2);
+  const material = new MeshBasicNodeMaterial();
+  material.color = new Color(SHADOW_COLOUR);
+  material.transparent = true;
+  material.depthWrite = false;
+  // The circle's UV runs 0 to 1 across it, so its centre is half a unit from the edge.
+  material.opacityNode = float(SHADOW_OPACITY).mul(
+    smoothstep(SHADOW_SOFT_FROM / 2, 0.5, uv().sub(0.5).length()).oneMinus(),
+  );
+  const mesh = new InstancedMesh(geometry, material, shadows.discs.length);
+  mesh.frustumCulled = false;
+  const placement = new Matrix4();
+  const up = new Vector3();
+  const forward = new Vector3();
+  const right = new Vector3();
+  const back = new Vector3();
+  return {
+    mesh,
+    update() {
+      let live = 0;
+      for (const disc of shadows.discs) {
+        if (!disc.visible) {
+          continue;
+        }
+        up.set(...disc.normal);
+        // The heading flattened onto the surface, so the disc lies along it.
+        forward.set(...disc.forward).addScaledVector(up, -forward.dot(up));
+        if (forward.lengthSq() < 1e-6) {
+          continue;
+        }
+        forward.normalize();
+        right.crossVectors(forward, up);
+        back.copy(forward).negate();
+        placement
+          .makeBasis(
+            right.multiplyScalar(size.width * SHADOW_SPREAD),
+            up,
+            back.multiplyScalar(size.length * SHADOW_SPREAD),
+          )
+          .setPosition(
+            disc.position[0] + disc.normal[0] * SHADOW_LIFT_M,
+            disc.position[1] + disc.normal[1] * SHADOW_LIFT_M,
+            disc.position[2] + disc.normal[2] * SHADOW_LIFT_M,
+          );
+        mesh.setMatrixAt(live, placement);
+        live += 1;
+      }
+      mesh.count = live;
+      mesh.instanceMatrix.needsUpdate = true;
     },
   };
 }

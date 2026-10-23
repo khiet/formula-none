@@ -23,6 +23,15 @@ const LOOK_AHEAD_M = 4;
  */
 const YAW_SPRING_STIFFNESS = 20;
 const YAW_SPRING_DAMPING = 2 * Math.sqrt(YAW_SPRING_STIFFNESS);
+/**
+ * A spring on the camera's height toward the kart's, critically damped like
+ * the yaw's. Soft enough that a 0.3 s hop lifts the camera by under a third
+ * of the kart's rise, so the kart climbs in the frame; stiff enough that the
+ * camera trails Brands Patch's 2 m climb by under a metre and settles at the
+ * new height within about two seconds.
+ */
+const HEIGHT_SPRING_STIFFNESS = 16;
+const HEIGHT_SPRING_DAMPING = 2 * Math.sqrt(HEIGHT_SPRING_STIFFNESS);
 /** The spring integrates in steps no longer than this, so a stalled frame cannot fling it. */
 const MAX_SPRING_STEP_S = 1 / 60;
 /**
@@ -36,15 +45,20 @@ const SHAKE_HZ: readonly [number, number, number] = [13, 17, 11];
  * A third-person camera behind and above the local kart. Its yaw lags the
  * kart's through a damped spring, so a corner swings the kart across the
  * frame before the camera follows, and it looks a little ahead of the kart
- * along the kart's own heading. It sits further back the faster the kart
- * goes, the tuned pull-back at top speed, and rattles for the tuned time
- * when the sim reports the kart hit, that is when its spin-out begins.
+ * along the kart's own heading. Its height lags the kart's through another,
+ * so a hop lifts the kart in the frame while a slope is followed. It sits
+ * further back the faster the kart goes, the tuned pull-back at top speed,
+ * and rattles for the tuned time when the sim reports the kart hit, that is
+ * when its spin-out begins.
  * Presentation only: it reads transforms the sim reported and never touches
  * the sim.
  */
 export function createChaseCamera(tuning: CameraTuning): ChaseCamera {
   let yaw: number | undefined;
   let yawVelocity = 0;
+  /** The height the camera follows: the kart's, lagged, in world metres. */
+  let height: number | undefined;
+  let heightVelocity = 0;
   /** Whether the kart was spun out last frame; a spin-out beginning is the hit. */
   let wasSpunOut: boolean | undefined;
   /** Seconds into the shake, or past its end when there is none. */
@@ -52,14 +66,20 @@ export function createChaseCamera(tuning: CameraTuning): ChaseCamera {
   return {
     update(kart, dtSeconds) {
       const kartYaw = yawOf(kart.rotation);
-      if (yaw === undefined) {
+      const [x, kartY, z] = kart.position;
+      if (yaw === undefined || height === undefined) {
         yaw = kartYaw;
+        height = kartY;
       }
       for (let remaining = dtSeconds; remaining > 0; remaining -= MAX_SPRING_STEP_S) {
         const dt = Math.min(remaining, MAX_SPRING_STEP_S);
         const stretch = shortestTurn(kartYaw - yaw);
         yawVelocity += (YAW_SPRING_STIFFNESS * stretch - YAW_SPRING_DAMPING * yawVelocity) * dt;
         yaw += yawVelocity * dt;
+        heightVelocity +=
+          (HEIGHT_SPRING_STIFFNESS * (kartY - height) - HEIGHT_SPRING_DAMPING * heightVelocity) *
+          dt;
+        height += heightVelocity * dt;
       }
 
       const spunOut = kart.spinOutSeconds !== null;
@@ -76,18 +96,19 @@ export function createChaseCamera(tuning: CameraTuning): ChaseCamera {
       const behind =
         BEHIND_M +
         (Math.max(kart.speed, 0) / tuning.topSpeedMetresPerSecond) * tuning.pullBackMetres;
-      const [x, y, z] = kart.position;
       return {
         // A kart with no yaw faces -Z, so behind it is +Z.
         position: [
           x + Math.sin(yaw) * behind + sx,
-          y + ABOVE_M + sy,
+          height + ABOVE_M + sy,
           z + Math.cos(yaw) * behind + sz,
         ],
-        // The target jolts with the position, so the hit shoves the whole frame.
+        // The target jolts with the position, so the hit shoves the whole
+        // frame, and sits at the lagged height, so a hop moves the kart in
+        // the frame rather than the frame with the kart.
         target: [
           x - Math.sin(kartYaw) * LOOK_AHEAD_M + sx,
-          y + sy,
+          height + sy,
           z - Math.cos(kartYaw) * LOOK_AHEAD_M + sz,
         ],
       };
