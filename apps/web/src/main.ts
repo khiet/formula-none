@@ -1,3 +1,5 @@
+import { createAudio } from "./audio";
+import { loadAudioSettings, saveAudioSettings } from "./audio-settings";
 import { type Bridge, loadBridge } from "./bridge";
 import { connect, serverUrls } from "./connection";
 import type { InstrumentPanel } from "./instrument-panel";
@@ -73,6 +75,15 @@ async function createRoom(): Promise<string> {
   return body.code;
 }
 
+/** The bytes of a sound file, for the audio to decode once it may start. */
+async function fetchBytes(url: string): Promise<ArrayBuffer> {
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error(`could not fetch ${url}: ${response.status}`);
+  }
+  return response.arrayBuffer();
+}
+
 /** The track a Countdown names; the default when the client has no such track. */
 function trackNamed(name: string): TrackFiles {
   return isTrackName(name) ? TRACKS[name] : selectTrack("");
@@ -94,6 +105,21 @@ interface RaceHandlers {
 async function main(container: HTMLElement): Promise<void> {
   const bridge = await loadBridge();
   const connection = reportConnection(bridge);
+  // The sound files load now; the AudioContext waits for the first gesture,
+  // which the browser's autoplay rule asks for (ADR 0008). Any press or key
+  // is one, so the Title's buttons unlock it before any race.
+  const audio = createAudio({
+    settings: loadAudioSettings(window.localStorage),
+    topSpeedMetresPerSecond: bridge.topSpeedMetresPerSecond,
+    fetchBytes,
+    createContext: () => new AudioContext(),
+  });
+  const unlockAudio = () => {
+    audio.unlock().catch((error: unknown) => console.warn("audio could not start", error));
+  };
+  for (const gesture of ["pointerdown", "keydown"] as const) {
+    window.addEventListener(gesture, unlockAudio);
+  }
   const soloTrack = selectTrack(window.location.search);
   const linkedCode = roomFromSearch(window.location.search) ?? "";
 
@@ -104,6 +130,7 @@ async function main(container: HTMLElement): Promise<void> {
         nickname: loadNickname(window.localStorage),
         code,
         message,
+        audio: loadAudioSettings(window.localStorage),
         nicknameChars: bridge.nicknameChars,
         roomCodeLength: bridge.roomCodeLength,
       },
@@ -124,6 +151,10 @@ async function main(container: HTMLElement): Promise<void> {
         race() {
           title.dispose();
           showSoloRace().catch(fail);
+        },
+        audio(settings) {
+          saveAudioSettings(window.localStorage, settings);
+          audio.settings(settings);
         },
       },
     );
@@ -289,7 +320,7 @@ async function main(container: HTMLElement): Promise<void> {
     handlers: RaceHandlers,
     link?: RaceLink,
   ) => {
-    const race = await createRaceScene(container, bridge, track, run, nickname);
+    const race = await createRaceScene(container, bridge, track, run, nickname, audio.race());
     connection.show(race.panel);
     let racing = true;
     link?.onLost((lost) => race.panel.connectionLost(lost));

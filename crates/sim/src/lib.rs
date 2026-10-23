@@ -88,6 +88,9 @@ pub struct KartTransform {
     /// Seconds of spin-out left, while the kart is spun out: stopped, with
     /// its inputs ignored. The View spins it for the duration.
     pub spin_out_s: Option<f32>,
+    /// Whether the kart is in a hop's airtime; the hop's tell. Only a sim
+    /// stepped here knows: a snapshot does not carry it.
+    pub airborne: bool,
 }
 
 /// The items a kart can hold: what an item box rolls.
@@ -926,6 +929,7 @@ impl State {
                     drift: kart.drift,
                     held_item: kart.held_item,
                     spin_out_s: kart.spun_out().then_some(kart.spin_out_left_s),
+                    airborne: kart.airborne(),
                 }
             })
             .collect()

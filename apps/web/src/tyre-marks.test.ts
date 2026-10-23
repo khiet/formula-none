@@ -20,6 +20,7 @@ function kart(
     drift,
     heldItem: null,
     spinOutSeconds: null,
+    airborne: false,
   };
 }
 

@@ -11,6 +11,7 @@
     "generate:protocol": "cargo run -q -p protocol --example generate",
     "export:tracks": "blender --background --python assets/tracks/build.py -- all",
     "export:karts": "blender --background --python assets/karts/build.py",
+    "export:audio": "python3 -I assets/audio/build.py",
     "build": "pnpm -r build",
     "lint": "biome ci .",
     "lint:fix": "biome check --write .",

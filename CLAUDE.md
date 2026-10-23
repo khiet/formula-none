@@ -67,6 +67,12 @@ Tracks (needs Blender on `PATH`; see `assets/tracks/README.md`):
 - Kart: `pnpm export:karts` rebuilds `assets/karts/kart.glb` from the
   vendored Kenney kart; rerun after changing `assets/karts/build.py`
 
+Audio (needs `python3` on `PATH`):
+
+- `pnpm export:audio` synthesises the SFX and the music loop under
+  `assets/audio/`; rerun after changing `assets/audio/build.py` and commit
+  the output
+
 CI (`.github/workflows/ci.yml`) runs on every PR: clippy with warnings as
 errors, nextest, the wasm build of the bridge, the protocol codegen diff,
 Biome, typecheck, Vitest, the web build, the Playwright smoke test, and the

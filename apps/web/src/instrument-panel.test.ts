@@ -114,6 +114,7 @@ describe("the item slot", () => {
       drift: null,
       heldItem: null,
       spinOutSeconds: null,
+      airborne: false,
     };
     const racing = { kind: "racing", elapsedSeconds: 5, graceLeftSeconds: null } as const;
     expect(slot?.textContent).toBe("");
