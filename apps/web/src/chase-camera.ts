@@ -47,8 +47,9 @@ const SHAKE_HZ: readonly [number, number, number] = [13, 17, 11];
  * frame before the camera follows, and it looks a little ahead of the kart
  * along the kart's own heading. Its height lags the kart's through another,
  * so a hop lifts the kart in the frame while a slope is followed. It sits
- * further back the faster the kart goes, the tuned pull-back at top speed, and rattles for the tuned time
- * when the sim reports the kart hit, that is when its spin-out begins.
+ * further back the faster the kart goes, the tuned pull-back at top speed,
+ * and rattles for the tuned time when the sim reports the kart hit, that is
+ * when its spin-out begins.
  * Presentation only: it reads transforms the sim reported and never touches
  * the sim.
  */

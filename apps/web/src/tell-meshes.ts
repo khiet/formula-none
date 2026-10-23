@@ -16,14 +16,13 @@ import {
   Matrix4,
   Mesh,
   type Object3D,
-  Raycaster,
   Vector3,
 } from "three";
 import { attribute, float, smoothstep, uv } from "three/tsl";
 import { MeshBasicNodeMaterial } from "three/webgpu";
 import type { KartSize } from "./bridge";
 import { TYRE_WIDTH_M } from "./kart-frame";
-import type { KartShadows, SurfaceProbe } from "./kart-shadows";
+import type { KartShadows } from "./kart-shadows";
 import type { Particles } from "./particles";
 import type { TyreMarks } from "./tyre-marks";
 
@@ -169,10 +168,6 @@ const SHADOW_SPREAD = 1.5;
 /** Discs sit this far over the surface so they do not fight its faces for depth. */
 const SHADOW_LIFT_M = 0.03;
 const SHADOW_SEGMENTS = 32;
-/** A probe starts its ray this far above the kart's centre, so a kart pressed into the road is still over it. */
-const PROBE_FROM_ABOVE_M = 1;
-/** What a probe reports for a surface whose mesh carries no normals. */
-const WORLD_UP = new Vector3(0, 1, 0);
 
 /**
  * Every visible shadow disc as one instance of a circle a little wider
@@ -232,36 +227,6 @@ export function shadowDiscMesh(shadows: KartShadows, size: KartSize): TellMesh {
       }
       mesh.count = live;
       mesh.instanceMatrix.needsUpdate = true;
-    },
-  };
-}
-
-/**
- * The surface under a point, found by casting a ray straight down through
- * `track`, the View's own copy of the track mesh. Nothing in the sim or
- * bridge is consulted (ADR 0006). The ray starts a metre over the point so
- * a kart pressed into the road still finds it, and takes the nearest hit.
- */
-export function trackProbe(track: Object3D): SurfaceProbe {
-  const raycaster = new Raycaster();
-  const from = new Vector3();
-  const down = new Vector3(0, -1, 0);
-  const normal = new Vector3();
-  return {
-    under(x, y, z) {
-      raycaster.set(from.set(x, y + PROBE_FROM_ABOVE_M, z), down);
-      const hit = raycaster.intersectObject(track, true)[0];
-      if (hit === undefined) {
-        return undefined;
-      }
-      // The hit's normal is in the mesh's own frame; the point is already in the world's.
-      normal
-        .copy(hit.normal ?? hit.face?.normal ?? WORLD_UP)
-        .transformDirection(hit.object.matrixWorld);
-      return {
-        point: [hit.point.x, hit.point.y, hit.point.z],
-        normal: [normal.x, normal.y, normal.z],
-      };
     },
   };
 }

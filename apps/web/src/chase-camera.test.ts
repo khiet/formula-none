@@ -171,15 +171,18 @@ describe("the chase camera", () => {
   it("follows a hop by a bounded fraction of the kart's rise and settles back", () => {
     const camera = createChaseCamera(TUNING);
     const rest = camera.update(kart(0, [0, 0.3, 0]), FRAME_S);
-    // The sim's hop: 0.3 s of airtime under gravity, peaking about 11 cm up.
+    // A model of the sim's hop: 0.3 s of airtime under its gravity, peaking
+    // about 11 cm up. The test owns these figures; a retuned hop in the sim
+    // would not change what the camera must do with one.
     const airtime = 0.3;
-    const launch = (9.8 * airtime) / 2;
-    const peak = (launch * launch) / (2 * 9.8);
+    const gravity = 9.81;
+    const launch = (gravity * airtime) / 2;
+    const peak = (launch * launch) / (2 * gravity);
     let cameraRise = 0;
     let kartRiseInFrame = 0;
     for (let frame = 1; frame * FRAME_S <= airtime; frame++) {
       const t = frame * FRAME_S;
-      const y = 0.3 + launch * t - 4.9 * t * t;
+      const y = 0.3 + launch * t - (gravity / 2) * t * t;
       const pose = camera.update(kart(0, [0, y, 0], { airborne: true }), FRAME_S);
       cameraRise = Math.max(cameraRise, pose.position[1] - rest.position[1]);
       kartRiseInFrame = Math.max(kartRiseInFrame, y - pose.target[1]);

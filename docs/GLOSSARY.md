@@ -268,4 +268,5 @@ particles, camera motion, audio. Presentation never changes sim state.
 A piece of Presentation tied to one mechanic so the mechanic has a visible or
 audible tell: tyre marks on drift, sparks on mini-turbo charge, a dust puff
 off-track, a spin animation on spin-out, beeps on the countdown and sparks
-on a rocket start's charge, a sputter and dust at the wheels on its stall.
+on a rocket start's charge, a sputter and dust at the wheels on its stall,
+a shadow disc on the road under each kart so a hop's height reads.

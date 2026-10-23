@@ -30,7 +30,8 @@ import { livery, liveryCss } from "./livery";
 import { createParticles } from "./particles";
 import { createSparkEmitter } from "./sparks";
 import { spinOutAngle } from "./spin";
-import { particleMesh, shadowDiscMesh, trackProbe, tyreMarkMesh } from "./tell-meshes";
+import { particleMesh, shadowDiscMesh, tyreMarkMesh } from "./tell-meshes";
+import { trackProbe } from "./track-probe";
 import { createTyreMarks } from "./tyre-marks";
 
 /** Far enough to see across Brands Patch from any point on it. */
@@ -105,8 +106,8 @@ export interface ViewAssets {
  * holding for the rocket start, dust on the run-off and at the wheels of a
  * stalled kart, a spun-out kart turned about its axis over
  * `spinOutSeconds`, and a shadow disc on the track under every kart so a
- * hop's height reads against the ground. Picks WebGPU when the browser has it and WebGL
- * otherwise.
+ * hop's height reads against the ground. Picks WebGPU when the browser has
+ * it and WebGL otherwise.
  */
 export async function createRaceView(
   container: HTMLElement,
@@ -179,9 +180,9 @@ export async function createRaceView(
     new MeshBasicMaterial({ transparent: true, opacity: DUST_OPACITY, depthWrite: false }),
     (size, life) => size * Math.min(life / DUST_FADE_SHARE, 1),
   );
-  // The discs find the surface in the View's track mesh, which is the only
-  // one here; the sim's copy is never asked.
-  const shadows = createKartShadows(kartCount, trackProbe(track.scene));
+  // The discs find the surface in the View's own track mesh; the bridge
+  // offers no surface query and Presentation never asks the sim.
+  const shadows = createKartShadows(kartCount, trackProbe(track.scene, kartSize.height / 2));
   const shadowMesh = shadowDiscMesh(shadows, kartSize);
   world.add(marks.mesh, sparkMesh.mesh, dustMesh.mesh, shadowMesh.mesh);
 
