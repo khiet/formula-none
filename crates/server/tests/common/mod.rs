@@ -183,7 +183,6 @@ pub fn assert_no_bot_rocket_starts(snapshot: &Snapshot, humans: usize) {
 /// centreline, from where the snapshot has the kart.
 pub fn follow_the_line(track: &Track, kart: &KartSnapshot) -> KartInput {
     const RIGHT_OF_CENTRE_M: f32 = 2.5;
-    const STEER_GAIN: f32 = 4.0;
     let progress = kart.spline_progress;
     let ahead = track.point_at(progress + BOT_LOOKAHEAD_M);
     let further = track.point_at(progress + BOT_LOOKAHEAD_M + 1.0);
@@ -194,16 +193,24 @@ pub fn follow_the_line(track: &Track, kart: &KartSnapshot) -> KartInput {
         ahead[0] - tz / travel * RIGHT_OF_CENTRE_M,
         ahead[2] + tx / travel * RIGHT_OF_CENTRE_M,
     ];
-    let (dx, dz) = (target[0] - kart.position[0], target[1] - kart.position[2]);
+    KartInput {
+        steer: steer_toward(kart.position, kart.rotation, target),
+        throttle: 1.0,
+        ..KartInput::default()
+    }
+}
+
+/// The steer that turns a kart at `position`, facing by `rotation`, toward
+/// `target` on the ground: full lock from about 15 degrees off, easing to
+/// straight on it.
+pub fn steer_toward(position: [f32; 3], rotation: [f32; 4], target: [f32; 2]) -> f32 {
+    const STEER_GAIN: f32 = 4.0;
+    let (dx, dz) = (target[0] - position[0], target[1] - position[2]);
     let length = (dx * dx + dz * dz).sqrt().max(f32::EPSILON);
-    let [qx, qy, qz, qw] = kart.rotation;
+    let [qx, qy, qz, qw] = rotation;
     let yaw = (2.0 * (qw * qy + qx * qz)).atan2(1.0 - 2.0 * (qy * qy + qz * qz));
     // Positive steer turns the kart right; right of a yaw is (cos, -sin) in x, z.
     let (sin, cos) = yaw.sin_cos();
     let rightward = (dx * cos - dz * sin) / length;
-    KartInput {
-        steer: (rightward * STEER_GAIN).clamp(-1.0, 1.0),
-        throttle: 1.0,
-        ..KartInput::default()
-    }
+    (rightward * STEER_GAIN).clamp(-1.0, 1.0)
 }

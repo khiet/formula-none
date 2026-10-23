@@ -449,12 +449,16 @@ struct Kart {
     /// human drives it.
     bot: Option<bot::Memory>,
     /// The unit direction the handling model sent the kart this tick: its
-    /// facing, turned by the slip angle in a drift. What a wall bump
+    /// facing, turned by the slip angle in a drift. What a wall's hold
     /// measures the surviving speed along.
     travel: Vec3,
     /// Unit normals, pointing at the kart, of the walls it ended the last
     /// tick against. The next tick's handling sends no velocity into them.
     walls: Vec<Vec3>,
+    /// Velocity away from the karts it has touched, metres per second
+    /// along the ground, added to the handling's each tick and decaying
+    /// over the tuned time. Zero while nothing has bumped it lately.
+    bump: Vec3,
     /// Seconds the kart has been outside the world without a break; it
     /// respawns when this reaches the tuned delay.
     out_of_world_s: f32,
@@ -537,6 +541,10 @@ impl Kart {
     }
 }
 
+/// Marks a collider as a kart's, where a track collider carries its
+/// surface's code; no surface code reaches this.
+const KART_COLLIDER: u128 = u128::MAX;
+
 /// The box a kart collides with. Its length runs along -Z, its facing.
 fn kart_collider() -> Collider {
     ColliderBuilder::round_cuboid(
@@ -547,6 +555,7 @@ fn kart_collider() -> Collider {
     )
     .friction(0.0)
     .restitution(0.0)
+    .user_data(KART_COLLIDER)
     .build()
 }
 
@@ -592,6 +601,9 @@ use tuning::{
     HOMING_LOCK_RANGE_M, HOMING_LOOKAHEAD_M, HOMING_RADIUS_M, HOMING_SPEED_FACTOR,
     HOMING_WITHOUT_TARGET_IS_WASTED,
 };
+use tuning::{
+    KART_BUMP_DECAY_S, KART_BUMP_MIN_M_PER_S, KART_BUMP_RESTITUTION, KART_BUMP_SPEED_LOSS,
+};
 
 // The sim builds only the wasted fire for a projectile with no kart ahead
 // (the decision is recorded with the constant); flipping it needs the
@@ -611,6 +623,10 @@ const WALL_PREDICTION_M: f32 =
 /// Stands in for a missing best lap, finish time or grace in the hash; none
 /// of them is ever negative.
 const NO_TIME: f32 = -1.0;
+
+/// A bump below this is spent: dropped to zero rather than decayed on
+/// without end, so a settled kart hashes the same wherever it was bumped.
+const BUMP_SPENT_M_PER_S: f32 = 0.01;
 
 impl State {
     /// A fresh race on `track` with `kart_count` human karts on its spawn
@@ -660,9 +676,10 @@ impl State {
                 let body = RigidBodyBuilder::dynamic()
                     .translation(Vec3::from(slot.position) + Vec3::Y * KART_HALF_HEIGHT_M)
                     .rotation(Vec3::Y * slot.yaw)
-                    // Steering is a yaw we set each tick; the box must never
-                    // tip or roll from a contact.
-                    .enabled_rotations(false, true, false)
+                    // Steering is a yaw we set each tick, the one thing that
+                    // turns a kart: a contact never tips, rolls or yaws it.
+                    // Locked axes still take the velocity we set.
+                    .lock_rotations()
                     // Contacts are predicted this far ahead, so a kart
                     // meets a wall where it stands instead of inside it.
                     .soft_ccd_prediction(WALL_PREDICTION_M)
@@ -684,6 +701,7 @@ impl State {
                     bot: (index >= humans).then_some(bot::Memory::default()),
                     travel: Vec3::NEG_Z,
                     walls: Vec::new(),
+                    bump: Vec3::ZERO,
                     out_of_world_s: 0.0,
                     wrong_way_s: 0.0,
                     speed: 0.0,
@@ -897,6 +915,7 @@ impl State {
             for wall in &kart.walls {
                 hasher.write_f32s(wall.to_array());
             }
+            hasher.write_f32s(kart.bump.to_array());
             hasher.write_f32(kart.out_of_world_s);
             hasher.write_f32(kart.wrong_way_s);
             hasher.write_u32(kart.laps_completed);
@@ -1243,6 +1262,7 @@ pub fn step(mut state: State, inputs: &[KartInput], dt: f32) -> State {
         if kart.spun_out() {
             kart.speed = 0.0;
             kart.boost_left_s = 0.0;
+            kart.bump = Vec3::ZERO;
         }
         let (steer, slip) = match kart.drift {
             Some(drift) => (
@@ -1252,13 +1272,16 @@ pub fn step(mut state: State, inputs: &[KartInput], dt: f32) -> State {
             None => (input.steer.clamp(-1.0, 1.0), 0.0),
         };
         let forward = *body.rotation() * Rotation::from_rotation_y(slip) * Vec3::NEG_Z;
-        // A wall the kart is against takes the velocity into it, and the
-        // speed with it, before the solver sees either; otherwise the kart
-        // would press into the wall a little every tick.
-        let mut velocity = forward * kart.speed;
+        kart.bump = decayed_bump(kart.bump, dt);
+        // A wall the kart is against takes the velocity into it, speed and
+        // bump alike, before the solver sees either; otherwise the kart
+        // would press into the wall a little every tick. The bump stays
+        // apart from the speed, so it is never counted against it twice.
+        let mut velocity = forward * kart.speed + kart.bump;
         if !kart.walls.is_empty() {
             velocity = stopped_by_walls(velocity, &kart.walls);
-            kart.speed = forward.dot(velocity);
+            kart.bump = stopped_by_walls(kart.bump, &kart.walls);
+            kart.speed = forward.dot(velocity - kart.bump);
         }
         body.set_linvel(velocity + Vec3::Y * vertical, true);
         body.set_angvel(Vec3::Y * yaw_rate(kart.speed, steer), true);
@@ -1269,10 +1292,35 @@ pub fn step(mut state: State, inputs: &[KartInput], dt: f32) -> State {
         .iter()
         .map(|kart| state.physics.bodies[kart.body].translation().to_array())
         .collect();
+    // The velocities the handling sent the karts off with, and the bumps
+    // in them, before the solver's contacts bent them: a touch between
+    // karts is judged by the velocities, and a wall's hold reads the speed
+    // with the bump taken off.
+    let sent_velocities: Vec<Vec3> = state
+        .karts
+        .iter()
+        .map(|kart| state.physics.bodies[kart.body].linvel())
+        .collect();
+    let sent_bumps: Vec<Vec3> = state.karts.iter().map(|kart| kart.bump).collect();
     state.physics.step(dt);
+    for index in 0..state.karts.len() {
+        bump_off_karts(
+            &mut state.karts,
+            index,
+            &state.physics,
+            &sent_velocities,
+            dt,
+        );
+    }
     let mut finished_this_tick = Vec::new();
     for (index, (kart, mut before)) in state.karts.iter_mut().zip(before).enumerate() {
-        bump_off_walls(kart, &mut state.physics, dt);
+        held_by_walls(
+            kart,
+            &mut state.physics,
+            sent_velocities[index],
+            sent_bumps[index],
+            dt,
+        );
         let mut after = state.physics.bodies[kart.body].translation().to_array();
         if state.physics.surface_at(after) == Surface::OutOfWorld {
             kart.out_of_world_s += dt;
@@ -1506,36 +1554,34 @@ fn stopped_by_walls(mut velocity: Vec3, walls: &[Vec3]) -> Vec3 {
     velocity
 }
 
-/// The wall stops the kart with a bump and no bounce. Every wall the kart
-/// ends the tick against is remembered for the next tick's handling, and a
-/// wall met this tick takes the velocity into it there and then: the
+/// The wall holds the kart, with no bounce and no bump. Every wall the
+/// kart ends the tick against is remembered for the next tick's handling,
+/// and a wall met this tick takes the velocity into it there and then: the
 /// velocity along the wall is kept and the kart's speed becomes what is
-/// left along its travel. A kart facing straight at a wall stops dead; one
-/// scraping along at an angle loses the share of its speed that pointed
-/// into the wall each tick, so it slows until it steers away.
-fn bump_off_walls(kart: &mut Kart, physics: &mut Physics, dt: f32) {
+/// left along its travel once the bump that was in the velocity, the
+/// `sent_bump`, is taken off. A kart facing straight at a wall stops dead;
+/// one scraping along at an angle loses the share of its speed that
+/// pointed into the wall each tick, so it slows until it steers away.
+fn held_by_walls(
+    kart: &mut Kart,
+    physics: &mut Physics,
+    sent_velocity: Vec3,
+    sent_bump: Vec3,
+    dt: f32,
+) {
     let velocity = physics.bodies[kart.body].linvel();
     kart.walls.clear();
     for pair in physics.narrow_phase.contact_pairs_with(kart.collider) {
-        let other = if pair.collider1 == kart.collider {
-            pair.collider2
-        } else {
-            pair.collider1
-        };
+        let other = other_collider(pair, kart.collider);
         if physics.colliders[other].user_data != u128::from(Surface::Wall.code()) {
             continue;
         }
         for manifold in pair.manifolds() {
-            // Rapier's normal points from the first collider to the second;
-            // the rule wants it pointing out of the wall, toward the kart.
-            let normal = if pair.collider1 == kart.collider {
-                -manifold.data.normal
-            } else {
-                manifold.data.normal
-            };
-            // Contact distances are from the start of the tick; the kart's
-            // velocity says where it ended up.
-            let closing = velocity.dot(normal) * dt;
+            let normal = normal_toward(pair, kart.collider, manifold);
+            // Contact distances are from the start of the tick; the
+            // velocity the kart set off with says whether it met the wall
+            // this tick, before the solver held it short.
+            let closing = sent_velocity.dot(normal) * dt;
             if manifold
                 .points
                 .iter()
@@ -1545,11 +1591,135 @@ fn bump_off_walls(kart: &mut Kart, physics: &mut Physics, dt: f32) {
             }
         }
     }
+    if kart.walls.is_empty() {
+        return;
+    }
+    // The solver may already have taken the velocity into the wall; the
+    // speed is what is left along the travel either way. A touch with a
+    // kart this tick may have cost the speed more already: the lesser
+    // stands, since neither ever adds to it.
     let stopped = stopped_by_walls(velocity, &kart.walls);
     if stopped != velocity {
         physics.bodies[kart.body].set_linvel(stopped, true);
-        kart.speed = kart.travel.dot(stopped);
     }
+    let held = kart
+        .travel
+        .dot(stopped - stopped_by_walls(sent_bump, &kart.walls));
+    if held.abs() < kart.speed.abs() {
+        kart.speed = held;
+    }
+}
+
+/// The collider `collider` is in contact with through `pair`.
+fn other_collider(pair: &ContactPair, collider: ColliderHandle) -> ColliderHandle {
+    if pair.collider1 == collider {
+        pair.collider2
+    } else {
+        pair.collider1
+    }
+}
+
+/// `manifold`'s contact normal pointing out of the other collider at
+/// `collider`. Rapier's points from the pair's first collider to its
+/// second, whichever `collider` is.
+fn normal_toward(pair: &ContactPair, collider: ColliderHandle, manifold: &ContactManifold) -> Vec3 {
+    if pair.collider1 == collider {
+        -manifold.data.normal
+    } else {
+        manifold.data.normal
+    }
+}
+
+/// The bump `dt` seconds on: a third of itself every `KART_BUMP_DECAY_S`,
+/// and gone once it is too small to move the kart.
+fn decayed_bump(bump: Vec3, dt: f32) -> Vec3 {
+    let decayed = bump * libm::expf(-dt / KART_BUMP_DECAY_S);
+    if decayed.length_squared() < BUMP_SPENT_M_PER_S * BUMP_SPENT_M_PER_S {
+        Vec3::ZERO
+    } else {
+        decayed
+    }
+}
+
+/// Karts bounce off each other: the kart in `index` that ended the tick
+/// touching another takes a bump away from it, the least one plus the
+/// tuned share of half the speed the two closed at, judged by the
+/// velocities the handling sent them off with; and when it was driving into the
+/// other it loses the tuned share of that closing speed, scaled by how
+/// square it hit, the way it was going, forward or in reverse. A bump
+/// already under way is raised to the new one, never added to, so a touch
+/// that lasts holds the karts apart without flinging them. A spun-out
+/// kart takes no bump: it stands, and the other kart bounces off it.
+/// A kart that is not one of `karts`, a kinematic stand-in for another
+/// player's kart in a prediction, closes at the velocity the solver moved
+/// it with. Each kart of a pair runs this for itself.
+fn bump_off_karts(
+    karts: &mut [Kart],
+    index: usize,
+    physics: &Physics,
+    sent_velocities: &[Vec3],
+    dt: f32,
+) {
+    // A spun-out kart stands where it is, whatever runs into it.
+    if karts[index].spun_out() {
+        return;
+    }
+    let collider = karts[index].collider;
+    let mut bump = karts[index].bump;
+    let mut speed = karts[index].speed;
+    // The way the kart is going: its travel, or back along it in reverse.
+    let heading = if speed < 0.0 {
+        -karts[index].travel
+    } else {
+        karts[index].travel
+    };
+    for pair in physics.narrow_phase.contact_pairs_with(collider) {
+        let other = other_collider(pair, collider);
+        if physics.colliders[other].user_data != KART_COLLIDER {
+            continue;
+        }
+        let other_body = physics.colliders[other]
+            .parent()
+            .expect("a kart collider has a body");
+        let other_sent = karts
+            .iter()
+            .position(|kart| kart.body == other_body)
+            .map_or(physics.bodies[other_body].linvel(), |slot| {
+                sent_velocities[slot]
+            });
+        for manifold in pair.manifolds() {
+            let normal = normal_toward(pair, collider, manifold);
+            let normal = Vec3::new(normal.x, 0.0, normal.z).normalize_or_zero();
+            if normal == Vec3::ZERO {
+                continue;
+            }
+            // Contact distances are from the start of the tick; the
+            // velocities the karts set off with say whether they met this
+            // tick, before the solver held them apart.
+            let closing_speed = (other_sent - sent_velocities[index]).dot(normal).max(0.0);
+            if !manifold
+                .points
+                .iter()
+                .any(|contact| contact.dist - closing_speed * dt <= WALL_TOUCH_M)
+            {
+                continue;
+            }
+            let wanted = KART_BUMP_MIN_M_PER_S + KART_BUMP_RESTITUTION * closing_speed / 2.0;
+            let along = bump.dot(normal);
+            if wanted > along {
+                bump += normal * (wanted - along);
+            }
+            let square = (-heading.dot(normal)).max(0.0);
+            let loss = KART_BUMP_SPEED_LOSS * square * closing_speed;
+            speed = if speed < 0.0 {
+                (speed + loss).min(0.0)
+            } else {
+                (speed - loss).max(0.0)
+            };
+        }
+    }
+    karts[index].bump = bump;
+    karts[index].speed = speed;
 }
 
 /// Put the kart back on the track at its last checkpoint, at rest and
@@ -1576,6 +1746,7 @@ fn respawn(kart: &mut Kart, track: &Track, physics: &mut Physics) -> [f32; 3] {
     kart.boost_left_s = 0.0;
     kart.travel = facing * Vec3::NEG_Z;
     kart.walls.clear();
+    kart.bump = Vec3::ZERO;
     kart.out_of_world_s = 0.0;
     kart.wrong_way_s = 0.0;
     position.to_array()
