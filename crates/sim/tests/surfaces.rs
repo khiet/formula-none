@@ -5,7 +5,7 @@
 //! beyond, grass to x = 70 and nothing past it (layouts/oval.py).
 
 use sim::tuning::{KART_HALF_WIDTH_M, OFF_TRACK_SPEED_FACTOR, TICKS_PER_SECOND, TOP_SPEED_M_PER_S};
-use sim::{step, KartInput, Phase, State, Surface, Track};
+use sim::{step, KartInput, KartTransform, Phase, State, Surface, Track};
 
 const OVAL: &str = include_str!("../../../assets/tracks/oval/oval.track.json");
 const DT: f32 = 1.0 / TICKS_PER_SECOND as f32;
@@ -222,17 +222,14 @@ fn dot(a: [f32; 3], b: [f32; 3]) -> f32 {
     a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
 }
 
-/// Positions of slot 0 after each of `seconds` of full throttle, from the
-/// one before the first tick, with the speed readout and the yaw after
-/// each tick.
-fn drive_straight(track: Track, seconds: f32) -> Vec<([f32; 3], f32, f32)> {
+/// Slot 0's transform after each of `seconds` of full throttle, from the
+/// one before the first tick.
+fn drive_straight(track: Track, seconds: f32) -> Vec<KartTransform> {
     let mut state = started(State::new(SEED, 1, track));
-    let first = state.kart_transforms()[0];
-    let mut trace = vec![(first.position, 0.0, yaw(first.rotation))];
+    let mut trace = vec![state.kart_transforms()[0]];
     for _ in 0..ticks(seconds) {
         state = step(state, &[throttle()], DT);
-        let kart = state.kart_transforms()[0];
-        trace.push((kart.position, kart.speed, yaw(kart.rotation)));
+        trace.push(state.kart_transforms()[0]);
     }
     trace
 }
@@ -254,11 +251,12 @@ fn a_wall_met_at_an_angle_stops_the_motion_into_it_and_keeps_the_motion_along_it
     let full_tick = TOP_SPEED_M_PER_S * root_half * DT;
     let impact = (1..trace.len())
         .find(|&i| {
-            let (before, after) = (trace[i - 1].0, trace[i].0);
-            trace[i - 1].1 == TOP_SPEED_M_PER_S && toward(before) - toward(after) < full_tick - 0.02
+            let (before, after) = (trace[i - 1].position, trace[i].position);
+            trace[i - 1].speed == TOP_SPEED_M_PER_S
+                && toward(before) - toward(after) < full_tick - 0.02
         })
         .expect("the kart reaches the wall at top speed");
-    let (before, after) = (trace[impact - 1].0, trace[impact].0);
+    let (before, after) = (trace[impact - 1].position, trace[impact].position);
     assert!(
         beside(after) - beside(before) > full_tick - 0.02,
         "the motion along the wall is kept through the impact tick: {} of {full_tick} m",
@@ -274,24 +272,27 @@ fn a_wall_met_at_an_angle_stops_the_motion_into_it_and_keeps_the_motion_along_it
     // into it, or bounced back out.
     let flat_against = 0.25 + KART_HALF_WIDTH_M;
     for pair in trace[impact..impact + ticks(1.0)].windows(2) {
-        let [(previous, _, _), (position, speed, yaw)] = pair else {
+        let [previous, kart] = pair else {
             unreachable!()
         };
+        let (position, previous) = (kart.position, previous.position);
+        let turned = yaw(kart.rotation);
         assert!(
-            yaw.abs() < 1e-3,
-            "turned by the wall: {yaw} rad from the column's heading"
+            turned.abs() < 1e-3,
+            "turned by the wall: {turned} rad from the column's heading"
         );
         assert!(
-            toward(*position) > flat_against - 0.02,
+            toward(position) > flat_against - 0.02,
             "pushed into the wall: {position:?}"
         );
         assert!(
-            toward(*position) - toward(*previous) < 0.02,
+            toward(position) - toward(previous) < 0.02,
             "bounced off the wall: {previous:?} then {position:?}"
         );
         assert!(
-            *speed < TOP_SPEED_M_PER_S * 0.75,
-            "the wall cost speed: {speed}"
+            kart.speed < TOP_SPEED_M_PER_S * 0.75,
+            "the wall cost speed: {}",
+            kart.speed
         );
         assert!(
             (position[1] - 0.3).abs() < 0.1,
@@ -299,9 +300,9 @@ fn a_wall_met_at_an_angle_stops_the_motion_into_it_and_keeps_the_motion_along_it
         );
     }
     assert!(
-        trace[impact + ticks(0.5)].1 < 1.0,
+        trace[impact + ticks(0.5)].speed < 1.0,
         "a kart still steering into the wall is stopped by it: {} m/s",
-        trace[impact + ticks(0.5)].1
+        trace[impact + ticks(0.5)].speed
     );
 }
 
@@ -313,19 +314,20 @@ fn a_wall_met_head_on_stops_the_kart_dead_without_a_bounce() {
         4.0,
     );
     let impact = (1..trace.len())
-        .find(|&i| trace[i - 1].1 == TOP_SPEED_M_PER_S && trace[i].1 < TOP_SPEED_M_PER_S)
+        .find(|&i| trace[i - 1].speed == TOP_SPEED_M_PER_S && trace[i].speed < TOP_SPEED_M_PER_S)
         .expect("the kart reaches the wall at top speed");
-    let stopped_z = trace[impact].0[2];
+    let stopped_z = trace[impact].position[2];
     assert!(
         stopped_z > centre[2] + 0.25 && stopped_z < centre[2] + 0.25 + 1.0,
         "nose at the wall's face: centre at z {stopped_z}"
     );
     assert!(
-        trace[impact + 1].1 < 0.5,
+        trace[impact + 1].speed < 0.5,
         "stopped dead: {} m/s",
-        trace[impact + 1].1
+        trace[impact + 1].speed
     );
-    for (position, speed, _) in &trace[impact + 1..impact + ticks(1.0)] {
+    for kart in &trace[impact + 1..impact + ticks(1.0)] {
+        let (position, speed) = (kart.position, kart.speed);
         assert!(
             (position[2] - stopped_z).abs() < 0.03,
             "moved after the stop: {position:?}"
@@ -335,7 +337,7 @@ fn a_wall_met_head_on_stops_the_kart_dead_without_a_bounce() {
             "slid sideways: {position:?}"
         );
         assert!(
-            *speed < 0.5,
+            speed < 0.5,
             "a kart held by a wall reads as stopped: {speed}"
         );
     }

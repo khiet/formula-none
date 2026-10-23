@@ -1572,22 +1572,12 @@ fn held_by_walls(
     let velocity = physics.bodies[kart.body].linvel();
     kart.walls.clear();
     for pair in physics.narrow_phase.contact_pairs_with(kart.collider) {
-        let other = if pair.collider1 == kart.collider {
-            pair.collider2
-        } else {
-            pair.collider1
-        };
+        let other = other_collider(pair, kart.collider);
         if physics.colliders[other].user_data != u128::from(Surface::Wall.code()) {
             continue;
         }
         for manifold in pair.manifolds() {
-            // Rapier's normal points from the first collider to the second;
-            // the rule wants it pointing out of the wall, toward the kart.
-            let normal = if pair.collider1 == kart.collider {
-                -manifold.data.normal
-            } else {
-                manifold.data.normal
-            };
+            let normal = normal_toward(pair, kart.collider, manifold);
             // Contact distances are from the start of the tick; the
             // velocity the kart set off with says whether it met the wall
             // this tick, before the solver held it short.
@@ -1617,6 +1607,26 @@ fn held_by_walls(
         .dot(stopped - stopped_by_walls(sent_bump, &kart.walls));
     if held.abs() < kart.speed.abs() {
         kart.speed = held;
+    }
+}
+
+/// The collider `collider` is in contact with through `pair`.
+fn other_collider(pair: &ContactPair, collider: ColliderHandle) -> ColliderHandle {
+    if pair.collider1 == collider {
+        pair.collider2
+    } else {
+        pair.collider1
+    }
+}
+
+/// `manifold`'s contact normal pointing out of the other collider at
+/// `collider`. Rapier's points from the pair's first collider to its
+/// second, whichever `collider` is.
+fn normal_toward(pair: &ContactPair, collider: ColliderHandle, manifold: &ContactManifold) -> Vec3 {
+    if pair.collider1 == collider {
+        -manifold.data.normal
+    } else {
+        manifold.data.normal
     }
 }
 
@@ -1664,11 +1674,7 @@ fn bump_off_karts(
         karts[index].travel
     };
     for pair in physics.narrow_phase.contact_pairs_with(collider) {
-        let other = if pair.collider1 == collider {
-            pair.collider2
-        } else {
-            pair.collider1
-        };
+        let other = other_collider(pair, collider);
         if physics.colliders[other].user_data != KART_COLLIDER {
             continue;
         }
@@ -1682,13 +1688,7 @@ fn bump_off_karts(
                 sent_velocities[slot]
             });
         for manifold in pair.manifolds() {
-            // Rapier's normal points from the first collider to the second;
-            // the rule wants it pointing out of the other kart, at this one.
-            let normal = if pair.collider1 == collider {
-                -manifold.data.normal
-            } else {
-                manifold.data.normal
-            };
+            let normal = normal_toward(pair, collider, manifold);
             let normal = Vec3::new(normal.x, 0.0, normal.z).normalize_or_zero();
             if normal == Vec3::ZERO {
                 continue;

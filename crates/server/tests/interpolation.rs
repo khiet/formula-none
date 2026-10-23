@@ -11,7 +11,7 @@ mod common;
 use std::collections::{BTreeMap, BTreeSet};
 use std::time::Duration;
 
-use common::{projectiles, race_together, snapshot_kart, wire};
+use common::{projectiles, race_together, snapshot_kart, steer_toward, wire};
 use protocol::{EventKind, ServerMessage};
 use server::fake_transport::{Client, Conditions, Harness};
 use sim::tuning::{
@@ -242,14 +242,9 @@ async fn at_a_100_ms_round_trip_and_2_percent_loss_the_other_karts_are_drawn_whe
 /// Full throttle, steering the kart round to face +X: off the oval's
 /// front straight, across the run-off and over the edge of the world.
 fn toward_plus_x(kart: &KartTransform) -> KartInput {
-    const STEER_GAIN: f32 = 4.0;
-    let [qx, qy, qz, qw] = kart.rotation;
-    let yaw = (2.0 * (qw * qy + qx * qz)).atan2(1.0 - 2.0 * (qy * qy + qz * qz));
-    // Positive steer turns the kart right; right of a yaw is (cos, -sin)
-    // in x, z, so +X is this far to the right of the nose.
-    let rightward = yaw.cos();
+    let far_right = [kart.position[0] + 1000.0, kart.position[2]];
     KartInput {
-        steer: (rightward * STEER_GAIN).clamp(-1.0, 1.0),
+        steer: steer_toward(kart.position, kart.rotation, far_right),
         throttle: 1.0,
         ..KartInput::default()
     }
