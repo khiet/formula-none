@@ -26,4 +26,10 @@ describe("asset licences", () => {
     expect(licences).toContain("`karts/kart.glb`");
     expect(licences).toContain("`tracks/*/*.glb`");
   });
+
+  // ADR 0008 asks for a CC0 music loop, so its licence row is checked on its own.
+  it("record the synthesised sounds and the music loop as CC0", () => {
+    expect(licences).toContain("`audio/*.wav`");
+    expect(existsSync(join(ROOT, "assets/audio/music-loop.wav"))).toBe(true);
+  });
 });

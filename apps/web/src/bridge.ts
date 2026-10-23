@@ -77,9 +77,12 @@ export interface Drift {
  * What the View and the Instrument panel need per kart: position in metres,
  * unit quaternion [x, y, z, w], speed in metres per second along the kart's
  * facing (negative backing up), the surface under the kart, the drift
- * under way, if any, the item in the kart's slot, if any, and the seconds
- * of spin-out left while the kart is spun out. Y up; identity rotation
- * faces -Z.
+ * under way, if any, the item in the kart's slot, if any, the seconds of
+ * spin-out left while the kart is spun out, whether the kart is in a hop's
+ * airtime and the seconds of boost left while a boost holds it over top
+ * speed (the last two only for a kart this client steps: the own kart of a
+ * room's race and every kart of a local race; an interpolated kart reports
+ * neither). Y up; identity rotation faces -Z.
  */
 export interface KartTransform {
   readonly position: readonly [number, number, number];
@@ -89,6 +92,8 @@ export interface KartTransform {
   readonly drift: Drift | null;
   readonly heldItem: Item | null;
   readonly spinOutSeconds: number | null;
+  readonly airborne: boolean;
+  readonly boostSeconds: number | null;
 }
 
 /** Where an item box stands on the track: metres, and a yaw about +Y, zero facing -Z. */
@@ -337,7 +342,7 @@ export interface Bridge extends MessageCodec {
 // Race::standings and Race::phase; a Prediction's transform and phase are laid
 // out as a Race's.
 const FLOATS_PER_INPUT = 6;
-const FLOATS_PER_TRANSFORM = 14;
+const FLOATS_PER_TRANSFORM = 16;
 const FLOATS_PER_ITEM_BOX = 4;
 const FLOATS_PER_HAZARD = 5;
 const FLOATS_PER_PROJECTILE = 5;
@@ -621,7 +626,7 @@ function recordsFrom<T>(
   return records;
 }
 
-/** The kart transform whose fourteen floats start at `at`; `slot` names the kart in errors. */
+/** The kart transform whose sixteen floats start at `at`; `slot` names the kart in errors. */
 function transformAt(buffer: Float32Array, at: number, slot: number): KartTransform {
   const read = (offset: number): number => buffer[at + offset] as number;
   const surface = SURFACES[read(8)];
@@ -636,6 +641,8 @@ function transformAt(buffer: Float32Array, at: number, slot: number): KartTransf
     drift: drift(read(9), read(10), read(11), slot),
     heldItem: heldItem(read(12), slot),
     spinOutSeconds: read(13) > 0 ? read(13) : null,
+    airborne: read(14) !== 0,
+    boostSeconds: read(15) > 0 ? read(15) : null,
   };
 }
 

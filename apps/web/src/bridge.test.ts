@@ -193,11 +193,16 @@ describe("bridge wrapper", () => {
       race.step([THROTTLE], DT);
     }
     expect(race.kartTransforms()[0]?.drift).toBeNull();
+    expect(race.kartTransforms()[0]?.airborne).toBe(false);
+    // The hop's tell: in the air from the press through the 0.3 s airtime.
+    race.step([hopRight], DT);
+    expect(race.kartTransforms()[0]?.airborne).toBe(true);
     // 1.2 s with the button down: past the 0.3 s airtime and the 0.8 s blue
     // charge, short of orange at 1.6 s.
-    for (let tick = 0; tick < 72; tick++) {
+    for (let tick = 0; tick < 71; tick++) {
       race.step([hopRight], DT);
     }
+    expect(race.kartTransforms()[0]?.airborne).toBe(false);
     const drift = race.kartTransforms()[0]?.drift;
     expect(drift?.direction).toBe("right");
     expect(drift?.miniTurbo).toBe("blue");
@@ -207,6 +212,9 @@ describe("bridge wrapper", () => {
     race.step([THROTTLE], DT);
     expect(race.kartTransforms()[0]?.drift).toBeNull();
     expect(race.kartTransforms()[0]?.speed).toBeGreaterThan(30);
+    // The release's tell: the blue boost's 0.6 s, less the tick just stepped,
+    // whatever the oval's boost pad had left.
+    expect(race.kartTransforms()[0]?.boostSeconds).toBeCloseTo(0.6 - DT, 3);
   });
 
   it("refuses an input list that does not match the kart count", async () => {

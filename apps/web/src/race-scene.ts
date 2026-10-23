@@ -1,3 +1,5 @@
+import type { RaceAudio } from "./audio";
+import { soundReading } from "./audio-cues";
 import type {
   Bridge,
   Hazard,
@@ -135,9 +137,10 @@ export function localRaceRun(
  * The Race Scene: the run ticked at the tuned rate from the keyboard and
  * the gamepad for the local kart, its one View drawn every frame from the
  * chase camera with every other kart named over it, by `nickname` for the
- * humans the room named, and the Instrument panel over it. The run carries
- * the race from its countdown to its finish; the Scene keeps drawing the
- * finished race until it is disposed.
+ * humans the room named, and the Instrument panel over it. `audio` sounds
+ * the race from the own kart's readings and is stopped with the Scene. The
+ * run carries the race from its countdown to its finish; the Scene keeps
+ * drawing the finished race until it is disposed.
  */
 export async function createRaceScene(
   container: HTMLElement,
@@ -145,6 +148,7 @@ export async function createRaceScene(
   track: TrackFiles,
   run: RaceRun,
   nickname: (kart: number) => string | undefined,
+  audio: RaceAudio,
 ): Promise<RaceScene> {
   const tickSeconds = 1 / bridge.ticksPerSecond;
   // Every listener the Scene adds is dropped together on dispose.
@@ -193,9 +197,12 @@ export async function createRaceScene(
         run.projectiles(),
         frameSeconds,
       );
-      panel.update(local, standing, run.phase(), run.itemSlot());
+      const slot = run.itemSlot();
+      panel.update(local, standing, run.phase(), slot);
+      audio.update(soundReading(local, standing, slot));
     }
   };
+  audio.start();
   present(0);
 
   let settle: (results: RaceResults) => void = () => {};
@@ -232,6 +239,7 @@ export async function createRaceScene(
     dispose() {
       cancelAnimationFrame(frameHandle);
       listeners.abort();
+      audio.stop();
       run.dispose?.();
       view.dispose();
       panel.dispose();

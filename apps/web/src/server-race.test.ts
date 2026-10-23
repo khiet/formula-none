@@ -46,6 +46,8 @@ const GRID_TRANSFORM: KartTransform = {
   drift: null,
   heldItem: null,
   spinOutSeconds: null,
+  airborne: false,
+  boostSeconds: null,
 };
 
 const PREDICTED: KartTransform = {
@@ -56,6 +58,8 @@ const PREDICTED: KartTransform = {
   drift: null,
   heldItem: "hazard",
   spinOutSeconds: null,
+  airborne: false,
+  boostSeconds: null,
 };
 
 interface FakePrediction extends Prediction {
@@ -267,6 +271,8 @@ describe("createServerRace", () => {
       drift: { direction: "left", chargeSeconds: 1, miniTurbo: "blue" },
       heldItem: null,
       spinOutSeconds: null,
+      airborne: false,
+      boostSeconds: null,
     };
     prediction().interpolated = Array<KartTransform>(KARTS).fill(interpolated);
     const [first, own, third] = run.kartTransforms();

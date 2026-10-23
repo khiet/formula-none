@@ -1,3 +1,4 @@
+import type { AudioSettings } from "./audio-settings";
 import type { NicknameChars } from "./bridge";
 import { button } from "./controls";
 import { validateNickname } from "./nickname";
@@ -16,6 +17,8 @@ export interface TitleHandlers {
   join(nickname: string, code: string): void;
   /** Start a solo race on the selected track. */
   race(): void;
+  /** The player changed an audio toggle; the whole set as it now stands. */
+  audio(settings: AudioSettings): void;
 }
 
 export interface TitleOptions {
@@ -25,16 +28,19 @@ export interface TitleOptions {
   readonly code: string;
   /** A message to show at once, or empty. */
   readonly message: string;
+  /** The audio toggles as saved. */
+  readonly audio: AudioSettings;
   readonly nicknameChars: NicknameChars;
   readonly roomCodeLength: number;
 }
 
 /**
  * The Title Scene: the game's name, the nickname typed once, and the three
- * ways in: create a room, join one by code, or race alone. The nickname and
- * the code are checked here, so the handlers only ever see valid ones; a
- * refusal from the server comes back through `message`. Every control is
- * addressable by its name.
+ * ways in: create a room, join one by code, or race alone, with the three
+ * audio toggles (ADR 0008) under them. The nickname and the code are
+ * checked here, so the handlers only ever see valid ones; a refusal from
+ * the server comes back through `message`. Every control is addressable by
+ * its name.
  */
 export function createTitleScene(
   container: HTMLElement,
@@ -107,12 +113,35 @@ export function createTitleScene(
     element.append(...children);
     return element;
   };
+
+  let audio = options.audio;
+  const toggle = (name: keyof AudioSettings, text: string): HTMLLabelElement => {
+    const box = document.createElement("input");
+    box.type = "checkbox";
+    box.name = name;
+    box.checked = audio[name];
+    box.addEventListener("change", () => {
+      audio = { ...audio, [name]: box.checked };
+      handlers.audio(audio);
+    });
+    const label = document.createElement("label");
+    label.append(box, text);
+    return label;
+  };
+  const toggles = row(
+    toggle("sfx", "Sound effects"),
+    toggle("engine", "Engine"),
+    toggle("music", "Music"),
+  );
+  toggles.classList.add("audio-toggles");
+
   scene.append(
     heading,
     row(nickname),
     row(button("create", "Create room", create)),
     row(code, button("join", "Join room", join)),
     row(button("race", "Solo race", handlers.race)),
+    toggles,
     message,
   );
   container.append(scene);
