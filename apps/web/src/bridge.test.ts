@@ -217,6 +217,32 @@ describe("bridge wrapper", () => {
     expect(race.kartTransforms()[0]?.boostSeconds).toBeCloseTo(0.6 - DT, 3);
   });
 
+  it("reports a rocket start's charge through the countdown, and its stall or boost from Go", async () => {
+    const bridge = await loadBridge(wasm);
+    // The throttle held from the top of the countdown: the tiers come as
+    // the hold lengthens, and the hold is too long by Go.
+    const stalling = bridge.createRace(7n, 1, 0, OVAL);
+    const tiers: string[] = [];
+    while (stalling.phase().kind === "countdown") {
+      stalling.step([THROTTLE], DT);
+      const { start } = stalling.kartTransforms()[0] ?? { start: "clean" };
+      if (tiers.at(-1) !== start) tiers.push(start);
+    }
+    expect(tiers).toEqual(["clean", "weakBoost", "fullBoost", "stall"]);
+    stalling.step([THROTTLE], DT);
+    expect(stalling.kartTransforms()[0]?.stallSeconds).toBeCloseTo(2 - DT, 4);
+    expect(stalling.kartTransforms()[0]?.speed).toBe(0);
+
+    // Held from the first half of the 2: the full boost off the line.
+    const boosting = bridge.createRace(7n, 1, 0, OVAL);
+    for (let tick = 0; tick < 75; tick++) boosting.step([IDLE_INPUT], DT);
+    while (boosting.phase().kind === "countdown") boosting.step([THROTTLE], DT);
+    expect(boosting.kartTransforms()[0]?.start).toBe("fullBoost");
+    boosting.step([THROTTLE], DT);
+    expect(boosting.kartTransforms()[0]?.stallSeconds).toBeNull();
+    expect(boosting.kartTransforms()[0]?.boostSeconds).toBeCloseTo(1.5 - DT, 4);
+  });
+
   it("refuses an input list that does not match the kart count", async () => {
     const bridge = await loadBridge(wasm);
     const race = bridge.createRace(7n, 2, 0, OVAL);
@@ -227,7 +253,8 @@ describe("bridge wrapper", () => {
   it("fills the grid behind the human with bots that drive themselves", async () => {
     const bridge = await loadBridge(wasm);
     expect(bridge.kartsPerRace).toBe(8);
-    const race = started(bridge.createRace(7n, 1, bridge.kartsPerRace - 1, OVAL), 1);
+    // A seed that rolls no bot the start boost, so none shoves the idle human.
+    const race = started(bridge.createRace(181n, 1, bridge.kartsPerRace - 1, OVAL), 1);
     expect(race.kartTransforms()).toHaveLength(8);
     expect(race.standings()).toHaveLength(8);
     // Only the human's input is given; eight would be a caller error.
@@ -350,6 +377,8 @@ describe("prediction", () => {
       wrongWay: false,
       heldItem: null,
       spinOutS: null,
+      start: "clean",
+      stallS: null,
     };
     const snapshot: Snapshot = {
       tick: 234,
@@ -393,6 +422,8 @@ describe("prediction", () => {
       wrongWay: false,
       heldItem: "homing",
       spinOutS: null,
+      start: "clean",
+      stallS: null,
     };
     prediction.reconcile({
       tick: 10,
@@ -428,6 +459,8 @@ describe("prediction", () => {
       wrongWay: false,
       heldItem: null,
       spinOutS: 0.5,
+      start: "clean",
+      stallS: null,
     };
     prediction.reconcile({
       tick: 234,
@@ -441,6 +474,49 @@ describe("prediction", () => {
     // the spin-out have run by the predicted kart's tick.
     expect(prediction.kartTransform().spinOutSeconds).toBeCloseTo(0.5 - 10 * DT, 4);
     expect(prediction.interpolatedKartTransforms()[0]?.spinOutSeconds).toBe(0.5);
+  });
+
+  it("takes the rocket start verdict and the stall a snapshot says, and draws another kart's from the snapshots", async () => {
+    const bridge = await loadBridge(wasm);
+    const prediction = bridge.createPrediction(7n, 0, OVAL);
+    // Idle on the grid through the countdown and a second of the race: a
+    // clean start predicted, which the server decided a stall.
+    for (let sequence = 1; sequence <= 240; sequence++) {
+      prediction.tick(wire(IDLE_INPUT, sequence));
+    }
+    expect(prediction.kartTransform()).toMatchObject({ start: "clean", stallSeconds: null });
+    const [x, y, z] = prediction.kartTransform().position;
+    const kart = (position: [number, number, number], stallS: number): KartSnapshot => ({
+      position,
+      rotation: [0, 0, 0, 1],
+      velocity: [0, 0, 0],
+      drift: null,
+      racePosition: 1,
+      lap: 1,
+      checkpoint: 0,
+      splineProgress: 0,
+      wrongWay: false,
+      heldItem: null,
+      spinOutS: null,
+      start: "stall",
+      stallS,
+    });
+    prediction.reconcile({
+      tick: 234,
+      acknowledged: [230, 0],
+      karts: [kart([x, y, z], 1.0), kart([32, 0.3, 6], 0.5)],
+      events: [],
+      hazards: [],
+      projectiles: [],
+    });
+    // Input 230 met tick 234, so input 240 meets tick 244: ten ticks of
+    // the stall have run by the predicted kart's tick.
+    expect(prediction.kartTransform().start).toBe("stall");
+    expect(prediction.kartTransform().stallSeconds).toBeCloseTo(1.0 - 10 * DT, 4);
+    expect(prediction.interpolatedKartTransforms()[1]).toMatchObject({
+      start: "stall",
+      stallSeconds: 0.5,
+    });
   });
 });
 
@@ -507,6 +583,8 @@ describe("items", () => {
           wrongWay: false,
           heldItem: null,
           spinOutS: null,
+          start: "clean",
+          stallS: null,
         },
       ],
       events: [],

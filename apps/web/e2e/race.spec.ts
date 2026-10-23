@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { startRace } from "./scenes";
+import { enterRace, startRace } from "./scenes";
 
 // The whole chain in a real browser, on each track: glTF and sidecar load,
 // a key, keyboard mapping, wasm sim on the track's colliders with seven
@@ -37,23 +37,36 @@ for (const [name, url, throttleKey] of [
   });
 }
 
-test("backing up the Brands Patch grid for two seconds shows the wrong-way warning until the kart drives on", async ({
+test("backing up for two seconds shows the wrong-way warning until the kart drives on", async ({
   page,
 }) => {
   // The warning needs two seconds of sim time and clearing most of another.
   // A CI runner steps the sim far slower than real time, so the waits are
   // sized in wall time with room to spare.
-  await startRace(page, "/");
+  await enterRace(page, "/");
+  const countdown = page.locator('[data-instrument="countdown"]');
   const speed = page.locator('[data-instrument="speed"]');
+  const surface = page.locator('[data-instrument="surface"]');
   const wrongWay = page.locator('[data-instrument="wrong-way"]');
-  await expect(speed).toHaveText("0.0 m/s");
+  // A kart idle on the grid is rammed by the bots rocket-starting behind
+  // it, so this one rocket-starts with them, the throttle held from the 2
+  // through Go, and drives straight on until the first corner takes it off
+  // the asphalt or into a wall, clear of the bots' line.
+  await expect(countdown).toHaveText("2", { timeout: 60_000 });
+  await page.keyboard.down("ArrowUp");
+  await expect(countdown).toBeHidden({ timeout: 60_000 });
   await expect(wrongWay).toBeHidden();
-  // Once the bots behind on the grid have all gone past, the straight
-  // behind the kart is clear to back up along.
-  await expect(page.locator('[data-instrument="position"]')).toHaveText("8th", {
-    timeout: 30_000,
-  });
-  // Reversing from the grid takes the kart away from the line it faces.
+  await expect
+    .poll(
+      async () =>
+        (await surface.textContent()) !== "asphalt" ||
+        Number.parseFloat((await speed.textContent()) ?? "0") < 5,
+      { timeout: 60_000 },
+    )
+    .toBe(true);
+  await page.keyboard.up("ArrowUp");
+  await expect(speed).toHaveText("0.0 m/s", { timeout: 60_000 });
+  // Reversing takes the kart away from the line it faces.
   await page.keyboard.down("ArrowDown");
   await expect(wrongWay).toHaveText("WRONG WAY", { timeout: 60_000 });
   await expect(wrongWay).toBeVisible();

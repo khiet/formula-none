@@ -134,6 +134,8 @@ const KART: KartSnapshot = {
   wrongWay: false,
   heldItem: null,
   spinOutS: null,
+  start: "clean",
+  stallS: null,
 };
 
 function snapshot(tick: number, events: Event[] = []): Snapshot {

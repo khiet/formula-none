@@ -67,14 +67,20 @@ fn a_hop_lifts_the_kart_and_lands_it_after_the_tuned_airtime() {
         ..accelerate()
     };
     let ground = only_kart(&at_top_speed()).position[1];
-    assert!(!only_kart(&at_top_speed()).airborne, "on the track before the hop");
+    assert!(
+        !only_kart(&at_top_speed()).airborne,
+        "on the track before the hop"
+    );
 
     let midair = run(at_top_speed(), vec![hop; ticks(HOP_AIRTIME_S / 2.0)]);
     assert!(
         only_kart(&midair).position[1] > ground + 0.05,
         "in the air halfway through the airtime"
     );
-    assert!(only_kart(&midair).airborne, "reported in the air for the hop's tell");
+    assert!(
+        only_kart(&midair).airborne,
+        "reported in the air for the hop's tell"
+    );
 
     let after_landing = run(midair, vec![hop; ticks(HOP_AIRTIME_S / 2.0) + 3]);
     assert!(

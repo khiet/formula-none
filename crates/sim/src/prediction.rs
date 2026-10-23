@@ -14,6 +14,12 @@
 //! a hit is the server's, and reaches the kart as the spin-out timer in a
 //! snapshot, which holds it still through the replay.
 //!
+//! One thing it runs and then defers on: the rocket start. The prediction
+//! reads the hold as the server will, so the sparks and the boost answer
+//! the press at once; but a press at a window's edge can land a tick off
+//! on the server, so from Go the snapshots' verdict is adopted, and the
+//! boost or the stall it gives is set as far along as Go is behind.
+//!
 //! Each tick the client steps the prediction with the input it sends. Each
 //! snapshot is held against what the prediction said of the kart at the
 //! snapshot's tick: when the two agree nothing happens, and when they do not
@@ -35,8 +41,8 @@ use crate::tuning::{
     COUNTDOWN_S, KART_HALF_LENGTH_M, RECONCILIATION_BLEND_TICKS, RECONCILIATION_TOLERANCE_M, TICK_S,
 };
 use crate::{
-    clock_after, drift_slip, kart_collider, step, Drift, Item, Kart, KartInput, KartTransform,
-    Phase, Standing, State, Surface, Track,
+    apply_start, clock_after, drift_slip, kart_collider, step, Drift, Item, Kart, KartInput,
+    KartTransform, Phase, Standing, Start, State, Surface, Track,
 };
 
 /// What a snapshot says of one kart, in the sim's terms. Metres, seconds and
@@ -52,6 +58,10 @@ pub struct SnapshotKart {
     /// Seconds of spin-out left, while the kart is spun out; only the
     /// server decides a hit.
     pub spin_out_s: Option<f32>,
+    /// The kart's rocket start as the server has it: from Go, its verdict.
+    pub start: Start,
+    /// Seconds of stall left, while the kart is stalled at Go.
+    pub stall_s: Option<f32>,
     /// The lap the kart is on, from 1, as [`Standing::lap`] counts it.
     pub lap: u32,
     /// The last checkpoint crossed in order; 0 is the start line.
@@ -248,15 +258,16 @@ impl Prediction {
             .unwrap_or(0);
         self.entries.drain(..at);
         let anchor = &self.entries[0];
-        if !relaid && anchor.tick == snapshot_tick && agrees(&anchor.after, kart) {
+        let racing = matches!(self.clock, Phase::Racing { .. });
+        if !relaid && anchor.tick == snapshot_tick && agrees(&anchor.after, kart, racing) {
             return 0.0;
         }
 
         let drawn = self.kart_transform();
         let predicted = self.state().kart_transforms()[0].position;
         let mut record = anchor.after.clone();
-        record.take(kart);
         let clock = self.clock;
+        record.take(kart, clock);
         let anchor_others = self.entries[0].others.clone();
         self.place_others(&anchor_others, true);
         let state = self.state_mut();
@@ -409,8 +420,10 @@ impl Prediction {
 
 /// Whether the snapshot puts the kart where the record does, to the tuned
 /// tolerance: its position, its nose, the tick of travel its velocity
-/// makes, its drift, its item, its spin-out and its place in the lap.
-fn agrees(record: &KartRecord, kart: &SnapshotKart) -> bool {
+/// makes, its drift, its item, its spin-out, its stall, its place in the
+/// lap and, once `racing`, its rocket start's verdict; during the countdown
+/// the start is not compared, since `take` adopts it only from Go.
+fn agrees(record: &KartRecord, kart: &SnapshotKart, racing: bool) -> bool {
     let nose = |rotation: Rotation| rotation * Vec3::NEG_Z * KART_HALF_LENGTH_M;
     let near = |a: Vec3, b: Vec3| a.distance(b) <= RECONCILIATION_TOLERANCE_M;
     let drift = match (record.kart.drift, kart.drift) {
@@ -431,6 +444,8 @@ fn agrees(record: &KartRecord, kart: &SnapshotKart) -> bool {
         && record.kart.held_item == kart.held_item
         && (record.kart.spin_out_left_s.max(0.0) - kart.spin_out_s.unwrap_or(0.0)).abs()
             < TICK_S / 2.0
+        && (record.kart.stall_left_s.max(0.0) - kart.stall_s.unwrap_or(0.0)).abs() < TICK_S / 2.0
+        && (!racing || record.kart.start == kart.start)
         && lap(&record.kart) == kart.lap
         && record.kart.checkpoint == kart.checkpoint
 }
@@ -441,11 +456,14 @@ fn lap(kart: &Kart) -> u32 {
 }
 
 impl KartRecord {
-    /// The snapshot's word on everything it carries. What it does not carry
-    /// stays the prediction's, which ran the same rules on the same inputs;
-    /// the speed the handling holds is read back from the velocity, as the
-    /// sim reads it after a wall.
-    fn take(&mut self, snapshot: &SnapshotKart) {
+    /// The snapshot's word on everything it carries, at `clock`, the race
+    /// clock at the snapshot's tick. What it does not carry stays the
+    /// prediction's, which ran the same rules on the same inputs; the speed
+    /// the handling holds is read back from the velocity, as the sim reads
+    /// it after a wall. From Go, a rocket start verdict other than the
+    /// prediction's replaces the boost or stall the prediction gave the
+    /// kart at Go with the server's, run down by the ticks since.
+    fn take(&mut self, snapshot: &SnapshotKart, clock: Phase) {
         let rotation = Rotation::from_array(snapshot.rotation).normalize();
         let velocity = Vec3::from(snapshot.velocity);
         self.translation = Vec3::from(snapshot.position);
@@ -458,6 +476,22 @@ impl KartRecord {
         kart.speed = kart.travel.dot(velocity);
         kart.held_item = snapshot.held_item;
         kart.spin_out_left_s = snapshot.spin_out_s.unwrap_or(0.0);
+        if let Phase::Racing { elapsed_s, .. } = clock {
+            if kart.start != snapshot.start {
+                kart.start = snapshot.start;
+                kart.boost_left_s = 0.0;
+                apply_start(kart, snapshot.start);
+                // The boost's clock, run down a tick at a time as the
+                // server's was, so the two spend it on the same tick.
+                let ticks_since_go = (elapsed_s / TICK_S).round() as u32;
+                for _ in 0..ticks_since_go {
+                    if kart.boost_left_s > 0.0 {
+                        kart.boost_left_s -= TICK_S;
+                    }
+                }
+            }
+        }
+        kart.stall_left_s = snapshot.stall_s.unwrap_or(0.0);
         if lap(kart) != snapshot.lap {
             kart.laps_completed = snapshot.lap.saturating_sub(1);
         }

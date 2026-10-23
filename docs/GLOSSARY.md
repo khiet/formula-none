@@ -26,12 +26,29 @@ humans.
 Where a race is: Countdown, Racing or Finished. Sim state, stepped like
 every other rule, so a solo race in the browser and a room on the server
 run the same lifecycle. Countdown holds the karts on the grid for the 3-2-1
-count; a throttle press in the last 0.3 s sets up a 1.0 s start boost at
-+30 percent and a press before that a 1.0 s stall. Racing runs the laps and
-ends 20 s after the first finisher or when every kart has finished; the
-unfinished are placed by progress at that point. Finished freezes the
-standings as the results. A room's Countdown and Racing states follow the
-race's phase, and its Results state its Finished.
+count, during which the throttle sets up the rocket start. Racing runs the
+laps and ends 20 s after the first finisher or when every kart has
+finished; the unfinished are placed by progress at that point. Finished
+freezes the standings as the results. A room's Countdown and Racing states
+follow the race's phase, and its Results state its Finished.
+
+### rocket start
+
+What the throttle hold ending at Go earns, read from the hold's length; a
+release before Go resets it, and the throttle counts as held above half.
+Its outcomes are the start boost and the stall. A hold longer than 2.0 s,
+begun before the 2 appeared, stalls the kart: 2.0 s dead to every control,
+as in a spin-out. A hold of 1.5 to 2.0 s, begun in the first half of the 2,
+earns the full start boost, 1.5 s at +40 percent, the boost item's values.
+A hold of 1.0 to 1.5 s, begun in the second half of the 2, earns the weak
+start boost, 0.6 s at +30 percent, the blue mini-turbo's values. A shorter
+hold, begun at the 1 or later, starts clean. Bots roll the full boost or a
+clean start once per race from the seed and never stall; a kart handed to
+a bot during the countdown starts clean. The countdown is beeped so the
+start can be timed by ear; sparks show every charging kart's tier, blue for
+the weak boost and orange for the full one, with no warning once the hold
+has tipped into a stall. The snapshots carry each kart's start and stall
+time left, and a client's prediction adopts the server's verdict.
 
 ### rubber band
 
@@ -229,4 +246,5 @@ particles, camera motion, audio. Presentation never changes sim state.
 
 A piece of Presentation tied to one mechanic so the mechanic has a visible or
 audible tell: tyre marks on drift, sparks on mini-turbo charge, a dust puff
-off-track, a spin animation on spin-out.
+off-track, a spin animation on spin-out, beeps on the countdown and sparks
+on a rocket start's charge, a sputter and dust at the wheels on its stall.

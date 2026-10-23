@@ -97,6 +97,12 @@ pub struct KartTransform {
     /// that steps the kart reports it: a snapshot does not carry it, so an
     /// interpolated kart never boosts.
     pub boost_s: Option<f32>,
+    /// The kart's rocket start: while the countdown runs the tier its hold
+    /// so far has reached, the sparks' tell, and from Go the verdict.
+    pub start: Start,
+    /// Seconds of stall left, while the kart is stalled at Go: dead to
+    /// every control, as in a spin-out. The sputter's tell.
+    pub stall_s: Option<f32>,
 }
 
 /// The items a kart can hold: what an item box rolls.
@@ -304,8 +310,8 @@ pub enum RaceEvent {
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Phase {
     /// The karts are held on the grid; Go comes when `remaining_s` runs out.
-    /// A throttle press now sets up the start: a boost inside the tuned
-    /// window before Go, a stall before that.
+    /// The throttle hold ending at Go is the rocket start: a boost or a
+    /// stall by its length.
     Countdown { remaining_s: f32 },
     /// The laps are being raced; `elapsed_s` is the race clock, which
     /// finish times are read against. Once the first kart finishes
@@ -330,24 +336,47 @@ impl Phase {
     }
 }
 
-/// What a kart's throttle during the countdown set up for Go.
+/// What a kart's rocket start comes to (GLOSSARY): during the countdown the
+/// tier the throttle hold so far has reached, so the tiers come as the hold
+/// lengthens and a hold that has tipped into a stall reads as one; from Go
+/// the verdict.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum Start {
-    /// No press yet: a plain start.
+pub enum Start {
+    /// No hold, or one under the weak edge: a plain start.
     Clean,
-    /// Pressed inside the tuned window: the start boost.
-    Boost,
-    /// Pressed before the window: the stall. A later press never undoes it.
+    /// A hold from the weak edge: the weak start boost.
+    WeakBoost,
+    /// A hold from the full edge: the full start boost.
+    FullBoost,
+    /// A hold past the stall edge: dead to every control for the tuned time.
     Stall,
 }
 
 impl Start {
-    /// One byte for the hash.
-    fn code(self) -> u8 {
+    /// One byte in tier order, for the hash and the bridge.
+    pub fn code(self) -> u8 {
         match self {
             Self::Clean => 0,
-            Self::Boost => 1,
-            Self::Stall => 2,
+            Self::WeakBoost => 1,
+            Self::FullBoost => 2,
+            Self::Stall => 3,
+        }
+    }
+
+    /// The tier a hold of `hold_s` earns. The hold is read off the
+    /// countdown's clock, which runs down a tick of `dt` at a time, so each
+    /// edge is read to the nearest half tick: a hold that began as the 2
+    /// appeared is the full boost, not the stall.
+    fn for_hold(hold_s: f32, dt: f32) -> Self {
+        let half_tick = dt / 2.0;
+        if hold_s > START_STALL_HOLD_S + half_tick {
+            Self::Stall
+        } else if hold_s >= START_FULL_BOOST_HOLD_S - half_tick {
+            Self::FullBoost
+        } else if hold_s >= START_WEAK_BOOST_HOLD_S - half_tick {
+            Self::WeakBoost
+        } else {
+            Self::Clean
         }
     }
 }
@@ -462,8 +491,16 @@ struct Kart {
     spline_progress: f32,
     lap_time_s: f32,
     best_lap_s: Option<f32>,
-    /// What the throttle during the countdown set up; applied at Go.
+    /// The count the throttle hold under way began at, read before that
+    /// tick's clock ran down; `None` while the throttle is up. The hold's
+    /// length is this less the count now.
+    start_hold_from_s: Option<f32>,
+    /// The tier the hold so far has reached, as of the last countdown tick;
+    /// from Go, the verdict, applied there.
     start: Start,
+    /// The count a bot kart that rolled the boost presses the throttle at.
+    /// Zero for a bot that rolled a clean start and for a human's kart.
+    bot_start_hold_s: f32,
     /// Seconds of stall left after Go; no control does anything until it
     /// runs out. Zero or less when not stalled.
     stall_left_s: f32,
@@ -537,8 +574,9 @@ struct Physics {
 use tuning::{BOOST_PAD_FACTOR, BOOST_PAD_S, RESPAWN_DELAY_S, WRONG_WAY_WARNING_S};
 use tuning::{BOT_RUBBER_BAND_MAX_FACTOR, BOT_RUBBER_BAND_MIN_FACTOR, BOT_RUBBER_BAND_RANGE_M};
 use tuning::{
-    COUNTDOWN_S, RACE_END_GRACE_S, START_BOOST_FACTOR, START_BOOST_S, START_BOOST_WINDOW_S,
-    START_STALL_S,
+    BOT_START_BOOST_CHANCE, BOT_START_HOLD_S, COUNTDOWN_S, RACE_END_GRACE_S, START_BOOST_FACTOR,
+    START_BOOST_S, START_FULL_BOOST_HOLD_S, START_STALL_HOLD_S, START_STALL_S, START_THROTTLE_HELD,
+    START_WEAK_BOOST_FACTOR, START_WEAK_BOOST_HOLD_S, START_WEAK_BOOST_S,
 };
 use tuning::{
     DRIFT_ENTRY_SPEED_FRACTION, GRAVITY_M_PER_S2, HOP_AIRTIME_S, KART_EDGE_RADIUS_M,
@@ -598,7 +636,10 @@ impl State {
 
     /// A fresh race with one kart on each of `slots` of the spawn grid, in
     /// order, the first `humans` of them human, at the top of its countdown.
+    /// Each bot kart's rocket start is rolled here, in slot order, so the
+    /// seed decides it.
     fn on_spawn_slots(seed: u64, humans: usize, slots: Range<usize>, track: Track) -> Self {
+        let mut rng = ChaCha8Rng::seed_from_u64(seed);
         let mut physics = Physics::new();
         let ground = physics.bodies.insert(RigidBodyBuilder::fixed().build());
         for (surface, shape) in track.colliders() {
@@ -632,6 +673,11 @@ impl State {
                     body,
                     &mut physics.bodies,
                 );
+                let bot_start_hold_s = if index >= humans && rolls_the_start_boost(&mut rng) {
+                    BOT_START_HOLD_S
+                } else {
+                    0.0
+                };
                 Kart {
                     body,
                     collider,
@@ -653,7 +699,9 @@ impl State {
                     spline_progress: track.progress_at(slot.position),
                     lap_time_s: 0.0,
                     best_lap_s: None,
+                    start_hold_from_s: None,
                     start: Start::Clean,
+                    bot_start_hold_s,
                     stall_left_s: 0.0,
                     finish_time_s: None,
                     held_item: None,
@@ -665,7 +713,7 @@ impl State {
         physics.index_colliders();
 
         Self {
-            rng: ChaCha8Rng::seed_from_u64(seed),
+            rng,
             item_box_respawn_s: vec![0.0; track.item_boxes().len()],
             hazards: Vec::new(),
             projectiles: Vec::new(),
@@ -856,7 +904,9 @@ impl State {
             hasher.write_f32(kart.spline_progress);
             hasher.write_f32(kart.lap_time_s);
             hasher.write_f32(kart.best_lap_s.unwrap_or(NO_TIME));
+            hasher.write_f32(kart.start_hold_from_s.unwrap_or(NO_TIME));
             hasher.write_u8(kart.start.code());
+            hasher.write_f32(kart.bot_start_hold_s);
             hasher.write_f32(kart.stall_left_s);
             hasher.write_f32(kart.finish_time_s.unwrap_or(NO_TIME));
             hasher.write_u8(kart.held_item.map_or(0, Item::code));
@@ -937,6 +987,8 @@ impl State {
                     spin_out_s: kart.spun_out().then_some(kart.spin_out_left_s),
                     airborne: kart.airborne(),
                     boost_s: (kart.boost_left_s > 0.0).then_some(kart.boost_left_s),
+                    start: kart.start,
+                    stall_s: (kart.stall_left_s > 0.0).then_some(kart.stall_left_s),
                 }
             })
             .collect()
@@ -967,35 +1019,43 @@ impl State {
 /// now, whose entry in `inputs` is ignored.
 ///
 /// During the countdown nothing moves and only the throttle is read, for
-/// the start boost and the stall; the bots sit it out. Once the race has
-/// finished the state is returned as it was.
+/// the rocket start: the count the hold under way began at, Go's tick
+/// included, decides the start. A bot kart that rolled the boost at spawn
+/// holds from `BOT_START_HOLD_S`; a human's kart a bot drives for now
+/// holds nothing, so it starts clean. Once the race has finished the state
+/// is returned as it was.
 pub fn step(mut state: State, inputs: &[KartInput], dt: f32) -> State {
     assert_eq!(inputs.len(), state.humans, "one input per human kart");
     state.events.clear();
     let (elapsed_s, grace_left_s) = match state.phase {
         Phase::Finished => return state,
         Phase::Countdown { remaining_s } => {
-            for (kart, input) in state.karts.iter_mut().zip(inputs) {
-                if kart.bot.is_none() && input.throttle > 0.0 && kart.start == Start::Clean {
-                    kart.start = if remaining_s <= START_BOOST_WINDOW_S {
-                        Start::Boost
-                    } else {
-                        Start::Stall
-                    };
-                }
+            let humans = state.humans;
+            for (slot, kart) in state.karts.iter_mut().enumerate() {
+                let held = if slot < humans {
+                    kart.bot.is_none() && inputs[slot].throttle > START_THROTTLE_HELD
+                } else {
+                    remaining_s <= kart.bot_start_hold_s
+                };
+                kart.start_hold_from_s = match kart.start_hold_from_s {
+                    Some(from) if held => Some(from),
+                    None if held => Some(remaining_s),
+                    _ => None,
+                };
             }
             state.phase = clock_after(state.phase, dt);
-            // Go: what the countdown set up takes effect.
+            let count_s = match state.phase {
+                Phase::Countdown { remaining_s } => remaining_s,
+                _ => 0.0,
+            };
+            for kart in &mut state.karts {
+                let hold_s = kart.start_hold_from_s.map_or(0.0, |from| from - count_s);
+                kart.start = Start::for_hold(hold_s, dt);
+            }
+            // Go: the verdict takes effect.
             if let Phase::Racing { .. } = state.phase {
                 for kart in &mut state.karts {
-                    match kart.start {
-                        Start::Clean => {}
-                        Start::Boost => {
-                            kart.boost_left_s = START_BOOST_S;
-                            kart.boost_factor = START_BOOST_FACTOR;
-                        }
-                        Start::Stall => kart.stall_left_s = START_STALL_S,
-                    }
+                    apply_start(kart, kart.start);
                 }
             }
             return state;
@@ -1355,6 +1415,29 @@ pub fn step(mut state: State, inputs: &[KartInput], dt: f32) -> State {
     }
     state.phase = next_phase(&state.karts, elapsed_s, grace_left_s, dt);
     state
+}
+
+/// Whether a bot kart rolls the full boost, drawn on the race's RNG at the
+/// tuned chance.
+fn rolls_the_start_boost(rng: &mut ChaCha8Rng) -> bool {
+    (f64::from(rng.next_u32()) / f64::from(u32::MAX)) < f64::from(BOT_START_BOOST_CHANCE)
+}
+
+/// Give `kart` what `start` earns at Go: a boost for its tuned time, or the
+/// stall.
+fn apply_start(kart: &mut Kart, start: Start) {
+    match start {
+        Start::Clean => {}
+        Start::WeakBoost => {
+            kart.boost_left_s = START_WEAK_BOOST_S;
+            kart.boost_factor = START_WEAK_BOOST_FACTOR;
+        }
+        Start::FullBoost => {
+            kart.boost_left_s = START_BOOST_S;
+            kart.boost_factor = START_BOOST_FACTOR;
+        }
+        Start::Stall => kart.stall_left_s = START_STALL_S,
+    }
 }
 
 /// The race clock one tick of `dt` on: the countdown runs down to Go, and

@@ -12,9 +12,9 @@ use std::collections::VecDeque;
 use sim::bot::{self, Memory};
 use sim::tuning::{
     RECONCILIATION_BLEND_TICKS, RECONCILIATION_TOLERANCE_M, RECONCILIATION_VISIBLE_CORRECTION_M,
-    SNAPSHOTS_PER_SECOND, TICKS_PER_SECOND,
+    SNAPSHOTS_PER_SECOND, START_FULL_BOOST_HOLD_S, TICKS_PER_SECOND, TOP_SPEED_M_PER_S,
 };
-use sim::{step, KartInput, Phase, Prediction, SnapshotKart, State, Track};
+use sim::{step, KartInput, Phase, Prediction, SnapshotKart, Start, State, Track};
 
 const OVAL: &str = include_str!("../../../assets/tracks/oval/oval.track.json");
 const SEED: u64 = 0x5EED;
@@ -40,6 +40,8 @@ fn snapshot_of(state: &State) -> SnapshotKart {
         drift: transform.drift,
         held_item: transform.held_item,
         spin_out_s: transform.spin_out_s,
+        start: transform.start,
+        stall_s: transform.stall_s,
         lap: standing.lap(),
         checkpoint: standing.checkpoint,
         spline_progress: standing.spline_progress,
@@ -483,4 +485,75 @@ fn a_hit_the_server_decides_reaches_the_prediction_as_one_correction_and_the_spi
     let kart = run.prediction.kart_transform();
     assert_eq!(kart.spin_out_s, None, "recovered by the end");
     assert!(kart.speed > 5.0, "driving on at {} m/s", kart.speed);
+}
+
+/// [`race_with`] for one kart whose driver holds the throttle from the
+/// count reaching the full boost's edge through Go and on, with the input
+/// that began the hold lost when `lose_the_press`: the server then sees
+/// the hold begin a tick late, on the weak side of the edge.
+fn rocket_start_at_the_full_edge(lose_the_press: bool) -> Run {
+    use std::cell::Cell;
+    let press_sequence = Cell::new(None);
+    let driver = |prediction: &Prediction, tick: u32| {
+        let pressed = match prediction.phase() {
+            Phase::Countdown { remaining_s } => remaining_s <= START_FULL_BOOST_HOLD_S + DT / 2.0,
+            _ => true,
+        };
+        if pressed && press_sequence.get().is_none() {
+            // The sequence `race_with` sends this input under: one per
+            // tick from the first after the one-way trip.
+            press_sequence.set(Some(tick - ONE_WAY_TICKS));
+        }
+        KartInput {
+            throttle: f32::from(u8::from(pressed)),
+            ..KartInput::default()
+        }
+    };
+    let lost = |sequence: u32| lose_the_press && press_sequence.get() == Some(sequence);
+    race_with(
+        seconds(5.0),
+        lost,
+        State::new(SEED, 1, oval()),
+        driver,
+        |_| Vec::new(),
+    )
+}
+
+#[test]
+fn a_hold_at_a_window_edge_the_server_decides_differently_is_corrected_once_to_its_verdict() {
+    // Nothing lost: the server reads the hold the client predicted.
+    let run = rocket_start_at_the_full_edge(false);
+    assert_eq!(run.prediction.kart_transform().start, Start::FullBoost);
+    assert_eq!(run.prediction.corrections(), 0, "{:?}", run.corrections_m);
+
+    // The press lost: the server's hold is a tick short of the full edge,
+    // so its verdict is the weak boost. The verdict reaches the prediction
+    // as one correction, and the kart runs the weak boost from there.
+    let run = rocket_start_at_the_full_edge(true);
+    let kart = run.prediction.kart_transform();
+    assert_eq!(kart.start, Start::WeakBoost);
+    assert_eq!(
+        run.prediction.corrections(),
+        1,
+        "the verdict is the one correction: {:?}",
+        run.corrections_m
+    );
+    let verdict = run
+        .corrections_m
+        .iter()
+        .position(|&moved| moved > RECONCILIATION_TOLERANCE_M)
+        .expect("the verdict corrected the kart");
+    assert!(
+        run.corrections_m[verdict..]
+            .iter()
+            .skip(1)
+            .all(|&moved| moved <= RECONCILIATION_TOLERANCE_M),
+        "every snapshot after the verdict agreed: {:?}",
+        &run.corrections_m[verdict..]
+    );
+    assert!(
+        kart.speed <= TOP_SPEED_M_PER_S,
+        "the weak boost is spent by the end: {} m/s",
+        kart.speed
+    );
 }

@@ -382,29 +382,37 @@ fn every_committed_fixture_replays_to_the_hashes_it_was_recorded_with() {
 
 /// What the fixture set must exercise for the gate to mean anything: karts
 /// touching (the contact solver), karts off the asphalt and a lone kart held
-/// by a wall (the track colliders), both tracks, and a drift released into a
-/// mini-turbo (the cornering rules). A fixture that only drives up a
+/// by a wall (the track colliders), both tracks, a drift released into a
+/// mini-turbo (the cornering rules), and a rocket start boosting at Go and
+/// another stalling there (the start rule). A fixture that only drives up a
 /// straight would pass on a sim with most of its rules broken.
 #[test]
-fn the_fixture_set_exercises_kart_contact_off_track_walls_both_tracks_and_a_mini_turbo() {
+fn the_fixture_set_exercises_kart_contact_off_track_walls_both_tracks_a_mini_turbo_a_rocket_start_and_a_stall(
+) {
     let mut tracks = std::collections::BTreeSet::new();
     let mut surfaces = std::collections::HashSet::new();
     let mut closest_karts = f32::MAX;
     let mut held_by_a_wall = false;
     let mut drifted = false;
     let mut boosted = false;
+    let mut rocket_started = false;
+    let mut stalled = false;
     for (_, replay) in fixtures() {
         tracks.insert(replay.track.clone());
         let mut state = State::new(replay.seed, replay.human_count(), sidecar(&replay.track));
         for segment in &replay.segments {
             for _ in 0..segment.ticks {
                 let before = state.kart_transforms();
+                let counting_down = matches!(state.phase(), Phase::Countdown { .. });
                 state = step(state, &segment.inputs, DT);
+                let go = counting_down && matches!(state.phase(), Phase::Racing { .. });
                 let transforms = state.kart_transforms();
                 for (slot, kart) in transforms.iter().enumerate() {
                     surfaces.insert(state.kart_surface(slot));
                     drifted |= kart.drift.is_some();
                     boosted |= kart.speed > TOP_SPEED_M_PER_S;
+                    rocket_started |= go && kart.boost_s.is_some();
+                    stalled |= go && kart.stall_s.is_some();
                     // Only a wall takes most of a lone kart's speed in one
                     // tick while the throttle is held and the kart stays
                     // put: the brake takes more than a second over it, and
@@ -435,6 +443,8 @@ fn the_fixture_set_exercises_kart_contact_off_track_walls_both_tracks_and_a_mini
     assert!(held_by_a_wall, "no lone kart is held by a wall");
     assert!(drifted, "no fixture drifts");
     assert!(boosted, "no fixture releases a mini-turbo");
+    assert!(rocket_started, "no fixture boosts at Go");
+    assert!(stalled, "no fixture stalls at Go");
     // Centres within a kart's length of each other are in contact or about
     // to be, whichever way the two karts face.
     let touching = 2.0 * KART_HALF_LENGTH_M + 0.05;

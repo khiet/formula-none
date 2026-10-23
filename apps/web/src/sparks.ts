@@ -1,8 +1,9 @@
 import type { Drift, KartSize, KartTransform, MiniTurbo } from "./bridge";
+import type { Start } from "./generated/protocol";
 import { rearWheel, rotate, type Side, type Vec3 } from "./kart-frame";
 import type { Particles } from "./particles";
 
-/** The spark tell at a kart's wheels: shown once a mini-turbo tier has charged, coloured by the tier. */
+/** The spark tell at a kart's wheels: shown once a tier has charged, coloured by the tier. */
 export interface SparkTell {
   /** A Three.js colour hex. */
   readonly colour: number;
@@ -16,18 +17,36 @@ const SPARK_COLOURS: Readonly<Record<MiniTurbo, number | null>> = {
 };
 
 /**
- * The Feedback for a mini-turbo charge (GLOSSARY): sparks at the wheels in
- * blue once blue has charged and orange once orange has, and nothing
- * before a tier charges or off a drift. Presentation only; reads state.
+ * The mini-turbo tier a rocket start's charge sparks like: the weak boost
+ * as blue, the full boost as orange, and the stall as orange too, so the
+ * hold tipping into a stall gives no warning.
  */
-export function sparkTell(drift: Drift | null): SparkTell | null {
-  const colour = drift === null ? null : SPARK_COLOURS[drift.miniTurbo];
+const CHARGE_TIERS: Readonly<Record<Start, MiniTurbo>> = {
+  clean: "none",
+  weakBoost: "blue",
+  fullBoost: "orange",
+  stall: "orange",
+};
+
+/**
+ * The Feedback for a mini-turbo charge and a rocket start's (GLOSSARY):
+ * sparks at the wheels in blue once blue has charged and orange once orange
+ * has, and nothing before a tier charges or off a drift; and, while the
+ * countdown runs, in the colour of the tier the hold so far has reached,
+ * which `charge` is. Presentation only; reads state.
+ */
+export function sparkTell(drift: Drift | null, charge: Start | null = null): SparkTell | null {
+  const tier = drift !== null ? drift.miniTurbo : charge === null ? "none" : CHARGE_TIERS[charge];
+  const colour = SPARK_COLOURS[tier];
   return colour === null ? null : { colour };
 }
 
 export interface SparkEmitter {
-  /** Throw this frame's sparks for `kart` into the pool, if its drift has a tier charged. */
-  emit(kart: KartTransform, dtSeconds: number): void;
+  /**
+   * Throw this frame's sparks for `kart` into the pool, if its drift has a
+   * tier charged or, while `countingDown`, its rocket start has.
+   */
+  emit(kart: KartTransform, dtSeconds: number, countingDown?: boolean): void;
 }
 
 /** Sparks thrown per wheel per second while a tier is charged. */
@@ -45,10 +64,11 @@ const SIDES: readonly Side[] = [-1, 1];
 const MAX_OWED_S = 0.1;
 
 /**
- * Throws sparks off the rear wheels of a kart whose drift has charged a
- * tier, at a steady rate whatever the frame rate, backward and up from the
- * tyre's print and in the tier's colour. `random` is Math.random's shape;
- * tests pass a fixed sequence. Nothing is allocated per frame.
+ * Throws sparks off the rear wheels of a kart whose drift or rocket start
+ * has charged a tier, at a steady rate whatever the frame rate, backward
+ * and up from the tyre's print and in the tier's colour. `random` is
+ * Math.random's shape; tests pass a fixed sequence. Nothing is allocated
+ * per frame.
  */
 export function createSparkEmitter(
   particles: Particles,
@@ -69,8 +89,8 @@ export function createSparkEmitter(
     size: SPARK_SIZE_M,
   };
   return {
-    emit(kart, dtSeconds) {
-      const tell = sparkTell(kart.drift);
+    emit(kart, dtSeconds, countingDown = false) {
+      const tell = sparkTell(kart.drift, countingDown ? kart.start : null);
       if (tell === null) {
         return;
       }

@@ -13,8 +13,8 @@ const OVAL: &str = include_str!("../../../assets/tracks/oval/oval.track.json");
 const DT: f32 = 1.0 / TICKS_PER_SECOND as f32;
 /// Floats per kart in the kart buffer: position xyz, rotation xyzw, speed,
 /// surface code, drift direction, mini-turbo tier, drift charge, held item,
-/// spin-out left, airborne, boost left.
-const FLOATS_PER_KART: usize = 16;
+/// spin-out left, airborne, boost left, rocket start, stall left.
+const FLOATS_PER_KART: usize = 18;
 /// Floats per kart in the input buffer: steer, throttle, brake, hop, use item, hold item.
 const FLOATS_PER_INPUT: usize = 6;
 /// Floats per kart in the standings buffer: position, lap, checkpoint,
@@ -54,7 +54,7 @@ fn started_race(seed: u64, humans: usize, bots: usize) -> Race {
 }
 
 #[test]
-fn kart_buffer_holds_sixteen_floats_per_kart_on_the_spawn_grid_in_slot_order() {
+fn kart_buffer_holds_eighteen_floats_per_kart_on_the_spawn_grid_in_slot_order() {
     let race = race(7, 3);
     let buffer = race.kart_transforms();
     let track = Track::from_sidecar(OVAL).unwrap();
@@ -313,7 +313,9 @@ fn replay_hashes_runs_a_replay_json_on_a_sidecar_and_reports_the_sims_hashes() {
 #[test]
 fn bots_fill_the_slots_behind_the_humans_and_step_takes_only_the_humans_inputs() {
     assert_eq!(bridge::karts_per_race(), sim::tuning::KARTS_PER_RACE);
-    let mut race = started_race(7, 1, 2);
+    // A seed that rolls neither bot the start boost, so both pass the idle
+    // human instead of shoving it along.
+    let mut race = started_race(4, 1, 2);
     assert_eq!(race.kart_transforms().len(), 3 * FLOATS_PER_KART);
     assert_eq!(race.standings().len(), 3 * FLOATS_PER_STANDING);
     let idle = [0.0; FLOATS_PER_INPUT];

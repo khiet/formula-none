@@ -11,7 +11,7 @@ mod common;
 
 use std::time::Duration;
 
-use common::{projectiles, race_together, read, snapshot_kart, wire};
+use common::{projectiles, race_together, read, snapshot_kart, wire, with_rocket_start};
 use protocol::{ClientMessage, ServerMessage};
 use server::fake_transport::{Conditions, Harness, TRACK};
 use sim::bot::{self, Memory};
@@ -108,13 +108,16 @@ async fn at_a_100_ms_round_trip_and_2_percent_loss_the_own_kart_is_corrected_out
                 }
             }
         }
-        let mut input = bot::drive(
-            prediction.track(),
-            &[prediction.kart_transform()],
-            &[prediction.standing()],
-            0,
-            &mut memory,
-            TICK.as_secs_f32(),
+        let mut input = with_rocket_start(
+            prediction.phase(),
+            bot::drive(
+                prediction.track(),
+                &[prediction.kart_transform()],
+                &[prediction.standing()],
+                0,
+                &mut memory,
+                TICK.as_secs_f32(),
+            ),
         );
         if input.use_item {
             item_held_ticks = HAND_HOLD_TICKS;
@@ -158,11 +161,13 @@ async fn at_a_100_ms_round_trip_and_2_percent_loss_the_own_kart_is_corrected_out
 #[tokio::test(start_paused = true)]
 async fn driving_into_another_kart_never_predicts_the_own_kart_visibly_past_where_the_server_puts_it(
 ) {
+    // A seed whose race rolls no bot the start boost, so the one contact is
+    // the one driven into.
     let mut harness = Harness::new(Conditions {
         delay: Duration::from_millis(50),
         jitter: Duration::ZERO,
         loss: 0.0,
-        seed: 19,
+        seed: 76,
     });
     let code = harness.create_room();
     // Three humans: the oval's grid stands the third directly behind the
@@ -178,7 +183,8 @@ async fn driving_into_another_kart_never_predicts_the_own_kart_visibly_past_wher
         kart,
         Track::from_sidecar(OVAL).expect("the oval fixture loads"),
     );
-    // Straight down the grid at full throttle, into the parked kart.
+    // Idle through the countdown, then straight down the grid at full
+    // throttle, into the parked kart.
     let flat_out = KartInput {
         throttle: 1.0,
         ..KartInput::default()
@@ -197,6 +203,7 @@ async fn driving_into_another_kart_never_predicts_the_own_kart_visibly_past_wher
         while let Some(message) = driver.try_recv() {
             if let ServerMessage::Snapshot(snapshot) = message {
                 newest_tick = newest_tick.max(snapshot.tick);
+                common::assert_no_bot_rocket_starts(&snapshot, 3);
                 let [_, _, own_z] = snapshot.karts[kart].position;
                 let [_, _, parked_z] = snapshot.karts[parked].position;
                 closest_m = closest_m.min(own_z - parked_z);
@@ -221,7 +228,14 @@ async fn driving_into_another_kart_never_predicts_the_own_kart_visibly_past_wher
             }
         }
         sequence += 1;
-        let input = wire(sequence, flat_out);
+        let input = wire(
+            sequence,
+            if matches!(prediction.phase(), sim::Phase::Racing { .. }) {
+                flat_out
+            } else {
+                KartInput::default()
+            },
+        );
         interpolation.advance();
         prediction.tick(sequence, read(input), &interpolation.kart_transforms());
         driver.send_input(input);

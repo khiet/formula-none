@@ -33,7 +33,14 @@ import init, {
   Race as WasmRace,
   webtransport_connect_timeout_s,
 } from "./generated/bridge/bridge.js";
-import type { ClientMessage, Input, Item, ServerMessage, Snapshot } from "./generated/protocol";
+import type {
+  ClientMessage,
+  Input,
+  Item,
+  ServerMessage,
+  Snapshot,
+  Start,
+} from "./generated/protocol";
 
 /**
  * One kart's controls for one tick, whichever device produced them: steer
@@ -82,7 +89,10 @@ export interface Drift {
  * airtime and the seconds of boost left while a boost holds it over top
  * speed (the last two only for a kart this client steps: the own kart of a
  * room's race and every kart of a local race; an interpolated kart reports
- * neither). Y up; identity rotation faces -Z.
+ * neither), the kart's rocket start (the tier its throttle hold so far has
+ * reached while the countdown runs, the verdict from Go) and the seconds
+ * of stall left while the kart is stalled at Go. Y up; identity rotation
+ * faces -Z.
  */
 export interface KartTransform {
   readonly position: readonly [number, number, number];
@@ -94,6 +104,8 @@ export interface KartTransform {
   readonly spinOutSeconds: number | null;
   readonly airborne: boolean;
   readonly boostSeconds: number | null;
+  readonly start: Start;
+  readonly stallSeconds: number | null;
 }
 
 /** Where an item box stands on the track: metres, and a yaw about +Y, zero facing -Z. */
@@ -342,7 +354,7 @@ export interface Bridge extends MessageCodec {
 // Race::standings and Race::phase; a Prediction's transform and phase are laid
 // out as a Race's.
 const FLOATS_PER_INPUT = 6;
-const FLOATS_PER_TRANSFORM = 16;
+const FLOATS_PER_TRANSFORM = 18;
 const FLOATS_PER_ITEM_BOX = 4;
 const FLOATS_PER_HAZARD = 5;
 const FLOATS_PER_PROJECTILE = 5;
@@ -358,6 +370,8 @@ const DRIFT_DIRECTIONS: Readonly<Record<number, DriftDirection>> = { [-1]: "left
 const MINI_TURBOS: readonly MiniTurbo[] = ["none", "blue", "orange"];
 /** Items by the buffer's code less one; code 0 is an empty slot. */
 const ITEMS: readonly Item[] = ["boost", "hazard", "homing"];
+/** Rocket starts in the buffer's order, as `sim::Start::code` numbers them. */
+const STARTS: readonly Start[] = ["clean", "weakBoost", "fullBoost", "stall"];
 
 /**
  * Load the wasm module once. Pass `wasm` bytes when there is no document
@@ -626,12 +640,16 @@ function recordsFrom<T>(
   return records;
 }
 
-/** The kart transform whose sixteen floats start at `at`; `slot` names the kart in errors. */
+/** The kart transform whose eighteen floats start at `at`; `slot` names the kart in errors. */
 function transformAt(buffer: Float32Array, at: number, slot: number): KartTransform {
   const read = (offset: number): number => buffer[at + offset] as number;
   const surface = SURFACES[read(8)];
   if (surface === undefined) {
     throw new RangeError(`unknown surface code ${read(8)} for kart ${slot}`);
+  }
+  const start = STARTS[read(16)];
+  if (start === undefined) {
+    throw new RangeError(`unknown rocket start code ${read(16)} for kart ${slot}`);
   }
   return {
     position: [read(0), read(1), read(2)],
@@ -643,6 +661,8 @@ function transformAt(buffer: Float32Array, at: number, slot: number): KartTransf
     spinOutSeconds: read(13) > 0 ? read(13) : null,
     airborne: read(14) !== 0,
     boostSeconds: read(15) > 0 ? read(15) : null,
+    start,
+    stallSeconds: read(17) > 0 ? read(17) : null,
   };
 }
 

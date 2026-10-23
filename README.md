@@ -29,6 +29,22 @@ and its tests need it; rerun it after changing `crates/sim` or
 `pnpm test:e2e` runs the Playwright smoke test against the Vite dev server
 (run `pnpm --filter web exec playwright install chromium` once).
 
+## Controls
+
+Keyboard only. Arrows and WASD do the same thing.
+
+| Action   | Keys                 | Notes                                                                            |
+| -------- | -------------------- | -------------------------------------------------------------------------------- |
+| Steer    | Left/Right, A/D      |                                                                                  |
+| Throttle | Up, W                |                                                                                  |
+| Brake    | Down, S              | Reverses from a standstill.                                                      |
+| Hop      | Space                | Land while steering to start a drift; keep it held, let go for the mini-turbo.   |
+| Item     | Shift                | Fires the held item. Keep it held to trail a hazard behind you until released.   |
+
+Rocket start: hold the throttle from the first half of the 2 through GO for
+the full boost, from the second half for a weaker one; hold it from before
+the 2 and the kart stalls. The beeps count 3, 2, 1 and GO.
+
 ## Reading order
 
 1. `CLAUDE.md` for the layout, the dependency rule and the commands.

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { enginePitchHz, type SoundReading, soundCues, soundReading } from "./audio-cues";
-import type { KartTransform, Standing } from "./bridge";
+import type { KartTransform, Phase, Standing } from "./bridge";
 
 const STILL: SoundReading = {
   speed: 0,
@@ -11,12 +11,28 @@ const STILL: SoundReading = {
   boostSeconds: null,
   lap: 1,
   finished: false,
+  count: "",
+  charge: null,
+  stalled: false,
 };
 
 describe("soundCues", () => {
   it("is silent with no change, and before there is a reading to change from", () => {
     expect(soundCues(STILL, STILL)).toEqual([]);
     expect(soundCues(undefined, { ...STILL, airborne: true, item: "boost" })).toEqual([]);
+  });
+
+  it("beeps as the count the panel shows changes to 3, 2 and 1, and sounds GO as it shows GO", () => {
+    const at = (count: string): SoundReading => ({ ...STILL, count });
+    // The 3 is up from the first reading, so it is heard from nothing.
+    expect(soundCues(undefined, at("3"))).toEqual(["countdownBeep"]);
+    expect(soundCues(at("3"), at("3"))).toEqual([]);
+    expect(soundCues(at("3"), at("2"))).toEqual(["countdownBeep"]);
+    expect(soundCues(at("2"), at("1"))).toEqual(["countdownBeep"]);
+    expect(soundCues(at("1"), at("GO"))).toEqual(["go"]);
+    expect(soundCues(at("GO"), at("GO"))).toEqual([]);
+    expect(soundCues(at("GO"), at(""))).toEqual([]);
+    expect(soundCues(at(""), at(""))).toEqual([]);
   });
 
   it("plays the hop as the kart leaves the ground, not while it is up or as it lands", () => {
@@ -54,6 +70,36 @@ describe("soundCues", () => {
     ]);
     // Slowed below drift speed, or respawned: the drift just ends.
     expect(soundCues({ ...STILL, miniTurbo: "blue" }, STILL)).toEqual([]);
+  });
+
+  it("plays the mini-turbo as a rocket start's charge becomes its boost at GO", () => {
+    const charging = (charge: SoundReading["charge"]): SoundReading => ({
+      ...STILL,
+      count: "1",
+      charge,
+    });
+    const go = { ...STILL, count: "GO" };
+    expect(soundCues(charging("fullBoost"), { ...go, boostSeconds: 1.5 })).toEqual([
+      "go",
+      "miniTurbo",
+    ]);
+    expect(soundCues(charging("weakBoost"), { ...go, boostSeconds: 0.6 })).toEqual([
+      "go",
+      "miniTurbo",
+    ]);
+    // A clean start has no boost to hear, and the charge's tiers are the sparks' tell.
+    expect(soundCues(charging("clean"), go)).toEqual(["go"]);
+    expect(soundCues(charging("weakBoost"), charging("fullBoost"))).toEqual([]);
+  });
+
+  it("plays the sputter as a stall begins, once, and no mini-turbo for the hold that stalled", () => {
+    const stalled = { ...STILL, count: "GO", stalled: true };
+    expect(soundCues({ ...STILL, count: "1", charge: "stall" }, stalled)).toEqual([
+      "go",
+      "sputter",
+    ]);
+    expect(soundCues(stalled, stalled)).toEqual([]);
+    expect(soundCues(stalled, { ...STILL, count: "GO" })).toEqual([]);
   });
 
   it("plays the pickup as the slot fills and the fire as it empties", () => {
@@ -95,6 +141,8 @@ describe("soundReading", () => {
     spinOutSeconds: 0.4,
     airborne: true,
     boostSeconds: null,
+    start: "clean",
+    stallSeconds: null,
   };
   const standing: Standing = {
     position: 3,
@@ -106,9 +154,10 @@ describe("soundReading", () => {
     wrongWay: false,
     finishTimeSeconds: null,
   };
+  const racing: Phase = { kind: "racing", elapsedSeconds: 5, graceLeftSeconds: null };
 
   it("takes the kart's speed, hop, charge and spin from the transform and the lap from the standing", () => {
-    expect(soundReading(kart, standing, { item: null, firing: false })).toEqual({
+    expect(soundReading(kart, standing, { item: null, firing: false }, racing)).toEqual({
       speed: 12,
       airborne: true,
       miniTurbo: "blue",
@@ -117,6 +166,9 @@ describe("soundReading", () => {
       boostSeconds: null,
       lap: 2,
       finished: false,
+      count: "",
+      charge: null,
+      stalled: false,
     });
   });
 
@@ -125,6 +177,7 @@ describe("soundReading", () => {
       { ...kart, drift: null, spinOutSeconds: null, boostSeconds: 0.5 },
       { ...standing, finishTimeSeconds: 61.2 },
       { item: "homing", firing: false },
+      racing,
     );
     expect(reading).toMatchObject({
       miniTurbo: null,
@@ -132,6 +185,23 @@ describe("soundReading", () => {
       item: "homing",
       boostSeconds: 0.5,
       finished: true,
+    });
+  });
+
+  it("takes the count the Instrument panel shows and, while it counts, the rocket start's charge", () => {
+    const slot = { item: null, firing: false };
+    const countingDown: Phase = { kind: "countdown", remainingSeconds: 1.4 };
+    expect(
+      soundReading({ ...kart, start: "weakBoost" }, standing, slot, countingDown),
+    ).toMatchObject({ count: "2", charge: "weakBoost" });
+    // From Go the verdict is the boost's or the stall's to tell, not a charge.
+    const go: Phase = { kind: "racing", elapsedSeconds: 0.2, graceLeftSeconds: null };
+    expect(
+      soundReading({ ...kart, start: "stall", stallSeconds: 1.8 }, standing, slot, go),
+    ).toMatchObject({ count: "GO", charge: null, stalled: true });
+    expect(soundReading(kart, standing, slot, { kind: "finished" })).toMatchObject({
+      count: "",
+      charge: null,
     });
   });
 });
@@ -147,5 +217,18 @@ describe("enginePitchHz", () => {
     expect(enginePitchHz(39, 30)).toBeGreaterThan(top);
     // Past the headroom left for the boosts, nothing climbs further.
     expect(enginePitchHz(90, 30)).toBe(enginePitchHz(45, 30));
+  });
+
+  it("rises through a rocket start's charge at a standstill, with no warning past the full tier", () => {
+    const idle = enginePitchHz(0, 30);
+    expect(enginePitchHz(0, 30, "clean")).toBe(idle);
+    const weak = enginePitchHz(0, 30, "weakBoost");
+    const full = enginePitchHz(0, 30, "fullBoost");
+    expect(weak).toBeGreaterThan(idle);
+    expect(full).toBeGreaterThan(weak);
+    expect(full).toBeLessThanOrEqual(enginePitchHz(30, 30));
+    expect(enginePitchHz(0, 30, "stall")).toBe(full);
+    // Speed still sets the note once the kart is faster than the charge sounds.
+    expect(enginePitchHz(30, 30, "weakBoost")).toBe(enginePitchHz(30, 30));
   });
 });

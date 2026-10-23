@@ -11,7 +11,7 @@ use serde::de::DeserializeOwned;
 use serde::Serialize;
 use sim::{
     Drift, DriftDirection, Item, KartInput, KartTransform, Phase, Projectile, Replay, SnapshotKart,
-    State, Surface, Track,
+    Start, State, Surface, Track,
 };
 use wasm_bindgen::prelude::*;
 
@@ -311,7 +311,7 @@ impl Race {
         self.state = Some(sim::step(state, &inputs, dt));
     }
 
-    /// Sixteen floats per kart in grid order: position x, y, z, rotation
+    /// Eighteen floats per kart in grid order: position x, y, z, rotation
     /// quaternion x, y, z, w, speed in metres per second along the kart's
     /// facing (negative backing up), the surface under the kart as
     /// `sim::Surface::code` (0 asphalt, 1 sand, 2 grass, 3 wall, 4 out of
@@ -320,9 +320,11 @@ impl Race {
     /// the seconds of drift charge, the item in the kart's slot as
     /// `sim::Item::code` (0 empty, 1 boost, 2 hazard, 3 homing), the
     /// seconds of spin-out left, 0 when the kart is not spun out, 1 while
-    /// the kart is in a hop's airtime, else 0, and the seconds of boost
-    /// left, 0 when the kart is not boosting. Y is up; identity rotation
-    /// faces -Z.
+    /// the kart is in a hop's airtime, else 0, the seconds of boost left, 0
+    /// when the kart is not boosting, the rocket start as
+    /// `sim::Start::code` (0 clean, 1 weak boost, 2 full boost, 3 stall),
+    /// and the seconds of stall left, 0 when the kart is not stalled. Y is
+    /// up; identity rotation faces -Z.
     pub fn kart_transforms(&self) -> Vec<f32> {
         let state = self.state();
         state
@@ -523,14 +525,14 @@ impl Prediction {
             .reconcile(snapshot.tick, acknowledged, &snapshot_kart(own)))
     }
 
-    /// The kart as it is drawn, in the sixteen floats `Race::kart_transforms`
+    /// The kart as it is drawn, in the eighteen floats `Race::kart_transforms`
     /// gives each kart.
     pub fn kart_transform(&self) -> Vec<f32> {
         transform_floats(&self.inner.kart_transform(), self.inner.kart_surface()).to_vec()
     }
 
     /// Every kart where the interpolation draws it, in grid order, in the
-    /// sixteen floats `Race::kart_transforms` gives each, with the surface
+    /// eighteen floats `Race::kart_transforms` gives each, with the surface
     /// under it; empty before the first snapshot. This kart's entry is the
     /// snapshots', not the prediction's.
     pub fn interpolated_kart_transforms(&self) -> Vec<f32> {
@@ -562,8 +564,8 @@ impl Prediction {
     }
 }
 
-/// One kart's sixteen floats, as `Race::kart_transforms` documents them.
-fn transform_floats(kart: &KartTransform, surface: Surface) -> [f32; 16] {
+/// One kart's eighteen floats, as `Race::kart_transforms` documents them.
+fn transform_floats(kart: &KartTransform, surface: Surface) -> [f32; 18] {
     let (direction, tier, charge_s) = match kart.drift {
         Some(drift) => (
             drift.direction.steer_sign(),
@@ -591,6 +593,8 @@ fn transform_floats(kart: &KartTransform, surface: Surface) -> [f32; 16] {
         kart.spin_out_s.unwrap_or(0.0),
         f32::from(u8::from(kart.airborne)),
         kart.boost_s.unwrap_or(0.0),
+        f32::from(kart.start.code()),
+        kart.stall_s.unwrap_or(0.0),
     ]
 }
 
@@ -642,6 +646,13 @@ fn snapshot_kart(kart: &KartSnapshot) -> SnapshotKart {
         }),
         held_item: kart.held_item.map(item),
         spin_out_s: kart.spin_out_s,
+        start: match kart.start {
+            protocol::Start::Clean => Start::Clean,
+            protocol::Start::WeakBoost => Start::WeakBoost,
+            protocol::Start::FullBoost => Start::FullBoost,
+            protocol::Start::Stall => Start::Stall,
+        },
+        stall_s: kart.stall_s,
         lap: u32::from(kart.lap),
         checkpoint: usize::from(kart.checkpoint),
         spline_progress: kart.spline_progress,

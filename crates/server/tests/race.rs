@@ -17,8 +17,8 @@ use protocol::{
 use server::fake_transport::{Client, Conditions, Harness, TRACK};
 use server::room::Started;
 use sim::tuning::{
-    COUNTDOWN_S, INPUT_QUEUE_MAX_TICKS, INPUT_QUEUE_START_TICKS, KARTS_PER_RACE, RACE_END_GRACE_S,
-    SNAPSHOTS_PER_SECOND, TICKS_PER_SECOND,
+    BOT_START_HOLD_S, COUNTDOWN_S, INPUT_QUEUE_MAX_TICKS, INPUT_QUEUE_START_TICKS, KARTS_PER_RACE,
+    RACE_END_GRACE_S, SNAPSHOTS_PER_SECOND, TICKS_PER_SECOND,
 };
 
 const TICKS_PER_SNAPSHOT: u32 = TICKS_PER_SECOND / SNAPSHOTS_PER_SECOND;
@@ -587,9 +587,11 @@ async fn a_player_who_leaves_mid_race_frees_their_seat_at_the_results_and_the_re
     let mut harness = Harness::new(Conditions::PERFECT);
     let (_, mut players, _) = racing_room(&mut harness, 2).await;
     let leaver = players.remove(1);
-    // The leaver is driving when they go; a bot drives their kart after.
+    // The leaver rocket-starts, holding the throttle from the count a bot
+    // holds from, and is driving when they go; a bot drives their kart
+    // after.
     let mut snapshot = players[0].next_snapshot().await.unwrap();
-    while seconds(snapshot.tick) < COUNTDOWN_S {
+    while seconds(snapshot.tick) < COUNTDOWN_S - BOT_START_HOLD_S {
         snapshot = players[0].next_snapshot().await.unwrap();
     }
     for sequence in 1..=INPUT_QUEUE_START_TICKS as u32 {

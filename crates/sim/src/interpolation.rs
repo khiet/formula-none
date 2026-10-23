@@ -223,5 +223,7 @@ fn between(from: &SnapshotKart, to: &SnapshotKart, ticks: u32, share: f32) -> Ka
         spin_out_s: from.spin_out_s,
         airborne: false,
         boost_s: None,
+        start: from.start,
+        stall_s: from.stall_s,
     }
 }

@@ -9,7 +9,7 @@ use std::collections::{BTreeMap, VecDeque};
 
 use protocol::{
     DriftDirection, DriftSnapshot, Event, EventKind, FinalStanding, HazardSnapshot, Input, Item,
-    KartSnapshot, ProjectileSnapshot, Snapshot,
+    KartSnapshot, ProjectileSnapshot, Snapshot, Start,
 };
 use sim::tuning::{
     CONNECTION_SILENCE_S, INPUT_QUEUE_MAX_TICKS, INPUT_QUEUE_START_TICKS, KARTS_PER_RACE,
@@ -281,6 +281,8 @@ impl Race {
                 wrong_way: standing.wrong_way,
                 held_item: transform.held_item.map(wire_item),
                 spin_out_s: transform.spin_out_s,
+                start: wire_start(transform.start),
+                stall_s: transform.stall_s,
             })
             .collect();
         let hazards = state
@@ -372,6 +374,16 @@ fn wire_item(item: sim::Item) -> Item {
         sim::Item::Boost => Item::Boost,
         sim::Item::Hazard => Item::Hazard,
         sim::Item::Homing => Item::Homing,
+    }
+}
+
+/// The protocol's start for the sim's.
+fn wire_start(start: sim::Start) -> Start {
+    match start {
+        sim::Start::Clean => Start::Clean,
+        sim::Start::WeakBoost => Start::WeakBoost,
+        sim::Start::FullBoost => Start::FullBoost,
+        sim::Start::Stall => Start::Stall,
     }
 }
 

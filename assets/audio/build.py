@@ -1,9 +1,9 @@
-"""Render the game's placeholder sounds (ADR 0007, ADR 0008) as WAV files.
+"""Render the game's placeholder SFX (ADR 0007, ADR 0008) as WAV files.
 
-Run from the repo root with `pnpm export:audio`; stdlib only. Every file is
-synthesised here, so the whole set is this repo's own work and CC0 like the
-rest of `assets/` (LICENSES.md). Each SFX is short and the music is one
-bar-aligned loop whose last sample runs straight into its first.
+Run from the repo root with `pnpm export:audio`; stdlib only. Every SFX is
+synthesised here, so the set is this repo's own work and CC0 like the rest
+of `assets/` (LICENSES.md). The music loop is a hand-placed track that this
+script leaves alone.
 """
 
 import math
@@ -96,64 +96,33 @@ def sfx():
             tone(783.99, 0.2, wave_fn=triangle, decay=5),
         ),
     )
+    # Countdown: one short beep for each of 3, 2 and 1, all at one pitch,
+    # and a higher, longer tone for Go, so the rocket start can be timed by
+    # ear.
+    write("countdown-beep", tone(880, 0.12, wave_fn=square, decay=12, gain=0.3))
+    write("go", tone(1320, 0.5, wave_fn=square, decay=4, gain=0.3))
+    # Sputter: the engine coughing through a stall at Go, as long as the
+    # stall (`START_STALL_S`): a low rumble chopped into coughs under
+    # bursts of noise.
+    write("sputter", sputter(2.0))
 
 
-# The loop: four bars of 4/4 at 120 bpm (8 s). Chords I, V, vi, IV in C.
-BPM = 120
-BEAT = 60 / BPM
-BAR = 4 * BEAT
-CHORDS = [
-    (261.63, 329.63, 392.00),  # C E G
-    (196.00, 246.94, 293.66),  # G B D
-    (220.00, 261.63, 329.63),  # A C E
-    (174.61, 220.00, 261.63),  # F A C
-]
-# A lead line over the chords, one note per half beat, as semitone offsets
-# from C4 played an octave up; None rests.
-LEAD = [
-    0, 4, 7, 4, 7, 12, 7, 4,
-    -5, 2, 7, 2, 7, 11, 7, 2,
-    -3, 4, 9, 4, 9, 12, 9, 4,
-    -7, 0, 5, 0, 5, 9, 5, 0,
-]
-
-
-def note(semitones, base=261.63):
-    return base * 2 ** (semitones / 12)
-
-
-def music():
-    total = seconds(4 * BAR)
-    out = [0.0] * total
-    rng = random.Random(7)
-
-    def add(start, samples):
-        for i, s in enumerate(samples):
-            at = (start + i) % total  # a tail past the end wraps into the loop's head
-            out[at] += s
-
-    for bar, chord in enumerate(CHORDS):
-        bar_start = seconds(bar * BAR)
-        root = chord[0] / 2  # the bass an octave down
-        for eighth in range(8):
-            t = bar_start + seconds(eighth * BEAT / 2)
-            pitch = root if eighth % 4 != 3 else chord[2] / 2
-            add(t, tone(pitch, BEAT / 2, wave_fn=square, decay=4, gain=0.12))
-            add(t, noise(0.03, decay=120, gain=0.08, rng=rng))  # hi-hat tick
-            if eighth % 2 == 0:
-                add(t, tone(60, 0.15, decay=25, sweep_to=35, gain=0.5))  # kick
-        for beat in range(4):
-            t = bar_start + seconds(beat * BEAT)
-            for freq in chord:
-                add(t, tone(freq, BEAT, wave_fn=triangle, decay=2.5, gain=0.07))
-    for i, semitones in enumerate(LEAD):
-        if semitones is None:
-            continue
-        t = seconds(i * BEAT / 2)
-        add(t, tone(note(semitones) * 2, BEAT / 2, wave_fn=triangle, decay=5, gain=0.14))
-    write("music-loop", out)
+def sputter(length):
+    """A choked engine for `length` seconds: coughs with noise over each."""
+    rng = random.Random(3)
+    out = []
+    phase = 0.0
+    coughs_per_s = 7.0
+    for i in range(seconds(length)):
+        t = i / RATE
+        cough = 0.5 * (1 + math.cos(2 * math.pi * coughs_per_s * t))
+        chop = cough * cough
+        phase += 2 * math.pi * 55 / RATE
+        rumble = 0.35 * square(phase)
+        hiss = 0.25 * rng.uniform(-1, 1)
+        out.append(chop * (rumble + hiss) * (1 - 0.3 * t / length))
+    return out
 
 
 if __name__ == "__main__":
     sfx()
-    music()

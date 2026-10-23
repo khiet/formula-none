@@ -8,7 +8,7 @@
 use crate::{
     ClientMessage, DriftDirection, DriftSnapshot, Event, EventKind, FinalStanding, HazardSnapshot,
     Input, Item, KartSnapshot, Player, PlayerState, ProjectileSnapshot, Refusal, Room, RoomState,
-    ServerMessage, Snapshot, PROTOCOL_VERSION,
+    ServerMessage, Snapshot, Start, PROTOCOL_VERSION,
 };
 
 /// Every [`ClientMessage`] variant once.
@@ -146,6 +146,13 @@ pub fn snapshot() -> Snapshot {
                     _ => Some(Item::Boost),
                 },
                 spin_out_s: (slot == 6).then_some(0.5),
+                start: match slot % 4 {
+                    0 => Start::Clean,
+                    1 => Start::WeakBoost,
+                    2 => Start::FullBoost,
+                    _ => Start::Stall,
+                },
+                stall_s: (slot == 7).then_some(1.2),
             }
         })
         .collect();

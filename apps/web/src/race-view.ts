@@ -20,7 +20,7 @@ import {
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { CSS2DObject, CSS2DRenderer } from "three/addons/renderers/CSS2DRenderer.js";
 import { WebGPURenderer } from "three/webgpu";
-import type { Hazard, ItemBox, KartSize, KartTransform, Projectile } from "./bridge";
+import type { Hazard, ItemBox, KartSize, KartTransform, Phase, Projectile } from "./bridge";
 import type { CameraPose } from "./chase-camera";
 import { createDustEmitter } from "./dust";
 import type { KartLabel } from "./kart-labels";
@@ -65,9 +65,11 @@ export interface RaceView {
   /**
    * Move every kart mesh to the transforms the sim reports, spinning one
    * that is spun out, run every kart's tells `frameSeconds` on from what
-   * the transforms say, hang `labels` where they say and hide every other
-   * kart's, move the camera to `camera`, show each item box that is there
-   * to pick up, a marker at each hazard and a ball at each projectile.
+   * the transforms say and `phase` (the rocket start's sparks show only
+   * while it counts down), hang `labels` where they say and hide every
+   * other kart's, move the camera to `camera`, show each item box that is
+   * there to pick up, a marker at each hazard and a ball at each
+   * projectile.
    */
   update(
     transforms: readonly KartTransform[],
@@ -76,6 +78,7 @@ export interface RaceView {
     itemBoxesPresent: readonly boolean[],
     hazards: readonly Hazard[],
     projectiles: readonly Projectile[],
+    phase: Phase,
     frameSeconds: number,
   ): void;
   render(): void;
@@ -96,10 +99,12 @@ export interface ViewAssets {
  * with a name floating over each kart the Scene labels, a cone at each
  * hazard and a ball at each projectile. The track mesh is Presentation
  * only; the sim has its own copy of the geometry from the sidecar. Every
- * mechanic's Feedback is drawn from the transforms alone: tyre marks under
- * a drift, sparks once a tier has charged, dust on the run-off, and a
- * spun-out kart turned about its axis over `spinOutSeconds`. Picks WebGPU
- * when the browser has it and WebGL otherwise.
+ * mechanic's Feedback is drawn from the transforms and the phase alone:
+ * tyre marks under a drift, sparks once a tier has charged, drifting or
+ * holding for the rocket start, dust on the run-off and at the wheels of a
+ * stalled kart, and a spun-out kart turned about its axis over
+ * `spinOutSeconds`. Picks WebGPU when the browser has it and WebGL
+ * otherwise.
  */
 export async function createRaceView(
   container: HTMLElement,
@@ -222,7 +227,17 @@ export async function createRaceView(
   const spin = new Quaternion();
   const up = new Vector3(0, 1, 0);
   return {
-    update(transforms, kartLabels, pose, itemBoxesPresent, hazards, projectiles, frameSeconds) {
+    update(
+      transforms,
+      kartLabels,
+      pose,
+      itemBoxesPresent,
+      hazards,
+      projectiles,
+      phase,
+      frameSeconds,
+    ) {
+      const countingDown = phase.kind === "countdown";
       boxes.forEach((mesh, box) => {
         mesh.visible = itemBoxesPresent[box] ?? true;
       });
@@ -238,7 +253,7 @@ export async function createRaceView(
             spin.setFromAxisAngle(up, spinOutAngle(transform.spinOutSeconds, spinOutSeconds)),
           );
         }
-        sparkEmitter.emit(transform, frameSeconds);
+        sparkEmitter.emit(transform, frameSeconds, countingDown);
         dustEmitter.emit(transform, frameSeconds);
       });
       tyreMarks.update(transforms, frameSeconds);
