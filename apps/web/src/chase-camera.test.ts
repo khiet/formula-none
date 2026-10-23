@@ -140,6 +140,20 @@ describe("the chase camera", () => {
     expectClose(settled.target, rest.target, 9);
   });
 
+  it("shakes again for a second hit once the first spin-out has ended", () => {
+    const camera = createChaseCamera(TUNING);
+    const still = kart(0, [0, 0.3, 0]);
+    const rest = camera.update(still, FRAME_S);
+    camera.update(kart(0, [0, 0.3, 0], { spinOutSeconds: 1 }), FRAME_S);
+    // The first spin-out runs out and the shake with it.
+    for (let frame = 0; frame < 60; frame++) {
+      camera.update(still, FRAME_S);
+    }
+    expectClose(camera.update(still, FRAME_S).position, rest.position, 9);
+    const hitAgain = camera.update(kart(0, [0, 0.3, 0], { spinOutSeconds: 1 }), FRAME_S);
+    expect(distance(hitAgain.position, rest.position)).toBeGreaterThan(1e-3);
+  });
+
   it("does not shake for a kart already spun out when first seen, nor through the spin", () => {
     const camera = createChaseCamera(TUNING);
     const spinning = (left: number) => kart(0, [0, 0.3, 0], { spinOutSeconds: left });
