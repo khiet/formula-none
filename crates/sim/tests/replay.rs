@@ -391,7 +391,6 @@ fn the_fixture_set_exercises_kart_contact_off_track_walls_both_tracks_both_mini_
     let mut surfaces = std::collections::HashSet::new();
     let mut closest_karts = f32::MAX;
     let mut held_by_a_wall = false;
-    let mut drifted = false;
     let mut released_blue = false;
     let mut released_orange = false;
     let mut rocket_started = false;
@@ -408,7 +407,6 @@ fn the_fixture_set_exercises_kart_contact_off_track_walls_both_tracks_both_mini_
                 let transforms = state.kart_transforms();
                 for (slot, kart) in transforms.iter().enumerate() {
                     surfaces.insert(state.kart_surface(slot));
-                    drifted |= kart.drift.is_some();
                     // A drift that ends with a boost was let go; the tier
                     // it paid is the one it showed the tick before, since
                     // the release tick adds no charge.
@@ -448,7 +446,6 @@ fn the_fixture_set_exercises_kart_contact_off_track_walls_both_tracks_both_mini_
         );
     }
     assert!(held_by_a_wall, "no lone kart is held by a wall");
-    assert!(drifted, "no fixture drifts");
     assert!(released_blue, "no fixture releases a blue mini-turbo");
     assert!(released_orange, "no fixture releases an orange mini-turbo");
     assert!(rocket_started, "no fixture boosts at Go");

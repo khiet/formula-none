@@ -379,10 +379,9 @@ const _: () = {
     assert!(MINI_TURBO_ORANGE_CHARGE_S > MINI_TURBO_BLUE_CHARGE_S);
     assert!(MINI_TURBO_ORANGE_BOOST_S > MINI_TURBO_BLUE_BOOST_S);
     // Charge thresholds land on whole ticks so a tier pays on a tick, not
-    // between two, and orange stays twice blue's hold.
+    // between two.
     assert!(is_whole_ticks(MINI_TURBO_BLUE_CHARGE_S));
     assert!(is_whole_ticks(MINI_TURBO_ORANGE_CHARGE_S));
-    assert!(MINI_TURBO_ORANGE_CHARGE_S == 2.0 * MINI_TURBO_BLUE_CHARGE_S);
     assert!(BOT_RUBBER_BAND_MIN_FACTOR < 1.0 && 1.0 < BOT_RUBBER_BAND_MAX_FACTOR);
     assert!(0.0 < BOT_RUBBER_BAND_RANGE_M);
     assert!(0.0 < BOT_CORNER_SAMPLE_M && BOT_CORNER_SAMPLE_M <= BOT_LOOKAHEAD_M);

@@ -52,7 +52,8 @@ orange one, a kart boosting at Go and a kart stalling there, so trimming
 the set cannot quietly weaken the gate. `oval-hop-drift.replay.json` was
 written by hand for the mini-turbo: a hop into each drift direction, one
 let go between blue and orange, one held past orange, and one let go
-before blue; its holds count the hop's airtime before the charge starts. `oval-rocket-start.replay.json` and
+before blue; its holds count the hop's airtime before the charge
+starts. `oval-rocket-start.replay.json` and
 `oval-stall.replay.json` were written by hand for the start: the throttle
 held from the first half of the 2 through Go, and from the top of the
 countdown.

@@ -104,6 +104,14 @@ fn hop_right() -> KartInput {
     }
 }
 
+/// The hop button held through a drift with the stick centred.
+fn hold_right() -> KartInput {
+    KartInput {
+        steer: 0.0,
+        ..hop_right()
+    }
+}
+
 /// `state` one tick after the hop has landed, with `landing` held through
 /// the airtime and the landing tick.
 fn landed(state: State, landing: KartInput) -> State {
@@ -237,11 +245,7 @@ fn counter_steer_widens_the_arc_and_inward_steer_tightens_it() {
 /// The mini-turbo tier `seconds` into a right drift held with the stick
 /// centred.
 fn tier_after(seconds: f32) -> MiniTurbo {
-    let held = KartInput {
-        steer: 0.0,
-        ..hop_right()
-    };
-    let state = run(drifting_right(), vec![held; ticks(seconds)]);
+    let state = run(drifting_right(), vec![hold_right(); ticks(seconds)]);
     only_kart(&state)
         .drift
         .expect("still drifting")
@@ -292,11 +296,7 @@ fn just_landed_right() -> State {
 /// The boost the kart reports the tick a right drift is let go after exactly
 /// `held` ticks of charge with the stick centred.
 fn boost_after_ticks(held: usize) -> Option<f32> {
-    let hold = KartInput {
-        steer: 0.0,
-        ..hop_right()
-    };
-    let charged = run(just_landed_right(), vec![hold; held]);
+    let charged = run(just_landed_right(), vec![hold_right(); held]);
     only_kart(&step(charged, &[accelerate()], DT)).boost_s
 }
 
@@ -323,11 +323,7 @@ fn measured_speed(state: State, input: KartInput) -> f32 {
 /// A right drift held with the stick centred for `charge_s`, then the hop
 /// button let go with the throttle still down.
 fn released_after(charge_s: f32) -> State {
-    let held = KartInput {
-        steer: 0.0,
-        ..hop_right()
-    };
-    let charged = run(drifting_right(), vec![held; ticks(charge_s)]);
+    let charged = run(drifting_right(), vec![hold_right(); ticks(charge_s)]);
     step(charged, &[accelerate()], DT)
 }
 
