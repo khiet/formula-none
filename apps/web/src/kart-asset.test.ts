@@ -1,38 +1,12 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { loadBridge } from "./bridge";
+import { type GltfJson, gltfJson } from "./gltf-json";
 import { fitKart, LIVERY_MATERIAL } from "./kart-model";
 
-// The exported kart as the View loads it. Read as bytes and parsed by hand:
-// a glb is a header, a JSON chunk and a binary chunk, and the JSON carries
-// everything these tests ask about, including each mesh's bounds.
+// The exported kart as the View loads it, read as bytes.
 const glb = readFileSync(new URL("../../../assets/karts/kart.glb", import.meta.url));
 const wasm = readFileSync(new URL("./generated/bridge/bridge_bg.wasm", import.meta.url));
-
-interface Gltf {
-  readonly nodes: readonly {
-    readonly name?: string;
-    readonly mesh?: number;
-    readonly translation?: [number, number, number];
-  }[];
-  readonly meshes: readonly {
-    readonly primitives: readonly {
-      readonly attributes: { readonly POSITION: number };
-      readonly material?: number;
-    }[];
-  }[];
-  readonly materials?: readonly { readonly name?: string }[];
-  readonly accessors: readonly { readonly min?: number[]; readonly max?: number[] }[];
-  readonly images?: readonly unknown[];
-  readonly textures?: readonly unknown[];
-}
-
-function gltfJson(bytes: Buffer): Gltf {
-  expect(bytes.toString("ascii", 0, 4)).toBe("glTF");
-  const jsonLength = bytes.readUInt32LE(12);
-  expect(bytes.toString("ascii", 16, 20)).toBe("JSON");
-  return JSON.parse(bytes.toString("utf8", 20, 20 + jsonLength)) as Gltf;
-}
 
 const kart = gltfJson(glb);
 
@@ -41,7 +15,7 @@ const kart = gltfJson(glb);
  * translation. The wheels are nodes placed at their axles, unrotated and
  * unscaled, so a translation is the only transform there is.
  */
-function bounds(gltf: Gltf) {
+function bounds(gltf: GltfJson) {
   const min = [Infinity, Infinity, Infinity];
   const max = [-Infinity, -Infinity, -Infinity];
   for (const node of gltf.nodes) {

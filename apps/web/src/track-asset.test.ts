@@ -1,41 +1,29 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
+import { type GltfJson, gltfJson } from "./gltf-json";
 
-// The exported tracks as the View loads them, parsed by hand from the glb's
-// JSON chunk: the node names and the attributes each mesh carries are what
-// these tests ask about.
-interface Gltf {
-  readonly nodes: readonly { readonly name?: string; readonly mesh?: number }[];
-  readonly meshes: readonly {
-    readonly primitives: readonly { readonly attributes: Record<string, number> }[];
-  }[];
-  readonly images?: readonly unknown[];
-}
-
-function gltfJson(track: string): Gltf {
-  const bytes = readFileSync(
-    new URL(`../../../assets/tracks/${track}/${track}.glb`, import.meta.url),
+/** The exported track as the View loads it. */
+function track(name: string): GltfJson {
+  return gltfJson(
+    readFileSync(new URL(`../../../assets/tracks/${name}/${name}.glb`, import.meta.url)),
   );
-  expect(bytes.toString("ascii", 0, 4)).toBe("glTF");
-  const jsonLength = bytes.readUInt32LE(12);
-  return JSON.parse(bytes.toString("utf8", 20, 20 + jsonLength)) as Gltf;
 }
 
-function nodeNames(gltf: Gltf): string[] {
+function nodeNames(gltf: GltfJson): string[] {
   return gltf.nodes.map(({ name }) => name ?? "");
 }
 
-function attributesOf(gltf: Gltf, nodeName: string): string[] {
+function attributesOf(gltf: GltfJson, nodeName: string): string[] {
   const node = gltf.nodes.find(({ name }) => name === nodeName);
   const mesh = node?.mesh === undefined ? undefined : gltf.meshes[node.mesh];
   return Object.keys(mesh?.primitives[0]?.attributes ?? {});
 }
 
 describe("Brands Patch's final art", () => {
-  const track = gltfJson("brands-patch");
+  const brandsPatch = track("brands-patch");
 
   it("dresses the track: kerbs on the corners, the start line, hoardings, stands and the gantry", () => {
-    const names = nodeNames(track);
+    const names = nodeNames(brandsPatch);
     const families = new Set(names.map((name) => name.split(".")[0]));
     for (const family of ["Kerb", "StartLine", "Hoarding", "Sponsor", "Grandstand", "Gantry"]) {
       expect(families, `no ${family} in the glTF`).toContain(family);
@@ -47,17 +35,17 @@ describe("Brands Patch's final art", () => {
   });
 
   it("maps the asphalt for tyre marks: a texture coordinate on every vertex", () => {
-    expect(attributesOf(track, "Asphalt")).toContain("TEXCOORD_0");
+    expect(attributesOf(brandsPatch, "Asphalt")).toContain("TEXCOORD_0");
   });
 
   it("is flat-coloured, with no texture to fetch", () => {
-    expect(track.images ?? []).toHaveLength(0);
+    expect(brandsPatch.images ?? []).toHaveLength(0);
   });
 });
 
 describe("the oval fixture", () => {
   it("stays plain: kerbs and a start line, no hoardings or stands to draw in the sim's tests", () => {
-    const families = new Set(nodeNames(gltfJson("oval")).map((name) => name.split(".")[0]));
+    const families = new Set(nodeNames(track("oval")).map((name) => name.split(".")[0]));
     expect(families).toContain("Kerb");
     expect(families).toContain("StartLine");
     expect(families).not.toContain("Hoarding");

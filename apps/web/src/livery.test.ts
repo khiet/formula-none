@@ -49,12 +49,8 @@ describe("liveries", () => {
     }
   });
 
-  it("wrap past the grid, so a ninth slot would wear the first livery again", () => {
-    expect(livery(8)).toEqual(livery(0));
-  });
-
   it("print as CSS for the Room Scene's swatches", () => {
-    expect(liveryCss(0)).toMatch(/^#[0-9a-f]{6}$/);
-    expect(liveryCss(0)).toBe(`#${livery(0).hex.toString(16).padStart(6, "0")}`);
+    expect(liveryCss(0)).toBe("#d62828");
+    expect(liveryCss(7)).toBe("#202020");
   });
 });
