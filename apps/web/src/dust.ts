@@ -21,8 +21,8 @@ const DUST_COLOURS: Partial<Record<Surface, number>> = {
   sand: 0xd8c08a,
   grass: 0x7a9a4a,
 };
-/** The tyre smoke of a stalled kart's spinning wheels. */
-const STALL_SMOKE_COLOUR = 0x9a9a9a;
+/** The tyre smoke of a stalled kart's spinning wheels: pale, so it reads on the grid's asphalt. */
+const STALL_SMOKE_COLOUR = 0xf2f2f2;
 
 /**
  * The Feedback for leaving the track and for a rocket start's stall
