@@ -19,7 +19,7 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 
 import export  # noqa: E402
-from trackgen.layout import Placement, Prop, TrackGeometry, build  # noqa: E402
+from trackgen.layout import ModelProp, Placement, TextProp, TrackGeometry, build  # noqa: E402
 from trackgen.layouts import NAMES, load  # noqa: E402
 
 # Flat colours in the 16-bit kart racer's key: one saturated tone per
@@ -44,8 +44,7 @@ MATERIALS = {
     "ink-orange": (0.93, 0.47, 0.08),
     "ink-purple": (0.50, 0.22, 0.70),
 }
-# The Kenney Racing Kit models the props use (CC0, see kenney/License.txt),
-# with the way each one's front faces in Blender's frame after import.
+# The Kenney Racing Kit models the props use (CC0, see kenney/License.txt).
 KENNEY_DIR = HERE / "kenney"
 MODELS = {
     "grandStand": "grandStand.glb",
@@ -118,8 +117,13 @@ def mesh_object(
     return bpy.data.objects.new(name, mesh)
 
 
-def text_object(prop: Prop) -> bpy.types.Object:
-    """Lettering standing upright, read from `prop.facing`, centred on the prop's position."""
+def yaw_facing(facing: float) -> float:
+    """The Z rotation that turns something facing Blender -Y to face `facing` (radians from +X)."""
+    return math.atan2(math.cos(facing), -math.sin(facing))
+
+
+def text_object(prop: TextProp) -> bpy.types.Object:
+    """Lettering standing upright, read from the way its placement faces, centred on it."""
     curve = bpy.data.curves.new(prop.name, "FONT")
     curve.body = prop.text
     curve.size = prop.size
@@ -129,47 +133,52 @@ def text_object(prop: Prop) -> bpy.types.Object:
     curve.resolution_u = 2
     curve.materials.append(material(prop.material))
     obj = bpy.data.objects.new(prop.name, curve)
-    obj.location = (prop.x, prop.y, prop.z)
+    obj.location = (prop.at.x, prop.at.y, prop.at.z)
     # Text lies in its local XY plane reading along +X; stood up on its
-    # bottom edge it faces -Y, which the yaw turns to face the track.
-    obj.rotation_euler = (math.pi / 2.0, 0.0, math.atan2(math.cos(prop.facing), -math.sin(prop.facing)))
+    # bottom edge it faces -Y.
+    obj.rotation_euler = (math.pi / 2.0, 0.0, yaw_facing(prop.at.heading))
     return obj
 
 
-_imported: dict[str, bpy.types.Object] = {}
+# One import per Kenney model per track, normalised; every prop of it is a copy.
+_kenney_sources: dict[str, bpy.types.Object] = {}
 
 
-def model_object(prop: Prop, scenery: bpy.types.Collection) -> bpy.types.Object:
-    """A copy of a Kenney model `prop.size` metres wide, standing on the prop's position and facing its way."""
-    source = _imported.get(prop.model)
-    if source is None:
-        before = set(bpy.data.objects)
-        bpy.ops.import_scene.gltf(filepath=str(KENNEY_DIR / MODELS[prop.model]))
-        imported = [obj for obj in bpy.data.objects if obj not in before and obj.type == "MESH"]
-        if len(imported) != 1:
-            raise RuntimeError(f"{prop.model}: expected one mesh object, imported {len(imported)}")
-        source = imported[0]
-        # Put the model's origin under the middle of its footprint, on its ground, at unit width.
-        xs = [v.co.x for v in source.data.vertices]
-        ys = [v.co.y for v in source.data.vertices]
-        zs = [v.co.z for v in source.data.vertices]
-        width = max(xs) - min(xs)
-        shift = ((min(xs) + max(xs)) / 2.0, (min(ys) + max(ys)) / 2.0, min(zs))
-        for v in source.data.vertices:
-            v.co = tuple((c - d) / width for c, d in zip(v.co, shift))
-        source.data.update()
-        for col in list(source.users_collection):
-            col.objects.unlink(source)
-        _imported[prop.model] = source
-    obj = source.copy()
+def kenney_source(model: str) -> bpy.types.Object:
+    """The model imported once, its origin under the middle of its footprint, on its ground, at unit width."""
+    source = _kenney_sources.get(model)
+    if source is not None:
+        return source
+    before = set(bpy.data.objects)
+    bpy.ops.import_scene.gltf(filepath=str(KENNEY_DIR / MODELS[model]))
+    imported = [obj for obj in bpy.data.objects if obj not in before and obj.type == "MESH"]
+    if len(imported) != 1:
+        raise RuntimeError(f"{model}: expected one mesh object, imported {len(imported)}")
+    source = imported[0]
+    xs = [v.co.x for v in source.data.vertices]
+    ys = [v.co.y for v in source.data.vertices]
+    zs = [v.co.z for v in source.data.vertices]
+    width = max(xs) - min(xs)
+    shift = ((min(xs) + max(xs)) / 2.0, (min(ys) + max(ys)) / 2.0, min(zs))
+    for v in source.data.vertices:
+        v.co = tuple((c - d) / width for c, d in zip(v.co, shift))
+    source.data.update()
+    for col in list(source.users_collection):
+        col.objects.unlink(source)
+    _kenney_sources[model] = source
+    return source
+
+
+def model_object(prop: ModelProp) -> bpy.types.Object:
+    """A copy of a Kenney model `prop.size` metres wide, standing on its placement and facing its way."""
+    obj = kenney_source(prop.model).copy()
     obj.name = prop.name
-    obj.location = (prop.x, prop.y, prop.z)
+    obj.location = (prop.at.x, prop.at.y, prop.at.z)
     obj.scale = (prop.size, prop.size, prop.size)
     # The importer leaves objects in quaternion mode, where an Euler yaw is ignored.
     obj.rotation_mode = "XYZ"
-    # The kit's models face glTF +Z, Blender -Y after import; the yaw turns that to `facing`.
-    obj.rotation_euler = (0.0, 0.0, math.atan2(math.cos(prop.facing), -math.sin(prop.facing)))
-    scenery.objects.link(obj)
+    # The kit's models face glTF +Z, Blender -Y after import.
+    obj.rotation_euler = (0.0, 0.0, yaw_facing(prop.at.heading))
     return obj
 
 
@@ -184,12 +193,9 @@ def populate(geometry: TrackGeometry) -> None:
     for piece in geometry.scenery:
         scenery.objects.link(mesh_object(piece.name, piece.mesh, piece.material))
     for prop in geometry.props:
-        if prop.kind == "text":
-            scenery.objects.link(text_object(prop))
-        elif prop.kind == "model":
-            model_object(prop, scenery)
-        else:
-            raise ValueError(f"unknown prop kind {prop.kind!r}")
+        scenery.objects.link(
+            text_object(prop) if isinstance(prop, TextProp) else model_object(prop)
+        )
 
     curve = bpy.data.curves.new(export.CENTRELINE_OBJECT, "CURVE")
     curve.dimensions = "3D"
@@ -215,7 +221,7 @@ def populate(geometry: TrackGeometry) -> None:
 
 def build_track(name: str) -> None:
     reset_scene()
-    _imported.clear()
+    _kenney_sources.clear()
     populate(build(load(name)))
     out_dir = HERE / name
     export.export_scene(name, out_dir)

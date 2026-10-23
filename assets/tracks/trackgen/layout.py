@@ -3,6 +3,7 @@ builder that turns it into meshes and placements for Blender."""
 
 from __future__ import annotations
 
+from collections.abc import Iterator
 from dataclasses import dataclass, field
 
 import math
@@ -38,6 +39,7 @@ START_LINE_ROWS = 2
 # A hoarding is a board on the far side of the wall, facing the track, with
 # a sponsor's name on it; the gantry spans the asphalt over the start line.
 HOARDING_SETBACK_M = 0.6
+HOARDING_SPACING_M = 12.0
 HOARDING_LENGTH_M = 6.0
 HOARDING_BOTTOM_M = 0.4
 HOARDING_TOP_M = 2.2
@@ -93,11 +95,10 @@ class BoostPad:
 
 @dataclass(frozen=True)
 class Hoardings:
-    """Sponsor boards every `spacing` metres along the outer edge of a range of segments."""
+    """Sponsor boards along the outer edge of a range of segments."""
 
     segments: tuple[str, ...]
     side: int
-    spacing: float = 12.0
 
 
 @dataclass(frozen=True)
@@ -167,22 +168,24 @@ class SceneryMesh:
 
 
 @dataclass(frozen=True)
-class Prop:
-    """Something Blender adds to the scenery: lettering, or a model from the Kenney kit."""
+class TextProp:
+    """Lettering Blender sets in the scenery: `size` metres tall, in `material`, read from `at.heading`."""
 
-    kind: str
-    """`text` or `model`."""
     name: str
-    x: float
-    y: float
-    z: float
-    facing: float
-    """Radians counter-clockwise from +X: the way the text reads from, or the model's front."""
-    text: str = ""
-    model: str = ""
-    material: str = ""
-    size: float = 1.0
-    """Text height in metres, or the model's width."""
+    text: str
+    material: str
+    size: float
+    at: Placement
+
+
+@dataclass(frozen=True)
+class ModelProp:
+    """A Kenney kit model Blender adds to the scenery: `size` metres wide, its front toward `at.heading`."""
+
+    name: str
+    model: str
+    size: float
+    at: Placement
 
 
 @dataclass
@@ -196,7 +199,7 @@ class TrackGeometry:
     boost_pads: list[Placement]
     spawn_grid: list[Placement]
     scenery: list[SceneryMesh] = field(default_factory=list)
-    props: list[Prop] = field(default_factory=list)
+    props: list[TextProp | ModelProp] = field(default_factory=list)
 
 
 def build(layout: Layout) -> TrackGeometry:
@@ -300,17 +303,29 @@ def build(layout: Layout) -> TrackGeometry:
     )
 
 
-def decorate(layout: Layout, height: list[float]) -> tuple[list[SceneryMesh], list[Prop]]:
+def decorate(layout: Layout, height: list[float]) -> tuple[list[SceneryMesh], list[TextProp | ModelProp]]:
     """The scenery: kerbs on every corner, the start line, and what the layout's decor asks for."""
+    scenery = kerbs(layout, height) + start_line(layout)
+    props: list[TextProp | ModelProp] = []
+    boards, lettering = hoardings(layout)
+    scenery += boards
+    props += lettering
+    props += grandstands(layout)
+    if layout.decor.gantry:
+        props.append(gantry(layout))
+    return scenery, props
+
+
+def kerbs(layout: Layout, height: list[float]) -> list[SceneryMesh]:
+    """Red-and-white stripes along both edges of the asphalt through every corner."""
     path = layout.path
     half = layout.asphalt_half_width
-    scenery: list[SceneryMesh] = []
-    props: list[Prop] = []
 
     def lifted(index: int, offset: float) -> mesh.Vertex:
         sample = path.samples[index]
         return (*sample.offset(offset), height[index] + SCENERY_LIFT_M)
 
+    result: list[SceneryMesh] = []
     for segment in path.segments:
         if segment.turn == 0:
             continue
@@ -320,12 +335,22 @@ def decorate(layout: Layout, height: list[float]) -> tuple[list[SceneryMesh], li
             inner = [lifted(i, side * (half - KERB_WIDTH_M)) for i in indices]
             left, right = (outer, inner) if side == 1 else (inner, outer)
             red, white = mesh.striped(mesh.ribbon(left, right, closed=False), KERB_STRIPE_SAMPLES)
-            scenery.append(SceneryMesh(f"Kerb.{segment.name}.{label}.red", "kerb-red", red))
-            scenery.append(SceneryMesh(f"Kerb.{segment.name}.{label}.white", "kerb-white", white))
+            result.append(SceneryMesh(f"Kerb.{segment.name}.{label}.red", "kerb-red", red))
+            result.append(SceneryMesh(f"Kerb.{segment.name}.{label}.white", "kerb-white", white))
+    return result
 
-    line = path.at(0.0)
+
+def start_line(layout: Layout) -> list[SceneryMesh]:
+    """Checkers across the asphalt from the start line forward."""
+    line = layout.path.at(0.0)
+    half = layout.asphalt_half_width
     forward = (math.cos(line.heading), math.sin(line.heading))
     z = elevation(layout.elevation, 0.0) + SCENERY_LIFT_M
+
+    def corner(d: float, along: float) -> mesh.Vertex:
+        x, y = line.offset(d)
+        return (x + forward[0] * along, y + forward[1] * along, z)
+
     columns = int(2 * half / START_LINE_SQUARE_M)
     dark: list[mesh.Mesh] = []
     light: list[mesh.Mesh] = []
@@ -335,103 +360,93 @@ def decorate(layout: Layout, height: list[float]) -> tuple[list[SceneryMesh], li
             d1 = d0 - START_LINE_SQUARE_M
             along0 = row * START_LINE_SQUARE_M
             along1 = along0 + START_LINE_SQUARE_M
-
-            def corner(d: float, along: float) -> mesh.Vertex:
-                x, y = line.offset(d)
-                return (x + forward[0] * along, y + forward[1] * along, z)
-
             square = mesh.quad(
                 corner(d0, along0), corner(d1, along0), corner(d1, along1), corner(d0, along1)
             )
             (dark if (row + column) % 2 == 0 else light).append(square)
-    scenery.append(SceneryMesh("StartLine.dark", "checker-dark", mesh.merge(dark)))
-    scenery.append(SceneryMesh("StartLine.light", "checker-light", mesh.merge(light)))
+    return [
+        SceneryMesh("StartLine.dark", "checker-dark", mesh.merge(dark)),
+        SceneryMesh("StartLine.light", "checker-light", mesh.merge(light)),
+    ]
 
-    runoff = layout.runoff_half_width
-    board_count = 0
-    for hoardings in layout.decor.hoardings:
-        s_start = path.segment(hoardings.segments[0]).s_start
-        s_end = path.segment(hoardings.segments[-1]).s_end
-        if s_end < s_start:
-            s_end += path.length
-        setback = hoardings.side * (runoff + WALL_THICKNESS_M + HOARDING_SETBACK_M)
-        s = s_start + hoardings.spacing / 2.0
-        while s + HOARDING_LENGTH_M / 2.0 <= s_end:
-            sample = path.at(s)
-            x, y = sample.offset(setback)
-            z = elevation(layout.elevation, sample.s)
-            along = (math.cos(sample.heading), math.sin(sample.heading))
-            nx, ny = sample.left_normal
-            # Towards the track: against the left normal on the left, with it on the right.
-            facing = math.atan2(-hoardings.side * ny, -hoardings.side * nx)
+
+def along_outside(
+    layout: Layout, segments: tuple[str, ...], side: int, setback: float, spacing: float
+) -> Iterator[Placement]:
+    """Spots every `spacing` metres along `segments`, `setback` metres beyond the wall on `side`, facing the track.
+
+    The first spot is half a spacing in, so a run of them sits centred on
+    the range; the range wraps past the start line like a wall's.
+    """
+    path = layout.path
+    s_start = path.segment(segments[0]).s_start
+    s_end = path.segment(segments[-1]).s_end
+    if s_end < s_start:
+        s_end += path.length
+    offset = side * (layout.runoff_half_width + WALL_THICKNESS_M + setback)
+    s = s_start + spacing / 2.0
+    while s + spacing / 2.0 <= s_end:
+        sample = path.at(s)
+        x, y = sample.offset(offset)
+        nx, ny = sample.left_normal
+        # Towards the track: against the left normal on the left, with it on the right.
+        facing = math.atan2(-side * ny, -side * nx)
+        yield Placement(x, y, elevation(layout.elevation, sample.s), facing)
+        s += spacing
+
+
+def hoardings(layout: Layout) -> tuple[list[SceneryMesh], list[TextProp]]:
+    """White boards facing the track with a sponsor's name on each, cycling through the sponsors."""
+    boards: list[SceneryMesh] = []
+    lettering: list[TextProp] = []
+    for run in layout.decor.hoardings:
+        for spot in along_outside(layout, run.segments, run.side, HOARDING_SETBACK_M, HOARDING_SPACING_M):
+            number = len(boards)
+            # The board runs across the facing, so along the track.
+            along = (-math.sin(spot.heading), math.cos(spot.heading))
             ends = (-HOARDING_LENGTH_M / 2.0, HOARDING_LENGTH_M / 2.0)
-            corners = [(x + along[0] * e, y + along[1] * e) for e in ends]
-            (ax, ay), (bx, by) = corners
+            (ax, ay), (bx, by) = [(spot.x + along[0] * e, spot.y + along[1] * e) for e in ends]
             board = mesh.quad(
-                (ax, ay, z + HOARDING_BOTTOM_M),
-                (bx, by, z + HOARDING_BOTTOM_M),
-                (bx, by, z + HOARDING_TOP_M),
-                (ax, ay, z + HOARDING_TOP_M),
+                (ax, ay, spot.z + HOARDING_BOTTOM_M),
+                (bx, by, spot.z + HOARDING_BOTTOM_M),
+                (bx, by, spot.z + HOARDING_TOP_M),
+                (ax, ay, spot.z + HOARDING_TOP_M),
             )
-            scenery.append(SceneryMesh(f"Hoarding.{board_count:02d}", "board", board))
-            name, ink = SPONSORS[board_count % len(SPONSORS)]
+            boards.append(SceneryMesh(f"Hoarding.{number:02d}", "board", board))
+            name, ink = SPONSORS[number % len(SPONSORS)]
             proud = HOARDING_TEXT_PROUD_M
-            props.append(
-                Prop(
-                    "text",
-                    f"Sponsor.{board_count:02d}",
-                    x + math.cos(facing) * proud,
-                    y + math.sin(facing) * proud,
-                    z + (HOARDING_BOTTOM_M + HOARDING_TOP_M) / 2.0,
-                    facing,
-                    text=name,
-                    material=ink,
-                    size=HOARDING_TEXT_HEIGHT_M,
+            lettering.append(
+                TextProp(
+                    f"Sponsor.{number:02d}",
+                    name,
+                    ink,
+                    HOARDING_TEXT_HEIGHT_M,
+                    Placement(
+                        spot.x + math.cos(spot.heading) * proud,
+                        spot.y + math.sin(spot.heading) * proud,
+                        spot.z + (HOARDING_BOTTOM_M + HOARDING_TOP_M) / 2.0,
+                        spot.heading,
+                    ),
                 )
             )
-            board_count += 1
-            s += hoardings.spacing
+    return boards, lettering
 
-    stand_count = 0
-    for stands in layout.decor.grandstands:
-        s_start = path.segment(stands.segments[0]).s_start
-        s_end = path.segment(stands.segments[-1]).s_end
-        if s_end < s_start:
-            s_end += path.length
-        setback = stands.side * (runoff + WALL_THICKNESS_M + GRANDSTAND_SETBACK_M + GRANDSTAND_WIDTH_M / 2.0)
-        s = s_start + GRANDSTAND_WIDTH_M / 2.0
-        while s + GRANDSTAND_WIDTH_M / 2.0 <= s_end:
-            sample = path.at(s)
-            x, y = sample.offset(setback)
-            nx, ny = sample.left_normal
-            facing = math.atan2(-stands.side * ny, -stands.side * nx)
-            props.append(
-                Prop(
-                    "model",
-                    f"Grandstand.{stand_count:02d}",
-                    x,
-                    y,
-                    elevation(layout.elevation, sample.s) - GRASS_DROP_M,
-                    facing,
-                    model="grandStand",
-                    size=GRANDSTAND_WIDTH_M,
-                )
-            )
-            stand_count += 1
-            s += GRANDSTAND_WIDTH_M
 
-    if layout.decor.gantry:
-        sample = path.at(GANTRY_PAST_LINE_M)
-        props.append(
-            Prop(
-                "model",
-                "Gantry",
-                sample.x,
-                sample.y,
-                elevation(layout.elevation, sample.s),
-                sample.heading,
-                model="overhead",
-                size=2.0 * (half + 1.0),
+def grandstands(layout: Layout) -> list[ModelProp]:
+    """Kenney stands shoulder to shoulder behind the hoardings, on the grass, facing the track."""
+    stands: list[ModelProp] = []
+    setback = GRANDSTAND_SETBACK_M + GRANDSTAND_WIDTH_M / 2.0
+    for run in layout.decor.grandstands:
+        for spot in along_outside(layout, run.segments, run.side, setback, GRANDSTAND_WIDTH_M):
+            on_grass = Placement(spot.x, spot.y, spot.z - GRASS_DROP_M, spot.heading)
+            stands.append(
+                ModelProp(f"Grandstand.{len(stands):02d}", "grandStand", GRANDSTAND_WIDTH_M, on_grass)
             )
-        )
-    return scenery, props
+    return stands
+
+
+def gantry(layout: Layout) -> ModelProp:
+    """The Kenney gantry spanning the asphalt just past the start line, its front down the track."""
+    sample = layout.path.at(GANTRY_PAST_LINE_M)
+    at = Placement(sample.x, sample.y, elevation(layout.elevation, sample.s), sample.heading)
+    return ModelProp("Gantry", "overhead", 2.0 * (layout.asphalt_half_width + 1.0), at)

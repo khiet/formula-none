@@ -31,10 +31,9 @@ function deltaE(a: number, b: number): number {
 const RACE_DISTANCE_DELTA_E = 30;
 
 describe("liveries", () => {
-  it("are eight, each with a name and a colour of its own", () => {
+  it("are eight, each a colour of its own", () => {
     const all = Array.from({ length: LIVERIES }, (_, slot) => livery(slot));
     expect(all).toHaveLength(8);
-    expect(new Set(all.map(({ name }) => name)).size).toBe(8);
     expect(new Set(all.map(({ hex }) => hex)).size).toBe(8);
   });
 
@@ -42,9 +41,7 @@ describe("liveries", () => {
     for (let a = 0; a < LIVERIES; a += 1) {
       for (let b = a + 1; b < LIVERIES; b += 1) {
         const distance = deltaE(livery(a).hex, livery(b).hex);
-        expect(distance, `${livery(a).name} vs ${livery(b).name}`).toBeGreaterThanOrEqual(
-          RACE_DISTANCE_DELTA_E,
-        );
+        expect(distance, `livery ${a} vs ${b}`).toBeGreaterThanOrEqual(RACE_DISTANCE_DELTA_E);
       }
     }
   });

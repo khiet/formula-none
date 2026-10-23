@@ -1,11 +1,4 @@
-import {
-  BufferGeometry,
-  Group,
-  Mesh,
-  type MeshStandardMaterial,
-  type Object3D,
-  MeshStandardMaterial as Standard,
-} from "three";
+import { BufferGeometry, Group, Mesh, MeshStandardMaterial, type Object3D } from "three";
 import { describe, expect, it } from "vitest";
 import { dressKart, fitKart, LIVERY_MATERIAL } from "./kart-model";
 
@@ -14,8 +7,8 @@ const SIZE = { width: 1.2, height: 0.6, length: 1.8 };
 /** A stand-in for the exported kart: a painted body, dark tyres and a driver. */
 function model(): Group {
   const root = new Group();
-  const paint = new Standard({ name: LIVERY_MATERIAL, color: 0x808080 });
-  const rubber = new Standard({ name: "Tyre", color: 0x202020 });
+  const paint = new MeshStandardMaterial({ name: LIVERY_MATERIAL, color: 0x808080 });
+  const rubber = new MeshStandardMaterial({ name: "Tyre", color: 0x202020 });
   const body = new Mesh(new BufferGeometry(), paint);
   body.name = "body";
   const wheel = new Mesh(new BufferGeometry(), rubber);
