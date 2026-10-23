@@ -26,7 +26,6 @@ for (const [name, url, throttleKey] of [
     });
     await expect(page.locator('[data-instrument="best-lap"]')).toHaveText("Best --:--.---");
     await expect(page.locator('[data-instrument="lap-time"]')).not.toHaveText("0:00.000");
-    // The course map in the corner, with a marker per kart and the own kart's ringed.
     const courseMap = page.locator('[data-instrument="course-map"]');
     await expect(courseMap).toBeVisible();
     await expect(courseMap.locator("[data-kart]")).toHaveCount(8);
@@ -58,6 +57,8 @@ test("backing up for two seconds shows the wrong-way warning until the kart driv
   // through Go, and drives straight on until the first corner takes it off
   // the asphalt or into a wall, clear of the bots' line.
   await expect(countdown).toHaveText("2", { timeout: 60_000 });
+  // The course map is up through the countdown, before anything moves.
+  await expect(page.locator('[data-instrument="course-map"] [data-own]')).toBeVisible();
   await page.keyboard.down("ArrowUp");
   await expect(countdown).toBeHidden({ timeout: 60_000 });
   await expect(wrongWay).toBeHidden();

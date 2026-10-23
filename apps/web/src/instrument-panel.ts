@@ -1,5 +1,5 @@
 import type { KartTransform, Phase, Standing } from "./bridge";
-import { type CourseSetup, createCourseMap } from "./course-map";
+import { type CourseMapSetup, createCourseMap } from "./course-map";
 import { formatLapTime, NO_LAP_TIME, ordinal } from "./format";
 import type { Item } from "./generated/protocol";
 
@@ -63,7 +63,7 @@ const GO_S = 1;
 export function createInstrumentPanel(
   container: HTMLElement,
   lapsPerRace: number,
-  course: CourseSetup,
+  course: CourseMapSetup,
 ): InstrumentPanel {
   const panel = document.createElement("div");
   panel.id = "instrument-panel";

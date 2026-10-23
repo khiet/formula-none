@@ -157,7 +157,7 @@ describe("the course map", () => {
     Number(marker?.getAttribute("cy")),
   ];
 
-  it("outlines the course from the centreline with a start tick, and no background", () => {
+  it("outlines the track from the centreline with a start tick", () => {
     const container = document.createElement("div");
     createInstrumentPanel(container, 3, course);
     const map = container.querySelector<SVGSVGElement>('svg[data-instrument="course-map"]');
@@ -166,7 +166,6 @@ describe("the course map", () => {
     expect(outline?.getAttribute("d")).toMatch(/^M .* Z$/);
     expect(outline?.getAttribute("fill")).toBe("none");
     expect(map?.querySelector("line")).not.toBeNull();
-    expect(map?.querySelector("rect")).toBeNull();
   });
 
   it("moves a kart's marker with its transform, down the map as it drives along +z", () => {

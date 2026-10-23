@@ -6,28 +6,20 @@
 
 import type { KartTransform } from "./bridge";
 import { liveryCss } from "./livery";
+import type { WorldPoint } from "./track";
 
-export type WorldPoint = readonly [number, number, number];
-
-/**
- * The box the map is drawn into, in map units: the margin the outline keeps
- * from its edges and how far the start/finish tick reaches either side of
- * the centreline, so it pokes past the road however the track is scaled.
- */
+/** The box the map is drawn into, in map units, with the margin the outline keeps from its edges. */
 export interface MapBox {
   readonly width: number;
   readonly height: number;
   readonly margin: number;
-  readonly startTickHalf: number;
 }
 
-export interface CourseProjection {
+export interface MapProjection {
   /** The outline: an SVG path through every centreline point, closed back to the first. */
   readonly path: string;
   /** The start/finish tick `[x1, y1, x2, y2]`: across the track at the first centreline point. */
   readonly startTick: readonly [number, number, number, number];
-  /** Map units per metre. */
-  readonly scale: number;
   /** Where a world `x`/`z` lands on the map. */
   toMap(x: number, z: number): [number, number];
 }
@@ -35,10 +27,16 @@ export interface CourseProjection {
 /**
  * The top-down projection of `centreline` into `box`: uniformly scaled so
  * the outline fits inside the margin on its longer side and is centred on
- * the shorter, keeping the track's shape. Height is ignored. Throws on an
+ * the shorter, keeping the track's shape. Height is ignored. The start
+ * tick reaches `startTickHalf` map units either side of the centreline,
+ * so it pokes past the road however the track is scaled. Throws on an
  * empty centreline, which no sidecar has.
  */
-export function projectCourse(centreline: readonly WorldPoint[], box: MapBox): CourseProjection {
+export function projectCentreline(
+  centreline: readonly WorldPoint[],
+  box: MapBox,
+  startTickHalf: number,
+): MapProjection {
   const [first, second] = centreline;
   if (first === undefined) {
     throw new RangeError("a course map needs a centreline");
@@ -72,16 +70,16 @@ export function projectCourse(centreline: readonly WorldPoint[], box: MapBox): C
   const dx = ahead[0] - first[0];
   const dz = ahead[2] - first[2];
   const length = Math.hypot(dx, dz) || 1;
-  const acrossX = (-dz / length) * box.startTickHalf;
-  const acrossZ = (dx / length) * box.startTickHalf;
+  const acrossX = (-dz / length) * startTickHalf;
+  const acrossZ = (dx / length) * startTickHalf;
   const [u, v] = toMap(first[0], first[2]);
   const startTick = [u - acrossX, v - acrossZ, u + acrossX, v + acrossZ] as const;
 
-  return { path, startTick, scale, toMap };
+  return { path, startTick, toMap };
 }
 
 /** What the map is built from: the track's centreline and who is on the grid. */
-export interface CourseSetup {
+export interface CourseMapSetup {
   readonly centreline: readonly WorldPoint[];
   readonly kartCount: number;
   /** The kart whose marker is the big ringed one. */
@@ -117,26 +115,25 @@ const SVG_NS = "http://www.w3.org/2000/svg";
  * marker per kart in its livery, the own kart's larger, ringed in white and
  * last in the document so it draws over the rest.
  */
-export function createCourseMap(setup: CourseSetup): CourseMap {
-  const course = projectCourse(setup.centreline, {
-    width: MAP_UNITS,
-    height: MAP_UNITS,
-    margin: MAP_MARGIN,
-    startTickHalf: START_TICK_HALF,
-  });
+export function createCourseMap(setup: CourseMapSetup): CourseMap {
+  const projection = projectCentreline(
+    setup.centreline,
+    { width: MAP_UNITS, height: MAP_UNITS, margin: MAP_MARGIN },
+    START_TICK_HALF,
+  );
   const svg = document.createElementNS(SVG_NS, "svg");
   svg.dataset.instrument = "course-map";
   svg.setAttribute("viewBox", `0 0 ${MAP_UNITS} ${MAP_UNITS}`);
 
   const outline = document.createElementNS(SVG_NS, "path");
-  outline.setAttribute("d", course.path);
+  outline.setAttribute("d", projection.path);
   outline.setAttribute("fill", "none");
   outline.setAttribute("stroke", "rgba(255, 255, 255, 0.55)");
   outline.setAttribute("stroke-width", String(OUTLINE_WIDTH));
   outline.setAttribute("stroke-linejoin", "round");
   outline.setAttribute("stroke-linecap", "round");
 
-  const [x1, y1, x2, y2] = course.startTick;
+  const [x1, y1, x2, y2] = projection.startTick;
   const start = document.createElementNS(SVG_NS, "line");
   start.setAttribute("x1", String(x1));
   start.setAttribute("y1", String(y1));
@@ -174,7 +171,7 @@ export function createCourseMap(setup: CourseSetup): CourseMap {
         if (marker === undefined) {
           return;
         }
-        const [u, v] = course.toMap(transform.position[0], transform.position[2]);
+        const [u, v] = projection.toMap(transform.position[0], transform.position[2]);
         marker.setAttribute("cx", String(u));
         marker.setAttribute("cy", String(v));
       });

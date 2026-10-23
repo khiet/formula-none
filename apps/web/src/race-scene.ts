@@ -11,7 +11,6 @@ import type {
   Standing,
 } from "./bridge";
 import { createChaseCamera } from "./chase-camera";
-import type { WorldPoint } from "./course-map";
 import { gamepadKartInput } from "./gamepad";
 import { combinedKartInput, IDLE_INPUT } from "./input";
 import { createInstrumentPanel, type InstrumentPanel, type ItemSlot } from "./instrument-panel";
@@ -21,7 +20,7 @@ import { keyboardKartInput } from "./keyboard";
 import { createRaceView } from "./race-view";
 import { downloadReplay, type ReplayRecorder, recordReplay } from "./replay";
 import { kartName, type RaceResults } from "./results-scene";
-import type { TrackFiles, TrackName } from "./track";
+import type { TrackFiles, TrackName, WorldPoint } from "./track";
 
 /**
  * Who is on the grid of a local race: the seed the sim is built from, how
