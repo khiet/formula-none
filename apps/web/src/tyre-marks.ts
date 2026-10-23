@@ -1,7 +1,7 @@
 import type { KartSize, KartTransform } from "./bridge";
 import { rearWheel, type Side, type Vec3 } from "./kart-frame";
 
-/** One stretch of rubber on the road: a tyre's print between two frames. */
+/** One stretch of rubber on the road: a tyre's print from one laid point to the next. */
 export interface TyreMark {
   /** Where the tyre was and where it is, on the floor of the kart's box, in world metres. */
   readonly from: Readonly<Vec3>;

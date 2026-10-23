@@ -1,6 +1,7 @@
 // The Three.js side of the tells: one mesh per tell, sized once to its
 // store's capacity and rewritten in place each frame, so eight karts' marks
-// and particles are two draw calls each and the scene graph never churns.
+// are one draw call and each particle pool another, and the scene graph
+// never churns.
 // Presentation only; everything drawn here was decided by a tell module
 // from the transforms the bridge reports.
 
@@ -55,7 +56,8 @@ export function tyreMarkMesh(marks: TyreMarks): TellMesh {
     indices.set([corner, corner + 1, corner + 2, corner + 2, corner + 1, corner + 3], slot * 6);
   }
   geometry.setIndex(new BufferAttribute(indices, 1));
-  // Never culled: the quads span the track and a kart's view is always among them.
+  // Not culled: a bounding sphere over marks spread round the track would
+  // exclude nothing and would need recomputing every frame.
   geometry.boundingSphere = null;
   const material = new MeshBasicNodeMaterial();
   material.color = new Color(MARK_COLOUR);

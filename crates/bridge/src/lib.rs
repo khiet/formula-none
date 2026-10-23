@@ -107,19 +107,19 @@ pub fn top_speed_m_per_s() -> f32 {
     sim::tuning::TOP_SPEED_M_PER_S
 }
 
-/// How far the chase camera pulls back at top speed (ADR 0014).
+/// How far the chase camera pulls back at top speed (ADR 0020).
 #[wasm_bindgen]
 pub fn camera_pull_back_m() -> f32 {
     sim::tuning::CAMERA_PULL_BACK_M
 }
 
-/// How long the chase camera shakes after a hit (ADR 0014).
+/// How long the chase camera shakes after a hit (ADR 0020).
 #[wasm_bindgen]
 pub fn camera_shake_s() -> f32 {
     sim::tuning::CAMERA_SHAKE_S
 }
 
-/// How far the shake throws the chase camera at its start (ADR 0014).
+/// How far the shake throws the chase camera at its start (ADR 0020).
 #[wasm_bindgen]
 pub fn camera_shake_amplitude_m() -> f32 {
     sim::tuning::CAMERA_SHAKE_AMPLITUDE_M

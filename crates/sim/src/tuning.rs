@@ -305,9 +305,9 @@ pub const BOT_STALL_S: f32 = 1.0;
 /// Seconds a bot backs up before it drives on again.
 pub const BOT_REVERSE_S: f32 = 1.0;
 
-// Camera. Presentation reads these through the bridge; the sim never does.
-// They live here so a feel pass tunes the camera in the same one-file diff
-// as the handling it answers to (ADR 0014).
+// Camera (ADR 0020). Presentation reads these through the bridge; the sim
+// never does. They live here so a feel pass tunes the camera in the same
+// one-file diff as the handling it answers to.
 
 /// Metres the chase camera sits further behind the kart at top speed than
 /// at a standstill, scaling with speed in between, so speed is felt; a

@@ -98,7 +98,7 @@ export function createChaseCamera(tuning: CameraTuning): ChaseCamera {
 /**
  * The shake's throw `age` seconds into it: the tuned amplitude on each axis
  * at the start, dying away linearly to nothing at the tuned length, and
- * nothing after. Deterministic, so a replayed hit rattles the same way.
+ * nothing after. No randomness, so a test can hold the pose exactly.
  */
 function shake(age: number, tuning: CameraTuning): readonly [number, number, number] {
   if (age >= tuning.shakeSeconds) {

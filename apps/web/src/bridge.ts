@@ -257,7 +257,7 @@ export interface MessageCodec {
   decodeServerMessage(bytes: Uint8Array): ServerMessage;
 }
 
-/** What the chase camera reads from the sim's tuning (ADR 0014): the speed its pull-back is scaled to, and the hit's shake. */
+/** What the chase camera reads from the sim's tuning (ADR 0020): the speed its pull-back is scaled to, and the hit's shake. */
 export interface CameraTuning {
   readonly topSpeedMetresPerSecond: number;
   /** How much further back the camera sits at top speed than at a standstill. */
@@ -290,7 +290,7 @@ export interface Bridge extends MessageCodec {
   readonly hazardDropDistanceMetres: number;
   /** How long a spin-out lasts (ADR 0014), which the spin animation runs once over. */
   readonly spinOutSeconds: number;
-  /** The chase camera's pull-back and shake, from the sim's tuning (ADR 0014). */
+  /** The chase camera's pull-back and shake, from the sim's tuning (ADR 0020). */
   readonly cameraTuning: CameraTuning;
   /**
    * Karts on the grid, from the sim's tuning; bots fill the slots the humans

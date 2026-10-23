@@ -12,8 +12,8 @@ export type Side = -1 | 1;
 
 /**
  * The bottom of the kart's box under the rear wheel on `side`, in world
- * metres, written to `out`. The tyres sit a tyre's radius, half the kart's
- * height, in from the box's rear and a tyre's width in from its side.
+ * metres, written to `out`. A tyre's centre sits its radius, half the
+ * kart's height, in from the box's rear and half its width in from the side.
  */
 export function rearWheel(kart: KartTransform, side: Side, size: KartSize, out: Vec3): Vec3 {
   return toWorld(
