@@ -13,6 +13,7 @@ import { gamepadKartInput } from "./gamepad";
 import { combinedKartInput, IDLE_INPUT } from "./input";
 import { createInstrumentPanel, type InstrumentPanel, type ItemSlot } from "./instrument-panel";
 import { kartLabels } from "./kart-labels";
+import { KART_GLTF_URL } from "./kart-model";
 import { keyboardKartInput } from "./keyboard";
 import { createRaceView } from "./race-view";
 import { downloadReplay, type ReplayRecorder, recordReplay } from "./replay";
@@ -168,7 +169,7 @@ export async function createRaceScene(
     container,
     bridge.kartsPerRace,
     bridge.kartSize,
-    track.gltfUrl,
+    { trackGltfUrl: track.gltfUrl, kartGltfUrl: KART_GLTF_URL },
     run.itemBoxes(),
     bridge.spinOutSeconds,
   );

@@ -1,24 +1,38 @@
 // The eight liveries: one fixed colour per slot, so the kart in the View
-// and the player in the Room Scene wear the same one.
+// and the player in the Room Scene wear the same one. Picked by hand for
+// distance between every pair, not walked around the hue wheel: at race
+// distance two hues forty-five degrees apart blur together, two lightnesses
+// do not.
 
 export const LIVERIES = 8;
 
-/** A livery's hue, saturation and lightness; the hue walks the wheel once over the grid. */
-export interface LiveryColour {
-  /** 0..1 around the wheel. */
-  readonly hue: number;
-  /** 0..1. */
-  readonly saturation: number;
-  /** 0..1. */
-  readonly lightness: number;
+export interface Livery {
+  /** The paint's name, for the results and for talking about a kart. */
+  readonly name: string;
+  /** sRGB, as a Three colour takes it. */
+  readonly hex: number;
 }
 
-export function liveryColour(livery: number): LiveryColour {
-  return { hue: (livery % LIVERIES) / LIVERIES, saturation: 0.8, lightness: 0.5 };
+const PALETTE: readonly Livery[] = [
+  { name: "Red", hex: 0xd62828 },
+  { name: "Blue", hex: 0x1f5fd1 },
+  { name: "Yellow", hex: 0xf5c400 },
+  { name: "Green", hex: 0x2a9d3a },
+  { name: "Orange", hex: 0xf77f00 },
+  { name: "Purple", hex: 0x8e3fbf },
+  { name: "White", hex: 0xf2f2f2 },
+  { name: "Black", hex: 0x202020 },
+];
+
+export function livery(slot: number): Livery {
+  const paint = PALETTE[slot % LIVERIES];
+  if (paint === undefined) {
+    throw new RangeError(`no livery for slot ${slot}`);
+  }
+  return paint;
 }
 
-/** The livery as CSS, for the Room Scene's swatches. */
-export function liveryCss(livery: number): string {
-  const { hue, saturation, lightness } = liveryColour(livery);
-  return `hsl(${Math.round(hue * 360)}deg ${Math.round(saturation * 100)}% ${Math.round(lightness * 100)}%)`;
+/** The livery as CSS, for the Room Scene's swatches and the kart labels. */
+export function liveryCss(slot: number): string {
+  return `#${livery(slot).hex.toString(16).padStart(6, "0")}`;
 }
