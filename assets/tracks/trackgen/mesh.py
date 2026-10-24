@@ -30,8 +30,12 @@ def ribbon(left: list[Vertex], right: list[Vertex], closed: bool) -> Mesh:
     return vertices, faces
 
 
-def box_rail(inner: list[Vertex], outer: list[Vertex], height: float) -> Mesh:
-    """A wall of `height` metres standing on two rails: both faces, the top and both ends.
+def box_rail(
+    inner: list[Vertex], outer: list[Vertex], height: float, closed: bool = False
+) -> Mesh:
+    """A wall of `height` metres standing on two rails: both faces, the top
+    and both ends, or with `closed` the last pair joined back to the first
+    and no ends.
 
     Every face is wound to point out of the wall, which the physics relies on
     to tell a kart which way a face pushes.
@@ -47,12 +51,14 @@ def box_rail(inner: list[Vertex], outer: list[Vertex], height: float) -> Mesh:
     vertices = inner + [lift(v) for v in inner] + [lift(v) for v in outer] + outer
     ib, it, ot, ob = 0, count, 2 * count, 3 * count
     faces: list[Face] = []
-    for i in range(count - 1):
-        j = i + 1
+    for i in range(count if closed else count - 1):
+        j = (i + 1) % count
         towards_inner = _direction(outer[i], inner[i])
         faces.append(_facing((ib + i, ib + j, it + j, it + i), vertices, towards_inner))
         faces.append(_facing((it + i, it + j, ot + j, ot + i), vertices, (0.0, 0.0, 1.0)))
         faces.append(_facing((ot + i, ot + j, ob + j, ob + i), vertices, _negate(towards_inner)))
+    if closed:
+        return vertices, faces
     last = count - 1
     faces.append(_facing((ib, it, ot, ob), vertices, _direction(inner[1], inner[0])))
     faces.append(

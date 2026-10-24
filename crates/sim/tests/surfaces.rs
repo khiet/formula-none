@@ -2,7 +2,8 @@
 //! each surface of the oval fixture and read the transforms, surfaces and
 //! standings the sim reports. The oval's front straight has its centreline
 //! at x = 30 running along -Z, asphalt 6 m either side, sand for 6 m
-//! beyond, grass to x = 70 and nothing past it (layouts/oval.py).
+//! beyond and a wall at its edge; with the walls taken away, grass to
+//! x = 70 and nothing past it (layouts/oval.py).
 
 use sim::tuning::{KART_HALF_WIDTH_M, OFF_TRACK_SPEED_FACTOR, TICKS_PER_SECOND, TOP_SPEED_M_PER_S};
 use sim::{step, KartInput, KartTransform, Phase, State, Surface, Track};
@@ -45,6 +46,23 @@ fn oval_with_slot_0_at(position: [f32; 3], yaw: f32) -> Track {
     with_slot_0_at(OVAL, position, yaw)
 }
 
+/// `sidecar` with its walls taken away, the pipes kept. The walls keep a
+/// kart off the grass and in the world, and these are the rules for a kart
+/// that got there anyway, whatever track it was on.
+fn without_walls(sidecar: &str) -> String {
+    let mut sidecar: serde_json::Value = serde_json::from_str(sidecar).expect("valid JSON");
+    let meshes = sidecar["surfaces"].as_array().expect("surfaces").clone();
+    sidecar["surfaces"] = meshes
+        .into_iter()
+        .filter(|mesh| !mesh["name"].as_str().expect("a name").starts_with("Wall"))
+        .collect();
+    sidecar.to_string()
+}
+
+fn open_oval_with_slot_0_at(position: [f32; 3], yaw: f32) -> Track {
+    with_slot_0_at(&without_walls(OVAL), position, yaw)
+}
+
 #[test]
 fn sand_and_grass_cap_the_speed_at_the_off_track_fraction_of_top_speed() {
     // From the infield grass at x = 0 across the front straight: grass to
@@ -52,7 +70,7 @@ fn sand_and_grass_cap_the_speed_at_the_off_track_fraction_of_top_speed() {
     let mut state = started(State::new(
         SEED,
         1,
-        oval_with_slot_0_at([0.0, 0.0, -20.0], FACING_PLUS_X),
+        open_oval_with_slot_0_at([0.0, 0.0, -20.0], FACING_PLUS_X),
     ));
     let cap = OFF_TRACK_SPEED_FACTOR * TOP_SPEED_M_PER_S;
     let mut fastest_off_track: f32 = 0.0;
@@ -357,7 +375,7 @@ fn a_kart_out_of_the_world_for_the_tuned_time_respawns_at_its_last_checkpoint_fa
     let mut state = started(State::new(
         SEED,
         1,
-        oval_with_slot_0_at([28.0, 0.0, 4.0], FACING_PLUS_X),
+        open_oval_with_slot_0_at([28.0, 0.0, 4.0], FACING_PLUS_X),
     ));
     let start = state.track().checkpoints()[0].position;
     let next = state.track().checkpoints()[1].position;

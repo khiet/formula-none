@@ -23,14 +23,13 @@ sidecar, and saves a `.blend` beside them for inspection (ignored by git).
 Commit the glTF and sidecar: CI has no Blender, and the sim's tests include
 the sidecars.
 
-The export refuses a layout whose checkpoints leave a corner open to a
-cut: a lap counts only when every checkpoint is crossed in order, so two
-consecutive checkpoints joined by a line much shorter than the centreline
-between them let a kart skip the corner. A long corner gets a checkpoint at
-its apex (`apex_checkpoints`) that reaches the whole run-off on the outside
-and only a little past the asphalt on the inside, so a kart running wide is
-still credited and one cutting the infield is not. The checks run without
-Blender, with the tests beside them:
+Every track is walled along both edges of the run-off the whole way
+round: the export stands a wall on the sand's outer edge on each side,
+following the centreline and its elevation, so a kart can leave the asphalt
+but never the course and no corner can be cut (ADR 0022). A layout declares
+no walls. The checkpoints are evenly spaced and span the run-off from wall
+to wall. The layouts are checked without Blender, with the tests beside
+them:
 
 ```sh
 pnpm test:tracks
@@ -41,9 +40,8 @@ pnpm test:tracks
 The Blender source of a track is a Python layout, `trackgen/layouts/<name>.py`,
 so it diffs and reviews like code. A layout lays the centreline turtle-style
 from straights and arcs, then hangs everything else on it by arc length:
-asphalt and run-off widths, walls, pipes, elevation (hills and the jump
-ramp), checkpoint count and the corners that get an apex checkpoint, item
-box rows and boost pads, and its decor:
+asphalt and run-off widths, pipes, elevation (hills and the jump ramp),
+checkpoint count, item box rows and boost pads, and its decor:
 which segments get sponsor hoardings and grandstands, and whether the
 start line gets its gantry. The spawn grid is always eight slots behind
 the start line. `trackgen/` is pure Python so a

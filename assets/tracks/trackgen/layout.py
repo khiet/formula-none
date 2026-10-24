@@ -9,7 +9,7 @@ from dataclasses import dataclass, field
 import math
 
 from . import mesh
-from .path import Feature, Path, Segment, elevation
+from .path import Feature, Path, elevation
 from .sponsors import SPONSORS
 
 # Surface tags the sim understands; the fifth, out of world, is the absence
@@ -60,33 +60,6 @@ GRID_ROW_SPACING_M = 5.0
 GRID_COLUMN_OFFSET_M = 2.0
 GRID_STAGGER_M = 2.0
 GRID_FRONT_ROW_BEHIND_LINE_M = 4.0
-
-# The most a straight line between two consecutive checkpoints may beat the
-# centreline between them. A lap counts only when every checkpoint is
-# crossed in order, so a pair this far apart round a corner leaves the
-# corner open to a cut across the infield. Brands Patch's hairpin one, with
-# no checkpoint of its own, saved 30 m across the grass; the corner cuts
-# over the inside sand that we keep (corner-3, hairpin two's entry and exit)
-# save 8 to 11 m and the oval's under 3 m.
-CHECKPOINT_SHORTCUT_LIMIT_M = 15.0
-# An apex checkpoint reaches the whole run-off on the outside, where a kart
-# runs wide, and only this far past the asphalt on the inside, where a kart
-# any deeper is cutting the corner. The pipes stand 3 to 6 m inside, so this
-# is just enough for a kart (1.2 m wide) squeezing past them on the sand.
-# Measured through hairpin one: a cut that keeps 11 m from the hairpin's
-# centre takes 3.5 s against 3.1 s round the asphalt, one that skims 6 m
-# from the centre, the run-off's inner edge, takes 2.7 s.
-APEX_INSIDE_MARGIN_M = 1.5
-
-
-@dataclass(frozen=True)
-class Wall:
-    """A barrier along the outer edge of the run-off over a range of segments."""
-
-    segments: tuple[str, ...]
-    side: int
-    """+1 left of the direction of travel, -1 right."""
-
 
 @dataclass(frozen=True)
 class Pipe:
@@ -142,16 +115,11 @@ class Layout:
     asphalt_half_width: float
     runoff_width: float
     checkpoint_count: int
-    walls: list[Wall]
     pipes: list[Pipe]
     item_rows: list[ItemRow]
     boost_pads: list[BoostPad]
     elevation: list[Feature] = field(default_factory=list)
     decor: Decor = field(default_factory=Decor)
-    apex_checkpoints: tuple[str, ...] = ()
-    """Segments that get a checkpoint at their midpoint besides the evenly
-    spaced ones: a corner long enough to fall between two of those and open
-    enough to cut across."""
 
     @property
     def runoff_half_width(self) -> float:
@@ -223,39 +191,9 @@ class TrackGeometry:
     props: list[TextProp | ModelProp] = field(default_factory=list)
 
 
-def checkpoint_arc_lengths(layout: Layout) -> list[float]:
-    """Where the checkpoints stand along the lap, in lap order:
-    `checkpoint_count` of them evenly spaced from the start line, plus one at
-    the midpoint of each apex segment."""
-    path = layout.path
-    even = [k * path.length / layout.checkpoint_count for k in range(layout.checkpoint_count)]
-    apex = [path.segment(name).s_mid for name in layout.apex_checkpoints]
-    return sorted(even + apex)
-
-
-def check_checkpoint_spacing(path: Path, arc_lengths: list[float]) -> None:
-    """Refuse checkpoints, given in lap order, that leave a corner open to a
-    cut: a consecutive pair, the last and first included, whose straight-line
-    join is more than `CHECKPOINT_SHORTCUT_LIMIT_M` shorter than the
-    centreline between them."""
-    for number, s in enumerate(arc_lengths):
-        next_number = (number + 1) % len(arc_lengths)
-        here, there = path.at(s), path.at(arc_lengths[next_number])
-        along = (arc_lengths[next_number] - s) % path.length
-        straight = math.hypot(there.x - here.x, there.y - here.y)
-        saved = along - straight
-        if saved > CHECKPOINT_SHORTCUT_LIMIT_M:
-            raise ValueError(
-                f"checkpoints {number} and {next_number} leave a cut: {straight:.0f} m in a straight "
-                f"line against {along:.0f} m along the centreline saves {saved:.0f} m, more "
-                f"than the {CHECKPOINT_SHORTCUT_LIMIT_M:.0f} m allowed; put one in the corner between them"
-            )
-
 
 def build(layout: Layout) -> TrackGeometry:
     path = layout.path
-    checkpoint_s = checkpoint_arc_lengths(layout)
-    check_checkpoint_spacing(path, checkpoint_s)
     height = [elevation(layout.elevation, sample.s) for sample in path.samples]
 
     def rail(offset: float, drop: float = 0.0) -> list[mesh.Vertex]:
@@ -302,20 +240,15 @@ def build(layout: Layout) -> TrackGeometry:
         )
     )
 
-    for number, wall in enumerate(layout.walls):
-        s_start = path.segment(wall.segments[0]).s_start
-        s_end = path.segment(wall.segments[-1]).s_end
-        if s_end < s_start:
-            s_end += path.length
-        indices = path.indices_between(s_start, s_end)
-        near = wall.side * runoff
-        far = wall.side * (runoff + WALL_THICKNESS_M)
-        inner = [(*path.samples[i].offset(near), -GRASS_DROP_M) for i in indices]
-        outer = [(*path.samples[i].offset(far), -GRASS_DROP_M) for i in indices]
+    # Track limits: a wall along each edge of the run-off the whole way
+    # round, standing on the sand's outer edge so it follows the hill and
+    # the ramp with the track. A kart can go off the asphalt but never off
+    # the course, so no corner can be cut (ADR 0022).
+    for name, side in (("WallLeft", 1), ("WallRight", -1)):
+        inner = rail(side * runoff, GRASS_DROP_M)
+        outer = rail(side * (runoff + WALL_THICKNESS_M), GRASS_DROP_M)
         surfaces.append(
-            SurfaceMesh(
-                f"Wall.{number:02d}", WALL, WALL, mesh.box_rail(inner, outer, WALL_HEIGHT_M)
-            )
+            SurfaceMesh(name, WALL, WALL, mesh.box_rail(inner, outer, WALL_HEIGHT_M, closed=True))
         )
 
     for number, pipe in enumerate(layout.pipes):
@@ -332,19 +265,11 @@ def build(layout: Layout) -> TrackGeometry:
         x, y = sample.offset(offset)
         return Placement(x, y, elevation(layout.elevation, sample.s), sample.heading, half_width)
 
-    def apex_checkpoint(segment: Segment) -> Placement:
-        # The turn's inside is the side it turns toward. One half-width has
-        # to cover both reaches, so the centre sits between them.
-        inside = half + APEX_INSIDE_MARGIN_M
-        return place(
-            segment.s_mid,
-            offset=segment.turn * (inside - runoff) / 2.0,
-            half_width=(inside + runoff) / 2.0,
-        )
-
-    apex = {path.segment(name).s_mid: path.segment(name) for name in layout.apex_checkpoints}
+    # Evenly spaced from the start line, each spanning the run-off, so a kart
+    # between the walls crosses every one in order.
     checkpoints = [
-        apex_checkpoint(apex[s]) if s in apex else place(s, half_width=runoff) for s in checkpoint_s
+        place(k * path.length / layout.checkpoint_count, half_width=runoff)
+        for k in range(layout.checkpoint_count)
     ]
     item_boxes = [place(row.s, offset) for row in layout.item_rows for offset in row.offsets]
     boost_pads = [place(pad.s, pad.offset) for pad in layout.boost_pads]

@@ -10,15 +10,15 @@ on the numbers below:
   kart to reach top speed and coast to a stop;
 - one pipe stands 8 m into the first turn, centred on spawn slot 0's
   column, so a kart that drives straight from slot 0 meets it head on;
-- a wall rings the outside of both turns 12 m from the centreline, so a
-  kart that drives straight from slot 1 scrapes along it;
+- the walls stand 12 m from the centreline, so a kart that drives straight
+  from slot 1 scrapes along the first turn's outside;
 - the front straight's boost pad covers the right half of the asphalt, 60 m
   past the line, so a kart from slot 1 crosses it and one from slot 0 does
   not; the back straight's pad is centred 45 m in, far enough before the
   second turn that a pad boost has run out by the turn.
 """
 
-from ..layout import GRID_COLUMN_OFFSET_M, BoostPad, ItemRow, Layout, Pipe, Wall
+from ..layout import GRID_COLUMN_OFFSET_M, BoostPad, ItemRow, Layout, Pipe
 from ..path import Sample, Turtle
 
 STRAIGHT_M = 125.0
@@ -53,7 +53,6 @@ LAYOUT = Layout(
     asphalt_half_width=6.0,
     runoff_width=6.0,
     checkpoint_count=12,
-    walls=[Wall(("turn-1",), side=-1), Wall(("turn-2",), side=-1)],
     pipes=[
         Pipe(pipe_1_s, offset=offset_reaching_x(path.at(pipe_1_s), LEFT_GRID_COLUMN_X)),
         Pipe(path.segment("turn-2").s_start + PIPE_INTO_TURN_M, offset=1.0),

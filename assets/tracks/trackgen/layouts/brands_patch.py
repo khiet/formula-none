@@ -10,7 +10,15 @@ sponsor hoardings along the outside of the start straight and the return,
 hoardings round the final corner, and the gantry over the line.
 """
 
-from ..layout import BoostPad, Decor, Grandstands, Hoardings, ItemRow, Layout, Pipe, Wall
+from ..layout import (
+    BoostPad,
+    Decor,
+    Grandstands,
+    Hoardings,
+    ItemRow,
+    Layout,
+    Pipe,
+)
 from ..path import Hill, Ramp, Turtle
 
 EAST_STRAIGHT_X = 80.0
@@ -48,17 +56,6 @@ LAYOUT = Layout(
     asphalt_half_width=6.0,
     runoff_width=6.0,
     checkpoint_count=12,
-    # Hairpin one's 57 m arc falls between two evenly spaced checkpoints 36 m
-    # apart across the infield grass; the one at its apex makes the lap go
-    # round it.
-    apex_checkpoints=("hairpin-1",),
-    walls=[
-        Wall(("grid", "start"), side=-1),
-        Wall(("hairpin-1",), side=-1),
-        Wall(("corner-3",), side=1),
-        Wall(("hairpin-2",), side=-1),
-        Wall(("final",), side=-1),
-    ],
     pipes=[
         Pipe(path.segment("hairpin-1").s_mid - 8.0, offset=4.5),
         Pipe(path.segment("hairpin-1").s_mid + 8.0, offset=4.5),

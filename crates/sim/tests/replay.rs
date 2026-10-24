@@ -440,7 +440,7 @@ fn the_fixture_set_exercises_kart_contact_off_track_walls_both_tracks_both_mini_
         }
     }
     assert_eq!(tracks.len(), 2, "both tracks: {tracks:?}");
-    for surface in [Surface::Asphalt, Surface::Sand, Surface::Grass] {
+    for surface in [Surface::Asphalt, Surface::Sand] {
         assert!(
             surfaces.contains(&surface),
             "no fixture reaches {surface:?}"

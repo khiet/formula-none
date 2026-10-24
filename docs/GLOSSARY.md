@@ -90,10 +90,11 @@ events since the previous snapshot.
 ### checkpoint
 
 An ordered gate on the track used for lap counting and wrong-way detection.
-Brands Patch has thirteen: twelve spaced evenly round the lap and one at the
-apex of hairpin one, so the hairpin cannot be cut across the infield. A kart
-respawns at its last checkpoint facing the next one, after falling off the
-world or after driving on past the checkpoint beyond one it missed.
+Twelve spaced evenly round the lap on each track, each spanning the run-off
+from wall to wall, so a kart between the walls crosses every one in order.
+A kart that leaves the world respawns at its last checkpoint facing the next
+one; a kart that misses a checkpoint is not respawned and drives back
+through it (ADR 0022).
 
 ### spline progress
 
@@ -233,6 +234,13 @@ collision meshes. The sim reads the sidecar and never the glTF.
 What is under a point on the track: asphalt, sand, grass, wall, or out of
 world when nothing is below it. Collision meshes in the sidecar are tagged
 with the first four; the sim answers with the topmost one under a point.
+
+### wall
+
+The barrier along each edge of the run-off, the whole way round every
+track: the track limit. A kart can leave the asphalt for the sand but never
+the course, so no corner can be cut and no checkpoint skipped. A wall holds
+a kart at the corner that met it, with no bounce (ADR 0022).
 
 ## Client
 
