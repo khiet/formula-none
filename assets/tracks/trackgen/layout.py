@@ -362,8 +362,8 @@ def shortcut_pair(layout: Layout, arc_lengths: list[float]) -> tuple[int, int] |
     return before, after
 
 
-def segments_cross(a: Point, b: Point, c: Point, d: Point) -> bool:
-    """Whether the segment `a`-`b` meets the segment `c`-`d`."""
+def lines_cross(a: Point, b: Point, c: Point, d: Point) -> bool:
+    """Whether the line from `a` to `b` meets the line from `c` to `d`."""
 
     def orient(p: Point, q: Point, r: Point) -> float:
         return (q[0] - p[0]) * (r[1] - p[1]) - (q[1] - p[1]) * (r[0] - p[0])
@@ -373,7 +373,7 @@ def segments_cross(a: Point, b: Point, c: Point, d: Point) -> bool:
 
 def crosses_a_wall(rails: list[WallRail], a: Point, b: Point) -> bool:
     return any(
-        segments_cross(a, b, rail.points[i], rail.points[i + 1])
+        lines_cross(a, b, rail.points[i], rail.points[i + 1])
         for rail in rails
         for i in range(len(rail.points) - 1)
     )

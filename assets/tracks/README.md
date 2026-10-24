@@ -28,8 +28,9 @@ cut: a lap counts only when every checkpoint is crossed in order, so two
 consecutive checkpoints joined by a line more than 15 m shorter than the
 centreline between them let a kart skip the corner, unless a wall stands
 across that line or the pair is the layout's declared shortcut. An infield
-is walled with a `Wall` on `side=+1`, the inside edge of the run-off, and a
-layout may declare one `Shortcut(s)`: a 3 m gap opened in the wall covering
+is walled with a `Wall` on the side the corner turns toward, the inside
+edge of the run-off (`side=+1` for a left-hander), and a layout may
+declare one `Shortcut(s)`: a 3 m gap opened in the wall covering
 that arc length (the export refuses one no wall covers). No evenly spaced
 checkpoint is placed inside the arc the shortcut skips, and the pair either
 side of it is exempt from the check (ADR 0022). The checks run without

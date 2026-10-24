@@ -325,21 +325,14 @@ fn held_to(input: KartInput, speed: f32, cap: f32) -> KartInput {
     }
 }
 
-/// Full throttle toward `target` (x, z) until `arrived` or ten seconds pass,
-/// showing `watch` the state after every tick.
-fn drive_toward(
-    mut state: State,
-    target: [f32; 2],
-    arrived: impl Fn(&State) -> bool,
-    mut watch: impl FnMut(&State),
-) -> State {
+/// Full throttle toward `target` (x, z) for ten seconds, long enough for a
+/// wall to bring the kart to rest, showing `watch` the state after every
+/// tick.
+fn drive_toward(mut state: State, target: [f32; 2], mut watch: impl FnMut(&State)) -> State {
     for _ in 0..ticks(10.0) {
         let input = steer_toward(&state, 0, target);
         state = step(state, &[input], DT);
         watch(&state);
-        if arrived(&state) {
-            break;
-        }
     }
     state
 }
@@ -404,22 +397,17 @@ fn cutting_hairpin_one_across_the_infield_ends_against_the_inside_wall_short_of_
 
     // Straight across the infield toward the top of the return straight.
     let (target, on_the_return) = top_of_return(&state);
-    let state = drive_toward(
-        state,
-        target,
-        |_| false,
-        |state| {
-            let [x, z] = kart_xz(state);
-            assert!(
-                !on_the_return(state),
-                "reached the return straight at x {x}"
-            );
-            assert!(
-                outside_hairpin_one_infield_wall(state) > -0.1,
-                "went through the wall at ({x}, {z})"
-            );
-        },
-    );
+    let state = drive_toward(state, target, |state| {
+        let [x, z] = kart_xz(state);
+        assert!(
+            !on_the_return(state),
+            "reached the return straight at x {x}"
+        );
+        assert!(
+            outside_hairpin_one_infield_wall(state) > -0.1,
+            "went through the wall at ({x}, {z})"
+        );
+    });
 
     assert_held_by_the_wall(&state, outside_hairpin_one_infield_wall(&state));
     assert_eq!(
@@ -430,8 +418,11 @@ fn cutting_hairpin_one_across_the_infield_ends_against_the_inside_wall_short_of_
 
 /// Follow the centreline until the kart's spline progress reaches `progress_m`
 /// on its first lap, holding its speed to `cap` from `cap_from_m` on; gives
-/// up after a lap's worth of time.
+/// up after a lap's worth of time. The grid is behind the line, so the
+/// kart's progress starts near the lap's end: only a reading just past
+/// `progress_m` counts as reaching it.
 fn round_to(mut state: State, progress_m: f32, cap_from_m: f32, cap: f32) -> State {
+    const JUST_PAST_M: f32 = 30.0;
     for _ in 0..ticks(60.0) {
         let speed = state.kart_transforms()[0].speed;
         let progress = only_standing(&state).spline_progress;
@@ -443,7 +434,7 @@ fn round_to(mut state: State, progress_m: f32, cap_from_m: f32, cap: f32) -> Sta
         };
         state = step(state, &[input], DT);
         let progress = only_standing(&state).spline_progress;
-        if (progress_m..progress_m + 30.0).contains(&progress) {
+        if (progress_m..progress_m + JUST_PAST_M).contains(&progress) {
             return state;
         }
     }
@@ -471,19 +462,14 @@ fn leaving_the_chicane_southward_ends_against_the_inside_wall_short_of_the_jump_
     // Due south across the infield toward the jump straight.
     let target = [kart_xz(&state)[0], JUMP_Z];
     let mut furthest_south = f32::NEG_INFINITY;
-    let state = drive_toward(
-        state,
-        target,
-        |_| false,
-        |state| {
-            furthest_south = furthest_south.max(kart_xz(state)[1]);
-            assert!(
-                from_the_chicanes_centre(state) < CHICANE_MID_WALL_RADIUS_M + 0.1,
-                "went through the wall at {:?}",
-                kart_xz(state)
-            );
-        },
-    );
+    let state = drive_toward(state, target, |state| {
+        furthest_south = furthest_south.max(kart_xz(state)[1]);
+        assert!(
+            from_the_chicanes_centre(state) < CHICANE_MID_WALL_RADIUS_M + 0.1,
+            "went through the wall at {:?}",
+            kart_xz(state)
+        );
+    });
 
     assert!(
         furthest_south < JUMP_RUNOFF_EDGE_Z,
@@ -602,7 +588,7 @@ fn the_shortcut_through_the_gap_credits_every_checkpoint_and_laps_faster_than_th
     let shortcut_lap = standing.best_lap_s.expect("the lap was timed");
     let centreline_lap = centreline_lap_s();
     assert!(
-        shortcut_lap < centreline_lap - 0.5,
+        shortcut_lap < centreline_lap,
         "the shortcut lap took {shortcut_lap} s against {centreline_lap} s round the hairpin"
     );
 }

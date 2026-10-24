@@ -38,11 +38,12 @@ class CheckpointSpacing(unittest.TestCase):
     def test_a_pair_joined_by_a_line_30_m_shorter_than_the_centreline_across_open_grass_fails(
         self,
     ) -> None:
-        # Brands Patch with hairpin one's inside wall taken away: the
-        # checkpoints either side of the hairpin are 36 m apart across the
-        # infield and 66 m apart round the centreline, with nothing between.
-        # With the wall, the shipped layout passes above.
-        layout = without_wall(load("brands-patch"), "hairpin-1")
+        # Brands Patch with hairpin one's inside wall taken away and no
+        # shortcut declared: the checkpoints either side of the hairpin are
+        # 36 m apart across the infield and 66 m apart round the centreline,
+        # with nothing between. With the wall, the shipped layout passes
+        # above.
+        layout = replace(without_wall(load("brands-patch"), "hairpin-1"), shortcut=None)
         with self.assertRaises(ValueError) as refused:
             build(layout)
         message = str(refused.exception)
