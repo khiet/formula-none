@@ -25,11 +25,14 @@ the sidecars.
 
 The export refuses a layout whose checkpoints leave a corner open to a
 cut: a lap counts only when every checkpoint is crossed in order, so two
-consecutive checkpoints joined by a line much shorter than the centreline
-between them let a kart skip the corner. A long corner gets a checkpoint at
-its apex (`apex_checkpoints`) that reaches the whole run-off on the outside
-and only a little past the asphalt on the inside, so a kart running wide is
-still credited and one cutting the infield is not. The checks run without
+consecutive checkpoints joined by a line more than 15 m shorter than the
+centreline between them let a kart skip the corner, unless a wall stands
+across that line or the pair is the layout's declared shortcut. An infield
+is walled with a `Wall` on `side=+1`, the inside edge of the run-off, and a
+layout may declare one `Shortcut(s)`: a 3 m gap opened in the wall covering
+that arc length (the export refuses one no wall covers). No evenly spaced
+checkpoint is placed inside the arc the shortcut skips, and the pair either
+side of it is exempt from the check (ADR 0022). The checks run without
 Blender, with the tests beside them:
 
 ```sh
@@ -42,8 +45,8 @@ The Blender source of a track is a Python layout, `trackgen/layouts/<name>.py`,
 so it diffs and reviews like code. A layout lays the centreline turtle-style
 from straights and arcs, then hangs everything else on it by arc length:
 asphalt and run-off widths, walls, pipes, elevation (hills and the jump
-ramp), checkpoint count and the corners that get an apex checkpoint, item
-box rows and boost pads, and its decor:
+ramp), checkpoint count and the one shortcut, item box rows and boost
+pads, and its decor:
 which segments get sponsor hoardings and grandstands, and whether the
 start line gets its gantry. The spawn grid is always eight slots behind
 the start line. `trackgen/` is pure Python so a

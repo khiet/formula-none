@@ -88,6 +88,28 @@ class Path:
     def at(self, s: float) -> Sample:
         return self.samples[self.index_at(s)]
 
+    def interpolate(self, s: float) -> Sample:
+        """The point at arc length `s` exactly, between the samples either
+        side of it; the heading and curvature are the earlier sample's, so
+        on a straight the point is exact and on an arc it sits on the chord."""
+        s %= self.length
+        distances = [sample.s for sample in self.samples]
+        after = bisect_left(distances, s)
+        if after < len(self.samples) and distances[after] == s:
+            return self.samples[after]
+        before = self.samples[after - 1]
+        # Past the last sample the loop continues to the start point.
+        next_sample = self.samples[after % len(self.samples)]
+        s_next = next_sample.s if after < len(self.samples) else self.length
+        t = (s - before.s) / (s_next - before.s)
+        return Sample(
+            before.x + t * (next_sample.x - before.x),
+            before.y + t * (next_sample.y - before.y),
+            before.heading,
+            s,
+            before.curvature,
+        )
+
     def indices_between(self, s_start: float, s_end: float) -> list[int]:
         """Sample indices from `s_start` to `s_end` inclusive, wrapping past the start line."""
         first = self.index_at(s_start)

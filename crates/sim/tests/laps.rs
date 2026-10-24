@@ -2,7 +2,8 @@
 //! the oval fixture and read `standings`. The oval's front straight runs
 //! along -Z from the start line at z = 0 through its first checkpoints, with
 //! the grid a few metres behind the line (layouts/oval.py). Brands Patch
-//! joins in for the checkpoint at its first hairpin's apex.
+//! joins in for the walls on its hairpin infields and the shortcut through
+//! the one gap in them (ADR 0022).
 
 use std::f32::consts::PI;
 
@@ -18,15 +19,37 @@ const SEED: u64 = 0x5EED;
 /// Hairpin one on Brands Patch (layouts/brands_patch.py): a 180 degree
 /// left-hander of 18 m radius that begins 70 m past the line, with the
 /// return straight starting at its exit, 36 m to the left of its entry
-/// across the infield grass. The checkpoint at its apex is the third of the
-/// lap, after the one near the end of the start straight.
+/// across the infield grass. The infield is walled along the inside edge
+/// of the run-off: 12 m left of the start straight's centreline at x = 80,
+/// then 6 m from the hairpin's centre round the turn.
 const HAIRPIN_ONE_ENTRY_M: f32 = 70.0;
 const HAIRPIN_ONE_EXIT_M: f32 = HAIRPIN_ONE_ENTRY_M + 18.0 * PI;
-/// The hairpin's centre seen from above (x, z); the run-off's inner edge is
-/// 6 m from it and the asphalt's 12 m.
 const HAIRPIN_ONE_CENTRE: [f32; 2] = [62.0, -70.0];
+const HAIRPIN_ONE_INFIELD_WALL_X: f32 = 68.0;
+const HAIRPIN_ONE_INFIELD_WALL_RADIUS_M: f32 = 6.0;
 const CHECKPOINT_BEFORE_HAIRPIN_ONE: usize = 1;
-const APEX_CHECKPOINT: usize = 2;
+
+/// Hairpin two's infield. The chicane's middle arc, a right-hander of 14 m
+/// radius, bulges south at the top of the infield; the approach then runs
+/// west along z = 52 from the chicane's exit at x = -127.6 to the hairpin
+/// at x = -150, and the jump straight runs back east along z = 88. The
+/// infield wall runs from the chicane's south side round the hairpin, 12 m
+/// left of the centreline, with the shortcut's 3 m gap at the approach's
+/// midpoint; 12 m of grass lie between it and the jump straight's run-off.
+/// The checkpoint in the chicane, 398.7 m into the lap, is the seventh;
+/// the next is on the jump straight at x = -112.
+const HILL_END_M: f32 = 365.0;
+const PAST_THE_CHICANE_CHECKPOINT_M: f32 = 401.0;
+const CHICANE_MID_CENTRE: [f32; 2] = [-107.8, 46.2];
+const CHICANE_MID_WALL_RADIUS_M: f32 = 26.0;
+/// Where the wall round the chicane's middle arc hands over to the one
+/// along the approach: 26 m from the arc's centre at its 135 degree end.
+const CHICANE_MID_WALL_END_X: f32 = -126.2;
+const GAP_X: f32 = -138.8;
+const GAP_Z: f32 = 64.0;
+const GAP_HALF_WIDTH_M: f32 = 1.5;
+const JUMP_Z: f32 = 88.0;
+const CHECKPOINT_IN_THE_CHICANE: usize = 6;
 
 /// The race past its countdown, every kart idle on the grid until Go.
 fn started(mut state: State) -> State {
@@ -266,7 +289,6 @@ fn brands_patch_counts_its_checkpoints_the_same_way() {
 /// at: at top speed its turning circle is wider than the infield.
 fn slowed_past_the_checkpoint_before_hairpin_one() -> State {
     const BRAKE_FROM_M: f32 = 20.0;
-    const CUT_SPEED_M_PER_S: f32 = 10.0;
     let mut state = started(State::new(SEED, 1, brands_patch()));
     let checkpoint_z = state.track().checkpoints()[CHECKPOINT_BEFORE_HAIRPIN_ONE].position[2];
     for _ in 0..ticks(10.0) {
@@ -274,14 +296,7 @@ fn slowed_past_the_checkpoint_before_hairpin_one() -> State {
         let input = if transform.position[2] > checkpoint_z + BRAKE_FROM_M {
             throttle()
         } else {
-            KartInput {
-                brake: if transform.speed > CUT_SPEED_M_PER_S {
-                    1.0
-                } else {
-                    0.0
-                },
-                ..KartInput::default()
-            }
+            held_to(KartInput::default(), transform.speed, CUT_SPEED_M_PER_S)
         };
         state = step(state, &[input], DT);
         if only_standing(&state).checkpoint == CHECKPOINT_BEFORE_HAIRPIN_ONE {
@@ -289,6 +304,25 @@ fn slowed_past_the_checkpoint_before_hairpin_one() -> State {
         }
     }
     panic!("the start straight ends at checkpoint {CHECKPOINT_BEFORE_HAIRPIN_ONE}");
+}
+
+/// The speed a kart turns off a straight at to cut a corner: slow enough
+/// to turn inside an infield, and for the shortcut no more than the sand
+/// beyond the asphalt allows anyway.
+const CUT_SPEED_M_PER_S: f32 = 16.0;
+
+/// `input` with the throttle let off and the brake on while the kart is
+/// faster than `cap`.
+fn held_to(input: KartInput, speed: f32, cap: f32) -> KartInput {
+    if speed > cap {
+        KartInput {
+            throttle: 0.0,
+            brake: 1.0,
+            ..input
+        }
+    } else {
+        input
+    }
 }
 
 /// Full throttle toward `target` (x, z) until `arrived` or ten seconds pass,
@@ -328,130 +362,302 @@ fn top_of_return(state: &State) -> ([f32; 2], impl Fn(&State) -> bool) {
     })
 }
 
-/// Follow the centreline until the kart crosses the start line, or give
-/// up after a lap's worth of time. Returns the state and whether it crossed.
-fn round_to_the_start_line(mut state: State) -> (State, bool) {
-    let lap = state.track().spline_length();
-    for _ in 0..ticks(60.0) {
-        let before = only_standing(&state).spline_progress;
-        let input = follow_centreline(&state, 0);
-        state = step(state, &[input], DT);
-        if only_standing(&state).spline_progress < before - lap / 2.0 {
-            return (state, true);
-        }
+/// A kart a wall has stopped: against it, on the sand, going nowhere under
+/// full throttle. `wall_distance` is how far the kart's centre is from the
+/// wall's face; a kart is 1.2 m wide and 1.8 m long.
+fn assert_held_by_the_wall(state: &State, wall_distance: f32) {
+    const HELD_SPEED_M_PER_S: f32 = 0.5;
+    const AGAINST_M: f32 = 1.5;
+    let kart = state.kart_transforms()[0];
+    assert!(
+        wall_distance < AGAINST_M,
+        "never reached the wall: {wall_distance} m from it at {:?}",
+        kart.position
+    );
+    assert!(
+        kart.speed.abs() < HELD_SPEED_M_PER_S,
+        "still moving at {} m/s against the wall",
+        kart.speed
+    );
+    assert_eq!(
+        state.kart_surface(0),
+        Surface::Sand,
+        "pinned to the wall on the sand"
+    );
+}
+
+/// How far the kart is from hairpin one's infield wall, on the track's side
+/// of it; negative is through it.
+fn outside_hairpin_one_infield_wall(state: &State) -> f32 {
+    let [x, z] = kart_xz(state);
+    if z > HAIRPIN_ONE_CENTRE[1] {
+        x - HAIRPIN_ONE_INFIELD_WALL_X
+    } else {
+        (x - HAIRPIN_ONE_CENTRE[0]).hypot(z - HAIRPIN_ONE_CENTRE[1])
+            - HAIRPIN_ONE_INFIELD_WALL_RADIUS_M
     }
-    (state, false)
 }
 
 #[test]
-fn cutting_hairpin_one_across_the_infield_skips_its_apex_checkpoint_and_the_lap_does_not_count() {
+fn cutting_hairpin_one_across_the_infield_ends_against_the_inside_wall_short_of_the_return() {
     let state = slowed_past_the_checkpoint_before_hairpin_one();
 
-    // Straight across the infield to the top of the return straight.
+    // Straight across the infield toward the top of the return straight.
     let (target, on_the_return) = top_of_return(&state);
-    let mut drove_the_grass = false;
-    let state = drive_toward(state, target, &on_the_return, |state| {
-        drove_the_grass |= state.kart_surface(0) == Surface::Grass;
-    });
-    assert!(
-        on_the_return(&state),
-        "the kart reached the return straight: x {}, return at x {}",
-        kart_xz(&state)[0],
-        target[0]
+    let state = drive_toward(
+        state,
+        target,
+        |_| false,
+        |state| {
+            let [x, z] = kart_xz(state);
+            assert!(
+                !on_the_return(state),
+                "reached the return straight at x {x}"
+            );
+            assert!(
+                outside_hairpin_one_infield_wall(state) > -0.1,
+                "went through the wall at ({x}, {z})"
+            );
+        },
     );
-    assert!(drove_the_grass, "the cut crosses the infield grass");
+
+    assert_held_by_the_wall(&state, outside_hairpin_one_infield_wall(&state));
     assert_eq!(
         only_standing(&state).checkpoint,
         CHECKPOINT_BEFORE_HAIRPIN_ONE
     );
+}
 
-    let (state, crossed_the_line) = round_to_the_start_line(state);
-
-    let standing = only_standing(&state);
-    assert!(crossed_the_line, "the kart got round to the line");
-    assert_eq!(
-        standing.checkpoint, CHECKPOINT_BEFORE_HAIRPIN_ONE,
-        "no later checkpoint counts while the apex checkpoint is missed"
-    );
-    assert_eq!(standing.laps_completed, 0);
-    assert_eq!(standing.best_lap_s, None);
+/// Follow the centreline until the kart's spline progress reaches `progress_m`
+/// on its first lap, holding its speed to `cap` from `cap_from_m` on; gives
+/// up after a lap's worth of time.
+fn round_to(mut state: State, progress_m: f32, cap_from_m: f32, cap: f32) -> State {
+    for _ in 0..ticks(60.0) {
+        let speed = state.kart_transforms()[0].speed;
+        let progress = only_standing(&state).spline_progress;
+        let input = follow_centreline(&state, 0);
+        let input = if (cap_from_m..progress_m).contains(&progress) {
+            held_to(input, speed, cap)
+        } else {
+            input
+        };
+        state = step(state, &[input], DT);
+        let progress = only_standing(&state).spline_progress;
+        if (progress_m..progress_m + 30.0).contains(&progress) {
+            return state;
+        }
+    }
+    panic!("never reached {progress_m} m along the lap");
 }
 
 #[test]
-fn skimming_the_hairpin_infield_inside_the_pipes_misses_the_apex_checkpoint_and_the_lap_does_not_count(
-) {
-    // Across the infield, bending to pass 6.5 m from the hairpin's centre:
-    // over the sand's inner edge, where a checkpoint reaching the whole
-    // run-off would still have credited the kart.
-    const SKIM_RADIUS_M: f32 = 6.5;
-    let state = slowed_past_the_checkpoint_before_hairpin_one();
-    let skim = [HAIRPIN_ONE_CENTRE[0], HAIRPIN_ONE_CENTRE[1] - SKIM_RADIUS_M];
-    let mut closest = f32::INFINITY;
+fn leaving_the_chicane_southward_ends_against_the_inside_wall_short_of_the_jump_straight() {
+    // Slow enough to turn south within the chicane's run-off; faster, the
+    // kart meets the wall at a slant and slides along it.
+    const LEAVE_SPEED_M_PER_S: f32 = 10.0;
+    const JUMP_RUNOFF_EDGE_Z: f32 = JUMP_Z - 12.0;
+    let state = round_to(
+        started(State::new(SEED, 1, brands_patch())),
+        PAST_THE_CHICANE_CHECKPOINT_M,
+        HILL_END_M,
+        LEAVE_SPEED_M_PER_S,
+    );
+    assert_eq!(only_standing(&state).checkpoint, CHECKPOINT_IN_THE_CHICANE);
+    let from_the_chicanes_centre = |state: &State| {
+        let [x, z] = kart_xz(state);
+        (x - CHICANE_MID_CENTRE[0]).hypot(z - CHICANE_MID_CENTRE[1])
+    };
+
+    // Due south across the infield toward the jump straight.
+    let target = [kart_xz(&state)[0], JUMP_Z];
+    let mut furthest_south = f32::NEG_INFINITY;
     let state = drive_toward(
         state,
-        skim,
-        |state| kart_xz(state)[0] < skim[0],
+        target,
+        |_| false,
         |state| {
-            let [x, z] = kart_xz(state);
-            closest = closest.min((x - HAIRPIN_ONE_CENTRE[0]).hypot(z - HAIRPIN_ONE_CENTRE[1]));
+            furthest_south = furthest_south.max(kart_xz(state)[1]);
+            assert!(
+                from_the_chicanes_centre(state) < CHICANE_MID_WALL_RADIUS_M + 0.1,
+                "went through the wall at {:?}",
+                kart_xz(state)
+            );
         },
     );
-    assert!(
-        (6.0..8.0).contains(&closest),
-        "the kart passed {closest} m from the hairpin's centre, over the inner sand"
-    );
-    let (target, on_the_return) = top_of_return(&state);
-    let state = drive_toward(state, target, &on_the_return, |_| ());
-    assert!(
-        on_the_return(&state),
-        "the kart reached the return straight"
-    );
 
-    let (state, crossed_the_line) = round_to_the_start_line(state);
+    assert!(
+        furthest_south < JUMP_RUNOFF_EDGE_Z,
+        "reached the jump straight's run-off at z {furthest_south}"
+    );
+    let [x, _] = kart_xz(&state);
+    assert!(
+        x > CHICANE_MID_WALL_END_X,
+        "slid along the wall out of the chicane to x {x}"
+    );
+    assert_held_by_the_wall(
+        &state,
+        CHICANE_MID_WALL_RADIUS_M - from_the_chicanes_centre(&state),
+    );
+    assert_eq!(only_standing(&state).checkpoint, CHECKPOINT_IN_THE_CHICANE);
+}
 
-    let standing = only_standing(&state);
-    assert!(crossed_the_line, "the kart got round to the line");
-    assert_eq!(standing.checkpoint, CHECKPOINT_BEFORE_HAIRPIN_ONE);
-    assert_eq!(standing.laps_completed, 0);
+/// Drives Brands Patch's lap through the shortcut: the centreline to the
+/// chicane, braked to `CUT_SPEED_M_PER_S` out of the chicane's middle arc
+/// so the kart can turn off the approach inside the infield's width, a left
+/// turn begun a turning circle before `aim_x` and aimed straight down it
+/// toward the jump straight, full throttle once the turn is made (the sand
+/// and grass cap the speed from there), then the centreline again from the
+/// jump straight's run-off, where the nearest centreline is the jump
+/// straight's and not the approach's. Aimed at `GAP_X` the kart passes
+/// through the gap; aimed beside it, it meets the wall. Measured against
+/// the centreline follower, the shortcut is worth about three quarters of
+/// a second a lap: the follower rounds the hairpin at top speed and runs
+/// wide onto the sand at its exit, and the shortcut's 36 m of sand and
+/// grass are driven at the off-road cap.
+fn shortcut_driver(aim_x: f32) -> impl FnMut(&State) -> KartInput {
+    const BRAKE_OVER_M: f32 = 25.0;
+    const TURN_RADIUS_M: f32 = 12.0;
+    const JUMP_RUNOFF_EDGE_Z: f32 = JUMP_Z - 12.0;
+    #[derive(Clone, Copy)]
+    enum Leg {
+        ToTheChicane,
+        Braking,
+        OffTheApproach,
+        AcrossTheGrass,
+        Through,
+    }
+    let turn_in_x = aim_x + TURN_RADIUS_M;
+    let mut leg = Leg::ToTheChicane;
+    move |state: &State| {
+        let kart = state.kart_transforms()[0];
+        let [x, z] = kart_xz(state);
+        leg = match leg {
+            Leg::ToTheChicane if x < turn_in_x + BRAKE_OVER_M => Leg::Braking,
+            Leg::Braking if x < turn_in_x => Leg::OffTheApproach,
+            Leg::OffTheApproach if z > GAP_Z - 3.0 => Leg::AcrossTheGrass,
+            Leg::AcrossTheGrass if z > JUMP_RUNOFF_EDGE_Z => Leg::Through,
+            same => same,
+        };
+        match leg {
+            Leg::ToTheChicane | Leg::Through => follow_centreline(state, 0),
+            Leg::Braking => held_to(follow_centreline(state, 0), kart.speed, CUT_SPEED_M_PER_S),
+            Leg::OffTheApproach => held_to(
+                steer_toward(state, 0, [aim_x, JUMP_Z]),
+                kart.speed,
+                CUT_SPEED_M_PER_S,
+            ),
+            Leg::AcrossTheGrass => steer_toward(state, 0, [aim_x, JUMP_Z]),
+        }
+    }
+}
+
+/// Follow the centreline from the grid until the first lap completes and
+/// return its time.
+fn centreline_lap_s() -> f32 {
+    let mut state = started(State::new(SEED, 1, brands_patch()));
+    for _ in 0..ticks(90.0) {
+        let input = follow_centreline(&state, 0);
+        state = step(state, &[input], DT);
+        if let Some(best) = only_standing(&state).best_lap_s {
+            return best;
+        }
+    }
+    panic!("the centreline follower never completed a lap");
 }
 
 #[test]
-fn rounding_hairpin_one_over_the_inside_sand_credits_the_apex_checkpoint_and_the_lap_counts() {
-    // The asphalt line, except through the hairpin, where the kart squeezes
-    // between the pipes and the apex checkpoint's inside reach: the asphalt
-    // ends 6 m from the centreline, the pipes reach to 6 m and the
-    // checkpoint to 7.5 m.
-    const INSIDE_SAND_M: f32 = -6.5;
-    // Moving in from the asphalt line takes a stretch of the straight, or the
-    // kart is still crossing the pipes' line when it reaches the first one.
-    const MOVE_IN_OVER_M: f32 = 25.0;
-    let inside_line = |state: &State| {
-        let ahead = state.standings()[0].spline_progress + BOT_LOOKAHEAD_M;
-        if (HAIRPIN_ONE_ENTRY_M - MOVE_IN_OVER_M..HAIRPIN_ONE_EXIT_M).contains(&ahead) {
-            follow_line(state, 0, INSIDE_SAND_M)
-        } else {
-            follow_centreline(state, 0)
-        }
-    };
+fn the_shortcut_through_the_gap_credits_every_checkpoint_and_laps_faster_than_the_centreline() {
     let mut state = started(State::new(SEED, 1, brands_patch()));
-    let mut surface_at_apex = None;
+    let mut driver = shortcut_driver(GAP_X);
+    let mut crossed = vec![0];
+    let mut drove_the_grass = false;
+    let mut through_the_gap = false;
     for _ in 0..ticks(90.0) {
-        let before = only_standing(&state).checkpoint;
-        let input = inside_line(&state);
+        let input = driver(&state);
         state = step(state, &[input], DT);
         let standing = only_standing(&state);
-        if before != APEX_CHECKPOINT && standing.checkpoint == APEX_CHECKPOINT {
-            surface_at_apex = Some(state.kart_surface(0));
+        if crossed.last() != Some(&standing.checkpoint) {
+            crossed.push(standing.checkpoint);
         }
+        let [x, z] = kart_xz(&state);
+        if (x - GAP_X).abs() < 10.0 && (z - GAP_Z).abs() < 0.5 {
+            assert!(
+                (x - GAP_X).abs() < GAP_HALF_WIDTH_M,
+                "crossed the wall's line at x {x}, outside the gap"
+            );
+            through_the_gap = true;
+        }
+        drove_the_grass |= state.kart_surface(0) == Surface::Grass;
         if standing.laps_completed == 1 {
             break;
         }
     }
 
-    assert_eq!(surface_at_apex, Some(Surface::Sand));
+    assert!(through_the_gap, "the kart never passed the wall's line");
+    assert!(drove_the_grass, "the shortcut crosses the infield grass");
     let standing = only_standing(&state);
-    assert_eq!(standing.laps_completed, 1);
-    assert!(standing.best_lap_s.is_some(), "the lap was timed");
+    assert_eq!(standing.laps_completed, 1, "crossed {crossed:?}");
+    let every_checkpoint: Vec<usize> = (0..state.track().checkpoints().len()).chain([0]).collect();
+    assert_eq!(crossed, every_checkpoint);
+    let shortcut_lap = standing.best_lap_s.expect("the lap was timed");
+    let centreline_lap = centreline_lap_s();
+    assert!(
+        shortcut_lap < centreline_lap - 0.5,
+        "the shortcut lap took {shortcut_lap} s against {centreline_lap} s round the hairpin"
+    );
+}
+
+#[test]
+fn driving_into_the_wall_beside_the_gap_stops_the_kart() {
+    const BESIDE_THE_GAP_M: f32 = 4.0;
+    let mut state = started(State::new(SEED, 1, brands_patch()));
+    let mut driver = shortcut_driver(GAP_X + BESIDE_THE_GAP_M);
+    let mut furthest_south = f32::NEG_INFINITY;
+    for _ in 0..ticks(40.0) {
+        let input = driver(&state);
+        state = step(state, &[input], DT);
+        furthest_south = furthest_south.max(kart_xz(&state)[1]);
+    }
+
+    assert!(
+        furthest_south < GAP_Z,
+        "went through the wall's line at z {GAP_Z}: reached z {furthest_south}"
+    );
+    let [x, z] = kart_xz(&state);
+    assert!(
+        x > GAP_X + GAP_HALF_WIDTH_M,
+        "stopped at x {x}, in the gap rather than on the wall beside it"
+    );
+    assert_held_by_the_wall(&state, GAP_Z - z);
+    assert_eq!(only_standing(&state).checkpoint, CHECKPOINT_IN_THE_CHICANE);
+}
+
+#[test]
+fn a_kart_that_misses_a_checkpoint_and_drives_on_is_not_respawned() {
+    // The oval's first checkpoint narrowed so the centreline follower, 2.5 m
+    // right of the line, misses it; a respawn would move the kart in one
+    // tick, and nothing else does.
+    const TELEPORT_M: f32 = 2.0;
+    let mut state = started(State::new(SEED, 1, oval_with_a_narrow_first_checkpoint()));
+    let mut previous = state.kart_transforms()[0].position;
+    let mut furthest = 0.0_f32;
+    for _ in 0..ticks(LAP_S) {
+        let input = follow_centreline(&state, 0);
+        state = step(state, &[input], DT);
+        let position = state.kart_transforms()[0].position;
+        let moved = (position[0] - previous[0]).hypot(position[2] - previous[2]);
+        assert!(moved < TELEPORT_M, "moved {moved} m in one tick: respawned");
+        previous = position;
+        furthest = furthest.max(only_standing(&state).spline_progress);
+        assert_eq!(only_standing(&state).checkpoint, 0);
+    }
+
+    let standing = only_standing(&state);
+    assert_eq!(standing.laps_completed, 0);
+    assert!(
+        furthest > state.track().spline_length() - 30.0,
+        "drove the whole lap round without the checkpoint: reached {furthest} m"
+    );
 }
 
 #[test]

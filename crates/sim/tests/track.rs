@@ -68,8 +68,9 @@ fn brands_patch_carries_the_whole_layout() {
     let track = brands_patch();
 
     assert_eq!(track.name(), "brands-patch");
-    // Twelve evenly spaced checkpoints and the one at hairpin one's apex.
-    assert_eq!(track.checkpoints().len(), 13);
+    // Twelve evenly spaced checkpoints less the one on hairpin two's apex,
+    // inside the arc the shortcut skips.
+    assert_eq!(track.checkpoints().len(), 11);
     assert_eq!(track.item_boxes().len(), 8);
     assert_eq!(track.boost_pads().len(), 2);
     assert_eq!(track.spawn_grid().len(), 8);
