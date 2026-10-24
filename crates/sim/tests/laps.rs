@@ -2,7 +2,7 @@
 //! the oval fixture and read `standings`. The oval's front straight runs
 //! along -Z from the start line at z = 0 through its first checkpoints, with
 //! the grid a few metres behind the line (layouts/oval.py). Brands Patch
-//! joins in for its gated hairpin.
+//! joins in for the checkpoint at its first hairpin's apex.
 
 use std::f32::consts::PI;
 
@@ -18,10 +18,12 @@ const SEED: u64 = 0x5EED;
 /// Hairpin one on Brands Patch (layouts/brands_patch.py): a 180 degree
 /// left-hander of 18 m radius that begins 70 m past the line, with the
 /// return straight starting at its exit, 36 m to the left of its entry
-/// across the infield grass. The gate at its apex is the third of the lap.
+/// across the infield grass. The checkpoint at its apex is the third of the
+/// lap, after the one at the end of the start straight.
 const HAIRPIN_ONE_ENTRY_M: f32 = 70.0;
 const HAIRPIN_ONE_EXIT_M: f32 = HAIRPIN_ONE_ENTRY_M + 18.0 * PI;
-const APEX_GATE: usize = 2;
+const CHECKPOINT_BEFORE_HAIRPIN_ONE: usize = 1;
+const APEX_CHECKPOINT: usize = 2;
 
 /// The race past its countdown, every kart idle on the grid until Go.
 fn started(mut state: State) -> State {
@@ -256,30 +258,34 @@ fn brands_patch_counts_its_checkpoints_the_same_way() {
     );
 }
 
-/// Up Brands Patch's start straight to the gate before hairpin one, braking
-/// over the last stretch to the speed a kart turns off the straight at: at
-/// top speed its turning circle is wider than the infield.
-fn slowed_past_the_gate_before_hairpin_one() -> State {
+/// Up Brands Patch's start straight to the checkpoint before hairpin one,
+/// braking over the last stretch to the speed a kart turns off the straight
+/// at: at top speed its turning circle is wider than the infield.
+fn slowed_past_the_checkpoint_before_hairpin_one() -> State {
     const BRAKE_FROM_M: f32 = 20.0;
     const CUT_SPEED_M_PER_S: f32 = 10.0;
     let mut state = started(State::new(SEED, 1, brands_patch()));
-    let gate_z = state.track().checkpoints()[APEX_GATE - 1].position[2];
+    let checkpoint_z = state.track().checkpoints()[CHECKPOINT_BEFORE_HAIRPIN_ONE].position[2];
     for _ in 0..ticks(10.0) {
         let transform = state.kart_transforms()[0];
-        let input = if transform.position[2] > gate_z + BRAKE_FROM_M {
+        let input = if transform.position[2] > checkpoint_z + BRAKE_FROM_M {
             throttle()
         } else {
             KartInput {
-                brake: if transform.speed > CUT_SPEED_M_PER_S { 1.0 } else { 0.0 },
+                brake: if transform.speed > CUT_SPEED_M_PER_S {
+                    1.0
+                } else {
+                    0.0
+                },
                 ..KartInput::default()
             }
         };
         state = step(state, &[input], DT);
-        if only_standing(&state).checkpoint == APEX_GATE - 1 {
+        if only_standing(&state).checkpoint == CHECKPOINT_BEFORE_HAIRPIN_ONE {
             return state;
         }
     }
-    panic!("the start straight ends at gate {}", APEX_GATE - 1);
+    panic!("the start straight ends at checkpoint {CHECKPOINT_BEFORE_HAIRPIN_ONE}");
 }
 
 /// Follow the centreline until the kart crosses the start line, or give
@@ -298,44 +304,50 @@ fn round_to_the_start_line(mut state: State) -> (State, bool) {
 }
 
 #[test]
-fn cutting_hairpin_one_across_the_infield_skips_its_apex_gate_and_the_lap_does_not_count() {
-    let mut state = slowed_past_the_gate_before_hairpin_one();
+fn cutting_hairpin_one_across_the_infield_skips_its_apex_checkpoint_and_the_lap_does_not_count() {
+    let mut state = slowed_past_the_checkpoint_before_hairpin_one();
 
-    // Straight across the infield to the top of the return straight.
+    // Straight across the infield to the top of the return straight, which
+    // runs along +Z: the kart is on it once within the asphalt of its x.
+    const ON_THE_RETURN_M: f32 = 4.0;
     let top_of_return = state.track().point_at(HAIRPIN_ONE_EXIT_M + 10.0);
+    let on_the_return =
+        |state: &State| state.kart_transforms()[0].position[0] < top_of_return[0] + ON_THE_RETURN_M;
     let mut drove_the_grass = false;
     for _ in 0..ticks(10.0) {
         let input = steer_toward(&state, 0, [top_of_return[0], top_of_return[2]]);
         state = step(state, &[input], DT);
         drove_the_grass |= state.kart_surface(0) == Surface::Grass;
-        if state.kart_transforms()[0].position[0] < top_of_return[0] + 4.0 {
+        if on_the_return(&state) {
             break;
         }
     }
-    let x = state.kart_transforms()[0].position[0];
     assert!(
-        x < top_of_return[0] + 4.0,
-        "the kart reached the return straight: x {x}, return at x {}",
+        on_the_return(&state),
+        "the kart reached the return straight: x {}, return at x {}",
+        state.kart_transforms()[0].position[0],
         top_of_return[0]
     );
     assert!(drove_the_grass, "the cut crosses the infield grass");
-    assert_eq!(only_standing(&state).checkpoint, APEX_GATE - 1);
+    assert_eq!(
+        only_standing(&state).checkpoint,
+        CHECKPOINT_BEFORE_HAIRPIN_ONE
+    );
 
     let (state, crossed_the_line) = round_to_the_start_line(state);
 
     let standing = only_standing(&state);
     assert!(crossed_the_line, "the kart got round to the line");
     assert_eq!(
-        standing.checkpoint,
-        APEX_GATE - 1,
-        "no later gate counts while the apex gate is missed"
+        standing.checkpoint, CHECKPOINT_BEFORE_HAIRPIN_ONE,
+        "no later checkpoint counts while the apex checkpoint is missed"
     );
     assert_eq!(standing.laps_completed, 0);
     assert_eq!(standing.best_lap_s, None);
 }
 
 #[test]
-fn rounding_hairpin_one_over_the_inside_sand_credits_the_apex_gate_and_the_lap_counts() {
+fn rounding_hairpin_one_over_the_inside_sand_credits_the_apex_checkpoint_and_the_lap_counts() {
     // The asphalt line, except through the hairpin, where the kart aims for
     // the sand inside the pipes: the run-off reaches 12 m from the
     // centreline and the pipes stand 4.5 m in.
@@ -349,21 +361,21 @@ fn rounding_hairpin_one_over_the_inside_sand_credits_the_apex_gate_and_the_lap_c
         }
     };
     let mut state = started(State::new(SEED, 1, brands_patch()));
-    let mut surface_at_apex_gate = None;
+    let mut surface_at_apex = None;
     for _ in 0..ticks(90.0) {
         let before = only_standing(&state).checkpoint;
         let input = inside_line(&state);
         state = step(state, &[input], DT);
         let standing = only_standing(&state);
-        if before != APEX_GATE && standing.checkpoint == APEX_GATE {
-            surface_at_apex_gate = Some(state.kart_surface(0));
+        if before != APEX_CHECKPOINT && standing.checkpoint == APEX_CHECKPOINT {
+            surface_at_apex = Some(state.kart_surface(0));
         }
         if standing.laps_completed == 1 {
             break;
         }
     }
 
-    assert_eq!(surface_at_apex_gate, Some(Surface::Sand));
+    assert_eq!(surface_at_apex, Some(Surface::Sand));
     let standing = only_standing(&state);
     assert_eq!(standing.laps_completed, 1);
     assert!(standing.best_lap_s.is_some(), "the lap was timed");
