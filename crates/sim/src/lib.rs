@@ -720,9 +720,9 @@ impl State {
                     boost_left_s: 0.0,
                     boost_factor: 1.0,
                     laps_completed: 0,
-                    // A slot moved round the lap, a test's device, starts
-                    // past the checkpoints behind it, or the kart would
-                    // read as having missed them and be put back.
+                    // A slot further round the lap starts past the
+                    // checkpoints behind it, or the kart would read as
+                    // having missed them and be put back.
                     checkpoint: track.checkpoint_behind(track.progress_at(slot.position)),
                     spline_progress: track.progress_at(slot.position),
                     lap_time_s: 0.0,
@@ -1336,9 +1336,14 @@ pub fn step(mut state: State, inputs: &[KartInput], dt: f32) -> State {
         if state.physics.surface_at(after) == Surface::OutOfWorld {
             kart.out_of_world_s += dt;
             if kart.out_of_world_s >= RESPAWN_DELAY_S {
-                after = respawn(kart, &state.track, &mut state.physics);
-                state.events.push(RaceEvent::Respawned { kart: index });
-                // A teleport is not a move: it crosses no gate.
+                after = respawn(
+                    kart,
+                    index,
+                    &state.track,
+                    &mut state.physics,
+                    &mut state.events,
+                );
+                // A teleport is not a move: it crosses no checkpoint.
                 before = after;
             }
         } else {
@@ -1356,8 +1361,13 @@ pub fn step(mut state: State, inputs: &[KartInput], dt: f32) -> State {
         {
             kart.past_missed_checkpoint_s += dt;
             if kart.past_missed_checkpoint_s >= RESPAWN_DELAY_S {
-                after = respawn(kart, &state.track, &mut state.physics);
-                state.events.push(RaceEvent::Respawned { kart: index });
+                after = respawn(
+                    kart,
+                    index,
+                    &state.track,
+                    &mut state.physics,
+                    &mut state.events,
+                );
                 before = after;
                 progress = state.track.progress_at(after);
             }
@@ -1752,10 +1762,16 @@ fn bump_off_karts(
     karts[index].speed = speed;
 }
 
-/// Put the kart back on the track at its last checkpoint, at rest and
-/// facing the next one, with nothing carried over from before it fell.
-/// Returns where it now stands.
-fn respawn(kart: &mut Kart, track: &Track, physics: &mut Physics) -> [f32; 3] {
+/// Put kart `index` back on the track at its last checkpoint, at rest and
+/// facing the next one, with nothing carried over from before, and tell
+/// the players with a `Respawned` event. Returns where it now stands.
+fn respawn(
+    kart: &mut Kart,
+    index: usize,
+    track: &Track,
+    physics: &mut Physics,
+    events: &mut Vec<RaceEvent>,
+) -> [f32; 3] {
     let checkpoints = track.checkpoints();
     let here = checkpoints[kart.checkpoint].position;
     let next = checkpoints[(kart.checkpoint + 1) % checkpoints.len()].position;
@@ -1780,6 +1796,7 @@ fn respawn(kart: &mut Kart, track: &Track, physics: &mut Physics) -> [f32; 3] {
     kart.out_of_world_s = 0.0;
     kart.wrong_way_s = 0.0;
     kart.past_missed_checkpoint_s = 0.0;
+    events.push(RaceEvent::Respawned { kart: index });
     position.to_array()
 }
 

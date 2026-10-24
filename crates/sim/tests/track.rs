@@ -245,20 +245,35 @@ fn karts_start_on_the_spawn_grid_in_slot_order() {
 
 #[test]
 fn a_kart_spawned_round_the_lap_starts_past_the_checkpoints_behind_it() {
-    // On the centreline between the oval's third and fourth checkpoints.
-    const SPAWN_M: f32 = 120.0;
-    let spawn = oval().point_at(SPAWN_M);
+    // Three slots on the centreline: between the oval's third and fourth
+    // checkpoints, between its eighth and ninth round the back, and between
+    // its last and the line, where the grid stands. The fourth slot stays
+    // on the grid.
+    let oval = oval();
+    let lap = oval.spline_length();
+    let progress = oval.checkpoint_progress();
+    let spawns = [120.0, 300.0, lap - 10.0];
+    assert!(progress[3] < spawns[0] && spawns[0] < progress[4]);
+    assert!(progress[8] < spawns[1] && spawns[1] < progress[9]);
+    assert!(progress[11] < spawns[2]);
     let mut sidecar: serde_json::Value = serde_json::from_str(OVAL).expect("valid JSON");
-    sidecar["spawn_grid"][0] = serde_json::json!({ "position": spawn, "yaw": 0.0 });
+    for (slot, spawn) in spawns.iter().enumerate() {
+        let position = oval.point_at(*spawn);
+        sidecar["spawn_grid"][slot] = serde_json::json!({ "position": position, "yaw": 0.0 });
+    }
     let track = Track::from_sidecar(&sidecar.to_string()).expect("the moved-slot oval loads");
-    let progress = track.checkpoint_progress();
-    assert!(progress[3] < SPAWN_M && SPAWN_M < progress[4]);
 
-    let state = State::new(SEED, 2, track);
-    let standings = state.standings();
-    assert_eq!(standings[0].checkpoint, 3);
-    assert_eq!(standings[1].checkpoint, 0, "the grid starts at the line");
-    assert_eq!(standings[0].laps_completed, 0);
+    let state = State::new(SEED, 4, track);
+    let checkpoints: Vec<usize> = state
+        .standings()
+        .iter()
+        .map(|standing| standing.checkpoint)
+        .collect();
+    assert_eq!(checkpoints, [3, 8, 0, 0]);
+    assert!(state
+        .standings()
+        .iter()
+        .all(|standing| standing.laps_completed == 0));
 }
 
 #[test]
