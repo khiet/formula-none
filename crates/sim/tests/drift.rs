@@ -104,6 +104,14 @@ fn hop_right() -> KartInput {
     }
 }
 
+/// The hop button held through a drift with the stick centred.
+fn hold_right() -> KartInput {
+    KartInput {
+        steer: 0.0,
+        ..hop_right()
+    }
+}
+
 /// `state` one tick after the hop has landed, with `landing` held through
 /// the airtime and the landing tick.
 fn landed(state: State, landing: KartInput) -> State {
@@ -237,11 +245,7 @@ fn counter_steer_widens_the_arc_and_inward_steer_tightens_it() {
 /// The mini-turbo tier `seconds` into a right drift held with the stick
 /// centred.
 fn tier_after(seconds: f32) -> MiniTurbo {
-    let held = KartInput {
-        steer: 0.0,
-        ..hop_right()
-    };
-    let state = run(drifting_right(), vec![held; ticks(seconds)]);
+    let state = run(drifting_right(), vec![hold_right(); ticks(seconds)]);
     only_kart(&state)
         .drift
         .expect("still drifting")
@@ -267,6 +271,45 @@ fn holding_the_drift_charges_blue_then_orange_at_the_tuned_times() {
     );
 }
 
+/// The release reports the boost it starts, at the tuned length less at
+/// most the tick that reported it.
+fn assert_boost_of(reported: Option<f32>, boost_s: f32) {
+    let reported = reported.expect("the release reports a boost");
+    assert!(
+        (reported - boost_s).abs() < 2.0 * DT,
+        "a {boost_s} s boost, reported {reported}"
+    );
+}
+
+/// The kart on the tick its hop lands into a right drift, before the first
+/// tick of charge, so a hold from here is counted in whole ticks.
+fn just_landed_right() -> State {
+    let mut state = step(at_top_speed(), &[hop_right()], DT);
+    while only_kart(&state).drift.is_none() {
+        state = step(state, &[hop_right()], DT);
+    }
+    let drift = only_kart(&state).drift.expect("drifting");
+    assert_eq!(drift.charge_s, 0.0, "the landing tick charges nothing");
+    state
+}
+
+/// The boost the kart reports the tick a right drift is let go after exactly
+/// `held` ticks of charge with the stick centred.
+fn boost_after_ticks(held: usize) -> Option<f32> {
+    let charged = run(just_landed_right(), vec![hold_right(); held]);
+    only_kart(&step(charged, &[accelerate()], DT)).boost_s
+}
+
+#[test]
+fn each_tier_pays_on_the_tick_its_charge_is_reached_and_the_tier_below_one_tick_earlier() {
+    let blue = ticks(MINI_TURBO_BLUE_CHARGE_S);
+    let orange = ticks(MINI_TURBO_ORANGE_CHARGE_S);
+    assert_eq!(boost_after_ticks(blue - 1), None, "one tick short of blue");
+    assert_boost_of(boost_after_ticks(blue), MINI_TURBO_BLUE_BOOST_S);
+    assert_boost_of(boost_after_ticks(orange - 1), MINI_TURBO_BLUE_BOOST_S);
+    assert_boost_of(boost_after_ticks(orange), MINI_TURBO_ORANGE_BOOST_S);
+}
+
 /// Speed between the last two ticks of `state`, read from positions so the
 /// test never trusts the readout alone.
 fn measured_speed(state: State, input: KartInput) -> f32 {
@@ -280,11 +323,7 @@ fn measured_speed(state: State, input: KartInput) -> f32 {
 /// A right drift held with the stick centred for `charge_s`, then the hop
 /// button let go with the throttle still down.
 fn released_after(charge_s: f32) -> State {
-    let held = KartInput {
-        steer: 0.0,
-        ..hop_right()
-    };
-    let charged = run(drifting_right(), vec![held; ticks(charge_s)]);
+    let charged = run(drifting_right(), vec![hold_right(); ticks(charge_s)]);
     step(charged, &[accelerate()], DT)
 }
 
@@ -295,13 +334,7 @@ fn assert_boosts_for(charge_s: f32, boost_s: f32) {
         None,
         "the release ends the drift"
     );
-    let reported = only_kart(&released)
-        .boost_s
-        .expect("the release reports the boost it starts");
-    assert!(
-        (reported - boost_s).abs() < 2.0 * DT,
-        "the boost starts at the tuned {boost_s} s, reported {reported}"
-    );
+    assert_boost_of(only_kart(&released).boost_s, boost_s);
     let boosted = TOP_SPEED_M_PER_S * MINI_TURBO_BOOST_FACTOR;
 
     let early = run(released, vec![accelerate(); ticks(boost_s / 2.0)]);

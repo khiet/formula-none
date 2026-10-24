@@ -44,14 +44,16 @@ The wasm test then confirms the wasm build agrees with the new hashes.
 
 ## What the set must cover
 
-`the_fixture_set_exercises_kart_contact_off_track_walls_both_tracks_a_mini_turbo_a_rocket_start_and_a_stall`
+`the_fixture_set_exercises_kart_contact_off_track_walls_both_tracks_both_mini_turbos_a_rocket_start_and_a_stall`
 in the sim's tests requires the set, taken together, to have karts
 touching, karts on sand and grass, a lone kart held by a wall, a run on
-each track, a drift released into a mini-turbo, a kart boosting at Go and
-a kart stalling there, so trimming the set cannot quietly weaken the gate.
-`oval-hop-drift.replay.json` was written by hand for the mini-turbo: a hop
-into each drift direction, one held to orange and one to blue, and one let
-go before blue. `oval-rocket-start.replay.json` and
+each track, a drift released into a blue mini-turbo and another into an
+orange one, a kart boosting at Go and a kart stalling there, so trimming
+the set cannot quietly weaken the gate. `oval-hop-drift.replay.json` was
+written by hand for the mini-turbo: a hop into each drift direction, one
+let go between blue and orange, one held past orange, and one let go
+before blue; its holds count the hop's airtime before the charge
+starts. `oval-rocket-start.replay.json` and
 `oval-stall.replay.json` were written by hand for the start: the throttle
 held from the first half of the 2 through Go, and from the top of the
 countdown.
