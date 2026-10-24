@@ -9,7 +9,13 @@ import math
 import unittest
 from dataclasses import replace
 
-from trackgen.layout import CHECKPOINT_SHORTCUT_LIMIT_M, build, check_checkpoint_spacing, checkpoint_arc_lengths
+from trackgen.layout import (
+    APEX_INSIDE_MARGIN_M,
+    CHECKPOINT_SHORTCUT_LIMIT_M,
+    build,
+    check_checkpoint_spacing,
+    checkpoint_arc_lengths,
+)
 from trackgen.layouts import NAMES, load
 
 
@@ -42,7 +48,7 @@ class CheckpointSpacing(unittest.TestCase):
 
 
 class ApexCheckpoints(unittest.TestCase):
-    def test_brands_patch_checkpoints_hairpin_one_at_its_apex_in_lap_order_with_the_run_off_width(self) -> None:
+    def test_brands_patch_checkpoints_hairpin_one_at_its_apex_in_lap_order(self) -> None:
         layout = load("brands-patch")
         hairpin = layout.path.segment("hairpin-1")
         apex = layout.path.at(hairpin.s_mid)
@@ -55,10 +61,27 @@ class ApexCheckpoints(unittest.TestCase):
         checkpoints = build(layout).checkpoints
         self.assertEqual(len(checkpoints), len(arc_lengths))
         at_apex = checkpoints[2]
-        self.assertAlmostEqual(math.hypot(at_apex.x - apex.x, at_apex.y - apex.y), 0.0)
-        self.assertEqual(
-            {checkpoint.half_width for checkpoint in checkpoints}, {layout.runoff_half_width}
-        )
+        self.assertLess(math.hypot(at_apex.x - apex.x, at_apex.y - apex.y), at_apex.half_width)
+        others = {c.half_width for i, c in enumerate(checkpoints) if i != 2}
+        self.assertEqual(others, {layout.runoff_half_width})
+
+    def test_the_apex_checkpoint_reaches_the_run_off_outside_and_a_metre_past_the_asphalt_inside(
+        self,
+    ) -> None:
+        layout = load("brands-patch")
+        hairpin = layout.path.segment("hairpin-1")
+        apex = layout.path.at(hairpin.s_mid)
+        # Hairpin one turns left, so its inside is to the left of travel.
+        self.assertEqual(hairpin.turn, 1)
+        inside = apex.offset(layout.asphalt_half_width + APEX_INSIDE_MARGIN_M)
+        outside = apex.offset(-layout.runoff_half_width)
+
+        at_apex = build(layout).checkpoints[2]
+
+        self.assertAlmostEqual(at_apex.x, (inside[0] + outside[0]) / 2.0)
+        self.assertAlmostEqual(at_apex.y, (inside[1] + outside[1]) / 2.0)
+        self.assertAlmostEqual(at_apex.half_width, math.dist(inside, outside) / 2.0)
+        self.assertEqual(at_apex.heading, apex.heading)
 
 
 if __name__ == "__main__":

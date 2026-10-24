@@ -9,7 +9,7 @@ from dataclasses import dataclass, field
 import math
 
 from . import mesh
-from .path import Feature, Path, elevation
+from .path import Feature, Path, Segment, elevation
 from .sponsors import SPONSORS
 
 # Surface tags the sim understands; the fifth, out of world, is the absence
@@ -69,6 +69,14 @@ GRID_FRONT_ROW_BEHIND_LINE_M = 4.0
 # over the inside sand that we keep (corner-3, hairpin two's entry and exit)
 # save 8 to 11 m and the oval's under 3 m.
 CHECKPOINT_SHORTCUT_LIMIT_M = 15.0
+# An apex checkpoint reaches the whole run-off on the outside, where a kart
+# runs wide, and only this far past the asphalt on the inside, where a kart
+# any deeper is cutting the corner. The pipes stand 3 to 6 m inside, so this
+# is just enough for a kart (1.2 m wide) squeezing past them on the sand.
+# Measured through hairpin one: a cut that keeps 11 m from the hairpin's
+# centre takes 3.5 s against 3.1 s round the asphalt, one that skims 6 m
+# from the centre, the run-off's inner edge, takes 2.7 s.
+APEX_INSIDE_MARGIN_M = 1.5
 
 
 @dataclass(frozen=True)
@@ -324,7 +332,20 @@ def build(layout: Layout) -> TrackGeometry:
         x, y = sample.offset(offset)
         return Placement(x, y, elevation(layout.elevation, sample.s), sample.heading, half_width)
 
-    checkpoints = [place(s, half_width=runoff) for s in checkpoint_s]
+    def apex_checkpoint(segment: Segment) -> Placement:
+        # The turn's inside is the side it turns toward. One half-width has
+        # to cover both reaches, so the centre sits between them.
+        inside = half + APEX_INSIDE_MARGIN_M
+        return place(
+            segment.s_mid,
+            offset=segment.turn * (inside - runoff) / 2.0,
+            half_width=(inside + runoff) / 2.0,
+        )
+
+    apex = {path.segment(name).s_mid: path.segment(name) for name in layout.apex_checkpoints}
+    checkpoints = [
+        apex_checkpoint(apex[s]) if s in apex else place(s, half_width=runoff) for s in checkpoint_s
+    ]
     item_boxes = [place(row.s, offset) for row in layout.item_rows for offset in row.offsets]
     boost_pads = [place(pad.s, pad.offset) for pad in layout.boost_pads]
     spawn_grid = [

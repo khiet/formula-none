@@ -22,6 +22,9 @@ const SEED: u64 = 0x5EED;
 /// lap, after the one near the end of the start straight.
 const HAIRPIN_ONE_ENTRY_M: f32 = 70.0;
 const HAIRPIN_ONE_EXIT_M: f32 = HAIRPIN_ONE_ENTRY_M + 18.0 * PI;
+/// The hairpin's centre seen from above (x, z); the run-off's inner edge is
+/// 6 m from it and the asphalt's 12 m.
+const HAIRPIN_ONE_CENTRE: [f32; 2] = [62.0, -70.0];
 const CHECKPOINT_BEFORE_HAIRPIN_ONE: usize = 1;
 const APEX_CHECKPOINT: usize = 2;
 
@@ -288,6 +291,43 @@ fn slowed_past_the_checkpoint_before_hairpin_one() -> State {
     panic!("the start straight ends at checkpoint {CHECKPOINT_BEFORE_HAIRPIN_ONE}");
 }
 
+/// Full throttle toward `target` (x, z) until `arrived` or ten seconds pass,
+/// showing `watch` the state after every tick.
+fn drive_toward(
+    mut state: State,
+    target: [f32; 2],
+    arrived: impl Fn(&State) -> bool,
+    mut watch: impl FnMut(&State),
+) -> State {
+    for _ in 0..ticks(10.0) {
+        let input = steer_toward(&state, 0, target);
+        state = step(state, &[input], DT);
+        watch(&state);
+        if arrived(&state) {
+            break;
+        }
+    }
+    state
+}
+
+/// Where the kart is, seen from above.
+fn kart_xz(state: &State) -> [f32; 2] {
+    let position = state.kart_transforms()[0].position;
+    [position[0], position[2]]
+}
+
+/// The top of the return straight (x, z) and whether the kart has reached it:
+/// the straight runs along +Z, so the kart is on it once its x is within the
+/// asphalt's.
+fn top_of_return(state: &State) -> ([f32; 2], impl Fn(&State) -> bool) {
+    const ON_THE_RETURN_M: f32 = 4.0;
+    let point = state.track().point_at(HAIRPIN_ONE_EXIT_M + 10.0);
+    let target = [point[0], point[2]];
+    (target, move |state: &State| {
+        kart_xz(state)[0] < target[0] + ON_THE_RETURN_M
+    })
+}
+
 /// Follow the centreline until the kart crosses the start line, or give
 /// up after a lap's worth of time. Returns the state and whether it crossed.
 fn round_to_the_start_line(mut state: State) -> (State, bool) {
@@ -305,29 +345,19 @@ fn round_to_the_start_line(mut state: State) -> (State, bool) {
 
 #[test]
 fn cutting_hairpin_one_across_the_infield_skips_its_apex_checkpoint_and_the_lap_does_not_count() {
-    let mut state = slowed_past_the_checkpoint_before_hairpin_one();
+    let state = slowed_past_the_checkpoint_before_hairpin_one();
 
-    // Straight across the infield to the top of the return straight. The
-    // straight runs along +Z, so the kart is on it once its x is within the
-    // asphalt's.
-    const ON_THE_RETURN_M: f32 = 4.0;
-    let top_of_return = state.track().point_at(HAIRPIN_ONE_EXIT_M + 10.0);
-    let on_the_return =
-        |state: &State| state.kart_transforms()[0].position[0] < top_of_return[0] + ON_THE_RETURN_M;
+    // Straight across the infield to the top of the return straight.
+    let (target, on_the_return) = top_of_return(&state);
     let mut drove_the_grass = false;
-    for _ in 0..ticks(10.0) {
-        let input = steer_toward(&state, 0, [top_of_return[0], top_of_return[2]]);
-        state = step(state, &[input], DT);
+    let state = drive_toward(state, target, &on_the_return, |state| {
         drove_the_grass |= state.kart_surface(0) == Surface::Grass;
-        if on_the_return(&state) {
-            break;
-        }
-    }
+    });
     assert!(
         on_the_return(&state),
         "the kart reached the return straight: x {}, return at x {}",
-        state.kart_transforms()[0].position[0],
-        top_of_return[0]
+        kart_xz(&state)[0],
+        target[0]
     );
     assert!(drove_the_grass, "the cut crosses the infield grass");
     assert_eq!(
@@ -348,14 +378,56 @@ fn cutting_hairpin_one_across_the_infield_skips_its_apex_checkpoint_and_the_lap_
 }
 
 #[test]
+fn skimming_the_hairpin_infield_inside_the_pipes_misses_the_apex_checkpoint_and_the_lap_does_not_count(
+) {
+    // Across the infield, bending to pass 6.5 m from the hairpin's centre:
+    // over the sand's inner edge, where a checkpoint reaching the whole
+    // run-off would still have credited the kart.
+    const SKIM_RADIUS_M: f32 = 6.5;
+    let state = slowed_past_the_checkpoint_before_hairpin_one();
+    let skim = [HAIRPIN_ONE_CENTRE[0], HAIRPIN_ONE_CENTRE[1] - SKIM_RADIUS_M];
+    let mut closest = f32::INFINITY;
+    let state = drive_toward(
+        state,
+        skim,
+        |state| kart_xz(state)[0] < skim[0],
+        |state| {
+            let [x, z] = kart_xz(state);
+            closest = closest.min((x - HAIRPIN_ONE_CENTRE[0]).hypot(z - HAIRPIN_ONE_CENTRE[1]));
+        },
+    );
+    assert!(
+        (6.0..8.0).contains(&closest),
+        "the kart passed {closest} m from the hairpin's centre, over the inner sand"
+    );
+    let (target, on_the_return) = top_of_return(&state);
+    let state = drive_toward(state, target, &on_the_return, |_| ());
+    assert!(
+        on_the_return(&state),
+        "the kart reached the return straight"
+    );
+
+    let (state, crossed_the_line) = round_to_the_start_line(state);
+
+    let standing = only_standing(&state);
+    assert!(crossed_the_line, "the kart got round to the line");
+    assert_eq!(standing.checkpoint, CHECKPOINT_BEFORE_HAIRPIN_ONE);
+    assert_eq!(standing.laps_completed, 0);
+}
+
+#[test]
 fn rounding_hairpin_one_over_the_inside_sand_credits_the_apex_checkpoint_and_the_lap_counts() {
-    // The asphalt line, except through the hairpin, where the kart aims for
-    // the sand inside the pipes: the run-off reaches 12 m from the
-    // centreline and the pipes stand 4.5 m in.
-    const INSIDE_SAND_M: f32 = -9.0;
+    // The asphalt line, except through the hairpin, where the kart squeezes
+    // between the pipes and the apex checkpoint's inside reach: the asphalt
+    // ends 6 m from the centreline, the pipes reach to 6 m and the
+    // checkpoint to 7.5 m.
+    const INSIDE_SAND_M: f32 = -6.5;
+    // Moving in from the asphalt line takes a stretch of the straight, or the
+    // kart is still crossing the pipes' line when it reaches the first one.
+    const MOVE_IN_OVER_M: f32 = 25.0;
     let inside_line = |state: &State| {
         let ahead = state.standings()[0].spline_progress + BOT_LOOKAHEAD_M;
-        if (HAIRPIN_ONE_ENTRY_M..HAIRPIN_ONE_EXIT_M).contains(&ahead) {
+        if (HAIRPIN_ONE_ENTRY_M - MOVE_IN_OVER_M..HAIRPIN_ONE_EXIT_M).contains(&ahead) {
             follow_line(state, 0, INSIDE_SAND_M)
         } else {
             follow_centreline(state, 0)
