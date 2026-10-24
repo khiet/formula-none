@@ -42,27 +42,21 @@ class GateSpacing(unittest.TestCase):
 
 
 class ApexGates(unittest.TestCase):
-    def test_brands_patch_gates_hairpin_one_at_its_midpoint_in_lap_order(self) -> None:
+    def test_brands_patch_gates_hairpin_one_at_its_apex_in_lap_order_with_the_run_off_width(self) -> None:
         layout = load("brands-patch")
-        gates = gate_arc_lengths(layout)
-        hairpin = layout.path.segment("hairpin-1")
-
-        self.assertEqual(len(gates), layout.checkpoint_count + 1)
-        self.assertEqual(gates, sorted(gates))
-        self.assertIn(hairpin.s_mid, gates)
-        self.assertEqual(gates.index(hairpin.s_mid), 2)
-
-    def test_the_apex_gate_spans_the_run_off_like_every_other_gate(self) -> None:
-        layout = load("brands-patch")
-        geometry = build(layout)
         hairpin = layout.path.segment("hairpin-1")
         apex = layout.path.at(hairpin.s_mid)
 
-        gate = geometry.checkpoints[2]
-        self.assertEqual(len(geometry.checkpoints), layout.checkpoint_count + 1)
+        gates = gate_arc_lengths(layout)
+        self.assertEqual(len(gates), layout.checkpoint_count + 1)
+        self.assertEqual(gates, sorted(gates))
+        self.assertEqual(gates.index(hairpin.s_mid), 2)
+
+        checkpoints = build(layout).checkpoints
+        self.assertEqual(len(checkpoints), len(gates))
+        gate = checkpoints[2]
         self.assertAlmostEqual(math.hypot(gate.x - apex.x, gate.y - apex.y), 0.0)
-        self.assertEqual(gate.half_width, layout.runoff_half_width)
-        self.assertEqual({gate.half_width for gate in geometry.checkpoints}, {layout.runoff_half_width})
+        self.assertEqual({gate.half_width for gate in checkpoints}, {layout.runoff_half_width})
 
 
 if __name__ == "__main__":
