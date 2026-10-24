@@ -68,7 +68,8 @@ fn brands_patch_carries_the_whole_layout() {
     let track = brands_patch();
 
     assert_eq!(track.name(), "brands-patch");
-    assert_eq!(track.checkpoints().len(), 12);
+    // Twelve evenly spaced checkpoints and the one at hairpin one's apex.
+    assert_eq!(track.checkpoints().len(), 13);
     assert_eq!(track.item_boxes().len(), 8);
     assert_eq!(track.boost_pads().len(), 2);
     assert_eq!(track.spawn_grid().len(), 8);
@@ -142,18 +143,19 @@ fn spline_progress_runs_from_the_start_line_through_each_checkpoint_and_back_to_
             track.name()
         );
         assert!(
-            progress.windows(2).all(|pair| pair[0] < pair[1]) && progress[11] < lap,
+            progress.windows(2).all(|pair| pair[0] < pair[1]) && progress[progress.len() - 1] < lap,
             "{}: checkpoints out of lap order: {progress:?}",
             track.name()
         );
         for (checkpoint, &at) in track.checkpoints().iter().zip(progress) {
-            // The checkpoint's centre is on the centreline, so progress and the
-            // point at it are inverses there; height is not part of progress.
+            // A checkpoint's progress is that of the centreline point nearest
+            // its centre, which lies across the track from it within its
+            // reach; height is not part of progress.
             let point = track.point_at(at);
             let off = (point[0] - checkpoint.position[0]).hypot(point[2] - checkpoint.position[2]);
             assert!(
-                off < 0.1,
-                "{}: gate at {at} m is {off} m off its point",
+                off <= checkpoint.half_width,
+                "{}: checkpoint at {at} m is {off} m off its point",
                 track.name()
             );
             assert!((track.progress_at(checkpoint.position) - at).abs() < 1e-3);

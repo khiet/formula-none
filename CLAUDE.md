@@ -64,6 +64,7 @@ Tracks (needs Blender on `PATH`; see `assets/tracks/README.md`):
 - Export: `pnpm export:tracks` writes each track's glTF and sidecar under
   `assets/tracks/<name>/`; rerun after changing a layout and commit the
   output, since the sim's tests read the sidecars
+- Check the layouts without Blender: `pnpm test:tracks` (needs `python3`)
 - Kart: `pnpm export:karts` rebuilds `assets/karts/kart.glb` from the
   vendored Kenney kart; rerun after changing `assets/karts/build.py`
 

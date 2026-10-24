@@ -48,6 +48,10 @@ LAYOUT = Layout(
     asphalt_half_width=6.0,
     runoff_width=6.0,
     checkpoint_count=12,
+    # Hairpin one's 57 m arc falls between two evenly spaced checkpoints 36 m
+    # apart across the infield grass; the one at its apex makes the lap go
+    # round it.
+    apex_checkpoints=("hairpin-1",),
     walls=[
         Wall(("grid", "start"), side=-1),
         Wall(("hairpin-1",), side=-1),
