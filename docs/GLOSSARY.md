@@ -90,8 +90,9 @@ events since the previous snapshot.
 ### checkpoint
 
 An ordered gate on the track used for lap counting and wrong-way detection.
-Brands Patch has twelve. A kart respawns at its last checkpoint facing the
-next one.
+Brands Patch has thirteen: twelve spaced evenly round the lap and one at the
+apex of hairpin one, so the hairpin cannot be cut across the infield. A kart
+respawns at its last checkpoint facing the next one.
 
 ### spline progress
 

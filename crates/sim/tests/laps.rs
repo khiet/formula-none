@@ -1,14 +1,27 @@
 //! Lap counting and race position at the sim's public seam: drive karts on
 //! the oval fixture and read `standings`. The oval's front straight runs
 //! along -Z from the start line at z = 0 through its first checkpoints, with
-//! the grid a few metres behind the line (layouts/oval.py).
+//! the grid a few metres behind the line (layouts/oval.py). Brands Patch
+//! joins in for its gated hairpin.
+
+use std::f32::consts::PI;
 
 use sim::tuning::{BOT_LOOKAHEAD_M, LAPS_PER_RACE, TICKS_PER_SECOND};
-use sim::{step, KartInput, Phase, Standing, State, Track};
+use sim::{step, KartInput, Phase, Standing, State, Surface, Track};
 
 const OVAL: &str = include_str!("../../../assets/tracks/oval/oval.track.json");
+const BRANDS_PATCH: &str =
+    include_str!("../../../assets/tracks/brands-patch/brands-patch.track.json");
 const DT: f32 = 1.0 / TICKS_PER_SECOND as f32;
 const SEED: u64 = 0x5EED;
+
+/// Hairpin one on Brands Patch (layouts/brands_patch.py): a 180 degree
+/// left-hander of 18 m radius that begins 70 m past the line, with the
+/// return straight starting at its exit, 36 m to the left of its entry
+/// across the infield grass. The gate at its apex is the third of the lap.
+const HAIRPIN_ONE_ENTRY_M: f32 = 70.0;
+const HAIRPIN_ONE_EXIT_M: f32 = HAIRPIN_ONE_ENTRY_M + 18.0 * PI;
+const APEX_GATE: usize = 2;
 
 /// The race past its countdown, every kart idle on the grid until Go.
 fn started(mut state: State) -> State {
@@ -21,6 +34,10 @@ fn started(mut state: State) -> State {
 
 fn oval() -> Track {
     Track::from_sidecar(OVAL).expect("the oval fixture loads")
+}
+
+fn brands_patch() -> Track {
+    Track::from_sidecar(BRANDS_PATCH).expect("Brands Patch loads")
 }
 
 fn race(kart_count: usize) -> State {
@@ -80,24 +97,10 @@ fn yaw(rotation: [f32; 4]) -> f32 {
     (2.0 * (w * y + x * z)).atan2(1.0 - 2.0 * (y * y + z * z))
 }
 
-/// Full throttle, steering toward a line a little right of the centreline
-/// some way ahead of the kart: enough to lap the oval on the asphalt and
-/// clear of the pipe that stands just left of the centreline in each turn.
-fn follow_centreline(state: &State, kart: usize) -> KartInput {
-    const RIGHT_OF_CENTRE_M: f32 = 2.5;
+/// Full throttle, steering toward the point `target` (x, z) seen from above.
+fn steer_toward(state: &State, kart: usize, target: [f32; 2]) -> KartInput {
     const STEER_GAIN: f32 = 4.0;
     let transform = state.kart_transforms()[kart];
-    let progress = state.standings()[kart].spline_progress;
-    let track = state.track();
-    let ahead = track.point_at(progress + BOT_LOOKAHEAD_M);
-    let further = track.point_at(progress + BOT_LOOKAHEAD_M + 1.0);
-    // Right of the direction of travel (dx, dz), seen from above, is (-dz, dx).
-    let (tx, tz) = (further[0] - ahead[0], further[2] - ahead[2]);
-    let travel = (tx * tx + tz * tz).sqrt().max(f32::EPSILON);
-    let target = [
-        ahead[0] - tz / travel * RIGHT_OF_CENTRE_M,
-        ahead[2] + tx / travel * RIGHT_OF_CENTRE_M,
-    ];
     let (dx, dz) = (
         target[0] - transform.position[0],
         target[1] - transform.position[2],
@@ -111,6 +114,32 @@ fn follow_centreline(state: &State, kart: usize) -> KartInput {
         throttle: 1.0,
         ..KartInput::default()
     }
+}
+
+/// Full throttle toward a line `right_of_centre_m` right of the centreline
+/// (negative is left), aimed some way ahead of the kart.
+fn follow_line(state: &State, kart: usize, right_of_centre_m: f32) -> KartInput {
+    let progress = state.standings()[kart].spline_progress;
+    let track = state.track();
+    let ahead = track.point_at(progress + BOT_LOOKAHEAD_M);
+    let further = track.point_at(progress + BOT_LOOKAHEAD_M + 1.0);
+    // Right of the direction of travel (dx, dz), seen from above, is (-dz, dx).
+    let (tx, tz) = (further[0] - ahead[0], further[2] - ahead[2]);
+    let travel = (tx * tx + tz * tz).sqrt().max(f32::EPSILON);
+    let target = [
+        ahead[0] - tz / travel * right_of_centre_m,
+        ahead[2] + tx / travel * right_of_centre_m,
+    ];
+    steer_toward(state, kart, target)
+}
+
+/// A line a little right of the centreline: enough to lap either track on
+/// the asphalt and clear of the pipes that stand just left of the
+/// centreline in the oval's turns and on the inside of Brands Patch's
+/// hairpins.
+fn follow_centreline(state: &State, kart: usize) -> KartInput {
+    const RIGHT_OF_CENTRE_M: f32 = 2.5;
+    follow_line(state, kart, RIGHT_OF_CENTRE_M)
 }
 
 /// What steers a kart in a multi-kart test: reads the state and the kart's
@@ -206,9 +235,7 @@ fn a_lap_completes_at_the_start_line_after_every_checkpoint_and_records_its_time
 
 #[test]
 fn brands_patch_counts_its_checkpoints_the_same_way() {
-    const BRANDS_PATCH: &str =
-        include_str!("../../../assets/tracks/brands-patch/brands-patch.track.json");
-    let track = Track::from_sidecar(BRANDS_PATCH).expect("Brands Patch loads");
+    let track = brands_patch();
     let lap = track.spline_length();
     let state = started(State::new(SEED, 2, track));
     assert!(
@@ -227,6 +254,119 @@ fn brands_patch_counts_its_checkpoints_the_same_way() {
         standings.iter().map(|s| s.position).collect::<Vec<_>>(),
         [1, 2]
     );
+}
+
+/// Up Brands Patch's start straight to the gate before hairpin one, braking
+/// over the last stretch to the speed a kart turns off the straight at: at
+/// top speed its turning circle is wider than the infield.
+fn slowed_past_the_gate_before_hairpin_one() -> State {
+    const BRAKE_FROM_M: f32 = 20.0;
+    const CUT_SPEED_M_PER_S: f32 = 10.0;
+    let mut state = started(State::new(SEED, 1, brands_patch()));
+    let gate_z = state.track().checkpoints()[APEX_GATE - 1].position[2];
+    for _ in 0..ticks(10.0) {
+        let transform = state.kart_transforms()[0];
+        let input = if transform.position[2] > gate_z + BRAKE_FROM_M {
+            throttle()
+        } else {
+            KartInput {
+                brake: if transform.speed > CUT_SPEED_M_PER_S { 1.0 } else { 0.0 },
+                ..KartInput::default()
+            }
+        };
+        state = step(state, &[input], DT);
+        if only_standing(&state).checkpoint == APEX_GATE - 1 {
+            return state;
+        }
+    }
+    panic!("the start straight ends at gate {}", APEX_GATE - 1);
+}
+
+/// Follow the centreline until the kart crosses the start line, or give
+/// up after a lap's worth of time. Returns the state and whether it crossed.
+fn round_to_the_start_line(mut state: State) -> (State, bool) {
+    let lap = state.track().spline_length();
+    for _ in 0..ticks(60.0) {
+        let before = only_standing(&state).spline_progress;
+        let input = follow_centreline(&state, 0);
+        state = step(state, &[input], DT);
+        if only_standing(&state).spline_progress < before - lap / 2.0 {
+            return (state, true);
+        }
+    }
+    (state, false)
+}
+
+#[test]
+fn cutting_hairpin_one_across_the_infield_skips_its_apex_gate_and_the_lap_does_not_count() {
+    let mut state = slowed_past_the_gate_before_hairpin_one();
+
+    // Straight across the infield to the top of the return straight.
+    let top_of_return = state.track().point_at(HAIRPIN_ONE_EXIT_M + 10.0);
+    let mut drove_the_grass = false;
+    for _ in 0..ticks(10.0) {
+        let input = steer_toward(&state, 0, [top_of_return[0], top_of_return[2]]);
+        state = step(state, &[input], DT);
+        drove_the_grass |= state.kart_surface(0) == Surface::Grass;
+        if state.kart_transforms()[0].position[0] < top_of_return[0] + 4.0 {
+            break;
+        }
+    }
+    let x = state.kart_transforms()[0].position[0];
+    assert!(
+        x < top_of_return[0] + 4.0,
+        "the kart reached the return straight: x {x}, return at x {}",
+        top_of_return[0]
+    );
+    assert!(drove_the_grass, "the cut crosses the infield grass");
+    assert_eq!(only_standing(&state).checkpoint, APEX_GATE - 1);
+
+    let (state, crossed_the_line) = round_to_the_start_line(state);
+
+    let standing = only_standing(&state);
+    assert!(crossed_the_line, "the kart got round to the line");
+    assert_eq!(
+        standing.checkpoint,
+        APEX_GATE - 1,
+        "no later gate counts while the apex gate is missed"
+    );
+    assert_eq!(standing.laps_completed, 0);
+    assert_eq!(standing.best_lap_s, None);
+}
+
+#[test]
+fn rounding_hairpin_one_over_the_inside_sand_credits_the_apex_gate_and_the_lap_counts() {
+    // The asphalt line, except through the hairpin, where the kart aims for
+    // the sand inside the pipes: the run-off reaches 12 m from the
+    // centreline and the pipes stand 4.5 m in.
+    const INSIDE_SAND_M: f32 = -9.0;
+    let inside_line = |state: &State| {
+        let ahead = state.standings()[0].spline_progress + BOT_LOOKAHEAD_M;
+        if (HAIRPIN_ONE_ENTRY_M..HAIRPIN_ONE_EXIT_M).contains(&ahead) {
+            follow_line(state, 0, INSIDE_SAND_M)
+        } else {
+            follow_centreline(state, 0)
+        }
+    };
+    let mut state = started(State::new(SEED, 1, brands_patch()));
+    let mut surface_at_apex_gate = None;
+    for _ in 0..ticks(90.0) {
+        let before = only_standing(&state).checkpoint;
+        let input = inside_line(&state);
+        state = step(state, &[input], DT);
+        let standing = only_standing(&state);
+        if before != APEX_GATE && standing.checkpoint == APEX_GATE {
+            surface_at_apex_gate = Some(state.kart_surface(0));
+        }
+        if standing.laps_completed == 1 {
+            break;
+        }
+    }
+
+    assert_eq!(surface_at_apex_gate, Some(Surface::Sand));
+    let standing = only_standing(&state);
+    assert_eq!(standing.laps_completed, 1);
+    assert!(standing.best_lap_s.is_some(), "the lap was timed");
 }
 
 #[test]

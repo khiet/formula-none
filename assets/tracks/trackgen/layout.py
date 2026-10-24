@@ -61,6 +61,15 @@ GRID_COLUMN_OFFSET_M = 2.0
 GRID_STAGGER_M = 2.0
 GRID_FRONT_ROW_BEHIND_LINE_M = 4.0
 
+# The most a straight line between two consecutive gates may beat the
+# centreline between them. A lap counts only when every gate is crossed in
+# order, so a pair this far apart round a corner leaves the corner open to a
+# cut across the infield. Brands Patch's hairpin one, ungated, saved 30 m
+# across the grass; the corner cuts over the inside sand that we keep
+# (corner-3, hairpin two's entry and exit) save 8 to 11 m and the oval's at
+# most 2 m.
+GATE_SHORTCUT_LIMIT_M = 15.0
+
 
 @dataclass(frozen=True)
 class Wall:
@@ -131,6 +140,10 @@ class Layout:
     boost_pads: list[BoostPad]
     elevation: list[Feature] = field(default_factory=list)
     decor: Decor = field(default_factory=Decor)
+    apex_gates: tuple[str, ...] = ()
+    """Segments that get a gate at their midpoint besides the evenly spaced
+    ones: a corner long enough to fall between two even gates and open
+    enough to cut across."""
 
     @property
     def runoff_half_width(self) -> float:
@@ -202,8 +215,38 @@ class TrackGeometry:
     props: list[TextProp | ModelProp] = field(default_factory=list)
 
 
+def gate_arc_lengths(layout: Layout) -> list[float]:
+    """Where the gates stand along the lap, in lap order: `checkpoint_count`
+    of them evenly spaced from the start line, plus one at the midpoint of
+    each apex segment."""
+    path = layout.path
+    even = [k * path.length / layout.checkpoint_count for k in range(layout.checkpoint_count)]
+    apex = [path.segment(name).s_mid for name in layout.apex_gates]
+    return sorted(even + apex)
+
+
+def check_gate_spacing(path: Path, gates: list[float]) -> None:
+    """Refuse gates in lap order that leave a corner open to a cut: a
+    consecutive pair, the last and first included, whose straight-line join is
+    more than `GATE_SHORTCUT_LIMIT_M` shorter than the centreline between them."""
+    for number, s in enumerate(gates):
+        next_number = (number + 1) % len(gates)
+        here, there = path.at(s), path.at(gates[next_number])
+        along = (gates[next_number] - s) % path.length
+        straight = math.hypot(there.x - here.x, there.y - here.y)
+        saved = along - straight
+        if saved > GATE_SHORTCUT_LIMIT_M:
+            raise ValueError(
+                f"gates {number} and {next_number} leave a cut: {straight:.0f} m in a straight "
+                f"line against {along:.0f} m along the centreline saves {saved:.0f} m, more "
+                f"than the {GATE_SHORTCUT_LIMIT_M:.0f} m allowed; gate the corner between them"
+            )
+
+
 def build(layout: Layout) -> TrackGeometry:
     path = layout.path
+    gates = gate_arc_lengths(layout)
+    check_gate_spacing(path, gates)
     height = [elevation(layout.elevation, sample.s) for sample in path.samples]
 
     def rail(offset: float, drop: float = 0.0) -> list[mesh.Vertex]:
@@ -280,10 +323,7 @@ def build(layout: Layout) -> TrackGeometry:
         x, y = sample.offset(offset)
         return Placement(x, y, elevation(layout.elevation, sample.s), sample.heading, half_width)
 
-    checkpoints = [
-        place(k * path.length / layout.checkpoint_count, half_width=runoff)
-        for k in range(layout.checkpoint_count)
-    ]
+    checkpoints = [place(s, half_width=runoff) for s in gates]
     item_boxes = [place(row.s, offset) for row in layout.item_rows for offset in row.offsets]
     boost_pads = [place(pad.s, pad.offset) for pad in layout.boost_pads]
     spawn_grid = [

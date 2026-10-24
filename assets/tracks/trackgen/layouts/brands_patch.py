@@ -48,6 +48,9 @@ LAYOUT = Layout(
     asphalt_half_width=6.0,
     runoff_width=6.0,
     checkpoint_count=12,
+    # Hairpin one's 57 m arc falls between two even gates 36 m apart across
+    # the infield grass; the gate at its apex makes the lap go round it.
+    apex_gates=("hairpin-1",),
     walls=[
         Wall(("grid", "start"), side=-1),
         Wall(("hairpin-1",), side=-1),
