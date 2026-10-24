@@ -341,6 +341,32 @@ impl Track {
         anchor + ahead
     }
 
+    /// The checkpoint a kart spawned at `spline_progress` starts past: the
+    /// last one at or before it in lap order. The grid, a few metres behind
+    /// the start line, is behind every checkpoint of the lap, so a kart
+    /// there starts at the line.
+    pub fn checkpoint_behind(&self, spline_progress: f32) -> usize {
+        if self.lap_relative_progress(0, spline_progress) < 0.0 {
+            return 0;
+        }
+        self.checkpoint_progress
+            .iter()
+            .rposition(|&progress| progress <= spline_progress)
+            .unwrap_or(0)
+    }
+
+    /// Whether a kart past `checkpoint` reading `spline_progress` is past
+    /// the checkpoint after its next one: it has missed the next one and
+    /// driven on. Measured forward along the lap, so the two may straddle
+    /// the start line.
+    pub fn past_checkpoint_after_next(&self, checkpoint: usize, spline_progress: f32) -> bool {
+        let count = self.checkpoint_progress.len();
+        let anchor = self.checkpoint_progress[checkpoint];
+        let after_next = self.checkpoint_progress[(checkpoint + 2) % count];
+        let ahead = (after_next - anchor).rem_euclid(self.spline_length());
+        self.lap_relative_progress(checkpoint, spline_progress) - anchor > ahead
+    }
+
     /// The centreline point `progress` metres from the start line, wrapped
     /// around the lap; where a kart following the centreline would be.
     pub fn point_at(&self, progress: f32) -> [f32; 3] {

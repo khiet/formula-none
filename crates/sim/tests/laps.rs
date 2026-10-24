@@ -2,12 +2,15 @@
 //! the oval fixture and read `standings`. The oval's front straight runs
 //! along -Z from the start line at z = 0 through its first checkpoints, with
 //! the grid a few metres behind the line (layouts/oval.py). Brands Patch
-//! joins in for the checkpoint at its first hairpin's apex.
+//! joins in for the checkpoint at its first hairpin's apex and the respawn
+//! of a kart that drives on past a missed checkpoint.
 
 use std::f32::consts::PI;
 
-use sim::tuning::{BOT_LOOKAHEAD_M, LAPS_PER_RACE, TICKS_PER_SECOND};
-use sim::{step, KartInput, Phase, Standing, State, Surface, Track};
+use sim::tuning::{
+    BOT_LOOKAHEAD_M, KART_HALF_HEIGHT_M, LAPS_PER_RACE, RESPAWN_DELAY_S, TICKS_PER_SECOND,
+};
+use sim::{step, KartInput, Phase, RaceEvent, Standing, State, Surface, Track};
 
 const OVAL: &str = include_str!("../../../assets/tracks/oval/oval.track.json");
 const BRANDS_PATCH: &str =
@@ -27,6 +30,16 @@ const HAIRPIN_ONE_EXIT_M: f32 = HAIRPIN_ONE_ENTRY_M + 18.0 * PI;
 const HAIRPIN_ONE_CENTRE: [f32; 2] = [62.0, -70.0];
 const CHECKPOINT_BEFORE_HAIRPIN_ONE: usize = 1;
 const APEX_CHECKPOINT: usize = 2;
+/// The first checkpoint on the return straight, the one a kart that cut the
+/// hairpin reads past without having crossed the apex.
+const CHECKPOINT_AFTER_THE_APEX: usize = 3;
+
+/// Corner three on Brands Patch (layouts/brands_patch.py): the 90 degree
+/// right-hander of 22 m radius at the end of the return straight, with a
+/// checkpoint on the straight before it and the next just past its exit.
+const CORNER_THREE_ENTRY_M: f32 = HAIRPIN_ONE_EXIT_M + 100.0;
+const CORNER_THREE_EXIT_M: f32 = CORNER_THREE_ENTRY_M + 22.0 * PI / 2.0;
+const CHECKPOINT_AFTER_CORNER_THREE: usize = 5;
 
 /// The race past its countdown, every kart idle on the grid until Go.
 fn started(mut state: State) -> State {
@@ -328,30 +341,75 @@ fn top_of_return(state: &State) -> ([f32; 2], impl Fn(&State) -> bool) {
     })
 }
 
-/// Follow the centreline until the kart crosses the start line, or give
-/// up after a lap's worth of time. Returns the state and whether it crossed.
-fn round_to_the_start_line(mut state: State) -> (State, bool) {
-    let lap = state.track().spline_length();
-    for _ in 0..ticks(60.0) {
-        let before = only_standing(&state).spline_progress;
+/// Whether the cutter reads past the checkpoint after the apex, which it
+/// does from partway across the infield: the nearest centreline point is
+/// on the return straight by then.
+fn past_the_checkpoint_after_the_apex(state: &State) -> bool {
+    only_standing(state).spline_progress
+        > state.track().checkpoint_progress()[CHECKPOINT_AFTER_THE_APEX]
+}
+
+/// Down the return straight from the cut until the kart is respawned, or
+/// ten seconds pass. `past_ticks` is how many ticks the kart has already
+/// read past the checkpoint after the apex; returns the state and that
+/// count as of the respawn.
+fn down_the_return_until_respawned(
+    mut state: State,
+    mut past_ticks: usize,
+) -> (State, Option<usize>) {
+    for _ in 0..ticks(10.0) {
         let input = follow_centreline(&state, 0);
         state = step(state, &[input], DT);
-        if only_standing(&state).spline_progress < before - lap / 2.0 {
-            return (state, true);
+        past_ticks += usize::from(past_the_checkpoint_after_the_apex(&state));
+        if state.events().contains(&RaceEvent::Respawned { kart: 0 }) {
+            return (state, Some(past_ticks));
         }
     }
-    (state, false)
+    (state, None)
+}
+
+/// The cutter has been put back at the checkpoint before hairpin one once
+/// it has read past the checkpoint after the apex for the tuned delay: at rest,
+/// on the checkpoint's centre, facing the apex, as a kart that fell off the
+/// world comes back.
+fn assert_respawned_before_hairpin_one(state: &State, delay: Option<usize>) {
+    let delay = delay.expect("the kart was respawned on the return straight");
+    let expected = ticks(RESPAWN_DELAY_S);
+    assert!(
+        (expected - 1..=expected + 1).contains(&delay),
+        "respawned {delay} ticks after reading past the checkpoint after the apex, expected {expected}"
+    );
+    let checkpoints = state.track().checkpoints();
+    let here = checkpoints[CHECKPOINT_BEFORE_HAIRPIN_ONE].position;
+    let apex = checkpoints[APEX_CHECKPOINT].position;
+    let kart = state.kart_transforms()[0];
+    assert_eq!([kart.position[0], kart.position[2]], [here[0], here[2]]);
+    assert!((kart.position[1] - here[1] - KART_HALF_HEIGHT_M).abs() < 1e-3);
+    // Yaw zero faces -Z and grows counter-clockwise seen from above.
+    let facing = (here[0] - apex[0]).atan2(here[2] - apex[2]);
+    assert!(
+        (yaw(kart.rotation) - facing).sin().abs() < 1e-3
+            && (yaw(kart.rotation) - facing).cos() > 0.0,
+        "facing the apex checkpoint: {kart:?}"
+    );
+    assert_eq!(kart.speed, 0.0, "respawned at rest");
+    let standing = only_standing(state);
+    assert_eq!(standing.checkpoint, CHECKPOINT_BEFORE_HAIRPIN_ONE);
+    assert_eq!(standing.laps_completed, 0);
 }
 
 #[test]
-fn cutting_hairpin_one_across_the_infield_skips_its_apex_checkpoint_and_the_lap_does_not_count() {
+fn cutting_hairpin_one_across_the_infield_skips_its_apex_checkpoint_and_respawns_the_kart_before_it(
+) {
     let state = slowed_past_the_checkpoint_before_hairpin_one();
 
     // Straight across the infield to the top of the return straight.
     let (target, on_the_return) = top_of_return(&state);
     let mut drove_the_grass = false;
+    let mut past_ticks = 0;
     let state = drive_toward(state, target, &on_the_return, |state| {
         drove_the_grass |= state.kart_surface(0) == Surface::Grass;
+        past_ticks += usize::from(past_the_checkpoint_after_the_apex(state));
     });
     assert!(
         on_the_return(&state),
@@ -365,20 +423,27 @@ fn cutting_hairpin_one_across_the_infield_skips_its_apex_checkpoint_and_the_lap_
         CHECKPOINT_BEFORE_HAIRPIN_ONE
     );
 
-    let (state, crossed_the_line) = round_to_the_start_line(state);
+    let (mut state, delay) = down_the_return_until_respawned(state, past_ticks);
+    assert_respawned_before_hairpin_one(&state, delay);
 
-    let standing = only_standing(&state);
-    assert!(crossed_the_line, "the kart got round to the line");
-    assert_eq!(
-        standing.checkpoint, CHECKPOINT_BEFORE_HAIRPIN_ONE,
-        "no later checkpoint counts while the apex checkpoint is missed"
+    // Back in the race: it drives on round the hairpin through the apex.
+    let mut crossed_the_apex = false;
+    for _ in 0..ticks(10.0) {
+        let input = follow_centreline(&state, 0);
+        state = step(state, &[input], DT);
+        if only_standing(&state).checkpoint == APEX_CHECKPOINT {
+            crossed_the_apex = true;
+            break;
+        }
+    }
+    assert!(
+        crossed_the_apex,
+        "the apex checkpoint is credited on the way round"
     );
-    assert_eq!(standing.laps_completed, 0);
-    assert_eq!(standing.best_lap_s, None);
 }
 
 #[test]
-fn skimming_the_hairpin_infield_inside_the_pipes_misses_the_apex_checkpoint_and_the_lap_does_not_count(
+fn skimming_the_hairpin_infield_inside_the_pipes_misses_the_apex_checkpoint_and_the_kart_is_respawned(
 ) {
     // Across the infield, bending to pass 6.5 m from the hairpin's centre:
     // over the sand's inner edge, where a checkpoint reaching the whole
@@ -401,18 +466,102 @@ fn skimming_the_hairpin_infield_inside_the_pipes_misses_the_apex_checkpoint_and_
         "the kart passed {closest} m from the hairpin's centre, over the inner sand"
     );
     let (target, on_the_return) = top_of_return(&state);
-    let state = drive_toward(state, target, &on_the_return, |_| ());
+    let mut past_ticks = 0;
+    let state = drive_toward(state, target, &on_the_return, |state| {
+        past_ticks += usize::from(past_the_checkpoint_after_the_apex(state));
+    });
     assert!(
         on_the_return(&state),
         "the kart reached the return straight"
     );
+    assert_eq!(
+        only_standing(&state).checkpoint,
+        CHECKPOINT_BEFORE_HAIRPIN_ONE,
+        "the apex checkpoint does not reach the sand's inner edge"
+    );
 
-    let (state, crossed_the_line) = round_to_the_start_line(state);
+    let (state, delay) = down_the_return_until_respawned(state, past_ticks);
+    assert_respawned_before_hairpin_one(&state, delay);
+}
 
-    let standing = only_standing(&state);
-    assert!(crossed_the_line, "the kart got round to the line");
-    assert_eq!(standing.checkpoint, CHECKPOINT_BEFORE_HAIRPIN_ONE);
-    assert_eq!(standing.laps_completed, 0);
+#[test]
+fn cutting_corner_three_over_the_inside_sand_is_not_a_missed_checkpoint() {
+    // The inside sand lies 6 to 12 m right of the centreline, within the
+    // reach of the checkpoint past the corner's exit: the cut is credited
+    // and the kart never reads past the checkpoint after it.
+    const INSIDE_SAND_M: f32 = 8.5;
+    const MOVE_IN_OVER_M: f32 = 25.0;
+    let inside_line = |state: &State| {
+        let ahead = only_standing(state).spline_progress + BOT_LOOKAHEAD_M;
+        if (CORNER_THREE_ENTRY_M - MOVE_IN_OVER_M..CORNER_THREE_EXIT_M).contains(&ahead) {
+            follow_line(state, 0, INSIDE_SAND_M)
+        } else {
+            follow_centreline(state, 0)
+        }
+    };
+    let mut state = started(State::new(SEED, 1, brands_patch()));
+    let mut cut_the_sand = false;
+    let mut respawned = false;
+    for _ in 0..ticks(30.0) {
+        let input = inside_line(&state);
+        state = step(state, &[input], DT);
+        let standing = only_standing(&state);
+        if (CORNER_THREE_ENTRY_M..CORNER_THREE_EXIT_M).contains(&standing.spline_progress) {
+            cut_the_sand |= state.kart_surface(0) == Surface::Sand;
+        }
+        respawned |= state.events().contains(&RaceEvent::Respawned { kart: 0 });
+        if standing.checkpoint > CHECKPOINT_AFTER_CORNER_THREE {
+            break;
+        }
+    }
+    assert!(cut_the_sand, "the kart cut the corner over the sand");
+    assert!(
+        !respawned,
+        "a corner cut credited at the next checkpoint is left alone"
+    );
+    assert!(
+        only_standing(&state).checkpoint > CHECKPOINT_AFTER_CORNER_THREE,
+        "the kart is credited on round the corner"
+    );
+}
+
+#[test]
+fn a_finished_kart_driving_on_is_not_respawned_for_the_checkpoints_it_no_longer_crosses() {
+    // A second kart idle on the grid keeps the race going through the
+    // grace after the first finishes; with one kart the race would end.
+    let mut state = race(2);
+    let drivers: &[Option<Driver>] = &[Some(follow_centreline), None];
+    while state.standings()[0].finish_time_s.is_none() {
+        state = drive(state, drivers, DT);
+        assert!(
+            state.standings()[0].lap_time_s < 2.0 * LAP_S,
+            "the kart laps the oval"
+        );
+    }
+    let finisher = state.standings()[0];
+
+    // On round the oval, well past the checkpoint after its next one.
+    let mut respawned = false;
+    for _ in 0..ticks(10.0) {
+        state = drive(state, drivers, DT);
+        respawned |= state.events().contains(&RaceEvent::Respawned { kart: 0 });
+    }
+    assert!(!respawned, "a finisher is never put back");
+    assert!(
+        matches!(state.phase(), Phase::Racing { .. }),
+        "still in the finisher's grace"
+    );
+    let standing = state.standings()[0];
+    assert_eq!(
+        standing.checkpoint, finisher.checkpoint,
+        "a finisher crosses no more checkpoints"
+    );
+    assert!(
+        (standing.spline_progress - finisher.spline_progress).abs() > 50.0,
+        "the kart drove on: {} m to {} m",
+        finisher.spline_progress,
+        standing.spline_progress
+    );
 }
 
 #[test]

@@ -166,6 +166,25 @@ fn spline_progress_runs_from_the_start_line_through_each_checkpoint_and_back_to_
 }
 
 #[test]
+fn a_kart_reads_past_the_checkpoint_after_its_next_one_across_the_start_line_too() {
+    let track = oval();
+    let progress = track.checkpoint_progress();
+    let lap = track.spline_length();
+    let last = progress.len() - 1;
+    // Past checkpoint 10, the next after that is the start line: the kart
+    // is past it a metre over the line and not a metre short.
+    assert!(track.past_checkpoint_after_next(last - 1, 1.0));
+    assert!(!track.past_checkpoint_after_next(last - 1, lap - 1.0));
+    // Past the last checkpoint, the one after the line is checkpoint 1.
+    assert!(track.past_checkpoint_after_next(last, progress[1] + 1.0));
+    assert!(!track.past_checkpoint_after_next(last, progress[1] - 1.0));
+    // Mid-lap: past checkpoint 3 the kart has to read beyond checkpoint 5.
+    assert!(track.past_checkpoint_after_next(3, progress[5] + 1.0));
+    assert!(!track.past_checkpoint_after_next(3, progress[5] - 1.0));
+    assert!(!track.past_checkpoint_after_next(3, progress[4] + 1.0));
+}
+
+#[test]
 fn the_spawn_grid_sits_just_behind_the_start_line_facing_it() {
     let track = oval();
     let start = track.checkpoints()[0];
@@ -222,6 +241,24 @@ fn karts_start_on_the_spawn_grid_in_slot_order() {
             "the oval grid faces -Z"
         );
     }
+}
+
+#[test]
+fn a_kart_spawned_round_the_lap_starts_past_the_checkpoints_behind_it() {
+    // On the centreline between the oval's third and fourth checkpoints.
+    const SPAWN_M: f32 = 120.0;
+    let spawn = oval().point_at(SPAWN_M);
+    let mut sidecar: serde_json::Value = serde_json::from_str(OVAL).expect("valid JSON");
+    sidecar["spawn_grid"][0] = serde_json::json!({ "position": spawn, "yaw": 0.0 });
+    let track = Track::from_sidecar(&sidecar.to_string()).expect("the moved-slot oval loads");
+    let progress = track.checkpoint_progress();
+    assert!(progress[3] < SPAWN_M && SPAWN_M < progress[4]);
+
+    let state = State::new(SEED, 2, track);
+    let standings = state.standings();
+    assert_eq!(standings[0].checkpoint, 3);
+    assert_eq!(standings[1].checkpoint, 0, "the grid starts at the line");
+    assert_eq!(standings[0].laps_completed, 0);
 }
 
 #[test]

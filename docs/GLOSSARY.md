@@ -92,7 +92,8 @@ events since the previous snapshot.
 An ordered gate on the track used for lap counting and wrong-way detection.
 Brands Patch has thirteen: twelve spaced evenly round the lap and one at the
 apex of hairpin one, so the hairpin cannot be cut across the infield. A kart
-respawns at its last checkpoint facing the next one.
+respawns at its last checkpoint facing the next one, after falling off the
+world or after driving on past the checkpoint beyond one it missed.
 
 ### spline progress
 
