@@ -185,10 +185,16 @@ fn finishing_reports_the_finish_with_the_place_taken_and_the_clock() {
 #[test]
 fn coming_back_from_out_of_the_world_reports_a_respawn_on_that_tick() {
     // Slot 0 turned to face +X drives off the front straight, across the
-    // run-off and the grass, and over the edge of the world.
+    // run-off and the grass, and over the edge of the world; the oval's
+    // walls, which would hold it on the sand, are taken away first.
     let mut sidecar: serde_json::Value = serde_json::from_str(OVAL).expect("valid JSON");
     sidecar["spawn_grid"][0] =
         serde_json::json!({ "position": [28.0, 0.0, 4.0], "yaw": FACING_PLUS_X });
+    let meshes = sidecar["surfaces"].as_array().expect("surfaces").clone();
+    sidecar["surfaces"] = meshes
+        .into_iter()
+        .filter(|mesh| !mesh["name"].as_str().expect("a name").starts_with("Wall"))
+        .collect();
     let track = Track::from_sidecar(&sidecar.to_string()).expect("the moved slot loads");
     let mut state = started(State::new(SEED, 1, track));
 

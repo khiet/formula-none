@@ -1,9 +1,10 @@
 //! Lap counting and race position at the sim's public seam: drive karts on
 //! the oval fixture and read `standings`. The oval's front straight runs
 //! along -Z from the start line at z = 0 through its first checkpoints, with
-//! the grid a few metres behind the line (layouts/oval.py). Brands Patch
-//! joins in for the walls on its hairpin infields and the shortcut through
-//! the one gap in them (ADR 0022).
+//! the grid a few metres behind the line (layouts/oval.py). Both tracks are
+//! walled along both edges of the run-off, so a kart can leave the asphalt
+//! but never the course (ADR 0022); Brands Patch joins in for the cuts its
+//! walls close.
 
 use std::f32::consts::PI;
 
@@ -33,11 +34,10 @@ const CHECKPOINT_BEFORE_HAIRPIN_ONE: usize = 1;
 /// radius, bulges south at the top of the infield; the approach then runs
 /// west along z = 52 from the chicane's exit at x = -127.6 to the hairpin
 /// at x = -150, and the jump straight runs back east along z = 88. The
-/// infield wall runs from the chicane's south side round the hairpin, 12 m
-/// left of the centreline, with the shortcut's 3 m gap at the approach's
-/// midpoint; 12 m of grass lie between it and the jump straight's run-off.
-/// The checkpoint in the chicane, 398.7 m into the lap, is the seventh;
-/// the next is on the jump straight at x = -112.
+/// infield's wall stands 12 m left of the centreline, 26 m from the middle
+/// arc's centre round the chicane's south side, with 12 m of grass between
+/// it and the jump straight's own wall. The checkpoint in the chicane,
+/// 398.7 m into the lap, is the seventh.
 const HILL_END_M: f32 = 365.0;
 const PAST_THE_CHICANE_CHECKPOINT_M: f32 = 401.0;
 const CHICANE_MID_CENTRE: [f32; 2] = [-107.8, 46.2];
@@ -45,9 +45,6 @@ const CHICANE_MID_WALL_RADIUS_M: f32 = 26.0;
 /// Where the wall round the chicane's middle arc hands over to the one
 /// along the approach: 26 m from the arc's centre at its 135 degree end.
 const CHICANE_MID_WALL_END_X: f32 = -126.2;
-const GAP_X: f32 = -138.8;
-const GAP_Z: f32 = 64.0;
-const GAP_HALF_WIDTH_M: f32 = 1.5;
 const JUMP_Z: f32 = 88.0;
 const CHECKPOINT_IN_THE_CHICANE: usize = 6;
 
@@ -307,8 +304,7 @@ fn slowed_past_the_checkpoint_before_hairpin_one() -> State {
 }
 
 /// The speed a kart turns off a straight at to cut a corner: slow enough
-/// to turn inside an infield, and for the shortcut no more than the sand
-/// beyond the asphalt allows anyway.
+/// to turn inside an infield.
 const CUT_SPEED_M_PER_S: f32 = 16.0;
 
 /// `input` with the throttle let off and the brake on while the kart is
@@ -377,6 +373,25 @@ fn assert_held_by_the_wall(state: &State, wall_distance: f32) {
         Surface::Sand,
         "pinned to the wall on the sand"
     );
+}
+
+/// The oval's front straight runs along -Z with its centreline at x = 30
+/// and a wall 12 m either side of it (layouts/oval.py).
+const OVAL_FRONT_STRAIGHT_X: f32 = 30.0;
+const OVAL_WALL_X: f32 = OVAL_FRONT_STRAIGHT_X + 12.0;
+
+#[test]
+fn steering_off_the_ovals_front_straight_ends_against_the_wall_at_the_run_offs_edge() {
+    let state = started(State::new(SEED, 1, oval()));
+    // Hard right off the grid toward a point well beyond the run-off.
+    let target = [OVAL_WALL_X + 30.0, kart_xz(&state)[1] - 20.0];
+    let state = drive_toward(state, target, |state| {
+        let [x, _] = kart_xz(state);
+        assert!(x < OVAL_WALL_X + 0.1, "went through the wall at x {x}");
+    });
+
+    assert_held_by_the_wall(&state, OVAL_WALL_X - kart_xz(&state)[0]);
+    assert_eq!(only_standing(&state).checkpoint, 0);
 }
 
 /// How far the kart is from hairpin one's infield wall, on the track's side
@@ -484,137 +499,6 @@ fn leaving_the_chicane_southward_ends_against_the_inside_wall_short_of_the_jump_
         &state,
         CHICANE_MID_WALL_RADIUS_M - from_the_chicanes_centre(&state),
     );
-    assert_eq!(only_standing(&state).checkpoint, CHECKPOINT_IN_THE_CHICANE);
-}
-
-/// Drives Brands Patch's lap through the shortcut: the centreline to the
-/// chicane, braked to `CUT_SPEED_M_PER_S` out of the chicane's middle arc
-/// so the kart can turn off the approach inside the infield's width, a left
-/// turn begun a turning circle before `aim_x` and aimed straight down it
-/// toward the jump straight, full throttle once the turn is made (the sand
-/// and grass cap the speed from there), then the centreline again from the
-/// jump straight's run-off, where the nearest centreline is the jump
-/// straight's and not the approach's. Aimed at `GAP_X` the kart passes
-/// through the gap; aimed beside it, it meets the wall. Measured against
-/// the centreline follower, the shortcut is worth about three quarters of
-/// a second a lap: the follower rounds the hairpin at top speed and runs
-/// wide onto the sand at its exit, and the shortcut's 36 m of sand and
-/// grass are driven at the off-road cap.
-fn shortcut_driver(aim_x: f32) -> impl FnMut(&State) -> KartInput {
-    const BRAKE_OVER_M: f32 = 25.0;
-    const TURN_RADIUS_M: f32 = 12.0;
-    const JUMP_RUNOFF_EDGE_Z: f32 = JUMP_Z - 12.0;
-    #[derive(Clone, Copy)]
-    enum Leg {
-        ToTheChicane,
-        Braking,
-        OffTheApproach,
-        AcrossTheGrass,
-        Through,
-    }
-    let turn_in_x = aim_x + TURN_RADIUS_M;
-    let mut leg = Leg::ToTheChicane;
-    move |state: &State| {
-        let kart = state.kart_transforms()[0];
-        let [x, z] = kart_xz(state);
-        leg = match leg {
-            Leg::ToTheChicane if x < turn_in_x + BRAKE_OVER_M => Leg::Braking,
-            Leg::Braking if x < turn_in_x => Leg::OffTheApproach,
-            Leg::OffTheApproach if z > GAP_Z - 3.0 => Leg::AcrossTheGrass,
-            Leg::AcrossTheGrass if z > JUMP_RUNOFF_EDGE_Z => Leg::Through,
-            same => same,
-        };
-        match leg {
-            Leg::ToTheChicane | Leg::Through => follow_centreline(state, 0),
-            Leg::Braking => held_to(follow_centreline(state, 0), kart.speed, CUT_SPEED_M_PER_S),
-            Leg::OffTheApproach => held_to(
-                steer_toward(state, 0, [aim_x, JUMP_Z]),
-                kart.speed,
-                CUT_SPEED_M_PER_S,
-            ),
-            Leg::AcrossTheGrass => steer_toward(state, 0, [aim_x, JUMP_Z]),
-        }
-    }
-}
-
-/// Follow the centreline from the grid until the first lap completes and
-/// return its time.
-fn centreline_lap_s() -> f32 {
-    let mut state = started(State::new(SEED, 1, brands_patch()));
-    for _ in 0..ticks(90.0) {
-        let input = follow_centreline(&state, 0);
-        state = step(state, &[input], DT);
-        if let Some(best) = only_standing(&state).best_lap_s {
-            return best;
-        }
-    }
-    panic!("the centreline follower never completed a lap");
-}
-
-#[test]
-fn the_shortcut_through_the_gap_credits_every_checkpoint_and_laps_faster_than_the_centreline() {
-    let mut state = started(State::new(SEED, 1, brands_patch()));
-    let mut driver = shortcut_driver(GAP_X);
-    let mut crossed = vec![0];
-    let mut drove_the_grass = false;
-    let mut through_the_gap = false;
-    for _ in 0..ticks(90.0) {
-        let input = driver(&state);
-        state = step(state, &[input], DT);
-        let standing = only_standing(&state);
-        if crossed.last() != Some(&standing.checkpoint) {
-            crossed.push(standing.checkpoint);
-        }
-        let [x, z] = kart_xz(&state);
-        if (x - GAP_X).abs() < 10.0 && (z - GAP_Z).abs() < 0.5 {
-            assert!(
-                (x - GAP_X).abs() < GAP_HALF_WIDTH_M,
-                "crossed the wall's line at x {x}, outside the gap"
-            );
-            through_the_gap = true;
-        }
-        drove_the_grass |= state.kart_surface(0) == Surface::Grass;
-        if standing.laps_completed == 1 {
-            break;
-        }
-    }
-
-    assert!(through_the_gap, "the kart never passed the wall's line");
-    assert!(drove_the_grass, "the shortcut crosses the infield grass");
-    let standing = only_standing(&state);
-    assert_eq!(standing.laps_completed, 1, "crossed {crossed:?}");
-    let every_checkpoint: Vec<usize> = (0..state.track().checkpoints().len()).chain([0]).collect();
-    assert_eq!(crossed, every_checkpoint);
-    let shortcut_lap = standing.best_lap_s.expect("the lap was timed");
-    let centreline_lap = centreline_lap_s();
-    assert!(
-        shortcut_lap < centreline_lap,
-        "the shortcut lap took {shortcut_lap} s against {centreline_lap} s round the hairpin"
-    );
-}
-
-#[test]
-fn driving_into_the_wall_beside_the_gap_stops_the_kart() {
-    const BESIDE_THE_GAP_M: f32 = 4.0;
-    let mut state = started(State::new(SEED, 1, brands_patch()));
-    let mut driver = shortcut_driver(GAP_X + BESIDE_THE_GAP_M);
-    let mut furthest_south = f32::NEG_INFINITY;
-    for _ in 0..ticks(40.0) {
-        let input = driver(&state);
-        state = step(state, &[input], DT);
-        furthest_south = furthest_south.max(kart_xz(&state)[1]);
-    }
-
-    assert!(
-        furthest_south < GAP_Z,
-        "went through the wall's line at z {GAP_Z}: reached z {furthest_south}"
-    );
-    let [x, z] = kart_xz(&state);
-    assert!(
-        x > GAP_X + GAP_HALF_WIDTH_M,
-        "stopped at x {x}, in the gap rather than on the wall beside it"
-    );
-    assert_held_by_the_wall(&state, GAP_Z - z);
     assert_eq!(only_standing(&state).checkpoint, CHECKPOINT_IN_THE_CHICANE);
 }
 

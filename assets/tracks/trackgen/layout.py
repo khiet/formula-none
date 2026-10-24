@@ -9,7 +9,7 @@ from dataclasses import dataclass, field
 import math
 
 from . import mesh
-from .path import SAMPLE_STEP_M, Feature, Path, elevation
+from .path import Feature, Path, elevation
 from .sponsors import SPONSORS
 
 # Surface tags the sim understands; the fifth, out of world, is the absence
@@ -26,9 +26,6 @@ GRASS_DROP_M = 0.05
 GRASS_MARGIN_M = 40.0
 WALL_THICKNESS_M = 0.5
 WALL_HEIGHT_M = 1.0
-# A shortcut's gap in a wall. The kart is 1.2 m wide, so one lined up with
-# the gap gets through and a mistimed entry meets the wall beside it.
-SHORTCUT_WIDTH_M = 3.0
 PIPE_RADIUS_M = 1.5
 PIPE_HEIGHT_M = 2.0
 
@@ -63,38 +60,6 @@ GRID_ROW_SPACING_M = 5.0
 GRID_COLUMN_OFFSET_M = 2.0
 GRID_STAGGER_M = 2.0
 GRID_FRONT_ROW_BEHIND_LINE_M = 4.0
-
-# The most a straight line between two consecutive checkpoints may beat the
-# centreline between them with nothing in the way. A lap counts only when
-# every checkpoint is crossed in order, so a pair this far apart round a
-# corner leaves the corner open to a cut across the infield unless a wall
-# stands across the line. Brands Patch's hairpins save 30 m across the grass
-# and are walled on the inside; the corner cuts over the inside sand that we
-# keep (corner-3, the chicane) save up to 11 m and the oval's under 3 m.
-CHECKPOINT_SHORTCUT_LIMIT_M = 15.0
-
-
-@dataclass(frozen=True)
-class Wall:
-    """A barrier along the edge of the run-off on `side` over a range of segments."""
-
-    segments: tuple[str, ...]
-    side: int
-    """+1 left of the direction of travel, -1 right."""
-
-
-@dataclass(frozen=True)
-class Shortcut:
-    """A gap `width` metres wide in the wall at arc length `s`.
-
-    A kart driving straight out through the gap rejoins the track where the
-    line meets the centreline again, and the arc it skips holds no
-    checkpoint, so the lap counts. One per track; unsignposted.
-    """
-
-    s: float
-    width: float = SHORTCUT_WIDTH_M
-
 
 @dataclass(frozen=True)
 class Pipe:
@@ -150,13 +115,11 @@ class Layout:
     asphalt_half_width: float
     runoff_width: float
     checkpoint_count: int
-    walls: list[Wall]
     pipes: list[Pipe]
     item_rows: list[ItemRow]
     boost_pads: list[BoostPad]
     elevation: list[Feature] = field(default_factory=list)
     decor: Decor = field(default_factory=Decor)
-    shortcut: Shortcut | None = None
 
     @property
     def runoff_half_width(self) -> float:
@@ -228,190 +191,9 @@ class TrackGeometry:
     props: list[TextProp | ModelProp] = field(default_factory=list)
 
 
-Point = tuple[float, float]
-
-
-@dataclass(frozen=True)
-class WallRail:
-    """One unbroken run of wall, from `s_start` to `s_end` on `side`; a gap
-    splits a wall into two rails."""
-
-    side: int
-    s_start: float
-    s_end: float
-    points: list[Point]
-    """Along its track-side face, in the direction of travel."""
-
-
-def wall_span(path: Path, wall: Wall) -> tuple[float, float]:
-    """The arc lengths a wall runs between; the end is past `path.length` when the run wraps the start line."""
-    s_start = path.segment(wall.segments[0]).s_start
-    s_end = path.segment(wall.segments[-1]).s_end
-    if s_end < s_start:
-        s_end += path.length
-    return s_start, s_end
-
-
-def rail_points(path: Path, s_start: float, s_end: float, offset: float) -> list[Point]:
-    """Points `offset` metres left of the centreline from `s_start` to `s_end`
-    (past `path.length` to wrap the start line): one per sample between, and
-    the two ends exactly where asked, so a gap edge lands where it was declared."""
-    between = sorted(
-        (s, sample)
-        for sample in path.samples
-        for s in (sample.s, sample.s + path.length)
-        if s_start + 1e-6 < s < s_end - 1e-6
-    )
-    return (
-        [path.interpolate(s_start).offset(offset)]
-        + [sample.offset(offset) for _, sample in between]
-        + [path.interpolate(s_end).offset(offset)]
-    )
-
-
-def shortcut_wall(layout: Layout) -> Wall:
-    """The one wall the shortcut's gap opens in, which must cover the whole gap."""
-    assert layout.shortcut is not None
-    path = layout.path
-    half = layout.shortcut.width / 2.0
-    covering = []
-    for wall in layout.walls:
-        s_start, s_end = wall_span(path, wall)
-        into = (layout.shortcut.s - s_start) % path.length
-        if into - half >= 0.0 and into + half <= s_end - s_start:
-            covering.append(wall)
-    if not covering:
-        raise ValueError(
-            f"the shortcut at {layout.shortcut.s:.0f} m has no wall to open its gap in: no wall "
-            f"covers its whole {layout.shortcut.width:.0f} m"
-        )
-    if len(covering) > 1:
-        raise ValueError(
-            f"the shortcut at {layout.shortcut.s:.0f} m is covered by {len(covering)} walls; "
-            "a shortcut goes through one"
-        )
-    return covering[0]
-
-
-def wall_rails(layout: Layout) -> list[WallRail]:
-    """Every run of wall the layout stands, the shortcut's gap opened in the wall that covers it."""
-    path = layout.path
-    gap_wall = shortcut_wall(layout) if layout.shortcut is not None else None
-    rails: list[WallRail] = []
-    for wall in layout.walls:
-        s_start, s_end = wall_span(path, wall)
-        spans = [(s_start, s_end)]
-        if wall == gap_wall:
-            assert layout.shortcut is not None
-            s_gap = s_start + (layout.shortcut.s - s_start) % path.length
-            half = layout.shortcut.width / 2.0
-            spans = [(s_start, s_gap - half), (s_gap + half, s_end)]
-        offset = wall.side * layout.runoff_half_width
-        for a, b in spans:
-            if b - a > 1e-6:
-                rails.append(WallRail(wall.side, a, b, rail_points(path, a, b, offset)))
-    return rails
-
-
-def shortcut_skipped_arc(layout: Layout) -> tuple[float, float]:
-    """The arc lengths the shortcut leaves and rejoins the track at: a kart
-    out through the gap drives straight on until it meets the centreline."""
-    assert layout.shortcut is not None
-    path = layout.path
-    side = shortcut_wall(layout).side
-    gap = path.interpolate(layout.shortcut.s)
-    gx, gy = gap.offset(side * layout.runoff_half_width)
-    nx, ny = gap.left_normal
-    out = (side * nx, side * ny)
-    rejoin: tuple[float, float] | None = None
-    for sample in path.samples:
-        dx, dy = sample.x - gx, sample.y - gy
-        along = dx * out[0] + dy * out[1]
-        across = abs(dx * out[1] - dy * out[0])
-        if along > 0.0 and across <= SAMPLE_STEP_M and (rejoin is None or along < rejoin[0]):
-            rejoin = (along, sample.s)
-    if rejoin is None:
-        raise ValueError(
-            f"the shortcut at {layout.shortcut.s:.0f} m leads off the track: straight out "
-            "through the gap never meets the centreline again"
-        )
-    return layout.shortcut.s, rejoin[1]
-
-
-def checkpoint_arc_lengths(layout: Layout) -> list[float]:
-    """Where the checkpoints stand along the lap, in lap order:
-    `checkpoint_count` of them evenly spaced from the start line, less any
-    inside the arc the shortcut skips."""
-    path = layout.path
-    even = [k * path.length / layout.checkpoint_count for k in range(layout.checkpoint_count)]
-    if layout.shortcut is None:
-        return even
-    s_gap, s_rejoin = shortcut_skipped_arc(layout)
-    skipped = (s_rejoin - s_gap) % path.length
-    return [s for s in even if not 0.0 < (s - s_gap) % path.length < skipped]
-
-
-def shortcut_pair(layout: Layout, arc_lengths: list[float]) -> tuple[int, int] | None:
-    """The consecutive checkpoints either side of the shortcut, by index into `arc_lengths`."""
-    if layout.shortcut is None:
-        return None
-    s_gap, s_rejoin = shortcut_skipped_arc(layout)
-    length = layout.path.length
-    before = min(range(len(arc_lengths)), key=lambda i: (s_gap - arc_lengths[i]) % length)
-    after = min(range(len(arc_lengths)), key=lambda i: (arc_lengths[i] - s_rejoin) % length)
-    return before, after
-
-
-def lines_cross(a: Point, b: Point, c: Point, d: Point) -> bool:
-    """Whether the line from `a` to `b` meets the line from `c` to `d`."""
-
-    def orient(p: Point, q: Point, r: Point) -> float:
-        return (q[0] - p[0]) * (r[1] - p[1]) - (q[1] - p[1]) * (r[0] - p[0])
-
-    return (orient(a, b, c) * orient(a, b, d) <= 0.0) and (orient(c, d, a) * orient(c, d, b) <= 0.0)
-
-
-def crosses_a_wall(rails: list[WallRail], a: Point, b: Point) -> bool:
-    return any(
-        lines_cross(a, b, rail.points[i], rail.points[i + 1])
-        for rail in rails
-        for i in range(len(rail.points) - 1)
-    )
-
-
-def check_checkpoint_spacing(
-    layout: Layout, arc_lengths: list[float], exempt: tuple[int, int] | None
-) -> None:
-    """Refuse checkpoints, given in lap order, that leave a corner open to a
-    cut: a consecutive pair, the last and first included, whose straight-line
-    join is more than `CHECKPOINT_SHORTCUT_LIMIT_M` shorter than the
-    centreline between them and crosses none of the layout's walls. The
-    `exempt` pair is the declared shortcut, which is meant to be cut."""
-    path = layout.path
-    rails = wall_rails(layout)
-    for number, s in enumerate(arc_lengths):
-        next_number = (number + 1) % len(arc_lengths)
-        if (number, next_number) == exempt:
-            continue
-        here, there = path.at(s), path.at(arc_lengths[next_number])
-        along = (arc_lengths[next_number] - s) % path.length
-        straight = math.hypot(there.x - here.x, there.y - here.y)
-        saved = along - straight
-        if saved > CHECKPOINT_SHORTCUT_LIMIT_M and not crosses_a_wall(
-            rails, (here.x, here.y), (there.x, there.y)
-        ):
-            raise ValueError(
-                f"checkpoints {number} and {next_number} leave a cut: {straight:.0f} m in a straight "
-                f"line against {along:.0f} m along the centreline saves {saved:.0f} m, more "
-                f"than the {CHECKPOINT_SHORTCUT_LIMIT_M:.0f} m allowed, and no wall stands across "
-                "the line; wall the corner off or declare it the shortcut"
-            )
-
 
 def build(layout: Layout) -> TrackGeometry:
     path = layout.path
-    checkpoint_s = checkpoint_arc_lengths(layout)
-    check_checkpoint_spacing(layout, checkpoint_s, shortcut_pair(layout, checkpoint_s))
     height = [elevation(layout.elevation, sample.s) for sample in path.samples]
 
     def rail(offset: float, drop: float = 0.0) -> list[mesh.Vertex]:
@@ -458,16 +240,15 @@ def build(layout: Layout) -> TrackGeometry:
         )
     )
 
-    for number, rail in enumerate(wall_rails(layout)):
-        far = rail.side * (runoff + WALL_THICKNESS_M)
-        inner = [(x, y, -GRASS_DROP_M) for x, y in rail.points]
-        outer = [
-            (x, y, -GRASS_DROP_M) for x, y in rail_points(path, rail.s_start, rail.s_end, far)
-        ]
+    # Track limits: a wall along each edge of the run-off the whole way
+    # round, standing on the sand's outer edge so it follows the hill and
+    # the ramp with the track. A kart can go off the asphalt but never off
+    # the course, so no corner can be cut (ADR 0022).
+    for name, side in (("WallLeft", 1), ("WallRight", -1)):
+        inner = rail(side * runoff, GRASS_DROP_M)
+        outer = rail(side * (runoff + WALL_THICKNESS_M), GRASS_DROP_M)
         surfaces.append(
-            SurfaceMesh(
-                f"Wall.{number:02d}", WALL, WALL, mesh.box_rail(inner, outer, WALL_HEIGHT_M)
-            )
+            SurfaceMesh(name, WALL, WALL, mesh.box_rail(inner, outer, WALL_HEIGHT_M, closed=True))
         )
 
     for number, pipe in enumerate(layout.pipes):
@@ -484,7 +265,12 @@ def build(layout: Layout) -> TrackGeometry:
         x, y = sample.offset(offset)
         return Placement(x, y, elevation(layout.elevation, sample.s), sample.heading, half_width)
 
-    checkpoints = [place(s, half_width=runoff) for s in checkpoint_s]
+    # Evenly spaced from the start line, each spanning the run-off, so a kart
+    # between the walls crosses every one in order.
+    checkpoints = [
+        place(k * path.length / layout.checkpoint_count, half_width=runoff)
+        for k in range(layout.checkpoint_count)
+    ]
     item_boxes = [place(row.s, offset) for row in layout.item_rows for offset in row.offsets]
     boost_pads = [place(pad.s, pad.offset) for pad in layout.boost_pads]
     spawn_grid = [

@@ -68,9 +68,7 @@ fn brands_patch_carries_the_whole_layout() {
     let track = brands_patch();
 
     assert_eq!(track.name(), "brands-patch");
-    // Twelve evenly spaced checkpoints less the one on hairpin two's apex,
-    // inside the arc the shortcut skips.
-    assert_eq!(track.checkpoints().len(), 11);
+    assert_eq!(track.checkpoints().len(), 12);
     assert_eq!(track.item_boxes().len(), 8);
     assert_eq!(track.boost_pads().len(), 2);
     assert_eq!(track.spawn_grid().len(), 8);
@@ -330,6 +328,43 @@ fn walls_and_pipes_read_as_wall_from_above() {
             (top[0][2] + top[1][2] + top[2][2]) / 3.0,
         ];
         assert_eq!(state.surface_at(centre), Surface::Wall, "{}", mesh.name);
+    }
+}
+
+#[test]
+fn the_run_off_is_walled_on_both_sides_at_every_checkpoint() {
+    // Asphalt to 6 m either side of the centreline, sand to 12 m, then the
+    // wall: the course is a closed corridor, so no checkpoint can be skipped.
+    const ON_THE_SAND_M: f32 = 11.0;
+    const IN_THE_WALL_M: f32 = 12.25;
+    for track in [oval(), brands_patch()] {
+        let state = started(State::new(SEED, 1, track.clone()));
+        for (checkpoint, &progress) in track.checkpoints().iter().zip(track.checkpoint_progress()) {
+            let [x, y, z] = checkpoint.position;
+            let ahead = track.point_at(progress + 1.0);
+            let (dx, dz) = (ahead[0] - x, ahead[2] - z);
+            let length = dx.hypot(dz);
+            let across = |side: f32, m: f32| {
+                [
+                    x - side * m * dz / length,
+                    y + 1.5,
+                    z + side * m * dx / length,
+                ]
+            };
+            for side in [1.0, -1.0] {
+                let name = track.name();
+                assert_eq!(
+                    state.surface_at(across(side, ON_THE_SAND_M)),
+                    Surface::Sand,
+                    "{name} at {x}, {z}"
+                );
+                assert_eq!(
+                    state.surface_at(across(side, IN_THE_WALL_M)),
+                    Surface::Wall,
+                    "{name} at {x}, {z}"
+                );
+            }
+        }
     }
 }
 

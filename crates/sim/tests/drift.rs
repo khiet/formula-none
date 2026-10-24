@@ -1,7 +1,9 @@
 //! Cornering technique at the sim's public seam: a hop, the drift it lands
 //! into, and the mini-turbo the drift charges. Tests drive one kart on the
 //! oval fixture, whose front straight is clear for 100 m past the start line
-//! and runs along -Z, and assert what `kart_transforms` reports.
+//! and runs along -Z, and assert what `kart_transforms` reports. The oval's
+//! walls are taken away first: a drift held to orange arcs out of the
+//! corridor between them, and the drift is what is under test.
 
 use sim::tuning::{
     ACCELERATION_TO_TOP_S, DRIFT_ENTRY_SPEED_FRACTION, DRIFT_SLIP_ANGLE_RAD, HOP_AIRTIME_S,
@@ -27,8 +29,21 @@ fn race() -> State {
     started(State::new(
         SEED,
         1,
-        Track::from_sidecar(OVAL).expect("the oval fixture loads"),
+        Track::from_sidecar(&without_walls(OVAL)).expect("the oval fixture loads"),
     ))
+}
+
+/// `sidecar` with its walls taken away, the pipes kept. The walls keep a
+/// kart off the grass and in the world, and these are the rules for a kart
+/// that got there anyway, whatever track it was on.
+fn without_walls(sidecar: &str) -> String {
+    let mut sidecar: serde_json::Value = serde_json::from_str(sidecar).expect("valid JSON");
+    let meshes = sidecar["surfaces"].as_array().expect("surfaces").clone();
+    sidecar["surfaces"] = meshes
+        .into_iter()
+        .filter(|mesh| !mesh["name"].as_str().expect("a name").starts_with("Wall"))
+        .collect();
+    sidecar.to_string()
 }
 
 fn run(mut state: State, inputs: impl IntoIterator<Item = KartInput>) -> State {

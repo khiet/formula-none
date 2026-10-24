@@ -23,18 +23,13 @@ sidecar, and saves a `.blend` beside them for inspection (ignored by git).
 Commit the glTF and sidecar: CI has no Blender, and the sim's tests include
 the sidecars.
 
-The export refuses a layout whose checkpoints leave a corner open to a
-cut: a lap counts only when every checkpoint is crossed in order, so two
-consecutive checkpoints joined by a line more than 15 m shorter than the
-centreline between them let a kart skip the corner, unless a wall stands
-across that line or the pair is the layout's declared shortcut. An infield
-is walled with a `Wall` on the side the corner turns toward, the inside
-edge of the run-off (`side=+1` for a left-hander), and a layout may
-declare one `Shortcut(s)`: a 3 m gap opened in the wall covering
-that arc length (the export refuses one no wall covers). No evenly spaced
-checkpoint is placed inside the arc the shortcut skips, and the pair either
-side of it is exempt from the check (ADR 0022). The checks run without
-Blender, with the tests beside them:
+Every track is walled along both edges of the run-off the whole way
+round: the export stands a wall on the sand's outer edge on each side,
+following the centreline and its elevation, so a kart can leave the asphalt
+but never the course and no corner can be cut (ADR 0022). A layout declares
+no walls. The checkpoints are evenly spaced and span the run-off from wall
+to wall. The layouts are checked without Blender, with the tests beside
+them:
 
 ```sh
 pnpm test:tracks
@@ -45,9 +40,8 @@ pnpm test:tracks
 The Blender source of a track is a Python layout, `trackgen/layouts/<name>.py`,
 so it diffs and reviews like code. A layout lays the centreline turtle-style
 from straights and arcs, then hangs everything else on it by arc length:
-asphalt and run-off widths, walls, pipes, elevation (hills and the jump
-ramp), checkpoint count and the one shortcut, item box rows and boost
-pads, and its decor:
+asphalt and run-off widths, pipes, elevation (hills and the jump ramp),
+checkpoint count, item box rows and boost pads, and its decor:
 which segments get sponsor hoardings and grandstands, and whether the
 start line gets its gantry. The spawn grid is always eight slots behind
 the start line. `trackgen/` is pure Python so a

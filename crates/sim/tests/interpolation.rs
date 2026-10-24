@@ -1,11 +1,11 @@
-//! The projectiles as the interpolation draws them: between the two
-//! snapshots either side of its render clock, matched across them by owner
-//! and target, held where the earlier snapshot had one the later no longer
-//! carries, and not drawn before the snapshot that first carries one.
+//! What the interpolation draws between the two snapshots either side of
+//! its render clock: projectiles matched across them by owner and target,
+//! held where the earlier snapshot had one the later no longer carries,
+//! and not drawn before the snapshot that first carries one; and a kart
+//! moved further than a kart drives, which is drawn in one move.
 
-use sim::tuning::SNAPSHOTS_PER_SECOND;
-use sim::tuning::TICKS_PER_SECOND;
-use sim::{Interpolation, Projectile};
+use sim::tuning::{INTERPOLATION_TELEPORT_M_PER_TICK, SNAPSHOTS_PER_SECOND, TICKS_PER_SECOND};
+use sim::{Interpolation, Projectile, SnapshotKart, Start};
 
 const TICKS_PER_SNAPSHOT: u32 = TICKS_PER_SECOND / SNAPSHOTS_PER_SECOND;
 
@@ -17,6 +17,23 @@ fn projectile(x: f32, owner: usize, target: usize) -> Projectile {
     }
 }
 
+/// A kart standing at `x` as a snapshot carries it.
+fn kart_at(x: f32) -> SnapshotKart {
+    SnapshotKart {
+        position: [x, 0.0, 0.0],
+        rotation: [0.0, 0.0, 0.0, 1.0],
+        velocity: [0.0; 3],
+        drift: None,
+        held_item: None,
+        spin_out_s: None,
+        start: Start::Clean,
+        stall_s: None,
+        lap: 1,
+        checkpoint: 0,
+        spline_progress: 0.0,
+    }
+}
+
 /// Snapshots at the snapshot rate from tick 0, `count` of them, each with
 /// `at(tick)`'s projectiles, pushed as they would arrive, and the clock run
 /// on until it draws between the second and third.
@@ -24,10 +41,19 @@ fn drawing_between_the_second_and_third(
     count: u32,
     at: impl Fn(u32) -> Vec<Projectile>,
 ) -> Interpolation {
+    drawing_snapshots_between_the_second_and_third(count, |tick| (Vec::new(), at(tick)))
+}
+
+/// As above, with `at(tick)`'s karts and projectiles.
+fn drawing_snapshots_between_the_second_and_third(
+    count: u32,
+    at: impl Fn(u32) -> (Vec<SnapshotKart>, Vec<Projectile>),
+) -> Interpolation {
     let mut interpolation = Interpolation::new();
     for snapshot in 0..count {
         let tick = snapshot * TICKS_PER_SNAPSHOT;
-        interpolation.push(tick, Vec::new(), at(tick));
+        let (karts, projectiles) = at(tick);
+        interpolation.push(tick, karts, projectiles);
     }
     while interpolation
         .render_tick()
@@ -102,4 +128,43 @@ fn nothing_is_drawn_before_the_first_snapshot() {
     assert!(interpolation.projectiles().is_empty());
     interpolation.advance();
     assert!(interpolation.projectiles().is_empty());
+}
+
+#[test]
+fn a_kart_put_somewhere_new_is_drawn_at_the_old_place_until_the_snapshot_that_moved_it() {
+    // From the third snapshot on, the kart is further along than a kart
+    // drives in a snapshot's ticks: a respawn. Drawn between the second and
+    // third, it is still where the second had it, never part way across.
+    let far = TICKS_PER_SNAPSHOT as f32 * INTERPOLATION_TELEPORT_M_PER_TICK + 1.0;
+    let interpolation = drawing_snapshots_between_the_second_and_third(6, |tick| {
+        let x = if tick < 2 * TICKS_PER_SNAPSHOT {
+            0.0
+        } else {
+            far
+        };
+        (vec![kart_at(x)], Vec::new())
+    });
+    let [drawn] = interpolation.kart_transforms()[..] else {
+        panic!("one kart: {:?}", interpolation.kart_transforms());
+    };
+    assert_eq!(
+        drawn.position[0], 0.0,
+        "drawn where the earlier snapshot had it"
+    );
+
+    // A kart that drove the same way a metre a snapshot is drawn between.
+    let interpolation = drawing_snapshots_between_the_second_and_third(6, |tick| {
+        (
+            vec![kart_at(tick as f32 / TICKS_PER_SNAPSHOT as f32)],
+            Vec::new(),
+        )
+    });
+    let render = interpolation.render_tick().unwrap();
+    let drawn = interpolation.kart_transforms()[0];
+    let expected = render / TICKS_PER_SNAPSHOT as f32;
+    assert!(
+        (drawn.position[0] - expected).abs() < 1e-4,
+        "drawn at x {} for a clock at {render}",
+        drawn.position[0]
+    );
 }
