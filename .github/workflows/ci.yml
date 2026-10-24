@@ -64,7 +64,7 @@ jobs:
           git diff --exit-code -- apps/web/src/generated/protocol
       - name: Biome
         run: pnpm lint
-      # The layouts' pure-Python checks, the ones a Blender export runs first.
+      # The layouts' pure-Python checks; CI has no Blender to run the export.
       - name: Track layouts
         run: pnpm test:tracks
       - name: Typecheck

@@ -67,7 +67,7 @@ GRID_FRONT_ROW_BEHIND_LINE_M = 4.0
 # corner open to a cut across the infield. Brands Patch's hairpin one, with
 # no checkpoint of its own, saved 30 m across the grass; the corner cuts
 # over the inside sand that we keep (corner-3, hairpin two's entry and exit)
-# save 8 to 11 m and the oval's at most 2 m.
+# save 8 to 11 m and the oval's under 3 m.
 CHECKPOINT_SHORTCUT_LIMIT_M = 15.0
 
 

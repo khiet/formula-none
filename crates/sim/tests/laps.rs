@@ -19,7 +19,7 @@ const SEED: u64 = 0x5EED;
 /// left-hander of 18 m radius that begins 70 m past the line, with the
 /// return straight starting at its exit, 36 m to the left of its entry
 /// across the infield grass. The checkpoint at its apex is the third of the
-/// lap, after the one at the end of the start straight.
+/// lap, after the one near the end of the start straight.
 const HAIRPIN_ONE_ENTRY_M: f32 = 70.0;
 const HAIRPIN_ONE_EXIT_M: f32 = HAIRPIN_ONE_ENTRY_M + 18.0 * PI;
 const CHECKPOINT_BEFORE_HAIRPIN_ONE: usize = 1;
@@ -307,8 +307,9 @@ fn round_to_the_start_line(mut state: State) -> (State, bool) {
 fn cutting_hairpin_one_across_the_infield_skips_its_apex_checkpoint_and_the_lap_does_not_count() {
     let mut state = slowed_past_the_checkpoint_before_hairpin_one();
 
-    // Straight across the infield to the top of the return straight, which
-    // runs along +Z: the kart is on it once within the asphalt of its x.
+    // Straight across the infield to the top of the return straight. The
+    // straight runs along +Z, so the kart is on it once its x is within the
+    // asphalt's.
     const ON_THE_RETURN_M: f32 = 4.0;
     let top_of_return = state.track().point_at(HAIRPIN_ONE_EXIT_M + 10.0);
     let on_the_return =
