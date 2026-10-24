@@ -288,7 +288,8 @@ pub enum RaceEvent {
         position: u32,
         finish_time_s: f32,
     },
-    /// The kart was put back on the track at its last checkpoint.
+    /// The kart was put back on the track at its last checkpoint, after
+    /// falling off the world or driving on past a missed checkpoint.
     Respawned { kart: usize },
     /// The kart picked up `item_box`, an index into the track's item boxes, and
     /// rolled `item` into its slot.
@@ -395,7 +396,8 @@ pub struct Standing {
     pub finish_time_s: Option<f32>,
     pub laps_completed: u32,
     /// The last checkpoint crossed in order this lap; 0 is the start line,
-    /// which the grid counts as having crossed.
+    /// which the grid counts as having crossed. A kart spawned further
+    /// round the lap starts past the checkpoints behind it.
     pub checkpoint: usize,
     /// Metres along the centreline from the start line, in `0..lap length`.
     pub spline_progress: f32,
@@ -466,6 +468,10 @@ struct Kart {
     /// wrong-way warning shows once this reaches the tuned time. Standing
     /// still neither adds to it nor clears it.
     wrong_way_s: f32,
+    /// Seconds the kart has read past the checkpoint after its next one: it
+    /// missed the next one and drove on, and respawns when this reaches the
+    /// tuned delay. Clears the moment it reads short of there again.
+    past_missed_checkpoint_s: f32,
     /// Speed along the kart's facing, metres per second. Held outside Rapier
     /// so contacts and friction never leak into the handling model.
     speed: f32,
@@ -704,6 +710,7 @@ impl State {
                     bump: Vec3::ZERO,
                     out_of_world_s: 0.0,
                     wrong_way_s: 0.0,
+                    past_missed_checkpoint_s: 0.0,
                     speed: 0.0,
                     airtime_left_s: 0.0,
                     hop_was_held: false,
@@ -713,7 +720,10 @@ impl State {
                     boost_left_s: 0.0,
                     boost_factor: 1.0,
                     laps_completed: 0,
-                    checkpoint: 0,
+                    // A slot further round the lap starts past the
+                    // checkpoints behind it, or the kart would read as
+                    // having missed them and be put back.
+                    checkpoint: track.checkpoint_behind(track.progress_at(slot.position)),
                     spline_progress: track.progress_at(slot.position),
                     lap_time_s: 0.0,
                     best_lap_s: None,
@@ -918,6 +928,7 @@ impl State {
             hasher.write_f32s(kart.bump.to_array());
             hasher.write_f32(kart.out_of_world_s);
             hasher.write_f32(kart.wrong_way_s);
+            hasher.write_f32(kart.past_missed_checkpoint_s);
             hasher.write_u32(kart.laps_completed);
             hasher.write_u64(kart.checkpoint as u64);
             hasher.write_f32(kart.spline_progress);
@@ -1325,15 +1336,44 @@ pub fn step(mut state: State, inputs: &[KartInput], dt: f32) -> State {
         if state.physics.surface_at(after) == Surface::OutOfWorld {
             kart.out_of_world_s += dt;
             if kart.out_of_world_s >= RESPAWN_DELAY_S {
-                after = respawn(kart, &state.track, &mut state.physics);
-                state.events.push(RaceEvent::Respawned { kart: index });
-                // A teleport is not a move: it crosses no gate.
+                after = respawn(
+                    kart,
+                    index,
+                    &state.track,
+                    &mut state.physics,
+                    &mut state.events,
+                );
+                // A teleport is not a move: it crosses no checkpoint.
                 before = after;
             }
         } else {
             kart.out_of_world_s = 0.0;
         }
-        let progress = state.track.progress_at(after);
+        let mut progress = state.track.progress_at(after);
+        // A kart past the checkpoint after its next one has missed the next
+        // and driven on; nothing ahead counts for it, so it goes back as a
+        // fallen kart does. A finisher crosses no more checkpoints and is
+        // left to drive.
+        if !kart.finished()
+            && state
+                .track
+                .past_checkpoint_after_next(kart.checkpoint, progress)
+        {
+            kart.past_missed_checkpoint_s += dt;
+            if kart.past_missed_checkpoint_s >= RESPAWN_DELAY_S {
+                after = respawn(
+                    kart,
+                    index,
+                    &state.track,
+                    &mut state.physics,
+                    &mut state.events,
+                );
+                before = after;
+                progress = state.track.progress_at(after);
+            }
+        } else {
+            kart.past_missed_checkpoint_s = 0.0;
+        }
         // Progress wraps at the start line; the shorter way round says
         // which way the kart went.
         let moved = state.track.lap_relative_progress(kart.checkpoint, progress)
@@ -1722,10 +1762,16 @@ fn bump_off_karts(
     karts[index].speed = speed;
 }
 
-/// Put the kart back on the track at its last checkpoint, at rest and
-/// facing the next one, with nothing carried over from before it fell.
-/// Returns where it now stands.
-fn respawn(kart: &mut Kart, track: &Track, physics: &mut Physics) -> [f32; 3] {
+/// Put kart `index` back on the track at its last checkpoint, at rest and
+/// facing the next one, with nothing carried over from before, and tell
+/// the players with a `Respawned` event. Returns where it now stands.
+fn respawn(
+    kart: &mut Kart,
+    index: usize,
+    track: &Track,
+    physics: &mut Physics,
+    events: &mut Vec<RaceEvent>,
+) -> [f32; 3] {
     let checkpoints = track.checkpoints();
     let here = checkpoints[kart.checkpoint].position;
     let next = checkpoints[(kart.checkpoint + 1) % checkpoints.len()].position;
@@ -1749,6 +1795,8 @@ fn respawn(kart: &mut Kart, track: &Track, physics: &mut Physics) -> [f32; 3] {
     kart.bump = Vec3::ZERO;
     kart.out_of_world_s = 0.0;
     kart.wrong_way_s = 0.0;
+    kart.past_missed_checkpoint_s = 0.0;
+    events.push(RaceEvent::Respawned { kart: index });
     position.to_array()
 }
 

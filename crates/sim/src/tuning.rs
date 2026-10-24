@@ -192,7 +192,8 @@ pub const START_WEAK_BOOST_FACTOR: f32 = MINI_TURBO_BOOST_FACTOR;
 pub const START_STALL_S: f32 = 2.0;
 /// Top speed fraction on sand and grass.
 pub const OFF_TRACK_SPEED_FACTOR: f32 = 0.55;
-/// Seconds outside the world bounds before respawn at the last checkpoint.
+/// Seconds outside the world bounds, or past the checkpoint after a missed
+/// one, before respawn at the last checkpoint.
 pub const RESPAWN_DELAY_S: f32 = 1.5;
 
 // Kart contact. Two karts that touch bounce apart: each takes a bump, a

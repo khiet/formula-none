@@ -209,11 +209,11 @@ fn throttle_humans(mut state: State, humans: usize, seconds: f32) -> State {
     state
 }
 
-/// The oval with its second grid slot moved onto the back straight, about
-/// half a lap short of the line, and its boost pads removed: a bot from that
-/// slot starts far behind a kart on the grid and passes it before it laps,
-/// and its speed is never a pad's.
-fn oval_with_slot_1_on_the_back_straight_and_no_boost_pads() -> Track {
+/// The oval with its first grid slot moved onto the back straight, about
+/// half a lap past the line and past the checkpoints behind it, and its
+/// boost pads removed: a kart idle there is far ahead of a bot starting
+/// from the grid, which passes it before it laps, never at a pad's speed.
+fn oval_with_slot_0_on_the_back_straight_and_no_boost_pads() -> Track {
     const BACK_STRAIGHT_PROGRESS_M: f32 = 230.0;
     let oval = oval();
     let position = oval.point_at(BACK_STRAIGHT_PROGRESS_M);
@@ -221,20 +221,20 @@ fn oval_with_slot_1_on_the_back_straight_and_no_boost_pads() -> Track {
     // Yaw zero faces -Z and grows counter-clockwise seen from above.
     let yaw = (-dx).atan2(-dz);
     let mut sidecar: serde_json::Value = serde_json::from_str(OVAL).expect("valid JSON");
-    sidecar["spawn_grid"][1] = serde_json::json!({ "position": position, "yaw": yaw });
+    sidecar["spawn_grid"][0] = serde_json::json!({ "position": position, "yaw": yaw });
     sidecar["boost_pads"] = serde_json::json!([]);
     Track::from_sidecar(&sidecar.to_string()).expect("the moved-slot oval loads")
 }
 
 #[test]
 fn the_rubber_band_hurries_a_bot_far_behind_and_slows_one_far_ahead_within_the_tuned_bounds() {
-    // The human idles on the grid; the bot starts over 100 m behind it on
-    // the back straight, passes it and runs over 100 m ahead.
+    // The human idles on the back straight; the bot starts over 100 m
+    // behind it on the grid, passes it and runs over 100 m ahead.
     let mut state = started(State::with_bots(
         SEED,
         1,
         1,
-        oval_with_slot_1_on_the_back_straight_and_no_boost_pads(),
+        oval_with_slot_0_on_the_back_straight_and_no_boost_pads(),
     ));
     assert_eq!(state.rubber_band(0), 1.0, "a human is never banded");
     assert_eq!(
@@ -242,6 +242,10 @@ fn the_rubber_band_hurries_a_bot_far_behind_and_slows_one_far_ahead_within_the_t
         BOT_RUBBER_BAND_MAX_FACTOR,
         "far behind at the start"
     );
+    // Within this of 1.0 the band is level: the bot is nose to tail with
+    // the human, and its speed, which trails the banded cap by a tick, is
+    // neither hurried nor held back yet.
+    const LEVEL_BAND: f32 = 0.01;
     let mut least = f32::MAX;
     let mut most = f32::MIN;
     let mut fastest_behind: f32 = 0.0;
@@ -270,7 +274,7 @@ fn the_rubber_band_hurries_a_bot_far_behind_and_slows_one_far_ahead_within_the_t
         if since_drift_s > MINI_TURBO_ORANGE_BOOST_S + DT && bot.boost_s.is_none() {
             if behind {
                 fastest_behind = fastest_behind.max(bot.speed);
-            } else {
+            } else if band < 1.0 - LEVEL_BAND {
                 fastest_ahead = fastest_ahead.max(bot.speed);
             }
         }
@@ -286,7 +290,7 @@ fn the_rubber_band_hurries_a_bot_far_behind_and_slows_one_far_ahead_within_the_t
     );
     let level = level_band.expect("the bot passed the human");
     assert!(
-        (level - 1.0).abs() < 0.01,
+        (level - 1.0).abs() < LEVEL_BAND,
         "level with the human the band is {level}"
     );
     assert!(
