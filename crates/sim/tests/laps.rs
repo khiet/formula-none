@@ -530,9 +530,12 @@ fn a_finished_kart_driving_on_is_not_respawned_for_the_checkpoints_it_no_longer_
     // A second kart idle on the grid keeps the race going through the
     // grace after the first finishes; with one kart the race would end.
     let mut state = race(2);
-    let drivers: &[Option<Driver>] = &[Some(follow_centreline), None];
+    let tick = |state: State| {
+        let inputs = [follow_centreline(&state, 0), KartInput::default()];
+        step(state, &inputs, DT)
+    };
     while state.standings()[0].finish_time_s.is_none() {
-        state = drive(state, drivers, DT);
+        state = tick(state);
         assert!(
             state.standings()[0].lap_time_s < 2.0 * LAP_S,
             "the kart laps the oval"
@@ -543,7 +546,7 @@ fn a_finished_kart_driving_on_is_not_respawned_for_the_checkpoints_it_no_longer_
     // On round the oval, well past the checkpoint after its next one.
     let mut respawned = false;
     for _ in 0..ticks(10.0) {
-        state = drive(state, drivers, DT);
+        state = tick(state);
         respawned |= state.events().contains(&RaceEvent::Respawned { kart: 0 });
     }
     assert!(!respawned, "a finisher is never put back");
