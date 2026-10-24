@@ -52,8 +52,8 @@ class CheckpointSpacing(unittest.TestCase):
 
     def test_the_check_reads_the_pair_that_wraps_past_the_start_line(self) -> None:
         # The oval's walls stand outside its turns only. Without the two
-        # checkpoints on the second turn, the last one on the back straight
-        # and the start line are joined by a line across the turn's inside.
+        # checkpoints deep in the second turn, the one at its entry and the
+        # start line are joined by a line across the turn's inside.
         layout = load("oval")
         arc_lengths = checkpoint_arc_lengths(layout)
         check_checkpoint_spacing(layout, arc_lengths, None)
