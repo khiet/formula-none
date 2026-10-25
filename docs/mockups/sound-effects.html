@@ -208,8 +208,8 @@
   </section>
 
   <section id="cues-section">
-    <div class="section-head"><h2>Cues</h2><span class="tag">three takes each; A is today's sound where one ships</span></div>
-    <p class="concept">Each card is one cue the race fires, named as <code>audio-cues.ts</code> names it, with the change that fires it. Loops run until stopped and scale with the speed slider. The waveform under the transport is the rendered buffer, exactly what would be written to the WAV.</p>
+    <div class="section-head"><h2>Cues</h2><span class="tag">three takes each; A is today's sound where one ships; the starred pick is the proposal</span></div>
+    <p class="concept">Each card is one cue the race fires, named as <code>audio-cues.ts</code> names it, with the change that fires it. Each comes with a proposed pick, chosen so the cue sits above the engine note (a sawtooth between 110 and 770 Hz) and so the countdown and GO share a family while the mini-turbo and the boost pad do not; Pick this on another variant overrides it. Loops run until stopped and scale with the speed slider. The waveform under the transport is the rendered buffer, exactly what would be written to the WAV.</p>
     <div class="cues" id="cues"></div>
   </section>
 
@@ -413,7 +413,7 @@ const chord = (freqs, length, wave, decay, gain) => mix(...freqs.map((f) => tone
 
 const CUES = [
   {
-    id: "countdownBeep", slug: "countdown-beep", name: "Countdown beep", shipped: true,
+    id: "countdownBeep", pick: 1, slug: "countdown-beep", name: "Countdown beep", shipped: true,
     when: "as the count the Instrument panel shows changes to 3, 2 or 1",
     variants: [
       { name: "Square", blurb: "Today: one short square beep at a fixed pitch.",
@@ -428,7 +428,7 @@ const CUES = [
     ],
   },
   {
-    id: "go", slug: "go", name: "Go", shipped: true,
+    id: "go", pick: 1, slug: "go", name: "Go", shipped: true,
     when: "as the count changes to GO",
     variants: [
       { name: "Square", blurb: "Today: a higher, longer square tone so the rocket start can be timed by ear.",
@@ -443,14 +443,14 @@ const CUES = [
     ],
   },
   {
-    id: "hop", slug: "hop", name: "Hop", shipped: true,
+    id: "hop", pick: 1, slug: "hop", name: "Hop", shipped: true,
     when: "as the kart leaves the ground",
     variants: [
       { name: "Chirp", blurb: "Today: a quick upward sine chirp.",
         params: { from: [220, 50, 1000, 10], to: [660, 100, 3000, 10], length: [0.12, 0.03, 0.5, 0.01], decay: [12, 1, 40, 1], gain: [0.5, 0, 1, 0.05] },
         render: (p) => tone({ freq: p.from, length: p.length, decay: p.decay, sweepTo: p.to, gain: p.gain }) },
       { name: "Pneumatic", blurb: "A click of air then a short chirp, like a jack letting go.",
-        params: { click: [0.06, 0.01, 0.2, 0.01], from: [300, 50, 1000, 10], to: [900, 100, 3000, 10], length: [0.1, 0.03, 0.5, 0.01], gain: [0.45, 0, 1, 0.05] },
+        params: { click: [0.06, 0.01, 0.2, 0.01], from: [450, 50, 1000, 10], to: [1400, 100, 3000, 10], length: [0.1, 0.03, 0.5, 0.01], gain: [0.45, 0, 1, 0.05] },
         render: (p) => mix(highpass(noise({ length: p.click, decay: 40, gain: p.gain, seed: 3 }), 1500), tone({ freq: p.from, length: p.length, decay: 15, sweepTo: p.to, gain: p.gain * 0.8 })) },
       { name: "Spring", blurb: "A triangle boing with a wobble, cartoonier.",
         params: { from: [150, 50, 1000, 10], to: [500, 100, 3000, 10], length: [0.18, 0.03, 0.5, 0.01], wobble: [0.05, 0, 0.2, 0.01], gain: [0.5, 0, 1, 0.05] },
@@ -458,7 +458,7 @@ const CUES = [
     ],
   },
   {
-    id: "miniTurbo", slug: "mini-turbo", name: "Mini-turbo release", shipped: true,
+    id: "miniTurbo", pick: 1, slug: "mini-turbo", name: "Mini-turbo release", shipped: true,
     when: "as a charged drift ends into its boost, or a rocket start's charge becomes its boost at GO",
     variants: [
       { name: "Zip", blurb: "Today: a sawtooth zip that climbs with the boost.",
@@ -473,7 +473,7 @@ const CUES = [
     ],
   },
   {
-    id: "itemPickup", slug: "item-pickup", name: "Item pickup", shipped: true,
+    id: "itemPickup", pick: 2, slug: "item-pickup", name: "Item pickup", shipped: true,
     when: "as the item slot fills",
     variants: [
       { name: "Two blips", blurb: "Today: two rising sine blips.",
@@ -488,7 +488,7 @@ const CUES = [
     ],
   },
   {
-    id: "itemFire", slug: "item-fire", name: "Item fire", shipped: true,
+    id: "itemFire", pick: 2, slug: "item-fire", name: "Item fire", shipped: true,
     when: "as the item slot empties",
     variants: [
       { name: "Thump", blurb: "Today: a low thump under a short burst of noise.",
@@ -503,7 +503,7 @@ const CUES = [
     ],
   },
   {
-    id: "hit", slug: "hit", name: "Hit", shipped: true,
+    id: "hit", pick: 0, slug: "hit", name: "Hit", shipped: true,
     when: "as a spin-out begins",
     variants: [
       { name: "Crash", blurb: "Today: a crash of noise over a low square rumble.",
@@ -518,7 +518,7 @@ const CUES = [
     ],
   },
   {
-    id: "sputter", slug: "sputter", name: "Sputter", shipped: true,
+    id: "sputter", pick: 0, slug: "sputter", name: "Sputter", shipped: true,
     when: "as a stall begins at GO; the file runs the stall's length (2 s)",
     variants: [
       { name: "Coughs", blurb: "Today: a low rumble chopped into coughs under bursts of noise.",
@@ -533,7 +533,7 @@ const CUES = [
     ],
   },
   {
-    id: "lap", slug: "lap", name: "Lap", shipped: true,
+    id: "lap", pick: 1, slug: "lap", name: "Lap", shipped: true,
     when: "as the lap count rises; today also at the finish",
     variants: [
       { name: "Arpeggio", blurb: "Today: a three-note rising triangle arpeggio.",
@@ -548,11 +548,11 @@ const CUES = [
     ],
   },
   {
-    id: "driftSkid", slug: "drift-skid", name: "Drift skid", loop: true, speed: true,
+    id: "driftSkid", pick: 0, slug: "drift-skid", name: "Drift skid", loop: true, speed: true,
     when: "while a drift is under way; a loop pitched and loudened by speed, unchanged by tier",
     variants: [
       { name: "Judder", blurb: "Bandpassed noise chopped at a tyre's judder; the band climbs with speed.",
-        params: { centre: [600, 200, 3000, 10], perMs: [20, 0, 60, 1], width: [400, 100, 2000, 10], judderHz: [22, 5, 60, 1], depth: [0.5, 0, 1, 0.05], gain: [0.6, 0, 1, 0.05] },
+        params: { centre: [600, 200, 3000, 10], perMs: [20, 0, 60, 1], width: [400, 100, 2000, 10], judderHz: [22, 5, 60, 1], depth: [0.5, 0, 1, 0.05], gain: [0.85, 0, 1, 0.05] },
         render: (p, s) => loopable(chop(scale(bandpass(noise({ length: 1.5, decay: 0, gain: p.gain * (0.4 + 0.6 * fraction(s)), seed: 12 }), p.centre + p.perMs * s, p.width), 4), p.judderHz, p.depth)) },
       { name: "Screech", blurb: "A wobbling sawtooth squeal over a thread of hiss, rising with speed.",
         params: { base: [350, 100, 1000, 10], perMs: [10, 0, 40, 1], wobble: [0.03, 0, 0.1, 0.005], hiss: [0.3, 0, 1, 0.05], gain: [0.3, 0, 1, 0.05] },
@@ -563,7 +563,7 @@ const CUES = [
     ],
   },
   {
-    id: "tierChime", slug: "tier-chime", name: "Tier charged",
+    id: "tierChime", pick: 0, slug: "tier-chime", name: "Tier charged",
     when: "as the drift's tier reaches blue, then orange; the preview plays both 0.3 s apart, as the charge times fall",
     variants: [
       { name: "Two step", blurb: "A pulse note for blue and a higher one for orange.",
@@ -578,7 +578,7 @@ const CUES = [
     ],
   },
   {
-    id: "grass", slug: "grass", name: "Grass", loop: true, speed: true,
+    id: "grass", pick: 1, slug: "grass", name: "Grass", loop: true, speed: true,
     when: "while the surface under the kart is grass; a loop scaled by speed",
     variants: [
       { name: "Brush", blurb: "Low noise brushed at a blade-slapping rate, louder with speed.",
@@ -593,7 +593,7 @@ const CUES = [
     ],
   },
   {
-    id: "sand", slug: "sand", name: "Sand", loop: true, speed: true,
+    id: "sand", pick: 0, slug: "sand", name: "Sand", loop: true, speed: true,
     when: "while the surface under the kart is sand; a loop scaled by speed",
     variants: [
       { name: "Grit", blurb: "Bright gritty noise over a low rumble, scraping faster with speed.",
@@ -608,14 +608,14 @@ const CUES = [
     ],
   },
   {
-    id: "boostPad", slug: "boost-pad", name: "Boost pad",
+    id: "boostPad", pick: 1, slug: "boost-pad", name: "Boost pad",
     when: "as a boost pad's boost starts, distinct from the mini-turbo release",
     variants: [
       { name: "Whoosh", blurb: "A sawtooth rising exponentially under a swell of air.",
         params: { from: [120, 40, 500, 5], to: [900, 200, 4000, 10], length: [0.5, 0.1, 1.5, 0.05], air: [0.5, 0, 1, 0.05], gain: [0.35, 0, 1, 0.05] },
         render: (p) => mix(tone({ freq: p.from, length: p.length, wave: "saw", decay: 3, sweepTo: p.to, gain: p.gain, curve: "exp", attack: 0.05 }), envelope(highpass(noise({ length: p.length, decay: 0, gain: p.air, seed: 23 }), 1500), (t) => Math.sin(Math.PI * Math.min(1, t / p.length)))) },
       { name: "Push to pass", blurb: "A crisp click then a sine chord sliding up a tone, like a button and a surge.",
-        params: { root: [660, 200, 2000, 10], rise: [1.12, 1, 1.5, 0.01], length: [0.35, 0.1, 1.5, 0.05], click: [0.7, 0, 1, 0.05], gain: [0.25, 0, 1, 0.05] },
+        params: { root: [880, 200, 2000, 10], rise: [1.12, 1, 1.5, 0.01], length: [0.35, 0.1, 1.5, 0.05], click: [0.7, 0, 1, 0.05], gain: [0.25, 0, 1, 0.05] },
         render: (p) => mix(noise({ length: 0.012, decay: 100, gain: p.click, seed: 24 }), tone({ freq: p.root, length: p.length, decay: 4, sweepTo: p.root * p.rise, gain: p.gain }), tone({ freq: p.root * 1.5, length: p.length, decay: 4, sweepTo: p.root * 1.5 * p.rise, gain: p.gain * 0.7 })) },
       { name: "Jet", blurb: "A square climbing two octaves inside a roar of lowpassed noise.",
         params: { from: [110, 40, 500, 5], to: [440, 100, 2000, 10], length: [0.6, 0.1, 1.5, 0.05], roar: [0.5, 0, 1, 0.05], cutoff: [3000, 300, 8000, 50], gain: [0.3, 0, 1, 0.05] },
@@ -623,14 +623,14 @@ const CUES = [
     ],
   },
   {
-    id: "wrongWay", slug: "wrong-way", name: "Wrong way",
+    id: "wrongWay", pick: 1, slug: "wrong-way", name: "Wrong way",
     when: "once, as the wrong-way warning rises on the Instrument panel",
     variants: [
       { name: "Two falling", blurb: "Two square notes stepping down: a no.",
         params: { first: [660, 200, 2000, 10], second: [440, 100, 1500, 10], length: [0.12, 0.03, 0.4, 0.01], decay: [8, 1, 30, 1], gain: [0.3, 0, 1, 0.05] },
         render: (p) => concat(tone({ freq: p.first, length: p.length, wave: "square", decay: p.decay, gain: p.gain }), tone({ freq: p.second, length: p.length * 1.7, wave: "square", decay: p.decay, gain: p.gain })) },
       { name: "Buzzer", blurb: "A low square chopped hard, a game-show buzzer.",
-        params: { freq: [220, 80, 800, 5], chopHz: [30, 5, 80, 1], length: [0.45, 0.1, 1.5, 0.05], gain: [0.3, 0, 1, 0.05] },
+        params: { freq: [330, 80, 800, 5], chopHz: [30, 5, 80, 1], length: [0.45, 0.1, 1.5, 0.05], gain: [0.3, 0, 1, 0.05] },
         render: (p) => chop(tone({ freq: p.freq, length: p.length, wave: "square", decay: 3, gain: p.gain }), p.chopHz, 1) },
       { name: "Klaxon", blurb: "A sawtooth falling a fourth with a slow wobble.",
         params: { from: [440, 100, 1500, 10], to: [330, 80, 1200, 10], length: [0.5, 0.1, 1.5, 0.05], wobble: [0.04, 0, 0.2, 0.01], gain: [0.25, 0, 1, 0.05] },
@@ -638,7 +638,7 @@ const CUES = [
     ],
   },
   {
-    id: "finish", slug: "finish", name: "Finish",
+    id: "finish", pick: 1, slug: "finish", name: "Finish",
     when: "as the kart finishes, instead of the lap chime",
     variants: [
       { name: "Fanfare", blurb: "Three triangle notes up the chord, then the chord held an octave up.",
@@ -860,7 +860,7 @@ class Engine {
 if (typeof document !== "undefined") boot();
 
 function boot() {
-  const STORAGE_KEY = "formula-none.sound-effects.v1";
+  const STORAGE_KEY = "formula-none.sound-effects.v2";
   const $ = (sel, root = document) => root.querySelector(sel);
   const el = (tag, attrs = {}, ...children) => {
     const node = document.createElement(tag);
@@ -881,7 +881,7 @@ function boot() {
     bed: { on: false, speed: 22 },
     engine: Object.fromEntries(Object.entries(ENGINE_PARAMS).map(([k, v]) => [k, v[0]])),
     cues: Object.fromEntries(CUES.map((cue) => [cue.id, {
-      pick: null,
+      pick: cue.pick ?? null,
       shown: 0,
       speed: 20,
       variants: cue.variants.map((v) => Object.fromEntries(Object.entries(v.params).map(([k, spec]) => [k, spec[0]]))),
@@ -897,7 +897,7 @@ function boot() {
         const got = saved.cues?.[cue.id];
         if (!got) continue;
         const slot = state.cues[cue.id];
-        slot.pick = got.pick ?? null;
+        slot.pick = got.pick === undefined ? slot.pick : got.pick;
         slot.shown = Math.min(cue.variants.length - 1, got.shown ?? 0);
         slot.speed = got.speed ?? slot.speed;
         cue.variants.forEach((v, i) => { slot.variants[i] = { ...slot.variants[i], ...(got.variants?.[i] ?? {}) }; });
