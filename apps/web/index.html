@@ -141,14 +141,108 @@
           background: #c99a2e;
         }
       }
-      [data-instrument="speed"] {
-        font-size: calc(var(--hud) * 1.4);
-      }
-      /* Greybox readouts: a dim line of their own, out of the driver's stack. */
-      #instrument-panel [data-greybox] {
+      /*
+       * The speed cluster (ADR 0031), bottom-left opposite the course map:
+       * shift lights over the gear in a box like the item slot, km/h beside
+       * it and the tyre gauge under that.
+       */
+      #instrument-panel [data-cluster] {
         position: absolute;
         left: calc(var(--hud) * 2);
         bottom: calc(var(--hud) * 2);
+        display: grid;
+        grid-template-areas: "lights lights" "gear speed" "gear tyre";
+        grid-template-columns: auto auto;
+        column-gap: calc(var(--hud) * 1.4);
+        row-gap: calc(var(--hud) * 0.9);
+        align-items: end;
+      }
+      [data-shift-lights] {
+        grid-area: lights;
+        display: flex;
+        gap: calc(var(--hud) * 0.35);
+      }
+      [data-shift-light] {
+        width: calc(var(--hud) * 1.5);
+        height: calc(var(--hud) * 1.5);
+        background: #2a1a10;
+        border: calc(var(--hud) * 0.25) solid var(--outline);
+        box-shadow: calc(var(--hud) * 0.3) calc(var(--hud) * 0.3) 0 #000;
+      }
+      [data-shift-light="green"] {
+        background: #5ad15a;
+      }
+      [data-shift-light="red"] {
+        background: #e8483a;
+      }
+      [data-shift-light="blue"] {
+        background: #4f7dff;
+      }
+      [data-instrument="gear"] {
+        grid-area: gear;
+        display: grid;
+        place-items: center;
+        width: 1.15em;
+        height: 1.3em;
+        font-size: calc(var(--hud) * 8.4);
+        color: var(--outline);
+        text-shadow: none;
+        background: linear-gradient(#f8e39a, #c99a2e);
+        border: calc(var(--hud) * 0.4) solid var(--outline);
+        box-shadow:
+          inset calc(var(--hud) * 0.4) calc(var(--hud) * 0.4) 0 #fff6cf,
+          inset calc(var(--hud) * -0.4) calc(var(--hud) * -0.4) 0 #8c5a12,
+          calc(var(--hud) * 0.5) calc(var(--hud) * 0.5) 0 #000;
+      }
+      /* On the limiter the gear flashes as the item slot does when firing. */
+      [data-instrument="gear"][data-limiter="true"] {
+        background: #fff;
+        animation: item-fire 0.12s steps(2) infinite;
+      }
+      [data-instrument="speed"] {
+        grid-area: speed;
+        display: flex;
+        align-items: baseline;
+        gap: calc(var(--hud) * 0.8);
+      }
+      [data-speed-value] {
+        min-width: 3ch;
+        font-size: calc(var(--hud) * 5.2);
+        text-align: right;
+      }
+      [data-speed-unit] {
+        font-size: calc(var(--hud) * 1.8);
+        color: #fff;
+      }
+      [data-instrument="tyre"] {
+        grid-area: tyre;
+        display: flex;
+        align-items: center;
+        gap: calc(var(--hud) * 1);
+        font-size: calc(var(--hud) * 2.2);
+      }
+      [data-instrument="tyre"] svg {
+        width: calc(var(--hud) * 4.2);
+        filter: drop-shadow(calc(var(--hud) * 0.25) calc(var(--hud) * 0.25) 0 #000);
+      }
+      [data-tyre-corner] {
+        stroke: var(--outline);
+        stroke-width: 1;
+      }
+      [data-tyre-wear="good"] [data-tyre-corner] {
+        fill: #5ad15a;
+      }
+      [data-tyre-wear="warn"] [data-tyre-corner] {
+        fill: #f5c542;
+      }
+      [data-tyre-wear="bad"] [data-tyre-corner] {
+        fill: #e8483a;
+      }
+      /* Greybox readouts: a dim line of their own, top-right, clear of the course map and the countdown. */
+      #instrument-panel [data-greybox] {
+        position: absolute;
+        right: calc(var(--hud) * 2);
+        top: calc(var(--hud) * 2);
         font-size: calc(var(--hud) * 1.2);
         color: rgba(255, 255, 255, 0.55);
         text-transform: none;
@@ -187,10 +281,11 @@
         transform: translate(-50%, -50%);
         font-size: 8rem;
       }
-      /* The warning and the firing flash hold steady for a driver who asked for less motion. */
+      /* The warning, the firing flash and the limiter hold steady for a driver who asked for less motion. */
       @media (prefers-reduced-motion: reduce) {
         [data-instrument="wrong-way"],
-        [data-instrument="item"][data-item-state="firing"] {
+        [data-instrument="item"][data-item-state="firing"],
+        [data-instrument="gear"][data-limiter="true"] {
           animation: none;
         }
       }

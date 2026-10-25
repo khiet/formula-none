@@ -1,0 +1,474 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Speed Cluster Variations</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet" />
+<style>
+  @font-face {
+    font-family: "Kenney Mini Square";
+    src: url("../../assets/fonts/kenney/Kenney%20Mini%20Square.ttf");
+  }
+  :root {
+    --bg: #121316;
+    --fg: #e8e8ea;
+    --muted: #8a8d94;
+    --rule: #2a2c31;
+    /* The Instrument panel's own colours (apps/web/index.html). */
+    --gold: #fde97a;
+    --outline: #3a1c0a;
+    --good: #5ad15a;
+    --warn: #f5c542;
+    --bad: #e8483a;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--fg); font: 15px/1.5 Inter, system-ui, sans-serif; }
+  body { padding: 2rem 1rem 4rem; }
+  header, main { max-width: 1120px; margin: 0 auto; }
+  header { margin-bottom: 1.5rem; }
+  header h1 { font: 600 1.4rem/1.2 Inter, sans-serif; margin: 0 0 .25rem; }
+  header p { margin: .25rem 0 0; color: var(--muted); }
+  code { font-size: .85em; background: #1f2126; padding: .05em .35em; border-radius: .25em; }
+
+  .controls {
+    position: sticky; top: 0; z-index: 5;
+    display: flex; flex-wrap: wrap; align-items: center; gap: .6rem 1.5rem;
+    margin-top: 1rem; padding: .75rem 1rem;
+    background: var(--bg); border: 1px solid var(--rule); border-radius: .5rem;
+  }
+  .controls label { display: flex; align-items: center; gap: .5rem; font-size: .9rem; }
+  .controls input[type=range] { width: 11rem; accent-color: var(--gold); }
+  .controls button { font: 600 .85rem Inter, sans-serif; padding: .35rem .8rem; border-radius: .35rem; border: 1px solid var(--rule); background: #1f2126; color: var(--fg); cursor: pointer; }
+  .controls output { font-variant-numeric: tabular-nums; min-width: 4.5rem; color: var(--gold); }
+  .readout { color: var(--muted); font-size: .85rem; font-variant-numeric: tabular-nums; }
+
+  main { display: grid; gap: 2.5rem; margin-top: 1.5rem; }
+  section { display: grid; gap: .75rem; }
+  .meta h2 { margin: 0; font: 600 1.05rem/1.2 Inter, sans-serif; }
+  .meta h2 small { color: var(--muted); font-weight: 400; margin-left: .5rem; }
+  .meta p { margin: .25rem 0 0; color: var(--muted); font-size: .9rem; }
+  .meta ul { margin: .35rem 0 0; padding-left: 1.2rem; color: var(--muted); font-size: .9rem; }
+
+  /* The mock Race View, as in instrument-panel-variations.html. 1em = 1% of the frame's width. */
+  .view {
+    position: relative; aspect-ratio: 16 / 9; width: 100%; overflow: hidden; border-radius: .5rem;
+    background: linear-gradient(#5f8fc7 0%, #a9c6e4 38%, #a9c6e4 40%, #3f7a2e 40%, #2f6224 100%);
+    container-type: inline-size; font-size: 1cqw;
+  }
+  .view .road {
+    position: absolute; left: 50%; top: 40%; width: 100%; height: 60%; transform: translateX(-50%);
+    background: linear-gradient(#5b5b60, #3d3d42);
+    clip-path: polygon(44% 0, 56% 0, 100% 100%, 0 100%);
+  }
+  .view .road::before {
+    content: ""; position: absolute; inset: 0;
+    background: repeating-linear-gradient(to bottom, transparent 0 7%, rgba(255,255,255,.35) 7% 10%);
+    clip-path: polygon(49.6% 0, 50.4% 0, 51.5% 100%, 48.5% 100%);
+  }
+  .view .map { position: absolute; right: 2%; bottom: 3%; width: 14%; opacity: .85; }
+  .view .map path { fill: none; stroke: #fff; stroke-width: 2.5; stroke-linejoin: round; }
+
+  /* The live Instrument panel's type: gold Kenney Mini Square, a one-pixel brown outline and a black drop. */
+  .hud {
+    --hud: .84em; /* 1.5vmin of a 16:9 frame */
+    position: absolute; inset: 0; pointer-events: none;
+    color: var(--gold); font-family: "Kenney Mini Square", ui-monospace, monospace;
+    line-height: 1; text-transform: uppercase;
+  }
+  .pix {
+    text-shadow:
+      .125em 0 var(--outline), -.125em 0 var(--outline), 0 .125em var(--outline), 0 -.125em var(--outline),
+      .125em .125em var(--outline), -.125em .125em var(--outline), .125em -.125em var(--outline), -.125em -.125em var(--outline),
+      .25em .25em #000;
+  }
+  .white { color: #fff; }
+  /* Context only: the existing stack, dimmed so the new cluster is what reads. */
+  .stack { position: absolute; top: calc(var(--hud) * 2); left: calc(var(--hud) * 2); display: grid; gap: calc(var(--hud) * 1.2); opacity: .55; }
+  .stack .pos { font-size: calc(var(--hud) * 6.4); }
+  .stack .pos small { font-size: .4em; vertical-align: top; }
+  .stack .lap { font-size: calc(var(--hud) * 2.4); }
+
+  .limiter .flashable { animation: flash .12s steps(2) infinite; }
+  @keyframes flash { to { opacity: .25; } }
+
+  /* =========== A. Twin pods =========== */
+  .a .cluster {
+    position: absolute; left: 50%; bottom: calc(var(--hud) * 1.5); transform: translateX(-50%);
+    display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: calc(var(--hud) * 1);
+    width: calc(var(--hud) * 52);
+  }
+  .a .pod { position: relative; aspect-ratio: 1; }
+  .a .pod .gauge { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+  .a .pod .face { fill: rgba(10, 10, 14, .55); stroke: #000; stroke-width: 1.5; }
+  .a .pod .track { fill: none; stroke: rgba(255,255,255,.14); stroke-width: 7; }
+  .a .pod .value { fill: none; stroke-width: 7; transition: stroke-dasharray .08s linear; }
+  .a .pod .ticks { fill: none; stroke: rgba(10, 10, 14, 1); stroke-width: 8; }
+  .a .pod .text { position: absolute; inset: 0; display: grid; place-content: center; justify-items: center; gap: calc(var(--hud) * .5); }
+  .a .label { font-size: calc(var(--hud) * 1.3); }
+  .a .big { font-size: calc(var(--hud) * 3.4); }
+  .a .small { font-size: calc(var(--hud) * 1.8); }
+  .a .tyre-icon { width: calc(var(--hud) * 3); position: absolute; left: 50%; bottom: 4%; transform: translateX(-50%); }
+  .a .gear-col { display: grid; justify-items: center; gap: calc(var(--hud) * .8); }
+  .a .gear { font-size: calc(var(--hud) * 10); min-width: 1.1em; text-align: center; }
+  .a .shift { display: flex; gap: calc(var(--hud) * .3); }
+  .a .shift i { width: calc(var(--hud) * 1.1); height: calc(var(--hud) * 1.1); background: rgba(0,0,0,.45); border: calc(var(--hud) * .2) solid var(--outline); }
+
+  /* =========== B. Rev strip, no box =========== */
+  .b .cluster {
+    position: absolute; left: calc(var(--hud) * 2); bottom: calc(var(--hud) * 2);
+    display: grid; grid-template-columns: auto auto; grid-template-areas: "leds leds" "gear speed" "gear tyres";
+    column-gap: calc(var(--hud) * 1.4); row-gap: calc(var(--hud) * .9); align-items: end;
+  }
+  .b .leds { grid-area: leds; display: flex; gap: calc(var(--hud) * .35); }
+  .b .leds i {
+    width: calc(var(--hud) * 1.5); height: calc(var(--hud) * 1.5);
+    background: #2a1a10; border: calc(var(--hud) * .25) solid var(--outline); box-shadow: calc(var(--hud) * .3) calc(var(--hud) * .3) 0 #000;
+  }
+  .b .gearbox {
+    grid-area: gear; display: grid; place-items: center;
+    width: calc(var(--hud) * 9.6); height: calc(var(--hud) * 11);
+    font-size: calc(var(--hud) * 1); color: var(--outline);
+    background: linear-gradient(#f8e39a, #c99a2e);
+    border: .4em solid var(--outline);
+    box-shadow: inset .4em .4em 0 #fff6cf, inset -.4em -.4em 0 #8c5a12, .5em .5em 0 #000;
+  }
+  .b .gearbox span { font-size: 8.4em; }
+  .b .speed { grid-area: speed; display: flex; align-items: baseline; gap: calc(var(--hud) * .8); }
+  .b .speed .num { font-size: calc(var(--hud) * 5.2); min-width: 3ch; text-align: right; }
+  .b .speed .unit { font-size: calc(var(--hud) * 1.8); }
+  .b .tyres { grid-area: tyres; display: flex; align-items: center; gap: calc(var(--hud) * 1); }
+  .b .tyres svg { width: calc(var(--hud) * 4.2); filter: drop-shadow(calc(var(--hud) * .25) calc(var(--hud) * .25) 0 #000); }
+  .b .tyres .pct { font-size: calc(var(--hud) * 2.2); }
+
+  /* =========== C. Steering wheel screen =========== */
+  .c .wheel {
+    position: absolute; left: 50%; bottom: calc(var(--hud) * -3); transform: translateX(-50%);
+    width: calc(var(--hud) * 56);
+  }
+  .c .wheel > svg { display: block; width: 100%; filter: drop-shadow(0 calc(var(--hud) * .5) 0 #000); }
+  .c .screen {
+    position: absolute; left: 25.5%; right: 25.5%; top: 14%; height: 55%;
+    display: grid; grid-template-rows: auto 1fr; gap: calc(var(--hud) * .6);
+    padding: calc(var(--hud) * .9) calc(var(--hud) * 1);
+    background: #07090c; border: calc(var(--hud) * .3) solid #000;
+    box-shadow: inset 0 0 0 calc(var(--hud) * .2) #242a33;
+    image-rendering: pixelated;
+  }
+  .c .leds { display: flex; justify-content: space-between; }
+  .c .leds i { width: calc(var(--hud) * 1.1); height: calc(var(--hud) * .9); background: #1b1f26; }
+  .c .cols { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; }
+  .c .col { display: grid; justify-items: center; gap: calc(var(--hud) * .5); }
+  .c .label { font-size: calc(var(--hud) * 1.2); color: #9aa3b0; }
+  .c .val { font-size: calc(var(--hud) * 2.8); }
+  .c .rpm { font-size: calc(var(--hud) * 1.6); color: #fff; }
+  .c .gear { font-size: calc(var(--hud) * 9); min-width: 1.1em; text-align: center; color: #fff; }
+  .c .tyre-icon { width: calc(var(--hud) * 3.2); }
+  .c .wear-bar { width: calc(var(--hud) * 6); height: calc(var(--hud) * .8); background: #1b1f26; }
+  .c .wear-bar b { display: block; height: 100%; }
+  .c .buttons circle { stroke: #000; stroke-width: 1.5; }
+
+  .notes { margin-top: .5rem; padding: 1rem 1.25rem; border: 1px solid var(--rule); border-radius: .5rem; color: var(--muted); font-size: .9rem; }
+  .notes h2 { margin: 0 0 .5rem; color: var(--fg); font: 600 1rem Inter, sans-serif; }
+  .notes table { border-collapse: collapse; font-variant-numeric: tabular-nums; }
+  .notes td, .notes th { padding: .15rem .9rem .15rem 0; text-align: left; }
+  .notes th { color: var(--fg); font-weight: 600; }
+
+  @media (max-width: 640px) {
+    .controls input[type=range] { width: 8rem; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>Speed cluster: gear, speed and tyre</h1>
+  <p>Three replacements for the <code>m/s</code> speed readout, after the F1 game's wheel display: a gear for fun, speed in km/h, and a tyre gauge in place of the battery that holds at 100% until tyres wear.</p>
+  <p>The frames run a scripted lap: grid start, a straight, a braking zone, a mini-turbo, a boost pad past top speed (rev limiter), then a reverse. Grab the speed slider to take over.</p>
+  <div class="controls">
+    <button id="play" type="button">Pause</button>
+    <label>Speed <input id="speed" type="range" min="-29" max="151" step="1" value="0" /><output id="speed-out">0 km/h</output></label>
+    <label>Tyre <input id="tyre" type="range" min="0" max="100" step="1" value="100" /><output id="tyre-out">100%</output></label>
+    <span class="readout" id="readout"></span>
+  </div>
+</header>
+
+<main>
+  <section>
+    <div class="meta">
+      <h2>A. Twin pods <small>closest to the reference</small></h2>
+      <p>Bottom centre. Left pod: tyre ring and percentage over a tyre icon. Centre: the gear, with five shift lights under it. Right pod: rev arc around km/h and RPM. The pods are the one translucent backing in the panel, so they read over the road.</p>
+    </div>
+    <div class="view a" data-design="a"></div>
+  </section>
+
+  <section>
+    <div class="meta">
+      <h2>B. Rev strip <small>16-bit, no box (ADR 0023)</small></h2>
+      <p>Bottom left, opposite the course map. A row of chunky shift lights (green, red, blue, as on an F1 wheel), the gear in a bevelled box that matches the item slot, km/h beside it, and a top-down kart with four tyres under it. The four tyres share one value today; they can split per corner later.</p>
+    </div>
+    <div class="view b" data-design="b"></div>
+  </section>
+
+  <section>
+    <div class="meta">
+      <h2>C. Steering wheel screen <small>the F1 cockpit look</small></h2>
+      <p>Bottom centre, a pixel steering wheel peeking up from the frame edge with its screen: shift lights across the top, tyre left, gear centre, km/h and RPM right. The most character, and the most screen it covers.</p>
+    </div>
+    <div class="view c" data-design="c"></div>
+  </section>
+
+  <div class="notes">
+    <h2>How the gear and RPM are faked</h2>
+    <p>Six gears split the sim's 30 m/s top speed (108 km/h) into 18 km/h bands, so gear 1 runs to 5 m/s. RPM climbs from 4,000 to 11,500 across each band and drops on the upshift. Past top speed (mini-turbo 140, boost pad 151 km/h) the kart stays in 6th on the limiter and the lights flash. Standing still reads N; reversing reads R. None of this touches the sim: it is a pure function of the speed the client already shows.</p>
+    <table>
+      <tr><th>Gear</th><th>km/h</th><th>m/s</th></tr>
+      <tr><td>N</td><td>0</td><td>0</td></tr>
+      <tr><td>1</td><td>1 to 18</td><td>to 5</td></tr>
+      <tr><td>2</td><td>18 to 36</td><td>5 to 10</td></tr>
+      <tr><td>3</td><td>36 to 54</td><td>10 to 15</td></tr>
+      <tr><td>4</td><td>54 to 72</td><td>15 to 20</td></tr>
+      <tr><td>5</td><td>72 to 90</td><td>20 to 25</td></tr>
+      <tr><td>6</td><td>90 and up</td><td>25 and up</td></tr>
+      <tr><td>R</td><td>reversing</td><td>to 8 back</td></tr>
+    </table>
+  </div>
+</main>
+
+<template id="scene">
+  <div class="road"></div>
+  <svg class="map" viewBox="0 0 100 70" aria-hidden="true"><path d="M15 55 C5 40 10 12 35 10 L70 10 C92 10 95 35 80 45 L55 58 C45 63 25 66 15 55 Z" /></svg>
+  <div class="hud">
+    <div class="stack pix"><span class="pos">1<small>st</small></span><span class="lap"><span class="white">LAP</span> 2/3</span></div>
+  </div>
+</template>
+
+<!-- A tyre seen side-on: black rubber, a compound band, a grey rim. The band takes the wear colour. -->
+<template id="tyre-svg">
+  <svg class="tyre-icon" viewBox="0 0 16 16" shape-rendering="crispEdges" aria-hidden="true">
+    <rect x="3" y="0" width="10" height="16" fill="#000" />
+    <rect x="1" y="2" width="14" height="12" fill="#000" />
+    <rect x="0" y="3" width="16" height="10" fill="#000" />
+    <rect x="4" y="1" width="8" height="14" fill="#1d1d1f" />
+    <rect x="2" y="3" width="12" height="10" fill="#1d1d1f" />
+    <rect x="1" y="4" width="14" height="8" fill="#1d1d1f" />
+    <rect class="band" x="4" y="3" width="8" height="10" />
+    <rect class="band" x="3" y="4" width="10" height="8" />
+    <rect x="5" y="4" width="6" height="8" fill="#1d1d1f" />
+    <rect x="4" y="5" width="8" height="6" fill="#1d1d1f" />
+    <rect x="6" y="5" width="4" height="6" fill="#b8bcc4" />
+    <rect x="5" y="6" width="6" height="4" fill="#b8bcc4" />
+    <rect x="7" y="7" width="2" height="2" fill="#5d626b" />
+  </svg>
+</template>
+
+<script>
+  // Fake drivetrain: a pure function of the speed the client already has.
+  const TOP_KMH = 30 * 3.6; // TOP_SPEED_M_PER_S in crates/sim/src/tuning.rs
+  const GEARS = 6;
+  const BAND = TOP_KMH / GEARS;
+  const IDLE_RPM = 4000, SHIFT_RPM = 11500, LIMIT_RPM = 12000;
+
+  function drivetrain(kmh) {
+    if (kmh <= -0.5) return { gear: "R", rpm: IDLE_RPM + (-kmh / 28.8) * 6000, limiter: false };
+    if (kmh < 0.5) return { gear: "N", rpm: IDLE_RPM, limiter: false };
+    const gear = Math.min(GEARS, 1 + Math.floor(kmh / BAND));
+    const frac = (kmh - (gear - 1) * BAND) / BAND;
+    const limiter = kmh > TOP_KMH + 0.5;
+    const rpm = limiter ? LIMIT_RPM : IDLE_RPM + Math.min(frac, 1) * (SHIFT_RPM - IDLE_RPM);
+    return { gear: String(gear), rpm, limiter };
+  }
+
+  const wearColour = (pct) => (pct > 60 ? "var(--good)" : pct > 30 ? "var(--warn)" : "var(--bad)");
+
+  // Shift lights: how many of `count` are lit, and the F1 wheel's green, red, blue thirds.
+  function lit(rpm, count, from = 6000) {
+    return Math.max(0, Math.min(count, Math.round(((rpm - from) / (SHIFT_RPM - from)) * count)));
+  }
+  function ledColour(i, count) {
+    const third = i / count;
+    return third < 1 / 3 ? "#5ad15a" : third < 2 / 3 ? "#e8483a" : "#4f7dff";
+  }
+
+  const scene = document.getElementById("scene");
+  const tyreSvg = document.getElementById("tyre-svg");
+  const tyre = () => tyreSvg.content.firstElementChild.cloneNode(true);
+
+  // Arc helpers for design A: a 270 degree gauge, open at the bottom.
+  const arc = (cls, r) => `<circle class="${cls}" cx="50" cy="50" r="${r}" pathLength="100" transform="rotate(135 50 50)" stroke-dasharray="75 100" />`;
+
+  const builders = {
+    a(hud) {
+      const el = document.createElement("div");
+      el.className = "cluster";
+      el.innerHTML = `
+        <div class="pod tyre-pod">
+          <svg class="gauge" viewBox="0 0 100 100"><circle class="face" cx="50" cy="50" r="48" />${arc("track", 40)}${arc("value", 40)}
+            <circle class="ticks" cx="50" cy="50" r="40" pathLength="100" stroke-dasharray=".6 2.4" transform="rotate(135 50 50)" /></svg>
+          <div class="text"><span class="label pix white">TYRE</span><span class="big pix" data-tyre-pct>100%</span></div>
+        </div>
+        <div class="gear-col"><span class="gear pix flashable" data-gear>N</span><span class="shift" data-leds>${"<i></i>".repeat(5)}</span></div>
+        <div class="pod rev-pod">
+          <svg class="gauge" viewBox="0 0 100 100"><circle class="face" cx="50" cy="50" r="48" />${arc("track", 40)}${arc("value", 40)}
+            <circle class="ticks" cx="50" cy="50" r="40" pathLength="100" stroke-dasharray=".6 2.4" transform="rotate(135 50 50)" /></svg>
+          <div class="text"><span class="label pix white">KM/H</span><span class="big pix" data-kmh>0</span><span class="small pix white" data-rpm>4000</span></div>
+        </div>`;
+      el.querySelector(".tyre-pod").append(tyre());
+      hud.append(el);
+      const tyreArc = el.querySelector(".tyre-pod .value");
+      const revArc = el.querySelector(".rev-pod .value");
+      const leds = [...el.querySelectorAll("[data-leds] i")];
+      return (s) => {
+        el.querySelector("[data-gear]").textContent = s.gear;
+        el.querySelector("[data-kmh]").textContent = Math.round(Math.abs(s.kmh));
+        el.querySelector("[data-rpm]").textContent = Math.round(s.rpm);
+        el.querySelector("[data-tyre-pct]").textContent = `${s.tyre}%`;
+        el.querySelectorAll(".band").forEach((b) => b.setAttribute("fill", wearColour(s.tyre)));
+        tyreArc.setAttribute("stroke-dasharray", `${0.75 * s.tyre} 100`);
+        tyreArc.style.stroke = wearColour(s.tyre);
+        revArc.setAttribute("stroke-dasharray", `${(75 * s.rpm) / LIMIT_RPM} 100`);
+        revArc.style.stroke = s.rpm > 10500 ? "var(--bad)" : "var(--gold)";
+        const n = lit(s.rpm, leds.length);
+        leds.forEach((led, i) => (led.style.background = s.limiter ? "#4f7dff" : i < n ? ledColour(i, leds.length) : ""));
+      };
+    },
+
+    b(hud) {
+      const el = document.createElement("div");
+      el.className = "cluster";
+      el.innerHTML = `
+        <div class="leds flashable" data-leds>${"<i></i>".repeat(12)}</div>
+        <div class="gearbox"><span data-gear>N</span></div>
+        <div class="speed"><span class="num pix" data-kmh>0</span><span class="unit pix white">KM/H</span></div>
+        <div class="tyres">
+          <svg viewBox="0 0 14 18" shape-rendering="crispEdges" aria-hidden="true">
+            <rect x="4" y="2" width="6" height="14" fill="#3a1c0a" /><rect x="5" y="3" width="4" height="12" fill="#d62828" />
+            <rect x="6" y="5" width="2" height="3" fill="#7fc3ff" />
+            <rect class="tw" x="0" y="2" width="3" height="5" stroke="#3a1c0a" stroke-width="1" /><rect class="tw" x="11" y="2" width="3" height="5" stroke="#3a1c0a" stroke-width="1" />
+            <rect class="tw" x="0" y="11" width="3" height="5" stroke="#3a1c0a" stroke-width="1" /><rect class="tw" x="11" y="11" width="3" height="5" stroke="#3a1c0a" stroke-width="1" />
+          </svg>
+          <span class="pct pix" data-tyre-pct>100%</span>
+        </div>`;
+      hud.append(el);
+      const leds = [...el.querySelectorAll("[data-leds] i")];
+      return (s) => {
+        el.querySelector("[data-gear]").textContent = s.gear;
+        el.querySelector("[data-kmh]").textContent = Math.round(Math.abs(s.kmh));
+        el.querySelector("[data-tyre-pct]").textContent = `${s.tyre}%`;
+        el.querySelectorAll(".tw").forEach((t) => t.setAttribute("fill", wearColour(s.tyre)));
+        const n = lit(s.rpm, leds.length);
+        leds.forEach((led, i) => (led.style.background = s.limiter ? "#4f7dff" : i < n ? ledColour(i, leds.length) : ""));
+      };
+    },
+
+    c(hud) {
+      const el = document.createElement("div");
+      el.className = "wheel";
+      // A pixel wheel: grips at both sides, a flat body, coloured rotary buttons.
+      el.innerHTML = `
+        <svg viewBox="0 0 112 46" shape-rendering="crispEdges" aria-hidden="true">
+          <path d="M6 10 h14 v-4 h72 v4 h14 v36 h-14 v-6 h-72 v6 h-14 z" fill="#14161b" />
+          <path d="M0 14 h8 v32 h-8 z M104 14 h8 v32 h-8 z" fill="#2b2f37" />
+          <path d="M1 16 h6 v28 h-6 z M105 16 h6 v28 h-6 z" fill="#3a3f49" />
+          <path d="M20 6 h72 v2 h-72 z" fill="#2b2f37" />
+          <g class="buttons">
+            <circle cx="15" cy="22" r="3" fill="#e8483a" /><circle cx="15" cy="32" r="3" fill="#4f7dff" />
+            <circle cx="97" cy="22" r="3" fill="#5ad15a" /><circle cx="97" cy="32" r="3" fill="#fde97a" />
+            <circle cx="40" cy="38" r="2" fill="#8a8d94" /><circle cx="72" cy="38" r="2" fill="#8a8d94" />
+          </g>
+        </svg>
+        <div class="screen">
+          <div class="leds flashable" data-leds>${"<i></i>".repeat(15)}</div>
+          <div class="cols">
+            <div class="col"><span class="label">TYRE</span><span data-tyre></span><span class="val" data-tyre-pct>100%</span><span class="wear-bar"><b></b></span></div>
+            <span class="gear flashable" data-gear>N</span>
+            <div class="col"><span class="label">KM/H</span><span class="val" data-kmh>0</span><span class="label">RPM</span><span class="rpm" data-rpm>4000</span></div>
+          </div>
+        </div>`;
+      el.querySelector("[data-tyre]").replaceWith(tyre());
+      hud.append(el);
+      const leds = [...el.querySelectorAll("[data-leds] i")];
+      const bar = el.querySelector(".wear-bar b");
+      return (s) => {
+        el.querySelector("[data-gear]").textContent = s.gear;
+        el.querySelector("[data-kmh]").textContent = Math.round(Math.abs(s.kmh));
+        el.querySelector("[data-rpm]").textContent = Math.round(s.rpm);
+        el.querySelector("[data-tyre-pct]").textContent = `${s.tyre}%`;
+        el.querySelector("[data-tyre-pct]").style.color = wearColour(s.tyre);
+        el.querySelectorAll(".band").forEach((b) => b.setAttribute("fill", wearColour(s.tyre)));
+        bar.style.width = `${s.tyre}%`;
+        bar.style.background = wearColour(s.tyre);
+        const n = lit(s.rpm, leds.length);
+        leds.forEach((led, i) => (led.style.background = s.limiter ? "#4f7dff" : i < n ? ledColour(i, leds.length) : ""));
+      };
+    },
+  };
+
+  const views = [...document.querySelectorAll(".view")];
+  const renders = views.map((view) => {
+    view.append(scene.content.cloneNode(true));
+    return builders[view.dataset.design](view.querySelector(".hud"));
+  });
+
+  // A scripted lap as (seconds, km/h) keyframes, eased between.
+  const LAP = [
+    [0, 0], [1, 0], [6, 108], [8, 108], [9.2, 58], [10.6, 58], [11, 140], [12.2, 108],
+    [13.5, 108], [13.8, 151], [15, 108], [16.5, 108], [18, 0], [19, 0], [20.5, -28], [21.5, -28], [22.5, 0], [23.5, 0],
+  ];
+  const lapLength = LAP[LAP.length - 1][0];
+  function lapSpeed(t) {
+    for (let i = 1; i < LAP.length; i++) {
+      const [t1, v1] = LAP[i];
+      const [t0, v0] = LAP[i - 1];
+      if (t <= t1) {
+        const u = (t - t0) / (t1 - t0);
+        const eased = v1 > v0 ? 1 - (1 - u) ** 1.8 : u; // pulls hard, tapers near the top
+        return v0 + (v1 - v0) * eased;
+      }
+    }
+    return 0;
+  }
+
+  const speedInput = document.getElementById("speed");
+  const tyreInput = document.getElementById("tyre");
+  const speedOut = document.getElementById("speed-out");
+  const tyreOut = document.getElementById("tyre-out");
+  const readout = document.getElementById("readout");
+  const playButton = document.getElementById("play");
+  let playing = true;
+  let clock = 0;
+  let last = performance.now();
+
+  playButton.addEventListener("click", () => {
+    playing = !playing;
+    playButton.textContent = playing ? "Pause" : "Play";
+  });
+  speedInput.addEventListener("input", () => {
+    playing = false;
+    playButton.textContent = "Play";
+  });
+
+  function frame(now) {
+    const dt = (now - last) / 1000;
+    last = now;
+    if (playing) {
+      clock = (clock + dt) % lapLength;
+      speedInput.value = Math.round(lapSpeed(clock));
+    }
+    const kmh = Number(speedInput.value);
+    const tyrePct = Number(tyreInput.value);
+    const d = drivetrain(kmh);
+    const state = { kmh, tyre: tyrePct, ...d };
+    speedOut.textContent = `${kmh} km/h`;
+    tyreOut.textContent = `${tyrePct}%`;
+    readout.textContent = `gear ${d.gear}, ${Math.round(d.rpm)} rpm, ${(kmh / 3.6).toFixed(1)} m/s${d.limiter ? ", limiter" : ""}`;
+    views.forEach((view, i) => {
+      view.classList.toggle("limiter", d.limiter);
+      renders[i](state);
+    });
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+</script>
+</body>
+</html>

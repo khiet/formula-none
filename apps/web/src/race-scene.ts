@@ -153,11 +153,12 @@ export async function createRaceScene(
     loadInstrumentFont(),
   ]);
   const camera = createChaseCamera(bridge.cameraTuning);
-  const panel = createInstrumentPanel(container, bridge.lapsPerRace, {
-    centreline,
-    kartCount: bridge.kartsPerRace,
-    ownKart: run.localKart,
-  });
+  const panel = createInstrumentPanel(
+    container,
+    bridge.lapsPerRace,
+    { centreline, kartCount: bridge.kartsPerRace, ownKart: run.localKart },
+    bridge.cameraTuning.topSpeedMetresPerSecond,
+  );
 
   const present = (frameSeconds: number) => {
     const readout = run.readout();

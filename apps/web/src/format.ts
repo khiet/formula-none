@@ -34,3 +34,19 @@ export function formatLapTime(seconds: number): string {
   const milliseconds = rest - wholeSeconds * 1000;
   return `${minutes}'${String(wholeSeconds).padStart(2, "0")}"${String(milliseconds).padStart(3, "0")}`;
 }
+
+/** Metres per second as kilometres per hour, keeping the sign. */
+export function kmPerHour(metresPerSecond: number): number {
+  return metresPerSecond * 3.6;
+}
+
+/** A speed in two parts, so the panel can set the number large and the unit small. */
+export interface SpeedParts {
+  readonly value: string;
+  readonly unit: string;
+}
+
+/** Speed as the panel prints it: whole km/h, positive either way the kart goes. */
+export function speedParts(metresPerSecond: number): SpeedParts {
+  return { value: String(Math.round(Math.abs(kmPerHour(metresPerSecond)))), unit: "km/h" };
+}

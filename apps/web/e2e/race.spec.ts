@@ -15,7 +15,9 @@ for (const [name, url, throttleKey] of [
     await startRace(page, url);
     const speed = page.locator('[data-instrument="speed"]');
     const surface = page.locator('[data-instrument="surface"]');
-    await expect(speed).toHaveText("0.0 m/s");
+    await expect(speed).toHaveText("0 km/h");
+    await expect(page.locator('[data-instrument="gear"]')).toHaveText("N");
+    await expect(page.locator('[data-instrument="tyre"]')).toHaveText("100%");
     await expect(surface).toHaveText("asphalt");
     // The Instrument panel's lap readouts come from the sim: on lap one, the
     // lap clock running and no best lap yet, and last once the seven bots
@@ -34,7 +36,7 @@ for (const [name, url, throttleKey] of [
     await page.keyboard.down(throttleKey);
     await expect
       .poll(async () => Number.parseFloat((await speed.textContent()) ?? "0"), { timeout: 5_000 })
-      .toBeGreaterThan(5);
+      .toBeGreaterThan(18);
     await page.keyboard.up(throttleKey);
     // Still on the asphalt after driving up the straight.
     await expect(surface).toHaveText("asphalt");
@@ -66,12 +68,12 @@ test("backing up for two seconds shows the wrong-way warning until the kart driv
     .poll(
       async () =>
         (await surface.textContent()) !== "asphalt" ||
-        Number.parseFloat((await speed.textContent()) ?? "0") < 5,
+        Number.parseFloat((await speed.textContent()) ?? "0") < 18,
       { timeout: 60_000 },
     )
     .toBe(true);
   await page.keyboard.up("ArrowUp");
-  await expect(speed).toHaveText("0.0 m/s", { timeout: 60_000 });
+  await expect(speed).toHaveText("0 km/h", { timeout: 60_000 });
   // Reversing takes the kart away from the line it faces.
   await page.keyboard.down("ArrowDown");
   await expect(wrongWay).toHaveText("WRONG WAY", { timeout: 60_000 });
@@ -85,10 +87,8 @@ test("backing up for two seconds shows the wrong-way warning until the kart driv
 test("holding the brake at a standstill backs the kart up", async ({ page }) => {
   await startRace(page, "/?track=oval");
   const speed = page.locator('[data-instrument="speed"]');
-  await expect(speed).toHaveText("0.0 m/s");
+  await expect(speed).toHaveText("0 km/h");
   await page.keyboard.down("ArrowDown");
-  await expect
-    .poll(async () => Number.parseFloat((await speed.textContent()) ?? "0"), { timeout: 5_000 })
-    .toBeLessThan(-2);
+  await expect(page.locator('[data-instrument="gear"]')).toHaveText("R", { timeout: 5_000 });
   await page.keyboard.up("ArrowDown");
 });

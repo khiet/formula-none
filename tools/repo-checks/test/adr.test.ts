@@ -35,6 +35,7 @@ const DECISION_SLUGS = [
   "cues-from-readings",
   "standings-on-demand",
   "feedback-wired-by-the-view",
+  "speed-cluster",
 ];
 
 const expectedFiles = DECISION_SLUGS.map(
