@@ -1,12 +1,13 @@
-// The game's sound over Web Audio (ADR 0008). The files are fetched at
+// The game's sound over Web Audio (ADR 0025). The files are fetched at
 // creation and decoded as soon as a gesture lets an AudioContext start, so
 // no decode waits for a first play and the browser never warns of autoplay.
-// One race sounds at a time: an oscillator for the engine, a one-shot
-// source per SFX (the sputter's file runs the stall's length), a looping
-// source per loop while its state holds, pitched and swelled with the
-// kart's speed, and a looping source for the music, each behind the gain
-// its toggle sets; the loops sit under the SFX toggle. Presentation: it
-// reads the own kart's readings and changes no sim state.
+// One race sounds at a time: the engine's graph, voiced from the gears and
+// load `audio-engine.ts` derives from speed, a one-shot source per SFX (the
+// sputter's file runs the stall's length), a looping source per loop while
+// its state holds, pitched and swelled with the kart's speed, and a looping
+// source for the music, each behind the gain its toggle sets; the loops sit
+// under the SFX toggle. Presentation: it reads the own kart's readings and
+// changes no sim state.
 
 import boostPadUrl from "../../../assets/audio/boost-pad.wav?url";
 import countdownBeepUrl from "../../../assets/audio/countdown-beep.wav?url";
@@ -26,7 +27,6 @@ import sputterUrl from "../../../assets/audio/sputter.wav?url";
 import tierChimeUrl from "../../../assets/audio/tier-chime.wav?url";
 import wrongWayUrl from "../../../assets/audio/wrong-way.wav?url";
 import {
-  enginePitchHz,
   loopPlayback,
   type SoundCue,
   type SoundLoop,
@@ -34,6 +34,13 @@ import {
   soundCues,
   soundLoops,
 } from "./audio-cues";
+import {
+  ENGINE,
+  type EngineState,
+  type EngineVoice,
+  engineStep,
+  engineVoice,
+} from "./audio-engine";
 import type { AudioSettings } from "./audio-settings";
 
 export const SOUND_URLS: Readonly<Record<SoundCue, string>> = {
@@ -62,10 +69,12 @@ export const MUSIC_URL: string = musicUrl;
 // the browser's AudioContext, which satisfies these as it is.
 export interface SoundParam {
   value: number;
+  setValueAtTime(value: number, startTime: number): unknown;
   setTargetAtTime(target: number, startTime: number, timeConstant: number): unknown;
 }
 export interface SoundNode {
-  connect(destination: SoundNode): unknown;
+  /** A node, or a param the node's signal is added to, as the limiter's chop is to the engine's level. */
+  connect(destination: SoundNode | SoundParam): unknown;
   disconnect(): void;
 }
 export interface SoundGain extends SoundNode {
@@ -74,11 +83,21 @@ export interface SoundGain extends SoundNode {
 export interface SoundOscillator extends SoundNode {
   type: OscillatorType;
   readonly frequency: SoundParam;
+  readonly detune: SoundParam;
   start(when?: number): void;
   stop(when?: number): void;
 }
+export interface SoundFilter extends SoundNode {
+  type: BiquadFilterType;
+  readonly frequency: SoundParam;
+  readonly Q: SoundParam;
+}
+/** A decoded file, or a buffer the game filled itself, as the engine's noise is. */
+export interface SoundBuffer {
+  getChannelData(channel: number): Float32Array;
+}
 export interface SoundBufferSource extends SoundNode {
-  buffer: AudioBuffer | null;
+  buffer: SoundBuffer | null;
   loop: boolean;
   readonly playbackRate: SoundParam;
   start(when?: number): void;
@@ -86,18 +105,21 @@ export interface SoundBufferSource extends SoundNode {
 }
 export interface SoundContext {
   readonly currentTime: number;
+  readonly sampleRate: number;
   readonly destination: SoundNode;
   readonly state: AudioContextState;
   resume(): Promise<void>;
-  decodeAudioData(bytes: ArrayBuffer): Promise<AudioBuffer>;
+  decodeAudioData(bytes: ArrayBuffer): Promise<SoundBuffer>;
+  createBuffer(channels: number, length: number, sampleRate: number): SoundBuffer;
   createOscillator(): SoundOscillator;
   createGain(): SoundGain;
+  createBiquadFilter(): SoundFilter;
   createBufferSource(): SoundBufferSource;
 }
 
 export interface AudioOptions {
   readonly settings: AudioSettings;
-  /** The sim's top speed, which the engine note's pitch is scaled to. */
+  /** The sim's top speed, which the engine's gear bands and the loops' swell are scaled to. */
   readonly topSpeedMetresPerSecond: number;
   /** Fetch one sound file's bytes; called for every file at creation. */
   fetchBytes(url: string): Promise<ArrayBuffer>;
@@ -121,7 +143,7 @@ export interface Audio {
 export interface RaceAudio {
   /** The engine idling and the music looping, as the toggles allow, until `stop`. */
   start(): void;
-  /** The own kart's reading this frame: the engine's pitch and the loops from its state, the SFX from its changes since the last. */
+  /** The own kart's reading this frame: the engine's gear, revs and load and the loops from its state, the SFX from its changes since the last. */
   update(reading: SoundReading): void;
   /** Engine off, music stopped; later updates are silent. */
   stop(): void;
@@ -134,15 +156,15 @@ const LEVELS: Readonly<Record<keyof AudioSettings, number>> = {
   music: 0.35,
 };
 const TOGGLES = Object.keys(LEVELS) as (keyof AudioSettings)[];
-/** The time constant the engine note and the loops glide to each frame's pitch and level with, so neither jumps. */
+/** The time constant the loops glide to each frame's pitch and level with, so neither jumps. */
 const GLIDE_S = 0.04;
 
 /** The decoded files, once the context exists to decode them, and the gain each toggle sets. */
 interface Sounds {
   readonly context: SoundContext;
-  readonly sfx: Partial<Record<SoundCue, AudioBuffer>>;
-  readonly loops: Partial<Record<SoundLoop, AudioBuffer>>;
-  readonly music: AudioBuffer | undefined;
+  readonly sfx: Partial<Record<SoundCue, SoundBuffer>>;
+  readonly loops: Partial<Record<SoundLoop, SoundBuffer>>;
+  readonly music: SoundBuffer | undefined;
   readonly gains: Readonly<Record<keyof AudioSettings, SoundGain>>;
 }
 
@@ -164,7 +186,7 @@ export function createAudio(options: AudioOptions): Audio {
   /** The race sounding now, if any, told when the context arrives. */
   let live: LiveRace | undefined;
 
-  const decode = async (context: SoundContext, url: string): Promise<AudioBuffer | undefined> => {
+  const decode = async (context: SoundContext, url: string): Promise<SoundBuffer | undefined> => {
     const bytes = await fetched.get(url);
     if (bytes === undefined) return undefined;
     try {
@@ -179,10 +201,10 @@ export function createAudio(options: AudioOptions): Audio {
   const decodeAll = async <Name extends string>(
     context: SoundContext,
     urls: Readonly<Record<Name, string>>,
-  ): Promise<Partial<Record<Name, AudioBuffer>>> => {
+  ): Promise<Partial<Record<Name, SoundBuffer>>> => {
     const names = Object.keys(urls) as Name[];
     const buffers = await Promise.all(names.map((name) => decode(context, urls[name])));
-    const decoded: Partial<Record<Name, AudioBuffer>> = {};
+    const decoded: Partial<Record<Name, SoundBuffer>> = {};
     names.forEach((name, index) => {
       const buffer = buffers[index];
       if (buffer !== undefined) decoded[name] = buffer;
@@ -275,7 +297,9 @@ interface RunningLoop {
 class LiveRace {
   racing = false;
   #sounds: Sounds | undefined;
-  #engine: SoundOscillator | undefined;
+  #engine: EngineGraph | undefined;
+  /** The engine model, stepped from the first reading the context hears. */
+  #engineState: EngineState | undefined;
   #music: SoundBufferSource | undefined;
   readonly #loops = new Map<SoundLoop, RunningLoop>();
   #last: SoundReading | undefined;
@@ -290,17 +314,26 @@ class LiveRace {
   begin(sounds: Sounds): void {
     if (!this.racing || this.#sounds !== undefined) return;
     this.#sounds = sounds;
-    const engine = sounds.context.createOscillator();
-    engine.type = "sawtooth";
-    engine.frequency.value = enginePitchHz(
-      this.#last?.speed ?? 0,
-      this.#topSpeed,
-      this.#last?.charge ?? null,
+    this.#engineState = this.#stepEngine(sounds, this.#last);
+    this.#engine = new EngineGraph(
+      sounds.context,
+      sounds.gains.engine,
+      engineVoice(this.#engineState),
     );
-    engine.connect(sounds.gains.engine);
-    engine.start();
-    this.#engine = engine;
     this.music(this.#settings().music);
+  }
+
+  /** The engine model after `reading`, or idling at a standstill with none, at the context's clock. */
+  #stepEngine(sounds: Sounds, reading: SoundReading | undefined): EngineState {
+    return engineStep(
+      this.#engineState,
+      {
+        speed: reading?.speed ?? 0,
+        charge: reading?.charge ?? null,
+        time: sounds.context.currentTime,
+      },
+      this.#topSpeed,
+    );
   }
 
   /** Start the music loop when `on` and none plays; stop it when not `on`. */
@@ -327,11 +360,8 @@ class LiveRace {
     this.#last = reading;
     const sounds = this.#sounds;
     if (sounds === undefined) return;
-    this.#engine?.frequency.setTargetAtTime(
-      enginePitchHz(reading.speed, this.#topSpeed, reading.charge),
-      sounds.context.currentTime,
-      GLIDE_S,
-    );
+    this.#engineState = this.#stepEngine(sounds, reading);
+    this.#engine?.follow(engineVoice(this.#engineState), this.#engineState.shift);
     const sfx = this.#settings().sfx;
     this.#runLoops(sounds, sfx ? soundLoops(reading) : new Set(), reading.speed);
     if (!sfx) return;
@@ -382,11 +412,160 @@ class LiveRace {
     this.racing = false;
     this.music(false);
     if (this.#sounds !== undefined) this.#runLoops(this.#sounds, new Set(), 0);
-    if (this.#engine !== undefined) {
-      this.#engine.stop();
-      this.#engine.disconnect();
-      this.#engine = undefined;
-    }
+    this.#engine?.stop();
+    this.#engine = undefined;
+    this.#engineState = undefined;
     this.#sounds = undefined;
   }
+}
+
+/** The time constant the engine's note, filter and level glide with each frame. */
+const ENGINE_GLIDE_S = 0.02;
+/** The upshift's cut falls this fast, so it reads as a cut and not a dip. */
+const CUT_GLIDE_S = 0.003;
+/** How long a downshift's blip holds the note up before it settles. */
+const BLIP_S = 0.08;
+/** The noise the intake and the crackle draw on, looped; long enough that the loop is not heard. */
+const NOISE_S = 2;
+/** The sawtooths' gain each, under which the sub and the intake sit. */
+const SAW_GAIN = 0.5;
+const FILTER_Q = 1.2;
+const INTAKE_Q = 0.8;
+/** A crackle burst's shape: full at once, gone within a few milliseconds. */
+const CRACKLE_RISE_S = 0.004;
+const CRACKLE_FALL_S = 0.006;
+/** The bursts come no closer than this and, on a light overrun, up to a quarter second apart. */
+const CRACKLE_GAP_MIN_S = 0.03;
+const CRACKLE_GAP_SPREAD_S = 0.25;
+const CRACKLE_GAP_OVERRUN_S = 0.2;
+
+/**
+ * The engine's nodes (ADR 0025): two detuned sawtooths, a square sub an
+ * octave down and the intake noise through one lowpass that opens with the
+ * revs and the load, into a level gain the limiter's square chops; the same
+ * noise feeds the crackle bursts past the filter. Made as the race begins
+ * to sound and torn down at its stop; `follow` glides it to each frame's
+ * voice.
+ */
+class EngineGraph {
+  readonly #context: SoundContext;
+  readonly #oscillators: SoundOscillator[] = [];
+  readonly #saws: SoundOscillator[];
+  readonly #sub: SoundOscillator;
+  readonly #noise: SoundBufferSource;
+  readonly #intakeFilter: SoundFilter;
+  readonly #intakeGain: SoundGain;
+  readonly #filter: SoundFilter;
+  readonly #level: SoundGain;
+  readonly #limiterDepth: SoundGain;
+  readonly #crackle: SoundGain;
+  readonly #nodes: SoundNode[] = [];
+  /** The level is left alone while an upshift's cut runs, and the note while a downshift's blip holds. */
+  #cutUntil = 0;
+  #blipUntil = 0;
+  #nextCrackle = 0;
+
+  constructor(context: SoundContext, out: SoundGain, voice: EngineVoice) {
+    this.#context = context;
+    const gain = (value: number, to: SoundNode | SoundParam): SoundGain => {
+      const node = context.createGain();
+      node.gain.value = value;
+      node.connect(to);
+      this.#nodes.push(node);
+      return node;
+    };
+    const oscillator = (type: OscillatorType, hz: number, to: SoundNode | SoundParam) => {
+      const node = context.createOscillator();
+      node.type = type;
+      node.frequency.value = hz;
+      node.connect(to);
+      this.#oscillators.push(node);
+      return node;
+    };
+    this.#level = gain(voice.level, out);
+    this.#filter = context.createBiquadFilter();
+    this.#filter.type = "lowpass";
+    this.#filter.Q.value = FILTER_Q;
+    this.#filter.frequency.value = voice.filterHz;
+    this.#filter.connect(this.#level);
+    this.#nodes.push(this.#filter);
+    this.#saws = [-ENGINE.detuneCents / 2, ENGINE.detuneCents / 2].map((cents) => {
+      const saw = oscillator("sawtooth", voice.noteHz, gain(SAW_GAIN, this.#filter));
+      saw.detune.value = cents;
+      return saw;
+    });
+    this.#sub = oscillator("square", voice.subHz, gain(ENGINE.sub, this.#filter));
+    this.#intakeGain = gain(voice.intake, this.#filter);
+    this.#intakeFilter = context.createBiquadFilter();
+    this.#intakeFilter.type = "bandpass";
+    this.#intakeFilter.Q.value = INTAKE_Q;
+    this.#intakeFilter.frequency.value = voice.intakeHz;
+    this.#intakeFilter.connect(this.#intakeGain);
+    this.#nodes.push(this.#intakeFilter);
+    this.#crackle = gain(0, out);
+    this.#noise = context.createBufferSource();
+    this.#noise.buffer = whiteNoise(context);
+    this.#noise.loop = true;
+    this.#noise.connect(this.#intakeFilter);
+    this.#noise.connect(this.#crackle);
+    this.#limiterDepth = gain(voice.limiterDepth, this.#level.gain);
+    oscillator("square", ENGINE.limiterHz, this.#limiterDepth);
+    for (const node of this.#oscillators) node.start();
+    this.#noise.start();
+  }
+
+  /** Glide every node to `voice`; cut the level on an upshift, blip the note on a downshift, and fire a crackle burst when one is due. */
+  follow(voice: EngineVoice, shift: EngineState["shift"]): void {
+    const now = this.#context.currentTime;
+    if (shift === "down") {
+      this.#blipUntil = now + BLIP_S;
+      this.#note(voice.noteHz * (1 + ENGINE.downshiftBlip), now);
+      this.#note(voice.noteHz, this.#blipUntil);
+    } else if (now >= this.#blipUntil) {
+      this.#note(voice.noteHz, now);
+    }
+    this.#intakeFilter.frequency.setTargetAtTime(voice.intakeHz, now, ENGINE_GLIDE_S);
+    this.#intakeGain.gain.setTargetAtTime(voice.intake, now, ENGINE_GLIDE_S);
+    this.#filter.frequency.setTargetAtTime(voice.filterHz, now, ENGINE_GLIDE_S);
+    if (shift === "up") {
+      this.#cutUntil = now + ENGINE.upshiftCutSeconds;
+      this.#level.gain.setTargetAtTime(0, now, CUT_GLIDE_S);
+      this.#level.gain.setTargetAtTime(voice.level, this.#cutUntil, ENGINE_GLIDE_S);
+    } else if (now >= this.#cutUntil) {
+      this.#level.gain.setTargetAtTime(voice.level, now, ENGINE_GLIDE_S);
+    }
+    this.#limiterDepth.gain.setTargetAtTime(voice.limiterDepth, now, ENGINE_GLIDE_S);
+    if (voice.crackle > 0 && now >= this.#nextCrackle) {
+      this.#crackle.gain.setValueAtTime(voice.crackle, now);
+      this.#crackle.gain.setTargetAtTime(0, now + CRACKLE_RISE_S, CRACKLE_FALL_S);
+      this.#nextCrackle =
+        now +
+        CRACKLE_GAP_MIN_S +
+        Math.random() * (CRACKLE_GAP_SPREAD_S - CRACKLE_GAP_OVERRUN_S * voice.overrun);
+    }
+  }
+
+  /** Glide the sawtooths to `hz` and the sub to its octave under, from `at`. */
+  #note(hz: number, at: number): void {
+    for (const saw of this.#saws) saw.frequency.setTargetAtTime(hz, at, ENGINE_GLIDE_S);
+    this.#sub.frequency.setTargetAtTime(hz / 2, at, ENGINE_GLIDE_S);
+  }
+
+  stop(): void {
+    for (const node of this.#oscillators) {
+      node.stop();
+      node.disconnect();
+    }
+    this.#noise.stop();
+    this.#noise.disconnect();
+    for (const node of this.#nodes) node.disconnect();
+  }
+}
+
+/** `NOISE_S` of white noise to loop, filled once per race. */
+function whiteNoise(context: SoundContext): SoundBuffer {
+  const buffer = context.createBuffer(1, context.sampleRate * NOISE_S, context.sampleRate);
+  const samples = buffer.getChannelData(0);
+  for (let i = 0; i < samples.length; i++) samples[i] = Math.random() * 2 - 1;
+  return buffer;
 }

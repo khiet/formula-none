@@ -15,7 +15,7 @@ reads the sidecar, never the mesh, so the scenery in the glTF (kerbs,
 hoardings, stands) never touches the rules. `tracks/README.md` has the
 export command and the scene conventions.
 
-`audio/` holds the race's sounds (ADR 0008): one WAV per SFX (hop,
+`audio/` holds the race's sounds (ADR 0025): one WAV per SFX (hop,
 mini-turbo, item pickup, item fire, hit, lap) and the music loop, all
 synthesised by `audio/build.py`, so nothing in it is anyone else's work.
 `pnpm export:audio` rewrites them; commit the output, since the web app

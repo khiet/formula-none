@@ -113,7 +113,7 @@ async function main(container: HTMLElement): Promise<void> {
   const bridge = await loadBridge();
   const connection = reportConnection(bridge);
   // The sound files load now; the AudioContext waits for the first gesture,
-  // which the browser's autoplay rule asks for (ADR 0008). Any press or key
+  // which the browser's autoplay rule asks for (ADR 0025). Any press or key
   // is one: the Title's buttons on the usual way in, the first key of the
   // race for a player a room link took straight to the room.
   let audioSettings = loadAudioSettings(window.localStorage);

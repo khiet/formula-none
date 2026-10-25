@@ -29,6 +29,7 @@ const DECISION_SLUGS = [
   "track-limits",
   "hud-language",
   "item-sprites",
+  "audio-engine",
 ];
 
 const expectedFiles = DECISION_SLUGS.map(
