@@ -1,4 +1,4 @@
-"""Render the game's SFX (ADR 0007, ADR 0008) as WAV files.
+"""Render the game's SFX (ADR 0007, ADR 0025) as WAV files.
 
 Run from the repo root with `pnpm export:audio`; stdlib only. Every SFX is
 synthesised here, so the set is this repo's own work and CC0 like the rest

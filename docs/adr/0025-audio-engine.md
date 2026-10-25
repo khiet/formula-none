@@ -60,8 +60,8 @@ The engine, replacing the sawtooth:
   opens the filter; lifting closes it, drops the level to 0.6 and plays the
   crackle at 0.5.
 - During the countdown the revs follow the rocket start's charge by tier:
-  clean idles, a weak boost holds 0.5, a full boost and a stall sit on the
-  limiter.
+  clean idles, a weak boost holds 0.5, a full boost and a stall hold the
+  top note with the limiter's chop on.
 - Where it lives: a pure `audio-engine.ts` module under `apps/web/src`
   holds the constants, the band edges, the gear choice with hysteresis, the
   limiter and the load, testable without an audio context, as the cues

@@ -42,12 +42,16 @@ export const ENGINE = {
   crackle: 0.5,
 } as const;
 
-/** The revs a rocket start's charge holds on the grid, by tier; the full boost and the stall sit on the limiter. */
+/**
+ * The revs a rocket start's charge holds on the grid, by tier. The full
+ * boost and the stall hold the top note with the limiter's chop forced on,
+ * as the page does: the hold tipping into a stall gives no warning.
+ */
 export const GRID_REVS: Readonly<Record<Start, number>> = {
   clean: 0,
   weakBoost: 0.5,
-  fullBoost: ENGINE.limiter,
-  stall: ENGINE.limiter,
+  fullBoost: 1,
+  stall: 1,
 };
 
 /** Under this speed the engine idles, and the charge may rev it. */
@@ -55,9 +59,10 @@ const IDLE_SPEED = 0.5;
 /**
  * How long the sim takes to reach top speed at full throttle, so the speed
  * delta reads as a fraction of full load. A Presentation reference, chosen
- * here rather than read from the sim's tuning (ADR 0014).
+ * here rather than read from the sim's tuning (ADR 0014); the bridge does
+ * not carry the acceleration.
  */
-const FULL_THROTTLE_SECONDS_TO_TOP = 2.5;
+export const FULL_THROTTLE_SECONDS_TO_TOP = 2.5;
 /** The load settles toward each reading's at this rate per second. */
 const LOAD_RATE = 12;
 /** Past this overrun the crackle fires, and never under this speed. */
@@ -65,6 +70,16 @@ const CRACKLE_OVERRUN = 0.15;
 const CRACKLE_SPEED = 2;
 /** How far the chop takes the level down while the limiter holds. */
 const LIMITER_DEPTH = 0.5;
+/** The filter opens this share of the way from the revs alone; the throttle opens the rest. */
+const FILTER_REVS_SHARE = 0.45;
+/** A full overrun closes the filter by this much. */
+const OVERRUN_FILTER_CLOSE = 0.5;
+/** The intake breathes from this share of its gain at idle to all of it at full revs. */
+const INTAKE_IDLE_SHARE = 0.3;
+/** The intake's band sits this many times the note. */
+const INTAKE_BAND_OVER_NOTE = 4;
+/** A burst's gain is this share of the crackle level on a full overrun. */
+const CRACKLE_BURST_SHARE = 0.6;
 
 /** The own kart at one moment, as the engine hears it. */
 export interface EngineSample {
@@ -125,14 +140,13 @@ export function engineStep(
   let revs = ENGINE.dropRatio + (1 - ENGINE.dropRatio) * Math.max(0, within);
   revs = gear === ENGINE.gears ? Math.min(ENGINE.limiter, revs) : Math.min(1, revs);
   if (speed < IDLE_SPEED && gear === 1) revs = 0;
-  if (speed < IDLE_SPEED && sample.charge !== null) {
-    revs = Math.max(revs, GRID_REVS[sample.charge]);
-  }
+  const gridRevs = speed < IDLE_SPEED && sample.charge !== null ? GRID_REVS[sample.charge] : 0;
+  revs = Math.max(revs, gridRevs);
   return {
     gear,
     revs,
     load: loadAfter(before, sample.time, speed, topSpeed),
-    atLimiter: revs > 1 + 1e-3,
+    atLimiter: revs > 1 + 1e-3 || gridRevs >= 1,
     shift: before === undefined || gear === before.gear ? null : gear > before.gear ? "up" : "down",
     speed,
     time: sample.time,
@@ -194,17 +208,20 @@ export function engineVoice(state: EngineState): EngineVoice {
   const revs = Math.min(1, state.revs);
   const onThrottle = Math.max(0, state.load);
   const overrun = Math.max(0, -state.load);
-  const open = revs * (0.45 + 0.55 * onThrottle) * (1 - 0.5 * overrun);
+  const open =
+    revs *
+    (FILTER_REVS_SHARE + (1 - FILTER_REVS_SHARE) * onThrottle) *
+    (1 - OVERRUN_FILTER_CLOSE * overrun);
   const crackles = overrun > CRACKLE_OVERRUN && state.speed > CRACKLE_SPEED;
   return {
     noteHz,
     subHz: noteHz / 2,
-    intakeHz: noteHz * 4,
-    intake: ENGINE.intake * (0.3 + 0.7 * revs),
+    intakeHz: noteHz * INTAKE_BAND_OVER_NOTE,
+    intake: ENGINE.intake * (INTAKE_IDLE_SHARE + (1 - INTAKE_IDLE_SHARE) * revs),
     filterHz: ENGINE.filterClosedHz + (ENGINE.filterOpenHz - ENGINE.filterClosedHz) * open,
     level: 1 - overrun * (1 - ENGINE.overrunLevel),
     limiterDepth: state.atLimiter ? LIMITER_DEPTH : 0,
-    crackle: crackles ? ENGINE.crackle * 0.6 * overrun : 0,
+    crackle: crackles ? ENGINE.crackle * CRACKLE_BURST_SHARE * overrun : 0,
     overrun,
   };
 }

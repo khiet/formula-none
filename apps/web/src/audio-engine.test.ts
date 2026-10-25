@@ -6,10 +6,18 @@ import {
   engineBandEdges,
   engineStep,
   engineVoice,
+  FULL_THROTTLE_SECONDS_TO_TOP,
 } from "./audio-engine";
 
 const TOP_SPEED = 30;
 const FRAME = 1 / 60;
+/** How far a frame at full throttle moves the speed, up or down. */
+const FULL_THROTTLE_STEP = (FRAME * TOP_SPEED) / FULL_THROTTLE_SECONDS_TO_TOP;
+
+/** `frames` speeds from `from`, one frame apart, at full throttle (1) or a full lift (-1). */
+function ramp(from: number, frames: number, direction: 1 | -1): number[] {
+  return Array.from({ length: frames }, (_, i) => from + direction * (i + 1) * FULL_THROTTLE_STEP);
+}
 
 /** Step the engine through `speeds`, one frame apart, from `from`. */
 function drive(
@@ -133,16 +141,16 @@ describe("engineStep", () => {
     expect(back.gear).toBe(ENGINE.gears);
   });
 
-  it("revs on the grid by the rocket start's tier, at the limiter for a full boost and a stall", () => {
+  it("revs on the grid by the rocket start's tier, holding the top note on the limiter for a full boost and a stall", () => {
     const grid = (charge: EngineSample["charge"]) => drive([0, 0, 0], undefined, charge);
     expect(grid("clean").revs).toBe(0);
     expect(grid("clean").atLimiter).toBe(false);
     expect(grid("weakBoost").revs).toBeGreaterThan(0);
     expect(grid("weakBoost").revs).toBeLessThan(1);
     expect(grid("weakBoost").atLimiter).toBe(false);
-    expect(grid("fullBoost").revs).toBe(ENGINE.limiter);
+    expect(grid("fullBoost").revs).toBe(1);
     expect(grid("fullBoost").atLimiter).toBe(true);
-    expect(grid("stall").revs).toBe(ENGINE.limiter);
+    expect(grid("stall").revs).toBe(1);
     expect(grid("stall").atLimiter).toBe(true);
     // Every tier revs in first; the grid is no shift.
     expect(grid("fullBoost").gear).toBe(1);
@@ -163,25 +171,19 @@ describe("engineStep", () => {
     const still = steady(0);
     expect(still.load).toBe(0);
     // Full throttle from the sim: top speed in 2.5 s.
-    const pullingAway = drive(
-      Array.from({ length: 30 }, (_, i) => ((i + 1) * FRAME * TOP_SPEED) / 2.5),
-      still,
-    );
+    const pullingAway = drive(ramp(0, 30, 1), still);
     expect(pullingAway.load).toBeGreaterThan(0.9);
     expect(pullingAway.load).toBeLessThanOrEqual(1);
     const held = steady(pullingAway.speed, pullingAway);
     expect(Math.abs(held.load)).toBeLessThan(0.01);
-    const lifting = drive(
-      Array.from({ length: 30 }, (_, i) => held.speed - ((i + 1) * FRAME * TOP_SPEED) / 2.5),
-      held,
-    );
+    const lifting = drive(ramp(held.speed, 30, -1), held);
     expect(lifting.load).toBeLessThan(-0.9);
     expect(lifting.load).toBeGreaterThanOrEqual(-1);
   });
 
   it("smooths the load over a few frames rather than jumping with one reading", () => {
     const still = steady(0);
-    const oneFrame = drive([(FRAME * TOP_SPEED) / 2.5], still);
+    const oneFrame = drive(ramp(0, 1, 1), still);
     expect(oneFrame.load).toBeGreaterThan(0);
     expect(oneFrame.load).toBeLessThan(0.5);
   });
@@ -219,18 +221,8 @@ describe("engineVoice", () => {
 
   it("opens the filter with the revs and further on throttle, closing it on the overrun", () => {
     const coasting = engineVoice(steady(10));
-    const pulling = engineVoice(
-      drive(
-        Array.from({ length: 30 }, (_, i) => 10 + ((i + 1) * FRAME * TOP_SPEED) / 2.5),
-        steady(10),
-      ),
-    );
-    const lifting = engineVoice(
-      drive(
-        Array.from({ length: 30 }, (_, i) => 15 - ((i + 1) * FRAME * TOP_SPEED) / 2.5),
-        steady(15),
-      ),
-    );
+    const pulling = engineVoice(drive(ramp(10, 30, 1), steady(10)));
+    const lifting = engineVoice(drive(ramp(15, 30, -1), steady(15)));
     expect(coasting.filterHz).toBeGreaterThan(ENGINE.filterClosedHz);
     expect(coasting.filterHz).toBeLessThan(ENGINE.filterOpenHz);
     expect(pulling.filterHz).toBeGreaterThan(coasting.filterHz);
@@ -240,12 +232,7 @@ describe("engineVoice", () => {
   });
 
   it("drops the level and crackles on the overrun, and crackles neither on throttle nor near a standstill", () => {
-    const lifting = engineVoice(
-      drive(
-        Array.from({ length: 30 }, (_, i) => 15 - ((i + 1) * FRAME * TOP_SPEED) / 2.5),
-        steady(15),
-      ),
-    );
+    const lifting = engineVoice(drive(ramp(15, 30, -1), steady(15)));
     expect(lifting.level).toBeLessThan(1);
     expect(lifting.level).toBeGreaterThanOrEqual(ENGINE.overrunLevel);
     expect(lifting.crackle).toBeGreaterThan(0);

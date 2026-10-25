@@ -15,7 +15,7 @@ import {
   type SoundParam,
 } from "./audio";
 import type { SoundCue, SoundLoop, SoundReading } from "./audio-cues";
-import { ENGINE, engineBandEdges } from "./audio-engine";
+import { ENGINE, engineBandEdges, FULL_THROTTLE_SECONDS_TO_TOP } from "./audio-engine";
 import { DEFAULT_AUDIO_SETTINGS } from "./audio-settings";
 
 const TOP_SPEED = 30;
@@ -289,9 +289,14 @@ function harness(settings = DEFAULT_AUDIO_SETTINGS): Harness {
     played: (cue) => sourcesOf(SOUND_URLS[cue]).filter((source) => source.started > 0).length,
     saws,
     sub() {
+      // The square that reaches the engine's filter through its own gain; the limiter's square reaches a param.
       const made = context().oscillators.find(
         (candidate) =>
-          candidate.type === "square" && candidate.frequency.value !== ENGINE.limiterHz,
+          candidate.type === "square" &&
+          context().gains.some(
+            (gain) =>
+              candidate.connectedTo.includes(gain) && gain.connectedTo.includes(engineFilter()),
+          ),
       );
       if (made === undefined) throw new Error("no engine sub");
       return made;
@@ -454,18 +459,20 @@ describe("the engine", () => {
     const race = audio.race();
     race.start();
     const frame = 1 / 60;
-    const run = (speeds: readonly number[]) => {
-      for (const speed of speeds) {
+    const step = (frame * TOP_SPEED) / FULL_THROTTLE_SECONDS_TO_TOP;
+    /** Thirty frames from `from` at full throttle (1) or a full lift (-1), the clock advancing with them. */
+    const run = (from: number, direction: 1 | -1) => {
+      for (let i = 1; i <= 30; i++) {
         context().currentTime += frame;
-        race.update({ ...STILL, speed });
+        race.update({ ...STILL, speed: from + direction * i * step });
       }
     };
-    run([10]);
-    // Pulling away at full throttle: top speed in 2.5 s.
-    run(Array.from({ length: 30 }, (_, i) => 10 + ((i + 1) * frame * TOP_SPEED) / 2.5));
+    context().currentTime += frame;
+    race.update({ ...STILL, speed: 10 });
+    run(10, 1);
     expect(crackleGain().gain.targets).toHaveLength(0);
     // Lifting off at the same rate: bursts, each opened and shut, fewer than the frames.
-    run(Array.from({ length: 30 }, (_, i) => 16 - ((i + 1) * frame * TOP_SPEED) / 2.5));
+    run(16, -1);
     const targets = crackleGain().gain.targets;
     const bursts = targets.filter((target) => target > 0).length;
     expect(bursts).toBeGreaterThan(0);
@@ -501,7 +508,7 @@ describe("the engine", () => {
     expect(weak).toBeLessThan(ENGINE.topHz);
     expect(limiterDepth().gain.value).toBe(0);
     race.update({ ...STILL, count: "1", charge: "fullBoost" });
-    expect(saws()[0]?.frequency.value).toBeGreaterThan(ENGINE.topHz);
+    expect(saws()[0]?.frequency.value).toBeCloseTo(ENGINE.topHz, 6);
     expect(limiterDepth().gain.value).toBeGreaterThan(0);
     race.update({ ...STILL, count: "GO", charge: null });
     expect(saws()[0]?.frequency.value).toBe(ENGINE.idleHz);
