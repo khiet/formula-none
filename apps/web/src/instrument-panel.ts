@@ -1,10 +1,16 @@
 import instrumentFontUrl from "../../../assets/fonts/kenney/Kenney Mini Square.ttf?url";
 import type { Phase, Standing } from "./bridge";
 import { type CourseMapSetup, createCourseMap } from "./course-map";
-import { formatLapTime, NO_LAP_TIME, type OrdinalParts, ordinalParts } from "./format";
+import { formatLapTime, NO_LAP_TIME, type OrdinalParts, ordinalParts, speedParts } from "./format";
 import type { Item } from "./generated/protocol";
 import { itemSprite } from "./item-sprites";
 import { type ItemSlot, type RaceReadout, raceCount } from "./race-run";
+import {
+  drivetrain,
+  shiftLights,
+  TYRE_WEAR_PLACEHOLDER_PERCENT,
+  tyreWearBand,
+} from "./speed-cluster";
 
 /** The item slot as the panel prints it: the item's name and the slot's state. */
 export interface ItemReadout {
@@ -77,13 +83,15 @@ export function loadInstrumentFont(): Promise<void> {
 
 /**
  * The HUD over the Race View, with the course map of `course` in its
- * corner. Reads state; never drives it. Each readout is addressable by
+ * corner and the speed cluster's gears cut from `topSpeed` in m/s (ADR
+ * 0031). Reads state; never drives it. Each readout is addressable by
  * `data-instrument` so tests and styles find it the same way.
  */
 export function createInstrumentPanel(
   container: HTMLElement,
   lapsPerRace: number,
   course: CourseMapSetup,
+  topSpeed: number,
 ): InstrumentPanel {
   const panel = document.createElement("div");
   panel.id = "instrument-panel";
@@ -128,7 +136,41 @@ export function createInstrumentPanel(
   banner.hidden = true;
   const countdown = instrument("countdown");
   countdown.hidden = true;
-  const speed = instrument("speed", formatSpeed(0));
+  // The speed cluster (ADR 0031): the gear, speed and tyres stay as text;
+  // the shift lights and the kart icon are decorative.
+  const cluster = document.createElement("div");
+  cluster.dataset.cluster = "";
+  const lightRow = part(cluster, "shiftLights");
+  lightRow.setAttribute("aria-hidden", "true");
+  const lights = shiftLights(drivetrain(0, topSpeed)).map((state) => {
+    const light = part(lightRow, "shiftLight");
+    light.dataset.shiftLight = state;
+    return light;
+  });
+  const gear = instrument("gear");
+  const speed = instrument("speed");
+  const speedValue = part(speed, "speedValue");
+  speed.append(" ");
+  const speedUnit = part(speed, "speedUnit");
+  const tyre = instrument("tyre");
+  tyre.append(kartIcon());
+  const tyrePercent = part(tyre, "tyrePercent");
+  cluster.append(gear, speed, tyre);
+  const showSpeed = (metresPerSecond: number) => {
+    const reading = drivetrain(metresPerSecond, topSpeed);
+    shiftLights(reading).forEach((state, index) => {
+      const light = lights[index];
+      if (light) light.dataset.shiftLight = state;
+    });
+    gear.textContent = reading.gear;
+    gear.dataset.limiter = String(reading.limiter);
+    const parts = speedParts(metresPerSecond);
+    speedValue.textContent = parts.value;
+    speedUnit.textContent = parts.unit;
+  };
+  showSpeed(0);
+  tyrePercent.textContent = `${TYRE_WEAR_PLACEHOLDER_PERCENT}%`;
+  tyre.dataset.tyreWear = tyreWearBand(TYRE_WEAR_PLACEHOLDER_PERCENT);
   // The surface and connection readouts are greybox aids: the surface shows
   // the sidecar and the mesh agree about where the kart is. They sit in a
   // small line of their own, out of the driver's stack.
@@ -139,9 +181,9 @@ export function createInstrumentPanel(
   greybox.append(surface, " ", connection);
   const stack = document.createElement("div");
   stack.dataset.stack = "";
-  stack.append(position, lap, lapTime, bestLap, item, speed);
+  stack.append(position, lap, lapTime, bestLap, item);
   const courseMap = createCourseMap(course);
-  panel.append(stack, greybox, wrongWay, banner, countdown, courseMap.element);
+  panel.append(stack, cluster, greybox, wrongWay, banner, countdown, courseMap.element);
   container.append(panel);
 
   const printLabelled = (element: HTMLElement, readout: LabelledReadout) => {
@@ -169,7 +211,7 @@ export function createInstrumentPanel(
       printLabelled(bestLap, readouts.bestLap);
       wrongWay.textContent = readouts.wrongWay;
       wrongWay.hidden = readouts.wrongWay === "";
-      speed.textContent = formatSpeed(local.speed);
+      showSpeed(local.speed);
       surface.textContent = local.surface;
       const held = itemReadout(slot);
       item.dataset.itemState = held.state;
@@ -245,6 +287,37 @@ export function itemReadout(slot: ItemSlot): ItemReadout {
   };
 }
 
-function formatSpeed(metresPerSecond: number): string {
-  return `${metresPerSecond.toFixed(1)} m/s`;
+const SVG_NS = "http://www.w3.org/2000/svg";
+
+/**
+ * A pixel kart from above with its four tyres marked `data-tyre-corner`, so
+ * the panel's styles colour them by the tyre gauge's band. Decorative: the
+ * gauge's percentage is the text.
+ */
+function kartIcon(): SVGSVGElement {
+  const svg = document.createElementNS(SVG_NS, "svg");
+  svg.setAttribute("viewBox", "0 0 14 18");
+  svg.setAttribute("shape-rendering", "crispEdges");
+  svg.setAttribute("aria-hidden", "true");
+  const rect = (x: number, y: number, width: number, height: number, fill?: string) => {
+    const shape = document.createElementNS(SVG_NS, "rect");
+    for (const [name, value] of Object.entries({ x, y, width, height })) {
+      shape.setAttribute(name, String(value));
+    }
+    if (fill !== undefined) shape.setAttribute("fill", fill);
+    svg.append(shape);
+    return shape;
+  };
+  rect(4, 2, 6, 14, "#3a1c0a");
+  rect(5, 3, 4, 12, "#d62828");
+  rect(6, 5, 2, 3, "#7fc3ff");
+  for (const [x, y] of [
+    [0, 2],
+    [11, 2],
+    [0, 11],
+    [11, 11],
+  ] as const) {
+    rect(x, y, 3, 5).dataset.tyreCorner = "";
+  }
+  return svg;
 }

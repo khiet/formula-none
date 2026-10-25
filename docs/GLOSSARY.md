@@ -275,8 +275,28 @@ The part of a Scene that renders the world. The Race Scene has one View, the
 ### Instrument panel
 
 The HUD overlaid on a View: position, lap, lap time, best lap, item slot,
-wrong-way warning, connection banner, the countdown's count over the View
-and the course map. Reads state; never drives it.
+speed, gear and tyre, wrong-way warning, connection banner, the countdown's
+count over the View and the course map. Reads state; never drives it.
+
+### gear
+
+The Instrument panel's reading of the local kart's speed as a gearbox: six
+even bands up to top speed, N while the speed shows as 0 km/h, R while
+reversing, and 6th held on the limiter over top speed. Worked out in the
+client from the kart readout's speed; the sim has no gears (ADR 0031).
+
+### shift lights
+
+The row of twelve lights over the gear, lit green, red then blue in thirds
+as the revs in the gear climb to the shift, all blue on the limiter.
+Decorative: the gear and the speed are the text.
+
+### tyre wear
+
+How worn a kart's tyres are, as a percentage. The Instrument panel's tyre
+gauge shows it on a kart icon, green above 60%, yellow above 30% and red
+below. The sim does not wear tyres yet, so the gauge holds at 100%
+(ADR 0031).
 
 ### race readout
 

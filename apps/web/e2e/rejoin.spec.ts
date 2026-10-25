@@ -54,7 +54,7 @@ test("closing the tab mid-race and reopening the room's link rejoins the same ka
   const speed = reopened.locator('[data-instrument="speed"]');
   await expect
     .poll(async () => Number.parseFloat((await speed.textContent()) ?? "0"), { timeout: 20_000 })
-    .toBeGreaterThan(5);
+    .toBeGreaterThan(18);
   await reopened.keyboard.up("ArrowUp");
 
   // The friend never left the race.

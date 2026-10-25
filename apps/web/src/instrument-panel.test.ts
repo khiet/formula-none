@@ -29,6 +29,9 @@ function at(position: readonly [number, number, number]): KartReadout {
   return kartReadout({ position });
 }
 
+// The sim's tuned top speed, which the speed cluster's gears are cut from.
+const TOP_SPEED = 30;
+
 const racing = { kind: "racing", elapsedSeconds: 5, graceLeftSeconds: null } as const;
 
 /** The race with the own kart, kart 1, on `standing` holding `itemSlot`, and the karts at `karts`. */
@@ -83,7 +86,7 @@ describe("lap readouts", () => {
 describe("the lap instruments on the page", () => {
   const mount = () => {
     const container = document.createElement("div");
-    const panel = createInstrumentPanel(container, 3, course);
+    const panel = createInstrumentPanel(container, 3, course, TOP_SPEED);
     const find = (name: string) =>
       container.querySelector<HTMLElement>(`[data-instrument="${name}"]`);
     return { panel, find };
@@ -125,6 +128,61 @@ describe("the lap instruments on the page", () => {
   });
 });
 
+describe("the speed cluster on the page", () => {
+  const mount = () => {
+    const container = document.createElement("div");
+    const panel = createInstrumentPanel(container, 3, course, TOP_SPEED);
+    const find = (name: string) =>
+      container.querySelector<HTMLElement>(`[data-instrument="${name}"]`);
+    const drive = (speed: number) =>
+      panel.update(
+        race(ON_THE_GRID, { item: null, firing: false }, [
+          at([0, 0.3, 0]),
+          kartReadout({ speed }),
+          at([0, 0.3, 0]),
+        ]),
+      );
+    return { container, find, drive };
+  };
+
+  it("reads the speed in km/h, the gear and the tyres as text", () => {
+    const { find, drive } = mount();
+    expect(find("speed")?.textContent).toBe("0 km/h");
+    expect(find("gear")?.textContent).toBe("N");
+    expect(find("tyre")?.textContent).toBe("100%");
+    drive(23.6);
+    expect(find("speed")?.textContent).toBe("85 km/h");
+    expect(find("gear")?.textContent).toBe("5");
+    drive(-5);
+    expect(find("speed")?.textContent).toBe("18 km/h");
+    expect(find("gear")?.textContent).toBe("R");
+  });
+
+  it("hides the shift lights and the kart icon from assistive technology", () => {
+    const { container, find } = mount();
+    const lights = container.querySelector("[data-shift-lights]");
+    expect(lights?.getAttribute("aria-hidden")).toBe("true");
+    expect(lights?.children).toHaveLength(12);
+    expect(find("tyre")?.querySelector("svg")?.getAttribute("aria-hidden")).toBe("true");
+  });
+
+  it("lights the shift lights with the revs and marks the limiter on the gear so it can flash", () => {
+    const { container, find, drive } = mount();
+    const lights = () =>
+      [...container.querySelectorAll<HTMLElement>("[data-shift-light]")].map(
+        (light) => light.dataset.shiftLight,
+      );
+    expect(lights()).toEqual(Array(12).fill("off"));
+    drive(42);
+    expect(find("gear")?.textContent).toBe("6");
+    expect(find("gear")?.dataset.limiter).toBe("true");
+    expect(lights()).toEqual(Array(12).fill("blue"));
+    drive(22);
+    expect(find("gear")?.dataset.limiter).toBe("false");
+    expect(lights()).toEqual([...Array(2).fill("green"), ...Array(10).fill("off")]);
+  });
+});
+
 describe("phase readout", () => {
   it("counts 3, 2, 1 down the countdown, whole seconds rounded up", () => {
     expect(phaseReadout({ kind: "countdown", remainingSeconds: 3 })).toBe("3");
@@ -147,7 +205,7 @@ describe("phase readout", () => {
 describe("the connection banner", () => {
   it("is down until the connection is lost, and down again once it is back", () => {
     const container = document.createElement("div");
-    const panel = createInstrumentPanel(container, 3, course);
+    const panel = createInstrumentPanel(container, 3, course, TOP_SPEED);
     const banner = container.querySelector<HTMLElement>('[data-instrument="connection-banner"]');
     expect(banner?.textContent).toBe(CONNECTION_LOST_BANNER);
     expect(banner?.hidden).toBe(true);
@@ -175,7 +233,7 @@ describe("the item slot", () => {
 
   it("shows the slot the run reports on every update", () => {
     const container = document.createElement("div");
-    const panel = createInstrumentPanel(container, 3, course);
+    const panel = createInstrumentPanel(container, 3, course, TOP_SPEED);
     const slot = container.querySelector<HTMLElement>('[data-instrument="item"]');
     expect(slot?.textContent).toBe("");
     expect(slot?.dataset.itemState).toBe("empty");
@@ -195,7 +253,7 @@ describe("the item slot", () => {
     ["homing", "Homing"],
   ] as const)("draws the %s sprite, named by data-item, with %s still its text", (item, name) => {
     const container = document.createElement("div");
-    const panel = createInstrumentPanel(container, 3, course);
+    const panel = createInstrumentPanel(container, 3, course, TOP_SPEED);
     const slot = container.querySelector<HTMLElement>('[data-instrument="item"]');
     expect(slot?.dataset.item).toBeUndefined();
     expect(slot?.querySelector("svg")).toBeNull();
@@ -214,7 +272,7 @@ describe("the item slot", () => {
 
   it("swaps the sprite when the server hands the kart a different item", () => {
     const container = document.createElement("div");
-    const panel = createInstrumentPanel(container, 3, course);
+    const panel = createInstrumentPanel(container, 3, course, TOP_SPEED);
     const slot = container.querySelector<HTMLElement>('[data-instrument="item"]');
     panel.update(race(ON_THE_GRID, { item: "boost", firing: false }));
     panel.update(race(ON_THE_GRID, { item: "hazard", firing: false }));
@@ -234,7 +292,7 @@ describe("the course map", () => {
 
   it("outlines the track from the centreline with a start tick", () => {
     const container = document.createElement("div");
-    createInstrumentPanel(container, 3, course);
+    createInstrumentPanel(container, 3, course, TOP_SPEED);
     const map = container.querySelector<SVGSVGElement>('svg[data-instrument="course-map"]');
     expect(map).not.toBeNull();
     const outline = map?.querySelector("path");
@@ -245,7 +303,7 @@ describe("the course map", () => {
 
   it("moves a kart's marker with its transform, down the map as it drives along +z", () => {
     const container = document.createElement("div");
-    const panel = createInstrumentPanel(container, 3, course);
+    const panel = createInstrumentPanel(container, 3, course, TOP_SPEED);
     const own = at([50, 0.3, -50]);
     const standing = ON_THE_GRID;
     const slot = { item: null, firing: false };
@@ -266,7 +324,7 @@ describe("the course map", () => {
 
   it("marks every kart in its livery, the own kart larger, ringed and on top", () => {
     const container = document.createElement("div");
-    const panel = createInstrumentPanel(container, 3, course);
+    const panel = createInstrumentPanel(container, 3, course, TOP_SPEED);
     panel.update(race(ON_THE_GRID, { item: null, firing: false }));
     const markers = [
       ...container.querySelectorAll<SVGCircleElement>('[data-instrument="course-map"] [data-kart]'),

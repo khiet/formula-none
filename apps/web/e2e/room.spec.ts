@@ -77,7 +77,7 @@ test("a friend joins the room from the shared link and both can race", async ({
   const speed = page.locator('[data-instrument="speed"]');
   await expect
     .poll(async () => Number.parseFloat((await speed.textContent()) ?? "0"), { timeout: 20_000 })
-    .toBeGreaterThan(5);
+    .toBeGreaterThan(18);
   await page.keyboard.up("ArrowUp");
   await friendContext.close();
 });

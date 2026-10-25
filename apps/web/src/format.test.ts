@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatLapTime, NO_LAP_TIME, ordinal, ordinalParts } from "./format";
+import { formatLapTime, NO_LAP_TIME, ordinal, ordinalParts, speedParts } from "./format";
 
 describe("lap times", () => {
   it("print in the 16-bit notation at the sim's precision: minutes, seconds and thousandths", () => {
@@ -26,5 +26,18 @@ describe("ordinals", () => {
     expect(ordinalParts(3)).toEqual({ numeral: "3", suffix: "rd" });
     expect(ordinalParts(8)).toEqual({ numeral: "8", suffix: "th" });
     expect(ordinal(8)).toBe("8th");
+  });
+});
+
+describe("speed", () => {
+  it("prints whole km/h from the sim's m/s, the number apart from the unit", () => {
+    expect(speedParts(0)).toEqual({ value: "0", unit: "km/h" });
+    expect(speedParts(23.6)).toEqual({ value: "85", unit: "km/h" });
+    expect(speedParts(30)).toEqual({ value: "108", unit: "km/h" });
+  });
+
+  it("stays positive while reversing, with no minus zero creeping to a stop", () => {
+    expect(speedParts(-8)).toEqual({ value: "29", unit: "km/h" });
+    expect(speedParts(-0.01)).toEqual({ value: "0", unit: "km/h" });
   });
 });

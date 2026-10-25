@@ -21,14 +21,14 @@ test("pressing R downloads the session as a replay fixture", async ({ page }) =>
   // the kart, so the drive waits for Go.
   await startRace(page, `/?track=${TRACK}`);
   const speed = page.locator('[data-instrument="speed"]');
-  await expect(speed).toHaveText("0.0 m/s");
+  await expect(speed).toHaveText("0 km/h");
 
   await page.keyboard.down("ArrowUp");
   await expect
     .poll(async () => Number.parseFloat((await speed.textContent()) ?? "0"), {
       timeout: POLL_TIMEOUT_MS,
     })
-    .toBeGreaterThan(5);
+    .toBeGreaterThan(18);
   await page.keyboard.down("ArrowLeft");
   await downloadReplayUntil(page, (replay) => replay.segments.some((s) => steer(s) === -1));
   await page.keyboard.up("ArrowLeft");
