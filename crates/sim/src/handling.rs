@@ -36,7 +36,7 @@ pub(crate) struct Handling {
     /// tick against. The next tick's handling sends no velocity into them.
     walls: Vec<Vec3>,
     /// Velocity away from the karts it has touched, metres per second
-    /// along the ground, added to the speed's each tick and decaying over
+    /// along the ground, added to the velocity each tick and decaying over
     /// the tuned time. Zero while nothing has bumped it lately.
     bump: Vec3,
     /// Speed along the travel, metres per second. Held outside Rapier so
@@ -230,7 +230,7 @@ impl Handling {
 
     /// One tick of `dt` seconds of the kart answering `input`, frozen as
     /// `freeze` says, in `situation`. Returns what to send the body off
-    /// with; the speed and the travel are the handling's own.
+    /// with.
     pub(crate) fn tick(
         &mut self,
         input: &KartInput,
