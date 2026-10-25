@@ -109,7 +109,7 @@ export function createInstrumentPanel(
     span.textContent = text;
     return span;
   };
-  // A part of an instrument, marked by a data attribute so styles find it.
+  // A part of an instrument, marked by a data attribute so styles and tests find it.
   const part = (parent: HTMLElement, name: string): HTMLSpanElement => {
     const span = document.createElement("span");
     span.dataset[name] = "";
