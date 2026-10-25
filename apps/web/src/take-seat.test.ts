@@ -86,20 +86,15 @@ describe("taking a seat in a room", () => {
   it("forgets a token the room refuses and joins over a fresh connection", async () => {
     const store = storage();
     saveSession(store, { code: "BXQF", token: TOKEN });
-    let keptAtJoin: string | undefined = "unread";
     const reached = server(
       (connection) => connection.receive({ refused: "unknownSession" }),
-      (connection) => {
-        keptAtJoin = loadSession(store, "BXQF");
-        joined(DEALT)(connection);
-      },
+      joined(DEALT),
     );
     const seat = await takeSeat({ storage: store, codec: jsonCodec, ...reached }, REQUEST);
     expect(reached.connections).toHaveLength(2);
     expect(reached.connections[1]?.sent).toEqual([
       { join: { version: PROTOCOL_VERSION, room: "BXQF", nickname: "ada" } },
     ]);
-    expect(keptAtJoin).toBeUndefined();
     expect(seat.client.token).toBe(DEALT);
     expect(loadSession(store, "BXQF")).toBe(DEALT);
   });
@@ -115,11 +110,17 @@ describe("taking a seat in a room", () => {
     expect(loadSession(store, "BXQF")).toBe(TOKEN);
   });
 
-  it("passes on a refused join", async () => {
-    const reached = server((connection) => connection.receive({ refused: "roomFull" }));
+  it("passes on a refused join, the refused token already forgotten", async () => {
+    const store = storage();
+    saveSession(store, { code: "BXQF", token: TOKEN });
+    const reached = server(
+      (connection) => connection.receive({ refused: "unknownSession" }),
+      (connection) => connection.receive({ refused: "unknownRoom" }),
+    );
     await expect(
-      takeSeat({ storage: storage(), codec: jsonCodec, ...reached }, REQUEST),
-    ).rejects.toMatchObject({ refusal: "roomFull" });
+      takeSeat({ storage: store, codec: jsonCodec, ...reached }, REQUEST),
+    ).rejects.toMatchObject({ refusal: "unknownRoom" });
+    expect(loadSession(store, "BXQF")).toBeUndefined();
   });
 
   it("goes straight to the race a rejoin finds under way", async () => {
