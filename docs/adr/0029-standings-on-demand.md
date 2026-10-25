@@ -14,15 +14,16 @@ standings once per tick and storing them for the server and the bridge.
 Against the code after issue 88 reshaped `step`, the review found:
 
 - `standings` sorts at most eight karts: three times on a tick with bots,
-  once without, and once more on a tick a kart finishes. The cost is two
+  once without, and once more on a tick a kart finishes. The cost is three
   small allocations a call.
 - The calls do not want the same standings. Bot steering and item
   targeting read the positions before the karts move; the `Finished` event
   reads them after. One stored value per tick would have to be two.
 - `cross_checkpoint` writes five `Kart` fields in one function of thirty
   lines; the rule ADR 0022 settled lives there whole.
-- The ordering tests in `laps.rs` drive the oval for two to three seconds
-  of sim time, not a Brands Patch lap.
+- The ordering tests in `laps.rs` drive the oval: two to three seconds of
+  sim time for an overtake and a dead heat, one oval lap for laps against
+  checkpoints. None needs a Brands Patch lap.
 - The module would move the sort and the crossing rule rather than delete
   them, and testing it apart from `step` would need a record of its own
   (ADR 0027).

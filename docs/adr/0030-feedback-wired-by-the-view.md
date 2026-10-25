@@ -2,13 +2,15 @@
 
 ## Status
 
-Accepted (2026-10-25). ADR 0020 unaffected.
+Accepted (2026-10-25). Rejects a shared interface over the Feedback the
+View draws.
 
 ## Context
 
 The architecture review of 2026-10-25 (issue 90, candidate 6) proposed one
 Feedback interface over the sparks, dust, tyre marks and kart shadows,
-each taking the race readout, with the View iterating a list.
+each taking the race readout, with the View iterating a list. The spin on
+a spin-out turns the kart's own mesh and was not part of the proposal.
 
 Against the code after issue 89 handed the View one race readout, the
 review found:

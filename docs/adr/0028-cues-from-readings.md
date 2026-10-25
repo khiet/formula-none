@@ -2,8 +2,8 @@
 
 ## Status
 
-Accepted (2026-10-25). Restates ADR 0025's "cues are edges between two
-readings of the own kart" with the reason it holds; changes nothing.
+Accepted (2026-10-25). Rejects the event-driven alternative to ADR 0025's
+rule that cues are edges between two readings of the own kart.
 
 ## Context
 
@@ -14,17 +14,18 @@ diffing two readings.
 
 Against the code after issues 87 to 89, the review found:
 
-- The sim names five of the thirteen cued edges: item pickup, item fire,
-  hit (a spin-out), lap and finish. The countdown beep, go, hop, mini-turbo
-  and rocket release, boost pad, tier chime, sputter and wrong way have no
-  event, so `soundCues` would keep diffing readings for them.
+- The sim names five of the thirteen cues: item pickup, item fire, hit (a
+  spin-out), lap and finish. The other eight have no event: countdown
+  beep, go, hop, mini-turbo (which also plays on a rocket start's
+  release), boost pad, tier chime, sputter and wrong way. `soundCues` would
+  keep diffing readings for them.
 - The two edges the review called guesses, the boost pad and a drift's
   release against its end, are among those with no event.
-- In a room the server's events arrive with the snapshot and are never
-  predicted. An event-driven pickup or fire cue for the own kart would sound
-  a round trip after the predicted kart reached the box or let go of the
-  item; the reading the prediction reports has the edge on the tick it
-  happens.
+- The five with an event already reach the readings. In a room the item
+  slot changes only on the server's `itemPicked` and `itemFired`, a hit
+  arrives as the spin-out timer in a snapshot, and laps and finishes come
+  from the snapshots and the `finished` event. The edge `soundCues` sees is
+  the event, one frame later, with no second channel.
 - The item fire flash timers in both runs drive the item slot, not the
   audio, so they stay either way.
 - The change deletes about eight lines of `soundCues` and adds a bridge
@@ -40,9 +41,7 @@ Against the code after issues 87 to 89, the review found:
 
 ## Consequences
 
-- Audio in a room keeps the prediction's timing for the own kart.
 - `soundCues` stays the one place that knows every cue; its tests drive it
   with two readings.
-- A review that finds the edges re-derived should weigh the unpredicted
-  server events and the eight cues the sim does not name before proposing
-  events again.
+- A cue whose edge no readout field can carry is the case to revisit this
+  for.
