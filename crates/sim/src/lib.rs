@@ -285,7 +285,7 @@ pub enum MiniTurbo {
 }
 
 impl MiniTurbo {
-    /// The tier `drift` has charged; `None` out of a drift.
+    /// The tier `drift` has charged; `MiniTurbo::None` out of a drift.
     pub fn of(drift: Option<Drift>) -> Self {
         drift.map_or(Self::None, |drift| drift.mini_turbo())
     }

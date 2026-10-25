@@ -567,7 +567,7 @@ function recordsFrom<T>(
   return records;
 }
 
-/** Each kart's transform from `transforms`, the buffer of seven floats a kart, put with its readout from `pairs`. */
+/** Each kart's readout from `pairs` with its transform from `transforms`; throws when the two disagree on the kart count. */
 function readoutsFrom(transforms: Float32Array, pairs: readonly ReadoutPair[]): KartReadout[] {
   if (transforms.length !== pairs.length * FLOATS_PER_TRANSFORM) {
     throw new RangeError(
