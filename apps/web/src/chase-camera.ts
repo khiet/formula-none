@@ -1,4 +1,4 @@
-import type { CameraTuning, KartTransform } from "./bridge";
+import type { CameraTuning, KartReadout } from "./bridge";
 
 /** Where the Race View's camera sits and what it looks at, in world metres. */
 export interface CameraPose {
@@ -8,7 +8,7 @@ export interface CameraPose {
 
 export interface ChaseCamera {
   /** The pose for this frame, `dtSeconds` after the last one, following `kart`. */
-  update(kart: KartTransform, dtSeconds: number): CameraPose;
+  update(kart: KartReadout, dtSeconds: number): CameraPose;
 }
 
 const BEHIND_M = 6;
@@ -82,7 +82,7 @@ export function createChaseCamera(tuning: CameraTuning): ChaseCamera {
         height += heightVelocity * dt;
       }
 
-      const spunOut = kart.spinOutSeconds !== null;
+      const spunOut = kart.spinOutS !== null;
       if (spunOut && wasSpunOut === false) {
         shakeAge = 0;
       } else {

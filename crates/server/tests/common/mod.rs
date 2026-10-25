@@ -6,13 +6,12 @@
 use std::collections::BTreeMap;
 
 use protocol::{
-    ClientMessage, DriftDirection, Event, FinalStanding, Input, KartSnapshot, PlayerState,
-    ServerMessage, Snapshot,
+    ClientMessage, Event, FinalStanding, Input, KartSnapshot, PlayerState, ServerMessage, Snapshot,
 };
 use server::fake_transport::Client;
 use server::room::Started;
 use sim::tuning::{BOT_LOOKAHEAD_M, BOT_START_HOLD_S, COUNTDOWN_S, TICKS_PER_SECOND};
-use sim::{Drift, KartInput, Phase, Projectile, SnapshotKart, Track};
+use sim::{KartInput, Phase, Projectile, Track};
 
 /// Every one of `players` joins `code`, in order, and readies; once the
 /// first sees them all ready it starts the race. Returns each one's
@@ -84,60 +83,9 @@ pub fn wire(sequence: u32, input: KartInput) -> Input {
     }
 }
 
-/// The sim's input for a wire input, as the server reads it.
-pub fn read(input: Input) -> KartInput {
-    KartInput {
-        steer: input.steer_unit(),
-        throttle: input.throttle_unit(),
-        brake: input.brake_unit(),
-        hop: input.hop,
-        use_item: input.use_item,
-        hold_item: input.hold_item,
-    }
-}
-
-pub fn snapshot_kart(kart: &KartSnapshot) -> SnapshotKart {
-    SnapshotKart {
-        position: kart.position,
-        rotation: kart.rotation,
-        velocity: kart.velocity,
-        drift: kart.drift.map(|drift| Drift {
-            direction: match drift.direction {
-                DriftDirection::Left => sim::DriftDirection::Left,
-                DriftDirection::Right => sim::DriftDirection::Right,
-            },
-            charge_s: drift.charge_s,
-        }),
-        held_item: kart.held_item.map(|item| match item {
-            protocol::Item::Boost => sim::Item::Boost,
-            protocol::Item::Hazard => sim::Item::Hazard,
-            protocol::Item::Homing => sim::Item::Homing,
-        }),
-        spin_out_s: kart.spin_out_s,
-        start: match kart.start {
-            protocol::Start::Clean => sim::Start::Clean,
-            protocol::Start::WeakBoost => sim::Start::WeakBoost,
-            protocol::Start::FullBoost => sim::Start::FullBoost,
-            protocol::Start::Stall => sim::Start::Stall,
-        },
-        stall_s: kart.stall_s,
-        lap: u32::from(kart.lap),
-        checkpoint: usize::from(kart.checkpoint),
-        spline_progress: kart.spline_progress,
-    }
-}
-
 /// The projectiles a snapshot carries, in the sim's terms.
 pub fn projectiles(snapshot: &Snapshot) -> Vec<Projectile> {
-    snapshot
-        .projectiles
-        .iter()
-        .map(|projectile| Projectile {
-            position: projectile.position,
-            owner: usize::from(projectile.owner),
-            target: usize::from(projectile.target),
-        })
-        .collect()
+    snapshot.projectiles.iter().map(Projectile::from).collect()
 }
 
 /// A kart's speed in a snapshot, in metres per second.

@@ -1,11 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { listRepoDir, listRepoFiles, readRepoFile } from "./repo";
 
-// The one-way dependency rule from ADR 0006, read off the manifests so a
+// The one-way dependency rule from ADR 0006, with protocol on sim for the
+// conversions between them (ADR 0026), read off the manifests so a
 // dependency in the wrong direction fails CI.
 const ALLOWED_CRATE_DEPS: Record<string, string[]> = {
   sim: [],
-  protocol: [],
+  protocol: ["sim"],
   bridge: ["sim", "protocol"],
   server: ["sim", "protocol"],
 };

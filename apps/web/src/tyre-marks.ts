@@ -1,4 +1,4 @@
-import type { KartSize, KartTransform } from "./bridge";
+import type { KartReadout, KartSize } from "./bridge";
 import { rearWheel, type Side, type Vec3 } from "./kart-frame";
 
 /** One stretch of rubber on the road: a tyre's print from one laid point to the next. */
@@ -17,7 +17,7 @@ export interface TyreMarks {
    * is once that is a mark's length away, and age every mark by
    * `dtSeconds`.
    */
-  update(transforms: readonly KartTransform[], dtSeconds: number): void;
+  update(readouts: readonly KartReadout[], dtSeconds: number): void;
   /**
    * Every mark still showing, oldest first within one lap of the store.
    * `mark` is reused between calls: copy what is kept.
@@ -53,7 +53,7 @@ const SIDES: readonly Side[] = [-1, 1];
  * laid by distance travelled, not per frame, and a fixed ring of them is
  * overwritten oldest first with nothing allocated per frame, so eight karts
  * drifting at once lay marks at a steady cost at any frame rate.
- * Presentation only: reads transforms, never input.
+ * Presentation only: reads readouts, never input.
  */
 export function createTyreMarks(
   kartCount: number,
@@ -76,20 +76,20 @@ export function createTyreMarks(
 
   return {
     capacity,
-    update(transforms, dtSeconds) {
+    update(readouts, dtSeconds) {
       for (let slot = 0; slot < capacity; slot++) {
         ages[slot] = Math.min((ages[slot] ?? lifetime) + dtSeconds, lifetime);
       }
       for (let kart = 0; kart < kartCount; kart++) {
-        const transform = transforms[kart];
+        const readout = readouts[kart];
         SIDES.forEach((side, index) => {
           const at = (kart * SIDES.length + index) * 3;
           const lastX = lastWheel[at] ?? Number.NaN;
-          if (transform === undefined || transform.drift === null) {
+          if (readout === undefined || readout.drift === null) {
             lastWheel[at] = Number.NaN;
             return;
           }
-          rearWheel(transform, side, size, wheel);
+          rearWheel(readout, side, size, wheel);
           if (Number.isNaN(lastX)) {
             lastWheel.set(wheel, at);
             return;

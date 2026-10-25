@@ -4,7 +4,7 @@
 // Presentation only, decided from the transforms the bridge reports and a
 // probe of the View's track mesh; the sim is never asked.
 
-import type { KartTransform } from "./bridge";
+import type { KartReadout } from "./bridge";
 import { rotate, type Vec3 } from "./kart-frame";
 
 /** A point on a surface and the surface's unit normal there, in world metres. */
@@ -33,7 +33,7 @@ export interface KartShadows {
   /** One disc per slot, rewritten by `update`. */
   readonly discs: readonly ShadowDisc[];
   /** Place every slot's disc under its transform; slots past `transforms` are hidden. */
-  update(transforms: readonly KartTransform[]): void;
+  update(transforms: readonly KartReadout[]): void;
 }
 
 interface MutableDisc {

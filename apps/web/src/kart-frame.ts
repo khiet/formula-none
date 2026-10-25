@@ -3,7 +3,7 @@
 // writes into a buffer the caller owns, so a frame of eight karts allocates
 // nothing.
 
-import type { KartSize, KartTransform } from "./bridge";
+import type { KartReadout, KartSize } from "./bridge";
 
 export type Vec3 = [number, number, number];
 
@@ -15,7 +15,7 @@ export type Side = -1 | 1;
  * metres, written to `out`. A tyre's centre sits its radius, half the
  * kart's height, in from the box's rear and half its width in from the side.
  */
-export function rearWheel(kart: KartTransform, side: Side, size: KartSize, out: Vec3): Vec3 {
+export function rearWheel(kart: KartReadout, side: Side, size: KartSize, out: Vec3): Vec3 {
   return toWorld(
     kart,
     side * (size.width / 2 - TYRE_WIDTH_M / 2),
@@ -29,7 +29,7 @@ export function rearWheel(kart: KartTransform, side: Side, size: KartSize, out: 
 export const TYRE_WIDTH_M = 0.2;
 
 /** The point `[x, y, z]` in the kart's frame, in world metres, written to `out`. */
-export function toWorld(kart: KartTransform, x: number, y: number, z: number, out: Vec3): Vec3 {
+export function toWorld(kart: KartReadout, x: number, y: number, z: number, out: Vec3): Vec3 {
   rotate(kart.rotation, x, y, z, out);
   out[0] += kart.position[0];
   out[1] += kart.position[1];

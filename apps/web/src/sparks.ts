@@ -1,4 +1,4 @@
-import type { Drift, KartSize, KartTransform, MiniTurbo } from "./bridge";
+import type { KartReadout, KartSize, MiniTurbo } from "./bridge";
 import type { Start } from "./generated/protocol";
 import { rearWheel, rotate, type Side, type Vec3 } from "./kart-frame";
 import type { Particles } from "./particles";
@@ -35,8 +35,12 @@ const CHARGE_TIERS: Readonly<Record<Start, MiniTurbo>> = {
  * countdown runs, in the colour of the tier the hold so far has reached,
  * which `charge` is. Presentation only; reads state.
  */
-export function sparkTell(drift: Drift | null, charge: Start | null = null): SparkTell | null {
-  const tier = drift !== null ? drift.miniTurbo : charge === null ? "none" : CHARGE_TIERS[charge];
+export function sparkTell(
+  kart: Pick<KartReadout, "drift" | "miniTurbo">,
+  charge: Start | null = null,
+): SparkTell | null {
+  const tier =
+    kart.drift !== null ? kart.miniTurbo : charge === null ? "none" : CHARGE_TIERS[charge];
   const colour = SPARK_COLOURS[tier];
   return colour === null ? null : { colour };
 }
@@ -46,7 +50,7 @@ export interface SparkEmitter {
    * Throw this frame's sparks for `kart` into the pool, if its drift has a
    * tier charged or, while `countingDown`, its rocket start has.
    */
-  emit(kart: KartTransform, dtSeconds: number, countingDown?: boolean): void;
+  emit(kart: KartReadout, dtSeconds: number, countingDown?: boolean): void;
 }
 
 /** Sparks thrown per wheel per second while a tier is charged. */
@@ -90,7 +94,7 @@ export function createSparkEmitter(
   };
   return {
     emit(kart, dtSeconds, countingDown = false) {
-      const tell = sparkTell(kart.drift, countingDown ? kart.start : null);
+      const tell = sparkTell(kart, countingDown ? kart.start : null);
       if (tell === null) {
         return;
       }

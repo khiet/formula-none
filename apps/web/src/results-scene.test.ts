@@ -9,17 +9,17 @@ function standing(position: number, overrides: Partial<Standing> = {}): Standing
     lap: 3,
     checkpoint: 0,
     splineProgress: 5,
-    lapTimeSeconds: 14,
-    bestLapSeconds: 14 + position,
+    lapTimeS: 14,
+    bestLapS: 14 + position,
     wrongWay: false,
-    finishTimeSeconds: 45 + position,
+    finishTimeS: 45 + position,
     ...overrides,
   };
 }
 
 /** Slot 0 is the local kart; slots 1 and 2 are bots; slot 1 won and slot 0 never finished. */
 const standings: readonly Standing[] = [
-  standing(3, { lap: 2, bestLapSeconds: 16.2, finishTimeSeconds: null }),
+  standing(3, { lap: 2, bestLapS: 16.2, finishTimeS: null }),
   standing(1),
   standing(2),
 ];
@@ -43,7 +43,7 @@ describe("results rows", () => {
   });
 
   it("leaves the best lap blank for a kart that completed none", () => {
-    const rows = resultsRows({ ...results, standings: [standing(1, { bestLapSeconds: null })] });
+    const rows = resultsRows({ ...results, standings: [standing(1, { bestLapS: null })] });
     expect(rows[0]?.bestLap).toBe(`-'--"---`);
   });
 });

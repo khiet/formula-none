@@ -11,7 +11,12 @@
 //!
 //! The same serde definitions give the messages their JavaScript shape in
 //! the bridge, so a TypeScript value of a generated type is a message.
+//!
+//! Every wire type that stands for a sim type converts to it and from it
+//! here, with `From`, so the server and the bridge share one translation
+//! each way (ADR 0026).
 
+mod conversions;
 pub mod samples;
 
 use serde::de::DeserializeOwned;

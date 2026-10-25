@@ -52,7 +52,7 @@ fn yaw(rotation: [f32; 4]) -> f32 {
 fn follow_centreline(state: &State, kart: usize) -> KartInput {
     const RIGHT_OF_CENTRE_M: f32 = 2.5;
     const STEER_GAIN: f32 = 4.0;
-    let transform = state.kart_transforms()[kart];
+    let transform = state.kart_readouts()[kart];
     let progress = state.standings()[kart].spline_progress;
     let track = state.track();
     let ahead = track.point_at(progress + BOT_LOOKAHEAD_M);

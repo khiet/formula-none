@@ -208,7 +208,7 @@ fn a_sidecar_the_sim_cannot_race_on_is_rejected() {
 fn karts_start_on_the_spawn_grid_in_slot_order() {
     let track = oval();
     let state = started(State::new(SEED, 8, track.clone()));
-    let transforms = state.kart_transforms();
+    let transforms = state.kart_readouts();
 
     assert_eq!(transforms.len(), 8);
     for (kart, slot) in transforms.iter().zip(track.spawn_grid()) {
@@ -238,11 +238,11 @@ fn a_spawn_slot_yaw_turns_the_kart_counter_clockwise_seen_from_above() {
         "slot 0 of the oval is where this test expects it"
     );
     let mut state = started(State::new(SEED, 1, Track::from_sidecar(&sidecar).unwrap()));
-    let spawn = state.kart_transforms()[0];
+    let spawn = state.kart_readouts()[0];
     for _ in 0..ticks(1.0) {
         state = step(state, &[throttle()], DT);
     }
-    let kart = state.kart_transforms()[0];
+    let kart = state.kart_readouts()[0];
 
     assert!(
         kart.position[0] < spawn.position[0] - 1.0,
@@ -375,13 +375,13 @@ fn a_kart_driving_into_a_pipe_stops_at_it() {
     let mut state = started(State::new(SEED, 1, oval()));
     for _ in 0..ticks(7.0) {
         state = step(state, &[throttle()], DT);
-        let kart = state.kart_transforms()[0];
+        let kart = state.kart_readouts()[0];
         assert!(
             kart.position[2] > -107.67,
             "went through the pipe: {kart:?}"
         );
     }
-    let kart = state.kart_transforms()[0];
+    let kart = state.kart_readouts()[0];
     assert!(
         kart.position[2] < -102.0,
         "never reached the pipe: {kart:?}"
@@ -409,14 +409,14 @@ fn held_by_the_first_turns_wall(
     inputs[slot] = throttle();
     for _ in 0..ticks(8.0) {
         state = step(state, &inputs, DT);
-        let kart = state.kart_transforms()[slot];
+        let kart = state.kart_readouts()[slot];
         let in_the_turn = kart.position[2] < turn_centre[1];
         assert!(
             !in_the_turn || radius(kart.position) < wall_radius,
             "went through the wall: {kart:?}"
         );
     }
-    let kart = state.kart_transforms()[slot];
+    let kart = state.kart_readouts()[slot];
     assert!(
         radius(kart.position) > wall_radius - 1.5,
         "never reached the wall: {kart:?}"
@@ -450,11 +450,11 @@ fn a_kart_driving_into_a_brands_patch_wall_is_held_by_it() {
 #[test]
 fn a_kart_drives_brands_patch_without_falling_through() {
     let mut state = started(State::new(SEED, 1, brands_patch()));
-    let spawn = state.kart_transforms()[0];
+    let spawn = state.kart_readouts()[0];
     for _ in 0..ticks(3.0) {
         state = step(state, &[throttle()], DT);
     }
-    let kart = state.kart_transforms()[0];
+    let kart = state.kart_readouts()[0];
 
     assert!(
         kart.position[2] < spawn.position[2] - 30.0,

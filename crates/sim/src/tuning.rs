@@ -444,3 +444,64 @@ const _: () = {
     assert!(KART_EDGE_RADIUS_M < KART_HALF_WIDTH_M);
     assert!(KART_EDGE_RADIUS_M < KART_HALF_HEIGHT_M);
 };
+
+/// What the browser reads of these values, gathered so the bridge hands
+/// them over in one call, decoded into the generated TypeScript type
+/// (ADR 0026). Each field is the constant of the same name.
+#[derive(Debug, Clone, Copy, PartialEq, serde::Serialize, ts_rs::TS)]
+#[serde(rename_all = "camelCase")]
+pub struct Tuning {
+    pub ticks_per_second: u32,
+    pub laps_per_race: u32,
+    pub karts_per_race: usize,
+    /// The kart's width, height and length, so the View draws the box the
+    /// sim collides with.
+    pub kart_size_m: [f32; 3],
+    pub replay_hash_interval_ticks: u32,
+    pub countdown_s: f32,
+    pub predicted_fire_timeout_s: f32,
+    pub item_box_respawn_s: f32,
+    pub hazard_drop_distance_m: f32,
+    pub spin_out_s: f32,
+    pub top_speed_m_per_s: f32,
+    pub camera_pull_back_m: f32,
+    pub camera_shake_s: f32,
+    pub camera_shake_amplitude_m: f32,
+    pub webtransport_connect_timeout_s: f32,
+    pub ping_timeout_s: f32,
+    pub ping_resend_s: f32,
+    pub connection_silence_s: f32,
+    pub reconnect_retry_s: f32,
+    pub nickname_min_chars: usize,
+    pub nickname_max_chars: usize,
+    pub room_code_length: usize,
+}
+
+pub const TUNING: Tuning = Tuning {
+    ticks_per_second: TICKS_PER_SECOND,
+    laps_per_race: LAPS_PER_RACE,
+    karts_per_race: KARTS_PER_RACE,
+    kart_size_m: [
+        2.0 * KART_HALF_WIDTH_M,
+        2.0 * KART_HALF_HEIGHT_M,
+        2.0 * KART_HALF_LENGTH_M,
+    ],
+    replay_hash_interval_ticks: REPLAY_HASH_INTERVAL_TICKS,
+    countdown_s: COUNTDOWN_S,
+    predicted_fire_timeout_s: PREDICTED_FIRE_TIMEOUT_S,
+    item_box_respawn_s: ITEM_BOX_RESPAWN_S,
+    hazard_drop_distance_m: HAZARD_DROP_DISTANCE_M,
+    spin_out_s: SPIN_OUT_S,
+    top_speed_m_per_s: TOP_SPEED_M_PER_S,
+    camera_pull_back_m: CAMERA_PULL_BACK_M,
+    camera_shake_s: CAMERA_SHAKE_S,
+    camera_shake_amplitude_m: CAMERA_SHAKE_AMPLITUDE_M,
+    webtransport_connect_timeout_s: WEBTRANSPORT_CONNECT_TIMEOUT_S,
+    ping_timeout_s: PING_TIMEOUT_S,
+    ping_resend_s: PING_RESEND_S,
+    connection_silence_s: CONNECTION_SILENCE_S,
+    reconnect_retry_s: RECONNECT_RETRY_S,
+    nickname_min_chars: NICKNAME_MIN_CHARS,
+    nickname_max_chars: NICKNAME_MAX_CHARS,
+    room_code_length: ROOM_CODE_LENGTH,
+};

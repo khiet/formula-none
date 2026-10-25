@@ -4,7 +4,7 @@
 //!
 //! The public seam is [`step`]: feed a [`State`] one tick of [`KartInput`]
 //! per kart and get the next state back. Everything a renderer needs is read
-//! through [`State::kart_transforms`]. A race runs on a [`Track`] loaded from
+//! through [`State::kart_readouts`]. A race runs on a [`Track`] loaded from
 //! the sidecar exported next to its glTF. A [`Replay`] reruns a race and
 //! [`State::hash`] tells whether two runs agree.
 //!
@@ -29,7 +29,7 @@ pub mod track;
 pub mod tuning;
 
 pub use interpolation::Interpolation;
-pub use prediction::{Prediction, SnapshotKart};
+pub use prediction::Prediction;
 pub use replay::{Replay, ReplayError, Segment};
 pub use track::{Checkpoint, Placement, Surface, SurfaceMesh, Track, TrackError};
 
@@ -39,6 +39,7 @@ use rapier3d::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::hash::Hasher;
 use std::ops::Range;
+use ts_rs::TS;
 
 /// One kart's controls for one tick, already mapped from whatever device
 /// produced them. Bots and humans both speak this. The buttons default to
@@ -67,22 +68,34 @@ pub struct KartInput {
     pub hold_item: bool,
 }
 
-/// What the View and the Instrument panel need per kart: where it is, in
-/// metres and as a unit quaternion `[x, y, z, w]`, how fast it is going,
-/// the drift under way and the item it holds. Y is up and a kart with
-/// identity rotation faces -Z, matching Three.js.
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub struct KartTransform {
+/// What the sim says of one kart at a tick (GLOSSARY: kart readout): what
+/// the View, the Instrument panel and the bots read, what a snapshot carries
+/// of the kart and what a prediction's kart adopts from one. Y is up and a
+/// kart with identity rotation faces -Z, matching Three.js.
+///
+/// The transform, `position` and `rotation`, crosses the wasm seam as a
+/// flat buffer (ADR 0003); the rest is serialised in the shape of the
+/// generated TypeScript type (ADR 0026).
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct KartReadout {
+    /// Metres.
+    #[serde(skip)]
     pub position: [f32; 3],
+    /// A unit quaternion `[x, y, z, w]`.
+    #[serde(skip)]
     pub rotation: [f32; 4],
     /// Metres per second along the kart's facing; negative when backing up.
     pub speed: f32,
-    /// The body's velocity in metres per second, which a snapshot carries:
-    /// the speed along the travel, which a drift slips from the facing, and
-    /// the vertical motion of a hop or a fall.
+    /// The body's velocity in metres per second: the speed along the
+    /// travel, which a drift slips from the facing, and the vertical motion
+    /// of a hop or a fall.
     pub velocity: [f32; 3],
     /// The drift the kart is in; `None` when it is not drifting.
     pub drift: Option<Drift>,
+    /// The tier the drift has charged, the sparks' tell; `MiniTurbo::None`
+    /// out of a drift.
+    pub mini_turbo: MiniTurbo,
     /// The item in the kart's slot; `None` while the slot is empty.
     pub held_item: Option<Item>,
     /// Seconds of spin-out left, while the kart is spun out: stopped, with
@@ -103,10 +116,30 @@ pub struct KartTransform {
     /// Seconds of stall left, while the kart is stalled at Go: dead to
     /// every control, as in a spin-out. The sputter's tell.
     pub stall_s: Option<f32>,
+    /// Race position from 1, as [`Standing::position`] orders it.
+    pub race_position: u32,
+    /// The lap the kart is on, from 1, as [`Standing::lap`] counts it.
+    pub lap: u32,
+    /// The last checkpoint crossed in order; 0 is the start line.
+    pub checkpoint: usize,
+    /// Metres along the centreline from the start line.
+    pub spline_progress: f32,
+    /// The wrong-way warning is up.
+    pub wrong_way: bool,
+}
+
+impl KartReadout {
+    /// The speed along the facing of a kart turned by `rotation` and moving
+    /// at `velocity`: what a kart only a snapshot speaks for is reported as
+    /// going.
+    pub fn facing_speed(rotation: [f32; 4], velocity: [f32; 3]) -> f32 {
+        Vec3::from(velocity).dot(Rotation::from_array(rotation) * Vec3::NEG_Z)
+    }
 }
 
 /// The items a kart can hold: what an item box rolls.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
 pub enum Item {
     /// A burst of speed: the tuned factor on top speed for the tuned time.
     Boost,
@@ -189,7 +222,8 @@ impl Item {
 }
 
 /// Which way a drift turns the kart. Fixed by the steer at the hop.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
 pub enum DriftDirection {
     Left,
     Right,
@@ -218,7 +252,8 @@ impl DriftDirection {
 
 /// A drift under way: its direction and how long it has been held, which
 /// is what the mini-turbo tier is read from.
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
 pub struct Drift {
     pub direction: DriftDirection,
     /// Seconds the drift has been held.
@@ -241,7 +276,8 @@ impl Drift {
 }
 
 /// The mini-turbo tiers a drift charges through, in order.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
 pub enum MiniTurbo {
     None,
     Blue,
@@ -249,6 +285,11 @@ pub enum MiniTurbo {
 }
 
 impl MiniTurbo {
+    /// The tier `drift` has charged; `MiniTurbo::None` out of a drift.
+    pub fn of(drift: Option<Drift>) -> Self {
+        drift.map_or(Self::None, |drift| drift.mini_turbo())
+    }
+
     /// The tier as one byte in charge order, for the hash and the bridge.
     pub fn code(self) -> u8 {
         match self {
@@ -340,7 +381,8 @@ impl Phase {
 /// tier the throttle hold so far has reached, so the tiers come as the hold
 /// lengthens and a hold that has tipped into a stall reads as one; from Go
 /// the verdict.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
 pub enum Start {
     /// No hold, or one under the weak edge: a plain start.
     Clean,
@@ -382,8 +424,10 @@ impl Start {
 }
 
 /// Where a kart stands in the race: what the Instrument panel shows and
-/// what race position is ordered by. One per kart from [`State::standings`].
-#[derive(Debug, Clone, Copy, PartialEq)]
+/// what race position is ordered by. One per kart from [`State::standings`],
+/// serialised in the shape of the generated TypeScript type (ADR 0026).
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
 pub struct Standing {
     /// Race position, 1 for the leader. Finishers first in finishing order,
     /// then the rest by laps completed, then checkpoint, then spline
@@ -393,7 +437,11 @@ pub struct Standing {
     /// it is still racing. Final once set: nothing after the line moves a
     /// finisher's place.
     pub finish_time_s: Option<f32>,
+    #[serde(skip)]
     pub laps_completed: u32,
+    /// The lap the kart is on, from 1; a kart that has completed the race's
+    /// laps stays on the last one.
+    pub lap: u32,
     /// The last checkpoint crossed in order this lap; 0 is the start line,
     /// which the grid counts as having crossed.
     pub checkpoint: usize,
@@ -406,14 +454,6 @@ pub struct Standing {
     /// Spline progress has been falling for the tuned time: the kart is
     /// going the wrong way. Stays up until progress rises again.
     pub wrong_way: bool,
-}
-
-impl Standing {
-    /// The lap the kart is on, from 1; a kart that has completed the race's
-    /// laps stays on the last one.
-    pub fn lap(&self) -> u32 {
-        (self.laps_completed + 1).min(LAPS_PER_RACE)
-    }
 }
 
 /// Everything the sim knows about a race. Owns the physics world and the
@@ -538,6 +578,78 @@ impl Kart {
     /// Dead to every control: stalled at Go or spun out by an item.
     fn ignores_inputs(&self) -> bool {
         self.stall_left_s > 0.0 || self.spun_out()
+    }
+
+    /// The lap the kart is on, from 1; a kart that has completed the race's
+    /// laps stays on the last one.
+    fn lap(&self) -> u32 {
+        (self.laps_completed + 1).min(LAPS_PER_RACE)
+    }
+
+    /// What the kart reports, with `body` its body and `standing` its
+    /// standing as of the same tick.
+    fn readout(&self, body: &RigidBody, standing: &Standing) -> KartReadout {
+        KartReadout {
+            position: body.translation().to_array(),
+            rotation: body.rotation().to_array(),
+            speed: self.speed,
+            velocity: body.linvel().to_array(),
+            drift: self.drift,
+            mini_turbo: MiniTurbo::of(self.drift),
+            held_item: self.held_item,
+            spin_out_s: self.spun_out().then_some(self.spin_out_left_s),
+            airborne: self.airborne(),
+            boost_s: (self.boost_left_s > 0.0).then_some(self.boost_left_s),
+            start: self.start,
+            stall_s: (self.stall_left_s > 0.0).then_some(self.stall_left_s),
+            race_position: standing.position,
+            lap: standing.lap,
+            checkpoint: standing.checkpoint,
+            spline_progress: standing.spline_progress,
+            wrong_way: standing.wrong_way,
+        }
+    }
+
+    /// Take on the word of `readout` on everything a snapshot carries, at
+    /// `clock`, the race clock at the snapshot's tick: the inverse of
+    /// [`Kart::readout`] for the fields the handling keeps beside the body.
+    /// What a snapshot does not carry stays the kart's own, run by the same
+    /// rules on the same inputs. From Go, a rocket start verdict other than
+    /// the kart's replaces the boost or stall it was given at Go with the
+    /// readout's, run down by the ticks since. The caller puts the body
+    /// where the readout has it.
+    fn adopt(&mut self, readout: &KartReadout, clock: Phase) {
+        let rotation = Rotation::from_array(readout.rotation).normalize();
+        self.drift = readout.drift;
+        let slip = self.drift.map_or(0.0, |drift| drift_slip(drift.direction));
+        self.travel = rotation * Rotation::from_rotation_y(slip) * Vec3::NEG_Z;
+        // A snapshot does not carry the bump a touch left, so the kart's
+        // own stands; the speed is what the velocity holds along the travel
+        // once that bump is taken off, as `step` built it.
+        self.speed = self.travel.dot(Vec3::from(readout.velocity) - self.bump);
+        self.held_item = readout.held_item;
+        self.spin_out_left_s = readout.spin_out_s.unwrap_or(0.0);
+        if let Phase::Racing { elapsed_s, .. } = clock {
+            if self.start != readout.start {
+                self.start = readout.start;
+                self.boost_left_s = 0.0;
+                apply_start(self, readout.start);
+                // The boost's clock, run down a tick at a time as `step`
+                // runs it, so the two spend it on the same tick.
+                let ticks_since_go = (elapsed_s / tuning::TICK_S).round() as u32;
+                for _ in 0..ticks_since_go {
+                    if self.boost_left_s > 0.0 {
+                        self.boost_left_s -= tuning::TICK_S;
+                    }
+                }
+            }
+        }
+        self.stall_left_s = readout.stall_s.unwrap_or(0.0);
+        if self.lap() != readout.lap {
+            self.laps_completed = readout.lap.saturating_sub(1);
+        }
+        self.checkpoint = readout.checkpoint;
+        self.spline_progress = readout.spline_progress;
     }
 }
 
@@ -851,7 +963,8 @@ impl State {
 
     /// The surface under a kart's centre.
     pub fn kart_surface(&self, kart: usize) -> Surface {
-        self.surface_at(self.kart_transforms()[kart].position)
+        let kart = &self.karts[kart];
+        self.surface_at(self.physics.bodies[kart.body].translation().to_array())
     }
 
     /// A hash of everything that influences future ticks: the phase and its
@@ -979,6 +1092,7 @@ impl State {
                 position,
                 finish_time_s: kart.finish_time_s,
                 laps_completed: kart.laps_completed,
+                lap: kart.lap(),
                 checkpoint: kart.checkpoint,
                 spline_progress: kart.spline_progress,
                 lap_time_s: kart.lap_time_s,
@@ -988,28 +1102,12 @@ impl State {
             .collect()
     }
 
-    /// One transform per kart, in grid order.
-    pub fn kart_transforms(&self) -> Vec<KartTransform> {
+    /// One readout per kart, in grid order, as of the last tick.
+    pub fn kart_readouts(&self) -> Vec<KartReadout> {
         self.karts
             .iter()
-            .map(|kart| {
-                let body = &self.physics.bodies[kart.body];
-                let position = body.translation();
-                let rotation = body.rotation();
-                KartTransform {
-                    position: [position.x, position.y, position.z],
-                    rotation: [rotation.x, rotation.y, rotation.z, rotation.w],
-                    speed: kart.speed,
-                    velocity: body.linvel().to_array(),
-                    drift: kart.drift,
-                    held_item: kart.held_item,
-                    spin_out_s: kart.spun_out().then_some(kart.spin_out_left_s),
-                    airborne: kart.airborne(),
-                    boost_s: (kart.boost_left_s > 0.0).then_some(kart.boost_left_s),
-                    start: kart.start,
-                    stall_s: (kart.stall_left_s > 0.0).then_some(kart.stall_left_s),
-                }
-            })
+            .zip(self.standings())
+            .map(|(kart, standing)| kart.readout(&self.physics.bodies[kart.body], &standing))
             .collect()
     }
 
@@ -1088,7 +1186,7 @@ pub fn step(mut state: State, inputs: &[KartInput], dt: f32) -> State {
     let inputs: Vec<KartInput> = if state.karts.iter().all(|kart| kart.bot.is_none()) {
         inputs.to_vec()
     } else {
-        let transforms = state.kart_transforms();
+        let readouts = state.kart_readouts();
         let standings = state.standings();
         let track = &state.track;
         state
@@ -1096,7 +1194,7 @@ pub fn step(mut state: State, inputs: &[KartInput], dt: f32) -> State {
             .iter_mut()
             .enumerate()
             .map(|(slot, kart)| match &mut kart.bot {
-                Some(memory) => bot::drive(track, &transforms, &standings, slot, memory, dt),
+                Some(memory) => bot::drive(track, &readouts, &standings, slot, memory, dt),
                 None => inputs[slot],
             })
             .collect()

@@ -1177,6 +1177,7 @@ dependencies = [
  "postcard",
  "serde",
  "serde_json",
+ "sim",
  "ts-rs",
 ]
 
@@ -1665,6 +1666,7 @@ dependencies = [
  "rapier3d",
  "serde",
  "serde_json",
+ "ts-rs",
 ]
 
 [[package]]

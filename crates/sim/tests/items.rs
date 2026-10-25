@@ -66,7 +66,7 @@ fn fire() -> KartInput {
 fn a_kart_on_a_box_picks_up_an_item_and_the_box_comes_back_the_tuned_time_later() {
     let state = started(State::new(SEED, 1, oval_with_boxes_under_slots(1)));
     assert_eq!(
-        state.kart_transforms()[0].held_item,
+        state.kart_readouts()[0].held_item,
         None,
         "empty slot on the grid"
     );
@@ -83,7 +83,7 @@ fn a_kart_on_a_box_picks_up_an_item_and_the_box_comes_back_the_tuned_time_later(
     };
     let item = *item;
     assert_eq!(*item_box, box_under_slot_0());
-    assert_eq!(state.kart_transforms()[0].held_item, Some(item));
+    assert_eq!(state.kart_readouts()[0].held_item, Some(item));
 
     // Fired, the slot is empty again and the box is still gone.
     let mut state = step(state, &[fire()], DT);
@@ -92,7 +92,7 @@ fn a_kart_on_a_box_picks_up_an_item_and_the_box_comes_back_the_tuned_time_later(
         &[RaceEvent::ItemFired { kart: 0, item }],
         "the fire is reported, and nothing is picked up from the empty box"
     );
-    assert_eq!(state.kart_transforms()[0].held_item, None);
+    assert_eq!(state.kart_readouts()[0].held_item, None);
 
     // The box comes back the tuned time after it was picked up, and the kart
     // still standing on it takes it again.
@@ -139,7 +139,7 @@ fn a_kart_holding_an_item_takes_no_box_until_it_fires() {
             state.events()
         );
     }
-    assert_eq!(state.kart_transforms()[0].held_item, Some(held));
+    assert_eq!(state.kart_readouts()[0].held_item, Some(held));
     assert!(
         state.item_boxes_present()[box_under_slot_0()],
         "the box is back and untaken"
@@ -154,7 +154,7 @@ fn a_kart_holding_an_item_takes_no_box_until_it_fires() {
         panic!("a fire then a pickup: {:?}", state.events());
     };
     assert_eq!(*item, held);
-    assert!(state.kart_transforms()[0].held_item.is_some());
+    assert!(state.kart_readouts()[0].held_item.is_some());
     assert!(!state.item_boxes_present()[box_under_slot_0()]);
 }
 
@@ -245,7 +245,7 @@ fn a_fired_boost_gives_the_tuned_speed_for_the_tuned_time() {
     for _ in 0..ticks(1.0) {
         state = step(state, &[throttle], DT);
     }
-    let before = state.kart_transforms()[0].speed;
+    let before = state.kart_readouts()[0].speed;
     assert!(
         before < TOP_SPEED_M_PER_S,
         "still accelerating at {before} m/s"
@@ -269,9 +269,9 @@ fn a_fired_boost_gives_the_tuned_speed_for_the_tuned_time() {
             item: Item::Boost
         }]
     );
-    assert_eq!(state.kart_transforms()[0].held_item, None);
+    assert_eq!(state.kart_readouts()[0].held_item, None);
     let mut boosted_ticks = 0;
-    while (state.kart_transforms()[0].speed - boosted).abs() < 1e-3 {
+    while (state.kart_readouts()[0].speed - boosted).abs() < 1e-3 {
         boosted_ticks += 1;
         state = step(state, &[throttle], DT);
         assert!(
@@ -284,7 +284,7 @@ fn a_fired_boost_gives_the_tuned_speed_for_the_tuned_time() {
         (expected - 1..=expected + 1).contains(&boosted_ticks),
         "boosted for {boosted_ticks} ticks, expected about {expected}"
     );
-    assert!(state.kart_transforms()[0].speed <= TOP_SPEED_M_PER_S);
+    assert!(state.kart_readouts()[0].speed <= TOP_SPEED_M_PER_S);
 }
 
 #[test]
@@ -292,8 +292,8 @@ fn a_fired_hazard_or_homing_projectile_leaves_the_slot_empty_and_the_kart_unboos
     for item in [Item::Hazard, Item::Homing] {
         let state = step(holding(item), &[fire()], DT);
         assert_eq!(state.events(), &[RaceEvent::ItemFired { kart: 0, item }]);
-        assert_eq!(state.kart_transforms()[0].held_item, None);
-        assert!(state.kart_transforms()[0].speed <= TOP_SPEED_M_PER_S);
+        assert_eq!(state.kart_readouts()[0].held_item, None);
+        assert!(state.kart_readouts()[0].speed <= TOP_SPEED_M_PER_S);
     }
 }
 
@@ -368,7 +368,7 @@ fn the_item_button_held_down_fires_once_as_it_goes_down() {
             state.events()
         );
     }
-    assert!(state.kart_transforms()[0].held_item.is_some());
+    assert!(state.kart_readouts()[0].held_item.is_some());
     let state = step(state, &[KartInput::default()], DT);
     let state = step(state, &[hold], DT);
     assert!(

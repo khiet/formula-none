@@ -5,7 +5,7 @@
 //! moved further than a kart drives, which is drawn in one move.
 
 use sim::tuning::{INTERPOLATION_TELEPORT_M_PER_TICK, SNAPSHOTS_PER_SECOND, TICKS_PER_SECOND};
-use sim::{Interpolation, Projectile, SnapshotKart, Start};
+use sim::{Interpolation, KartReadout, MiniTurbo, Projectile, Start};
 
 const TICKS_PER_SNAPSHOT: u32 = TICKS_PER_SECOND / SNAPSHOTS_PER_SECOND;
 
@@ -18,19 +18,25 @@ fn projectile(x: f32, owner: usize, target: usize) -> Projectile {
 }
 
 /// A kart standing at `x` as a snapshot carries it.
-fn kart_at(x: f32) -> SnapshotKart {
-    SnapshotKart {
+fn kart_at(x: f32) -> KartReadout {
+    KartReadout {
         position: [x, 0.0, 0.0],
         rotation: [0.0, 0.0, 0.0, 1.0],
+        speed: 0.0,
         velocity: [0.0; 3],
         drift: None,
+        mini_turbo: MiniTurbo::None,
         held_item: None,
         spin_out_s: None,
+        airborne: false,
+        boost_s: None,
         start: Start::Clean,
         stall_s: None,
+        race_position: 1,
         lap: 1,
         checkpoint: 0,
         spline_progress: 0.0,
+        wrong_way: false,
     }
 }
 
@@ -47,7 +53,7 @@ fn drawing_between_the_second_and_third(
 /// As above, with `at(tick)`'s karts and projectiles.
 fn drawing_snapshots_between_the_second_and_third(
     count: u32,
-    at: impl Fn(u32) -> (Vec<SnapshotKart>, Vec<Projectile>),
+    at: impl Fn(u32) -> (Vec<KartReadout>, Vec<Projectile>),
 ) -> Interpolation {
     let mut interpolation = Interpolation::new();
     for snapshot in 0..count {
@@ -144,8 +150,8 @@ fn a_kart_put_somewhere_new_is_drawn_at_the_old_place_until_the_snapshot_that_mo
         };
         (vec![kart_at(x)], Vec::new())
     });
-    let [drawn] = interpolation.kart_transforms()[..] else {
-        panic!("one kart: {:?}", interpolation.kart_transforms());
+    let [drawn] = interpolation.kart_readouts()[..] else {
+        panic!("one kart: {:?}", interpolation.kart_readouts());
     };
     assert_eq!(
         drawn.position[0], 0.0,
@@ -160,7 +166,7 @@ fn a_kart_put_somewhere_new_is_drawn_at_the_old_place_until_the_snapshot_that_mo
         )
     });
     let render = interpolation.render_tick().unwrap();
-    let drawn = interpolation.kart_transforms()[0];
+    let drawn = interpolation.kart_readouts()[0];
     let expected = render / TICKS_PER_SNAPSHOT as f32;
     assert!(
         (drawn.position[0] - expected).abs() < 1e-4,

@@ -31,9 +31,10 @@ docs/             GLOSSARY.md and adr/
 ```
 
 Dependencies flow one way: web depends on the bridge; the bridge and the
-server depend on sim and protocol; sim depends on nothing in the repo. The
-repo-checks tests read the Cargo manifests and the web app's package.json and
-fail CI when a dependency points the wrong way. `crates/sim/src/tuning.rs` is the single home for gameplay, item,
+server depend on sim and protocol; protocol depends on sim for the
+conversions between their types (ADR 0026); sim depends on nothing in the
+repo. The repo-checks tests read the Cargo manifests and the web app's
+package.json and fail CI when a dependency points the wrong way. `crates/sim/src/tuning.rs` is the single home for gameplay, item,
 bot and network constants (ADR 0014).
 
 ## Commands
@@ -52,9 +53,11 @@ Web (from the repo root, after `pnpm install`):
 - Bridge to wasm: `pnpm build:bridge` (needs `wasm-pack`; rerun after
   changing sim or bridge; output is gitignored and the other web commands
   need it)
-- Regenerate the protocol's TypeScript types and fixtures after changing
-  `crates/protocol`: `pnpm generate:protocol` (output is committed under
-  `apps/web/src/generated/protocol`; CI fails on a stale copy)
+- Regenerate the protocol's TypeScript types and fixtures, and the sim's
+  kart readout and tuning types, after changing `crates/protocol` or those
+  sim types: `pnpm generate:protocol` (output is committed under
+  `apps/web/src/generated/protocol` and `apps/web/src/generated/sim`; CI
+  fails on a stale copy)
 - Build: `pnpm build`
 - Lint: `pnpm lint` (`pnpm lint:fix` applies Biome's fixes)
 - Typecheck: `pnpm -r typecheck`

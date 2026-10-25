@@ -11,14 +11,14 @@ mod common;
 
 use std::time::Duration;
 
-use common::{projectiles, race_together, read, snapshot_kart, wire, with_rocket_start};
+use common::{projectiles, race_together, wire, with_rocket_start};
 use protocol::{ClientMessage, ServerMessage};
 use server::fake_transport::{Conditions, Harness, TRACK};
 use sim::bot::{self, Memory};
 use sim::tuning::{
     COUNTDOWN_S, KART_HALF_LENGTH_M, RECONCILIATION_VISIBLE_CORRECTION_M, TICKS_PER_SECOND,
 };
-use sim::{Interpolation, KartInput, Prediction, Track};
+use sim::{Interpolation, KartInput, KartReadout, Prediction, Track};
 
 const OVAL: &str = include_str!("../../../assets/tracks/oval/oval.track.json");
 const TICK: Duration = Duration::from_nanos(1_000_000_000 / TICKS_PER_SECOND as u64);
@@ -81,7 +81,7 @@ async fn at_a_100_ms_round_trip_and_2_percent_loss_the_own_kart_is_corrected_out
                 newest_tick = newest_tick.max(snapshot.tick);
                 interpolation.push(
                     snapshot.tick,
-                    snapshot.karts.iter().map(snapshot_kart).collect(),
+                    snapshot.karts.iter().map(KartReadout::from).collect(),
                     projectiles(&snapshot),
                 );
                 // A hit is the server's alone: the snapshot that brings its
@@ -90,14 +90,14 @@ async fn at_a_100_ms_round_trip_and_2_percent_loss_the_own_kart_is_corrected_out
                 // karts drawn 100 ms behind, a contact ADR 0009 leaves
                 // uncompensated. Neither correction is the loss's.
                 if snapshot.karts[kart].spin_out_s.is_some()
-                    && prediction.kart_transform().spin_out_s.is_none()
+                    && prediction.kart_readout().spin_out_s.is_none()
                 {
                     hit_tick = Some(snapshot.tick);
                 }
                 let moved = prediction.reconcile(
                     snapshot.tick,
                     snapshot.acknowledged[kart],
-                    &snapshot_kart(&snapshot.karts[kart]),
+                    &KartReadout::from(&snapshot.karts[kart]),
                 );
                 let after_a_hit =
                     hit_tick.is_some_and(|hit| snapshot.tick <= hit + HIT_AFTERMATH_TICKS);
@@ -112,7 +112,7 @@ async fn at_a_100_ms_round_trip_and_2_percent_loss_the_own_kart_is_corrected_out
             prediction.phase(),
             bot::drive(
                 prediction.track(),
-                &[prediction.kart_transform()],
+                &[prediction.kart_readout()],
                 &[prediction.standing()],
                 0,
                 &mut memory,
@@ -127,7 +127,11 @@ async fn at_a_100_ms_round_trip_and_2_percent_loss_the_own_kart_is_corrected_out
         sequence += 1;
         let input = wire(sequence, input);
         interpolation.advance();
-        prediction.tick(sequence, read(input), &interpolation.kart_transforms());
+        prediction.tick(
+            sequence,
+            KartInput::from(input),
+            &interpolation.kart_readouts(),
+        );
         player.send_input(input);
     }
 
@@ -217,13 +221,13 @@ async fn driving_into_another_kart_never_predicts_the_own_kart_visibly_past_wher
                 }
                 interpolation.push(
                     snapshot.tick,
-                    snapshot.karts.iter().map(snapshot_kart).collect(),
+                    snapshot.karts.iter().map(KartReadout::from).collect(),
                     projectiles(&snapshot),
                 );
                 prediction.reconcile(
                     snapshot.tick,
                     acknowledged,
-                    &snapshot_kart(&snapshot.karts[kart]),
+                    &KartReadout::from(&snapshot.karts[kart]),
                 );
             }
         }
@@ -237,7 +241,11 @@ async fn driving_into_another_kart_never_predicts_the_own_kart_visibly_past_wher
             },
         );
         interpolation.advance();
-        prediction.tick(sequence, read(input), &interpolation.kart_transforms());
+        prediction.tick(
+            sequence,
+            KartInput::from(input),
+            &interpolation.kart_readouts(),
+        );
         driver.send_input(input);
         predicted.push(prediction.standing().spline_progress);
     }

@@ -10,7 +10,7 @@ use crate::tuning::{
     BOT_STALL_SPEED_M_PER_S, DRIFT_SLIP_ANGLE_RAD, DRIFT_TURN_NEUTRAL, DRIFT_TURN_STEER_RANGE,
     STEER_RATE_LOW_SPEED_RAD_PER_S, STEER_RATE_TOP_SPEED_RAD_PER_S, TOP_SPEED_M_PER_S,
 };
-use crate::{DriftDirection, Item, KartInput, KartTransform, Standing, Track};
+use crate::{DriftDirection, Item, KartInput, KartReadout, Standing, Track};
 
 /// What a bot carries from one tick to the next: how long it has been
 /// stalled, how long it still backs up, how long it has held its item and
@@ -43,7 +43,7 @@ impl Memory {
 /// every kart's readouts as of the last tick, updating what it remembers.
 pub fn drive(
     track: &Track,
-    karts: &[KartTransform],
+    karts: &[KartReadout],
     standings: &[Standing],
     slot: usize,
     memory: &mut Memory,
@@ -158,7 +158,7 @@ fn line_point(track: &Track, progress: f32, right: f32) -> [f32; 2] {
 
 /// The nearest other kart that the bot in `slot` would run into: ahead of
 /// it within the lookahead and within the tuned half width of its travel.
-fn kart_in_the_way(karts: &[KartTransform], slot: usize) -> Option<usize> {
+fn kart_in_the_way(karts: &[KartReadout], slot: usize) -> Option<usize> {
     let kart = &karts[slot];
     let (sin, cos) = libm::sincosf(yaw(kart.rotation));
     // Facing -Z at yaw zero; right of the facing is (cos, -sin) in x, z.
@@ -200,7 +200,7 @@ fn pass_point(track: &Track, progress: f32, position: [f32; 3]) -> [f32; 2] {
 /// rate at the kart's speed follows the arc from its travel to the target.
 /// In a drift the travel sits outside the nose by the slip angle, and the
 /// lock is mapped to the trim the steer has over the drift's own turn.
-fn pursuit_steer(kart: &KartTransform, target: [f32; 2]) -> f32 {
+fn pursuit_steer(kart: &KartReadout, target: [f32; 2]) -> f32 {
     let slip = kart.drift.map_or(0.0, |drift| {
         drift.direction.steer_sign() * DRIFT_SLIP_ANGLE_RAD
     });

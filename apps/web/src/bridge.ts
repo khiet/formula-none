@@ -1,46 +1,21 @@
 // The only module that touches the wasm bindings (ADR 0003). Everything else
-// sees plain objects: a KartInput in, KartTransforms out. Biome's
+// sees plain objects: a KartInput in, KartReadouts out. Biome's
 // noRestrictedImports rejects any other import of ./generated/bridge.
 import init, {
-  camera_pull_back_m,
-  camera_shake_amplitude_m,
-  camera_shake_s,
-  connection_silence_s,
-  countdown_s,
   decode_client_message,
   decode_server_message,
   encode_client_message,
   encode_server_message,
-  hazard_drop_distance_m,
-  item_box_respawn_s,
-  kart_size_m,
-  karts_per_race,
-  laps_per_race,
-  nickname_max_chars,
-  nickname_min_chars,
-  ping_resend_s,
-  ping_timeout_s,
-  predicted_fire_timeout_s,
   protocol_version,
-  reconnect_retry_s,
-  replay_hash_interval_ticks,
   replay_hashes,
-  room_code_length,
-  spin_out_s,
-  ticks_per_second,
-  top_speed_m_per_s,
+  tuning,
   Prediction as WasmPrediction,
   Race as WasmRace,
-  webtransport_connect_timeout_s,
 } from "./generated/bridge/bridge.js";
-import type {
-  ClientMessage,
-  Input,
-  Item,
-  ServerMessage,
-  Snapshot,
-  Start,
-} from "./generated/protocol";
+import type { ClientMessage, Input, ServerMessage, Snapshot } from "./generated/protocol";
+import type { KartReadout as SimKartReadout, Standing, Surface, Tuning } from "./generated/sim";
+
+export type { Drift, DriftDirection, MiniTurbo, Standing, Surface } from "./generated/sim";
 
 /**
  * One kart's controls for one tick, whichever device produced them: steer
@@ -64,49 +39,18 @@ export interface KartSize {
   readonly length: number;
 }
 
-/** What is under a kart; the sim's surface tags. */
-export type Surface = "asphalt" | "sand" | "grass" | "wall" | "out of world";
-
-/** Which way a drift turns the kart; fixed by the steer at the hop. */
-export type DriftDirection = "left" | "right";
-
-/** The mini-turbo tiers a drift charges through, in order. */
-export type MiniTurbo = "none" | "blue" | "orange";
-
-/** A drift under way: its direction, how long it has been held and the tier that has charged. */
-export interface Drift {
-  readonly direction: DriftDirection;
-  readonly chargeSeconds: number;
-  readonly miniTurbo: MiniTurbo;
-}
-
 /**
- * What the View and the Instrument panel need per kart: position in metres,
- * unit quaternion [x, y, z, w], speed in metres per second along the kart's
- * facing (negative backing up), the surface under the kart, the drift
- * under way, if any, the item in the kart's slot, if any, the seconds of
- * spin-out left while the kart is spun out, whether the kart is in a hop's
- * airtime and the seconds of boost left while a boost holds it over top
- * speed (the last two only for a kart this client steps: the own kart of a
- * room's race and every kart of a local race; an interpolated kart reports
- * neither), the kart's rocket start (the tier its throttle hold so far has
- * reached while the countdown runs, the verdict from Go) and the seconds
- * of stall left while the kart is stalled at Go. Y up; identity rotation
- * faces -Z.
+ * What the View and the Instrument panel read per kart: the sim's kart
+ * readout (GLOSSARY), its transform in metres and as a unit quaternion
+ * [x, y, z, w], and the surface under it. Y up; identity rotation faces -Z.
+ * The generated type documents the rest; a field the sim adds to the
+ * readout reaches here without a change to this module.
  */
-export interface KartTransform {
+export type KartReadout = SimKartReadout & {
   readonly position: readonly [number, number, number];
   readonly rotation: readonly [number, number, number, number];
-  readonly speed: number;
   readonly surface: Surface;
-  readonly drift: Drift | null;
-  readonly heldItem: Item | null;
-  readonly spinOutSeconds: number | null;
-  readonly airborne: boolean;
-  readonly boostSeconds: number | null;
-  readonly start: Start;
-  readonly stallSeconds: number | null;
-}
+};
 
 /** Where an item box stands on the track: metres, and a yaw about +Y, zero facing -Z. */
 export interface ItemBox {
@@ -135,27 +79,6 @@ export interface Projectile {
 }
 
 /**
- * Where a kart stands in the race, as the Instrument panel shows it: race
- * position from 1, the lap it is on from 1 (staying on the last once the
- * race's laps are done), the last checkpoint crossed in order (0 is the
- * start line), spline progress in metres along the centreline, seconds into
- * the current lap, the best lap once one is completed, and whether the
- * wrong-way warning is up (spline progress has fallen for the tuned time
- * and has not risen since).
- */
-export interface Standing {
-  readonly position: number;
-  readonly lap: number;
-  readonly checkpoint: number;
-  readonly splineProgress: number;
-  readonly lapTimeSeconds: number;
-  readonly bestLapSeconds: number | null;
-  readonly wrongWay: boolean;
-  /** The race clock as the kart finished its laps; null while it is still racing. */
-  readonly finishTimeSeconds: number | null;
-}
-
-/**
  * Where the race is, as the sim's `Phase` has it: the countdown holding the
  * karts on the grid with the seconds to Go, the race with its clock and,
  * once the first kart has finished, the seconds of grace left before the
@@ -176,8 +99,8 @@ export interface Race {
    * The bots drive themselves.
    */
   step(inputs: readonly KartInput[], dt: number): void;
-  /** One transform per kart in grid order, as of the last step. */
-  kartTransforms(): KartTransform[];
+  /** One readout per kart in grid order, as of the last step. */
+  kartReadouts(): KartReadout[];
   /** One standing per kart in grid order, with positions as of the last step. */
   standings(): Standing[];
   /** Where the race is, as of the last step. */
@@ -217,14 +140,17 @@ export interface Prediction {
    * far the predicted kart moved for it, in metres.
    */
   reconcile(snapshot: Snapshot): number;
-  /** The kart as it is drawn, as of the last tick or snapshot. */
-  kartTransform(): KartTransform;
+  /**
+   * The kart as it is drawn, as of the last tick or snapshot. The
+   * prediction races it alone, so its race position counts only itself.
+   */
+  kartReadout(): KartReadout;
   /**
    * Every kart in grid order where the interpolation draws it, the own kart
    * by the snapshots rather than the prediction; empty before the first
    * snapshot.
    */
-  interpolatedKartTransforms(): KartTransform[];
+  interpolatedKartReadouts(): KartReadout[];
   /**
    * Every projectile in flight where the interpolation draws it, between
    * the snapshots as the other karts are; empty before the first snapshot.
@@ -350,28 +276,19 @@ export interface Bridge extends MessageCodec {
   readonly roomCodeLength: number;
 }
 
-// Buffer layouts the bridge crate documents on Race::step, Race::kart_transforms,
-// Race::standings and Race::phase; a Prediction's transform and phase are laid
-// out as a Race's.
+// Buffer layouts the bridge crate documents on Race::step, Race::kart_transforms
+// and Race::phase; a Prediction's transform and phase are laid out as a Race's.
 const FLOATS_PER_INPUT = 6;
-const FLOATS_PER_TRANSFORM = 18;
+const FLOATS_PER_TRANSFORM = 7;
 const FLOATS_PER_ITEM_BOX = 4;
 const FLOATS_PER_HAZARD = 5;
 const FLOATS_PER_PROJECTILE = 5;
-const FLOATS_PER_STANDING = 8;
 const FLOATS_PER_PHASE = 3;
 /** Phase codes in the phase buffer, in the sim's order. */
 const PHASES = ["countdown", "racing", "finished"] as const;
-/** Surface codes in the transform buffer, as `sim::Surface::code` numbers them. */
-const SURFACES: readonly Surface[] = ["asphalt", "sand", "grass", "wall", "out of world"];
-/** Drift directions by the buffer's sign: -1 left, 1 right. */
-const DRIFT_DIRECTIONS: Readonly<Record<number, DriftDirection>> = { [-1]: "left", 1: "right" };
-/** Mini-turbo tiers in the buffer's order. */
-const MINI_TURBOS: readonly MiniTurbo[] = ["none", "blue", "orange"];
-/** Items by the buffer's code less one; code 0 is an empty slot. */
-const ITEMS: readonly Item[] = ["boost", "hazard", "homing"];
-/** Rocket starts in the buffer's order, as `sim::Start::code` numbers them. */
-const STARTS: readonly Start[] = ["clean", "weakBoost", "fullBoost", "stall"];
+
+/** One kart's readout less its transform, and the surface under it, as the bridge pairs them. */
+type ReadoutPair = [SimKartReadout, Surface];
 
 /**
  * Load the wasm module once. Pass `wasm` bytes when there is no document
@@ -379,24 +296,26 @@ const STARTS: readonly Start[] = ["clean", "weakBoost", "fullBoost", "stall"];
  */
 export async function loadBridge(wasm?: BufferSource): Promise<Bridge> {
   await init(wasm === undefined ? undefined : { module_or_path: wasm });
+  const tuned = rethrown(() => tuning() as Tuning);
+  const [width, height, length] = tuned.kartSizeM;
   return {
     protocolVersion: protocol_version(),
-    ticksPerSecond: ticks_per_second(),
-    kartSize: kartSize(),
-    lapsPerRace: laps_per_race(),
-    countdownSeconds: countdown_s(),
-    itemBoxRespawnSeconds: item_box_respawn_s(),
-    predictedFireTimeoutSeconds: predicted_fire_timeout_s(),
-    hazardDropDistanceMetres: hazard_drop_distance_m(),
-    spinOutSeconds: spin_out_s(),
+    ticksPerSecond: tuned.ticksPerSecond,
+    kartSize: { width, height, length },
+    lapsPerRace: tuned.lapsPerRace,
+    countdownSeconds: tuned.countdownS,
+    itemBoxRespawnSeconds: tuned.itemBoxRespawnS,
+    predictedFireTimeoutSeconds: tuned.predictedFireTimeoutS,
+    hazardDropDistanceMetres: tuned.hazardDropDistanceM,
+    spinOutSeconds: tuned.spinOutS,
     cameraTuning: {
-      topSpeedMetresPerSecond: top_speed_m_per_s(),
-      pullBackMetres: camera_pull_back_m(),
-      shakeSeconds: camera_shake_s(),
-      shakeAmplitudeMetres: camera_shake_amplitude_m(),
+      topSpeedMetresPerSecond: tuned.topSpeedMPerS,
+      pullBackMetres: tuned.cameraPullBackM,
+      shakeSeconds: tuned.cameraShakeS,
+      shakeAmplitudeMetres: tuned.cameraShakeAmplitudeM,
     },
-    kartsPerRace: karts_per_race(),
-    replayHashIntervalTicks: replay_hash_interval_ticks(),
+    kartsPerRace: tuned.kartsPerRace,
+    replayHashIntervalTicks: tuned.replayHashIntervalTicks,
     createRace(seed, humanCount, botCount, sidecar) {
       return new BridgedRace(
         rethrown(() => new WasmRace(seed, humanCount, botCount, sidecar)),
@@ -413,14 +332,14 @@ export async function loadBridge(wasm?: BufferSource): Promise<Bridge> {
     replayHashes(replay, sidecar) {
       return Array.from(rethrown(() => replay_hashes(replay, sidecar)));
     },
-    webTransportTimeoutMs: webtransport_connect_timeout_s() * 1000,
-    pingTiming: { timeoutMs: ping_timeout_s() * 1000, resendMs: ping_resend_s() * 1000 },
+    webTransportTimeoutMs: tuned.webtransportConnectTimeoutS * 1000,
+    pingTiming: { timeoutMs: tuned.pingTimeoutS * 1000, resendMs: tuned.pingResendS * 1000 },
     reconnectTiming: {
-      silenceMs: connection_silence_s() * 1000,
-      retryMs: reconnect_retry_s() * 1000,
+      silenceMs: tuned.connectionSilenceS * 1000,
+      retryMs: tuned.reconnectRetryS * 1000,
     },
-    nicknameChars: { min: nickname_min_chars(), max: nickname_max_chars() },
-    roomCodeLength: room_code_length(),
+    nicknameChars: { min: tuned.nicknameMinChars, max: tuned.nicknameMaxChars },
+    roomCodeLength: tuned.roomCodeLength,
     encodeClientMessage(message) {
       return rethrown(() => encode_client_message(message));
     },
@@ -434,15 +353,6 @@ export async function loadBridge(wasm?: BufferSource): Promise<Bridge> {
       return rethrown(() => decode_server_message(bytes) as ServerMessage);
     },
   };
-}
-
-/** The three floats the bridge documents on `kart_size_m`: width, height, length. */
-function kartSize(): KartSize {
-  const [width, height, length] = kart_size_m();
-  if (width === undefined || height === undefined || length === undefined) {
-    throw new RangeError("the bridge's kart size is not three floats");
-  }
-  return { width, height, length };
 }
 
 /** The bridge rejects with a plain string so its native tests can run; make it an Error. */
@@ -488,26 +398,9 @@ class BridgedRace implements Race {
   }
 
   standings(): Standing[] {
-    const buffer = this.#race.standings();
-    if (buffer.length !== this.#kartCount * FLOATS_PER_STANDING) {
-      throw new RangeError(
-        `standings buffer has ${buffer.length} floats for ${this.#kartCount} karts`,
-      );
-    }
-    const standings: Standing[] = [];
-    for (let slot = 0; slot < this.#kartCount; slot++) {
-      const at = slot * FLOATS_PER_STANDING;
-      const read = (offset: number): number => buffer[at + offset] as number;
-      standings.push({
-        position: read(0),
-        lap: read(1),
-        checkpoint: read(2),
-        splineProgress: read(3),
-        lapTimeSeconds: read(4),
-        bestLapSeconds: timeOrNull(read(5)),
-        wrongWay: read(6) !== 0,
-        finishTimeSeconds: timeOrNull(read(7)),
-      });
+    const standings = rethrown(() => this.#race.standings() as Standing[]);
+    if (standings.length !== this.#kartCount) {
+      throw new RangeError(`${standings.length} standings for ${this.#kartCount} karts`);
     }
     return standings;
   }
@@ -545,18 +438,15 @@ class BridgedRace implements Race {
     return projectilesFrom(this.#race.projectiles());
   }
 
-  kartTransforms(): KartTransform[] {
-    const buffer = this.#race.kart_transforms();
-    if (buffer.length !== this.#kartCount * FLOATS_PER_TRANSFORM) {
-      throw new RangeError(
-        `transform buffer has ${buffer.length} floats for ${this.#kartCount} karts`,
-      );
+  kartReadouts(): KartReadout[] {
+    const karts = readoutsFrom(
+      this.#race.kart_transforms(),
+      rethrown(() => this.#race.kart_readouts() as ReadoutPair[]),
+    );
+    if (karts.length !== this.#kartCount) {
+      throw new RangeError(`${karts.length} readouts for ${this.#kartCount} karts`);
     }
-    const transforms: KartTransform[] = [];
-    for (let slot = 0; slot < this.#kartCount; slot++) {
-      transforms.push(transformAt(buffer, slot * FLOATS_PER_TRANSFORM, slot));
-    }
-    return transforms;
+    return karts;
   }
 }
 
@@ -577,24 +467,21 @@ class BridgedPrediction implements Prediction {
     return rethrown(() => this.#prediction.reconcile(snapshot, this.#kart));
   }
 
-  kartTransform(): KartTransform {
-    const buffer = this.#prediction.kart_transform();
-    if (buffer.length !== FLOATS_PER_TRANSFORM) {
-      throw new RangeError(`transform buffer has ${buffer.length} floats for one kart`);
+  kartReadout(): KartReadout {
+    const [kart] = readoutsFrom(this.#prediction.kart_transform(), [
+      rethrown(() => this.#prediction.kart_readout() as ReadoutPair),
+    ]);
+    if (kart === undefined) {
+      throw new RangeError(`no readout for kart ${this.#kart}`);
     }
-    return transformAt(buffer, 0, this.#kart);
+    return kart;
   }
 
-  interpolatedKartTransforms(): KartTransform[] {
-    const buffer = this.#prediction.interpolated_kart_transforms();
-    if (buffer.length % FLOATS_PER_TRANSFORM !== 0) {
-      throw new RangeError(`transform buffer has ${buffer.length} floats`);
-    }
-    const transforms: KartTransform[] = [];
-    for (let slot = 0; slot < buffer.length / FLOATS_PER_TRANSFORM; slot++) {
-      transforms.push(transformAt(buffer, slot * FLOATS_PER_TRANSFORM, slot));
-    }
-    return transforms;
+  interpolatedKartReadouts(): KartReadout[] {
+    return readoutsFrom(
+      this.#prediction.interpolated_kart_transforms(),
+      rethrown(() => this.#prediction.interpolated_kart_readouts() as ReadoutPair[]),
+    );
   }
 
   interpolatedProjectiles(): Projectile[] {
@@ -640,42 +527,23 @@ function recordsFrom<T>(
   return records;
 }
 
-/** The kart transform whose eighteen floats start at `at`; `slot` names the kart in errors. */
-function transformAt(buffer: Float32Array, at: number, slot: number): KartTransform {
-  const read = (offset: number): number => buffer[at + offset] as number;
-  const surface = SURFACES[read(8)];
-  if (surface === undefined) {
-    throw new RangeError(`unknown surface code ${read(8)} for kart ${slot}`);
+/** Each kart's readout from `pairs` with its transform from `transforms`; throws when the two disagree on the kart count. */
+function readoutsFrom(transforms: Float32Array, pairs: readonly ReadoutPair[]): KartReadout[] {
+  if (transforms.length !== pairs.length * FLOATS_PER_TRANSFORM) {
+    throw new RangeError(
+      `transform buffer has ${transforms.length} floats for ${pairs.length} karts`,
+    );
   }
-  const start = STARTS[read(16)];
-  if (start === undefined) {
-    throw new RangeError(`unknown rocket start code ${read(16)} for kart ${slot}`);
-  }
-  return {
-    position: [read(0), read(1), read(2)],
-    rotation: [read(3), read(4), read(5), read(6)],
-    speed: read(7),
-    surface,
-    drift: drift(read(9), read(10), read(11), slot),
-    heldItem: heldItem(read(12), slot),
-    spinOutSeconds: read(13) > 0 ? read(13) : null,
-    airborne: read(14) !== 0,
-    boostSeconds: read(15) > 0 ? read(15) : null,
-    start,
-    stallSeconds: read(17) > 0 ? read(17) : null,
-  };
-}
-
-/** The item a buffer code names, or null for the empty slot's 0. */
-function heldItem(code: number, slot: number): Item | null {
-  if (code === 0) {
-    return null;
-  }
-  const item = ITEMS[code - 1];
-  if (item === undefined) {
-    throw new RangeError(`unknown item code ${code} for kart ${slot}`);
-  }
-  return item;
+  return pairs.map(([readout, surface], slot) => {
+    const read = (offset: number): number =>
+      transforms[slot * FLOATS_PER_TRANSFORM + offset] as number;
+    return {
+      ...readout,
+      position: [read(0), read(1), read(2)],
+      rotation: [read(3), read(4), read(5), read(6)],
+      surface,
+    };
+  });
 }
 
 /** The phase the three floats of a phase buffer describe. */
@@ -705,17 +573,4 @@ function phaseFrom(buffer: Float32Array): Phase {
 /** The bridge writes a negative time where there is none yet: no best lap, no finish, no grace. */
 function timeOrNull(seconds: number): number | null {
   return seconds < 0 ? null : seconds;
-}
-
-/** The drift three buffer floats describe, or null when the direction is 0. */
-function drift(direction: number, tier: number, chargeSeconds: number, slot: number): Drift | null {
-  if (direction === 0) {
-    return null;
-  }
-  const turning = DRIFT_DIRECTIONS[direction];
-  const miniTurbo = MINI_TURBOS[tier];
-  if (turning === undefined || miniTurbo === undefined) {
-    throw new RangeError(`unknown drift ${direction} at tier ${tier} for kart ${slot}`);
-  }
-  return { direction: turning, chargeSeconds, miniTurbo };
 }

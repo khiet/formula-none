@@ -1,4 +1,4 @@
-import type { KartSize, KartTransform, Surface } from "./bridge";
+import type { KartReadout, KartSize, Surface } from "./bridge";
 import { rearWheel, rotate, toWorld, type Vec3 } from "./kart-frame";
 import type { Particles } from "./particles";
 
@@ -32,8 +32,8 @@ const STALL_SMOKE_COLOUR = 0xf2f2f2;
  * rear wheels for as long as the kart is stalled at Go, wherever it stands.
  * Presentation only; reads state.
  */
-export function dustTell(kart: KartTransform): DustTell | null {
-  if (kart.stallSeconds !== null) {
+export function dustTell(kart: KartReadout): DustTell | null {
+  if (kart.stallS !== null) {
     return { colour: STALL_SMOKE_COLOUR, at: "wheels" };
   }
   const colour = DUST_COLOURS[kart.surface];
@@ -45,7 +45,7 @@ export function dustTell(kart: KartTransform): DustTell | null {
 
 export interface DustEmitter {
   /** Puff this frame's dust for `kart` into the pool, if it is on the run-off or stalled. */
-  emit(kart: KartTransform, dtSeconds: number): void;
+  emit(kart: KartReadout, dtSeconds: number): void;
 }
 
 /** Puffs per second off a kart on the run-off. */

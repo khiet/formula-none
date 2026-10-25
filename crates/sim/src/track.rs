@@ -6,8 +6,9 @@
 //! with yaw zero faces -Z, and yaw grows counter-clockwise seen from above.
 
 use rapier3d::prelude::{SharedShape, TriMeshFlags, Vec3};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::fmt;
+use ts_rs::TS;
 
 /// The sidecar layout this build reads; `assets/tracks/export.py` writes it.
 pub const SIDECAR_VERSION: u32 = 1;
@@ -20,7 +21,7 @@ const CURVATURE_WINDOW_M: f32 = 4.0;
 
 /// What is under a point on the track. Four of these are exported as tagged
 /// meshes; `OutOfWorld` is the answer when nothing lies below a point.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize, TS)]
 #[serde(rename_all = "snake_case")]
 pub enum Surface {
     Asphalt,

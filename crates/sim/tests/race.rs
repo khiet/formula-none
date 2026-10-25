@@ -54,7 +54,7 @@ fn yaw(rotation: [f32; 4]) -> f32 {
 fn follow_centreline(state: &State, kart: usize) -> KartInput {
     const RIGHT_OF_CENTRE_M: f32 = 2.5;
     const STEER_GAIN: f32 = 4.0;
-    let transform = state.kart_transforms()[kart];
+    let transform = state.kart_readouts()[kart];
     let progress = state.standings()[kart].spline_progress;
     let track = state.track();
     let ahead = track.point_at(progress + BOT_LOOKAHEAD_M);
@@ -142,7 +142,7 @@ fn the_karts_wait_on_the_grid_in_slot_order_through_the_countdown_then_go() {
             remaining_s: COUNTDOWN_S
         }
     );
-    let grid = state.kart_transforms();
+    let grid = state.kart_readouts();
     let slots = state.track().spawn_grid().to_vec();
     let mut countdown_ticks = 0;
     while !racing(&state) {
@@ -154,7 +154,7 @@ fn the_karts_wait_on_the_grid_in_slot_order_through_the_countdown_then_go() {
         countdown_ticks >= ticks(COUNTDOWN_S) - 1,
         "Go came after {countdown_ticks} ticks"
     );
-    for ((kart, slot), before) in state.kart_transforms().iter().zip(&slots).zip(&grid) {
+    for ((kart, slot), before) in state.kart_readouts().iter().zip(&slots).zip(&grid) {
         assert_eq!(kart.position[0], slot.position[0]);
         assert_eq!(kart.position[2], slot.position[2]);
         assert_eq!(kart.position, before.position, "held on the grid");
@@ -201,12 +201,12 @@ fn throttle_through_go(hold_s: f32) -> State {
 /// speed off the line for a boost, nothing for a stall, a crawl for a clean
 /// start.
 fn off_the_line(state: State) -> f32 {
-    step(state, &[throttle()], DT).kart_transforms()[0].speed
+    step(state, &[throttle()], DT).kart_readouts()[0].speed
 }
 
 /// The speed after `seconds` of full throttle from `state`.
 fn speed_after(state: State, seconds: f32) -> f32 {
-    drive(state, &[straight], seconds).kart_transforms()[0].speed
+    drive(state, &[straight], seconds).kart_readouts()[0].speed
 }
 
 #[test]
@@ -214,16 +214,16 @@ fn a_hold_from_the_first_half_of_the_two_through_go_gives_the_full_boost() {
     // Pressed as the 2 appeared, or as late as the full edge.
     for hold_s in [START_STALL_HOLD_S, START_FULL_BOOST_HOLD_S] {
         let state = throttle_through_go(hold_s);
-        assert_eq!(state.kart_transforms()[0].start, Start::FullBoost);
+        assert_eq!(state.kart_readouts()[0].start, Start::FullBoost);
         let state = step(state, &[throttle()], DT);
         assert_eq!(
-            state.kart_transforms()[0].speed,
+            state.kart_readouts()[0].speed,
             TOP_SPEED_M_PER_S * START_BOOST_FACTOR,
             "a hold of {hold_s} s is off the line at the boosted top speed"
         );
         let state = drive(state, &[straight], START_BOOST_S - 2.0 * DT);
         assert_eq!(
-            state.kart_transforms()[0].speed,
+            state.kart_readouts()[0].speed,
             TOP_SPEED_M_PER_S * START_BOOST_FACTOR,
             "still boosting just before the tuned time"
         );
@@ -239,16 +239,16 @@ fn a_hold_from_the_second_half_of_the_two_through_go_gives_the_weak_boost() {
     // Pressed just after the full edge, or as late as the weak edge.
     for hold_s in [START_FULL_BOOST_HOLD_S - DT, START_WEAK_BOOST_HOLD_S] {
         let state = throttle_through_go(hold_s);
-        assert_eq!(state.kart_transforms()[0].start, Start::WeakBoost);
+        assert_eq!(state.kart_readouts()[0].start, Start::WeakBoost);
         let state = step(state, &[throttle()], DT);
         assert_eq!(
-            state.kart_transforms()[0].speed,
+            state.kart_readouts()[0].speed,
             TOP_SPEED_M_PER_S * START_WEAK_BOOST_FACTOR,
             "a hold of {hold_s} s is off the line at the weak boost's top speed"
         );
         let state = drive(state, &[straight], START_WEAK_BOOST_S - 2.0 * DT);
         assert_eq!(
-            state.kart_transforms()[0].speed,
+            state.kart_readouts()[0].speed,
             TOP_SPEED_M_PER_S * START_WEAK_BOOST_FACTOR,
             "still boosting just before the tuned time"
         );
@@ -262,7 +262,7 @@ fn a_hold_from_the_second_half_of_the_two_through_go_gives_the_weak_boost() {
 #[test]
 fn a_hold_from_the_one_or_later_starts_clean() {
     let state = throttle_through_go(START_WEAK_BOOST_HOLD_S - DT);
-    assert_eq!(state.kart_transforms()[0].start, Start::Clean);
+    assert_eq!(state.kart_readouts()[0].start, Start::Clean);
     let speed = off_the_line(state);
     assert!(
         0.0 < speed && speed < 1.0,
@@ -282,7 +282,7 @@ fn a_hold_released_before_go_starts_clean_whatever_its_length() {
         _ => throttle(),
     };
     let state = drive_until(race(1), &[let_go_at_go], COUNTDOWN_S + 1.0, racing);
-    assert_eq!(state.kart_transforms()[0].start, Start::Clean);
+    assert_eq!(state.kart_readouts()[0].start, Start::Clean);
     let speed = off_the_line(state);
     assert!(
         0.0 < speed && speed < 1.0,
@@ -294,8 +294,8 @@ fn a_hold_released_before_go_starts_clean_whatever_its_length() {
 fn a_hold_from_before_the_two_stalls_the_kart_for_the_tuned_time_dead_to_every_control() {
     // Pressed one tick before the 2 appeared.
     let state = throttle_through_go(START_STALL_HOLD_S + DT);
-    assert_eq!(state.kart_transforms()[0].start, Start::Stall);
-    let grid = state.kart_transforms()[0];
+    assert_eq!(state.kart_readouts()[0].start, Start::Stall);
+    let grid = state.kart_readouts()[0];
     // Nor does the brake back a stalled kart off the grid.
     let brake: Driver = |_, _| KartInput {
         brake: 1.0,
@@ -303,7 +303,7 @@ fn a_hold_from_before_the_two_stalls_the_kart_for_the_tuned_time_dead_to_every_c
     };
     let state = drive(state, &[brake], START_STALL_S / 2.0);
     let state = drive(state, &[straight], START_STALL_S / 2.0 - 2.0 * DT);
-    let stalled = state.kart_transforms()[0];
+    let stalled = state.kart_readouts()[0];
     assert_eq!(stalled.speed, 0.0, "stalled just before the tuned time");
     assert_eq!(stalled.position[0], grid.position[0]);
     assert_eq!(stalled.position[2], grid.position[2]);
@@ -311,7 +311,7 @@ fn a_hold_from_before_the_two_stalls_the_kart_for_the_tuned_time_dead_to_every_c
     assert!(0.0 < left && left < 3.0 * DT, "{left} s of stall left");
 
     let state = drive(state, &[straight], 0.5);
-    let going = state.kart_transforms()[0];
+    let going = state.kart_readouts()[0];
     assert_eq!(going.stall_s, None);
     assert!(going.speed > 1.0, "driving again: {} m/s", going.speed);
     assert!(
@@ -322,9 +322,9 @@ fn a_hold_from_before_the_two_stalls_the_kart_for_the_tuned_time_dead_to_every_c
     // A clean start is well ahead by the time the stall is over.
     let clean = drive(started(race(1)), &[straight], START_STALL_S + 0.5);
     assert!(
-        clean.kart_transforms()[0].speed > going.speed + 5.0,
+        clean.kart_readouts()[0].speed > going.speed + 5.0,
         "a clean start is well ahead: {} m/s against {} m/s",
-        clean.kart_transforms()[0].speed,
+        clean.kart_readouts()[0].speed,
         going.speed
     );
 }
@@ -344,7 +344,7 @@ fn a_release_before_go_resets_the_hold() {
         _ => throttle(),
     };
     let state = drive_until(race(1), &[let_go_once], COUNTDOWN_S + 1.0, racing);
-    assert_eq!(state.kart_transforms()[0].start, Start::WeakBoost);
+    assert_eq!(state.kart_readouts()[0].start, Start::WeakBoost);
     assert_eq!(
         off_the_line(state),
         TOP_SPEED_M_PER_S * START_WEAK_BOOST_FACTOR
@@ -358,14 +358,14 @@ fn the_throttle_counts_as_held_only_above_the_threshold() {
         ..KartInput::default()
     };
     let state = held_through_go(START_FULL_BOOST_HOLD_S, resting);
-    assert_eq!(state.kart_transforms()[0].start, Start::Clean);
+    assert_eq!(state.kart_readouts()[0].start, Start::Clean);
 
     let pressed = KartInput {
         throttle: START_THROTTLE_HELD + 0.01,
         ..KartInput::default()
     };
     let state = held_through_go(START_FULL_BOOST_HOLD_S, pressed);
-    assert_eq!(state.kart_transforms()[0].start, Start::FullBoost);
+    assert_eq!(state.kart_readouts()[0].start, Start::FullBoost);
 }
 
 #[test]
@@ -376,7 +376,7 @@ fn the_tier_the_hold_so_far_would_earn_is_reported_as_it_charges() {
     let mut seen = Vec::new();
     while !racing(&state) {
         state = step(state, &[throttle()], DT);
-        let start = state.kart_transforms()[0].start;
+        let start = state.kart_readouts()[0].start;
         if seen.last() != Some(&start) {
             seen.push(start);
         }
@@ -415,10 +415,10 @@ fn a_lone_kart_finishing_its_laps_ends_the_race_at_once() {
 
     // Nothing moves once the race is over.
     let hash = state.hash();
-    let transforms = state.kart_transforms();
+    let transforms = state.kart_readouts();
     let state = drive(state, &[straight], 1.0);
     assert_eq!(state.hash(), hash);
-    assert_eq!(state.kart_transforms(), transforms);
+    assert_eq!(state.kart_readouts(), transforms);
     assert_eq!(state.standings()[0].finish_time_s, Some(finish));
 }
 

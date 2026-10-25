@@ -26,7 +26,7 @@ use crate::tuning::{
     INTERPOLATION_RESYNC_S, INTERPOLATION_TELEPORT_M_PER_TICK, SNAPSHOTS_PER_SECOND,
     TICKS_PER_SECOND,
 };
-use crate::{KartTransform, Projectile, SnapshotKart};
+use crate::{KartReadout, Projectile};
 
 const DELAY_TICKS: f32 = INTERPOLATION_DELAY_S * TICKS_PER_SECOND as f32;
 const TICKS_PER_SNAPSHOT: u32 = TICKS_PER_SECOND / SNAPSHOTS_PER_SECOND;
@@ -48,7 +48,7 @@ pub struct Interpolation {
 /// What one snapshot said, as far as the drawing reads it.
 struct HeldSnapshot {
     tick: u32,
-    karts: Vec<SnapshotKart>,
+    karts: Vec<KartReadout>,
     projectiles: Vec<Projectile>,
 }
 
@@ -57,12 +57,12 @@ impl Interpolation {
         Self::default()
     }
 
-    /// Hold the snapshot of `tick`, which said `karts` of every kart in grid
+    /// Hold the snapshot of `tick`, which read `karts` for every kart in grid
     /// order and `projectiles` of every projectile in flight, in the order
     /// they were fired. One older than both the render clock and the
     /// earliest held, or already held, changes nothing; one that arrives
     /// after a newer one fills its place.
-    pub fn push(&mut self, tick: u32, karts: Vec<SnapshotKart>, projectiles: Vec<Projectile>) {
+    pub fn push(&mut self, tick: u32, karts: Vec<KartReadout>, projectiles: Vec<Projectile>) {
         let passed = self
             .render_tick
             .is_some_and(|render| (tick as f32) < render)
@@ -132,7 +132,7 @@ impl Interpolation {
     /// Every kart in grid order where the snapshots either side of the
     /// render clock put it; at the first held when the clock is before it.
     /// Empty before the first snapshot.
-    pub fn kart_transforms(&self) -> Vec<KartTransform> {
+    pub fn kart_readouts(&self) -> Vec<KartReadout> {
         let Some((from, to, share)) = self.pair() else {
             return Vec::new();
         };
@@ -199,9 +199,10 @@ impl Interpolation {
     }
 }
 
-/// The kart `share` of the way from `from` to `to`, `ticks` apart; its
-/// drift is `from`'s. A kart put somewhere new is at `from` until `to`.
-fn between(from: &SnapshotKart, to: &SnapshotKart, ticks: u32, share: f32) -> KartTransform {
+/// The kart `share` of the way from `from` to `to`, `ticks` apart: its
+/// transform and velocity between the two, never airborne or boosting, and
+/// the rest `from`'s. A kart put somewhere new is at `from` until `to`.
+fn between(from: &KartReadout, to: &KartReadout, ticks: u32, share: f32) -> KartReadout {
     let moved = Vec3::from(from.position).distance(Vec3::from(to.position));
     let share = if moved > ticks as f32 * INTERPOLATION_TELEPORT_M_PER_TICK {
         share.floor()
@@ -213,17 +214,15 @@ fn between(from: &SnapshotKart, to: &SnapshotKart, ticks: u32, share: f32) -> Ka
         .slerp(Rotation::from_array(to.rotation), share)
         .normalize();
     let velocity = Vec3::from(from.velocity).lerp(Vec3::from(to.velocity), share);
-    KartTransform {
+    let rotation = rotation.to_array();
+    let velocity = velocity.to_array();
+    KartReadout {
         position: position.to_array(),
-        rotation: rotation.to_array(),
-        speed: velocity.dot(rotation * Vec3::NEG_Z),
-        velocity: velocity.to_array(),
-        drift: from.drift,
-        held_item: from.held_item,
-        spin_out_s: from.spin_out_s,
+        rotation,
+        speed: KartReadout::facing_speed(rotation, velocity),
+        velocity,
         airborne: false,
         boost_s: None,
-        start: from.start,
-        stall_s: from.stall_s,
+        ..*from
     }
 }

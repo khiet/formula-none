@@ -53,7 +53,7 @@ fn holding_with_bots(humans: usize, bots: usize, rolls: &[(usize, Item)]) -> Sta
             bots,
             oval_with_boxes_under(&slots),
         ));
-        let even_start = state.kart_transforms()[humans..]
+        let even_start = state.kart_readouts()[humans..]
             .windows(2)
             .all(|pair| pair[0].start == pair[1].start);
         let state = step(state, &vec![KartInput::default(); humans], DT);
@@ -114,7 +114,7 @@ fn a_fired_projectile_travels_the_spline_at_the_tuned_speed_and_spins_out_the_ka
         state = step(state, &[drive(), idle()], DT);
     }
     assert!(state.projectiles().is_empty(), "nothing fired yet");
-    let fired_from = state.kart_transforms()[1].position;
+    let fired_from = state.kart_readouts()[1].position;
 
     let state = step(state, &[drive(), tap()], DT);
     assert_eq!(
@@ -124,7 +124,7 @@ fn a_fired_projectile_travels_the_spline_at_the_tuned_speed_and_spins_out_the_ka
             item: Item::Homing
         }]
     );
-    assert_eq!(state.kart_transforms()[1].held_item, None);
+    assert_eq!(state.kart_readouts()[1].held_item, None);
     let [projectile] = state.projectiles()[..] else {
         panic!("one projectile: {:?}", state.projectiles());
     };
@@ -177,7 +177,7 @@ fn a_fired_projectile_travels_the_spline_at_the_tuned_speed_and_spins_out_the_ka
     assert_eq!(event, RaceEvent::SpunOut { kart: 0, by: 1 });
     assert!(tick > ticks(0.5), "it took a while: {tick} ticks");
     assert!(state.projectiles().is_empty(), "used up");
-    let [target, owner] = state.kart_transforms()[..] else {
+    let [target, owner] = state.kart_readouts()[..] else {
         unreachable!()
     };
     assert_eq!(target.speed, 0.0, "stopped");
@@ -204,7 +204,7 @@ fn the_target_is_the_kart_next_ahead_by_race_position_not_the_leader() {
         if let Some(event) = spun_out(state.events()) {
             assert_eq!(event, RaceEvent::SpunOut { kart: 1, by: 2 });
             assert_eq!(
-                state.kart_transforms()[0].spin_out_s,
+                state.kart_readouts()[0].spin_out_s,
                 None,
                 "the leader drives on"
             );
@@ -227,7 +227,7 @@ fn a_projectile_fired_with_no_kart_ahead_is_wasted() {
         "the fire is still reported"
     );
     assert_eq!(
-        state.kart_transforms()[0].held_item,
+        state.kart_readouts()[0].held_item,
         None,
         "the slot is empty"
     );
@@ -259,7 +259,7 @@ fn a_hazard_the_target_trails_destroys_the_projectile_and_is_used_up() {
     assert!(state.hazards()[0].held);
     let mut state = step(state, &[drive_holding, tap()], DT);
     assert_eq!(state.projectiles().len(), 1);
-    let speed_at_fire = state.kart_transforms()[0].speed;
+    let speed_at_fire = state.kart_readouts()[0].speed;
     let mut blocked_at = None;
     for tick in 0..ticks(4.0) {
         state = step(state, &[drive_holding, idle()], DT);
@@ -280,7 +280,7 @@ fn a_hazard_the_target_trails_destroys_the_projectile_and_is_used_up() {
     );
     assert!(state.hazards().is_empty(), "the hazard is used up with it");
     assert!(
-        state.kart_transforms()[0].speed > speed_at_fire,
+        state.kart_readouts()[0].speed > speed_at_fire,
         "kart 0 drives on"
     );
 
@@ -335,7 +335,7 @@ fn a_projectile_is_spent_on_a_target_already_spun_out() {
         first_hit && state.standings()[2].position == 2,
         "kart 2 is second behind the spinning kart 0"
     );
-    assert!(state.kart_transforms()[0].spin_out_s.is_some());
+    assert!(state.kart_readouts()[0].spin_out_s.is_some());
 
     let mut state = step(state, &[idle(), idle(), tap()], DT);
     assert_eq!(state.projectiles()[0].target, 0);
@@ -344,7 +344,7 @@ fn a_projectile_is_spent_on_a_target_already_spun_out() {
         assert_eq!(spun_out(state.events()), None, "no second hit");
         if state.projectiles().is_empty() {
             assert!(
-                state.kart_transforms()[0].spin_out_s.is_some(),
+                state.kart_readouts()[0].spin_out_s.is_some(),
                 "spent on a kart still spinning"
             );
             return;
@@ -393,5 +393,5 @@ fn a_bot_fires_a_projectile_within_the_tuned_delay_when_a_kart_is_ahead_and_hold
             state.events()
         );
     }
-    assert_eq!(state.kart_transforms()[0].held_item, Some(Item::Homing));
+    assert_eq!(state.kart_readouts()[0].held_item, Some(Item::Homing));
 }

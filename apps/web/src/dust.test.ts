@@ -1,25 +1,14 @@
 import { describe, expect, it } from "vitest";
-import type { KartSize, KartTransform, Surface } from "./bridge";
+import type { KartReadout, KartSize, Surface } from "./bridge";
 import { createDustEmitter, dustTell } from "./dust";
+import { kartReadout } from "./kart-readout-fixture";
 import { createParticles, type Particle } from "./particles";
 
 const SIZE: KartSize = { width: 1.2, height: 0.6, length: 1.8 };
 const FRAME_S = 1 / 60;
 
-function kartOn(surface: Surface, speed = 10): KartTransform {
-  return {
-    position: [0, 0.3, 0],
-    rotation: [0, 0, 0, 1],
-    speed,
-    surface,
-    drift: null,
-    heldItem: null,
-    spinOutSeconds: null,
-    airborne: false,
-    boostSeconds: null,
-    start: "clean",
-    stallSeconds: null,
-  };
+function kartOn(surface: Surface, speed = 10): KartReadout {
+  return kartReadout({ position: [0, 0.3, 0], speed, surface });
 }
 
 function particlesOf(particles: ReturnType<typeof createParticles>): Particle[] {
@@ -39,7 +28,7 @@ describe("dust tell", () => {
     expect(sand?.colour).not.toBe(grass?.colour);
     expect(dustTell(kartOn("asphalt"))).toBeNull();
     expect(dustTell(kartOn("wall"))).toBeNull();
-    expect(dustTell(kartOn("out of world"))).toBeNull();
+    expect(dustTell(kartOn("out_of_world"))).toBeNull();
   });
 
   it("puffs whichever way the kart moves and not at a standstill", () => {
@@ -57,8 +46,8 @@ describe("dust tell", () => {
 });
 
 /** A kart stalled at Go, on the grid's asphalt. */
-function stalled(): KartTransform {
-  return { ...kartOn("asphalt", 0), stallSeconds: 1.5 };
+function stalled(): KartReadout {
+  return { ...kartOn("asphalt", 0), stallS: 1.5 };
 }
 
 describe("dust emitter", () => {
