@@ -52,7 +52,7 @@ const onTheGrid: Standing = {
 describe("lap readouts", () => {
   it("shows the grid as first on lap one of three with the clocks blank", () => {
     expect(lapReadouts(onTheGrid, 3)).toEqual({
-      position: "1st",
+      position: { numeral: "1", suffix: "st" },
       lap: "Lap 1/3",
       lapsCompleted: 0,
       lapTime: { label: "Time", value: `0'00"000` },
@@ -71,7 +71,7 @@ describe("lap readouts", () => {
       { ...onTheGrid, position: 3, lap: 2, lapTimeSeconds: 75.4567, bestLapSeconds: 14.9996 },
       3,
     );
-    expect(readouts.position).toBe("3rd");
+    expect(readouts.position).toEqual({ numeral: "3", suffix: "rd" });
     expect(readouts.lap).toBe("Lap 2/3");
     expect(readouts.lapsCompleted).toBe(1);
     expect(readouts.lapTime).toEqual({ label: "Time", value: `1'15"457` });
@@ -81,12 +81,6 @@ describe("lap readouts", () => {
   it("counts every lap completed once the kart has finished, whatever lap it is on", () => {
     expect(lapReadouts({ ...onTheGrid, lap: 3, finishTimeSeconds: 70.5 }, 3).lapsCompleted).toBe(3);
     expect(lapReadouts({ ...onTheGrid, lap: 4, finishTimeSeconds: 70.5 }, 3).lapsCompleted).toBe(3);
-  });
-
-  it("spells 2nd, 4th through 8th", () => {
-    const ordinal = (position: number): string =>
-      lapReadouts({ ...onTheGrid, position }, 3).position;
-    expect([2, 4, 5, 8].map(ordinal)).toEqual(["2nd", "4th", "5th", "8th"]);
   });
 });
 

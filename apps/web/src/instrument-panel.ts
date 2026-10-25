@@ -1,7 +1,7 @@
 import instrumentFontUrl from "../../../assets/fonts/kenney/Kenney Mini Square.ttf?url";
 import type { KartTransform, Phase, Standing } from "./bridge";
 import { type CourseMapSetup, createCourseMap } from "./course-map";
-import { formatLapTime, NO_LAP_TIME, ordinal, ordinalParts } from "./format";
+import { formatLapTime, NO_LAP_TIME, type OrdinalParts, ordinalParts } from "./format";
 import type { Item } from "./generated/protocol";
 
 /**
@@ -49,7 +49,8 @@ export interface LabelledReadout {
 
 /** The lap readouts as the panel prints them, one per instrument. */
 export interface LapReadouts {
-  readonly position: string;
+  /** The position as a large numeral and a small suffix. */
+  readonly position: OrdinalParts;
   /** The lap count as text, which the panel keeps for assistive technology behind the flags. */
   readonly lap: string;
   /** How many of the race's laps are behind the kart: one checkered flag each. */
@@ -66,7 +67,7 @@ export const CONNECTION_LOST_BANNER = "Connection lost: reconnecting";
 const GO_S = 1;
 
 /** The family name the panel's styles ask for; the face is registered by `loadInstrumentFont`. */
-export const INSTRUMENT_FONT_FAMILY = "Kenney Mini Square";
+const INSTRUMENT_FONT_FAMILY = "Kenney Mini Square";
 
 let instrumentFont: Promise<void> | undefined;
 
@@ -108,7 +109,8 @@ export function createInstrumentPanel(
     span.textContent = text;
     return span;
   };
-  const child = (parent: HTMLElement, name: string): HTMLSpanElement => {
+  // A part of an instrument, marked by a data attribute so styles find it.
+  const part = (parent: HTMLElement, name: string): HTMLSpanElement => {
     const span = document.createElement("span");
     span.dataset[name] = "";
     parent.append(span);
@@ -116,16 +118,16 @@ export function createInstrumentPanel(
   };
 
   const position = instrument("position");
-  const numeral = child(position, "numeral");
-  const suffix = child(position, "suffix");
+  const numeral = part(position, "numeral");
+  const suffix = part(position, "suffix");
 
   // The lap count stays as text for assistive technology; the flags that
   // show it are decorative, one per lap of the race.
   const lap = instrument("lap");
-  const lapText = child(lap, "lapText");
-  const flagRow = child(lap, "flags");
+  const lapText = part(lap, "lapText");
+  const flagRow = part(lap, "flags");
   flagRow.setAttribute("aria-hidden", "true");
-  const flags = Array.from({ length: lapsPerRace }, () => child(flagRow, "flag"));
+  const flags = Array.from({ length: lapsPerRace }, () => part(flagRow, "flag"));
 
   const lapTime = instrument("lap-time");
   const bestLap = instrument("best-lap");
@@ -164,9 +166,8 @@ export function createInstrumentPanel(
     update(local, standing, phase, slot, transforms) {
       courseMap.update(transforms);
       const readouts = lapReadouts(standing, lapsPerRace);
-      const parts = ordinalParts(standing.position);
-      numeral.textContent = parts.numeral;
-      suffix.textContent = parts.suffix;
+      numeral.textContent = readouts.position.numeral;
+      suffix.textContent = readouts.position.suffix;
       lapText.textContent = readouts.lap;
       flags.forEach((flag, index) => {
         flag.dataset.flag = index < readouts.lapsCompleted ? "done" : "todo";
@@ -222,7 +223,7 @@ export function lapReadouts(standing: Standing, lapsPerRace: number): LapReadout
       ? Math.min(Math.max(standing.lap - 1, 0), lapsPerRace)
       : lapsPerRace;
   return {
-    position: ordinal(standing.position),
+    position: ordinalParts(standing.position),
     lap: `Lap ${standing.lap}/${lapsPerRace}`,
     lapsCompleted,
     lapTime: { label: "Time", value: formatLapTime(standing.lapTimeSeconds) },
