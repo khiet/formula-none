@@ -41,13 +41,18 @@ describe("the item sprites", () => {
     expect(sprite.getAttribute("viewBox")).toBe("0 0 16 16");
     expect(sprite.getAttribute("shape-rendering")).toBe("crispEdges");
     expect(sprite.getAttribute("aria-hidden")).toBe("true");
-    const painted = ITEM_SPRITES.hazard.join("").replaceAll(".", "").length;
-    const rects = [...sprite.querySelectorAll("rect")];
-    expect(rects).toHaveLength(painted);
-    // The cone's tip is the first painted pixel: row 1, columns 7 and 8.
-    expect(rects[0]?.getAttribute("x")).toBe("7");
-    expect(rects[0]?.getAttribute("y")).toBe("1");
-    expect(rects[0]?.getAttribute("fill")).toBe(SPRITE_OUTLINE);
-    expect(rects[1]?.getAttribute("x")).toBe("8");
+    // The grid is the drawing; every painted cell becomes one unit rect in its colour.
+    const painted = ITEM_SPRITES.hazard.flatMap((row, y) =>
+      [...row].flatMap((key, x) => (key === "." ? [] : [{ x, y, fill: SPRITE_PALETTE[key] }])),
+    );
+    const rects = [...sprite.querySelectorAll("rect")].map((rect) => ({
+      x: Number(rect.getAttribute("x")),
+      y: Number(rect.getAttribute("y")),
+      fill: rect.getAttribute("fill"),
+    }));
+    expect(rects).toEqual(painted);
+    expect(rects.length).toBeGreaterThan(0);
+    expect(sprite.querySelector("rect")?.getAttribute("width")).toBe("1");
+    expect(sprite.querySelector("rect")?.getAttribute("height")).toBe("1");
   });
 });
