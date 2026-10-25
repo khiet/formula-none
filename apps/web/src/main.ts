@@ -144,7 +144,7 @@ function sceneExit(): { exit: Promise<Step>; take(next: Step): void } {
   return { exit, take };
 }
 
-/** Show `scene` until its exit, then take it off the page. */
+/** The step `scene` exits to, once the Scene is off the page. */
 async function untilExit(scene: MountedScene): Promise<Step> {
   try {
     return await scene.exit;
