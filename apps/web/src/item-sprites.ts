@@ -18,15 +18,17 @@ export const SPRITE_OUTLINE = "#3a1c0a";
 /**
  * One character per colour. `.` is transparent. The colours are the panel's
  * own (ADR 0023), the View's hazard cone, livery red and a grey: nothing
- * that reads only against the slot's gold.
+ * that reads only against the slot's gold. The cone's orange and livery red
+ * are copied from the View and the livery table, so a change there is a
+ * change here too.
  */
 export const SPRITE_PALETTE: Readonly<Record<string, string>> = {
   k: SPRITE_OUTLINE,
-  y: "#fde97a",
-  w: "#ffffff",
-  o: "#ff5522",
-  r: "#d62828",
-  s: "#9aa0a8",
+  y: "#fde97a", // the panel's gold
+  w: "#ffffff", // the panel's label white
+  o: "#ff5522", // the View's hazard cone
+  r: "#d62828", // kart 0's livery red
+  s: "#9aa0a8", // grey
 };
 
 /**

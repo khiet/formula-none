@@ -140,6 +140,7 @@ export function createInstrumentPanel(
   item.dataset.itemState = "empty";
   const itemName = part(item, "itemName");
   let shownItem: Item | null = null;
+  let shownSprite: SVGSVGElement | null = null;
   const banner = instrument("connection-banner", CONNECTION_LOST_BANNER);
   banner.hidden = true;
   const countdown = instrument("countdown");
@@ -188,12 +189,14 @@ export function createInstrumentPanel(
       if (slot.item !== shownItem) {
         shownItem = slot.item;
         itemName.textContent = held.text;
-        item.querySelector("svg")?.remove();
+        shownSprite?.remove();
+        shownSprite = null;
         if (slot.item === null) {
           delete item.dataset.item;
         } else {
           item.dataset.item = slot.item;
-          item.append(itemSprite(slot.item));
+          shownSprite = itemSprite(slot.item);
+          item.append(shownSprite);
         }
       }
       const count = phaseReadout(phase);
