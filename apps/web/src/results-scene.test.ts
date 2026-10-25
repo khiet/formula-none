@@ -29,9 +29,9 @@ const results = { standings, localKart: 0, isBot };
 describe("results rows", () => {
   it("lists every kart in finishing order with its name and best lap, unfinished karts included", () => {
     expect(resultsRows(results)).toEqual([
-      { position: "1st", name: "Bot 2", bestLap: "0:15.000", finished: true },
-      { position: "2nd", name: "Bot 3", bestLap: "0:16.000", finished: true },
-      { position: "3rd", name: "You", bestLap: "0:16.200", finished: false },
+      { position: "1st", name: "Bot 2", bestLap: `0'15"000`, finished: true },
+      { position: "2nd", name: "Bot 3", bestLap: `0'16"000`, finished: true },
+      { position: "3rd", name: "You", bestLap: `0'16"200`, finished: false },
     ]);
   });
 
@@ -44,7 +44,7 @@ describe("results rows", () => {
 
   it("leaves the best lap blank for a kart that completed none", () => {
     const rows = resultsRows({ ...results, standings: [standing(1, { bestLapSeconds: null })] });
-    expect(rows[0]?.bestLap).toBe("--:--.---");
+    expect(rows[0]?.bestLap).toBe(`-'--"---`);
   });
 });
 
@@ -60,9 +60,9 @@ describe("Results Scene", () => {
       (row) => row.textContent,
     );
     expect(rows).toEqual([
-      "1st Bot 2 0:15.000",
-      "2nd Bot 3 0:16.000",
-      "3rd You 0:16.200 (not finished)",
+      `1st Bot 2 0'15"000`,
+      `2nd Bot 3 0'16"000`,
+      `3rd You 0'16"200 (not finished)`,
     ]);
     expect(container.querySelector("button[name=rematch]")?.textContent).toBe("Rematch");
     expect(container.querySelector("button[name=leave]")?.textContent).toBe("Leave");

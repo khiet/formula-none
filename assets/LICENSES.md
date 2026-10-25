@@ -8,6 +8,7 @@ its own synthesis.
 | --- | --- | --- |
 | `karts/kenney/kart-oobi.glb`, `karts/kenney/Textures/colormap.png` | [Kenney Car Kit 3.1](https://kenney.nl/assets/car-kit), downloaded 2026-10-23 | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/), `karts/kenney/License.txt` |
 | `tracks/kenney/grandStand.glb`, `tracks/kenney/overhead.glb` | [Kenney Racing Kit 2.0](https://kenney.nl/assets/racing-kit), downloaded 2026-10-23 | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/), `tracks/kenney/License.txt` |
+| `fonts/kenney/Kenney Mini Square.ttf` | [Kenney Fonts](https://kenney.nl/assets/kenney-fonts), downloaded 2026-10-25 | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/), `fonts/kenney/License.txt` |
 | `karts/kart.glb`, `tracks/*/*.glb`, `tracks/*/*.track.json`, `replays/*` | this repo, from the files above and `tracks/trackgen` | CC0 1.0 |
 | `audio/*.wav` | this repo, synthesised by `audio/build.py` (ADR 0008) | CC0 1.0 |
 

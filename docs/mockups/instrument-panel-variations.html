@@ -1,0 +1,388 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Instrument Panel Variations</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Titillium+Web:wght@400;600;700;900&family=Orbitron:wght@500;700;900&family=Share+Tech+Mono&family=Inter:wght@200;300;400;600&family=Bebas+Neue&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #121316;
+    --fg: #e8e8ea;
+    --muted: #8a8d94;
+    --rule: #2a2c31;
+    --livery: #d62828; /* kart 1's livery, as the room would assign */
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--fg); font: 15px/1.5 Inter, system-ui, sans-serif; }
+  body { padding: 2rem 1.5rem 4rem; }
+  header { max-width: 1120px; margin: 0 auto 1.5rem; }
+  header h1 { font: 600 1.4rem/1.2 Inter, sans-serif; margin: 0 0 .25rem; }
+  header p { margin: 0; color: var(--muted); }
+  .controls { display: flex; flex-wrap: wrap; gap: .75rem 1.5rem; margin-top: 1rem; padding: .75rem 1rem; border: 1px solid var(--rule); border-radius: .5rem; }
+  .controls label { display: flex; align-items: center; gap: .4rem; cursor: pointer; font-size: .9rem; }
+  .controls input { accent-color: #ffcc33; }
+
+  main { display: grid; gap: 2.5rem; max-width: 1120px; margin: 0 auto; }
+  section { display: grid; gap: .75rem; }
+  .meta { display: flex; align-items: baseline; gap: 1rem; flex-wrap: wrap; }
+  .meta h2 { margin: 0; font: 600 1.05rem/1.2 Inter, sans-serif; }
+  .meta h2 small { color: var(--muted); font-weight: 400; margin-left: .5rem; }
+  .meta p { margin: 0; color: var(--muted); font-size: .9rem; flex: 1 1 24rem; }
+
+  /* The mock Race View: sky, horizon, a road running away, grass either side. */
+  .view {
+    position: relative;
+    aspect-ratio: 16 / 9;
+    width: 100%;
+    overflow: hidden;
+    border-radius: .5rem;
+    background:
+      linear-gradient(#5f8fc7 0%, #a9c6e4 38%, #a9c6e4 40%, #3f7a2e 40%, #2f6224 100%);
+    container-type: inline-size;
+    font-size: 1cqw; /* HUDs scale with the frame: 1em = 1% of width */
+  }
+  .view .road {
+    position: absolute; left: 50%; top: 40%; width: 100%; height: 60%;
+    transform: translateX(-50%);
+    background: linear-gradient(#5b5b60, #3d3d42);
+    clip-path: polygon(44% 0, 56% 0, 100% 100%, 0 100%);
+  }
+  .view .road::before {
+    content: ""; position: absolute; inset: 0;
+    background: repeating-linear-gradient(to bottom, transparent 0 7%, rgba(255,255,255,.35) 7% 10%);
+    clip-path: polygon(49.6% 0, 50.4% 0, 51.5% 100%, 48.5% 100%);
+  }
+  .view .kerb {
+    position: absolute; left: 50%; top: 40%; width: 100%; height: 60%;
+    transform: translateX(-50%);
+    background: repeating-linear-gradient(to bottom, #d62828 0 6%, #f2f2f2 6% 12%);
+    clip-path: polygon(43.3% 0, 44% 0, 0 100%, -3% 100%);
+    opacity: .8;
+  }
+  .view .kerb.right { clip-path: polygon(56% 0, 56.7% 0, 103% 100%, 100% 100%); }
+  .view .haze { position: absolute; inset: 0; background: linear-gradient(to bottom, transparent 30%, rgba(255,255,255,.18) 40%, transparent 48%); }
+  /* The course map sits bottom-right in every frame so only the top-left differs. */
+  .view .map { position: absolute; right: 2%; bottom: 3%; width: 16%; opacity: .85; }
+  .view .map path { fill: none; stroke: #fff; stroke-width: 2.5; stroke-linejoin: round; }
+  .view .map circle { stroke: #000; stroke-width: .5; }
+
+  .hud { position: absolute; top: 3%; left: 2%; }
+  .banner { display: none; position: absolute; top: 3%; left: 50%; transform: translateX(-50%); padding: .6em 1.4em; background: #c21c1c; color: #fff; font: 600 2.2em/1 'Titillium Web', sans-serif; border-radius: .3em; letter-spacing: .04em; }
+  .lost .banner { display: block; }
+  .wrong { display: none; }
+  .wrong-way .wrong { display: block; }
+
+  /* =========== 1. SNES Super Mario Kart =========== */
+  .v1 { font-family: 'Press Start 2P', monospace; color: #fde97a; text-transform: uppercase; }
+  .v1 .scan { position: absolute; inset: 0; pointer-events: none; background: repeating-linear-gradient(to bottom, rgba(0,0,0,.18) 0 2px, transparent 2px 4px); mix-blend-mode: multiply; }
+  .v1 .hud { display: grid; gap: 1.4em; }
+  /* A one-pixel outline in the font's own pixel grid (1/8 em), plus a two-pixel drop. */
+  .v1 .px, .v1 .pos sup { text-shadow: .125em 0 #3a1c0a, -.125em 0 #3a1c0a, 0 .125em #3a1c0a, 0 -.125em #3a1c0a, .125em .125em #3a1c0a, -.125em .125em #3a1c0a, .125em -.125em #3a1c0a, -.125em -.125em #3a1c0a, .25em .25em #000; }
+  .v1 .row { display: flex; align-items: center; gap: 1.2em; font-size: 2.4em; line-height: 1; }
+  .v1 .row .label { color: #fff; }
+  .v1 .pos { font-size: 6.4em; line-height: 1; color: #fff; }
+  .v1 .pos sup { font-size: .4em; vertical-align: top; color: #fde97a; }
+  .v1 .flags { display: flex; gap: .5em; }
+  .v1 .flag { width: 1.6em; height: 1.2em; font-size: 2em; background: conic-gradient(#000 25%, #fff 0 50%, #000 0 75%, #fff 0); background-size: 50% 50%; border: .2em solid #3a1c0a; box-shadow: .25em .25em 0 #000; }
+  .v1 .flag.todo { background: #4b2c17; }
+  .v1 .slot { display: grid; place-items: center; width: 6.2em; height: 6.2em; font-size: 1.6em; background: linear-gradient(#f8e39a, #c99a2e); border: .4em solid #3a1c0a; box-shadow: inset .4em .4em 0 #fff6cf, inset -.4em -.4em 0 #8c5a12, .5em .5em 0 #000; color: #3a1c0a; text-shadow: none; }
+  .v1 .slot.firing { background: #fff; animation: v1flash .25s steps(2) infinite; }
+  @keyframes v1flash { to { background: #c99a2e; } }
+  .v1 .wrong { position: absolute; left: 50%; top: 56%; transform: translateX(-50%); font-size: 4.2em; color: #ff5a3c; animation: blink .6s steps(2) infinite; }
+  @keyframes blink { to { visibility: hidden; } }
+
+  /* =========== 2. Broadcast timing graphic =========== */
+  .v2 { font-family: 'Titillium Web', sans-serif; color: #fff; }
+  .v2 .hud { display: grid; gap: .5em; width: 30em; }
+  .v2 .bar { display: flex; align-items: stretch; background: rgba(12,12,16,.88); border-radius: .4em; overflow: hidden; border-left: .8em solid var(--livery); }
+  .v2 .cell { display: flex; flex-direction: column; justify-content: center; padding: .5em 1.1em; }
+  .v2 .cell.pos { background: #fff; color: #111; font: 900 3.6em/1 'Titillium Web'; padding: .35em .5em; min-width: 2em; text-align: center; }
+  .v2 .cell .lbl { font: 600 1.3em/1 'Titillium Web'; letter-spacing: .14em; color: #a9adb6; text-transform: uppercase; }
+  .v2 .cell .val { font: 700 2.9em/1.1 'Titillium Web'; font-variant-numeric: tabular-nums; }
+  .v2 .cell .val.name { letter-spacing: .04em; text-transform: uppercase; }
+  .v2 .cell.grow { flex: 1; }
+  .v2 .bar.laps .cell { flex-direction: row; align-items: baseline; gap: .5em; }
+  .v2 .bar.laps .val small { font-size: .55em; color: #a9adb6; font-weight: 600; }
+  .v2 .split { border-left: 1px solid rgba(255,255,255,.14); }
+  .v2 .item { display: inline-flex; align-items: center; gap: .5em; padding: .3em .9em; border-radius: 1em; background: #26282e; font: 700 1.5em/1 'Titillium Web'; text-transform: uppercase; letter-spacing: .08em; color: #ffcc33; align-self: center; margin-right: 1em; }
+  .v2 .item::before { content: ""; width: .7em; height: .7em; border-radius: 50%; background: currentColor; }
+  .v2 .item.firing { background: #ffcc33; color: #111; }
+  .v2 .wrong { position: absolute; left: 50%; top: 56%; transform: translateX(-50%); padding: .4em 1.4em; background: #c21c1c; font: 900 3.4em/1 'Titillium Web'; letter-spacing: .1em; border-radius: .2em; }
+
+  /* =========== 3. Arcade neon =========== */
+  .v3 { font-family: Orbitron, sans-serif; color: #fff; }
+  /* Each line leans on its own, so the lean never walks lower lines off the left edge. */
+  .v3 .hud { display: grid; gap: .6em; left: 3%; }
+  .v3 .hud > * { transform: skewX(-8deg); transform-origin: bottom left; }
+  .v3 .neon { text-shadow: 0 0 .25em currentColor, 0 0 .8em currentColor, 0 .1em .1em #000; }
+  .v3 .pos { font: 900 8em/1 Orbitron; color: #ff3cac; display: flex; align-items: baseline; gap: .2em; }
+  .v3 .pos sup { font-size: .32em; vertical-align: top; }
+  .v3 .lapline { display: flex; align-items: baseline; gap: 1em; font: 700 2.6em/1 Orbitron; color: #3cf0ff; }
+  .v3 .lapline .k { color: #fff; font-size: .62em; letter-spacing: .25em; }
+  .v3 .times { display: grid; gap: .25em; font: 400 2.6em/1.15 'Share Tech Mono', monospace; }
+  .v3 .times .k { font: 700 .5em/1 Orbitron; letter-spacing: .25em; color: #ffe95a; margin-right: .8em; }
+  .v3 .times .cur { color: #fff; }
+  .v3 .times .best { color: #c6d0ff; }
+  .v3 .gauge { display: flex; align-items: center; gap: .8em; }
+  .v3 .gauge .bar { position: relative; width: 22em; height: 1.4em; background: rgba(0,0,0,.5); border: .15em solid #3cf0ff; box-shadow: 0 0 .6em #3cf0ff66, inset 0 0 .6em #3cf0ff33; }
+  .v3 .gauge .bar i { position: absolute; inset: .2em; width: 55%; background: linear-gradient(90deg, #3cf0ff, #ff3cac); box-shadow: 0 0 .6em #ff3cac; }
+  .v3 .gauge span { font: 700 1.6em/1 Orbitron; color: #3cf0ff; white-space: nowrap; text-shadow: 0 0 .5em #3cf0ff; }
+  .v3 .slot { display: inline-grid; place-items: center; padding: .4em 1.2em; font: 700 1.9em/1 Orbitron; letter-spacing: .15em; border: .12em solid #ffe95a; color: #ffe95a; background: rgba(0,0,0,.5); text-shadow: 0 0 .5em #ffe95a; justify-self: start; }
+  .v3 .slot.firing { background: #ffe95a; color: #000; text-shadow: none; box-shadow: 0 0 1.2em #ffe95a; }
+  .v3 .wrong { position: absolute; left: 50%; top: 56%; transform: translateX(-50%) skewX(-8deg); font: 900 5em/1 Orbitron; color: #ff3cac; animation: blink .5s steps(2) infinite; }
+
+  /* =========== 4. Minimal =========== */
+  .v4 { font-family: Inter, sans-serif; color: #fff; }
+  .v4 .hud { display: grid; grid-template-columns: auto auto; gap: 0 3em; text-shadow: 0 .1em .6em rgba(0,0,0,.6), 0 0 .15em rgba(0,0,0,.6); }
+  .v4 .pos { grid-row: 1 / 3; font: 200 13em/.9 Inter; letter-spacing: -.05em; }
+  .v4 .pos sup { font: 300 .22em/1 Inter; vertical-align: top; position: relative; top: .8em; letter-spacing: 0; }
+  .v4 .k { font: 600 1.1em/1 Inter; letter-spacing: .3em; text-transform: uppercase; color: rgba(255,255,255,.7); margin-bottom: .5em; }
+  .v4 .lap { font: 300 4em/1 Inter; font-variant-numeric: tabular-nums; margin-bottom: 1.2em; }
+  .v4 .lap small { font-size: .5em; color: rgba(255,255,255,.6); }
+  .v4 .time { font: 300 3.2em/1 Inter; font-variant-numeric: tabular-nums; }
+  .v4 .best { font: 300 1.7em/1 Inter; color: rgba(255,255,255,.7); font-variant-numeric: tabular-nums; margin-top: .6em; }
+  .v4 .rule { grid-column: 1 / -1; height: 1px; background: rgba(255,255,255,.4); margin: 1.6em 0 1.2em; }
+  .v4 .foot { grid-column: 1 / -1; display: flex; gap: 3em; align-items: baseline; font: 400 1.5em/1 Inter; color: rgba(255,255,255,.85); }
+  .v4 .foot .k { display: inline; margin: 0 .6em 0 0; }
+  .v4 .foot .slot.firing { color: #ffcc33; }
+  .v4 .wrong { position: absolute; left: 50%; top: 56%; transform: translateX(-50%); font: 200 5em/1 Inter; letter-spacing: .3em; text-transform: uppercase; }
+
+  /* =========== 5. Pit board =========== */
+  .v5 { font-family: 'Bebas Neue', Impact, sans-serif; }
+  .v5 .hud { top: -1%; left: 3%; transform: rotate(-1.5deg); transform-origin: top center; }
+  .v5 .board { position: relative; padding: 1.6em 1.4em 1.4em; background: #1a1a1c; border: .5em solid #2b2b2e; border-top: 0; box-shadow: 0 1em 2em rgba(0,0,0,.6); display: grid; gap: .9em; }
+  .v5 .board::before, .v5 .board::after { content: ""; position: absolute; top: 0; width: 1.2em; height: 1.4em; background: #777; border-radius: 0 0 .2em .2em; }
+  .v5 .board::before { left: 10%; } .v5 .board::after { right: 10%; }
+  .v5 .line { display: flex; gap: .5em; align-items: stretch; }
+  .v5 .plate { display: grid; place-items: center; width: 3.2em; height: 4.6em; background: #f4f1e8; color: #0d0d0f; font: 400 4.2em/1 'Bebas Neue'; border-radius: .1em; box-shadow: inset 0 0 0 .08em #d9d4c5, 0 .15em .2em rgba(0,0,0,.5); font-size: 4.2em; width: .76em; height: 1.1em; }
+  .v5 .plate.y { background: #ffcc33; }
+  .v5 .plate.gap { width: .25em; background: transparent; box-shadow: none; }
+  .v5 .plate.sm { font-size: 2.6em; width: .72em; height: 1.1em; }
+  .v5 .line.sm .plate { font-size: 2.6em; }
+  .v5 .line:nth-child(2) .plate:nth-child(odd) { transform: rotate(.6deg); }
+  .v5 .line:nth-child(3) .plate:nth-child(even) { transform: rotate(-.7deg); }
+  .v5 .meta-row { display: flex; gap: .6em; margin-top: .2em; }
+  .v5 .tag { padding: .2em .8em; background: #0d0d0f; color: #f4f1e8; font: 400 1.9em/1 'Bebas Neue'; letter-spacing: .08em; border: .08em solid #3a3a3e; }
+  .v5 .tag.item { color: #ffcc33; }
+  .v5 .tag.item.firing { background: #ffcc33; color: #0d0d0f; }
+  .v5 .wrong { position: absolute; left: 50%; top: 56%; transform: translateX(-50%) rotate(-2deg); padding: .2em 1em; background: #ffcc33; color: #0d0d0f; font: 400 5.5em/1 'Bebas Neue'; letter-spacing: .1em; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Instrument panel: five treatments</h1>
+  <p>Same mock Race View, same live readouts (position, lap, lap time, best lap, item slot, speed), only the top-left changes. The course map stays bottom-right as today. Each frame scales with its width, so widen or narrow the window to see how each holds up.</p>
+  <div class="controls">
+    <label><input type="checkbox" id="c-wrong" /> Wrong way</label>
+    <label><input type="checkbox" id="c-fire" /> Item firing</label>
+    <label><input type="checkbox" id="c-lost" /> Connection lost</label>
+    <label><input type="checkbox" id="c-pause" /> Pause the lap clock</label>
+  </div>
+</header>
+
+<main>
+
+<!-- 1 -->
+<section class="v1">
+  <div class="meta">
+    <h2>1. SNES Super Mario Kart <small>pixel type, outlined gold, lap flags, bevelled item box</small></h2>
+    <p>Every readout is text with a hard brown outline, no dark box behind it. Laps are counted with checkered flags you fill in as you cross the line. The position is a huge numeral. Time uses the 0'27"30 SNES notation. Scanlines are on this frame only, to sell the look; they would be optional.</p>
+  </div>
+  <div class="view">
+    <div class="road"></div><div class="kerb"></div><div class="kerb right"></div><div class="haze"></div>
+    <div class="hud">
+      <div class="pos px"><span data-f="posNum">3</span><sup data-f="posSuf">RD</sup></div>
+      <div class="row px"><span class="label">LAP</span><span class="flags" data-f="flags"></span></div>
+      <div class="row px"><span class="label">TIME</span><span data-f="lapTime" data-fmt="snes">0'27"30</span></div>
+      <div class="row px" style="font-size:1.8em"><span class="label">BEST</span><span data-f="bestLap" data-fmt="snes">0'44"91</span></div>
+      <div class="slot px" data-f="item">BOOST</div>
+    </div>
+    <div class="wrong px">WRONG WAY</div>
+    <div class="banner">Connection lost: reconnecting</div>
+    <svg class="map" viewBox="0 0 100 100"><path d="M20 30 Q20 15 35 15 H65 Q80 15 80 30 V70 Q80 85 65 85 H35 Q20 85 20 70 Z"/><circle cx="80" cy="50" r="5" fill="#d62828"/><circle cx="35" cy="15" r="3.5" fill="#1f5fd1"/><circle cx="20" cy="60" r="3.5" fill="#f5c400"/></svg>
+    <div class="scan"></div>
+  </div>
+</section>
+
+<!-- 2 -->
+<section class="v2">
+  <div class="meta">
+    <h2>2. Broadcast timing graphic <small>TV-style stacked bars, livery stripe, white position box</small></h2>
+    <p>Reads like an F1 world feed: a stack of dark bars with the kart's livery as the stripe, position in a white box, nickname beside it, lap and times in tabular numerals with small caps labels. Calm and legible at speed; it would also extend naturally to an interval readout if the sim ever reports one.</p>
+  </div>
+  <div class="view">
+    <div class="road"></div><div class="kerb"></div><div class="kerb right"></div><div class="haze"></div>
+    <div class="hud">
+      <div class="bar">
+        <div class="cell pos" data-f="posNum">3</div>
+        <div class="cell grow"><span class="lbl">Driver</span><span class="val name">Khiet</span></div>
+        <span class="item" data-f="item">Boost</span>
+      </div>
+      <div class="bar laps">
+        <div class="cell grow"><span class="lbl">Lap</span><span class="val"><span data-f="lap">2</span><small>/ <span data-f="laps">3</span></small></span></div>
+        <div class="cell split"><span class="lbl">Speed</span><span class="val"><span data-f="speed">23.4</span><small>m/s</small></span></div>
+      </div>
+      <div class="bar">
+        <div class="cell grow"><span class="lbl">Lap time</span><span class="val" data-f="lapTime">0:27.304</span></div>
+        <div class="cell split"><span class="lbl">Best</span><span class="val" style="color:#b57bff" data-f="bestLap">0:44.912</span></div>
+      </div>
+    </div>
+    <div class="wrong">WRONG WAY</div>
+    <div class="banner">Connection lost: reconnecting</div>
+    <svg class="map" viewBox="0 0 100 100"><path d="M20 30 Q20 15 35 15 H65 Q80 15 80 30 V70 Q80 85 65 85 H35 Q20 85 20 70 Z"/><circle cx="80" cy="50" r="5" fill="#d62828"/><circle cx="35" cy="15" r="3.5" fill="#1f5fd1"/><circle cx="20" cy="60" r="3.5" fill="#f5c400"/></svg>
+  </div>
+</section>
+
+<!-- 3 -->
+<section class="v3">
+  <div class="meta">
+    <h2>3. Arcade neon <small>skewed, glowing, speed bar, OutRun and Daytona lineage</small></h2>
+    <p>Loud by design. Everything leans forward, the position glows magenta, laps and speed glow cyan, the item slot is a yellow neon frame. Speed gets a bar because arcade racers make speed the hero. Risk: the glow eats contrast over bright sky and the skew costs some legibility.</p>
+  </div>
+  <div class="view">
+    <div class="road"></div><div class="kerb"></div><div class="kerb right"></div><div class="haze"></div>
+    <div class="hud">
+      <div class="pos neon"><span data-f="posNum">3</span><sup data-f="posSuf">RD</sup></div>
+      <div class="lapline neon"><span class="k">LAP</span><span><span data-f="lap">2</span>/<span data-f="laps">3</span></span></div>
+      <div class="times neon">
+        <div class="cur"><span class="k">TIME</span><span data-f="lapTime">0:27.304</span></div>
+        <div class="best"><span class="k">BEST</span><span data-f="bestLap">0:44.912</span></div>
+      </div>
+      <div class="gauge"><div class="bar"><i data-f="speedBar"></i></div><span><span data-f="speed">23.4</span> M/S</span></div>
+      <div class="slot" data-f="item">BOOST</div>
+    </div>
+    <div class="wrong neon">WRONG WAY</div>
+    <div class="banner">Connection lost: reconnecting</div>
+    <svg class="map" viewBox="0 0 100 100"><path d="M20 30 Q20 15 35 15 H65 Q80 15 80 30 V70 Q80 85 65 85 H35 Q20 85 20 70 Z"/><circle cx="80" cy="50" r="5" fill="#d62828"/><circle cx="35" cy="15" r="3.5" fill="#1f5fd1"/><circle cx="20" cy="60" r="3.5" fill="#f5c400"/></svg>
+  </div>
+</section>
+
+<!-- 4 -->
+<section class="v4">
+  <div class="meta">
+    <h2>4. Minimal <small>thin type, no boxes, one hairline, Art of Rally quiet</small></h2>
+    <p>Nothing but type on the View, held together by a soft shadow. One giant light-weight position numeral, lap and times at a glance, a hairline, then speed and the item slot in a quiet footer. Lets the track breathe. Risk: thin strokes over a busy background need the shadow to carry them.</p>
+  </div>
+  <div class="view">
+    <div class="road"></div><div class="kerb"></div><div class="kerb right"></div><div class="haze"></div>
+    <div class="hud">
+      <div class="pos"><span data-f="posNum">3</span><sup data-f="posSufLower">rd</sup></div>
+      <div>
+        <div class="k">Lap</div>
+        <div class="lap"><span data-f="lap">2</span> <small>/ <span data-f="laps">3</span></small></div>
+      </div>
+      <div>
+        <div class="k">Lap time</div>
+        <div class="time" data-f="lapTime">0:27.304</div>
+        <div class="best"><span data-f="bestLap">0:44.912</span> best</div>
+      </div>
+      <div class="rule"></div>
+      <div class="foot">
+        <span><span class="k">Speed</span><span data-f="speed">23.4</span> m/s</span>
+        <span><span class="k">Item</span><span class="slot" data-f="item">Boost</span></span>
+      </div>
+    </div>
+    <div class="wrong">Wrong way</div>
+    <div class="banner">Connection lost: reconnecting</div>
+    <svg class="map" viewBox="0 0 100 100"><path d="M20 30 Q20 15 35 15 H65 Q80 15 80 30 V70 Q80 85 65 85 H35 Q20 85 20 70 Z"/><circle cx="80" cy="50" r="5" fill="#d62828"/><circle cx="35" cy="15" r="3.5" fill="#1f5fd1"/><circle cx="20" cy="60" r="3.5" fill="#f5c400"/></svg>
+  </div>
+</section>
+
+<!-- 5 -->
+<section class="v5">
+  <div class="meta">
+    <h2>5. Pit board <small>hand-slotted plates hung from the top edge, motorsport props</small></h2>
+    <p>A pit crew's board held over the wall: each digit is its own slotted plate, a little crooked, yellow plates for the position. Rows read P3, LAP 2/3, the running lap time and best. Speed and item sit as small tags underneath. Playful and very on-theme for a game called Formula None; the live-ticking time is the one thing a real board could never do.</p>
+  </div>
+  <div class="view">
+    <div class="road"></div><div class="kerb"></div><div class="kerb right"></div><div class="haze"></div>
+    <div class="hud">
+      <div class="board">
+        <div class="line" data-plates="pos"></div>
+        <div class="line sm" data-plates="lap"></div>
+        <div class="line sm" data-plates="time"></div>
+        <div class="line sm" data-plates="best"></div>
+        <div class="meta-row">
+          <span class="tag"><span data-f="speed">23.4</span> m/s</span>
+          <span class="tag item" data-f="item">Boost</span>
+        </div>
+      </div>
+    </div>
+    <div class="wrong">WRONG WAY</div>
+    <div class="banner">Connection lost: reconnecting</div>
+    <svg class="map" viewBox="0 0 100 100"><path d="M20 30 Q20 15 35 15 H65 Q80 15 80 30 V70 Q80 85 65 85 H35 Q20 85 20 70 Z"/><circle cx="80" cy="50" r="5" fill="#d62828"/><circle cx="35" cy="15" r="3.5" fill="#1f5fd1"/><circle cx="20" cy="60" r="3.5" fill="#f5c400"/></svg>
+  </div>
+</section>
+
+</main>
+
+<script>
+  // One set of readouts drives all five HUDs so the judgement is about the
+  // treatment, not the numbers. Lap time ticks like the real panel's would.
+  const state = { position: 3, lap: 2, laps: 3, lapTime: 27.304, bestLap: 44.912, speed: 23.4, item: "Boost" };
+  const ordinal = (p) => ({ 1: "st", 2: "nd", 3: "rd" }[p] ?? "th");
+  const pad = (n, w) => String(n).padStart(w, "0");
+  function fmt(seconds, style) {
+    const ms = Math.round(seconds * 1000);
+    const m = Math.floor(ms / 60000), s = Math.floor((ms % 60000) / 1000), f = ms % 1000;
+    if (style === "snes") return `${m}'${pad(s, 2)}"${pad(Math.floor(f / 10), 2)}`;
+    if (style === "short") return `${m ? m + ":" : ""}${pad(s, m ? 2 : 1)}.${pad(Math.floor(f / 10), 2)}`;
+    return `${m}:${pad(s, 2)}.${pad(f, 3)}`;
+  }
+  function plates(line, text, yellow) {
+    line.replaceChildren(...[...text].map((ch) => {
+      const el = document.createElement("span");
+      el.className = "plate" + (ch === " " ? " gap" : "") + (yellow ? " y" : "");
+      el.textContent = ch === " " ? "" : ch;
+      return el;
+    }));
+  }
+  function render() {
+    for (const el of document.querySelectorAll("[data-f]")) {
+      const f = el.dataset.f;
+      switch (f) {
+        case "posNum": el.textContent = state.position; break;
+        case "posSuf": el.textContent = ordinal(state.position).toUpperCase(); break;
+        case "posSufLower": el.textContent = ordinal(state.position); break;
+        case "lap": el.textContent = state.lap; break;
+        case "laps": el.textContent = state.laps; break;
+        case "lapTime": el.textContent = fmt(state.lapTime, el.dataset.fmt); break;
+        case "bestLap": el.textContent = fmt(state.bestLap, el.dataset.fmt); break;
+        case "speed": el.textContent = state.speed.toFixed(1); break;
+        case "speedBar": el.style.width = `${Math.min(100, state.speed / 30 * 100)}%`; break;
+        case "item": el.classList.toggle("firing", document.body.classList.contains("firing")); break;
+        case "flags":
+          el.replaceChildren(...Array.from({ length: state.laps }, (_, i) => {
+            const flag = document.createElement("span");
+            flag.className = "flag" + (i < state.lap - 1 ? "" : " todo");
+            return flag;
+          }));
+          break;
+      }
+    }
+    const pit = document.querySelector(".v5");
+    plates(pit.querySelector('[data-plates="pos"]'), `P${state.position}`, true);
+    plates(pit.querySelector('[data-plates="lap"]'), `LAP ${state.lap}/${state.laps}`);
+    plates(pit.querySelector('[data-plates="time"]'), fmt(state.lapTime, "short"));
+    plates(pit.querySelector('[data-plates="best"]'), `B ${fmt(state.bestLap, "short")}`);
+  }
+  const wire = (id, cls) => document.getElementById(id).addEventListener("change", (e) => { document.body.classList.toggle(cls, e.target.checked); render(); });
+  wire("c-wrong", "wrong-way"); wire("c-fire", "firing"); wire("c-lost", "lost"); wire("c-pause", "paused");
+  let last = performance.now();
+  function tick(now) {
+    if (!document.body.classList.contains("paused")) {
+      state.lapTime += (now - last) / 1000;
+      state.speed = 22 + Math.sin(now / 900) * 3;
+      if (state.lapTime > 46) { state.lapTime -= 46; state.lap = state.lap % state.laps + 1; }
+    }
+    last = now;
+    render();
+    requestAnimationFrame(tick);
+  }
+  render();
+  requestAnimationFrame(tick);
+</script>
+</body>
+</html>

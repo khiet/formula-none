@@ -24,7 +24,8 @@ infra/            OpenTofu for the single-instance AWS environment
 deploy/           Compose stack, Caddyfile, and the deploy and smoke scripts;
                   the Dockerfile at the root packages them with the server
 assets/           track layouts, the Blender export and the exported glTF plus sidecars;
-                  the Kenney kart and its export; replay fixtures for the
+                  the Kenney kart and its export; the Kenney pixel font the
+                  Instrument panel sets its type in; replay fixtures for the
                   determinism gate; LICENSES.md for what came from where
 docs/             GLOSSARY.md and adr/
 ```

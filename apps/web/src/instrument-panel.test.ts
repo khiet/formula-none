@@ -52,10 +52,11 @@ const onTheGrid: Standing = {
 describe("lap readouts", () => {
   it("shows the grid as first on lap one of three with the clocks blank", () => {
     expect(lapReadouts(onTheGrid, 3)).toEqual({
-      position: "1st",
+      position: { numeral: "1", suffix: "st" },
       lap: "Lap 1/3",
-      lapTime: "0:00.000",
-      bestLap: "Best --:--.---",
+      lapsCompleted: 0,
+      lapTime: { label: "Time", value: `0'00"000` },
+      bestLap: { label: "Best", value: `-'--"---` },
       wrongWay: "",
     });
   });
@@ -70,16 +71,77 @@ describe("lap readouts", () => {
       { ...onTheGrid, position: 3, lap: 2, lapTimeSeconds: 75.4567, bestLapSeconds: 14.9996 },
       3,
     );
-    expect(readouts.position).toBe("3rd");
+    expect(readouts.position).toEqual({ numeral: "3", suffix: "rd" });
     expect(readouts.lap).toBe("Lap 2/3");
-    expect(readouts.lapTime).toBe("1:15.457");
-    expect(readouts.bestLap).toBe("Best 0:15.000");
+    expect(readouts.lapsCompleted).toBe(1);
+    expect(readouts.lapTime).toEqual({ label: "Time", value: `1'15"457` });
+    expect(readouts.bestLap).toEqual({ label: "Best", value: `0'15"000` });
   });
 
-  it("spells 2nd, 4th through 8th", () => {
-    const ordinal = (position: number): string =>
-      lapReadouts({ ...onTheGrid, position }, 3).position;
-    expect([2, 4, 5, 8].map(ordinal)).toEqual(["2nd", "4th", "5th", "8th"]);
+  it("counts every lap completed once the kart has finished, whatever lap it is on", () => {
+    expect(lapReadouts({ ...onTheGrid, lap: 3, finishTimeSeconds: 70.5 }, 3).lapsCompleted).toBe(3);
+    expect(lapReadouts({ ...onTheGrid, lap: 4, finishTimeSeconds: 70.5 }, 3).lapsCompleted).toBe(3);
+  });
+});
+
+describe("the lap instruments on the page", () => {
+  const racing = { kind: "racing", elapsedSeconds: 5, graceLeftSeconds: null } as const;
+  const mount = () => {
+    const container = document.createElement("div");
+    const panel = createInstrumentPanel(container, 3, course);
+    const find = (name: string) =>
+      container.querySelector<HTMLElement>(`[data-instrument="${name}"]`);
+    return { panel, find };
+  };
+
+  it("print the position as a numeral with its suffix beside it, reading as one ordinal", () => {
+    const { panel, find } = mount();
+    const local = at([0, 0.3, 0]);
+    panel.update(local, { ...onTheGrid, position: 3 }, racing, { item: null, firing: false }, [
+      local,
+    ]);
+    const position = find("position");
+    expect(position?.textContent).toBe("3rd");
+    expect(position?.querySelector("[data-numeral]")?.textContent).toBe("3");
+    expect(position?.querySelector("[data-suffix]")?.textContent).toBe("rd");
+  });
+
+  it("keep the lap count as text and fill one decorative flag per lap completed", () => {
+    const { panel, find } = mount();
+    const local = at([0, 0.3, 0]);
+    const lap = find("lap");
+    const flags = () => [...(lap?.querySelectorAll<HTMLElement>("[data-flag]") ?? [])];
+    const filled = () => flags().filter((flag) => flag.dataset.flag === "done").length;
+    panel.update(local, onTheGrid, racing, { item: null, firing: false }, [local]);
+    expect(lap?.textContent).toBe("Lap 1/3");
+    expect(flags()).toHaveLength(3);
+    expect(filled()).toBe(0);
+    expect(lap?.querySelector("[aria-hidden='true']")?.contains(flags()[0] ?? null)).toBe(true);
+    panel.update(local, { ...onTheGrid, lap: 3 }, racing, { item: null, firing: false }, [local]);
+    expect(lap?.textContent).toBe("Lap 3/3");
+    expect(filled()).toBe(2);
+    panel.update(
+      local,
+      { ...onTheGrid, lap: 3, finishTimeSeconds: 70 },
+      racing,
+      { item: null, firing: false },
+      [local],
+    );
+    expect(filled()).toBe(3);
+  });
+
+  it("print the clocks with their label words in the text", () => {
+    const { panel, find } = mount();
+    const local = at([0, 0.3, 0]);
+    panel.update(
+      local,
+      { ...onTheGrid, lapTimeSeconds: 27.304, bestLapSeconds: 44.91 },
+      racing,
+      { item: null, firing: false },
+      [local],
+    );
+    expect(find("lap-time")?.textContent).toBe(`Time 0'27"304`);
+    expect(find("best-lap")?.textContent).toBe(`Best 0'44"910`);
   });
 });
 
