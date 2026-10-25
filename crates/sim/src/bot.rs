@@ -214,7 +214,7 @@ fn pursuit_steer(kart: &KartReadout, target: [f32; 2]) -> f32 {
     // curvature 2 sin(angle) / distance; the yaw rate for it is that times
     // the speed, and the lock is the yaw rate over the rate full lock gives.
     let curvature = 2.0 * rightward / distance;
-    let lock = kart.speed.abs() * curvature / crate::steer_rate(kart.speed);
+    let lock = kart.speed.abs() * curvature / crate::handling::steer_rate(kart.speed);
     match kart.drift {
         None => lock.clamp(-1.0, 1.0),
         // A drift turns its own way at the neutral strength, trimmed by the
