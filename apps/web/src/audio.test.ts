@@ -505,15 +505,16 @@ describe("the loops", () => {
 });
 
 describe("a sound that fails to load", () => {
-  it("is dropped on its own, while the rest play", async () => {
+  it("is dropped on its own, cue or loop, while the rest play", async () => {
     const fetched: string[] = [];
     const contexts: FakeContext[] = [];
+    const missing = [SOUND_URLS.hop, LOOP_URLS.driftSkid];
     const audio = createAudio({
       settings: DEFAULT_AUDIO_SETTINGS,
       topSpeedMetresPerSecond: TOP_SPEED,
       fetchBytes(url) {
         fetched.push(url);
-        return url === SOUND_URLS.hop
+        return missing.includes(url)
           ? Promise.reject(new Error("404"))
           : Promise.resolve(bytesOf(url));
       },
@@ -526,16 +527,25 @@ describe("a sound that fails to load", () => {
     await audio.unlock();
     const context = contexts[0];
     if (context === undefined) throw new Error("no context was made");
-    expect(context.decoded).toHaveLength(16);
+    expect(context.decoded).toHaveLength(15);
     const race = audio.race();
     race.start();
     race.update(STILL);
-    race.update({ ...STILL, airborne: true, lap: 2 });
+    race.update({
+      ...STILL,
+      airborne: true,
+      lap: 2,
+      drifting: true,
+      miniTurbo: "none",
+      surface: "sand",
+    });
     const playing = context.sources
       .filter((source) => source.started > 0)
       .map((source) => (source.buffer as unknown as FakeBuffer | null)?.url);
     expect(playing).toContain(SOUND_URLS.lap);
+    expect(playing).toContain(LOOP_URLS.sand);
     expect(playing).not.toContain(SOUND_URLS.hop);
+    expect(playing).not.toContain(LOOP_URLS.driftSkid);
   });
 });
 
