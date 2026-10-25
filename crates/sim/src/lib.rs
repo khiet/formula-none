@@ -1228,9 +1228,9 @@ pub fn step(mut state: State, inputs: &[KartInput], dt: f32) -> State {
                 Freeze::Controls
             }
         } else {
-            Freeze::None
+            Freeze::Free
         };
-        *hold = freeze == Freeze::None && input.hold_item;
+        *hold = freeze == Freeze::Free && input.hold_item;
         let body = &mut state.physics.bodies[kart.body];
         body.lock_translations(kart.spun_out(), true);
         let sent = kart.handling.tick(input, freeze, situation, dt);
@@ -1257,7 +1257,10 @@ pub fn step(mut state: State, inputs: &[KartInput], dt: f32) -> State {
         .map(|kart| kart.handling.bump())
         .collect();
     state.physics.step(dt);
-    for index in 0..state.karts.len() {
+    let mut finished_this_tick = Vec::new();
+    for (index, mut before) in before.into_iter().enumerate() {
+        // Judged from the contacts and the sent velocities alone, so what
+        // an earlier kart's pass did to its own body never reaches this.
         bump_off_karts(
             &mut state.karts,
             index,
@@ -1265,9 +1268,7 @@ pub fn step(mut state: State, inputs: &[KartInput], dt: f32) -> State {
             &sent_velocities,
             dt,
         );
-    }
-    let mut finished_this_tick = Vec::new();
-    for (index, (kart, mut before)) in state.karts.iter_mut().zip(before).enumerate() {
+        let kart = &mut state.karts[index];
         held_by_walls(
             kart,
             &mut state.physics,

@@ -1,4 +1,4 @@
-//! The handling model (GLOSSARY: handling): how one kart answers its
+//! The handling (GLOSSARY): how one kart answers its
 //! controls on the ground and in the air. Hop, drift, mini-turbo, boost,
 //! the surface cap, the freeze of a stall or spin-out, the hold of a wall
 //! and the bump off another kart are one rule over one [`Handling`] per
@@ -66,7 +66,7 @@ pub(crate) struct Handling {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum Freeze {
     /// It does.
-    None,
+    Free,
     /// Dead to every control, as in a stall: it rolls on as if nothing
     /// were held.
     Controls,
@@ -239,7 +239,7 @@ impl Handling {
         dt: f32,
     ) -> Sent {
         let input = match freeze {
-            Freeze::None => input,
+            Freeze::Free => input,
             Freeze::Controls | Freeze::Stopped => &KartInput::default(),
         };
         let mut vertical = situation.vertical_m_per_s;
@@ -356,7 +356,9 @@ impl Handling {
     /// square `heading` met the other, the way it was going, forward or in
     /// reverse. A bump already under way is raised to the new one, never
     /// added to, so a touch that lasts holds the karts apart without
-    /// flinging them.
+    /// flinging them. The caller reads `heading` once before the tick's
+    /// first touch, so a touch that cuts the speed to zero leaves the way
+    /// the kart was going unchanged for the touches after it.
     pub(crate) fn bumped(&mut self, normal: Vec3, closing_speed: f32, heading: Vec3) {
         let wanted = KART_BUMP_MIN_M_PER_S + KART_BUMP_RESTITUTION * closing_speed / 2.0;
         let along = self.bump.dot(normal);
@@ -517,7 +519,7 @@ mod tests {
     }
 
     fn tick(handling: &mut Handling, input: KartInput) -> Sent {
-        handling.tick(&input, Freeze::None, asphalt(), TICK_S)
+        handling.tick(&input, Freeze::Free, asphalt(), TICK_S)
     }
 
     fn ticks(handling: &mut Handling, input: KartInput, count: u32) {
@@ -588,7 +590,7 @@ mod tests {
     }
 
     #[test]
-    fn a_landing_drifts_only_above_forty_percent_of_top_speed() {
+    fn a_landing_drifts_only_above_the_entry_speed() {
         // Held just inside either side of the edge through the hop, by a
         // rubber band at that speed.
         let landed = |speed: f32| {
@@ -598,7 +600,7 @@ mod tests {
                 ..asphalt()
             };
             for _ in 0..1 + airtime_ticks() {
-                handling.tick(&hop_right(), Freeze::None, situation, TICK_S);
+                handling.tick(&hop_right(), Freeze::Free, situation, TICK_S);
             }
             handling.drift
         };
@@ -653,11 +655,11 @@ mod tests {
             ..asphalt()
         };
 
-        handling.tick(&FULL_THROTTLE, Freeze::None, on_pad, TICK_S);
+        handling.tick(&FULL_THROTTLE, Freeze::Free, on_pad, TICK_S);
         assert_eq!(handling.speed, TOP_SPEED_M_PER_S * BOOST_PAD_FACTOR);
         assert_eq!(handling.boost_s(), Some(BOOST_PAD_S - TICK_S));
 
-        handling.tick(&FULL_THROTTLE, Freeze::None, on_pad, TICK_S);
+        handling.tick(&FULL_THROTTLE, Freeze::Free, on_pad, TICK_S);
         assert_eq!(
             handling.boost_s(),
             Some(BOOST_PAD_S - TICK_S - TICK_S),
@@ -673,7 +675,7 @@ mod tests {
             ..asphalt()
         };
 
-        handling.tick(&hop_right(), Freeze::None, on_pad, TICK_S);
+        handling.tick(&hop_right(), Freeze::Free, on_pad, TICK_S);
 
         assert_eq!(handling.boost_s(), None);
     }
@@ -714,7 +716,7 @@ mod tests {
                 ..asphalt()
             };
 
-            handling.tick(&FULL_THROTTLE, Freeze::None, off, TICK_S);
+            handling.tick(&FULL_THROTTLE, Freeze::Free, off, TICK_S);
 
             assert_eq!(
                 handling.speed,
