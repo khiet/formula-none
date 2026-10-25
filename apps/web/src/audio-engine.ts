@@ -11,7 +11,7 @@
 
 import type { Start } from "./generated/protocol";
 
-/** The rig as the page carries it. `limiter` is the revs' cap as a fraction of top, and the chop runs while they sit over 1. */
+/** The rig as the page carries it. `limiter` caps the revs; the chop runs while they sit over 1, or while a full grid rev forces it. */
 export const ENGINE = {
   gears: 6,
   /** Each gear's speed band over the one below it. */
@@ -20,7 +20,7 @@ export const ENGINE = {
   dropRatio: 0.45,
   /** The note is cut this long on an upshift. */
   upshiftCutSeconds: 0.03,
-  /** A downshift blips the revs up by this fraction before they settle. */
+  /** A downshift blips the note up by this fraction of its pitch before it settles. */
   downshiftBlip: 0.1,
   /** A downshift waits for speed to fall this fraction of the band's width under its floor, so a steady speed never chatters. */
   hysteresis: 0.05,
@@ -38,7 +38,7 @@ export const ENGINE = {
   filterOpenHz: 6000,
   /** The level the engine falls to on a full overrun. */
   overrunLevel: 0.6,
-  /** The crackle bursts' gain on a full overrun. */
+  /** The crackle level; a burst's gain is a share of it that grows with the overrun. */
   crackle: 0.5,
 } as const;
 
@@ -191,7 +191,7 @@ export interface EngineVoice {
   readonly intakeHz: number;
   /** The intake noise's gain. */
   readonly intake: number;
-  /** The lowpass cutoff: closed at idle and on the overrun, open at full throttle and revs. */
+  /** The lowpass cutoff: closed at idle, closing on the overrun, open at full throttle and revs. */
   readonly filterHz: number;
   /** The gain after the filter, before the cut; down on the overrun. */
   readonly level: number;
