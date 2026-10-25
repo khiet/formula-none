@@ -37,7 +37,7 @@ export interface TitleOptions {
 /**
  * The Title Scene: the game's name, the nickname typed once, and the three
  * ways in: create a room, join one by code, or race alone, with the three
- * audio toggles (ADR 0008) under them. The nickname and the code are
+ * audio toggles (ADR 0025) under them. The nickname and the code are
  * checked here, so the handlers only ever see valid ones; a refusal from
  * the server comes back through `message`. Every control is addressable by
  * its name.

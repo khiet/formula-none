@@ -1,4 +1,4 @@
-// The three audio toggles (ADR 0008), kept in localStorage next to the
+// The three audio toggles (ADR 0025), kept in localStorage next to the
 // nickname so a player who mutes the music stays muted on the next visit.
 
 const STORAGE_KEY = "audio";

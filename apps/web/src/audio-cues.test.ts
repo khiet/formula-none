@@ -1,12 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  enginePitchHz,
-  loopPlayback,
-  type SoundReading,
-  soundCues,
-  soundLoops,
-  soundReading,
-} from "./audio-cues";
+import { loopPlayback, type SoundReading, soundCues, soundLoops, soundReading } from "./audio-cues";
 import type { KartTransform, Phase, Standing } from "./bridge";
 
 const STILL: SoundReading = {
@@ -342,32 +335,5 @@ describe("soundReading", () => {
       count: "",
       charge: null,
     });
-  });
-});
-
-describe("enginePitchHz", () => {
-  it("idles at a standstill and climbs with speed either way, past top speed on a boost", () => {
-    const idle = enginePitchHz(0, 30);
-    const top = enginePitchHz(30, 30);
-    expect(idle).toBeGreaterThan(0);
-    expect(top).toBeGreaterThan(idle);
-    expect(enginePitchHz(15, 30)).toBeCloseTo((idle + top) / 2, 6);
-    expect(enginePitchHz(-15, 30)).toBeCloseTo((idle + top) / 2, 6);
-    expect(enginePitchHz(39, 30)).toBeGreaterThan(top);
-    // Past the headroom left for the boosts, nothing climbs further.
-    expect(enginePitchHz(90, 30)).toBe(enginePitchHz(45, 30));
-  });
-
-  it("rises through a rocket start's charge at a standstill, with no warning past the full tier", () => {
-    const idle = enginePitchHz(0, 30);
-    expect(enginePitchHz(0, 30, "clean")).toBe(idle);
-    const weak = enginePitchHz(0, 30, "weakBoost");
-    const full = enginePitchHz(0, 30, "fullBoost");
-    expect(weak).toBeGreaterThan(idle);
-    expect(full).toBeGreaterThan(weak);
-    expect(full).toBeLessThanOrEqual(enginePitchHz(30, 30));
-    expect(enginePitchHz(0, 30, "stall")).toBe(full);
-    // Speed still sets the note once the kart is faster than the charge sounds.
-    expect(enginePitchHz(30, 30, "weakBoost")).toBe(enginePitchHz(30, 30));
   });
 });

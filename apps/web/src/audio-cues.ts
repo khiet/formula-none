@@ -1,11 +1,10 @@
-// What the race sounds like (ADR 0008): the engine's pitch from the own
-// kart's speed and its rocket start's charge, each SFX from the change
-// between two readings of the own kart, and each loop from the state one
-// reading holds. Cues are edges, loops are state. Presentation, so it reads
-// what the sim reports and never the inputs: a hop sounds when the kart
-// leaves the ground, not when the button goes down, and the countdown beeps
-// as the count the Instrument panel shows changes, never from a clock of
-// its own.
+// What the race sounds like (ADR 0025): each SFX from the change between
+// two readings of the own kart, and each loop from the state one reading
+// holds. Cues are edges, loops are state. The engine has a module of its
+// own, `audio-engine.ts`. Presentation, so it reads what the sim reports
+// and never the inputs: a hop sounds when the kart leaves the ground, not
+// when the button goes down, and the countdown beeps as the count the
+// Instrument panel shows changes, never from a clock of its own.
 
 import type { KartTransform, MiniTurbo, Phase, Standing, Surface } from "./bridge";
 import type { Item, Start } from "./generated/protocol";
@@ -48,7 +47,7 @@ export interface SoundReading {
   readonly finished: boolean;
   /** The count the Instrument panel shows: 3, 2, 1, GO, or nothing the rest of the race. */
   readonly count: string;
-  /** The rocket start's charge, the tier the hold so far has reached, while the countdown runs; null from Go. */
+  /** The rocket start's charge, the tier the hold so far has reached, while the countdown runs; null from Go. The engine revs by it on the grid. */
   readonly charge: Start | null;
   readonly stalled: boolean;
   readonly surface: Surface;
@@ -196,6 +195,12 @@ const LOOP_CURVES: Readonly<Record<SoundLoop, LoopCurve>> = {
 /** A loop's rate never leaves this range, whatever the kart's speed. */
 const LOOP_RATE_MIN = 0.5;
 const LOOP_RATE_MAX = 2;
+/**
+ * Headroom over top speed for the boosts; a loop swells no further. A
+ * Presentation ceiling, chosen here rather than read from the sim's boost
+ * factors (ADR 0014).
+ */
+const LOOP_MAX_SPEED_FRACTION = 1.5;
 
 /**
  * The rate and gain `loop` plays at for `speed`, forward or backing up,
@@ -204,49 +209,9 @@ const LOOP_RATE_MAX = 2;
 export function loopPlayback(loop: SoundLoop, speed: number, topSpeed: number): LoopPlayback {
   const curve = LOOP_CURVES[loop];
   const rate = curve.centreHz(Math.abs(speed)) / curve.centreHz(curve.renderedSpeed);
-  const fraction = (at: number) => Math.min(Math.abs(at) / topSpeed, ENGINE_MAX_SPEED_FRACTION);
+  const fraction = (at: number) => Math.min(Math.abs(at) / topSpeed, LOOP_MAX_SPEED_FRACTION);
   return {
     rate: Math.min(Math.max(rate, LOOP_RATE_MIN), LOOP_RATE_MAX),
     gain: curve.swell(fraction(speed)) / curve.swell(fraction(curve.renderedSpeed)),
   };
-}
-
-/** The engine note at a standstill and at top speed. */
-const ENGINE_IDLE_HZ = 70;
-const ENGINE_TOP_HZ = 260;
-/**
- * Headroom over top speed for the boosts; the note climbs no further. A
- * Presentation ceiling, chosen here rather than read from the sim's boost
- * factors (ADR 0014).
- */
-const ENGINE_MAX_SPEED_FRACTION = 1.5;
-/**
- * How far up the note a rocket start's charge revs the engine on the grid,
- * as a fraction of top speed, by tier. The stall revs as the full boost
- * does: the hold tipping into a stall gives no warning.
- */
-const CHARGE_SPEED_FRACTION: Readonly<Record<Start, number>> = {
-  clean: 0,
-  weakBoost: 0.4,
-  fullBoost: 0.8,
-  stall: 0.8,
-};
-
-/**
- * The engine note's pitch for `speed`, forward or backing up: idle at a
- * standstill, linear in speed over `topSpeed`, and flat past the boosts'
- * headroom; or the charge's rev while the kart charges its rocket start,
- * whichever is higher.
- */
-export function enginePitchHz(
-  speed: number,
-  topSpeed: number,
-  charge: Start | null = null,
-): number {
-  const revved = charge === null ? 0 : CHARGE_SPEED_FRACTION[charge];
-  const fraction = Math.min(
-    Math.max(Math.abs(speed) / topSpeed, revved),
-    ENGINE_MAX_SPEED_FRACTION,
-  );
-  return ENGINE_IDLE_HZ + (ENGINE_TOP_HZ - ENGINE_IDLE_HZ) * fraction;
 }

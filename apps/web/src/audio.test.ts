@@ -5,14 +5,17 @@ import {
   LOOP_URLS,
   MUSIC_URL,
   SOUND_URLS,
+  type SoundBuffer,
   type SoundBufferSource,
   type SoundContext,
+  type SoundFilter,
   type SoundGain,
   type SoundNode,
   type SoundOscillator,
   type SoundParam,
 } from "./audio";
 import type { SoundCue, SoundLoop, SoundReading } from "./audio-cues";
+import { ENGINE, engineBandEdges, FULL_THROTTLE_SECONDS_TO_TOP } from "./audio-engine";
 import { DEFAULT_AUDIO_SETTINGS } from "./audio-settings";
 
 const TOP_SPEED = 30;
@@ -38,11 +41,17 @@ interface FakeBuffer {
   readonly url: string;
 }
 
+/** A param that lands on each target at once, remembering the targets in order. */
 function param(initial: number): SoundParam & { readonly targets: number[] } {
   const targets: number[] = [];
   return {
     value: initial,
     targets,
+    setValueAtTime(value) {
+      this.value = value;
+      targets.push(value);
+      return this;
+    },
     setTargetAtTime(target) {
       this.value = target;
       targets.push(target);
@@ -52,11 +61,11 @@ function param(initial: number): SoundParam & { readonly targets: number[] } {
 }
 
 interface FakeNode extends SoundNode {
-  readonly connectedTo: SoundNode[];
+  readonly connectedTo: (SoundNode | SoundParam)[];
 }
 
 function node(): FakeNode {
-  const connectedTo: SoundNode[] = [];
+  const connectedTo: (SoundNode | SoundParam)[] = [];
   return {
     connectedTo,
     connect(destination) {
@@ -70,8 +79,13 @@ function node(): FakeNode {
 
 interface FakeOscillator extends SoundOscillator, FakeNode {
   readonly frequency: ReturnType<typeof param>;
+  readonly detune: ReturnType<typeof param>;
   started: number;
   stopped: number;
+}
+
+interface FakeFilter extends SoundFilter, FakeNode {
+  readonly frequency: ReturnType<typeof param>;
 }
 
 interface FakeSource extends SoundBufferSource, FakeNode {
@@ -86,9 +100,11 @@ interface FakeGain extends SoundGain, FakeNode {
 
 /** The slice of Web Audio the game uses, recording what was made of it. */
 interface FakeContext extends SoundContext {
+  currentTime: number;
   state: AudioContextState;
   readonly decoded: ArrayBuffer[];
   readonly oscillators: FakeOscillator[];
+  readonly filters: FakeFilter[];
   readonly sources: FakeSource[];
   readonly gains: FakeGain[];
   resumes: number;
@@ -98,10 +114,12 @@ function fakeContext(): FakeContext {
   const destination = node();
   const context: FakeContext = {
     currentTime: 0,
+    sampleRate: 48000,
     destination,
     state: "suspended",
     decoded: [],
     oscillators: [],
+    filters: [],
     sources: [],
     gains: [],
     resumes: 0,
@@ -112,13 +130,23 @@ function fakeContext(): FakeContext {
     },
     decodeAudioData(bytes) {
       this.decoded.push(bytes);
-      return Promise.resolve({ url: urlOf(bytes) } as unknown as AudioBuffer);
+      return Promise.resolve({ url: urlOf(bytes) } as unknown as SoundBuffer);
+    },
+    createBuffer(_channels, length) {
+      const samples = new Float32Array(length);
+      return { getChannelData: () => samples };
+    },
+    createBiquadFilter() {
+      const filter: FakeFilter = { ...node(), type: "lowpass", frequency: param(350), Q: param(1) };
+      this.filters.push(filter);
+      return filter;
     },
     createOscillator() {
       const oscillator: FakeOscillator = {
         ...node(),
         type: "sine",
         frequency: param(440),
+        detune: param(0),
         started: 0,
         stopped: 0,
         start() {
@@ -183,11 +211,24 @@ interface Harness {
   context(): FakeContext;
   /** How many sources playing the file of `cue` have been started. */
   played(cue: SoundCue): number;
-  engine(): FakeOscillator;
+  /** The engine's two sawtooths, in the order made. */
+  saws(): FakeOscillator[];
+  /** The engine's square sub, under the sawtooths. */
+  sub(): FakeOscillator;
+  /** The engine's noise, which it fills itself rather than loads. */
+  noise(): FakeSource[];
+  /** The lowpass the engine's voices meet in. */
+  engineFilter(): FakeFilter;
+  /** The gain after the engine's filter that the upshift cuts and the limiter chops. */
+  engineLevel(): FakeGain;
+  /** The gain the limiter's chop is scaled by before it reaches the level. */
+  limiterDepth(): FakeGain;
+  /** The gain the crackle bursts open past the filter. */
+  crackleGain(): FakeGain;
   music(): FakeSource[];
   /** The sources made for `loop`'s file, started or not. */
   loops(loop: SoundLoop): FakeSource[];
-  /** The gain the engine's note reaches the speakers through. */
+  /** The gain the engine reaches the speakers through, which its toggle sets. */
   engineGain(): FakeGain;
   /** The gain `source` is connected to. */
   gainOf(source: FakeNode): FakeGain;
@@ -218,26 +259,65 @@ function harness(settings = DEFAULT_AUDIO_SETTINGS): Harness {
     context().sources.filter(
       (source) => (source.buffer as unknown as FakeBuffer | null)?.url === url,
     );
-  const engine = () => {
-    const made = context().oscillators.at(-1);
-    if (made === undefined) throw new Error("no engine oscillator");
-    return made;
-  };
   const gainOf = (source: FakeNode) => {
     const gain = context().gains.find((candidate) => source.connectedTo.includes(candidate));
     if (gain === undefined) throw new Error("the source reaches no gain");
     return gain;
   };
+  const filterOf = (source: FakeNode) => {
+    const filter = context().filters.find((candidate) => source.connectedTo.includes(candidate));
+    if (filter === undefined) throw new Error("the source reaches no filter");
+    return filter;
+  };
+  const saws = () => context().oscillators.filter((made) => made.type === "sawtooth");
+  const firstSaw = () => {
+    const saw = saws()[0];
+    if (saw === undefined) throw new Error("no engine sawtooth");
+    return saw;
+  };
+  const engineFilter = () => filterOf(gainOf(firstSaw()));
+  const engineLevel = () => gainOf(engineFilter());
+  const noise = () =>
+    context().sources.filter(
+      (source) => source.buffer !== null && !("url" in (source.buffer as object)),
+    );
   return {
     audio,
     fetched,
     contexts,
     context,
     played: (cue) => sourcesOf(SOUND_URLS[cue]).filter((source) => source.started > 0).length,
-    engine,
+    saws,
+    sub() {
+      // The square that reaches the engine's filter through its own gain; the limiter's square reaches a param.
+      const made = context().oscillators.find(
+        (candidate) =>
+          candidate.type === "square" &&
+          context().gains.some(
+            (gain) =>
+              candidate.connectedTo.includes(gain) && gain.connectedTo.includes(engineFilter()),
+          ),
+      );
+      if (made === undefined) throw new Error("no engine sub");
+      return made;
+    },
+    noise,
+    engineFilter,
+    engineLevel,
+    limiterDepth() {
+      const level = engineLevel();
+      const depth = context().gains.find((candidate) => candidate.connectedTo.includes(level.gain));
+      if (depth === undefined) throw new Error("no limiter depth");
+      return depth;
+    },
+    crackleGain() {
+      const source = noise()[0];
+      if (source === undefined) throw new Error("no engine noise");
+      return gainOf(source);
+    },
     music: () => sourcesOf(MUSIC_URL),
     loops: (loop) => sourcesOf(LOOP_URLS[loop]),
-    engineGain: () => gainOf(engine()),
+    engineGain: () => gainOf(engineLevel()),
     gainOf,
   };
 }
@@ -273,31 +353,33 @@ describe("preloading and the autoplay rule", () => {
   });
 });
 
-describe("the engine note", () => {
-  it("is one looping oscillator per race whose pitch follows the own kart's speed", async () => {
-    const { audio, engine, engineGain, context } = harness();
+describe("the engine", () => {
+  it("starts its graph with the race, through the engine's gain to the speakers, and stops it with the race", async () => {
+    const { audio, saws, sub, noise, engineFilter, engineGain, limiterDepth, context } = harness();
     await audio.unlock();
     const race = audio.race();
     race.start();
-    expect(context().oscillators).toHaveLength(1);
-    expect(engine().started).toBe(1);
-    // Through its gain to the speakers.
+    // Two sawtooths a detune apart, the sub an octave under them, and the limiter's chop.
+    expect(saws()).toHaveLength(2);
+    expect(saws().map((saw) => saw.detune.value)).toEqual([
+      -ENGINE.detuneCents / 2,
+      ENGINE.detuneCents / 2,
+    ]);
+    expect(saws()[0]?.frequency.value).toBe(ENGINE.idleHz);
+    expect(sub().frequency.value).toBe(ENGINE.idleHz / 2);
+    expect(context().oscillators).toHaveLength(4);
+    for (const oscillator of context().oscillators) expect(oscillator.started).toBe(1);
+    // The intake noise loops from a buffer the engine filled, not a file.
+    expect(noise()).toHaveLength(1);
+    expect(noise()[0]?.loop).toBe(true);
+    expect(noise()[0]?.started).toBe(1);
+    expect(engineFilter().type).toBe("lowpass");
     expect(engineGain().connectedTo).toContain(context().destination);
-    race.update(STILL);
-    const idle = engine().frequency.value;
-    race.update({ ...STILL, speed: TOP_SPEED });
-    const top = engine().frequency.value;
-    expect(top).toBeGreaterThan(idle);
-    race.update({ ...STILL, speed: TOP_SPEED / 2 });
-    expect(engine().frequency.value).toBeCloseTo((idle + top) / 2, 6);
-    race.update({ ...STILL, speed: -TOP_SPEED / 2 });
-    expect(engine().frequency.value).toBeCloseTo((idle + top) / 2, 6);
-    // Revving on the grid as the rocket start charges, at a standstill.
-    race.update({ ...STILL, charge: "fullBoost" });
-    expect(engine().frequency.value).toBeGreaterThan(idle);
-    expect(engine().frequency.value).toBeLessThanOrEqual(top);
+    expect(limiterDepth().gain.value).toBe(0);
     race.stop();
-    expect(engine().stopped).toBe(1);
+    for (const oscillator of context().oscillators) expect(oscillator.stopped).toBe(1);
+    expect(noise()[0]?.stopped).toBe(1);
+    expect(saws()[0]?.connectedTo).toHaveLength(0);
   });
 
   it("is muted by its toggle at once and unmuted again", async () => {
@@ -322,6 +404,115 @@ describe("the engine note", () => {
     expect(engineGain().gain.value).toBe(0);
     audio.settings(DEFAULT_AUDIO_SETTINGS);
     expect(engineGain().gain.value).toBeGreaterThan(0);
+  });
+
+  it("raises its note with speed, both sawtooths together and the sub an octave under, to the top note at top speed", async () => {
+    const { audio, saws, sub, engineFilter } = harness();
+    await audio.unlock();
+    const race = audio.race();
+    race.start();
+    race.update(STILL);
+    expect(saws()[0]?.frequency.value).toBe(ENGINE.idleHz);
+    const closed = engineFilter().frequency.value;
+    race.update({ ...STILL, speed: 1 });
+    const low = saws()[0]?.frequency.value ?? 0;
+    expect(low).toBeGreaterThan(ENGINE.idleHz);
+    expect(saws()[1]?.frequency.value).toBe(low);
+    expect(sub().frequency.value).toBe(low / 2);
+    expect(engineFilter().frequency.value).toBeGreaterThan(closed);
+    race.update({ ...STILL, speed: TOP_SPEED });
+    expect(saws()[0]?.frequency.value).toBeCloseTo(ENGINE.topHz, 6);
+  });
+
+  it("drops the note and cuts the level as it upshifts, and blips the note as it downshifts", async () => {
+    const { audio, saws, engineLevel, context } = harness();
+    await audio.unlock();
+    const race = audio.race();
+    race.start();
+    const edges = engineBandEdges(TOP_SPEED);
+    const top = edges[1] ?? 0;
+    race.update({ ...STILL, speed: top - 0.01 });
+    const inFirst = saws()[0]?.frequency.value ?? 0;
+    const levelTargets = engineLevel().gain.targets.length;
+    race.update({ ...STILL, speed: top + 0.01 });
+    // Faster, yet the note falls: second gear.
+    expect(saws()[0]?.frequency.value).toBeLessThan(inFirst);
+    // The cut: the level to nothing now and back once the cut has run.
+    expect(engineLevel().gain.targets.slice(levelTargets)).toEqual([0, 1]);
+    // While the cut runs the level is left to it.
+    race.update({ ...STILL, speed: top + 0.02 });
+    expect(engineLevel().gain.targets).toHaveLength(levelTargets + 2);
+    context().currentTime = 1;
+    race.update({ ...STILL, speed: top + 0.03 });
+    expect(engineLevel().gain.targets).toHaveLength(levelTargets + 3);
+    // Back under the band's floor by more than the margin: first again, with the blip over the note it settles to.
+    const settled = saws()[0]?.frequency.targets.length ?? 0;
+    race.update({ ...STILL, speed: top - 0.5 });
+    const blip = saws()[0]?.frequency.targets.slice(settled) ?? [];
+    expect(blip).toHaveLength(2);
+    expect(blip[0]).toBeCloseTo((blip[1] ?? 0) * (1 + ENGINE.downshiftBlip), 6);
+  });
+
+  it("crackles in bursts as the kart lifts off, spaced out, and never on the throttle", async () => {
+    const { audio, crackleGain, context } = harness();
+    await audio.unlock();
+    const race = audio.race();
+    race.start();
+    const frame = 1 / 60;
+    const step = (frame * TOP_SPEED) / FULL_THROTTLE_SECONDS_TO_TOP;
+    /** Thirty frames from `from` at full throttle (1) or a full lift (-1), the clock advancing with them. */
+    const run = (from: number, direction: 1 | -1) => {
+      for (let i = 1; i <= 30; i++) {
+        context().currentTime += frame;
+        race.update({ ...STILL, speed: from + direction * i * step });
+      }
+    };
+    context().currentTime += frame;
+    race.update({ ...STILL, speed: 10 });
+    run(10, 1);
+    expect(crackleGain().gain.targets).toHaveLength(0);
+    // Lifting off at the same rate: bursts, each opened and shut, fewer than the frames.
+    run(16, -1);
+    const targets = crackleGain().gain.targets;
+    const bursts = targets.filter((target) => target > 0).length;
+    expect(bursts).toBeGreaterThan(0);
+    expect(bursts).toBeLessThan(30);
+    expect(targets.filter((target) => target === 0)).toHaveLength(bursts);
+    expect(targets[0]).toBeGreaterThan(0);
+    expect(targets[1]).toBe(0);
+  });
+
+  it("chops at the limiter past top speed, and stops chopping back under it", async () => {
+    const { audio, saws, limiterDepth } = harness();
+    await audio.unlock();
+    const race = audio.race();
+    race.start();
+    race.update({ ...STILL, speed: TOP_SPEED * 1.3 });
+    expect(limiterDepth().gain.value).toBeGreaterThan(0);
+    expect(saws()[0]?.frequency.value).toBeGreaterThan(ENGINE.topHz);
+    race.update({ ...STILL, speed: TOP_SPEED * 0.9 });
+    expect(limiterDepth().gain.value).toBe(0);
+    expect(saws()[0]?.frequency.value).toBeLessThan(ENGINE.topHz);
+  });
+
+  it("revs on the grid as the rocket start charges, on the limiter for a full boost, and idles from Go", async () => {
+    const { audio, saws, limiterDepth } = harness();
+    await audio.unlock();
+    const race = audio.race();
+    race.start();
+    race.update({ ...STILL, count: "3", charge: "clean" });
+    expect(saws()[0]?.frequency.value).toBe(ENGINE.idleHz);
+    race.update({ ...STILL, count: "2", charge: "weakBoost" });
+    const weak = saws()[0]?.frequency.value ?? 0;
+    expect(weak).toBeGreaterThan(ENGINE.idleHz);
+    expect(weak).toBeLessThan(ENGINE.topHz);
+    expect(limiterDepth().gain.value).toBe(0);
+    race.update({ ...STILL, count: "1", charge: "fullBoost" });
+    expect(saws()[0]?.frequency.value).toBeCloseTo(ENGINE.topHz, 6);
+    expect(limiterDepth().gain.value).toBeGreaterThan(0);
+    race.update({ ...STILL, count: "GO", charge: null });
+    expect(saws()[0]?.frequency.value).toBe(ENGINE.idleHz);
+    expect(limiterDepth().gain.value).toBe(0);
   });
 });
 
@@ -581,15 +772,17 @@ describe("the music loop", () => {
 
 describe("a race under way before the first gesture", () => {
   it("is silent until the gesture, then sounds from there, dropping the cues it missed", async () => {
-    const { audio, contexts, context, engine, music, played } = harness();
+    const { audio, contexts, saws, music, played } = harness();
     const race = audio.race();
     race.start();
     race.update(STILL);
     race.update({ ...STILL, airborne: true, speed: 20 });
     expect(contexts).toHaveLength(0);
     await audio.unlock();
-    expect(context().oscillators).toHaveLength(1);
-    expect(engine().started).toBe(1);
+    // The engine picks up at the speed it finds: fifth, not a climb from idle.
+    expect(saws()).toHaveLength(2);
+    expect(saws()[0]?.started).toBe(1);
+    expect(saws()[0]?.frequency.value).toBeGreaterThan(ENGINE.idleHz);
     expect(music()).toHaveLength(1);
     expect(played("hop")).toBe(0);
     race.update({ ...STILL, airborne: true, speed: 20 });
