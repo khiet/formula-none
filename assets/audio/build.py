@@ -26,8 +26,8 @@ OUT = Path(__file__).parent
 # bands and swells below are repeated in audio-cues.ts (LOOP_CURVES) and
 # the two change together.
 LOOP_SPEED = 15.0
-# The sim's TOP_SPEED_M_PER_S (crates/sim/src/tuning.rs); the page's kit
-# scales its swells to it, and a sim retune moves it here too.
+# The sim's TOP_SPEED_M_PER_S (crates/sim/src/tuning.rs); a retune there
+# moves it here.
 TOP_SPEED = 30.0
 
 
@@ -348,7 +348,8 @@ def finish(beep=880, high=1320, length=0.1, hold=0.5, gain=0.3):
 
 
 # ---------------------------------------------------------------------------
-# The original helpers, kept verbatim for the hit and the sputter.
+# The original helpers, bodies unchanged under new names, for the hit and
+# the sputter, whose bytes must not change.
 # ---------------------------------------------------------------------------
 
 
@@ -425,7 +426,6 @@ def sfx():
     write("drift-skid", tame(drift_skid(LOOP_SPEED)))
     write("grass", tame(grass(LOOP_SPEED)))
     write("sand", tame(sand(LOOP_SPEED)))
-    # The original hit and sputter; see above.
     write("hit", hit())
     # As long as the stall (`START_STALL_S`).
     write("sputter", sputter(2.0))
