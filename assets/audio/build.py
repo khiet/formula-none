@@ -22,8 +22,12 @@ RATE = 22050
 TAU = math.pi * 2
 OUT = Path(__file__).parent
 # The speed, in metres per second, the loops are rendered at; the game
-# pitches and swells each loop from this speed to the kart's.
+# pitches and swells each loop from this speed to the kart's, so the
+# bands and swells below are repeated in audio-cues.ts (LOOP_CURVES) and
+# the two change together.
 LOOP_SPEED = 15.0
+# The sim's TOP_SPEED_M_PER_S (crates/sim/src/tuning.rs); the page's kit
+# scales its swells to it, and a sim retune moves it here too.
 TOP_SPEED = 30.0
 
 
@@ -289,7 +293,7 @@ def lap(first=1200, second=1600, gap=0.05, gain=0.35):
 
 
 def drift_skid(speed, centre=600, per_ms=20, width=400, judder_hz=22, depth=0.5, gain=0.85):
-    """Judder: bandpassed noise chopped at a tyre's judder; the band climbs with speed."""
+    """Judder: bandpassed noise chopped at a tyre's judder; the band climbs `per_ms` hertz per metre per second."""
     bed = noise(1.5, decay=0, gain=gain * (0.4 + 0.6 * fraction(speed)), seed=12)
     return loopable(chop(scale(bandpass(bed, centre + per_ms * speed, width), 4), judder_hz, depth))
 

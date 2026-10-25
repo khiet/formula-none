@@ -166,7 +166,9 @@ export interface LoopPlayback {
  * centre in hertz at a speed in metres per second sets the rate, over the
  * centre at the rendered speed, so the skid's band climbs with the kart as
  * the page's did; the swell is the fraction of top speed the file's gain
- * followed, where the fraction is capped at the boosts' headroom.
+ * followed, where the fraction is capped at the boosts' headroom. These
+ * repeat the renders in `assets/audio/build.py`, and the two change
+ * together.
  */
 interface LoopCurve {
   readonly renderedSpeed: number;

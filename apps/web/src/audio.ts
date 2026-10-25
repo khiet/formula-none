@@ -135,7 +135,7 @@ const LEVELS: Readonly<Record<keyof AudioSettings, number>> = {
 };
 const TOGGLES = Object.keys(LEVELS) as (keyof AudioSettings)[];
 /** The time constant the engine note and the loops glide to each frame's pitch and level with, so neither jumps. */
-const ENGINE_GLIDE_S = 0.04;
+const GLIDE_S = 0.04;
 
 /** The decoded files, once the context exists to decode them, and the gain each toggle sets. */
 interface Sounds {
@@ -175,6 +175,21 @@ export function createAudio(options: AudioOptions): Audio {
     }
   };
 
+  /** Decode every file of `urls`, keeping the ones that decoded under their names. */
+  const decodeAll = async <Name extends string>(
+    context: SoundContext,
+    urls: Readonly<Record<Name, string>>,
+  ): Promise<Partial<Record<Name, AudioBuffer>>> => {
+    const names = Object.keys(urls) as Name[];
+    const buffers = await Promise.all(names.map((name) => decode(context, urls[name])));
+    const decoded: Partial<Record<Name, AudioBuffer>> = {};
+    names.forEach((name, index) => {
+      const buffer = buffers[index];
+      if (buffer !== undefined) decoded[name] = buffer;
+    });
+    return decoded;
+  };
+
   const gainOf = (context: SoundContext, toggle: keyof AudioSettings): SoundGain => {
     const gain = context.createGain();
     gain.gain.value = settings[toggle] ? LEVELS[toggle] : 0;
@@ -185,23 +200,11 @@ export function createAudio(options: AudioOptions): Audio {
   const makeSounds = async (): Promise<void> => {
     const context = options.createContext();
     await context.resume();
-    const cues = Object.keys(SOUND_URLS) as SoundCue[];
-    const loopNames = Object.keys(LOOP_URLS) as SoundLoop[];
-    const [music, ...buffers] = await Promise.all([
+    const [music, sfx, loops] = await Promise.all([
       decode(context, MUSIC_URL),
-      ...cues.map((cue) => decode(context, SOUND_URLS[cue])),
-      ...loopNames.map((loop) => decode(context, LOOP_URLS[loop])),
+      decodeAll(context, SOUND_URLS),
+      decodeAll(context, LOOP_URLS),
     ]);
-    const sfx: Partial<Record<SoundCue, AudioBuffer>> = {};
-    cues.forEach((cue, index) => {
-      const buffer = buffers[index];
-      if (buffer !== undefined) sfx[cue] = buffer;
-    });
-    const loops: Partial<Record<SoundLoop, AudioBuffer>> = {};
-    loopNames.forEach((loop, index) => {
-      const buffer = buffers[cues.length + index];
-      if (buffer !== undefined) loops[loop] = buffer;
-    });
     sounds = {
       context,
       sfx,
@@ -259,6 +262,12 @@ export function createAudio(options: AudioOptions): Audio {
   };
 }
 
+/** A loop sounding now: its source through a gain of its own under the SFX gain. */
+interface RunningLoop {
+  readonly source: SoundBufferSource;
+  readonly gain: SoundGain;
+}
+
 /**
  * One race's nodes: made when both the race has started and the context
  * exists, whichever comes second, and torn down at the race's stop.
@@ -268,8 +277,7 @@ class LiveRace {
   #sounds: Sounds | undefined;
   #engine: SoundOscillator | undefined;
   #music: SoundBufferSource | undefined;
-  /** The loops running now, each through a gain of its own under the SFX gain. */
-  readonly #loops = new Map<SoundLoop, { source: SoundBufferSource; gain: SoundGain }>();
+  readonly #loops = new Map<SoundLoop, RunningLoop>();
   #last: SoundReading | undefined;
   readonly #topSpeed: number;
   readonly #settings: () => AudioSettings;
@@ -322,7 +330,7 @@ class LiveRace {
     this.#engine?.frequency.setTargetAtTime(
       enginePitchHz(reading.speed, this.#topSpeed, reading.charge),
       sounds.context.currentTime,
-      ENGINE_GLIDE_S,
+      GLIDE_S,
     );
     const sfx = this.#settings().sfx;
     this.#runLoops(sounds, sfx ? soundLoops(reading) : new Set(), reading.speed);
@@ -351,8 +359,8 @@ class LiveRace {
       const playback = loopPlayback(loop, speed, this.#topSpeed);
       const running = this.#loops.get(loop);
       if (running !== undefined) {
-        running.source.playbackRate.setTargetAtTime(playback.rate, now, ENGINE_GLIDE_S);
-        running.gain.gain.setTargetAtTime(playback.gain, now, ENGINE_GLIDE_S);
+        running.source.playbackRate.setTargetAtTime(playback.rate, now, GLIDE_S);
+        running.gain.gain.setTargetAtTime(playback.gain, now, GLIDE_S);
         continue;
       }
       const buffer = sounds.loops[loop];
