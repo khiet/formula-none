@@ -3,6 +3,7 @@ import type { KartTransform, Phase, Standing } from "./bridge";
 import { type CourseMapSetup, createCourseMap } from "./course-map";
 import { formatLapTime, NO_LAP_TIME, type OrdinalParts, ordinalParts } from "./format";
 import type { Item } from "./generated/protocol";
+import { itemSprite } from "./item-sprites";
 
 /**
  * The local kart's item slot as the run reports it: the item the server
@@ -133,8 +134,13 @@ export function createInstrumentPanel(
   const bestLap = instrument("best-lap");
   const wrongWay = instrument("wrong-way");
   wrongWay.hidden = true;
+  // The slot's text is the item's name, kept for assistive technology and
+  // visually hidden behind the sprite (ADR 0024).
   const item = instrument("item");
   item.dataset.itemState = "empty";
+  const itemName = part(item, "itemName");
+  let shownItem: Item | null = null;
+  let shownSprite: SVGSVGElement | null = null;
   const banner = instrument("connection-banner", CONNECTION_LOST_BANNER);
   banner.hidden = true;
   const countdown = instrument("countdown");
@@ -179,8 +185,20 @@ export function createInstrumentPanel(
       speed.textContent = formatSpeed(local.speed);
       surface.textContent = local.surface;
       const held = itemReadout(slot);
-      item.textContent = held.text;
       item.dataset.itemState = held.state;
+      if (slot.item !== shownItem) {
+        shownItem = slot.item;
+        itemName.textContent = held.text;
+        shownSprite?.remove();
+        shownSprite = null;
+        if (slot.item === null) {
+          delete item.dataset.item;
+        } else {
+          item.dataset.item = slot.item;
+          shownSprite = itemSprite(slot.item);
+          item.append(shownSprite);
+        }
+      }
       const count = phaseReadout(phase);
       countdown.textContent = count;
       countdown.hidden = count === "";

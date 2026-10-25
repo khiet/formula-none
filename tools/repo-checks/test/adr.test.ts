@@ -28,6 +28,7 @@ const DECISION_SLUGS = [
   "kart-contact",
   "track-limits",
   "hud-language",
+  "item-sprites",
 ];
 
 const expectedFiles = DECISION_SLUGS.map(

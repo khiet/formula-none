@@ -79,8 +79,9 @@
       [data-instrument="best-lap"] {
         font-size: calc(var(--hud) * 1.8);
       }
-      /* The lap count stays readable to assistive technology behind the flags. */
-      [data-lap-text] {
+      /* Text kept for assistive technology behind the flags and the item sprite. */
+      [data-lap-text],
+      [data-item-name] {
         position: absolute;
         width: 1px;
         height: 1px;
@@ -124,6 +125,12 @@
           inset 0.4em 0.4em 0 #fff6cf,
           inset -0.4em -0.4em 0 #8c5a12,
           0.5em 0.5em 0 #000;
+      }
+      /* The held item's character (ADR 0024) fills about two thirds of the box and scales with the HUD unit. */
+      [data-instrument="item"] svg {
+        width: 4.2em;
+        height: 4.2em;
+        image-rendering: pixelated;
       }
       [data-instrument="item"][data-item-state="firing"] {
         background: #fff;
