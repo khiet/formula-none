@@ -63,3 +63,25 @@ export interface RaceRun {
 
 /** How long the item slot shows the fire after the item leaves it. Presentation, so not the sim's to tune. */
 export const ITEM_FIRE_FLASH_S = 0.5;
+
+/** How long the count shows Go once the race is on. Presentation, so not the sim's to tune. */
+const GO_S = 1;
+
+/**
+ * The count over the race at `phase`: the whole seconds left to Go while
+ * the countdown runs, Go for the first second of the race, and nothing the
+ * rest of the time. The Instrument panel prints it and the audio beeps on
+ * it, so the two never disagree.
+ */
+export type RaceCount = number | "go" | null;
+
+export function raceCount(phase: Phase): RaceCount {
+  switch (phase.kind) {
+    case "countdown":
+      return Math.ceil(phase.remainingSeconds);
+    case "racing":
+      return phase.elapsedSeconds < GO_S ? "go" : null;
+    case "finished":
+      return null;
+  }
+}

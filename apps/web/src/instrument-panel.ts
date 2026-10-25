@@ -4,7 +4,7 @@ import { type CourseMapSetup, createCourseMap } from "./course-map";
 import { formatLapTime, NO_LAP_TIME, type OrdinalParts, ordinalParts } from "./format";
 import type { Item } from "./generated/protocol";
 import { itemSprite } from "./item-sprites";
-import type { ItemSlot, RaceReadout } from "./race-run";
+import { type ItemSlot, type RaceReadout, raceCount } from "./race-run";
 
 /** The item slot as the panel prints it: the item's name and the slot's state. */
 export interface ItemReadout {
@@ -49,8 +49,6 @@ export interface LapReadouts {
 
 const WRONG_WAY_WARNING = "WRONG WAY";
 export const CONNECTION_LOST_BANNER = "Connection lost: reconnecting";
-/** How long GO stays up after the countdown. Presentation, so not the sim's to tune. */
-const GO_S = 1;
 
 /** The family name the panel's styles ask for; the face is registered by `loadInstrumentFont`. */
 const INSTRUMENT_FONT_FAMILY = "Kenney Mini Square";
@@ -204,19 +202,10 @@ export function createInstrumentPanel(
   };
 }
 
-/**
- * The count over the View: the whole seconds left to Go, GO for the first
- * second of the race, and nothing the rest of the time.
- */
+/** The race's count as the panel prints it over the View: 3, 2, 1, GO, or nothing. */
 export function phaseReadout(phase: Phase): string {
-  switch (phase.kind) {
-    case "countdown":
-      return String(Math.ceil(phase.remainingSeconds));
-    case "racing":
-      return phase.elapsedSeconds < GO_S ? "GO" : "";
-    case "finished":
-      return "";
-  }
+  const count = raceCount(phase);
+  return count === null ? "" : count === "go" ? "GO" : String(count);
 }
 
 /**
