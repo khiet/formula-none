@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { enginePitchHz, type SoundReading, soundCues, soundReading } from "./audio-cues";
+import {
+  enginePitchHz,
+  loopPlayback,
+  type SoundReading,
+  soundCues,
+  soundLoops,
+  soundReading,
+} from "./audio-cues";
 import type { KartTransform, Phase, Standing } from "./bridge";
 
 const STILL: SoundReading = {
@@ -14,6 +21,9 @@ const STILL: SoundReading = {
   count: "",
   charge: null,
   stalled: false,
+  surface: "asphalt",
+  drifting: false,
+  wrongWay: false,
 };
 
 describe("soundCues", () => {
@@ -48,7 +58,7 @@ describe("soundCues", () => {
     expect(soundCues({ ...STILL, miniTurbo: "orange" }, boosting)).toEqual(["miniTurbo"]);
     expect(soundCues({ ...STILL, miniTurbo: "none" }, STILL)).toEqual([]);
     // A boost from a pad with no drift ending is not a release either.
-    expect(soundCues(STILL, boosting)).toEqual([]);
+    expect(soundCues(STILL, boosting)).toEqual(["boostPad"]);
     // Let go while a pad's boost still runs: the boost lengthens, so it is heard.
     expect(
       soundCues(
@@ -56,11 +66,57 @@ describe("soundCues", () => {
         { ...STILL, boostSeconds: 0.6 },
       ),
     ).toEqual(["miniTurbo"]);
-    // Charging through the tiers is the sparks' tell, not a sound.
-    expect(soundCues({ ...STILL, miniTurbo: "none" }, { ...STILL, miniTurbo: "blue" })).toEqual([]);
-    expect(soundCues({ ...STILL, miniTurbo: "blue" }, { ...STILL, miniTurbo: "orange" })).toEqual(
-      [],
-    );
+    // Charging through the tiers is the chime's tell, not the release's.
+    expect(soundCues({ ...STILL, miniTurbo: "none" }, { ...STILL, miniTurbo: "blue" })).toEqual([
+      "tierChime",
+    ]);
+  });
+
+  it("plays the tier chime as the drift charges to blue and again to orange, the same chime both times", () => {
+    const at = (miniTurbo: SoundReading["miniTurbo"]): SoundReading => ({
+      ...STILL,
+      miniTurbo,
+      drifting: miniTurbo !== null,
+    });
+    expect(soundCues(STILL, at("none"))).toEqual([]);
+    expect(soundCues(at("none"), at("none"))).toEqual([]);
+    expect(soundCues(at("none"), at("blue"))).toEqual(["tierChime"]);
+    expect(soundCues(at("blue"), at("blue"))).toEqual([]);
+    expect(soundCues(at("blue"), at("orange"))).toEqual(["tierChime"]);
+    expect(soundCues(at("orange"), at("orange"))).toEqual([]);
+    // The drift ending, charged or not, is no chime.
+    expect(soundCues(at("orange"), STILL)).toEqual([]);
+    expect(soundCues(at("blue"), { ...STILL, boostSeconds: 0.6 })).toEqual(["miniTurbo"]);
+  });
+
+  it("plays the boost pad as a boost starts or lengthens that no release and no item fired explains", () => {
+    const boosting = { ...STILL, boostSeconds: 0.6 };
+    expect(soundCues(STILL, boosting)).toEqual(["boostPad"]);
+    expect(soundCues(boosting, boosting)).toEqual([]);
+    // A boost ticking down is the same boost; a second pad lengthens it.
+    expect(soundCues(boosting, { ...STILL, boostSeconds: 0.5 })).toEqual([]);
+    expect(soundCues({ ...STILL, boostSeconds: 0.2 }, boosting)).toEqual(["boostPad"]);
+    // A charged drift's release is the mini-turbo, not a pad.
+    expect(soundCues({ ...STILL, miniTurbo: "orange", drifting: true }, boosting)).toEqual([
+      "miniTurbo",
+    ]);
+    // An uncharged drift ending onto a pad is a pad.
+    expect(soundCues({ ...STILL, miniTurbo: "none", drifting: true }, boosting)).toEqual([
+      "boostPad",
+    ]);
+    // A boost item fired is the fire, not a pad.
+    expect(soundCues({ ...STILL, item: "boost" }, boosting)).toEqual(["itemFire"]);
+    // The rocket start's boost at GO is the mini-turbo.
+    expect(
+      soundCues({ ...STILL, count: "1", charge: "fullBoost" }, { ...boosting, count: "GO" }),
+    ).toEqual(["go", "miniTurbo"]);
+  });
+
+  it("plays the wrong way once as the flag raises and nothing while it holds or drops", () => {
+    const wrong = { ...STILL, wrongWay: true };
+    expect(soundCues(STILL, wrong)).toEqual(["wrongWay"]);
+    expect(soundCues(wrong, wrong)).toEqual([]);
+    expect(soundCues(wrong, STILL)).toEqual([]);
   });
 
   it("plays no mini-turbo for a charged drift that ends without its boost", () => {
@@ -116,9 +172,14 @@ describe("soundCues", () => {
     expect(soundCues(spun, STILL)).toEqual([]);
   });
 
-  it("plays the lap as the lap count rises and as the kart finishes", () => {
+  it("plays the lap as the lap count rises and the finish in its place as the kart finishes", () => {
     expect(soundCues(STILL, { ...STILL, lap: 2 })).toEqual(["lap"]);
-    expect(soundCues({ ...STILL, lap: 3 }, { ...STILL, lap: 3, finished: true })).toEqual(["lap"]);
+    expect(soundCues({ ...STILL, lap: 3 }, { ...STILL, lap: 3, finished: true })).toEqual([
+      "finish",
+    ]);
+    expect(soundCues({ ...STILL, lap: 3 }, { ...STILL, lap: 4, finished: true })).toEqual([
+      "finish",
+    ]);
     expect(
       soundCues({ ...STILL, lap: 3, finished: true }, { ...STILL, lap: 3, finished: true }),
     ).toEqual([]);
@@ -127,6 +188,59 @@ describe("soundCues", () => {
   it("reports every change of one frame together", () => {
     const after = { ...STILL, airborne: true, item: "boost" as const, lap: 2 };
     expect(soundCues(STILL, after)).toEqual(["hop", "itemPickup", "lap"]);
+  });
+});
+
+describe("soundLoops", () => {
+  it("runs the drift skid while the kart drifts, at any tier", () => {
+    expect(soundLoops({ ...STILL, drifting: true, miniTurbo: "none" })).toEqual(
+      new Set(["driftSkid"]),
+    );
+    expect(soundLoops({ ...STILL, drifting: true, miniTurbo: "orange" })).toEqual(
+      new Set(["driftSkid"]),
+    );
+  });
+
+  it("runs the grass and the sand while the surface holds, with the skid over either", () => {
+    expect(soundLoops({ ...STILL, surface: "grass" })).toEqual(new Set(["grass"]));
+    expect(soundLoops({ ...STILL, surface: "sand" })).toEqual(new Set(["sand"]));
+    expect(soundLoops({ ...STILL, surface: "sand", drifting: true, miniTurbo: "none" })).toEqual(
+      new Set(["driftSkid", "sand"]),
+    );
+  });
+
+  it("runs nothing on asphalt off a drift, nor on a wall or out of the world", () => {
+    expect(soundLoops(STILL)).toEqual(new Set());
+    expect(soundLoops({ ...STILL, surface: "wall" })).toEqual(new Set());
+    expect(soundLoops({ ...STILL, surface: "out of world", airborne: true })).toEqual(new Set());
+  });
+});
+
+describe("loopPlayback", () => {
+  it("pitches the skid by its band's centre at the kart's speed over its centre as rendered, clamped", () => {
+    expect(loopPlayback("driftSkid", 15, 30).rate).toBeCloseTo(1, 6);
+    expect(loopPlayback("driftSkid", 0, 30).rate).toBeCloseTo(600 / 900, 6);
+    expect(loopPlayback("driftSkid", 30, 30).rate).toBeCloseTo(1200 / 900, 6);
+    expect(loopPlayback("driftSkid", -30, 30).rate).toBeCloseTo(1200 / 900, 6);
+    expect(loopPlayback("driftSkid", 45, 30).rate).toBeCloseTo(1500 / 900, 6);
+    expect(loopPlayback("driftSkid", 200, 30).rate).toBe(2);
+  });
+
+  it("keeps the grass and the sand at their rendered pitch, whose bands do not move with speed", () => {
+    expect(loopPlayback("grass", 0, 30).rate).toBe(1);
+    expect(loopPlayback("grass", 45, 30).rate).toBe(1);
+    expect(loopPlayback("sand", 0, 30).rate).toBe(1);
+    expect(loopPlayback("sand", 45, 30).rate).toBe(1);
+  });
+
+  it("swells each loop with speed on its own curve, flat past the boosts' headroom", () => {
+    expect(loopPlayback("driftSkid", 0, 30).gain).toBeCloseTo(0.4, 6);
+    expect(loopPlayback("driftSkid", 30, 30).gain).toBeCloseTo(1, 6);
+    expect(loopPlayback("driftSkid", 45, 30).gain).toBeCloseTo(1.3, 6);
+    expect(loopPlayback("driftSkid", 90, 30).gain).toBeCloseTo(1.3, 6);
+    expect(loopPlayback("grass", 0, 30).gain).toBeCloseTo(0.3, 6);
+    expect(loopPlayback("grass", 30, 30).gain).toBeCloseTo(1, 6);
+    expect(loopPlayback("sand", 15, 30).gain).toBeCloseTo(0.65, 6);
   });
 });
 
@@ -169,6 +283,29 @@ describe("soundReading", () => {
       count: "",
       charge: null,
       stalled: false,
+      surface: "asphalt",
+      drifting: true,
+      wrongWay: false,
+    });
+  });
+
+  it("takes the surface and the wrong-way flag, and whether a drift is under way at any tier", () => {
+    const slot = { item: null, firing: false };
+    expect(
+      soundReading(
+        {
+          ...kart,
+          surface: "grass",
+          drift: { direction: "right", chargeSeconds: 0, miniTurbo: "none" },
+        },
+        { ...standing, wrongWay: true },
+        slot,
+        racing,
+      ),
+    ).toMatchObject({ surface: "grass", drifting: true, miniTurbo: "none", wrongWay: true });
+    expect(soundReading({ ...kart, drift: null }, standing, slot, racing)).toMatchObject({
+      drifting: false,
+      miniTurbo: null,
     });
   });
 

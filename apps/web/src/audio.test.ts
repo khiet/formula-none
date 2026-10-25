@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   type Audio,
   createAudio,
+  LOOP_URLS,
   MUSIC_URL,
   SOUND_URLS,
   type SoundBufferSource,
@@ -11,7 +12,7 @@ import {
   type SoundOscillator,
   type SoundParam,
 } from "./audio";
-import type { SoundCue, SoundReading } from "./audio-cues";
+import type { SoundCue, SoundLoop, SoundReading } from "./audio-cues";
 import { DEFAULT_AUDIO_SETTINGS } from "./audio-settings";
 
 const TOP_SPEED = 30;
@@ -27,6 +28,9 @@ const STILL: SoundReading = {
   count: "",
   charge: null,
   stalled: false,
+  surface: "asphalt",
+  drifting: false,
+  wrongWay: false,
 };
 
 /** A decoded file stands in for its AudioBuffer: the test only asks which was played. */
@@ -71,6 +75,7 @@ interface FakeOscillator extends SoundOscillator, FakeNode {
 }
 
 interface FakeSource extends SoundBufferSource, FakeNode {
+  readonly playbackRate: ReturnType<typeof param>;
   started: number;
   stopped: number;
 }
@@ -136,6 +141,7 @@ function fakeContext(): FakeContext {
         ...node(),
         buffer: null,
         loop: false,
+        playbackRate: param(1),
         started: 0,
         stopped: 0,
         start() {
@@ -179,8 +185,12 @@ interface Harness {
   played(cue: SoundCue): number;
   engine(): FakeOscillator;
   music(): FakeSource[];
+  /** The sources made for `loop`'s file, started or not. */
+  loops(loop: SoundLoop): FakeSource[];
   /** The gain the engine's note reaches the speakers through. */
   engineGain(): FakeGain;
+  /** The gain `source` is connected to. */
+  gainOf(source: FakeNode): FakeGain;
 }
 
 function harness(settings = DEFAULT_AUDIO_SETTINGS): Harness {
@@ -213,6 +223,11 @@ function harness(settings = DEFAULT_AUDIO_SETTINGS): Harness {
     if (made === undefined) throw new Error("no engine oscillator");
     return made;
   };
+  const gainOf = (source: FakeNode) => {
+    const gain = context().gains.find((candidate) => source.connectedTo.includes(candidate));
+    if (gain === undefined) throw new Error("the source reaches no gain");
+    return gain;
+  };
   return {
     audio,
     fetched,
@@ -221,11 +236,9 @@ function harness(settings = DEFAULT_AUDIO_SETTINGS): Harness {
     played: (cue) => sourcesOf(SOUND_URLS[cue]).filter((source) => source.started > 0).length,
     engine,
     music: () => sourcesOf(MUSIC_URL),
-    engineGain() {
-      const gain = context().gains.find((candidate) => engine().connectedTo.includes(candidate));
-      if (gain === undefined) throw new Error("the engine reaches no gain");
-      return gain;
-    },
+    loops: (loop) => sourcesOf(LOOP_URLS[loop]),
+    engineGain: () => gainOf(engine()),
+    gainOf,
   };
 }
 
@@ -235,18 +248,20 @@ const settled = () => new Promise((resolve) => setTimeout(resolve, 0));
 describe("preloading and the autoplay rule", () => {
   it("fetches every sound at creation and makes no AudioContext until a gesture unlocks it", async () => {
     const { audio, fetched, contexts, context } = harness();
-    expect(new Set(fetched)).toEqual(new Set([...Object.values(SOUND_URLS), MUSIC_URL]));
-    expect(fetched).toHaveLength(10);
+    expect(new Set(fetched)).toEqual(
+      new Set([...Object.values(SOUND_URLS), ...Object.values(LOOP_URLS), MUSIC_URL]),
+    );
+    expect(fetched).toHaveLength(17);
     await settled();
     expect(contexts).toHaveLength(0);
     await audio.unlock();
     expect(contexts).toHaveLength(1);
     expect(context().resumes).toBe(1);
     // Decoded once, from the bytes already fetched, so the first play is not late.
-    expect(context().decoded).toHaveLength(10);
+    expect(context().decoded).toHaveLength(17);
     await audio.unlock();
     expect(contexts).toHaveLength(1);
-    expect(context().decoded).toHaveLength(10);
+    expect(context().decoded).toHaveLength(17);
   });
 
   it("resumes a context the browser suspended on a later gesture", async () => {
@@ -319,6 +334,10 @@ describe("the SFX", () => {
     ["countdownBeep", { count: "3" }],
     ["go", { count: "GO" }],
     ["sputter", { stalled: true }],
+    ["tierChime", { miniTurbo: "blue", drifting: true }],
+    ["boostPad", { boostSeconds: 0.6 }],
+    ["wrongWay", { wrongWay: true }],
+    ["finish", { finished: true }],
   ];
 
   it.each(CUES)(
@@ -374,6 +393,117 @@ describe("the SFX", () => {
   });
 });
 
+describe("the loops", () => {
+  const LOOPS: readonly [SoundLoop, Partial<SoundReading>][] = [
+    ["driftSkid", { drifting: true, miniTurbo: "none" }],
+    ["grass", { surface: "grass" }],
+    ["sand", { surface: "sand" }],
+  ];
+
+  it.each(LOOPS)(
+    "runs %s from its preloaded file as its state begins until it ends",
+    async (loop, state) => {
+      const { audio, loops, gainOf, context } = harness();
+      await audio.unlock();
+      const race = audio.race();
+      race.start();
+      race.update(STILL);
+      expect(loops(loop)).toHaveLength(0);
+      race.update({ ...STILL, ...state, speed: 15 });
+      expect(loops(loop)).toHaveLength(1);
+      const source = loops(loop)[0];
+      expect(source?.loop).toBe(true);
+      expect(source?.started).toBe(1);
+      // Through its own gain and the SFX gain to the speakers.
+      const sfxGain = gainOf(gainOf(source as FakeNode));
+      expect(sfxGain.connectedTo).toContain(context().destination);
+      race.update({ ...STILL, ...state, speed: 20 });
+      expect(loops(loop)).toHaveLength(1);
+      expect(source?.stopped).toBe(0);
+      race.update(STILL);
+      expect(source?.stopped).toBe(1);
+      expect(source?.connectedTo).toHaveLength(0);
+      race.update({ ...STILL, ...state, speed: 15 });
+      expect(loops(loop)).toHaveLength(2);
+    },
+  );
+
+  it("pitches and swells the skid with the kart's speed, gliding frame to frame", async () => {
+    const { audio, loops, gainOf } = harness();
+    await audio.unlock();
+    const race = audio.race();
+    race.start();
+    const skidding = { ...STILL, drifting: true, miniTurbo: "none" as const };
+    race.update({ ...skidding, speed: 15 });
+    const source = loops("driftSkid")[0];
+    if (source === undefined) throw new Error("no skid");
+    expect(source.playbackRate.value).toBeCloseTo(1, 6);
+    const atRendered = gainOf(source).gain.value;
+    race.update({ ...skidding, speed: TOP_SPEED });
+    expect(source.playbackRate.value).toBeCloseTo(1200 / 900, 6);
+    expect(source.playbackRate.targets).toHaveLength(1);
+    expect(gainOf(source).gain.value).toBeGreaterThan(atRendered);
+    expect(gainOf(source).gain.targets).toHaveLength(1);
+  });
+
+  it("runs both the skid and the surface together, stopping each on its own", async () => {
+    const { audio, loops } = harness();
+    await audio.unlock();
+    const race = audio.race();
+    race.start();
+    race.update({ ...STILL, drifting: true, miniTurbo: "none", surface: "sand", speed: 15 });
+    expect(loops("driftSkid")).toHaveLength(1);
+    expect(loops("sand")).toHaveLength(1);
+    race.update({ ...STILL, surface: "sand", speed: 15 });
+    expect(loops("driftSkid")[0]?.stopped).toBe(1);
+    expect(loops("sand")[0]?.stopped).toBe(0);
+    race.update(STILL);
+    expect(loops("sand")[0]?.stopped).toBe(1);
+  });
+
+  it("starts no loop with the SFX toggle off, and stops a running one as it goes off", async () => {
+    const { audio, loops } = harness({ ...DEFAULT_AUDIO_SETTINGS, sfx: false });
+    await audio.unlock();
+    const race = audio.race();
+    race.start();
+    const skidding = { ...STILL, drifting: true, miniTurbo: "none" as const, speed: 15 };
+    race.update(skidding);
+    expect(loops("driftSkid")).toHaveLength(0);
+    audio.settings(DEFAULT_AUDIO_SETTINGS);
+    race.update(skidding);
+    expect(loops("driftSkid")).toHaveLength(1);
+    audio.settings({ ...DEFAULT_AUDIO_SETTINGS, sfx: false });
+    race.update(skidding);
+    expect(loops("driftSkid")[0]?.stopped).toBe(1);
+    expect(loops("driftSkid")).toHaveLength(1);
+  });
+
+  it("stops with the race and never starts after it", async () => {
+    const { audio, loops } = harness();
+    await audio.unlock();
+    const race = audio.race();
+    race.start();
+    const skidding = { ...STILL, drifting: true, miniTurbo: "none" as const, speed: 15 };
+    race.update(skidding);
+    race.stop();
+    expect(loops("driftSkid")[0]?.stopped).toBe(1);
+    race.update(skidding);
+    expect(loops("driftSkid")).toHaveLength(1);
+  });
+
+  it("starts a loop whose state was already under way as the gesture unlocks the context", async () => {
+    const { audio, loops } = harness();
+    const race = audio.race();
+    race.start();
+    const skidding = { ...STILL, drifting: true, miniTurbo: "none" as const, speed: 15 };
+    race.update(skidding);
+    await audio.unlock();
+    race.update(skidding);
+    expect(loops("driftSkid")).toHaveLength(1);
+    expect(loops("driftSkid")[0]?.started).toBe(1);
+  });
+});
+
 describe("a sound that fails to load", () => {
   it("is dropped on its own, while the rest play", async () => {
     const fetched: string[] = [];
@@ -396,7 +526,7 @@ describe("a sound that fails to load", () => {
     await audio.unlock();
     const context = contexts[0];
     if (context === undefined) throw new Error("no context was made");
-    expect(context.decoded).toHaveLength(9);
+    expect(context.decoded).toHaveLength(16);
     const race = audio.race();
     race.start();
     race.update(STILL);

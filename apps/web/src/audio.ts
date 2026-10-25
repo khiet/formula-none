@@ -2,12 +2,18 @@
 // creation and decoded as soon as a gesture lets an AudioContext start, so
 // no decode waits for a first play and the browser never warns of autoplay.
 // One race sounds at a time: an oscillator for the engine, a one-shot
-// source per SFX (the sputter's file runs the stall's length) and a looping
-// source for the music, each behind the gain its toggle sets. Presentation:
-// it reads the own kart's readings and changes no sim state.
+// source per SFX (the sputter's file runs the stall's length), a looping
+// source per loop while its state holds, pitched and swelled with the
+// kart's speed, and a looping source for the music, each behind the gain
+// its toggle sets; the loops sit under the SFX toggle. Presentation: it
+// reads the own kart's readings and changes no sim state.
 
+import boostPadUrl from "../../../assets/audio/boost-pad.wav?url";
 import countdownBeepUrl from "../../../assets/audio/countdown-beep.wav?url";
+import driftSkidUrl from "../../../assets/audio/drift-skid.wav?url";
+import finishUrl from "../../../assets/audio/finish.wav?url";
 import goUrl from "../../../assets/audio/go.wav?url";
+import grassUrl from "../../../assets/audio/grass.wav?url";
 import hitUrl from "../../../assets/audio/hit.wav?url";
 import hopUrl from "../../../assets/audio/hop.wav?url";
 import itemFireUrl from "../../../assets/audio/item-fire.wav?url";
@@ -15,8 +21,19 @@ import itemPickupUrl from "../../../assets/audio/item-pickup.wav?url";
 import lapUrl from "../../../assets/audio/lap.wav?url";
 import miniTurboUrl from "../../../assets/audio/mini-turbo.wav?url";
 import musicUrl from "../../../assets/audio/music-loop.wav?url";
+import sandUrl from "../../../assets/audio/sand.wav?url";
 import sputterUrl from "../../../assets/audio/sputter.wav?url";
-import { enginePitchHz, type SoundCue, type SoundReading, soundCues } from "./audio-cues";
+import tierChimeUrl from "../../../assets/audio/tier-chime.wav?url";
+import wrongWayUrl from "../../../assets/audio/wrong-way.wav?url";
+import {
+  enginePitchHz,
+  loopPlayback,
+  type SoundCue,
+  type SoundLoop,
+  type SoundReading,
+  soundCues,
+  soundLoops,
+} from "./audio-cues";
 import type { AudioSettings } from "./audio-settings";
 
 export const SOUND_URLS: Readonly<Record<SoundCue, string>> = {
@@ -29,6 +46,15 @@ export const SOUND_URLS: Readonly<Record<SoundCue, string>> = {
   hit: hitUrl,
   sputter: sputterUrl,
   lap: lapUrl,
+  tierChime: tierChimeUrl,
+  boostPad: boostPadUrl,
+  wrongWay: wrongWayUrl,
+  finish: finishUrl,
+};
+export const LOOP_URLS: Readonly<Record<SoundLoop, string>> = {
+  driftSkid: driftSkidUrl,
+  grass: grassUrl,
+  sand: sandUrl,
 };
 export const MUSIC_URL: string = musicUrl;
 
@@ -54,6 +80,7 @@ export interface SoundOscillator extends SoundNode {
 export interface SoundBufferSource extends SoundNode {
   buffer: AudioBuffer | null;
   loop: boolean;
+  readonly playbackRate: SoundParam;
   start(when?: number): void;
   stop(when?: number): void;
 }
@@ -94,7 +121,7 @@ export interface Audio {
 export interface RaceAudio {
   /** The engine idling and the music looping, as the toggles allow, until `stop`. */
   start(): void;
-  /** The own kart's reading this frame: the engine's pitch from its speed, the SFX from its changes since the last. */
+  /** The own kart's reading this frame: the engine's pitch and the loops from its state, the SFX from its changes since the last. */
   update(reading: SoundReading): void;
   /** Engine off, music stopped; later updates are silent. */
   stop(): void;
@@ -107,13 +134,14 @@ const LEVELS: Readonly<Record<keyof AudioSettings, number>> = {
   music: 0.35,
 };
 const TOGGLES = Object.keys(LEVELS) as (keyof AudioSettings)[];
-/** The time constant the engine note glides to each frame's pitch with, so the pitch never jumps. */
+/** The time constant the engine note and the loops glide to each frame's pitch and level with, so neither jumps. */
 const ENGINE_GLIDE_S = 0.04;
 
 /** The decoded files, once the context exists to decode them, and the gain each toggle sets. */
 interface Sounds {
   readonly context: SoundContext;
   readonly sfx: Partial<Record<SoundCue, AudioBuffer>>;
+  readonly loops: Partial<Record<SoundLoop, AudioBuffer>>;
   readonly music: AudioBuffer | undefined;
   readonly gains: Readonly<Record<keyof AudioSettings, SoundGain>>;
 }
@@ -127,7 +155,7 @@ export function createAudio(options: AudioOptions): Audio {
       console.warn(`could not load the sound ${url}`, error);
       return undefined;
     });
-  for (const url of [...Object.values(SOUND_URLS), MUSIC_URL]) {
+  for (const url of [...Object.values(SOUND_URLS), ...Object.values(LOOP_URLS), MUSIC_URL]) {
     fetched.set(url, fetching(url));
   }
 
@@ -158,18 +186,26 @@ export function createAudio(options: AudioOptions): Audio {
     const context = options.createContext();
     await context.resume();
     const cues = Object.keys(SOUND_URLS) as SoundCue[];
+    const loopNames = Object.keys(LOOP_URLS) as SoundLoop[];
     const [music, ...buffers] = await Promise.all([
       decode(context, MUSIC_URL),
       ...cues.map((cue) => decode(context, SOUND_URLS[cue])),
+      ...loopNames.map((loop) => decode(context, LOOP_URLS[loop])),
     ]);
     const sfx: Partial<Record<SoundCue, AudioBuffer>> = {};
     cues.forEach((cue, index) => {
       const buffer = buffers[index];
       if (buffer !== undefined) sfx[cue] = buffer;
     });
+    const loops: Partial<Record<SoundLoop, AudioBuffer>> = {};
+    loopNames.forEach((loop, index) => {
+      const buffer = buffers[cues.length + index];
+      if (buffer !== undefined) loops[loop] = buffer;
+    });
     sounds = {
       context,
       sfx,
+      loops,
       music,
       gains: {
         engine: gainOf(context, "engine"),
@@ -232,6 +268,8 @@ class LiveRace {
   #sounds: Sounds | undefined;
   #engine: SoundOscillator | undefined;
   #music: SoundBufferSource | undefined;
+  /** The loops running now, each through a gain of its own under the SFX gain. */
+  readonly #loops = new Map<SoundLoop, { source: SoundBufferSource; gain: SoundGain }>();
   #last: SoundReading | undefined;
   readonly #topSpeed: number;
   readonly #settings: () => AudioSettings;
@@ -286,7 +324,9 @@ class LiveRace {
       sounds.context.currentTime,
       ENGINE_GLIDE_S,
     );
-    if (!this.#settings().sfx) return;
+    const sfx = this.#settings().sfx;
+    this.#runLoops(sounds, sfx ? soundLoops(reading) : new Set(), reading.speed);
+    if (!sfx) return;
     for (const cue of cues) {
       const buffer = sounds.sfx[cue];
       if (buffer === undefined) continue;
@@ -297,9 +337,43 @@ class LiveRace {
     }
   }
 
+  /** Stop the loops not in `wanted`, start the ones not running, and glide every one to `speed`. */
+  #runLoops(sounds: Sounds, wanted: ReadonlySet<SoundLoop>, speed: number): void {
+    for (const [loop, running] of this.#loops) {
+      if (wanted.has(loop)) continue;
+      running.source.stop();
+      running.source.disconnect();
+      running.gain.disconnect();
+      this.#loops.delete(loop);
+    }
+    const now = sounds.context.currentTime;
+    for (const loop of wanted) {
+      const playback = loopPlayback(loop, speed, this.#topSpeed);
+      const running = this.#loops.get(loop);
+      if (running !== undefined) {
+        running.source.playbackRate.setTargetAtTime(playback.rate, now, ENGINE_GLIDE_S);
+        running.gain.gain.setTargetAtTime(playback.gain, now, ENGINE_GLIDE_S);
+        continue;
+      }
+      const buffer = sounds.loops[loop];
+      if (buffer === undefined) continue;
+      const gain = sounds.context.createGain();
+      gain.gain.value = playback.gain;
+      gain.connect(sounds.gains.sfx);
+      const source = sounds.context.createBufferSource();
+      source.buffer = buffer;
+      source.loop = true;
+      source.playbackRate.value = playback.rate;
+      source.connect(gain);
+      source.start();
+      this.#loops.set(loop, { source, gain });
+    }
+  }
+
   stop(): void {
     this.racing = false;
     this.music(false);
+    if (this.#sounds !== undefined) this.#runLoops(this.#sounds, new Set(), 0);
     if (this.#engine !== undefined) {
       this.#engine.stop();
       this.#engine.disconnect();
