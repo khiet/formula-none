@@ -6,51 +6,19 @@
 //! `State::hazards` and spin-outs from `State::events` after the `step`
 //! that produced them.
 
-use sim::tuning::{
-    HAZARD_DROP_DISTANCE_M, HAZARD_LIFETIME_S, KART_HALF_LENGTH_M, SPIN_OUT_S, TICKS_PER_SECOND,
-};
-use sim::{step, Item, KartInput, Phase, RaceEvent, State, Track};
+mod common;
 
-const OVAL: &str = include_str!("../../../assets/tracks/oval/oval.track.json");
-const DT: f32 = 1.0 / TICKS_PER_SECOND as f32;
+use common::{brake, oval_with_boxes_under, started, tap, throttle, ticks, DT};
 
-fn ticks(seconds: f32) -> usize {
-    (seconds * TICKS_PER_SECOND as f32).round() as usize
-}
-
-/// The oval with one more item box, under each of the first `slots` spawn
-/// slots, so a kart there stands on a box at Go.
-fn oval_with_boxes_under_slots(slots: usize) -> Track {
-    let mut sidecar: serde_json::Value = serde_json::from_str(OVAL).expect("valid JSON");
-    for slot in 0..slots {
-        let position = sidecar["spawn_grid"][slot]["position"].clone();
-        sidecar["item_boxes"]
-            .as_array_mut()
-            .expect("the fixture lists its boxes")
-            .push(serde_json::json!({ "position": position, "yaw": 0.0 }));
-    }
-    Track::from_sidecar(&sidecar.to_string()).expect("the oval with more boxes loads")
-}
-
-/// The race past its countdown, every kart idle on the grid until Go.
-fn started(mut state: State) -> State {
-    let inputs = vec![KartInput::default(); state.human_count()];
-    while matches!(state.phase(), Phase::Countdown { .. }) {
-        state = step(state, &inputs, DT);
-    }
-    state
-}
+use sim::tuning::{HAZARD_DROP_DISTANCE_M, HAZARD_LIFETIME_S, KART_HALF_LENGTH_M, SPIN_OUT_S};
+use sim::{step, Item, KartInput, RaceEvent, State};
 
 /// A race of `humans` karts, every one on a box under its slot, with a
 /// hazard in the slot of kart `holder` from the first racing tick: the seeds
 /// are tried in order until one rolls it.
 fn holding_a_hazard(humans: usize, holder: usize) -> State {
     for seed in 0.. {
-        let state = started(State::new(
-            seed,
-            humans,
-            oval_with_boxes_under_slots(humans),
-        ));
+        let state = started(State::new(seed, humans, oval_with_boxes_under(0..humans)));
         let state = step(state, &vec![KartInput::default(); humans], DT);
         let rolled = state.events().iter().any(|event| {
             matches!(
@@ -63,14 +31,6 @@ fn holding_a_hazard(humans: usize, holder: usize) -> State {
         }
     }
     unreachable!()
-}
-
-/// A press and release in one tick: fires and drops.
-fn tap() -> KartInput {
-    KartInput {
-        use_item: true,
-        ..KartInput::default()
-    }
 }
 
 #[test]
@@ -112,13 +72,6 @@ fn drive_holding() -> KartInput {
     }
 }
 
-fn drive() -> KartInput {
-    KartInput {
-        throttle: 1.0,
-        ..KartInput::default()
-    }
-}
-
 /// The hazard's distance from the kart's centre on the ground, in metres.
 fn distance_behind(state: &State, kart: usize) -> f32 {
     let [kx, _, kz] = state.kart_readouts()[kart].position;
@@ -146,12 +99,12 @@ fn a_held_hazard_trails_the_kart_while_the_item_button_is_held_and_drops_on_rele
     assert!(state.kart_readouts()[0].speed > 5.0, "driving on");
 
     // Let go: the hazard stays where it was and the kart drives away from it.
-    let state = step(state, &[drive()], DT);
+    let state = step(state, &[throttle()], DT);
     let dropped = state.hazards()[0];
     assert!(!dropped.held);
     let mut state = state;
     for _ in 0..ticks(0.5) {
-        state = step(state, &[drive()], DT);
+        state = step(state, &[throttle()], DT);
         assert_eq!(state.hazards()[0].position, dropped.position);
     }
     assert!(distance_behind(&state, 0) > 5.0, "driven clear of it");
@@ -164,22 +117,15 @@ fn a_held_hazard_trails_the_kart_while_the_item_button_is_held_and_drops_on_rele
     );
 }
 
-fn reverse() -> KartInput {
-    KartInput {
-        brake: 1.0,
-        ..KartInput::default()
-    }
-}
-
 /// A one-kart race the tick its kart is spun out by its own hazard: dropped
 /// at Go, driven away from and backed into.
 fn spun_out() -> State {
     let mut state = step(holding_a_hazard(1, 0), &[tap()], DT);
     for _ in 0..ticks(1.5) {
-        state = step(state, &[drive()], DT);
+        state = step(state, &[throttle()], DT);
     }
     for _ in 0..ticks(8.0) {
-        state = step(state, &[reverse()], DT);
+        state = step(state, &[brake()], DT);
         if state
             .events()
             .contains(&RaceEvent::SpunOut { kart: 0, by: 0 })
@@ -208,7 +154,7 @@ fn hitting_a_hazard_spins_the_kart_out_for_the_tuned_time_with_its_inputs_ignore
     let mut spun_ticks = 0;
     while let Some(left) = state.kart_readouts()[0].spin_out_s {
         assert!(left > 0.0);
-        state = step(state, &[drive()], DT);
+        state = step(state, &[throttle()], DT);
         spun_ticks += 1;
         let [x, y, z] = state.kart_readouts()[0].position;
         let [hx, hy, hz] = hit.position;
@@ -227,7 +173,7 @@ fn hitting_a_hazard_spins_the_kart_out_for_the_tuned_time_with_its_inputs_ignore
         "spun out for {spun_ticks} ticks, expected about {expected}"
     );
     for _ in 0..ticks(0.5) {
-        state = step(state, &[drive()], DT);
+        state = step(state, &[throttle()], DT);
     }
     assert!(
         state.kart_readouts()[0].speed > 3.0,
@@ -241,7 +187,7 @@ fn a_dropped_hazard_is_gone_the_tuned_lifetime_after_the_drop() {
     // Dropped at Go and left alone: the kart drives off and parks.
     let mut state = step(holding_a_hazard(1, 0), &[tap()], DT);
     for _ in 0..ticks(1.0) {
-        state = step(state, &[drive()], DT);
+        state = step(state, &[throttle()], DT);
     }
     let mut since_drop = ticks(1.0) + 1;
     while !state.hazards().is_empty() {
@@ -287,7 +233,7 @@ fn a_held_hazard_does_not_age_and_spins_out_the_kart_that_runs_into_it_from_behi
 
     let mut hit = None;
     for _ in 0..ticks(3.0) {
-        state = step(state, &[hold, idle, drive()], DT);
+        state = step(state, &[hold, idle, throttle()], DT);
         if let Some(event) = state
             .events()
             .iter()
@@ -318,7 +264,7 @@ fn a_held_hazard_does_not_age_and_spins_out_the_kart_that_runs_into_it_from_behi
     let spun_at = state.kart_readouts()[2].position;
     let mut nearest = f32::MAX;
     for _ in 0..ticks(0.6) {
-        state = step(state, &[reverse(), idle, idle], DT);
+        state = step(state, &[brake(), idle, idle], DT);
         assert!(state.kart_readouts()[2].spin_out_s.is_some());
         let [x2, _, z2] = state.kart_readouts()[2].position;
         assert!(
@@ -347,7 +293,7 @@ fn a_bot_drops_a_held_hazard_within_the_tuned_time() {
     // straight ahead and trails it for the tuned time before dropping it.
     let mut state = (0..)
         .map(|seed| {
-            let state = started(State::with_bots(seed, 0, 1, oval_with_boxes_under_slots(1)));
+            let state = started(State::with_bots(seed, 0, 1, oval_with_boxes_under(0..1)));
             step(state, &[], DT)
         })
         .find(|state| {

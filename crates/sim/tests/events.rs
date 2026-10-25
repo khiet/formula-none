@@ -3,32 +3,23 @@
 //! `step` that produced them and gone after the next. The server repeats
 //! them to the clients; the sim only reports them.
 
-use sim::tuning::{BOT_LOOKAHEAD_M, LAPS_PER_RACE, RESPAWN_DELAY_S, TICKS_PER_SECOND};
+mod common;
+
+use common::{
+    follow_centreline, oval_without_item_boxes, throttle, ticks, track, with_slot_at,
+    without_walls, DT, OVAL, SEED,
+};
+
+use sim::tuning::{LAPS_PER_RACE, RESPAWN_DELAY_S};
 use sim::{step, KartInput, Phase, RaceEvent, State, Surface, Track};
 
-const OVAL: &str = include_str!("../../../assets/tracks/oval/oval.track.json");
-const DT: f32 = 1.0 / TICKS_PER_SECOND as f32;
-const SEED: u64 = 0x5EED;
 /// A quarter turn clockwise seen from above: from facing -Z to facing +X.
 const FACING_PLUS_X: f32 = -std::f32::consts::FRAC_PI_2;
 
 /// The oval without its item boxes, so a kart on the racing line reports
 /// only the lap, the finish and the respawn; `items.rs` covers the rest.
 fn oval() -> Track {
-    let mut sidecar: serde_json::Value = serde_json::from_str(OVAL).expect("valid JSON");
-    sidecar["item_boxes"] = serde_json::json!([]);
-    Track::from_sidecar(&sidecar.to_string()).expect("the oval without boxes loads")
-}
-
-fn ticks(seconds: f32) -> usize {
-    (seconds * TICKS_PER_SECOND as f32).round() as usize
-}
-
-fn throttle() -> KartInput {
-    KartInput {
-        throttle: 1.0,
-        ..KartInput::default()
-    }
+    oval_without_item_boxes()
 }
 
 /// The race past its countdown, every kart idle on the grid until Go.
@@ -39,42 +30,6 @@ fn started(mut state: State) -> State {
         assert!(state.events().is_empty(), "nothing happens on the grid");
     }
     state
-}
-
-/// Yaw in radians recovered from the rotation quaternion `[x, y, z, w]`.
-fn yaw(rotation: [f32; 4]) -> f32 {
-    let [x, y, z, w] = rotation;
-    (2.0 * (w * y + x * z)).atan2(1.0 - 2.0 * (y * y + z * z))
-}
-
-/// Full throttle toward a line a little right of the centreline some way
-/// ahead: enough to lap the oval on the asphalt, clear of its pipes.
-fn follow_centreline(state: &State, kart: usize) -> KartInput {
-    const RIGHT_OF_CENTRE_M: f32 = 2.5;
-    const STEER_GAIN: f32 = 4.0;
-    let transform = state.kart_readouts()[kart];
-    let progress = state.standings()[kart].spline_progress;
-    let track = state.track();
-    let ahead = track.point_at(progress + BOT_LOOKAHEAD_M);
-    let further = track.point_at(progress + BOT_LOOKAHEAD_M + 1.0);
-    let (tx, tz) = (further[0] - ahead[0], further[2] - ahead[2]);
-    let travel = (tx * tx + tz * tz).sqrt().max(f32::EPSILON);
-    let target = [
-        ahead[0] - tz / travel * RIGHT_OF_CENTRE_M,
-        ahead[2] + tx / travel * RIGHT_OF_CENTRE_M,
-    ];
-    let (dx, dz) = (
-        target[0] - transform.position[0],
-        target[1] - transform.position[2],
-    );
-    let length = (dx * dx + dz * dz).sqrt().max(f32::EPSILON);
-    let (sin, cos) = yaw(transform.rotation).sin_cos();
-    let rightward = (dx * cos - dz * sin) / length;
-    KartInput {
-        steer: (rightward * STEER_GAIN).clamp(-1.0, 1.0),
-        throttle: 1.0,
-        ..KartInput::default()
-    }
 }
 
 /// Step every human along the centreline, collecting each tick's events
@@ -187,15 +142,12 @@ fn coming_back_from_out_of_the_world_reports_a_respawn_on_that_tick() {
     // Slot 0 turned to face +X drives off the front straight, across the
     // run-off and the grass, and over the edge of the world; the oval's
     // walls, which would hold it on the sand, are taken away first.
-    let mut sidecar: serde_json::Value = serde_json::from_str(OVAL).expect("valid JSON");
-    sidecar["spawn_grid"][0] =
-        serde_json::json!({ "position": [28.0, 0.0, 4.0], "yaw": FACING_PLUS_X });
-    let meshes = sidecar["surfaces"].as_array().expect("surfaces").clone();
-    sidecar["surfaces"] = meshes
-        .into_iter()
-        .filter(|mesh| !mesh["name"].as_str().expect("a name").starts_with("Wall"))
-        .collect();
-    let track = Track::from_sidecar(&sidecar.to_string()).expect("the moved slot loads");
+    let track = track(&without_walls(&with_slot_at(
+        OVAL,
+        0,
+        [28.0, 0.0, 4.0],
+        FACING_PLUS_X,
+    )));
     let mut state = started(State::new(SEED, 1, track));
 
     let mut was_out = false;

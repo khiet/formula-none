@@ -3,80 +3,23 @@
 //! the grace that ends the race after the first finisher. Tests drive karts
 //! on the oval fixture and read `phase` and `standings`.
 
+mod common;
+
+use common::{follow_centreline, oval, straight, throttle, ticks, DT, SEED};
+
 use sim::tuning::{
-    BOT_LOOKAHEAD_M, COUNTDOWN_S, LAPS_PER_RACE, RACE_END_GRACE_S, START_BOOST_FACTOR,
-    START_BOOST_S, START_FULL_BOOST_HOLD_S, START_STALL_HOLD_S, START_STALL_S, START_THROTTLE_HELD,
-    START_WEAK_BOOST_FACTOR, START_WEAK_BOOST_HOLD_S, START_WEAK_BOOST_S, TICKS_PER_SECOND,
-    TOP_SPEED_M_PER_S,
+    COUNTDOWN_S, LAPS_PER_RACE, RACE_END_GRACE_S, START_BOOST_FACTOR, START_BOOST_S,
+    START_FULL_BOOST_HOLD_S, START_STALL_HOLD_S, START_STALL_S, START_THROTTLE_HELD,
+    START_WEAK_BOOST_FACTOR, START_WEAK_BOOST_HOLD_S, START_WEAK_BOOST_S, TOP_SPEED_M_PER_S,
 };
-use sim::{step, KartInput, Phase, Start, State, Track};
-
-const OVAL: &str = include_str!("../../../assets/tracks/oval/oval.track.json");
-const DT: f32 = 1.0 / TICKS_PER_SECOND as f32;
-const SEED: u64 = 0x5EED;
-
-fn oval() -> Track {
-    Track::from_sidecar(OVAL).expect("the oval fixture loads")
-}
+use sim::{step, KartInput, Phase, Start, State};
 
 fn race(kart_count: usize) -> State {
     State::new(SEED, kart_count, oval())
 }
 
-fn ticks(seconds: f32) -> usize {
-    (seconds * TICKS_PER_SECOND as f32).round() as usize
-}
-
-fn throttle() -> KartInput {
-    KartInput {
-        throttle: 1.0,
-        ..KartInput::default()
-    }
-}
-
 fn idle(_: &State, _: usize) -> KartInput {
     KartInput::default()
-}
-
-fn straight(_: &State, _: usize) -> KartInput {
-    throttle()
-}
-
-/// Yaw in radians recovered from the rotation quaternion `[x, y, z, w]`.
-fn yaw(rotation: [f32; 4]) -> f32 {
-    let [x, y, z, w] = rotation;
-    (2.0 * (w * y + x * z)).atan2(1.0 - 2.0 * (y * y + z * z))
-}
-
-/// Full throttle, steering toward a line a little right of the centreline
-/// some way ahead of the kart: enough to lap the oval on the asphalt and
-/// clear of the pipe that stands just left of the centreline in each turn.
-fn follow_centreline(state: &State, kart: usize) -> KartInput {
-    const RIGHT_OF_CENTRE_M: f32 = 2.5;
-    const STEER_GAIN: f32 = 4.0;
-    let transform = state.kart_readouts()[kart];
-    let progress = state.standings()[kart].spline_progress;
-    let track = state.track();
-    let ahead = track.point_at(progress + BOT_LOOKAHEAD_M);
-    let further = track.point_at(progress + BOT_LOOKAHEAD_M + 1.0);
-    let (tx, tz) = (further[0] - ahead[0], further[2] - ahead[2]);
-    let travel = (tx * tx + tz * tz).sqrt().max(f32::EPSILON);
-    let target = [
-        ahead[0] - tz / travel * RIGHT_OF_CENTRE_M,
-        ahead[2] + tx / travel * RIGHT_OF_CENTRE_M,
-    ];
-    let (dx, dz) = (
-        target[0] - transform.position[0],
-        target[1] - transform.position[2],
-    );
-    let length = (dx * dx + dz * dz).sqrt().max(f32::EPSILON);
-    let (sin, cos) = yaw(transform.rotation).sin_cos();
-    let rightward = (dx * cos - dz * sin) / length;
-    KartInput {
-        steer: (rightward * STEER_GAIN).clamp(-1.0, 1.0),
-        throttle: 1.0,
-        ..KartInput::default()
-    }
 }
 
 type Driver = fn(&State, usize) -> KartInput;

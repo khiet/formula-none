@@ -7,6 +7,10 @@
 //! driving, reading the kart as the client draws it, so it hops into the
 //! oval's drifts the way a player would.
 
+mod common;
+
+use common::{oval, track, with_boxes_under, without_item_boxes, DT, OVAL, SEED};
+
 use std::collections::VecDeque;
 
 use sim::bot::{self, Memory};
@@ -14,20 +18,13 @@ use sim::tuning::{
     RECONCILIATION_BLEND_TICKS, RECONCILIATION_TOLERANCE_M, RECONCILIATION_VISIBLE_CORRECTION_M,
     SNAPSHOTS_PER_SECOND, START_FULL_BOOST_HOLD_S, TICKS_PER_SECOND, TOP_SPEED_M_PER_S,
 };
-use sim::{step, KartInput, KartReadout, Phase, Prediction, Start, State, Track};
+use sim::{step, KartInput, KartReadout, Phase, Prediction, Start, State};
 
-const OVAL: &str = include_str!("../../../assets/tracks/oval/oval.track.json");
-const SEED: u64 = 0x5EED;
-const DT: f32 = 1.0 / TICKS_PER_SECOND as f32;
 const TICKS_PER_SNAPSHOT: u32 = TICKS_PER_SECOND / SNAPSHOTS_PER_SECOND;
 /// 100 ms round trip at the tick rate, split evenly.
 const ONE_WAY_TICKS: u32 = 3;
 /// Ticks a hand keeps the item button down after pressing it: 100 ms.
 const HAND_HOLD_TICKS: u32 = 6;
-
-fn oval() -> Track {
-    Track::from_sidecar(OVAL).expect("the oval fixture loads")
-}
 
 /// A snapshot on its way to the client.
 struct InFlight {
@@ -295,10 +292,7 @@ fn the_snapshots_item_is_taken_without_a_correction_and_firing_it_is_predicted()
 fn the_prediction_takes_no_box_and_fills_its_slot_from_the_snapshots_alone() {
     // The oval with a box under slot 0: the server's kart picks it up at Go,
     // the prediction's kart stands on it through Go with an empty slot.
-    let mut sidecar: serde_json::Value = serde_json::from_str(OVAL).expect("valid JSON");
-    let slot = sidecar["spawn_grid"][0]["position"].clone();
-    sidecar["item_boxes"] = serde_json::json!([{ "position": slot, "yaw": 0.0 }]);
-    let track = Track::from_sidecar(&sidecar.to_string()).expect("the boxed oval loads");
+    let track = track(&with_boxes_under(&without_item_boxes(OVAL), [0]));
     let mut server = State::new(SEED, 1, track.clone());
     let mut prediction = Prediction::new(SEED, 0, track);
     let mut sequence = 0;
@@ -391,10 +385,7 @@ fn a_hit_the_server_decides_reaches_the_prediction_as_one_correction_and_the_spi
     // Two humans: the own kart on slot 0 and, on slot 1 beside it, a kart
     // standing on a box that rolls it a hazard at Go. The seeds are tried
     // in order until one does.
-    let mut sidecar: serde_json::Value = serde_json::from_str(OVAL).expect("valid JSON");
-    let slot = sidecar["spawn_grid"][1]["position"].clone();
-    sidecar["item_boxes"] = serde_json::json!([{ "position": slot, "yaw": 0.0 }]);
-    let track = Track::from_sidecar(&sidecar.to_string()).expect("the boxed oval loads");
+    let track = track(&with_boxes_under(&without_item_boxes(OVAL), [1]));
     let idle = [KartInput::default(); 2];
     let (seed, go) = (0..)
         .find_map(|seed| {

@@ -5,62 +5,25 @@
 //! beyond and a wall at its edge; with the walls taken away, grass to
 //! x = 70 and nothing past it (layouts/oval.py).
 
-use sim::tuning::{KART_HALF_WIDTH_M, OFF_TRACK_SPEED_FACTOR, TICKS_PER_SECOND, TOP_SPEED_M_PER_S};
-use sim::{step, KartInput, KartReadout, Phase, State, Surface, Track};
+mod common;
 
-const OVAL: &str = include_str!("../../../assets/tracks/oval/oval.track.json");
-const DT: f32 = 1.0 / TICKS_PER_SECOND as f32;
-const SEED: u64 = 0x5EED;
+use common::{
+    brands_patch, oval, started, throttle, ticks, track, with_slot_at, without_walls, yaw,
+    BRANDS_PATCH, DT, OVAL, SEED,
+};
 
-/// The race past its countdown, every kart idle on the grid until Go.
-fn started(mut state: State) -> State {
-    let inputs = vec![KartInput::default(); state.human_count()];
-    while matches!(state.phase(), Phase::Countdown { .. }) {
-        state = step(state, &inputs, DT);
-    }
-    state
-}
+use sim::tuning::{KART_HALF_WIDTH_M, OFF_TRACK_SPEED_FACTOR, TOP_SPEED_M_PER_S};
+use sim::{step, KartInput, KartReadout, State, Surface, Track};
+
 /// A quarter turn clockwise seen from above: from facing -Z to facing +X.
 const FACING_PLUS_X: f32 = -std::f32::consts::FRAC_PI_2;
 
-fn ticks(seconds: f32) -> usize {
-    (seconds * TICKS_PER_SECOND as f32).round() as usize
-}
-
-fn throttle() -> KartInput {
-    KartInput {
-        throttle: 1.0,
-        ..KartInput::default()
-    }
-}
-
-/// The track in `sidecar` with spawn slot 0 moved to `position` facing
-/// `yaw`, so a kart can be started anywhere on or beside the track.
-fn with_slot_0_at(sidecar: &str, position: [f32; 3], yaw: f32) -> Track {
-    let mut sidecar: serde_json::Value = serde_json::from_str(sidecar).expect("valid JSON");
-    sidecar["spawn_grid"][0] = serde_json::json!({ "position": position, "yaw": yaw });
-    Track::from_sidecar(&sidecar.to_string()).expect("the track with a moved slot loads")
-}
-
 fn oval_with_slot_0_at(position: [f32; 3], yaw: f32) -> Track {
-    with_slot_0_at(OVAL, position, yaw)
-}
-
-/// `sidecar` with its walls taken away, the pipes kept. The walls keep a
-/// kart off the grass and in the world, and these are the rules for a kart
-/// that got there anyway, whatever track it was on.
-fn without_walls(sidecar: &str) -> String {
-    let mut sidecar: serde_json::Value = serde_json::from_str(sidecar).expect("valid JSON");
-    let meshes = sidecar["surfaces"].as_array().expect("surfaces").clone();
-    sidecar["surfaces"] = meshes
-        .into_iter()
-        .filter(|mesh| !mesh["name"].as_str().expect("a name").starts_with("Wall"))
-        .collect();
-    sidecar.to_string()
+    track(&with_slot_at(OVAL, 0, position, yaw))
 }
 
 fn open_oval_with_slot_0_at(position: [f32; 3], yaw: f32) -> Track {
-    with_slot_0_at(&without_walls(OVAL), position, yaw)
+    track(&with_slot_at(&without_walls(OVAL), 0, position, yaw))
 }
 
 #[test]
@@ -116,11 +79,7 @@ fn a_boost_pad_gives_the_tuned_boost_for_the_tuned_time_from_the_tick_it_is_ente
     use sim::tuning::{BOOST_PAD_FACTOR, BOOST_PAD_HALF_LENGTH_M, BOOST_PAD_S};
     // Slot 1 at x = 32 drives up the front straight over the pad centred
     // on (33, -60), reaching top speed well before it, while pole idles.
-    let mut state = started(State::new(
-        SEED,
-        2,
-        Track::from_sidecar(OVAL).expect("the oval loads"),
-    ));
+    let mut state = started(State::new(SEED, 2, oval()));
     let pad = state.track().boost_pads()[1].position;
     assert_eq!(
         pad,
@@ -361,12 +320,6 @@ fn a_wall_met_head_on_stops_the_kart_dead_without_a_bounce() {
     }
 }
 
-/// Yaw in radians recovered from the rotation quaternion `[x, y, z, w]`.
-fn yaw(rotation: [f32; 4]) -> f32 {
-    let [x, y, z, w] = rotation;
-    (2.0 * (w * y + x * z)).atan2(1.0 - 2.0 * (y * y + z * z))
-}
-
 #[test]
 fn a_kart_out_of_the_world_for_the_tuned_time_respawns_at_its_last_checkpoint_facing_the_next() {
     use sim::tuning::{KART_HALF_HEIGHT_M, RESPAWN_DELAY_S};
@@ -445,11 +398,7 @@ fn backing_up_for_the_tuned_time_raises_the_wrong_way_warning_until_progress_inc
     };
     // Reversing from the grid moves the kart away from the line it faces:
     // spline progress falls from the first tick.
-    let mut state = started(State::new(
-        SEED,
-        1,
-        Track::from_sidecar(OVAL).expect("the oval loads"),
-    ));
+    let mut state = started(State::new(SEED, 1, oval()));
     let mut warned_at = None;
     for tick in 0..ticks(WRONG_WAY_WARNING_S + 1.0) {
         state = step(state, &[brake], DT);
@@ -487,9 +436,6 @@ fn backing_up_for_the_tuned_time_raises_the_wrong_way_warning_until_progress_inc
     assert!(cleared_at.is_some(), "the kart got going forward again");
 }
 
-const BRANDS_PATCH: &str =
-    include_str!("../../../assets/tracks/brands-patch/brands-patch.track.json");
-
 /// Full throttle, steering toward `target` (x, z).
 fn aim(state: &State, target: [f32; 2]) -> KartInput {
     const STEER_GAIN: f32 = 4.0;
@@ -513,16 +459,21 @@ fn aim(state: &State, target: [f32; 2]) -> KartInput {
 /// the chicane, facing along it, and the spline progress of the chicane's
 /// entry and exit (layouts/brands_patch.py: chicane-in through chicane-out).
 fn brands_patch_before_the_chicane(before_m: f32) -> (Track, f32, f32) {
-    let track = Track::from_sidecar(BRANDS_PATCH).expect("Brands Patch loads");
+    let brands_patch = brands_patch();
     let (entry, exit) = (371.11, 415.09);
-    let spawn = track.point_at(entry - before_m);
-    let ahead = track.point_at(entry - before_m + 1.0);
+    let spawn = brands_patch.point_at(entry - before_m);
+    let ahead = brands_patch.point_at(entry - before_m + 1.0);
     assert!(
         ahead[0] < spawn[0] && (ahead[2] - spawn[2]).abs() < 1e-3,
         "the hill straight runs along -X"
     );
     (
-        with_slot_0_at(BRANDS_PATCH, spawn, std::f32::consts::FRAC_PI_2),
+        track(&with_slot_at(
+            BRANDS_PATCH,
+            0,
+            spawn,
+            std::f32::consts::FRAC_PI_2,
+        )),
         entry,
         exit,
     )
@@ -595,7 +546,7 @@ fn a_boost_pad_facing_the_other_way_boosts_a_kart_on_it_and_not_one_beside_it() 
     // The back straight's pad at (-30, -55) faces +Z. One kart drives up
     // its centre from 45 m back; another drives the same way just outside
     // its width.
-    let track = Track::from_sidecar(OVAL).expect("the oval loads");
+    let track = oval();
     let pad = track.boost_pads()[0];
     assert_eq!(pad.position, [-30.0, 0.0, -55.0]);
     assert!(

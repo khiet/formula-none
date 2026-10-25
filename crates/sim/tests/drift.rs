@@ -5,81 +5,31 @@
 //! walls are taken away first: a drift held to orange arcs out of the
 //! corridor between them, and the drift is what is under test.
 
+mod common;
+
+use common::{only_kart, run, started, throttle, ticks, track, without_walls, yaw, DT, OVAL, SEED};
+
 use sim::tuning::{
     ACCELERATION_TO_TOP_S, DRIFT_ENTRY_SPEED_FRACTION, DRIFT_SLIP_ANGLE_RAD, HOP_AIRTIME_S,
     MINI_TURBO_BLUE_BOOST_S, MINI_TURBO_BLUE_CHARGE_S, MINI_TURBO_BOOST_FACTOR,
-    MINI_TURBO_ORANGE_BOOST_S, MINI_TURBO_ORANGE_CHARGE_S, TICKS_PER_SECOND, TOP_SPEED_M_PER_S,
+    MINI_TURBO_ORANGE_BOOST_S, MINI_TURBO_ORANGE_CHARGE_S, TOP_SPEED_M_PER_S,
 };
-use sim::{step, DriftDirection, KartInput, KartReadout, MiniTurbo, Phase, State, Track};
-
-const OVAL: &str = include_str!("../../../assets/tracks/oval/oval.track.json");
-const DT: f32 = 1.0 / TICKS_PER_SECOND as f32;
-const SEED: u64 = 0x5EED;
-
-/// The race past its countdown, every kart idle on the grid until Go.
-fn started(mut state: State) -> State {
-    let inputs = vec![KartInput::default(); state.human_count()];
-    while matches!(state.phase(), Phase::Countdown { .. }) {
-        state = step(state, &inputs, DT);
-    }
-    state
-}
+use sim::{step, DriftDirection, KartInput, MiniTurbo, State};
 
 fn race() -> State {
-    started(State::new(
-        SEED,
-        1,
-        Track::from_sidecar(&without_walls(OVAL)).expect("the oval fixture loads"),
-    ))
-}
-
-/// `sidecar` with its walls taken away, the pipes kept. The walls keep a
-/// kart off the grass and in the world, and these are the rules for a kart
-/// that got there anyway, whatever track it was on.
-fn without_walls(sidecar: &str) -> String {
-    let mut sidecar: serde_json::Value = serde_json::from_str(sidecar).expect("valid JSON");
-    let meshes = sidecar["surfaces"].as_array().expect("surfaces").clone();
-    sidecar["surfaces"] = meshes
-        .into_iter()
-        .filter(|mesh| !mesh["name"].as_str().expect("a name").starts_with("Wall"))
-        .collect();
-    sidecar.to_string()
-}
-
-fn run(mut state: State, inputs: impl IntoIterator<Item = KartInput>) -> State {
-    for input in inputs {
-        state = step(state, &[input], DT);
-    }
-    state
-}
-
-fn ticks(seconds: f32) -> usize {
-    (seconds * TICKS_PER_SECOND as f32).round() as usize
-}
-
-fn only_kart(state: &State) -> KartReadout {
-    let transforms = state.kart_readouts();
-    assert_eq!(transforms.len(), 1);
-    transforms[0]
-}
-
-fn accelerate() -> KartInput {
-    KartInput {
-        throttle: 1.0,
-        ..KartInput::default()
-    }
+    started(State::new(SEED, 1, track(&without_walls(OVAL))))
 }
 
 /// A kart at top speed on the front straight.
 fn at_top_speed() -> State {
-    run(race(), vec![accelerate(); ticks(ACCELERATION_TO_TOP_S) + 1])
+    run(race(), vec![throttle(); ticks(ACCELERATION_TO_TOP_S) + 1])
 }
 
 #[test]
 fn a_hop_lifts_the_kart_and_lands_it_after_the_tuned_airtime() {
     let hop = KartInput {
         hop: true,
-        ..accelerate()
+        ..throttle()
     };
     let ground = only_kart(&at_top_speed()).position[1];
     assert!(
@@ -115,7 +65,7 @@ fn hop_right() -> KartInput {
     KartInput {
         hop: true,
         steer: 1.0,
-        ..accelerate()
+        ..throttle()
     }
 }
 
@@ -163,7 +113,7 @@ fn no_drift_without_a_press_or_in_the_air() {
 #[test]
 fn no_drift_when_landing_below_the_entry_speed() {
     // Rolling, but under the entry fraction of top speed.
-    let slow = run(race(), vec![accelerate(); ticks(0.5)]);
+    let slow = run(race(), vec![throttle(); ticks(0.5)]);
     let speed = only_kart(&slow).speed;
     assert!(
         speed > 1.0 && speed < DRIFT_ENTRY_SPEED_FRACTION * TOP_SPEED_M_PER_S,
@@ -199,16 +149,10 @@ fn no_drift_when_the_hop_button_is_let_go_before_landing() {
     assert_eq!(only_kart(&landed(hopped_right, let_go)).drift, None);
 }
 
-/// Yaw in radians recovered from the rotation quaternion `[x, y, z, w]`.
-fn yaw(transform: &KartReadout) -> f32 {
-    let [x, y, z, w] = transform.rotation;
-    (2.0 * (w * y + x * z)).atan2(1.0 - 2.0 * (y * y + z * z))
-}
-
 /// Yaw rate measured over `seconds` more of `input`, in radians per second.
 fn measured_yaw_rate(state: State, input: KartInput, seconds: f32) -> f32 {
-    let before = yaw(&only_kart(&state));
-    let after = yaw(&only_kart(&run(state, vec![input; ticks(seconds)])));
+    let before = yaw(only_kart(&state).rotation);
+    let after = yaw(only_kart(&run(state, vec![input; ticks(seconds)])).rotation);
     (after - before) / seconds
 }
 
@@ -312,7 +256,7 @@ fn just_landed_right() -> State {
 /// `held` ticks of charge with the stick centred.
 fn boost_after_ticks(held: usize) -> Option<f32> {
     let charged = run(just_landed_right(), vec![hold_right(); held]);
-    only_kart(&step(charged, &[accelerate()], DT)).boost_s
+    only_kart(&step(charged, &[throttle()], DT)).boost_s
 }
 
 #[test]
@@ -339,7 +283,7 @@ fn measured_speed(state: State, input: KartInput) -> f32 {
 /// button let go with the throttle still down.
 fn released_after(charge_s: f32) -> State {
     let charged = run(drifting_right(), vec![hold_right(); ticks(charge_s)]);
-    step(charged, &[accelerate()], DT)
+    step(charged, &[throttle()], DT)
 }
 
 fn assert_boosts_for(charge_s: f32, boost_s: f32) {
@@ -352,9 +296,9 @@ fn assert_boosts_for(charge_s: f32, boost_s: f32) {
     assert_boost_of(only_kart(&released).boost_s, boost_s);
     let boosted = TOP_SPEED_M_PER_S * MINI_TURBO_BOOST_FACTOR;
 
-    let early = run(released, vec![accelerate(); ticks(boost_s / 2.0)]);
-    let late = run(early, vec![accelerate(); ticks(boost_s / 2.0) - 3]);
-    let speed = measured_speed(late, accelerate());
+    let early = run(released, vec![throttle(); ticks(boost_s / 2.0)]);
+    let late = run(early, vec![throttle(); ticks(boost_s / 2.0) - 3]);
+    let speed = measured_speed(late, throttle());
     assert!(
         (speed - boosted).abs() < 0.5,
         "boosted to about {boosted} m/s until the boost ends, measured {speed}"
@@ -362,10 +306,10 @@ fn assert_boosts_for(charge_s: f32, boost_s: f32) {
 
     let over = run(
         released_after(charge_s),
-        vec![accelerate(); ticks(boost_s) + 3],
+        vec![throttle(); ticks(boost_s) + 3],
     );
     assert_eq!(only_kart(&over).boost_s, None, "the boost has run out");
-    let speed = measured_speed(over, accelerate());
+    let speed = measured_speed(over, throttle());
     assert!(
         speed <= TOP_SPEED_M_PER_S + 0.01,
         "back under top speed after the boost, measured {speed}"
@@ -389,7 +333,7 @@ fn releasing_before_blue_ends_the_drift_with_no_boost() {
     let mut state = released;
     for _ in 0..ticks(MINI_TURBO_BLUE_BOOST_S) {
         let before = only_kart(&state);
-        state = step(state, &[accelerate()], DT);
+        state = step(state, &[throttle()], DT);
         let speed = (before.position[2] - only_kart(&state).position[2]) / DT;
         assert!(speed <= TOP_SPEED_M_PER_S + 0.01, "no boost: {speed} m/s");
     }
@@ -413,15 +357,15 @@ fn a_drift_that_slows_below_the_entry_speed_ends_with_no_boost() {
     assert!(kart.speed < DRIFT_ENTRY_SPEED_FRACTION * TOP_SPEED_M_PER_S);
     assert_eq!(kart.drift, None);
 
-    let released = step(slowed, &[accelerate()], DT);
-    assert!(measured_speed(released, accelerate()) < TOP_SPEED_M_PER_S);
+    let released = step(slowed, &[throttle()], DT);
+    assert!(measured_speed(released, throttle()) < TOP_SPEED_M_PER_S);
 }
 
 #[test]
 fn holding_the_hop_button_through_a_landing_does_not_hop_again() {
     let hold = KartInput {
         hop: true,
-        ..accelerate()
+        ..throttle()
     };
     let ground = only_kart(&at_top_speed()).position[1];
     // A straight hop lands into no drift, so a held button has nothing to
@@ -433,7 +377,7 @@ fn holding_the_hop_button_through_a_landing_does_not_hop_again() {
         assert!(height.abs() < 0.02, "stayed on the track: {height} m up");
     }
 
-    let released = step(state, &[accelerate()], DT);
+    let released = step(state, &[throttle()], DT);
     let hopped_again = run(released, vec![hold; ticks(HOP_AIRTIME_S / 2.0)]);
     assert!(
         only_kart(&hopped_again).position[1] > ground + 0.05,
@@ -454,7 +398,7 @@ fn a_drifting_kart_travels_outside_its_facing_by_the_tuned_slip_angle() {
     let dx = after.position[0] - before.position[0];
     let dz = after.position[2] - before.position[2];
     let travel = (-dx).atan2(-dz);
-    let facing = (yaw(&before) + yaw(&after)) / 2.0;
+    let facing = (yaw(before.rotation) + yaw(after.rotation)) / 2.0;
     let slip = travel - facing;
     assert!(
         (slip - DRIFT_SLIP_ANGLE_RAD).abs() < 0.05,

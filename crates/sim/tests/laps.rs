@@ -6,16 +6,17 @@
 //! but never the course (ADR 0022); Brands Patch joins in for the cuts its
 //! walls close.
 
+mod common;
+
+use common::{
+    brands_patch, follow_centreline, oval, race, run, started, steer_toward, straight, throttle,
+    ticks, DT, OVAL, SEED,
+};
+
 use std::f32::consts::PI;
 
-use sim::tuning::{BOT_LOOKAHEAD_M, LAPS_PER_RACE, TICKS_PER_SECOND};
-use sim::{step, KartInput, Phase, Standing, State, Surface, Track};
-
-const OVAL: &str = include_str!("../../../assets/tracks/oval/oval.track.json");
-const BRANDS_PATCH: &str =
-    include_str!("../../../assets/tracks/brands-patch/brands-patch.track.json");
-const DT: f32 = 1.0 / TICKS_PER_SECOND as f32;
-const SEED: u64 = 0x5EED;
+use sim::tuning::LAPS_PER_RACE;
+use sim::{step, KartInput, Standing, State, Surface, Track};
 
 /// Hairpin one on Brands Patch (layouts/brands_patch.py): a 180 degree
 /// left-hander of 18 m radius that begins 70 m past the line, with the
@@ -48,42 +49,6 @@ const CHICANE_MID_WALL_END_X: f32 = -126.2;
 const JUMP_Z: f32 = 88.0;
 const CHECKPOINT_IN_THE_CHICANE: usize = 6;
 
-/// The race past its countdown, every kart idle on the grid until Go.
-fn started(mut state: State) -> State {
-    let inputs = vec![KartInput::default(); state.human_count()];
-    while matches!(state.phase(), Phase::Countdown { .. }) {
-        state = step(state, &inputs, DT);
-    }
-    state
-}
-
-fn oval() -> Track {
-    Track::from_sidecar(OVAL).expect("the oval fixture loads")
-}
-
-fn brands_patch() -> Track {
-    Track::from_sidecar(BRANDS_PATCH).expect("Brands Patch loads")
-}
-
-fn race(kart_count: usize) -> State {
-    started(State::new(SEED, kart_count, oval()))
-}
-
-fn ticks(seconds: f32) -> usize {
-    (seconds * TICKS_PER_SECOND as f32).round() as usize
-}
-
-fn throttle() -> KartInput {
-    KartInput {
-        throttle: 1.0,
-        ..KartInput::default()
-    }
-}
-
-fn straight(_: &State, _: usize) -> KartInput {
-    throttle()
-}
-
 fn only_standing(state: &State) -> Standing {
     let standings = state.standings();
     assert_eq!(standings.len(), 1);
@@ -107,64 +72,6 @@ fn a_kart_on_the_grid_is_on_lap_one_at_the_start_line_in_first_place() {
         "progress {} on a {lap} m lap",
         standing.spline_progress
     );
-}
-
-fn run(mut state: State, inputs: impl IntoIterator<Item = KartInput>) -> State {
-    for input in inputs {
-        state = step(state, &[input], DT);
-    }
-    state
-}
-
-/// Yaw in radians recovered from the rotation quaternion `[x, y, z, w]`.
-fn yaw(rotation: [f32; 4]) -> f32 {
-    let [x, y, z, w] = rotation;
-    (2.0 * (w * y + x * z)).atan2(1.0 - 2.0 * (y * y + z * z))
-}
-
-/// Full throttle, steering toward the point `target` (x, z) seen from above.
-fn steer_toward(state: &State, kart: usize, target: [f32; 2]) -> KartInput {
-    const STEER_GAIN: f32 = 4.0;
-    let transform = state.kart_readouts()[kart];
-    let (dx, dz) = (
-        target[0] - transform.position[0],
-        target[1] - transform.position[2],
-    );
-    let length = (dx * dx + dz * dz).sqrt().max(f32::EPSILON);
-    // Positive steer turns the kart right; right of a yaw is (cos, -sin) in x, z.
-    let (sin, cos) = yaw(transform.rotation).sin_cos();
-    let rightward = (dx * cos - dz * sin) / length;
-    KartInput {
-        steer: (rightward * STEER_GAIN).clamp(-1.0, 1.0),
-        throttle: 1.0,
-        ..KartInput::default()
-    }
-}
-
-/// Full throttle toward a line `right_of_centre_m` right of the centreline
-/// (negative is left), aimed some way ahead of the kart.
-fn follow_line(state: &State, kart: usize, right_of_centre_m: f32) -> KartInput {
-    let progress = state.standings()[kart].spline_progress;
-    let track = state.track();
-    let ahead = track.point_at(progress + BOT_LOOKAHEAD_M);
-    let further = track.point_at(progress + BOT_LOOKAHEAD_M + 1.0);
-    // Right of the direction of travel (dx, dz), seen from above, is (-dz, dx).
-    let (tx, tz) = (further[0] - ahead[0], further[2] - ahead[2]);
-    let travel = (tx * tx + tz * tz).sqrt().max(f32::EPSILON);
-    let target = [
-        ahead[0] - tz / travel * right_of_centre_m,
-        ahead[2] + tx / travel * right_of_centre_m,
-    ];
-    steer_toward(state, kart, target)
-}
-
-/// A line a little right of the centreline: enough to lap either track on
-/// the asphalt and clear of the pipes that stand just left of the
-/// centreline in the oval's turns and on the inside of Brands Patch's
-/// hairpins.
-fn follow_centreline(state: &State, kart: usize) -> KartInput {
-    const RIGHT_OF_CENTRE_M: f32 = 2.5;
-    follow_line(state, kart, RIGHT_OF_CENTRE_M)
 }
 
 /// What steers a kart in a multi-kart test: reads the state and the kart's

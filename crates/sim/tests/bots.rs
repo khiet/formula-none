@@ -2,33 +2,19 @@
 //! stepped with one input per human, and the bot karts drive themselves.
 //! Tests read the same transforms and standings a human's kart reports.
 
+mod common;
+
+use common::{
+    brands_patch, oval, oval_without_item_boxes, started, ticks, track, with_slot_at, yaw, DT,
+    OVAL, SEED,
+};
+
 use sim::tuning::{
     BOT_LOOKAHEAD_M, BOT_RUBBER_BAND_MAX_FACTOR, BOT_RUBBER_BAND_MIN_FACTOR,
     BOT_STALL_SPEED_M_PER_S, BOT_START_HOLD_S, COUNTDOWN_S, LAPS_PER_RACE,
-    MINI_TURBO_ORANGE_BOOST_S, TICKS_PER_SECOND, TOP_SPEED_M_PER_S,
+    MINI_TURBO_ORANGE_BOOST_S, TOP_SPEED_M_PER_S,
 };
 use sim::{step, KartInput, Phase, State, Surface, Track};
-
-const OVAL: &str = include_str!("../../../assets/tracks/oval/oval.track.json");
-const DT: f32 = 1.0 / TICKS_PER_SECOND as f32;
-const SEED: u64 = 0x5EED;
-
-/// The race past its countdown, every kart idle on the grid until Go.
-fn started(mut state: State) -> State {
-    let inputs = vec![KartInput::default(); state.human_count()];
-    while matches!(state.phase(), Phase::Countdown { .. }) {
-        state = step(state, &inputs, DT);
-    }
-    state
-}
-
-fn oval() -> Track {
-    Track::from_sidecar(OVAL).expect("the oval fixture loads")
-}
-
-fn ticks(seconds: f32) -> usize {
-    (seconds * TICKS_PER_SECOND as f32).round() as usize
-}
 
 /// Step `state` for `seconds` with every human idle.
 fn idle_humans(mut state: State, humans: usize, seconds: f32) -> State {
@@ -110,13 +96,6 @@ fn a_bot_alone_laps_the_oval_three_times_without_leaving_the_asphalt() {
         lap_times.iter().all(|&lap| lap < LAP_S),
         "every lap at racing pace: {lap_times:?}"
     );
-}
-
-const BRANDS_PATCH: &str =
-    include_str!("../../../assets/tracks/brands-patch/brands-patch.track.json");
-
-fn brands_patch() -> Track {
-    Track::from_sidecar(BRANDS_PATCH).expect("Brands Patch loads")
 }
 
 /// The spline progress spans of the track's hairpins: stretches where the
@@ -220,10 +199,10 @@ fn oval_with_slot_1_on_the_back_straight_and_no_boost_pads() -> Track {
     let [dx, dz] = oval.direction_at(BACK_STRAIGHT_PROGRESS_M);
     // Yaw zero faces -Z and grows counter-clockwise seen from above.
     let yaw = (-dx).atan2(-dz);
-    let mut sidecar: serde_json::Value = serde_json::from_str(OVAL).expect("valid JSON");
-    sidecar["spawn_grid"][1] = serde_json::json!({ "position": position, "yaw": yaw });
+    let mut sidecar: serde_json::Value =
+        serde_json::from_str(&with_slot_at(OVAL, 1, position, yaw)).expect("valid JSON");
     sidecar["boost_pads"] = serde_json::json!([]);
-    Track::from_sidecar(&sidecar.to_string()).expect("the moved-slot oval loads")
+    track(&sidecar.to_string())
 }
 
 #[test]
@@ -310,12 +289,6 @@ fn a_bot_in_a_race_with_no_humans_has_no_rubber_band() {
     assert_eq!(state.rubber_band(1), 1.0);
 }
 
-/// Yaw in radians recovered from the rotation quaternion `[x, y, z, w]`.
-fn yaw(rotation: [f32; 4]) -> f32 {
-    let [x, y, z, w] = rotation;
-    (2.0 * (w * y + x * z)).atan2(1.0 - 2.0 * (y * y + z * z))
-}
-
 /// A scripted perfect driver for the oval: the rocket start timed as a bot
 /// times it, then full throttle the whole way, steering at a line a little
 /// right of the centreline a lookahead ahead (clear of the pipes on the
@@ -363,14 +336,6 @@ fn perfect_driver(state: &State, kart: usize) -> KartInput {
         hop: turning,
         ..KartInput::default()
     }
-}
-
-/// The oval without its item boxes: a race of driving alone, with no boost
-/// to even the field and no traffic from a boosted kart.
-fn oval_without_item_boxes() -> Track {
-    let mut sidecar: serde_json::Value = serde_json::from_str(OVAL).expect("valid JSON");
-    sidecar["item_boxes"] = serde_json::json!([]);
-    Track::from_sidecar(&sidecar.to_string()).expect("the oval without boxes loads")
 }
 
 /// Race one human driven by `driver`, from the top of the countdown,
@@ -454,9 +419,7 @@ fn a_scripted_idle_driver_is_last_when_a_bot_finishes_and_the_race_ends() {
 /// facing the wall that rings it 12 m outside the centreline, so a bot from
 /// that slot drives straight into the wall.
 fn oval_with_slot_0_facing_the_first_turns_wall() -> Track {
-    let mut sidecar: serde_json::Value = serde_json::from_str(OVAL).expect("valid JSON");
-    sidecar["spawn_grid"][0] = serde_json::json!({ "position": [0.0, 0.0, -139.5], "yaw": 0.0 });
-    Track::from_sidecar(&sidecar.to_string()).expect("the moved-slot oval loads")
+    track(&with_slot_at(OVAL, 0, [0.0, 0.0, -139.5], 0.0))
 }
 
 #[test]
