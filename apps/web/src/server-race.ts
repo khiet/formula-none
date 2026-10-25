@@ -13,10 +13,9 @@
 // projectiles are drawn between the snapshots as the other karts are, so
 // one reaches its target as the target is drawn spinning.
 
-import type { Bridge, Hazard, KartReadout, Phase, Projectile, Standing } from "./bridge";
+import type { Bridge, Hazard, KartReadout, Phase, Standing } from "./bridge";
 import type { FinalStanding, Item, Snapshot } from "./generated/protocol";
-import type { ItemSlot } from "./instrument-panel";
-import { ITEM_FIRE_FLASH_S, type RaceRun } from "./race-scene";
+import { ITEM_FIRE_FLASH_S, type RaceRun } from "./race-run";
 import { type Countdown, quantiseInput, type RoomClient } from "./room-client";
 
 export interface ServerRace extends RaceRun {
@@ -110,6 +109,55 @@ export function createServerRace(
     results = standings;
   });
 
+  const kartReadouts = (): KartReadout[] => {
+    const interpolated = prediction.interpolatedKartReadouts();
+    const karts = interpolated.length === 0 ? track.kartReadouts() : interpolated;
+    karts[localKart] = prediction.kartReadout();
+    return karts;
+  };
+  const standings = (): Standing[] => {
+    const clock = prediction.phase();
+    const raceClock = clock.kind === "racing" ? clock.elapsedSeconds : 0;
+    return Array.from({ length: kartCount }, (_, kart): Standing => {
+      const snapshot = latest?.karts[kart];
+      const final = results?.find((standing) => standing.kart === kart);
+      const laps = lapTimes[kart] ?? [];
+      const finishTime = final?.finishTimeS ?? finishTimes[kart] ?? null;
+      const raced = laps.reduce((sum, lap) => sum + lap, 0);
+      return {
+        position: final?.position ?? snapshot?.racePosition ?? kart + 1,
+        lap: snapshot?.lap ?? 1,
+        checkpoint: snapshot?.checkpoint ?? 0,
+        splineProgress: snapshot?.splineProgress ?? 0,
+        // The lap clock runs from Go, less the laps already completed; a
+        // finisher's stops on the last lap's time.
+        lapTimeS: finishTime === null ? Math.max(raceClock - raced, 0) : (laps.at(-1) ?? 0),
+        bestLapS: final?.bestLapS ?? (laps.length === 0 ? null : Math.min(...laps)),
+        wrongWay: snapshot?.wrongWay ?? false,
+        finishTimeS: finishTime,
+      };
+    });
+  };
+  const phase = (): Phase => {
+    if (results !== undefined) return { kind: "finished" };
+    // The prediction's clock never counts the grace, which is the
+    // server's; the panel shows nothing of it.
+    return prediction.phase();
+  };
+  /** The newest snapshot's hazards, one a kart trails drawn behind it at `karts`. */
+  const hazards = (karts: readonly KartReadout[]): Hazard[] => {
+    if (latest === undefined) return [];
+    return latest.hazards.map((hazard) => {
+      const holder = hazard.held ? karts[hazard.owner] : undefined;
+      return holder === undefined
+        ? hazard
+        : {
+            ...hazard,
+            position: behind(holder, bridge.hazardDropDistanceMetres, bridge.kartSize.height),
+          };
+    });
+  };
+
   return {
     humanCount,
     localKart,
@@ -126,60 +174,19 @@ export function createServerRace(
         boxTicksLeft[box] = Math.max((boxTicksLeft[box] ?? 0) - 1, 0);
       }
     },
-    kartReadouts() {
-      const interpolated = prediction.interpolatedKartReadouts();
-      const karts = interpolated.length === 0 ? track.kartReadouts() : interpolated;
-      karts[localKart] = prediction.kartReadout();
-      return karts;
-    },
-    standings() {
-      const clock = prediction.phase();
-      const raceClock = clock.kind === "racing" ? clock.elapsedSeconds : 0;
-      return Array.from({ length: kartCount }, (_, kart): Standing => {
-        const snapshot = latest?.karts[kart];
-        const final = results?.find((standing) => standing.kart === kart);
-        const laps = lapTimes[kart] ?? [];
-        const finishTime = final?.finishTimeS ?? finishTimes[kart] ?? null;
-        const raced = laps.reduce((sum, lap) => sum + lap, 0);
-        return {
-          position: final?.position ?? snapshot?.racePosition ?? kart + 1,
-          lap: snapshot?.lap ?? 1,
-          checkpoint: snapshot?.checkpoint ?? 0,
-          splineProgress: snapshot?.splineProgress ?? 0,
-          // The lap clock runs from Go, less the laps already completed; a
-          // finisher's stops on the last lap's time.
-          lapTimeS: finishTime === null ? Math.max(raceClock - raced, 0) : (laps.at(-1) ?? 0),
-          bestLapS: final?.bestLapS ?? (laps.length === 0 ? null : Math.min(...laps)),
-          wrongWay: snapshot?.wrongWay ?? false,
-          finishTimeS: finishTime,
-        };
-      });
-    },
-    phase(): Phase {
-      if (results !== undefined) return { kind: "finished" };
-      // The prediction's clock never counts the grace, which is the
-      // server's; the panel shows nothing of it.
-      return prediction.phase();
-    },
-    itemSlot(): ItemSlot {
-      return { item: heldItem, firing: predictedFireTicksLeft > 0 || flashTicksLeft > 0 };
+    readout: () => {
+      const karts = kartReadouts();
+      return {
+        karts,
+        standings: standings(),
+        phase: phase(),
+        itemSlot: { item: heldItem, firing: predictedFireTicksLeft > 0 || flashTicksLeft > 0 },
+        itemBoxesPresent: boxTicksLeft.map((left) => left <= 0),
+        hazards: hazards(karts),
+        projectiles: prediction.interpolatedProjectiles(),
+      };
     },
     itemBoxes: () => boxes,
-    itemBoxesPresent: () => boxTicksLeft.map((left) => left <= 0),
-    hazards(): Hazard[] {
-      if (latest === undefined) return [];
-      const karts = this.kartReadouts();
-      return latest.hazards.map((hazard) => {
-        const holder = hazard.held ? karts[hazard.owner] : undefined;
-        return holder === undefined
-          ? hazard
-          : {
-              ...hazard,
-              position: behind(holder, bridge.hazardDropDistanceMetres, bridge.kartSize.height),
-            };
-      });
-    },
-    projectiles: (): Projectile[] => prediction.interpolatedProjectiles(),
     correctionsPerSecond: () => prediction.correctionsPerSecond(),
     dispose() {
       stopSnapshots();

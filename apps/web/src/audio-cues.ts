@@ -3,12 +3,12 @@
 // holds. Cues are edges, loops are state. The engine has a module of its
 // own, `audio-engine.ts`. Presentation, so it reads what the sim reports
 // and never the inputs: a hop sounds when the kart leaves the ground, not
-// when the button goes down, and the countdown beeps as the count the
-// Instrument panel shows changes, never from a clock of its own.
+// when the button goes down, and the countdown beeps as the phase's whole
+// seconds to Go change, never from a clock of its own.
 
-import type { KartReadout, MiniTurbo, Phase, Standing, Surface } from "./bridge";
+import type { MiniTurbo, Surface } from "./bridge";
 import type { Item, Start } from "./generated/protocol";
-import { type ItemSlot, phaseReadout } from "./instrument-panel";
+import type { RaceReadout } from "./race-run";
 
 /** The sounds a race fires, each from the change that calls for it. */
 export type SoundCue =
@@ -45,8 +45,8 @@ export interface SoundReading {
   readonly boostSeconds: number | null;
   readonly lap: number;
   readonly finished: boolean;
-  /** The count the Instrument panel shows: 3, 2, 1, GO, or nothing the rest of the race. */
-  readonly count: string;
+  /** The whole seconds left to Go while the countdown runs; null from Go. */
+  readonly count: number | null;
   /** The rocket start's charge, the tier the hold so far has reached, while the countdown runs; null from Go. The engine revs by it on the grid. */
   readonly charge: Start | null;
   readonly stalled: boolean;
@@ -56,27 +56,31 @@ export interface SoundReading {
   readonly wrongWay: boolean;
 }
 
-/** The own kart's reading from its transform, standing, item slot and the race's phase this frame. */
-export function soundReading(
-  kart: KartReadout,
-  standing: Standing,
-  slot: ItemSlot,
-  phase: Phase,
-): SoundReading {
+/**
+ * The reading of `kart`, the own kart, from its readout and standing in
+ * `race`, the item slot and the phase. Throws when `race` has no such kart.
+ */
+export function soundReading(race: RaceReadout, kart: number): SoundReading {
+  const readout = race.karts[kart];
+  const standing = race.standings[kart];
+  if (readout === undefined || standing === undefined) {
+    throw new RangeError(`kart ${kart} is not in the race`);
+  }
+  const { phase, itemSlot } = race;
   return {
-    speed: kart.speed,
-    airborne: kart.airborne,
-    miniTurbo: kart.drift !== null ? kart.miniTurbo : null,
-    item: slot.item,
-    spunOut: kart.spinOutS !== null,
-    boostSeconds: kart.boostS,
+    speed: readout.speed,
+    airborne: readout.airborne,
+    miniTurbo: readout.drift !== null ? readout.miniTurbo : null,
+    item: itemSlot.item,
+    spunOut: readout.spinOutS !== null,
+    boostSeconds: readout.boostS,
     lap: standing.lap,
     finished: standing.finishTimeS !== null,
-    count: phaseReadout(phase),
-    charge: phase.kind === "countdown" ? kart.start : null,
-    stalled: kart.stallS !== null,
-    surface: kart.surface,
-    drifting: kart.drift !== null,
+    count: phase.kind === "countdown" ? Math.ceil(phase.remainingSeconds) : null,
+    charge: phase.kind === "countdown" ? readout.start : null,
+    stalled: readout.stallS !== null,
+    surface: readout.surface,
+    drifting: readout.drift !== null,
     wrongWay: standing.wrongWay,
   };
 }
@@ -85,15 +89,16 @@ export function soundReading(
 const CHARGED: readonly MiniTurbo[] = ["blue", "orange"];
 /** Only a hold at one of these tiers has a start boost to release at Go. */
 const BOOSTING: readonly Start[] = ["weakBoost", "fullBoost"];
-/** The counts the beep marks; GO has its own tone. */
-const BEEPED = ["3", "2", "1"];
+/** The counts the beep marks; Go has its own tone. */
+const BEEPED: readonly number[] = [3, 2, 1];
 /** How far up the tiers a drift has charged; off a drift and at the first tier alike, nowhere. */
 const TIER_RANK: Readonly<Record<MiniTurbo, number>> = { none: 0, blue: 1, orange: 2 };
 
 /**
  * The cues the change from `before` to `after` calls for, in a fixed
- * order: the beep or the GO tone as the count changes, which the first
- * reading counts for, since the 3 is up from the first frame; the hop as
+ * order: the beep as the count changes, which the first reading counts
+ * for, since the 3 is up from the first frame, or the Go tone as the count
+ * ends; the hop as
  * the kart leaves the ground; the mini-turbo as a charged drift ends and a
  * boost starts or lengthens (a drift a spin-out, a respawn or lost speed
  * ends has no release to hear, and a release that cuts a pad's longer
@@ -109,11 +114,11 @@ const TIER_RANK: Readonly<Record<MiniTurbo, number>> = { none: 0, blue: 1, orang
  */
 export function soundCues(before: SoundReading | undefined, after: SoundReading): SoundCue[] {
   const cues: SoundCue[] = [];
-  if (after.count !== (before?.count ?? "")) {
-    if (BEEPED.includes(after.count)) cues.push("countdownBeep");
-    if (after.count === "GO") cues.push("go");
+  if (after.count !== null && after.count !== before?.count && BEEPED.includes(after.count)) {
+    cues.push("countdownBeep");
   }
   if (before === undefined) return cues;
+  if (before.count !== null && after.count === null) cues.push("go");
   if (!before.airborne && after.airborne) cues.push("hop");
   const charged = before.miniTurbo !== null && CHARGED.includes(before.miniTurbo);
   const boostBegan =

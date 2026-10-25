@@ -28,7 +28,7 @@ const STILL: SoundReading = {
   boostSeconds: null,
   lap: 1,
   finished: false,
-  count: "",
+  count: null,
   charge: null,
   stalled: false,
   surface: "asphalt",
@@ -500,30 +500,31 @@ describe("the engine", () => {
     await audio.unlock();
     const race = audio.race();
     race.start();
-    race.update({ ...STILL, count: "3", charge: "clean" });
+    race.update({ ...STILL, count: 3, charge: "clean" });
     expect(saws()[0]?.frequency.value).toBe(ENGINE.idleHz);
-    race.update({ ...STILL, count: "2", charge: "weakBoost" });
+    race.update({ ...STILL, count: 2, charge: "weakBoost" });
     const weak = saws()[0]?.frequency.value ?? 0;
     expect(weak).toBeGreaterThan(ENGINE.idleHz);
     expect(weak).toBeLessThan(ENGINE.topHz);
     expect(limiterDepth().gain.value).toBe(0);
-    race.update({ ...STILL, count: "1", charge: "fullBoost" });
+    race.update({ ...STILL, count: 1, charge: "fullBoost" });
     expect(saws()[0]?.frequency.value).toBeCloseTo(ENGINE.topHz, 6);
     expect(limiterDepth().gain.value).toBeGreaterThan(0);
-    race.update({ ...STILL, count: "GO", charge: null });
+    race.update({ ...STILL, count: null, charge: null });
     expect(saws()[0]?.frequency.value).toBe(ENGINE.idleHz);
     expect(limiterDepth().gain.value).toBe(0);
   });
 });
 
 describe("the SFX", () => {
-  const CUES: readonly [SoundCue, Partial<SoundReading>][] = [
+  /** Each cue with the change that calls for it, from the still kart or from `from`. */
+  const CUES: readonly [SoundCue, Partial<SoundReading>, Partial<SoundReading>?][] = [
     ["hop", { airborne: true }],
     ["itemPickup", { item: "boost" }],
     ["hit", { spunOut: true }],
     ["lap", { lap: 2 }],
-    ["countdownBeep", { count: "3" }],
-    ["go", { count: "GO" }],
+    ["countdownBeep", { count: 3 }],
+    ["go", { count: null }, { count: 1 }],
     ["sputter", { stalled: true }],
     ["tierChime", { miniTurbo: "blue", drifting: true }],
     ["boostPad", { boostSeconds: 0.6 }],
@@ -533,12 +534,12 @@ describe("the SFX", () => {
 
   it.each(CUES)(
     "plays %s once from its preloaded file as the state changes",
-    async (cue, change) => {
+    async (cue, change, from = {}) => {
       const { audio, played } = harness();
       await audio.unlock();
       const race = audio.race();
       race.start();
-      race.update(STILL);
+      race.update({ ...STILL, ...from });
       expect(played(cue)).toBe(0);
       race.update({ ...STILL, ...change });
       expect(played(cue)).toBe(1);

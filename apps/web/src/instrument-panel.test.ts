@@ -10,6 +10,8 @@ import {
 } from "./instrument-panel";
 import { kartReadout } from "./kart-readout-fixture";
 import { liveryCss } from "./livery";
+import { raceReadout } from "./race-readout-fixture";
+import type { ItemSlot, RaceReadout } from "./race-run";
 
 // A square loop, so the map's fit is easy to read: the grid faces -z.
 const course = {
@@ -37,6 +39,22 @@ const onTheGrid: Standing = {
   wrongWay: false,
   finishTimeS: null,
 };
+
+const racing = { kind: "racing", elapsedSeconds: 5, graceLeftSeconds: null } as const;
+
+/** The race with the own kart, kart 1, on `standing` holding `itemSlot`, and the karts at `karts`. */
+function race(
+  standing: Standing,
+  itemSlot: ItemSlot,
+  karts: readonly KartReadout[] = [at([0, 0.3, 0]), at([0, 0.3, 0]), at([0, 0.3, 0])],
+): RaceReadout {
+  return raceReadout({
+    karts,
+    standings: [onTheGrid, standing, onTheGrid],
+    phase: racing,
+    itemSlot,
+  });
+}
 
 describe("lap readouts", () => {
   it("shows the grid as first on lap one of three with the clocks blank", () => {
@@ -74,7 +92,6 @@ describe("lap readouts", () => {
 });
 
 describe("the lap instruments on the page", () => {
-  const racing = { kind: "racing", elapsedSeconds: 5, graceLeftSeconds: null } as const;
   const mount = () => {
     const container = document.createElement("div");
     const panel = createInstrumentPanel(container, 3, course);
@@ -85,10 +102,7 @@ describe("the lap instruments on the page", () => {
 
   it("print the position as a numeral with its suffix beside it, reading as one ordinal", () => {
     const { panel, find } = mount();
-    const local = at([0, 0.3, 0]);
-    panel.update(local, { ...onTheGrid, position: 3 }, racing, { item: null, firing: false }, [
-      local,
-    ]);
+    panel.update(race({ ...onTheGrid, position: 3 }, { item: null, firing: false }));
     const position = find("position");
     expect(position?.textContent).toBe("3rd");
     expect(position?.querySelector("[data-numeral]")?.textContent).toBe("3");
@@ -97,37 +111,25 @@ describe("the lap instruments on the page", () => {
 
   it("keep the lap count as text and fill one decorative flag per lap completed", () => {
     const { panel, find } = mount();
-    const local = at([0, 0.3, 0]);
     const lap = find("lap");
     const flags = () => [...(lap?.querySelectorAll<HTMLElement>("[data-flag]") ?? [])];
     const filled = () => flags().filter((flag) => flag.dataset.flag === "done").length;
-    panel.update(local, onTheGrid, racing, { item: null, firing: false }, [local]);
+    panel.update(race(onTheGrid, { item: null, firing: false }));
     expect(lap?.textContent).toBe("Lap 1/3");
     expect(flags()).toHaveLength(3);
     expect(filled()).toBe(0);
     expect(lap?.querySelector("[aria-hidden='true']")?.contains(flags()[0] ?? null)).toBe(true);
-    panel.update(local, { ...onTheGrid, lap: 3 }, racing, { item: null, firing: false }, [local]);
+    panel.update(race({ ...onTheGrid, lap: 3 }, { item: null, firing: false }));
     expect(lap?.textContent).toBe("Lap 3/3");
     expect(filled()).toBe(2);
-    panel.update(
-      local,
-      { ...onTheGrid, lap: 3, finishTimeS: 70 },
-      racing,
-      { item: null, firing: false },
-      [local],
-    );
+    panel.update(race({ ...onTheGrid, lap: 3, finishTimeS: 70 }, { item: null, firing: false }));
     expect(filled()).toBe(3);
   });
 
   it("print the clocks with their label words in the text", () => {
     const { panel, find } = mount();
-    const local = at([0, 0.3, 0]);
     panel.update(
-      local,
-      { ...onTheGrid, lapTimeS: 27.304, bestLapS: 44.91 },
-      racing,
-      { item: null, firing: false },
-      [local],
+      race({ ...onTheGrid, lapTimeS: 27.304, bestLapS: 44.91 }, { item: null, firing: false }),
     );
     expect(find("lap-time")?.textContent).toBe(`Time 0'27"304`);
     expect(find("best-lap")?.textContent).toBe(`Best 0'44"910`);
@@ -186,16 +188,14 @@ describe("the item slot", () => {
     const container = document.createElement("div");
     const panel = createInstrumentPanel(container, 3, course);
     const slot = container.querySelector<HTMLElement>('[data-instrument="item"]');
-    const local = at([0, 0.3, 0]);
-    const racing = { kind: "racing", elapsedSeconds: 5, graceLeftSeconds: null } as const;
     expect(slot?.textContent).toBe("");
     expect(slot?.dataset.itemState).toBe("empty");
-    panel.update(local, onTheGrid, racing, { item: "boost", firing: false }, [local]);
+    panel.update(race(onTheGrid, { item: "boost", firing: false }));
     expect(slot?.textContent).toBe("Boost");
     expect(slot?.dataset.itemState).toBe("held");
-    panel.update(local, onTheGrid, racing, { item: "boost", firing: true }, [local]);
+    panel.update(race(onTheGrid, { item: "boost", firing: true }));
     expect(slot?.dataset.itemState).toBe("firing");
-    panel.update(local, onTheGrid, racing, { item: null, firing: false }, [local]);
+    panel.update(race(onTheGrid, { item: null, firing: false }));
     expect(slot?.textContent).toBe("");
     expect(slot?.dataset.itemState).toBe("empty");
   });
@@ -208,19 +208,17 @@ describe("the item slot", () => {
     const container = document.createElement("div");
     const panel = createInstrumentPanel(container, 3, course);
     const slot = container.querySelector<HTMLElement>('[data-instrument="item"]');
-    const local = at([0, 0.3, 0]);
-    const racing = { kind: "racing", elapsedSeconds: 5, graceLeftSeconds: null } as const;
     expect(slot?.dataset.item).toBeUndefined();
     expect(slot?.querySelector("svg")).toBeNull();
-    panel.update(local, onTheGrid, racing, { item, firing: false }, [local]);
+    panel.update(race(onTheGrid, { item, firing: false }));
     expect(slot?.dataset.item).toBe(item);
     const sprite = slot?.querySelector("svg");
     expect(sprite?.getAttribute("aria-hidden")).toBe("true");
     expect(sprite?.querySelectorAll("rect").length).toBeGreaterThan(0);
     expect(slot?.textContent).toBe(name);
-    panel.update(local, onTheGrid, racing, { item, firing: true }, [local]);
+    panel.update(race(onTheGrid, { item, firing: true }));
     expect(slot?.querySelector("svg")).toBe(sprite);
-    panel.update(local, onTheGrid, racing, { item: null, firing: false }, [local]);
+    panel.update(race(onTheGrid, { item: null, firing: false }));
     expect(slot?.dataset.item).toBeUndefined();
     expect(slot?.querySelector("svg")).toBeNull();
   });
@@ -229,10 +227,8 @@ describe("the item slot", () => {
     const container = document.createElement("div");
     const panel = createInstrumentPanel(container, 3, course);
     const slot = container.querySelector<HTMLElement>('[data-instrument="item"]');
-    const local = at([0, 0.3, 0]);
-    const racing = { kind: "racing", elapsedSeconds: 5, graceLeftSeconds: null } as const;
-    panel.update(local, onTheGrid, racing, { item: "boost", firing: false }, [local]);
-    panel.update(local, onTheGrid, racing, { item: "hazard", firing: false }, [local]);
+    panel.update(race(onTheGrid, { item: "boost", firing: false }));
+    panel.update(race(onTheGrid, { item: "hazard", firing: false }));
     expect(slot?.dataset.item).toBe("hazard");
     expect(slot?.textContent).toBe("Hazard");
     const sprites = slot?.querySelectorAll("svg") ?? [];
@@ -242,7 +238,6 @@ describe("the item slot", () => {
 });
 
 describe("the course map", () => {
-  const racing = { kind: "racing", elapsedSeconds: 5, graceLeftSeconds: null } as const;
   const markerAt = (marker: Element | null | undefined): [number, number] => [
     Number(marker?.getAttribute("cx")),
     Number(marker?.getAttribute("cy")),
@@ -264,18 +259,11 @@ describe("the course map", () => {
     const panel = createInstrumentPanel(container, 3, course);
     const own = at([50, 0.3, -50]);
     const standing = onTheGrid;
-    panel.update(own, standing, racing, { item: null, firing: false }, [
-      at([0, 0.3, 0]),
-      own,
-      at([100, 0.3, -100]),
-    ]);
+    const slot = { item: null, firing: false };
+    panel.update(race(standing, slot, [at([0, 0.3, 0]), own, at([100, 0.3, -100])]));
     const marker = container.querySelector('[data-instrument="course-map"] [data-kart="2"]');
     const [u0, v0] = markerAt(marker);
-    panel.update(own, standing, racing, { item: null, firing: false }, [
-      at([0, 0.3, 0]),
-      own,
-      at([100, 0.3, -40]),
-    ]);
+    panel.update(race(standing, slot, [at([0, 0.3, 0]), own, at([100, 0.3, -40])]));
     const [u1, v1] = markerAt(marker);
     expect(u1).toBe(u0);
     expect(v1).toBeGreaterThan(v0);
@@ -290,8 +278,7 @@ describe("the course map", () => {
   it("marks every kart in its livery, the own kart larger, ringed and on top", () => {
     const container = document.createElement("div");
     const panel = createInstrumentPanel(container, 3, course);
-    const own = at([0, 0.3, 0]);
-    panel.update(own, onTheGrid, racing, { item: null, firing: false }, [own, own, own]);
+    panel.update(race(onTheGrid, { item: null, firing: false }));
     const markers = [
       ...container.querySelectorAll<SVGCircleElement>('[data-instrument="course-map"] [data-kart]'),
     ];

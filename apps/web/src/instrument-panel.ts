@@ -1,19 +1,10 @@
 import instrumentFontUrl from "../../../assets/fonts/kenney/Kenney Mini Square.ttf?url";
-import type { KartReadout, Phase, Standing } from "./bridge";
+import type { Phase, Standing } from "./bridge";
 import { type CourseMapSetup, createCourseMap } from "./course-map";
 import { formatLapTime, NO_LAP_TIME, type OrdinalParts, ordinalParts } from "./format";
 import type { Item } from "./generated/protocol";
 import { itemSprite } from "./item-sprites";
-
-/**
- * The local kart's item slot as the run reports it: the item the server
- * says is held, and whether the fire is showing, predicted from the press
- * or confirmed by the server's event.
- */
-export interface ItemSlot {
-  readonly item: Item | null;
-  readonly firing: boolean;
-}
+import type { ItemSlot, RaceReadout } from "./race-run";
 
 /** The item slot as the panel prints it: the item's name and the slot's state. */
 export interface ItemReadout {
@@ -23,17 +14,11 @@ export interface ItemReadout {
 
 export interface InstrumentPanel {
   /**
-   * Show the local kart's readouts, the race's phase and the item slot from
-   * what the run reports, and every kart on the course map at `transforms`,
-   * the same ones the View draws this frame.
+   * Show the own kart's readouts, the race's phase and the item slot from
+   * `race`, and every kart on the course map where the View draws it this
+   * frame. Shows nothing new while `race` has no own kart.
    */
-  update(
-    local: KartReadout,
-    standing: Standing,
-    phase: Phase,
-    slot: ItemSlot,
-    transforms: readonly KartReadout[],
-  ): void;
+  update(race: RaceReadout): void;
   /** The connection readout: which transport reached the server and how fast, or that none did. */
   connection(status: string): void;
   /** Show the connection banner while a room's race has lost the server, and take it down once back. */
@@ -169,8 +154,12 @@ export function createInstrumentPanel(
   };
 
   return {
-    update(local, standing, phase, slot, transforms) {
-      courseMap.update(transforms);
+    update(race) {
+      const local = race.karts[course.ownKart];
+      const standing = race.standings[course.ownKart];
+      if (local === undefined || standing === undefined) return;
+      const slot = race.itemSlot;
+      courseMap.update(race.karts);
       const readouts = lapReadouts(standing, lapsPerRace);
       numeral.textContent = readouts.position.numeral;
       suffix.textContent = readouts.position.suffix;
@@ -199,7 +188,7 @@ export function createInstrumentPanel(
           item.append(shownSprite);
         }
       }
-      const count = phaseReadout(phase);
+      const count = phaseReadout(race.phase);
       countdown.textContent = count;
       countdown.hidden = count === "";
     },

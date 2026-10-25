@@ -1,29 +1,20 @@
 import type { RaceAudio } from "./audio";
 import { soundReading } from "./audio-cues";
-import type {
-  Bridge,
-  Hazard,
-  ItemBox,
-  KartInput,
-  KartReadout,
-  Phase,
-  Projectile,
-  Standing,
-} from "./bridge";
+import type { Bridge, KartInput } from "./bridge";
 import { createChaseCamera } from "./chase-camera";
 import { gamepadKartInput } from "./gamepad";
 import { combinedKartInput, IDLE_INPUT } from "./input";
 import {
   createInstrumentPanel,
   type InstrumentPanel,
-  type ItemSlot,
   loadInstrumentFont,
 } from "./instrument-panel";
 import { kartLabels } from "./kart-labels";
 import { KART_GLTF_URL } from "./kart-model";
 import { keyboardKartInput } from "./keyboard";
+import { ITEM_FIRE_FLASH_S, type RaceRun } from "./race-run";
 import { createRaceView } from "./race-view";
-import { downloadReplay, type ReplayRecorder, recordReplay } from "./replay";
+import { downloadReplay, recordReplay } from "./replay";
 import { kartName, type RaceResults } from "./results-scene";
 import type { TrackFiles, TrackName, WorldPoint } from "./track";
 
@@ -40,42 +31,8 @@ export interface RaceSetup {
 
 export const SOLO_RACE: RaceSetup = { seed: 1n, humanCount: 1, localKart: 0 };
 
-/**
- * A race as the Scene runs and reads it, wherever the rules run: the sim in
- * this browser for a solo race, or the server's snapshots for a room's
- * (ADR 0009). The Scene ticks it with the local player's input and draws
- * what it reports.
- */
-export interface RaceRun {
-  readonly humanCount: number;
-  readonly localKart: number;
-  /** One tick of `dt` seconds with the local player's input: stepped here, or sent to the server. */
-  tick(input: KartInput, dt: number): void;
-  /** One readout per kart in grid order, as of the last tick. */
-  kartReadouts(): KartReadout[];
-  /** One standing per kart in grid order, as of the last tick. */
-  standings(): Standing[];
-  phase(): Phase;
-  /** The local kart's item slot, as of the last tick. */
-  itemSlot(): ItemSlot;
-  /** The track's item boxes, in the sidecar's order; fixed for the race. */
-  itemBoxes(): readonly ItemBox[];
-  /** Whether each item box, in the same order, is there to pick up, as of the last tick. */
-  itemBoxesPresent(): readonly boolean[];
-  /** The hazards on the track where the View draws them, as of the last tick. */
-  hazards(): readonly Hazard[];
-  /** The projectiles in flight where the View draws them, as of the last tick. */
-  projectiles(): readonly Projectile[];
-  /** The run as a replay fixture, when the rules ran here to record. */
-  readonly replay?: ReplayRecorder;
-  /** Let go of whatever the run follows; called when the Scene is disposed. */
-  dispose?(): void;
-}
-
 /** Ticks run per frame at most, so a stalled tab catches up instead of spiralling. */
 const MAX_TICKS_PER_FRAME = 5;
-/** How long the item slot shows the fire after the item leaves it. Presentation, so not the sim's to tune. */
-export const ITEM_FIRE_FLASH_S = 0.5;
 /** Downloads the session so far as a replay fixture (assets/replays/README.md). */
 const DOWNLOAD_REPLAY_KEY = "r";
 
@@ -126,14 +83,16 @@ export function localRaceRun(
           ? Math.round(ITEM_FIRE_FLASH_S * bridge.ticksPerSecond)
           : Math.max(flashTicksLeft - 1, 0);
     },
-    kartReadouts: () => race.kartReadouts(),
-    standings: () => race.standings(),
-    phase: () => race.phase(),
-    itemSlot: () => ({ item: heldItem(), firing: flashTicksLeft > 0 }),
+    readout: () => ({
+      karts: race.kartReadouts(),
+      standings: race.standings(),
+      phase: race.phase(),
+      itemSlot: { item: heldItem(), firing: flashTicksLeft > 0 },
+      itemBoxesPresent: race.itemBoxesPresent(),
+      hazards: race.hazards(),
+      projectiles: race.projectiles(),
+    }),
     itemBoxes: () => boxes,
-    itemBoxesPresent: () => race.itemBoxesPresent(),
-    hazards: () => race.hazards(),
-    projectiles: () => race.projectiles(),
     replay,
   };
 }
@@ -158,6 +117,9 @@ export async function createRaceScene(
   audio: RaceAudio,
 ): Promise<RaceScene> {
   const tickSeconds = 1 / bridge.ticksPerSecond;
+  const isBot = (kart: number): boolean => kart >= run.humanCount;
+  const name = (kart: number): string =>
+    kartName({ localKart: run.localKart, isBot, nickname }, kart);
   // Every listener the Scene adds is dropped together on dispose.
   const listeners = new AbortController();
   const { replay } = run;
@@ -186,6 +148,7 @@ export async function createRaceScene(
       { trackGltfUrl: track.gltfUrl, kartGltfUrl: KART_GLTF_URL },
       run.itemBoxes(),
       bridge.spinOutSeconds,
+      (karts) => kartLabels(karts, run.localKart, name),
     ),
     loadInstrumentFont(),
   ]);
@@ -196,28 +159,13 @@ export async function createRaceScene(
     ownKart: run.localKart,
   });
 
-  const isBot = (kart: number): boolean => kart >= run.humanCount;
-  const name = (kart: number): string =>
-    kartName({ localKart: run.localKart, isBot, nickname }, kart);
   const present = (frameSeconds: number) => {
-    const readouts = run.kartReadouts();
-    const local = readouts[run.localKart];
-    const standing = run.standings()[run.localKart];
-    if (local && standing) {
-      const phase = run.phase();
-      view.update(
-        readouts,
-        kartLabels(readouts, run.localKart, name),
-        camera.update(local, frameSeconds),
-        run.itemBoxesPresent(),
-        run.hazards(),
-        run.projectiles(),
-        phase,
-        frameSeconds,
-      );
-      const slot = run.itemSlot();
-      panel.update(local, standing, phase, slot, readouts);
-      audio.update(soundReading(local, standing, slot, phase));
+    const readout = run.readout();
+    const local = readout.karts[run.localKart];
+    if (local && readout.standings[run.localKart]) {
+      view.update(readout, camera.update(local, frameSeconds), frameSeconds);
+      panel.update(readout);
+      audio.update(soundReading(readout, run.localKart));
     }
   };
   audio.start();
@@ -240,9 +188,10 @@ export async function createRaceScene(
     while (!over && unsimulatedSeconds >= tickSeconds) {
       run.tick(input.current(), tickSeconds);
       unsimulatedSeconds -= tickSeconds;
-      if (run.phase().kind === "finished") {
+      const { phase, standings } = run.readout();
+      if (phase.kind === "finished") {
         over = true;
-        settle({ standings: run.standings(), localKart: run.localKart, isBot });
+        settle({ standings, localKart: run.localKart, isBot });
       }
     }
     present(frameSeconds);
