@@ -29,11 +29,12 @@ const ROOM: Room = {
   ],
 };
 const DEALT = "fedcba9876543210fedcba9876543210";
+/** The code as a player might type it; the server is sent "BXQF". */
 const REQUEST = { code: "bxqf", nickname: "ada" };
 
 /**
- * A server reached over a new fake connection per attempt: `answer` replies
- * to the nth connection's first message, as the server would.
+ * A server reached over a new fake connection per attempt: the nth of `answers`
+ * replies to the nth connection's first message, as the server would.
  */
 function server(...answers: ((connection: FakeConnection) => void)[]) {
   const connections: FakeConnection[] = [];

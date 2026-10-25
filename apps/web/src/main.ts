@@ -98,22 +98,30 @@ function trackNamed(name: string): TrackFiles {
   return isTrackName(name) ? TRACKS[name] : selectTrack("");
 }
 
+/** The Title, with why the player is back on it and the code to fill in, if any. */
+interface TitleStep {
+  readonly kind: "title";
+  readonly message?: string;
+  readonly code?: string;
+}
+
+/** Where each of the Results Scene's buttons goes. */
+interface AfterResults {
+  readonly rematch: Step;
+  readonly leave: Step;
+}
+
 /**
  * Where the game goes next: each Scene's exit names one, as do the steps
  * between Scenes that reach the server or the room.
  */
 type Step =
-  | { readonly kind: "title"; readonly message?: string; readonly code?: string }
+  | TitleStep
   | { readonly kind: "create"; readonly nickname: string }
   | { readonly kind: "join"; readonly nickname: string; readonly code: string }
   | Seat
   | { readonly kind: "solo" }
-  | {
-      readonly kind: "results";
-      readonly results: RaceResults;
-      readonly rematch: Step;
-      readonly leave: Step;
-    }
+  | ({ readonly kind: "results"; readonly results: RaceResults } & AfterResults)
   | { readonly kind: "rematch"; readonly client: RoomClient }
   | { readonly kind: "leave"; readonly client: RoomClient };
 
@@ -179,7 +187,7 @@ async function main(container: HTMLElement): Promise<void> {
       webTransportTimeoutMs: bridge.webTransportTimeoutMs,
     });
 
-  const mountTitle = ({ message = "", code = "" }: { message?: string; code?: string }) => {
+  const mountTitle = ({ message = "", code = "" }: TitleStep) => {
     const { exit, take } = sceneExit();
     const title = createTitleScene(
       container,
@@ -321,7 +329,7 @@ async function main(container: HTMLElement): Promise<void> {
     sidecar: string,
     run: RaceRun,
     nickname: (kart: number) => string | undefined,
-    after: { readonly rematch: Step; readonly leave: Step },
+    after: AfterResults,
     link?: RaceLink,
   ): Promise<MountedScene> => {
     const race = await createRaceScene(
@@ -358,7 +366,7 @@ async function main(container: HTMLElement): Promise<void> {
     return { exit, dispose: scene.dispose };
   };
 
-  const next = async (step: Step): Promise<Step> => {
+  const nextStep = async (step: Step): Promise<Step> => {
     switch (step.kind) {
       case "title":
         return untilExit(mountTitle(step));
@@ -391,7 +399,7 @@ async function main(container: HTMLElement): Promise<void> {
       ? { kind: "join", nickname, code: linkedCode }
       : { kind: "title", code: linkedCode };
   for (;;) {
-    step = await next(step);
+    step = await nextStep(step);
   }
 }
 
