@@ -32,6 +32,9 @@ const DECISION_SLUGS = [
   "audio-engine",
   "kart-readout",
   "handling-seam",
+  "cues-from-readings",
+  "standings-on-demand",
+  "feedback-wired-by-the-view",
 ];
 
 const expectedFiles = DECISION_SLUGS.map(
