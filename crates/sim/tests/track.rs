@@ -2,42 +2,12 @@
 //! what is under a point, drive into things. The exported fixtures under
 //! `assets/tracks` are the inputs; their layouts document the numbers used.
 
-use sim::tuning::{KART_HALF_HEIGHT_M, TICKS_PER_SECOND};
-use sim::{step, KartInput, Phase, State, Surface, Track, TrackError};
+mod common;
 
-const OVAL: &str = include_str!("../../../assets/tracks/oval/oval.track.json");
-const BRANDS_PATCH: &str =
-    include_str!("../../../assets/tracks/brands-patch/brands-patch.track.json");
-const DT: f32 = 1.0 / TICKS_PER_SECOND as f32;
-const SEED: u64 = 0x5EED;
+use common::{brands_patch, oval, started, throttle, ticks, DT, OVAL, SEED};
 
-/// The race past its countdown, every kart idle on the grid until Go.
-fn started(mut state: State) -> State {
-    let inputs = vec![KartInput::default(); state.human_count()];
-    while matches!(state.phase(), Phase::Countdown { .. }) {
-        state = step(state, &inputs, DT);
-    }
-    state
-}
-
-fn oval() -> Track {
-    Track::from_sidecar(OVAL).expect("the oval fixture loads")
-}
-
-fn brands_patch() -> Track {
-    Track::from_sidecar(BRANDS_PATCH).expect("Brands Patch loads")
-}
-
-fn ticks(seconds: f32) -> usize {
-    (seconds * TICKS_PER_SECOND as f32).round() as usize
-}
-
-fn throttle() -> KartInput {
-    KartInput {
-        throttle: 1.0,
-        ..KartInput::default()
-    }
-}
+use sim::tuning::KART_HALF_HEIGHT_M;
+use sim::{step, KartInput, State, Surface, Track, TrackError};
 
 /// Nearest centreline index to a point, for ordering things along the lap.
 fn centreline_index(track: &Track, point: [f32; 3]) -> usize {

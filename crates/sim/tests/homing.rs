@@ -5,53 +5,24 @@
 //! ahead it is wasted. Projectiles are read from `State::projectiles` and
 //! spin-outs from `State::events` after the `step` that produced them.
 
-use sim::tuning::{
-    BOT_ITEM_USE_DELAY_S, HOMING_SPEED_FACTOR, SPIN_OUT_S, TICKS_PER_SECOND, TOP_SPEED_M_PER_S,
-};
-use sim::{step, Item, KartInput, Phase, RaceEvent, State, Track};
+mod common;
 
-const OVAL: &str = include_str!("../../../assets/tracks/oval/oval.track.json");
-const DT: f32 = 1.0 / TICKS_PER_SECOND as f32;
+use common::{oval_with_boxes_under, started, tap, throttle, ticks, DT};
 
-fn ticks(seconds: f32) -> usize {
-    (seconds * TICKS_PER_SECOND as f32).round() as usize
-}
-
-/// The oval with one more item box under each of `slots` of the spawn
-/// grid, so a kart there stands on a box at Go.
-fn oval_with_boxes_under(slots: &[usize]) -> Track {
-    let mut sidecar: serde_json::Value = serde_json::from_str(OVAL).expect("valid JSON");
-    for &slot in slots {
-        let position = sidecar["spawn_grid"][slot]["position"].clone();
-        sidecar["item_boxes"]
-            .as_array_mut()
-            .expect("the fixture lists its boxes")
-            .push(serde_json::json!({ "position": position, "yaw": 0.0 }));
-    }
-    Track::from_sidecar(&sidecar.to_string()).expect("the oval with more boxes loads")
-}
-
-/// The race past its countdown, every kart idle on the grid until Go.
-fn started(mut state: State) -> State {
-    let inputs = vec![KartInput::default(); state.human_count()];
-    while matches!(state.phase(), Phase::Countdown { .. }) {
-        state = step(state, &inputs, DT);
-    }
-    state
-}
+use sim::tuning::{BOT_ITEM_USE_DELAY_S, HOMING_SPEED_FACTOR, SPIN_OUT_S, TOP_SPEED_M_PER_S};
+use sim::{step, Item, KartInput, RaceEvent, State};
 
 /// A race of `humans` karts and `bots` bots one tick past Go, each of
 /// `rolls` standing on a box under its slot and holding the item named,
 /// with every bot rolling the same rocket start so the items decide the
 /// race and not the start: the seeds are tried in order until one does.
 fn holding_with_bots(humans: usize, bots: usize, rolls: &[(usize, Item)]) -> State {
-    let slots: Vec<usize> = rolls.iter().map(|&(slot, _)| slot).collect();
     for seed in 0.. {
         let state = started(State::with_bots(
             seed,
             humans,
             bots,
-            oval_with_boxes_under(&slots),
+            oval_with_boxes_under(rolls.iter().map(|&(slot, _)| slot)),
         ));
         let even_start = state.kart_readouts()[humans..]
             .windows(2)
@@ -74,23 +45,8 @@ fn holding(humans: usize, rolls: &[(usize, Item)]) -> State {
     holding_with_bots(humans, 0, rolls)
 }
 
-fn drive() -> KartInput {
-    KartInput {
-        throttle: 1.0,
-        ..KartInput::default()
-    }
-}
-
 fn idle() -> KartInput {
     KartInput::default()
-}
-
-/// A press and release in one tick.
-fn tap() -> KartInput {
-    KartInput {
-        use_item: true,
-        ..KartInput::default()
-    }
 }
 
 fn spun_out(events: &[RaceEvent]) -> Option<RaceEvent> {
@@ -111,12 +67,12 @@ fn a_fired_projectile_travels_the_spline_at_the_tuned_speed_and_spins_out_the_ka
     // after it two seconds later.
     let mut state = holding(2, &[(1, Item::Homing)]);
     for _ in 0..ticks(2.0) {
-        state = step(state, &[drive(), idle()], DT);
+        state = step(state, &[throttle(), idle()], DT);
     }
     assert!(state.projectiles().is_empty(), "nothing fired yet");
     let fired_from = state.kart_readouts()[1].position;
 
-    let state = step(state, &[drive(), tap()], DT);
+    let state = step(state, &[throttle(), tap()], DT);
     assert_eq!(
         state.events(),
         &[RaceEvent::ItemFired {
@@ -143,7 +99,7 @@ fn a_fired_projectile_travels_the_spline_at_the_tuned_speed_and_spins_out_the_ka
     let mut last = projectile;
     let mut hit = None;
     for tick in 0..ticks(4.0) {
-        state = step(state, &[drive(), idle()], DT);
+        state = step(state, &[throttle(), idle()], DT);
         if let Some(event) = spun_out(state.events()) {
             hit = Some((tick, event));
             break;
@@ -191,16 +147,20 @@ fn the_target_is_the_kart_next_ahead_by_race_position_not_the_leader() {
     // on the row behind holds the projectile, third.
     let mut state = holding(3, &[(2, Item::Homing)]);
     for tick in 0..ticks(1.5) {
-        let second = if tick < ticks(0.75) { drive() } else { idle() };
-        state = step(state, &[drive(), second, idle()], DT);
+        let second = if tick < ticks(0.75) {
+            throttle()
+        } else {
+            idle()
+        };
+        state = step(state, &[throttle(), second, idle()], DT);
     }
     let positions: Vec<u32> = state.standings().iter().map(|s| s.position).collect();
     assert_eq!(positions, vec![1, 2, 3]);
 
-    let mut state = step(state, &[drive(), idle(), tap()], DT);
+    let mut state = step(state, &[throttle(), idle(), tap()], DT);
     assert_eq!(state.projectiles()[0].target, 1);
     for _ in 0..ticks(4.0) {
-        state = step(state, &[drive(), idle(), idle()], DT);
+        state = step(state, &[throttle(), idle(), idle()], DT);
         if let Some(event) = spun_out(state.events()) {
             assert_eq!(event, RaceEvent::SpunOut { kart: 1, by: 2 });
             assert_eq!(
@@ -236,7 +196,7 @@ fn a_projectile_fired_with_no_kart_ahead_is_wasted() {
     // The same for a leader with karts behind it.
     let mut state = holding(2, &[(0, Item::Homing)]);
     for _ in 0..ticks(1.0) {
-        state = step(state, &[drive(), idle()], DT);
+        state = step(state, &[throttle(), idle()], DT);
     }
     assert_eq!(state.standings()[0].position, 1);
     let state = step(state, &[tap(), idle()], DT);
@@ -292,12 +252,12 @@ fn a_hazard_the_target_trails_destroys_the_projectile_and_is_used_up() {
         DT,
     );
     for _ in 0..ticks(1.0) {
-        state = step(state, &[drive(), idle()], DT);
+        state = step(state, &[throttle(), idle()], DT);
     }
     assert!(!state.hazards()[0].held);
-    let mut state = step(state, &[drive(), tap()], DT);
+    let mut state = step(state, &[throttle(), tap()], DT);
     for _ in 0..ticks(4.0) {
-        state = step(state, &[drive(), idle()], DT);
+        state = step(state, &[throttle(), idle()], DT);
         if spun_out(state.events()).is_some() {
             assert_eq!(
                 state.hazards().len(),
@@ -319,13 +279,13 @@ fn a_projectile_is_spent_on_a_target_already_spun_out() {
     // neither a second hit nor a longer spin-out.
     let mut state = holding(3, &[(1, Item::Homing), (2, Item::Homing)]);
     for _ in 0..ticks(1.0) {
-        state = step(state, &[drive(), idle(), idle()], DT);
+        state = step(state, &[throttle(), idle(), idle()], DT);
     }
-    let mut state = step(state, &[drive(), tap(), drive()], DT);
+    let mut state = step(state, &[throttle(), tap(), throttle()], DT);
     assert_eq!(state.projectiles()[0].target, 0);
     let mut first_hit = false;
     for _ in 0..ticks(3.0) {
-        state = step(state, &[drive(), idle(), drive()], DT);
+        state = step(state, &[throttle(), idle(), throttle()], DT);
         first_hit |= spun_out(state.events()) == Some(RaceEvent::SpunOut { kart: 0, by: 1 });
         if first_hit && state.standings()[2].position == 2 {
             break;

@@ -5,41 +5,18 @@
 //! the tuned delay. Pickups and fires are read from `State::events` after
 //! the `step` that produced them.
 
+mod common;
+
+use common::{oval, oval_with_boxes_under, tap, ticks, DT, SEED};
+
 use sim::tuning::{
-    self, ITEM_BOOST_FACTOR, ITEM_BOOST_S, ITEM_BOX_RESPAWN_S, ITEM_ROLL_WEIGHTS, TICKS_PER_SECOND,
-    TOP_SPEED_M_PER_S,
+    self, ITEM_BOOST_FACTOR, ITEM_BOOST_S, ITEM_BOX_RESPAWN_S, ITEM_ROLL_WEIGHTS, TOP_SPEED_M_PER_S,
 };
-use sim::{step, Item, KartInput, Phase, RaceEvent, State, Track};
+use sim::{step, Item, KartInput, Phase, RaceEvent, State};
 
-const OVAL: &str = include_str!("../../../assets/tracks/oval/oval.track.json");
-const DT: f32 = 1.0 / TICKS_PER_SECOND as f32;
-const SEED: u64 = 0x5EED;
-
-fn ticks(seconds: f32) -> usize {
-    (seconds * TICKS_PER_SECOND as f32).round() as usize
-}
-
-/// The oval with one more item box, under each of the first `slots` spawn
-/// slots, so a kart there stands on a box at Go. The added boxes come after
-/// the fixture's own, in slot order.
-fn oval_with_boxes_under_slots(slots: usize) -> Track {
-    let mut sidecar: serde_json::Value = serde_json::from_str(OVAL).expect("valid JSON");
-    for slot in 0..slots {
-        let position = sidecar["spawn_grid"][slot]["position"].clone();
-        sidecar["item_boxes"]
-            .as_array_mut()
-            .expect("the fixture lists its boxes")
-            .push(serde_json::json!({ "position": position, "yaw": 0.0 }));
-    }
-    Track::from_sidecar(&sidecar.to_string()).expect("the oval with more boxes loads")
-}
-
-/// The box added under slot 0 by `oval_with_boxes_under_slots`.
+/// The box added under slot 0 by `oval_with_boxes_under`.
 fn box_under_slot_0() -> usize {
-    Track::from_sidecar(OVAL)
-        .expect("the oval fixture loads")
-        .item_boxes()
-        .len()
+    oval().item_boxes().len()
 }
 
 /// The race past its countdown, every kart idle on the grid until Go.
@@ -55,16 +32,9 @@ fn started(mut state: State) -> State {
     state
 }
 
-fn fire() -> KartInput {
-    KartInput {
-        use_item: true,
-        ..KartInput::default()
-    }
-}
-
 #[test]
 fn a_kart_on_a_box_picks_up_an_item_and_the_box_comes_back_the_tuned_time_later() {
-    let state = started(State::new(SEED, 1, oval_with_boxes_under_slots(1)));
+    let state = started(State::new(SEED, 1, oval_with_boxes_under(0..1)));
     assert_eq!(
         state.kart_readouts()[0].held_item,
         None,
@@ -86,7 +56,7 @@ fn a_kart_on_a_box_picks_up_an_item_and_the_box_comes_back_the_tuned_time_later(
     assert_eq!(state.kart_readouts()[0].held_item, Some(item));
 
     // Fired, the slot is empty again and the box is still gone.
-    let mut state = step(state, &[fire()], DT);
+    let mut state = step(state, &[tap()], DT);
     assert_eq!(
         state.events(),
         &[RaceEvent::ItemFired { kart: 0, item }],
@@ -122,7 +92,7 @@ fn a_kart_on_a_box_picks_up_an_item_and_the_box_comes_back_the_tuned_time_later(
 
 #[test]
 fn a_kart_holding_an_item_takes_no_box_until_it_fires() {
-    let state = started(State::new(SEED, 1, oval_with_boxes_under_slots(1)));
+    let state = started(State::new(SEED, 1, oval_with_boxes_under(0..1)));
     let mut state = step(state, &[KartInput::default()], DT);
     let [RaceEvent::ItemPicked { item, .. }] = state.events() else {
         panic!("one pickup: {:?}", state.events());
@@ -147,7 +117,7 @@ fn a_kart_holding_an_item_takes_no_box_until_it_fires() {
 
     // Fired, the slot is empty, and the box under the kart is picked up the
     // same tick.
-    let state = step(state, &[fire()], DT);
+    let state = step(state, &[tap()], DT);
     let [RaceEvent::ItemFired { kart: 0, item }, RaceEvent::ItemPicked { kart: 0, .. }] =
         state.events()
     else {
@@ -168,7 +138,7 @@ fn the_roll_is_weighted_by_the_race_position_band_over_many_seeds() {
     let karts = tuning::KARTS_PER_RACE;
     let mut rolls: Vec<[u32; 3]> = vec![[0; 3]; karts];
     for seed in 0..ROLL_SEEDS {
-        let state = started(State::new(seed, karts, oval_with_boxes_under_slots(karts)));
+        let state = started(State::new(seed, karts, oval_with_boxes_under(0..karts)));
         let standings = state.standings();
         let state = step(state, &[KartInput::default(); 8], DT);
         assert_eq!(state.events().len(), karts, "{:?}", state.events());
@@ -220,7 +190,7 @@ fn the_roll_is_weighted_by_the_race_position_band_over_many_seeds() {
 /// racing tick: the seeds are tried in order until one rolls it.
 fn holding(item: Item) -> State {
     for seed in 0.. {
-        let state = started(State::new(seed, 1, oval_with_boxes_under_slots(1)));
+        let state = started(State::new(seed, 1, oval_with_boxes_under(0..1)));
         let state = step(state, &[KartInput::default()], DT);
         if state.events()
             == [RaceEvent::ItemPicked {
@@ -290,7 +260,7 @@ fn a_fired_boost_gives_the_tuned_speed_for_the_tuned_time() {
 #[test]
 fn a_fired_hazard_or_homing_projectile_leaves_the_slot_empty_and_the_kart_unboosted() {
     for item in [Item::Hazard, Item::Homing] {
-        let state = step(holding(item), &[fire()], DT);
+        let state = step(holding(item), &[tap()], DT);
         assert_eq!(state.events(), &[RaceEvent::ItemFired { kart: 0, item }]);
         assert_eq!(state.kart_readouts()[0].held_item, None);
         assert!(state.kart_readouts()[0].speed <= TOP_SPEED_M_PER_S);
@@ -302,12 +272,7 @@ fn a_bot_fires_what_it_picks_up_within_the_tuned_delay() {
     use sim::tuning::BOT_ITEM_USE_DELAY_S;
     // A lone bot laps the oval; its line runs through the rows of boxes on
     // the back straight.
-    let mut state = started(State::with_bots(
-        SEED,
-        0,
-        1,
-        Track::from_sidecar(OVAL).unwrap(),
-    ));
+    let mut state = started(State::with_bots(SEED, 0, 1, oval()));
     let mut picked: Option<(usize, Item)> = None;
     let mut fired = Vec::new();
     for tick in 0..ticks(60.0) {

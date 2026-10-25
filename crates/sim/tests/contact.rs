@@ -5,32 +5,20 @@
 //! so a kart in slot 0's column at x = 28 and one at x = 31 drive side by
 //! side.
 
+mod common;
+
+use common::{started, ticks, track, with_slot_at, DT, OVAL, SEED};
+
 use sim::tuning::{
     KART_BUMP_DECAY_S, KART_BUMP_SPEED_LOSS, KART_HALF_LENGTH_M, KART_HALF_WIDTH_M,
-    TICKS_PER_SECOND, TOP_SPEED_M_PER_S,
+    TOP_SPEED_M_PER_S,
 };
-use sim::{step, KartInput, KartReadout, Phase, Prediction, State, Track};
+use sim::{step, KartInput, KartReadout, Prediction, State, Track};
 
-const OVAL: &str = include_str!("../../../assets/tracks/oval/oval.track.json");
-const DT: f32 = 1.0 / TICKS_PER_SECOND as f32;
-const SEED: u64 = 0x5EED;
 /// Centres this far apart along the column are nose to tail.
 const NOSE_TO_TAIL_M: f32 = 2.0 * KART_HALF_LENGTH_M;
 /// Centres this far apart across the column are side by side.
 const SIDE_BY_SIDE_M: f32 = 2.0 * KART_HALF_WIDTH_M;
-
-/// The race past its countdown, every kart idle on the grid until Go.
-fn started(mut state: State) -> State {
-    let inputs = vec![KartInput::default(); state.human_count()];
-    while matches!(state.phase(), Phase::Countdown { .. }) {
-        state = step(state, &inputs, DT);
-    }
-    state
-}
-
-fn ticks(seconds: f32) -> usize {
-    (seconds * TICKS_PER_SECOND as f32).round() as usize
-}
 
 fn input(throttle: f32, steer: f32) -> KartInput {
     KartInput {
@@ -43,11 +31,11 @@ fn input(throttle: f32, steer: f32) -> KartInput {
 /// The oval with its first spawn slots moved to `slots`, each a position
 /// and a yaw, so two karts can be started wherever the scenario needs.
 fn oval_with_slots(slots: &[([f32; 3], f32)]) -> Track {
-    let mut sidecar: serde_json::Value = serde_json::from_str(OVAL).expect("valid JSON");
-    for (slot, (position, yaw)) in slots.iter().enumerate() {
-        sidecar["spawn_grid"][slot] = serde_json::json!({ "position": position, "yaw": yaw });
+    let mut sidecar = OVAL.to_string();
+    for (slot, &(position, yaw)) in slots.iter().enumerate() {
+        sidecar = with_slot_at(&sidecar, slot, position, yaw);
     }
-    Track::from_sidecar(&sidecar.to_string()).expect("the oval with moved slots loads")
+    track(&sidecar)
 }
 
 /// The two karts' transforms after each of `seconds` of the inputs

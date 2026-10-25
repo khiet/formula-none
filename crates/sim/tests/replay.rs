@@ -4,27 +4,15 @@
 //! sim produced when they were recorded; the web app's tests run the same
 //! fixtures through the wasm build.
 
-use sim::tuning::{KART_HALF_LENGTH_M, REPLAY_HASH_INTERVAL_TICKS, TICKS_PER_SECOND};
+mod common;
+
+use common::{oval, started, track, with_boxes_under, without_item_boxes, DT, OVAL};
+
+use sim::tuning::{KART_HALF_LENGTH_M, REPLAY_HASH_INTERVAL_TICKS};
 use sim::{step, KartInput, MiniTurbo, Phase, Replay, Segment, State, Surface, Track};
 
-const OVAL: &str = include_str!("../../../assets/tracks/oval/oval.track.json");
-const DT: f32 = 1.0 / TICKS_PER_SECOND as f32;
-
-/// The race past its countdown, every kart idle on the grid until Go.
-fn started(mut state: State) -> State {
-    let inputs = vec![KartInput::default(); state.human_count()];
-    while matches!(state.phase(), Phase::Countdown { .. }) {
-        state = step(state, &inputs, DT);
-    }
-    state
-}
-
 fn race(seed: u64, kart_count: usize) -> State {
-    State::new(
-        seed,
-        kart_count,
-        Track::from_sidecar(OVAL).expect("the oval fixture loads"),
-    )
+    State::new(seed, kart_count, oval())
 }
 
 const THROTTLE: KartInput = KartInput {
@@ -88,10 +76,7 @@ fn speed_position_and_heading_are_part_of_the_hash() {
 
 /// The oval with one item box, under spawn slot 0, picked up at Go.
 fn boxed_oval() -> Track {
-    let mut sidecar: serde_json::Value = serde_json::from_str(OVAL).expect("valid JSON");
-    let slot = sidecar["spawn_grid"][0]["position"].clone();
-    sidecar["item_boxes"] = serde_json::json!([{ "position": slot, "yaw": 0.0 }]);
-    Track::from_sidecar(&sidecar.to_string()).expect("the boxed oval loads")
+    track(&with_boxes_under(&without_item_boxes(OVAL), [0]))
 }
 
 /// A one-kart race on the boxed oval one tick past Go, with the item the
@@ -168,12 +153,7 @@ fn a_projectiles_place_is_part_of_the_hash() {
     // projectile; it fires a tick earlier in one race than the other and
     // both then stand still, so only the projectiles lie in different
     // places. Three ticks, short of the projectile reaching the pole kart.
-    let boxed = || {
-        let mut sidecar: serde_json::Value = serde_json::from_str(OVAL).expect("valid JSON");
-        let slot = sidecar["spawn_grid"][1]["position"].clone();
-        sidecar["item_boxes"] = serde_json::json!([{ "position": slot, "yaw": 0.0 }]);
-        Track::from_sidecar(&sidecar.to_string()).expect("the boxed oval loads")
-    };
+    let boxed = || track(&with_boxes_under(&without_item_boxes(OVAL), [1]));
     let rolls_a_projectile = |seed: u64| {
         let state = step(
             started(State::new(seed, 2, boxed())),
@@ -238,9 +218,7 @@ fn a_replay_reruns_its_inputs_and_hashes_the_state_at_every_60th_tick() {
     assert_eq!(replay.tick_count(), 150);
     assert_eq!(REPLAY_HASH_INTERVAL_TICKS, 60);
 
-    let hashes = replay
-        .run(Track::from_sidecar(OVAL).unwrap())
-        .expect("the replay runs on the oval");
+    let hashes = replay.run(oval()).expect("the replay runs on the oval");
 
     let mut state = race(7, 1);
     let mut expected = Vec::new();
@@ -315,8 +293,6 @@ fn held(ticks: u32, karts: usize) -> Segment {
 
 #[test]
 fn a_replay_rejects_the_wrong_track_too_many_karts_or_an_uneven_grid() {
-    let oval = || Track::from_sidecar(OVAL).unwrap();
-
     let error = replay_of("brands-patch", vec![held(60, 1)])
         .run(oval())
         .unwrap_err();
@@ -487,10 +463,8 @@ fn a_replay_with_bots_reruns_them_from_the_seed_and_carries_their_count() {
         "the segments hold the humans' inputs"
     );
 
-    let hashes = replay
-        .run(Track::from_sidecar(OVAL).unwrap())
-        .expect("the replay runs with its bots");
-    let mut state = State::with_bots(7, 1, bots, Track::from_sidecar(OVAL).unwrap());
+    let hashes = replay.run(oval()).expect("the replay runs with its bots");
+    let mut state = State::with_bots(7, 1, bots, oval());
     let mut expected = Vec::new();
     for tick in 1..=120 {
         state = step(state, &[THROTTLE], DT);
@@ -506,7 +480,7 @@ fn a_replay_with_bots_reruns_them_from_the_seed_and_carries_their_count() {
         bots: 8,
         ..replay.clone()
     }
-    .run(Track::from_sidecar(OVAL).unwrap())
+    .run(oval())
     .unwrap_err();
     assert!(error.to_string().contains("9 karts"), "{error}");
 }
