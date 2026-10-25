@@ -1,19 +1,10 @@
 import instrumentFontUrl from "../../../assets/fonts/kenney/Kenney Mini Square.ttf?url";
-import type { KartReadout, Phase, Standing } from "./bridge";
+import type { Phase, Standing } from "./bridge";
 import { type CourseMapSetup, createCourseMap } from "./course-map";
 import { formatLapTime, NO_LAP_TIME, type OrdinalParts, ordinalParts } from "./format";
 import type { Item } from "./generated/protocol";
 import { itemSprite } from "./item-sprites";
-
-/**
- * The local kart's item slot as the run reports it: the item the server
- * says is held, and whether the fire is showing, predicted from the press
- * or confirmed by the server's event.
- */
-export interface ItemSlot {
-  readonly item: Item | null;
-  readonly firing: boolean;
-}
+import { type ItemSlot, type RaceReadout, raceCount } from "./race-run";
 
 /** The item slot as the panel prints it: the item's name and the slot's state. */
 export interface ItemReadout {
@@ -23,17 +14,11 @@ export interface ItemReadout {
 
 export interface InstrumentPanel {
   /**
-   * Show the local kart's readouts, the race's phase and the item slot from
-   * what the run reports, and every kart on the course map at `transforms`,
-   * the same ones the View draws this frame.
+   * Show the own kart's readouts, the race's phase and the item slot from
+   * `race`, and every kart on the course map where the View draws it this
+   * frame. Shows nothing new while `race` has no own kart.
    */
-  update(
-    local: KartReadout,
-    standing: Standing,
-    phase: Phase,
-    slot: ItemSlot,
-    transforms: readonly KartReadout[],
-  ): void;
+  update(race: RaceReadout): void;
   /** The connection readout: which transport reached the server and how fast, or that none did. */
   connection(status: string): void;
   /** Show the connection banner while a room's race has lost the server, and take it down once back. */
@@ -64,8 +49,6 @@ export interface LapReadouts {
 
 const WRONG_WAY_WARNING = "WRONG WAY";
 export const CONNECTION_LOST_BANNER = "Connection lost: reconnecting";
-/** How long GO stays up after the countdown. Presentation, so not the sim's to tune. */
-const GO_S = 1;
 
 /** The family name the panel's styles ask for; the face is registered by `loadInstrumentFont`. */
 const INSTRUMENT_FONT_FAMILY = "Kenney Mini Square";
@@ -169,8 +152,12 @@ export function createInstrumentPanel(
   };
 
   return {
-    update(local, standing, phase, slot, transforms) {
-      courseMap.update(transforms);
+    update(race) {
+      const local = race.karts[course.ownKart];
+      const standing = race.standings[course.ownKart];
+      if (local === undefined || standing === undefined) return;
+      const slot = race.itemSlot;
+      courseMap.update(race.karts);
       const readouts = lapReadouts(standing, lapsPerRace);
       numeral.textContent = readouts.position.numeral;
       suffix.textContent = readouts.position.suffix;
@@ -199,7 +186,7 @@ export function createInstrumentPanel(
           item.append(shownSprite);
         }
       }
-      const count = phaseReadout(phase);
+      const count = phaseReadout(race.phase);
       countdown.textContent = count;
       countdown.hidden = count === "";
     },
@@ -215,19 +202,10 @@ export function createInstrumentPanel(
   };
 }
 
-/**
- * The count over the View: the whole seconds left to Go, GO for the first
- * second of the race, and nothing the rest of the time.
- */
+/** The race's count as the panel prints it over the View: 3, 2, 1, GO, or nothing. */
 export function phaseReadout(phase: Phase): string {
-  switch (phase.kind) {
-    case "countdown":
-      return String(Math.ceil(phase.remainingSeconds));
-    case "racing":
-      return phase.elapsedSeconds < GO_S ? "GO" : "";
-    case "finished":
-      return "";
-  }
+  const count = raceCount(phase);
+  return count === null ? "" : count === "go" ? "GO" : String(count);
 }
 
 /**

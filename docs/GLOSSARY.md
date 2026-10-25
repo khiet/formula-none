@@ -278,6 +278,15 @@ The HUD overlaid on a View: position, lap, lap time, best lap, item slot,
 wrong-way warning, connection banner, the countdown's count over the View
 and the course map. Reads state; never drives it.
 
+### race readout
+
+What the Race Scene reads of a race once a frame, as of the last tick:
+every kart readout and standing, the phase, the local kart's item slot, the
+item boxes there to pick up, the hazards and the projectiles. A solo race
+reports it from the sim in the browser and a room's race from the server's
+snapshots and events; the View, the Instrument panel and the audio each
+read the one readout. Not a snapshot, which is the server's message.
+
 ### course map
 
 The track's outline seen from above in a corner of the Instrument panel,

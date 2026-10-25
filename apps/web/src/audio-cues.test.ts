@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import { loopPlayback, type SoundReading, soundCues, soundLoops, soundReading } from "./audio-cues";
 import type { KartReadout, Phase, Standing } from "./bridge";
 import { kartReadout } from "./kart-readout-fixture";
+import { raceReadout } from "./race-readout-fixture";
+import type { ItemSlot, RaceCount } from "./race-run";
 
 const STILL: SoundReading = {
   speed: 0,
@@ -12,7 +14,7 @@ const STILL: SoundReading = {
   boostSeconds: null,
   lap: 1,
   finished: false,
-  count: "",
+  count: null,
   charge: null,
   stalled: false,
   surface: "asphalt",
@@ -26,17 +28,17 @@ describe("soundCues", () => {
     expect(soundCues(undefined, { ...STILL, airborne: true, item: "boost" })).toEqual([]);
   });
 
-  it("beeps as the count the panel shows changes to 3, 2 and 1, and sounds GO as it shows GO", () => {
-    const at = (count: string): SoundReading => ({ ...STILL, count });
+  it("beeps as the race's count changes to 3, 2 and 1, and sounds Go as it shows Go", () => {
+    const at = (count: RaceCount): SoundReading => ({ ...STILL, count });
     // The 3 is up from the first reading, so it is heard from nothing.
-    expect(soundCues(undefined, at("3"))).toEqual(["countdownBeep"]);
-    expect(soundCues(at("3"), at("3"))).toEqual([]);
-    expect(soundCues(at("3"), at("2"))).toEqual(["countdownBeep"]);
-    expect(soundCues(at("2"), at("1"))).toEqual(["countdownBeep"]);
-    expect(soundCues(at("1"), at("GO"))).toEqual(["go"]);
-    expect(soundCues(at("GO"), at("GO"))).toEqual([]);
-    expect(soundCues(at("GO"), at(""))).toEqual([]);
-    expect(soundCues(at(""), at(""))).toEqual([]);
+    expect(soundCues(undefined, at(3))).toEqual(["countdownBeep"]);
+    expect(soundCues(at(3), at(3))).toEqual([]);
+    expect(soundCues(at(3), at(2))).toEqual(["countdownBeep"]);
+    expect(soundCues(at(2), at(1))).toEqual(["countdownBeep"]);
+    expect(soundCues(at(1), at("go"))).toEqual(["go"]);
+    expect(soundCues(at("go"), at("go"))).toEqual([]);
+    expect(soundCues(at("go"), at(null))).toEqual([]);
+    expect(soundCues(at(null), at(null))).toEqual([]);
   });
 
   it("plays the hop as the kart leaves the ground, not while it is up or as it lands", () => {
@@ -102,7 +104,7 @@ describe("soundCues", () => {
     expect(soundCues({ ...STILL, item: "boost" }, boosting)).toEqual(["itemFire"]);
     // The rocket start's boost at GO is the mini-turbo.
     expect(
-      soundCues({ ...STILL, count: "1", charge: "fullBoost" }, { ...boosting, count: "GO" }),
+      soundCues({ ...STILL, count: 1, charge: "fullBoost" }, { ...boosting, count: "go" }),
     ).toEqual(["go", "miniTurbo"]);
   });
 
@@ -125,10 +127,10 @@ describe("soundCues", () => {
   it("plays the mini-turbo as a rocket start's charge becomes its boost at GO", () => {
     const charging = (charge: SoundReading["charge"]): SoundReading => ({
       ...STILL,
-      count: "1",
+      count: 1,
       charge,
     });
-    const go = { ...STILL, count: "GO" };
+    const go: SoundReading = { ...STILL, count: "go" };
     expect(soundCues(charging("fullBoost"), { ...go, boostSeconds: 1.5 })).toEqual([
       "go",
       "miniTurbo",
@@ -143,13 +145,10 @@ describe("soundCues", () => {
   });
 
   it("plays the sputter as a stall begins, once, and no mini-turbo for the hold that stalled", () => {
-    const stalled = { ...STILL, count: "GO", stalled: true };
-    expect(soundCues({ ...STILL, count: "1", charge: "stall" }, stalled)).toEqual([
-      "go",
-      "sputter",
-    ]);
+    const stalled: SoundReading = { ...STILL, count: "go", stalled: true };
+    expect(soundCues({ ...STILL, count: 1, charge: "stall" }, stalled)).toEqual(["go", "sputter"]);
     expect(soundCues(stalled, stalled)).toEqual([]);
-    expect(soundCues(stalled, { ...STILL, count: "GO" })).toEqual([]);
+    expect(soundCues(stalled, { ...STILL, count: "go" })).toEqual([]);
   });
 
   it("plays the pickup as the slot fills and the fire as it empties", () => {
@@ -260,9 +259,12 @@ describe("soundReading", () => {
     finishTimeS: null,
   };
   const racing: Phase = { kind: "racing", elapsedSeconds: 5, graceLeftSeconds: null };
+  /** The reading of the one kart of a race at `kart` on `standing` holding `itemSlot`. */
+  const read = (kart: KartReadout, standing: Standing, itemSlot: ItemSlot, phase: Phase) =>
+    soundReading(raceReadout({ karts: [kart], standings: [standing], itemSlot, phase }), 0);
 
   it("takes the kart's speed, hop, charge and spin from the transform and the lap from the standing", () => {
-    expect(soundReading(kart, standing, { item: null, firing: false }, racing)).toEqual({
+    expect(read(kart, standing, { item: null, firing: false }, racing)).toEqual({
       speed: 12,
       airborne: true,
       miniTurbo: "blue",
@@ -271,7 +273,7 @@ describe("soundReading", () => {
       boostSeconds: null,
       lap: 2,
       finished: false,
-      count: "",
+      count: null,
       charge: null,
       stalled: false,
       surface: "asphalt",
@@ -283,7 +285,7 @@ describe("soundReading", () => {
   it("takes the surface and the wrong-way flag, and whether a drift is under way at any tier", () => {
     const slot = { item: null, firing: false };
     expect(
-      soundReading(
+      read(
         {
           ...kart,
           surface: "grass",
@@ -295,14 +297,14 @@ describe("soundReading", () => {
         racing,
       ),
     ).toMatchObject({ surface: "grass", drifting: true, miniTurbo: "none", wrongWay: true });
-    expect(soundReading({ ...kart, drift: null }, standing, slot, racing)).toMatchObject({
+    expect(read({ ...kart, drift: null }, standing, slot, racing)).toMatchObject({
       drifting: false,
       miniTurbo: null,
     });
   });
 
   it("takes the item from the slot, which a room's race fills from the server's events", () => {
-    const reading = soundReading(
+    const reading = read(
       { ...kart, drift: null, spinOutS: null, boostS: 0.5 },
       { ...standing, finishTimeS: 61.2 },
       { item: "homing", firing: false },
@@ -317,19 +319,22 @@ describe("soundReading", () => {
     });
   });
 
-  it("takes the count the Instrument panel shows and, while it counts, the rocket start's charge", () => {
+  it("takes the race's count and, while it counts, the rocket start's charge", () => {
     const slot = { item: null, firing: false };
     const countingDown: Phase = { kind: "countdown", remainingSeconds: 1.4 };
-    expect(
-      soundReading({ ...kart, start: "weakBoost" }, standing, slot, countingDown),
-    ).toMatchObject({ count: "2", charge: "weakBoost" });
+    expect(read({ ...kart, start: "weakBoost" }, standing, slot, countingDown)).toMatchObject({
+      count: 2,
+      charge: "weakBoost",
+    });
     // From Go the verdict is the boost's or the stall's to tell, not a charge.
     const go: Phase = { kind: "racing", elapsedSeconds: 0.2, graceLeftSeconds: null };
-    expect(
-      soundReading({ ...kart, start: "stall", stallS: 1.8 }, standing, slot, go),
-    ).toMatchObject({ count: "GO", charge: null, stalled: true });
-    expect(soundReading(kart, standing, slot, { kind: "finished" })).toMatchObject({
-      count: "",
+    expect(read({ ...kart, start: "stall", stallS: 1.8 }, standing, slot, go)).toMatchObject({
+      count: "go",
+      charge: null,
+      stalled: true,
+    });
+    expect(read(kart, standing, slot, { kind: "finished" })).toMatchObject({
+      count: null,
       charge: null,
     });
   });

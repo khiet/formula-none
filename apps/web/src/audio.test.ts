@@ -28,7 +28,7 @@ const STILL: SoundReading = {
   boostSeconds: null,
   lap: 1,
   finished: false,
-  count: "",
+  count: null,
   charge: null,
   stalled: false,
   surface: "asphalt",
@@ -500,17 +500,17 @@ describe("the engine", () => {
     await audio.unlock();
     const race = audio.race();
     race.start();
-    race.update({ ...STILL, count: "3", charge: "clean" });
+    race.update({ ...STILL, count: 3, charge: "clean" });
     expect(saws()[0]?.frequency.value).toBe(ENGINE.idleHz);
-    race.update({ ...STILL, count: "2", charge: "weakBoost" });
+    race.update({ ...STILL, count: 2, charge: "weakBoost" });
     const weak = saws()[0]?.frequency.value ?? 0;
     expect(weak).toBeGreaterThan(ENGINE.idleHz);
     expect(weak).toBeLessThan(ENGINE.topHz);
     expect(limiterDepth().gain.value).toBe(0);
-    race.update({ ...STILL, count: "1", charge: "fullBoost" });
+    race.update({ ...STILL, count: 1, charge: "fullBoost" });
     expect(saws()[0]?.frequency.value).toBeCloseTo(ENGINE.topHz, 6);
     expect(limiterDepth().gain.value).toBeGreaterThan(0);
-    race.update({ ...STILL, count: "GO", charge: null });
+    race.update({ ...STILL, count: "go", charge: null });
     expect(saws()[0]?.frequency.value).toBe(ENGINE.idleHz);
     expect(limiterDepth().gain.value).toBe(0);
   });
@@ -522,8 +522,8 @@ describe("the SFX", () => {
     ["itemPickup", { item: "boost" }],
     ["hit", { spunOut: true }],
     ["lap", { lap: 2 }],
-    ["countdownBeep", { count: "3" }],
-    ["go", { count: "GO" }],
+    ["countdownBeep", { count: 3 }],
+    ["go", { count: "go" }],
     ["sputter", { stalled: true }],
     ["tierChime", { miniTurbo: "blue", drifting: true }],
     ["boostPad", { boostSeconds: 0.6 }],

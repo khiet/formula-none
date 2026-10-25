@@ -20,7 +20,7 @@ import {
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { CSS2DObject, CSS2DRenderer } from "three/addons/renderers/CSS2DRenderer.js";
 import { WebGPURenderer } from "three/webgpu";
-import type { Hazard, ItemBox, KartReadout, KartSize, Phase, Projectile } from "./bridge";
+import type { ItemBox, KartReadout, KartSize } from "./bridge";
 import type { CameraPose } from "./chase-camera";
 import { createDustEmitter } from "./dust";
 import type { KartLabel } from "./kart-labels";
@@ -28,6 +28,7 @@ import { dressKart, fitKart, type KartFit } from "./kart-model";
 import { createKartShadows } from "./kart-shadows";
 import { livery, liveryCss } from "./livery";
 import { createParticles } from "./particles";
+import type { RaceReadout } from "./race-run";
 import { createSparkEmitter } from "./sparks";
 import { spinOutAngle } from "./spin";
 import { particleMesh, shadowDiscMesh, tyreMarkMesh } from "./tell-meshes";
@@ -65,24 +66,15 @@ const PROJECTILE_COLOUR = 0xdd2222;
 
 export interface RaceView {
   /**
-   * Move every kart mesh to the transform its readout reports, spinning
+   * Move every kart mesh to the transform `race` reports for it, spinning
    * one that is spun out, run every kart's tells `frameSeconds` on from
-   * what the readouts say and `phase` (the rocket start's sparks show only
-   * while it counts down), hang `labels` where they say and hide every
-   * other kart's, move the camera to `camera`, show each item box that is
-   * there to pick up, a marker at each hazard and a ball at each
-   * projectile.
+   * what the readouts say and the phase (the rocket start's sparks show
+   * only while it counts down), hang the labels the karts call for and
+   * hide every other kart's, move the camera to `camera`, show each item
+   * box that is there to pick up, a marker at each hazard and a ball at
+   * each projectile.
    */
-  update(
-    readouts: readonly KartReadout[],
-    labels: readonly KartLabel[],
-    camera: CameraPose,
-    itemBoxesPresent: readonly boolean[],
-    hazards: readonly Hazard[],
-    projectiles: readonly Projectile[],
-    phase: Phase,
-    frameSeconds: number,
-  ): void;
+  update(race: RaceReadout, camera: CameraPose, frameSeconds: number): void;
   render(): void;
   /** Take the canvas off the page and free the renderer. */
   dispose(): void;
@@ -106,8 +98,9 @@ export interface ViewAssets {
  * holding for the rocket start, dust on the run-off and at the wheels of a
  * stalled kart, a spun-out kart turned about its axis over
  * `spinOutSeconds`, and a shadow disc on the track under every kart so a
- * hop's height reads against the ground. Picks WebGPU when the browser has
- * it and WebGL otherwise.
+ * hop's height reads against the ground. `labelsFor` names the karts to
+ * label and where, from the frame's readouts. Picks WebGPU when the
+ * browser has it and WebGL otherwise.
  */
 export async function createRaceView(
   container: HTMLElement,
@@ -116,6 +109,7 @@ export async function createRaceView(
   assets: ViewAssets,
   itemBoxes: readonly ItemBox[],
   spinOutSeconds: number,
+  labelsFor: (karts: readonly KartReadout[]) => readonly KartLabel[],
 ): Promise<RaceView> {
   const renderer = new WebGPURenderer({ antialias: true });
   await renderer.init();
@@ -234,17 +228,9 @@ export async function createRaceView(
   const spin = new Quaternion();
   const up = new Vector3(0, 1, 0);
   return {
-    update(
-      readouts,
-      kartLabels,
-      pose,
-      itemBoxesPresent,
-      hazards,
-      projectiles,
-      phase,
-      frameSeconds,
-    ) {
-      const countingDown = phase.kind === "countdown";
+    update(race, pose, frameSeconds) {
+      const { karts: readouts, itemBoxesPresent, hazards, projectiles } = race;
+      const countingDown = race.phase.kind === "countdown";
       boxes.forEach((mesh, box) => {
         mesh.visible = itemBoxesPresent[box] ?? true;
       });
@@ -276,7 +262,7 @@ export async function createRaceView(
       for (const label of labels) {
         label.visible = false;
       }
-      for (const { kart, text, anchor } of kartLabels) {
+      for (const { kart, text, anchor } of labelsFor(readouts)) {
         const label = labels[kart];
         if (label === undefined) {
           continue;
