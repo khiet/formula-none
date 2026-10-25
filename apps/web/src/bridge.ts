@@ -161,7 +161,10 @@ export interface Prediction {
    * far the predicted kart moved for it, in metres.
    */
   reconcile(snapshot: Snapshot): number;
-  /** The kart as it is drawn, as of the last tick or snapshot. */
+  /**
+   * The kart as it is drawn, as of the last tick or snapshot. The
+   * prediction races it alone, so its race position counts only itself.
+   */
   kartReadout(): KartReadout;
   /**
    * Every kart in grid order where the interpolation draws it, the own kart

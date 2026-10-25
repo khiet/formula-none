@@ -119,7 +119,7 @@ impl From<&KartSnapshot> for KartReadout {
             speed: KartReadout::facing_speed(kart.rotation, kart.velocity),
             velocity: kart.velocity,
             drift,
-            mini_turbo: drift.map_or(sim::MiniTurbo::None, |drift| drift.mini_turbo()),
+            mini_turbo: sim::MiniTurbo::of(drift),
             held_item: kart.held_item.map(sim::Item::from),
             spin_out_s: kart.spin_out_s,
             airborne: false,

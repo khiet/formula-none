@@ -51,7 +51,7 @@ export interface RaceRun {
   readonly localKart: number;
   /** One tick of `dt` seconds with the local player's input: stepped here, or sent to the server. */
   tick(input: KartInput, dt: number): void;
-  /** One transform per kart in grid order, as of the last tick. */
+  /** One readout per kart in grid order, as of the last tick. */
   kartReadouts(): KartReadout[];
   /** One standing per kart in grid order, as of the last tick. */
   standings(): Standing[];
@@ -200,14 +200,14 @@ export async function createRaceScene(
   const name = (kart: number): string =>
     kartName({ localKart: run.localKart, isBot, nickname }, kart);
   const present = (frameSeconds: number) => {
-    const transforms = run.kartReadouts();
-    const local = transforms[run.localKart];
+    const readouts = run.kartReadouts();
+    const local = readouts[run.localKart];
     const standing = run.standings()[run.localKart];
     if (local && standing) {
       const phase = run.phase();
       view.update(
-        transforms,
-        kartLabels(transforms, run.localKart, name),
+        readouts,
+        kartLabels(readouts, run.localKart, name),
         camera.update(local, frameSeconds),
         run.itemBoxesPresent(),
         run.hazards(),
@@ -216,7 +216,7 @@ export async function createRaceScene(
         frameSeconds,
       );
       const slot = run.itemSlot();
-      panel.update(local, standing, phase, slot, transforms);
+      panel.update(local, standing, phase, slot, readouts);
       audio.update(soundReading(local, standing, slot, phase));
     }
   };

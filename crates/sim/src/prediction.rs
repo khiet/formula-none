@@ -279,7 +279,8 @@ impl Prediction {
     }
 
     /// The kart as it is drawn: where the prediction has it, less what is
-    /// left to blend of the last correction.
+    /// left to blend of the last correction. Its race position, like
+    /// [`Prediction::standing`]'s, counts only itself.
     pub fn kart_readout(&self) -> KartReadout {
         let mut readout = self.state().kart_readouts()[0];
         let share = self.blend.share();

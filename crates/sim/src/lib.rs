@@ -285,6 +285,11 @@ pub enum MiniTurbo {
 }
 
 impl MiniTurbo {
+    /// The tier `drift` has charged; `None` out of a drift.
+    pub fn of(drift: Option<Drift>) -> Self {
+        drift.map_or(Self::None, |drift| drift.mini_turbo())
+    }
+
     /// The tier as one byte in charge order, for the hash and the bridge.
     pub fn code(self) -> u8 {
         match self {
@@ -591,9 +596,7 @@ impl Kart {
             speed: self.speed,
             velocity: body.linvel().to_array(),
             drift: self.drift,
-            mini_turbo: self
-                .drift
-                .map_or(MiniTurbo::None, |drift| drift.mini_turbo()),
+            mini_turbo: MiniTurbo::of(self.drift),
             held_item: self.held_item,
             spin_out_s: self.spun_out().then_some(self.spin_out_left_s),
             airborne: self.airborne(),

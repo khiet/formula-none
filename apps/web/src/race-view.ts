@@ -65,16 +65,16 @@ const PROJECTILE_COLOUR = 0xdd2222;
 
 export interface RaceView {
   /**
-   * Move every kart mesh to the transforms the sim reports, spinning one
-   * that is spun out, run every kart's tells `frameSeconds` on from what
-   * the transforms say and `phase` (the rocket start's sparks show only
+   * Move every kart mesh to the transform its readout reports, spinning
+   * one that is spun out, run every kart's tells `frameSeconds` on from
+   * what the readouts say and `phase` (the rocket start's sparks show only
    * while it counts down), hang `labels` where they say and hide every
    * other kart's, move the camera to `camera`, show each item box that is
    * there to pick up, a marker at each hazard and a ball at each
    * projectile.
    */
   update(
-    transforms: readonly KartReadout[],
+    readouts: readonly KartReadout[],
     labels: readonly KartLabel[],
     camera: CameraPose,
     itemBoxesPresent: readonly boolean[],
@@ -97,11 +97,11 @@ export interface ViewAssets {
 /**
  * The Race Scene's View: the track's glTF, the kart's glTF once per slot in
  * the slot's livery and a box per item box, drawn by Three.js from the
- * transforms the bridge reports and the pose the chase camera computes,
+ * kart readouts the bridge reports and the pose the chase camera computes,
  * with a name floating over each kart the Scene labels, a cone at each
  * hazard and a ball at each projectile. The track mesh is Presentation
  * only; the sim has its own copy of the geometry from the sidecar. Every
- * mechanic's Feedback is drawn from the transforms and the phase alone:
+ * mechanic's Feedback is drawn from the readouts and the phase alone:
  * tyre marks under a drift, sparks once a tier has charged, drifting or
  * holding for the rocket start, dust on the run-off and at the wheels of a
  * stalled kart, a spun-out kart turned about its axis over
@@ -235,7 +235,7 @@ export async function createRaceView(
   const up = new Vector3(0, 1, 0);
   return {
     update(
-      transforms,
+      readouts,
       kartLabels,
       pose,
       itemBoxesPresent,
@@ -248,25 +248,25 @@ export async function createRaceView(
       boxes.forEach((mesh, box) => {
         mesh.visible = itemBoxesPresent[box] ?? true;
       });
-      transforms.forEach((transform, slot) => {
+      readouts.forEach((readout, slot) => {
         const kart = karts[slot];
         if (kart === undefined) {
           return;
         }
-        kart.position.set(...transform.position);
-        kart.quaternion.set(...transform.rotation);
-        if (transform.spinOutS !== null) {
+        kart.position.set(...readout.position);
+        kart.quaternion.set(...readout.rotation);
+        if (readout.spinOutS !== null) {
           kart.quaternion.multiply(
-            spin.setFromAxisAngle(up, spinOutAngle(transform.spinOutS, spinOutSeconds)),
+            spin.setFromAxisAngle(up, spinOutAngle(readout.spinOutS, spinOutSeconds)),
           );
         }
-        sparkEmitter.emit(transform, frameSeconds, countingDown);
-        dustEmitter.emit(transform, frameSeconds);
+        sparkEmitter.emit(readout, frameSeconds, countingDown);
+        dustEmitter.emit(readout, frameSeconds);
       });
-      tyreMarks.update(transforms, frameSeconds);
+      tyreMarks.update(readouts, frameSeconds);
       sparks.update(frameSeconds);
       dust.update(frameSeconds);
-      shadows.update(transforms);
+      shadows.update(readouts);
       marks.update();
       sparkMesh.update();
       dustMesh.update();
