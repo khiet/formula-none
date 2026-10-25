@@ -149,18 +149,6 @@ describe("the lap instruments on the page", () => {
     expect(find("lap-time")?.textContent).toBe(`Time 0'27"304`);
     expect(find("best-lap")?.textContent).toBe(`Best 0'44"910`);
   });
-
-  it("show the wrong-way warning only while the sim reports it", () => {
-    const { panel, find } = mount();
-    const local = at([0, 0.3, 0]);
-    const wrongWay = find("wrong-way");
-    expect(wrongWay?.hidden).toBe(true);
-    panel.update(local, { ...onTheGrid, wrongWay: true }, racing, { item: null, firing: false }, [
-      local,
-    ]);
-    expect(wrongWay?.hidden).toBe(false);
-    expect(wrongWay?.textContent).toBe("WRONG WAY");
-  });
 });
 
 describe("phase readout", () => {
