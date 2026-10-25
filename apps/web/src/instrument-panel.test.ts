@@ -166,13 +166,20 @@ describe("the speed cluster on the page", () => {
     expect(find("tyre")?.querySelector("svg")?.getAttribute("aria-hidden")).toBe("true");
   });
 
-  it("marks the limiter on the gear so it can flash", () => {
-    const { find, drive } = mount();
+  it("lights the shift lights with the revs and marks the limiter on the gear so it can flash", () => {
+    const { container, find, drive } = mount();
+    const lights = () =>
+      [...container.querySelectorAll<HTMLElement>("[data-shift-light]")].map(
+        (light) => light.dataset.shiftLight,
+      );
+    expect(lights()).toEqual(Array(12).fill("off"));
     drive(42);
     expect(find("gear")?.textContent).toBe("6");
     expect(find("gear")?.dataset.limiter).toBe("true");
-    drive(20);
+    expect(lights()).toEqual(Array(12).fill("blue"));
+    drive(22);
     expect(find("gear")?.dataset.limiter).toBe("false");
+    expect(lights()).toEqual([...Array(2).fill("green"), ...Array(10).fill("off")]);
   });
 });
 
