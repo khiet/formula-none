@@ -67,14 +67,15 @@ export const ITEM_FIRE_FLASH_S = 0.5;
 /** How long the count shows Go once the race is on. Presentation, so not the sim's to tune. */
 const GO_S = 1;
 
-/**
- * The count over the race at `phase`: the whole seconds left to Go while
- * the countdown runs, Go for the first second of the race, and nothing the
- * rest of the time. The Instrument panel prints it and the audio beeps on
- * it, so the two never disagree.
- */
+/** The count over the race: whole seconds left to Go, Go, or nothing. */
 export type RaceCount = number | "go" | null;
 
+/**
+ * The count at `phase`: the whole seconds left to Go while the countdown
+ * runs, Go for the first second of the race, and nothing the rest of the
+ * time. The Instrument panel prints it and the audio beeps on it, so the
+ * two never disagree.
+ */
 export function raceCount(phase: Phase): RaceCount {
   switch (phase.kind) {
     case "countdown":
