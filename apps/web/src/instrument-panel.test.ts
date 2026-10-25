@@ -210,6 +210,30 @@ describe("the item slot", () => {
     expect(slot?.textContent).toBe("");
     expect(slot?.dataset.itemState).toBe("empty");
   });
+
+  it.each(["boost", "hazard", "homing"] as const)(
+    "draws the %s sprite, named by data-item, with the item's name still its text",
+    (item) => {
+      const container = document.createElement("div");
+      const panel = createInstrumentPanel(container, 3, course);
+      const slot = container.querySelector<HTMLElement>('[data-instrument="item"]');
+      const local = at([0, 0.3, 0]);
+      const racing = { kind: "racing", elapsedSeconds: 5, graceLeftSeconds: null } as const;
+      expect(slot?.dataset.item).toBeUndefined();
+      expect(slot?.querySelector("svg")).toBeNull();
+      panel.update(local, onTheGrid, racing, { item, firing: false }, [local]);
+      expect(slot?.dataset.item).toBe(item);
+      const sprite = slot?.querySelector("svg");
+      expect(sprite?.getAttribute("aria-hidden")).toBe("true");
+      expect(sprite?.querySelectorAll("rect").length).toBeGreaterThan(0);
+      expect(slot?.textContent).toBe(itemReadout({ item, firing: false }).text);
+      panel.update(local, onTheGrid, racing, { item, firing: true }, [local]);
+      expect(slot?.querySelector("svg")).toBe(sprite);
+      panel.update(local, onTheGrid, racing, { item: null, firing: false }, [local]);
+      expect(slot?.dataset.item).toBeUndefined();
+      expect(slot?.querySelector("svg")).toBeNull();
+    },
+  );
 });
 
 describe("the course map", () => {

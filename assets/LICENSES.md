@@ -11,6 +11,7 @@ its own synthesis.
 | `fonts/kenney/Kenney Mini Square.ttf` | [Kenney Fonts](https://kenney.nl/assets/kenney-fonts), downloaded 2026-10-25 | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/), `fonts/kenney/License.txt` |
 | `karts/kart.glb`, `tracks/*/*.glb`, `tracks/*/*.track.json`, `replays/*` | this repo, from the files above and `tracks/trackgen` | CC0 1.0 |
 | `audio/*.wav` | this repo, synthesised by `audio/build.py` (ADR 0008) | CC0 1.0 |
+| `apps/web/src/item-sprites.ts` (from the repo root) | this repo, the item slot's characters drawn as string grids (ADR 0024) | CC0 1.0 |
 
 Kenney asks for no credit; we give it anyway. Every vendored Kenney
 directory is named `kenney` and carries the kit's own `License.txt`, and

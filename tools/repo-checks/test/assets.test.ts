@@ -27,6 +27,12 @@ describe("asset licences", () => {
     expect(licences).toContain("`tracks/*/*.glb`");
   });
 
+  // The item slot's sprites are art too, drawn in the web app's source (ADR 0024).
+  it("record the item sprites as CC0 original work", () => {
+    expect(licences).toContain("`apps/web/src/item-sprites.ts`");
+    expect(existsSync(join(ROOT, "apps/web/src/item-sprites.ts"))).toBe(true);
+  });
+
   // ADR 0008 asks for a CC0 music loop, so its licence row is checked on its own.
   it("record the synthesised sounds and the music loop as CC0", () => {
     expect(licences).toContain("`audio/*.wav`");
