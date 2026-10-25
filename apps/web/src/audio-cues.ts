@@ -166,9 +166,10 @@ export interface LoopPlayback {
  * centre in hertz at a speed in metres per second sets the rate, over the
  * centre at the rendered speed, so the skid's band climbs with the kart as
  * the page's did; the swell is the fraction of top speed the file's gain
- * followed, where the fraction is capped at the boosts' headroom. These
- * repeat the renders in `assets/audio/build.py`, and the two change
- * together.
+ * followed, where the fraction is capped at the boosts' headroom, and the
+ * gain is the swell over the swell at the rendered speed, since the file
+ * already carries that one. These repeat the renders in
+ * `assets/audio/build.py`, and the two change together.
  */
 interface LoopCurve {
   readonly renderedSpeed: number;
@@ -196,14 +197,17 @@ const LOOP_CURVES: Readonly<Record<SoundLoop, LoopCurve>> = {
 const LOOP_RATE_MIN = 0.5;
 const LOOP_RATE_MAX = 2;
 
-/** The rate and gain `loop` plays at for `speed`, forward or backing up, against `topSpeed`. */
+/**
+ * The rate and gain `loop` plays at for `speed`, forward or backing up,
+ * against `topSpeed`; both are 1 at the speed the file was rendered at.
+ */
 export function loopPlayback(loop: SoundLoop, speed: number, topSpeed: number): LoopPlayback {
   const curve = LOOP_CURVES[loop];
   const rate = curve.centreHz(Math.abs(speed)) / curve.centreHz(curve.renderedSpeed);
-  const fraction = Math.min(Math.abs(speed) / topSpeed, ENGINE_MAX_SPEED_FRACTION);
+  const fraction = (at: number) => Math.min(Math.abs(at) / topSpeed, ENGINE_MAX_SPEED_FRACTION);
   return {
     rate: Math.min(Math.max(rate, LOOP_RATE_MIN), LOOP_RATE_MAX),
-    gain: curve.swell(fraction),
+    gain: curve.swell(fraction(speed)) / curve.swell(fraction(curve.renderedSpeed)),
   };
 }
 

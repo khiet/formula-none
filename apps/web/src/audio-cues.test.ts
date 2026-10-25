@@ -233,14 +233,16 @@ describe("loopPlayback", () => {
     expect(loopPlayback("sand", 45, 30).rate).toBe(1);
   });
 
-  it("swells each loop with speed on its own curve, flat past the boosts' headroom", () => {
-    expect(loopPlayback("driftSkid", 0, 30).gain).toBeCloseTo(0.4, 6);
-    expect(loopPlayback("driftSkid", 30, 30).gain).toBeCloseTo(1, 6);
-    expect(loopPlayback("driftSkid", 45, 30).gain).toBeCloseTo(1.3, 6);
-    expect(loopPlayback("driftSkid", 90, 30).gain).toBeCloseTo(1.3, 6);
-    expect(loopPlayback("grass", 0, 30).gain).toBeCloseTo(0.3, 6);
-    expect(loopPlayback("grass", 30, 30).gain).toBeCloseTo(1, 6);
-    expect(loopPlayback("sand", 15, 30).gain).toBeCloseTo(0.65, 6);
+  it("swells each loop with speed on its own curve from the file's level at 15 m/s, flat past the boosts' headroom", () => {
+    expect(loopPlayback("driftSkid", 15, 30).gain).toBeCloseTo(1, 6);
+    expect(loopPlayback("driftSkid", 0, 30).gain).toBeCloseTo(0.4 / 0.7, 6);
+    expect(loopPlayback("driftSkid", 30, 30).gain).toBeCloseTo(1 / 0.7, 6);
+    expect(loopPlayback("driftSkid", 45, 30).gain).toBeCloseTo(1.3 / 0.7, 6);
+    expect(loopPlayback("driftSkid", 90, 30).gain).toBeCloseTo(1.3 / 0.7, 6);
+    expect(loopPlayback("grass", 15, 30).gain).toBeCloseTo(1, 6);
+    expect(loopPlayback("grass", 0, 30).gain).toBeCloseTo(0.3 / 0.65, 6);
+    expect(loopPlayback("grass", 30, 30).gain).toBeCloseTo(1 / 0.65, 6);
+    expect(loopPlayback("sand", 15, 30).gain).toBeCloseTo(1, 6);
   });
 });
 
