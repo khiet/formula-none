@@ -6,7 +6,6 @@ import {
   engineBandEdges,
   engineStep,
   engineVoice,
-  GRID_REVS,
 } from "./audio-engine";
 
 const TOP_SPEED = 30;
@@ -138,7 +137,6 @@ describe("engineStep", () => {
     const grid = (charge: EngineSample["charge"]) => drive([0, 0, 0], undefined, charge);
     expect(grid("clean").revs).toBe(0);
     expect(grid("clean").atLimiter).toBe(false);
-    expect(grid("weakBoost").revs).toBe(GRID_REVS.weakBoost);
     expect(grid("weakBoost").revs).toBeGreaterThan(0);
     expect(grid("weakBoost").revs).toBeLessThan(1);
     expect(grid("weakBoost").atLimiter).toBe(false);

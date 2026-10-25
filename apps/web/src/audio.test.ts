@@ -223,6 +223,8 @@ interface Harness {
   engineLevel(): FakeGain;
   /** The gain the limiter's chop is scaled by before it reaches the level. */
   limiterDepth(): FakeGain;
+  /** The gain the crackle bursts open past the filter. */
+  crackleGain(): FakeGain;
   music(): FakeSource[];
   /** The sources made for `loop`'s file, started or not. */
   loops(loop: SoundLoop): FakeSource[];
@@ -275,6 +277,10 @@ function harness(settings = DEFAULT_AUDIO_SETTINGS): Harness {
   };
   const engineFilter = () => filterOf(gainOf(firstSaw()));
   const engineLevel = () => gainOf(engineFilter());
+  const noise = () =>
+    context().sources.filter(
+      (source) => source.buffer !== null && !("url" in (source.buffer as object)),
+    );
   return {
     audio,
     fetched,
@@ -290,10 +296,7 @@ function harness(settings = DEFAULT_AUDIO_SETTINGS): Harness {
       if (made === undefined) throw new Error("no engine sub");
       return made;
     },
-    noise: () =>
-      context().sources.filter(
-        (source) => source.buffer !== null && !("url" in (source.buffer as object)),
-      ),
+    noise,
     engineFilter,
     engineLevel,
     limiterDepth() {
@@ -301,6 +304,11 @@ function harness(settings = DEFAULT_AUDIO_SETTINGS): Harness {
       const depth = context().gains.find((candidate) => candidate.connectedTo.includes(level.gain));
       if (depth === undefined) throw new Error("no limiter depth");
       return depth;
+    },
+    crackleGain() {
+      const source = noise()[0];
+      if (source === undefined) throw new Error("no engine noise");
+      return gainOf(source);
     },
     music: () => sourcesOf(MUSIC_URL),
     loops: (loop) => sourcesOf(LOOP_URLS[loop]),
@@ -438,6 +446,33 @@ describe("the engine", () => {
     const blip = saws()[0]?.frequency.targets.slice(settled) ?? [];
     expect(blip).toHaveLength(2);
     expect(blip[0]).toBeCloseTo((blip[1] ?? 0) * (1 + ENGINE.downshiftBlip), 6);
+  });
+
+  it("crackles in bursts as the kart lifts off, spaced out, and never on the throttle", async () => {
+    const { audio, crackleGain, context } = harness();
+    await audio.unlock();
+    const race = audio.race();
+    race.start();
+    const frame = 1 / 60;
+    const run = (speeds: readonly number[]) => {
+      for (const speed of speeds) {
+        context().currentTime += frame;
+        race.update({ ...STILL, speed });
+      }
+    };
+    run([10]);
+    // Pulling away at full throttle: top speed in 2.5 s.
+    run(Array.from({ length: 30 }, (_, i) => 10 + ((i + 1) * frame * TOP_SPEED) / 2.5));
+    expect(crackleGain().gain.targets).toHaveLength(0);
+    // Lifting off at the same rate: bursts, each opened and shut, fewer than the frames.
+    run(Array.from({ length: 30 }, (_, i) => 16 - ((i + 1) * frame * TOP_SPEED) / 2.5));
+    const targets = crackleGain().gain.targets;
+    const bursts = targets.filter((target) => target > 0).length;
+    expect(bursts).toBeGreaterThan(0);
+    expect(bursts).toBeLessThan(30);
+    expect(targets.filter((target) => target === 0)).toHaveLength(bursts);
+    expect(targets[0]).toBeGreaterThan(0);
+    expect(targets[1]).toBe(0);
   });
 
   it("chops at the limiter past top speed, and stops chopping back under it", async () => {
