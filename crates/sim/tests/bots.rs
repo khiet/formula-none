@@ -348,6 +348,7 @@ fn race_against_seven_bots(
     driver: Option<fn(&State, usize) -> KartInput>,
     seconds: f32,
 ) -> (Vec<usize>, State) {
+    // No boxes: no boost to even the field and no traffic from a boosted kart.
     let mut state = State::with_bots(SEED, 1, 7, oval_without_item_boxes());
     let mut finished: Vec<usize> = Vec::new();
     for _ in 0..ticks(seconds + COUNTDOWN_S) {

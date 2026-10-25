@@ -31,12 +31,10 @@ fn input(throttle: f32, steer: f32) -> KartInput {
 /// The oval with its first spawn slots moved to `slots`, each a position
 /// and a yaw, so two karts can be started wherever the scenario needs.
 fn oval_with_slots(slots: &[([f32; 3], f32)]) -> Track {
-    let sidecar = slots
-        .iter()
-        .enumerate()
-        .fold(OVAL.to_string(), |sidecar, (slot, &(position, yaw))| {
-            with_slot_at(&sidecar, slot, position, yaw)
-        });
+    let mut sidecar = OVAL.to_string();
+    for (slot, &(position, yaw)) in slots.iter().enumerate() {
+        sidecar = with_slot_at(&sidecar, slot, position, yaw);
+    }
     track(&sidecar)
 }
 

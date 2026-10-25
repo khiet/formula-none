@@ -1,7 +1,9 @@
 //! The events a tick reports at the sim's public seam: a lap completed, a
 //! kart finished and a kart respawned, read from `State::events` after the
 //! `step` that produced them and gone after the next. The server repeats
-//! them to the clients; the sim only reports them.
+//! them to the clients; the sim only reports them. The races run on the
+//! oval without its item boxes, so a kart on the racing line reports only
+//! the lap, the finish and the respawn; `items.rs` covers the rest.
 
 mod common;
 
@@ -11,16 +13,10 @@ use common::{
 };
 
 use sim::tuning::{LAPS_PER_RACE, RESPAWN_DELAY_S};
-use sim::{step, KartInput, Phase, RaceEvent, State, Surface, Track};
+use sim::{step, KartInput, Phase, RaceEvent, State, Surface};
 
 /// A quarter turn clockwise seen from above: from facing -Z to facing +X.
 const FACING_PLUS_X: f32 = -std::f32::consts::FRAC_PI_2;
-
-/// The oval without its item boxes, so a kart on the racing line reports
-/// only the lap, the finish and the respawn; `items.rs` covers the rest.
-fn oval() -> Track {
-    oval_without_item_boxes()
-}
 
 /// The race past its countdown, every kart idle on the grid until Go.
 fn started(mut state: State) -> State {
@@ -55,12 +51,14 @@ fn drive_collecting(
 
 #[test]
 fn a_fresh_race_reports_no_events() {
-    assert!(State::new(SEED, 2, oval()).events().is_empty());
+    assert!(State::new(SEED, 2, oval_without_item_boxes())
+        .events()
+        .is_empty());
 }
 
 #[test]
 fn completing_a_lap_reports_it_once_with_the_lap_time_the_standing_records() {
-    let state = started(State::new(SEED, 1, oval()));
+    let state = started(State::new(SEED, 1, oval_without_item_boxes()));
     let (state, events) = drive_collecting(state, 60.0, |state| {
         state.standings()[0].laps_completed == 1
     });
@@ -87,7 +85,7 @@ fn completing_a_lap_reports_it_once_with_the_lap_time_the_standing_records() {
 
 #[test]
 fn finishing_reports_the_finish_with_the_place_taken_and_the_clock() {
-    let state = started(State::new(SEED, 2, oval()));
+    let state = started(State::new(SEED, 2, oval_without_item_boxes()));
     let (state, events) = drive_collecting(state, 200.0, |state| {
         matches!(state.phase(), Phase::Finished)
     });

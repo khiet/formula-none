@@ -20,9 +20,9 @@ pub fn brands_patch() -> Track {
     Track::from_sidecar(BRANDS_PATCH).expect("Brands Patch loads")
 }
 
-/// The track an edited `sidecar` describes.
+/// The track `sidecar` describes, as one of the edits below leaves it.
 pub fn track(sidecar: &str) -> Track {
-    Track::from_sidecar(sidecar).expect("the edited track loads")
+    Track::from_sidecar(sidecar).expect("the edited sidecar loads")
 }
 
 /// The race past its countdown, every kart idle on the grid until Go.
@@ -47,14 +47,14 @@ pub fn yaw(rotation: [f32; 4]) -> f32 {
 /// Full throttle, steering toward the point `target` (x, z) seen from above.
 pub fn steer_toward(state: &State, kart: usize, target: [f32; 2]) -> KartInput {
     const STEER_GAIN: f32 = 4.0;
-    let transform = state.kart_readouts()[kart];
+    let readout = state.kart_readouts()[kart];
     let (dx, dz) = (
-        target[0] - transform.position[0],
-        target[1] - transform.position[2],
+        target[0] - readout.position[0],
+        target[1] - readout.position[2],
     );
     let length = (dx * dx + dz * dz).sqrt().max(f32::EPSILON);
     // Positive steer turns the kart right; right of a yaw is (cos, -sin) in x, z.
-    let (sin, cos) = yaw(transform.rotation).sin_cos();
+    let (sin, cos) = yaw(readout.rotation).sin_cos();
     let rightward = (dx * cos - dz * sin) / length;
     KartInput {
         steer: (rightward * STEER_GAIN).clamp(-1.0, 1.0),
@@ -151,9 +151,9 @@ pub fn run(mut state: State, inputs: impl IntoIterator<Item = KartInput>) -> Sta
 
 /// The readout of the race's only kart.
 pub fn only_kart(state: &State) -> KartReadout {
-    let transforms = state.kart_readouts();
-    assert_eq!(transforms.len(), 1);
-    transforms[0]
+    let readouts = state.kart_readouts();
+    assert_eq!(readouts.len(), 1);
+    readouts[0]
 }
 
 pub fn throttle() -> KartInput {
