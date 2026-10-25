@@ -424,8 +424,10 @@ impl Start {
 }
 
 /// Where a kart stands in the race: what the Instrument panel shows and
-/// what race position is ordered by. One per kart from [`State::standings`].
-#[derive(Debug, Clone, Copy, PartialEq)]
+/// what race position is ordered by. One per kart from [`State::standings`],
+/// serialised in the shape of the generated TypeScript type (ADR 0026).
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
 pub struct Standing {
     /// Race position, 1 for the leader. Finishers first in finishing order,
     /// then the rest by laps completed, then checkpoint, then spline
@@ -435,7 +437,11 @@ pub struct Standing {
     /// it is still racing. Final once set: nothing after the line moves a
     /// finisher's place.
     pub finish_time_s: Option<f32>,
+    #[serde(skip)]
     pub laps_completed: u32,
+    /// The lap the kart is on, from 1; a kart that has completed the race's
+    /// laps stays on the last one.
+    pub lap: u32,
     /// The last checkpoint crossed in order this lap; 0 is the start line,
     /// which the grid counts as having crossed.
     pub checkpoint: usize,
@@ -448,14 +454,6 @@ pub struct Standing {
     /// Spline progress has been falling for the tuned time: the kart is
     /// going the wrong way. Stays up until progress rises again.
     pub wrong_way: bool,
-}
-
-impl Standing {
-    /// The lap the kart is on, from 1; a kart that has completed the race's
-    /// laps stays on the last one.
-    pub fn lap(&self) -> u32 {
-        (self.laps_completed + 1).min(LAPS_PER_RACE)
-    }
 }
 
 /// Everything the sim knows about a race. Owns the physics world and the
@@ -582,7 +580,8 @@ impl Kart {
         self.stall_left_s > 0.0 || self.spun_out()
     }
 
-    /// The lap the kart is on, as [`Standing::lap`] counts it.
+    /// The lap the kart is on, from 1; a kart that has completed the race's
+    /// laps stays on the last one.
     fn lap(&self) -> u32 {
         (self.laps_completed + 1).min(LAPS_PER_RACE)
     }
@@ -604,7 +603,7 @@ impl Kart {
             start: self.start,
             stall_s: (self.stall_left_s > 0.0).then_some(self.stall_left_s),
             race_position: standing.position,
-            lap: standing.lap(),
+            lap: standing.lap,
             checkpoint: standing.checkpoint,
             spline_progress: standing.spline_progress,
             wrong_way: standing.wrong_way,
@@ -1093,6 +1092,7 @@ impl State {
                 position,
                 finish_time_s: kart.finish_time_s,
                 laps_completed: kart.laps_completed,
+                lap: kart.lap(),
                 checkpoint: kart.checkpoint,
                 spline_progress: kart.spline_progress,
                 lap_time_s: kart.lap_time_s,

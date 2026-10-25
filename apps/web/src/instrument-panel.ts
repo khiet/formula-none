@@ -237,18 +237,17 @@ export function phaseReadout(phase: Phase): string {
  */
 export function lapReadouts(standing: Standing, lapsPerRace: number): LapReadouts {
   const lapsCompleted =
-    standing.finishTimeSeconds === null
+    standing.finishTimeS === null
       ? Math.min(Math.max(standing.lap - 1, 0), lapsPerRace)
       : lapsPerRace;
   return {
     position: ordinalParts(standing.position),
     lap: `Lap ${standing.lap}/${lapsPerRace}`,
     lapsCompleted,
-    lapTime: { label: "Time", value: formatLapTime(standing.lapTimeSeconds) },
+    lapTime: { label: "Time", value: formatLapTime(standing.lapTimeS) },
     bestLap: {
       label: "Best",
-      value:
-        standing.bestLapSeconds === null ? NO_LAP_TIME : formatLapTime(standing.bestLapSeconds),
+      value: standing.bestLapS === null ? NO_LAP_TIME : formatLapTime(standing.bestLapS),
     },
     wrongWay: standing.wrongWay ? WRONG_WAY_WARNING : "",
   };

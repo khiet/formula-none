@@ -71,7 +71,7 @@ export function soundReading(
     spunOut: kart.spinOutS !== null,
     boostSeconds: kart.boostS,
     lap: standing.lap,
-    finished: standing.finishTimeSeconds !== null,
+    finished: standing.finishTimeS !== null,
     count: phaseReadout(phase),
     charge: phase.kind === "countdown" ? kart.start : null,
     stalled: kart.stallS !== null,

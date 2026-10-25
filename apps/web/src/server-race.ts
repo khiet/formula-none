@@ -148,10 +148,10 @@ export function createServerRace(
           splineProgress: snapshot?.splineProgress ?? 0,
           // The lap clock runs from Go, less the laps already completed; a
           // finisher's stops on the last lap's time.
-          lapTimeSeconds: finishTime === null ? Math.max(raceClock - raced, 0) : (laps.at(-1) ?? 0),
-          bestLapSeconds: final?.bestLapS ?? (laps.length === 0 ? null : Math.min(...laps)),
+          lapTimeS: finishTime === null ? Math.max(raceClock - raced, 0) : (laps.at(-1) ?? 0),
+          bestLapS: final?.bestLapS ?? (laps.length === 0 ? null : Math.min(...laps)),
           wrongWay: snapshot?.wrongWay ?? false,
-          finishTimeSeconds: finishTime,
+          finishTimeS: finishTime,
         };
       });
     },

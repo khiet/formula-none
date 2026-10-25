@@ -12,7 +12,7 @@
 use protocol::{ClientMessage, Input, ServerMessage, Snapshot};
 use serde::de::DeserializeOwned;
 use serde::Serialize;
-use sim::{KartInput, KartReadout, Phase, Projectile, Replay, State, Surface, Track};
+use sim::{KartInput, KartReadout, Phase, Projectile, Replay, Standing, State, Surface, Track};
 use wasm_bindgen::prelude::*;
 
 /// Floats per kart in the input buffer: steer, throttle, brake, hop, use
@@ -23,9 +23,8 @@ const FLOATS_PER_INPUT: usize = 6;
 /// rotation quaternion x, y, z, w. Y is up; identity rotation faces -Z.
 pub const FLOATS_PER_TRANSFORM: usize = 7;
 
-/// Written in the standings and phase buffers where a kart has no best lap
-/// or finish time yet, and where the grace has not started; a time is never
-/// negative.
+/// Written in the phase buffer where the grace has not started; a time is
+/// never negative.
 const NO_TIME: f32 = -1.0;
 
 /// What the browser reads of the sim's tuning (ADR 0014), as a value of
@@ -194,31 +193,11 @@ impl Race {
         to_js(&self.kart_readouts())
     }
 
-    /// Eight floats per kart in grid order: race position from 1, the lap
-    /// the kart is on from 1 (staying on the last once the race's laps are
-    /// done), the last checkpoint crossed in order (0 is the start line),
-    /// spline progress in metres along the centreline, seconds into the
-    /// current lap, the best lap in seconds or -1 before a lap is
-    /// completed, 1 while the wrong-way warning is up, else 0, and the race
-    /// clock at the kart's finish or -1 while it is still racing.
-    /// `sim::State::standings` documents the ordering.
-    pub fn standings(&self) -> Vec<f32> {
-        self.state()
-            .standings()
-            .iter()
-            .flat_map(|standing| {
-                [
-                    standing.position as f32,
-                    standing.lap() as f32,
-                    standing.checkpoint as f32,
-                    standing.spline_progress,
-                    standing.lap_time_s,
-                    standing.best_lap_s.unwrap_or(NO_TIME),
-                    f32::from(u8::from(standing.wrong_way)),
-                    standing.finish_time_s.unwrap_or(NO_TIME),
-                ]
-            })
-            .collect()
+    /// One standing per kart in grid order, as values of the generated
+    /// `Standing` type. `sim::State::standings` documents the ordering.
+    #[wasm_bindgen(js_name = standings)]
+    pub fn standings_js(&self) -> Result<JsValue, String> {
+        to_js(&self.standings())
     }
 
     /// Four floats per item box of the track, in the sidecar's order: its
@@ -298,6 +277,12 @@ impl Race {
 }
 
 impl Race {
+    /// One standing per kart in grid order: what `standings` carries to
+    /// JavaScript.
+    pub fn standings(&self) -> Vec<Standing> {
+        self.state().standings()
+    }
+
     /// Every kart's readout in grid order, with the surface under it: what
     /// `kart_transforms` and `kart_readouts` carry to JavaScript.
     pub fn kart_readouts(&self) -> Vec<(KartReadout, Surface)> {

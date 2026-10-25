@@ -59,9 +59,8 @@ export function resultsRows(results: RaceResults): ResultRow[] {
     .map(({ standing, slot }) => ({
       position: ordinal(standing.position),
       name: kartName(results, slot),
-      bestLap:
-        standing.bestLapSeconds === null ? NO_LAP_TIME : formatLapTime(standing.bestLapSeconds),
-      finished: standing.finishTimeSeconds !== null,
+      bestLap: standing.bestLapS === null ? NO_LAP_TIME : formatLapTime(standing.bestLapS),
+      finished: standing.finishTimeS !== null,
     }));
 }
 

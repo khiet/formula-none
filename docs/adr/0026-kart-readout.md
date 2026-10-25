@@ -29,13 +29,13 @@ for the rest of the row.
   prediction and the interpolation produce the same type, and a kart
   adopts one from a snapshot beside the handling that reads it.
 - The bridge carries the transform, position then rotation, as a flat
-  buffer of seven floats a kart. The rest of each readout, and the surface
-  under the kart, crosses as a JavaScript value through
-  `serde_wasm_bindgen`.
-- The readout's TypeScript type, with the sim types it names and the
-  `Tuning` the bridge hands over in one `tuning()` call, is generated with
-  ts-rs into `apps/web/src/generated/sim` by the protocol's generator
-  (ADR 0004). CI regenerates it and fails on a diff.
+  buffer of seven floats a kart. The rest of each readout, the surface
+  under the kart and each kart's standing cross as JavaScript values
+  through `serde_wasm_bindgen`.
+- The readout's TypeScript type, with the sim types it names, the
+  `Standing`, and the `Tuning` the bridge hands over in one `tuning()`
+  call, is generated with ts-rs into `apps/web/src/generated/sim` by the
+  protocol's generator (ADR 0004). CI regenerates it and fails on a diff.
 - `protocol` depends on `sim` and holds the conversions between the wire's
   types and the sim's, one `From` each way. The orphan rule allows these
   impls only in a crate that owns one of the types. The server, the bridge
@@ -54,6 +54,6 @@ for the rest of the row.
   the wasm build.
 - A sim value crosses to JavaScript with a `usize` as a number, as ts-rs
   types it; a message keeps its `u64` as a bigint.
-- The standings, phase, item boxes, hazards and projectiles still cross as
-  flat buffers. They are not the kart readout, and moving them is a
-  separate decision.
+- The phase, item boxes, hazards and projectiles still cross as flat
+  buffers. They are not per-kart state, and moving them is a separate
+  decision.

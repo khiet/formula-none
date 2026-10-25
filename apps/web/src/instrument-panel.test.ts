@@ -32,10 +32,10 @@ const onTheGrid: Standing = {
   lap: 1,
   checkpoint: 0,
   splineProgress: 434,
-  lapTimeSeconds: 0,
-  bestLapSeconds: null,
+  lapTimeS: 0,
+  bestLapS: null,
   wrongWay: false,
-  finishTimeSeconds: null,
+  finishTimeS: null,
 };
 
 describe("lap readouts", () => {
@@ -57,7 +57,7 @@ describe("lap readouts", () => {
 
   it("shows position as an ordinal, the lap clock in minutes and the best lap once there is one", () => {
     const readouts = lapReadouts(
-      { ...onTheGrid, position: 3, lap: 2, lapTimeSeconds: 75.4567, bestLapSeconds: 14.9996 },
+      { ...onTheGrid, position: 3, lap: 2, lapTimeS: 75.4567, bestLapS: 14.9996 },
       3,
     );
     expect(readouts.position).toEqual({ numeral: "3", suffix: "rd" });
@@ -68,8 +68,8 @@ describe("lap readouts", () => {
   });
 
   it("counts every lap completed once the kart has finished, whatever lap it is on", () => {
-    expect(lapReadouts({ ...onTheGrid, lap: 3, finishTimeSeconds: 70.5 }, 3).lapsCompleted).toBe(3);
-    expect(lapReadouts({ ...onTheGrid, lap: 4, finishTimeSeconds: 70.5 }, 3).lapsCompleted).toBe(3);
+    expect(lapReadouts({ ...onTheGrid, lap: 3, finishTimeS: 70.5 }, 3).lapsCompleted).toBe(3);
+    expect(lapReadouts({ ...onTheGrid, lap: 4, finishTimeS: 70.5 }, 3).lapsCompleted).toBe(3);
   });
 });
 
@@ -111,7 +111,7 @@ describe("the lap instruments on the page", () => {
     expect(filled()).toBe(2);
     panel.update(
       local,
-      { ...onTheGrid, lap: 3, finishTimeSeconds: 70 },
+      { ...onTheGrid, lap: 3, finishTimeS: 70 },
       racing,
       { item: null, firing: false },
       [local],
@@ -124,7 +124,7 @@ describe("the lap instruments on the page", () => {
     const local = at([0, 0.3, 0]);
     panel.update(
       local,
-      { ...onTheGrid, lapTimeSeconds: 27.304, bestLapSeconds: 44.91 },
+      { ...onTheGrid, lapTimeS: 27.304, bestLapS: 44.91 },
       racing,
       { item: null, firing: false },
       [local],

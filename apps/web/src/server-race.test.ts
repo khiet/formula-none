@@ -218,7 +218,7 @@ describe("createServerRace", () => {
     expect(transforms[0]).toEqual(PREDICTED);
     expect(transforms[1]).toEqual(GRID_TRANSFORM);
     expect(run.phase()).toEqual({ kind: "countdown", remainingSeconds: COUNTDOWN_S });
-    expect(run.standings()[0]).toMatchObject({ position: 1, lap: 1, lapTimeSeconds: 0 });
+    expect(run.standings()[0]).toMatchObject({ position: 1, lap: 1, lapTimeS: 0 });
   });
 
   it("sends each tick's input to the server and predicts the tick from it as the server reads it", () => {
@@ -269,13 +269,13 @@ describe("createServerRace", () => {
       lap: 2,
       checkpoint: 4,
       splineProgress: 321,
-      bestLapSeconds: 41.5,
+      bestLapS: 41.5,
       wrongWay: true,
-      finishTimeSeconds: null,
+      finishTimeS: null,
     });
-    expect(standing?.lapTimeSeconds).toBeCloseTo(8.5);
+    expect(standing?.lapTimeS).toBeCloseTo(8.5);
     client.event(lap(2, 0, 40));
-    expect(run.standings()[0]?.bestLapSeconds).toBe(40);
+    expect(run.standings()[0]?.bestLapS).toBe(40);
   });
 
   it("finishes on the results, whose standings replace the snapshot's and stop the lap clock", () => {
@@ -288,7 +288,7 @@ describe("createServerRace", () => {
     client.event({ id: 3, kind: { lapCompleted: { kart: 0, lap: 3, lapTimeS: 42 } } });
     client.event({ id: 4, kind: { finished: { kart: 0, position: 1, finishTimeS: 123.5 } } });
     expect(run.phase().kind).toBe("racing");
-    expect(run.standings()[0]).toMatchObject({ finishTimeSeconds: 123.5, lapTimeSeconds: 42 });
+    expect(run.standings()[0]).toMatchObject({ finishTimeS: 123.5, lapTimeS: 42 });
     client.results([
       { kart: 0, position: 1, finishTimeS: 123.5, bestLapS: 40 },
       { kart: 1, position: 2, finishTimeS: null, bestLapS: null },
@@ -296,8 +296,8 @@ describe("createServerRace", () => {
     expect(run.phase()).toEqual({ kind: "finished" });
     expect(run.standings()[1]).toMatchObject({
       position: 2,
-      finishTimeSeconds: null,
-      bestLapSeconds: null,
+      finishTimeS: null,
+      bestLapS: null,
     });
     // Disposed, the run stops following the client.
     run.dispose();

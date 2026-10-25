@@ -254,10 +254,10 @@ describe("soundReading", () => {
     lap: 2,
     checkpoint: 4,
     splineProgress: 100,
-    lapTimeSeconds: 10,
-    bestLapSeconds: null,
+    lapTimeS: 10,
+    bestLapS: null,
     wrongWay: false,
-    finishTimeSeconds: null,
+    finishTimeS: null,
   };
   const racing: Phase = { kind: "racing", elapsedSeconds: 5, graceLeftSeconds: null };
 
@@ -304,7 +304,7 @@ describe("soundReading", () => {
   it("takes the item from the slot, which a room's race fills from the server's events", () => {
     const reading = soundReading(
       { ...kart, drift: null, spinOutS: null, boostS: 0.5 },
-      { ...standing, finishTimeSeconds: 61.2 },
+      { ...standing, finishTimeS: 61.2 },
       { item: "homing", firing: false },
       racing,
     );

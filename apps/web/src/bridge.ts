@@ -13,9 +13,9 @@ import init, {
   Race as WasmRace,
 } from "./generated/bridge/bridge.js";
 import type { ClientMessage, Input, ServerMessage, Snapshot } from "./generated/protocol";
-import type { KartReadout as SimKartReadout, Surface, Tuning } from "./generated/sim";
+import type { KartReadout as SimKartReadout, Standing, Surface, Tuning } from "./generated/sim";
 
-export type { Drift, DriftDirection, MiniTurbo, Surface } from "./generated/sim";
+export type { Drift, DriftDirection, MiniTurbo, Standing, Surface } from "./generated/sim";
 
 /**
  * One kart's controls for one tick, whichever device produced them: steer
@@ -76,27 +76,6 @@ export interface Projectile {
   readonly position: readonly [number, number, number];
   readonly owner: number;
   readonly target: number;
-}
-
-/**
- * Where a kart stands in the race, as the Instrument panel shows it: race
- * position from 1, the lap it is on from 1 (staying on the last once the
- * race's laps are done), the last checkpoint crossed in order (0 is the
- * start line), spline progress in metres along the centreline, seconds into
- * the current lap, the best lap once one is completed, and whether the
- * wrong-way warning is up (spline progress has fallen for the tuned time
- * and has not risen since).
- */
-export interface Standing {
-  readonly position: number;
-  readonly lap: number;
-  readonly checkpoint: number;
-  readonly splineProgress: number;
-  readonly lapTimeSeconds: number;
-  readonly bestLapSeconds: number | null;
-  readonly wrongWay: boolean;
-  /** The race clock as the kart finished its laps; null while it is still racing. */
-  readonly finishTimeSeconds: number | null;
 }
 
 /**
@@ -297,15 +276,13 @@ export interface Bridge extends MessageCodec {
   readonly roomCodeLength: number;
 }
 
-// Buffer layouts the bridge crate documents on Race::step, Race::kart_transforms,
-// Race::standings and Race::phase; a Prediction's transform and phase are laid
-// out as a Race's.
+// Buffer layouts the bridge crate documents on Race::step, Race::kart_transforms
+// and Race::phase; a Prediction's transform and phase are laid out as a Race's.
 const FLOATS_PER_INPUT = 6;
 const FLOATS_PER_TRANSFORM = 7;
 const FLOATS_PER_ITEM_BOX = 4;
 const FLOATS_PER_HAZARD = 5;
 const FLOATS_PER_PROJECTILE = 5;
-const FLOATS_PER_STANDING = 8;
 const FLOATS_PER_PHASE = 3;
 /** Phase codes in the phase buffer, in the sim's order. */
 const PHASES = ["countdown", "racing", "finished"] as const;
@@ -421,26 +398,9 @@ class BridgedRace implements Race {
   }
 
   standings(): Standing[] {
-    const buffer = this.#race.standings();
-    if (buffer.length !== this.#kartCount * FLOATS_PER_STANDING) {
-      throw new RangeError(
-        `standings buffer has ${buffer.length} floats for ${this.#kartCount} karts`,
-      );
-    }
-    const standings: Standing[] = [];
-    for (let slot = 0; slot < this.#kartCount; slot++) {
-      const at = slot * FLOATS_PER_STANDING;
-      const read = (offset: number): number => buffer[at + offset] as number;
-      standings.push({
-        position: read(0),
-        lap: read(1),
-        checkpoint: read(2),
-        splineProgress: read(3),
-        lapTimeSeconds: read(4),
-        bestLapSeconds: timeOrNull(read(5)),
-        wrongWay: read(6) !== 0,
-        finishTimeSeconds: timeOrNull(read(7)),
-      });
+    const standings = rethrown(() => this.#race.standings() as Standing[]);
+    if (standings.length !== this.#kartCount) {
+      throw new RangeError(`${standings.length} standings for ${this.#kartCount} karts`);
     }
     return standings;
   }

@@ -40,8 +40,8 @@ describe("race phase", () => {
     expect(ticks).toBeLessThanOrEqual(181);
     expect(race.phase()).toEqual({ kind: "racing", elapsedSeconds: 0, graceLeftSeconds: null });
     expect(race.kartReadouts().map((kart) => kart.speed)).toEqual([0, 0]);
-    expect(race.standings().map((kart) => kart.lapTimeSeconds)).toEqual([0, 0]);
-    expect(race.standings().map((kart) => kart.finishTimeSeconds)).toEqual([null, null]);
+    expect(race.standings().map((kart) => kart.lapTimeS)).toEqual([0, 0]);
+    expect(race.standings().map((kart) => kart.finishTimeS)).toEqual([null, null]);
 
     for (let tick = 0; tick < 30; tick++) {
       race.step([THROTTLE], DT);
@@ -61,16 +61,16 @@ describe("race phase", () => {
     const race = started(bridge.createRace(7n, 1, 1, OVAL), 1);
     // The human idles on the grid; the bot laps the oval three times.
     let ticks = 0;
-    while (race.standings()[1]?.finishTimeSeconds === null) {
+    while (race.standings()[1]?.finishTimeS === null) {
       race.step([IDLE_INPUT], DT);
       ticks += 1;
       expect(ticks, "three laps take under 90 s").toBeLessThan(90 * 60);
     }
     const [human, bot] = race.standings();
     expect(bot?.lap).toBe(bridge.lapsPerRace);
-    expect(bot?.finishTimeSeconds).toBeCloseTo(ticks * DT, 1);
+    expect(bot?.finishTimeS).toBeCloseTo(ticks * DT, 1);
     expect(bot?.position).toBe(1);
-    expect(human?.finishTimeSeconds).toBeNull();
+    expect(human?.finishTimeS).toBeNull();
     const phase = race.phase();
     expect(phase.kind).toBe("racing");
     if (phase.kind === "racing") {
@@ -282,10 +282,10 @@ describe("standings", () => {
       lap: 1,
       checkpoint: 0,
       splineProgress: expect.any(Number),
-      lapTimeSeconds: 0,
-      bestLapSeconds: null,
+      lapTimeS: 0,
+      bestLapS: null,
       wrongWay: false,
-      finishTimeSeconds: null,
+      finishTimeS: null,
     });
     expect(second?.position).toBe(2);
     // The grid is just behind the start line, at the far end of the lap.
@@ -303,9 +303,9 @@ describe("standings", () => {
     expect(driven?.position).toBe(1);
     expect(pole?.position).toBe(2);
     expect(driven?.checkpoint).toBe(1);
-    expect(driven?.lapTimeSeconds).toBeCloseTo(3, 1);
-    expect(pole?.lapTimeSeconds).toBeCloseTo(3, 1);
-    expect(driven?.bestLapSeconds).toBeNull();
+    expect(driven?.lapTimeS).toBeCloseTo(3, 1);
+    expect(pole?.lapTimeS).toBeCloseTo(3, 1);
+    expect(driven?.bestLapS).toBeNull();
     expect(driven?.wrongWay).toBe(false);
   });
 

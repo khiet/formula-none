@@ -95,7 +95,7 @@ fn a_kart_on_the_grid_is_on_lap_one_at_the_start_line_in_first_place() {
     let standing = only_standing(&race(1));
 
     assert_eq!(standing.position, 1);
-    assert_eq!(standing.lap(), 1);
+    assert_eq!(standing.lap, 1);
     assert_eq!(standing.laps_completed, 0);
     assert_eq!(standing.checkpoint, 0);
     assert_eq!(standing.lap_time_s, 0.0);
@@ -243,7 +243,7 @@ fn a_lap_completes_at_the_start_line_after_every_checkpoint_and_records_its_time
 
     let standing = only_standing(&state);
     assert_eq!(standing.laps_completed, 1);
-    assert_eq!(standing.lap(), 2);
+    assert_eq!(standing.lap, 2);
     assert!(
         (1..4).contains(&standing.checkpoint),
         "a few checkpoints into the second lap, not {}",
@@ -694,7 +694,7 @@ fn three_laps_of_the_oval_end_with_the_lap_counter_at_three_and_a_best_lap() {
 
     let standing = only_standing(&state);
     assert_eq!(standing.laps_completed, 3);
-    assert_eq!(standing.lap(), 3, "the counter stays on the last lap");
+    assert_eq!(standing.lap, 3, "the counter stays on the last lap");
     assert_eq!(lap_times.len(), 3);
     // The first lap starts from a standstill, so a flying lap is the best.
     let best = standing.best_lap_s.expect("three laps were completed");

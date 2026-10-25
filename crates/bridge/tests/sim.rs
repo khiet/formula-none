@@ -11,9 +11,6 @@ const OVAL: &str = include_str!("../../../assets/tracks/oval/oval.track.json");
 const DT: f32 = 1.0 / TICKS_PER_SECOND as f32;
 /// Floats per kart in the input buffer: steer, throttle, brake, hop, use item, hold item.
 const FLOATS_PER_INPUT: usize = 6;
-/// Floats per kart in the standings buffer: position, lap, checkpoint,
-/// spline progress, lap time, best lap, wrong way, finish time.
-const FLOATS_PER_STANDING: usize = 8;
 /// Phase codes in the phase buffer.
 const COUNTDOWN: f32 = 0.0;
 const RACING: f32 = 1.0;
@@ -219,9 +216,11 @@ fn the_readouts_are_the_sim_crates_readouts_for_the_same_race() {
 }
 
 #[test]
-fn the_standings_buffer_is_the_sim_crates_standings_for_the_same_race() {
-    let throttle = [0.0, 1.0, 0.0, 0.0, 0.0, 0.0];
-    let idle = [0.0; FLOATS_PER_INPUT];
+fn the_standings_are_the_sim_crates_standings_for_the_same_race() {
+    let throttle = KartInput {
+        throttle: 1.0,
+        ..KartInput::default()
+    };
     let mut state = started(sim::State::new(42, 2, Track::from_sidecar(OVAL).unwrap()));
     let mut race = started_race(42, 2, 0);
     // Long enough for the second kart to pass pole and the first checkpoint.
@@ -237,27 +236,14 @@ fn the_standings_buffer_is_the_sim_crates_standings_for_the_same_race() {
             ],
             DT,
         );
-        race.step(&[idle, throttle].concat(), DT);
+        race.step(&floats(&[KartInput::default(), throttle]), DT);
     }
 
-    let buffer = race.standings();
-    assert_eq!(buffer.len(), 2 * FLOATS_PER_STANDING);
-    for (chunk, expected) in buffer.chunks(FLOATS_PER_STANDING).zip(state.standings()) {
-        assert_eq!(chunk[0], expected.position as f32);
-        assert_eq!(chunk[1], expected.lap() as f32);
-        assert_eq!(chunk[2], expected.checkpoint as f32);
-        assert_eq!(chunk[3], expected.spline_progress);
-        assert_eq!(chunk[4], expected.lap_time_s);
-        assert_eq!(expected.best_lap_s, None);
-        assert_eq!(chunk[5], -1.0, "no best lap yet");
-        assert!(!expected.wrong_way);
-        assert_eq!(chunk[6], 0.0, "both face the right way");
-        assert_eq!(expected.finish_time_s, None);
-        assert_eq!(chunk[7], -1.0, "neither has finished");
-    }
-    assert_eq!(buffer[0], 2.0, "pole was passed");
-    assert_eq!(buffer[FLOATS_PER_STANDING], 1.0);
-    assert_eq!(buffer[FLOATS_PER_STANDING + 2], 1.0, "past the first gate");
+    let standings = race.standings();
+    assert_eq!(standings, state.standings());
+    assert_eq!(standings[0].position, 2, "pole was passed");
+    assert_eq!(standings[1].position, 1);
+    assert_eq!(standings[1].checkpoint, 1, "past the first gate");
 }
 
 #[test]
@@ -325,7 +311,7 @@ fn bots_fill_the_slots_behind_the_humans_and_step_takes_only_the_humans_inputs()
     // human instead of shoving it along.
     let mut race = started_race(4, 1, 2);
     assert_eq!(race.kart_readouts().len(), 3);
-    assert_eq!(race.standings().len(), 3 * FLOATS_PER_STANDING);
+    assert_eq!(race.standings().len(), 3);
     let idle = [0.0; FLOATS_PER_INPUT];
     for _ in 0..3 * TICKS_PER_SECOND {
         race.step(&idle, DT);
@@ -380,14 +366,17 @@ fn the_phase_buffer_walks_countdown_racing_and_finished_as_the_sim_does() {
         phase[2]
     );
     let standings = race.standings();
-    assert_eq!(standings[FLOATS_PER_STANDING + 7], finish);
-    assert_eq!(standings[7], -1.0, "the human has not finished");
-    assert_eq!(standings[FLOATS_PER_STANDING], 1.0, "the finisher leads");
+    assert_eq!(standings[1].finish_time_s, Some(finish));
+    assert_eq!(
+        standings[0].finish_time_s, None,
+        "the human has not finished"
+    );
+    assert_eq!(standings[1].position, 1, "the finisher leads");
 
     // Idle through the grace, with a tick for the timer's rounding.
     for _ in 0..(RACE_END_GRACE_S * TICKS_PER_SECOND as f32) as u32 + 1 {
         race.step(&idle, DT);
     }
     assert_eq!(race.phase(), vec![FINISHED, 0.0, -1.0]);
-    assert_eq!(race.standings()[FLOATS_PER_STANDING + 7], finish);
+    assert_eq!(race.standings()[1].finish_time_s, Some(finish));
 }
