@@ -36,8 +36,8 @@ const SHIFT_LIGHTS_FROM_RPM = 6000;
 /**
  * The gear and revs for `speed` against `topSpeed`, both in m/s: six even
  * bands up to top speed, revs climbing across each. A reverse revs across
- * the first band. The limiter waits for the speed to show over top speed so
- * a kart sitting on top speed does not flicker onto it.
+ * the first band. The limiter comes on once the shown km/h passes top
+ * speed's, so 30.1 m/s against 30 still reads 108 km/h in 6th.
  */
 export function drivetrain(speed: number, topSpeed: number): Drivetrain {
   const band = topSpeed / GEARS;
