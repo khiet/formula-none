@@ -122,6 +122,14 @@ kart's, and the Results Scene lists every kart's once the race is Finished.
 Finishers hold their places in finishing order whatever they do after the
 line.
 
+### handling
+
+How one kart answers its controls each tick: its speed, the hop, drift and
+mini-turbo, boosts, the off-track cap, the freeze of a stall or spin-out,
+and the hold of a wall and the bump off another kart. One rule in the sim,
+run for every kart before the physics solver and told afterward of the
+walls and karts it met.
+
 ### hop
 
 A short jump (0.3 s airtime) that starts a drift when it lands while the kart

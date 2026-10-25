@@ -403,7 +403,7 @@ impl Prediction {
 fn agrees(record: &KartRecord, kart: &KartReadout, racing: bool) -> bool {
     let nose = |rotation: Rotation| rotation * Vec3::NEG_Z * KART_HALF_LENGTH_M;
     let near = |a: Vec3, b: Vec3| a.distance(b) <= RECONCILIATION_TOLERANCE_M;
-    let drift = match (record.kart.drift, kart.drift) {
+    let drift = match (record.kart.handling.drift(), kart.drift) {
         (None, None) => true,
         (Some(ours), Some(theirs)) => {
             ours.direction == theirs.direction

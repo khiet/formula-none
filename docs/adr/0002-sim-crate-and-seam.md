@@ -2,7 +2,8 @@
 
 ## Status
 
-Accepted (2026-10-18)
+Accepted (2026-10-18). The consequence that tests never reach into
+internals is superseded for the handling module by ADR 0027.
 
 ## Context
 

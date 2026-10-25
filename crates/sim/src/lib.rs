@@ -21,6 +21,7 @@
 //! [`State::events`] after that tick.
 
 pub mod bot;
+mod handling;
 mod hash;
 pub mod interpolation;
 pub mod prediction;
@@ -32,6 +33,8 @@ pub use interpolation::Interpolation;
 pub use prediction::Prediction;
 pub use replay::{Replay, ReplayError, Segment};
 pub use track::{Checkpoint, Placement, Surface, SurfaceMesh, Track, TrackError};
+
+use handling::{Freeze, Handling, Situation};
 
 use rand_chacha::rand_core::{Rng, SeedableRng};
 use rand_chacha::ChaCha8Rng;
@@ -488,17 +491,9 @@ struct Kart {
     /// The bot driving this kart, with what it remembers; `None` while its
     /// human drives it.
     bot: Option<bot::Memory>,
-    /// The unit direction the handling model sent the kart this tick: its
-    /// facing, turned by the slip angle in a drift. What a wall's hold
-    /// measures the surviving speed along.
-    travel: Vec3,
-    /// Unit normals, pointing at the kart, of the walls it ended the last
-    /// tick against. The next tick's handling sends no velocity into them.
-    walls: Vec<Vec3>,
-    /// Velocity away from the karts it has touched, metres per second
-    /// along the ground, added to the handling's each tick and decaying
-    /// over the tuned time. Zero while nothing has bumped it lately.
-    bump: Vec3,
+    /// How the kart answers its controls: its speed and everything that
+    /// bends it.
+    handling: Handling,
     /// Seconds the kart has been outside the world without a break; it
     /// respawns when this reaches the tuned delay.
     out_of_world_s: f32,
@@ -506,28 +501,6 @@ struct Kart {
     /// wrong-way warning shows once this reaches the tuned time. Standing
     /// still neither adds to it nor clears it.
     wrong_way_s: f32,
-    /// Speed along the kart's facing, metres per second. Held outside Rapier
-    /// so contacts and friction never leak into the handling model.
-    speed: f32,
-    /// Seconds of hop airtime left; zero or less on the ground. A timer
-    /// rather than a Rapier contact, so the landing tick never depends on
-    /// contact tolerances.
-    airtime_left_s: f32,
-    /// Whether the hop button was down last tick, so a hop needs a fresh
-    /// press: holding the button through a landing never hops again.
-    hop_was_held: bool,
-    /// The direction the kart was steering when it hopped: the direction a
-    /// drift on landing takes. `None` when it hopped straight.
-    hop_direction: Option<DriftDirection>,
-    drift: Option<Drift>,
-    /// Whether the kart was on a boost pad last tick, so a pad fires once,
-    /// as the kart enters it, and its clock runs from there.
-    on_boost_pad: bool,
-    /// Seconds of boost left; zero or less when not boosting.
-    boost_left_s: f32,
-    /// Top speed multiplier while boosting: the mini-turbo's or the boost
-    /// pad's, whichever started last.
-    boost_factor: f32,
     laps_completed: u32,
     /// The last checkpoint crossed in order this lap. The grid starts at 0,
     /// the start line, so the first lap begins at Go.
@@ -567,10 +540,6 @@ impl Kart {
         self.finish_time_s.is_some()
     }
 
-    fn airborne(&self) -> bool {
-        self.airtime_left_s > 0.0
-    }
-
     fn spun_out(&self) -> bool {
         self.spin_out_left_s > 0.0
     }
@@ -592,14 +561,14 @@ impl Kart {
         KartReadout {
             position: body.translation().to_array(),
             rotation: body.rotation().to_array(),
-            speed: self.speed,
+            speed: self.handling.speed(),
             velocity: body.linvel().to_array(),
-            drift: self.drift,
-            mini_turbo: MiniTurbo::of(self.drift),
+            drift: self.handling.drift(),
+            mini_turbo: MiniTurbo::of(self.handling.drift()),
             held_item: self.held_item,
             spin_out_s: self.spun_out().then_some(self.spin_out_left_s),
-            airborne: self.airborne(),
-            boost_s: (self.boost_left_s > 0.0).then_some(self.boost_left_s),
+            airborne: self.handling.airborne(),
+            boost_s: self.handling.boost_s(),
             start: self.start,
             stall_s: (self.stall_left_s > 0.0).then_some(self.stall_left_s),
             race_position: standing.position,
@@ -612,36 +581,27 @@ impl Kart {
 
     /// Take on the word of `readout` on everything a snapshot carries, at
     /// `clock`, the race clock at the snapshot's tick: the inverse of
-    /// [`Kart::readout`] for the fields the handling keeps beside the body.
+    /// [`Kart::readout`] for the fields the kart keeps beside the body.
     /// What a snapshot does not carry stays the kart's own, run by the same
     /// rules on the same inputs. From Go, a rocket start verdict other than
     /// the kart's replaces the boost or stall it was given at Go with the
     /// readout's, run down by the ticks since. The caller puts the body
     /// where the readout has it.
     fn adopt(&mut self, readout: &KartReadout, clock: Phase) {
-        let rotation = Rotation::from_array(readout.rotation).normalize();
-        self.drift = readout.drift;
-        let slip = self.drift.map_or(0.0, |drift| drift_slip(drift.direction));
-        self.travel = rotation * Rotation::from_rotation_y(slip) * Vec3::NEG_Z;
-        // A snapshot does not carry the bump a touch left, so the kart's
-        // own stands; the speed is what the velocity holds along the travel
-        // once that bump is taken off, as `step` built it.
-        self.speed = self.travel.dot(Vec3::from(readout.velocity) - self.bump);
+        self.handling.adopt(
+            Rotation::from_array(readout.rotation).normalize(),
+            readout.drift,
+            Vec3::from(readout.velocity),
+        );
         self.held_item = readout.held_item;
         self.spin_out_left_s = readout.spin_out_s.unwrap_or(0.0);
         if let Phase::Racing { elapsed_s, .. } = clock {
             if self.start != readout.start {
                 self.start = readout.start;
-                self.boost_left_s = 0.0;
+                self.handling.end_boost();
                 apply_start(self, readout.start);
-                // The boost's clock, run down a tick at a time as `step`
-                // runs it, so the two spend it on the same tick.
                 let ticks_since_go = (elapsed_s / tuning::TICK_S).round() as u32;
-                for _ in 0..ticks_since_go {
-                    if self.boost_left_s > 0.0 {
-                        self.boost_left_s -= tuning::TICK_S;
-                    }
-                }
+                self.handling.spend_boost(ticks_since_go, tuning::TICK_S);
             }
         }
         self.stall_left_s = readout.stall_s.unwrap_or(0.0);
@@ -671,12 +631,6 @@ fn kart_collider() -> Collider {
     .build()
 }
 
-/// Fast enough to slide: what a landing needs to start a drift and a drift
-/// needs to go on.
-fn fast_enough_to_drift(speed: f32) -> bool {
-    speed > DRIFT_ENTRY_SPEED_FRACTION * TOP_SPEED_M_PER_S
-}
-
 /// Rapier's working sets. One struct so `step` passes them around as a unit.
 struct Physics {
     pipeline: PhysicsPipeline,
@@ -692,7 +646,7 @@ struct Physics {
     ccd: CCDSolver,
 }
 
-use tuning::{BOOST_PAD_FACTOR, BOOST_PAD_S, RESPAWN_DELAY_S, WRONG_WAY_WARNING_S};
+use tuning::{BOOST_PAD_FACTOR, RESPAWN_DELAY_S, WRONG_WAY_WARNING_S};
 use tuning::{BOT_RUBBER_BAND_MAX_FACTOR, BOT_RUBBER_BAND_MIN_FACTOR, BOT_RUBBER_BAND_RANGE_M};
 use tuning::{
     BOT_START_BOOST_CHANCE, BOT_START_HOLD_S, COUNTDOWN_S, RACE_END_GRACE_S, START_BOOST_FACTOR,
@@ -700,9 +654,8 @@ use tuning::{
     START_WEAK_BOOST_FACTOR, START_WEAK_BOOST_HOLD_S, START_WEAK_BOOST_S,
 };
 use tuning::{
-    DRIFT_ENTRY_SPEED_FRACTION, GRAVITY_M_PER_S2, HOP_AIRTIME_S, KART_EDGE_RADIUS_M,
-    KART_HALF_HEIGHT_M, KART_HALF_LENGTH_M, KART_HALF_WIDTH_M, LAPS_PER_RACE,
-    MINI_TURBO_BOOST_FACTOR, OFF_TRACK_SPEED_FACTOR, TOP_SPEED_M_PER_S,
+    GRAVITY_M_PER_S2, KART_EDGE_RADIUS_M, KART_HALF_HEIGHT_M, KART_HALF_LENGTH_M,
+    KART_HALF_WIDTH_M, LAPS_PER_RACE, TOP_SPEED_M_PER_S,
 };
 use tuning::{
     HAZARD_DROP_DISTANCE_M, HAZARD_LIFETIME_S, HAZARD_RADIUS_M, ITEM_BOOST_FACTOR, ITEM_BOOST_S,
@@ -712,9 +665,6 @@ use tuning::{
 use tuning::{
     HOMING_LOCK_RANGE_M, HOMING_LOOKAHEAD_M, HOMING_RADIUS_M, HOMING_SPEED_FACTOR,
     HOMING_WITHOUT_TARGET_IS_WASTED,
-};
-use tuning::{
-    KART_BUMP_DECAY_S, KART_BUMP_MIN_M_PER_S, KART_BUMP_RESTITUTION, KART_BUMP_SPEED_LOSS,
 };
 
 // The sim builds only the wasted fire for a projectile with no kart ahead
@@ -735,10 +685,6 @@ const WALL_PREDICTION_M: f32 =
 /// Stands in for a missing best lap, finish time or grace in the hash; none
 /// of them is ever negative.
 const NO_TIME: f32 = -1.0;
-
-/// A bump below this is spent: dropped to zero rather than decayed on
-/// without end, so a settled kart hashes the same wherever it was bumped.
-const BUMP_SPENT_M_PER_S: f32 = 0.01;
 
 impl State {
     /// A fresh race on `track` with `kart_count` human karts on its spawn
@@ -811,19 +757,9 @@ impl State {
                     body,
                     collider,
                     bot: (index >= humans).then_some(bot::Memory::default()),
-                    travel: Vec3::NEG_Z,
-                    walls: Vec::new(),
-                    bump: Vec3::ZERO,
+                    handling: Handling::new(),
                     out_of_world_s: 0.0,
                     wrong_way_s: 0.0,
-                    speed: 0.0,
-                    airtime_left_s: 0.0,
-                    hop_was_held: false,
-                    hop_direction: None,
-                    drift: None,
-                    on_boost_pad: false,
-                    boost_left_s: 0.0,
-                    boost_factor: 1.0,
                     laps_completed: 0,
                     checkpoint: 0,
                     spline_progress: track.progress_at(slot.position),
@@ -969,7 +905,7 @@ impl State {
 
     /// A hash of everything that influences future ticks: the phase and its
     /// clocks, the RNG, the item boxes' respawn clocks, the hazards and
-    /// projectiles and, per kart, its speed, its item and its body's
+    /// projectiles and, per kart, its handling, its item and its body's
     /// position, heading, velocities and sleep state, including the timer
     /// that puts a resting body to sleep.
     /// Bit-identical on every platform for bit-identical states, which is
@@ -1015,20 +951,7 @@ impl State {
         }
         for kart in &self.karts {
             let body = &self.physics.bodies[kart.body];
-            hasher.write_f32(kart.speed);
-            hasher.write_f32(kart.airtime_left_s);
-            hasher.write_u8(u8::from(kart.hop_was_held));
-            hasher.write_f32(kart.hop_direction.map_or(0.0, DriftDirection::steer_sign));
-            hasher.write_f32(kart.drift.map_or(0.0, |drift| drift.direction.steer_sign()));
-            hasher.write_f32(kart.drift.map_or(0.0, |drift| drift.charge_s));
-            hasher.write_u8(u8::from(kart.on_boost_pad));
-            hasher.write_f32(kart.boost_left_s);
-            hasher.write_f32(kart.boost_factor);
-            hasher.write_u64(kart.walls.len() as u64);
-            for wall in &kart.walls {
-                hasher.write_f32s(wall.to_array());
-            }
-            hasher.write_f32s(kart.bump.to_array());
+            kart.handling.hash(&mut hasher);
             hasher.write_f32(kart.out_of_world_s);
             hasher.write_f32(kart.wrong_way_s);
             hasher.write_u32(kart.laps_completed);
@@ -1214,10 +1137,7 @@ pub fn step(mut state: State, inputs: &[KartInput], dt: f32) -> State {
         }
         if let Some(item) = kart.held_item.take() {
             match item {
-                Item::Boost => {
-                    kart.boost_left_s = ITEM_BOOST_S;
-                    kart.boost_factor = ITEM_BOOST_FACTOR;
-                }
+                Item::Boost => kart.handling.boost(ITEM_BOOST_S, ITEM_BOOST_FACTOR),
                 Item::Hazard => {
                     let body = &state.physics.bodies[kart.body];
                     state.hazards.push(PlacedHazard {
@@ -1273,117 +1193,49 @@ pub fn step(mut state: State, inputs: &[KartInput], dt: f32) -> State {
             state.pick_up(slot, item_box, &standings);
         }
     }
-    let top_speeds: Vec<f32> = (0..state.karts.len())
-        .map(|slot| TOP_SPEED_M_PER_S * state.rubber_band(slot))
-        .collect();
-    let surfaces: Vec<Surface> = state
-        .karts
-        .iter()
-        .map(|kart| {
-            state
-                .physics
-                .surface_at(state.physics.bodies[kart.body].translation().to_array())
+    let situations: Vec<Situation> = (0..state.karts.len())
+        .map(|slot| {
+            let body = &state.physics.bodies[state.karts[slot].body];
+            let position = body.translation().to_array();
+            Situation {
+                rotation: *body.rotation(),
+                vertical_m_per_s: body.linvel().y,
+                surface: state.physics.surface_at(position),
+                boost_pad: state.track.on_a_boost_pad(position),
+                top_speed: TOP_SPEED_M_PER_S * state.rubber_band(slot),
+            }
         })
         .collect();
     // Whether each kart holds the item button this tick, as the controls
     // reach the handling: a kart dead to its controls holds nothing.
     let mut holds = vec![false; state.karts.len()];
-    for ((((kart, input), surface), top_speed), hold) in state
+    for (((kart, input), situation), hold) in state
         .karts
         .iter_mut()
         .zip(&inputs)
-        .zip(surfaces)
-        .zip(top_speeds)
+        .zip(situations)
         .zip(&mut holds)
     {
         // A stalled or spun-out kart sits dead to every control until its
-        // time runs out.
-        let input = if kart.ignores_inputs() {
+        // time runs out; a spun-out one stands where it is, whatever runs
+        // into it, and the tick its spin-out runs out it moves again.
+        let freeze = if kart.ignores_inputs() {
             kart.stall_left_s -= dt;
             kart.spin_out_left_s -= dt;
-            &KartInput::default()
-        } else {
-            input
-        };
-        *hold = input.hold_item;
-        let body = &mut state.physics.bodies[kart.body];
-        // A spun-out kart stands where it is, whatever runs into it; the
-        // tick its spin-out runs out it moves again.
-        body.lock_translations(kart.spun_out(), true);
-        let position = body.translation().to_array();
-        // Keep whatever vertical velocity gravity and the plane have agreed
-        // on, unless this tick's hop launches the kart.
-        let mut vertical = body.linvel().y;
-        if kart.airborne() {
-            kart.airtime_left_s -= dt;
-            if !kart.airborne() {
-                kart.drift = landing_drift(kart, input);
-            }
-        } else if let Some(drift) = &mut kart.drift {
-            if input.hop && fast_enough_to_drift(kart.speed) {
-                drift.charge_s += dt;
+            if kart.spun_out() {
+                Freeze::Stopped
             } else {
-                // Letting go releases what the drift charged; losing the
-                // speed to slide just ends it.
-                if !input.hop {
-                    kart.boost_left_s = drift.mini_turbo().boost_s();
-                    kart.boost_factor = MINI_TURBO_BOOST_FACTOR;
-                }
-                kart.drift = None;
+                Freeze::Controls
             }
-        } else if input.hop && !kart.hop_was_held {
-            kart.airtime_left_s = HOP_AIRTIME_S;
-            kart.hop_direction = DriftDirection::from_steer(input.steer);
-            vertical = hop_launch_speed();
-        }
-        kart.hop_was_held = input.hop;
-        kart.speed = next_speed(kart.speed, input, dt, top_speed);
-        // Off the asphalt the kart is held to the cap, not dragged down to
-        // it, so it slows the tick it leaves the track. The cap reads the
-        // surface below the kart, so a hop over a patch does not clear it.
-        if surface.slows_karts() {
-            kart.speed = kart.speed.min(OFF_TRACK_SPEED_FACTOR * TOP_SPEED_M_PER_S);
-        }
-        let on_boost_pad = !kart.airborne() && state.track.on_a_boost_pad(position);
-        if on_boost_pad && !kart.on_boost_pad {
-            kart.boost_left_s = BOOST_PAD_S;
-            kart.boost_factor = BOOST_PAD_FACTOR;
-        }
-        kart.on_boost_pad = on_boost_pad;
-        if kart.boost_left_s > 0.0 {
-            kart.boost_left_s -= dt;
-            kart.speed = TOP_SPEED_M_PER_S * kart.boost_factor;
-        }
-        // A spin-out stops the kart whatever else it had going, a boost
-        // included: a prediction that learns of a hit from a snapshot still
-        // holds a boost the snapshot does not carry.
-        if kart.spun_out() {
-            kart.speed = 0.0;
-            kart.boost_left_s = 0.0;
-            kart.bump = Vec3::ZERO;
-        }
-        let (steer, slip) = match kart.drift {
-            Some(drift) => (
-                drift_steer(drift.direction, input.steer),
-                drift_slip(drift.direction),
-            ),
-            None => (input.steer.clamp(-1.0, 1.0), 0.0),
+        } else {
+            Freeze::Free
         };
-        let forward = *body.rotation() * Rotation::from_rotation_y(slip) * Vec3::NEG_Z;
-        kart.bump = decayed_bump(kart.bump, dt);
-        // A wall the kart is against takes the velocity into it, speed and
-        // bump alike, before the solver sees either; otherwise the kart
-        // would press into the wall a little every tick. The bump stays
-        // apart from the speed, so it is never counted against it twice.
-        let mut velocity = forward * kart.speed + kart.bump;
-        if !kart.walls.is_empty() {
-            velocity = stopped_by_walls(velocity, &kart.walls);
-            kart.bump = stopped_by_walls(kart.bump, &kart.walls);
-            kart.speed = forward.dot(velocity - kart.bump);
-        }
-        body.set_linvel(velocity + Vec3::Y * vertical, true);
-        body.set_angvel(Vec3::Y * yaw_rate(kart.speed, steer), true);
-        kart.travel = forward;
+        *hold = freeze == Freeze::Free && input.hold_item;
+        let body = &mut state.physics.bodies[kart.body];
+        body.lock_translations(kart.spun_out(), true);
+        let sent = kart.handling.tick(input, freeze, situation, dt);
+        body.set_linvel(sent.velocity, true);
+        body.set_angvel(Vec3::Y * sent.yaw_rate, true);
     }
     let before: Vec<[f32; 3]> = state
         .karts
@@ -1399,9 +1251,16 @@ pub fn step(mut state: State, inputs: &[KartInput], dt: f32) -> State {
         .iter()
         .map(|kart| state.physics.bodies[kart.body].linvel())
         .collect();
-    let sent_bumps: Vec<Vec3> = state.karts.iter().map(|kart| kart.bump).collect();
+    let sent_bumps: Vec<Vec3> = state
+        .karts
+        .iter()
+        .map(|kart| kart.handling.bump())
+        .collect();
     state.physics.step(dt);
-    for index in 0..state.karts.len() {
+    let mut finished_this_tick = Vec::new();
+    for (index, mut before) in before.into_iter().enumerate() {
+        // Judged from the contacts and the sent velocities alone, so what
+        // an earlier kart's pass did to its own body never reaches this.
         bump_off_karts(
             &mut state.karts,
             index,
@@ -1409,9 +1268,7 @@ pub fn step(mut state: State, inputs: &[KartInput], dt: f32) -> State {
             &sent_velocities,
             dt,
         );
-    }
-    let mut finished_this_tick = Vec::new();
-    for (index, (kart, mut before)) in state.karts.iter_mut().zip(before).enumerate() {
+        let kart = &mut state.karts[index];
         held_by_walls(
             kart,
             &mut state.physics,
@@ -1574,14 +1431,10 @@ fn rolls_the_start_boost(rng: &mut ChaCha8Rng) -> bool {
 fn apply_start(kart: &mut Kart, start: Start) {
     match start {
         Start::Clean => {}
-        Start::WeakBoost => {
-            kart.boost_left_s = START_WEAK_BOOST_S;
-            kart.boost_factor = START_WEAK_BOOST_FACTOR;
-        }
-        Start::FullBoost => {
-            kart.boost_left_s = START_BOOST_S;
-            kart.boost_factor = START_BOOST_FACTOR;
-        }
+        Start::WeakBoost => kart
+            .handling
+            .boost(START_WEAK_BOOST_S, START_WEAK_BOOST_FACTOR),
+        Start::FullBoost => kart.handling.boost(START_BOOST_S, START_BOOST_FACTOR),
         Start::Stall => kart.stall_left_s = START_STALL_S,
     }
 }
@@ -1639,27 +1492,10 @@ fn next_phase(karts: &[Kart], elapsed_s: f32, grace_left_s: Option<f32>, dt: f32
 /// touching it; contacts further off are the solver's look-ahead.
 const WALL_TOUCH_M: f32 = 0.01;
 
-/// `velocity` with its component into each of `walls` removed, so the
-/// motion into a wall stops and the motion along it is kept. Motion away
-/// from a wall is left alone.
-fn stopped_by_walls(mut velocity: Vec3, walls: &[Vec3]) -> Vec3 {
-    for &normal in walls {
-        let into = velocity.dot(normal);
-        if into < 0.0 {
-            velocity -= normal * into;
-        }
-    }
-    velocity
-}
-
-/// The wall holds the kart, with no bounce and no bump. Every wall the
-/// kart ends the tick against is remembered for the next tick's handling,
-/// and a wall met this tick takes the velocity into it there and then: the
-/// velocity along the wall is kept and the kart's speed becomes what is
-/// left along its travel once the bump that was in the velocity, the
-/// `sent_bump`, is taken off. A kart facing straight at a wall stops dead;
-/// one scraping along at an angle loses the share of its speed that
-/// pointed into the wall each tick, so it slows until it steers away.
+/// The wall holds the kart: every wall it ends the tick against is handed
+/// to its handling, with the velocity the solver left and the bump the
+/// tick sent it off with, `sent_bump`, and the body takes the velocity the
+/// handling leaves it.
 fn held_by_walls(
     kart: &mut Kart,
     physics: &mut Physics,
@@ -1668,7 +1504,7 @@ fn held_by_walls(
     dt: f32,
 ) {
     let velocity = physics.bodies[kart.body].linvel();
-    kart.walls.clear();
+    let mut walls = Vec::new();
     for pair in physics.narrow_phase.contact_pairs_with(kart.collider) {
         let other = other_collider(pair, kart.collider);
         if physics.colliders[other].user_data != u128::from(Surface::Wall.code()) {
@@ -1685,26 +1521,13 @@ fn held_by_walls(
                 .iter()
                 .any(|contact| contact.dist + closing <= WALL_TOUCH_M)
             {
-                kart.walls.push(normal);
+                walls.push(normal);
             }
         }
     }
-    if kart.walls.is_empty() {
-        return;
-    }
-    // The solver may already have taken the velocity into the wall; the
-    // speed is what is left along the travel either way. A touch with a
-    // kart this tick may have cost the speed more already: the lesser
-    // stands, since neither ever adds to it.
-    let stopped = stopped_by_walls(velocity, &kart.walls);
+    let stopped = kart.handling.hold_against_walls(walls, velocity, sent_bump);
     if stopped != velocity {
         physics.bodies[kart.body].set_linvel(stopped, true);
-    }
-    let held = kart
-        .travel
-        .dot(stopped - stopped_by_walls(sent_bump, &kart.walls));
-    if held.abs() < kart.speed.abs() {
-        kart.speed = held;
     }
 }
 
@@ -1728,26 +1551,11 @@ fn normal_toward(pair: &ContactPair, collider: ColliderHandle, manifold: &Contac
     }
 }
 
-/// The bump `dt` seconds on: a third of itself every `KART_BUMP_DECAY_S`,
-/// and gone once it is too small to move the kart.
-fn decayed_bump(bump: Vec3, dt: f32) -> Vec3 {
-    let decayed = bump * libm::expf(-dt / KART_BUMP_DECAY_S);
-    if decayed.length_squared() < BUMP_SPENT_M_PER_S * BUMP_SPENT_M_PER_S {
-        Vec3::ZERO
-    } else {
-        decayed
-    }
-}
-
 /// Karts bounce off each other: the kart in `index` that ended the tick
-/// touching another takes a bump away from it, the least one plus the
-/// tuned share of half the speed the two closed at, judged by the
-/// velocities the handling sent them off with; and when it was driving into the
-/// other it loses the tuned share of that closing speed, scaled by how
-/// square it hit, the way it was going, forward or in reverse. A bump
-/// already under way is raised to the new one, never added to, so a touch
-/// that lasts holds the karts apart without flinging them. A spun-out
-/// kart takes no bump: it stands, and the other kart bounces off it.
+/// touching another is bumped away from it (see [`Handling::bumped`]) at
+/// the speed the two closed at, judged by the velocities the handling sent
+/// them off with. A spun-out kart takes no bump: it stands, and the other
+/// kart bounces off it.
 /// A kart that is not one of `karts`, a kinematic stand-in for another
 /// player's kart in a prediction, closes at the velocity the solver moved
 /// it with. Each kart of a pair runs this for itself.
@@ -1763,14 +1571,7 @@ fn bump_off_karts(
         return;
     }
     let collider = karts[index].collider;
-    let mut bump = karts[index].bump;
-    let mut speed = karts[index].speed;
-    // The way the kart is going: its travel, or back along it in reverse.
-    let heading = if speed < 0.0 {
-        -karts[index].travel
-    } else {
-        karts[index].travel
-    };
+    let heading = karts[index].handling.heading();
     for pair in physics.narrow_phase.contact_pairs_with(collider) {
         let other = other_collider(pair, collider);
         if physics.colliders[other].user_data != KART_COLLIDER {
@@ -1802,22 +1603,9 @@ fn bump_off_karts(
             {
                 continue;
             }
-            let wanted = KART_BUMP_MIN_M_PER_S + KART_BUMP_RESTITUTION * closing_speed / 2.0;
-            let along = bump.dot(normal);
-            if wanted > along {
-                bump += normal * (wanted - along);
-            }
-            let square = (-heading.dot(normal)).max(0.0);
-            let loss = KART_BUMP_SPEED_LOSS * square * closing_speed;
-            speed = if speed < 0.0 {
-                (speed + loss).min(0.0)
-            } else {
-                (speed - loss).max(0.0)
-            };
+            karts[index].handling.bumped(normal, closing_speed, heading);
         }
     }
-    karts[index].bump = bump;
-    karts[index].speed = speed;
 }
 
 /// Put the kart back on the track at its last checkpoint, at rest and
@@ -1836,15 +1624,7 @@ fn respawn(kart: &mut Kart, track: &Track, physics: &mut Physics) -> [f32; 3] {
     body.set_rotation(facing, true);
     body.set_linvel(Vec3::ZERO, true);
     body.set_angvel(Vec3::ZERO, true);
-    kart.speed = 0.0;
-    kart.airtime_left_s = 0.0;
-    kart.hop_direction = None;
-    kart.drift = None;
-    kart.on_boost_pad = false;
-    kart.boost_left_s = 0.0;
-    kart.travel = facing * Vec3::NEG_Z;
-    kart.walls.clear();
-    kart.bump = Vec3::ZERO;
+    kart.handling.respawn(facing * Vec3::NEG_Z);
     kart.out_of_world_s = 0.0;
     kart.wrong_way_s = 0.0;
     position.to_array()
@@ -1955,103 +1735,10 @@ fn fly(projectile: &mut Projectile, track: &Track, target: Vec3, dt: f32) {
 /// kart pushes it until the spin-out runs out.
 fn spin_out(kart: &mut Kart, body: &mut RigidBody) {
     kart.spin_out_left_s = SPIN_OUT_S;
-    kart.speed = 0.0;
-    kart.drift = None;
-    kart.hop_direction = None;
-    kart.boost_left_s = 0.0;
+    kart.handling.stop();
     body.set_linvel(Vec3::ZERO, true);
     body.set_angvel(Vec3::ZERO, true);
     body.lock_translations(true, true);
-}
-
-/// The upward speed that brings a kart back to the track after the tuned
-/// airtime under the tuned gravity, so the body's arc agrees with the timer.
-fn hop_launch_speed() -> f32 {
-    -GRAVITY_M_PER_S2 * HOP_AIRTIME_S / 2.0
-}
-
-/// The drift a landing starts: the hop's direction, when the kart hopped
-/// while steering, is still steering and holding the hop button as it
-/// lands, and is going fast enough to slide.
-fn landing_drift(kart: &Kart, input: &KartInput) -> Option<Drift> {
-    let direction = kart.hop_direction?;
-    (input.hop && input.steer != 0.0 && fast_enough_to_drift(kart.speed)).then_some(Drift {
-        direction,
-        charge_s: 0.0,
-    })
-}
-
-/// Speed after one tick: throttle ramps toward `top_speed` and brake toward
-/// a standstill, each at its tuned rate, and the brake on its own carries on
-/// into reverse. With neither held the kart coasts toward a standstill and
-/// stays there. `top_speed` is the cap under the kart's rubber band; the
-/// ramp rates stay the tuned top speed's.
-fn next_speed(speed: f32, input: &KartInput, dt: f32, top_speed: f32) -> f32 {
-    use tuning::{
-        ACCELERATION_TO_TOP_S, BRAKE_TO_STOP_S, COAST_TO_STOP_S, REVERSE_TOP_SPEED_M_PER_S,
-        TOP_SPEED_M_PER_S,
-    };
-    let throttle = input.throttle.clamp(0.0, 1.0);
-    let brake = input.brake.clamp(0.0, 1.0);
-    let accelerate = throttle * TOP_SPEED_M_PER_S / ACCELERATION_TO_TOP_S;
-    let braking = brake * TOP_SPEED_M_PER_S / BRAKE_TO_STOP_S;
-    let coasted = if throttle == 0.0 && brake == 0.0 {
-        let coast = TOP_SPEED_M_PER_S / COAST_TO_STOP_S * dt;
-        // Toward zero from either side, never through it.
-        speed - speed.clamp(-coast, coast)
-    } else {
-        speed
-    };
-    // With the throttle held the brake stops the kart and holds it; it never
-    // backs up a kart that was going forward, and never speeds up one that
-    // was already backing up.
-    let floor = if throttle > 0.0 {
-        speed.min(0.0)
-    } else {
-        -REVERSE_TOP_SPEED_M_PER_S
-    };
-    (coasted + (accelerate - braking) * dt).clamp(floor, top_speed)
-}
-
-/// The steer a drift turns with, in the units of `KartInput::steer` but
-/// past full lock when the player steers into it: the drift's own direction
-/// at the tuned neutral strength, tightened by inward steer and widened by
-/// counter-steer, never reversed.
-fn drift_steer(direction: DriftDirection, steer: f32) -> f32 {
-    use tuning::{DRIFT_TURN_NEUTRAL, DRIFT_TURN_STEER_RANGE};
-    let inward = (steer * direction.steer_sign()).clamp(-1.0, 1.0);
-    direction.steer_sign() * (DRIFT_TURN_NEUTRAL + DRIFT_TURN_STEER_RANGE * inward)
-}
-
-/// The angle between where a drifting kart points and where it travels:
-/// the nose points into the corner, the kart slides toward the outside.
-/// Steering right is a negative rotation about +Y, so the outside of a
-/// right drift is a positive one.
-fn drift_slip(direction: DriftDirection) -> f32 {
-    direction.steer_sign() * tuning::DRIFT_SLIP_ANGLE_RAD
-}
-
-/// Yaw rate for a steer value: positive steer turns a kart moving forward
-/// right, which is a negative rotation about +Y, and swings the nose of a
-/// kart backing up the other way, as a car's does. Faster karts steer slower,
-/// and a near-stationary kart barely turns at all. Full lock is 1; a drift
-/// may ask for more.
-fn yaw_rate(speed: f32, steer: f32) -> f32 {
-    use tuning::STEER_FULL_EFFECT_SPEED_M_PER_S;
-    let grip = (speed.abs() / STEER_FULL_EFFECT_SPEED_M_PER_S).clamp(0.0, 1.0);
-    -steer * steer_rate(speed) * grip * speed.signum()
-}
-
-/// The yaw rate full lock gives at `speed`: the tuned low-speed rate
-/// falling to the tuned top-speed rate. Shared with the bot, so its model
-/// of the handling is the handling.
-pub(crate) fn steer_rate(speed: f32) -> f32 {
-    use tuning::{
-        STEER_RATE_LOW_SPEED_RAD_PER_S, STEER_RATE_TOP_SPEED_RAD_PER_S, TOP_SPEED_M_PER_S,
-    };
-    let speed_fraction = (speed.abs() / TOP_SPEED_M_PER_S).clamp(0.0, 1.0);
-    STEER_RATE_LOW_SPEED_RAD_PER_S
-        + (STEER_RATE_TOP_SPEED_RAD_PER_S - STEER_RATE_LOW_SPEED_RAD_PER_S) * speed_fraction
 }
 
 impl Physics {

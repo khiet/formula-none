@@ -31,6 +31,7 @@ const DECISION_SLUGS = [
   "item-sprites",
   "audio-engine",
   "kart-readout",
+  "handling-seam",
 ];
 
 const expectedFiles = DECISION_SLUGS.map(
