@@ -2,7 +2,9 @@
 
 ## Status
 
-Accepted (2026-10-25). Extends ADR 0007.
+Accepted (2026-10-25). Extends ADR 0007. Its decision on where the greybox
+readouts sit, speed in the stack and the surface and connection line
+bottom-left, is superseded by ADR 0031.
 
 ## Context
 

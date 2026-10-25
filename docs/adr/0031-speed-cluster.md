@@ -2,7 +2,9 @@
 
 ## Status
 
-Accepted (2026-10-25). Extends ADR 0023.
+Accepted (2026-10-25). Extends ADR 0023 and supersedes its decision on
+where the greybox readouts sit: speed leaves the stack for the cluster and
+the surface and connection line moves top-right.
 
 ## Context
 

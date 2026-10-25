@@ -5,10 +5,12 @@
 
 import { kmPerHour } from "./format";
 
+/** 1 to 6, N while the speed shows as 0 km/h, R while reversing. */
+export type Gear = "N" | "R" | "1" | "2" | "3" | "4" | "5" | "6";
+
 /** The gear and revs the cluster shows for a speed. */
 export interface Drivetrain {
-  /** 1 to 6, N while the speed shows as 0 km/h, R while reversing. */
-  readonly gear: string;
+  readonly gear: Gear;
   readonly rpm: number;
   /** Over top speed, as off a mini-turbo or a boost pad: 6th, held on the limiter. */
   readonly limiter: boolean;
@@ -44,10 +46,14 @@ export function drivetrain(speed: number, topSpeed: number): Drivetrain {
   const revs = (fraction: number) => IDLE_RPM + Math.min(fraction, 1) * (SHIFT_RPM - IDLE_RPM);
   if (speed < 0) return { gear: "R", rpm: revs(-speed / band), limiter: false };
   if (shown > Math.round(kmPerHour(topSpeed))) {
-    return { gear: String(GEARS), rpm: LIMITER_RPM, limiter: true };
+    return { gear: "6", rpm: LIMITER_RPM, limiter: true };
   }
   const gear = Math.min(GEARS, 1 + Math.floor(speed / band));
-  return { gear: String(gear), rpm: revs((speed - (gear - 1) * band) / band), limiter: false };
+  return {
+    gear: String(gear) as Gear,
+    rpm: revs((speed - (gear - 1) * band) / band),
+    limiter: false,
+  };
 }
 
 /** The row of shift lights for a reading, first to last: lit by revs, all blue on the limiter. */
