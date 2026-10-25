@@ -20,3 +20,8 @@ mini-turbo, item pickup, item fire, hit, lap) and the music loop, all
 synthesised by `audio/build.py`, so nothing in it is anyone else's work.
 `pnpm export:audio` rewrites them; commit the output, since the web app
 imports the files.
+
+`fonts/` holds the Instrument panel's pixel face (ADR 0023), one TTF from
+Kenney's font pack vendored under `fonts/kenney` with the pack's own
+licence. The web app imports the file and registers it with the FontFace
+API; nothing else in the repo reads it.

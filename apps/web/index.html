@@ -17,29 +17,162 @@
       #app canvas {
         display: block;
       }
+      /*
+       * The Instrument panel: 16-bit kart racer type over the View, no box
+       * behind it (ADR 0023). One unit scales the whole HUD with the viewport,
+       * with a floor so small windows still read. The face is registered by
+       * the panel module; the stack after it is the fallback.
+       */
       #instrument-panel {
+        --hud: max(0.55rem, 1.5vmin);
+        --gold: #fde97a;
+        --outline: #3a1c0a;
         position: absolute;
-        top: 1rem;
-        left: 1rem;
-        padding: 0.5rem 0.75rem;
-        border-radius: 0.5rem;
-        background: rgba(0, 0, 0, 0.6);
+        inset: 0;
+        pointer-events: none;
+        color: var(--gold);
+        font-family: "Kenney Mini Square", ui-monospace, SFMono-Regular, Menlo, monospace;
+        line-height: 1;
+        text-transform: uppercase;
+        /* A one-pixel outline on the face's own grid, an eighth of an em, and a two-pixel black drop. */
+        text-shadow:
+          0.125em 0 var(--outline),
+          -0.125em 0 var(--outline),
+          0 0.125em var(--outline),
+          0 -0.125em var(--outline),
+          0.125em 0.125em var(--outline),
+          -0.125em 0.125em var(--outline),
+          0.125em -0.125em var(--outline),
+          -0.125em -0.125em var(--outline),
+          0.25em 0.25em #000;
+      }
+      #instrument-panel [hidden] {
+        display: none;
+      }
+      #instrument-panel [data-label] {
         color: #fff;
-        font: 1.25rem/1 ui-monospace, SFMono-Regular, Menlo, monospace;
       }
+      #instrument-panel [data-stack] {
+        position: absolute;
+        top: calc(var(--hud) * 2);
+        left: calc(var(--hud) * 2);
+        display: grid;
+        gap: calc(var(--hud) * 1.4);
+        justify-items: start;
+      }
+      [data-instrument="position"] {
+        font-size: calc(var(--hud) * 6.4);
+      }
+      [data-instrument="position"] [data-suffix] {
+        font-size: 0.4em;
+        vertical-align: top;
+      }
+      [data-instrument="lap"],
+      [data-instrument="lap-time"],
+      [data-instrument="best-lap"] {
+        display: flex;
+        align-items: center;
+        gap: 0.6em;
+        font-size: calc(var(--hud) * 2.4);
+        white-space: nowrap;
+      }
+      [data-instrument="best-lap"] {
+        font-size: calc(var(--hud) * 1.8);
+      }
+      /* The lap count stays readable to assistive technology behind the flags. */
+      [data-lap-text] {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip-path: inset(50%);
+        white-space: nowrap;
+      }
+      [data-flags] {
+        display: flex;
+        align-items: center;
+        gap: 0.5em;
+      }
+      [data-flags]::before {
+        content: "LAP";
+        margin-right: 0.6em;
+        color: #fff;
+      }
+      [data-flag] {
+        width: 1.6em;
+        height: 1.2em;
+        background: #4b2c17;
+        border: 0.2em solid var(--outline);
+        box-shadow: 0.25em 0.25em 0 #000;
+      }
+      [data-flag="done"] {
+        background: conic-gradient(#000 25%, #fff 0 50%, #000 0 75%, #fff 0);
+        background-size: 50% 50%;
+      }
+      /* The bevelled item box: a lit top-left edge, a shaded bottom-right one and a hard drop. */
       [data-instrument="item"] {
-        display: inline-block;
-        min-width: 4.5em;
+        display: grid;
+        place-items: center;
+        width: 6.2em;
+        height: 6.2em;
+        font-size: calc(var(--hud) * 1.6);
         text-align: center;
-        border: 1px solid rgba(255, 255, 255, 0.4);
-        border-radius: 0.25rem;
-      }
-      [data-instrument="item"][data-item-state="held"] {
-        color: #ffcc33;
+        color: var(--outline);
+        text-shadow: none;
+        background: linear-gradient(#f8e39a, #c99a2e);
+        border: 0.4em solid var(--outline);
+        box-shadow:
+          inset 0.4em 0.4em 0 #fff6cf,
+          inset -0.4em -0.4em 0 #8c5a12,
+          0.5em 0.5em 0 #000;
       }
       [data-instrument="item"][data-item-state="firing"] {
-        color: #000;
-        background: #ffcc33;
+        background: #fff;
+        animation: item-fire 0.25s steps(2) infinite;
+      }
+      @keyframes item-fire {
+        to {
+          background: #c99a2e;
+        }
+      }
+      [data-instrument="speed"] {
+        font-size: calc(var(--hud) * 1.4);
+      }
+      /* Greybox readouts: a dim line of their own, out of the driver's stack. */
+      #instrument-panel [data-greybox] {
+        position: absolute;
+        left: calc(var(--hud) * 2);
+        bottom: calc(var(--hud) * 2);
+        font-size: calc(var(--hud) * 1.2);
+        color: rgba(255, 255, 255, 0.55);
+        text-transform: none;
+        text-shadow: 0.125em 0.125em 0 #000;
+      }
+      [data-instrument="wrong-way"] {
+        position: absolute;
+        top: 56%;
+        left: 50%;
+        transform: translateX(-50%);
+        font-size: calc(var(--hud) * 4.2);
+        color: #ff5a3c;
+        white-space: nowrap;
+        animation: blink 0.6s steps(2) infinite;
+      }
+      @keyframes blink {
+        to {
+          visibility: hidden;
+        }
+      }
+      [data-instrument="connection-banner"] {
+        position: absolute;
+        top: calc(var(--hud) * 2);
+        left: 50%;
+        transform: translateX(-50%);
+        padding: 0.6em 1em;
+        font-size: calc(var(--hud) * 1.8);
+        color: #fff;
+        background: #c21c1c;
+        white-space: nowrap;
       }
       [data-instrument="countdown"] {
         position: fixed;
@@ -47,8 +180,13 @@
         left: 50%;
         transform: translate(-50%, -50%);
         font-size: 8rem;
-        font-weight: bold;
-        text-shadow: 0 0 1rem #000;
+      }
+      /* The warning and the firing flash hold steady for a driver who asked for less motion. */
+      @media (prefers-reduced-motion: reduce) {
+        [data-instrument="wrong-way"],
+        [data-instrument="item"][data-item-state="firing"] {
+          animation: none;
+        }
       }
       /* Fixed, so it sits over the View and not in the panel's dark box. */
       [data-instrument="course-map"] {

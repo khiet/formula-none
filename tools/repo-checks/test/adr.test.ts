@@ -27,6 +27,7 @@ const DECISION_SLUGS = [
   "camera-tuning",
   "kart-contact",
   "track-limits",
+  "hud-language",
 ];
 
 const expectedFiles = DECISION_SLUGS.map(

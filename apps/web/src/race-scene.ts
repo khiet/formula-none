@@ -13,7 +13,12 @@ import type {
 import { createChaseCamera } from "./chase-camera";
 import { gamepadKartInput } from "./gamepad";
 import { combinedKartInput, IDLE_INPUT } from "./input";
-import { createInstrumentPanel, type InstrumentPanel, type ItemSlot } from "./instrument-panel";
+import {
+  createInstrumentPanel,
+  type InstrumentPanel,
+  type ItemSlot,
+  loadInstrumentFont,
+} from "./instrument-panel";
 import { kartLabels } from "./kart-labels";
 import { KART_GLTF_URL } from "./kart-model";
 import { keyboardKartInput } from "./keyboard";
@@ -171,14 +176,19 @@ export async function createRaceScene(
     keyboardKartInput(window, listeners.signal),
     gamepadKartInput(navigator),
   );
-  const view = await createRaceView(
-    container,
-    bridge.kartsPerRace,
-    bridge.kartSize,
-    { trackGltfUrl: track.gltfUrl, kartGltfUrl: KART_GLTF_URL },
-    run.itemBoxes(),
-    bridge.spinOutSeconds,
-  );
+  // The panel's typeface loads beside the View's models so the first frame
+  // of the Scene is set in it.
+  const [view] = await Promise.all([
+    createRaceView(
+      container,
+      bridge.kartsPerRace,
+      bridge.kartSize,
+      { trackGltfUrl: track.gltfUrl, kartGltfUrl: KART_GLTF_URL },
+      run.itemBoxes(),
+      bridge.spinOutSeconds,
+    ),
+    loadInstrumentFont(),
+  ]);
   const camera = createChaseCamera(bridge.cameraTuning);
   const panel = createInstrumentPanel(container, bridge.lapsPerRace, {
     centreline,
