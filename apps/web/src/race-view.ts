@@ -20,7 +20,7 @@ import {
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { CSS2DObject, CSS2DRenderer } from "three/addons/renderers/CSS2DRenderer.js";
 import { WebGPURenderer } from "three/webgpu";
-import type { Hazard, ItemBox, KartSize, KartTransform, Phase, Projectile } from "./bridge";
+import type { Hazard, ItemBox, KartReadout, KartSize, Phase, Projectile } from "./bridge";
 import type { CameraPose } from "./chase-camera";
 import { createDustEmitter } from "./dust";
 import type { KartLabel } from "./kart-labels";
@@ -74,7 +74,7 @@ export interface RaceView {
    * projectile.
    */
   update(
-    transforms: readonly KartTransform[],
+    transforms: readonly KartReadout[],
     labels: readonly KartLabel[],
     camera: CameraPose,
     itemBoxesPresent: readonly boolean[],
@@ -255,9 +255,9 @@ export async function createRaceView(
         }
         kart.position.set(...transform.position);
         kart.quaternion.set(...transform.rotation);
-        if (transform.spinOutSeconds !== null) {
+        if (transform.spinOutS !== null) {
           kart.quaternion.multiply(
-            spin.setFromAxisAngle(up, spinOutAngle(transform.spinOutSeconds, spinOutSeconds)),
+            spin.setFromAxisAngle(up, spinOutAngle(transform.spinOutS, spinOutSeconds)),
           );
         }
         sparkEmitter.emit(transform, frameSeconds, countingDown);

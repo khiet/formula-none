@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { loopPlayback, type SoundReading, soundCues, soundLoops, soundReading } from "./audio-cues";
-import type { KartTransform, Phase, Standing } from "./bridge";
+import type { KartReadout, Phase, Standing } from "./bridge";
+import { kartReadout } from "./kart-readout-fixture";
 
 const STILL: SoundReading = {
   speed: 0,
@@ -205,7 +206,7 @@ describe("soundLoops", () => {
   it("runs nothing on asphalt off a drift, nor on a wall or out of the world", () => {
     expect(soundLoops(STILL)).toEqual(new Set());
     expect(soundLoops({ ...STILL, surface: "wall" })).toEqual(new Set());
-    expect(soundLoops({ ...STILL, surface: "out of world", airborne: true })).toEqual(new Set());
+    expect(soundLoops({ ...STILL, surface: "out_of_world", airborne: true })).toEqual(new Set());
   });
 });
 
@@ -240,19 +241,14 @@ describe("loopPlayback", () => {
 });
 
 describe("soundReading", () => {
-  const kart: KartTransform = {
+  const kart: KartReadout = kartReadout({
     position: [0, 0.3, 0],
-    rotation: [0, 0, 0, 1],
     speed: 12,
-    surface: "asphalt",
-    drift: { direction: "left", chargeSeconds: 1, miniTurbo: "blue" },
-    heldItem: null,
-    spinOutSeconds: 0.4,
+    drift: { direction: "left", chargeS: 1 },
+    miniTurbo: "blue",
+    spinOutS: 0.4,
     airborne: true,
-    boostSeconds: null,
-    start: "clean",
-    stallSeconds: null,
-  };
+  });
   const standing: Standing = {
     position: 3,
     lap: 2,
@@ -291,7 +287,8 @@ describe("soundReading", () => {
         {
           ...kart,
           surface: "grass",
-          drift: { direction: "right", chargeSeconds: 0, miniTurbo: "none" },
+          drift: { direction: "right", chargeS: 0 },
+          miniTurbo: "none",
         },
         { ...standing, wrongWay: true },
         slot,
@@ -306,7 +303,7 @@ describe("soundReading", () => {
 
   it("takes the item from the slot, which a room's race fills from the server's events", () => {
     const reading = soundReading(
-      { ...kart, drift: null, spinOutSeconds: null, boostSeconds: 0.5 },
+      { ...kart, drift: null, spinOutS: null, boostS: 0.5 },
       { ...standing, finishTimeSeconds: 61.2 },
       { item: "homing", firing: false },
       racing,
@@ -329,7 +326,7 @@ describe("soundReading", () => {
     // From Go the verdict is the boost's or the stall's to tell, not a charge.
     const go: Phase = { kind: "racing", elapsedSeconds: 0.2, graceLeftSeconds: null };
     expect(
-      soundReading({ ...kart, start: "stall", stallSeconds: 1.8 }, standing, slot, go),
+      soundReading({ ...kart, start: "stall", stallS: 1.8 }, standing, slot, go),
     ).toMatchObject({ count: "GO", charge: null, stalled: true });
     expect(soundReading(kart, standing, slot, { kind: "finished" })).toMatchObject({
       count: "",

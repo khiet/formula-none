@@ -8,7 +8,7 @@ use sim::tuning::{
     STEER_RATE_LOW_SPEED_RAD_PER_S, STEER_RATE_TOP_SPEED_RAD_PER_S, TICKS_PER_SECOND,
     TOP_SPEED_M_PER_S,
 };
-use sim::{step, KartInput, KartTransform, Phase, State, Track};
+use sim::{step, KartInput, KartReadout, Phase, State, Track};
 
 const OVAL: &str = include_str!("../../../assets/tracks/oval/oval.track.json");
 const DT: f32 = 1.0 / TICKS_PER_SECOND as f32;
@@ -42,28 +42,28 @@ fn ticks(seconds: f32) -> usize {
     (seconds * TICKS_PER_SECOND as f32).round() as usize
 }
 
-fn only_kart(state: &State) -> KartTransform {
-    let transforms = state.kart_transforms();
+fn only_kart(state: &State) -> KartReadout {
+    let transforms = state.kart_readouts();
     assert_eq!(transforms.len(), 1);
     transforms[0]
 }
 
 /// Horizontal distance between two transforms.
-fn distance_travelled(before: &KartTransform, after: &KartTransform) -> f32 {
+fn distance_travelled(before: &KartReadout, after: &KartReadout) -> f32 {
     let dx = after.position[0] - before.position[0];
     let dz = after.position[2] - before.position[2];
     (dx * dx + dz * dz).sqrt()
 }
 
 /// Yaw in radians recovered from the rotation quaternion `[x, y, z, w]`.
-fn yaw(transform: &KartTransform) -> f32 {
+fn yaw(transform: &KartReadout) -> f32 {
     let [x, y, z, w] = transform.rotation;
     (2.0 * (w * y + x * z)).atan2(1.0 - 2.0 * (y * y + z * z))
 }
 
 /// Signed speed along -Z between two transforms of a kart facing -Z: positive
 /// is forward. Read from positions so the test never trusts the readout alone.
-fn forward_speed(before: &KartTransform, after: &KartTransform) -> f32 {
+fn forward_speed(before: &KartReadout, after: &KartReadout) -> f32 {
     (before.position[2] - after.position[2]) / DT
 }
 
@@ -359,8 +359,8 @@ fn each_kart_gets_its_own_input_and_transform() {
     for _ in 0..ticks(1.0) {
         state = step(state, &[accelerate(), KartInput::default()], DT);
     }
-    let spawn = race(2).kart_transforms();
-    let after = state.kart_transforms();
+    let spawn = race(2).kart_readouts();
+    let after = state.kart_readouts();
 
     assert_eq!(after.len(), 2);
     assert!(after[0].position[2] < spawn[0].position[2] - 1.0);

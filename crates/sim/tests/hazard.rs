@@ -76,7 +76,7 @@ fn tap() -> KartInput {
 #[test]
 fn a_fired_hazard_drops_the_tuned_distance_behind_the_kart() {
     let state = holding_a_hazard(1, 0);
-    let [x, y, z] = state.kart_transforms()[0].position;
+    let [x, y, z] = state.kart_readouts()[0].position;
     assert!(state.hazards().is_empty(), "nothing dropped yet");
 
     // The grid faces -Z, so behind the kart is +Z, on the surface under it.
@@ -88,7 +88,7 @@ fn a_fired_hazard_drops_the_tuned_distance_behind_the_kart() {
             item: Item::Hazard
         }]
     );
-    assert_eq!(state.kart_transforms()[0].held_item, None);
+    assert_eq!(state.kart_readouts()[0].held_item, None);
     let [hazard] = state.hazards()[..] else {
         panic!("one hazard: {:?}", state.hazards());
     };
@@ -121,7 +121,7 @@ fn drive() -> KartInput {
 
 /// The hazard's distance from the kart's centre on the ground, in metres.
 fn distance_behind(state: &State, kart: usize) -> f32 {
-    let [kx, _, kz] = state.kart_transforms()[kart].position;
+    let [kx, _, kz] = state.kart_readouts()[kart].position;
     let [hx, _, hz] = state.hazards()[0].position;
     ((hx - kx).powi(2) + (hz - kz).powi(2)).sqrt()
 }
@@ -143,7 +143,7 @@ fn a_held_hazard_trails_the_kart_while_the_item_button_is_held_and_drops_on_rele
             distance_behind(&state, 0)
         );
     }
-    assert!(state.kart_transforms()[0].speed > 5.0, "driving on");
+    assert!(state.kart_readouts()[0].speed > 5.0, "driving on");
 
     // Let go: the hazard stays where it was and the kart drives away from it.
     let state = step(state, &[drive()], DT);
@@ -194,7 +194,7 @@ fn spun_out() -> State {
 fn hitting_a_hazard_spins_the_kart_out_for_the_tuned_time_with_its_inputs_ignored() {
     let state = spun_out();
     assert!(state.hazards().is_empty(), "the hazard is used up");
-    let hit = state.kart_transforms()[0];
+    let hit = state.kart_readouts()[0];
     assert_eq!(hit.speed, 0.0, "stopped");
     assert_eq!(hit.velocity, [0.0, 0.0, 0.0]);
     let left = hit.spin_out_s.expect("spinning out");
@@ -206,11 +206,11 @@ fn hitting_a_hazard_spins_the_kart_out_for_the_tuned_time_with_its_inputs_ignore
     // Full throttle moves it nowhere until the spin-out runs out.
     let mut state = state;
     let mut spun_ticks = 0;
-    while let Some(left) = state.kart_transforms()[0].spin_out_s {
+    while let Some(left) = state.kart_readouts()[0].spin_out_s {
         assert!(left > 0.0);
         state = step(state, &[drive()], DT);
         spun_ticks += 1;
-        let [x, y, z] = state.kart_transforms()[0].position;
+        let [x, y, z] = state.kart_readouts()[0].position;
         let [hx, hy, hz] = hit.position;
         assert!(
             (x - hx).abs() < 1e-4 && (y - hy).abs() < 1e-4 && (z - hz).abs() < 1e-4,
@@ -218,7 +218,7 @@ fn hitting_a_hazard_spins_the_kart_out_for_the_tuned_time_with_its_inputs_ignore
             [x, y, z],
             hit.position
         );
-        assert_eq!(state.kart_transforms()[0].rotation, hit.rotation);
+        assert_eq!(state.kart_readouts()[0].rotation, hit.rotation);
         assert!(spun_ticks <= ticks(SPIN_OUT_S) + 2, "never recovered");
     }
     let expected = ticks(SPIN_OUT_S);
@@ -230,9 +230,9 @@ fn hitting_a_hazard_spins_the_kart_out_for_the_tuned_time_with_its_inputs_ignore
         state = step(state, &[drive()], DT);
     }
     assert!(
-        state.kart_transforms()[0].speed > 3.0,
+        state.kart_readouts()[0].speed > 3.0,
         "driving again: {} m/s",
-        state.kart_transforms()[0].speed
+        state.kart_readouts()[0].speed
     );
 }
 
@@ -299,14 +299,14 @@ fn a_held_hazard_does_not_age_and_spins_out_the_kart_that_runs_into_it_from_behi
     }
     assert_eq!(hit, Some(RaceEvent::SpunOut { kart: 2, by: 0 }));
     assert!(state.hazards().is_empty(), "used up");
-    assert!(state.kart_transforms()[2].spin_out_s.is_some());
+    assert!(state.kart_readouts()[2].spin_out_s.is_some());
     assert_eq!(
-        state.kart_transforms()[0].spin_out_s,
+        state.kart_readouts()[0].spin_out_s,
         None,
         "the owner is untouched"
     );
-    let [_, _, z0] = state.kart_transforms()[0].position;
-    let [_, _, z2] = state.kart_transforms()[2].position;
+    let [_, _, z0] = state.kart_readouts()[0].position;
+    let [_, _, z2] = state.kart_readouts()[2].position;
     assert!(
         z2 - z0 > 2.0 * KART_HALF_LENGTH_M,
         "stopped short of kart 0: {} m apart",
@@ -315,18 +315,18 @@ fn a_held_hazard_does_not_age_and_spins_out_the_kart_that_runs_into_it_from_behi
 
     // Backed into while spun out, kart 2 stands where it is and bounces
     // kart 0 off instead.
-    let spun_at = state.kart_transforms()[2].position;
+    let spun_at = state.kart_readouts()[2].position;
     let mut nearest = f32::MAX;
     for _ in 0..ticks(0.6) {
         state = step(state, &[reverse(), idle, idle], DT);
-        assert!(state.kart_transforms()[2].spin_out_s.is_some());
-        let [x2, _, z2] = state.kart_transforms()[2].position;
+        assert!(state.kart_readouts()[2].spin_out_s.is_some());
+        let [x2, _, z2] = state.kart_readouts()[2].position;
         assert!(
             (x2 - spun_at[0]).abs() < 1e-3 && (z2 - spun_at[2]).abs() < 1e-3,
             "pushed from {spun_at:?} to {:?}",
             [x2, z2]
         );
-        let [_, _, z0] = state.kart_transforms()[0].position;
+        let [_, _, z0] = state.kart_readouts()[0].position;
         assert!(
             z2 - z0 >= 2.0 * KART_HALF_LENGTH_M - 0.1,
             "kart 0 backed through it: {} m apart",

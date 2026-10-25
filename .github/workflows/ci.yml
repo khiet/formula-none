@@ -55,13 +55,13 @@ jobs:
       - name: Build the bridge to wasm
         run: pnpm build:bridge
       # The committed TypeScript types are what the protocol crate generates,
-      # or the PR forgot to regenerate them (ADR 0004). `add -N` makes a new
-      # file show in the diff too.
+      # the sim's beside the protocol's, or the PR forgot to regenerate them
+      # (ADR 0004, ADR 0026). `add -N` makes a new file show in the diff too.
       - name: Generated protocol types are current
         run: |
           pnpm generate:protocol
-          git add -N apps/web/src/generated/protocol
-          git diff --exit-code -- apps/web/src/generated/protocol
+          git add -N apps/web/src/generated/protocol apps/web/src/generated/sim
+          git diff --exit-code -- apps/web/src/generated/protocol apps/web/src/generated/sim
       - name: Biome
         run: pnpm lint
       # The layouts' pure-Python checks; CI has no Blender to run the export.

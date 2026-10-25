@@ -14,7 +14,7 @@ use sim::tuning::{
     RECONCILIATION_BLEND_TICKS, RECONCILIATION_TOLERANCE_M, RECONCILIATION_VISIBLE_CORRECTION_M,
     SNAPSHOTS_PER_SECOND, START_FULL_BOOST_HOLD_S, TICKS_PER_SECOND, TOP_SPEED_M_PER_S,
 };
-use sim::{step, KartInput, Phase, Prediction, SnapshotKart, Start, State, Track};
+use sim::{step, KartInput, KartReadout, Phase, Prediction, Start, State, Track};
 
 const OVAL: &str = include_str!("../../../assets/tracks/oval/oval.track.json");
 const SEED: u64 = 0x5EED;
@@ -29,31 +29,12 @@ fn oval() -> Track {
     Track::from_sidecar(OVAL).expect("the oval fixture loads")
 }
 
-/// What the snapshot of `state` says of its first kart.
-fn snapshot_of(state: &State) -> SnapshotKart {
-    let transform = state.kart_transforms()[0];
-    let standing = state.standings()[0];
-    SnapshotKart {
-        position: transform.position,
-        rotation: transform.rotation,
-        velocity: transform.velocity,
-        drift: transform.drift,
-        held_item: transform.held_item,
-        spin_out_s: transform.spin_out_s,
-        start: transform.start,
-        stall_s: transform.stall_s,
-        lap: standing.lap(),
-        checkpoint: standing.checkpoint,
-        spline_progress: standing.spline_progress,
-    }
-}
-
 /// A snapshot on its way to the client.
 struct InFlight {
     arrives: u32,
     tick: u32,
     acknowledged: u32,
-    kart: SnapshotKart,
+    kart: KartReadout,
 }
 
 /// What a run saw: every reconciliation's correction, in metres, and the
@@ -80,7 +61,7 @@ fn race(ticks: u32, lost: impl Fn(u32) -> bool) -> Run {
         |prediction, _| {
             let mut input = bot::drive(
                 prediction.track(),
-                &[prediction.kart_transform()],
+                &[prediction.kart_readout()],
                 &[prediction.standing()],
                 0,
                 &mut memory,
@@ -142,7 +123,7 @@ fn race_with(
                 arrives: tick + ONE_WAY_TICKS,
                 tick,
                 acknowledged: applied.0,
-                kart: snapshot_of(&server),
+                kart: server.kart_readouts()[0],
             });
         }
 
@@ -163,7 +144,7 @@ fn race_with(
         let input = driver(&prediction, tick);
         sequence += 1;
         prediction.tick(sequence, input, &[]);
-        spun_out_ticks += u32::from(prediction.kart_transform().spin_out_s.is_some());
+        spun_out_ticks += u32::from(prediction.kart_readout().spin_out_s.is_some());
         if !lost(sequence) {
             inputs_in_flight.push_back((tick + 1 + ONE_WAY_TICKS, sequence, input));
         }
@@ -207,12 +188,12 @@ fn a_lost_input_is_corrected_by_less_than_a_player_can_see_and_counted() {
 
 /// A prediction on the grid, its countdown under way and its inputs
 /// acknowledged by a snapshot that agreed.
-fn on_the_grid() -> (Prediction, SnapshotKart) {
+fn on_the_grid() -> (Prediction, KartReadout) {
     let mut prediction = Prediction::new(SEED, 0, oval());
     for sequence in 1..=10 {
         prediction.tick(sequence, KartInput::default(), &[]);
     }
-    let grid = snapshot_of(&State::new(SEED, 1, oval()));
+    let grid = State::new(SEED, 1, oval()).kart_readouts()[0];
     prediction.reconcile(10, 4, &grid);
     assert!(matches!(prediction.phase(), Phase::Countdown { .. }));
     (prediction, grid)
@@ -221,19 +202,19 @@ fn on_the_grid() -> (Prediction, SnapshotKart) {
 #[test]
 fn a_correction_is_blended_from_where_the_kart_was_drawn_over_the_tuned_ticks() {
     let (mut prediction, grid) = on_the_grid();
-    let drawn = prediction.kart_transform().position;
+    let drawn = prediction.kart_readout().position;
     let mut aside = grid;
     aside.position[0] += 1.0;
 
     let moved = prediction.reconcile(12, 5, &aside);
     assert!((moved - 1.0).abs() < 1e-4, "moved {moved} m");
     assert_eq!(prediction.corrections(), 1);
-    assert_eq!(prediction.kart_transform().position, drawn, "no jump");
+    assert_eq!(prediction.kart_readout().position, drawn, "no jump");
     let mut sequence = 10;
     for tick in 1..=RECONCILIATION_BLEND_TICKS {
         sequence += 1;
         prediction.tick(sequence, KartInput::default(), &[]);
-        let x = prediction.kart_transform().position[0];
+        let x = prediction.kart_readout().position[0];
         let expected = drawn[0] + tick as f32 / RECONCILIATION_BLEND_TICKS as f32;
         assert!((x - expected).abs() < 1e-4, "tick {tick}: x {x}");
     }
@@ -268,7 +249,7 @@ fn the_snapshots_item_is_taken_without_a_correction_and_firing_it_is_predicted()
     use sim::tuning::{ITEM_BOOST_FACTOR, TOP_SPEED_M_PER_S};
     use sim::Item;
     let (mut prediction, grid) = on_the_grid();
-    assert_eq!(prediction.kart_transform().held_item, None);
+    assert_eq!(prediction.kart_readout().held_item, None);
 
     // The server rolled the kart a boost from a box the prediction did not
     // see taken; the kart is where it was predicted, so nothing moves.
@@ -276,7 +257,7 @@ fn the_snapshots_item_is_taken_without_a_correction_and_firing_it_is_predicted()
     holding.held_item = Some(Item::Boost);
     assert_eq!(prediction.reconcile(12, 5, &holding), 0.0);
     assert_eq!(prediction.corrections(), 0);
-    assert_eq!(prediction.kart_transform().held_item, Some(Item::Boost));
+    assert_eq!(prediction.kart_readout().held_item, Some(Item::Boost));
 
     // Past Go, the press fires the boost the server gave: the predicted
     // kart is at the boosted speed the tick it is pressed.
@@ -301,7 +282,7 @@ fn the_snapshots_item_is_taken_without_a_correction_and_firing_it_is_predicted()
         },
         &[],
     );
-    let kart = prediction.kart_transform();
+    let kart = prediction.kart_readout();
     assert_eq!(kart.held_item, None);
     assert!(
         (kart.speed - ITEM_BOOST_FACTOR * TOP_SPEED_M_PER_S).abs() < 1e-3,
@@ -331,13 +312,13 @@ fn the_prediction_takes_no_box_and_fills_its_slot_from_the_snapshots_alone() {
         sequence += 1;
         prediction.tick(sequence, KartInput::default(), &[]);
     }
-    let held = server.kart_transforms()[0].held_item;
+    let held = server.kart_readouts()[0].held_item;
     assert!(held.is_some(), "the server's kart picked up the box");
-    assert_eq!(prediction.kart_transform().held_item, None);
+    assert_eq!(prediction.kart_readout().held_item, None);
 
     // The snapshot's word fills the slot.
-    prediction.reconcile(sequence, sequence, &snapshot_of(&server));
-    assert_eq!(prediction.kart_transform().held_item, held);
+    prediction.reconcile(sequence, sequence, &server.kart_readouts()[0]);
+    assert_eq!(prediction.kart_readout().held_item, held);
 }
 
 #[test]
@@ -365,7 +346,7 @@ fn the_prediction_never_spins_its_kart_out_on_a_hazard_it_dropped() {
             ..KartInput::default()
         },
     );
-    assert_eq!(prediction.kart_transform().held_item, None, "fired");
+    assert_eq!(prediction.kart_readout().held_item, None, "fired");
     let throttle = KartInput {
         throttle: 1.0,
         ..KartInput::default()
@@ -377,19 +358,19 @@ fn the_prediction_never_spins_its_kart_out_on_a_hazard_it_dropped() {
         brake: 1.0,
         ..KartInput::default()
     };
-    let start = prediction.kart_transform().position;
+    let start = prediction.kart_readout().position;
     for _ in 0..seconds(8.0) {
         tick(&mut prediction, reverse);
-        assert_eq!(prediction.kart_transform().spin_out_s, None);
+        assert_eq!(prediction.kart_readout().spin_out_s, None);
     }
-    let end = prediction.kart_transform().position;
+    let end = prediction.kart_readout().position;
     assert!(end[2] > start[2] + 10.0, "backed well past the drop");
 }
 
 /// Full throttle toward the point the bot's lookahead ahead in the lane at
 /// `lane_x` on the oval's front straight, which runs along -Z: the pursuit
 /// steer of the bot's driving, without the rest of it.
-fn down_the_lane(kart: &sim::KartTransform, lane_x: f32) -> KartInput {
+fn down_the_lane(kart: &sim::KartReadout, lane_x: f32) -> KartInput {
     use sim::tuning::BOT_LOOKAHEAD_M;
     let [x, y, z, w] = kart.rotation;
     let yaw = (2.0 * (w * y + x * z)).atan2(1.0 - 2.0 * (y * y + z * z));
@@ -450,7 +431,7 @@ fn a_hit_the_server_decides_reaches_the_prediction_as_one_correction_and_the_spi
         if tick < go + seconds(1.0) {
             KartInput::default()
         } else {
-            down_the_lane(&prediction.kart_transform(), lane_x)
+            down_the_lane(&prediction.kart_readout(), lane_x)
         }
     };
     let run = race_with(seconds(9.0), |_| false, server, driver, other);
@@ -482,7 +463,7 @@ fn a_hit_the_server_decides_reaches_the_prediction_as_one_correction_and_the_spi
         "spun out for {} ticks, expected about {spin_out}",
         run.spun_out_ticks
     );
-    let kart = run.prediction.kart_transform();
+    let kart = run.prediction.kart_readout();
     assert_eq!(kart.spin_out_s, None, "recovered by the end");
     assert!(kart.speed > 5.0, "driving on at {} m/s", kart.speed);
 }
@@ -523,14 +504,14 @@ fn rocket_start_at_the_full_edge(lose_the_press: bool) -> Run {
 fn a_hold_at_a_window_edge_the_server_decides_differently_is_corrected_once_to_its_verdict() {
     // Nothing lost: the server reads the hold the client predicted.
     let run = rocket_start_at_the_full_edge(false);
-    assert_eq!(run.prediction.kart_transform().start, Start::FullBoost);
+    assert_eq!(run.prediction.kart_readout().start, Start::FullBoost);
     assert_eq!(run.prediction.corrections(), 0, "{:?}", run.corrections_m);
 
     // The press lost: the server's hold is a tick short of the full edge,
     // so its verdict is the weak boost. The verdict reaches the prediction
     // as one correction, and the kart runs the weak boost from there.
     let run = rocket_start_at_the_full_edge(true);
-    let kart = run.prediction.kart_transform();
+    let kart = run.prediction.kart_readout();
     assert_eq!(kart.start, Start::WeakBoost);
     assert_eq!(
         run.prediction.corrections(),

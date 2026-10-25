@@ -13,7 +13,7 @@
 // projectiles are drawn between the snapshots as the other karts are, so
 // one reaches its target as the target is drawn spinning.
 
-import type { Bridge, Hazard, KartTransform, Phase, Projectile, Standing } from "./bridge";
+import type { Bridge, Hazard, KartReadout, Phase, Projectile, Standing } from "./bridge";
 import type { FinalStanding, Item, Snapshot } from "./generated/protocol";
 import type { ItemSlot } from "./instrument-panel";
 import { ITEM_FIRE_FLASH_S, type RaceRun } from "./race-scene";
@@ -126,10 +126,10 @@ export function createServerRace(
         boxTicksLeft[box] = Math.max((boxTicksLeft[box] ?? 0) - 1, 0);
       }
     },
-    kartTransforms() {
-      const interpolated = prediction.interpolatedKartTransforms();
-      const karts = interpolated.length === 0 ? track.kartTransforms() : interpolated;
-      karts[localKart] = prediction.kartTransform();
+    kartReadouts() {
+      const interpolated = prediction.interpolatedKartReadouts();
+      const karts = interpolated.length === 0 ? track.kartReadouts() : interpolated;
+      karts[localKart] = prediction.kartReadout();
       return karts;
     },
     standings() {
@@ -168,7 +168,7 @@ export function createServerRace(
     itemBoxesPresent: () => boxTicksLeft.map((left) => left <= 0),
     hazards(): Hazard[] {
       if (latest === undefined) return [];
-      const karts = this.kartTransforms();
+      const karts = this.kartReadouts();
       return latest.hazards.map((hazard) => {
         const holder = hazard.held ? karts[hazard.owner] : undefined;
         return holder === undefined
@@ -191,7 +191,7 @@ export function createServerRace(
 
 /** The point `distance` metres behind `kart`, on the surface under its centre. */
 function behind(
-  kart: KartTransform,
+  kart: KartReadout,
   distance: number,
   kartHeight: number,
 ): readonly [number, number, number] {

@@ -2,7 +2,8 @@
 
 ## Status
 
-Accepted (2026-10-18)
+Accepted (2026-10-18). The consequence that a value the renderer needs
+extends the flat buffer is superseded by ADR 0026.
 
 ## Context
 

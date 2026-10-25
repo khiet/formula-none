@@ -42,7 +42,7 @@ fn idle_humans(mut state: State, humans: usize, seconds: f32) -> State {
 #[test]
 fn a_bot_fills_the_slot_behind_the_human_and_drives_off_without_an_input() {
     let state = started(State::with_bots(SEED, 1, 1, oval()));
-    let grid = state.kart_transforms();
+    let grid = state.kart_readouts();
     assert_eq!(grid.len(), 2, "one human and one bot");
     assert_eq!(state.standings().len(), 2);
     assert!(!state.is_bot(0));
@@ -50,7 +50,7 @@ fn a_bot_fills_the_slot_behind_the_human_and_drives_off_without_an_input() {
 
     // The bot starts in the other column, so it passes the idle human clean.
     let state = idle_humans(state, 1, 3.0);
-    let after = state.kart_transforms();
+    let after = state.kart_readouts();
     assert!(
         (after[0].position[0] - grid[0].position[0]).abs() < 0.01
             && (after[0].position[2] - grid[0].position[2]).abs() < 0.01,
@@ -85,7 +85,7 @@ fn a_bot_alone_laps_the_oval_three_times_without_leaving_the_asphalt() {
     let mut lap_times = Vec::new();
     for _ in 0..ticks(LAPS_PER_RACE as f32 * LAP_S) {
         state = step(state, &[], DT);
-        let kart = state.kart_transforms()[0];
+        let kart = state.kart_readouts()[0];
         assert_eq!(
             state.kart_surface(0),
             Surface::Asphalt,
@@ -179,7 +179,7 @@ fn a_bot_drifts_through_each_hairpin_of_brands_patch_on_every_lap() {
         if standing.laps_completed as usize >= laps {
             break;
         }
-        if state.kart_transforms()[0].drift.is_some() {
+        if state.kart_readouts()[0].drift.is_some() {
             for (hairpin, span) in hairpins.iter().enumerate() {
                 if span.contains(&standing.spline_progress) {
                     drifted_in[standing.laps_completed as usize][hairpin] = true;
@@ -254,7 +254,7 @@ fn the_rubber_band_hurries_a_bot_far_behind_and_slows_one_far_ahead_within_the_t
         let band = state.rubber_band(1);
         least = least.min(band);
         most = most.max(band);
-        let bot = state.kart_transforms()[1];
+        let bot = state.kart_readouts()[1];
         let behind = state.standings()[1].position == 2;
         if was_behind && !behind {
             level_band = Some(band);
@@ -331,7 +331,7 @@ fn perfect_driver(state: &State, kart: usize) -> KartInput {
             ..KartInput::default()
         };
     }
-    let transform = state.kart_transforms()[kart];
+    let transform = state.kart_readouts()[kart];
     let progress = state.standings()[kart].spline_progress;
     let track = state.track();
     let ahead = track.point_at(progress + BOT_LOOKAHEAD_M);
@@ -473,7 +473,7 @@ fn a_bot_held_by_a_wall_backs_up_and_drives_on() {
     let mut back_on_the_asphalt = None;
     for tick in 0..ticks(15.0) {
         state = step(state, &[], DT);
-        let kart = state.kart_transforms()[0];
+        let kart = state.kart_readouts()[0];
         // The wall holds the kart at its corner to a crawl the bot counts
         // as a stall.
         if stopped_at.is_none() && tick > 10 && kart.speed.abs() < BOT_STALL_SPEED_M_PER_S {
@@ -509,14 +509,14 @@ fn a_bot_held_by_a_wall_backs_up_and_drives_on() {
 #[test]
 fn a_humans_kart_handed_to_a_bot_drives_itself_until_handed_back() {
     let mut state = started(State::with_bots(SEED, 1, 0, oval()));
-    let grid = state.kart_transforms()[0];
+    let grid = state.kart_readouts()[0];
     state.hand_to_bot(0);
     assert!(state.is_bot(0));
     assert_eq!(state.human_count(), 1, "the kart is still the human's");
 
     // The human's idle input is still given, and ignored: the bot drives.
     let state = idle_humans(state, 1, 3.0);
-    let driven = state.kart_transforms()[0];
+    let driven = state.kart_readouts()[0];
     assert!(
         driven.position[2] < grid.position[2] - 30.0 && driven.speed > 20.0,
         "the bot drove the kart off the grid: {:?} at {} m/s",
@@ -536,9 +536,9 @@ fn a_humans_kart_handed_to_a_bot_drives_itself_until_handed_back() {
     assert!(!state.is_bot(0));
     let state = idle_humans(state, 1, 6.0);
     assert!(
-        state.kart_transforms()[0].speed.abs() < 0.5,
+        state.kart_readouts()[0].speed.abs() < 0.5,
         "the kart coasted to a stop at {} m/s",
-        state.kart_transforms()[0].speed
+        state.kart_readouts()[0].speed
     );
 }
 
@@ -561,9 +561,9 @@ fn a_human_handed_to_a_bot_in_the_countdown_sets_up_no_start() {
         handed = step(handed, &throttle, DT);
         stalled = step(stalled, &throttle, DT);
     }
-    assert!(handed.kart_transforms()[0].speed > 1.0, "the bot is away");
+    assert!(handed.kart_readouts()[0].speed > 1.0, "the bot is away");
     assert!(
-        stalled.kart_transforms()[0].speed.abs() < 0.01,
+        stalled.kart_readouts()[0].speed.abs() < 0.01,
         "the human stalled"
     );
 }
@@ -577,19 +577,19 @@ fn bots_roll_the_full_boost_or_a_clean_start_from_the_seed_and_never_stall() {
     for seed in 0..4 {
         let state = started(State::with_bots(seed, 0, 7, oval()));
         let verdicts: Vec<Start> = state
-            .kart_transforms()
+            .kart_readouts()
             .iter()
             .map(|kart| kart.start)
             .collect();
         let again = started(State::with_bots(seed, 0, 7, oval()));
         let repeat: Vec<Start> = again
-            .kart_transforms()
+            .kart_readouts()
             .iter()
             .map(|kart| kart.start)
             .collect();
         assert_eq!(verdicts, repeat, "seed {seed} rolls the same starts twice");
         let state = step(state, &[], DT);
-        for (slot, kart) in state.kart_transforms().iter().enumerate() {
+        for (slot, kart) in state.kart_readouts().iter().enumerate() {
             match verdicts[slot] {
                 Start::FullBoost => {
                     boosted += 1;

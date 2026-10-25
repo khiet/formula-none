@@ -125,7 +125,7 @@ fn yaw(rotation: [f32; 4]) -> f32 {
 /// Full throttle, steering toward the point `target` (x, z) seen from above.
 fn steer_toward(state: &State, kart: usize, target: [f32; 2]) -> KartInput {
     const STEER_GAIN: f32 = 4.0;
-    let transform = state.kart_transforms()[kart];
+    let transform = state.kart_readouts()[kart];
     let (dx, dz) = (
         target[0] - transform.position[0],
         target[1] - transform.position[2],
@@ -203,7 +203,7 @@ fn driving_up_the_front_straight_crosses_the_checkpoints_in_order() {
         state = step(state, &[throttle()], DT);
         let standing = only_standing(&state);
         if crossed.last() != Some(&standing.checkpoint) {
-            let z = state.kart_transforms()[0].position[2];
+            let z = state.kart_readouts()[0].position[2];
             // The checkpoint was crossed this tick, so the kart is just past it.
             assert!(
                 z <= lines[standing.checkpoint] && z > lines[standing.checkpoint] - 1.0,
@@ -232,7 +232,7 @@ fn a_checkpoint_passed_outside_its_width_is_not_crossed_and_later_ones_wait_for_
     let state = started(State::new(SEED, 1, oval_with_a_narrow_first_checkpoint()));
     let state = run(state, std::iter::repeat_n(throttle(), ticks(5.0)));
 
-    let z = state.kart_transforms()[0].position[2];
+    let z = state.kart_readouts()[0].position[2];
     assert!(z < -80.0, "the kart is past checkpoints 1 and 2 at z {z}");
     assert_eq!(only_standing(&state).checkpoint, 0);
 }
@@ -289,7 +289,7 @@ fn slowed_past_the_checkpoint_before_hairpin_one() -> State {
     let mut state = started(State::new(SEED, 1, brands_patch()));
     let checkpoint_z = state.track().checkpoints()[CHECKPOINT_BEFORE_HAIRPIN_ONE].position[2];
     for _ in 0..ticks(10.0) {
-        let transform = state.kart_transforms()[0];
+        let transform = state.kart_readouts()[0];
         let input = if transform.position[2] > checkpoint_z + BRAKE_FROM_M {
             throttle()
         } else {
@@ -335,7 +335,7 @@ fn drive_toward(mut state: State, target: [f32; 2], mut watch: impl FnMut(&State
 
 /// Where the kart is, seen from above.
 fn kart_xz(state: &State) -> [f32; 2] {
-    let position = state.kart_transforms()[0].position;
+    let position = state.kart_readouts()[0].position;
     [position[0], position[2]]
 }
 
@@ -357,7 +357,7 @@ fn top_of_return(state: &State) -> ([f32; 2], impl Fn(&State) -> bool) {
 fn assert_held_by_the_wall(state: &State, wall_distance: f32) {
     const HELD_SPEED_M_PER_S: f32 = 0.5;
     const AGAINST_M: f32 = 1.5;
-    let kart = state.kart_transforms()[0];
+    let kart = state.kart_readouts()[0];
     assert!(
         wall_distance < AGAINST_M,
         "never reached the wall: {wall_distance} m from it at {:?}",
@@ -439,7 +439,7 @@ fn cutting_hairpin_one_across_the_infield_ends_against_the_inside_wall_short_of_
 fn round_to(mut state: State, progress_m: f32, cap_from_m: f32, cap: f32) -> State {
     const JUST_PAST_M: f32 = 30.0;
     for _ in 0..ticks(60.0) {
-        let speed = state.kart_transforms()[0].speed;
+        let speed = state.kart_readouts()[0].speed;
         let progress = only_standing(&state).spline_progress;
         let input = follow_centreline(&state, 0);
         let input = if (cap_from_m..progress_m).contains(&progress) {
@@ -509,12 +509,12 @@ fn a_kart_that_misses_a_checkpoint_and_drives_on_is_not_respawned() {
     // tick, and nothing else does.
     const TELEPORT_M: f32 = 2.0;
     let mut state = started(State::new(SEED, 1, oval_with_a_narrow_first_checkpoint()));
-    let mut previous = state.kart_transforms()[0].position;
+    let mut previous = state.kart_readouts()[0].position;
     let mut furthest = 0.0_f32;
     for _ in 0..ticks(LAP_S) {
         let input = follow_centreline(&state, 0);
         state = step(state, &[input], DT);
-        let position = state.kart_transforms()[0].position;
+        let position = state.kart_readouts()[0].position;
         let moved = (position[0] - previous[0]).hypot(position[2] - previous[2]);
         assert!(moved < TELEPORT_M, "moved {moved} m in one tick: respawned");
         previous = position;
@@ -626,7 +626,7 @@ fn an_overtake_registers_the_tick_it_happens() {
         }
     }
     let tick = swapped_at.expect("the driven kart gets past the idle one");
-    let [idle, driven] = state.kart_transforms()[..] else {
+    let [idle, driven] = state.kart_readouts()[..] else {
         unreachable!("two karts")
     };
     assert!(

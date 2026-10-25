@@ -1,21 +1,10 @@
 import { describe, expect, it } from "vitest";
-import type { KartTransform } from "./bridge";
+import type { KartReadout } from "./bridge";
 import { kartLabels } from "./kart-labels";
+import { kartReadout } from "./kart-readout-fixture";
 
-function at(position: readonly [number, number, number]): KartTransform {
-  return {
-    position,
-    rotation: [0, 0, 0, 1],
-    speed: 0,
-    surface: "asphalt",
-    drift: null,
-    heldItem: null,
-    spinOutSeconds: null,
-    airborne: false,
-    boostSeconds: null,
-    start: "clean",
-    stallSeconds: null,
-  };
+function at(position: readonly [number, number, number]): KartReadout {
+  return kartReadout({ position });
 }
 
 const names = ["You", "ada", "Bot 3"];

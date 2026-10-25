@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
-import type { CameraTuning, KartTransform } from "./bridge";
+import type { CameraTuning, KartReadout } from "./bridge";
 import { createChaseCamera } from "./chase-camera";
+import { kartReadout, yawed } from "./kart-readout-fixture";
 
 const FRAME_S = 1 / 60;
 /** A fixture of tuned values; in the app the camera reads the live ones from the bridge. */
@@ -15,27 +16,9 @@ const TUNING: CameraTuning = {
 function kart(
   yaw: number,
   position: readonly [number, number, number],
-  rest: Partial<KartTransform> = {},
-): KartTransform {
-  return Object.freeze({
-    position: Object.freeze([...position]) as readonly [number, number, number],
-    rotation: Object.freeze([0, Math.sin(yaw / 2), 0, Math.cos(yaw / 2)]) as readonly [
-      number,
-      number,
-      number,
-      number,
-    ],
-    speed: 0,
-    surface: "asphalt",
-    drift: null,
-    heldItem: null,
-    spinOutSeconds: null,
-    airborne: false,
-    boostSeconds: null,
-    start: "clean",
-    stallSeconds: null,
-    ...rest,
-  });
+  rest: Partial<KartReadout> = {},
+): KartReadout {
+  return kartReadout({ position, rotation: yawed(yaw), ...rest });
 }
 
 function distance(a: readonly number[], b: readonly number[]): number {
@@ -129,7 +112,7 @@ describe("the chase camera", () => {
     let furthest = 0;
     // The hit: the sim reports the spin-out starting and counting down.
     for (let frame = 0; frame < 18; frame++) {
-      const spun = kart(0, [0, 0.3, 0], { spinOutSeconds: 1 - frame * FRAME_S });
+      const spun = kart(0, [0, 0.3, 0], { spinOutS: 1 - frame * FRAME_S });
       const pose = camera.update(spun, FRAME_S);
       const thrown = distance(pose.position, rest.position);
       expect(distance(pose.target, rest.target)).toBeCloseTo(thrown, 6);
@@ -139,7 +122,7 @@ describe("the chase camera", () => {
     expect(shakenFrames).toBeGreaterThanOrEqual(15);
     expect(furthest).toBeGreaterThan(TUNING.shakeAmplitudeMetres / 4);
     expect(furthest).toBeLessThanOrEqual(TUNING.shakeAmplitudeMetres * Math.sqrt(3) + 1e-9);
-    const settled = camera.update(kart(0, [0, 0.3, 0], { spinOutSeconds: 0.6 }), FRAME_S);
+    const settled = camera.update(kart(0, [0, 0.3, 0], { spinOutS: 0.6 }), FRAME_S);
     expectClose(settled.position, rest.position, 9);
     expectClose(settled.target, rest.target, 9);
   });
@@ -148,19 +131,19 @@ describe("the chase camera", () => {
     const camera = createChaseCamera(TUNING);
     const still = kart(0, [0, 0.3, 0]);
     const rest = camera.update(still, FRAME_S);
-    camera.update(kart(0, [0, 0.3, 0], { spinOutSeconds: 1 }), FRAME_S);
+    camera.update(kart(0, [0, 0.3, 0], { spinOutS: 1 }), FRAME_S);
     // The first spin-out runs out and the shake with it.
     for (let frame = 0; frame < 60; frame++) {
       camera.update(still, FRAME_S);
     }
     expectClose(camera.update(still, FRAME_S).position, rest.position, 9);
-    const hitAgain = camera.update(kart(0, [0, 0.3, 0], { spinOutSeconds: 1 }), FRAME_S);
+    const hitAgain = camera.update(kart(0, [0, 0.3, 0], { spinOutS: 1 }), FRAME_S);
     expect(distance(hitAgain.position, rest.position)).toBeGreaterThan(1e-3);
   });
 
   it("does not shake for a kart already spun out when first seen, nor through the spin", () => {
     const camera = createChaseCamera(TUNING);
-    const spinning = (left: number) => kart(0, [0, 0.3, 0], { spinOutSeconds: left });
+    const spinning = (left: number) => kart(0, [0, 0.3, 0], { spinOutS: left });
     const first = camera.update(spinning(0.9), FRAME_S);
     expectClose(first.position, [0, 3.5, 6], 9);
     for (let frame = 1; frame < 30; frame++) {

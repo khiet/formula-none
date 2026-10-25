@@ -30,6 +30,7 @@ const DECISION_SLUGS = [
   "hud-language",
   "item-sprites",
   "audio-engine",
+  "kart-readout",
 ];
 
 const expectedFiles = DECISION_SLUGS.map(

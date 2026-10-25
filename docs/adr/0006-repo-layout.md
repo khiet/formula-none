@@ -2,7 +2,8 @@
 
 ## Status
 
-Accepted (2026-10-18)
+Accepted (2026-10-18). The one-way rule, where it keeps protocol off sim,
+is superseded by ADR 0026.
 
 ## Context
 

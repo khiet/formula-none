@@ -1,27 +1,11 @@
 import { describe, expect, it } from "vitest";
-import type { KartTransform } from "./bridge";
+import type { KartReadout } from "./bridge";
+import { kartReadout, yawed } from "./kart-readout-fixture";
 import { createKartShadows, type SurfaceProbe } from "./kart-shadows";
 
 /** A kart at `position` turned `yaw` radians about +Y from its -Z facing. */
-function kart(yaw: number, position: readonly [number, number, number]): KartTransform {
-  return Object.freeze({
-    position: Object.freeze([...position]) as readonly [number, number, number],
-    rotation: Object.freeze([0, Math.sin(yaw / 2), 0, Math.cos(yaw / 2)]) as readonly [
-      number,
-      number,
-      number,
-      number,
-    ],
-    speed: 0,
-    surface: "asphalt",
-    drift: null,
-    heldItem: null,
-    spinOutSeconds: null,
-    airborne: true,
-    boostSeconds: null,
-    start: "clean",
-    stallSeconds: null,
-  });
+function kart(yaw: number, position: readonly [number, number, number]): KartReadout {
+  return kartReadout({ position, rotation: yawed(yaw), airborne: true });
 }
 
 /** Flat ground at `groundY` everywhere, or nothing at all when it is undefined. */

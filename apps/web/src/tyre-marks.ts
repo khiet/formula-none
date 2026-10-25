@@ -1,4 +1,4 @@
-import type { KartSize, KartTransform } from "./bridge";
+import type { KartReadout, KartSize } from "./bridge";
 import { rearWheel, type Side, type Vec3 } from "./kart-frame";
 
 /** One stretch of rubber on the road: a tyre's print from one laid point to the next. */
@@ -17,7 +17,7 @@ export interface TyreMarks {
    * is once that is a mark's length away, and age every mark by
    * `dtSeconds`.
    */
-  update(transforms: readonly KartTransform[], dtSeconds: number): void;
+  update(transforms: readonly KartReadout[], dtSeconds: number): void;
   /**
    * Every mark still showing, oldest first within one lap of the store.
    * `mark` is reused between calls: copy what is kept.

@@ -1,30 +1,24 @@
 import { describe, expect, it } from "vitest";
-import type { Drift, KartSize, KartTransform, MiniTurbo } from "./bridge";
+import type { KartReadout, KartSize, MiniTurbo } from "./bridge";
 import type { Start } from "./generated/protocol";
+import { kartReadout } from "./kart-readout-fixture";
 import { createParticles, type Particle } from "./particles";
 import { createSparkEmitter, sparkTell } from "./sparks";
 
 const SIZE: KartSize = { width: 1.2, height: 0.6, length: 1.8 };
 const FRAME_S = 1 / 60;
 
-function drifting(miniTurbo: MiniTurbo): Drift {
-  return { direction: "right", chargeSeconds: 0, miniTurbo };
+type DriftReading = Pick<KartReadout, "drift" | "miniTurbo">;
+
+/** Out of a drift. */
+const STRAIGHT: DriftReading = { drift: null, miniTurbo: "none" };
+
+function drifting(miniTurbo: MiniTurbo): DriftReading {
+  return { drift: { direction: "right", chargeS: 0 }, miniTurbo };
 }
 
-function kart(drift: Drift | null, start: Start = "clean"): KartTransform {
-  return {
-    position: [0, 0.3, 0],
-    rotation: [0, 0, 0, 1],
-    speed: 25,
-    surface: "asphalt",
-    drift,
-    heldItem: null,
-    spinOutSeconds: null,
-    airborne: false,
-    boostSeconds: null,
-    start,
-    stallSeconds: null,
-  };
+function kart(drift: DriftReading, start: Start = "clean"): KartReadout {
+  return kartReadout({ position: [0, 0.3, 0], speed: 25, ...drift, start });
 }
 
 function particlesOf(particles: ReturnType<typeof createParticles>): Particle[] {
@@ -46,7 +40,7 @@ function fixedRandom(): () => number {
 
 describe("spark tell", () => {
   it("shows no sparks off a drift or while the drift has charged nothing yet", () => {
-    expect(sparkTell(null)).toBeNull();
+    expect(sparkTell(STRAIGHT)).toBeNull();
     expect(sparkTell(drifting("none"))).toBeNull();
   });
 
@@ -59,10 +53,10 @@ describe("spark tell", () => {
   });
 
   it("shows a rocket start's charge in the tier's colour, with no warning past the full tier", () => {
-    expect(sparkTell(null, "clean")).toBeNull();
-    expect(sparkTell(null, "weakBoost")).toEqual(sparkTell(drifting("blue")));
-    expect(sparkTell(null, "fullBoost")).toEqual(sparkTell(drifting("orange")));
-    expect(sparkTell(null, "stall")).toEqual(sparkTell(drifting("orange")));
+    expect(sparkTell(STRAIGHT, "clean")).toBeNull();
+    expect(sparkTell(STRAIGHT, "weakBoost")).toEqual(sparkTell(drifting("blue")));
+    expect(sparkTell(STRAIGHT, "fullBoost")).toEqual(sparkTell(drifting("orange")));
+    expect(sparkTell(STRAIGHT, "stall")).toEqual(sparkTell(drifting("orange")));
   });
 });
 
@@ -96,7 +90,7 @@ describe("spark emitter", () => {
     const emitter = createSparkEmitter(particles, SIZE, fixedRandom());
     for (let frame = 0; frame < 30; frame++) {
       emitter.emit(kart(drifting("none")), FRAME_S);
-      emitter.emit(kart(null), FRAME_S);
+      emitter.emit(kart(STRAIGHT), FRAME_S);
     }
     expect(particlesOf(particles)).toEqual([]);
   });
@@ -104,7 +98,7 @@ describe("spark emitter", () => {
   it("throws sparks for a kart charging its rocket start while the countdown runs, and none after", () => {
     const particles = createParticles({ capacity: 64, gravity: 9.8 });
     const emitter = createSparkEmitter(particles, SIZE, fixedRandom());
-    emitter.emit(kart(null, "fullBoost"), FRAME_S, true);
+    emitter.emit(kart(STRAIGHT, "fullBoost"), FRAME_S, true);
     const colours = new Set(particlesOf(particles).map((spark) => spark.colour));
     expect([...colours]).toEqual([sparkTell(drifting("orange"))?.colour]);
 
@@ -112,8 +106,8 @@ describe("spark emitter", () => {
     const after = createParticles({ capacity: 64, gravity: 9.8 });
     const later = createSparkEmitter(after, SIZE, fixedRandom());
     for (let frame = 0; frame < 30; frame++) {
-      later.emit(kart(null, "fullBoost"), FRAME_S, false);
-      later.emit(kart(null, "clean"), FRAME_S, true);
+      later.emit(kart(STRAIGHT, "fullBoost"), FRAME_S, false);
+      later.emit(kart(STRAIGHT, "clean"), FRAME_S, true);
     }
     expect(particlesOf(after)).toEqual([]);
   });

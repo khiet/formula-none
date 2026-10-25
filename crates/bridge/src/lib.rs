@@ -1,128 +1,38 @@
 //! Thin WebAssembly surface over `sim` and `protocol`; holds no game rules.
 //!
 //! The web app talks to [`Race`] and [`Prediction`]: create a race on a
-//! track, step it with one flat buffer of inputs, read one flat buffer of
-//! kart readouts; or predict the player's own kart in a room's race from the
-//! inputs it sends and the snapshots it receives. Flat buffers cross the
-//! wasm boundary once per tick instead of once per kart per field.
+//! track, step it with one flat buffer of inputs, read the karts'
+//! transforms as one flat buffer and the rest of their readouts as values
+//! of the generated `KartReadout` type; or predict the player's own kart in
+//! a room's race from the inputs it sends and the snapshots it receives.
+//! The transforms Three.js reads every frame cross the wasm boundary once
+//! per tick instead of once per kart per field (ADR 0003); everything else
+//! rides typed (ADR 0026).
 
-use protocol::{ClientMessage, Input, KartSnapshot, ServerMessage, Snapshot};
+use protocol::{ClientMessage, Input, ServerMessage, Snapshot};
 use serde::de::DeserializeOwned;
 use serde::Serialize;
-use sim::{
-    Drift, DriftDirection, Item, KartInput, KartTransform, Phase, Projectile, Replay, SnapshotKart,
-    Start, State, Surface, Track,
-};
+use sim::{KartInput, KartReadout, Phase, Projectile, Replay, State, Surface, Track};
 use wasm_bindgen::prelude::*;
 
 /// Floats per kart in the input buffer: steer, throttle, brake, hop, use
 /// item, hold item. A button is pressed when its float is not zero.
 const FLOATS_PER_INPUT: usize = 6;
 
+/// Floats per kart in a transform buffer: position x, y, z, then the
+/// rotation quaternion x, y, z, w. Y is up; identity rotation faces -Z.
+pub const FLOATS_PER_TRANSFORM: usize = 7;
+
 /// Written in the standings and phase buffers where a kart has no best lap
 /// or finish time yet, and where the grace has not started; a time is never
 /// negative.
 const NO_TIME: f32 = -1.0;
 
-/// Fixed sim rate, so the client's tick loop reads the tuned value instead of
-/// repeating it (ADR 0014).
+/// What the browser reads of the sim's tuning (ADR 0014), as a value of
+/// the generated `Tuning` type.
 #[wasm_bindgen]
-pub fn ticks_per_second() -> u32 {
-    sim::tuning::TICKS_PER_SECOND
-}
-
-/// Laps in a race, so the Instrument panel's lap counter reads the tuned
-/// value (ADR 0014).
-#[wasm_bindgen]
-pub fn laps_per_race() -> u32 {
-    sim::tuning::LAPS_PER_RACE
-}
-
-/// Karts on the grid; the slots the humans leave empty are filled by bots
-/// at Start (ADR 0014).
-#[wasm_bindgen]
-pub fn karts_per_race() -> usize {
-    sim::tuning::KARTS_PER_RACE
-}
-
-/// The kart's width, height and length in metres, so the View draws the box
-/// the sim collides with (ADR 0014).
-#[wasm_bindgen]
-pub fn kart_size_m() -> Vec<f32> {
-    use sim::tuning::{KART_HALF_HEIGHT_M, KART_HALF_LENGTH_M, KART_HALF_WIDTH_M};
-    vec![
-        2.0 * KART_HALF_WIDTH_M,
-        2.0 * KART_HALF_HEIGHT_M,
-        2.0 * KART_HALF_LENGTH_M,
-    ]
-}
-
-/// How often a recording keeps the state hash, so the browser's recorder
-/// and the fixtures agree on the gate's resolution (ADR 0014).
-#[wasm_bindgen]
-pub fn replay_hash_interval_ticks() -> u32 {
-    sim::tuning::REPLAY_HASH_INTERVAL_TICKS
-}
-
-/// Seconds the karts are held on the grid before Go (ADR 0014), so a
-/// client racing from snapshots reads the count from the server's tick.
-#[wasm_bindgen]
-pub fn countdown_s() -> f32 {
-    sim::tuning::COUNTDOWN_S
-}
-
-/// How long a client shows a fire it predicted from a press before it
-/// takes the server not to have fired (ADR 0014).
-#[wasm_bindgen]
-pub fn predicted_fire_timeout_s() -> f32 {
-    sim::tuning::PREDICTED_FIRE_TIMEOUT_S
-}
-
-/// Seconds a picked-up item box is gone before it is back (ADR 0014), so a
-/// client racing from the server's events hides a box for as long as the
-/// server does.
-#[wasm_bindgen]
-pub fn item_box_respawn_s() -> f32 {
-    sim::tuning::ITEM_BOX_RESPAWN_S
-}
-
-/// Metres behind a kart a trailed hazard rides (ADR 0014), so a client
-/// draws a hazard a snapshot says is held where the server keeps it.
-#[wasm_bindgen]
-pub fn hazard_drop_distance_m() -> f32 {
-    sim::tuning::HAZARD_DROP_DISTANCE_M
-}
-
-/// Seconds a spin-out lasts (ADR 0014), so the View's spin animation runs
-/// once over it.
-#[wasm_bindgen]
-pub fn spin_out_s() -> f32 {
-    sim::tuning::SPIN_OUT_S
-}
-
-/// Top speed (ADR 0014), so the chase camera scales its pull-back by how
-/// close to it the kart is.
-#[wasm_bindgen]
-pub fn top_speed_m_per_s() -> f32 {
-    sim::tuning::TOP_SPEED_M_PER_S
-}
-
-/// How far the chase camera pulls back at top speed (ADR 0020).
-#[wasm_bindgen]
-pub fn camera_pull_back_m() -> f32 {
-    sim::tuning::CAMERA_PULL_BACK_M
-}
-
-/// How long the chase camera shakes after a hit (ADR 0020).
-#[wasm_bindgen]
-pub fn camera_shake_s() -> f32 {
-    sim::tuning::CAMERA_SHAKE_S
-}
-
-/// How far the shake throws the chase camera at its start (ADR 0020).
-#[wasm_bindgen]
-pub fn camera_shake_amplitude_m() -> f32 {
-    sim::tuning::CAMERA_SHAKE_AMPLITUDE_M
+pub fn tuning() -> Result<JsValue, String> {
+    to_js(&sim::tuning::TUNING)
 }
 
 /// The replay runner, in wasm: rerun `replay` (the JSON `sim::replay`
@@ -136,58 +46,6 @@ pub fn replay_hashes(replay: &str, sidecar: &str) -> Result<Vec<u64>, String> {
     let replay = Replay::from_json(replay).map_err(|error| error.to_string())?;
     let track = Track::from_sidecar(sidecar).map_err(|error| error.to_string())?;
     replay.run(track).map_err(|error| error.to_string())
-}
-
-/// How long the client gives WebTransport before falling back to WebSocket
-/// (ADR 0011), read from the tuned value (ADR 0014).
-#[wasm_bindgen]
-pub fn webtransport_connect_timeout_s() -> f32 {
-    sim::tuning::WEBTRANSPORT_CONNECT_TIMEOUT_S
-}
-
-/// How long a Ping waits for its Pong (ADR 0014).
-#[wasm_bindgen]
-pub fn ping_timeout_s() -> f32 {
-    sim::tuning::PING_TIMEOUT_S
-}
-
-/// How often an unanswered Ping is sent again (ADR 0014).
-#[wasm_bindgen]
-pub fn ping_resend_s() -> f32 {
-    sim::tuning::PING_RESEND_S
-}
-
-/// Silence from the server mid-race before the client shows the connection
-/// banner and reconnects (ADR 0012).
-#[wasm_bindgen]
-pub fn connection_silence_s() -> f32 {
-    sim::tuning::CONNECTION_SILENCE_S
-}
-
-/// How long a failed reconnect waits before the next try (ADR 0014).
-#[wasm_bindgen]
-pub fn reconnect_retry_s() -> f32 {
-    sim::tuning::RECONNECT_RETRY_S
-}
-
-/// The fewest characters a nickname may have (ADR 0014); the Title Scene
-/// validates against it.
-#[wasm_bindgen]
-pub fn nickname_min_chars() -> usize {
-    sim::tuning::NICKNAME_MIN_CHARS
-}
-
-/// The most characters a nickname may have (ADR 0014).
-#[wasm_bindgen]
-pub fn nickname_max_chars() -> usize {
-    sim::tuning::NICKNAME_MAX_CHARS
-}
-
-/// Letters in a room code (ADR 0012), so the Title Scene's code field is
-/// sized to it.
-#[wasm_bindgen]
-pub fn room_code_length() -> usize {
-    sim::tuning::ROOM_CODE_LENGTH
 }
 
 /// The protocol version this build speaks (ADR 0013). The generated
@@ -239,6 +97,18 @@ fn encode_message<M: DeserializeOwned + Serialize>(message: JsValue) -> Result<V
 fn decode_message<M: DeserializeOwned + Serialize>(bytes: &[u8]) -> Result<JsValue, String> {
     let message: M = protocol::decode(bytes).map_err(|error| error.to_string())?;
     message.serialize(&TO_JS).map_err(|error| error.to_string())
+}
+
+/// A sim value leaves wasm in the shape its generated type describes: a
+/// missing `Option` is `null`, and a `usize`, which ts-rs types as a
+/// `number`, is one. No sim value the bridge hands over holds a `u64`.
+const SIM_TO_JS: serde_wasm_bindgen::Serializer =
+    serde_wasm_bindgen::Serializer::new().serialize_missing_as_null(true);
+
+fn to_js<T: Serialize + ?Sized>(value: &T) -> Result<JsValue, String> {
+    value
+        .serialize(&SIM_TO_JS)
+        .map_err(|error| error.to_string())
 }
 
 /// One race's sim, owned by the browser for prediction of the local kart.
@@ -311,28 +181,17 @@ impl Race {
         self.state = Some(sim::step(state, &inputs, dt));
     }
 
-    /// Eighteen floats per kart in grid order: position x, y, z, rotation
-    /// quaternion x, y, z, w, speed in metres per second along the kart's
-    /// facing (negative backing up), the surface under the kart as
-    /// `sim::Surface::code` (0 asphalt, 1 sand, 2 grass, 3 wall, 4 out of
-    /// world), the drift direction (-1 left, 1 right, 0 not drifting), the
-    /// mini-turbo tier the drift has charged (0 none, 1 blue, 2 orange),
-    /// the seconds of drift charge, the item in the kart's slot as
-    /// `sim::Item::code` (0 empty, 1 boost, 2 hazard, 3 homing), the
-    /// seconds of spin-out left, 0 when the kart is not spun out, 1 while
-    /// the kart is in a hop's airtime, else 0, the seconds of boost left, 0
-    /// when the kart is not boosting, the rocket start as
-    /// `sim::Start::code` (0 clean, 1 weak boost, 2 full boost, 3 stall),
-    /// and the seconds of stall left, 0 when the kart is not stalled. Y is
-    /// up; identity rotation faces -Z.
+    /// `FLOATS_PER_TRANSFORM` floats per kart in grid order: its transform.
     pub fn kart_transforms(&self) -> Vec<f32> {
-        let state = self.state();
-        state
-            .kart_transforms()
-            .iter()
-            .enumerate()
-            .flat_map(|(slot, kart)| transform_floats(kart, state.kart_surface(slot)))
-            .collect()
+        transform_floats(&self.state().kart_readouts())
+    }
+
+    /// One `[readout, surface]` pair per kart in grid order, as values of
+    /// the generated `KartReadout` and `Surface` types: the readout less
+    /// the transform, and the surface under the kart.
+    #[wasm_bindgen(js_name = kart_readouts)]
+    pub fn kart_readouts_js(&self) -> Result<JsValue, String> {
+        to_js(&self.kart_readouts())
     }
 
     /// Eight floats per kart in grid order: race position from 1, the lap
@@ -438,6 +297,20 @@ impl Race {
     }
 }
 
+impl Race {
+    /// Every kart's readout in grid order, with the surface under it: what
+    /// `kart_transforms` and `kart_readouts` carry to JavaScript.
+    pub fn kart_readouts(&self) -> Vec<(KartReadout, Surface)> {
+        let state = self.state();
+        state
+            .kart_readouts()
+            .into_iter()
+            .enumerate()
+            .map(|(slot, kart)| (kart, state.kart_surface(slot)))
+            .collect()
+    }
+}
+
 /// The player's own kart in a room's race, predicted here from the inputs
 /// the client sends and reconciled with the snapshots it receives, and the
 /// other karts interpolated between those snapshots, which the prediction
@@ -481,15 +354,8 @@ impl Prediction {
         self.interpolation.advance();
         self.inner.tick(
             input.sequence,
-            KartInput {
-                steer: input.steer_unit(),
-                throttle: input.throttle_unit(),
-                brake: input.brake_unit(),
-                hop: input.hop,
-                use_item: input.use_item,
-                hold_item: input.hold_item,
-            },
-            &self.interpolation.kart_transforms(),
+            KartInput::from(input),
+            &self.interpolation.kart_readouts(),
         );
         Ok(())
     }
@@ -509,38 +375,39 @@ impl Prediction {
         };
         self.interpolation.push(
             snapshot.tick,
-            snapshot.karts.iter().map(snapshot_kart).collect(),
-            snapshot
-                .projectiles
-                .iter()
-                .map(|projectile| Projectile {
-                    position: projectile.position,
-                    owner: usize::from(projectile.owner),
-                    target: usize::from(projectile.target),
-                })
-                .collect(),
+            snapshot.karts.iter().map(KartReadout::from).collect(),
+            snapshot.projectiles.iter().map(Projectile::from).collect(),
         );
         Ok(self
             .inner
-            .reconcile(snapshot.tick, acknowledged, &snapshot_kart(own)))
+            .reconcile(snapshot.tick, acknowledged, &KartReadout::from(own)))
     }
 
-    /// The kart as it is drawn, in the eighteen floats `Race::kart_transforms`
+    /// The kart as it is drawn, in the floats `Race::kart_transforms`
     /// gives each kart.
     pub fn kart_transform(&self) -> Vec<f32> {
-        transform_floats(&self.inner.kart_transform(), self.inner.kart_surface()).to_vec()
+        transform_floats(&[self.inner.kart_readout()])
+    }
+
+    /// The kart as it is drawn, as the pair `Race::kart_readouts` gives
+    /// each kart.
+    #[wasm_bindgen(js_name = kart_readout)]
+    pub fn kart_readout_js(&self) -> Result<JsValue, String> {
+        to_js(&self.kart_readout())
     }
 
     /// Every kart where the interpolation draws it, in grid order, in the
-    /// eighteen floats `Race::kart_transforms` gives each, with the surface
-    /// under it; empty before the first snapshot. This kart's entry is the
-    /// snapshots', not the prediction's.
+    /// floats `Race::kart_transforms` gives each; empty before the first
+    /// snapshot. This kart's entry is the snapshots', not the prediction's.
     pub fn interpolated_kart_transforms(&self) -> Vec<f32> {
-        self.interpolation
-            .kart_transforms()
-            .iter()
-            .flat_map(|kart| transform_floats(kart, self.inner.surface_at(kart.position)))
-            .collect()
+        transform_floats(&self.interpolation.kart_readouts())
+    }
+
+    /// Every kart where the interpolation draws it, as the pairs
+    /// `Race::kart_readouts` gives; empty before the first snapshot.
+    #[wasm_bindgen(js_name = interpolated_kart_readouts)]
+    pub fn interpolated_kart_readouts_js(&self) -> Result<JsValue, String> {
+        to_js(&self.interpolated_kart_readouts())
     }
 
     /// Every projectile in flight where the interpolation draws it, in
@@ -564,38 +431,29 @@ impl Prediction {
     }
 }
 
-/// One kart's eighteen floats, as `Race::kart_transforms` documents them.
-fn transform_floats(kart: &KartTransform, surface: Surface) -> [f32; 18] {
-    let (direction, tier, charge_s) = match kart.drift {
-        Some(drift) => (
-            drift.direction.steer_sign(),
-            f32::from(drift.mini_turbo().code()),
-            drift.charge_s,
-        ),
-        None => (0.0, 0.0, 0.0),
-    };
-    let [x, y, z] = kart.position;
-    let [qx, qy, qz, qw] = kart.rotation;
-    [
-        x,
-        y,
-        z,
-        qx,
-        qy,
-        qz,
-        qw,
-        kart.speed,
-        f32::from(surface.code()),
-        direction,
-        tier,
-        charge_s,
-        f32::from(kart.held_item.map_or(0, Item::code)),
-        kart.spin_out_s.unwrap_or(0.0),
-        f32::from(u8::from(kart.airborne)),
-        kart.boost_s.unwrap_or(0.0),
-        f32::from(kart.start.code()),
-        kart.stall_s.unwrap_or(0.0),
-    ]
+impl Prediction {
+    /// The kart as it is drawn, with the surface under it.
+    fn kart_readout(&self) -> (KartReadout, Surface) {
+        (self.inner.kart_readout(), self.inner.kart_surface())
+    }
+
+    /// Every kart where the interpolation draws it, with the surface under
+    /// it on the track.
+    fn interpolated_kart_readouts(&self) -> Vec<(KartReadout, Surface)> {
+        self.interpolation
+            .kart_readouts()
+            .into_iter()
+            .map(|kart| (kart, self.inner.surface_at(kart.position)))
+            .collect()
+    }
+}
+
+/// The transforms of `karts`, `FLOATS_PER_TRANSFORM` floats each.
+fn transform_floats(karts: &[KartReadout]) -> Vec<f32> {
+    karts
+        .iter()
+        .flat_map(|kart| kart.position.into_iter().chain(kart.rotation))
+        .collect()
 }
 
 /// The five floats per projectile `Race::projectiles` documents.
@@ -620,41 +478,4 @@ fn phase_floats(phase: Phase) -> [f32; 3] {
         Phase::Finished => (0.0, NO_TIME),
     };
     [f32::from(phase.code()), seconds, grace_left_s]
-}
-
-/// The sim's item for the protocol's.
-fn item(item: protocol::Item) -> Item {
-    match item {
-        protocol::Item::Boost => Item::Boost,
-        protocol::Item::Hazard => Item::Hazard,
-        protocol::Item::Homing => Item::Homing,
-    }
-}
-
-/// What a protocol snapshot says of one kart, in the sim's terms.
-fn snapshot_kart(kart: &KartSnapshot) -> SnapshotKart {
-    SnapshotKart {
-        position: kart.position,
-        rotation: kart.rotation,
-        velocity: kart.velocity,
-        drift: kart.drift.map(|drift| Drift {
-            direction: match drift.direction {
-                protocol::DriftDirection::Left => DriftDirection::Left,
-                protocol::DriftDirection::Right => DriftDirection::Right,
-            },
-            charge_s: drift.charge_s,
-        }),
-        held_item: kart.held_item.map(item),
-        spin_out_s: kart.spin_out_s,
-        start: match kart.start {
-            protocol::Start::Clean => Start::Clean,
-            protocol::Start::WeakBoost => Start::WeakBoost,
-            protocol::Start::FullBoost => Start::FullBoost,
-            protocol::Start::Stall => Start::Stall,
-        },
-        stall_s: kart.stall_s,
-        lap: u32::from(kart.lap),
-        checkpoint: usize::from(kart.checkpoint),
-        spline_progress: kart.spline_progress,
-    }
 }

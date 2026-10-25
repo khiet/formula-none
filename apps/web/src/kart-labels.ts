@@ -1,4 +1,4 @@
-import type { KartTransform } from "./bridge";
+import type { KartReadout } from "./bridge";
 
 /**
  * Metres above a kart's centre its label floats: clear of the driver's
@@ -20,7 +20,7 @@ export interface KartLabel {
  * View draws it.
  */
 export function kartLabels(
-  transforms: readonly KartTransform[],
+  transforms: readonly KartReadout[],
   localKart: number,
   name: (kart: number) => string,
 ): KartLabel[] {

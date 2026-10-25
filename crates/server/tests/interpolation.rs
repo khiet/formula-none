@@ -12,14 +12,14 @@ mod common;
 use std::collections::BTreeSet;
 use std::time::Duration;
 
-use common::{projectiles, race_together, snapshot_kart, steer_toward, wire};
+use common::{projectiles, race_together, steer_toward, wire};
 use protocol::ServerMessage;
 use server::fake_transport::{Client, Conditions, Harness};
 use sim::tuning::{
     COUNTDOWN_S, INTERPOLATION_DELAY_S, INTERPOLATION_TELEPORT_M_PER_TICK, KARTS_PER_RACE,
     RECONCILIATION_VISIBLE_CORRECTION_M, SNAPSHOTS_PER_SECOND, TICKS_PER_SECOND,
 };
-use sim::{Interpolation, KartInput, KartTransform};
+use sim::{Interpolation, KartInput, KartReadout};
 
 const TICK: Duration = Duration::from_nanos(1_000_000_000 / TICKS_PER_SECOND as u64);
 const TICKS_PER_SNAPSHOT: u32 = TICKS_PER_SECOND / SNAPSHOTS_PER_SECOND;
@@ -39,7 +39,7 @@ fn client_tick(
             held.insert(snapshot.tick);
             interpolation.push(
                 snapshot.tick,
-                snapshot.karts.iter().map(snapshot_kart).collect(),
+                snapshot.karts.iter().map(KartReadout::from).collect(),
                 projectiles(&snapshot),
             );
         }
@@ -144,7 +144,7 @@ async fn at_a_100_ms_round_trip_and_2_percent_loss_the_other_karts_are_drawn_whe
         if before > 0 && newest[1] > before + TICKS_PER_SNAPSHOT {
             gaps += 1;
         }
-        let karts = [drawn[0].kart_transforms(), drawn[1].kart_transforms()];
+        let karts = [drawn[0].kart_readouts(), drawn[1].kart_readouts()];
         // One input a tick, as the browser sends them; idle until Go, so
         // the throttle sets up no rocket start.
         sequence += 1;
@@ -199,7 +199,7 @@ async fn at_a_100_ms_round_trip_and_2_percent_loss_the_other_karts_are_drawn_whe
 
 /// Full throttle, steering the kart round to face +X: off the oval's
 /// front straight and across the run-off into its wall.
-fn toward_plus_x(kart: &KartTransform) -> KartInput {
+fn toward_plus_x(kart: &KartReadout) -> KartInput {
     let far_right = [kart.position[0] + 1000.0, kart.position[2]];
     KartInput {
         steer: steer_toward(kart.position, kart.rotation, far_right),

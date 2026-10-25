@@ -1,30 +1,19 @@
 import { describe, expect, it } from "vitest";
-import type { Drift, KartSize, KartTransform } from "./bridge";
+import type { Drift, KartReadout, KartSize } from "./bridge";
+import { kartReadout, yawed } from "./kart-readout-fixture";
 import { createTyreMarks, type TyreMark } from "./tyre-marks";
 
 const SIZE: KartSize = { width: 1.2, height: 0.6, length: 1.8 };
 const FRAME_S = 1 / 60;
-const DRIFT: Drift = { direction: "left", chargeSeconds: 0.2, miniTurbo: "none" };
+const DRIFT: Drift = { direction: "left", chargeS: 0.2 };
 
 /** A kart at `position` turned `yaw` about +Y from its -Z facing, drifting or not. */
 function kart(
   position: readonly [number, number, number],
   drift: Drift | null,
   yaw = 0,
-): KartTransform {
-  return {
-    position,
-    rotation: [0, Math.sin(yaw / 2), 0, Math.cos(yaw / 2)],
-    speed: 20,
-    surface: "asphalt",
-    drift,
-    heldItem: null,
-    spinOutSeconds: null,
-    airborne: false,
-    boostSeconds: null,
-    start: "clean",
-    stallSeconds: null,
-  };
+): KartReadout {
+  return kartReadout({ position, rotation: yawed(yaw), speed: 20, drift });
 }
 
 function marksOf(marks: ReturnType<typeof createTyreMarks>): TyreMark[] {

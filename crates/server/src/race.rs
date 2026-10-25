@@ -8,14 +8,14 @@
 use std::collections::{BTreeMap, VecDeque};
 
 use protocol::{
-    DriftDirection, DriftSnapshot, Event, EventKind, FinalStanding, HazardSnapshot, Input, Item,
-    KartSnapshot, ProjectileSnapshot, Snapshot, Start,
+    Event, EventKind, FinalStanding, HazardSnapshot, Input, KartSnapshot, ProjectileSnapshot,
+    Snapshot,
 };
 use sim::tuning::{
     CONNECTION_SILENCE_S, INPUT_QUEUE_MAX_TICKS, INPUT_QUEUE_START_TICKS, KARTS_PER_RACE,
     SNAPSHOTS_PER_SECOND, SNAPSHOT_EVENT_REPEATS, TICKS_PER_SECOND,
 };
-use sim::{KartInput, Phase, RaceEvent, State, Track};
+use sim::{KartInput, Phase, State, Track};
 
 /// The sim's `dt`, and the budget a tick's work must fit in for the server
 /// to keep up (ADR 0010).
@@ -78,7 +78,7 @@ impl HumanInput {
     fn receive(&mut self, input: Input) {
         self.silent_ticks = Some(0);
         if input.sequence > self.sequence {
-            self.queued.insert(input.sequence, kart_input(input));
+            self.queued.insert(input.sequence, KartInput::from(input));
             self.newest = self.newest.max(input.sequence);
         }
     }
@@ -211,7 +211,7 @@ impl Race {
                 self.next_event_id += 1;
                 Event {
                     id,
-                    kind: event_kind(event),
+                    kind: EventKind::from(event),
                 }
             })
             .collect();
@@ -258,53 +258,19 @@ impl Race {
             .collect();
         self.repeated.push_front(std::mem::take(&mut self.pending));
         self.repeated.truncate(SNAPSHOT_EVENT_REPEATS);
-        let standings = state.standings();
-        let karts = state
-            .kart_transforms()
+        let karts: Vec<KartSnapshot> = state
+            .kart_readouts()
             .iter()
-            .zip(&standings)
-            .map(|(transform, standing)| KartSnapshot {
-                position: transform.position,
-                rotation: transform.rotation,
-                velocity: transform.velocity,
-                drift: transform.drift.map(|drift| DriftSnapshot {
-                    direction: match drift.direction {
-                        sim::DriftDirection::Left => DriftDirection::Left,
-                        sim::DriftDirection::Right => DriftDirection::Right,
-                    },
-                    charge_s: drift.charge_s,
-                }),
-                race_position: standing.position as u8,
-                lap: standing.lap() as u8,
-                checkpoint: standing.checkpoint as u8,
-                spline_progress: standing.spline_progress,
-                wrong_way: standing.wrong_way,
-                held_item: transform.held_item.map(wire_item),
-                spin_out_s: transform.spin_out_s,
-                start: wire_start(transform.start),
-                stall_s: transform.stall_s,
-            })
+            .map(KartSnapshot::from)
             .collect();
-        let hazards = state
-            .hazards()
-            .iter()
-            .map(|hazard| HazardSnapshot {
-                position: hazard.position,
-                owner: hazard.owner as u8,
-                held: hazard.held,
-            })
-            .collect();
+        let hazards = state.hazards().iter().map(HazardSnapshot::from).collect();
         let projectiles = state
             .projectiles()
             .iter()
-            .map(|projectile| ProjectileSnapshot {
-                position: projectile.position,
-                owner: projectile.owner as u8,
-                target: projectile.target as u8,
-            })
+            .map(ProjectileSnapshot::from)
             .collect();
         let mut acknowledged: Vec<u32> = self.humans.iter().map(|human| human.sequence).collect();
-        acknowledged.resize(standings.len(), 0);
+        acknowledged.resize(karts.len(), 0);
         Snapshot {
             tick: self.tick,
             acknowledged,
@@ -313,77 +279,6 @@ impl Race {
             hazards,
             projectiles,
         }
-    }
-}
-
-/// The sim's input for a wire input: each byte back to the unit range.
-fn kart_input(input: Input) -> KartInput {
-    KartInput {
-        steer: input.steer_unit(),
-        throttle: input.throttle_unit(),
-        brake: input.brake_unit(),
-        hop: input.hop,
-        use_item: input.use_item,
-        hold_item: input.hold_item,
-    }
-}
-
-fn event_kind(event: RaceEvent) -> EventKind {
-    match event {
-        RaceEvent::LapCompleted {
-            kart,
-            lap,
-            lap_time_s,
-        } => EventKind::LapCompleted {
-            kart: kart as u8,
-            lap: lap as u8,
-            lap_time_s,
-        },
-        RaceEvent::Finished {
-            kart,
-            position,
-            finish_time_s,
-        } => EventKind::Finished {
-            kart: kart as u8,
-            position: position as u8,
-            finish_time_s,
-        },
-        RaceEvent::Respawned { kart } => EventKind::Respawned { kart: kart as u8 },
-        RaceEvent::ItemPicked {
-            kart,
-            item,
-            item_box,
-        } => EventKind::ItemPicked {
-            kart: kart as u8,
-            item: wire_item(item),
-            item_box: item_box as u8,
-        },
-        RaceEvent::ItemFired { kart, item } => EventKind::ItemFired {
-            kart: kart as u8,
-            item: wire_item(item),
-        },
-        RaceEvent::SpunOut { kart, by } => EventKind::Hit {
-            kart: kart as u8,
-            by: by as u8,
-        },
-    }
-}
-
-fn wire_item(item: sim::Item) -> Item {
-    match item {
-        sim::Item::Boost => Item::Boost,
-        sim::Item::Hazard => Item::Hazard,
-        sim::Item::Homing => Item::Homing,
-    }
-}
-
-/// The protocol's start for the sim's.
-fn wire_start(start: sim::Start) -> Start {
-    match start {
-        sim::Start::Clean => Start::Clean,
-        sim::Start::WeakBoost => Start::WeakBoost,
-        sim::Start::FullBoost => Start::FullBoost,
-        sim::Start::Stall => Start::Stall,
     }
 }
 

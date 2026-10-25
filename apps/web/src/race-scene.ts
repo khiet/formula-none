@@ -5,7 +5,7 @@ import type {
   Hazard,
   ItemBox,
   KartInput,
-  KartTransform,
+  KartReadout,
   Phase,
   Projectile,
   Standing,
@@ -52,7 +52,7 @@ export interface RaceRun {
   /** One tick of `dt` seconds with the local player's input: stepped here, or sent to the server. */
   tick(input: KartInput, dt: number): void;
   /** One transform per kart in grid order, as of the last tick. */
-  kartTransforms(): KartTransform[];
+  kartReadouts(): KartReadout[];
   /** One standing per kart in grid order, as of the last tick. */
   standings(): Standing[];
   phase(): Phase;
@@ -109,7 +109,7 @@ export function localRaceRun(
   const replay = recordReplay(bridge, setup.seed, track, botCount, race);
   const inputs: KartInput[] = Array<KartInput>(setup.humanCount).fill(IDLE_INPUT);
   const boxes = race.itemBoxes();
-  const heldItem = () => race.kartTransforms()[setup.localKart]?.heldItem ?? null;
+  const heldItem = () => race.kartReadouts()[setup.localKart]?.heldItem ?? null;
   // The only way an item leaves the slot here is the fire, which the sim
   // applies the tick it is pressed; the slot shows it for the flash.
   let flashTicksLeft = 0;
@@ -126,7 +126,7 @@ export function localRaceRun(
           ? Math.round(ITEM_FIRE_FLASH_S * bridge.ticksPerSecond)
           : Math.max(flashTicksLeft - 1, 0);
     },
-    kartTransforms: () => race.kartTransforms(),
+    kartReadouts: () => race.kartReadouts(),
     standings: () => race.standings(),
     phase: () => race.phase(),
     itemSlot: () => ({ item: heldItem(), firing: flashTicksLeft > 0 }),
@@ -200,7 +200,7 @@ export async function createRaceScene(
   const name = (kart: number): string =>
     kartName({ localKart: run.localKart, isBot, nickname }, kart);
   const present = (frameSeconds: number) => {
-    const transforms = run.kartTransforms();
+    const transforms = run.kartReadouts();
     const local = transforms[run.localKart];
     const standing = run.standings()[run.localKart];
     if (local && standing) {

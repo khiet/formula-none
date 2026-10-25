@@ -1,13 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import type {
-  Bridge,
-  KartInput,
-  KartTransform,
-  Phase,
-  Prediction,
-  Projectile,
-  Race,
-} from "./bridge";
+import type { Bridge, KartInput, KartReadout, Phase, Prediction, Projectile, Race } from "./bridge";
 import { TOKEN } from "./fake-connection";
 import type {
   Event,
@@ -18,6 +10,7 @@ import type {
   Snapshot,
 } from "./generated/protocol";
 import { IDLE_INPUT } from "./input";
+import { kartReadout } from "./kart-readout-fixture";
 import { ITEM_FIRE_FLASH_S } from "./race-scene";
 import { type Countdown, quantiseInput, type RoomClient } from "./room-client";
 import { createServerRace } from "./server-race";
@@ -38,40 +31,20 @@ const ITEM_BOXES = 8;
 const HAZARD_DROP_DISTANCE_M = 1;
 const KART_HEIGHT_M = 0.6;
 
-const GRID_TRANSFORM: KartTransform = {
-  position: [1, 0.3, 2],
-  rotation: [0, 0, 0, 1],
-  speed: 0,
-  surface: "asphalt",
-  drift: null,
-  heldItem: null,
-  spinOutSeconds: null,
-  airborne: false,
-  boostSeconds: null,
-  start: "clean",
-  stallSeconds: null,
-};
+const GRID_TRANSFORM: KartReadout = kartReadout({ position: [1, 0.3, 2] });
 
-const PREDICTED: KartTransform = {
+const PREDICTED: KartReadout = kartReadout({
   position: [3, 0.3, -40],
-  rotation: [0, 0, 0, 1],
   speed: 20,
-  surface: "asphalt",
-  drift: null,
   heldItem: "hazard",
-  spinOutSeconds: null,
-  airborne: false,
-  boostSeconds: null,
-  start: "clean",
-  stallSeconds: null,
-};
+});
 
 interface FakePrediction extends Prediction {
   readonly kart: number;
   readonly inputs: Input[];
   readonly snapshots: Snapshot[];
   clock: Phase;
-  interpolated: KartTransform[];
+  interpolated: KartReadout[];
   projectiles: Projectile[];
 }
 
@@ -96,7 +69,7 @@ const bridge = {
   kartSize: { width: 1.2, height: KART_HEIGHT_M, length: 1.8 },
   createRace: () =>
     ({
-      kartTransforms: () => Array<KartTransform>(KARTS).fill(GRID_TRANSFORM),
+      kartReadouts: () => Array<KartReadout>(KARTS).fill(GRID_TRANSFORM),
       itemBoxes: () =>
         Array.from({ length: ITEM_BOXES }, (_, box) => ({ position: [box, 0, -70], yaw: 0 })),
       itemBoxesPresent: () => Array<boolean>(ITEM_BOXES).fill(true),
@@ -116,8 +89,8 @@ const bridge = {
         this.snapshots.push(snapshot);
         return 0;
       },
-      kartTransform: () => PREDICTED,
-      interpolatedKartTransforms() {
+      kartReadout: () => PREDICTED,
+      interpolatedKartReadouts() {
         return [...this.interpolated];
       },
       interpolatedProjectiles() {
@@ -240,7 +213,7 @@ describe("createServerRace", () => {
 
   it("stands the other karts on the grid until the first snapshot, the own kart where it is predicted", () => {
     const run = createServerRace(bridge, fakeClient(), COUNTDOWN, 0, "{}");
-    const transforms = run.kartTransforms();
+    const transforms = run.kartReadouts();
     expect(transforms).toHaveLength(KARTS);
     expect(transforms[0]).toEqual(PREDICTED);
     expect(transforms[1]).toEqual(GRID_TRANSFORM);
@@ -269,21 +242,15 @@ describe("createServerRace", () => {
 
   it("draws the other karts where the interpolation puts them, the own kart where it is predicted", () => {
     const run = createServerRace(bridge, fakeClient(), COUNTDOWN, 1, "{}");
-    const interpolated: KartTransform = {
+    const interpolated: KartReadout = kartReadout({
       position: [10, 0.3, -20],
-      rotation: [0, 0, 0, 1],
       speed: 12,
       surface: "sand",
-      drift: { direction: "left", chargeSeconds: 1, miniTurbo: "blue" },
-      heldItem: null,
-      spinOutSeconds: null,
-      airborne: false,
-      boostSeconds: null,
-      start: "clean",
-      stallSeconds: null,
-    };
-    prediction().interpolated = Array<KartTransform>(KARTS).fill(interpolated);
-    const [first, own, third] = run.kartTransforms();
+      drift: { direction: "left", chargeS: 1 },
+      miniTurbo: "blue",
+    });
+    prediction().interpolated = Array<KartReadout>(KARTS).fill(interpolated);
+    const [first, own, third] = run.kartReadouts();
     expect(first).toEqual(interpolated);
     expect(own).toEqual(PREDICTED);
     expect(third).toEqual(interpolated);
@@ -436,12 +403,12 @@ describe("createServerRace", () => {
     // Another kart's trailed hazard follows that kart where the
     // interpolation draws it, turned with the kart: a quarter turn about
     // +Y faces it -X, so its rear is +X.
-    const interpolated: KartTransform = {
+    const interpolated: KartReadout = {
       ...GRID_TRANSFORM,
       position: [20, 0.3, -50],
       rotation: [0, Math.SQRT1_2, 0, Math.SQRT1_2],
     };
-    prediction().interpolated = Array<KartTransform>(KARTS).fill(interpolated);
+    prediction().interpolated = Array<KartReadout>(KARTS).fill(interpolated);
     client.snapshot(snapshot(62, [], [{ position: [0, 0, 0], owner: 3, held: true }]));
     const [trailed] = run.hazards();
     expect(trailed?.position[0]).toBeCloseTo(20 + HAZARD_DROP_DISTANCE_M, 5);

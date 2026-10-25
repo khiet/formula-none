@@ -6,7 +6,7 @@
 // when the button goes down, and the countdown beeps as the count the
 // Instrument panel shows changes, never from a clock of its own.
 
-import type { KartTransform, MiniTurbo, Phase, Standing, Surface } from "./bridge";
+import type { KartReadout, MiniTurbo, Phase, Standing, Surface } from "./bridge";
 import type { Item, Start } from "./generated/protocol";
 import { type ItemSlot, phaseReadout } from "./instrument-panel";
 
@@ -58,7 +58,7 @@ export interface SoundReading {
 
 /** The own kart's reading from its transform, standing, item slot and the race's phase this frame. */
 export function soundReading(
-  kart: KartTransform,
+  kart: KartReadout,
   standing: Standing,
   slot: ItemSlot,
   phase: Phase,
@@ -66,15 +66,15 @@ export function soundReading(
   return {
     speed: kart.speed,
     airborne: kart.airborne,
-    miniTurbo: kart.drift?.miniTurbo ?? null,
+    miniTurbo: kart.drift !== null ? kart.miniTurbo : null,
     item: slot.item,
-    spunOut: kart.spinOutSeconds !== null,
-    boostSeconds: kart.boostSeconds,
+    spunOut: kart.spinOutS !== null,
+    boostSeconds: kart.boostS,
     lap: standing.lap,
     finished: standing.finishTimeSeconds !== null,
     count: phaseReadout(phase),
     charge: phase.kind === "countdown" ? kart.start : null,
-    stalled: kart.stallSeconds !== null,
+    stalled: kart.stallS !== null,
     surface: kart.surface,
     drifting: kart.drift !== null,
     wrongWay: standing.wrongWay,

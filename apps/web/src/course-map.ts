@@ -4,7 +4,7 @@
 // and is never mirrored against the View: +x runs right and +z runs down,
 // which is how the world looks from above with the grid facing up the map.
 
-import type { KartTransform } from "./bridge";
+import type { KartReadout } from "./bridge";
 import { liveryCss } from "./livery";
 import type { WorldPoint } from "./track";
 
@@ -90,7 +90,7 @@ export interface CourseMap {
   /** The SVG, addressable by `data-instrument="course-map"`; the caller puts it on the page. */
   readonly element: SVGSVGElement;
   /** Move every marker to where `transforms` put its kart this frame. */
-  update(transforms: readonly KartTransform[]): void;
+  update(transforms: readonly KartReadout[]): void;
 }
 
 /**

@@ -102,6 +102,16 @@ Distance along the track centreline. Race position is ordered by lap, then
 checkpoint index, then spline progress. Decreasing spline progress for two
 seconds triggers the wrong-way warning.
 
+### kart readout
+
+What the sim says of one kart at a tick: its transform, speed and
+velocity, drift and mini-turbo tier, item slot, spin-out, hop, boost,
+rocket start and stall, and its place in the race. The sim reports one per
+kart every tick; a snapshot carries all of it but the hop and the boost,
+which only the sim stepping the kart knows; a prediction's kart adopts the
+snapshot's. The View, the Instrument panel and the bots read it. Not a
+snapshot, which is the server's message about every kart.
+
 ### standing
 
 Where a kart is in the race: its race position, laps completed, last

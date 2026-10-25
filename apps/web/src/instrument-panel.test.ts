@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from "vitest";
-import type { KartTransform, Standing } from "./bridge";
+import type { KartReadout, Standing } from "./bridge";
 import {
   CONNECTION_LOST_BANNER,
   createInstrumentPanel,
@@ -8,6 +8,7 @@ import {
   lapReadouts,
   phaseReadout,
 } from "./instrument-panel";
+import { kartReadout } from "./kart-readout-fixture";
 import { liveryCss } from "./livery";
 
 // A square loop, so the map's fit is easy to read: the grid faces -z.
@@ -22,20 +23,8 @@ const course = {
   ownKart: 1,
 } as const;
 
-function at(position: readonly [number, number, number]): KartTransform {
-  return {
-    position,
-    rotation: [0, 0, 0, 1],
-    speed: 0,
-    surface: "asphalt",
-    drift: null,
-    heldItem: null,
-    spinOutSeconds: null,
-    airborne: false,
-    boostSeconds: null,
-    start: "clean",
-    stallSeconds: null,
-  };
+function at(position: readonly [number, number, number]): KartReadout {
+  return kartReadout({ position });
 }
 
 const onTheGrid: Standing = {

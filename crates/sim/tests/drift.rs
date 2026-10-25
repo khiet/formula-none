@@ -1,7 +1,7 @@
 //! Cornering technique at the sim's public seam: a hop, the drift it lands
 //! into, and the mini-turbo the drift charges. Tests drive one kart on the
 //! oval fixture, whose front straight is clear for 100 m past the start line
-//! and runs along -Z, and assert what `kart_transforms` reports. The oval's
+//! and runs along -Z, and assert what `kart_readouts` reports. The oval's
 //! walls are taken away first: a drift held to orange arcs out of the
 //! corridor between them, and the drift is what is under test.
 
@@ -10,7 +10,7 @@ use sim::tuning::{
     MINI_TURBO_BLUE_BOOST_S, MINI_TURBO_BLUE_CHARGE_S, MINI_TURBO_BOOST_FACTOR,
     MINI_TURBO_ORANGE_BOOST_S, MINI_TURBO_ORANGE_CHARGE_S, TICKS_PER_SECOND, TOP_SPEED_M_PER_S,
 };
-use sim::{step, DriftDirection, KartInput, KartTransform, MiniTurbo, Phase, State, Track};
+use sim::{step, DriftDirection, KartInput, KartReadout, MiniTurbo, Phase, State, Track};
 
 const OVAL: &str = include_str!("../../../assets/tracks/oval/oval.track.json");
 const DT: f32 = 1.0 / TICKS_PER_SECOND as f32;
@@ -57,8 +57,8 @@ fn ticks(seconds: f32) -> usize {
     (seconds * TICKS_PER_SECOND as f32).round() as usize
 }
 
-fn only_kart(state: &State) -> KartTransform {
-    let transforms = state.kart_transforms();
+fn only_kart(state: &State) -> KartReadout {
+    let transforms = state.kart_readouts();
     assert_eq!(transforms.len(), 1);
     transforms[0]
 }
@@ -200,7 +200,7 @@ fn no_drift_when_the_hop_button_is_let_go_before_landing() {
 }
 
 /// Yaw in radians recovered from the rotation quaternion `[x, y, z, w]`.
-fn yaw(transform: &KartTransform) -> f32 {
+fn yaw(transform: &KartReadout) -> f32 {
     let [x, y, z, w] = transform.rotation;
     (2.0 * (w * y + x * z)).atan2(1.0 - 2.0 * (y * y + z * z))
 }

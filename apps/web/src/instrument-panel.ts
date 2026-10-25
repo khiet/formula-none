@@ -1,5 +1,5 @@
 import instrumentFontUrl from "../../../assets/fonts/kenney/Kenney Mini Square.ttf?url";
-import type { KartTransform, Phase, Standing } from "./bridge";
+import type { KartReadout, Phase, Standing } from "./bridge";
 import { type CourseMapSetup, createCourseMap } from "./course-map";
 import { formatLapTime, NO_LAP_TIME, type OrdinalParts, ordinalParts } from "./format";
 import type { Item } from "./generated/protocol";
@@ -28,11 +28,11 @@ export interface InstrumentPanel {
    * the same ones the View draws this frame.
    */
   update(
-    local: KartTransform,
+    local: KartReadout,
     standing: Standing,
     phase: Phase,
     slot: ItemSlot,
-    transforms: readonly KartTransform[],
+    transforms: readonly KartReadout[],
   ): void;
   /** The connection readout: which transport reached the server and how fast, or that none did. */
   connection(status: string): void;

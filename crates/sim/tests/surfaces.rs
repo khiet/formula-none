@@ -6,7 +6,7 @@
 //! x = 70 and nothing past it (layouts/oval.py).
 
 use sim::tuning::{KART_HALF_WIDTH_M, OFF_TRACK_SPEED_FACTOR, TICKS_PER_SECOND, TOP_SPEED_M_PER_S};
-use sim::{step, KartInput, KartTransform, Phase, State, Surface, Track};
+use sim::{step, KartInput, KartReadout, Phase, State, Surface, Track};
 
 const OVAL: &str = include_str!("../../../assets/tracks/oval/oval.track.json");
 const DT: f32 = 1.0 / TICKS_PER_SECOND as f32;
@@ -80,7 +80,7 @@ fn sand_and_grass_cap_the_speed_at_the_off_track_fraction_of_top_speed() {
         // The rules read the surface under the kart as the tick begins.
         let surface = state.kart_surface(0);
         state = step(state, &[throttle()], DT);
-        let kart = state.kart_transforms()[0];
+        let kart = state.kart_readouts()[0];
         match surface {
             Surface::Asphalt => fastest_on_asphalt = fastest_on_asphalt.max(kart.speed),
             Surface::Sand | Surface::Grass => {
@@ -132,7 +132,7 @@ fn a_boost_pad_gives_the_tuned_boost_for_the_tuned_time_from_the_tick_it_is_ente
     let mut top_speed_before_the_pad = false;
     for _ in 0..ticks(6.0) {
         state = step(state, &[KartInput::default(), throttle()], DT);
-        let kart = state.kart_transforms()[1];
+        let kart = state.kart_readouts()[1];
         if kart.speed > TOP_SPEED_M_PER_S {
             assert!(
                 (kart.speed - BOOST_PAD_FACTOR * TOP_SPEED_M_PER_S).abs() < 1e-3,
@@ -242,12 +242,12 @@ fn dot(a: [f32; 3], b: [f32; 3]) -> f32 {
 
 /// Slot 0's transform after each of `seconds` of full throttle, from the
 /// one before the first tick.
-fn drive_straight(track: Track, seconds: f32) -> Vec<KartTransform> {
+fn drive_straight(track: Track, seconds: f32) -> Vec<KartReadout> {
     let mut state = started(State::new(SEED, 1, track));
-    let mut trace = vec![state.kart_transforms()[0]];
+    let mut trace = vec![state.kart_readouts()[0]];
     for _ in 0..ticks(seconds) {
         state = step(state, &[throttle()], DT);
-        trace.push(state.kart_transforms()[0]);
+        trace.push(state.kart_readouts()[0]);
     }
     trace
 }
@@ -389,7 +389,7 @@ fn a_kart_out_of_the_world_for_the_tuned_time_respawns_at_its_last_checkpoint_fa
     let mut last_seen_out = None;
     for tick in 0..ticks(8.0) {
         state = step(state, &[throttle()], DT);
-        let kart = state.kart_transforms()[0];
+        let kart = state.kart_readouts()[0];
         match (out_since, state.kart_surface(0)) {
             (None, Surface::OutOfWorld) => out_since = Some(tick),
             (Some(_), Surface::OutOfWorld) => last_seen_out = Some(kart),
@@ -415,7 +415,7 @@ fn a_kart_out_of_the_world_for_the_tuned_time_respawns_at_its_last_checkpoint_fa
         respawned_at - out_since,
         ticks(RESPAWN_DELAY_S)
     );
-    let kart = state.kart_transforms()[0];
+    let kart = state.kart_readouts()[0];
     assert_eq!(kart.position[0], start[0]);
     assert_eq!(kart.position[2], start[2]);
     assert!((kart.position[1] - start[1] - KART_HALF_HEIGHT_M).abs() < 1e-3);
@@ -465,14 +465,14 @@ fn backing_up_for_the_tuned_time_raises_the_wrong_way_warning_until_progress_inc
         "warned after {} ticks of reversing, expected {expected}",
         warned_at + 1
     );
-    assert!(state.kart_transforms()[0].speed < 0.0, "still backing up");
+    assert!(state.kart_readouts()[0].speed < 0.0, "still backing up");
 
     // Still warned while slowing down backwards; clear the tick it rolls forward.
     let mut cleared_at = None;
     for tick in 0..ticks(2.0) {
         state = step(state, &[throttle()], DT);
         let standing = state.standings()[0];
-        let speed = state.kart_transforms()[0].speed;
+        let speed = state.kart_readouts()[0].speed;
         if speed <= 0.0 {
             assert!(
                 standing.wrong_way,
@@ -493,7 +493,7 @@ const BRANDS_PATCH: &str =
 /// Full throttle, steering toward `target` (x, z).
 fn aim(state: &State, target: [f32; 2]) -> KartInput {
     const STEER_GAIN: f32 = 4.0;
-    let transform = state.kart_transforms()[0];
+    let transform = state.kart_readouts()[0];
     let (dx, dz) = (
         target[0] - transform.position[0],
         target[1] - transform.position[2],
@@ -613,7 +613,7 @@ fn a_boost_pad_facing_the_other_way_boosts_a_kart_on_it_and_not_one_beside_it() 
     let mut first_boost = None;
     for _ in 0..ticks(4.0) {
         on_the_pad = step(on_the_pad, &[throttle()], DT);
-        let kart = on_the_pad.kart_transforms()[0];
+        let kart = on_the_pad.kart_readouts()[0];
         if kart.speed > TOP_SPEED_M_PER_S && first_boost.is_none() {
             first_boost = Some(kart.position);
         }
@@ -631,14 +631,14 @@ fn a_boost_pad_facing_the_other_way_boosts_a_kart_on_it_and_not_one_beside_it() 
     ));
     for _ in 0..ticks(4.0) {
         beside_the_pad = step(beside_the_pad, &[throttle()], DT);
-        let kart = beside_the_pad.kart_transforms()[0];
+        let kart = beside_the_pad.kart_readouts()[0];
         assert!(
             kart.speed <= TOP_SPEED_M_PER_S,
             "boosted beside the pad: {kart:?}"
         );
     }
     assert!(
-        beside_the_pad.kart_transforms()[0].position[2] > pad.position[2] + 10.0,
+        beside_the_pad.kart_readouts()[0].position[2] > pad.position[2] + 10.0,
         "drove past the pad"
     );
 }
@@ -661,13 +661,13 @@ fn a_hop_over_the_sand_does_not_escape_the_cap() {
     let mut landed = false;
     for _ in 0..ticks(6.0) {
         let surface = state.kart_surface(0);
-        let before = state.kart_transforms()[0];
+        let before = state.kart_readouts()[0];
         if !hop && before.position[0] >= 35.8 {
             hop = true;
             speed_at_the_hop = before.speed;
         }
         state = step(state, &[KartInput { hop, ..throttle() }], DT);
-        let kart = state.kart_transforms()[0];
+        let kart = state.kart_readouts()[0];
         if surface != Surface::Sand {
             continue;
         }

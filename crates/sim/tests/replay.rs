@@ -154,8 +154,8 @@ fn a_hazards_place_is_part_of_the_hash() {
     };
     let (early, late) = (hold_until(10), hold_until(11));
     assert_eq!(
-        early.kart_transforms(),
-        late.kart_transforms(),
+        early.kart_readouts(),
+        late.kart_readouts(),
         "the karts drove alike"
     );
     assert_ne!(early.hazards(), late.hazards());
@@ -211,8 +211,8 @@ fn a_projectiles_place_is_part_of_the_hash() {
     };
     let (early, late) = (fire_at(0), fire_at(1));
     assert_eq!(
-        early.kart_transforms(),
-        late.kart_transforms(),
+        early.kart_readouts(),
+        late.kart_readouts(),
         "the karts stood alike"
     );
     assert_eq!(early.projectiles().len(), 1);
@@ -401,11 +401,11 @@ fn the_fixture_set_exercises_kart_contact_off_track_walls_both_tracks_both_mini_
         let mut state = State::new(replay.seed, replay.human_count(), sidecar(&replay.track));
         for segment in &replay.segments {
             for _ in 0..segment.ticks {
-                let before = state.kart_transforms();
+                let before = state.kart_readouts();
                 let counting_down = matches!(state.phase(), Phase::Countdown { .. });
                 state = step(state, &segment.inputs, DT);
                 let go = counting_down && matches!(state.phase(), Phase::Racing { .. });
-                let transforms = state.kart_transforms();
+                let transforms = state.kart_readouts();
                 for (slot, kart) in transforms.iter().enumerate() {
                     surfaces.insert(state.kart_surface(slot));
                     // A drift that ends with a boost was let go; the tier
@@ -460,7 +460,7 @@ fn the_fixture_set_exercises_kart_contact_off_track_walls_both_tracks_both_mini_
     );
 }
 
-fn distance(a: &sim::KartTransform, b: &sim::KartTransform) -> f32 {
+fn distance(a: &sim::KartReadout, b: &sim::KartReadout) -> f32 {
     (0..3)
         .map(|axis| (a.position[axis] - b.position[axis]).powi(2))
         .sum::<f32>()
@@ -499,7 +499,7 @@ fn a_replay_with_bots_reruns_them_from_the_seed_and_carries_their_count() {
         }
     }
     assert_eq!(hashes, expected);
-    assert_eq!(state.kart_transforms().len(), 3);
+    assert_eq!(state.kart_readouts().len(), 3);
 
     // Bots count against the grid too.
     let error = Replay {

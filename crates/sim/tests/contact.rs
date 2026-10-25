@@ -9,7 +9,7 @@ use sim::tuning::{
     KART_BUMP_DECAY_S, KART_BUMP_SPEED_LOSS, KART_HALF_LENGTH_M, KART_HALF_WIDTH_M,
     TICKS_PER_SECOND, TOP_SPEED_M_PER_S,
 };
-use sim::{step, KartInput, KartTransform, Phase, Prediction, SnapshotKart, State, Track};
+use sim::{step, KartInput, KartReadout, Phase, Prediction, State, Track};
 
 const OVAL: &str = include_str!("../../../assets/tracks/oval/oval.track.json");
 const DT: f32 = 1.0 / TICKS_PER_SECOND as f32;
@@ -56,20 +56,20 @@ fn oval_with_slots(slots: &[([f32; 3], f32)]) -> Track {
 fn drive_two(
     track: Track,
     seconds: f32,
-    drive: impl Fn(usize, Option<&[KartTransform; 2]>) -> [KartInput; 2],
-) -> Vec<[KartTransform; 2]> {
+    drive: impl Fn(usize, Option<&[KartReadout; 2]>) -> [KartInput; 2],
+) -> Vec<[KartReadout; 2]> {
     let mut state = started(State::new(SEED, 2, track));
-    let mut trace: Vec<[KartTransform; 2]> = Vec::new();
+    let mut trace: Vec<[KartReadout; 2]> = Vec::new();
     for tick in 0..ticks(seconds) {
         state = step(state, &drive(tick, trace.last()), DT);
-        let karts = state.kart_transforms();
+        let karts = state.kart_readouts();
         trace.push([karts[0], karts[1]]);
     }
     trace
 }
 
 /// How far apart the two karts' centres are along the ground.
-fn apart(karts: &[KartTransform; 2]) -> f32 {
+fn apart(karts: &[KartReadout; 2]) -> f32 {
     let dx = karts[1].position[0] - karts[0].position[0];
     let dz = karts[1].position[2] - karts[0].position[2];
     (dx * dx + dz * dz).sqrt()
@@ -77,7 +77,7 @@ fn apart(karts: &[KartTransform; 2]) -> f32 {
 
 /// The first tick the two karts touch: their centres come within a tick
 /// of travel of `touching`, nose to tail or side by side.
-fn first_touch(trace: &[[KartTransform; 2]], touching: f32) -> usize {
+fn first_touch(trace: &[[KartReadout; 2]], touching: f32) -> usize {
     let closest = trace.iter().map(apart).fold(f32::MAX, f32::min);
     trace
         .iter()
@@ -100,7 +100,7 @@ fn first_slowed(speeds: impl IntoIterator<Item = f32>) -> Option<usize> {
 }
 
 /// The first tick the driver in slot 0 is slowed by a hit.
-fn first_hit(trace: &[[KartTransform; 2]]) -> usize {
+fn first_hit(trace: &[[KartReadout; 2]]) -> usize {
     first_slowed(trace.iter().map(|karts| karts[0].speed)).expect("the driver is slowed by a hit")
 }
 
@@ -241,7 +241,7 @@ fn the_prediction_bounces_the_own_kart_off_a_kart_the_snapshots_draw() {
     // standing 10 m up its column.
     let track = oval_with_slots(&[([28.0, 0.0, 4.0], 0.0), ([28.0, 0.0, -6.0], 0.0)]);
     let mut prediction = Prediction::new(SEED, 0, track.clone());
-    let standing = started(State::new(SEED, 2, track)).kart_transforms();
+    let standing = started(State::new(SEED, 2, track)).kart_readouts();
     // Idle through the countdown, for a clean start, then full throttle.
     let countdown = ticks(sim::tuning::COUNTDOWN_S) as u32;
     let mut trace = Vec::new();
@@ -252,9 +252,9 @@ fn the_prediction_bounces_the_own_kart_off_a_kart_the_snapshots_draw() {
             input(1.0, 0.0)
         };
         prediction.tick(sequence, input, &standing);
-        trace.push(prediction.kart_transform());
+        trace.push(prediction.kart_readout());
     }
-    let gap = |kart: &KartTransform| kart.position[2] - standing[1].position[2];
+    let gap = |kart: &KartReadout| kart.position[2] - standing[1].position[2];
     let touch =
         first_slowed(trace.iter().map(|kart| kart.speed)).expect("the own kart is slowed by a hit");
     assert!(
@@ -281,26 +281,6 @@ fn the_prediction_bounces_the_own_kart_off_a_kart_the_snapshots_draw() {
     }
 }
 
-/// The own kart of `prediction` as a snapshot would carry it: the server
-/// agreeing with the prediction exactly. A snapshot carries no bump.
-fn snapshot_of(prediction: &Prediction) -> SnapshotKart {
-    let transform = prediction.kart_transform();
-    let standing = prediction.standing();
-    SnapshotKart {
-        position: transform.position,
-        rotation: transform.rotation,
-        velocity: transform.velocity,
-        drift: transform.drift,
-        held_item: transform.held_item,
-        spin_out_s: transform.spin_out_s,
-        start: transform.start,
-        stall_s: transform.stall_s,
-        lap: standing.lap(),
-        checkpoint: standing.checkpoint,
-        spline_progress: standing.spline_progress,
-    }
-}
-
 #[test]
 fn a_correction_during_a_bump_keeps_the_own_karts_speed_and_recoil() {
     // The own kart at full throttle into the kart standing 10 m up its
@@ -308,7 +288,7 @@ fn a_correction_during_a_bump_keeps_the_own_karts_speed_and_recoil() {
     // hand's width aside, so the prediction rewinds to the snapshot.
     let track = oval_with_slots(&[([28.0, 0.0, 4.0], 0.0), ([28.0, 0.0, -6.0], 0.0)]);
     let mut prediction = Prediction::new(SEED, 0, track.clone());
-    let standing = started(State::new(SEED, 2, track)).kart_transforms();
+    let standing = started(State::new(SEED, 2, track)).kart_readouts();
     let countdown = ticks(sim::tuning::COUNTDOWN_S) as u32;
     let drive = |sequence: u32| {
         if sequence <= countdown {
@@ -322,7 +302,7 @@ fn a_correction_during_a_bump_keeps_the_own_karts_speed_and_recoil() {
     while first_slowed(speeds.iter().copied()).is_none() {
         sequence += 1;
         prediction.tick(sequence, drive(sequence), &standing);
-        speeds.push(prediction.kart_transform().speed);
+        speeds.push(prediction.kart_readout().speed);
         assert!(
             sequence < countdown + ticks(3.0) as u32,
             "the own kart is slowed by a hit"
@@ -330,8 +310,8 @@ fn a_correction_during_a_bump_keeps_the_own_karts_speed_and_recoil() {
     }
     sequence += 1;
     prediction.tick(sequence, drive(sequence), &standing);
-    let before = prediction.kart_transform();
-    let mut aside = snapshot_of(&prediction);
+    let before = prediction.kart_readout();
+    let mut aside = prediction.kart_readout();
     aside.position[0] += 0.3;
 
     let moved = prediction.reconcile(sequence, sequence, &aside);
@@ -342,7 +322,7 @@ fn a_correction_during_a_bump_keeps_the_own_karts_speed_and_recoil() {
     // A snapshot carries no bump, so the prediction keeps its own and
     // reads the speed from the snapshot's velocity with that bump taken
     // off, instead of counting the bump against the speed twice.
-    let after = prediction.kart_transform();
+    let after = prediction.kart_readout();
     assert!(
         (after.speed - before.speed).abs() < 0.5,
         "the rewind keeps the speed the touch left: {} then {}",
@@ -353,7 +333,7 @@ fn a_correction_during_a_bump_keeps_the_own_karts_speed_and_recoil() {
     for _ in 0..ticks(0.5) {
         sequence += 1;
         prediction.tick(sequence, drive(sequence), &standing);
-        let kart = prediction.kart_transform();
+        let kart = prediction.kart_readout();
         recoiled |= kart.velocity[2] > 0.5;
         assert!(
             kart.position[2] > standing[1].position[2] + NOSE_TO_TAIL_M - 0.2,
@@ -365,7 +345,7 @@ fn a_correction_during_a_bump_keeps_the_own_karts_speed_and_recoil() {
 }
 
 /// The unit direction the kart's nose points along the ground.
-fn nose_direction(kart: &KartTransform) -> [f32; 3] {
+fn nose_direction(kart: &KartReadout) -> [f32; 3] {
     let [x, y, z, w] = kart.rotation;
     // The quaternion's rotation of -Z.
     [
