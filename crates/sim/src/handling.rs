@@ -8,7 +8,8 @@
 //! solver, setting the body to the velocity it returns, and after the
 //! solver tells it of the walls and karts it met. Nothing here reads the
 //! physics world or the track: the caller reads what lies under the kart
-//! and hands it in, so these rules run, and are tested, without either.
+//! and hands it in, so these rules run, and are tested, without either
+//! (ADR 0027).
 
 use rapier3d::prelude::*;
 
