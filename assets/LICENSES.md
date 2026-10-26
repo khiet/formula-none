@@ -6,10 +6,9 @@ own Blender scripts and from its own synthesis.
 
 | Files | Source | Licence |
 | --- | --- | --- |
-| `tracks/kenney/grandStand.glb`, `tracks/kenney/overhead.glb` | [Kenney Racing Kit 2.0](https://kenney.nl/assets/racing-kit), downloaded 2026-10-23 | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/), `tracks/kenney/License.txt` |
 | `fonts/kenney/Kenney Mini Square.ttf` | [Kenney Fonts](https://kenney.nl/assets/kenney-fonts), downloaded 2026-10-25 | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/), `fonts/kenney/License.txt` |
 | `karts/kart.glb` | this repo, built from primitives by `karts/build.py` (ADR 0034) | CC0 1.0 |
-| `tracks/*/*.glb`, `tracks/*/*.track.json`, `replays/*` | this repo, from the files above and `tracks/trackgen` | CC0 1.0 |
+| `tracks/*/*.glb`, `tracks/*/*.track.json`, `replays/*` | this repo, built from primitives by `tracks/build.py` and `tracks/trackgen` | CC0 1.0 |
 | `audio/*.wav` | this repo, synthesised by `audio/build.py` (ADR 0025) | CC0 1.0 |
 | `apps/web/src/item-sprites.ts` (from the repo root) | this repo, the item slot's characters drawn as string grids (ADR 0024) | CC0 1.0 |
 

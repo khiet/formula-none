@@ -19,7 +19,7 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 
 import export  # noqa: E402
-from trackgen.layout import ModelProp, Placement, TextProp, TrackGeometry, build  # noqa: E402
+from trackgen.layout import CROWD_KEYS, Placement, TextProp, TrackGeometry, build  # noqa: E402
 from trackgen.layouts import NAMES, load  # noqa: E402
 
 # Flat colours in the 16-bit kart racer's key: one saturated tone per
@@ -36,13 +36,20 @@ MATERIALS = {
     "checker-dark": (0.13, 0.13, 0.13),
     "checker-light": (0.96, 0.96, 0.96),
     "board": (0.98, 0.98, 0.98),
-    # The boost pad: carbon like the Instrument panel's plates, chevrons in
-    # the mini-turbo orange of `sparks.ts`.
-    "pad-carbon": (0.169, 0.180, 0.200),
-    "pad-carbon-lit": (0.227, 0.243, 0.271),
-    "pad-carbon-shade": (0.110, 0.110, 0.118),
+    # Carbon like the Instrument panel's plates, for the boost pad, the
+    # gantry's pillars and the stands' posts; the pad's chevrons in the
+    # mini-turbo orange of `sparks.ts`.
+    "carbon": (0.169, 0.180, 0.200),
+    "carbon-lit": (0.227, 0.243, 0.271),
+    "carbon-shade": (0.110, 0.110, 0.118),
     "chevron": (1.0, 0.533, 0.0),
     "chevron-shade": (0.769, 0.373, 0.0),
+    # The asset catalog's Grandstand and Start gantry cards.
+    "stand-riser": (0.843, 0.859, 0.878),
+    "stand-plinth": (0.706, 0.729, 0.761),
+    "canopy-shade": (0.647, 0.165, 0.125),
+    "beam-top": (0.788, 0.808, 0.835),
+    "beam-shade": (0.604, 0.627, 0.659),
     "ink-blue": (0.12, 0.33, 0.78),
     "ink-green": (0.13, 0.55, 0.25),
     "ink-red": (0.80, 0.16, 0.16),
@@ -51,12 +58,13 @@ MATERIALS = {
     "ink-orange": (0.93, 0.47, 0.08),
     "ink-purple": (0.50, 0.22, 0.70),
 }
-# The Kenney Racing Kit models the props use (CC0, see kenney/License.txt).
-KENNEY_DIR = HERE / "kenney"
-MODELS = {
-    "grandStand": "grandStand.glb",
-    "overhead": "overhead.glb",
-}
+# The crowd in the stands, one material per livery's key colour.
+MATERIALS.update(
+    {
+        f"crowd-{slot}": tuple(((key >> shift) & 0xFF) / 255.0 for shift in (16, 8, 0))
+        for slot, key in enumerate(CROWD_KEYS)
+    }
+)
 # Deep enough for the lettering to read as a letter from the track and no
 # deeper: every millimetre is more faces on every board.
 TEXT_EXTRUDE_M = 0.03
@@ -147,48 +155,6 @@ def text_object(prop: TextProp) -> bpy.types.Object:
     return obj
 
 
-# One import per Kenney model per track, normalised; every prop of it is a copy.
-_kenney_sources: dict[str, bpy.types.Object] = {}
-
-
-def kenney_source(model: str) -> bpy.types.Object:
-    """The model imported once, its origin under the middle of its footprint, on its ground, at unit width."""
-    source = _kenney_sources.get(model)
-    if source is not None:
-        return source
-    before = set(bpy.data.objects)
-    bpy.ops.import_scene.gltf(filepath=str(KENNEY_DIR / MODELS[model]))
-    imported = [obj for obj in bpy.data.objects if obj not in before and obj.type == "MESH"]
-    if len(imported) != 1:
-        raise RuntimeError(f"{model}: expected one mesh object, imported {len(imported)}")
-    source = imported[0]
-    xs = [v.co.x for v in source.data.vertices]
-    ys = [v.co.y for v in source.data.vertices]
-    zs = [v.co.z for v in source.data.vertices]
-    width = max(xs) - min(xs)
-    shift = ((min(xs) + max(xs)) / 2.0, (min(ys) + max(ys)) / 2.0, min(zs))
-    for v in source.data.vertices:
-        v.co = tuple((c - d) / width for c, d in zip(v.co, shift))
-    source.data.update()
-    for col in list(source.users_collection):
-        col.objects.unlink(source)
-    _kenney_sources[model] = source
-    return source
-
-
-def model_object(prop: ModelProp) -> bpy.types.Object:
-    """A copy of a Kenney model `prop.size` metres wide, standing on its placement and facing its way."""
-    obj = kenney_source(prop.model).copy()
-    obj.name = prop.name
-    obj.location = (prop.at.x, prop.at.y, prop.at.z)
-    obj.scale = (prop.size, prop.size, prop.size)
-    # The importer leaves objects in quaternion mode, where an Euler yaw is ignored.
-    obj.rotation_mode = "XYZ"
-    # The kit's models face glTF +Z, Blender -Y after import.
-    obj.rotation_euler = (0.0, 0.0, yaw_facing(prop.at.heading))
-    return obj
-
-
 def populate(geometry: TrackGeometry) -> None:
     track = collection(export.TRACK_COLLECTION)
     for surface in geometry.surfaces:
@@ -200,9 +166,7 @@ def populate(geometry: TrackGeometry) -> None:
     for piece in geometry.scenery:
         scenery.objects.link(mesh_object(piece.name, piece.mesh, piece.material))
     for prop in geometry.props:
-        scenery.objects.link(
-            text_object(prop) if isinstance(prop, TextProp) else model_object(prop)
-        )
+        scenery.objects.link(text_object(prop))
 
     curve = bpy.data.curves.new(export.CENTRELINE_OBJECT, "CURVE")
     curve.dimensions = "3D"
@@ -228,7 +192,6 @@ def populate(geometry: TrackGeometry) -> None:
 
 def build_track(name: str) -> None:
     reset_scene()
-    _kenney_sources.clear()
     populate(build(load(name)))
     out_dir = HERE / name
     export.export_scene(name, out_dir)

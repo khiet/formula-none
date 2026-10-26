@@ -32,6 +32,8 @@ PIPE_HEIGHT_M = 2.0
 # Scenery, drawn and never collided with. It floats a hair over the surface
 # it decorates so it draws on top without changing what the sim stands on.
 SCENERY_LIFT_M = 0.01
+# A `mesh.cuboid`'s upright faces, when its third axis is up.
+SIDES = ("x0", "x1", "y0", "y1")
 KERB_WIDTH_M = 0.6
 KERB_STRIPE_SAMPLES = 2
 START_LINE_SQUARE_M = 1.0
@@ -47,9 +49,49 @@ HOARDING_TEXT_HEIGHT_M = 0.8
 # Lettering stands clear of its board by more than its own depth, so its
 # back never shares the board's plane and shows through from behind.
 HOARDING_TEXT_PROUD_M = 0.06
+# The stands and the gantry are the asset catalog's Grandstand and Start
+# gantry cards in three dimensions, at the cards' 14 px to the metre.
+# A stand is a plinth and four tiers with white treads, each stepped back and in from
+# the one below, a crowd of single pixels on every tread, and a kerb-red
+# canopy on two carbon posts at the back.
 GRANDSTAND_SETBACK_M = 4.0
+"""From the back of the wall to the front of the stand."""
 GRANDSTAND_WIDTH_M = 12.0
+GRANDSTAND_PLINTH_M = 0.43
+GRANDSTAND_TIERS = 4
+GRANDSTAND_TIER_RISE_M = 1.29
+GRANDSTAND_TIER_TREAD_M = 1.2
+GRANDSTAND_TIER_INSET_M = 0.14
+GRANDSTAND_POST_M = 0.43
+GRANDSTAND_POST_IN_M = 0.29
+GRANDSTAND_CANOPY_BOTTOM_M = 7.57
+GRANDSTAND_CANOPY_THICKNESS_M = 0.43
+GRANDSTAND_CANOPY_OVERHANG_M = 0.7
+# The crowd: a row on each tread, a little further in on each tier, its
+# colours stepping five slots a seat and three a tier through the eight key
+# colours, so neighbours along a row or up a column never match.
+CROWD_PER_TIER = 22
+CROWD_SPACING_M = 0.5
+CROWD_FIRST_IN_M = 0.57
+CROWD_STEP_IN_M = 0.14
+CROWD_WIDTH_M = 0.29
+CROWD_HEIGHT_M = 0.36
+CROWD_FROM_RISER_M = 0.4
+# The eight liveries' key colours in slot order, sRGB; they mirror `key` in
+# `apps/web/src/livery.ts` and the track tests hold them to it.
+CROWD_KEYS = (0xD00A12, 0x1F3FB0, 0xC8CCD0, 0xFF7A00, 0x00665A, 0x37BEDD, 0xF282B4, 0x2A2A2E)
+# The gantry: two carbon pillars just off the asphalt holding a white beam
+# with two rows of the start line's checkers on both faces, lit on top and
+# shaded underneath.
 GANTRY_PAST_LINE_M = 1.0
+GANTRY_BEYOND_ASPHALT_M = 1.0
+"""From the edge of the asphalt to the outer face of a pillar."""
+GANTRY_PILLAR_M = 0.85
+GANTRY_TOP_M = 7.0
+GANTRY_BEAM_HEIGHT_M = 1.71
+GANTRY_BEAM_SHADE_M = 0.29
+GANTRY_CHECKER_M = 0.5
+GANTRY_CHECKER_ROWS = 2
 # A boost pad is drawn on the rectangle the sim boosts on, so these mirror
 # `BOOST_PAD_HALF_*` in `crates/sim/src/tuning.rs`; the track tests hold
 # them to it. The rest is the asset catalog's Boost pad card: a carbon
@@ -59,7 +101,7 @@ BOOST_PAD_HALF_LENGTH_M = 2.0
 BOOST_PAD_HALF_WIDTH_M = 3.0
 # The card's measures, at its 18 px to the metre.
 BOOST_PAD_BAND_M = 0.22
-BOOST_PAD_PLATE_MATERIALS = ("pad-carbon", "pad-carbon-lit", "pad-carbon-shade")
+BOOST_PAD_PLATE_MATERIALS = ("carbon", "carbon-lit", "carbon-shade")
 CHEVRON_HALF_SPAN_M = 1.89
 CHEVRON_RISE_M = 1.0
 CHEVRON_THICKNESS_M = 0.56
@@ -184,16 +226,6 @@ class TextProp:
     at: Placement
 
 
-@dataclass(frozen=True)
-class ModelProp:
-    """A Kenney kit model Blender adds to the scenery: `size` metres wide, its front toward `at.heading`."""
-
-    name: str
-    model: str
-    size: float
-    at: Placement
-
-
 @dataclass
 class TrackGeometry:
     """Everything the Blender build script places in the scene."""
@@ -205,7 +237,7 @@ class TrackGeometry:
     boost_pads: list[Placement]
     spawn_grid: list[Placement]
     scenery: list[SceneryMesh] = field(default_factory=list)
-    props: list[TextProp | ModelProp] = field(default_factory=list)
+    props: list[TextProp] = field(default_factory=list)
 
 
 
@@ -307,17 +339,14 @@ def build(layout: Layout) -> TrackGeometry:
     )
 
 
-def decorate(layout: Layout, height: list[float]) -> tuple[list[SceneryMesh], list[TextProp | ModelProp]]:
+def decorate(layout: Layout, height: list[float]) -> tuple[list[SceneryMesh], list[TextProp]]:
     """The scenery: kerbs on every corner, the start line, and what the layout's decor asks for."""
     scenery = kerbs(layout, height) + start_line(layout) + boost_pads(layout)
-    props: list[TextProp | ModelProp] = []
     boards, lettering = hoardings(layout)
-    scenery += boards
-    props += lettering
-    props += grandstands(layout)
+    scenery += boards + grandstands(layout)
     if layout.decor.gantry:
-        props.append(gantry(layout))
-    return scenery, props
+        scenery += gantry(layout)
+    return scenery, lettering
 
 
 def kerbs(layout: Layout, height: list[float]) -> list[SceneryMesh]:
@@ -401,9 +430,9 @@ def boost_pads(layout: Layout) -> list[SceneryMesh]:
         half_length = BOOST_PAD_HALF_LENGTH_M
         inner_back, inner_front = -half_length + BOOST_PAD_BAND_M, half_length - BOOST_PAD_BAND_M
         plate = {
-            "pad-carbon-shade": band(-half_length, inner_back),
-            "pad-carbon": band(inner_back, inner_front),
-            "pad-carbon-lit": band(inner_front, half_length),
+            "carbon-shade": band(-half_length, inner_back),
+            "carbon": band(inner_back, inner_front),
+            "carbon-lit": band(inner_front, half_length),
         }
 
         # The chevrons sit over the plate so they never share its plane.
@@ -494,21 +523,152 @@ def hoardings(layout: Layout) -> tuple[list[SceneryMesh], list[TextProp]]:
     return boards, lettering
 
 
-def grandstands(layout: Layout) -> list[ModelProp]:
-    """Kenney stands shoulder to shoulder behind the hoardings, on the grass, facing the track."""
-    stands: list[ModelProp] = []
-    setback = GRANDSTAND_SETBACK_M + GRANDSTAND_WIDTH_M / 2.0
+class ByMaterial:
+    """Pieces gathered by material, then merged into one scenery mesh per material named `<family>.<material>`,
+    so a family costs a draw call per colour however many pieces it has."""
+
+    def __init__(self, family: str) -> None:
+        self.family = family
+        self.pieces: dict[str, list[mesh.Mesh]] = {}
+
+    def add(self, material: str, piece: mesh.Mesh) -> None:
+        self.pieces.setdefault(material, []).append(piece)
+
+    def scenery(self) -> list[SceneryMesh]:
+        return [
+            SceneryMesh(f"{self.family}.{material}", material, mesh.merge(pieces))
+            for material, pieces in self.pieces.items()
+        ]
+
+
+def grandstands(layout: Layout) -> list[SceneryMesh]:
+    """Stands shoulder to shoulder behind the hoardings, on the grass, facing the track."""
+    parts = ByMaterial("Grandstand")
+
     for run in layout.decor.grandstands:
-        for spot in along_outside(layout, run.segments, run.side, setback, GRANDSTAND_WIDTH_M):
-            on_grass = Placement(spot.x, spot.y, spot.z - GRASS_DROP_M, spot.heading)
-            stands.append(
-                ModelProp(f"Grandstand.{len(stands):02d}", "grandStand", GRANDSTAND_WIDTH_M, on_grass)
+        for front in along_outside(layout, run.segments, run.side, GRANDSTAND_SETBACK_M, GRANDSTAND_WIDTH_M):
+            cos, sin = math.cos(front.heading), math.sin(front.heading)
+            ground = front.z - GRASS_DROP_M
+
+            def box(left: float, right: float, near: float, far: float, bottom: float, top: float) -> dict[str, mesh.Mesh]:
+                """A box `left`..`right` along the stand, `near`..`far` back from its front, `bottom`..`top` up.
+
+                Its faces are keyed x across, y back from the track and z up.
+                """
+
+                def corner(i: int, j: int, k: int) -> mesh.Vertex:
+                    along = (left, right)[i]
+                    back = (near, far)[j]
+                    return (
+                        front.x - sin * along - cos * back,
+                        front.y + cos * along - sin * back,
+                        ground + (bottom, top)[k],
+                    )
+
+                return mesh.cuboid(corner)
+
+            half = GRANDSTAND_WIDTH_M / 2.0
+            depth = GRANDSTAND_TIERS * GRANDSTAND_TIER_TREAD_M
+            plinth = box(-half, half, 0.0, depth, 0.0, GRANDSTAND_PLINTH_M)
+            # The plinth's top and every tier's bottom are hidden by the tier on them.
+            for side in SIDES:
+                parts.add("stand-plinth", plinth[side])
+            for tier in range(GRANDSTAND_TIERS):
+                tier_half = half - tier * GRANDSTAND_TIER_INSET_M
+                bottom = GRANDSTAND_PLINTH_M + tier * GRANDSTAND_TIER_RISE_M
+                top = bottom + GRANDSTAND_TIER_RISE_M
+                near = tier * GRANDSTAND_TIER_TREAD_M
+                faces = box(-tier_half, tier_half, near, depth, bottom, top)
+                parts.add("wall", faces["z1"])
+                for side in SIDES:
+                    parts.add("stand-riser", faces[side])
+                for seat in range(CROWD_PER_TIER):
+                    left = -half + CROWD_FIRST_IN_M + tier * CROWD_STEP_IN_M + seat * CROWD_SPACING_M
+                    back = near + CROWD_FROM_RISER_M
+                    person = box(left, left + CROWD_WIDTH_M, back, back + CROWD_WIDTH_M, top, top + CROWD_HEIGHT_M)
+                    slot = (seat * 5 + tier * 3) % len(CROWD_KEYS)
+                    for side, face in person.items():
+                        if side != "z0":
+                            parts.add(f"crowd-{slot}", face)
+
+            canopy_bottom = GRANDSTAND_CANOPY_BOTTOM_M
+            for side in (-1, 1):
+                outer = side * (half - GRANDSTAND_POST_IN_M)
+                inner = outer - side * GRANDSTAND_POST_M
+                post = box(min(inner, outer), max(inner, outer), depth - GRANDSTAND_POST_M, depth, GRANDSTAND_PLINTH_M, canopy_bottom)
+                for face_side in SIDES:
+                    parts.add("carbon", post[face_side])
+
+            reach = half + GRANDSTAND_CANOPY_OVERHANG_M
+            canopy = box(
+                -reach, reach, -GRANDSTAND_CANOPY_OVERHANG_M, depth, canopy_bottom, canopy_bottom + GRANDSTAND_CANOPY_THICKNESS_M
             )
-    return stands
+            parts.add("kerb-red", canopy["z1"])
+            for side in (*SIDES, "z0"):
+                parts.add("canopy-shade", canopy[side])
+
+    return parts.scenery()
 
 
-def gantry(layout: Layout) -> ModelProp:
-    """The Kenney gantry spanning the asphalt just past the start line, its front down the track."""
+def gantry(layout: Layout) -> list[SceneryMesh]:
+    """The gantry spanning the asphalt just past the start line, its checkers facing both ways along the track."""
     sample = layout.path.at(GANTRY_PAST_LINE_M)
-    at = Placement(sample.x, sample.y, elevation(layout.elevation, sample.s), sample.heading)
-    return ModelProp("Gantry", "overhead", 2.0 * (layout.asphalt_half_width + 1.0), at)
+    ground = elevation(layout.elevation, sample.s)
+    cos, sin = math.cos(sample.heading), math.sin(sample.heading)
+
+    def box(right: float, left: float, behind: float, ahead: float, bottom: float, top: float) -> dict[str, mesh.Mesh]:
+        """A box `right`..`left` metres left of the centreline, `behind`..`ahead` along the track, `bottom`..`top` up.
+
+        Its faces are keyed x across, y along the track and z up.
+        """
+
+        def corner(i: int, j: int, k: int) -> mesh.Vertex:
+            across = (right, left)[i]
+            along = (behind, ahead)[j]
+            return (
+                sample.x + cos * along - sin * across,
+                sample.y + sin * along + cos * across,
+                ground + (bottom, top)[k],
+            )
+
+        return mesh.cuboid(corner)
+
+    parts = ByMaterial("Gantry")
+    span = layout.asphalt_half_width + GANTRY_BEYOND_ASPHALT_M
+    half_depth = GANTRY_PILLAR_M / 2.0
+    beam_bottom = GANTRY_TOP_M - GANTRY_BEAM_HEIGHT_M
+    # The pillars stand on the sand's lowest edge so they never float on its slope.
+    for side in (-1, 1):
+        outer, inner = side * span, side * (span - GANTRY_PILLAR_M)
+        pillar = box(min(inner, outer), max(inner, outer), -half_depth, half_depth, -GRASS_DROP_M, beam_bottom)
+        # Lit on the faces up and down the track, the ones the grid sees.
+        parts.add("carbon-lit", pillar["y0"])
+        parts.add("carbon-lit", pillar["y1"])
+        parts.add("carbon", pillar["x0"])
+        parts.add("carbon", pillar["x1"])
+
+    beam = box(-span, span, -half_depth, half_depth, beam_bottom, GANTRY_TOP_M)
+    parts.add("beam-top", beam["z1"])
+    parts.add("beam-shade", beam["z0"])
+    for side in SIDES:
+        parts.add("wall", beam[side])
+
+    # Tiles a hair proud of both faces, so they never share the beam's
+    # planes; only a tile's outer face is drawn.
+    lift = SCENERY_LIFT_M
+    shade_top = beam_bottom + GANTRY_BEAM_SHADE_M
+    columns = round(2.0 * span / GANTRY_CHECKER_M)
+    for behind, ahead, outer in ((-half_depth - lift, -half_depth, "y0"), (half_depth, half_depth + lift, "y1")):
+
+        def flat(right: float, left: float, bottom: float, top: float) -> mesh.Mesh:
+            return box(right, left, behind, ahead, bottom, top)[outer]
+
+        parts.add("beam-shade", flat(-span, span, beam_bottom, shade_top))
+        for row in range(GANTRY_CHECKER_ROWS):
+            bottom = shade_top + row * GANTRY_CHECKER_M
+            for column in range(columns):
+                right = -span + column * GANTRY_CHECKER_M
+                material = "checker-dark" if (row + column) % 2 == 0 else "checker-light"
+                parts.add(material, flat(right, right + GANTRY_CHECKER_M, bottom, bottom + GANTRY_CHECKER_M))
+
+    return parts.scenery()

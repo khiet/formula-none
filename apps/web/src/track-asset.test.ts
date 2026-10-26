@@ -29,11 +29,13 @@ describe.each(["brands-patch", "oval"])("%s's boost pads", (name) => {
   ) as { boost_pads: { position: [number, number, number]; yaw: number }[] };
 
   it("draws a carbon plate over each pad, centred on it", () => {
-    const plates = gltf.nodes.filter(({ name }) => name?.endsWith(".pad-carbon"));
+    const plates = gltf.nodes.filter(
+      ({ name }) => name?.startsWith("BoostPad.") && name.endsWith(".carbon"),
+    );
     expect(plates).toHaveLength(sidecar.boost_pads.length);
     sidecar.boost_pads.forEach(({ position: [x, , z] }, number) => {
       const plate = plates.find(
-        ({ name }) => name === `BoostPad.${String(number).padStart(2, "0")}.pad-carbon`,
+        ({ name }) => name === `BoostPad.${String(number).padStart(2, "0")}.carbon`,
       );
       const mesh = plate?.mesh === undefined ? undefined : gltf.meshes[plate.mesh];
       const bounds = gltf.accessors[mesh?.primitives[0]?.attributes.POSITION ?? -1];
@@ -58,6 +60,20 @@ describe("Brands Patch's final art", () => {
     expect(names.filter((name) => name.startsWith("Sponsor."))).toHaveLength(
       names.filter((name) => name.startsWith("Hoarding.")).length,
     );
+  });
+
+  it("builds the stands and the gantry in the track's own colours, each part named for its material", () => {
+    const parts = brandsPatch.nodes.filter(
+      ({ name }) => name?.startsWith("Grandstand.") || name?.startsWith("Gantry."),
+    );
+    expect(parts.length).toBeGreaterThan(0);
+    for (const { name, mesh } of parts) {
+      const primitives = mesh === undefined ? [] : (brandsPatch.meshes[mesh]?.primitives ?? []);
+      const materials = primitives.map(
+        ({ material }) => brandsPatch.materials?.[material ?? -1]?.name,
+      );
+      expect(materials, name).toEqual([name?.split(".")[1]]);
+    }
   });
 
   it("maps the asphalt for tyre marks: a texture coordinate on every vertex", () => {

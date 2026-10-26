@@ -1,5 +1,5 @@
 """Triangle meshes for a track: ribbons along the path, box walls, pipes, the grass slab, and
-the scenery's stripes, checkers and boards.
+the scenery's stripes, checkers, boards and boxes.
 
 A mesh is `(vertices, faces)` with vertices as `(x, y, z)` tuples and faces
 as index tuples, which is what Blender's `from_pydata` takes. Faces may be
@@ -9,6 +9,7 @@ quads; Blender triangulates them on export.
 from __future__ import annotations
 
 import math
+from collections.abc import Callable
 
 Vertex = tuple[float, float, float]
 Face = tuple[int, ...]
@@ -102,6 +103,34 @@ def cylinder(centre: Vertex, radius: float, height: float, sides: int = 16) -> M
     faces.append(tuple(reversed(range(sides))))
     faces.append(tuple(range(sides, 2 * sides)))
     return vertices, faces
+
+
+def cuboid(corner: Callable[[int, int, int], Vertex]) -> dict[str, Mesh]:
+    """A box from its eight corners, `corner(i, j, k)` with each index 0 or 1
+    along the box's three axes: each face a quad of its own, wound to point
+    out of the box, keyed by the axis and the end it closes ("x0" ... "z1"),
+    so each can take its own material."""
+    corners = {(i, j, k): corner(i, j, k) for i in (0, 1) for j in (0, 1) for k in (0, 1)}
+    centre = tuple(sum(v[axis] for v in corners.values()) / 8.0 for axis in range(3))
+    # The two free indices of each face's corners, in order round the face.
+    rings = {
+        "x": [(0, 0), (1, 0), (1, 1), (0, 1)],
+        "y": [(0, 0), (0, 1), (1, 1), (1, 0)],
+        "z": [(0, 0), (1, 0), (1, 1), (0, 1)],
+    }
+    faces: dict[str, Mesh] = {}
+    for axis, ring in rings.items():
+        for end in (0, 1):
+            if axis == "x":
+                vertices = [corners[(end, a, b)] for a, b in ring]
+            elif axis == "y":
+                vertices = [corners[(a, end, b)] for a, b in ring]
+            else:
+                vertices = [corners[(a, b, end)] for a, b in ring]
+            middle = tuple(sum(v[i] for v in vertices) / 4.0 for i in range(3))
+            face = _facing((0, 1, 2, 3), vertices, _direction(centre, middle))
+            faces[f"{axis}{end}"] = (vertices, [face])
+    return faces
 
 
 def slab(min_x: float, min_y: float, max_x: float, max_y: float, z: float) -> Mesh:
