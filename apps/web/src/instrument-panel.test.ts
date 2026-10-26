@@ -57,7 +57,7 @@ describe("lap readouts", () => {
       position: { numeral: "1", suffix: "st" },
       lap: "Lap 1/3",
       lapsCompleted: 0,
-      lapTime: { label: "Time", value: `0'00"0` },
+      lapTime: { label: "Time", value: `0'00"000` },
       bestLap: { label: "Best", value: `-'--"---` },
       wrongWay: "",
     });
@@ -76,13 +76,8 @@ describe("lap readouts", () => {
     expect(readouts.position).toEqual({ numeral: "3", suffix: "rd" });
     expect(readouts.lap).toBe("Lap 2/3");
     expect(readouts.lapsCompleted).toBe(1);
-    expect(readouts.lapTime).toEqual({ label: "Time", value: `1'15"4` });
+    expect(readouts.lapTime).toEqual({ label: "Time", value: `1'15"457` });
     expect(readouts.bestLap).toEqual({ label: "Best", value: `0'15"000` });
-  });
-
-  it("prints the final lap to the thousandth once the kart has finished", () => {
-    const readouts = lapReadouts({ ...ON_THE_GRID, lap: 3, lapTimeS: 23.4567, finishTimeS: 70 }, 3);
-    expect(readouts.lapTime).toEqual({ label: "Time", value: `0'23"457` });
   });
 
   it("counts every lap completed once the kart has finished, whatever lap it is on", () => {
@@ -138,7 +133,7 @@ describe("the lap instruments on the page", () => {
     panel.update(
       race({ ...ON_THE_GRID, lapTimeS: 27.304, bestLapS: 44.91 }, { item: null, firing: false }),
     );
-    expect(find("lap-time")?.textContent).toBe(`Time 0'27"3`);
+    expect(find("lap-time")?.textContent).toBe(`Time 0'27"304`);
     expect(find("best-lap")?.textContent).toBe(`Best 0'44"910`);
   });
 });

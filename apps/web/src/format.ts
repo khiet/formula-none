@@ -27,28 +27,12 @@ export function ordinal(position: number): string {
  * thousandths as 1'15"457 (ADR 0023).
  */
 export function formatLapTime(seconds: number): string {
-  const { minutes, paddedSeconds, milliseconds } = clockParts(seconds);
-  return `${minutes}'${paddedSeconds}"${String(milliseconds).padStart(3, "0")}`;
-}
-
-/**
- * The lap clock while a lap runs: minutes, seconds and tenths as 1'15"4
- * (ADR 0039). The tenths are truncated from the thousandths formatLapTime
- * would print, so the running clock never reads ahead of the final time.
- */
-export function formatRunningLapTime(seconds: number): string {
-  const { minutes, paddedSeconds, milliseconds } = clockParts(seconds);
-  return `${minutes}'${paddedSeconds}"${Math.floor(milliseconds / 100)}`;
-}
-
-/** `seconds` rounded to the millisecond, as whole minutes, two-digit seconds and milliseconds. */
-function clockParts(seconds: number) {
   const wholeMilliseconds = Math.round(seconds * 1000);
   const minutes = Math.floor(wholeMilliseconds / 60_000);
   const rest = wholeMilliseconds - minutes * 60_000;
   const wholeSeconds = Math.floor(rest / 1000);
   const milliseconds = rest - wholeSeconds * 1000;
-  return { minutes, paddedSeconds: String(wholeSeconds).padStart(2, "0"), milliseconds };
+  return `${minutes}'${String(wholeSeconds).padStart(2, "0")}"${String(milliseconds).padStart(3, "0")}`;
 }
 
 /** Metres per second as kilometres per hour, keeping the sign. */

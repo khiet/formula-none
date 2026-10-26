@@ -3,7 +3,6 @@ import type { Phase, Standing } from "./bridge";
 import { type CourseMapSetup, createCourseMap } from "./course-map";
 import {
   formatLapTime,
-  formatRunningLapTime,
   NO_LAP_TIME,
   type OrdinalParts,
   ordinal,
@@ -400,8 +399,7 @@ export function phaseReadout(phase: Phase): string {
 /**
  * What the panel prints for a standing: ordinal position, lap of the race's
  * laps with the laps behind the kart, and the two clocks with their labels.
- * A finished kart has every lap behind it whatever lap the sim leaves it on,
- * and its lap clock, stopped on the final lap, prints to the thousandth.
+ * A finished kart has every lap behind it whatever lap the sim leaves it on.
  */
 export function lapReadouts(standing: Standing, lapsPerRace: number): LapReadouts {
   const lapsCompleted =
@@ -412,13 +410,7 @@ export function lapReadouts(standing: Standing, lapsPerRace: number): LapReadout
     position: ordinalParts(standing.position),
     lap: `Lap ${standing.lap}/${lapsPerRace}`,
     lapsCompleted,
-    lapTime: {
-      label: "Time",
-      value:
-        standing.finishTimeS === null
-          ? formatRunningLapTime(standing.lapTimeS)
-          : formatLapTime(standing.lapTimeS),
-    },
+    lapTime: { label: "Time", value: formatLapTime(standing.lapTimeS) },
     bestLap: {
       label: "Best",
       value: standing.bestLapS === null ? NO_LAP_TIME : formatLapTime(standing.bestLapS),

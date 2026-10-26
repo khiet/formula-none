@@ -5,9 +5,7 @@
 Accepted (2026-10-25). Extends ADR 0007. Its decision on where the greybox
 readouts sit, speed in the stack and the surface and connection line
 bottom-left, is superseded by ADR 0031. Its look, gold type in a brown
-outline and bevelled gold boxes, is superseded by ADR 0037. Its time
-notation is superseded by ADR 0039 for the running clock only, which
-prints tenths while the own kart is racing.
+outline and bevelled gold boxes, is superseded by ADR 0037.
 
 ## Context
 
