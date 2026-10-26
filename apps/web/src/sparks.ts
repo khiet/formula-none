@@ -1,6 +1,7 @@
 import type { KartReadout, KartSize, MiniTurbo } from "./bridge";
 import type { Start } from "./generated/protocol";
 import { rearWheel, rotate, type Side, type Vec3 } from "./kart-frame";
+import { SHIFT_BLUE } from "./palette";
 import type { Particles } from "./particles";
 
 /** The spark tell at a kart's wheels: shown once a tier has charged, coloured by the tier. */
@@ -12,7 +13,7 @@ export interface SparkTell {
 /** Spark colour by tier; an uncharged drift has no sparks, only its tyre marks. */
 const SPARK_COLOURS: Readonly<Record<MiniTurbo, number | null>> = {
   none: null,
-  blue: 0x3399ff,
+  blue: SHIFT_BLUE.mid,
   orange: 0xff8800,
 };
 

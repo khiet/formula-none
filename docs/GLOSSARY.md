@@ -294,6 +294,13 @@ The HUD overlaid on a View: position, lap, lap time, best lap, item slot,
 speed, gear and tyre, wrong-way warning, connection banner, the countdown's
 count over the View and the course map. Reads state; never drives it.
 
+### plate
+
+A readout's chamfered backing on the Instrument panel: a lit, a mid and a
+shaded band of one colour, over the ink drop, with no outline (ADR 0037).
+Carbon for most readouts, the local kart's primary for the position, the
+item box gold for the item slot, a kart's key colour for its label.
+
 ### gear
 
 The Instrument panel's reading of the local kart's speed as a gearbox: six
@@ -310,8 +317,8 @@ Decorative: the gear and the speed are the text.
 ### tyre wear
 
 How worn a kart's tyres are, as a percentage. The Instrument panel's tyre
-gauge shows it on a kart icon, green above 60%, yellow above 30% and red
-below. The sim does not wear tyres yet, so the gauge holds at 100%
+gauge shows it on the local kart drawn from above, its tyres green above
+60%, yellow above 30% and red below. The sim does not wear tyres yet, so the gauge holds at 100%
 (ADR 0031).
 
 ### race readout
@@ -326,9 +333,10 @@ read the one readout. Not a snapshot, which is the server's message.
 ### course map
 
 The track's outline seen from above in a corner of the Instrument panel,
-drawn from the sidecar's centreline with a start/finish tick, and a marker
-per kart in its livery at the transform the View draws that frame. The own
-kart's marker is larger and ringed. The map is fixed: it never rotates with
+drawn from the sidecar's centreline as asphalt between white walls with a
+chequered start, and a faceted octagon marker per kart in its key colour at
+the transform the View draws that frame. The own kart's marker is larger
+and ringed in white. The map is fixed: it never rotates with
 the own kart.
 
 ### Presentation

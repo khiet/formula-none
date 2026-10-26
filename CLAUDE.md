@@ -8,7 +8,7 @@ sim reports. The PRD is issue 1; each decision in it is an ADR in `docs/adr`.
 
 Use the words in `docs/GLOSSARY.md` exactly: kart, room, creator, tick,
 snapshot, checkpoint, spline progress, hop, drift, mini-turbo, spin-out,
-livery, reconciliation, Scene, View, Instrument panel. When code and glossary
+livery, reconciliation, Scene, View, Instrument panel, plate. When code and glossary
 disagree, fix the code.
 
 ## Layout and the one-way dependency rule

@@ -2,13 +2,9 @@ import {
   AmbientLight,
   Box3,
   BoxGeometry,
-  type BufferGeometry,
   Color,
-  ConeGeometry,
   DirectionalLight,
   Group,
-  type Material,
-  Mesh,
   MeshBasicMaterial,
   type Object3D,
   PerspectiveCamera,
@@ -23,10 +19,12 @@ import { WebGPURenderer } from "three/webgpu";
 import type { ItemBox, KartReadout, KartSize } from "./bridge";
 import type { CameraPose } from "./chase-camera";
 import { createDustEmitter } from "./dust";
+import { hazardConeMesh, homingGullMesh, itemBoxMesh } from "./item-meshes";
 import type { KartLabel } from "./kart-labels";
 import { dressKart, fitKart, type KartFit } from "./kart-model";
 import { createKartShadows } from "./kart-shadows";
-import { livery, liveryCss } from "./livery";
+import { livery } from "./livery";
+import { plate, tonesOf, writePalette } from "./palette";
 import { createParticles } from "./particles";
 import type { RaceReadout } from "./race-run";
 import { createSparkEmitter } from "./sparks";
@@ -52,18 +50,10 @@ const DUST_GROWTH_PER_S = 2;
 const DUST_OPACITY = 0.55;
 /** A puff shrinks away over the last share of its life. */
 const DUST_FADE_SHARE = 0.4;
-/** The placeholder item box: a cube this many metres across, floating this high, in this colour. */
-const ITEM_BOX_SIZE_M = 1;
+/** How high an item box floats over where the sim has it. */
 const ITEM_BOX_HEIGHT_M = 1;
-const ITEM_BOX_COLOUR = 0xffcc33;
-/** The placeholder hazard (ADR 0007): a cone. */
-const HAZARD_CONE_RADIUS_M = 0.5;
-const HAZARD_CONE_HEIGHT_M = 0.6;
-const HAZARD_COLOUR = 0xff5522;
-/** The placeholder projectile (ADR 0007): a ball, flying this high over where the sim has it. */
-const PROJECTILE_RADIUS_M = 0.4;
+/** How high the projectile (ADR 0007) flies over where the sim has it. */
 const PROJECTILE_HEIGHT_M = 0.6;
-const PROJECTILE_COLOUR = 0xdd2222;
 
 export interface RaceView {
   /**
@@ -72,8 +62,8 @@ export interface RaceView {
    * what the readouts say and the phase (the rocket start's sparks show
    * only while it counts down), hang the labels the karts call for and
    * hide every other kart's, move the camera to `camera`, show each item
-   * box that is there to pick up, a marker at each hazard and a ball at
-   * each projectile.
+   * box that is there to pick up, a cone at each hazard and a gull at
+   * each projectile, turned toward the kart it homes in on.
    */
   update(race: RaceReadout, camera: CameraPose, frameSeconds: number): void;
   render(): void;
@@ -92,7 +82,7 @@ export interface ViewAssets {
  * the slot's livery and a box per item box, drawn by Three.js from the
  * kart readouts the bridge reports and the pose the chase camera computes,
  * with a name floating over each kart the Scene labels, a cone at each
- * hazard and a ball at each projectile. The track mesh is Presentation
+ * hazard and a gull at each projectile. The track mesh is Presentation
  * only; the sim has its own copy of the geometry from the sidecar. Every
  * mechanic's Feedback is drawn from the readouts and the phase alone:
  * tyre marks under a drift, sparks once a tier has charged, drifting or
@@ -121,6 +111,7 @@ export async function createRaceView(
   const labelRenderer = new CSS2DRenderer();
   labelRenderer.setSize(container.clientWidth, container.clientHeight);
   labelRenderer.domElement.dataset.kartLabels = "";
+  writePalette(labelRenderer.domElement);
   container.appendChild(labelRenderer.domElement);
 
   // Three's scene graph, not a glossary Scene: this View belongs to the Race Scene.
@@ -184,36 +175,25 @@ export async function createRaceView(
   const shadowMesh = shadowDiscMesh(shadows, kartSize);
   world.add(marks.mesh, sparkMesh.mesh, dustMesh.mesh, shadowMesh.mesh);
 
-  // Unlit so a box reads from any angle, whatever the sun does.
-  const boxGeometry = new BoxGeometry(ITEM_BOX_SIZE_M, ITEM_BOX_SIZE_M, ITEM_BOX_SIZE_M);
-  const boxMaterial = new MeshBasicMaterial({ color: ITEM_BOX_COLOUR });
-  const boxes = itemBoxes.map((itemBox) => {
-    const mesh = new Mesh(boxGeometry, boxMaterial);
-    const [x, y, z] = itemBox.position;
+  // Clones share the one box's geometries and materials.
+  const itemBox = itemBoxMesh();
+  const boxes = itemBoxes.map((placed) => {
+    const mesh = itemBox.clone();
+    const [x, y, z] = placed.position;
     mesh.position.set(x, y + ITEM_BOX_HEIGHT_M, z);
-    mesh.rotation.y = itemBox.yaw;
+    mesh.rotation.y = placed.yaw;
     world.add(mesh);
     return mesh;
   });
 
-  const cones = meshPool(
-    world,
-    new ConeGeometry(HAZARD_CONE_RADIUS_M, HAZARD_CONE_HEIGHT_M),
-    new MeshBasicMaterial({ color: HAZARD_COLOUR }),
-    HAZARD_CONE_HEIGHT_M / 2,
-  );
-  const balls = meshPool(
-    world,
-    new SphereGeometry(PROJECTILE_RADIUS_M),
-    new MeshBasicMaterial({ color: PROJECTILE_COLOUR }),
-    PROJECTILE_HEIGHT_M,
-  );
+  const cones = meshPool(world, hazardConeMesh(), 0);
+  const gulls = meshPool(world, homingGullMesh(), PROJECTILE_HEIGHT_M);
 
   const labels = Array.from({ length: kartCount }, (_, slot) => {
     const element = document.createElement("div");
     element.className = "kart-label";
-    // A slot's livery is its label's stripe, so the name and the paint are read together.
-    element.style.borderColor = liveryCss(slot);
+    // The plate is the kart's key colour, so the name and the paint are read together.
+    plate(element, tonesOf(livery(slot).key));
     const label = new CSS2DObject(element);
     label.visible = false;
     world.add(label);
@@ -264,7 +244,7 @@ export async function createRaceView(
       dustMesh.update();
       shadowMesh.update();
       cones.show(hazards);
-      balls.show(projectiles);
+      gulls.show(projectiles, (projectile) => readouts[projectile.target]?.position);
       for (const label of labels) {
         label.visible = false;
       }
@@ -293,26 +273,31 @@ export async function createRaceView(
   };
 }
 
+type Position = readonly [number, number, number];
+
 interface MeshPool {
-  /** One mesh at each of `placed`, `lift` metres over its position; the rest hidden. */
-  show(placed: readonly { readonly position: readonly [number, number, number] }[]): void;
+  /**
+   * One copy at each of `placed`, `lift` metres over its position and, when
+   * `facing` names a point, turned level to face it; the rest hidden.
+   */
+  show<Placed extends { readonly position: Position }>(
+    placed: readonly Placed[],
+    facing?: (item: Placed) => Position | undefined,
+  ): void;
 }
 
 /**
- * Meshes of one shape in `world`, made as they are needed and hidden,
- * never removed, when not, so a race of many never churns the scene graph.
+ * Copies of `template` in `world`, sharing its geometries and materials,
+ * made as they are needed and hidden, never removed, when not, so a race of
+ * many never churns the scene graph.
  */
-function meshPool(
-  world: ThreeScene,
-  geometry: BufferGeometry,
-  material: Material,
-  lift: number,
-): MeshPool {
-  const meshes: Mesh[] = [];
+function meshPool(world: ThreeScene, template: Object3D, lift: number): MeshPool {
+  const meshes: Object3D[] = [];
+  const toward = new Vector3();
   return {
-    show(placed) {
+    show(placed, facing) {
       while (meshes.length < placed.length) {
-        const mesh = new Mesh(geometry, material);
+        const mesh = template.clone();
         world.add(mesh);
         meshes.push(mesh);
       }
@@ -322,6 +307,10 @@ function meshPool(
         if (item !== undefined) {
           const [x, y, z] = item.position;
           mesh.position.set(x, y + lift, z);
+          const target = facing?.(item);
+          if (target !== undefined) {
+            mesh.lookAt(toward.set(target[0], y + lift, target[2]));
+          }
         }
       });
     },

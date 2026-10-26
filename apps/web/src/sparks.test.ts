@@ -52,6 +52,10 @@ describe("spark tell", () => {
     expect(orange?.colour).not.toBe(blue?.colour);
   });
 
+  it("sparks blue in the shift lights' blue, so blue means one blue", () => {
+    expect(sparkTell(drifting("blue"))?.colour).toBe(0x4f7dff);
+  });
+
   it("shows a rocket start's charge in the tier's colour, with no warning past the full tier", () => {
     expect(sparkTell(STRAIGHT, "clean")).toBeNull();
     expect(sparkTell(STRAIGHT, "weakBoost")).toEqual(sparkTell(drifting("blue")));
