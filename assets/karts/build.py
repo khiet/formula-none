@@ -57,6 +57,9 @@ JAW_WIDTH = 0.86
 JAW_HEIGHT = 0.78
 
 WHEEL_SEGMENTS = 8
+# Three, so the View's per-frame spin cap stays under half their 120 degree repeat.
+WHEEL_SPOKES = 3
+SPOKE_RADIUS = 0.03
 # Oversized wheels, the rears bigger, on a short wheelbase.
 FRONT_WHEEL = {"radius": 0.27, "width": 0.22, "x": HALF_WIDTH - 0.11, "y": 0.52}
 REAR_WHEEL = {"radius": 0.3, "width": 0.24, "x": HALF_WIDTH - 0.12, "y": -0.52}
@@ -331,6 +334,13 @@ def wheel(name: str, spec: dict[str, float], side: int, parent: bpy.types.Object
     part.cylinder("Tyre", (0, 0, 0), axis, spec["radius"], spec["width"], WHEEL_SEGMENTS)
     # The rim, a smaller octagon proud of the tyre's outer wall.
     part.cylinder("Rim", (side * spec["width"] / 2, 0, 0), axis, spec["radius"] * 0.58, 0.02, WHEEL_SEGMENTS)
+    # Spokes reaching out over the dark tyre wall, so the wheel only looks as
+    # it started every 120 degrees and the View's roll reads as turning.
+    face = side * (spec["width"] / 2 + 0.01)
+    for spoke in range(WHEEL_SPOKES):
+        turn = 2 * math.pi * spoke / WHEEL_SPOKES
+        tip = spec["radius"] * 0.86
+        part.bar("Rim", (face, 0, 0), (face, tip * math.sin(turn), tip * math.cos(turn)), SPOKE_RADIUS)
     obj = part.finish(name)
     obj.location = (side * spec["x"], spec["y"], axle_height(spec))
     obj.parent = parent
