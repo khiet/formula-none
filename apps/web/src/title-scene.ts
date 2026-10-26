@@ -1,7 +1,9 @@
 import type { AudioSettings } from "./audio-settings";
 import type { NicknameChars } from "./bridge";
 import { button } from "./controls";
+import { liveryCss } from "./livery";
 import { validateNickname } from "./nickname";
+import { backdrop, kartSide } from "./poster";
 import { normaliseCode } from "./room-link";
 
 export interface TitleScene {
@@ -49,8 +51,23 @@ export function createTitleScene(
 ): TitleScene {
   const scene = document.createElement("div");
   scene.id = "title-scene";
+  // The crossed-out "1" sits beside the heading, not in it, so the game's name reads as it is.
+  const logo = document.createElement("div");
+  logo.className = "logo";
   const heading = document.createElement("h1");
-  heading.textContent = "Formula None";
+  const formula = document.createElement("span");
+  formula.textContent = "Formula";
+  const none = document.createElement("span");
+  none.textContent = "None";
+  heading.append(formula, " ", none);
+  const one = document.createElement("s");
+  one.className = "one";
+  one.setAttribute("aria-hidden", "true");
+  one.textContent = "1";
+  logo.append(heading, one);
+  const tagline = document.createElement("p");
+  tagline.className = "tagline";
+  tagline.textContent = "Kart racing for up to 8 friends";
 
   const nickname = document.createElement("input");
   nickname.name = "nickname";
@@ -61,7 +78,7 @@ export function createTitleScene(
 
   const code = document.createElement("input");
   code.name = "code";
-  code.placeholder = "Room code";
+  code.placeholder = "Code";
   code.maxLength = options.roomCodeLength;
   code.value = options.code;
   code.autocapitalize = "characters";
@@ -124,8 +141,11 @@ export function createTitleScene(
       audio = { ...audio, [name]: box.checked };
       handlers.audio(audio);
     });
+    const caption = document.createElement("span");
+    caption.textContent = text;
     const label = document.createElement("label");
-    label.append(box, text);
+    label.className = "chip";
+    label.append(box, caption);
     return label;
   };
   const toggles = row(
@@ -135,8 +155,20 @@ export function createTitleScene(
   );
   toggles.classList.add("audio-toggles");
 
+  // Two karts lapping the bottom band, in the first two liveries after red.
+  const runners = [1, 2].map((slot) => {
+    const runner = document.createElement("div");
+    runner.className = "runner";
+    runner.style.setProperty("--livery", liveryCss(slot));
+    runner.append(kartSide());
+    return runner;
+  });
+
   scene.append(
-    heading,
+    ...backdrop(),
+    ...runners,
+    logo,
+    tagline,
     row(nickname),
     row(button("create", "Create room", create)),
     row(code, button("join", "Join room", join)),
