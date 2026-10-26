@@ -90,9 +90,9 @@ Flat colours in the 16-bit kart racer's key, one material per surface and
 per piece of scenery, no textures: the palette is `MATERIALS` in
 `build.py`. The scenery is the generator's kerbs on every corner, the
 start line's checkers and a carbon plate with orange chevrons on each
-boost pad, sized to the sim's rectangle, plus what a layout's decor asks for: hoardings with
-the sponsors in `trackgen/sponsors.py` (invented, every one), grandstands
-and the gantry from Kenney's Racing Kit in `kenney/` (CC0, see
+boost pad, sized to the sim's rectangle, plus what a layout's decor asks
+for: hoardings with the sponsors in `trackgen/sponsors.py` (invented,
+every one), grandstands and the gantry from Kenney's Racing Kit in `kenney/` (CC0, see
 `../LICENSES.md`). Original names only; nothing may resemble a real
 sponsor, a Nintendo character or circuit (ADR 0007).
 

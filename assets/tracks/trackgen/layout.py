@@ -57,13 +57,15 @@ GANTRY_PAST_LINE_M = 1.0
 # chevrons in the mini-turbo orange, each shaded along its right arm.
 BOOST_PAD_HALF_LENGTH_M = 2.0
 BOOST_PAD_HALF_WIDTH_M = 3.0
-BOOST_PAD_BAND_M = 0.2
+# The card's measures, at its 18 px to the metre.
+BOOST_PAD_BAND_M = 0.22
 BOOST_PAD_PLATE_MATERIALS = ("pad-carbon", "pad-carbon-lit", "pad-carbon-shade")
-CHEVRON_HALF_SPAN_M = 1.9
+CHEVRON_HALF_SPAN_M = 1.89
 CHEVRON_RISE_M = 1.0
-CHEVRON_THICKNESS_M = 0.55
-CHEVRON_SHADE_M = 0.2
+CHEVRON_THICKNESS_M = 0.56
+CHEVRON_SHADE_M = 0.22
 CHEVRON_SPACING_M = 1.0
+CHEVRON_FIRST_TIP_M = 1.67
 CHEVRON_COUNT = 3
 
 # The eight-slot spawn grid: two staggered columns of four, pole in front on
@@ -393,37 +395,35 @@ def boost_pads(layout: Layout) -> list[SceneryMesh]:
             return [at(a, r, lift) for a, r in reversed(corners)], [tuple(range(len(corners)))]
 
         def band(back: float, front: float) -> mesh.Mesh:
-            hw = BOOST_PAD_HALF_WIDTH_M
-            return flat([(back, -hw), (front, -hw), (front, hw), (back, hw)], SCENERY_LIFT_M)
+            side = BOOST_PAD_HALF_WIDTH_M
+            return flat([(back, -side), (front, -side), (front, side), (back, side)], SCENERY_LIFT_M)
 
-        hl = BOOST_PAD_HALF_LENGTH_M
-        inner_back, inner_front = -hl + BOOST_PAD_BAND_M, hl - BOOST_PAD_BAND_M
+        half_length = BOOST_PAD_HALF_LENGTH_M
+        inner_back, inner_front = -half_length + BOOST_PAD_BAND_M, half_length - BOOST_PAD_BAND_M
         plate = {
-            "pad-carbon-shade": band(-hl, inner_back),
+            "pad-carbon-shade": band(-half_length, inner_back),
             "pad-carbon": band(inner_back, inner_front),
-            "pad-carbon-lit": band(inner_front, hl),
+            "pad-carbon-lit": band(inner_front, half_length),
         }
 
-        # Centred along the plate; the chevrons sit over it so they never share its plane.
-        reach = (CHEVRON_COUNT - 1) * CHEVRON_SPACING_M + CHEVRON_RISE_M + CHEVRON_THICKNESS_M
-        first_tip = reach / 2.0
+        # The chevrons sit over the plate so they never share its plane.
         lift = 2.0 * SCENERY_LIFT_M
         span, rise = CHEVRON_HALF_SPAN_M, CHEVRON_RISE_M
         lit: list[mesh.Mesh] = []
         shade: list[mesh.Mesh] = []
         for k in range(CHEVRON_COUNT):
-            tip = first_tip - k * CHEVRON_SPACING_M
+            tip = CHEVRON_FIRST_TIP_M - k * CHEVRON_SPACING_M
 
             def edge(depth: float) -> tuple[tuple[float, float], tuple[float, float], tuple[float, float]]:
                 """The left end, the tip and the right end of the chevron's leading edge, pushed `depth` back."""
                 return (tip - rise - depth, -span), (tip - depth, 0.0), (tip - rise - depth, span)
 
-            (lo, to, ro) = edge(0.0)
-            (ls, ts, rs) = edge(CHEVRON_THICKNESS_M - CHEVRON_SHADE_M)
-            (li, ti, ri) = edge(CHEVRON_THICKNESS_M)
-            lit.append(flat([li, lo, to, ti], lift))
-            lit.append(flat([ts, to, ro, rs], lift))
-            shade.append(flat([ti, ts, rs, ri], lift))
+            front_left, front_tip, front_right = edge(0.0)
+            _, seam_tip, seam_right = edge(CHEVRON_THICKNESS_M - CHEVRON_SHADE_M)
+            back_left, back_tip, back_right = edge(CHEVRON_THICKNESS_M)
+            lit.append(flat([back_left, front_left, front_tip, back_tip], lift))
+            lit.append(flat([seam_tip, front_tip, front_right, seam_right], lift))
+            shade.append(flat([back_tip, seam_tip, seam_right, back_right], lift))
 
         pieces = {**plate, "chevron": mesh.merge(lit), "chevron-shade": mesh.merge(shade)}
         for material, piece in pieces.items():
