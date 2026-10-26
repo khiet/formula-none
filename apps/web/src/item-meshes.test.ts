@@ -1,4 +1,4 @@
-import { type Material, Mesh, type Object3D } from "three";
+import { type Material, Mesh, MeshLambertMaterial, type Object3D } from "three";
 import { describe, expect, it } from "vitest";
 import { hazardConeMesh, homingGullMesh, itemBoxMesh } from "./item-meshes";
 
@@ -11,10 +11,8 @@ function materialsOf(object: Object3D): Material[] {
 }
 
 function coloursOf(object: Object3D): number[] {
-  return materialsOf(object).map((material) =>
-    "color" in material && typeof material.color === "object" && material.color !== null
-      ? (material.color as { getHex(): number }).getHex()
-      : -1,
+  return materialsOf(object).flatMap((material) =>
+    material instanceof MeshLambertMaterial ? [material.color.getHex()] : [],
   );
 }
 

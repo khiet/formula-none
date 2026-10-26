@@ -217,6 +217,10 @@ describe("the finish on the page", () => {
     expect(find("lap")?.hidden).toBe(true);
     expect(find("standings")?.hidden).toBe(false);
     expect(rows()).toEqual([`1st Kart 1 0'50"000`, `2nd You 0'52"250`]);
+    // The own row is the one picked out: on the item box's gold.
+    const own = [...(find("standings")?.querySelectorAll<HTMLElement>("li[data-own]") ?? [])];
+    expect(own.map((row) => row.textContent)).toEqual([`2nd You 0'52"250`]);
+    expect(own[0]?.style.getPropertyValue("--plate")).toBe("#e0b54a");
 
     show([finished(1, 50), finished(2, 52.25), finished(3, 61)]);
     expect(rows()).toEqual([`1st Kart 1 0'50"000`, `2nd You 0'52"250`, `3rd Kart 3 1'01"000`]);
