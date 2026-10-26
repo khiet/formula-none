@@ -401,7 +401,7 @@
   <section class="surface" id="world">
     <header>
       <h2>The world</h2>
-      <p class="lede">What the View draws in Three.js: the car, the drivers, the item meshes, the tells and the tracks.</p>
+      <p class="lede">What the View draws in Three.js: the car, the drivers, the item meshes, the tells, and the tracks with their walls, pipes, pads and scenery.</p>
     </header>
     <div class="cards">
       <article class="asset wide" data-status="ok">
@@ -480,6 +480,45 @@
         <header><span class="status ok">Aligned</span><h3>Track surfaces and kerbs</h3><code>assets/tracks/build.py:28</code></header>
         <div class="compare"><figure class="aligned"><figcaption>Each surface, lit and shaded</figcaption><div class="stage flat" data-draw="surfaces"></div></figure></div>
         <div class="notes"><p class="fix">One flat tone per surface, no textures; the sun gives each face its lit and shaded tone. Sky is <code>#87ceeb</code>.</p></div>
+      </article>
+
+      <article class="asset" data-status="ok">
+        <header><span class="status ok">Aligned</span><h3>Track-limit walls</h3><code>assets/tracks/trackgen/layout.py:243, mesh.py:33</code></header>
+        <div class="compare"><figure class="aligned"><figcaption>1 m high, 0.5 m thick</figcaption><div class="stage flat" data-draw="wall"></div></figure></div>
+        <div class="notes">
+          <p class="fix">A box rail in the wall white along both edges of the run-off, the whole way round every track (ADR 0022). Flat faces, so the sun alone gives the lit top and the shaded face; the course map draws the same white edge.</p>
+          <p class="why">Plain white with no stripe or tyre stack. It reads against sand and grass, and a pattern would only add faces along hundreds of metres.</p>
+        </div>
+      </article>
+
+      <article class="asset" data-status="ok">
+        <header><span class="status ok">Aligned</span><h3>Pipe obstacle</h3><code>assets/tracks/trackgen/layout.py:254, mesh.py:91</code></header>
+        <div class="compare"><figure class="aligned"><figcaption>1.5 m radius, 2 m tall, 16 sides</figcaption><div class="stage" data-draw="pipe"></div></figure></div>
+        <div class="notes">
+          <p class="fix">A capped, flat-shaded cylinder in pipe green <code>#40a34d</code>, standing in the asphalt into the oval's turns and either side of the Brands Patch hairpins. The sim collides with it as a wall.</p>
+          <p class="why">Sixteen facets is a polygon, as ADR 0034 asks, though from the chase camera it reads nearly round; the wheels and hubs use eight. Worth matching only if the pipes are rebuilt for another reason.</p>
+        </div>
+      </article>
+
+      <article class="asset" data-status="drift">
+        <header><span class="status drift">Drift</span><h3>Boost pad</h3><code>assets/tracks/build.py:213, crates/sim/src/tuning.rs:168</code></header>
+        <div class="compare">
+          <figure class="now"><figcaption>Now: nothing drawn</figcaption><div class="stage flat" data-draw="padNow"></div></figure>
+          <figure class="aligned"><figcaption>Aligned</figcaption><div class="stage flat" data-draw="padNew"></div></figure>
+        </div>
+        <div class="notes">
+          <p class="why">The export writes each pad as an empty in the <code>BoostPads</code> collection and the sim boosts any kart on its 6 x 4 m rectangle, but nothing gives it a mesh. Players hear <code>boost-pad.wav</code> and feel the boost on a stretch of plain asphalt.</p>
+          <p class="fix"><b>Fix:</b> a flat carbon plate the size of the sim's rectangle, a hair above the asphalt like the kerbs, with three chevrons pointing along the track in the mini-turbo orange, so the pad and the boost it gives share a colour.</p>
+        </div>
+      </article>
+
+      <article class="asset" data-status="ok">
+        <header><span class="status ok">Aligned</span><h3>Start line</h3><code>assets/tracks/trackgen/layout.py:330</code></header>
+        <div class="compare"><figure class="aligned"><figcaption>Two rows of 1 m chequers across the asphalt</figcaption><div class="stage flat" data-draw="startLine"></div></figure></div>
+        <div class="notes">
+          <p class="fix">Checker dark and light squares from the line forward, the chequer the gantry, the course map and the lap flags repeat.</p>
+          <p class="why">The spawn grid is placements only: no slot boxes are painted behind the line. Not drift, since no design asks for them.</p>
+        </div>
       </article>
 
       <article class="asset" data-status="check">
@@ -754,14 +793,15 @@
           <tr><td class="num">1</td><td>Instrument panel language</td><td>Decided in ADR 0037: plates, ink drop, polygons, livery on your readouts</td><td><code>docs/adr/0037</code></td></tr>
           <tr><td class="num">2</td><td>Position, laps, times; speed cluster; tyre gauge</td><td>Livery and carbon plates, folded flags, hexagon lights, your car from above</td><td><code>instrument-panel.ts</code>, <code>speed-cluster.ts</code></td></tr>
           <tr><td class="num">3</td><td>Item slot and the View's items</td><td>Slot as the item box face on; cone, gull and snail drawn from the meshes, which become lit and faceted</td><td><code>item-sprites.ts</code>, <code>race-view.ts:188-210</code></td></tr>
-          <tr><td class="num">4</td><td>Kart labels</td><td>Key-colour plate with a pointer, HUD units</td><td><code>index.html:330</code></td></tr>
-          <tr><td class="num">5</td><td>Course map</td><td>Asphalt between walls, chequered start, faceted octagon markers</td><td><code>course-map.ts:118</code></td></tr>
-          <tr><td class="num">6</td><td>Poster kart</td><td>Low-poly side view, bare head, octagon wheels, palette colours</td><td><code>poster.ts:16</code></td></tr>
-          <tr><td class="num">7</td><td>Countdown, FINISH, wrong way, connection, standings</td><td>Start lights, plates in carbon, hazard orange and poster red, HUD units</td><td><code>index.html:251-293</code></td></tr>
-          <tr><td class="num">8</td><td>Favicon</td><td>Pixel sticker of the crossed-out 1</td><td><code>public/favicon.svg</code></td></tr>
-          <tr><td class="num">9</td><td>Room Scene</td><td>Poster treatment; needs an ADR first</td><td><code>room-scene.ts</code></td></tr>
-          <tr><td class="num">10</td><td>Grandstand, gantry</td><td>Rebuild from primitives, like the kart</td><td><code>tracks/build.py:50</code></td></tr>
-          <tr><td class="num">11</td><td>Sponsor hoardings</td><td>Decide against ADR 0035's sponsor line</td><td><code>trackgen/sponsors.py</code></td></tr>
+          <tr><td class="num">4</td><td>Boost pad</td><td>Give it a mesh: a carbon plate the sim's size with orange chevrons</td><td><code>tracks/build.py:213</code>, <code>trackgen/layout.py</code></td></tr>
+          <tr><td class="num">5</td><td>Kart labels</td><td>Key-colour plate with a pointer, HUD units</td><td><code>index.html:330</code></td></tr>
+          <tr><td class="num">6</td><td>Course map</td><td>Asphalt between walls, chequered start, faceted octagon markers</td><td><code>course-map.ts:118</code></td></tr>
+          <tr><td class="num">7</td><td>Poster kart</td><td>Low-poly side view, bare head, octagon wheels, palette colours</td><td><code>poster.ts:16</code></td></tr>
+          <tr><td class="num">8</td><td>Countdown, FINISH, wrong way, connection, standings</td><td>Start lights, plates in carbon, hazard orange and poster red, HUD units</td><td><code>index.html:251-293</code></td></tr>
+          <tr><td class="num">9</td><td>Favicon</td><td>Pixel sticker of the crossed-out 1</td><td><code>public/favicon.svg</code></td></tr>
+          <tr><td class="num">10</td><td>Room Scene</td><td>Poster treatment; needs an ADR first</td><td><code>room-scene.ts</code></td></tr>
+          <tr><td class="num">11</td><td>Grandstand, gantry</td><td>Rebuild from primitives, like the kart</td><td><code>tracks/build.py:50</code></td></tr>
+          <tr><td class="num">12</td><td>Sponsor hoardings</td><td>Decide against ADR 0035's sponsor line</td><td><code>trackgen/sponsors.py</code></td></tr>
         </tbody>
       </table>
     </div>
@@ -1070,6 +1110,47 @@
     return poly([[x, y + 10], [x + 30, y], [x + 64, y + 10], [x + 34, y + 20]], col) + poly([[x, y + 10], [x + 34, y + 20], [x + 34, y + 34], [x, y + 24]], `color-mix(in srgb, ${col} 78%, black)`) + poly([[x + 34, y + 20], [x + 64, y + 10], [x + 64, y + 24], [x + 34, y + 34]], `color-mix(in srgb, ${col} 60%, black)`) +
       `<text x="${x}" y="${y + 50}" font-family="Silkscreen, monospace" font-size="9" fill="currentColor">${n}</text><text x="${x}" y="${y + 59}" font-family="ui-monospace, monospace" font-size="7.5" fill="currentColor" opacity=".7">${col}</text>`;
   }).join("")}</svg>`;
+  // A wall section from the track side: lit top, the face toward the karts, the shaded cut end.
+  draw.wall = () => {
+    const w = rgb([0.94, 0.94, 0.94]);
+    return `<svg viewBox="0 0 320 150" role="img" aria-label="White track-limit wall on sand">
+      <rect width="320" height="150" fill="#5cb04a"/><rect y="96" width="320" height="54" fill="#e8c773"/>
+      ${poly([[20, 66], [280, 66], [296, 56], [36, 56]], w)}
+      ${poly([[20, 66], [280, 66], [280, 104], [20, 104]], `color-mix(in srgb, ${w} 82%, black)`)}
+      ${poly([[280, 66], [296, 56], [296, 94], [280, 104]], `color-mix(in srgb, ${w} 62%, black)`)}
+      <rect x="20" y="104" width="260" height="5" fill="rgba(0,0,0,.18)"/></svg>`;
+  };
+  // An upright prism of `n` flat sides seen from slightly above, lit from the top left.
+  const prism = (n, cx, cy, r, h, col) => {
+    const ry = r * 0.32, rim = Array.from({ length: n }, (_, k) => { const a = (k * 2 * Math.PI) / n; return [Math.cos(a), Math.sin(a)]; });
+    let sides = "";
+    rim.forEach((a, k) => {
+      const b = rim[(k + 1) % n], mx = (a[0] + b[0]) / 2, my = (a[1] + b[1]) / 2;
+      if (my <= 0) return;
+      const shade = Math.round(8 + 42 * (mx + 1) / 2);
+      sides += poly([[cx + a[0] * r, cy + a[1] * ry - h], [cx + b[0] * r, cy + b[1] * ry - h], [cx + b[0] * r, cy + b[1] * ry], [cx + a[0] * r, cy + a[1] * ry]], `color-mix(in srgb, ${col} ${100 - shade}%, black)`);
+    });
+    return sides + poly(rim.map(([x, y]) => [cx + x * r, cy + y * ry - h]), `color-mix(in srgb, ${col} 78%, white)`);
+  };
+  draw.pipe = () => `<svg viewBox="0 0 200 160" role="img" aria-label="Sixteen-sided green pipe">
+    <rect width="200" height="160" fill="#6b6b78"/><ellipse cx="108" cy="134" rx="58" ry="12" fill="rgba(0,0,0,.25)"/>
+    ${prism(16, 100, 128, 48, 86, rgb([0.25, 0.64, 0.30]))}</svg>`;
+  // Top-down: the track runs up the page, the pad's rectangle spans 6 m of its width.
+  const padGround = (inner) => `<svg viewBox="0 0 200 160" role="img" aria-label="Boost pad on asphalt from above">
+    <rect width="200" height="160" fill="#6b6b78"/><rect x="0" width="10" height="160" fill="#e8c773"/><rect x="190" width="10" height="160" fill="#e8c773"/>${inner}</svg>`;
+  draw.padNow = () => padGround(`<rect x="46" y="46" width="108" height="72" fill="none" stroke="#fff" stroke-width="2" stroke-dasharray="6 5" opacity=".7"/>
+    <text x="100" y="86" text-anchor="middle" font-family="Silkscreen, monospace" font-size="10" fill="#fff" opacity=".85">no mesh</text>`);
+  draw.padNew = () => {
+    const chevron = (y) => poly([[66, y + 18], [100, y], [134, y + 18], [134, y + 28], [100, y + 10], [66, y + 28]], "#ff8800") + poly([[100, y + 10], [134, y + 28], [134, y + 24], [100, y + 6]], "#c45f00");
+    return padGround(`<rect x="46" y="46" width="108" height="72" fill="#2b2e33"/><rect x="46" y="46" width="108" height="4" fill="#3a3e45"/><rect x="46" y="114" width="108" height="4" fill="#1c1c1e"/>
+      ${chevron(52)}${chevron(70)}${chevron(88)}`);
+  };
+  draw.startLine = () => {
+    let cq = "";
+    for (let i = 0; i < 16; i++) for (let j = 0; j < 2; j++) cq += `<rect x="${32 + i * 16}" y="${60 + j * 16}" width="16" height="16" fill="${(i + j) % 2 ? rgb([0.96, 0.96, 0.96]) : rgb([0.13, 0.13, 0.13])}"/>`;
+    return `<svg viewBox="0 0 320 150" role="img" aria-label="Chequered start line across the asphalt">
+      <rect width="320" height="150" fill="#e8c773"/><rect x="32" width="256" height="150" fill="#6b6b78"/>${cq}</svg>`;
+  };
   draw.boards = () => {
     const ink = { "ink-blue": "#1f54c7", "ink-green": "#218c40", "ink-red": "#cc2929", "ink-black": "#1f1f1f", "ink-orange": "#ed7814", "ink-purple": "#8038b3" };
     const rows = [["OVERSTEER INSURANCE", "ink-blue"], ["CHICANE COLA", "ink-red"], ["LATE BRAKING BANK", "ink-purple"], ["UNDERSTEER BROS. BRAKES", "ink-orange"]];
