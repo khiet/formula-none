@@ -41,6 +41,7 @@ const DECISION_SLUGS = [
   "chibi-low-poly-art",
   "livery-palette",
   "drivers-race-bare-headed",
+  "instrument-panel-in-chibi-low-poly",
 ];
 
 const expectedFiles = DECISION_SLUGS.map(
