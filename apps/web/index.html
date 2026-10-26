@@ -335,7 +335,7 @@
       /* GO is ink on the green, lifted by a pale drop. */
       [data-instrument="countdown"]:not([data-plate="octagon"]) {
         color: var(--ink);
-        text-shadow: 0.1em 0.1em 0 rgb(255 255 255 / 0.5);
+        text-shadow: 0.1em 0.1em 0 color-mix(in srgb, var(--value) 50%, transparent);
       }
       [data-instrument="countdown"][data-plate="octagon"] {
         justify-content: center;
