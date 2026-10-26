@@ -84,7 +84,7 @@ const HAIR_TONES: Tones = ["var(--hair-lt)", "var(--hair)", "var(--hair-dk)"];
 function hair(style: Hair, cx: number, cy: number, r: number): string {
   const at = around(cx, cy, r);
   const rim = ngon(8, cx, cy, r * 1.07);
-  // The rim's corners from the back of the head over to the brow.
+  // The rim's corners from the back of the head over the crown.
   const crown = [5, 6, 7, 0].map((k): Point => rim[k] ?? [cx, cy]);
   let out = poly(
     [
@@ -187,7 +187,7 @@ function facialHair(kind: FacialHair, cx: number, cy: number, r: number): string
   );
 }
 
-/** The bare head (ADR 0036) from the side: skin facets, the driver's hair, an ear, an eye and a mouth. */
+/** The bare head (ADR 0036) from the side, facing right. */
 function head(driver: Driver, cx: number, cy: number, r: number): string {
   const at = around(cx, cy, r);
   return (
