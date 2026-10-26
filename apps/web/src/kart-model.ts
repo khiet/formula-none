@@ -1,27 +1,58 @@
 // The kart the View draws: a chibi low-poly F1 car (ADR 0034) that
-// assets/karts/build.py builds from primitives, painted in four materials
-// named here, which the View swaps for the slot's livery (ADR 0035).
+// assets/karts/build.py builds from primitives, painted in the materials
+// named here, which the View swaps for the slot's livery (ADR 0035) and
+// driver, whose bare head wears only that driver's parts (ADR 0036).
 import { type Material, Mesh, MeshStandardMaterial, type Object3D } from "three";
 import kartGltf from "../../../assets/karts/kart.glb?url";
 import type { KartSize } from "./bridge";
-import type { Livery } from "./livery";
+import { type Driver, FACIAL_HAIRS, HAIRS, type Livery } from "./livery";
 
 /** The exported kart, as the View fetches it. */
 export const KART_GLTF_URL: string = kartGltf;
 
-type Paint = "primary" | "secondary" | "accent" | "helmet";
+type Paint = "primary" | "secondary" | "accent";
+type DriverPaint = "skin" | "hairColour";
 
 /** The paint materials in the exported kart, by the livery colour every face in each takes. */
 export const LIVERY_MATERIALS: Readonly<Record<Paint, string>> = {
   primary: "Primary",
   secondary: "Secondary",
   accent: "Accent",
-  helmet: "Helmet",
 };
 
-const PAINT_BY_MATERIAL = new Map(
-  Object.entries(LIVERY_MATERIALS).map(([paint, name]) => [name, paint as Paint]),
-);
+/** The driver's materials in the exported kart, by the driver's colour each takes. */
+export const DRIVER_MATERIALS: Readonly<Record<DriverPaint, string>> = {
+  skin: "Skin",
+  hairColour: "Hair",
+};
+
+/** The colour each painted material takes for `livery`, by material name. */
+function paints(livery: Livery): Map<string, number> {
+  return new Map([
+    ...Object.entries(LIVERY_MATERIALS).map(
+      ([paint, name]) => [name, livery[paint as Paint]] as const,
+    ),
+    ...Object.entries(DRIVER_MATERIALS).map(
+      ([paint, name]) => [name, livery.driver[paint as DriverPaint]] as const,
+    ),
+  ]);
+}
+
+/** Every swappable part on the head, by the name the exporter gives its node. */
+const DRIVER_PARTS: ReadonlySet<string> = new Set([
+  ...HAIRS.map((hair) => `hair-${hair}`),
+  ...FACIAL_HAIRS.map((facialHair) => `facial-hair-${facialHair}`),
+  "earrings",
+]);
+
+/** The parts `driver` wears; "none" names no part, so a clean-shaven driver shows no facial hair. */
+function partsOf(driver: Driver): ReadonlySet<string> {
+  return new Set([
+    `hair-${driver.hair}`,
+    `facial-hair-${driver.facialHair}`,
+    ...(driver.earrings ? ["earrings"] : []),
+  ]);
+}
 
 export interface Bounds {
   readonly min: readonly [number, number, number];
@@ -43,7 +74,7 @@ export interface KartFit {
  * until its footprint meets the box's length or width, standing on the
  * floor, centred along the length. The sim's transform is the box's centre,
  * so the floor is half a height below it. Height is not fitted: the
- * driver's helmet may stand above the box.
+ * driver's head may stand above the box.
  */
 export function fitKart(bounds: Bounds, size: KartSize): KartFit {
   const scale = Math.min(
@@ -59,24 +90,30 @@ export function fitKart(bounds: Bounds, size: KartSize): KartFit {
 }
 
 /**
- * A kart in `livery`: a clone of `model` whose meshes wearing a livery
- * material get a copy of it in that material's colour of the palette, so
- * each kart on the grid has its own paint and every other material stays
- * shared across them.
+ * A kart in `livery`: a clone of `model` whose meshes wearing a livery or
+ * driver material get a copy of it in that material's colour of the slot,
+ * so each kart on the grid has its own paint and every other material stays
+ * shared across them. Of the head's swappable parts, only the slot's
+ * driver's stay visible.
  */
 export function dressKart(model: Object3D, livery: Livery): Object3D {
   const kart = model.clone();
+  const colours = paints(livery);
+  const worn = partsOf(livery.driver);
   const own = new Map<Material, Material>();
   kart.traverse((object) => {
+    if (DRIVER_PARTS.has(object.name)) {
+      object.visible = worn.has(object.name);
+    }
     if (!(object instanceof Mesh) || Array.isArray(object.material)) {
       return;
     }
     const material = object.material;
-    const paint = PAINT_BY_MATERIAL.get(material.name);
-    if (paint === undefined) {
+    const colour = colours.get(material.name);
+    if (colour === undefined) {
       return;
     }
-    const copy = own.get(material) ?? repaint(material, livery[paint]);
+    const copy = own.get(material) ?? repaint(material, colour);
     own.set(material, copy);
     object.material = copy;
   });

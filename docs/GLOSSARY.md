@@ -223,7 +223,7 @@ does not carry one.
 ### livery
 
 The palette that tells one kart from another, borrowed from a team's colours:
-primary, secondary, accent and helmet, the four the kart is painted in, and a
+primary, secondary and accent, the three the kart is painted in, and a
 key colour for every single-colour use (the minimap, swatches, kart labels).
 Eight liveries, assigned in room join order; each comes with its slot's
 driver.

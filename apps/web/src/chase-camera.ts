@@ -16,7 +16,7 @@ export interface ChaseCamera {
 
 const BEHIND_M = 6;
 // High enough that the line of sight to the look-ahead point clears the
-// driver's helmet, a metre over the kart's centre, so the own kart never
+// driver's head, a metre over the kart's centre, so the own kart never
 // hides the road ahead.
 const ABOVE_M = 3.2;
 const LOOK_AHEAD_M = 4;

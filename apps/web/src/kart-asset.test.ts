@@ -2,7 +2,8 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { loadBridge } from "./bridge";
 import { type GltfJson, gltfJson } from "./gltf-json";
-import { fitKart, LIVERY_MATERIALS } from "./kart-model";
+import { DRIVER_MATERIALS, fitKart, LIVERY_MATERIALS } from "./kart-model";
+import { FACIAL_HAIRS, HAIRS } from "./livery";
 
 // The exported kart as the View loads it, read as bytes.
 const glb = readFileSync(new URL("../../../assets/karts/kart.glb", import.meta.url));
@@ -33,7 +34,7 @@ function bounds(gltf: GltfJson) {
 }
 
 describe("the exported kart", () => {
-  it.each(Object.values(LIVERY_MATERIALS))(
+  it.each([...Object.values(LIVERY_MATERIALS), ...Object.values(DRIVER_MATERIALS)])(
     "carries one %s material, painted on some face, so the View can swap it",
     (name) => {
       const materials = kart.materials ?? [];
@@ -45,6 +46,26 @@ describe("the exported kart", () => {
       expect(used).toBe(true);
     },
   );
+
+  it("races the driver bare-headed: no helmet to paint", () => {
+    expect((kart.materials ?? []).map(({ name }) => name)).not.toContain("Helmet");
+  });
+
+  it("carries a part for every hair style, every facial hair and the earrings, for the View to pick from", () => {
+    const names = kart.nodes.map(({ name }) => name);
+    for (const hair of HAIRS) {
+      expect(names).toContain(`hair-${hair}`);
+    }
+    for (const facialHair of FACIAL_HAIRS.filter((facialHair) => facialHair !== "none")) {
+      expect(names).toContain(`facial-hair-${facialHair}`);
+    }
+    expect(names).toContain("earrings");
+  });
+
+  it("keeps the top of the driver's hair at or below where the helmet's top stood", () => {
+    // 1.34 m: the height the chase camera and the kart labels were placed against.
+    expect(bounds(kart).max[1]).toBeLessThanOrEqual(1.34 + 1e-6);
+  });
 
   it("is flat-coloured: no texture to fetch, decode or upload per kart", () => {
     expect(kart.images ?? []).toHaveLength(0);
