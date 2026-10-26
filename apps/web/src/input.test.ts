@@ -2,8 +2,8 @@ import { describe, expect, it } from "vitest";
 import type { KartInput } from "./bridge";
 import { combinedKartInput, IDLE_INPUT, type KartInputSource } from "./input";
 
-function source(input: Partial<KartInput>): KartInputSource {
-  return { current: () => ({ ...IDLE_INPUT, ...input }) };
+function source(input: Partial<KartInput>, lookingBehind = false): KartInputSource {
+  return { current: () => ({ ...IDLE_INPUT, ...input }), lookingBehind: () => lookingBehind };
 }
 
 describe("keyboard and gamepad combine into one input", () => {
@@ -28,5 +28,11 @@ describe("keyboard and gamepad combine into one input", () => {
   it("a button pressed on any device is pressed", () => {
     const combined = combinedKartInput(source({ hop: true }), source({ useItem: true }));
     expect(combined.current()).toMatchObject({ hop: true, useItem: true, holdItem: false });
+  });
+
+  it("looks behind while any device asks to", () => {
+    expect(combinedKartInput(source({}), source({})).lookingBehind()).toBe(false);
+    expect(combinedKartInput(source({}), source({}, true)).lookingBehind()).toBe(true);
+    expect(combinedKartInput(source({}, true), source({})).lookingBehind()).toBe(true);
   });
 });

@@ -166,6 +166,31 @@ describe("keys map to one kart input", () => {
     expect(input.current()).toEqual(IDLE_INPUT);
   });
 
+  it("E looks behind while held, in either case, and is not part of the kart input", () => {
+    const keyboard = fakeKeyboard();
+    const input = keyboardKartInput(keyboard);
+    expect(input.lookingBehind()).toBe(false);
+    expect(keyboard.press("e")).toBe(true);
+    expect(input.lookingBehind()).toBe(true);
+    expect(input.current()).toEqual(IDLE_INPUT);
+    expect(input.lookingBehind()).toBe(true);
+    keyboard.release("e");
+    expect(input.lookingBehind()).toBe(false);
+    // Shift held for the item button turns the letter upper case.
+    keyboard.press("E");
+    expect(input.lookingBehind()).toBe(true);
+    keyboard.release("E");
+    expect(input.lookingBehind()).toBe(false);
+  });
+
+  it("losing focus stops looking behind", () => {
+    const keyboard = fakeKeyboard();
+    const input = keyboardKartInput(keyboard);
+    keyboard.press("e");
+    keyboard.blur();
+    expect(input.lookingBehind()).toBe(false);
+  });
+
   it("releasing every key returns to idle", () => {
     const keyboard = fakeKeyboard();
     const input = keyboardKartInput(keyboard);

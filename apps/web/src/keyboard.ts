@@ -10,9 +10,12 @@ export interface KeySource {
   addEventListener(type: "blur", listener: () => void, options?: AddEventListenerOptions): void;
 }
 
-type Action = "left" | "right" | "throttle" | "brake" | "hop" | "item";
+type Action = "left" | "right" | "throttle" | "brake" | "hop" | "item" | "lookBehind";
 
-/** Arrows or WASD drive, space hops, shift is the item button. Letters are lower case here. */
+/**
+ * Arrows or WASD drive, space hops, shift is the item button, E looks
+ * behind. Letters are lower case here.
+ */
 const KEY_ACTIONS: ReadonlyMap<string, Action> = new Map([
   ["ArrowLeft", "left"],
   ["a", "left"],
@@ -24,6 +27,7 @@ const KEY_ACTIONS: ReadonlyMap<string, Action> = new Map([
   ["s", "brake"],
   [" ", "hop"],
   ["Shift", "item"],
+  ["e", "lookBehind"],
 ]);
 
 /** Shift turns a letter upper case; the key is the same. */
@@ -34,7 +38,8 @@ function normalise(key: string): string {
 /**
  * The keys held when `current()` is called, as one kart's input. A key that
  * went down and up again between two reads counts as held for the next one,
- * so a tap shorter than a tick still lands. Aborting `signal` stops
+ * so a tap shorter than a tick still lands. Looking behind follows only the
+ * keys held, since the camera reads it every frame. Aborting `signal` stops
  * listening, so a Scene that goes away takes its keys with it.
  */
 export function keyboardKartInput(source: KeySource, signal?: AbortSignal): KartInputSource {
@@ -78,6 +83,14 @@ export function keyboardKartInput(source: KeySource, signal?: AbortSignal): Kart
     options,
   );
 
+  const isHeld = (action: Action): boolean => {
+    for (const [key, mapped] of KEY_ACTIONS) {
+      if (mapped === action && held.has(key)) {
+        return true;
+      }
+    }
+    return false;
+  };
   const down = (action: Action): boolean => {
     for (const [key, mapped] of KEY_ACTIONS) {
       if (mapped === action && (held.has(key) || tapped.has(key))) {
@@ -100,5 +113,6 @@ export function keyboardKartInput(source: KeySource, signal?: AbortSignal): Kart
       itemPressed = false;
       return input;
     },
+    lookingBehind: () => isHeld("lookBehind"),
   };
 }
