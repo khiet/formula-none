@@ -101,24 +101,25 @@ export function createChaseCamera(tuning: CameraTuning): ChaseCamera {
       const pullBack =
         BEHIND_M +
         (Math.max(kart.speed, 0) / tuning.topSpeedMetresPerSecond) * tuning.pullBackMetres;
-      // Looking behind flips which side of the kart the camera and its
-      // look point sit on.
-      const behind = lookingBehind ? -pullBack : pullBack;
-      const lookAhead = lookingBehind ? -LOOK_AHEAD_M : LOOK_AHEAD_M;
+      // Signed along the kart's back: looking behind puts the camera ahead
+      // of the kart and its look point behind.
+      const facing = lookingBehind ? -1 : 1;
+      const cameraBack = facing * pullBack;
+      const lookForward = facing * LOOK_AHEAD_M;
       return {
         // A kart with no yaw faces -Z, so behind it is +Z.
         position: [
-          x + Math.sin(yaw) * behind + sx,
+          x + Math.sin(yaw) * cameraBack + sx,
           height + ABOVE_M + sy,
-          z + Math.cos(yaw) * behind + sz,
+          z + Math.cos(yaw) * cameraBack + sz,
         ],
         // The target jolts with the position, so the hit shoves the whole
         // frame, and sits at the lagged height, so a hop moves the kart in
         // the frame rather than the frame with the kart.
         target: [
-          x - Math.sin(kartYaw) * lookAhead + sx,
+          x - Math.sin(kartYaw) * lookForward + sx,
           height + sy,
-          z - Math.cos(kartYaw) * lookAhead + sz,
+          z - Math.cos(kartYaw) * lookForward + sz,
         ],
       };
     },

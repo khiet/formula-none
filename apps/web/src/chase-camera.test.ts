@@ -228,7 +228,9 @@ describe("the chase camera", () => {
     }
     const next = kart(-1.2, [0, 0.4, -3]);
     const pose = looked.update(next, FRAME_S);
-    expectClose(pose.position, ahead.update(next, FRAME_S).position, 9);
+    const chase = ahead.update(next, FRAME_S);
+    expectClose(pose.position, chase.position, 9);
+    expectClose(pose.target, chase.target, 9);
   });
 
   it("keeps the height spring and the shake while looking behind", () => {

@@ -83,17 +83,10 @@ export function keyboardKartInput(source: KeySource, signal?: AbortSignal): Kart
     options,
   );
 
-  const isHeld = (action: Action): boolean => {
+  /** Whether a key for `action` is held, or with `withTaps` was tapped since the last read. */
+  const down = (action: Action, withTaps = true): boolean => {
     for (const [key, mapped] of KEY_ACTIONS) {
-      if (mapped === action && held.has(key)) {
-        return true;
-      }
-    }
-    return false;
-  };
-  const down = (action: Action): boolean => {
-    for (const [key, mapped] of KEY_ACTIONS) {
-      if (mapped === action && (held.has(key) || tapped.has(key))) {
+      if (mapped === action && (held.has(key) || (withTaps && tapped.has(key)))) {
         return true;
       }
     }
@@ -113,6 +106,6 @@ export function keyboardKartInput(source: KeySource, signal?: AbortSignal): Kart
       itemPressed = false;
       return input;
     },
-    lookingBehind: () => isHeld("lookBehind"),
+    lookingBehind: () => down("lookBehind", false),
   };
 }

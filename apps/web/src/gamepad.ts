@@ -25,8 +25,8 @@ const STICK_DEAD_ZONE = 0.15;
 /**
  * The first connected gamepad, polled when `current()` is called: right
  * trigger throttle, left trigger brake, left stick steer, bottom face button
- * hop, left face button item, top face button looks behind. Browsers expose a pad only after a button
- * press on it, so an untouched pad reads as absent.
+ * hop, left face button item, top face button look-behind. Browsers expose
+ * a pad only after a button press on it, so an untouched pad reads as absent.
  */
 export function gamepadKartInput(source: GamepadSource): KartInputSource {
   let itemWasDown = false;
