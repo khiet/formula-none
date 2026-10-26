@@ -7,8 +7,7 @@ racing kits as the look of the game; the rest of ADR 0007 stands. The
 "no driver resembles a real person" bullet is superseded by ADR 0035. The
 oversized helmet and polygon helmets are superseded by ADR 0036: drivers
 race bare-headed. ADR 0037 brings the Instrument panel into this style and
-keeps the Kenney pixel face. ADR 0038 lets invented sponsors stand on the
-scenery; no car carries one.
+keeps the Kenney pixel face.
 
 ## Context
 
