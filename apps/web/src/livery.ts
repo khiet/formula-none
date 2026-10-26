@@ -32,7 +32,7 @@ export type FacialHair = (typeof FACIAL_HAIRS)[number];
 /**
  * A slot's driver: a friendly caricature of the team's best-known driver
  * under a parody name, told apart only by what swaps on the shared head.
- * The kart shows the head bare (ADR 0036); the name shows nowhere yet.
+ * The kart shows the head bare (ADR 0036); the name shows nowhere.
  */
 export interface Driver {
   readonly name: string;

@@ -48,8 +48,8 @@ FIXED = {
 }
 
 # The one shared head: about 0.6 m across, its centre low enough that the
-# tallest hair stays under 1.34 m, where the helmet's top stood and the
-# chase camera and kart labels were placed against.
+# tallest hair stays under 1.34 m, the height the chase camera and the kart
+# labels are placed to clear.
 HEAD = Vector((0, -0.1, 0.97))
 HEAD_RADIUS = 0.3
 # A short jaw: below the eyes the head narrows and shortens by these.
@@ -179,7 +179,7 @@ class Part:
 def body() -> bpy.types.Object:
     # Blender is Z up with the nose along +Y; the glTF exporter turns that
     # into Y up with the nose along -Z, the way the sim's kart drives.
-    part = Part([*PAINTED, "Carbon", "Whites", "Irises"])
+    part = Part(["Primary", "Secondary", "Accent", "Skin", "Carbon", "Whites", "Irises"])
     # The floor every panel sits on.
     part.box("Secondary", (0, -0.2, 0.1), (0.76, 1.1, 0.06))
     # The tub, the cockpit's sides, and the nose tapering down to the front wing.
@@ -245,10 +245,6 @@ def cap(part: Part, radius: float = 0.32) -> None:
     part.head_shell("Hair", radius, lambda p: p.z > -0.1 and not (p.y > 0.5 and p.z < 0.3))
 
 
-def short(part: Part) -> None:
-    cap(part)
-
-
 def short_curls(part: Part) -> None:
     cap(part, 0.31)
     for k in range(8):
@@ -272,7 +268,7 @@ def swept_side_part(part: Part) -> None:
 def swept_back(part: Part) -> None:
     cap(part)
     # Swept up off the forehead and back over the crown.
-    part.box("Hair", (0, HEAD.y - 0.04, HEAD.z + 0.26), (0.22, 0.5, 0.07), front_scale=(1.1, 1.3))
+    part.box("Hair", (0, HEAD.y - 0.04, HEAD.z + 0.3), (0.26, 0.5, 0.08), front_scale=(1.1, 1.5))
 
 
 def short_greying_temples(part: Part) -> None:
@@ -291,7 +287,7 @@ def braids_tied_back(part: Part) -> None:
 # Every hair style in livery.ts, the materials its part wears, and how it is built.
 HAIR_STYLES: dict[str, tuple[list[str], Callable[[Part], None]]] = {
     "braids-tied-back": (["Hair"], braids_tied_back),
-    "short": (["Hair"], short),
+    "short": (["Hair"], cap),
     "swept-side-part": (["Hair"], swept_side_part),
     "curly-fringe": (["Hair"], curly_fringe),
     # The grey is fixed, so a driver carries one hair colour.
@@ -311,7 +307,7 @@ def hair_parts(root: bpy.types.Object) -> None:
 def facial_hair_parts(root: bpy.types.Object) -> None:
     """One part per facial hair in livery.ts but none, lying on the jaw below the eyes."""
     jaw = {
-        "light-stubble": (0.303, lambda p: p.z < -0.7 and p.y > -0.3),
+        "light-stubble": (0.303, lambda p: p.z < -0.4 and p.y > 0.3),
         "stubble": (0.305, lambda p: p.z < -0.4 and p.y > -0.3),
         "heavy-stubble": (0.308, lambda p: p.z < -0.4 and p.y > -0.6),
         "short-beard": (0.318, lambda p: (p.z < -0.4 or (p.z < 0.1 and abs(p.x) > 0.7)) and p.y > -0.6),

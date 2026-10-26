@@ -62,8 +62,8 @@ describe("the exported kart", () => {
     expect(names).toContain("earrings");
   });
 
-  it("keeps the top of the driver's hair at or below where the helmet's top stood", () => {
-    // 1.34 m: the height the chase camera and the kart labels were placed against.
+  it("keeps the top of the driver's hair at or below 1.34 m", () => {
+    // The height the chase camera and the kart labels are placed to clear.
     expect(bounds(kart).max[1]).toBeLessThanOrEqual(1.34 + 1e-6);
   });
 

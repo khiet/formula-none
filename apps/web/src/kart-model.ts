@@ -41,11 +41,13 @@ function paints(livery: Livery): Map<string, number> {
 /** Every swappable part on the head, by the name the exporter gives its node. */
 const DRIVER_PARTS: ReadonlySet<string> = new Set([
   ...HAIRS.map((hair) => `hair-${hair}`),
-  ...FACIAL_HAIRS.map((facialHair) => `facial-hair-${facialHair}`),
+  ...FACIAL_HAIRS.filter((facialHair) => facialHair !== "none").map(
+    (facialHair) => `facial-hair-${facialHair}`,
+  ),
   "earrings",
 ]);
 
-/** The parts `driver` wears; "none" names no part, so a clean-shaven driver shows no facial hair. */
+/** The parts `driver` wears; a clean-shaven driver's "none" matches no part, so no facial hair shows. */
 function partsOf(driver: Driver): ReadonlySet<string> {
   return new Set([
     `hair-${driver.hair}`,
