@@ -29,14 +29,14 @@ export function wheelSpin(angle: number, speed: number, radius: number, dtSecond
 }
 
 export interface KartWheels {
-  /** Turn every wheel by this frame's share at the kart's `speed`. */
+  /** Turn every wheel by the ground the kart covers at `speed` over `dtSeconds`, capped per frame. */
   turn(speed: number, dtSeconds: number): void;
 }
 
 /**
  * The wheels of `model`, a dressed kart not yet fitted, which is drawn at
- * `scale`. Each wheel's radius is half its height, measured from
- * its bounds, so it follows whatever the exporter built.
+ * `scale`. Each wheel's radius is half its height, measured from its
+ * bounds: the octagon rests on a flat, so that is its axle's height.
  */
 export function kartWheels(model: Object3D, scale: number): KartWheels {
   const wheels = WHEELS.flatMap((name) => {
