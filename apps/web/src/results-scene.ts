@@ -28,7 +28,6 @@ export interface ResultRow {
   readonly fastestLap: boolean;
   /** Whether the kart completed the race's laps before the race ended. */
   readonly finished: boolean;
-  /** Whether this is the local kart. */
   readonly you: boolean;
 }
 
@@ -92,16 +91,31 @@ export function resultsRows(results: RaceResults): ResultRow[] {
     });
 }
 
-/** What the Scene says to you about your finish: a headline, and a line under it from 4th down. */
-function headline(you: ResultRow | undefined): { text: string; subline: string } {
-  if (you === undefined) return { text: "Results", subline: "" };
-  if (!you.finished) return { text: "Out of road!", subline: "" };
-  if (you.place === 1) return { text: "You win!", subline: "" };
-  if (you.place <= PODIUM_PLACES) return { text: `Podium! ${you.position}`, subline: "" };
+/**
+ * What the Scene says to you about your finish: a headline, a line under it
+ * from 4th down, whether the place is stamped on and whether confetti falls.
+ */
+interface Verdict {
+  readonly text: string;
+  readonly subline: string;
+  readonly stamp: boolean;
+  readonly confetti: boolean;
+}
+
+function verdict(you: ResultRow | undefined): Verdict {
+  const plain = { subline: "", stamp: false, confetti: false };
+  if (you === undefined) return { ...plain, text: "Results" };
+  if (!you.finished) return { ...plain, text: "Out of road!" };
+  if (you.place === 1) return { ...plain, text: "You win!", confetti: true };
+  if (you.place <= PODIUM_PLACES) {
+    return { ...plain, text: `Podium! ${you.position}`, confetti: true };
+  }
   const off = you.place - PODIUM_PLACES;
   return {
     text: you.position,
     subline: `${off} kart${off === 1 ? "" : "s"} off the podium. One more go?`,
+    stamp: true,
+    confetti: false,
   };
 }
 
@@ -158,8 +172,7 @@ export function createResultsScene(
 ): ResultsScene {
   const scene = document.createElement("div");
   scene.id = "results-scene";
-  const you = rows.find((row) => row.you);
-  const said = headline(you);
+  const said = verdict(rows.find((row) => row.you));
 
   const head = document.createElement("header");
   const raceOver = document.createElement("p");
@@ -167,9 +180,7 @@ export function createResultsScene(
   raceOver.textContent = "Race over";
   const heading = document.createElement("h1");
   heading.textContent = said.text;
-  if (you?.finished && you.place > PODIUM_PLACES) {
-    heading.dataset.stamp = "";
-  }
+  if (said.stamp) heading.dataset.stamp = "";
   head.append(raceOver, heading);
   if (said.subline !== "") {
     const subline = document.createElement("p");
@@ -200,9 +211,7 @@ export function createResultsScene(
   side.append(board, actions);
 
   scene.append(...backdrop(), head, podium, side);
-  if (you?.finished && you.place <= PODIUM_PLACES) {
-    scene.append(confetti());
-  }
+  if (said.confetti) scene.append(confetti());
   container.append(scene);
   return {
     dispose() {

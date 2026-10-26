@@ -159,7 +159,8 @@ async function untilExit(scene: MountedScene): Promise<Step> {
 // race takes its track from `?track=` and runs the sim here; a room's comes
 // from the server, which runs the race (ADR 0009).
 async function main(container: HTMLElement): Promise<void> {
-  // The Title and Results Scenes are set in the Instrument panel's face too, so it loads before the first Scene.
+  // The Title and Results Scenes are set in the Instrument panel's face
+  // too (ADR 0033), so it loads before the first Scene.
   const [bridge] = await Promise.all([loadBridge(), loadInstrumentFont()]);
   const connection = reportConnection(bridge);
   // The sound files load now; the AudioContext waits for the first gesture,
