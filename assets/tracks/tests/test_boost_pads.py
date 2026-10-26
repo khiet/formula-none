@@ -88,7 +88,7 @@ class BoostPads(unittest.TestCase):
                         self.assertLessEqual(abs(ahead), HALF_LENGTH_M)
                         self.assertLessEqual(abs(right), HALF_WIDTH_M)
                         self.assertGreater(vertex[2], plate_z, "drawn over the plate")
-                # A chevron's tip is the one vertex on the centre line, ahead of its arms.
+                # A chevron's tip is on the centre line, ahead of its arms.
                 tips: list[float] = []
                 for piece in chevrons:
                     if piece.material != "chevron":
