@@ -107,6 +107,18 @@ describe("results rows", () => {
     });
     expect(tied.map((row) => row.fastestLap)).toEqual([false, true, true]);
   });
+
+  it("gives the fastest lap only to a kart that finished, since one that did not shows no time", () => {
+    const rows = resultsRows({
+      ...results,
+      standings: [
+        standing(1, { bestLapS: 15.5 }),
+        standing(2, { bestLapS: 15.1 }),
+        standing(3, { bestLapS: 14.2, finishTimeS: null }),
+      ],
+    });
+    expect(rows.map((row) => row.fastestLap)).toEqual([false, true, false]);
+  });
 });
 
 describe("Results Scene", () => {

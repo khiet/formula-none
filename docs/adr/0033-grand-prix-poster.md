@@ -29,10 +29,12 @@ A, Grand Prix Poster.
   "Podium!" and the place, the place stamped large with the karts off the
   podium from 4th down, or "Out of road!" when you did not finish. Places
   1 to 3 stand on a podium as flat side-on karts in their livery; a board
-  beside it lists the rest with a livery swatch each. The lowest best lap
-  gets a "Fastest lap" badge, on every kart that ties it, worked out on
-  the client. A kart that did not finish reads "Not finished" in the
-  best-lap column. Confetti falls only for a finish from 1st to 3rd.
+  beside it lists the rest with a livery swatch each. A kart that did not
+  finish reads "Not finished" in the best-lap column. The lowest best lap
+  among the karts that finished gets a "Fastest lap" badge, on every kart
+  that ties it, worked out on the client; a kart that did not finish never
+  holds it, since its row shows no time. Confetti falls only for a finish
+  from 1st to 3rd.
 - The reveal is done within about 2 s and never holds back Rematch or
   Leave.
 - Styles stay in `apps/web/index.html` under `#title-scene` and

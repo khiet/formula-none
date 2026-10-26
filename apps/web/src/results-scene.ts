@@ -24,7 +24,7 @@ export interface ResultRow {
   readonly livery: string;
   /** The best lap; "Not finished" for a kart that did not finish, blank dashes for one that completed no lap. */
   readonly bestLap: string;
-  /** Whether this kart's best lap is the race's lowest; every kart that ties it holds it too. */
+  /** Whether this kart finished with the lowest best lap among finishers; every kart that ties it holds it too. */
   readonly fastestLap: boolean;
   /** Whether the kart completed the race's laps before the race ended. */
   readonly finished: boolean;
@@ -65,8 +65,9 @@ export function kartName(
  * The results from the final standings, in finishing order.
  */
 export function resultsRows(results: RaceResults): ResultRow[] {
+  // Only finishers count: a kart that did not finish shows no time to hold the badge against.
   const bestLaps = results.standings.flatMap((standing) =>
-    standing.bestLapS === null ? [] : [standing.bestLapS],
+    standing.bestLapS === null || standing.finishTimeS === null ? [] : [standing.bestLapS],
   );
   const fastest = Math.min(...bestLaps);
   return results.standings
@@ -84,7 +85,7 @@ export function resultsRows(results: RaceResults): ResultRow[] {
           : standing.bestLapS === null
             ? NO_LAP_TIME
             : formatLapTime(standing.bestLapS),
-        fastestLap: standing.bestLapS === fastest,
+        fastestLap: finished && standing.bestLapS === fastest,
         finished,
         you: slot === results.localKart,
       };
