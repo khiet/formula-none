@@ -142,7 +142,7 @@ def body() -> bpy.types.Object:
     # Blender is Z up with the nose along +Y; the glTF exporter turns that
     # into Y up with the nose along -Z, the way the sim's kart drives.
     part = Part([*LIVERY, "Carbon", "Visor"])
-    # Floor and plank, the dark underside every panel sits on.
+    # The floor every panel sits on.
     part.box("Secondary", (0, -0.2, 0.1), (0.76, 1.1, 0.06))
     # The tub, the cockpit's sides, and the nose tapering down to the front wing.
     part.box("Primary", (0, -0.04, 0.32), (0.42, 0.66, 0.4))
