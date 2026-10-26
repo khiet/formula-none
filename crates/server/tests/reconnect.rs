@@ -6,7 +6,7 @@
 
 mod common;
 
-use common::{race_together, seconds, speed};
+use common::{drive_to_results, race_together, seconds, speed};
 use protocol::{Input, PlayerState, Refusal, Room, RoomState, ServerMessage, Snapshot};
 use server::fake_transport::{Client, Conditions, Harness};
 use sim::tuning::{
@@ -237,29 +237,26 @@ async fn a_human_silent_for_the_tuned_time_is_handed_to_a_bot_and_their_next_inp
 }
 
 #[tokio::test(start_paused = true)]
-async fn a_human_who_never_comes_back_is_raced_to_the_results_by_the_bot_and_their_seat_freed() {
+async fn a_human_who_never_comes_back_is_raced_by_the_bot_until_the_rest_finish_and_their_seat_freed(
+) {
     let mut harness = Harness::new(Conditions::PERFECT);
     let (code, player, mut watcher) = two_racing(&mut harness).await;
     let token = player.token().unwrap().to_owned();
     player.disconnect();
 
-    let standings = watcher.next_results().await.unwrap();
+    // The dropped kart does not hold the race open; the watcher's finish ends it.
+    let standings = drive_to_results(std::slice::from_mut(&mut watcher), &[(1, 0.0)])
+        .await
+        .remove(0)
+        .results;
     assert_eq!(standings.len(), KARTS_PER_RACE);
     let dropped = standings
         .iter()
         .find(|standing| standing.kart == 0)
         .unwrap();
-    let idle = standings
-        .iter()
-        .find(|standing| standing.kart == 1)
-        .unwrap();
     assert!(
-        dropped.position < idle.position,
-        "the bot raced the dropped human's kart past the idle one: {dropped:?} {idle:?}"
-    );
-    assert_eq!(
-        idle.finish_time_s, None,
-        "the idle human is placed by progress"
+        dropped.best_lap_s.is_some(),
+        "the bot raced the dropped human's kart round the laps: {dropped:?}"
     );
     let room = room_where(&mut watcher, |room| room.state == RoomState::Results).await;
     assert_eq!(room.players.len(), 1, "the dropped human's seat freed");
@@ -310,6 +307,9 @@ async fn a_player_silent_but_still_connected_at_the_finish_keeps_their_seat_and_
     })
     .await;
 
+    // The silent kart is the bot's and holds nothing open; the watcher's
+    // finish ends the race.
+    drive_to_results(std::slice::from_mut(&mut watcher), &[(1, 0.0)]).await;
     assert!(
         player.next_results().await.is_some(),
         "still told the results"

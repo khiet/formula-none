@@ -8,7 +8,7 @@ import { autopilot, centreline } from "./autopilot";
 // ends only when one of them finishes. The creator's tab is driven by an
 // autopilot that reads the kart's place from the snapshots on the page's
 // own WebSocket, decoded through the bridge, and presses the arrow keys;
-// the other seven idle and are placed by progress when the grace runs
+// the other seven idle and are placed by progress when the cap runs
 // out. Eight WebGL tabs through a whole race is a local smoke test, not a
 // CI job.
 
@@ -63,7 +63,7 @@ test("eight tabs complete a three-lap race on Brands Patch", async ({ browser })
   for (const page of pages) {
     await expect(page.locator("#instrument-panel")).toBeVisible({ timeout: 60_000 });
   }
-  // The autopilot laps; the race ends the grace after it finishes, and
+  // The autopilot laps; the cap from its finish ends the race, and
   // every tab reaches the results with every kart placed.
   await expect
     .poll(() => driver.laps(), { timeout: 480_000, intervals: [2_000] })

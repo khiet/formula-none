@@ -1,6 +1,7 @@
 //! The race's lifecycle at the sim's public seam: the countdown that holds
-//! the karts on the grid, the rocket start it decides at Go, the finish, and
-//! the grace that ends the race after the first finisher. Tests drive karts
+//! the karts on the grid, the rocket start it decides at Go, the finish and
+//! the bot that drives a finisher, the end of the race once every human has
+//! finished or the cap runs out, and the outro. Tests drive karts
 //! on the oval fixture and read `phase` and `standings`.
 
 mod common;
@@ -8,11 +9,11 @@ mod common;
 use common::{follow_centreline, oval, straight, throttle, ticks, DT, SEED};
 
 use sim::tuning::{
-    COUNTDOWN_S, LAPS_PER_RACE, RACE_END_GRACE_S, START_BOOST_FACTOR, START_BOOST_S,
+    COUNTDOWN_S, LAPS_PER_RACE, RACE_END_CAP_S, RACE_OUTRO_S, START_BOOST_FACTOR, START_BOOST_S,
     START_FULL_BOOST_HOLD_S, START_STALL_HOLD_S, START_STALL_S, START_THROTTLE_HELD,
     START_WEAK_BOOST_FACTOR, START_WEAK_BOOST_HOLD_S, START_WEAK_BOOST_S, TOP_SPEED_M_PER_S,
 };
-use sim::{step, KartInput, Phase, Start, State};
+use sim::{step, KartInput, Phase, RaceEvent, Start, State};
 
 fn race(kart_count: usize) -> State {
     State::new(SEED, kart_count, oval())
@@ -69,6 +70,10 @@ fn racing(state: &State) -> bool {
     matches!(state.phase(), Phase::Racing { .. })
 }
 
+fn in_the_outro(state: &State) -> bool {
+    matches!(state.phase(), Phase::Outro { .. })
+}
+
 /// The race past its countdown with every kart idle on the grid.
 fn started(state: State) -> State {
     let drivers = vec![idle as Driver; state.human_count()];
@@ -111,7 +116,7 @@ fn the_karts_wait_on_the_grid_in_slot_order_through_the_countdown_then_go() {
         state.phase(),
         Phase::Racing {
             elapsed_s: 0.0,
-            grace_left_s: None
+            cap_left_s: None
         }
     );
 }
@@ -338,16 +343,71 @@ fn the_tier_the_hold_so_far_would_earn_is_reported_as_it_charges() {
 /// A lap at top speed takes about 15 s.
 const LAP_S: f32 = 20.0;
 
-#[test]
-fn a_lone_kart_finishing_its_laps_ends_the_race_at_once() {
-    let state = started(race(1));
-    let state = drive_until(
+/// Far enough short of the line that neither bot finishes before both
+/// humans do, from this seed.
+const BOTS_BEHIND_M: f32 = 350.0;
+
+fn finished(state: &State, kart: usize) -> bool {
+    state.standings()[kart].finish_time_s.is_some()
+}
+
+/// Drive until `kart` has finished its laps, with time for traffic.
+fn drive_until_finished(state: State, drivers: &[Driver], kart: usize) -> State {
+    drive_until(
         state,
-        &[follow_centreline],
-        LAPS_PER_RACE as f32 * LAP_S,
-        |state| state.standings()[0].laps_completed == LAPS_PER_RACE,
+        drivers,
+        LAPS_PER_RACE as f32 * 1.5 * LAP_S,
+        |state| finished(state, kart),
+    )
+}
+
+/// A race of two humans on the oval's grid and two bots `behind_m` short
+/// of the start line, either side of the centreline, so the humans finish
+/// while the bots are still racing.
+fn humans_ahead_of_two_bots(behind_m: f32) -> State {
+    let oval = oval();
+    let at = oval.spline_length() - behind_m;
+    let point = oval.point_at(at);
+    let ahead = oval.point_at(at + 1.0);
+    let (tx, tz) = (ahead[0] - point[0], ahead[2] - point[2]);
+    let travel = (tx * tx + tz * tz).sqrt();
+    // The kart faces -Z at yaw 0.
+    let yaw = (-tx).atan2(-tz);
+    let mut sidecar = common::OVAL.to_string();
+    for (slot, right_m) in [(2, -2.0), (3, 2.0)] {
+        let position = [
+            point[0] - tz / travel * right_m,
+            point[1],
+            point[2] + tx / travel * right_m,
+        ];
+        sidecar = common::with_slot_at(&sidecar, slot, position, yaw);
+    }
+    started(State::with_bots(SEED, 2, 2, common::track(&sidecar)))
+}
+
+fn positions(state: &State) -> Vec<u32> {
+    state
+        .standings()
+        .iter()
+        .map(|standing| standing.position)
+        .collect()
+}
+
+#[test]
+fn a_lone_kart_finishing_its_laps_ends_the_race_at_once_and_the_outro_runs_down() {
+    let state = started(race(1));
+    let state = drive_until_finished(state, &[follow_centreline], 0);
+    assert_eq!(
+        state.phase(),
+        Phase::Outro {
+            remaining_s: RACE_OUTRO_S
+        }
     );
-    assert_eq!(state.phase(), Phase::Finished);
+    assert_eq!(
+        state.events().last(),
+        Some(&RaceEvent::RaceEnded),
+        "the end is reported after the finish"
+    );
     let standing = state.standings()[0];
     let finish = standing.finish_time_s.expect("the kart finished");
     assert!(
@@ -355,6 +415,18 @@ fn a_lone_kart_finishing_its_laps_ends_the_race_at_once() {
         "finish time {finish} s"
     );
     assert_eq!(standing.position, 1);
+
+    // Through the outro a bot drives the kart on.
+    let at_the_line = state.kart_readouts()[0].position;
+    let state = drive(state, &[idle], RACE_OUTRO_S - 2.0 * DT);
+    assert!(in_the_outro(&state), "{:?}", state.phase());
+    assert!(state.is_bot(0));
+    assert!(
+        state.kart_readouts()[0].position != at_the_line,
+        "the bot drives on"
+    );
+    let state = drive(state, &[idle], 3.0 * DT);
+    assert_eq!(state.phase(), Phase::Finished);
 
     // Nothing moves once the race is over.
     let hash = state.hash();
@@ -366,110 +438,221 @@ fn a_lone_kart_finishing_its_laps_ends_the_race_at_once() {
 }
 
 #[test]
-fn the_race_ends_the_tuned_grace_after_the_first_finisher_and_places_the_rest_by_progress() {
-    // Pole drives up its column for a second and stops; the kart in the
-    // other column laps the oval, passing it clean; the third never leaves
-    // the grid.
-    let state = started(race(3));
-    let state = drive(state, &[straight, follow_centreline, idle], 1.0);
-    let state = drive_until(
-        state,
-        &[idle, follow_centreline, idle],
-        LAPS_PER_RACE as f32 * LAP_S,
-        |state| state.standings()[1].laps_completed == LAPS_PER_RACE,
+fn the_race_stays_on_while_a_human_races_whatever_the_bots_have_done() {
+    // Pole and both bots lap; the other human never leaves the grid.
+    let state = started(State::with_bots(SEED, 2, 2, oval()));
+    let state = drive_until(state, &[follow_centreline, idle], 4.0 * LAP_S, |state| {
+        [0, 2, 3].iter().all(|&kart| finished(state, kart))
+    });
+    assert!(racing(&state), "{:?}", state.phase());
+    let state = drive(state, &[idle, idle], 10.0);
+    assert!(racing(&state), "{:?}", state.phase());
+}
+
+#[test]
+fn the_race_ends_as_the_last_human_finishes_with_the_bots_still_racing_placed_by_progress() {
+    // The second human sets off four seconds after the first.
+    let state = humans_ahead_of_two_bots(BOTS_BEHIND_M);
+    let state = drive(state, &[follow_centreline, idle], 4.0);
+    let drivers = [follow_centreline as Driver, follow_centreline];
+    let state = drive_until_finished(state, &drivers, 0);
+    assert!(racing(&state), "{:?}", state.phase());
+    let state = drive_until_finished(state, &drivers, 1);
+    assert_eq!(
+        state.phase(),
+        Phase::Outro {
+            remaining_s: RACE_OUTRO_S
+        }
     );
-    let first_finish = state.standings()[1]
-        .finish_time_s
-        .expect("the lapping kart finished");
+
+    let standings = state.standings();
+    assert_eq!(&positions(&state)[..2], [1, 2]);
+    let bots = &standings[2..];
+    assert!(
+        bots.iter().all(|bot| bot.finish_time_s.is_none()),
+        "the bots are still racing: {bots:?}"
+    );
+    let distance = |standing: &sim::Standing| {
+        standing.laps_completed as f32 * state.track().spline_length()
+            + state
+                .track()
+                .lap_relative_progress(standing.checkpoint, standing.spline_progress)
+    };
+    let (ahead, behind) = if bots[0].position < bots[1].position {
+        (&bots[0], &bots[1])
+    } else {
+        (&bots[1], &bots[0])
+    };
+    assert_eq!((ahead.position, behind.position), (3, 4));
+    assert!(distance(ahead) > distance(behind));
+
+    // The outro moves the karts, not the results.
+    let results = positions(&state);
+    let state = drive(state, &drivers, RACE_OUTRO_S + DT);
+    assert_eq!(state.phase(), Phase::Finished);
+    assert_eq!(positions(&state), results);
+    assert!(state.standings()[2..]
+        .iter()
+        .all(|bot| bot.finish_time_s.is_none()));
+}
+
+#[test]
+fn the_cap_ends_the_race_the_tuned_time_after_the_first_human_finishes() {
+    // Pole laps; the other human never leaves the grid.
+    let state = started(race(2));
+    let state = drive_until_finished(state, &[follow_centreline, idle], 0);
+    let first_finish = state.standings()[0].finish_time_s.expect("pole finished");
     let Phase::Racing {
         elapsed_s,
-        grace_left_s: Some(grace_left_s),
+        cap_left_s: Some(cap_left_s),
     } = state.phase()
     else {
-        panic!(
-            "the grace runs from the first finisher: {:?}",
-            state.phase()
-        );
+        panic!("the cap runs from the first finish: {:?}", state.phase());
     };
-    assert!((grace_left_s - RACE_END_GRACE_S).abs() < 1e-5);
+    assert!((cap_left_s - RACE_END_CAP_S).abs() < 1e-5);
     assert!(
         (elapsed_s - first_finish).abs() <= DT,
         "finished at {first_finish} s, {elapsed_s} s into the race"
     );
 
-    // Just short of the grace the race is still on; within a tick or two
-    // of it, the timer's rounding allowed for, it is over.
-    let state = drive(state, &[idle, idle, idle], RACE_END_GRACE_S - 2.0 * DT);
+    // Just short of the cap the race is still on; within a tick or two of
+    // it, the timer's rounding allowed for, it is over.
+    let state = drive(state, &[idle, idle], RACE_END_CAP_S - 2.0 * DT);
     assert!(racing(&state), "{:?}", state.phase());
-    let state = drive(state, &[idle, idle, idle], 3.0 * DT);
-    assert_eq!(state.phase(), Phase::Finished);
+    let state = drive(state, &[idle, idle], 3.0 * DT);
+    assert!(in_the_outro(&state), "{:?}", state.phase());
+    assert_eq!(positions(&state), [1, 2]);
+    assert_eq!(state.standings()[1].finish_time_s, None);
+    assert!(state.is_bot(1), "a bot drives the outro");
+    let mut state = state;
+    state.hand_back(1);
+    assert!(state.is_bot(1), "the race is over for the human too");
+}
 
-    let standings = state.standings();
-    let positions: Vec<u32> = standings.iter().map(|standing| standing.position).collect();
-    assert_eq!(positions, [2, 1, 3]);
-    assert_eq!(standings[1].finish_time_s, Some(first_finish));
-    assert_eq!(standings[0].finish_time_s, None);
-    assert_eq!(standings[2].finish_time_s, None);
-    assert_eq!(standings[0].laps_completed, 0);
-    let lap = state.track().spline_length();
+#[test]
+fn a_kart_handed_to_a_bot_does_not_hold_the_race_open() {
+    let mut state = started(race(2));
+    state.hand_to_bot(1);
+    let state = drive_until_finished(state, &[follow_centreline, idle], 0);
+    assert!(!finished(&state, 1));
+    assert!(in_the_outro(&state), "{:?}", state.phase());
+}
+
+#[test]
+fn a_finish_by_a_kart_handed_to_a_bot_does_not_start_the_cap() {
+    // Pole idles on the grid; the other human is gone and their bot laps.
+    let mut state = started(race(2));
+    state.hand_to_bot(1);
+    let state = drive_until_finished(state, &[idle, idle], 1);
     assert!(
-        standings[0].spline_progress < 60.0,
-        "the stopped kart is past the line at {} m",
-        standings[0].spline_progress
-    );
-    assert!(
-        standings[2].spline_progress > lap - 30.0,
-        "the kart on the grid is behind the line at {} m",
-        standings[2].spline_progress
+        matches!(
+            state.phase(),
+            Phase::Racing {
+                cap_left_s: None,
+                ..
+            }
+        ),
+        "the cap waits for a human's own finish: {:?}",
+        state.phase()
     );
 }
 
 #[test]
-fn finishing_order_is_final_whatever_a_finisher_does_after_the_line() {
-    // Pole finishes and backs over the line again, curving out of the
-    // racing line; second, held on the grid for a while, finishes later
-    // and is just past the line, ahead of pole by progress alone.
+fn the_race_ends_at_once_when_every_human_has_gone() {
     let state = started(race(2));
-    let state = drive(state, &[follow_centreline, idle], 8.0);
-    let state = drive_until(
-        state,
-        &[follow_centreline, follow_centreline],
-        LAPS_PER_RACE as f32 * LAP_S,
-        |state| state.standings()[0].laps_completed == LAPS_PER_RACE,
-    );
-    assert_eq!(state.standings()[0].position, 1);
-    let best = state.standings()[0].best_lap_s;
-    let lap_time = state.standings()[0].lap_time_s;
-    // Backing up with a little steer curves the kart out of the racing line.
-    let reverse_aside: Driver = |_, _| KartInput {
-        brake: 1.0,
-        steer: 0.08,
+    let mut state = drive(state, &[follow_centreline, follow_centreline], 2.0);
+    state.hand_to_bot(0);
+    state.hand_to_bot(1);
+    let state = drive(state, &[idle, idle], DT);
+    assert!(in_the_outro(&state), "{:?}", state.phase());
+}
+
+/// Pole's race of two from the top of the countdown, lapping to its finish
+/// while the other human waits on the grid, then `after` from both humans
+/// for five seconds.
+fn finish_then(after: KartInput) -> State {
+    let state = started(race(2));
+    let mut state = drive_until_finished(state, &[follow_centreline, idle], 0);
+    for _ in 0..ticks(5.0) {
+        state = step(state, &[after, KartInput::default()], DT);
+    }
+    state
+}
+
+#[test]
+fn a_bot_drives_a_finished_kart_and_its_human_inputs_change_nothing() {
+    let full_left = KartInput {
+        steer: -1.0,
+        throttle: 1.0,
+        hop: true,
         ..KartInput::default()
     };
-    let state = drive(state, &[reverse_aside, follow_centreline], 5.5);
-    let state = drive_until(state, &[idle, follow_centreline], LAP_S, |state| {
-        state.standings()[1].laps_completed == LAPS_PER_RACE
-    });
-    assert_eq!(state.phase(), Phase::Finished, "everyone finished");
-    let standings = state.standings();
+    let reversing = KartInput {
+        brake: 1.0,
+        steer: 1.0,
+        ..KartInput::default()
+    };
+    let one = finish_then(full_left);
+    let other = finish_then(reversing);
+    assert!(one.is_bot(0));
+    assert!(racing(&one), "the other human holds the race open");
+    assert_eq!(one.hash(), other.hash());
     assert!(
-        state
-            .track()
-            .lap_relative_progress(0, standings[0].spline_progress)
-            < state
-                .track()
-                .lap_relative_progress(0, standings[1].spline_progress),
-        "pole backed up behind the line: {} m against {} m",
-        standings[0].spline_progress,
-        standings[1].spline_progress
+        one.kart_readouts()[0].speed > 0.5 * TOP_SPEED_M_PER_S,
+        "the bot drives on"
     );
-    assert_eq!(standings[0].position, 1);
-    assert_eq!(standings[1].position, 2);
-    assert!(standings[0].finish_time_s < standings[1].finish_time_s);
-    assert_eq!(standings[0].laps_completed, LAPS_PER_RACE, "no fourth lap");
-    assert_eq!(standings[0].best_lap_s, best, "the best lap is a race lap");
+
+    // The human coming back takes nothing back from the bot.
+    let mut state = one;
+    state.hand_back(0);
+    assert!(state.is_bot(0));
+}
+
+#[test]
+fn a_finished_kart_counts_no_more_laps_and_keeps_its_clocks() {
+    let state = started(race(2));
+    let state = drive_until_finished(state, &[follow_centreline, idle], 0);
+    let finish = state.standings()[0];
+    // The bot laps on, over the line again.
+    let state = drive(state, &[idle, idle], 1.5 * LAP_S);
+    let standing = state.standings()[0];
+    assert_eq!(standing.laps_completed, LAPS_PER_RACE, "no fourth lap");
+    assert_eq!(standing.finish_time_s, finish.finish_time_s);
     assert_eq!(
-        standings[0].lap_time_s, lap_time,
+        standing.best_lap_s, finish.best_lap_s,
+        "the best lap is a race lap"
+    );
+    assert_eq!(
+        standing.lap_time_s, finish.lap_time_s,
         "the lap clock stops at the finish"
     );
+    assert_eq!(standing.position, 1);
+}
+
+#[test]
+fn a_finished_kart_takes_and_fires_no_items() {
+    // Pole fires whatever it picks up the tick after, so it crosses the
+    // line with an empty slot; the bot then laps it over the back
+    // straight's boxes.
+    let firing: Driver = |state, kart| KartInput {
+        use_item: true,
+        ..follow_centreline(state, kart)
+    };
+    let state = started(race(2));
+    let mut state = drive_until_finished(state, &[firing, idle], 0);
+    assert_eq!(state.kart_readouts()[0].held_item, None);
+    let mut events = Vec::new();
+    for _ in 0..ticks(1.5 * LAP_S) {
+        let inputs = inputs(&state, &[firing, idle]);
+        state = step(state, &inputs, DT);
+        events.extend(state.events().iter().copied());
+    }
+    assert!(
+        !events.iter().any(|event| matches!(
+            event,
+            RaceEvent::ItemPicked { kart: 0, .. } | RaceEvent::ItemFired { kart: 0, .. }
+        )),
+        "{events:?}"
+    );
+    assert_eq!(state.kart_readouts()[0].held_item, None);
 }

@@ -36,6 +36,7 @@ const DECISION_SLUGS = [
   "standings-on-demand",
   "feedback-wired-by-the-view",
   "speed-cluster",
+  "race-ends-when-the-humans-finish",
 ];
 
 const expectedFiles = DECISION_SLUGS.map(

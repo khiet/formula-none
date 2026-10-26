@@ -1,9 +1,10 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from "vitest";
-import type { KartReadout, Standing } from "./bridge";
+import type { KartReadout, Phase, Standing } from "./bridge";
 import {
   CONNECTION_LOST_BANNER,
   createInstrumentPanel,
+  finishReadout,
   itemReadout,
   lapReadouts,
   phaseReadout,
@@ -32,7 +33,9 @@ function at(position: readonly [number, number, number]): KartReadout {
 // The sim's tuned top speed, which the speed cluster's gears are cut from.
 const TOP_SPEED = 30;
 
-const racing = { kind: "racing", elapsedSeconds: 5, graceLeftSeconds: null } as const;
+const nameOf = (kart: number) => (kart === course.ownKart ? "You" : `Kart ${kart + 1}`);
+
+const racing = { kind: "racing", elapsedSeconds: 5, capLeftSeconds: null } as const;
 
 /** The race with the own kart, kart 1, on `standing` holding `itemSlot`, and the karts at `karts`. */
 function race(
@@ -86,7 +89,7 @@ describe("lap readouts", () => {
 describe("the lap instruments on the page", () => {
   const mount = () => {
     const container = document.createElement("div");
-    const panel = createInstrumentPanel(container, 3, course, TOP_SPEED);
+    const panel = createInstrumentPanel(container, 3, course, TOP_SPEED, nameOf);
     const find = (name: string) =>
       container.querySelector<HTMLElement>(`[data-instrument="${name}"]`);
     return { panel, find };
@@ -128,10 +131,88 @@ describe("the lap instruments on the page", () => {
   });
 });
 
+/** A standing over the line on the last lap, at `position` after `finishTimeS`. */
+const finished = (position: number, finishTimeS: number): Standing => ({
+  ...ON_THE_GRID,
+  lap: 3,
+  position,
+  finishTimeS,
+});
+
+describe("finish readout", () => {
+  it("raises the banner over a kart still racing once the race has ended, with its final place", () => {
+    const standings = [finished(1, 50), { ...ON_THE_GRID, position: 2 }];
+    expect(finishReadout(standings, { kind: "outro" }, 1, nameOf)).toEqual({
+      banner: "FINISH",
+      place: "2nd",
+      rows: [{ position: "1st", name: "Kart 1", time: `0'50"000` }],
+    });
+  });
+
+  it("is nothing while the own kart is still racing", () => {
+    expect(
+      finishReadout([finished(1, 50), ON_THE_GRID, ON_THE_GRID], racing, 1, nameOf),
+    ).toBeNull();
+  });
+
+  it("puts the own place under the banner and lists only the finishers, in finishing order", () => {
+    const standings = [finished(2, 55.5), finished(1, 50), { ...ON_THE_GRID, position: 3 }];
+    expect(finishReadout(standings, racing, 0, nameOf)).toEqual({
+      banner: "FINISH",
+      place: "2nd",
+      rows: [
+        { position: "1st", name: "You", time: `0'50"000` },
+        { position: "2nd", name: "Kart 1", time: `0'55"500` },
+      ],
+    });
+  });
+});
+
+describe("the finish on the page", () => {
+  const mount = () => {
+    const container = document.createElement("div");
+    const panel = createInstrumentPanel(container, 3, course, TOP_SPEED, nameOf);
+    const find = (name: string) =>
+      container.querySelector<HTMLElement>(`[data-instrument="${name}"]`);
+    const rows = () =>
+      [...(find("standings")?.querySelectorAll("li") ?? [])].map((row) => row.textContent);
+    const show = (standings: readonly Standing[], phase: Phase = racing) =>
+      panel.update(
+        raceReadout({ karts: [at([0, 0, 0]), at([0, 0, 0]), at([0, 0, 0])], standings, phase }),
+      );
+    return { find, rows, show };
+  };
+  it("keeps the banner and the standings down and the lap up until the own kart finishes or the race ends", () => {
+    const { find, show } = mount();
+    show([finished(1, 50), { ...ON_THE_GRID, position: 2, lap: 3 }, ON_THE_GRID]);
+    expect(find("finish")?.hidden).toBe(true);
+    expect(find("standings")?.hidden).toBe(true);
+    expect(find("lap")?.hidden).toBe(false);
+    show([finished(1, 50), { ...ON_THE_GRID, position: 2, lap: 3 }, ON_THE_GRID], {
+      kind: "outro",
+    });
+    expect(find("finish")?.textContent).toBe("FINISH 2nd");
+    expect(find("lap")?.hidden).toBe(true);
+  });
+
+  it("raises the banner with the place in place of the lap, and fills the standings as karts finish", () => {
+    const { find, rows, show } = mount();
+    show([finished(1, 50), finished(2, 52.25), { ...ON_THE_GRID, position: 3 }]);
+    expect(find("finish")?.hidden).toBe(false);
+    expect(find("finish")?.textContent).toBe("FINISH 2nd");
+    expect(find("lap")?.hidden).toBe(true);
+    expect(find("standings")?.hidden).toBe(false);
+    expect(rows()).toEqual([`1st Kart 1 0'50"000`, `2nd You 0'52"250`]);
+
+    show([finished(1, 50), finished(2, 52.25), finished(3, 61)]);
+    expect(rows()).toEqual([`1st Kart 1 0'50"000`, `2nd You 0'52"250`, `3rd Kart 3 1'01"000`]);
+  });
+});
+
 describe("the speed cluster on the page", () => {
   const mount = () => {
     const container = document.createElement("div");
-    const panel = createInstrumentPanel(container, 3, course, TOP_SPEED);
+    const panel = createInstrumentPanel(container, 3, course, TOP_SPEED, nameOf);
     const find = (name: string) =>
       container.querySelector<HTMLElement>(`[data-instrument="${name}"]`);
     const drive = (speed: number) =>
@@ -192,12 +273,11 @@ describe("phase readout", () => {
   });
 
   it("shows GO for the first second of the race and nothing after", () => {
-    expect(phaseReadout({ kind: "racing", elapsedSeconds: 0, graceLeftSeconds: null })).toBe("GO");
-    expect(phaseReadout({ kind: "racing", elapsedSeconds: 0.9, graceLeftSeconds: null })).toBe(
-      "GO",
-    );
-    expect(phaseReadout({ kind: "racing", elapsedSeconds: 1, graceLeftSeconds: null })).toBe("");
-    expect(phaseReadout({ kind: "racing", elapsedSeconds: 40, graceLeftSeconds: 12 })).toBe("");
+    expect(phaseReadout({ kind: "racing", elapsedSeconds: 0, capLeftSeconds: null })).toBe("GO");
+    expect(phaseReadout({ kind: "racing", elapsedSeconds: 0.9, capLeftSeconds: null })).toBe("GO");
+    expect(phaseReadout({ kind: "racing", elapsedSeconds: 1, capLeftSeconds: null })).toBe("");
+    expect(phaseReadout({ kind: "racing", elapsedSeconds: 40, capLeftSeconds: 12 })).toBe("");
+    expect(phaseReadout({ kind: "outro" })).toBe("");
     expect(phaseReadout({ kind: "finished" })).toBe("");
   });
 });
@@ -205,7 +285,7 @@ describe("phase readout", () => {
 describe("the connection banner", () => {
   it("is down until the connection is lost, and down again once it is back", () => {
     const container = document.createElement("div");
-    const panel = createInstrumentPanel(container, 3, course, TOP_SPEED);
+    const panel = createInstrumentPanel(container, 3, course, TOP_SPEED, nameOf);
     const banner = container.querySelector<HTMLElement>('[data-instrument="connection-banner"]');
     expect(banner?.textContent).toBe(CONNECTION_LOST_BANNER);
     expect(banner?.hidden).toBe(true);
@@ -233,7 +313,7 @@ describe("the item slot", () => {
 
   it("shows the slot the run reports on every update", () => {
     const container = document.createElement("div");
-    const panel = createInstrumentPanel(container, 3, course, TOP_SPEED);
+    const panel = createInstrumentPanel(container, 3, course, TOP_SPEED, nameOf);
     const slot = container.querySelector<HTMLElement>('[data-instrument="item"]');
     expect(slot?.textContent).toBe("");
     expect(slot?.dataset.itemState).toBe("empty");
@@ -253,7 +333,7 @@ describe("the item slot", () => {
     ["homing", "Homing"],
   ] as const)("draws the %s sprite, named by data-item, with %s still its text", (item, name) => {
     const container = document.createElement("div");
-    const panel = createInstrumentPanel(container, 3, course, TOP_SPEED);
+    const panel = createInstrumentPanel(container, 3, course, TOP_SPEED, nameOf);
     const slot = container.querySelector<HTMLElement>('[data-instrument="item"]');
     expect(slot?.dataset.item).toBeUndefined();
     expect(slot?.querySelector("svg")).toBeNull();
@@ -272,7 +352,7 @@ describe("the item slot", () => {
 
   it("swaps the sprite when the server hands the kart a different item", () => {
     const container = document.createElement("div");
-    const panel = createInstrumentPanel(container, 3, course, TOP_SPEED);
+    const panel = createInstrumentPanel(container, 3, course, TOP_SPEED, nameOf);
     const slot = container.querySelector<HTMLElement>('[data-instrument="item"]');
     panel.update(race(ON_THE_GRID, { item: "boost", firing: false }));
     panel.update(race(ON_THE_GRID, { item: "hazard", firing: false }));
@@ -292,7 +372,7 @@ describe("the course map", () => {
 
   it("outlines the track from the centreline with a start tick", () => {
     const container = document.createElement("div");
-    createInstrumentPanel(container, 3, course, TOP_SPEED);
+    createInstrumentPanel(container, 3, course, TOP_SPEED, nameOf);
     const map = container.querySelector<SVGSVGElement>('svg[data-instrument="course-map"]');
     expect(map).not.toBeNull();
     const outline = map?.querySelector("path");
@@ -303,7 +383,7 @@ describe("the course map", () => {
 
   it("moves a kart's marker with its transform, down the map as it drives along +z", () => {
     const container = document.createElement("div");
-    const panel = createInstrumentPanel(container, 3, course, TOP_SPEED);
+    const panel = createInstrumentPanel(container, 3, course, TOP_SPEED, nameOf);
     const own = at([50, 0.3, -50]);
     const standing = ON_THE_GRID;
     const slot = { item: null, firing: false };
@@ -324,7 +404,7 @@ describe("the course map", () => {
 
   it("marks every kart in its livery, the own kart larger, ringed and on top", () => {
     const container = document.createElement("div");
-    const panel = createInstrumentPanel(container, 3, course, TOP_SPEED);
+    const panel = createInstrumentPanel(container, 3, course, TOP_SPEED, nameOf);
     panel.update(race(ON_THE_GRID, { item: null, firing: false }));
     const markers = [
       ...container.querySelectorAll<SVGCircleElement>('[data-instrument="course-map"] [data-kart]'),

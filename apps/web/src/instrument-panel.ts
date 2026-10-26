@@ -1,7 +1,14 @@
 import instrumentFontUrl from "../../../assets/fonts/kenney/Kenney Mini Square.ttf?url";
 import type { Phase, Standing } from "./bridge";
 import { type CourseMapSetup, createCourseMap } from "./course-map";
-import { formatLapTime, NO_LAP_TIME, type OrdinalParts, ordinalParts, speedParts } from "./format";
+import {
+  formatLapTime,
+  NO_LAP_TIME,
+  type OrdinalParts,
+  ordinal,
+  ordinalParts,
+  speedParts,
+} from "./format";
 import type { Item } from "./generated/protocol";
 import { itemSprite } from "./item-sprites";
 import { type ItemSlot, type RaceReadout, raceCount } from "./race-run";
@@ -53,7 +60,24 @@ export interface LapReadouts {
   readonly wrongWay: string;
 }
 
+/** One finisher in the standings a finished kart sees. */
+export interface FinisherRow {
+  readonly position: string;
+  readonly name: string;
+  readonly time: string;
+}
+
+/** What the panel shows in place of the lap once the own kart has finished. */
+export interface FinishReadout {
+  readonly banner: string;
+  /** The own kart's place, as an ordinal. */
+  readonly place: string;
+  /** Every kart finished so far, in finishing order. */
+  readonly rows: readonly FinisherRow[];
+}
+
 const WRONG_WAY_WARNING = "WRONG WAY";
+const FINISH_BANNER = "FINISH";
 export const CONNECTION_LOST_BANNER = "Connection lost: reconnecting";
 
 /** The family name the panel's styles ask for; the face is registered by `loadInstrumentFont`. */
@@ -84,14 +108,17 @@ export function loadInstrumentFont(): Promise<void> {
 /**
  * The HUD over the Race View, with the course map of `course` in its
  * corner and the speed cluster's gears cut from `topSpeed` in m/s (ADR
- * 0031). Reads state; never drives it. Each readout is addressable by
- * `data-instrument` so tests and styles find it the same way.
+ * 0031); once the own kart has finished or the race has ended, the
+ * finish banner and the finishers by `name` in place of the lap. Reads state; never drives it.
+ * Each readout is addressable by `data-instrument` so tests and styles
+ * find it the same way.
  */
 export function createInstrumentPanel(
   container: HTMLElement,
   lapsPerRace: number,
   course: CourseMapSetup,
   topSpeed: number,
+  name: (kart: number) => string,
 ): InstrumentPanel {
   const panel = document.createElement("div");
   panel.id = "instrument-panel";
@@ -136,6 +163,11 @@ export function createInstrumentPanel(
   banner.hidden = true;
   const countdown = instrument("countdown");
   countdown.hidden = true;
+  const finish = instrument("finish");
+  finish.hidden = true;
+  const standingsList = document.createElement("ol");
+  standingsList.dataset.instrument = "standings";
+  standingsList.hidden = true;
   // The speed cluster (ADR 0031): the gear, speed and tyres stay as text;
   // the shift lights and the kart icon are decorative.
   const cluster = document.createElement("div");
@@ -183,7 +215,17 @@ export function createInstrumentPanel(
   stack.dataset.stack = "";
   stack.append(position, lap, lapTime, bestLap, item);
   const courseMap = createCourseMap(course);
-  panel.append(stack, cluster, greybox, wrongWay, banner, countdown, courseMap.element);
+  panel.append(
+    stack,
+    cluster,
+    greybox,
+    wrongWay,
+    banner,
+    countdown,
+    finish,
+    standingsList,
+    courseMap.element,
+  );
   container.append(panel);
 
   const printLabelled = (element: HTMLElement, readout: LabelledReadout) => {
@@ -231,6 +273,23 @@ export function createInstrumentPanel(
       const count = phaseReadout(race.phase);
       countdown.textContent = count;
       countdown.hidden = count === "";
+      const finished = finishReadout(race.standings, race.phase, course.ownKart, name);
+      lap.hidden = finished !== null;
+      finish.hidden = finished === null;
+      standingsList.hidden = finished === null;
+      if (finished !== null) {
+        finish.textContent = `${finished.banner} ${finished.place}`;
+        // Rebuilt only as karts finish, so a frame changes nothing.
+        if (standingsList.children.length !== finished.rows.length) {
+          standingsList.replaceChildren(
+            ...finished.rows.map((row) => {
+              const item = document.createElement("li");
+              item.textContent = `${row.position} ${row.name} ${row.time}`;
+              return item;
+            }),
+          );
+        }
+      }
     },
     connection(status) {
       connection.textContent = status;
@@ -271,6 +330,33 @@ export function lapReadouts(standing: Standing, lapsPerRace: number): LapReadout
     },
     wrongWay: standing.wrongWay ? WRONG_WAY_WARNING : "",
   };
+}
+
+/**
+ * The finish as the own kart in `ownKart` sees it from `standings`, with
+ * each kart named by `name`, once it has finished or `phase` is the outro;
+ * nothing while it is still racing. A finisher's place is final, so the
+ * rows only ever grow.
+ */
+export function finishReadout(
+  standings: readonly Standing[],
+  phase: Phase,
+  ownKart: number,
+  name: (kart: number) => string,
+): FinishReadout | null {
+  const own = standings[ownKart];
+  const over = phase.kind === "outro" || phase.kind === "finished";
+  if (own === undefined || (own.finishTimeS === null && !over)) return null;
+  const rows = standings
+    .map((standing, kart) => ({ standing, kart }))
+    .filter(({ standing }) => standing.finishTimeS !== null)
+    .sort((a, b) => a.standing.position - b.standing.position)
+    .map(({ standing, kart }) => ({
+      position: ordinal(standing.position),
+      name: name(kart),
+      time: formatLapTime(standing.finishTimeS ?? 0),
+    }));
+  return { banner: FINISH_BANNER, place: ordinal(own.position), rows };
 }
 
 const ITEM_NAMES: Readonly<Record<Item, string>> = {

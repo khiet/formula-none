@@ -82,6 +82,7 @@ export function raceCount(phase: Phase): RaceCount {
       return Math.ceil(phase.remainingSeconds);
     case "racing":
       return phase.elapsedSeconds < GO_S ? "go" : null;
+    case "outro":
     case "finished":
       return null;
   }

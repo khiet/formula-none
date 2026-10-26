@@ -258,7 +258,7 @@ describe("soundReading", () => {
     wrongWay: false,
     finishTimeS: null,
   };
-  const racing: Phase = { kind: "racing", elapsedSeconds: 5, graceLeftSeconds: null };
+  const racing: Phase = { kind: "racing", elapsedSeconds: 5, capLeftSeconds: null };
   /** The reading of the one kart of a race at `kart` on `standing` holding `itemSlot`. */
   const read = (kart: KartReadout, standing: Standing, itemSlot: ItemSlot, phase: Phase) =>
     soundReading(raceReadout({ karts: [kart], standings: [standing], itemSlot, phase }), 0);
@@ -327,7 +327,7 @@ describe("soundReading", () => {
       charge: "weakBoost",
     });
     // From Go the verdict is the boost's or the stall's to tell, not a charge.
-    const go: Phase = { kind: "racing", elapsedSeconds: 0.2, graceLeftSeconds: null };
+    const go: Phase = { kind: "racing", elapsedSeconds: 0.2, capLeftSeconds: null };
     expect(read({ ...kart, start: "stall", stallS: 1.8 }, standing, slot, go)).toMatchObject({
       count: "go",
       charge: null,

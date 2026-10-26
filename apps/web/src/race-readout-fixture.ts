@@ -24,7 +24,7 @@ export function raceReadout(overrides: Partial<RaceReadout> = {}): RaceReadout {
   return {
     karts: [RESTING_KART],
     standings: [ON_THE_GRID],
-    phase: { kind: "racing", elapsedSeconds: 10, graceLeftSeconds: null },
+    phase: { kind: "racing", elapsedSeconds: 10, capLeftSeconds: null },
     itemSlot: { item: null, firing: false },
     itemBoxesPresent: [],
     hazards: [],

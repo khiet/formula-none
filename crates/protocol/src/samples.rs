@@ -199,6 +199,7 @@ fn every_event_kind() -> Vec<Event> {
             finish_time_s: 120.5,
         },
         EventKind::Respawned { kart: 4 },
+        EventKind::RaceEnded,
     ]
     .into_iter()
     .zip(41..)

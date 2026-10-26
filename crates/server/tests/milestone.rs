@@ -18,7 +18,7 @@ use sim::Track;
 const OVAL: &str = include_str!("../../../assets/tracks/oval/oval.track.json");
 const TICK: Duration = Duration::from_nanos(1_000_000_000 / TICKS_PER_SECOND as u64);
 /// Give up if the race has not ended by then: three laps of the oval take
-/// a minute, and the grace twenty seconds more.
+/// a minute, the cap allows a minute more, and the outro follows.
 const DEADLINE_S: f32 = 240.0;
 /// Each kart sets off this long after the one before it, so the field is
 /// spread out and every roll band is drawn from.

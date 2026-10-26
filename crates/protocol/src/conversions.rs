@@ -177,6 +177,7 @@ impl From<sim::RaceEvent> for EventKind {
                 kart: kart as u8,
                 by: by as u8,
             },
+            sim::RaceEvent::RaceEnded => Self::RaceEnded,
         }
     }
 }

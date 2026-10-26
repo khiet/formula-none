@@ -14,7 +14,8 @@ const FLOATS_PER_INPUT: usize = 6;
 /// Phase codes in the phase buffer.
 const COUNTDOWN: f32 = 0.0;
 const RACING: f32 = 1.0;
-const FINISHED: f32 = 2.0;
+const OUTRO: f32 = 2.0;
+const FINISHED: f32 = 3.0;
 
 fn race(seed: u64, kart_count: usize) -> Race {
     Race::new(seed, kart_count, 0, OVAL).expect("the oval fixture loads")
@@ -327,32 +328,35 @@ fn bots_fill_the_slots_behind_the_humans_and_step_takes_only_the_humans_inputs()
 }
 
 #[test]
-fn the_phase_buffer_walks_countdown_racing_and_finished_as_the_sim_does() {
-    use sim::tuning::{COUNTDOWN_S, LAPS_PER_RACE, RACE_END_GRACE_S};
-    let mut race = Race::new(42, 1, 1, OVAL).expect("a human and a bot fit the oval");
+fn the_phase_buffer_walks_countdown_racing_outro_and_finished_as_the_sim_does() {
+    use sim::tuning::{COUNTDOWN_S, RACE_END_CAP_S, RACE_OUTRO_S};
+    // With no humans, the bots' own finishes start the cap and end the race.
+    let mut race = Race::new(42, 0, 2, OVAL).expect("two bots fit the oval");
     assert_eq!(race.phase(), vec![COUNTDOWN, COUNTDOWN_S, -1.0]);
-    go(&mut race, 1);
+    go(&mut race, 0);
     assert_eq!(race.phase(), vec![RACING, 0.0, -1.0]);
 
-    // The human idles on the grid while the bot laps the oval, and the
-    // sim's race is stepped alongside to say what the buffers should hold.
-    let idle = [0.0; FLOATS_PER_INPUT];
+    // The sim's race is stepped alongside to say what the buffers should hold.
     let mut state = started(sim::State::with_bots(
         42,
-        1,
-        1,
+        0,
+        2,
         Track::from_sidecar(OVAL).unwrap(),
     ));
+    let finished = |state: &sim::State| {
+        state
+            .standings()
+            .iter()
+            .filter(|standing| standing.finish_time_s.is_some())
+            .count()
+    };
     let mut ticks = 0;
-    while state.standings()[1].laps_completed < LAPS_PER_RACE {
-        state = sim::step(state, &[sim::KartInput::default()], DT);
-        race.step(&idle, DT);
+    while finished(&state) == 0 {
+        state = sim::step(state, &[], DT);
+        race.step(&[], DT);
         ticks += 1;
         assert!(ticks < 90 * TICKS_PER_SECOND, "three laps take under 90 s");
     }
-    let finish = state.standings()[1]
-        .finish_time_s
-        .expect("the bot finished");
     let phase = race.phase();
     assert_eq!(phase[0], RACING);
     assert!(
@@ -360,23 +364,22 @@ fn the_phase_buffer_walks_countdown_racing_and_finished_as_the_sim_does() {
         "race clock {}",
         phase[1]
     );
-    assert!(
-        (phase[2] - RACE_END_GRACE_S).abs() < 1e-5,
-        "grace {}",
-        phase[2]
-    );
-    let standings = race.standings();
-    assert_eq!(standings[1].finish_time_s, Some(finish));
-    assert_eq!(
-        standings[0].finish_time_s, None,
-        "the human has not finished"
-    );
-    assert_eq!(standings[1].position, 1, "the finisher leads");
+    assert!((phase[2] - RACE_END_CAP_S).abs() < 1e-5, "cap {}", phase[2]);
+    assert_eq!(race.standings(), state.standings());
 
-    // Idle through the grace, with a tick for the timer's rounding.
-    for _ in 0..(RACE_END_GRACE_S * TICKS_PER_SECOND as f32) as u32 + 1 {
-        race.step(&idle, DT);
+    while finished(&state) < 2 {
+        state = sim::step(state, &[], DT);
+        race.step(&[], DT);
+    }
+    assert_eq!(race.phase(), vec![OUTRO, RACE_OUTRO_S, -1.0]);
+
+    // Through the outro, with a tick for the timer's rounding.
+    for _ in 0..(RACE_OUTRO_S * TICKS_PER_SECOND as f32) as u32 + 1 {
+        race.step(&[], DT);
     }
     assert_eq!(race.phase(), vec![FINISHED, 0.0, -1.0]);
-    assert_eq!(race.standings()[1].finish_time_s, Some(finish));
+    assert_eq!(
+        race.standings()[0].finish_time_s,
+        state.standings()[0].finish_time_s
+    );
 }

@@ -153,6 +153,7 @@ export function autopilot(page: Page, bridge: Bridge, line: Centreline): Autopil
         kart = message.countdown.grid.indexOf(slot);
       } else if ("events" in message) {
         for (const { kind } of message.events) {
+          if (typeof kind === "string") continue;
           if ("lapCompleted" in kind && kind.lapCompleted.kart === kart) laps += 1;
         }
       } else if ("snapshot" in message && kart >= 0) {

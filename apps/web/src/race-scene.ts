@@ -158,6 +158,7 @@ export async function createRaceScene(
     bridge.lapsPerRace,
     { centreline, kartCount: bridge.kartsPerRace, ownKart: run.localKart },
     bridge.cameraTuning.topSpeedMetresPerSecond,
+    name,
   );
 
   const present = (frameSeconds: number) => {

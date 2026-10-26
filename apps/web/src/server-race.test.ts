@@ -260,12 +260,12 @@ describe("createServerRace", () => {
   it("reads the race clock from the prediction and the lap clocks from the events", () => {
     const client = fakeClient();
     const run = createServerRace(bridge, client, COUNTDOWN, 0, "{}");
-    prediction().clock = { kind: "racing", elapsedSeconds: 50, graceLeftSeconds: null };
+    prediction().clock = { kind: "racing", elapsedSeconds: 50, capLeftSeconds: null };
     client.snapshot(snapshot(180 + 60 * 50, [{ racePosition: 2, lap: 2, wrongWay: true }]));
     expect(run.readout().phase).toEqual({
       kind: "racing",
       elapsedSeconds: 50,
-      graceLeftSeconds: null,
+      capLeftSeconds: null,
     });
     client.event(lap(1, 0, 41.5));
     const standing = run.readout().standings[0];
@@ -286,7 +286,7 @@ describe("createServerRace", () => {
   it("finishes on the results, whose standings replace the snapshot's and stop the lap clock", () => {
     const client = fakeClient();
     const run = createServerRace(bridge, client, COUNTDOWN, 0, "{}");
-    prediction().clock = { kind: "racing", elapsedSeconds: 130, graceLeftSeconds: null };
+    prediction().clock = { kind: "racing", elapsedSeconds: 130, capLeftSeconds: null };
     client.snapshot(snapshot(180 + 60 * 130));
     client.event(lap(1, 0, 41.5));
     client.event(lap(2, 0, 40));
@@ -294,6 +294,9 @@ describe("createServerRace", () => {
     client.event({ id: 4, kind: { finished: { kart: 0, position: 1, finishTimeS: 123.5 } } });
     expect(run.readout().phase.kind).toBe("racing");
     expect(run.readout().standings[0]).toMatchObject({ finishTimeS: 123.5, lapTimeS: 42 });
+    // The server's word that the race has ended starts the outro.
+    client.event({ id: 5, kind: "raceEnded" });
+    expect(run.readout().phase).toEqual({ kind: "outro" });
     client.results([
       { kart: 0, position: 1, finishTimeS: 123.5, bestLapS: 40 },
       { kart: 1, position: 2, finishTimeS: null, bestLapS: null },

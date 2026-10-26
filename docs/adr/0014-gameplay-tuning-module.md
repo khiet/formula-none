@@ -2,7 +2,8 @@
 
 ## Status
 
-Accepted (2026-10-18)
+Accepted (2026-10-18). Its initial rule that the race ends 20 s after the
+first finisher is superseded by ADR 0032.
 
 ## Context
 
