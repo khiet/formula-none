@@ -101,8 +101,8 @@ export function createChaseCamera(tuning: CameraTuning): ChaseCamera {
       const pullBack =
         BEHIND_M +
         (Math.max(kart.speed, 0) / tuning.topSpeedMetresPerSecond) * tuning.pullBackMetres;
-      // Signed along the kart's back: looking behind puts the camera ahead
-      // of the kart and its look point behind.
+      // Positive is toward the kart's back; looking behind flips both, so
+      // the camera sits ahead of the kart and looks behind it.
       const facing = lookingBehind ? -1 : 1;
       const cameraBack = facing * pullBack;
       const lookForward = facing * LOOK_AHEAD_M;
