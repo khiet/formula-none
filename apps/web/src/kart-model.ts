@@ -1,15 +1,27 @@
-// The kart the View draws: Kenney's CC0 kart (ADR 0007), flattened to flat
-// materials by assets/karts/build.py with its paint in one material named
-// here, which the View swaps for the slot's livery.
+// The kart the View draws: a chibi low-poly F1 car (ADR 0034) that
+// assets/karts/build.py builds from primitives, painted in four materials
+// named here, which the View swaps for the slot's livery (ADR 0035).
 import { type Material, Mesh, MeshStandardMaterial, type Object3D } from "three";
 import kartGltf from "../../../assets/karts/kart.glb?url";
 import type { KartSize } from "./bridge";
+import type { Livery } from "./livery";
 
 /** The exported kart, as the View fetches it. */
 export const KART_GLTF_URL: string = kartGltf;
 
-/** The name of the paint material in the exported kart; every face in it takes the livery. */
-export const LIVERY_MATERIAL = "Livery";
+type Paint = "primary" | "secondary" | "accent" | "helmet";
+
+/** The paint materials in the exported kart, by the livery colour every face in each takes. */
+export const LIVERY_MATERIALS: Readonly<Record<Paint, string>> = {
+  primary: "Primary",
+  secondary: "Secondary",
+  accent: "Accent",
+  helmet: "Helmet",
+};
+
+const PAINT_BY_MATERIAL = new Map(
+  Object.entries(LIVERY_MATERIALS).map(([paint, name]) => [name, paint as Paint]),
+);
 
 export interface Bounds {
   readonly min: readonly [number, number, number];
@@ -47,33 +59,35 @@ export function fitKart(bounds: Bounds, size: KartSize): KartFit {
 }
 
 /**
- * A kart in `colour`: a clone of `model` whose meshes wearing the livery
- * material get a copy of it in that colour, so each kart on the grid has its
- * own paint and every other material stays shared across them.
+ * A kart in `livery`: a clone of `model` whose meshes wearing a livery
+ * material get a copy of it in that material's colour of the palette, so
+ * each kart on the grid has its own paint and every other material stays
+ * shared across them.
  */
-export function dressKart(model: Object3D, colour: number): Object3D {
+export function dressKart(model: Object3D, livery: Livery): Object3D {
   const kart = model.clone();
-  const paint = new Map<Material, Material>();
+  const own = new Map<Material, Material>();
   kart.traverse((object) => {
     if (!(object instanceof Mesh) || Array.isArray(object.material)) {
       return;
     }
     const material = object.material;
-    if (material.name !== LIVERY_MATERIAL) {
+    const paint = PAINT_BY_MATERIAL.get(material.name);
+    if (paint === undefined) {
       return;
     }
-    const own = paint.get(material) ?? repaint(material, colour);
-    paint.set(material, own);
-    object.material = own;
+    const copy = own.get(material) ?? repaint(material, livery[paint]);
+    own.set(material, copy);
+    object.material = copy;
   });
   return kart;
 }
 
 /** A copy of `material` in `colour`. The glTF loader makes standard materials; anything else keeps its colour. */
 function repaint(material: Material, colour: number): Material {
-  const own = material.clone();
-  if (own instanceof MeshStandardMaterial) {
-    own.color.setHex(colour);
+  const copy = material.clone();
+  if (copy instanceof MeshStandardMaterial) {
+    copy.color.setHex(colour);
   }
-  return own;
+  return copy;
 }

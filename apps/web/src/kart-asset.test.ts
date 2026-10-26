@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { loadBridge } from "./bridge";
 import { type GltfJson, gltfJson } from "./gltf-json";
-import { fitKart, LIVERY_MATERIAL } from "./kart-model";
+import { fitKart, LIVERY_MATERIALS } from "./kart-model";
 
 // The exported kart as the View loads it, read as bytes.
 const glb = readFileSync(new URL("../../../assets/karts/kart.glb", import.meta.url));
@@ -33,10 +33,18 @@ function bounds(gltf: GltfJson) {
 }
 
 describe("the exported kart", () => {
-  it("carries its paint in the livery material and no other, so the View can swap it", () => {
-    const names = (kart.materials ?? []).map(({ name }) => name);
-    expect(names.filter((name) => name === LIVERY_MATERIAL)).toHaveLength(1);
-  });
+  it.each(Object.values(LIVERY_MATERIALS))(
+    "carries one %s material, painted on some face, so the View can swap it",
+    (name) => {
+      const materials = kart.materials ?? [];
+      const index = materials.findIndex((material) => material.name === name);
+      expect(materials.filter((material) => material.name === name)).toHaveLength(1);
+      const used = kart.meshes.some(({ primitives }) =>
+        primitives.some(({ material }) => material === index),
+      );
+      expect(used).toBe(true);
+    },
+  );
 
   it("is flat-coloured: no texture to fetch, decode or upload per kart", () => {
     expect(kart.images ?? []).toHaveLength(0);

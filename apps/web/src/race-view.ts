@@ -146,7 +146,7 @@ export async function createRaceView(
   const box = new Box3().setFromObject(kartModel.scene);
   const fit = fitKart({ min: box.min.toArray(), max: box.max.toArray() }, kartSize);
   const karts = Array.from({ length: kartCount }, (_, slot) => {
-    const kart = kartPresentation(dressKart(kartModel.scene, livery(slot).hex), fit);
+    const kart = kartPresentation(dressKart(kartModel.scene, livery(slot)), fit);
     world.add(kart);
     return kart;
   });

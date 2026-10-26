@@ -9,7 +9,7 @@ describe("asset licences", () => {
   const licences = readRepoFile("assets/LICENSES.md");
   const vendored = listRepoFiles("assets").filter((path) => path.split("/").includes("kenney"));
 
-  it("vendor at least the kart", () => {
+  it("vendor at least the track scenery", () => {
     expect(vendored.length).toBeGreaterThan(0);
   });
 
@@ -23,7 +23,9 @@ describe("asset licences", () => {
   });
 
   it("say the exports and the fixtures are CC0 too", () => {
-    expect(licences).toContain("`karts/kart.glb`");
+    expect(licences).toMatch(
+      /^\| `karts\/kart\.glb` \| this repo, built from primitives .*\| CC0 1\.0 \|$/m,
+    );
     expect(licences).toContain("`tracks/*/*.glb`");
   });
 
