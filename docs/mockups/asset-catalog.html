@@ -121,7 +121,7 @@
 
   .surface { display: grid; gap: 1.2rem; }
   .surface > header { display: grid; gap: 0.35rem; max-width: 48rem; }
-  .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 21rem), 1fr)); gap: 1rem; }
+  .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 21rem), 1fr)); grid-auto-flow: dense; gap: 1rem; }
   .asset {
     background: var(--card); border: 1px solid var(--rule); border-radius: 8px;
     display: grid; grid-template-rows: auto auto 1fr; min-width: 0; overflow: hidden;
@@ -207,27 +207,63 @@
   .bigger { font-size: calc(var(--hud) * 12); }
   .warn { font-size: calc(var(--hud) * 4.2); }
 
-  /* Kart labels, now and aligned. */
+  /* The aligned panel: plates shaded like the car's panels and the posters' ink drop, at the same HUD unit. */
+  .hud2 { --hud: 9px; font-family: var(--hudface); color: #fff; line-height: 1; text-transform: uppercase; text-shadow: 0.1em 0.1em 0 var(--g-ink); }
+  .hud2 .lab { color: #c9ced5; font-size: 0.75em; }
+  /* The drop sits on a wrapper because clip-path would cut a shadow on the plate itself. */
+  .pl { display: inline-grid; filter: drop-shadow(calc(var(--hud) * 0.5) calc(var(--hud) * 0.5) 0 rgb(17 17 17 / 0.55)); }
+  .pf {
+    --c: calc(var(--hud) * 0.9);
+    display: flex; align-items: center; gap: 0.6em; padding: 0.45em 0.8em; white-space: nowrap;
+    clip-path: polygon(var(--c) 0, calc(100% - var(--c)) 0, 100% var(--c), 100% calc(100% - var(--c)), calc(100% - var(--c)) 100%, var(--c) 100%, 0 calc(100% - var(--c)), 0 var(--c));
+    background: linear-gradient(var(--t-lt) 0 34%, var(--t) 34% 70%, var(--t-dk) 70%);
+  }
+  .t-carbon { --t-lt: #4a4f57; --t: #2b2e33; --t-dk: #1b1d21; }
+  .t-livery { --t-lt: var(--p-lt); --t: var(--p); --t-dk: var(--p-dk); }
+  .t-key { --t-lt: color-mix(in srgb, var(--key) 72%, white); --t: var(--key); --t-dk: color-mix(in srgb, var(--key) 66%, black); }
+  .t-gold { --t-lt: #f8e39a; --t: #e0b54a; --t-dk: #c99a2e; color: var(--g-ink); text-shadow: none; }
+  .t-flash { --t-lt: #ffffff; --t: #fff6cf; --t-dk: #f8e39a; }
+  .t-white { --t-lt: #ffffff; --t: #eef0f2; --t-dk: #cfd2d6; color: var(--g-ink); text-shadow: none; }
+  .t-red { --t-lt: #e8333b; --t: #c81d25; --t-dk: #8f141a; }
+  .t-orange { --t-lt: #ff7a4d; --t: #ff5522; --t-dk: #c73c14; }
+  .t-go { --t-lt: #6fe8a6; --t: #3ddc84; --t-dk: #23a35e; color: var(--g-ink); text-shadow: 0.1em 0.1em 0 rgb(255 255 255 / 0.5); }
+  .stack2 { display: grid; gap: 12px; justify-items: start; }
+  .posp { font-size: calc(var(--hud) * 5.6); padding: 0.12em 0.3em; gap: 0; }
+  .posp small { font-size: 0.4em; align-self: flex-start; margin-top: 0.3em; }
+  .line2 { font-size: calc(var(--hud) * 2.2); }
+  .line2.small { font-size: calc(var(--hud) * 1.7); }
+  .line2 svg { width: 1.3em; height: 1.3em; display: block; }
+  .flags2 { display: flex; gap: 0.25em; }
+  .slot2 { --c: calc(var(--hud) * 2.2); width: calc(var(--hud) * 9.9); height: calc(var(--hud) * 9.9); justify-content: center; padding: 0; }
+  .slot2 svg { width: 88%; height: auto; }
+  .lights2 { grid-area: lights; width: calc(var(--hud) * 21); height: auto; filter: drop-shadow(calc(var(--hud) * 0.3) calc(var(--hud) * 0.3) 0 rgb(17 17 17 / 0.55)); }
+  .gear2 { --c: calc(var(--hud) * 1.6); font-size: calc(var(--hud) * 7); width: 1.2em; height: 1.35em; justify-content: center; padding: 0; }
+  .cluster > .pl { grid-area: gear; }
+  .tyre2 { grid-area: tyre; display: flex; align-items: center; gap: calc(var(--hud) * 1); font-size: calc(var(--hud) * 2.2); }
+  .tyre2 svg, .tyre2-big svg { width: calc(var(--hud) * 3.6); height: auto; filter: drop-shadow(calc(var(--hud) * 0.3) calc(var(--hud) * 0.3) 0 rgb(17 17 17 / 0.55)); }
+  .tyre2-big svg { width: 4.6rem; }
+  .oct { --c: 29.3%; font-size: calc(var(--hud) * 6); width: 1.6em; height: 1.6em; justify-content: center; padding: 0; }
+  .go2 { font-size: calc(var(--hud) * 6); padding: 0.3em 0.45em; }
+  .fin2 { font-size: calc(var(--hud) * 7); padding: 0.25em 0.35em; gap: 0.35em; }
+  .fin2 i { width: 0.6em; height: 1em; background: conic-gradient(#111 25%, #fff 0 50%, #111 0 75%, #fff 0) 0 0 / 0.3em 0.25em; }
+  .warn2 { font-size: calc(var(--hud) * 4.2); padding: 0.3em 0.5em; }
+  .ban2 { font-size: calc(var(--hud) * 1.8); padding: 0.6em 1em; }
+  .tag2 { display: grid; justify-items: center; font-size: calc(var(--hud) * 2); }
+  .tag2 .pf { padding: 0.3em 0.55em; --c: calc(var(--hud) * 0.6); }
+  .tag2 > i { width: 0.9em; height: 0.5em; margin-top: -1px; clip-path: polygon(0 0, 100% 0, 50% 100%); background: color-mix(in srgb, var(--key) 66%, black); }
+  .stand2 { margin: 0; padding: 0; list-style: none; display: grid; gap: 0.35em; font-size: calc(var(--hud) * 1.8); }
+  .stand2 .pl { display: grid; }
+  .stand2 .pf { padding: 0.35em 0.7em; }
+  .stand2 .pf b { font-weight: normal; width: 2.4em; }
+
+  /* What ships now: kart labels, the connection banner, the standings box. */
   .label-now {
     padding: 0.15rem 0.5rem; border-left: 0.35rem solid var(--key); border-radius: 0.3rem;
     background: rgba(0, 0, 0, 0.65); color: #fff; font: 700 1.05rem/1.2 system-ui, sans-serif;
     letter-spacing: 0.02em; text-shadow: 0 0.05rem 0.1rem #000; white-space: nowrap; text-transform: none;
   }
-  .label-new { display: inline-flex; align-items: center; gap: 0.45em; font-size: calc(var(--hud) * 2); color: #fff; white-space: nowrap; }
-  .label-new i { width: 0.85em; height: 0.85em; background: var(--key); border: 0.15em solid var(--g-outline); box-shadow: 0.2em 0.2em 0 #000; }
-
   .banner-now { padding: 0.6em 1em; font-family: var(--hudface); font-size: 1rem; color: #fff; background: #c21c1c; text-transform: uppercase; white-space: nowrap; }
-  .banner-new {
-    padding: 0.55em 0.9em; font-size: calc(var(--hud) * 1.8); color: #fff; white-space: nowrap;
-    background: linear-gradient(#e2454c, #a8151c);
-    border: calc(var(--hud) * 0.4) solid var(--g-outline);
-    box-shadow: inset calc(var(--hud) * 0.4) calc(var(--hud) * 0.4) 0 #ff8a8f, inset calc(var(--hud) * -0.4) calc(var(--hud) * -0.4) 0 #6e0d12, calc(var(--hud) * 0.5) calc(var(--hud) * 0.5) 0 #000;
-  }
   .stand-now { margin: 0; padding: 0.4em 0.8em; list-style: none; font-family: var(--hudface); font-size: 0.95rem; line-height: 1.4; color: #fff; background: rgb(0 0 0 / 0.55); text-transform: uppercase; }
-  .stand-new { margin: 0; padding: 0; list-style: none; display: grid; gap: 0.35em; font-size: calc(var(--hud) * 1.8); }
-  .stand-new li { display: grid; grid-template-columns: 2.6em 0.9em auto; gap: 0.5em; align-items: center; color: #fff; }
-  .stand-new li b { font-weight: normal; color: var(--g-gold); }
-  .stand-new li i { width: 0.8em; height: 0.8em; background: var(--key); border: 0.13em solid var(--g-outline); }
 
   /* Poster stages: the Title and Results Scenes' red, rays and chequer. */
   .poster {
@@ -295,7 +331,7 @@
   <header class="top">
     <div class="eyebrow">Formula None / asset review, 2026-10-26</div>
     <h1>Asset Catalog</h1>
-    <p class="lede">Every graphic the game draws, checked against the base design and redrawn in it. The base is two languages: chibi low-poly for everything in the world and on the posters (ADR 0034, with drivers bare-headed per ADR 0036 and liveries as palettes per ADR 0035), and the 16-bit kart racer for the Instrument panel (ADR 0023, sprites per ADR 0024). Where the base mockup and a later ADR disagree, the ADR wins.</p>
+    <p class="lede">Every graphic the game draws, checked against the base design and redrawn in it. The base is one language, the car and its driver: chibi low-poly for the world, the posters and the Instrument panel (ADR 0034, with drivers bare-headed per ADR 0036 and liveries as palettes per ADR 0035). The panel still ships the 16-bit kart racer of ADR 0023 and 0024; this page redraws it from the car, which needs an ADR superseding their look. Where the base mockup and a later ADR disagree, the ADR wins.</p>
     <div class="score" role="group" aria-label="Filter by status">
       <button type="button" id="f-all" data-filter="all" aria-pressed="true">All <b data-count="all">0</b></button>
       <button type="button" id="f-drift" data-filter="drift" aria-pressed="false"><span class="status drift">Drift</span> <b data-count="drift">0</b></button>
@@ -321,15 +357,15 @@
       </ul>
     </section>
     <section>
-      <div class="tag">Instrument panel / ADR 0023, 0024, 0031</div>
-      <h2>16-bit kart racer</h2>
+      <div class="tag">Instrument panel / ADR 0034; supersedes the look of 0023, 0024</div>
+      <h2>The car's facets, on the View</h2>
       <ul>
-        <li>Kenney Mini Square, uppercase, gold values and white labels.</li>
-        <li>A one-pixel outline in <code>#3a1c0a</code> on the face's own grid and a two-pixel black drop.</li>
-        <li>No box behind readouts. Slots (item, gear) are bevelled gold boxes.</li>
-        <li>Sprites are 16 x 16, at most eight colours, outlined in the panel's brown.</li>
-        <li>Type scales with the HUD unit, vmin based with a floor, never fixed rem.</li>
-        <li>Blinks and flashes hold steady under reduced motion.</li>
+        <li>Readouts sit on faceted plates: chamfered corners, a lit, a mid and a shaded band of one colour, and the posters' hard ink drop. No outline.</li>
+        <li>Kenney Mini Square stays, as on the posters: white values, grey labels, a 0.1 em ink drop. The brown outline and the HUD gold retire.</li>
+        <li>Your readouts wear your livery: the position plate in primary, flags and hubs in accent. Other karts show in their key colour.</li>
+        <li>Polygons, not pixels: shift lights are hexagons, map markers octagons, the tyre gauge is your car from above with your driver's hair.</li>
+        <li>The item characters are the View's meshes drawn flat, so the slot and the road show one cone, one gull, one snail.</li>
+        <li>Kept from ADR 0023 and 0031: the time notation, a flag per lap, the HUD unit, steady blinks under reduced motion, the greybox line.</li>
       </ul>
     </section>
   </div>
@@ -344,11 +380,13 @@
       <table>
         <thead><tr><th>Found</th><th>Where</th><th>Fold into</th></tr></thead>
         <tbody>
-          <tr><td><span class="dot" style="background:#ffd23c"></span><code>#ffd23c</code></td><td>FINISH banner, <code>index.html:284</code></td><td>HUD gold <code>#fde97a</code>: it is a panel readout, not the poster</td></tr>
+          <tr><td><span class="dot" style="background:#3a1c0a"></span><code>#3a1c0a</code></td><td>Panel outline and sprite outline, <code>index.html</code>, <code>item-sprites.ts</code></td><td>Retired: the ink drop <code>#111</code> and each plate's shaded tone</td></tr>
+          <tr><td><span class="dot" style="background:#fde97a"></span><code>#fde97a</code></td><td>HUD gold, every value</td><td>Value white <code>#ffffff</code>; gold stays only on the item box and its slot</td></tr>
+          <tr><td><span class="dot" style="background:#ffd23c"></span><code>#ffd23c</code></td><td>FINISH banner, <code>index.html:284</code></td><td>Value white on a carbon plate</td></tr>
           <tr><td><span class="dot" style="background:#ff5a3c"></span><code>#ff5a3c</code></td><td>WRONG WAY, <code>index.html:251</code></td><td>Hazard orange <code>#ff5522</code></td></tr>
           <tr><td><span class="dot" style="background:#c21c1c"></span><code>#c21c1c</code></td><td>Connection banner, <code>index.html:266</code></td><td>Poster red <code>#c81d25</code></td></tr>
-          <tr><td><span class="dot" style="background:#d62828"></span><code>#d62828</code></td><td>Tyre gauge kart, <code>instrument-panel.ts:383</code></td><td>Your livery's key colour</td></tr>
-          <tr><td><span class="dot" style="background:#ffcc33"></span><code>#ffcc33</code></td><td>Item box mesh, <code>race-view.ts:58</code></td><td>Slot bevel golds <code>#f8e39a</code> / <code>#c99a2e</code> / <code>#8c5a12</code></td></tr>
+          <tr><td><span class="dot" style="background:#d62828"></span><code>#d62828</code></td><td>Tyre gauge kart, <code>instrument-panel.ts:383</code></td><td>Your livery's primary, secondary and accent</td></tr>
+          <tr><td><span class="dot" style="background:#ffcc33"></span><code>#ffcc33</code></td><td>Item box mesh, <code>race-view.ts:58</code></td><td>Item box golds <code>#f8e39a</code> / <code>#e0b54a</code> / <code>#c99a2e</code>, which the slot shares</td></tr>
           <tr><td><span class="dot" style="background:#dd2222"></span><code>#dd2222</code></td><td>Homing ball, <code>race-view.ts:66</code></td><td>The seagull's colours: white, grey <code>#9aa0a8</code>, beak <code>#ff5522</code>, eye <code>#d00a12</code></td></tr>
           <tr><td><span class="dot" style="background:#3399ff"></span><code>#3399ff</code></td><td>Blue spark tier, <code>sparks.ts:15</code></td><td>Shift-light blue <code>#4f7dff</code>, so "blue" means one blue (minor)</td></tr>
           <tr><td><span class="dot" style="background:#99ccff"></span><code>#9cf</code></td><td>Room Scene link, <code>index.html</code> <code>#room-scene a</code></td><td>Poster gold <code>#ffd23f</code> once the Room Scene becomes a poster</td></tr>
@@ -401,7 +439,7 @@
         </div>
         <div class="notes">
           <p class="why">An unlit <code>MeshBasicMaterial</code> cube in <code>#ffcc33</code>: every face the same tone, so it reads as a flat yellow hexagon, and its gold matches nothing on the panel.</p>
-          <p class="fix"><b>Fix:</b> a lit, flat-shaded cube in the slot's bevel golds, with the slot's inset frame on each face, so picking one up rhymes with the box it lands in.</p>
+          <p class="fix"><b>Fix:</b> a lit, flat-shaded cube in the item box golds with an inset frame on each face; the slot is this box seen face on, so picking one up rhymes with where it lands.</p>
         </div>
       </article>
 
@@ -476,43 +514,61 @@
   <section class="surface" id="panel">
     <header>
       <h2>The Instrument panel</h2>
-      <p class="lede">Drawn here at a HUD unit of 9 px over a mock Race View, with the rules copied from <code>apps/web/index.html</code>.</p>
+      <p class="lede">Now is what ships: the 16-bit kart racer of ADR 0023 and 0024, rules copied from <code>apps/web/index.html</code>. Its brown outline, gold type and pixel sprites belong to a different game from the faceted car and its driver. Aligned redraws each piece from the car: shaded plates, polygons for pixels, your livery on your own readouts. Both at a HUD unit of 9 px over a mock Race View; pick a livery above to repaint yours.</p>
     </header>
     <div class="cards">
-      <article class="asset" data-status="ok">
-        <header><span class="status ok">Aligned</span><h3>Position, laps, times</h3><code>instrument-panel.ts, format.ts</code></header>
-        <div class="compare"><figure class="aligned"><figcaption>The stack</figcaption><div class="view">
-          <div class="hud" style="display:grid;gap:12px;justify-items:start">
-            <div class="pos">1<small>st</small></div>
-            <div class="line"><span class="flags"><span class="label">LAP</span><i class="flag done"></i><i class="flag done"></i><i class="flag"></i></span></div>
-            <div class="line"><span class="label">TIME</span>0'27"304</div>
-            <div class="line small"><span class="label">BEST</span>-'--"---</div>
-          </div>
-        </div></figure></div>
-        <div class="notes"><p class="fix">Large numeral with a small ordinal, one chequered flag per lap, the racer's time notation.</p></div>
+      <article class="asset" data-status="drift">
+        <header><span class="status drift">Drift</span><h3>Position, laps, times</h3><code>instrument-panel.ts, format.ts</code></header>
+        <div class="compare">
+          <figure class="now"><figcaption>Now</figcaption><div class="view">
+            <div class="hud" style="display:grid;gap:12px;justify-items:start">
+              <div class="pos">1<small>st</small></div>
+              <div class="line"><span class="flags"><span class="label">LAP</span><i class="flag done"></i><i class="flag done"></i><i class="flag"></i></span></div>
+              <div class="line"><span class="label">TIME</span>0'27"304</div>
+              <div class="line small"><span class="label">BEST</span>-'--"---</div>
+            </div>
+          </div></figure>
+          <figure class="aligned"><figcaption>Aligned</figcaption><div class="view"><div class="hud2 stack2 lv follows" id="stack2"></div></div></figure>
+        </div>
+        <div class="notes">
+          <p class="why">Gold pixel type in a brown outline: right for a 16-bit game, but nothing on the car is outlined and nothing in the world is that gold.</p>
+          <p class="fix"><b>Fix:</b> the position on a plate in your livery's primary, shaded like the car's nose; laps, time and best on carbon plates, the colour of the car's floor. Flags fold like a low-poly flag, chequered once done. The notation stays.</p>
+        </div>
       </article>
 
-      <article class="asset" data-status="ok">
-        <header><span class="status ok">Aligned</span><h3>Item slot and its characters</h3><code>apps/web/src/item-sprites.ts</code></header>
-        <div class="compare"><figure class="aligned"><figcaption>Empty, boost, hazard, homing, firing</figcaption><div class="view"><div class="hud hud-row" id="slots"></div></div></figure></div>
-        <div class="notes"><p class="fix">16 x 16 grids, six colours from the panel, the cone, livery red and a grey. Drawn here from the module's own strings.</p></div>
+      <article class="asset wide" data-status="drift">
+        <header><span class="status drift">Drift</span><h3>Item slot and its characters</h3><code>apps/web/src/item-sprites.ts</code></header>
+        <div class="compare">
+          <figure class="now"><figcaption>Now: empty, boost, hazard, homing, firing</figcaption><div class="view"><div class="hud hud-row" id="slots"></div></div></figure>
+          <figure class="aligned"><figcaption>Aligned</figcaption><div class="view"><div class="hud2 hud-row" id="slots2"></div></div></figure>
+        </div>
+        <div class="notes">
+          <p class="why">16 x 16 sprites in the panel's pixel language, not the world's: the cone in the slot and the cone on the road are two different cones, and the gull in the slot meets a red ball on the road.</p>
+          <p class="fix"><b>Fix:</b> the slot is the item box seen face on, in its golds; the characters are the View's meshes from the world cards drawn flat: the faceted cone, the low-poly gull, and a snail with a faceted shell and a red rocket. Firing lights the plate. The item's name stays as the slot's text.</p>
+        </div>
       </article>
 
-      <article class="asset" data-status="ok">
-        <header><span class="status ok">Aligned</span><h3>Speed cluster</h3><code>speed-cluster.ts, index.html cluster rules</code></header>
-        <div class="compare"><figure class="aligned"><figcaption>4th, 87 km/h, and on the limiter</figcaption><div class="view"><div class="hud hud-row" id="clusters"></div></div></figure></div>
-        <div class="notes"><p class="fix">Twelve shift lights in green, red and blue thirds, the gear in a bevelled box, km/h beside it. The tyre icon under it is its own card below.</p></div>
+      <article class="asset wide" data-status="drift">
+        <header><span class="status drift">Drift</span><h3>Speed cluster</h3><code>speed-cluster.ts, index.html cluster rules</code></header>
+        <div class="compare">
+          <figure class="now"><figcaption>Now: 4th, 87 km/h, and on the limiter</figcaption><div class="view"><div class="hud hud-row" id="clusters"></div></div></figure>
+          <figure class="aligned"><figcaption>Aligned</figcaption><div class="view"><div class="hud2 hud-row" id="clusters2"></div></div></figure>
+        </div>
+        <div class="notes">
+          <p class="why">Square pixel lights and a gold bevel. The thirds and the layout are right; the shapes are not.</p>
+          <p class="fix"><b>Fix:</b> twelve hexagon lights, each a lit, mid and shaded facet like the wheel hubs, in the same green, red and blue thirds. The gear on a carbon plate, white on the limiter.</p>
+        </div>
       </article>
 
       <article class="asset" data-status="drift">
         <header><span class="status drift">Drift</span><h3>Tyre gauge kart</h3><code>apps/web/src/instrument-panel.ts:383</code></header>
         <div class="compare">
           <figure class="now"><figcaption>Now</figcaption><div class="view"><div class="hud tyre-big" data-draw="tyreNow"></div></div></figure>
-          <figure class="aligned"><figcaption>Aligned</figcaption><div class="view"><div class="hud tyre-big follows lv" data-draw="tyreNew"></div></div></figure>
+          <figure class="aligned"><figcaption>Aligned</figcaption><div class="view"><div class="hud2 tyre2-big follows lv" data-draw="tyreNew"></div></div></figure>
         </div>
         <div class="notes">
           <p class="why">A generic go-kart block in <code>#d62828</code>, a red that is neither livery red nor any key colour, with no wings.</p>
-          <p class="fix"><b>Fix:</b> the open-wheel car from above, front and rear wings, in your livery's key colour and the panel's outline. Tyres keep <code>data-tyre-corner</code>.</p>
+          <p class="fix"><b>Fix:</b> your car from above: front and rear wings in secondary, the tub and sidepods in primary lit on the left, the accent stripe, the halo, and your driver's hair in the cockpit. Rears bigger than fronts, each tyre a faceted block in its wear colour. Tyres keep <code>data-tyre-corner</code>.</p>
         </div>
       </article>
 
@@ -524,8 +580,8 @@
           <figure class="aligned"><figcaption>Aligned, Brands Patch</figcaption><div class="view dark follows lv" data-draw="mapNew" data-track="brands"></div></figure>
         </div>
         <div class="notes">
-          <p class="why">A translucent white stroke with round markers: the only part of the panel with no outline and no drop, so it reads like a debug overlay.</p>
-          <p class="fix"><b>Fix:</b> the road in white with the panel's brown outline and black drop, a chequered start, square markers outlined in brown, yours bigger and ringed in white. Outlines are the real centrelines from each sidecar.</p>
+          <p class="why">A translucent white stroke with round markers: no surface, no drop, so it reads like a debug overlay rather than a piece of the track.</p>
+          <p class="fix"><b>Fix:</b> the track as the world builds it: asphalt between white walls, the ink drop under it, a chequered start. Each kart is a faceted octagon in its key colour, lit on the top left like a hub; yours is bigger and ringed in white. Outlines are the real centrelines from each sidecar.</p>
         </div>
       </article>
 
@@ -537,16 +593,19 @@
         </div>
         <div class="notes">
           <p class="why">Bold <code>system-ui</code> on a rounded dark pill at a fixed <code>1.05rem</code>: a web UI tag floating in a 16-bit game, and the one label style that ignores the HUD unit.</p>
-          <p class="fix"><b>Fix:</b> the pixel face in white with the HUD outline and drop, a small outlined square in the key colour, no pill, sized in HUD units.</p>
+          <p class="fix"><b>Fix:</b> the name in the pixel face on a small plate in the kart's key colour, shaded like its bodywork, with a pointer down to the car. Sized in HUD units.</p>
         </div>
       </article>
 
       <article class="asset" data-status="drift">
         <header><span class="status drift">Drift</span><h3>Countdown and GO</h3><code>apps/web/index.html:277</code></header>
-        <div class="compare"><figure class="aligned"><figcaption>Aligned</figcaption><div class="view"><div class="hud hud-row"><span class="bigger">3</span><span class="bigger">2</span><span class="bigger">1</span><span class="bigger">GO!</span></div></div></figure></div>
+        <div class="compare">
+          <figure class="now"><figcaption>Now</figcaption><div class="view"><div class="hud hud-row" style="--hud:4px"><span class="bigger">3</span><span class="bigger">2</span><span class="bigger">1</span><span class="bigger">GO!</span></div></div></figure>
+          <figure class="aligned"><figcaption>Aligned</figcaption><div class="view"><div class="hud2 hud-row" style="--hud:4px;gap:0.6rem"><span class="pl"><span class="pf t-red oct">3</span></span><span class="pl"><span class="pf t-red oct">2</span></span><span class="pl"><span class="pf t-red oct">1</span></span><span class="pl"><span class="pf t-go go2">GO!</span></span></div></div></figure>
+        </div>
         <div class="notes">
-          <p class="why">The look is right; the size is a fixed <code>8rem</code>, so in an eight-window feel check the count is huge in a small window and small full screen.</p>
-          <p class="fix"><b>Fix:</b> <code>calc(var(--hud) * 12)</code>, as ADR 0023 asks of every readout.</p>
+          <p class="why">Gold pixel numerals at a fixed <code>8rem</code>: huge in a small window of an eight-window feel check, small full screen.</p>
+          <p class="fix"><b>Fix:</b> each count on an octagonal start light in poster red, faceted like a wheel, and GO on a green plate; sized in HUD units.</p>
         </div>
       </article>
 
@@ -554,11 +613,11 @@
         <header><span class="status drift">Drift</span><h3>FINISH banner</h3><code>apps/web/index.html:284</code></header>
         <div class="compare">
           <figure class="now"><figcaption>Now</figcaption><div class="view"><div class="hud big" style="color:#ffd23c;--hud:5px">FINISH</div></div></figure>
-          <figure class="aligned"><figcaption>Aligned</figcaption><div class="view"><div style="--hud:5px" class="hud big">FINISH</div></div></figure>
+          <figure class="aligned"><figcaption>Aligned</figcaption><div class="view"><div class="hud2" style="--hud:4px"><span class="pl"><span class="pf t-carbon fin2"><i></i>FINISH<i></i></span></span></div></div></figure>
         </div>
         <div class="notes">
           <p class="why">A third gold, <code>#ffd23c</code>, beside the panel's <code>#fde97a</code> and the poster's <code>#ffd23f</code>, at a fixed <code>6rem</code>.</p>
-          <p class="fix"><b>Fix:</b> <code>var(--gold)</code> and <code>calc(var(--hud) * 9)</code>.</p>
+          <p class="fix"><b>Fix:</b> white on a carbon plate with the track's chequer at both ends, sized in HUD units.</p>
         </div>
       </article>
 
@@ -566,11 +625,11 @@
         <header><span class="status drift">Drift</span><h3>Wrong-way warning</h3><code>apps/web/index.html:251</code></header>
         <div class="compare">
           <figure class="now"><figcaption>Now</figcaption><div class="view"><div class="hud warn" style="color:#ff5a3c;--hud:5px">WRONG WAY</div></div></figure>
-          <figure class="aligned"><figcaption>Aligned</figcaption><div class="view"><div class="hud warn" style="color:#ff5522;--hud:5px">WRONG WAY</div></div></figure>
+          <figure class="aligned"><figcaption>Aligned</figcaption><div class="view"><div class="hud2" style="--hud:4px"><span class="pl"><span class="pf t-orange warn2">WRONG WAY</span></span></div></div></figure>
         </div>
         <div class="notes">
-          <p class="why">Close, but <code>#ff5a3c</code> is a one-off orange.</p>
-          <p class="fix"><b>Fix:</b> the hazard orange <code>#ff5522</code>, so orange on the panel always means danger. Minor.</p>
+          <p class="why">Orange type in a one-off <code>#ff5a3c</code>.</p>
+          <p class="fix"><b>Fix:</b> white on a plate in the cone's hazard orange <code>#ff5522</code>, so orange always means danger. Still blinks, steady under reduced motion.</p>
         </div>
       </article>
 
@@ -578,11 +637,11 @@
         <header><span class="status drift">Drift</span><h3>Connection banner</h3><code>apps/web/index.html:266</code></header>
         <div class="compare">
           <figure class="now"><figcaption>Now</figcaption><div class="view"><div class="banner-now">Reconnecting</div></div></figure>
-          <figure class="aligned"><figcaption>Aligned</figcaption><div class="view"><div class="hud banner-new">RECONNECTING</div></div></figure>
+          <figure class="aligned"><figcaption>Aligned</figcaption><div class="view"><div class="hud2"><span class="pl"><span class="pf t-red ban2">RECONNECTING</span></span></div></div></figure>
         </div>
         <div class="notes">
-          <p class="why">A flat red box in <code>#c21c1c</code>, with no outline, no drop and no bevel.</p>
-          <p class="fix"><b>Fix:</b> a bevelled box like the item slot, in poster red, with the type keeping its outline.</p>
+          <p class="why">A flat red box in <code>#c21c1c</code>, with no shading and no drop.</p>
+          <p class="fix"><b>Fix:</b> a plate in poster red, shaded and dropped like the rest.</p>
         </div>
       </article>
 
@@ -590,11 +649,11 @@
         <header><span class="status drift">Drift</span><h3>Standings after the finish</h3><code>apps/web/index.html:293</code></header>
         <div class="compare">
           <figure class="now"><figcaption>Now</figcaption><div class="view"><ol class="stand-now"><li>1st Khiet</li><li>2nd Bot</li><li>3rd Mai</li></ol></div></figure>
-          <figure class="aligned"><figcaption>Aligned</figcaption><div class="view"><ol class="hud stand-new" id="standNew"></ol></div></figure>
+          <figure class="aligned"><figcaption>Aligned</figcaption><div class="view"><ol class="hud2 stand2" id="standNew"></ol></div></figure>
         </div>
         <div class="notes">
-          <p class="why">A translucent black box behind the list, which ADR 0023 rules out, and no outline on the type.</p>
-          <p class="fix"><b>Fix:</b> straight on the View: places in gold, names in white, a key-colour square per kart.</p>
+          <p class="why">A translucent black box behind a list of plain names: no kart colour, nothing of the car.</p>
+          <p class="fix"><b>Fix:</b> one carbon plate per row with the kart's palette chip, as on the Results board; yours on the item box's gold.</p>
         </div>
       </article>
 
@@ -692,13 +751,13 @@
       <table>
         <thead><tr><th>#</th><th>Asset</th><th>Change</th><th>Where</th></tr></thead>
         <tbody>
-          <tr><td class="num">1</td><td>Kart labels</td><td>Pixel face, HUD outline, key-colour square, no pill, HUD units</td><td><code>index.html:330</code></td></tr>
-          <tr><td class="num">2</td><td>Course map</td><td>Outlined road with drop, chequered start, square markers</td><td><code>course-map.ts:118</code></td></tr>
-          <tr><td class="num">3</td><td>Item box, hazard cone, homing projectile</td><td>Lit faceted meshes matching the slot's characters (ADR 0024's follow-up)</td><td><code>race-view.ts:188-210</code></td></tr>
-          <tr><td class="num">4</td><td>Poster kart</td><td>Low-poly side view, bare head, octagon wheels, palette colours</td><td><code>poster.ts:16</code></td></tr>
-          <tr><td class="num">5</td><td>Countdown, FINISH, wrong way</td><td>HUD units, HUD gold, hazard orange</td><td><code>index.html:251-292</code></td></tr>
-          <tr><td class="num">6</td><td>Standings, connection banner</td><td>No box behind standings; bevelled poster-red banner</td><td><code>index.html:266, :293</code></td></tr>
-          <tr><td class="num">7</td><td>Tyre gauge kart</td><td>Open-wheel car from above in the key colour</td><td><code>instrument-panel.ts:383</code></td></tr>
+          <tr><td class="num">1</td><td>Instrument panel language</td><td>A new ADR superseding the look of ADR 0023 and 0024: plates, ink drop, polygons, livery on your readouts</td><td><code>docs/adr</code></td></tr>
+          <tr><td class="num">2</td><td>Position, laps, times; speed cluster; tyre gauge</td><td>Livery and carbon plates, folded flags, hexagon lights, your car from above</td><td><code>instrument-panel.ts</code>, <code>speed-cluster.ts</code></td></tr>
+          <tr><td class="num">3</td><td>Item slot and the View's items</td><td>Slot as the item box face on; cone, gull and snail drawn from the meshes, which become lit and faceted</td><td><code>item-sprites.ts</code>, <code>race-view.ts:188-210</code></td></tr>
+          <tr><td class="num">4</td><td>Kart labels</td><td>Key-colour plate with a pointer, HUD units</td><td><code>index.html:330</code></td></tr>
+          <tr><td class="num">5</td><td>Course map</td><td>Asphalt between walls, chequered start, faceted octagon markers</td><td><code>course-map.ts:118</code></td></tr>
+          <tr><td class="num">6</td><td>Poster kart</td><td>Low-poly side view, bare head, octagon wheels, palette colours</td><td><code>poster.ts:16</code></td></tr>
+          <tr><td class="num">7</td><td>Countdown, FINISH, wrong way, connection, standings</td><td>Start lights, plates in carbon, hazard orange and poster red, HUD units</td><td><code>index.html:251-293</code></td></tr>
           <tr><td class="num">8</td><td>Favicon</td><td>Pixel sticker of the crossed-out 1</td><td><code>public/favicon.svg</code></td></tr>
           <tr><td class="num">9</td><td>Room Scene</td><td>Poster treatment; needs an ADR first</td><td><code>room-scene.ts</code></td></tr>
           <tr><td class="num">10</td><td>Grandstand, gantry</td><td>Rebuild from primitives, like the kart</td><td><code>tracks/build.py:50</code></td></tr>
@@ -977,6 +1036,21 @@
     ${poly(ngon(6, 156, 64, 5), "#d00a12")}${poly(ngon(4, 157, 64, 2), "#3a1c0a")}
     <line x1="146" y1="57" x2="162" y2="60" stroke="#3a1c0a" stroke-width="2.5"/>
     <line x1="92" y1="110" x2="88" y2="128" stroke="#ff7a4d" stroke-width="3"/><line x1="112" y1="108" x2="110" y2="128" stroke="#ff7a4d" stroke-width="3"/></svg>`;
+  // The boost character as a mesh would draw it: grey foot, faceted orange shell, a red rocket strapped on.
+  draw.snailNew = () => `<svg viewBox="0 0 200 160" role="img" aria-label="Low-poly snail with a rocket">
+    <ellipse cx="100" cy="146" rx="70" ry="5" fill="rgba(0,0,0,.15)"/>
+    ${poly([[30, 130], [150, 130], [176, 112], [160, 102], [60, 110], [34, 120]], "#b9bec5")}${poly([[60, 110], [160, 102], [168, 108], [64, 115]], "#d4d8dd")}${poly([[32, 126], [154, 126], [150, 132], [30, 132]], "#9aa0a8")}
+    <line x1="158" y1="86" x2="150" y2="58" stroke="#9aa0a8" stroke-width="4"/><line x1="168" y1="86" x2="174" y2="58" stroke="#b9bec5" stroke-width="4"/>
+    ${facets(6, 162, 96, 16, ["#d4d8dd", "#b9bec5", "#9aa0a8"])}
+    ${poly(ngon(6, 150, 54, 8), "#ffffff")}${poly(ngon(6, 174, 54, 8), "#eef0f2")}${poly(ngon(4, 153, 55, 3.4), "#3a1c0a")}${poly(ngon(4, 177, 55, 3.4), "#3a1c0a")}
+    <polyline points="164,104 170,107 176,104" stroke="#3a1c0a" stroke-width="2.5" fill="none"/>
+    ${facets(7, 90, 84, 36, ["#ff7a4d", "#ff5522", "#c73c14"])}${facets(6, 94, 82, 19, ["#ff9a72", "#ff6a3a", "#d84418"])}${poly(ngon(5, 97, 81, 7), "#c73c14")}
+    ${poly([[80, 56], [88, 56], [92, 100], [84, 100]], "#3a3d42")}
+    ${poly([[48, 38], [18, 46], [48, 54]], "#ffd23f")}${poly([[48, 41], [30, 46], [48, 51]], "#ff7a4d")}
+    ${poly([[52, 32], [118, 32], [122, 40], [48, 40]], "#e8333b")}${poly([[48, 40], [122, 40], [122, 50], [48, 50]], "#d00a12")}${poly([[48, 50], [122, 50], [118, 58], [52, 58]], "#8f070c")}
+    ${poly([[122, 32], [142, 45], [122, 45]], "#e8333b")}${poly([[122, 45], [142, 45], [122, 58]], "#8f070c")}
+    ${poly([[50, 32], [38, 20], [62, 32]], "#b9bec5")}${poly([[50, 58], [38, 70], [62, 58]], "#9aa0a8")}
+    ${poly(ngon(6, 100, 45, 6.5), "#ffffff")}${poly(ngon(6, 101, 46, 3.5), "#7fc3ff")}</svg>`;
   draw.tells = () => {
     const cube = (x, y, s, c, sh) => poly([[x, y - s], [x + s, y - s / 2], [x, y], [x - s, y - s / 2]], `color-mix(in srgb, ${c} 70%, white)`) + poly([[x - s, y - s / 2], [x, y], [x, y + s], [x - s, y + s / 2]], c) + poly([[x, y], [x + s, y - s / 2], [x + s, y + s / 2], [x, y + s]], sh);
     return `<svg viewBox="0 0 320 150" role="img" aria-label="Sparks, dust, tyre marks and a shadow disc on asphalt">
@@ -1035,8 +1109,34 @@
   // The tyre gauge's kart, now (instrument-panel.ts) and as the open-wheel car from above.
   const tyreCorner = (x, y) => `<rect x="${x}" y="${y}" width="3" height="5" fill="#5ad15a" stroke="#3a1c0a" stroke-width="1"/>`;
   draw.tyreNow = () => `<svg viewBox="0 0 14 18" shape-rendering="crispEdges" aria-hidden="true"><rect x="4" y="2" width="6" height="14" fill="#3a1c0a"/><rect x="5" y="3" width="4" height="12" fill="#d62828"/><rect x="6" y="5" width="2" height="3" fill="#7fc3ff"/>${[[0, 2], [11, 2], [0, 11], [11, 11]].map(([x, y]) => tyreCorner(x, y)).join("")}</svg>`;
-  const TOP_F1 = ["..kkkkkkkkkk..", "..kppppppppk..", "..kkkkppkkkk..", ".....kppk.....", ".....kppk.....", "...kkkppkkk...", ".....kppk.....", "....kpkkpk....", "...kppkkppk...", "...kppppppk...", "...kppppppk...", "...kppppppk...", "...kkppppkk...", "....kppppk....", "....kkppkk....", "..kkkkkkkkkk..", "..kppppppppk..", "..kkkkkkkkkk.."];
-  draw.tyreNew = () => pixels(TOP_F1, { k: "#3a1c0a", p: "var(--key)" }).replace("</svg>", [[0, 2], [11, 2], [0, 11], [11, 11]].map(([x, y]) => tyreCorner(x, y)).join("") + "</svg>");
+  // Lit, mid and shaded tones per signal colour, for anything faceted on the panel.
+  const TONES = {
+    green: ["#8ee88e", "#5ad15a", "#3a9a3a"], red: ["#ff7a6e", "#e8483a", "#a8261b"], blue: ["#8aa8ff", "#4f7dff", "#2f4fc4"],
+    off: ["#4a4f57", "#2b2e33", "#1b1d21"], white: ["#ffffff", "#eef0f2", "#cfd2d6"],
+  };
+  const keyTones = (key) => [`color-mix(in srgb, ${key} 72%, white)`, key, `color-mix(in srgb, ${key} 66%, black)`];
+  // A tyre seen from above: chamfered block, lit on the left like everything under the View's sun.
+  const tyreTop = (corner, x, y, w, h, tones) => {
+    const c = 2;
+    return `<g data-tyre-corner="${corner}">${poly([[x + c, y], [x + w - c, y], [x + w, y + c], [x + w, y + h - c], [x + w - c, y + h], [x + c, y + h], [x, y + h - c], [x, y + c]], tones[1])}` +
+      `${poly([[x + c, y], [x + w * 0.34, y], [x + w * 0.34, y + h], [x + c, y + h], [x, y + h - c], [x, y + c]], tones[0])}${poly([[x + w * 0.7, y], [x + w - c, y], [x + w, y + c], [x + w, y + h - c], [x + w - c, y + h], [x + w * 0.7, y + h]], tones[2])}</g>`;
+  };
+  // Your car from above: the side view's parts in plan, rears bigger, your driver's hair in the cockpit.
+  const topCar = (wear = ["green", "green", "green", "green"]) => `<svg viewBox="0 0 60 92" role="img" aria-label="Your car from above">
+    <line x1="22" y1="22" x2="12" y2="22" stroke="#222" stroke-width="1.5"/><line x1="38" y1="22" x2="48" y2="22" stroke="#222" stroke-width="1.5"/>
+    <line x1="20" y1="70" x2="12" y2="70" stroke="#222" stroke-width="1.5"/><line x1="40" y1="70" x2="48" y2="70" stroke="#222" stroke-width="1.5"/>
+    ${tyreTop("front-left", 2, 14, 11, 17, TONES[wear[0]])}${tyreTop("front-right", 47, 14, 11, 17, TONES[wear[1]])}
+    ${tyreTop("rear-left", 0, 58, 13, 24, TONES[wear[2]])}${tyreTop("rear-right", 47, 58, 13, 24, TONES[wear[3]])}
+    ${poly([[18, 40], [42, 40], [45, 64], [38, 76], [22, 76], [15, 64]], "var(--p)")}${poly([[18, 40], [30, 40], [30, 76], [22, 76], [15, 64]], "var(--p-lt)")}${poly([[38, 52], [42, 40], [45, 64], [38, 76]], "var(--p-dk)")}
+    ${poly([[26, 6], [34, 6], [37, 42], [23, 42]], "var(--p)")}${poly([[26, 6], [30, 6], [30, 42], [23, 42]], "var(--p-lt)")}
+    ${poly([[29, 8], [31, 8], [31, 78], [29, 78]], "var(--a)")}
+    ${poly([[6, 4], [54, 4], [54, 11], [6, 11]], "var(--s)")}${poly([[6, 4], [54, 4], [54, 6.5], [6, 6.5]], "color-mix(in srgb, var(--s) 72%, white)")}${poly([[4, 3], [7, 3], [7, 12], [4, 12]], "var(--a)")}${poly([[53, 3], [56, 3], [56, 12], [53, 12]], "var(--a)")}
+    ${poly(ngon(6, 30, 51, 8), "#1b1d21")}${facets(8, 30, 52, 5.6, ["var(--hair-lt)", "var(--hair)", "var(--hair-dk)"])}
+    <polyline points="22.5,55 23.5,45 30,41.5 36.5,45 37.5,55" stroke="#1a1a1a" stroke-width="2" fill="none" stroke-linejoin="round"/>
+    ${poly([[24, 66], [36, 66], [34, 82], [26, 82]], "var(--p-dk)")}
+    ${poly([[8, 80], [52, 80], [52, 89], [8, 89]], "var(--s)")}${poly([[8, 80], [52, 80], [52, 83], [8, 83]], "color-mix(in srgb, var(--s) 72%, white)")}${poly([[6, 79], [9, 79], [9, 90], [6, 90]], "var(--a)")}${poly([[51, 79], [54, 79], [54, 90], [51, 90]], "var(--a)")}
+  </svg>`;
+  draw.tyreNew = () => topCar();
 
   // Real centrelines from the sidecars, projected the way course-map.ts projects them.
   const TRACKS = {
@@ -1051,10 +1151,10 @@
     let cq = "";
     for (let i = 0; i < 4; i++) for (let j = 0; j < 2; j++) cq += `<rect x="${sx - 4.8 + i * 2.4}" y="${sy - 2.4 + j * 2.4}" width="2.4" height="2.4" fill="${(i + j) % 2 ? "#fff" : "#111"}"/>`;
     return `<svg viewBox="0 0 100 100" style="width:min(100%,11rem)" role="img" aria-label="Course map aligned">
-      <path d="${t.d}" transform="translate(1.6 1.6)" fill="none" stroke="#000" stroke-width="8.5" stroke-linejoin="round"/>
-      <path d="${t.d}" fill="none" stroke="#3a1c0a" stroke-width="8.5" stroke-linejoin="round"/>
-      <path d="${t.d}" fill="none" stroke="#fff" stroke-width="5" stroke-linejoin="round"/>
-      <g shape-rendering="crispEdges">${cq}</g><g data-markers="new" shape-rendering="crispEdges"></g></svg>`;
+      <path d="${t.d}" transform="translate(1.6 1.6)" fill="none" stroke="rgb(17 17 17 / 0.55)" stroke-width="9" stroke-linejoin="round"/>
+      <path d="${t.d}" fill="none" stroke="#f0f0f0" stroke-width="9" stroke-linejoin="round"/>
+      <path d="${t.d}" fill="none" stroke="#6b6b78" stroke-width="6" stroke-linejoin="round"/>
+      <g shape-rendering="crispEdges">${cq}</g><g data-markers="new"></g></svg>`;
   };
   const placeMarkers = (svg, style) => {
     const path = svg.querySelector("path:last-of-type");
@@ -1066,14 +1166,15 @@
       const p = path.getPointAtLength(len * FRACTIONS[k]);
       const key = hex(LIVERIES[k].key);
       if (style === "now") return k === own ? `<circle cx="${p.x}" cy="${p.y}" r="4.5" fill="${key}" stroke="#fff" stroke-width="1.5"/>` : `<circle cx="${p.x}" cy="${p.y}" r="3" fill="${key}"/>`;
+      const drop = (r) => poly(ngon(8, p.x + 1.2, p.y + 1.2, r), "rgb(17 17 17 / 0.55)");
       return k === own
-        ? `<rect x="${p.x - 5.5}" y="${p.y - 5.5}" width="11" height="11" fill="#3a1c0a"/><rect x="${p.x - 4.3}" y="${p.y - 4.3}" width="8.6" height="8.6" fill="#fff"/><rect x="${p.x - 3}" y="${p.y - 3}" width="6" height="6" fill="${key}"/>`
-        : `<rect x="${p.x - 3.4}" y="${p.y - 3.4}" width="6.8" height="6.8" fill="#3a1c0a"/><rect x="${p.x - 2.2}" y="${p.y - 2.2}" width="4.4" height="4.4" fill="${key}"/>`;
+        ? drop(6) + facets(8, p.x, p.y, 6, TONES.white) + facets(8, p.x, p.y, 4.4, keyTones(key))
+        : drop(3.6) + facets(8, p.x, p.y, 3.6, keyTones(key));
     }).join("");
   };
   const labelSlots = [1, 3, 6];
   draw.labelsNow = () => `<div style="display:grid;gap:10px;justify-items:center">${labelSlots.map((k) => `<span class="label-now" style="--key:${hex(LIVERIES[k].key)}">${NICKS[k]}</span>`).join("")}</div>`;
-  draw.labelsNew = () => `<div class="hud" style="display:grid;gap:12px;justify-items:center">${labelSlots.map((k) => `<span class="label-new" style="--key:${hex(LIVERIES[k].key)}"><i></i>${NICKS[k]}</span>`).join("")}</div>`;
+  draw.labelsNew = () => `<div class="hud2" style="display:grid;gap:10px;justify-items:center">${labelSlots.map((k) => `<span class="tag2" style="--key:${hex(LIVERIES[k].key)}"><span class="pl"><span class="pf t-key">${NICKS[k]}</span></span><i></i></span>`).join("")}</div>`;
 
   draw.posterNow = () => `<i class="cq t"></i><i class="cq b"></i><div style="display:flex;gap:1rem;width:100%;max-width:26rem">${[0, 3].map((k) => `<div style="flex:1;--livery:${hex(LIVERIES[k].key)}"><svg viewBox="0 0 120 60" style="width:100%;overflow:visible" role="img" aria-label="Poster kart now">
     <ellipse cx="60" cy="56" rx="54" ry="4" fill="rgb(0 0 0 / 0.25)"/>
@@ -1096,7 +1197,7 @@
 
   // Palette groups.
   const PAL = [
-    ["Instrument panel", [["#fde97a", "Gold, every value"], ["#ffffff", "Label white"], ["#3a1c0a", "Outline brown"], ["#000000", "Drop shadow"], ["#fff6cf", "Bevel light"], ["#f8e39a", "Bevel face top"], ["#c99a2e", "Bevel face bottom"], ["#8c5a12", "Bevel shade"]]],
+    ["Instrument panel", [["#ffffff", "Value white"], ["#c9ced5", "Label grey"], ["#111111", "Ink drop"], ["#4a4f57", "Carbon plate, lit"], ["#2b2e33", "Carbon plate"], ["#1b1d21", "Carbon plate, shaded"], ["#f8e39a", "Item box gold, lit"], ["#e0b54a", "Item box gold"], ["#c99a2e", "Item box gold, shaded"]]],
     ["Signals", [["#5ad15a", "Green: shift light, good tyres"], ["#f5c542", "Yellow: worn tyres"], ["#e8483a", "Red: shift light, bad tyres"], ["#4f7dff", "Blue: shift light, limiter"], ["#ff5522", "Hazard orange: cone, warnings"], ["#a45cff", "Fastest lap purple"]]],
     ["Poster", [["#c81d25", "Poster red"], ["#ffd23f", "Poster gold, buttons"], ["#3ddc84", "Go green, primary button"], ["#111111", "Ink"], ["#e08a3c", "Bronze, 3rd and below"]]],
     ["World", [["#87ceeb", "Sky"], ["#6b6b78", "Asphalt"], ["#5cb04a", "Grass"], ["#e8c773", "Sand"], ["#d63b2e", "Kerb red"], ["#2b2e33", "Carbon"], ["#1c1c1e", "Tyre"], ["#3a3d42", "Rim"]]],
@@ -1108,11 +1209,28 @@
   const slot = (item, firing) => `<div class="bevel slot${firing ? " firing" : ""}">${item ? pixels(SPRITES[item], SPRITE_PALETTE) : ""}</div>`;
   document.getElementById("slots").innerHTML = slot(null) + slot("boost") + slot("hazard") + slot("homing") + slot("boost", true);
   const lights = (lit, limiter) => `<div class="lights">${Array.from({ length: 12 }, (_, i) => `<i class="light ${limiter ? "b" : i < lit ? ["g", "r", "b"][Math.floor((i * 3) / 12)] : ""}"></i>`).join("")}</div>`;
-  const cluster = (gear, kmh, lit, limiter) => `<div class="cluster">${lights(lit, limiter)}<div class="bevel gear"${limiter ? ' style="background:#fff"' : ""}>${gear}</div><div class="speed"><b>${kmh}</b><span>KM/H</span></div><div class="tyre lv follows">${draw.tyreNew()}<span>100%</span></div></div>`;
+  const cluster = (gear, kmh, lit, limiter) => `<div class="cluster">${lights(lit, limiter)}<div class="bevel gear"${limiter ? ' style="background:#fff"' : ""}>${gear}</div><div class="speed"><b>${kmh}</b><span>KM/H</span></div><div class="tyre">${draw.tyreNow()}<span>100%</span></div></div>`;
   document.getElementById("clusters").innerHTML = cluster(4, 87, 7, false) + cluster(6, 112, 12, true);
 
-  const standings = () => [0, 3, 1].map((k, i) => `<li style="--key:${hex(LIVERIES[k].key)}"><b>${["1ST", "2ND", "3RD"][i]}</b><i></i>${NICKS[k]}</li>`).join("");
-  document.getElementById("standNew").innerHTML = standings();
+  // The aligned panel: the same readouts on plates, with polygons where the pixels were.
+  const slot2 = (item, firing) => `<span class="pl"><span class="pf ${firing ? "t-flash" : "t-gold"} slot2">${item ? draw[item]() : ""}</span></span>`;
+  document.getElementById("slots2").innerHTML = slot2(null) + slot2("snailNew") + slot2("coneNew") + slot2("gullNew") + slot2("snailNew", true);
+  const hexLights = (lit, limiter) => `<svg class="lights2" viewBox="0 0 156 14" aria-hidden="true">${Array.from({ length: 12 }, (_, i) =>
+    facets(6, 6.5 + i * 13, 7, 6.2, TONES[limiter ? "blue" : i < lit ? ["green", "red", "blue"][Math.floor((i * 3) / 12)] : "off"])).join("")}</svg>`;
+  const cluster2 = (gear, kmh, lit, limiter) => `<div class="cluster">${hexLights(lit, limiter)}<span class="pl"><span class="pf ${limiter ? "t-white" : "t-carbon"} gear2">${gear}</span></span><div class="speed"><b>${kmh}</b><span class="lab">KM/H</span></div><div class="tyre2 lv follows">${topCar()}<span>100%</span></div></div>`;
+  document.getElementById("clusters2").innerHTML = cluster2(4, 87, 7, false) + cluster2(6, 112, 12, true);
+
+  // A flag folded once, lit on the left half; chequered once its lap is done.
+  const lapFlag = (done) => `<svg viewBox="0 0 14 14" aria-hidden="true"><rect x="1" y="1" width="1.4" height="12.5" fill="#e3e6ea"/>
+    ${poly([[2.4, 1], [8, 2.2], [8, 8.4], [2.4, 7.2]], done ? "url(#cq2)" : TONES.off[0])}${poly([[8, 2.2], [13.4, 1], [13.4, 7.2], [8, 8.4]], done ? "url(#cq2)" : TONES.off[2])}
+    ${done ? poly([[8, 2.2], [13.4, 1], [13.4, 7.2], [8, 8.4]], "rgb(0 0 0 / 0.28)") : ""}</svg>`;
+  document.getElementById("stack2").innerHTML = `<span class="pl"><span class="pf t-livery posp">1<small>ST</small></span></span>
+    <span class="pl"><span class="pf t-carbon line2"><span class="lab">LAP</span><span class="flags2">${lapFlag(true)}${lapFlag(true)}${lapFlag(false)}</span></span></span>
+    <span class="pl"><span class="pf t-carbon line2"><span class="lab">TIME</span>0'27"304</span></span>
+    <span class="pl"><span class="pf t-carbon line2 small"><span class="lab">BEST</span>-'--"---</span></span>`;
+
+  const chip = (k) => `<span class="chip3"><i style="background:${hex(LIVERIES[k].p)}"></i><i style="background:${hex(LIVERIES[k].s)}"></i><i style="background:${hex(LIVERIES[k].a)}"></i></span>`;
+  document.getElementById("standNew").innerHTML = [0, 3, 1].map((k, i) => `<li><span class="pl"><span class="pf ${i === 0 ? "t-gold" : "t-carbon"}"><b>${["1ST", "2ND", "3RD"][i]}</b>${chip(k)}${NICKS[k]}</span></span></li>`).join("");
 
   document.getElementById("board").innerHTML = [[0, "1st", "0'26\"912", true], [3, "2nd", "0'27\"118", false], [1, "3rd", "0'27\"304", false], [5, "4th", "Not finished", false]].map(([k, p, t, fast], i) =>
     `<li class="${i === 0 ? "you" : ""}"><span>${p}</span><span class="chip3"><i style="background:${hex(LIVERIES[k].p)}"></i><i style="background:${hex(LIVERIES[k].s)}"></i><i style="background:${hex(LIVERIES[k].a)}"></i></span><span>${NICKS[k]} ${fast ? '<span class="badge">Fastest lap</span>' : ""}</span><span>${t}</span></li>`).join("");
@@ -1174,6 +1292,7 @@
 <!-- Shared portrait parts from the base mockup; the eyes take the build's fixed iris. -->
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
   <defs>
+    <pattern id="cq2" width="3" height="3" patternUnits="userSpaceOnUse"><rect width="3" height="3" fill="#fff"/><rect width="1.5" height="1.5" fill="#111"/><rect x="1.5" y="1.5" width="1.5" height="1.5" fill="#111"/></pattern>
     <g id="suit">
       <polygon points="10,280 38,224 96,206 144,206 202,224 230,280" fill="var(--p)"/>
       <polygon points="10,280 38,224 96,206 80,280" fill="var(--p-lt)"/>
