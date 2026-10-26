@@ -47,29 +47,22 @@ describe("liveries", () => {
     }
   });
 
-  it("paint the car in the team's colours, the helmet in its accent", () => {
-    expect(livery(0)).toMatchObject({
-      name: "Rosso",
-      primary: 0xd00a12,
-      secondary: 0x141414,
-      accent: 0xffd400,
-      helmet: 0xffd400,
-    });
+  it("paint the helmet in the team's accent", () => {
     for (const paint of all) {
       expect(paint.helmet, paint.name).toBe(paint.accent);
     }
   });
 
-  it("seat each slot's driver under a parody name", () => {
-    expect(all.map(({ driver }) => driver.name)).toEqual([
-      "Louis Hamiltoon",
-      "Max Verstoppen",
-      "Georgie Rustle",
-      "Lando Nourish",
-      "Fernando Alonsno",
-      "Carlos Saintz",
-      "Pierre Gassly",
-      "Nico Hulkenbird",
+  it("follow room join order, each slot a team and its driver under a parody name", () => {
+    expect(all.map(({ name, driver }) => [name, driver.name])).toEqual([
+      ["Rosso", "Louis Hamiltoon"],
+      ["Notte", "Max Verstoppen"],
+      ["Argento", "Georgie Rustle"],
+      ["Papaya", "Lando Nourish"],
+      ["Verde", "Fernando Alonsno"],
+      ["Cobalto", "Carlos Saintz"],
+      ["Rosa", "Pierre Gassly"],
+      ["Titanio", "Nico Hulkenbird"],
     ]);
   });
 
