@@ -3,9 +3,10 @@
 ## Status
 
 Accepted (2026-10-26). Supersedes ADR 0023's "Times print in the racer's
-notation at the sim's precision" for the running clock only: TIME prints
-tenths while the own kart is racing. BEST, a finished kart's TIME, the
-finish standings and the Results Scene keep the sim's precision.
+notation at the sim's precision" for the running clock only, the lap time
+TIME shows while a lap runs: it prints tenths while the own kart is
+racing. BEST, a finished kart's TIME, the finish standings and the Results
+Scene keep the sim's precision.
 
 ## Context
 

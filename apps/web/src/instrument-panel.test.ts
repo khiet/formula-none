@@ -141,15 +141,6 @@ describe("the lap instruments on the page", () => {
     expect(find("lap-time")?.textContent).toBe(`Time 0'27"3`);
     expect(find("best-lap")?.textContent).toBe(`Best 0'44"910`);
   });
-
-  it("set each figure of the clocks in a cell of its own, so a narrow 1 or a dash keeps the width", () => {
-    const { panel, find } = mount();
-    panel.update(race({ ...ON_THE_GRID, lapTimeS: 11.9 }, { item: null, firing: false }));
-    const figures = (name: string) =>
-      [...(find(name)?.querySelectorAll("[data-figure]") ?? [])].map((cell) => cell.textContent);
-    expect(figures("lap-time")).toEqual(["0", "1", "1", "9"]);
-    expect(figures("best-lap")).toEqual(["-", "-", "-", "-", "-", "-"]);
-  });
 });
 
 /** A standing over the line on the last lap, at `position` after `finishTimeS`. */

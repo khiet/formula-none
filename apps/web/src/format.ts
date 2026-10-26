@@ -27,8 +27,8 @@ export function ordinal(position: number): string {
  * thousandths as 1'15"457 (ADR 0023).
  */
 export function formatLapTime(seconds: number): string {
-  const { minutes, wholeSeconds, milliseconds } = clockParts(seconds);
-  return `${minutes}'${wholeSeconds}"${String(milliseconds).padStart(3, "0")}`;
+  const { minutes, paddedSeconds, milliseconds } = clockParts(seconds);
+  return `${minutes}'${paddedSeconds}"${String(milliseconds).padStart(3, "0")}`;
 }
 
 /**
@@ -37,8 +37,8 @@ export function formatLapTime(seconds: number): string {
  * would print, so the running clock never reads ahead of the final time.
  */
 export function formatRunningLapTime(seconds: number): string {
-  const { minutes, wholeSeconds, milliseconds } = clockParts(seconds);
-  return `${minutes}'${wholeSeconds}"${Math.floor(milliseconds / 100)}`;
+  const { minutes, paddedSeconds, milliseconds } = clockParts(seconds);
+  return `${minutes}'${paddedSeconds}"${Math.floor(milliseconds / 100)}`;
 }
 
 /** `seconds` rounded to the millisecond, as whole minutes, two-digit seconds and milliseconds. */
@@ -48,7 +48,7 @@ function clockParts(seconds: number) {
   const rest = wholeMilliseconds - minutes * 60_000;
   const wholeSeconds = Math.floor(rest / 1000);
   const milliseconds = rest - wholeSeconds * 1000;
-  return { minutes, wholeSeconds: String(wholeSeconds).padStart(2, "0"), milliseconds };
+  return { minutes, paddedSeconds: String(wholeSeconds).padStart(2, "0"), milliseconds };
 }
 
 /** Metres per second as kilometres per hour, keeping the sign. */
