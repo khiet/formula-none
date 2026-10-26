@@ -260,12 +260,12 @@ describe("createServerRace", () => {
   it("reads the race clock from the prediction and the lap clocks from the events", () => {
     const client = fakeClient();
     const run = createServerRace(bridge, client, COUNTDOWN, 0, "{}");
-    prediction().clock = { kind: "racing", elapsedSeconds: 50, graceLeftSeconds: null };
+    prediction().clock = { kind: "racing", elapsedSeconds: 50, capLeftSeconds: null };
     client.snapshot(snapshot(180 + 60 * 50, [{ racePosition: 2, lap: 2, wrongWay: true }]));
     expect(run.readout().phase).toEqual({
       kind: "racing",
       elapsedSeconds: 50,
-      graceLeftSeconds: null,
+      capLeftSeconds: null,
     });
     client.event(lap(1, 0, 41.5));
     const standing = run.readout().standings[0];
@@ -286,7 +286,7 @@ describe("createServerRace", () => {
   it("finishes on the results, whose standings replace the snapshot's and stop the lap clock", () => {
     const client = fakeClient();
     const run = createServerRace(bridge, client, COUNTDOWN, 0, "{}");
-    prediction().clock = { kind: "racing", elapsedSeconds: 130, graceLeftSeconds: null };
+    prediction().clock = { kind: "racing", elapsedSeconds: 130, capLeftSeconds: null };
     client.snapshot(snapshot(180 + 60 * 130));
     client.event(lap(1, 0, 41.5));
     client.event(lap(2, 0, 40));

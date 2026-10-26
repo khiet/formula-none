@@ -140,8 +140,8 @@ export function createServerRace(
   };
   const phase = (): Phase => {
     if (results !== undefined) return { kind: "finished" };
-    // The prediction's clock never counts the grace, which is the
-    // server's; the panel shows nothing of it.
+    // The prediction's clock never counts the cap or the outro, which are
+    // the server's: its results come once the outro is over.
     return prediction.phase();
   };
   /** The newest snapshot's hazards, one a kart trails drawn behind it at `karts`. */

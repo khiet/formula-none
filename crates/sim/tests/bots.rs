@@ -387,30 +387,18 @@ fn a_scripted_perfect_driver_beats_all_seven_bots() {
 }
 
 #[test]
-fn a_scripted_idle_driver_is_last_when_a_bot_finishes_and_the_race_ends() {
+fn a_scripted_idle_driver_is_last_behind_all_seven_bots_and_holds_the_race_open() {
     let (order, state) = race_against_seven_bots(None, RACE_S);
     assert_eq!(order[7], 0, "finishing order by grid slot: {order:?}");
-    assert_eq!(
-        state.phase(),
-        Phase::Finished,
-        "the race ended within {RACE_S} s"
-    );
     let standings = state.standings();
     assert!(
-        standings[1..].iter().any(|s| s.finish_time_s.is_some()),
-        "a bot finished its laps"
+        standings[1..].iter().all(|s| s.finish_time_s.is_some()),
+        "every bot finished its laps"
     );
-    // The race ends the tuned grace after the first finisher; no bot is so
-    // far behind that it is still short of its last lap then.
     assert!(
-        standings[1..]
-            .iter()
-            .all(|s| s.laps_completed >= LAPS_PER_RACE - 1),
-        "every bot is on its last lap or finished: {:?}",
-        standings
-            .iter()
-            .map(|s| s.laps_completed)
-            .collect::<Vec<_>>()
+        matches!(state.phase(), Phase::Racing { .. }),
+        "only the human ends the race: {:?}",
+        state.phase()
     );
     assert_eq!(standings[0].laps_completed, 0);
     assert_eq!(standings[0].position, 8);
@@ -472,14 +460,15 @@ fn a_bot_held_by_a_wall_backs_up_and_drives_on() {
 
 #[test]
 fn a_humans_kart_handed_to_a_bot_drives_itself_until_handed_back() {
-    let mut state = started(State::with_bots(SEED, 1, 0, oval()));
+    // The second human, idle on the grid, holds the race open.
+    let mut state = started(State::with_bots(SEED, 2, 0, oval()));
     let grid = state.kart_readouts()[0];
     state.hand_to_bot(0);
     assert!(state.is_bot(0));
-    assert_eq!(state.human_count(), 1, "the kart is still the human's");
+    assert_eq!(state.human_count(), 2, "the kart is still the human's");
 
     // The human's idle input is still given, and ignored: the bot drives.
-    let state = idle_humans(state, 1, 3.0);
+    let state = idle_humans(state, 2, 3.0);
     let driven = state.kart_readouts()[0];
     assert!(
         driven.position[2] < grid.position[2] - 30.0 && driven.speed > 20.0,
@@ -498,7 +487,7 @@ fn a_humans_kart_handed_to_a_bot_drives_itself_until_handed_back() {
     let mut state = state;
     state.hand_back(0);
     assert!(!state.is_bot(0));
-    let state = idle_humans(state, 1, 6.0);
+    let state = idle_humans(state, 2, 6.0);
     assert!(
         state.kart_readouts()[0].speed.abs() < 0.5,
         "the kart coasted to a stop at {} m/s",

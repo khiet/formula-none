@@ -15,22 +15,33 @@ v1; the livery and the nickname floating over it tell one from another.
 ### bot
 
 The driver inside the sim for a kart no human drives: the slots humans leave
-empty at Start, and a human's kart once they disconnect or the race ends
-without them. A bot reads only what any observer of the race can, the track
+empty at Start, a human's kart once they disconnect or go silent, and a
+finished kart until the race ends. A bot reads only what any observer of the race can, the track
 and the karts' transforms and standings, and answers with the same input
 struct a human's controller produces. Bots start on the grid behind the
 humans.
 
 ### phase
 
-Where a race is: Countdown, Racing or Finished. Sim state, stepped like
-every other rule, so a solo race in the browser and a room on the server
-run the same lifecycle. Countdown holds the karts on the grid for the 3-2-1
-count, during which the throttle sets up the rocket start. Racing runs the
-laps and ends 20 s after the first finisher or when every kart has
-finished; the unfinished are placed by progress at that point. Finished
-freezes the standings as the results. A room's Countdown and Racing states
-follow the race's phase, and its Results state its Finished.
+Where a race is: Countdown, Racing, Outro or Finished. Sim state, stepped
+like every other rule, so a solo race in the browser and a room on the
+server run the same lifecycle. Countdown holds the karts on the grid for
+the 3-2-1 count, during which the throttle sets up the rocket start.
+Racing runs the laps and ends when every human's kart has finished or is
+driven by a bot, or 60 s after the first human finished; the unfinished
+are placed by progress at that point and the standings become the
+results. Outro holds the Race View for 3 s with a bot driving every kart.
+Finished leaves the race as it is. A room's Countdown and Racing states
+follow the race's phase, its Racing state covering the Outro too, and its
+Results state its Finished (ADR 0032).
+
+### finished
+
+A kart past the line on its last lap. Its finish time and place are final,
+it counts no more laps, and a bot drives it until the race ends, taking
+and firing no items; its human's inputs are ignored. A finished player
+sees the FINISH banner with their place and the finishers so far in place
+of the lap readout.
 
 ### rocket start
 

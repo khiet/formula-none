@@ -23,7 +23,7 @@ const FLOATS_PER_INPUT: usize = 6;
 /// rotation quaternion x, y, z, w. Y is up; identity rotation faces -Z.
 pub const FLOATS_PER_TRANSFORM: usize = 7;
 
-/// Written in the phase buffer where the grace has not started; a time is
+/// Written in the phase buffer where the cap has not started; a time is
 /// never negative.
 const NO_TIME: f32 = -1.0;
 
@@ -253,11 +253,11 @@ impl Race {
     }
 
     /// Three floats for where the race is (`sim::Phase`): the phase as
-    /// `sim::Phase::code` (0 countdown, 1 racing, 2 finished); then the
-    /// countdown's seconds to Go, or the race clock in seconds while racing,
-    /// or 0 once finished; then the seconds left of the grace after the
-    /// first finisher, or -1 before anyone has finished and once the race
-    /// is over.
+    /// `sim::Phase::code` (0 countdown, 1 racing, 2 outro, 3 finished);
+    /// then the countdown's seconds to Go, or the race clock in seconds
+    /// while racing, or the outro's seconds left, or 0 once finished; then
+    /// the seconds left of the cap after the first human's finish, or -1
+    /// before it has started and once the race has ended.
     pub fn phase(&self) -> Vec<f32> {
         phase_floats(self.state().phase()).to_vec()
     }
@@ -454,13 +454,13 @@ fn projectile_floats(projectiles: &[Projectile]) -> Vec<f32> {
 
 /// The three floats `Race::phase` documents.
 fn phase_floats(phase: Phase) -> [f32; 3] {
-    let (seconds, grace_left_s) = match phase {
-        Phase::Countdown { remaining_s } => (remaining_s, NO_TIME),
+    let (seconds, cap_left_s) = match phase {
+        Phase::Countdown { remaining_s } | Phase::Outro { remaining_s } => (remaining_s, NO_TIME),
         Phase::Racing {
             elapsed_s,
-            grace_left_s,
-        } => (elapsed_s, grace_left_s.unwrap_or(NO_TIME)),
+            cap_left_s,
+        } => (elapsed_s, cap_left_s.unwrap_or(NO_TIME)),
         Phase::Finished => (0.0, NO_TIME),
     };
-    [f32::from(phase.code()), seconds, grace_left_s]
+    [f32::from(phase.code()), seconds, cap_left_s]
 }

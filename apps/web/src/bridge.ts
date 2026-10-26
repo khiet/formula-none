@@ -81,16 +81,19 @@ export interface Projectile {
 /**
  * Where the race is, as the sim's `Phase` has it: the countdown holding the
  * karts on the grid with the seconds to Go, the race with its clock and,
- * once the first kart has finished, the seconds of grace left before the
- * race ends, or finished, when the standings are the results.
+ * once the first human has finished, the seconds of the cap left before the
+ * race ends whoever is racing, the outro with its seconds left, a bot
+ * driving every kart once the race has ended, or finished, when the
+ * standings are the results.
  */
 export type Phase =
   | { readonly kind: "countdown"; readonly remainingSeconds: number }
   | {
       readonly kind: "racing";
       readonly elapsedSeconds: number;
-      readonly graceLeftSeconds: number | null;
+      readonly capLeftSeconds: number | null;
     }
+  | { readonly kind: "outro"; readonly remainingSeconds: number }
   | { readonly kind: "finished" };
 
 export interface Race {
@@ -285,7 +288,7 @@ const FLOATS_PER_HAZARD = 5;
 const FLOATS_PER_PROJECTILE = 5;
 const FLOATS_PER_PHASE = 3;
 /** Phase codes in the phase buffer, in the sim's order. */
-const PHASES = ["countdown", "racing", "finished"] as const;
+const PHASES = ["countdown", "racing", "outro", "finished"] as const;
 
 /** One kart's readout less its transform, and the surface under it, as the bridge pairs them. */
 type ReadoutPair = [SimKartReadout, Surface];
@@ -548,21 +551,22 @@ function readoutsFrom(transforms: Float32Array, pairs: readonly ReadoutPair[]): 
 
 /** The phase the three floats of a phase buffer describe. */
 function phaseFrom(buffer: Float32Array): Phase {
-  const [code, seconds, grace] = buffer;
+  const [code, seconds, cap] = buffer;
   if (
     buffer.length !== FLOATS_PER_PHASE ||
     code === undefined ||
     seconds === undefined ||
-    grace === undefined
+    cap === undefined
   ) {
     throw new RangeError(`phase buffer has ${buffer.length} floats`);
   }
   const kind = PHASES[code];
   switch (kind) {
     case "countdown":
+    case "outro":
       return { kind, remainingSeconds: seconds };
     case "racing":
-      return { kind, elapsedSeconds: seconds, graceLeftSeconds: timeOrNull(grace) };
+      return { kind, elapsedSeconds: seconds, capLeftSeconds: timeOrNull(cap) };
     case "finished":
       return { kind };
     default:
@@ -570,7 +574,7 @@ function phaseFrom(buffer: Float32Array): Phase {
   }
 }
 
-/** The bridge writes a negative time where there is none yet: no best lap, no finish, no grace. */
+/** The bridge writes a negative time where there is none yet: no best lap, no finish, no cap. */
 function timeOrNull(seconds: number): number | null {
   return seconds < 0 ? null : seconds;
 }

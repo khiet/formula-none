@@ -281,6 +281,29 @@
         transform: translate(-50%, -50%);
         font-size: 8rem;
       }
+      [data-instrument="finish"] {
+        position: fixed;
+        top: 30%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        font-size: 6rem;
+        color: #ffd23c;
+        white-space: nowrap;
+      }
+      [data-instrument="standings"] {
+        position: fixed;
+        top: 42%;
+        left: 50%;
+        transform: translateX(-50%);
+        margin: 0;
+        padding: 0.4em 0.8em;
+        list-style: none;
+        font-size: calc(var(--hud) * 1.8);
+        line-height: 1.4;
+        color: #fff;
+        background: rgb(0 0 0 / 0.55);
+        white-space: nowrap;
+      }
       /* The warning, the firing flash and the limiter hold steady for a driver who asked for less motion. */
       @media (prefers-reduced-motion: reduce) {
         [data-instrument="wrong-way"],

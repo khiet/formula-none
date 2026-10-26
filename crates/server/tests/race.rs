@@ -18,7 +18,7 @@ use server::fake_transport::{Client, Conditions, Harness, TRACK};
 use server::room::Started;
 use sim::tuning::{
     BOT_START_HOLD_S, COUNTDOWN_S, INPUT_QUEUE_MAX_TICKS, INPUT_QUEUE_START_TICKS, KARTS_PER_RACE,
-    RACE_END_GRACE_S, SNAPSHOTS_PER_SECOND, TICKS_PER_SECOND,
+    RACE_OUTRO_S, SNAPSHOTS_PER_SECOND, TICKS_PER_SECOND,
 };
 
 const TICKS_PER_SNAPSHOT: u32 = TICKS_PER_SECOND / SNAPSHOTS_PER_SECOND;
@@ -398,39 +398,120 @@ async fn events_are_never_lost_on_a_lossy_link_and_every_id_is_distinct() {
     );
 }
 
-#[tokio::test(start_paused = true)]
-async fn the_race_ends_the_tuned_grace_after_the_first_finisher_and_the_results_place_everyone() {
-    let mut harness = Harness::new(Conditions::PERFECT);
-    let (code, mut players, _) = racing_room(&mut harness, 1).await;
-    let player = &mut players[0];
+/// What one player heard of a race until its results: every event on the
+/// reliable lane with the tick of the newest snapshot when it came, the
+/// results, and the newest snapshot's tick when they came.
+struct Raced {
+    events: Vec<(u32, Event)>,
+    results: Vec<protocol::FinalStanding>,
+    results_tick: u32,
+}
 
-    // The idle human watches seven bots race; the first to finish starts
-    // the grace, and the results come when it runs out.
-    let mut first_finish_tick = None;
-    let mut last_tick = 0;
-    let results = loop {
-        match player.recv().await.unwrap() {
-            ServerMessage::Events(events) => {
-                for event in events {
-                    if let EventKind::Finished { position: 1, .. } = event.kind {
-                        assert_eq!(first_finish_tick, None, "one first finisher");
-                        first_finish_tick = Some(last_tick);
+impl Raced {
+    fn highest_id(&self) -> u32 {
+        self.events
+            .iter()
+            .map(|(_, event)| event.id)
+            .max()
+            .unwrap_or(0)
+    }
+
+    /// The tick each human `kart` finished at, as this player heard it.
+    fn finish_tick(&self, kart: u8) -> Option<u32> {
+        self.events
+            .iter()
+            .find_map(|&(tick, event)| match event.kind {
+                EventKind::Finished { kart: finisher, .. } if finisher == kart => Some(tick),
+                _ => None,
+            })
+    }
+}
+
+/// Each of `players`, the kart of its index, drives the bots' line from
+/// `set_off_s[index]` seconds after Go until the results reach it, sending
+/// an input a tick as the browser does. Whatever comes after the results
+/// is left unread.
+async fn drive_to_results(players: &mut [Client], set_off_s: &[f32]) -> Vec<Raced> {
+    const DEADLINE_S: f32 = 240.0;
+    let tick = Duration::from_nanos(1_000_000_000 / u64::from(TICKS_PER_SECOND));
+    let track = sim::Track::from_sidecar(OVAL_SIDECAR).expect("the oval fixture loads");
+    let count = players.len();
+    let mut events: Vec<Vec<(u32, Event)>> = vec![Vec::new(); count];
+    let mut newest: Vec<Option<Snapshot>> = vec![None; count];
+    let mut raced: Vec<Option<Raced>> = (0..count).map(|_| None).collect();
+    let mut sequences = vec![0; count];
+    let mut ticks = tokio::time::interval(tick);
+    while raced.iter().any(Option::is_none) {
+        ticks.tick().await;
+        for (index, player) in players.iter_mut().enumerate() {
+            while raced[index].is_none() {
+                let Some(message) = player.try_recv() else {
+                    break;
+                };
+                let at = newest[index].as_ref().map_or(0, |snapshot| snapshot.tick);
+                match message {
+                    ServerMessage::Snapshot(snapshot) => newest[index] = Some(snapshot),
+                    ServerMessage::Events(heard) => {
+                        events[index].extend(heard.into_iter().map(|event| (at, event)));
                     }
+                    ServerMessage::Results { standings } => {
+                        raced[index] = Some(Raced {
+                            events: std::mem::take(&mut events[index]),
+                            results: standings,
+                            results_tick: at,
+                        });
+                    }
+                    _ => {}
                 }
             }
-            ServerMessage::Snapshot(snapshot) => last_tick = snapshot.tick,
-            ServerMessage::Results { standings } => break standings,
-            ServerMessage::Room(room) => assert_eq!(room.state, RoomState::Racing),
-            other => panic!("unexpected {other:?}"),
+            let Some(snapshot) = &newest[index] else {
+                continue;
+            };
+            let elapsed = seconds(snapshot.tick);
+            assert!(
+                elapsed < DEADLINE_S,
+                "the race did not end in {DEADLINE_S} s"
+            );
+            if raced[index].is_some() || elapsed < COUNTDOWN_S + set_off_s[index] {
+                continue;
+            }
+            sequences[index] += 1;
+            let input = common::follow_the_line(&track, &snapshot.karts[index]);
+            player.send_input(common::wire(sequences[index], input));
         }
-    };
-    let first_finish_tick = first_finish_tick.expect("a bot finished");
-    let ended_after = seconds(last_tick - first_finish_tick);
-    assert!(
-        (ended_after - RACE_END_GRACE_S).abs() <= 1.0,
-        "the race ended {ended_after} s after the first finisher"
-    );
+    }
+    raced.into_iter().map(Option::unwrap).collect()
+}
 
+#[tokio::test(start_paused = true)]
+async fn a_room_of_two_gets_its_results_only_once_both_humans_have_finished_and_the_outro_has_run()
+{
+    let mut harness = Harness::new(Conditions::PERFECT);
+    let (code, mut players, _) = racing_room(&mut harness, 2).await;
+
+    // The second human sets off well behind the first.
+    let raced = drive_to_results(&mut players, &[0.0, 20.0]).await;
+    let heard = &raced[0];
+    let first = heard.finish_tick(0).expect("the first human finished");
+    let last = heard.finish_tick(1).expect("the second human finished");
+    assert!(
+        seconds(last - first) > 2.0 * RACE_OUTRO_S,
+        "the humans finished {} s apart",
+        seconds(last - first)
+    );
+    let after_the_last = seconds(heard.results_tick - last);
+    assert!(
+        (after_the_last - RACE_OUTRO_S).abs() <= 0.5,
+        "the results came {after_the_last} s after the last human finished"
+    );
+    for other in &raced[1..] {
+        assert_eq!(
+            other.results, heard.results,
+            "everyone gets the same results"
+        );
+    }
+
+    let results = &heard.results;
     assert_eq!(results.len(), KARTS_PER_RACE);
     assert_eq!(
         results
@@ -440,59 +521,35 @@ async fn the_race_ends_the_tuned_grace_after_the_first_finisher_and_the_results_
         (1..=KARTS_PER_RACE as u8).collect::<Vec<_>>(),
         "in finishing order"
     );
-    assert!(
-        results[0].finish_time_s.is_some() && results[0].kart != 0,
-        "a bot won: {:?}",
-        results[0]
-    );
-    let human = results.iter().find(|standing| standing.kart == 0).unwrap();
-    assert_eq!(
-        human.position, KARTS_PER_RACE as u8,
-        "the idle human is last"
-    );
-    assert_eq!(
-        human.finish_time_s, None,
-        "placed by progress, not finished"
-    );
-    assert_eq!(human.best_lap_s, None);
-    assert!(
-        results
+    for human in [0, 1] {
+        let standing = results
             .iter()
-            .filter(|standing| standing.finish_time_s.is_some())
-            .all(|standing| standing.best_lap_s.is_some()),
-        "a finisher has a best lap"
-    );
+            .find(|standing| standing.kart == human)
+            .unwrap();
+        assert!(standing.finish_time_s.is_some() && standing.best_lap_s.is_some());
+    }
+    // Finishers first, then whoever was still racing, placed by progress.
+    let finished = results
+        .iter()
+        .take_while(|standing| standing.finish_time_s.is_some())
+        .count();
+    assert!(results[finished..]
+        .iter()
+        .all(|standing| standing.finish_time_s.is_none()));
 
-    // The room shows Results and the player is Finished.
-    let room = player.next_room().await.unwrap();
-    assert_eq!(room.state, RoomState::Results);
-    assert_eq!(room.players[0].state, PlayerState::Finished);
+    // The room shows Results and both players are Finished.
+    for player in &mut players {
+        let room = player.next_room().await.unwrap();
+        assert_eq!(room.state, RoomState::Results);
+        assert!(room
+            .players
+            .iter()
+            .all(|player| player.state == PlayerState::Finished));
+    }
     assert_eq!(
         harness.rooms().view(&code).unwrap().state,
         RoomState::Results
     );
-}
-
-/// Everything until the Results, as one idle player sees them: the highest
-/// event id on the reliable lane and the standings.
-async fn results_of(player: &mut Client) -> (u32, Vec<protocol::FinalStanding>) {
-    let mut highest_id = 0;
-    loop {
-        match player
-            .recv()
-            .await
-            .expect("the race goes on to its results")
-        {
-            ServerMessage::Events(events) => {
-                highest_id = events
-                    .iter()
-                    .map(|event| event.id)
-                    .fold(highest_id, u32::max);
-            }
-            ServerMessage::Results { standings } => return (highest_id, standings),
-            _ => {}
-        }
-    }
 }
 
 #[tokio::test(start_paused = true)]
@@ -533,9 +590,9 @@ async fn a_humans_inputs_drive_their_kart_through_the_first_gate() {
 async fn rematch_restarts_with_the_same_room_and_players_and_a_newcomer_joins_between_races() {
     let mut harness = Harness::new(Conditions::PERFECT);
     let (code, mut players, first) = racing_room(&mut harness, 2).await;
-    let mut highest_id = 0;
+    let raced = drive_to_results(&mut players, &[0.0, 0.0]).await;
+    let highest_id = raced.iter().map(Raced::highest_id).max().unwrap();
     for player in players.iter_mut() {
-        highest_id = results_of(player).await.0;
         let room = player.next_room().await.unwrap();
         assert_eq!(room.state, RoomState::Results);
     }
@@ -605,12 +662,15 @@ async fn a_player_who_leaves_mid_race_frees_their_seat_at_the_results_and_the_re
     assert_eq!(room.players.len(), 2);
     assert_eq!(room.players[1].state, PlayerState::Disconnected);
 
-    let (_, results) = results_of(&mut players[0]).await;
+    let results = drive_to_results(&mut players, &[0.0])
+        .await
+        .remove(0)
+        .results;
     assert_eq!(results.len(), KARTS_PER_RACE);
     let left = results.iter().find(|standing| standing.kart == 1).unwrap();
     assert!(
-        left.finish_time_s.is_some(),
-        "the bot drove the left kart to the finish: {left:?}"
+        left.best_lap_s.is_some(),
+        "the bot drove the left kart on round the laps: {left:?}"
     );
     let room = players[0].next_room().await.unwrap();
     assert_eq!(room.state, RoomState::Results);
@@ -621,7 +681,7 @@ async fn a_player_who_leaves_mid_race_frees_their_seat_at_the_results_and_the_re
 async fn a_room_whose_finishers_all_leave_can_still_start_from_results() {
     let mut harness = Harness::new(Conditions::PERFECT);
     let (code, mut players, _) = racing_room(&mut harness, 1).await;
-    results_of(&mut players[0]).await;
+    drive_to_results(&mut players, &[0.0]).await;
     players[0].next_room().await.unwrap();
 
     // The newcomer joins while the room shows Results; the finisher leaves

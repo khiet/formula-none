@@ -38,7 +38,7 @@ describe("race phase", () => {
     }
     expect(ticks).toBeGreaterThanOrEqual(180);
     expect(ticks).toBeLessThanOrEqual(181);
-    expect(race.phase()).toEqual({ kind: "racing", elapsedSeconds: 0, graceLeftSeconds: null });
+    expect(race.phase()).toEqual({ kind: "racing", elapsedSeconds: 0, capLeftSeconds: null });
     expect(race.kartReadouts().map((kart) => kart.speed)).toEqual([0, 0]);
     expect(race.standings().map((kart) => kart.lapTimeS)).toEqual([0, 0]);
     expect(race.standings().map((kart) => kart.finishTimeS)).toEqual([null, null]);
@@ -56,36 +56,40 @@ describe("race phase", () => {
     expect(bot?.speed).toBeGreaterThan(1);
   });
 
-  it("reports the grace once the bot finishes, its finish time, and the end of the race", async () => {
+  it("reports the cap from the first finish, the outro once all have finished, and the end of the race", async () => {
     const bridge = await loadBridge(wasm);
-    const race = started(bridge.createRace(7n, 1, 1, OVAL), 1);
-    // The human idles on the grid; the bot laps the oval three times.
+    // With no humans, the bots' own finishes start the cap and end the race.
+    const race = started(bridge.createRace(7n, 0, 2, OVAL), 0);
+    const finishers = () => race.standings().filter((standing) => standing.finishTimeS !== null);
     let ticks = 0;
-    while (race.standings()[1]?.finishTimeS === null) {
-      race.step([IDLE_INPUT], DT);
+    while (finishers().length === 0) {
+      race.step([], DT);
       ticks += 1;
       expect(ticks, "three laps take under 90 s").toBeLessThan(90 * 60);
     }
-    const [human, bot] = race.standings();
-    expect(bot?.lap).toBe(bridge.lapsPerRace);
-    expect(bot?.finishTimeS).toBeCloseTo(ticks * DT, 1);
-    expect(bot?.position).toBe(1);
-    expect(human?.finishTimeS).toBeNull();
+    const [first] = finishers();
+    expect(first?.lap).toBe(bridge.lapsPerRace);
+    expect(first?.finishTimeS).toBeCloseTo(ticks * DT, 1);
+    expect(first?.position).toBe(1);
     const phase = race.phase();
     expect(phase.kind).toBe("racing");
     if (phase.kind === "racing") {
-      expect(phase.graceLeftSeconds).toBeCloseTo(20, 4);
+      expect(phase.capLeftSeconds).toBeCloseTo(60, 4);
     }
 
-    // Twenty seconds of grace, with a tick for the timer's rounding.
-    for (let tick = 0; tick < 20 * 60 + 1; tick++) {
-      race.step([IDLE_INPUT], DT);
+    while (finishers().length < 2) {
+      race.step([], DT);
+    }
+    expect(race.phase()).toEqual({ kind: "outro", remainingSeconds: 3 });
+
+    // Three seconds of outro, with a tick for the timer's rounding.
+    for (let tick = 0; tick < 3 * 60 + 1; tick++) {
+      race.step([], DT);
     }
     expect(race.phase()).toEqual({ kind: "finished" });
-    expect(race.standings()[0]?.position).toBe(2);
     // Over: nothing moves however the race is stepped.
     const hash = race.stateHash();
-    race.step([THROTTLE], DT);
+    race.step([], DT);
     expect(race.stateHash()).toBe(hash);
   });
 });

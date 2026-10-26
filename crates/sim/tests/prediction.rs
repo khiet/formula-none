@@ -529,3 +529,46 @@ fn a_hold_at_a_window_edge_the_server_decides_differently_is_corrected_once_to_i
         kart.speed
     );
 }
+
+#[test]
+fn a_finished_kart_is_predicted_driven_by_its_bot_not_by_the_players_inputs() {
+    // The other human waits on the grid, holding the race open; the player
+    // laps with the bot's driving, then reverses hard on full lock.
+    let mut memory = Memory::default();
+    let mut finished_at = None;
+    let run = race_with(
+        seconds(90.0),
+        |_| false,
+        State::new(SEED, 2, oval()),
+        |prediction, tick| {
+            if prediction.standing().finish_time_s.is_some() {
+                finished_at.get_or_insert(tick);
+                return KartInput {
+                    brake: 1.0,
+                    steer: 1.0,
+                    ..KartInput::default()
+                };
+            }
+            bot::drive(
+                prediction.track(),
+                &[prediction.kart_readout()],
+                &[prediction.standing()],
+                0,
+                &mut memory,
+                DT,
+            )
+        },
+        |_| vec![KartInput::default()],
+    );
+    let finished_at = finished_at.expect("the kart finished");
+    assert!(
+        seconds(90.0) - finished_at > seconds(10.0),
+        "ten seconds past the line"
+    );
+    let kart = run.prediction.kart_readout();
+    assert!(
+        kart.speed > 0.5 * TOP_SPEED_M_PER_S,
+        "the bot drives on at {} m/s",
+        kart.speed
+    );
+}

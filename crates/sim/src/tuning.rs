@@ -102,9 +102,12 @@ pub const KARTS_PER_RACE: usize = 8;
 pub const LAPS_PER_RACE: u32 = 3;
 /// Seconds the karts are held on the grid before Go: the 3-2-1 count.
 pub const COUNTDOWN_S: f32 = 3.0;
-/// Seconds after the first finisher before the race ends, with the karts
-/// still racing placed by progress.
-pub const RACE_END_GRACE_S: f32 = 20.0;
+/// Seconds after the first human's finish before the race ends whoever is
+/// still racing, with those karts placed by progress (ADR 0032).
+pub const RACE_END_CAP_S: f32 = 60.0;
+/// Seconds the Race View holds once the race has ended, every kart driven
+/// by a bot, before the Results Scene opens.
+pub const RACE_OUTRO_S: f32 = 3.0;
 /// Seconds of decreasing spline progress before the wrong-way warning.
 pub const WRONG_WAY_WARNING_S: f32 = 2.0;
 
@@ -414,7 +417,7 @@ const _: () = {
     assert!(0.0 < BOT_ITEM_USE_DELAY_S);
     assert!(0.0 < BOT_HAZARD_HOLD_S && BOT_HAZARD_HOLD_S <= BOT_ITEM_USE_DELAY_S);
     assert!(0.0 < PREDICTED_FIRE_TIMEOUT_S);
-    assert!(0.0 < RACE_END_GRACE_S);
+    assert!(0.0 < RACE_END_CAP_S && 0.0 < RACE_OUTRO_S);
     assert!(0.0 <= CAMERA_PULL_BACK_M);
     assert!(0.0 < CAMERA_SHAKE_S && 0.0 <= CAMERA_SHAKE_AMPLITUDE_M);
     // The shake is over before the spin-out it answers to ends.

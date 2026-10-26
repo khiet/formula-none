@@ -55,8 +55,8 @@ pub struct Prediction {
     others: Vec<RigidBodyHandle>,
     /// A race with the one kart, on its own spawn slot. Its phase is the
     /// race clock at `tick` and never Finished: the server's race ends, not
-    /// this one, and a finished kart drives on until it does. `None` only
-    /// inside a step, since `step` consumes the state.
+    /// this one, and a finished kart drives on under its bot until it does.
+    /// `None` only inside a step, since `step` consumes the state.
     state: Option<State>,
     /// The server tick the predicted kart stands at.
     tick: u32,
@@ -70,9 +70,12 @@ pub struct Prediction {
     /// The server tick less the sequence applied at it, which the entries
     /// were last laid out by; `None` before an acknowledgement.
     lead: Option<u32>,
+    /// Counted only while the player drives the kart: past the line the
+    /// bot here sees no other kart, so it steers apart from the server's.
     corrections: u32,
-    /// Racing ticks predicted, which the corrections per second are read
-    /// over; the countdown holds the kart still, so it corrects nothing.
+    /// Racing ticks predicted before the finish, which the corrections per
+    /// second are read over; the countdown holds the kart still, so it
+    /// corrects nothing.
     ticks: u32,
     blend: Blend,
 }
@@ -197,7 +200,7 @@ impl Prediction {
             after: self.state().record(),
         });
         if let Phase::Racing { .. } = self.state().phase {
-            self.ticks += 1;
+            self.ticks += u32::from(!self.finished());
         }
         self.blend.ticks_left = self.blend.ticks_left.saturating_sub(1);
     }
@@ -272,7 +275,7 @@ impl Prediction {
                 * Rotation::from_array(after.rotation).inverse(),
             ticks_left: RECONCILIATION_BLEND_TICKS,
         };
-        if moved > RECONCILIATION_TOLERANCE_M {
+        if moved > RECONCILIATION_TOLERANCE_M && !self.finished() {
             self.corrections += 1;
         }
         moved
@@ -380,6 +383,11 @@ impl Prediction {
                 body.set_next_kinematic_rotation(placed.rotation);
             }
         }
+    }
+
+    /// Whether the predicted kart is past the line on its last lap.
+    fn finished(&self) -> bool {
+        self.state().karts[0].finished()
     }
 
     fn state(&self) -> &State {
