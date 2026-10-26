@@ -94,7 +94,8 @@ boost pad, sized to the sim's rectangle, plus what a layout's decor asks
 for: hoardings with the sponsors in `trackgen/sponsors.py` (invented,
 every one), and grandstands and the start gantry built from boxes to the
 asset catalog's cards. Original names only; nothing may resemble a real
-sponsor, a Nintendo character or circuit (ADR 0007).
+sponsor, a Nintendo character or circuit (ADR 0007), and no kart carries
+a sponsor (ADR 0038).
 
 The sand run-off slopes five centimetres down to the grass so no two
 surfaces share a plane, which keeps "what is under this point"

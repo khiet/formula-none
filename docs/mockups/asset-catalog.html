@@ -521,12 +521,12 @@
         </div>
       </article>
 
-      <article class="asset" data-status="check">
-        <header><span class="status check">Decide</span><h3>Sponsor hoardings</h3><code>assets/tracks/trackgen/sponsors.py</code></header>
+      <article class="asset" data-status="ok">
+        <header><span class="status ok">Aligned</span><h3>Sponsor hoardings</h3><code>assets/tracks/trackgen/sponsors.py</code></header>
         <div class="compare"><figure class="aligned"><figcaption>Brands Patch boards</figcaption><div class="stage flat" data-draw="boards"></div></figure></div>
         <div class="notes">
           <p class="why">Twelve invented joke sponsors in flat ink on white boards. They fit the cartoon parody and the flat look.</p>
-          <p class="fix"><b>Decide:</b> ADR 0035 says "No team name, crest, sponsor or race number appears in the game." Read literally, that bans these boards. Either a new ADR scopes the ban to real sponsors on cars, or the boards go.</p>
+          <p class="fix">ADR 0038 keeps invented sponsors on the scenery: no car carries a sponsor, and no real sponsor appears anywhere. The boards stay.</p>
         </div>
       </article>
 
@@ -801,7 +801,7 @@
           <tr><td class="num">9</td><td>Favicon</td><td>Pixel sticker of the crossed-out 1</td><td><code>public/favicon.svg</code></td></tr>
           <tr><td class="num">10</td><td>Room Scene</td><td>Poster treatment; needs an ADR first</td><td><code>room-scene.ts</code></td></tr>
           <tr><td class="num">11</td><td>Grandstand, gantry</td><td>Rebuild from primitives, like the kart</td><td><code>tracks/build.py:50</code></td></tr>
-          <tr><td class="num">12</td><td>Sponsor hoardings</td><td>Decide against ADR 0035's sponsor line</td><td><code>trackgen/sponsors.py</code></td></tr>
+          <tr><td class="num">12</td><td>Sponsor hoardings</td><td>Decided in ADR 0038: invented boards stay on the scenery</td><td><code>trackgen/sponsors.py</code></td></tr>
         </tbody>
       </table>
     </div>
