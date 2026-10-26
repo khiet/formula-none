@@ -419,8 +419,16 @@
         height: auto;
         overflow: visible;
       }
-      :is(#title-scene, #results-scene) .kart .body {
-        fill: var(--livery);
+      /* The lit and shaded tones of the colours poster.ts sets on each kart. */
+      :is(#title-scene, #results-scene) .kart {
+        --p-lt: color-mix(in srgb, var(--p) 72%, white);
+        --p-dk: color-mix(in srgb, var(--p) 66%, black);
+        --s-lt: color-mix(in srgb, var(--s) 78%, white);
+        --s-dk: color-mix(in srgb, var(--s) 82%, black);
+        --sk-lt: color-mix(in srgb, var(--sk) 80%, white);
+        --sk-dk: color-mix(in srgb, var(--sk) 80%, black);
+        --hair-lt: color-mix(in srgb, var(--hair) 78%, white);
+        --hair-dk: color-mix(in srgb, var(--hair) 70%, black);
       }
       /* Chunky buttons with hard shadows that press in; the way forward is green. */
       :is(#title-scene, #results-scene) button {

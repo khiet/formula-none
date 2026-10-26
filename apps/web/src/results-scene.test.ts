@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from "vitest";
 import type { Standing } from "./bridge";
-import { liveryCss } from "./livery";
+import { livery, liveryCss } from "./livery";
 import { createResultsScene, type RaceResults, resultsRows } from "./results-scene";
 
 function standing(position: number, overrides: Partial<Standing> = {}): Standing {
@@ -53,6 +53,7 @@ describe("results rows", () => {
     expect(resultsRows(results)).toEqual([
       {
         position: "1st",
+        slot: 1,
         place: 1,
         name: "Bot 2",
         livery: liveryCss(1),
@@ -63,6 +64,7 @@ describe("results rows", () => {
       },
       {
         position: "2nd",
+        slot: 2,
         place: 2,
         name: "Bot 3",
         livery: liveryCss(2),
@@ -73,6 +75,7 @@ describe("results rows", () => {
       },
       {
         position: "3rd",
+        slot: 0,
         place: 3,
         name: "You",
         livery: liveryCss(0),
@@ -177,6 +180,24 @@ describe("Results Scene", () => {
       );
     expect(places("[data-podium]")).toEqual(["1st", "2nd", "3rd"]);
     expect(places("[data-board]")).toEqual(["4th", "5th", "6th", "7th", "8th"]);
+  });
+
+  it("paints each podium kart in its finisher's palette, with that driver in the seat", () => {
+    const { container } = mount(grid(5));
+    const css = (colour: number) => `#${colour.toString(16).padStart(6, "0")}`;
+    const karts = Array.from(container.querySelectorAll<SVGElement>("[data-podium] .kart"));
+    expect(karts).toHaveLength(3);
+    karts.forEach((kart, slot) => {
+      const paint = livery(slot);
+      const colour = (name: string) => kart.style.getPropertyValue(`--${name}`);
+      expect([colour("p"), colour("s"), colour("a")]).toEqual(
+        [paint.primary, paint.secondary, paint.accent].map(css),
+      );
+      expect([colour("sk"), colour("hair")]).toEqual(
+        [paint.driver.skin, paint.driver.hairColour].map(css),
+      );
+      expect(kart.dataset.hair).toBe(paint.driver.hair);
+    });
   });
 
   it("offers Rematch and Leave, and takes itself down", () => {

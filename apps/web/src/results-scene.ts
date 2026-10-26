@@ -1,7 +1,7 @@
 import type { Standing } from "./bridge";
 import { button } from "./controls";
 import { formatLapTime, NO_LAP_TIME, ordinal } from "./format";
-import { liveryCss } from "./livery";
+import { livery, liveryCss } from "./livery";
 import { backdrop, kartSide } from "./poster";
 
 /** What the Results Scene needs from a finished race. */
@@ -17,6 +17,8 @@ export interface RaceResults {
 /** One line of the results: a kart's place, who drove it and its best lap, as printed. */
 export interface ResultRow {
   readonly position: string;
+  /** The kart's grid slot, which picks its livery and driver. */
+  readonly slot: number;
   /** The place as a number, 1 for the winner. */
   readonly place: number;
   readonly name: string;
@@ -77,6 +79,7 @@ export function resultsRows(results: RaceResults): ResultRow[] {
       const finished = standing.finishTimeS !== null;
       return {
         position: ordinal(standing.position),
+        slot,
         place: standing.position,
         name: kartName(results, slot),
         livery: liveryCss(slot),
@@ -134,7 +137,7 @@ function resultItem(row: ResultRow, cells: { kart: boolean }): HTMLLIElement {
     return span;
   };
   item.append(
-    cells.kart ? kartSide() : cell("swatch", ""),
+    cells.kart ? kartSide(livery(row.slot)) : cell("swatch", ""),
     cell("place", cells.kart ? String(row.place) : row.position),
     cell("name", row.name),
     cell("bestLap", row.bestLap),
