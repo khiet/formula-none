@@ -12,12 +12,7 @@ import re
 import unittest
 from pathlib import Path
 
-from trackgen.layout import (
-    BOOST_PAD_HALF_LENGTH_M,
-    BOOST_PAD_HALF_WIDTH_M,
-    BOOST_PAD_PLATE_MATERIALS,
-    build,
-)
+from trackgen.layout import BOOST_PAD_PLATE_MATERIALS, build
 from trackgen.layouts import NAMES, load
 
 TUNING_RS = Path(__file__).resolve().parents[3] / "crates" / "sim" / "src" / "tuning.rs"
@@ -54,11 +49,9 @@ def pieces_of(geometry, number: int):
 
 
 class BoostPads(unittest.TestCase):
-    def test_the_pad_is_the_size_the_sim_boosts(self) -> None:
-        self.assertEqual(BOOST_PAD_HALF_LENGTH_M, tuning_constant("BOOST_PAD_HALF_LENGTH_M"))
-        self.assertEqual(BOOST_PAD_HALF_WIDTH_M, tuning_constant("BOOST_PAD_HALF_WIDTH_M"))
-
-    def test_a_plate_covers_each_pads_rectangle_at_its_placement_and_yaw(self) -> None:
+    def test_a_plate_covers_the_rectangle_the_sim_boosts_on_at_each_pads_placement_and_yaw(self) -> None:
+        half_length = tuning_constant("BOOST_PAD_HALF_LENGTH_M")
+        half_width = tuning_constant("BOOST_PAD_HALF_WIDTH_M")
         for name in NAMES:
             geometry = build(load(name))
             self.assertGreater(len(geometry.boost_pads), 0, name)
@@ -69,13 +62,13 @@ class BoostPads(unittest.TestCase):
                     local = [in_pad_frame(pad, v) for piece in plate for v in piece.mesh[0]]
                     along = [a for a, _ in local]
                     across = [c for _, c in local]
-                    self.assertAlmostEqual(min(along), -BOOST_PAD_HALF_LENGTH_M, places=6)
-                    self.assertAlmostEqual(max(along), BOOST_PAD_HALF_LENGTH_M, places=6)
-                    self.assertAlmostEqual(min(across), -BOOST_PAD_HALF_WIDTH_M, places=6)
-                    self.assertAlmostEqual(max(across), BOOST_PAD_HALF_WIDTH_M, places=6)
+                    self.assertAlmostEqual(min(along), -half_length, places=6)
+                    self.assertAlmostEqual(max(along), half_length, places=6)
+                    self.assertAlmostEqual(min(across), -half_width, places=6)
+                    self.assertAlmostEqual(max(across), half_width, places=6)
                     # No gap and no overlap: the faces add up to the rectangle.
                     area = sum(signed_area(face) for piece in plate for face in faces_of(piece))
-                    self.assertAlmostEqual(area, 4.0 * BOOST_PAD_HALF_LENGTH_M * BOOST_PAD_HALF_WIDTH_M, places=6)
+                    self.assertAlmostEqual(area, 4.0 * half_length * half_width, places=6)
 
     def test_three_chevrons_on_the_plate_point_down_the_track(self) -> None:
         for name in NAMES:
@@ -91,8 +84,8 @@ class BoostPads(unittest.TestCase):
                     for piece in chevrons:
                         for vertex in piece.mesh[0]:
                             ahead, right = in_pad_frame(pad, vertex)
-                            self.assertLessEqual(abs(ahead), BOOST_PAD_HALF_LENGTH_M)
-                            self.assertLessEqual(abs(right), BOOST_PAD_HALF_WIDTH_M)
+                            self.assertLessEqual(abs(ahead), tuning_constant("BOOST_PAD_HALF_LENGTH_M"))
+                            self.assertLessEqual(abs(right), tuning_constant("BOOST_PAD_HALF_WIDTH_M"))
                             self.assertGreater(vertex[2], plate_z, "drawn over the plate")
                     for piece in chevrons:
                         if piece.material != "chevron":
