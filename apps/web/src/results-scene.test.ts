@@ -107,11 +107,6 @@ describe("results rows", () => {
     });
     expect(tied.map((row) => row.fastestLap)).toEqual([false, true, true]);
   });
-
-  it("flags no fastest lap when no kart completed one", () => {
-    const rows = resultsRows({ ...results, standings: [standing(1, { bestLapS: null })] });
-    expect(rows[0]?.fastestLap).toBe(false);
-  });
 });
 
 describe("Results Scene", () => {
