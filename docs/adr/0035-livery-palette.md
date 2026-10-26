@@ -38,7 +38,9 @@ colours.
   the real one, not a likeness. The driver is data beside the livery: the
   name, and the skin, hair and facial hair that swap on the one shared
   head.
-- No team name, crest, sponsor or race number appears anywhere.
+- No team name, crest, sponsor or race number appears in the game. The
+  source may say which team a livery is after, so the next person knows
+  what to keep faithful to.
 
 ## Consequences
 

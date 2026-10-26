@@ -8,7 +8,7 @@
 
 export const LIVERIES = 8;
 
-/** How a driver's hair is cut, on the one shared head. */
+/** How a driver's hair is cut, on the one shared head the portrait will draw. */
 export type Hair =
   | "braids-tied-back"
   | "short"

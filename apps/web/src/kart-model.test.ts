@@ -5,7 +5,7 @@ import { livery } from "./livery";
 
 const SIZE = { width: 1.2, height: 0.6, length: 1.8 };
 
-/** A stand-in for the exported car: one mesh per livery material, however deep, dark tyres. */
+/** A stand-in for the exported kart: one mesh per livery material, however deep, dark tyres. */
 function model(): Group {
   const root = new Group();
   const paint = (name: string) => new MeshStandardMaterial({ name, color: 0x808080 });

@@ -59,12 +59,12 @@ export function fitKart(bounds: Bounds, size: KartSize): KartFit {
 }
 
 /**
- * A kart in `paint`: a clone of `model` whose meshes wearing a livery
+ * A kart in `livery`: a clone of `model` whose meshes wearing a livery
  * material get a copy of it in that material's colour of the palette, so
  * each kart on the grid has its own paint and every other material stays
  * shared across them.
  */
-export function dressKart(model: Object3D, paint: Livery): Object3D {
+export function dressKart(model: Object3D, livery: Livery): Object3D {
   const kart = model.clone();
   const own = new Map<Material, Material>();
   kart.traverse((object) => {
@@ -72,11 +72,11 @@ export function dressKart(model: Object3D, paint: Livery): Object3D {
       return;
     }
     const material = object.material;
-    const colour = PAINT_BY_MATERIAL.get(material.name);
-    if (colour === undefined) {
+    const paint = PAINT_BY_MATERIAL.get(material.name);
+    if (paint === undefined) {
       return;
     }
-    const copy = own.get(material) ?? repaint(material, paint[colour]);
+    const copy = own.get(material) ?? repaint(material, livery[paint]);
     own.set(material, copy);
     object.material = copy;
   });
