@@ -34,6 +34,7 @@ import { spinOutAngle } from "./spin";
 import { particleMesh, shadowDiscMesh, tyreMarkMesh } from "./tell-meshes";
 import { trackProbe } from "./track-probe";
 import { createTyreMarks } from "./tyre-marks";
+import { kartWheels } from "./wheel-spin";
 
 /** Far enough to see across Brands Patch from any point on it. */
 const CAMERA_FAR_M = 1000;
@@ -146,9 +147,12 @@ export async function createRaceView(
   const box = new Box3().setFromObject(kartModel.scene);
   const fit = fitKart({ min: box.min.toArray(), max: box.max.toArray() }, kartSize);
   const karts = Array.from({ length: kartCount }, (_, slot) => {
-    const kart = kartPresentation(dressKart(kartModel.scene, livery(slot)), fit);
+    const model = dressKart(kartModel.scene, livery(slot));
+    // Measured before the fit scales the model, then drawn at its scale.
+    const wheels = kartWheels(model, fit.scale);
+    const kart = kartPresentation(model, fit);
     world.add(kart);
-    return kart;
+    return { kart, wheels };
   });
 
   const tyreMarks = createTyreMarks(kartCount, kartSize);
@@ -235,10 +239,12 @@ export async function createRaceView(
         mesh.visible = itemBoxesPresent[box] ?? true;
       });
       readouts.forEach((readout, slot) => {
-        const kart = karts[slot];
-        if (kart === undefined) {
+        const drawn = karts[slot];
+        if (drawn === undefined) {
           return;
         }
+        const { kart, wheels } = drawn;
+        wheels.turn(readout.speed, frameSeconds);
         kart.position.set(...readout.position);
         kart.quaternion.set(...readout.rotation);
         if (readout.spinOutS !== null) {

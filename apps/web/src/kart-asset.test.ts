@@ -4,6 +4,7 @@ import { loadBridge } from "./bridge";
 import { type GltfJson, gltfJson } from "./gltf-json";
 import { DRIVER_MATERIALS, fitKart, LIVERY_MATERIALS } from "./kart-model";
 import { FACIAL_HAIRS, HAIRS } from "./livery";
+import { WHEELS } from "./wheel-spin";
 
 // The exported kart as the View loads it, read as bytes.
 const glb = readFileSync(new URL("../../../assets/karts/kart.glb", import.meta.url));
@@ -74,10 +75,29 @@ describe("the exported kart", () => {
 
   it("keeps the four wheels as nodes of their own, for the tells to find", () => {
     const names = kart.nodes.map(({ name }) => name);
-    for (const wheel of ["front-left", "front-right", "back-left", "back-right"]) {
-      expect(names).toContain(`wheel-${wheel}`);
+    for (const wheel of WHEELS) {
+      expect(names).toContain(wheel);
     }
   });
+
+  it.each(WHEELS)(
+    "builds %s about its axle, unrotated, for the View to turn it in place",
+    (name) => {
+      const node = kart.nodes.find((candidate) => candidate.name === name);
+      expect(node?.rotation).toBeUndefined();
+      const mesh = node?.mesh === undefined ? undefined : kart.meshes[node.mesh];
+      const accessors = (mesh?.primitives ?? []).map(
+        ({ attributes }) => kart.accessors[attributes.POSITION],
+      );
+      expect(accessors.length).toBeGreaterThan(0);
+      // Up (Y) and along the kart (Z), the wheel's bounds sit evenly about its origin.
+      for (const axis of [1, 2]) {
+        const low = Math.min(...accessors.map((accessor) => accessor?.min?.[axis] ?? Infinity));
+        const high = Math.max(...accessors.map((accessor) => accessor?.max?.[axis] ?? -Infinity));
+        expect(low + high).toBeCloseTo(0, 5);
+      }
+    },
+  );
 
   it("fills the sim's box footprint once fitted, without overhanging it", async () => {
     const { kartSize } = await loadBridge(wasm);

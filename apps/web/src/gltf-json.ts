@@ -8,6 +8,7 @@ export interface GltfJson {
     readonly name?: string;
     readonly mesh?: number;
     readonly translation?: readonly [number, number, number];
+    readonly rotation?: readonly [number, number, number, number];
   }[];
   readonly meshes: readonly {
     readonly primitives: readonly {
