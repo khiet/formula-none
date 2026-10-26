@@ -92,8 +92,8 @@ per piece of scenery, no textures: the palette is `MATERIALS` in
 start line's checkers and a carbon plate with orange chevrons on each
 boost pad, sized to the sim's rectangle, plus what a layout's decor asks
 for: hoardings with the sponsors in `trackgen/sponsors.py` (invented,
-every one), grandstands and the gantry from Kenney's Racing Kit in `kenney/` (CC0, see
-`../LICENSES.md`). Original names only; nothing may resemble a real
+every one), and grandstands and the start gantry built from boxes to the
+asset catalog's cards. Original names only; nothing may resemble a real
 sponsor, a Nintendo character or circuit (ADR 0007).
 
 The sand run-off slopes five centimetres down to the grass so no two
