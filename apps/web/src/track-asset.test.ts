@@ -19,6 +19,32 @@ function attributesOf(gltf: GltfJson, nodeName: string): string[] {
   return Object.keys(mesh?.primitives[0]?.attributes ?? {});
 }
 
+describe.each(["brands-patch", "oval"])("%s's boost pads", (name) => {
+  const gltf = track(name);
+  const sidecar = JSON.parse(
+    readFileSync(
+      new URL(`../../../assets/tracks/${name}/${name}.track.json`, import.meta.url),
+      "utf8",
+    ),
+  ) as { boost_pads: { position: [number, number, number]; yaw: number }[] };
+
+  it("draws a carbon plate over each pad, centred on it", () => {
+    const plates = gltf.nodes.filter(({ name }) => name?.endsWith(".pad-carbon"));
+    expect(plates).toHaveLength(sidecar.boost_pads.length);
+    sidecar.boost_pads.forEach(({ position: [x, , z] }, number) => {
+      const plate = plates.find(
+        ({ name }) => name === `BoostPad.${String(number).padStart(2, "0")}.pad-carbon`,
+      );
+      const mesh = plate?.mesh === undefined ? undefined : gltf.meshes[plate.mesh];
+      const bounds = gltf.accessors[mesh?.primitives[0]?.attributes.POSITION ?? -1];
+      const [minX, , minZ] = bounds?.min ?? [];
+      const [maxX, , maxZ] = bounds?.max ?? [];
+      expect(((minX ?? Number.NaN) + (maxX ?? Number.NaN)) / 2).toBeCloseTo(x, 2);
+      expect(((minZ ?? Number.NaN) + (maxZ ?? Number.NaN)) / 2).toBeCloseTo(z, 2);
+    });
+  });
+});
+
 describe("Brands Patch's final art", () => {
   const brandsPatch = track("brands-patch");
 

@@ -36,6 +36,13 @@ MATERIALS = {
     "checker-dark": (0.13, 0.13, 0.13),
     "checker-light": (0.96, 0.96, 0.96),
     "board": (0.98, 0.98, 0.98),
+    # The boost pad: carbon like the Instrument panel's plates, chevrons in
+    # the mini-turbo orange of `sparks.ts`.
+    "pad-carbon": (0.169, 0.180, 0.200),
+    "pad-carbon-lit": (0.227, 0.243, 0.271),
+    "pad-carbon-shade": (0.110, 0.110, 0.118),
+    "chevron": (1.0, 0.533, 0.0),
+    "chevron-shade": (0.769, 0.373, 0.0),
     "ink-blue": (0.12, 0.33, 0.78),
     "ink-green": (0.13, 0.55, 0.25),
     "ink-red": (0.80, 0.16, 0.16),

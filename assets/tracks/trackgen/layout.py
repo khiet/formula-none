@@ -50,6 +50,23 @@ HOARDING_TEXT_PROUD_M = 0.06
 GRANDSTAND_SETBACK_M = 4.0
 GRANDSTAND_WIDTH_M = 12.0
 GANTRY_PAST_LINE_M = 1.0
+# A boost pad is drawn on the rectangle the sim boosts on, so these mirror
+# `BOOST_PAD_HALF_*` in `crates/sim/src/tuning.rs`; the track tests hold
+# them to it. The rest is the asset catalog's Boost pad card: a carbon
+# plate lit along its front edge and shaded along its back, under three
+# chevrons in the mini-turbo orange, each shaded along its right arm.
+BOOST_PAD_HALF_LENGTH_M = 2.0
+BOOST_PAD_HALF_WIDTH_M = 3.0
+# The card's measures, at its 18 px to the metre.
+BOOST_PAD_BAND_M = 0.22
+BOOST_PAD_PLATE_MATERIALS = ("pad-carbon", "pad-carbon-lit", "pad-carbon-shade")
+CHEVRON_HALF_SPAN_M = 1.89
+CHEVRON_RISE_M = 1.0
+CHEVRON_THICKNESS_M = 0.56
+CHEVRON_SHADE_M = 0.22
+CHEVRON_SPACING_M = 1.0
+CHEVRON_FIRST_TIP_M = 1.67
+CHEVRON_COUNT = 3
 
 # The eight-slot spawn grid: two staggered columns of four, pole in front on
 # the left, the right column set back. Slot order is grid order. Placements
@@ -292,7 +309,7 @@ def build(layout: Layout) -> TrackGeometry:
 
 def decorate(layout: Layout, height: list[float]) -> tuple[list[SceneryMesh], list[TextProp | ModelProp]]:
     """The scenery: kerbs on every corner, the start line, and what the layout's decor asks for."""
-    scenery = kerbs(layout, height) + start_line(layout)
+    scenery = kerbs(layout, height) + start_line(layout) + boost_pads(layout)
     props: list[TextProp | ModelProp] = []
     boards, lettering = hoardings(layout)
     scenery += boards
@@ -355,6 +372,63 @@ def start_line(layout: Layout) -> list[SceneryMesh]:
         SceneryMesh("StartLine.dark", "checker-dark", mesh.merge(dark)),
         SceneryMesh("StartLine.light", "checker-light", mesh.merge(light)),
     ]
+
+
+def boost_pads(layout: Layout) -> list[SceneryMesh]:
+    """A plate over each pad's rectangle with its chevrons on top, pointing along the track."""
+    result: list[SceneryMesh] = []
+    for number, pad in enumerate(layout.boost_pads):
+        sample = layout.path.at(pad.s)
+        x, y = sample.offset(pad.offset)
+        cos, sin = math.cos(sample.heading), math.sin(sample.heading)
+
+        def at(ahead: float, right: float, lift: float) -> mesh.Vertex:
+            return (
+                x + ahead * cos + right * sin,
+                y + ahead * sin - right * cos,
+                elevation(layout.elevation, sample.s + ahead) + lift,
+            )
+
+        def flat(corners: list[tuple[float, float]], lift: float) -> mesh.Mesh:
+            # Corners run counter-clockwise in (ahead, right), a mirror of the
+            # ground's frame, so they are reversed to face up.
+            return [at(a, r, lift) for a, r in reversed(corners)], [tuple(range(len(corners)))]
+
+        def band(back: float, front: float) -> mesh.Mesh:
+            side = BOOST_PAD_HALF_WIDTH_M
+            return flat([(back, -side), (front, -side), (front, side), (back, side)], SCENERY_LIFT_M)
+
+        half_length = BOOST_PAD_HALF_LENGTH_M
+        inner_back, inner_front = -half_length + BOOST_PAD_BAND_M, half_length - BOOST_PAD_BAND_M
+        plate = {
+            "pad-carbon-shade": band(-half_length, inner_back),
+            "pad-carbon": band(inner_back, inner_front),
+            "pad-carbon-lit": band(inner_front, half_length),
+        }
+
+        # The chevrons sit over the plate so they never share its plane.
+        lift = 2.0 * SCENERY_LIFT_M
+        span, rise = CHEVRON_HALF_SPAN_M, CHEVRON_RISE_M
+        lit: list[mesh.Mesh] = []
+        shade: list[mesh.Mesh] = []
+        for k in range(CHEVRON_COUNT):
+            tip = CHEVRON_FIRST_TIP_M - k * CHEVRON_SPACING_M
+
+            def edge(depth: float) -> tuple[tuple[float, float], tuple[float, float], tuple[float, float]]:
+                """The left end, the tip and the right end of the chevron's leading edge, pushed `depth` back."""
+                return (tip - rise - depth, -span), (tip - depth, 0.0), (tip - rise - depth, span)
+
+            front_left, front_tip, front_right = edge(0.0)
+            _, seam_tip, seam_right = edge(CHEVRON_THICKNESS_M - CHEVRON_SHADE_M)
+            back_left, back_tip, back_right = edge(CHEVRON_THICKNESS_M)
+            lit.append(flat([back_left, front_left, front_tip, back_tip], lift))
+            lit.append(flat([seam_tip, front_tip, front_right, seam_right], lift))
+            shade.append(flat([back_tip, seam_tip, seam_right, back_right], lift))
+
+        pieces = {**plate, "chevron": mesh.merge(lit), "chevron-shade": mesh.merge(shade)}
+        for material, piece in pieces.items():
+            result.append(SceneryMesh(f"BoostPad.{number:02d}.{material}", material, piece))
+    return result
 
 
 def along_outside(
