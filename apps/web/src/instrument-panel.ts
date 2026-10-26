@@ -281,7 +281,6 @@ export function createInstrumentPanel(
   );
   container.append(panel);
 
-  // Rebuilt only as karts finish, so a frame changes nothing.
   const standingRows = (rows: readonly FinisherRow[], karts: readonly number[]) =>
     rows.map((row, index) => {
       const kart = karts[index] ?? 0;
@@ -357,6 +356,7 @@ export function createInstrumentPanel(
       standingsList.hidden = finished === null;
       if (finished !== null) {
         finish.replaceChildren(chequer(), `${finished.banner} ${finished.place}`, chequer());
+        // Rebuilt only as karts finish, so a frame changes nothing.
         if (standingsList.children.length !== finished.rows.length) {
           standingsList.replaceChildren(
             ...standingRows(finished.rows, finishingOrder(race.standings)),
@@ -460,7 +460,7 @@ const SHIFT_LIGHT_PITCH = 13;
 let chequerPatterns = 0;
 
 /**
- * A lap flag folded once, lit on the left half, in the own kart's accent;
+ * A lap flag folded once, lighter on the left half, in the own kart's accent;
  * chequered once its lap is done. Both faces are drawn and the flag's
  * `data-flag` picks which shows, so a lap changes one attribute.
  */

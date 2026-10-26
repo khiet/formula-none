@@ -104,7 +104,7 @@ const MAP_UNITS = 100;
 const MAP_MARGIN = 8;
 /** The asphalt's width in map units: thick enough to read as a road at a glance. */
 const ASPHALT_WIDTH = 6;
-/** The asphalt with a white wall either side. */
+/** The width of the asphalt with a white wall either side. */
 const WALL_WIDTH = 9;
 /** How far the ink drop sits down and right of the track, and of each marker. */
 const DROP_OFFSET = 1.6;

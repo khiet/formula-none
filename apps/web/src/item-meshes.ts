@@ -1,7 +1,7 @@
 // The items on the road (ADR 0037), built in code from Three primitives:
 // lit, flat-shaded and in the palette the item slot draws them in, so the
-// cone and the gull on the road are the ones in the slot. The sim's
-// collision sizes are unchanged; these only fill them.
+// cone and the gull on the road are the ones in the slot. The sim collides
+// with its own sizes; these only fill them.
 
 import {
   BoxGeometry,
