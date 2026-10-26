@@ -18,14 +18,14 @@ export const INK = 0x111111;
 export const VALUE_WHITE = 0xffffff;
 export const LABEL_GREY = 0xc9ced5;
 
-/** The stack, the gear, FINISH and the standings: the colour of the car's floor. */
+/** The stack, the gear, FINISH and the standings: the colour of the kart's floor. */
 export const CARBON: Tones = { lit: 0x4a4f57, mid: 0x2b2e33, shaded: 0x1b1d21 };
 /** The item box and its slot, the one gold in the game besides the posters'. */
 export const ITEM_BOX_GOLD: Tones = { lit: 0xf8e39a, mid: 0xe0b54a, shaded: 0xc99a2e };
 /** The item slot lit by a fire. */
-export const FIRING: Tones = { lit: 0xffffff, mid: 0xfff6cf, shaded: 0xf8e39a };
+export const FIRING: Tones = { lit: VALUE_WHITE, mid: 0xfff6cf, shaded: 0xf8e39a };
 /** The gear on the limiter. */
-export const WHITE: Tones = { lit: 0xffffff, mid: 0xeef0f2, shaded: 0xcfd2d6 };
+export const WHITE: Tones = { lit: VALUE_WHITE, mid: 0xeef0f2, shaded: 0xcfd2d6 };
 /** Danger: the hazard cone and the wrong-way warning. */
 export const HAZARD_ORANGE: Tones = { lit: 0xff7a4d, mid: 0xff5522, shaded: 0xc73c14 };
 /** The connection banner and the countdown's start lights. */
@@ -45,7 +45,7 @@ export const WALL = 0xf0f0f0;
 
 /** The item characters' greys, slot and road alike: the gull, the snail's foot, the cone's slab. */
 export const GREYS = {
-  white: 0xffffff,
+  white: VALUE_WHITE,
   body: 0xe3e6ea,
   pale: 0xd4d8dd,
   grey: 0xb9bec5,

@@ -317,7 +317,7 @@ Decorative: the gear and the speed are the text.
 ### tyre wear
 
 How worn a kart's tyres are, as a percentage. The Instrument panel's tyre
-gauge shows it on the local kart's car from above, its tyres green above
+gauge shows it on the local kart drawn from above, its tyres green above
 60%, yellow above 30% and red below. The sim does not wear tyres yet, so the gauge holds at 100%
 (ADR 0031).
 

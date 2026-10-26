@@ -12,7 +12,17 @@ import {
 import type { Item } from "./generated/protocol";
 import { itemSprite } from "./item-sprites";
 import { hexCss, type Livery, livery as liveryOf } from "./livery";
-import { facetted, group, line, ngon, type Point, polygon, SVG_NS, svg } from "./low-poly-svg";
+import {
+  facetted,
+  group,
+  line,
+  ngon,
+  type Point,
+  polygon,
+  rectangle,
+  SVG_NS,
+  svg,
+} from "./low-poly-svg";
 import {
   CARBON,
   FIRING,
@@ -24,6 +34,7 @@ import {
   POSTER_RED,
   plate,
   tonesOf,
+  VALUE_WHITE,
   WHITE,
   writePalette,
   writeTones,
@@ -206,7 +217,7 @@ export function createInstrumentPanel(
   standingsList.dataset.instrument = "standings";
   standingsList.hidden = true;
   // The speed cluster (ADR 0031): the gear, speed and tyres stay as text;
-  // the shift lights and the kart icon are decorative.
+  // the shift lights and the kart from above are decorative.
   const cluster = document.createElement("div");
   cluster.dataset.cluster = "";
   const lightRow = svg(`0 0 ${SHIFT_LIGHT_PITCH * 12} 14`);
@@ -224,7 +235,7 @@ export function createInstrumentPanel(
   speed.append(" ");
   const speedUnit = part(speed, "speedUnit");
   const tyre = instrument("tyre");
-  tyre.append(carFromAbove(paint));
+  tyre.append(kartFromAbove(paint));
   const tyrePercent = part(tyre, "tyrePercent");
   cluster.append(gear, speed, tyre);
   const showSpeed = (metresPerSecond: number) => {
@@ -274,9 +285,10 @@ export function createInstrumentPanel(
   const standingRows = (rows: readonly FinisherRow[], karts: readonly number[]) =>
     rows.map((row, index) => {
       const kart = karts[index] ?? 0;
+      const own = kart === course.ownKart;
       const element = document.createElement("li");
-      plate(element, kart === course.ownKart ? ITEM_BOX_GOLD : CARBON);
-      if (kart === course.ownKart) element.dataset.own = "";
+      plate(element, own ? ITEM_BOX_GOLD : CARBON);
+      if (own) element.dataset.own = "";
       const place = document.createElement("b");
       place.textContent = row.position;
       element.append(place, " ", paletteChip(liveryOf(kart)), `${row.name} ${row.time}`);
@@ -490,26 +502,15 @@ function lapFlag(paint: Livery): SVGSVGElement {
     pattern.setAttribute(name, String(value));
   }
   pattern.setAttribute("patternUnits", "userSpaceOnUse");
-  const square = (x: number, y: number, size: number, fill: number) =>
-    polygon(
-      pattern,
-      [
-        [x, y],
-        [x + size, y],
-        [x + size, y + size],
-        [x, y + size],
-      ],
-      fill,
-    );
-  square(0, 0, 3, 0xffffff);
-  square(0, 0, 1.5, INK);
-  square(1.5, 1.5, 1.5, INK);
+  polygon(pattern, rectangle(0, 0, 3, 3), VALUE_WHITE);
+  polygon(pattern, rectangle(0, 0, 1.5, 1.5), INK);
+  polygon(pattern, rectangle(1.5, 1.5, 3, 3), INK);
   const done = group(flag);
   done.dataset.fold = "done";
   done.append(pattern);
   polygon(done, left, `url(#${id})`);
   polygon(done, right, `url(#${id})`);
-  polygon(done, right, "rgb(0 0 0 / 0.28)");
+  polygon(done, right, INK).setAttribute("fill-opacity", "0.28");
   return flag;
 }
 
@@ -586,36 +587,30 @@ function tyreFromAbove(parent: Element, x: number, y: number, width: number, hei
 }
 
 /**
- * The own kart's car from above for the tyre gauge (ADR 0037): wings in
+ * The own kart from above for the tyre gauge (ADR 0037): wings in
  * secondary, tub and sidepods in primary lit on the left, the accent
  * stripe, the halo and the driver's hair in the cockpit, the rears bigger
  * than the fronts. Decorative: the gauge's percentage is the text.
  */
-function carFromAbove(paint: Livery): SVGSVGElement {
-  const car = svg("0 0 60 92");
+function kartFromAbove(paint: Livery): SVGSVGElement {
+  const kart = svg("0 0 60 92");
   const primary = tonesOf(paint.primary);
   const secondary = tonesOf(paint.secondary);
   const accent = paint.accent;
-  const box = (x1: number, y1: number, x2: number, y2: number): Point[] => [
-    [x1, y1],
-    [x2, y1],
-    [x2, y2],
-    [x1, y2],
-  ];
   for (const [x1, x2, y] of [
     [22, 12, 22],
     [38, 48, 22],
     [20, 12, 70],
     [40, 48, 70],
   ] as const) {
-    line(car, [x1, y], [x2, y], CARBON.shaded, 1.5);
+    line(kart, [x1, y], [x2, y], CARBON.shaded, 1.5);
   }
-  tyreFromAbove(car, 2, 14, 11, 17);
-  tyreFromAbove(car, 47, 14, 11, 17);
-  tyreFromAbove(car, 0, 58, 13, 24);
-  tyreFromAbove(car, 47, 58, 13, 24);
+  tyreFromAbove(kart, 2, 14, 11, 17);
+  tyreFromAbove(kart, 47, 14, 11, 17);
+  tyreFromAbove(kart, 0, 58, 13, 24);
+  tyreFromAbove(kart, 47, 58, 13, 24);
   polygon(
-    car,
+    kart,
     [
       [18, 40],
       [42, 40],
@@ -627,7 +622,7 @@ function carFromAbove(paint: Livery): SVGSVGElement {
     primary.mid,
   );
   polygon(
-    car,
+    kart,
     [
       [18, 40],
       [30, 40],
@@ -638,7 +633,7 @@ function carFromAbove(paint: Livery): SVGSVGElement {
     primary.lit,
   );
   polygon(
-    car,
+    kart,
     [
       [38, 52],
       [42, 40],
@@ -648,7 +643,7 @@ function carFromAbove(paint: Livery): SVGSVGElement {
     primary.shaded,
   );
   polygon(
-    car,
+    kart,
     [
       [26, 6],
       [34, 6],
@@ -658,7 +653,7 @@ function carFromAbove(paint: Livery): SVGSVGElement {
     primary.mid,
   );
   polygon(
-    car,
+    kart,
     [
       [26, 6],
       [30, 6],
@@ -667,22 +662,22 @@ function carFromAbove(paint: Livery): SVGSVGElement {
     ],
     primary.lit,
   );
-  polygon(car, box(29, 8, 31, 78), accent);
-  polygon(car, box(6, 4, 54, 11), secondary.mid);
-  polygon(car, box(6, 4, 54, 6.5), secondary.lit);
-  polygon(car, box(4, 3, 7, 12), accent);
-  polygon(car, box(53, 3, 56, 12), accent);
-  polygon(car, ngon(6, 30, 51, 8), CARBON.shaded);
-  facetted(car, 8, 30, 52, 5.6, tonesOf(paint.driver.hairColour));
+  polygon(kart, rectangle(29, 8, 31, 78), accent);
+  polygon(kart, rectangle(6, 4, 54, 11), secondary.mid);
+  polygon(kart, rectangle(6, 4, 54, 6.5), secondary.lit);
+  polygon(kart, rectangle(4, 3, 7, 12), accent);
+  polygon(kart, rectangle(53, 3, 56, 12), accent);
+  polygon(kart, ngon(6, 30, 51, 8), CARBON.shaded);
+  facetted(kart, 8, 30, 52, 5.6, tonesOf(paint.driver.hairColour));
   const halo = document.createElementNS(SVG_NS, "polyline");
   halo.setAttribute("points", "22.5,55 23.5,45 30,41.5 36.5,45 37.5,55");
   halo.setAttribute("stroke", hexCss(INK));
   halo.setAttribute("stroke-width", "2");
   halo.setAttribute("stroke-linejoin", "round");
   halo.setAttribute("fill", "none");
-  car.append(halo);
+  kart.append(halo);
   polygon(
-    car,
+    kart,
     [
       [24, 66],
       [36, 66],
@@ -691,9 +686,9 @@ function carFromAbove(paint: Livery): SVGSVGElement {
     ],
     primary.shaded,
   );
-  polygon(car, box(8, 80, 52, 89), secondary.mid);
-  polygon(car, box(8, 80, 52, 83), secondary.lit);
-  polygon(car, box(6, 79, 9, 90), accent);
-  polygon(car, box(51, 79, 54, 90), accent);
-  return car;
+  polygon(kart, rectangle(8, 80, 52, 89), secondary.mid);
+  polygon(kart, rectangle(8, 80, 52, 83), secondary.lit);
+  polygon(kart, rectangle(6, 79, 9, 90), accent);
+  polygon(kart, rectangle(51, 79, 54, 90), accent);
+  return kart;
 }

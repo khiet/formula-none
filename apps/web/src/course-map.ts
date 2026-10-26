@@ -6,7 +6,7 @@
 // which is how the world looks from above with the grid facing up the map.
 
 import type { KartReadout } from "./bridge";
-import { hexCss, livery, liveryCss } from "./livery";
+import { hexCss, livery } from "./livery";
 import { facetted, group, line, ngon, polygon, SVG_NS } from "./low-poly-svg";
 import { ASPHALT, INK, tonesOf, VALUE_WHITE, WALL } from "./palette";
 import type { WorldPoint } from "./track";
@@ -171,7 +171,6 @@ export function createCourseMap(setup: CourseMapSetup): CourseMap {
   const markers = Array.from({ length: setup.kartCount }, (_, kart) => {
     const marker = document.createElementNS(SVG_NS, "g");
     marker.dataset.kart = String(kart);
-    marker.setAttribute("fill", liveryCss(kart));
     const own = kart === setup.ownKart;
     const outer = own ? OWN_RING_RADIUS : MARKER_RADIUS;
     const shadow = polygon(marker, ngon(8, MARKER_DROP_OFFSET, MARKER_DROP_OFFSET, outer), INK);

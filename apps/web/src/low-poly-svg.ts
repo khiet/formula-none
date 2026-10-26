@@ -26,6 +26,16 @@ const LIGHT = (() => {
   return [-1 / length, -1.3 / length] as const;
 })();
 
+/** The corners of the rectangle from `x1`, `y1` to `x2`, `y2`. */
+export function rectangle(x1: number, y1: number, x2: number, y2: number): Point[] {
+  return [
+    [x1, y1],
+    [x2, y1],
+    [x2, y2],
+    [x1, y2],
+  ];
+}
+
 /** The `ngon` cut into a triangle per edge, each with the tone its edge faces the light with. */
 export function facets(
   sides: number,

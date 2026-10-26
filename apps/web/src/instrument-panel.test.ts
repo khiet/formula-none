@@ -484,10 +484,15 @@ describe("the course map", () => {
       ...container.querySelectorAll<SVGGElement>('[data-instrument="course-map"] [data-kart]'),
     ];
     expect(markers.map((marker) => marker.dataset.kart)).toEqual(["0", "2", "1"]);
-    expect(markers.map((marker) => marker.getAttribute("fill"))).toEqual([
-      liveryCss(0),
-      liveryCss(2),
-      liveryCss(1),
+    // Each marker's facets are its key colour, lit and shaded around it.
+    const keyed = (marker: Element | undefined, kart: number) =>
+      [...(marker?.querySelectorAll("polygon") ?? [])].some(
+        (facet) => facet.getAttribute("fill") === liveryCss(kart),
+      );
+    expect(markers.map((marker) => [0, 1, 2].filter((kart) => keyed(marker, kart)))).toEqual([
+      [0],
+      [2],
+      [1],
     ]);
     const ownMarker = container.querySelector<SVGGElement>(
       '[data-instrument="course-map"] [data-own]',

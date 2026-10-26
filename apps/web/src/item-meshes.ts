@@ -13,7 +13,7 @@ import {
   MeshLambertMaterial,
   SphereGeometry,
 } from "three";
-import { GREYS, GULL_EYE, HAZARD_ORANGE, INK, ITEM_BOX_GOLD } from "./palette";
+import { GREYS, GULL_EYE, HAZARD_ORANGE, INK, ITEM_BOX_GOLD, WHITE } from "./palette";
 
 /** The item box: a cube this many metres across. */
 const ITEM_BOX_SIZE_M = 1;
@@ -111,7 +111,7 @@ export function hazardConeMesh(): Group {
       true,
       turn,
     ),
-    0xffffff,
+    WHITE.lit,
     [0, (heightAt(HAZARD_BAND_FROM) + heightAt(HAZARD_BAND_TO)) / 2, 0],
   );
 
