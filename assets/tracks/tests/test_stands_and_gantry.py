@@ -39,7 +39,11 @@ def normal(face: list[mesh.Vertex]) -> mesh.Vertex:
 
 
 def faces_of(piece) -> list[list[mesh.Vertex]]:
-    vertices, faces = piece.mesh
+    return faces_of_mesh(piece.mesh)
+
+
+def faces_of_mesh(data: mesh.Mesh) -> list[list[mesh.Vertex]]:
+    vertices, faces = data
     return [[vertices[v] for v in face] for face in faces]
 
 
@@ -63,7 +67,7 @@ class Cuboid(unittest.TestCase):
         centre = (2.0, 1.25, 2.0)
         for side, piece in box.items():
             with self.subTest(side=side):
-                (face,) = faces_of(type("Piece", (), {"mesh": piece}))
+                (face,) = faces_of_mesh(piece)
                 middle = [sum(v[axis] for v in face) / 4.0 for axis in range(3)]
                 outward = [m - c for m, c in zip(middle, centre)]
                 self.assertGreater(sum(n * o for n, o in zip(normal(face), outward)), 0.0)
