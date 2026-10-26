@@ -27,7 +27,7 @@ for (const [name, url, throttleKey] of [
       timeout: 30_000,
     });
     await expect(page.locator('[data-instrument="best-lap"]')).toHaveText(`Best -'--"---`);
-    await expect(page.locator('[data-instrument="lap-time"]')).not.toHaveText(`Time 0'00"000`);
+    await expect(page.locator('[data-instrument="lap-time"]')).not.toHaveText(`Time 0'00"0`);
     const courseMap = page.locator('[data-instrument="course-map"]');
     await expect(courseMap).toBeVisible();
     await expect(courseMap.locator("[data-kart]")).toHaveCount(8);

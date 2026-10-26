@@ -3,6 +3,7 @@ import type { Phase, Standing } from "./bridge";
 import { type CourseMapSetup, createCourseMap } from "./course-map";
 import {
   formatLapTime,
+  formatRunningLapTime,
   NO_LAP_TIME,
   type OrdinalParts,
   ordinal,
@@ -300,7 +301,16 @@ export function createInstrumentPanel(
     const label = document.createElement("span");
     label.dataset.label = "";
     label.textContent = readout.label;
-    element.replaceChildren(label, ` ${readout.value}`);
+    // Kenney Mini Square has no tabular figures and its 1 is narrower than
+    // the other digits, so each figure gets a fixed cell from the stylesheet.
+    const value = [...readout.value].map((character) => {
+      if (!/[0-9-]/.test(character)) return character;
+      const figure = document.createElement("span");
+      figure.dataset.figure = "";
+      figure.textContent = character;
+      return figure;
+    });
+    element.replaceChildren(label, " ", ...value);
   };
 
   return {
@@ -385,7 +395,8 @@ export function phaseReadout(phase: Phase): string {
 /**
  * What the panel prints for a standing: ordinal position, lap of the race's
  * laps with the laps behind the kart, and the two clocks with their labels.
- * A finished kart has every lap behind it whatever lap the sim leaves it on.
+ * A finished kart has every lap behind it whatever lap the sim leaves it on,
+ * and its lap clock, stopped on the final lap, prints to the thousandth.
  */
 export function lapReadouts(standing: Standing, lapsPerRace: number): LapReadouts {
   const lapsCompleted =
@@ -396,7 +407,13 @@ export function lapReadouts(standing: Standing, lapsPerRace: number): LapReadout
     position: ordinalParts(standing.position),
     lap: `Lap ${standing.lap}/${lapsPerRace}`,
     lapsCompleted,
-    lapTime: { label: "Time", value: formatLapTime(standing.lapTimeS) },
+    lapTime: {
+      label: "Time",
+      value:
+        standing.finishTimeS === null
+          ? formatRunningLapTime(standing.lapTimeS)
+          : formatLapTime(standing.lapTimeS),
+    },
     bestLap: {
       label: "Best",
       value: standing.bestLapS === null ? NO_LAP_TIME : formatLapTime(standing.bestLapS),

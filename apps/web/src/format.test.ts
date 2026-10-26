@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { formatLapTime, NO_LAP_TIME, ordinal, ordinalParts, speedParts } from "./format";
+import {
+  formatLapTime,
+  formatRunningLapTime,
+  NO_LAP_TIME,
+  ordinal,
+  ordinalParts,
+  speedParts,
+} from "./format";
 
 describe("lap times", () => {
   it("print in the 16-bit notation at the sim's precision: minutes, seconds and thousandths", () => {
@@ -16,6 +23,20 @@ describe("lap times", () => {
   it("stand in dashes of the same shape when there is no time yet", () => {
     expect(NO_LAP_TIME).toBe(`-'--"---`);
     expect(NO_LAP_TIME).toHaveLength(formatLapTime(0).length);
+  });
+});
+
+describe("the running clock", () => {
+  it("prints minutes, seconds and tenths, truncated so it never runs ahead of the thousandths", () => {
+    expect(formatRunningLapTime(11.999)).toBe(`0'11"9`);
+    expect(formatRunningLapTime(75.4567)).toBe(`1'15"4`);
+    expect(formatRunningLapTime(0)).toBe(`0'00"0`);
+  });
+
+  it("agrees with the thousandths it would round to", () => {
+    expect(formatRunningLapTime(2.3)).toBe(`0'02"3`);
+    expect(formatRunningLapTime(14.9996)).toBe(`0'15"0`);
+    expect(formatRunningLapTime(59.9995)).toBe(`1'00"0`);
   });
 });
 
