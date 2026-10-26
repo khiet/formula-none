@@ -165,7 +165,8 @@ export async function createRaceScene(
     const readout = run.readout();
     const local = readout.karts[run.localKart];
     if (local && readout.standings[run.localKart]) {
-      view.update(readout, camera.update(local, frameSeconds), frameSeconds);
+      const pose = camera.update(local, frameSeconds, input.lookingBehind());
+      view.update(readout, pose, frameSeconds);
       panel.update(readout);
       audio.update(soundReading(readout, run.localKart));
     }

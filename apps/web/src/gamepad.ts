@@ -16,6 +16,7 @@ export interface GamepadSource {
 const LEFT_STICK_X = 0;
 const BOTTOM_FACE_BUTTON = 0;
 const LEFT_FACE_BUTTON = 2;
+const TOP_FACE_BUTTON = 3;
 const LEFT_TRIGGER = 6;
 const RIGHT_TRIGGER = 7;
 /** Stick deflection read as centred; a resting stick seldom reports exactly zero. */
@@ -24,14 +25,15 @@ const STICK_DEAD_ZONE = 0.15;
 /**
  * The first connected gamepad, polled when `current()` is called: right
  * trigger throttle, left trigger brake, left stick steer, bottom face button
- * hop, left face button item. Browsers expose a pad only after a button
- * press on it, so an untouched pad reads as absent.
+ * hop, left face button item, top face button look-behind. Browsers expose
+ * a pad only after a button press on it, so an untouched pad reads as absent.
  */
 export function gamepadKartInput(source: GamepadSource): KartInputSource {
   let itemWasDown = false;
+  const connectedPad = () => source.getGamepads().find((pad) => pad?.connected);
   return {
     current() {
-      const pad = source.getGamepads().find((pad) => pad?.connected);
+      const pad = connectedPad();
       const button = (index: number) => pad?.buttons[index];
       const itemDown = button(LEFT_FACE_BUTTON)?.pressed ?? false;
       const input = {
@@ -45,6 +47,7 @@ export function gamepadKartInput(source: GamepadSource): KartInputSource {
       itemWasDown = itemDown;
       return input;
     },
+    lookingBehind: () => connectedPad()?.buttons[TOP_FACE_BUTTON]?.pressed ?? false,
   };
 }
 

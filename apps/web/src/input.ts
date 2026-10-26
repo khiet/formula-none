@@ -3,6 +3,12 @@ import type { KartInput } from "./bridge";
 export interface KartInputSource {
   /** The input for the next tick, read from the device as it is right now. */
   current(): KartInput;
+  /**
+   * Whether the player holds look-behind right now. Read beside the kart
+   * input rather than in it: it turns only the Race View's camera, so the
+   * sim, the server and the replays never see it.
+   */
+  lookingBehind(): boolean;
 }
 
 export const IDLE_INPUT: KartInput = {
@@ -22,6 +28,7 @@ export const IDLE_INPUT: KartInput = {
 export function combinedKartInput(...sources: readonly KartInputSource[]): KartInputSource {
   return {
     current: () => sources.map((source) => source.current()).reduce(combine, IDLE_INPUT),
+    lookingBehind: () => sources.some((source) => source.lookingBehind()),
   };
 }
 

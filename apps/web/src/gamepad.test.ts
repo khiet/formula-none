@@ -80,6 +80,17 @@ describe("a standard gamepad maps to one kart input", () => {
     expect(input.current().useItem).toBe(true);
   });
 
+  it("the top face button looks behind while held and is not part of the kart input", () => {
+    const navigator = fakeNavigator(pad({ pressed: [3] }));
+    const input = gamepadKartInput(navigator);
+    expect(input.lookingBehind()).toBe(true);
+    expect(input.current()).toEqual(IDLE_INPUT);
+    expect(input.lookingBehind()).toBe(true);
+    navigator.pads = [pad({})];
+    expect(input.lookingBehind()).toBe(false);
+    expect(gamepadKartInput(fakeNavigator()).lookingBehind()).toBe(false);
+  });
+
   it("reads the first connected gamepad", () => {
     const navigator = fakeNavigator(
       null,

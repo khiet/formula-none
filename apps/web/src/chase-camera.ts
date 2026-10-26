@@ -7,8 +7,11 @@ export interface CameraPose {
 }
 
 export interface ChaseCamera {
-  /** The pose for this frame, `dtSeconds` after the last one, following `kart`. */
-  update(kart: KartReadout, dtSeconds: number): CameraPose;
+  /**
+   * The pose for this frame, `dtSeconds` after the last one, following
+   * `kart`; facing back at it from ahead while `lookingBehind`.
+   */
+  update(kart: KartReadout, dtSeconds: number, lookingBehind?: boolean): CameraPose;
 }
 
 const BEHIND_M = 6;
@@ -49,7 +52,9 @@ const SHAKE_HZ: readonly [number, number, number] = [13, 17, 11];
  * so a hop lifts the kart in the frame while a slope is followed. It sits
  * further back the faster the kart goes, the tuned pull-back at top speed,
  * and rattles for the tuned time when the sim reports the kart hit, that is
- * when its spin-out begins.
+ * when its spin-out begins. Looking behind cuts to the mirror of that pose,
+ * ahead of the kart and facing back; the springs run on through it, so
+ * releasing cuts straight back to the chase pose with no swing.
  * Presentation only: it reads transforms the sim reported and never touches
  * the sim.
  */
@@ -64,7 +69,7 @@ export function createChaseCamera(tuning: CameraTuning): ChaseCamera {
   /** Seconds into the shake, or past its end when there is none. */
   let shakeAge = tuning.shakeSeconds;
   return {
-    update(kart, dtSeconds) {
+    update(kart, dtSeconds, lookingBehind = false) {
       const kartYaw = yawOf(kart.rotation);
       const [x, kartY, z] = kart.position;
       if (yaw === undefined || height === undefined) {
@@ -93,23 +98,28 @@ export function createChaseCamera(tuning: CameraTuning): ChaseCamera {
 
       // Speed, not boost: a boost shows as the speed it gives, and a boost
       // past top speed pulls back past the tuned metre.
-      const behind =
+      const pullBack =
         BEHIND_M +
         (Math.max(kart.speed, 0) / tuning.topSpeedMetresPerSecond) * tuning.pullBackMetres;
+      // Positive is toward the kart's back; looking behind flips both, so
+      // the camera sits ahead of the kart and looks behind it.
+      const facing = lookingBehind ? -1 : 1;
+      const cameraBack = facing * pullBack;
+      const lookForward = facing * LOOK_AHEAD_M;
       return {
         // A kart with no yaw faces -Z, so behind it is +Z.
         position: [
-          x + Math.sin(yaw) * behind + sx,
+          x + Math.sin(yaw) * cameraBack + sx,
           height + ABOVE_M + sy,
-          z + Math.cos(yaw) * behind + sz,
+          z + Math.cos(yaw) * cameraBack + sz,
         ],
         // The target jolts with the position, so the hit shoves the whole
         // frame, and sits at the lagged height, so a hop moves the kart in
         // the frame rather than the frame with the kart.
         target: [
-          x - Math.sin(kartYaw) * LOOK_AHEAD_M + sx,
+          x - Math.sin(kartYaw) * lookForward + sx,
           height + sy,
-          z - Math.cos(kartYaw) * LOOK_AHEAD_M + sz,
+          z - Math.cos(kartYaw) * lookForward + sz,
         ],
       };
     },

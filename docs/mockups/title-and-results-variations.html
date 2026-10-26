@@ -1,0 +1,538 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Title and Results Variations</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Orbitron:ital,wght@0,500;0,700;0,900&family=Fredoka:wght@400;600;700&family=Inter:wght@300;400;600&display=swap" rel="stylesheet" />
+<style>
+  /* The Instrument panel's pixel font; Press Start 2P stands in when the page is not served from the repo root. */
+  @font-face { font-family: "Kenney Mini Square"; src: url("../../assets/fonts/kenney/Kenney%20Mini%20Square.ttf") format("truetype"); }
+
+  :root {
+    --bg: #121316;
+    --fg: #e8e8ea;
+    --muted: #8a8d94;
+    --rule: #2a2c31;
+    --accent: #ffcc33;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--fg); font: 15px/1.5 Inter, system-ui, sans-serif; }
+  body { padding: 2rem 1rem 4rem; }
+  header.page { max-width: 1280px; margin: 0 auto 1.5rem; }
+  header.page h1 { font: 600 1.4rem/1.2 Inter, sans-serif; margin: 0 0 .25rem; }
+  header.page p { margin: 0; color: var(--muted); max-width: 70ch; }
+  .controls { display: flex; flex-wrap: wrap; align-items: center; gap: .75rem 1.25rem; margin-top: 1rem; padding: .75rem 1rem; border: 1px solid var(--rule); border-radius: .5rem; }
+  .controls fieldset { border: 0; padding: 0; margin: 0; display: flex; flex-wrap: wrap; gap: .25rem .9rem; align-items: center; }
+  .controls legend { float: left; margin-right: .6rem; color: var(--muted); font-size: .9rem; }
+  .controls label { display: flex; align-items: center; gap: .35rem; cursor: pointer; font-size: .9rem; }
+  .controls input { accent-color: var(--accent); }
+  .controls button { font: inherit; font-size: .9rem; padding: .35rem .8rem; border-radius: .4rem; border: 1px solid var(--rule); background: #1c1e22; color: var(--fg); cursor: pointer; }
+  .controls button:hover { border-color: var(--accent); }
+
+  main { display: grid; gap: 3rem; max-width: 1280px; margin: 0 auto; }
+  section.design { display: grid; gap: .75rem; }
+  .meta { display: flex; align-items: baseline; gap: 1rem; flex-wrap: wrap; }
+  .meta h2 { margin: 0; font: 600 1.05rem/1.2 Inter, sans-serif; }
+  .meta p { margin: 0; color: var(--muted); font-size: .9rem; flex: 1 1 28rem; }
+  .pair { display: grid; grid-template-columns: 1fr; gap: 1.25rem; max-width: 1100px; }
+  /* The figure is the container because cq units on an element resolve against its ancestor, never itself. */
+  figure { margin: 0; display: grid; gap: .4rem; container-type: inline-size; }
+  figcaption { color: var(--muted); font-size: .8rem; letter-spacing: .04em; text-transform: uppercase; }
+
+  /* Each frame is a 16:9 browser window; 1em = 1% of its width, so the scene scales with the frame. */
+  .frame {
+    position: relative; aspect-ratio: 16 / 9; width: 100%; overflow: hidden;
+    border-radius: .5rem; font-size: 1cqw;
+    isolation: isolate;
+  }
+  .scene { position: absolute; inset: 0; display: grid; place-items: center; }
+  .stack { position: relative; z-index: 2; display: grid; justify-items: center; gap: 1.1em; }
+  .row { display: flex; gap: 1em; align-items: stretch; }
+  input[type="text"] { font: inherit; }
+  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+
+  /* ---------- Shared bits ---------- */
+  .kart { display: block; width: 100%; height: auto; overflow: visible; }
+  .confetti { position: absolute; inset: 0; pointer-events: none; z-index: 5; overflow: hidden; }
+  .confetti i {
+    position: absolute; top: -4%; left: var(--x); width: .9em; height: .45em; background: var(--c);
+    transform: rotate(var(--r)); animation: fall var(--d) linear var(--delay) infinite;
+  }
+  @keyframes fall {
+    0% { transform: translateY(0) rotate(var(--r)) rotateY(0); opacity: 1; }
+    100% { transform: translateY(60em) rotate(calc(var(--r) + 540deg)) rotateY(720deg); opacity: .9; }
+  }
+
+  /* =====================================================================
+     Design A: Grand Prix Poster. Arcade cabinet energy: chequered flags,
+     chunky yellow buttons with hard shadows, the pixel font the
+     Instrument panel already uses.
+     ===================================================================== */
+  .a { background: #c81d25; font-family: "Kenney Mini Square", "Press Start 2P", monospace; color: #fff; }
+  .a .speed {
+    position: absolute; inset: -20%; z-index: 0;
+    background: repeating-linear-gradient(-12deg, transparent 0 3em, rgba(255,255,255,.07) 3em 3.6em, transparent 3.6em 7em);
+    animation: a-speed 1.2s linear infinite;
+  }
+  @keyframes a-speed { to { transform: translateX(-7.2em); } }
+  .a .sun { position: absolute; z-index: 0; width: 70em; height: 70em; left: 15em; top: -10em; border-radius: 50%;
+    background: repeating-conic-gradient(from 0deg, rgba(255,210,60,.18) 0 8deg, transparent 8deg 16deg); animation: spin 40s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .a .chequer { position: absolute; left: 0; right: 0; height: 3em; z-index: 1;
+    background: conic-gradient(#111 25%, #fff 0 50%, #111 0 75%, #fff 0) 0 0 / 3em 3em; animation: a-chq 1s linear infinite; }
+  .a .chequer.top { top: 0; } .a .chequer.bottom { bottom: 0; animation-direction: reverse; }
+  @keyframes a-chq { to { background-position: 6em 0; } }
+  .a .logo { text-align: center; line-height: .95; transform: rotate(-4deg); }
+  .a .logo .f { display: block; font-size: 6.4em; color: #ffd23f; text-shadow: .08em .08em 0 #111, .16em .16em 0 rgba(0,0,0,.35); letter-spacing: .02em; }
+  .a .logo .n { display: inline-block; font-size: 6.4em; color: #fff; text-shadow: .08em .08em 0 #111; position: relative; }
+  .a .logo .one { position: absolute; right: -.75em; top: -.35em; font-size: .45em; color: #111; background: #ffd23f; padding: .1em .25em; border: .12em solid #111; transform: rotate(14deg); }
+  .a .logo .one s { text-decoration-thickness: .18em; text-decoration-color: #c81d25; }
+  .a .tag { font-size: 1.2em; background: #111; padding: .5em 1em; transform: rotate(-4deg); margin-top: -.4em; letter-spacing: .06em; }
+  .a .field { font-size: 1.6em; padding: .6em .8em; background: #fff; color: #111; border: .2em solid #111; box-shadow: .3em .3em 0 #111; outline: none; width: 13em; text-transform: uppercase; }
+  .a .field::placeholder { color: #999; }
+  .a .field:focus { background: #fff6cf; }
+  .a .code { width: 7em; letter-spacing: .3em; text-align: center; }
+  .a .btn { font: inherit; font-size: 1.6em; padding: .6em 1em; cursor: pointer; background: #ffd23f; color: #111; border: .2em solid #111; box-shadow: .3em .3em 0 #111; text-transform: uppercase; transition: transform .08s, box-shadow .08s; }
+  .a .btn:hover { background: #ffe27a; transform: translate(-.08em, -.08em); box-shadow: .38em .38em 0 #111; }
+  .a .btn:active { transform: translate(.3em, .3em); box-shadow: 0 0 0 #111; }
+  .a .btn.go { background: #3ddc84; font-size: 2em; animation: a-pulse 1s steps(2) infinite; }
+  @keyframes a-pulse { 50% { background: #8ef0b7; } }
+  .a .toggles { display: flex; gap: 1em; }
+  .a .chip { font-size: 1.1em; cursor: pointer; display: flex; align-items: center; gap: .5em; padding: .5em .8em; background: #111; border: .15em solid #111; }
+  .a .chip input { appearance: none; width: 1em; height: 1em; margin: 0; background: #555; }
+  .a .chip input:checked { background: #3ddc84; box-shadow: 0 0 .6em #3ddc84; }
+  .a .chip input:not(:checked) + span { opacity: .5; text-decoration: line-through; }
+  .a .runner { position: absolute; bottom: 3.6em; left: -12em; width: 10em; z-index: 1; animation: a-run 5s linear infinite; }
+  .a .runner:nth-of-type(2) { animation-delay: -2.4s; bottom: 4.4em; width: 8em; }
+  @keyframes a-run { to { left: 110%; } }
+
+  /* Results */
+  .a .r-head { position: absolute; top: 5em; left: 0; right: 0; text-align: center; z-index: 3; }
+  .a .r-head .flag { font-size: 1.6em; color: #111; background: #ffd23f; display: inline-block; padding: .3em .7em; border: .15em solid #111; transform: rotate(-3deg); animation: a-stamp .5s cubic-bezier(.2,1.6,.4,1) both; }
+  .a .r-head .big { display: block; font-size: 4.6em; margin-top: .25em; text-shadow: .08em .08em 0 #111; animation: a-stamp .5s .25s cubic-bezier(.2,1.6,.4,1) both; }
+  .a .r-head .sub { display: block; font-size: 1.3em; margin-top: .6em; opacity: .9; animation: fade .4s .6s both; }
+  @keyframes a-stamp { from { transform: scale(3) rotate(-3deg); opacity: 0; } }
+  @keyframes fade { from { opacity: 0; transform: translateY(.6em); } }
+  .a .podium { position: absolute; left: 4em; bottom: 3em; width: 46em; height: 26em; display: flex; align-items: flex-end; gap: .6em; z-index: 3; }
+  .a .step { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; }
+  .a .step .who { font-size: 1.2em; margin-bottom: .3em; white-space: nowrap; }
+  .a .step .k { width: 9em; margin-bottom: -.2em; animation: a-drop .5s cubic-bezier(.2,1.5,.4,1) both; }
+  .a .step .block { width: 100%; background: #111; border-top: .4em solid #ffd23f; display: grid; place-items: center; font-size: 3.4em; color: #ffd23f; animation: a-rise .6s cubic-bezier(.2,1.3,.4,1) both; transform-origin: bottom; }
+  .a .step.p1 .block { height: 3.2em; } .a .step.p2 .block { height: 2.2em; border-color: #ddd; color: #ddd; } .a .step.p3 .block { height: 1.5em; border-color: #e08a3c; color: #e08a3c; }
+  .a .step.p2 .block { animation-delay: .9s; } .a .step.p2 .k { animation-delay: 1.3s; }
+  .a .step.p3 .block { animation-delay: .7s; } .a .step.p3 .k { animation-delay: 1.1s; }
+  .a .step.p1 .block { animation-delay: 1.1s; } .a .step.p1 .k { animation-delay: 1.5s; }
+  .a .step.me .who { background: #ffd23f; color: #111; padding: .15em .4em; }
+  @keyframes a-rise { from { transform: scaleY(0); } }
+  @keyframes a-drop { from { transform: translateY(-14em); opacity: 0; } }
+  .a .board { position: absolute; right: 4em; bottom: 9.5em; width: 40em; z-index: 3; background: #111; border: .2em solid #111; box-shadow: .4em .4em 0 rgba(0,0,0,.4); }
+  .a .board li { display: grid; grid-template-columns: 3.4em 1fr auto; gap: .6em; align-items: center; padding: .45em .8em; font-size: 1.15em; border-bottom: .1em dashed #333; animation: fade .3s both; }
+  .a .board li .dot { display: inline-block; width: .8em; height: .8em; margin-right: .5em; vertical-align: -.05em; }
+  .a .board li.me { background: #ffd23f; color: #111; }
+  .a .board li.dnf { color: #888; }
+  .a .board li.me.dnf { color: #111; }
+  .a .board .badge { font-size: .7em; background: #a45cff; color: #fff; padding: .2em .4em; margin-left: .5em; }
+  .a .board ol { list-style: none; margin: 0; padding: 0; }
+  .a .r-actions { position: absolute; right: 4em; bottom: 4.6em; z-index: 3; display: flex; gap: 1em; }
+  .a .r-actions .btn { font-size: 1.5em; }
+  .a .r-actions .btn.go { font-size: 1.5em; }
+
+  /* =====================================================================
+     Design B: Night Circuit. A synthwave night race: neon outlines, a
+     grid floor rushing at you, tail-light streaks. Calm UI, loud world.
+     ===================================================================== */
+  .b { background: linear-gradient(#0b0221 0%, #2b0b4f 45%, #61186e 58%, #0b0221 58.2%); font-family: Orbitron, sans-serif; color: #f6e9ff; }
+  .b .stars { position: absolute; inset: 0 0 45% 0; z-index: 0;
+    background-image: radial-gradient(.12em .12em at 10% 20%, #fff, transparent), radial-gradient(.1em .1em at 30% 60%, #fff, transparent), radial-gradient(.14em .14em at 70% 30%, #fff, transparent), radial-gradient(.1em .1em at 85% 70%, #fff, transparent), radial-gradient(.1em .1em at 55% 12%, #fff, transparent), radial-gradient(.12em .12em at 18% 80%, #fff, transparent);
+    background-size: 22em 14em; animation: twinkle 3s ease-in-out infinite alternate; }
+  @keyframes twinkle { to { opacity: .4; } }
+  .b .sun { position: absolute; z-index: 0; width: 26em; height: 26em; left: 50%; top: 58%; transform: translate(-50%, -100%) translateY(13em); border-radius: 50%;
+    background: linear-gradient(#ffe259, #ff4f8b 70%); mask: linear-gradient(#000 0 50%, transparent 50% 54%, #000 54% 60%, transparent 60% 65%, #000 65% 72%, transparent 72% 78%, #000 78% 86%, transparent 86%);
+    filter: drop-shadow(0 0 3em #ff4f8b); clip-path: inset(0 0 50% 0); }
+  .b .floor { position: absolute; left: -50%; right: -50%; top: 58%; bottom: -40%; z-index: 0; transform: perspective(18em) rotateX(62deg); transform-origin: top;
+    background: linear-gradient(90deg, rgba(0,240,255,.8) .12em, transparent .12em) 0 0 / 5em 5em, linear-gradient(rgba(255,79,200,.8) .12em, transparent .12em) 0 0 / 5em 5em;
+    animation: b-floor .6s linear infinite; }
+  @keyframes b-floor { to { background-position: 0 5em, 0 5em; } }
+  .b .floor::after { content: ""; position: absolute; inset: 0; background: linear-gradient(#0b0221 0%, transparent 40%); }
+  .b .streak { position: absolute; height: .25em; width: 14em; z-index: 1; border-radius: 1em; background: linear-gradient(90deg, transparent, #ff2d55); filter: drop-shadow(0 0 .4em #ff2d55); animation: b-streak 1.6s linear infinite; }
+  .b .streak.s2 { top: 72%; animation-delay: -.8s; background: linear-gradient(90deg, transparent, #00f0ff); filter: drop-shadow(0 0 .4em #00f0ff); }
+  .b .streak.s1 { top: 66%; } .b .streak.s3 { top: 84%; animation-duration: 1.1s; }
+  @keyframes b-streak { from { left: -20%; } to { left: 120%; } }
+  .b .logo { text-align: center; font-style: italic; font-weight: 900; line-height: 1; transform: skew(-8deg); }
+  .b .logo span { display: block; font-size: 6.6em; letter-spacing: .04em; color: transparent; -webkit-text-stroke: .04em #ff4fd8; text-shadow: 0 0 .25em #ff4fd8, 0 0 .6em #ff4fd8; animation: b-flicker 4s infinite; }
+  .b .logo span + span { color: #fff; -webkit-text-stroke: 0; text-shadow: 0 0 .15em #00f0ff, 0 0 .5em #00f0ff, 0 0 1em #00f0ff; font-size: 5em; margin-top: -.1em; animation: none; }
+  @keyframes b-flicker { 0%, 92%, 96%, 100% { opacity: 1; } 94% { opacity: .35; } }
+  .b .panel { display: grid; gap: 1em; padding: 1.6em; border-radius: 1.2em; background: rgba(20,6,45,.55); border: .12em solid rgba(0,240,255,.5); box-shadow: 0 0 2em rgba(0,240,255,.25), inset 0 0 2em rgba(255,79,216,.12); backdrop-filter: blur(.4em); width: 34em; }
+  .b .field { font: inherit; font-size: 1.4em; padding: .7em .9em; border-radius: .5em; background: rgba(0,0,0,.4); color: #fff; border: .1em solid rgba(255,255,255,.2); outline: none; width: 100%; transition: border-color .2s, box-shadow .2s; }
+  .b .field:focus { border-color: #00f0ff; box-shadow: 0 0 1em rgba(0,240,255,.5); }
+  .b .field::placeholder { color: rgba(255,255,255,.45); }
+  .b .code { text-transform: uppercase; letter-spacing: .4em; text-align: center; }
+  .b .btn { font: inherit; font-weight: 700; font-size: 1.3em; letter-spacing: .1em; text-transform: uppercase; padding: .85em 1.2em; border-radius: .5em; cursor: pointer; color: #fff; background: transparent; border: .12em solid #ff4fd8; box-shadow: 0 0 .8em rgba(255,79,216,.6), inset 0 0 .8em rgba(255,79,216,.3); transition: background .15s, transform .15s; white-space: nowrap; }
+  .b .btn:hover { background: rgba(255,79,216,.25); transform: translateY(-.1em); }
+  .b .btn.cyan { border-color: #00f0ff; box-shadow: 0 0 .8em rgba(0,240,255,.6), inset 0 0 .8em rgba(0,240,255,.3); }
+  .b .btn.cyan:hover { background: rgba(0,240,255,.2); }
+  .b .btn.go { background: linear-gradient(90deg, #ff4fd8, #ff8a3d); border: 0; box-shadow: 0 0 1.6em rgba(255,100,150,.7); }
+  .b .btn.go:hover { filter: brightness(1.15); }
+  .b .split { display: grid; grid-template-columns: 1fr 1fr; gap: 1em; }
+  .b .join { display: grid; grid-template-columns: 1fr auto; gap: 1em; }
+  .b .toggles { display: flex; justify-content: center; gap: .6em; }
+  .b .tog { font-family: Inter, sans-serif; font-size: 1.05em; display: flex; align-items: center; gap: .55em; cursor: pointer; color: rgba(255,255,255,.75); white-space: nowrap; }
+  .b .tog input { appearance: none; margin: 0; width: 2.2em; height: 1.2em; border-radius: 1em; background: rgba(255,255,255,.15); position: relative; cursor: pointer; transition: background .2s; }
+  .b .tog input::after { content: ""; position: absolute; top: .15em; left: .15em; width: .9em; height: .9em; border-radius: 50%; background: #fff; transition: transform .2s; }
+  .b .tog input:checked { background: #00c2d1; box-shadow: 0 0 .6em #00f0ff; }
+  .b .tog input:checked::after { transform: translateX(1em); }
+  .b .tog + .tog::before { content: ""; width: .1em; height: 1em; background: rgba(255,255,255,.2); margin-right: .6em; }
+
+  /* Results */
+  .b .r-wrap { position: relative; z-index: 3; display: grid; grid-template-columns: 30em 42em; gap: 4em; align-items: center; }
+  .b .hero { text-align: center; }
+  .b .hero .lbl { font-size: 1.3em; letter-spacing: .5em; color: #00f0ff; text-shadow: 0 0 .5em #00f0ff; animation: fade .4s both; }
+  .b .hero .pos { font-weight: 900; font-style: italic; font-size: 17em; line-height: 1; color: #fff; text-shadow: 0 0 .06em #ff4fd8, 0 0 .2em #ff4fd8, 0 0 .4em #ff4fd8; animation: b-zoom .7s .2s cubic-bezier(.2,1.4,.4,1) both; }
+  .b .hero .pos sup { font-size: .3em; vertical-align: 1.6em; margin-left: .05em; }
+  .b .hero .msg { font-size: 1.6em; font-weight: 700; margin-top: -.3em; animation: fade .4s .7s both; }
+  .b .hero .lap { font-family: Inter, sans-serif; font-size: 1.15em; margin-top: .8em; color: rgba(255,255,255,.75); animation: fade .4s .9s both; }
+  .b .hero .lap b { font-family: Orbitron, sans-serif; color: #ffe259; font-size: 1.3em; text-shadow: 0 0 .4em #ffb300; }
+  .b .hero .fl { display: inline-block; margin-top: .8em; font-size: 1em; letter-spacing: .15em; padding: .4em .8em; border-radius: 2em; background: #a45cff; box-shadow: 0 0 1.2em #a45cff; animation: b-zoom .4s 1.2s both; }
+  @keyframes b-zoom { from { transform: scale(.2); opacity: 0; filter: blur(.4em); } }
+  .b .lb { list-style: none; margin: 0; padding: 0; display: grid; gap: .45em; }
+  .b .lb li { display: grid; grid-template-columns: 3.6em .4em 1fr auto; gap: .9em; align-items: center; padding: .55em .9em; border-radius: .5em; background: rgba(20,6,45,.92); border: .08em solid rgba(255,255,255,.1); font-size: 1.2em; animation: b-slide .45s cubic-bezier(.2,1.2,.4,1) both; }
+  .b .lb li .bar { width: .4em; height: 1.4em; border-radius: .2em; }
+  .b .lb li .t { font-family: "Kenney Mini Square", monospace; font-size: 1.1em; color: rgba(255,255,255,.8); }
+  .b .lb li .p { font-weight: 900; font-style: italic; }
+  .b .lb li.gold .p { color: #ffe259; } .b .lb li.silver .p { color: #dfe7ff; } .b .lb li.bronze .p { color: #ff9a55; }
+  .b .lb li.me { border-color: #00f0ff; box-shadow: 0 0 1.2em rgba(0,240,255,.45), inset 0 0 1em rgba(0,240,255,.2); background: rgba(0,60,80,.6); }
+  .b .lb li.dnf { opacity: .55; }
+  .b .lb li.me.dnf { opacity: 1; }
+  .b .hero .pos.dnf { font-size: 11em; }
+  .b .lb li .badge { font-size: .65em; margin-left: .6em; padding: .15em .5em; border-radius: 1em; background: #a45cff; vertical-align: .15em; }
+  @keyframes b-slide { from { transform: translateX(4em); opacity: 0; } }
+  .b .r-actions { display: flex; gap: 1em; margin-top: 1.4em; }
+  .b .r-actions .btn { flex: 1; }
+  .b .burst { position: absolute; width: 1em; height: 1em; z-index: 2; pointer-events: none; }
+  .b .burst i { position: absolute; left: 0; top: 0; width: .35em; height: .35em; border-radius: 50%; background: var(--c); box-shadow: 0 0 .6em var(--c); animation: b-burst 1.8s ease-out var(--delay) infinite; }
+  @keyframes b-burst { 0% { transform: rotate(var(--a)) translateX(0); opacity: 1; } 70% { opacity: 1; } 100% { transform: rotate(var(--a)) translateX(7em) translateY(1.5em); opacity: 0; } }
+
+  /* =====================================================================
+     Design C: Sticker Book. A sunny toy box: rounded type, candy buttons,
+     every control a die-cut sticker with a white border, a little wobble.
+     ===================================================================== */
+  .c { background: linear-gradient(#7fd3ff 0%, #bdeaff 62%, #6cc24a 62%, #4ea83a 100%); font-family: Fredoka, system-ui, sans-serif; color: #26313d; }
+  .c .cloud { position: absolute; z-index: 0; width: 12em; height: 4em; background: #fff; border-radius: 4em; animation: c-drift 40s linear infinite; }
+  .c .cloud::before, .c .cloud::after { content: ""; position: absolute; background: #fff; border-radius: 50%; }
+  .c .cloud::before { width: 5em; height: 5em; left: 1.8em; top: -2.6em; } .c .cloud::after { width: 6.5em; height: 6.5em; left: 4.6em; top: -3.6em; }
+  .c .cloud.c1 { top: 10%; left: 6%; } .c .cloud.c2 { top: 22%; left: 72%; transform: scale(.7); animation-duration: 55s; } .c .cloud.c3 { top: 6%; left: 40%; transform: scale(.5); animation-duration: 70s; }
+  @keyframes c-drift { to { translate: 30em 0; } }
+  .c .hill { position: absolute; z-index: 0; border-radius: 50%; background: #5bb840; }
+  .c .hill.h1 { width: 70em; height: 30em; left: -20em; top: 54%; } .c .hill.h2 { width: 60em; height: 26em; right: -18em; top: 57%; background: #4fae36; }
+  .c .track { position: absolute; z-index: 0; left: -5%; right: -5%; bottom: 4%; height: 13%; background: #6a6f78; border-radius: 50% 50% 0 0 / 40% 40% 0 0; border-top: .7em solid; border-image: repeating-linear-gradient(90deg, #e63946 0 2em, #fff 2em 4em) 1; }
+  .c .sticker { background: #fff; border-radius: 1.4em; padding: .5em; box-shadow: 0 .35em 0 rgba(0,0,0,.12), 0 .8em 1.6em rgba(0,0,0,.15); }
+  .c .logo { position: relative; transform: rotate(-3deg); animation: c-wobble 3s ease-in-out infinite; }
+  .c .logo .inner { border-radius: 1em; padding: .6em 1.6em .7em; background: linear-gradient(#ffcf3f, #ff9f1c); text-align: center; line-height: .9; }
+  .c .logo .t1 { display: block; font-weight: 700; font-size: 6em; color: #fff; -webkit-text-stroke: .05em #26313d; paint-order: stroke fill; text-shadow: 0 .07em 0 #26313d; }
+  .c .logo .t2 { display: block; font-weight: 700; font-size: 3em; color: #e63946; letter-spacing: .3em; margin-top: .1em; }
+  .c .logo .flag { position: absolute; right: -3.2em; top: -2.4em; font-size: 4.5em; transform: rotate(18deg); }
+  @keyframes c-wobble { 50% { transform: rotate(2deg) scale(1.03); } }
+  .c .card { display: grid; gap: .9em; padding: 1.4em; border-radius: 1.4em; background: #fff; box-shadow: 0 .4em 0 rgba(0,0,0,.12), 0 1em 2em rgba(0,0,0,.15); width: 36em; transform: rotate(1deg); }
+  .c .field { font: inherit; font-weight: 600; font-size: 1.5em; padding: .6em .9em; border-radius: .8em; border: .15em solid #d7e3ee; background: #f3f8fc; color: #26313d; outline: none; width: 100%; }
+  .c .field:focus { border-color: #4cc9f0; background: #fff; }
+  .c .field::placeholder { color: #9aabb9; }
+  .c .code { text-transform: uppercase; letter-spacing: .3em; text-align: center; }
+  .c .btn { font: inherit; font-weight: 700; font-size: 1.6em; padding: .6em 1.1em; border-radius: 2em; cursor: pointer; color: #fff; border: 0; white-space: nowrap; background: var(--b); box-shadow: 0 .25em 0 var(--s), 0 .5em .8em rgba(0,0,0,.15); text-shadow: 0 .06em 0 rgba(0,0,0,.2); transition: transform .1s, box-shadow .1s; }
+  .c .btn:hover { transform: translateY(-.1em) rotate(-1deg); }
+  .c .btn:active { transform: translateY(.2em); box-shadow: 0 .05em 0 var(--s); }
+  .c .red { --b: #e63946; --s: #a4202b; } .c .blue { --b: #3a86ff; --s: #1f55b3; } .c .green { --b: #38b000; --s: #237200; } .c .grey { --b: #8d99ae; --s: #5c677d; }
+  .c .join { display: grid; grid-template-columns: 1fr auto; gap: .8em; }
+  .c .btn.big { font-size: 2em; }
+  .c .icons { display: flex; justify-content: center; gap: 1.2em; }
+  .c .ic { cursor: pointer; display: grid; justify-items: center; gap: .2em; font-size: 1em; font-weight: 600; color: #5c677d; }
+  .c .ic input { appearance: none; margin: 0; width: 3.6em; height: 3.6em; border-radius: 50%; background: #e9eef3 center / 55% no-repeat; border: .2em solid #fff; box-shadow: 0 .2em 0 rgba(0,0,0,.12); cursor: pointer; transition: transform .15s; filter: grayscale(1); opacity: .6; }
+  .c .ic input:checked { background-color: #ffe066; filter: none; opacity: 1; transform: rotate(-8deg); }
+  .c .ic input.sfx { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%2326313d'%3E%3Cpath d='M3 9v6h4l5 4V5L7 9H3zm13.5 3a4.5 4.5 0 0 0-2.5-4v8a4.5 4.5 0 0 0 2.5-4z'/%3E%3C/svg%3E"); }
+  .c .ic input.eng { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%2326313d'%3E%3Cpath d='M12 4a9 9 0 0 0-9 9h3a6 6 0 0 1 12 0h3a9 9 0 0 0-9-9zm-1 10.5 5-5-1.4-1.4-5 5A1.5 1.5 0 1 0 11 14.5zM3 15h18v2H3z'/%3E%3C/svg%3E"); }
+  .c .ic input.mus { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%2326313d'%3E%3Cpath d='M9 3v10.6A3.5 3.5 0 1 0 11 17V7h6V3H9z'/%3E%3C/svg%3E"); }
+  .c .tkart { position: absolute; z-index: 1; bottom: 7%; width: 9em; animation: c-lap 7s linear infinite; }
+  .c .tkart.k2 { animation-delay: -3.5s; bottom: 9%; width: 7.5em; }
+  @keyframes c-lap { from { left: -12%; } to { left: 108%; } }
+  .c .tkart svg { animation: c-bob .3s ease-in-out infinite alternate; }
+  @keyframes c-bob { to { transform: translateY(-.25em); } }
+
+  /* Results */
+  .c .r-wrap { position: relative; z-index: 3; display: grid; grid-template-columns: 34em 40em; gap: 3em; align-items: center; }
+  .c .trophy { position: relative; display: grid; justify-items: center; }
+  .c .rays { position: absolute; width: 34em; height: 34em; top: 50%; left: 50%; translate: -50% -58%; border-radius: 50%; background: repeating-conic-gradient(rgba(255,255,255,.7) 0 10deg, transparent 10deg 20deg); animation: spin 18s linear infinite; mask: radial-gradient(closest-side, #000 40%, transparent); z-index: -1; }
+  .c .cup { font-size: 14em; line-height: 1; filter: drop-shadow(0 .05em 0 rgba(0,0,0,.2)); animation: c-pop .7s .2s cubic-bezier(.2,1.8,.4,1) both; }
+  .c .rosette { margin-top: -.5em; display: grid; place-items: center; width: 9em; height: 9em; border-radius: 50%; background: var(--medal); border: .5em dashed rgba(255,255,255,.7); box-shadow: 0 0 0 .4em var(--medal), 0 .6em 0 .4em rgba(0,0,0,.12); color: #fff; font-weight: 700; font-size: 1.4em; text-align: center; line-height: 1; animation: c-pop .6s .6s cubic-bezier(.2,1.8,.4,1) both; transform: rotate(-8deg); }
+  .c .rosette b { display: block; font-size: 2.4em; }
+  .c .msg { margin-top: 1em; font-weight: 700; font-size: 2.4em; color: #fff; -webkit-text-stroke: .05em #26313d; paint-order: stroke fill; text-shadow: 0 .06em 0 #26313d; animation: fade .4s .9s both; text-align: center; }
+  @keyframes c-pop { from { transform: scale(0) rotate(-30deg); } }
+  .c .sheet { padding: 1.2em; border-radius: 1.4em; background: #fff; box-shadow: 0 .4em 0 rgba(0,0,0,.12), 0 1em 2em rgba(0,0,0,.15); transform: rotate(1.5deg); }
+  .c .sheet h3 { margin: 0 0 .5em; font-size: 2em; font-weight: 700; }
+  .c .sheet ol { list-style: none; margin: 0; padding: 0; display: grid; gap: .35em; }
+  .c .sheet li { display: grid; grid-template-columns: 3.2em 2.6em 1fr auto; gap: .6em; align-items: center; padding: .3em .6em; border-radius: .8em; font-size: 1.25em; font-weight: 600; animation: c-slap .35s cubic-bezier(.2,1.6,.4,1) both; }
+  .c .sheet li:nth-child(odd) { background: #f3f8fc; }
+  .c .sheet li .p { font-weight: 700; }
+  .c .sheet li .mini { width: 2.6em; }
+  .c .sheet li .t { font-variant-numeric: tabular-nums; color: #5c677d; }
+  .c .sheet li.me { background: #ffe066; transform: rotate(-1.5deg) scale(1.04); box-shadow: 0 .2em 0 rgba(0,0,0,.1); }
+  .c .sheet li.dnf { color: #9aabb9; }
+  .c .sheet li.me.dnf { color: #5c677d; }
+  .c .sheet li .badge { font-size: .7em; margin-left: .5em; padding: .1em .5em; border-radius: 1em; background: #a45cff; color: #fff; }
+  @keyframes c-slap { from { transform: scale(1.6) rotate(6deg); opacity: 0; } }
+  .c .r-actions { display: flex; gap: 1em; margin-top: 1em; }
+  .c .stamp { position: absolute; right: -2em; top: -2.5em; font-weight: 700; font-size: 1.6em; color: #a45cff; border: .2em solid #a45cff; border-radius: .4em; padding: .2em .6em; background: rgba(255,255,255,.85); transform: rotate(12deg); animation: c-stamp .4s 1.4s cubic-bezier(.2,1.6,.4,1) both; }
+  @keyframes c-stamp { from { transform: rotate(12deg) scale(3); opacity: 0; } }
+
+  @media (prefers-reduced-motion: reduce) {
+    .frame *, .frame *::before, .frame *::after { animation-duration: 0s !important; animation-iteration-count: 1 !important; animation-delay: 0s !important; }
+    .confetti, .burst { display: none; }
+  }
+</style>
+</head>
+<body>
+<header class="page">
+  <h1>Title and Results Variations</h1>
+  <p>Three directions for the Title Scene, each with a Results Scene in the same style. The Results Scenes use only what the race reports today: place, name, best lap and whether the kart finished; "Fastest lap" is the lowest best lap. Pick your finish to see how each one rewards a win, a podium, a midfield finish and not finishing.</p>
+  <div class="controls">
+    <fieldset id="finish">
+      <legend>Your finish</legend>
+      <label><input type="radio" name="finish" value="1" checked /> 1st</label>
+      <label><input type="radio" name="finish" value="3" /> 3rd</label>
+      <label><input type="radio" name="finish" value="6" /> 6th</label>
+      <label><input type="radio" name="finish" value="dnf" /> Not finished</label>
+    </fieldset>
+    <button type="button" id="replay">Replay results</button>
+  </div>
+</header>
+
+<main>
+  <!-- ======================= A ======================= -->
+  <section class="design">
+    <div class="meta">
+      <h2>A. Grand Prix Poster</h2>
+      <p>Arcade cabinet: a crossed-out "1" in the logo, chequered flags rolling, chunky yellow buttons that press in, and the Kenney pixel font from the Instrument panel. Results drop karts onto a podium.</p>
+    </div>
+    <div class="pair">
+      <figure>
+        <figcaption>Title Scene</figcaption>
+        <div class="frame a">
+          <div class="sun"></div><div class="speed"></div>
+          <div class="chequer top"></div><div class="chequer bottom"></div>
+          <div class="runner" data-kart="#f5c400"></div><div class="runner" data-kart="#1f5fd1"></div>
+          <div class="scene"><div class="stack">
+            <div class="logo"><span class="f">FORMULA</span><span class="n">NONE<span class="one"><s>1</s></span></span></div>
+            <div class="tag">KART RACING FOR UP TO 8 FRIENDS</div>
+            <input class="field" type="text" placeholder="Nickname" aria-label="Nickname" maxlength="16" />
+            <div class="row">
+              <button class="btn">Create room</button>
+              <input class="field code" type="text" placeholder="CODE" aria-label="Room code" maxlength="4" />
+              <button class="btn">Join</button>
+            </div>
+            <button class="btn go">&#9654; Solo race</button>
+            <div class="toggles">
+              <label class="chip"><input type="checkbox" checked /><span>SFX</span></label>
+              <label class="chip"><input type="checkbox" checked /><span>ENGINE</span></label>
+              <label class="chip"><input type="checkbox" checked /><span>MUSIC</span></label>
+            </div>
+          </div></div>
+        </div>
+      </figure>
+      <figure>
+        <figcaption>Results Scene</figcaption>
+        <div class="frame a" data-results="a"></div>
+      </figure>
+    </div>
+  </section>
+
+  <!-- ======================= B ======================= -->
+  <section class="design">
+    <div class="meta">
+      <h2>B. Night Circuit</h2>
+      <p>Synthwave night race: neon logo, a grid floor rushing at you, tail-light streaks. The form sits in one glass panel so the world can be loud. Results zoom your place in huge and slide the leaderboard in beside it, with fireworks for a podium.</p>
+    </div>
+    <div class="pair">
+      <figure>
+        <figcaption>Title Scene</figcaption>
+        <div class="frame b">
+          <div class="stars"></div><div class="sun"></div><div class="floor"></div>
+          <div class="streak s1"></div><div class="streak s2"></div><div class="streak s3"></div>
+          <div class="scene"><div class="stack" style="gap:1.6em">
+            <div class="logo"><span>FORMULA</span><span>NONE</span></div>
+            <div class="panel">
+              <input class="field" type="text" placeholder="Nickname" aria-label="Nickname" maxlength="16" />
+              <div class="split">
+                <button class="btn">Create room</button>
+                <div class="join"><input class="field code" type="text" placeholder="CODE" aria-label="Room code" maxlength="4" /><button class="btn cyan">Join</button></div>
+              </div>
+              <button class="btn go">Solo race</button>
+              <div class="toggles">
+                <label class="tog"><input type="checkbox" checked />Sound effects</label>
+                <label class="tog"><input type="checkbox" checked />Engine</label>
+                <label class="tog"><input type="checkbox" checked />Music</label>
+              </div>
+            </div>
+          </div></div>
+        </div>
+      </figure>
+      <figure>
+        <figcaption>Results Scene</figcaption>
+        <div class="frame b" data-results="b"></div>
+      </figure>
+    </div>
+  </section>
+
+  <!-- ======================= C ======================= -->
+  <section class="design">
+    <div class="meta">
+      <h2>C. Sticker Book</h2>
+      <p>Sunny toy box: a wobbling sticker logo, candy buttons in red, blue and green, audio toggles as round icon stickers, karts bobbing round a kerbed track. Results hand you a trophy and a rosette in your place's colour, and stamp a fastest lap.</p>
+    </div>
+    <div class="pair">
+      <figure>
+        <figcaption>Title Scene</figcaption>
+        <div class="frame c">
+          <div class="cloud c1"></div><div class="cloud c2"></div><div class="cloud c3"></div>
+          <div class="hill h1"></div><div class="hill h2"></div><div class="track"></div>
+          <div class="tkart" data-kart="#e63946"></div><div class="tkart k2" data-kart="#2a9d3a"></div>
+          <div class="scene"><div class="stack" style="gap:1.8em; margin-top:-4em">
+            <div class="logo sticker"><div class="inner"><span class="t1">Formula</span><span class="t2">NONE</span></div><span class="flag">&#127937;</span></div>
+            <div class="card">
+              <input class="field" type="text" placeholder="Your nickname" aria-label="Nickname" maxlength="16" />
+              <button class="btn red">Create room</button>
+              <div class="join"><input class="field code" type="text" placeholder="CODE" aria-label="Room code" maxlength="4" /><button class="btn blue">Join room</button></div>
+              <button class="btn green big">Solo race!</button>
+              <div class="icons">
+                <label class="ic"><input class="sfx" type="checkbox" checked />Sound effects</label>
+                <label class="ic"><input class="eng" type="checkbox" checked />Engine</label>
+                <label class="ic"><input class="mus" type="checkbox" checked />Music</label>
+              </div>
+            </div>
+          </div></div>
+        </div>
+      </figure>
+      <figure>
+        <figcaption>Results Scene</figcaption>
+        <div class="frame c" data-results="c"></div>
+      </figure>
+    </div>
+  </section>
+</main>
+
+<script>
+  // Side-on kart in a livery colour; shared by every design.
+  function kartSvg(color) {
+    return `<svg class="kart" viewBox="0 0 120 60" aria-hidden="true">
+      <ellipse cx="60" cy="56" rx="54" ry="4" fill="rgba(0,0,0,.25)"/>
+      <path d="M8 40 L18 26 L52 24 L64 14 L84 14 L92 26 L112 30 L114 42 Z" fill="${color}" stroke="#111" stroke-width="3" stroke-linejoin="round"/>
+      <rect x="96" y="20" width="18" height="6" rx="2" fill="#111"/>
+      <circle cx="70" cy="10" r="9" fill="#fff" stroke="#111" stroke-width="3"/>
+      <rect x="70" y="6" width="10" height="5" rx="2" fill="#4cc9f0" stroke="#111" stroke-width="2"/>
+      <circle cx="28" cy="44" r="11" fill="#222" stroke="#111" stroke-width="3"/><circle cx="28" cy="44" r="4" fill="#bbb"/>
+      <circle cx="94" cy="44" r="11" fill="#222" stroke="#111" stroke-width="3"/><circle cx="94" cy="44" r="4" fill="#bbb"/>
+    </svg>`;
+  }
+  for (const el of document.querySelectorAll("[data-kart]")) el.innerHTML = kartSvg(el.dataset.kart);
+
+  // The other seven karts, in finishing order without you; liveries from livery.ts.
+  const OTHERS = [
+    { name: "Mia", color: "#1f5fd1", lap: 41.902 },
+    { name: "Bot 3", color: "#f5c400", lap: 42.517 },
+    { name: "Tobi", color: "#2a9d3a", lap: 42.081 },
+    { name: "Bot 5", color: "#f77f00", lap: 43.364 },
+    { name: "Jules", color: "#8e3fbf", lap: 43.010 },
+    { name: "Bot 7", color: "#f2f2f2", lap: 44.225 },
+    { name: "Bot 8", color: "#202020", lap: 45.118 },
+  ];
+  const YOU_COLOR = "#d62828";
+  const ordinal = (n) => n + ({ 1: "st", 2: "nd", 3: "rd" }[n] ?? "th");
+  const fmt = (s) => (s == null ? "-:--.---" : `${Math.floor(s / 60)}:${(s % 60).toFixed(3).padStart(6, "0")}`);
+
+  function standings(finish) {
+    const dnf = finish === "dnf";
+    const you = { name: "You", color: YOU_COLOR, me: true, finished: !dnf, lap: dnf ? null : finish === "6" ? 43.802 : 41.655 };
+    const rows = OTHERS.map((o) => ({ ...o, finished: true }));
+    rows.splice(dnf ? 7 : Number(finish) - 1, 0, you);
+    const best = Math.min(...rows.filter((r) => r.lap != null).map((r) => r.lap));
+    return rows.map((r, i) => ({ ...r, pos: i + 1, fastest: r.lap === best }));
+  }
+
+  // What the Results Scene says to you, by place.
+  function headline(you) {
+    if (!you.finished) return { big: "Out of road!", sub: "The flag fell before your last lap. Rematch?" };
+    if (you.pos === 1) return { big: "You win!", sub: "Nobody saw which way you went." };
+    if (you.pos <= 3) return { big: `Podium! ${ordinal(you.pos)}`, sub: "Champagne is non-alcoholic. Grip is optional." };
+    return { big: `${ordinal(you.pos)} place`, sub: `${you.pos - 3} kart${you.pos - 3 === 1 ? "" : "s"} off the podium. One more go?` };
+  }
+
+  function confetti(colors, n = 60) {
+    let s = "";
+    for (let i = 0; i < n; i++) {
+      s += `<i style="--x:${Math.random() * 100}%;--c:${colors[i % colors.length]};--r:${Math.random() * 360}deg;--d:${2.5 + Math.random() * 2.5}s;--delay:${-Math.random() * 4}s"></i>`;
+    }
+    return `<div class="confetti">${s}</div>`;
+  }
+
+  const fastestBadge = (r) => (r.fastest ? `<span class="badge">FASTEST LAP</span>` : "");
+
+  function renderA(rows, you) {
+    const h = headline(you);
+    const [p1, p2, p3] = rows;
+    const step = (r, cls) => `<div class="step ${cls}${r.me ? " me" : ""}"><span class="who">${r.name}</span><div class="k">${kartSvg(r.color)}</div><div class="block">${r.pos}</div></div>`;
+    const rest = rows.slice(3).map((r, i) => `<li class="${r.me ? "me" : ""}${r.finished ? "" : " dnf"}" style="animation-delay:${1.6 + i * .12}s"><span>${ordinal(r.pos)}</span><span><i class="dot" style="background:${r.color}"></i>${r.name}${fastestBadge(r)}</span><span>${r.finished ? fmt(r.lap) : "DNF"}</span></li>`).join("");
+    const podiumFastest = rows.slice(0, 3).find((r) => r.fastest);
+    return `<div class="sun"></div><div class="speed"></div><div class="chequer top"></div><div class="chequer bottom"></div>
+      ${you.pos <= 3 && you.finished ? confetti(["#ffd23f", "#fff", "#111", "#3ddc84", "#4cc9f0"]) : ""}
+      <div class="r-head"><span class="flag">&#127937; RACE OVER</span><span class="big">${h.big}</span><span class="sub">${h.sub}</span></div>
+      <div class="podium">${step(p2, "p2")}${step(p1, "p1")}${step(p3, "p3")}</div>
+      <div class="board"><ol>${rest}</ol>${podiumFastest ? `<div style="padding:.5em .8em;font-size:1em;color:#a45cff">&#9733; Fastest lap: ${podiumFastest.name} ${fmt(podiumFastest.lap)}</div>` : ""}</div>
+      <div class="r-actions"><button class="btn go">Rematch</button><button class="btn">Leave</button></div>`;
+  }
+
+  function renderB(rows, you) {
+    const h = headline(you);
+    const medal = ["gold", "silver", "bronze"];
+    const lb = rows.map((r, i) => `<li class="${medal[i] ?? ""}${r.me ? " me" : ""}${r.finished ? "" : " dnf"}" style="animation-delay:${.3 + i * .09}s"><span class="p">${ordinal(r.pos)}</span><span class="bar" style="background:${r.color}"></span><span>${r.name}${fastestBadge(r)}</span><span class="t">${r.finished ? fmt(r.lap) : "DNF"}</span></li>`).join("");
+    const podium = you.finished && you.pos <= 3;
+    const bursts = podium ? [[12, 18, "#ff4fd8"], [80, 14, "#00f0ff"], [60, 30, "#ffe259"], [25, 55, "#00f0ff"]].map(([x, y, c], j) => {
+      let s = ""; for (let i = 0; i < 14; i++) s += `<i style="--a:${i * 360 / 14}deg;--c:${c};--delay:${j * .45}s"></i>`;
+      return `<div class="burst" style="left:${x}%;top:${y}%">${s}</div>`;
+    }).join("") : "";
+    const pos = you.finished ? `${you.pos}<sup>${ordinal(you.pos).slice(-2)}</sup>` : "DNF";
+    return `<div class="stars"></div><div class="sun"></div><div class="floor"></div>${bursts}
+      <div class="scene"><div class="r-wrap">
+        <div class="hero"><div class="lbl">FINISH</div><div class="pos${you.finished ? "" : " dnf"}">${pos}</div><div class="msg">${h.big}</div>
+          <div class="lap">${you.finished ? `Your best lap <b>${fmt(you.lap)}</b>` : h.sub}</div>${you.fastest ? `<div class="fl">&#9733; FASTEST LAP</div>` : ""}</div>
+        <div><ol class="lb">${lb}</ol><div class="r-actions"><button class="btn go">Rematch</button><button class="btn cyan">Leave</button></div></div>
+      </div></div>`;
+  }
+
+  function renderC(rows, you) {
+    const h = headline(you);
+    const medal = { 1: "#f4b400", 2: "#9aa7b8", 3: "#d9822b" }[you.pos] ?? "#3a86ff";
+    const cup = !you.finished ? "&#128168;" : you.pos === 1 ? "&#127942;" : you.pos <= 3 ? `&#${129350 + you.pos};` : "&#11088;";
+    const list = rows.map((r, i) => `<li class="${r.me ? "me" : ""}${r.finished ? "" : " dnf"}" style="animation-delay:${.4 + i * .1}s"><span class="p">${ordinal(r.pos)}</span><span class="mini">${kartSvg(r.color)}</span><span>${r.name}${fastestBadge(r)}</span><span class="t">${r.finished ? fmt(r.lap) : "not finished"}</span></li>`).join("");
+    return `<div class="cloud c1"></div><div class="cloud c2"></div><div class="hill h1"></div><div class="hill h2"></div><div class="track"></div>
+      ${you.finished && you.pos <= 3 ? confetti(["#e63946", "#3a86ff", "#38b000", "#ffcf3f", "#a45cff"], 50) : ""}
+      <div class="scene"><div class="r-wrap">
+        <div class="trophy"><div class="rays"></div><div class="cup">${cup}</div>
+          <div class="rosette" style="--medal:${medal}">${you.finished ? `<span><b>${you.pos}</b>${ordinal(you.pos).slice(-2)}</span>` : "<span>DNF</span>"}</div>
+          <div class="msg">${h.big}</div></div>
+        <div class="sheet" style="position:relative">${you.fastest ? `<div class="stamp">FASTEST LAP!</div>` : ""}<h3>Results</h3><ol>${list}</ol>
+          <div class="r-actions"><button class="btn green">Rematch</button><button class="btn grey">Leave</button></div></div>
+      </div></div>`;
+  }
+
+  const RENDER = { a: renderA, b: renderB, c: renderC };
+  function render() {
+    const finish = document.querySelector('input[name="finish"]:checked').value;
+    const rows = standings(finish);
+    const you = rows.find((r) => r.me);
+    for (const frame of document.querySelectorAll("[data-results]")) frame.innerHTML = RENDER[frame.dataset.results](rows, you);
+  }
+  document.getElementById("finish").addEventListener("change", render);
+  document.getElementById("replay").addEventListener("click", render);
+  render();
+</script>
+</body>
+</html>

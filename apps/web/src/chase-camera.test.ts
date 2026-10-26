@@ -201,6 +201,51 @@ describe("the chase camera", () => {
     expectClose(settled.target, [0, 2.3, -4], 2);
   });
 
+  it("looking behind cuts to 6 m ahead and 3.2 m above the kart, looking 4 m behind it", () => {
+    const camera = createChaseCamera(TUNING);
+    camera.update(kart(0, [10, 0.3, -20]), FRAME_S);
+    const pose = camera.update(kart(0, [10, 0.3, -20]), FRAME_S, true);
+    expectClose(pose.position, [10, 3.5, -26]);
+    expectClose(pose.target, [10, 0.3, -16]);
+  });
+
+  it("looking behind mirrors the chase pose's pull-back and heading", () => {
+    const camera = createChaseCamera(TUNING);
+    const facingPlusX = kart(-Math.PI / 2, [0, 0.3, 0], { speed: 30 });
+    const pose = camera.update(facingPlusX, FRAME_S, true);
+    expectClose(pose.position, [7, 3.5, 0]);
+    expectClose(pose.target, [-4, 0.3, 0]);
+  });
+
+  it("cuts back to the chase pose on the first frame after looking behind", () => {
+    const looked = createChaseCamera(TUNING);
+    const ahead = createChaseCamera(TUNING);
+    // A turn under way, so the yaw spring is mid-swing when the look ends.
+    const frames = [kart(0, [0, 0.3, 0]), kart(-0.5, [0, 0.3, -1]), kart(-1, [0, 0.4, -2])];
+    for (const frame of frames) {
+      looked.update(frame, FRAME_S, true);
+      ahead.update(frame, FRAME_S);
+    }
+    const next = kart(-1.2, [0, 0.4, -3]);
+    const pose = looked.update(next, FRAME_S);
+    const chase = ahead.update(next, FRAME_S);
+    expectClose(pose.position, chase.position, 9);
+    expectClose(pose.target, chase.target, 9);
+  });
+
+  it("keeps the height spring and the shake while looking behind", () => {
+    const camera = createChaseCamera(TUNING);
+    const rest = camera.update(kart(0, [0, 0.3, 0]), FRAME_S, true);
+    const hopped = camera.update(kart(0, [0, 0.4, 0], { airborne: true }), FRAME_S, true);
+    expect(hopped.position[1] - rest.position[1]).toBeGreaterThan(0);
+    expect(hopped.position[1] - rest.position[1]).toBeLessThan(0.1 / 3);
+    for (let frame = 0; frame < 2 * 60; frame++) {
+      camera.update(kart(0, [0, 0.3, 0]), FRAME_S, true);
+    }
+    const hit = camera.update(kart(0, [0, 0.3, 0], { spinOutS: 1 }), FRAME_S, true);
+    expect(distance(hit.position, rest.position)).toBeGreaterThan(1e-3);
+  });
+
   it("leaves the transform it reads untouched", () => {
     const camera = createChaseCamera(TUNING);
     const frozen = kart(0.4, [1, 0.3, 2]);
