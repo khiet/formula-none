@@ -523,6 +523,9 @@ fn the_cap_ends_the_race_the_tuned_time_after_the_first_human_finishes() {
     assert_eq!(positions(&state), [1, 2]);
     assert_eq!(state.standings()[1].finish_time_s, None);
     assert!(state.is_bot(1), "a bot drives the outro");
+    let mut state = state;
+    state.hand_back(1);
+    assert!(state.is_bot(1), "the race is over for the human too");
 }
 
 #[test]

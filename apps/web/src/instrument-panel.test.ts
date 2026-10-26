@@ -267,6 +267,7 @@ describe("phase readout", () => {
     expect(phaseReadout({ kind: "racing", elapsedSeconds: 0.9, capLeftSeconds: null })).toBe("GO");
     expect(phaseReadout({ kind: "racing", elapsedSeconds: 1, capLeftSeconds: null })).toBe("");
     expect(phaseReadout({ kind: "racing", elapsedSeconds: 40, capLeftSeconds: 12 })).toBe("");
+    expect(phaseReadout({ kind: "outro", remainingSeconds: 2 })).toBe("");
     expect(phaseReadout({ kind: "finished" })).toBe("");
   });
 });

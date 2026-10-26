@@ -536,13 +536,17 @@ fn a_finished_kart_is_predicted_driven_by_its_bot_not_by_the_players_inputs() {
     // laps with the bot's driving, then reverses hard on full lock.
     let mut memory = Memory::default();
     let mut finished_at = None;
+    let mut corrections_at_the_line = 0;
     let run = race_with(
         seconds(90.0),
         |_| false,
         State::new(SEED, 2, oval()),
         |prediction, tick| {
             if prediction.standing().finish_time_s.is_some() {
-                finished_at.get_or_insert(tick);
+                if finished_at.is_none() {
+                    finished_at = Some(tick);
+                    corrections_at_the_line = prediction.corrections();
+                }
                 return KartInput {
                     brake: 1.0,
                     steer: 1.0,
@@ -570,5 +574,10 @@ fn a_finished_kart_is_predicted_driven_by_its_bot_not_by_the_players_inputs() {
         kart.speed > 0.5 * TOP_SPEED_M_PER_S,
         "the bot drives on at {} m/s",
         kart.speed
+    );
+    assert_eq!(
+        run.prediction.corrections(),
+        corrections_at_the_line,
+        "the bot's driving past the line is not counted against the player"
     );
 }
