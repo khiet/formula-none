@@ -38,6 +38,7 @@ const DECISION_SLUGS = [
   "speed-cluster",
   "race-ends-when-the-humans-finish",
   "grand-prix-poster",
+  "chibi-low-poly-art",
 ];
 
 const expectedFiles = DECISION_SLUGS.map(

@@ -1,0 +1,527 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Formula None Driver and Car</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bungee&family=IBM+Plex+Sans:wght@400;600&family=Silkscreen&display=swap">
+<style>
+  /* Layout: livery picker, then three design directions; each shows the car side-on, from the chase camera, and the driver's portrait. */
+  :root {
+    --bg: #eef0f3;
+    --fg: #1b1d22;
+    --muted: #5b6170;
+    --rule: #cfd3db;
+    --card: #ffffff;
+    --stage: #dfe3e9;
+    --stage-line: #c4cad3;
+    --gold: #c99a2e;
+    --display: "Bungee", "Arial Black", Impact, sans-serif;
+    --body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --pixel: "Silkscreen", ui-monospace, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #15171a; --fg: #ece7d8; --muted: #9a9fab; --rule: #2c3036; --card: #1e2126;
+      --stage: #2a2e35; --stage-line: #3a3f48; color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #15171a; --fg: #ece7d8; --muted: #9a9fab; --rule: #2c3036; --card: #1e2126;
+    --stage: #2a2e35; --stage-line: #3a3f48; color-scheme: dark;
+  }
+
+  /* Livery tokens live on body so the derived shades resolve against the chosen livery. */
+  body {
+    --p: #d00a12; --s: #141414; --a: #ffd400; --n: #ffffff; --h: #ffd400;
+    --p-lt: color-mix(in srgb, var(--p) 72%, white);
+    --p-dk: color-mix(in srgb, var(--p) 68%, black);
+    --s-lt: color-mix(in srgb, var(--s) 75%, white);
+    --h-dk: color-mix(in srgb, var(--h) 70%, black);
+  }
+  body[data-livery="rosso"]   { --p: #d00a12; --s: #141414; --a: #ffd400; --n: #ffffff; --h: #ffd400; }
+  body[data-livery="notte"]   { --p: #16224d; --s: #e2172b; --a: #ffc72c; --n: #ffffff; --h: #f4f4f4; }
+  body[data-livery="argento"] { --p: #bfc5cb; --s: #16181b; --a: #00a19c; --n: #16181b; --h: #f2f2f2; }
+  body[data-livery="papaya"]  { --p: #ff7a00; --s: #1e1e24; --a: #3ec3f5; --n: #1e1e24; --h: #3ec3f5; }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--fg);
+    font-family: var(--body);
+    font-size: 16px;
+    line-height: 1.5;
+    padding: 2.5rem 16px 4rem;
+  }
+  main { max-width: 68rem; margin: 0 auto; display: grid; gap: 3rem; }
+  header { display: grid; gap: 0.6rem; max-width: 46rem; }
+  h1 { font-family: var(--display); font-size: clamp(1.6rem, 4vw, 2.4rem); line-height: 1.1; margin: 0; }
+  header p { margin: 0; color: var(--muted); }
+  .eyebrow { font-family: var(--pixel); font-size: 0.8rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--gold); }
+
+  .picker {
+    position: sticky; top: 0; z-index: 2;
+    display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center;
+    padding: 0.75rem 0; background: var(--bg); border-bottom: 1px solid var(--rule);
+  }
+  .picker span { font-family: var(--pixel); font-size: 0.75rem; text-transform: uppercase; color: var(--muted); margin-right: 0.25rem; }
+  .picker button {
+    display: inline-flex; align-items: center; gap: 0.45rem;
+    font: 600 0.85rem var(--body); color: var(--fg);
+    background: var(--card); border: 2px solid var(--rule); border-radius: 999px;
+    padding: 0.3rem 0.8rem 0.3rem 0.4rem; cursor: pointer;
+  }
+  .picker button[aria-pressed="true"] { border-color: var(--fg); }
+  .picker button small { font-weight: 400; color: var(--muted); }
+  .chip { display: inline-flex; width: 1.6rem; height: 1rem; border-radius: 3px; overflow: hidden; }
+  .chip i { flex: 1; }
+
+  section.design { display: grid; gap: 1.25rem; border-top: 2px solid var(--rule); padding-top: 1.5rem; }
+  .head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.5rem 1.25rem; }
+  .head h2 { font-family: var(--display); font-size: 1.35rem; margin: 0; }
+  .tag { font-family: var(--pixel); font-size: 0.75rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+  .tag.pick { color: var(--gold); }
+  .concept { margin: 0; max-width: 46rem; color: var(--muted); }
+
+  .views { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 1rem; }
+  @media (max-width: 820px) { .views { grid-template-columns: 1fr 1fr; } .views .side { grid-column: 1 / -1; } }
+  @media (max-width: 480px) { .views { grid-template-columns: 1fr; } }
+  figure { margin: 0; display: grid; gap: 0.4rem; min-width: 0; }
+  .stage {
+    border-radius: 8px; overflow: hidden; display: grid; place-items: center;
+    background: linear-gradient(var(--stage) 0 82%, var(--stage-line) 82% 83%, var(--stage) 83%);
+  }
+  .stage.portrait { background: linear-gradient(160deg, var(--p-lt), var(--p-dk)); }
+  .stage svg { width: 100%; height: auto; display: block; }
+  figcaption { font-size: 0.8rem; color: var(--muted); }
+
+  .notes { margin: 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; }
+  @media (max-width: 720px) { .notes { grid-template-columns: 1fr; } }
+  .notes li { background: var(--card); border: 1px solid var(--rule); border-radius: 8px; padding: 0.75rem 0.9rem; font-size: 0.9rem; }
+  .notes b { display: block; font-family: var(--pixel); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); font-weight: 400; margin-bottom: 0.2rem; }
+
+  .fine { font-size: 0.85rem; color: var(--muted); border-top: 1px solid var(--rule); padding-top: 1rem; max-width: 46rem; }
+
+  svg text { font-family: var(--display); }
+  .rain { animation: rain 1s steps(1) infinite; }
+  @keyframes rain { 50% { opacity: 0.25; } }
+  @media (prefers-reduced-motion: reduce) { .rain { animation: none; } }
+</style>
+</head>
+<body data-livery="rosso">
+<main>
+  <header>
+    <div class="eyebrow">Mockup / driver and car</div>
+    <h1>Three ways to build the driver and the car</h1>
+    <p>Each direction swaps the Kenney kart for an open-wheel car with a halo, wings and sidepods, and gives the driver a human face for the portrait. Pick a livery to see all three in it.</p>
+  </header>
+
+  <div class="picker" role="group" aria-label="Livery">
+    <span>Livery</span>
+    <button data-livery="rosso" aria-pressed="true"><span class="chip"><i style="background:#d00a12"></i><i style="background:#141414"></i><i style="background:#ffd400"></i></span>Rosso <small>after Ferrari</small></button>
+    <button data-livery="notte" aria-pressed="false"><span class="chip"><i style="background:#16224d"></i><i style="background:#e2172b"></i><i style="background:#ffc72c"></i></span>Notte <small>after Red Bull</small></button>
+    <button data-livery="argento" aria-pressed="false"><span class="chip"><i style="background:#bfc5cb"></i><i style="background:#16181b"></i><i style="background:#00a19c"></i></span>Argento <small>after Mercedes</small></button>
+    <button data-livery="papaya" aria-pressed="false"><span class="chip"><i style="background:#ff7a00"></i><i style="background:#1e1e24"></i><i style="background:#3ec3f5"></i></span>Papaya <small>after McLaren</small></button>
+  </div>
+
+  <!-- A: Chibi F1 -->
+  <section class="design">
+    <div class="head"><h2>A. Chibi F1</h2><span class="tag">kart proportions / big head / soft tyres</span></div>
+    <p class="concept">An F1 car squashed to the kart's collision box: short wheelbase, oversized wheels and helmet, so it still reads as a toy at chase-cam distance. The face is cartoon-human: big eyes, soft shading, warm skin.</p>
+    <div class="views">
+      <figure class="side">
+        <div class="stage">
+          <svg viewBox="0 0 520 260" aria-label="Chibi F1 car, side view">
+            <ellipse cx="270" cy="238" rx="225" ry="9" fill="rgba(0,0,0,.18)"/>
+            <rect x="54" y="66" width="14" height="118" fill="var(--s)"/>
+            <rect x="40" y="62" width="92" height="20" rx="4" fill="var(--p)"/>
+            <rect x="44" y="86" width="82" height="8" rx="2" fill="var(--s)"/>
+            <path d="M70 196 L70 150 Q72 128 100 124 L190 116 Q200 96 222 92 L262 92 Q278 100 292 118 L400 140 Q450 150 478 168 Q486 176 480 190 L460 196 Z" fill="var(--p)"/>
+            <path d="M100 124 L190 116 L292 118 L400 140 L478 168 L470 164 L400 146 L292 126 L190 124 L100 132 Z" fill="var(--p-lt)" opacity=".7"/>
+            <rect x="80" y="192" width="392" height="10" rx="3" fill="#1d1d1f"/>
+            <path d="M150 186 Q152 140 200 134 L330 138 Q362 142 372 162 L362 186 Z" fill="var(--p-dk)"/>
+            <path d="M176 152 L372 152 L440 166 L440 172 L372 160 L176 160 Z" fill="var(--s)"/>
+            <path d="M176 162 L372 162 L440 174 L440 177 L372 166 L176 166 Z" fill="var(--a)"/>
+            <circle cx="250" cy="174" r="15" fill="#fff"/>
+            <text x="250" y="180" text-anchor="middle" font-size="16" fill="#141414">29</text>
+            <text x="380" y="188" font-size="12" fill="var(--n)" opacity=".85">F/N</text>
+            <path d="M196 120 Q212 102 238 102 L282 106 Q288 112 292 120 Z" fill="#111"/>
+            <circle cx="240" cy="80" r="34" fill="var(--h)"/>
+            <path d="M206 84 Q240 60 274 80" stroke="var(--p)" stroke-width="7" fill="none"/>
+            <path d="M246 70 Q278 68 274 96 L244 96 Q238 84 246 70 Z" fill="#1c2a38"/>
+            <path d="M252 74 Q266 72 268 80" stroke="#7fa4c4" stroke-width="3" fill="none" opacity=".7"/>
+            <path d="M200 112 Q232 50 300 116" stroke="#1a1a1a" stroke-width="7" fill="none" stroke-linecap="round"/>
+            <path d="M440 200 L506 200 L506 186 L496 186 L490 194 L440 194 Z" fill="var(--s)"/>
+            <rect x="498" y="174" width="8" height="28" rx="2" fill="var(--p)"/>
+            <line x1="130" y1="190" x2="190" y2="170" stroke="#222" stroke-width="3"/>
+            <line x1="420" y1="198" x2="380" y2="170" stroke="#222" stroke-width="3"/>
+            <g>
+              <circle cx="130" cy="190" r="46" fill="#1b1b1d"/>
+              <circle cx="130" cy="190" r="35" fill="none" stroke="#e10600" stroke-width="2.5"/>
+              <circle cx="130" cy="190" r="26" fill="#3a3d42"/>
+              <circle cx="130" cy="190" r="8" fill="var(--a)"/>
+            </g>
+            <g>
+              <circle cx="420" cy="198" r="38" fill="#1b1b1d"/>
+              <circle cx="420" cy="198" r="29" fill="none" stroke="#e10600" stroke-width="2.5"/>
+              <circle cx="420" cy="198" r="21" fill="#3a3d42"/>
+              <circle cx="420" cy="198" r="7" fill="var(--a)"/>
+            </g>
+          </svg>
+        </div>
+        <figcaption>Side view. Wheelbase about 1.6x the wheel diameter.</figcaption>
+      </figure>
+      <figure>
+        <div class="stage">
+          <svg viewBox="0 0 300 220" aria-label="Chibi F1 car from the chase camera">
+            <ellipse cx="150" cy="206" rx="135" ry="7" fill="rgba(0,0,0,.18)"/>
+            <rect x="20" y="100" width="72" height="102" rx="18" fill="#1b1b1d"/>
+            <rect x="208" y="100" width="72" height="102" rx="18" fill="#1b1b1d"/>
+            <rect x="24" y="104" width="6" height="94" rx="3" fill="#e10600"/>
+            <rect x="270" y="104" width="6" height="94" rx="3" fill="#e10600"/>
+            <line x1="92" y1="160" x2="110" y2="150" stroke="#222" stroke-width="4"/>
+            <line x1="208" y1="160" x2="190" y2="150" stroke="#222" stroke-width="4"/>
+            <circle cx="150" cy="98" r="42" fill="var(--h)"/>
+            <path d="M110 92 Q150 72 190 92" stroke="var(--p)" stroke-width="9" fill="none"/>
+            <path d="M150 56 L150 140" stroke="var(--s)" stroke-width="5" opacity=".6"/>
+            <path d="M96 192 L96 136 Q100 116 150 114 Q200 116 204 136 L204 192 Z" fill="var(--p)"/>
+            <path d="M110 136 Q150 124 190 136 L190 146 Q150 134 110 146 Z" fill="var(--s)"/>
+            <path d="M96 192 L204 192 L214 206 L86 206 Z" fill="#1d1d1f"/>
+            <rect class="rain" x="140" y="180" width="20" height="8" rx="2" fill="#ff2a2a"/>
+            <rect x="60" y="20" width="12" height="96" fill="var(--s)"/>
+            <rect x="228" y="20" width="12" height="96" fill="var(--s)"/>
+            <line x1="130" y1="44" x2="140" y2="116" stroke="#222" stroke-width="4"/>
+            <line x1="170" y1="44" x2="160" y2="116" stroke="#222" stroke-width="4"/>
+            <rect x="56" y="22" width="188" height="22" rx="4" fill="var(--p)"/>
+            <text x="150" y="38" text-anchor="middle" font-size="12" fill="var(--n)">FORMULA NONE</text>
+            <rect x="62" y="46" width="176" height="8" rx="2" fill="var(--s)"/>
+          </svg>
+        </div>
+        <figcaption>Chase cam. The helmet is the tell at distance.</figcaption>
+      </figure>
+      <figure>
+        <div class="stage portrait">
+          <svg viewBox="0 0 240 280" aria-label="Stylised driver portrait">
+            <path d="M10 280 Q18 214 100 200 L140 200 Q222 214 230 280 Z" fill="var(--p)"/>
+            <path d="M40 280 Q46 236 80 222 L84 280 Z" fill="var(--s)"/>
+            <path d="M200 280 Q194 236 160 222 L156 280 Z" fill="var(--s)"/>
+            <path d="M100 168 L100 206 L140 206 L140 168 Z" fill="#573523"/>
+            <path d="M92 198 Q120 216 148 198 L150 212 Q120 230 90 212 Z" fill="var(--s)"/>
+            <line x1="120" y1="222" x2="120" y2="280" stroke="var(--a)" stroke-width="3"/>
+            <ellipse cx="70" cy="126" rx="10" ry="15" fill="#5f3c29"/>
+            <ellipse cx="170" cy="126" rx="10" ry="15" fill="#5f3c29"/>
+            <circle cx="170" cy="140" r="3.2" fill="#ececec"/>
+            <path d="M70 120 Q68 62 120 58 Q172 62 170 120 Q170 172 120 188 Q70 172 70 120 Z" fill="#6b4430"/>
+            <path d="M150 74 Q172 92 170 124 Q168 166 128 186 Q156 160 158 122 Q158 92 150 74 Z" fill="#573523" opacity=".7"/>
+            <path d="M66 114 Q58 48 120 42 Q182 48 174 114 Q168 84 150 78 Q120 70 90 78 Q72 86 66 114 Z" fill="#1a1210"/>
+            <g fill="#2c211c">
+              <circle cx="82" cy="70" r="7"/><circle cx="98" cy="56" r="7"/><circle cx="116" cy="50" r="7"/>
+              <circle cx="134" cy="51" r="7"/><circle cx="151" cy="58" r="7"/><circle cx="164" cy="72" r="7"/>
+              <circle cx="104" cy="70" r="6"/><circle cx="124" cy="66" r="6"/><circle cx="144" cy="70" r="6"/>
+            </g>
+            <path d="M86 104 Q100 96 114 103" stroke="#1a1210" stroke-width="5" fill="none" stroke-linecap="round"/>
+            <path d="M126 103 Q140 96 154 104" stroke="#1a1210" stroke-width="5" fill="none" stroke-linecap="round"/>
+            <ellipse cx="100" cy="122" rx="13" ry="10" fill="#f6f1ea"/>
+            <ellipse cx="140" cy="122" rx="13" ry="10" fill="#f6f1ea"/>
+            <circle cx="101" cy="123" r="7" fill="#3b2416"/><circle cx="141" cy="123" r="7" fill="#3b2416"/>
+            <circle cx="101" cy="123" r="3.5" fill="#0b0b0b"/><circle cx="141" cy="123" r="3.5" fill="#0b0b0b"/>
+            <circle cx="104" cy="120" r="2" fill="#fff"/><circle cx="144" cy="120" r="2" fill="#fff"/>
+            <path d="M86 120 Q100 108 114 119" stroke="#1a1210" stroke-width="3" fill="none"/>
+            <path d="M126 119 Q140 108 154 120" stroke="#1a1210" stroke-width="3" fill="none"/>
+            <path d="M118 128 Q113 144 109 149 Q120 156 131 149 Q127 144 122 128" stroke="#4a2c1d" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+            <ellipse cx="90" cy="148" rx="11" ry="6" fill="#c46a5a" opacity=".22"/>
+            <ellipse cx="150" cy="148" rx="11" ry="6" fill="#c46a5a" opacity=".22"/>
+            <path d="M76 140 Q80 178 120 190 Q160 178 164 140 Q160 168 140 172 Q120 162 100 172 Q80 168 76 140 Z" fill="#1a1210" opacity=".85"/>
+            <path d="M102 160 Q120 152 138 160 Q120 158 102 160 Z" fill="#1a1210" stroke="#1a1210" stroke-width="3" stroke-linejoin="round"/>
+            <path d="M104 165 Q120 172 136 165 Q120 180 104 165 Z" fill="#4a1f1a"/>
+            <path d="M108 166 Q120 170 132 166 L131 168 Q120 171 109 168 Z" fill="#f4efe6"/>
+          </svg>
+        </div>
+        <figcaption>Portrait for the Room Scene card and the podium.</figcaption>
+      </figure>
+    </div>
+    <ul class="notes">
+      <li><b>Model</b>Fits today's collision box, so no sim or tuning change. About 2k triangles; one new Blender build, not Kenney.</li>
+      <li><b>Livery</b>Three paints (primary, secondary, accent) plus helmet. The glossary's one "fixed colour" becomes a palette: an ADR.</li>
+      <li><b>Face</b>Only in the portrait; in the car the visor is down. Eight portraits drawn as SVG, one per livery slot or picked by the player.</li>
+    </ul>
+  </section>
+
+  <!-- B: Grounded -->
+  <section class="design">
+    <div class="head"><h2>B. Grounded</h2><span class="tag">real proportions / slim nose / medium tyres</span></div>
+    <p class="concept">Close to a modern F1 car: long wheelbase, airbox over the driver's head, halo, deep sidepods. The face is the most realistic of the three: smaller eyes, anatomical jaw, stubble and shading.</p>
+    <div class="views">
+      <figure class="side">
+        <div class="stage">
+          <svg viewBox="0 0 640 220" aria-label="Grounded F1 car, side view">
+            <ellipse cx="330" cy="203" rx="300" ry="7" fill="rgba(0,0,0,.18)"/>
+            <path d="M40 46 L70 46 L74 150 L44 150 Z" fill="var(--s)"/>
+            <rect x="28" y="48" width="74" height="13" rx="3" fill="var(--p)"/>
+            <rect x="32" y="64" width="66" height="7" rx="2" fill="var(--p-dk)"/>
+            <path d="M60 172 L60 140 Q70 120 110 112 L232 98 L252 62 Q258 54 270 56 L286 58 L300 100 L330 110 L440 128 L560 150 Q600 156 614 166 L614 172 L560 178 Z" fill="var(--p)"/>
+            <path d="M110 112 L232 98 L252 62 L270 56 L286 58 L300 100 L330 110 L440 128 L560 150 L614 166 L560 158 L440 136 L330 118 L232 106 L110 120 Z" fill="var(--p-lt)" opacity=".6"/>
+            <path d="M252 62 L270 56 L274 74 L256 78 Z" fill="#111"/>
+            <rect x="262" y="48" width="18" height="6" rx="2" fill="var(--a)"/>
+            <rect x="70" y="174" width="496" height="8" rx="2" fill="#1d1d1f"/>
+            <path d="M196 170 Q200 126 240 118 L396 124 Q420 128 422 142 L404 168 Z" fill="var(--p-dk)"/>
+            <path d="M210 140 L420 140 L540 158 L540 163 L420 147 L210 147 Z" fill="var(--s)"/>
+            <path d="M210 150 L410 150 L520 166 L520 168 L410 153 L210 153 Z" fill="var(--a)"/>
+            <text x="300" y="166" font-size="13" fill="var(--n)" opacity=".85">FORMULA NONE</text>
+            <path d="M300 104 Q330 94 372 100 L374 114 L300 110 Z" fill="#111"/>
+            <circle cx="326" cy="92" r="17" fill="var(--h)"/>
+            <path d="M330 84 Q346 84 343 100 L328 100 Q325 92 330 84 Z" fill="#1c2a38"/>
+            <path d="M310 90 Q326 78 342 86" stroke="var(--p)" stroke-width="4" fill="none"/>
+            <path d="M300 106 Q302 82 326 79 L360 81 Q382 84 396 116" stroke="#1a1a1a" stroke-width="5" fill="none" stroke-linecap="round"/>
+            <rect x="384" y="104" width="14" height="6" rx="2" fill="var(--s)"/>
+            <text x="500" y="152" font-size="16" fill="var(--n)">52</text>
+            <path d="M540 190 L632 190 L632 176 L622 176 L614 184 L540 184 Z" fill="var(--s)"/>
+            <rect x="624" y="164" width="8" height="28" rx="2" fill="var(--p)"/>
+            <line x1="110" y1="160" x2="190" y2="150" stroke="#222" stroke-width="3"/>
+            <line x1="520" y1="164" x2="460" y2="140" stroke="#222" stroke-width="3"/>
+            <g>
+              <circle cx="110" cy="160" r="42" fill="#1b1b1d"/>
+              <circle cx="110" cy="160" r="33" fill="none" stroke="#ffd12a" stroke-width="2.5"/>
+              <circle cx="110" cy="160" r="24" fill="#2b2e33"/>
+              <circle cx="110" cy="160" r="6" fill="var(--a)"/>
+            </g>
+            <g>
+              <circle cx="520" cy="164" r="38" fill="#1b1b1d"/>
+              <circle cx="520" cy="164" r="30" fill="none" stroke="#ffd12a" stroke-width="2.5"/>
+              <circle cx="520" cy="164" r="22" fill="#2b2e33"/>
+              <circle cx="520" cy="164" r="6" fill="var(--a)"/>
+            </g>
+          </svg>
+        </div>
+        <figcaption>Side view. Wheelbase about 5x the wheel diameter.</figcaption>
+      </figure>
+      <figure>
+        <div class="stage">
+          <svg viewBox="0 0 300 220" aria-label="Grounded F1 car from the chase camera">
+            <ellipse cx="150" cy="206" rx="135" ry="7" fill="rgba(0,0,0,.18)"/>
+            <rect x="26" y="112" width="60" height="90" rx="10" fill="#1b1b1d"/>
+            <rect x="214" y="112" width="60" height="90" rx="10" fill="#1b1b1d"/>
+            <rect x="30" y="116" width="5" height="82" rx="2" fill="#ffd12a"/>
+            <rect x="265" y="116" width="5" height="82" rx="2" fill="#ffd12a"/>
+            <line x1="86" y1="150" x2="118" y2="140" stroke="#222" stroke-width="3"/>
+            <line x1="86" y1="170" x2="116" y2="166" stroke="#222" stroke-width="3"/>
+            <line x1="214" y1="150" x2="182" y2="140" stroke="#222" stroke-width="3"/>
+            <line x1="214" y1="170" x2="184" y2="166" stroke="#222" stroke-width="3"/>
+            <circle cx="150" cy="86" r="19" fill="var(--h)"/>
+            <path d="M132 82 Q150 70 168 82" stroke="var(--p)" stroke-width="4" fill="none"/>
+            <path d="M124 100 Q150 66 176 100" stroke="#1a1a1a" stroke-width="4" fill="none"/>
+            <path d="M108 192 L118 124 Q140 96 150 92 Q160 96 182 124 L192 192 Z" fill="var(--p)"/>
+            <path d="M150 92 Q160 96 182 124 L192 192 L150 192 Z" fill="var(--p-dk)" opacity=".5"/>
+            <path d="M140 104 L160 104 L156 116 L144 116 Z" fill="#111"/>
+            <path d="M108 192 L192 192 L204 206 L96 206 Z" fill="#1d1d1f"/>
+            <path d="M118 194 L116 206 M134 194 L133 206 M166 194 L167 206 M182 194 L184 206" stroke="#3a3d42" stroke-width="2"/>
+            <rect class="rain" x="142" y="178" width="16" height="7" rx="2" fill="#ff2a2a"/>
+            <rect x="46" y="28" width="8" height="104" fill="var(--s)"/>
+            <rect x="246" y="28" width="8" height="104" fill="var(--s)"/>
+            <line x1="150" y1="58" x2="150" y2="100" stroke="#222" stroke-width="4"/>
+            <rect x="46" y="32" width="208" height="16" rx="3" fill="var(--p)"/>
+            <text x="150" y="44" text-anchor="middle" font-size="10" fill="var(--n)">FORMULA NONE</text>
+            <rect x="50" y="50" width="200" height="8" rx="2" fill="var(--s)"/>
+          </svg>
+        </div>
+        <figcaption>Chase cam. Wing and airbox hide most of the helmet.</figcaption>
+      </figure>
+      <figure>
+        <div class="stage portrait">
+          <svg viewBox="0 0 240 280" aria-label="Grounded driver portrait">
+            <path d="M10 280 Q20 216 100 204 L140 204 Q220 216 230 280 Z" fill="var(--p)"/>
+            <path d="M140 204 Q220 216 230 280 L150 280 Z" fill="var(--p-dk)" opacity=".55"/>
+            <path d="M60 236 L180 236 L184 246 L56 246 Z" fill="var(--s)"/>
+            <path d="M102 170 L100 208 L144 208 L142 170 Z" fill="#d9b092"/>
+            <path d="M102 176 Q122 196 142 176 L142 188 Q122 200 102 188 Z" fill="#b58c6f" opacity=".7"/>
+            <path d="M92 200 Q122 214 152 200 L154 214 Q122 228 90 214 Z" fill="var(--s)"/>
+            <line x1="122" y1="222" x2="122" y2="280" stroke="var(--a)" stroke-width="2.5"/>
+            <ellipse cx="80" cy="124" rx="7" ry="13" fill="#dbb294"/>
+            <ellipse cx="164" cy="124" rx="7" ry="13" fill="#d1a688"/>
+            <path d="M80 112 Q80 58 122 54 Q164 58 164 112 L162 138 Q158 172 140 186 Q122 196 104 186 Q86 172 82 138 Z" fill="#e9c3a5"/>
+            <path d="M164 112 L162 138 Q158 172 140 186 Q152 160 154 130 Q156 112 150 92 Q162 98 164 112 Z" fill="#c99d80" opacity=".75"/>
+            <path d="M86 150 Q90 176 104 186 Q122 196 140 186 Q154 176 158 150 Q150 172 122 176 Q94 172 86 150 Z" fill="#6b4a33" opacity=".22"/>
+            <path d="M106 158 Q122 150 138 158 Q122 156 106 158 Z" fill="#6b4a33" opacity=".35"/>
+            <path d="M76 108 Q70 48 122 42 Q170 44 168 104 Q162 74 142 70 Q112 78 96 70 Q82 80 76 108 Z" fill="#5a3b22"/>
+            <path d="M96 70 Q112 78 142 70 Q124 66 112 58 Q104 66 96 70 Z" fill="#6e4a2c"/>
+            <path d="M94 108 Q106 101 118 106 L118 109 Q106 105 94 111 Z" fill="#4a2f1b"/>
+            <path d="M126 106 Q138 101 150 108 L150 111 Q138 105 126 109 Z" fill="#4a2f1b"/>
+            <path d="M98 119 Q107 112 116 119 Q107 123 98 119 Z" fill="#f6f1ea"/>
+            <path d="M128 119 Q137 112 146 119 Q137 123 128 119 Z" fill="#f6f1ea"/>
+            <circle cx="107" cy="118.5" r="3.6" fill="#4a6b8a"/><circle cx="137" cy="118.5" r="3.6" fill="#4a6b8a"/>
+            <circle cx="107" cy="118.5" r="1.7" fill="#111"/><circle cx="137" cy="118.5" r="1.7" fill="#111"/>
+            <path d="M97 119 Q107 111 117 119" stroke="#3a2618" stroke-width="1.8" fill="none"/>
+            <path d="M127 119 Q137 111 147 119" stroke="#3a2618" stroke-width="1.8" fill="none"/>
+            <path d="M99 124 Q107 127 115 123" stroke="#c99d80" stroke-width="1.2" fill="none"/>
+            <path d="M129 123 Q137 127 145 124" stroke="#c99d80" stroke-width="1.2" fill="none"/>
+            <path d="M124 116 Q130 132 131 146 Q126 150 122 149 Z" fill="#c99d80" opacity=".7"/>
+            <path d="M120 118 Q118 136 114 146 Q122 152 131 146" stroke="#b5876a" stroke-width="1.6" fill="none" stroke-linecap="round"/>
+            <path d="M108 140 Q104 152 110 160" stroke="#c99d80" stroke-width="1.2" fill="none" opacity=".8"/>
+            <path d="M136 140 Q140 152 134 160" stroke="#c99d80" stroke-width="1.2" fill="none" opacity=".8"/>
+            <path d="M108 164 Q115 160 122 162 Q129 160 136 164 Q122 166 108 164 Z" fill="#b46a5e"/>
+            <path d="M110 165 Q122 173 134 165 Q122 168 110 165 Z" fill="#c9786b"/>
+          </svg>
+        </div>
+        <figcaption>Portrait for the Room Scene card and the podium.</figcaption>
+      </figure>
+    </div>
+    <ul class="notes">
+      <li><b>Model</b>Longer than today's box. Either the sim's kart dimensions grow (bumps, items, every replay fixture re-recorded) or the car overhangs it.</li>
+      <li><b>Livery</b>Same three-paint split as A; more surface for stripes, so it reads best up close and in the Results Scene.</li>
+      <li><b>Face</b>Realistic faces sit uneasily next to Kenney's flat-shaded tracks. Hardest to draw eight of that hold together.</li>
+    </ul>
+  </section>
+
+  <!-- C: Low-poly -->
+  <section class="design">
+    <div class="head"><h2>C. Low-poly</h2><span class="tag pick">faceted / flat materials / hard tyres / recommended</span></div>
+    <p class="concept">Grounded's silhouette built from flat-shaded facets, the same language as the Kenney tracks. The face is a faceted bust: planes for brow, cheek, nose and jaw give it bone structure without needing a texture.</p>
+    <div class="views">
+      <figure class="side">
+        <div class="stage">
+          <svg viewBox="0 0 640 220" aria-label="Low-poly F1 car, side view">
+            <ellipse cx="330" cy="203" rx="300" ry="7" fill="rgba(0,0,0,.18)"/>
+            <polygon points="40,46 70,46 74,150 44,150" fill="var(--s)"/>
+            <polygon points="28,48 102,48 98,61 32,61" fill="var(--p)"/>
+            <polygon points="32,64 98,64 94,71 36,71" fill="var(--p-dk)"/>
+            <polygon points="60,172 60,140 110,112 232,98 252,62 286,58 300,100 330,110 440,128 560,150 614,164 614,172 560,178" fill="var(--p)"/>
+            <polygon points="110,112 232,98 252,62 286,58 300,100 330,110 440,128 560,150 614,164 560,158 440,138 330,120 232,108 110,122" fill="var(--p-lt)"/>
+            <polygon points="60,160 560,168 614,172 560,178 60,172" fill="var(--p-dk)"/>
+            <polygon points="252,62 270,57 274,74 256,78" fill="#111"/>
+            <polygon points="262,48 280,48 280,54 262,54" fill="var(--a)"/>
+            <polygon points="70,174 566,174 566,182 70,182" fill="#1d1d1f"/>
+            <polygon points="196,170 204,128 240,118 396,124 422,142 404,168" fill="var(--p-dk)"/>
+            <polygon points="204,128 240,118 396,124 422,142 396,134 240,128" fill="var(--p)"/>
+            <polygon points="210,140 420,140 540,158 540,163 420,147 210,147" fill="var(--s)"/>
+            <polygon points="210,150 410,150 520,166 520,168 410,153 210,153" fill="var(--a)"/>
+            <text x="300" y="166" font-size="13" fill="var(--n)" opacity=".85">FORMULA NONE</text>
+            <polygon points="300,104 336,96 372,100 374,114 300,110" fill="#111"/>
+            <polygon data-ngon="6" data-cx="326" data-cy="92" data-r="18" data-rot="0" fill="var(--h)"/>
+            <polygon points="326,76 341,83 341,92 326,92" fill="var(--h-dk)" opacity=".35"/>
+            <polygon points="330,84 344,86 343,100 328,100" fill="#1c2a38"/>
+            <polyline points="300,106 304,84 326,79 360,81 396,116" stroke="#1a1a1a" stroke-width="5" fill="none" stroke-linejoin="round"/>
+            <polygon points="384,104 398,104 398,110 384,110" fill="var(--s)"/>
+            <text x="500" y="152" font-size="16" fill="var(--n)">7</text>
+            <polygon points="540,190 632,190 632,176 622,176 614,184 540,184" fill="var(--s)"/>
+            <polygon points="624,164 632,164 632,192 624,192" fill="var(--p)"/>
+            <line x1="110" y1="160" x2="190" y2="150" stroke="#222" stroke-width="3"/>
+            <line x1="520" y1="164" x2="460" y2="140" stroke="#222" stroke-width="3"/>
+            <polygon data-ngon="8" data-cx="110" data-cy="160" data-r="42" fill="#1b1b1d"/>
+            <polygon data-ngon="8" data-cx="110" data-cy="160" data-r="33" fill="none" stroke="#f2f2f2" stroke-width="2.5"/>
+            <polygon data-ngon="8" data-cx="110" data-cy="160" data-r="24" fill="#2b2e33"/>
+            <polygon data-ngon="6" data-cx="110" data-cy="160" data-r="7" fill="var(--a)"/>
+            <polygon data-ngon="8" data-cx="520" data-cy="164" data-r="38" fill="#1b1b1d"/>
+            <polygon data-ngon="8" data-cx="520" data-cy="164" data-r="30" fill="none" stroke="#f2f2f2" stroke-width="2.5"/>
+            <polygon data-ngon="8" data-cx="520" data-cy="164" data-r="22" fill="#2b2e33"/>
+            <polygon data-ngon="6" data-cx="520" data-cy="164" data-r="7" fill="var(--a)"/>
+          </svg>
+        </div>
+        <figcaption>Side view. Octagonal wheels, two-tone facets per panel.</figcaption>
+      </figure>
+      <figure>
+        <div class="stage">
+          <svg viewBox="0 0 300 220" aria-label="Low-poly F1 car from the chase camera">
+            <ellipse cx="150" cy="206" rx="135" ry="7" fill="rgba(0,0,0,.18)"/>
+            <polygon points="30,112 82,112 86,124 86,190 82,202 30,202 26,190 26,124" fill="#1b1b1d"/>
+            <polygon points="218,112 270,112 274,124 274,190 270,202 218,202 214,190 214,124" fill="#1b1b1d"/>
+            <polygon points="30,116 35,116 35,198 30,198" fill="#f2f2f2"/>
+            <polygon points="265,116 270,116 270,198 265,198" fill="#f2f2f2"/>
+            <line x1="86" y1="150" x2="118" y2="140" stroke="#222" stroke-width="3"/>
+            <line x1="86" y1="170" x2="116" y2="166" stroke="#222" stroke-width="3"/>
+            <line x1="214" y1="150" x2="182" y2="140" stroke="#222" stroke-width="3"/>
+            <line x1="214" y1="170" x2="184" y2="166" stroke="#222" stroke-width="3"/>
+            <polygon data-ngon="6" data-cx="150" data-cy="86" data-r="20" data-rot="0" fill="var(--h)"/>
+            <polygon points="150,66 167,76 167,86 150,86" fill="var(--h-dk)" opacity=".3"/>
+            <polyline points="124,100 136,76 164,76 176,100" stroke="#1a1a1a" stroke-width="4" fill="none" stroke-linejoin="round"/>
+            <polygon points="108,192 118,124 150,92 182,124 192,192" fill="var(--p)"/>
+            <polygon points="150,92 182,124 192,192 150,192" fill="var(--p-dk)"/>
+            <polygon points="108,192 118,124 150,92 150,110 128,132 122,192" fill="var(--p-lt)"/>
+            <polygon points="140,104 160,104 156,116 144,116" fill="#111"/>
+            <polygon points="108,192 192,192 204,206 96,206" fill="#1d1d1f"/>
+            <polygon class="rain" points="142,178 158,178 158,185 142,185" fill="#ff2a2a"/>
+            <polygon points="46,28 54,28 54,132 46,132" fill="var(--s)"/>
+            <polygon points="246,28 254,28 254,132 246,132" fill="var(--s)"/>
+            <line x1="150" y1="58" x2="150" y2="100" stroke="#222" stroke-width="4"/>
+            <polygon points="46,32 254,32 254,48 46,48" fill="var(--p)"/>
+            <polygon points="46,32 254,32 254,38 46,38" fill="var(--p-lt)"/>
+            <text x="150" y="45" text-anchor="middle" font-size="10" fill="var(--n)">FORMULA NONE</text>
+            <polygon points="50,50 250,50 250,58 50,58" fill="var(--s)"/>
+          </svg>
+        </div>
+        <figcaption>Chase cam. Lit and shaded halves keep it legible at speed.</figcaption>
+      </figure>
+      <figure>
+        <div class="stage portrait">
+          <svg viewBox="0 0 240 280" aria-label="Low-poly driver portrait">
+            <polygon points="10,280 40,222 96,204 144,204 200,222 230,280" fill="var(--p)"/>
+            <polygon points="10,280 40,222 96,204 80,280" fill="var(--p-lt)"/>
+            <polygon points="230,280 200,222 144,204 160,280" fill="var(--p-dk)"/>
+            <polygon points="56,238 184,238 188,248 52,248" fill="var(--s)"/>
+            <polygon points="100,178 140,178 144,210 96,210" fill="#9e6a45"/>
+            <polygon points="108,186 132,186 142,198 98,198" fill="#7d5235"/>
+            <polygon points="92,200 148,200 152,216 120,226 88,216" fill="var(--s)"/>
+            <polygon points="118,226 122,226 122,280 118,280" fill="var(--a)"/>
+            <polygon points="74,108 66,112 66,132 76,136" fill="#b47c52"/>
+            <polygon points="166,108 174,112 174,132 164,136" fill="#7d5235"/>
+            <polygon points="86,70 154,70 166,100 164,136 150,170 132,186 108,186 90,170 76,136 74,100" fill="#c48a5f"/>
+            <polygon points="86,70 154,70 166,100 120,112 74,100" fill="#d9a273"/>
+            <polygon points="166,100 164,136 150,170 132,186 134,164 146,138 120,112" fill="#9e6a45"/>
+            <polygon points="76,136 94,138 106,164 108,186 90,170" fill="#d09868"/>
+            <polygon points="120,112 112,128 110,150 120,148" fill="#e3b083"/>
+            <polygon points="120,112 128,128 130,150 120,148" fill="#a87150"/>
+            <polygon points="110,150 130,150 120,155" fill="#7d5235"/>
+            <polygon points="110,150 130,150 134,164 106,164" fill="#b98055"/>
+            <polygon points="106,164 134,164 132,186 108,186" fill="#cc9466"/>
+            <polygon points="92,110 116,107 116,111 94,114" fill="#1c1c1f"/>
+            <polygon points="124,107 148,110 146,114 124,111" fill="#1c1c1f"/>
+            <polygon points="96,120 106,115 114,120 106,124" fill="#f2ece4"/>
+            <polygon points="126,120 134,115 144,120 134,124" fill="#e2dbd2"/>
+            <polygon points="103,116.5 109,116.5 109,123 103,123" fill="#2a1a10"/>
+            <polygon points="131,116.5 137,116.5 137,123 131,123" fill="#2a1a10"/>
+            <polygon points="108,160 120,157 132,160 130,163 120,161 110,163" fill="#1c1c1f"/>
+            <polygon points="108,166 120,163 132,166 120,170" fill="#7a3e2c"/>
+            <polygon points="110,172 130,172 128,186 112,186" fill="#1c1c1f"/>
+            <polygon points="80,74 92,46 124,40 120,66" fill="#2c2c31"/>
+            <polygon points="124,40 158,52 164,82 120,66" fill="#1c1c1f"/>
+            <polygon points="80,74 120,66 164,82 154,70 86,70" fill="#1c1c1f"/>
+            <polygon points="74,100 80,74 86,70 78,104" fill="#1c1c1f" opacity=".55"/>
+            <polygon points="166,100 164,82 154,70 160,104" fill="#1c1c1f" opacity=".55"/>
+          </svg>
+        </div>
+        <figcaption>Portrait for the Room Scene card and the podium.</figcaption>
+      </figure>
+    </div>
+    <ul class="notes">
+      <li><b>Model</b>Built in Blender from primitives in a <code>build.py</code> like today's kart; around 1k triangles, flat materials, no textures.</li>
+      <li><b>Livery</b>Primary, secondary, accent and helmet as four named materials the View recolours, the way it recolours <code>Livery</code> now.</li>
+      <li><b>Face</b>The bust can be a real mesh too, so the same head sits in the cockpit with the visor up on the podium.</li>
+    </ul>
+  </section>
+
+  <p class="fine">Liveries borrow each team's colours only: no team names, crests, sponsors or real race numbers, and the drivers are made-up faces, not likenesses of Hamilton or Verstappen. Shipping real marks or real drivers' faces needs licences from the teams and the drivers.</p>
+</main>
+<script>
+  // Fills each placeholder polygon with a regular n-gon; flat side down unless data-rot is given.
+  for (const el of document.querySelectorAll("polygon[data-ngon]")) {
+    const n = Number(el.dataset.ngon);
+    const cx = Number(el.dataset.cx), cy = Number(el.dataset.cy), r = Number(el.dataset.r);
+    const rot = el.dataset.rot !== undefined ? Number(el.dataset.rot) : Math.PI / n;
+    const pts = [];
+    for (let k = 0; k < n; k++) {
+      const t = rot + (2 * Math.PI * k) / n - Math.PI / 2;
+      pts.push(`${(cx + r * Math.cos(t)).toFixed(1)},${(cy + r * Math.sin(t)).toFixed(1)}`);
+    }
+    el.setAttribute("points", pts.join(" "));
+  }
+
+  const buttons = document.querySelectorAll(".picker button");
+  for (const b of buttons) {
+    b.addEventListener("click", () => {
+      document.body.dataset.livery = b.dataset.livery;
+      for (const o of buttons) o.setAttribute("aria-pressed", String(o === b));
+    });
+  }
+</script>
+</body>
+</html>

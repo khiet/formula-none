@@ -1,0 +1,370 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Chibi Low-poly F1</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bungee&family=IBM+Plex+Sans:wght@400;600&family=Silkscreen&display=swap">
+<style>
+  /* Layout: livery picker, the car side-on and from the chase camera, three drivers, then the four liveries on the grid. */
+  :root {
+    --bg: #eef0f3;
+    --fg: #1b1d22;
+    --muted: #5b6170;
+    --rule: #cfd3db;
+    --card: #ffffff;
+    --stage: #dfe3e9;
+    --stage-line: #c4cad3;
+    --gold: #c99a2e;
+    --display: "Bungee", "Arial Black", Impact, sans-serif;
+    --body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --pixel: "Silkscreen", ui-monospace, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #15171a; --fg: #ece7d8; --muted: #9a9fab; --rule: #2c3036; --card: #1e2126;
+      --stage: #2a2e35; --stage-line: #3a3f48; color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #15171a; --fg: #ece7d8; --muted: #9a9fab; --rule: #2c3036; --card: #1e2126;
+    --stage: #2a2e35; --stage-line: #3a3f48; color-scheme: dark;
+  }
+
+  /* Any element can carry a livery; the shades are declared beside it so they resolve against that livery. */
+  [data-livery] {
+    --p-lt: color-mix(in srgb, var(--p) 72%, white);
+    --p-dk: color-mix(in srgb, var(--p) 66%, black);
+    --h-dk: color-mix(in srgb, var(--h) 68%, black);
+  }
+  [data-livery="rosso"]   { --p: #d00a12; --s: #141414; --a: #ffd400; --n: #ffffff; --h: #ffd400; }
+  [data-livery="notte"]   { --p: #16224d; --s: #e2172b; --a: #ffc72c; --n: #ffffff; --h: #f4f4f4; }
+  [data-livery="argento"] { --p: #bfc5cb; --s: #16181b; --a: #00a19c; --n: #16181b; --h: #f2f2f2; }
+  [data-livery="papaya"]  { --p: #ff7a00; --s: #1e1e24; --a: #3ec3f5; --n: #1e1e24; --h: #3ec3f5; }
+
+  /* Driver tokens: four skin planes from lit to shadowed, hair, iris. */
+  .driver-1 { --sk-lt: #8a5a3c; --sk: #74492f; --sk-dk: #5c3824; --sk-deep: #472a1a; --hair: #1a1210; --hair-lt: #2e2420; --iris: #3b2416; }
+  .driver-2 { --sk-lt: #f3d2b5; --sk: #e5bb98; --sk-dk: #c99a78; --sk-deep: #a87c5c; --hair: #6b4528; --hair-lt: #8a5c36; --iris: #4a6b8a; }
+  .driver-3 { --sk-lt: #d9a273; --sk: #c48a5f; --sk-dk: #9e6a45; --sk-deep: #7d5235; --hair: #1c1c1f; --hair-lt: #34343a; --iris: #2a1a10; }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--fg);
+    font-family: var(--body);
+    font-size: 16px;
+    line-height: 1.5;
+    padding: 2.5rem 16px 4rem;
+  }
+  main { max-width: 68rem; margin: 0 auto; display: grid; gap: 2.5rem; }
+  header { display: grid; gap: 0.6rem; max-width: 46rem; }
+  h1 { font-family: var(--display); font-size: clamp(1.6rem, 4vw, 2.4rem); line-height: 1.1; margin: 0; }
+  h2 { font-family: var(--display); font-size: 1.2rem; margin: 0; }
+  header p, .lede { margin: 0; color: var(--muted); max-width: 46rem; }
+  .eyebrow { font-family: var(--pixel); font-size: 0.8rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--gold); }
+
+  .picker {
+    position: sticky; top: 0; z-index: 2;
+    display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center;
+    padding: 0.75rem 0; background: var(--bg); border-bottom: 1px solid var(--rule);
+  }
+  .picker > span { font-family: var(--pixel); font-size: 0.75rem; text-transform: uppercase; color: var(--muted); margin-right: 0.25rem; }
+  .picker button {
+    display: inline-flex; align-items: center; gap: 0.45rem;
+    font: 600 0.85rem var(--body); color: var(--fg);
+    background: var(--card); border: 2px solid var(--rule); border-radius: 999px;
+    padding: 0.3rem 0.8rem 0.3rem 0.4rem; cursor: pointer;
+  }
+  .picker button[aria-pressed="true"] { border-color: var(--fg); }
+  .picker button small { font-weight: 400; color: var(--muted); }
+  .chip { display: inline-flex; width: 1.6rem; height: 1rem; border-radius: 3px; overflow: hidden; }
+  .chip i { flex: 1; }
+
+  section { display: grid; gap: 1rem; }
+  .row { display: grid; gap: 1rem; }
+  .row.car { grid-template-columns: 2fr 1fr; }
+  .row.drivers { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .row.grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  @media (max-width: 760px) {
+    .row.car, .row.drivers { grid-template-columns: 1fr 1fr; }
+    .row.car figure:first-child { grid-column: 1 / -1; }
+    .row.grid { grid-template-columns: 1fr 1fr; }
+  }
+  @media (max-width: 460px) { .row.drivers { grid-template-columns: 1fr; } }
+
+  figure { margin: 0; display: grid; gap: 0.4rem; align-content: start; min-width: 0; }
+  .stage {
+    border-radius: 8px; overflow: hidden;
+    background: linear-gradient(var(--stage) 0 84%, var(--stage-line) 84% 85%, var(--stage) 85%);
+  }
+  .stage.portrait { background: linear-gradient(160deg, var(--p-lt), var(--p-dk)); }
+  .stage svg { width: 100%; height: auto; display: block; }
+  figcaption { font-size: 0.8rem; color: var(--muted); }
+  figcaption b { color: var(--fg); font-weight: 600; }
+
+  .notes { margin: 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; }
+  @media (max-width: 720px) { .notes { grid-template-columns: 1fr; } }
+  .notes li { background: var(--card); border: 1px solid var(--rule); border-radius: 8px; padding: 0.75rem 0.9rem; font-size: 0.9rem; }
+  .notes b { display: block; font-family: var(--pixel); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); font-weight: 400; margin-bottom: 0.2rem; }
+
+  .fine { font-size: 0.85rem; color: var(--muted); border-top: 1px solid var(--rule); padding-top: 1rem; max-width: 46rem; margin: 0; }
+
+  svg text { font-family: var(--display); }
+  .rain { animation: rain 1s steps(1) infinite; }
+  @keyframes rain { 50% { opacity: 0.25; } }
+  @media (prefers-reduced-motion: reduce) { .rain { animation: none; } }
+</style>
+</head>
+<body data-livery="rosso">
+<main>
+  <header>
+    <div class="eyebrow">Mockup / driver and car</div>
+    <h1>Chibi low-poly F1</h1>
+    <p>Design A's proportions, short wheelbase, oversized wheels and helmet, built in design C's flat-shaded facets. Big-eyed faceted faces for the drivers.</p>
+  </header>
+
+  <div class="picker" role="group" aria-label="Livery">
+    <span>Livery</span>
+    <button data-pick="rosso" aria-pressed="true"><span class="chip"><i style="background:#d00a12"></i><i style="background:#141414"></i><i style="background:#ffd400"></i></span>Rosso <small>after Ferrari</small></button>
+    <button data-pick="notte" aria-pressed="false"><span class="chip"><i style="background:#16224d"></i><i style="background:#e2172b"></i><i style="background:#ffc72c"></i></span>Notte <small>after Red Bull</small></button>
+    <button data-pick="argento" aria-pressed="false"><span class="chip"><i style="background:#bfc5cb"></i><i style="background:#16181b"></i><i style="background:#00a19c"></i></span>Argento <small>after Mercedes</small></button>
+    <button data-pick="papaya" aria-pressed="false"><span class="chip"><i style="background:#ff7a00"></i><i style="background:#1e1e24"></i><i style="background:#3ec3f5"></i></span>Papaya <small>after McLaren</small></button>
+  </div>
+
+  <section>
+    <h2>The car</h2>
+    <div class="row car">
+      <figure>
+        <div class="stage">
+          <svg viewBox="0 0 520 260" aria-label="Chibi low-poly car, side view">
+            <ellipse cx="270" cy="240" rx="225" ry="9" fill="rgba(0,0,0,.18)"/>
+            <!-- rear wing -->
+            <polygon points="54,64 68,64 68,184 54,184" fill="var(--s)"/>
+            <polygon points="40,60 132,60 128,82 44,82" fill="var(--p)"/>
+            <polygon points="40,60 132,60 131,68 41,68" fill="var(--p-lt)"/>
+            <polygon points="44,86 126,86 122,94 48,94" fill="var(--s)"/>
+            <!-- body: base, lit top, shaded underside -->
+            <polygon points="70,196 70,150 100,124 190,116 222,92 262,92 292,118 400,140 478,168 482,190 460,196" fill="var(--p)"/>
+            <polygon points="100,124 190,116 222,92 262,92 292,118 400,140 478,168 470,174 400,150 292,128 190,126 100,134 70,150" fill="var(--p-lt)"/>
+            <polygon points="70,184 460,186 482,190 460,196 70,196" fill="var(--p-dk)"/>
+            <polygon points="80,194 472,194 468,204 84,204" fill="#1d1d1f"/>
+            <!-- sidepod -->
+            <polygon points="150,188 158,146 200,134 330,138 372,162 362,188" fill="var(--p-dk)"/>
+            <polygon points="158,146 200,134 330,138 372,162 330,148 200,144" fill="var(--p)"/>
+            <polygon points="176,152 372,152 440,166 440,172 372,160 176,160" fill="var(--s)"/>
+            <polygon points="176,162 372,162 440,174 440,177 372,166 176,166" fill="var(--a)"/>
+            <polygon data-ngon="6" data-cx="250" data-cy="176" data-r="17" fill="#fff"/>
+            <text x="250" y="182" text-anchor="middle" font-size="16" fill="#141414">29</text>
+            <!-- cockpit, helmet, halo -->
+            <polygon points="196,120 222,102 282,106 292,120" fill="#111"/>
+            <polygon data-ngon="8" data-cx="240" data-cy="80" data-r="36" fill="var(--h)"/>
+            <polygon points="240,44 265,55 276,80 266,105 240,116 240,80" fill="var(--h-dk)" opacity=".3"/>
+            <polygon points="205,78 225,58 255,56 274,70 272,78 252,66 226,68 208,86" fill="var(--p)"/>
+            <polygon points="246,68 276,72 278,96 244,98 240,82" fill="#1c2a38"/>
+            <polygon points="252,72 268,74 266,80 254,78" fill="#7fa4c4" opacity=".7"/>
+            <polyline points="198,114 214,74 258,62 300,118" stroke="#1a1a1a" stroke-width="7" fill="none" stroke-linejoin="round" stroke-linecap="round"/>
+            <!-- front wing -->
+            <polygon points="440,202 506,202 506,188 496,188 490,196 440,196" fill="var(--s)"/>
+            <polygon points="498,174 506,174 506,204 498,204" fill="var(--p)"/>
+            <!-- wheels -->
+            <line x1="130" y1="190" x2="190" y2="170" stroke="#222" stroke-width="3"/>
+            <line x1="420" y1="198" x2="380" y2="170" stroke="#222" stroke-width="3"/>
+            <polygon data-ngon="8" data-cx="130" data-cy="190" data-r="47" fill="#1b1b1d"/>
+            <polygon data-ngon="8" data-cx="130" data-cy="190" data-r="36" fill="none" stroke="#e10600" stroke-width="3"/>
+            <polygon data-ngon="8" data-cx="130" data-cy="190" data-r="26" fill="#3a3d42"/>
+            <polygon data-ngon="6" data-cx="130" data-cy="190" data-r="9" fill="var(--a)"/>
+            <polygon data-ngon="8" data-cx="420" data-cy="198" data-r="39" fill="#1b1b1d"/>
+            <polygon data-ngon="8" data-cx="420" data-cy="198" data-r="30" fill="none" stroke="#e10600" stroke-width="3"/>
+            <polygon data-ngon="8" data-cx="420" data-cy="198" data-r="21" fill="#3a3d42"/>
+            <polygon data-ngon="6" data-cx="420" data-cy="198" data-r="7" fill="var(--a)"/>
+          </svg>
+        </div>
+        <figcaption>Side view. Fits today's kart box; octagonal wheels, two tones per panel.</figcaption>
+      </figure>
+      <figure>
+        <div class="stage" id="chase">
+          <svg viewBox="0 0 300 220" aria-label="Chibi low-poly car from the chase camera">
+            <ellipse cx="150" cy="208" rx="135" ry="7" fill="rgba(0,0,0,.18)"/>
+            <polygon points="34,100 78,100 92,114 92,188 78,202 34,202 20,188 20,114" fill="#1b1b1d"/>
+            <polygon points="222,100 266,100 280,114 280,188 266,202 222,202 208,188 208,114" fill="#1b1b1d"/>
+            <polygon points="34,100 56,100 56,202 34,202 20,188 20,114" fill="#2c2e33"/>
+            <polygon points="222,100 244,100 244,202 222,202 208,188 208,114" fill="#2c2e33"/>
+            <polygon points="25,110 31,104 31,198 25,192" fill="#e10600"/>
+            <polygon points="275,110 269,104 269,198 275,192" fill="#e10600"/>
+            <line x1="92" y1="160" x2="110" y2="150" stroke="#222" stroke-width="4"/>
+            <line x1="208" y1="160" x2="190" y2="150" stroke="#222" stroke-width="4"/>
+            <polygon data-ngon="8" data-cx="150" data-cy="96" data-r="44" fill="var(--h)"/>
+            <polygon points="150,52 181,65 194,96 181,127 150,140" fill="var(--h-dk)" opacity=".3"/>
+            <polygon points="108,90 120,72 150,64 180,72 192,90 180,84 150,76 120,84" fill="var(--p)"/>
+            <polygon points="96,192 96,136 116,116 184,116 204,136 204,192" fill="var(--p)"/>
+            <polygon points="96,192 96,136 116,116 150,116 150,126 116,140 112,192" fill="var(--p-lt)"/>
+            <polygon points="150,116 184,116 204,136 204,192 188,192 188,140 150,126" fill="var(--p-dk)"/>
+            <polygon points="112,140 150,128 188,140 188,148 150,136 112,148" fill="var(--s)"/>
+            <polygon points="96,192 204,192 214,206 86,206" fill="#1d1d1f"/>
+            <polygon class="rain" points="140,180 160,180 160,188 140,188" fill="#ff2a2a"/>
+            <polygon points="60,20 72,20 72,116 60,116" fill="var(--s)"/>
+            <polygon points="228,20 240,20 240,116 228,116" fill="var(--s)"/>
+            <polygon points="56,22 244,22 244,44 56,44" fill="var(--p)"/>
+            <polygon points="56,22 244,22 244,30 56,30" fill="var(--p-lt)"/>
+            <text x="150" y="40" text-anchor="middle" font-size="11" fill="var(--n)">FORMULA NONE</text>
+            <polygon points="62,47 238,47 234,55 66,55" fill="var(--s)"/>
+          </svg>
+        </div>
+        <figcaption>Chase cam. Lit left, shaded right; the helmet is the tell.</figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <section>
+    <h2>The drivers</h2>
+    <p class="lede">One head mesh, big eyes and a short jaw, with skin, hair and facial hair swapped per driver. Same faceted planes in the cockpit with the visor up and on the podium.</p>
+    <div class="row drivers">
+      <figure class="driver-1">
+        <div class="stage portrait">
+          <svg viewBox="0 0 240 280" aria-label="Driver with short twists and a beard">
+            <use href="#suit"/>
+            <use href="#head"/>
+            <polygon points="56,102 58,62 84,38 120,30 156,38 182,62 184,102 170,76 120,66 70,76" fill="var(--hair)"/>
+            <g fill="var(--hair-lt)">
+              <polygon data-ngon="6" data-cx="74" data-cy="62" data-r="9"/><polygon data-ngon="6" data-cx="92" data-cy="46" data-r="9"/>
+              <polygon data-ngon="6" data-cx="112" data-cy="38" data-r="9"/><polygon data-ngon="6" data-cx="132" data-cy="38" data-r="9"/>
+              <polygon data-ngon="6" data-cx="150" data-cy="46" data-r="9"/><polygon data-ngon="6" data-cx="168" data-cy="62" data-r="9"/>
+              <polygon data-ngon="6" data-cx="102" data-cy="58" data-r="7"/><polygon data-ngon="6" data-cx="122" data-cy="54" data-r="7"/>
+              <polygon data-ngon="6" data-cx="142" data-cy="58" data-r="7"/>
+            </g>
+            <polygon points="62,138 76,170 102,188 138,188 164,170 178,138 162,160 140,168 120,162 100,168 78,160" fill="var(--hair)" opacity=".92"/>
+            <polygon points="104,150 120,146 136,150 134,155 120,151 106,155" fill="var(--hair)"/>
+            <use href="#face"/>
+            <polygon data-ngon="4" data-cx="184" data-cy="141" data-r="3.5" fill="#ececec"/>
+          </svg>
+        </div>
+        <figcaption><b>Driver 1.</b> Short twists, full beard, stud earring.</figcaption>
+      </figure>
+      <figure class="driver-2">
+        <div class="stage portrait">
+          <svg viewBox="0 0 240 280" aria-label="Driver with swept brown hair">
+            <use href="#suit"/>
+            <use href="#head"/>
+            <polygon points="62,138 76,170 102,188 138,188 164,170 178,138 164,166 120,176 76,166" fill="var(--hair)" opacity=".16"/>
+            <polygon points="56,104 58,62 84,38 130,30 168,42 184,72 184,104 172,80 146,70 152,86 110,72 72,82" fill="var(--hair)"/>
+            <polygon points="84,38 130,30 146,70 110,72 92,58" fill="var(--hair-lt)"/>
+            <use href="#face"/>
+          </svg>
+        </div>
+        <figcaption><b>Driver 2.</b> Swept fringe, light stubble, blue eyes.</figcaption>
+      </figure>
+      <figure class="driver-3">
+        <div class="stage portrait">
+          <svg viewBox="0 0 240 280" aria-label="Driver with a black undercut and goatee">
+            <use href="#suit"/>
+            <use href="#head"/>
+            <polygon points="62,104 60,76 78,62 72,104" fill="var(--hair)" opacity=".5"/>
+            <polygon points="178,104 180,76 162,62 168,104" fill="var(--hair)" opacity=".5"/>
+            <polygon points="70,72 84,36 124,26 120,60" fill="var(--hair-lt)"/>
+            <polygon points="124,26 164,38 178,76 120,60" fill="var(--hair)"/>
+            <polygon points="70,72 120,60 178,76 162,62 78,62" fill="var(--hair)"/>
+            <polygon points="108,172 132,172 130,188 110,188" fill="var(--hair)"/>
+            <polygon points="104,150 120,146 136,150 134,155 120,151 106,155" fill="var(--hair)"/>
+            <use href="#face"/>
+          </svg>
+        </div>
+        <figcaption><b>Driver 3.</b> Undercut, goatee, dark eyes.</figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <section>
+    <h2>On the grid</h2>
+    <p class="lede">All four liveries from the chase camera, the view players spend the race in.</p>
+    <div class="row grid">
+      <figure data-livery="rosso"><div class="stage" data-clone="chase"></div><figcaption><b>Rosso</b></figcaption></figure>
+      <figure data-livery="notte"><div class="stage" data-clone="chase"></div><figcaption><b>Notte</b></figcaption></figure>
+      <figure data-livery="argento"><div class="stage" data-clone="chase"></div><figcaption><b>Argento</b></figcaption></figure>
+      <figure data-livery="papaya"><div class="stage" data-clone="chase"></div><figcaption><b>Papaya</b></figcaption></figure>
+    </div>
+  </section>
+
+  <ul class="notes">
+    <li><b>Model</b>A new <code>build.py</code> in Blender from primitives, about 1.2k triangles, sized to today's collision box, so no sim, tuning or replay change.</li>
+    <li><b>Livery</b>Primary, secondary, accent and helmet as four named materials the View recolours, the way it recolours <code>Livery</code> now. The glossary's one colour becomes a palette: a new ADR.</li>
+    <li><b>Face</b>One head mesh with flat materials per plane; skin, hair and facial hair are swaps. The portrait is the same head rendered for the Room and Results Scenes.</li>
+  </ul>
+
+  <p class="fine">Liveries borrow each team's colours only: no team names, crests, sponsors or drivers' race numbers, and the drivers are made-up faces, not likenesses of real drivers.</p>
+</main>
+
+<!-- Shared driver parts; each portrait sets the skin and hair tokens and adds its own hair. -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <g id="suit">
+      <polygon points="10,280 38,224 96,206 144,206 202,224 230,280" fill="var(--p)"/>
+      <polygon points="10,280 38,224 96,206 80,280" fill="var(--p-lt)"/>
+      <polygon points="230,280 202,224 144,206 160,280" fill="var(--p-dk)"/>
+      <polygon points="56,240 184,240 188,250 52,250" fill="var(--s)"/>
+      <polygon points="100,180 140,180 144,212 96,212" fill="var(--sk-dk)"/>
+      <polygon points="104,186 136,186 142,198 98,198" fill="var(--sk-deep)"/>
+      <polygon points="92,202 148,202 152,218 120,228 88,218" fill="var(--s)"/>
+      <polygon points="118,228 122,228 122,280 118,280" fill="var(--a)"/>
+    </g>
+    <g id="head">
+      <polygon points="60,110 50,114 50,138 62,142" fill="var(--sk-dk)"/>
+      <polygon points="180,110 190,114 190,138 178,142" fill="var(--sk-deep)"/>
+      <polygon points="78,62 162,62 180,96 180,136 164,170 138,188 102,188 76,170 60,136 60,96" fill="var(--sk)"/>
+      <polygon points="78,62 162,62 180,96 120,104 60,96" fill="var(--sk-lt)"/>
+      <polygon points="180,96 180,136 164,170 138,188 136,166 156,136 120,104" fill="var(--sk-dk)"/>
+      <polygon points="60,136 88,138 104,166 102,188 76,170" fill="var(--sk-lt)" opacity=".7"/>
+      <polygon points="104,166 136,166 138,188 102,188" fill="var(--sk-lt)" opacity=".55"/>
+      <polygon points="120,122 113,140 120,142" fill="var(--sk-lt)"/>
+      <polygon points="120,122 127,140 120,142" fill="var(--sk-dk)"/>
+      <polygon points="113,140 127,140 120,145" fill="var(--sk-deep)"/>
+      <polygon points="74,140 90,136 96,146 80,150" fill="#d0606a" opacity=".18"/>
+      <polygon points="166,140 150,136 144,146 160,150" fill="#d0606a" opacity=".14"/>
+    </g>
+    <g id="face">
+      <polygon points="82,104 112,99 112,105 84,110" fill="var(--hair)"/>
+      <polygon points="128,99 158,104 156,110 128,105" fill="var(--hair)"/>
+      <polygon points="84,124 92,112 108,112 116,124 108,133 92,133" fill="#f6f1ea"/>
+      <polygon points="124,124 132,112 148,112 156,124 148,133 132,133" fill="#e6e0d6"/>
+      <polygon points="94,114 106,114 108,124 106,133 94,133 92,124" fill="var(--iris)"/>
+      <polygon points="134,114 146,114 148,124 146,133 134,133 132,124" fill="var(--iris)"/>
+      <polygon points="97,119 103,119 103,128 97,128" fill="#0b0b0b"/>
+      <polygon points="137,119 143,119 143,128 137,128" fill="#0b0b0b"/>
+      <polygon points="101,116 105,116 105,120 101,120" fill="#fff"/>
+      <polygon points="141,116 145,116 145,120 141,120" fill="#fff"/>
+      <polyline points="83,124 92,111 108,111 117,124" stroke="#1a1210" stroke-width="2.5" fill="none" stroke-linejoin="round"/>
+      <polyline points="123,124 132,111 148,111 157,124" stroke="#1a1210" stroke-width="2.5" fill="none" stroke-linejoin="round"/>
+      <polygon points="106,156 120,160 134,156 128,165 112,165" fill="#6e3428"/>
+      <polygon points="110,158 130,158 127,161 113,161" fill="#f4efe6"/>
+    </g>
+  </defs>
+</svg>
+
+<script>
+  // Grid slots copy the chase-cam drawing; their own data-livery repaints the copy.
+  const chase = document.querySelector("#chase svg");
+  for (const slot of document.querySelectorAll("[data-clone]")) slot.append(chase.cloneNode(true));
+
+  // Fills each placeholder polygon with a regular n-gon, flat side down.
+  for (const el of document.querySelectorAll("polygon[data-ngon]")) {
+    const n = Number(el.dataset.ngon);
+    const cx = Number(el.dataset.cx), cy = Number(el.dataset.cy), r = Number(el.dataset.r);
+    const pts = [];
+    for (let k = 0; k < n; k++) {
+      const t = Math.PI / n + (2 * Math.PI * k) / n - Math.PI / 2;
+      const x = cx + r * Math.cos(t), y = cy + r * Math.sin(t);
+      pts.push(`${x.toFixed(1)},${y.toFixed(1)}`);
+    }
+    el.setAttribute("points", pts.join(" "));
+  }
+
+  const buttons = document.querySelectorAll(".picker button");
+  for (const b of buttons) {
+    b.addEventListener("click", () => {
+      document.body.dataset.livery = b.dataset.pick;
+      for (const o of buttons) o.setAttribute("aria-pressed", String(o === b));
+    });
+  }
+</script>
+</body>
+</html>
