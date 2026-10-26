@@ -877,27 +877,28 @@ impl State {
         }
     }
 
-    /// Whether the kart in `slot` keeps the race from ending: a human's
-    /// kart still racing under its human. In a race with no humans every
-    /// kart still racing does.
-    fn holds_open(&self, slot: usize) -> bool {
-        let kart = &self.karts[slot];
+    /// The karts the end of the race waits on: the humans', or in a race
+    /// with no humans every kart.
+    fn contenders(&self) -> &[Kart] {
         if self.humans == 0 {
-            !kart.finished()
+            &self.karts
         } else {
-            slot < self.humans && !kart.finished() && kart.bot.is_none()
+            &self.karts[..self.humans]
         }
     }
 
-    /// Whether a kart whose finish starts the cap has finished: any
-    /// human's, or in a race with no humans any kart.
+    /// Whether any contender still races under its human, or in a race
+    /// with no humans at all, still races: what keeps the race from ending.
+    fn held_open(&self) -> bool {
+        let humans = self.humans;
+        self.contenders()
+            .iter()
+            .any(|kart| !kart.finished() && (humans == 0 || kart.bot.is_none()))
+    }
+
+    /// Whether a contender has finished, which starts the cap.
     fn cap_started(&self) -> bool {
-        let contenders = if self.humans == 0 {
-            &self.karts[..]
-        } else {
-            &self.karts[..self.humans]
-        };
-        contenders.iter().any(Kart::finished)
+        self.contenders().iter().any(Kart::finished)
     }
 
     /// End the race: the standings as they are become the results, and a
@@ -959,9 +960,8 @@ impl State {
     /// A hash of everything that influences future ticks: the phase and its
     /// clocks, the results once the race has ended, the RNG, the item boxes'
     /// respawn clocks, the hazards and projectiles and, per kart, its
-    /// handling, its item and its body's
-    /// position, heading, velocities and sleep state, including the timer
-    /// that puts a resting body to sleep.
+    /// handling, its item and its body's position, heading, velocities and
+    /// sleep state, including the timer that puts a resting body to sleep.
     /// Bit-identical on every platform for bit-identical states, which is
     /// what the replay fixtures check (ADR 0002). A bot's memory is hashed
     /// with its kart, so a human's kart a bot drives hashes apart from one
@@ -1564,7 +1564,7 @@ fn next_phase(state: &State, dt: f32) -> Phase {
     let outro = Phase::Outro {
         remaining_s: RACE_OUTRO_S,
     };
-    if !(0..state.karts.len()).any(|slot| state.holds_open(slot)) {
+    if !state.held_open() {
         return outro;
     }
     let cap_left_s = match cap_left_s {

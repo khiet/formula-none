@@ -70,6 +70,10 @@ fn racing(state: &State) -> bool {
     matches!(state.phase(), Phase::Racing { .. })
 }
 
+fn in_the_outro(state: &State) -> bool {
+    matches!(state.phase(), Phase::Outro { .. })
+}
+
 /// The race past its countdown with every kart idle on the grid.
 fn started(state: State) -> State {
     let drivers = vec![idle as Driver; state.human_count()];
@@ -410,11 +414,7 @@ fn a_lone_kart_finishing_its_laps_ends_the_race_at_once_and_the_outro_runs_down(
     // Through the outro a bot drives the kart on.
     let at_the_line = state.kart_readouts()[0].position;
     let state = drive(state, &[idle], RACE_OUTRO_S - 2.0 * DT);
-    assert!(
-        matches!(state.phase(), Phase::Outro { .. }),
-        "{:?}",
-        state.phase()
-    );
+    assert!(in_the_outro(&state), "{:?}", state.phase());
     assert!(state.is_bot(0));
     assert!(
         state.kart_readouts()[0].position != at_the_line,
@@ -515,11 +515,7 @@ fn the_cap_ends_the_race_the_tuned_time_after_the_first_human_finishes() {
     let state = drive(state, &[idle, idle], RACE_END_CAP_S - 2.0 * DT);
     assert!(racing(&state), "{:?}", state.phase());
     let state = drive(state, &[idle, idle], 3.0 * DT);
-    assert!(
-        matches!(state.phase(), Phase::Outro { .. }),
-        "{:?}",
-        state.phase()
-    );
+    assert!(in_the_outro(&state), "{:?}", state.phase());
     assert_eq!(positions(&state), [1, 2]);
     assert_eq!(state.standings()[1].finish_time_s, None);
     assert!(state.is_bot(1), "a bot drives the outro");
@@ -534,11 +530,7 @@ fn a_kart_handed_to_a_bot_does_not_hold_the_race_open() {
     state.hand_to_bot(1);
     let state = drive_until_finished(state, &[follow_centreline, idle], 0);
     assert!(!finished(&state, 1));
-    assert!(
-        matches!(state.phase(), Phase::Outro { .. }),
-        "{:?}",
-        state.phase()
-    );
+    assert!(in_the_outro(&state), "{:?}", state.phase());
 }
 
 #[test]
@@ -548,11 +540,7 @@ fn the_race_ends_at_once_when_every_human_has_gone() {
     state.hand_to_bot(0);
     state.hand_to_bot(1);
     let state = drive(state, &[idle, idle], DT);
-    assert!(
-        matches!(state.phase(), Phase::Outro { .. }),
-        "{:?}",
-        state.phase()
-    );
+    assert!(in_the_outro(&state), "{:?}", state.phase());
 }
 
 /// Pole's race of two from the top of the countdown, lapping to its finish

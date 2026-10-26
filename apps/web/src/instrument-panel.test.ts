@@ -131,14 +131,15 @@ describe("the lap instruments on the page", () => {
   });
 });
 
-describe("finish readout", () => {
-  const finished = (position: number, finishTimeS: number): Standing => ({
-    ...ON_THE_GRID,
-    lap: 3,
-    position,
-    finishTimeS,
-  });
+/** A standing over the line on the last lap, at `position` after `finishTimeS`. */
+const finished = (position: number, finishTimeS: number): Standing => ({
+  ...ON_THE_GRID,
+  lap: 3,
+  position,
+  finishTimeS,
+});
 
+describe("finish readout", () => {
   it("is nothing while the own kart is still racing", () => {
     expect(finishReadout([finished(1, 50), ON_THE_GRID, ON_THE_GRID], 1, nameOf)).toBeNull();
   });
@@ -170,13 +171,6 @@ describe("the finish on the page", () => {
       );
     return { find, rows, show };
   };
-  const finished = (position: number, finishTimeS: number): Standing => ({
-    ...ON_THE_GRID,
-    lap: 3,
-    position,
-    finishTimeS,
-  });
-
   it("keeps the banner and the standings down and the lap up until the own kart finishes", () => {
     const { find, show } = mount();
     show([finished(1, 50), { ...ON_THE_GRID, position: 2, lap: 3 }, ON_THE_GRID]);

@@ -15,10 +15,11 @@ v1; the livery and the nickname floating over it tell one from another.
 ### bot
 
 The driver inside the sim for a kart no human drives: the slots humans leave
-empty at Start, a human's kart once they disconnect or go silent, and a
-finished kart until the race ends. A bot reads only what any observer of the race can, the track
-and the karts' transforms and standings, and answers with the same input
-struct a human's controller produces. Bots start on the grid behind the
+empty at Start, a human's kart once they disconnect or go silent, a
+finished kart until the race ends, and every kart through the outro. A bot
+reads only what any observer of the race can, the track and the karts'
+transforms and standings, and answers with the same input struct a human's
+controller produces. Bots start on the grid behind the
 humans.
 
 ### phase
