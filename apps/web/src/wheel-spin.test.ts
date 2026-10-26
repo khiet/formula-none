@@ -1,6 +1,6 @@
 import { BoxGeometry, Group, Mesh, type Object3D, Vector3 } from "three";
 import { describe, expect, it } from "vitest";
-import { kartWheels, WHEEL_SPIN_CAP_RAD, WHEELS, wheelSpin } from "./wheel-spin";
+import { kartWheels, WHEELS, wheelSpin } from "./wheel-spin";
 
 const FRAME_S = 1 / 60;
 const RADIUS_M = 0.25;
@@ -23,14 +23,14 @@ describe("a wheel's roll", () => {
     expect(wheelSpin(1, 0, RADIUS_M, FRAME_S)).toBe(1);
   });
 
-  it("turns no more than the cap in a frame, so a fast wheel never reads as turning backwards", () => {
+  it("turns under half the three spokes' 120 degree repeat in a frame, so a fast wheel never reads as turning backwards", () => {
     // About 106 degrees a frame uncapped, past half the spokes' repeat.
-    expect(wheelSpin(1, 30, 0.27, FRAME_S)).toBeCloseTo(1 + WHEEL_SPIN_CAP_RAD);
-    expect(wheelSpin(1, -30, 0.27, FRAME_S)).toBeCloseTo(1 - WHEEL_SPIN_CAP_RAD);
-  });
-
-  it("caps below half the repeat of three spokes", () => {
-    expect(WHEEL_SPIN_CAP_RAD).toBeLessThan(Math.PI / 3);
+    const forwards = wheelSpin(1, 30, 0.27, FRAME_S) - 1;
+    expect(forwards).toBeGreaterThan(0);
+    expect(forwards).toBeLessThan(Math.PI / 3);
+    const backwards = wheelSpin(1, -30, 0.27, FRAME_S) - 1;
+    expect(backwards).toBeLessThan(0);
+    expect(backwards).toBeGreaterThan(-Math.PI / 3);
   });
 
   it("keeps the angle within a turn, so it does not grow over a long race", () => {
