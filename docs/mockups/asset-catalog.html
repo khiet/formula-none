@@ -331,7 +331,7 @@
   <header class="top">
     <div class="eyebrow">Formula None / asset review, 2026-10-26</div>
     <h1>Asset Catalog</h1>
-    <p class="lede">Every graphic the game draws, checked against the base design and redrawn in it. The base is one language, the car and its driver: chibi low-poly for the world, the posters and the Instrument panel (ADR 0034, with drivers bare-headed per ADR 0036 and liveries as palettes per ADR 0035). The panel still ships the 16-bit kart racer of ADR 0023 and 0024; this page redraws it from the car, which needs an ADR superseding their look. Where the base mockup and a later ADR disagree, the ADR wins.</p>
+    <p class="lede">Every graphic the game draws, checked against the base design and redrawn in it. The base is one language, the car and its driver: chibi low-poly for the world, the posters and the Instrument panel (ADR 0034, with drivers bare-headed per ADR 0036 and liveries as palettes per ADR 0035). The panel still ships the 16-bit kart racer of ADR 0023 and 0024; this page redraws it from the car, as ADR 0037 decides. Where the base mockup and a later ADR disagree, the ADR wins.</p>
     <div class="score" role="group" aria-label="Filter by status">
       <button type="button" id="f-all" data-filter="all" aria-pressed="true">All <b data-count="all">0</b></button>
       <button type="button" id="f-drift" data-filter="drift" aria-pressed="false"><span class="status drift">Drift</span> <b data-count="drift">0</b></button>
@@ -357,7 +357,7 @@
       </ul>
     </section>
     <section>
-      <div class="tag">Instrument panel / ADR 0034; supersedes the look of 0023, 0024</div>
+      <div class="tag">Instrument panel / ADR 0037, superseding the look of 0023, 0024</div>
       <h2>The car's facets, on the View</h2>
       <ul>
         <li>Readouts sit on faceted plates: chamfered corners, a lit, a mid and a shaded band of one colour, and the posters' hard ink drop. No outline.</li>
@@ -751,7 +751,7 @@
       <table>
         <thead><tr><th>#</th><th>Asset</th><th>Change</th><th>Where</th></tr></thead>
         <tbody>
-          <tr><td class="num">1</td><td>Instrument panel language</td><td>A new ADR superseding the look of ADR 0023 and 0024: plates, ink drop, polygons, livery on your readouts</td><td><code>docs/adr</code></td></tr>
+          <tr><td class="num">1</td><td>Instrument panel language</td><td>Decided in ADR 0037: plates, ink drop, polygons, livery on your readouts</td><td><code>docs/adr/0037</code></td></tr>
           <tr><td class="num">2</td><td>Position, laps, times; speed cluster; tyre gauge</td><td>Livery and carbon plates, folded flags, hexagon lights, your car from above</td><td><code>instrument-panel.ts</code>, <code>speed-cluster.ts</code></td></tr>
           <tr><td class="num">3</td><td>Item slot and the View's items</td><td>Slot as the item box face on; cone, gull and snail drawn from the meshes, which become lit and faceted</td><td><code>item-sprites.ts</code>, <code>race-view.ts:188-210</code></td></tr>
           <tr><td class="num">4</td><td>Kart labels</td><td>Key-colour plate with a pointer, HUD units</td><td><code>index.html:330</code></td></tr>
