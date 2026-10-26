@@ -5,17 +5,17 @@ import { kartWheels, WHEELS, wheelSpin } from "./wheel-spin";
 const FRAME_S = 1 / 60;
 const RADIUS_M = 0.25;
 
-describe("a wheel's roll", () => {
-  it("rolls forwards by the distance covered over its radius", () => {
+describe("a wheel's turn", () => {
+  it("turns forwards by the distance covered over its radius", () => {
     expect(wheelSpin(0, 5, RADIUS_M, FRAME_S)).toBeCloseTo((5 / RADIUS_M) * FRAME_S);
   });
 
-  it("rolls on from where it stood", () => {
+  it("turns on from where it stood", () => {
     const once = wheelSpin(0, 5, RADIUS_M, FRAME_S);
     expect(wheelSpin(once, 5, RADIUS_M, FRAME_S)).toBeCloseTo(2 * once);
   });
 
-  it("rolls backwards while the kart backs up", () => {
+  it("turns backwards while the kart backs up", () => {
     expect(wheelSpin(1, -5, RADIUS_M, FRAME_S)).toBeCloseTo(1 - (5 / RADIUS_M) * FRAME_S);
   });
 
@@ -63,10 +63,10 @@ function topOf(root: Object3D, name: string): Vector3 {
 }
 
 describe("a kart's wheels", () => {
-  it("roll every wheel by the speed over the radius measured from its bounds at the drawn scale", () => {
+  it("turn every wheel by the speed over the radius measured from its bounds at the drawn scale", () => {
     const kart = model();
     // 0.3 m from the bounds, drawn twice the size: 0.6 m.
-    kartWheels(kart, 2).roll(3, FRAME_S);
+    kartWheels(kart, 2).turn(3, FRAME_S);
     for (const name of WHEELS) {
       expect(topOf(kart, name).angleTo(new Vector3(0, 1, 0))).toBeCloseTo((3 / 0.6) * FRAME_S);
     }
@@ -74,13 +74,13 @@ describe("a kart's wheels", () => {
 
   it("carry the top of each wheel towards the kart's front, -Z, as it drives forwards", () => {
     const kart = model();
-    kartWheels(kart, 1).roll(3, FRAME_S);
+    kartWheels(kart, 1).turn(3, FRAME_S);
     expect(topOf(kart, "wheel-back-right").z).toBeLessThan(0);
   });
 
   it("carry it back towards +Z as the kart backs up", () => {
     const kart = model();
-    kartWheels(kart, 1).roll(-3, FRAME_S);
+    kartWheels(kart, 1).turn(-3, FRAME_S);
     expect(topOf(kart, "wheel-back-right").z).toBeGreaterThan(0);
   });
 });

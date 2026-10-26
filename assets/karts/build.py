@@ -335,7 +335,7 @@ def wheel(name: str, spec: dict[str, float], side: int, parent: bpy.types.Object
     # The rim, a smaller octagon proud of the tyre's outer wall.
     part.cylinder("Rim", (side * spec["width"] / 2, 0, 0), axis, spec["radius"] * 0.58, 0.02, WHEEL_SEGMENTS)
     # Spokes reaching out over the dark tyre wall, so the wheel only looks as
-    # it started every 120 degrees and the View's roll reads as turning.
+    # it started every 120 degrees and the View's turn reads as one.
     face = side * (spec["width"] / 2 + 0.01)
     for spoke in range(WHEEL_SPOKES):
         turn = 2 * math.pi * spoke / WHEEL_SPOKES

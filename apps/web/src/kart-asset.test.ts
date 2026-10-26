@@ -81,7 +81,7 @@ describe("the exported kart", () => {
   });
 
   it.each(WHEELS)(
-    "builds %s about its axle, unrotated, for the View to roll it in place",
+    "builds %s about its axle, unrotated, for the View to turn it in place",
     (name) => {
       const node = kart.nodes.find((candidate) => candidate.name === name);
       expect(node?.rotation).toBeUndefined();

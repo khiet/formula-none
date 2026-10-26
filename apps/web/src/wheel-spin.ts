@@ -13,13 +13,13 @@ export const WHEELS = [
  * its three spokes, so a fast wheel always reads as turning forwards. A
  * per-frame angle, not a rate, since strobing depends on the frame rate.
  */
-export const WHEEL_SPIN_CAP_RAD = (50 * Math.PI) / 180;
+const WHEEL_SPIN_CAP_RAD = (50 * Math.PI) / 180;
 
 const TURN_RAD = 2 * Math.PI;
 
 /**
- * A wheel's roll angle after `dtSeconds` at `speed` metres per second, from
- * `angle`: positive rolls the kart forwards, so a kart backing up turns
+ * A wheel's angle after `dtSeconds` at `speed` metres per second, from
+ * `angle`: it grows as the kart drives forwards, so a kart backing up turns
  * its wheels backwards. Kept within a turn either way.
  */
 export function wheelSpin(angle: number, speed: number, radius: number, dtSeconds: number): number {
@@ -29,13 +29,13 @@ export function wheelSpin(angle: number, speed: number, radius: number, dtSecond
 }
 
 export interface KartWheels {
-  /** Turn every wheel by this frame's roll at the kart's `speed`. */
-  roll(speed: number, dtSeconds: number): void;
+  /** Turn every wheel by this frame's share at the kart's `speed`. */
+  turn(speed: number, dtSeconds: number): void;
 }
 
 /**
  * The wheels of `model`, a dressed kart not yet fitted, which is drawn at
- * `scale`. Each wheel's rolling radius is half its height, measured from
+ * `scale`. Each wheel's radius is half its height, measured from
  * its bounds, so it follows whatever the exporter built.
  */
 export function kartWheels(model: Object3D, scale: number): KartWheels {
@@ -48,10 +48,10 @@ export function kartWheels(model: Object3D, scale: number): KartWheels {
     return [{ node, radius: ((box.max.y - box.min.y) / 2) * scale, angle: 0 }];
   });
   return {
-    roll(speed, dtSeconds) {
+    turn(speed, dtSeconds) {
       for (const wheel of wheels) {
         wheel.angle = wheelSpin(wheel.angle, speed, wheel.radius, dtSeconds);
-        // The axle is the model's X and its front is -Z: a forward roll
+        // The axle is the model's X and its front is -Z: driving forwards
         // carries the top of the wheel towards -Z, a negative turn about X.
         wheel.node.rotation.x = -wheel.angle;
       }

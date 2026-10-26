@@ -244,7 +244,7 @@ export async function createRaceView(
           return;
         }
         const { kart, wheels } = drawn;
-        wheels.roll(readout.speed, frameSeconds);
+        wheels.turn(readout.speed, frameSeconds);
         kart.position.set(...readout.position);
         kart.quaternion.set(...readout.rotation);
         if (readout.spinOutS !== null) {
