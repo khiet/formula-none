@@ -98,8 +98,8 @@ describe("dressing a kart", () => {
       "hair-short-greying-temples",
       "facial-hair-stubble",
     ]);
-    // Notte's facial hair is light stubble, which this stand-in lacks; short hair is all that shows.
-    expect(shown(dressKart(source, livery(1)))).toEqual(["hair-short"]);
+    // Titanio's: short and clean-shaven, so no facial hair shows at all.
+    expect(shown(dressKart(source, livery(7)))).toEqual(["hair-short"]);
   });
 
   it("gives each kart its own paint, so eight karts from one model wear eight liveries", () => {
