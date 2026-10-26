@@ -52,7 +52,7 @@ FIXED = {
 # labels are placed to clear.
 HEAD = Vector((0, -0.1, 0.97))
 HEAD_RADIUS = 0.3
-# A short jaw: below the eyes the head narrows and shortens by these.
+# A short jaw: below its middle the head narrows and shortens by these.
 JAW_WIDTH = 0.86
 JAW_HEIGHT = 0.78
 
@@ -221,9 +221,8 @@ def body() -> bpy.types.Object:
         # Big eyes on the forward flat: whites, and irises proud of them looking ahead.
         part.box("Whites", (side * 0.09, HEAD.y + 0.272, HEAD.z + 0.04), (0.1, 0.03, 0.13))
         part.box("Irises", (side * 0.085, HEAD.y + 0.29, HEAD.z + 0.03), (0.06, 0.02, 0.085))
-    # The halo, lowered and widened: a central pillar up from the nose, a
-    # hoop at chin height round the front of the face, and a leg down to the
-    # tub at each side.
+    # The halo: a central pillar up from the nose, a hoop at chin height
+    # framing the face, and a leg down to the tub at each side.
     hoop_z = HEAD.z - HEAD_RADIUS * JAW_HEIGHT + 0.02
     hoop_x, hoop_y = 0.4, 0.44
     pillar = (0, HEAD.y + hoop_y, hoop_z)
