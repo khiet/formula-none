@@ -198,7 +198,12 @@ export function livery(slot: number): Livery {
   return paint;
 }
 
+/** An sRGB colour as CSS hex. */
+export function hexCss(colour: number): string {
+  return `#${colour.toString(16).padStart(6, "0")}`;
+}
+
 /** The livery's key colour as CSS, for the Room Scene's swatches and the kart labels. */
 export function liveryCss(slot: number): string {
-  return `#${livery(slot).key.toString(16).padStart(6, "0")}`;
+  return hexCss(livery(slot).key);
 }

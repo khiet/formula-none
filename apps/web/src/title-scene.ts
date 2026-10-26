@@ -158,7 +158,7 @@ export function createTitleScene(
   const runners = [1, 2].map((slot) => {
     const runner = document.createElement("div");
     runner.className = "runner";
-    // The runners are one of the key colour's uses (ADR 0035), so the whole car takes it.
+    // The runners are one of the key colour's uses (ADR 0035), so the whole kart takes it.
     const paint = livery(slot);
     runner.append(
       kartSide({ ...paint, primary: paint.key, secondary: paint.key, accent: paint.key }),

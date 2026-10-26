@@ -1,8 +1,8 @@
 // The Grand Prix poster the Title and Results Scenes are set on: rotating
-// rays and chequered bands behind them, and the car side on. All of it is
+// rays and chequered bands behind them, and the kart side on. All of it is
 // decoration, hidden from assistive technology; index.html styles it.
 
-import type { Driver, FacialHair, Hair, Livery } from "./livery";
+import { type Driver, type FacialHair, type Hair, hexCss, type Livery } from "./livery";
 
 /** The rays and the chequered bands, to go first in a Scene so they sit behind it. */
 export function backdrop(): HTMLElement[] {
@@ -14,7 +14,7 @@ export function backdrop(): HTMLElement[] {
   });
 }
 
-// The car's fixed colours, the same on every livery.
+// The kart's fixed colours, the same on every livery.
 const IRIS = "#21170f";
 const WHITES = "#f6f1ea";
 const EARRING = "#dba833";
@@ -80,7 +80,7 @@ function wheel(cx: number, cy: number, r: number): string {
 
 const HAIR_TONES: Tones = ["var(--hair-lt)", "var(--hair)", "var(--hair-dk)"];
 
-/** Hair from the side, the car facing right: a cap over the top and back, then the style's own shape. */
+/** Hair from the side, the kart facing right: a cap over the top and back, then the style's own shape. */
 function hair(style: Hair, cx: number, cy: number, r: number): string {
   const at = around(cx, cy, r);
   const rim = ngon(8, cx, cy, r * 1.07);
@@ -160,7 +160,7 @@ function hair(style: Hair, cx: number, cy: number, r: number): string {
   return out;
 }
 
-const STUBBLE: Record<FacialHair, number> = {
+const FACIAL_HAIR_OPACITY: Record<FacialHair, number> = {
   none: 0,
   "light-stubble": 0.18,
   stubble: 0.3,
@@ -170,7 +170,7 @@ const STUBBLE: Record<FacialHair, number> = {
 
 function facialHair(kind: FacialHair, cx: number, cy: number, r: number): string {
   const at = around(cx, cy, r);
-  if (STUBBLE[kind] === 0) return "";
+  if (FACIAL_HAIR_OPACITY[kind] === 0) return "";
   return poly(
     [
       at(-0.08, 0.28),
@@ -183,7 +183,7 @@ function facialHair(kind: FacialHair, cx: number, cy: number, r: number): string
       at(0.04, 0.24),
     ],
     "var(--hair)",
-    `opacity="${STUBBLE[kind]}"`,
+    `opacity="${FACIAL_HAIR_OPACITY[kind]}"`,
   );
 }
 
@@ -205,10 +205,8 @@ function head(driver: Driver, cx: number, cy: number, r: number): string {
   );
 }
 
-const css = (colour: number): string => `#${colour.toString(16).padStart(6, "0")}`;
-
 /**
- * The car side on, facing right, as the asset catalog draws it: facets in
+ * The kart side on, facing right, as the asset catalog draws it: facets in
  * the livery's primary, secondary and accent, octagon wheels, and its
  * driver bare-headed. The colours ride on the SVG as custom properties;
  * index.html derives their lit and shaded tones.
@@ -242,7 +240,6 @@ export function kartSide({ primary, secondary, accent, driver }: Livery): SVGSVG
     ${wheel(130, 190, 47)}${wheel(420, 198, 39)}
   </svg>`;
   const kart = template.content.firstElementChild as SVGSVGElement;
-  kart.dataset.hair = driver.hair;
   for (const [name, colour] of [
     ["p", primary],
     ["s", secondary],
@@ -250,7 +247,7 @@ export function kartSide({ primary, secondary, accent, driver }: Livery): SVGSVG
     ["sk", driver.skin],
     ["hair", driver.hairColour],
   ] as const) {
-    kart.style.setProperty(`--${name}`, css(colour));
+    kart.style.setProperty(`--${name}`, hexCss(colour));
   }
   return kart;
 }

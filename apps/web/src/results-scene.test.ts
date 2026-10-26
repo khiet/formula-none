@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from "vitest";
 import type { Standing } from "./bridge";
-import { livery, liveryCss } from "./livery";
+import { hexCss, livery, liveryCss } from "./livery";
 import { createResultsScene, type RaceResults, resultsRows } from "./results-scene";
 
 function standing(position: number, overrides: Partial<Standing> = {}): Standing {
@@ -183,20 +183,19 @@ describe("Results Scene", () => {
   });
 
   it("paints each podium kart in its finisher's palette, with that driver in the seat", () => {
-    const { container } = mount(grid(5));
-    const css = (colour: number) => `#${colour.toString(16).padStart(6, "0")}`;
+    const { container } = mount(results);
     const karts = Array.from(container.querySelectorAll<SVGElement>("[data-podium] .kart"));
     expect(karts).toHaveLength(3);
-    karts.forEach((kart, slot) => {
-      const paint = livery(slot);
+    // Finishing order is slots 1, 2, 0, so a kart painted by its place would show the wrong team.
+    karts.forEach((kart, place) => {
+      const paint = livery([1, 2, 0][place] ?? -1);
       const colour = (name: string) => kart.style.getPropertyValue(`--${name}`);
       expect([colour("p"), colour("s"), colour("a")]).toEqual(
-        [paint.primary, paint.secondary, paint.accent].map(css),
+        [paint.primary, paint.secondary, paint.accent].map(hexCss),
       );
       expect([colour("sk"), colour("hair")]).toEqual(
-        [paint.driver.skin, paint.driver.hairColour].map(css),
+        [paint.driver.skin, paint.driver.hairColour].map(hexCss),
       );
-      expect(kart.dataset.hair).toBe(paint.driver.hair);
     });
   });
 
