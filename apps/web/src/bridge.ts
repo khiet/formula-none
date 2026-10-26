@@ -82,9 +82,8 @@ export interface Projectile {
  * Where the race is, as the sim's `Phase` has it: the countdown holding the
  * karts on the grid with the seconds to Go, the race with its clock and,
  * once the first human has finished, the seconds of the cap left before the
- * race ends whoever is racing, the outro with its seconds left, a bot
- * driving every kart once the race has ended, or finished, when the
- * standings are the results.
+ * race ends whoever is racing, the outro, a bot driving every kart once
+ * the race has ended, or finished, when the standings are the results.
  */
 export type Phase =
   | { readonly kind: "countdown"; readonly remainingSeconds: number }
@@ -93,7 +92,7 @@ export type Phase =
       readonly elapsedSeconds: number;
       readonly capLeftSeconds: number | null;
     }
-  | { readonly kind: "outro"; readonly remainingSeconds: number }
+  | { readonly kind: "outro" }
   | { readonly kind: "finished" };
 
 export interface Race {
@@ -563,8 +562,9 @@ function phaseFrom(buffer: Float32Array): Phase {
   const kind = PHASES[code];
   switch (kind) {
     case "countdown":
-    case "outro":
       return { kind, remainingSeconds: seconds };
+    case "outro":
+      return { kind };
     case "racing":
       return { kind, elapsedSeconds: seconds, capLeftSeconds: timeOrNull(cap) };
     case "finished":

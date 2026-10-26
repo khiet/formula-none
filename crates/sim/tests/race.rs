@@ -403,6 +403,11 @@ fn a_lone_kart_finishing_its_laps_ends_the_race_at_once_and_the_outro_runs_down(
             remaining_s: RACE_OUTRO_S
         }
     );
+    assert_eq!(
+        state.events().last(),
+        Some(&RaceEvent::RaceEnded),
+        "the end is reported after the finish"
+    );
     let standing = state.standings()[0];
     let finish = standing.finish_time_s.expect("the kart finished");
     assert!(
@@ -531,6 +536,25 @@ fn a_kart_handed_to_a_bot_does_not_hold_the_race_open() {
     let state = drive_until_finished(state, &[follow_centreline, idle], 0);
     assert!(!finished(&state, 1));
     assert!(in_the_outro(&state), "{:?}", state.phase());
+}
+
+#[test]
+fn a_finish_by_a_kart_handed_to_a_bot_does_not_start_the_cap() {
+    // Pole idles on the grid; the other human is gone and their bot laps.
+    let mut state = started(race(2));
+    state.hand_to_bot(1);
+    let state = drive_until_finished(state, &[idle, idle], 1);
+    assert!(
+        matches!(
+            state.phase(),
+            Phase::Racing {
+                cap_left_s: None,
+                ..
+            }
+        ),
+        "the cap waits for a human's own finish: {:?}",
+        state.phase()
+    );
 }
 
 #[test]

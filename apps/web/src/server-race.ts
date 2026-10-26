@@ -56,6 +56,8 @@ export function createServerRace(
   const lapTimes: number[][] = Array.from({ length: kartCount }, () => []);
   const finishTimes: (number | null)[] = Array<number | null>(kartCount).fill(null);
   let results: readonly FinalStanding[] | undefined;
+  /** Whether the server has said the race ended: the outro runs until the results. */
+  let ended = false;
   const ticks = (seconds: number) => Math.round(seconds * bridge.ticksPerSecond);
   /** The item the server says the local kart holds. */
   let heldItem: Item | null = null;
@@ -82,7 +84,10 @@ export function createServerRace(
     }
   });
   const stopEvents = client.onEvent(({ kind }) => {
-    if (typeof kind === "string") return;
+    if (kind === "raceEnded") {
+      ended = true;
+      return;
+    }
     if ("lapCompleted" in kind) {
       lapTimes[kind.lapCompleted.kart]?.push(kind.lapCompleted.lapTimeS);
     } else if ("finished" in kind) {
@@ -140,8 +145,8 @@ export function createServerRace(
   };
   const phase = (): Phase => {
     if (results !== undefined) return { kind: "finished" };
-    // The prediction's clock never counts the cap or the outro, which are
-    // the server's: its results come once the outro is over.
+    if (ended) return { kind: "outro" };
+    // The prediction's clock never counts the cap, which is the server's.
     return prediction.phase();
   };
   /** The newest snapshot's hazards, one a kart trails drawn behind it at `karts`. */

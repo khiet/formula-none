@@ -29,9 +29,10 @@ like every other rule, so a solo race in the browser and a room on the
 server run the same lifecycle. Countdown holds the karts on the grid for
 the 3-2-1 count, during which the throttle sets up the rocket start.
 Racing runs the laps and ends when every human's kart has finished or is
-driven by a bot, or 60 s after the first human finished; the unfinished
-are placed by progress at that point and the standings become the
-results. Outro holds the Race View for 3 s with a bot driving every kart.
+driven by a bot, or 60 s after the first human finished driving their own
+kart; the unfinished are placed by progress at that point and the
+standings become the results. Outro holds the Race View for 3 s with a bot
+driving every kart and the FINISH banner up for every player.
 Finished leaves the race as it is. A room's Countdown and Racing states
 follow the race's phase, its Racing state covering the Outro too, and its
 Results state its Finished (ADR 0032).

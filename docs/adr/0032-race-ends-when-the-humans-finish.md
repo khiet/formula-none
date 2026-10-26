@@ -27,24 +27,30 @@ not how Mario Kart treats humans.
   race every human has left ends at once. Bots never hold a race open;
   with no humans at all, as in the sim's tests, every kart still racing
   does.
-- A cap of `RACE_END_CAP_S` (60 s) starts at the first human's finish.
-  When it runs out the race ends whoever is still racing.
+- A cap of `RACE_END_CAP_S` (60 s) starts at the first finish by a human
+  driving their own kart; a kart handed to a bot crossing the line does
+  not start it. When it runs out the race ends whoever is still racing.
 - Karts still racing at the end are placed by progress, as before; the
   standings at that tick are the results and the outro does not move
   them.
 - When the race ends, `Phase::Outro` runs for `RACE_OUTRO_S` (3 s): a bot
   drives every kart, no items are fired or taken and no laps are counted.
-  Then the phase is Finished. The server sends the results at Finished,
-  so a room's clients open the Results Scene after the outro, as a solo
-  race does.
+  Then the phase is Finished. The sim reports the end as a `RaceEnded`
+  event, which the server passes on so a room's clients know the outro has
+  begun, and it sends the results at Finished, so a room's clients open
+  the Results Scene after the outro, as a solo race does.
 - A finished player sees a FINISH banner with their place and the
-  finishers so far in place of the lap readout. The camera stays on their
-  own kart.
+  finishers so far in place of the lap readout. Once the race has ended
+  every player sees it, a player the cap cut off with the place they were
+  given. The camera stays on their own kart.
 
 ## Consequences
 
-- A slow friend is never cut off by a bot's finish, and is cut off by a
-  human's only after a minute.
+- A slow friend is never cut off by a bot's finish, nor by a finish a bot
+  drove for a player who left, and is cut off by a human's only after a
+  minute.
+- The new event is a change of message shape, so the protocol version
+  moves to 8.
 - An idle human holds the race open until they finish or go silent, so
   the server's tests drive their humans to the line.
 - The prediction runs the same rule: the predicted kart is the bot's once

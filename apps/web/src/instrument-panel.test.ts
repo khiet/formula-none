@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from "vitest";
-import type { KartReadout, Standing } from "./bridge";
+import type { KartReadout, Phase, Standing } from "./bridge";
 import {
   CONNECTION_LOST_BANNER,
   createInstrumentPanel,
@@ -140,13 +140,24 @@ const finished = (position: number, finishTimeS: number): Standing => ({
 });
 
 describe("finish readout", () => {
+  it("raises the banner over a kart still racing once the race has ended, with its final place", () => {
+    const standings = [finished(1, 50), { ...ON_THE_GRID, position: 2 }];
+    expect(finishReadout(standings, { kind: "outro" }, 1, nameOf)).toEqual({
+      banner: "FINISH",
+      place: "2nd",
+      rows: [{ position: "1st", name: "Kart 1", time: `0'50"000` }],
+    });
+  });
+
   it("is nothing while the own kart is still racing", () => {
-    expect(finishReadout([finished(1, 50), ON_THE_GRID, ON_THE_GRID], 1, nameOf)).toBeNull();
+    expect(
+      finishReadout([finished(1, 50), ON_THE_GRID, ON_THE_GRID], racing, 1, nameOf),
+    ).toBeNull();
   });
 
   it("puts the own place under the banner and lists only the finishers, in finishing order", () => {
     const standings = [finished(2, 55.5), finished(1, 50), { ...ON_THE_GRID, position: 3 }];
-    expect(finishReadout(standings, 0, nameOf)).toEqual({
+    expect(finishReadout(standings, racing, 0, nameOf)).toEqual({
       banner: "FINISH",
       place: "2nd",
       rows: [
@@ -165,18 +176,23 @@ describe("the finish on the page", () => {
       container.querySelector<HTMLElement>(`[data-instrument="${name}"]`);
     const rows = () =>
       [...(find("standings")?.querySelectorAll("li") ?? [])].map((row) => row.textContent);
-    const show = (standings: readonly Standing[]) =>
+    const show = (standings: readonly Standing[], phase: Phase = racing) =>
       panel.update(
-        raceReadout({ karts: [at([0, 0, 0]), at([0, 0, 0]), at([0, 0, 0])], standings }),
+        raceReadout({ karts: [at([0, 0, 0]), at([0, 0, 0]), at([0, 0, 0])], standings, phase }),
       );
     return { find, rows, show };
   };
-  it("keeps the banner and the standings down and the lap up until the own kart finishes", () => {
+  it("keeps the banner and the standings down and the lap up until the own kart finishes or the race ends", () => {
     const { find, show } = mount();
     show([finished(1, 50), { ...ON_THE_GRID, position: 2, lap: 3 }, ON_THE_GRID]);
     expect(find("finish")?.hidden).toBe(true);
     expect(find("standings")?.hidden).toBe(true);
     expect(find("lap")?.hidden).toBe(false);
+    show([finished(1, 50), { ...ON_THE_GRID, position: 2, lap: 3 }, ON_THE_GRID], {
+      kind: "outro",
+    });
+    expect(find("finish")?.textContent).toBe("FINISH 2nd");
+    expect(find("lap")?.hidden).toBe(true);
   });
 
   it("raises the banner with the place in place of the lap, and fills the standings as karts finish", () => {
@@ -261,7 +277,7 @@ describe("phase readout", () => {
     expect(phaseReadout({ kind: "racing", elapsedSeconds: 0.9, capLeftSeconds: null })).toBe("GO");
     expect(phaseReadout({ kind: "racing", elapsedSeconds: 1, capLeftSeconds: null })).toBe("");
     expect(phaseReadout({ kind: "racing", elapsedSeconds: 40, capLeftSeconds: 12 })).toBe("");
-    expect(phaseReadout({ kind: "outro", remainingSeconds: 2 })).toBe("");
+    expect(phaseReadout({ kind: "outro" })).toBe("");
     expect(phaseReadout({ kind: "finished" })).toBe("");
   });
 });

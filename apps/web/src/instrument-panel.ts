@@ -108,8 +108,8 @@ export function loadInstrumentFont(): Promise<void> {
 /**
  * The HUD over the Race View, with the course map of `course` in its
  * corner and the speed cluster's gears cut from `topSpeed` in m/s (ADR
- * 0031); once the own kart has finished, the finish banner and the
- * finishers by `name` in place of the lap. Reads state; never drives it.
+ * 0031); once the own kart has finished or the race has ended, the
+ * finish banner and the finishers by `name` in place of the lap. Reads state; never drives it.
  * Each readout is addressable by `data-instrument` so tests and styles
  * find it the same way.
  */
@@ -273,7 +273,7 @@ export function createInstrumentPanel(
       const count = phaseReadout(race.phase);
       countdown.textContent = count;
       countdown.hidden = count === "";
-      const finished = finishReadout(race.standings, course.ownKart, name);
+      const finished = finishReadout(race.standings, race.phase, course.ownKart, name);
       lap.hidden = finished !== null;
       finish.hidden = finished === null;
       standingsList.hidden = finished === null;
@@ -334,16 +334,19 @@ export function lapReadouts(standing: Standing, lapsPerRace: number): LapReadout
 
 /**
  * The finish as the own kart in `ownKart` sees it from `standings`, with
- * each kart named by `name`; nothing while the own kart is still racing.
- * A finisher's place is final, so the rows only ever grow.
+ * each kart named by `name`, once it has finished or `phase` is the outro;
+ * nothing while it is still racing. A finisher's place is final, so the
+ * rows only ever grow.
  */
 export function finishReadout(
   standings: readonly Standing[],
+  phase: Phase,
   ownKart: number,
   name: (kart: number) => string,
 ): FinishReadout | null {
   const own = standings[ownKart];
-  if (own === undefined || own.finishTimeS === null) return null;
+  const over = phase.kind === "outro" || phase.kind === "finished";
+  if (own === undefined || (own.finishTimeS === null && !over)) return null;
   const rows = standings
     .map((standing, kart) => ({ standing, kart }))
     .filter(({ standing }) => standing.finishTimeS !== null)

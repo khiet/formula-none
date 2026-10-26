@@ -294,6 +294,9 @@ describe("createServerRace", () => {
     client.event({ id: 4, kind: { finished: { kart: 0, position: 1, finishTimeS: 123.5 } } });
     expect(run.readout().phase.kind).toBe("racing");
     expect(run.readout().standings[0]).toMatchObject({ finishTimeS: 123.5, lapTimeS: 42 });
+    // The server's word that the race has ended starts the outro.
+    client.event({ id: 5, kind: "raceEnded" });
+    expect(run.readout().phase).toEqual({ kind: "outro" });
     client.results([
       { kart: 0, position: 1, finishTimeS: 123.5, bestLapS: 40 },
       { kart: 1, position: 2, finishTimeS: null, bestLapS: null },

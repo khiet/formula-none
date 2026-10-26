@@ -347,6 +347,8 @@ pub enum RaceEvent {
     /// fired, and is spun out: stopped, with its inputs ignored, for the
     /// tuned time.
     SpunOut { kart: usize, by: usize },
+    /// The race ended: the standings are the results and the outro begins.
+    RaceEnded,
 }
 
 /// Where the race is. Every value here is read from `step`, never from a
@@ -877,28 +879,16 @@ impl State {
         }
     }
 
-    /// The karts the end of the race waits on: the humans', or in a race
-    /// with no humans every kart.
-    fn contenders(&self) -> &[Kart] {
-        if self.humans == 0 {
-            &self.karts
-        } else {
-            &self.karts[..self.humans]
-        }
+    /// Whether the end of the race waits on the kart in `slot`: a human's
+    /// kart its human drives, or in a race with no humans any kart. Its
+    /// finish starts the cap, and while it races the race stays open.
+    fn contends(&self, slot: usize) -> bool {
+        self.humans == 0 || (slot < self.humans && self.karts[slot].bot.is_none())
     }
 
-    /// Whether any contender still races under its human, or in a race
-    /// with no humans at all, still races: what keeps the race from ending.
+    /// Whether a contending kart is still racing.
     fn held_open(&self) -> bool {
-        let humans = self.humans;
-        self.contenders()
-            .iter()
-            .any(|kart| !kart.finished() && (humans == 0 || kart.bot.is_none()))
-    }
-
-    /// Whether a contender has finished, which starts the cap.
-    fn cap_started(&self) -> bool {
-        self.contenders().iter().any(Kart::finished)
+        (0..self.karts.len()).any(|slot| self.contends(slot) && !self.karts[slot].finished())
     }
 
     /// End the race: the standings as they are become the results, and a
@@ -1324,6 +1314,7 @@ pub fn step(mut state: State, inputs: &[KartInput], dt: f32) -> State {
         .collect();
     state.physics.step(dt);
     let mut finished_this_tick = Vec::new();
+    let mut starts_the_cap = false;
     for (index, mut before) in before.into_iter().enumerate() {
         // Judged from the contacts and the sent velocities alone, so what
         // an earlier kart's pass did to its own body never reaches this.
@@ -1334,6 +1325,7 @@ pub fn step(mut state: State, inputs: &[KartInput], dt: f32) -> State {
             &sent_velocities,
             dt,
         );
+        let contends = state.contends(index);
         let kart = &mut state.karts[index];
         held_by_walls(
             kart,
@@ -1382,6 +1374,7 @@ pub fn step(mut state: State, inputs: &[KartInput], dt: f32) -> State {
                 });
                 if let Some(finish_time_s) = kart.finish_time_s {
                     finished_this_tick.push((index, finish_time_s));
+                    starts_the_cap |= contends;
                     // Over the line, the kart is the bot's: nothing it does
                     // can change the result for the karts still racing.
                     kart.bot.get_or_insert_with(bot::Memory::default);
@@ -1488,9 +1481,10 @@ pub fn step(mut state: State, inputs: &[KartInput], dt: f32) -> State {
             });
         }
     }
-    state.phase = next_phase(&state, dt);
+    state.phase = next_phase(&state, starts_the_cap, dt);
     if matches!(state.phase, Phase::Outro { .. }) && state.final_positions.is_none() {
         state.end_race();
+        state.events.push(RaceEvent::RaceEnded);
     }
     state
 }
@@ -1550,10 +1544,10 @@ fn clock_after(phase: Phase, dt: f32) -> Phase {
 }
 
 /// The phase after a tick of `dt`, read from `state` once its karts have
-/// moved and before its phase changes. The cap starts the tick the first
-/// human finishes, and the race ends when it runs out or no kart holds it
-/// open; the outro then runs down to the finish.
-fn next_phase(state: &State, dt: f32) -> Phase {
+/// moved and before its phase changes. The cap starts on the tick
+/// `starts_the_cap` is first true, and the race ends when it runs out or no
+/// kart holds it open; the outro then runs down to the finish.
+fn next_phase(state: &State, starts_the_cap: bool, dt: f32) -> Phase {
     let (elapsed_s, cap_left_s) = match state.phase {
         Phase::Racing {
             elapsed_s,
@@ -1569,7 +1563,7 @@ fn next_phase(state: &State, dt: f32) -> Phase {
     }
     let cap_left_s = match cap_left_s {
         Some(left) => Some(left - dt),
-        None if state.cap_started() => Some(RACE_END_CAP_S),
+        None if starts_the_cap => Some(RACE_END_CAP_S),
         None => None,
     };
     if cap_left_s.is_some_and(|left| left <= 0.0) {

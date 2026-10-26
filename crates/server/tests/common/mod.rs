@@ -4,9 +4,11 @@
 #![allow(dead_code)]
 
 use std::collections::BTreeMap;
+use std::time::Duration;
 
 use protocol::{
-    ClientMessage, Event, FinalStanding, Input, KartSnapshot, PlayerState, ServerMessage, Snapshot,
+    ClientMessage, Event, EventKind, FinalStanding, Input, KartSnapshot, PlayerState,
+    ServerMessage, Snapshot,
 };
 use server::fake_transport::Client;
 use server::room::Started;
@@ -161,4 +163,92 @@ pub fn steer_toward(position: [f32; 3], rotation: [f32; 4], target: [f32; 2]) ->
     let (sin, cos) = yaw.sin_cos();
     let rightward = (dx * cos - dz * sin) / length;
     (rightward * STEER_GAIN).clamp(-1.0, 1.0)
+}
+
+const OVAL: &str = include_str!("../../../../assets/tracks/oval/oval.track.json");
+
+/// What one player heard of a race until its results: every event on the
+/// reliable lane with the tick of the newest snapshot when it came, the
+/// results, and the newest snapshot's tick when they came.
+pub struct Raced {
+    pub events: Vec<(u32, Event)>,
+    pub results: Vec<FinalStanding>,
+    pub results_tick: u32,
+}
+
+impl Raced {
+    pub fn highest_id(&self) -> u32 {
+        self.events
+            .iter()
+            .map(|(_, event)| event.id)
+            .max()
+            .unwrap_or(0)
+    }
+
+    /// The tick `kart` finished at, as this player heard it.
+    pub fn finish_tick(&self, kart: u8) -> Option<u32> {
+        self.events
+            .iter()
+            .find_map(|&(tick, event)| match event.kind {
+                EventKind::Finished { kart: finisher, .. } if finisher == kart => Some(tick),
+                _ => None,
+            })
+    }
+}
+
+/// Each of `players` drives its kart in `drivers`, the kart and the seconds
+/// after Go it sets off at, along the bots' line until the results reach
+/// it, sending an input a tick as the browser does. Whatever comes after
+/// the results is left unread.
+pub async fn drive_to_results(players: &mut [Client], drivers: &[(usize, f32)]) -> Vec<Raced> {
+    const DEADLINE_S: f32 = 240.0;
+    let tick = Duration::from_nanos(1_000_000_000 / u64::from(TICKS_PER_SECOND));
+    let track = Track::from_sidecar(OVAL).expect("the oval fixture loads");
+    let count = players.len();
+    let mut events: Vec<Vec<(u32, Event)>> = vec![Vec::new(); count];
+    let mut newest: Vec<Option<Snapshot>> = vec![None; count];
+    let mut raced: Vec<Option<Raced>> = (0..count).map(|_| None).collect();
+    let mut sequences = vec![0; count];
+    let mut ticks = tokio::time::interval(tick);
+    while raced.iter().any(Option::is_none) {
+        ticks.tick().await;
+        for (index, player) in players.iter_mut().enumerate() {
+            while raced[index].is_none() {
+                let Some(message) = player.try_recv() else {
+                    break;
+                };
+                let at = newest[index].as_ref().map_or(0, |snapshot| snapshot.tick);
+                match message {
+                    ServerMessage::Snapshot(snapshot) => newest[index] = Some(snapshot),
+                    ServerMessage::Events(heard) => {
+                        events[index].extend(heard.into_iter().map(|event| (at, event)));
+                    }
+                    ServerMessage::Results { standings } => {
+                        raced[index] = Some(Raced {
+                            events: std::mem::take(&mut events[index]),
+                            results: standings,
+                            results_tick: at,
+                        });
+                    }
+                    _ => {}
+                }
+            }
+            let Some(snapshot) = &newest[index] else {
+                continue;
+            };
+            let elapsed = seconds(snapshot.tick);
+            assert!(
+                elapsed < DEADLINE_S,
+                "the race did not end in {DEADLINE_S} s"
+            );
+            let (kart, set_off_s) = drivers[index];
+            if raced[index].is_some() || elapsed < COUNTDOWN_S + set_off_s {
+                continue;
+            }
+            sequences[index] += 1;
+            let input = follow_the_line(&track, &snapshot.karts[kart]);
+            player.send_input(wire(sequences[index], input));
+        }
+    }
+    raced.into_iter().map(Option::unwrap).collect()
 }

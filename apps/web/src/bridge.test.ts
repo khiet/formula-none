@@ -80,7 +80,7 @@ describe("race phase", () => {
     while (finishers().length < 2) {
       race.step([], DT);
     }
-    expect(race.phase()).toEqual({ kind: "outro", remainingSeconds: 3 });
+    expect(race.phase()).toEqual({ kind: "outro" });
 
     // Three seconds of outro, with a tick for the timer's rounding.
     for (let tick = 0; tick < 3 * 60 + 1; tick++) {

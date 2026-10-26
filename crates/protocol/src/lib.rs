@@ -28,7 +28,7 @@ use ts_rs::TS;
 /// [`ClientMessage::Join`] and the server refuses a mismatch with
 /// [`Refusal::VersionMismatch`] (ADR 0013). The generator exports it next to
 /// the types, so the web app reads the same constant.
-pub const PROTOCOL_VERSION: u16 = 7;
+pub const PROTOCOL_VERSION: u16 = 8;
 
 /// What a client sends the server.
 #[derive(Serialize, Deserialize, TS, Debug, Clone, PartialEq)]
@@ -394,6 +394,9 @@ pub enum EventKind {
     Respawned {
         kart: u8,
     },
+    /// The race ended: the standings are final and the outro runs until
+    /// the results.
+    RaceEnded,
 }
 
 /// One kart's place in the results.
