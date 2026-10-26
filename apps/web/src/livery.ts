@@ -3,8 +3,8 @@
 // in the View and the player in the Room Scene read as the same team. The
 // key colours are picked so every pair stands apart at race distance
 // (livery.test.ts holds the margin, and wins over brand accuracy); the
-// car's own colours stay faithful to the team. The game shows no team
-// name, crest, sponsor or race number.
+// car's own colours stay faithful to the team. No car shows a team name,
+// crest, sponsor or race number (ADR 0038).
 
 export const LIVERIES = 8;
 

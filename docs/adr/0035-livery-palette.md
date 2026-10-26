@@ -6,7 +6,8 @@ Accepted (2026-10-26). Supersedes ADR 0034's "no driver resembles a real
 person"; the ban on team names, crests, sponsors and race numbers stands.
 The helmet colour and the `Helmet` material are superseded by ADR 0036:
 drivers race bare-headed, and a livery is primary, secondary and accent
-plus the key colour.
+plus the key colour. ADR 0038 limits the sponsor ban to the cars and to
+real sponsors: invented sponsors may stand on the scenery.
 
 ## Context
 
