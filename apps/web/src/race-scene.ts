@@ -12,6 +12,7 @@ import {
 import { kartLabels } from "./kart-labels";
 import { KART_GLTF_URL } from "./kart-model";
 import { keyboardKartInput } from "./keyboard";
+import { livery } from "./livery";
 import { ITEM_FIRE_FLASH_S, type RaceRun } from "./race-run";
 import { createRaceView } from "./race-view";
 import { downloadReplay, recordReplay } from "./replay";
@@ -159,6 +160,7 @@ export async function createRaceScene(
     { centreline, kartCount: bridge.kartsPerRace, ownKart: run.localKart },
     bridge.cameraTuning.topSpeedMetresPerSecond,
     name,
+    livery(run.localKart),
   );
 
   const present = (frameSeconds: number) => {

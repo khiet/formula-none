@@ -1,11 +1,14 @@
-// The course map: the track seen from above with a dot per kart, part of
-// the Instrument panel. The outline is the sidecar's centreline projected
+// The course map: the track seen from above with a marker per kart, part of
+// the Instrument panel, drawn as the world builds the track: asphalt between
+// white walls over the ink drop (ADR 0037). The outline is the sidecar's centreline projected
 // onto the x/z plane, so the map is fixed, never rotates with the own kart
 // and is never mirrored against the View: +x runs right and +z runs down,
 // which is how the world looks from above with the grid facing up the map.
 
 import type { KartReadout } from "./bridge";
-import { liveryCss } from "./livery";
+import { hexCss, livery, liveryCss } from "./livery";
+import { facetted, group, line, ngon, polygon, SVG_NS } from "./low-poly-svg";
+import { ASPHALT, INK, tonesOf, VALUE_WHITE, WALL } from "./palette";
 import type { WorldPoint } from "./track";
 
 /** The box the map is drawn into, in map units, with the margin the outline keeps from its edges. */
@@ -99,21 +102,25 @@ export interface CourseMap {
  */
 const MAP_UNITS = 100;
 const MAP_MARGIN = 8;
-/** The outline's width in map units: thick enough to read as a road at a glance. */
-const OUTLINE_WIDTH = 6;
-/** The tick reaches past the road's edges so it reads against the outline. */
-const START_TICK_HALF = OUTLINE_WIDTH * 0.8;
-const START_TICK_WIDTH = 2;
-const MARKER_RADIUS = 3;
-const OWN_MARKER_RADIUS = 4.5;
-const OWN_RING_WIDTH = 1.5;
-
-const SVG_NS = "http://www.w3.org/2000/svg";
+/** The asphalt's width in map units: thick enough to read as a road at a glance. */
+const ASPHALT_WIDTH = 6;
+/** The asphalt with a white wall either side. */
+const WALL_WIDTH = 9;
+/** How far the ink drop sits down and right of the track, and of each marker. */
+const DROP_OFFSET = 1.6;
+const MARKER_DROP_OFFSET = 1.2;
+const DROP_OPACITY = 0.55;
+/** The start's chequer: two rows of four squares across the walls. */
+const CHEQUER = 2.4;
+const START_TICK_HALF = CHEQUER * 2;
+const MARKER_RADIUS = 3.6;
+const OWN_RING_RADIUS = 6;
+const OWN_MARKER_RADIUS = 4.4;
 
 /**
- * The course map's element: the outline and the start tick once, and a
- * marker per kart in its livery, the own kart's larger, ringed in white and
- * last in the document so it draws over the rest.
+ * The course map's element: the track and its chequered start once, and a
+ * faceted octagon per kart in its key colour, the own kart's larger,
+ * ringed in white and last in the document so it draws over the rest.
  */
 export function createCourseMap(setup: CourseMapSetup): CourseMap {
   const projection = projectCentreline(
@@ -125,35 +132,55 @@ export function createCourseMap(setup: CourseMapSetup): CourseMap {
   svg.dataset.instrument = "course-map";
   svg.setAttribute("viewBox", `0 0 ${MAP_UNITS} ${MAP_UNITS}`);
 
-  const outline = document.createElementNS(SVG_NS, "path");
-  outline.setAttribute("d", projection.path);
-  outline.setAttribute("fill", "none");
-  outline.setAttribute("stroke", "rgba(255, 255, 255, 0.55)");
-  outline.setAttribute("stroke-width", String(OUTLINE_WIDTH));
-  outline.setAttribute("stroke-linejoin", "round");
-  outline.setAttribute("stroke-linecap", "round");
+  const road = (colour: number, width: number) => {
+    const path = document.createElementNS(SVG_NS, "path");
+    path.setAttribute("d", projection.path);
+    path.setAttribute("fill", "none");
+    path.setAttribute("stroke", hexCss(colour));
+    path.setAttribute("stroke-width", String(width));
+    path.setAttribute("stroke-linejoin", "round");
+    svg.append(path);
+    return path;
+  };
+  const drop = road(INK, WALL_WIDTH);
+  drop.setAttribute("stroke-opacity", String(DROP_OPACITY));
+  drop.setAttribute("transform", `translate(${DROP_OFFSET} ${DROP_OFFSET})`);
+  road(WALL, WALL_WIDTH);
+  road(ASPHALT, ASPHALT_WIDTH);
 
+  // The chequer is two rows across the track, one each side of the tick,
+  // each a white line with ink dashes, the second row's dashes shifted one square.
   const [x1, y1, x2, y2] = projection.startTick;
-  const start = document.createElementNS(SVG_NS, "line");
-  start.setAttribute("x1", String(x1));
-  start.setAttribute("y1", String(y1));
-  start.setAttribute("x2", String(x2));
-  start.setAttribute("y2", String(y2));
-  start.setAttribute("stroke", "#fff");
-  start.setAttribute("stroke-width", String(START_TICK_WIDTH));
-  svg.append(outline, start);
+  const length = Math.hypot(x2 - x1, y2 - y1) || 1;
+  const alongX = (-(y2 - y1) / length) * (CHEQUER / 2);
+  const alongY = ((x2 - x1) / length) * (CHEQUER / 2);
+  const start = group(svg);
+  start.setAttribute("shape-rendering", "crispEdges");
+  for (const [side, offset] of [
+    [-1, "0"],
+    [1, String(CHEQUER)],
+  ] as const) {
+    const a = [x1 + side * alongX, y1 + side * alongY] as const;
+    const b = [x2 + side * alongX, y2 + side * alongY] as const;
+    line(start, a, b, VALUE_WHITE, CHEQUER);
+    const dashes = line(start, a, b, INK, CHEQUER);
+    dashes.setAttribute("stroke-dasharray", `${CHEQUER} ${CHEQUER}`);
+    dashes.setAttribute("stroke-dashoffset", offset);
+  }
 
   const markers = Array.from({ length: setup.kartCount }, (_, kart) => {
-    const marker = document.createElementNS(SVG_NS, "circle");
+    const marker = document.createElementNS(SVG_NS, "g");
     marker.dataset.kart = String(kart);
     marker.setAttribute("fill", liveryCss(kart));
     const own = kart === setup.ownKart;
-    marker.setAttribute("r", String(own ? OWN_MARKER_RADIUS : MARKER_RADIUS));
+    const outer = own ? OWN_RING_RADIUS : MARKER_RADIUS;
+    const shadow = polygon(marker, ngon(8, MARKER_DROP_OFFSET, MARKER_DROP_OFFSET, outer), INK);
+    shadow.setAttribute("fill-opacity", String(DROP_OPACITY));
     if (own) {
       marker.dataset.own = "";
-      marker.setAttribute("stroke", "#fff");
-      marker.setAttribute("stroke-width", String(OWN_RING_WIDTH));
+      polygon(marker, ngon(8, 0, 0, OWN_RING_RADIUS), VALUE_WHITE).dataset.ring = "";
     }
+    facetted(marker, 8, 0, 0, own ? OWN_MARKER_RADIUS : MARKER_RADIUS, tonesOf(livery(kart).key));
     return marker;
   });
   // Document order is paint order: the own kart's marker goes on last.
@@ -172,8 +199,7 @@ export function createCourseMap(setup: CourseMapSetup): CourseMap {
           return;
         }
         const [u, v] = projection.toMap(transform.position[0], transform.position[2]);
-        marker.setAttribute("cx", String(u));
-        marker.setAttribute("cy", String(v));
+        marker.setAttribute("transform", `translate(${u} ${v})`);
       });
     },
   };
