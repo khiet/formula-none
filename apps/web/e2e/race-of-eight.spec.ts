@@ -73,8 +73,8 @@ test("eight tabs complete a three-lap race on Brands Patch", async ({ browser })
     await expect(page.locator("li[data-result]")).toHaveCount(TABS);
   }
   await expect(creator.locator("li[data-result='1st']")).toContainText("You");
-  await expect(creator.locator("li[data-result='1st']")).not.toContainText("(not finished)");
-  await expect(creator.locator(`li[data-result='${TABS}th']`)).toContainText("(not finished)");
+  await expect(creator.locator("li[data-result='1st']")).not.toContainText("Not finished");
+  await expect(creator.locator(`li[data-result='${TABS}th']`)).toContainText("Not finished");
 
   // Rematch brings the room back, with everyone still seated.
   await creator.getByRole("button", { name: "Rematch" }).click();

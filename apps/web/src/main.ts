@@ -2,7 +2,7 @@ import { createAudio } from "./audio";
 import { loadAudioSettings, saveAudioSettings } from "./audio-settings";
 import { type Bridge, loadBridge } from "./bridge";
 import { connect, serverUrls } from "./connection";
-import type { InstrumentPanel } from "./instrument-panel";
+import { type InstrumentPanel, loadInstrumentFont } from "./instrument-panel";
 import { loadNickname, saveNickname } from "./nickname";
 import { ping } from "./ping";
 import type { RaceRun } from "./race-run";
@@ -159,7 +159,9 @@ async function untilExit(scene: MountedScene): Promise<Step> {
 // race takes its track from `?track=` and runs the sim here; a room's comes
 // from the server, which runs the race (ADR 0009).
 async function main(container: HTMLElement): Promise<void> {
-  const bridge = await loadBridge();
+  // The Title and Results Scenes are set in the Instrument panel's face
+  // too (ADR 0033), so it loads before the first Scene.
+  const [bridge] = await Promise.all([loadBridge(), loadInstrumentFont()]);
   const connection = reportConnection(bridge);
   // The sound files load now; the AudioContext waits for the first gesture,
   // which the browser's autoplay rule asks for (ADR 0025). Any press or key

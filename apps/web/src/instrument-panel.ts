@@ -87,9 +87,9 @@ let instrumentFont: Promise<void> | undefined;
 
 /**
  * Register the panel's pixel face (ADR 0023) with the document once, so the
- * Race Scene mounts with it ready and the first frame is set in it. A face
- * that fails to load leaves the panel in the fallback stack rather than
- * keeping the race from starting.
+ * Scenes that use it mount with it ready and their first frame is set in it.
+ * A face that fails to load leaves them in the fallback stack rather than
+ * keeping the game from starting.
  */
 export function loadInstrumentFont(): Promise<void> {
   instrumentFont ??= (async () => {

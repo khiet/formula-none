@@ -48,6 +48,7 @@ describe("Title Scene", () => {
   it("names the game and offers the nickname, a room to create or join, and a solo race", () => {
     const { container, title, calls, press } = scene();
     expect(container.querySelector("h1")?.textContent).toBe("Formula None");
+    expect(container.textContent).toContain("Kart racing for up to 8 friends");
     expect(container.querySelector("input[name=nickname]")).not.toBeNull();
     expect(container.querySelector("input[name=code]")).not.toBeNull();
     expect(container.querySelector("button[name=create]")?.textContent).toBe("Create room");

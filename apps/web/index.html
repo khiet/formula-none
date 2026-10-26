@@ -338,9 +338,7 @@
         text-shadow: 0 0.05rem 0.1rem #000;
         white-space: nowrap;
       }
-      #title-scene,
-      #room-scene,
-      #results-scene {
+      #room-scene {
         display: flex;
         flex-direction: column;
         align-items: center;
@@ -350,48 +348,557 @@
         color: #fff;
         font: 1.25rem/1.4 system-ui, sans-serif;
       }
-      #results-scene ol {
-        padding: 0;
-        list-style: none;
-        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-      }
-      #title-scene button,
-      #room-scene button,
-      #results-scene button {
+      #room-scene button {
         padding: 0.5rem 1.5rem;
         font: inherit;
         cursor: pointer;
       }
-      #title-scene input {
-        padding: 0.5rem 0.75rem;
-        font: inherit;
-        width: 12ch;
-      }
-      #title-scene input[name="code"] {
-        width: 6ch;
-        text-transform: uppercase;
-        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-      }
-      .title-row,
       .room-buttons {
         display: flex;
         gap: 0.5rem;
       }
-      #title-scene .audio-toggles {
-        gap: 1.5rem;
-        font-size: 1rem;
-        color: #bbb;
+      /*
+       * The Title and Results Scenes as a Grand Prix poster, design A of
+       * docs/mockups/title-and-results-variations.html, set in the
+       * Instrument panel's face. One em, 1% of the window's width capped at
+       * 1.6% of its height, scales the whole poster; it is clean down to
+       * 1024x640.
+       */
+      #title-scene,
+      #results-scene {
+        --ink: #111;
+        --gold: #ffd23f;
+        --go: #3ddc84;
+        position: relative;
+        box-sizing: border-box;
+        height: 100%;
+        overflow: hidden;
+        isolation: isolate;
+        color: #fff;
+        background: #c81d25;
+        font-family: "Kenney Mini Square", ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-size: min(1vw, 1.6vh);
+        line-height: 1.2;
+        text-transform: uppercase;
       }
-      #title-scene .audio-toggles label {
-        display: flex;
-        align-items: center;
-        gap: 0.4rem;
+      :is(#title-scene, #results-scene) * {
+        box-sizing: border-box;
+      }
+      :is(#title-scene, #results-scene) :is(h1, p) {
+        margin: 0;
+        font-weight: normal;
+      }
+      :is(#title-scene, #results-scene) .rays {
+        position: absolute;
+        z-index: -1;
+        left: 50%;
+        top: 40%;
+        width: 160em;
+        aspect-ratio: 1;
+        translate: -50% -50%;
+        border-radius: 50%;
+        background: repeating-conic-gradient(rgb(255 210 60 / 0.18) 0 8deg, transparent 8deg 16deg);
+      }
+      :is(#title-scene, #results-scene) :is(.chequer-top, .chequer-bottom) {
+        position: absolute;
+        z-index: 1;
+        left: 0;
+        right: 0;
+        height: 3em;
+        background: conic-gradient(var(--ink) 25%, #fff 0 50%, var(--ink) 0 75%, #fff 0) 0 0 / 3em 3em;
+      }
+      :is(#title-scene, #results-scene) .chequer-top {
+        top: 0;
+      }
+      :is(#title-scene, #results-scene) .chequer-bottom {
+        bottom: 0;
+      }
+      :is(#title-scene, #results-scene) .kart {
+        display: block;
+        width: 100%;
+        height: auto;
+        overflow: visible;
+      }
+      :is(#title-scene, #results-scene) .kart .body {
+        fill: var(--livery);
+      }
+      /* Chunky buttons with hard shadows that press in; the way forward is green. */
+      :is(#title-scene, #results-scene) button {
+        padding: 0.5em 1em;
+        font: inherit;
+        font-size: 1.8em;
+        color: var(--ink);
+        text-transform: uppercase;
+        background: var(--gold);
+        border: 0.2em solid var(--ink);
+        box-shadow: 0.3em 0.3em 0 var(--ink);
         cursor: pointer;
       }
-      #title-scene [data-message] {
-        min-height: 1.4em;
+      :is(#title-scene, #results-scene) button:hover {
+        background: #ffe27a;
+        translate: -0.08em -0.08em;
+        box-shadow: 0.38em 0.38em 0 var(--ink);
+      }
+      :is(#title-scene, #results-scene) button:active {
+        translate: 0.3em 0.3em;
+        box-shadow: 0 0 0 var(--ink);
+      }
+      :is(#title-scene, #results-scene) :is(button, input):focus-visible {
+        outline: 0.15em solid #fff;
+        outline-offset: 0.15em;
+      }
+      #title-scene button[name="create"],
+      #results-scene button[name="rematch"] {
+        background: var(--go);
+      }
+      #title-scene button[name="create"]:hover,
+      #results-scene button[name="rematch"]:hover {
+        background: #8ef0b7;
+      }
+      #title-scene {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 1.4em;
+        padding: 4em 0;
+      }
+      #title-scene .logo {
+        position: relative;
+        rotate: -4deg;
+        text-align: center;
+      }
+      #title-scene h1 {
+        font-size: 6.4em;
+        line-height: 0.95;
+        letter-spacing: 0.02em;
+      }
+      #title-scene h1 span {
+        display: block;
+        text-shadow: 0.08em 0.08em 0 var(--ink);
+      }
+      #title-scene h1 span:first-child {
+        color: var(--gold);
+        text-shadow:
+          0.08em 0.08em 0 var(--ink),
+          0.16em 0.16em 0 rgb(0 0 0 / 0.35);
+      }
+      /* The crossed-out "1", stuck on at the top-right of NONE. */
+      #title-scene .one {
+        position: absolute;
+        left: calc(50% + 3.6em);
+        top: 1.9em;
+        padding: 0.1em 0.25em;
+        font-size: 2.9em;
+        color: var(--ink);
+        background: var(--gold);
+        border: 0.12em solid var(--ink);
+        rotate: 14deg;
+        text-decoration-thickness: 0.18em;
+        text-decoration-color: #c81d25;
+      }
+      #title-scene .tagline {
+        margin-top: -0.4em;
+        padding: 0.5em 1em;
+        font-size: 1.4em;
+        letter-spacing: 0.06em;
+        background: var(--ink);
+        rotate: -4deg;
+      }
+      .title-row {
+        display: flex;
+        gap: 1em;
+      }
+      #title-scene input:not([type="checkbox"]) {
+        width: 11em;
+        padding: 0.45em 0.6em;
+        font: inherit;
+        font-size: 1.8em;
+        color: var(--ink);
+        text-transform: none;
+        background: #fff;
+        border: 0.2em solid var(--ink);
+        box-shadow: 0.3em 0.3em 0 var(--ink);
+        outline: none;
+      }
+      #title-scene input:not([type="checkbox"]):focus {
+        background: #fff6cf;
+      }
+      #title-scene input::placeholder {
+        color: #888;
+      }
+      #title-scene input[name="code"] {
+        width: 6em;
+        letter-spacing: 0.3em;
+        text-align: center;
+        text-transform: uppercase;
+      }
+      /* The audio toggles as chips: a lit square when on, the label struck through when off. */
+      #title-scene .audio-toggles {
+        gap: 1em;
+      }
+      #title-scene .chip {
+        display: flex;
+        align-items: center;
+        gap: 0.5em;
+        padding: 0.5em 0.8em;
+        font-size: 1.3em;
+        background: var(--ink);
+        cursor: pointer;
+      }
+      #title-scene .chip:focus-within {
+        outline: 0.12em solid #fff;
+      }
+      #title-scene .chip input {
+        appearance: none;
+        width: 1em;
+        height: 1em;
         margin: 0;
-        color: #ffb347;
+        background: #555;
+        cursor: pointer;
+      }
+      #title-scene .chip input:checked {
+        background: var(--go);
+        box-shadow: 0 0 0.6em var(--go);
+      }
+      #title-scene .chip input:not(:checked) + span {
+        opacity: 0.5;
+        text-decoration: line-through;
+      }
+      #title-scene [data-message] {
+        min-height: 1.2em;
+        font-size: 1.4em;
+        color: var(--gold);
+        text-transform: none;
+      }
+      #title-scene .runner {
+        position: absolute;
+        z-index: 1;
+        bottom: 3.6em;
+        left: -12em;
+        width: 10em;
+      }
+      #title-scene .runner + .runner {
+        bottom: 4.4em;
+        width: 8em;
+      }
+      /* Results: the headline across the top, the podium under it and the board beside that. */
+      #results-scene {
+        display: grid;
+        grid-template-areas: "head head" "podium side";
+        grid-template-columns: 44em 40em;
+        grid-template-rows: auto 1fr;
+        justify-content: center;
+        gap: 2em 6em;
+        padding: 6em 4em;
+      }
+      #results-scene header {
+        grid-area: head;
+        text-align: center;
+      }
+      #results-scene [data-race-over] {
+        display: inline-block;
+        padding: 0.3em 0.7em;
+        font-size: 1.6em;
+        color: var(--ink);
+        background: var(--gold);
+        border: 0.15em solid var(--ink);
+        rotate: -3deg;
+      }
+      #results-scene h1 {
+        margin-top: 0.25em;
+        font-size: 4.6em;
+        text-shadow: 0.08em 0.08em 0 var(--ink);
+      }
+      /* From 4th down the place itself is the headline, stamped on. */
+      #results-scene h1[data-stamp] {
+        display: block;
+        width: max-content;
+        margin: 0.15em auto 0;
+        padding: 0 0.2em;
+        font-size: 6.4em;
+        color: var(--gold);
+        border: 0.08em solid var(--gold);
+        rotate: -6deg;
+      }
+      #results-scene [data-subline] {
+        margin-top: 0.6em;
+        font-size: 1.4em;
+      }
+      #results-scene ol {
+        margin: 0;
+        padding: 0;
+        list-style: none;
+      }
+      #results-scene [data-fastest-lap] {
+        padding: 0.2em 0.4em;
+        font-size: 0.75em;
+        color: #fff;
+        background: #a45cff;
+      }
+      #results-scene [data-side] {
+        grid-area: side;
+        align-self: end;
+        display: grid;
+        gap: 2em;
+      }
+      #results-scene [data-board] {
+        background: var(--ink);
+        box-shadow: 0.4em 0.4em 0 rgb(0 0 0 / 0.4);
+      }
+      #results-scene [data-board]:empty {
+        display: none;
+      }
+      #results-scene [data-board] li {
+        display: grid;
+        grid-template-areas: "place swatch name badge lap";
+        grid-template-columns: 2.6em 0.8em 1fr auto 6.6em;
+        align-items: center;
+        column-gap: 0.6em;
+        padding: 0.45em 0.8em;
+        font-size: 1.3em;
+        border-bottom: 0.1em dashed #333;
+      }
+      #results-scene [data-board] [data-place] {
+        grid-area: place;
+      }
+      #results-scene [data-board] [data-swatch] {
+        grid-area: swatch;
+        height: 0.8em;
+        background: var(--livery);
+        outline: 0.1em solid #555;
+      }
+      #results-scene [data-board] [data-name] {
+        grid-area: name;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      #results-scene [data-board] [data-fastest-lap] {
+        grid-area: badge;
+      }
+      #results-scene [data-board] [data-best-lap] {
+        grid-area: lap;
+        text-align: right;
+      }
+      #results-scene [data-board] li[data-not-finished] {
+        color: #888;
+      }
+      #results-scene [data-board] li[data-you] {
+        color: var(--ink);
+        background: var(--gold);
+      }
+      #results-scene [data-podium] {
+        grid-area: podium;
+        align-self: end;
+        display: flex;
+        align-items: flex-end;
+        gap: 0.6em;
+      }
+      /* Second, first, third from the left; each step's name tag over its kart over its block. */
+      #results-scene [data-podium] li {
+        flex: 1;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        order: 2;
+      }
+      #results-scene [data-podium] li[data-result="1st"] {
+        order: 1;
+      }
+      #results-scene [data-podium] li[data-result="2nd"] {
+        order: 0;
+      }
+      #results-scene [data-podium] [data-name] {
+        order: 0;
+        max-width: 100%;
+        overflow: hidden;
+        padding: 0.15em 0.4em;
+        font-size: 1.4em;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      #results-scene [data-podium] li[data-you] [data-name] {
+        color: var(--ink);
+        background: var(--gold);
+      }
+      #results-scene [data-podium] [data-best-lap] {
+        order: 1;
+        margin-top: 0.3em;
+        font-size: 1.1em;
+      }
+      #results-scene [data-podium] [data-fastest-lap] {
+        order: 2;
+        margin-top: 0.3em;
+      }
+      #results-scene [data-podium] .kart {
+        order: 3;
+        width: 9em;
+        margin: 0.4em 0 -0.2em;
+      }
+      #results-scene [data-podium] [data-place] {
+        order: 4;
+        display: grid;
+        place-items: center;
+        width: 100%;
+        height: 1.5em;
+        font-size: 3.4em;
+        color: #e08a3c;
+        background: var(--ink);
+        border-top: 0.12em solid currentColor;
+        transform-origin: bottom;
+      }
+      #results-scene [data-podium] li[data-result="1st"] [data-place] {
+        height: 3.2em;
+        color: var(--gold);
+      }
+      #results-scene [data-podium] li[data-result="2nd"] [data-place] {
+        height: 2.2em;
+        color: #ddd;
+      }
+      #results-scene [data-actions] {
+        display: flex;
+        justify-content: flex-end;
+        gap: 1em;
+      }
+      #results-scene [data-confetti] {
+        position: absolute;
+        z-index: 5;
+        inset: 0;
+        overflow: hidden;
+        pointer-events: none;
+      }
+      #results-scene [data-confetti] i {
+        position: absolute;
+        top: -4%;
+        left: var(--x);
+        width: 0.9em;
+        height: 0.45em;
+        background: var(--c);
+        rotate: var(--r);
+      }
+      @keyframes poster-spin {
+        to {
+          rotate: 360deg;
+        }
+      }
+      @keyframes poster-chequer {
+        to {
+          background-position: 6em 0;
+        }
+      }
+      @keyframes poster-run {
+        to {
+          left: 110%;
+        }
+      }
+      @keyframes poster-stamp {
+        from {
+          scale: 3;
+          opacity: 0;
+        }
+      }
+      @keyframes poster-fade {
+        from {
+          opacity: 0;
+          translate: 0 0.6em;
+        }
+      }
+      @keyframes poster-rise {
+        from {
+          transform: scaleY(0);
+        }
+      }
+      @keyframes poster-drop {
+        from {
+          translate: 0 -14em;
+          opacity: 0;
+        }
+      }
+      @keyframes poster-fall {
+        to {
+          transform: translateY(110vh) rotate(540deg) rotateY(720deg);
+        }
+      }
+      /*
+       * Motion only for a player who has not asked for less; otherwise
+       * everything holds still and the confetti stays away. The reveal is
+       * done within 2 s and never holds back the buttons.
+       */
+      #results-scene [data-confetti] {
+        display: none;
+      }
+      @media (prefers-reduced-motion: no-preference) {
+        :is(#title-scene, #results-scene) .rays {
+          animation: poster-spin 40s linear infinite;
+        }
+        :is(#title-scene, #results-scene) :is(.chequer-top, .chequer-bottom) {
+          animation: poster-chequer 3s linear infinite;
+        }
+        :is(#title-scene, #results-scene) .chequer-bottom {
+          animation-direction: reverse;
+        }
+        :is(#title-scene, #results-scene) button {
+          transition:
+            translate 0.08s,
+            box-shadow 0.08s;
+        }
+        #title-scene .runner {
+          animation: poster-run 5s linear infinite;
+        }
+        #title-scene .runner + .runner {
+          animation-delay: -2.4s;
+        }
+        #results-scene [data-race-over] {
+          animation: poster-stamp 0.5s cubic-bezier(0.2, 1.6, 0.4, 1) both;
+        }
+        #results-scene h1 {
+          animation: poster-stamp 0.5s 0.2s cubic-bezier(0.2, 1.6, 0.4, 1) both;
+        }
+        #results-scene [data-subline] {
+          animation: poster-fade 0.4s 0.5s both;
+        }
+        #results-scene [data-board] li {
+          animation: poster-fade 0.3s both;
+        }
+        #results-scene [data-board] li:nth-child(2) {
+          animation-delay: 0.08s;
+        }
+        #results-scene [data-board] li:nth-child(3) {
+          animation-delay: 0.16s;
+        }
+        #results-scene [data-board] li:nth-child(4) {
+          animation-delay: 0.24s;
+        }
+        #results-scene [data-board] li:nth-child(5) {
+          animation-delay: 0.32s;
+        }
+        /* Third's block rises first and first's last, each kart dropping on 0.3 s into its block's rise. */
+        #results-scene [data-podium] [data-place] {
+          animation: poster-rise 0.6s 0.5s cubic-bezier(0.2, 1.3, 0.4, 1) both;
+        }
+        #results-scene [data-podium] .kart {
+          animation: poster-drop 0.5s 0.8s cubic-bezier(0.2, 1.5, 0.4, 1) both;
+        }
+        #results-scene [data-podium] li[data-result="2nd"] [data-place] {
+          animation-delay: 0.7s;
+        }
+        #results-scene [data-podium] li[data-result="2nd"] .kart {
+          animation-delay: 1s;
+        }
+        #results-scene [data-podium] li[data-result="1st"] [data-place] {
+          animation-delay: 0.9s;
+        }
+        #results-scene [data-podium] li[data-result="1st"] .kart {
+          animation-delay: 1.2s;
+        }
+        #results-scene [data-confetti] {
+          display: block;
+        }
+        #results-scene [data-confetti] i {
+          animation: poster-fall var(--d) linear var(--delay) infinite;
+        }
       }
       #room-scene [data-room-code] {
         font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
