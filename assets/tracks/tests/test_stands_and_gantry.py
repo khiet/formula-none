@@ -38,11 +38,7 @@ def normal(face: list[mesh.Vertex]) -> mesh.Vertex:
     return n[0] / length, n[1] / length, n[2] / length
 
 
-def faces_of(piece) -> list[list[mesh.Vertex]]:
-    return faces_of_mesh(piece.mesh)
-
-
-def faces_of_mesh(data: mesh.Mesh) -> list[list[mesh.Vertex]]:
+def faces_of(data: mesh.Mesh) -> list[list[mesh.Vertex]]:
     vertices, faces = data
     return [[vertices[v] for v in face] for face in faces]
 
@@ -67,7 +63,7 @@ class Cuboid(unittest.TestCase):
         centre = (2.0, 1.25, 2.0)
         for side, piece in box.items():
             with self.subTest(side=side):
-                (face,) = faces_of_mesh(piece)
+                (face,) = faces_of(piece)
                 middle = [sum(v[axis] for v in face) / 4.0 for axis in range(3)]
                 outward = [m - c for m, c in zip(middle, centre)]
                 self.assertGreater(sum(n * o for n, o in zip(normal(face), outward)), 0.0)
@@ -86,7 +82,7 @@ class Grandstands(unittest.TestCase):
         self.assertIn("wall", stands)
         canopy_top = max(v[2] for v in stands["kerb-red"].mesh[0])
         self.assertEqual(canopy_top, max(v[2] for p in stands.values() for v in p.mesh[0]))
-        for face in faces_of(stands["kerb-red"]):
+        for face in faces_of(stands["kerb-red"].mesh):
             self.assertAlmostEqual(normal(face)[2], 1.0, places=6, msg="the canopy's top")
 
     def test_the_tiers_step_up_away_from_the_track(self) -> None:
@@ -94,7 +90,7 @@ class Grandstands(unittest.TestCase):
         samples = layout.path.samples
         # Each tread's distance from the centreline, by its height.
         levels: dict[float, list[float]] = {}
-        for face in faces_of(pieces("Grandstand")["wall"]):
+        for face in faces_of(pieces("Grandstand")["wall"].mesh):
             if normal(face)[2] > 0.99:
                 middle = [sum(v[axis] for v in face) / len(face) for axis in range(2)]
                 distance = min(math.dist(middle, (s.x, s.y)) for s in samples)
@@ -140,18 +136,18 @@ class Gantry(unittest.TestCase):
         self.assertTrue(over)
         self.assertGreater(min(v[2] for v in over), self.ground + 4.0)
 
-    def test_the_beam_shows_the_chequer_up_and_down_the_track(self) -> None:
+    def test_the_beam_shows_the_checkers_up_and_down_the_track(self) -> None:
         forward = (math.cos(self.heading), math.sin(self.heading), 0.0)
         for material in ("checker-dark", "checker-light"):
             facings = {
                 round(sum(n * f for n, f in zip(normal(face), forward)))
-                for face in faces_of(self.gantry[material])
+                for face in faces_of(self.gantry[material].mesh)
             }
             self.assertEqual(facings, {-1, 1}, material)
 
     def test_the_beam_is_lit_on_top_and_shaded_underneath(self) -> None:
-        self.assertTrue(all(normal(f)[2] > 0.99 for f in faces_of(self.gantry["beam-top"])))
-        self.assertTrue(any(normal(f)[2] < -0.99 for f in faces_of(self.gantry["beam-shade"])))
+        self.assertTrue(all(normal(f)[2] > 0.99 for f in faces_of(self.gantry["beam-top"].mesh)))
+        self.assertTrue(any(normal(f)[2] < -0.99 for f in faces_of(self.gantry["beam-shade"].mesh)))
 
 
 if __name__ == "__main__":

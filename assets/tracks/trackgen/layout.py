@@ -32,6 +32,8 @@ PIPE_HEIGHT_M = 2.0
 # Scenery, drawn and never collided with. It floats a hair over the surface
 # it decorates so it draws on top without changing what the sim stands on.
 SCENERY_LIFT_M = 0.01
+# A `mesh.cuboid`'s upright faces, when its third axis is up.
+SIDES = ("x0", "x1", "y0", "y1")
 KERB_WIDTH_M = 0.6
 KERB_STRIPE_SAMPLES = 2
 START_LINE_SQUARE_M = 1.0
@@ -63,10 +65,12 @@ GRANDSTAND_TIER_INSET_M = 0.14
 GRANDSTAND_POST_M = 0.43
 GRANDSTAND_POST_IN_M = 0.29
 GRANDSTAND_CANOPY_BOTTOM_M = 7.57
-GRANDSTAND_CANOPY_DEPTH_M = 0.43
+GRANDSTAND_CANOPY_THICKNESS_M = 0.43
 GRANDSTAND_CANOPY_OVERHANG_M = 0.7
-# The crowd: a row on each tread, its colours cycling through the key
-# colours so no two neighbours match, a little further in on each tier.
+# The crowd: a row on each tread, a little further in on each tier, its
+# colours stepping five slots a seat and three a tier through the eight key
+# colours; both steps are coprime with eight, so neighbours along a row or
+# up a column never match.
 CROWD_PER_TIER = 22
 CROWD_SPACING_M = 0.5
 CROWD_FIRST_IN_M = 0.57
@@ -78,7 +82,7 @@ CROWD_FROM_RISER_M = 0.4
 # `apps/web/src/livery.ts` and the track tests hold them to it.
 CROWD_KEYS = (0xD00A12, 0x1F3FB0, 0xC8CCD0, 0xFF7A00, 0x00665A, 0x37BEDD, 0xF282B4, 0x2A2A2E)
 # The gantry: two carbon pillars just off the asphalt holding a white beam
-# with two rows of the track's chequer on both faces, lit on top and
+# with two rows of the start line's checkers on both faces, lit on top and
 # shaded underneath.
 GANTRY_PAST_LINE_M = 1.0
 GANTRY_BEYOND_ASPHALT_M = 1.0
@@ -87,8 +91,8 @@ GANTRY_PILLAR_M = 0.85
 GANTRY_TOP_M = 7.0
 GANTRY_BEAM_HEIGHT_M = 1.71
 GANTRY_BEAM_SHADE_M = 0.29
-GANTRY_CHEQUER_M = 0.5
-GANTRY_CHEQUER_ROWS = 2
+GANTRY_CHECKER_M = 0.5
+GANTRY_CHECKER_ROWS = 2
 # A boost pad is drawn on the rectangle the sim boosts on, so these mirror
 # `BOOST_PAD_HALF_*` in `crates/sim/src/tuning.rs`; the track tests hold
 # them to it. The rest is the asset catalog's Boost pad card: a carbon
@@ -520,16 +524,27 @@ def hoardings(layout: Layout) -> tuple[list[SceneryMesh], list[TextProp]]:
     return boards, lettering
 
 
+class ByMaterial:
+    """Pieces gathered by material, then merged into one scenery mesh per material named `<family>.<material>`,
+    so a family costs a draw call per colour however many pieces it has."""
+
+    def __init__(self, family: str) -> None:
+        self.family = family
+        self.pieces: dict[str, list[mesh.Mesh]] = {}
+
+    def add(self, material: str, piece: mesh.Mesh) -> None:
+        self.pieces.setdefault(material, []).append(piece)
+
+    def scenery(self) -> list[SceneryMesh]:
+        return [
+            SceneryMesh(f"{self.family}.{material}", material, mesh.merge(pieces))
+            for material, pieces in self.pieces.items()
+        ]
+
+
 def grandstands(layout: Layout) -> list[SceneryMesh]:
-    """Stands shoulder to shoulder behind the hoardings, on the grass, facing the track.
-
-    Every stand's boxes are merged by material, so the stands cost a draw
-    call per colour however many there are.
-    """
-    by_material: dict[str, list[mesh.Mesh]] = {}
-
-    def add(material: str, piece: mesh.Mesh) -> None:
-        by_material.setdefault(material, []).append(piece)
+    """Stands shoulder to shoulder behind the hoardings, on the grass, facing the track."""
+    parts = ByMaterial("Grandstand")
 
     for run in layout.decor.grandstands:
         for front in along_outside(layout, run.segments, run.side, GRANDSTAND_SETBACK_M, GRANDSTAND_WIDTH_M):
@@ -557,17 +572,17 @@ def grandstands(layout: Layout) -> list[SceneryMesh]:
             depth = GRANDSTAND_TIERS * GRANDSTAND_TIER_TREAD_M
             plinth = box(-half, half, 0.0, depth, 0.0, GRANDSTAND_PLINTH_M)
             # The plinth's top and every tier's bottom are hidden by the tier on them.
-            for side in ("x0", "x1", "y0", "y1"):
-                add("stand-plinth", plinth[side])
+            for side in SIDES:
+                parts.add("stand-plinth", plinth[side])
             for tier in range(GRANDSTAND_TIERS):
-                inset = half - tier * GRANDSTAND_TIER_INSET_M
+                tier_half = half - tier * GRANDSTAND_TIER_INSET_M
                 bottom = GRANDSTAND_PLINTH_M + tier * GRANDSTAND_TIER_RISE_M
                 top = bottom + GRANDSTAND_TIER_RISE_M
                 near = tier * GRANDSTAND_TIER_TREAD_M
-                faces = box(-inset, inset, near, depth, bottom, top)
-                add("wall", faces["z1"])
-                for side in ("x0", "x1", "y0", "y1"):
-                    add("stand-riser", faces[side])
+                faces = box(-tier_half, tier_half, near, depth, bottom, top)
+                parts.add("wall", faces["z1"])
+                for side in SIDES:
+                    parts.add("stand-riser", faces[side])
                 for seat in range(CROWD_PER_TIER):
                     left = -half + CROWD_FIRST_IN_M + tier * CROWD_STEP_IN_M + seat * CROWD_SPACING_M
                     back = near + CROWD_FROM_RISER_M
@@ -575,32 +590,29 @@ def grandstands(layout: Layout) -> list[SceneryMesh]:
                     slot = (seat * 5 + tier * 3) % len(CROWD_KEYS)
                     for side, face in person.items():
                         if side != "z0":
-                            add(f"crowd-{slot}", face)
+                            parts.add(f"crowd-{slot}", face)
 
-            post_top = GRANDSTAND_CANOPY_BOTTOM_M
+            canopy_bottom = GRANDSTAND_CANOPY_BOTTOM_M
             for side in (-1, 1):
                 outer = side * (half - GRANDSTAND_POST_IN_M)
                 inner = outer - side * GRANDSTAND_POST_M
-                post = box(min(inner, outer), max(inner, outer), depth - GRANDSTAND_POST_M, depth, GRANDSTAND_PLINTH_M, post_top)
-                for face_side in ("x0", "x1", "y0", "y1"):
-                    add("carbon", post[face_side])
+                post = box(min(inner, outer), max(inner, outer), depth - GRANDSTAND_POST_M, depth, GRANDSTAND_PLINTH_M, canopy_bottom)
+                for face_side in SIDES:
+                    parts.add("carbon", post[face_side])
 
             reach = half + GRANDSTAND_CANOPY_OVERHANG_M
             canopy = box(
-                -reach, reach, -GRANDSTAND_CANOPY_OVERHANG_M, depth, post_top, post_top + GRANDSTAND_CANOPY_DEPTH_M
+                -reach, reach, -GRANDSTAND_CANOPY_OVERHANG_M, depth, canopy_bottom, canopy_bottom + GRANDSTAND_CANOPY_THICKNESS_M
             )
-            add("kerb-red", canopy["z1"])
-            for side in ("x0", "x1", "y0", "y1", "z0"):
-                add("canopy-shade", canopy[side])
+            parts.add("kerb-red", canopy["z1"])
+            for side in (*SIDES, "z0"):
+                parts.add("canopy-shade", canopy[side])
 
-    return [
-        SceneryMesh(f"Grandstand.{material}", material, mesh.merge(pieces))
-        for material, pieces in by_material.items()
-    ]
+    return parts.scenery()
 
 
 def gantry(layout: Layout) -> list[SceneryMesh]:
-    """The gantry spanning the asphalt just past the start line, its chequer facing both ways along the track."""
+    """The gantry spanning the asphalt just past the start line, its checkers facing both ways along the track."""
     sample = layout.path.at(GANTRY_PAST_LINE_M)
     ground = elevation(layout.elevation, sample.s)
     cos, sin = math.cos(sample.heading), math.sin(sample.heading)
@@ -622,49 +634,42 @@ def gantry(layout: Layout) -> list[SceneryMesh]:
 
         return mesh.cuboid(corner)
 
-    by_material: dict[str, list[mesh.Mesh]] = {}
-
-    def add(material: str, piece: mesh.Mesh) -> None:
-        by_material.setdefault(material, []).append(piece)
-
+    parts = ByMaterial("Gantry")
     span = layout.asphalt_half_width + GANTRY_BEYOND_ASPHALT_M
-    thick = GANTRY_PILLAR_M / 2.0
+    half_depth = GANTRY_PILLAR_M / 2.0
     beam_bottom = GANTRY_TOP_M - GANTRY_BEAM_HEIGHT_M
     # The pillars stand on the sand's lowest edge so they never float on its slope.
     for side in (-1, 1):
         outer, inner = side * span, side * (span - GANTRY_PILLAR_M)
-        pillar = box(min(inner, outer), max(inner, outer), -thick, thick, -GRASS_DROP_M, beam_bottom)
+        pillar = box(min(inner, outer), max(inner, outer), -half_depth, half_depth, -GRASS_DROP_M, beam_bottom)
         # Lit on the faces up and down the track, the ones the grid sees.
-        add("carbon-lit", pillar["y0"])
-        add("carbon-lit", pillar["y1"])
-        add("carbon", pillar["x0"])
-        add("carbon", pillar["x1"])
+        parts.add("carbon-lit", pillar["y0"])
+        parts.add("carbon-lit", pillar["y1"])
+        parts.add("carbon", pillar["x0"])
+        parts.add("carbon", pillar["x1"])
 
-    beam = box(-span, span, -thick, thick, beam_bottom, GANTRY_TOP_M)
-    add("beam-top", beam["z1"])
-    add("beam-shade", beam["z0"])
-    for side in ("x0", "x1", "y0", "y1"):
-        add("wall", beam[side])
+    beam = box(-span, span, -half_depth, half_depth, beam_bottom, GANTRY_TOP_M)
+    parts.add("beam-top", beam["z1"])
+    parts.add("beam-shade", beam["z0"])
+    for side in SIDES:
+        parts.add("wall", beam[side])
 
     # Tiles a hair proud of both faces, so they never share the beam's
     # planes; only a tile's outer face is drawn.
     lift = SCENERY_LIFT_M
     shade_top = beam_bottom + GANTRY_BEAM_SHADE_M
-    columns = round(2.0 * span / GANTRY_CHEQUER_M)
-    for behind, ahead, outer in ((-thick - lift, -thick, "y0"), (thick, thick + lift, "y1")):
+    columns = round(2.0 * span / GANTRY_CHECKER_M)
+    for behind, ahead, outer in ((-half_depth - lift, -half_depth, "y0"), (half_depth, half_depth + lift, "y1")):
 
         def flat(right: float, left: float, bottom: float, top: float) -> mesh.Mesh:
             return box(right, left, behind, ahead, bottom, top)[outer]
 
-        add("beam-shade", flat(-span, span, beam_bottom, shade_top))
-        for row in range(GANTRY_CHEQUER_ROWS):
-            bottom = shade_top + row * GANTRY_CHEQUER_M
+        parts.add("beam-shade", flat(-span, span, beam_bottom, shade_top))
+        for row in range(GANTRY_CHECKER_ROWS):
+            bottom = shade_top + row * GANTRY_CHECKER_M
             for column in range(columns):
-                right = -span + column * GANTRY_CHEQUER_M
+                right = -span + column * GANTRY_CHECKER_M
                 material = "checker-dark" if (row + column) % 2 == 0 else "checker-light"
-                add(material, flat(right, right + GANTRY_CHEQUER_M, bottom, bottom + GANTRY_CHEQUER_M))
+                parts.add(material, flat(right, right + GANTRY_CHECKER_M, bottom, bottom + GANTRY_CHECKER_M))
 
-    return [
-        SceneryMesh(f"Gantry.{material}", material, mesh.merge(pieces))
-        for material, pieces in by_material.items()
-    ]
+    return parts.scenery()
