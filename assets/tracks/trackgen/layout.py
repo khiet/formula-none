@@ -51,7 +51,7 @@ HOARDING_TEXT_HEIGHT_M = 0.8
 HOARDING_TEXT_PROUD_M = 0.06
 # The stands and the gantry are the asset catalog's Grandstand and Start
 # gantry cards in three dimensions, at the cards' 14 px to the metre.
-# A stand is a plinth and four white tiers, each stepped back and in from
+# A stand is a plinth and four tiers with white treads, each stepped back and in from
 # the one below, a crowd of single pixels on every tread, and a kerb-red
 # canopy on two carbon posts at the back.
 GRANDSTAND_SETBACK_M = 4.0
@@ -69,8 +69,7 @@ GRANDSTAND_CANOPY_THICKNESS_M = 0.43
 GRANDSTAND_CANOPY_OVERHANG_M = 0.7
 # The crowd: a row on each tread, a little further in on each tier, its
 # colours stepping five slots a seat and three a tier through the eight key
-# colours; both steps are coprime with eight, so neighbours along a row or
-# up a column never match.
+# colours, so neighbours along a row or up a column never match.
 CROWD_PER_TIER = 22
 CROWD_SPACING_M = 0.5
 CROWD_FIRST_IN_M = 0.57

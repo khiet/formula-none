@@ -54,7 +54,7 @@ def pieces(family: str) -> dict[str, object]:
 
 class Cuboid(unittest.TestCase):
     def test_every_face_points_out_of_the_box_whichever_way_its_axes_run(self) -> None:
-        # A left-handed frame, as a placement facing the track gives.
+        # A left-handed frame, as the gantry's across-then-along axes give.
         def corner(i: int, j: int, k: int) -> mesh.Vertex:
             return (3.0 - 2.0 * i, 1.0 + 0.5 * j, 4.0 * k)
 

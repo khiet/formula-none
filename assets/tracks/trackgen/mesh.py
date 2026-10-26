@@ -112,7 +112,7 @@ def cuboid(corner: Callable[[int, int, int], Vertex]) -> dict[str, Mesh]:
     so each can take its own material."""
     corners = {(i, j, k): corner(i, j, k) for i in (0, 1) for j in (0, 1) for k in (0, 1)}
     centre = tuple(sum(v[axis] for v in corners.values()) / 8.0 for axis in range(3))
-    # Each face's corners in order round it, so any of them winds a quad.
+    # The two free indices of each face's corners, in order round the face.
     rings = {
         "x": [(0, 0), (1, 0), (1, 1), (0, 1)],
         "y": [(0, 0), (0, 1), (1, 1), (1, 0)],
