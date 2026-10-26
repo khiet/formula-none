@@ -8,23 +8,31 @@
 
 export const LIVERIES = 8;
 
-/** How a driver's hair is cut, on the one shared head the portrait will draw. */
-export type Hair =
-  | "braids-tied-back"
-  | "short"
-  | "swept-side-part"
-  | "curly-fringe"
-  | "short-greying-temples"
-  | "swept-back"
-  | "short-curls";
+/** How a driver's hair is cut, on the one shared head every kart carries. */
+export const HAIRS = [
+  "braids-tied-back",
+  "short",
+  "swept-side-part",
+  "curly-fringe",
+  "short-greying-temples",
+  "swept-back",
+  "short-curls",
+] as const;
+export type Hair = (typeof HAIRS)[number];
 
-export type FacialHair = "none" | "light-stubble" | "stubble" | "heavy-stubble" | "short-beard";
+export const FACIAL_HAIRS = [
+  "none",
+  "light-stubble",
+  "stubble",
+  "heavy-stubble",
+  "short-beard",
+] as const;
+export type FacialHair = (typeof FACIAL_HAIRS)[number];
 
 /**
  * A slot's driver: a friendly caricature of the team's best-known driver
  * under a parody name, told apart only by what swaps on the shared head.
- * Nothing shows the driver yet; the portrait in the Room and Results Scenes
- * will read it.
+ * The kart shows the head bare (ADR 0036); the name shows nowhere.
  */
 export interface Driver {
   readonly name: string;
@@ -46,7 +54,6 @@ export interface Livery {
   readonly primary: number;
   readonly secondary: number;
   readonly accent: number;
-  readonly helmet: number;
   readonly driver: Driver;
 }
 
@@ -60,7 +67,6 @@ const PALETTE: readonly Livery[] = [
     primary: 0xd00a12,
     secondary: 0x141414,
     accent: 0xffd400,
-    helmet: 0xffd400,
     driver: {
       name: "Louis Hamiltoon",
       skin: SKIN.deepBrown,
@@ -77,7 +83,6 @@ const PALETTE: readonly Livery[] = [
     primary: 0x16224d,
     secondary: 0xe2172b,
     accent: 0xffc72c,
-    helmet: 0xffc72c,
     driver: {
       name: "Max Verstoppen",
       skin: SKIN.fair,
@@ -94,7 +99,6 @@ const PALETTE: readonly Livery[] = [
     primary: 0xbfc5cb,
     secondary: 0x16181b,
     accent: 0x00a19c,
-    helmet: 0x00a19c,
     driver: {
       name: "Georgie Rustle",
       skin: SKIN.fair,
@@ -111,7 +115,6 @@ const PALETTE: readonly Livery[] = [
     primary: 0xff7a00,
     secondary: 0x1e1e24,
     accent: 0x3ec3f5,
-    helmet: 0x3ec3f5,
     driver: {
       name: "Lando Nourish",
       skin: SKIN.fair,
@@ -128,7 +131,6 @@ const PALETTE: readonly Livery[] = [
     primary: 0x00594f,
     secondary: 0x101614,
     accent: 0xcedc00,
-    helmet: 0xcedc00,
     driver: {
       name: "Fernando Alonsno",
       skin: SKIN.olive,
@@ -145,7 +147,6 @@ const PALETTE: readonly Livery[] = [
     primary: 0x0a2a5c,
     secondary: 0x37bedd,
     accent: 0xffffff,
-    helmet: 0xffffff,
     driver: {
       name: "Carlos Saintz",
       skin: SKIN.olive,
@@ -162,7 +163,6 @@ const PALETTE: readonly Livery[] = [
     primary: 0xf282b4,
     secondary: 0x0b5ab0,
     accent: 0xffffff,
-    helmet: 0xffffff,
     driver: {
       name: "Pierre Gassly",
       skin: SKIN.fair,
@@ -179,7 +179,6 @@ const PALETTE: readonly Livery[] = [
     primary: 0x2a2a2e,
     secondary: 0x9ea3a8,
     accent: 0xf50537,
-    helmet: 0xf50537,
     driver: {
       name: "Nico Hulkenbird",
       skin: SKIN.fair,

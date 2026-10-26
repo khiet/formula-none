@@ -47,12 +47,6 @@ describe("liveries", () => {
     }
   });
 
-  it("paint the helmet in the team's accent", () => {
-    for (const paint of all) {
-      expect(paint.helmet, paint.name).toBe(paint.accent);
-    }
-  });
-
   it("follow room join order, each slot a team and its driver under a parody name", () => {
     expect(all.map(({ name, driver }) => [name, driver.name])).toEqual([
       ["Rosso", "Louis Hamiltoon"],

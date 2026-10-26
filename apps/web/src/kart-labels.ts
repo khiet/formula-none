@@ -2,7 +2,7 @@ import type { KartReadout } from "./bridge";
 
 /**
  * Metres above a kart's centre its label floats: clear of the driver's
- * helmet, which stands about a metre over the centre, so the name never
+ * head, which stands about a metre over the centre, so the name never
  * covers the face.
  */
 const LABEL_RISE_M = 1.5;
