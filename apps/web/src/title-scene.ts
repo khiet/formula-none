@@ -155,7 +155,6 @@ export function createTitleScene(
   );
   toggles.classList.add("audio-toggles");
 
-  // Two karts lapping the bottom band, in the first two liveries after red.
   const runners = [1, 2].map((slot) => {
     const runner = document.createElement("div");
     runner.className = "runner";

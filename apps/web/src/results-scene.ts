@@ -24,7 +24,7 @@ export interface ResultRow {
   readonly livery: string;
   /** The best lap; "Not finished" for a kart that did not finish, blank dashes for one that completed no lap. */
   readonly bestLap: string;
-  /** Whether no kart set a lower best lap; every kart that ties it holds it too. */
+  /** Whether this kart's best lap is the race's lowest; every kart that ties it holds it too. */
   readonly fastestLap: boolean;
   /** Whether the kart completed the race's laps before the race ended. */
   readonly finished: boolean;
