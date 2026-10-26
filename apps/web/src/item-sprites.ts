@@ -27,7 +27,7 @@ export const SPRITE_PALETTE: Readonly<Record<string, string>> = {
   y: "#fde97a", // the panel's gold
   w: "#ffffff", // the panel's label white
   o: "#ff5522", // the View's hazard cone
-  r: "#d62828", // kart 0's livery red
+  r: "#d00a12", // kart 0's livery red
   s: "#9aa0a8", // grey
 };
 

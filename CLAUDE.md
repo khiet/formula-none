@@ -24,7 +24,7 @@ infra/            OpenTofu for the single-instance AWS environment
 deploy/           Compose stack, Caddyfile, and the deploy and smoke scripts;
                   the Dockerfile at the root packages them with the server
 assets/           track layouts, the Blender export and the exported glTF plus sidecars;
-                  the Kenney kart and its export; the Kenney pixel font the
+                  the car's build script and its export; the Kenney pixel font the
                   Instrument panel sets its type in; replay fixtures for the
                   determinism gate; LICENSES.md for what came from where
 docs/             GLOSSARY.md and adr/
@@ -69,8 +69,8 @@ Tracks (needs Blender on `PATH`; see `assets/tracks/README.md`):
   `assets/tracks/<name>/`; rerun after changing a layout and commit the
   output, since the sim's tests read the sidecars
 - Check the layouts without Blender: `pnpm test:tracks` (needs `python3`)
-- Kart: `pnpm export:karts` rebuilds `assets/karts/kart.glb` from the
-  vendored Kenney kart; rerun after changing `assets/karts/build.py`
+- Kart: `pnpm export:karts` builds `assets/karts/kart.glb` from
+  primitives; rerun after changing `assets/karts/build.py`
 
 Audio (needs `python3` on `PATH`):
 

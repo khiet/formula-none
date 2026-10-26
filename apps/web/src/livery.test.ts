@@ -31,23 +31,50 @@ function deltaE(a: number, b: number): number {
 const RACE_DISTANCE_DELTA_E = 30;
 
 describe("liveries", () => {
-  it("are eight, each a colour of its own", () => {
-    const all = Array.from({ length: LIVERIES }, (_, slot) => livery(slot));
+  const all = Array.from({ length: LIVERIES }, (_, slot) => livery(slot));
+
+  it("are eight, each a key colour of its own", () => {
     expect(all).toHaveLength(8);
-    expect(new Set(all.map(({ hex }) => hex)).size).toBe(8);
+    expect(new Set(all.map(({ key }) => key)).size).toBe(8);
   });
 
-  it("tell every pair apart at race distance", () => {
+  it("tell every pair apart at race distance by their key colours", () => {
     for (let a = 0; a < LIVERIES; a += 1) {
       for (let b = a + 1; b < LIVERIES; b += 1) {
-        const distance = deltaE(livery(a).hex, livery(b).hex);
+        const distance = deltaE(livery(a).key, livery(b).key);
         expect(distance, `livery ${a} vs ${b}`).toBeGreaterThanOrEqual(RACE_DISTANCE_DELTA_E);
       }
     }
   });
 
-  it("print as CSS for the Room Scene's swatches", () => {
-    expect(liveryCss(0)).toBe("#d62828");
-    expect(liveryCss(7)).toBe("#202020");
+  it("paint the car in the team's colours, the helmet in its accent", () => {
+    expect(livery(0)).toMatchObject({
+      name: "Rosso",
+      primary: 0xd00a12,
+      secondary: 0x141414,
+      accent: 0xffd400,
+      helmet: 0xffd400,
+    });
+    for (const paint of all) {
+      expect(paint.helmet, paint.name).toBe(paint.accent);
+    }
+  });
+
+  it("seat each slot's driver under a parody name", () => {
+    expect(all.map(({ driver }) => driver.name)).toEqual([
+      "Louis Hamiltoon",
+      "Max Verstoppen",
+      "Georgie Rustle",
+      "Lando Nourish",
+      "Fernando Alonsno",
+      "Carlos Saintz",
+      "Pierre Gassly",
+      "Nico Hulkenbird",
+    ]);
+  });
+
+  it("print the key colour as CSS for the Room Scene's swatches", () => {
+    expect(liveryCss(0)).toBe("#d00a12");
+    expect(liveryCss(7)).toBe("#2a2a2e");
   });
 });

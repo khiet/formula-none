@@ -3,9 +3,9 @@
 Blender sources and exported glTF (ADR 0007). Everything in here is CC0;
 `LICENSES.md` says what came from where.
 
-`karts/` holds the kart the View draws, built from Kenney's Car Kit with
-its paint in one swappable material. `karts/README.md` has the export
-command.
+`karts/` holds the kart the View draws, a chibi low-poly F1 car built from
+primitives with its paint in four swappable materials, the livery.
+`karts/README.md` has the export command.
 
 `tracks/` holds the two tracks: the oval test fixture and Brands Patch.
 Each is exported as a glTF for the View and a sidecar for the sim carrying

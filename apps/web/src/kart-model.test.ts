@@ -1,24 +1,35 @@
 import { BufferGeometry, Group, Mesh, MeshStandardMaterial, type Object3D } from "three";
 import { describe, expect, it } from "vitest";
-import { dressKart, fitKart, LIVERY_MATERIAL } from "./kart-model";
+import { dressKart, fitKart, LIVERY_MATERIALS } from "./kart-model";
+import { livery } from "./livery";
 
 const SIZE = { width: 1.2, height: 0.6, length: 1.8 };
 
-/** A stand-in for the exported kart: a painted body, dark tyres and a driver. */
+/** A stand-in for the exported car: one mesh per livery material, however deep, dark tyres. */
 function model(): Group {
   const root = new Group();
-  const paint = new MeshStandardMaterial({ name: LIVERY_MATERIAL, color: 0x808080 });
-  const rubber = new MeshStandardMaterial({ name: "Tyre", color: 0x202020 });
-  const body = new Mesh(new BufferGeometry(), paint);
-  body.name = "body";
-  const wheel = new Mesh(new BufferGeometry(), rubber);
-  wheel.name = "wheel-front-left";
+  const paint = (name: string) => new MeshStandardMaterial({ name, color: 0x808080 });
+  const part = (name: string, material: MeshStandardMaterial) => {
+    const mesh = new Mesh(new BufferGeometry(), material);
+    mesh.name = name;
+    return mesh;
+  };
+  const primary = paint(LIVERY_MATERIALS.primary);
   const driver = new Group();
-  const suit = new Mesh(new BufferGeometry(), paint);
-  suit.name = "suit";
-  driver.add(suit);
-  root.add(body, wheel, driver);
+  driver.add(part("helmet", paint(LIVERY_MATERIALS.helmet)));
+  root.add(
+    part("body", primary),
+    part("nose", primary),
+    part("sidepod", paint(LIVERY_MATERIALS.secondary)),
+    part("wing", paint(LIVERY_MATERIALS.accent)),
+    part("wheel-front-left", new MeshStandardMaterial({ name: "Tyre", color: 0x202020 })),
+    driver,
+  );
   return root;
+}
+
+function colourOf(root: Object3D, name: string): number {
+  return materialOf(root, name).color.getHex();
 }
 
 function materialOf(root: Object3D, name: string): MeshStandardMaterial {
@@ -28,27 +39,33 @@ function materialOf(root: Object3D, name: string): MeshStandardMaterial {
 }
 
 describe("dressing a kart", () => {
-  it("paints every mesh wearing the livery material, however deep, in the kart's colour", () => {
-    const kart = dressKart(model(), 0xd62828);
-    expect(materialOf(kart, "body").color.getHex()).toBe(0xd62828);
-    expect(materialOf(kart, "suit").color.getHex()).toBe(0xd62828);
-    expect(materialOf(kart, "wheel-front-left").color.getHex()).toBe(0x202020);
+  it("paints each livery material in its colour of the palette, and leaves the tyres alone", () => {
+    const notte = livery(1);
+    const kart = dressKart(model(), notte);
+    expect(colourOf(kart, "body")).toBe(notte.primary);
+    expect(colourOf(kart, "nose")).toBe(notte.primary);
+    expect(colourOf(kart, "sidepod")).toBe(notte.secondary);
+    expect(colourOf(kart, "wing")).toBe(notte.accent);
+    expect(colourOf(kart, "helmet")).toBe(notte.helmet);
+    expect(colourOf(kart, "wheel-front-left")).toBe(0x202020);
   });
 
   it("gives each kart its own paint, so eight karts from one model wear eight liveries", () => {
     const source = model();
-    const red = dressKart(source, 0xd62828);
-    const blue = dressKart(source, 0x1f5fd1);
-    expect(materialOf(red, "body").color.getHex()).toBe(0xd62828);
-    expect(materialOf(blue, "body").color.getHex()).toBe(0x1f5fd1);
-    expect(materialOf(source, "body").color.getHex()).toBe(0x808080);
+    const rosso = dressKart(source, livery(0));
+    const papaya = dressKart(source, livery(3));
+    expect(colourOf(rosso, "body")).toBe(livery(0).primary);
+    expect(colourOf(papaya, "body")).toBe(livery(3).primary);
+    expect(colourOf(source, "body")).toBe(0x808080);
+    // Meshes sharing a livery material share the kart's copy of it.
+    expect(materialOf(rosso, "body")).toBe(materialOf(rosso, "nose"));
     // The unpainted parts stay shared: one tyre material for the whole grid.
-    expect(materialOf(red, "wheel-front-left")).toBe(materialOf(blue, "wheel-front-left"));
+    expect(materialOf(rosso, "wheel-front-left")).toBe(materialOf(papaya, "wheel-front-left"));
   });
 });
 
 describe("fitting a kart", () => {
-  // The Kenney kart's bounds, metres, Y up, with the wheels resting on y = 0
+  // A kart's bounds, metres, Y up, with the wheels resting on y = 0
   // and the driver's helmet the highest point.
   const bounds = { min: [-0.47, 0, -0.6] as const, max: [0.47, 1.05, 0.83] as const };
 
