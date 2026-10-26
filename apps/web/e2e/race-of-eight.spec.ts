@@ -63,7 +63,7 @@ test("eight tabs complete a three-lap race on Brands Patch", async ({ browser })
   for (const page of pages) {
     await expect(page.locator("#instrument-panel")).toBeVisible({ timeout: 60_000 });
   }
-  // The autopilot laps; the race ends the cap after it finishes, and
+  // The autopilot laps; the cap from its finish ends the race, and
   // every tab reaches the results with every kart placed.
   await expect
     .poll(() => driver.laps(), { timeout: 480_000, intervals: [2_000] })

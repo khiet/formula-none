@@ -416,7 +416,7 @@ impl Raced {
             .unwrap_or(0)
     }
 
-    /// The tick each human `kart` finished at, as this player heard it.
+    /// The tick `kart` finished at, as this player heard it.
     fn finish_tick(&self, kart: u8) -> Option<u32> {
         self.events
             .iter()

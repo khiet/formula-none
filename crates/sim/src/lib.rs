@@ -1549,8 +1549,8 @@ fn clock_after(phase: Phase, dt: f32) -> Phase {
     }
 }
 
-/// The phase after a tick of `dt` that `state` has moved through but whose
-/// phase is still the one it began in. The cap starts the tick the first
+/// The phase after a tick of `dt`, read from `state` once its karts have
+/// moved and before its phase changes. The cap starts the tick the first
 /// human finishes, and the race ends when it runs out or no kart holds it
 /// open; the outro then runs down to the finish.
 fn next_phase(state: &State, dt: f32) -> Phase {
