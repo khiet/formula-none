@@ -1,7 +1,7 @@
 import type { AudioSettings } from "./audio-settings";
 import type { NicknameChars } from "./bridge";
 import { button } from "./controls";
-import { liveryCss } from "./livery";
+import { livery } from "./livery";
 import { validateNickname } from "./nickname";
 import { backdrop, kartSide } from "./poster";
 import { normaliseCode } from "./room-link";
@@ -158,8 +158,11 @@ export function createTitleScene(
   const runners = [1, 2].map((slot) => {
     const runner = document.createElement("div");
     runner.className = "runner";
-    runner.style.setProperty("--livery", liveryCss(slot));
-    runner.append(kartSide());
+    // The runners are one of the key colour's uses (ADR 0035), so the whole kart takes it.
+    const paint = livery(slot);
+    runner.append(
+      kartSide({ ...paint, primary: paint.key, secondary: paint.key, accent: paint.key }),
+    );
     return runner;
   });
 
