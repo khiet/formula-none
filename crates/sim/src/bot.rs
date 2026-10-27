@@ -92,9 +92,8 @@ pub fn drive(
     }
 
     let curvature = track.curvature_at(progress + BOT_LOOKAHEAD_M);
-    // No drift past a kerb: a drift always turns into its corner at no
-    // less than its neutral strength, which can carry the kart onto a kerb
-    // at the apex whatever the bot aims at.
+    // No drift while a kerb is in range: a drift always turns into its
+    // corner, so it can carry the kart onto the kerb whatever the bot aims at.
     let corner = curvature.abs() >= BOT_DRIFT_CURVATURE_RAD_PER_M && kerb_line.is_none();
     let into_corner = if curvature > 0.0 {
         DriftDirection::Left
@@ -163,11 +162,10 @@ fn line_point(track: &Track, progress: f32, right: f32) -> [f32; 2] {
     [point[0] - tz * right, point[2] + tx * right]
 }
 
-/// The line, in metres right of the centreline, that keeps the tuned gap
-/// from the near edge of a sausage kerb inside the lookahead of a kart at
-/// `position`, from a lookahead short of the kerb's near end to its far
-/// end; `None` with no kerb there. Pursuit toward a line cuts a corner's
-/// apex, and a kerb is laid on the apex.
+/// The line, in metres right of the centreline, for a kart at `position` to
+/// aim along while a sausage kerb lies inside its lookahead: the tuned gap
+/// from the kerb's near edge, or `None` with no kerb in range. Pursuit cuts
+/// toward an apex, where a kerb lies, so the usual line runs too close.
 fn line_clear_of_kerbs(track: &Track, position: [f32; 3]) -> Option<f32> {
     track.kerbs().iter().find_map(|kerb| {
         let (ahead, beside) = kerb.local(position);

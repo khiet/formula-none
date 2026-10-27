@@ -38,7 +38,7 @@ MATERIALS = {
     "tyre-face": (0.180, 0.180, 0.196),
     "kerb-red": (0.84, 0.23, 0.18),
     "kerb-white": (0.96, 0.96, 0.96),
-    # The sausage kerb: the asset catalog's gold, striped in its ink.
+    # The sausage kerb: gold striped black, as the asset catalog draws it.
     "kerb-yellow": (1.0, 0.824, 0.247),
     "kerb-black": (0.067, 0.067, 0.067),
     "checker-dark": (0.13, 0.13, 0.13),

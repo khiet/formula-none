@@ -65,8 +65,8 @@ fn to_top_speed_then(then: KartInput) -> Vec<KartInput> {
     inputs
 }
 
-/// The tick a kerb laid 15 m ahead is reached from: the last of the run to
-/// top speed.
+/// The readout the run to top speed ends on, where the tests lay a kerb
+/// 15 m ahead of the kart.
 fn top_speed_tick() -> usize {
     ticks(ACCELERATION_TO_TOP_S)
 }
@@ -104,7 +104,7 @@ fn a_kart_driven_onto_the_kerb_leaves_the_ground_for_the_hops_airtime_and_lands_
         KERB_SPEED_KEEP * TOP_SPEED_M_PER_S,
         "the launch keeps its share of the speed"
     );
-    // The throttle, held through the hop, gives back what it always does.
+    // Held through the hop, the throttle ramps the speed back up as in any hop.
     let regained = count as f32 * DT * TOP_SPEED_M_PER_S / ACCELERATION_TO_TOP_S;
     let landed = over[first + count];
     assert!(!landed.airborne);

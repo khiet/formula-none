@@ -581,7 +581,8 @@ def sausage_kerbs(layout: Layout) -> list[SceneryMesh]:
 
         parts = {"kerb-yellow": [], "kerb-black": []}
         for back, front in zip(stations, stations[1:]):
-            # Wound back, left, front, so each quad faces up and out.
+            # Left to right along the back, then back along the front, so
+            # each quad faces up and out.
             a, b = ring(back), ring(front)
             faces = [mesh.quad(a[k], a[k + 1], b[k + 1], b[k]) for k in range(SAUSAGE_KERB_ACROSS_STEPS)]
             parts["kerb-black" if black(back, front) else "kerb-yellow"].append(mesh.merge(faces))

@@ -37,7 +37,7 @@ class SausageKerbs(unittest.TestCase):
         self.assertLess(apex.turn, 0, "the chicane's middle is a right-hander")
         nearest = min(layout.path.samples, key=lambda s: (s.x - kerb.x) ** 2 + (s.y - kerb.y) ** 2)
         self.assertAlmostEqual(nearest.s, apex.s_mid, delta=1.0)
-        # The kerb's corners sit right of the centreline, on the inside, and
+        # All of the kerb sits right of the centreline, on the inside, and
         # in from the edge of the asphalt.
         for vertex in (v for piece in pieces_of(geometry, 0) for v in piece.mesh[0]):
             right = -left_of_centre(layout, vertex[0], vertex[1])

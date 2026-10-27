@@ -359,10 +359,10 @@ pub const BOT_CORNER_SAMPLE_M: f32 = 2.0;
 /// left of it.
 pub const BOT_LINE_RIGHT_OF_CENTRE_M: f32 = 2.5;
 /// Metres between a sausage kerb's near edge, at its middle, and the line
-/// a bot aims along while the kerb is inside its lookahead, with no drift.
-/// Pursuit cuts toward an apex by up to 2 m, and a straight kerb on a bend
-/// reaches nearer the line at its ends; on Brands Patch this puts the line
-/// on the centreline.
+/// a bot aims along while the kerb is inside its lookahead: wide enough
+/// that pursuit's cut toward the apex misses the kerb's ends, which a
+/// straight kerb on a bend sets nearer the line. On Brands Patch the line
+/// is the centreline.
 pub const BOT_KERB_GAP_M: f32 = 4.4;
 /// The least a bot steers into a corner it hops for, so the hop fixes the
 /// drift toward the corner even when its line asks for less.
