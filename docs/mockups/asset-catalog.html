@@ -1135,7 +1135,7 @@
     });
     return sides + poly(rim.map(([x, y]) => [cx + x * r, cy + y * ry - h]), `color-mix(in srgb, ${col} 78%, white)`);
   };
-  // 32 px to the metre across, 43 up, as the walls are drawn.
+  // 32 px to the metre across and 43 up.
   draw.tyres = () => {
     const cx = 100, base = 128, r = 48, ry = r * 0.32, ringH = 26, tyreR = 9.6;
     let rings = "";

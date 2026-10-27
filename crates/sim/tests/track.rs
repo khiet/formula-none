@@ -374,9 +374,8 @@ fn moving_away_from(kart: &KartReadout, centre: [f32; 2]) -> f32 {
     (kart.velocity[0] * dx + kart.velocity[2] * dz) / dx.hypot(dz)
 }
 
-/// A kart's centre is no closer than this to the tyre wall's while it
-/// touches: the wall's radius and the kart's half length, less a margin for
-/// the rounded edges of its box.
+/// A kart's centre comes within this of the tyre wall's once it touches:
+/// the wall's radius and the kart's half length, plus a little slack.
 fn touching_within(radius: f32) -> f32 {
     radius + KART_HALF_LENGTH_M + 0.1
 }

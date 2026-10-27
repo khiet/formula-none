@@ -1706,7 +1706,7 @@ fn bump_off_karts(
 
 /// A kart that ended the tick touching a tyre wall bounces off it as off a
 /// kart standing still (see [`Handling::bumped`]), at the speed it closed
-/// with the wall, judged by the velocity the handling sent it off with. A
+/// with the tyre wall, judged by the velocity the handling sent it off with. A
 /// spun-out kart stands where it is and takes no bump.
 fn bump_off_tyre_walls(kart: &mut Kart, physics: &Physics, sent_velocity: Vec3, dt: f32) {
     if kart.spun_out() {

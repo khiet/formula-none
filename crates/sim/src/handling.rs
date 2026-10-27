@@ -769,8 +769,8 @@ mod tests {
         assert_eq!(sent.yaw_rate, 0.0);
     }
 
-    /// The touch a kart closing at `closing_speed` from +X gives, with the
-    /// kart contact's share of the bounce.
+    /// A touch from a kart on the -X side closing at `closing_speed`, with
+    /// the kart contact's share of the bounce.
     fn bumped_by_a_kart(handling: &mut Handling, closing_speed: f32) {
         let heading = handling.heading();
         handling.bumped(

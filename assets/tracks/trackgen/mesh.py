@@ -106,10 +106,10 @@ def cylinder(centre: Vertex, radius: float, height: float, sides: int = 16) -> M
 
 
 def drum(face: Vertex, axis: Vertex, radius: float, depth: float, sides: int = 8) -> tuple[Mesh, Mesh]:
-    """A tyre on its side: a cylinder whose open end is the disc centred on
-    `face` and which runs `depth` metres along the unit `axis`, as its tread
-    and the disc facing away from `axis`. The far end is left open; it is
-    meant to stand inside something."""
+    """A tyre on its side, as two meshes: the tread, a cylinder of `radius`
+    running `depth` metres from `face` along the unit `axis`, and the disc
+    closing it at `face`, facing away from `axis`. The far end stays open,
+    so the drum must stand inside something that hides it."""
     # Two unit vectors square to the axis and to each other span the disc.
     helper = (0.0, 0.0, 1.0) if abs(axis[2]) < 0.9 else (1.0, 0.0, 0.0)
     u = _normalised(_cross(axis, helper))
