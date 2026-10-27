@@ -121,16 +121,15 @@ def drum(face: Vertex, axis: Vertex, radius: float, depth: float, sides: int = 8
         )
         for k in range(sides)
     ]
-    near = [(x, y, z) for x, y, z in ring]
     far = [(x + depth * axis[0], y + depth * axis[1], z + depth * axis[2]) for x, y, z in ring]
-    vertices = near + far
+    vertices = ring + far
     tread: list[Face] = []
     for k in range(sides):
         side = (k, (k + 1) % sides, sides + (k + 1) % sides, sides + k)
         outward = tuple(vertices[k][i] - face[i] for i in range(3))
         tread.append(_facing(side, vertices, outward))
-    disc = _facing(tuple(range(sides)), near, _negate(axis))
-    return (vertices, tread), (near, [disc])
+    disc = _facing(tuple(range(sides)), ring, _negate(axis))
+    return (vertices, tread), (ring, [disc])
 
 
 def _cross(a: Vertex, b: Vertex) -> Vertex:

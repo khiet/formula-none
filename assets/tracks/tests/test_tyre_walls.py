@@ -18,7 +18,7 @@ SAMPLE_SLACK_M = 0.01
 
 
 def left_of_centre(layout, x: float, y: float) -> float:
-    """Metres left of the nearest centreline sample that (x, y) lies."""
+    """How far (x, y) lies left of the nearest centreline sample, in metres."""
     sample = min(layout.path.samples, key=lambda s: (s.x - x) ** 2 + (s.y - y) ** 2)
     nx, ny = sample.left_normal
     return (x - sample.x) * nx + (y - sample.y) * ny

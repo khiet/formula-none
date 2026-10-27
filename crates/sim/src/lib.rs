@@ -1334,14 +1334,10 @@ pub fn step(mut state: State, inputs: &[KartInput], dt: f32) -> State {
             &sent_velocities,
             dt,
         );
-        bump_off_tyre_walls(
-            &mut state.karts[index],
-            &state.physics,
-            sent_velocities[index],
-            dt,
-        );
         let contends = state.contends(index);
         let kart = &mut state.karts[index];
+        // The wall holds first, so a kart against a wall and a tyre wall at
+        // once loses the speed to both.
         held_by_walls(
             kart,
             &mut state.physics,
@@ -1349,6 +1345,7 @@ pub fn step(mut state: State, inputs: &[KartInput], dt: f32) -> State {
             sent_bumps[index],
             dt,
         );
+        bump_off_tyre_walls(kart, &state.physics, sent_velocities[index], dt);
         let mut after = state.physics.bodies[kart.body].translation().to_array();
         if state.physics.surface_at(after) == Surface::OutOfWorld {
             kart.out_of_world_s += dt;
@@ -1692,23 +1689,9 @@ fn bump_off_karts(
             .map_or(physics.bodies[other_body].linvel(), |slot| {
                 sent_velocities[slot]
             });
-        for manifold in pair.manifolds() {
-            let normal = normal_toward(pair, collider, manifold);
-            let normal = Vec3::new(normal.x, 0.0, normal.z).normalize_or_zero();
-            if normal == Vec3::ZERO {
-                continue;
-            }
-            // Contact distances are from the start of the tick; the
-            // velocities the karts set off with say whether they met this
-            // tick, before the solver held them apart.
-            let closing_speed = (other_sent - sent_velocities[index]).dot(normal).max(0.0);
-            if !manifold
-                .points
-                .iter()
-                .any(|contact| contact.dist - closing_speed * dt <= WALL_TOUCH_M)
-            {
-                continue;
-            }
+        for (normal, closing_speed) in
+            touches_this_tick(pair, collider, other_sent - sent_velocities[index], dt)
+        {
             // Each kart of the pair takes half the bounce.
             karts[index].handling.bumped(
                 normal,
@@ -1735,23 +1718,8 @@ fn bump_off_tyre_walls(kart: &mut Kart, physics: &Physics, sent_velocity: Vec3, 
         if physics.colliders[other].user_data != u128::from(Surface::Tyres.code()) {
             continue;
         }
-        for manifold in pair.manifolds() {
-            let normal = normal_toward(pair, kart.collider, manifold);
-            let normal = Vec3::new(normal.x, 0.0, normal.z).normalize_or_zero();
-            if normal == Vec3::ZERO {
-                continue;
-            }
-            // Contact distances are from the start of the tick; the
-            // velocity the kart set off with says whether it met the wall
-            // this tick, before the solver held it short.
-            let closing_speed = (-sent_velocity.dot(normal)).max(0.0);
-            if !manifold
-                .points
-                .iter()
-                .any(|contact| contact.dist - closing_speed * dt <= WALL_TOUCH_M)
-            {
-                continue;
-            }
+        // The tyre wall stands still, so the kart closes at its own speed.
+        for (normal, closing_speed) in touches_this_tick(pair, kart.collider, -sent_velocity, dt) {
             kart.handling.bumped(
                 normal,
                 closing_speed,
@@ -1761,6 +1729,33 @@ fn bump_off_tyre_walls(kart: &mut Kart, physics: &Physics, sent_velocity: Vec3, 
             );
         }
     }
+}
+
+/// The touches `collider` made through `pair` this tick: for each contact
+/// manifold, its normal along the ground pointing at `collider` and the
+/// speed the two closed at along it, given `closing_velocity`, the other's
+/// sent velocity less the collider's. Contact distances are from the start
+/// of the tick; the sent velocities say whether the two met this tick,
+/// before the solver held them apart.
+fn touches_this_tick(
+    pair: &ContactPair,
+    collider: ColliderHandle,
+    closing_velocity: Vec3,
+    dt: f32,
+) -> impl Iterator<Item = (Vec3, f32)> + '_ {
+    pair.manifolds().iter().filter_map(move |manifold| {
+        let normal = normal_toward(pair, collider, manifold);
+        let normal = Vec3::new(normal.x, 0.0, normal.z).normalize_or_zero();
+        if normal == Vec3::ZERO {
+            return None;
+        }
+        let closing_speed = closing_velocity.dot(normal).max(0.0);
+        manifold
+            .points
+            .iter()
+            .any(|contact| contact.dist - closing_speed * dt <= WALL_TOUCH_M)
+            .then_some((normal, closing_speed))
+    })
 }
 
 /// Put the kart back on the track at its last checkpoint, at rest and

@@ -409,7 +409,7 @@ def tyre_stacks(layout: Layout) -> list[SceneryMesh]:
                 angle = turn + math.tau * k / TYRES_PER_RING
                 out = (math.cos(angle), math.sin(angle), 0.0)
                 centre = (cx + out[0] * face_radius, cy + out[1] * face_radius, middle)
-                rubber, face = mesh.drum(centre, _scaled(out, -1.0), TYRE_DIAMETER_M / 2.0, TYRE_TREAD_M)
+                rubber, face = mesh.drum(centre, (-out[0], -out[1], 0.0), TYRE_DIAMETER_M / 2.0, TYRE_TREAD_M)
                 parts.add("tyre", rubber)
                 parts.add("tyre-face", face)
             bottom = middle - TYRE_BELT_HEIGHT_M / 2.0
@@ -426,10 +426,6 @@ def tyre_stacks(layout: Layout) -> list[SceneryMesh]:
                     mesh.quad(corners[0], corners[1], top[1], top[0]),
                 )
     return parts.scenery()
-
-
-def _scaled(v: mesh.Vertex, k: float) -> mesh.Vertex:
-    return (v[0] * k, v[1] * k, v[2] * k)
 
 
 def start_line(layout: Layout) -> list[SceneryMesh]:

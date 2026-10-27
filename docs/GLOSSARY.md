@@ -212,9 +212,10 @@ flight; a client draws them between snapshots as it draws the other karts.
 
 ### spin-out
 
-A kart stopped and spun by an item or the runaway wheel for a fixed time (1 s): dead to its
-controls and moved by nothing until the time runs out. Every spin-out is a
-server event, and the snapshots carry the time left; clients only show it.
+A kart stopped and spun by an item or the runaway wheel for a fixed time
+(1 s): dead to its controls and moved by nothing until the time runs out.
+Every spin-out is a server event, and the snapshots carry the time left;
+clients only show it.
 
 ### bump
 
@@ -290,12 +291,11 @@ a kart at the corner that met it, with no bounce (ADR 0022).
 
 ### tyre wall
 
-A stack of tyres standing on the asphalt, tagged `tyres`: two rings of
-tyres over a 16-sided footprint 1.5 m in radius. A kart that hits one takes
-a bump straight out from it and loses speed by how square it hit, so a
-glancing touch keeps nearly all its speed and a square hit sends it back
-the way it came, slower. It never holds a kart and never spins one out
-(ADR 0041).
+A stack of tyres standing on the asphalt, tagged `tyres`. A kart that
+hits one takes a bump straight out from it and loses speed by how square
+it hit, so a glancing touch keeps nearly all its speed and a square hit
+sends it back the way it came, slower. It never holds a kart and never
+spins one out (ADR 0041).
 
 ### sausage kerb
 
