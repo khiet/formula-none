@@ -3,7 +3,7 @@ import type { KartReadout, KartSize, MiniTurbo } from "./bridge";
 import type { Start } from "./generated/protocol";
 import { kartReadout } from "./kart-readout-fixture";
 import { createParticles, type Particle } from "./particles";
-import { createSparkEmitter, sparkTell } from "./sparks";
+import { createSparkEmitter, createSparkParticles, sparkTell } from "./sparks";
 
 const SIZE: KartSize = { width: 1.2, height: 0.6, length: 1.8 };
 const FRAME_S = 1 / 60;
@@ -24,7 +24,7 @@ function kart(drift: DriftReading, start: Start = "clean"): KartReadout {
 function particlesOf(particles: ReturnType<typeof createParticles>): Particle[] {
   const out: Particle[] = [];
   particles.forEach((particle) => {
-    out.push({ ...particle, position: [...particle.position] });
+    out.push({ ...particle, position: [...particle.position], tail: [...particle.tail] });
   });
   return out;
 }
@@ -44,16 +44,48 @@ describe("spark tell", () => {
     expect(sparkTell(drifting("none"))).toBeNull();
   });
 
-  it("shows sparks once orange has charged and changes colour at red", () => {
+  it("shows sparks once orange has charged and changes style at red", () => {
     const orange = sparkTell(drifting("orange"));
     const red = sparkTell(drifting("red"));
-    expect(orange).not.toBeNull();
-    expect(red).not.toBeNull();
-    expect(red?.colour).not.toBe(orange?.colour);
+    expect(orange?.tier).toBe("orange");
+    expect(red?.tier).toBe("red");
   });
 
-  it("sparks the orange tier in the shift lights' blue", () => {
-    expect(sparkTell(drifting("orange"))?.colour).toBe(0x4f7dff);
+  it("gives orange quiet sparks, born pale and cooling to orange", () => {
+    expect(sparkTell(drifting("orange"))).toEqual({
+      tier: "orange",
+      colour: 0xfff0b0,
+      cooledColour: 0xff7a00,
+      perWheelPerSecond: 60,
+      speedMetresPerSecond: 6,
+      lifetimeSeconds: 0.25,
+      glow: false,
+      restitution: null,
+      burst: 6,
+      burstSpreadMetresPerSecond: expect.any(Number),
+      burstRiseMaxMetresPerSecond: expect.any(Number),
+    });
+  });
+
+  it("gives red the Grinder: denser, faster, longer, glowing and bouncing, cooling to red", () => {
+    const red = sparkTell(drifting("red"));
+    const orange = sparkTell(drifting("orange"));
+    expect(red).toEqual({
+      tier: "red",
+      colour: 0xffd27a,
+      cooledColour: 0xe01808,
+      perWheelPerSecond: 90,
+      speedMetresPerSecond: 7.5,
+      lifetimeSeconds: 0.35,
+      glow: true,
+      restitution: 0.4,
+      burst: 20,
+      burstSpreadMetresPerSecond: expect.any(Number),
+      burstRiseMaxMetresPerSecond: expect.any(Number),
+    });
+    expect(red?.burstSpreadMetresPerSecond).toBeGreaterThan(
+      orange?.burstSpreadMetresPerSecond ?? 0,
+    );
   });
 
   it("shows a rocket start's charge in the tier's colour, with no warning past the full tier", () => {
@@ -72,7 +104,7 @@ describe("spark emitter", () => {
     const born = particlesOf(particles);
     expect(born.length).toBeGreaterThan(0);
     for (const spark of born) {
-      expect(spark.colour).toBe(sparkTell(drifting("orange"))?.colour);
+      expect(spark.colour).toBe(0xfff0b0);
       expect(Math.abs(spark.position[0])).toBeLessThan(SIZE.width / 2 + 0.1);
       expect(Math.abs(spark.position[0])).toBeGreaterThan(SIZE.width / 4);
       expect(spark.position[1]).toBeLessThan(0.2);
@@ -116,25 +148,92 @@ describe("spark emitter", () => {
     expect(particlesOf(after)).toEqual([]);
   });
 
-  it("colours red's sparks red", () => {
-    const particles = createParticles({ capacity: 64 });
+  it("throws red's sparks in red's style: born hot, glowing, and bouncing off the road", () => {
+    const particles = createSparkParticles(1);
     const emitter = createSparkEmitter(particles, SIZE, fixedRandom());
     emitter.emit(kart(drifting("red")), FRAME_S);
-    const colours = new Set(particlesOf(particles).map((spark) => spark.colour));
-    expect([...colours]).toEqual([sparkTell(drifting("red"))?.colour]);
+    const born = particlesOf(particles);
+    expect(new Set(born.map((spark) => spark.colour))).toEqual(new Set([0xffd27a]));
+    expect(born.every((spark) => spark.glow)).toBe(true);
+    for (let frame = 0; frame < 20; frame++) {
+      particles.update(FRAME_S);
+    }
+    for (const spark of particlesOf(particles)) {
+      expect(spark.position[1]).toBeGreaterThanOrEqual(0);
+      expect(spark.colour).toBe(0xe01808);
+    }
   });
 
-  it("spreads its sparks over the frames at a steady rate", () => {
+  it("throws orange's sparks without a halo", () => {
+    const particles = createSparkParticles(1);
+    const emitter = createSparkEmitter(particles, SIZE, fixedRandom());
+    emitter.emit(kart(drifting("orange")), FRAME_S);
+    const born = particlesOf(particles);
+    expect(born.length).toBeGreaterThan(0);
+    expect(born.some((spark) => spark.glow)).toBe(false);
+  });
+
+  it("bursts the tier's sparks on the frame it charges and not on the frames after", () => {
+    const particles = createSparkParticles(1);
+    const emitter = createSparkEmitter(particles, SIZE, fixedRandom());
+    // No time passes, so only a burst throws anything.
+    const thrown = (reading: DriftReading, start: Start = "clean", countingDown = false) => {
+      const before = particlesOf(particles).length;
+      emitter.emit(kart(reading, start), 0, countingDown);
+      return particlesOf(particles).length - before;
+    };
+    expect(thrown(drifting("none"))).toBe(0);
+    expect(thrown(drifting("orange"))).toBe(6);
+    expect(thrown(drifting("orange"))).toBe(0);
+    expect(thrown(drifting("red"))).toBe(20);
+    expect(thrown(drifting("red"))).toBe(0);
+    // A new drift charges from nothing again.
+    expect(thrown(STRAIGHT)).toBe(0);
+    expect(thrown(drifting("orange"))).toBe(6);
+    expect(thrown(STRAIGHT)).toBe(0);
+    // A rocket start's hold charges the same way.
+    expect(thrown(STRAIGHT, "weakBoost", true)).toBe(6);
+    expect(thrown(STRAIGHT, "fullBoost", true)).toBe(20);
+    expect(thrown(STRAIGHT, "stall", true)).toBe(0);
+  });
+
+  it("throws a burst faster than the steady sparks", () => {
+    const particles = createSparkParticles(1);
+    const emitter = createSparkEmitter(particles, SIZE, fixedRandom());
+    // The streak spans 0.03 s of flight, so its length gives the speed.
+    const speeds = () =>
+      particlesOf(particles).map(
+        (spark) =>
+          Math.hypot(...spark.position.map((at, axis) => at - (spark.tail[axis] ?? 0))) / 0.03,
+      );
+    emitter.emit(kart(drifting("orange")), 0);
+    const burst = speeds();
+    emitter.emit(kart(drifting("orange")), FRAME_S);
+    const steady = speeds().slice(burst.length);
+    expect(steady.length).toBeGreaterThan(0);
+    expect(Math.min(...burst)).toBeGreaterThanOrEqual(9);
+    expect(Math.max(...steady)).toBeLessThan(9);
+  });
+
+  it("draws every spark as a streak trailing back along its flight", () => {
+    const particles = createSparkParticles(1);
+    createSparkEmitter(particles, SIZE, fixedRandom()).emit(kart(drifting("orange")), FRAME_S);
+    for (const spark of particlesOf(particles)) {
+      // Thrown backward, +Z, so its tail is ahead of it.
+      expect(spark.tail[2]).toBeLessThan(spark.position[2]);
+    }
+  });
+
+  it("spreads its sparks over the frames at the tier's steady rate", () => {
     const particles = createParticles({ capacity: 512 });
     const emitter = createSparkEmitter(particles, SIZE, fixedRandom());
+    // The charge's burst, out of the count.
+    emitter.emit(kart(drifting("orange")), 0);
+    const burst = particlesOf(particles).length;
     for (let frame = 0; frame < 30; frame++) {
       emitter.emit(kart(drifting("orange")), FRAME_S);
     }
-    const halfSecond = particlesOf(particles).length;
-    for (let frame = 0; frame < 30; frame++) {
-      emitter.emit(kart(drifting("orange")), FRAME_S);
-    }
-    expect(particlesOf(particles).length).toBeCloseTo(2 * halfSecond, -1);
-    expect(halfSecond).toBeGreaterThan(10);
+    // Both wheels, 60 a second each, for half a second.
+    expect(particlesOf(particles).length - burst).toBeCloseTo(60, -1);
   });
 });

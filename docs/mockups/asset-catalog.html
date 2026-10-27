@@ -388,7 +388,8 @@
           <tr><td><span class="dot" style="background:#d62828"></span><code>#d62828</code></td><td>Tyre gauge kart, <code>instrument-panel.ts:383</code></td><td>Your livery's primary, secondary and accent</td></tr>
           <tr><td><span class="dot" style="background:#ffcc33"></span><code>#ffcc33</code></td><td>Item box mesh, <code>race-view.ts:58</code></td><td>Item box golds <code>#f8e39a</code> / <code>#e0b54a</code> / <code>#c99a2e</code>, which the slot shares</td></tr>
           <tr><td><span class="dot" style="background:#dd2222"></span><code>#dd2222</code></td><td>Homing ball, <code>race-view.ts:66</code></td><td>The seagull's colours: white, grey <code>#9aa0a8</code>, beak <code>#ff5522</code>, eye <code>#d00a12</code></td></tr>
-          <tr><td><span class="dot" style="background:#3399ff"></span><code>#3399ff</code></td><td>Blue spark tier, <code>sparks.ts:15</code></td><td>Shift-light blue <code>#4f7dff</code>, so "blue" means one blue (minor)</td></tr>
+          <tr><td><span class="dot" style="background:#fff0b0"></span><code>#fff0b0</code> / <span class="dot" style="background:#ff7a00"></span><code>#ff7a00</code></td><td>Orange spark tier and its flame, born and cooled, <code>sparks.ts</code> <code>TIER_COLOURS</code></td><td>Kept: sparks are world effects. The cooled orange sits near hazard orange <code>#ff5522</code> and the boost pad's <code>#ff8800</code>, which still matches the tier</td></tr>
+          <tr><td><span class="dot" style="background:#ffd27a"></span><code>#ffd27a</code> / <span class="dot" style="background:#e01808"></span><code>#e01808</code></td><td>Red spark tier and its flame, born and cooled, <code>sparks.ts</code> <code>TIER_COLOURS</code></td><td>Kept: sparks are world effects. The cooled red sits near shift-light red <code>#e8483a</code>, accepted for the same reason</td></tr>
           <tr><td><span class="dot" style="background:#99ccff"></span><code>#9cf</code></td><td>Room Scene link, <code>index.html</code> <code>#room-scene a</code></td><td>Poster gold <code>#ffd23f</code> once the Room Scene becomes a poster</td></tr>
           <tr><td><span class="dot" style="background:#4cc9f0"></span><code>#4cc9f0</code></td><td>Poster kart visor, <code>poster.ts:16</code></td><td>Goes with the helmet (ADR 0036); keep it only as a confetti colour</td></tr>
           <tr><td><span class="dot" style="background:#f59c9c"></span><code>#f59c9c</code> / <span class="dot" style="background:#8e8e8e"></span><code>#8e8e8e</code></td><td>Kenney grandstand and gantry materials</td><td>Kerb red <code>#d63b2e</code> and asphalt <code>#6b6b78</code> when rebuilt</td></tr>
@@ -471,8 +472,8 @@
         <header><span class="status ok">Aligned</span><h3>Sparks, dust, tyre marks, shadow</h3><code>sparks.ts, dust.ts, tell-meshes.ts</code></header>
         <div class="compare"><figure class="aligned"><figcaption>The tells</figcaption><div class="stage" data-draw="tells"></div></figure></div>
         <div class="notes">
-          <p class="fix">Sparks are cubes, dust is a 6 x 4 low-poly sphere, marks are flat quads: already faceted. Mini-turbo orange and the tier blue read against the asphalt.</p>
-          <p class="why">Two small notes: the blue tier is <code>#3399ff</code> where the shift lights use <code>#4f7dff</code>, and the shadow disc is a smooth 32-segment circle. Its soft edge hides the segments, so it can stay.</p>
+          <p class="fix">Sparks are box streaks stretched along their flight, dust is a 6 x 4 low-poly sphere, marks are flat quads: already faceted. The drift tiers run orange then red, each spark born pale and cooling to its tier's colour; red's sparks glow and bounce. The boost's flame and wind lines are additive, so they light the road rather than cover it.</p>
+          <p class="why">One small note: the shadow disc is a smooth 32-segment circle. Its soft edge hides the segments, so it can stay.</p>
         </div>
       </article>
 
@@ -1096,7 +1097,7 @@
     return `<svg viewBox="0 0 320 150" role="img" aria-label="Sparks, dust, tyre marks and a shadow disc on asphalt">
       <rect width="320" height="150" fill="#6b6b78"/>
       <polygon points="20,140 60,40 74,40 36,140" fill="#1a1a1a" opacity=".55"/><polygon points="52,140 92,40 106,40 68,140" fill="#1a1a1a" opacity=".35"/>
-      ${cube(150, 60, 9, "#3399ff", "#1f6fc4")}${cube(172, 76, 7, "#3399ff", "#1f6fc4")}${cube(140, 92, 6, "#ff8800", "#c45f00")}${cube(166, 104, 8, "#ff8800", "#c45f00")}
+      ${cube(150, 60, 9, "#ff7a00", "#c45f00")}${cube(172, 76, 7, "#fff0b0", "#d8c07a")}${cube(140, 92, 6, "#e01808", "#9a1006")}${cube(166, 104, 8, "#ffd27a", "#c49a4a")}
       ${facets(6, 236, 66, 20, ["#f1e2bd", "#d8c08a", "#b19a66"])}${facets(6, 268, 92, 15, ["#a6be7c", "#7a9a4a", "#5a7535"])}${facets(6, 222, 104, 12, ["#ffffff", "#f2f2f2", "#cfcfcf"])}
       <ellipse cx="96" cy="128" rx="34" ry="10" fill="#000" opacity=".5"/>
       <text x="60" y="22" font-family="Silkscreen, monospace" font-size="10" fill="#fff">marks</text><text x="138" y="22" font-family="Silkscreen, monospace" font-size="10" fill="#fff">sparks</text><text x="226" y="22" font-family="Silkscreen, monospace" font-size="10" fill="#fff">dust</text>

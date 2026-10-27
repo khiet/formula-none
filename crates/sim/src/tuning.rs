@@ -367,6 +367,13 @@ pub const CAMERA_SHAKE_S: f32 = 0.3;
 /// How far the shake throws the camera off its pose at its start; it dies
 /// away over the shake.
 pub const CAMERA_SHAKE_AMPLITUDE_M: f32 = 0.15;
+/// Degrees the chase camera's field of view spans vertically off a boost.
+pub const CAMERA_FIELD_OF_VIEW_DEG: f32 = 60.0;
+/// The share the field of view widens by while a boost has more than
+/// [`CAMERA_BOOST_KICK_EASE_S`] left, so a release is felt as well as seen.
+pub const CAMERA_BOOST_KICK: f32 = 0.12;
+/// Seconds of boost left over which the kick eases back to nothing.
+pub const CAMERA_BOOST_KICK_EASE_S: f32 = 0.3;
 
 /// Whether `seconds` is a whole number of ticks, within float rounding.
 const fn is_whole_ticks(seconds: f32) -> bool {
@@ -422,6 +429,10 @@ const _: () = {
     assert!(0.0 < CAMERA_SHAKE_S && 0.0 <= CAMERA_SHAKE_AMPLITUDE_M);
     // The shake is over before the spin-out it answers to ends.
     assert!(CAMERA_SHAKE_S < SPIN_OUT_S);
+    assert!(0.0 < CAMERA_FIELD_OF_VIEW_DEG && 0.0 <= CAMERA_BOOST_KICK);
+    // Every boost, the shortest included, reaches the full kick before it
+    // eases back.
+    assert!(0.0 < CAMERA_BOOST_KICK_EASE_S && CAMERA_BOOST_KICK_EASE_S < MINI_TURBO_ORANGE_BOOST_S);
     assert!(SNAPSHOTS_PER_SECOND <= TICKS_PER_SECOND);
     assert!(0 < SNAPSHOT_EVENT_REPEATS);
     assert!(0 < INPUT_QUEUE_START_TICKS && INPUT_QUEUE_START_TICKS as u32 <= INPUT_QUEUE_MAX_TICKS);
@@ -470,6 +481,9 @@ pub struct Tuning {
     pub camera_pull_back_m: f32,
     pub camera_shake_s: f32,
     pub camera_shake_amplitude_m: f32,
+    pub camera_field_of_view_deg: f32,
+    pub camera_boost_kick: f32,
+    pub camera_boost_kick_ease_s: f32,
     pub webtransport_connect_timeout_s: f32,
     pub ping_timeout_s: f32,
     pub ping_resend_s: f32,
@@ -499,6 +513,9 @@ pub const TUNING: Tuning = Tuning {
     camera_pull_back_m: CAMERA_PULL_BACK_M,
     camera_shake_s: CAMERA_SHAKE_S,
     camera_shake_amplitude_m: CAMERA_SHAKE_AMPLITUDE_M,
+    camera_field_of_view_deg: CAMERA_FIELD_OF_VIEW_DEG,
+    camera_boost_kick: CAMERA_BOOST_KICK,
+    camera_boost_kick_ease_s: CAMERA_BOOST_KICK_EASE_S,
     webtransport_connect_timeout_s: WEBTRANSPORT_CONNECT_TIMEOUT_S,
     ping_timeout_s: PING_TIMEOUT_S,
     ping_resend_s: PING_RESEND_S,

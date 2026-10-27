@@ -202,7 +202,7 @@ export interface MessageCodec {
   decodeServerMessage(bytes: Uint8Array): ServerMessage;
 }
 
-/** What the chase camera reads from the sim's tuning (ADR 0020): the speed its pull-back is scaled to, and the hit's shake. */
+/** What the chase camera reads from the sim's tuning (ADR 0020): the speed its pull-back is scaled to, the hit's shake and the boost's kick. */
 export interface CameraTuning {
   readonly topSpeedMetresPerSecond: number;
   /** How much further back the camera sits at top speed than at a standstill. */
@@ -211,6 +211,12 @@ export interface CameraTuning {
   readonly shakeSeconds: number;
   /** How far the shake throws the camera as it starts. */
   readonly shakeAmplitudeMetres: number;
+  /** The field of view off a boost, in degrees, vertically. */
+  readonly fieldOfViewDegrees: number;
+  /** The share the field of view widens by on a boost. */
+  readonly boostKick: number;
+  /** Seconds of boost left over which the kick eases back to nothing. */
+  readonly boostKickEaseSeconds: number;
 }
 
 export interface Bridge extends MessageCodec {
@@ -315,6 +321,9 @@ export async function loadBridge(wasm?: BufferSource): Promise<Bridge> {
       pullBackMetres: tuned.cameraPullBackM,
       shakeSeconds: tuned.cameraShakeS,
       shakeAmplitudeMetres: tuned.cameraShakeAmplitudeM,
+      fieldOfViewDegrees: tuned.cameraFieldOfViewDeg,
+      boostKick: tuned.cameraBoostKick,
+      boostKickEaseSeconds: tuned.cameraBoostKickEaseS,
     },
     kartsPerRace: tuned.kartsPerRace,
     replayHashIntervalTicks: tuned.replayHashIntervalTicks,

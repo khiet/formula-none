@@ -158,7 +158,8 @@ charges a mini-turbo.
 
 The boost released at the end of a long enough drift: orange at 0.3 s of drift
 (0.6 s boost), red at 0.6 s (1.0 s boost), both at +30 percent top speed.
-Shown by sparks at the wheels while charging.
+Shown by sparks at the wheels while charging, orange then red, and on
+release by a flame at the exhaust in the tier's colour.
 
 ### item box
 
@@ -350,4 +351,6 @@ A piece of Presentation tied to one mechanic so the mechanic has a visible or
 audible tell: tyre marks on drift, sparks on mini-turbo charge, a dust puff
 off-track, a spin animation on spin-out, beeps on the countdown and sparks
 on a rocket start's charge, a sputter and dust at the wheels on its stall,
-a shadow disc on the road under each kart so a hop's height reads.
+a shadow disc on the road under each kart so a hop's height reads, and on
+every boost a flame at the exhaust and, for the own kart, wind lines and a
+wider field of view.

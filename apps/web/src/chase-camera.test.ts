@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { CameraTuning, KartReadout } from "./bridge";
-import { createChaseCamera } from "./chase-camera";
+import { createChaseCamera, fieldOfView } from "./chase-camera";
 import { kartReadout, yawed } from "./kart-readout-fixture";
 
 const FRAME_S = 1 / 60;
@@ -10,6 +10,9 @@ const TUNING: CameraTuning = {
   pullBackMetres: 1,
   shakeSeconds: 0.3,
   shakeAmplitudeMetres: 0.15,
+  fieldOfViewDegrees: 60,
+  boostKick: 0.12,
+  boostKickEaseSeconds: 0.3,
 };
 
 /** A kart at `position` turned `yaw` radians about +Y from its -Z facing. */
@@ -251,5 +254,41 @@ describe("the chase camera", () => {
     const frozen = kart(0.4, [1, 0.3, 2]);
     expect(() => camera.update(frozen, FRAME_S)).not.toThrow();
     expect(frozen).toEqual(kart(0.4, [1, 0.3, 2]));
+  });
+});
+
+describe("the boost's kick", () => {
+  it("leaves the tuned field of view off a boost", () => {
+    expect(fieldOfView(null, TUNING)).toBe(60);
+  });
+
+  it("widens the field of view by the tuned share while the boost has more than the ease left", () => {
+    expect(fieldOfView(1.5, TUNING)).toBeCloseTo(60 * 1.12);
+    expect(fieldOfView(0.3, TUNING)).toBeCloseTo(60 * 1.12);
+  });
+
+  it("eases back to the tuned field of view over the boost's last seconds", () => {
+    expect(fieldOfView(0.15, TUNING)).toBeCloseTo(60 * 1.06);
+    expect(fieldOfView(0, TUNING)).toBeCloseTo(60);
+    const tail = [0.3, 0.25, 0.2, 0.1, 0.05, 0].map((boostS) => fieldOfView(boostS, TUNING));
+    tail.slice(1).forEach((fov, index) => {
+      expect(fov).toBeLessThan(tail[index] ?? 0);
+    });
+  });
+
+  it("does not kick under reduced motion", () => {
+    for (const boostS of [null, 1.5, 0.3, 0.1]) {
+      expect(fieldOfView(boostS, TUNING, true)).toBe(60);
+    }
+  });
+
+  it("gives the chase pose the field of view of the kart's boost", () => {
+    const camera = createChaseCamera(TUNING);
+    expect(camera.update(kart(0, [0, 0.3, 0]), FRAME_S).fieldOfView).toBe(60);
+    expect(camera.update(kart(0, [0, 0.3, 0], { boostS: 1 }), FRAME_S).fieldOfView).toBeCloseTo(
+      60 * 1.12,
+    );
+    const still = createChaseCamera(TUNING, { reducedMotion: true });
+    expect(still.update(kart(0, [0, 0.3, 0], { boostS: 1 }), FRAME_S).fieldOfView).toBe(60);
   });
 });

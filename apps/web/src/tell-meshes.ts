@@ -6,24 +6,32 @@
 // from the transforms the bridge reports.
 
 import {
+  AdditiveBlending,
   BufferAttribute,
   BufferGeometry,
   CircleGeometry,
   Color,
+  ConeGeometry,
   DoubleSide,
+  Group,
   InstancedMesh,
   type Material,
   Matrix4,
   Mesh,
+  MeshBasicMaterial,
   type Object3D,
+  Quaternion,
+  SphereGeometry,
   Vector3,
 } from "three";
 import { attribute, float, smoothstep, uv } from "three/tsl";
 import { MeshBasicNodeMaterial } from "three/webgpu";
 import type { KartSize } from "./bridge";
+import type { ExhaustFlames } from "./exhaust-flame";
 import { TYRE_WIDTH_M } from "./kart-frame";
 import type { KartShadows } from "./kart-shadows";
-import type { Particles } from "./particles";
+import type { Particle, Particles } from "./particles";
+import { TIER_COLOURS } from "./sparks";
 import type { TyreMarks } from "./tyre-marks";
 
 export interface TellMesh {
@@ -114,16 +122,42 @@ export function tyreMarkMesh(marks: TyreMarks): TellMesh {
   };
 }
 
+export interface ParticleMeshOptions {
+  /** Metres across an instance is drawn for a particle of `size` with `life` left. */
+  scaleOf(size: number, life: number): number;
+  /** Draw each particle as a streak from its tail to it, as thick as its scale; a point when omitted. */
+  readonly streak?: boolean;
+  /** Only the particles this passes are drawn; every one when omitted. */
+  include?(particle: Particle): boolean;
+  /**
+   * How bright, 0 to 1, a particle's colour is drawn; full when omitted. In
+   * an additive material dimmer is more see-through, so this fades it.
+   */
+  brightnessOf?(particle: Particle): number;
+}
+
+/** A material that adds its colour to what is behind it, so black draws nothing and overlaps glow. */
+export function additiveMaterial(): MeshBasicMaterial {
+  return new MeshBasicMaterial({
+    blending: AdditiveBlending,
+    transparent: true,
+    depthWrite: false,
+  });
+}
+
+const ALONG_Z = new Vector3(0, 0, 1);
+
 /**
- * Every live particle as one instance of `geometry` in `material`, placed
- * at the particle, scaled to `scaleOf` its size and life, in its colour.
- * Dead slots are not drawn: the instance count is the live count.
+ * Every live particle `options` includes as one instance of `geometry` in
+ * `material`, placed at the particle, or stretched back to its tail when
+ * `options.streak`, scaled to `options.scaleOf` its size and life, in its
+ * colour. Dead slots are not drawn: the instance count is the live count.
  */
 export function particleMesh(
   particles: Particles,
   geometry: BufferGeometry,
   material: Material,
-  scaleOf: (size: number, life: number) => number,
+  options: ParticleMeshOptions,
 ): TellMesh {
   const mesh = new InstancedMesh(geometry, material, particles.capacity);
   mesh.frustumCulled = false;
@@ -133,22 +167,164 @@ export function particleMesh(
     mesh.setColorAt(instance, colour);
   }
   const placement = new Matrix4();
+  const at = new Vector3();
+  const along = new Vector3();
+  const turn = new Quaternion();
+  const scale = new Vector3();
   return {
     mesh,
     update() {
       let live = 0;
       particles.forEach((particle) => {
-        const scale = scaleOf(particle.size, particle.life);
-        placement.makeScale(scale, scale, scale);
-        placement.setPosition(particle.position[0], particle.position[1], particle.position[2]);
-        mesh.setMatrixAt(live, placement);
-        mesh.setColorAt(live, colour.setHex(particle.colour));
+        if (options.include !== undefined && !options.include(particle)) {
+          return;
+        }
+        const thickness = options.scaleOf(particle.size, particle.life);
+        const [x, y, z] = particle.position;
+        const [tx, ty, tz] = particle.tail;
+        along.set(x - tx, y - ty, z - tz);
+        const length = options.streak === true ? along.length() : 0;
+        if (length > 1e-6) {
+          // Centred between tail and head, its local Z along the streak.
+          at.set((x + tx) / 2, (y + ty) / 2, (z + tz) / 2);
+          turn.setFromUnitVectors(ALONG_Z, along.divideScalar(length));
+          scale.set(thickness, thickness, thickness + length);
+        } else {
+          at.set(x, y, z);
+          turn.identity();
+          scale.setScalar(thickness);
+        }
+        mesh.setMatrixAt(live, placement.compose(at, turn, scale));
+        colour.setHex(particle.colour);
+        if (options.brightnessOf !== undefined) {
+          colour.multiplyScalar(options.brightnessOf(particle));
+        }
+        mesh.setColorAt(live, colour);
         live += 1;
       });
       mesh.count = live;
       mesh.instanceMatrix.needsUpdate = true;
       if (mesh.instanceColor !== null) {
         mesh.instanceColor.needsUpdate = true;
+      }
+    },
+  };
+}
+
+/** A flame at full strength is this wide, its core and halo a share of it. */
+const FLAME_RADIUS_M = 0.32;
+const FLAME_CORE_SHARE = 0.3;
+const FLAME_HALO_SHARE = 1.6;
+const FLAME_HALO_BRIGHTNESS = 0.6;
+const FLAME_TONGUE_BRIGHTNESS = 0.75;
+/** Tongues per flame, splayed this far off straight back, rocking round at this rate. */
+const FLAME_TONGUES = 6;
+const FLAME_SPLAY_RAD = 0.35;
+const FLAME_ROCK_RAD_PER_S = 3;
+/** A tongue reaches between these multiples of the radius, flickering at this rate. */
+const FLAME_REACH_LEAST = 1.6;
+const FLAME_REACH_FLICKER = 1.4;
+const FLAME_FLICKER_RAD_PER_S = 40;
+const FLAME_TONGUE_BASE_SHARE = 0.35;
+/** The flame sits just behind the tail so the kart's own faces do not cut it. */
+const FLAME_LIFT_M = 0.05;
+
+/**
+ * Every burning exhaust flame as a hot white core, a halo in its tier's
+ * birth colour and flickering tongues in the tier's cooled colour, all
+ * additive and scaled by the flame's strength: three instanced meshes for
+ * the grid. Advance with the frame's seconds, so the flicker runs at the
+ * same rate whatever the frame rate.
+ */
+export function exhaustFlameMesh(
+  flames: ExhaustFlames,
+): Omit<TellMesh, "update"> & { update(frameSeconds: number): void } {
+  const count = flames.flames.length;
+  const material = additiveMaterial();
+  const cores = new InstancedMesh(new SphereGeometry(1, 8, 6), material, count);
+  const halos = new InstancedMesh(new SphereGeometry(1, 8, 6), material, count);
+  // A unit cone with its base at the origin and its tip at +Y.
+  const tongueGeometry = new ConeGeometry(1, 1, 5).translate(0, 0.5, 0);
+  const tongues = new InstancedMesh(tongueGeometry, material, count * FLAME_TONGUES);
+  const group = new Group();
+  const colour = new Color();
+  for (const mesh of [cores, halos, tongues]) {
+    mesh.frustumCulled = false;
+    for (let instance = 0; instance < mesh.count; instance++) {
+      mesh.setColorAt(instance, colour);
+    }
+    group.add(mesh);
+  }
+  const placement = new Matrix4();
+  const at = new Vector3();
+  const back = new Vector3();
+  const right = new Vector3();
+  const up = new Vector3();
+  const reach = new Vector3();
+  const turn = new Quaternion();
+  const scale = new Vector3();
+  const worldUp = new Vector3(0, 1, 0);
+  const alongY = new Vector3(0, 1, 0);
+  let seconds = 0;
+  return {
+    mesh: group,
+    update(frameSeconds) {
+      seconds += frameSeconds;
+      let live = 0;
+      for (const flame of flames.flames) {
+        if (!flame.visible || flame.strength <= 0) {
+          continue;
+        }
+        const { hot, cooled } = TIER_COLOURS[flame.tier];
+        const radius = FLAME_RADIUS_M * flame.strength;
+        back.set(...flame.back);
+        at.set(...flame.position).addScaledVector(back, FLAME_LIFT_M);
+        turn.identity();
+        cores.setMatrixAt(
+          live,
+          placement.compose(at, turn, scale.setScalar(radius * FLAME_CORE_SHARE)),
+        );
+        cores.setColorAt(live, colour.setHex(0xffffff).multiplyScalar(flame.strength));
+        halos.setMatrixAt(
+          live,
+          placement.compose(at, turn, scale.setScalar(radius * FLAME_HALO_SHARE)),
+        );
+        halos.setColorAt(
+          live,
+          colour.setHex(hot).multiplyScalar(FLAME_HALO_BRIGHTNESS * flame.strength),
+        );
+        right.crossVectors(back, worldUp);
+        if (right.lengthSq() < 1e-6) {
+          right.set(1, 0, 0);
+        }
+        right.normalize();
+        up.crossVectors(right, back);
+        colour.setHex(cooled).multiplyScalar(FLAME_TONGUE_BRIGHTNESS * flame.strength);
+        for (let tongue = 0; tongue < FLAME_TONGUES; tongue++) {
+          const around = (tongue / FLAME_TONGUES) * 2 * Math.PI + seconds * FLAME_ROCK_RAD_PER_S;
+          const flicker = Math.abs(Math.sin(seconds * FLAME_FLICKER_RAD_PER_S + tongue * 2.3));
+          reach
+            .copy(back)
+            .multiplyScalar(Math.cos(FLAME_SPLAY_RAD))
+            .addScaledVector(right, Math.cos(around) * Math.sin(FLAME_SPLAY_RAD))
+            .addScaledVector(up, Math.sin(around) * Math.sin(FLAME_SPLAY_RAD));
+          turn.setFromUnitVectors(alongY, reach);
+          const base = radius * FLAME_TONGUE_BASE_SHARE;
+          scale.set(base, radius * (FLAME_REACH_LEAST + FLAME_REACH_FLICKER * flicker), base);
+          const instance = live * FLAME_TONGUES + tongue;
+          tongues.setMatrixAt(instance, placement.compose(at, turn, scale));
+          tongues.setColorAt(instance, colour);
+        }
+        live += 1;
+      }
+      cores.count = live;
+      halos.count = live;
+      tongues.count = live * FLAME_TONGUES;
+      for (const mesh of [cores, halos, tongues]) {
+        mesh.instanceMatrix.needsUpdate = true;
+        if (mesh.instanceColor !== null) {
+          mesh.instanceColor.needsUpdate = true;
+        }
       }
     },
   };

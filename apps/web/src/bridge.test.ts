@@ -129,13 +129,16 @@ describe("bridge wrapper", () => {
     expect(bridge.countdownSeconds).toBe(3);
   });
 
-  it("reads the chase camera's tuning from the sim: top speed, pull-back and shake", async () => {
+  it("reads the chase camera's tuning from the sim: top speed, pull-back, shake and boost kick", async () => {
     const bridge = await loadBridge(wasm);
     expect(bridge.cameraTuning).toEqual({
       topSpeedMetresPerSecond: 30,
       pullBackMetres: 1,
       shakeSeconds: expect.closeTo(0.3, 5),
       shakeAmplitudeMetres: expect.any(Number),
+      fieldOfViewDegrees: 60,
+      boostKick: expect.closeTo(0.12, 5),
+      boostKickEaseSeconds: expect.closeTo(0.3, 5),
     });
     expect(bridge.cameraTuning.shakeAmplitudeMetres).toBeGreaterThan(0);
   });
