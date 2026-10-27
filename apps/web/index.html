@@ -547,7 +547,7 @@
         background: var(--go);
       }
       #title-scene button[name="create"]:hover,
-      #room-scene button[name="start"]:hover,
+      #room-scene button[name="start"]:not(:disabled):hover,
       #results-scene button[name="rematch"]:hover {
         background: #8ef0b7;
       }
@@ -722,7 +722,7 @@
         text-transform: none;
         user-select: all;
       }
-      #room-scene .share .chip {
+      #room-scene button[name="copy"] {
         padding: 0.35em 0.6em;
         font-size: 1.2em;
         border-width: 0.15em;
@@ -758,12 +758,10 @@
         text-transform: none;
         white-space: nowrap;
         text-shadow: 0.08em 0.08em 0 var(--ink);
+        grid-area: name;
       }
       #room-scene .players .kart {
         grid-area: kart;
-      }
-      #room-scene .players .nickname {
-        grid-area: name;
       }
       #room-scene .players .badges {
         grid-area: badges;
@@ -775,12 +773,22 @@
         justify-self: start;
         margin-left: 0.4em;
       }
+      /* Without badges the chip starts under the nickname, in line with every other row's first chip. */
+      #room-scene .players .badges:empty + .state {
+        grid-column: 2 / -1;
+        margin-left: 0;
+      }
+      /* The You and Creator badges and the state chip share the Fastest lap badge's look. */
+      #results-scene [data-fastest-lap],
       #room-scene [data-badge],
       #room-scene .players .state {
         padding: 0.2em 0.4em;
-        font-size: 1.1em;
         color: #fff;
         background: #a45cff;
+      }
+      #room-scene [data-badge],
+      #room-scene .players .state {
+        font-size: 1.1em;
       }
       #room-scene [data-badge] .paren {
         display: none;
@@ -861,10 +869,7 @@
         list-style: none;
       }
       #results-scene [data-fastest-lap] {
-        padding: 0.2em 0.4em;
         font-size: 0.75em;
-        color: #fff;
-        background: #a45cff;
       }
       #results-scene [data-side] {
         grid-area: side;

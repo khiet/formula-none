@@ -22,7 +22,7 @@ export interface RoomView {
   /** The link that joins this room, shown for sharing. */
   readonly link: string;
   /** How many players a room holds, for the count beside the code. */
-  readonly seats: number;
+  readonly capacity: number;
 }
 
 /** How long the Copy link chip says "Copied!". */
@@ -126,7 +126,11 @@ export function createRoomScene(
   const copy = button("copy", "Copy link", () => {
     // Without a clipboard (plain http off localhost) or with it refused, the
     // link is selected so the player can copy it by hand.
-    const selectLink = () => document.getSelection()?.selectAllChildren(link);
+    const selectLink = () => {
+      clearTimeout(copiedTimer);
+      copy.textContent = "Copy link";
+      document.getSelection()?.selectAllChildren(link);
+    };
     const clipboard = navigator.clipboard as Clipboard | undefined;
     if (clipboard === undefined) {
       selectLink();
@@ -140,7 +144,6 @@ export function createRoomScene(
       }, COPIED_MS);
     }, selectLink);
   });
-  copy.className = "chip";
   const share = document.createElement("div");
   share.className = "share";
   share.append(link, copy);
@@ -158,7 +161,7 @@ export function createRoomScene(
 
   const render = () => {
     code.textContent = current.code;
-    count.textContent = `${current.players.length}/${view.seats}`;
+    count.textContent = `${current.players.length}/${view.capacity}`;
     players.replaceChildren(
       ...current.players.map((player) => playerItem(player, player.slot === view.slot)),
     );

@@ -21,7 +21,7 @@ function scene(slot: number, room: Room = ROOM) {
     start: () => calls.push("start"),
     leave: () => calls.push("leave"),
   };
-  const view = createRoomScene(container, { slot, room, link: LINK, seats: 8 }, handlers);
+  const view = createRoomScene(container, { slot, room, link: LINK, capacity: 8 }, handlers);
   const button = (name: string) => {
     const element = container.querySelector<HTMLButtonElement>(`button[name=${name}]`);
     if (!element) throw new Error(`no button ${name}`);
