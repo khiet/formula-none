@@ -1,0 +1,208 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Drift Spark Colours</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Silkscreen&family=Inter:wght@400;600&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #121316;
+    --fg: #e8e8ea;
+    --muted: #8a8d94;
+    --rule: #2a2c31;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--fg); font: 15px/1.5 Inter, system-ui, sans-serif; }
+  body { padding: 2rem 16px 4rem; }
+  header, main { max-width: 1120px; margin: 0 auto; }
+  header { margin-bottom: 1.5rem; }
+  h1 { font: 600 1.4rem/1.2 Inter, sans-serif; margin: 0 0 .25rem; }
+  header p, .meta p, .notes li { color: var(--muted); }
+  header p { margin: 0; }
+  .controls { display: flex; flex-wrap: wrap; gap: .75rem 1.5rem; margin-top: 1rem; padding: .75rem 1rem; border: 1px solid var(--rule); border-radius: .5rem; }
+  .controls label { display: flex; align-items: center; gap: .4rem; cursor: pointer; font-size: .9rem; }
+  .controls input { accent-color: #ff8800; }
+  main { display: grid; gap: 2.5rem; }
+  section { display: grid; gap: .75rem; }
+  .meta { display: flex; align-items: baseline; gap: 1rem; flex-wrap: wrap; }
+  .meta h2 { margin: 0; font: 600 1.05rem/1.2 Inter, sans-serif; }
+  .meta h2 small { color: var(--muted); font-weight: 400; margin-left: .5rem; }
+  .meta p { margin: 0; font-size: .9rem; flex: 1 1 24rem; }
+  .pair { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: .75rem; }
+  figure { margin: 0; display: grid; gap: .4rem; }
+  canvas { width: 100%; aspect-ratio: 16 / 9; border-radius: .5rem; display: block; background: #6b6b78; }
+  figcaption { display: flex; gap: .6rem; align-items: center; font-size: .85rem; color: var(--muted); flex-wrap: wrap; }
+  .dot { width: .9rem; height: .9rem; border-radius: 2px; display: inline-block; vertical-align: -2px; }
+  code { font: .85em ui-monospace, Menlo, monospace; color: var(--fg); }
+  .notes { border-top: 1px solid var(--rule); padding-top: 1rem; }
+  .notes h2 { font: 600 1.05rem/1.2 Inter, sans-serif; margin: 0 0 .5rem; }
+  .notes ul { margin: 0; padding-left: 1.2rem; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Drift spark colours</h1>
+  <p>Each view loops one drift: no sparks before 0.3 s, the first tier from 0.3 s, the second from 0.6 s, release at 1.4 s.
+     Sparks use the emitter's real numbers: 60 per wheel per second, 6 m/s back, 1 to 3 m/s rise, 0.25 s life, 9.8 m/s&sup2; gravity, cubes that shrink as they die.</p>
+  <div class="controls">
+    <label><input type="checkbox" id="slow" /> Slow motion (x0.25)</label>
+    <label><input type="checkbox" id="hold" /> Hold on second tier</label>
+  </div>
+</header>
+<main id="rows"></main>
+<main class="notes">
+  <section>
+    <h2>What would change</h2>
+    <ul>
+      <li><code>SPARK_COLOURS</code> in <code>apps/web/src/sparks.ts</code>; the rocket start's charge sparks share the table, so the weak start boost turns orange and the full one red.</li>
+      <li>The tier names stay <code>blue</code> and <code>orange</code> in the sim's <code>MiniTurbo</code> and in GLOSSARY unless renamed; a rename touches the sim, the generated types and the replay fixtures' readouts, so it is a separate call.</li>
+      <li>Physics aside: a real spark's colour tracks its temperature, and red is the cooler end (about 700 &deg;C, orange about 1000 &deg;C). Option B leans on that: every spark is born hot and cools to its tier's colour, so red reads as "longer in the fire" by cooling further, not by being hotter.</li>
+    </ul>
+  </section>
+</main>
+<script>
+  const DESIGNS = [
+    {
+      name: "Current",
+      sub: "blue then orange",
+      note: "What ships today: shift-light blue at 0.3 s, orange at 0.6 s.",
+      tiers: [{ label: "blue", born: "#4f7dff", dies: "#4f7dff" }, { label: "orange", born: "#ff8800", dies: "#ff8800" }],
+    },
+    {
+      name: "A: flat orange then red",
+      sub: "one colour per tier",
+      note: "The swap as asked: today's orange becomes the first tier, a hot red the second. Cheapest change; the colour table only.",
+      tiers: [{ label: "orange", born: "#ff8800", dies: "#ff8800" }, { label: "red", born: "#ff2a10", dies: "#ff2a10" }],
+    },
+    {
+      name: "B: cooling orange then red",
+      sub: "each spark cools over its life",
+      note: "A spark is born yellow-white and cools to its tier's colour before it dies, like a grinder's 火花. Needs a per-spark colour over life in the particle mesh, not just the table.",
+      tiers: [{ label: "orange", born: "#fff0b0", dies: "#ff7a00" }, { label: "red", born: "#ffd27a", dies: "#e01808" }],
+    },
+  ];
+
+  const RATE = 60, SPEED = 6, SPREAD = 2, RISE_MIN = 1, RISE_MAX = 3, LIFE = 0.25, SIZE = 0.08, G = 9.8;
+  const TIER_1_S = 0.3, TIER_2_S = 0.6, RELEASE_S = 1.4, LOOP_S = 2.2;
+  const slow = document.getElementById("slow");
+  const hold = document.getElementById("hold");
+
+  const hex = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
+  const mix = (a, b, t) => {
+    const [x, y] = [hex(a), hex(b)];
+    return `rgb(${x.map((v, i) => Math.round(v + (y[i] - v) * t)).join(",")})`;
+  };
+
+  function figure(design, tierIndex) {
+    const fig = document.createElement("figure");
+    const canvas = document.createElement("canvas");
+    const cap = document.createElement("figcaption");
+    const tierList = tierIndex === null ? design.tiers : [design.tiers[tierIndex]];
+    cap.innerHTML = (tierIndex === null ? "Drift loop: " : "Held: ") + tierList
+      .map((t) => `<span><span class="dot" style="background:linear-gradient(90deg,${t.born},${t.dies})"></span> ${t.label} <code>${t.born === t.dies ? t.born : t.born + " &rarr; " + t.dies}</code></span>`)
+      .join("");
+    fig.append(canvas, cap);
+    return { fig, canvas, design, tierIndex };
+  }
+
+  const views = [];
+  const rows = document.getElementById("rows");
+  for (const design of DESIGNS) {
+    const section = document.createElement("section");
+    section.innerHTML = `<div class="meta"><h2>${design.name}<small>${design.sub}</small></h2><p>${design.note}</p></div>`;
+    const pair = document.createElement("div");
+    pair.className = "pair";
+    for (const t of [null, 1]) {
+      const v = figure(design, t);
+      pair.append(v.fig);
+      views.push({ ...v, sparks: [], owed: 0, clock: 0 });
+    }
+    section.append(pair);
+    rows.append(section);
+  }
+
+  // Chase camera: world metres to canvas pixels. +x right, +y up, +z toward the camera.
+  function project(w, h, x, y, z) {
+    const depth = 2.4 - z; // camera 2.4 m behind the rear axle, closer than the chase camera so the sparks read
+    const f = h * 0.8 / depth;
+    return [w / 2 + x * f, h * 0.42 - (y - 1.3) * f, f];
+  }
+
+  function tierAt(view, t) {
+    if (view.tierIndex !== null || hold.checked) return view.tierIndex ?? 1;
+    if (t < TIER_1_S || t >= RELEASE_S) return -1;
+    return t < TIER_2_S ? 0 : 1;
+  }
+
+  function drawKart(ctx, w, h) {
+    const box = (x0, y0, z, x1, y1, fill) => {
+      const [ax, ay] = project(w, h, x0, y1, z);
+      const [bx, by] = project(w, h, x1, y0, z);
+      ctx.fillStyle = fill;
+      ctx.fillRect(ax, ay, bx - ax, by - ay);
+    };
+    box(-0.55, 0.12, -0.5, 0.55, 0.42, "#a81e1e"); // body, kart 1's livery shaded
+    box(-0.45, 0.42, -0.6, 0.45, 0.62, "#d62828");
+    box(-0.15, 0.62, -0.7, 0.15, 0.95, "#f1c27d"); // driver
+    for (const s of [-1, 1]) box(s * 0.75 - 0.18, 0, 0, s * 0.75 + 0.18, 0.34, "#1b1b1f"); // rear wheels
+  }
+
+  let last = performance.now();
+  function frame(now) {
+    const dt = Math.min((now - last) / 1000, 0.05) * (slow.checked ? 0.25 : 1);
+    last = now;
+    for (const v of views) {
+      const { canvas } = v;
+      const w = canvas.clientWidth * devicePixelRatio, h = canvas.clientHeight * devicePixelRatio;
+      if (canvas.width !== w) { canvas.width = w; canvas.height = h; }
+      const ctx = canvas.getContext("2d");
+      v.clock = (v.clock + dt) % LOOP_S;
+      const tier = tierAt(v, v.clock);
+      if (tier >= 0) {
+        v.owed = Math.min(v.owed + RATE * dt, RATE * 0.1);
+        for (; v.owed >= 1; v.owed -= 1) {
+          for (const side of [-1, 1]) {
+            v.sparks.push({
+              p: [side * 0.75, 0.02, 0.1],
+              v: [(2 * Math.random() - 1) * SPREAD, RISE_MIN + Math.random() * (RISE_MAX - RISE_MIN), SPEED],
+              age: 0,
+              tier: v.design.tiers[tier],
+            });
+          }
+        }
+      }
+      for (const s of v.sparks) {
+        s.age += dt;
+        s.v[1] -= G * dt;
+        for (let i = 0; i < 3; i++) s.p[i] += s.v[i] * dt;
+      }
+      v.sparks = v.sparks.filter((s) => s.age < LIFE && s.p[2] < 2.1);
+
+      // Road, with a lane edge to judge contrast against.
+      ctx.fillStyle = "#6b6b78";
+      ctx.fillRect(0, 0, w, h);
+      ctx.fillStyle = "#4a8c3a";
+      ctx.fillRect(0, 0, w, h * 0.12);
+      ctx.fillStyle = "#f0f0f0";
+      ctx.fillRect(w * 0.06, h * 0.12, w * 0.015, h);
+      drawKart(ctx, w, h);
+      for (const s of v.sparks) {
+        const life = 1 - s.age / LIFE;
+        const [x, y, f] = project(w, h, s.p[0], Math.max(s.p[1], 0), s.p[2]);
+        const size = SIZE * life * f;
+        ctx.fillStyle = mix(s.tier.born, s.tier.dies, Math.min(s.age / LIFE / 0.8, 1));
+        ctx.fillRect(x - size / 2, y - size / 2, size, size);
+      }
+      ctx.fillStyle = "#fff";
+      ctx.font = `${Math.round(h * 0.06)}px Silkscreen, monospace`;
+      const label = tier < 0 ? (v.clock < TIER_1_S ? "drifting" : "released") : v.design.tiers[tier].label;
+      ctx.fillText(label, w * 0.1, h * 0.09);
+    }
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+</script>
+</body>
+</html>
