@@ -674,6 +674,7 @@ mod tests {
         handling.tick(&FULL_THROTTLE, Freeze::Free, on_pad, TICK_S);
         assert_eq!(handling.speed, TOP_SPEED_M_PER_S * BOOST_PAD_FACTOR);
         assert_eq!(handling.boost_s(), Some(BOOST_PAD_S - TICK_S));
+        assert_eq!(handling.boost_tier(), MiniTurbo::Red);
 
         handling.tick(&FULL_THROTTLE, Freeze::Free, on_pad, TICK_S);
         assert_eq!(
