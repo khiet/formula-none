@@ -180,8 +180,15 @@ describe("Room Scene", () => {
     expect(button("copy").textContent).toBe("Copy link");
   });
 
-  it("selects the link for copying by hand when the clipboard refuses", async () => {
-    stubClipboard(() => Promise.reject(new DOMException("denied", "NotAllowedError")));
+  it.each([
+    [
+      "refuses",
+      () => stubClipboard(() => Promise.reject(new DOMException("denied", "NotAllowedError"))),
+    ],
+    // Plain http to a LAN address has no clipboard at all.
+    ["is missing", () => vi.stubGlobal("navigator", {})],
+  ])("selects the link for copying by hand when the clipboard %s", async (_, stub) => {
+    stub();
     const { button, container } = scene(0);
     container.ownerDocument.body.append(container);
     button("copy").click();
