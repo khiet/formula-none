@@ -4,8 +4,9 @@ A counter-clockwise loop of about 800 m: the start/finish straight up the
 east side, hairpin one at the top, a run back down into a right-hander, the
 hill on the westbound straight, the chicane, hairpin two at the west end, the
 jump ramp on the long eastbound straight and a sweeping final corner. Tyre
-walls stand on the inside of both hairpins. The start line is at s = 0 on the
-east straight, which runs along +Y (glTF -Z). The scenery: grandstands and
+walls stand on the inside of both hairpins, and a sausage kerb on the inside
+of the chicane's apex. The start line is at s = 0 on the east straight,
+which runs along +Y (glTF -Z). The scenery: grandstands and
 sponsor hoardings along the outside of the start straight and the return,
 hoardings round the final corner, and the gantry over the line.
 """
@@ -16,6 +17,7 @@ from ..layout import (
     Grandstands,
     Hoardings,
     ItemRow,
+    Kerb,
     Layout,
     TyreWall,
 )
@@ -24,6 +26,9 @@ from ..path import Hill, Ramp, Turtle
 EAST_STRAIGHT_X = 80.0
 HAIRPIN_RADIUS_M = 18.0
 CHICANE_RADIUS_M = 14.0
+# Right of the centreline, just in from the painted kerb on the inside of
+# the chicane's right-hander.
+CHICANE_KERB_RIGHT_OF_CENTRE_M = 4.9
 
 path = (
     Turtle(x=EAST_STRAIGHT_X, y=0.0, heading_deg=90.0)
@@ -70,6 +75,7 @@ LAYOUT = Layout(
         BoostPad(path.segment("return").s_mid),
         BoostPad(ramp_start + RAMP_LENGTH_M + 40.0),
     ],
+    kerbs=[Kerb(path.segment("chicane-mid").s_mid, offset=-CHICANE_KERB_RIGHT_OF_CENTRE_M)],
     elevation=[
         Hill(hill.s_start + 30.0, hill.s_end - 30.0, HILL_CREST_M),
         Ramp(ramp_start, ramp_start + RAMP_LENGTH_M, RAMP_HEIGHT_M),

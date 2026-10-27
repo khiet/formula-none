@@ -120,6 +120,19 @@ CHEVRON_SHADE_M = 0.22
 CHEVRON_SPACING_M = 1.0
 CHEVRON_FIRST_TIP_M = 1.67
 CHEVRON_COUNT = 3
+# A sausage kerb is drawn on the rectangle the sim launches from, so these
+# mirror `KERB_HALF_*` in `crates/sim/src/tuning.rs`; the track tests hold
+# them to it. It is a capsule seen from above, its ends rounded inside that
+# rectangle, standing proud of the asphalt as a squashed half-round, yellow
+# with black stripes across it.
+SAUSAGE_KERB_HALF_LENGTH_M = 4.0
+SAUSAGE_KERB_HALF_WIDTH_M = 0.5
+SAUSAGE_KERB_PROUD_M = 0.15
+SAUSAGE_KERB_STRIPES = 6
+SAUSAGE_KERB_STRIPE_PITCH_M = 1.3
+SAUSAGE_KERB_STRIPE_WIDTH_M = 0.45
+SAUSAGE_KERB_ACROSS_STEPS = 6
+SAUSAGE_KERB_END_STEPS = 4
 
 # The eight-slot spawn grid: two staggered columns of four, pole in front on
 # the left, the right column set back. Slot order is grid order. Placements
@@ -151,6 +164,14 @@ class ItemRow:
 class BoostPad:
     s: float
     offset: float = 0.0
+
+
+@dataclass(frozen=True)
+class Kerb:
+    """A sausage kerb at arc length `s`, `offset` metres left of the centreline, lying along the track."""
+
+    s: float
+    offset: float
 
 
 @dataclass(frozen=True)
@@ -188,6 +209,7 @@ class Layout:
     tyre_walls: list[TyreWall]
     item_rows: list[ItemRow]
     boost_pads: list[BoostPad]
+    kerbs: list[Kerb] = field(default_factory=list)
     elevation: list[Feature] = field(default_factory=list)
     decor: Decor = field(default_factory=Decor)
 
@@ -249,6 +271,7 @@ class TrackGeometry:
     spawn_grid: list[Placement]
     scenery: list[SceneryMesh] = field(default_factory=list)
     props: list[TextProp] = field(default_factory=list)
+    kerbs: list[Placement] = field(default_factory=list)
 
 
 
@@ -334,6 +357,7 @@ def build(layout: Layout) -> TrackGeometry:
     ]
     item_boxes = [place(row.s, offset) for row in layout.item_rows for offset in row.offsets]
     boost_pads = [place(pad.s, pad.offset) for pad in layout.boost_pads]
+    kerbs = [place(kerb.s, kerb.offset) for kerb in layout.kerbs]
     spawn_grid = [
         place(
             -GRID_FRONT_ROW_BEHIND_LINE_M
@@ -347,13 +371,14 @@ def build(layout: Layout) -> TrackGeometry:
     centreline = [(sample.x, sample.y, h) for sample, h in zip(path.samples, height)]
     scenery, props = decorate(layout, height)
     return TrackGeometry(
-        centreline, surfaces, checkpoints, item_boxes, boost_pads, spawn_grid, scenery, props
+        centreline, surfaces, checkpoints, item_boxes, boost_pads, spawn_grid, scenery, props, kerbs
     )
 
 
 def decorate(layout: Layout, height: list[float]) -> tuple[list[SceneryMesh], list[TextProp]]:
     """The scenery: kerbs on every corner, the start line, and what the layout's decor asks for."""
     scenery = kerbs(layout, height) + start_line(layout) + boost_pads(layout) + tyre_stacks(layout)
+    scenery += sausage_kerbs(layout)
     boards, lettering = hoardings(layout)
     scenery += boards + grandstands(layout)
     if layout.decor.gantry:
@@ -512,6 +537,56 @@ def boost_pads(layout: Layout) -> list[SceneryMesh]:
         pieces = {**plate, "chevron": mesh.merge(lit), "chevron-shade": mesh.merge(shade)}
         for material, piece in pieces.items():
             result.append(SceneryMesh(f"BoostPad.{number:02d}.{material}", material, piece))
+    return result
+
+
+def sausage_kerbs(layout: Layout) -> list[SceneryMesh]:
+    """A yellow capsule over each sausage kerb's rectangle, striped black across."""
+    half_length, half_width = SAUSAGE_KERB_HALF_LENGTH_M, SAUSAGE_KERB_HALF_WIDTH_M
+    body = half_length - half_width
+    # Stations along the kerb: round its back end, then every stripe's edges
+    # along the body, then round its front end, so each band between two
+    # stations is one colour.
+    end = [
+        body + half_width * math.sin(math.pi / 2.0 * k / SAUSAGE_KERB_END_STEPS)
+        for k in range(1, SAUSAGE_KERB_END_STEPS + 1)
+    ]
+    first = -SAUSAGE_KERB_STRIPE_PITCH_M * (SAUSAGE_KERB_STRIPES - 1) / 2.0
+    centres = [first + k * SAUSAGE_KERB_STRIPE_PITCH_M for k in range(SAUSAGE_KERB_STRIPES)]
+    edges = [c + d * SAUSAGE_KERB_STRIPE_WIDTH_M / 2.0 for c in centres for d in (-1.0, 1.0)]
+    stations = [-a for a in reversed(end)] + [-body] + edges + [body] + end
+
+    def black(back: float, front: float) -> bool:
+        middle = (back + front) / 2.0
+        return any(abs(middle - c) < SAUSAGE_KERB_STRIPE_WIDTH_M / 2.0 for c in centres)
+
+    result: list[SceneryMesh] = []
+    for number, kerb in enumerate(layout.kerbs):
+        sample = layout.path.at(kerb.s)
+        x, y = sample.offset(kerb.offset)
+        cos, sin = math.cos(sample.heading), math.sin(sample.heading)
+        base = elevation(layout.elevation, sample.s) + SCENERY_LIFT_M
+
+        def ring(ahead: float) -> list[mesh.Vertex]:
+            """The kerb's cross-section `ahead` metres along it, from its left foot over to its right."""
+            rounded = max(abs(ahead) - body, 0.0)
+            scale = math.sqrt(max(half_width * half_width - rounded * rounded, 0.0)) / half_width
+            points = []
+            for k in range(SAUSAGE_KERB_ACROSS_STEPS + 1):
+                angle = math.pi * k / SAUSAGE_KERB_ACROSS_STEPS
+                right = -math.cos(angle) * half_width * scale
+                up = math.sin(angle) * SAUSAGE_KERB_PROUD_M * scale
+                points.append((x + ahead * cos + right * sin, y + ahead * sin - right * cos, base + up))
+            return points
+
+        parts = {"kerb-yellow": [], "kerb-black": []}
+        for back, front in zip(stations, stations[1:]):
+            # Wound back, left, front, so each quad faces up and out.
+            a, b = ring(back), ring(front)
+            faces = [mesh.quad(a[k], a[k + 1], b[k + 1], b[k]) for k in range(SAUSAGE_KERB_ACROSS_STEPS)]
+            parts["kerb-black" if black(back, front) else "kerb-yellow"].append(mesh.merge(faces))
+        for material, pieces in parts.items():
+            result.append(SceneryMesh(f"SausageKerb.{number:02d}.{material}", material, mesh.merge(pieces)))
     return result
 
 

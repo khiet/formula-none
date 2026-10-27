@@ -1267,6 +1267,7 @@ pub fn step(mut state: State, inputs: &[KartInput], dt: f32) -> State {
                 vertical_m_per_s: body.linvel().y,
                 surface: state.physics.surface_at(position),
                 boost_pad: state.track.on_a_boost_pad(position),
+                kerb: state.track.on_a_kerb(position),
                 top_speed: TOP_SPEED_M_PER_S * state.rubber_band(slot),
             }
         })

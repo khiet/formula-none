@@ -502,6 +502,15 @@
         </div>
       </article>
 
+      <article class="asset" data-status="ok">
+        <header><span class="status ok">Aligned</span><h3>Sausage kerb</h3><code>assets/tracks/trackgen/layout.py sausage_kerbs</code></header>
+        <div class="compare"><figure class="aligned"><figcaption>8 x 1 m, 0.15 m proud, inside the chicane's apex</figcaption><div class="stage flat" data-draw="sausageKerb"></div></figure></div>
+        <div class="notes">
+          <p class="fix">A capsule in gold <code>#ffd23f</code> over the sim's 8 x 1 m rectangle, its ends rounded inside it, standing 0.15 m proud as a squashed half-round, with six black <code>#111111</code> stripes across it. It floats on the asphalt as the other scenery does, just in from the painted kerb on the inside of the Brands Patch chicane; a kart on the ground that reaches it is thrown into a hop that lands straight, and loses its drift (ADR 0041).</p>
+          <p class="why">The 16-bit key's raised kerb, original (ADR 0007): the yellow of a marshal's flag, so it reads as a warning, striped so its length reads at speed. It is scenery; the launch is the sim's rectangle, so the picture can change without touching a rule.</p>
+        </div>
+      </article>
+
       <article class="asset" data-status="drift">
         <header><span class="status drift">Drift</span><h3>Boost pad</h3><code>assets/tracks/build.py:213, crates/sim/src/tuning.rs:168</code></header>
         <div class="compare">
@@ -1160,6 +1169,17 @@
     return `<svg viewBox="0 0 200 160" role="img" aria-label="Tyre wall: two belted rings of tyres on a sixteen-sided stack">
     <rect width="200" height="160" fill="#6b6b78"/><ellipse cx="108" cy="134" rx="58" ry="12" fill="rgba(0,0,0,.25)"/>
     ${prism(16, cx, base, r, 2 * ringH, rgb([0.071, 0.071, 0.078]))}${rings}</svg>`;
+  };
+  // Top-down: the track runs up the page, curving right past the kerb on its
+  // inside edge; a side view of the half-round below.
+  draw.sausageKerb = () => {
+    let stripes = "";
+    for (let k = 0; k < 6; k++) stripes += `<rect x="${114}" y="${36 + 6 + k * 13}" width="14" height="5" fill="#111111"/>`;
+    return `<svg viewBox="0 0 200 160" role="img" aria-label="Sausage kerb from above and from the side">
+      <rect width="200" height="160" fill="#6b6b78"/><rect x="182" width="18" height="160" fill="#e8c773"/>
+      <rect x="176" width="6" height="160" fill="#d63b2e"/>${[0, 2, 4, 6, 8].map((i) => `<rect x="176" y="${i * 20}" width="6" height="10" fill="#f5f5f5"/>`).join("")}
+      <rect x="114" y="36" width="14" height="88" rx="7" fill="#ffd23f"/>${stripes}
+      <path d="M 20 140 Q 40 128 60 140 Z" fill="#ffd23f"/><rect x="12" y="140" width="56" height="2" fill="#2a2a2e"/></svg>`;
   };
   // Top-down: the track runs up the page, the pad's rectangle spans 6 m of its width.
   const padGround = (inner) => `<svg viewBox="0 0 200 160" role="img" aria-label="Boost pad on asphalt from above">
