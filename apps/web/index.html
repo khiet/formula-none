@@ -768,16 +768,6 @@
         display: flex;
         gap: 0.4em;
       }
-      #room-scene .players .state {
-        grid-area: state;
-        justify-self: start;
-        margin-left: 0.4em;
-      }
-      /* Without badges the chip starts under the nickname, in line with every other row's first chip. */
-      #room-scene .players .badges:empty + .state {
-        grid-column: 2 / -1;
-        margin-left: 0;
-      }
       /* The You and Creator badges and the state chip share the Fastest lap badge's look. */
       #results-scene [data-fastest-lap],
       #room-scene [data-badge],
@@ -794,12 +784,20 @@
         display: none;
       }
       #room-scene .players .state {
+        grid-area: state;
+        justify-self: start;
+        margin-left: 0.4em;
         color: #ccc;
         background: var(--ink);
       }
       #room-scene .players li[data-state="ready"] .state {
         color: var(--ink);
         background: var(--go);
+      }
+      /* Without badges the chip starts under the nickname, in line with every other row's first chip. */
+      #room-scene .players .badges:empty + .state {
+        grid-column: 2 / -1;
+        margin-left: 0;
       }
       #room-scene .players li:is([data-state="joining"], [data-state="disconnected"]) {
         opacity: 0.45;
