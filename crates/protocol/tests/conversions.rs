@@ -6,7 +6,7 @@ use protocol::{EventKind, Input, KartSnapshot};
 use sim::{Drift, DriftDirection, Item, KartInput, KartReadout, MiniTurbo, RaceEvent, Start};
 
 /// A kart mid-race with every field the snapshot carries away from its
-/// default: drifting left at orange, holding a hazard, a hop and a boost
+/// default: drifting left at red, holding a hazard, a hop and a boost
 /// under way, spun out, stalled, third on lap 2 and going the wrong way.
 /// Turned a quarter left, so its facing is -X and its velocity runs along
 /// it at 12 m/s, rising.
@@ -21,7 +21,7 @@ fn busy_kart() -> KartReadout {
             direction: DriftDirection::Left,
             charge_s: 0.75,
         }),
-        mini_turbo: MiniTurbo::Orange,
+        mini_turbo: MiniTurbo::Red,
         held_item: Some(Item::Hazard),
         spin_out_s: Some(0.4),
         airborne: true,

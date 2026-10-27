@@ -202,7 +202,7 @@ describe("bridge wrapper", () => {
     race.step([hopRight], DT);
     expect(race.kartReadouts()[0]?.airborne).toBe(true);
     // 0.75 s with the button down: past the 0.3 s airtime and the 0.3 s blue
-    // charge, short of orange at 0.6 s.
+    // charge, short of red at 0.6 s.
     for (let tick = 0; tick < 44; tick++) {
       race.step([hopRight], DT);
     }

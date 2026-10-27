@@ -14,24 +14,24 @@ export interface SparkTell {
 const SPARK_COLOURS: Readonly<Record<MiniTurbo, number | null>> = {
   none: null,
   blue: SHIFT_BLUE.mid,
-  orange: 0xff8800,
+  red: 0xff8800,
 };
 
 /**
  * The mini-turbo tier a rocket start's charge sparks like: the weak boost
- * as blue, the full boost as orange, and the stall as orange too, so the
+ * as blue, the full boost as red, and the stall as red too, so the
  * hold tipping into a stall gives no warning.
  */
 const CHARGE_TIERS: Readonly<Record<Start, MiniTurbo>> = {
   clean: "none",
   weakBoost: "blue",
-  fullBoost: "orange",
-  stall: "orange",
+  fullBoost: "red",
+  stall: "red",
 };
 
 /**
  * The Feedback for a mini-turbo charge and a rocket start's (GLOSSARY):
- * sparks at the wheels in blue once blue has charged and orange once orange
+ * sparks at the wheels in blue once blue has charged and red once red
  * has, and nothing before a tier charges or off a drift; and, while the
  * countdown runs, in the colour of the tier the hold so far has reached,
  * which `charge` is. Presentation only; reads state.

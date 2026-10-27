@@ -267,9 +267,9 @@ impl Drift {
     /// The mini-turbo tier the charge has reached: the boost a release now
     /// would give. Sparks at the wheels show it.
     pub fn mini_turbo(&self) -> MiniTurbo {
-        use tuning::{MINI_TURBO_BLUE_CHARGE_S, MINI_TURBO_ORANGE_CHARGE_S};
-        if self.charge_s >= MINI_TURBO_ORANGE_CHARGE_S {
-            MiniTurbo::Orange
+        use tuning::{MINI_TURBO_BLUE_CHARGE_S, MINI_TURBO_RED_CHARGE_S};
+        if self.charge_s >= MINI_TURBO_RED_CHARGE_S {
+            MiniTurbo::Red
         } else if self.charge_s >= MINI_TURBO_BLUE_CHARGE_S {
             MiniTurbo::Blue
         } else {
@@ -284,7 +284,7 @@ impl Drift {
 pub enum MiniTurbo {
     None,
     Blue,
-    Orange,
+    Red,
 }
 
 impl MiniTurbo {
@@ -298,17 +298,17 @@ impl MiniTurbo {
         match self {
             Self::None => 0,
             Self::Blue => 1,
-            Self::Orange => 2,
+            Self::Red => 2,
         }
     }
 
     /// How long releasing this tier boosts the kart.
     fn boost_s(self) -> f32 {
-        use tuning::{MINI_TURBO_BLUE_BOOST_S, MINI_TURBO_ORANGE_BOOST_S};
+        use tuning::{MINI_TURBO_BLUE_BOOST_S, MINI_TURBO_RED_BOOST_S};
         match self {
             Self::None => 0.0,
             Self::Blue => MINI_TURBO_BLUE_BOOST_S,
-            Self::Orange => MINI_TURBO_ORANGE_BOOST_S,
+            Self::Red => MINI_TURBO_RED_BOOST_S,
         }
     }
 }

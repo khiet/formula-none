@@ -44,12 +44,12 @@ describe("spark tell", () => {
     expect(sparkTell(drifting("none"))).toBeNull();
   });
 
-  it("shows sparks once blue has charged and changes colour at orange", () => {
+  it("shows sparks once blue has charged and changes colour at red", () => {
     const blue = sparkTell(drifting("blue"));
-    const orange = sparkTell(drifting("orange"));
+    const red = sparkTell(drifting("red"));
     expect(blue).not.toBeNull();
-    expect(orange).not.toBeNull();
-    expect(orange?.colour).not.toBe(blue?.colour);
+    expect(red).not.toBeNull();
+    expect(red?.colour).not.toBe(blue?.colour);
   });
 
   it("sparks blue in the shift lights' blue, so blue means one blue", () => {
@@ -59,8 +59,8 @@ describe("spark tell", () => {
   it("shows a rocket start's charge in the tier's colour, with no warning past the full tier", () => {
     expect(sparkTell(STRAIGHT, "clean")).toBeNull();
     expect(sparkTell(STRAIGHT, "weakBoost")).toEqual(sparkTell(drifting("blue")));
-    expect(sparkTell(STRAIGHT, "fullBoost")).toEqual(sparkTell(drifting("orange")));
-    expect(sparkTell(STRAIGHT, "stall")).toEqual(sparkTell(drifting("orange")));
+    expect(sparkTell(STRAIGHT, "fullBoost")).toEqual(sparkTell(drifting("red")));
+    expect(sparkTell(STRAIGHT, "stall")).toEqual(sparkTell(drifting("red")));
   });
 });
 
@@ -104,7 +104,7 @@ describe("spark emitter", () => {
     const emitter = createSparkEmitter(particles, SIZE, fixedRandom());
     emitter.emit(kart(STRAIGHT, "fullBoost"), FRAME_S, true);
     const colours = new Set(particlesOf(particles).map((spark) => spark.colour));
-    expect([...colours]).toEqual([sparkTell(drifting("orange"))?.colour]);
+    expect([...colours]).toEqual([sparkTell(drifting("red"))?.colour]);
 
     // From Go the verdict stands on the transform, but the charge is over.
     const after = createParticles({ capacity: 64, gravity: 9.8 });
@@ -116,12 +116,12 @@ describe("spark emitter", () => {
     expect(particlesOf(after)).toEqual([]);
   });
 
-  it("colours orange's sparks orange", () => {
+  it("colours red's sparks red", () => {
     const particles = createParticles({ capacity: 64 });
     const emitter = createSparkEmitter(particles, SIZE, fixedRandom());
-    emitter.emit(kart(drifting("orange")), FRAME_S);
+    emitter.emit(kart(drifting("red")), FRAME_S);
     const colours = new Set(particlesOf(particles).map((spark) => spark.colour));
-    expect([...colours]).toEqual([sparkTell(drifting("orange"))?.colour]);
+    expect([...colours]).toEqual([sparkTell(drifting("red"))?.colour]);
   });
 
   it("spreads its sparks over the frames at a steady rate", () => {

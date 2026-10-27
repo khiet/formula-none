@@ -498,7 +498,7 @@ mod tests {
     use super::*;
     use crate::tuning::{
         ITEM_BOOST_FACTOR, ITEM_BOOST_S, MINI_TURBO_BLUE_BOOST_S, MINI_TURBO_BLUE_CHARGE_S,
-        MINI_TURBO_ORANGE_BOOST_S, MINI_TURBO_ORANGE_CHARGE_S, TICK_S,
+        MINI_TURBO_RED_BOOST_S, MINI_TURBO_RED_CHARGE_S, TICK_S,
     };
     use crate::MiniTurbo;
 
@@ -634,17 +634,17 @@ mod tests {
     }
 
     #[test]
-    fn the_orange_mini_turbo_charges_on_the_tick_the_sum_crosses_and_pays_its_boost() {
-        let orange = tick_charge_reaches(MINI_TURBO_ORANGE_CHARGE_S);
+    fn the_red_mini_turbo_charges_on_the_tick_the_sum_crosses_and_pays_its_boost() {
+        let red = tick_charge_reaches(MINI_TURBO_RED_CHARGE_S);
         let mut handling = drifting_right();
 
-        ticks(&mut handling, hop_right(), orange - 1);
+        ticks(&mut handling, hop_right(), red - 1);
         assert_eq!(MiniTurbo::of(handling.drift), MiniTurbo::Blue);
         tick(&mut handling, hop_right());
-        assert_eq!(MiniTurbo::of(handling.drift), MiniTurbo::Orange);
+        assert_eq!(MiniTurbo::of(handling.drift), MiniTurbo::Red);
 
         tick(&mut handling, FULL_THROTTLE);
-        assert_eq!(handling.boost_s(), Some(MINI_TURBO_ORANGE_BOOST_S - TICK_S));
+        assert_eq!(handling.boost_s(), Some(MINI_TURBO_RED_BOOST_S - TICK_S));
         assert_eq!(handling.speed, TOP_SPEED_M_PER_S * MINI_TURBO_BOOST_FACTOR);
     }
 

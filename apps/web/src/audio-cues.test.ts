@@ -51,7 +51,7 @@ describe("soundCues", () => {
   it("plays the mini-turbo when a charged drift ends into its boost, and nothing for an uncharged one", () => {
     const boosting = { ...STILL, boostSeconds: 0.6 };
     expect(soundCues({ ...STILL, miniTurbo: "blue" }, boosting)).toEqual(["miniTurbo"]);
-    expect(soundCues({ ...STILL, miniTurbo: "orange" }, boosting)).toEqual(["miniTurbo"]);
+    expect(soundCues({ ...STILL, miniTurbo: "red" }, boosting)).toEqual(["miniTurbo"]);
     expect(soundCues({ ...STILL, miniTurbo: "none" }, STILL)).toEqual([]);
     // A boost from a pad with no drift ending is not a release either.
     expect(soundCues(STILL, boosting)).toEqual(["boostPad"]);
@@ -68,7 +68,7 @@ describe("soundCues", () => {
     ]);
   });
 
-  it("plays the tier chime as the drift charges to blue and again to orange, the same chime both times", () => {
+  it("plays the tier chime as the drift charges to blue and again to red, the same chime both times", () => {
     const at = (miniTurbo: SoundReading["miniTurbo"]): SoundReading => ({
       ...STILL,
       miniTurbo,
@@ -78,10 +78,10 @@ describe("soundCues", () => {
     expect(soundCues(at("none"), at("none"))).toEqual([]);
     expect(soundCues(at("none"), at("blue"))).toEqual(["tierChime"]);
     expect(soundCues(at("blue"), at("blue"))).toEqual([]);
-    expect(soundCues(at("blue"), at("orange"))).toEqual(["tierChime"]);
-    expect(soundCues(at("orange"), at("orange"))).toEqual([]);
+    expect(soundCues(at("blue"), at("red"))).toEqual(["tierChime"]);
+    expect(soundCues(at("red"), at("red"))).toEqual([]);
     // The drift ending, charged or not, is no chime.
-    expect(soundCues(at("orange"), STILL)).toEqual([]);
+    expect(soundCues(at("red"), STILL)).toEqual([]);
     expect(soundCues(at("blue"), { ...STILL, boostSeconds: 0.6 })).toEqual(["miniTurbo"]);
   });
 
@@ -93,7 +93,7 @@ describe("soundCues", () => {
     expect(soundCues(boosting, { ...STILL, boostSeconds: 0.5 })).toEqual([]);
     expect(soundCues({ ...STILL, boostSeconds: 0.2 }, boosting)).toEqual(["boostPad"]);
     // A charged drift's release is the mini-turbo, not a pad.
-    expect(soundCues({ ...STILL, miniTurbo: "orange", drifting: true }, boosting)).toEqual([
+    expect(soundCues({ ...STILL, miniTurbo: "red", drifting: true }, boosting)).toEqual([
       "miniTurbo",
     ]);
     // An uncharged drift ending onto a pad is a pad.
@@ -117,9 +117,7 @@ describe("soundCues", () => {
 
   it("plays no mini-turbo for a charged drift that ends without its boost", () => {
     // Spun out mid-charge: the hit, and only the hit.
-    expect(soundCues({ ...STILL, miniTurbo: "orange" }, { ...STILL, spunOut: true })).toEqual([
-      "hit",
-    ]);
+    expect(soundCues({ ...STILL, miniTurbo: "red" }, { ...STILL, spunOut: true })).toEqual(["hit"]);
     // Slowed below drift speed, or respawned: the drift just ends.
     expect(soundCues({ ...STILL, miniTurbo: "blue" }, STILL)).toEqual([]);
   });
@@ -189,7 +187,7 @@ describe("soundLoops", () => {
     expect(soundLoops({ ...STILL, drifting: true, miniTurbo: "none" })).toEqual(
       new Set(["driftSkid"]),
     );
-    expect(soundLoops({ ...STILL, drifting: true, miniTurbo: "orange" })).toEqual(
+    expect(soundLoops({ ...STILL, drifting: true, miniTurbo: "red" })).toEqual(
       new Set(["driftSkid"]),
     );
   });

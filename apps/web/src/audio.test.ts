@@ -552,7 +552,7 @@ describe("the SFX", () => {
     await audio.unlock();
     const race = audio.race();
     race.start();
-    race.update({ ...STILL, miniTurbo: "orange", item: "hazard" });
+    race.update({ ...STILL, miniTurbo: "red", item: "hazard" });
     race.update({ ...STILL, boostSeconds: 0.6 });
     expect(played("miniTurbo")).toBe(1);
     expect(played("itemFire")).toBe(1);

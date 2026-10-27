@@ -59,7 +59,7 @@ hold, begun at the 1 or later, starts clean. Bots roll the full boost or a
 clean start once per race from the seed and never stall; a kart handed to
 a bot during the countdown starts clean. The countdown is beeped so the
 start can be timed by ear; sparks show every charging kart's tier, blue for
-the weak boost and orange for the full one, with no warning once the hold
+the weak boost and red for the full one, with no warning once the hold
 has tipped into a stall. The snapshots carry each kart's start and stall
 time left, and a client's prediction adopts the server's verdict.
 
@@ -157,7 +157,7 @@ charges a mini-turbo.
 ### mini-turbo
 
 The boost released at the end of a long enough drift: blue at 0.3 s of drift
-(0.6 s boost), orange at 0.6 s (1.0 s boost), both at +30 percent top speed.
+(0.6 s boost), red at 0.6 s (1.0 s boost), both at +30 percent top speed.
 Shown by sparks at the wheels while charging.
 
 ### item box
