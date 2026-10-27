@@ -291,7 +291,7 @@ fn a_bot_in_a_race_with_no_humans_has_no_rubber_band() {
 
 /// A scripted perfect driver for the oval: the rocket start timed as a bot
 /// times it, then full throttle the whole way, steering at a line a little
-/// right of the centreline a lookahead ahead (clear of the pipes on the
+/// right of the centreline a lookahead ahead (clear of the tyre walls on the
 /// inside of the turns), and hopping into a drift held through each turn
 /// so the exit releases a mini-turbo.
 fn perfect_driver(state: &State, kart: usize) -> KartInput {

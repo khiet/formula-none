@@ -212,15 +212,18 @@ flight; a client draws them between snapshots as it draws the other karts.
 
 ### spin-out
 
-A kart stopped and spun by an item for a fixed time (1 s): dead to its
-controls and moved by nothing until the time runs out. Every spin-out is a
-server event, and the snapshots carry the time left; clients only show it.
+A kart stopped and spun by an item or the runaway wheel for a fixed time
+(1 s): dead to its controls and moved by nothing until the time runs out.
+Every spin-out is a server event, and the snapshots carry the time left;
+clients only show it.
 
 ### bump
 
-The velocity a kart carries away from a kart it touched, decaying over a
-fixed time (0.3 s to a third) and then gone. A wall gives none: it holds
-the kart at the corner that met it, with no bounce. The handling adds it to
+The velocity a kart carries away from a kart or tyre wall it touched,
+decaying over a fixed time (0.3 s to a third) and then gone. A tyre wall
+gives one as a kart standing still would, with the whole of the bounce
+to the kart. A wall gives none: it holds the kart at the corner that met
+it, with no bounce. The handling adds it to
 the kart's own velocity every tick, so a touch throws the pair apart instead
 of letting one push the other along; the kart that drove in loses speed and
 the kart hit keeps its own. A new bump replaces one under way, never adds
@@ -274,9 +277,10 @@ collision meshes. The sim reads the sidecar and never the glTF.
 
 ### surface
 
-What is under a point on the track: asphalt, sand, grass, wall, or out of
-world when nothing is below it. Collision meshes in the sidecar are tagged
-with the first four; the sim answers with the topmost one under a point.
+What is under a point on the track: asphalt, sand, grass, wall, tyres, or
+out of world when nothing is below it. Collision meshes in the sidecar are
+tagged with the first five; the sim answers with the topmost one under a
+point.
 
 ### wall
 
@@ -284,6 +288,26 @@ The barrier along each edge of the run-off, the whole way round every
 track: the track limit. A kart can leave the asphalt for the sand but never
 the course, so no corner can be cut and no checkpoint skipped. A wall holds
 a kart at the corner that met it, with no bounce (ADR 0022).
+
+### tyre wall
+
+A stack of tyres standing on the asphalt, tagged `tyres`. A kart that
+hits one takes a bump straight out from it and loses speed by how square
+it hit, so a glancing touch keeps nearly all its speed and a square hit
+sends it back the way it came, slower. It never holds a kart and never
+spins one out (ADR 0041).
+
+### sausage kerb
+
+A raised kerb on the inside of a corner's apex. A kart on the ground that
+drives onto it is launched into a hop that lands straight, losing a share
+of its speed and any drift under way with its charge (ADR 0041).
+
+### runaway wheel
+
+A loose wheel that rolls across the track from wall to wall on a fixed
+cycle of the race clock, with a marshal's yellow flag up before each pass.
+A kart it reaches spins out, by no one (ADR 0041).
 
 ## Client
 

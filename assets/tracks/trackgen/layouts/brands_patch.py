@@ -3,8 +3,8 @@
 A counter-clockwise loop of about 800 m: the start/finish straight up the
 east side, hairpin one at the top, a run back down into a right-hander, the
 hill on the westbound straight, the chicane, hairpin two at the west end, the
-jump ramp on the long eastbound straight and a sweeping final corner. Pipes
-stand on the inside of both hairpins. The start line is at s = 0 on the
+jump ramp on the long eastbound straight and a sweeping final corner. Tyre
+walls stand on the inside of both hairpins. The start line is at s = 0 on the
 east straight, which runs along +Y (glTF -Z). The scenery: grandstands and
 sponsor hoardings along the outside of the start straight and the return,
 hoardings round the final corner, and the gantry over the line.
@@ -17,7 +17,7 @@ from ..layout import (
     Hoardings,
     ItemRow,
     Layout,
-    Pipe,
+    TyreWall,
 )
 from ..path import Hill, Ramp, Turtle
 
@@ -56,11 +56,11 @@ LAYOUT = Layout(
     asphalt_half_width=6.0,
     runoff_width=6.0,
     checkpoint_count=12,
-    pipes=[
-        Pipe(path.segment("hairpin-1").s_mid - 8.0, offset=4.5),
-        Pipe(path.segment("hairpin-1").s_mid + 8.0, offset=4.5),
-        Pipe(path.segment("hairpin-2").s_mid - 8.0, offset=4.5),
-        Pipe(path.segment("hairpin-2").s_mid + 8.0, offset=4.5),
+    tyre_walls=[
+        TyreWall(path.segment("hairpin-1").s_mid - 8.0, offset=4.5),
+        TyreWall(path.segment("hairpin-1").s_mid + 8.0, offset=4.5),
+        TyreWall(path.segment("hairpin-2").s_mid - 8.0, offset=4.5),
+        TyreWall(path.segment("hairpin-2").s_mid + 8.0, offset=4.5),
     ],
     item_rows=[
         ItemRow(hill.s_start + 15.0),

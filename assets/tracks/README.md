@@ -40,7 +40,8 @@ pnpm test:tracks
 The Blender source of a track is a Python layout, `trackgen/layouts/<name>.py`,
 so it diffs and reviews like code. A layout lays the centreline turtle-style
 from straights and arcs, then hangs everything else on it by arc length:
-asphalt and run-off widths, pipes, elevation (hills and the jump ramp),
+asphalt and run-off widths, tyre walls (`TyreWall(s, offset)`, metres
+left of the centreline), elevation (hills and the jump ramp),
 checkpoint count, item box rows and boost pads, and its decor:
 which segments get sponsor hoardings and grandstands, and whether the
 start line gets its gantry. The spawn grid is always eight slots behind
@@ -63,7 +64,8 @@ blender my-track.blend --background --python assets/tracks/export.py -- my-track
 ## Scene conventions
 
 - Collection `Track`: mesh objects with a `surface` custom property, one of
-  `asphalt`, `sand`, `grass` or `wall`. Pipes are walls. These go into the
+  `asphalt`, `sand`, `grass`, `wall` or `tyres`. A wall holds a kart; a
+  `tyres` mesh, a tyre wall's prism, bounces it off. These go into the
   glTF and, triangulated, into the sidecar as collision meshes. Wind faces
   so their normals point out of the surface; the physics relies on it.
   The asphalt carries a UV map, across the ribbon from its left edge and

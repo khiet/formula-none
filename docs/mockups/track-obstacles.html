@@ -1,0 +1,514 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Track Obstacles Spec</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Bungee&family=Inter:wght@400;600&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #121316;
+    --card: #1b1d21;
+    --fg: #e8e8ea;
+    --muted: #8a8d94;
+    --rule: #2a2c31;
+    --code-bg: #24272c;
+    /* palette.ts */
+    --poster-red: #c81d25;
+    --go-green: #3ddc84;
+    --gold: #ffd23f;
+    --asphalt: #6b6b78;
+    --orange: #f08a24;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--fg); font: 15px/1.55 Inter, system-ui, sans-serif; }
+  body { padding: 2rem 16px 4rem; }
+  .wrap { max-width: 1040px; margin: 0 auto; }
+  h1 { font: 1.9rem/1.1 Bungee, Impact, sans-serif; margin: 0 0 .5rem; letter-spacing: .02em; }
+  h1 span { color: var(--poster-red); }
+  h2 { font: 1.2rem/1.2 Bungee, Impact, sans-serif; margin: 2.5rem 0 .75rem; }
+  h3 { font: 600 1rem/1.3 Inter, sans-serif; margin: 1.25rem 0 .4rem; color: var(--fg); }
+  p { margin: .4rem 0; }
+  .lede { color: var(--muted); max-width: 75ch; }
+  nav { display: flex; flex-wrap: wrap; gap: .4rem; margin: 1.25rem 0 0; }
+  nav a { color: var(--fg); text-decoration: none; font-size: .85rem; border: 1px solid var(--rule); border-radius: 999px; padding: .25rem .7rem; }
+  nav a:hover { border-color: var(--muted); }
+  .card { background: var(--card); border: 1px solid var(--rule); border-radius: 10px; padding: 1rem 1.15rem; }
+  .grid2 { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr)); align-items: start; }
+  canvas { display: block; width: 100%; height: auto; border-radius: 8px; background: #3f7a3a; }
+  svg { display: block; width: 100%; height: auto; }
+  .obstacle { border-top: 3px solid var(--poster-red); }
+  .obstacle.moving { border-top-color: var(--gold); }
+  .head { display: flex; align-items: baseline; gap: .6rem; flex-wrap: wrap; }
+  .head h2 { margin: 0; }
+  .tag { font: 600 .7rem/1 Inter, sans-serif; text-transform: uppercase; letter-spacing: .08em; padding: .3rem .5rem; border-radius: 4px; border: 1px solid var(--rule); color: var(--muted); }
+  .tag.moving { color: #111; background: var(--gold); border-color: var(--gold); }
+  .table-wrap { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; font-size: .9rem; }
+  th, td { text-align: left; padding: .45rem .65rem; border-bottom: 1px solid var(--rule); vertical-align: top; }
+  th { color: var(--muted); font-weight: 600; white-space: nowrap; }
+  td.num { white-space: nowrap; font-variant-numeric: tabular-nums; }
+  code { font: .85em ui-monospace, SFMono-Regular, Menlo, monospace; background: var(--code-bg); padding: .05rem .3rem; border-radius: 3px; }
+  ul, ol { padding-left: 1.2rem; margin: .4rem 0; }
+  li { margin: .25rem 0; }
+  .muted { color: var(--muted); }
+  .legend { display: flex; flex-wrap: wrap; gap: .9rem; font-size: .85rem; color: var(--muted); margin-top: .5rem; }
+  .legend i { display: inline-block; width: .8rem; height: .8rem; border-radius: 50%; margin-right: .35rem; vertical-align: -.1rem; }
+  .decision { color: var(--go-green); font-weight: 600; }
+  .slice { counter-increment: slice; }
+  .slices { counter-reset: slice; display: grid; gap: .75rem; }
+  .slice h3 { margin-top: 0; }
+  .slice h3::before { content: counter(slice) ". "; color: var(--poster-red); }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1>Track <span>obstacles</span> spec</h1>
+  <p class="lede">The pipes go. In their place: tyre walls, a sausage kerb and a runaway wheel, the last of which moves. All three run in the shared sim, so the server, the client's prediction and the replay fixtures agree, and none of them adds a byte to a snapshot.</p>
+  <nav>
+    <a href="#decisions">Decisions</a>
+    <a href="#map">Placement</a>
+    <a href="#tyre-wall">Tyre wall</a>
+    <a href="#sausage-kerb">Sausage kerb</a>
+    <a href="#runaway-wheel">Runaway wheel</a>
+    <a href="#shared">Shared changes</a>
+    <a href="#slices">Issues</a>
+    <a href="#out">Out of scope</a>
+  </nav>
+</header>
+
+<h2 id="decisions">Decisions</h2>
+<div class="table-wrap card">
+  <table>
+    <thead><tr><th>Question</th><th>Decision</th><th>Why</th></tr></thead>
+    <tbody>
+      <tr><td>How a tyre wall answers a hit</td><td class="decision">Bump like a kart</td><td>Reuses the bump rule (<code>Handling::bumped</code>) with its own two constants; no new physics, and players already know the feel.</td></tr>
+      <tr><td>A drift across the sausage kerb</td><td class="decision">Drift ends, charge lost</td><td>The launch clears the drift without releasing it, so cutting the apex mid-drift is the real risk.</td></tr>
+      <tr><td>Where the wheel crosses</td><td class="decision">Approach to hairpin 2</td><td>The braking zone into the west hairpin: karts are slowing, so the flag gives time to react.</td></tr>
+      <tr><td>The oval, the test fixture</td><td class="decision">Tyre walls only</td><td>Its two pipes become tyre walls on the same spots; the kerb and wheel tests read the Brands Patch sidecar.</td></tr>
+      <tr><td>Who the wheel's spin-out is by</td><td class="decision">No one</td><td><code>RaceEvent::SpunOut</code>'s <code>by</code> becomes <code>Option&lt;usize&gt;</code>; the wheel's is <code>None</code>. The client cues the hit from the readout, so it needs no change.</td></tr>
+      <tr><td>Does a hop clear the wheel</td><td class="decision">No</td><td>The wheel uses the hazards' reach test, seen from above, so it plays like a hazard and needs no height check.</td></tr>
+      <tr><td>The wheel outside the race</td><td class="decision">Parked</td><td>It rolls only in the Racing phase; it is off the course through the countdown and the outro, which has no items either.</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<h2 id="map">Placement on Brands Patch</h2>
+<div class="grid2">
+  <div class="card">
+    <svg viewBox="-190 -102 290 204" role="img" aria-label="Brands Patch with the four tyre walls on the hairpins, the sausage kerb at the chicane and the wheel's crossing on the approach to hairpin 2">
+      <polyline id="track-edge" fill="none" stroke="#2c3036" stroke-width="26" stroke-linejoin="round" />
+      <polyline id="track" fill="none" stroke="#6b6b78" stroke-width="12" stroke-linejoin="round" />
+      <polyline id="centre" fill="none" stroke="rgba(255,255,255,.35)" stroke-width=".8" stroke-dasharray="3 3" />
+      <line x1="72" y1="0" x2="88" y2="0" stroke="#fff" stroke-width="2" />
+      <text x="92" y="3" fill="#8a8d94" font-size="7" font-family="Inter">start</text>
+      <g fill="#c81d25" stroke="#111" stroke-width=".8">
+        <circle cx="68.1" cy="-82.05" r="3" /><circle cx="55.9" cy="-82.05" r="3" />
+        <circle cx="-162.05" cy="63.9" r="3" /><circle cx="-162.05" cy="76.1" r="3" />
+      </g>
+      <line x1="-110.36" y1="54.93" x2="-105.24" y2="54.93" stroke="#ffd23f" stroke-width="3" stroke-linecap="round" />
+      <line x1="-138.8" y1="64" x2="-138.8" y2="40" stroke="#f08a24" stroke-width="1.6" stroke-dasharray="2 1.5" />
+      <circle cx="-138.8" cy="36" r="2.5" fill="#ffd23f" stroke="#111" stroke-width=".6" />
+      <g font-family="Inter" font-size="7" fill="#e8e8ea">
+        <text x="40" y="-92">hairpin 1</text>
+        <text x="-185" y="98">hairpin 2</text>
+        <text x="-118" y="72">chicane</text>
+        <text x="-150" y="30">approach</text>
+      </g>
+    </svg>
+    <div class="legend">
+      <span><i style="background:#c81d25"></i>Tyre wall (was a pipe)</span>
+      <span><i style="background:#ffd23f;border-radius:2px"></i>Sausage kerb</span>
+      <span><i style="background:#f08a24;border-radius:2px"></i>Wheel's crossing</span>
+      <span><i style="background:#ffd23f"></i>Marshal post</span>
+    </div>
+  </div>
+  <div class="card">
+    <h3 style="margin-top:0">Where each one stands</h3>
+    <ul>
+      <li><strong>Tyre walls:</strong> where the four pipes are now, 8 m either side of each hairpin's middle, 4.5 m left of the centreline (the inside). On the oval, the same two spots as its pipes, so the sim test that drives slot 0 head on into turn 1 still meets one.</li>
+      <li><strong>Sausage kerb:</strong> the apex of <code>chicane-mid</code>, the chicane's right-hander, centred at its middle (s = 393.1 m) and 4.9 m right of the centreline, on the inside, just in from the painted kerb. 8 m long, 1 m across.</li>
+      <li><strong>Runaway wheel:</strong> crosses the middle of <code>approach</code> (s = 426.3 m), square to the track, from wall to wall: 24 m. The marshal post stands on the outside run-off beside it.</li>
+    </ul>
+    <p class="muted">Lap 797.4 m. Bots drive 2.5 m right of centre, so their line passes 1.3 m clear of the kerb's inner edge, kart width included.</p>
+  </div>
+</div>
+
+<!-- Tyre wall -->
+<section id="tyre-wall" class="card obstacle" style="margin-top:2.5rem">
+  <div class="head"><h2>Tyre wall</h2><span class="tag">Static</span><span class="tag">Replaces the pipe</span></div>
+  <div class="grid2" style="margin-top:.9rem">
+    <div>
+      <canvas id="tyres" width="560" height="260"></canvas>
+    </div>
+    <div>
+      <h3 style="margin-top:0">The rule</h3>
+      <p>A stack of tyres with the pipe's footprint. A kart that hits it bounces away the way it would bounce off a kart standing still: a bump straight out from the stack, the least bump plus the tuned share of the closing speed, and a loss of the tuned share of that speed, scaled by how square it hit. A glancing touch keeps nearly all the kart's speed; a square hit sends it back the way it came, slower. It never spins a kart out.</p>
+      <p>A wall still holds a kart with no bounce; only a tyre wall bounces. A kart held against both gets both: the wall's hold, then the tyre wall's bump with the part into the wall taken off.</p>
+    </div>
+  </div>
+  <h3>Numbers (<code>tuning.rs</code>)</h3>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Constant</th><th>Value</th><th>Meaning</th></tr></thead>
+      <tbody>
+        <tr><td><code>TYRE_WALL_RESTITUTION</code></td><td class="num">0.4</td><td>Share of the closing speed the bump carries away, on top of <code>KART_BUMP_MIN_M_PER_S</code> (2.0). A kart has to share a touch with another; a tyre wall gives the kart its whole share.</td></tr>
+        <tr><td><code>TYRE_WALL_SPEED_LOSS</code></td><td class="num">0.7</td><td>Share of the closing speed lost on a square hit. At top speed (30 m/s) head on: 9 m/s left, a 14 m/s bump back.</td></tr>
+        <tr><td>Decay</td><td class="num">0.3 s</td><td>Unchanged: <code>KART_BUMP_DECAY_S</code>.</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="muted">Starting values, settled in a feel check on hairpin 1.</p>
+  <h3>Changes</h3>
+  <ul>
+    <li><strong>Surface:</strong> a fifth tag, <code>tyres</code>, in <code>trackgen/layout.py</code>, <code>Surface</code> and its code. It does not slow karts (nothing drives on it), and <code>surface_at</code> answers it like a wall from above.</li>
+    <li><strong>Layout:</strong> <code>Pipe</code> becomes <code>TyreWall(s, offset)</code>. The collision mesh is a 16-sided prism, radius 1.5 m, 1.2 m tall, tagged <code>tyres</code>; the tyres themselves are scenery stacked over it: two rings of five tyres, 0.6 m across, each ring with a red and white belt.</li>
+    <li><strong>Sim:</strong> after the solver, beside <code>bump_off_karts</code>, a kart in contact with a <code>tyres</code> collider is bumped along the contact normal by <code>Handling::bumped</code>, judged by the velocity it was sent off with, as kart contact is. <code>bumped</code> takes the restitution and loss as arguments; kart contact passes the kart constants. <code>held_by_walls</code> already skips anything not tagged <code>wall</code>.</li>
+    <li><strong>Prediction:</strong> nothing new; the tyre walls are in the static track it steps on, so a bounce is predicted.</li>
+    <li><strong>Bots:</strong> nothing; the walls stand where the pipes did, left of the bots' line.</li>
+  </ul>
+  <h3>Tests</h3>
+  <ul>
+    <li>Replaces <code>a_kart_driving_into_a_pipe_stops_at_it</code>: a kart driven from oval slot 0 head on into the turn 1 tyre wall never passes through it, and within a second of the touch is moving away from it.</li>
+    <li>A kart that meets it square leaves slower than one that meets it at a slant, and both keep moving.</li>
+    <li>A tyre wall touch never spins a kart out and raises no event.</li>
+    <li><code>walls_and_pipes_read_as_wall_from_above</code> becomes: the walls read as wall and the tyre walls as tyres from above.</li>
+    <li>Layout check (<code>pnpm test:tracks</code>): every tyre wall stands on the asphalt, clear of the bots' line.</li>
+  </ul>
+</section>
+
+<!-- Sausage kerb -->
+<section id="sausage-kerb" class="card obstacle" style="margin-top:1.5rem">
+  <div class="head"><h2>Sausage kerb</h2><span class="tag">Static</span></div>
+  <div class="grid2" style="margin-top:.9rem">
+    <div>
+      <canvas id="kerb" width="560" height="260"></canvas>
+    </div>
+    <div>
+      <h3 style="margin-top:0">The rule</h3>
+      <p>A raised yellow kerb on the inside of the chicane's apex. A kart on the ground whose centre crosses onto it is launched: a forced hop of the hop's airtime, which lands straight. The launch costs the tuned share of the kart's speed, and a drift under way ends there with its charge gone: no mini-turbo on landing, no sparks in the air.</p>
+      <p>The kerb fires once, as the kart reaches it, like a boost pad. A kart already in the air passes over it untouched, and a kart sitting on it is not launched again until it has left it.</p>
+    </div>
+  </div>
+  <h3>Numbers (<code>tuning.rs</code>)</h3>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Constant</th><th>Value</th><th>Meaning</th></tr></thead>
+      <tbody>
+        <tr><td><code>KERB_HALF_LENGTH_M</code></td><td class="num">4.0</td><td>Along the track; the layout's scenery mirrors it, held by the track tests as boost pads are.</td></tr>
+        <tr><td><code>KERB_HALF_WIDTH_M</code></td><td class="num">0.5</td><td>Across the track.</td></tr>
+        <tr><td><code>KERB_SPEED_KEEP</code></td><td class="num">0.85</td><td>Share of the kart's speed left after the launch.</td></tr>
+        <tr><td>Airtime</td><td class="num">0.3 s</td><td><code>HOP_AIRTIME_S</code>, launched at the hop's speed.</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <h3>Changes</h3>
+  <ul>
+    <li><strong>Sidecar:</strong> a <code>kerbs</code> list of placements beside <code>boostPads</code>: centre, heading, from a <code>Kerbs</code> collection of empties. <code>Track::on_a_kerb(point)</code> mirrors <code>on_a_boost_pad</code>.</li>
+    <li><strong>Layout:</strong> <code>Kerb(s, offset)</code> on <code>Layout.kerbs</code>; the scenery is a yellow capsule with black stripes, 0.15 m proud, floating on the asphalt as scenery does, so the sim's surface is unchanged.</li>
+    <li><strong>Sim:</strong> <code>Situation</code> gains <code>kerb: bool</code>. In <code>Handling::tick</code>, a grounded kart entering a kerb sets the hop's airtime and launch speed, clears <code>drift</code> and <code>hop_direction</code>, and scales its speed by the keep. <code>on_kerb</code> sits in the hash next to <code>on_boost_pad</code>.</li>
+    <li><strong>Prediction and client:</strong> nothing new; the launch is the handling's, so the prediction and the drawn hop already follow it.</li>
+    <li><strong>Bots:</strong> their line clears it by 1.3 m. A bot test holds them to it; if pursuit steering cuts the apex, the bot's line point steers away from a kerb inside the lookahead.</li>
+  </ul>
+  <h3>Tests</h3>
+  <ul>
+    <li>A kart driven onto the kerb leaves the ground for the hop's airtime and lands with the kept share of its speed.</li>
+    <li>A kart drifting across the kerb lands with no drift and gets no mini-turbo, however long it had charged.</li>
+    <li>A kart that hopped before the kerb and is in the air over it is not launched and keeps its drift.</li>
+    <li>A kart driving beside the kerb is untouched.</li>
+    <li>Eight bots racing three laps of Brands Patch are never launched by the kerb.</li>
+  </ul>
+</section>
+
+<!-- Runaway wheel -->
+<section id="runaway-wheel" class="card obstacle moving" style="margin-top:1.5rem">
+  <div class="head"><h2>Runaway wheel</h2><span class="tag moving">Moving</span></div>
+  <div class="grid2" style="margin-top:.9rem">
+    <div>
+      <canvas id="wheel" width="560" height="260"></canvas>
+    </div>
+    <div>
+      <h3 style="margin-top:0">The rule</h3>
+      <p>A loose wheel rolls across the approach to hairpin 2, from wall to wall, on a fixed cycle that starts at Go. Each pass goes the other way from the last. A kart it reaches spins out, the same as a hazard hit, and the wheel rolls on: it is never used up, but it hits a kart once a pass. A kart already spun out is not hit again.</p>
+      <p>A marshal on the outside waves a yellow flag from a second before each pass until it ends. The wheel and the flag are both a pure function of the race clock, so every screen sees the same pass at the same moment.</p>
+    </div>
+  </div>
+  <h3>The cycle</h3>
+  <svg viewBox="0 0 700 74" role="img" aria-label="A seven-second cycle: quiet, then the flag for one second, then the wheel crosses for 1.6 seconds with the flag still up">
+    <rect x="20" y="20" width="660" height="22" rx="4" fill="#24272c" />
+    <rect x="20" y="20" width="415" height="22" rx="4" fill="#24272c" />
+    <rect x="435" y="20" width="94" height="22" fill="#ffd23f" />
+    <rect x="529" y="20" width="151" height="22" fill="#f08a24" />
+    <g font-family="Inter" font-size="12" fill="#e8e8ea">
+      <text x="30" y="36">quiet</text>
+      <text x="442" y="36" fill="#111">flag</text>
+      <text x="536" y="36" fill="#111">wheel crosses, flag up</text>
+    </g>
+    <g font-family="Inter" font-size="11" fill="#8a8d94">
+      <text x="20" y="62">0 s</text>
+      <text x="420" y="62">4.4 s</text>
+      <text x="514" y="62">5.4 s</text>
+      <text x="655" y="62">7.0 s</text>
+    </g>
+  </svg>
+  <p class="muted">The first pass starts <code>WHEEL_FIRST_PASS_S</code> after Go, so the leader's first lap meets a quiet approach.</p>
+  <h3>Numbers (<code>tuning.rs</code>)</h3>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Constant</th><th>Value</th><th>Meaning</th></tr></thead>
+      <tbody>
+        <tr><td><code>WHEEL_PERIOD_S</code></td><td class="num">7.0</td><td>From one pass's start to the next.</td></tr>
+        <tr><td><code>WHEEL_PASS_S</code></td><td class="num">1.6</td><td>Wall to wall: 24 m at 15 m/s.</td></tr>
+        <tr><td><code>WHEEL_WARNING_S</code></td><td class="num">1.0</td><td>The flag is up this long before each pass, and through it.</td></tr>
+        <tr><td><code>WHEEL_FIRST_PASS_S</code></td><td class="num">20.0</td><td>Race clock at the first pass's start.</td></tr>
+        <tr><td><code>WHEEL_RADIUS_M</code></td><td class="num">0.45</td><td>Reach, from above, against the kart's collision box, as <code>HAZARD_RADIUS_M</code> is.</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <h3>Changes</h3>
+  <ul>
+    <li><strong>Sidecar:</strong> a <code>wheelCrossings</code> list of placements from a <code>WheelCrossings</code> collection: the crossing's centre, its heading along the track and its <code>half_width</code>, wall to wall. The timing stays in <code>tuning.rs</code> (ADR 0014).</li>
+    <li><strong>Layout:</strong> <code>WheelCrossing(s)</code> on <code>Layout.wheel_crossings</code>, and its marshal post as scenery on the outside run-off: a white box with an orange lamp.</li>
+    <li><strong>Sim:</strong> <code>pub fn wheel(track, crossing, elapsed_s) -&gt; Wheel</code>, where <code>Wheel</code> is <code>Quiet</code>, <code>Warning</code> or <code>Rolling { position }</code>. In <code>step</code>, while Racing and after the hazards, each rolling wheel spins out every kart it reaches that is not spun out and has not been hit this pass. A per-kart "last pass hit" number sits in the state and the hash.</li>
+    <li><strong>Events:</strong> <code>RaceEvent::SpunOut { kart, by: Option&lt;usize&gt; }</code>, with <code>None</code> for the wheel. The protocol's <code>Hit</code> carries <code>by: Option&lt;u8&gt;</code>; regenerate the TypeScript types and fixtures.</li>
+    <li><strong>Prediction:</strong> its race keeps the race clock, so it runs the wheel too: a hit is predicted at once instead of waiting a snapshot, unlike a hazard's. The snapshot's spin-out timer stays the word on it.</li>
+    <li><strong>Bridge and View:</strong> the bridge exposes <code>wheel</code>. The Race View draws the wheel (a tyre and hub from the kart's wheel, bouncing three times a pass, the bounce drawn only) and the waving flag from the prediction's race clock, so the wheel a player sees is the one that hits their kart.</li>
+    <li><strong>Bots:</strong> a bot within one pass's travel of a crossing lifts off the throttle while <code>wheel</code> says the wheel will cross its line before it gets there, and drives on once it has passed.</li>
+  </ul>
+  <h3>Tests</h3>
+  <ul>
+    <li>A kart parked on the crossing, on the wheel's path, spins out as the first pass reaches it, and the event names no kart.</li>
+    <li>The same kart parked beside the crossing is never hit through three passes.</li>
+    <li>A kart standing on the path is hit once a pass, not every tick of it.</li>
+    <li>Through the countdown and the outro the wheel is quiet and hits nothing.</li>
+    <li><code>wheel</code> is Warning from <code>WHEEL_WARNING_S</code> before each pass and Rolling through it, and alternates direction.</li>
+    <li>A prediction run beside the server's race reports the wheel's spin-out on the same tick.</li>
+    <li>Eight bots racing three laps of Brands Patch are never hit by the wheel.</li>
+    <li>Protocol: a <code>Hit</code> with no <code>by</code> round-trips.</li>
+  </ul>
+</section>
+
+<h2 id="shared">Shared changes</h2>
+<div class="grid2">
+  <div class="card">
+    <h3 style="margin-top:0">Determinism and replays</h3>
+    <ul>
+      <li>Nothing here reads a clock outside the sim: the wheel reads the race clock, which the state already hashes.</li>
+      <li>Every fixture under <code>assets/replays</code> is re-recorded: the tyre walls change collisions on both tracks, and the new fields change the hash.</li>
+      <li>A new fixture, <code>brands-patch-chicane.replay.json</code>, drives across the kerb and through a wheel pass, so the replay job checks both rules natively and in wasm.</li>
+    </ul>
+    <h3>Network</h3>
+    <ul>
+      <li>No snapshot field is added: each kart's spin-out timer already carries a wheel hit, and the wheel is computed from the clock.</li>
+      <li>The one protocol change is <code>Hit</code>'s optional <code>by</code>.</li>
+    </ul>
+  </div>
+  <div class="card">
+    <h3 style="margin-top:0">Docs</h3>
+    <ul>
+      <li><strong>ADR 0041, Track obstacles:</strong> tyre walls replace pipes; the kerb and the wheel; the wheel's spin-out is by no one; obstacles that move are a function of the race clock, never in the snapshot.</li>
+      <li><strong>GLOSSARY:</strong> add <em>tyre wall</em>, <em>sausage kerb</em>, <em>runaway wheel</em>; <em>surface</em> gains <code>tyres</code>; <em>spin-out</em> says "by an item or the runaway wheel"; <em>bump</em> notes the tyre wall gives one.</li>
+      <li><strong>Asset catalog:</strong> cards for the tyre stack, the kerb, the wheel and the marshal post, in the 16-bit key, original (ADR 0007).</li>
+      <li><strong>Track README:</strong> the new tag, collections and layout fields.</li>
+    </ul>
+  </div>
+</div>
+
+<h2 id="slices">Issues</h2>
+<div class="slices">
+  <div class="card slice">
+    <h3>Tyre walls replace the pipes</h3>
+    <p>The <code>tyres</code> surface, <code>TyreWall</code> in place of <code>Pipe</code> on both tracks, the tyre bump, its tests, ADR 0041 and the glossary, the asset card, a re-export and re-recorded replays. The feel check on hairpin 1 sets the two constants.</p>
+  </div>
+  <div class="card slice">
+    <h3>The sausage kerb</h3>
+    <p>The <code>kerbs</code> sidecar list, the launch in the handling, the kerb on the Brands Patch chicane, its tests and the bot test, the asset card and re-recorded replays.</p>
+  </div>
+  <div class="card slice">
+    <h3>The runaway wheel</h3>
+    <p>The <code>wheelCrossings</code> sidecar list, <code>wheel</code>, the hit in <code>step</code> and the prediction, the optional <code>by</code> through the protocol, the View's wheel and flag, the bots' lift, the new replay fixture and the asset cards.</p>
+  </div>
+</div>
+
+<h2 id="out">Out of scope</h2>
+<div class="card">
+  <ul>
+    <li>Sounds for the tyre bounce, the kerb and the wheel's bounces; the existing hit cue plays for a wheel spin-out.</li>
+    <li>The wheel and the flag on the course map.</li>
+    <li>Marbles and the safety car, from the first round of ideas.</li>
+    <li>More kerbs or wheels on other corners: one of each until the feel check says otherwise.</li>
+  </ul>
+</div>
+
+</div>
+
+<script>
+  // The placement map's track, in the layout's metres with y flipped for SVG.
+  const CENTRE = "80.0,0 80.0,-4.0 80.0,-8.0 80.0,-12.0 80.0,-16.0 80.0,-20.0 80.0,-24.0 80.0,-28.0 80.0,-32.0 80.0,-36.0 80.0,-40.0 80.0,-44.0 80.0,-48.0 80.0,-52.0 80.0,-56.0 80.0,-60.0 80.0,-64.0 80.0,-68.0 79.9,-72.0 79.0,-75.8 77.3,-79.4 74.9,-82.6 71.8,-85.1 68.3,-86.9 64.5,-87.8 60.5,-87.9 56.6,-87.2 53.0,-85.6 49.8,-83.2 47.2,-80.3 45.3,-76.8 44.2,-73.0 44.0,-69.0 44.0,-65.0 44.0,-61.0 44.0,-57.0 44.0,-53.0 44.0,-49.0 44.0,-45.0 44.0,-41.0 44.0,-37.0 44.0,-33.0 44.0,-29.0 44.0,-25.0 44.0,-21.0 44.0,-17.0 44.0,-13.0 44.0,-9.0 44.0,-5.0 44.0,-1.0 44.0,3.0 44.0,7.0 44.0,11.0 44.0,15.0 44.0,19.0 44.0,23.0 44.0,27.0 44.0,31.0 43.2,35.9 41.8,39.5 39.8,42.9 37.2,45.9 34.1,48.4 30.6,50.2 26.9,51.4 23.0,52.0 19.0,52.0 15.0,52.0 11.0,52.0 7.0,52.0 3.0,52.0 -1.0,52.0 -5.0,52.0 -9.0,52.0 -13.0,52.0 -17.0,52.0 -21.0,52.0 -25.0,52.0 -29.0,52.0 -33.0,52.0 -37.0,52.0 -41.0,52.0 -45.0,52.0 -49.0,52.0 -53.0,52.0 -57.0,52.0 -61.0,52.0 -65.0,52.0 -69.0,52.0 -73.0,52.0 -77.0,52.0 -81.0,52.0 -85.0,52.0 -89.0,52.0 -92.9,52.9 -96.4,54.8 -99.4,57.4 -102.9,59.3 -106.8,60.2 -110.8,59.9 -114.5,58.5 -117.7,56.1 -120.9,53.7 -124.6,52.3 -128.6,52.0 -132.7,52.0 -136.8,52.0 -140.8,52.0 -144.9,52.0 -149.0,52.0 -153.0,52.2 -156.8,53.3 -160.3,55.2 -163.2,57.8 -165.6,61.0 -167.2,64.6 -167.9,68.5 -167.8,72.5 -166.9,76.3 -165.1,79.8 -162.6,82.9 -159.4,85.3 -155.8,87.0 -152.0,87.9 -148.0,88.0 -144.0,88.0 -140.0,88.0 -136.0,88.0 -132.0,88.0 -128.0,88.0 -124.0,88.0 -120.0,88.0 -116.0,88.0 -112.0,88.0 -108.0,88.0 -104.0,88.0 -100.0,88.0 -96.0,88.0 -92.0,88.0 -88.0,88.0 -84.0,88.0 -80.0,88.0 -76.0,88.0 -72.0,88.0 -68.0,88.0 -64.0,88.0 -60.0,88.0 -56.0,88.0 -52.0,88.0 -48.0,88.0 -44.0,88.0 -40.0,88.0 -36.0,88.0 -32.0,88.0 -28.0,88.0 -24.0,88.0 -20.0,88.0 -16.0,88.0 -12.0,88.0 -8.0,88.0 -4.0,88.0 0,88.0 4.0,88.0 8.0,88.0 12.0,88.0 16.0,88.0 20.0,88.0 24.0,88.0 28.0,88.0 32.0,88.0 36.0,88.0 40.0,88.0 44.0,88.0 48.0,87.9 52.0,87.5 55.9,86.5 59.7,85.1 63.3,83.3 66.6,81.0 69.7,78.4 72.4,75.4 74.8,72.1 76.7,68.6 78.2,64.9 79.3,61.0 79.9,57.0 80.0,53.0 80.0,49.0 80.0,45.0 80.0,41.0 80.0,37.0 80.0,33.0 80.0,29.0 80.0,25.0 80.0,21.0 80.0,17.0 80.0,13.0 80.0,9.0 80.0,5.0 80.0,1.0 80.0,0";
+  for (const id of ["track-edge", "track", "centre"]) document.getElementById(id).setAttribute("points", CENTRE);
+
+  const C = {
+    grass: "#3f7a3a", asphalt: "#6b6b78", red: "#c81d25", white: "#f2f2f2", gold: "#ffd23f", ink: "#111",
+    karts: ["#c81d25", "#2f6fd6", "#3ddc84", "#f08a24"],
+  };
+
+  // Horizontal lane with red-and-white kerbs; karts drive left to right.
+  function lane(ctx, w, h, top = 60, bottom = h - 60) {
+    ctx.fillStyle = C.grass; ctx.fillRect(0, 0, w, h);
+    ctx.fillStyle = C.asphalt; ctx.fillRect(0, top, w, bottom - top);
+    for (let x = 0; x < w; x += 20) {
+      ctx.fillStyle = (x / 20) % 2 ? C.white : C.red;
+      ctx.fillRect(x, top - 6, 20, 6); ctx.fillRect(x, bottom, 20, 6);
+    }
+    ctx.strokeStyle = "rgba(255,255,255,.35)"; ctx.setLineDash([14, 14]); ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(0, (top + bottom) / 2); ctx.lineTo(w, (top + bottom) / 2); ctx.stroke();
+    ctx.setLineDash([]);
+    return { top, bottom };
+  }
+
+  // A top-down kart, nose along +x before rotation; lift > 0 draws it airborne.
+  function kart(ctx, x, y, heading, colour, lift = 0, sparks = false) {
+    ctx.save();
+    ctx.fillStyle = "rgba(0,0,0,.35)";
+    ctx.beginPath(); ctx.ellipse(x + 3 + lift * 6, y + 4 + lift * 8, 15, 9, heading, 0, Math.PI * 2); ctx.fill();
+    ctx.translate(x, y); ctx.rotate(heading); ctx.scale(1 + lift * .35, 1 + lift * .35);
+    if (sparks) {
+      ctx.fillStyle = Math.floor(performance.now() / 60) % 2 ? "#ff7a00" : "#ffb347";
+      for (const wy of [-10, 10]) { ctx.beginPath(); ctx.arc(-15, wy, 3, 0, Math.PI * 2); ctx.fill(); }
+    }
+    ctx.fillStyle = C.ink;
+    for (const [wx, wy] of [[-9, -9], [-9, 9], [8, -8], [8, 8]]) ctx.fillRect(wx - 4, wy - 3, 8, 6);
+    ctx.fillStyle = colour;
+    ctx.beginPath(); ctx.roundRect(-12, -6, 26, 12, 4); ctx.fill();
+    ctx.fillRect(12, -9, 4, 18);
+    ctx.fillStyle = C.ink; ctx.beginPath(); ctx.arc(-1, 0, 3.5, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+  }
+
+  function tyre(ctx, x, y, r) {
+    ctx.fillStyle = "#1a1a1d"; ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = "#3a3a40"; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(x, y, r * .55, 0, Math.PI * 2); ctx.stroke();
+  }
+
+  const scenes = {
+    // A glancing kart keeps going; a square one bounces back slower.
+    tyres(ctx, w, h, t, s) {
+      const { top } = lane(ctx, w, h);
+      const cx = w * .55, cy = top + 34, R = 34;
+      const reset = () => ({ x: -20, y: cy + 4, vx: 170, vy: 0, hit: -9, bump: [0, 0] });
+      if (!s.k || s.k.x < -60 || s.k.x > w + 40) s.k = reset();
+      const k = s.k, dt = s.dt;
+      // The bump decays to a third over 0.3 s, as KART_BUMP_DECAY_S has it.
+      k.bump = k.bump.map(b => b * Math.pow(1 / 3, dt / .3));
+      k.x += (k.vx + k.bump[0]) * dt; k.y += (k.vy + k.bump[1]) * dt;
+      const dx = k.x - cx, dy = k.y - cy, d = Math.hypot(dx, dy);
+      if (d < R + 12 && t - k.hit > .3) {
+        const nx = dx / d, ny = dy / d;
+        const closing = -(k.vx * nx + k.vy * ny);
+        if (closing > 0) {
+          const square = closing / Math.hypot(k.vx, k.vy);
+          const speed = Math.max(0, Math.hypot(k.vx, k.vy) - .7 * square * closing);
+          const along = [k.vx / Math.hypot(k.vx, k.vy), k.vy / Math.hypot(k.vx, k.vy)];
+          k.vx = along[0] * speed; k.vy = along[1] * speed;
+          const bump = 20 + .4 * closing;
+          k.bump = [nx * bump * 3, ny * bump * 3];
+          k.hit = t;
+        }
+      }
+      const since = t - k.hit;
+      const jig = since < .5 ? Math.sin(since * 45) * 3 * (1 - since / .5) : 0;
+      ctx.fillStyle = "rgba(0,0,0,.3)"; ctx.beginPath(); ctx.arc(cx + 4, cy + 5, R, 0, Math.PI * 2); ctx.fill();
+      for (let i = 0; i < 10; i++) {
+        const a = (i / 10) * Math.PI * 2, rr = i % 2 ? R - 12 : R - 14;
+        tyre(ctx, cx + Math.cos(a) * rr + jig, cy + Math.sin(a) * rr, 11);
+      }
+      tyre(ctx, cx + jig, cy, 12);
+      ctx.strokeStyle = C.red; ctx.lineWidth = 4; ctx.setLineDash([9, 9]);
+      ctx.beginPath(); ctx.arc(cx + jig, cy, R - 4, 0, Math.PI * 2); ctx.stroke();
+      ctx.strokeStyle = C.white; ctx.lineDashOffset = 9;
+      ctx.beginPath(); ctx.arc(cx + jig, cy, R - 4, 0, Math.PI * 2); ctx.stroke();
+      ctx.setLineDash([]); ctx.lineDashOffset = 0;
+      const gx = ((t * 150) % (w + 80)) - 40;
+      kart(ctx, gx, h / 2 + 38, 0, C.karts[1]);
+      kart(ctx, k.x, k.y, Math.atan2(k.vy, k.vx), C.karts[0]);
+    },
+
+    // The red kart drifts across the apex: launched, sparks gone, lands straight.
+    kerb(ctx, w, h, t) {
+      ctx.fillStyle = C.grass; ctx.fillRect(0, 0, w, h);
+      const cy = x => h / 2 - Math.sin((x / w) * Math.PI * 2 - Math.PI / 2) * 45;
+      ctx.lineCap = "round"; ctx.strokeStyle = C.asphalt; ctx.lineWidth = 120;
+      ctx.beginPath(); for (let x = -20; x <= w + 20; x += 8) ctx.lineTo(x, cy(x)); ctx.stroke();
+      const ax = w * .5, ay = cy(ax) + 58;
+      ctx.save(); ctx.translate(ax, ay);
+      ctx.fillStyle = C.gold; ctx.beginPath(); ctx.roundRect(-55, -9, 110, 18, 9); ctx.fill();
+      ctx.fillStyle = C.ink; for (let i = -45; i < 50; i += 18) ctx.fillRect(i, -9, 6, 18);
+      ctx.restore();
+      const p = (t % 3.4) / 3.4, x = -30 + p * (w + 60);
+      const dive = Math.exp(-(((x - ax) / 90) ** 2)) * 56;
+      const y = cy(x) + dive;
+      const lift = Math.abs(x - ax) < 55 ? Math.sin(((x - ax + 55) / 110) * Math.PI) : 0;
+      const yNext = cy(x + 2) + Math.exp(-(((x + 2 - ax) / 90) ** 2)) * 56;
+      const drifting = x < ax - 55;
+      const slip = drifting ? .35 : 0;
+      const x2 = -30 + ((p + .5) % 1) * (w + 60);
+      kart(ctx, x2, cy(x2), Math.atan2(cy(x2 + 2) - cy(x2), 2), C.karts[1]);
+      kart(ctx, x, y, Math.atan2(yNext - y, 2) + slip, C.karts[0], lift, drifting && x > 0);
+    },
+
+    // A 7 s cycle squeezed to 4.4 s: flag, then the wheel crosses; red meets it.
+    wheel(ctx, w, h, t, s) {
+      const { top, bottom } = lane(ctx, w, h);
+      const T = 4.4, c = t % T, cross = w * .6;
+      const pass = Math.floor(t / T);
+      const waving = c > .6 && c < 2.9;
+      ctx.fillStyle = "#e9e9ec"; ctx.fillRect(cross - 60, 8, 34, 26);
+      ctx.fillStyle = "#ff7a00"; ctx.beginPath(); ctx.arc(cross - 43, 21, 6, 0, Math.PI * 2); ctx.fill();
+      if (waving) {
+        const sw = Math.sin(t * 14) * .6;
+        ctx.save(); ctx.translate(cross - 36, 18); ctx.rotate(sw - .4);
+        ctx.strokeStyle = "#ddd"; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(0, -26); ctx.stroke();
+        ctx.fillStyle = C.gold; ctx.fillRect(0, -26, 20, 13); ctx.restore();
+      }
+      // Each pass goes the other way from the last.
+      const wp = (c - 1.6) / 1.3;
+      const down = pass % 2 === 0;
+      let wy = null;
+      if (wp >= 0 && wp <= 1) {
+        const f = down ? wp : 1 - wp;
+        wy = top - 20 + f * (bottom - top + 40);
+        const bounce = Math.abs(Math.sin(wp * Math.PI * 3)) * 14;
+        ctx.fillStyle = "rgba(0,0,0,.35)"; ctx.beginPath(); ctx.ellipse(cross + 4, wy + 4, 13, 8, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.save(); ctx.translate(cross, wy - bounce * .3); ctx.scale(1 + bounce / 40, 1 + bounce / 40);
+        tyre(ctx, 0, 0, 12);
+        ctx.fillStyle = "#b8bcc4"; ctx.beginPath(); ctx.arc(0, 0, 4.5, 0, Math.PI * 2); ctx.fill();
+        ctx.restore();
+      }
+      kart(ctx, -30 + (c / T) * (w + 120) * 1.1, h / 2 + 30, 0, C.karts[2]);
+      if (s.pass !== pass) { s.pass = pass; s.k = { x: -30, spin: 0, v: 175 }; }
+      const k = s.k, dt = s.dt, ky = down ? h / 2 - 10 : h / 2 - 10;
+      if (!k.spin && wy !== null && Math.abs(k.x - cross) < 20 && Math.abs(wy - ky) < 22) k.spin = .001;
+      if (k.spin) { k.spin += dt; k.v = k.spin < 1 ? 0 : 175; }
+      k.x += k.v * dt;
+      kart(ctx, k.x, ky, k.spin && k.spin < 1 ? k.spin * Math.PI * 4 : 0, C.karts[0]);
+    },
+  };
+
+  const live = Object.keys(scenes).map(id => {
+    const el = document.getElementById(id);
+    return { id, ctx: el.getContext("2d"), w: el.width, h: el.height, s: {} };
+  });
+  const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  let last = performance.now();
+  function frame(now) {
+    const dt = Math.min(.05, (now - last) / 1000); last = now;
+    for (const v of live) { v.s.dt = dt; scenes[v.id](v.ctx, v.w, v.h, now / 1000, v.s); }
+    if (!reduced) requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+</script>
+</body>
+</html>

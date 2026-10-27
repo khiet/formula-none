@@ -30,7 +30,12 @@ MATERIALS = {
     "sand": (0.91, 0.78, 0.45),
     "grass": (0.36, 0.69, 0.29),
     "wall": (0.94, 0.94, 0.94),
-    "pipe": (0.25, 0.64, 0.30),
+    # The tyre wall: its prism in shadow behind the tyres, their treads and
+    # the faces that read as rings from the track; the belts are kerb red
+    # and white.
+    "tyre-shade": (0.071, 0.071, 0.078),
+    "tyre": (0.102, 0.102, 0.114),
+    "tyre-face": (0.180, 0.180, 0.196),
     "kerb-red": (0.84, 0.23, 0.18),
     "kerb-white": (0.96, 0.96, 0.96),
     "checker-dark": (0.13, 0.13, 0.13),

@@ -19,7 +19,7 @@ pub const SIDECAR_VERSION: u32 = 1;
 /// narrower than any corner, so a corner reads at full strength.
 const CURVATURE_WINDOW_M: f32 = 4.0;
 
-/// What is under a point on the track. Four of these are exported as tagged
+/// What is under a point on the track. Five of these are exported as tagged
 /// meshes; `OutOfWorld` is the answer when nothing lies below a point.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize, TS)]
 #[serde(rename_all = "snake_case")]
@@ -29,6 +29,8 @@ pub enum Surface {
     Grass,
     Wall,
     OutOfWorld,
+    /// A tyre wall: it stands like a wall, and a kart that hits it bounces off.
+    Tyres,
 }
 
 impl Surface {
@@ -41,6 +43,7 @@ impl Surface {
             Surface::Grass => 2,
             Surface::Wall => 3,
             Surface::OutOfWorld => 4,
+            Surface::Tyres => 5,
         }
     }
 
@@ -51,12 +54,13 @@ impl Surface {
             2 => Surface::Grass,
             3 => Surface::Wall,
             4 => Surface::OutOfWorld,
+            5 => Surface::Tyres,
             _ => return None,
         })
     }
 
     /// Whether a kart on this surface is held to the off-track speed cap:
-    /// the run-off, not the track, a wall top or thin air.
+    /// the run-off, not the track, a wall or tyre wall top, or thin air.
     pub const fn slows_karts(self) -> bool {
         matches!(self, Surface::Sand | Surface::Grass)
     }

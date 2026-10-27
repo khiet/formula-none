@@ -8,7 +8,7 @@ Run on a saved track:
 scene follows these conventions:
 
 - Collection `Track`: mesh objects with a `surface` custom property, one of
-  asphalt, sand, grass or wall. These go into the glTF and, triangulated,
+  asphalt, sand, grass, wall or tyres. These go into the glTF and, triangulated,
   into the sidecar as collision geometry.
 - Collection `Scenery`, optional: anything drawn and never collided with,
   such as kerbs, hoardings and stands. It goes into the glTF only, so a
@@ -35,7 +35,7 @@ from mathutils import Vector
 from mathutils.geometry import interpolate_bezier
 
 SIDECAR_VERSION = 1
-SURFACE_TAGS = ("asphalt", "sand", "grass", "wall")
+SURFACE_TAGS = ("asphalt", "sand", "grass", "wall", "tyres")
 TRACK_COLLECTION = "Track"
 SCENERY_COLLECTION = "Scenery"
 CENTRELINE_OBJECT = "Centreline"
