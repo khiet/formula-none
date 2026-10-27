@@ -300,7 +300,21 @@ export function createInstrumentPanel(
     const label = document.createElement("span");
     label.dataset.label = "";
     label.textContent = readout.label;
-    element.replaceChildren(label, ` ${readout.value}`);
+    // Kenney Mini Square has no tabular figures and its 1 is narrower than
+    // the other digits, so each figure gets a fixed cell from the stylesheet.
+    // The figures share one span so the plate's flex gap falls only between
+    // the label and the value.
+    const value = document.createElement("span");
+    value.append(
+      ...[...readout.value].map((character) => {
+        if (!/[0-9-]/.test(character)) return character;
+        const figure = document.createElement("span");
+        figure.dataset.figure = "";
+        figure.textContent = character;
+        return figure;
+      }),
+    );
+    element.replaceChildren(label, " ", value);
   };
 
   return {

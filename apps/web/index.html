@@ -131,6 +131,13 @@
       [data-instrument="best-lap"] {
         font-size: calc(var(--hud) * 1.7);
       }
+      /* One cell per figure, the face's digit advance, so the clocks keep their width. */
+      [data-instrument="lap-time"] [data-figure],
+      [data-instrument="best-lap"] [data-figure] {
+        display: inline-block;
+        width: 0.625em;
+        text-align: center;
+      }
       /* Text kept for assistive technology behind the flags and the item's character. */
       [data-lap-text],
       [data-item-name] {
