@@ -599,8 +599,8 @@ impl Kart {
     /// [`Kart::readout`] for the fields the kart keeps beside the body.
     /// What a snapshot does not carry, and the boost, which it carries for
     /// the flame, stay the kart's own, run by the same rules on the same
-    /// inputs. From Go, a rocket start verdict other than
-    /// the kart's replaces the boost or stall it was given at Go with the
+    /// inputs. From Go, a rocket start verdict other than the kart's
+    /// replaces the boost or stall it was given at Go with the
     /// readout's, run down by the ticks since. The caller puts the body
     /// where the readout has it.
     fn adopt(&mut self, readout: &KartReadout, clock: Phase) {
