@@ -101,8 +101,8 @@ pub const NICKNAME_MAX_CHARS: usize = 12;
 pub const KARTS_PER_RACE: usize = 8;
 pub const LAPS_PER_RACE: u32 = 3;
 /// Seconds the karts are held on the grid before Go: the start lights, one
-/// a second, all five out at Go. The Instrument panel draws five lamps, so
-/// a change here changes the panel too.
+/// a second, all five out at Go. The Instrument panel always draws five
+/// lamps, so this must stay one second per lamp.
 pub const COUNTDOWN_S: f32 = 5.0;
 /// Seconds after the first human's finish before the race ends whoever is
 /// still racing, with those karts placed by progress (ADR 0032).

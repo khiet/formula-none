@@ -446,7 +446,7 @@ fn a_hit_the_server_decides_reaches_the_prediction_as_one_correction_and_the_spi
         "every snapshot after the hit agreed: {:?}",
         &run.corrections_m[hit..]
     );
-    // The first snapshot after the hit, up to a snapshot's ticks later,
+    // The first snapshot after the hit, up to a snapshot interval later,
     // reached the client a one-way trip after it; the timer it brought ran
     // the rest of the spin-out.
     let spin_out = seconds(sim::tuning::SPIN_OUT_S);
