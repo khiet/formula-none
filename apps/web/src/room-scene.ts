@@ -25,7 +25,6 @@ export interface RoomView {
   readonly capacity: number;
 }
 
-/** How long the Copy link chip says "Copied!". */
 const COPIED_MS = 2000;
 
 /** What a player's row says about them. */
