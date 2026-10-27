@@ -15,7 +15,7 @@ const WIND_STREAK_S = 0.2;
 /** A line is born dim far ahead and brightens as it reaches the kart. */
 const WIND_BORN_COLOUR = 0x303030;
 const WIND_NEAR_COLOUR = 0xb0b0b0;
-/** Long enough to pass from ahead of the kart to behind the chase camera. */
+/** Long enough to carry every line from ahead of the kart to behind it. */
 const WIND_LIFETIME_S = 0.45;
 const WIND_SIZE_M = 0.03;
 /** Lines thrown per second as a boost has this long left or longer; fewer as it runs down. */

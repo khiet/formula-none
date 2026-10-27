@@ -106,8 +106,8 @@ export interface ViewAssets {
  * stalled kart, a spun-out kart turned about its axis over
  * `spinOutSeconds`, a shadow disc on the track under every kart so a
  * hop's height reads against the ground, a flame at the exhaust of every
- * boosting kart and, round the own kart alone, wind lines while it boosts. `labelsFor` names the karts to
- * label and where, from the frame's readouts. Picks WebGPU when the
+ * boosting kart and, round the own kart alone, wind lines while it boosts.
+ * `labelsFor` names the karts to label and where, from the frame's readouts. Picks WebGPU when the
  * browser has it and WebGL otherwise.
  */
 export async function createRaceView(

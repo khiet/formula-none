@@ -60,8 +60,8 @@ const SHAKE_HZ: readonly [number, number, number] = [13, 17, 11];
  * further back the faster the kart goes, the tuned pull-back at top speed,
  * and rattles for the tuned time when the sim reports the kart hit, that is
  * when its spin-out begins. A boost widens its field of view, the kick,
- * unless `options` asks for reduced motion. Looking behind cuts to the mirror of that pose,
- * ahead of the kart and facing back; the springs run on through it, so
+ * unless `options` asks for reduced motion. Looking behind cuts to the
+ * mirror of that pose, ahead of the kart and facing back; the springs run on through it, so
  * releasing cuts straight back to the chase pose with no swing.
  * Presentation only: it reads transforms the sim reported and never touches
  * the sim.

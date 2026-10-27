@@ -55,7 +55,7 @@ interface Previous {
   driftTier: MiniTurbo | null;
   /** The rocket start's charge while the countdown ran; null from Go. */
   charge: Start | null;
-  /** Boost seconds when the boost burning began or last lengthened. */
+  /** Boost seconds when the flame's source last set the boost. */
   boostLengthS: number;
 }
 
@@ -63,8 +63,8 @@ interface Previous {
  * A flame per slot. The boost an orange drift's release gives, and a weak
  * rocket start's at Go, burns orange; every other boost, a red release, a
  * full rocket start, a pad or an item, burns red. A boost a release
- * replaces, or another source lengthens, takes the new source's tier. The flame's strength is the share of the boost left: full size
- * at the start, shrinking to half and fading out over its last quarter.
+ * replaces, or another source lengthens, takes the new source's tier. The
+ * flame's strength is the share of the boost left: full size at the start, shrinking to half and fading out over its last quarter.
  */
 export function createExhaustFlames(kartCount: number, size: KartSize): ExhaustFlames {
   const flames: MutableFlame[] = Array.from({ length: kartCount }, () => ({
