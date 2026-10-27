@@ -19,6 +19,7 @@ import { WebGPURenderer } from "three/webgpu";
 import type { ItemBox, KartReadout, KartSize } from "./bridge";
 import type { CameraPose } from "./chase-camera";
 import { createDustEmitter } from "./dust";
+import { createExhaustFlames } from "./exhaust-flame";
 import { hazardConeMesh, homingGullMesh, itemBoxMesh } from "./item-meshes";
 import type { KartLabel } from "./kart-labels";
 import { dressKart, fitKart, type KartFit } from "./kart-model";
@@ -27,29 +28,36 @@ import { livery } from "./livery";
 import { plate, tonesOf, writePalette } from "./palette";
 import { createParticles } from "./particles";
 import type { RaceReadout } from "./race-run";
-import { createSparkEmitter } from "./sparks";
+import { createSparkEmitter, createSparkParticles } from "./sparks";
 import { spinOutAngle } from "./spin";
-import { particleMesh, shadowDiscMesh, tyreMarkMesh } from "./tell-meshes";
+import {
+  additiveMaterial,
+  exhaustFlameMesh,
+  particleMesh,
+  shadowDiscMesh,
+  tyreMarkMesh,
+} from "./tell-meshes";
 import { trackProbe } from "./track-probe";
 import { createTyreMarks } from "./tyre-marks";
 import { kartWheels } from "./wheel-spin";
+import { createWindLines, createWindParticles, windFade } from "./wind-lines";
 
 /** Far enough to see across Brands Patch from any point on it. */
 const CAMERA_FAR_M = 1000;
 /**
- * Particles live at once across the grid: eight karts' worth of sparks at
- * both wheels through their quarter-second life, and of puffs through
- * theirs, with room over. A pool full earlier drops its oldest.
+ * Puffs live at once across the grid: eight karts' worth through their
+ * life, with room over. A pool full earlier drops its oldest.
  */
-const SPARK_CAPACITY = 320;
 const DUST_CAPACITY = 256;
-/** Sparks fall like embers; dust hangs, slows and spreads. */
-const SPARK_GRAVITY_M_PER_S2 = 9.8;
+/** Dust hangs, slows and spreads. */
 const DUST_DRAG_PER_S = 2;
 const DUST_GROWTH_PER_S = 2;
 const DUST_OPACITY = 0.55;
 /** A puff shrinks away over the last share of its life. */
 const DUST_FADE_SHARE = 0.4;
+/** A red spark's halo is this many times as wide as the spark, and this bright at birth. */
+const SPARK_HALO_SCALE = 5;
+const SPARK_HALO_BRIGHTNESS = 0.45;
 /** How high an item box floats over where the sim has it. */
 const ITEM_BOX_HEIGHT_M = 1;
 /** How high the projectile (ADR 0007) flies over where the sim has it. */
@@ -71,6 +79,14 @@ export interface RaceView {
   dispose(): void;
 }
 
+/** Who the View is drawn for. */
+export interface ViewerOptions {
+  /** The own kart's slot: the wind lines of a boost are drawn round it alone. */
+  readonly localKart: number;
+  /** The viewer asked for less motion: fewer wind lines. */
+  readonly reducedMotion: boolean;
+}
+
 /** The glTF files the View draws: the track and the kart every slot is a copy of. */
 export interface ViewAssets {
   readonly trackGltfUrl: string;
@@ -88,9 +104,10 @@ export interface ViewAssets {
  * tyre marks under a drift, sparks once a tier has charged, drifting or
  * holding for the rocket start, dust on the run-off and at the wheels of a
  * stalled kart, a spun-out kart turned about its axis over
- * `spinOutSeconds`, and a shadow disc on the track under every kart so a
- * hop's height reads against the ground. `labelsFor` names the karts to
- * label and where, from the frame's readouts. Picks WebGPU when the
+ * `spinOutSeconds`, a shadow disc on the track under every kart so a
+ * hop's height reads against the ground, a flame at the exhaust of every
+ * boosting kart and, round the own kart alone, wind lines while it boosts.
+ * `labelsFor` names the karts to label and where, from the frame's readouts. Picks WebGPU when the
  * browser has it and WebGL otherwise.
  */
 export async function createRaceView(
@@ -101,6 +118,7 @@ export async function createRaceView(
   itemBoxes: readonly ItemBox[],
   spinOutSeconds: number,
   labelsFor: (karts: readonly KartReadout[]) => readonly KartLabel[],
+  viewer: ViewerOptions,
 ): Promise<RaceView> {
   const renderer = new WebGPURenderer({ antialias: true });
   await renderer.init();
@@ -117,6 +135,7 @@ export async function createRaceView(
   // Three's scene graph, not a glossary Scene: this View belongs to the Race Scene.
   const world = new ThreeScene();
   world.background = new Color(0x87ceeb);
+  // The chase camera's pose sets the field of view from the first frame.
   const camera = new PerspectiveCamera(
     60,
     container.clientWidth / container.clientHeight,
@@ -148,15 +167,31 @@ export async function createRaceView(
 
   const tyreMarks = createTyreMarks(kartCount, kartSize);
   const marks = tyreMarkMesh(tyreMarks);
-  const sparks = createParticles({ capacity: SPARK_CAPACITY, gravity: SPARK_GRAVITY_M_PER_S2 });
-  const sparkEmitter = createSparkEmitter(sparks, kartSize);
-  // Unlit so the tier's colour reads whatever the sun does; a spark shrinks as it dies.
-  const sparkMesh = particleMesh(
-    sparks,
-    new BoxGeometry(1, 1, 1),
-    new MeshBasicMaterial(),
-    (size, life) => size * life,
-  );
+  const sparks = createSparkParticles(kartCount);
+  // Each kart's emitter remembers its tier, so a tier's burst is the kart's own.
+  const sparkEmitters = karts.map(() => createSparkEmitter(sparks, kartSize));
+  // Unlit so the tier's colour reads whatever the sun does; a spark is a
+  // streak along its flight and thins as it dies.
+  const sparkMesh = particleMesh(sparks, new BoxGeometry(1, 1, 1), new MeshBasicMaterial(), {
+    scaleOf: (size, life) => size * life,
+    streak: true,
+  });
+  const sparkHaloMesh = particleMesh(sparks, new SphereGeometry(0.5, 6, 4), additiveMaterial(), {
+    scaleOf: (size, life) => size * SPARK_HALO_SCALE * life,
+    include: (spark) => spark.glow,
+    brightnessOf: (spark) => SPARK_HALO_BRIGHTNESS * spark.life,
+  });
+  const flames = createExhaustFlames(kartCount, kartSize);
+  const flameMesh = exhaustFlameMesh(flames);
+  const wind = createWindParticles();
+  const windLines = createWindLines(wind, kartSize, { reducedMotion: viewer.reducedMotion });
+  /** How brightly the wind lines show this frame, from the own kart's boost left. */
+  let windBrightness = 0;
+  const windMesh = particleMesh(wind, new BoxGeometry(1, 1, 1), additiveMaterial(), {
+    scaleOf: (size) => size,
+    streak: true,
+    brightnessOf: () => windBrightness,
+  });
   const dust = createParticles({
     capacity: DUST_CAPACITY,
     drag: DUST_DRAG_PER_S,
@@ -167,13 +202,21 @@ export async function createRaceView(
     dust,
     new SphereGeometry(0.5, 6, 4),
     new MeshBasicMaterial({ transparent: true, opacity: DUST_OPACITY, depthWrite: false }),
-    (size, life) => size * Math.min(life / DUST_FADE_SHARE, 1),
+    { scaleOf: (size, life) => size * Math.min(life / DUST_FADE_SHARE, 1) },
   );
   // The discs find the surface in the View's own track mesh; the bridge
   // offers no surface query and Presentation never asks the sim.
   const shadows = createKartShadows(kartCount, trackProbe(track.scene, kartSize.height / 2));
   const shadowMesh = shadowDiscMesh(shadows, kartSize);
-  world.add(marks.mesh, sparkMesh.mesh, dustMesh.mesh, shadowMesh.mesh);
+  world.add(
+    marks.mesh,
+    sparkMesh.mesh,
+    sparkHaloMesh.mesh,
+    flameMesh.mesh,
+    windMesh.mesh,
+    dustMesh.mesh,
+    shadowMesh.mesh,
+  );
 
   // Clones share the one box's geometries and materials.
   const itemBox = itemBoxMesh();
@@ -232,17 +275,27 @@ export async function createRaceView(
             spin.setFromAxisAngle(up, spinOutAngle(readout.spinOutS, spinOutSeconds)),
           );
         }
-        sparkEmitter.emit(readout, frameSeconds, countingDown);
+        sparkEmitters[slot]?.emit(readout, frameSeconds, countingDown);
         dustEmitter.emit(readout, frameSeconds);
       });
+      const own = readouts[viewer.localKart];
+      if (own !== undefined) {
+        windLines.emit(own, frameSeconds);
+      }
+      windBrightness = windFade(own?.boostS ?? null);
       tyreMarks.update(readouts, frameSeconds);
       sparks.update(frameSeconds);
       dust.update(frameSeconds);
+      wind.update(frameSeconds);
       shadows.update(readouts);
+      flames.update(readouts, countingDown);
       marks.update();
       sparkMesh.update();
+      sparkHaloMesh.update();
       dustMesh.update();
+      windMesh.update();
       shadowMesh.update();
+      flameMesh.update(frameSeconds);
       cones.show(hazards);
       gulls.show(projectiles, (projectile) => readouts[projectile.target]?.position);
       for (const label of labels) {
@@ -259,6 +312,10 @@ export async function createRaceView(
       }
       camera.position.set(...pose.position);
       camera.lookAt(target.set(...pose.target));
+      if (camera.fov !== pose.fieldOfView) {
+        camera.fov = pose.fieldOfView;
+        camera.updateProjectionMatrix();
+      }
     },
     render: () => {
       renderer.render(world, camera);

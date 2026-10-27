@@ -11,8 +11,8 @@ use common::{
 
 use sim::tuning::{
     BOT_LOOKAHEAD_M, BOT_RUBBER_BAND_MAX_FACTOR, BOT_RUBBER_BAND_MIN_FACTOR,
-    BOT_STALL_SPEED_M_PER_S, BOT_START_HOLD_S, COUNTDOWN_S, LAPS_PER_RACE,
-    MINI_TURBO_ORANGE_BOOST_S, TOP_SPEED_M_PER_S,
+    BOT_STALL_SPEED_M_PER_S, BOT_START_HOLD_S, COUNTDOWN_S, LAPS_PER_RACE, MINI_TURBO_RED_BOOST_S,
+    TOP_SPEED_M_PER_S,
 };
 use sim::{step, KartInput, Phase, State, Surface, Track};
 
@@ -246,7 +246,7 @@ fn the_rubber_band_hurries_a_bot_far_behind_and_slows_one_far_ahead_within_the_t
         } else {
             since_drift_s + DT
         };
-        if since_drift_s > MINI_TURBO_ORANGE_BOOST_S + DT && bot.boost_s.is_none() {
+        if since_drift_s > MINI_TURBO_RED_BOOST_S + DT && bot.boost_s.is_none() {
             if behind {
                 fastest_behind = fastest_behind.max(bot.speed);
             } else {

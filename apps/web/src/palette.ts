@@ -37,7 +37,7 @@ export const GO_GREEN: Tones = { lit: 0x6fe8a6, mid: 0x3ddc84, shaded: 0x23a35e 
 export const SIGNAL_GREEN: Tones = { lit: 0x8ee88e, mid: 0x5ad15a, shaded: 0x3a9a3a };
 export const SIGNAL_YELLOW: Tones = { lit: 0xf9da7e, mid: 0xf5c542, shaded: 0xb08a22 };
 export const SIGNAL_RED: Tones = { lit: 0xff7a6e, mid: 0xe8483a, shaded: 0xa8261b };
-/** The shift lights' last third and the limiter, and the mini-turbo's blue tier: one blue. */
+/** The shift lights' last third and the limiter. */
 export const SHIFT_BLUE: Tones = { lit: 0x8aa8ff, mid: 0x4f7dff, shaded: 0x2f4fc4 };
 
 /** The course map draws the track as the world builds it. */

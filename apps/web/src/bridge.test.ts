@@ -129,13 +129,16 @@ describe("bridge wrapper", () => {
     expect(bridge.countdownSeconds).toBe(3);
   });
 
-  it("reads the chase camera's tuning from the sim: top speed, pull-back and shake", async () => {
+  it("reads the chase camera's tuning from the sim: top speed, pull-back, shake and boost kick", async () => {
     const bridge = await loadBridge(wasm);
     expect(bridge.cameraTuning).toEqual({
       topSpeedMetresPerSecond: 30,
       pullBackMetres: 1,
       shakeSeconds: expect.closeTo(0.3, 5),
       shakeAmplitudeMetres: expect.any(Number),
+      fieldOfViewDegrees: 60,
+      boostKick: expect.closeTo(0.12, 5),
+      boostKickEaseSeconds: expect.closeTo(0.3, 5),
     });
     expect(bridge.cameraTuning.shakeAmplitudeMetres).toBeGreaterThan(0);
   });
@@ -201,8 +204,8 @@ describe("bridge wrapper", () => {
     // The hop's tell: in the air from the press through the 0.3 s airtime.
     race.step([hopRight], DT);
     expect(race.kartReadouts()[0]?.airborne).toBe(true);
-    // 0.75 s with the button down: past the 0.3 s airtime and the 0.3 s blue
-    // charge, short of orange at 0.6 s.
+    // 0.75 s with the button down: past the 0.3 s airtime and the 0.3 s orange
+    // charge, short of red at 0.6 s.
     for (let tick = 0; tick < 44; tick++) {
       race.step([hopRight], DT);
     }
@@ -210,14 +213,14 @@ describe("bridge wrapper", () => {
     const kart = race.kartReadouts()[0];
     const drift = kart?.drift;
     expect(drift?.direction).toBe("right");
-    expect(kart?.miniTurbo).toBe("blue");
+    expect(kart?.miniTurbo).toBe("orange");
     expect(drift?.chargeS).toBeGreaterThan(0.3);
     expect(drift?.chargeS).toBeLessThan(0.6);
 
     race.step([THROTTLE], DT);
     expect(race.kartReadouts()[0]?.drift).toBeNull();
     expect(race.kartReadouts()[0]?.speed).toBeGreaterThan(30);
-    // The release's tell: the blue boost's 0.6 s, less the tick just stepped,
+    // The release's tell: the orange boost's 0.6 s, less the tick just stepped,
     // whatever the oval's boost pad had left.
     expect(race.kartReadouts()[0]?.boostS).toBeCloseTo(0.6 - DT, 3);
   });

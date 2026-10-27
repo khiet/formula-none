@@ -154,10 +154,10 @@ pub const DRIFT_TURN_STEER_RANGE: f32 = 0.5;
 /// Radians between where a drifting kart points and where it travels; the
 /// nose leads into the corner by this much.
 pub const DRIFT_SLIP_ANGLE_RAD: f32 = 0.3;
-pub const MINI_TURBO_BLUE_CHARGE_S: f32 = 0.3;
-pub const MINI_TURBO_BLUE_BOOST_S: f32 = 0.6;
-pub const MINI_TURBO_ORANGE_CHARGE_S: f32 = 0.6;
-pub const MINI_TURBO_ORANGE_BOOST_S: f32 = 1.0;
+pub const MINI_TURBO_ORANGE_CHARGE_S: f32 = 0.3;
+pub const MINI_TURBO_ORANGE_BOOST_S: f32 = 0.6;
+pub const MINI_TURBO_RED_CHARGE_S: f32 = 0.6;
+pub const MINI_TURBO_RED_BOOST_S: f32 = 1.0;
 pub const MINI_TURBO_BOOST_FACTOR: f32 = 1.3;
 pub const BOOST_PAD_S: f32 = 1.0;
 pub const BOOST_PAD_FACTOR: f32 = 1.4;
@@ -187,8 +187,8 @@ pub const START_WEAK_BOOST_HOLD_S: f32 = 1.0;
 /// The full boost: the boost item's values.
 pub const START_BOOST_S: f32 = ITEM_BOOST_S;
 pub const START_BOOST_FACTOR: f32 = ITEM_BOOST_FACTOR;
-/// The weak boost: the blue mini-turbo's values.
-pub const START_WEAK_BOOST_S: f32 = MINI_TURBO_BLUE_BOOST_S;
+/// The weak boost: the orange mini-turbo's values.
+pub const START_WEAK_BOOST_S: f32 = MINI_TURBO_ORANGE_BOOST_S;
 pub const START_WEAK_BOOST_FACTOR: f32 = MINI_TURBO_BOOST_FACTOR;
 /// Seconds a stalled kart sits dead to every control after Go, as in a
 /// spin-out.
@@ -367,6 +367,13 @@ pub const CAMERA_SHAKE_S: f32 = 0.3;
 /// How far the shake throws the camera off its pose at its start; it dies
 /// away over the shake.
 pub const CAMERA_SHAKE_AMPLITUDE_M: f32 = 0.15;
+/// Degrees the chase camera's field of view spans vertically off a boost.
+pub const CAMERA_FIELD_OF_VIEW_DEG: f32 = 60.0;
+/// The share the field of view widens by while a boost has more than
+/// [`CAMERA_BOOST_KICK_EASE_S`] left, so a release is felt as well as seen.
+pub const CAMERA_BOOST_KICK: f32 = 0.12;
+/// Seconds of boost left over which the kick eases back to nothing.
+pub const CAMERA_BOOST_KICK_EASE_S: f32 = 0.3;
 
 /// Whether `seconds` is a whole number of ticks, within float rounding.
 const fn is_whole_ticks(seconds: f32) -> bool {
@@ -379,12 +386,12 @@ const fn is_whole_ticks(seconds: f32) -> bool {
 // Invariants between tuned values, checked at compile time so a retune that
 // breaks a rule fails the build rather than a race.
 const _: () = {
-    assert!(MINI_TURBO_ORANGE_CHARGE_S > MINI_TURBO_BLUE_CHARGE_S);
-    assert!(MINI_TURBO_ORANGE_BOOST_S > MINI_TURBO_BLUE_BOOST_S);
+    assert!(MINI_TURBO_RED_CHARGE_S > MINI_TURBO_ORANGE_CHARGE_S);
+    assert!(MINI_TURBO_RED_BOOST_S > MINI_TURBO_ORANGE_BOOST_S);
     // Charge thresholds are whole ticks so each tuned value names the tick
     // its tier pays on.
-    assert!(is_whole_ticks(MINI_TURBO_BLUE_CHARGE_S));
     assert!(is_whole_ticks(MINI_TURBO_ORANGE_CHARGE_S));
+    assert!(is_whole_ticks(MINI_TURBO_RED_CHARGE_S));
     assert!(BOT_RUBBER_BAND_MIN_FACTOR < 1.0 && 1.0 < BOT_RUBBER_BAND_MAX_FACTOR);
     assert!(0.0 < BOT_RUBBER_BAND_RANGE_M);
     assert!(0.0 < BOT_CORNER_SAMPLE_M && BOT_CORNER_SAMPLE_M <= BOT_LOOKAHEAD_M);
@@ -422,6 +429,10 @@ const _: () = {
     assert!(0.0 < CAMERA_SHAKE_S && 0.0 <= CAMERA_SHAKE_AMPLITUDE_M);
     // The shake is over before the spin-out it answers to ends.
     assert!(CAMERA_SHAKE_S < SPIN_OUT_S);
+    assert!(0.0 < CAMERA_FIELD_OF_VIEW_DEG && 0.0 <= CAMERA_BOOST_KICK);
+    // Every boost, the shortest included, reaches the full kick before it
+    // eases back.
+    assert!(0.0 < CAMERA_BOOST_KICK_EASE_S && CAMERA_BOOST_KICK_EASE_S < MINI_TURBO_ORANGE_BOOST_S);
     assert!(SNAPSHOTS_PER_SECOND <= TICKS_PER_SECOND);
     assert!(0 < SNAPSHOT_EVENT_REPEATS);
     assert!(0 < INPUT_QUEUE_START_TICKS && INPUT_QUEUE_START_TICKS as u32 <= INPUT_QUEUE_MAX_TICKS);
@@ -470,6 +481,9 @@ pub struct Tuning {
     pub camera_pull_back_m: f32,
     pub camera_shake_s: f32,
     pub camera_shake_amplitude_m: f32,
+    pub camera_field_of_view_deg: f32,
+    pub camera_boost_kick: f32,
+    pub camera_boost_kick_ease_s: f32,
     pub webtransport_connect_timeout_s: f32,
     pub ping_timeout_s: f32,
     pub ping_resend_s: f32,
@@ -499,6 +513,9 @@ pub const TUNING: Tuning = Tuning {
     camera_pull_back_m: CAMERA_PULL_BACK_M,
     camera_shake_s: CAMERA_SHAKE_S,
     camera_shake_amplitude_m: CAMERA_SHAKE_AMPLITUDE_M,
+    camera_field_of_view_deg: CAMERA_FIELD_OF_VIEW_DEG,
+    camera_boost_kick: CAMERA_BOOST_KICK,
+    camera_boost_kick_ease_s: CAMERA_BOOST_KICK_EASE_S,
     webtransport_connect_timeout_s: WEBTRANSPORT_CONNECT_TIMEOUT_S,
     ping_timeout_s: PING_TIMEOUT_S,
     ping_resend_s: PING_RESEND_S,

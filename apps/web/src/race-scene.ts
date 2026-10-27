@@ -139,6 +139,9 @@ export async function createRaceScene(
     keyboardKartInput(window, listeners.signal),
     gamepadKartInput(navigator),
   );
+  // Read once per race: the kick and the wind lines follow the viewer's
+  // setting as the race begins.
+  const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   // The panel's typeface loads beside the View's models so the first frame
   // of the Scene is set in it.
   const [view] = await Promise.all([
@@ -150,10 +153,11 @@ export async function createRaceScene(
       run.itemBoxes(),
       bridge.spinOutSeconds,
       (karts) => kartLabels(karts, run.localKart, name),
+      { localKart: run.localKart, reducedMotion },
     ),
     loadInstrumentFont(),
   ]);
-  const camera = createChaseCamera(bridge.cameraTuning);
+  const camera = createChaseCamera(bridge.cameraTuning, { reducedMotion });
   const panel = createInstrumentPanel(
     container,
     bridge.lapsPerRace,

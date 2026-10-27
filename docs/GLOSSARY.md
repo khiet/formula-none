@@ -54,12 +54,12 @@ begun before the 2 appeared, stalls the kart: 2.0 s dead to every control,
 as in a spin-out. A hold of 1.5 to 2.0 s, begun in the first half of the 2,
 earns the full start boost, 1.5 s at +40 percent, the boost item's values.
 A hold of 1.0 to 1.5 s, begun in the second half of the 2, earns the weak
-start boost, 0.6 s at +30 percent, the blue mini-turbo's values. A shorter
+start boost, 0.6 s at +30 percent, the orange mini-turbo's values. A shorter
 hold, begun at the 1 or later, starts clean. Bots roll the full boost or a
 clean start once per race from the seed and never stall; a kart handed to
 a bot during the countdown starts clean. The countdown is beeped so the
-start can be timed by ear; sparks show every charging kart's tier, blue for
-the weak boost and orange for the full one, with no warning once the hold
+start can be timed by ear; sparks show every charging kart's tier, orange for
+the weak boost and red for the full one, with no warning once the hold
 has tipped into a stall. The snapshots carry each kart's start and stall
 time left, and a client's prediction adopts the server's verdict.
 
@@ -156,9 +156,10 @@ charges a mini-turbo.
 
 ### mini-turbo
 
-The boost released at the end of a long enough drift: blue at 0.3 s of drift
-(0.6 s boost), orange at 0.6 s (1.0 s boost), both at +30 percent top speed.
-Shown by sparks at the wheels while charging.
+The boost released at the end of a long enough drift: orange at 0.3 s of drift
+(0.6 s boost), red at 0.6 s (1.0 s boost), both at +30 percent top speed.
+Shown by sparks at the wheels while charging, orange then red, and on
+release by a flame at the exhaust in the tier's colour.
 
 ### item box
 
@@ -350,4 +351,6 @@ A piece of Presentation tied to one mechanic so the mechanic has a visible or
 audible tell: tyre marks on drift, sparks on mini-turbo charge, a dust puff
 off-track, a spin animation on spin-out, beeps on the countdown and sparks
 on a rocket start's charge, a sputter and dust at the wheels on its stall,
-a shadow disc on the road under each kart so a hop's height reads.
+a shadow disc on the road under each kart so a hop's height reads, and on
+every boost a flame at the exhaust and, for the own kart, wind lines and a
+wider field of view.

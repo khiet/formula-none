@@ -86,13 +86,13 @@ export function soundReading(race: RaceReadout, kart: number): SoundReading {
 }
 
 /** Only a drift at one of these tiers has a mini-turbo to release. */
-const CHARGED: readonly MiniTurbo[] = ["blue", "orange"];
+const CHARGED: readonly MiniTurbo[] = ["orange", "red"];
 /** Only a hold at one of these tiers has a start boost to release at Go. */
 const BOOSTING: readonly Start[] = ["weakBoost", "fullBoost"];
 /** The counts the beep marks; Go has its own tone. */
 const BEEPED: readonly RaceCount[] = [3, 2, 1];
 /** How far up the tiers a drift has charged; off a drift and at the first tier alike, nowhere. */
-const TIER_RANK: Readonly<Record<MiniTurbo, number>> = { none: 0, blue: 1, orange: 2 };
+const TIER_RANK: Readonly<Record<MiniTurbo, number>> = { none: 0, orange: 1, red: 2 };
 
 /**
  * The cues the change from `before` to `after` calls for, in a fixed
@@ -105,7 +105,7 @@ const TIER_RANK: Readonly<Record<MiniTurbo, number>> = { none: 0, blue: 1, orang
  * boost at Go; the boost pad as a boost starts or lengthens that neither
  * a release nor an item fired explains, since the transform tells boost
  * seconds and not their source; the tier chime as the drift's tier rises,
- * the same chime to blue and to orange, the sparks telling which; the
+ * the same chime to orange and to red, the sparks telling which; the
  * pickup as the slot fills and the fire as it empties; the hit as a
  * spin-out begins; the sputter as a stall begins; the wrong way as its
  * flag raises; the finish as the kart finishes, else the lap as the count

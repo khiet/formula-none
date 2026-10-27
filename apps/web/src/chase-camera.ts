@@ -4,6 +4,13 @@ import type { CameraTuning, KartReadout } from "./bridge";
 export interface CameraPose {
   readonly position: readonly [number, number, number];
   readonly target: readonly [number, number, number];
+  /** The vertical field of view in degrees. */
+  readonly fieldOfView: number;
+}
+
+export interface ChaseCameraOptions {
+  /** The viewer asked for less motion: no kick on a boost. */
+  readonly reducedMotion?: boolean;
 }
 
 export interface ChaseCamera {
@@ -52,13 +59,18 @@ const SHAKE_HZ: readonly [number, number, number] = [13, 17, 11];
  * so a hop lifts the kart in the frame while a slope is followed. It sits
  * further back the faster the kart goes, the tuned pull-back at top speed,
  * and rattles for the tuned time when the sim reports the kart hit, that is
- * when its spin-out begins. Looking behind cuts to the mirror of that pose,
- * ahead of the kart and facing back; the springs run on through it, so
+ * when its spin-out begins. A boost widens its field of view, the kick,
+ * unless `options` asks for reduced motion. Looking behind cuts to the
+ * mirror of that pose, ahead of the kart and facing back; the springs run on through it, so
  * releasing cuts straight back to the chase pose with no swing.
  * Presentation only: it reads transforms the sim reported and never touches
  * the sim.
  */
-export function createChaseCamera(tuning: CameraTuning): ChaseCamera {
+export function createChaseCamera(
+  tuning: CameraTuning,
+  options: ChaseCameraOptions = {},
+): ChaseCamera {
+  const reducedMotion = options.reducedMotion ?? false;
   let yaw: number | undefined;
   let yawVelocity = 0;
   /** The height the camera follows: the kart's, lagged, in world metres. */
@@ -96,8 +108,8 @@ export function createChaseCamera(tuning: CameraTuning): ChaseCamera {
       wasSpunOut = spunOut;
       const [sx, sy, sz] = shake(shakeAge, tuning);
 
-      // Speed, not boost: a boost shows as the speed it gives, and a boost
-      // past top speed pulls back past the tuned metre.
+      // The pull-back follows speed alone, so a boost past top speed pulls
+      // back past the tuned metre; the boost itself is felt as the kick.
       const pullBack =
         BEHIND_M +
         (Math.max(kart.speed, 0) / tuning.topSpeedMetresPerSecond) * tuning.pullBackMetres;
@@ -121,9 +133,28 @@ export function createChaseCamera(tuning: CameraTuning): ChaseCamera {
           height + sy,
           z - Math.cos(kartYaw) * lookForward + sz,
         ],
+        fieldOfView: fieldOfView(kart.boostS, tuning, reducedMotion),
       };
     },
   };
+}
+
+/**
+ * The field of view, in degrees, for a kart with `boostS` seconds of boost
+ * left: the tuned one widened by the tuned kick while the boost has more
+ * than the ease left, easing back linearly to the tuned one as it runs out.
+ * Off a boost, and under `reducedMotion`, the tuned one.
+ */
+export function fieldOfView(
+  boostS: number | null,
+  tuning: CameraTuning,
+  reducedMotion = false,
+): number {
+  if (boostS === null || reducedMotion) {
+    return tuning.fieldOfViewDegrees;
+  }
+  const ease = Math.min(Math.max(boostS, 0) / tuning.boostKickEaseSeconds, 1);
+  return tuning.fieldOfViewDegrees * (1 + tuning.boostKick * ease);
 }
 
 /**

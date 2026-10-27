@@ -248,7 +248,7 @@ describe("createServerRace", () => {
       speed: 12,
       surface: "sand",
       drift: { direction: "left", chargeS: 1 },
-      miniTurbo: "blue",
+      miniTurbo: "orange",
     });
     prediction().interpolated = Array<KartReadout>(KARTS).fill(interpolated);
     const [first, own, third] = run.readout().karts;
