@@ -260,6 +260,7 @@ async function main(container: HTMLElement): Promise<void> {
         slot: client.slot,
         room: client.room,
         link: roomLink(window.location, client.room.code),
+        seats: bridge.kartsPerRace,
       },
       {
         ready: (ready) => client.ready(ready),

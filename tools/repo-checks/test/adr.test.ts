@@ -43,6 +43,7 @@ const DECISION_SLUGS = [
   "drivers-race-bare-headed",
   "instrument-panel-in-chibi-low-poly",
   "sponsors-on-the-scenery-only",
+  "room-scene-on-the-grand-prix-poster",
 ];
 
 const expectedFiles = DECISION_SLUGS.map(
