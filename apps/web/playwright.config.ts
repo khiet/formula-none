@@ -22,5 +22,11 @@ export default defineConfig({
       reuseExistingServer: !process.env.CI,
     },
   ],
-  use: { baseURL: "http://localhost:5173" },
+  use: {
+    baseURL: "http://localhost:5173",
+    // Muted so a run does not play through the speakers beside other work;
+    // the app still runs its audio, only the browser's output is silenced.
+    // E2E_SOUND=1 lets a run that needs to be heard opt back in.
+    launchOptions: { args: process.env.E2E_SOUND ? [] : ["--mute-audio"] },
+  },
 });
