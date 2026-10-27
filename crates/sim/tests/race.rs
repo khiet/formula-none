@@ -102,6 +102,11 @@ fn the_karts_wait_on_the_grid_in_slot_order_through_the_countdown_then_go() {
         countdown_ticks >= ticks(COUNTDOWN_S) - 1,
         "Go came after {countdown_ticks} ticks"
     );
+    // One second per start light, five lights.
+    assert!(
+        countdown_ticks.abs_diff(ticks(5.0)) <= 1,
+        "Go came after {countdown_ticks} ticks, not five seconds"
+    );
     for ((kart, slot), before) in state.kart_readouts().iter().zip(&slots).zip(&grid) {
         assert_eq!(kart.position[0], slot.position[0]);
         assert_eq!(kart.position[2], slot.position[2]);
@@ -158,8 +163,8 @@ fn speed_after(state: State, seconds: f32) -> f32 {
 }
 
 #[test]
-fn a_hold_from_the_first_half_of_the_two_through_go_gives_the_full_boost() {
-    // Pressed as the 2 appeared, or as late as the full edge.
+fn a_hold_from_the_first_half_of_the_fourth_light_through_go_gives_the_full_boost() {
+    // Pressed as the fourth light came on, or as late as the full edge.
     for hold_s in [START_STALL_HOLD_S, START_FULL_BOOST_HOLD_S] {
         let state = throttle_through_go(hold_s);
         assert_eq!(state.kart_readouts()[0].start, Start::FullBoost);
@@ -184,7 +189,7 @@ fn a_hold_from_the_first_half_of_the_two_through_go_gives_the_full_boost() {
 }
 
 #[test]
-fn a_hold_from_the_second_half_of_the_two_through_go_gives_the_weak_boost() {
+fn a_hold_from_the_second_half_of_the_fourth_light_through_go_gives_the_weak_boost() {
     // Pressed just after the full edge, or as late as the weak edge.
     for hold_s in [START_FULL_BOOST_HOLD_S - DT, START_WEAK_BOOST_HOLD_S] {
         let state = throttle_through_go(hold_s);
@@ -210,7 +215,7 @@ fn a_hold_from_the_second_half_of_the_two_through_go_gives_the_weak_boost() {
 }
 
 #[test]
-fn a_hold_from_the_one_or_later_starts_clean() {
+fn a_hold_from_the_fifth_light_or_later_starts_clean() {
     let state = throttle_through_go(START_WEAK_BOOST_HOLD_S - DT);
     assert_eq!(state.kart_readouts()[0].start, Start::Clean);
     let speed = off_the_line(state);
@@ -225,7 +230,7 @@ fn a_hold_from_the_one_or_later_starts_clean() {
 
 #[test]
 fn a_hold_released_before_go_starts_clean_whatever_its_length() {
-    // Held from the 2 appearing and let go on the countdown's last tick.
+    // Held from the fourth light coming on and let go on the countdown's last tick.
     let let_go_at_go: Driver = |state, _| match state.phase() {
         Phase::Countdown { remaining_s } if remaining_s > START_STALL_HOLD_S => idle(state, 0),
         Phase::Countdown { remaining_s } if remaining_s < 1.5 * DT => idle(state, 0),
@@ -241,8 +246,8 @@ fn a_hold_released_before_go_starts_clean_whatever_its_length() {
 }
 
 #[test]
-fn a_hold_from_before_the_two_stalls_the_kart_for_the_tuned_time_dead_to_every_control() {
-    // Pressed one tick before the 2 appeared.
+fn a_hold_from_before_the_fourth_light_stalls_the_kart_for_the_tuned_time_dead_to_every_control() {
+    // Pressed one tick before the fourth light came on.
     let state = throttle_through_go(START_STALL_HOLD_S + DT);
     assert_eq!(state.kart_readouts()[0].start, Start::Stall);
     let grid = state.kart_readouts()[0];
@@ -281,8 +286,8 @@ fn a_hold_from_before_the_two_stalls_the_kart_for_the_tuned_time_dead_to_every_c
 
 #[test]
 fn a_release_before_go_resets_the_hold() {
-    // Held from before the 2, let go for one tick in the second half of
-    // the 2, then held through Go: only the second hold counts.
+    // Held from before the fourth light, let go for one tick in its second
+    // half, then held through Go: only the second hold counts.
     const LET_GO_AT_S: f32 = 1.3;
     let let_go_once: Driver = |state, _| match state.phase() {
         Phase::Countdown { remaining_s } if remaining_s > START_STALL_HOLD_S + 0.5 => {
@@ -320,7 +325,7 @@ fn the_throttle_counts_as_held_only_above_the_threshold() {
 
 #[test]
 fn the_tier_the_hold_so_far_would_earn_is_reported_as_it_charges() {
-    // Pressed as the 3 appeared and held: the tiers come as the hold
+    // Pressed as the first light came on and held: the tiers come as the hold
     // lengthens, and a hold that has tipped into a stall reads as one.
     let mut state = race(1);
     let mut seen = Vec::new();

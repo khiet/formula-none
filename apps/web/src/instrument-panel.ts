@@ -207,9 +207,17 @@ export function createInstrumentPanel(
   const banner = instrument("connection-banner", CONNECTION_LOST_BANNER);
   plate(banner, POSTER_RED);
   banner.hidden = true;
-  // Each count shows on an octagonal start light; GO on a plate of its own.
+  // The start lights: five octagonal lamps, lit one a second; GO on a
+  // plate of its own once they go out.
   const countdown = instrument("countdown");
   countdown.hidden = true;
+  const lamps = Array.from({ length: START_LIGHTS }, () => {
+    const lamp = part(countdown, "lamp");
+    lamp.dataset.plate = "octagon";
+    lamp.dataset.lamp = "off";
+    return lamp;
+  });
+  const go = part(countdown, "go");
   const finish = instrument("finish");
   plate(finish, CARBON);
   finish.hidden = true;
@@ -293,6 +301,7 @@ export function createInstrumentPanel(
       element.append(place, " ", paletteChip(liveryOf(kart)), `${row.name} ${row.time}`);
       return element;
     });
+  let shownLit = 0;
   let shownCount = "";
   let shownItemState = "";
 
@@ -356,13 +365,25 @@ export function createInstrumentPanel(
           item.append(shownSprite);
         }
       }
+      const lit = lampsLit(race.phase);
       const count = phaseReadout(race.phase);
-      if (count !== shownCount) {
+      if (lit !== shownLit || count !== shownCount) {
+        shownLit = lit;
         shownCount = count;
-        countdown.textContent = count;
-        countdown.hidden = count === "";
-        countdown.dataset.plate = count === "GO" ? "" : "octagon";
-        plate(countdown, count === "GO" ? GO_GREEN : POSTER_RED);
+        countdown.dataset.lit = String(lit);
+        countdown.hidden = lit === 0 && count === "";
+        lamps.forEach((lamp, index) => {
+          lamp.dataset.lamp = index < lit ? "lit" : "off";
+          lamp.hidden = count !== "";
+        });
+        go.textContent = count;
+        // An empty GO would still take a gap in the row and push the lamps off centre.
+        go.hidden = count === "";
+        if (count === "") {
+          delete countdown.dataset.plate;
+        } else {
+          plate(countdown, GO_GREEN);
+        }
       }
       const finished = finishReadout(race.standings, race.phase, course.ownKart, name);
       lap.hidden = finished !== null;
@@ -390,10 +411,18 @@ export function createInstrumentPanel(
   };
 }
 
-/** The race's count as the panel prints it over the View: 3, 2, 1, GO, or nothing. */
-export function phaseReadout(phase: Phase): string {
+/** The start lights the panel draws; the countdown's tuning must give one a second. */
+export const START_LIGHTS = 5;
+
+/** The start lights lit at `phase`: one more each second of the countdown, none from Go. */
+export function lampsLit(phase: Phase): number {
   const count = raceCount(phase);
-  return count === null ? "" : count === "go" ? "GO" : String(count);
+  return typeof count === "number" ? START_LIGHTS - count + 1 : 0;
+}
+
+/** What the panel prints over the View: GO at lights out, nothing over the lamps or after. */
+export function phaseReadout(phase: Phase): string {
+  return raceCount(phase) === "go" ? "GO" : "";
 }
 
 /**

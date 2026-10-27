@@ -44,6 +44,7 @@ const DECISION_SLUGS = [
   "instrument-panel-in-chibi-low-poly",
   "sponsors-on-the-scenery-only",
   "room-scene-on-the-grand-prix-poster",
+  "five-light-start",
 ];
 
 const expectedFiles = DECISION_SLUGS.map(

@@ -23,7 +23,7 @@ import { createServerRace } from "./server-race";
 // interpolation included.
 
 const TICKS_PER_SECOND = 60;
-const COUNTDOWN_S = 3;
+const COUNTDOWN_S = 5;
 const KARTS = 8;
 
 const ITEM_BOX_RESPAWN_S = 3;

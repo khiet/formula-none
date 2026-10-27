@@ -89,7 +89,7 @@
           var(--plate-shaded) 70%
         );
       }
-      /* A regular octagon: the countdown's start light. */
+      /* A regular octagon: a start light. */
       [data-plate="octagon"] {
         --chamfer: 29.3%;
       }
@@ -339,16 +339,33 @@
         padding: 0.3em 0.45em;
         font-size: calc(var(--hud) * 6);
       }
+      /* The start lights: a row of lamps, no plate behind them. */
+      [data-instrument="countdown"]:not([data-plate]) {
+        display: flex;
+        gap: var(--hud);
+        padding: 0;
+      }
       /* GO is ink on the green, lifted by a pale drop. */
-      [data-instrument="countdown"]:not([data-plate="octagon"]) {
+      [data-instrument="countdown"][data-plate] {
         color: var(--ink);
         text-shadow: 0.1em 0.1em 0 color-mix(in srgb, var(--value) 50%, transparent);
       }
-      [data-instrument="countdown"][data-plate="octagon"] {
-        justify-content: center;
-        width: 1.6em;
-        height: 1.6em;
+      [data-lamp] {
+        width: calc(var(--hud) * 5);
+        height: calc(var(--hud) * 5);
         padding: 0;
+      }
+      [data-lamp="lit"] {
+        --plate-lit: var(--poster-red-lit);
+        --plate: var(--poster-red);
+        --plate-shaded: var(--poster-red-shaded);
+      }
+      /* An unlit lamp sits back: no drop, so the lit ones stand off the View. */
+      [data-lamp="off"] {
+        --plate-lit: var(--lamp-off-lit);
+        --plate: var(--lamp-off);
+        --plate-shaded: var(--lamp-off-shaded);
+        filter: none;
       }
       [data-instrument="finish"] {
         position: fixed;

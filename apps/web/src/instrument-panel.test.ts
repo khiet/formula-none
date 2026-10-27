@@ -6,6 +6,7 @@ import {
   createInstrumentPanel,
   finishReadout,
   itemReadout,
+  lampsLit,
   lapReadouts,
   phaseReadout,
 } from "./instrument-panel";
@@ -126,6 +127,21 @@ describe("the lap instruments on the page", () => {
     expect(filled()).toBe(2);
     panel.update(race({ ...ON_THE_GRID, lap: 3, finishTimeS: 70 }, { item: null, firing: false }));
     expect(filled()).toBe(3);
+  });
+
+  it("show the start lights lit so far, then GO at lights out", () => {
+    const { panel, find } = mount();
+    const at = (phase: Phase) =>
+      panel.update({ ...race(ON_THE_GRID, { item: null, firing: false }), phase });
+    const countdown = find("countdown");
+    at({ kind: "countdown", remainingSeconds: 2.5 });
+    expect(countdown?.hidden).toBe(false);
+    expect(countdown?.dataset.lit).toBe("3");
+    at({ kind: "racing", elapsedSeconds: 0, capLeftSeconds: null });
+    expect(countdown?.dataset.lit).toBe("0");
+    expect(countdown?.textContent).toBe("GO");
+    at({ kind: "racing", elapsedSeconds: 1, capLeftSeconds: null });
+    expect(countdown?.hidden).toBe(true);
   });
 
   it("print the clocks with their label words in the text", () => {
@@ -290,14 +306,24 @@ describe("the speed cluster on the page", () => {
 });
 
 describe("phase readout", () => {
-  it("counts 3, 2, 1 down the countdown, whole seconds rounded up", () => {
-    expect(phaseReadout({ kind: "countdown", remainingSeconds: 3 })).toBe("3");
-    expect(phaseReadout({ kind: "countdown", remainingSeconds: 2.01 })).toBe("3");
-    expect(phaseReadout({ kind: "countdown", remainingSeconds: 2 })).toBe("2");
-    expect(phaseReadout({ kind: "countdown", remainingSeconds: 0.3 })).toBe("1");
+  it("lights one more of the five start lights each second of the countdown", () => {
+    expect(lampsLit({ kind: "countdown", remainingSeconds: 5 })).toBe(1);
+    expect(lampsLit({ kind: "countdown", remainingSeconds: 4.01 })).toBe(1);
+    expect(lampsLit({ kind: "countdown", remainingSeconds: 4 })).toBe(2);
+    expect(lampsLit({ kind: "countdown", remainingSeconds: 2.5 })).toBe(3);
+    expect(lampsLit({ kind: "countdown", remainingSeconds: 2 })).toBe(4);
+    expect(lampsLit({ kind: "countdown", remainingSeconds: 0.3 })).toBe(5);
   });
 
-  it("shows GO for the first second of the race and nothing after", () => {
+  it("puts every light out at Go and keeps them out", () => {
+    expect(lampsLit({ kind: "racing", elapsedSeconds: 0, capLeftSeconds: null })).toBe(0);
+    expect(lampsLit({ kind: "racing", elapsedSeconds: 40, capLeftSeconds: 12 })).toBe(0);
+    expect(lampsLit({ kind: "outro" })).toBe(0);
+    expect(lampsLit({ kind: "finished" })).toBe(0);
+  });
+
+  it("prints nothing over the lights and GO for the first second of the race", () => {
+    expect(phaseReadout({ kind: "countdown", remainingSeconds: 2 })).toBe("");
     expect(phaseReadout({ kind: "racing", elapsedSeconds: 0, capLeftSeconds: null })).toBe("GO");
     expect(phaseReadout({ kind: "racing", elapsedSeconds: 0.9, capLeftSeconds: null })).toBe("GO");
     expect(phaseReadout({ kind: "racing", elapsedSeconds: 1, capLeftSeconds: null })).toBe("");

@@ -59,9 +59,13 @@ test("a friend joins the room from the shared link and both can race", async ({
   await expect(page.getByRole("button", { name: "Start" })).toBeEnabled();
   await page.getByRole("button", { name: "Start" }).click();
   for (const someone of [page, friend]) {
-    await expect(someone.locator('[data-instrument="countdown"]')).toHaveText(/^[321]$/, {
-      timeout: 60_000,
-    });
+    await expect(someone.locator('[data-instrument="countdown"]')).toHaveAttribute(
+      "data-lit",
+      /^[1-5]$/,
+      {
+        timeout: 60_000,
+      },
+    );
   }
 
   // The server runs the race (ADR 0009): the six bots behind the two idle

@@ -100,8 +100,10 @@ pub const NICKNAME_MAX_CHARS: usize = 12;
 /// Karts on the grid; empty slots are filled by bots at Start.
 pub const KARTS_PER_RACE: usize = 8;
 pub const LAPS_PER_RACE: u32 = 3;
-/// Seconds the karts are held on the grid before Go: the 3-2-1 count.
-pub const COUNTDOWN_S: f32 = 3.0;
+/// Seconds the karts are held on the grid before Go: the start lights, one
+/// a second, all five out at Go. The Instrument panel always draws five
+/// lamps, so this must stay one second per lamp.
+pub const COUNTDOWN_S: f32 = 5.0;
 /// Seconds after the first human's finish before the race ends whoever is
 /// still racing, with those karts placed by progress (ADR 0032).
 pub const RACE_END_CAP_S: f32 = 60.0;
@@ -176,13 +178,15 @@ pub const BOOST_PAD_HALF_WIDTH_M: f32 = 3.0;
 /// The throttle counts as held above this, so a finger resting on an
 /// analog trigger never stalls the kart.
 pub const START_THROTTLE_HELD: f32 = 0.5;
-/// A hold longer than this, begun before the 2 appeared, stalls the kart.
+/// A hold longer than this, begun before the fourth light came on, stalls
+/// the kart.
 pub const START_STALL_HOLD_S: f32 = 2.0;
-/// A hold at least this long, begun in the first half of the 2, earns the
-/// full boost.
+/// A hold at least this long, begun in the first half of the fourth light,
+/// earns the full boost.
 pub const START_FULL_BOOST_HOLD_S: f32 = 1.5;
-/// A hold at least this long, begun in the second half of the 2, earns the
-/// weak boost; a shorter one, begun at the 1 or later, starts clean.
+/// A hold at least this long, begun in the second half of the fourth light,
+/// earns the weak boost; a shorter one, begun at the fifth light or later,
+/// starts clean.
 pub const START_WEAK_BOOST_HOLD_S: f32 = 1.0;
 /// The full boost: the boost item's values.
 pub const START_BOOST_S: f32 = ITEM_BOOST_S;

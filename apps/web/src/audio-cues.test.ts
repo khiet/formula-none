@@ -28,14 +28,16 @@ describe("soundCues", () => {
     expect(soundCues(undefined, { ...STILL, airborne: true, item: "boost" })).toEqual([]);
   });
 
-  it("beeps as the race's count changes to 3, 2 and 1, and sounds Go as it shows Go", () => {
+  it("beeps as each of the five start lights comes on, and sounds Go as they go out", () => {
     const at = (count: RaceCount): SoundReading => ({ ...STILL, count });
-    // The 3 is up from the first reading, so it is heard from nothing.
-    expect(soundCues(undefined, at(3))).toEqual(["countdownBeep"]);
-    expect(soundCues(at(3), at(3))).toEqual([]);
-    expect(soundCues(at(3), at(2))).toEqual(["countdownBeep"]);
-    expect(soundCues(at(2), at(1))).toEqual(["countdownBeep"]);
-    expect(soundCues(at(1), at("go"))).toEqual(["go"]);
+    // The first light is on from the first reading, so it is heard from nothing.
+    expect(soundCues(undefined, at(5))).toEqual(["countdownBeep"]);
+    expect(soundCues(at(5), at(5))).toEqual([]);
+    const counts: RaceCount[] = [5, 4, 3, 2, 1, "go"];
+    const heard = counts
+      .slice(1)
+      .flatMap((count, index) => soundCues(at(counts[index] ?? null), at(count)));
+    expect(heard).toEqual([...Array(4).fill("countdownBeep"), "go"]);
     expect(soundCues(at("go"), at("go"))).toEqual([]);
     expect(soundCues(at("go"), at(null))).toEqual([]);
     expect(soundCues(at(null), at(null))).toEqual([]);
