@@ -109,10 +109,12 @@ pub struct KartReadout {
     /// interpolated kart is never airborne.
     pub airborne: bool,
     /// Seconds of boost left, while a mini-turbo, boost pad, item or start
-    /// boost holds the kart over top speed; the release's tell. Only the sim
-    /// that steps the kart reports it: a snapshot does not carry it, so an
-    /// interpolated kart never boosts.
+    /// boost holds the kart over top speed; the release's tell.
     pub boost_s: Option<f32>,
+    /// The tier the boost burns in, the flame's: orange for an orange
+    /// release or a weak rocket start, red for every other boost;
+    /// `MiniTurbo::None` while not boosting.
+    pub boost_tier: MiniTurbo,
     /// The kart's rocket start: while the countdown runs the tier its hold
     /// so far has reached, the sparks' tell, and from Go the verdict.
     pub start: Start,
@@ -581,6 +583,7 @@ impl Kart {
             spin_out_s: self.spun_out().then_some(self.spin_out_left_s),
             airborne: self.handling.airborne(),
             boost_s: self.handling.boost_s(),
+            boost_tier: self.handling.boost_tier(),
             start: self.start,
             stall_s: (self.stall_left_s > 0.0).then_some(self.stall_left_s),
             race_position: standing.position,
@@ -594,9 +597,10 @@ impl Kart {
     /// Take on the word of `readout` on everything a snapshot carries, at
     /// `clock`, the race clock at the snapshot's tick: the inverse of
     /// [`Kart::readout`] for the fields the kart keeps beside the body.
-    /// What a snapshot does not carry stays the kart's own, run by the same
-    /// rules on the same inputs. From Go, a rocket start verdict other than
-    /// the kart's replaces the boost or stall it was given at Go with the
+    /// What a snapshot does not carry, and the boost, which it carries for
+    /// the flame, stay the kart's own, run by the same rules on the same
+    /// inputs. From Go, a rocket start verdict other than the kart's
+    /// replaces the boost or stall it was given at Go with the
     /// readout's, run down by the ticks since. The caller puts the body
     /// where the readout has it.
     fn adopt(&mut self, readout: &KartReadout, clock: Phase) {
@@ -1192,7 +1196,9 @@ pub fn step(mut state: State, inputs: &[KartInput], dt: f32) -> State {
         }
         if let Some(item) = kart.held_item.take() {
             match item {
-                Item::Boost => kart.handling.boost(ITEM_BOOST_S, ITEM_BOOST_FACTOR),
+                Item::Boost => kart
+                    .handling
+                    .boost(ITEM_BOOST_S, ITEM_BOOST_FACTOR, MiniTurbo::Red),
                 Item::Hazard => {
                     let body = &state.physics.bodies[kart.body];
                     state.hazards.push(PlacedHazard {
@@ -1500,10 +1506,14 @@ fn rolls_the_start_boost(rng: &mut ChaCha8Rng) -> bool {
 fn apply_start(kart: &mut Kart, start: Start) {
     match start {
         Start::Clean => {}
-        Start::WeakBoost => kart
+        Start::WeakBoost => kart.handling.boost(
+            START_WEAK_BOOST_S,
+            START_WEAK_BOOST_FACTOR,
+            MiniTurbo::Orange,
+        ),
+        Start::FullBoost => kart
             .handling
-            .boost(START_WEAK_BOOST_S, START_WEAK_BOOST_FACTOR),
-        Start::FullBoost => kart.handling.boost(START_BOOST_S, START_BOOST_FACTOR),
+            .boost(START_BOOST_S, START_BOOST_FACTOR, MiniTurbo::Red),
         Start::Stall => kart.stall_left_s = START_STALL_S,
     }
 }

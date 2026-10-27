@@ -12,7 +12,7 @@ use common::{oval, oval_with_boxes_under, tap, ticks, DT, SEED};
 use sim::tuning::{
     self, ITEM_BOOST_FACTOR, ITEM_BOOST_S, ITEM_BOX_RESPAWN_S, ITEM_ROLL_WEIGHTS, TOP_SPEED_M_PER_S,
 };
-use sim::{step, Item, KartInput, Phase, RaceEvent, State};
+use sim::{step, Item, KartInput, MiniTurbo, Phase, RaceEvent, State};
 
 /// The box added under slot 0 by `oval_with_boxes_under`.
 fn box_under_slot_0() -> usize {
@@ -240,6 +240,7 @@ fn a_fired_boost_gives_the_tuned_speed_for_the_tuned_time() {
         }]
     );
     assert_eq!(state.kart_readouts()[0].held_item, None);
+    assert_eq!(state.kart_readouts()[0].boost_tier, MiniTurbo::Red);
     let mut boosted_ticks = 0;
     while (state.kart_readouts()[0].speed - boosted).abs() < 1e-3 {
         boosted_ticks += 1;

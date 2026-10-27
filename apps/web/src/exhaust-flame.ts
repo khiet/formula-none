@@ -1,11 +1,11 @@
 // The flame at a kart's exhaust while it boosts: the release's tell, for
 // every boost the sim reports, a mini-turbo, a rocket start, a boost pad or
-// an item. The readout tells boost seconds and not their source, so the
-// source is worked out from two readings, as the sound cues do (ADR 0028).
+// an item, on every kart, a rival's from the snapshots included. The
+// readout tells the boost's seconds and tier; when a new boost began is
+// worked out from two readings, as the sound cues do (ADR 0028).
 // Presentation only, decided from the readouts the bridge reports.
 
 import type { KartReadout, KartSize, MiniTurbo } from "./bridge";
-import type { Start } from "./generated/protocol";
 import { rotate, toWorld, type Vec3 } from "./kart-frame";
 
 /** The tier a flame burns in, the spark tiers' colours. */
@@ -29,10 +29,9 @@ export interface ExhaustFlames {
   readonly flames: readonly Flame[];
   /**
    * Burn each slot's flame from its readout and the one `update` saw
-   * last; `countingDown` while the race counts down, when a rocket start's
-   * hold is charging. Slots past `karts` go out.
+   * last. Slots past `karts` go out.
    */
-  update(karts: readonly KartReadout[], countingDown: boolean): void;
+  update(karts: readonly KartReadout[]): void;
 }
 
 /** A flame is full size at a boost's start and half size as it runs out. */
@@ -51,20 +50,18 @@ interface MutableFlame {
 /** What one kart's last reading leaves for the next to compare against. */
 interface Previous {
   boostS: number | null;
+  boostTier: MiniTurbo;
   /** The tier the drift under way had charged; null off a drift. */
   driftTier: MiniTurbo | null;
-  /** The rocket start's charge while the countdown ran; null from Go. */
-  charge: Start | null;
-  /** Boost seconds when the flame's source last set the boost. */
+  /** Boost seconds when the boost under way began. */
   boostLengthS: number;
 }
 
 /**
- * A flame per slot. The boost an orange drift's release gives, and a weak
- * rocket start's at Go, burns orange; every other boost, a red release, a
- * full rocket start, a pad or an item, burns red. A boost a release
- * replaces, or another source lengthens, takes the new source's tier. The
- * flame's strength is the share of the boost left: full size at the start, shrinking to half and fading out over its last quarter.
+ * A flame per slot, in the tier the boost burns in. Its strength is the
+ * share of the boost left: full size at the start, shrinking to half and
+ * fading out over its last quarter. A boost that a release replaces, or
+ * another boost lengthens or changes the tier of, starts over.
  */
 export function createExhaustFlames(kartCount: number, size: KartSize): ExhaustFlames {
   const flames: MutableFlame[] = Array.from({ length: kartCount }, () => ({
@@ -77,7 +74,7 @@ export function createExhaustFlames(kartCount: number, size: KartSize): ExhaustF
   const previous: (Previous | undefined)[] = Array.from({ length: kartCount }, () => undefined);
   return {
     flames,
-    update(karts, countingDown) {
+    update(karts) {
       flames.forEach((flame, slot) => {
         const kart = karts[slot];
         if (kart === undefined) {
@@ -87,32 +84,23 @@ export function createExhaustFlames(kartCount: number, size: KartSize): ExhaustF
         }
         const before = previous[slot];
         const driftTier = kart.drift !== null ? kart.miniTurbo : null;
-        const charge = countingDown ? kart.start : null;
-        const { boostS } = kart;
+        const { boostS, boostTier } = kart;
         let boostLengthS = before?.boostLengthS ?? 0;
-        // A release replaces whatever boost was running, a longer one
-        // included, so it is read from the drift ending, not the boost growing.
+        // A release replaces whatever boost was running, a longer one in the
+        // same tier included, so it is read from the drift ending.
         const released =
-          boostS !== null &&
-          (before?.driftTier === "orange" || before?.driftTier === "red") &&
-          driftTier === null;
-        // The hold can cross a tier on the Go tick: the verdict, not the
-        // last charge, says which boost the start earned.
-        const rocketStarted = boostS !== null && before?.charge != null && charge === null;
-        const grew = boostS !== null && (before?.boostS == null || boostS > before.boostS);
-        if (boostS !== null && (released || rocketStarted || grew)) {
-          const orange = released
-            ? before?.driftTier === "orange"
-            : rocketStarted && kart.start === "weakBoost";
-          flame.tier = orange ? "orange" : "red";
+          (before?.driftTier === "orange" || before?.driftTier === "red") && driftTier === null;
+        const grew = before?.boostS == null || (boostS !== null && boostS > before.boostS);
+        if (boostS !== null && (released || grew || boostTier !== before?.boostTier)) {
           boostLengthS = boostS;
         }
-        previous[slot] = { boostS, driftTier, charge, boostLengthS };
-        flame.visible = boostS !== null;
-        if (boostS === null) {
+        previous[slot] = { boostS, boostTier, driftTier, boostLengthS };
+        flame.visible = boostS !== null && boostTier !== "none";
+        if (boostS === null || boostTier === "none") {
           flame.strength = 0;
           return;
         }
+        flame.tier = boostTier;
         const share = boostLengthS > 0 ? Math.min(Math.max(boostS / boostLengthS, 0), 1) : 0;
         flame.strength =
           Math.min(share / FLAME_FADE_SHARE, 1) *

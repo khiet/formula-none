@@ -288,7 +288,7 @@ export async function createRaceView(
       dust.update(frameSeconds);
       wind.update(frameSeconds);
       shadows.update(readouts);
-      flames.update(readouts, countingDown);
+      flames.update(readouts);
       marks.update();
       sparkMesh.update();
       sparkHaloMesh.update();

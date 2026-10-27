@@ -19,7 +19,7 @@ use crate::tuning::{
     KART_BUMP_DECAY_S, KART_BUMP_MIN_M_PER_S, KART_BUMP_RESTITUTION, KART_BUMP_SPEED_LOSS,
     MINI_TURBO_BOOST_FACTOR, OFF_TRACK_SPEED_FACTOR, TOP_SPEED_M_PER_S,
 };
-use crate::{Drift, DriftDirection, KartInput, Surface};
+use crate::{Drift, DriftDirection, KartInput, MiniTurbo, Surface};
 
 /// A bump below this is spent: dropped to zero rather than decayed on
 /// without end, so a settled kart hashes the same wherever it was bumped.
@@ -61,6 +61,9 @@ pub(crate) struct Handling {
     boost_left_s: f32,
     /// Top speed multiplier while boosting: whichever boost started last.
     boost_factor: f32,
+    /// The tier the boost burns in, the flame's tell: whichever boost
+    /// started last. Only reported, so it stays out of the hash.
+    boost_tier: MiniTurbo,
 }
 
 /// Whether a kart answers its controls this tick.
@@ -117,6 +120,7 @@ impl Handling {
             on_boost_pad: false,
             boost_left_s: 0.0,
             boost_factor: 1.0,
+            boost_tier: MiniTurbo::None,
         }
     }
 
@@ -152,11 +156,22 @@ impl Handling {
         }
     }
 
-    /// Boost at `factor` times top speed for `seconds`, in place of any
-    /// boost under way.
-    pub(crate) fn boost(&mut self, seconds: f32, factor: f32) {
+    /// The tier the boost under way burns in; `MiniTurbo::None` while not
+    /// boosting.
+    pub(crate) fn boost_tier(&self) -> MiniTurbo {
+        if self.boost_left_s > 0.0 {
+            self.boost_tier
+        } else {
+            MiniTurbo::None
+        }
+    }
+
+    /// Boost at `factor` times top speed for `seconds`, burning in `tier`,
+    /// in place of any boost under way.
+    pub(crate) fn boost(&mut self, seconds: f32, factor: f32, tier: MiniTurbo) {
         self.boost_left_s = seconds;
         self.boost_factor = factor;
+        self.boost_tier = tier;
     }
 
     /// End any boost under way.
@@ -256,8 +271,8 @@ impl Handling {
                 // Letting go releases what the drift charged; losing the
                 // speed to slide just ends it.
                 if !input.hop {
-                    self.boost_left_s = drift.mini_turbo().boost_s();
-                    self.boost_factor = MINI_TURBO_BOOST_FACTOR;
+                    let tier = drift.mini_turbo();
+                    self.boost(tier.boost_s(), MINI_TURBO_BOOST_FACTOR, tier);
                 }
                 self.drift = None;
             }
@@ -276,7 +291,7 @@ impl Handling {
         }
         let on_boost_pad = !self.airborne() && situation.boost_pad;
         if on_boost_pad && !self.on_boost_pad {
-            self.boost(BOOST_PAD_S, BOOST_PAD_FACTOR);
+            self.boost(BOOST_PAD_S, BOOST_PAD_FACTOR, MiniTurbo::Red);
         }
         self.on_boost_pad = on_boost_pad;
         if self.boost_left_s > 0.0 {
@@ -285,7 +300,7 @@ impl Handling {
         }
         // A stopped kart loses whatever else it had going, a boost included:
         // a prediction that learns of a spin-out from a snapshot still holds
-        // a boost the snapshot does not carry.
+        // its own boost, which it does not adopt.
         if freeze == Freeze::Stopped {
             self.speed = 0.0;
             self.boost_left_s = 0.0;
@@ -659,6 +674,7 @@ mod tests {
         handling.tick(&FULL_THROTTLE, Freeze::Free, on_pad, TICK_S);
         assert_eq!(handling.speed, TOP_SPEED_M_PER_S * BOOST_PAD_FACTOR);
         assert_eq!(handling.boost_s(), Some(BOOST_PAD_S - TICK_S));
+        assert_eq!(handling.boost_tier(), MiniTurbo::Red);
 
         handling.tick(&FULL_THROTTLE, Freeze::Free, on_pad, TICK_S);
         assert_eq!(
@@ -684,7 +700,7 @@ mod tests {
     #[test]
     fn the_boost_item_holds_the_kart_at_its_factor_for_its_time() {
         let mut handling = going(TOP_SPEED_M_PER_S);
-        handling.boost(ITEM_BOOST_S, ITEM_BOOST_FACTOR);
+        handling.boost(ITEM_BOOST_S, ITEM_BOOST_FACTOR, MiniTurbo::Red);
 
         let mut boosted_ticks = 0;
         loop {
@@ -747,7 +763,7 @@ mod tests {
     #[test]
     fn a_spin_out_freezes_every_control_and_stops_the_kart() {
         let mut handling = drifting_right();
-        handling.boost(ITEM_BOOST_S, ITEM_BOOST_FACTOR);
+        handling.boost(ITEM_BOOST_S, ITEM_BOOST_FACTOR, MiniTurbo::Red);
         handling.bumped(Vec3::X, 4.0, handling.heading());
 
         let sent = handling.tick(&hop_right(), Freeze::Stopped, asphalt(), TICK_S);

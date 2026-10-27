@@ -1,13 +1,12 @@
 //! The wire's types for the sim's and back. What the wire leaves out comes
 //! back as the sim reports a kart only a snapshot speaks for: never
-//! airborne, never boosting, going at the speed its velocity has along its
-//! facing.
+//! airborne, going at the speed its velocity has along its facing.
 
 use sim::KartReadout;
 
 use crate::{
-    DriftDirection, DriftSnapshot, EventKind, HazardSnapshot, Input, Item, KartSnapshot,
-    ProjectileSnapshot, Start,
+    BoostSnapshot, BoostTier, DriftDirection, DriftSnapshot, EventKind, HazardSnapshot, Input,
+    Item, KartSnapshot, ProjectileSnapshot, Start,
 };
 
 impl From<sim::Item> for Item {
@@ -88,6 +87,27 @@ impl From<DriftSnapshot> for sim::Drift {
     }
 }
 
+/// The tier of a boost under way. The sim reports `MiniTurbo::None` only
+/// off a boost, which the wire leaves out, so it never reaches here; it
+/// reads as red, the tier of every boost but an orange one.
+impl From<sim::MiniTurbo> for BoostTier {
+    fn from(tier: sim::MiniTurbo) -> Self {
+        match tier {
+            sim::MiniTurbo::Orange => Self::Orange,
+            sim::MiniTurbo::Red | sim::MiniTurbo::None => Self::Red,
+        }
+    }
+}
+
+impl From<BoostTier> for sim::MiniTurbo {
+    fn from(tier: BoostTier) -> Self {
+        match tier {
+            BoostTier::Orange => Self::Orange,
+            BoostTier::Red => Self::Red,
+        }
+    }
+}
+
 /// What a snapshot carries of a kart: the readout less what only the sim
 /// that steps the kart reports.
 impl From<&KartReadout> for KartSnapshot {
@@ -106,6 +126,10 @@ impl From<&KartReadout> for KartSnapshot {
             spin_out_s: kart.spin_out_s,
             start: kart.start.into(),
             stall_s: kart.stall_s,
+            boost: kart.boost_s.map(|left_s| BoostSnapshot {
+                left_s,
+                tier: kart.boost_tier.into(),
+            }),
         }
     }
 }
@@ -123,7 +147,10 @@ impl From<&KartSnapshot> for KartReadout {
             held_item: kart.held_item.map(sim::Item::from),
             spin_out_s: kart.spin_out_s,
             airborne: false,
-            boost_s: None,
+            boost_s: kart.boost.map(|boost| boost.left_s),
+            boost_tier: kart
+                .boost
+                .map_or(sim::MiniTurbo::None, |boost| boost.tier.into()),
             start: kart.start.into(),
             stall_s: kart.stall_s,
             race_position: u32::from(kart.race_position),

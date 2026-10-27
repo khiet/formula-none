@@ -178,6 +178,7 @@ const KART: KartSnapshot = {
   spinOutS: null,
   start: "clean",
   stallS: null,
+  boost: null,
 };
 
 function snapshot(
