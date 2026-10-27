@@ -60,7 +60,7 @@ describe("spark tell", () => {
     });
   });
 
-  it("gives red the Grinder: denser, faster, longer, glowing and bouncing, cooling to red", () => {
+  it("gives red denser, faster, longer, glowing and bouncing, cooling to red", () => {
     const red = sparkTell(drifting("red"));
     const orange = sparkTell(drifting("orange"));
     expect(red).toEqual({

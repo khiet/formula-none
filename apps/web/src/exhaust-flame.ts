@@ -60,11 +60,10 @@ interface Previous {
 }
 
 /**
- * A flame per slot. A boost that starts or lengthens as an orange drift
- * ends, or as a weak rocket start's charge becomes its boost at Go, burns
- * orange; every other boost, a red release, a full rocket start, a pad or
- * an item, burns red. A boost lengthened mid-way takes the new source's
- * tier. The flame's strength is the share of the boost left: full size
+ * A flame per slot. The boost an orange drift's release gives, and a weak
+ * rocket start's at Go, burns orange; every other boost, a red release, a
+ * full rocket start, a pad or an item, burns red. A boost a release
+ * replaces, or another source lengthens, takes the new source's tier. The flame's strength is the share of the boost left: full size
  * at the start, shrinking to half and fading out over its last quarter.
  */
 export function createExhaustFlames(kartCount: number, size: KartSize): ExhaustFlames {
@@ -91,11 +90,21 @@ export function createExhaustFlames(kartCount: number, size: KartSize): ExhaustF
         const charge = countingDown ? kart.start : null;
         const { boostS } = kart;
         let boostLengthS = before?.boostLengthS ?? 0;
-        const boostBegan = boostS !== null && (before?.boostS == null || boostS > before.boostS);
-        if (boostBegan) {
-          const releasedOrange = before?.driftTier === "orange" && driftTier === null;
-          const weakStart = before?.charge === "weakBoost" && charge === null;
-          flame.tier = releasedOrange || weakStart ? "orange" : "red";
+        // A release replaces whatever boost was running, a longer one
+        // included, so it is read from the drift ending, not the boost growing.
+        const released =
+          boostS !== null &&
+          (before?.driftTier === "orange" || before?.driftTier === "red") &&
+          driftTier === null;
+        // The hold can cross a tier on the Go tick: the verdict, not the
+        // last charge, says which boost the start earned.
+        const rocketStarted = boostS !== null && before?.charge != null && charge === null;
+        const grew = boostS !== null && (before?.boostS == null || boostS > before.boostS);
+        if (boostS !== null && (released || rocketStarted || grew)) {
+          const orange = released
+            ? before?.driftTier === "orange"
+            : rocketStarted && kart.start === "weakBoost";
+          flame.tier = orange ? "orange" : "red";
           boostLengthS = boostS;
         }
         previous[slot] = { boostS, driftTier, charge, boostLengthS };

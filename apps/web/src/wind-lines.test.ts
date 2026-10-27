@@ -51,6 +51,21 @@ describe("wind lines", () => {
     }
   });
 
+  it("carries every line past the kart within its life, even from a standstill", () => {
+    const particles = createWindParticles();
+    const lines = createWindLines(particles, SIZE, {}, fixedRandom());
+    lines.emit(kartReadout({ boostS: 1, speed: 0 }), FRAME_S);
+    for (let frame = 0; frame < 26; frame++) {
+      particles.update(FRAME_S);
+    }
+    const left = particlesOf(particles);
+    expect(left.length).toBeGreaterThan(0);
+    for (const line of left) {
+      // Behind the kart, which faces -Z.
+      expect(line.position[2]).toBeGreaterThan(SIZE.length / 2);
+    }
+  });
+
   it("throws densest as the boost begins and fewer as it runs down", () => {
     expect(thrown(1.5, 30).length).toBeGreaterThan(thrown(0.2, 30).length);
   });

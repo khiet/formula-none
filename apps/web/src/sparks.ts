@@ -39,7 +39,7 @@ export const TIER_COLOURS: Readonly<
 };
 
 /**
- * Each tier's sparks: orange quiet, red the Grinder, faster, longer-lived,
+ * Each tier's sparks: orange quiet, red denser, faster, longer-lived,
  * glowing, bouncing and bursting harder, so the second tier reads stronger
  * and not only different. Both are born hot and cool to the tier's colour.
  */

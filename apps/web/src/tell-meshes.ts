@@ -211,6 +211,12 @@ export function particleMesh(
   };
 }
 
+export interface FlameMesh {
+  readonly mesh: Object3D;
+  /** Redraw from the flames' current state, `frameSeconds` on for the flicker. */
+  update(frameSeconds: number): void;
+}
+
 /** A flame at full strength is this wide, its core and halo a share of it. */
 const FLAME_RADIUS_M = 0.32;
 const FLAME_CORE_SHARE = 0.3;
@@ -236,9 +242,7 @@ const FLAME_LIFT_M = 0.05;
  * the grid. Advance with the frame's seconds, so the flicker runs at the
  * same rate whatever the frame rate.
  */
-export function exhaustFlameMesh(
-  flames: ExhaustFlames,
-): Omit<TellMesh, "update"> & { update(frameSeconds: number): void } {
+export function exhaustFlameMesh(flames: ExhaustFlames): FlameMesh {
   const count = flames.flames.length;
   const material = additiveMaterial();
   const cores = new InstancedMesh(new SphereGeometry(1, 8, 6), material, count);

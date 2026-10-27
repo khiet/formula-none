@@ -62,6 +62,27 @@ describe("the exhaust flame", () => {
     ).toBe("red");
   });
 
+  it("burns orange for an orange release that cuts a longer pad boost short", () => {
+    const flames = createExhaustFlames(1, SIZE);
+    flames.update([drifting("orange", { boostS: 0.8 })], false);
+    flames.update([boosting(0.58)], false);
+    expect(flames.flames[0]?.tier).toBe("orange");
+    expect(flames.flames[0]?.strength).toBe(1);
+  });
+
+  it("burns by the rocket start's verdict at Go, not the hold's last charge", () => {
+    const crossedToFull = flameAfter(
+      [kartReadout({ start: "weakBoost" }), true],
+      boosting(1.5, { start: "fullBoost" }),
+    );
+    expect(crossedToFull?.tier).toBe("red");
+    const crossedToWeak = flameAfter(
+      [kartReadout({ start: "clean" }), true],
+      boosting(0.6, { start: "weakBoost" }),
+    );
+    expect(crossedToWeak?.tier).toBe("orange");
+  });
+
   it("keeps its tier for the whole boost and takes the new source's when a boost lengthens it", () => {
     const flames = createExhaustFlames(1, SIZE);
     flames.update([drifting("orange")], false);

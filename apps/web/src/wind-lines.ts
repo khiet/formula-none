@@ -31,9 +31,14 @@ const WIND_AHEAD_MIN_M = 9;
 const WIND_AHEAD_MAX_M = 14;
 /** The share of lines that pass over the roof; the rest pass the sides. */
 const WIND_ROOF_SHARE = 0.3;
-/** How fast a line moves back past the world, on top of the kart's own speed past it. */
-const WIND_SPEED_MIN_M_PER_S = 10;
-const WIND_SPEED_MAX_M_PER_S = 20;
+/**
+ * How fast a line closes on the kart, whatever the kart's own speed, so it
+ * passes the kart and the camera within its life even at a rocket start;
+ * and the least it moves back through the world, so it always streaks.
+ */
+const WIND_CLOSING_MIN_M_PER_S = 40;
+const WIND_CLOSING_MAX_M_PER_S = 50;
+const WIND_LEAST_SPEED_M_PER_S = 5;
 /** How fast a side line parts outward and a roof line lifts, the way air parts round the kart. */
 const WIND_PART_MIN_M_PER_S = 0.8;
 const WIND_PART_MAX_M_PER_S = 2;
@@ -110,7 +115,10 @@ export function createWindLines(
       const ground = -size.height / 2;
       for (; owed >= 1; owed -= 1) {
         const ahead = -between(WIND_AHEAD_MIN_M, WIND_AHEAD_MAX_M);
-        const back = between(WIND_SPEED_MIN_M_PER_S, WIND_SPEED_MAX_M_PER_S);
+        const back = Math.max(
+          between(WIND_CLOSING_MIN_M_PER_S, WIND_CLOSING_MAX_M_PER_S) - Math.max(kart.speed, 0),
+          WIND_LEAST_SPEED_M_PER_S,
+        );
         if (random() < WIND_ROOF_SHARE) {
           const x = (2 * random() - 1) * (size.width / 2 + WIND_SIDE_GAP_M);
           const y = size.height / 2 + random() * WIND_ROOF_HEIGHT_M;
