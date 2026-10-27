@@ -538,7 +538,9 @@ fn the_cap_ends_the_race_the_tuned_time_after_the_first_human_finishes() {
 
 #[test]
 fn a_kart_handed_to_a_bot_does_not_hold_the_race_open() {
-    let mut state = started(race(2));
+    // A bot laps faster than pole's line, so it takes over a lap down, with
+    // too far to go to finish first.
+    let mut state = drive(started(race(2)), &[follow_centreline, idle], 20.0);
     state.hand_to_bot(1);
     let state = drive_until_finished(state, &[follow_centreline, idle], 0);
     assert!(!finished(&state, 1));

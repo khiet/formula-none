@@ -682,6 +682,9 @@ use tuning::{
     HOMING_LOCK_RANGE_M, HOMING_LOOKAHEAD_M, HOMING_RADIUS_M, HOMING_SPEED_FACTOR,
     HOMING_WITHOUT_TARGET_IS_WASTED,
 };
+use tuning::{
+    KART_BUMP_RESTITUTION, KART_BUMP_SPEED_LOSS, TYRE_WALL_RESTITUTION, TYRE_WALL_SPEED_LOSS,
+};
 
 // The sim builds only the wasted fire for a projectile with no kart ahead
 // (the decision is recorded with the constant); flipping it needs the
@@ -1331,6 +1334,12 @@ pub fn step(mut state: State, inputs: &[KartInput], dt: f32) -> State {
             &sent_velocities,
             dt,
         );
+        bump_off_tyre_walls(
+            &mut state.karts[index],
+            &state.physics,
+            sent_velocities[index],
+            dt,
+        );
         let contends = state.contends(index);
         let kart = &mut state.karts[index];
         held_by_walls(
@@ -1700,7 +1709,56 @@ fn bump_off_karts(
             {
                 continue;
             }
-            karts[index].handling.bumped(normal, closing_speed, heading);
+            // Each kart of the pair takes half the bounce.
+            karts[index].handling.bumped(
+                normal,
+                closing_speed,
+                heading,
+                KART_BUMP_RESTITUTION / 2.0,
+                KART_BUMP_SPEED_LOSS,
+            );
+        }
+    }
+}
+
+/// A kart that ended the tick touching a tyre wall bounces off it as off a
+/// kart standing still (see [`Handling::bumped`]), at the speed it closed
+/// with the wall, judged by the velocity the handling sent it off with. A
+/// spun-out kart stands where it is and takes no bump.
+fn bump_off_tyre_walls(kart: &mut Kart, physics: &Physics, sent_velocity: Vec3, dt: f32) {
+    if kart.spun_out() {
+        return;
+    }
+    let heading = kart.handling.heading();
+    for pair in physics.narrow_phase.contact_pairs_with(kart.collider) {
+        let other = other_collider(pair, kart.collider);
+        if physics.colliders[other].user_data != u128::from(Surface::Tyres.code()) {
+            continue;
+        }
+        for manifold in pair.manifolds() {
+            let normal = normal_toward(pair, kart.collider, manifold);
+            let normal = Vec3::new(normal.x, 0.0, normal.z).normalize_or_zero();
+            if normal == Vec3::ZERO {
+                continue;
+            }
+            // Contact distances are from the start of the tick; the
+            // velocity the kart set off with says whether it met the wall
+            // this tick, before the solver held it short.
+            let closing_speed = (-sent_velocity.dot(normal)).max(0.0);
+            if !manifold
+                .points
+                .iter()
+                .any(|contact| contact.dist - closing_speed * dt <= WALL_TOUCH_M)
+            {
+                continue;
+            }
+            kart.handling.bumped(
+                normal,
+                closing_speed,
+                heading,
+                TYRE_WALL_RESTITUTION,
+                TYRE_WALL_SPEED_LOSS,
+            );
         }
     }
 }

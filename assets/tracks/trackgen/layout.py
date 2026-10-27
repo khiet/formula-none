@@ -12,12 +12,13 @@ from . import mesh
 from .path import Feature, Path, elevation
 from .sponsors import SPONSORS
 
-# Surface tags the sim understands; the fifth, out of world, is the absence
+# Surface tags the sim understands; the sixth, out of world, is the absence
 # of any surface below a point.
 ASPHALT = "asphalt"
 SAND = "sand"
 GRASS = "grass"
 WALL = "wall"
+TYRES = "tyres"
 
 # The grass slab sits this far below the asphalt and the sand slopes down to
 # it, so no two surfaces are coplanar and the surface under a point is never
@@ -26,8 +27,18 @@ GRASS_DROP_M = 0.05
 GRASS_MARGIN_M = 40.0
 WALL_THICKNESS_M = 0.5
 WALL_HEIGHT_M = 1.0
-PIPE_RADIUS_M = 1.5
-PIPE_HEIGHT_M = 2.0
+# A tyre wall collides as a prism with this footprint; the tyres drawn over
+# it are scenery, two rings of them stacked to its height.
+TYRE_WALL_RADIUS_M = 1.5
+TYRE_WALL_HEIGHT_M = 1.2
+TYRE_WALL_RINGS = 2
+TYRES_PER_RING = 5
+TYRE_DIAMETER_M = 0.6
+TYRE_TREAD_M = 0.25
+# The tyres' outer faces and the belts stand this far proud of the prism so
+# they draw over it.
+TYRE_PROUD_M = 0.03
+TYRE_BELT_HEIGHT_M = 0.18
 
 # Scenery, drawn and never collided with. It floats a hair over the surface
 # it decorates so it draws on top without changing what the sim stands on.
@@ -121,8 +132,8 @@ GRID_STAGGER_M = 2.0
 GRID_FRONT_ROW_BEHIND_LINE_M = 4.0
 
 @dataclass(frozen=True)
-class Pipe:
-    """An upright pipe obstacle at arc length `s`, `offset` metres left of the centreline."""
+class TyreWall:
+    """A stack of tyres at arc length `s`, `offset` metres left of the centreline."""
 
     s: float
     offset: float
@@ -174,7 +185,7 @@ class Layout:
     asphalt_half_width: float
     runoff_width: float
     checkpoint_count: int
-    pipes: list[Pipe]
+    tyre_walls: list[TyreWall]
     item_rows: list[ItemRow]
     boost_pads: list[BoostPad]
     elevation: list[Feature] = field(default_factory=list)
@@ -300,12 +311,13 @@ def build(layout: Layout) -> TrackGeometry:
             SurfaceMesh(name, WALL, WALL, mesh.box_rail(inner, outer, WALL_HEIGHT_M, closed=True))
         )
 
-    for number, pipe in enumerate(layout.pipes):
-        sample = path.at(pipe.s)
-        base = (*sample.offset(pipe.offset), elevation(layout.elevation, sample.s))
+    for number, wall in enumerate(layout.tyre_walls):
         surfaces.append(
             SurfaceMesh(
-                f"Pipe.{number:02d}", WALL, "pipe", mesh.cylinder(base, PIPE_RADIUS_M, PIPE_HEIGHT_M)
+                f"TyreWall.{number:02d}",
+                TYRES,
+                "tyre-shade",
+                mesh.cylinder(tyre_wall_base(layout, wall), TYRE_WALL_RADIUS_M, TYRE_WALL_HEIGHT_M),
             )
         )
 
@@ -341,7 +353,7 @@ def build(layout: Layout) -> TrackGeometry:
 
 def decorate(layout: Layout, height: list[float]) -> tuple[list[SceneryMesh], list[TextProp]]:
     """The scenery: kerbs on every corner, the start line, and what the layout's decor asks for."""
-    scenery = kerbs(layout, height) + start_line(layout) + boost_pads(layout)
+    scenery = kerbs(layout, height) + start_line(layout) + boost_pads(layout) + tyre_stacks(layout)
     boards, lettering = hoardings(layout)
     scenery += boards + grandstands(layout)
     if layout.decor.gantry:
@@ -371,6 +383,53 @@ def kerbs(layout: Layout, height: list[float]) -> list[SceneryMesh]:
             result.append(SceneryMesh(f"Kerb.{segment.name}.{label}.red", "kerb-red", red))
             result.append(SceneryMesh(f"Kerb.{segment.name}.{label}.white", "kerb-white", white))
     return result
+
+
+def tyre_wall_base(layout: Layout, wall: TyreWall) -> mesh.Vertex:
+    """The centre of the tyre wall's footprint, on the asphalt."""
+    sample = layout.path.at(wall.s)
+    return (*sample.offset(wall.offset), elevation(layout.elevation, sample.s))
+
+
+def tyre_stacks(layout: Layout) -> list[SceneryMesh]:
+    """The tyres over each tyre wall's prism: rings of tyres standing on their
+    treads, axles pointing out, each ring turned half a tyre's spacing from
+    the one below and belted round its middle in alternating red and white."""
+    parts = ByMaterial("TyreStack")
+    face_radius = TYRE_WALL_RADIUS_M + TYRE_PROUD_M
+    # Far enough out that the belt's flat sides clear the tyres' faces.
+    belt_radius = face_radius + TYRE_PROUD_M
+    belt_sides = 4 * TYRES_PER_RING
+    for wall in layout.tyre_walls:
+        cx, cy, cz = tyre_wall_base(layout, wall)
+        for ring in range(TYRE_WALL_RINGS):
+            middle = cz + (ring + 0.5) * TYRE_DIAMETER_M
+            turn = math.pi / TYRES_PER_RING * ring
+            for k in range(TYRES_PER_RING):
+                angle = turn + math.tau * k / TYRES_PER_RING
+                out = (math.cos(angle), math.sin(angle), 0.0)
+                centre = (cx + out[0] * face_radius, cy + out[1] * face_radius, middle)
+                rubber, face = mesh.drum(centre, _scaled(out, -1.0), TYRE_DIAMETER_M / 2.0, TYRE_TREAD_M)
+                parts.add("tyre", rubber)
+                parts.add("tyre-face", face)
+            bottom = middle - TYRE_BELT_HEIGHT_M / 2.0
+            for k in range(belt_sides):
+                a0 = turn + math.tau * k / belt_sides
+                a1 = turn + math.tau * (k + 1) / belt_sides
+                corners = [
+                    (cx + belt_radius * math.cos(a), cy + belt_radius * math.sin(a), z)
+                    for a, z in ((a0, bottom), (a1, bottom))
+                ]
+                top = [(x, y, z + TYRE_BELT_HEIGHT_M) for x, y, z in corners]
+                parts.add(
+                    "kerb-red" if k % 2 == 0 else "kerb-white",
+                    mesh.quad(corners[0], corners[1], top[1], top[0]),
+                )
+    return parts.scenery()
+
+
+def _scaled(v: mesh.Vertex, k: float) -> mesh.Vertex:
+    return (v[0] * k, v[1] * k, v[2] * k)
 
 
 def start_line(layout: Layout) -> list[SceneryMesh]:

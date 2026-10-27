@@ -1,5 +1,5 @@
-"""Triangle meshes for a track: ribbons along the path, box walls, pipes, the grass slab, and
-the scenery's stripes, checkers, boards and boxes.
+"""Triangle meshes for a track: ribbons along the path, box walls, prisms, the grass slab, and
+the scenery's stripes, checkers, boards, boxes and tyres.
 
 A mesh is `(vertices, faces)` with vertices as `(x, y, z)` tuples and faces
 as index tuples, which is what Blender's `from_pydata` takes. Faces may be
@@ -103,6 +103,43 @@ def cylinder(centre: Vertex, radius: float, height: float, sides: int = 16) -> M
     faces.append(tuple(reversed(range(sides))))
     faces.append(tuple(range(sides, 2 * sides)))
     return vertices, faces
+
+
+def drum(face: Vertex, axis: Vertex, radius: float, depth: float, sides: int = 8) -> tuple[Mesh, Mesh]:
+    """A tyre on its side: a cylinder whose open end is the disc centred on
+    `face` and which runs `depth` metres along the unit `axis`, as its tread
+    and the disc facing away from `axis`. The far end is left open; it is
+    meant to stand inside something."""
+    # Two unit vectors square to the axis and to each other span the disc.
+    helper = (0.0, 0.0, 1.0) if abs(axis[2]) < 0.9 else (1.0, 0.0, 0.0)
+    u = _normalised(_cross(axis, helper))
+    v = _cross(axis, u)
+    ring = [
+        tuple(
+            face[i] + radius * (math.cos(math.tau * k / sides) * u[i] + math.sin(math.tau * k / sides) * v[i])
+            for i in range(3)
+        )
+        for k in range(sides)
+    ]
+    near = [(x, y, z) for x, y, z in ring]
+    far = [(x + depth * axis[0], y + depth * axis[1], z + depth * axis[2]) for x, y, z in ring]
+    vertices = near + far
+    tread: list[Face] = []
+    for k in range(sides):
+        side = (k, (k + 1) % sides, sides + (k + 1) % sides, sides + k)
+        outward = tuple(vertices[k][i] - face[i] for i in range(3))
+        tread.append(_facing(side, vertices, outward))
+    disc = _facing(tuple(range(sides)), near, _negate(axis))
+    return (vertices, tread), (near, [disc])
+
+
+def _cross(a: Vertex, b: Vertex) -> Vertex:
+    return (a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0])
+
+
+def _normalised(v: Vertex) -> Vertex:
+    length = math.sqrt(sum(c * c for c in v))
+    return (v[0] / length, v[1] / length, v[2] / length)
 
 
 def cuboid(corner: Callable[[int, int, int], Vertex]) -> dict[str, Mesh]:

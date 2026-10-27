@@ -81,7 +81,7 @@ pub fn follow_line(state: &State, kart: usize, right_of_centre_m: f32) -> KartIn
 }
 
 /// A line a little right of the centreline: enough to lap either track on
-/// the asphalt and clear of the pipes that stand just left of the
+/// the asphalt and clear of the tyre walls that stand just left of the
 /// centreline in the oval's turns and on the inside of Brands Patch's
 /// hairpins.
 pub fn follow_centreline(state: &State, kart: usize) -> KartInput {
@@ -95,7 +95,7 @@ fn edited(sidecar: &str, edit: impl FnOnce(&mut serde_json::Value)) -> String {
     sidecar.to_string()
 }
 
-/// `sidecar` with its walls taken away, the pipes kept. The walls keep a
+/// `sidecar` with its walls taken away, the tyre walls kept. The walls keep a
 /// kart off the grass and in the world, and these are the rules for a kart
 /// that got there anyway, whatever track it was on.
 pub fn without_walls(sidecar: &str) -> String {

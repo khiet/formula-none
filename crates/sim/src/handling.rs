@@ -16,8 +16,8 @@ use rapier3d::prelude::*;
 use crate::hash::Fnv1a;
 use crate::tuning::{
     BOOST_PAD_FACTOR, BOOST_PAD_S, DRIFT_ENTRY_SPEED_FRACTION, GRAVITY_M_PER_S2, HOP_AIRTIME_S,
-    KART_BUMP_DECAY_S, KART_BUMP_MIN_M_PER_S, KART_BUMP_RESTITUTION, KART_BUMP_SPEED_LOSS,
-    MINI_TURBO_BOOST_FACTOR, OFF_TRACK_SPEED_FACTOR, TOP_SPEED_M_PER_S,
+    KART_BUMP_DECAY_S, KART_BUMP_MIN_M_PER_S, MINI_TURBO_BOOST_FACTOR, OFF_TRACK_SPEED_FACTOR,
+    TOP_SPEED_M_PER_S,
 };
 use crate::{Drift, DriftDirection, KartInput, MiniTurbo, Surface};
 
@@ -365,24 +365,32 @@ impl Handling {
         stopped
     }
 
-    /// The kart touched another along `normal`, a unit vector along the
-    /// ground pointing at it, the two closing at `closing_speed`: it takes
-    /// a bump away, the least one plus the tuned share of half the closing
-    /// speed, and loses the tuned share of the closing speed, scaled by how
-    /// square `heading` met the other, the way it was going, forward or in
-    /// reverse. A bump already under way is raised to the new one, never
-    /// added to, so a touch that lasts holds the karts apart without
-    /// flinging them. The caller reads `heading` once before the tick's
-    /// first touch, so a touch that cuts the speed to zero leaves the way
-    /// the kart was going unchanged for the touches after it.
-    pub(crate) fn bumped(&mut self, normal: Vec3, closing_speed: f32, heading: Vec3) {
-        let wanted = KART_BUMP_MIN_M_PER_S + KART_BUMP_RESTITUTION * closing_speed / 2.0;
+    /// The kart touched another kart or a tyre wall along `normal`, a unit
+    /// vector along the ground pointing out of what it touched, the two
+    /// closing at `closing_speed`: it takes a bump away, the least one plus
+    /// `restitution` of the closing speed, and loses `speed_loss` of the
+    /// closing speed, scaled by how square `heading` met what it touched,
+    /// the way it was going, forward or in reverse. A bump already under
+    /// way is raised to the new one, never added to, so a touch that lasts
+    /// holds the kart off without flinging it. The caller reads `heading`
+    /// once before the tick's first touch, so a touch that cuts the speed
+    /// to zero leaves the way the kart was going unchanged for the touches
+    /// after it.
+    pub(crate) fn bumped(
+        &mut self,
+        normal: Vec3,
+        closing_speed: f32,
+        heading: Vec3,
+        restitution: f32,
+        speed_loss: f32,
+    ) {
+        let wanted = KART_BUMP_MIN_M_PER_S + restitution * closing_speed;
         let along = self.bump.dot(normal);
         if wanted > along {
             self.bump += normal * (wanted - along);
         }
         let square = (-heading.dot(normal)).max(0.0);
-        let loss = KART_BUMP_SPEED_LOSS * square * closing_speed;
+        let loss = speed_loss * square * closing_speed;
         self.speed = if self.speed < 0.0 {
             (self.speed + loss).min(0.0)
         } else {
@@ -512,8 +520,9 @@ pub(crate) fn steer_rate(speed: f32) -> f32 {
 mod tests {
     use super::*;
     use crate::tuning::{
-        ITEM_BOOST_FACTOR, ITEM_BOOST_S, MINI_TURBO_ORANGE_BOOST_S, MINI_TURBO_ORANGE_CHARGE_S,
-        MINI_TURBO_RED_BOOST_S, MINI_TURBO_RED_CHARGE_S, TICK_S,
+        ITEM_BOOST_FACTOR, ITEM_BOOST_S, KART_BUMP_RESTITUTION, KART_BUMP_SPEED_LOSS,
+        MINI_TURBO_ORANGE_BOOST_S, MINI_TURBO_ORANGE_CHARGE_S, MINI_TURBO_RED_BOOST_S,
+        MINI_TURBO_RED_CHARGE_S, TICK_S,
     };
     use crate::MiniTurbo;
 
@@ -760,11 +769,24 @@ mod tests {
         assert_eq!(sent.yaw_rate, 0.0);
     }
 
+    /// The touch a kart closing at `closing_speed` from +X gives, with the
+    /// kart contact's share of the bounce.
+    fn bumped_by_a_kart(handling: &mut Handling, closing_speed: f32) {
+        let heading = handling.heading();
+        handling.bumped(
+            Vec3::X,
+            closing_speed,
+            heading,
+            KART_BUMP_RESTITUTION / 2.0,
+            KART_BUMP_SPEED_LOSS,
+        );
+    }
+
     #[test]
     fn a_spin_out_freezes_every_control_and_stops_the_kart() {
         let mut handling = drifting_right();
         handling.boost(ITEM_BOOST_S, ITEM_BOOST_FACTOR, MiniTurbo::Red);
-        handling.bumped(Vec3::X, 4.0, handling.heading());
+        bumped_by_a_kart(&mut handling, 4.0);
 
         let sent = handling.tick(&hop_right(), Freeze::Stopped, asphalt(), TICK_S);
 
@@ -779,7 +801,7 @@ mod tests {
     #[test]
     fn a_bump_decays_to_about_a_third_in_its_time() {
         let mut handling = Handling::new();
-        handling.bumped(Vec3::X, 4.0, handling.heading());
+        bumped_by_a_kart(&mut handling, 4.0);
         let start = handling.bump.x;
 
         ticks(
@@ -796,13 +818,13 @@ mod tests {
     #[test]
     fn a_new_bump_replaces_one_under_way_rather_than_adding_to_it() {
         let mut handling = Handling::new();
-        handling.bumped(Vec3::X, 4.0, handling.heading());
+        bumped_by_a_kart(&mut handling, 4.0);
         let first = handling.bump.x;
 
-        handling.bumped(Vec3::X, 2.0, handling.heading());
+        bumped_by_a_kart(&mut handling, 2.0);
         assert_eq!(handling.bump.x, first, "a weaker bump leaves it be");
 
-        handling.bumped(Vec3::X, 8.0, handling.heading());
+        bumped_by_a_kart(&mut handling, 8.0);
         assert_eq!(
             handling.bump.x,
             KART_BUMP_MIN_M_PER_S + KART_BUMP_RESTITUTION * 8.0 / 2.0

@@ -4,10 +4,10 @@
 
 mod common;
 
-use common::{brands_patch, oval, started, throttle, ticks, DT, OVAL, SEED};
+use common::{brands_patch, oval, started, throttle, ticks, track, with_slot_at, DT, OVAL, SEED};
 
-use sim::tuning::KART_HALF_HEIGHT_M;
-use sim::{step, KartInput, State, Surface, Track, TrackError};
+use sim::tuning::{KART_HALF_HEIGHT_M, KART_HALF_LENGTH_M};
+use sim::{step, KartInput, KartReadout, State, Surface, Track, TrackError};
 
 /// Nearest centreline index to a point, for ordering things along the lap.
 fn centreline_index(track: &Track, point: [f32; 3]) -> usize {
@@ -52,6 +52,7 @@ fn brands_patch_carries_the_whole_layout() {
         Surface::Sand,
         Surface::Grass,
         Surface::Wall,
+        Surface::Tyres,
     ] {
         assert!(
             track.surfaces().iter().any(|mesh| mesh.surface == surface),
@@ -260,17 +261,22 @@ fn the_surface_beside_the_track_is_sand_then_grass_then_nothing() {
 }
 
 #[test]
-fn walls_and_pipes_read_as_wall_from_above() {
+fn walls_read_as_wall_and_tyre_walls_as_tyres_from_above() {
     let track = oval();
     let state = started(State::new(SEED, 1, track.clone()));
-    let walls: Vec<_> = track
+    let standing: Vec<_> = track
         .surfaces()
         .iter()
-        .filter(|mesh| mesh.surface == Surface::Wall)
+        .filter(|mesh| matches!(mesh.surface, Surface::Wall | Surface::Tyres))
         .collect();
-    assert!(walls.len() >= 2, "the oval has walls and pipes");
+    for surface in [Surface::Wall, Surface::Tyres] {
+        assert!(
+            standing.iter().any(|mesh| mesh.surface == surface),
+            "the oval has no {surface:?} mesh"
+        );
+    }
 
-    for mesh in walls {
+    for mesh in standing {
         let vertices: Vec<[f32; 3]> = mesh.vertices().collect();
         // A triangle facing up is part of a top; probe above its centre.
         let top = mesh
@@ -297,7 +303,7 @@ fn walls_and_pipes_read_as_wall_from_above() {
             (top[0][1] + top[1][1] + top[2][1]) / 3.0 + 1.0,
             (top[0][2] + top[1][2] + top[2][2]) / 3.0,
         ];
-        assert_eq!(state.surface_at(centre), Surface::Wall, "{}", mesh.name);
+        assert_eq!(state.surface_at(centre), mesh.surface, "{}", mesh.name);
     }
 }
 
@@ -338,28 +344,135 @@ fn the_run_off_is_walled_on_both_sides_at_every_checkpoint() {
     }
 }
 
+/// Where the oval's first tyre wall stands, seen from above: the (x, z)
+/// centre of its footprint and its radius.
+fn ovals_first_tyre_wall() -> ([f32; 2], f32) {
+    let track = oval();
+    let wall = track
+        .surfaces()
+        .iter()
+        .find(|mesh| mesh.name == "TyreWall.00")
+        .expect("the oval's first tyre wall");
+    let vertices: Vec<[f32; 3]> = wall.vertices().collect();
+    let count = vertices.len() as f32;
+    let centre = [
+        vertices.iter().map(|v| v[0]).sum::<f32>() / count,
+        vertices.iter().map(|v| v[2]).sum::<f32>() / count,
+    ];
+    let radius = (vertices[0][0] - centre[0]).hypot(vertices[0][2] - centre[1]);
+    (centre, radius)
+}
+
+/// Metres between a kart's centre and the tyre wall's, seen from above.
+fn from_the_tyre_wall(kart: &KartReadout, centre: [f32; 2]) -> f32 {
+    (kart.position[0] - centre[0]).hypot(kart.position[2] - centre[1])
+}
+
+/// The kart's velocity along the ground away from the tyre wall's centre.
+fn moving_away_from(kart: &KartReadout, centre: [f32; 2]) -> f32 {
+    let (dx, dz) = (kart.position[0] - centre[0], kart.position[2] - centre[1]);
+    (kart.velocity[0] * dx + kart.velocity[2] * dz) / dx.hypot(dz)
+}
+
+/// A kart's centre is no closer than this to the tyre wall's while it
+/// touches: the wall's radius and the kart's half length, less a margin for
+/// the rounded edges of its box.
+fn touching_within(radius: f32) -> f32 {
+    radius + KART_HALF_LENGTH_M + 0.1
+}
+
 #[test]
-fn a_kart_driving_into_a_pipe_stops_at_it() {
+fn a_kart_driving_into_a_tyre_wall_bounces_off_it() {
     // Oval slot 0 drives up the front straight, into the first turn and
-    // head on into the pipe centred on its column at z = -107.67.
+    // head on into the tyre wall centred on its column.
+    let (centre, radius) = ovals_first_tyre_wall();
     let mut state = started(State::new(SEED, 1, oval()));
-    for _ in 0..ticks(7.0) {
+    let mut touch = None;
+    for tick in 0..ticks(9.0) {
         state = step(state, &[throttle()], DT);
         let kart = state.kart_readouts()[0];
         assert!(
-            kart.position[2] > -107.67,
-            "went through the pipe: {kart:?}"
+            from_the_tyre_wall(&kart, centre) > radius,
+            "went into the tyre wall: {kart:?}"
+        );
+        if touch.is_none() && from_the_tyre_wall(&kart, centre) < touching_within(radius) {
+            touch = Some(tick);
+        }
+        if touch.is_some_and(|touch| tick - touch < ticks(1.0))
+            && moving_away_from(&kart, centre) > 1.0
+        {
+            assert!(
+                (kart.position[1] - KART_HALF_HEIGHT_M).abs() < 0.2,
+                "left the ground: {kart:?}"
+            );
+            return;
+        }
+    }
+    panic!(
+        "{}",
+        match touch {
+            None => "never reached the tyre wall".to_owned(),
+            Some(_) => format!(
+                "still not moving away a second after the touch: {:?}",
+                state.kart_readouts()[0]
+            ),
+        }
+    );
+}
+
+/// A kart started `lateral` metres right of the oval's first tyre wall's
+/// centre and 25 m short of it, driving straight at it from rest until it
+/// touches and coasting after: its speed along the ground half a second
+/// after the touch, and whether anything spun it out or raised an event.
+fn coasting_off_the_tyre_wall(lateral: f32) -> (f32, bool) {
+    let (centre, radius) = ovals_first_tyre_wall();
+    // Yaw zero faces -Z, toward the wall, and +X is the kart's right.
+    let sidecar = with_slot_at(OVAL, 0, [centre[0] + lateral, 0.0, centre[1] + 25.0], 0.0);
+    let mut state = started(State::new(SEED, 1, track(&sidecar)));
+    let mut touched = None;
+    let mut disturbed = false;
+    for tick in 0..ticks(6.0) {
+        let input = if touched.is_some() {
+            KartInput::default()
+        } else {
+            throttle()
+        };
+        state = step(state, &[input], DT);
+        let kart = state.kart_readouts()[0];
+        disturbed |= kart.spin_out_s.is_some() || !state.events().is_empty();
+        if touched.is_none() && from_the_tyre_wall(&kart, centre) < touching_within(radius) {
+            touched = Some(tick);
+        }
+        if touched.is_some_and(|touched| tick - touched == ticks(0.5)) {
+            return (kart.velocity[0].hypot(kart.velocity[2]), disturbed);
+        }
+    }
+    panic!("kart {lateral} m right of the tyre wall never touched it");
+}
+
+#[test]
+fn a_square_hit_on_a_tyre_wall_leaves_slower_than_a_slanting_one() {
+    let (square, _) = coasting_off_the_tyre_wall(0.0);
+    let (slanting, _) = coasting_off_the_tyre_wall(1.8);
+    assert!(
+        square < slanting,
+        "square left at {square} m/s, slanting at {slanting} m/s"
+    );
+    assert!(
+        square > 1.0,
+        "the square hit stopped the kart: {square} m/s"
+    );
+}
+
+#[test]
+fn a_tyre_wall_touch_never_spins_a_kart_out_or_raises_an_event() {
+    for lateral in [0.0, 1.8] {
+        let (_, disturbed) = coasting_off_the_tyre_wall(lateral);
+        assert!(
+            !disturbed,
+            "the touch {lateral} m right of centre spun out or raised an event"
         );
     }
-    let kart = state.kart_readouts()[0];
-    assert!(
-        kart.position[2] < -102.0,
-        "never reached the pipe: {kart:?}"
-    );
-    assert!(
-        (kart.position[1] - KART_HALF_HEIGHT_M).abs() < 0.2,
-        "left the ground: {kart:?}"
-    );
 }
 
 /// Drive `slot` straight ahead for eight seconds into the first turn, whose
@@ -412,7 +525,7 @@ fn a_kart_driving_into_the_ovals_wall_is_held_by_it() {
 #[test]
 fn a_kart_driving_into_a_brands_patch_wall_is_held_by_it() {
     // Slot 0 at x = 78; hairpin one is centred on (62, -70) with an 18 m
-    // radius and its pipes stand clear of that line, so the wall 12 m
+    // radius and its tyre walls stand clear of that line, so the wall 12 m
     // outside the centreline is the first thing it meets.
     held_by_the_first_turns_wall(brands_patch(), 0, [62.0, -70.0], 30.0);
 }

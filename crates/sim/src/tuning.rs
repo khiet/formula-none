@@ -222,6 +222,20 @@ pub const KART_BUMP_DECAY_S: f32 = 0.3;
 /// it was, and a kart hit from behind or beside loses none.
 pub const KART_BUMP_SPEED_LOSS: f32 = 0.5;
 
+// Tyre walls. A kart that hits one bounces off as off a kart standing still:
+// a bump straight out from the stack, decaying as a kart bump does, and a
+// loss of speed scaled by how square it hit. A wall holds; a tyre wall
+// never does.
+
+/// The share of the closing speed a kart bounces off a tyre wall with, on
+/// top of the least bump. A touch between karts shares its bounce; a tyre
+/// wall gives the kart the whole of it.
+pub const TYRE_WALL_RESTITUTION: f32 = 0.4;
+/// The share of the closing speed a kart driving square into a tyre wall
+/// loses from its own; a glancing touch loses the share times how square
+/// it was.
+pub const TYRE_WALL_SPEED_LOSS: f32 = 0.7;
+
 // Items.
 
 /// Seconds after a box is picked up before it is back to pick up again.
@@ -333,8 +347,8 @@ pub const BOT_BRAKE_HORIZON_S: f32 = 1.0;
 /// Metres between the centreline samples a bot checks for a corner ahead.
 /// Finer than any corner's arc, so no corner is skipped.
 pub const BOT_CORNER_SAMPLE_M: f32 = 2.0;
-/// Metres right of the centreline a bot's line runs; every pipe stands left
-/// of the centreline.
+/// Metres right of the centreline a bot's line runs; every tyre wall stands
+/// left of it.
 pub const BOT_LINE_RIGHT_OF_CENTRE_M: f32 = 2.5;
 /// The least a bot steers into a corner it hops for, so the hop fixes the
 /// drift toward the corner even when its line asks for less.

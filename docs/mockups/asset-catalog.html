@@ -403,7 +403,7 @@
   <section class="surface" id="world">
     <header>
       <h2>The world</h2>
-      <p class="lede">What the View draws in Three.js: the car, the drivers, the item meshes, the tells, and the tracks with their walls, pipes, pads and scenery.</p>
+      <p class="lede">What the View draws in Three.js: the car, the drivers, the item meshes, the tells, and the tracks with their walls, tyre walls, pads and scenery.</p>
     </header>
     <div class="cards">
       <article class="asset wide" data-status="ok">
@@ -494,11 +494,11 @@
       </article>
 
       <article class="asset" data-status="ok">
-        <header><span class="status ok">Aligned</span><h3>Pipe obstacle</h3><code>assets/tracks/trackgen/layout.py:254, mesh.py:91</code></header>
-        <div class="compare"><figure class="aligned"><figcaption>1.5 m radius, 2 m tall, 16 sides</figcaption><div class="stage" data-draw="pipe"></div></figure></div>
+        <header><span class="status ok">Aligned</span><h3>Tyre wall</h3><code>assets/tracks/trackgen/layout.py tyre_stacks, mesh.py drum</code></header>
+        <div class="compare"><figure class="aligned"><figcaption>1.5 m radius, 1.2 m tall, two rings of five tyres</figcaption><div class="stage" data-draw="tyres"></div></figure></div>
         <div class="notes">
-          <p class="fix">A capped, flat-shaded cylinder in pipe green <code>#40a34d</code>, standing in the asphalt into the oval's turns and either side of the Brands Patch hairpins. The sim collides with it as a wall.</p>
-          <p class="why">Sixteen facets is a polygon, as ADR 0034 asks, though from the chase camera it reads nearly round; the wheels and hubs use eight. Worth matching only if the pipes are rebuilt for another reason.</p>
+          <p class="fix">A sixteen-sided prism in tyre shade <code>#121214</code>, tagged <code>tyres</code>, with two rings of five eight-sided tyres standing on their treads over it, 0.6 m across, faces out in <code>#2e2e32</code>. The upper ring turns half a tyre from the lower, and each is belted round its middle in kerb red and white. It stands on the asphalt where the pipes stood, into the oval's turns and either side of the Brands Patch hairpins; a kart bounces off it (ADR 0041).</p>
+          <p class="why">The 16-bit key's tyre barrier, original (ADR 0007): black rubber in rings, with the kerb's red and white so it reads as track furniture against the asphalt. The tyres are scenery; only the prism collides, so the picture can change without touching a rule.</p>
         </div>
       </article>
 
@@ -1106,7 +1106,7 @@
     </svg>`;
   };
   // Copied from assets/tracks/build.py, sRGB as picked.
-  const SURFACES = [["asphalt", [0.42, 0.42, 0.47]], ["sand", [0.91, 0.78, 0.45]], ["grass", [0.36, 0.69, 0.29]], ["pipe", [0.25, 0.64, 0.30]], ["wall", [0.94, 0.94, 0.94]], ["kerb-red", [0.84, 0.23, 0.18]], ["kerb-white", [0.96, 0.96, 0.96]], ["checker-dark", [0.13, 0.13, 0.13]]];
+  const SURFACES = [["asphalt", [0.42, 0.42, 0.47]], ["sand", [0.91, 0.78, 0.45]], ["grass", [0.36, 0.69, 0.29]], ["tyre", [0.102, 0.102, 0.114]], ["wall", [0.94, 0.94, 0.94]], ["kerb-red", [0.84, 0.23, 0.18]], ["kerb-white", [0.96, 0.96, 0.96]], ["checker-dark", [0.13, 0.13, 0.13]]];
   const rgb = (c) => "#" + c.map((v) => Math.round(v * 255).toString(16).padStart(2, "0")).join("");
   draw.surfaces = () => `<svg viewBox="0 0 320 130" role="img" aria-label="Track surface tiles">${SURFACES.map(([n, c], i) => {
     const x = 10 + (i % 4) * 78, y = 8 + Math.floor(i / 4) * 62, col = rgb(c);
@@ -1135,9 +1135,32 @@
     });
     return sides + poly(rim.map(([x, y]) => [cx + x * r, cy + y * ry - h]), `color-mix(in srgb, ${col} 78%, white)`);
   };
-  draw.pipe = () => `<svg viewBox="0 0 200 160" role="img" aria-label="Sixteen-sided green pipe">
+  // 32 px to the metre across, 43 up, as the walls are drawn.
+  draw.tyres = () => {
+    const cx = 100, base = 128, r = 48, ry = r * 0.32, ringH = 26, tyreR = 9.6;
+    let rings = "";
+    for (let ring = 0; ring < 2; ring++) {
+      const mid = base - (ring + 0.5) * ringH, turn = (Math.PI / 5) * ring;
+      const faces = [];
+      for (let k = 0; k < 5; k++) {
+        const a = turn + (k * 2 * Math.PI) / 5, sin = Math.sin(a);
+        if (sin <= 0.05) continue;
+        const x = cx + Math.cos(a) * (r + 1), y = mid + sin * ry;
+        faces.push(`<ellipse cx="${x}" cy="${y}" rx="${tyreR * sin}" ry="${ringH / 2}" fill="#2e2e32"/><ellipse cx="${x}" cy="${y}" rx="${tyreR * sin * 0.45}" ry="${ringH * 0.22}" fill="#121214"/>`);
+      }
+      let belt = "";
+      for (let k = 0; k < 20; k++) {
+        const a0 = turn + (k * 2 * Math.PI) / 20, a1 = turn + ((k + 1) * 2 * Math.PI) / 20;
+        if (Math.sin((a0 + a1) / 2) <= 0) continue;
+        const at = (a, dy) => [cx + Math.cos(a) * (r + 2), mid + Math.sin(a) * ry + dy];
+        belt += poly([at(a0, -3.5), at(a1, -3.5), at(a1, 3.5), at(a0, 3.5)], k % 2 ? "#f5f5f5" : "#d63a2e");
+      }
+      rings += faces.join("") + belt;
+    }
+    return `<svg viewBox="0 0 200 160" role="img" aria-label="Tyre wall: two belted rings of tyres on a sixteen-sided stack">
     <rect width="200" height="160" fill="#6b6b78"/><ellipse cx="108" cy="134" rx="58" ry="12" fill="rgba(0,0,0,.25)"/>
-    ${prism(16, 100, 128, 48, 86, rgb([0.25, 0.64, 0.30]))}</svg>`;
+    ${prism(16, cx, base, r, 2 * ringH, rgb([0.071, 0.071, 0.078]))}${rings}</svg>`;
+  };
   // Top-down: the track runs up the page, the pad's rectangle spans 6 m of its width.
   const padGround = (inner) => `<svg viewBox="0 0 200 160" role="img" aria-label="Boost pad on asphalt from above">
     <rect width="200" height="160" fill="#6b6b78"/><rect x="0" width="10" height="160" fill="#e8c773"/><rect x="190" width="10" height="160" fill="#e8c773"/>${inner}</svg>`;
