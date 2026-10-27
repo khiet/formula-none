@@ -525,7 +525,7 @@ describe("the SFX", () => {
     ["countdownBeep", { count: 3 }],
     ["go", { count: "go" }],
     ["sputter", { stalled: true }],
-    ["tierChime", { miniTurbo: "blue", drifting: true }],
+    ["tierChime", { miniTurbo: "orange", drifting: true }],
     ["boostPad", { boostSeconds: 0.6 }],
     ["wrongWay", { wrongWay: true }],
     ["finish", { finished: true }],

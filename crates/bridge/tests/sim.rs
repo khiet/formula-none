@@ -4,7 +4,9 @@
 //! build of the same code is checked in CI.
 
 use bridge::{Race, FLOATS_PER_TRANSFORM};
-use sim::tuning::{HOP_AIRTIME_S, KART_HALF_HEIGHT_M, MINI_TURBO_BLUE_CHARGE_S, TICKS_PER_SECOND};
+use sim::tuning::{
+    HOP_AIRTIME_S, KART_HALF_HEIGHT_M, MINI_TURBO_ORANGE_CHARGE_S, TICKS_PER_SECOND,
+};
 use sim::{DriftDirection, KartInput, KartReadout, MiniTurbo, Surface, Track};
 
 const OVAL: &str = include_str!("../../../assets/tracks/oval/oval.track.json");
@@ -130,9 +132,10 @@ fn the_readouts_report_a_drift_its_direction_tier_and_charge_as_the_sim_does() {
     };
     let mut state = started(sim::State::new(42, 1, Track::from_sidecar(OVAL).unwrap()));
     let mut race = started_race(42, 1, 0);
-    // Up to speed, then a hop into a left drift held just past blue.
+    // Up to speed, then a hop into a left drift held just past orange.
     let to_speed = 3 * TICKS_PER_SECOND;
-    let hold = ((HOP_AIRTIME_S + MINI_TURBO_BLUE_CHARGE_S + 0.1) * TICKS_PER_SECOND as f32) as u32;
+    let hold =
+        ((HOP_AIRTIME_S + MINI_TURBO_ORANGE_CHARGE_S + 0.1) * TICKS_PER_SECOND as f32) as u32;
     for tick in 0..to_speed + hold {
         let input = if tick < to_speed {
             KartInput {
@@ -156,7 +159,7 @@ fn the_readouts_report_a_drift_its_direction_tier_and_charge_as_the_sim_does() {
     let (kart, _) = race.kart_readouts()[0];
     let drift = kart.drift.expect("the bridge's race is drifting");
     assert_eq!(drift.direction, DriftDirection::Left);
-    assert_eq!(kart.mini_turbo, MiniTurbo::Blue);
+    assert_eq!(kart.mini_turbo, MiniTurbo::Orange);
     assert!(!kart.airborne, "landed into the drift");
     assert_eq!(race.kart_readouts(), sims_readouts(&state));
 }

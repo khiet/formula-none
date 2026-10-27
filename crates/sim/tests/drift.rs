@@ -11,7 +11,7 @@ use common::{only_kart, run, started, throttle, ticks, track, without_walls, yaw
 
 use sim::tuning::{
     ACCELERATION_TO_TOP_S, DRIFT_ENTRY_SPEED_FRACTION, DRIFT_SLIP_ANGLE_RAD, HOP_AIRTIME_S,
-    MINI_TURBO_BLUE_BOOST_S, MINI_TURBO_BLUE_CHARGE_S, MINI_TURBO_BOOST_FACTOR,
+    MINI_TURBO_BOOST_FACTOR, MINI_TURBO_ORANGE_BOOST_S, MINI_TURBO_ORANGE_CHARGE_S,
     MINI_TURBO_RED_BOOST_S, MINI_TURBO_RED_CHARGE_S, TOP_SPEED_M_PER_S,
 };
 use sim::{step, DriftDirection, KartInput, MiniTurbo, State};
@@ -212,10 +212,16 @@ fn tier_after(seconds: f32) -> MiniTurbo {
 }
 
 #[test]
-fn holding_the_drift_charges_blue_then_red_at_the_tuned_times() {
-    assert_eq!(tier_after(MINI_TURBO_BLUE_CHARGE_S - 0.1), MiniTurbo::None);
-    assert_eq!(tier_after(MINI_TURBO_BLUE_CHARGE_S + 0.1), MiniTurbo::Blue);
-    assert_eq!(tier_after(MINI_TURBO_RED_CHARGE_S - 0.1), MiniTurbo::Blue);
+fn holding_the_drift_charges_orange_then_red_at_the_tuned_times() {
+    assert_eq!(
+        tier_after(MINI_TURBO_ORANGE_CHARGE_S - 0.1),
+        MiniTurbo::None
+    );
+    assert_eq!(
+        tier_after(MINI_TURBO_ORANGE_CHARGE_S + 0.1),
+        MiniTurbo::Orange
+    );
+    assert_eq!(tier_after(MINI_TURBO_RED_CHARGE_S - 0.1), MiniTurbo::Orange);
     assert_eq!(tier_after(MINI_TURBO_RED_CHARGE_S + 0.1), MiniTurbo::Red);
     assert_eq!(
         tier_after(MINI_TURBO_RED_CHARGE_S + 2.0),
@@ -255,11 +261,15 @@ fn boost_after_ticks(held: usize) -> Option<f32> {
 
 #[test]
 fn each_tier_pays_on_the_tick_its_charge_is_reached_and_the_tier_below_one_tick_earlier() {
-    let blue = ticks(MINI_TURBO_BLUE_CHARGE_S);
+    let orange = ticks(MINI_TURBO_ORANGE_CHARGE_S);
     let red = ticks(MINI_TURBO_RED_CHARGE_S);
-    assert_eq!(boost_after_ticks(blue - 1), None, "one tick short of blue");
-    assert_boost_of(boost_after_ticks(blue), MINI_TURBO_BLUE_BOOST_S);
-    assert_boost_of(boost_after_ticks(red - 1), MINI_TURBO_BLUE_BOOST_S);
+    assert_eq!(
+        boost_after_ticks(orange - 1),
+        None,
+        "one tick short of orange"
+    );
+    assert_boost_of(boost_after_ticks(orange), MINI_TURBO_ORANGE_BOOST_S);
+    assert_boost_of(boost_after_ticks(red - 1), MINI_TURBO_ORANGE_BOOST_S);
     assert_boost_of(boost_after_ticks(red), MINI_TURBO_RED_BOOST_S);
 }
 
@@ -311,8 +321,8 @@ fn assert_boosts_for(charge_s: f32, boost_s: f32) {
 }
 
 #[test]
-fn releasing_a_blue_charge_boosts_to_the_tuned_speed_for_the_blue_duration() {
-    assert_boosts_for(MINI_TURBO_BLUE_CHARGE_S + 0.1, MINI_TURBO_BLUE_BOOST_S);
+fn releasing_a_orange_charge_boosts_to_the_tuned_speed_for_the_orange_duration() {
+    assert_boosts_for(MINI_TURBO_ORANGE_CHARGE_S + 0.1, MINI_TURBO_ORANGE_BOOST_S);
 }
 
 #[test]
@@ -321,11 +331,11 @@ fn releasing_a_red_charge_boosts_for_the_longer_red_duration() {
 }
 
 #[test]
-fn releasing_before_blue_ends_the_drift_with_no_boost() {
-    let released = released_after(MINI_TURBO_BLUE_CHARGE_S - 0.1);
+fn releasing_before_orange_ends_the_drift_with_no_boost() {
+    let released = released_after(MINI_TURBO_ORANGE_CHARGE_S - 0.1);
     assert_eq!(only_kart(&released).drift, None);
     let mut state = released;
-    for _ in 0..ticks(MINI_TURBO_BLUE_BOOST_S) {
+    for _ in 0..ticks(MINI_TURBO_ORANGE_BOOST_S) {
         let before = only_kart(&state);
         state = step(state, &[throttle()], DT);
         let speed = (before.position[2] - only_kart(&state).position[2]) / DT;
@@ -341,10 +351,10 @@ fn a_drift_that_slows_below_the_entry_speed_ends_with_no_boost() {
         steer: 0.0,
         ..hop_right()
     };
-    // Long enough to charge blue, then to brake under the entry speed.
+    // Long enough to charge orange, then to brake under the entry speed.
     let charged = run(
         drifting_right(),
-        vec![hop_right(); ticks(MINI_TURBO_BLUE_CHARGE_S + 0.1)],
+        vec![hop_right(); ticks(MINI_TURBO_ORANGE_CHARGE_S + 0.1)],
     );
     let slowed = run(charged, vec![brake_in_drift; ticks(2.0)]);
     let kart = only_kart(&slowed);

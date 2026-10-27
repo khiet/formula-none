@@ -356,7 +356,7 @@ fn every_committed_fixture_replays_to_the_hashes_it_was_recorded_with() {
 
 /// What the fixture set must exercise for the gate to mean anything: karts
 /// touching (the contact solver), karts off the asphalt and a lone kart held
-/// by a wall (the track colliders), both tracks, a drift released into blue
+/// by a wall (the track colliders), both tracks, a drift released into orange
 /// and another into red (the cornering rules), and a rocket start
 /// boosting at Go and another stalling there (the start rule). A fixture
 /// that only drives up a straight would pass on a sim with most of its
@@ -368,7 +368,7 @@ fn the_fixture_set_exercises_kart_contact_off_track_walls_both_tracks_both_mini_
     let mut surfaces = std::collections::HashSet::new();
     let mut closest_karts = f32::MAX;
     let mut held_by_a_wall = false;
-    let mut released_blue = false;
+    let mut released_orange = false;
     let mut released_red = false;
     let mut rocket_started = false;
     let mut stalled = false;
@@ -390,7 +390,7 @@ fn the_fixture_set_exercises_kart_contact_off_track_walls_both_tracks_both_mini_
                     if let (Some(drift), None, Some(_)) =
                         (before[slot].drift, kart.drift, kart.boost_s)
                     {
-                        released_blue |= drift.mini_turbo() == MiniTurbo::Blue;
+                        released_orange |= drift.mini_turbo() == MiniTurbo::Orange;
                         released_red |= drift.mini_turbo() == MiniTurbo::Red;
                     }
                     rocket_started |= go && kart.boost_s.is_some();
@@ -423,7 +423,7 @@ fn the_fixture_set_exercises_kart_contact_off_track_walls_both_tracks_both_mini_
         );
     }
     assert!(held_by_a_wall, "no lone kart is held by a wall");
-    assert!(released_blue, "no fixture releases a blue mini-turbo");
+    assert!(released_orange, "no fixture releases an orange mini-turbo");
     assert!(released_red, "no fixture releases a red mini-turbo");
     assert!(rocket_started, "no fixture boosts at Go");
     assert!(stalled, "no fixture stalls at Go");

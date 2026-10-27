@@ -44,21 +44,21 @@ describe("spark tell", () => {
     expect(sparkTell(drifting("none"))).toBeNull();
   });
 
-  it("shows sparks once blue has charged and changes colour at red", () => {
-    const blue = sparkTell(drifting("blue"));
+  it("shows sparks once orange has charged and changes colour at red", () => {
+    const orange = sparkTell(drifting("orange"));
     const red = sparkTell(drifting("red"));
-    expect(blue).not.toBeNull();
+    expect(orange).not.toBeNull();
     expect(red).not.toBeNull();
-    expect(red?.colour).not.toBe(blue?.colour);
+    expect(red?.colour).not.toBe(orange?.colour);
   });
 
-  it("sparks blue in the shift lights' blue, so blue means one blue", () => {
-    expect(sparkTell(drifting("blue"))?.colour).toBe(0x4f7dff);
+  it("sparks the orange tier in the shift lights' blue", () => {
+    expect(sparkTell(drifting("orange"))?.colour).toBe(0x4f7dff);
   });
 
   it("shows a rocket start's charge in the tier's colour, with no warning past the full tier", () => {
     expect(sparkTell(STRAIGHT, "clean")).toBeNull();
-    expect(sparkTell(STRAIGHT, "weakBoost")).toEqual(sparkTell(drifting("blue")));
+    expect(sparkTell(STRAIGHT, "weakBoost")).toEqual(sparkTell(drifting("orange")));
     expect(sparkTell(STRAIGHT, "fullBoost")).toEqual(sparkTell(drifting("red")));
     expect(sparkTell(STRAIGHT, "stall")).toEqual(sparkTell(drifting("red")));
   });
@@ -68,11 +68,11 @@ describe("spark emitter", () => {
   it("throws sparks off the rear wheels, backward and low, while a tier is charged", () => {
     const particles = createParticles({ capacity: 64, gravity: 9.8 });
     const emitter = createSparkEmitter(particles, SIZE, fixedRandom());
-    emitter.emit(kart(drifting("blue")), FRAME_S);
+    emitter.emit(kart(drifting("orange")), FRAME_S);
     const born = particlesOf(particles);
     expect(born.length).toBeGreaterThan(0);
     for (const spark of born) {
-      expect(spark.colour).toBe(sparkTell(drifting("blue"))?.colour);
+      expect(spark.colour).toBe(sparkTell(drifting("orange"))?.colour);
       expect(Math.abs(spark.position[0])).toBeLessThan(SIZE.width / 2 + 0.1);
       expect(Math.abs(spark.position[0])).toBeGreaterThan(SIZE.width / 4);
       expect(spark.position[1]).toBeLessThan(0.2);
@@ -128,11 +128,11 @@ describe("spark emitter", () => {
     const particles = createParticles({ capacity: 512 });
     const emitter = createSparkEmitter(particles, SIZE, fixedRandom());
     for (let frame = 0; frame < 30; frame++) {
-      emitter.emit(kart(drifting("blue")), FRAME_S);
+      emitter.emit(kart(drifting("orange")), FRAME_S);
     }
     const halfSecond = particlesOf(particles).length;
     for (let frame = 0; frame < 30; frame++) {
-      emitter.emit(kart(drifting("blue")), FRAME_S);
+      emitter.emit(kart(drifting("orange")), FRAME_S);
     }
     expect(particlesOf(particles).length).toBeCloseTo(2 * halfSecond, -1);
     expect(halfSecond).toBeGreaterThan(10);

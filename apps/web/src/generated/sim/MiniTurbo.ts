@@ -3,4 +3,4 @@
 /**
  * The mini-turbo tiers a drift charges through, in order.
  */
-export type MiniTurbo = "none" | "blue" | "red";
+export type MiniTurbo = "none" | "orange" | "red";

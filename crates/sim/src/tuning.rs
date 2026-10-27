@@ -154,8 +154,8 @@ pub const DRIFT_TURN_STEER_RANGE: f32 = 0.5;
 /// Radians between where a drifting kart points and where it travels; the
 /// nose leads into the corner by this much.
 pub const DRIFT_SLIP_ANGLE_RAD: f32 = 0.3;
-pub const MINI_TURBO_BLUE_CHARGE_S: f32 = 0.3;
-pub const MINI_TURBO_BLUE_BOOST_S: f32 = 0.6;
+pub const MINI_TURBO_ORANGE_CHARGE_S: f32 = 0.3;
+pub const MINI_TURBO_ORANGE_BOOST_S: f32 = 0.6;
 pub const MINI_TURBO_RED_CHARGE_S: f32 = 0.6;
 pub const MINI_TURBO_RED_BOOST_S: f32 = 1.0;
 pub const MINI_TURBO_BOOST_FACTOR: f32 = 1.3;
@@ -187,8 +187,8 @@ pub const START_WEAK_BOOST_HOLD_S: f32 = 1.0;
 /// The full boost: the boost item's values.
 pub const START_BOOST_S: f32 = ITEM_BOOST_S;
 pub const START_BOOST_FACTOR: f32 = ITEM_BOOST_FACTOR;
-/// The weak boost: the blue mini-turbo's values.
-pub const START_WEAK_BOOST_S: f32 = MINI_TURBO_BLUE_BOOST_S;
+/// The weak boost: the orange mini-turbo's values.
+pub const START_WEAK_BOOST_S: f32 = MINI_TURBO_ORANGE_BOOST_S;
 pub const START_WEAK_BOOST_FACTOR: f32 = MINI_TURBO_BOOST_FACTOR;
 /// Seconds a stalled kart sits dead to every control after Go, as in a
 /// spin-out.
@@ -379,11 +379,11 @@ const fn is_whole_ticks(seconds: f32) -> bool {
 // Invariants between tuned values, checked at compile time so a retune that
 // breaks a rule fails the build rather than a race.
 const _: () = {
-    assert!(MINI_TURBO_RED_CHARGE_S > MINI_TURBO_BLUE_CHARGE_S);
-    assert!(MINI_TURBO_RED_BOOST_S > MINI_TURBO_BLUE_BOOST_S);
+    assert!(MINI_TURBO_RED_CHARGE_S > MINI_TURBO_ORANGE_CHARGE_S);
+    assert!(MINI_TURBO_RED_BOOST_S > MINI_TURBO_ORANGE_BOOST_S);
     // Charge thresholds are whole ticks so each tuned value names the tick
     // its tier pays on.
-    assert!(is_whole_ticks(MINI_TURBO_BLUE_CHARGE_S));
+    assert!(is_whole_ticks(MINI_TURBO_ORANGE_CHARGE_S));
     assert!(is_whole_ticks(MINI_TURBO_RED_CHARGE_S));
     assert!(BOT_RUBBER_BAND_MIN_FACTOR < 1.0 && 1.0 < BOT_RUBBER_BAND_MAX_FACTOR);
     assert!(0.0 < BOT_RUBBER_BAND_RANGE_M);
