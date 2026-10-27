@@ -44,13 +44,6 @@ describe("spark tell", () => {
     expect(sparkTell(drifting("none"))).toBeNull();
   });
 
-  it("shows sparks once orange has charged and changes style at red", () => {
-    const orange = sparkTell(drifting("orange"));
-    const red = sparkTell(drifting("red"));
-    expect(orange?.tier).toBe("orange");
-    expect(red?.tier).toBe("red");
-  });
-
   it("gives orange quiet sparks, born pale and cooling to orange", () => {
     expect(sparkTell(drifting("orange"))).toEqual({
       tier: "orange",
