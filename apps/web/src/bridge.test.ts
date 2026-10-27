@@ -519,7 +519,7 @@ describe("prediction", () => {
     prediction.reconcile({
       tick: 234,
       acknowledged: [230, 0],
-      karts: [kart([x, y, z], null), kart([32, 0.3, 6], { s: 0.5, tier: "orange" })],
+      karts: [kart([x, y, z], null), kart([32, 0.3, 6], { leftS: 0.5, tier: "orange" })],
       events: [],
       hazards: [],
       projectiles: [],

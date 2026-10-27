@@ -116,9 +116,9 @@ pub fn room() -> Room {
 }
 
 /// A busy moment two minutes into a race with eight karts: two drifting,
-/// two boosting, five holding items, one spun out, a hazard trailed behind a kart, a
-/// projectile in flight, and every kind of event since the previous
-/// snapshot. The byte budget in ADR 0010 is measured against this.
+/// two boosting, five holding items, one spun out, a hazard trailed behind
+/// a kart, a projectile in flight, and every kind of event since the
+/// previous snapshot. The byte budget in ADR 0010 is measured against this.
 pub fn snapshot() -> Snapshot {
     let karts = (0..8u8)
         .map(|slot| {
@@ -155,11 +155,11 @@ pub fn snapshot() -> Snapshot {
                 stall_s: (slot == 7).then_some(1.2),
                 boost: match slot {
                     2 => Some(BoostSnapshot {
-                        s: 0.4,
+                        left_s: 0.4,
                         tier: BoostTier::Orange,
                     }),
                     4 => Some(BoostSnapshot {
-                        s: 1.1,
+                        left_s: 1.1,
                         tier: BoostTier::Red,
                     }),
                     _ => None,

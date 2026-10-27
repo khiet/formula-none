@@ -315,7 +315,8 @@ pub struct KartSnapshot {
 #[derive(Serialize, Deserialize, TS, Debug, Clone, Copy, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct BoostSnapshot {
-    pub s: f32,
+    /// Seconds of boost left.
+    pub left_s: f32,
     pub tier: BoostTier,
 }
 
