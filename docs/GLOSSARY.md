@@ -120,9 +120,9 @@ seconds triggers the wrong-way warning.
 What the sim says of one kart at a tick: its transform, speed and
 velocity, drift and mini-turbo tier, item slot, spin-out, hop, boost,
 rocket start and stall, and its place in the race. The sim reports one per
-kart every tick; a snapshot carries all of it but the hop and the boost,
-which only the sim stepping the kart knows; a prediction's kart adopts the
-snapshot's. The View, the Instrument panel and the bots read it. Not a
+kart every tick; a snapshot carries all of it but the hop, which only the
+sim stepping the kart knows; a prediction's kart adopts the snapshot's but
+for the boost, which it keeps its own. The View, the Instrument panel and the bots read it. Not a
 snapshot, which is the server's message about every kart.
 
 ### standing

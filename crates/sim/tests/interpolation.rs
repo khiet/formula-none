@@ -1,8 +1,9 @@
 //! What the interpolation draws between the two snapshots either side of
 //! its render clock: projectiles matched across them by owner and target,
 //! held where the earlier snapshot had one the later no longer carries,
-//! and not drawn before the snapshot that first carries one; and a kart
-//! moved further than a kart drives, which is drawn in one move.
+//! and not drawn before the snapshot that first carries one; a kart moved
+//! further than a kart drives, which is drawn in one move; and a kart's
+//! boost, as the earlier snapshot has it.
 
 use sim::tuning::{INTERPOLATION_TELEPORT_M_PER_TICK, SNAPSHOTS_PER_SECOND, TICKS_PER_SECOND};
 use sim::{Interpolation, KartReadout, MiniTurbo, Projectile, Start};
@@ -30,6 +31,7 @@ fn kart_at(x: f32) -> KartReadout {
         spin_out_s: None,
         airborne: false,
         boost_s: None,
+        boost_tier: MiniTurbo::None,
         start: Start::Clean,
         stall_s: None,
         race_position: 1,
@@ -173,4 +175,21 @@ fn a_kart_put_somewhere_new_is_drawn_at_the_old_place_until_the_snapshot_that_mo
         "drawn at x {} for a clock at {render}",
         drawn.position[0]
     );
+}
+
+#[test]
+fn a_kart_boosting_in_the_earlier_snapshot_is_drawn_boosting_in_its_tier() {
+    let interpolation = drawing_snapshots_between_the_second_and_third(6, |tick| {
+        let boost_s = 1.0 - tick as f32 / TICKS_PER_SECOND as f32;
+        let kart = KartReadout {
+            boost_s: Some(boost_s),
+            boost_tier: MiniTurbo::Orange,
+            ..kart_at(0.0)
+        };
+        (vec![kart], Vec::new())
+    });
+    let drawn = interpolation.kart_readouts()[0];
+    let earlier = 1.0 - TICKS_PER_SNAPSHOT as f32 / TICKS_PER_SECOND as f32;
+    assert_eq!(drawn.boost_s, Some(earlier));
+    assert_eq!(drawn.boost_tier, MiniTurbo::Orange);
 }

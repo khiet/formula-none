@@ -13,7 +13,7 @@ use sim::tuning::{
     START_FULL_BOOST_HOLD_S, START_STALL_HOLD_S, START_STALL_S, START_THROTTLE_HELD,
     START_WEAK_BOOST_FACTOR, START_WEAK_BOOST_HOLD_S, START_WEAK_BOOST_S, TOP_SPEED_M_PER_S,
 };
-use sim::{step, KartInput, Phase, RaceEvent, Start, State};
+use sim::{step, KartInput, MiniTurbo, Phase, RaceEvent, Start, State};
 
 fn race(kart_count: usize) -> State {
     State::new(SEED, kart_count, oval())
@@ -164,6 +164,7 @@ fn a_hold_from_the_first_half_of_the_two_through_go_gives_the_full_boost() {
         let state = throttle_through_go(hold_s);
         assert_eq!(state.kart_readouts()[0].start, Start::FullBoost);
         let state = step(state, &[throttle()], DT);
+        assert_eq!(state.kart_readouts()[0].boost_tier, MiniTurbo::Red);
         assert_eq!(
             state.kart_readouts()[0].speed,
             TOP_SPEED_M_PER_S * START_BOOST_FACTOR,
@@ -189,6 +190,7 @@ fn a_hold_from_the_second_half_of_the_two_through_go_gives_the_weak_boost() {
         let state = throttle_through_go(hold_s);
         assert_eq!(state.kart_readouts()[0].start, Start::WeakBoost);
         let state = step(state, &[throttle()], DT);
+        assert_eq!(state.kart_readouts()[0].boost_tier, MiniTurbo::Orange);
         assert_eq!(
             state.kart_readouts()[0].speed,
             TOP_SPEED_M_PER_S * START_WEAK_BOOST_FACTOR,

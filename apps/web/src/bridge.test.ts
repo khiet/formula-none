@@ -390,6 +390,7 @@ describe("prediction", () => {
       spinOutS: null,
       start: "clean",
       stallS: null,
+      boost: null,
     };
     const snapshot: Snapshot = {
       tick: 234,
@@ -435,6 +436,7 @@ describe("prediction", () => {
       spinOutS: null,
       start: "clean",
       stallS: null,
+      boost: null,
     };
     prediction.reconcile({
       tick: 10,
@@ -472,6 +474,7 @@ describe("prediction", () => {
       spinOutS: 0.5,
       start: "clean",
       stallS: null,
+      boost: null,
     };
     prediction.reconcile({
       tick: 234,
@@ -485,6 +488,46 @@ describe("prediction", () => {
     // the spin-out have run by the predicted kart's tick.
     expect(prediction.kartReadout().spinOutS).toBeCloseTo(0.5 - 10 * DT, 4);
     expect(prediction.interpolatedKartReadouts()[0]?.spinOutS).toBe(0.5);
+  });
+
+  it("draws another kart's boost, and the tier it burns in, from the snapshots", async () => {
+    const bridge = await loadBridge(wasm);
+    const prediction = bridge.createPrediction(7n, 0, OVAL);
+    for (let sequence = 1; sequence <= 240; sequence++) {
+      prediction.tick(wire(IDLE_INPUT, sequence));
+    }
+    const kart = (
+      position: [number, number, number],
+      boost: KartSnapshot["boost"],
+    ): KartSnapshot => ({
+      position,
+      rotation: [0, 0, 0, 1],
+      velocity: [0, 0, 0],
+      drift: null,
+      racePosition: 1,
+      lap: 1,
+      checkpoint: 0,
+      splineProgress: 0,
+      wrongWay: false,
+      heldItem: null,
+      spinOutS: null,
+      start: "clean",
+      stallS: null,
+      boost,
+    });
+    const [x, y, z] = prediction.kartReadout().position;
+    prediction.reconcile({
+      tick: 234,
+      acknowledged: [230, 0],
+      karts: [kart([x, y, z], null), kart([32, 0.3, 6], { s: 0.5, tier: "orange" })],
+      events: [],
+      hazards: [],
+      projectiles: [],
+    });
+    expect(prediction.interpolatedKartReadouts()[1]).toMatchObject({
+      boostS: 0.5,
+      boostTier: "orange",
+    });
   });
 
   it("takes the rocket start verdict and the stall a snapshot says, and draws another kart's from the snapshots", async () => {
@@ -511,6 +554,7 @@ describe("prediction", () => {
       spinOutS: null,
       start: "stall",
       stallS,
+      boost: null,
     });
     prediction.reconcile({
       tick: 234,
@@ -596,6 +640,7 @@ describe("items", () => {
           spinOutS: null,
           start: "clean",
           stallS: null,
+          boost: null,
         },
       ],
       events: [],

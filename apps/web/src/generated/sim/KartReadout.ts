@@ -51,11 +51,15 @@ spinOutS: number | null,
 airborne: boolean, 
 /**
  * Seconds of boost left, while a mini-turbo, boost pad, item or start
- * boost holds the kart over top speed; the release's tell. Only the sim
- * that steps the kart reports it: a snapshot does not carry it, so an
- * interpolated kart never boosts.
+ * boost holds the kart over top speed; the release's tell.
  */
 boostS: number | null, 
+/**
+ * The tier the boost burns in, the flame's: orange for an orange
+ * release or a weak rocket start, red for every other boost;
+ * `MiniTurbo::None` while not boosting.
+ */
+boostTier: MiniTurbo, 
 /**
  * The kart's rocket start: while the countdown runs the tier its hold
  * so far has reached, the sparks' tell, and from Go the verdict.

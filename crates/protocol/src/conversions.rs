@@ -1,13 +1,12 @@
 //! The wire's types for the sim's and back. What the wire leaves out comes
 //! back as the sim reports a kart only a snapshot speaks for: never
-//! airborne, never boosting, going at the speed its velocity has along its
-//! facing.
+//! airborne, going at the speed its velocity has along its facing.
 
 use sim::KartReadout;
 
 use crate::{
-    DriftDirection, DriftSnapshot, EventKind, HazardSnapshot, Input, Item, KartSnapshot,
-    ProjectileSnapshot, Start,
+    BoostSnapshot, BoostTier, DriftDirection, DriftSnapshot, EventKind, HazardSnapshot, Input,
+    Item, KartSnapshot, ProjectileSnapshot, Start,
 };
 
 impl From<sim::Item> for Item {
@@ -106,6 +105,13 @@ impl From<&KartReadout> for KartSnapshot {
             spin_out_s: kart.spin_out_s,
             start: kart.start.into(),
             stall_s: kart.stall_s,
+            boost: kart.boost_s.map(|s| BoostSnapshot {
+                s,
+                tier: match kart.boost_tier {
+                    sim::MiniTurbo::Orange => BoostTier::Orange,
+                    sim::MiniTurbo::Red | sim::MiniTurbo::None => BoostTier::Red,
+                },
+            }),
         }
     }
 }
@@ -123,7 +129,13 @@ impl From<&KartSnapshot> for KartReadout {
             held_item: kart.held_item.map(sim::Item::from),
             spin_out_s: kart.spin_out_s,
             airborne: false,
-            boost_s: None,
+            boost_s: kart.boost.map(|boost| boost.s),
+            boost_tier: kart
+                .boost
+                .map_or(sim::MiniTurbo::None, |boost| match boost.tier {
+                    BoostTier::Orange => sim::MiniTurbo::Orange,
+                    BoostTier::Red => sim::MiniTurbo::Red,
+                }),
             start: kart.start.into(),
             stall_s: kart.stall_s,
             race_position: u32::from(kart.race_position),

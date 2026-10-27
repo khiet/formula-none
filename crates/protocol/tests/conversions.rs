@@ -6,8 +6,8 @@ use protocol::{EventKind, Input, KartSnapshot};
 use sim::{Drift, DriftDirection, Item, KartInput, KartReadout, MiniTurbo, RaceEvent, Start};
 
 /// A kart mid-race with every field the snapshot carries away from its
-/// default: drifting left at red, holding a hazard, a hop and a boost
-/// under way, spun out, stalled, third on lap 2 and going the wrong way.
+/// default: drifting left at red, holding a hazard, a hop and an orange
+/// boost under way, spun out, stalled, third on lap 2 and going the wrong way.
 /// Turned a quarter left, so its facing is -X and its velocity runs along
 /// it at 12 m/s, rising.
 fn busy_kart() -> KartReadout {
@@ -26,6 +26,7 @@ fn busy_kart() -> KartReadout {
         spin_out_s: Some(0.4),
         airborne: true,
         boost_s: Some(0.2),
+        boost_tier: MiniTurbo::Orange,
         start: Start::WeakBoost,
         stall_s: Some(0.1),
         race_position: 3,
@@ -46,7 +47,6 @@ fn a_readout_through_a_snapshot_keeps_what_the_snapshot_carries() {
         KartReadout {
             speed: back.speed,
             airborne: false,
-            boost_s: None,
             ..kart
         }
     );
@@ -78,6 +78,25 @@ fn the_mini_turbo_tier_is_read_from_the_drift_the_snapshot_carries() {
         KartReadout::from(&KartSnapshot::from(&straight)).mini_turbo,
         MiniTurbo::None
     );
+}
+
+#[test]
+fn a_boost_is_red_through_a_snapshot_unless_it_burns_orange() {
+    let red = KartReadout {
+        boost_tier: MiniTurbo::Red,
+        ..busy_kart()
+    };
+    assert_eq!(
+        KartReadout::from(&KartSnapshot::from(&red)).boost_tier,
+        MiniTurbo::Red
+    );
+    let unboosted = KartReadout {
+        boost_s: None,
+        boost_tier: MiniTurbo::None,
+        ..busy_kart()
+    };
+    let back = KartReadout::from(&KartSnapshot::from(&unboosted));
+    assert_eq!((back.boost_s, back.boost_tier), (None, MiniTurbo::None));
 }
 
 #[test]

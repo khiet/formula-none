@@ -290,7 +290,7 @@ fn released_after(charge_s: f32) -> State {
     step(charged, &[throttle()], DT)
 }
 
-fn assert_boosts_for(charge_s: f32, boost_s: f32) {
+fn assert_boosts_for(charge_s: f32, boost_s: f32, tier: MiniTurbo) {
     let released = released_after(charge_s);
     assert_eq!(
         only_kart(&released).drift,
@@ -298,6 +298,11 @@ fn assert_boosts_for(charge_s: f32, boost_s: f32) {
         "the release ends the drift"
     );
     assert_boost_of(only_kart(&released).boost_s, boost_s);
+    assert_eq!(
+        only_kart(&released).boost_tier,
+        tier,
+        "the boost burns in the tier the drift charged"
+    );
     let boosted = TOP_SPEED_M_PER_S * MINI_TURBO_BOOST_FACTOR;
 
     let early = run(released, vec![throttle(); ticks(boost_s / 2.0)]);
@@ -313,6 +318,7 @@ fn assert_boosts_for(charge_s: f32, boost_s: f32) {
         vec![throttle(); ticks(boost_s) + 3],
     );
     assert_eq!(only_kart(&over).boost_s, None, "the boost has run out");
+    assert_eq!(only_kart(&over).boost_tier, MiniTurbo::None);
     let speed = measured_speed(over, throttle());
     assert!(
         speed <= TOP_SPEED_M_PER_S + 0.01,
@@ -322,12 +328,20 @@ fn assert_boosts_for(charge_s: f32, boost_s: f32) {
 
 #[test]
 fn releasing_a_orange_charge_boosts_to_the_tuned_speed_for_the_orange_duration() {
-    assert_boosts_for(MINI_TURBO_ORANGE_CHARGE_S + 0.1, MINI_TURBO_ORANGE_BOOST_S);
+    assert_boosts_for(
+        MINI_TURBO_ORANGE_CHARGE_S + 0.1,
+        MINI_TURBO_ORANGE_BOOST_S,
+        MiniTurbo::Orange,
+    );
 }
 
 #[test]
 fn releasing_a_red_charge_boosts_for_the_longer_red_duration() {
-    assert_boosts_for(MINI_TURBO_RED_CHARGE_S + 0.1, MINI_TURBO_RED_BOOST_S);
+    assert_boosts_for(
+        MINI_TURBO_RED_CHARGE_S + 0.1,
+        MINI_TURBO_RED_BOOST_S,
+        MiniTurbo::Red,
+    );
 }
 
 #[test]

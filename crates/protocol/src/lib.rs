@@ -28,7 +28,7 @@ use ts_rs::TS;
 /// [`ClientMessage::Join`] and the server refuses a mismatch with
 /// [`Refusal::VersionMismatch`] (ADR 0013). The generator exports it next to
 /// the types, so the web app reads the same constant.
-pub const PROTOCOL_VERSION: u16 = 8;
+pub const PROTOCOL_VERSION: u16 = 9;
 
 /// What a client sends the server.
 #[derive(Serialize, Deserialize, TS, Debug, Clone, PartialEq)]
@@ -307,6 +307,25 @@ pub struct KartSnapshot {
     pub start: Start,
     /// Seconds of stall left, while the kart is stalled at Go.
     pub stall_s: Option<f32>,
+    /// The boost under way, if any.
+    pub boost: Option<BoostSnapshot>,
+}
+
+/// A boost under way: the seconds it has left and the tier it burns in.
+#[derive(Serialize, Deserialize, TS, Debug, Clone, Copy, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct BoostSnapshot {
+    pub s: f32,
+    pub tier: BoostTier,
+}
+
+/// The tier a boost burns in: orange for an orange release or a weak
+/// rocket start, red for every other boost.
+#[derive(Serialize, Deserialize, TS, Debug, Clone, Copy, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub enum BoostTier {
+    Orange,
+    Red,
 }
 
 /// What a kart's rocket start comes to, in tier order.
