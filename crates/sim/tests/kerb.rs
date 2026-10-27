@@ -15,17 +15,10 @@ use sim::tuning::{
     ACCELERATION_TO_TOP_S, HOP_AIRTIME_S, KERB_HALF_LENGTH_M, KERB_HALF_WIDTH_M, KERB_SPEED_KEEP,
     LAPS_PER_RACE, MINI_TURBO_RED_CHARGE_S, TOP_SPEED_M_PER_S,
 };
-use sim::{step, KartInput, KartReadout, MiniTurbo, Phase, State};
-
-/// Where a kerb lies: its centre and the yaw it faces along.
-#[derive(Clone, Copy)]
-struct Lay {
-    position: [f32; 3],
-    yaw: f32,
-}
+use sim::{step, KartInput, KartReadout, MiniTurbo, Phase, Placement, State};
 
 /// The oval without its walls, with `kerbs` laid on it and none of its own.
-fn race_with_kerbs(kerbs: &[Lay]) -> State {
+fn race_with_kerbs(kerbs: &[Placement]) -> State {
     let mut sidecar: serde_json::Value =
         serde_json::from_str(&without_walls(OVAL)).expect("valid JSON");
     sidecar["kerbs"] = kerbs
@@ -37,7 +30,7 @@ fn race_with_kerbs(kerbs: &[Lay]) -> State {
 
 /// The kart's readout after each of `inputs`, from the start of a race on
 /// the oval with `kerbs`.
-fn drive(kerbs: &[Lay], inputs: &[KartInput]) -> Vec<KartReadout> {
+fn readouts_over(kerbs: &[Placement], inputs: &[KartInput]) -> Vec<KartReadout> {
     let mut state = race_with_kerbs(kerbs);
     let mut readouts = Vec::with_capacity(inputs.len());
     for input in inputs {
@@ -49,12 +42,12 @@ fn drive(kerbs: &[Lay], inputs: &[KartInput]) -> Vec<KartReadout> {
 
 /// A kerb lying along the kart's travel as `readout` reports it, centred
 /// `ahead` metres in front of the kart and `right` metres to its right.
-fn kerb_ahead_of(readout: &KartReadout, ahead: f32, right: f32) -> Lay {
+fn kerb_ahead_of(readout: &KartReadout, ahead: f32, right: f32) -> Placement {
     let yaw = yaw(readout.rotation);
     // Yaw zero faces -Z; forward is (-sin, -cos) and right (cos, -sin) in x, z.
     let (sin, cos) = yaw.sin_cos();
     let [x, y, z] = readout.position;
-    Lay {
+    Placement {
         position: [
             x - ahead * sin + right * cos,
             y,
@@ -74,7 +67,7 @@ fn to_top_speed_then(then: KartInput) -> Vec<KartInput> {
 
 /// The tick a kerb laid 15 m ahead is reached from: the last of the run to
 /// top speed.
-fn at_top_speed() -> usize {
+fn top_speed_tick() -> usize {
     ticks(ACCELERATION_TO_TOP_S)
 }
 
@@ -90,15 +83,15 @@ fn airtime(readouts: &[KartReadout], from: usize) -> Option<(usize, usize)> {
 fn a_kart_driven_onto_the_kerb_leaves_the_ground_for_the_hops_airtime_and_lands_with_the_kept_share_of_its_speed(
 ) {
     let inputs = to_top_speed_then(throttle());
-    let clear = drive(&[], &inputs);
-    let from = at_top_speed();
+    let clear = readouts_over(&[], &inputs);
+    let from = top_speed_tick();
     assert_eq!(clear[from].speed, TOP_SPEED_M_PER_S, "at top speed");
     let kerb = kerb_ahead_of(&clear[from], 15.0, 0.0);
 
-    let hopped = drive(&[], &to_top_speed_then(hop()));
+    let hopped = readouts_over(&[], &to_top_speed_then(hop()));
     let (_, hop_ticks) = airtime(&hopped, from).expect("the kart hopped");
 
-    let over = drive(&[kerb], &inputs);
+    let over = readouts_over(&[kerb], &inputs);
     let (first, count) = airtime(&over, from).expect("the kerb launched the kart");
     assert_eq!(count, hop_ticks, "in the air for the hop's airtime");
     assert_eq!(
@@ -148,19 +141,19 @@ fn a_kart_drifting_across_the_kerb_lands_with_no_drift_and_no_mini_turbo_however
     let mut inputs = vec![throttle(); ticks(ACCELERATION_TO_TOP_S) + 1];
     inputs.extend(vec![hop_right(); charged + ticks(1.0)]);
     inputs.extend(vec![throttle(); ticks(1.0)]);
-    let clear = drive(&[], &inputs);
+    let clear = readouts_over(&[], &inputs);
     let reach = ticks(ACCELERATION_TO_TOP_S) + 1 + charged;
     assert_eq!(clear[reach].mini_turbo, MiniTurbo::Red, "charged to red");
     // Centred a little way along the drift's path, which curves right: the
     // kerb lies along the kart's travel where it will be, its near end
     // reached after `reach`.
     let ahead = &clear[reach + 12];
-    let kerb = Lay {
+    let kerb = Placement {
         position: ahead.position,
         yaw: (-ahead.velocity[0]).atan2(-ahead.velocity[2]),
     };
 
-    let over = drive(&[kerb], &inputs);
+    let over = readouts_over(&[kerb], &inputs);
     let (first, count) = airtime(&over, reach).expect("the kerb launched the kart");
     assert!(over[first - 1].drift.is_some(), "drifting onto the kerb");
     assert_eq!(over[first - 1].mini_turbo, MiniTurbo::Red);
@@ -191,17 +184,17 @@ fn a_kart_in_the_air_over_the_kerb_is_not_launched_and_keeps_its_drift() {
     // it is halfway through the hop, so the kart is over it only in the air.
     let mut inputs = vec![throttle(); ticks(ACCELERATION_TO_TOP_S) + 1];
     inputs.extend(vec![hop_right(); ticks(1.5)]);
-    let clear = drive(&[], &inputs);
+    let clear = readouts_over(&[], &inputs);
     let hop = ticks(ACCELERATION_TO_TOP_S) + 1;
     let midair = &clear[hop + ticks(HOP_AIRTIME_S / 2.0)];
     assert!(midair.airborne);
     let across = kerb_ahead_of(midair, 0.0, 0.0);
-    let kerb = Lay {
+    let kerb = Placement {
         yaw: across.yaw + std::f32::consts::FRAC_PI_2,
         ..across
     };
 
-    let over = drive(&[kerb], &inputs);
+    let over = readouts_over(&[kerb], &inputs);
     assert_eq!(over, clear, "the kerb changes nothing");
     assert!(
         over.last().expect("readouts").drift.is_some(),
@@ -212,11 +205,15 @@ fn a_kart_in_the_air_over_the_kerb_is_not_launched_and_keeps_its_drift() {
 #[test]
 fn a_kart_driving_beside_the_kerb_is_untouched() {
     let inputs = to_top_speed_then(throttle());
-    let clear = drive(&[], &inputs);
+    let clear = readouts_over(&[], &inputs);
     let beside = KERB_HALF_WIDTH_M + 0.1;
     for right in [beside, -beside] {
-        let kerb = kerb_ahead_of(&clear[at_top_speed()], 15.0, right);
-        assert_eq!(drive(&[kerb], &inputs), clear, "a kerb {right} m right");
+        let kerb = kerb_ahead_of(&clear[top_speed_tick()], 15.0, right);
+        assert_eq!(
+            readouts_over(&[kerb], &inputs),
+            clear,
+            "a kerb {right} m right"
+        );
     }
 }
 
@@ -225,10 +222,10 @@ fn a_slow_kart_that_lands_back_on_the_kerb_is_not_launched_again_until_it_has_le
     // From the grid, a kerb whose near end is 2 m ahead: the kart reaches
     // it slowly enough to land on it and drive the rest of its length.
     let inputs = vec![throttle(); ticks(3.0)];
-    let clear = drive(&[], &inputs);
+    let clear = readouts_over(&[], &inputs);
     let kerb = kerb_ahead_of(&clear[0], 2.0 + KERB_HALF_LENGTH_M, 0.0);
 
-    let over = drive(&[kerb], &inputs);
+    let over = readouts_over(&[kerb], &inputs);
     let (first, count) = airtime(&over, 0).expect("the kerb launched the kart");
     let landed = first + count;
     assert!(
@@ -241,12 +238,8 @@ fn a_slow_kart_that_lands_back_on_the_kerb_is_not_launched_again_until_it_has_le
     assert_eq!(airtime(&over, landed), None, "launched once");
     // Back round the oval to the kerb would take far longer than this run.
     let far_end = kerb_ahead_of(&clear[0], 2.0 + 2.0 * KERB_HALF_LENGTH_M, 0.0);
-    let (dx, dz) = (
-        over.last().expect("readouts").position[0] - far_end.position[0],
-        over.last().expect("readouts").position[2] - far_end.position[2],
-    );
-    let (sin, cos) = far_end.yaw.sin_cos();
-    assert!(-dx * sin - dz * cos > 0.0, "drove off the kerb's far end");
+    let (past, _) = far_end.local(over.last().expect("readouts").position);
+    assert!(past > 0.0, "drove off the kerb's far end");
 }
 
 #[test]

@@ -170,12 +170,7 @@ fn line_point(track: &Track, progress: f32, right: f32) -> [f32; 2] {
 /// apex, and a kerb is laid on the apex.
 fn line_clear_of_kerbs(track: &Track, position: [f32; 3]) -> Option<f32> {
     track.kerbs().iter().find_map(|kerb| {
-        let (sin, cos) = libm::sincosf(kerb.yaw);
-        // Facing -Z at yaw zero; right of the facing is (cos, -sin) in x, z.
-        let dx = position[0] - kerb.position[0];
-        let dz = position[2] - kerb.position[2];
-        let ahead = -dx * sin - dz * cos;
-        let beside = dx * cos - dz * sin;
+        let (ahead, beside) = kerb.local(position);
         let inside_lookahead = (-KERB_HALF_LENGTH_M - BOT_LOOKAHEAD_M..=KERB_HALF_LENGTH_M)
             .contains(&ahead)
             && beside.abs() < BOT_LOOKAHEAD_M;

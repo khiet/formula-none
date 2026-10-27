@@ -79,12 +79,17 @@ impl Placement {
     /// the direction it faces and `half_width` across it. Height is
     /// ignored; what is placed sits on the surface under the point.
     pub fn covers(&self, point: [f32; 3], half_length: f32, half_width: f32) -> bool {
+        let (along, across) = self.local(point);
+        along.abs() <= half_length && across.abs() <= half_width
+    }
+
+    /// `point` as (metres ahead of this placement along the direction it
+    /// faces, metres to its right), seen from above.
+    pub fn local(&self, point: [f32; 3]) -> (f32, f32) {
         let (sin, cos) = libm::sincosf(self.yaw);
         let (dx, dz) = (point[0] - self.position[0], point[2] - self.position[2]);
         // Yaw zero faces -Z; the right of that facing, seen from above, is +X.
-        let along = -dx * sin - dz * cos;
-        let across = dx * cos - dz * sin;
-        along.abs() <= half_length && across.abs() <= half_width
+        (-dx * sin - dz * cos, dx * cos - dz * sin)
     }
 }
 
