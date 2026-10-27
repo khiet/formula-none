@@ -244,9 +244,9 @@ describe("bridge wrapper", () => {
     expect(stalling.kartReadouts()[0]?.stallS).toBeCloseTo(2 - DT, 4);
     expect(stalling.kartReadouts()[0]?.speed).toBe(0);
 
-    // Held from the first half of the fourth light: the full boost off the line.
+    // Held 1.75 s, from the first half of the fourth light: the full boost off the line.
     const boosting = bridge.createRace(7n, 1, 0, OVAL);
-    for (let tick = 0; tick < 195; tick++) boosting.step([IDLE_INPUT], DT);
+    for (let tick = 0; tick < COUNTDOWN_TICKS - 105; tick++) boosting.step([IDLE_INPUT], DT);
     while (boosting.phase().kind === "countdown") boosting.step([THROTTLE], DT);
     expect(boosting.kartReadouts()[0]?.start).toBe("fullBoost");
     boosting.step([THROTTLE], DT);

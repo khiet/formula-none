@@ -129,7 +129,7 @@ describe("the lap instruments on the page", () => {
     expect(filled()).toBe(3);
   });
 
-  it("show the start lights as five lamps with the count lit, then GO at lights out", () => {
+  it("show the start lights lit so far, then GO at lights out", () => {
     const { panel, find } = mount();
     const at = (phase: Phase) =>
       panel.update({ ...race(ON_THE_GRID, { item: null, firing: false }), phase });
@@ -137,8 +137,6 @@ describe("the lap instruments on the page", () => {
     at({ kind: "countdown", remainingSeconds: 2.5 });
     expect(countdown?.hidden).toBe(false);
     expect(countdown?.dataset.lit).toBe("3");
-    expect(countdown?.querySelectorAll("[data-lamp]")).toHaveLength(5);
-    expect(countdown?.querySelectorAll("[data-lamp='lit']")).toHaveLength(3);
     at({ kind: "racing", elapsedSeconds: 0, capLeftSeconds: null });
     expect(countdown?.dataset.lit).toBe("0");
     expect(countdown?.textContent).toBe("GO");

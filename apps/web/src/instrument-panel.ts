@@ -377,6 +377,8 @@ export function createInstrumentPanel(
           lamp.hidden = count !== "";
         });
         go.textContent = count;
+        // An empty GO would still take a gap in the row and push the lamps off centre.
+        go.hidden = count === "";
         if (count === "") {
           delete countdown.dataset.plate;
         } else {
