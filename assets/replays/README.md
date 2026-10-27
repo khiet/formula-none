@@ -57,5 +57,5 @@ before orange, ending against the back straight's outer wall; its holds
 count the hop's airtime before the charge starts, and its steering keeps
 the kart between the walls. `oval-rocket-start.replay.json` and
 `oval-stall.replay.json` were written by hand for the start: the throttle
-held from the first half of the 2 through Go, and from the top of the
+held from the first half of the fourth light through Go, and from the top of the
 countdown.

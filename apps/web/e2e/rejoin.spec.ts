@@ -35,9 +35,13 @@ test("closing the tab mid-race and reopening the room's link rejoins the same ka
   await expect(page.getByRole("button", { name: "Start" })).toBeEnabled();
   await page.getByRole("button", { name: "Start" }).click();
   for (const someone of [page, friend]) {
-    await expect(someone.locator('[data-instrument="countdown"]')).toHaveText(/^[321]$/, {
-      timeout: 60_000,
-    });
+    await expect(someone.locator('[data-instrument="countdown"]')).toHaveAttribute(
+      "data-lit",
+      /^[1-5]$/,
+      {
+        timeout: 60_000,
+      },
+    );
   }
 
   await page.close();

@@ -5,7 +5,7 @@
   "bots": 0,
   "segments": [
     {
-      "ticks": 420,
+      "ticks": 540,
       "inputs": [
         {
           "steer": 0.0,
@@ -19,12 +19,14 @@
     }
   ],
   "hashes": [
-    "0def9696e8be87fc",
-    "d1397390c2107286",
-    "ac16d07e73dd5aba",
-    "7be752ce4766bdb5",
-    "34fb7dacd7320163",
-    "64693f2844bf6084",
-    "99b4ab87fdbae0a2"
+    "cd6557f796463f2b",
+    "094a735c47b07c38",
+    "7078cb66b8d147e7",
+    "099136bda9de094d",
+    "8defeffc52a0c724",
+    "0da71840e78f156b",
+    "0347cc6d1744a77d",
+    "9e4b51d272c1bd2f",
+    "4d3922239c2cfecd"
   ]
 }

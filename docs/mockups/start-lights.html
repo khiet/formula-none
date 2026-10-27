@@ -1,0 +1,404 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Start Lights</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet" />
+<style>
+  /* Served from the repo root (python3 -m http.server) so the panel's face loads. */
+  @font-face {
+    font-family: "Kenney Mini Square";
+    src: url("../../assets/fonts/kenney/Kenney%20Mini%20Square.ttf") format("truetype");
+  }
+  :root {
+    --bg: #121316;
+    --fg: #e8e8ea;
+    --muted: #8a8d94;
+    --rule: #2a2c31;
+    /* palette.ts */
+    --ink: #111111;
+    --value: #ffffff;
+    --poster-red-lit: #e8333b; --poster-red: #c81d25; --poster-red-shaded: #8f141a;
+    --go-green-lit: #6fe8a6; --go-green: #3ddc84; --go-green-shaded: #23a35e;
+    --carbon-lit: #4a4f57; --carbon: #2b2e33; --carbon-shaded: #1b1d21;
+    /* An unlit lamp: carbon one step down, so it reads dark on the gantry too. */
+    --unlit-lit: #2b2e33; --unlit: #1b1d21; --unlit-shaded: #111214;
+    --asphalt: #6b6b78;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--fg); font: 15px/1.5 Inter, system-ui, sans-serif; }
+  body { padding: 2rem 16px 4rem; }
+  header, main { max-width: 1120px; margin: 0 auto; }
+  header { margin-bottom: 1.5rem; }
+  h1 { font: 600 1.4rem/1.2 Inter, sans-serif; margin: 0 0 .25rem; }
+  h2 { font: 600 1.05rem/1.2 Inter, sans-serif; margin: 0 0 .5rem; }
+  header p, .muted { color: var(--muted); }
+  header p { margin: 0; }
+  code { font: .85em ui-monospace, Menlo, monospace; color: var(--fg); }
+  main { display: grid; gap: 2.5rem; }
+
+  .tabs { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: 1rem; }
+  .tabs button, .controls button {
+    font: inherit; color: var(--fg); background: #1c1e22; border: 1px solid var(--rule);
+    border-radius: .4rem; padding: .4rem .8rem; cursor: pointer;
+  }
+  .tabs button[aria-pressed="true"] { border-color: #ff8800; background: #2a2116; }
+  .tabs small { color: var(--muted); margin-left: .35rem; }
+
+  /* The View stand-in: the HUD unit follows this box, as it follows the viewport in the game. */
+  .view {
+    container-type: size;
+    position: relative;
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    border-radius: .5rem;
+    overflow: hidden;
+    background:
+      linear-gradient(#9fc6e8 0 38%, #7da84f 38% 52%, var(--asphalt) 52%);
+  }
+  .view::after { /* grid lines and the start line */
+    content: ""; position: absolute; left: 0; right: 0; top: 74%; height: 2.4%;
+    background: repeating-linear-gradient(90deg, #fff 0 2cqmin, #111 2cqmin 4cqmin);
+  }
+  .panel {
+    --hud: max(0.55rem, 1.5cqmin);
+    position: absolute; inset: 0;
+    color: var(--value);
+    font-family: "Kenney Mini Square", ui-monospace, Menlo, monospace;
+    line-height: 1; text-transform: uppercase;
+    text-shadow: 0.1em 0.1em 0 var(--ink);
+  }
+  .panel [hidden] { display: none !important; }
+
+  /* A plate, as apps/web/index.html draws it. */
+  [data-plate] {
+    --chamfer: calc(var(--hud) * 0.9);
+    position: relative; isolation: isolate;
+    display: flex; align-items: center; justify-content: center;
+    filter: drop-shadow(calc(var(--hud) * 0.5) calc(var(--hud) * 0.5) 0 color-mix(in srgb, var(--ink) 55%, transparent));
+  }
+  [data-plate]::before {
+    content: ""; position: absolute; inset: 0; z-index: -1;
+    clip-path: polygon(var(--chamfer) 0, calc(100% - var(--chamfer)) 0, 100% var(--chamfer), 100% calc(100% - var(--chamfer)), calc(100% - var(--chamfer)) 100%, var(--chamfer) 100%, 0 calc(100% - var(--chamfer)), 0 var(--chamfer));
+    background: linear-gradient(var(--plate-lit) 0 34%, var(--plate) 34% 70%, var(--plate-shaded) 70%);
+  }
+  [data-plate="octagon"] { --chamfer: 29.3%; }
+  .red   { --plate-lit: var(--poster-red-lit); --plate: var(--poster-red); --plate-shaded: var(--poster-red-shaded); }
+  .unlit { --plate-lit: var(--unlit-lit); --plate: var(--unlit); --plate-shaded: var(--unlit-shaded); }
+  .carbon{ --plate-lit: var(--carbon-lit); --plate: var(--carbon); --plate-shaded: var(--carbon-shaded); }
+  .green { --plate-lit: var(--go-green-lit); --plate: var(--go-green); --plate-shaded: var(--go-green-shaded); }
+
+  .lights {
+    position: absolute; top: 40%; left: 50%; transform: translate(-50%, -50%);
+    display: flex; gap: calc(var(--hud) * 1);
+  }
+  .lights.gantry { padding: calc(var(--hud) * 0.9) calc(var(--hud) * 1.2); gap: calc(var(--hud) * 0.9); }
+  .lamp {
+    width: calc(var(--hud) * 5); height: calc(var(--hud) * 5);
+    font-size: calc(var(--hud) * 3.2);
+  }
+  /* An unlit lamp sits back: no drop, so the lit ones stand off the gantry. */
+  .lamp.unlit { filter: none; }
+  .go {
+    position: absolute; top: 40%; left: 50%; transform: translate(-50%, -50%);
+    padding: 0.3em 0.45em; font-size: calc(var(--hud) * 6);
+    color: var(--ink);
+    text-shadow: 0.1em 0.1em 0 color-mix(in srgb, var(--value) 50%, transparent);
+  }
+
+  .controls { display: flex; flex-wrap: wrap; align-items: center; gap: .75rem 1rem; margin-top: .75rem; }
+  .controls input[type="range"] { flex: 1 1 14rem; accent-color: #ff8800; }
+  .controls label { display: flex; align-items: center; gap: .35rem; font-size: .9rem; cursor: pointer; }
+  .controls input[type="checkbox"] { accent-color: #ff8800; }
+  .clock { font: .9rem ui-monospace, Menlo, monospace; min-width: 12ch; color: var(--muted); }
+  #hold[aria-pressed="true"] { border-color: #ff8800; background: #3a2610; }
+  .verdict { margin-top: .5rem; font-size: .95rem; min-height: 1.5em; }
+  .verdict b { font-weight: 600; }
+
+  /* Timeline */
+  .timeline { position: relative; margin-top: 1rem; font-size: .8rem; }
+  .track { position: relative; height: 2.2rem; display: grid; grid-template-columns: repeat(13, 1fr); gap: 0; }
+  .track > div { display: flex; align-items: center; justify-content: center; border-right: 1px solid var(--bg); color: #fff; }
+  .row-label { color: var(--muted); margin: .6rem 0 .25rem; }
+  .scale { display: grid; grid-template-columns: repeat(13, 1fr); color: var(--muted); font: .75rem ui-monospace, Menlo, monospace; }
+  .scale span { border-left: 1px solid var(--rule); padding-left: 2px; }
+  .cursor { position: absolute; top: 0; bottom: 0; width: 2px; background: #ff8800; pointer-events: none; }
+
+  .film { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: .6rem; }
+  .film figure { margin: 0; display: grid; gap: .3rem; }
+  .film figcaption { font-size: .8rem; color: var(--muted); }
+  .film .view::after { display: none; }
+  /* Thumbnails are smaller than any game window, so they drop the HUD floor. */
+  .film .panel { --hud: 1.5cqmin; }
+
+  ul { margin: .25rem 0 0; padding-left: 1.2rem; }
+  li { margin: .2rem 0; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Five-light start</h1>
+  <p>Issue #137: the 3-2-1 count becomes five start lights. One comes on per second, all go out at Go, then GO shows for a second. Pick a treatment, press Play, and hold the throttle (space) to try a rocket start.</p>
+  <div class="tabs" role="group" aria-label="Treatment">
+    <button data-variant="a" aria-pressed="true">A. Bare lamps<small>recommended</small></button>
+    <button data-variant="b" aria-pressed="false">B. Lamps on a carbon gantry</button>
+    <button data-variant="c" aria-pressed="false">C. Lamps with the count</button>
+  </div>
+</header>
+
+<main>
+  <section>
+    <div class="view" id="live"><div class="panel"></div></div>
+    <div class="controls">
+      <button id="play">Play</button>
+      <button id="hold" aria-pressed="false">Hold throttle (space)</button>
+      <input id="scrub" type="range" min="0" max="6.5" step="0.01" value="0" aria-label="Race clock" />
+      <span class="clock" id="clock"></span>
+      <label><input id="sound" type="checkbox" checked /> Sound</label>
+    </div>
+    <div class="verdict" id="verdict"></div>
+
+    <div class="timeline" id="timeline">
+      <div class="row-label">What the lights show (seconds since the countdown began)</div>
+      <div class="track" id="lights-row"></div>
+      <div class="row-label">What a throttle hold earns, by when it begins (held unbroken to Go)</div>
+      <div class="track" id="rocket-row"></div>
+      <div class="scale" id="scale"></div>
+      <div class="cursor" id="cursor"></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Frames</h2>
+    <div class="film" id="film"></div>
+  </section>
+
+  <section>
+    <h2>What stays and what changes</h2>
+    <ul class="muted">
+      <li>Same spot as the old count: centred, 40% down the View. Lamps are poster-red octagons, faceted like every plate; an unlit lamp is carbon one step darker.</li>
+      <li>Sizes are in HUD units (<code>--hud</code>), so the row reads the same in an eight-window feel check as full screen. The row is about 29 HUD units wide.</li>
+      <li>Lights out is exactly Go, 1 s after the fifth light. No random F1 wait.</li>
+      <li>Rocket start edges are unchanged in seconds back from Go. Full boost: begin in the first half of light 4. Weak: second half of light 4. Clean: light 5 or later. Stall: before light 4.</li>
+      <li>One beep per lamp, the go sound at lights out (the game's own <code>.wav</code>s when served from the repo root).</li>
+    </ul>
+  </section>
+</main>
+
+<script>
+(() => {
+  const COUNTDOWN_S = 5;
+  const GO_S = 1;
+  const END_S = 6.5;
+  // tuning.rs, unchanged.
+  const STALL_HOLD_S = 2.0, FULL_HOLD_S = 1.5, WEAK_HOLD_S = 1.0;
+
+  let variant = "a";
+  let t = 0;
+  let playing = false;
+  let last = 0;
+  let holdFrom = null;   // race clock when the current hold began
+  let verdict = null;
+  let lastCount = null;
+
+  const beep = new Audio("../../assets/audio/countdown-beep.wav");
+  const go = new Audio("../../assets/audio/go.wav");
+  const sound = document.getElementById("sound");
+  const play = (audio) => {
+    if (!sound.checked) return;
+    const a = audio.cloneNode();
+    a.play().catch(() => {});
+  };
+
+  // As race-run.ts: whole seconds left while counting down, "go" for the first second after.
+  const countAt = (time) =>
+    time < COUNTDOWN_S ? Math.ceil(COUNTDOWN_S - time) : time < COUNTDOWN_S + GO_S ? "go" : null;
+
+  function lampsLit(count) {
+    return typeof count === "number" ? 6 - count : 0;
+  }
+
+  function render(panel, time) {
+    const count = countAt(time);
+    panel.textContent = "";
+    if (count === "go") {
+      const g = document.createElement("div");
+      g.className = "go green";
+      g.dataset.plate = "";
+      g.textContent = "GO";
+      panel.append(g);
+      return;
+    }
+    if (count === null) return;
+    const lit = lampsLit(count);
+    const row = document.createElement("div");
+    row.className = "lights" + (variant === "b" ? " gantry carbon" : "");
+    if (variant === "b") row.dataset.plate = "";
+    for (let i = 1; i <= 5; i++) {
+      const lamp = document.createElement("div");
+      lamp.dataset.plate = "octagon";
+      lamp.className = "lamp " + (i <= lit ? "red" : "unlit");
+      if (variant === "c" && i <= lit) lamp.textContent = String(6 - i);
+      row.append(lamp);
+    }
+    panel.append(row);
+  }
+
+  function rocketOutcome(holdStart) {
+    const held = COUNTDOWN_S - holdStart;
+    if (held > STALL_HOLD_S) return { name: "Stall", note: "2.0 s dead to every control" };
+    if (held >= FULL_HOLD_S) return { name: "Full boost", note: "1.5 s at +40%" };
+    if (held >= WEAK_HOLD_S) return { name: "Weak boost", note: "0.6 s at +30%" };
+    return { name: "Clean start", note: "" };
+  }
+
+  const live = document.querySelector("#live .panel");
+  const clock = document.getElementById("clock");
+  const scrub = document.getElementById("scrub");
+  const verdictEl = document.getElementById("verdict");
+  const cursor = document.getElementById("cursor");
+  const holdBtn = document.getElementById("hold");
+  const playBtn = document.getElementById("play");
+
+  function update() {
+    render(live, t);
+    scrub.value = t;
+    const count = countAt(t);
+    const label = count === null ? (t >= COUNTDOWN_S ? "racing" : "") : count === "go" ? "GO" : `light ${lampsLit(count)} of 5`;
+    clock.textContent = `${t.toFixed(2)} s  ${label}`;
+    const track = document.getElementById("lights-row");
+    cursor.style.left = `${(t / END_S) * track.offsetWidth}px`;
+    cursor.style.top = `${track.offsetTop}px`;
+    cursor.style.height = `${document.getElementById("scale").offsetTop + 16 - track.offsetTop}px`;
+
+    if (verdict) {
+      verdictEl.innerHTML = `Hold began at ${verdict.from.toFixed(2)} s (${(COUNTDOWN_S - verdict.from).toFixed(2)} s before Go): <b>${verdict.name}</b>${verdict.note ? `, ${verdict.note}` : ""}.`;
+    } else if (holdFrom !== null && t < COUNTDOWN_S) {
+      const tier = rocketOutcome(holdFrom).name;
+      verdictEl.innerHTML = `Holding since ${holdFrom.toFixed(2)} s. If held to Go: <b>${tier}</b>.`;
+    } else {
+      verdictEl.textContent = "";
+    }
+  }
+
+  function step(now) {
+    if (!playing) return;
+    const dt = (now - last) / 1000;
+    last = now;
+    const before = t;
+    t = Math.min(END_S, t + dt);
+    const count = countAt(t);
+    if (count !== lastCount) {
+      if (typeof count === "number") play(beep);
+      if (count === "go") play(go);
+      lastCount = count;
+    }
+    if (before < COUNTDOWN_S && t >= COUNTDOWN_S && holdFrom !== null) {
+      verdict = { from: holdFrom, ...rocketOutcome(holdFrom) };
+    }
+    update();
+    if (t >= END_S) { playing = false; playBtn.textContent = "Replay"; return; }
+    requestAnimationFrame(step);
+  }
+
+  function start() {
+    t = 0; verdict = null; lastCount = null;
+    if (holdFrom !== null) holdFrom = 0;
+    playing = true;
+    playBtn.textContent = "Playing";
+    last = performance.now();
+    lastCount = countAt(0);
+    play(beep);
+    requestAnimationFrame(step);
+  }
+
+  function setHold(on) {
+    holdBtn.setAttribute("aria-pressed", String(on));
+    if (on && holdFrom === null) holdFrom = t < COUNTDOWN_S ? t : null;
+    if (!on) holdFrom = null; // a release before Go resets the hold
+    update();
+  }
+
+  playBtn.addEventListener("click", start);
+  holdBtn.addEventListener("pointerdown", () => setHold(true));
+  holdBtn.addEventListener("pointerup", () => setHold(false));
+  holdBtn.addEventListener("pointerleave", () => setHold(false));
+  addEventListener("keydown", (e) => {
+    if (e.code === "Space") { e.preventDefault(); if (!e.repeat) setHold(true); }
+  });
+  addEventListener("keyup", (e) => { if (e.code === "Space") setHold(false); });
+  scrub.addEventListener("input", () => { playing = false; playBtn.textContent = "Play"; t = Number(scrub.value); update(); });
+
+  // Timeline rows in half-second cells, 0 to 6.5 s.
+  const cells = 13;
+  const lightsRow = document.getElementById("lights-row");
+  const rocketRow = document.getElementById("rocket-row");
+  const scale = document.getElementById("scale");
+  const tones = {
+    lamp: "#c81d25", go: "#23a35e", racing: "#2b2e33",
+    stall: "#5a2a2a", full: "#c81d25", weak: "#ff7a00", clean: "#3a3d42", none: "#1c1e22",
+  };
+  const merge = (row, spans) => {
+    row.style.gridTemplateColumns = spans.map((s) => `${s.w}fr`).join(" ");
+    for (const s of spans) {
+      const d = document.createElement("div");
+      d.style.background = s.bg;
+      d.textContent = s.text;
+      row.append(d);
+    }
+  };
+  merge(lightsRow, [
+    { w: 2, bg: tones.lamp, text: "1 lit" },
+    { w: 2, bg: tones.lamp, text: "2 lit" },
+    { w: 2, bg: tones.lamp, text: "3 lit" },
+    { w: 2, bg: tones.lamp, text: "4 lit" },
+    { w: 2, bg: tones.lamp, text: "5 lit" },
+    { w: 2, bg: tones.go, text: "out + GO" },
+    { w: 1, bg: tones.racing, text: "" },
+  ]);
+  merge(rocketRow, [
+    { w: 6, bg: tones.stall, text: "stall" },
+    { w: 1, bg: tones.full, text: "full" },
+    { w: 1, bg: tones.weak, text: "weak" },
+    { w: 2, bg: tones.clean, text: "clean" },
+    { w: 3, bg: tones.none, text: "" },
+  ]);
+  for (let i = 0; i < cells; i++) {
+    const s = document.createElement("span");
+    s.textContent = i % 2 === 0 ? `${i / 2}` : "";
+    scale.append(s);
+  }
+
+  // Frames.
+  const film = document.getElementById("film");
+  const frames = [
+    [0.2, "0 s: light 1"], [1.2, "1 s: light 2"], [2.2, "2 s: light 3"],
+    [3.2, "3 s: light 4 (full boost window)"], [4.2, "4 s: light 5"], [5.2, "5 s: lights out, GO"],
+  ];
+  const filmPanels = frames.map(([time, caption]) => {
+    const fig = document.createElement("figure");
+    fig.innerHTML = `<div class="view"><div class="panel"></div></div><figcaption>${caption}</figcaption>`;
+    film.append(fig);
+    return [fig.querySelector(".panel"), time];
+  });
+  const renderFilm = () => filmPanels.forEach(([panel, time]) => render(panel, time));
+
+  document.querySelectorAll(".tabs button").forEach((b) =>
+    b.addEventListener("click", () => {
+      variant = b.dataset.variant;
+      document.querySelectorAll(".tabs button").forEach((o) => o.setAttribute("aria-pressed", String(o === b)));
+      update();
+      renderFilm();
+    }),
+  );
+
+  t = 3.2;
+  update();
+  renderFilm();
+  addEventListener("resize", update);
+})();
+</script>
+</body>
+</html>

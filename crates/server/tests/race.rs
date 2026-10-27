@@ -100,7 +100,10 @@ fn input(sequence: u32, throttle: u8) -> Input {
 async fn the_countdown_reaches_every_client_with_the_grid_in_room_order_and_the_room_follows_the_race(
 ) {
     let mut harness = Harness::new(Conditions::PERFECT);
-    let (code, mut players, countdowns) = racing_room(&mut harness, 3).await;
+    let code = harness.create_room();
+    let mut players = room_of(&mut harness, &code, 3).await;
+    let pressed_start = tokio::time::Instant::now();
+    let countdowns = start_race(&mut players).await;
     for countdown in &countdowns {
         assert_eq!(
             countdown, &countdowns[0],
@@ -123,6 +126,12 @@ async fn the_countdown_reaches_every_client_with_the_grid_in_room_order_and_the_
     assert_eq!(
         harness.rooms().view(&code).unwrap().state,
         RoomState::Racing
+    );
+    // Five start lights, one a second: the room's Countdown lasts 5 s.
+    let countdown = pressed_start.elapsed().as_secs_f32();
+    assert!(
+        (countdown - 5.0).abs() <= 0.1,
+        "the room's Countdown lasted {countdown} s"
     );
     let snapshot = players[0].next_snapshot().await.unwrap();
     assert!(

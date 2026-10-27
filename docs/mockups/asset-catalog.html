@@ -226,6 +226,7 @@
   .t-white { --t-lt: #ffffff; --t: #eef0f2; --t-dk: #cfd2d6; color: var(--g-ink); text-shadow: none; }
   .t-red { --t-lt: #e8333b; --t: #c81d25; --t-dk: #8f141a; }
   .t-orange { --t-lt: #ff7a4d; --t: #ff5522; --t-dk: #c73c14; }
+  .t-lamp-off { --t-lt: #2b2e33; --t: #1b1d21; --t-dk: #111214; }
   .t-go { --t-lt: #6fe8a6; --t: #3ddc84; --t-dk: #23a35e; color: var(--g-ink); text-shadow: 0.1em 0.1em 0 rgb(255 255 255 / 0.5); }
   .stack2 { display: grid; gap: 12px; justify-items: start; }
   .posp { font-size: calc(var(--hud) * 5.6); padding: 0.12em 0.3em; gap: 0; }
@@ -242,7 +243,7 @@
   .tyre2 { grid-area: tyre; display: flex; align-items: center; gap: calc(var(--hud) * 1); font-size: calc(var(--hud) * 2.2); }
   .tyre2 svg, .tyre2-big svg { width: calc(var(--hud) * 3.6); height: auto; filter: drop-shadow(calc(var(--hud) * 0.3) calc(var(--hud) * 0.3) 0 rgb(17 17 17 / 0.55)); }
   .tyre2-big svg { width: 4.6rem; }
-  .oct { --c: 29.3%; font-size: calc(var(--hud) * 6); width: 1.6em; height: 1.6em; justify-content: center; padding: 0; }
+  .lamp { --c: 29.3%; width: calc(var(--hud) * 5); height: calc(var(--hud) * 5); padding: 0; }
   .go2 { font-size: calc(var(--hud) * 6); padding: 0.3em 0.45em; }
   .fin2 { font-size: calc(var(--hud) * 7); padding: 0.25em 0.35em; gap: 0.35em; }
   .fin2 i { width: 0.6em; height: 1em; background: conic-gradient(#111 25%, #fff 0 50%, #111 0 75%, #fff 0) 0 0 / 0.3em 0.25em; }
@@ -641,11 +642,12 @@
         <header><span class="status drift">Drift</span><h3>Countdown and GO</h3><code>apps/web/index.html:277</code></header>
         <div class="compare">
           <figure class="now"><figcaption>Now</figcaption><div class="view"><div class="hud hud-row" style="--hud:4px"><span class="bigger">3</span><span class="bigger">2</span><span class="bigger">1</span><span class="bigger">GO!</span></div></div></figure>
-          <figure class="aligned"><figcaption>Aligned</figcaption><div class="view"><div class="hud2 hud-row" style="--hud:4px;gap:0.6rem"><span class="pl"><span class="pf t-red oct">3</span></span><span class="pl"><span class="pf t-red oct">2</span></span><span class="pl"><span class="pf t-red oct">1</span></span><span class="pl"><span class="pf t-go go2">GO!</span></span></div></div></figure>
+          <figure class="aligned"><figcaption>Aligned</figcaption><div class="view"><div class="hud2 hud-row" style="--hud:4px;gap:4px"><span class="pl"><span class="pf t-red lamp"></span></span><span class="pl"><span class="pf t-red lamp"></span></span><span class="pl"><span class="pf t-red lamp"></span></span><span class="pf t-lamp-off lamp"></span><span class="pf t-lamp-off lamp"></span></div></div></figure>
+          <figure class="aligned"><figcaption>Lights out</figcaption><div class="view"><div class="hud2 hud-row" style="--hud:4px"><span class="pl"><span class="pf t-go go2">GO</span></span></div></div></figure>
         </div>
         <div class="notes">
           <p class="why">Gold pixel numerals at a fixed <code>8rem</code>: huge in a small window of an eight-window feel check, small full screen.</p>
-          <p class="fix"><b>Fix:</b> each count on an octagonal start light in poster red, faceted like a wheel, and GO on a green plate; sized in HUD units.</p>
+          <p class="fix"><b>Fix:</b> five start lights in a row (ADR 0040, <code>start-lights.html</code> treatment A): octagonal lamps 5 HUD units square, 1 apart, lit one a second in poster red, unlit ones carbon one step darker with no drop; all out at Go, then GO on a green plate for a second.</p>
         </div>
       </article>
 

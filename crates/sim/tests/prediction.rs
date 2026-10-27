@@ -425,7 +425,7 @@ fn a_hit_the_server_decides_reaches_the_prediction_as_one_correction_and_the_spi
             down_the_lane(&prediction.kart_readout(), lane_x)
         }
     };
-    let run = race_with(seconds(9.0), |_| false, server, driver, other);
+    let run = race_with(go + seconds(6.0), |_| false, server, driver, other);
 
     assert_eq!(
         run.prediction.corrections(),
@@ -446,11 +446,13 @@ fn a_hit_the_server_decides_reaches_the_prediction_as_one_correction_and_the_spi
         "every snapshot after the hit agreed: {:?}",
         &run.corrections_m[hit..]
     );
-    // The snapshot that carried the hit reached the client a one-way trip
-    // after it; the timer it brought ran the rest of the spin-out.
+    // The first snapshot after the hit, up to a snapshot's ticks later,
+    // reached the client a one-way trip after it; the timer it brought ran
+    // the rest of the spin-out.
     let spin_out = seconds(sim::tuning::SPIN_OUT_S);
+    let late = 2 * ONE_WAY_TICKS + TICKS_PER_SNAPSHOT - 1;
     assert!(
-        (spin_out - 2 * ONE_WAY_TICKS..=spin_out).contains(&run.spun_out_ticks),
+        (spin_out - late..=spin_out).contains(&run.spun_out_ticks),
         "spun out for {} ticks, expected about {spin_out}",
         run.spun_out_ticks
     );
@@ -483,7 +485,7 @@ fn rocket_start_at_the_full_edge(lose_the_press: bool) -> Run {
     };
     let lost = |sequence: u32| lose_the_press && press_sequence.get() == Some(sequence);
     race_with(
-        seconds(5.0),
+        seconds(sim::tuning::COUNTDOWN_S + 2.0),
         lost,
         State::new(SEED, 1, oval()),
         driver,

@@ -5,7 +5,7 @@
   "bots": 0,
   "segments": [
     {
-      "ticks": 181,
+      "ticks": 301,
       "inputs": [
         {
           "steer": 0.0,
@@ -175,20 +175,22 @@
     }
   ],
   "hashes": [
-    "5ea65c4fa76e1525",
-    "b30954761eadbfc4",
-    "04c3bfcec2324b05",
-    "68879e5442df05f6",
-    "2e53c6bb178292a0",
-    "831238d1f0ec893c",
-    "8338faa3110c8bd3",
-    "f1d73527fff9771f",
-    "7f003d2d7bfb5b37",
-    "fabc920a02df4cdf",
-    "00ace0eeb3b08b9d",
-    "3c65142bd37c9736",
-    "d504ea9465c3966c",
-    "cbb2f1d5a992867e",
-    "a3bcc63984c0fddd"
+    "b6455f2f57b2f8de",
+    "b53b52d62eec47ca",
+    "fd88ebb703c76574",
+    "4879fca731c33556",
+    "e827215ad4fb781b",
+    "b1a0091646872bae",
+    "ea4f803e8b2d26b4",
+    "146ee09db80585fc",
+    "a23e81bcf9ed5ebb",
+    "0f223583c16429a7",
+    "412d8847d7a4f36b",
+    "d75da36354ea284b",
+    "13ff7567afc5b789",
+    "be928b6c6c3f2ede",
+    "753dab245d9a2680",
+    "639ce2ec05ac0422",
+    "8cf80a0b836e515d"
   ]
 }

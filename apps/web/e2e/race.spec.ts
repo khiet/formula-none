@@ -55,10 +55,10 @@ test("backing up for two seconds shows the wrong-way warning until the kart driv
   const surface = page.locator('[data-instrument="surface"]');
   const wrongWay = page.locator('[data-instrument="wrong-way"]');
   // A kart idle on the grid is rammed by the bots rocket-starting behind
-  // it, so this one rocket-starts with them, the throttle held from the 2
-  // through Go, and drives straight on until the first corner takes it off
+  // it, so this one rocket-starts with them, the throttle held from the
+  // fourth light through Go, and drives straight on until the first corner takes it off
   // the asphalt or into a wall, clear of the bots' line.
-  await expect(countdown).toHaveText("2", { timeout: 60_000 });
+  await expect(countdown).toHaveAttribute("data-lit", "4", { timeout: 60_000 });
   // The course map is up through the countdown, before anything moves.
   await expect(page.locator('[data-instrument="course-map"] [data-own]')).toBeVisible();
   await page.keyboard.down("ArrowUp");

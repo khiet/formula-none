@@ -27,7 +27,8 @@ humans.
 Where a race is: Countdown, Racing, Outro or Finished. Sim state, stepped
 like every other rule, so a solo race in the browser and a room on the
 server run the same lifecycle. Countdown holds the karts on the grid for
-the 3-2-1 count, during which the throttle sets up the rocket start.
+the 5 s of the start lights, during which the throttle sets up the rocket
+start.
 Racing runs the laps and ends when every human's kart has finished or is
 driven by a bot, or 60 s after the first human finished driving their own
 kart; the unfinished are placed by progress at that point and the
@@ -36,6 +37,11 @@ driving every kart and the FINISH banner up for every player.
 Finished leaves the race as it is. A room's Countdown and Racing states
 follow the race's phase, its Racing state covering the Outro too, and its
 Results state its Finished (ADR 0032).
+
+### start lights
+
+The five lamps the Instrument panel lights one per second through the
+countdown and puts out at Go, when GO shows for a second (ADR 0040).
 
 ### finished
 
@@ -50,14 +56,15 @@ of the lap readout.
 What the throttle hold ending at Go earns, read from the hold's length; a
 release before Go resets it, and the throttle counts as held above half.
 Its outcomes are the start boost and the stall. A hold longer than 2.0 s,
-begun before the 2 appeared, stalls the kart: 2.0 s dead to every control,
-as in a spin-out. A hold of 1.5 to 2.0 s, begun in the first half of the 2,
-earns the full start boost, 1.5 s at +40 percent, the boost item's values.
-A hold of 1.0 to 1.5 s, begun in the second half of the 2, earns the weak
-start boost, 0.6 s at +30 percent, the orange mini-turbo's values. A shorter
-hold, begun at the 1 or later, starts clean. Bots roll the full boost or a
+begun before the fourth light came on, stalls the kart: 2.0 s dead to every
+control, as in a spin-out. A hold of 1.5 to 2.0 s, begun in the first half
+of the fourth light, earns the full start boost, 1.5 s at +40 percent, the
+boost item's values. A hold of 1.0 to 1.5 s, begun in the second half of
+the fourth light, earns the weak start boost, 0.6 s at +30 percent, the
+orange mini-turbo's values. A shorter hold, begun at the fifth light or
+later, starts clean. Bots roll the full boost or a
 clean start once per race from the seed and never stall; a kart handed to
-a bot during the countdown starts clean. The countdown is beeped so the
+a bot during the countdown starts clean. Each start light is beeped so the
 start can be timed by ear; sparks show every charging kart's tier, orange for
 the weak boost and red for the full one, with no warning once the hold
 has tipped into a stall. The snapshots carry each kart's start and stall
@@ -293,8 +300,8 @@ The part of a Scene that renders the world. The Race Scene has one View, the
 ### Instrument panel
 
 The HUD overlaid on a View: position, lap, lap time, best lap, item slot,
-speed, gear and tyre, wrong-way warning, connection banner, the countdown's
-count over the View and the course map. Reads state; never drives it.
+speed, gear and tyre, wrong-way warning, connection banner, the start
+lights over the View and the course map. Reads state; never drives it.
 
 ### plate
 

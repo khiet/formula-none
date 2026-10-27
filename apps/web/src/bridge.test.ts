@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { type KartInput, type KartReadout, loadBridge, type Race } from "./bridge";
 import type { Input, KartSnapshot, Snapshot } from "./generated/protocol";
 import { IDLE_INPUT } from "./input";
+import { START_LIGHTS } from "./instrument-panel";
 
 // The real wasm build, loaded from bytes because the default loader fetches
 // the module URL and fetch rejects file: URLs in Node. `pnpm build:bridge`
@@ -13,6 +14,8 @@ const OVAL = readFileSync(
   "utf8",
 );
 const DT = 1 / 60;
+/** The countdown's ticks: five start lights, one a second. */
+const COUNTDOWN_TICKS = 5 * 60;
 const THROTTLE: KartInput = { ...IDLE_INPUT, throttle: 1 };
 const TURN: KartInput = { ...THROTTLE, steer: 1 };
 
@@ -29,15 +32,15 @@ describe("race phase", () => {
   it("starts at the top of the countdown, holds the karts until Go, then races", async () => {
     const bridge = await loadBridge(wasm);
     const race = bridge.createRace(7n, 1, 1, OVAL);
-    expect(race.phase()).toEqual({ kind: "countdown", remainingSeconds: 3 });
+    expect(race.phase()).toEqual({ kind: "countdown", remainingSeconds: 5 });
     // A press this early is the stall, and the bot sits the countdown out.
     let ticks = 0;
     while (race.phase().kind === "countdown") {
       race.step([THROTTLE], DT);
       ticks += 1;
     }
-    expect(ticks).toBeGreaterThanOrEqual(180);
-    expect(ticks).toBeLessThanOrEqual(181);
+    expect(ticks).toBeGreaterThanOrEqual(COUNTDOWN_TICKS);
+    expect(ticks).toBeLessThanOrEqual(COUNTDOWN_TICKS + 1);
     expect(race.phase()).toEqual({ kind: "racing", elapsedSeconds: 0, capLeftSeconds: null });
     expect(race.kartReadouts().map((kart) => kart.speed)).toEqual([0, 0]);
     expect(race.standings().map((kart) => kart.lapTimeS)).toEqual([0, 0]);
@@ -124,9 +127,9 @@ describe("bridge wrapper", () => {
     expect(after[1]?.speed).toBe(0);
   });
 
-  it("answers the countdown", async () => {
+  it("answers the countdown: one second per start light the panel draws", async () => {
     const bridge = await loadBridge(wasm);
-    expect(bridge.countdownSeconds).toBe(3);
+    expect(bridge.countdownSeconds).toBe(START_LIGHTS);
   });
 
   it("reads the chase camera's tuning from the sim: top speed, pull-back, shake and boost kick", async () => {
@@ -241,9 +244,9 @@ describe("bridge wrapper", () => {
     expect(stalling.kartReadouts()[0]?.stallS).toBeCloseTo(2 - DT, 4);
     expect(stalling.kartReadouts()[0]?.speed).toBe(0);
 
-    // Held from the first half of the 2: the full boost off the line.
+    // Held from the first half of the fourth light: the full boost off the line.
     const boosting = bridge.createRace(7n, 1, 0, OVAL);
-    for (let tick = 0; tick < 75; tick++) boosting.step([IDLE_INPUT], DT);
+    for (let tick = 0; tick < 195; tick++) boosting.step([IDLE_INPUT], DT);
     while (boosting.phase().kind === "countdown") boosting.step([THROTTLE], DT);
     expect(boosting.kartReadouts()[0]?.start).toBe("fullBoost");
     boosting.step([THROTTLE], DT);
@@ -353,12 +356,12 @@ describe("prediction", () => {
     // only that kart.
     const alone = (kart: KartReadout | undefined) => ({ ...kart, racePosition: 1 });
     expect(prediction.kartReadout()).toEqual(alone(race.kartReadouts()[1]));
-    expect(prediction.phase()).toEqual({ kind: "countdown", remainingSeconds: 3 });
+    expect(prediction.phase()).toEqual({ kind: "countdown", remainingSeconds: 5 });
 
     // Through the countdown and a second of throttle, as the server would
     // step the same kart from the same inputs.
-    for (let sequence = 1; sequence <= 240; sequence++) {
-      const input = sequence > 180 ? THROTTLE : IDLE_INPUT;
+    for (let sequence = 1; sequence <= COUNTDOWN_TICKS + 60; sequence++) {
+      const input = sequence > COUNTDOWN_TICKS ? THROTTLE : IDLE_INPUT;
       prediction.tick(wire(input, sequence));
       race.step([IDLE_INPUT, input], DT);
     }
@@ -371,10 +374,11 @@ describe("prediction", () => {
     const bridge = await loadBridge(wasm);
     const prediction = bridge.createPrediction(7n, 0, OVAL);
     expect(prediction.interpolatedKartReadouts()).toEqual([]);
-    // Idle on the grid through the countdown and a second of the race.
-    for (let sequence = 1; sequence <= 240; sequence++) {
-      prediction.tick(wire(IDLE_INPUT, sequence));
-    }
+    // Idle on the grid through the countdown and a second of the race, so
+    // one correction is one a second. The tick that goes is the first raced.
+    let last = 0;
+    while (prediction.phase().kind === "countdown") prediction.tick(wire(IDLE_INPUT, ++last));
+    for (let raced = 1; raced < 60; raced++) prediction.tick(wire(IDLE_INPUT, ++last));
     const [x, y, z] = prediction.kartReadout().position;
     const aside: KartSnapshot = {
       position: [x + 1, y, z],
@@ -393,8 +397,8 @@ describe("prediction", () => {
       boost: null,
     };
     const snapshot: Snapshot = {
-      tick: 234,
-      acknowledged: [230],
+      tick: last - 6,
+      acknowledged: [last - 10],
       karts: [aside],
       events: [],
       hazards: [],
@@ -408,11 +412,13 @@ describe("prediction", () => {
     expect(prediction.correctionsPerSecond()).toBeCloseTo(1, 3);
     // Blended: drawn where it was, then on to the snapshot's word.
     expect(prediction.kartReadout().position[0]).toBeCloseTo(x, 4);
-    for (let sequence = 241; sequence <= 246; sequence++) {
+    for (let sequence = last + 1; sequence <= last + 6; sequence++) {
       prediction.tick(wire(IDLE_INPUT, sequence));
     }
     expect(prediction.kartReadout().position[0]).toBeCloseTo(x + 1, 4);
-    expect(() => prediction.reconcile({ ...snapshot, tick: 236, karts: [] })).toThrow(/kart 0/);
+    expect(() => prediction.reconcile({ ...snapshot, tick: last - 4, karts: [] })).toThrow(
+      /kart 0/,
+    );
   });
 
   it("carries the item a snapshot says the own kart holds through the prediction", async () => {
@@ -455,7 +461,7 @@ describe("prediction", () => {
     expect(bridge.spinOutSeconds).toBe(1);
     const prediction = bridge.createPrediction(7n, 0, OVAL);
     // Idle on the grid through the countdown and a second of the race.
-    for (let sequence = 1; sequence <= 240; sequence++) {
+    for (let sequence = 1; sequence <= COUNTDOWN_TICKS + 60; sequence++) {
       prediction.tick(wire(IDLE_INPUT, sequence));
     }
     expect(prediction.kartReadout().spinOutS).toBeNull();
@@ -477,14 +483,14 @@ describe("prediction", () => {
       boost: null,
     };
     prediction.reconcile({
-      tick: 234,
-      acknowledged: [230],
+      tick: COUNTDOWN_TICKS + 54,
+      acknowledged: [COUNTDOWN_TICKS + 50],
       karts: [spun],
       events: [],
       hazards: [],
       projectiles: [],
     });
-    // Input 230 met tick 234, so input 240 meets tick 244: ten ticks of
+    // Input Go+50 met tick Go+54, so input Go+60 meets tick Go+64: ten ticks of
     // the spin-out have run by the predicted kart's tick.
     expect(prediction.kartReadout().spinOutS).toBeCloseTo(0.5 - 10 * DT, 4);
     expect(prediction.interpolatedKartReadouts()[0]?.spinOutS).toBe(0.5);
@@ -493,7 +499,7 @@ describe("prediction", () => {
   it("draws another kart's boost, and the tier it burns in, from the snapshots", async () => {
     const bridge = await loadBridge(wasm);
     const prediction = bridge.createPrediction(7n, 0, OVAL);
-    for (let sequence = 1; sequence <= 240; sequence++) {
+    for (let sequence = 1; sequence <= COUNTDOWN_TICKS + 60; sequence++) {
       prediction.tick(wire(IDLE_INPUT, sequence));
     }
     const kart = (
@@ -517,8 +523,8 @@ describe("prediction", () => {
     });
     const [x, y, z] = prediction.kartReadout().position;
     prediction.reconcile({
-      tick: 234,
-      acknowledged: [230, 0],
+      tick: COUNTDOWN_TICKS + 54,
+      acknowledged: [COUNTDOWN_TICKS + 50, 0],
       karts: [kart([x, y, z], null), kart([32, 0.3, 6], { leftS: 0.5, tier: "orange" })],
       events: [],
       hazards: [],
@@ -535,7 +541,7 @@ describe("prediction", () => {
     const prediction = bridge.createPrediction(7n, 0, OVAL);
     // Idle on the grid through the countdown and a second of the race: a
     // clean start predicted, which the server decided a stall.
-    for (let sequence = 1; sequence <= 240; sequence++) {
+    for (let sequence = 1; sequence <= COUNTDOWN_TICKS + 60; sequence++) {
       prediction.tick(wire(IDLE_INPUT, sequence));
     }
     expect(prediction.kartReadout()).toMatchObject({ start: "clean", stallS: null });
@@ -557,14 +563,14 @@ describe("prediction", () => {
       boost: null,
     });
     prediction.reconcile({
-      tick: 234,
-      acknowledged: [230, 0],
+      tick: COUNTDOWN_TICKS + 54,
+      acknowledged: [COUNTDOWN_TICKS + 50, 0],
       karts: [kart([x, y, z], 1.0), kart([32, 0.3, 6], 0.5)],
       events: [],
       hazards: [],
       projectiles: [],
     });
-    // Input 230 met tick 234, so input 240 meets tick 244: ten ticks of
+    // Input Go+50 met tick Go+54, so input Go+60 meets tick Go+64: ten ticks of
     // the stall have run by the predicted kart's tick.
     expect(prediction.kartReadout().start).toBe("stall");
     expect(prediction.kartReadout().stallS).toBeCloseTo(1.0 - 10 * DT, 4);

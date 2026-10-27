@@ -8,6 +8,7 @@ sprite grids outlined in the panel's brown), and ADR 0031's bevelled gear
 box and square shift lights. What those records decide about content,
 layout, notation, accessibility and reduced motion stands. Settles ADR
 0034's open question on the panel's face: the Kenney pixel face stays.
+Its octagonal start light for each count is superseded by ADR 0040.
 
 ## Context
 

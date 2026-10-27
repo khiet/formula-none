@@ -420,8 +420,8 @@ impl Start {
 
     /// The tier a hold of `hold_s` earns. The hold is read off the
     /// countdown's clock, which runs down a tick of `dt` at a time, so each
-    /// edge is read to the nearest half tick: a hold that began as the 2
-    /// appeared is the full boost, not the stall.
+    /// edge is read to the nearest half tick: a hold that began as the
+    /// fourth light came on is the full boost, not the stall.
     fn for_hold(hold_s: f32, dt: f32) -> Self {
         let half_tick = dt / 2.0;
         if hold_s > START_STALL_HOLD_S + half_tick {

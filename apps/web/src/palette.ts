@@ -32,6 +32,8 @@ export const HAZARD_ORANGE: Tones = { lit: 0xff7a4d, mid: 0xff5522, shaded: 0xc7
 /** The connection banner and the countdown's start lights. */
 export const POSTER_RED: Tones = { lit: 0xe8333b, mid: 0xc81d25, shaded: 0x8f141a };
 export const GO_GREEN: Tones = { lit: 0x6fe8a6, mid: 0x3ddc84, shaded: 0x23a35e };
+/** A start light not yet on: carbon one step darker. */
+export const LAMP_OFF: Tones = { lit: 0x2b2e33, mid: 0x1b1d21, shaded: 0x111214 };
 
 /** The shift lights' thirds and the tyre gauge's bands. */
 export const SIGNAL_GREEN: Tones = { lit: 0x8ee88e, mid: 0x5ad15a, shaded: 0x3a9a3a };
@@ -87,6 +89,8 @@ const PROPERTIES: Readonly<Record<string, number | Tones>> = {
   yellow: SIGNAL_YELLOW,
   red: SIGNAL_RED,
   blue: SHIFT_BLUE,
+  "poster-red": POSTER_RED,
+  "lamp-off": LAMP_OFF,
 };
 
 /** Write `tones` onto `element` as `--<name>-lit`, `--<name>` and `--<name>-shaded`. */
