@@ -63,7 +63,8 @@ Web (from the repo root, after `pnpm install`):
 - Build: `pnpm build`
 - Lint: `pnpm lint` (`pnpm lint:fix` applies Biome's fixes)
 - Typecheck: `pnpm -r typecheck`
-- Test: `pnpm test` (`pnpm test:e2e` runs Playwright against the dev server)
+- Test: `pnpm test` (`pnpm test:e2e` runs Playwright against the dev server with
+  the browser muted; `E2E_SOUND=1 pnpm test:e2e` to hear it)
 
 Tracks (needs Blender on `PATH`; see `assets/tracks/README.md`):
 
