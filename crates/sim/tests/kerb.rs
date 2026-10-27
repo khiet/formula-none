@@ -12,8 +12,8 @@ use common::{
 };
 
 use sim::tuning::{
-    ACCELERATION_TO_TOP_S, HOP_AIRTIME_S, KERB_HALF_WIDTH_M, KERB_SPEED_KEEP, LAPS_PER_RACE,
-    MINI_TURBO_RED_CHARGE_S, TOP_SPEED_M_PER_S,
+    ACCELERATION_TO_TOP_S, HOP_AIRTIME_S, KERB_HALF_LENGTH_M, KERB_HALF_WIDTH_M, KERB_SPEED_KEEP,
+    LAPS_PER_RACE, MINI_TURBO_RED_CHARGE_S, TOP_SPEED_M_PER_S,
 };
 use sim::{step, KartInput, KartReadout, MiniTurbo, Phase, State};
 
@@ -218,6 +218,35 @@ fn a_kart_driving_beside_the_kerb_is_untouched() {
         let kerb = kerb_ahead_of(&clear[at_top_speed()], 15.0, right);
         assert_eq!(drive(&[kerb], &inputs), clear, "a kerb {right} m right");
     }
+}
+
+#[test]
+fn a_slow_kart_that_lands_back_on_the_kerb_is_not_launched_again_until_it_has_left_it() {
+    // From the grid, a kerb whose near end is 2 m ahead: the kart reaches
+    // it slowly enough to land on it and drive the rest of its length.
+    let inputs = vec![throttle(); ticks(3.0)];
+    let clear = drive(&[], &inputs);
+    let kerb = kerb_ahead_of(&clear[0], 2.0 + KERB_HALF_LENGTH_M, 0.0);
+
+    let over = drive(&[kerb], &inputs);
+    let (first, count) = airtime(&over, 0).expect("the kerb launched the kart");
+    let landed = first + count;
+    assert!(
+        race_with_kerbs(&[kerb])
+            .track()
+            .on_a_kerb(over[landed].position),
+        "landed on the kerb: {:?}",
+        over[landed]
+    );
+    assert_eq!(airtime(&over, landed), None, "launched once");
+    // Back round the oval to the kerb would take far longer than this run.
+    let far_end = kerb_ahead_of(&clear[0], 2.0 + 2.0 * KERB_HALF_LENGTH_M, 0.0);
+    let (dx, dz) = (
+        over.last().expect("readouts").position[0] - far_end.position[0],
+        over.last().expect("readouts").position[2] - far_end.position[2],
+    );
+    let (sin, cos) = far_end.yaw.sin_cos();
+    assert!(-dx * sin - dz * cos > 0.0, "drove off the kerb's far end");
 }
 
 #[test]
