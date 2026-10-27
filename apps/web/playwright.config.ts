@@ -26,7 +26,11 @@ export default defineConfig({
     baseURL: "http://localhost:5173",
     // Muted so a run does not play through the speakers beside other work;
     // the app still runs its audio, only the browser's output is silenced.
-    // E2E_SOUND=1 lets a run that needs to be heard opt back in.
-    launchOptions: { args: process.env.E2E_SOUND ? [] : ["--mute-audio"] },
+    // Playwright mutes headless Chromium on its own, so the flag matters for
+    // headed specs, and opting back in must also drop Playwright's copy.
+    launchOptions:
+      process.env.E2E_SOUND === "1"
+        ? { ignoreDefaultArgs: ["--mute-audio"] }
+        : { args: ["--mute-audio"] },
   },
 });
