@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Room } from "./generated/protocol";
 import { createRoomScene, type RoomHandlers } from "./room-scene";
 
@@ -21,7 +21,7 @@ function scene(slot: number, room: Room = ROOM) {
     start: () => calls.push("start"),
     leave: () => calls.push("leave"),
   };
-  const view = createRoomScene(container, { slot, room, link: LINK }, handlers);
+  const view = createRoomScene(container, { slot, room, link: LINK, capacity: 8 }, handlers);
   const button = (name: string) => {
     const element = container.querySelector<HTMLButtonElement>(`button[name=${name}]`);
     if (!element) throw new Error(`no button ${name}`);
@@ -31,17 +31,46 @@ function scene(slot: number, room: Room = ROOM) {
     [...container.querySelectorAll<HTMLLIElement>("li[data-slot]")].map((row) => ({
       slot: row.dataset.slot,
       state: row.dataset.state,
-      text: row.textContent,
-      livery: row.querySelector<HTMLElement>(".livery")?.dataset.livery,
+      // The kart is drawing, not text: only the cells beside it.
+      text: [...row.children]
+        .filter((cell) => !(cell instanceof SVGElement))
+        .map((cell) => cell.textContent)
+        .join(""),
+      livery: row.querySelector<SVGElement>(".kart.livery")?.dataset.livery,
+      badges: [...row.querySelectorAll<HTMLElement>("[data-badge]")].map(
+        (badge) => badge.dataset.badge,
+      ),
+      chip: row.querySelector(".state")?.textContent,
     }));
   const status = () => container.querySelector("[data-room-state]")?.textContent;
   return { container, view, calls, button, rows, status };
 }
 
+afterEach(() => {
+  vi.unstubAllGlobals();
+  vi.useRealTimers();
+});
+
+/** Stubs the clipboard with a `writeText` that settles as told. */
+function stubClipboard(writeText: (text: string) => Promise<void>) {
+  const written: string[] = [];
+  vi.stubGlobal("navigator", {
+    clipboard: {
+      writeText: (text: string) => {
+        written.push(text);
+        return writeText(text);
+      },
+    },
+  });
+  return written;
+}
+
 describe("Room Scene", () => {
-  it("shows the code, the link to share and every player with their livery and state", () => {
+  it("shows the code, the player count, the link to share and every player with their livery and state", () => {
     const { container, rows } = scene(2);
+    expect(container.querySelector("h1")?.textContent).toBe("Room BXQF");
     expect(container.querySelector("[data-room-code]")?.textContent).toBe("BXQF");
+    expect(container.querySelector("[data-room-count]")?.textContent).toBe("2/8");
     const link = container.querySelector<HTMLAnchorElement>("a[data-room-link]");
     expect(link?.href).toBe(LINK);
     expect(link?.textContent).toBe(LINK);
@@ -49,10 +78,19 @@ describe("Room Scene", () => {
       {
         slot: "0",
         state: "unready",
-        text: "khiet(creator) Not ready",
+        text: "khiet(creator)Not ready",
         livery: "0",
+        badges: ["creator"],
+        chip: "Not ready",
       },
-      { slot: "2", state: "ready", text: "ada(you) Ready", livery: "2" },
+      {
+        slot: "2",
+        state: "ready",
+        text: "ada(you)Ready",
+        livery: "2",
+        badges: ["you"],
+        chip: "Ready",
+      },
     ]);
   });
 
@@ -97,7 +135,8 @@ describe("Room Scene", () => {
       players: [{ slot: 2, nickname: "ada", livery: 2, state: "unready", creator: true }],
     });
     expect(button("start").hidden).toBe(false);
-    expect(rows()[0]?.text).toBe("ada(you) (creator) Not ready");
+    expect(rows()[0]?.badges).toEqual(["you", "creator"]);
+    expect(rows()[0]?.text).toBe("ada(you)(creator)Not ready");
     button("leave").click();
     expect(calls).toEqual(["leave"]);
     view.dispose();
@@ -127,5 +166,34 @@ describe("Room Scene", () => {
     expect(rows().map((row) => row.state)).toEqual(["unready", "finished"]);
     expect(button("ready").hidden).toBe(false);
     expect(button("start").disabled).toBe(true);
+  });
+
+  it("copies the link from the chip and says so for about two seconds", async () => {
+    vi.useFakeTimers();
+    const written = stubClipboard(() => Promise.resolve());
+    const { button } = scene(0);
+    expect(button("copy").textContent).toBe("Copy link");
+    button("copy").click();
+    await vi.waitFor(() => expect(button("copy").textContent).toBe("Copied!"));
+    expect(written).toEqual([LINK]);
+    vi.advanceTimersByTime(2000);
+    expect(button("copy").textContent).toBe("Copy link");
+  });
+
+  it.each([
+    [
+      "refuses",
+      () => stubClipboard(() => Promise.reject(new DOMException("denied", "NotAllowedError"))),
+    ],
+    // Plain http to a LAN address has no clipboard at all.
+    ["is missing", () => vi.stubGlobal("navigator", {})],
+  ])("selects the link for copying by hand when the clipboard %s", async (_, stub) => {
+    stub();
+    const { button, container } = scene(0);
+    container.ownerDocument.body.append(container);
+    button("copy").click();
+    await vi.waitFor(() => expect(document.getSelection()?.toString()).toBe(LINK));
+    expect(button("copy").textContent).toBe("Copy link");
+    container.remove();
   });
 });

@@ -442,33 +442,15 @@
         clip-path: polygon(0 0, 100% 0, 50% 100%);
         background: var(--plate-shaded);
       }
-      #room-scene {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        gap: 1rem;
-        height: 100%;
-        color: #fff;
-        font: 1.25rem/1.4 system-ui, sans-serif;
-      }
-      #room-scene button {
-        padding: 0.5rem 1.5rem;
-        font: inherit;
-        cursor: pointer;
-      }
-      .room-buttons {
-        display: flex;
-        gap: 0.5rem;
-      }
       /*
-       * The Title and Results Scenes as a Grand Prix poster, design A of
+       * The Title, Room and Results Scenes as a Grand Prix poster, design A of
        * docs/mockups/title-and-results-variations.html, set in the
        * Instrument panel's face. One em, 1% of the window's width capped at
        * 1.6% of its height, scales the whole poster; it is clean down to
        * 1024x640.
        */
       #title-scene,
+      #room-scene,
       #results-scene {
         --ink: #111;
         --gold: #ffd23f;
@@ -485,14 +467,14 @@
         line-height: 1.2;
         text-transform: uppercase;
       }
-      :is(#title-scene, #results-scene) * {
+      :is(#title-scene, #room-scene, #results-scene) * {
         box-sizing: border-box;
       }
-      :is(#title-scene, #results-scene) :is(h1, p) {
+      :is(#title-scene, #room-scene, #results-scene) :is(h1, p) {
         margin: 0;
         font-weight: normal;
       }
-      :is(#title-scene, #results-scene) .rays {
+      :is(#title-scene, #room-scene, #results-scene) .rays {
         position: absolute;
         z-index: -1;
         left: 50%;
@@ -503,7 +485,7 @@
         border-radius: 50%;
         background: repeating-conic-gradient(rgb(255 210 60 / 0.18) 0 8deg, transparent 8deg 16deg);
       }
-      :is(#title-scene, #results-scene) :is(.chequer-top, .chequer-bottom) {
+      :is(#title-scene, #room-scene, #results-scene) :is(.chequer-top, .chequer-bottom) {
         position: absolute;
         z-index: 1;
         left: 0;
@@ -511,20 +493,20 @@
         height: 3em;
         background: conic-gradient(var(--ink) 25%, #fff 0 50%, var(--ink) 0 75%, #fff 0) 0 0 / 3em 3em;
       }
-      :is(#title-scene, #results-scene) .chequer-top {
+      :is(#title-scene, #room-scene, #results-scene) .chequer-top {
         top: 0;
       }
-      :is(#title-scene, #results-scene) .chequer-bottom {
+      :is(#title-scene, #room-scene, #results-scene) .chequer-bottom {
         bottom: 0;
       }
-      :is(#title-scene, #results-scene) .kart {
+      :is(#title-scene, #room-scene, #results-scene) .kart {
         display: block;
         width: 100%;
         height: auto;
         overflow: visible;
       }
       /* The lit and shaded tones of the colours poster.ts sets on each kart. */
-      :is(#title-scene, #results-scene) .kart {
+      :is(#title-scene, #room-scene, #results-scene) .kart {
         --p-lt: color-mix(in srgb, var(--p) 72%, white);
         --p-dk: color-mix(in srgb, var(--p) 66%, black);
         --s-lt: color-mix(in srgb, var(--s) 78%, white);
@@ -535,7 +517,7 @@
         --hair-dk: color-mix(in srgb, var(--hair) 70%, black);
       }
       /* Chunky buttons with hard shadows that press in; the way forward is green. */
-      :is(#title-scene, #results-scene) button {
+      :is(#title-scene, #room-scene, #results-scene) button {
         padding: 0.5em 1em;
         font: inherit;
         font-size: 1.8em;
@@ -546,24 +528,26 @@
         box-shadow: 0.3em 0.3em 0 var(--ink);
         cursor: pointer;
       }
-      :is(#title-scene, #results-scene) button:hover {
+      :is(#title-scene, #room-scene, #results-scene) button:hover {
         background: #ffe27a;
         translate: -0.08em -0.08em;
         box-shadow: 0.38em 0.38em 0 var(--ink);
       }
-      :is(#title-scene, #results-scene) button:active {
+      :is(#title-scene, #room-scene, #results-scene) button:active {
         translate: 0.3em 0.3em;
         box-shadow: 0 0 0 var(--ink);
       }
-      :is(#title-scene, #results-scene) :is(button, input):focus-visible {
+      :is(#title-scene, #room-scene, #results-scene) :is(button, input):focus-visible {
         outline: 0.15em solid #fff;
         outline-offset: 0.15em;
       }
       #title-scene button[name="create"],
+      #room-scene button[name="start"],
       #results-scene button[name="rematch"] {
         background: var(--go);
       }
       #title-scene button[name="create"]:hover,
+      #room-scene button[name="start"]:not(:disabled):hover,
       #results-scene button[name="rematch"]:hover {
         background: #8ef0b7;
       }
@@ -694,6 +678,146 @@
         bottom: 4.4em;
         width: 8em;
       }
+      /* Room: the code and count over the link to share, the grid, then the status and the buttons. */
+      #room-scene {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 1.6em;
+        padding: 4.5em 2em;
+      }
+      #room-scene header {
+        display: flex;
+        align-items: center;
+        gap: 0.8em;
+        rotate: -3deg;
+      }
+      #room-scene h1 {
+        font-size: 5em;
+        text-shadow: 0.08em 0.08em 0 var(--ink);
+      }
+      #room-scene [data-room-code] {
+        color: var(--gold);
+        letter-spacing: 0.08em;
+      }
+      #room-scene [data-room-count] {
+        padding: 0.3em 0.6em;
+        font-size: 1.8em;
+        color: var(--ink);
+        background: var(--gold);
+        border: 0.15em solid var(--ink);
+      }
+      #room-scene .share {
+        display: flex;
+        align-items: center;
+        gap: 1em;
+        padding: 0.5em 0.5em 0.5em 1em;
+        background: var(--ink);
+        box-shadow: 0.4em 0.4em 0 rgb(0 0 0 / 0.4);
+      }
+      #room-scene [data-room-link] {
+        font-size: 1.4em;
+        color: #fff;
+        text-transform: none;
+        user-select: all;
+      }
+      #room-scene button[name="copy"] {
+        padding: 0.35em 0.6em;
+        font-size: 1.2em;
+        border-width: 0.15em;
+        box-shadow: 0.2em 0.2em 0 #000;
+      }
+      /* Two staggered columns like a starting grid: players fill left, right, left, right in list order. */
+      #room-scene .players {
+        display: grid;
+        grid-template-columns: repeat(2, 34em);
+        grid-auto-rows: 6.4em;
+        column-gap: 4em;
+        margin: 0;
+        padding: 0 0 3.2em;
+        list-style: none;
+      }
+      #room-scene .players li {
+        display: grid;
+        grid-template-areas: "kart name name" "kart badges state";
+        grid-template-columns: 10em auto 1fr;
+        align-items: center;
+        column-gap: 1em;
+        padding: 0.2em 0.8em 0.2em 0.4em;
+        border-left: 0.3em solid #fff;
+        border-bottom: 0.15em dashed rgb(255 255 255 / 0.5);
+      }
+      #room-scene .players li:nth-child(even) {
+        translate: 0 3.2em;
+      }
+      #room-scene .players .nickname {
+        overflow: hidden;
+        font-size: 1.8em;
+        text-overflow: ellipsis;
+        text-transform: none;
+        white-space: nowrap;
+        text-shadow: 0.08em 0.08em 0 var(--ink);
+        grid-area: name;
+      }
+      #room-scene .players .kart {
+        grid-area: kart;
+      }
+      #room-scene .players .badges {
+        grid-area: badges;
+        display: flex;
+        gap: 0.4em;
+      }
+      /* The You and Creator badges and the state chip share the Fastest lap badge's look. */
+      #results-scene [data-fastest-lap],
+      #room-scene [data-badge],
+      #room-scene .players .state {
+        padding: 0.2em 0.4em;
+        color: #fff;
+        background: #a45cff;
+      }
+      #room-scene [data-badge],
+      #room-scene .players .state {
+        font-size: 1.1em;
+      }
+      #room-scene [data-badge] .paren {
+        display: none;
+      }
+      #room-scene .players .state {
+        grid-area: state;
+        justify-self: start;
+        margin-left: 0.4em;
+        color: #ccc;
+        background: var(--ink);
+      }
+      #room-scene .players li[data-state="ready"] .state {
+        color: var(--ink);
+        background: var(--go);
+      }
+      /* Without badges the chip starts under the nickname, in line with every other row's first chip. */
+      #room-scene .players .badges:empty + .state {
+        grid-column: 2 / -1;
+        margin-left: 0;
+      }
+      #room-scene .players li:is([data-state="joining"], [data-state="disconnected"]) {
+        opacity: 0.45;
+      }
+      #room-scene [data-room-state] {
+        padding: 0.4em 0.8em;
+        font-size: 1.4em;
+        background: var(--ink);
+      }
+      #room-scene .room-buttons {
+        display: flex;
+        gap: 1em;
+      }
+      #room-scene button:disabled {
+        color: #666;
+        background: #aaa;
+        box-shadow: none;
+        translate: 0.3em 0.3em;
+        cursor: not-allowed;
+      }
       /* Results: the headline across the top, the podium under it and the board beside that. */
       #results-scene {
         display: grid;
@@ -743,10 +867,7 @@
         list-style: none;
       }
       #results-scene [data-fastest-lap] {
-        padding: 0.2em 0.4em;
         font-size: 0.75em;
-        color: #fff;
-        background: #a45cff;
       }
       #results-scene [data-side] {
         grid-area: side;
@@ -942,16 +1063,16 @@
         display: none;
       }
       @media (prefers-reduced-motion: no-preference) {
-        :is(#title-scene, #results-scene) .rays {
+        :is(#title-scene, #room-scene, #results-scene) .rays {
           animation: poster-spin 40s linear infinite;
         }
-        :is(#title-scene, #results-scene) :is(.chequer-top, .chequer-bottom) {
+        :is(#title-scene, #room-scene, #results-scene) :is(.chequer-top, .chequer-bottom) {
           animation: poster-chequer 3s linear infinite;
         }
-        :is(#title-scene, #results-scene) .chequer-bottom {
+        :is(#title-scene, #room-scene, #results-scene) .chequer-bottom {
           animation-direction: reverse;
         }
-        :is(#title-scene, #results-scene) button {
+        :is(#title-scene, #room-scene, #results-scene) button {
           transition:
             translate 0.08s,
             box-shadow 0.08s;
@@ -1011,34 +1132,6 @@
         #results-scene [data-confetti] i {
           animation: poster-fall var(--d) linear var(--delay) infinite;
         }
-      }
-      #room-scene [data-room-code] {
-        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-        letter-spacing: 0.1em;
-      }
-      #room-scene a {
-        color: #9cf;
-      }
-      #room-scene .players {
-        display: grid;
-        grid-template-columns: auto auto auto;
-        gap: 0.5rem 1rem;
-        align-items: center;
-        min-width: 24rem;
-        margin: 0;
-        padding: 0;
-        list-style: none;
-      }
-      #room-scene .players li {
-        display: contents;
-      }
-      #room-scene .livery {
-        width: 1.5rem;
-        height: 1.5rem;
-        border-radius: 50%;
-      }
-      #room-scene .state {
-        color: #bbb;
       }
     </style>
   </head>
