@@ -1,5 +1,14 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import type { Bridge, KartInput, KartReadout, Phase, Prediction, Projectile, Race } from "./bridge";
+import type {
+  Bridge,
+  KartInput,
+  KartReadout,
+  Phase,
+  Prediction,
+  Projectile,
+  Race,
+  Wheel,
+} from "./bridge";
 import { fakeConnection, jsonCodec, TOKEN } from "./fake-connection";
 import type {
   Event,
@@ -47,6 +56,7 @@ interface FakePrediction extends Prediction {
   clock: Phase;
   interpolated: KartReadout[];
   projectiles: Projectile[];
+  rolling: Wheel[];
 }
 
 let predictions: FakePrediction[] = [];
@@ -83,6 +93,7 @@ const bridge = {
       clock: { kind: "countdown", remainingSeconds: COUNTDOWN_S },
       interpolated: [],
       projectiles: [],
+      rolling: [],
       tick(input) {
         this.inputs.push(input);
       },
@@ -96,6 +107,9 @@ const bridge = {
       },
       interpolatedProjectiles() {
         return [...this.projectiles];
+      },
+      wheels() {
+        return [...this.rolling];
       },
       phase() {
         return this.clock;
@@ -450,6 +464,17 @@ describe("createServerRace", () => {
     const flying: Projectile = { position: [12, 0, -30], owner: 1, target: 0 };
     prediction().projectiles = [flying];
     expect(run.readout().projectiles).toEqual([flying]);
+  });
+
+  it("draws the prediction's wheels while racing, and quiet ones once the server ends the race", () => {
+    const client = fakeClient();
+    const run = createServerRace(bridge, client, COUNTDOWN, 0, "{}");
+    const rolling: Wheel = { kind: "rolling", position: [-139, 0, 52], yaw: 0, fraction: 0.5 };
+    prediction().clock = { kind: "racing", elapsedSeconds: 20.8, capLeftSeconds: null };
+    prediction().rolling = [rolling];
+    expect(run.readout().wheels).toEqual([rolling]);
+    client.event({ id: 1, kind: "raceEnded" });
+    expect(run.readout().wheels).toEqual([{ kind: "quiet" }]);
   });
 
   it("hides a box the server reports picked up for the tuned respawn", () => {

@@ -13,7 +13,7 @@
 // projectiles are drawn between the snapshots as the other karts are, so
 // one reaches its target as the target is drawn spinning.
 
-import type { Bridge, Hazard, KartReadout, Phase, Standing } from "./bridge";
+import type { Bridge, Hazard, KartReadout, Phase, Standing, Wheel } from "./bridge";
 import type { FinalStanding, Item, Snapshot } from "./generated/protocol";
 import { ITEM_FIRE_FLASH_S, type RaceRun } from "./race-run";
 import { type Countdown, quantiseInput, type RoomClient } from "./room-client";
@@ -149,6 +149,14 @@ export function createServerRace(
     // The prediction's clock never counts the cap, which is the server's.
     return prediction.phase();
   };
+  /**
+   * The prediction's wheels, the ones that hit the own kart; quiet once the
+   * race has ended, which the prediction's clock never hears of.
+   */
+  const wheels = (): Wheel[] => {
+    const predicted = prediction.wheels();
+    return phase().kind === "racing" ? predicted : predicted.map(() => ({ kind: "quiet" }));
+  };
   /** The newest snapshot's hazards, one a kart trails drawn behind it at `karts`. */
   const hazards = (karts: readonly KartReadout[]): Hazard[] => {
     if (latest === undefined) return [];
@@ -189,6 +197,7 @@ export function createServerRace(
         itemBoxesPresent: boxTicksLeft.map((left) => left <= 0),
         hazards: hazards(karts),
         projectiles: prediction.interpolatedProjectiles(),
+        wheels: wheels(),
       };
     },
     itemBoxes: () => boxes,

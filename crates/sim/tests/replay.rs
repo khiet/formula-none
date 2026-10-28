@@ -9,7 +9,7 @@ mod common;
 use common::{oval, started, track, with_boxes_under, without_item_boxes, DT, OVAL};
 
 use sim::tuning::{KART_HALF_LENGTH_M, REPLAY_HASH_INTERVAL_TICKS};
-use sim::{step, KartInput, MiniTurbo, Phase, Replay, Segment, State, Surface, Track};
+use sim::{step, KartInput, MiniTurbo, Phase, RaceEvent, Replay, Segment, State, Surface, Track};
 
 fn race(seed: u64, kart_count: usize) -> State {
     State::new(seed, kart_count, oval())
@@ -362,7 +362,7 @@ fn every_committed_fixture_replays_to_the_hashes_it_was_recorded_with() {
 /// that only drives up a straight would pass on a sim with most of its
 /// rules broken.
 #[test]
-fn the_fixture_set_exercises_kart_contact_off_track_walls_both_tracks_both_mini_turbos_a_rocket_start_and_a_stall(
+fn the_fixture_set_exercises_kart_contact_off_track_walls_both_tracks_both_mini_turbos_a_rocket_start_a_stall_the_kerb_and_the_wheel(
 ) {
     let mut tracks = std::collections::BTreeSet::new();
     let mut surfaces = std::collections::HashSet::new();
@@ -372,6 +372,8 @@ fn the_fixture_set_exercises_kart_contact_off_track_walls_both_tracks_both_mini_
     let mut released_red = false;
     let mut rocket_started = false;
     let mut stalled = false;
+    let mut launched_by_a_kerb = false;
+    let mut hit_by_the_wheel = false;
     for (_, replay) in fixtures() {
         tracks.insert(replay.track.clone());
         let mut state = State::new(replay.seed, replay.human_count(), sidecar(&replay.track));
@@ -381,6 +383,10 @@ fn the_fixture_set_exercises_kart_contact_off_track_walls_both_tracks_both_mini_
                 let counting_down = matches!(state.phase(), Phase::Countdown { .. });
                 state = step(state, &segment.inputs, DT);
                 let go = counting_down && matches!(state.phase(), Phase::Racing { .. });
+                hit_by_the_wheel |= state
+                    .events()
+                    .iter()
+                    .any(|event| matches!(event, RaceEvent::SpunOut { by: None, .. }));
                 let transforms = state.kart_readouts();
                 for (slot, kart) in transforms.iter().enumerate() {
                     surfaces.insert(state.kart_surface(slot));
@@ -393,6 +399,11 @@ fn the_fixture_set_exercises_kart_contact_off_track_walls_both_tracks_both_mini_
                         released_orange |= drift.mini_turbo() == MiniTurbo::Orange;
                         released_red |= drift.mini_turbo() == MiniTurbo::Red;
                     }
+                    // Off the ground over the kerb without a hop pressed.
+                    launched_by_a_kerb |= !before[slot].airborne
+                        && kart.airborne
+                        && !segment.inputs.get(slot).is_some_and(|input| input.hop)
+                        && state.track().on_a_kerb(before[slot].position);
                     rocket_started |= go && kart.boost_s.is_some();
                     stalled |= go && kart.stall_s.is_some();
                     // Only a wall takes most of a lone kart's speed in one
@@ -427,6 +438,8 @@ fn the_fixture_set_exercises_kart_contact_off_track_walls_both_tracks_both_mini_
     assert!(released_red, "no fixture releases a red mini-turbo");
     assert!(rocket_started, "no fixture boosts at Go");
     assert!(stalled, "no fixture stalls at Go");
+    assert!(launched_by_a_kerb, "no fixture is launched by a kerb");
+    assert!(hit_by_the_wheel, "no fixture is hit by the runaway wheel");
     // Centres within a kart's length of each other are in contact or about
     // to be, whichever way the two karts face.
     let touching = 2.0 * KART_HALF_LENGTH_M + 0.05;

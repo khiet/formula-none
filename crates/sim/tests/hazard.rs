@@ -126,10 +126,10 @@ fn spun_out() -> State {
     }
     for _ in 0..ticks(8.0) {
         state = step(state, &[brake()], DT);
-        if state
-            .events()
-            .contains(&RaceEvent::SpunOut { kart: 0, by: 0 })
-        {
+        if state.events().contains(&RaceEvent::SpunOut {
+            kart: 0,
+            by: Some(0),
+        }) {
             return state;
         }
     }
@@ -243,7 +243,13 @@ fn a_held_hazard_does_not_age_and_spins_out_the_kart_that_runs_into_it_from_behi
             break;
         }
     }
-    assert_eq!(hit, Some(RaceEvent::SpunOut { kart: 2, by: 0 }));
+    assert_eq!(
+        hit,
+        Some(RaceEvent::SpunOut {
+            kart: 2,
+            by: Some(0)
+        })
+    );
     assert!(state.hazards().is_empty(), "used up");
     assert!(state.kart_readouts()[2].spin_out_s.is_some());
     assert_eq!(

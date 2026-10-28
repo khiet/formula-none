@@ -75,6 +75,39 @@ describe.each(["brands-patch", "oval"])("%s's sausage kerbs", (name) => {
   });
 });
 
+describe.each(["brands-patch", "oval"])("%s's marshal posts", (name) => {
+  const gltf = track(name);
+  const sidecar = JSON.parse(
+    readFileSync(
+      new URL(`../../../assets/tracks/${name}/${name}.track.json`, import.meta.url),
+      "utf8",
+    ),
+  ) as { wheel_crossings: { position: [number, number, number]; half_width: number }[] };
+
+  it("stands a post and its lamp beside each wheel crossing", () => {
+    const posts = gltf.nodes.filter(({ name }) => name?.startsWith("MarshalPost."));
+    expect(posts).toHaveLength(2 * sidecar.wheel_crossings.length);
+    sidecar.wheel_crossings.forEach(({ position: [x, , z], half_width }, number) => {
+      const prefix = `MarshalPost.${String(number).padStart(2, "0")}.`;
+      for (const part of ["board", "chevron"]) {
+        const node = posts.find(({ name }) => name === `${prefix}${part}`);
+        const mesh = node?.mesh === undefined ? undefined : gltf.meshes[node.mesh];
+        const bounds = gltf.accessors[mesh?.primitives[0]?.attributes.POSITION ?? -1];
+        const [minX, , minZ] = bounds?.min ?? [];
+        const [maxX, , maxZ] = bounds?.max ?? [];
+        const centre = [
+          ((minX ?? Number.NaN) + (maxX ?? Number.NaN)) / 2,
+          ((minZ ?? Number.NaN) + (maxZ ?? Number.NaN)) / 2,
+        ] as const;
+        // Beside the crossing: off the asphalt's middle, inside the walls.
+        const away = Math.hypot(centre[0] - x, centre[1] - z);
+        expect(away).toBeGreaterThan(2);
+        expect(away).toBeLessThan(half_width);
+      }
+    });
+  });
+});
+
 describe("Brands Patch's final art", () => {
   const brandsPatch = track("brands-patch");
 

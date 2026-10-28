@@ -29,6 +29,7 @@ export function raceReadout(overrides: Partial<RaceReadout> = {}): RaceReadout {
     itemBoxesPresent: [],
     hazards: [],
     projectiles: [],
+    wheels: [],
     ...overrides,
   };
 }

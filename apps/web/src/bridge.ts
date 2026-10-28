@@ -79,6 +79,22 @@ export interface Projectile {
 }
 
 /**
+ * The runaway wheel at one crossing, as the sim's `Wheel` has it: quiet,
+ * the marshal's flag up before a pass, or rolling with its centre on the
+ * surface in metres, the yaw it rolls toward (zero facing -Z) and how far
+ * through the pass it is, 0 at one wall to 1 at the other.
+ */
+export type Wheel =
+  | { readonly kind: "quiet" }
+  | { readonly kind: "warning" }
+  | {
+      readonly kind: "rolling";
+      readonly position: readonly [number, number, number];
+      readonly yaw: number;
+      readonly fraction: number;
+    };
+
+/**
  * Where the race is, as the sim's `Phase` has it: the countdown holding the
  * karts on the grid with the seconds to Go, the race with its clock and,
  * once the first human has finished, the seconds of the cap left before the
@@ -115,6 +131,8 @@ export interface Race {
   hazards(): Hazard[];
   /** The projectiles in flight as of the last step, in the order they were fired. */
   projectiles(): Projectile[];
+  /** The runaway wheel at each of the track's crossings as of the last step, in the sidecar's order. */
+  wheels(): Wheel[];
   /**
    * The sim's hash of everything that influences future ticks, as of the last
    * step. Bit-identical native and in wasm for the same race and inputs,
@@ -158,6 +176,11 @@ export interface Prediction {
    * the snapshots as the other karts are; empty before the first snapshot.
    */
   interpolatedProjectiles(): Projectile[];
+  /**
+   * The runaway wheel at each of the track's crossings at the predicted
+   * kart's tick: the wheel that hits it, where it hits it.
+   */
+  wheels(): Wheel[];
   /**
    * The race clock at the predicted kart's tick: the countdown the
    * player's inputs meet on the server. Never finished; the server's
@@ -291,6 +314,7 @@ const FLOATS_PER_TRANSFORM = 7;
 const FLOATS_PER_ITEM_BOX = 4;
 const FLOATS_PER_HAZARD = 5;
 const FLOATS_PER_PROJECTILE = 5;
+const FLOATS_PER_WHEEL = 6;
 const FLOATS_PER_PHASE = 3;
 /** Phase codes in the phase buffer, in the sim's order. */
 const PHASES = ["countdown", "racing", "outro", "finished"] as const;
@@ -449,6 +473,10 @@ class BridgedRace implements Race {
     return projectilesFrom(this.#race.projectiles());
   }
 
+  wheels(): Wheel[] {
+    return wheelsFrom(this.#race.wheels());
+  }
+
   kartReadouts(): KartReadout[] {
     const karts = readoutsFrom(
       this.#race.kart_transforms(),
@@ -497,6 +525,10 @@ class BridgedPrediction implements Prediction {
 
   interpolatedProjectiles(): Projectile[] {
     return projectilesFrom(this.#prediction.interpolated_projectiles());
+  }
+
+  wheels(): Wheel[] {
+    return wheelsFrom(this.#prediction.wheels());
   }
 
   phase(): Phase {
@@ -554,6 +586,27 @@ function readoutsFrom(transforms: Float32Array, pairs: readonly ReadoutPair[]): 
       rotation: [read(3), read(4), read(5), read(6)],
       surface,
     };
+  });
+}
+
+/** The wheels a buffer of six floats each describes, as the bridge crate's `wheel_floats` lays them out. */
+function wheelsFrom(buffer: Float32Array): Wheel[] {
+  return recordsFrom(buffer, FLOATS_PER_WHEEL, "wheel", (read): Wheel => {
+    switch (read(0)) {
+      case 0:
+        return { kind: "quiet" };
+      case 1:
+        return { kind: "warning" };
+      case 2:
+        return {
+          kind: "rolling",
+          position: [read(1), read(2), read(3)],
+          yaw: read(4),
+          fraction: read(5),
+        };
+      default:
+        throw new RangeError(`wheel code ${read(0)}`);
+    }
   });
 }
 

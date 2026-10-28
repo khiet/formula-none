@@ -202,7 +202,7 @@ impl From<sim::RaceEvent> for EventKind {
             },
             sim::RaceEvent::SpunOut { kart, by } => Self::Hit {
                 kart: kart as u8,
-                by: by as u8,
+                by: by.map(|by| by as u8),
             },
             sim::RaceEvent::RaceEnded => Self::RaceEnded,
         }

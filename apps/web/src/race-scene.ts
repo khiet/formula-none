@@ -92,6 +92,7 @@ export function localRaceRun(
       itemBoxesPresent: race.itemBoxesPresent(),
       hazards: race.hazards(),
       projectiles: race.projectiles(),
+      wheels: race.wheels(),
     }),
     itemBoxes: () => boxes,
     replay,

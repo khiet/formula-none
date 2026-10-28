@@ -177,6 +177,18 @@ pub const KERB_HALF_LENGTH_M: f32 = 4.0;
 pub const KERB_HALF_WIDTH_M: f32 = 0.5;
 /// The share of a kart's speed the kerb's launch leaves it.
 pub const KERB_SPEED_KEEP: f32 = 0.85;
+/// The runaway wheel (GLOSSARY) crosses its crossing wall to wall once
+/// every period, each pass the other way from the last, the first pass
+/// starting at `WHEEL_FIRST_PASS_S` on the race clock so the leader's first
+/// lap meets a quiet approach. A pass lasts `WHEEL_PASS_S`; the marshal's
+/// flag is up from `WHEEL_WARNING_S` before it until it ends.
+pub const WHEEL_PERIOD_S: f32 = 7.0;
+pub const WHEEL_PASS_S: f32 = 1.6;
+pub const WHEEL_WARNING_S: f32 = 1.0;
+pub const WHEEL_FIRST_PASS_S: f32 = 20.0;
+/// A kart whose collision box comes within this much of the wheel's centre,
+/// seen from above, is reached by it, as by a hazard.
+pub const WHEEL_RADIUS_M: f32 = 0.45;
 
 // Rocket start (GLOSSARY). What the throttle hold ending at Go earns is
 // read from the hold's length; a release before Go resets it. The edges
@@ -446,6 +458,11 @@ const _: () = {
     assert!(0.0 < ITEM_BOOST_S && 1.0 < ITEM_BOOST_FACTOR);
     assert!(0.0 < HAZARD_RADIUS_M && 0.0 < HAZARD_LIFETIME_S && 0.0 < SPIN_OUT_S);
     assert!(0.0 < HAZARD_DROP_DISTANCE_M);
+    // One pass and its warning fit in a period, so the flag never waves
+    // for two passes at once.
+    assert!(0.0 < WHEEL_PASS_S && 0.0 < WHEEL_WARNING_S && 0.0 < WHEEL_RADIUS_M);
+    assert!(WHEEL_WARNING_S + WHEEL_PASS_S < WHEEL_PERIOD_S);
+    assert!(WHEEL_WARNING_S <= WHEEL_FIRST_PASS_S);
     assert!(HOMING_SPEED_FACTOR > BOOST_PAD_FACTOR && HOMING_SPEED_FACTOR > ITEM_BOOST_FACTOR);
     assert!(0.0 < HOMING_LOOKAHEAD_M && 0.0 < HOMING_LOCK_RANGE_M && 0.0 < HOMING_RADIUS_M);
     // A tick of flight never carries a projectile from outside its radius

@@ -7,6 +7,10 @@
 //! Kart-to-kart contact is the server's to resolve; a kart drawn 100 ms
 //! behind can leave a small correction after a touch.
 //!
+//! The runaway wheel it runs in full: it is the race clock's, which the
+//! prediction keeps the server's, so a wheel hit is predicted the tick it
+//! happens, and the snapshots' spin-out timer then agrees with it.
+//!
 //! Two things the prediction never runs. The item roll: the slot is the
 //! snapshots' word, so a fire is predicted only once the server has said
 //! what the kart holds. And the hazards: a hazard the predicted kart fires
@@ -42,7 +46,7 @@ use crate::tuning::{
 };
 use crate::{
     clock_after, kart_collider, step, Kart, KartInput, KartReadout, Phase, Standing, State,
-    Surface, Track,
+    Surface, Track, Wheel,
 };
 
 /// One player's kart as their client predicts it.
@@ -316,6 +320,12 @@ impl Prediction {
     /// player's inputs will meet on the server.
     pub fn phase(&self) -> Phase {
         self.state().phase
+    }
+
+    /// The runaway wheel at each of the track's crossings at the predicted
+    /// kart's tick: the wheel that hits it here, where the server's will.
+    pub fn wheels(&self) -> Vec<Wheel> {
+        self.state().wheels()
     }
 
     /// Snapshots that moved the predicted kart further than rounding.

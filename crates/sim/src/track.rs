@@ -133,6 +133,16 @@ impl Checkpoint {
     }
 }
 
+/// Where the runaway wheel crosses the track: square to it, through
+/// `position`, from `half_width` to its left to as far to its right, wall
+/// to wall. `yaw` is the direction of travel along the track there.
+#[derive(Debug, Clone, Copy, PartialEq, Deserialize)]
+pub struct WheelCrossing {
+    pub position: [f32; 3],
+    pub yaw: f32,
+    pub half_width: f32,
+}
+
 /// One tagged collision mesh: a flat position buffer and a triangle index
 /// buffer, as exported.
 #[derive(Debug, Clone, PartialEq, Deserialize)]
@@ -162,6 +172,7 @@ struct Sidecar {
     item_boxes: Vec<Placement>,
     boost_pads: Vec<Placement>,
     kerbs: Vec<Placement>,
+    wheel_crossings: Vec<WheelCrossing>,
     spawn_grid: Vec<Placement>,
     surfaces: Vec<SurfaceMesh>,
 }
@@ -176,6 +187,8 @@ pub struct Track {
     boost_pads: Vec<Placement>,
     /// Sausage kerbs (GLOSSARY).
     kerbs: Vec<Placement>,
+    /// Where the runaway wheel (GLOSSARY) crosses the track.
+    wheel_crossings: Vec<WheelCrossing>,
     spawn_grid: Vec<Placement>,
     surfaces: Vec<SurfaceMesh>,
     /// One collision shape per surface mesh, in `surfaces` order.
@@ -304,6 +317,7 @@ impl Track {
             item_boxes: sidecar.item_boxes,
             boost_pads: sidecar.boost_pads,
             kerbs: sidecar.kerbs,
+            wheel_crossings: sidecar.wheel_crossings,
             spawn_grid: sidecar.spawn_grid,
             surfaces: sidecar.surfaces,
             shapes,
@@ -440,6 +454,10 @@ impl Track {
         self.kerbs
             .iter()
             .any(|kerb| kerb.covers(point, KERB_HALF_LENGTH_M, KERB_HALF_WIDTH_M))
+    }
+
+    pub fn wheel_crossings(&self) -> &[WheelCrossing] {
+        &self.wheel_crossings
     }
 
     /// Start positions in grid order; slot 0 is pole.

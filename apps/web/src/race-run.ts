@@ -6,6 +6,7 @@ import type {
   Phase,
   Projectile,
   Standing,
+  Wheel,
 } from "./bridge";
 import type { Item } from "./generated/protocol";
 import type { ReplayRecorder } from "./replay";
@@ -38,6 +39,8 @@ export interface RaceReadout {
   readonly hazards: readonly Hazard[];
   /** The projectiles in flight where the View draws them. */
   readonly projectiles: readonly Projectile[];
+  /** The runaway wheel at each of the track's crossings, in the sidecar's order. */
+  readonly wheels: readonly Wheel[];
 }
 
 /**

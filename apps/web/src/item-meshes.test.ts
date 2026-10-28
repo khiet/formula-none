@@ -1,6 +1,15 @@
-import { type Material, Mesh, MeshLambertMaterial, type Object3D } from "three";
+import { Box3, type Material, Mesh, MeshLambertMaterial, type Object3D, Vector3 } from "three";
 import { describe, expect, it } from "vitest";
-import { hazardConeMesh, homingGullMesh, itemBoxMesh } from "./item-meshes";
+import {
+  hazardConeMesh,
+  homingGullMesh,
+  itemBoxMesh,
+  marshalFlagMesh,
+  RUNAWAY_WHEEL_RADIUS_M,
+  runawayWheelBounce,
+  runawayWheelMesh,
+} from "./item-meshes";
+import { KART_RIM, KART_TYRE, SIGNAL_YELLOW } from "./palette";
 
 function materialsOf(object: Object3D): Material[] {
   const found: Material[] = [];
@@ -21,6 +30,8 @@ describe("the item meshes", () => {
     ["item box", itemBoxMesh],
     ["hazard cone", hazardConeMesh],
     ["homing gull", homingGullMesh],
+    ["runaway wheel", runawayWheelMesh],
+    ["marshal's flag", marshalFlagMesh],
   ])("draw the %s lit by the sun and flat-shaded, facet by facet", (_, mesh) => {
     const materials = materialsOf(mesh());
     expect(materials.length).toBeGreaterThan(0);
@@ -44,5 +55,35 @@ describe("the item meshes", () => {
     expect(coloursOf(homingGullMesh())).toEqual(
       expect.arrayContaining([0xffffff, 0xb9bec5, 0xff5522, 0xd00a12]),
     );
+  });
+
+  it("paint the runaway wheel in the kart's tyre and rim", () => {
+    expect(coloursOf(runawayWheelMesh())).toEqual(expect.arrayContaining([KART_TYRE, KART_RIM]));
+  });
+
+  it("draw the runaway wheel round, its axle across its roll", () => {
+    const size = new Box3().setFromObject(runawayWheelMesh()).getSize(new Vector3());
+    // The spokes stand a hair proud of the tyre's faces.
+    expect(size.y).toBeCloseTo(2 * RUNAWAY_WHEEL_RADIUS_M, 1);
+    expect(size.z).toBeCloseTo(2 * RUNAWAY_WHEEL_RADIUS_M, 1);
+    expect(size.x).toBeLessThan(size.z);
+  });
+
+  it("bounce the runaway wheel three times a pass, down at each wall", () => {
+    for (const down of [0, 1 / 3, 2 / 3, 1]) {
+      expect(runawayWheelBounce(down)).toBeCloseTo(0, 6);
+    }
+    for (const up of [1 / 6, 1 / 2, 5 / 6]) {
+      expect(runawayWheelBounce(up)).toBeGreaterThan(0.3);
+    }
+  });
+
+  it("fly the marshal's flag in signal yellow from the top of its pole", () => {
+    const flag = marshalFlagMesh();
+    expect(coloursOf(flag)).toContain(SIGNAL_YELLOW.mid);
+    const bounds = new Box3().setFromObject(flag);
+    expect(bounds.min.y).toBeCloseTo(0, 6);
+    expect(bounds.min.x).toBeLessThan(0);
+    expect(bounds.max.x).toBeGreaterThan(0.5);
   });
 });

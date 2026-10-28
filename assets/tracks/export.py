@@ -15,9 +15,10 @@ scene follows these conventions:
   change to it leaves the sidecar, and the sim, untouched.
 - A curve object named `Centreline`, one closed POLY or BEZIER spline, run
   in the direction of travel starting at the start line.
-- Collections `Checkpoints`, `ItemBoxes`, `BoostPads`, `Kerbs` and
-  `SpawnGrid` hold empties ordered by name. An empty faces along its local
-  +Y; checkpoints carry a `half_width` custom property.
+- Collections `Checkpoints`, `ItemBoxes`, `BoostPads`, `Kerbs`,
+  `WheelCrossings` and `SpawnGrid` hold empties ordered by name. An empty
+  faces along its local +Y; checkpoints and wheel crossings carry a
+  `half_width` custom property.
 
 Blender is Z up; the sidecar is written in the glTF frame (Y up, -Z
 forward) so it matches the mesh.
@@ -44,8 +45,11 @@ PLACEMENT_COLLECTIONS = {
     "item_boxes": "ItemBoxes",
     "boost_pads": "BoostPads",
     "kerbs": "Kerbs",
+    "wheel_crossings": "WheelCrossings",
     "spawn_grid": "SpawnGrid",
 }
+# The placements that reach to either side of their centre.
+HALF_WIDTH_COLLECTIONS = {"checkpoints", "wheel_crossings"}
 # Millimetres are plenty for a greybox and keep the sidecar diffable.
 DECIMALS = 3
 
@@ -122,7 +126,7 @@ def placements(collection_name: str, with_half_width: bool) -> list[dict]:
         if with_half_width:
             half_width = obj.get("half_width")
             if half_width is None:
-                raise RuntimeError(f"{obj.name}: checkpoints need a half_width custom property")
+                raise RuntimeError(f"{obj.name}: needs a half_width custom property")
             placement["half_width"] = tidy(float(half_width))
         result.append(placement)
     return result
@@ -132,7 +136,7 @@ def sidecar(name: str) -> dict:
     depsgraph = bpy.context.evaluated_depsgraph_get()
     data = {"version": SIDECAR_VERSION, "name": name, "centreline": centreline()}
     for key, collection_name in PLACEMENT_COLLECTIONS.items():
-        data[key] = placements(collection_name, with_half_width=key == "checkpoints")
+        data[key] = placements(collection_name, with_half_width=key in HALF_WIDTH_COLLECTIONS)
     data["surfaces"] = surface_meshes(depsgraph)
     return data
 

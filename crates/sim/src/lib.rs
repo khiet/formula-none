@@ -28,11 +28,13 @@ pub mod prediction;
 pub mod replay;
 pub mod track;
 pub mod tuning;
+mod wheel;
 
 pub use interpolation::Interpolation;
 pub use prediction::Prediction;
 pub use replay::{Replay, ReplayError, Segment};
-pub use track::{Checkpoint, Placement, Surface, SurfaceMesh, Track, TrackError};
+pub use track::{Checkpoint, Placement, Surface, SurfaceMesh, Track, TrackError, WheelCrossing};
+pub use wheel::{wheel, Wheel};
 
 use handling::{Freeze, Handling, Situation};
 
@@ -346,9 +348,9 @@ pub enum RaceEvent {
     /// The kart fired the item it held; its slot is empty again.
     ItemFired { kart: usize, item: Item },
     /// The kart hit a hazard `by` fired, or was hit by a projectile `by`
-    /// fired, and is spun out: stopped, with its inputs ignored, for the
-    /// tuned time.
-    SpunOut { kart: usize, by: usize },
+    /// fired, or, with `by` `None`, was reached by the runaway wheel, and
+    /// is spun out: stopped, with its inputs ignored, for the tuned time.
+    SpunOut { kart: usize, by: Option<usize> },
     /// The race ended: the standings are the results and the outro begins.
     RaceEnded,
 }
@@ -547,6 +549,9 @@ struct Kart {
     /// Seconds of spin-out left after a hit; the kart is stopped and dead to
     /// every control until it runs out. Zero or less when not spun out.
     spin_out_left_s: f32,
+    /// The last runaway wheel pass that hit the kart, from 1; 0 before any
+    /// has. A pass hits a kart once, however long it stands in its path.
+    wheel_pass_hit: u32,
 }
 
 impl Kart {
@@ -676,7 +681,7 @@ use tuning::{
 use tuning::{
     HAZARD_DROP_DISTANCE_M, HAZARD_LIFETIME_S, HAZARD_RADIUS_M, ITEM_BOOST_FACTOR, ITEM_BOOST_S,
     ITEM_BOX_HALF_LENGTH_M, ITEM_BOX_HALF_WIDTH_M, ITEM_BOX_RESPAWN_S, ITEM_ROLL_PERCENT,
-    ITEM_ROLL_WEIGHTS, SPIN_OUT_S,
+    ITEM_ROLL_WEIGHTS, SPIN_OUT_S, WHEEL_RADIUS_M,
 };
 use tuning::{
     HOMING_LOCK_RANGE_M, HOMING_LOOKAHEAD_M, HOMING_RADIUS_M, HOMING_SPEED_FACTOR,
@@ -792,6 +797,7 @@ impl State {
                     held_item: None,
                     item_was_held: false,
                     spin_out_left_s: 0.0,
+                    wheel_pass_hit: 0,
                 }
             })
             .collect();
@@ -821,6 +827,17 @@ impl State {
     /// Where the race is, as of the last tick.
     pub fn phase(&self) -> Phase {
         self.phase
+    }
+
+    /// The runaway wheel at each of the track's crossings, in the track's
+    /// order, as of the last tick: quiet unless the race is being raced.
+    pub fn wheels(&self) -> Vec<Wheel> {
+        (0..self.track.wheel_crossings().len())
+            .map(|crossing| match self.phase {
+                Phase::Racing { elapsed_s, .. } => wheel(&self.track, crossing, elapsed_s),
+                _ => Wheel::Quiet,
+            })
+            .collect()
     }
 
     /// What the last tick changed that the players are told about, in the
@@ -1024,6 +1041,7 @@ impl State {
             hasher.write_u8(kart.held_item.map_or(0, Item::code));
             hasher.write_u8(u8::from(kart.item_was_held));
             hasher.write_f32(kart.spin_out_left_s);
+            hasher.write_u32(kart.wheel_pass_hit);
             if let Some(memory) = &kart.bot {
                 hasher.write_f32s(memory.timers());
             }
@@ -1172,13 +1190,14 @@ pub fn step(mut state: State, inputs: &[KartInput], dt: f32) -> State {
     } else {
         let readouts = state.kart_readouts();
         let standings = state.standings();
+        let clock = state.phase;
         let track = &state.track;
         state
             .karts
             .iter_mut()
             .enumerate()
             .map(|(slot, kart)| match &mut kart.bot {
-                Some(memory) => bot::drive(track, &readouts, &standings, slot, memory, dt),
+                Some(memory) => bot::drive(track, &readouts, &standings, clock, slot, memory, dt),
                 None => inputs[slot],
             })
             .collect()
@@ -1438,13 +1457,41 @@ pub fn step(mut state: State, inputs: &[KartInput], dt: f32) -> State {
             spin_out(kart, body);
             state.events.push(RaceEvent::SpunOut {
                 kart: slot,
-                by: placed.hazard.owner,
+                by: Some(placed.hazard.owner),
             });
             return false;
         }
         true
     });
     state.hazards = hazards;
+    // A rolling wheel spins out every kart it reaches, once a pass: a kart
+    // already spun out, or hit by this pass, is passed by.
+    if let Some(elapsed_s) = elapsed_s {
+        for crossing in 0..state.track.wheel_crossings().len() {
+            let Wheel::Rolling { pass, position, .. } = wheel(&state.track, crossing, elapsed_s)
+            else {
+                continue;
+            };
+            for (slot, kart) in state.karts.iter_mut().enumerate() {
+                let body = &mut state.physics.bodies[kart.body];
+                let reached = reaches(
+                    body.translation(),
+                    body.rotation(),
+                    position,
+                    WHEEL_RADIUS_M,
+                );
+                if !reached || kart.spun_out() || kart.wheel_pass_hit == pass {
+                    continue;
+                }
+                spin_out(kart, body);
+                kart.wheel_pass_hit = pass;
+                state.events.push(RaceEvent::SpunOut {
+                    kart: slot,
+                    by: None,
+                });
+            }
+        }
+    }
     // A projectile flies after its target and is used up on reaching the
     // kart: on a hazard the kart trails, which goes with it, else on the
     // kart itself, which spins out unless it already is.
@@ -1473,7 +1520,7 @@ pub fn step(mut state: State, inputs: &[KartInput], dt: f32) -> State {
                 spin_out(target, body);
                 state.events.push(RaceEvent::SpunOut {
                     kart: projectile.target,
-                    by: projectile.owner,
+                    by: Some(projectile.owner),
                 });
             }
             None => {}

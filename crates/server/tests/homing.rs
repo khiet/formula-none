@@ -36,7 +36,7 @@ impl Heard {
         self.events
             .iter()
             .copied()
-            .find(|event| matches!(event.kind, EventKind::Hit { by, .. } if by == CHASER))
+            .find(|event| matches!(event.kind, EventKind::Hit { by, .. } if by == Some(CHASER)))
     }
 
     /// The chaser's last fire of a projectile before `hit`: the one that
@@ -159,7 +159,7 @@ async fn a_projectiles_fire_flight_and_hit_are_the_servers_and_both_clients_see_
     let EventKind::Hit { kart, by } = hit.kind else {
         unreachable!()
     };
-    assert_eq!(by, CHASER);
+    assert_eq!(by, Some(CHASER));
     assert_ne!(kart, CHASER, "a projectile never hits its owner");
 
     // Both see the same spin-out in the snapshot that carries the hit.

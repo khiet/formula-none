@@ -7,10 +7,15 @@ import { START_LIGHTS } from "./instrument-panel";
 
 // The real wasm build, loaded from bytes because the default loader fetches
 // the module URL and fetch rejects file: URLs in Node. `pnpm build:bridge`
-// must have run first. Races run on the oval fixture's sidecar.
+// must have run first. Races run on the oval fixture's sidecar, and on
+// Brands Patch's for the runaway wheel.
 const wasm = readFileSync(new URL("./generated/bridge/bridge_bg.wasm", import.meta.url));
 const OVAL = readFileSync(
   new URL("../../../assets/tracks/oval/oval.track.json", import.meta.url),
+  "utf8",
+);
+const BRANDS_PATCH = readFileSync(
+  new URL("../../../assets/tracks/brands-patch/brands-patch.track.json", import.meta.url),
   "utf8",
 );
 const DT = 1 / 60;
@@ -669,5 +674,43 @@ describe("items", () => {
     // Drawn the tuned delay behind the newest, between two snapshots.
     expect(drawn?.position[0]).toBeGreaterThan(0);
     expect(drawn?.position[0]).toBeLessThan(5);
+  });
+});
+
+describe("runaway wheel", () => {
+  it("reports the wheel quiet through the countdown, the flag up before the first pass and the wheel rolling through it, as the prediction does", async () => {
+    const bridge = await loadBridge(wasm);
+    const race = bridge.createRace(7n, 1, 0, BRANDS_PATCH);
+    const prediction = bridge.createPrediction(7n, 0, BRANDS_PATCH);
+    const raceClock = () => {
+      const phase = race.phase();
+      return phase.kind === "racing" ? phase.elapsedSeconds : 0;
+    };
+    const seen = new Set<string>();
+    let sequence = 0;
+    while (raceClock() < 20.8) {
+      race.step([IDLE_INPUT], DT);
+      sequence += 1;
+      prediction.tick({
+        sequence,
+        steer: 0,
+        throttle: 0,
+        brake: 0,
+        hop: false,
+        useItem: false,
+        holdItem: false,
+      });
+      const [wheel] = race.wheels();
+      if (race.phase().kind === "countdown") expect(wheel).toEqual({ kind: "quiet" });
+      seen.add(wheel?.kind ?? "none");
+      expect(prediction.wheels()).toEqual(race.wheels());
+    }
+    expect([...seen]).toEqual(["quiet", "warning", "rolling"]);
+    const [rolling] = race.wheels();
+    if (rolling?.kind !== "rolling") throw new Error("not rolling");
+    // Half way through the first pass: the crossing's centre on the approach.
+    expect(rolling.fraction).toBeCloseTo(0.5, 1);
+    expect(rolling.position[0]).toBeCloseTo(-138.8, 1);
+    expect(rolling.position[2]).toBeCloseTo(52, 0);
   });
 });

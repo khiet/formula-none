@@ -56,6 +56,12 @@ export const GREYS = {
   dark: 0x9aa0a8,
   deep: 0x6f747b,
 } as const;
+/**
+ * The kart's tyre and rim as its glTF's linear factors draw them, which the
+ * runaway wheel copies.
+ */
+export const KART_TYRE = 0x5d5d61;
+export const KART_RIM = 0x84868b;
 /** The gull's eye, locked on. */
 export const GULL_EYE = 0xd00a12;
 /** The snail's rocket, its flame and its porthole. */

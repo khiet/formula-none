@@ -127,6 +127,10 @@ describe("generated protocol types", () => {
     expect(decoded.snapshot.events.map((event) => event.kind)).toContainEqual({
       hit: { kart: 6, by: 1 },
     });
+    // The runaway wheel's hit is by no kart.
+    expect(decoded.snapshot.events.map((event) => event.kind)).toContainEqual({
+      hit: { kart: 2, by: null },
+    });
   });
 
   it("rejects bytes that are not a message, with the protocol's reason", async () => {

@@ -1,0 +1,1144 @@
+{
+  "version": 1,
+  "seed": "4",
+  "track": "brands-patch",
+  "bots": 0,
+  "segments": [
+    {
+      "ticks": 300,
+      "inputs": [
+        {
+          "steer": 0.0,
+          "throttle": 0.0,
+          "brake": 0.0,
+          "hop": false,
+          "useItem": false,
+          "holdItem": false
+        }
+      ]
+    },
+    {
+      "ticks": 6,
+      "inputs": [
+        {
+          "steer": 0.625,
+          "throttle": 1.0,
+          "brake": 0.0,
+          "hop": false,
+          "useItem": false,
+          "holdItem": false
+        }
+      ]
+    },
+    {
+      "ticks": 6,
+      "inputs": [
+        {
+          "steer": 0.25,
+          "throttle": 1.0,
+          "brake": 0.0,
+          "hop": false,
+          "useItem": false,
+          "holdItem": false
+        }
+      ]
+    },
+    {
+      "ticks": 6,
+      "inputs": [
+        {
+          "steer": 0.125,
+          "throttle": 1.0,
+          "brake": 0.0,
+          "hop": false,
+          "useItem": false,
+          "holdItem": false
+        }
+      ]
+    },
+    {
+      "ticks": 6,
+      "inputs": [
+        {
+          "steer": -0.0,
+          "throttle": 1.0,
+          "brake": 0.0,
+          "hop": false,
+          "useItem": false,
+          "holdItem": false
+        }
+      ]
+    },
+    {
+      "ticks": 6,
+      "inputs": [
+        {
+          "steer": -0.125,
+          "throttle": 1.0,
+          "brake": 0.0,
+          "hop": false,
+          "useItem": false,
+          "holdItem": false
+        }
+      ]
+    },
+    {
+      "ticks": 12,
+      "inputs": [
+        {
+          "steer": 0.0,
+          "throttle": 1.0,
+          "brake": 0.0,
+          "hop": false,
+          "useItem": false,
+          "holdItem": false
+        }
+      ]
+    },
+    {
+      "ticks": 6,
+      "inputs": [
+        {
+          "steer": -0.125,
+          "throttle": 1.0,
+          "brake": 0.0,
+          "hop": false,
+          "useItem": false,
+          "holdItem": false
+        }
+      ]
+    },
+    {
+      "ticks": 6,
+      "inputs": [
+        {
+          "steer": -0.0,
+          "throttle": 1.0,
+          "brake": 0.0,
+          "hop": false,
+          "useItem": false,
+          "holdItem": false
+        }
+      ]
+    },
+    {
+      "ticks": 6,
+      "inputs": [
+        {
+          "steer": 0.75,
+          "throttle": 1.0,
+          "brake": 0.0,
+          "hop": false,
+          "useItem": false,
+          "holdItem": false
+        }
+      ]
+    },
+    {
+      "ticks": 6,
+      "inputs": [
+        {
+          "steer": 0.125,
+          "throttle": 1.0,
+          "brake": 0.0,
+          "hop": false,
+          "useItem": false,
+          "holdItem": false
+        }
+      ]
+    },
+    {
+      "ticks": 6,
+      "inputs": [
+        {
+          "steer": -0.0,
+          "throttle": 1.0,
+          "brake": 0.0,
+          "hop": false,
+          "useItem": false,
+          "holdItem": false
+        }
+      ]
+    },
+    {
+      "ticks": 6,
+      "inputs": [
+        {
+          "steer": -0.125,
+          "throttle": 1.0,
+          "brake": 0.0,
+          "hop": false,
+          "useItem": false,
+          "holdItem": false
+        }
+      ]
+    },
+    {
+      "ticks": 6,
+      "inputs": [
+        {
+          "steer": -0.25,
+          "throttle": 1.0,
+          "brake": 0.0,
+          "hop": false,
+          "useItem": false,
+          "holdItem": false
+        }
+      ]
+    },
+    {
+      "ticks": 6,
+      "inputs": [
+        {
+          "steer": -0.125,
+          "throttle": 1.0,
+          "brake": 0.0,
+          "hop": false,
+          "useItem": false,
+          "holdItem": false
+        }
+      ]
+    },
+    {
+      "ticks": 6,
+      "inputs": [
+        {
+          "steer": -0.25,
+          "throttle": 1.0,
+          "brake": 0.0,
+          "hop": false,
+          "useItem": false,
+          "holdItem": false
+        }
+      ]
+    },
+    {
+      "ticks": 12,
+      "inputs": [
+        {
+          "steer": -0.125,
+          "throttle": 1.0,
+          "brake": 0.0,
+          "hop": false,
+          "useItem": false,
+          "holdItem": false
+        }
+      ]
+    },
+    {
+      "ticks": 6,
+      "inputs": [
+        {
+          "steer": -0.25,
+          "throttle": 1.0,
+          "brake": 0.0,
+          "hop": false,
+          "useItem": false,
+          "holdItem": false
+        }
+      ]
+    },
+    {
+      "ticks": 24,
+      "inputs": [
+        {
+          "steer": -0.125,
+          "throttle": 1.0,
+          "brake": 0.0,
+          "hop": false,
+          "useItem": false,
+          "holdItem": false
+        }
+      ]
+    },
+    {
+      "ticks": 18,
+      "inputs": [
+        {
+          "steer": -0.0,
+          "throttle": 1.0,
+          "brake": 0.0,
+          "hop": false,
+          "useItem": false,
+          "holdItem": false
+        }
+      ]
+    },
+    {
+      "ticks": 6,
+      "inputs": [
+        {
+          "steer": -0.125,
+          "throttle": 1.0,
+          "brake": 0.0,
+          "hop": false,
+          "useItem": false,
+          "holdItem": false
+        }
+      ]
+    },
+    {
+      "ticks": 42,
+      "inputs": [
+        {
+          "steer": -0.0,
+          "throttle": 1.0,
+          "brake": 0.0,
+          "hop": false,
+          "useItem": false,
+          "holdItem": false
+        }
+      ]
+    },
+    {
+      "ticks": 6,
+      "inputs": [
+        {
+          "steer": -0.125,
+          "throttle": 1.0,
+          "brake": 0.0,
+          "hop": false,
+          "useItem": false,
+          "holdItem": false
+        }
+      ]
+    },
+    {
+      "ticks": 6,
+      "inputs": [
+        {
+          "steer": -0.25,
+          "throttle": 1.0,
+          "brake": 0.0,
+          "hop": false,
+          "useItem": false,
+          "holdItem": false
+        }
+      ]
+    },
+    {
+      "ticks": 6,
+      "inputs": [
+        {
+          "steer": -0.5,
+          "throttle": 1.0,
+          "brake": 0.0,
+          "hop": false,
+          "useItem": false,
+          "holdItem": false
+        }
+      ]
+    },
+    {
+      "ticks": 6,
+      "inputs": [
+        {
+          "steer": -0.75,
+          "throttle": 1.0,
+          "brake": 0.0,
+          "hop": false,
+          "useItem": false,
+          "holdItem": false
+        }
+      ]
+    },
+    {
+      "ticks": 6,
+      "inputs": [
+        {
+          "steer": -0.875,
+          "throttle": 1.0,
+          "brake": 0.0,
+          "hop": false,
+          "useItem": false,
+          "holdItem": false
+        }
+      ]
+    },
+    {
+      "ticks": 102,
+      "inputs": [
+        {
+          "steer": -1.0,
+          "throttle": 1.0,
+          "brake": 0.0,
+          "hop": false,
+          "useItem": false,
+          "holdItem": false
+        }
+      ]
+    },
+    {
+      "ticks": 6,
+      "inputs": [
+        {
+          "steer": -0.75,
+          "throttle": 1.0,
+          "brake": 0.0,
+          "hop": false,
+          "useItem": false,
+          "holdItem": false
+        }
+      ]
+    },
+    {
+      "ticks": 6,
+      "inputs": [
+        {
+          "steer": -0.5,
+          "throttle": 1.0,
+          "brake": 0.0,
+          "hop": false,
+          "useItem": false,
+          "holdItem": false
+        }
+      ]
+    },
+    {
+      "ticks": 12,
+      "inputs": [
+        {
+          "steer": -0.25,
+          "throttle": 1.0,
+          "brake": 0.0,
+          "hop": false,
+          "useItem": false,
+          "holdItem": false
+        }
+      ]
+    },
+    {
+      "ticks": 6,
+      "inputs": [
+        {
+          "steer": -0.375,
+          "throttle": 1.0,
+          "brake": 0.0,
+          "hop": false,
+          "useItem": false,
+          "holdItem": false
+        }
+      ]
+    },
+    {
+      "ticks": 36,
+      "inputs": [
+        {
+          "steer": -0.25,
+          "throttle": 1.0,
+          "brake": 0.0,
+          "hop": false,
+          "useItem": false,
+          "holdItem": false
+        }
+      ]
+    },
+    {
+      "ticks": 18,
+      "inputs": [
+        {
+          "steer": -0.125,
+          "throttle": 1.0,
+          "brake": 0.0,
+          "hop": false,
+          "useItem": false,
+          "holdItem": false
+        }
+      ]
+    },
+    {
+      "ticks": 48,
+      "inputs": [
+        {
+          "steer": -0.0,
+          "throttle": 1.0,
+          "brake": 0.0,
+          "hop": false,
+          "useItem": false,
+          "holdItem": false
+        }
+      ]
+    },
+    {
+      "ticks": 6,
+      "inputs": [
+        {
+          "steer": 0.125,
+          "throttle": 1.0,
+          "brake": 0.0,
+          "hop": false,
+          "useItem": false,
+          "holdItem": false
+        }
+      ]
+    },
+    {
+      "ticks": 54,
+      "inputs": [
+        {
+          "steer": 0.0,
+          "throttle": 1.0,
+          "brake": 0.0,
+          "hop": false,
+          "useItem": false,
+          "holdItem": false
+        }
+      ]
+    },
+    {
+      "ticks": 6,
+      "inputs": [
+        {
+          "steer": -0.125,
+          "throttle": 1.0,
+          "brake": 0.0,
+          "hop": false,
+          "useItem": false,
+          "holdItem": false
+        }
+      ]
+    },
+    {
+      "ticks": 12,
+      "inputs": [
+        {
+          "steer": -0.0,
+          "throttle": 1.0,
+          "brake": 0.0,
+          "hop": false,
+          "useItem": false,
+          "holdItem": false
+        }
+      ]
+    },
+    {
+      "ticks": 6,
+      "inputs": [
+        {
+          "steer": 0.125,
+          "throttle": 1.0,
+          "brake": 0.0,
+          "hop": false,
+          "useItem": false,
+          "holdItem": false
+        }
+      ]
+    },
+    {
+      "ticks": 6,
+      "inputs": [
+        {
+          "steer": 0.25,
+          "throttle": 1.0,
+          "brake": 0.0,
+          "hop": false,
+          "useItem": false,
+          "holdItem": false
+        }
+      ]
+    },
+    {
+      "ticks": 6,
+      "inputs": [
+        {
+          "steer": 0.5,
+          "throttle": 1.0,
+          "brake": 0.0,
+          "hop": false,
+          "useItem": false,
+          "holdItem": false
+        }
+      ]
+    },
+    {
+      "ticks": 6,
+      "inputs": [
+        {
+          "steer": 0.75,
+          "throttle": 1.0,
+          "brake": 0.0,
+          "hop": false,
+          "useItem": false,
+          "holdItem": false
+        }
+      ]
+    },
+    {
+      "ticks": 78,
+      "inputs": [
+        {
+          "steer": 1.0,
+          "throttle": 1.0,
+          "brake": 0.0,
+          "hop": false,
+          "useItem": false,
+          "holdItem": false
+        }
+      ]
+    },
+    {
+      "ticks": 6,
+      "inputs": [
+        {
+          "steer": 0.625,
+          "throttle": 1.0,
+          "brake": 0.0,
+          "hop": false,
+          "useItem": false,
+          "holdItem": false
+        }
+      ]
+    },
+    {
+      "ticks": 6,
+      "inputs": [
+        {
+          "steer": 0.25,
+          "throttle": 1.0,
+          "brake": 0.0,
+          "hop": false,
+          "useItem": false,
+          "holdItem": false
+        }
+      ]
+    },
+    {
+      "ticks": 6,
+      "inputs": [
+        {
+          "steer": -0.125,
+          "throttle": 1.0,
+          "brake": 0.0,
+          "hop": false,
+          "useItem": false,
+          "holdItem": false
+        }
+      ]
+    },
+    {
+      "ticks": 30,
+      "inputs": [
+        {
+          "steer": -0.375,
+          "throttle": 1.0,
+          "brake": 0.0,
+          "hop": false,
+          "useItem": false,
+          "holdItem": false
+        }
+      ]
+    },
+    {
+      "ticks": 12,
+      "inputs": [
+        {
+          "steer": -0.25,
+          "throttle": 1.0,
+          "brake": 0.0,
+          "hop": false,
+          "useItem": false,
+          "holdItem": false
+        }
+      ]
+    },
+    {
+      "ticks": 12,
+      "inputs": [
+        {
+          "steer": -0.125,
+          "throttle": 1.0,
+          "brake": 0.0,
+          "hop": false,
+          "useItem": false,
+          "holdItem": false
+        }
+      ]
+    },
+    {
+      "ticks": 54,
+      "inputs": [
+        {
+          "steer": -0.0,
+          "throttle": 1.0,
+          "brake": 0.0,
+          "hop": false,
+          "useItem": false,
+          "holdItem": false
+        }
+      ]
+    },
+    {
+      "ticks": 6,
+      "inputs": [
+        {
+          "steer": 0.125,
+          "throttle": 1.0,
+          "brake": 0.0,
+          "hop": false,
+          "useItem": false,
+          "holdItem": false
+        }
+      ]
+    },
+    {
+      "ticks": 60,
+      "inputs": [
+        {
+          "steer": 0.0,
+          "throttle": 1.0,
+          "brake": 0.0,
+          "hop": false,
+          "useItem": false,
+          "holdItem": false
+        }
+      ]
+    },
+    {
+      "ticks": 6,
+      "inputs": [
+        {
+          "steer": -0.125,
+          "throttle": 1.0,
+          "brake": 0.0,
+          "hop": false,
+          "useItem": false,
+          "holdItem": false
+        }
+      ]
+    },
+    {
+      "ticks": 6,
+      "inputs": [
+        {
+          "steer": -0.375,
+          "throttle": 1.0,
+          "brake": 0.0,
+          "hop": false,
+          "useItem": false,
+          "holdItem": false
+        }
+      ]
+    },
+    {
+      "ticks": 6,
+      "inputs": [
+        {
+          "steer": -0.625,
+          "throttle": 1.0,
+          "brake": 0.0,
+          "hop": false,
+          "useItem": false,
+          "holdItem": false
+        }
+      ]
+    },
+    {
+      "ticks": 6,
+      "inputs": [
+        {
+          "steer": -0.25,
+          "throttle": 1.0,
+          "brake": 0.0,
+          "hop": false,
+          "useItem": false,
+          "holdItem": false
+        }
+      ]
+    },
+    {
+      "ticks": 6,
+      "inputs": [
+        {
+          "steer": -0.5,
+          "throttle": 1.0,
+          "brake": 0.0,
+          "hop": false,
+          "useItem": false,
+          "holdItem": false
+        }
+      ]
+    },
+    {
+      "ticks": 12,
+      "inputs": [
+        {
+          "steer": -0.375,
+          "throttle": 1.0,
+          "brake": 0.0,
+          "hop": false,
+          "useItem": false,
+          "holdItem": false
+        }
+      ]
+    },
+    {
+      "ticks": 6,
+      "inputs": [
+        {
+          "steer": -0.125,
+          "throttle": 1.0,
+          "brake": 0.0,
+          "hop": false,
+          "useItem": false,
+          "holdItem": false
+        }
+      ]
+    },
+    {
+      "ticks": 6,
+      "inputs": [
+        {
+          "steer": 0.375,
+          "throttle": 1.0,
+          "brake": 0.0,
+          "hop": false,
+          "useItem": false,
+          "holdItem": false
+        }
+      ]
+    },
+    {
+      "ticks": 24,
+      "inputs": [
+        {
+          "steer": 1.0,
+          "throttle": 1.0,
+          "brake": 0.0,
+          "hop": false,
+          "useItem": false,
+          "holdItem": false
+        }
+      ]
+    },
+    {
+      "ticks": 1,
+      "inputs": [
+        {
+          "steer": -0.0,
+          "throttle": 1.0,
+          "brake": 0.0,
+          "hop": false,
+          "useItem": false,
+          "holdItem": false
+        }
+      ]
+    },
+    {
+      "ticks": 2,
+      "inputs": [
+        {
+          "steer": -0.125,
+          "throttle": 1.0,
+          "brake": 0.0,
+          "hop": false,
+          "useItem": false,
+          "holdItem": false
+        }
+      ]
+    },
+    {
+      "ticks": 89,
+      "inputs": [
+        {
+          "steer": 0.0,
+          "throttle": 0.0,
+          "brake": 1.0,
+          "hop": false,
+          "useItem": false,
+          "holdItem": false
+        }
+      ]
+    },
+    {
+      "ticks": 244,
+      "inputs": [
+        {
+          "steer": 0.0,
+          "throttle": 0.0,
+          "brake": 0.0,
+          "hop": false,
+          "useItem": false,
+          "holdItem": false
+        }
+      ]
+    },
+    {
+      "ticks": 69,
+      "inputs": [
+        {
+          "steer": -1.0,
+          "throttle": 1.0,
+          "brake": 0.0,
+          "hop": false,
+          "useItem": false,
+          "holdItem": false
+        }
+      ]
+    },
+    {
+      "ticks": 2,
+      "inputs": [
+        {
+          "steer": -0.75,
+          "throttle": 1.0,
+          "brake": 0.0,
+          "hop": false,
+          "useItem": false,
+          "holdItem": false
+        }
+      ]
+    },
+    {
+      "ticks": 1,
+      "inputs": [
+        {
+          "steer": -0.625,
+          "throttle": 1.0,
+          "brake": 0.0,
+          "hop": false,
+          "useItem": false,
+          "holdItem": false
+        }
+      ]
+    },
+    {
+      "ticks": 2,
+      "inputs": [
+        {
+          "steer": -0.5,
+          "throttle": 1.0,
+          "brake": 0.0,
+          "hop": false,
+          "useItem": false,
+          "holdItem": false
+        }
+      ]
+    },
+    {
+      "ticks": 2,
+      "inputs": [
+        {
+          "steer": -0.375,
+          "throttle": 1.0,
+          "brake": 0.0,
+          "hop": false,
+          "useItem": false,
+          "holdItem": false
+        }
+      ]
+    },
+    {
+      "ticks": 3,
+      "inputs": [
+        {
+          "steer": -0.25,
+          "throttle": 1.0,
+          "brake": 0.0,
+          "hop": false,
+          "useItem": false,
+          "holdItem": false
+        }
+      ]
+    },
+    {
+      "ticks": 5,
+      "inputs": [
+        {
+          "steer": -0.125,
+          "throttle": 1.0,
+          "brake": 0.0,
+          "hop": false,
+          "useItem": false,
+          "holdItem": false
+        }
+      ]
+    },
+    {
+      "ticks": 30,
+      "inputs": [
+        {
+          "steer": -0.0,
+          "throttle": 1.0,
+          "brake": 0.0,
+          "hop": false,
+          "useItem": false,
+          "holdItem": false
+        }
+      ]
+    },
+    {
+      "ticks": 1,
+      "inputs": [
+        {
+          "steer": -0.125,
+          "throttle": 1.0,
+          "brake": 0.0,
+          "hop": false,
+          "useItem": false,
+          "holdItem": false
+        }
+      ]
+    },
+    {
+      "ticks": 1,
+      "inputs": [
+        {
+          "steer": -0.0,
+          "throttle": 1.0,
+          "brake": 0.0,
+          "hop": false,
+          "useItem": false,
+          "holdItem": false
+        }
+      ]
+    },
+    {
+      "ticks": 1,
+      "inputs": [
+        {
+          "steer": -0.125,
+          "throttle": 1.0,
+          "brake": 0.0,
+          "hop": false,
+          "useItem": false,
+          "holdItem": false
+        }
+      ]
+    },
+    {
+      "ticks": 6,
+      "inputs": [
+        {
+          "steer": -0.0,
+          "throttle": 1.0,
+          "brake": 0.0,
+          "hop": false,
+          "useItem": false,
+          "holdItem": false
+        }
+      ]
+    },
+    {
+      "ticks": 18,
+      "inputs": [
+        {
+          "steer": -0.125,
+          "throttle": 1.0,
+          "brake": 0.0,
+          "hop": false,
+          "useItem": false,
+          "holdItem": false
+        }
+      ]
+    },
+    {
+      "ticks": 12,
+      "inputs": [
+        {
+          "steer": -0.25,
+          "throttle": 1.0,
+          "brake": 0.0,
+          "hop": false,
+          "useItem": false,
+          "holdItem": false
+        }
+      ]
+    },
+    {
+      "ticks": 6,
+      "inputs": [
+        {
+          "steer": -0.375,
+          "throttle": 1.0,
+          "brake": 0.0,
+          "hop": false,
+          "useItem": false,
+          "holdItem": false
+        }
+      ]
+    },
+    {
+      "ticks": 6,
+      "inputs": [
+        {
+          "steer": -0.5,
+          "throttle": 1.0,
+          "brake": 0.0,
+          "hop": false,
+          "useItem": false,
+          "holdItem": false
+        }
+      ]
+    },
+    {
+      "ticks": 6,
+      "inputs": [
+        {
+          "steer": -0.625,
+          "throttle": 1.0,
+          "brake": 0.0,
+          "hop": false,
+          "useItem": false,
+          "holdItem": false
+        }
+      ]
+    },
+    {
+      "ticks": 12,
+      "inputs": [
+        {
+          "steer": -0.75,
+          "throttle": 1.0,
+          "brake": 0.0,
+          "hop": false,
+          "useItem": false,
+          "holdItem": false
+        }
+      ]
+    },
+    {
+      "ticks": 6,
+      "inputs": [
+        {
+          "steer": -0.875,
+          "throttle": 1.0,
+          "brake": 0.0,
+          "hop": false,
+          "useItem": false,
+          "holdItem": false
+        }
+      ]
+    }
+  ],
+  "hashes": [
+    "8ffe5c1af93d7aee",
+    "cbd6676023ce97f2",
+    "4b36a23cdaed7e14",
+    "55c7aebf53b83c76",
+    "f094dcdbdefce0e1",
+    "6bca25267e27412c",
+    "548d0cc944987438",
+    "8190faceb7a281ed",
+    "1e989b9b97f54303",
+    "413842364e2b0d34",
+    "80fa5537c282e1b7",
+    "f5d5e7b7297c8f71",
+    "ee8f8270f88fa7bc",
+    "a2680b565bfd81be",
+    "456bbf41631df1bd",
+    "7216e197229ee87f",
+    "e60c501f18ddf549",
+    "923a73ea3c8ce07c",
+    "19a5074b0b675fd5",
+    "2bb6447995e50e5c",
+    "aaaa441c12f5d1a4",
+    "7adaff107ebc409e",
+    "09e73fcaa41b0fc7",
+    "e3e579070802eb77",
+    "959a59a03bd52a67",
+    "de6b8464db7de53f",
+    "dc61d9ad107f3364",
+    "0d117e1d3b3afc42",
+    "43cd6c55e0ea45e2"
+  ]
+}
