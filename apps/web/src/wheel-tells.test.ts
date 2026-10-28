@@ -153,6 +153,14 @@ describe("the runaway wheel's tells", () => {
     }
   });
 
+  it("throw every burst when the frames come slower than the ticks", async () => {
+    const pass = await firstPass(7n);
+    // A frame every third tick, as a 20 Hz tab would draw it.
+    const { dustTicks, sparkTicks } = emitOver(pass.filter((_, tick) => tick % 3 === 0));
+    expect(sparkTicks).toHaveLength(2 * 8);
+    expect(dustTicks).toHaveLength(5 * 5);
+  });
+
   it("strike the sparks off the wall the tyre meets, flying back over the track", async () => {
     const pass = await firstPass(7n);
     const { sparks } = emitOver(pass);
