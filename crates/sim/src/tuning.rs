@@ -384,9 +384,9 @@ pub const BOT_LINE_RIGHT_OF_CENTRE_M: f32 = 2.5;
 /// is the centreline.
 pub const BOT_KERB_GAP_M: f32 = 4.4;
 /// Metres short of a sausage kerb's near end from which a bot aims along
-/// the line clear of it. Twice the lookahead, so a bot out wide passing a
-/// kart on the kerb's side is back on the line before pursuit cuts toward
-/// the apex.
+/// the line clear of it, giving up any pass: far enough that a bot out wide
+/// passing a kart on the kerb's side is back on the line before pursuit
+/// cuts toward the apex.
 pub const BOT_KERB_APPROACH_M: f32 = 2.0 * BOT_LOOKAHEAD_M;
 /// Seconds a bot keeps between itself and a runaway wheel's pass through
 /// its lane, either side: the throttle it holds and the line it weaves

@@ -192,10 +192,10 @@ fn line_point(track: &Track, progress: f32, right: f32) -> [f32; 2] {
 fn line_clear_of_kerbs(track: &Track, position: [f32; 3]) -> Option<f32> {
     track.kerbs().iter().find_map(|kerb| {
         let (ahead, beside) = kerb.local(position);
-        let in_range = (-KERB_HALF_LENGTH_M - BOT_KERB_APPROACH_M..=KERB_HALF_LENGTH_M)
-            .contains(&ahead)
-            && beside.abs() < BOT_LOOKAHEAD_M;
-        in_range.then(|| {
+        let approaching_or_alongside =
+            (-KERB_HALF_LENGTH_M - BOT_KERB_APPROACH_M..=KERB_HALF_LENGTH_M).contains(&ahead)
+                && beside.abs() < BOT_LOOKAHEAD_M;
+        approaching_or_alongside.then(|| {
             let progress = track.progress_at(kerb.position);
             let centre = track.point_at(progress);
             let [tx, tz] = track.direction_at(progress);
@@ -306,9 +306,9 @@ fn waits_for_a_wheel(
                     let along = way * (from[1] + rate[1] * into_leg_s);
                     let after_s = at_s - elapsed_s;
                     let held = ahead + driven(speed, after_s, 0.0);
-                    let slowest = held.max(ahead + driven(0.0, after_s, setting_off));
+                    let least = held.max(ahead + driven(0.0, after_s, setting_off));
                     let flat = ahead + driven(speed, after_s, flat_out);
-                    going_meets |= slowest - reach <= along && along <= flat + reach;
+                    going_meets |= least - reach <= along && along <= flat + reach;
                     stopping_meets |= ahead - reach <= along && along <= held + reach;
                 }
                 at_s += dt;

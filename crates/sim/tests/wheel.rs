@@ -476,8 +476,9 @@ fn eight_bots_racing_three_laps_of_brands_patch_are_never_hit_by_the_wheel() {
 fn bots_backing_out_of_a_stall_by_the_crossing_are_never_hit_by_the_wheel() {
     // On 60 a bot turned back toward the crossing from past it; on 87 and
     // 112 one stalled on it backed up into a pass, or set off again from
-    // within its reach.
-    for seed in [60, 87, 112] {
+    // within its reach. On 5 one stopped short of the reach backed up for
+    // every pass and missed the cap.
+    for seed in [5, 60, 87, 112] {
         bots_race_past_the_wheel(seed);
     }
 }
