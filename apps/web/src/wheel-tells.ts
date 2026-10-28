@@ -1,12 +1,13 @@
 // The runaway wheel's tells (ADR 0042): its flames point off its back, it
-// trails smoke, it kicks up dust where it lands from each drawn hop and
+// trails smoke, it kicks up dust where it lands from each drawn bounce and
 // where it rebounds off a wall, and strikes sparks off that wall.
 // Presentation only, decided from the wheels the bridge reports: a wall hit
-// is where the leg under way starts over, and a hop lands half way through
-// a leg, where `runawayWheelBounce` brings it down.
+// is where the leg under way starts over, and a drawn bounce lands where
+// `runawayWheelLanded` says.
 
 import type { Wheel } from "./bridge";
 import { SAND_DUST } from "./dust";
+import { runawayWheelLanded } from "./item-meshes";
 import type { Vec3 } from "./kart-frame";
 import { ROCKET_FLAME, WHEEL_SMOKE } from "./palette";
 import type { Particles } from "./particles";
@@ -27,6 +28,7 @@ export function wheelBack(yaw: number, out: Vec3): Vec3 {
 export interface WheelTellPools {
   /** The run-off dust's pool. */
   readonly dust: Particles;
+  /** The smoke's pool; the View passes the dust's, so the puffs spread and fade alike. */
   readonly smoke: Particles;
   /** The sparks' pool, under gravity, its sparks streaked. */
   readonly sparks: Particles;
@@ -44,7 +46,7 @@ const SMOKE_LIFETIME_S = 0.9;
 const SMOKE_SIZE_M = 0.6;
 /** The most smoke a frame can owe, so a stalled tab does not empty the pool in one burst. */
 const MAX_OWED_S = 0.1;
-/** A hop's or a wall hit's dust: puffs round where the tyre meets the road. */
+/** A landing's or a wall hit's dust: puffs round where the tyre meets the road. */
 const DUST_PUFFS = 5;
 const DUST_SPREAD_M_PER_S = 2;
 const DUST_RISE_M_PER_S = 0.6;
@@ -59,8 +61,6 @@ const SPARK_SPREAD_M_PER_S = 3;
 const SPARK_RISE_MIN_M_PER_S = 1;
 const SPARK_RISE_MAX_M_PER_S = 3;
 const SPARK_SIZE_M = 0.08;
-/** Half way through a leg the drawn hop comes down. */
-const HOP_LANDING = 0.5;
 
 /** What a crossing's wheel was last frame; unset while it is off the course. */
 interface Last {
@@ -71,7 +71,7 @@ interface Last {
 /**
  * Throws the tells of every crossing's wheel `radius` in size: smoke off
  * its back at a steady rate whatever the frame rate while it rolls, a
- * burst of dust where it lands from each hop and each wall hit, and a
+ * burst of dust where it lands from each bounce and each wall hit, and a
  * burst of sparks off the wall where its tyre strikes at each wall hit,
  * flying back over the track. Remembers each wheel's last frame to find
  * those moments. `random` is Math.random's shape; tests pass a fixed value.
@@ -162,7 +162,7 @@ export function createWheelTellEmitter(
           if (wheel.legFraction < was.legFraction) {
             strikeSparks(wheel, was.yaw);
             kickDust(wheel.position);
-          } else if (was.legFraction < HOP_LANDING && wheel.legFraction >= HOP_LANDING) {
+          } else if (runawayWheelLanded(was.legFraction, wheel.legFraction)) {
             kickDust(wheel.position);
           }
         }

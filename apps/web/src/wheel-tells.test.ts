@@ -53,8 +53,8 @@ function wallHits(pass: readonly Rolling[]): number[] {
   );
 }
 
-/** The ticks of `pass` it lands from its hop half way through a leg. */
-function hopLandings(pass: readonly Rolling[]): number[] {
+/** The ticks of `pass` it lands from its drawn bounce half way through a leg. */
+function bounceLandings(pass: readonly Rolling[]): number[] {
   return pass.flatMap((wheel, tick) => {
     const before = pass[tick - 1]?.legFraction;
     return before !== undefined && before < 0.5 && wheel.legFraction >= 0.5 ? [tick] : [];
@@ -130,11 +130,11 @@ describe("the runaway wheel's tells", () => {
     expect(dot(backBefore, backAfter)).toBeLessThan(0);
   });
 
-  it("throw sparks at each wall hit and dust at each hop and wall hit, on the ticks the path says", async () => {
+  it("throw sparks at each wall hit and dust at each landing and wall hit, on the ticks the path says", async () => {
     const pass = await firstPass(7n);
     const hits = wallHits(pass);
-    const landings = hopLandings(pass);
-    // Two rebounds, and a hop down half way across each of the three legs.
+    const landings = bounceLandings(pass);
+    // Two rebounds, and a bounce down half way across each of the three legs.
     expect(hits).toHaveLength(2);
     expect(landings).toHaveLength(3);
 

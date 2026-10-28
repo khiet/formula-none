@@ -93,7 +93,7 @@ describe("the item meshes", () => {
     );
   });
 
-  it("draw the hot wheel's tyre and spokes lit, and its rim and hub glowing red hot", () => {
+  it("draw the runaway wheel's tyre and spokes lit, and its rim and hub glowing red hot", () => {
     const wheel = runawayWheelMesh(RADIUS_M);
     expect(coloursOf(wheel)).toEqual(expect.arrayContaining([WHEEL_TYRE, ROCKET_STRAP]));
     // Flame yellow at the hub, the rocket's red at the rim's edge.

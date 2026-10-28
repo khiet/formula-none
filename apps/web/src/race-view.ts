@@ -412,15 +412,18 @@ function runawayWheels(world: ThreeScene, track: Object3D, radius: number): Runa
   const at = new Vector3();
   const back: Vec3 = [0, 0, 0];
   const behind = new Vector3();
-  let waveSeconds = 0;
+  const backward = new Vector3();
+  /** Seconds since the first wheel was shown: the flags' wave and the flames' flicker run on it. */
+  let clockSeconds = 0;
   return {
     show(wheels, frameSeconds) {
-      waveSeconds += frameSeconds;
+      clockSeconds += frameSeconds;
       wheels.forEach((wheel, crossing) => {
         const entry = drawnAt(crossing);
         if (entry.flag !== undefined) {
           entry.flag.visible = wheel.kind !== "quiet";
-          entry.flag.rotation.z = Math.sin(waveSeconds * FLAG_WAVE_RAD_PER_S) * FLAG_WAVE_SWING_RAD;
+          entry.flag.rotation.z =
+            Math.sin(clockSeconds * FLAG_WAVE_RAD_PER_S) * FLAG_WAVE_SWING_RAD;
         }
         entry.heading.visible = wheel.kind === "rolling";
         entry.flames.visible = wheel.kind === "rolling";
@@ -443,13 +446,13 @@ function runawayWheels(world: ThreeScene, track: Object3D, radius: number): Runa
         entry.heading.rotation.y = wheel.yaw;
         entry.flames.position.copy(entry.heading.position);
         wheelBack(wheel.yaw, back);
-        entry.flames.lookAt(behind.copy(entry.flames.position).add(at.set(...back)));
+        entry.flames.lookAt(behind.copy(entry.flames.position).add(backward.set(...back)));
         entry.flames.children.forEach((tongue, index) => {
           tongue.scale.z =
             1 +
             WHEEL_FLAME_FLICKER_SHARE *
               Math.sin(
-                waveSeconds * WHEEL_FLAME_FLICKER_RAD_PER_S + index * WHEEL_FLAME_FLICKER_STEP_RAD,
+                clockSeconds * WHEEL_FLAME_FLICKER_RAD_PER_S + index * WHEEL_FLAME_FLICKER_STEP_RAD,
               );
         });
       });

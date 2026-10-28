@@ -1,8 +1,8 @@
 // The items on the road (ADR 0037), built in code from Three primitives:
 // lit, flat-shaded and in the palette the item slot draws them in, so the
 // cone and the gull on the road are the ones in the slot. The runaway wheel
-// and the marshal's flag (ADR 0041) are built the same way, save the hot
-// wheel's rim and flames, which glow unlit. The sim collides with its own
+// and the marshal's flag (ADR 0041) are built the same way, save the
+// wheel's rim, hub and flames, which glow unlit. The sim collides with its own
 // sizes; these only fill them.
 
 import {
@@ -254,7 +254,8 @@ export function runawayWheelMesh(radius: number): Group {
     // The disc faces +z; turned a quarter it faces out of this side.
     disc.rotation.y = (side * Math.PI) / 2;
     wheel.add(disc);
-    // Spokes reach from the hub out over the tyre's wall, so the turn reads.
+    // Spokes reach from the hub out over the tyre's wall, so the turn reads,
+    // standing proud of the rim, and the hub proud of the spokes.
     for (let spoke = 0; spoke < RUNAWAY_WHEEL_SPOKES; spoke += 1) {
       const turn = (2 * Math.PI * spoke) / RUNAWAY_WHEEL_SPOKES;
       const bar = part(wheel, new BoxGeometry(0.03, radius * 0.9, 0.05), ROCKET_STRAP, [
@@ -310,7 +311,7 @@ export function runawayWheelFlames(radius: number): Group {
   const width = radius * RUNAWAY_WHEEL_WIDTH_SHARE;
   for (const [across, up] of WHEEL_FLAME_TONGUES) {
     const group = new Group();
-    // Rooted inside the tread, on the back of the tyre.
+    // Rooted a fifth of the way in from the back of the tread, so no gap shows between flame and tyre.
     const height = up * radius;
     group.position.set(across * width, height, Math.sqrt(radius * radius - height * height) * 0.8);
     // See-through, so the core burns yellow inside it.
@@ -331,6 +332,18 @@ export function runawayWheelBounce(legFraction: number): number {
   return (
     RUNAWAY_WHEEL_BOUNCE_M *
     Math.abs(Math.sin(legFraction * Math.PI * RUNAWAY_WHEEL_BOUNCES_PER_LEG))
+  );
+}
+
+/**
+ * Whether the drawn wheel comes down from a bounce between `from` and `to`
+ * of the way through one leg, short of the wall that ends it.
+ */
+export function runawayWheelLanded(from: number, to: number): boolean {
+  return (
+    to < 1 &&
+    Math.floor(to * RUNAWAY_WHEEL_BOUNCES_PER_LEG) >
+      Math.floor(from * RUNAWAY_WHEEL_BOUNCES_PER_LEG)
   );
 }
 
