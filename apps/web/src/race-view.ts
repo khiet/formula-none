@@ -413,7 +413,7 @@ function runawayWheels(world: ThreeScene, track: Object3D, radius: number): Runa
   const back: Vec3 = [0, 0, 0];
   const behind = new Vector3();
   const backward = new Vector3();
-  /** Seconds since the first wheel was shown: the flags' wave and the flames' flicker run on it. */
+  /** Seconds the View has shown: the flags' wave and the flames' flicker run on it. */
   let clockSeconds = 0;
   return {
     show(wheels, frameSeconds) {

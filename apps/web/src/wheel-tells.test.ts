@@ -169,7 +169,7 @@ describe("the runaway wheel's tells", () => {
       if (inbound === undefined || outbound === undefined) throw new Error("no hit");
       const into = heading(pass[hit - 5] ?? inbound, inbound);
       const out = heading(outbound, pass[hit + 5] ?? outbound);
-      // The wall's normal toward the track: the turn the rebound makes.
+      // Off the wall and back over the track: the turn the rebound makes.
       const away: Vec3 = [out[0] - into[0], 0, out[2] - into[2]];
       const thrown = sparks.births.filter(
         (spark) =>

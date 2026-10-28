@@ -1,4 +1,5 @@
-// The runaway wheel's tells (ADR 0042): its flames point off its back, it
+// The runaway wheel's tells, as docs/mockups/runaway-wheel-danger-spec.html
+// draws them: its flames point off its back, it
 // trails smoke, it kicks up dust where it lands from each drawn bounce and
 // where it rebounds off a wall, and strikes sparks off that wall.
 // Presentation only, decided from the wheels the bridge reports: a wall hit
@@ -112,7 +113,7 @@ export function createWheelTellEmitter(
 
   const kickDust = (at: Readonly<Vec3>) => {
     for (let puff = 0; puff < DUST_PUFFS; puff++) {
-      // Spread evenly round the print, nudged by `random` so no two match.
+      // Spread evenly round the print, nudged by `random`.
       const turn = (2 * Math.PI * (puff + random())) / DUST_PUFFS;
       position[0] = at[0];
       position[1] = at[1];
@@ -124,8 +125,8 @@ export function createWheelTellEmitter(
     }
   };
 
-  // A rebound reflects the heading off the wall, so the turn it makes,
-  // the new back from the old, is the wall's normal toward the track.
+  // The turn a rebound makes, the new back from the old, stands in for the
+  // wall's normal toward the track; the seeded landings skew it along the track.
   const strikeSparks = (wheel: Extract<Wheel, { kind: "rolling" }>, yawBefore: number) => {
     wheelBack(yawBefore, before);
     wheelBack(wheel.yaw, back);

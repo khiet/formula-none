@@ -2,8 +2,8 @@
 // lit, flat-shaded and in the palette the item slot draws them in, so the
 // cone and the gull on the road are the ones in the slot. The runaway wheel
 // and the marshal's flag (ADR 0041) are built the same way, save the
-// wheel's rim, hub and flames, which glow unlit. The sim collides with its own
-// sizes; these only fill them.
+// wheel's rim, hub and flames, which glow unlit. The sim collides with its
+// own sizes; these only fill them.
 
 import {
   BoxGeometry,
@@ -227,7 +227,7 @@ function glowing(parent: Group, geometry: BufferGeometry, colour: number, opacit
 
 /**
  * The runaway wheel centred on its axle, which lies along x, so it rolls
- * toward -z: the hot wheel, an octagonal tyre dark against the asphalt
+ * toward -z: an octagonal tyre dark against the asphalt
  * with a red-hot rim on each face, flame yellow at the hub cooling to the
  * rocket's red at its edge and unlit so it glows, three spokes in the
  * rocket's strap and a flame-yellow hub. Grown to `radius`, which the
@@ -296,8 +296,8 @@ function hotRimGeometry(radius: number): BufferGeometry {
  * The runaway wheel's flames for a wheel `radius` in size, centred on its
  * axle and pointing toward +z, which the View turns to the wheel's back:
  * three tongues rising off the back of the tyre, the flames' orange round
- * a flame-yellow core, unlit and the orange see-through. Each tongue is a child whose length runs
- * along its z, so the View flickers it by scaling z.
+ * a flame-yellow core, unlit and the orange see-through. Each tongue is a
+ * child whose length runs along its z, so the View flickers it by scaling z.
  */
 export function runawayWheelFlames(radius: number): Group {
   const flames = new Group();
