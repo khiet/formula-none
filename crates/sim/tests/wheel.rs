@@ -477,7 +477,7 @@ fn bots_backing_out_of_a_stall_by_the_crossing_are_never_hit_by_the_wheel() {
     // On 60 a bot turned back toward the crossing from past it; on 87 and
     // 112 one stalled on it backed up into a pass, or set off again from
     // within its reach. On 5 one stopped short of the reach backed up for
-    // every pass and missed the cap.
+    // pass after pass and missed the cap.
     for seed in [5, 60, 87, 112] {
         bots_race_past_the_wheel(seed);
     }
