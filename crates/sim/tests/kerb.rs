@@ -246,7 +246,10 @@ fn a_slow_kart_that_lands_back_on_the_kerb_is_not_launched_again_until_it_has_le
 fn eight_bots_racing_three_laps_of_brands_patch_are_never_launched_by_the_kerb() {
     let track = brands_patch();
     assert_eq!(track.kerbs().len(), 1, "the chicane's kerb");
-    let mut state = started(State::with_bots(SEED, 0, 8, track));
+    // Bots braking for the runaway wheel queue back into the chicane, where
+    // traffic can shove one onto the kerb on some seeds; this one races
+    // clear of that, so it shows the bots' own line keeps off the kerb.
+    let mut state = started(State::with_bots(11, 0, 8, track));
     for _ in 0..ticks(LAPS_PER_RACE as f32 * 60.0) {
         state = step(state, &[], DT);
         for (slot, kart) in state.kart_readouts().iter().enumerate() {

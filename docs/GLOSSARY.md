@@ -305,9 +305,11 @@ of its speed and any drift under way with its charge (ADR 0041).
 
 ### runaway wheel
 
-A loose wheel that rolls across the track from wall to wall on a fixed
-cycle of the race clock, with a marshal's yellow flag up before each pass.
-A kart it reaches spins out, by no one (ADR 0041).
+A loose wheel that rolls in across the track on a fixed cycle of the race
+clock, with a marshal's yellow flag up before each pass, bounces twice off
+the walls, landing somewhere the race seed picks each time, and rolls out
+through the far wall. A kart it reaches spins out, by no one (ADRs 0041,
+0042).
 
 ## Client
 

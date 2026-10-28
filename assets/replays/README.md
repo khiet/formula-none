@@ -59,8 +59,8 @@ count the hop's airtime before the charge starts, and its steering keeps
 the kart between the walls. `brands-patch-chicane.replay.json` was written by a scripted follower
 from the grid: a line over the chicane's kerb, which launches the kart,
 then a stop on the approach to hairpin two with the kart on the wheel's
-crossing until the first pass spins it out, and three seconds of driving
-on. `oval-rocket-start.replay.json` and
+crossing until the first pass, back from its first rebound off the wall,
+spins it out, and three seconds of driving on once the pass is over. `oval-rocket-start.replay.json` and
 `oval-stall.replay.json` were written by hand for the start: the throttle
 held from the first half of the fourth light through Go, and from the top of the
 countdown.

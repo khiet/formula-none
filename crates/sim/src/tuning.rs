@@ -177,15 +177,22 @@ pub const KERB_HALF_LENGTH_M: f32 = 4.0;
 pub const KERB_HALF_WIDTH_M: f32 = 0.5;
 /// The share of a kart's speed the kerb's launch leaves it.
 pub const KERB_SPEED_KEEP: f32 = 0.85;
-/// The runaway wheel (GLOSSARY) crosses its crossing wall to wall once
-/// every period, each pass the other way from the last, the first pass
-/// starting at `WHEEL_FIRST_PASS_S` on the race clock so the leader's first
-/// lap meets a quiet approach. A pass lasts `WHEEL_PASS_S`; the marshal's
-/// flag is up from `WHEEL_WARNING_S` before it until it ends.
-pub const WHEEL_PERIOD_S: f32 = 7.0;
-pub const WHEEL_PASS_S: f32 = 1.6;
+/// The runaway wheel (GLOSSARY) makes a pass over its crossing once every
+/// period, each pass rolling in from the other wall from the last, the
+/// first starting at `WHEEL_FIRST_PASS_S` on the race clock so the
+/// leader's first lap meets a quiet approach. The marshal's flag is up from
+/// `WHEEL_WARNING_S` before a pass until it ends.
+pub const WHEEL_PERIOD_S: f32 = 10.0;
 pub const WHEEL_WARNING_S: f32 = 1.0;
 pub const WHEEL_FIRST_PASS_S: f32 = 20.0;
+/// A pass rolls at this speed throughout, rebounds off the walls this many
+/// times and leaves through the far wall; each wall to wall leg ends at a
+/// point drawn from the race seed within the spread either side of the
+/// crossing's line, along the track. A track whose crossing is too wide for
+/// the longest pass and its warning to fit in a period does not load.
+pub const WHEEL_SPEED_M_PER_S: f32 = 15.0;
+pub const WHEEL_BOUNCES: u32 = 2;
+pub const WHEEL_LANDING_SPREAD_M: f32 = 8.0;
 /// A kart whose collision box comes within this much of the wheel's centre,
 /// seen from above, is reached by it, as by a hazard.
 pub const WHEEL_RADIUS_M: f32 = 0.45;
@@ -463,10 +470,9 @@ const _: () = {
     assert!(0.0 < ITEM_BOOST_S && 1.0 < ITEM_BOOST_FACTOR);
     assert!(0.0 < HAZARD_RADIUS_M && 0.0 < HAZARD_LIFETIME_S && 0.0 < SPIN_OUT_S);
     assert!(0.0 < HAZARD_DROP_DISTANCE_M);
-    // One pass and its warning fit in a period, so the flag never waves
-    // for two passes at once.
-    assert!(0.0 < WHEEL_PASS_S && 0.0 < WHEEL_WARNING_S && 0.0 < WHEEL_RADIUS_M);
-    assert!(WHEEL_WARNING_S + WHEEL_PASS_S < WHEEL_PERIOD_S);
+    assert!(0.0 < WHEEL_WARNING_S && WHEEL_WARNING_S < WHEEL_PERIOD_S);
+    assert!(0.0 < WHEEL_SPEED_M_PER_S && 0.0 < WHEEL_RADIUS_M);
+    assert!(0.0 <= WHEEL_LANDING_SPREAD_M);
     assert!(WHEEL_WARNING_S <= WHEEL_FIRST_PASS_S);
     assert!(HOMING_SPEED_FACTOR > BOOST_PAD_FACTOR && HOMING_SPEED_FACTOR > ITEM_BOOST_FACTOR);
     assert!(0.0 < HOMING_LOOKAHEAD_M && 0.0 < HOMING_LOCK_RANGE_M && 0.0 < HOMING_RADIUS_M);

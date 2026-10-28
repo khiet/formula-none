@@ -474,6 +474,9 @@ pub struct Standing {
 /// Everything the sim knows about a race. Owns the physics world and the
 /// RNG, so a `State` plus an input sequence replays identically anywhere.
 pub struct State {
+    /// What the race was started from: the item generator's seed, and the
+    /// runaway wheel's landings.
+    seed: u64,
     rng: ChaCha8Rng,
     track: Track,
     /// Human karts first, then bots: `step`'s inputs are the humans', in
@@ -810,6 +813,7 @@ impl State {
         physics.index_colliders();
 
         Self {
+            seed,
             rng,
             item_box_respawn_s: vec![0.0; track.item_boxes().len()],
             hazards: Vec::new(),
@@ -840,7 +844,9 @@ impl State {
     pub fn wheels(&self) -> Vec<Wheel> {
         (0..self.track.wheel_crossings().len())
             .map(|crossing| match self.phase {
-                Phase::Racing { elapsed_s, .. } => wheel(&self.track, crossing, elapsed_s),
+                Phase::Racing { elapsed_s, .. } => {
+                    wheel(&self.track, crossing, self.seed, elapsed_s)
+                }
                 _ => Wheel::Quiet,
             })
             .collect()
@@ -1011,6 +1017,7 @@ impl State {
                 hasher.write_u32(position);
             }
         }
+        hasher.write_u64(self.seed);
         hasher.write(&self.rng.get_seed());
         hasher.write_u64(self.rng.get_stream());
         hasher.write_u128(self.rng.get_word_pos());
@@ -1197,13 +1204,16 @@ pub fn step(mut state: State, inputs: &[KartInput], dt: f32) -> State {
         let readouts = state.kart_readouts();
         let standings = state.standings();
         let clock = state.phase;
+        let seed = state.seed;
         let track = &state.track;
         state
             .karts
             .iter_mut()
             .enumerate()
             .map(|(slot, kart)| match &mut kart.bot {
-                Some(memory) => bot::drive(track, &readouts, &standings, clock, slot, memory, dt),
+                Some(memory) => {
+                    bot::drive(track, &readouts, &standings, clock, seed, slot, memory, dt)
+                }
                 None => inputs[slot],
             })
             .collect()
@@ -1474,7 +1484,8 @@ pub fn step(mut state: State, inputs: &[KartInput], dt: f32) -> State {
     // already spun out, or hit by this pass, is passed by.
     if let Some(elapsed_s) = elapsed_s {
         for crossing in 0..state.track.wheel_crossings().len() {
-            let Wheel::Rolling { pass, position, .. } = wheel(&state.track, crossing, elapsed_s)
+            let Wheel::Rolling { pass, position, .. } =
+                wheel(&state.track, crossing, state.seed, elapsed_s)
             else {
                 continue;
             };

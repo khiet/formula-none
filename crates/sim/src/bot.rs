@@ -4,15 +4,16 @@
 //! just a kart whose input comes from here instead of a device.
 
 use crate::tuning::{
-    BOT_AVOID_HALF_WIDTH_M, BOT_BRAKE_HORIZON_S, BOT_CORNER_SAMPLE_M, BOT_CORNER_SPEED_FRACTION,
-    BOT_DRIFT_CURVATURE_RAD_PER_M, BOT_HAZARD_HOLD_S, BOT_HOP_STEER, BOT_ITEM_USE_DELAY_S,
-    BOT_KERB_GAP_M, BOT_LINE_RIGHT_OF_CENTRE_M, BOT_LOOKAHEAD_M, BOT_PASS_GAP_M, BOT_REVERSE_S,
-    BOT_STALL_S, BOT_STALL_SPEED_M_PER_S, BOT_WHEEL_MARGIN_S, DRIFT_SLIP_ANGLE_RAD,
-    DRIFT_TURN_NEUTRAL, DRIFT_TURN_STEER_RANGE, KART_HALF_LENGTH_M, KART_HALF_WIDTH_M,
-    KERB_HALF_LENGTH_M, KERB_HALF_WIDTH_M, STEER_RATE_LOW_SPEED_RAD_PER_S,
-    STEER_RATE_TOP_SPEED_RAD_PER_S, TOP_SPEED_M_PER_S, WHEEL_PASS_S, WHEEL_RADIUS_M,
+    ACCELERATION_TO_TOP_S, BOT_AVOID_HALF_WIDTH_M, BOT_BRAKE_HORIZON_S, BOT_CORNER_SAMPLE_M,
+    BOT_CORNER_SPEED_FRACTION, BOT_DRIFT_CURVATURE_RAD_PER_M, BOT_HAZARD_HOLD_S, BOT_HOP_STEER,
+    BOT_ITEM_USE_DELAY_S, BOT_KERB_GAP_M, BOT_LINE_RIGHT_OF_CENTRE_M, BOT_LOOKAHEAD_M,
+    BOT_PASS_GAP_M, BOT_REVERSE_S, BOT_STALL_S, BOT_STALL_SPEED_M_PER_S, BOT_WHEEL_MARGIN_S,
+    DRIFT_SLIP_ANGLE_RAD, DRIFT_TURN_NEUTRAL, DRIFT_TURN_STEER_RANGE, KART_HALF_LENGTH_M,
+    KART_HALF_WIDTH_M, KERB_HALF_LENGTH_M, KERB_HALF_WIDTH_M, STEER_RATE_LOW_SPEED_RAD_PER_S,
+    STEER_RATE_TOP_SPEED_RAD_PER_S, TOP_SPEED_M_PER_S, WHEEL_LANDING_SPREAD_M, WHEEL_RADIUS_M,
+    WHEEL_SPEED_M_PER_S,
 };
-use crate::wheel::{pass_not_over, reaches_across_s};
+use crate::wheel::{pass_not_over, pass_start_s, Path};
 use crate::{DriftDirection, Item, KartInput, KartReadout, Phase, Placement, Standing, Track};
 
 /// What a bot carries from one tick to the next: how long it has been
@@ -43,23 +44,30 @@ impl Memory {
 }
 
 /// The input the bot in `slot` gives its kart this tick, from the track,
-/// every kart's readouts and the race clock as of the last tick, updating
-/// what it remembers.
+/// every kart's readouts and the race clock as of the last tick, and the
+/// race's seed, which decides the runaway wheel's path, updating what it
+/// remembers.
+// Each argument is a separate thing any observer of the race can read.
+#[allow(clippy::too_many_arguments)]
 pub fn drive(
     track: &Track,
     karts: &[KartReadout],
     standings: &[Standing],
     clock: Phase,
+    seed: u64,
     slot: usize,
     memory: &mut Memory,
     dt: f32,
 ) -> KartInput {
     let kart = &karts[slot];
+    let progress = standings[slot].spline_progress;
+    let target_speed = corner_speed(sharpest_ahead(track, progress, kart.speed));
     let waiting = match clock {
-        Phase::Racing { elapsed_s, .. } => waits_for_a_wheel(track, kart, elapsed_s),
+        Phase::Racing { elapsed_s, .. } => {
+            waits_for_a_wheel(track, kart, target_speed, seed, elapsed_s, dt)
+        }
         _ => false,
     };
-    let progress = standings[slot].spline_progress;
     // A kerb ahead outranks a pass, whose point may lie on the kerb.
     let kerb_line = line_clear_of_kerbs(track, kart.position);
     let target = match (kerb_line, kart_in_the_way(karts, slot)) {
@@ -125,11 +133,12 @@ pub fn drive(
         }
     };
 
-    let target_speed = corner_speed(sharpest_ahead(track, progress, kart.speed));
     let (throttle, brake) = if kart.speed > target_speed {
         (0.0, 1.0)
     } else if waiting {
-        (0.0, 0.0)
+        // It stops short of the wheel's reach, which coasting would carry
+        // it into.
+        (0.0, 1.0)
     } else {
         (1.0, 0.0)
     };
@@ -199,49 +208,93 @@ fn line_clear_of_kerbs(track: &Track, position: [f32; 3]) -> Option<f32> {
     })
 }
 
-/// Whether the kart must lift for a runaway wheel at `elapsed_s` on the
-/// race clock: it is short of a crossing by no more than it travels in a
-/// pass, and the wheel is due through its lane, the tuned margin either
-/// side, before the kart at its speed would be over the wheel's line and
-/// clear of it. The lane spans from where the kart is across to the bot's
-/// line, which it steers for on the way. Once the wheel has left that lane,
-/// or the kart has reached the line, it drives on.
-fn waits_for_a_wheel(track: &Track, kart: &KartReadout, elapsed_s: f32) -> bool {
+/// Whether the kart must stop for a runaway wheel at `elapsed_s` on the
+/// race clock, in a race from `seed`: it is short of where any pass can
+/// reach it, and the path of the pass under way or next, the tuned margin
+/// either side, meets the kart driven on along its lane, either at its
+/// speed or gaining speed flat out up to `target_speed`, what the bot
+/// drives at for the corners ahead. The path is followed `dt` at a time.
+/// The lane spans from where the kart is across to the bot's line, which
+/// it steers for on the way. Once the kart is within reach of a pass, it
+/// drives on through.
+fn waits_for_a_wheel(
+    track: &Track,
+    kart: &KartReadout,
+    target_speed: f32,
+    seed: u64,
+    elapsed_s: f32,
+    dt: f32,
+) -> bool {
     // Along the track the wheel reaches a kart this far either side of its
-    // line, and across it this far either side of the kart's.
+    // centre, and across it this far either side of its lane.
     let along_reach = KART_HALF_LENGTH_M + WHEEL_RADIUS_M;
     let across_reach = KART_HALF_WIDTH_M + WHEEL_RADIUS_M;
+    let speed = kart.speed.max(0.0);
+    let top_speed = target_speed.max(speed);
+    let flat_out = TOP_SPEED_M_PER_S / ACCELERATION_TO_TOP_S;
+    // How far along the kart is `after_s` from now, gaining `gain` metres
+    // per second each second up to the speed it is held to.
+    let driven = |after_s: f32, gain: f32| {
+        let gaining_s = if gain > 0.0 {
+            ((top_speed - speed) / gain).min(after_s)
+        } else {
+            after_s
+        };
+        speed * gaining_s
+            + gain * gaining_s * gaining_s / 2.0
+            + top_speed.min(speed + gain * gaining_s) * (after_s - gaining_s)
+    };
     track.wheel_crossings().iter().any(|crossing| {
         let line = Placement {
             position: crossing.position,
             yaw: crossing.yaw,
         };
         let (ahead, right) = line.local(kart.position);
-        let short_of = -ahead;
-        // A crawling kart further off would lift for a pass it reaches only
-        // long after, and stop short of the crossing.
-        let in_range = kart.speed * WHEEL_PASS_S;
-        if !(along_reach < short_of && short_of <= along_reach + in_range) {
+        let short_of_reach = -(WHEEL_LANDING_SPREAD_M + along_reach) - ahead;
+        if short_of_reach <= 0.0 {
+            return false;
+        }
+        let pass = pass_not_over(crossing, seed, elapsed_s);
+        let path = Path::new(crossing, seed, pass);
+        let starts_s = pass_start_s(pass);
+        let ends_s = starts_s + path.length_m() / WHEEL_SPEED_M_PER_S;
+        // A kart that cannot reach the wheel before the pass is over has
+        // nothing to stop for.
+        if short_of_reach > driven(ends_s - elapsed_s, flat_out) {
             return false;
         }
         // The bot's line is the centreline's offset; the crossing's centre
         // is on the centreline.
-        let (near, far) = (
-            right.min(BOT_LINE_RIGHT_OF_CENTRE_M),
-            right.max(BOT_LINE_RIGHT_OF_CENTRE_M),
+        let lane = (
+            right.min(BOT_LINE_RIGHT_OF_CENTRE_M) - across_reach,
+            right.max(BOT_LINE_RIGHT_OF_CENTRE_M) + across_reach,
         );
-        let pass = pass_not_over(elapsed_s);
-        let near_s = reaches_across_s(crossing, pass, near - across_reach);
-        let far_s = reaches_across_s(crossing, pass, far + across_reach);
-        let enters_s = near_s.min(far_s) - BOT_WHEEL_MARGIN_S;
-        let leaves_s = near_s.max(far_s) + BOT_WHEEL_MARGIN_S;
-        if elapsed_s >= leaves_s {
-            return false;
-        }
-        let speed = kart.speed.max(f32::EPSILON);
-        let arrives_s = elapsed_s + (short_of - along_reach) / speed;
-        let clears_s = elapsed_s + (short_of + along_reach) / speed;
-        arrives_s < leaves_s && enters_s < clears_s
+        let meets = path.legs().any(|(from, to, into_pass_s, leg_s)| {
+            let leg_starts_s = starts_s + into_pass_s;
+            let rate = [(to[0] - from[0]) / leg_s, (to[1] - from[1]) / leg_s];
+            // The margin widens the wheel's reach by how far it rolls in it.
+            let across_margin = rate[0].abs() * BOT_WHEEL_MARGIN_S;
+            let along_margin = rate[1].abs() * BOT_WHEEL_MARGIN_S;
+            let mut at_s = elapsed_s.max(leg_starts_s);
+            while at_s <= leg_starts_s + leg_s {
+                let into_leg_s = at_s - leg_starts_s;
+                let across = from[0] + rate[0] * into_leg_s;
+                let in_lane = lane.0 - across_margin <= across && across <= lane.1 + across_margin;
+                if in_lane {
+                    let along = from[1] + rate[1] * into_leg_s;
+                    let met = [0.0, flat_out].into_iter().any(|gain| {
+                        let kart_ahead = ahead + driven(at_s - elapsed_s, gain);
+                        (along - kart_ahead).abs() <= along_reach + along_margin
+                    });
+                    if met {
+                        return true;
+                    }
+                }
+                at_s += dt;
+            }
+            false
+        });
+        meets
     })
 }
 

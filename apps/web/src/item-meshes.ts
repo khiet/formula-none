@@ -48,7 +48,7 @@ const RUNAWAY_WHEEL_RIM_SHARE = 0.58;
 const RUNAWAY_WHEEL_SPOKES = 3;
 /** How high the wheel's drawn bounces carry it, and how many it makes a pass. */
 const RUNAWAY_WHEEL_BOUNCE_M = 0.5;
-const RUNAWAY_WHEEL_BOUNCES = 3;
+const RUNAWAY_WHEEL_HOPS_PER_LEG = 2;
 
 /** The marshal's flag: a pole, and the cloth flying from its top. */
 const FLAG_POLE_M = 1.4;
@@ -228,12 +228,15 @@ export function runawayWheelMesh(radius: number): Group {
 }
 
 /**
- * How high the drawn wheel bounces `fraction` of the way through a pass:
- * down at both walls and between each of its three bounces. Drawn only;
- * the sim rolls the wheel along the ground.
+ * How high the drawn wheel hops `legFraction` of the way through a leg of
+ * its pass, wall to wall: down at each wall and between its two hops, so
+ * the hop starts over at each wall it rebounds from. Drawn only; the sim
+ * rolls the wheel along the ground.
  */
-export function runawayWheelBounce(fraction: number): number {
-  return RUNAWAY_WHEEL_BOUNCE_M * Math.abs(Math.sin(fraction * Math.PI * RUNAWAY_WHEEL_BOUNCES));
+export function runawayWheelBounce(legFraction: number): number {
+  return (
+    RUNAWAY_WHEEL_BOUNCE_M * Math.abs(Math.sin(legFraction * Math.PI * RUNAWAY_WHEEL_HOPS_PER_LEG))
+  );
 }
 
 /**

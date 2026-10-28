@@ -46,6 +46,7 @@ const DECISION_SLUGS = [
   "room-scene-on-the-grand-prix-poster",
   "five-light-start",
   "track-obstacles",
+  "runaway-wheel-bounces",
 ];
 
 const expectedFiles = DECISION_SLUGS.map(
