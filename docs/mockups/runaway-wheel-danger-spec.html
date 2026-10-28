@@ -91,11 +91,12 @@
 
 <header>
   <h1>Runaway wheel <span>danger</span> spec</h1>
-  <p class="lede">The runaway wheel and its marshal post read as scenery: a grey wheel on grey asphalt (1.2:1) and a yellow flag over a yellow run-off (1.1:1). This spec records the redesign chosen to make them read as danger: a burning wheel almost three times the size, Oyaji from Purrjump as the marshal, and four tells that show the pass coming. The cycle (7 s period, 1 s warning, 1.6 s pass) and the crossing are unchanged.</p>
+  <p class="lede">The runaway wheel and its marshal post read as scenery: a grey wheel on grey asphalt (1.2:1) and a yellow flag over a yellow run-off (1.1:1). This spec records the redesign chosen to make them read as danger: a burning wheel almost three times the size, Oyaji from Purrjump as the marshal, and four tells that show the pass coming. The wheel no longer vanishes into the far wall: it bounces off the walls twice, landing somewhere new each time, so the approach is dangerous for the whole pass, and the cycle stretches to 10 s to leave a way through.</p>
   <nav>
     <a href="#decisions">Decisions</a>
     <a href="#preview">Chase view</a>
     <a href="#wheel">Hot wheel</a>
+    <a href="#bounce">Bounce</a>
     <a href="#post">Marshal post</a>
     <a href="#telegraph">Telegraph</a>
     <a href="#records">Records to change</a>
@@ -111,25 +112,27 @@
     <tbody>
       <tr><td>Wheel look</td><td>Hot wheel: a red-hot rim, flames off its back, a smoke trail</td><td class="was">The kart's tyre and rim in the kart's greys</td></tr>
       <tr><td>Wheel size</td><td><b>1.2 m</b> radius, 2.4 m across: <code>WHEEL_RADIUS_M</code> 0.45 → 1.2, so the wheel drawn is still the wheel that hits</td><td class="was">0.45 m radius, 0.9 m across</td></tr>
+      <tr><td>Wheel path</td><td>Rolls in at the crossing, <b>bounces twice</b> off the walls, each crossing landing at a random point within ±8 m along the track, then leaves through the far wall. Random from a hash of the race seed and the pass, so still a function of the race clock.</td><td class="was">Straight across, wall to wall, swallowed by the far wall</td></tr>
+      <tr><td>Cycle</td><td><code>WHEEL_PERIOD_S</code> 7 → <b>10 s</b>: 1 s flag, a 4.5 to 5.3 s pass at a constant 15 m/s, 3.7 s or more of quiet</td><td class="was">7 s: 1 s flag, 1.6 s pass, 4.4 s quiet</td></tr>
       <tr><td>Marshal</td><td>Oyaji from Purrjump on the tea break: sits with a cup while quiet, jumps up in a panic when the flag goes up, hops through the pass</td><td class="was">No figure; a flag stood on the box</td></tr>
       <tr><td>Flags</td><td>Two hazard-striped flags, yellow with black diagonals, double-waved</td><td class="was">One plain yellow flag</td></tr>
       <tr><td>Post</td><td>A 1.4 x 1 m platform with an orange band and lamp, and an amber beacon that flashes while the flag is up</td><td class="was">A 1 x 2 m box with an orange lamp</td></tr>
-      <tr><td>Telegraph</td><td>Painted hazard lane, lane flashes red, wheel waits on the wall, dust at each bounce</td><td class="was">The flag alone</td></tr>
+      <tr><td>Telegraph</td><td>Painted hazard zone over the whole bounce area, zone flashes red, wheel waits on the wall, dust at each hop and sparks at each wall hit</td><td class="was">The flag alone</td></tr>
     </tbody>
   </table>
-  <p class="muted" style="margin-top:.75rem">Chosen from two review pages, one for the look, size, post and telegraph and one for the marshal and flag. They were removed once this page recorded the picks; commits 02daf77 and 90cbb9e hold the options that were turned down.</p>
+  <p class="muted" style="margin-top:.75rem">Chosen from two review pages, one for the look, size, post and telegraph and one for the marshal and flag. They were removed once this page recorded the picks; commits 02daf77 and 90cbb9e hold the options that were turned down. The bounce came after, settled in conversation; the review pages show the old straight pass.</p>
 </div>
 
 <h2 id="preview">Chase view</h2>
 <div class="card">
   <div class="controls">
     <button id="play">Pause</button>
-    <label class="inline"><input type="checkbox" id="skip-idle" checked /> Skip the quiet 4.4 s</label>
-    <label class="inline">Crossing <input type="range" id="distance" min="8" max="40" step="1" value="14" /> <span id="distance-out"></span> ahead</label>
+    <label class="inline"><input type="checkbox" id="skip-idle" checked /> Shorten the quiet</label>
+    <label class="inline">Crossing <input type="range" id="distance" min="14" max="40" step="1" value="18" /> <span id="distance-out"></span> ahead</label>
     <div class="timeline" id="timeline" aria-hidden="true"></div>
   </div>
   <div id="chase" class="stage"></div>
-  <p class="muted" style="margin-top:.6rem">A rough chase camera 2.2 m up on the approach to Brands Patch's hairpin two: 12 m of asphalt, 6 m of run-off each side, the post 3 m short of the crossing on the right. Passes alternate sides, 24 m wall to wall in 1.6 s.</p>
+  <p class="muted" style="margin-top:.6rem">A rough chase camera 2.2 m up on the approach to Brands Patch's hairpin two: 12 m of asphalt, 6 m of run-off each side, the post 3 m short of the crossing on the right. The painted zone runs 9.2 m either side of the crossing. Passes alternate sides; each one bounces twice and leaves through the far wall.</p>
 </div>
 
 <section id="wheel" class="card element">
@@ -152,10 +155,38 @@
   </div>
   <h3>Behaviour</h3>
   <ul>
-    <li>Rolls across from wall to wall as today, turning by the ground it covers and bouncing 0.5 m three times a pass. The bounce is drawn only; the sim rolls it on the ground.</li>
-    <li>The flames always point away from the way it rolls, so they flip with each pass's direction.</li>
+    <li>Rolls in, bounces twice off the walls and leaves (<a href="#bounce">Bounce</a>), turning by the ground it covers and hopping 0.5 m twice each crossing, the hop starting over at each wall hit. The hop is drawn only; the sim rolls it on the ground.</li>
+    <li>The flames always point away from the way it rolls, so they flip at each wall hit.</li>
     <li>A kart whose box comes within 1.2 m of its centre spins out, by no one, as today. The bot's avoidance box (<code>bot.rs</code>, reach plus half the kart's length and width) grows with it.</li>
   </ul>
+</section>
+
+<section id="bounce" class="card element">
+  <div class="head"><h2>Bounce</h2><span class="tag sim">Sim</span><span class="tag view">View</span></div>
+  <div class="grid2">
+    <div>
+      <div class="controls" style="margin-bottom:.5rem">
+        <button id="reroll">New seed</button>
+        <span class="muted" id="bounce-out" style="font-size:.85rem"></span>
+      </div>
+      <div id="plan" class="stage"></div>
+      <figcaption>From above, travel up the page. Bold: the pass under way. Faint: the next eleven from the same seed.</figcaption>
+    </div>
+    <div class="table-wrap"><table>
+      <tbody>
+        <tr><th>In</th><td>On the crossing line, from the wall the pass starts at. Passes still alternate walls, odd ones from the left.</td></tr>
+        <tr><th>Path</th><td>Three straight crossings. It rebounds when its tyre meets the wall, its centre 1.2 m off it, and after the second rebound leaves through the far wall as today.</td></tr>
+        <tr><th>Landing</th><td>Each crossing ends at a point drawn uniformly within <b>±8 m</b> of the crossing along the track; the angle follows, up to about 37°. Nothing tells the player where; the wheel's own heading is the read.</td></tr>
+        <tr><th>Speed</th><td class="num">15 m/s throughout, <code>WHEEL_SPEED_M_PER_S</code></td></tr>
+        <tr><th>Pass</th><td class="num">67 to 79 m, so 4.5 to 5.3 s</td></tr>
+        <tr><th>Cycle</th><td class="num"><code>WHEEL_PERIOD_S = 10</code>; flag 1 s; quiet 3.7 s or more</td></tr>
+        <tr><th>Reach</th><td>±9.2 m along the track (spread plus radius), 18.4 m of the 22.4 m approach; never into the chicane or hairpin two</td></tr>
+        <tr><th>Random</th><td>A hash of the race seed, the pass and the bounce, not the sim's shared generator, so the item rolls don't shift. Every client has the seed from the race start, so the server, the prediction and a replay draw the same path: no snapshot field, no protocol change. A replay always shows the same bounces.</td></tr>
+        <tr><th>Karts</th><td>A kart it reaches spins out; the wheel rolls on along its path. Karts never deflect it.</td></tr>
+        <tr><th>Bots</th><td><code>waits_for_a_wheel</code> tests the real path through the kart's line, with <code>BOT_WHEEL_MARGIN_S</code> 0.3 s either side, so bots dodge it as well as they do today.</td></tr>
+      </tbody>
+    </table></div>
+  </div>
 </section>
 
 <section id="post" class="card element">
@@ -217,13 +248,14 @@
   <div class="table-wrap"><table>
     <thead><tr><th>Tell</th><th>Decided</th><th>Where</th></tr></thead>
     <tbody>
-      <tr><td>Painted hazard lane</td><td>Yellow and black chevrons across the crossing from wall to wall, 1 m bands, as deep as the wheel is across: <b>2.4 m</b>, centred on the crossing. Always there, so a player learns the spot by the second lap.</td><td>Paint in the glTF from <code>layout.py</code>; no surface tag, no sim change. Re-export Brands Patch.</td></tr>
-      <tr><td>Lane flashes red</td><td>A red <code>#e8483a</code> wash over the lane, pulsing between 20% and 60% at 14 rad/s, from the flag going up to the end of the pass</td><td>View, keyed on the wheel's kind like the flag</td></tr>
-      <tr><td>Wheel waits on the wall</td><td>Through the 1 s warning the hot wheel sits, burning, on top of the wall it will roll from, rocking ±0.15 rad. It drops to the road as the pass starts.</td><td>View only. The sim has no wheel until the pass, so the waiting wheel sits on the wall top where no kart can reach it, and hits nothing.</td></tr>
-      <tr><td>Dust at each bounce</td><td>Five puffs of run-off dust <code>#d9c08a</code> where it lands, spreading and fading over 0.45 s, three times a pass</td><td>View, reusing the run-off dust</td></tr>
+      <tr><td>Painted hazard zone</td><td>The whole area the wheel can reach, wall to wall and <b>18.4 m</b> deep (±9.2 m of the crossing): a band of yellow and black chevrons 1 m deep across each end, 1 m bands, and a light yellow tint between. Always there, so a player learns the spot by the second lap.</td><td>Paint in the glTF from <code>layout.py</code>; no surface tag, no sim change. Re-export Brands Patch.</td></tr>
+      <tr><td>Zone flashes red</td><td>A red <code>#e8483a</code> wash over the zone, pulsing between 20% and 60% at 14 rad/s, from the flag going up to the end of the pass</td><td>View, keyed on the wheel's kind like the flag</td></tr>
+      <tr><td>Wheel waits on the wall</td><td>Through the 1 s warning the hot wheel sits, burning, on top of the wall it will roll from, on the crossing line, rocking ±0.15 rad. It drops to the road as the pass starts.</td><td>View only. The sim has no wheel until the pass, so the waiting wheel sits on the wall top where no kart can reach it, and hits nothing.</td></tr>
+      <tr><td>Dust at each hop</td><td>Five puffs of run-off dust <code>#d9c08a</code> where it lands, spreading and fading over 0.45 s, at each hop and each wall hit</td><td>View, reusing the run-off dust</td></tr>
+      <tr><td>Sparks at each wall hit</td><td>Eight flame-yellow sparks off the wall where the tyre strikes, flying 1.5 m and fading over 0.3 s</td><td>View, at the bounce times it reads from the path</td></tr>
     </tbody>
   </table></div>
-  <p class="muted settled" style="margin-top:.75rem">The lane's depth is set here: the review page drew it 2 m deep, before the wheel grew to 2.4 m. It now matches the wheel's footprint.</p>
+  <p class="muted settled" style="margin-top:.75rem">The paint is set here: the review page drew a lane 2 m deep, for a wheel that crossed on one line. Bouncing, it can reach anywhere 9.2 m either side, so the paint covers that. The next landing point is not shown, on purpose.</p>
 </section>
 
 <h2 id="records">Records to change</h2>
@@ -231,14 +263,15 @@
   <table>
     <thead><tr><th>Record</th><th>Change</th></tr></thead>
     <tbody>
-      <tr><td>New ADR, superseding ADR 0041 on the wheel</td><td>The reach, the hot wheel, the marshal and his hazard flags, the four tells. ADR 0041 says "a marshal's flag up" and left the size open; a new record says what replaces them.</td></tr>
-      <tr><td><code>docs/GLOSSARY.md</code></td><td><i>runaway wheel</i>: "with a marshal's yellow flag up" becomes the marshal waving hazard flags. A <i>marshal</i> entry if the code names him.</td></tr>
-      <tr><td><code>crates/sim/src/tuning.rs</code></td><td><code>WHEEL_RADIUS_M</code> 0.45 → 1.2; recheck <code>BOT_WHEEL_MARGIN_S</code> against the wider footprint. Regenerate <code>Tuning.ts</code> with <code>pnpm generate:protocol</code>.</td></tr>
-      <tr><td><code>crates/sim/tests/wheel.rs</code>, the eight-bot race</td><td>Tests that place a kart against the reach move with it.</td></tr>
-      <tr><td><code>assets/replays</code></td><td>Re-record the Brands Patch fixtures if a kart in them meets a pass.</td></tr>
-      <tr><td><code>assets/tracks/trackgen/layout.py</code></td><td>The platform's size and band, the painted lane; re-export Brands Patch and commit the glTF and sidecar.</td></tr>
+      <tr><td>New ADR, superseding ADR 0041 on the wheel</td><td>The reach, the bounce and its seeded landings, the 10 s cycle, the hot wheel, the marshal and his hazard flags, the four tells. ADR 0041 says the wheel rolls "from wall to wall" with "a marshal's flag up" and left the size open; a new record says what replaces them, and that the wheel stays a function of the race clock, now with the race seed.</td></tr>
+      <tr><td><code>docs/GLOSSARY.md</code></td><td><i>runaway wheel</i>: "rolls across the track from wall to wall" becomes rolling in, bouncing twice off the walls at random points and rolling out; "with a marshal's yellow flag up" becomes the marshal waving hazard flags. A <i>marshal</i> entry if the code names him.</td></tr>
+      <tr><td><code>crates/sim/src/tuning.rs</code></td><td><code>WHEEL_RADIUS_M</code> 0.45 → 1.2; <code>WHEEL_PERIOD_S</code> 7 → 10; <code>WHEEL_PASS_S</code> goes, since a pass's length now depends on its landings, for <code>WHEEL_SPEED_M_PER_S</code> 15, <code>WHEEL_BOUNCES</code> 2 and <code>WHEEL_LANDING_SPREAD_M</code> 8, with an assertion that the longest pass fits the period. Recheck <code>BOT_WHEEL_MARGIN_S</code> against the wider footprint. Regenerate <code>Tuning.ts</code> with <code>pnpm generate:protocol</code>.</td></tr>
+      <tr><td><code>crates/sim/src/wheel.rs</code>, <code>bot.rs</code></td><td>The pass becomes a path of three crossings from the seeded landings; <code>Rolling</code>'s <code>fraction</code> becomes the share of that path, and its yaw turns at each wall hit. <code>reaches_across_s</code> and <code>pass_not_over</code> follow, and the bot's wait reads the path. The sim needs the race seed where it asks for the wheel.</td></tr>
+      <tr><td><code>crates/sim/tests/wheel.rs</code>, the eight-bot race</td><td>Tests that place a kart against the reach move with it. New tests through <code>step</code>: a pass bounces twice and leaves through the far wall, every landing is within ±8 m, the same seed gives the same path and another seed another, and a kart on a bounce leg spins out.</td></tr>
+      <tr><td><code>assets/replays</code></td><td>Re-record the Brands Patch fixtures: the period and the path change every pass after the first.</td></tr>
+      <tr><td><code>assets/tracks/trackgen/layout.py</code></td><td>The platform's size and band, the painted zone; re-export Brands Patch and commit the glTF and sidecar.</td></tr>
       <tr><td><code>apps/web/src/item-meshes.ts</code>, <code>palette.ts</code>, <code>race-view.ts</code></td><td>The hot wheel's mesh, Oyaji and his flags and beacon, the tells. New palette tokens for the hot tyre, Oyaji's colours and the hazard flag.</td></tr>
-      <tr><td><code>docs/style-guide.html</code></td><td>The <i>Runaway wheel</i> and <i>Marshal post</i> entries, a new <i>Oyaji</i> entry and the painted lane; the repo-checks palette list gains the new tokens.</td></tr>
+      <tr><td><code>docs/style-guide.html</code></td><td>The <i>Runaway wheel</i> and <i>Marshal post</i> entries, a new <i>Oyaji</i> entry and the painted zone; the repo-checks palette list gains the new tokens.</td></tr>
       <tr><td><code>assets/LICENSES.md</code></td><td>Oyaji's design comes from Purrjump; say so.</td></tr>
     </tbody>
   </table>
@@ -246,10 +279,11 @@
 
 <h2 id="slices">Issues</h2>
 <div class="slices">
-  <div class="card slice"><h3>Record it</h3><p>The new ADR and the glossary entry, citing this page.</p></div>
+  <div class="card slice"><h3>Record it</h3><p>The new ADR and the glossary entry, citing this page, the bounce included.</p></div>
   <div class="card slice"><h3>Grow the reach</h3><p><code>WHEEL_RADIUS_M</code> to 1.2 with the bot margin, the tests and the fixtures. The View draws today's wheel at the new size, so the drawn wheel stays the wheel that hits.</p></div>
-  <div class="card slice"><h3>Hot wheel</h3><p>The mesh, the flames and smoke trail, and the dust at each bounce. Style guide entry.</p></div>
-  <div class="card slice"><h3>Paint the crossing</h3><p>The platform and the hazard lane in <code>layout.py</code>, re-exported; the lane flashes red and the wheel waits on the wall in the View.</p></div>
+  <div class="card slice"><h3>Bounce the wheel</h3><p>The seeded path in <code>wheel.rs</code>, the new tuning and the 10 s period, the bot's wait, the tests and the re-recorded fixtures. The View follows the path's position and yaw with today's wheel.</p></div>
+  <div class="card slice"><h3>Hot wheel</h3><p>The mesh, the flames and smoke trail, the dust at each hop and the sparks at each wall hit. Style guide entry.</p></div>
+  <div class="card slice"><h3>Paint the crossing</h3><p>The platform and the hazard zone in <code>layout.py</code>, re-exported; the zone flashes red and the wheel waits on the wall in the View.</p></div>
   <div class="card slice"><h3>Oyaji the marshal</h3><p>Oyaji, his three poses and two faces, the stool and cup, the hazard flags and the beacon, replacing the flag on the post. Style guide entry; LICENSES.md line.</p></div>
 </div>
 
@@ -260,6 +294,7 @@
     <li>The wheel on the course map.</li>
     <li>More wheels or marshals on other corners, and the oval.</li>
     <li>Oyaji anywhere but the marshal post.</li>
+    <li>Karts knocking the wheel off its path, and a wheel that slows or lies on the road.</li>
   </ul>
 </div>
 
@@ -279,10 +314,15 @@ const OYAJI = {
   shorts: "#3060a8", sandals: "#b87050", mouth: "#6a1e22", sweat: "#7fc3ff",
 };
 
-const CYCLE = { period: 7.0, warning: 1.0, pass: 1.6 };
+const CYCLE = { period: 10.0, warning: 1.0 };
 const HALF_CROSSING_M = 12;
 const WHEEL_R = 1.2;
 const DRAWN_BOUNCE_M = 0.5;
+const WHEEL_SPEED = 15;
+const BOUNCES = 2;
+const LANDING_SPREAD_M = 8;
+const ZONE_HALF_M = LANDING_SPREAD_M + WHEEL_R;
+const REBOUND_X = HALF_CROSSING_M - WHEEL_R; // rebounds as its tyre meets the wall
 
 const picks = { marshal: "tea", flag: "hazard" };
 
@@ -549,17 +589,70 @@ function hotWheel(cx, cy, R, rot, t, dir) {
 let t = 0;
 let playing = !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 if (!playing) t = 1.9;
+let seed = 0x5eed;
+
+// Stands in for the sim's hash of the race seed, the pass and the bounce: the same three always land the same place.
+function unit(pass, bounce) {
+  let h = (seed ^ Math.imul(pass, 0x9e3779b1) ^ Math.imul(bounce + 1, 0x85ebca77)) >>> 0;
+  h = Math.imul(h ^ (h >>> 16), 0x7feb352d);
+  h = Math.imul(h ^ (h >>> 15), 0x846ca68b);
+  return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
+}
+
+// Pass `pass` (from 1) as points across (x) and along (z, ahead positive) from the crossing's centre.
+function passPath(pass) {
+  const side = pass % 2 === 1 ? 1 : -1; // odd passes roll from the left wall
+  const pts = [[-side * HALF_CROSSING_M, 0]];
+  for (let b = 0; b <= BOUNCES; b++) {
+    const wall = b % 2 === 0 ? side : -side;
+    pts.push([wall * (b === BOUNCES ? HALF_CROSSING_M : REBOUND_X), (unit(pass, b) * 2 - 1) * LANDING_SPREAD_M]);
+  }
+  const lengths = pts.slice(1).map((q, i) => Math.hypot(q[0] - pts[i][0], q[1] - pts[i][1]));
+  return { pts, lengths, duration: lengths.reduce((a, b) => a + b, 0) / WHEEL_SPEED };
+}
+
+function along(path, time) {
+  let d = Math.max(0, time) * WHEEL_SPEED;
+  const last = path.lengths.length - 1;
+  for (let i = 0; i <= last; i++) {
+    const L = path.lengths[i];
+    if (d <= L || i === last) {
+      const f = Math.min(1, d / L);
+      const [x0, z0] = path.pts[i], [x1, z1] = path.pts[i + 1];
+      return { x: x0 + (x1 - x0) * f, z: z0 + (z1 - z0) * f, segFrac: f, dirx: Math.sign(x1 - x0) };
+    }
+    d -= L;
+  }
+}
+
+// Where the drawn hop lands, twice a crossing, and the wall hits between crossings.
+function landings(path) {
+  const out = [];
+  let start = 0;
+  path.lengths.forEach((L, i) => {
+    const seg = L / WHEEL_SPEED;
+    const mid = along(path, start + seg / 2);
+    out.push({ at: start + seg / 2, x: mid.x, z: mid.z, wall: false });
+    if (i < path.lengths.length - 1) out.push({ at: start + seg, x: path.pts[i + 1][0], z: path.pts[i + 1][1], wall: true });
+    start += seg;
+  });
+  return out;
+}
+
+// Every landing at the far end of its spread, alternating.
+const PASS_MAX_S = (Math.hypot(HALF_CROSSING_M + REBOUND_X, LANDING_SPREAD_M) + Math.hypot(2 * REBOUND_X, 2 * LANDING_SPREAD_M) + Math.hypot(REBOUND_X + HALF_CROSSING_M, 2 * LANDING_SPREAD_M)) / WHEEL_SPEED;
 
 function loopLength() {
-  return document.getElementById("skip-idle").checked ? CYCLE.warning + CYCLE.pass + 1.4 : CYCLE.period;
+  return document.getElementById("skip-idle").checked ? CYCLE.warning + PASS_MAX_S + 1.0 : CYCLE.period;
 }
 function phaseAt(time) {
   const len = loopLength();
   const pass = Math.floor(time / len);
   const u = time - pass * len;
-  if (u < CYCLE.warning) return { kind: "flag", pass, frac: 0, u, len };
-  if (u < CYCLE.warning + CYCLE.pass) return { kind: "rolling", pass, frac: (u - CYCLE.warning) / CYCLE.pass, u, len };
-  return { kind: "quiet", pass, frac: 1, u, len };
+  const path = passPath(pass + 1);
+  const into = u - CYCLE.warning;
+  const kind = u < CYCLE.warning ? "flag" : into < path.duration ? "rolling" : "quiet";
+  return { kind, pass, path, into, u, len };
 }
 
 // ---------- chase view ----------
@@ -578,55 +671,117 @@ function kartBack(cx, gy, s) {
     <circle cx="${f1(cx)}" cy="${f1(gy - 0.95 * s)}" r="${f1(0.3 * s)}" fill="${C.hair}"/>`;
 }
 
+function chevrons(z0, z1) {
+  let out = "";
+  for (let x = -12; x < 12; x += 1) {
+    out += `<polygon points="${ptsOf([project(x, 0, z0), project(x + 1, 0, z0), project(x + 1.6, 0, z1), project(x + 0.6, 0, z1)])}" fill="${(x + 12) % 2 ? C.ink : C.yellow}"/>`;
+  }
+  return out;
+}
+function dust(dx, dy, sc, age) {
+  let out = "";
+  for (let i = -2; i <= 2; i++) {
+    out += `<circle cx="${f1(dx + i * WHEEL_R * sc * 0.6 * (1 + age * 3))}" cy="${f1(dy - WHEEL_R * sc * 0.2 * (1 + age * 2))}" r="${f1(WHEEL_R * sc * (0.3 + age * 1.4))}" fill="${C.dust}" opacity="${(0.7 * (1 - age / 0.45)).toFixed(2)}"/>`;
+  }
+  return out;
+}
+function sparks(x, z, sc, age) {
+  const [cx, cy] = project(x, WHEEL_R * 0.6, z);
+  const away = -Math.sign(x);
+  let out = "";
+  for (let i = 0; i < 8; i++) {
+    const a = (i / 7 - 0.5) * 2.4 + (away < 0 ? Math.PI : 0);
+    const r0 = 1.5 * sc * (age / 0.3), r1 = r0 + 0.35 * sc;
+    out += `<line x1="${f1(cx + Math.cos(a) * r0)}" y1="${f1(cy - Math.sin(a) * r0 * 0.6 - 4)}" x2="${f1(cx + Math.cos(a) * r1)}" y2="${f1(cy - Math.sin(a) * r1 * 0.6 - 4)}" stroke="${C.flame}" stroke-width="${f1(Math.max(1.5, 0.06 * sc))}" stroke-linecap="round" opacity="${(1 - age / 0.3).toFixed(2)}"/>`;
+  }
+  return out;
+}
+
 function renderChase() {
   const D = Number(document.getElementById("distance").value);
   const ph = phaseAt(t);
   const r = WHEEL_R;
   const up = ph.kind !== "quiet";
-  const dir = ph.pass % 2 === 0 ? -1 : 1;
   let s = `<rect width="${VIEW.w}" height="${VIEW.horizon}" fill="${C.sky}"/><rect y="${VIEW.horizon}" width="${VIEW.w}" height="${VIEW.h - VIEW.horizon}" fill="${C.grass}"/>`;
   s += groundQuad(-12, -6, 1, 400, C.sand) + groundQuad(6, 12, 1, 400, C.sand) + groundQuad(-6, 6, 1, 400, C.asphalt);
   s += groundQuad(-6.15, -6, 1, 400, C.line) + groundQuad(6, 6.15, 1, 400, C.line);
   for (const x of [-12, 12]) s += `<polygon points="${ptsOf([project(x, 0, 1), project(x, 0, 400), project(x, 0.8, 400), project(x, 0.8, 1)])}" fill="${C.wall}"/>`;
-  for (let x = -12; x < 12; x += 1) {
-    s += `<polygon points="${ptsOf([project(x, 0, D - WHEEL_R), project(x + 1, 0, D - WHEEL_R), project(x + 1.6, 0, D + WHEEL_R), project(x + 0.6, 0, D + WHEEL_R)])}" fill="${(x + 12) % 2 ? C.ink : C.yellow}"/>`;
-  }
-  if (up) s += groundQuad(-12, 12, D - WHEEL_R, D + WHEEL_R, C.red, `opacity="${(0.2 + 0.4 * (0.5 + 0.5 * Math.sin(t * 14))).toFixed(2)}"`);
+  s += groundQuad(-12, 12, D - ZONE_HALF_M, D + ZONE_HALF_M, C.yellow, `opacity=".14"`);
+  s += chevrons(D - ZONE_HALF_M, D - ZONE_HALF_M + 1) + chevrons(D + ZONE_HALF_M - 1, D + ZONE_HALF_M);
+  if (up) s += groundQuad(-12, 12, D - ZONE_HALF_M, D + ZONE_HALF_M, C.red, `opacity="${(0.2 + 0.4 * (0.5 + 0.5 * Math.sin(t * 14))).toFixed(2)}"`);
+
+  // Drawn far to near, so whatever is nearer the camera covers the rest.
+  const layers = [];
+  const postZ = D - 3;
+  const [px, py] = project(9, 0, postZ);
+  layers.push([postZ, drawPost(picks.marshal, picks.flag, px, py, VIEW.focal / postZ, t, ph.kind)]);
 
   let wheel = null;
   if (ph.kind === "rolling") {
-    const across = 2 * HALF_CROSSING_M * ph.frac;
-    wheel = { x: dir < 0 ? HALF_CROSSING_M - across : -HALF_CROSSING_M + across, y: r + DRAWN_BOUNCE_M * Math.abs(Math.sin(ph.frac * Math.PI * 3)), rot: (dir * across) / r, ground: 0 };
+    const a = along(ph.path, ph.into);
+    wheel = { x: a.x, z: D + a.z, y: r + DRAWN_BOUNCE_M * Math.abs(Math.sin(a.segFrac * Math.PI * 2)), rot: (a.dirx * ph.into * WHEEL_SPEED) / r, ground: 0, dir: a.dirx };
+    for (const l of landings(ph.path)) {
+      const age = ph.into - l.at;
+      const z = D + l.z, sc = VIEW.focal / z;
+      if (age >= 0 && age < 0.45) {
+        const [dx, dy] = project(l.x, 0, z);
+        layers.push([z + 0.01, dust(dx, dy, sc, age)]);
+      }
+      if (l.wall && age >= 0 && age < 0.3) layers.push([z - 0.01, sparks(Math.sign(l.x) * HALF_CROSSING_M, z, sc, age)]);
+    }
   } else if (ph.kind === "flag") {
-    wheel = { x: dir < 0 ? HALF_CROSSING_M : -HALF_CROSSING_M, y: 0.8 + r, rot: Math.sin(t * 9) * 0.15, ground: 0.8 };
+    const [x0] = ph.path.pts[0];
+    wheel = { x: x0, z: D, y: 0.8 + r, rot: Math.sin(t * 9) * 0.15, ground: 0.8, dir: -Math.sign(x0) };
   }
   if (wheel) {
-    const sc = VIEW.focal / D;
-    const [gx, gy] = project(wheel.x, wheel.ground, D);
-    s += `<ellipse cx="${f1(gx)}" cy="${f1(gy)}" rx="${f1(r * sc * 0.8)}" ry="${f1(r * sc * 0.15)}" fill="rgba(0,0,0,.3)"/>`;
-    if (ph.kind === "rolling") {
-      const landing = Math.floor(ph.frac * 3);
-      const age = (ph.frac - landing / 3) * CYCLE.pass;
-      if (age < 0.45) {
-        const across = (2 * HALF_CROSSING_M * landing) / 3;
-        const [dx, dy] = project(dir < 0 ? HALF_CROSSING_M - across : -HALF_CROSSING_M + across, 0, D);
-        for (let i = -2; i <= 2; i++) {
-          s += `<circle cx="${f1(dx + i * r * sc * 0.6 * (1 + age * 3))}" cy="${f1(dy - r * sc * 0.2 * (1 + age * 2))}" r="${f1(r * sc * (0.3 + age * 1.4))}" fill="${C.dust}" opacity="${(0.7 * (1 - age / 0.45)).toFixed(2)}"/>`;
-        }
-      }
-    }
-    const [cx, cy] = project(wheel.x, wheel.y, D);
-    s += hotWheel(cx, cy, r * sc, wheel.rot, t, dir);
+    const sc = VIEW.focal / wheel.z;
+    const [gx, gy] = project(wheel.x, wheel.ground, wheel.z);
+    const [cx, cy] = project(wheel.x, wheel.y, wheel.z);
+    layers.push([wheel.z, `<ellipse cx="${f1(gx)}" cy="${f1(gy)}" rx="${f1(r * sc * 0.8)}" ry="${f1(r * sc * 0.15)}" fill="rgba(0,0,0,.3)"/>${hotWheel(cx, cy, r * sc, wheel.rot, t, wheel.dir)}`]);
   }
+  layers.sort((a, b) => b[0] - a[0]);
+  s += layers.map((l) => l[1]).join("");
 
-  const postZ = D - 3;
-  const [px, py] = project(9, 0, postZ);
-  s += drawPost(picks.marshal, picks.flag, px, py, VIEW.focal / postZ, t, ph.kind);
   const [kx, ky] = project(-1.2, 0, 5);
   s += kartBack(kx, ky, VIEW.focal / 5);
   const label = ph.kind === "flag" ? "Flag up" : ph.kind === "rolling" ? "Rolling" : "Quiet";
   s += `<text x="14" y="${VIEW.h - 14}" font-family="Bungee, Impact, sans-serif" font-size="16" fill="#fff" stroke="#000" stroke-width="3" paint-order="stroke">${label}</text>`;
   document.getElementById("chase").innerHTML = `<svg viewBox="0 0 ${VIEW.w} ${VIEW.h}" role="img" aria-label="Chase view of the crossing and the marshal post">${s}</svg>`;
+}
+
+// ---------- plan of the approach ----------
+
+const PLAN = { w: 360, h: 420, s: 11, z: 17 };
+function renderPlan(ph) {
+  const { w, h, s: k } = PLAN;
+  const X = (x) => w / 2 + x * k, Y = (z) => h / 2 - z * k;
+  const pts = (path) => path.pts.map(([x, z]) => `${f1(X(x))},${f1(Y(z))}`).join(" ");
+  const APPROACH_HALF_M = 11.2;
+  let o = `<rect width="${w}" height="${h}" fill="${C.grass}"/>`;
+  o += `<rect x="${X(-12)}" y="0" width="${24 * k}" height="${h}" fill="${C.sand}"/><rect x="${X(-6)}" y="0" width="${12 * k}" height="${h}" fill="${C.asphalt}"/>`;
+  o += `<rect x="${X(-12)}" y="${f1(Y(ZONE_HALF_M))}" width="${24 * k}" height="${f1(2 * ZONE_HALF_M * k)}" fill="${C.yellow}" opacity=".18"/>`;
+  for (const z0 of [ZONE_HALF_M, -ZONE_HALF_M + 1]) {
+    for (let x = -12; x < 12; x += 1) if ((x + 12) % 2 === 0) o += `<rect x="${f1(X(x))}" y="${f1(Y(z0))}" width="${k}" height="${k}" fill="${C.ink}" opacity=".85"/>`;
+    o += `<rect x="${X(-12)}" y="${f1(Y(z0))}" width="${24 * k}" height="${k}" fill="${C.yellow}" opacity=".5"/>`;
+  }
+  if (ph.kind !== "quiet") o += `<rect x="${X(-12)}" y="${f1(Y(ZONE_HALF_M))}" width="${24 * k}" height="${f1(2 * ZONE_HALF_M * k)}" fill="${C.red}" opacity="${(0.15 + 0.25 * (0.5 + 0.5 * Math.sin(t * 14))).toFixed(2)}"/>`;
+  for (const x of [-12, 12]) o += `<rect x="${f1(X(x) - 3)}" y="0" width="6" height="${h}" fill="${C.wall}"/>`;
+  for (const z of [APPROACH_HALF_M, -APPROACH_HALF_M]) o += `<line x1="0" x2="${w}" y1="${f1(Y(z))}" y2="${f1(Y(z))}" stroke="#fff" stroke-dasharray="4 4" opacity=".7"/>`;
+  const tag = (x, y, text) => `<text x="${x}" y="${y}" font-family="Inter, sans-serif" font-size="10" font-weight="600" fill="#fff" stroke="#000" stroke-width="2.5" paint-order="stroke">${text}</text>`;
+  o += tag(6, f1(Y(APPROACH_HALF_M) - 5), "HAIRPIN TWO AHEAD") + tag(6, f1(Y(-APPROACH_HALF_M) + 14), "CHICANE BEHIND");
+  o += `<line x1="${X(-12)}" x2="${X(12)}" y1="${Y(0)}" y2="${Y(0)}" stroke="#fff" stroke-width="1.5" opacity=".9"/>`;
+  o += `<rect x="${f1(X(9) - 0.7 * k)}" y="${f1(Y(-3) - 0.5 * k)}" width="${1.4 * k}" height="${k}" fill="#fff" stroke="${C.orange}" stroke-width="2"/>`;
+  for (let n = 1; n <= 11; n++) o += `<polyline points="${pts(passPath(ph.pass + 1 + n))}" fill="none" stroke="#fff" stroke-width="1.2" opacity=".28"/>`;
+  o += `<polyline points="${pts(ph.path)}" fill="none" stroke="${C.rocket}" stroke-width="2.5" stroke-dasharray="6 4"/>`;
+  for (const [x, z] of ph.path.pts.slice(1, -1)) o += `<circle cx="${f1(X(x))}" cy="${f1(Y(z))}" r="4" fill="${C.flame}" stroke="#000"/>`;
+  if (ph.kind !== "quiet") {
+    const a = ph.kind === "rolling" ? along(ph.path, ph.into) : { x: ph.path.pts[0][0], z: 0 };
+    o += `<circle cx="${f1(X(a.x))}" cy="${f1(Y(a.z))}" r="${f1(WHEEL_R * k)}" fill="#26262a" stroke="${C.flame}" stroke-width="3"/>`;
+  }
+  o += `<polygon points="${w - 22},${h - 30} ${w - 14},${h - 14} ${w - 30},${h - 14}" fill="#fff" opacity=".8"/>`;
+  document.getElementById("plan").innerHTML = `<svg viewBox="0 0 ${w} ${h}" role="img" aria-label="The approach from above with the wheel's bouncing paths">${o}</svg>`;
+  const landed = ph.path.pts.slice(1).map(([, z]) => (z >= 0 ? "+" : "-") + Math.abs(z).toFixed(1)).join(", ");
+  document.getElementById("bounce-out").textContent = `Seed ${seed.toString(16)}, pass ${ph.pass + 1}: ${ph.path.duration.toFixed(1)} s, landing at ${landed} m`;
 }
 
 const KART_LENGTH = 1.8;
@@ -664,12 +819,9 @@ function renderSprites() {
 
 // ---------- this page ----------
 
-const WHEEL_SPEED = (2 * HALF_CROSSING_M) / CYCLE.pass;
-
 function wheelSide(time) {
   const s = 56, gy = 226, cx = 300, r = WHEEL_R;
-  const f = (time % CYCLE.pass) / CYCLE.pass;
-  const lift = DRAWN_BOUNCE_M * Math.abs(Math.sin(f * Math.PI * 3));
+  const lift = DRAWN_BOUNCE_M * Math.abs(Math.sin((time / 0.75) * Math.PI));
   const rot = (-time * WHEEL_SPEED * 0.25) / r;
   return `<svg viewBox="0 0 440 244" role="img" aria-label="The hot wheel beside a kart">
     <rect width="440" height="244" fill="${C.sky}"/><rect y="${gy}" width="440" height="18" fill="${C.asphalt}"/>
@@ -700,19 +852,28 @@ function renderAnimated() {
   document.getElementById("wheel-side").innerHTML = wheelSide(t);
   document.getElementById("post-live").innerHTML = postStage(t, ph.kind, 480, 250, 54);
   renderChase();
+  renderPlan(ph);
+  if (ph.pass !== timelinePass) buildTimeline(ph);
   const cursor = document.querySelector("#timeline .cursor");
   if (cursor) cursor.style.left = `${(100 * ph.u) / ph.len}%`;
 }
 
-function buildTimeline() {
-  const len = loopLength(), quiet = len - CYCLE.warning - CYCLE.pass;
+let timelinePass = -1;
+function buildTimeline(ph) {
+  timelinePass = ph.pass;
+  const len = ph.len, pass = ph.path.duration, quiet = len - CYCLE.warning - pass;
   document.getElementById("timeline").innerHTML = `
     <div class="t-flag" style="width:${(100 * CYCLE.warning) / len}%">Flag 1 s</div>
-    <div class="t-roll" style="width:${(100 * CYCLE.pass) / len}%">Pass 1.6 s</div>
+    <div class="t-roll" style="width:${(100 * pass) / len}%">Pass ${pass.toFixed(1)} s</div>
     <div class="t-quiet" style="width:${(100 * quiet) / len}%">Quiet</div><div class="cursor"></div>`;
 }
 
-document.getElementById("skip-idle").addEventListener("change", () => { buildTimeline(); renderAnimated(); });
+document.getElementById("skip-idle").addEventListener("change", () => { timelinePass = -1; renderAnimated(); });
+document.getElementById("reroll").addEventListener("click", () => {
+  seed = (Math.random() * 0x1000000) >>> 0;
+  timelinePass = -1;
+  renderAnimated();
+});
 document.getElementById("distance").addEventListener("input", (e) => {
   document.getElementById("distance-out").textContent = `${e.target.value} m`;
   renderChase();
@@ -725,7 +886,6 @@ document.getElementById("play").addEventListener("click", (e) => {
 document.getElementById("distance-out").textContent = `${document.getElementById("distance").value} m`;
 document.getElementById("play").textContent = playing ? "Pause" : "Play";
 renderSprites();
-buildTimeline();
 renderStills();
 renderAnimated();
 
