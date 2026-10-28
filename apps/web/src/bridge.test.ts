@@ -109,7 +109,7 @@ describe("bridge wrapper", () => {
     expect(bridge.kartSize.width).toBeCloseTo(1.2);
     expect(bridge.kartSize.height).toBeCloseTo(0.6);
     expect(bridge.kartSize.length).toBeCloseTo(1.8);
-    expect(bridge.runawayWheelRadiusMetres).toBeCloseTo(0.45);
+    expect(bridge.runawayWheelRadiusMetres).toBeCloseTo(1.2);
   });
 
   it("steps each kart by its own input and reports transforms in grid order", async () => {

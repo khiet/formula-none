@@ -322,6 +322,62 @@ fn a_kart_parked_on_a_bounce_leg_off_the_crossings_line_spins_out_as_the_wheel_r
     assert!(state.kart_readouts()[0].spin_out_s.is_some());
 }
 
+/// The least distance, seen from above, between the box of a kart centred
+/// at `centre` facing along the track and `legs`, in metres.
+fn box_to_path_m(centre: [f32; 2], legs: &[Leg]) -> f32 {
+    let mut least = f32::INFINITY;
+    for leg in legs {
+        for step in 0..=1000 {
+            let [right, ahead] = leg.at(step as f32 / 1000.0);
+            let across = ((right - centre[0]).abs() - KART_HALF_WIDTH_M).max(0.0);
+            let along = ((ahead - centre[1]).abs() - KART_HALF_LENGTH_M).max(0.0);
+            least = least.min(across.hypot(along));
+        }
+    }
+    least
+}
+
+/// The wheel's spin-outs through pass 1 of a kart parked in the middle of
+/// the track, ahead of the whole pass, with its box `gap` metres from the
+/// nearest point of the path.
+fn hits_parked_ahead_of_the_path(gap: f32) -> Vec<f32> {
+    let legs = legs_of(SEED, 1);
+    // Ahead of the path the gap only grows the further on, so halving finds it.
+    let (mut near, mut far) = (
+        legs.iter()
+            .map(|leg| leg.from[1].max(leg.to[1]))
+            .fold(0.0, f32::max),
+        WHEEL_LANDING_SPREAD_M + KART_HALF_LENGTH_M + 2.0 * gap,
+    );
+    for _ in 0..40 {
+        let ahead = (near + far) / 2.0;
+        if box_to_path_m([0.0, ahead], &legs) < gap {
+            near = ahead;
+        } else {
+            far = ahead;
+        }
+    }
+    let state = parked_at(on_crossing(far, 0.0));
+    let parked = local(state.kart_readouts()[0].position);
+    assert!(
+        (box_to_path_m(parked, &legs) - gap).abs() < 0.01,
+        "{parked:?}"
+    );
+    wheel_hits_over(state, pass_start_s(2) - WHEEL_WARNING_S)
+}
+
+#[test]
+fn a_kart_parked_with_its_box_1_1_m_from_the_wheels_path_spins_out_as_the_wheel_passes() {
+    let hits = hits_parked_ahead_of_the_path(1.1);
+    assert_eq!(hits.len(), 1, "{hits:?}");
+    assert!(pass_start_s(1) <= hits[0], "{hits:?}");
+}
+
+#[test]
+fn a_kart_parked_with_its_box_1_3_m_from_the_wheels_path_is_never_hit() {
+    assert_eq!(hits_parked_ahead_of_the_path(1.3), Vec::<f32>::new());
+}
+
 #[test]
 fn a_kart_parked_beyond_the_wheels_reach_is_never_hit_through_three_passes() {
     let clear = WHEEL_LANDING_SPREAD_M + WHEEL_RADIUS_M + KART_HALF_LENGTH_M + 0.2;

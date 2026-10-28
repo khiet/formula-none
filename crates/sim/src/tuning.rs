@@ -194,8 +194,10 @@ pub const WHEEL_SPEED_M_PER_S: f32 = 15.0;
 pub const WHEEL_BOUNCES: u32 = 2;
 pub const WHEEL_LANDING_SPREAD_M: f32 = 8.0;
 /// A kart whose collision box comes within this much of the wheel's centre,
-/// seen from above, is reached by it, as by a hazard.
-pub const WHEEL_RADIUS_M: f32 = 0.45;
+/// seen from above, is reached by it, as by a hazard. The View draws the
+/// wheel this size, so the wheel seen is the wheel that hits; 2.4 m across
+/// reads as a danger from the chase camera (ADR 0044).
+pub const WHEEL_RADIUS_M: f32 = 1.2;
 
 // Rocket start (GLOSSARY). What the throttle hold ending at Go earns is
 // read from the hold's length; a release before Go resets it. The edges

@@ -48,6 +48,7 @@ const DECISION_SLUGS = [
   "track-obstacles",
   "runaway-wheel-bounces",
   "bots-set-off-for-the-wheel",
+  "runaway-wheel-size",
 ];
 
 const expectedFiles = DECISION_SLUGS.map(
