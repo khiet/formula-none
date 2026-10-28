@@ -1,0 +1,734 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Runaway Wheel and Marshal Post</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Bungee&family=Inter:wght@400;600&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #121316;
+    --card: #1b1d21;
+    --fg: #e8e8ea;
+    --muted: #8a8d94;
+    --rule: #2a2c31;
+    --code-bg: #24272c;
+    /* palette.ts */
+    --poster-red: #c81d25;
+    --go-green: #3ddc84;
+    --gold: #ffd23f;
+    --signal-yellow: #f5c542;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--fg); font: 15px/1.55 Inter, system-ui, sans-serif; }
+  body { padding: 2rem 16px 4rem; }
+  .wrap { max-width: 1100px; margin: 0 auto; }
+  h1 { font: 1.9rem/1.1 Bungee, Impact, sans-serif; margin: 0 0 .5rem; letter-spacing: .02em; }
+  h1 span { color: var(--poster-red); }
+  h2 { font: 1.2rem/1.2 Bungee, Impact, sans-serif; margin: 2.5rem 0 .5rem; }
+  h3 { font: 600 1rem/1.3 Inter, sans-serif; margin: 0; }
+  p { margin: .4rem 0; }
+  .lede { color: var(--muted); max-width: 75ch; }
+  .muted { color: var(--muted); }
+  nav { display: flex; flex-wrap: wrap; gap: .4rem; margin: 1.25rem 0 0; }
+  nav a { color: var(--fg); text-decoration: none; font-size: .85rem; border: 1px solid var(--rule); border-radius: 999px; padding: .25rem .7rem; }
+  nav a:hover { border-color: var(--muted); }
+  code { font: .85em ui-monospace, SFMono-Regular, Menlo, monospace; background: var(--code-bg); padding: .05rem .3rem; border-radius: 3px; }
+  svg { display: block; width: 100%; height: auto; }
+  ul { padding-left: 1.2rem; margin: .4rem 0; }
+  li { margin: .3rem 0; }
+  .card { background: var(--card); border: 1px solid var(--rule); border-radius: 10px; padding: 1rem 1.15rem; }
+  .grid { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); align-items: stretch; }
+  .grid.sizes { grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr)); }
+
+  .bar { position: sticky; top: 0; z-index: 5; display: flex; flex-wrap: wrap; align-items: center; gap: .75rem 1rem;
+         background: rgba(18, 19, 22, .94); backdrop-filter: blur(6px); border-bottom: 1px solid var(--rule); padding: .6rem 0; margin-top: 1.5rem; }
+  button { font: 600 .85rem Inter, sans-serif; color: var(--fg); background: var(--code-bg); border: 1px solid var(--rule); border-radius: 6px; padding: .35rem .8rem; cursor: pointer; }
+  button:hover { border-color: var(--muted); }
+  button[aria-pressed="true"] { background: var(--fg); color: #111; }
+  .seg { display: inline-flex; border: 1px solid var(--rule); border-radius: 6px; overflow: hidden; }
+  .seg button { border: 0; border-radius: 0; }
+  .timeline { flex: 1 1 220px; position: relative; display: flex; height: 22px; border-radius: 4px; overflow: hidden; font: 600 .68rem/22px Inter, sans-serif; text-transform: uppercase; letter-spacing: .06em; }
+  .timeline div { text-align: center; white-space: nowrap; overflow: hidden; }
+  .timeline .t-flag { background: var(--signal-yellow); color: #111; }
+  .timeline .t-roll { background: var(--poster-red); }
+  .timeline .t-quiet { background: var(--code-bg); color: var(--muted); }
+  .timeline .cursor { position: absolute; top: 0; bottom: 0; width: 2px; background: #fff; box-shadow: 0 0 0 1px #000; }
+  .phase { font-variant-numeric: tabular-nums; min-width: 9.5rem; color: var(--muted); font-size: .85rem; }
+  label.inline { display: inline-flex; gap: .35rem; align-items: center; font-size: .85rem; color: var(--muted); cursor: pointer; }
+
+  .option { position: relative; display: flex; flex-direction: column; gap: .55rem; cursor: pointer; transition: border-color .15s; }
+  .option:hover { border-color: var(--muted); }
+  .option:has(input:checked) { border-color: var(--gold); box-shadow: 0 0 0 1px var(--gold); }
+  .option input { position: absolute; top: 1rem; right: 1rem; accent-color: var(--gold); width: 1.05rem; height: 1.05rem; }
+  .option .stage { border-radius: 8px; overflow: hidden; background: #000; }
+  .option .head { display: flex; align-items: baseline; gap: .5rem; flex-wrap: wrap; padding-right: 1.6rem; }
+  .option p { font-size: .9rem; }
+  .tag { font: 600 .66rem/1 Inter, sans-serif; text-transform: uppercase; letter-spacing: .08em; padding: .28rem .45rem; border-radius: 4px; border: 1px solid var(--rule); color: var(--muted); }
+  .tag.rec { color: #111; background: var(--go-green); border-color: var(--go-green); }
+  .tag.today { color: var(--fg); }
+  .changes { font-size: .82rem; color: var(--muted); border-top: 1px solid var(--rule); padding-top: .5rem; margin-top: auto; }
+  .changes b { color: var(--fg); font-weight: 600; }
+  .nums { display: grid; grid-template-columns: auto auto; gap: .1rem .75rem; font-size: .82rem; margin: 0; }
+  .nums dt { color: var(--muted); }
+  .nums dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; }
+
+  .chase-wrap { display: grid; gap: .75rem; }
+  .chase-controls { display: flex; flex-wrap: wrap; gap: .75rem 1.25rem; align-items: center; }
+  .chase-controls input[type="range"] { width: 180px; accent-color: var(--gold); }
+  #chase { border-radius: 8px; overflow: hidden; }
+
+  .tele { display: grid; gap: .75rem; grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); }
+  .tele label { display: grid; grid-template-columns: auto 1fr; gap: .2rem .6rem; align-items: start; cursor: pointer; }
+  .tele label:has(input:checked) { border-color: var(--gold); }
+  .tele input { margin-top: .2rem; accent-color: var(--gold); }
+  .tele .changes { grid-column: 2; }
+
+  pre { background: var(--code-bg); border-radius: 8px; padding: .8rem 1rem; white-space: pre-wrap; font: .85rem/1.5 ui-monospace, Menlo, monospace; margin: .5rem 0; }
+  .why li b { color: var(--fg); }
+  .swatch { display: inline-block; width: .8rem; height: .8rem; border-radius: 2px; vertical-align: -.1rem; border: 1px solid rgba(255,255,255,.2); }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <radialGradient id="hotRim"><stop offset="0" stop-color="#fff3b0"/><stop offset=".45" stop-color="#ffd23f"/><stop offset="1" stop-color="#d00a12"/></radialGradient>
+    <radialGradient id="glow"><stop offset="0" stop-color="#ffcf4a" stop-opacity=".9"/><stop offset="1" stop-color="#ffcf4a" stop-opacity="0"/></radialGradient>
+    <radialGradient id="heat"><stop offset=".6" stop-color="#ff8800" stop-opacity=".45"/><stop offset="1" stop-color="#ff8800" stop-opacity="0"/></radialGradient>
+  </defs>
+</svg>
+<div class="wrap">
+
+<header>
+  <h1>Runaway wheel <span>and</span> marshal post</h1>
+  <p class="lede">Today both read as scenery: a grey wheel on grey asphalt and a yellow flag over a yellow run-off. Below are four looks for each, five sizes for the wheel, and four ways to telegraph a pass. Pick one of each; the chase view at the top shows your picks together, and the summary at the bottom is ready to paste into an issue.</p>
+  <nav>
+    <a href="#why">Why it is subtle</a>
+    <a href="#preview">Chase view</a>
+    <a href="#wheel">Wheel look</a>
+    <a href="#size">Wheel size</a>
+    <a href="#post">Marshal post</a>
+    <a href="#telegraph">Telegraph</a>
+    <a href="#picks">Your picks</a>
+  </nav>
+</header>
+
+<section id="why">
+  <h2>Why it is subtle</h2>
+  <div class="card why"><ul id="why-list"></ul></div>
+</section>
+
+<div class="bar" role="group" aria-label="Wheel cycle">
+  <button id="play" aria-pressed="true">Pause</button>
+  <label class="inline"><input type="checkbox" id="skip-idle" checked /> Skip the quiet 4.4 s</label>
+  <div class="timeline" id="timeline" aria-hidden="true"></div>
+  <span class="phase" id="phase"></span>
+</div>
+
+<section id="preview">
+  <h2>Chase view</h2>
+  <p class="muted">A rough chase camera 2.2 m up on the approach to Brands Patch's hairpin two: 12 m of asphalt, 6 m of run-off each side, the post 3 m short of the crossing on the right. Passes alternate sides, 24 m wall to wall in 1.6 s, as the sim rolls them.</p>
+  <div class="card chase-wrap">
+    <div class="chase-controls">
+      <div class="seg" role="group" aria-label="Show">
+        <button id="show-picks" aria-pressed="true">Your picks</button>
+        <button id="show-today" aria-pressed="false">Today</button>
+      </div>
+      <label class="inline">Crossing <input type="range" id="distance" min="8" max="40" step="1" value="16" /> <span id="distance-out"></span> ahead</label>
+    </div>
+    <div id="chase"></div>
+  </div>
+</section>
+
+<section id="wheel">
+  <h2>Wheel look</h2>
+  <p class="muted">Each drawn at your picked size beside a kart at the same scale, at a quarter of its real spin so the face reads. All four are mesh and View changes only.</p>
+  <div class="grid" id="wheel-options"></div>
+</section>
+
+<section id="size">
+  <h2>Wheel size</h2>
+  <p class="muted">The size is the sim's reach, <code>WHEEL_RADIUS_M</code>: a kart spins out when its box comes within it of the wheel's centre, and the View draws the wheel that size so the wheel you see is the wheel that hits. Growing it is a rules change: the tuning constant, the generated <code>Tuning.ts</code>, the replay fixtures if one meets a pass, and the bots' margin.</p>
+  <div class="grid sizes" id="size-options"></div>
+</section>
+
+<section id="post">
+  <h2>Marshal post</h2>
+  <p class="muted">Each runs on the cycle in the bar above: up from a second before the pass to its end, down while quiet. All four are scenery and View changes; none touches the sim.</p>
+  <div class="grid" id="post-options"></div>
+</section>
+
+<section id="telegraph">
+  <h2>Telegraph</h2>
+  <p class="muted">Danger also comes from seeing it coming. Any mix of these goes with any look; they show in the chase view.</p>
+  <div class="tele" id="tele-options"></div>
+</section>
+
+<section id="picks">
+  <h2>Your picks</h2>
+  <div class="card">
+    <pre id="summary"></pre>
+    <button id="copy">Copy</button> <span class="muted" id="copied"></span>
+    <p class="muted" style="margin-top:.75rem">Not on this page: sound (ADR 0041 leaves the obstacles silent) and the wheel on the course map. Replacing the flag or growing the reach changes what ADR 0041 and the glossary say, so the pick lands with a new ADR.</p>
+  </div>
+</section>
+
+</div>
+<script>
+// Palette, from apps/web/src/palette.ts and the track's glTF.
+const C = {
+  tyre: "#5d5d61", rim: "#84868b", asphalt: "#6b6b78", sand: "#e8c773", sky: "#87ceeb", grass: "#3f7a3a",
+  wall: "#f0f0f0", line: "#f5f5f5", white: "#f5f5f5", ink: "#1f1f22", strap: "#3a3d42",
+  yellow: "#f5c542", yellowLit: "#f9da7e", yellowShade: "#b08a22",
+  red: "#e8483a", redShade: "#a8261b", rocket: "#d00a12", flame: "#ffd23f", orange: "#ff8800", orangeShade: "#c45f00",
+  livery: "#c81d25", skin: "#f1c27d", hair: "#3a2a1e", smoke: "#8a8d94", dust: "#d9c08a",
+};
+
+// The wheel's cycle, from crates/sim/src/tuning.rs.
+const CYCLE = { period: 7.0, warning: 1.0, pass: 1.6 };
+const HALF_CROSSING_M = 12; // wall to wall: asphalt 6 m plus run-off 6 m each side
+const PASS_SPEED = (2 * HALF_CROSSING_M) / CYCLE.pass; // 15 m/s
+const DRAWN_BOUNCE_M = 0.5;
+const KART = { length: 1.8, width: 1.2, height: 0.6 };
+const TODAY = { wheel: "current", size: 0.45, post: "current", tele: [] };
+
+const WHEELS = [
+  { id: "current", name: "A. Today", today: true,
+    pitch: "The kart's octagon tyre and three-spoke rim grown to the reach, in the kart's own greys. It looks like a part off a kart, not a threat.",
+    changes: "Nothing." },
+  { id: "hazard", name: "B. Hazard band", rec: true,
+    pitch: "A near-black tyre with yellow and black chevrons round the sidewall, a signal-red rim and white spokes. Black and yellow is the keep-clear every player already knows, and the white spokes show the spin at a glance.",
+    changes: "<b>Mesh and palette.</b> <code>runawayWheelMesh</code> takes the chevrons as facets of the sidewall; the yellow and red are the existing signal tones." },
+  { id: "hot", name: "C. Hot wheel",
+    pitch: "A wheel off a car that caught fire: a red-hot rim, flames licking off its back and a smoke trail. The smoke hangs where it has been, so the trail also shows where it is going.",
+    changes: "<b>Mesh plus a View trail.</b> Flame and smoke puffs emitted behind it, reusing the View's dust; the most per-frame work of the four." },
+  { id: "angry", name: "D. Angry wheel",
+    pitch: "A character, like the gull and the snail: a red face plate with glaring eyes and gritted teeth that stays upright while the tyre turns round it. The only look that gives the hazard a personality.",
+    changes: "<b>Mesh with a hub that does not spin.</b> The View turns the tyre and leaves the face; the eyes look the way it rolls." },
+];
+
+const SIZES = [
+  { r: 0.45, today: true, note: "Below a driver's head; lost behind a kart in traffic." },
+  { r: 0.6, note: "Shoulder height to a driver. Easier to spot, still a wheel." },
+  { r: 0.75, rec: true, note: "Rises over a kart, so it reads over a pack; still clearly a wheel and still dodgeable." },
+  { r: 0.9, note: "As tall as a kart is long. A tractor tyre." },
+  { r: 1.2, note: "A boulder. Hard to miss and hard to dodge; a quarter of the road at once." },
+];
+
+const POSTS = [
+  { id: "current", name: "A. Today", today: true,
+    pitch: "A white 1 x 2 m box with an orange lamp; a 0.9 x 0.6 m yellow flag on a 1.4 m pole, waved from a second before the pass. Yellow over a yellow run-off, at the height of the karts' heads.",
+    changes: "Nothing." },
+  { id: "panel", name: "B. Light panel",
+    pitch: "The marshal light panel modern circuits use: a 1.4 x 1 m panel on a 3.4 m mast, flashing yellow with a black warning sign. Lit, so it reads against sand and sky alike, and it is dark when quiet.",
+    changes: "<b>glTF plus View.</b> Mast and housing in <code>layout.py marshal_posts</code>; the View lights the face by the wheel's kind as it shows the flag today. Replaces the flag." },
+  { id: "marshal", name: "C. Marshal",
+    pitch: "A chibi marshal in orange overalls on the post, double-waving two yellow flags: in racing that means great danger, be ready to stop. An amber beacon flashes beside them.",
+    changes: "<b>View.</b> Figure, flags and beacon built in code like the flag today; the box stays in the glTF. A second character to keep on style." },
+  { id: "tower", name: "D. Beacon tower", rec: true,
+    pitch: "A 4.6 m hazard-striped mast over the post with a flashing amber beacon and a 1.6 x 1.1 m flag. It stands over the karts, so the back of an eight-kart pack still sees it, and the beacon reads against the sky.",
+    changes: "<b>glTF plus View.</b> Mast in <code>layout.py marshal_posts</code>; beacon and the bigger flag built in code. The flag still means the same thing." },
+];
+
+const TELEGRAPHS = [
+  { id: "lane", name: "Painted hazard lane", rec: true,
+    desc: "Yellow and black chevrons 2 m deep across the crossing, wall to wall. Always there, so a player learns the spot by lap two.",
+    changes: "Paint in the glTF from <code>layout.py</code>; re-export Brands Patch. No surface tag, no sim change." },
+  { id: "flash", name: "Lane flashes red", rec: true,
+    desc: "The crossing pulses red from the flag going up to the end of the pass.",
+    changes: "View only, keyed on the wheel's kind like the flag." },
+  { id: "wait", name: "Wheel waits on the wall", rec: true,
+    desc: "Through the warning the wheel teeters on top of the wall it will come from, so the player sees what is coming and from which side.",
+    changes: "View only. The sim has no wheel until the pass starts, so the waiting wheel must sit on the wall where no kart can touch it." },
+  { id: "dust", name: "Dust at each bounce",
+    desc: "A puff where it lands, three times a pass, so the eye follows the bounces.",
+    changes: "View only; reuses the run-off dust." },
+];
+
+const picks = { wheel: "hazard", size: 0.75, post: "tower", tele: new Set(["lane", "flash", "wait"]) };
+let showToday = false;
+
+// ---------- small helpers ----------
+
+const f1 = (n) => n.toFixed(1);
+const deg = (rad) => (rad * 180) / Math.PI;
+
+function ngon(cx, cy, r, n, phase = Math.PI / n) {
+  return Array.from({ length: n }, (_, k) => {
+    const a = phase + (2 * Math.PI * k) / n;
+    return `${f1(cx + r * Math.cos(a))},${f1(cy + r * Math.sin(a))}`;
+  }).join(" ");
+}
+
+function spokes(cx, cy, length, count, colour, width) {
+  return Array.from({ length: count }, (_, k) => {
+    const a = (2 * Math.PI * k) / count - Math.PI / 2;
+    return `<line x1="${f1(cx)}" y1="${f1(cy)}" x2="${f1(cx + length * Math.cos(a))}" y2="${f1(cy + length * Math.sin(a))}" stroke="${colour}" stroke-width="${f1(width)}" stroke-linecap="round"/>`;
+  }).join("");
+}
+
+function luminance(hex) {
+  const n = parseInt(hex.slice(1), 16);
+  const [r, g, b] = [16, 8, 0].map((shift) => {
+    const c = ((n >> shift) & 255) / 255;
+    return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+  });
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+function contrast(a, b) {
+  const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x);
+  return (hi + 0.05) / (lo + 0.05);
+}
+
+// ---------- the wheel ----------
+
+// Face-on, centred on (cx, cy), radius R px, turned by `rot` radians; `dir` is the way it rolls in x.
+function drawWheel(design, cx, cy, R, rot, t, dir) {
+  const turn = `transform="rotate(${f1(deg(rot))} ${f1(cx)} ${f1(cy)})"`;
+  if (design === "current") {
+    return `<g ${turn}><polygon points="${ngon(cx, cy, R, 8)}" fill="${C.tyre}"/>
+      <polygon points="${ngon(cx, cy, R * 0.58, 8)}" fill="${C.rim}"/>${spokes(cx, cy, R * 0.9, 3, C.rim, Math.max(1, R * 0.14))}</g>`;
+  }
+  if (design === "hazard") {
+    const n = 16;
+    let band = "";
+    for (let k = 0; k < n; k++) {
+      const a0 = (2 * Math.PI * k) / n, a1 = (2 * Math.PI * (k + 1)) / n, skew = Math.PI / n;
+      const pt = (r, a) => `${f1(cx + r * Math.cos(a))},${f1(cy + r * Math.sin(a))}`;
+      band += `<polygon points="${pt(R, a0)} ${pt(R, a1)} ${pt(R * 0.72, a1 + skew)} ${pt(R * 0.72, a0 + skew)}" fill="${k % 2 ? C.ink : C.yellow}"/>`;
+    }
+    return `<g ${turn}><circle cx="${cx}" cy="${cy}" r="${f1(R)}" fill="${C.ink}"/>${band}
+      <polygon points="${ngon(cx, cy, R * 0.72, 8)}" fill="${C.ink}"/>
+      <polygon points="${ngon(cx, cy, R * 0.54, 8)}" fill="${C.red}"/>${spokes(cx, cy, R * 0.66, 3, C.white, Math.max(1.2, R * 0.13))}
+      <circle cx="${cx}" cy="${cy}" r="${f1(R * 0.12)}" fill="${C.ink}"/></g>`;
+  }
+  if (design === "hot") {
+    let trail = "";
+    for (let i = 4; i >= 1; i--) {
+      const px = cx - dir * R * (0.5 + i * 0.6), py = cy - R * (0.25 + i * 0.18) + Math.sin(t * 3 + i) * R * 0.06;
+      trail += `<circle cx="${f1(px)}" cy="${f1(py)}" r="${f1(R * (0.32 + 0.14 * i))}" fill="${C.smoke}" opacity="${(0.55 - i * 0.1).toFixed(2)}"/>`;
+    }
+    let flames = "";
+    for (let j = 0; j < 3; j++) {
+      const back = dir < 0 ? 0 : Math.PI; // the side it trails from
+      const a = back + (j - 1) * 0.6;
+      const len = R * (0.75 + 0.3 * Math.sin(t * 23 + j * 2.1));
+      const bx = cx + R * 0.9 * Math.cos(a), by = cy + R * 0.9 * Math.sin(a);
+      const tipX = bx - dir * len, tipY = by - R * 0.35;
+      const w = R * 0.32;
+      const outer = `${f1(bx)},${f1(by - w)} ${f1(tipX)},${f1(tipY)} ${f1(bx)},${f1(by + w)}`;
+      const inner = `${f1(bx)},${f1(by - w * 0.5)} ${f1(bx - dir * len * 0.6)},${f1(by - R * 0.2)} ${f1(bx)},${f1(by + w * 0.5)}`;
+      flames += `<polygon points="${outer}" fill="${C.orange}"/><polygon points="${inner}" fill="${C.flame}"/>`;
+    }
+    return `${trail}<circle cx="${cx}" cy="${cy}" r="${f1(R * 1.35)}" fill="url(#heat)"/>${flames}
+      <g ${turn}><polygon points="${ngon(cx, cy, R, 8)}" fill="#26262a"/>
+      <polygon points="${ngon(cx, cy, R * 0.6, 8)}" fill="url(#hotRim)"/>${spokes(cx, cy, R * 0.62, 3, C.strap, Math.max(1, R * 0.11))}
+      <circle cx="${cx}" cy="${cy}" r="${f1(R * 0.13)}" fill="${C.flame}"/></g>`;
+  }
+  // angry: the tyre turns, the face does not.
+  let notches = "";
+  for (let k = 0; k < 8; k++) {
+    const a = (2 * Math.PI * k) / 8;
+    notches += `<line x1="${f1(cx + R * 0.8 * Math.cos(a))}" y1="${f1(cy + R * 0.8 * Math.sin(a))}" x2="${f1(cx + R * 0.96 * Math.cos(a))}" y2="${f1(cy + R * 0.96 * Math.sin(a))}" stroke="${C.yellow}" stroke-width="${f1(Math.max(1, R * 0.12))}"/>`;
+  }
+  const look = dir * R * 0.05;
+  const eye = (side) => {
+    const ex = cx + side * R * 0.25, ey = cy - R * 0.08;
+    return `<ellipse cx="${f1(ex)}" cy="${f1(ey)}" rx="${f1(R * 0.17)}" ry="${f1(R * 0.14)}" fill="${C.white}"/>
+      <circle cx="${f1(ex + look)}" cy="${f1(ey + R * 0.02)}" r="${f1(R * 0.08)}" fill="${C.rocket}"/>
+      <circle cx="${f1(ex + look)}" cy="${f1(ey + R * 0.02)}" r="${f1(R * 0.035)}" fill="${C.ink}"/>
+      <line x1="${f1(cx + side * R * 0.47)}" y1="${f1(cy - R * 0.36)}" x2="${f1(cx + side * R * 0.07)}" y2="${f1(cy - R * 0.2)}" stroke="${C.ink}" stroke-width="${f1(Math.max(1.2, R * 0.1))}" stroke-linecap="round"/>`;
+  };
+  let teeth = "";
+  for (let k = 1; k < 5; k++) {
+    const x = cx - R * 0.28 + (R * 0.56 * k) / 5;
+    teeth += `<line x1="${f1(x)}" y1="${f1(cy + R * 0.17)}" x2="${f1(x)}" y2="${f1(cy + R * 0.35)}" stroke="${C.ink}" stroke-width="${f1(Math.max(0.6, R * 0.025))}"/>`;
+  }
+  return `<g ${turn}><polygon points="${ngon(cx, cy, R, 8)}" fill="${C.ink}"/>${notches}</g>
+    <polygon points="${ngon(cx, cy, R * 0.68, 8)}" fill="${C.red}" stroke="${C.redShade}" stroke-width="${f1(Math.max(1, R * 0.05))}"/>
+    ${eye(-1)}${eye(1)}
+    <rect x="${f1(cx - R * 0.28)}" y="${f1(cy + R * 0.17)}" width="${f1(R * 0.56)}" height="${f1(R * 0.18)}" rx="${f1(R * 0.03)}" fill="${C.white}" stroke="${C.ink}" stroke-width="${f1(Math.max(0.8, R * 0.035))}"/>${teeth}`;
+}
+
+// ---------- karts ----------
+
+// Side on, facing right, rear wheel's contact patch at (x0, gy), `s` px per metre. Approximate; the dashed box is the sim's.
+function kartSide(x0, gy, s) {
+  const p = (mx, my) => `${f1(x0 + mx * s)},${f1(gy - my * s)}`;
+  return `<rect x="${f1(x0)}" y="${f1(gy - KART.height * s)}" width="${f1(KART.length * s)}" height="${f1(KART.height * s)}" fill="none" stroke="#ffffff" stroke-opacity=".55" stroke-dasharray="3 3"/>
+    <rect x="${f1(x0 + 0.02 * s)}" y="${f1(gy - 0.78 * s)}" width="${f1(0.22 * s)}" height="${f1(0.1 * s)}" fill="${C.ink}"/>
+    <rect x="${f1(x0 + 0.1 * s)}" y="${f1(gy - 0.7 * s)}" width="${f1(0.05 * s)}" height="${f1(0.25 * s)}" fill="${C.ink}"/>
+    <polygon points="${p(0.1, 0.18)} ${p(1.78, 0.2)} ${p(1.6, 0.42)} ${p(1.05, 0.48)} ${p(0.2, 0.52)}" fill="${C.livery}"/>
+    <circle cx="${f1(x0 + 0.8 * s)}" cy="${f1(gy - 0.82 * s)}" r="${f1(0.27 * s)}" fill="${C.skin}"/>
+    <path d="M ${f1(x0 + 0.53 * s)} ${f1(gy - 0.84 * s)} A ${f1(0.27 * s)} ${f1(0.27 * s)} 0 0 1 ${f1(x0 + 1.07 * s)} ${f1(gy - 0.84 * s)} Z" fill="${C.hair}"/>
+    <polygon points="${ngon(x0 + 0.35 * s, gy - 0.3 * s, 0.3 * s, 8)}" fill="${C.tyre}"/>
+    <polygon points="${ngon(x0 + 1.5 * s, gy - 0.25 * s, 0.25 * s, 8)}" fill="${C.tyre}"/>`;
+}
+
+// From behind, centred on (cx, gy), `s` px per metre.
+function kartBack(cx, gy, s) {
+  const r = (mx, my, mw, mh, fill) => `<rect x="${f1(cx + mx * s)}" y="${f1(gy - (my + mh) * s)}" width="${f1(mw * s)}" height="${f1(mh * s)}" fill="${fill}"/>`;
+  return `<ellipse cx="${f1(cx)}" cy="${f1(gy)}" rx="${f1(0.75 * s)}" ry="${f1(0.08 * s)}" fill="rgba(0,0,0,.3)"/>
+    ${r(-0.6, 0, 0.3, 0.6, C.ink)}${r(0.3, 0, 0.3, 0.6, C.ink)}${r(-0.45, 0.12, 0.9, 0.38, C.livery)}
+    ${r(-0.3, 0.5, 0.05, 0.14, C.ink)}${r(0.25, 0.5, 0.05, 0.14, C.ink)}${r(-0.6, 0.62, 1.2, 0.12, C.ink)}
+    <circle cx="${f1(cx)}" cy="${f1(gy - 0.95 * s)}" r="${f1(0.3 * s)}" fill="${C.hair}"/>`;
+}
+
+// ---------- the post ----------
+
+function rippleFlag(ax, ay, w, h, t, dirx) {
+  const top = [], bottom = [];
+  for (let i = 0; i <= 8; i++) {
+    const x = ax + (dirx * w * i) / 8;
+    const dy = Math.sin(t * 12 - i * 0.8) * h * 0.13 * (i / 8);
+    top.push(`${f1(x)},${f1(ay + dy)}`);
+    bottom.unshift(`${f1(x)},${f1(ay + h + dy)}`);
+  }
+  return `<polygon points="${top.join(" ")} ${bottom.join(" ")}" fill="${C.yellow}" stroke="${C.yellowShade}" stroke-width="1"/>`;
+}
+
+function beacon(cx, cy, r, on, t) {
+  if (!on) return `<rect x="${f1(cx - r)}" y="${f1(cy)}" width="${f1(2 * r)}" height="${f1(r * 0.4)}" fill="${C.ink}"/><path d="M ${f1(cx - r * 0.8)} ${f1(cy)} A ${f1(r * 0.8)} ${f1(r * 0.9)} 0 0 1 ${f1(cx + r * 0.8)} ${f1(cy)} Z" fill="#7a5a14"/>`;
+  // Seen side on, a turning beacon throws its beam left, then right.
+  const a = t * 11;
+  const beam = (side, k) => `<polygon points="${f1(cx)},${f1(cy - r * 0.45)} ${f1(cx + side * r * 9)},${f1(cy - r * 2.6)} ${f1(cx + side * r * 9)},${f1(cy + r * 1.7)}" fill="#ffcf4a" opacity="${(0.45 * k).toFixed(2)}"/>`;
+  return `<circle cx="${f1(cx)}" cy="${f1(cy - r * 0.4)}" r="${f1(r * (3.2 + Math.abs(Math.cos(a))))}" fill="url(#glow)"/>
+    ${beam(-1, Math.max(0, Math.cos(a)))}${beam(1, Math.max(0, -Math.cos(a)))}
+    <rect x="${f1(cx - r)}" y="${f1(cy)}" width="${f1(2 * r)}" height="${f1(r * 0.4)}" fill="${C.ink}"/>
+    <path d="M ${f1(cx - r * 0.8)} ${f1(cy)} A ${f1(r * 0.8)} ${f1(r * 0.9)} 0 0 1 ${f1(cx + r * 0.8)} ${f1(cy)} Z" fill="#ffb020"/>`;
+}
+
+// Standing on (gx, gy), `s` px per metre; the flag flies to the left, toward the track.
+function drawPost(design, gx, gy, s, t, up) {
+  const rect = (mx, my, mw, mh, fill, extra = "") => `<rect x="${f1(gx + mx * s)}" y="${f1(gy - (my + mh) * s)}" width="${f1(mw * s)}" height="${f1(mh * s)}" fill="${fill}" ${extra}/>`;
+  const box = rect(-0.5, 0, 1, 2, C.white) + rect(-0.175, 1.35, 0.35, 0.35, C.orange);
+  if (design === "current") {
+    if (!up) return box;
+    const swing = deg(Math.sin(t * 14) * 0.6);
+    const px = gx, py = gy - 2 * s;
+    return box + `<g transform="rotate(${f1(-swing)} ${f1(px)} ${f1(py)})">
+      <rect x="${f1(px - Math.max(0.6, 0.025 * s))}" y="${f1(py - 1.4 * s)}" width="${f1(Math.max(1.2, 0.05 * s))}" height="${f1(1.4 * s)}" fill="#cfd2d6"/>
+      <rect x="${f1(px - 0.9 * s)}" y="${f1(py - 1.4 * s)}" width="${f1(0.9 * s)}" height="${f1(0.6 * s)}" fill="${C.yellow}"/></g>`;
+  }
+  if (design === "panel") {
+    const on = up && Math.floor(t * 4) % 2 === 0;
+    let face = rect(-0.62, 3.38, 1.24, 0.84, up ? (on ? C.yellowLit : "#4a3c10") : "#2b2e33");
+    let dots = "";
+    for (let i = 0; i < 9; i++) for (let j = 0; j < 6; j++) {
+      dots += `<circle cx="${f1(gx + (-0.55 + i * 0.1375) * s)}" cy="${f1(gy - (3.45 + j * 0.14) * s)}" r="${f1(Math.max(0.4, 0.035 * s))}" fill="rgba(0,0,0,.2)"/>`;
+    }
+    let sign = "";
+    if (on) {
+      const cx = gx, cy = gy - 3.8 * s, k = 0.34 * s;
+      sign = `<circle cx="${f1(cx)}" cy="${f1(cy)}" r="${f1(1.6 * s)}" fill="url(#glow)"/>`;
+      face = sign + face;
+      sign = `<polygon points="${f1(cx)},${f1(cy - k)} ${f1(cx + k * 1.1)},${f1(cy + k * 0.8)} ${f1(cx - k * 1.1)},${f1(cy + k * 0.8)}" fill="none" stroke="${C.ink}" stroke-width="${f1(Math.max(1, 0.07 * s))}" stroke-linejoin="round"/>
+        <rect x="${f1(cx - 0.03 * s)}" y="${f1(cy - k * 0.45)}" width="${f1(0.06 * s)}" height="${f1(k * 0.75)}" fill="${C.ink}"/>
+        <rect x="${f1(cx - 0.03 * s)}" y="${f1(cy + k * 0.42)}" width="${f1(0.06 * s)}" height="${f1(0.06 * s)}" fill="${C.ink}"/>`;
+    }
+    return box + rect(-0.1, 2, 0.2, 1.35, C.ink) + rect(-0.7, 3.3, 1.4, 1.0, "#1c1c1e", 'rx="2"') + face + dots + sign;
+  }
+  if (design === "marshal") {
+    const platform = rect(-0.7, 0, 1.4, 1.0, C.white) + rect(-0.7, 0.75, 1.4, 0.12, C.orange);
+    const body = rect(-0.2, 1.0, 0.4, 0.45, C.orangeShade) + rect(-0.26, 1.45, 0.52, 0.52, C.orange) + rect(-0.26, 1.62, 0.52, 0.07, C.white);
+    const hx = gx, hy = gy - 2.25 * s, hr = 0.3 * s;
+    const head = `<circle cx="${f1(hx)}" cy="${f1(hy)}" r="${f1(hr)}" fill="${C.skin}"/>
+      <path d="M ${f1(hx - hr)} ${f1(hy - 0.02 * s)} A ${f1(hr)} ${f1(hr)} 0 0 1 ${f1(hx + hr)} ${f1(hy - 0.02 * s)} Z" fill="${C.orange}"/>
+      <rect x="${f1(hx - hr * 1.25)}" y="${f1(hy - 0.04 * s)}" width="${f1(hr * 1.1)}" height="${f1(0.06 * s)}" fill="${C.orangeShade}"/>
+      <circle cx="${f1(hx - hr * 0.45)}" cy="${f1(hy + hr * 0.2)}" r="${f1(Math.max(0.6, 0.04 * s))}" fill="${C.ink}"/>`;
+    const arm = (side, angle) => {
+      const sx = gx + side * 0.26 * s, sy = gy - 1.9 * s;
+      const hand = up ? [sx + side * 0.25 * s, sy - 0.25 * s] : [sx + side * 0.12 * s, sy + 0.4 * s];
+      let flag = "";
+      if (up) {
+        flag = `<g transform="rotate(${f1(angle)} ${f1(hand[0])} ${f1(hand[1])})">
+          <rect x="${f1(hand[0] - 0.02 * s)}" y="${f1(hand[1] - 1.0 * s)}" width="${f1(Math.max(1, 0.04 * s))}" height="${f1(1.0 * s)}" fill="#cfd2d6"/>
+          ${rippleFlag(hand[0], hand[1] - 1.0 * s, 0.75 * s, 0.5 * s, t + side, side)}</g>`;
+      } else {
+        flag = `<rect x="${f1(hand[0] - 0.03 * s)}" y="${f1(hand[1] - 0.1 * s)}" width="${f1(0.07 * s)}" height="${f1(0.8 * s)}" fill="${C.yellowShade}"/>`;
+      }
+      return `<line x1="${f1(sx)}" y1="${f1(sy)}" x2="${f1(hand[0])}" y2="${f1(hand[1])}" stroke="${C.orange}" stroke-width="${f1(Math.max(1.5, 0.13 * s))}" stroke-linecap="round"/>${flag}`;
+    };
+    const wave = Math.sin(t * 14) * 30;
+    return platform + beacon(gx + 0.5 * s, gy - 1.0 * s, 0.17 * s, up, t) + body + arm(-1, -20 + wave) + arm(1, 20 - wave) + head;
+  }
+  // tower
+  let mast = "";
+  for (let k = 0; k < 9; k++) mast += rect(-0.13, 2 + k * 0.3, 0.26, 0.3, k % 2 ? C.ink : C.yellow);
+  const flag = up ? rippleFlag(gx - 0.13 * s, gy - 4.4 * s, 1.6 * s, 1.1 * s, t, -1) : rect(-0.22, 3.3, 0.09, 1.1, C.yellowShade);
+  return box + mast + flag + beacon(gx, gy - 4.7 * s, 0.3 * s, up, t);
+}
+
+// ---------- the cycle ----------
+
+let t = 0;
+let playing = !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+if (!playing) t = 1.9;
+
+function loopLength() {
+  return document.getElementById("skip-idle").checked ? CYCLE.warning + CYCLE.pass + 0.8 : CYCLE.period;
+}
+function phaseAt(time) {
+  const len = loopLength();
+  const pass = Math.floor(time / len);
+  const u = time - pass * len;
+  if (u < CYCLE.warning) return { kind: "flag", pass, frac: 0, u, len };
+  if (u < CYCLE.warning + CYCLE.pass) return { kind: "rolling", pass, frac: (u - CYCLE.warning) / CYCLE.pass, u, len };
+  return { kind: "quiet", pass, frac: 1, u, len };
+}
+
+// ---------- chase view ----------
+
+const VIEW = { w: 640, h: 360, horizon: 112, cam: 2.2, focal: 330 };
+function project(x, y, z) {
+  return [VIEW.w / 2 + (VIEW.focal * x) / z, VIEW.horizon + (VIEW.focal * (VIEW.cam - y)) / z];
+}
+function groundQuad(x1, x2, z1, z2, fill, extra = "") {
+  const pts = [project(x1, 0, z1), project(x2, 0, z1), project(x2, 0, z2), project(x1, 0, z2)];
+  return `<polygon points="${pts.map((p) => p.map(f1).join(",")).join(" ")}" fill="${fill}" ${extra}/>`;
+}
+
+function renderChase() {
+  const cfg = showToday ? { ...TODAY, tele: new Set() } : picks;
+  const D = Number(document.getElementById("distance").value);
+  const ph = phaseAt(t);
+  const r = cfg.size;
+  const up = ph.kind !== "quiet";
+  const dir = ph.pass % 2 === 0 ? -1 : 1; // -1 rolls from the post's wall, leftward
+  let s = `<rect width="${VIEW.w}" height="${VIEW.horizon}" fill="${C.sky}"/><rect y="${VIEW.horizon}" width="${VIEW.w}" height="${VIEW.h - VIEW.horizon}" fill="${C.grass}"/>`;
+  s += groundQuad(-12, -6, 1, 400, C.sand) + groundQuad(6, 12, 1, 400, C.sand) + groundQuad(-6, 6, 1, 400, C.asphalt);
+  s += groundQuad(-6.15, -6, 1, 400, C.line) + groundQuad(6, 6.15, 1, 400, C.line);
+  for (const x of [-12, 12]) {
+    const pts = [project(x, 0, 1), project(x, 0, 400), project(x, 0.8, 400), project(x, 0.8, 1)];
+    s += `<polygon points="${pts.map((p) => p.map(f1).join(",")).join(" ")}" fill="${C.wall}"/>`;
+  }
+  if (cfg.tele.has("lane")) {
+    for (let x = -12; x < 12; x += 1) {
+      const pts = [project(x, 0, D - 1), project(x + 1, 0, D - 1), project(x + 1.6, 0, D + 1), project(x + 0.6, 0, D + 1)];
+      s += `<polygon points="${pts.map((p) => p.map(f1).join(",")).join(" ")}" fill="${(x + 12) % 2 ? C.ink : C.yellow}"/>`;
+    }
+  }
+  if (cfg.tele.has("flash") && up) {
+    const pulse = 0.2 + 0.4 * (0.5 + 0.5 * Math.sin(t * 14));
+    s += groundQuad(-12, 12, D - 1.2, D + 1.2, C.red, `opacity="${pulse.toFixed(2)}"`);
+  }
+
+  // The wheel, at the crossing.
+  let wheel = null;
+  if (ph.kind === "rolling") {
+    const across = 2 * HALF_CROSSING_M * ph.frac;
+    wheel = {
+      x: dir < 0 ? HALF_CROSSING_M - across : -HALF_CROSSING_M + across,
+      y: r + DRAWN_BOUNCE_M * Math.abs(Math.sin(ph.frac * Math.PI * 3)),
+      rot: (dir * across) / r,
+      ground: 0,
+    };
+  } else if (ph.kind === "flag" && cfg.tele.has("wait")) {
+    wheel = { x: dir < 0 ? HALF_CROSSING_M : -HALF_CROSSING_M, y: 0.8 + r, rot: Math.sin(t * 9) * 0.15, ground: 0.8 };
+  }
+  if (wheel) {
+    const sc = VIEW.focal / D;
+    const [gx, gy] = project(wheel.x, wheel.ground, D);
+    s += `<ellipse cx="${f1(gx)}" cy="${f1(gy)}" rx="${f1(r * sc * 0.8)}" ry="${f1(r * sc * 0.15)}" fill="rgba(0,0,0,.3)"/>`;
+    if (cfg.tele.has("dust") && ph.kind === "rolling") {
+      const landing = Math.floor(ph.frac * 3);
+      const age = (ph.frac - landing / 3) * CYCLE.pass;
+      if (age < 0.45) {
+        const across = (2 * HALF_CROSSING_M * landing) / 3;
+        const lx = dir < 0 ? HALF_CROSSING_M - across : -HALF_CROSSING_M + across;
+        const [dx, dy] = project(lx, 0, D);
+        for (let i = -2; i <= 2; i++) {
+          s += `<circle cx="${f1(dx + i * r * sc * 0.6 * (1 + age * 3))}" cy="${f1(dy - r * sc * 0.2 * (1 + age * 2))}" r="${f1(r * sc * (0.3 + age * 1.4))}" fill="${C.dust}" opacity="${(0.7 * (1 - age / 0.45)).toFixed(2)}"/>`;
+        }
+      }
+    }
+    const [cx, cy] = project(wheel.x, wheel.y, D);
+    s += drawWheel(cfg.wheel, cx, cy, r * sc, wheel.rot, t, dir);
+  }
+
+  // The post, 3 m short of the crossing on the right run-off.
+  const postZ = D - 3;
+  const [px, py] = project(9, 0, postZ);
+  s += drawPost(cfg.post, px, py, VIEW.focal / postZ, t, up);
+
+  const [kx, ky] = project(-1.2, 0, 5);
+  s += kartBack(kx, ky, VIEW.focal / 5);
+
+  const label = ph.kind === "flag" ? "Flag up" : ph.kind === "rolling" ? "Rolling" : "Quiet";
+  s += `<text x="14" y="${VIEW.h - 14}" font-family="Bungee, Impact, sans-serif" font-size="16" fill="#fff" stroke="#000" stroke-width="3" paint-order="stroke">${showToday ? "TODAY" : "YOUR PICKS"} · ${label}</text>`;
+  document.getElementById("chase").innerHTML = `<svg viewBox="0 0 ${VIEW.w} ${VIEW.h}" role="img" aria-label="Chase view of the crossing">${s}</svg>`;
+}
+
+// ---------- cards ----------
+
+function wheelCloseUp(design, r, time) {
+  const s = 60, gy = 198, cx = 250;
+  const f = (time % CYCLE.pass) / CYCLE.pass;
+  const lift = DRAWN_BOUNCE_M * Math.abs(Math.sin(f * Math.PI * 3));
+  const rot = (-time * PASS_SPEED * 0.25) / r;
+  return `<svg viewBox="0 0 360 220" role="img" aria-label="Runaway wheel beside a kart">
+    <rect width="360" height="220" fill="${C.sky}"/><rect y="${gy}" width="360" height="22" fill="${C.asphalt}"/>
+    ${kartSide(24, gy, s)}
+    <ellipse cx="${cx}" cy="${gy + 3}" rx="${f1(r * s * 0.85)}" ry="5" fill="rgba(0,0,0,.3)"/>
+    ${drawWheel(design, cx, gy - (r + lift) * s, r * s, rot, time, -1)}</svg>`;
+}
+
+function sizeFigure(r) {
+  const s = 48, gy = 150, cx = 186;
+  return `<svg viewBox="0 0 260 168" role="img" aria-label="Wheel ${r} m in radius beside a kart">
+    <rect width="260" height="168" fill="${C.sky}"/><rect y="${gy}" width="260" height="18" fill="${C.asphalt}"/>
+    ${kartSide(12, gy, s)}
+    <line x1="0" x2="260" y1="${f1(gy - 1.09 * s)}" y2="${f1(gy - 1.09 * s)}" stroke="#fff" stroke-opacity=".35" stroke-dasharray="2 4"/>
+    ${drawWheel(picks.wheel, cx, gy - r * s, r * s, 0.3, 1, -1)}
+    <text x="${cx}" y="${gy + 13}" text-anchor="middle" font-family="Inter, sans-serif" font-size="11" font-weight="600" fill="#fff">${(2 * r).toFixed(2)} m</text></svg>`;
+}
+
+function postCloseUp(design, time, up) {
+  const s = 38, gy = 214, gx = 160;
+  return `<svg viewBox="0 0 240 230" role="img" aria-label="Marshal post">
+    <rect width="240" height="230" fill="${C.sky}"/><rect y="${gy}" width="240" height="16" fill="${C.sand}"/>
+    ${kartSide(8, gy, s)}${drawPost(design, gx, gy, s, time, up)}</svg>`;
+}
+
+function optionCard(group, value, checked, title, tag, body, changes, stageId) {
+  const tagHtml = tag === "rec" ? '<span class="tag rec">Recommended</span>' : tag === "today" ? '<span class="tag today">Today</span>' : "";
+  return `<label class="card option"><input type="radio" name="${group}" value="${value}" ${checked ? "checked" : ""} />
+    <div class="stage" id="${stageId}"></div>
+    <div class="head"><h3>${title}</h3>${tagHtml}</div>${body}
+    <div class="changes">${changes}</div></label>`;
+}
+
+function buildCards() {
+  document.getElementById("wheel-options").innerHTML = WHEELS.map((w) =>
+    optionCard("wheel", w.id, picks.wheel === w.id, w.name, w.rec ? "rec" : w.today ? "today" : "", `<p>${w.pitch}</p>`, w.changes, `wheel-${w.id}`)).join("");
+
+  document.getElementById("size-options").innerHTML = SIZES.map((z) => {
+    const nums = `<dl class="nums">
+      <dt>Across</dt><dd>${(2 * z.r).toFixed(2)} m</dd>
+      <dt>vs kart box height</dt><dd>${((2 * z.r) / KART.height).toFixed(1)}x</dd>
+      <dt>Share of the road</dt><dd>${Math.round((200 * z.r) / 12)}%</dd>
+      <dt>Holds a lane for</dt><dd>${((2 * z.r + KART.width) / PASS_SPEED).toFixed(2)} s</dd></dl>`;
+    return optionCard("size", String(z.r), picks.size === z.r, `${z.r} m radius`, z.rec ? "rec" : z.today ? "today" : "", `<p>${z.note}</p>`, nums, `size-${String(z.r).replace(".", "-")}`);
+  }).join("");
+
+  document.getElementById("post-options").innerHTML = POSTS.map((p) =>
+    optionCard("post", p.id, picks.post === p.id, p.name, p.rec ? "rec" : p.today ? "today" : "", `<p>${p.pitch}</p>`, p.changes, `post-${p.id}`)).join("");
+
+  document.getElementById("tele-options").innerHTML = TELEGRAPHS.map((g) => `
+    <label class="card"><input type="checkbox" value="${g.id}" ${picks.tele.has(g.id) ? "checked" : ""} />
+      <div class="head" style="display:flex;gap:.5rem;align-items:baseline;flex-wrap:wrap"><h3>${g.name}</h3>${g.rec ? '<span class="tag rec">Recommended</span>' : ""}</div>
+      <p style="grid-column:2;margin:0;font-size:.9rem">${g.desc}</p>
+      <div class="changes">${g.changes}</div></label>`).join("");
+}
+
+function renderSizes() {
+  for (const z of SIZES) document.getElementById(`size-${String(z.r).replace(".", "-")}`).innerHTML = sizeFigure(z.r);
+}
+
+function renderAnimated() {
+  const ph = phaseAt(t);
+  for (const w of WHEELS) document.getElementById(`wheel-${w.id}`).innerHTML = wheelCloseUp(w.id, picks.size, t);
+  for (const p of POSTS) document.getElementById(`post-${p.id}`).innerHTML = postCloseUp(p.id, t, ph.kind !== "quiet");
+  renderChase();
+  const cursor = document.querySelector("#timeline .cursor");
+  if (cursor) cursor.style.left = `${(100 * ph.u) / ph.len}%`;
+  const label = ph.kind === "flag" ? "Flag up" : ph.kind === "rolling" ? "Rolling" : "Quiet";
+  document.getElementById("phase").textContent = `${label} · ${ph.u.toFixed(1)} / ${ph.len.toFixed(1)} s`;
+}
+
+function buildTimeline() {
+  const len = loopLength(), quiet = len - CYCLE.warning - CYCLE.pass;
+  document.getElementById("timeline").innerHTML = `
+    <div class="t-flag" style="width:${(100 * CYCLE.warning) / len}%">Flag 1 s</div>
+    <div class="t-roll" style="width:${(100 * CYCLE.pass) / len}%">Pass 1.6 s</div>
+    <div class="t-quiet" style="width:${(100 * quiet) / len}%">Quiet</div><div class="cursor"></div>`;
+}
+
+function renderSummary() {
+  const name = (list, id) => list.find((x) => x.id === id).name;
+  const tele = TELEGRAPHS.filter((g) => picks.tele.has(g.id)).map((g) => g.name);
+  document.getElementById("summary").textContent =
+    `Runaway wheel look: ${name(WHEELS, picks.wheel)}\n` +
+    `Runaway wheel size: ${picks.size} m radius (${(2 * picks.size).toFixed(2)} m across; WHEEL_RADIUS_M ${picks.size === 0.45 ? "unchanged" : `0.45 -> ${picks.size}`})\n` +
+    `Marshal post: ${name(POSTS, picks.post)}\n` +
+    `Telegraph: ${tele.length ? tele.join(", ") : "none"}`;
+}
+
+function renderWhy() {
+  const tyre = contrast(C.tyre, C.asphalt), flag = contrast(C.yellow, C.sand), hazard = contrast(C.yellow, C.ink);
+  const px = (0.9 * VIEW.focal) / 25;
+  const sw = (c) => `<span class="swatch" style="background:${c}"></span>`;
+  document.getElementById("why-list").innerHTML = `
+    <li><b>Grey on grey.</b> The tyre ${sw(C.tyre)} <code>#5d5d61</code> against the asphalt ${sw(C.asphalt)} <code>#6b6b78</code> is ${tyre.toFixed(2)}:1; 3:1 is the usual floor for a shape to read. The hazard band's yellow on black is ${hazard.toFixed(1)}:1.</li>
+    <li><b>Yellow on yellow.</b> The flag ${sw(C.yellow)} <code>#f5c542</code> against the sand run-off ${sw(C.sand)} <code>#e8c773</code> is ${flag.toFixed(2)}:1: the warning is the ground's colour.</li>
+    <li><b>Small.</b> 0.9 m across, half a kart's length. 25 m out it is about ${Math.round(px)} px tall in this page's 360 px chase view, under a kart's head in traffic.</li>
+    <li><b>No tell but the flag.</b> The wheel is off the course until it rolls, the flag is a 0.9 x 0.6 m cloth 9 m off the centreline for one second, and nothing marks the road where it crosses.</li>
+    <li><b>Borrowed parts.</b> The wheel copies the kart's own tyre and rim greys, so it reads as debris, not a threat.</li>`;
+}
+
+// ---------- wiring ----------
+
+function rerenderPicks() {
+  renderSizes();
+  renderSummary();
+  renderAnimated();
+}
+
+document.addEventListener("change", (e) => {
+  const el = e.target;
+  if (el.name === "wheel") picks.wheel = el.value;
+  else if (el.name === "size") picks.size = Number(el.value);
+  else if (el.name === "post") picks.post = el.value;
+  else if (el.closest && el.closest("#tele-options")) el.checked ? picks.tele.add(el.value) : picks.tele.delete(el.value);
+  else if (el.id === "skip-idle") buildTimeline();
+  else return;
+  rerenderPicks();
+});
+document.getElementById("distance").addEventListener("input", (e) => {
+  document.getElementById("distance-out").textContent = `${e.target.value} m`;
+  renderChase();
+});
+document.getElementById("play").addEventListener("click", (e) => {
+  playing = !playing;
+  e.currentTarget.textContent = playing ? "Pause" : "Play";
+  e.currentTarget.setAttribute("aria-pressed", String(playing));
+});
+for (const [id, today] of [["show-picks", false], ["show-today", true]]) {
+  document.getElementById(id).addEventListener("click", () => {
+    showToday = today;
+    document.getElementById("show-picks").setAttribute("aria-pressed", String(!today));
+    document.getElementById("show-today").setAttribute("aria-pressed", String(today));
+    renderChase();
+  });
+}
+document.getElementById("copy").addEventListener("click", async () => {
+  try {
+    await navigator.clipboard.writeText(document.getElementById("summary").textContent);
+    document.getElementById("copied").textContent = "Copied.";
+  } catch {
+    document.getElementById("copied").textContent = "Copy blocked; select the text instead.";
+  }
+});
+
+document.getElementById("distance-out").textContent = `${document.getElementById("distance").value} m`;
+document.getElementById("play").textContent = playing ? "Pause" : "Play";
+document.getElementById("play").setAttribute("aria-pressed", String(playing));
+renderWhy();
+buildTimeline();
+buildCards();
+rerenderPicks();
+
+let last = performance.now();
+function frame(now) {
+  if (playing) {
+    t += Math.min(0.1, (now - last) / 1000);
+    renderAnimated();
+  }
+  last = now;
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
