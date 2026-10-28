@@ -14,7 +14,8 @@
       "!**/src/generated",
       "!assets/tracks",
       "!assets/replays",
-      "!docs/mockups"
+      "!docs/mockups",
+      "!docs/style-guide.html"
     ]
   },
   "formatter": {

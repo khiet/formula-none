@@ -27,9 +27,10 @@ assets/           track layouts, the Blender export and the exported glTF plus s
                   the kart's build script and its export; the Kenney pixel font the
                   Instrument panel sets its type in; replay fixtures for the
                   determinism gate; LICENSES.md for what came from where
-docs/             GLOSSARY.md, adr/, and mockups/: the design comparisons the
-                  ADRs cite, plus asset-catalog.html, every graphic drawn in
-                  the base design with the drift still to fix
+docs/             GLOSSARY.md, adr/, style-guide.html (every graphic the
+                  game draws today, with the palette, type and rules to make
+                  the next one), and mockups/: the design comparisons the
+                  ADRs cite
 ```
 
 Dependencies flow one way: web depends on the bridge; the bridge and the

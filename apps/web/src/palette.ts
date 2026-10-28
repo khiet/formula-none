@@ -1,6 +1,7 @@
 // The Instrument panel's and the item meshes' colours (ADR 0037), from the
-// palette in docs/mockups/asset-catalog.html, which gives the yellow no lit
-// or shaded tone, so those two are picked here. The View reads them
+// base design's palette, which gave the yellow no lit or shaded tone, so
+// those two are picked here. docs/style-guide.html copies every colour, and
+// repo-checks holds the copy to this file. The View reads them
 // as numbers; the panel writes them onto its root as CSS custom properties
 // with `writePalette`, so index.html names a colour and never spells it.
 // Every colour is sRGB, as a Three colour takes it.

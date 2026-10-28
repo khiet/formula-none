@@ -60,8 +60,8 @@ HOARDING_TEXT_HEIGHT_M = 0.8
 # Lettering stands clear of its board by more than its own depth, so its
 # back never shares the board's plane and shows through from behind.
 HOARDING_TEXT_PROUD_M = 0.06
-# The stands and the gantry are the asset catalog's Grandstand and Start
-# gantry cards in three dimensions, at the cards' 14 px to the metre.
+# The stands and the gantry are the style guide's Grandstand and Start
+# gantry drawings in three dimensions, at the drawings' 14 px to the metre.
 # A stand is a plinth and four tiers with white treads, each stepped back and in from
 # the one below, a crowd of single pixels on every tread, and a kerb-red
 # canopy on two carbon posts at the back.
@@ -105,7 +105,7 @@ GANTRY_CHECKER_M = 0.5
 GANTRY_CHECKER_ROWS = 2
 # A boost pad is drawn on the rectangle the sim boosts on, so these mirror
 # `BOOST_PAD_HALF_*` in `crates/sim/src/tuning.rs`; the track tests hold
-# them to it. The rest is the asset catalog's Boost pad card: a carbon
+# them to it. The rest is the style guide's Boost pad drawing: a carbon
 # plate lit along its front edge and shaded along its back, under three
 # chevrons in the mini-turbo orange, each shaded along its right arm.
 BOOST_PAD_HALF_LENGTH_M = 2.0

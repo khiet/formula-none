@@ -206,7 +206,7 @@ function head(driver: Driver, cx: number, cy: number, r: number): string {
 }
 
 /**
- * The kart side on, facing right, as the asset catalog draws it: facets in
+ * The kart side on, facing right, as the style guide draws it: facets in
  * the livery's primary, secondary and accent, octagon wheels, and its
  * driver bare-headed. The colours ride on the SVG as custom properties;
  * index.html derives their lit and shaded tones.
