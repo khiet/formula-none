@@ -52,6 +52,9 @@ MATERIALS = {
     "carbon-shade": (0.110, 0.110, 0.118),
     "chevron": (1.0, 0.533, 0.0),
     "chevron-shade": (0.769, 0.373, 0.0),
+    # The marshal post's band, in its lamp's orange; a material of its own
+    # so the View tells the lamp's face to the track from the band round it.
+    "post-band": (1.0, 0.533, 0.0),
     # The style guide's Grandstand and Start gantry entries.
     "stand-riser": (0.843, 0.859, 0.878),
     "stand-plinth": (0.706, 0.729, 0.761),

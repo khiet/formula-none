@@ -84,12 +84,12 @@ describe.each(["brands-patch", "oval"])("%s's marshal posts", (name) => {
     ),
   ) as { wheel_crossings: { position: [number, number, number]; half_width: number }[] };
 
-  it("stands a post and its lamp beside each wheel crossing", () => {
+  it("stands a post, its band and its lamp beside each wheel crossing", () => {
     const posts = gltf.nodes.filter(({ name }) => name?.startsWith("MarshalPost."));
-    expect(posts).toHaveLength(2 * sidecar.wheel_crossings.length);
+    expect(posts).toHaveLength(3 * sidecar.wheel_crossings.length);
     sidecar.wheel_crossings.forEach(({ position: [x, , z], half_width }, number) => {
       const prefix = `MarshalPost.${String(number).padStart(2, "0")}.`;
-      for (const part of ["board", "chevron"]) {
+      for (const part of ["board", "post-band", "chevron"]) {
         const node = posts.find(({ name }) => name === `${prefix}${part}`);
         const mesh = node?.mesh === undefined ? undefined : gltf.meshes[node.mesh];
         const bounds = gltf.accessors[mesh?.primitives[0]?.attributes.POSITION ?? -1];

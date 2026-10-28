@@ -66,18 +66,17 @@ class WheelCrossings(unittest.TestCase):
     def test_the_post_is_a_low_white_platform_banded_orange_under_its_top_with_an_orange_lamp_on_its_face_to_the_track(self) -> None:
         layout, geometry = brands_patch()
         pieces = {p.material: p for p in post_pieces(geometry, 0)}
-        self.assertEqual(set(pieces), {"board", "chevron"})
-        orange = pieces["chevron"].mesh[0]
+        self.assertEqual(set(pieces), {"board", "post-band", "chevron"})
+        band = pieces["post-band"].mesh[0]
+        lamp = pieces["chevron"].mesh[0]
         post = pieces["board"].mesh[0]
         ground = min(v[2] for v in post)
         self.assertAlmostEqual(max(v[2] for v in post) - ground, 1.0, places=6, msg="1 m tall")
         across = [-left_of_centre(layout, x, y) for x, y, _ in post]
         self.assertAlmostEqual(max(across) - min(across), 1.4, delta=0.01, msg="1.4 m wide")
-        band = [v for v in orange if v[2] - ground > 1.0 - 0.12 - 1e-6]
-        self.assertTrue(band, "an orange band under the top")
-        self.assertAlmostEqual(min(v[2] for v in band) - ground, 0.88, places=6)
-        lamp = [v for v in orange if v[2] - ground < 0.88 - 1e-6]
-        self.assertTrue(lamp, "a lamp under the band")
+        self.assertAlmostEqual(min(v[2] for v in band) - ground, 0.88, places=6, msg="0.12 m under the top")
+        self.assertAlmostEqual(max(v[2] for v in band) - ground, 1.0, places=6)
+        self.assertLess(max(v[2] for v in lamp) - ground, 0.88, "the lamp under the band")
         nearest = lambda vertices: min(-left_of_centre(layout, x, y) for x, y, _ in vertices)
         self.assertLess(nearest(lamp), nearest(post), "the lamp stands proud toward the track")
 

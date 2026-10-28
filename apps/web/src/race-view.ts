@@ -85,7 +85,7 @@ const WHEEL_FLAME_FLICKER_SHARE = 0.3;
  * Through the warning the wheel waits on the wall top, this far past the
  * wall's face it rolls in from so it stands on the wall and not its edge,
  * rocking about its axle this fast through this half-swing. The wall's top
- * is found by probing the track from this high over the wall's foot.
+ * is the highest surface no more than this over the wall's foot.
  */
 const WHEEL_WAITS_PAST_FACE_M = 0.25;
 const WHEEL_WAIT_ROCK_RAD_PER_S = 9;
@@ -394,7 +394,7 @@ interface RunawayWheels {
 function runawayWheels(world: ThreeScene, track: Object3D, radius: number): RunawayWheels {
   const posts = marshalPosts(track);
   const zones = hazardZones(track);
-  // Any hit under the probe's start, so the wall's top and not the road.
+  // Asked from over the wall, so its first hit is the wall's top, not the road.
   const wallTop = trackProbe(track, 0);
   const template = runawayWheelMesh(radius);
   const flamesTemplate = runawayWheelFlames(radius);
@@ -452,9 +452,9 @@ function runawayWheels(world: ThreeScene, track: Object3D, radius: number): Runa
           entry.last = undefined;
           return;
         }
+        wheelBack(wheel.yaw, back);
         if (wheel.kind === "warning") {
           // Back from the way it will roll is out over the wall.
-          wheelBack(wheel.yaw, back);
           at.set(...wheel.position).addScaledVector(backward.set(...back), WHEEL_WAITS_PAST_FACE_M);
           const top = wallTop.under(at.x, at.y + WALL_PROBE_FROM_M, at.z);
           entry.heading.position.set(at.x, (top?.point[1] ?? at.y) + radius, at.z);
@@ -477,7 +477,6 @@ function runawayWheels(world: ThreeScene, track: Object3D, radius: number): Runa
         }
         entry.heading.rotation.y = wheel.yaw;
         entry.flames.position.copy(entry.heading.position);
-        wheelBack(wheel.yaw, back);
         entry.flames.lookAt(behind.copy(entry.flames.position).add(backward.set(...back)));
         entry.flames.children.forEach((tongue, index) => {
           tongue.scale.z =

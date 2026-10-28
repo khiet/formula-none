@@ -717,7 +717,7 @@ def marshal_posts(layout: Layout) -> list[SceneryMesh]:
             parts.add("board", post[side])
         band = box((-half, half), (-half, half), (band_bottom, MARSHAL_POST_HEIGHT_M))
         for side in SIDES:
-            parts.add("chevron", band[side])
+            parts.add("post-band", band[side])
         parts.add("board", band["z1"])
         lamp_half = MARSHAL_LAMP_SIZE_M / 2.0
         lamp_top = MARSHAL_POST_HEIGHT_M - MARSHAL_LAMP_BELOW_TOP_M
