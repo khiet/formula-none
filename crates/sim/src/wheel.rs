@@ -141,6 +141,11 @@ impl Path {
         self.lengths_m.iter().sum()
     }
 
+    /// How long the wheel takes to roll the whole path.
+    pub(crate) fn lasts_s(&self) -> f32 {
+        self.length_m() / WHEEL_SPEED_M_PER_S
+    }
+
     /// The legs in order, each as where it starts, where it ends, the
     /// seconds into the pass it starts at and the seconds it lasts.
     pub(crate) fn legs(&self) -> impl Iterator<Item = ([f32; 2], [f32; 2], f32, f32)> + '_ {
@@ -199,7 +204,7 @@ pub(crate) fn pass_not_over(crossing: &WheelCrossing, seed: u64, elapsed_s: f32)
     }
     let pass = libm::floorf(since_first_s / WHEEL_PERIOD_S) as u32 + 1;
     let path = Path::new(crossing, seed, pass);
-    let ends_s = pass_start_s(pass) + path.length_m() / WHEEL_SPEED_M_PER_S;
+    let ends_s = pass_start_s(pass) + path.lasts_s();
     if elapsed_s < ends_s {
         pass
     } else {

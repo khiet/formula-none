@@ -11,7 +11,6 @@ use crate::tuning::{
     DRIFT_SLIP_ANGLE_RAD, DRIFT_TURN_NEUTRAL, DRIFT_TURN_STEER_RANGE, KART_HALF_LENGTH_M,
     KART_HALF_WIDTH_M, KERB_HALF_LENGTH_M, KERB_HALF_WIDTH_M, STEER_RATE_LOW_SPEED_RAD_PER_S,
     STEER_RATE_TOP_SPEED_RAD_PER_S, TOP_SPEED_M_PER_S, WHEEL_LANDING_SPREAD_M, WHEEL_RADIUS_M,
-    WHEEL_SPEED_M_PER_S,
 };
 use crate::wheel::{pass_not_over, pass_start_s, Path};
 use crate::{DriftDirection, Item, KartInput, KartReadout, Phase, Placement, Standing, Track};
@@ -257,7 +256,7 @@ fn waits_for_a_wheel(
         let pass = pass_not_over(crossing, seed, elapsed_s);
         let path = Path::new(crossing, seed, pass);
         let starts_s = pass_start_s(pass);
-        let ends_s = starts_s + path.length_m() / WHEEL_SPEED_M_PER_S;
+        let ends_s = starts_s + path.lasts_s();
         // A kart that cannot reach the wheel before the pass is over has
         // nothing to stop for.
         if short_of_reach > driven(ends_s - elapsed_s, flat_out) {

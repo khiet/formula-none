@@ -73,7 +73,7 @@ describe("the item meshes", () => {
     expect(size.x).toBeLessThan(size.z);
   });
 
-  it("hop the runaway wheel twice a leg, down at each wall", () => {
+  it("bounce the runaway wheel twice a leg, down at each wall", () => {
     for (const down of [0, 1 / 2, 1]) {
       expect(runawayWheelBounce(down)).toBeCloseTo(0, 6);
     }
