@@ -3,6 +3,7 @@
 ## Status
 
 Accepted (2026-10-28). Supersedes ADR 0041 on the runaway wheel's path.
+How a bot judges a pass is superseded by ADR 0043.
 
 ## Context
 

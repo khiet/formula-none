@@ -378,15 +378,24 @@ pub const BOT_CORNER_SAMPLE_M: f32 = 2.0;
 /// left of it.
 pub const BOT_LINE_RIGHT_OF_CENTRE_M: f32 = 2.5;
 /// Metres between a sausage kerb's near edge, at its middle, and the line
-/// a bot aims along while the kerb is inside its lookahead: wide enough
+/// a bot aims along while the kerb is in range: wide enough
 /// that pursuit's cut toward the apex misses the kerb's ends, which a
 /// straight kerb on a bend sets nearer the line. On Brands Patch the line
 /// is the centreline.
 pub const BOT_KERB_GAP_M: f32 = 4.4;
+/// Metres short of a sausage kerb's near end from which a bot aims along
+/// the line clear of it. Twice the lookahead, so a bot out wide passing a
+/// kart on the kerb's side is back on the line before pursuit cuts toward
+/// the apex.
+pub const BOT_KERB_APPROACH_M: f32 = 2.0 * BOT_LOOKAHEAD_M;
 /// Seconds a bot keeps between itself and a runaway wheel's pass through
 /// its lane, either side: the throttle it holds and the line it weaves
 /// toward bring it there sooner than its speed now says.
 pub const BOT_WHEEL_MARGIN_S: f32 = 0.3;
+/// The fraction of flat-out acceleration a bot counts on gaining from a
+/// standstill when it judges whether a runaway wheel's pass meets it:
+/// traffic can hold it back, but it does set off.
+pub const BOT_WHEEL_SET_OFF_FRACTION: f32 = 0.5;
 /// The least a bot steers into a corner it hops for, so the hop fixes the
 /// drift toward the corner even when its line asks for less.
 pub const BOT_HOP_STEER: f32 = 0.25;
@@ -456,6 +465,8 @@ const _: () = {
     assert!(BOT_PASS_GAP_M > 2.0 * KART_HALF_WIDTH_M);
     assert!(BOT_KERB_GAP_M > KART_HALF_WIDTH_M);
     assert!(0.0 <= BOT_WHEEL_MARGIN_S);
+    assert!(0.0 < BOT_WHEEL_SET_OFF_FRACTION && BOT_WHEEL_SET_OFF_FRACTION <= 1.0);
+    assert!(BOT_LOOKAHEAD_M <= BOT_KERB_APPROACH_M);
     assert!(BOT_STALL_SPEED_M_PER_S * ACCELERATION_TO_TOP_S / TOP_SPEED_M_PER_S < BOT_STALL_S);
     assert!(0.0 < START_THROTTLE_HELD && START_THROTTLE_HELD < 1.0);
     assert!(0.0 < START_WEAK_BOOST_HOLD_S && START_WEAK_BOOST_HOLD_S < START_FULL_BOOST_HOLD_S);
