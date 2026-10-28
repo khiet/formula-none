@@ -188,8 +188,12 @@ fn the_wheel_is_quiet_until_the_flag_goes_up_before_each_pass_and_rolls_through_
             Wheel::Quiet,
             "pass {pass}, before the flag"
         );
-        assert_eq!(at(start - WHEEL_WARNING_S), Wheel::Warning, "pass {pass}");
-        assert_eq!(at(start - 0.05), Wheel::Warning, "pass {pass}");
+        for elapsed_s in [start - WHEEL_WARNING_S, start - 0.05] {
+            assert!(
+                matches!(at(elapsed_s), Wheel::Warning { pass: coming, .. } if coming == pass),
+                "pass {pass} flagged at {elapsed_s}"
+            );
+        }
         for (elapsed_s, through) in [(start + 0.05, 0.0), (ends - 0.05, 1.0)] {
             let Wheel::Rolling {
                 pass: rolling,
@@ -205,6 +209,43 @@ fn the_wheel_is_quiet_until_the_flag_goes_up_before_each_pass_and_rolls_through_
         assert_eq!(at(ends + 0.05), Wheel::Quiet, "pass {pass} over");
     }
     assert_eq!(at(0.0), Wheel::Quiet, "at Go");
+}
+
+#[test]
+fn through_the_warning_the_wheel_waits_at_the_wall_it_rolls_in_from_facing_the_way_it_will_roll() {
+    let track = brands_patch();
+    let half = crossing().half_width;
+    for pass in 1..=4 {
+        // Odd passes roll in from the left wall, even ones from the right.
+        let side = if pass % 2 == 1 { 1.0 } else { -1.0 };
+        let start = pass_start_s(pass);
+        let Wheel::Rolling {
+            yaw: rolling_yaw, ..
+        } = wheel(&track, 0, SEED, start + 0.01)
+        else {
+            panic!("pass {pass} rolling as it starts");
+        };
+        for elapsed_s in [start - WHEEL_WARNING_S, start - 0.5, start - 0.01] {
+            let Wheel::Warning {
+                pass: coming,
+                from,
+                yaw,
+            } = wheel(&track, 0, SEED, elapsed_s)
+            else {
+                panic!("pass {pass} flagged at {elapsed_s}");
+            };
+            assert_eq!(coming, pass);
+            assert!(
+                near(local(from), [-side * half, 0.0]),
+                "pass {pass} waits at {from:?}"
+            );
+            assert_eq!(from[1], crossing().position[1], "on the crossing's surface");
+            assert!(
+                (yaw - rolling_yaw).abs() < 1e-4,
+                "pass {pass}: {yaw} vs {rolling_yaw}"
+            );
+        }
+    }
 }
 
 #[test]

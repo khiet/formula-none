@@ -19,7 +19,7 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 
 import export  # noqa: E402
-from trackgen.layout import CROWD_KEYS, Placement, TextProp, TrackGeometry, build  # noqa: E402
+from trackgen.layout import CROWD_KEYS, HAZARD_TINT, Placement, TextProp, TrackGeometry, build  # noqa: E402
 from trackgen.layouts import NAMES, load  # noqa: E402
 
 # Flat colours in the 16-bit kart racer's key: one saturated tone per
@@ -73,6 +73,15 @@ MATERIALS.update(
         for slot, key in enumerate(CROWD_KEYS)
     }
 )
+# The hazard zone's tint: the sausage kerb's gold over the ground it lies on.
+MATERIALS.update(
+    {
+        f"hazard-{ground}": tuple(
+            g + (y - g) * HAZARD_TINT for g, y in zip(MATERIALS[ground], MATERIALS["kerb-yellow"])
+        )
+        for ground in ("asphalt", "sand")
+    }
+)
 # Deep enough for the lettering to read as a letter from the track and no
 # deeper: every millimetre is more faces on every board.
 TEXT_EXTRUDE_M = 0.03
@@ -117,6 +126,8 @@ def add_empty(col: bpy.types.Collection, name: str, placement: Placement) -> bpy
     obj.rotation_euler = (0.0, 0.0, placement.heading - math.pi / 2.0)
     if placement.half_width:
         obj["half_width"] = placement.half_width
+    if placement.hazard_half_depth:
+        obj["hazard_half_depth_m"] = placement.hazard_half_depth
     col.objects.link(obj)
     return obj
 

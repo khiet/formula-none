@@ -20,6 +20,7 @@ import type { ItemBox, KartReadout, KartSize, Wheel } from "./bridge";
 import type { CameraPose } from "./chase-camera";
 import { createDustEmitter } from "./dust";
 import { createExhaustFlames } from "./exhaust-flame";
+import { hazardZones } from "./hazard-zone";
 import {
   hazardConeMesh,
   homingGullMesh,
@@ -80,6 +81,16 @@ const FLAG_WAVE_SWING_RAD = 0.6;
 const WHEEL_FLAME_FLICKER_RAD_PER_S = 30;
 const WHEEL_FLAME_FLICKER_STEP_RAD = 2.1;
 const WHEEL_FLAME_FLICKER_SHARE = 0.3;
+/**
+ * Through the warning the wheel waits on the wall top, this far past the
+ * wall's face it rolls in from so it stands on the wall and not its edge,
+ * rocking about its axle this fast through this half-swing. The wall's top
+ * is found by probing the track from this high over the wall's foot.
+ */
+const WHEEL_WAITS_PAST_FACE_M = 0.25;
+const WHEEL_WAIT_ROCK_RAD_PER_S = 9;
+const WHEEL_WAIT_ROCK_RAD = 0.15;
+const WALL_PROBE_FROM_M = 3;
 
 export interface RaceView {
   /**
@@ -90,8 +101,9 @@ export interface RaceView {
    * hide every other kart's, move the camera to `camera`, show each item
    * box that is there to pick up, a cone at each hazard and a gull at
    * each projectile, turned toward the kart it homes in on, and at each
-   * wheel crossing the rolling wheel with its tells and the marshal's flag
-   * waving while it is up.
+   * wheel crossing the rolling wheel with its tells, the marshal's flag
+   * waving and the hazard zone flashing while it is up, and the wheel
+   * waiting on the wall through the warning.
    */
   update(race: RaceReadout, camera: CameraPose, frameSeconds: number): void;
   render(): void;
@@ -363,7 +375,11 @@ export async function createRaceView(
 type Position = readonly [number, number, number];
 
 interface RunawayWheels {
-  /** Roll each crossing's wheel to where `wheels` has it and wave its flag while it is up. */
+  /**
+   * Roll each crossing's wheel to where `wheels` has it, or stand it on the
+   * wall it will roll in from through the warning, and wave its flag and
+   * flash its hazard zone while the flag is up.
+   */
   show(wheels: readonly Wheel[], frameSeconds: number): void;
 }
 
@@ -372,10 +388,14 @@ interface RunawayWheels {
  * each marshal post the track's glTF stands beside one, crossing and post
  * matched by their number. The wheel turns by the ground it covers and
  * bounces as it rolls, its flames flickering off its back; the flag flies
- * across the track, toward the post's lamp.
+ * across the track, toward the post's lamp. Through the warning the wheel
+ * rocks, burning, on the wall top, where no kart reaches it.
  */
 function runawayWheels(world: ThreeScene, track: Object3D, radius: number): RunawayWheels {
   const posts = marshalPosts(track);
+  const zones = hazardZones(track);
+  // Any hit under the probe's start, so the wall's top and not the road.
+  const wallTop = trackProbe(track, 0);
   const template = runawayWheelMesh(radius);
   const flamesTemplate = runawayWheelFlames(radius);
   interface Drawn {
@@ -418,6 +438,7 @@ function runawayWheels(world: ThreeScene, track: Object3D, radius: number): Runa
   return {
     show(wheels, frameSeconds) {
       clockSeconds += frameSeconds;
+      zones.show(wheels, clockSeconds);
       wheels.forEach((wheel, crossing) => {
         const entry = drawnAt(crossing);
         if (entry.flag !== undefined) {
@@ -425,24 +446,35 @@ function runawayWheels(world: ThreeScene, track: Object3D, radius: number): Runa
           entry.flag.rotation.z =
             Math.sin(clockSeconds * FLAG_WAVE_RAD_PER_S) * FLAG_WAVE_SWING_RAD;
         }
-        entry.heading.visible = wheel.kind === "rolling";
-        entry.flames.visible = wheel.kind === "rolling";
-        if (wheel.kind !== "rolling") {
+        entry.heading.visible = wheel.kind !== "quiet";
+        entry.flames.visible = wheel.kind !== "quiet";
+        if (wheel.kind === "quiet") {
           entry.last = undefined;
           return;
         }
-        at.set(...wheel.position);
-        // Rolling toward its -z, the wheel turns back about its axle by the
-        // ground it covered since the last frame.
-        if (entry.last !== undefined) {
-          entry.spin.rotation.x -= at.distanceTo(entry.last) / radius;
+        if (wheel.kind === "warning") {
+          // Back from the way it will roll is out over the wall.
+          wheelBack(wheel.yaw, back);
+          at.set(...wheel.position).addScaledVector(backward.set(...back), WHEEL_WAITS_PAST_FACE_M);
+          const top = wallTop.under(at.x, at.y + WALL_PROBE_FROM_M, at.z);
+          entry.heading.position.set(at.x, (top?.point[1] ?? at.y) + radius, at.z);
+          entry.spin.rotation.x =
+            Math.sin(clockSeconds * WHEEL_WAIT_ROCK_RAD_PER_S) * WHEEL_WAIT_ROCK_RAD;
+          entry.last = undefined;
+        } else {
+          at.set(...wheel.position);
+          // Rolling toward its -z, the wheel turns back about its axle by the
+          // ground it covered since the last frame.
+          if (entry.last !== undefined) {
+            entry.spin.rotation.x -= at.distanceTo(entry.last) / radius;
+          }
+          entry.last = at.clone();
+          entry.heading.position.set(
+            at.x,
+            at.y + radius + runawayWheelBounce(wheel.legFraction),
+            at.z,
+          );
         }
-        entry.last = at.clone();
-        entry.heading.position.set(
-          at.x,
-          at.y + radius + runawayWheelBounce(wheel.legFraction),
-          at.z,
-        );
         entry.heading.rotation.y = wheel.yaw;
         entry.flames.position.copy(entry.heading.position);
         wheelBack(wheel.yaw, back);

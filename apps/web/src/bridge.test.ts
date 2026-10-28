@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { type KartInput, type KartReadout, loadBridge, type Race } from "./bridge";
+import { type KartInput, type KartReadout, loadBridge, type Race, type Wheel } from "./bridge";
 import type { Input, KartSnapshot, Snapshot } from "./generated/protocol";
 import { IDLE_INPUT } from "./input";
 import { START_LIGHTS } from "./instrument-panel";
@@ -726,5 +726,32 @@ describe("runaway wheel", () => {
       elsewhere.position[2] - rolling.position[2],
     );
     expect(apart).toBeGreaterThan(0.5);
+  });
+
+  it("through the warning puts the wheel at the wall it then rolls in from, facing the way it rolls", async () => {
+    const bridge = await loadBridge(wasm);
+    const race = bridge.createRace(7n, 1, 0, BRANDS_PATCH);
+    const [crossing] = JSON.parse(BRANDS_PATCH).wheel_crossings;
+    let waiting: Extract<Wheel, { kind: "warning" }> | undefined;
+    let [wheel] = race.wheels();
+    while (wheel?.kind !== "rolling") {
+      if (wheel?.kind === "warning") waiting = wheel;
+      race.step([IDLE_INPUT], DT);
+      [wheel] = race.wheels();
+    }
+    if (waiting === undefined) throw new Error("no warning");
+    // At the wall: the crossing's half width from its centre, on its line.
+    const across = Math.hypot(
+      waiting.position[0] - crossing.position[0],
+      waiting.position[2] - crossing.position[2],
+    );
+    expect(across).toBeCloseTo(crossing.half_width, 1);
+    // A tick's roll from where it waited, the same way.
+    const rolled = Math.hypot(
+      wheel.position[0] - waiting.position[0],
+      wheel.position[2] - waiting.position[2],
+    );
+    expect(rolled).toBeLessThan(0.5);
+    expect(waiting.yaw).toBeCloseTo(wheel.yaw, 4);
   });
 });

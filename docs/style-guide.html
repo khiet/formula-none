@@ -464,21 +464,33 @@
 
       <article class="asset">
         <header><h3>Runaway wheel</h3><code>apps/web/src/item-meshes.ts runawayWheelMesh, runawayWheelFlames; wheel-tells.ts</code></header>
-        <div class="compare"><figure><figcaption>Mid-bounce over the asphalt, rolling left</figcaption><div class="stage flat" data-draw="runawayWheel"></div></figure><figure><figcaption>A wall hit: sparks off the wall, dust where it lands</figcaption><div class="stage flat" data-draw="runawayWheelHit"></div></figure></div>
+        <div class="compare"><figure><figcaption>Mid-bounce over the asphalt, rolling left</figcaption><div class="stage flat" data-draw="runawayWheel"></div></figure><figure><figcaption>A wall hit: sparks off the wall, dust where it lands</figcaption><div class="stage flat" data-draw="runawayWheelHit"></div></figure><figure><figcaption>Through the warning: waiting on the wall</figcaption><div class="stage flat" data-draw="runawayWheelWaiting"></div></figure></div>
         <dl class="spec"><dt>Size</dt><dd>1.2 m radius (<code>WHEEL_RADIUS_M</code> in <code>tuning.rs</code>), 2.4 m across and 0.96 m wide</dd><dt>Decided</dt><dd><a href="adr/0041-track-obstacles.md">ADR 0041</a>, <a href="adr/0042-runaway-wheel-bounces.md">ADR 0042</a>, <a href="adr/0044-runaway-wheel-size.md">ADR 0044</a>, <a href="mockups/runaway-wheel-danger-spec.html">the danger spec</a></dd></dl>
         <div class="notes">
           <p>The hot wheel, grown to the sim's reach: an eight-facet tyre in <code>WHEEL_TYRE</code> <code>#26262a</code>, dark so it reads on the grey asphalt, with a red-hot rim on each face, <code>ROCKET_FLAME</code> <code>#ffd23f</code> at the hub to <code>ROCKET.mid</code> <code>#d00a12</code> at its edge and unlit so it glows, three spokes in <code>ROCKET_STRAP</code> <code>#3a3d42</code> and a flame-yellow hub. The View rolls it where the sim has it on the approach to Brands Patch's hairpin two: in from one wall, twice off the walls and out through the far one, facing the way it rolls. It turns by the ground it covers and bounces 0.5 m twice each leg, starting over at each wall; a kart it reaches spins out.</p>
           <p>Three flame tongues burn off its back, <code>WHEEL_FLAME</code> <code>#ff8800</code> and see-through round a flame-yellow core, unlit and flickering; they point away from the way it rolls, so they swing round at each wall hit. It leaves grey <code>WHEEL_SMOKE</code> <code>#8a8d94</code> puffs behind it that rise and fade. Where it lands from each bounce and at each wall hit it kicks up five puffs of the run-off's sand dust <code>#d8c08a</code> that spread and fade over 0.45 s, and at each wall hit eight flame-yellow sparks fly 1.5 m back over the track off the wall where the tyre strikes, fading over 0.3 s. The wall hits and the landings are read from the path the sim reports: a leg starting over, and half way through one.</p>
+          <p>Through the second the flag is up before a pass it waits, burning, on top of the wall it will roll in from, on the crossing's line, rocking 0.15 rad either way about its axle, and drops to the road as the pass starts. The sim reports the foot of that wall; the View finds the wall's top in the track's glTF. Up there no kart reaches it, and it hits nothing.</p>
           <p>It is built in code like the items, not in the track's glTF, because it moves. The bounce is drawn only: the sim rolls it along the ground, so the reach it tests is the one the player sees where the wheel meets the road.</p>
+        </div>
+      </article>
+
+      <article class="asset">
+        <header><h3>Hazard zone</h3><code>assets/tracks/trackgen/layout.py hazard_zones, assets/tracks/build.py; apps/web/src/hazard-zone.ts</code></header>
+        <div class="compare"><figure><figcaption>Quiet, from above</figcaption><div class="stage flat" data-draw="hazardZone"></div></figure><figure><figcaption>Flashing, from the flag going up to the end of the pass</figcaption><div class="stage flat" data-draw="hazardZoneFlash"></div></figure></div>
+        <dl class="spec"><dt>Size</dt><dd>Wall to wall, 18.4 m deep: 9.2 m either side of the crossing (<code>WHEEL_LANDING_SPREAD_M</code> plus <code>WHEEL_RADIUS_M</code>, the sidecar's <code>hazard_half_depth_m</code>)</dd><dt>Decided</dt><dd><a href="mockups/runaway-wheel-danger-spec.html">the danger spec</a></dd></dl>
+        <div class="notes">
+          <p>Paint over the whole area the runaway wheel can reach: a 1 m band of chevrons across each end, 1 m stripes of gold <code>#ffd23f</code> and black <code>#111111</code> leaning 0.6 m across the band, and a light yellow tint between, the gold at 14% over the asphalt (<code>#807a70</code>) and the sand (<code>#ebc86b</code>). Scenery in the track's glTF, a hair over the ground like the kerbs; no surface tag, so it drives as what it lies on.</p>
+          <p>From the flag going up to the end of the pass the View washes it red, <code>SIGNAL_RED.mid</code> <code>#e8483a</code>, pulsing between 20% and 60% at 14 rad/s; quiet, the wash is gone. The next landing point is not shown, on purpose.</p>
+          <p>Always there, so a racer learns the spot by the second lap; the flash says when.</p>
         </div>
       </article>
 
       <article class="asset">
         <header><h3>Marshal post</h3><code>assets/tracks/trackgen/layout.py marshal_posts, apps/web/src/item-meshes.ts marshalFlagMesh</code></header>
         <div class="compare"><figure><figcaption>Flag up before and through a pass</figcaption><div class="stage flat" data-draw="marshalPost"></div></figure></div>
-        <dl class="spec"><dt>Size</dt><dd>1 x 1 x 2 m, 3 m short of the wheel's crossing on the outside run-off</dd><dt>Decided</dt><dd><a href="adr/0041-track-obstacles.md">ADR 0041</a></dd></dl>
+        <dl class="spec"><dt>Size</dt><dd>1.4 x 1.4 x 1 m, 3 m short of the wheel's crossing on the outside run-off</dd><dt>Decided</dt><dd><a href="adr/0041-track-obstacles.md">ADR 0041</a>, <a href="mockups/runaway-wheel-danger-spec.html">the danger spec</a></dd></dl>
         <div class="notes">
-          <p>A white box with an orange lamp <code>#ff8800</code> on its face to the track: scenery in the track's glTF. The View stands a yellow flag <code>#f5c542</code> on its top, flying across the track toward the lamp, and waves it from a second before each pass until the pass ends.</p>
+          <p>A low white platform, banded orange <code>#ff8800</code> 0.12 m deep under its top, with an orange lamp on its face to the track: scenery in the track's glTF. The View stands a yellow flag <code>#f5c542</code> on its top, flying across the track toward the lamp, and waves it from a second before each pass until the pass ends.</p>
           <p>The yellow flag is the warning a racer already knows, and the post keeps it where the wheel will come from.</p>
         </div>
       </article>
@@ -1094,11 +1106,31 @@
       <rect width="200" height="160" fill="#87ceeb"/><rect y="132" width="200" height="28" fill="#6b6b78"/>
       ${tongues(74, 82, -1)}<rect x="0" y="30" width="24" height="102" fill="#f0f0f0"/>${hotWheel(74, 82)}${dust}${sparks}</svg>`;
   };
-  // From the track: the post on the run-off, its lamp facing out, the flag up.
+  // From the side: the wheel rocking on the wall top, flames off its back.
+  draw.runawayWheelWaiting = () => `<svg viewBox="0 0 200 160" role="img" aria-label="Hot runaway wheel waiting on top of the wall before a pass">${hotRim}
+      <rect width="200" height="160" fill="#87ceeb"/><rect y="132" width="200" height="28" fill="#6b6b78"/>
+      <rect x="62" y="92" width="40" height="40" fill="#f0f0f0"/>
+      <g transform="rotate(-8 82 46)">${tongues(82, 46, -1)}${hotWheel(82, 46)}</g></svg>`;
+  // From above: the track runs up the page, wall to wall, the zone across it.
+  const hazardGround = (wash) => {
+    const band = (y) => Array.from({ length: 14 }, (_, k) => {
+      const x = -8 + k * 16;
+      return `<polygon points="${x},${y + 10} ${x + 16},${y + 10} ${x + 26},${y} ${x + 10},${y}" fill="${k % 2 ? "#111111" : "#ffd23f"}"/>`;
+    }).join("");
+    return `<svg viewBox="0 0 200 160" role="img" aria-label="Hazard zone painted across the track from above">
+      <defs><clipPath id="hazard-walls-${wash ? 1 : 0}"><rect x="4" width="192" height="160"/></clipPath></defs>
+      <rect width="200" height="160" fill="#e8c773"/><rect x="52" width="96" height="160" fill="#6b6b78"/>
+      <rect x="0" width="4" height="160" fill="#f0f0f0"/><rect x="196" width="4" height="160" fill="#f0f0f0"/>
+      <g clip-path="url(#hazard-walls-${wash ? 1 : 0})"><rect x="4" y="37" width="48" height="86" fill="#ebc86b"/><rect x="148" y="37" width="48" height="86" fill="#ebc86b"/><rect x="52" y="37" width="96" height="86" fill="#807a70"/>
+      ${band(27)}${band(123)}${wash ? `<rect x="4" y="27" width="192" height="106" fill="#e8483a" opacity=".5"/>` : ""}</g></svg>`;
+  };
+  draw.hazardZone = () => hazardGround(false);
+  draw.hazardZoneFlash = () => hazardGround(true);
+  // From the track: the low platform on the run-off, banded orange under its top, its lamp facing out, the flag up.
   draw.marshalPost = () => `<svg viewBox="0 0 200 160" role="img" aria-label="Marshal post with its lamp and the yellow flag up">
     <rect width="200" height="160" fill="#87ceeb"/><rect y="132" width="200" height="28" fill="#e8c773"/>
-    <rect x="80" y="52" width="40" height="80" fill="#f5f5f5"/><rect x="93" y="62" width="14" height="14" fill="#ff8800"/>
-    <rect x="98" y="8" width="3" height="44" fill="#cfd2d6"/><rect x="101" y="8" width="34" height="22" fill="#f5c542" transform="rotate(-12 100 52)"/></svg>`;
+    <rect x="72" y="92" width="56" height="40" fill="#f5f5f5"/><rect x="72" y="92" width="56" height="5" fill="#ff8800"/><rect x="93" y="104" width="14" height="14" fill="#ff8800"/>
+    <rect x="98" y="48" width="3" height="44" fill="#cfd2d6"/><rect x="101" y="48" width="34" height="22" fill="#f5c542" transform="rotate(-12 100 92)"/></svg>`;
   // Top-down: the track runs up the page, the pad's rectangle spans 6 m of its width.
   const padGround = (inner) => `<svg viewBox="0 0 200 160" role="img" aria-label="Boost pad on asphalt from above">
     <rect width="200" height="160" fill="#6b6b78"/><rect x="0" width="10" height="160" fill="#e8c773"/><rect x="190" width="10" height="160" fill="#e8c773"/>${inner}</svg>`;

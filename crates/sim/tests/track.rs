@@ -6,7 +6,7 @@ mod common;
 
 use common::{brands_patch, oval, started, throttle, ticks, track, with_slot_at, DT, OVAL, SEED};
 
-use sim::tuning::{KART_HALF_HEIGHT_M, KART_HALF_LENGTH_M};
+use sim::tuning::{KART_HALF_HEIGHT_M, KART_HALF_LENGTH_M, WHEEL_LANDING_SPREAD_M, WHEEL_RADIUS_M};
 use sim::{step, KartInput, KartReadout, State, Surface, Track, TrackError};
 
 /// Nearest centreline index to a point, for ordering things along the lap.
@@ -177,11 +177,29 @@ fn a_sidecar_the_sim_cannot_race_on_is_rejected() {
 }
 
 #[test]
+fn brands_patchs_hazard_zone_reaches_as_far_as_the_wheel_can_land_and_its_tyre_beyond() {
+    let track = brands_patch();
+    assert!(!track.wheel_crossings().is_empty());
+    for crossing in track.wheel_crossings() {
+        // Short of this, re-export the track after retuning the wheel.
+        assert!(
+            crossing.hazard_half_depth_m >= WHEEL_LANDING_SPREAD_M + WHEEL_RADIUS_M,
+            "{crossing:?}"
+        );
+    }
+}
+
+#[test]
 fn a_wheel_crossing_too_wide_for_a_pass_and_its_flag_to_fit_in_the_period_is_rejected() {
     let crossing = |half_width: f32| {
         let mut sidecar: serde_json::Value = serde_json::from_str(OVAL).unwrap();
         sidecar["wheel_crossings"] = serde_json::json!([
-            { "position": [0.0, 0.0, 0.0], "yaw": 0.0, "half_width": half_width }
+            {
+                "position": [0.0, 0.0, 0.0],
+                "yaw": 0.0,
+                "half_width": half_width,
+                "hazard_half_depth_m": 9.2
+            }
         ]);
         Track::from_sidecar(&sidecar.to_string())
     };

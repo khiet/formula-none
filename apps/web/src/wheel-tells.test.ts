@@ -92,7 +92,7 @@ function emitOver(pass: readonly Rolling[]) {
   };
   const dustTicks = at(dust);
   const sparkTicks = at(sparks);
-  emitter.emit([{ kind: "warning" }], DT);
+  emitter.emit([{ kind: "warning", position: [0, 0, 0], yaw: 0 }], DT);
   pass.forEach((wheel, tick) => {
     emitter.emit([wheel], DT);
     dustTicks.after(tick);
@@ -217,7 +217,7 @@ describe("the runaway wheel's tells", () => {
       () => 0.5,
     );
     for (let tick = 0; tick < 60; tick++) {
-      emitter.emit([{ kind: "quiet" }, { kind: "warning" }], DT);
+      emitter.emit([{ kind: "quiet" }, { kind: "warning", position: [0, 0, 0], yaw: 0 }], DT);
     }
     expect(quiet.births).toEqual([]);
   });

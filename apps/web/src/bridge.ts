@@ -80,7 +80,9 @@ export interface Projectile {
 
 /**
  * The runaway wheel at one crossing, as the sim's `Wheel` has it: quiet,
- * the marshal's flag up before a pass, or rolling with its centre on the
+ * the marshal's flag up before a pass with the foot of the wall it will
+ * roll in from, on the crossing's line, in metres, and the yaw it will
+ * roll toward, or rolling with its centre on the
  * surface in metres, the yaw it rolls toward (zero facing -Z), how far
  * along the pass's path it is, 0 at the wall it rolled in from to 1 at the
  * wall it leaves through, how far through the leg under way, 0 at the
@@ -89,7 +91,11 @@ export interface Projectile {
  */
 export type Wheel =
   | { readonly kind: "quiet" }
-  | { readonly kind: "warning" }
+  | {
+      readonly kind: "warning";
+      readonly position: readonly [number, number, number];
+      readonly yaw: number;
+    }
   | {
       readonly kind: "rolling";
       readonly position: readonly [number, number, number];
@@ -614,7 +620,7 @@ function wheelsFrom(buffer: Float32Array): Wheel[] {
       case 0:
         return { kind: "quiet" };
       case 1:
-        return { kind: "warning" };
+        return { kind: "warning", position: [read(1), read(2), read(3)], yaw: read(4) };
       case 2:
         return {
           kind: "rolling",

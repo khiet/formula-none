@@ -25,7 +25,15 @@ pub enum Wheel {
     /// Off the course, the flag down.
     Quiet,
     /// The flag is up for the pass about to start.
-    Warning,
+    Warning {
+        /// The pass about to start, from 1.
+        pass: u32,
+        /// Where it rolls in from: the foot of the wall it starts at, on
+        /// the crossing's line, on the surface, in metres.
+        from: [f32; 3],
+        /// The direction it will roll in, as `Rolling`'s yaw.
+        yaw: f32,
+    },
     /// Rolling over the track, the flag still up.
     Rolling {
         /// The pass under way, from 1.
@@ -56,31 +64,22 @@ pub fn wheel(track: &Track, crossing: usize, seed: u64, elapsed_s: f32) -> Wheel
     }
     let cycles = libm::floorf(since_flag_s / WHEEL_PERIOD_S);
     let into_cycle_s = since_flag_s - cycles * WHEEL_PERIOD_S;
-    if into_cycle_s < WHEEL_WARNING_S {
-        return Wheel::Warning;
-    }
     let pass = cycles as u32 + 1;
     let path = Path::new(crossing, seed, pass);
+    if into_cycle_s < WHEEL_WARNING_S {
+        let (from, yaw) = path.place(crossing, 0, 0.0);
+        return Wheel::Warning { pass, from, yaw };
+    }
     let rolled_m = (into_cycle_s - WHEEL_WARNING_S) * WHEEL_SPEED_M_PER_S;
     if rolled_m > path.length_m() {
         return Wheel::Quiet;
     }
     let (leg, leg_fraction) = path.leg_at(rolled_m);
-    let [right, ahead] = path.point(leg, leg_fraction);
-    let [to_right, to_ahead] = path.heading(leg);
-    // Forward of the crossing's yaw is (-sin, -cos) in x, z and right of
-    // it (cos, -sin); yaw grows counter-clockwise, so a heading to the
-    // right turns it clockwise.
-    let (sin, cos) = libm::sincosf(crossing.yaw);
-    let [x, y, z] = crossing.position;
+    let (position, yaw) = path.place(crossing, leg, leg_fraction);
     Wheel::Rolling {
         pass,
-        position: [
-            x + right * cos - ahead * sin,
-            y,
-            z - right * sin - ahead * cos,
-        ],
-        yaw: crossing.yaw + libm::atan2f(-to_right, to_ahead),
+        position,
+        yaw,
         fraction: rolled_m / path.length_m(),
         leg_fraction,
     }
@@ -182,6 +181,26 @@ impl Path {
             from[0] + (to[0] - from[0]) * fraction,
             from[1] + (to[1] - from[1]) * fraction,
         ]
+    }
+
+    /// Where on `crossing` the wheel is `fraction` through leg `leg`, on
+    /// the surface, and the direction it rolls in there.
+    fn place(&self, crossing: &WheelCrossing, leg: usize, fraction: f32) -> ([f32; 3], f32) {
+        let [right, ahead] = self.point(leg, fraction);
+        let [to_right, to_ahead] = self.heading(leg);
+        // Forward of the crossing's yaw is (-sin, -cos) in x, z and right of
+        // it (cos, -sin); yaw grows counter-clockwise, so a heading to the
+        // right turns it clockwise.
+        let (sin, cos) = libm::sincosf(crossing.yaw);
+        let [x, y, z] = crossing.position;
+        (
+            [
+                x + right * cos - ahead * sin,
+                y,
+                z - right * sin - ahead * cos,
+            ],
+            crossing.yaw + libm::atan2f(-to_right, to_ahead),
+        )
     }
 
     fn heading(&self, leg: usize) -> [f32; 2] {

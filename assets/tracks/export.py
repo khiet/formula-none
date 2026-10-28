@@ -18,7 +18,7 @@ scene follows these conventions:
 - Collections `Checkpoints`, `ItemBoxes`, `BoostPads`, `Kerbs`,
   `WheelCrossings` and `SpawnGrid` hold empties ordered by name. An empty
   faces along its local +Y; checkpoints and wheel crossings carry a
-  `half_width` custom property.
+  `half_width` custom property, and wheel crossings a `hazard_half_depth_m`.
 
 Blender is Z up; the sidecar is written in the glTF frame (Y up, -Z
 forward) so it matches the mesh.
@@ -50,6 +50,8 @@ PLACEMENT_COLLECTIONS = {
 }
 # The placements that reach to either side of their centre.
 HALF_WIDTH_COLLECTIONS = {"checkpoints", "wheel_crossings"}
+# The placements whose hazard zone reaches along the track either side of them.
+HAZARD_COLLECTIONS = {"wheel_crossings"}
 # Millimetres are plenty for a greybox and keep the sidecar diffable.
 DECIMALS = 3
 
@@ -119,7 +121,7 @@ def centreline() -> list[list[float]]:
     return [to_gltf(obj.matrix_world @ p) for p in points]
 
 
-def placements(collection_name: str, with_half_width: bool) -> list[dict]:
+def placements(collection_name: str, with_half_width: bool, with_hazard: bool) -> list[dict]:
     result = []
     for obj in objects_in(collection_name):
         placement = {"position": to_gltf(obj.matrix_world.translation), "yaw": yaw_of(obj)}
@@ -128,6 +130,11 @@ def placements(collection_name: str, with_half_width: bool) -> list[dict]:
             if half_width is None:
                 raise RuntimeError(f"{obj.name}: needs a half_width custom property")
             placement["half_width"] = tidy(float(half_width))
+        if with_hazard:
+            hazard_half_depth = obj.get("hazard_half_depth_m")
+            if hazard_half_depth is None:
+                raise RuntimeError(f"{obj.name}: needs a hazard_half_depth_m custom property")
+            placement["hazard_half_depth_m"] = tidy(float(hazard_half_depth))
         result.append(placement)
     return result
 
@@ -136,7 +143,11 @@ def sidecar(name: str) -> dict:
     depsgraph = bpy.context.evaluated_depsgraph_get()
     data = {"version": SIDECAR_VERSION, "name": name, "centreline": centreline()}
     for key, collection_name in PLACEMENT_COLLECTIONS.items():
-        data[key] = placements(collection_name, with_half_width=key in HALF_WIDTH_COLLECTIONS)
+        data[key] = placements(
+            collection_name,
+            with_half_width=key in HALF_WIDTH_COLLECTIONS,
+            with_hazard=key in HAZARD_COLLECTIONS,
+        )
     data["surfaces"] = surface_meshes(depsgraph)
     return data
 
