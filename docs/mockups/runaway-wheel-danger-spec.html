@@ -1,0 +1,744 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Runaway Wheel Danger Spec</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Bungee&family=Inter:wght@400;600&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #121316;
+    --card: #1b1d21;
+    --fg: #e8e8ea;
+    --muted: #8a8d94;
+    --rule: #2a2c31;
+    --code-bg: #24272c;
+    /* palette.ts */
+    --poster-red: #c81d25;
+    --go-green: #3ddc84;
+    --gold: #ffd23f;
+    --signal-yellow: #f5c542;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--fg); font: 15px/1.55 Inter, system-ui, sans-serif; }
+  body { padding: 2rem 16px 4rem; }
+  .wrap { max-width: 1040px; margin: 0 auto; }
+  h1 { font: 1.9rem/1.1 Bungee, Impact, sans-serif; margin: 0 0 .5rem; letter-spacing: .02em; }
+  h1 span { color: var(--poster-red); }
+  h2 { font: 1.2rem/1.2 Bungee, Impact, sans-serif; margin: 2.5rem 0 .75rem; }
+  h3 { font: 600 1rem/1.3 Inter, sans-serif; margin: 1.25rem 0 .4rem; }
+  p { margin: .4rem 0; }
+  a { color: var(--gold); }
+  .lede { color: var(--muted); max-width: 75ch; }
+  .muted { color: var(--muted); }
+  nav { display: flex; flex-wrap: wrap; gap: .4rem; margin: 1.25rem 0 0; }
+  nav a { color: var(--fg); text-decoration: none; font-size: .85rem; border: 1px solid var(--rule); border-radius: 999px; padding: .25rem .7rem; }
+  nav a:hover { border-color: var(--muted); }
+  code { font: .85em ui-monospace, SFMono-Regular, Menlo, monospace; background: var(--code-bg); padding: .05rem .3rem; border-radius: 3px; }
+  svg { display: block; width: 100%; height: auto; }
+  .card { background: var(--card); border: 1px solid var(--rule); border-radius: 10px; padding: 1rem 1.15rem; }
+  .element { border-top: 3px solid var(--gold); margin-top: 1.5rem; }
+  .element > .head { display: flex; align-items: baseline; gap: .6rem; flex-wrap: wrap; }
+  .element > .head h2 { margin: 0; }
+  .tag { font: 600 .7rem/1 Inter, sans-serif; text-transform: uppercase; letter-spacing: .08em; padding: .3rem .5rem; border-radius: 4px; border: 1px solid var(--rule); color: var(--muted); }
+  .tag.sim { color: #111; background: var(--poster-red); border-color: var(--poster-red); color: #fff; }
+  .tag.view { color: #111; background: var(--gold); border-color: var(--gold); }
+  .tag.gltf { color: #111; background: #87ceeb; border-color: #87ceeb; }
+  .grid2 { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr)); align-items: start; margin-top: .75rem; }
+  .stills { display: grid; gap: .5rem; grid-template-columns: repeat(3, 1fr); }
+  .stills figure, .sprites figure { margin: 0; }
+  figcaption { font-size: .72rem; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; margin-top: .25rem; }
+  .stage { border-radius: 8px; overflow: hidden; background: #000; }
+  .sprites { display: flex; gap: .75rem; max-width: 240px; }
+  .sprites figure { flex: 1; }
+  .sprites svg { background: #2b2e33; border-radius: 6px; }
+  .table-wrap { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; font-size: .9rem; }
+  th, td { text-align: left; padding: .45rem .65rem; border-bottom: 1px solid var(--rule); vertical-align: top; }
+  th { color: var(--muted); font-weight: 600; white-space: nowrap; }
+  td.num { white-space: nowrap; font-variant-numeric: tabular-nums; }
+  td.was { color: var(--muted); }
+  .swatch { display: inline-block; width: .8rem; height: .8rem; border-radius: 2px; vertical-align: -.1rem; border: 1px solid rgba(255,255,255,.2); margin-right: .25rem; }
+  ul, ol { padding-left: 1.2rem; margin: .4rem 0; }
+  li { margin: .25rem 0; }
+  .controls { display: flex; flex-wrap: wrap; gap: .75rem 1rem; align-items: center; margin-bottom: .75rem; }
+  button { font: 600 .85rem Inter, sans-serif; color: var(--fg); background: var(--code-bg); border: 1px solid var(--rule); border-radius: 6px; padding: .35rem .8rem; cursor: pointer; }
+  label.inline { display: inline-flex; gap: .35rem; align-items: center; font-size: .85rem; color: var(--muted); cursor: pointer; }
+  input[type="range"] { width: 160px; accent-color: var(--gold); }
+  .timeline { flex: 1 1 220px; position: relative; display: flex; height: 22px; border-radius: 4px; overflow: hidden; font: 600 .68rem/22px Inter, sans-serif; text-transform: uppercase; letter-spacing: .06em; }
+  .timeline div { text-align: center; white-space: nowrap; overflow: hidden; }
+  .timeline .t-flag { background: var(--signal-yellow); color: #111; }
+  .timeline .t-roll { background: var(--poster-red); }
+  .timeline .t-quiet { background: var(--code-bg); color: var(--muted); }
+  .timeline .cursor { position: absolute; top: 0; bottom: 0; width: 2px; background: #fff; box-shadow: 0 0 0 1px #000; }
+  .slices { counter-reset: slice; display: grid; gap: .75rem; }
+  .slice { counter-increment: slice; }
+  .slice h3 { margin-top: 0; }
+  .slice h3::before { content: counter(slice) ". "; color: var(--poster-red); }
+  .settled { border-left: 3px solid var(--go-green); padding-left: .75rem; }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <radialGradient id="hotRim"><stop offset="0" stop-color="#fff3b0"/><stop offset=".45" stop-color="#ffd23f"/><stop offset="1" stop-color="#d00a12"/></radialGradient>
+    <radialGradient id="glow"><stop offset="0" stop-color="#ffcf4a" stop-opacity=".9"/><stop offset="1" stop-color="#ffcf4a" stop-opacity="0"/></radialGradient>
+    <radialGradient id="heat"><stop offset=".6" stop-color="#ff8800" stop-opacity=".45"/><stop offset="1" stop-color="#ff8800" stop-opacity="0"/></radialGradient>
+  </defs>
+</svg>
+<div class="wrap">
+
+<header>
+  <h1>Runaway wheel <span>danger</span> spec</h1>
+  <p class="lede">The runaway wheel and its marshal post read as scenery: a grey wheel on grey asphalt (1.2:1) and a yellow flag over a yellow run-off (1.1:1). This spec records the redesign chosen to make them read as danger: a burning wheel almost three times the size, Oyaji from Purrjump as the marshal, and four tells that show the pass coming. The cycle (7 s period, 1 s warning, 1.6 s pass) and the crossing are unchanged.</p>
+  <nav>
+    <a href="#decisions">Decisions</a>
+    <a href="#preview">Chase view</a>
+    <a href="#wheel">Hot wheel</a>
+    <a href="#post">Marshal post</a>
+    <a href="#telegraph">Telegraph</a>
+    <a href="#records">Records to change</a>
+    <a href="#slices">Issues</a>
+    <a href="#out">Out of scope</a>
+  </nav>
+</header>
+
+<h2 id="decisions">Decisions</h2>
+<div class="card table-wrap">
+  <table>
+    <thead><tr><th>Element</th><th>Decided</th><th>Was</th></tr></thead>
+    <tbody>
+      <tr><td>Wheel look</td><td>Hot wheel: a red-hot rim, flames off its back, a smoke trail</td><td class="was">The kart's tyre and rim in the kart's greys</td></tr>
+      <tr><td>Wheel size</td><td><b>1.2 m</b> radius, 2.4 m across: <code>WHEEL_RADIUS_M</code> 0.45 → 1.2, so the wheel drawn is still the wheel that hits</td><td class="was">0.45 m radius, 0.9 m across</td></tr>
+      <tr><td>Marshal</td><td>Oyaji from Purrjump on the tea break: sits with a cup while quiet, jumps up in a panic when the flag goes up, hops through the pass</td><td class="was">No figure; a flag stood on the box</td></tr>
+      <tr><td>Flags</td><td>Two hazard-striped flags, yellow with black diagonals, double-waved</td><td class="was">One plain yellow flag</td></tr>
+      <tr><td>Post</td><td>A 1.4 x 1 m platform with an orange band and lamp, and an amber beacon that flashes while the flag is up</td><td class="was">A 1 x 2 m box with an orange lamp</td></tr>
+      <tr><td>Telegraph</td><td>Painted hazard lane, lane flashes red, wheel waits on the wall, dust at each bounce</td><td class="was">The flag alone</td></tr>
+    </tbody>
+  </table>
+  <p class="muted" style="margin-top:.75rem">Chosen from <a href="runaway-wheel-and-marshal-post.html">runaway-wheel-and-marshal-post.html</a> (look, size, post, telegraph) and <a href="marshal-oyaji.html">marshal-oyaji.html</a> (marshal, flag), where the options that were turned down are kept.</p>
+</div>
+
+<h2 id="preview">Chase view</h2>
+<div class="card">
+  <div class="controls">
+    <button id="play">Pause</button>
+    <label class="inline"><input type="checkbox" id="skip-idle" checked /> Skip the quiet 4.4 s</label>
+    <label class="inline">Crossing <input type="range" id="distance" min="8" max="40" step="1" value="14" /> <span id="distance-out"></span> ahead</label>
+    <div class="timeline" id="timeline" aria-hidden="true"></div>
+  </div>
+  <div id="chase" class="stage"></div>
+  <p class="muted" style="margin-top:.6rem">A rough chase camera 2.2 m up on the approach to Brands Patch's hairpin two: 12 m of asphalt, 6 m of run-off each side, the post 3 m short of the crossing on the right. Passes alternate sides, 24 m wall to wall in 1.6 s.</p>
+</div>
+
+<section id="wheel" class="card element">
+  <div class="head"><h2>Hot wheel</h2><span class="tag sim">Sim</span><span class="tag view">View</span></div>
+  <div class="grid2">
+    <div><div id="wheel-side" class="stage"></div><figcaption>Beside a kart at the same scale, a quarter of its real spin</figcaption></div>
+    <div class="table-wrap"><table>
+      <tbody>
+        <tr><th>Reach</th><td class="num"><code>WHEEL_RADIUS_M = 1.2</code></td></tr>
+        <tr><th>Drawn</th><td>2.4 m across, 0.96 m wide (the width share 0.8 stays)</td></tr>
+        <tr><th>Share of the road</th><td class="num">20% of the 12 m asphalt</td></tr>
+        <tr><th>Holds a lane for</th><td class="num">0.24 s (was 0.14 s)</td></tr>
+        <tr><th>Tyre</th><td><span class="swatch" style="background:#26262a"></span><code>#26262a</code>, eight facets</td></tr>
+        <tr><th>Rim</th><td><span class="swatch" style="background:#ffd23f"></span><code>ROCKET_FLAME</code> at the hub to <span class="swatch" style="background:#d00a12"></span><code>ROCKET.mid</code> at the edge, unlit so it glows</td></tr>
+        <tr><th>Spokes</th><td>Three, <span class="swatch" style="background:#3a3d42"></span><code>ROCKET_STRAP</code>; hub in flame yellow</td></tr>
+        <tr><th>Flames</th><td>Three tongues off its back, <code>#ff8800</code> outside, flame yellow inside, flickering</td></tr>
+        <tr><th>Smoke</th><td>Grey <code>#8a8d94</code> puffs left behind it, fading</td></tr>
+      </tbody>
+    </table></div>
+  </div>
+  <h3>Behaviour</h3>
+  <ul>
+    <li>Rolls across from wall to wall as today, turning by the ground it covers and bouncing 0.5 m three times a pass. The bounce is drawn only; the sim rolls it on the ground.</li>
+    <li>The flames always point away from the way it rolls, so they flip with each pass's direction.</li>
+    <li>A kart whose box comes within 1.2 m of its centre spins out, by no one, as today. The bot's avoidance box (<code>bot.rs</code>, reach plus half the kart's length and width) grows with it.</li>
+  </ul>
+</section>
+
+<section id="post" class="card element">
+  <div class="head"><h2>Marshal post</h2><span class="tag gltf">glTF</span><span class="tag view">View</span></div>
+  <div class="grid2">
+    <div>
+      <div class="stills">
+        <figure><div class="stage" id="still-quiet"></div><figcaption>Quiet</figcaption></figure>
+        <figure><div class="stage" id="still-flag"></div><figcaption>Flag up</figcaption></figure>
+        <figure><div class="stage" id="still-rolling"></div><figcaption>Rolling</figcaption></figure>
+      </div>
+      <div class="stage" id="post-live" style="margin-top:.5rem"></div>
+      <figcaption>On the cycle in the chase view</figcaption>
+    </div>
+    <div>
+      <div class="sprites" id="sprites"></div>
+      <p class="muted" style="margin-top:.5rem">Oyaji as Purrjump draws him (<code>purrjump/scripts/cats.mjs</code>): bald with a shine, grey side hair, heavy brows, a wide grey mustache, a round belly. His calm idle face shows while the wheel is quiet; his wide-eyed fall face shows from the flag going up.</p>
+    </div>
+  </div>
+
+  <h3>Oyaji</h3>
+  <div class="table-wrap"><table>
+    <tbody>
+      <tr><th>Built</th><td>In code from flat-shaded primitives, like the flag today and the item characters, because he moves. Chibi proportions, about 1.75 m standing: a faceted head 0.68 m across on a round belly.</td></tr>
+      <tr><th>Skin</th><td><span class="swatch" style="background:#f0c090"></span><code>#f0c090</code>, shaded <code>#d8a070</code>, shine <code>#f8dcb0</code></td></tr>
+      <tr><th>Hair, brows, mustache</th><td><span class="swatch" style="background:#50505c"></span><code>#50505c</code>, <span class="swatch" style="background:#2a2a30"></span><code>#2a2a30</code>, <span class="swatch" style="background:#6a6a78"></span><code>#6a6a78</code></td></tr>
+      <tr><th>Clothes</th><td>Orange hi-vis jacket <span class="swatch" style="background:#ff8800"></span><code>#ff8800</code> (shaded <code>#c45f00</code>) with reflective bands <code>#d8dce0</code>, over Purrjump's white vest <code>#f4f4f4</code>; a white towel round his neck; blue shorts <span class="swatch" style="background:#3060a8"></span><code>#3060a8</code>; sandals <code>#b87050</code></td></tr>
+      <tr><th>Props</th><td>A green folding stool, a white cup with rising steam</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3>Poses, keyed on the wheel's kind</h3>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Wheel</th><th>Pose</th><th>Face</th><th>Flags</th></tr></thead>
+    <tbody>
+      <tr><td><code>quiet</code></td><td>Sits on the stool, knees apart, sipping from the cup; steam rises</td><td>Calm: flat brows, dot eyes</td><td>Furled, leaning against the stool</td></tr>
+      <tr><td>flag up</td><td>On his feet, arms up</td><td>Panic: brows high, eyes wide, mouth open, sweat flying off</td><td>Double-waved, out of phase: 14 rad/s through ±34° about 18° out</td></tr>
+      <tr><td><code>rolling</code></td><td>As flag up, hopping up to 0.18 m</td><td>Panic</td><td>Double-waved</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3>Flags</h3>
+  <ul>
+    <li>Two, one in each hand, each 0.9 x 0.62 m on a 1 m pole <code>#cfd2d6</code>, rippling as they fly outward.</li>
+    <li>Yellow <span class="swatch" style="background:#f5c542"></span><code>SIGNAL_YELLOW.mid</code> with black <span class="swatch" style="background:#1f1f22"></span><code>#1f1f22</code> diagonals: stripes 0.09 m wide every 0.2 m, the same as the lane painted across the road, so flag and road say the same thing.</li>
+    <li>Not a racing flag, so it can't be read as one: the yellow with red stripes that means a slippery surface is avoided on purpose.</li>
+  </ul>
+
+  <h3>The post</h3>
+  <ul>
+    <li>Scenery in the glTF, where it stands today: 3 m short of the crossing, 3 m into the outside run-off.</li>
+    <li>A white platform 1.4 m wide and 1 m tall (<code>MARSHAL_POST_WIDTH_M</code> 1.0 → 1.4, <code>MARSHAL_POST_HEIGHT_M</code> 2.0 → 1.0) with an orange band 0.12 m deep below its top and the orange lamp on its face to the track.</li>
+    <li>An amber beacon on the track-side corner, built in the View: dark <code>#7a5a14</code> while quiet; while the flag is up, lit <code>#ffb020</code> with its glow and a beam that sweeps side to side at 11 rad/s.</li>
+  </ul>
+</section>
+
+<section id="telegraph" class="card element">
+  <div class="head"><h2>Telegraph</h2><span class="tag gltf">glTF</span><span class="tag view">View</span></div>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Tell</th><th>Decided</th><th>Where</th></tr></thead>
+    <tbody>
+      <tr><td>Painted hazard lane</td><td>Yellow and black chevrons across the crossing from wall to wall, 1 m bands, as deep as the wheel is across: <b>2.4 m</b>, centred on the crossing. Always there, so a player learns the spot by the second lap.</td><td>Paint in the glTF from <code>layout.py</code>; no surface tag, no sim change. Re-export Brands Patch.</td></tr>
+      <tr><td>Lane flashes red</td><td>A red <code>#e8483a</code> wash over the lane, pulsing between 20% and 60% at 14 rad/s, from the flag going up to the end of the pass</td><td>View, keyed on the wheel's kind like the flag</td></tr>
+      <tr><td>Wheel waits on the wall</td><td>Through the 1 s warning the hot wheel sits, burning, on top of the wall it will roll from, rocking ±0.15 rad. It drops to the road as the pass starts.</td><td>View only. The sim has no wheel until the pass, so the waiting wheel sits on the wall top where no kart can reach it, and hits nothing.</td></tr>
+      <tr><td>Dust at each bounce</td><td>Five puffs of run-off dust <code>#d9c08a</code> where it lands, spreading and fading over 0.45 s, three times a pass</td><td>View, reusing the run-off dust</td></tr>
+    </tbody>
+  </table></div>
+  <p class="muted settled" style="margin-top:.75rem">The lane's depth is set here: the review page drew it 2 m deep, before the wheel grew to 2.4 m. It now matches the wheel's footprint.</p>
+</section>
+
+<h2 id="records">Records to change</h2>
+<div class="card table-wrap">
+  <table>
+    <thead><tr><th>Record</th><th>Change</th></tr></thead>
+    <tbody>
+      <tr><td>New ADR, superseding ADR 0041 on the wheel</td><td>The reach, the hot wheel, the marshal and his hazard flags, the four tells. ADR 0041 says "a marshal's flag up" and left the size open; a new record says what replaces them.</td></tr>
+      <tr><td><code>docs/GLOSSARY.md</code></td><td><i>runaway wheel</i>: "with a marshal's yellow flag up" becomes the marshal waving hazard flags. A <i>marshal</i> entry if the code names him.</td></tr>
+      <tr><td><code>crates/sim/src/tuning.rs</code></td><td><code>WHEEL_RADIUS_M</code> 0.45 → 1.2; recheck <code>BOT_WHEEL_MARGIN_S</code> against the wider footprint. Regenerate <code>Tuning.ts</code> with <code>pnpm generate:protocol</code>.</td></tr>
+      <tr><td><code>crates/sim/tests/wheel.rs</code>, the eight-bot race</td><td>Tests that place a kart against the reach move with it.</td></tr>
+      <tr><td><code>assets/replays</code></td><td>Re-record the Brands Patch fixtures if a kart in them meets a pass.</td></tr>
+      <tr><td><code>assets/tracks/trackgen/layout.py</code></td><td>The platform's size and band, the painted lane; re-export Brands Patch and commit the glTF and sidecar.</td></tr>
+      <tr><td><code>apps/web/src/item-meshes.ts</code>, <code>palette.ts</code>, <code>race-view.ts</code></td><td>The hot wheel's mesh, Oyaji and his flags and beacon, the tells. New palette tokens for the hot tyre, Oyaji's colours and the hazard flag.</td></tr>
+      <tr><td><code>docs/style-guide.html</code></td><td>The <i>Runaway wheel</i> and <i>Marshal post</i> entries, a new <i>Oyaji</i> entry and the painted lane; the repo-checks palette list gains the new tokens.</td></tr>
+      <tr><td><code>assets/LICENSES.md</code></td><td>Oyaji's design comes from Purrjump; say so.</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<h2 id="slices">Issues</h2>
+<div class="slices">
+  <div class="card slice"><h3>Record it</h3><p>The new ADR and the glossary entry, citing this page.</p></div>
+  <div class="card slice"><h3>Grow the reach</h3><p><code>WHEEL_RADIUS_M</code> to 1.2 with the bot margin, the tests and the fixtures. The View draws today's wheel at the new size, so the drawn wheel stays the wheel that hits.</p></div>
+  <div class="card slice"><h3>Hot wheel</h3><p>The mesh, the flames and smoke trail, and the dust at each bounce. Style guide entry.</p></div>
+  <div class="card slice"><h3>Paint the crossing</h3><p>The platform and the hazard lane in <code>layout.py</code>, re-exported; the lane flashes red and the wheel waits on the wall in the View.</p></div>
+  <div class="card slice"><h3>Oyaji the marshal</h3><p>Oyaji, his three poses and two faces, the stool and cup, the hazard flags and the beacon, replacing the flag on the post. Style guide entry; LICENSES.md line.</p></div>
+</div>
+
+<h2 id="out">Out of scope</h2>
+<div class="card">
+  <ul>
+    <li>Sound: the obstacles stay silent, as ADR 0041 left them.</li>
+    <li>The wheel on the course map.</li>
+    <li>More wheels or marshals on other corners, and the oval.</li>
+    <li>Oyaji anywhere but the marshal post.</li>
+  </ul>
+</div>
+
+</div>
+<script>
+const C = {
+  asphalt: "#6b6b78", sand: "#e8c773", sky: "#87ceeb", grass: "#3f7a3a", wall: "#f0f0f0", line: "#f5f5f5",
+  white: "#f5f5f5", ink: "#1f1f22", strap: "#3a3d42", pole: "#cfd2d6",
+  yellow: "#f5c542", yellowShade: "#b08a22", red: "#e8483a", rocket: "#d00a12", flame: "#ffd23f",
+  orange: "#ff8800", orangeShade: "#c45f00", reflect: "#d8dce0", smoke: "#8a8d94", dust: "#d9c08a",
+  livery: "#c81d25", hair: "#3a2a1e",
+};
+// Oyaji's palette, from purrjump scripts/cats.mjs.
+const OYAJI = {
+  outline: "#1e1e28", skin: "#f0c090", skinShade: "#d8a070", shine: "#f8dcb0", sideHair: "#50505c",
+  brows: "#2a2a30", nose: "#d89068", mustache: "#6a6a78", vest: "#f4f4f4", vestShade: "#d8d8dc",
+  shorts: "#3060a8", sandals: "#b87050", mouth: "#6a1e22", sweat: "#7fc3ff",
+};
+
+const CYCLE = { period: 7.0, warning: 1.0, pass: 1.6 };
+const HALF_CROSSING_M = 12;
+const WHEEL_R = 1.2;
+const DRAWN_BOUNCE_M = 0.5;
+
+const picks = { marshal: "tea", flag: "hazard" };
+
+const f1 = (n) => n.toFixed(1);
+const deg = (rad) => (rad * 180) / Math.PI;
+let clipSeq = 0;
+let clipPrefix = "a"; // stills and animated frames draw apart, so their clip ids must not meet
+
+function ngon(cx, cy, r, n, phase = Math.PI / n) {
+  return Array.from({ length: n }, (_, k) => {
+    const a = phase + (2 * Math.PI * k) / n;
+    return `${f1(cx + r * Math.cos(a))},${f1(cy + r * Math.sin(a))}`;
+  }).join(" ");
+}
+function spokes(cx, cy, length, count, colour, width) {
+  return Array.from({ length: count }, (_, k) => {
+    const a = (2 * Math.PI * k) / count - Math.PI / 2;
+    return `<line x1="${f1(cx)}" y1="${f1(cy)}" x2="${f1(cx + length * Math.cos(a))}" y2="${f1(cy + length * Math.sin(a))}" stroke="${colour}" stroke-width="${f1(width)}" stroke-linecap="round"/>`;
+  }).join("");
+}
+
+// ---------- the flag ----------
+
+// The cloth flying from the pole's top (ax, ay), `dirx` the way it flies.
+function cloth(design, ax, ay, w, h, t, dirx) {
+  const dy = (u) => Math.sin(t * 12 - u * 6.4) * h * 0.13 * u;
+  const top = [], bottom = [];
+  for (let i = 0; i <= 8; i++) {
+    const u = i / 8, x = ax + dirx * w * u;
+    top.push(`${f1(x)},${f1(ay + dy(u))}`);
+    bottom.unshift(`${f1(x)},${f1(ay + h + dy(u))}`);
+  }
+  const shape = `${top.join(" ")} ${bottom.join(" ")}`;
+  let out = `<polygon points="${shape}" fill="${C.yellow}"/>`;
+  if (design === "hazard") {
+    const id = `clip-${clipPrefix}${clipSeq++}`;
+    let stripes = "";
+    for (let k = -4; k < 7; k++) {
+      const x0 = k * w * 0.22, sw = w * 0.1, run = h * 1.4;
+      const p = (x, y) => `${f1(ax + dirx * x)},${f1(y)}`;
+      stripes += `<polygon points="${p(x0, ay - h * 0.2)} ${p(x0 + sw, ay - h * 0.2)} ${p(x0 + sw + run, ay + h * 1.2)} ${p(x0 + run, ay + h * 1.2)}" fill="${C.ink}"/>`;
+    }
+    out += `<clipPath id="${id}"><polygon points="${shape}"/></clipPath><g clip-path="url(#${id})">${stripes}</g>`;
+  } else if (design === "sign") {
+    const u = 0.58, cx = ax + dirx * w * u, cy = ay + h / 2 + dy(u), r = h * 0.27;
+    const back = -dirx; // flames trail back toward the pole
+    const tongue = (off, len, fill) => `<polygon points="${f1(cx + back * r * 0.6)},${f1(cy + off - r * 0.28)} ${f1(cx + back * (r + len))},${f1(cy + off - r * 0.15)} ${f1(cx + back * r * 0.6)},${f1(cy + off + r * 0.28)}" fill="${fill}"/>`;
+    const flick = 0.1 * Math.sin(t * 20);
+    out += tongue(-r * 0.45, r * (1.1 + flick), C.orange) + tongue(r * 0.35, r * (0.9 - flick), C.orange) + tongue(-r * 0.05, r * (0.75 + flick), C.red);
+    out += `<polygon points="${ngon(cx, cy, r, 8)}" fill="${C.ink}"/>${spokes(cx, cy, r * 0.75, 3, C.yellow, Math.max(0.8, r * 0.2))}`;
+  }
+  return out + `<polygon points="${shape}" fill="none" stroke="${C.yellowShade}" stroke-width="1"/>`;
+}
+
+// Pole up from the hand at (hx, hy), turned `angle` degrees about the hand; furled lies the cloth along it.
+function drawFlag(design, hx, hy, s, angle, side, t, furled) {
+  const pole = 1.0 * s;
+  let inner;
+  if (furled) {
+    const x = hx + (side > 0 ? 0.02 * s : -0.1 * s);
+    inner = `<rect x="${f1(x)}" y="${f1(hy - pole)}" width="${f1(0.08 * s)}" height="${f1(0.62 * s)}" fill="${C.yellow}"/>`;
+    if (design === "hazard") {
+      for (let k = 0; k < 4; k++) inner += `<rect x="${f1(x)}" y="${f1(hy - pole + (0.06 + k * 0.15) * s)}" width="${f1(0.08 * s)}" height="${f1(0.05 * s)}" fill="${C.ink}"/>`;
+    } else if (design === "sign") {
+      inner += `<rect x="${f1(x)}" y="${f1(hy - pole + 0.24 * s)}" width="${f1(0.08 * s)}" height="${f1(0.12 * s)}" fill="${C.ink}"/>`;
+    }
+  } else {
+    inner = cloth(design, hx, hy - pole, 0.9 * s, 0.62 * s, t, side);
+  }
+  return `<g transform="rotate(${f1(angle)} ${f1(hx)} ${f1(hy)})"><rect x="${f1(hx - Math.max(0.6, 0.02 * s))}" y="${f1(hy - pole)}" width="${f1(Math.max(1.2, 0.04 * s))}" height="${f1(pole)}" fill="${C.pole}"/>${inner}</g>`;
+}
+
+// ---------- Oyaji ----------
+
+// Front on, feet centred on (gx, gy), `s` px per metre; `kind` is the wheel's: quiet, flag or rolling.
+function drawOyaji(variant, flag, gx, gy, s, t, kind) {
+  const alarm = kind !== "quiet";
+  const P = (x, y) => [gx + x * s, gy - y * s];
+  const pts = (arr) => arr.map(([x, y]) => P(x, y).map(f1).join(",")).join(" ");
+  const poly = (arr, fill) => `<polygon points="${pts(arr)}" fill="${fill}"/>`;
+  const rect = (x, y, w, h, fill) => poly([[x, y], [x + w, y], [x + w, y + h], [x, y + h]], fill);
+  const circ = (x, y, r, fill) => { const [cx, cy] = P(x, y); return `<circle cx="${f1(cx)}" cy="${f1(cy)}" r="${f1(r * s)}" fill="${fill}"/>`; };
+  const ell = (x, y, rx, ry, fill) => { const [cx, cy] = P(x, y); return `<ellipse cx="${f1(cx)}" cy="${f1(cy)}" rx="${f1(rx * s)}" ry="${f1(ry * s)}" fill="${fill}"/>`; };
+  const limb = (a, b, colour, width = 0.12) => { const [x1, y1] = P(...a), [x2, y2] = P(...b); return `<line x1="${f1(x1)}" y1="${f1(y1)}" x2="${f1(x2)}" y2="${f1(y2)}" stroke="${colour}" stroke-width="${f1(width * s)}" stroke-linecap="round"/>`; };
+
+  const sitting = variant === "tea" && !alarm;
+  const hop = variant === "tea" && kind === "rolling" ? 0.18 * Math.abs(Math.sin(t * 9)) : 0;
+  const dy = (sitting ? -0.3 : 0) + hop;
+  const overalls = variant === "overalls";
+  const torsoFill = overalls || variant === "tea" ? C.orange : OYAJI.vest;
+  const torsoShade = overalls || variant === "tea" ? C.orangeShade : OYAJI.vestShade;
+  const sleeve = variant === "tabard" ? OYAJI.skin : C.orange;
+
+  let back = "", body = "", front = "";
+
+  // Stool and the flags he is not holding up.
+  if (variant === "tea") {
+    if (sitting) {
+      back += limb([-0.4, 0], [0.36, 0.3], C.strap, 0.05) + limb([0.4, 0], [-0.36, 0.3], C.strap, 0.05) + rect(-0.44, 0.27, 0.88, 0.07, "#2f6f3a");
+      back += drawFlag(flag, ...P(-0.62, 0.02), s, -12, -1, t, true) + drawFlag(flag, ...P(-0.5, 0.02), s, -6, -1, t, true);
+    }
+  }
+  if (overalls && !alarm) {
+    back += drawFlag(flag, ...P(-0.22, 0.6 + dy), s, -28, -1, t, true) + drawFlag(flag, ...P(0.22, 0.6 + dy), s, 28, 1, t, true);
+  }
+
+  // Legs and feet.
+  const footY = hop;
+  const hipY = 0.38 + dy;
+  if (overalls) {
+    body += rect(-0.24, footY + 0.08, 0.2, hipY - footY - 0.04, C.orange) + rect(0.04, footY + 0.08, 0.2, hipY - footY - 0.04, C.orangeShade);
+    body += rect(-0.24, footY + 0.22, 0.2, 0.04, C.reflect) + rect(0.04, footY + 0.22, 0.2, 0.04, C.reflect);
+    body += rect(-0.27, footY, 0.25, 0.1, C.strap) + rect(0.02, footY, 0.25, 0.1, C.strap);
+  } else {
+    const spread = sitting ? 0.14 : 0;
+    body += rect(-0.21 - spread, footY + 0.05, 0.13, hipY - footY - 0.03, OYAJI.skin) + rect(0.08 + spread, footY + 0.05, 0.13, hipY - footY - 0.03, OYAJI.skinShade);
+    body += rect(-0.25 - spread, footY, 0.2, 0.06, OYAJI.sandals) + rect(0.05 + spread, footY, 0.2, 0.06, OYAJI.sandals);
+    body += rect(-0.33, 0.36 + dy, 0.66, 0.22, OYAJI.shorts);
+  }
+
+  // Belly.
+  const torso = [[-0.28, 1.08], [0.28, 1.08], [0.37, 0.8], [0.33, 0.56], [-0.33, 0.56], [-0.37, 0.8]].map(([x, y]) => [x, y + dy]);
+  body += poly(torso, torsoFill) + poly([[0.1, 1.08], [0.28, 1.08], [0.37, 0.8], [0.33, 0.56], [0.12, 0.56]].map(([x, y]) => [x, y + dy]), torsoShade);
+  if (variant === "tabard") {
+    body += poly([[-0.2, 1.06], [-0.07, 1.06], [0, 0.96], [0.07, 1.06], [0.2, 1.06], [0.28, 0.6], [-0.28, 0.6]].map(([x, y]) => [x, y + dy]), C.orange);
+    body += rect(-0.3, 0.84 + dy, 0.6, 0.045, C.reflect) + rect(-0.31, 0.72 + dy, 0.62, 0.045, C.reflect);
+  } else if (overalls) {
+    body += rect(-0.32, 0.86 + dy, 0.64, 0.045, C.reflect) + rect(-0.2, 0.62 + dy, 0.4, 0.14, C.orangeShade);
+    // Ear defenders round his neck.
+    body += limb([-0.2, 1.1 + dy], [0.2, 1.1 + dy], C.ink, 0.04) + circ(-0.2, 1.08 + dy, 0.07, C.yellow) + circ(0.2, 1.08 + dy, 0.07, C.yellow);
+  } else {
+    body += poly([[-0.08, 1.06], [0.08, 1.06], [0.1, 0.58], [-0.1, 0.58]].map(([x, y]) => [x, y + dy]), OYAJI.vest);
+    body += rect(-0.37, 0.7 + dy, 0.22, 0.045, C.reflect) + rect(0.15, 0.7 + dy, 0.22, 0.045, C.reflect);
+    // Towel round his neck, its ends down his chest.
+    body += rect(-0.24, 1.04 + dy, 0.48, 0.07, C.white) + rect(-0.2, 0.8 + dy, 0.08, 0.26, C.white) + rect(0.12, 0.82 + dy, 0.08, 0.24, C.white);
+  }
+
+  // Arms, and the flags in his hands.
+  const shoulder = (side) => [side * 0.29, 1.0 + dy];
+  if (alarm) {
+    for (const side of [-1, 1]) {
+      const hand = [side * 0.55, 1.36 + dy];
+      body += limb(shoulder(side), hand, sleeve) + circ(...hand, 0.065, OYAJI.skin);
+      const swing = Math.sin(t * (overalls ? 17 : 14) + (side > 0 ? Math.PI : 0));
+      front += drawFlag(flag, ...P(...hand), s, side * (18 + swing * 34), side, t + side, false);
+    }
+  } else if (overalls) {
+    // Arms folded across the belly.
+    for (const side of [-1, 1]) {
+      const elbow = [side * 0.38, 0.78 + dy], hand = [-side * 0.16, 0.86 + dy];
+      body += limb(shoulder(side), elbow, sleeve) + limb(elbow, hand, sleeve) + circ(...hand, 0.06, OYAJI.skin);
+    }
+  } else if (sitting) {
+    const cupHand = [0.17, 1.16 + dy];
+    body += limb(shoulder(-1), [-0.4, 0.62 + dy], sleeve) + circ(-0.4, 0.62 + dy, 0.065, OYAJI.skin);
+    body += limb(shoulder(1), [0.36, 0.86 + dy], sleeve) + limb([0.36, 0.86 + dy], cupHand, sleeve);
+    front += rect(0.1, 1.12 + dy, 0.14, 0.14, C.white) + circ(...cupHand, 0.055, OYAJI.skin);
+    for (let k = 0; k < 3; k++) {
+      const rise = (t * 0.6 + k / 3) % 1;
+      front += ell(0.17 + Math.sin(t * 3 + k * 2) * 0.04, 1.32 + dy + rise * 0.3, 0.035 * (1 + rise), 0.03 * (1 + rise), `rgba(255,255,255,${(0.7 * (1 - rise)).toFixed(2)})`);
+    }
+  } else {
+    for (const side of [-1, 1]) {
+      const hand = [side * 0.42, 0.66 + dy];
+      body += limb(shoulder(side), hand, sleeve) + circ(...hand, 0.065, OYAJI.skin);
+      front += drawFlag(flag, ...P(...hand), s, side * 160, side, t, true);
+    }
+  }
+
+  // Head.
+  const hy = 1.42 + dy;
+  const head = Array.from({ length: 8 }, (_, k) => {
+    const a = Math.PI / 8 + (k * Math.PI) / 4;
+    return [0.34 * Math.cos(a), hy + 0.32 * Math.sin(a)];
+  });
+  body += circ(-0.34, hy - 0.02, 0.07, OYAJI.skinShade) + circ(0.34, hy - 0.02, 0.07, OYAJI.skinShade);
+  body += poly(head, OYAJI.skin) + poly([[0.13, hy + 0.3], [0.31, hy + 0.13], [0.31, hy - 0.13], [0.13, hy - 0.3]], OYAJI.skinShade);
+  body += ell(-0.1, hy + 0.24, 0.1, 0.045, OYAJI.shine);
+  for (const side of [-1, 1]) body += poly([[side * 0.36, hy + 0.06], [side * 0.27, hy + 0.12], [side * 0.27, hy - 0.08], [side * 0.34, hy - 0.12]], OYAJI.sideHair);
+  if (overalls) {
+    body += rect(-0.35, hy + 0.1, 0.7, 0.08, C.white);
+    const whip = alarm ? Math.sin(t * 20) * 0.06 : Math.sin(t * 2) * 0.02;
+    body += poly([[0.33, hy + 0.16], [0.56, hy + 0.2 + whip], [0.54, hy + 0.13 + whip], [0.33, hy + 0.11]], C.white);
+    body += poly([[0.33, hy + 0.13], [0.52, hy + 0.04 - whip], [0.49, hy - 0.01 - whip], [0.33, hy + 0.1]], C.white);
+  }
+
+  // Face.
+  const mood = !alarm ? "calm" : overalls ? "shout" : variant === "tea" ? "panic" : "startle";
+  const nod = mood === "calm" && overalls ? Math.sin(t * 3) * 0.01 : 0;
+  if (mood === "calm") {
+    body += rect(-0.22, hy + 0.07 + nod, 0.16, 0.045, OYAJI.brows) + rect(0.06, hy + 0.07 + nod, 0.16, 0.045, OYAJI.brows);
+    body += circ(-0.13, hy + 0.0, 0.03, OYAJI.outline) + circ(0.13, hy + 0.0, 0.03, OYAJI.outline);
+  } else {
+    const lift = mood === "panic" ? 0.1 : mood === "startle" ? 0.07 : 0.03;
+    const tilt = mood === "shout" ? -0.05 : 0.04; // inner end down when shouting, up when scared
+    for (const side of [-1, 1]) {
+      body += poly([[side * 0.23, hy + 0.08 + lift], [side * 0.05, hy + 0.08 + lift + tilt], [side * 0.05, hy + 0.13 + lift + tilt], [side * 0.23, hy + 0.13 + lift]], OYAJI.brows);
+    }
+    if (mood === "shout") {
+      body += rect(-0.2, hy + 0.0, 0.13, 0.035, OYAJI.outline) + rect(0.07, hy + 0.0, 0.13, 0.035, OYAJI.outline);
+    } else {
+      const er = mood === "panic" ? 0.068 : 0.058;
+      body += circ(-0.13, hy + 0.01, er, C.white) + circ(0.13, hy + 0.01, er, C.white);
+      body += circ(-0.13, hy + 0.01, mood === "panic" ? 0.02 : 0.028, OYAJI.outline) + circ(0.13, hy + 0.01, mood === "panic" ? 0.02 : 0.028, OYAJI.outline);
+    }
+    const open = mood === "shout" ? [0.1, 0.075] : mood === "panic" ? [0.07, 0.08 + Math.sin(t * 25) * 0.01] : [0.045, 0.05];
+    body += ell(0, hy - 0.19, open[0], open[1], OYAJI.mouth);
+    if (mood === "panic") {
+      for (const side of [-1, 1]) {
+        const k = (t * 1.6 + (side > 0 ? 0.5 : 0)) % 1;
+        const x = side * (0.4 + k * 0.2), y = hy + 0.2 + k * 0.08;
+        body += `<path d="M ${f1(P(x, y + 0.08)[0])} ${f1(P(x, y + 0.08)[1])} Q ${f1(P(x + 0.05, y)[0])} ${f1(P(x + 0.05, y)[1])} ${f1(P(x, y - 0.03)[0])} ${f1(P(x, y - 0.03)[1])} Q ${f1(P(x - 0.05, y)[0])} ${f1(P(x - 0.05, y)[1])} ${f1(P(x, y + 0.08)[0])} ${f1(P(x, y + 0.08)[1])} Z" fill="${OYAJI.sweat}" opacity="${(1 - k).toFixed(2)}"/>`;
+      }
+    }
+  }
+  body += poly([[0, hy - 0.01], [0.045, hy - 0.09], [-0.045, hy - 0.09]], OYAJI.nose);
+  body += poly([[-0.21, hy - 0.08], [0.21, hy - 0.08], [0.17, hy - 0.15], [0, hy - 0.12], [-0.17, hy - 0.15]], OYAJI.mustache);
+
+  return back + body + front;
+}
+
+// ---------- the post ----------
+
+function beacon(cx, cy, r, on, t) {
+  const dome = (fill) => `<rect x="${f1(cx - r)}" y="${f1(cy)}" width="${f1(2 * r)}" height="${f1(r * 0.4)}" fill="${C.ink}"/><path d="M ${f1(cx - r * 0.8)} ${f1(cy)} A ${f1(r * 0.8)} ${f1(r * 0.9)} 0 0 1 ${f1(cx + r * 0.8)} ${f1(cy)} Z" fill="${fill}"/>`;
+  if (!on) return dome("#7a5a14");
+  const a = t * 11;
+  const beam = (side, k) => `<polygon points="${f1(cx)},${f1(cy - r * 0.45)} ${f1(cx + side * r * 8)},${f1(cy - r * 2.4)} ${f1(cx + side * r * 8)},${f1(cy + r * 1.5)}" fill="#ffcf4a" opacity="${(0.4 * k).toFixed(2)}"/>`;
+  return `<circle cx="${f1(cx)}" cy="${f1(cy - r * 0.4)}" r="${f1(r * (3 + Math.abs(Math.cos(a))))}" fill="url(#glow)"/>${beam(-1, Math.max(0, Math.cos(a)))}${beam(1, Math.max(0, -Math.cos(a)))}${dome("#ffb020")}`;
+}
+
+function drawPost(variant, flag, gx, gy, s, t, kind) {
+  const r = (x, y, w, h, fill) => `<rect x="${f1(gx + x * s)}" y="${f1(gy - (y + h) * s)}" width="${f1(w * s)}" height="${f1(h * s)}" fill="${fill}"/>`;
+  return r(-0.7, 0, 1.4, 1.0, C.white) + r(-0.7, 0.75, 1.4, 0.12, C.orange) + r(0.08, 0.2, 0.3, 0.3, C.orange)
+    + beacon(gx + 0.6 * s, gy - 1.0 * s, 0.13 * s, kind !== "quiet", t)
+    + drawOyaji(variant, flag, gx - 0.05 * s, gy - 1.0 * s, s, t, kind);
+}
+
+// ---------- the hot wheel ----------
+
+function hotWheel(cx, cy, R, rot, t, dir) {
+  let trail = "";
+  for (let i = 4; i >= 1; i--) {
+    const px = cx - dir * R * (0.5 + i * 0.6), py = cy - R * (0.25 + i * 0.18) + Math.sin(t * 3 + i) * R * 0.06;
+    trail += `<circle cx="${f1(px)}" cy="${f1(py)}" r="${f1(R * (0.32 + 0.14 * i))}" fill="${C.smoke}" opacity="${(0.55 - i * 0.1).toFixed(2)}"/>`;
+  }
+  let flames = "";
+  for (let j = 0; j < 3; j++) {
+    const a = (dir < 0 ? 0 : Math.PI) + (j - 1) * 0.6;
+    const len = R * (0.75 + 0.3 * Math.sin(t * 23 + j * 2.1));
+    const bx = cx + R * 0.9 * Math.cos(a), by = cy + R * 0.9 * Math.sin(a), w = R * 0.32;
+    const tipX = bx - dir * len, tipY = by - R * 0.35;
+    flames += `<polygon points="${f1(bx)},${f1(by - w)} ${f1(tipX)},${f1(tipY)} ${f1(bx)},${f1(by + w)}" fill="${C.orange}"/>`;
+    flames += `<polygon points="${f1(bx)},${f1(by - w * 0.5)} ${f1(bx - dir * len * 0.6)},${f1(by - R * 0.2)} ${f1(bx)},${f1(by + w * 0.5)}" fill="${C.flame}"/>`;
+  }
+  return `${trail}<circle cx="${cx}" cy="${cy}" r="${f1(R * 1.35)}" fill="url(#heat)"/>${flames}
+    <g transform="rotate(${f1(deg(rot))} ${f1(cx)} ${f1(cy)})"><polygon points="${ngon(cx, cy, R, 8)}" fill="#26262a"/>
+    <polygon points="${ngon(cx, cy, R * 0.6, 8)}" fill="url(#hotRim)"/>${spokes(cx, cy, R * 0.62, 3, C.strap, Math.max(1, R * 0.11))}
+    <circle cx="${cx}" cy="${cy}" r="${f1(R * 0.13)}" fill="${C.flame}"/></g>`;
+}
+
+// ---------- the cycle ----------
+
+let t = 0;
+let playing = !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+if (!playing) t = 1.9;
+
+function loopLength() {
+  return document.getElementById("skip-idle").checked ? CYCLE.warning + CYCLE.pass + 1.4 : CYCLE.period;
+}
+function phaseAt(time) {
+  const len = loopLength();
+  const pass = Math.floor(time / len);
+  const u = time - pass * len;
+  if (u < CYCLE.warning) return { kind: "flag", pass, frac: 0, u, len };
+  if (u < CYCLE.warning + CYCLE.pass) return { kind: "rolling", pass, frac: (u - CYCLE.warning) / CYCLE.pass, u, len };
+  return { kind: "quiet", pass, frac: 1, u, len };
+}
+
+// ---------- chase view ----------
+
+const VIEW = { w: 640, h: 360, horizon: 112, cam: 2.2, focal: 330 };
+const project = (x, y, z) => [VIEW.w / 2 + (VIEW.focal * x) / z, VIEW.horizon + (VIEW.focal * (VIEW.cam - y)) / z];
+const ptsOf = (arr) => arr.map((p) => p.map(f1).join(",")).join(" ");
+function groundQuad(x1, x2, z1, z2, fill, extra = "") {
+  return `<polygon points="${ptsOf([project(x1, 0, z1), project(x2, 0, z1), project(x2, 0, z2), project(x1, 0, z2)])}" fill="${fill}" ${extra}/>`;
+}
+function kartBack(cx, gy, s) {
+  const r = (mx, my, mw, mh, fill) => `<rect x="${f1(cx + mx * s)}" y="${f1(gy - (my + mh) * s)}" width="${f1(mw * s)}" height="${f1(mh * s)}" fill="${fill}"/>`;
+  return `<ellipse cx="${f1(cx)}" cy="${f1(gy)}" rx="${f1(0.75 * s)}" ry="${f1(0.08 * s)}" fill="rgba(0,0,0,.3)"/>
+    ${r(-0.6, 0, 0.3, 0.6, C.ink)}${r(0.3, 0, 0.3, 0.6, C.ink)}${r(-0.45, 0.12, 0.9, 0.38, C.livery)}
+    ${r(-0.3, 0.5, 0.05, 0.14, C.ink)}${r(0.25, 0.5, 0.05, 0.14, C.ink)}${r(-0.6, 0.62, 1.2, 0.12, C.ink)}
+    <circle cx="${f1(cx)}" cy="${f1(gy - 0.95 * s)}" r="${f1(0.3 * s)}" fill="${C.hair}"/>`;
+}
+
+function renderChase() {
+  const D = Number(document.getElementById("distance").value);
+  const ph = phaseAt(t);
+  const r = WHEEL_R;
+  const up = ph.kind !== "quiet";
+  const dir = ph.pass % 2 === 0 ? -1 : 1;
+  let s = `<rect width="${VIEW.w}" height="${VIEW.horizon}" fill="${C.sky}"/><rect y="${VIEW.horizon}" width="${VIEW.w}" height="${VIEW.h - VIEW.horizon}" fill="${C.grass}"/>`;
+  s += groundQuad(-12, -6, 1, 400, C.sand) + groundQuad(6, 12, 1, 400, C.sand) + groundQuad(-6, 6, 1, 400, C.asphalt);
+  s += groundQuad(-6.15, -6, 1, 400, C.line) + groundQuad(6, 6.15, 1, 400, C.line);
+  for (const x of [-12, 12]) s += `<polygon points="${ptsOf([project(x, 0, 1), project(x, 0, 400), project(x, 0.8, 400), project(x, 0.8, 1)])}" fill="${C.wall}"/>`;
+  for (let x = -12; x < 12; x += 1) {
+    s += `<polygon points="${ptsOf([project(x, 0, D - WHEEL_R), project(x + 1, 0, D - WHEEL_R), project(x + 1.6, 0, D + WHEEL_R), project(x + 0.6, 0, D + WHEEL_R)])}" fill="${(x + 12) % 2 ? C.ink : C.yellow}"/>`;
+  }
+  if (up) s += groundQuad(-12, 12, D - WHEEL_R, D + WHEEL_R, C.red, `opacity="${(0.2 + 0.4 * (0.5 + 0.5 * Math.sin(t * 14))).toFixed(2)}"`);
+
+  let wheel = null;
+  if (ph.kind === "rolling") {
+    const across = 2 * HALF_CROSSING_M * ph.frac;
+    wheel = { x: dir < 0 ? HALF_CROSSING_M - across : -HALF_CROSSING_M + across, y: r + DRAWN_BOUNCE_M * Math.abs(Math.sin(ph.frac * Math.PI * 3)), rot: (dir * across) / r, ground: 0 };
+  } else if (ph.kind === "flag") {
+    wheel = { x: dir < 0 ? HALF_CROSSING_M : -HALF_CROSSING_M, y: 0.8 + r, rot: Math.sin(t * 9) * 0.15, ground: 0.8 };
+  }
+  if (wheel) {
+    const sc = VIEW.focal / D;
+    const [gx, gy] = project(wheel.x, wheel.ground, D);
+    s += `<ellipse cx="${f1(gx)}" cy="${f1(gy)}" rx="${f1(r * sc * 0.8)}" ry="${f1(r * sc * 0.15)}" fill="rgba(0,0,0,.3)"/>`;
+    if (ph.kind === "rolling") {
+      const landing = Math.floor(ph.frac * 3);
+      const age = (ph.frac - landing / 3) * CYCLE.pass;
+      if (age < 0.45) {
+        const across = (2 * HALF_CROSSING_M * landing) / 3;
+        const [dx, dy] = project(dir < 0 ? HALF_CROSSING_M - across : -HALF_CROSSING_M + across, 0, D);
+        for (let i = -2; i <= 2; i++) {
+          s += `<circle cx="${f1(dx + i * r * sc * 0.6 * (1 + age * 3))}" cy="${f1(dy - r * sc * 0.2 * (1 + age * 2))}" r="${f1(r * sc * (0.3 + age * 1.4))}" fill="${C.dust}" opacity="${(0.7 * (1 - age / 0.45)).toFixed(2)}"/>`;
+        }
+      }
+    }
+    const [cx, cy] = project(wheel.x, wheel.y, D);
+    s += hotWheel(cx, cy, r * sc, wheel.rot, t, dir);
+  }
+
+  const postZ = D - 3;
+  const [px, py] = project(9, 0, postZ);
+  s += drawPost(picks.marshal, picks.flag, px, py, VIEW.focal / postZ, t, ph.kind);
+  const [kx, ky] = project(-1.2, 0, 5);
+  s += kartBack(kx, ky, VIEW.focal / 5);
+  const label = ph.kind === "flag" ? "Flag up" : ph.kind === "rolling" ? "Rolling" : "Quiet";
+  s += `<text x="14" y="${VIEW.h - 14}" font-family="Bungee, Impact, sans-serif" font-size="16" fill="#fff" stroke="#000" stroke-width="3" paint-order="stroke">${label}</text>`;
+  document.getElementById("chase").innerHTML = `<svg viewBox="0 0 ${VIEW.w} ${VIEW.h}" role="img" aria-label="Chase view of the crossing and the marshal post">${s}</svg>`;
+}
+
+const KART_LENGTH = 1.8;
+const KART_HEIGHT = 0.6;
+
+// Side on, facing right, rear wheel's contact patch at (x0, gy), `s` px per metre. Approximate; the dashed box is the sim's.
+function kartSide(x0, gy, s) {
+  const p = (mx, my) => `${f1(x0 + mx * s)},${f1(gy - my * s)}`;
+  return `<rect x="${f1(x0)}" y="${f1(gy - KART_HEIGHT * s)}" width="${f1(KART_LENGTH * s)}" height="${f1(KART_HEIGHT * s)}" fill="none" stroke="#ffffff" stroke-opacity=".55" stroke-dasharray="3 3"/>
+    <rect x="${f1(x0 + 0.02 * s)}" y="${f1(gy - 0.78 * s)}" width="${f1(0.22 * s)}" height="${f1(0.1 * s)}" fill="${C.ink}"/>
+    <rect x="${f1(x0 + 0.1 * s)}" y="${f1(gy - 0.7 * s)}" width="${f1(0.05 * s)}" height="${f1(0.25 * s)}" fill="${C.ink}"/>
+    <polygon points="${p(0.1, 0.18)} ${p(1.78, 0.2)} ${p(1.6, 0.42)} ${p(1.05, 0.48)} ${p(0.2, 0.52)}" fill="${C.livery}"/>
+    <circle cx="${f1(x0 + 0.8 * s)}" cy="${f1(gy - 0.82 * s)}" r="${f1(0.27 * s)}" fill="${C.skin}"/>
+    <path d="M ${f1(x0 + 0.53 * s)} ${f1(gy - 0.84 * s)} A ${f1(0.27 * s)} ${f1(0.27 * s)} 0 0 1 ${f1(x0 + 1.07 * s)} ${f1(gy - 0.84 * s)} Z" fill="${C.hair}"/>
+    <polygon points="${ngon(x0 + 0.35 * s, gy - 0.3 * s, 0.3 * s, 8)}" fill="${C.tyre}"/>
+    <polygon points="${ngon(x0 + 1.5 * s, gy - 0.25 * s, 0.25 * s, 8)}" fill="${C.tyre}"/>`;
+}
+
+// Purrjump's sprite as it is, from its text template.
+const SPRITE_PALETTE = { O: "#1e1e28", S: "#f0c090", L: "#f8dcb0", H: "#50505c", B: "#2a2a30", E: "#1e1e28", N: "#d89068", M: "#6a6a78", T: "#f4f4f4", P: "#3060a8", F: "#b87050" };
+const SPRITES = {
+  idle: ["......OOOO......", "....OOSLLSOO....", "...OSSSSSSSSO...", "..OHSSSSSSSSHO..", "..OHSBBSSBBSHO..", "..OSSESSSSESSO..", "..OSSSSNNSSSSO..", "..OSSMMMMMMSSO..", "...OSSSSSSSSO...", "..OOOTTTTTTOOO..", ".OSSTTTTTTTTSSO.", ".OSOTTTTTTTTOSO.", "..OOTTTTTTTTOO..", "...OPPPPPPPPO...", "...OFFO..OFFO...", "................"],
+  fall: ["......OOOO......", "....OOSLLSOO....", "...OSSSSSSSSO...", "..OHSSSSSSSSHO..", "..OHBBSSSSBBHO..", "..OSEESSSSEESO..", "..OSSSSNNSSSSO..", "..OSSMMMMMMSSO..", "...OSSSOOSSSO...", "..OOOTTTTTTOOO..", "OSSSTTTTTTTTSSSO", "OOOOTTTTTTTTOOOO", "...OTTTTTTTTO...", "..OPPPPPPPPPPO..", "..OFFO....OFFO..", "................"],
+};
+function renderSprites() {
+  const sprite = (rows) => {
+    let px = "";
+    rows.forEach((row, y) => [...row].forEach((ch, x) => { if (ch !== ".") px += `<rect x="${x}" y="${y}" width="1.02" height="1.02" fill="${SPRITE_PALETTE[ch]}"/>`; }));
+    return `<svg viewBox="-1 -1 18 18" role="img" aria-label="Purrjump's Oyaji sprite">${px}</svg>`;
+  };
+  document.getElementById("sprites").innerHTML =
+    `<figure>${sprite(SPRITES.idle)}<figcaption>Idle</figcaption></figure>
+     <figure>${sprite(SPRITES.fall)}<figcaption>Fall</figcaption></figure>`;
+}
+
+// ---------- this page ----------
+
+const WHEEL_SPEED = (2 * HALF_CROSSING_M) / CYCLE.pass;
+
+function wheelSide(time) {
+  const s = 56, gy = 226, cx = 300, r = WHEEL_R;
+  const f = (time % CYCLE.pass) / CYCLE.pass;
+  const lift = DRAWN_BOUNCE_M * Math.abs(Math.sin(f * Math.PI * 3));
+  const rot = (-time * WHEEL_SPEED * 0.25) / r;
+  return `<svg viewBox="0 0 440 244" role="img" aria-label="The hot wheel beside a kart">
+    <rect width="440" height="244" fill="${C.sky}"/><rect y="${gy}" width="440" height="18" fill="${C.asphalt}"/>
+    ${kartSide(24, gy, s)}
+    <ellipse cx="${cx}" cy="${gy + 3}" rx="${f1(r * s * 0.85)}" ry="5" fill="rgba(0,0,0,.3)"/>
+    ${hotWheel(cx, gy - (r + lift) * s, r * s, rot, time, -1)}</svg>`;
+}
+
+function postStage(time, kind, w, h, s) {
+  const gy = h - 12;
+  return `<svg viewBox="0 0 ${w} ${h}" role="img" aria-label="Oyaji on the marshal post">
+    <rect width="${w}" height="${h}" fill="${C.sky}"/><rect y="${gy}" width="${w}" height="12" fill="${C.sand}"/>
+    ${drawPost(picks.marshal, picks.flag, w / 2, gy, s, time, kind)}</svg>`;
+}
+
+function renderStills() {
+  clipPrefix = "s";
+  clipSeq = 0;
+  document.getElementById("still-quiet").innerHTML = postStage(0.3, "quiet", 160, 160, 34);
+  document.getElementById("still-flag").innerHTML = postStage(0.35, "flag", 160, 160, 34);
+  document.getElementById("still-rolling").innerHTML = postStage(0.55, "rolling", 160, 160, 34);
+}
+
+function renderAnimated() {
+  clipPrefix = "a";
+  clipSeq = 0;
+  const ph = phaseAt(t);
+  document.getElementById("wheel-side").innerHTML = wheelSide(t);
+  document.getElementById("post-live").innerHTML = postStage(t, ph.kind, 480, 250, 54);
+  renderChase();
+  const cursor = document.querySelector("#timeline .cursor");
+  if (cursor) cursor.style.left = `${(100 * ph.u) / ph.len}%`;
+}
+
+function buildTimeline() {
+  const len = loopLength(), quiet = len - CYCLE.warning - CYCLE.pass;
+  document.getElementById("timeline").innerHTML = `
+    <div class="t-flag" style="width:${(100 * CYCLE.warning) / len}%">Flag 1 s</div>
+    <div class="t-roll" style="width:${(100 * CYCLE.pass) / len}%">Pass 1.6 s</div>
+    <div class="t-quiet" style="width:${(100 * quiet) / len}%">Quiet</div><div class="cursor"></div>`;
+}
+
+document.getElementById("skip-idle").addEventListener("change", () => { buildTimeline(); renderAnimated(); });
+document.getElementById("distance").addEventListener("input", (e) => {
+  document.getElementById("distance-out").textContent = `${e.target.value} m`;
+  renderChase();
+});
+document.getElementById("play").addEventListener("click", (e) => {
+  playing = !playing;
+  e.currentTarget.textContent = playing ? "Pause" : "Play";
+});
+
+document.getElementById("distance-out").textContent = `${document.getElementById("distance").value} m`;
+document.getElementById("play").textContent = playing ? "Pause" : "Play";
+renderSprites();
+buildTimeline();
+renderStills();
+renderAnimated();
+
+let last = performance.now();
+function frame(now) {
+  if (playing) {
+    t += Math.min(0.1, (now - last) / 1000);
+    renderAnimated();
+  }
+  last = now;
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
