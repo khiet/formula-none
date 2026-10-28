@@ -38,7 +38,7 @@ MATERIALS = {
     "tyre-face": (0.180, 0.180, 0.196),
     "kerb-red": (0.84, 0.23, 0.18),
     "kerb-white": (0.96, 0.96, 0.96),
-    # The sausage kerb: gold striped black, as the asset catalog draws it.
+    # The sausage kerb: gold striped black, as the style guide draws it.
     "kerb-yellow": (1.0, 0.824, 0.247),
     "kerb-black": (0.067, 0.067, 0.067),
     "checker-dark": (0.13, 0.13, 0.13),
@@ -52,7 +52,7 @@ MATERIALS = {
     "carbon-shade": (0.110, 0.110, 0.118),
     "chevron": (1.0, 0.533, 0.0),
     "chevron-shade": (0.769, 0.373, 0.0),
-    # The asset catalog's Grandstand and Start gantry cards.
+    # The style guide's Grandstand and Start gantry entries.
     "stand-riser": (0.843, 0.859, 0.878),
     "stand-plinth": (0.706, 0.729, 0.761),
     "canopy-shade": (0.647, 0.165, 0.125),

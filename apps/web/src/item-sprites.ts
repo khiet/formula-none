@@ -16,8 +16,8 @@ import {
 
 /**
  * The item slot's characters (ADR 0037): each item drawn flat from the
- * View's mesh for it, in polygons lifted from the catalog's Aligned cards
- * (docs/mockups/asset-catalog.html). The snail has no mesh, since a boost
+ * View's mesh for it, in polygons lifted from the style guide's drawings
+ * (docs/style-guide.html). The snail has no mesh, since a boost
  * never shows on the road. Original work, CC0 like the rest of the art
  * (assets/LICENSES.md).
  */

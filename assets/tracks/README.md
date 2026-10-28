@@ -96,7 +96,7 @@ start line's checkers, a carbon plate with orange chevrons on each boost
 pad and a striped yellow capsule on each sausage kerb, each sized to the
 sim's rectangle, plus what a layout's decor asks for: hoardings with the
 sponsors in `trackgen/sponsors.py` (invented, every one), and grandstands
-and the start gantry built from boxes to the asset catalog's cards.
+and the start gantry built from boxes to the style guide's entries.
 Original names only; nothing may resemble a real sponsor, a Nintendo
 character or circuit (ADR 0007), and no kart carries a sponsor (ADR 0038).
 

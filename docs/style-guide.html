@@ -1,0 +1,1342 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Formula None Style Guide</title>
+<!-- Serve the repo root over HTTP (python3 -m http.server) and open /docs/style-guide.html, so the vendored pixel face loads. -->
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bungee&family=IBM+Plex+Sans:wght@400;600&family=Silkscreen&display=swap">
+<style>
+  @font-face {
+    font-family: "Kenney Mini Square";
+    src: url("../assets/fonts/kenney/Kenney%20Mini%20Square.ttf") format("truetype");
+    font-display: block;
+  }
+  /* Layout: one column of sections (foundations, world, Instrument panel, posters, brand, licensing), each a grid of asset entries. */
+  :root {
+    --bg: #eef0f3;
+    --fg: #1b1d22;
+    --muted: #5b6170;
+    --rule: #cfd3db;
+    --card: #ffffff;
+    --stage: #dfe3e9;
+    --stage-line: #c4cad3;
+    --gold: #a77a12;
+   
+   
+   
+   
+    --chip-bg: #f4f5f7;
+    --display: "Bungee", "Arial Black", Impact, sans-serif;
+    --body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --pixel: "Silkscreen", ui-monospace, monospace;
+    --hudface: "Kenney Mini Square", "Silkscreen", ui-monospace, monospace;
+    /* The game's own colours: these never change with the page theme. */
+    --g-gold: #fde97a;
+    --g-poster: #c81d25;
+    --g-pgold: #ffd23f;
+    --g-ink: #111;
+    --g-go: #3ddc84;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #15171a; --fg: #ece7d8; --muted: #9a9fab; --rule: #2c3036; --card: #1e2126;
+      --stage: #2a2e35; --stage-line: #3a3f48; --gold: #e2b84a;
+      --chip-bg: #262a30; color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #15171a; --fg: #ece7d8; --muted: #9a9fab; --rule: #2c3036; --card: #1e2126;
+    --stage: #2a2e35; --stage-line: #3a3f48; --gold: #e2b84a;
+    --chip-bg: #262a30; color-scheme: dark;
+  }
+
+  /* Anything painted in a livery declares its shades beside the colours, so they resolve against that livery. */
+  .lv {
+    --p-lt: color-mix(in srgb, var(--p) 72%, white);
+    --p-dk: color-mix(in srgb, var(--p) 66%, black);
+    --a-lt: color-mix(in srgb, var(--a) 72%, white);
+    --sk-lt: color-mix(in srgb, var(--sk) 80%, white);
+    --sk-dk: color-mix(in srgb, var(--sk) 80%, black);
+    --sk-deep: color-mix(in srgb, var(--sk) 64%, black);
+    --hair-lt: color-mix(in srgb, var(--hair) 78%, white);
+    --hair-dk: color-mix(in srgb, var(--hair) 70%, black);
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--fg);
+    font-family: var(--body);
+    font-size: 16px;
+    line-height: 1.5;
+    padding-block: 2.5rem 4rem;
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+  }
+  body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--bg); }
+  main { max-width: 72rem; margin: 0 auto; display: grid; gap: 3rem; }
+  header.top { display: grid; gap: 0.7rem; max-width: 48rem; }
+  h1 { font-family: var(--display); font-size: clamp(1.7rem, 4.4vw, 2.6rem); line-height: 1.05; margin: 0; text-wrap: balance; }
+  h2 { font-family: var(--display); font-size: 1.35rem; margin: 0; text-wrap: balance; }
+  h3 { font-size: 1rem; margin: 0; font-weight: 600; }
+  p { margin: 0; }
+  .lede { color: var(--muted); max-width: 48rem; }
+  .eyebrow { font-family: var(--pixel); font-size: 0.8rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--gold); }
+  code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.82em; background: var(--chip-bg); padding: 0.05em 0.35em; border-radius: 4px; overflow-wrap: anywhere; }
+
+  .picker button:focus-visible, .toc a:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
+
+  .picker {
+    position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5;
+    display: flex; flex-wrap: wrap; gap: 0.4rem; align-items: center;
+    padding: 0.7rem 0; background: var(--bg); border-bottom: 1px solid var(--rule);
+  }
+  .picker > span { font-family: var(--pixel); font-size: 0.75rem; text-transform: uppercase; color: var(--muted); margin-right: 0.25rem; }
+  .picker button {
+    display: inline-flex; align-items: center; gap: 0.4rem;
+    font: 600 0.8rem var(--body); color: var(--fg);
+    background: var(--card); border: 2px solid var(--rule); border-radius: 999px;
+    padding: 0.2rem 0.65rem 0.2rem 0.3rem; cursor: pointer;
+  }
+  .picker button[aria-pressed="true"] { border-color: var(--fg); }
+  .chip3 { display: inline-flex; width: 1.5rem; height: 0.95rem; border-radius: 3px; overflow: hidden; flex: none; }
+  .chip3 i { flex: 1; }
+
+  .rules { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
+  @media (max-width: 760px) { .rules { grid-template-columns: 1fr; } }
+  .rules section { background: var(--card); border: 1px solid var(--rule); border-radius: 8px; padding: 1rem 1.1rem; display: grid; gap: 0.6rem; align-content: start; }
+  .rules ul { margin: 0; padding-left: 1.1rem; display: grid; gap: 0.3rem; font-size: 0.92rem; }
+  .rules .tag { font-family: var(--pixel); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
+
+  .surface { display: grid; gap: 1.2rem; }
+  .surface > header { display: grid; gap: 0.35rem; max-width: 48rem; }
+  .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 21rem), 1fr)); grid-auto-flow: dense; gap: 1rem; }
+  .asset {
+    background: var(--card); border: 1px solid var(--rule); border-radius: 8px;
+    display: grid; grid-template-rows: auto auto 1fr; min-width: 0; overflow: hidden;
+  }
+  .asset.wide { grid-column: 1 / -1; }
+  .asset > header { display: flex; flex-wrap: wrap; gap: 0.35rem 0.6rem; align-items: baseline; padding: 0.85rem 1rem 0.6rem; }
+  .asset > header h3 { flex: 1 1 auto; min-width: 0; }
+  .asset > header code { flex-basis: 100%; font-size: 0.75rem; color: var(--muted); background: none; padding: 0; }
+  .compare { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 9rem), 1fr)); gap: 1px; background: var(--rule); border-block: 1px solid var(--rule); }
+  .compare figure { margin: 0; background: var(--card); display: grid; grid-template-rows: auto 1fr; min-width: 0; }
+  .compare figcaption { font-family: var(--pixel); font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); padding: 0.4rem 0.7rem; }
+  .stage {
+    min-height: 9rem; display: grid; place-items: center; padding: 0.6rem; overflow: hidden;
+    background: linear-gradient(var(--stage) 0 82%, var(--stage-line) 82% 83%, var(--stage) 83%);
+  }
+  .stage svg { width: 100%; height: auto; display: block; max-height: 14rem; }
+  .stage.flat { background: var(--stage); }
+  .notes { padding: 0.75rem 1rem 0.95rem; display: grid; gap: 0.45rem; font-size: 0.9rem; align-content: start; }
+
+  /* A mock Race View for the Instrument panel: sky, grass, asphalt. */
+  .view {
+    position: relative; min-height: 10rem; display: grid; place-items: center; padding: 1rem; overflow: hidden;
+    background: linear-gradient(#87ceeb 0 46%, #5cb04a 46% 62%, #6b6b78 62%);
+  }
+  .view.dark { background: linear-gradient(#5a7f93 0 46%, #3c7a33 46% 62%, #46464f 62%); }
+
+  /* The Instrument panel's own rules, copied from apps/web/index.html at one HUD unit. */
+  .hud-row { display: flex; flex-wrap: wrap; gap: 1.2rem; align-items: center; justify-content: center; }
+  .cluster { display: grid; grid-template-areas: "lights lights" "gear speed" "gear tyre"; column-gap: calc(var(--hud) * 1.4); row-gap: calc(var(--hud) * 0.9); align-items: end; }
+  .speed { grid-area: speed; display: flex; align-items: baseline; gap: calc(var(--hud) * 0.8); }
+  .speed b { font-weight: normal; font-size: calc(var(--hud) * 5.2); }
+  .speed span { font-size: calc(var(--hud) * 1.8); color: #fff; }
+
+  /* The panel: plates shaded like the car's panels and the posters' ink drop, at one HUD unit. */
+  .hud { --hud: 9px; font-family: var(--hudface); color: #fff; line-height: 1; text-transform: uppercase; text-shadow: 0.1em 0.1em 0 var(--g-ink); }
+  .hud .lab { color: #c9ced5; font-size: 0.75em; }
+  /* The drop sits on a wrapper because clip-path would cut a shadow on the plate itself. */
+  .pl { display: inline-grid; filter: drop-shadow(calc(var(--hud) * 0.5) calc(var(--hud) * 0.5) 0 rgb(17 17 17 / 0.55)); }
+  .pf {
+    --c: calc(var(--hud) * 0.9);
+    display: flex; align-items: center; gap: 0.6em; padding: 0.45em 0.8em; white-space: nowrap;
+    clip-path: polygon(var(--c) 0, calc(100% - var(--c)) 0, 100% var(--c), 100% calc(100% - var(--c)), calc(100% - var(--c)) 100%, var(--c) 100%, 0 calc(100% - var(--c)), 0 var(--c));
+    background: linear-gradient(var(--t-lt) 0 34%, var(--t) 34% 70%, var(--t-dk) 70%);
+  }
+  .t-carbon { --t-lt: #4a4f57; --t: #2b2e33; --t-dk: #1b1d21; }
+  .t-livery { --t-lt: var(--p-lt); --t: var(--p); --t-dk: var(--p-dk); }
+  .t-key { --t-lt: color-mix(in srgb, var(--key) 72%, white); --t: var(--key); --t-dk: color-mix(in srgb, var(--key) 66%, black); }
+  .t-gold { --t-lt: #f8e39a; --t: #e0b54a; --t-dk: #c99a2e; color: var(--g-ink); text-shadow: none; }
+  .t-flash { --t-lt: #ffffff; --t: #fff6cf; --t-dk: #f8e39a; }
+  .t-white { --t-lt: #ffffff; --t: #eef0f2; --t-dk: #cfd2d6; color: var(--g-ink); text-shadow: none; }
+  .t-red { --t-lt: #e8333b; --t: #c81d25; --t-dk: #8f141a; }
+  .t-orange { --t-lt: #ff7a4d; --t: #ff5522; --t-dk: #c73c14; }
+  .t-lamp-off { --t-lt: #2b2e33; --t: #1b1d21; --t-dk: #111214; }
+  .t-go { --t-lt: #6fe8a6; --t: #3ddc84; --t-dk: #23a35e; color: var(--g-ink); text-shadow: 0.1em 0.1em 0 rgb(255 255 255 / 0.5); }
+  .stack { display: grid; gap: 12px; justify-items: start; }
+  .posp { font-size: calc(var(--hud) * 5.6); padding: 0.12em 0.3em; gap: 0; }
+  .posp small { font-size: 0.4em; align-self: flex-start; margin-top: 0.3em; }
+  .line { font-size: calc(var(--hud) * 2.2); }
+  .line.small { font-size: calc(var(--hud) * 1.7); }
+  .line svg { width: 1.3em; height: 1.3em; display: block; }
+  .flags { display: flex; gap: 0.25em; }
+  .slot { --c: calc(var(--hud) * 2.2); width: calc(var(--hud) * 9.9); height: calc(var(--hud) * 9.9); justify-content: center; padding: 0; }
+  .slot svg { width: 88%; height: auto; }
+  .lights { grid-area: lights; width: calc(var(--hud) * 21); height: auto; filter: drop-shadow(calc(var(--hud) * 0.3) calc(var(--hud) * 0.3) 0 rgb(17 17 17 / 0.55)); }
+  .gear { --c: calc(var(--hud) * 1.6); font-size: calc(var(--hud) * 7); width: 1.2em; height: 1.35em; justify-content: center; padding: 0; }
+  .cluster > .pl { grid-area: gear; }
+  .tyre { grid-area: tyre; display: flex; align-items: center; gap: calc(var(--hud) * 1); font-size: calc(var(--hud) * 2.2); }
+  .tyre svg, .tyre-big svg { width: calc(var(--hud) * 3.6); height: auto; filter: drop-shadow(calc(var(--hud) * 0.3) calc(var(--hud) * 0.3) 0 rgb(17 17 17 / 0.55)); }
+  .tyre-big svg { width: 4.6rem; }
+  .lamp { --c: 29.3%; width: calc(var(--hud) * 5); height: calc(var(--hud) * 5); padding: 0; }
+  .go-plate { font-size: calc(var(--hud) * 6); padding: 0.3em 0.45em; }
+  .finish { font-size: calc(var(--hud) * 7); padding: 0.25em 0.35em; gap: 0.35em; }
+  .finish i { width: 0.6em; height: 1em; background: conic-gradient(#111 25%, #fff 0 50%, #111 0 75%, #fff 0) 0 0 / 0.3em 0.25em; }
+  .warn { font-size: calc(var(--hud) * 4.2); padding: 0.3em 0.5em; }
+  .banner { font-size: calc(var(--hud) * 1.8); padding: 0.6em 1em; }
+  .kart-label { display: grid; justify-items: center; font-size: calc(var(--hud) * 2); }
+  .kart-label .pf { padding: 0.3em 0.55em; --c: calc(var(--hud) * 0.6); }
+  .kart-label > i { width: 0.9em; height: 0.5em; margin-top: -1px; clip-path: polygon(0 0, 100% 0, 50% 100%); background: color-mix(in srgb, var(--key) 66%, black); }
+  .standings { margin: 0; padding: 0; list-style: none; display: grid; gap: 0.35em; font-size: calc(var(--hud) * 1.8); }
+  .standings .pl { display: grid; }
+  .standings .pf { padding: 0.35em 0.7em; }
+  .standings .pf b { font-weight: normal; width: 2.4em; }
+
+
+  /* Poster stages: the Title and Results Scenes' red, rays and chequer. */
+  .poster {
+    position: relative; isolation: isolate; overflow: hidden; color: #fff; background: var(--g-poster);
+    font-family: var(--hudface); text-transform: uppercase; min-height: 11rem; display: grid; place-items: center; padding: 1.6rem 0.8rem;
+  }
+  .poster::before {
+    content: ""; position: absolute; z-index: -1; left: 50%; top: 45%; width: 220%; aspect-ratio: 1; translate: -50% -50%; border-radius: 50%;
+    background: repeating-conic-gradient(rgb(255 210 60 / 0.18) 0 8deg, transparent 8deg 16deg);
+  }
+  .poster .cq { position: absolute; left: 0; right: 0; height: 12px; background: conic-gradient(var(--g-ink) 25%, #fff 0 50%, var(--g-ink) 0 75%, #fff 0) 0 0 / 12px 12px; }
+  .poster .cq.t { top: 0; } .poster .cq.b { bottom: 0; }
+  .p-btn { padding: 0.45em 0.9em; font: inherit; font-size: 0.95rem; color: var(--g-ink); background: var(--g-pgold); border: 3px solid var(--g-ink); box-shadow: 4px 4px 0 var(--g-ink); text-transform: uppercase; }
+  .p-btn.go { background: var(--g-go); }
+  .p-chip { display: inline-flex; align-items: center; gap: 0.45em; padding: 0.4em 0.65em; font-size: 0.8rem; background: var(--g-ink); }
+  .p-chip i { width: 0.8em; height: 0.8em; background: var(--g-go); box-shadow: 0 0 0.5em var(--g-go); }
+  .p-input { padding: 0.35em 0.5em; font: inherit; font-size: 0.95rem; color: var(--g-ink); background: #fff; border: 3px solid var(--g-ink); box-shadow: 4px 4px 0 var(--g-ink); letter-spacing: 0.3em; width: 5.2em; text-align: center; }
+  .logo { rotate: -4deg; text-align: center; position: relative; line-height: 0.95; }
+  .logo span { display: block; font-size: 2.6rem; text-shadow: 0.08em 0.08em 0 var(--g-ink); }
+  .logo span:first-child { color: var(--g-pgold); text-shadow: 0.08em 0.08em 0 var(--g-ink), 0.16em 0.16em 0 rgb(0 0 0 / 0.35); }
+  .logo s { position: absolute; left: calc(50% + 3.3rem); top: 1.9rem; padding: 0.05em 0.25em; font-size: 1.1rem; color: var(--g-ink); background: var(--g-pgold); border: 2px solid var(--g-ink); rotate: 14deg; text-decoration-thickness: 0.18em; text-decoration-color: var(--g-poster); }
+  .tagline { margin-top: 0.4rem; padding: 0.4em 0.8em; font-size: 0.7rem; letter-spacing: 0.06em; background: var(--g-ink); rotate: -4deg; }
+  .p-input.nick { width: 9em; letter-spacing: 0.04em; text-align: left; color: #8a8270; background: #fff6cf; }
+  .p-btn.off { color: #777; background: #aaa; }
+  .p-sticker { padding: 0.2em 0.5em; font-size: 0.85rem; color: var(--g-ink); background: var(--g-pgold); border: 2px solid var(--g-ink); box-shadow: 3px 3px 0 var(--g-ink); rotate: -4deg; }
+  .p-head { font-size: 2.2rem; text-shadow: 0.08em 0.08em 0 var(--g-ink); }
+  .p-plate { padding: 0.45em 0.8em; font-size: 0.72rem; background: var(--g-ink); box-shadow: 4px 4px 0 rgb(0 0 0 / 0.4); }
+  .p-badge { padding: 0.15em 0.35em; font-size: 0.6rem; color: #fff; background: #a45cff; }
+  .p-badge.ready { color: var(--g-ink); background: var(--g-go); }
+  .p-badge.wait { background: var(--g-ink); }
+  .seats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.6rem 1.2rem; width: 100%; }
+  .seat { display: grid; grid-template-columns: 5.5rem 1fr; gap: 0.5rem; align-items: center; padding: 0.2rem 0 0.4rem 0.4rem; border-left: 2px solid #fff; border-bottom: 1px dashed rgb(255 255 255 / 0.6); min-width: 0; }
+  .seat b { font-weight: 400; font-size: 0.9rem; text-shadow: 0.08em 0.08em 0 var(--g-ink); }
+  .seat > div:last-child { display: grid; gap: 0.3rem; justify-items: start; min-width: 0; }
+  .board { background: var(--g-ink); box-shadow: 5px 5px 0 rgb(0 0 0 / 0.4); font-size: 0.78rem; width: min(100%, 22rem); }
+  .board li { display: grid; grid-template-columns: 2.4em 1em 1fr auto; gap: 0.5em; align-items: center; padding: 0.4em 0.7em; border-bottom: 1px dashed #333; }
+  .board li.you { color: var(--g-ink); background: var(--g-pgold); }
+  .board ol { margin: 0; padding: 0; list-style: none; }
+  .badge { padding: 0.15em 0.35em; font-size: 0.75em; color: #fff; background: #a45cff; }
+
+
+  .pal { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 15rem), 1fr)); gap: 1rem; }
+  .pal section { background: var(--card); border: 1px solid var(--rule); border-radius: 8px; padding: 0.9rem 1rem; display: grid; gap: 0.55rem; align-content: start; }
+  .sw { display: grid; grid-template-columns: 2.2rem 1fr; gap: 0.6rem; align-items: center; font-size: 0.85rem; }
+  .sw i { height: 1.6rem; border-radius: 4px; border: 1px solid var(--rule); display: block; }
+  .sw span { min-width: 0; }
+  .sw code { background: none; padding: 0; color: var(--muted); }
+  .tablewrap { overflow-x: auto; background: var(--card); border: 1px solid var(--rule); border-radius: 8px; }
+  table { border-collapse: collapse; width: 100%; font-size: 0.88rem; min-width: 40rem; }
+  th, td { text-align: left; padding: 0.55rem 0.8rem; border-bottom: 1px solid var(--rule); vertical-align: top; }
+  th { font-family: var(--pixel); font-weight: 400; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
+  tr:last-child td { border-bottom: 0; }
+  td .dot { display: inline-block; width: 0.9rem; height: 0.9rem; border-radius: 3px; vertical-align: -0.15rem; border: 1px solid var(--rule); margin-right: 0.3rem; }
+  .num { font-variant-numeric: tabular-nums; font-family: var(--pixel); color: var(--muted); }
+
+  .grid8 { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0.6rem; padding: 0.8rem; background: var(--stage); }
+  @media (max-width: 640px) { .grid8 { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  .grid8 figure { margin: 0; display: grid; gap: 0.3rem; min-width: 0; }
+  .grid8 figcaption { font-size: 0.75rem; color: var(--muted); line-height: 1.3; }
+  .grid8 figcaption b { color: var(--fg); font-weight: 600; display: block; }
+  .portrait { border-radius: 6px; overflow: hidden; background: linear-gradient(160deg, var(--p-lt), var(--p-dk)); }
+  .portrait svg, .chase svg { width: 100%; height: auto; display: block; }
+  .chase { border-radius: 6px; overflow: hidden; background: linear-gradient(#cfd5dd 0 80%, #b9c0ca 80%); }
+
+  a { color: inherit; text-decoration-color: var(--gold); text-underline-offset: 0.15em; }
+  .toc { display: flex; flex-wrap: wrap; gap: 0.4rem 1rem; font-family: var(--pixel); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.06em; }
+  .toc a { text-decoration: none; color: var(--muted); }
+  .toc a:hover { color: var(--fg); }
+  h3.sub { font-family: var(--display); font-size: 1.05rem; font-weight: 400; margin-top: 0.8rem; }
+  .spec { display: grid; grid-template-columns: max-content 1fr; gap: 0.2rem 0.8rem; margin: 0; padding: 0.75rem 1rem 0; font-size: 0.85rem; }
+  .spec dt { font-family: var(--pixel); font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); padding-top: 0.2em; }
+  .spec dd { margin: 0; min-width: 0; }
+  .notes .dont { color: var(--muted); }
+  .notes .dont b { color: var(--fg); font-weight: 600; }
+  .fine { font-size: 0.85rem; color: var(--muted); border-top: 1px solid var(--rule); padding-top: 1rem; max-width: 48rem; }
+  [hidden] { display: none !important; }
+</style>
+
+</head>
+<body>
+<main>
+  <header class="top">
+    <div class="eyebrow">Formula None</div>
+    <h1>Style Guide</h1>
+    <p class="lede">Every graphic the game draws today, drawn as it ships, with the rules for making the next one. Foundations come first; every entry after them names its source, its size where that matters, and the ADR that decided it. Where this page and an ADR disagree, the ADR wins and this page needs fixing.</p>
+    <nav class="toc" aria-label="Sections">
+      <a href="#foundations">Foundations</a><a href="#world">The world</a><a href="#panel">The Instrument panel</a><a href="#scenes">Posters and Scenes</a><a href="#brand">Brand</a><a href="#licensing">Licensing</a>
+    </nav>
+  </header>
+
+  <div class="picker" role="group" aria-label="Livery" id="picker"><span>Livery</span></div>
+
+  <section class="surface" id="foundations">
+    <header>
+      <h2>Foundations</h2>
+      <p class="lede">One language, the car and its driver: chibi low-poly for the world, the posters and the Instrument panel (<a href="adr/0034-chibi-low-poly-art.md">ADR 0034</a>), with a livery as a palette (<a href="adr/0035-livery-palette.md">ADR 0035</a>). Everything below is built from these rules, colours and one face.</p>
+    </header>
+    <div class="rules">
+      <section>
+        <div class="tag">World and posters / ADR 0034, 0035, 0036</div>
+        <h3>Chibi low-poly</h3>
+        <ul>
+          <li>Short wheelbase, oversized wheels, rears bigger than fronts, all inside the sim's 1.2 x 1.8 m box.</li>
+          <li>Flat-shaded facets: every panel in a lit and a shaded tone of one colour. Flat materials, no textures.</li>
+          <li>Wheels and heads are polygons: octagon tyres with three spokes, a faceted head about 0.6 m across.</li>
+          <li>Drivers race bare-headed: big eyes, short jaw, skin and hair swapped on one shared head.</li>
+          <li>A livery is primary, secondary and accent, plus a key colour for every single-colour use.</li>
+          <li>No team name, crest, sponsor or race number on a car.</li>
+        </ul>
+      </section>
+      <section>
+        <div class="tag">Instrument panel / ADR 0037</div>
+        <h3>The car's facets, on the View</h3>
+        <ul>
+          <li>Readouts sit on faceted plates: chamfered corners, a lit, a mid and a shaded band of one colour, and the posters' hard ink drop. No outline.</li>
+          <li>White values, grey labels, a 0.1 em ink drop under each, in the pixel face.</li>
+          <li>Your readouts wear your livery: the position plate in primary, flags and hubs in accent. Other karts show in their key colour.</li>
+          <li>Polygons, not pixels: shift lights are hexagons, map markers octagons, the tyre gauge is your car from above with your driver's hair.</li>
+          <li>The item characters are the View's meshes drawn flat, so the slot and the road show one cone, one gull, one snail.</li>
+          <li>Sized in HUD units, <code>max(0.55rem, 1.5vmin)</code>, so the panel scales with the window and still reads in a small one. Blinks hold steady under reduced motion.</li>
+        </ul>
+      </section>
+    </div>
+
+    <h3 class="sub">Palette</h3>
+    <p class="lede">Colours by role. The Instrument panel's and the items' colours live in <code>apps/web/src/palette.ts</code>, the liveries in <code>apps/web/src/livery.ts</code>; repo-checks fails when this page disagrees with either. A new colour joins a role here before it ships.</p>
+    <div class="pal" id="pal"></div>
+
+    <h3 class="sub">Typography</h3>
+    <div class="cards">
+      <article class="asset wide">
+        <header><h3>Kenney Mini Square, the one face</h3><code>assets/fonts/kenney/Kenney Mini Square.ttf</code></header>
+        <div class="compare"><figure><figcaption>Embedded in this page</figcaption><div class="view"><div class="hud" style="display:grid;gap:8px;justify-items:center"><span style="font-size:28px">ABCDEFGHIJKLM</span><span style="font-size:28px">NOPQRSTUVWXYZ</span><span style="font-size:28px">0123456789 '"-%</span></div></div></figure></div>
+        <dl class="spec"><dt>Used for</dt><dd>Every word the game draws: the Instrument panel, kart labels, posters, Scenes</dd><dt>Decided</dt><dd><a href="adr/0023-hud-language.md">ADR 0023</a>, kept by <a href="adr/0037-instrument-panel-in-chibi-low-poly.md">0037</a></dd><dt>Licence</dt><dd>CC0 1.0, Kenney (see <a href="#licensing">Licensing</a>)</dd></dl>
+        <div class="notes">
+          <p>Uppercase, line height 1, an ink drop of 0.1 em on the View and 0.08 em on the posters. Times keep the notation <code>0'27"304</code>.</p>
+          <p class="dont"><b>Don't</b> set game text in <code>system-ui</code> or a second face; the fallback stack is for a font that failed to load.</p>
+        </div>
+      </article>
+    </div>
+
+    <h3 class="sub">Logo</h3>
+    <div class="cards">
+      <article class="asset wide">
+        <header><h3>FORMULA NONE and the crossed-out 1</h3><code>apps/web/index.html #title-scene .logo</code></header>
+        <div class="compare"><figure><figcaption>On the Title poster</figcaption><div class="poster">
+          <i class="cq t"></i><i class="cq b"></i>
+          <div style="display:grid;gap:0.9rem;justify-items:center">
+            <div class="logo"><span>FORMULA</span><span>NONE</span><s>1</s></div>
+            <div class="tagline">Kart racing for up to 8 friends</div>
+          </div>
+        </div></figure></div>
+        <dl class="spec"><dt>Decided</dt><dd><a href="adr/0033-grand-prix-poster.md">ADR 0033</a></dd></dl>
+        <div class="notes">
+          <p>Two lines tilted 4 degrees: FORMULA in poster gold with a double drop, NONE in white with one. A gold sticker of the 1, struck through in poster red, sits at NONE's top right at 14 degrees. The tagline is white on an ink band at the same tilt.</p>
+          <p class="dont"><b>Don't</b> set the logo flat or off the poster red; it is a sticker on a poster.</p>
+        </div>
+      </article>
+    </div>
+  </section>
+
+  <section class="surface" id="world">
+    <header>
+      <h2>The world</h2>
+      <p class="lede">What the View draws in Three.js: the car, the drivers, the item meshes, the tells, and the tracks with their walls, tyre walls, pads and scenery. Drawings are SVG reproductions of the meshes under the View's sun, not renders.</p>
+    </header>
+    <div class="cards">
+      <article class="asset wide">
+        <header><h3>The car</h3><code>assets/karts/kart.glb, built by assets/karts/build.py</code></header>
+        <div class="compare">
+          <figure><figcaption>Side view</figcaption><div class="stage follows lv" data-draw="side"></div></figure>
+          <figure><figcaption>Chase camera</figcaption><div class="stage follows lv" data-draw="chase"></div></figure>
+        </div>
+        <dl class="spec"><dt>Size</dt><dd>Inside the sim's 1.2 x 1.8 m box</dd><dt>Decided</dt><dd><a href="adr/0034-chibi-low-poly-art.md">ADR 0034</a>, <a href="adr/0035-livery-palette.md">0035</a>, <a href="adr/0036-drivers-race-bare-headed.md">0036</a></dd></dl>
+        <div class="notes">
+          <p>Built from primitives: tub, sidepods, wings, halo at chin height, octagon wheels with three spokes, one flat material per palette colour.</p>
+          <p class="dont"><b>Don't</b> add a helmet, a race number, a name on the wing or a tyre stripe: the base mockup had all four and the ADRs removed them.</p>
+        </div>
+      </article>
+
+      <article class="asset wide">
+        <header><h3>All eight on the grid</h3><code>apps/web/src/livery.ts</code></header>
+        <div class="grid8" id="grid8"></div>
+        <dl class="spec"><dt>Decided</dt><dd><a href="adr/0035-livery-palette.md">ADR 0035</a></dd></dl>
+        <div class="notes"><p>Chase camera, the view players spend the race in. Each car in its own palette, after a team but never named for it; the back of the bare head is the tell.</p></div>
+      </article>
+
+      <article class="asset wide">
+        <header><h3>The drivers</h3><code>apps/web/src/livery.ts, hair-* and facial-hair-* parts in assets/karts/build.py</code></header>
+        <div class="grid8" id="drivers"></div>
+        <dl class="spec"><dt>Decided</dt><dd><a href="adr/0035-livery-palette.md">ADR 0035</a>, <a href="adr/0036-drivers-race-bare-headed.md">0036</a></dd></dl>
+        <div class="notes">
+          <p>One shared faceted head, fixed whites and irises, hair and facial hair in one colour, earrings in fixed gold. These front portraits are reference art for the heads <code>kart.glb</code> and the poster kart carry; no Scene shows a portrait.</p>
+          <p class="dont"><b>Don't</b> give a driver their own iris colour; every driver shares the build's one iris.</p>
+        </div>
+      </article>
+
+      <article class="asset">
+        <header><h3>Item box</h3><code>apps/web/src/item-meshes.ts</code></header>
+        <div class="compare"><figure><figcaption>On the road</figcaption><div class="stage" data-draw="box"></div></figure></div>
+        <dl class="spec"><dt>Size</dt><dd>1 m cube</dd><dt>Decided</dt><dd><a href="adr/0037-instrument-panel-in-chibi-low-poly.md">ADR 0037</a></dd></dl>
+        <div class="notes"><p>A lit, flat-shaded cube in the item box golds with an inset frame on each face. The item slot is this box seen face on, so a pickup rhymes with where it lands.</p></div>
+      </article>
+
+      <article class="asset">
+        <header><h3>Hazard cone</h3><code>apps/web/src/item-meshes.ts</code></header>
+        <div class="compare"><figure><figcaption>On the road</figcaption><div class="stage" data-draw="cone"></div></figure></div>
+        <dl class="spec"><dt>Size</dt><dd>0.6 m tall, 0.5 m radius, on a 1 m slab</dd><dt>Decided</dt><dd><a href="adr/0037-instrument-panel-in-chibi-low-poly.md">ADR 0037</a></dd></dl>
+        <div class="notes"><p>Six sides in hazard orange, lit and shaded facets, a white band carrying the eyes, V brows above, a flat mouth, a grey base slab.</p></div>
+      </article>
+
+      <article class="asset">
+        <header><h3>Homing projectile</h3><code>apps/web/src/item-meshes.ts</code></header>
+        <div class="compare"><figure><figcaption>On the road</figcaption><div class="stage" data-draw="gull"></div></figure></div>
+        <dl class="spec"><dt>Decided</dt><dd><a href="adr/0037-instrument-panel-in-chibi-low-poly.md">ADR 0037</a></dd></dl>
+        <div class="notes"><p>A low-poly seagull: white body, grey wings up, orange beak forward, a red eye locked on. It turns to face its target.</p></div>
+      </article>
+
+      <article class="asset">
+        <header><h3>Sparks, dust, tyre marks, shadow</h3><code>apps/web/src/sparks.ts, dust.ts, tell-meshes.ts, exhaust-flame.ts</code></header>
+        <div class="compare"><figure><figcaption>The tells</figcaption><div class="stage" data-draw="tells"></div></figure></div>
+        <dl class="spec"><dt>Decided</dt><dd><a href="adr/0034-chibi-low-poly-art.md">ADR 0034</a></dd></dl>
+        <div class="notes">
+          <p>Sparks are box streaks stretched along their flight, dust is a 6 x 4 low-poly sphere, marks are flat quads. The drift tiers run orange then red, each spark born pale and cooling to its tier's colour; red's sparks glow and bounce. The boost's flame and wind lines are additive, so they light the road rather than cover it.</p>
+          <p>The shadow disc is a smooth 32-segment circle; its soft edge hides the segments.</p>
+        </div>
+      </article>
+
+      <article class="asset">
+        <header><h3>Track surfaces and kerbs</h3><code>assets/tracks/build.py</code></header>
+        <div class="compare"><figure><figcaption>Each surface, lit and shaded</figcaption><div class="stage flat" data-draw="surfaces"></div></figure></div>
+        <dl class="spec"><dt>Size</dt><dd>Kerbs 0.6 m wide</dd><dt>Decided</dt><dd><a href="adr/0034-chibi-low-poly-art.md">ADR 0034</a></dd></dl>
+        <div class="notes"><p>One flat tone per surface, no textures; the sun gives each face its lit and shaded tone. Sky is <code>#87ceeb</code>.</p></div>
+      </article>
+
+      <article class="asset">
+        <header><h3>Track-limit walls</h3><code>assets/tracks/trackgen/layout.py, mesh.py</code></header>
+        <div class="compare"><figure><figcaption>Along both edges of the run-off</figcaption><div class="stage flat" data-draw="wall"></div></figure></div>
+        <dl class="spec"><dt>Size</dt><dd>1 m high, 0.5 m thick</dd><dt>Decided</dt><dd><a href="adr/0022-track-limits.md">ADR 0022</a></dd></dl>
+        <div class="notes">
+          <p>A box rail in wall white the whole way round every track. Flat faces, so the sun alone gives the lit top and the shaded face; the course map draws the same white edge.</p>
+          <p class="dont"><b>Don't</b> stripe it: a pattern adds faces along hundreds of metres, and plain white already reads against sand and grass.</p>
+        </div>
+      </article>
+
+      <article class="asset">
+        <header><h3>Tyre wall</h3><code>assets/tracks/trackgen/layout.py tyre_stacks, mesh.py drum</code></header>
+        <div class="compare"><figure><figcaption>Two rings of five tyres</figcaption><div class="stage" data-draw="tyres"></div></figure></div>
+        <dl class="spec"><dt>Size</dt><dd>1.5 m radius, 1.2 m tall; tyres 0.6 m across</dd><dt>Decided</dt><dd><a href="adr/0041-track-obstacles.md">ADR 0041</a></dd></dl>
+        <div class="notes">
+          <p>A sixteen-sided prism in tyre shade <code>#121214</code>, tagged <code>tyres</code>, with two rings of five eight-sided tyres standing on their treads over it, faces out in <code>#2e2e32</code>. The upper ring turns half a tyre from the lower, and each is belted round its middle in kerb red and white. It stands into the oval's turns and either side of the Brands Patch hairpins; a kart bounces off it.</p>
+          <p>Only the prism collides; the tyres are scenery, so the picture can change without touching a rule.</p>
+        </div>
+      </article>
+
+      <article class="asset">
+        <header><h3>Sausage kerb</h3><code>assets/tracks/trackgen/layout.py sausage_kerbs</code></header>
+        <div class="compare"><figure><figcaption>Inside the chicane's apex</figcaption><div class="stage flat" data-draw="sausageKerb"></div></figure></div>
+        <dl class="spec"><dt>Size</dt><dd>8 x 1 m, 0.15 m proud</dd><dt>Decided</dt><dd><a href="adr/0041-track-obstacles.md">ADR 0041</a></dd></dl>
+        <div class="notes">
+          <p>A capsule in gold <code>#ffd23f</code> over the sim's 8 x 1 m rectangle, its ends rounded inside it, a squashed half-round with six black <code>#111111</code> stripes across it. It sits just in from the painted kerb on the inside of the Brands Patch chicane; a kart on the ground that reaches it is thrown into a hop that lands straight, and loses its drift.</p>
+          <p>The marshal's-flag yellow reads as a warning, and the stripes make its length read at speed. The launch is the sim's rectangle, not the mesh.</p>
+        </div>
+      </article>
+
+      <article class="asset">
+        <header><h3>Boost pad</h3><code>assets/tracks/trackgen/layout.py boost_pads, assets/tracks/build.py</code></header>
+        <div class="compare"><figure><figcaption>From above</figcaption><div class="stage flat" data-draw="pad"></div></figure></div>
+        <dl class="spec"><dt>Size</dt><dd>6 x 4 m, the sim's rectangle (<code>BOOST_PAD_HALF_*</code> in <code>tuning.rs</code>)</dd><dt>Decided</dt><dd><a href="adr/0034-chibi-low-poly-art.md">ADR 0034</a></dd></dl>
+        <div class="notes"><p>A carbon plate the size of the sim's rectangle, a hair above the asphalt like the kerbs, lit along its front edge and shaded along its back, under three chevrons pointing along the track in the mini-turbo orange, so the pad and the boost it gives share a colour.</p></div>
+      </article>
+
+      <article class="asset">
+        <header><h3>Start line</h3><code>assets/tracks/trackgen/layout.py</code></header>
+        <div class="compare"><figure><figcaption>Two rows of 1 m chequers across the asphalt</figcaption><div class="stage flat" data-draw="startLine"></div></figure></div>
+        <dl class="spec"><dt>Size</dt><dd>1 m squares, two rows</dd></dl>
+        <div class="notes"><p>Checker dark and light squares from the line forward: the chequer the gantry, the course map and the lap flags repeat. The grid behind it is placements only, with no slot boxes painted.</p></div>
+      </article>
+
+      <article class="asset">
+        <header><h3>Sponsor hoardings</h3><code>assets/tracks/trackgen/sponsors.py</code></header>
+        <div class="compare"><figure><figcaption>Brands Patch boards</figcaption><div class="stage flat" data-draw="boards"></div></figure></div>
+        <dl class="spec"><dt>Size</dt><dd>6 m long, 0.4 to 2.2 m high, every 12 m</dd><dt>Decided</dt><dd><a href="adr/0038-sponsors-on-the-scenery-only.md">ADR 0038</a></dd></dl>
+        <div class="notes">
+          <p>Twelve invented joke sponsors in flat ink on white boards beyond the wall, facing the track.</p>
+          <p class="dont"><b>Don't</b> put a sponsor on a car, or a real sponsor anywhere.</p>
+        </div>
+      </article>
+
+      <article class="asset">
+        <header><h3>Grandstand</h3><code>assets/tracks/trackgen/layout.py grandstands</code></header>
+        <div class="compare"><figure><figcaption>From the track</figcaption><div class="stage" data-draw="stand"></div></figure></div>
+        <dl class="spec"><dt>Size</dt><dd>12 m wide, four tiers</dd><dt>Decided</dt><dd><a href="adr/0034-chibi-low-poly-art.md">ADR 0034</a></dd></dl>
+        <div class="notes"><p>A plinth and four stepped tiers built from boxes with white treads, a crowd of single pixels on each tread in the eight key colours, and a kerb-red canopy on two carbon posts. The crowd steps five slots a seat and three a tier, so no neighbours match.</p></div>
+      </article>
+
+      <article class="asset">
+        <header><h3>Start gantry</h3><code>assets/tracks/trackgen/layout.py gantry</code></header>
+        <div class="compare"><figure><figcaption>Over the start line</figcaption><div class="stage" data-draw="gantry"></div></figure></div>
+        <dl class="spec"><dt>Size</dt><dd>7 m to the top of the beam</dd><dt>Decided</dt><dd><a href="adr/0034-chibi-low-poly-art.md">ADR 0034</a></dd></dl>
+        <div class="notes"><p>Two carbon pillars just off the asphalt and a beam with two rows of the track's chequer on both faces, lit on top and shaded underneath.</p></div>
+      </article>
+    </div>
+  </section>
+
+  <section class="surface" id="panel">
+    <header>
+      <h2>The Instrument panel</h2>
+      <p class="lede">The readouts over the View, drawn from the car (<a href="adr/0037-instrument-panel-in-chibi-low-poly.md">ADR 0037</a>): shaded plates, polygons for pixels, your livery on your own readouts. Drawn at a HUD unit of 9 px over a mock Race View; pick a livery above to repaint yours.</p>
+    </header>
+    <div class="cards">
+      <article class="asset">
+        <header><h3>Position, laps, times</h3><code>apps/web/src/instrument-panel.ts, format.ts</code></header>
+        <div class="compare"><figure><figcaption>Top left</figcaption><div class="view"><div class="hud stack lv follows" id="stack"></div></div></figure></div>
+        <dl class="spec"><dt>Decided</dt><dd><a href="adr/0037-instrument-panel-in-chibi-low-poly.md">ADR 0037</a>; notation from <a href="adr/0023-hud-language.md">0023</a></dd></dl>
+        <div class="notes"><p>The position on a plate in your livery's primary, shaded like the car's nose; laps, time and best on carbon plates, the colour of the car's floor. A flag per lap, folded like a low-poly flag, in your livery's accent until that lap is done, then chequered.</p></div>
+      </article>
+
+      <article class="asset wide">
+        <header><h3>Item slot and its characters</h3><code>apps/web/src/item-sprites.ts</code></header>
+        <div class="compare"><figure><figcaption>Empty, boost, hazard, homing, firing</figcaption><div class="view"><div class="hud hud-row" id="slots"></div></div></figure></div>
+        <dl class="spec"><dt>Decided</dt><dd><a href="adr/0024-item-sprites.md">ADR 0024</a>, drawn from the meshes by <a href="adr/0037-instrument-panel-in-chibi-low-poly.md">0037</a></dd></dl>
+        <div class="notes">
+          <p>The slot is the item box seen face on, in its golds. The characters are the View's meshes drawn flat: the faceted cone, the low-poly gull, and a snail with a faceted shell and a red rocket, which has no mesh since a boost never shows on the road. Firing lights the plate. The item's name stays as the slot's text.</p>
+          <p class="dont"><b>Don't</b> draw a character the road shows differently; a new item gets its mesh and its slot drawing together.</p>
+        </div>
+      </article>
+
+      <article class="asset wide">
+        <header><h3>Speed cluster</h3><code>apps/web/src/speed-cluster.ts, instrument-panel.ts</code></header>
+        <div class="compare"><figure><figcaption>4th at 87 km/h, and on the limiter</figcaption><div class="view"><div class="hud hud-row" id="clusters"></div></div></figure></div>
+        <dl class="spec"><dt>Decided</dt><dd><a href="adr/0031-speed-cluster.md">ADR 0031</a>, drawn by <a href="adr/0037-instrument-panel-in-chibi-low-poly.md">0037</a></dd></dl>
+        <div class="notes"><p>Twelve hexagon shift lights, each a lit, mid and shaded facet like the wheel hubs, in green, red and blue thirds. The gear on a carbon plate, white on the limiter; km/h and the tyre gauge beside it.</p></div>
+      </article>
+
+      <article class="asset">
+        <header><h3>Tyre gauge kart</h3><code>apps/web/src/instrument-panel.ts</code></header>
+        <div class="compare"><figure><figcaption>Your car from above</figcaption><div class="view"><div class="hud tyre-big follows lv" data-draw="tyreGauge"></div></div></figure></div>
+        <dl class="spec"><dt>Decided</dt><dd><a href="adr/0031-speed-cluster.md">ADR 0031</a>, <a href="adr/0037-instrument-panel-in-chibi-low-poly.md">0037</a></dd></dl>
+        <div class="notes"><p>Front and rear wings in secondary, the tub and sidepods in primary lit on the left, the accent stripe, the halo, and your driver's hair in the cockpit. Rears bigger than fronts, each tyre a faceted block in its wear colour: green, yellow, red.</p></div>
+      </article>
+
+      <article class="asset">
+        <header><h3>Course map</h3><code>apps/web/src/course-map.ts</code></header>
+        <div class="compare">
+          <figure><figcaption>Oval</figcaption><div class="view dark follows lv" data-draw="map" data-track="oval"></div></figure>
+          <figure><figcaption>Brands Patch</figcaption><div class="view dark follows lv" data-draw="map" data-track="brands"></div></figure>
+        </div>
+        <dl class="spec"><dt>Decided</dt><dd><a href="adr/0037-instrument-panel-in-chibi-low-poly.md">ADR 0037</a></dd></dl>
+        <div class="notes"><p>The track as the world builds it: asphalt between white walls, the ink drop under it, a chequered start. Each kart is a faceted octagon in its key colour, lit on the top left like a hub; yours is bigger and ringed in white. Outlines are the real centrelines from each track's sidecar.</p></div>
+      </article>
+
+      <article class="asset">
+        <header><h3>Kart labels</h3><code>apps/web/src/kart-labels.ts, race-view.ts, index.html</code></header>
+        <div class="compare"><figure><figcaption>Over rivals' karts</figcaption><div class="view" data-draw="labels"></div></figure></div>
+        <dl class="spec"><dt>Decided</dt><dd><a href="adr/0037-instrument-panel-in-chibi-low-poly.md">ADR 0037</a></dd></dl>
+        <div class="notes"><p>The name in the pixel face on a small plate in the kart's key colour, shaded like its bodywork, with a pointer down to the car. Sized in HUD units.</p></div>
+      </article>
+
+      <article class="asset">
+        <header><h3>Start lights and GO</h3><code>apps/web/src/instrument-panel.ts, index.html [data-lamp]</code></header>
+        <div class="compare">
+          <figure><figcaption>Three lit</figcaption><div class="view"><div class="hud hud-row" style="--hud:4px;gap:4px"><span class="pl"><span class="pf t-red lamp"></span></span><span class="pl"><span class="pf t-red lamp"></span></span><span class="pl"><span class="pf t-red lamp"></span></span><span class="pf t-lamp-off lamp"></span><span class="pf t-lamp-off lamp"></span></div></div></figure>
+          <figure><figcaption>Lights out</figcaption><div class="view"><div class="hud hud-row" style="--hud:4px"><span class="pl"><span class="pf t-go go-plate">GO</span></span></div></div></figure>
+        </div>
+        <dl class="spec"><dt>Size</dt><dd>Lamps 5 HUD units square, 1 apart</dd><dt>Decided</dt><dd><a href="adr/0040-five-light-start.md">ADR 0040</a></dd></dl>
+        <div class="notes"><p>Five octagonal lamps in a row, lit one a second in poster red; unlit ones are carbon one step darker with no drop. All out at Go, then GO on a green plate for a second.</p></div>
+      </article>
+
+      <article class="asset">
+        <header><h3>FINISH banner</h3><code>apps/web/src/instrument-panel.ts, index.html [data-chequer]</code></header>
+        <div class="compare"><figure><figcaption>At your finish</figcaption><div class="view"><div class="hud" style="--hud:4px"><span class="pl"><span class="pf t-carbon finish"><i></i>FINISH 1ST<i></i></span></span></div></div></figure></div>
+        <dl class="spec"><dt>Size</dt><dd>7 HUD units</dd><dt>Decided</dt><dd><a href="adr/0037-instrument-panel-in-chibi-low-poly.md">ADR 0037</a></dd></dl>
+        <div class="notes"><p>FINISH and your place, white on a carbon plate with the track's chequer at both ends. The lap row hides once you finish.</p></div>
+      </article>
+
+      <article class="asset">
+        <header><h3>Wrong-way warning</h3><code>apps/web/src/instrument-panel.ts</code></header>
+        <div class="compare"><figure><figcaption>Blinking</figcaption><div class="view"><div class="hud" style="--hud:4px"><span class="pl"><span class="pf t-orange warn">WRONG WAY</span></span></div></div></figure></div>
+        <dl class="spec"><dt>Decided</dt><dd><a href="adr/0037-instrument-panel-in-chibi-low-poly.md">ADR 0037</a></dd></dl>
+        <div class="notes">
+          <p>White on a plate in the cone's hazard orange. It blinks, and holds steady under reduced motion.</p>
+          <p class="dont"><b>Don't</b> use hazard orange for anything that is not danger.</p>
+        </div>
+      </article>
+
+      <article class="asset">
+        <header><h3>Connection banner</h3><code>apps/web/src/instrument-panel.ts</code></header>
+        <div class="compare"><figure><figcaption>While the server is silent</figcaption><div class="view"><div class="hud"><span class="pl"><span class="pf t-red banner">CONNECTION LOST: RECONNECTING</span></span></div></div></figure></div>
+        <dl class="spec"><dt>Decided</dt><dd><a href="adr/0037-instrument-panel-in-chibi-low-poly.md">ADR 0037</a></dd></dl>
+        <div class="notes"><p>A plate in poster red, shaded and dropped like the rest.</p></div>
+      </article>
+
+      <article class="asset">
+        <header><h3>Standings after the finish</h3><code>apps/web/src/instrument-panel.ts</code></header>
+        <div class="compare"><figure><figcaption>Your row in gold</figcaption><div class="view"><ol class="hud standings" id="standings"></ol></div></figure></div>
+        <dl class="spec"><dt>Decided</dt><dd><a href="adr/0029-standings-on-demand.md">ADR 0029</a>, drawn by <a href="adr/0037-instrument-panel-in-chibi-low-poly.md">0037</a></dd></dl>
+        <div class="notes"><p>One carbon plate per row: place, the kart's palette chip, name and finish time. Yours is on the item box's gold.</p></div>
+      </article>
+
+      <article class="asset">
+        <header><h3>Greybox line</h3><code>apps/web/index.html [data-greybox]</code></header>
+        <div class="compare"><figure><figcaption>Top right</figcaption><div class="view"><div style="font-family:var(--hudface);font-size:0.75rem;color:rgba(255,255,255,0.75);text-shadow:1px 1px 0 #000">asphalt / connected 42 ms</div></div></figure></div>
+        <dl class="spec"><dt>Decided</dt><dd><a href="adr/0031-speed-cluster.md">ADR 0031</a></dd></dl>
+        <div class="notes"><p>Dim on purpose: a debug line kept for the e2e hooks, outside the panel's voice.</p></div>
+      </article>
+    </div>
+  </section>
+
+  <section class="surface" id="scenes">
+    <header>
+      <h2>Posters and Scenes</h2>
+      <p class="lede">The Grand Prix poster of <a href="adr/0033-grand-prix-poster.md">ADR 0033</a> for the Title and Results Scenes, which the Room Scene joins under <a href="adr/0039-room-scene-on-the-grand-prix-poster.md">ADR 0039</a>.</p>
+    </header>
+    <div class="cards">
+      <article class="asset">
+        <header><h3>Title Scene</h3><code>apps/web/src/title-scene.ts, index.html #title-scene</code></header>
+        <div class="compare"><figure><figcaption>Title Scene</figcaption><div class="poster">
+          <i class="cq t"></i><i class="cq b"></i>
+          <div style="display:grid;gap:0.9rem;justify-items:center">
+            <div class="logo"><span>FORMULA</span><span>NONE</span><s>1</s></div>
+            <div class="tagline">Kart racing for up to 8 friends</div>
+            <span class="p-input nick">NICKNAME</span>
+            <span class="p-btn go">Create room</span>
+            <div style="display:flex;flex-wrap:wrap;gap:0.6rem;justify-content:center"><span class="p-input">CODE</span><span class="p-btn">Join room</span></div>
+            <span class="p-btn">Solo race</span>
+            <div style="display:flex;flex-wrap:wrap;gap:0.5rem;justify-content:center"><span class="p-chip"><i></i>Sound effects</span><span class="p-chip"><i></i>Engine</span><span class="p-chip"><i></i>Music</span></div>
+          </div>
+        </div></figure></div>
+        <dl class="spec"><dt>Decided</dt><dd><a href="adr/0033-grand-prix-poster.md">ADR 0033</a></dd></dl>
+        <div class="notes">
+          <p>Red poster, rays, chequer bands top and bottom, the logo, chunky buttons and fields with hard ink shadows, and the audio toggles as ink chips: a lit square when on, the label struck through when off. Poster karts run along the bottom edge.</p>
+          <p>Go green marks the one primary action on a poster; poster gold marks the others.</p>
+        </div>
+      </article>
+
+      <article class="asset">
+        <header><h3>Results board and badges</h3><code>apps/web/src/results-scene.ts</code></header>
+        <div class="compare"><figure><figcaption>Beside the podium</figcaption><div class="poster"><i class="cq t"></i><i class="cq b"></i><div style="display:grid;gap:0.8rem;justify-items:center;width:100%">
+          <span class="p-sticker">Race over</span><span class="p-head">Podium! 2nd</span>
+          <div class="board"><ol id="board"></ol></div>
+          <div style="display:flex;gap:0.6rem"><span class="p-btn go">Rematch</span><span class="p-btn">Leave</span></div>
+        </div></div></figure></div>
+        <dl class="spec"><dt>Decided</dt><dd><a href="adr/0033-grand-prix-poster.md">ADR 0033</a></dd></dl>
+        <div class="notes"><p>A RACE OVER sticker, the headline with your place, confetti, and the top three on the podium; the ink board lists 4th and below, one key-colour square per row, with Not finished in grey. Your car carries a gold YOU tag, and the fastest lap a purple badge F1 viewers already read. Rematch in green, Leave in gold.</p></div>
+      </article>
+
+      <article class="asset wide">
+        <header><h3>Poster kart: Title runners and the podium</h3><code>apps/web/src/poster.ts</code></header>
+        <div class="compare"><figure><figcaption>The podium</figcaption><div class="poster" data-draw="poster"></div></figure></div>
+        <dl class="spec"><dt>Decided</dt><dd><a href="adr/0033-grand-prix-poster.md">ADR 0033</a>, <a href="adr/0035-livery-palette.md">0035</a>, <a href="adr/0036-drivers-race-bare-headed.md">0036</a></dd></dl>
+        <div class="notes">
+          <p>The car side on, facing right: facets in primary, secondary and accent, octagon wheels, the bare head. The podium is the three cars you just raced, in their own palettes.</p>
+          <p class="dont"><b>Don't</b> draw a smooth wheel or a helmet on a poster; the poster car is the same car as the View's.</p>
+        </div>
+      </article>
+
+      <article class="asset wide">
+        <header><h3>Room Scene</h3><code>apps/web/src/room-scene.ts, index.html #room-scene</code></header>
+        <div class="compare"><figure><figcaption>Waiting for everyone to be ready</figcaption><div class="poster" id="room"></div></figure></div>
+        <dl class="spec"><dt>Decided</dt><dd><a href="adr/0039-room-scene-on-the-grand-prix-poster.md">ADR 0039</a></dd></dl>
+        <div class="notes">
+          <p>The poster backdrop and face: ROOM and the code in gold, tilted like the Title logo, with a player-count sticker; the room link on an ink plate with a Copy link button. Players sit in two columns, each as a poster kart with the name above purple YOU and CREATOR badges and a green READY or ink NOT READY chip. A status line on an ink plate, then Ready or Unready and Leave in gold, and Start in green for the creator, grey until everyone is ready.</p>
+        </div>
+      </article>
+    </div>
+  </section>
+
+  <section class="surface" id="brand">
+    <header>
+      <h2>Brand</h2>
+    </header>
+    <div class="cards">
+      <article class="asset">
+        <header><h3>Favicon</h3><code>apps/web/public/favicon.svg</code></header>
+        <div class="compare"><figure><figcaption>16 / 32 / 64</figcaption><div class="stage flat" data-draw="favicon"></div></figure></div>
+        <div class="notes"><p>A white chequer on an ink rounded square. The poster red sticker of the crossed-out 1 is planned in <a href="https://github.com/khiet/formula-none/issues/148">issue 148</a>.</p></div>
+      </article>
+    </div>
+  </section>
+
+  <section class="surface" id="licensing">
+    <header>
+      <h2>Licensing</h2>
+      <p class="lede">Everything under <code>assets/</code> is CC0 1.0 (<a href="adr/0007-art.md">ADR 0007</a>). This table follows <code>assets/LICENSES.md</code>, which repo-checks holds to the vendored files.</p>
+    </header>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>Files</th><th>Source</th><th>Licence</th></tr></thead>
+        <tbody>
+          <tr><td><code>fonts/kenney/Kenney Mini Square.ttf</code></td><td><a href="https://kenney.nl/assets/kenney-fonts">Kenney Fonts</a>, downloaded 2026-10-25</td><td><a href="https://creativecommons.org/publicdomain/zero/1.0/">CC0 1.0</a>, <code>fonts/kenney/License.txt</code></td></tr>
+          <tr><td><code>karts/kart.glb</code></td><td>This repo, built from primitives by <code>karts/build.py</code></td><td>CC0 1.0</td></tr>
+          <tr><td><code>tracks/*/*.glb</code>, <code>tracks/*/*.track.json</code></td><td>This repo, built from primitives by <code>tracks/build.py</code> and <code>tracks/trackgen</code></td><td>CC0 1.0</td></tr>
+          <tr><td><code>apps/web/src/item-sprites.ts</code></td><td>This repo, the item slot's characters</td><td>CC0 1.0</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="lede">Kenney asks for no credit; we give it anyway. A vendored kit lives in a directory named <code>kenney</code> with the kit's own <code>License.txt</code>, and gets a row in <code>assets/LICENSES.md</code> before it ships.</p>
+  </section>
+
+  <p class="fine">Liveries borrow team colours only. Drawings are SVG reproductions of the code and meshes, not renders, at the scales noted on each entry.</p>
+</main>
+
+
+<script>
+(() => {
+  const hex = (n) => "#" + n.toString(16).padStart(6, "0");
+  const SKIN = { deepBrown: 0x74492f, fair: 0xe5bb98, olive: 0xc48a5f };
+  // Copied from apps/web/src/livery.ts; repo-checks holds them to it.
+  const LIVERIES = [
+    { name: "Rosso", after: "Ferrari", key: 0xd00a12, p: 0xd00a12, s: 0x141414, a: 0xffd400, d: { skin: SKIN.deepBrown, hair: "braids-tied-back", hc: 0x1a1210, fh: "short-beard", ear: true } },
+    { name: "Notte", after: "Red Bull", key: 0x1f3fb0, p: 0x16224d, s: 0xe2172b, a: 0xffc72c, d: { skin: SKIN.fair, hair: "short", hc: 0x8a6a48, fh: "light-stubble", ear: false } },
+    { name: "Argento", after: "Mercedes", key: 0xc8ccd0, p: 0xbfc5cb, s: 0x16181b, a: 0x00a19c, d: { skin: SKIN.fair, hair: "swept-side-part", hc: 0x5a3a22, fh: "none", ear: false } },
+    { name: "Papaya", after: "McLaren", key: 0xff7a00, p: 0xff7a00, s: 0x1e1e24, a: 0x3ec3f5, d: { skin: SKIN.fair, hair: "curly-fringe", hc: 0x6b4528, fh: "none", ear: false } },
+    { name: "Verde", after: "Aston Martin", key: 0x00665a, p: 0x00594f, s: 0x101614, a: 0xcedc00, d: { skin: SKIN.olive, hair: "short-greying-temples", hc: 0x1c1c1f, fh: "stubble", ear: false } },
+    { name: "Cobalto", after: "Williams", key: 0x37bedd, p: 0x0a2a5c, s: 0x37bedd, a: 0xffffff, d: { skin: SKIN.olive, hair: "swept-back", hc: 0x1c1c1f, fh: "heavy-stubble", ear: false } },
+    { name: "Rosa", after: "Alpine", key: 0xf282b4, p: 0xf282b4, s: 0x0b5ab0, a: 0xffffff, d: { skin: SKIN.fair, hair: "short-curls", hc: 0x241a14, fh: "stubble", ear: false } },
+    { name: "Titanio", after: "Audi", key: 0x2a2a2e, p: 0x2a2a2e, s: 0x9ea3a8, a: 0xf50537, d: { skin: SKIN.fair, hair: "short", hc: 0xb8955a, fh: "none", ear: false } },
+  ];
+  const IRIS = "#21170f";
+  const WHITES = "#f6f1ea";
+  const GOLD_FIXED = "#dba833";
+  const GREY_FIXED = "#a8a8ad";
+  const NICKS = ["Khiet", "Mai", "Bot 3", "Jules", "Bot 5", "Ana", "Bot 7", "Theo"];
+
+  const paint = (el, slot) => {
+    const L = LIVERIES[slot];
+    el.classList.add("lv");
+    el.style.setProperty("--p", hex(L.p));
+    el.style.setProperty("--s", hex(L.s));
+    el.style.setProperty("--a", hex(L.a));
+    el.style.setProperty("--key", hex(L.key));
+    el.style.setProperty("--sk", hex(L.d.skin));
+    el.style.setProperty("--hair", hex(L.d.hc));
+  };
+
+  // Regular n-gon, flat side down, as the base mockup draws its wheels and heads.
+  const ngon = (n, cx, cy, r) => Array.from({ length: n }, (_, k) => {
+    const t = Math.PI / n + (2 * Math.PI * k) / n - Math.PI / 2;
+    return [cx + r * Math.cos(t), cy + r * Math.sin(t)];
+  });
+  const P = (arr) => arr.map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(" ");
+  const poly = (arr, fill, extra = "") => `<polygon points="${P(arr)}" fill="${fill}" ${extra}/>`;
+  // Flat-shaded facets: a triangle per edge, toned by how its edge faces a light from the top left.
+  const LIGHT = (() => { const l = Math.hypot(-1, -1.3); return [-1 / l, -1.3 / l]; })();
+  const facets = (n, cx, cy, r, tones) => {
+    const v = ngon(n, cx, cy, r);
+    return v.map((a, i) => {
+      const b = v[(i + 1) % n];
+      const mx = (a[0] + b[0]) / 2 - cx, my = (a[1] + b[1]) / 2 - cy, ml = Math.hypot(mx, my) || 1;
+      const dot = (mx / ml) * LIGHT[0] + (my / ml) * LIGHT[1];
+      const tone = dot > 0.3 ? tones[0] : dot < -0.3 ? tones[2] : tones[1];
+      return poly([[cx, cy], a, b], tone, `stroke="${tone}" stroke-width="0.6"`);
+    }).join("");
+  };
+  const at = (cx, cy, r) => (u, w) => [cx + u * r, cy + w * r];
+
+  const wheel = (cx, cy, r) => {
+    const spokes = [0, 1, 2].map((k) => {
+      const t = -Math.PI / 2 + (2 * Math.PI * k) / 3 + 0.35;
+      return `<line x1="${cx}" y1="${cy}" x2="${(cx + r * 0.86 * Math.cos(t)).toFixed(1)}" y2="${(cy + r * 0.86 * Math.sin(t)).toFixed(1)}" stroke="#4a4e55" stroke-width="${(r * 0.13).toFixed(1)}" stroke-linecap="round"/>`;
+    }).join("");
+    return facets(8, cx, cy, r, ["#2f3237", "#1d1e21", "#111214"]) +
+      poly(ngon(8, cx, cy, r * 0.58), "#3a3d42") + spokes + poly(ngon(6, cx, cy, r * 0.16), "var(--a)");
+  };
+
+  // Hair from the side, the car facing right: a cap over the top and back, then the style's own shape.
+  const hairSide = (style, cx, cy, r) => {
+    const q = at(cx, cy, r);
+    const v = ngon(8, cx, cy, r * 1.07);
+    let out = poly([v[5], v[6], v[7], v[0], q(0.74, -0.6), q(0.8, -0.44), q(0.3, -0.52), q(-0.28, -0.26), q(-0.48, 0.3), q(-0.84, 0.44)], "var(--hair)");
+    out += poly([v[7], v[0], q(0.74, -0.6), q(0.3, -0.52), q(-0.1, -0.66)], "var(--hair-lt)");
+    if (style === "braids-tied-back") {
+      out += [-0.5, -0.2, 0.1].map((u) => `<polyline points="${P([q(u + 0.3, -0.96), q(u - 0.25, -0.5), q(u - 0.55, 0.05)])}" stroke="var(--hair-dk)" stroke-width="2.5" fill="none"/>`).join("");
+      out += facets(6, cx - r * 1.05, cy - r * 0.15, r * 0.27, ["var(--hair-lt)", "var(--hair)", "var(--hair-dk)"]);
+    } else if (style === "swept-side-part") {
+      out += poly([q(-0.2, -1.04), q(0.5, -1.12), q(0.94, -0.62), q(0.5, -0.56)], "var(--hair-lt)");
+    } else if (style === "swept-back") {
+      out += poly([q(-0.2, -1.12), q(0.62, -0.96), q(0.3, -0.56), q(-0.9, -0.62), q(-1.12, -0.18)], "var(--hair)");
+      out += poly([q(0.1, -1.04), q(0.5, -0.94), q(-0.5, -0.66)], "var(--hair-lt)");
+    } else if (style === "curly-fringe" || style === "short-curls") {
+      const spots = style === "curly-fringe"
+        ? [[0.62, -0.62], [0.4, -0.82], [0.12, -0.96], [-0.18, -0.98], [0.78, -0.42]]
+        : [[0.5, -0.74], [0.18, -0.92], [-0.16, -0.94], [-0.48, -0.78], [-0.76, -0.5], [-0.9, -0.12], [0.1, -0.62], [-0.4, -0.5]];
+      out += spots.map(([u, w]) => poly(ngon(6, cx + u * r, cy + w * r, r * 0.17), "var(--hair-lt)")).join("");
+    } else if (style === "short-greying-temples") {
+      out += poly([q(-0.34, -0.2), q(0.02, -0.3), q(0.06, 0.0), q(-0.28, 0.06)], GREY_FIXED);
+    }
+    return out;
+  };
+  const facialSide = (kind, cx, cy, r) => {
+    const q = at(cx, cy, r);
+    const op = { none: 0, "light-stubble": 0.18, stubble: 0.3, "heavy-stubble": 0.5, "short-beard": 0.92 }[kind];
+    if (!op) return "";
+    return poly([q(-0.08, 0.28), q(0.2, 0.64), q(0.6, 0.88), q(0.9, 0.62), q(0.92, 0.42), q(0.72, 0.66), q(0.3, 0.6), q(0.04, 0.24)], "var(--hair)", `opacity="${op}"`);
+  };
+  const headSide = (d, cx, cy, r) => {
+    const q = at(cx, cy, r);
+    return facets(8, cx, cy, r, ["var(--sk-lt)", "var(--sk)", "var(--sk-dk)"]) +
+      facialSide(d.fh, cx, cy, r) +
+      hairSide(d.hair, cx, cy, r) +
+      poly(ngon(6, cx - r * 0.12, cy + r * 0.12, r * 0.17), "var(--sk-dk)") +
+      (d.ear ? poly(ngon(4, cx - r * 0.12, cy + r * 0.38, r * 0.08), GOLD_FIXED) : "") +
+      poly([q(0.92, 0.04), q(1.1, 0.24), q(0.92, 0.3)], "var(--sk-dk)") +
+      poly(ngon(6, cx + r * 0.6, cy + r * 0.04, r * 0.25), WHITES) +
+      poly(ngon(6, cx + r * 0.7, cy + r * 0.06, r * 0.15), IRIS) +
+      poly(ngon(4, cx + r * 0.74, cy - r * 0.02, r * 0.05), "#fff") +
+      poly([q(0.36, -0.3), q(0.86, -0.26), q(0.84, -0.18), q(0.36, -0.22)], "var(--hair)") +
+      `<polyline points="${P([q(0.6, 0.52), q(0.82, 0.5)])}" stroke="#6e3428" stroke-width="3" stroke-linecap="round"/>`;
+  };
+
+  // The base mockup's side view with ADR 0035 and 0036 applied: no number, no helmet, halo at chin height.
+  const sideCar = (d, label = "Chibi low-poly car, side view") => `<svg viewBox="0 0 520 260" role="img" aria-label="${label}">
+    <ellipse cx="270" cy="240" rx="225" ry="9" fill="rgba(0,0,0,.18)"/>
+    <polygon points="54,64 68,64 68,184 54,184" fill="var(--s)"/>
+    <polygon points="40,60 132,60 128,82 44,82" fill="var(--p)"/>
+    <polygon points="40,60 132,60 131,68 41,68" fill="var(--p-lt)"/>
+    <polygon points="44,86 126,86 122,94 48,94" fill="var(--a)"/>
+    <polygon points="70,196 70,150 100,124 190,116 222,92 262,92 292,118 400,140 478,168 482,190 460,196" fill="var(--p)"/>
+    <polygon points="100,124 190,116 222,92 262,92 292,118 400,140 478,168 470,174 400,150 292,128 190,126 100,134 70,150" fill="var(--p-lt)"/>
+    <polygon points="70,184 460,186 482,190 460,196 70,196" fill="var(--p-dk)"/>
+    <polygon points="80,194 472,194 468,204 84,204" fill="#1d1d1f"/>
+    <polygon points="150,188 158,146 200,134 330,138 372,162 362,188" fill="color-mix(in srgb, var(--s) 82%, black)"/>
+    <polygon points="158,146 200,134 330,138 372,162 330,148 200,144" fill="color-mix(in srgb, var(--s) 78%, white)"/>
+    <polygon points="176,162 372,162 440,174 440,178 372,168 176,168" fill="var(--a)"/>
+    <polygon points="196,120 222,104 282,106 292,120" fill="#111"/>
+    <polygon points="204,120 222,100 276,100 292,120" fill="var(--p)"/>
+    <polygon points="204,120 222,100 248,100 240,120" fill="var(--p-lt)"/>
+    <polygon points="226,102 272,102 268,94 230,94" fill="var(--a)"/>
+    <polygon points="240,96 262,96 262,86 240,86" fill="var(--sk-dk)"/>
+    ${headSide(d, 252, 50, 42)}
+    <polyline points="210,116 222,96 290,92 304,118" stroke="#1a1a1a" stroke-width="7" fill="none" stroke-linejoin="round" stroke-linecap="round"/>
+    <polygon points="440,202 506,202 506,188 496,188 490,196 440,196" fill="var(--s)"/>
+    <polygon points="498,174 506,174 506,204 498,204" fill="var(--a)"/>
+    <line x1="130" y1="190" x2="190" y2="170" stroke="#222" stroke-width="3"/>
+    <line x1="420" y1="198" x2="380" y2="170" stroke="#222" stroke-width="3"/>
+    ${wheel(130, 190, 47)}${wheel(420, 198, 39)}
+  </svg>`;
+
+  // The back of the bare head from the chase camera: hair, ears, and the style's tell.
+  const headBack = (d, cx, cy, r) => {
+    let out = poly(ngon(6, cx - r * 0.98, cy + r * 0.14, r * 0.17), "var(--sk-dk)") + poly(ngon(6, cx + r * 0.98, cy + r * 0.14, r * 0.17), "var(--sk-deep)");
+    out += facets(8, cx, cy, r, ["var(--hair-lt)", "var(--hair)", "var(--hair-dk)"]);
+    if (d.hair === "braids-tied-back") {
+      out += [-0.45, -0.15, 0.15, 0.45].map((u) => `<line x1="${cx + u * r}" y1="${cy - r * 0.86}" x2="${cx + u * r * 0.6}" y2="${cy + r * 0.3}" stroke="var(--hair-dk)" stroke-width="3"/>`).join("");
+      out += facets(6, cx, cy + r * 0.36, r * 0.3, ["var(--hair-lt)", "var(--hair)", "var(--hair-dk)"]);
+    } else if (d.hair === "short-greying-temples") {
+      out += poly([[cx - r * 0.92, cy - r * 0.2], [cx - r * 0.7, cy - r * 0.3], [cx - r * 0.66, cy + r * 0.2], [cx - r * 0.9, cy + r * 0.25]], GREY_FIXED);
+      out += poly([[cx + r * 0.92, cy - r * 0.2], [cx + r * 0.7, cy - r * 0.3], [cx + r * 0.66, cy + r * 0.2], [cx + r * 0.9, cy + r * 0.25]], GREY_FIXED);
+    } else if (d.hair === "curly-fringe" || d.hair === "short-curls") {
+      const spots = [[-0.5, -0.5], [0, -0.66], [0.5, -0.5], [-0.25, -0.12], [0.25, -0.12], [-0.6, 0.1], [0.6, 0.1]];
+      out += spots.map(([u, w]) => poly(ngon(6, cx + u * r, cy + w * r, r * 0.17), "var(--hair-lt)")).join("");
+    } else if (d.hair === "swept-back" || d.hair === "swept-side-part") {
+      out += [-0.4, 0, 0.4].map((u) => `<line x1="${cx + u * r}" y1="${cy - r * 0.8}" x2="${cx + u * r * 1.1}" y2="${cy + r * 0.2}" stroke="var(--hair-lt)" stroke-width="3"/>`).join("");
+    }
+    return out;
+  };
+  const chaseCar = (d) => `<svg viewBox="0 0 300 220" role="img" aria-label="Chibi low-poly car from the chase camera">
+    <ellipse cx="150" cy="208" rx="135" ry="7" fill="rgba(0,0,0,.18)"/>
+    <polygon points="34,100 78,100 92,114 92,188 78,202 34,202 20,188 20,114" fill="#1b1b1d"/>
+    <polygon points="222,100 266,100 280,114 280,188 266,202 222,202 208,188 208,114" fill="#1b1b1d"/>
+    <polygon points="34,100 56,100 56,202 34,202 20,188 20,114" fill="#2c2e33"/>
+    <polygon points="222,100 244,100 244,202 222,202 208,188 208,114" fill="#2c2e33"/>
+    <polygon points="62,150 78,150 78,158 62,158" fill="#3a3d42"/>
+    <polygon points="222,150 238,150 238,158 222,158" fill="#3a3d42"/>
+    <line x1="92" y1="160" x2="110" y2="150" stroke="#222" stroke-width="4"/>
+    <line x1="208" y1="160" x2="190" y2="150" stroke="#222" stroke-width="4"/>
+    ${headBack(d, 150, 94, 44)}
+    <polygon points="122,128 178,128 172,118 128,118" fill="var(--a)"/>
+    <polygon points="96,192 96,136 116,116 184,116 204,136 204,192" fill="var(--p)"/>
+    <polygon points="96,192 96,136 116,116 150,116 150,126 116,140 112,192" fill="var(--p-lt)"/>
+    <polygon points="150,116 184,116 204,136 204,192 188,192 188,140 150,126" fill="var(--p-dk)"/>
+    <polygon points="112,140 150,128 188,140 188,148 150,136 112,148" fill="var(--s)"/>
+    <polygon points="96,192 204,192 214,206 86,206" fill="#1d1d1f"/>
+    <polygon points="146,138 154,138 154,192 146,192" fill="var(--a)"/>
+    <polygon points="60,20 72,20 72,116 60,116" fill="var(--a)"/>
+    <polygon points="228,20 240,20 240,116 228,116" fill="var(--a)"/>
+    <polygon points="56,22 244,22 244,44 56,44" fill="var(--p)"/>
+    <polygon points="56,22 244,22 244,30 56,30" fill="var(--p-lt)"/>
+    <polygon points="62,47 238,47 234,55 66,55" fill="var(--a)"/>
+  </svg>`;
+
+  // Front portrait: the mockup's suit and head, the build's fixed eyes, the style's hair.
+  const HAIR_FRONT = {
+    "short": () => poly([[58, 100], [60, 70], [84, 46], [120, 38], [156, 46], [180, 70], [182, 100], [170, 80], [120, 72], [70, 80]], "var(--hair)") + poly([[84, 46], [120, 38], [142, 44], [100, 60]], "var(--hair-lt)"),
+    "braids-tied-back": () => poly(ngon(6, 120, 30, 15), "var(--hair-dk)") + poly([[60, 96], [62, 68], [84, 46], [120, 38], [156, 46], [178, 68], [180, 96], [166, 74], [120, 66], [74, 74]], "var(--hair)") +
+      [78, 98, 120, 142, 162].map((x) => `<line x1="${x}" y1="${x < 120 ? 74 - (120 - x) * 0.1 : 74 - (x - 120) * 0.1}" x2="${120 + (x - 120) * 0.4}" y2="40" stroke="var(--hair-lt)" stroke-width="3"/>`).join(""),
+    "swept-side-part": () => poly([[56, 104], [58, 62], [84, 38], [130, 30], [168, 42], [184, 72], [184, 104], [172, 80], [146, 70], [152, 86], [110, 72], [72, 82]], "var(--hair)") + poly([[84, 38], [130, 30], [146, 70], [110, 72], [92, 58]], "var(--hair-lt)"),
+    "curly-fringe": () => HAIR_FRONT.short() + [74, 92, 110, 128, 146, 164].map((x, i) => poly(ngon(6, x, 76 - (i === 0 || i === 5 ? 0 : 4), 10), "var(--hair-lt)")).join(""),
+    "short-greying-temples": () => HAIR_FRONT.short() + poly([[58, 100], [60, 78], [72, 80], [70, 100]], GREY_FIXED) + poly([[182, 100], [180, 78], [168, 80], [170, 100]], GREY_FIXED),
+    "swept-back": () => poly([[58, 100], [58, 64], [82, 36], [120, 26], [160, 36], [182, 64], [182, 100], [174, 74], [150, 62], [120, 58], [90, 62], [66, 74]], "var(--hair)") + poly([[92, 60], [108, 32], [122, 30], [106, 60]], "var(--hair-lt)") + poly([[128, 58], [140, 30], [152, 34], [140, 60]], "var(--hair-lt)"),
+    "short-curls": () => poly([[56, 102], [58, 62], [84, 38], [120, 30], [156, 38], [182, 62], [184, 102], [170, 76], [120, 66], [70, 76]], "var(--hair)") +
+      [[74, 62], [92, 46], [112, 38], [132, 38], [150, 46], [168, 62], [102, 58], [122, 54], [142, 58]].map(([x, y]) => poly(ngon(6, x, y, 9), "var(--hair-lt)")).join(""),
+  };
+  const FACIAL_FRONT = (kind) => {
+    const op = { none: 0, "light-stubble": 0.16, stubble: 0.28, "heavy-stubble": 0.45, "short-beard": 0.92 }[kind];
+    if (!op) return "";
+    const band = kind === "short-beard"
+      ? [[62, 138], [76, 170], [102, 188], [138, 188], [164, 170], [178, 138], [162, 160], [140, 168], [120, 162], [100, 168], [78, 160]]
+      : [[62, 138], [76, 170], [102, 188], [138, 188], [164, 170], [178, 138], [164, 166], [120, 176], [76, 166]];
+    return poly(band, "var(--hair)", `opacity="${op}"`) + poly([[104, 150], [120, 146], [136, 150], [134, 155], [120, 151], [106, 155]], "var(--hair)", `opacity="${Math.min(1, op + 0.2)}"`);
+  };
+  const portrait = (d) => `<svg viewBox="0 0 240 280" role="img" aria-label="Driver portrait">
+    <use href="#suit"/><use href="#head"/>${FACIAL_FRONT(d.fh)}${HAIR_FRONT[d.hair]()}<use href="#face"/>
+    ${d.ear ? poly(ngon(4, 52, 142, 4), GOLD_FIXED) + poly(ngon(4, 188, 142, 4), GOLD_FIXED) : ""}
+  </svg>`;
+
+
+  const draw = {};
+  draw.side = (el) => sideCar(LIVERIES[el.dataset.slot ?? current].d);
+  draw.chase = (el) => chaseCar(LIVERIES[el.dataset.slot ?? current].d);
+
+  draw.box = () => {
+    const top = [[100, 30], [150, 55], [100, 80], [50, 55]], left = [[50, 55], [100, 80], [100, 135], [50, 110]], right = [[100, 80], [150, 55], [150, 110], [100, 135]];
+    const inset = (f, k) => { const cx = f.reduce((s, p) => s + p[0], 0) / 4, cy = f.reduce((s, p) => s + p[1], 0) / 4; return f.map(([x, y]) => [cx + (x - cx) * k, cy + (y - cy) * k]); };
+    return `<svg viewBox="0 0 200 160" role="img" aria-label="Faceted gold item box"><ellipse cx="100" cy="146" rx="46" ry="6" fill="rgba(0,0,0,.15)"/>
+      ${poly(top, "#fff6cf")}${poly(inset(top, 0.7), "#f8e39a")}
+      ${poly(left, "#e0b54a")}${poly(inset(left, 0.7), "#c99a2e")}
+      ${poly(right, "#8c5a12")}${poly(inset(right, 0.7), "#a87418")}</svg>`;
+  };
+  draw.cone = () => {
+    const apex = [100, 26], L = [62, 118], ML = [82, 126], MR = [118, 126], R = [138, 118];
+    const lerp = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
+    const band = (a, b, t0, t1, fill) => poly([lerp(apex, a, t0), lerp(apex, b, t0), lerp(apex, b, t1), lerp(apex, a, t1)], fill);
+    return `<svg viewBox="0 0 200 160" role="img" aria-label="Faceted grumpy cone">
+      <ellipse cx="100" cy="146" rx="54" ry="6" fill="rgba(0,0,0,.15)"/>
+      ${poly([[52, 124], [72, 112], [128, 112], [148, 124]], "#b9bec5")}${poly([[52, 124], [148, 124], [148, 138], [52, 138]], "#9aa0a8")}${poly([[148, 124], [128, 112], [128, 116], [148, 128]], "#6f747b")}
+      ${poly([apex, L, ML], "#ff7a4d")}${poly([apex, ML, MR], "#ff5522")}${poly([apex, MR, R], "#c73c14")}
+      ${band(L, ML, 0.5, 0.66, "#ffffff")}${band(ML, MR, 0.5, 0.66, "#f1f1f1")}${band(MR, R, 0.5, 0.66, "#cfd2d6")}
+      <rect x="90" y="75" width="5" height="6" fill="#111111"/><rect x="105" y="75" width="5" height="6" fill="#111111"/>
+      <polyline points="87,66 97,71" stroke="#111111" stroke-width="3.5"/><polyline points="113,66 103,71" stroke="#111111" stroke-width="3.5"/>
+      <line x1="93" y1="99" x2="107" y2="99" stroke="#111111" stroke-width="3.5"/></svg>`;
+  };
+  draw.gull = () => `<svg viewBox="0 0 200 160" role="img" aria-label="Low-poly seagull">
+    <ellipse cx="100" cy="146" rx="56" ry="5" fill="rgba(0,0,0,.15)"/>
+    ${poly([[26, 82], [52, 90], [62, 104], [34, 102]], "#9aa0a8")}${poly([[26, 82], [52, 90], [40, 92]], "#b9bec5")}
+    ${poly([[50, 90], [82, 70], [132, 68], [150, 82], [140, 102], [92, 110], [62, 106]], "#e3e6ea")}
+    ${poly([[50, 90], [82, 70], [132, 68], [150, 82], [96, 88]], "#ffffff")}
+    ${poly([[84, 74], [104, 24], [122, 22], [114, 72]], "#b9bec5")}${poly([[104, 24], [122, 22], [114, 72], [108, 50]], "#9aa0a8")}${poly([[84, 74], [104, 24], [96, 30]], "#d4d8dd")}
+    ${facets(6, 150, 70, 19, ["#ffffff", "#eef0f2", "#d4d8dd"])}
+    ${poly([[166, 70], [192, 76], [166, 76]], "#ff7a4d")}${poly([[166, 76], [192, 76], [168, 82]], "#d84418")}
+    ${poly(ngon(6, 156, 64, 5), "#d00a12")}${poly(ngon(4, 157, 64, 2), "#111111")}
+    <line x1="146" y1="57" x2="162" y2="60" stroke="#111111" stroke-width="2.5"/>
+    </svg>`;
+  // The boost character as a mesh would draw it: grey foot, faceted orange shell, a red rocket strapped on.
+  draw.snail = () => `<svg viewBox="0 0 200 160" role="img" aria-label="Low-poly snail with a rocket">
+    <ellipse cx="100" cy="146" rx="70" ry="5" fill="rgba(0,0,0,.15)"/>
+    ${poly([[30, 130], [150, 130], [176, 112], [160, 102], [60, 110], [34, 120]], "#b9bec5")}${poly([[60, 110], [160, 102], [168, 108], [64, 115]], "#d4d8dd")}${poly([[32, 126], [154, 126], [150, 132], [30, 132]], "#9aa0a8")}
+    <line x1="158" y1="86" x2="150" y2="58" stroke="#9aa0a8" stroke-width="4"/><line x1="168" y1="86" x2="174" y2="58" stroke="#b9bec5" stroke-width="4"/>
+    ${facets(6, 162, 96, 16, ["#d4d8dd", "#b9bec5", "#9aa0a8"])}
+    ${poly(ngon(6, 150, 54, 8), "#ffffff")}${poly(ngon(6, 174, 54, 8), "#eef0f2")}${poly(ngon(4, 153, 55, 3.4), "#111111")}${poly(ngon(4, 177, 55, 3.4), "#111111")}
+    <polyline points="164,104 170,107 176,104" stroke="#111111" stroke-width="2.5" fill="none"/>
+    ${facets(7, 90, 84, 36, ["#ff7a4d", "#ff5522", "#c73c14"])}${facets(6, 94, 82, 19, ["#ff9a72", "#ff6a3a", "#d84418"])}${poly(ngon(5, 97, 81, 7), "#c73c14")}
+    ${poly([[80, 56], [88, 56], [92, 100], [84, 100]], "#3a3d42")}
+    ${poly([[48, 38], [18, 46], [48, 54]], "#ffd23f")}${poly([[48, 41], [30, 46], [48, 51]], "#ff7a4d")}
+    ${poly([[52, 32], [118, 32], [122, 40], [48, 40]], "#e8333b")}${poly([[48, 40], [122, 40], [122, 50], [48, 50]], "#d00a12")}${poly([[48, 50], [122, 50], [118, 58], [52, 58]], "#8f070c")}
+    ${poly([[122, 32], [142, 45], [122, 45]], "#e8333b")}${poly([[122, 45], [142, 45], [122, 58]], "#8f070c")}
+    ${poly([[50, 32], [38, 20], [62, 32]], "#b9bec5")}${poly([[50, 58], [38, 70], [62, 58]], "#9aa0a8")}
+    ${poly(ngon(6, 100, 45, 6.5), "#ffffff")}${poly(ngon(6, 101, 46, 3.5), "#7fc3ff")}</svg>`;
+  draw.tells = () => {
+    const cube = (x, y, s, c, sh) => poly([[x, y - s], [x + s, y - s / 2], [x, y], [x - s, y - s / 2]], `color-mix(in srgb, ${c} 70%, white)`) + poly([[x - s, y - s / 2], [x, y], [x, y + s], [x - s, y + s / 2]], c) + poly([[x, y], [x + s, y - s / 2], [x + s, y + s / 2], [x, y + s]], sh);
+    return `<svg viewBox="0 0 320 150" role="img" aria-label="Sparks, dust, tyre marks and a shadow disc on asphalt">
+      <rect width="320" height="150" fill="#6b6b78"/>
+      <polygon points="20,140 60,40 74,40 36,140" fill="#1a1a1a" opacity=".55"/><polygon points="52,140 92,40 106,40 68,140" fill="#1a1a1a" opacity=".35"/>
+      ${cube(150, 60, 9, "#ff7a00", "#c45f00")}${cube(172, 76, 7, "#fff0b0", "#d8c07a")}${cube(140, 92, 6, "#e01808", "#9a1006")}${cube(166, 104, 8, "#ffd27a", "#c49a4a")}
+      ${facets(6, 236, 66, 20, ["#f1e2bd", "#d8c08a", "#b19a66"])}${facets(6, 268, 92, 15, ["#a6be7c", "#7a9a4a", "#5a7535"])}${facets(6, 222, 104, 12, ["#ffffff", "#f2f2f2", "#cfcfcf"])}
+      <ellipse cx="96" cy="128" rx="34" ry="10" fill="#000" opacity=".5"/>
+      <text x="60" y="22" font-family="Silkscreen, monospace" font-size="10" fill="#fff">marks</text><text x="138" y="22" font-family="Silkscreen, monospace" font-size="10" fill="#fff">sparks</text><text x="226" y="22" font-family="Silkscreen, monospace" font-size="10" fill="#fff">dust</text>
+    </svg>`;
+  };
+  // Copied from assets/tracks/build.py, sRGB as picked.
+  const SURFACES = [["asphalt", [0.42, 0.42, 0.47]], ["sand", [0.91, 0.78, 0.45]], ["grass", [0.36, 0.69, 0.29]], ["tyre", [0.102, 0.102, 0.114]], ["wall", [0.94, 0.94, 0.94]], ["kerb-red", [0.84, 0.23, 0.18]], ["kerb-white", [0.96, 0.96, 0.96]], ["checker-dark", [0.13, 0.13, 0.13]]];
+  const rgb = (c) => "#" + c.map((v) => Math.round(v * 255).toString(16).padStart(2, "0")).join("");
+  draw.surfaces = () => `<svg viewBox="0 0 320 130" role="img" aria-label="Track surface tiles">${SURFACES.map(([n, c], i) => {
+    const x = 10 + (i % 4) * 78, y = 8 + Math.floor(i / 4) * 62, col = rgb(c);
+    return poly([[x, y + 10], [x + 30, y], [x + 64, y + 10], [x + 34, y + 20]], col) + poly([[x, y + 10], [x + 34, y + 20], [x + 34, y + 34], [x, y + 24]], `color-mix(in srgb, ${col} 78%, black)`) + poly([[x + 34, y + 20], [x + 64, y + 10], [x + 64, y + 24], [x + 34, y + 34]], `color-mix(in srgb, ${col} 60%, black)`) +
+      `<text x="${x}" y="${y + 50}" font-family="Silkscreen, monospace" font-size="9" fill="currentColor">${n}</text><text x="${x}" y="${y + 59}" font-family="ui-monospace, monospace" font-size="7.5" fill="currentColor" opacity=".7">${col}</text>`;
+  }).join("")}</svg>`;
+  // A wall section from the track side: lit top, the face toward the karts, the shaded cut end.
+  draw.wall = () => {
+    const w = rgb([0.94, 0.94, 0.94]);
+    return `<svg viewBox="0 0 320 150" role="img" aria-label="White track-limit wall on sand">
+      <rect width="320" height="150" fill="#5cb04a"/><rect y="96" width="320" height="54" fill="#e8c773"/>
+      ${poly([[20, 66], [280, 66], [296, 56], [36, 56]], w)}
+      ${poly([[20, 66], [280, 66], [280, 104], [20, 104]], `color-mix(in srgb, ${w} 82%, black)`)}
+      ${poly([[280, 66], [296, 56], [296, 94], [280, 104]], `color-mix(in srgb, ${w} 62%, black)`)}
+      <rect x="20" y="104" width="260" height="5" fill="rgba(0,0,0,.18)"/></svg>`;
+  };
+  // An upright prism of `n` flat sides seen from slightly above, lit from the top left.
+  const prism = (n, cx, cy, r, h, col) => {
+    const ry = r * 0.32, rim = Array.from({ length: n }, (_, k) => { const a = (k * 2 * Math.PI) / n; return [Math.cos(a), Math.sin(a)]; });
+    let sides = "";
+    rim.forEach((a, k) => {
+      const b = rim[(k + 1) % n], mx = (a[0] + b[0]) / 2, my = (a[1] + b[1]) / 2;
+      if (my <= 0) return;
+      const shade = Math.round(8 + 42 * (mx + 1) / 2);
+      sides += poly([[cx + a[0] * r, cy + a[1] * ry - h], [cx + b[0] * r, cy + b[1] * ry - h], [cx + b[0] * r, cy + b[1] * ry], [cx + a[0] * r, cy + a[1] * ry]], `color-mix(in srgb, ${col} ${100 - shade}%, black)`);
+    });
+    return sides + poly(rim.map(([x, y]) => [cx + x * r, cy + y * ry - h]), `color-mix(in srgb, ${col} 78%, white)`);
+  };
+  // 32 px to the metre across and 43 up.
+  draw.tyres = () => {
+    const cx = 100, base = 128, r = 48, ry = r * 0.32, ringH = 26, tyreR = 9.6;
+    let rings = "";
+    for (let ring = 0; ring < 2; ring++) {
+      const mid = base - (ring + 0.5) * ringH, turn = (Math.PI / 5) * ring;
+      const faces = [];
+      for (let k = 0; k < 5; k++) {
+        const a = turn + (k * 2 * Math.PI) / 5, sin = Math.sin(a);
+        if (sin <= 0.05) continue;
+        const x = cx + Math.cos(a) * (r + 1), y = mid + sin * ry;
+        faces.push(`<ellipse cx="${x}" cy="${y}" rx="${tyreR * sin}" ry="${ringH / 2}" fill="#2e2e32"/><ellipse cx="${x}" cy="${y}" rx="${tyreR * sin * 0.45}" ry="${ringH * 0.22}" fill="#121214"/>`);
+      }
+      let belt = "";
+      for (let k = 0; k < 20; k++) {
+        const a0 = turn + (k * 2 * Math.PI) / 20, a1 = turn + ((k + 1) * 2 * Math.PI) / 20;
+        if (Math.sin((a0 + a1) / 2) <= 0) continue;
+        const at = (a, dy) => [cx + Math.cos(a) * (r + 2), mid + Math.sin(a) * ry + dy];
+        belt += poly([at(a0, -3.5), at(a1, -3.5), at(a1, 3.5), at(a0, 3.5)], k % 2 ? "#f5f5f5" : "#d63a2e");
+      }
+      rings += faces.join("") + belt;
+    }
+    return `<svg viewBox="0 0 200 160" role="img" aria-label="Tyre wall: two belted rings of tyres on a sixteen-sided stack">
+    <rect width="200" height="160" fill="#6b6b78"/><ellipse cx="108" cy="134" rx="58" ry="12" fill="rgba(0,0,0,.25)"/>
+    ${prism(16, cx, base, r, 2 * ringH, rgb([0.071, 0.071, 0.078]))}${rings}</svg>`;
+  };
+  // Top-down: the track runs up the page, curving right past the kerb on its
+  // inside edge; a side view of the half-round below.
+  draw.sausageKerb = () => {
+    let stripes = "";
+    for (let k = 0; k < 6; k++) stripes += `<rect x="114" y="${42 + k * 13}" width="14" height="5" fill="#111111"/>`;
+    return `<svg viewBox="0 0 200 160" role="img" aria-label="Sausage kerb from above and from the side">
+      <rect width="200" height="160" fill="#6b6b78"/><rect x="182" width="18" height="160" fill="#e8c773"/>
+      <rect x="176" width="6" height="160" fill="#d63b2e"/>${[0, 2, 4, 6, 8].map((i) => `<rect x="176" y="${i * 20}" width="6" height="10" fill="#f5f5f5"/>`).join("")}
+      <rect x="114" y="36" width="14" height="88" rx="7" fill="#ffd23f"/>${stripes}
+      <path d="M 20 140 Q 40 128 60 140 Z" fill="#ffd23f"/><rect x="12" y="140" width="56" height="2" fill="#2a2a2e"/></svg>`;
+  };
+  // Top-down: the track runs up the page, the pad's rectangle spans 6 m of its width.
+  const padGround = (inner) => `<svg viewBox="0 0 200 160" role="img" aria-label="Boost pad on asphalt from above">
+    <rect width="200" height="160" fill="#6b6b78"/><rect x="0" width="10" height="160" fill="#e8c773"/><rect x="190" width="10" height="160" fill="#e8c773"/>${inner}</svg>`;
+  draw.pad = () => {
+    const chevron = (y) => poly([[66, y + 18], [100, y], [134, y + 18], [134, y + 28], [100, y + 10], [66, y + 28]], "#ff8800") + poly([[100, y + 10], [134, y + 28], [134, y + 24], [100, y + 6]], "#c45f00");
+    return padGround(`<rect x="46" y="46" width="108" height="72" fill="#2b2e33"/><rect x="46" y="46" width="108" height="4" fill="#3a3e45"/><rect x="46" y="114" width="108" height="4" fill="#1c1c1e"/>
+      ${chevron(52)}${chevron(70)}${chevron(88)}`);
+  };
+  draw.startLine = () => {
+    let cq = "";
+    for (let i = 0; i < 16; i++) for (let j = 0; j < 2; j++) cq += `<rect x="${32 + i * 16}" y="${60 + j * 16}" width="16" height="16" fill="${(i + j) % 2 ? rgb([0.96, 0.96, 0.96]) : rgb([0.13, 0.13, 0.13])}"/>`;
+    return `<svg viewBox="0 0 320 150" role="img" aria-label="Chequered start line across the asphalt">
+      <rect width="320" height="150" fill="#e8c773"/><rect x="32" width="256" height="150" fill="#6b6b78"/>${cq}</svg>`;
+  };
+  draw.boards = () => {
+    const ink = { "ink-blue": "#1f54c7", "ink-green": "#218c40", "ink-red": "#cc2929", "ink-black": "#1f1f1f", "ink-orange": "#ed7814", "ink-purple": "#8038b3" };
+    const rows = [["OVERSTEER INSURANCE", "ink-blue"], ["CHICANE COLA", "ink-red"], ["LATE BRAKING BANK", "ink-purple"], ["UNDERSTEER BROS. BRAKES", "ink-orange"]];
+    return `<svg viewBox="0 0 320 150" role="img" aria-label="Sponsor hoardings">${rows.map(([t, c], i) => {
+      const y = 8 + i * 35;
+      return `<rect x="10" y="${y}" width="300" height="28" fill="#fafafa"/><rect x="10" y="${y + 24}" width="300" height="4" fill="#d6d6d6"/><text x="160" y="${y + 19}" text-anchor="middle" font-family="Bungee, Arial Black, sans-serif" font-size="14" fill="${ink[c]}">${t}</text>`;
+    }).join("")}</svg>`;
+  };
+  draw.stand = () => {
+    const keys = LIVERIES.map((l) => hex(l.key));
+    let crowd = "";
+    for (let tier = 0; tier < 4; tier++) for (let i = 0; i < 22; i++) {
+      const c = keys[(i * 5 + tier * 3) % 8];
+      crowd += `<rect x="${44 + i * 7 + tier * 2}" y="${108 - tier * 18}" width="4" height="5" fill="${c}"/>`;
+    }
+    let tiers = "";
+    for (let t = 3; t >= 0; t--) {
+      const y = 112 - t * 18;
+      tiers += `<rect x="${36 + t * 2}" y="${y}" width="${168 - t * 4}" height="18" fill="#d7dbe0"/><rect x="${36 + t * 2}" y="${y}" width="${168 - t * 4}" height="4" fill="#f0f2f4"/>`;
+    }
+    return `<svg viewBox="0 0 240 160" role="img" aria-label="Low-poly grandstand">
+      <ellipse cx="120" cy="140" rx="100" ry="6" fill="rgba(0,0,0,.15)"/>
+      <rect x="40" y="30" width="6" height="104" fill="#2b2e33"/><rect x="194" y="30" width="6" height="104" fill="#2b2e33"/>
+      ${tiers}${crowd}<rect x="36" y="130" width="168" height="6" fill="#b4bac2"/>
+      ${poly([[26, 30], [214, 30], [204, 18], [36, 18]], "#e05547")}${poly([[26, 30], [214, 30], [214, 36], [26, 36]], "#a52a20")}</svg>`;
+  };
+  draw.gantry = () => {
+    let cq = "";
+    for (let i = 0; i < 24; i++) for (let j = 0; j < 2; j++) cq += `<rect x="${32 + i * 7.33}" y="${46 + j * 7}" width="7.4" height="7" fill="${(i + j) % 2 ? "#f5f5f5" : "#222"}"/>`;
+    return `<svg viewBox="0 0 240 160" role="img" aria-label="Low-poly start gantry">
+      <ellipse cx="120" cy="142" rx="104" ry="5" fill="rgba(0,0,0,.15)"/>
+      <polygon points="22,40 34,40 34,138 22,138" fill="#3a3e45"/><polygon points="28,40 34,40 34,138 28,138" fill="#25282d"/>
+      <polygon points="206,40 218,40 218,138 206,138" fill="#3a3e45"/><polygon points="212,40 218,40 218,138 212,138" fill="#25282d"/>
+      ${poly([[22, 40], [218, 40], [212, 34], [28, 34]], "#c9ced5")}<rect x="22" y="40" width="196" height="24" fill="#f0f0f0"/>${cq}<rect x="22" y="60" width="196" height="4" fill="#9aa0a8"/></svg>`;
+  };
+
+  // The tyre gauge's kart: your car from above (instrument-panel.ts).
+  // Lit, mid and shaded tones per signal colour, for anything faceted on the panel.
+  const TONES = {
+    green: ["#8ee88e", "#5ad15a", "#3a9a3a"], red: ["#ff7a6e", "#e8483a", "#a8261b"], blue: ["#8aa8ff", "#4f7dff", "#2f4fc4"],
+    off: ["#4a4f57", "#2b2e33", "#1b1d21"], white: ["#ffffff", "#eef0f2", "#cfd2d6"],
+  };
+  const keyTones = (key) => [`color-mix(in srgb, ${key} 72%, white)`, key, `color-mix(in srgb, ${key} 66%, black)`];
+  // A tyre seen from above: chamfered block, lit on the left like everything under the View's sun.
+  const tyreTop = (corner, x, y, w, h, tones) => {
+    const c = 2;
+    return `<g data-tyre-corner="${corner}">${poly([[x + c, y], [x + w - c, y], [x + w, y + c], [x + w, y + h - c], [x + w - c, y + h], [x + c, y + h], [x, y + h - c], [x, y + c]], tones[1])}` +
+      `${poly([[x + c, y], [x + w * 0.34, y], [x + w * 0.34, y + h], [x + c, y + h], [x, y + h - c], [x, y + c]], tones[0])}${poly([[x + w * 0.7, y], [x + w - c, y], [x + w, y + c], [x + w, y + h - c], [x + w - c, y + h], [x + w * 0.7, y + h]], tones[2])}</g>`;
+  };
+  // Your car from above: the side view's parts in plan, rears bigger, your driver's hair in the cockpit.
+  const topCar = (wear = ["green", "green", "green", "green"]) => `<svg viewBox="0 0 60 92" role="img" aria-label="Your car from above">
+    <line x1="22" y1="22" x2="12" y2="22" stroke="#222" stroke-width="1.5"/><line x1="38" y1="22" x2="48" y2="22" stroke="#222" stroke-width="1.5"/>
+    <line x1="20" y1="70" x2="12" y2="70" stroke="#222" stroke-width="1.5"/><line x1="40" y1="70" x2="48" y2="70" stroke="#222" stroke-width="1.5"/>
+    ${tyreTop("front-left", 2, 14, 11, 17, TONES[wear[0]])}${tyreTop("front-right", 47, 14, 11, 17, TONES[wear[1]])}
+    ${tyreTop("rear-left", 0, 58, 13, 24, TONES[wear[2]])}${tyreTop("rear-right", 47, 58, 13, 24, TONES[wear[3]])}
+    ${poly([[18, 40], [42, 40], [45, 64], [38, 76], [22, 76], [15, 64]], "var(--p)")}${poly([[18, 40], [30, 40], [30, 76], [22, 76], [15, 64]], "var(--p-lt)")}${poly([[38, 52], [42, 40], [45, 64], [38, 76]], "var(--p-dk)")}
+    ${poly([[26, 6], [34, 6], [37, 42], [23, 42]], "var(--p)")}${poly([[26, 6], [30, 6], [30, 42], [23, 42]], "var(--p-lt)")}
+    ${poly([[29, 8], [31, 8], [31, 78], [29, 78]], "var(--a)")}
+    ${poly([[6, 4], [54, 4], [54, 11], [6, 11]], "var(--s)")}${poly([[6, 4], [54, 4], [54, 6.5], [6, 6.5]], "color-mix(in srgb, var(--s) 72%, white)")}${poly([[4, 3], [7, 3], [7, 12], [4, 12]], "var(--a)")}${poly([[53, 3], [56, 3], [56, 12], [53, 12]], "var(--a)")}
+    ${poly(ngon(6, 30, 51, 8), "#1b1d21")}${facets(8, 30, 52, 5.6, ["var(--hair-lt)", "var(--hair)", "var(--hair-dk)"])}
+    <polyline points="22.5,55 23.5,45 30,41.5 36.5,45 37.5,55" stroke="#1a1a1a" stroke-width="2" fill="none" stroke-linejoin="round"/>
+    ${poly([[24, 66], [36, 66], [34, 82], [26, 82]], "var(--p-dk)")}
+    ${poly([[8, 80], [52, 80], [52, 89], [8, 89]], "var(--s)")}${poly([[8, 80], [52, 80], [52, 83], [8, 83]], "color-mix(in srgb, var(--s) 72%, white)")}${poly([[6, 79], [9, 79], [9, 90], [6, 90]], "var(--a)")}${poly([[51, 79], [54, 79], [54, 90], [51, 90]], "var(--a)")}
+  </svg>`;
+  draw.tyreGauge = () => topCar();
+
+  // Real centrelines from the sidecars, projected the way course-map.ts projects them.
+  const TRACKS = {
+    oval: { d: "M63.6 67.0 L63.6 64.8 L63.6 62.5 L63.6 60.2 L63.6 57.9 L63.6 55.7 L63.6 53.4 L63.6 51.1 L63.6 48.9 L63.6 46.6 L63.6 44.3 L63.6 42.1 L63.6 39.8 L63.6 37.5 L63.6 35.2 L63.6 33.0 L63.6 30.7 L63.6 28.4 L63.6 26.2 L63.6 23.9 L63.6 21.6 L63.4 19.4 L62.9 17.2 L61.9 15.1 L60.7 13.2 L59.1 11.5 L57.3 10.1 L55.3 9.1 L53.2 8.4 L50.9 8.0 L48.6 8.1 L46.4 8.5 L44.3 9.3 L42.3 10.4 L40.5 11.8 L39.0 13.5 L37.8 15.5 L37.0 17.6 L36.5 19.8 L36.4 22.1 L36.4 24.3 L36.4 26.6 L36.4 28.9 L36.4 31.2 L36.4 33.4 L36.4 35.7 L36.4 38.0 L36.4 40.2 L36.4 42.5 L36.4 44.8 L36.4 47.0 L36.4 49.3 L36.4 51.6 L36.4 53.9 L36.4 56.1 L36.4 58.4 L36.4 60.7 L36.4 62.9 L36.4 65.2 L36.4 67.5 L36.4 69.8 L36.4 72.0 L36.4 74.3 L36.4 76.6 L36.4 78.8 L36.7 81.1 L37.3 83.3 L38.3 85.3 L39.6 87.2 L41.2 88.8 L43.1 90.1 L45.1 91.1 L47.3 91.7 L49.5 92.0 L51.8 91.9 L54.0 91.4 L56.1 90.5 L58.1 89.3 L59.8 87.8 L61.2 86.1 L62.4 84.1 L63.1 82.0 L63.6 79.7 L63.6 77.5 L63.6 75.2 L63.6 72.9 L63.6 70.7 L63.6 68.4 Z", start: [63.6, 67.0] },
+    brands: { d: "M92.0 50.0 L92.0 47.0 L92.0 43.9 L92.0 40.9 L92.0 37.8 L92.0 34.8 L92.0 31.7 L92.0 28.7 L92.0 25.6 L90.9 22.8 L88.7 20.8 L85.7 20.2 L82.9 21.0 L80.7 23.1 L79.8 26.0 L79.8 29.0 L79.8 32.0 L79.8 35.1 L79.8 38.1 L79.8 41.2 L79.8 44.2 L79.8 47.3 L79.8 50.3 L79.8 53.4 L79.8 56.4 L79.8 59.5 L79.4 62.5 L78.0 65.1 L75.6 66.9 L72.7 67.6 L69.6 67.6 L66.6 67.6 L63.5 67.6 L60.5 67.6 L57.5 67.6 L54.4 67.6 L51.4 67.6 L48.3 67.6 L45.3 67.6 L42.2 67.6 L39.2 67.6 L36.1 67.6 L33.1 68.0 L30.7 69.8 L27.7 70.3 L25.0 69.0 L22.4 67.7 L19.3 67.6 L16.2 67.6 L13.1 67.7 L10.3 68.9 L8.5 71.3 L8.0 74.2 L9.0 77.0 L11.2 79.1 L14.1 79.8 L17.1 79.8 L20.2 79.8 L23.2 79.8 L26.3 79.8 L29.3 79.8 L32.4 79.8 L35.4 79.8 L38.5 79.8 L41.5 79.8 L44.6 79.8 L47.6 79.8 L50.7 79.8 L53.7 79.8 L56.8 79.8 L59.8 79.8 L62.9 79.8 L65.9 79.8 L69.0 79.8 L72.0 79.8 L75.1 79.8 L78.1 79.8 L81.2 79.8 L84.2 79.2 L86.9 77.8 L89.2 75.8 L90.9 73.2 L91.8 70.3 L92.0 67.3 L92.0 64.2 L92.0 61.2 L92.0 58.1 L92.0 55.1 L92.0 52.0 Z", start: [92.0, 50.0] },
+  };
+  const FRACTIONS = [0.04, 0.16, 0.27, 0.38, 0.5, 0.63, 0.75, 0.88];
+  draw.map = (el) => {
+    const t = TRACKS[el.dataset.track];
+    const [sx, sy] = t.start;
+    let cq = "";
+    for (let i = 0; i < 4; i++) for (let j = 0; j < 2; j++) cq += `<rect x="${sx - 4.8 + i * 2.4}" y="${sy - 2.4 + j * 2.4}" width="2.4" height="2.4" fill="${(i + j) % 2 ? "#fff" : "#111"}"/>`;
+    return `<svg viewBox="0 0 100 100" style="width:min(100%,11rem)" role="img" aria-label="Course map">
+      <path d="${t.d}" transform="translate(1.6 1.6)" fill="none" stroke="rgb(17 17 17 / 0.55)" stroke-width="9" stroke-linejoin="round"/>
+      <path d="${t.d}" fill="none" stroke="#f0f0f0" stroke-width="9" stroke-linejoin="round"/>
+      <path d="${t.d}" fill="none" stroke="#6b6b78" stroke-width="6" stroke-linejoin="round"/>
+      <g shape-rendering="crispEdges">${cq}</g><g data-markers></g></svg>`;
+  };
+  const placeMarkers = (svg) => {
+    const path = svg.querySelector("path:last-of-type");
+    const g = svg.querySelector("[data-markers]");
+    const len = path.getTotalLength();
+    const own = current;
+    const order = [...LIVERIES.keys()].filter((k) => k !== own).concat(own);
+    g.innerHTML = order.map((k) => {
+      const p = path.getPointAtLength(len * FRACTIONS[k]);
+      const key = hex(LIVERIES[k].key);
+      const drop = (r) => poly(ngon(8, p.x + 1.2, p.y + 1.2, r), "rgb(17 17 17 / 0.55)");
+      return k === own
+        ? drop(6) + facets(8, p.x, p.y, 6, TONES.white) + facets(8, p.x, p.y, 4.4, keyTones(key))
+        : drop(3.6) + facets(8, p.x, p.y, 3.6, keyTones(key));
+    }).join("");
+  };
+  const labelSlots = [1, 3, 6];
+  draw.labels = () => `<div class="hud" style="display:grid;gap:10px;justify-items:center">${labelSlots.map((k) => `<span class="kart-label" style="--key:${hex(LIVERIES[k].key)}"><span class="pl"><span class="pf t-key">${NICKS[k]}</span></span><i></i></span>`).join("")}</div>`;
+
+  draw.poster = () => {
+    const step = (k, place, h, col) => `<div style="flex:1;display:grid;justify-items:center;align-content:end;min-width:0"><div class="lv" data-poster-slot="${k}" style="width:100%">${sideCar(LIVERIES[k].d, LIVERIES[k].name + " on the podium")}</div><div style="width:100%;height:${h};display:grid;place-items:center;background:var(--g-ink);color:${col};border-top:3px solid currentColor;font-size:1.4rem">${place}</div></div>`;
+    return `<i class="cq t"></i><i class="cq b"></i><div style="display:flex;align-items:flex-end;gap:0.5rem;width:100%;max-width:30rem">${step(3, 2, "3.2rem", "#ddd")}${step(0, 1, "4.6rem", "var(--g-pgold)")}${step(1, 3, "2.2rem", "#e08a3c")}</div>`;
+  };
+
+  // Favicon: apps/web/public/favicon.svg at three sizes.
+  draw.favicon = () => `<div style="display:flex;gap:1rem;align-items:end">${[16, 32, 64].map((s) => `<svg viewBox="0 0 32 32" width="${s}" height="${s}" aria-hidden="true"><rect width="32" height="32" rx="6" fill="#111"/><path fill="#fff" d="M8 8h4v4H8zm8 0h4v4h-4zm-4 4h4v4h-4zm8 0h4v4h-4zM8 16h4v4H8zm8 0h4v4h-4zm-4 4h4v4h-4zm8 0h4v4h-4z"/></svg>`).join("")}</div>`;
+
+  // Palette groups. Entries with a token are copied from apps/web/src/palette.ts, and repo-checks holds them to it.
+  const PAL = [
+    ["Instrument panel", [
+      { token: "VALUE_WHITE", hex: 0xffffff, role: "Values" },
+      { token: "LABEL_GREY", hex: 0xc9ced5, role: "Labels" },
+      { token: "INK", hex: 0x111111, role: "The ink drop under every plate and value" },
+      { token: "CARBON", tones: [0x4a4f57, 0x2b2e33, 0x1b1d21], role: "Plates: laps, times, gear, FINISH, standings" },
+      { token: "ITEM_BOX_GOLD", tones: [0xf8e39a, 0xe0b54a, 0xc99a2e], role: "The item box, its slot, your standings row" },
+      { token: "FIRING", tones: [0xffffff, 0xfff6cf, 0xf8e39a], role: "The item slot while firing" },
+      { token: "WHITE", tones: [0xffffff, 0xeef0f2, 0xcfd2d6], role: "The gear on the limiter" },
+      { token: "LAMP_OFF", tones: [0x2b2e33, 0x1b1d21, 0x111214], role: "A start light not yet on" },
+      { token: "ASPHALT", hex: 0x6b6b78, role: "Course map asphalt" },
+      { token: "WALL", hex: 0xf0f0f0, role: "Course map walls" },
+    ]],
+    ["Signals", [
+      { token: "SIGNAL_GREEN", tones: [0x8ee88e, 0x5ad15a, 0x3a9a3a], role: "Shift lights' first third, good tyres" },
+      { token: "SIGNAL_YELLOW", tones: [0xf9da7e, 0xf5c542, 0xb08a22], role: "Worn tyres" },
+      { token: "SIGNAL_RED", tones: [0xff7a6e, 0xe8483a, 0xa8261b], role: "Shift lights' second third, bad tyres" },
+      { token: "SHIFT_BLUE", tones: [0x8aa8ff, 0x4f7dff, 0x2f4fc4], role: "Shift lights' last third, the limiter" },
+      { token: "HAZARD_ORANGE", tones: [0xff7a4d, 0xff5522, 0xc73c14], role: "Danger only: the hazard cone, wrong way" },
+      { token: "POSTER_RED", tones: [0xe8333b, 0xc81d25, 0x8f141a], role: "The connection banner, the start lights" },
+      { token: "GO_GREEN", tones: [0x6fe8a6, 0x3ddc84, 0x23a35e], role: "GO" },
+    ]],
+    ["Item characters", [
+      { token: "GREYS.white", hex: 0xffffff, role: "Grey, white: the gull's body" },
+      { token: "GREYS.body", hex: 0xe3e6ea, role: "Grey, body" },
+      { token: "GREYS.pale", hex: 0xd4d8dd, role: "Grey, pale" },
+      { token: "GREYS.grey", hex: 0xb9bec5, role: "Grey: the gull's wings" },
+      { token: "GREYS.dark", hex: 0x9aa0a8, role: "Grey, dark: the cone's slab, the gull's tail" },
+      { token: "GREYS.deep", hex: 0x6f747b, role: "Grey, deep" },
+      { token: "GULL_EYE", hex: 0xd00a12, role: "The gull's eye, locked on" },
+      { token: "ROCKET", tones: [0xe8333b, 0xd00a12, 0x8f070c], role: "The snail's rocket" },
+      { token: "ROCKET_FLAME", hex: 0xffd23f, role: "The rocket's flame" },
+      { token: "ROCKET_WINDOW", hex: 0x7fc3ff, role: "The rocket's porthole" },
+      { token: "ROCKET_STRAP", hex: 0x3a3d42, role: "The rocket's straps" },
+    ]],
+    ["Poster, apps/web/index.html", [
+      { hex: 0xc81d25, role: "Poster red: the backdrop" },
+      { hex: 0xffd23f, role: "Poster gold: the logo, buttons, your row" },
+      { hex: 0x3ddc84, role: "Go green: the one primary button" },
+      { hex: 0x111111, role: "Ink: boards, bands, drops" },
+      { hex: 0xa45cff, role: "Fastest lap purple" },
+      { hex: 0xe08a3c, role: "Bronze: 3rd and below" },
+    ]],
+    ["World, assets/tracks/build.py", [
+      { hex: 0x87ceeb, role: "Sky" },
+      { hex: 0x6b6b78, role: "Asphalt" },
+      { hex: 0x5cb04a, role: "Grass" },
+      { hex: 0xe8c773, role: "Sand" },
+      { hex: 0xf0f0f0, role: "Wall white" },
+      { hex: 0xd63b2e, role: "Kerb red" },
+      { hex: 0xffd23f, role: "Sausage kerb gold" },
+      { hex: 0x2b2e33, role: "Carbon: pad, pillars, posts" },
+      { hex: 0xff8800, role: "Chevron orange, the mini-turbo's" },
+      { hex: 0x1a1a1d, role: "Tyre" },
+      { hex: 0x3a3d42, role: "Rim, assets/karts/build.py" },
+    ]],
+  ];
+  // A swatch shows a faceted colour as its lit, mid and shaded thirds.
+  const swatch = ({ token, hex: one, tones, role }) => {
+    const cs = (tones ?? [one]).map(hex);
+    const fill = cs.length === 1 ? cs[0] : `linear-gradient(90deg, ${cs[0]} 0 33.3%, ${cs[1]} 33.3% 66.6%, ${cs[2]} 66.6%)`;
+    return `<div class="sw"><i style="background:${fill}"></i><span>${role}${token ? ` <code>${token}</code>` : ""} <code>${cs.join(" ")}</code></span></div>`;
+  };
+  document.getElementById("pal").innerHTML = PAL.map(([g, list]) => `<section><div class="eyebrow">${g}</div>${list.map(swatch).join("")}</section>`).join("") +
+    `<section><div class="eyebrow">Liveries: key, primary, secondary, accent</div>${LIVERIES.map((l) => `<div class="sw"><i style="background:linear-gradient(90deg, ${hex(l.key)} 0 40%, ${hex(l.p)} 40% 60%, ${hex(l.s)} 60% 80%, ${hex(l.a)} 80%)"></i><span>${l.name}, after ${l.after} <code>${hex(l.key)}</code></span></div>`).join("")}</section>`;
+
+
+  // The panel's readouts: plates, with polygons for the lights and the items.
+  const slot = (item, firing) => `<span class="pl"><span class="pf ${firing ? "t-flash" : "t-gold"} slot">${item ? draw[item]() : ""}</span></span>`;
+  document.getElementById("slots").innerHTML = slot(null) + slot("snail") + slot("cone") + slot("gull") + slot("snail", true);
+  const hexLights = (lit, limiter) => `<svg class="lights" viewBox="0 0 156 14" aria-hidden="true">${Array.from({ length: 12 }, (_, i) =>
+    facets(6, 6.5 + i * 13, 7, 6.2, TONES[limiter ? "blue" : i < lit ? ["green", "red", "blue"][Math.floor((i * 3) / 12)] : "off"])).join("")}</svg>`;
+  const cluster = (gear, kmh, lit, limiter) => `<div class="cluster">${hexLights(lit, limiter)}<span class="pl"><span class="pf ${limiter ? "t-white" : "t-carbon"} gear">${gear}</span></span><div class="speed"><b>${kmh}</b><span class="lab">KM/H</span></div><div class="tyre lv follows">${topCar()}<span>100%</span></div></div>`;
+  document.getElementById("clusters").innerHTML = cluster(4, 87, 7, false) + cluster(6, 112, 12, true);
+
+  // A flag folded once, lit on the left half; chequered once its lap is done.
+  const lapFlag = (done) => `<svg viewBox="0 0 14 14" aria-hidden="true"><rect x="1" y="1" width="1.4" height="12.5" fill="#e3e6ea"/>
+    ${poly([[2.4, 1], [8, 2.2], [8, 8.4], [2.4, 7.2]], done ? "url(#cq2)" : "var(--a-lt)")}${poly([[8, 2.2], [13.4, 1], [13.4, 7.2], [8, 8.4]], done ? "url(#cq2)" : "var(--a)")}
+    ${done ? poly([[8, 2.2], [13.4, 1], [13.4, 7.2], [8, 8.4]], "rgb(0 0 0 / 0.28)") : ""}</svg>`;
+  document.getElementById("stack").innerHTML = `<span class="pl"><span class="pf t-livery posp">1<small>ST</small></span></span>
+    <span class="pl"><span class="pf t-carbon line"><span class="lab">LAP</span><span class="flags">${lapFlag(true)}${lapFlag(true)}${lapFlag(false)}</span></span></span>
+    <span class="pl"><span class="pf t-carbon line"><span class="lab">TIME</span>0'27"304</span></span>
+    <span class="pl"><span class="pf t-carbon line small"><span class="lab">BEST</span>-'--"---</span></span>`;
+
+  const chip = (k) => `<span class="chip3"><i style="background:${hex(LIVERIES[k].p)}"></i><i style="background:${hex(LIVERIES[k].s)}"></i><i style="background:${hex(LIVERIES[k].a)}"></i></span>`;
+  document.getElementById("standings").innerHTML = [0, 3, 1].map((k, i) => `<li><span class="pl"><span class="pf ${i === 0 ? "t-gold" : "t-carbon"}"><b>${["1ST", "2ND", "3RD"][i]}</b>${chip(k)}${NICKS[k]}<span style="margin-left:auto">${["1'20\"000", "1'21\"204", "1'22\"318"][i]}</span></span></span></li>`).join("");
+
+  document.getElementById("board").innerHTML = [[1, "4th", "0'27\"030"], [3, "5th", "0'27\"160"], [4, "6th", "0'27\"420"], [5, "7th", null]].map(([k, p, t]) =>
+    `<li style="${t ? "" : "color:#888"}"><span>${p}</span><i style="width:1em;height:1em;background:${hex(LIVERIES[k].key)}"></i><span>${NICKS[k]}</span><span>${t ?? "Not finished"}</span></li>`).join("");
+
+  const seat = (k, badges) => `<div class="seat"><div class="lv" data-room-slot="${k}">${sideCar(LIVERIES[k].d, `${NICKS[k]}'s kart`)}</div><div><b>${NICKS[k]}</b><span style="display:flex;flex-wrap:wrap;gap:0.25rem">${badges}</span></div></div>`;
+  document.getElementById("room").innerHTML = `<i class="cq t"></i><i class="cq b"></i><div style="display:grid;gap:0.8rem;justify-items:center;width:100%;max-width:30rem">
+    <div style="display:flex;align-items:center;gap:0.6rem;rotate:-3deg"><span class="p-head">Room <span style="color:var(--g-pgold)">KQXZ</span></span><span class="p-sticker" style="rotate:-6deg">3/8</span></div>
+    <span class="p-plate" style="display:flex;align-items:center;gap:0.6rem"><u style="text-transform:uppercase">formula-none.example/?room=KQXZ</u><span class="p-sticker" style="rotate:0deg;box-shadow:none;font-size:0.65rem">Copy link</span></span>
+    <div class="seats">${seat(0, '<span class="p-badge">You</span><span class="p-badge">Creator</span><span class="p-badge ready">Ready</span>')}${seat(3, '<span class="p-badge wait">Not ready</span>')}${seat(1, '<span class="p-badge ready">Ready</span>')}</div>
+    <span class="p-plate">Waiting for everyone to be ready</span>
+    <div style="display:flex;flex-wrap:wrap;gap:0.6rem;justify-content:center"><span class="p-btn">Unready</span><span class="p-btn off">Start</span><span class="p-btn">Leave</span></div></div>`;
+  for (const el of document.querySelectorAll("[data-room-slot]")) paint(el, Number(el.dataset.roomSlot));
+
+  // Grid and drivers, each in its own livery.
+  document.getElementById("grid8").innerHTML = LIVERIES.map((l, k) => `<figure><div class="chase" data-slot="${k}">${chaseCar(l.d)}</div><figcaption><b>${l.name}</b>after ${l.after}</figcaption></figure>`).join("");
+  document.getElementById("drivers").innerHTML = LIVERIES.map((l, k) => `<figure><div class="portrait" data-slot="${k}">${portrait(l.d)}</div><figcaption><b>${l.name}</b>${l.d.hair.replace(/-/g, " ")}, ${l.d.fh === "none" ? "clean shaven" : l.d.fh.replace(/-/g, " ")}${l.d.ear ? ", earrings" : ""}</figcaption></figure>`).join("");
+  for (const el of document.querySelectorAll("#grid8 [data-slot], #drivers [data-slot]")) paint(el, Number(el.dataset.slot));
+
+  // The livery picker repaints everything marked to follow it, and the course maps' own marker.
+  let current = 0;
+  const picker = document.getElementById("picker");
+  LIVERIES.forEach((l, k) => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.id = `livery-${l.name.toLowerCase()}`;
+    b.setAttribute("aria-pressed", String(k === 0));
+    b.innerHTML = `<span class="chip3"><i style="background:${hex(l.p)}"></i><i style="background:${hex(l.s)}"></i><i style="background:${hex(l.a)}"></i></span>${l.name}`;
+    b.addEventListener("click", () => {
+      current = k;
+      for (const o of picker.querySelectorAll("button")) o.setAttribute("aria-pressed", String(o === b));
+      render();
+    });
+    picker.append(b);
+  });
+  const render = () => {
+    for (const el of document.querySelectorAll(".follows")) paint(el, current);
+    for (const el of document.querySelectorAll("[data-draw]")) {
+      const fn = draw[el.dataset.draw];
+      if (fn && (el.classList.contains("follows") || !el.dataset.drawn)) { el.innerHTML = fn(el); el.dataset.drawn = "1"; }
+    }
+    for (const el of document.querySelectorAll('[data-draw="map"]')) placeMarkers(el.querySelector("svg"));
+  };
+  render();
+  // The podium cars exist only once render has drawn the poster.
+  for (const el of document.querySelectorAll("[data-poster-slot]")) paint(el, Number(el.dataset.posterSlot));
+
+})();
+</script>
+
+<!-- Shared portrait parts from the base mockup; the eyes take the build's fixed iris. -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <pattern id="cq2" width="3" height="3" patternUnits="userSpaceOnUse"><rect width="3" height="3" fill="#fff"/><rect width="1.5" height="1.5" fill="#111"/><rect x="1.5" y="1.5" width="1.5" height="1.5" fill="#111"/></pattern>
+    <g id="suit">
+      <polygon points="10,280 38,224 96,206 144,206 202,224 230,280" fill="var(--p)"/>
+      <polygon points="10,280 38,224 96,206 80,280" fill="var(--p-lt)"/>
+      <polygon points="230,280 202,224 144,206 160,280" fill="var(--p-dk)"/>
+      <polygon points="56,240 184,240 188,250 52,250" fill="var(--s)"/>
+      <polygon points="100,180 140,180 144,212 96,212" fill="var(--sk-dk)"/>
+      <polygon points="104,186 136,186 142,198 98,198" fill="var(--sk-deep)"/>
+      <polygon points="92,202 148,202 152,218 120,228 88,218" fill="var(--a)"/>
+      <polygon points="118,228 122,228 122,280 118,280" fill="var(--a)"/>
+    </g>
+    <g id="head">
+      <polygon points="60,110 50,114 50,138 62,142" fill="var(--sk-dk)"/>
+      <polygon points="180,110 190,114 190,138 178,142" fill="var(--sk-deep)"/>
+      <polygon points="78,62 162,62 180,96 180,136 164,170 138,188 102,188 76,170 60,136 60,96" fill="var(--sk)"/>
+      <polygon points="78,62 162,62 180,96 120,104 60,96" fill="var(--sk-lt)"/>
+      <polygon points="180,96 180,136 164,170 138,188 136,166 156,136 120,104" fill="var(--sk-dk)"/>
+      <polygon points="60,136 88,138 104,166 102,188 76,170" fill="var(--sk-lt)" opacity=".7"/>
+      <polygon points="104,166 136,166 138,188 102,188" fill="var(--sk-lt)" opacity=".55"/>
+      <polygon points="120,122 113,140 120,142" fill="var(--sk-lt)"/>
+      <polygon points="120,122 127,140 120,142" fill="var(--sk-dk)"/>
+      <polygon points="113,140 127,140 120,145" fill="var(--sk-deep)"/>
+      <polygon points="74,140 90,136 96,146 80,150" fill="#d0606a" opacity=".18"/>
+      <polygon points="166,140 150,136 144,146 160,150" fill="#d0606a" opacity=".14"/>
+    </g>
+    <g id="face">
+      <polygon points="82,104 112,99 112,105 84,110" fill="var(--hair)"/>
+      <polygon points="128,99 158,104 156,110 128,105" fill="var(--hair)"/>
+      <polygon points="84,124 92,112 108,112 116,124 108,133 92,133" fill="#f6f1ea"/>
+      <polygon points="124,124 132,112 148,112 156,124 148,133 132,133" fill="#e6e0d6"/>
+      <polygon points="94,114 106,114 108,124 106,133 94,133 92,124" fill="#21170f"/>
+      <polygon points="134,114 146,114 148,124 146,133 134,133 132,124" fill="#21170f"/>
+      <polygon points="101,116 105,116 105,120 101,120" fill="#fff"/>
+      <polygon points="141,116 145,116 145,120 141,120" fill="#fff"/>
+      <polyline points="83,124 92,111 108,111 117,124" stroke="#1a1210" stroke-width="2.5" fill="none" stroke-linejoin="round"/>
+      <polyline points="123,124 132,111 148,111 157,124" stroke="#1a1210" stroke-width="2.5" fill="none" stroke-linejoin="round"/>
+      <polygon points="106,156 120,160 134,156 128,165 112,165" fill="#6e3428"/>
+      <polygon points="110,158 130,158 127,161 113,161" fill="#f4efe6"/>
+    </g>
+  </defs>
+</svg>
+
+</body>
+</html>
