@@ -713,6 +713,8 @@ describe("runaway wheel", () => {
     if (rolling?.kind !== "rolling") throw new Error("not rolling");
     expect(rolling.legFraction).toBeGreaterThanOrEqual(0);
     expect(rolling.legFraction).toBeLessThanOrEqual(1);
+    // The crossing it rolls over, as the sidecar has it: the walls run along its yaw.
+    expect(rolling.crossingYaw).toBeCloseTo(JSON.parse(BRANDS_PATCH).wheel_crossings[0].yaw, 5);
     // The race's seed lands the bounces: a race from another, stepped as
     // far, has its wheel somewhere else on the approach.
     const other = bridge.createRace(8n, 1, 0, BRANDS_PATCH);

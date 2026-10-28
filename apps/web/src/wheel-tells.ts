@@ -68,6 +68,7 @@ const SPARK_SIZE_M = 0.16;
 interface Last {
   legFraction: number;
   yaw: number;
+  position: readonly [number, number, number];
 }
 
 /**
@@ -90,6 +91,8 @@ export function createWheelTellEmitter(
   const back: Vec3 = [0, 0, 0];
   const before: Vec3 = [0, 0, 0];
   const away: Vec3 = [0, 0, 0];
+  /** Where the wheel's centre met the ground at the last rebound. */
+  const rebound: Vec3 = [0, 0, 0];
   const smoke = {
     position,
     velocity,
@@ -127,21 +130,35 @@ export function createWheelTellEmitter(
     }
   };
 
-  // The turn a rebound makes, the new back from the old, stands in for the
-  // wall's normal toward the track; the seeded landings skew it along the track.
-  const strikeSparks = (wheel: Extract<Wheel, { kind: "rolling" }>, yawBefore: number) => {
-    wheelBack(yawBefore, before);
+  // The legs are straight, so the rebound is where the leg it left, from
+  // last frame, meets the leg it is on; the walls run along the crossing.
+  const strikeSparks = (wheel: Extract<Wheel, { kind: "rolling" }>, was: Last) => {
+    wheelBack(was.yaw, before);
     wheelBack(wheel.yaw, back);
-    const length = Math.hypot(before[0] - back[0], before[2] - back[2]);
-    if (length < 1e-6) return;
-    away[0] = (before[0] - back[0]) / length;
-    away[2] = (before[2] - back[2]) / length;
     const [x, y, z] = wheel.position;
+    const [lx, , lz] = was.position;
+    rebound[0] = x;
+    rebound[1] = y;
+    rebound[2] = z;
+    // Solve last + s * inbound = now + t * back, inbound being -before.
+    const cross = -before[0] * back[2] + before[2] * back[0];
+    if (Math.abs(cross) < 1e-6) return;
+    const s = ((x - lx) * back[2] - (z - lz) * back[0]) / cross;
+    const hitX = lx - before[0] * s;
+    const hitZ = lz - before[2] * s;
+    rebound[0] = hitX;
+    rebound[2] = hitZ;
+    // Toward the track is across the crossing, against the way it rolled in.
+    const rightX = Math.cos(wheel.crossingYaw);
+    const rightZ = -Math.sin(wheel.crossingYaw);
+    const side = -before[0] * rightX - before[2] * rightZ > 0 ? -1 : 1;
+    away[0] = side * rightX;
+    away[2] = side * rightZ;
     for (let thrown = 0; thrown < SPARKS; thrown++) {
       // Struck at axle height, where the tyre's tread meets the wall.
-      position[0] = x - away[0] * radius;
+      position[0] = hitX - away[0] * radius;
       position[1] = y + radius;
-      position[2] = z - away[2] * radius;
+      position[2] = hitZ - away[2] * radius;
       const stray = (2 * random() - 1) * SPARK_SPREAD_M_PER_S;
       velocity[0] = away[0] * SPARK_SPEED_M_PER_S - away[2] * stray;
       velocity[1] =
@@ -160,11 +177,15 @@ export function createWheelTellEmitter(
           return;
         }
         const was = last[crossing];
-        last[crossing] = { legFraction: wheel.legFraction, yaw: wheel.yaw };
+        last[crossing] = {
+          legFraction: wheel.legFraction,
+          yaw: wheel.yaw,
+          position: wheel.position,
+        };
         if (was !== undefined) {
           if (wheel.legFraction < was.legFraction) {
-            strikeSparks(wheel, was.yaw);
-            kickDust(wheel.position);
+            strikeSparks(wheel, was);
+            kickDust(rebound);
           } else if (runawayWheelLanded(was.legFraction, wheel.legFraction)) {
             kickDust(wheel.position);
           }

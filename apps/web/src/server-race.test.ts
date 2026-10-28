@@ -480,6 +480,7 @@ describe("createServerRace", () => {
       yaw: 0,
       fraction: 0.5,
       legFraction: 0.5,
+      crossingYaw: Math.PI / 2,
     };
     prediction().rolling = [rolling];
     expect(run.readout().wheels).toEqual([rolling]);

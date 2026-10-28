@@ -15,6 +15,9 @@ const BRANDS_PATCH = readFileSync(
   new URL("../../../assets/tracks/brands-patch/brands-patch.track.json", import.meta.url),
   "utf8",
 );
+/** Brands Patch's one wheel crossing, from the sidecar. */
+const CROSSING: { position: [number, number, number]; yaw: number; half_width: number } =
+  JSON.parse(BRANDS_PATCH).wheel_crossings[0];
 const DT = 1 / 60;
 const RADIUS_M = 1.2;
 
@@ -161,36 +164,30 @@ describe("the runaway wheel's tells", () => {
     expect(dustTicks).toHaveLength(5 * 5);
   });
 
-  it("strike the sparks off the wall the tyre meets, flying back over the track", async () => {
+  it("strike the sparks off the wall the tyre meets, flying straight back over the track", async () => {
     const pass = await firstPass(7n);
     const { sparks } = emitOver(pass);
-    for (const hit of wallHits(pass)) {
-      const [inbound, outbound] = [pass[hit - 1], pass[hit]];
-      if (inbound === undefined || outbound === undefined) throw new Error("no hit");
-      const into = heading(pass[hit - 5] ?? inbound, inbound);
-      const out = heading(outbound, pass[hit + 5] ?? outbound);
-      // Off the wall and back over the track: the turn the rebound makes.
-      const away: Vec3 = [out[0] - into[0], 0, out[2] - into[2]];
-      const thrown = sparks.births.filter(
-        (spark) =>
-          Math.hypot(
-            spark.position[0] - outbound.position[0],
-            spark.position[2] - outbound.position[2],
-          ) <
-          2 * RADIUS_M,
-      );
-      expect(thrown.length).toBeGreaterThanOrEqual(8);
+    // The crossing as the sidecar lays it: along the track, and its walls either side.
+    const {
+      position: [cx, , cz],
+      yaw,
+      half_width: half,
+    } = CROSSING;
+    const along: Vec3 = [-Math.sin(yaw), 0, -Math.cos(yaw)];
+    const right: Vec3 = [Math.cos(yaw), 0, -Math.sin(yaw)];
+    const hits = wallHits(pass);
+    expect(sparks.births).toHaveLength(8 * hits.length);
+    hits.forEach((_, index) => {
+      const thrown = sparks.births.slice(index * 8, index * 8 + 8);
       for (const spark of thrown) {
-        expect(dot(spark.velocity, away)).toBeGreaterThan(0);
-        // Struck at the tyre's edge, a radius out from the centre toward the wall.
-        const toSpark: Vec3 = [
-          spark.position[0] - outbound.position[0],
-          0,
-          spark.position[2] - outbound.position[2],
-        ];
-        expect(dot(toSpark, away)).toBeLessThan(0);
+        const across = dot([spark.position[0] - cx, 0, spark.position[2] - cz], right);
+        // On the wall, and flying off it toward the crossing's centre.
+        expect(Math.abs(across)).toBeCloseTo(half, 1);
+        const level: Vec3 = [spark.velocity[0], 0, spark.velocity[2]];
+        expect(dot(level, along)).toBeCloseTo(0, 6);
+        expect(Math.sign(dot(level, right))).toBe(-Math.sign(across));
       }
-    }
+    });
   });
 
   it("trail grey smoke behind the wheel while it rolls, and nothing when quiet", async () => {
