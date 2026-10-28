@@ -415,7 +415,11 @@ function runawayWheels(world: ThreeScene, track: Object3D, radius: number): Runa
           entry.spin.rotation.x -= at.distanceTo(entry.last) / radius;
         }
         entry.last = at.clone();
-        entry.heading.position.set(at.x, at.y + radius + runawayWheelBounce(wheel.fraction), at.z);
+        entry.heading.position.set(
+          at.x,
+          at.y + radius + runawayWheelBounce(wheel.legFraction),
+          at.z,
+        );
         entry.heading.rotation.y = wheel.yaw;
       });
     },

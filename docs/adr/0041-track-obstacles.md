@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted (2026-10-27).
+Accepted (2026-10-27). The runaway wheel's path is superseded by ADR 0042.
 
 ## Context
 

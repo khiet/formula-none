@@ -711,9 +711,18 @@ describe("runaway wheel", () => {
     expect([...seen]).toEqual(["quiet", "warning", "rolling"]);
     const [rolling] = race.wheels();
     if (rolling?.kind !== "rolling") throw new Error("not rolling");
-    // Half way through the first pass: the crossing's centre on the approach.
-    expect(rolling.fraction).toBeCloseTo(0.5, 1);
-    expect(rolling.position[0]).toBeCloseTo(-138.8, 1);
-    expect(rolling.position[2]).toBeCloseTo(52, 0);
+    expect(rolling.legFraction).toBeGreaterThanOrEqual(0);
+    expect(rolling.legFraction).toBeLessThanOrEqual(1);
+    // The race's seed lands the bounces: a race from another, stepped as
+    // far, has its wheel somewhere else on the approach.
+    const other = bridge.createRace(8n, 1, 0, BRANDS_PATCH);
+    for (let step = 0; step < sequence; step += 1) other.step([IDLE_INPUT], DT);
+    const [elsewhere] = other.wheels();
+    if (elsewhere?.kind !== "rolling") throw new Error("not rolling");
+    const apart = Math.hypot(
+      elsewhere.position[0] - rolling.position[0],
+      elsewhere.position[2] - rolling.position[2],
+    );
+    expect(apart).toBeGreaterThan(0.5);
   });
 });

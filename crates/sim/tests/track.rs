@@ -177,6 +177,19 @@ fn a_sidecar_the_sim_cannot_race_on_is_rejected() {
 }
 
 #[test]
+fn a_wheel_crossing_too_wide_for_a_pass_and_its_flag_to_fit_in_the_period_is_rejected() {
+    let crossing = |half_width: f32| {
+        let mut sidecar: serde_json::Value = serde_json::from_str(OVAL).unwrap();
+        sidecar["wheel_crossings"] = serde_json::json!([
+            { "position": [0.0, 0.0, 0.0], "yaw": 0.0, "half_width": half_width }
+        ]);
+        Track::from_sidecar(&sidecar.to_string())
+    };
+    assert!(crossing(12.0).is_ok(), "Brands Patch's width");
+    assert!(matches!(crossing(30.0), Err(TrackError::Invalid(_))));
+}
+
+#[test]
 fn karts_start_on_the_spawn_grid_in_slot_order() {
     let track = oval();
     let state = started(State::new(SEED, 8, track.clone()));

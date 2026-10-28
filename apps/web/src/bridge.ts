@@ -81,8 +81,10 @@ export interface Projectile {
 /**
  * The runaway wheel at one crossing, as the sim's `Wheel` has it: quiet,
  * the marshal's flag up before a pass, or rolling with its centre on the
- * surface in metres, the yaw it rolls toward (zero facing -Z) and how far
- * through the pass it is, 0 at one wall to 1 at the other.
+ * surface in metres, the yaw it rolls toward (zero facing -Z), how far
+ * along the pass's path it is, 0 at the wall it rolled in from to 1 at the
+ * wall it leaves through, and how far through the leg under way, 0 at the
+ * wall it last left to 1 at the next.
  */
 export type Wheel =
   | { readonly kind: "quiet" }
@@ -92,6 +94,7 @@ export type Wheel =
       readonly position: readonly [number, number, number];
       readonly yaw: number;
       readonly fraction: number;
+      readonly legFraction: number;
     };
 
 /**
@@ -322,7 +325,7 @@ const FLOATS_PER_TRANSFORM = 7;
 const FLOATS_PER_ITEM_BOX = 4;
 const FLOATS_PER_HAZARD = 5;
 const FLOATS_PER_PROJECTILE = 5;
-const FLOATS_PER_WHEEL = 6;
+const FLOATS_PER_WHEEL = 7;
 const FLOATS_PER_PHASE = 3;
 /** Phase codes in the phase buffer, in the sim's order. */
 const PHASES = ["countdown", "racing", "outro", "finished"] as const;
@@ -602,7 +605,7 @@ function readoutsFrom(transforms: Float32Array, pairs: readonly ReadoutPair[]): 
   });
 }
 
-/** The wheels a buffer of six floats each describes, as the bridge crate's `wheel_floats` lays them out. */
+/** The wheels a buffer of seven floats each describes, as the bridge crate's `wheel_floats` lays them out. */
 function wheelsFrom(buffer: Float32Array): Wheel[] {
   return recordsFrom(buffer, FLOATS_PER_WHEEL, "wheel", (read): Wheel => {
     switch (read(0)) {
@@ -616,6 +619,7 @@ function wheelsFrom(buffer: Float32Array): Wheel[] {
           position: [read(1), read(2), read(3)],
           yaw: read(4),
           fraction: read(5),
+          legFraction: read(6),
         };
       default:
         throw new RangeError(`wheel code ${read(0)}`);

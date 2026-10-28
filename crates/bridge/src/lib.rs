@@ -473,23 +473,24 @@ fn projectile_floats(projectiles: &[Projectile]) -> Vec<f32> {
         .collect()
 }
 
-/// Six floats per crossing, in the track's order: 0 while the wheel is
+/// Seven floats per crossing, in the track's order: 0 while the wheel is
 /// quiet, 1 while the flag is up before a pass, 2 while it rolls; then,
 /// while it rolls, its centre x, y, z, the yaw it rolls toward (radians
-/// about +Y, zero facing -Z) and how far through the pass it is, 0 to 1,
-/// else zeros.
+/// about +Y, zero facing -Z), how far along the pass's path it is and how
+/// far through the leg under way, wall to wall, each 0 to 1, else zeros.
 fn wheel_floats(wheels: &[Wheel]) -> Vec<f32> {
     wheels
         .iter()
         .flat_map(|wheel| match *wheel {
-            Wheel::Quiet => [0.0; 6],
-            Wheel::Warning => [1.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+            Wheel::Quiet => [0.0; 7],
+            Wheel::Warning => [1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
             Wheel::Rolling {
                 position: [x, y, z],
                 yaw,
                 fraction,
+                leg_fraction,
                 ..
-            } => [2.0, x, y, z, yaw, fraction],
+            } => [2.0, x, y, z, yaw, fraction, leg_fraction],
         })
         .collect()
 }

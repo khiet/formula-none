@@ -7,9 +7,10 @@
 //! Kart-to-kart contact is the server's to resolve; a kart drawn 100 ms
 //! behind can leave a small correction after a touch.
 //!
-//! The runaway wheel it runs in full: it is the race clock's, which the
-//! prediction keeps the server's, so a wheel hit is predicted the tick it
-//! happens, and the snapshots' spin-out timer then agrees with it.
+//! The runaway wheel it runs in full: it is the race clock's and the
+//! seed's, which the prediction shares with the server, so a wheel hit is
+//! predicted the tick it happens, and the snapshots' spin-out timer then
+//! agrees with it.
 //!
 //! Two things the prediction never runs. The item roll: the slot is the
 //! snapshots' word, so a fire is predicted only once the server has said

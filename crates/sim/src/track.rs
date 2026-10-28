@@ -5,6 +5,7 @@
 //! Everything is in the glTF frame the renderer uses: metres, Y up, a kart
 //! with yaw zero faces -Z, and yaw grows counter-clockwise seen from above.
 
+use crate::tuning::{WHEEL_PERIOD_S, WHEEL_WARNING_S};
 use rapier3d::prelude::{SharedShape, TriMeshFlags, Vec3};
 use serde::{Deserialize, Serialize};
 use std::fmt;
@@ -253,6 +254,16 @@ impl Track {
         }
         if sidecar.spawn_grid.is_empty() {
             return invalid("a track needs at least one spawn slot".into());
+        }
+        // The flag never waves for two passes at once.
+        for crossing in &sidecar.wheel_crossings {
+            let busy_s = WHEEL_WARNING_S + crate::wheel::longest_pass_s(crossing.half_width);
+            if busy_s >= WHEEL_PERIOD_S {
+                return invalid(format!(
+                    "a wheel crossing {} m wide takes up to {busy_s} s of a {WHEEL_PERIOD_S} s period",
+                    2.0 * crossing.half_width
+                ));
+            }
         }
         let mut shapes = Vec::with_capacity(sidecar.surfaces.len());
         for mesh in &sidecar.surfaces {

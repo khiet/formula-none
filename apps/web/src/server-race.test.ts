@@ -474,7 +474,13 @@ describe("createServerRace", () => {
   it("draws the prediction's wheels, and tells the prediction when the server ends the race", () => {
     const client = fakeClient();
     const run = createServerRace(bridge, client, COUNTDOWN, 0, "{}");
-    const rolling: Wheel = { kind: "rolling", position: [-139, 0, 52], yaw: 0, fraction: 0.5 };
+    const rolling: Wheel = {
+      kind: "rolling",
+      position: [-139, 0, 52],
+      yaw: 0,
+      fraction: 0.5,
+      legFraction: 0.5,
+    };
     prediction().rolling = [rolling];
     expect(run.readout().wheels).toEqual([rolling]);
     expect(prediction().ended).toBe(false);

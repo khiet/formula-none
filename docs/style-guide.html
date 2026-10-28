@@ -465,9 +465,9 @@
       <article class="asset">
         <header><h3>Runaway wheel</h3><code>apps/web/src/item-meshes.ts runawayWheelMesh</code></header>
         <div class="compare"><figure><figcaption>Mid-bounce over the asphalt</figcaption><div class="stage flat" data-draw="runawayWheel"></div></figure></div>
-        <dl class="spec"><dt>Size</dt><dd>0.45 m radius (<code>WHEEL_RADIUS_M</code> in <code>tuning.rs</code>), 0.36 m wide</dd><dt>Decided</dt><dd><a href="adr/0041-track-obstacles.md">ADR 0041</a></dd></dl>
+        <dl class="spec"><dt>Size</dt><dd>0.45 m radius (<code>WHEEL_RADIUS_M</code> in <code>tuning.rs</code>), 0.36 m wide</dd><dt>Decided</dt><dd><a href="adr/0041-track-obstacles.md">ADR 0041</a>, <a href="adr/0042-runaway-wheel-bounces.md">ADR 0042</a></dd></dl>
         <div class="notes">
-          <p>The kart's wheel grown to the sim's reach: an eight-facet tyre in the kart's tyre grey <code>#5d5d61</code> with a three-spoke rim in its rim grey <code>#84868b</code> proud of each face. The View rolls it wall to wall across the approach to Brands Patch's hairpin two from the race clock, turning it by the ground it covers and bouncing it three times a pass; a kart it reaches spins out.</p>
+          <p>The kart's wheel grown to the sim's reach: an eight-facet tyre in the kart's tyre grey <code>#5d5d61</code> with a three-spoke rim in its rim grey <code>#84868b</code> proud of each face. The View rolls it where the sim has it on the approach to Brands Patch's hairpin two: in from one wall, twice off the walls and out through the far one, facing the way it rolls. It turns by the ground it covers and bounces twice each leg, starting over at each wall; a kart it reaches spins out.</p>
           <p>It is built in code like the items, not in the track's glTF, because it moves. The bounce is drawn only: the sim rolls it along the ground, so the reach it tests is the one the player sees where the wheel meets the road.</p>
         </div>
       </article>
