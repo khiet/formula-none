@@ -47,6 +47,34 @@ describe.each(["brands-patch", "oval"])("%s's boost pads", (name) => {
   });
 });
 
+describe.each(["brands-patch", "oval"])("%s's sausage kerbs", (name) => {
+  const gltf = track(name);
+  const sidecar = JSON.parse(
+    readFileSync(
+      new URL(`../../../assets/tracks/${name}/${name}.track.json`, import.meta.url),
+      "utf8",
+    ),
+  ) as { kerbs: { position: [number, number, number]; yaw: number }[] };
+
+  it("draws a yellow capsule over each kerb, centred on it", () => {
+    const capsules = gltf.nodes.filter(
+      ({ name }) => name?.startsWith("SausageKerb.") && name.endsWith(".kerb-yellow"),
+    );
+    expect(capsules).toHaveLength(sidecar.kerbs.length);
+    sidecar.kerbs.forEach(({ position: [x, , z] }, number) => {
+      const capsule = capsules.find(
+        ({ name }) => name === `SausageKerb.${String(number).padStart(2, "0")}.kerb-yellow`,
+      );
+      const mesh = capsule?.mesh === undefined ? undefined : gltf.meshes[capsule.mesh];
+      const bounds = gltf.accessors[mesh?.primitives[0]?.attributes.POSITION ?? -1];
+      const [minX, , minZ] = bounds?.min ?? [];
+      const [maxX, , maxZ] = bounds?.max ?? [];
+      expect(((minX ?? Number.NaN) + (maxX ?? Number.NaN)) / 2).toBeCloseTo(x, 2);
+      expect(((minZ ?? Number.NaN) + (maxZ ?? Number.NaN)) / 2).toBeCloseTo(z, 2);
+    });
+  });
+});
+
 describe("Brands Patch's final art", () => {
   const brandsPatch = track("brands-patch");
 

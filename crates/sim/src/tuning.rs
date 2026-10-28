@@ -169,6 +169,14 @@ pub const BOOST_PAD_FACTOR: f32 = 1.4;
 /// pad can be missed on purpose.
 pub const BOOST_PAD_HALF_LENGTH_M: f32 = 2.0;
 pub const BOOST_PAD_HALF_WIDTH_M: f32 = 3.0;
+/// A sausage kerb is a rectangle on the surface, this big either side of
+/// its placement along and across the direction it faces; a kart whose
+/// centre reaches it on the ground is launched into a hop that lands
+/// straight.
+pub const KERB_HALF_LENGTH_M: f32 = 4.0;
+pub const KERB_HALF_WIDTH_M: f32 = 0.5;
+/// The share of a kart's speed the kerb's launch leaves it.
+pub const KERB_SPEED_KEEP: f32 = 0.85;
 
 // Rocket start (GLOSSARY). What the throttle hold ending at Go earns is
 // read from the hold's length; a release before Go resets it. The edges
@@ -350,6 +358,12 @@ pub const BOT_CORNER_SAMPLE_M: f32 = 2.0;
 /// Metres right of the centreline a bot's line runs; every tyre wall stands
 /// left of it.
 pub const BOT_LINE_RIGHT_OF_CENTRE_M: f32 = 2.5;
+/// Metres between a sausage kerb's near edge, at its middle, and the line
+/// a bot aims along while the kerb is inside its lookahead: wide enough
+/// that pursuit's cut toward the apex misses the kerb's ends, which a
+/// straight kerb on a bend sets nearer the line. On Brands Patch the line
+/// is the centreline.
+pub const BOT_KERB_GAP_M: f32 = 4.4;
 /// The least a bot steers into a corner it hops for, so the hop fixes the
 /// drift toward the corner even when its line asks for less.
 pub const BOT_HOP_STEER: f32 = 0.25;
@@ -417,6 +431,7 @@ const _: () = {
     assert!(0.0 < BOT_HOP_STEER && BOT_HOP_STEER <= 1.0);
     assert!(BOT_AVOID_HALF_WIDTH_M > KART_HALF_WIDTH_M);
     assert!(BOT_PASS_GAP_M > 2.0 * KART_HALF_WIDTH_M);
+    assert!(BOT_KERB_GAP_M > KART_HALF_WIDTH_M);
     assert!(BOT_STALL_SPEED_M_PER_S * ACCELERATION_TO_TOP_S / TOP_SPEED_M_PER_S < BOT_STALL_S);
     assert!(0.0 < START_THROTTLE_HELD && START_THROTTLE_HELD < 1.0);
     assert!(0.0 < START_WEAK_BOOST_HOLD_S && START_WEAK_BOOST_HOLD_S < START_FULL_BOOST_HOLD_S);

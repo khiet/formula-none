@@ -16,8 +16,8 @@ use rapier3d::prelude::*;
 use crate::hash::Fnv1a;
 use crate::tuning::{
     BOOST_PAD_FACTOR, BOOST_PAD_S, DRIFT_ENTRY_SPEED_FRACTION, GRAVITY_M_PER_S2, HOP_AIRTIME_S,
-    KART_BUMP_DECAY_S, KART_BUMP_MIN_M_PER_S, MINI_TURBO_BOOST_FACTOR, OFF_TRACK_SPEED_FACTOR,
-    TOP_SPEED_M_PER_S,
+    KART_BUMP_DECAY_S, KART_BUMP_MIN_M_PER_S, KERB_SPEED_KEEP, MINI_TURBO_BOOST_FACTOR,
+    OFF_TRACK_SPEED_FACTOR, TOP_SPEED_M_PER_S,
 };
 use crate::{Drift, DriftDirection, KartInput, MiniTurbo, Surface};
 
@@ -57,6 +57,10 @@ pub(crate) struct Handling {
     /// Whether the kart was on a boost pad last tick, so a pad fires once,
     /// as the kart enters it, and its clock runs from there.
     on_boost_pad: bool,
+    /// Whether the kart's centre was on a sausage kerb last tick, in the air
+    /// or not, so a kerb launches once, as the kart reaches it: never a kart
+    /// that reached it in the air, nor one still on it after a launch.
+    on_kerb: bool,
     /// Seconds of boost left; zero or less when not boosting.
     boost_left_s: f32,
     /// Top speed multiplier while boosting: whichever boost started last.
@@ -92,6 +96,8 @@ pub(crate) struct Situation {
     pub(crate) surface: Surface,
     /// Whether the kart's centre is on a boost pad, airborne or not.
     pub(crate) boost_pad: bool,
+    /// Whether the kart's centre is on a sausage kerb, airborne or not.
+    pub(crate) kerb: bool,
     /// The cap on the kart's speed: the tuned top speed under its rubber
     /// band.
     pub(crate) top_speed: f32,
@@ -118,6 +124,7 @@ impl Handling {
             hop_direction: None,
             drift: None,
             on_boost_pad: false,
+            on_kerb: false,
             boost_left_s: 0.0,
             boost_factor: 1.0,
             boost_tier: MiniTurbo::None,
@@ -206,6 +213,7 @@ impl Handling {
         self.hop_direction = None;
         self.drift = None;
         self.on_boost_pad = false;
+        self.on_kerb = false;
         self.boost_left_s = 0.0;
         self.travel = travel;
         self.walls.clear();
@@ -235,6 +243,7 @@ impl Handling {
         hasher.write_f32(self.drift.map_or(0.0, |drift| drift.direction.steer_sign()));
         hasher.write_f32(self.drift.map_or(0.0, |drift| drift.charge_s));
         hasher.write_u8(u8::from(self.on_boost_pad));
+        hasher.write_u8(u8::from(self.on_kerb));
         hasher.write_f32(self.boost_left_s);
         hasher.write_f32(self.boost_factor);
         hasher.write_u64(self.walls.len() as u64);
@@ -259,7 +268,18 @@ impl Handling {
             Freeze::Controls | Freeze::Stopped => &KartInput::default(),
         };
         let mut vertical = situation.vertical_m_per_s;
-        if self.airborne() {
+        let launched = situation.kerb && !self.on_kerb && !self.airborne();
+        self.on_kerb = situation.kerb;
+        if launched {
+            // A kerb throws the kart into a hop that lands straight, and a
+            // drift under way ends there unreleased: its charge is lost. A
+            // boost ends too, or it would hold the speed the launch takes.
+            self.airtime_left_s = HOP_AIRTIME_S;
+            self.hop_direction = None;
+            self.drift = None;
+            self.boost_left_s = 0.0;
+            vertical = hop_launch_speed();
+        } else if self.airborne() {
             self.airtime_left_s -= dt;
             if !self.airborne() {
                 self.drift = self.landing_drift(input);
@@ -283,6 +303,9 @@ impl Handling {
         }
         self.hop_was_held = input.hop;
         self.speed = next_speed(self.speed, input, dt, situation.top_speed);
+        if launched {
+            self.speed *= KERB_SPEED_KEEP;
+        }
         // Off the asphalt the kart is held to the cap, not dragged down to
         // it, so it slows the tick it leaves the track. The cap reads the
         // surface below the kart, so a hop over a patch does not clear it.
@@ -533,6 +556,7 @@ mod tests {
             vertical_m_per_s: 0.0,
             surface: Surface::Asphalt,
             boost_pad: false,
+            kerb: false,
             top_speed: TOP_SPEED_M_PER_S,
         }
     }
@@ -704,6 +728,22 @@ mod tests {
         handling.tick(&hop_right(), Freeze::Free, on_pad, TICK_S);
 
         assert_eq!(handling.boost_s(), None);
+    }
+
+    #[test]
+    fn a_kerb_ends_a_boost_under_way_so_the_launch_costs_a_boosting_kart_its_share() {
+        let mut handling = going(TOP_SPEED_M_PER_S * ITEM_BOOST_FACTOR);
+        handling.boost(ITEM_BOOST_S, ITEM_BOOST_FACTOR, MiniTurbo::Red);
+        let on_kerb = Situation {
+            kerb: true,
+            ..asphalt()
+        };
+
+        handling.tick(&FULL_THROTTLE, Freeze::Free, on_kerb, TICK_S);
+
+        assert!(handling.airborne());
+        assert_eq!(handling.boost_s(), None);
+        assert_eq!(handling.speed, TOP_SPEED_M_PER_S * KERB_SPEED_KEEP);
     }
 
     #[test]

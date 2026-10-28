@@ -15,9 +15,9 @@ scene follows these conventions:
   change to it leaves the sidecar, and the sim, untouched.
 - A curve object named `Centreline`, one closed POLY or BEZIER spline, run
   in the direction of travel starting at the start line.
-- Collections `Checkpoints`, `ItemBoxes`, `BoostPads` and `SpawnGrid` hold
-  empties ordered by name. An empty faces along its local +Y; checkpoints
-  carry a `half_width` custom property.
+- Collections `Checkpoints`, `ItemBoxes`, `BoostPads`, `Kerbs` and
+  `SpawnGrid` hold empties ordered by name. An empty faces along its local
+  +Y; checkpoints carry a `half_width` custom property.
 
 Blender is Z up; the sidecar is written in the glTF frame (Y up, -Z
 forward) so it matches the mesh.
@@ -43,6 +43,7 @@ PLACEMENT_COLLECTIONS = {
     "checkpoints": "Checkpoints",
     "item_boxes": "ItemBoxes",
     "boost_pads": "BoostPads",
+    "kerbs": "Kerbs",
     "spawn_grid": "SpawnGrid",
 }
 # Millimetres are plenty for a greybox and keep the sidecar diffable.

@@ -41,6 +41,7 @@ fn brands_patch_carries_the_whole_layout() {
     assert_eq!(track.checkpoints().len(), 12);
     assert_eq!(track.item_boxes().len(), 8);
     assert_eq!(track.boost_pads().len(), 2);
+    assert_eq!(track.kerbs().len(), 1);
     assert_eq!(track.spawn_grid().len(), 8);
     assert!(
         (760.0..=840.0).contains(&track.spline_length()),

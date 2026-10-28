@@ -6,9 +6,10 @@
 use crate::tuning::{
     BOT_AVOID_HALF_WIDTH_M, BOT_BRAKE_HORIZON_S, BOT_CORNER_SAMPLE_M, BOT_CORNER_SPEED_FRACTION,
     BOT_DRIFT_CURVATURE_RAD_PER_M, BOT_HAZARD_HOLD_S, BOT_HOP_STEER, BOT_ITEM_USE_DELAY_S,
-    BOT_LINE_RIGHT_OF_CENTRE_M, BOT_LOOKAHEAD_M, BOT_PASS_GAP_M, BOT_REVERSE_S, BOT_STALL_S,
-    BOT_STALL_SPEED_M_PER_S, DRIFT_SLIP_ANGLE_RAD, DRIFT_TURN_NEUTRAL, DRIFT_TURN_STEER_RANGE,
-    STEER_RATE_LOW_SPEED_RAD_PER_S, STEER_RATE_TOP_SPEED_RAD_PER_S, TOP_SPEED_M_PER_S,
+    BOT_KERB_GAP_M, BOT_LINE_RIGHT_OF_CENTRE_M, BOT_LOOKAHEAD_M, BOT_PASS_GAP_M, BOT_REVERSE_S,
+    BOT_STALL_S, BOT_STALL_SPEED_M_PER_S, DRIFT_SLIP_ANGLE_RAD, DRIFT_TURN_NEUTRAL,
+    DRIFT_TURN_STEER_RANGE, KERB_HALF_LENGTH_M, KERB_HALF_WIDTH_M, STEER_RATE_LOW_SPEED_RAD_PER_S,
+    STEER_RATE_TOP_SPEED_RAD_PER_S, TOP_SPEED_M_PER_S,
 };
 use crate::{DriftDirection, Item, KartInput, KartReadout, Standing, Track};
 
@@ -51,13 +52,16 @@ pub fn drive(
 ) -> KartInput {
     let kart = &karts[slot];
     let progress = standings[slot].spline_progress;
-    let target = match kart_in_the_way(karts, slot) {
-        Some(other) => pass_point(
+    // A kerb ahead outranks a pass, whose point may lie on the kerb.
+    let kerb_line = line_clear_of_kerbs(track, kart.position);
+    let target = match (kerb_line, kart_in_the_way(karts, slot)) {
+        (Some(line), _) => line_point(track, progress + BOT_LOOKAHEAD_M, line),
+        (None, Some(other)) => pass_point(
             track,
             standings[other].spline_progress,
             karts[other].position,
         ),
-        None => line_point(
+        (None, None) => line_point(
             track,
             progress + BOT_LOOKAHEAD_M,
             BOT_LINE_RIGHT_OF_CENTRE_M,
@@ -88,7 +92,9 @@ pub fn drive(
     }
 
     let curvature = track.curvature_at(progress + BOT_LOOKAHEAD_M);
-    let corner = curvature.abs() >= BOT_DRIFT_CURVATURE_RAD_PER_M;
+    // No drift while a kerb is in range: a drift always turns into its
+    // corner, so it can carry the kart onto the kerb whatever the bot aims at.
+    let corner = curvature.abs() >= BOT_DRIFT_CURVATURE_RAD_PER_M && kerb_line.is_none();
     let into_corner = if curvature > 0.0 {
         DriftDirection::Left
     } else {
@@ -154,6 +160,32 @@ fn line_point(track: &Track, progress: f32, right: f32) -> [f32; 2] {
     let [tx, tz] = track.direction_at(progress);
     // Right of the direction of travel (x, z), seen from above, is (-z, x).
     [point[0] - tz * right, point[2] + tx * right]
+}
+
+/// The line, in metres right of the centreline, for a kart at `position` to
+/// aim along while a sausage kerb lies inside its lookahead: the tuned gap
+/// from the kerb's near edge, or `None` with no kerb in range. Pursuit cuts
+/// toward an apex, where a kerb lies, so the usual line runs too close.
+fn line_clear_of_kerbs(track: &Track, position: [f32; 3]) -> Option<f32> {
+    track.kerbs().iter().find_map(|kerb| {
+        let (ahead, beside) = kerb.local(position);
+        let inside_lookahead = (-KERB_HALF_LENGTH_M - BOT_LOOKAHEAD_M..=KERB_HALF_LENGTH_M)
+            .contains(&ahead)
+            && beside.abs() < BOT_LOOKAHEAD_M;
+        inside_lookahead.then(|| {
+            let progress = track.progress_at(kerb.position);
+            let centre = track.point_at(progress);
+            let [tx, tz] = track.direction_at(progress);
+            let kerb_right =
+                (kerb.position[0] - centre[0]) * -tz + (kerb.position[2] - centre[2]) * tx;
+            let clear = KERB_HALF_WIDTH_M + BOT_KERB_GAP_M;
+            if kerb_right > 0.0 {
+                BOT_LINE_RIGHT_OF_CENTRE_M.min(kerb_right - clear)
+            } else {
+                BOT_LINE_RIGHT_OF_CENTRE_M.max(kerb_right + clear)
+            }
+        })
+    })
 }
 
 /// The nearest other kart that the bot in `slot` would run into: ahead of
