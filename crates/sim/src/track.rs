@@ -456,6 +456,8 @@ impl Track {
             .any(|kerb| kerb.covers(point, KERB_HALF_LENGTH_M, KERB_HALF_WIDTH_M))
     }
 
+    /// Where the runaway wheel crosses, in the sidecar's order; empty on a
+    /// track without one.
     pub fn wheel_crossings(&self) -> &[WheelCrossing] {
         &self.wheel_crossings
     }

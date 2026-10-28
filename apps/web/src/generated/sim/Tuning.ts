@@ -10,4 +10,8 @@ export type Tuning = { ticksPerSecond: number, lapsPerRace: number, kartsPerRace
  * The kart's width, height and length, so the View draws the box the
  * sim collides with.
  */
-kartSizeM: [number, number, number], replayHashIntervalTicks: number, countdownS: number, predictedFireTimeoutS: number, itemBoxRespawnS: number, hazardDropDistanceM: number, spinOutS: number, topSpeedMPerS: number, cameraPullBackM: number, cameraShakeS: number, cameraShakeAmplitudeM: number, cameraFieldOfViewDeg: number, cameraBoostKick: number, cameraBoostKickEaseS: number, webtransportConnectTimeoutS: number, pingTimeoutS: number, pingResendS: number, connectionSilenceS: number, reconnectRetryS: number, nicknameMinChars: number, nicknameMaxChars: number, roomCodeLength: number, };
+kartSizeM: [number, number, number], replayHashIntervalTicks: number, countdownS: number, predictedFireTimeoutS: number, itemBoxRespawnS: number, hazardDropDistanceM: number, spinOutS: number, 
+/**
+ * The runaway wheel's reach, so the View draws a wheel that size.
+ */
+wheelRadiusM: number, topSpeedMPerS: number, cameraPullBackM: number, cameraShakeS: number, cameraShakeAmplitudeM: number, cameraFieldOfViewDeg: number, cameraBoostKick: number, cameraBoostKickEaseS: number, webtransportConnectTimeoutS: number, pingTimeoutS: number, pingResendS: number, connectionSilenceS: number, reconnectRetryS: number, nicknameMinChars: number, nicknameMaxChars: number, roomCodeLength: number, };

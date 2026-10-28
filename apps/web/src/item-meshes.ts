@@ -41,13 +41,8 @@ const HAZARD_SLAB_HEIGHT_M = 0.08;
 const HAZARD_BAND_FROM = 0.5;
 const HAZARD_BAND_TO = 0.66;
 
-/**
- * The runaway wheel: the kart's octagonal tyre and three-spoke rim, grown
- * to the sim's reach (`WHEEL_RADIUS_M` in tuning.rs), proportioned as the
- * kart's rear.
- */
-export const RUNAWAY_WHEEL_RADIUS_M = 0.45;
-const RUNAWAY_WHEEL_WIDTH_M = 0.36;
+/** The runaway wheel's width over its radius: the kart's rear wheel's. */
+const RUNAWAY_WHEEL_WIDTH_SHARE = 0.8;
 const RUNAWAY_WHEEL_SIDES = 8;
 const RUNAWAY_WHEEL_RIM_SHARE = 0.58;
 const RUNAWAY_WHEEL_SPOKES = 3;
@@ -195,21 +190,23 @@ export function homingGullMesh(): Group {
 
 /**
  * The runaway wheel centred on its axle, which lies along x, so it rolls
- * toward -z: a dark tyre of eight facets and, proud of each face, a grey
- * rim with three spokes.
+ * toward -z: the kart's octagonal tyre and three-spoke rim, grown to
+ * `radius`, which the caller takes from the sim's reach so the wheel drawn
+ * is the wheel that hits. A dark tyre of eight facets and, proud of each
+ * face, a grey rim with three spokes.
  */
-export function runawayWheelMesh(): Group {
+export function runawayWheelMesh(radius: number): Group {
   const wheel = new Group();
-  const radius = RUNAWAY_WHEEL_RADIUS_M;
+  const width = radius * RUNAWAY_WHEEL_WIDTH_SHARE;
   const tyre = part(
     wheel,
-    new CylinderGeometry(radius, radius, RUNAWAY_WHEEL_WIDTH_M, RUNAWAY_WHEEL_SIDES),
+    new CylinderGeometry(radius, radius, width, RUNAWAY_WHEEL_SIDES),
     KART_TYRE,
   );
   tyre.rotation.z = Math.PI / 2;
   const rimRadius = radius * RUNAWAY_WHEEL_RIM_SHARE;
   for (const side of [-1, 1]) {
-    const face = (side * RUNAWAY_WHEEL_WIDTH_M) / 2;
+    const face = (side * width) / 2;
     const rim = part(
       wheel,
       new CylinderGeometry(rimRadius, rimRadius, 0.02, RUNAWAY_WHEEL_SIDES),

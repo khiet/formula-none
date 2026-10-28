@@ -153,6 +153,7 @@ export async function createRaceScene(
       { trackGltfUrl: track.gltfUrl, kartGltfUrl: KART_GLTF_URL },
       run.itemBoxes(),
       bridge.spinOutSeconds,
+      bridge.runawayWheelRadiusMetres,
       (karts) => kartLabels(karts, run.localKart, name),
       { localKart: run.localKart, reducedMotion },
     ),

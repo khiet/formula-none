@@ -376,6 +376,10 @@ pub const BOT_LINE_RIGHT_OF_CENTRE_M: f32 = 2.5;
 /// straight kerb on a bend sets nearer the line. On Brands Patch the line
 /// is the centreline.
 pub const BOT_KERB_GAP_M: f32 = 4.4;
+/// Seconds a bot keeps between itself and a runaway wheel's pass through
+/// its lane, either side: the throttle it holds and the line it weaves
+/// toward bring it there sooner than its speed now says.
+pub const BOT_WHEEL_MARGIN_S: f32 = 0.3;
 /// The least a bot steers into a corner it hops for, so the hop fixes the
 /// drift toward the corner even when its line asks for less.
 pub const BOT_HOP_STEER: f32 = 0.25;
@@ -444,6 +448,7 @@ const _: () = {
     assert!(BOT_AVOID_HALF_WIDTH_M > KART_HALF_WIDTH_M);
     assert!(BOT_PASS_GAP_M > 2.0 * KART_HALF_WIDTH_M);
     assert!(BOT_KERB_GAP_M > KART_HALF_WIDTH_M);
+    assert!(0.0 <= BOT_WHEEL_MARGIN_S);
     assert!(BOT_STALL_SPEED_M_PER_S * ACCELERATION_TO_TOP_S / TOP_SPEED_M_PER_S < BOT_STALL_S);
     assert!(0.0 < START_THROTTLE_HELD && START_THROTTLE_HELD < 1.0);
     assert!(0.0 < START_WEAK_BOOST_HOLD_S && START_WEAK_BOOST_HOLD_S < START_FULL_BOOST_HOLD_S);
@@ -527,6 +532,8 @@ pub struct Tuning {
     pub item_box_respawn_s: f32,
     pub hazard_drop_distance_m: f32,
     pub spin_out_s: f32,
+    /// The runaway wheel's reach, so the View draws a wheel that size.
+    pub wheel_radius_m: f32,
     pub top_speed_m_per_s: f32,
     pub camera_pull_back_m: f32,
     pub camera_shake_s: f32,
@@ -559,6 +566,7 @@ pub const TUNING: Tuning = Tuning {
     item_box_respawn_s: ITEM_BOX_RESPAWN_S,
     hazard_drop_distance_m: HAZARD_DROP_DISTANCE_M,
     spin_out_s: SPIN_OUT_S,
+    wheel_radius_m: WHEEL_RADIUS_M,
     top_speed_m_per_s: TOP_SPEED_M_PER_S,
     camera_pull_back_m: CAMERA_PULL_BACK_M,
     camera_shake_s: CAMERA_SHAKE_S,

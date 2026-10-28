@@ -282,10 +282,21 @@ fn a_prediction_beside_the_servers_race_reports_the_wheels_spin_out_on_the_same_
 
 #[test]
 fn eight_bots_racing_three_laps_of_brands_patch_are_never_hit_by_the_wheel() {
+    // Seeds 1 and 11 each caught out an earlier bot: one sped into a pass
+    // it judged clear by a hundredth of a second, the other crawled up to
+    // the crossing lifting for passes far ahead.
+    for seed in [SEED, 1, 11] {
+        bots_race_past_the_wheel(seed);
+    }
+}
+
+/// Eight bots on Brands Patch from `seed`, raced three laps: none is hit
+/// by the wheel, each finishes, and some bot came up to a rolling wheel.
+fn bots_race_past_the_wheel(seed: u64) {
     let track = brands_patch();
     assert_eq!(track.wheel_crossings().len(), 1, "the approach's crossing");
     let crossing = track.wheel_crossings()[0];
-    let mut state = started(State::with_bots(SEED, 0, 8, track));
+    let mut state = started(State::with_bots(seed, 0, 8, track));
     // Ticks a bot spent within a pass's travel short of the crossing while
     // the wheel rolled, so the bots were put to the test.
     let mut met = 0;
@@ -294,7 +305,7 @@ fn eight_bots_racing_three_laps_of_brands_patch_are_never_hit_by_the_wheel() {
         for event in state.events() {
             assert!(
                 !matches!(event, RaceEvent::SpunOut { by: None, .. }),
-                "{event:?} at {:?}",
+                "seed {seed}: {event:?} at {:?}",
                 state.phase()
             );
         }
@@ -326,7 +337,44 @@ fn eight_bots_racing_three_laps_of_brands_patch_are_never_hit_by_the_wheel() {
             .standings()
             .iter()
             .all(|s| s.laps_completed >= LAPS_PER_RACE),
-        "every bot raced its three laps"
+        "seed {seed}: every bot raced its three laps"
     );
-    assert!(met > 0, "no bot came up to a rolling wheel");
+    assert!(met > 0, "seed {seed}: no bot came up to a rolling wheel");
+}
+
+#[test]
+fn a_predicted_hit_the_snapshots_overrule_leaves_the_pass_free_to_hit_where_the_server_has_the_kart(
+) {
+    // The prediction parks the kart on the crossing's centre and is hit
+    // there; the server has it a little further along the wheel's way, so
+    // its hit comes a couple of ticks later. A snapshot from between the
+    // two puts the kart there, not spun out, and the replay from it must
+    // meet the server's hit.
+    let sidecar = with_slot_at(BRANDS_PATCH, 0, on_crossing(0.0, 0.0), crossing().yaw);
+    let mut prediction = Prediction::new(SEED, 0, track(&sidecar));
+    let mut tick = 0;
+    let idle = KartInput::default();
+    while prediction.kart_readout().spin_out_s.is_none() {
+        tick += 1;
+        prediction.tick(tick, idle, &[]);
+        assert!(tick < 60 * 60, "the prediction's wheel never hit the kart");
+    }
+    let snapshot = sim::KartReadout {
+        position: on_crossing(0.0, 0.4),
+        spin_out_s: None,
+        ..prediction.kart_readout()
+    };
+    prediction.reconcile(tick, tick, &snapshot);
+    assert_eq!(
+        prediction.kart_readout().spin_out_s,
+        None,
+        "the hit is overruled"
+    );
+    let mut hit = false;
+    for _ in 0..6 {
+        tick += 1;
+        prediction.tick(tick, idle, &[]);
+        hit |= prediction.kart_readout().spin_out_s.is_some();
+    }
+    assert!(hit, "the wheel reached the kart where the server has it");
 }

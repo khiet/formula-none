@@ -615,6 +615,12 @@ impl Kart {
             Vec3::from(readout.velocity),
         );
         self.held_item = readout.held_item;
+        // A spin-out the readout does not have is a hit the server never
+        // made, which in a prediction is only ever the wheel's: the pass
+        // that made it may still hit the kart where the server has it.
+        if self.spun_out() && readout.spin_out_s.is_none() {
+            self.wheel_pass_hit = 0;
+        }
         self.spin_out_left_s = readout.spin_out_s.unwrap_or(0.0);
         if let Phase::Racing { elapsed_s, .. } = clock {
             if self.start != readout.start {

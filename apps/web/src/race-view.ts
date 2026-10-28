@@ -25,7 +25,6 @@ import {
   homingGullMesh,
   itemBoxMesh,
   marshalFlagMesh,
-  RUNAWAY_WHEEL_RADIUS_M,
   runawayWheelBounce,
   runawayWheelMesh,
 } from "./item-meshes";
@@ -120,6 +119,8 @@ export interface ViewAssets {
  * `spinOutSeconds`, a shadow disc on the track under every kart so a
  * hop's height reads against the ground, a flame at the exhaust of every
  * boosting kart and, round the own kart alone, wind lines while it boosts.
+ * At each wheel crossing a runaway wheel `runawayWheelRadius` in size rolls
+ * where the readout has it, and the marshal's flag waves while it is up.
  * `labelsFor` names the karts to label and where, from the frame's readouts. Picks WebGPU when the
  * browser has it and WebGL otherwise.
  */
@@ -130,6 +131,7 @@ export async function createRaceView(
   assets: ViewAssets,
   itemBoxes: readonly ItemBox[],
   spinOutSeconds: number,
+  runawayWheelRadius: number,
   labelsFor: (karts: readonly KartReadout[]) => readonly KartLabel[],
   viewer: ViewerOptions,
 ): Promise<RaceView> {
@@ -244,7 +246,7 @@ export async function createRaceView(
 
   const cones = meshPool(world, hazardConeMesh(), 0);
   const gulls = meshPool(world, homingGullMesh(), PROJECTILE_HEIGHT_M);
-  const runaways = runawayWheels(world, track.scene);
+  const runaways = runawayWheels(world, track.scene, runawayWheelRadius);
 
   const labels = Array.from({ length: kartCount }, (_, slot) => {
     const element = document.createElement("div");
@@ -353,14 +355,14 @@ interface RunawayWheels {
 }
 
 /**
- * A runaway wheel per crossing in `world`, and a flag on each marshal post
+ * A runaway wheel `radius` in size per crossing in `world`, and a flag on each marshal post
  * the track's glTF stands beside one, crossing and post matched by their
  * number. The wheel turns by the ground it covers and bounces as it rolls;
  * the flag flies across the track, toward the post's lamp.
  */
-function runawayWheels(world: ThreeScene, track: Object3D): RunawayWheels {
+function runawayWheels(world: ThreeScene, track: Object3D, radius: number): RunawayWheels {
   const posts = marshalPosts(track);
-  const template = runawayWheelMesh();
+  const template = runawayWheelMesh(radius);
   interface Drawn {
     readonly heading: Group;
     readonly spin: Object3D;
@@ -409,18 +411,20 @@ function runawayWheels(world: ThreeScene, track: Object3D): RunawayWheels {
         // Rolling toward its -z, the wheel turns back about its axle by the
         // ground it covered since the last frame.
         if (entry.last !== undefined) {
-          entry.spin.rotation.x -= at.distanceTo(entry.last) / RUNAWAY_WHEEL_RADIUS_M;
+          entry.spin.rotation.x -= at.distanceTo(entry.last) / radius;
         }
         entry.last = at.clone();
-        entry.heading.position.set(
-          at.x,
-          at.y + RUNAWAY_WHEEL_RADIUS_M + runawayWheelBounce(wheel.fraction),
-          at.z,
-        );
+        entry.heading.position.set(at.x, at.y + radius + runawayWheelBounce(wheel.fraction), at.z);
         entry.heading.rotation.y = wheel.yaw;
       });
     },
   };
+}
+
+/** Where a marshal post's flag stands, and the level way from the post toward the track. */
+interface MarshalPost {
+  readonly top: Vector3;
+  readonly inward: Vector3;
 }
 
 /**
@@ -428,7 +432,7 @@ function runawayWheels(world: ThreeScene, track: Object3D): RunawayWheels {
  * where the flag stands, and the level direction from the post to its lamp,
  * toward the track. The loader drops the dots from the exported names.
  */
-function marshalPosts(track: Object3D): Map<number, { top: Vector3; inward: Vector3 }> {
+function marshalPosts(track: Object3D): Map<number, MarshalPost> {
   const parts = new Map<number, { post?: Box3; lamp?: Box3 }>();
   track.traverse((node) => {
     const match = /^MarshalPost\.?(\d+)\.?(board|chevron)$/.exec(node.name);
@@ -440,7 +444,7 @@ function marshalPosts(track: Object3D): Map<number, { top: Vector3; inward: Vect
     else entry.lamp = bounds;
     parts.set(number, entry);
   });
-  const posts = new Map<number, { top: Vector3; inward: Vector3 }>();
+  const posts = new Map<number, MarshalPost>();
   for (const [number, { post, lamp }] of parts) {
     if (post === undefined || lamp === undefined) continue;
     const centre = post.getCenter(new Vector3());

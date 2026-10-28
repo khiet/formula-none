@@ -103,12 +103,13 @@ describe("race phase", () => {
 });
 
 describe("bridge wrapper", () => {
-  it("reports the sim's 60 Hz tick rate and its kart box", async () => {
+  it("reports the sim's 60 Hz tick rate, its kart box and the runaway wheel's reach", async () => {
     const bridge = await loadBridge(wasm);
     expect(bridge.ticksPerSecond).toBe(60);
     expect(bridge.kartSize.width).toBeCloseTo(1.2);
     expect(bridge.kartSize.height).toBeCloseTo(0.6);
     expect(bridge.kartSize.length).toBeCloseTo(1.8);
+    expect(bridge.runawayWheelRadiusMetres).toBeCloseTo(0.45);
   });
 
   it("steps each kart by its own input and reports transforms in grid order", async () => {
@@ -682,13 +683,15 @@ describe("runaway wheel", () => {
     const bridge = await loadBridge(wasm);
     const race = bridge.createRace(7n, 1, 0, BRANDS_PATCH);
     const prediction = bridge.createPrediction(7n, 0, BRANDS_PATCH);
-    const raceClock = () => {
-      const phase = race.phase();
-      return phase.kind === "racing" ? phase.elapsedSeconds : 0;
+    // Stepped until the first pass is half way across, read off the wheel
+    // itself so a retuned cycle needs no change here.
+    const halfWay = () => {
+      const [wheel] = race.wheels();
+      return wheel?.kind === "rolling" && wheel.fraction >= 0.5;
     };
     const seen = new Set<string>();
     let sequence = 0;
-    while (raceClock() < 20.8) {
+    while (!halfWay()) {
       race.step([IDLE_INPUT], DT);
       sequence += 1;
       prediction.tick({

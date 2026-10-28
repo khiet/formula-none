@@ -5,11 +5,13 @@ import {
   homingGullMesh,
   itemBoxMesh,
   marshalFlagMesh,
-  RUNAWAY_WHEEL_RADIUS_M,
   runawayWheelBounce,
   runawayWheelMesh,
 } from "./item-meshes";
 import { KART_RIM, KART_TYRE, SIGNAL_YELLOW } from "./palette";
+
+/** A runaway wheel's radius, any will do. */
+const RADIUS_M = 0.45;
 
 function materialsOf(object: Object3D): Material[] {
   const found: Material[] = [];
@@ -30,7 +32,7 @@ describe("the item meshes", () => {
     ["item box", itemBoxMesh],
     ["hazard cone", hazardConeMesh],
     ["homing gull", homingGullMesh],
-    ["runaway wheel", runawayWheelMesh],
+    ["runaway wheel", () => runawayWheelMesh(RADIUS_M)],
     ["marshal's flag", marshalFlagMesh],
   ])("draw the %s lit by the sun and flat-shaded, facet by facet", (_, mesh) => {
     const materials = materialsOf(mesh());
@@ -58,14 +60,16 @@ describe("the item meshes", () => {
   });
 
   it("paint the runaway wheel in the kart's tyre and rim", () => {
-    expect(coloursOf(runawayWheelMesh())).toEqual(expect.arrayContaining([KART_TYRE, KART_RIM]));
+    expect(coloursOf(runawayWheelMesh(RADIUS_M))).toEqual(
+      expect.arrayContaining([KART_TYRE, KART_RIM]),
+    );
   });
 
-  it("draw the runaway wheel round, its axle across its roll", () => {
-    const size = new Box3().setFromObject(runawayWheelMesh()).getSize(new Vector3());
+  it("draw the runaway wheel as big as it is asked for, its axle across its roll", () => {
+    const size = new Box3().setFromObject(runawayWheelMesh(RADIUS_M)).getSize(new Vector3());
     // The spokes stand a hair proud of the tyre's faces.
-    expect(size.y).toBeCloseTo(2 * RUNAWAY_WHEEL_RADIUS_M, 1);
-    expect(size.z).toBeCloseTo(2 * RUNAWAY_WHEEL_RADIUS_M, 1);
+    expect(size.y).toBeCloseTo(2 * RADIUS_M, 1);
+    expect(size.z).toBeCloseTo(2 * RADIUS_M, 1);
     expect(size.x).toBeLessThan(size.z);
   });
 
