@@ -61,7 +61,8 @@ const SPARK_SPEED_M_PER_S = 1.5 / SPARK_LIFETIME_S;
 const SPARK_SPREAD_M_PER_S = 3;
 const SPARK_RISE_MIN_M_PER_S = 1;
 const SPARK_RISE_MAX_M_PER_S = 3;
-const SPARK_SIZE_M = 0.08;
+/** Twice a kart's spark, and haloed, so they read beside a wheel 2.4 m across. */
+const SPARK_SIZE_M = 0.16;
 
 /** What a crossing's wheel was last frame; unset while it is off the course. */
 interface Last {
@@ -109,6 +110,7 @@ export function createWheelTellEmitter(
     colour: ROCKET_FLAME,
     lifetimeSeconds: SPARK_LIFETIME_S,
     size: SPARK_SIZE_M,
+    glow: true,
   };
 
   const kickDust = (at: Readonly<Vec3>) => {
