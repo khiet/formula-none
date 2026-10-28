@@ -272,10 +272,12 @@ impl Handling {
         self.on_kerb = situation.kerb;
         if launched {
             // A kerb throws the kart into a hop that lands straight, and a
-            // drift under way ends there unreleased: its charge is lost.
+            // drift under way ends there unreleased: its charge is lost. A
+            // boost ends too, or it would hold the speed the launch takes.
             self.airtime_left_s = HOP_AIRTIME_S;
             self.hop_direction = None;
             self.drift = None;
+            self.boost_left_s = 0.0;
             vertical = hop_launch_speed();
         } else if self.airborne() {
             self.airtime_left_s -= dt;
@@ -726,6 +728,22 @@ mod tests {
         handling.tick(&hop_right(), Freeze::Free, on_pad, TICK_S);
 
         assert_eq!(handling.boost_s(), None);
+    }
+
+    #[test]
+    fn a_kerb_ends_a_boost_under_way_so_the_launch_costs_a_boosting_kart_its_share() {
+        let mut handling = going(TOP_SPEED_M_PER_S * ITEM_BOOST_FACTOR);
+        handling.boost(ITEM_BOOST_S, ITEM_BOOST_FACTOR, MiniTurbo::Red);
+        let on_kerb = Situation {
+            kerb: true,
+            ..asphalt()
+        };
+
+        handling.tick(&FULL_THROTTLE, Freeze::Free, on_kerb, TICK_S);
+
+        assert!(handling.airborne());
+        assert_eq!(handling.boost_s(), None);
+        assert_eq!(handling.speed, TOP_SPEED_M_PER_S * KERB_SPEED_KEEP);
     }
 
     #[test]
