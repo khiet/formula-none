@@ -8,9 +8,9 @@ mod common;
 use common::{brands_patch, started, ticks, track, with_slot_at, BRANDS_PATCH, DT, SEED};
 
 use sim::tuning::{
-    COUNTDOWN_S, KART_HALF_LENGTH_M, KART_HALF_WIDTH_M, LAPS_PER_RACE, TICKS_PER_SECOND,
-    WHEEL_BOUNCES, WHEEL_FIRST_PASS_S, WHEEL_LANDING_SPREAD_M, WHEEL_PERIOD_S, WHEEL_RADIUS_M,
-    WHEEL_WARNING_S,
+    BOT_LINE_RIGHT_OF_CENTRE_M, COUNTDOWN_S, KART_HALF_LENGTH_M, KART_HALF_WIDTH_M, LAPS_PER_RACE,
+    TICKS_PER_SECOND, WHEEL_BOUNCES, WHEEL_FIRST_PASS_S, WHEEL_LANDING_SPREAD_M, WHEEL_PERIOD_S,
+    WHEEL_RADIUS_M, WHEEL_WARNING_S,
 };
 use std::sync::OnceLock;
 
@@ -476,10 +476,38 @@ fn eight_bots_racing_three_laps_of_brands_patch_are_never_hit_by_the_wheel() {
 fn bots_backing_out_of_a_stall_by_the_crossing_are_never_hit_by_the_wheel() {
     // On 60 a bot turned back toward the crossing from past it; on 87 and
     // 112 one stalled on it backed up into a pass, or set off again from
-    // within its reach.
-    for seed in [60, 87, 112] {
+    // within its reach. On 5 one stopped short of the reach backed up for
+    // pass after pass and missed the cap.
+    for seed in [5, 60, 87, 112] {
         bots_race_past_the_wheel(seed);
     }
+}
+
+#[test]
+fn a_bot_standing_short_of_the_crossing_at_go_sets_off_and_clears_it_before_the_first_pass() {
+    // Standing where it is, the bot would be in the way of every pass, but
+    // it sets off, and even slowly it is long past before the flag. Seed 0
+    // rolls the bot no start boost, so it does stand at Go.
+    let start = on_crossing(-30.0, BOT_LINE_RIGHT_OF_CENTRE_M);
+    let sidecar = with_slot_at(BRANDS_PATCH, 0, start, crossing().yaw);
+    let mut state = started(State::with_bots(0, 0, 1, track(&sidecar)));
+    state = step(state, &[], DT);
+    assert!(
+        state.kart_readouts()[0].speed.abs() < 1.0,
+        "standing at Go: {:?}",
+        state.kart_readouts()[0]
+    );
+    let clear = WHEEL_LANDING_SPREAD_M + WHEEL_RADIUS_M + KART_HALF_LENGTH_M;
+    while racing_s(&state) < pass_start_s(1) - WHEEL_WARNING_S {
+        state = step(state, &[], DT);
+        if local(state.kart_readouts()[0].position)[1] > clear {
+            return;
+        }
+    }
+    panic!(
+        "short of the crossing as the flag goes up: {:?}",
+        state.kart_readouts()[0]
+    );
 }
 
 /// Eight bots on Brands Patch from `seed`, raced three laps: none is hit

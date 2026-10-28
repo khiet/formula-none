@@ -47,6 +47,7 @@ const DECISION_SLUGS = [
   "five-light-start",
   "track-obstacles",
   "runaway-wheel-bounces",
+  "bots-set-off-for-the-wheel",
 ];
 
 const expectedFiles = DECISION_SLUGS.map(

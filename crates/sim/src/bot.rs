@@ -6,12 +6,13 @@
 use crate::tuning::{
     ACCELERATION_TO_TOP_S, BOT_AVOID_HALF_WIDTH_M, BOT_BRAKE_HORIZON_S, BOT_CORNER_SAMPLE_M,
     BOT_CORNER_SPEED_FRACTION, BOT_DRIFT_CURVATURE_RAD_PER_M, BOT_HAZARD_HOLD_S, BOT_HOP_STEER,
-    BOT_ITEM_USE_DELAY_S, BOT_KERB_GAP_M, BOT_LINE_RIGHT_OF_CENTRE_M, BOT_LOOKAHEAD_M,
-    BOT_PASS_GAP_M, BOT_REVERSE_S, BOT_STALL_S, BOT_STALL_SPEED_M_PER_S, BOT_WHEEL_MARGIN_S,
-    DRIFT_SLIP_ANGLE_RAD, DRIFT_TURN_NEUTRAL, DRIFT_TURN_STEER_RANGE, KART_HALF_LENGTH_M,
-    KART_HALF_WIDTH_M, KERB_HALF_LENGTH_M, KERB_HALF_WIDTH_M, REVERSE_TOP_SPEED_M_PER_S,
-    STEER_RATE_LOW_SPEED_RAD_PER_S, STEER_RATE_TOP_SPEED_RAD_PER_S, TOP_SPEED_M_PER_S,
-    WHEEL_LANDING_SPREAD_M, WHEEL_RADIUS_M, WHEEL_WARNING_S,
+    BOT_ITEM_USE_DELAY_S, BOT_KERB_APPROACH_M, BOT_KERB_GAP_M, BOT_LINE_RIGHT_OF_CENTRE_M,
+    BOT_LOOKAHEAD_M, BOT_PASS_GAP_M, BOT_REVERSE_S, BOT_STALL_S, BOT_STALL_SPEED_M_PER_S,
+    BOT_WHEEL_MARGIN_S, BOT_WHEEL_SET_OFF_FRACTION, DRIFT_SLIP_ANGLE_RAD, DRIFT_TURN_NEUTRAL,
+    DRIFT_TURN_STEER_RANGE, KART_HALF_LENGTH_M, KART_HALF_WIDTH_M, KERB_HALF_LENGTH_M,
+    KERB_HALF_WIDTH_M, REVERSE_TOP_SPEED_M_PER_S, STEER_RATE_LOW_SPEED_RAD_PER_S,
+    STEER_RATE_TOP_SPEED_RAD_PER_S, TOP_SPEED_M_PER_S, WHEEL_LANDING_SPREAD_M, WHEEL_RADIUS_M,
+    WHEEL_WARNING_S,
 };
 use crate::wheel::{pass_not_over, pass_start_s, Path};
 use crate::{DriftDirection, Item, KartInput, KartReadout, Phase, Placement, Standing, Track};
@@ -184,16 +185,17 @@ fn line_point(track: &Track, progress: f32, right: f32) -> [f32; 2] {
 }
 
 /// The line, in metres right of the centreline, for a kart at `position` to
-/// aim along while a sausage kerb lies inside its lookahead: the tuned gap
-/// from the kerb's near edge, or `None` with no kerb in range. Pursuit cuts
-/// toward an apex, where a kerb lies, so the usual line runs too close.
+/// aim along from the tuned approach short of a sausage kerb to its far end:
+/// the tuned gap from the kerb's near edge, or `None` with no kerb in range.
+/// Pursuit cuts toward an apex, where a kerb lies, so the usual line runs
+/// too close.
 fn line_clear_of_kerbs(track: &Track, position: [f32; 3]) -> Option<f32> {
     track.kerbs().iter().find_map(|kerb| {
         let (ahead, beside) = kerb.local(position);
-        let inside_lookahead = (-KERB_HALF_LENGTH_M - BOT_LOOKAHEAD_M..=KERB_HALF_LENGTH_M)
-            .contains(&ahead)
-            && beside.abs() < BOT_LOOKAHEAD_M;
-        inside_lookahead.then(|| {
+        let approaching_or_alongside =
+            (-KERB_HALF_LENGTH_M - BOT_KERB_APPROACH_M..=KERB_HALF_LENGTH_M).contains(&ahead)
+                && beside.abs() < BOT_LOOKAHEAD_M;
+        approaching_or_alongside.then(|| {
             let progress = track.progress_at(kerb.position);
             let centre = track.point_at(progress);
             let [tx, tz] = track.direction_at(progress);
@@ -232,17 +234,19 @@ fn waits_for_a_wheel(
     let speed = kart.speed.max(0.0);
     let top_speed = target_speed.max(speed);
     let flat_out = TOP_SPEED_M_PER_S / ACCELERATION_TO_TOP_S;
-    // How far along the kart is `after_s` from now, gaining `gain` metres
-    // per second each second up to the speed it is held to.
-    let driven = |after_s: f32, gain: f32| {
+    let setting_off = flat_out * BOT_WHEEL_SET_OFF_FRACTION;
+    // How far along the kart is `after_s` from now, from `from` metres per
+    // second, gaining `gain` metres per second each second up to the speed
+    // it is held to.
+    let driven = |from: f32, after_s: f32, gain: f32| {
         let gaining_s = if gain > 0.0 {
-            ((top_speed - speed) / gain).min(after_s)
+            ((top_speed - from) / gain).min(after_s)
         } else {
             after_s
         };
-        speed * gaining_s
+        from * gaining_s
             + gain * gaining_s * gaining_s / 2.0
-            + top_speed.min(speed + gain * gaining_s) * (after_s - gaining_s)
+            + top_speed.min(from + gain * gaining_s) * (after_s - gaining_s)
     };
     track.wheel_crossings().iter().any(|crossing| {
         let line = Placement {
@@ -273,7 +277,7 @@ fn waits_for_a_wheel(
         let ends_s = starts_s + path.lasts_s();
         // A kart that cannot reach the wheel before the pass is over has
         // nothing to stop for.
-        if short_of_reach > driven(ends_s - elapsed_s, flat_out) {
+        if short_of_reach > driven(speed, ends_s - elapsed_s, flat_out) {
             return false;
         }
         // The bot's line is the centreline's offset; the crossing's centre
@@ -283,8 +287,10 @@ fn waits_for_a_wheel(
             right.max(BOT_LINE_RIGHT_OF_CENTRE_M) + across_reach,
         );
         // Whether the pass meets the kart driven on, anywhere from holding
-        // its speed to flat out, and whether it meets the kart anywhere from
-        // stopped to holding its speed.
+        // its speed, or setting off from a standstill, to flat out, and
+        // whether it meets the kart anywhere from stopped to holding its
+        // speed. Held at a standstill the kart would be in the way of
+        // every pass, so it would never go.
         let (mut going_meets, mut stopping_meets) = (false, false);
         for (from, to, into_pass_s, leg_s) in path.legs() {
             let leg_starts_s = starts_s + into_pass_s;
@@ -298,9 +304,11 @@ fn waits_for_a_wheel(
                 let across = from[0] + rate[0] * into_leg_s;
                 if lane.0 - across_margin <= across && across <= lane.1 + across_margin {
                     let along = way * (from[1] + rate[1] * into_leg_s);
-                    let held = ahead + driven(at_s - elapsed_s, 0.0);
-                    let flat = ahead + driven(at_s - elapsed_s, flat_out);
-                    going_meets |= held - reach <= along && along <= flat + reach;
+                    let after_s = at_s - elapsed_s;
+                    let held = ahead + driven(speed, after_s, 0.0);
+                    let least = held.max(ahead + driven(0.0, after_s, setting_off));
+                    let flat = ahead + driven(speed, after_s, flat_out);
+                    going_meets |= least - reach <= along && along <= flat + reach;
                     stopping_meets |= ahead - reach <= along && along <= held + reach;
                 }
                 at_s += dt;
