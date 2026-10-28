@@ -101,3 +101,6 @@ fresh servers and fails fast if a stale one already holds port 8080 or 5173.
   flow) and assert observable outcomes. No tests of render output.
 - A decision that changes an ADR gets a new ADR that supersedes the old one;
   ADRs are not edited to say something different.
+- A change to what the game draws (a mesh, a readout, a Scene, a colour)
+  updates its entry in `docs/style-guide.html` in the same PR. Repo-checks
+  holds the guide's palette and liveries to the code; nothing checks the rest.
