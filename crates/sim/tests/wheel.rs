@@ -284,6 +284,7 @@ fn a_prediction_beside_the_servers_race_reports_the_wheels_spin_out_on_the_same_
 fn eight_bots_racing_three_laps_of_brands_patch_are_never_hit_by_the_wheel() {
     let track = brands_patch();
     assert_eq!(track.wheel_crossings().len(), 1, "the approach's crossing");
+    let crossing = track.wheel_crossings()[0];
     let mut state = started(State::with_bots(SEED, 0, 8, track));
     // Ticks a bot spent within a pass's travel short of the crossing while
     // the wheel rolled, so the bots were put to the test.
@@ -302,7 +303,6 @@ fn eight_bots_racing_three_laps_of_brands_patch_are_never_hit_by_the_wheel() {
                 .kart_readouts()
                 .iter()
                 .filter(|kart| {
-                    let crossing = crossing();
                     let (sin, cos) = crossing.yaw.sin_cos();
                     let (dx, dz) = (
                         kart.position[0] - crossing.position[0],
