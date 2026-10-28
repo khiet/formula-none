@@ -212,10 +212,9 @@ fn line_clear_of_kerbs(track: &Track, position: [f32; 3]) -> Option<f32> {
 /// reach it, and the path of the pass under way or next, the tuned margin
 /// either side, meets the kart driven on along its lane, either at its
 /// speed or gaining speed flat out up to `target_speed`, what the bot
-/// drives at for the corners ahead. The path is followed `dt` at a time.
-/// The lane spans from where the kart is across to the bot's line, which
-/// it steers for on the way. Once the kart is within reach of a pass, it
-/// drives on through.
+/// drives at for the corners ahead. The lane spans from where the kart is
+/// across to the bot's line, which it steers for on the way. Once the kart
+/// is within reach of a pass, it drives on through.
 fn waits_for_a_wheel(
     track: &Track,
     kart: &KartReadout,

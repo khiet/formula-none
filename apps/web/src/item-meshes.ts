@@ -230,8 +230,8 @@ export function runawayWheelMesh(radius: number): Group {
 /**
  * How high the drawn wheel bounces `legFraction` of the way through a leg
  * of its pass, wall to wall: down at each wall and between its two
- * bounces, so they start over at each wall it rebounds from. Drawn only; the sim
- * rolls the wheel along the ground.
+ * bounces, so they start over at each wall it rebounds from. Drawn only;
+ * the sim rolls the wheel along the ground.
  */
 export function runawayWheelBounce(legFraction: number): number {
   return (
