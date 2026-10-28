@@ -16,9 +16,12 @@ export interface DustTell {
 /** Below this the kart is not kicking anything up. */
 const DUST_SPEED_M_PER_S = 1;
 
+/** The sand's dust, which the runaway wheel kicks up too. */
+export const SAND_DUST = 0xd8c08a;
+
 /** Dust colour by the run-off surface that throws it. */
 const DUST_COLOURS: Partial<Record<Surface, number>> = {
-  sand: 0xd8c08a,
+  sand: SAND_DUST,
   grass: 0x7a9a4a,
 };
 /** The tyre smoke of a stalled kart's spinning wheels: pale, so it reads on the grid's asphalt. */

@@ -387,4 +387,5 @@ off-track, a spin animation on spin-out, beeps on the countdown and sparks
 on a rocket start's charge, a sputter and dust at the wheels on its stall,
 a shadow disc on the road under each kart so a hop's height reads, and on
 every boost a flame at the exhaust and, for the own kart, wind lines and a
-wider field of view.
+wider field of view; and on the runaway wheel, flames off its back, a smoke
+trail, dust where it lands and sparks off each wall it rebounds from.
