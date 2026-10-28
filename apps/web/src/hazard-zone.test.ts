@@ -30,7 +30,7 @@ describe("the hazard zone's flash", () => {
       expect(opacity).toBeGreaterThanOrEqual(0.2 - 1e-9);
       expect(opacity).toBeLessThanOrEqual(0.6 + 1e-9);
     }
-    // At 14 rad/s a second holds two full pulses, reaching both ends.
+    // At 14 rad/s a second holds over two pulses, reaching both ends.
     expect(Math.min(...opacities)).toBeCloseTo(0.2, 2);
     expect(Math.max(...opacities)).toBeCloseTo(0.6, 2);
     // Peaks a quarter turn in, troughs three quarters in.

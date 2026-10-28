@@ -83,7 +83,8 @@ export interface Projectile {
  * Warning: the marshal's flag up before a pass, with the foot of the wall
  * it will roll in from, on the crossing's line, in metres, and the yaw it
  * will roll toward. Rolling: its centre on the surface in metres, the yaw
- * it rolls toward (zero facing -Z), how far along the pass's path it is, 0 at the wall it rolled in from to 1 at the
+ * it rolls toward (zero facing -Z), how far along the pass's path it is,
+ * 0 at the wall it rolled in from to 1 at the
  * wall it leaves through, how far through the leg under way, 0 at the
  * wall it last left to 1 at the next, and the yaw of the crossing it rolls
  * over, along which the walls it rebounds from run.

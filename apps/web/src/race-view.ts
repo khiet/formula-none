@@ -394,7 +394,7 @@ interface RunawayWheels {
 function runawayWheels(world: ThreeScene, track: Object3D, radius: number): RunawayWheels {
   const posts = marshalPosts(track);
   const zones = hazardZones(track);
-  // Asked from over the wall, so its first hit is the wall's top, not the road.
+  // No reach above the point asked, so asked from over the wall it finds the wall's top, not the road.
   const wallTop = trackProbe(track, 0);
   const template = runawayWheelMesh(radius);
   const flamesTemplate = runawayWheelFlames(radius);
