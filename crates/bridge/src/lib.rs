@@ -412,7 +412,7 @@ impl Prediction {
 
     /// The runaway wheel at each of the track's crossings at the predicted
     /// kart's tick, in the floats `Race::wheels` gives: the wheel that hits
-    /// the predicted kart, drawn where it does.
+    /// the predicted kart.
     pub fn wheels(&self) -> Vec<f32> {
         wheel_floats(&self.inner.wheels())
     }

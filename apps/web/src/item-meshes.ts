@@ -190,10 +190,9 @@ export function homingGullMesh(): Group {
 
 /**
  * The runaway wheel centred on its axle, which lies along x, so it rolls
- * toward -z: the kart's octagonal tyre and three-spoke rim, grown to
+ * toward -z: the kart's octagonal tyre and three-spoke rim grown to
  * `radius`, which the caller takes from the sim's reach so the wheel drawn
- * is the wheel that hits. A dark tyre of eight facets and, proud of each
- * face, a grey rim with three spokes.
+ * is the wheel that hits.
  */
 export function runawayWheelMesh(radius: number): Group {
   const wheel = new Group();

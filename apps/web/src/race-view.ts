@@ -355,10 +355,11 @@ interface RunawayWheels {
 }
 
 /**
- * A runaway wheel `radius` in size per crossing in `world`, and a flag on each marshal post
- * the track's glTF stands beside one, crossing and post matched by their
- * number. The wheel turns by the ground it covers and bounces as it rolls;
- * the flag flies across the track, toward the post's lamp.
+ * A runaway wheel `radius` in size per crossing in `world`, and a flag on
+ * each marshal post the track's glTF stands beside one, crossing and post
+ * matched by their number. The wheel turns by the ground it covers and
+ * bounces as it rolls; the flag flies across the track, toward the post's
+ * lamp.
  */
 function runawayWheels(world: ThreeScene, track: Object3D, radius: number): RunawayWheels {
   const posts = marshalPosts(track);
@@ -383,7 +384,7 @@ function runawayWheels(world: ThreeScene, track: Object3D, radius: number): Runa
     if (post !== undefined) {
       flag = marshalFlagMesh();
       flag.position.copy(post.top);
-      // The cloth flies along the flag's +x: turned onto the way in.
+      // The cloth flies along the flag's +x, turned toward the track.
       flag.rotation.y = Math.atan2(-post.inward.z, post.inward.x);
       world.add(flag);
     }

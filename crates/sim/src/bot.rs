@@ -200,14 +200,12 @@ fn line_clear_of_kerbs(track: &Track, position: [f32; 3]) -> Option<f32> {
 }
 
 /// Whether the kart must lift for a runaway wheel at `elapsed_s` on the
-/// race clock: short of a crossing by no more than it travels at its
-/// speed in a pass, with
-/// the wheel due through its lane before it, at its speed, would be over
-/// the wheel's line and clear of it, the tuned margin either side. Its
-/// lane spans from where it is across to the bot's line, which it steers
-/// for on the way. Once the
-/// wheel has left that lane, or the kart has reached the line, it drives
-/// on.
+/// race clock: it is short of a crossing by no more than it travels in a
+/// pass, and the wheel is due through its lane, the tuned margin either
+/// side, before the kart at its speed would be over the wheel's line and
+/// clear of it. The lane spans from where the kart is across to the bot's
+/// line, which it steers for on the way. Once the wheel has left that lane,
+/// or the kart has reached the line, it drives on.
 fn waits_for_a_wheel(track: &Track, kart: &KartReadout, elapsed_s: f32) -> bool {
     // Along the track the wheel reaches a kart this far either side of its
     // line, and across it this far either side of the kart's.
