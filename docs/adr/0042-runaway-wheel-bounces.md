@@ -36,26 +36,29 @@ the review pages, replaces the path.
 - A kart it reaches spins out, by no one, once a pass, as before; karts
   never deflect it. It is quiet through the countdown and the outro.
 - A bot follows the real path through its lane, `BOT_WHEEL_MARGIN_S`
-  either side, projecting itself both at its speed and gaining speed flat
-  out to the speed it holds for the corners ahead. It brakes to wait short
-  of where any pass can reach, since the reach is now too deep to coast to
-  a stop in, and once within it drives on through.
+  either side, projecting itself anywhere from holding its speed to
+  gaining speed flat out to the speed it holds for the corners ahead, the
+  way it faces. It brakes to wait short of where any pass can reach, since
+  the reach is now too deep to coast to a stop in; within it, it stops only
+  where stopping keeps it clear, and otherwise drives on through. A bot
+  stalled by a crossing does not back up while the flag is up or about to
+  go up.
 
 ## Consequences
 
 - No snapshot field and no protocol change: every client has the seed from
   the race start, so the server, the prediction and a replay draw the same
   path. The bridge's wheel record gains how far through the leg under way
-  the wheel is, which the View's drawn hop starts over from at each wall.
+  the wheel is, which the View's drawn bounce starts over from at each wall.
 - `WHEEL_PASS_S` is gone; `bot::drive` takes the race seed.
 - Every replay fixture was re-recorded; the Brands Patch chicane fixture
   waits on the crossing long enough for the first pass to come back off
   its first rebound and spin the kart out.
-- Bots that wait now brake and bunch; in a sweep of 40 seeds no bot was
-  hit, but in three a bot jammed in hairpin two behind the others and
+- Bots that wait now brake and bunch; in a sweep of 200 seeds no bot was
+  hit, but in ten a bot jammed in hairpin two behind the others and
   missed the cap. The queue backs into the chicane, where traffic shoves a
-  bot onto the kerb in 29 of the 40 (16 before), so the test that bots
-  keep off the kerb races a seed where none is shoved. Better queueing is
-  its own issue.
+  bot onto the kerb in 163 of the 200 (16 of 40 before), so the test that
+  bots keep off the kerb races a seed where none is shoved. Better queueing
+  is its own issue.
 - The rest of the spec, the bigger reach, the hot wheel, the painted zone
   and the marshal, lands in its own issues under its own records.

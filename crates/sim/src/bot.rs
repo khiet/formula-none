@@ -9,8 +9,9 @@ use crate::tuning::{
     BOT_ITEM_USE_DELAY_S, BOT_KERB_GAP_M, BOT_LINE_RIGHT_OF_CENTRE_M, BOT_LOOKAHEAD_M,
     BOT_PASS_GAP_M, BOT_REVERSE_S, BOT_STALL_S, BOT_STALL_SPEED_M_PER_S, BOT_WHEEL_MARGIN_S,
     DRIFT_SLIP_ANGLE_RAD, DRIFT_TURN_NEUTRAL, DRIFT_TURN_STEER_RANGE, KART_HALF_LENGTH_M,
-    KART_HALF_WIDTH_M, KERB_HALF_LENGTH_M, KERB_HALF_WIDTH_M, STEER_RATE_LOW_SPEED_RAD_PER_S,
-    STEER_RATE_TOP_SPEED_RAD_PER_S, TOP_SPEED_M_PER_S, WHEEL_LANDING_SPREAD_M, WHEEL_RADIUS_M,
+    KART_HALF_WIDTH_M, KERB_HALF_LENGTH_M, KERB_HALF_WIDTH_M, REVERSE_TOP_SPEED_M_PER_S,
+    STEER_RATE_LOW_SPEED_RAD_PER_S, STEER_RATE_TOP_SPEED_RAD_PER_S, TOP_SPEED_M_PER_S,
+    WHEEL_LANDING_SPREAD_M, WHEEL_RADIUS_M, WHEEL_WARNING_S,
 };
 use crate::wheel::{pass_not_over, pass_start_s, Path};
 use crate::{DriftDirection, Item, KartInput, KartReadout, Phase, Placement, Standing, Track};
@@ -89,7 +90,8 @@ pub fn drive(
     // Held back for a wheel is not stalled.
     if memory.reversing_s <= 0.0 && kart.speed.abs() < BOT_STALL_SPEED_M_PER_S && !waiting {
         memory.stalled_s += dt;
-        if memory.stalled_s >= BOT_STALL_S {
+        // Backing up from just past a crossing can carry it into a pass.
+        if memory.stalled_s >= BOT_STALL_S && !backs_into_a_wheel(track, kart, seed, clock) {
             memory.stalled_s = 0.0;
             memory.reversing_s = BOT_REVERSE_S;
         }
@@ -214,7 +216,7 @@ fn line_clear_of_kerbs(track: &Track, position: [f32; 3]) -> Option<f32> {
 /// speed or gaining speed flat out up to `target_speed`, what the bot
 /// drives at for the corners ahead. The lane spans from where the kart is
 /// across to the bot's line, which it steers for on the way. Once the kart
-/// is within reach of a pass, it drives on through.
+/// is within reach of a pass, it stops only where stopping keeps it clear.
 fn waits_for_a_wheel(
     track: &Track,
     kart: &KartReadout,
@@ -248,10 +250,23 @@ fn waits_for_a_wheel(
             yaw: crossing.yaw,
         };
         let (ahead, right) = line.local(kart.position);
-        let short_of_reach = -(WHEEL_LANDING_SPREAD_M + along_reach) - ahead;
-        if short_of_reach <= 0.0 {
+        // Beside the crossing, as on the hairpin's way back, is not on it;
+        // its run-off is.
+        let (_, stretch_right) = line.local(track.point_at(track.progress_at(kart.position)));
+        if stretch_right.abs() > crossing.half_width {
             return false;
         }
+        // Along the track the way the kart faces: one turned back toward
+        // the crossing from past it meets the wheel just as one on its way.
+        // Turning round in the run-off it waits for nothing, or it would
+        // never back out.
+        let facing_back = libm::cosf(yaw(kart.rotation) - crossing.yaw) < 0.0;
+        if facing_back && right.abs() > crossing.half_width {
+            return false;
+        }
+        let ahead = if facing_back { -ahead } else { ahead };
+        let way = if facing_back { -1.0 } else { 1.0 };
+        let short_of_reach = -(WHEEL_LANDING_SPREAD_M + along_reach) - ahead;
         let pass = pass_not_over(crossing, seed, elapsed_s);
         let path = Path::new(crossing, seed, pass);
         let starts_s = pass_start_s(pass);
@@ -267,32 +282,38 @@ fn waits_for_a_wheel(
             right.min(BOT_LINE_RIGHT_OF_CENTRE_M) - across_reach,
             right.max(BOT_LINE_RIGHT_OF_CENTRE_M) + across_reach,
         );
-        let meets = path.legs().any(|(from, to, into_pass_s, leg_s)| {
+        // Whether the pass meets the kart driven on, anywhere from holding
+        // its speed to flat out, and whether it meets the kart anywhere from
+        // stopped to holding its speed.
+        let (mut going_meets, mut stopping_meets) = (false, false);
+        for (from, to, into_pass_s, leg_s) in path.legs() {
             let leg_starts_s = starts_s + into_pass_s;
             let rate = [(to[0] - from[0]) / leg_s, (to[1] - from[1]) / leg_s];
             // The margin widens the wheel's reach by how far it rolls in it.
             let across_margin = rate[0].abs() * BOT_WHEEL_MARGIN_S;
-            let along_margin = rate[1].abs() * BOT_WHEEL_MARGIN_S;
+            let reach = along_reach + rate[1].abs() * BOT_WHEEL_MARGIN_S;
             let mut at_s = elapsed_s.max(leg_starts_s);
             while at_s <= leg_starts_s + leg_s {
                 let into_leg_s = at_s - leg_starts_s;
                 let across = from[0] + rate[0] * into_leg_s;
-                let in_lane = lane.0 - across_margin <= across && across <= lane.1 + across_margin;
-                if in_lane {
-                    let along = from[1] + rate[1] * into_leg_s;
-                    let met = [0.0, flat_out].into_iter().any(|gain| {
-                        let kart_ahead = ahead + driven(at_s - elapsed_s, gain);
-                        (along - kart_ahead).abs() <= along_reach + along_margin
-                    });
-                    if met {
-                        return true;
-                    }
+                if lane.0 - across_margin <= across && across <= lane.1 + across_margin {
+                    let along = way * (from[1] + rate[1] * into_leg_s);
+                    let held = ahead + driven(at_s - elapsed_s, 0.0);
+                    let flat = ahead + driven(at_s - elapsed_s, flat_out);
+                    going_meets |= held - reach <= along && along <= flat + reach;
+                    stopping_meets |= ahead - reach <= along && along <= held + reach;
                 }
                 at_s += dt;
             }
-            false
-        });
-        meets
+        }
+        // Short of the reach, stopping is safe. Within it a kart stops only
+        // where stopping keeps it clear, as one backed up onto the crossing
+        // and setting off again; otherwise it drives on through.
+        if short_of_reach > 0.0 {
+            going_meets
+        } else {
+            going_meets && !stopping_meets
+        }
     })
 }
 
@@ -393,6 +414,32 @@ fn corner_speed(curvature: f32) -> f32 {
         (STEER_RATE_LOW_SPEED_RAD_PER_S - STEER_RATE_TOP_SPEED_RAD_PER_S) / TOP_SPEED_M_PER_S;
     let fastest = STEER_RATE_LOW_SPEED_RAD_PER_S / (curvature + rate_fall_per_m_per_s);
     fastest * BOT_CORNER_SPEED_FRACTION
+}
+
+/// Whether the kart, backing up from a stall at `clock`, could back into
+/// the reach of a pass with no time to wait for it: it is on a crossing's
+/// stretch, within the wheel's reach of the line and the backing's length,
+/// and the flag is up or goes up before the backing ends.
+fn backs_into_a_wheel(track: &Track, kart: &KartReadout, seed: u64, clock: Phase) -> bool {
+    let Phase::Racing { elapsed_s, .. } = clock else {
+        return false;
+    };
+    let reach = WHEEL_LANDING_SPREAD_M
+        + KART_HALF_LENGTH_M
+        + WHEEL_RADIUS_M
+        + REVERSE_TOP_SPEED_M_PER_S * BOT_REVERSE_S;
+    track.wheel_crossings().iter().any(|crossing| {
+        let line = Placement {
+            position: crossing.position,
+            yaw: crossing.yaw,
+        };
+        let (ahead, _) = line.local(kart.position);
+        let (_, stretch_right) = line.local(track.point_at(track.progress_at(kart.position)));
+        let pass = pass_not_over(crossing, seed, elapsed_s);
+        ahead.abs() <= reach
+            && stretch_right.abs() <= crossing.half_width
+            && pass_start_s(pass) - elapsed_s < BOT_REVERSE_S + WHEEL_WARNING_S
+    })
 }
 
 /// Yaw in radians recovered from the rotation quaternion `[x, y, z, w]`:
