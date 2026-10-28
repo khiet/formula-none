@@ -417,6 +417,12 @@ impl Prediction {
         wheel_floats(&self.inner.wheels())
     }
 
+    /// The server's race has ended: the prediction runs its outro from now
+    /// on, as `sim::Prediction::end_race` documents.
+    pub fn end_race(&mut self) {
+        self.inner.end_race();
+    }
+
     /// The race clock at the predicted kart's tick, in the three floats
     /// `Race::phase` gives; never finished, since the server's results end
     /// the race.

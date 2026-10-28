@@ -57,6 +57,7 @@ interface FakePrediction extends Prediction {
   interpolated: KartReadout[];
   projectiles: Projectile[];
   rolling: Wheel[];
+  ended: boolean;
 }
 
 let predictions: FakePrediction[] = [];
@@ -94,6 +95,7 @@ const bridge = {
       interpolated: [],
       projectiles: [],
       rolling: [],
+      ended: false,
       tick(input) {
         this.inputs.push(input);
       },
@@ -110,6 +112,9 @@ const bridge = {
       },
       wheels() {
         return [...this.rolling];
+      },
+      endRace() {
+        this.ended = true;
       },
       phase() {
         return this.clock;
@@ -466,15 +471,15 @@ describe("createServerRace", () => {
     expect(run.readout().projectiles).toEqual([flying]);
   });
 
-  it("draws the prediction's wheels while racing, and quiet ones once the server ends the race", () => {
+  it("draws the prediction's wheels, and tells the prediction when the server ends the race", () => {
     const client = fakeClient();
     const run = createServerRace(bridge, client, COUNTDOWN, 0, "{}");
     const rolling: Wheel = { kind: "rolling", position: [-139, 0, 52], yaw: 0, fraction: 0.5 };
-    prediction().clock = { kind: "racing", elapsedSeconds: 20.8, capLeftSeconds: null };
     prediction().rolling = [rolling];
     expect(run.readout().wheels).toEqual([rolling]);
+    expect(prediction().ended).toBe(false);
     client.event({ id: 1, kind: "raceEnded" });
-    expect(run.readout().wheels).toEqual([{ kind: "quiet" }]);
+    expect(prediction().ended).toBe(true);
   });
 
   it("hides a box the server reports picked up for the tuned respawn", () => {

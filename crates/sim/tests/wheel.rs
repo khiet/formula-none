@@ -378,3 +378,26 @@ fn a_predicted_hit_the_snapshots_overrule_leaves_the_pass_free_to_hit_where_the_
     }
     assert!(hit, "the wheel reached the kart where the server has it");
 }
+
+#[test]
+fn a_prediction_told_the_race_has_ended_quiets_its_wheel_and_is_never_hit() {
+    // The kart is parked on the crossing; the server's race ends just as
+    // the first pass is about to reach it, and the client is told so.
+    let sidecar = with_slot_at(BRANDS_PATCH, 0, on_crossing(0.0, 0.0), crossing().yaw);
+    let mut prediction = Prediction::new(SEED, 0, track(&sidecar));
+    let idle = KartInput::default();
+    let mut tick = 0;
+    let ends_s = pass_start_s(1) + 0.3 * WHEEL_PASS_S;
+    while !matches!(prediction.phase(), Phase::Racing { elapsed_s, .. } if elapsed_s >= ends_s) {
+        tick += 1;
+        prediction.tick(tick, idle, &[]);
+    }
+    assert!(matches!(prediction.wheels()[..], [Wheel::Rolling { .. }]));
+    prediction.end_race();
+    for _ in 0..ticks(WHEEL_PASS_S) {
+        tick += 1;
+        prediction.tick(tick, idle, &[]);
+        assert_eq!(prediction.wheels(), [Wheel::Quiet]);
+        assert_eq!(prediction.kart_readout().spin_out_s, None);
+    }
+}

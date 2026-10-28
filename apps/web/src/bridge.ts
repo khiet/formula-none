@@ -182,6 +182,12 @@ export interface Prediction {
    */
   wheels(): Wheel[];
   /**
+   * The server's race has ended: from now on the prediction runs the
+   * server's outro, a bot driving the kart and no wheel, so nothing hits
+   * the kart that the server's outro would not.
+   */
+  endRace(): void;
+  /**
    * The race clock at the predicted kart's tick: the countdown the
    * player's inputs meet on the server. Never finished; the server's
    * results end the race.
@@ -532,6 +538,10 @@ class BridgedPrediction implements Prediction {
 
   wheels(): Wheel[] {
     return wheelsFrom(this.#prediction.wheels());
+  }
+
+  endRace(): void {
+    this.#prediction.end_race();
   }
 
   phase(): Phase {
