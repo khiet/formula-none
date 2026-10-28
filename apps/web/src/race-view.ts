@@ -26,8 +26,10 @@ import {
   itemBoxMesh,
   marshalFlagMesh,
   runawayWheelBounce,
+  runawayWheelFlames,
   runawayWheelMesh,
 } from "./item-meshes";
+import type { Vec3 } from "./kart-frame";
 import type { KartLabel } from "./kart-labels";
 import { dressKart, fitKart, type KartFit } from "./kart-model";
 import { createKartShadows } from "./kart-shadows";
@@ -47,15 +49,17 @@ import {
 import { trackProbe } from "./track-probe";
 import { createTyreMarks } from "./tyre-marks";
 import { kartWheels } from "./wheel-spin";
+import { createWheelTellEmitter, wheelBack } from "./wheel-tells";
 import { createWindLines, createWindParticles, windFade } from "./wind-lines";
 
 /** Far enough to see across Brands Patch from any point on it. */
 const CAMERA_FAR_M = 1000;
 /**
  * Puffs live at once across the grid: eight karts' worth through their
- * life, with room over. A pool full earlier drops its oldest.
+ * life and a runaway wheel's smoke trail, with room over. A pool full
+ * earlier drops its oldest.
  */
-const DUST_CAPACITY = 256;
+const DUST_CAPACITY = 320;
 /** Dust hangs, slows and spreads. */
 const DUST_DRAG_PER_S = 2;
 const DUST_GROWTH_PER_S = 2;
@@ -72,6 +76,10 @@ const PROJECTILE_HEIGHT_M = 0.6;
 /** The marshal waves the flag this fast, radians a second, through this half-swing. */
 const FLAG_WAVE_RAD_PER_S = 14;
 const FLAG_WAVE_SWING_RAD = 0.6;
+/** The runaway wheel's flame tongues flicker this fast, each out of step, through this share of their length. */
+const WHEEL_FLAME_FLICKER_RAD_PER_S = 30;
+const WHEEL_FLAME_FLICKER_STEP_RAD = 2.1;
+const WHEEL_FLAME_FLICKER_SHARE = 0.3;
 
 export interface RaceView {
   /**
@@ -82,8 +90,8 @@ export interface RaceView {
    * hide every other kart's, move the camera to `camera`, show each item
    * box that is there to pick up, a cone at each hazard and a gull at
    * each projectile, turned toward the kart it homes in on, and at each
-   * wheel crossing the rolling wheel and the marshal's flag waving while
-   * it is up.
+   * wheel crossing the rolling wheel with its tells and the marshal's flag
+   * waving while it is up.
    */
   update(race: RaceReadout, camera: CameraPose, frameSeconds: number): void;
   render(): void;
@@ -120,7 +128,9 @@ export interface ViewAssets {
  * hop's height reads against the ground, a flame at the exhaust of every
  * boosting kart and, round the own kart alone, wind lines while it boosts.
  * At each wheel crossing a runaway wheel `runawayWheelRadius` in size rolls
- * where the readout has it, and the marshal's flag waves while it is up.
+ * where the readout has it, burning, its flames off its back, trailing
+ * smoke, kicking up dust where it lands and striking sparks off each wall
+ * it rebounds from, and the marshal's flag waves while it is up.
  * `labelsFor` names the karts to label and where, from the frame's readouts. Picks WebGPU when the
  * browser has it and WebGL otherwise.
  */
@@ -213,6 +223,8 @@ export async function createRaceView(
     growth: DUST_GROWTH_PER_S,
   });
   const dustEmitter = createDustEmitter(dust, kartSize);
+  // The wheel's smoke shares the dust's pool and mesh: puffs that spread and fade.
+  const wheelTells = createWheelTellEmitter({ dust, smoke: dust, sparks }, runawayWheelRadius);
   const dustMesh = particleMesh(
     dust,
     new SphereGeometry(0.5, 6, 4),
@@ -298,6 +310,7 @@ export async function createRaceView(
       if (own !== undefined) {
         windLines.emit(own, frameSeconds);
       }
+      wheelTells.emit(race.wheels, frameSeconds);
       windBrightness = windFade(own?.boostS ?? null);
       tyreMarks.update(readouts, frameSeconds);
       sparks.update(frameSeconds);
@@ -358,15 +371,18 @@ interface RunawayWheels {
  * A runaway wheel `radius` in size per crossing in `world`, and a flag on
  * each marshal post the track's glTF stands beside one, crossing and post
  * matched by their number. The wheel turns by the ground it covers and
- * bounces as it rolls; the flag flies across the track, toward the post's
- * lamp.
+ * bounces as it rolls, its flames flickering off its back; the flag flies
+ * across the track, toward the post's lamp.
  */
 function runawayWheels(world: ThreeScene, track: Object3D, radius: number): RunawayWheels {
   const posts = marshalPosts(track);
   const template = runawayWheelMesh(radius);
+  const flamesTemplate = runawayWheelFlames(radius);
   interface Drawn {
     readonly heading: Group;
     readonly spin: Object3D;
+    /** Not turned with the heading, so the flames point along the tells' back. */
+    readonly flames: Object3D;
     readonly flag: Object3D | undefined;
     /** Where the wheel was last frame; unset while it is off the course. */
     last: Vector3 | undefined;
@@ -378,7 +394,8 @@ function runawayWheels(world: ThreeScene, track: Object3D, radius: number): Runa
     const heading = new Group();
     const spin = template.clone();
     heading.add(spin);
-    world.add(heading);
+    const flames = flamesTemplate.clone();
+    world.add(heading, flames);
     const post = posts.get(crossing);
     let flag: Object3D | undefined;
     if (post !== undefined) {
@@ -388,11 +405,13 @@ function runawayWheels(world: ThreeScene, track: Object3D, radius: number): Runa
       flag.rotation.y = Math.atan2(-post.inward.z, post.inward.x);
       world.add(flag);
     }
-    const entry: Drawn = { heading, spin, flag, last: undefined };
+    const entry: Drawn = { heading, spin, flames, flag, last: undefined };
     drawn[crossing] = entry;
     return entry;
   };
   const at = new Vector3();
+  const back: Vec3 = [0, 0, 0];
+  const behind = new Vector3();
   let waveSeconds = 0;
   return {
     show(wheels, frameSeconds) {
@@ -404,6 +423,7 @@ function runawayWheels(world: ThreeScene, track: Object3D, radius: number): Runa
           entry.flag.rotation.z = Math.sin(waveSeconds * FLAG_WAVE_RAD_PER_S) * FLAG_WAVE_SWING_RAD;
         }
         entry.heading.visible = wheel.kind === "rolling";
+        entry.flames.visible = wheel.kind === "rolling";
         if (wheel.kind !== "rolling") {
           entry.last = undefined;
           return;
@@ -421,6 +441,17 @@ function runawayWheels(world: ThreeScene, track: Object3D, radius: number): Runa
           at.z,
         );
         entry.heading.rotation.y = wheel.yaw;
+        entry.flames.position.copy(entry.heading.position);
+        wheelBack(wheel.yaw, back);
+        entry.flames.lookAt(behind.copy(entry.flames.position).add(at.set(...back)));
+        entry.flames.children.forEach((tongue, index) => {
+          tongue.scale.z =
+            1 +
+            WHEEL_FLAME_FLICKER_SHARE *
+              Math.sin(
+                waveSeconds * WHEEL_FLAME_FLICKER_RAD_PER_S + index * WHEEL_FLAME_FLICKER_STEP_RAD,
+              );
+        });
       });
     },
   };

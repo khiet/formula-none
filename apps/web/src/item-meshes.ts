@@ -1,16 +1,21 @@
 // The items on the road (ADR 0037), built in code from Three primitives:
 // lit, flat-shaded and in the palette the item slot draws them in, so the
 // cone and the gull on the road are the ones in the slot. The runaway wheel
-// and the marshal's flag (ADR 0041) are built the same way. The sim collides
-// with its own sizes; these only fill them.
+// and the marshal's flag (ADR 0041) are built the same way, save the hot
+// wheel's rim and flames, which glow unlit. The sim collides with its own
+// sizes; these only fill them.
 
 import {
   BoxGeometry,
   type BufferGeometry,
+  CircleGeometry,
+  Color,
   ConeGeometry,
   CylinderGeometry,
+  Float32BufferAttribute,
   Group,
   Mesh,
+  MeshBasicMaterial,
   MeshLambertMaterial,
   SphereGeometry,
 } from "three";
@@ -20,9 +25,12 @@ import {
   HAZARD_ORANGE,
   INK,
   ITEM_BOX_GOLD,
-  KART_RIM,
-  KART_TYRE,
+  ROCKET,
+  ROCKET_FLAME,
+  ROCKET_STRAP,
   SIGNAL_YELLOW,
+  WHEEL_FLAME,
+  WHEEL_TYRE,
   WHITE,
 } from "./palette";
 
@@ -45,7 +53,23 @@ const HAZARD_BAND_TO = 0.66;
 const RUNAWAY_WHEEL_WIDTH_SHARE = 0.8;
 const RUNAWAY_WHEEL_SIDES = 8;
 const RUNAWAY_WHEEL_RIM_SHARE = 0.58;
+const RUNAWAY_WHEEL_HUB_SHARE = 0.14;
 const RUNAWAY_WHEEL_SPOKES = 3;
+/**
+ * The flames off its back, as shares of its radius: how far each tongue
+ * reaches and how wide its base is, where it rises from, and its core's
+ * share of it.
+ */
+const WHEEL_FLAME_LENGTH_SHARE = 1;
+const WHEEL_FLAME_RADIUS_SHARE = 0.22;
+const WHEEL_FLAME_CORE_SHARE = 0.55;
+const WHEEL_FLAME_OPACITY = 0.75;
+/** Each tongue's base, [across the tyre's width, up], as shares of the width and the radius. */
+const WHEEL_FLAME_TONGUES: readonly (readonly [number, number])[] = [
+  [-0.3, 0.35],
+  [0, 0.6],
+  [0.3, 0.35],
+];
 /** How high the wheel's drawn bounces carry it, and how many it makes a leg. */
 const RUNAWAY_WHEEL_BOUNCE_M = 0.5;
 const RUNAWAY_WHEEL_BOUNCES_PER_LEG = 2;
@@ -188,11 +212,27 @@ export function homingGullMesh(): Group {
   return gull;
 }
 
+/** A mesh in `colour` that ignores the sun, so it glows; at `opacity` under 1, what is inside shows through. */
+function glowing(parent: Group, geometry: BufferGeometry, colour: number, opacity = 1): Mesh {
+  const material = new MeshBasicMaterial({ color: colour });
+  if (opacity < 1) {
+    material.transparent = true;
+    material.opacity = opacity;
+    material.depthWrite = false;
+  }
+  const mesh = new Mesh(geometry, material);
+  parent.add(mesh);
+  return mesh;
+}
+
 /**
  * The runaway wheel centred on its axle, which lies along x, so it rolls
- * toward -z: the kart's octagonal tyre and three-spoke rim grown to
- * `radius`, which the caller takes from the sim's reach so the wheel drawn
- * is the wheel that hits.
+ * toward -z: the hot wheel, an octagonal tyre dark against the asphalt
+ * with a red-hot rim on each face, flame yellow at the hub cooling to the
+ * rocket's red at its edge and unlit so it glows, three spokes in the
+ * rocket's strap and a flame-yellow hub. Grown to `radius`, which the
+ * caller takes from the sim's reach so the wheel drawn is the wheel that
+ * hits.
  */
 export function runawayWheelMesh(radius: number): Group {
   const wheel = new Group();
@@ -200,31 +240,85 @@ export function runawayWheelMesh(radius: number): Group {
   const tyre = part(
     wheel,
     new CylinderGeometry(radius, radius, width, RUNAWAY_WHEEL_SIDES),
-    KART_TYRE,
+    WHEEL_TYRE,
   );
   tyre.rotation.z = Math.PI / 2;
-  const rimRadius = radius * RUNAWAY_WHEEL_RIM_SHARE;
+  const rim = hotRimGeometry(radius * RUNAWAY_WHEEL_RIM_SHARE);
+  const rimMaterial = new MeshBasicMaterial({ vertexColors: true });
+  const hubRadius = radius * RUNAWAY_WHEEL_HUB_SHARE;
   for (const side of [-1, 1]) {
-    const face = (side * width) / 2;
-    const rim = part(
-      wheel,
-      new CylinderGeometry(rimRadius, rimRadius, 0.02, RUNAWAY_WHEEL_SIDES),
-      KART_RIM,
-      [face, 0, 0],
-    );
-    rim.rotation.z = Math.PI / 2;
-    // Spokes reach from the rim out over the tyre's wall, so the turn reads.
+    // A hair proud of the tyre's face so the two never fight for depth.
+    const face = (side * width) / 2 + side * 0.01;
+    const disc = new Mesh(rim, rimMaterial);
+    disc.position.x = face;
+    // The disc faces +z; turned a quarter it faces out of this side.
+    disc.rotation.y = (side * Math.PI) / 2;
+    wheel.add(disc);
+    // Spokes reach from the hub out over the tyre's wall, so the turn reads.
     for (let spoke = 0; spoke < RUNAWAY_WHEEL_SPOKES; spoke += 1) {
       const turn = (2 * Math.PI * spoke) / RUNAWAY_WHEEL_SPOKES;
-      const bar = part(wheel, new BoxGeometry(0.03, radius * 0.9, 0.05), KART_RIM, [
+      const bar = part(wheel, new BoxGeometry(0.03, radius * 0.9, 0.05), ROCKET_STRAP, [
         face + side * 0.02,
         ((radius * 0.9) / 2) * Math.cos(turn),
         ((radius * 0.9) / 2) * Math.sin(turn),
       ]);
       bar.rotation.x = turn;
     }
+    const hub = glowing(
+      wheel,
+      new CylinderGeometry(hubRadius, hubRadius, 0.06, RUNAWAY_WHEEL_SIDES),
+      ROCKET_FLAME,
+    );
+    hub.position.x = face + side * 0.04;
+    hub.rotation.z = Math.PI / 2;
   }
   return wheel;
+}
+
+/** An octagonal disc `radius` across, facing +z: flame yellow at its centre, the rocket's red at its edge. */
+function hotRimGeometry(radius: number): BufferGeometry {
+  const disc = new CircleGeometry(radius, RUNAWAY_WHEEL_SIDES);
+  // The circle's first vertex is its centre; the rest ring its edge.
+  const centre = new Color(ROCKET_FLAME);
+  const edge = new Color(ROCKET.mid);
+  const count = disc.getAttribute("position").count;
+  const colours: number[] = [];
+  for (let vertex = 0; vertex < count; vertex++) {
+    const colour = vertex === 0 ? centre : edge;
+    colours.push(colour.r, colour.g, colour.b);
+  }
+  disc.setAttribute("color", new Float32BufferAttribute(colours, 3));
+  return disc;
+}
+
+/**
+ * The runaway wheel's flames for a wheel `radius` in size, centred on its
+ * axle and pointing toward +z, which the View turns to the wheel's back:
+ * three tongues rising off the back of the tyre, the flames' orange round
+ * a flame-yellow core, unlit and the orange see-through. Each tongue is a child whose length runs
+ * along its z, so the View flickers it by scaling z.
+ */
+export function runawayWheelFlames(radius: number): Group {
+  const flames = new Group();
+  const length = radius * WHEEL_FLAME_LENGTH_SHARE;
+  const base = radius * WHEEL_FLAME_RADIUS_SHARE;
+  // A cone along +z from its base at the origin to its tip `reach` out.
+  const tongue = (width: number, reach: number) =>
+    new ConeGeometry(width, reach, 4).translate(0, reach / 2, 0).rotateX(Math.PI / 2);
+  const outer = tongue(base, length);
+  const inner = tongue(base * WHEEL_FLAME_CORE_SHARE, length * WHEEL_FLAME_CORE_SHARE);
+  const width = radius * RUNAWAY_WHEEL_WIDTH_SHARE;
+  for (const [across, up] of WHEEL_FLAME_TONGUES) {
+    const group = new Group();
+    // Rooted inside the tread, on the back of the tyre.
+    const height = up * radius;
+    group.position.set(across * width, height, Math.sqrt(radius * radius - height * height) * 0.8);
+    // See-through, so the core burns yellow inside it.
+    glowing(group, outer, WHEEL_FLAME, WHEEL_FLAME_OPACITY);
+    glowing(group, inner, ROCKET_FLAME);
+    flames.add(group);
+  }
+  return flames;
 }
 
 /**
