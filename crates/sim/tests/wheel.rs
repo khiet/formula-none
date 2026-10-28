@@ -337,14 +337,16 @@ fn box_to_path_m(centre: [f32; 2], legs: &[Leg]) -> f32 {
     least
 }
 
-/// The wheel's spin-outs through pass 1 of a kart parked across the
-/// crossing's centre, ahead of the whole pass, with its box `gap` metres
-/// from the nearest point of the path.
+/// The wheel's spin-outs through pass 1 of a kart parked in the middle of
+/// the track, ahead of the whole pass, with its box `gap` metres from the
+/// nearest point of the path.
 fn hits_parked_ahead_of_the_path(gap: f32) -> Vec<f32> {
     let legs = legs_of(SEED, 1);
-    // Ahead of the path, the box only draws away from it the further on.
+    // Ahead of the path the gap only grows the further on, so halving finds it.
     let (mut near, mut far) = (
-        legs.iter().map(|leg| leg.from[1].max(leg.to[1])).fold(0.0, f32::max),
+        legs.iter()
+            .map(|leg| leg.from[1].max(leg.to[1]))
+            .fold(0.0, f32::max),
         WHEEL_LANDING_SPREAD_M + KART_HALF_LENGTH_M + 2.0 * gap,
     );
     for _ in 0..40 {
@@ -357,7 +359,10 @@ fn hits_parked_ahead_of_the_path(gap: f32) -> Vec<f32> {
     }
     let state = parked_at(on_crossing(far, 0.0));
     let parked = local(state.kart_readouts()[0].position);
-    assert!((box_to_path_m(parked, &legs) - gap).abs() < 0.01, "{parked:?}");
+    assert!(
+        (box_to_path_m(parked, &legs) - gap).abs() < 0.01,
+        "{parked:?}"
+    );
     wheel_hits_over(state, pass_start_s(2) - WHEEL_WARNING_S)
 }
 
