@@ -77,10 +77,13 @@ blender my-track.blend --background --python assets/tracks/export.py -- my-track
 - A curve object `Centreline`: one closed POLY or BEZIER spline run in the
   direction of travel, starting at the start line. Spline progress is
   distance along it.
-- Collections `Checkpoints`, `ItemBoxes`, `BoostPads`, `Kerbs`, `SpawnGrid`:
-  empties ordered by name, facing along their local +Y, each written to the
-  sidecar list of the same name (`kerbs` for the sausage kerbs). Checkpoints
-  carry a `half_width` custom property.
+- Collections `Checkpoints`, `ItemBoxes`, `BoostPads`, `Kerbs`,
+  `WheelCrossings`, `SpawnGrid`: empties ordered by name, facing along their
+  local +Y, each written to the sidecar list of the same name (`kerbs` for
+  the sausage kerbs, `wheel_crossings` for where the runaway wheel crosses,
+  each centred on the centreline and facing along the track). Checkpoints
+  and wheel crossings carry a `half_width` custom property: a crossing's
+  reaches wall to wall.
 
 Blender is Z up; the sidecar is written in the glTF frame (metres, Y up, -Z
 forward, yaw in radians about +Y with zero facing -Z) so it matches the
@@ -94,7 +97,8 @@ per piece of scenery, no textures: the palette is `MATERIALS` in
 `build.py`. The scenery is the generator's kerbs on every corner, the
 start line's checkers, a carbon plate with orange chevrons on each boost
 pad and a striped yellow capsule on each sausage kerb, each sized to the
-sim's rectangle, plus what a layout's decor asks for: hoardings with the
+sim's rectangle, a white marshal post with an orange lamp on the outside
+run-off beside each wheel crossing, plus what a layout's decor asks for: hoardings with the
 sponsors in `trackgen/sponsors.py` (invented, every one), and grandstands
 and the start gantry built from boxes to the style guide's entries.
 Original names only; nothing may resemble a real sponsor, a Nintendo

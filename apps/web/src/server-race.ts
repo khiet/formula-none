@@ -86,6 +86,7 @@ export function createServerRace(
   const stopEvents = client.onEvent(({ kind }) => {
     if (kind === "raceEnded") {
       ended = true;
+      prediction.endRace();
       return;
     }
     if ("lapCompleted" in kind) {
@@ -189,6 +190,7 @@ export function createServerRace(
         itemBoxesPresent: boxTicksLeft.map((left) => left <= 0),
         hazards: hazards(karts),
         projectiles: prediction.interpolatedProjectiles(),
+        wheels: prediction.wheels(),
       };
     },
     itemBoxes: () => boxes,

@@ -191,6 +191,7 @@ def populate(geometry: TrackGeometry) -> None:
         "ItemBoxes": ("ItemBox", geometry.item_boxes),
         "BoostPads": ("BoostPad", geometry.boost_pads),
         "Kerbs": ("Kerb", geometry.kerbs),
+        "WheelCrossings": ("WheelCrossing", geometry.wheel_crossings),
         "SpawnGrid": ("Spawn", geometry.spawn_grid),
     }
     for collection_name, (prefix, items) in groups.items():

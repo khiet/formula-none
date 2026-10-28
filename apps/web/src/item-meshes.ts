@@ -1,6 +1,7 @@
 // The items on the road (ADR 0037), built in code from Three primitives:
 // lit, flat-shaded and in the palette the item slot draws them in, so the
-// cone and the gull on the road are the ones in the slot. The sim collides
+// cone and the gull on the road are the ones in the slot. The runaway wheel
+// and the marshal's flag (ADR 0041) are built the same way. The sim collides
 // with its own sizes; these only fill them.
 
 import {
@@ -13,7 +14,17 @@ import {
   MeshLambertMaterial,
   SphereGeometry,
 } from "three";
-import { GREYS, GULL_EYE, HAZARD_ORANGE, INK, ITEM_BOX_GOLD, WHITE } from "./palette";
+import {
+  GREYS,
+  GULL_EYE,
+  HAZARD_ORANGE,
+  INK,
+  ITEM_BOX_GOLD,
+  KART_RIM,
+  KART_TYRE,
+  SIGNAL_YELLOW,
+  WHITE,
+} from "./palette";
 
 /** The item box: a cube this many metres across. */
 const ITEM_BOX_SIZE_M = 1;
@@ -29,6 +40,21 @@ const HAZARD_SLAB_HEIGHT_M = 0.08;
 /** The white band, as shares of the way from the apex to the rim. */
 const HAZARD_BAND_FROM = 0.5;
 const HAZARD_BAND_TO = 0.66;
+
+/** The runaway wheel's width over its radius: the kart's rear wheel's. */
+const RUNAWAY_WHEEL_WIDTH_SHARE = 0.8;
+const RUNAWAY_WHEEL_SIDES = 8;
+const RUNAWAY_WHEEL_RIM_SHARE = 0.58;
+const RUNAWAY_WHEEL_SPOKES = 3;
+/** How high the wheel's drawn bounces carry it, and how many it makes a pass. */
+const RUNAWAY_WHEEL_BOUNCE_M = 0.5;
+const RUNAWAY_WHEEL_BOUNCES = 3;
+
+/** The marshal's flag: a pole, and the cloth flying from its top. */
+const FLAG_POLE_M = 1.4;
+const FLAG_POLE_THICKNESS_M = 0.05;
+const FLAG_WIDTH_M = 0.9;
+const FLAG_HEIGHT_M = 0.6;
 
 function material(colour: number): MeshLambertMaterial {
   return new MeshLambertMaterial({ color: colour, flatShading: true });
@@ -160,4 +186,73 @@ export function homingGullMesh(): Group {
     part(gull, new BoxGeometry(0.02, 0.03, 0.03), INK, [side * 0.16, 0.19, 0.46]);
   }
   return gull;
+}
+
+/**
+ * The runaway wheel centred on its axle, which lies along x, so it rolls
+ * toward -z: the kart's octagonal tyre and three-spoke rim grown to
+ * `radius`, which the caller takes from the sim's reach so the wheel drawn
+ * is the wheel that hits.
+ */
+export function runawayWheelMesh(radius: number): Group {
+  const wheel = new Group();
+  const width = radius * RUNAWAY_WHEEL_WIDTH_SHARE;
+  const tyre = part(
+    wheel,
+    new CylinderGeometry(radius, radius, width, RUNAWAY_WHEEL_SIDES),
+    KART_TYRE,
+  );
+  tyre.rotation.z = Math.PI / 2;
+  const rimRadius = radius * RUNAWAY_WHEEL_RIM_SHARE;
+  for (const side of [-1, 1]) {
+    const face = (side * width) / 2;
+    const rim = part(
+      wheel,
+      new CylinderGeometry(rimRadius, rimRadius, 0.02, RUNAWAY_WHEEL_SIDES),
+      KART_RIM,
+      [face, 0, 0],
+    );
+    rim.rotation.z = Math.PI / 2;
+    // Spokes reach from the rim out over the tyre's wall, so the turn reads.
+    for (let spoke = 0; spoke < RUNAWAY_WHEEL_SPOKES; spoke += 1) {
+      const turn = (2 * Math.PI * spoke) / RUNAWAY_WHEEL_SPOKES;
+      const bar = part(wheel, new BoxGeometry(0.03, radius * 0.9, 0.05), KART_RIM, [
+        face + side * 0.02,
+        ((radius * 0.9) / 2) * Math.cos(turn),
+        ((radius * 0.9) / 2) * Math.sin(turn),
+      ]);
+      bar.rotation.x = turn;
+    }
+  }
+  return wheel;
+}
+
+/**
+ * How high the drawn wheel bounces `fraction` of the way through a pass:
+ * down at both walls and between each of its three bounces. Drawn only;
+ * the sim rolls the wheel along the ground.
+ */
+export function runawayWheelBounce(fraction: number): number {
+  return RUNAWAY_WHEEL_BOUNCE_M * Math.abs(Math.sin(fraction * Math.PI * RUNAWAY_WHEEL_BOUNCES));
+}
+
+/**
+ * The marshal's yellow flag standing on its origin: a white pole and the
+ * cloth flying from its top toward +x. The View waves it by turning it
+ * about z.
+ */
+export function marshalFlagMesh(): Group {
+  const flag = new Group();
+  part(
+    flag,
+    new BoxGeometry(FLAG_POLE_THICKNESS_M, FLAG_POLE_M, FLAG_POLE_THICKNESS_M),
+    WHITE.shaded,
+    [0, FLAG_POLE_M / 2, 0],
+  );
+  part(flag, new BoxGeometry(FLAG_WIDTH_M, FLAG_HEIGHT_M, 0.02), SIGNAL_YELLOW.mid, [
+    FLAG_WIDTH_M / 2,
+    FLAG_POLE_M - FLAG_HEIGHT_M / 2,
+    0,
+  ]);
+  return flag;
 }

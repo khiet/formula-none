@@ -117,8 +117,8 @@ async fn a_hit_is_the_servers_call_and_both_clients_see_the_same_hit_and_spin_ou
     // The same event, under the same id, on both reliable lanes.
     let hit = heard[0].hit().unwrap();
     assert_eq!(heard[1].hit(), Some(hit));
-    let EventKind::Hit { kart, by } = hit.kind else {
-        unreachable!()
+    let EventKind::Hit { kart, by: Some(by) } = hit.kind else {
+        panic!("a hit by a kart's hazard: {hit:?}")
     };
     assert_ne!(kart, by, "nobody hits their own hazard this early");
 

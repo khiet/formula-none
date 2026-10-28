@@ -198,7 +198,11 @@ fn every_event_kind() -> Vec<Event> {
             kart: 3,
             item: Item::Homing,
         },
-        EventKind::Hit { kart: 6, by: 1 },
+        EventKind::Hit {
+            kart: 6,
+            by: Some(1),
+        },
+        EventKind::Hit { kart: 2, by: None },
         EventKind::LapCompleted {
             kart: 0,
             lap: 2,

@@ -4,8 +4,9 @@ A counter-clockwise loop of about 800 m: the start/finish straight up the
 east side, hairpin one at the top, a run back down into a right-hander, the
 hill on the westbound straight, the chicane, hairpin two at the west end, the
 jump ramp on the long eastbound straight and a sweeping final corner. Tyre
-walls stand on the inside of both hairpins, and a sausage kerb on the inside
-of the chicane's apex. The start line is at s = 0 on the east straight,
+walls stand on the inside of both hairpins, a sausage kerb on the inside
+of the chicane's apex, and the runaway wheel crosses the middle of the
+approach to hairpin two, its marshal post on the outside. The start line is at s = 0 on the east straight,
 which runs along +Y (glTF -Z). The scenery: grandstands and
 sponsor hoardings along the outside of the start straight and the return,
 hoardings round the final corner, and the gantry over the line.
@@ -20,6 +21,7 @@ from ..layout import (
     Kerb,
     Layout,
     TyreWall,
+    WheelCrossing,
 )
 from ..path import Hill, Ramp, Turtle
 
@@ -76,6 +78,8 @@ LAYOUT = Layout(
         BoostPad(ramp_start + RAMP_LENGTH_M + 40.0),
     ],
     kerbs=[Kerb(path.segment("chicane-mid").s_mid, offset=-CHICANE_KERB_RIGHT_OF_CENTRE_M)],
+    # Hairpin two turns left, so its outside is the right.
+    wheel_crossings=[WheelCrossing(path.segment("approach").s_mid, outside=-1)],
     elevation=[
         Hill(hill.s_start + 30.0, hill.s_end - 30.0, HILL_CREST_M),
         Ramp(ramp_start, ramp_start + RAMP_LENGTH_M, RAMP_HEIGHT_M),

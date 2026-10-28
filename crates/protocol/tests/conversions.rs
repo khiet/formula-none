@@ -102,8 +102,14 @@ fn a_boost_is_red_through_a_snapshot_unless_it_burns_orange() {
 #[test]
 fn a_spin_out_is_told_as_a_hit() {
     assert_eq!(
-        EventKind::from(RaceEvent::SpunOut { kart: 2, by: 5 }),
-        EventKind::Hit { kart: 2, by: 5 }
+        EventKind::from(RaceEvent::SpunOut {
+            kart: 2,
+            by: Some(5)
+        }),
+        EventKind::Hit {
+            kart: 2,
+            by: Some(5)
+        }
     );
 }
 
@@ -128,5 +134,13 @@ fn an_input_reads_as_the_unit_range_controls() {
             use_item: false,
             hold_item: true,
         }
+    );
+}
+
+#[test]
+fn the_runaway_wheels_spin_out_is_told_as_a_hit_by_no_kart() {
+    assert_eq!(
+        EventKind::from(RaceEvent::SpunOut { kart: 2, by: None }),
+        EventKind::Hit { kart: 2, by: None }
     );
 }

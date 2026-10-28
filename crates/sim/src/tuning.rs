@@ -177,6 +177,18 @@ pub const KERB_HALF_LENGTH_M: f32 = 4.0;
 pub const KERB_HALF_WIDTH_M: f32 = 0.5;
 /// The share of a kart's speed the kerb's launch leaves it.
 pub const KERB_SPEED_KEEP: f32 = 0.85;
+/// The runaway wheel (GLOSSARY) crosses its crossing wall to wall once
+/// every period, each pass the other way from the last, the first pass
+/// starting at `WHEEL_FIRST_PASS_S` on the race clock so the leader's first
+/// lap meets a quiet approach. A pass lasts `WHEEL_PASS_S`; the marshal's
+/// flag is up from `WHEEL_WARNING_S` before it until it ends.
+pub const WHEEL_PERIOD_S: f32 = 7.0;
+pub const WHEEL_PASS_S: f32 = 1.6;
+pub const WHEEL_WARNING_S: f32 = 1.0;
+pub const WHEEL_FIRST_PASS_S: f32 = 20.0;
+/// A kart whose collision box comes within this much of the wheel's centre,
+/// seen from above, is reached by it, as by a hazard.
+pub const WHEEL_RADIUS_M: f32 = 0.45;
 
 // Rocket start (GLOSSARY). What the throttle hold ending at Go earns is
 // read from the hold's length; a release before Go resets it. The edges
@@ -364,6 +376,10 @@ pub const BOT_LINE_RIGHT_OF_CENTRE_M: f32 = 2.5;
 /// straight kerb on a bend sets nearer the line. On Brands Patch the line
 /// is the centreline.
 pub const BOT_KERB_GAP_M: f32 = 4.4;
+/// Seconds a bot keeps between itself and a runaway wheel's pass through
+/// its lane, either side: the throttle it holds and the line it weaves
+/// toward bring it there sooner than its speed now says.
+pub const BOT_WHEEL_MARGIN_S: f32 = 0.3;
 /// The least a bot steers into a corner it hops for, so the hop fixes the
 /// drift toward the corner even when its line asks for less.
 pub const BOT_HOP_STEER: f32 = 0.25;
@@ -432,6 +448,7 @@ const _: () = {
     assert!(BOT_AVOID_HALF_WIDTH_M > KART_HALF_WIDTH_M);
     assert!(BOT_PASS_GAP_M > 2.0 * KART_HALF_WIDTH_M);
     assert!(BOT_KERB_GAP_M > KART_HALF_WIDTH_M);
+    assert!(0.0 <= BOT_WHEEL_MARGIN_S);
     assert!(BOT_STALL_SPEED_M_PER_S * ACCELERATION_TO_TOP_S / TOP_SPEED_M_PER_S < BOT_STALL_S);
     assert!(0.0 < START_THROTTLE_HELD && START_THROTTLE_HELD < 1.0);
     assert!(0.0 < START_WEAK_BOOST_HOLD_S && START_WEAK_BOOST_HOLD_S < START_FULL_BOOST_HOLD_S);
@@ -446,6 +463,11 @@ const _: () = {
     assert!(0.0 < ITEM_BOOST_S && 1.0 < ITEM_BOOST_FACTOR);
     assert!(0.0 < HAZARD_RADIUS_M && 0.0 < HAZARD_LIFETIME_S && 0.0 < SPIN_OUT_S);
     assert!(0.0 < HAZARD_DROP_DISTANCE_M);
+    // One pass and its warning fit in a period, so the flag never waves
+    // for two passes at once.
+    assert!(0.0 < WHEEL_PASS_S && 0.0 < WHEEL_WARNING_S && 0.0 < WHEEL_RADIUS_M);
+    assert!(WHEEL_WARNING_S + WHEEL_PASS_S < WHEEL_PERIOD_S);
+    assert!(WHEEL_WARNING_S <= WHEEL_FIRST_PASS_S);
     assert!(HOMING_SPEED_FACTOR > BOOST_PAD_FACTOR && HOMING_SPEED_FACTOR > ITEM_BOOST_FACTOR);
     assert!(0.0 < HOMING_LOOKAHEAD_M && 0.0 < HOMING_LOCK_RANGE_M && 0.0 < HOMING_RADIUS_M);
     // A tick of flight never carries a projectile from outside its radius
@@ -510,6 +532,8 @@ pub struct Tuning {
     pub item_box_respawn_s: f32,
     pub hazard_drop_distance_m: f32,
     pub spin_out_s: f32,
+    /// The runaway wheel's reach, so the View draws a wheel that size.
+    pub wheel_radius_m: f32,
     pub top_speed_m_per_s: f32,
     pub camera_pull_back_m: f32,
     pub camera_shake_s: f32,
@@ -542,6 +566,7 @@ pub const TUNING: Tuning = Tuning {
     item_box_respawn_s: ITEM_BOX_RESPAWN_S,
     hazard_drop_distance_m: HAZARD_DROP_DISTANCE_M,
     spin_out_s: SPIN_OUT_S,
+    wheel_radius_m: WHEEL_RADIUS_M,
     top_speed_m_per_s: TOP_SPEED_M_PER_S,
     camera_pull_back_m: CAMERA_PULL_BACK_M,
     camera_shake_s: CAMERA_SHAKE_S,

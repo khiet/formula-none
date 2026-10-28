@@ -7,6 +7,10 @@
 //! Kart-to-kart contact is the server's to resolve; a kart drawn 100 ms
 //! behind can leave a small correction after a touch.
 //!
+//! The runaway wheel it runs in full: it is the race clock's, which the
+//! prediction keeps the server's, so a wheel hit is predicted the tick it
+//! happens, and the snapshots' spin-out timer then agrees with it.
+//!
 //! Two things the prediction never runs. The item roll: the slot is the
 //! snapshots' word, so a fire is predicted only once the server has said
 //! what the kart holds. And the hazards: a hazard the predicted kart fires
@@ -38,11 +42,18 @@ use std::collections::VecDeque;
 use rapier3d::prelude::*;
 
 use crate::tuning::{
-    COUNTDOWN_S, KART_HALF_LENGTH_M, RECONCILIATION_BLEND_TICKS, RECONCILIATION_TOLERANCE_M, TICK_S,
+    COUNTDOWN_S, KART_HALF_LENGTH_M, RACE_OUTRO_S, RECONCILIATION_BLEND_TICKS,
+    RECONCILIATION_TOLERANCE_M, TICK_S,
 };
 use crate::{
-    clock_after, kart_collider, step, Kart, KartInput, KartReadout, Phase, Standing, State,
-    Surface, Track,
+    bot, clock_after, kart_collider, step, Kart, KartInput, KartReadout, Phase, Standing, State,
+    Surface, Track, Wheel,
+};
+
+/// The phase a prediction holds once the server's race has ended: the top
+/// of the outro, which it never runs down.
+const ENDED: Phase = Phase::Outro {
+    remaining_s: RACE_OUTRO_S,
 };
 
 /// One player's kart as their client predicts it.
@@ -54,8 +65,10 @@ pub struct Prediction {
     /// has drawn the other karts.
     others: Vec<RigidBodyHandle>,
     /// A race with the one kart, on its own spawn slot. Its phase is the
-    /// race clock at `tick` and never Finished: the server's race ends, not
-    /// this one, and a finished kart drives on under its bot until it does.
+    /// race clock at `tick` until the client is told the server's race has
+    /// ended, then the outro, held there: never Finished, since the
+    /// server's race ends, not this one. A finished kart drives on under
+    /// its bot until it does.
     /// `None` only inside a step, since `step` consumes the state.
     state: Option<State>,
     /// The server tick the predicted kart stands at.
@@ -78,6 +91,8 @@ pub struct Prediction {
     /// corrects nothing.
     ticks: u32,
     blend: Blend,
+    /// Whether the client has been told the server's race has ended.
+    ended: bool,
 }
 
 /// An input the prediction applied and the kart it left.
@@ -168,6 +183,7 @@ impl Prediction {
             corrections: 0,
             ticks: 0,
             blend: Blend::NONE,
+            ended: false,
         }
     }
 
@@ -237,7 +253,7 @@ impl Prediction {
             .unwrap_or(0);
         self.entries.drain(..at);
         let anchor = &self.entries[0];
-        let racing = matches!(self.clock, Phase::Racing { .. });
+        let racing = matches!(self.clock, Phase::Racing { .. }) && !self.ended;
         if !relaid && anchor.tick == snapshot_tick && agrees(&anchor.after, kart, racing) {
             return 0.0;
         }
@@ -249,9 +265,10 @@ impl Prediction {
         record.take(kart, clock);
         let anchor_others = self.entries[0].others.clone();
         self.place_others(&anchor_others, true);
+        let phase = if self.ended { ENDED } else { clock };
         let state = self.state_mut();
         state.restore(&record);
-        state.phase = clock;
+        state.phase = phase;
         self.tick = snapshot_tick;
         let anchor = &mut self.entries[0];
         anchor.tick = snapshot_tick;
@@ -275,7 +292,7 @@ impl Prediction {
                 * Rotation::from_array(after.rotation).inverse(),
             ticks_left: RECONCILIATION_BLEND_TICKS,
         };
-        if moved > RECONCILIATION_TOLERANCE_M && !self.finished() {
+        if moved > RECONCILIATION_TOLERANCE_M && !self.finished() && !self.ended {
             self.corrections += 1;
         }
         moved
@@ -318,6 +335,25 @@ impl Prediction {
         self.state().phase
     }
 
+    /// The runaway wheel at each of the track's crossings at the predicted
+    /// kart's tick: the wheel that hits it here, where the server's will.
+    pub fn wheels(&self) -> Vec<Wheel> {
+        self.state().wheels()
+    }
+
+    /// The server's race has ended: from now on the prediction runs the
+    /// outro the server does, a bot driving the kart, no items and no wheel,
+    /// so nothing hits the kart here that the server's outro would not.
+    pub fn end_race(&mut self) {
+        if self.ended {
+            return;
+        }
+        self.ended = true;
+        let state = self.state_mut();
+        state.end_race();
+        state.phase = ENDED;
+    }
+
     /// Snapshots that moved the predicted kart further than rounding.
     pub fn corrections(&self) -> u32 {
         self.corrections
@@ -339,9 +375,15 @@ impl Prediction {
             .state
             .take()
             .expect("state is only absent during a step");
+        let mut state = state;
+        if self.ended {
+            // A rewind puts back a kart from before the end, without its bot.
+            state.karts[0].bot.get_or_insert_with(bot::Memory::default);
+            state.phase = ENDED;
+        }
         let clock = clock_after(state.phase, TICK_S);
         let mut state = step(state, &[input], TICK_S);
-        state.phase = clock;
+        state.phase = if self.ended { ENDED } else { clock };
         state.hazards.clear();
         // A projectile the predicted kart fires has no kart ahead in this
         // race of one and is wasted; cleared all the same, so the hit

@@ -133,6 +133,16 @@ SAUSAGE_KERB_STRIPE_PITCH_M = 1.3
 SAUSAGE_KERB_STRIPE_WIDTH_M = 0.45
 SAUSAGE_KERB_ACROSS_STEPS = 6
 SAUSAGE_KERB_END_STEPS = 4
+# The marshal post beside a wheel crossing: a white box on the outside
+# run-off, short of the wheel's path, with an orange lamp on its face to
+# the track. The View hangs the flag on its top.
+MARSHAL_POST_BEFORE_CROSSING_M = 3.0
+MARSHAL_POST_INTO_RUNOFF_M = 3.0
+MARSHAL_POST_WIDTH_M = 1.0
+MARSHAL_POST_HEIGHT_M = 2.0
+MARSHAL_LAMP_SIZE_M = 0.35
+MARSHAL_LAMP_PROUD_M = 0.1
+MARSHAL_LAMP_BELOW_TOP_M = 0.3
 
 # The eight-slot spawn grid: two staggered columns of four, pole in front on
 # the left, the right column set back. Slot order is grid order. Placements
@@ -175,6 +185,17 @@ class Kerb:
 
 
 @dataclass(frozen=True)
+class WheelCrossing:
+    """Where the runaway wheel crosses the track at arc length `s`, square to it, wall to wall.
+
+    `outside` is the side the marshal post stands on: 1 left of the centreline, -1 right.
+    """
+
+    s: float
+    outside: int
+
+
+@dataclass(frozen=True)
 class Hoardings:
     """Sponsor boards along the outer edge of a range of segments."""
 
@@ -210,6 +231,7 @@ class Layout:
     item_rows: list[ItemRow]
     boost_pads: list[BoostPad]
     kerbs: list[Kerb] = field(default_factory=list)
+    wheel_crossings: list[WheelCrossing] = field(default_factory=list)
     elevation: list[Feature] = field(default_factory=list)
     decor: Decor = field(default_factory=Decor)
 
@@ -272,7 +294,7 @@ class TrackGeometry:
     scenery: list[SceneryMesh] = field(default_factory=list)
     props: list[TextProp] = field(default_factory=list)
     kerbs: list[Placement] = field(default_factory=list)
-
+    wheel_crossings: list[Placement] = field(default_factory=list)
 
 
 def build(layout: Layout) -> TrackGeometry:
@@ -358,6 +380,8 @@ def build(layout: Layout) -> TrackGeometry:
     item_boxes = [place(row.s, offset) for row in layout.item_rows for offset in row.offsets]
     boost_pads = [place(pad.s, pad.offset) for pad in layout.boost_pads]
     kerbs = [place(kerb.s, kerb.offset) for kerb in layout.kerbs]
+    # Wall to wall: the run-off's edges, where the walls stand.
+    wheel_crossings = [place(crossing.s, half_width=runoff) for crossing in layout.wheel_crossings]
     spawn_grid = [
         place(
             -GRID_FRONT_ROW_BEHIND_LINE_M
@@ -371,14 +395,14 @@ def build(layout: Layout) -> TrackGeometry:
     centreline = [(sample.x, sample.y, h) for sample, h in zip(path.samples, height)]
     scenery, props = decorate(layout, height)
     return TrackGeometry(
-        centreline, surfaces, checkpoints, item_boxes, boost_pads, spawn_grid, scenery, props, kerbs
+        centreline, surfaces, checkpoints, item_boxes, boost_pads, spawn_grid, scenery, props, kerbs, wheel_crossings
     )
 
 
 def decorate(layout: Layout, height: list[float]) -> tuple[list[SceneryMesh], list[TextProp]]:
     """The scenery: kerbs on every corner, the start line, and what the layout's decor asks for."""
     scenery = kerbs(layout, height) + start_line(layout) + boost_pads(layout) + tyre_stacks(layout)
-    scenery += sausage_kerbs(layout)
+    scenery += sausage_kerbs(layout) + marshal_posts(layout)
     boards, lettering = hoardings(layout)
     scenery += boards + grandstands(layout)
     if layout.decor.gantry:
@@ -588,6 +612,46 @@ def sausage_kerbs(layout: Layout) -> list[SceneryMesh]:
             parts["kerb-black" if black(back, front) else "kerb-yellow"].append(mesh.merge(faces))
         for material, pieces in parts.items():
             result.append(SceneryMesh(f"SausageKerb.{number:02d}.{material}", material, mesh.merge(pieces)))
+    return result
+
+
+def marshal_posts(layout: Layout) -> list[SceneryMesh]:
+    """A white box on the outside run-off beside each wheel crossing, an orange lamp on its face to the track."""
+    result: list[SceneryMesh] = []
+    for number, crossing in enumerate(layout.wheel_crossings):
+        sample = layout.path.at(crossing.s - MARSHAL_POST_BEFORE_CROSSING_M)
+        offset = crossing.outside * (layout.asphalt_half_width + MARSHAL_POST_INTO_RUNOFF_M)
+        x, y = sample.offset(offset)
+        cos, sin = math.cos(sample.heading), math.sin(sample.heading)
+        ground = elevation(layout.elevation, sample.s) - GRASS_DROP_M
+        # Toward the track from the post: across the heading, back to the centreline.
+        inward = -crossing.outside
+
+        def box(along: tuple[float, float], toward: tuple[float, float], up: tuple[float, float]) -> dict[str, mesh.Mesh]:
+            """A box `along` the track, `toward` it from the post's centre and `up` from the ground."""
+
+            def corner(i: int, j: int, k: int) -> mesh.Vertex:
+                a, t = along[i], toward[j] * inward
+                # Left of the heading, seen from above, is (-sin, cos).
+                return (x + cos * a - sin * t, y + sin * a + cos * t, ground + up[k])
+
+            return mesh.cuboid(corner)
+
+        half = MARSHAL_POST_WIDTH_M / 2.0
+        parts = ByMaterial(f"MarshalPost.{number:02d}")
+        post = box((-half, half), (-half, half), (0.0, MARSHAL_POST_HEIGHT_M))
+        for side in (*SIDES, "z1"):
+            parts.add("board", post[side])
+        lamp_half = MARSHAL_LAMP_SIZE_M / 2.0
+        lamp_top = MARSHAL_POST_HEIGHT_M - MARSHAL_LAMP_BELOW_TOP_M
+        lamp = box(
+            (-lamp_half, lamp_half),
+            (half, half + MARSHAL_LAMP_PROUD_M),
+            (lamp_top - MARSHAL_LAMP_SIZE_M, lamp_top),
+        )
+        for side in (*SIDES, "z0", "z1"):
+            parts.add("chevron", lamp[side])
+        result += parts.scenery()
     return result
 
 

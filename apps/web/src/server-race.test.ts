@@ -1,5 +1,14 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import type { Bridge, KartInput, KartReadout, Phase, Prediction, Projectile, Race } from "./bridge";
+import type {
+  Bridge,
+  KartInput,
+  KartReadout,
+  Phase,
+  Prediction,
+  Projectile,
+  Race,
+  Wheel,
+} from "./bridge";
 import { fakeConnection, jsonCodec, TOKEN } from "./fake-connection";
 import type {
   Event,
@@ -47,6 +56,8 @@ interface FakePrediction extends Prediction {
   clock: Phase;
   interpolated: KartReadout[];
   projectiles: Projectile[];
+  rolling: Wheel[];
+  ended: boolean;
 }
 
 let predictions: FakePrediction[] = [];
@@ -83,6 +94,8 @@ const bridge = {
       clock: { kind: "countdown", remainingSeconds: COUNTDOWN_S },
       interpolated: [],
       projectiles: [],
+      rolling: [],
+      ended: false,
       tick(input) {
         this.inputs.push(input);
       },
@@ -96,6 +109,12 @@ const bridge = {
       },
       interpolatedProjectiles() {
         return [...this.projectiles];
+      },
+      wheels() {
+        return [...this.rolling];
+      },
+      endRace() {
+        this.ended = true;
       },
       phase() {
         return this.clock;
@@ -450,6 +469,17 @@ describe("createServerRace", () => {
     const flying: Projectile = { position: [12, 0, -30], owner: 1, target: 0 };
     prediction().projectiles = [flying];
     expect(run.readout().projectiles).toEqual([flying]);
+  });
+
+  it("draws the prediction's wheels, and tells the prediction when the server ends the race", () => {
+    const client = fakeClient();
+    const run = createServerRace(bridge, client, COUNTDOWN, 0, "{}");
+    const rolling: Wheel = { kind: "rolling", position: [-139, 0, 52], yaw: 0, fraction: 0.5 };
+    prediction().rolling = [rolling];
+    expect(run.readout().wheels).toEqual([rolling]);
+    expect(prediction().ended).toBe(false);
+    client.event({ id: 1, kind: "raceEnded" });
+    expect(prediction().ended).toBe(true);
   });
 
   it("hides a box the server reports picked up for the tuned respawn", () => {

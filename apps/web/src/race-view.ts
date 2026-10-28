@@ -16,11 +16,18 @@ import {
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { CSS2DObject, CSS2DRenderer } from "three/addons/renderers/CSS2DRenderer.js";
 import { WebGPURenderer } from "three/webgpu";
-import type { ItemBox, KartReadout, KartSize } from "./bridge";
+import type { ItemBox, KartReadout, KartSize, Wheel } from "./bridge";
 import type { CameraPose } from "./chase-camera";
 import { createDustEmitter } from "./dust";
 import { createExhaustFlames } from "./exhaust-flame";
-import { hazardConeMesh, homingGullMesh, itemBoxMesh } from "./item-meshes";
+import {
+  hazardConeMesh,
+  homingGullMesh,
+  itemBoxMesh,
+  marshalFlagMesh,
+  runawayWheelBounce,
+  runawayWheelMesh,
+} from "./item-meshes";
 import type { KartLabel } from "./kart-labels";
 import { dressKart, fitKart, type KartFit } from "./kart-model";
 import { createKartShadows } from "./kart-shadows";
@@ -62,6 +69,9 @@ const SPARK_HALO_BRIGHTNESS = 0.45;
 const ITEM_BOX_HEIGHT_M = 1;
 /** How high the projectile (ADR 0007) flies over where the sim has it. */
 const PROJECTILE_HEIGHT_M = 0.6;
+/** The marshal waves the flag this fast, radians a second, through this half-swing. */
+const FLAG_WAVE_RAD_PER_S = 14;
+const FLAG_WAVE_SWING_RAD = 0.6;
 
 export interface RaceView {
   /**
@@ -71,7 +81,9 @@ export interface RaceView {
    * only while it counts down), hang the labels the karts call for and
    * hide every other kart's, move the camera to `camera`, show each item
    * box that is there to pick up, a cone at each hazard and a gull at
-   * each projectile, turned toward the kart it homes in on.
+   * each projectile, turned toward the kart it homes in on, and at each
+   * wheel crossing the rolling wheel and the marshal's flag waving while
+   * it is up.
    */
   update(race: RaceReadout, camera: CameraPose, frameSeconds: number): void;
   render(): void;
@@ -107,6 +119,8 @@ export interface ViewAssets {
  * `spinOutSeconds`, a shadow disc on the track under every kart so a
  * hop's height reads against the ground, a flame at the exhaust of every
  * boosting kart and, round the own kart alone, wind lines while it boosts.
+ * At each wheel crossing a runaway wheel `runawayWheelRadius` in size rolls
+ * where the readout has it, and the marshal's flag waves while it is up.
  * `labelsFor` names the karts to label and where, from the frame's readouts. Picks WebGPU when the
  * browser has it and WebGL otherwise.
  */
@@ -117,6 +131,7 @@ export async function createRaceView(
   assets: ViewAssets,
   itemBoxes: readonly ItemBox[],
   spinOutSeconds: number,
+  runawayWheelRadius: number,
   labelsFor: (karts: readonly KartReadout[]) => readonly KartLabel[],
   viewer: ViewerOptions,
 ): Promise<RaceView> {
@@ -231,6 +246,7 @@ export async function createRaceView(
 
   const cones = meshPool(world, hazardConeMesh(), 0);
   const gulls = meshPool(world, homingGullMesh(), PROJECTILE_HEIGHT_M);
+  const runaways = runawayWheels(world, track.scene, runawayWheelRadius);
 
   const labels = Array.from({ length: kartCount }, (_, slot) => {
     const element = document.createElement("div");
@@ -298,6 +314,7 @@ export async function createRaceView(
       flameMesh.update(frameSeconds);
       cones.show(hazards);
       gulls.show(projectiles, (projectile) => readouts[projectile.target]?.position);
+      runaways.show(race.wheels, frameSeconds);
       for (const label of labels) {
         label.visible = false;
       }
@@ -331,6 +348,112 @@ export async function createRaceView(
 }
 
 type Position = readonly [number, number, number];
+
+interface RunawayWheels {
+  /** Roll each crossing's wheel to where `wheels` has it and wave its flag while it is up. */
+  show(wheels: readonly Wheel[], frameSeconds: number): void;
+}
+
+/**
+ * A runaway wheel `radius` in size per crossing in `world`, and a flag on
+ * each marshal post the track's glTF stands beside one, crossing and post
+ * matched by their number. The wheel turns by the ground it covers and
+ * bounces as it rolls; the flag flies across the track, toward the post's
+ * lamp.
+ */
+function runawayWheels(world: ThreeScene, track: Object3D, radius: number): RunawayWheels {
+  const posts = marshalPosts(track);
+  const template = runawayWheelMesh(radius);
+  interface Drawn {
+    readonly heading: Group;
+    readonly spin: Object3D;
+    readonly flag: Object3D | undefined;
+    /** Where the wheel was last frame; unset while it is off the course. */
+    last: Vector3 | undefined;
+  }
+  const drawn: Drawn[] = [];
+  const drawnAt = (crossing: number): Drawn => {
+    const made = drawn[crossing];
+    if (made !== undefined) return made;
+    const heading = new Group();
+    const spin = template.clone();
+    heading.add(spin);
+    world.add(heading);
+    const post = posts.get(crossing);
+    let flag: Object3D | undefined;
+    if (post !== undefined) {
+      flag = marshalFlagMesh();
+      flag.position.copy(post.top);
+      // The cloth flies along the flag's +x, turned toward the track.
+      flag.rotation.y = Math.atan2(-post.inward.z, post.inward.x);
+      world.add(flag);
+    }
+    const entry: Drawn = { heading, spin, flag, last: undefined };
+    drawn[crossing] = entry;
+    return entry;
+  };
+  const at = new Vector3();
+  let waveSeconds = 0;
+  return {
+    show(wheels, frameSeconds) {
+      waveSeconds += frameSeconds;
+      wheels.forEach((wheel, crossing) => {
+        const entry = drawnAt(crossing);
+        if (entry.flag !== undefined) {
+          entry.flag.visible = wheel.kind !== "quiet";
+          entry.flag.rotation.z = Math.sin(waveSeconds * FLAG_WAVE_RAD_PER_S) * FLAG_WAVE_SWING_RAD;
+        }
+        entry.heading.visible = wheel.kind === "rolling";
+        if (wheel.kind !== "rolling") {
+          entry.last = undefined;
+          return;
+        }
+        at.set(...wheel.position);
+        // Rolling toward its -z, the wheel turns back about its axle by the
+        // ground it covered since the last frame.
+        if (entry.last !== undefined) {
+          entry.spin.rotation.x -= at.distanceTo(entry.last) / radius;
+        }
+        entry.last = at.clone();
+        entry.heading.position.set(at.x, at.y + radius + runawayWheelBounce(wheel.fraction), at.z);
+        entry.heading.rotation.y = wheel.yaw;
+      });
+    },
+  };
+}
+
+/** Where a marshal post's flag stands, and the level way from the post toward the track. */
+interface MarshalPost {
+  readonly top: Vector3;
+  readonly inward: Vector3;
+}
+
+/**
+ * Each marshal post in the track's glTF, by its number: the top of its box,
+ * where the flag stands, and the level direction from the post to its lamp,
+ * toward the track. The loader drops the dots from the exported names.
+ */
+function marshalPosts(track: Object3D): Map<number, MarshalPost> {
+  const parts = new Map<number, { post?: Box3; lamp?: Box3 }>();
+  track.traverse((node) => {
+    const match = /^MarshalPost\.?(\d+)\.?(board|chevron)$/.exec(node.name);
+    if (match === null) return;
+    const number = Number(match[1]);
+    const entry = parts.get(number) ?? {};
+    const bounds = new Box3().setFromObject(node);
+    if (match[2] === "board") entry.post = bounds;
+    else entry.lamp = bounds;
+    parts.set(number, entry);
+  });
+  const posts = new Map<number, MarshalPost>();
+  for (const [number, { post, lamp }] of parts) {
+    if (post === undefined || lamp === undefined) continue;
+    const centre = post.getCenter(new Vector3());
+    const inward = lamp.getCenter(new Vector3()).sub(centre).setY(0).normalize();
+    posts.set(number, { top: new Vector3(centre.x, post.max.y, centre.z), inward });
+  }
+  return posts;
+}
 
 interface MeshPool {
   /**

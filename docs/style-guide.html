@@ -463,6 +463,26 @@
       </article>
 
       <article class="asset">
+        <header><h3>Runaway wheel</h3><code>apps/web/src/item-meshes.ts runawayWheelMesh</code></header>
+        <div class="compare"><figure><figcaption>Mid-bounce over the asphalt</figcaption><div class="stage flat" data-draw="runawayWheel"></div></figure></div>
+        <dl class="spec"><dt>Size</dt><dd>0.45 m radius (<code>WHEEL_RADIUS_M</code> in <code>tuning.rs</code>), 0.36 m wide</dd><dt>Decided</dt><dd><a href="adr/0041-track-obstacles.md">ADR 0041</a></dd></dl>
+        <div class="notes">
+          <p>The kart's wheel grown to the sim's reach: an eight-facet tyre in the kart's tyre grey <code>#5d5d61</code> with a three-spoke rim in its rim grey <code>#84868b</code> proud of each face. The View rolls it wall to wall across the approach to Brands Patch's hairpin two from the race clock, turning it by the ground it covers and bouncing it three times a pass; a kart it reaches spins out.</p>
+          <p>It is built in code like the items, not in the track's glTF, because it moves. The bounce is drawn only: the sim rolls it along the ground, so the reach it tests is the one the player sees where the wheel meets the road.</p>
+        </div>
+      </article>
+
+      <article class="asset">
+        <header><h3>Marshal post</h3><code>assets/tracks/trackgen/layout.py marshal_posts, apps/web/src/item-meshes.ts marshalFlagMesh</code></header>
+        <div class="compare"><figure><figcaption>Flag up before and through a pass</figcaption><div class="stage flat" data-draw="marshalPost"></div></figure></div>
+        <dl class="spec"><dt>Size</dt><dd>1 x 1 x 2 m, 3 m short of the wheel's crossing on the outside run-off</dd><dt>Decided</dt><dd><a href="adr/0041-track-obstacles.md">ADR 0041</a></dd></dl>
+        <div class="notes">
+          <p>A white box with an orange lamp <code>#ff8800</code> on its face to the track: scenery in the track's glTF. The View stands a yellow flag <code>#f5c542</code> on its top, flying across the track toward the lamp, and waves it from a second before each pass until the pass ends.</p>
+          <p>The yellow flag is the warning a racer already knows, and the post keeps it where the wheel will come from.</p>
+        </div>
+      </article>
+
+      <article class="asset">
         <header><h3>Boost pad</h3><code>assets/tracks/trackgen/layout.py boost_pads, assets/tracks/build.py</code></header>
         <div class="compare"><figure><figcaption>From above</figcaption><div class="stage flat" data-draw="pad"></div></figure></div>
         <dl class="spec"><dt>Size</dt><dd>6 x 4 m, the sim's rectangle (<code>BOOST_PAD_HALF_*</code> in <code>tuning.rs</code>)</dd><dt>Decided</dt><dd><a href="adr/0034-chibi-low-poly-art.md">ADR 0034</a></dd></dl>
@@ -1034,6 +1054,26 @@
       <rect x="114" y="36" width="14" height="88" rx="7" fill="#ffd23f"/>${stripes}
       <path d="M 20 140 Q 40 128 60 140 Z" fill="#ffd23f"/><rect x="12" y="140" width="56" height="2" fill="#2a2a2e"/></svg>`;
   };
+  // From the side: the wheel mid-bounce over the asphalt, its shadow under it.
+  draw.runawayWheel = () => {
+    const spokes = [0, 1, 2].map((k) => {
+      const a = (2 * Math.PI * k) / 3 - Math.PI / 2;
+      return `<line x1="100" y1="70" x2="${100 + 40 * Math.cos(a)}" y2="${70 + 40 * Math.sin(a)}" stroke="#84868b" stroke-width="7"/>`;
+    }).join("");
+    const tyre = Array.from({ length: 8 }, (_, k) => {
+      const a = (2 * Math.PI * (k + 0.5)) / 8;
+      return `${100 + 46 * Math.cos(a)},${70 + 46 * Math.sin(a)}`;
+    }).join(" ");
+    return `<svg viewBox="0 0 200 160" role="img" aria-label="Runaway wheel bouncing over the asphalt">
+      <rect width="200" height="160" fill="#87ceeb"/><rect y="132" width="200" height="28" fill="#6b6b78"/>
+      <ellipse cx="100" cy="138" rx="40" ry="6" fill="rgba(0,0,0,.3)"/>
+      <polygon points="${tyre}" fill="#5d5d61"/><circle cx="100" cy="70" r="26" fill="#84868b"/>${spokes}</svg>`;
+  };
+  // From the track: the post on the run-off, its lamp facing out, the flag up.
+  draw.marshalPost = () => `<svg viewBox="0 0 200 160" role="img" aria-label="Marshal post with its lamp and the yellow flag up">
+    <rect width="200" height="160" fill="#87ceeb"/><rect y="132" width="200" height="28" fill="#e8c773"/>
+    <rect x="80" y="52" width="40" height="80" fill="#f5f5f5"/><rect x="93" y="62" width="14" height="14" fill="#ff8800"/>
+    <rect x="98" y="8" width="3" height="44" fill="#cfd2d6"/><rect x="101" y="8" width="34" height="22" fill="#f5c542" transform="rotate(-12 100 52)"/></svg>`;
   // Top-down: the track runs up the page, the pad's rectangle spans 6 m of its width.
   const padGround = (inner) => `<svg viewBox="0 0 200 160" role="img" aria-label="Boost pad on asphalt from above">
     <rect width="200" height="160" fill="#6b6b78"/><rect x="0" width="10" height="160" fill="#e8c773"/><rect x="190" width="10" height="160" fill="#e8c773"/>${inner}</svg>`;
@@ -1187,6 +1227,8 @@
       { token: "GREYS.grey", hex: 0xb9bec5, role: "Grey: the gull's wings" },
       { token: "GREYS.dark", hex: 0x9aa0a8, role: "Grey, dark: the cone's slab, the gull's tail" },
       { token: "GREYS.deep", hex: 0x6f747b, role: "Grey, deep" },
+      { token: "KART_TYRE", hex: 0x5d5d61, role: "The runaway wheel's tyre, as the kart's tyre draws" },
+      { token: "KART_RIM", hex: 0x84868b, role: "The runaway wheel's rim, as the kart's rim draws" },
       { token: "GULL_EYE", hex: 0xd00a12, role: "The gull's eye, locked on" },
       { token: "ROCKET", tones: [0xe8333b, 0xd00a12, 0x8f070c], role: "The snail's rocket" },
       { token: "ROCKET_FLAME", hex: 0xffd23f, role: "The rocket's flame" },

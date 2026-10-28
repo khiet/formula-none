@@ -12,7 +12,9 @@
 use protocol::{ClientMessage, Input, ServerMessage, Snapshot};
 use serde::de::DeserializeOwned;
 use serde::Serialize;
-use sim::{KartInput, KartReadout, Phase, Projectile, Replay, Standing, State, Surface, Track};
+use sim::{
+    KartInput, KartReadout, Phase, Projectile, Replay, Standing, State, Surface, Track, Wheel,
+};
 use wasm_bindgen::prelude::*;
 
 /// Floats per kart in the input buffer: steer, throttle, brake, hop, use
@@ -252,6 +254,12 @@ impl Race {
         projectile_floats(self.state().projectiles())
     }
 
+    /// The runaway wheel at each of the track's crossings as of the last
+    /// step, in the floats [`wheel_floats`] documents.
+    pub fn wheels(&self) -> Vec<f32> {
+        wheel_floats(&self.state().wheels())
+    }
+
     /// Three floats for where the race is (`sim::Phase`): the phase as
     /// `sim::Phase::code` (0 countdown, 1 racing, 2 outro, 3 finished);
     /// then the countdown's seconds to Go, or the race clock in seconds
@@ -402,6 +410,19 @@ impl Prediction {
         projectile_floats(&self.interpolation.projectiles())
     }
 
+    /// The runaway wheel at each of the track's crossings at the predicted
+    /// kart's tick, in the floats `Race::wheels` gives: the wheel that hits
+    /// the predicted kart.
+    pub fn wheels(&self) -> Vec<f32> {
+        wheel_floats(&self.inner.wheels())
+    }
+
+    /// The server's race has ended: the prediction runs its outro from now
+    /// on, as `sim::Prediction::end_race` documents.
+    pub fn end_race(&mut self) {
+        self.inner.end_race();
+    }
+
     /// The race clock at the predicted kart's tick, in the three floats
     /// `Race::phase` gives; never finished, since the server's results end
     /// the race.
@@ -448,6 +469,27 @@ fn projectile_floats(projectiles: &[Projectile]) -> Vec<f32> {
         .flat_map(|projectile| {
             let [x, y, z] = projectile.position;
             [x, y, z, projectile.owner as f32, projectile.target as f32]
+        })
+        .collect()
+}
+
+/// Six floats per crossing, in the track's order: 0 while the wheel is
+/// quiet, 1 while the flag is up before a pass, 2 while it rolls; then,
+/// while it rolls, its centre x, y, z, the yaw it rolls toward (radians
+/// about +Y, zero facing -Z) and how far through the pass it is, 0 to 1,
+/// else zeros.
+fn wheel_floats(wheels: &[Wheel]) -> Vec<f32> {
+    wheels
+        .iter()
+        .flat_map(|wheel| match *wheel {
+            Wheel::Quiet => [0.0; 6],
+            Wheel::Warning => [1.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+            Wheel::Rolling {
+                position: [x, y, z],
+                yaw,
+                fraction,
+                ..
+            } => [2.0, x, y, z, yaw, fraction],
         })
         .collect()
 }

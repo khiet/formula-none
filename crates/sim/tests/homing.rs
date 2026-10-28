@@ -130,7 +130,13 @@ fn a_fired_projectile_travels_the_spline_at_the_tuned_speed_and_spins_out_the_ka
         last = projectile;
     }
     let (tick, event) = hit.expect("the projectile caught kart 0");
-    assert_eq!(event, RaceEvent::SpunOut { kart: 0, by: 1 });
+    assert_eq!(
+        event,
+        RaceEvent::SpunOut {
+            kart: 0,
+            by: Some(1)
+        }
+    );
     assert!(tick > ticks(0.5), "it took a while: {tick} ticks");
     assert!(state.projectiles().is_empty(), "used up");
     let [target, owner] = state.kart_readouts()[..] else {
@@ -162,7 +168,13 @@ fn the_target_is_the_kart_next_ahead_by_race_position_not_the_leader() {
     for _ in 0..ticks(4.0) {
         state = step(state, &[throttle(), idle(), idle()], DT);
         if let Some(event) = spun_out(state.events()) {
-            assert_eq!(event, RaceEvent::SpunOut { kart: 1, by: 2 });
+            assert_eq!(
+                event,
+                RaceEvent::SpunOut {
+                    kart: 1,
+                    by: Some(2)
+                }
+            );
             assert_eq!(
                 state.kart_readouts()[0].spin_out_s,
                 None,
@@ -286,7 +298,11 @@ fn a_projectile_is_spent_on_a_target_already_spun_out() {
     let mut first_hit = false;
     for _ in 0..ticks(3.0) {
         state = step(state, &[throttle(), idle(), throttle()], DT);
-        first_hit |= spun_out(state.events()) == Some(RaceEvent::SpunOut { kart: 0, by: 1 });
+        first_hit |= spun_out(state.events())
+            == Some(RaceEvent::SpunOut {
+                kart: 0,
+                by: Some(1),
+            });
         if first_hit && state.standings()[2].position == 2 {
             break;
         }
@@ -332,7 +348,12 @@ fn a_bot_fires_a_projectile_within_the_tuned_delay_when_a_kart_is_ahead_and_hold
             );
             fired_at = Some(tick);
         }
-        if spun_out(state.events()) == Some(RaceEvent::SpunOut { kart: 0, by: 1 }) {
+        if spun_out(state.events())
+            == Some(RaceEvent::SpunOut {
+                kart: 0,
+                by: Some(1),
+            })
+        {
             assert!(fired_at.is_some());
             break;
         }
