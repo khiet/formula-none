@@ -1,0 +1,1278 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Sound Effects Rig</title>
+<meta name="description" content="Tune every race sound by ear: an F1-style engine with gears, and three synthesised takes on each cue, beside a clip of the action each one marks." />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bungee&family=IBM+Plex+Sans:wght@400;600&family=Silkscreen&family=IBM+Plex+Mono&display=swap">
+<style>
+  /* Tokens mirror docs/mockups/item-icon-sets.html so the mockups read as one family. */
+  :root {
+    --bg: #eef0f3;
+    --fg: #1b1d22;
+    --muted: #5b6170;
+    --rule: #cfd3db;
+    --card: #ffffff;
+    --well: #e3e6eb;
+    --gold: #c99a2e;
+    --gold-light: #fde97a;
+    --accent: #d62828;
+    --ok: #2f9e44;
+    --wave: #1b1d22;
+    --display: "Bungee", "Arial Black", Impact, sans-serif;
+    --body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --pixel: "Silkscreen", "Kenney Mini Square", ui-monospace, monospace;
+    --mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #15171a; --fg: #ece7d8; --muted: #9a9fab; --rule: #2c3036; --card: #1e2126; --well: #121418; --wave: #ece7d8; color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #15171a; --fg: #ece7d8; --muted: #9a9fab; --rule: #2c3036; --card: #1e2126; --well: #121418; --wave: #ece7d8; color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--fg);
+    font-family: var(--body);
+    font-size: 16px;
+    line-height: 1.5;
+    padding: 2.5rem 16px 4rem;
+  }
+  main { max-width: 64rem; margin: 0 auto; display: grid; gap: 3rem; }
+  header { display: grid; gap: 0.6rem; }
+  header .intro { max-width: 42rem; display: grid; gap: 0.6rem; }
+  h1 { font-family: var(--display); font-size: clamp(1.6rem, 4vw, 2.4rem); line-height: 1.1; margin: 0; text-wrap: balance; letter-spacing: 0.01em; }
+  header p { margin: 0; color: var(--muted); }
+  .eyebrow { font-family: var(--pixel); font-size: 0.8rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--gold); }
+  h2 { font-family: var(--display); font-size: 1.35rem; margin: 0; }
+  h3 { font-family: var(--display); font-size: 1.05rem; margin: 0; font-weight: 400; }
+  h3 small { display: block; font-family: var(--mono); font-size: 0.72rem; color: var(--muted); font-weight: 400; margin-top: 0.15rem; }
+  button, select { font: inherit; color: inherit; }
+  button {
+    background: var(--card); border: 1px solid var(--rule); border-radius: 6px; padding: 0.35rem 0.8rem; cursor: pointer;
+  }
+  button:hover { border-color: var(--gold); }
+  button.primary { background: var(--gold); color: #1b1d22; border-color: var(--gold); font-weight: 600; }
+  button.primary:hover { background: var(--gold-light); }
+  button[aria-pressed="true"] { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+  button.danger { color: var(--accent); }
+  button:disabled { opacity: 0.5; cursor: default; }
+  label.field { display: grid; grid-template-columns: minmax(7rem, 11rem) 1fr 4.5rem; align-items: center; gap: 0.6rem; font-size: 0.85rem; }
+  label.field span.name { color: var(--muted); }
+  label.field span.value { font-family: var(--mono); font-size: 0.78rem; text-align: right; }
+  input[type="range"] { width: 100%; accent-color: var(--gold); margin: 0; }
+  .bar {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 0.6rem 1.25rem;
+    padding: 0.8rem 1rem; border: 1px solid var(--rule); border-radius: 8px; background: var(--card);
+  }
+  .bar .group { display: flex; align-items: center; gap: 0.5rem; font-size: 0.85rem; }
+  .bar .group input[type="range"] { width: 7rem; }
+  .bar .group .value { font-family: var(--mono); font-size: 0.78rem; min-width: 3.5rem; }
+  .bar .spacer { flex: 1 1 auto; }
+  #unlock { position: sticky; top: 0.5rem; z-index: 2; display: flex; gap: 1rem; align-items: center; background: var(--gold); color: #1b1d22; padding: 0.6rem 1rem; border-radius: 8px; box-shadow: 0 4px 16px rgba(0,0,0,0.2); }
+  #unlock[hidden] { display: none; }
+  #unlock button { background: #1b1d22; color: var(--gold-light); border-color: #1b1d22; }
+
+  section { display: grid; gap: 1.25rem; border-top: 2px solid var(--rule); padding-top: 1.5rem; }
+  .section-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.5rem 1.25rem; }
+  .section-head .tag { font-family: var(--pixel); font-size: 0.75rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+  section > p.concept { margin: 0; max-width: 42rem; color: var(--muted); }
+
+  /* The engine rig: the clip and the dash on the left, the sliders on the right. */
+  .rig { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 1.5rem; }
+  @media (max-width: 760px) { .rig { grid-template-columns: 1fr; } }
+  .rig .panel { display: grid; gap: 1rem; min-width: 0; }
+  .dash {
+    display: grid; grid-template-columns: auto 1fr; gap: 0.5rem 1.25rem; align-items: center;
+    padding: 1rem 1.25rem; border-radius: 10px; background: #121418; color: #ece7d8;
+    border: 3px solid #3a1c0a; box-shadow: inset 0 0 0 2px #c99a2e;
+  }
+  .dash .gear { font-family: var(--pixel); font-size: 3.2rem; line-height: 1; color: var(--gold-light); min-width: 2.2ch; text-align: center; }
+  .dash .gear small { display: block; font-size: 0.6rem; letter-spacing: 0.1em; color: #9a9fab; margin-top: 0.3rem; }
+  .dash .leds { display: grid; grid-template-columns: repeat(15, 1fr); gap: 3px; }
+  .dash .leds i { display: block; height: 14px; border-radius: 2px; background: #2c3036; }
+  .dash .leds i.on { background: var(--led); box-shadow: 0 0 6px var(--led); }
+  .dash .readout { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 0.4rem 1.25rem; font-family: var(--mono); font-size: 0.78rem; color: #9a9fab; }
+  .dash .readout b { color: #ece7d8; font-weight: 400; }
+  .scope { width: 100%; height: 110px; display: block; background: var(--well); border-radius: 6px; }
+  .keys { font-size: 0.85rem; color: var(--muted); display: grid; gap: 0.25rem; }
+  .keys kbd { font-family: var(--mono); font-size: 0.78rem; background: var(--well); border: 1px solid var(--rule); border-radius: 4px; padding: 0 0.35rem; color: var(--fg); }
+  .buttons { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
+  .params { display: grid; gap: 0.45rem; }
+  .params h4 { margin: 0.5rem 0 0; font-size: 0.75rem; font-family: var(--pixel); letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+
+  /* One card per cue. */
+  .cues { display: grid; gap: 1.25rem; }
+  .cue {
+    display: grid; grid-template-columns: 320px minmax(0, 1fr); gap: 1.25rem;
+    padding: 1.25rem; border: 1px solid var(--rule); border-radius: 10px; background: var(--card); min-width: 0;
+  }
+  @media (max-width: 760px) { .cue { grid-template-columns: 1fr; } }
+  .cue.picked { border-color: var(--gold); box-shadow: 0 0 0 2px var(--gold); }
+  .clip { display: grid; gap: 0.5rem; align-content: start; }
+  .clip .frame { position: relative; aspect-ratio: 16 / 9; width: 100%; max-width: 320px; border-radius: 6px; overflow: hidden; background: #121418; display: grid; place-items: center; }
+  .clip img { width: 100%; height: 100%; object-fit: cover; display: block; image-rendering: auto; }
+  .clip .frame .missing { display: none; font-family: var(--pixel); font-size: 0.7rem; color: #9a9fab; text-align: center; padding: 1rem; }
+  .clip .frame.missing img { display: none; }
+  .clip .frame.missing .missing { display: block; }
+  .clip .when { font-size: 0.85rem; color: var(--muted); margin: 0; }
+  .clip .when b { color: var(--fg); font-weight: 600; }
+  .cue .body { display: grid; gap: 0.8rem; min-width: 0; align-content: start; }
+  .cue .head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 0.5rem; }
+  .tabs { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+  .tabs button { position: relative; padding-left: 0.7rem; }
+  .tabs button .star { color: var(--gold); margin-left: 0.3rem; }
+  .tabs button .today { font-family: var(--pixel); font-size: 0.55rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); margin-left: 0.4rem; }
+  .tabs button[aria-pressed="true"] .today { color: var(--gold-light); }
+  .blurb { margin: 0; font-size: 0.85rem; color: var(--muted); }
+  .transport { display: flex; flex-wrap: wrap; align-items: center; gap: 0.6rem 1rem; }
+  .transport .duration { font-family: var(--mono); font-size: 0.78rem; color: var(--muted); }
+  .transport label.speed { display: flex; align-items: center; gap: 0.5rem; font-size: 0.85rem; }
+  .transport label.speed input { width: 8rem; }
+  .transport label.speed .value { font-family: var(--mono); font-size: 0.78rem; min-width: 4.5rem; }
+  .wave { width: 100%; height: 64px; display: block; background: var(--well); border-radius: 6px; }
+
+  .picks { display: grid; gap: 0.75rem; }
+  .picks textarea { width: 100%; min-height: 14rem; font-family: var(--mono); font-size: 0.75rem; background: var(--well); color: var(--fg); border: 1px solid var(--rule); border-radius: 6px; padding: 0.75rem; resize: vertical; }
+  footer { border-top: 2px solid var(--rule); padding-top: 1.5rem; color: var(--muted); max-width: 42rem; font-size: 0.95rem; }
+  footer ol { padding-left: 1.2rem; margin: 0.5rem 0 0; display: grid; gap: 0.3rem; }
+  footer b { color: var(--fg); }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <div class="intro">
+      <span class="eyebrow">Audio / ADR 0025</span>
+      <h1>Sound effects, tuned by ear</h1>
+      <p>Every sound here is synthesised in the page from the sliders beside it, the way <code>assets/audio/build.py</code> synthesises the shipped set, so a tweak plays at once. The engine is an F1-style rig with gears that are derived from speed alone, as the client would derive them. Beside each cue runs a clip of the action it marks. Pick a variant per cue and the picks panel at the foot collects every chosen parameter as JSON.</p>
+    </div>
+    <div id="unlock"><span>The browser keeps audio muted until a click.</span><button type="button" id="unlock-button">Enable audio</button></div>
+    <div class="bar" id="mixer">
+      <div class="group"><span>Master</span><input type="range" id="master" min="0" max="1" step="0.05" value="1"><span class="value" data-for="master">1.00</span></div>
+      <div class="group"><span>Engine level</span><input type="range" id="level-engine" min="0" max="1" step="0.01" value="0.12"><span class="value" data-for="level-engine">0.12</span></div>
+      <div class="group"><span>SFX level</span><input type="range" id="level-sfx" min="0" max="1" step="0.01" value="0.8"><span class="value" data-for="level-sfx">0.80</span></div>
+      <div class="group"><button type="button" id="bed" aria-pressed="false">Engine bed</button><input type="range" id="bed-speed" min="0" max="42" step="0.5" value="22"><span class="value" data-for="bed-speed">22.0 m/s</span></div>
+      <span class="spacer"></span>
+      <button type="button" id="theme">Theme: auto</button>
+      <button type="button" id="reset-all" class="danger">Reset all</button>
+    </div>
+  </header>
+
+  <section id="engine">
+    <div class="section-head"><h2>Engine</h2><span class="tag">V10, six gears, Presentation only</span></div>
+    <p class="concept">Two detuned sawtooths, a square sub an octave down and a thread of intake noise, through a lowpass that opens with revs. Speed splits into gears whose bands widen geometrically, so the first shifts come fast and the top gear holds; past top speed a boost revs sixth into a limiter. Load is inferred from the change in speed: rising is on throttle, falling is overrun with crackle. Drive it with the keys or run the scripted lap, which uses the sim's own constants (30 m/s top, 2.5 s to top, 1.5 s to stop, 4 s coasting).</p>
+    <div class="rig">
+      <div class="panel">
+        <div class="clip">
+          <div class="frame" data-clip="engine"><img src="sound-effects/engine.gif" alt="A launch from the grid to top speed" onerror="this.parentElement.classList.add('missing')"><span class="missing">engine: clip not staged</span></div>
+        </div>
+        <div class="dash">
+          <div class="gear"><span id="gear">N</span><small>GEAR</small></div>
+          <div class="leds" id="leds"></div>
+          <div class="readout">
+            <span>speed <b id="speed">0.0</b> m/s</span>
+            <span>rpm <b id="rpm">0</b> %</span>
+            <span>load <b id="load">0.00</b></span>
+            <span>note <b id="note">0</b> Hz</span>
+            <span id="limiter-tag"></span>
+          </div>
+        </div>
+        <canvas class="scope" id="scope" width="640" height="110"></canvas>
+        <div class="buttons">
+          <button type="button" class="primary" id="engine-toggle">Start engine</button>
+          <button type="button" id="drive">Run the scripted lap</button>
+          <select id="start-tier" aria-label="Rocket start tier">
+            <option value="clean">Rocket start: clean</option>
+            <option value="weakBoost">Rocket start: weak boost</option>
+            <option value="fullBoost" selected>Rocket start: full boost</option>
+            <option value="stall">Rocket start: stall</option>
+          </select>
+        </div>
+        <div class="keys">
+          <span><kbd>ArrowUp</kbd> throttle, <kbd>ArrowDown</kbd> brake, <kbd>B</kbd> a 1.4x boost for 1.5 s, <kbd>M</kbd> a mini-turbo (1.3x for 1 s), <kbd>Shift</kbd> at a standstill revs the rocket start tier.</span>
+          <span>Keys work while the engine runs and the page has focus. The scripted lap: launch, cruise, lift, brake, relaunch, boost pad, brake to a stop.</span>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="params" id="engine-params"></div>
+        <div class="buttons"><button type="button" id="engine-reset">Reset engine</button></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="cues-section">
+    <div class="section-head"><h2>Cues</h2><span class="tag">three takes each; A is today's sound where one ships; the starred pick is the proposal</span></div>
+    <p class="concept">Each card is one cue the race fires, named as <code>audio-cues.ts</code> names it, with the change that fires it. Each comes with a proposed pick, chosen so the cue sits above the engine note (110 to 720 Hz) and so the countdown and GO share a family while the mini-turbo and the boost pad do not; Pick this on another variant overrides it. Loops run until stopped and scale with the speed slider. The waveform under the transport is the rendered buffer, exactly what would be written to the WAV.</p>
+    <div class="cues" id="cues"></div>
+  </section>
+
+  <section id="picks-section">
+    <div class="section-head"><h2>Picks</h2><span class="tag">paste this back</span></div>
+    <p class="concept">The picked variant of every cue with its parameters, the engine's parameters and the mix levels. Copy it into the issue or the chat and the port to <code>build.py</code> and <code>audio.ts</code> follows from it.</p>
+    <div class="picks">
+      <div class="buttons"><button type="button" class="primary" id="copy-picks">Copy JSON</button><span id="copy-note" class="blurb"></span></div>
+      <textarea id="picks" readonly spellcheck="false"></textarea>
+    </div>
+  </section>
+
+  <footer>
+    <b>How to use it.</b>
+    <ol>
+      <li>Click Enable audio, then Start engine, and run the scripted lap. Adjust the gear count and the band ratio until the shifts land where the launch feels like it steps.</li>
+      <li>Turn on the engine bed at a cruising speed, then audition each cue over it: the game mixes the engine at 0.12 and the SFX at 0.8.</li>
+      <li>Pick one variant per cue. Tweaks and picks survive a reload; Reset all clears them.</li>
+      <li>Copy the picks JSON and paste it back. Nothing here touches the game until that port.</li>
+    </ol>
+  </footer>
+</main>
+
+<script>
+"use strict";
+// ---------------------------------------------------------------------------
+// DSP kit: sample arrays at the shipped SFX rate, mirroring build.py's
+// helpers (tone, noise, mix, concat) plus the filters and loops the new cues
+// need. Everything is deterministic: the noise is seeded, so a render with
+// the same parameters is the same buffer.
+// ---------------------------------------------------------------------------
+const RATE = 22050;
+const TAU = Math.PI * 2;
+const sec = (n) => Math.max(0, Math.round(n * RATE));
+const WAVES = {
+  sine: (p) => Math.sin(p),
+  square: (p) => (Math.sin(p) >= 0 ? 1 : -1),
+  triangle: (p) => (2 / Math.PI) * Math.asin(Math.sin(p)),
+  saw: (p) => ((p % TAU) / Math.PI) - 1,
+  pulse: (p) => ((p % TAU) / TAU < 0.25 ? 1 : -1),
+};
+
+/** A seeded uniform(-1, 1) source (mulberry32). */
+function rng(seed) {
+  let a = (seed * 2654435761) >>> 0;
+  return () => {
+    a = (a + 0x6d2b79f5) >>> 0;
+    let t = a;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return (((t ^ (t >>> 14)) >>> 0) / 4294967296) * 2 - 1;
+  };
+}
+
+/** A note of `length` seconds; the pitch glides to `sweepTo` if given, linearly or exponentially. */
+function tone({ freq, length, wave = "sine", decay = 6, gain = 0.5, sweepTo = null, attack = 0, vibratoHz = 0, vibratoDepth = 0, curve = "linear" }) {
+  const n = sec(length);
+  const out = new Float32Array(n);
+  const fn = WAVES[wave];
+  let phase = 0;
+  for (let i = 0; i < n; i++) {
+    const t = i / RATE;
+    const u = n > 0 ? i / n : 0;
+    let f = sweepTo === null ? freq : curve === "exp" ? freq * Math.pow(sweepTo / freq, u) : freq + (sweepTo - freq) * u;
+    if (vibratoHz > 0) f *= 1 + vibratoDepth * Math.sin(TAU * vibratoHz * t);
+    phase += (TAU * f) / RATE;
+    const a = attack > 0 ? Math.min(1, t / attack) : 1;
+    out[i] = gain * a * Math.exp(-decay * t) * fn(phase);
+  }
+  return out;
+}
+
+function noise({ length, decay = 8, gain = 0.5, seed = 1, attack = 0 }) {
+  const n = sec(length);
+  const out = new Float32Array(n);
+  const next = rng(seed);
+  for (let i = 0; i < n; i++) {
+    const t = i / RATE;
+    const a = attack > 0 ? Math.min(1, t / attack) : 1;
+    out[i] = gain * a * Math.exp(-decay * t) * next();
+  }
+  return out;
+}
+
+const silence = (length) => new Float32Array(sec(length));
+
+function mix(...parts) {
+  const out = new Float32Array(Math.max(0, ...parts.map((p) => p.length)));
+  for (const part of parts) for (let i = 0; i < part.length; i++) out[i] += part[i];
+  return out;
+}
+
+function concat(...parts) {
+  const out = new Float32Array(parts.reduce((n, p) => n + p.length, 0));
+  let at = 0;
+  for (const part of parts) { out.set(part, at); at += part.length; }
+  return out;
+}
+
+function scale(samples, gain) {
+  const out = new Float32Array(samples.length);
+  for (let i = 0; i < samples.length; i++) out[i] = samples[i] * gain;
+  return out;
+}
+
+/** Multiply by `fn(t)` for t in seconds, for envelopes and slow modulation. */
+function envelope(samples, fn) {
+  const out = new Float32Array(samples.length);
+  for (let i = 0; i < samples.length; i++) out[i] = samples[i] * fn(i / RATE);
+  return out;
+}
+
+/** Amplitude chop at `hz`: a tremolo of `depth` (1 gates fully) with a raised-cosine shape. */
+function chop(samples, hz, depth) {
+  return envelope(samples, (t) => 1 - depth * 0.5 * (1 - Math.cos(TAU * hz * t)));
+}
+
+/** One-pole lowpass; `passes` stacks it for a steeper slope. */
+function lowpass(samples, cutoff, passes = 1) {
+  let out = samples;
+  for (let p = 0; p < passes; p++) {
+    const next = new Float32Array(out.length);
+    const dt = 1 / RATE;
+    const rc = 1 / (TAU * cutoff);
+    const a = dt / (rc + dt);
+    let y = 0;
+    for (let i = 0; i < out.length; i++) { y += a * (out[i] - y); next[i] = y; }
+    out = next;
+  }
+  return out;
+}
+
+function highpass(samples, cutoff, passes = 1) {
+  let out = samples;
+  for (let p = 0; p < passes; p++) {
+    const next = new Float32Array(out.length);
+    const dt = 1 / RATE;
+    const rc = 1 / (TAU * cutoff);
+    const a = rc / (rc + dt);
+    let y = 0;
+    let x1 = 0;
+    for (let i = 0; i < out.length; i++) { y = a * (y + out[i] - x1); x1 = out[i]; next[i] = y; }
+    out = next;
+  }
+  return out;
+}
+
+function bandpass(samples, centre, width, passes = 2) {
+  const lo = Math.max(20, centre - width / 2);
+  const hi = Math.max(lo + 20, centre + width / 2);
+  return highpass(lowpass(samples, hi, passes), lo, passes);
+}
+
+/** Random short bursts of noise at about `perSecond`, for crackle and crunch. */
+function pops({ length, perSecond, pop = 0.02, decay = 80, gain = 0.6, seed = 7 }) {
+  const n = sec(length);
+  const out = new Float32Array(n);
+  const next = rng(seed);
+  const burst = rng(seed + 1);
+  const gap = RATE / perSecond;
+  let at = Math.abs(next()) * gap;
+  while (at < n) {
+    const start = Math.round(at);
+    const len = sec(pop);
+    const g = gain * (0.5 + 0.5 * Math.abs(next()));
+    for (let i = 0; i < len && start + i < n; i++) out[start + i] += g * Math.exp(-decay * (i / RATE)) * burst();
+    at += gap * (0.5 + Math.abs(next()));
+  }
+  return out;
+}
+
+/** Crossfade the tail into the head so the buffer loops without a click. */
+function loopable(samples, crossfade = 0.05) {
+  const n = samples.length;
+  const x = Math.min(sec(crossfade), Math.floor(n / 2));
+  const out = new Float32Array(n - x);
+  out.set(samples.subarray(0, n - x));
+  for (let i = 0; i < x; i++) {
+    const u = i / x;
+    out[i] = samples[n - x + i] * (1 - u) + samples[i] * u;
+  }
+  return out;
+}
+
+/** Peak-normalise to `peak` when the render overshoots it; anything past 1 clips on output. */
+function tame(samples, peak = 0.95) {
+  let max = 0;
+  for (let i = 0; i < samples.length; i++) max = Math.max(max, Math.abs(samples[i]));
+  return max > peak ? scale(samples, peak / max) : samples;
+}
+
+// ---------------------------------------------------------------------------
+// Cues. Each has three variants; a variant's params are [value, min, max,
+// step] by key and its render takes the current values plus the speed a
+// loop plays at. Variant A of a shipped cue is build.py's synthesis.
+// ---------------------------------------------------------------------------
+const TOP_SPEED = 30;
+const fraction = (speed) => Math.min(1.5, Math.abs(speed) / TOP_SPEED);
+const notes = (freqs, length, wave, decay, gain) => concat(...freqs.map((f) => tone({ freq: f, length, wave, decay, gain })));
+const chord = (freqs, length, wave, decay, gain) => mix(...freqs.map((f) => tone({ freq: f, length, wave, decay, gain })));
+
+const CUES = [
+  {
+    id: "countdownBeep", pick: 1, slug: "countdown-beep", name: "Countdown beep", shipped: true,
+    when: "as the count the Instrument panel shows changes to 3, 2 or 1",
+    variants: [
+      { name: "Square", blurb: "Today: one short square beep at a fixed pitch.",
+        params: { freq: [880, 300, 2000, 10], length: [0.12, 0.03, 0.5, 0.01], decay: [12, 1, 40, 1], gain: [0.3, 0, 1, 0.05] },
+        render: (p) => tone({ freq: p.freq, length: p.length, wave: "square", decay: p.decay, gain: p.gain }) },
+      { name: "Lights", blurb: "A clean sine bip with a soft attack and an octave under it, like a start-light tone.",
+        params: { freq: [1000, 300, 2000, 10], length: [0.1, 0.03, 0.5, 0.01], attack: [0.005, 0, 0.05, 0.001], sub: [0.15, 0, 0.5, 0.01], gain: [0.35, 0, 1, 0.05] },
+        render: (p) => mix(tone({ freq: p.freq, length: p.length, decay: 10, gain: p.gain, attack: p.attack }), tone({ freq: p.freq / 2, length: p.length, decay: 10, gain: p.sub, attack: p.attack })) },
+      { name: "Pulse", blurb: "A thin 25 percent pulse with a square an octave down; chippier.",
+        params: { freq: [740, 300, 2000, 10], length: [0.09, 0.03, 0.5, 0.01], decay: [14, 1, 40, 1], sub: [0.1, 0, 0.5, 0.01], gain: [0.3, 0, 1, 0.05] },
+        render: (p) => mix(tone({ freq: p.freq, length: p.length, wave: "pulse", decay: p.decay, gain: p.gain }), tone({ freq: p.freq / 2, length: p.length, wave: "square", decay: p.decay, gain: p.sub })) },
+    ],
+  },
+  {
+    id: "go", pick: 1, slug: "go", name: "Go", shipped: true,
+    when: "as the count changes to GO",
+    variants: [
+      { name: "Square", blurb: "Today: a higher, longer square tone so the rocket start can be timed by ear.",
+        params: { freq: [1320, 300, 3000, 10], length: [0.5, 0.1, 1.5, 0.05], decay: [4, 1, 20, 0.5], gain: [0.3, 0, 1, 0.05] },
+        render: (p) => tone({ freq: p.freq, length: p.length, wave: "square", decay: p.decay, gain: p.gain }) },
+      { name: "Lights out", blurb: "A rising sine under a hiss of air: the lights go out and the field goes.",
+        params: { from: [880, 200, 2000, 10], to: [1760, 400, 4000, 10], length: [0.35, 0.1, 1.5, 0.05], hiss: [0.2, 0, 0.8, 0.05], gain: [0.35, 0, 1, 0.05] },
+        render: (p) => mix(tone({ freq: p.from, length: p.length, sweepTo: p.to, decay: 3, gain: p.gain, curve: "exp" }), highpass(noise({ length: p.length * 0.8, decay: 6, gain: p.hiss, seed: 2 }), 3000)) },
+      { name: "Chord stab", blurb: "Three pulse notes struck together and left to ring.",
+        params: { root: [1320, 300, 3000, 10], length: [0.55, 0.1, 1.5, 0.05], decay: [4, 1, 20, 0.5], gain: [0.15, 0, 0.5, 0.01] },
+        render: (p) => chord([p.root, p.root * 1.25, p.root * 1.5], p.length, "pulse", p.decay, p.gain) },
+    ],
+  },
+  {
+    id: "hop", pick: 1, slug: "hop", name: "Hop", shipped: true,
+    when: "as the kart leaves the ground",
+    variants: [
+      { name: "Chirp", blurb: "Today: a quick upward sine chirp.",
+        params: { from: [220, 50, 1000, 10], to: [660, 100, 3000, 10], length: [0.12, 0.03, 0.5, 0.01], decay: [12, 1, 40, 1], gain: [0.5, 0, 1, 0.05] },
+        render: (p) => tone({ freq: p.from, length: p.length, decay: p.decay, sweepTo: p.to, gain: p.gain }) },
+      { name: "Pneumatic", blurb: "A click of air then a short chirp, like a jack letting go.",
+        params: { click: [0.06, 0.01, 0.2, 0.01], from: [450, 50, 1000, 10], to: [1400, 100, 3000, 10], length: [0.1, 0.03, 0.5, 0.01], gain: [0.45, 0, 1, 0.05] },
+        render: (p) => mix(highpass(noise({ length: p.click, decay: 40, gain: p.gain, seed: 3 }), 1500), tone({ freq: p.from, length: p.length, decay: 15, sweepTo: p.to, gain: p.gain * 0.8 })) },
+      { name: "Spring", blurb: "A triangle boing with a wobble, cartoonier.",
+        params: { from: [150, 50, 1000, 10], to: [500, 100, 3000, 10], length: [0.18, 0.03, 0.5, 0.01], wobble: [0.05, 0, 0.2, 0.01], gain: [0.5, 0, 1, 0.05] },
+        render: (p) => tone({ freq: p.from, length: p.length, wave: "triangle", decay: 8, sweepTo: p.to, gain: p.gain, vibratoHz: 30, vibratoDepth: p.wobble }) },
+    ],
+  },
+  {
+    id: "miniTurbo", pick: 1, slug: "mini-turbo", name: "Mini-turbo release", shipped: true,
+    when: "as a charged drift ends into its boost, or a rocket start's charge becomes its boost at GO",
+    variants: [
+      { name: "Zip", blurb: "Today: a sawtooth zip that climbs with the boost.",
+        params: { from: [180, 50, 1000, 10], to: [900, 200, 4000, 10], length: [0.3, 0.05, 1, 0.01], decay: [5, 1, 20, 0.5], gain: [0.4, 0, 1, 0.05] },
+        render: (p) => tone({ freq: p.from, length: p.length, wave: "saw", decay: p.decay, sweepTo: p.to, gain: p.gain }) },
+      { name: "Blow-off", blurb: "A turbo blow-off hiss under an exponential sawtooth rise.",
+        params: { from: [150, 50, 1000, 10], to: [1100, 200, 4000, 10], length: [0.35, 0.05, 1, 0.01], hiss: [0.4, 0, 1, 0.05], gain: [0.35, 0, 1, 0.05] },
+        render: (p) => mix(highpass(noise({ length: p.length, decay: 5, gain: p.hiss, seed: 4 }), 1200), tone({ freq: p.from, length: p.length, wave: "saw", decay: 4, sweepTo: p.to, gain: p.gain, curve: "exp" })) },
+      { name: "Clack and rise", blurb: "A paddle clack, then a pulse and a square climbing together.",
+        params: { from: [200, 50, 1000, 10], to: [1200, 200, 4000, 10], length: [0.4, 0.05, 1, 0.01], clack: [0.8, 0, 1, 0.05], gain: [0.35, 0, 1, 0.05] },
+        render: (p) => concat(noise({ length: 0.015, decay: 80, gain: p.clack, seed: 5 }), mix(tone({ freq: p.from, length: p.length, wave: "pulse", decay: 5, sweepTo: p.to, gain: p.gain }), tone({ freq: p.from / 2, length: p.length, wave: "square", decay: 5, sweepTo: p.to / 2, gain: p.gain * 0.4 }))) },
+    ],
+  },
+  {
+    id: "itemPickup", pick: 2, slug: "item-pickup", name: "Item pickup", shipped: true,
+    when: "as the item slot fills",
+    variants: [
+      { name: "Two blips", blurb: "Today: two rising sine blips.",
+        params: { first: [660, 200, 2000, 10], second: [990, 200, 3000, 10], length: [0.08, 0.03, 0.3, 0.01], decay: [10, 1, 40, 1], gain: [0.5, 0, 1, 0.05] },
+        render: (p) => concat(tone({ freq: p.first, length: p.length, decay: p.decay, gain: p.gain }), tone({ freq: p.second, length: p.length * 1.25, decay: p.decay, gain: p.gain })) },
+      { name: "Arpeggio", blurb: "Three pulse notes up a major chord, the classic pickup.",
+        params: { root: [523, 200, 2000, 1], length: [0.07, 0.03, 0.3, 0.01], decay: [10, 1, 40, 1], gain: [0.35, 0, 1, 0.05] },
+        render: (p) => concat(notes([p.root, p.root * 1.26], p.length, "pulse", p.decay, p.gain), tone({ freq: p.root * 2, length: p.length * 2, wave: "pulse", decay: p.decay, gain: p.gain })) },
+      { name: "Coin", blurb: "A short note then a long ringing one a fourth up.",
+        params: { first: [988, 200, 2000, 1], second: [1319, 200, 3000, 1], ring: [0.25, 0.05, 0.6, 0.01], gain: [0.4, 0, 1, 0.05] },
+        render: (p) => concat(tone({ freq: p.first, length: 0.08, decay: 8, gain: p.gain }), tone({ freq: p.second, length: p.ring, decay: 6, gain: p.gain })) },
+    ],
+  },
+  {
+    id: "itemFire", pick: 2, slug: "item-fire", name: "Item fire", shipped: true,
+    when: "as the item slot empties",
+    variants: [
+      { name: "Thump", blurb: "Today: a low thump under a short burst of noise.",
+        params: { from: [110, 30, 500, 5], to: [50, 20, 300, 5], length: [0.18, 0.05, 0.6, 0.01], burst: [0.1, 0.02, 0.3, 0.01], gain: [0.7, 0, 1, 0.05] },
+        render: (p) => mix(tone({ freq: p.from, length: p.length, decay: 14, sweepTo: p.to, gain: p.gain }), noise({ length: p.burst, decay: 30, seed: 1 })) },
+      { name: "Launch", blurb: "A muffled gas burst and a sawtooth dropping away as the item leaves.",
+        params: { burst: [0.12, 0.02, 0.4, 0.01], from: [300, 50, 1000, 10], to: [60, 20, 300, 5], length: [0.2, 0.05, 0.6, 0.01], gain: [0.6, 0, 1, 0.05] },
+        render: (p) => mix(lowpass(noise({ length: p.burst, decay: 20, gain: p.gain, seed: 6 }), 1500), tone({ freq: p.from, length: p.length, wave: "saw", decay: 8, sweepTo: p.to, gain: p.gain * 0.8 })) },
+      { name: "Pew", blurb: "A square zap falling fast, arcade style.",
+        params: { from: [1200, 200, 4000, 10], to: [200, 50, 1000, 10], length: [0.15, 0.03, 0.5, 0.01], decay: [10, 1, 40, 1], gain: [0.3, 0, 1, 0.05] },
+        render: (p) => tone({ freq: p.from, length: p.length, wave: "square", decay: p.decay, sweepTo: p.to, gain: p.gain, curve: "exp" }) },
+    ],
+  },
+  {
+    id: "hit", pick: 0, slug: "hit", name: "Hit", shipped: true,
+    when: "as a spin-out begins",
+    variants: [
+      { name: "Crash", blurb: "Today: a crash of noise over a low square rumble.",
+        params: { length: [0.45, 0.1, 1.5, 0.05], crash: [0.7, 0, 1, 0.05], rumbleHz: [70, 30, 200, 5], rumble: [0.3, 0, 1, 0.05] },
+        render: (p) => mix(noise({ length: p.length, decay: 7, gain: p.crash, seed: 1 }), tone({ freq: p.rumbleHz, length: p.length, wave: "square", decay: 5, gain: p.rumble })) },
+      { name: "Crunch", blurb: "A duller crash with a sawtooth spiralling down for the spin.",
+        params: { length: [0.5, 0.1, 1.5, 0.05], crash: [0.7, 0, 1, 0.05], cutoff: [1500, 300, 6000, 50], spinFrom: [400, 100, 1000, 10], spinTo: [80, 30, 400, 5], spin: [0.25, 0, 1, 0.05] },
+        render: (p) => mix(lowpass(noise({ length: p.length, decay: 6, gain: p.crash, seed: 8 }), p.cutoff), tone({ freq: 55, length: p.length, wave: "square", decay: 5, gain: 0.3 }), tone({ freq: p.spinFrom, length: p.length * 0.9, wave: "saw", decay: 6, sweepTo: p.spinTo, gain: p.spin })) },
+      { name: "Clang", blurb: "Two inharmonic sines ring like struck metal under a short burst.",
+        params: { freq: [320, 100, 1000, 5], ratio: [1.41, 1.1, 2.5, 0.01], length: [0.5, 0.1, 1.5, 0.05], ring: [0.3, 0, 1, 0.05], burst: [0.5, 0, 1, 0.05] },
+        render: (p) => mix(tone({ freq: p.freq, length: p.length, decay: 7, gain: p.ring }), tone({ freq: p.freq * p.ratio, length: p.length, decay: 9, gain: p.ring * 0.8 }), noise({ length: 0.15, decay: 25, gain: p.burst, seed: 9 })) },
+    ],
+  },
+  {
+    id: "sputter", pick: 0, slug: "sputter", name: "Sputter", shipped: true,
+    when: "as a stall begins at GO; the file runs the stall's length (2 s)",
+    variants: [
+      { name: "Coughs", blurb: "Today: a low rumble chopped into coughs under bursts of noise.",
+        params: { coughsPerS: [7, 2, 15, 0.5], rumbleHz: [55, 30, 150, 1], rumble: [0.35, 0, 1, 0.05], hiss: [0.25, 0, 1, 0.05], length: [2, 0.5, 3, 0.1] },
+        render: (p) => sputter(p.length, p.coughsPerS, p.rumbleHz, p.rumbleHz, p.rumble, p.hiss) },
+      { name: "Droop", blurb: "Slower coughs whose pitch sags as the engine dies.",
+        params: { coughsPerS: [5, 2, 15, 0.5], from: [70, 30, 150, 1], to: [40, 20, 100, 1], rumble: [0.4, 0, 1, 0.05], hiss: [0.2, 0, 1, 0.05], length: [2, 0.5, 3, 0.1] },
+        render: (p) => sputter(p.length, p.coughsPerS, p.from, p.to, p.rumble, p.hiss) },
+      { name: "Backfire", blurb: "A steady low rumble with random pops of backfire.",
+        params: { rumbleHz: [50, 30, 150, 1], rumble: [0.3, 0, 1, 0.05], popsPerS: [6, 1, 20, 0.5], pop: [0.7, 0, 1, 0.05], length: [2, 0.5, 3, 0.1] },
+        render: (p) => mix(envelope(lowpass(tone({ freq: p.rumbleHz, length: p.length, wave: "square", decay: 0, gain: p.rumble }), 300), (t) => 1 - 0.4 * t / p.length), lowpass(pops({ length: p.length, perSecond: p.popsPerS, pop: 0.04, decay: 60, gain: p.pop, seed: 11 }), 2500)) },
+    ],
+  },
+  {
+    id: "lap", pick: 1, slug: "lap", name: "Lap", shipped: true,
+    when: "as the lap count rises; today also at the finish",
+    variants: [
+      { name: "Arpeggio", blurb: "Today: a three-note rising triangle arpeggio.",
+        params: { root: [523.25, 200, 1500, 0.25], length: [0.1, 0.03, 0.3, 0.01], decay: [4, 1, 20, 0.5], gain: [0.5, 0, 1, 0.05] },
+        render: (p) => concat(notes([p.root, p.root * 1.26], p.length, "triangle", p.decay, p.gain), tone({ freq: p.root * 1.5, length: p.length * 2, wave: "triangle", decay: p.decay + 1, gain: p.gain })) },
+      { name: "Sector", blurb: "Two clean sine bips a fourth apart, like a timing beam.",
+        params: { first: [1200, 300, 3000, 10], second: [1600, 300, 4000, 10], gap: [0.05, 0, 0.2, 0.01], gain: [0.35, 0, 1, 0.05] },
+        render: (p) => concat(tone({ freq: p.first, length: 0.1, decay: 12, gain: p.gain }), silence(p.gap), tone({ freq: p.second, length: 0.15, decay: 10, gain: p.gain })) },
+      { name: "Four notes", blurb: "A quick four-note triangle run up the octave.",
+        params: { root: [523.25, 200, 1500, 0.25], length: [0.09, 0.03, 0.3, 0.01], hold: [0.25, 0.05, 0.6, 0.01], gain: [0.45, 0, 1, 0.05] },
+        render: (p) => concat(notes([p.root, p.root * 1.26, p.root * 1.5], p.length, "triangle", 4, p.gain), tone({ freq: p.root * 2, length: p.hold, wave: "triangle", decay: 5, gain: p.gain })) },
+    ],
+  },
+  {
+    id: "driftSkid", pick: 0, slug: "drift-skid", name: "Drift skid", loop: true, speed: true,
+    when: "while a drift is under way; a loop pitched and loudened by speed, unchanged by tier",
+    variants: [
+      { name: "Judder", blurb: "Bandpassed noise chopped at a tyre's judder; the band climbs with speed.",
+        params: { centre: [600, 200, 3000, 10], perMs: [20, 0, 60, 1], width: [400, 100, 2000, 10], judderHz: [22, 5, 60, 1], depth: [0.5, 0, 1, 0.05], gain: [0.85, 0, 1, 0.05] },
+        render: (p, s) => loopable(chop(scale(bandpass(noise({ length: 1.5, decay: 0, gain: p.gain * (0.4 + 0.6 * fraction(s)), seed: 12 }), p.centre + p.perMs * s, p.width), 4), p.judderHz, p.depth)) },
+      { name: "Screech", blurb: "A wobbling sawtooth squeal over a thread of hiss, rising with speed.",
+        params: { base: [350, 100, 1000, 10], perMs: [10, 0, 40, 1], wobble: [0.03, 0, 0.1, 0.005], hiss: [0.3, 0, 1, 0.05], gain: [0.3, 0, 1, 0.05] },
+        render: (p, s) => loopable(mix(tone({ freq: p.base + p.perMs * s, length: 1.5, wave: "saw", decay: 0, gain: p.gain * (0.4 + 0.6 * fraction(s)), vibratoHz: 6, vibratoDepth: p.wobble }), highpass(noise({ length: 1.5, decay: 0, gain: p.hiss * fraction(s), seed: 13 }), 2000))) },
+      { name: "Gravel", blurb: "Low filtered noise with a pulse under it, chopped slowly; gritty rather than shrill.",
+        params: { cutoff: [500, 100, 3000, 10], pulseHz: [70, 30, 200, 1], pulse: [0.2, 0, 1, 0.05], chopHz: [14, 2, 40, 1], gain: [0.6, 0, 1, 0.05] },
+        render: (p, s) => loopable(chop(mix(lowpass(noise({ length: 1.5, decay: 0, gain: p.gain * (0.3 + 0.7 * fraction(s)), seed: 14 }), p.cutoff), tone({ freq: p.pulseHz + 20 * fraction(s), length: 1.5, wave: "pulse", decay: 0, gain: p.pulse * fraction(s) })), p.chopHz, 0.4)) },
+    ],
+  },
+  {
+    id: "tierChime", pick: 0, slug: "tier-chime", name: "Tier charged",
+    when: "as the drift's tier reaches orange, then red; the preview plays both 0.3 s apart, as the charge times fall",
+    variants: [
+      { name: "Two step", blurb: "A pulse note for orange and a higher one for red.",
+        params: { orange: [880, 300, 3000, 10], red: [1320, 300, 4000, 10], length: [0.1, 0.03, 0.3, 0.01], decay: [12, 1, 40, 1], gain: [0.35, 0, 1, 0.05] },
+        render: (p) => concat(tone({ freq: p.orange, length: p.length, wave: "pulse", decay: p.decay, gain: p.gain }), silence(0.3 - p.length), tone({ freq: p.red, length: p.length * 1.2, wave: "pulse", decay: p.decay, gain: p.gain })) },
+      { name: "Ding", blurb: "A sine ding with its octave under it, then one a fifth up.",
+        params: { orange: [1760, 300, 4000, 10], red: [2637, 300, 5000, 10], ring: [0.2, 0.05, 0.5, 0.01], sub: [0.15, 0, 0.5, 0.01], gain: [0.3, 0, 1, 0.05] },
+        render: (p) => concat(mix(tone({ freq: p.orange, length: p.ring, decay: 8, gain: p.gain }), tone({ freq: p.orange / 2, length: p.ring, decay: 8, gain: p.sub })), silence(Math.max(0, 0.3 - p.ring)), mix(tone({ freq: p.red, length: p.ring, decay: 8, gain: p.gain }), tone({ freq: p.red / 2, length: p.ring, decay: 8, gain: p.sub }))) },
+      { name: "Chirp", blurb: "Two quick upward triangle chirps, the second higher.",
+        params: { orangeFrom: [600, 100, 2000, 10], redFrom: [900, 100, 3000, 10], span: [2, 1.2, 3, 0.1], length: [0.08, 0.03, 0.3, 0.01], gain: [0.45, 0, 1, 0.05] },
+        render: (p) => concat(tone({ freq: p.orangeFrom, length: p.length, wave: "triangle", decay: 12, sweepTo: p.orangeFrom * p.span, gain: p.gain }), silence(0.3 - p.length), tone({ freq: p.redFrom, length: p.length * 1.25, wave: "triangle", decay: 12, sweepTo: p.redFrom * p.span, gain: p.gain })) },
+    ],
+  },
+  {
+    id: "grass", pick: 1, slug: "grass", name: "Grass", loop: true, speed: true,
+    when: "while the surface under the kart is grass; a loop scaled by speed",
+    variants: [
+      { name: "Brush", blurb: "Low noise brushed at a blade-slapping rate, louder with speed.",
+        params: { cutoff: [450, 100, 3000, 10], slapHz: [16, 4, 40, 1], depth: [0.6, 0, 1, 0.05], floor: [0.3, 0, 1, 0.05], gain: [0.5, 0, 1, 0.05] },
+        render: (p, s) => loopable(chop(scale(lowpass(noise({ length: 1.5, decay: 0, gain: p.gain * (p.floor + (1 - p.floor) * fraction(s)), seed: 15 }), p.cutoff), 2.5), p.slapHz + 10 * fraction(s), p.depth)) },
+      { name: "Swish", blurb: "A higher band of noise swishing slowly, like long grass against the sidepods.",
+        params: { centre: [1200, 300, 4000, 10], width: [800, 100, 3000, 10], swishHz: [8, 1, 30, 0.5], depth: [0.5, 0, 1, 0.05], gain: [0.4, 0, 1, 0.05] },
+        render: (p, s) => loopable(chop(scale(bandpass(noise({ length: 1.5, decay: 0, gain: p.gain * (0.3 + 0.7 * fraction(s)), seed: 16 }), p.centre, p.width), 5), p.swishHz, p.depth)) },
+      { name: "Rumble", blurb: "A wobbling triangle under soft noise, the kart shaking rather than the grass.",
+        params: { hz: [42, 20, 120, 1], wobble: [0.08, 0, 0.3, 0.01], tri: [0.25, 0, 1, 0.05], cutoff: [250, 50, 2000, 10], gain: [0.4, 0, 1, 0.05] },
+        render: (p, s) => loopable(mix(tone({ freq: p.hz + 10 * fraction(s), length: 1.5, wave: "triangle", decay: 0, gain: p.tri * (0.3 + 0.7 * fraction(s)), vibratoHz: 7, vibratoDepth: p.wobble }), lowpass(noise({ length: 1.5, decay: 0, gain: p.gain * fraction(s), seed: 17 }), p.cutoff))) },
+    ],
+  },
+  {
+    id: "sand", pick: 0, slug: "sand", name: "Sand", loop: true, speed: true,
+    when: "while the surface under the kart is sand; a loop scaled by speed",
+    variants: [
+      { name: "Grit", blurb: "Bright gritty noise over a low rumble, scraping faster with speed.",
+        params: { gritHz: [1800, 500, 6000, 50], grit: [0.35, 0, 1, 0.05], scrapeHz: [40, 10, 80, 1], rumble: [0.35, 0, 1, 0.05], gain: [0.6, 0, 1, 0.05] },
+        render: (p, s) => loopable(mix(chop(scale(lowpass(highpass(noise({ length: 1.5, decay: 0, gain: p.grit * (0.3 + 0.7 * fraction(s)), seed: 18 }), p.gritHz), 6000), 2), p.scrapeHz, 0.3), scale(lowpass(noise({ length: 1.5, decay: 0, gain: p.rumble * p.gain, seed: 19 }), 200), 2))) },
+      { name: "Rumble", blurb: "A low square under dull noise; the kart bogging down.",
+        params: { hz: [38, 20, 120, 1], square: [0.25, 0, 1, 0.05], cutoff: [300, 50, 2000, 10], noiseGain: [0.4, 0, 1, 0.05], gain: [0.6, 0, 1, 0.05] },
+        render: (p, s) => loopable(mix(lowpass(tone({ freq: p.hz + 8 * fraction(s), length: 1.5, wave: "square", decay: 0, gain: p.square * p.gain }), 200), lowpass(noise({ length: 1.5, decay: 0, gain: p.noiseGain * (0.3 + 0.7 * fraction(s)), seed: 20 }), p.cutoff))) },
+      { name: "Crunch", blurb: "Random crunchy pops at a rate that rises with speed, over a whisper of noise.",
+        params: { popsPerS: [35, 5, 120, 1], pop: [0.6, 0, 1, 0.05], cutoff: [3000, 300, 8000, 50], bed: [0.1, 0, 0.5, 0.01], gain: [0.6, 0, 1, 0.05] },
+        render: (p, s) => loopable(mix(lowpass(pops({ length: 1.5, perSecond: p.popsPerS * (0.4 + 0.6 * fraction(s)), pop: 0.012, decay: 150, gain: p.pop * p.gain, seed: 21 }), p.cutoff), lowpass(noise({ length: 1.5, decay: 0, gain: p.bed, seed: 22 }), 800))) },
+    ],
+  },
+  {
+    id: "boostPad", pick: 1, slug: "boost-pad", name: "Boost pad",
+    when: "as a boost pad's boost starts, distinct from the mini-turbo release",
+    variants: [
+      { name: "Whoosh", blurb: "A sawtooth rising exponentially under a swell of air.",
+        params: { from: [120, 40, 500, 5], to: [900, 200, 4000, 10], length: [0.5, 0.1, 1.5, 0.05], air: [0.5, 0, 1, 0.05], gain: [0.35, 0, 1, 0.05] },
+        render: (p) => mix(tone({ freq: p.from, length: p.length, wave: "saw", decay: 3, sweepTo: p.to, gain: p.gain, curve: "exp", attack: 0.05 }), envelope(highpass(noise({ length: p.length, decay: 0, gain: p.air, seed: 23 }), 1500), (t) => Math.sin(Math.PI * Math.min(1, t / p.length)))) },
+      { name: "Push to pass", blurb: "A crisp click then a sine chord sliding up a tone, like a button and a surge.",
+        params: { root: [880, 200, 2000, 10], rise: [1.12, 1, 1.5, 0.01], length: [0.35, 0.1, 1.5, 0.05], click: [0.7, 0, 1, 0.05], gain: [0.25, 0, 1, 0.05] },
+        render: (p) => mix(noise({ length: 0.012, decay: 100, gain: p.click, seed: 24 }), tone({ freq: p.root, length: p.length, decay: 4, sweepTo: p.root * p.rise, gain: p.gain }), tone({ freq: p.root * 1.5, length: p.length, decay: 4, sweepTo: p.root * 1.5 * p.rise, gain: p.gain * 0.7 })) },
+      { name: "Jet", blurb: "A square climbing two octaves inside a roar of lowpassed noise.",
+        params: { from: [110, 40, 500, 5], to: [440, 100, 2000, 10], length: [0.6, 0.1, 1.5, 0.05], roar: [0.5, 0, 1, 0.05], cutoff: [3000, 300, 8000, 50], gain: [0.3, 0, 1, 0.05] },
+        render: (p) => mix(tone({ freq: p.from, length: p.length, wave: "square", decay: 3, sweepTo: p.to, gain: p.gain, curve: "exp" }), envelope(lowpass(noise({ length: p.length, decay: 0, gain: p.roar, seed: 25 }), p.cutoff), (t) => Math.sin(Math.PI * Math.min(1, t / p.length)))) },
+    ],
+  },
+  {
+    id: "wrongWay", pick: 1, slug: "wrong-way", name: "Wrong way",
+    when: "once, as the wrong-way warning rises on the Instrument panel",
+    variants: [
+      { name: "Two falling", blurb: "Two square notes stepping down: a no.",
+        params: { first: [660, 200, 2000, 10], second: [440, 100, 1500, 10], length: [0.12, 0.03, 0.4, 0.01], decay: [8, 1, 30, 1], gain: [0.3, 0, 1, 0.05] },
+        render: (p) => concat(tone({ freq: p.first, length: p.length, wave: "square", decay: p.decay, gain: p.gain }), tone({ freq: p.second, length: p.length * 1.7, wave: "square", decay: p.decay, gain: p.gain })) },
+      { name: "Buzzer", blurb: "A low square chopped hard, a game-show buzzer.",
+        params: { freq: [330, 80, 800, 5], chopHz: [30, 5, 80, 1], length: [0.45, 0.1, 1.5, 0.05], gain: [0.3, 0, 1, 0.05] },
+        render: (p) => chop(tone({ freq: p.freq, length: p.length, wave: "square", decay: 3, gain: p.gain }), p.chopHz, 1) },
+      { name: "Klaxon", blurb: "A sawtooth falling a fourth with a slow wobble.",
+        params: { from: [440, 100, 1500, 10], to: [330, 80, 1200, 10], length: [0.5, 0.1, 1.5, 0.05], wobble: [0.04, 0, 0.2, 0.01], gain: [0.25, 0, 1, 0.05] },
+        render: (p) => tone({ freq: p.from, length: p.length, wave: "saw", decay: 4, sweepTo: p.to, gain: p.gain, vibratoHz: 9, vibratoDepth: p.wobble }) },
+    ],
+  },
+  {
+    id: "finish", pick: 1, slug: "finish", name: "Finish",
+    when: "as the kart finishes, instead of the lap chime",
+    variants: [
+      { name: "Fanfare", blurb: "Three triangle notes up the chord, then the chord held an octave up.",
+        params: { root: [523.25, 200, 1500, 0.25], length: [0.12, 0.03, 0.3, 0.01], hold: [0.6, 0.1, 1.5, 0.05], gain: [0.4, 0, 1, 0.05] },
+        render: (p) => concat(notes([p.root, p.root * 1.26, p.root * 1.5], p.length, "triangle", 4, p.gain), chord([p.root * 2, p.root * 2.52, p.root * 3], p.hold, "triangle", 3, p.gain * 0.6)) },
+      { name: "Chequered", blurb: "Two pulse beeps at one pitch and a third higher, then a square chord.",
+        params: { beep: [880, 300, 3000, 10], high: [1320, 300, 4000, 10], length: [0.1, 0.03, 0.3, 0.01], hold: [0.5, 0.1, 1.5, 0.05], gain: [0.3, 0, 1, 0.05] },
+        render: (p) => concat(notes([p.beep, p.beep, p.high], p.length, "pulse", 10, p.gain), chord([p.high, p.high * 1.25, p.high * 1.5], p.hold, "square", 3, p.gain * 0.5)) },
+      { name: "Victory lap", blurb: "A fast eight-note run up two octaves into a ringing square chord.",
+        params: { root: [392, 150, 1200, 1], step: [0.06, 0.02, 0.2, 0.005], hold: [0.7, 0.1, 1.5, 0.05], gain: [0.35, 0, 1, 0.05] },
+        render: (p) => concat(notes([1, 1.26, 1.5, 2, 2.52, 3, 4, 5.04].map((r) => p.root * r), p.step, "pulse", 8, p.gain), chord([p.root * 4, p.root * 5.04, p.root * 6], p.hold, "square", 3, p.gain * 0.5)) },
+    ],
+  },
+];
+
+/** build.py's sputter: a rumble chopped into coughs under hiss, fading by 30 percent over its length. */
+function sputter(length, coughsPerS, from, to, rumbleGain, hissGain) {
+  const n = sec(length);
+  const out = new Float32Array(n);
+  const next = rng(3);
+  let phase = 0;
+  for (let i = 0; i < n; i++) {
+    const t = i / RATE;
+    const cough = 0.5 * (1 + Math.cos(TAU * coughsPerS * t));
+    const chopped = cough * cough;
+    phase += (TAU * (from + (to - from) * (i / n))) / RATE;
+    const rumble = rumbleGain * WAVES.square(phase);
+    const hiss = hissGain * next();
+    out[i] = chopped * (rumble + hiss) * (1 - (0.3 * t) / length);
+  }
+  return out;
+}
+
+// ---------------------------------------------------------------------------
+// The engine model: the speed model from the sim's tuning, the gears derived
+// from speed, and the synth the gears drive. Presentation only: the gears
+// derive from the kart's speed alone and never reach the sim.
+// ---------------------------------------------------------------------------
+const ENGINE_PARAMS = {
+  gears: [6, 4, 8, 1, "Gears"],
+  bandRatio: [1.4, 1, 2, 0.05, "Band ratio (each gear over the last)"],
+  dropRatio: [0.45, 0.2, 0.8, 0.05, "Revs after an upshift"],
+  shiftCutMs: [30, 0, 120, 5, "Upshift cut (ms)"],
+  blip: [0.1, 0, 0.3, 0.01, "Downshift blip"],
+  hysteresis: [0.05, 0, 0.2, 0.01, "Shift hysteresis"],
+  limiter: [1.08, 1, 1.3, 0.01, "Limiter (revs over top)"],
+  limiterHz: [28, 10, 60, 1, "Limiter chop (Hz)"],
+  idleHz: [110, 40, 300, 5, "Idle note (Hz)"],
+  topHz: [720, 300, 1500, 10, "Top note (Hz)"],
+  detune: [12, 0, 40, 1, "Detune (cents)"],
+  sub: [0.35, 0, 1, 0.05, "Sub square"],
+  intake: [0.15, 0, 1, 0.05, "Intake noise"],
+  filterMin: [400, 100, 2000, 50, "Filter closed (Hz)"],
+  filterMax: [6000, 1000, 12000, 100, "Filter open (Hz)"],
+  overrun: [0.6, 0, 1, 0.05, "Overrun level"],
+  crackle: [0.5, 0, 1, 0.05, "Overrun crackle"],
+};
+const ACCELERATION = TOP_SPEED / 2.5;
+const BRAKING = TOP_SPEED / 1.5;
+const COASTING = TOP_SPEED / 4;
+const START_REVS = { clean: 0, weakBoost: 0.5, fullBoost: 1, stall: 1 };
+
+/** Band edges in m/s for `gears` gears whose widths grow by `ratio` each: edge[0] = 0, edge[gears] = top speed. */
+function gearEdges(gears, ratio) {
+  const edges = [0];
+  const total = ratio === 1 ? gears : (Math.pow(ratio, gears) - 1) / (ratio - 1);
+  let width = TOP_SPEED / total;
+  for (let g = 1; g <= gears; g++) { edges.push(edges[g - 1] + width); width *= ratio; }
+  edges[gears] = TOP_SPEED;
+  return edges;
+}
+
+/** The gear and rev fraction `speed` calls for, given the gear held now and hysteresis, so a steady speed never chatters. */
+function gearFor(speed, held, p) {
+  const edges = gearEdges(p.gears, p.bandRatio);
+  const s = Math.abs(speed);
+  let gear = Math.min(Math.max(held, 1), p.gears);
+  while (gear < p.gears && s > edges[gear]) gear++;
+  while (gear > 1 && s < edges[gear - 1] - p.hysteresis * (edges[gear] - edges[gear - 1])) gear--;
+  const lo = edges[gear - 1];
+  const hi = edges[gear];
+  const within = (s - lo) / (hi - lo);
+  const revs = gear === p.gears
+    ? Math.min(p.limiter, p.dropRatio + (1 - p.dropRatio) * Math.max(0, within))
+    : p.dropRatio + (1 - p.dropRatio) * Math.min(1, Math.max(0, within));
+  return { gear, revs: s < 0.5 && gear === 1 ? 0 : revs };
+}
+
+class Engine {
+  constructor(context, destination, params) {
+    this.context = context;
+    this.params = params;
+    this.speed = 0;
+    this.gear = 1;
+    this.revs = 0;
+    this.load = 0;
+    this.atLimiter = false;
+    this.cutUntil = 0;
+    this.blipUntil = 0;
+    this.nextCrackle = 0;
+    this.noteHz = 0;
+    const ctx = context;
+    this.out = ctx.createGain();
+    this.out.gain.value = 0;
+    this.out.connect(destination);
+    this.filter = ctx.createBiquadFilter();
+    this.filter.type = "lowpass";
+    this.filter.Q.value = 1.2;
+    this.loadGain = ctx.createGain();
+    this.filter.connect(this.loadGain);
+    this.loadGain.connect(this.out);
+    this.osc = ["sawtooth", "sawtooth", "square"].map((type) => {
+      const osc = ctx.createOscillator();
+      osc.type = type;
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(this.filter);
+      osc.start();
+      return { osc, gain };
+    });
+    const noiseBuffer = ctx.createBuffer(1, ctx.sampleRate * 2, ctx.sampleRate);
+    const data = noiseBuffer.getChannelData(0);
+    const next = rng(99);
+    for (let i = 0; i < data.length; i++) data[i] = next();
+    this.noise = ctx.createBufferSource();
+    this.noise.buffer = noiseBuffer;
+    this.noise.loop = true;
+    this.noiseFilter = ctx.createBiquadFilter();
+    this.noiseFilter.type = "bandpass";
+    this.noiseFilter.Q.value = 0.8;
+    this.noiseGain = ctx.createGain();
+    this.noise.connect(this.noiseFilter);
+    this.noiseFilter.connect(this.noiseGain);
+    this.noiseGain.connect(this.filter);
+    this.noise.start();
+    this.crackle = ctx.createGain();
+    this.crackle.gain.value = 0;
+    this.noise.connect(this.crackle);
+    this.crackle.connect(this.out);
+    this.limiterLfo = ctx.createOscillator();
+    this.limiterLfo.type = "square";
+    this.limiterDepth = ctx.createGain();
+    this.limiterDepth.gain.value = 0;
+    this.limiterLfo.connect(this.limiterDepth);
+    this.limiterDepth.connect(this.loadGain.gain);
+    this.limiterLfo.start();
+    this.running = false;
+  }
+
+  start() { this.running = true; this.out.gain.setTargetAtTime(1, this.context.currentTime, 0.05); }
+  stop() { this.running = false; this.out.gain.setTargetAtTime(0, this.context.currentTime, 0.05); }
+
+  /**
+   * One frame: `input` is { throttle, brake, boost (factor or 0), pin (a
+   * fixed speed or null), startTier (while revving on the grid or null) }.
+   */
+  update(dt, input) {
+    const p = this.params;
+    const before = this.speed;
+    if (input.pin !== null) {
+      this.speed = input.pin;
+    } else {
+      const target = input.boost > 0 ? TOP_SPEED * input.boost : TOP_SPEED;
+      if (input.brake) this.speed = Math.max(0, this.speed - BRAKING * dt);
+      // A live boost is a step, as the sim sets the speed to the boosted top outright.
+      else if (input.boost > 0) this.speed = target;
+      else if (input.throttle) this.speed = this.speed < target ? Math.min(target, this.speed + ACCELERATION * dt) : Math.max(target, this.speed - COASTING * dt);
+      else this.speed = Math.max(0, this.speed - COASTING * dt);
+    }
+    const delta = dt > 0 ? (this.speed - before) / dt : 0;
+    const rawLoad = input.pin !== null ? 0.3 : Math.max(-1, Math.min(1, delta / ACCELERATION));
+    this.load += (rawLoad - this.load) * Math.min(1, dt * 12);
+
+    const now = this.context.currentTime;
+    const { gear, revs: bandRevs } = gearFor(this.speed, this.gear, p);
+    if (gear > this.gear) this.cutUntil = now + p.shiftCutMs / 1000;
+    if (gear < this.gear) this.blipUntil = now + 0.08;
+    this.gear = gear;
+    let revs = bandRevs;
+    const tier = input.startTier;
+    if (tier !== null && this.speed < 0.5) revs = Math.max(revs, START_REVS[tier]);
+    // The limiter chops past top speed in top gear (a boost) or on a full or stalled grid rev,
+    // judged by speed rather than the capped revs so a limiter of 1.00 still chops.
+    this.atLimiter = (gear === p.gears && Math.abs(this.speed) > TOP_SPEED * (1 + 1e-3)) || (tier !== null && this.speed < 0.5 && START_REVS[tier] >= 1);
+    if (now < this.blipUntil) revs *= 1 + p.blip;
+    this.revs = revs;
+
+    const hz = p.idleHz + (p.topHz - p.idleHz) * revs;
+    this.noteHz = hz;
+    const detune = p.detune;
+    this.osc[0].osc.frequency.setTargetAtTime(hz, now, 0.02);
+    this.osc[0].osc.detune.setTargetAtTime(-detune / 2, now, 0.02);
+    this.osc[1].osc.frequency.setTargetAtTime(hz, now, 0.02);
+    this.osc[1].osc.detune.setTargetAtTime(detune / 2, now, 0.02);
+    this.osc[2].osc.frequency.setTargetAtTime(hz / 2, now, 0.02);
+    this.osc[0].gain.gain.value = 0.5;
+    this.osc[1].gain.gain.value = 0.5;
+    this.osc[2].gain.gain.value = p.sub;
+    this.noiseFilter.frequency.setTargetAtTime(hz * 4, now, 0.05);
+    this.noiseGain.gain.setTargetAtTime(p.intake * (0.3 + 0.7 * Math.min(1, revs)), now, 0.05);
+
+    const onThrottle = Math.max(0, this.load);
+    const overrun = Math.max(0, -this.load);
+    const open = Math.min(1, revs) * (0.45 + 0.55 * onThrottle) * (1 - 0.5 * overrun);
+    this.filter.frequency.setTargetAtTime(p.filterMin + (p.filterMax - p.filterMin) * open, now, 0.03);
+    const level = (1 - overrun * (1 - p.overrun)) * (now < this.cutUntil ? 0 : 1);
+    this.loadGain.gain.setTargetAtTime(level, now, now < this.cutUntil ? 0.003 : 0.02);
+    this.limiterLfo.frequency.value = p.limiterHz;
+    this.limiterDepth.gain.setTargetAtTime(this.atLimiter ? 0.5 : 0, now, 0.01);
+
+    if (overrun > 0.15 && this.speed > 2 && now >= this.nextCrackle) {
+      this.crackle.gain.setValueAtTime(p.crackle * 0.6 * overrun, now);
+      this.crackle.gain.setTargetAtTime(0, now + 0.004, 0.006);
+      this.nextCrackle = now + 0.03 + Math.random() * (0.25 - 0.2 * overrun);
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// The page.
+// ---------------------------------------------------------------------------
+if (typeof document !== "undefined") boot();
+
+function boot() {
+  const STORAGE_KEY = "formula-none.sound-effects.v2";
+  const $ = (sel, root = document) => root.querySelector(sel);
+  const el = (tag, attrs = {}, ...children) => {
+    const node = document.createElement(tag);
+    for (const [k, v] of Object.entries(attrs)) {
+      if (k === "class") node.className = v;
+      else if (k === "text") node.textContent = v;
+      else if (k.startsWith("on")) node.addEventListener(k.slice(2), v);
+      else node.setAttribute(k, v);
+    }
+    for (const child of children) if (child != null) node.append(child);
+    return node;
+  };
+
+  // ---- Persistence -------------------------------------------------------
+  const defaults = () => ({
+    theme: "auto",
+    levels: { master: 1, engine: 0.12, sfx: 0.8 },
+    bed: { on: false, speed: 22 },
+    engine: Object.fromEntries(Object.entries(ENGINE_PARAMS).map(([k, v]) => [k, v[0]])),
+    cues: Object.fromEntries(CUES.map((cue) => [cue.id, {
+      pick: cue.pick ?? null,
+      shown: 0,
+      speed: 20,
+      variants: cue.variants.map((v) => Object.fromEntries(Object.entries(v.params).map(([k, spec]) => [k, spec[0]]))),
+    }])),
+  });
+  let state = defaults();
+  try {
+    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || "null");
+    if (saved) {
+      const fresh = defaults();
+      state = { ...fresh, ...saved, levels: { ...fresh.levels, ...saved.levels }, bed: { ...fresh.bed, ...saved.bed }, engine: { ...fresh.engine, ...saved.engine }, cues: fresh.cues };
+      for (const cue of CUES) {
+        const got = saved.cues?.[cue.id];
+        if (!got) continue;
+        const slot = state.cues[cue.id];
+        slot.pick = got.pick === undefined ? slot.pick : got.pick;
+        slot.shown = Math.min(cue.variants.length - 1, got.shown ?? 0);
+        slot.speed = got.speed ?? slot.speed;
+        cue.variants.forEach((v, i) => { slot.variants[i] = { ...slot.variants[i], ...(got.variants?.[i] ?? {}) }; });
+      }
+    }
+  } catch (_) { /* a blocked or empty store leaves the defaults */ }
+  const save = () => { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch (_) { /* a blocked store keeps the picks for this visit only */ } refreshPicks(); };
+
+  // ---- Theme ---------------------------------------------------------------
+  const themeButton = $("#theme");
+  const applyTheme = () => {
+    if (state.theme === "auto") document.documentElement.removeAttribute("data-theme");
+    else document.documentElement.setAttribute("data-theme", state.theme);
+    themeButton.textContent = `Theme: ${state.theme}`;
+    for (const draw of redraws) draw();
+  };
+  themeButton.addEventListener("click", () => {
+    state.theme = { auto: "light", light: "dark", dark: "auto" }[state.theme];
+    applyTheme();
+    save();
+  });
+  const redraws = [];
+
+  // ---- Audio graph ---------------------------------------------------------
+  let context = null;
+  let master, engineGain, sfxGain, analyser, engine;
+  const unlock = $("#unlock");
+  const unlocked = () => context !== null && context.state === "running";
+  async function ensureAudio() {
+    if (context === null) {
+      context = new (window.AudioContext || window.webkitAudioContext)();
+      master = context.createGain();
+      analyser = context.createAnalyser();
+      analyser.fftSize = 1024;
+      master.connect(analyser);
+      analyser.connect(context.destination);
+      engineGain = context.createGain();
+      sfxGain = context.createGain();
+      engineGain.connect(master);
+      sfxGain.connect(master);
+      engine = new Engine(context, engineGain, state.engine);
+      applyLevels();
+    }
+    if (context.state !== "running") await context.resume();
+    unlock.hidden = unlocked();
+    if (!engineOn && state.bed.on) { setEngine(true); engineForBed = true; }
+  }
+  $("#unlock-button").addEventListener("click", ensureAudio);
+  document.addEventListener("pointerdown", () => { if (context === null || !unlocked()) ensureAudio(); }, { capture: true });
+
+  // ---- Mixer ---------------------------------------------------------------
+  const applyLevels = () => {
+    if (context === null) return;
+    master.gain.value = state.levels.master;
+    engineGain.gain.value = state.levels.engine;
+    sfxGain.gain.value = state.levels.sfx;
+  };
+  const bindRange = (id, get, set, format) => {
+    const input = $(`#${id}`);
+    const out = $(`[data-for="${id}"]`);
+    const show = () => { input.value = get(); out.textContent = format(Number(input.value)); };
+    input.addEventListener("input", () => { set(Number(input.value)); out.textContent = format(Number(input.value)); save(); });
+    show();
+    return show;
+  };
+  const two = (v) => v.toFixed(2);
+  const showMaster = bindRange("master", () => state.levels.master, (v) => { state.levels.master = v; applyLevels(); }, two);
+  const showEngineLevel = bindRange("level-engine", () => state.levels.engine, (v) => { state.levels.engine = v; applyLevels(); }, two);
+  const showSfxLevel = bindRange("level-sfx", () => state.levels.sfx, (v) => { state.levels.sfx = v; applyLevels(); }, two);
+  const showBedSpeed = bindRange("bed-speed", () => state.bed.speed, (v) => { state.bed.speed = v; }, (v) => `${v.toFixed(1)} m/s`);
+  const bedButton = $("#bed");
+  const showBed = () => bedButton.setAttribute("aria-pressed", String(state.bed.on));
+  bedButton.addEventListener("click", async () => {
+    state.bed.on = !state.bed.on;
+    showBed();
+    save();
+    // An engine the bed started goes quiet with it; one the user started keeps running.
+    const startForBed = state.bed.on && !engineOn;
+    await ensureAudio();
+    if (startForBed) { if (!engineOn) setEngine(true); engineForBed = true; }
+    else if (!state.bed.on && engineForBed) setEngine(false);
+  });
+  showBed();
+
+  // ---- Engine rig ----------------------------------------------------------
+  let engineOn = false;
+  let engineForBed = false;
+  const held = { throttle: false, brake: false, shift: false };
+  let boostUntil = 0;
+  let boostFactor = 0;
+  let script = null;
+  const toggle = $("#engine-toggle");
+  const setEngine = (on) => {
+    engineOn = on;
+    toggle.textContent = on ? "Stop engine" : "Start engine";
+    toggle.classList.toggle("primary", !on);
+    if (engine) { if (on) engine.start(); else engine.stop(); }
+    if (!on) { script = null; state.bed.on = false; showBed(); save(); }
+  };
+  toggle.addEventListener("click", async () => { await ensureAudio(); engineForBed = false; setEngine(!engineOn); });
+  const LAP = [
+    { throttle: true, for: 3 }, { for: 1 }, { throttle: true, for: 1.5 }, { brake: true, for: 1.5 },
+    { throttle: true, for: 2.5 }, { throttle: true, boost: 1.4, for: 1 }, { throttle: true, for: 2 }, { brake: true, for: 1.6 },
+  ];
+  $("#drive").addEventListener("click", async () => {
+    await ensureAudio();
+    if (!engineOn) setEngine(true);
+    script = { steps: LAP, index: 0, left: LAP[0].for, booted: false };
+  });
+  document.addEventListener("keydown", (event) => {
+    if (event.target instanceof HTMLInputElement || event.target instanceof HTMLSelectElement || event.target instanceof HTMLTextAreaElement) return;
+    if (event.key === "ArrowUp") { held.throttle = true; event.preventDefault(); }
+    if (event.key === "ArrowDown") { held.brake = true; event.preventDefault(); }
+    if (event.key === "Shift") held.shift = true;
+    if (event.key === "b" || event.key === "B") { boostFactor = 1.4; boostUntil = performance.now() + 1500; }
+    if (event.key === "m" || event.key === "M") { boostFactor = 1.3; boostUntil = performance.now() + 1000; }
+  });
+  document.addEventListener("keyup", (event) => {
+    if (event.key === "ArrowUp") held.throttle = false;
+    if (event.key === "ArrowDown") held.brake = false;
+    if (event.key === "Shift") held.shift = false;
+  });
+  window.addEventListener("blur", () => { held.throttle = held.brake = held.shift = false; });
+
+  const leds = $("#leds");
+  const LED_COLOURS = ["#2f9e44", "#2f9e44", "#2f9e44", "#2f9e44", "#2f9e44", "#c99a2e", "#c99a2e", "#c99a2e", "#c99a2e", "#c99a2e", "#d62828", "#d62828", "#d62828", "#5b8def", "#5b8def"];
+  LED_COLOURS.forEach((c) => leds.append(el("i", { style: `--led: ${c}` })));
+  const gearOut = $("#gear"), speedOut = $("#speed"), rpmOut = $("#rpm"), loadOut = $("#load"), noteOut = $("#note"), limiterTag = $("#limiter-tag");
+  const scope = $("#scope");
+  const scopeCtx = scope.getContext("2d");
+  let lastFrame = performance.now();
+  function frame(now) {
+    const dt = Math.min(0.1, (now - lastFrame) / 1000);
+    lastFrame = now;
+    if (engine && engineOn) {
+      let input = { throttle: held.throttle, brake: held.brake, boost: now < boostUntil ? boostFactor : 0, pin: null, startTier: null };
+      if (script !== null) {
+        if (!script.booted) { engine.speed = 0; script.booted = true; }
+        const step = script.steps[script.index];
+        input = { throttle: Boolean(step.throttle), brake: Boolean(step.brake), boost: step.boost ?? 0, pin: null, startTier: null };
+        script.left -= dt;
+        if (script.left <= 0) {
+          script.index++;
+          if (script.index >= script.steps.length) script = null;
+          else script.left = script.steps[script.index].for;
+        }
+      } else if (state.bed.on && !held.throttle && !held.brake && now >= boostUntil) {
+        input.pin = state.bed.speed;
+      } else if (held.shift && engine.speed < 0.5) {
+        input.startTier = $("#start-tier").value;
+      }
+      engine.update(dt, input);
+      gearOut.textContent = engine.speed < 0.5 && engine.revs === 0 ? "N" : String(engine.gear);
+      speedOut.textContent = engine.speed.toFixed(1);
+      rpmOut.textContent = String(Math.round(engine.revs * 100));
+      loadOut.textContent = engine.load.toFixed(2);
+      noteOut.textContent = String(Math.round(engine.noteHz));
+      limiterTag.textContent = engine.atLimiter ? "LIMITER" : "";
+      const lit = Math.round(Math.min(1, engine.revs) * 13) + (engine.revs > 1.01 ? 2 : 0);
+      leds.querySelectorAll("i").forEach((led, i) => led.classList.toggle("on", i < lit));
+    } else {
+      gearOut.textContent = "N";
+      leds.querySelectorAll("i").forEach((led) => led.classList.remove("on"));
+    }
+    drawScope();
+    requestAnimationFrame(frame);
+  }
+  const scopeData = new Float32Array(1024);
+  function drawScope() {
+    const w = scope.width, h = scope.height;
+    scopeCtx.clearRect(0, 0, w, h);
+    scopeCtx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue("--gold").trim();
+    scopeCtx.lineWidth = 2;
+    scopeCtx.beginPath();
+    if (analyser) analyser.getFloatTimeDomainData(scopeData); else scopeData.fill(0);
+    for (let i = 0; i < scopeData.length; i++) {
+      const x = (i / scopeData.length) * w;
+      const y = h / 2 - scopeData[i] * h * 0.45;
+      if (i === 0) scopeCtx.moveTo(x, y); else scopeCtx.lineTo(x, y);
+    }
+    scopeCtx.stroke();
+  }
+  requestAnimationFrame(frame);
+
+  const engineParams = $("#engine-params");
+  const engineSliders = [];
+  function slider(name, spec, get, set) {
+    const [, min, max, step] = spec;
+    const input = el("input", { type: "range", min, max, step });
+    const value = el("span", { class: "value" });
+    const refresh = () => { input.value = get(); value.textContent = formatValue(Number(input.value), step); };
+    input.addEventListener("input", () => { set(Number(input.value)); value.textContent = formatValue(Number(input.value), step); });
+    refresh();
+    const field = el("label", { class: "field" }, el("span", { class: "name", text: name }), input, value);
+    return { field, refresh };
+  }
+  const formatValue = (v, step) => (step >= 1 ? String(Math.round(v)) : v.toFixed(Math.max(0, Math.ceil(-Math.log10(step)))));
+  const titleCase = (k) => k.replace(/([A-Z])/g, " $1").replace(/^./, (c) => c.toUpperCase());
+  for (const [key, spec] of Object.entries(ENGINE_PARAMS)) {
+    const s = slider(spec[4], spec, () => state.engine[key], (v) => { state.engine[key] = v; save(); });
+    engineSliders.push(s);
+    engineParams.append(s.field);
+  }
+  $("#engine-reset").addEventListener("click", () => {
+    Object.assign(state.engine, defaults().engine);
+    engineSliders.forEach((s) => s.refresh());
+    save();
+  });
+
+  // ---- Cue cards -----------------------------------------------------------
+  const cards = new Map();
+  const cuesRoot = $("#cues");
+  for (const cue of CUES) cuesRoot.append(buildCard(cue));
+
+  function buildCard(cue) {
+    const slot = state.cues[cue.id];
+    const frame = el("div", { class: "frame", "data-clip": cue.slug },
+      el("img", { src: `sound-effects/${cue.slug}.gif`, alt: "", onerror: () => frame.classList.add("missing") }),
+      el("span", { class: "missing", text: `${cue.slug}: clip not staged` }));
+    const when = el("p", { class: "when" }, el("b", { text: cue.loop ? "Loops " : "Fires " }), cue.when + ".");
+    const clip = el("div", { class: "clip" }, frame, when);
+
+    const tabs = el("div", { class: "tabs" });
+    const blurb = el("p", { class: "blurb" });
+    const playButton = el("button", { type: "button", class: "primary", text: cue.loop ? "Play loop" : "Play" });
+    const pickButton = el("button", { type: "button" });
+    const duration = el("span", { class: "duration" });
+    const transport = el("div", { class: "transport" }, playButton, pickButton, duration);
+    let speedInput = null;
+    if (cue.speed) {
+      speedInput = el("input", { type: "range", min: 0, max: 42, step: 0.5 });
+      const speedValue = el("span", { class: "value" });
+      const showSpeed = () => { speedInput.value = slot.speed; speedValue.textContent = `${slot.speed.toFixed(1)} m/s`; };
+      speedInput.addEventListener("input", () => { slot.speed = Number(speedInput.value); showSpeed(); save(); rerender(); });
+      showSpeed();
+      transport.append(el("label", { class: "speed" }, el("span", { text: "speed" }), speedInput, speedValue));
+    }
+    const wave = el("canvas", { class: "wave", width: 640, height: 64 });
+    const params = el("div", { class: "params" });
+    const actions = el("div", { class: "buttons" },
+      el("button", { type: "button", text: "Reset variant", onclick: () => { Object.assign(slot.variants[slot.shown], defaults().cues[cue.id].variants[slot.shown]); showVariant(); save(); } }),
+      el("button", { type: "button", text: "Copy params", onclick: () => navigator.clipboard?.writeText(JSON.stringify({ cue: cue.id, variant: cue.variants[slot.shown].name, params: slot.variants[slot.shown] }, null, 2)) }));
+    const body = el("div", { class: "body" },
+      el("div", { class: "head" }, el("h3", {}, cue.name, el("small", { text: cue.id })), tabs),
+      blurb, transport, wave, params, actions);
+    const card = el("article", { class: "cue", id: `cue-${cue.slug}` }, clip, body);
+
+    let buffer = null;
+    let samples = null;
+    let playing = null;
+    let renderTimer = null;
+
+    const render = () => {
+      const variant = cue.variants[slot.shown];
+      samples = tame(variant.render(slot.variants[slot.shown], slot.speed));
+      duration.textContent = `${(samples.length / RATE).toFixed(2)} s`;
+      drawWave();
+      buffer = null;
+      if (playing !== null) { stopLoop(); startLoop(); }
+    };
+    const rerender = () => { clearTimeout(renderTimer); renderTimer = setTimeout(render, 40); };
+    const toBuffer = () => {
+      if (buffer === null) {
+        buffer = context.createBuffer(1, samples.length, RATE);
+        buffer.getChannelData(0).set(samples);
+      }
+      return buffer;
+    };
+    const waveCtx = wave.getContext("2d");
+    const drawWave = () => {
+      const w = wave.width, h = wave.height;
+      waveCtx.clearRect(0, 0, w, h);
+      waveCtx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue("--wave").trim();
+      const per = samples.length / w;
+      for (let x = 0; x < w; x++) {
+        let lo = 0, hi = 0;
+        const start = Math.floor(x * per), end = Math.min(samples.length, Math.floor((x + 1) * per) + 1);
+        for (let i = start; i < end; i++) { lo = Math.min(lo, samples[i]); hi = Math.max(hi, samples[i]); }
+        waveCtx.fillRect(x, h / 2 - hi * h * 0.48, 1, Math.max(1, (hi - lo) * h * 0.48));
+      }
+    };
+    redraws.push(() => { if (samples) drawWave(); });
+
+    const startLoop = () => {
+      const source = context.createBufferSource();
+      source.buffer = toBuffer();
+      source.loop = true;
+      source.connect(sfxGain);
+      source.start();
+      playing = source;
+      playButton.textContent = "Stop loop";
+      playButton.setAttribute("aria-pressed", "true");
+    };
+    const stopLoop = () => {
+      playing?.stop();
+      playing?.disconnect();
+      playing = null;
+      playButton.textContent = "Play loop";
+      playButton.removeAttribute("aria-pressed");
+    };
+    playButton.addEventListener("click", async () => {
+      await ensureAudio();
+      if (cue.loop) { if (playing !== null) stopLoop(); else startLoop(); return; }
+      const shot = context.createBufferSource();
+      shot.buffer = toBuffer();
+      shot.connect(sfxGain);
+      shot.start();
+    });
+
+    const showPick = () => {
+      const picked = slot.pick === slot.shown;
+      pickButton.textContent = picked ? "Picked" : "Pick this";
+      pickButton.setAttribute("aria-pressed", String(picked));
+      card.classList.toggle("picked", slot.pick !== null);
+      tabs.querySelectorAll("button").forEach((b, i) => { b.querySelector(".star").textContent = slot.pick === i ? "★" : ""; });
+    };
+    pickButton.addEventListener("click", () => { slot.pick = slot.pick === slot.shown ? null : slot.shown; showPick(); save(); });
+
+    cue.variants.forEach((variant, i) => {
+      const tab = el("button", { type: "button", onclick: () => { slot.shown = i; showVariant(); save(); } },
+        `${"ABC"[i]}. ${variant.name}`, el("span", { class: "star" }), i === 0 && cue.shipped ? el("span", { class: "today", text: "today" }) : null);
+      tabs.append(tab);
+    });
+    const showVariant = () => {
+      const variant = cue.variants[slot.shown];
+      tabs.querySelectorAll("button").forEach((b, i) => b.setAttribute("aria-pressed", String(i === slot.shown)));
+      blurb.textContent = variant.blurb;
+      params.replaceChildren();
+      for (const [key, spec] of Object.entries(variant.params)) {
+        params.append(slider(titleCase(key), spec, () => slot.variants[slot.shown][key], (v) => { slot.variants[slot.shown][key] = v; save(); rerender(); }).field);
+      }
+      showPick();
+      if (playing !== null) stopLoop();
+      render();
+    };
+    showVariant();
+    cards.set(cue.id, { showVariant });
+    return card;
+  }
+
+  // ---- Picks ---------------------------------------------------------------
+  const picksOut = $("#picks");
+  function picksJson() {
+    const cues = {};
+    for (const cue of CUES) {
+      const slot = state.cues[cue.id];
+      if (slot.pick === null) continue;
+      cues[cue.id] = { variant: `${"ABC"[slot.pick]}. ${cue.variants[slot.pick].name}`, params: slot.variants[slot.pick] };
+    }
+    return JSON.stringify({ levels: state.levels, engine: state.engine, cues }, null, 2);
+  }
+  function refreshPicks() { picksOut.value = picksJson(); }
+  $("#copy-picks").addEventListener("click", async () => {
+    try { await navigator.clipboard.writeText(picksJson()); $("#copy-note").textContent = "Copied."; }
+    catch (_) { picksOut.select(); $("#copy-note").textContent = "Select the text and copy it."; }
+  });
+  $("#reset-all").addEventListener("click", () => {
+    // Reset in place: each card holds its slot object, so the slots keep their identity and lose their values.
+    const fresh = defaults();
+    state.levels = fresh.levels; state.bed = fresh.bed; state.engine = fresh.engine;
+    for (const cue of CUES) Object.assign(state.cues[cue.id], fresh.cues[cue.id]);
+    engine && (engine.params = state.engine);
+    engineSliders.forEach((s) => s.refresh());
+    showMaster(); showEngineLevel(); showSfxLevel(); showBedSpeed(); showBed();
+    applyLevels();
+    for (const cue of CUES) cards.get(cue.id).showVariant();
+    save();
+  });
+
+  applyTheme();
+  refreshPicks();
+}
+</script>
+</body>
+</html>
