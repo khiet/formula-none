@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted (2026-10-29). Supersedes nothing.
+Accepted (2026-10-29).
 
 ## Context
 

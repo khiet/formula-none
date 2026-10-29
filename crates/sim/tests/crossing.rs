@@ -11,6 +11,7 @@ use common::{
     with_slot_at, DT, FIGURE_EIGHT, SEED,
 };
 
+use sim::tuning::PROGRESS_WINDOW_M;
 use sim::{step, Item, KartInput, RaceEvent, State, Track};
 
 /// How far a reading moved since the last one, the shorter way round the
@@ -160,5 +161,27 @@ fn a_projectile_flying_over_the_crossing_keeps_its_own_legs_height() {
         }
         state = step(state, &[idle, idle], DT);
     }
-    assert!(closest < 2.0, "the projectile passed {closest} m from the crossing");
+    assert!(
+        closest < 2.0,
+        "the projectile passed {closest} m from the crossing"
+    );
+}
+
+#[test]
+fn a_reading_never_lands_further_from_the_last_than_the_window() {
+    let track = figure_eight();
+    let lap = track.spline_length();
+    // Every point of the lap, read from a start line that may be far from
+    // it, lands within the window either way round, even partway along a
+    // centreline segment that only starts inside it.
+    for step in 0..(lap as usize) {
+        let point = track.point_at(step as f32);
+        for last in [0.0, lap / 4.0, lap / 2.0, 3.0 * lap / 4.0] {
+            let reading = track.progress_near(point, last);
+            assert!(
+                moved(&track, last, reading).abs() <= PROGRESS_WINDOW_M + 1e-3,
+                "{point:?} from {last} reads {reading}"
+            );
+        }
+    }
 }

@@ -546,16 +546,26 @@ fn progress_along(
         let (ax, az) = (a[0], a[2]);
         let (dx, dz) = (b[0] - ax, b[2] - az);
         let length_squared = dx * dx + dz * dz;
-        let t = if length_squared > 0.0 {
+        let mut t = if length_squared > 0.0 {
             (((px - ax) * dx + (pz - az) * dz) / length_squared).clamp(0.0, 1.0)
         } else {
             0.0
         };
+        let start = progress_at_point[index];
+        let end = progress_at_point[index + 1];
+        // A segment reaching past the window is searched only up to its
+        // edge, so a long one cannot carry the reading onto another leg.
+        if let Some(last) = last {
+            if end > start {
+                let ahead =
+                    (start + (end - start) * t - last + lap / 2.0).rem_euclid(lap) - lap / 2.0;
+                let over = ahead - ahead.clamp(-PROGRESS_WINDOW_M, PROGRESS_WINDOW_M);
+                t = (t - over / (end - start)).clamp(0.0, 1.0);
+            }
+        }
         let (nx, nz) = (ax + dx * t, az + dz * t);
         let distance_squared = (px - nx) * (px - nx) + (pz - nz) * (pz - nz);
         if distance_squared < best.0 {
-            let start = progress_at_point[index];
-            let end = progress_at_point[index + 1];
             best = (distance_squared, start + (end - start) * t);
         }
     }
