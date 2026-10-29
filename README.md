@@ -29,6 +29,20 @@ and its tests need it; rerun it after changing `crates/sim` or
 `pnpm test:e2e` runs the Playwright smoke test against the Vite dev server
 (run `pnpm --filter web exec playwright install chromium` once).
 
+## Running locally
+
+Two terminals from the repo root:
+
+```sh
+cargo run -p server          # HTTP and the WebSocket fallback on 0.0.0.0:8080
+pnpm --filter web dev        # Vite on http://localhost:5173, proxying /api to 8080
+```
+
+Open `http://localhost:5173`. WebTransport is off without `TLS_CERT` and
+`TLS_KEY`, so the client uses the WebSocket; `deploy/README.md` has the full
+stack with Caddy, Prometheus and Grafana. The server's metrics are at
+`http://127.0.0.1:8080/metrics` once a room has a player in it (ADR 0018).
+
 ## Controls
 
 Keyboard only. Arrows and WASD do the same thing.
