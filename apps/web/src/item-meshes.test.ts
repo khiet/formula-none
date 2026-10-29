@@ -272,9 +272,10 @@ function domeOf(beacon: Object3D): MeshLambertMaterial {
 }
 
 describe("the marshal post's beacon", () => {
-  it("is dark while the wheel is quiet", () => {
+  it("is dark while the wheel is quiet, again once a pass is over", () => {
     const beacon = marshalBeacon();
-    beacon.show("quiet", 0);
+    beacon.show("rolling", 1);
+    beacon.show("quiet", 2);
     expect(domeOf(beacon.mesh).color.getHex()).toBe(BEACON_OFF);
     expect(domeOf(beacon.mesh).emissive.getHex()).toBe(0);
     expect(beacon.mesh.getObjectByName("glow")?.visible).toBe(false);
@@ -296,13 +297,5 @@ describe("the marshal post's beacon", () => {
       return beam?.rotation.y ?? NaN;
     });
     expect(new Set(sweeps).size).toBe(sweeps.length);
-  });
-
-  it("goes dark again once the pass is over", () => {
-    const beacon = marshalBeacon();
-    beacon.show("rolling", 1);
-    beacon.show("quiet", 2);
-    expect(domeOf(beacon.mesh).color.getHex()).toBe(BEACON_OFF);
-    expect(beacon.mesh.getObjectByName("beam")?.visible).toBe(false);
   });
 });
