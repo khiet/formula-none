@@ -69,10 +69,8 @@ export const ROCKET_WINDOW = 0x7fc3ff;
 export const ROCKET_STRAP = 0x3a3d42;
 
 /**
- * The marshal, as Purrjump draws him: his skin, shine lit and ears
- * shaded, his grey hair, brows, mustache, eyes, nose and mouth, his
- * hi-vis jacket, its reflective bands and the vest under it, his towel,
- * shorts and sandals, the sweat flying off him, his stool and his cup.
+ * The marshal in the colours Purrjump draws him in, save the shaded tones
+ * of his jacket and vest: the sun shades those on the mesh.
  */
 export const MARSHAL_SKIN: Tones = { lit: 0xf8dcb0, mid: 0xf0c090, shaded: 0xd8a070 };
 export const MARSHAL_HAIR = 0x50505c;

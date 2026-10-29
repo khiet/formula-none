@@ -141,10 +141,14 @@ const MARSHAL_SWEAT_PER_S = 1.6;
 const MARSHAL_STEAM_PER_S = 0.6;
 const MARSHAL_STEAM_RISE_M = 0.3;
 
-/** The marshal post's beacon: its size, its beam's reach, sweep and opacity. */
+/**
+ * The marshal post's beacon: its size, and its beam's reach, opacity, and
+ * sweep side to side this fast through this half-swing.
+ */
 const BEACON_RADIUS_M = 0.13;
 const BEACON_BEAM_M = 1.2;
 const BEACON_BEAM_RAD_PER_S = 11;
+const BEACON_BEAM_SWING_RAD = 0.8;
 const BEACON_BEAM_OPACITY = 0.4;
 const BEACON_GLOW_OPACITY = 0.35;
 
@@ -676,7 +680,7 @@ export function marshalMesh(): Marshal {
   for (const side of [-1, 1]) {
     feature(calm, [0.16, 0.045], MARSHAL_BROWS, [side * 0.14, 1.51]);
     feature(calm, [0.06, 0.06], MARSHAL_EYE, [side * 0.13, 1.42]);
-    feature(panic, [0.18, 0.05], MARSHAL_BROWS, [side * 0.14, 1.61], side * 0.2);
+    feature(panic, [0.18, 0.05], MARSHAL_BROWS, [side * 0.14, 1.61], -side * 0.2);
     feature(panic, [0.13, 0.13], WHITE.lit, [side * 0.13, 1.43]);
     const pupil = feature(panic, [0.04, 0.04], MARSHAL_EYE, [side * 0.13, 1.43]);
     pupil.position.z += 0.02;
@@ -820,22 +824,22 @@ export interface Beacon {
 /**
  * The marshal post's beacon: an amber dome on a black base, lit by the sun
  * and dark while the wheel is quiet. While the flag is up it glows, a halo
- * round it, and a beam either side sweeps round. Its dome, halo and beam
+ * round it, and a beam either side sweeps side to side. Its dome, halo and beam
  * are named `dome`, `glow` and `beam`.
  */
 export function marshalBeacon(): Beacon {
   const mesh = new Group();
-  const base = BEACON_RADIUS_M * 0.4;
-  part(mesh, new CylinderGeometry(BEACON_RADIUS_M, BEACON_RADIUS_M, base, 8), INK, [
+  const baseHeight = BEACON_RADIUS_M * 0.4;
+  part(mesh, new CylinderGeometry(BEACON_RADIUS_M, BEACON_RADIUS_M, baseHeight, 8), INK, [
     0,
-    base / 2,
+    baseHeight / 2,
     0,
   ]);
   const dome = part(
     mesh,
     new SphereGeometry(BEACON_RADIUS_M * 0.8, 8, 4, 0, 2 * Math.PI, 0, Math.PI / 2),
     BEACON_OFF,
-    [0, base, 0],
+    [0, baseHeight, 0],
   );
   dome.name = "dome";
   const glow = glowing(
@@ -846,10 +850,10 @@ export function marshalBeacon(): Beacon {
   );
   glow.name = "glow";
   glow.material.blending = AdditiveBlending;
-  glow.position.y = base;
+  glow.position.y = baseHeight;
   const beam = new Group();
   beam.name = "beam";
-  beam.position.y = base + BEACON_RADIUS_M * 0.4;
+  beam.position.y = baseHeight + BEACON_RADIUS_M * 0.4;
   for (const side of [-1, 1]) {
     // Its tip at the dome, opening out along x.
     const cone = new ConeGeometry(BEACON_RADIUS_M * 2.5, BEACON_BEAM_M, 8, 1, true)
@@ -869,9 +873,9 @@ export function marshalBeacon(): Beacon {
       glow.visible = on;
       beam.visible = on;
       if (on) {
-        const sweep = clockSeconds * BEACON_BEAM_RAD_PER_S;
-        beam.rotation.y = sweep;
-        glow.scale.setScalar(1 + Math.abs(Math.cos(sweep)) / 3);
+        const sweep = Math.sin(clockSeconds * BEACON_BEAM_RAD_PER_S);
+        beam.rotation.y = BEACON_BEAM_SWING_RAD * sweep;
+        glow.scale.setScalar(1 + Math.abs(sweep) / 3);
       }
     },
   };

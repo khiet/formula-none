@@ -318,6 +318,11 @@ wheel is quiet he sits with a cup of tea; from the flag going up, a second
 before a pass, to the end of it he is on his feet waving two hazard flags,
 and while the wheel rolls he hops. Presentation only (ADR 0045).
 
+### hazard flag
+
+One of the two flags the marshal waves: yellow with black diagonals, not
+a racing flag. Nothing to do with the item called a hazard (ADR 0045).
+
 ### hazard zone
 
 The paint over a runaway wheel's crossing: wall to wall and as far along

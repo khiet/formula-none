@@ -412,7 +412,8 @@ function runawayWheels(world: ThreeScene, track: Object3D, radius: number): Runa
     readonly spin: Object3D;
     /** Not turned with the heading, so the flames point along the tells' back. */
     readonly flames: Object3D;
-    readonly post: { readonly marshal: Marshal; readonly beacon: Beacon } | undefined;
+    /** Who and what stands on the crossing's marshal post, when it has one. */
+    readonly postFigures: { readonly marshal: Marshal; readonly beacon: Beacon } | undefined;
     /** Where the wheel was last frame; unset while it is off the course. */
     last: Vector3 | undefined;
   }
@@ -426,19 +427,19 @@ function runawayWheels(world: ThreeScene, track: Object3D, radius: number): Runa
     const flames = flamesTemplate.clone();
     world.add(heading, flames);
     const placed = posts.get(crossing);
-    let post: Drawn["post"];
+    let postFigures: Drawn["postFigures"];
     if (placed !== undefined) {
-      post = { marshal: marshalMesh(), beacon: marshalBeacon() };
+      postFigures = { marshal: marshalMesh(), beacon: marshalBeacon() };
       // The marshal faces along the stand's +z, turned toward the track.
       const stand = new Group();
       stand.position.copy(placed.top);
       stand.rotation.y = Math.atan2(placed.inward.x, placed.inward.z);
-      post.marshal.figure.position.x = MARSHAL_OFF_MIDDLE_M;
-      post.beacon.mesh.position.set(BEACON_CORNER_M, 0, BEACON_CORNER_M);
-      stand.add(post.marshal.figure, post.beacon.mesh);
+      postFigures.marshal.figure.position.x = MARSHAL_OFF_MIDDLE_M;
+      postFigures.beacon.mesh.position.set(BEACON_CORNER_M, 0, BEACON_CORNER_M);
+      stand.add(postFigures.marshal.figure, postFigures.beacon.mesh);
       world.add(stand);
     }
-    const entry: Drawn = { heading, spin, flames, post, last: undefined };
+    const entry: Drawn = { heading, spin, flames, postFigures, last: undefined };
     drawn[crossing] = entry;
     return entry;
   };
@@ -454,8 +455,8 @@ function runawayWheels(world: ThreeScene, track: Object3D, radius: number): Runa
       zones.show(wheels, clockSeconds);
       wheels.forEach((wheel, crossing) => {
         const entry = drawnAt(crossing);
-        entry.post?.marshal.pose(wheel.kind, clockSeconds);
-        entry.post?.beacon.show(wheel.kind, clockSeconds);
+        entry.postFigures?.marshal.pose(wheel.kind, clockSeconds);
+        entry.postFigures?.beacon.show(wheel.kind, clockSeconds);
         entry.heading.visible = wheel.kind !== "quiet";
         entry.flames.visible = wheel.kind !== "quiet";
         if (wheel.kind === "quiet") {

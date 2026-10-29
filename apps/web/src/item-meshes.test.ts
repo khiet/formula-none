@@ -31,6 +31,7 @@ import {
   SIGNAL_YELLOW,
   WHEEL_FLAME,
   WHEEL_TYRE,
+  WHITE,
 } from "./palette";
 
 /** A runaway wheel's radius, any will do. */
@@ -138,7 +139,7 @@ describe("the item meshes", () => {
   it("fly a hazard flag 0.9 by 0.62 m from the top of a 1 m pole, striped black over yellow", () => {
     const flag = hazardFlag();
     expect(coloursOf(flag.mesh)).toEqual(
-      expect.arrayContaining([SIGNAL_YELLOW.mid, HAZARD_FLAG_STRIPE, 0xcfd2d6]),
+      expect.arrayContaining([SIGNAL_YELLOW.mid, HAZARD_FLAG_STRIPE, WHITE.shaded]),
     );
     flag.fly(0);
     const bounds = new Box3().setFromObject(flag.mesh);
@@ -296,6 +297,8 @@ describe("the marshal post's beacon", () => {
       expect(beam?.visible).toBe(true);
       return beam?.rotation.y ?? NaN;
     });
-    expect(new Set(sweeps).size).toBe(sweeps.length);
+    // Side to side, not round: out to either end of its swing and back.
+    expect(Math.min(...sweeps)).toBeCloseTo(-0.8, 2);
+    expect(Math.max(...sweeps)).toBeCloseTo(0.8, 2);
   });
 });
