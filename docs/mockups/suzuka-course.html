@@ -97,6 +97,7 @@
     <a href="#placements">Placements</a>
     <a href="#layout">Layout draft</a>
     <a href="#risks">Engineering notes</a>
+    <a href="#decided">Decided</a>
     <a href="#questions">Open questions</a>
   </nav>
 </header>
@@ -307,26 +308,22 @@ LAYOUT = Layout(
   </ul>
 </div>
 
+<h2 id="decided">Decided</h2>
+<div class="card">
+  <ul>
+    <li><b>Rework in place.</b> The <code>brands-patch</code> layout is replaced under the same id; every Brands test and both replays move in the same change.</li>
+    <li><b>Keep the full course, race two laps.</b> The layout stays as close to the real circuit as kart scale allows; <code>LAPS_PER_RACE</code> goes from 3 to 2, so a race is about 2610 m against today's 2390 m.</li>
+  </ul>
+</div>
+
 <h2 id="questions">Open questions</h2>
 <div class="card">
   <ol class="questions">
-    <li>Rework Brands Patch in place, or add this beside it?
-      <ol>
-        <li>Replace the <code>brands-patch</code> layout under the same id: one PR, but every Brands test and both replays move at once.</li>
-        <li><span class="rec">(Recommended)</span> Add it as a third track, migrate the tests that need a race track, then retire Brands Patch.</li>
-      </ol>
-    </li>
     <li>How should spline progress resolve at the bridge?
       <ol>
         <li><span class="rec">(Recommended)</span> Search only a window of centreline around each kart's last progress, falling back to the whole lap on a respawn. On tracks without a crossing it answers the same as today, so the replays should hold.</li>
         <li>Fake the bridge: the two legs pass side by side under a decorative span, no true crossing. No sim change, but it stops being a figure eight.</li>
         <li>Nearest point in 3D. Fails here: the 5 m deck is closer than the 12 m run-off edge.</li>
-      </ol>
-    </li>
-    <li>Lap length?
-      <ol>
-        <li><span class="rec">(Recommended)</span> Keep about 1300 m and trim laps per race if races run long.</li>
-        <li>Squeeze toward 1000 m: the back straight and main straight are the only slack; the Dunlop-to-130R cluster already sits at the 32 m clearance.</li>
       </ol>
     </li>
     <li>The name in the game?
