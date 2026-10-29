@@ -251,7 +251,7 @@ impl Race {
     /// fired: its position x, y, z, the grid index of the kart that fired
     /// it and the grid index of the kart it chases.
     pub fn projectiles(&self) -> Vec<f32> {
-        projectile_floats(self.state().projectiles())
+        projectile_floats(&self.state().projectiles())
     }
 
     /// The runaway wheel at each of the track's crossings as of the last

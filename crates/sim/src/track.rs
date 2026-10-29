@@ -5,7 +5,7 @@
 //! Everything is in the glTF frame the renderer uses: metres, Y up, a kart
 //! with yaw zero faces -Z, and yaw grows counter-clockwise seen from above.
 
-use crate::tuning::{WHEEL_PERIOD_S, WHEEL_WARNING_S};
+use crate::tuning::{PROGRESS_WINDOW_M, WHEEL_PERIOD_S, WHEEL_WARNING_S};
 use rapier3d::prelude::{SharedShape, TriMeshFlags, Vec3};
 use serde::{Deserialize, Serialize};
 use std::fmt;
@@ -322,7 +322,12 @@ impl Track {
             .checkpoints
             .iter()
             .map(|checkpoint| {
-                progress_along(&sidecar.centreline, &progress_at_point, checkpoint.position)
+                progress_along(
+                    &sidecar.centreline,
+                    &progress_at_point,
+                    checkpoint.position,
+                    None,
+                )
             })
             .collect();
         Ok(Self {
@@ -362,9 +367,18 @@ impl Track {
     /// The spline progress of `point`: metres along the centreline from the
     /// start line to the nearest point on it, in `0..spline_length()`. Only
     /// x and z count, so a hopping kart reads the same as one on the
-    /// asphalt beneath it.
+    /// asphalt beneath it. This searches the whole lap, so where the course
+    /// crosses over itself it can answer for the other leg: use it only
+    /// where there is no last reading, as at spawn and after a respawn.
     pub fn progress_at(&self, point: [f32; 3]) -> f32 {
-        progress_along(&self.centreline, &self.progress_at_point, point)
+        progress_along(&self.centreline, &self.progress_at_point, point, None)
+    }
+
+    /// The spline progress of `point`, as `progress_at` reads it, searching
+    /// only the centreline within the tuned window either side of `last`,
+    /// the reading before it (ADR 0046).
+    pub fn progress_near(&self, point: [f32; 3], last: f32) -> f32 {
+        progress_along(&self.centreline, &self.progress_at_point, point, Some(last))
     }
 
     /// Spline progress unwrapped around the start line for ordering karts
@@ -495,9 +509,30 @@ impl Track {
     }
 }
 
-/// `Track::progress_at` over the parts of a track it reads, so the
-/// checkpoints' progress can be found while the track is still being built.
-fn progress_along(centreline: &[[f32; 3]], progress_at_point: &[f32], point: [f32; 3]) -> f32 {
+/// `Track::progress_at`, or `Track::progress_near` given the `last`
+/// reading, over the parts of a track it reads, so the checkpoints'
+/// progress can be found while the track is still being built.
+fn progress_along(
+    centreline: &[[f32; 3]],
+    progress_at_point: &[f32],
+    point: [f32; 3],
+    last: Option<f32>,
+) -> f32 {
+    let lap = progress_at_point[progress_at_point.len() - 1];
+    // A segment is searched when any of it lies within the window of the
+    // last reading, the shorter way round the lap.
+    let in_window = |start: f32, end: f32| {
+        let Some(last) = last else {
+            return true;
+        };
+        let past_start = (last - start).rem_euclid(lap);
+        let gap = if past_start <= end - start {
+            0.0
+        } else {
+            (past_start - (end - start)).min(lap - past_start)
+        };
+        gap <= PROGRESS_WINDOW_M
+    };
     let (px, pz) = (point[0], point[2]);
     let mut best = (f32::INFINITY, 0.0);
     for (index, (a, b)) in centreline
@@ -505,6 +540,9 @@ fn progress_along(centreline: &[[f32; 3]], progress_at_point: &[f32], point: [f3
         .zip(centreline.iter().cycle().skip(1))
         .enumerate()
     {
+        if !in_window(progress_at_point[index], progress_at_point[index + 1]) {
+            continue;
+        }
         let (ax, az) = (a[0], a[2]);
         let (dx, dz) = (b[0] - ax, b[2] - az);
         let length_squared = dx * dx + dz * dz;
@@ -522,7 +560,6 @@ fn progress_along(centreline: &[[f32; 3]], progress_at_point: &[f32], point: [f3
         }
     }
     // The last point of the closing segment is the start line again.
-    let lap = progress_at_point[progress_at_point.len() - 1];
     if best.1 >= lap {
         best.1 - lap
     } else {

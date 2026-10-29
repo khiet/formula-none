@@ -9,6 +9,12 @@ use sim::{step, KartInput, KartReadout, Phase, State, Track};
 pub const OVAL: &str = include_str!("../../../../assets/tracks/oval/oval.track.json");
 pub const BRANDS_PATCH: &str =
     include_str!("../../../../assets/tracks/brands-patch/brands-patch.track.json");
+/// A figure-eight whose legs cross square at the origin, one over the other:
+/// the leg through the crossing first in the lap rides a bridge 5 m high,
+/// the other is on the ground. Flat asphalt 180 m by 70 m lies under all of
+/// it, with nothing beyond. The start line is the east tip, with the lap
+/// running -Z from it; the only other checkpoint is the west tip.
+pub const FIGURE_EIGHT: &str = include_str!("../figure-eight.track.json");
 pub const DT: f32 = 1.0 / TICKS_PER_SECOND as f32;
 pub const SEED: u64 = 0x5EED;
 
@@ -18,6 +24,10 @@ pub fn oval() -> Track {
 
 pub fn brands_patch() -> Track {
     Track::from_sidecar(BRANDS_PATCH).expect("Brands Patch loads")
+}
+
+pub fn figure_eight() -> Track {
+    Track::from_sidecar(FIGURE_EIGHT).expect("the figure-eight fixture loads")
 }
 
 /// The track `sidecar` describes, as one of the edits below leaves it.

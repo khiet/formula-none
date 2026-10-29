@@ -118,7 +118,9 @@ through it (ADR 0022).
 
 ### spline progress
 
-Distance along the track centreline. Race position is ordered by lap, then
+Distance along the track centreline to the nearest centreline point within
+reach of the last reading, so a kart keeps its own leg where the course
+crosses over itself. Race position is ordered by lap, then
 checkpoint index, then spline progress. Decreasing spline progress for two
 seconds triggers the wrong-way warning.
 

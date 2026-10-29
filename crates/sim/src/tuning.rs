@@ -112,6 +112,13 @@ pub const RACE_END_CAP_S: f32 = 60.0;
 pub const RACE_OUTRO_S: f32 = 3.0;
 /// Seconds of decreasing spline progress before the wrong-way warning.
 pub const WRONG_WAY_WARNING_S: f32 = 2.0;
+/// Metres either side of the last spline progress that the next reading
+/// searches, wrapping past the start line (ADR 0046). It must be wider
+/// than the furthest a kart or projectile travels in one tick, and than a
+/// kerb a bot steers for lies ahead of the bot. It must be narrower than
+/// the lap distance between two legs of a course that cross, or a reading
+/// at the crossing can land on the other leg.
+pub const PROGRESS_WINDOW_M: f32 = 40.0;
 
 // World. Metres and seconds. The kart's collider is a box of these
 // dimensions; the View draws the same box until the glTF kart lands (ADR 0007).
@@ -495,6 +502,10 @@ const _: () = {
         HOMING_SPEED_FACTOR * TOP_SPEED_M_PER_S / (TICKS_PER_SECOND as f32)
             < 2.0 * (HOMING_RADIUS_M + KART_HALF_LENGTH_M)
     );
+    assert!(
+        HOMING_SPEED_FACTOR * TOP_SPEED_M_PER_S / (TICKS_PER_SECOND as f32) < PROGRESS_WINDOW_M
+    );
+    assert!(BOT_KERB_APPROACH_M + KERB_HALF_LENGTH_M < PROGRESS_WINDOW_M);
     assert!(0.0 < BOT_ITEM_USE_DELAY_S);
     assert!(0.0 < BOT_HAZARD_HOLD_S && BOT_HAZARD_HOLD_S <= BOT_ITEM_USE_DELAY_S);
     assert!(0.0 < PREDICTED_FIRE_TIMEOUT_S);

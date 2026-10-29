@@ -50,6 +50,7 @@ const DECISION_SLUGS = [
   "bots-set-off-for-the-wheel",
   "runaway-wheel-size",
   "marshal-waves-hazard-flags",
+  "spline-progress-searched-near-the-last-reading",
 ];
 
 const expectedFiles = DECISION_SLUGS.map(
