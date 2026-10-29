@@ -9,15 +9,17 @@
 
 mod common;
 
-use common::{oval, track, with_boxes_under, with_slot_at, without_item_boxes, DT, OVAL, SEED};
+use common::{
+    oval, track, with_boxes_under, with_slot_at, without_item_boxes, BUMP_SPENT_S, DT, OVAL, SEED,
+};
 
 use std::collections::VecDeque;
 
 use sim::bot::{self, Memory};
 use sim::tuning::{
-    INTERPOLATION_DELAY_S, KART_BUMP_DECAY_S, RECONCILIATION_BLEND_TICKS,
-    RECONCILIATION_TOLERANCE_M, RECONCILIATION_VISIBLE_CORRECTION_M, SNAPSHOTS_PER_SECOND,
-    START_FULL_BOOST_HOLD_S, TICKS_PER_SECOND, TOP_SPEED_M_PER_S,
+    INTERPOLATION_DELAY_S, RECONCILIATION_BLEND_TICKS, RECONCILIATION_TOLERANCE_M,
+    RECONCILIATION_VISIBLE_CORRECTION_M, SNAPSHOTS_PER_SECOND, START_FULL_BOOST_HOLD_S,
+    TICKS_PER_SECOND, TOP_SPEED_M_PER_S,
 };
 use sim::{step, KartInput, KartReadout, Phase, Prediction, Start, State};
 
@@ -37,15 +39,25 @@ struct InFlight {
     kart: KartReadout,
 }
 
-/// What a run saw: every reconciliation's correction, in metres, the own
-/// kart as the client drew it after each of its ticks, and the client
-/// ticks the predicted kart showed a spin-out.
+/// What a run saw: every reconciliation's correction, in metres, and the
+/// client ticks of those that moved the kart; the own kart as the client
+/// drew it after each of its ticks, from the first after the one-way trip;
+/// the server's karts after each of its ticks, from the grid at tick 0;
+/// and the client ticks the predicted kart showed a spin-out.
 struct Run {
     prediction: Prediction,
     corrections_m: Vec<f32>,
+    corrected_at: Vec<u32>,
     drawn: Vec<KartReadout>,
+    server: Vec<Vec<KartReadout>>,
     spun_out_ticks: u32,
 }
+
+/// The client tick the first of a run's drawn karts was drawn at.
+const FIRST_DRAWN_TICK: u32 = ONE_WAY_TICKS + 1;
+/// How far ahead of a client tick the server tick its input meets is: the
+/// predicted kart stands where the server's will when that input lands.
+const PREDICTED_LEAD_TICKS: u32 = ONE_WAY_TICKS + 1;
 
 /// One kart raced for `ticks` server ticks: once the first input lands
 /// the server applies the next sequence each tick, the last controls
@@ -111,7 +123,6 @@ fn race_drawing(
     draws_others: bool,
 ) -> Run {
     let mut prediction = Prediction::new(SEED, 0, server.track().clone());
-    // The server's karts after each tick, from the grid at tick 0.
     let mut history = vec![server.kart_readouts()];
     let mut inputs_in_flight: VecDeque<(u32, u32, KartInput)> = VecDeque::new();
     let mut snapshots_in_flight: VecDeque<InFlight> = VecDeque::new();
@@ -119,6 +130,7 @@ fn race_drawing(
     let mut applied = (0, KartInput::default());
     let mut sequence = 0;
     let mut corrections_m = Vec::new();
+    let mut corrected_at = Vec::new();
     let mut drawn = Vec::new();
     let mut spun_out_ticks = 0;
     for tick in 1..=ticks {
@@ -158,11 +170,11 @@ fn race_drawing(
             .is_some_and(|snapshot| snapshot.arrives <= tick)
         {
             let snapshot = snapshots_in_flight.pop_front().unwrap();
-            corrections_m.push(prediction.reconcile(
-                snapshot.tick,
-                snapshot.acknowledged,
-                &snapshot.kart,
-            ));
+            let moved = prediction.reconcile(snapshot.tick, snapshot.acknowledged, &snapshot.kart);
+            if moved > RECONCILIATION_TOLERANCE_M {
+                corrected_at.push(tick);
+            }
+            corrections_m.push(moved);
         }
         let input = driver(&prediction, tick);
         sequence += 1;
@@ -182,7 +194,9 @@ fn race_drawing(
     Run {
         prediction,
         corrections_m,
+        corrected_at,
         drawn,
+        server: history,
         spun_out_ticks,
     }
 }
@@ -635,10 +649,6 @@ fn a_finished_kart_is_predicted_driven_by_its_bot_not_by_the_players_inputs() {
     );
 }
 
-/// Seconds for a bump to decay to nothing a kart could show: five of its
-/// decay times leave under a percent of it.
-const BUMP_SPENT_S: f32 = 5.0 * KART_BUMP_DECAY_S;
-
 #[test]
 fn a_touch_the_server_places_elsewhere_corrects_the_kart_while_the_bump_lasts_and_no_longer() {
     // The own kart idles on the oval's front straight from Go; the other
@@ -669,8 +679,9 @@ fn a_touch_the_server_places_elsewhere_corrects_the_kart_while_the_bump_lasts_an
     }
     let server = State::new(SEED, 2, track);
     let other = |tick: u32| vec![if tick <= hit { throttle } else { brake }];
+    let ticks = hit + seconds(3.0);
     let run = race_drawing(
-        hit + seconds(3.0),
+        ticks,
         |_| false,
         server,
         |_, _| KartInput::default(),
@@ -705,18 +716,31 @@ fn a_touch_the_server_places_elsewhere_corrects_the_kart_while_the_bump_lasts_an
     let tick_of_travel = TOP_SPEED_M_PER_S * DT;
     let moved = run.corrections_m[first];
     assert!(moved > tick_of_travel, "the touch moved the kart {moved} m");
+    let distance = |a: [f32; 3], b: [f32; 3]| {
+        ((a[0] - b[0]).powi(2) + (a[1] - b[1]).powi(2) + (a[2] - b[2]).powi(2)).sqrt()
+    };
     let furthest = run
         .drawn
         .windows(2)
-        .map(|pair| {
-            let (a, b) = (pair[0].position, pair[1].position);
-            ((a[0] - b[0]).powi(2) + (a[1] - b[1]).powi(2) + (a[2] - b[2]).powi(2)).sqrt()
-        })
+        .map(|pair| distance(pair[0].position, pair[1].position))
         .fold(0.0, f32::max);
     assert!(
         furthest < tick_of_travel,
         "the drawn kart never jumps: {furthest} m in a tick"
     );
+    // And the blend ticks after the correction the drawn kart is where
+    // the server has its kart the predicted lead ahead, and stays there.
+    let corrected = run.corrected_at[0];
+    for tick in corrected + RECONCILIATION_BLEND_TICKS..=ticks - PREDICTED_LEAD_TICKS {
+        let drawn = run.drawn[(tick - FIRST_DRAWN_TICK) as usize].position;
+        let server = run.server[(tick + PREDICTED_LEAD_TICKS) as usize][0].position;
+        let off = distance(drawn, server);
+        assert!(
+            off < 0.01,
+            "tick {tick}, {} after the correction: drawn {off} m from the server's kart",
+            tick - corrected
+        );
+    }
     // Hit from behind while idling, the own kart is carried by the bump
     // and keeps its own speed of nothing, as the server has it; the bump
     // is never read as driving.

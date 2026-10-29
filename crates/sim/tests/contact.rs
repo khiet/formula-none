@@ -7,12 +7,9 @@
 
 mod common;
 
-use common::{started, ticks, track, with_slot_at, DT, OVAL, SEED};
+use common::{started, ticks, track, with_slot_at, BUMP_SPENT_S, DT, OVAL, SEED};
 
-use sim::tuning::{
-    KART_BUMP_DECAY_S, KART_BUMP_SPEED_LOSS, KART_HALF_LENGTH_M, KART_HALF_WIDTH_M,
-    TOP_SPEED_M_PER_S,
-};
+use sim::tuning::{KART_BUMP_SPEED_LOSS, KART_HALF_LENGTH_M, KART_HALF_WIDTH_M, TOP_SPEED_M_PER_S};
 use sim::{step, KartInput, KartReadout, Prediction, State, Track};
 
 /// Centres this far apart along the column are nose to tail.
@@ -96,10 +93,6 @@ fn first_hit(trace: &[[KartReadout; 2]]) -> usize {
 /// the closing speed, its own; this much of the speed may survive, with a
 /// tenth to spare for the tick's acceleration and the solver's part.
 const SURVIVING_SPEED_SHARE: f32 = 1.0 - KART_BUMP_SPEED_LOSS + 0.1;
-
-/// Seconds for a bump to decay to nothing a kart could show: five of its
-/// decay times leave under a percent of it.
-const BUMP_SPENT_S: f32 = 5.0 * KART_BUMP_DECAY_S;
 
 #[test]
 fn a_kart_driven_into_the_back_of_another_bounces_off_and_slows_instead_of_pushing_it_along() {
