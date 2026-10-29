@@ -4,7 +4,10 @@
 
 mod common;
 
-use common::{brands_patch, oval, started, throttle, ticks, track, with_slot_at, DT, OVAL, SEED};
+use common::{
+    brands_patch, oval, started, throttle, ticks, track, with_mesh_centred_on, with_slot_at, yaw,
+    DT, OVAL, SEED,
+};
 
 use sim::tuning::{KART_HALF_HEIGHT_M, KART_HALF_LENGTH_M, WHEEL_LANDING_SPREAD_M, WHEEL_RADIUS_M};
 use sim::{step, KartInput, KartReadout, State, Surface, Track, TrackError};
@@ -564,6 +567,84 @@ fn a_kart_driving_into_the_ovals_wall_is_held_by_it() {
     held_by_the_first_turns_wall(oval(), 1, [0.0, -100.0], 42.0, |position| {
         position[2] < -100.0
     });
+}
+
+/// The bump a kart carries as its readout shows it: its velocity along the
+/// ground less its speed along the way it faces.
+fn bump(kart: &KartReadout) -> [f32; 2] {
+    // Yaw zero faces -Z and grows counter-clockwise seen from above.
+    let (sin, cos) = yaw(kart.rotation).sin_cos();
+    [
+        kart.velocity[0] + sin * kart.speed,
+        kart.velocity[2] + cos * kart.speed,
+    ]
+}
+
+#[test]
+fn a_kart_driven_into_a_wall_and_a_tyre_wall_at_once_is_held_then_bumped_along_the_wall() {
+    // Slot 1 driven straight on meets the first turn's outer wall, 42 m
+    // round (0, -100), near (31.8, -125.9). The oval's first tyre wall is
+    // moved against that wall a little further round, so the kart's nose
+    // meets both in one tick.
+    const TURN_CENTRE: [f32; 2] = [0.0, -100.0];
+    const WALL_RADIUS: f32 = 42.0;
+    let (_, tyre_radius) = ovals_first_tyre_wall();
+    let (sin, cos) = (-42.0_f32).to_radians().sin_cos();
+    let tyre_centre = [
+        TURN_CENTRE[0] + (WALL_RADIUS - tyre_radius) * cos,
+        TURN_CENTRE[1] + (WALL_RADIUS - tyre_radius) * sin,
+    ];
+    let corner = with_mesh_centred_on(OVAL, "TyreWall.00", tyre_centre);
+    let mut against_both = started(State::new(SEED, 2, track(&corner)));
+    // The same drive with the tyre wall where the oval keeps it, clear of
+    // the kart's line: the cost of the wall's hold alone.
+    let mut against_the_wall = started(State::new(SEED, 2, oval()));
+    let inputs = [KartInput::default(), throttle()];
+    let mut touch = None;
+    let mut moved_away = false;
+    for tick in 0..ticks(8.0) {
+        against_both = step(against_both, &inputs, DT);
+        against_the_wall = step(against_the_wall, &inputs, DT);
+        let kart = against_both.kart_readouts()[1];
+        let (dx, dz) = (
+            kart.position[0] - TURN_CENTRE[0],
+            kart.position[2] - TURN_CENTRE[1],
+        );
+        let from_the_turn_centre = dx.hypot(dz);
+        // The turn starts level with its centre; the front straight runs
+        // further out than the wall's radius.
+        assert!(
+            dz > 0.0 || from_the_turn_centre < WALL_RADIUS,
+            "went through the wall: {kart:?}"
+        );
+        assert!(
+            from_the_tyre_wall(&kart, tyre_centre) > tyre_radius,
+            "went into the tyre wall: {kart:?}"
+        );
+        if touch.is_none() && from_the_tyre_wall(&kart, tyre_centre) < touching_within(tyre_radius)
+        {
+            touch = Some(tick);
+            let held_alone = against_the_wall.kart_readouts()[1];
+            assert!(
+                kart.speed <= held_alone.speed,
+                "the wall's hold alone left {} m/s, the corner {} m/s",
+                held_alone.speed,
+                kart.speed
+            );
+        }
+        if touch.is_some() {
+            let [bx, bz] = bump(&kart);
+            let into_the_wall = (bx * dx + bz * dz) / from_the_turn_centre;
+            assert!(
+                into_the_wall < 0.01,
+                "bumped {into_the_wall} m/s into the wall: {kart:?}"
+            );
+        }
+        moved_away |= touch.is_some_and(|touch| tick - touch < ticks(1.0))
+            && moving_away_from(&kart, tyre_centre) > 1.0;
+    }
+    assert!(touch.is_some(), "never reached the corner");
+    assert!(moved_away, "never moved away from the tyre wall");
 }
 
 #[test]
