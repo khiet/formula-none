@@ -158,16 +158,16 @@ MARSHAL_LAMP_SIZE_M = 0.35
 MARSHAL_LAMP_PROUD_M = 0.1
 MARSHAL_LAMP_BELOW_TOP_M = 0.3
 
-# The eight-slot spawn grid: two staggered columns of four, pole in front on
-# the left, the right column set back. Slot order is grid order. Placements
-# snap to the nearest centreline sample, so these distances hold to within
-# half a `SAMPLE_STEP_M`.
 # The bridge where a course crosses itself: a deck this thick over the
 # underpass, and its span wide enough to leave this much open ground beyond
 # each of the underpass's walls.
 BRIDGE_DECK_THICKNESS_M = 1.0
 BRIDGE_SPAN_CLEARANCE_M = 2.0
 
+# The eight-slot spawn grid: two staggered columns of four, pole in front on
+# the left, the right column set back. Slot order is grid order. Placements
+# snap to the nearest centreline sample, so these distances hold to within
+# half a `SAMPLE_STEP_M`.
 GRID_SLOTS = 8
 GRID_ROW_SPACING_M = 5.0
 GRID_COLUMN_OFFSET_M = 2.0

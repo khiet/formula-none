@@ -51,9 +51,9 @@ profile and the engineering notes, is `docs/mockups/suzuka-course.html`.
 - The course map draws the deck over the road beneath it, so the crossing
   reads as a bridge rather than an X.
 - The hairpin lies in line with the wheel's crossing, 50 m past it, so a
-  bot turning through it faces back toward the wheel. A bot past a
-  crossing along the lap by more than the wheel's reach and its lookahead
-  waits for no pass, whichever way it faces. The track keeps each
+  bot turning through it faces back toward the wheel. A bot facing back
+  toward a crossing that it is past along the lap by more than the
+  wheel's reach and its lookahead waits for no pass. The track keeps each
   crossing's spline progress for this, found over the whole lap when it is
   built, as a checkpoint's is.
 

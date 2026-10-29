@@ -625,7 +625,7 @@ fn a_finished_kart_counts_no_more_laps_and_keeps_its_clocks() {
     // The bot laps on, over the line again.
     let state = drive(state, &[idle, idle], 1.5 * LAP_S);
     let standing = state.standings()[0];
-    assert_eq!(standing.laps_completed, LAPS_PER_RACE, "no fourth lap");
+    assert_eq!(standing.laps_completed, LAPS_PER_RACE, "no lap past the last");
     assert_eq!(standing.finish_time_s, finish.finish_time_s);
     assert_eq!(
         standing.best_lap_s, finish.best_lap_s,

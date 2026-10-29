@@ -27,7 +27,7 @@ const HAIRPIN_EXIT_M: f32 = 706.3;
 const CHECKPOINT_BEFORE_THE_HAIRPIN: usize = 7;
 /// Where the back straight crosses over the underpass, 5 m up, with a wall
 /// standing on the deck 12 m either side of the centreline.
-const BRIDGE_DECK_M: f32 = 1020.7;
+const BRIDGE_DECK_PROGRESS_M: f32 = 1020.7;
 const DECK_HEIGHT_M: f32 = 5.0;
 const RUN_OFF_HALF_WIDTH_M: f32 = 12.0;
 
@@ -338,8 +338,8 @@ fn steering_off_the_deck_ends_against_its_wall_still_on_the_bridge() {
             1,
             track(&without_wheel_crossings(BRANDS_PATCH)),
         )),
-        BRIDGE_DECK_M - 6.0,
-        BRIDGE_DECK_M - 60.0,
+        BRIDGE_DECK_PROGRESS_M - 6.0,
+        BRIDGE_DECK_PROGRESS_M - 60.0,
         LEAVE_SPEED_M_PER_S,
     );
     let checkpoint = only_standing(&state).checkpoint;

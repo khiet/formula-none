@@ -72,14 +72,20 @@ path = (
 # Where the back straight passes over the underpass, metres along each leg.
 BRIDGE_UNDERPASS_S = 573.8
 BRIDGE_BACK_STRAIGHT_S = 1020.7
-BRIDGE_DECK_M = 5.0
-BRIDGE_HALF_SPAN_M = 55.0
+BRIDGE_DECK_HEIGHT_M = 5.0
+BRIDGE_HILL_HALF_LENGTH_M = 55.0
 RAMP_HEIGHT_M = 1.5
 RAMP_LENGTH_M = 12.0
 
 back = path.segment("back-straight")
 hairpin = path.segment("hairpin")
 ramp_start = back.s_start + 14.0
+# The road's climb over the bridge, which the embankment stands under.
+bridge_hill = Hill(
+    BRIDGE_BACK_STRAIGHT_S - BRIDGE_HILL_HALF_LENGTH_M,
+    BRIDGE_BACK_STRAIGHT_S + BRIDGE_HILL_HALF_LENGTH_M,
+    BRIDGE_DECK_HEIGHT_M,
+)
 
 LAYOUT = Layout(
     name="brands-patch",
@@ -113,11 +119,7 @@ LAYOUT = Layout(
     wheel_crossings=[WheelCrossing(BRIDGE_UNDERPASS_S + 28.0, outside=-1)],
     elevation=[
         Ramp(ramp_start, ramp_start + RAMP_LENGTH_M, RAMP_HEIGHT_M),
-        Hill(
-            BRIDGE_BACK_STRAIGHT_S - BRIDGE_HALF_SPAN_M,
-            BRIDGE_BACK_STRAIGHT_S + BRIDGE_HALF_SPAN_M,
-            BRIDGE_DECK_M,
-        ),
+        bridge_hill,
     ],
     decor=Decor(
         hoardings=[
@@ -135,8 +137,8 @@ LAYOUT = Layout(
             Bridge(
                 deck_s=BRIDGE_BACK_STRAIGHT_S,
                 underpass_s=BRIDGE_UNDERPASS_S,
-                s_start=BRIDGE_BACK_STRAIGHT_S - BRIDGE_HALF_SPAN_M,
-                s_end=BRIDGE_BACK_STRAIGHT_S + BRIDGE_HALF_SPAN_M,
+                s_start=bridge_hill.s_start,
+                s_end=bridge_hill.s_end,
             )
         ],
     ),
