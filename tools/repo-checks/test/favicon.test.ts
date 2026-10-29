@@ -21,16 +21,17 @@ const GRID = [
   ".....kkkkkkkkk..",
   "................",
 ];
+// The issue's legend: k ink, y poster gold, R the strike; `.` is transparent.
 const COLOURS: Record<string, string> = { k: "#111111", y: "#ffd23f", R: "#e8333b" };
 
 /**
- * Paints an SVG's `<path fill d>` elements onto a size x size grid of colour
+ * Paints an SVG's `<path fill d>` elements onto a 16 x 16 grid of colour
  * keys. Each subpath must be an axis-aligned rectangle drawn with M, H, V, h
  * and v; anything else, or two colours on one pixel, fails the test.
  */
-function rasterise(svg: string, size: number): string[] {
+function rasterise(svg: string): string[] {
   const keyOf = new Map(Object.entries(COLOURS).map(([key, hex]) => [hex, key]));
-  const cells = Array.from({ length: size }, () => Array<string>(size).fill("."));
+  const cells = Array.from({ length: 16 }, () => Array<string>(16).fill("."));
   for (const [, fill = "", d = ""] of svg.matchAll(
     /<path fill="(#[0-9a-f]{6})" d="([^"]+)"\s*\/>/g,
   )) {
@@ -70,11 +71,15 @@ function rasterise(svg: string, size: number): string[] {
 const favicon = readRepoFile("apps/web/public/favicon.svg");
 const guide = readRepoFile("docs/style-guide.html");
 
+function expectStruckOne(svg: string) {
+  expect(svg).toMatch(/viewBox="0 0 16 16"/);
+  expect(svg).toMatch(/shape-rendering="crispEdges"/);
+  expect(rasterise(svg)).toEqual(GRID);
+}
+
 describe("the favicon", () => {
   it("draws the struck 1 pixel for pixel on a crisp 16 px grid", () => {
-    expect(favicon).toMatch(/viewBox="0 0 16 16"/);
-    expect(favicon).toMatch(/shape-rendering="crispEdges"/);
-    expect(rasterise(favicon, 16)).toEqual(GRID);
+    expectStruckOne(favicon);
   });
 
   it("has one title and one path per colour, on no background", () => {
@@ -87,8 +92,6 @@ describe("the favicon", () => {
   it("is drawn in the style guide from the same paths at 16, 32 and 64 px", () => {
     const entry = guide.match(/draw\.favicon = \(\) => (.*);$/m)?.[1] ?? "";
     expect(entry).toMatch(/\[16, 32, 64\]\.map/);
-    expect(entry).toMatch(/viewBox="0 0 16 16"/);
-    expect(entry).toMatch(/shape-rendering="crispEdges"/);
-    expect(rasterise(entry, 16)).toEqual(GRID);
+    expectStruckOne(entry);
   });
 });
