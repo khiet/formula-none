@@ -22,7 +22,7 @@ export interface HeadSway {
    * positive tips the head to the kart's left. The angle to draw.
    */
   readonly roll: number;
-  /** The lateral G the head leans by, lagged; positive pulls toward the kart's right, a left turn. */
+  /** The lateral G the head leans by, lagged; positive in a left turn. */
   readonly lateralG: number;
 }
 
@@ -31,14 +31,13 @@ export const HEAD_LEVEL: HeadSway = Object.freeze({ roll: 0, lateralG: 0 });
 
 /**
  * Head sway (GLOSSARY): `sway` carried `frameSeconds` on, from `previous`,
- * the kart's readout last frame, to `current`. The lateral G is speed times
- * the yaw rate between the two readouts. It is lagged weighted by frame
- * time, so a frame that repeats the last tick counts as no turn for its
- * share of the time and the lean is the same at any display rate. The head
- * leans to the outside of the turn by that G and lags behind the lean in
- * turn, so the sim's tick never shows as a shake. Through a spin-out or a
- * stall the head is level, and it eases back into the lean once the kart
- * drives again. Presentation only.
+ * the kart's readout last frame, to `current`. The head leans to the
+ * outside of the turn by the lateral G, speed times the yaw rate between
+ * the two readouts, and settles on a new lean in about 0.15 s. The G is
+ * lagged over frame time, so a frame that repeats the last tick leaves the
+ * lean about the same at any display rate. Through a spin-out or a stall
+ * the head is level, and it eases back into the lean once the kart drives
+ * again. Presentation only.
  */
 export function swayHead(
   sway: HeadSway,

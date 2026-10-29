@@ -19,7 +19,7 @@ interface Drive {
   readonly sway: HeadSway;
   readonly previous: KartReadout | undefined;
   readonly yaw: number;
-  /** Seconds driven, which ticks have run. */
+  /** Seconds driven; the ticks run so far follow from it. */
   readonly t: number;
 }
 
@@ -110,7 +110,7 @@ describe("head sway", () => {
       let state = drive(turnAt(2), 1, START, frameHz);
       for (let frame = 0; frame < frameHz / 2; frame++) {
         state = drive(turnAt(2), 1 / frameHz, state, frameHz);
-        // A frame that repeats a tick still ripples the lean, by well under a degree.
+        // A frame that repeats a tick still ripples the lean, by under a degree at 2 g.
         expect(Math.abs(state.sway.roll / lean - 1)).toBeLessThan(0.08);
       }
     },
