@@ -484,8 +484,8 @@ def decorate(layout: Layout, height: list[float]) -> tuple[list[SceneryMesh], li
     if layout.decor.gantry:
         scenery += gantry(layout)
     scenery += bridges(layout, height)
-    # The props build on this module's `ByMaterial` and walls, so they come
-    # in here rather than at the top.
+    # `props` imports this module, so it is imported here, once everything
+    # it needs is defined.
     from .props import woods
 
     scenery += woods(layout)

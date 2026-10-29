@@ -203,7 +203,6 @@ def _cherry(tree: Tree) -> Iterator[tuple[str, mesh.Mesh]]:
         yield from _lump(tree, "blossom", across, ground + centre, radius)
 
 
-# One builder per kind of tree.
 BUILDERS: dict[str, Callable[[Tree], Iterator[tuple[str, mesh.Mesh]]]] = {
     "pine": _pine,
     "round": _round,

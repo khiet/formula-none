@@ -147,13 +147,13 @@ LAYOUT = Layout(
         woods=[
             # Pines outside Degner.
             Wood("pine", Disc(-215.0, -70.0, 35.0), count=40, seed=1),
-            # Round trees in the 200R pocket.
+            # Round trees on the slope between Dunlop and 130R.
             Wood("round", Disc(-150.0, 5.0, 12.0), count=15, seed=2),
-            # Round trees beyond Spoon.
+            # Round trees in the 200R pocket.
             Wood("round", Disc(-300.0, 72.0, 14.0), count=12, seed=3),
             # Pines outside the hairpin.
             Wood("pine", Disc(-230.0, 190.0, 25.0), count=25, seed=4),
-            # Pines between the back straight and 130R, hiding the next leg.
+            # Pines beyond Spoon.
             Wood("pine", Disc(-400.0, 100.0, 25.0), count=30, seed=5),
             # Round trees in the middle of the east infield.
             Wood("round", Disc(-60.0, -45.0, 20.0), count=15, seed=6),
