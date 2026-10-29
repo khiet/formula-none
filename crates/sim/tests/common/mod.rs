@@ -126,6 +126,39 @@ pub fn with_slot_at(sidecar: &str, slot: usize, position: [f32; 3], yaw: f32) ->
     })
 }
 
+/// `sidecar` with the surface mesh `name` slid along the ground, unturned,
+/// so its footprint is centred on `centre` (x, z). No track stands a tyre
+/// wall against a wall, so a test that needs one moves it there.
+pub fn with_mesh_centred_on(sidecar: &str, name: &str, centre: [f32; 2]) -> String {
+    edited(sidecar, |sidecar| {
+        let mesh = sidecar["surfaces"]
+            .as_array_mut()
+            .expect("surfaces")
+            .iter_mut()
+            .find(|mesh| mesh["name"] == name)
+            .expect("the named mesh");
+        let positions = mesh["positions"].as_array_mut().expect("positions");
+        let coordinate = |value: &serde_json::Value| value.as_f64().expect("a coordinate");
+        let count = (positions.len() / 3) as f64;
+        let mean = |axis: usize| {
+            positions[axis..]
+                .iter()
+                .step_by(3)
+                .map(coordinate)
+                .sum::<f64>()
+                / count
+        };
+        let shift = [
+            f64::from(centre[0]) - mean(0),
+            0.0,
+            f64::from(centre[1]) - mean(2),
+        ];
+        for (index, value) in positions.iter_mut().enumerate() {
+            *value = serde_json::json!(coordinate(value) + shift[index % 3]);
+        }
+    })
+}
+
 /// `sidecar` with no runaway wheel, so a test driving past its crossing
 /// meets nothing it did not ask for.
 pub fn without_wheel_crossings(sidecar: &str) -> String {
