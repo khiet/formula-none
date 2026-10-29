@@ -394,7 +394,7 @@ function loopable(samples, crossfade = 0.05) {
   return out;
 }
 
-/** Peak-normalise to `peak` when the render overshoots it; the WAV writer would clip otherwise. */
+/** Peak-normalise to `peak` when the render overshoots it; anything past 1 clips on output. */
 function tame(samples, peak = 0.95) {
   let max = 0;
   for (let i = 0; i < samples.length; i++) max = Math.max(max, Math.abs(samples[i]));
@@ -674,8 +674,8 @@ function sputter(length, coughsPerS, from, to, rumbleGain, hissGain) {
 
 // ---------------------------------------------------------------------------
 // The engine model: the speed model from the sim's tuning, the gears derived
-// from speed, and the synth the gears drive. Presentation only: the game's
-// port would read speed from the own kart's transform and nothing else.
+// from speed, and the synth the gears drive. Presentation only: the gears
+// derive from the kart's speed alone and never reach the sim.
 // ---------------------------------------------------------------------------
 const ENGINE_PARAMS = {
   gears: [6, 4, 8, 1, "Gears"],
@@ -820,8 +820,8 @@ class Engine {
     let revs = bandRevs;
     const tier = input.startTier;
     if (tier !== null && this.speed < 0.5) revs = Math.max(revs, START_REVS[tier]);
-    // The limiter chops only past top speed in top gear (a boost) or on a full or stalled grid rev.
-    // Judged by speed, not the capped revs, so a limiter set to 1.00 still chops past top speed.
+    // The limiter chops past top speed in top gear (a boost) or on a full or stalled grid rev,
+    // judged by speed rather than the capped revs so a limiter of 1.00 still chops.
     this.atLimiter = (gear === p.gears && Math.abs(this.speed) > TOP_SPEED * (1 + 1e-3)) || (tier !== null && this.speed < 0.5 && START_REVS[tier] >= 1);
     if (now < this.blipUntil) revs *= 1 + p.blip;
     this.revs = revs;
