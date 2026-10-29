@@ -140,7 +140,7 @@ describe.each(["brands-patch", "oval"])("%s's hazard zones", (name) => {
   });
 });
 
-describe("Brands Patch's final art", () => {
+describe("Suzuqa Patch's final art", () => {
   const brandsPatch = track("brands-patch");
 
   it("dresses the track: kerbs on the corners, the start line, hoardings, stands and the gantry", () => {

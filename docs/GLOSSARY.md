@@ -291,6 +291,15 @@ track: the track limit. A kart can leave the asphalt for the sand but never
 the course, so no corner can be cut and no checkpoint skipped. A wall holds
 a kart at the corner that met it, with no bounce (ADR 0022).
 
+### bridge
+
+Where a course crosses itself: one leg rises on an embankment and crosses
+the other on a deck, between its own walls, and the other leg runs beneath
+it through the underpass, at ground level. The deck, its embankment and
+abutments are scenery; a kart rides the raised leg's own asphalt and sand,
+and reads its spline progress near its last reading so it keeps to its own
+leg through the crossing (ADRs 0046, 0047).
+
 ### tyre wall
 
 A stack of tyres standing on the asphalt, tagged `tyres`. A kart that
@@ -392,7 +401,8 @@ read the one readout. Not a snapshot, which is the server's message.
 The track's outline seen from above in a corner of the Instrument panel,
 drawn from the sidecar's centreline as asphalt between white walls with a
 chequered start, and a faceted octagon marker per kart in its key colour at
-the transform the View draws that frame. The own kart's marker is larger
+the transform the View draws that frame. At a bridge the deck is drawn over
+the road beneath, so the map reads as a crossing rather than an X. The own kart's marker is larger
 and ringed in white. The map is fixed: it never rotates with
 the own kart.
 

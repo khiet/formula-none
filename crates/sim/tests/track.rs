@@ -38,14 +38,14 @@ fn brands_patch_carries_the_whole_layout() {
     let track = brands_patch();
 
     assert_eq!(track.name(), "brands-patch");
-    assert_eq!(track.checkpoints().len(), 12);
-    assert_eq!(track.item_boxes().len(), 8);
+    assert_eq!(track.checkpoints().len(), 15);
+    assert_eq!(track.item_boxes().len(), 12);
     assert_eq!(track.boost_pads().len(), 2);
-    assert_eq!(track.kerbs().len(), 1);
+    assert_eq!(track.kerbs().len(), 2);
     assert_eq!(track.spawn_grid().len(), 8);
     assert!(
-        (760.0..=840.0).contains(&track.spline_length()),
-        "about 800 m, got {}",
+        (1280.0..=1330.0).contains(&track.spline_length()),
+        "about 1306 m, got {}",
         track.spline_length()
     );
     for surface in [
@@ -63,7 +63,7 @@ fn brands_patch_carries_the_whole_layout() {
 }
 
 #[test]
-fn item_boxes_stand_in_two_rows_of_four() {
+fn item_boxes_stand_in_three_rows_of_four() {
     let track = brands_patch();
     let mut rows: Vec<usize> = track
         .item_boxes()
@@ -74,8 +74,8 @@ fn item_boxes_stand_in_two_rows_of_four() {
     rows.dedup();
     assert_eq!(
         rows.len(),
-        2,
-        "boxes sit at two points along the lap: {rows:?}"
+        3,
+        "boxes sit at three points along the lap: {rows:?}"
     );
 }
 
@@ -203,7 +203,7 @@ fn a_wheel_crossing_too_wide_for_a_pass_and_its_flag_to_fit_in_the_period_is_rej
         ]);
         Track::from_sidecar(&sidecar.to_string())
     };
-    assert!(crossing(12.0).is_ok(), "Brands Patch's width");
+    assert!(crossing(12.0).is_ok(), "Suzuqa Patch's width");
     assert!(matches!(crossing(30.0), Err(TrackError::Invalid(_))));
 }
 
@@ -508,13 +508,14 @@ fn a_tyre_wall_touch_never_spins_a_kart_out_or_raises_an_event() {
 
 /// Drive `slot` straight ahead for eight seconds into the first turn, whose
 /// outer wall rings `turn_centre` (x, z) at `wall_radius`, standing on the
-/// outer edge of the sand. The kart must never cross the wall and must end
-/// up scraping along it, still on the sand.
+/// outer edge of the sand. Once `in_the_turn` the kart must never cross the
+/// wall, and it must end up scraping along it, still on the sand.
 fn held_by_the_first_turns_wall(
     track: Track,
     slot: usize,
     turn_centre: [f32; 2],
     wall_radius: f32,
+    in_the_turn: impl Fn([f32; 3]) -> bool,
 ) {
     let radius =
         |position: [f32; 3]| (position[0] - turn_centre[0]).hypot(position[2] - turn_centre[1]);
@@ -524,9 +525,8 @@ fn held_by_the_first_turns_wall(
     for _ in 0..ticks(8.0) {
         state = step(state, &inputs, DT);
         let kart = state.kart_readouts()[slot];
-        let in_the_turn = kart.position[2] < turn_centre[1];
         assert!(
-            !in_the_turn || radius(kart.position) < wall_radius,
+            !in_the_turn(kart.position) || radius(kart.position) < wall_radius,
             "went through the wall: {kart:?}"
         );
     }
@@ -550,15 +550,21 @@ fn held_by_the_first_turns_wall(
 fn a_kart_driving_into_the_ovals_wall_is_held_by_it() {
     // Slot 1 at x = 32; the first turn is centred on (0, -100) with a 30 m
     // radius, and the wall stands 12 m outside the centreline.
-    held_by_the_first_turns_wall(oval(), 1, [0.0, -100.0], 42.0);
+    held_by_the_first_turns_wall(oval(), 1, [0.0, -100.0], 42.0, |position| {
+        position[2] < -100.0
+    });
 }
 
 #[test]
 fn a_kart_driving_into_a_brands_patch_wall_is_held_by_it() {
-    // Slot 0 at x = 78; hairpin one is centred on (62, -70) with an 18 m
-    // radius and its tyre walls stand clear of that line, so the wall 12 m
-    // outside the centreline is the first thing it meets.
-    held_by_the_first_turns_wall(brands_patch(), 0, [62.0, -70.0], 30.0);
+    // The start straight runs 60 m from the line at the origin along
+    // (0.643, 0.766) into the first curve, a 50 m right-hander centred on
+    // (0.3, 78.2). Driven straight on, slot 0 meets the wall 12 m outside
+    // the centreline.
+    let curve_start = [38.6, 46.0];
+    held_by_the_first_turns_wall(brands_patch(), 0, [0.3, 78.2], 62.0, |position| {
+        (position[0] - curve_start[0]) * 0.643 + (position[2] - curve_start[1]) * 0.766 > 0.0
+    });
 }
 
 #[test]
@@ -569,9 +575,11 @@ fn a_kart_drives_brands_patch_without_falling_through() {
         state = step(state, &[throttle()], DT);
     }
     let kart = state.kart_readouts()[0];
+    let [dx, dz] = state.track().direction_at(0.0);
 
     assert!(
-        kart.position[2] < spawn.position[2] - 30.0,
+        (kart.position[0] - spawn.position[0]) * dx + (kart.position[2] - spawn.position[2]) * dz
+            > 30.0,
         "drove up the straight: {kart:?}"
     );
     assert!(
@@ -613,13 +621,13 @@ fn direction_and_curvature_follow_the_centreline_with_a_left_turn_positive() {
         "a 30 m left turn reads +1/30 per metre, not {curvature}"
     );
 
-    // Brands Patch's chicane has a right-hand middle arc of 14 m.
+    // Suzuqa Patch's chicane turns in right on a 12 m arc, its tightest.
     let brands = brands_patch();
     let sharpest_right = (0..brands.spline_length() as u32)
         .map(|at| brands.curvature_at(at as f32))
         .fold(0.0_f32, f32::min);
     assert!(
-        (sharpest_right + 1.0 / 14.0).abs() < 0.01,
+        (sharpest_right + 1.0 / 12.0).abs() < 0.01,
         "a right turn reads negative: {sharpest_right}"
     );
 }

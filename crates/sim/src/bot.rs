@@ -249,81 +249,94 @@ fn waits_for_a_wheel(
             + gain * gaining_s * gaining_s / 2.0
             + top_speed.min(from + gain * gaining_s) * (after_s - gaining_s)
     };
-    track.wheel_crossings().iter().any(|crossing| {
-        let line = Placement {
-            position: crossing.position,
-            yaw: crossing.yaw,
-        };
-        let (ahead, right) = line.local(kart.position);
-        // Beside the crossing, as on the hairpin's way back, is not on it;
-        // its run-off is.
-        let (_, stretch_right) = line.local(track.point_at(kart.spline_progress));
-        if stretch_right.abs() > crossing.half_width {
-            return false;
-        }
-        // Along the track the way the kart faces: one turned back toward
-        // the crossing from past it meets the wheel just as one on its way.
-        // Turning round in the run-off it waits for nothing, or it would
-        // never back out.
-        let facing_back = libm::cosf(yaw(kart.rotation) - crossing.yaw) < 0.0;
-        if facing_back && right.abs() > crossing.half_width {
-            return false;
-        }
-        let ahead = if facing_back { -ahead } else { ahead };
-        let way = if facing_back { -1.0 } else { 1.0 };
-        let short_of_reach = -(WHEEL_LANDING_SPREAD_M + along_reach) - ahead;
-        let pass = pass_not_over(crossing, seed, elapsed_s);
-        let path = Path::new(crossing, seed, pass);
-        let starts_s = pass_start_s(pass);
-        let ends_s = starts_s + path.lasts_s();
-        // A kart that cannot reach the wheel before the pass is over has
-        // nothing to stop for.
-        if short_of_reach > driven(speed, ends_s - elapsed_s, flat_out) {
-            return false;
-        }
-        // The bot's line is the centreline's offset; the crossing's centre
-        // is on the centreline.
-        let lane = (
-            right.min(BOT_LINE_RIGHT_OF_CENTRE_M) - across_reach,
-            right.max(BOT_LINE_RIGHT_OF_CENTRE_M) + across_reach,
-        );
-        // Whether the pass meets the kart driven on, anywhere from holding
-        // its speed, or setting off from a standstill, to flat out, and
-        // whether it meets the kart anywhere from stopped to holding its
-        // speed. Held at a standstill the kart would be in the way of
-        // every pass, so it would never go.
-        let (mut going_meets, mut stopping_meets) = (false, false);
-        for (from, to, into_pass_s, leg_s) in path.legs() {
-            let leg_starts_s = starts_s + into_pass_s;
-            let rate = [(to[0] - from[0]) / leg_s, (to[1] - from[1]) / leg_s];
-            // The margin widens the wheel's reach by how far it rolls in it.
-            let across_margin = rate[0].abs() * BOT_WHEEL_MARGIN_S;
-            let reach = along_reach + rate[1].abs() * BOT_WHEEL_MARGIN_S;
-            let mut at_s = elapsed_s.max(leg_starts_s);
-            while at_s <= leg_starts_s + leg_s {
-                let into_leg_s = at_s - leg_starts_s;
-                let across = from[0] + rate[0] * into_leg_s;
-                if lane.0 - across_margin <= across && across <= lane.1 + across_margin {
-                    let along = way * (from[1] + rate[1] * into_leg_s);
-                    let after_s = at_s - elapsed_s;
-                    let held = ahead + driven(speed, after_s, 0.0);
-                    let least = held.max(ahead + driven(0.0, after_s, setting_off));
-                    let flat = ahead + driven(speed, after_s, flat_out);
-                    going_meets |= least - reach <= along && along <= flat + reach;
-                    stopping_meets |= ahead - reach <= along && along <= held + reach;
-                }
-                at_s += dt;
+    let lap = track.spline_length();
+    let crossings = track.wheel_crossings().iter();
+    crossings
+        .zip(track.wheel_crossing_progress())
+        .any(|(crossing, &crossing_progress)| {
+            let line = Placement {
+                position: crossing.position,
+                yaw: crossing.yaw,
+            };
+            let (ahead, right) = line.local(kart.position);
+            // Beside the crossing, as on another leg of the course, is not on it;
+            // its run-off is.
+            let (_, stretch_right) = line.local(track.point_at(kart.spline_progress));
+            if stretch_right.abs() > crossing.half_width {
+                return false;
             }
-        }
-        // Short of the reach, stopping is safe. Within it a kart stops only
-        // where stopping keeps it clear, as one backed up onto the crossing
-        // and setting off again; otherwise it drives on through.
-        if short_of_reach > 0.0 {
-            going_meets
-        } else {
-            going_meets && !stopping_meets
-        }
-    })
+            // Along the track the way the kart faces: one turned back toward
+            // the crossing from past it meets the wheel just as one on its way.
+            // Turning round in the run-off it waits for nothing, or it would
+            // never back out.
+            let facing_back = libm::cosf(yaw(kart.rotation) - crossing.yaw) < 0.0;
+            if facing_back && right.abs() > crossing.half_width {
+                return false;
+            }
+            // Past the crossing along the lap by more than the wheel's reach and
+            // a lookahead, it has left the crossing behind, though it may face
+            // back toward it: turning through a hairpin in line with the
+            // crossing, it waits for nothing.
+            let past = (kart.spline_progress - crossing_progress).rem_euclid(lap);
+            let left_behind = WHEEL_LANDING_SPREAD_M + along_reach + BOT_LOOKAHEAD_M;
+            if facing_back && (left_behind..lap / 2.0).contains(&past) {
+                return false;
+            }
+            let ahead = if facing_back { -ahead } else { ahead };
+            let way = if facing_back { -1.0 } else { 1.0 };
+            let short_of_reach = -(WHEEL_LANDING_SPREAD_M + along_reach) - ahead;
+            let pass = pass_not_over(crossing, seed, elapsed_s);
+            let path = Path::new(crossing, seed, pass);
+            let starts_s = pass_start_s(pass);
+            let ends_s = starts_s + path.lasts_s();
+            // A kart that cannot reach the wheel before the pass is over has
+            // nothing to stop for.
+            if short_of_reach > driven(speed, ends_s - elapsed_s, flat_out) {
+                return false;
+            }
+            // The bot's line is the centreline's offset; the crossing's centre
+            // is on the centreline.
+            let lane = (
+                right.min(BOT_LINE_RIGHT_OF_CENTRE_M) - across_reach,
+                right.max(BOT_LINE_RIGHT_OF_CENTRE_M) + across_reach,
+            );
+            // Whether the pass meets the kart driven on, anywhere from holding
+            // its speed, or setting off from a standstill, to flat out, and
+            // whether it meets the kart anywhere from stopped to holding its
+            // speed. Held at a standstill the kart would be in the way of
+            // every pass, so it would never go.
+            let (mut going_meets, mut stopping_meets) = (false, false);
+            for (from, to, into_pass_s, leg_s) in path.legs() {
+                let leg_starts_s = starts_s + into_pass_s;
+                let rate = [(to[0] - from[0]) / leg_s, (to[1] - from[1]) / leg_s];
+                // The margin widens the wheel's reach by how far it rolls in it.
+                let across_margin = rate[0].abs() * BOT_WHEEL_MARGIN_S;
+                let reach = along_reach + rate[1].abs() * BOT_WHEEL_MARGIN_S;
+                let mut at_s = elapsed_s.max(leg_starts_s);
+                while at_s <= leg_starts_s + leg_s {
+                    let into_leg_s = at_s - leg_starts_s;
+                    let across = from[0] + rate[0] * into_leg_s;
+                    if lane.0 - across_margin <= across && across <= lane.1 + across_margin {
+                        let along = way * (from[1] + rate[1] * into_leg_s);
+                        let after_s = at_s - elapsed_s;
+                        let held = ahead + driven(speed, after_s, 0.0);
+                        let least = held.max(ahead + driven(0.0, after_s, setting_off));
+                        let flat = ahead + driven(speed, after_s, flat_out);
+                        going_meets |= least - reach <= along && along <= flat + reach;
+                        stopping_meets |= ahead - reach <= along && along <= held + reach;
+                    }
+                    at_s += dt;
+                }
+            }
+            // Short of the reach, stopping is safe. Within it a kart stops only
+            // where stopping keeps it clear, as one backed up onto the crossing
+            // and setting off again; otherwise it drives on through.
+            if short_of_reach > 0.0 {
+                going_meets
+            } else {
+                going_meets && !stopping_meets
+            }
+        })
 }
 
 /// The nearest other kart that the bot in `slot` would run into: ahead of

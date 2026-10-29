@@ -48,7 +48,7 @@ test("closing the tab mid-race and reopening the room's link rejoins the same ka
   const reopened = await context.newPage();
   await reopened.goto(`/?room=${code}`);
   // Straight into the race under way, with no Title refusing a mid-race join.
-  await expect(reopened.locator('[data-instrument="lap"]')).toHaveText("Lap 1/3", {
+  await expect(reopened.locator('[data-instrument="lap"]')).toHaveText("Lap 1/2", {
     timeout: 30_000,
   });
   await expect(reopened.locator("#title-scene")).toHaveCount(0);
@@ -62,7 +62,7 @@ test("closing the tab mid-race and reopening the room's link rejoins the same ka
   await reopened.keyboard.up("ArrowUp");
 
   // The friend never left the race.
-  await expect(friend.locator('[data-instrument="lap"]')).toHaveText(/^Lap [123]\/3$/);
+  await expect(friend.locator('[data-instrument="lap"]')).toHaveText(/^Lap [12]\/2$/);
   await friendContext.close();
 });
 
@@ -87,7 +87,7 @@ test("a silent server raises the connection banner and the race reconnects by it
   await expect(page.locator("#room-scene")).toBeVisible({ timeout: 15_000 });
   await page.getByRole("button", { name: "Ready", exact: true }).click();
   await page.getByRole("button", { name: "Start" }).click();
-  await expect(page.locator('[data-instrument="lap"]')).toHaveText("Lap 1/3", {
+  await expect(page.locator('[data-instrument="lap"]')).toHaveText("Lap 1/2", {
     timeout: 60_000,
   });
   const banner = page.locator('[data-instrument="connection-banner"]');
@@ -100,6 +100,6 @@ test("a silent server raises the connection banner and the race reconnects by it
   await expect(banner).toBeHidden({ timeout: 10_000 });
   expect(sockets).toBeGreaterThan(before);
   // Still racing, on the kart it had.
-  await expect(page.locator('[data-instrument="lap"]')).toHaveText(/^Lap [123]\/3$/);
+  await expect(page.locator('[data-instrument="lap"]')).toHaveText(/^Lap [12]\/2$/);
   await expect(page.locator("#title-scene")).toHaveCount(0);
 });

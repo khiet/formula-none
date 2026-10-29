@@ -23,6 +23,11 @@ export interface MapProjection {
   readonly path: string;
   /** The start/finish tick `[x1, y1, x2, y2]`: across the track at the first centreline point. */
   readonly startTick: readonly [number, number, number, number];
+  /**
+   * One open SVG path for each place the course crosses itself, along the
+   * higher leg, so it can be drawn again over the leg it bridges.
+   */
+  readonly decks: readonly string[];
   /** Where a world `x`/`z` lands on the map. */
   toMap(x: number, z: number): [number, number];
 }
@@ -30,15 +35,18 @@ export interface MapProjection {
 /**
  * The top-down projection of `centreline` into `box`: uniformly scaled so
  * the outline fits inside the margin on its longer side and is centred on
- * the shorter, keeping the track's shape. Height is ignored. The start
+ * the shorter, keeping the track's shape. Height is ignored but where the
+ * course crosses itself, and only to tell which leg is the deck. The start
  * tick reaches `startTickHalf` map units either side of the centreline,
- * so it pokes past the road however the track is scaled. Throws on an
- * empty centreline, which no sidecar has.
+ * so it pokes past the road however the track is scaled; each deck reaches
+ * `deckHalf` map units along its leg either side of the crossing. Throws on
+ * an empty centreline, which no sidecar has.
  */
 export function projectCentreline(
   centreline: readonly WorldPoint[],
   box: MapBox,
   startTickHalf: number,
+  deckHalf: number,
 ): MapProjection {
   const [first, second] = centreline;
   if (first === undefined) {
@@ -78,7 +86,84 @@ export function projectCentreline(
   const [u, v] = toMap(first[0], first[2]);
   const startTick = [u - acrossX, v - acrossZ, u + acrossX, v + acrossZ] as const;
 
-  return { path, startTick, toMap };
+  const mapped = centreline.map(([x, , z]) => toMap(x, z));
+  const decks = crossings(centreline).map((crossing) => deckPath(mapped, crossing, deckHalf));
+  return { path, startTick, toMap, decks };
+}
+
+/** Where the course crosses itself: the higher leg's segment and how far along it the crossing lies. */
+interface Crossing {
+  readonly segment: number;
+  readonly along: number;
+}
+
+/**
+ * Every place two segments of the closed `centreline` cross in x/z, as a
+ * point on whichever is higher there. Neighbouring segments share a point
+ * and never count.
+ */
+function crossings(centreline: readonly WorldPoint[]): Crossing[] {
+  const count = centreline.length;
+  const at = (i: number) => centreline[i % count] as WorldPoint;
+  const found: Crossing[] = [];
+  for (let i = 0; i < count; i++) {
+    const [ax, ay, az] = at(i);
+    const [bx, by, bz] = at(i + 1);
+    for (let j = i + 2; j < count; j++) {
+      if (i === 0 && j === count - 1) {
+        continue;
+      }
+      const [cx, cy, cz] = at(j);
+      const [dx, dy, dz] = at(j + 1);
+      const denominator = (bx - ax) * (dz - cz) - (bz - az) * (dx - cx);
+      if (denominator === 0) {
+        continue;
+      }
+      const t = ((cx - ax) * (dz - cz) - (cz - az) * (dx - cx)) / denominator;
+      const u = ((cx - ax) * (bz - az) - (cz - az) * (bx - ax)) / denominator;
+      if (t < 0 || t >= 1 || u < 0 || u >= 1) {
+        continue;
+      }
+      const first = ay + (by - ay) * t;
+      const second = cy + (dy - cy) * u;
+      found.push(first >= second ? { segment: i, along: t } : { segment: j, along: u });
+    }
+  }
+  return found;
+}
+
+/** An open path along `mapped` through `crossing`, `half` map units back and ahead of it. */
+function deckPath(mapped: readonly [number, number][], crossing: Crossing, half: number): string {
+  const count = mapped.length;
+  const at = (i: number) => mapped[((i % count) + count) % count] as [number, number];
+  const lerp = (a: [number, number], b: [number, number], t: number): [number, number] => [
+    a[0] + (b[0] - a[0]) * t,
+    a[1] + (b[1] - a[1]) * t,
+  ];
+  const centre = lerp(at(crossing.segment), at(crossing.segment + 1), crossing.along);
+  // Walk from the crossing one way round the loop, collecting points until
+  // `half` map units have been covered.
+  const walk = (step: 1 | -1): [number, number][] => {
+    const points: [number, number][] = [];
+    let from = centre;
+    let next = step === 1 ? crossing.segment + 1 : crossing.segment;
+    let left = half;
+    for (let guard = 0; guard < count; guard++) {
+      const to = at(next);
+      const length = Math.hypot(to[0] - from[0], to[1] - from[1]);
+      if (length >= left) {
+        points.push(lerp(from, to, left / length));
+        return points;
+      }
+      points.push(to);
+      left -= length;
+      from = to;
+      next += step;
+    }
+    return points;
+  };
+  const points = [...walk(-1).reverse(), centre, ...walk(1)];
+  return points.map((point, i) => `${i === 0 ? "M" : "L"} ${point.join(" ")}`).join(" ");
 }
 
 /** What the map is built from: the track's centreline and who is on the grid. */
@@ -113,6 +198,8 @@ const DROP_OPACITY = 0.55;
 /** The start's chequer: two rows of four squares across the walls. */
 const CHEQUER = 2.4;
 const START_TICK_HALF = CHEQUER * 2;
+/** How far a deck reaches along its leg either side of the crossing: past the road it bridges. */
+const DECK_HALF = WALL_WIDTH;
 const MARKER_RADIUS = 3.6;
 const OWN_RING_RADIUS = 6;
 const OWN_MARKER_RADIUS = 4.4;
@@ -127,14 +214,15 @@ export function createCourseMap(setup: CourseMapSetup): CourseMap {
     setup.centreline,
     { width: MAP_UNITS, height: MAP_UNITS, margin: MAP_MARGIN },
     START_TICK_HALF,
+    DECK_HALF,
   );
   const svg = document.createElementNS(SVG_NS, "svg");
   svg.dataset.instrument = "course-map";
   svg.setAttribute("viewBox", `0 0 ${MAP_UNITS} ${MAP_UNITS}`);
 
-  const road = (colour: number, width: number) => {
+  const road = (colour: number, width: number, d = projection.path) => {
     const path = document.createElementNS(SVG_NS, "path");
-    path.setAttribute("d", projection.path);
+    path.setAttribute("d", d);
     path.setAttribute("fill", "none");
     path.setAttribute("stroke", hexCss(colour));
     path.setAttribute("stroke-width", String(width));
@@ -147,6 +235,12 @@ export function createCourseMap(setup: CourseMapSetup): CourseMap {
   drop.setAttribute("transform", `translate(${DROP_OFFSET} ${DROP_OFFSET})`);
   road(WALL, WALL_WIDTH);
   road(ASPHALT, ASPHALT_WIDTH);
+  // Each deck again on top, so its walls break the road it passes over and
+  // the map reads as a bridge rather than an X.
+  for (const deck of projection.decks) {
+    road(WALL, WALL_WIDTH, deck);
+    road(ASPHALT, ASPHALT_WIDTH, deck);
+  }
 
   // The chequer is two rows across the track, one each side of the tick,
   // each a white line with ink dashes, the second row's dashes shifted one square.

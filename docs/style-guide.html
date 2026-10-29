@@ -448,7 +448,7 @@
         <div class="compare"><figure><figcaption>Two rings of five tyres</figcaption><div class="stage" data-draw="tyres"></div></figure></div>
         <dl class="spec"><dt>Size</dt><dd>1.5 m radius, 1.2 m tall; tyres 0.6 m across</dd><dt>Decided</dt><dd><a href="adr/0041-track-obstacles.md">ADR 0041</a></dd></dl>
         <div class="notes">
-          <p>A sixteen-sided prism in tyre shade <code>#121214</code>, tagged <code>tyres</code>, with two rings of five eight-sided tyres standing on their treads over it, faces out in <code>#2e2e32</code>. The upper ring turns half a tyre from the lower, and each is belted round its middle in kerb red and white. It stands into the oval's turns and either side of the Brands Patch hairpins; a kart bounces off it.</p>
+          <p>A sixteen-sided prism in tyre shade <code>#121214</code>, tagged <code>tyres</code>, with two rings of five eight-sided tyres standing on their treads over it, faces out in <code>#2e2e32</code>. The upper ring turns half a tyre from the lower, and each is belted round its middle in kerb red and white. It stands into the oval's turns, and on Suzuqa Patch outside turn 2, either side of the hairpin's apex and inside Spoon's second; a kart bounces off it.</p>
           <p>Only the prism collides; the tyres are scenery, so the picture can change without touching a rule.</p>
         </div>
       </article>
@@ -458,7 +458,7 @@
         <div class="compare"><figure><figcaption>Inside the chicane's apex</figcaption><div class="stage flat" data-draw="sausageKerb"></div></figure></div>
         <dl class="spec"><dt>Size</dt><dd>8 x 1 m, 0.15 m proud</dd><dt>Decided</dt><dd><a href="adr/0041-track-obstacles.md">ADR 0041</a></dd></dl>
         <div class="notes">
-          <p>A capsule in gold <code>#ffd23f</code> over the sim's 8 x 1 m rectangle, its ends rounded inside it, a squashed half-round with six black <code>#111111</code> stripes across it. It sits just in from the painted kerb on the inside of the Brands Patch chicane; a kart on the ground that reaches it is thrown into a hop that lands straight, and loses its drift.</p>
+          <p>A capsule in gold <code>#ffd23f</code> over the sim's 8 x 1 m rectangle, its ends rounded inside it, a squashed half-round with six black <code>#111111</code> stripes across it. It sits just in from the painted kerb on the inside of Suzuqa Patch's esses 3 and the chicane's right-hander; a kart on the ground that reaches it is thrown into a hop that lands straight, and loses its drift.</p>
           <p>The hazard flags' yellow reads as a warning, and the stripes make its length read at speed. The launch is the sim's rectangle, not the mesh.</p>
         </div>
       </article>
@@ -468,7 +468,7 @@
         <div class="compare"><figure><figcaption>Mid-bounce over the asphalt, rolling left</figcaption><div class="stage flat" data-draw="runawayWheel"></div></figure><figure><figcaption>A wall hit: sparks off the wall, dust where it lands</figcaption><div class="stage flat" data-draw="runawayWheelHit"></div></figure><figure><figcaption>Through the warning: waiting on the wall</figcaption><div class="stage flat" data-draw="runawayWheelWaiting"></div></figure></div>
         <dl class="spec"><dt>Size</dt><dd>1.2 m radius (<code>WHEEL_RADIUS_M</code> in <code>tuning.rs</code>), 2.4 m across and 0.96 m wide</dd><dt>Decided</dt><dd><a href="adr/0041-track-obstacles.md">ADR 0041</a>, <a href="adr/0042-runaway-wheel-bounces.md">ADR 0042</a>, <a href="adr/0044-runaway-wheel-size.md">ADR 0044</a>, <a href="mockups/runaway-wheel-danger-spec.html">the danger spec</a></dd></dl>
         <div class="notes">
-          <p>The hot wheel, grown to the sim's reach: an eight-facet tyre in <code>WHEEL_TYRE</code> <code>#26262a</code>, dark so it reads on the grey asphalt, with a red-hot rim on each face, <code>ROCKET_FLAME</code> <code>#ffd23f</code> at the hub to <code>ROCKET.mid</code> <code>#d00a12</code> at its edge and unlit so it glows, three spokes in <code>ROCKET_STRAP</code> <code>#3a3d42</code> and a flame-yellow hub. The View rolls it where the sim has it on the approach to Brands Patch's hairpin two: in from one wall, twice off the walls and out through the far one, facing the way it rolls. It turns by the ground it covers and bounces 0.5 m twice each leg, starting over at each wall; a kart it reaches spins out.</p>
+          <p>The hot wheel, grown to the sim's reach: an eight-facet tyre in <code>WHEEL_TYRE</code> <code>#26262a</code>, dark so it reads on the grey asphalt, with a red-hot rim on each face, <code>ROCKET_FLAME</code> <code>#ffd23f</code> at the hub to <code>ROCKET.mid</code> <code>#d00a12</code> at its edge and unlit so it glows, three spokes in <code>ROCKET_STRAP</code> <code>#3a3d42</code> and a flame-yellow hub. The View rolls it where the sim has it on Suzuqa Patch's run from the bridge to the hairpin: in from one wall, twice off the walls and out through the far one, facing the way it rolls. It turns by the ground it covers and bounces 0.5 m twice each leg, starting over at each wall; a kart it reaches spins out.</p>
           <p>Three flame tongues burn off its back, <code>WHEEL_FLAME</code> <code>#ff8800</code> and see-through round a flame-yellow core, unlit and flickering; they point away from the way it rolls, so they swing round at each wall hit. It leaves grey <code>WHEEL_SMOKE</code> <code>#8a8d94</code> puffs behind it that rise and fade. Where it lands from each bounce and at each wall hit it kicks up five puffs of the run-off's sand dust <code>#d8c08a</code> that spread and fade over 0.45 s, and at each wall hit eight flame-yellow sparks fly 1.5 m back over the track off the wall where the tyre strikes, fading over 0.3 s. The wall hits and the landings are read from the path the sim reports: a leg starting over, and half way through one.</p>
           <p>Through the second the flag is up before a pass it waits, burning, on top of the wall it will roll in from, on the crossing's line, rocking 0.15 rad either way about its axle, and drops to the road as the pass starts. The sim reports the foot of that wall; the View finds the wall's top in the track's glTF. Up there no kart reaches it, and it hits nothing.</p>
           <p>It is built in code like the items, not in the track's glTF, because it moves. The bounce is drawn only: the sim rolls it along the ground, so the reach it tests is the one the player sees where the wheel meets the road.</p>
@@ -525,7 +525,7 @@
 
       <article class="asset">
         <header><h3>Sponsor hoardings</h3><code>assets/tracks/trackgen/sponsors.py</code></header>
-        <div class="compare"><figure><figcaption>Brands Patch boards</figcaption><div class="stage flat" data-draw="boards"></div></figure></div>
+        <div class="compare"><figure><figcaption>Suzuqa Patch boards</figcaption><div class="stage flat" data-draw="boards"></div></figure></div>
         <dl class="spec"><dt>Size</dt><dd>6 m long, 0.4 to 2.2 m high, every 12 m</dd><dt>Decided</dt><dd><a href="adr/0038-sponsors-on-the-scenery-only.md">ADR 0038</a></dd></dl>
         <div class="notes">
           <p>Twelve invented joke sponsors in flat ink on white boards beyond the wall, facing the track.</p>
@@ -545,6 +545,16 @@
         <div class="compare"><figure><figcaption>Over the start line</figcaption><div class="stage" data-draw="gantry"></div></figure></div>
         <dl class="spec"><dt>Size</dt><dd>7 m to the top of the beam</dd><dt>Decided</dt><dd><a href="adr/0034-chibi-low-poly-art.md">ADR 0034</a></dd></dl>
         <div class="notes"><p>Two carbon pillars just off the asphalt and a beam with two rows of the track's chequer on both faces, lit on top and shaded underneath.</p></div>
+      </article>
+
+      <article class="asset">
+        <header><h3>Bridge</h3><code>assets/tracks/trackgen/layout.py bridges</code></header>
+        <div class="compare"><figure><figcaption>Suzuqa Patch's back straight over the underpass, from the side</figcaption><div class="stage flat" data-draw="bridge"></div></figure></div>
+        <dl class="spec"><dt>Size</dt><dd>Deck 5 m up and 1 m thick, span 30 m, embankment 110 m along the raised leg</dd><dt>Decided</dt><dd><a href="adr/0047-suzuqa-patch.md">ADR 0047</a></dd></dl>
+        <div class="notes">
+          <p>Where a course crosses itself. The raised leg rides a grass embankment that falls straight from the foot of its walls to the ground, cut by a span over the leg beneath: a white abutment closes each end of the embankment, and the deck between them has white sides and an underside in the stands' plinth grey. The road, its sand and its walls climb with the leg, so the walls are the deck's parapets. Scenery only: the karts ride the raised leg's own surfaces.</p>
+          <p class="dont"><b>Don't</b> narrow the span to the road beneath: the underpass's walls stand clear of both abutments, so a kart under the deck never sees a wall end in a face.</p>
+        </div>
       </article>
     </div>
   </section>
@@ -590,10 +600,10 @@
         <header><h3>Course map</h3><code>apps/web/src/course-map.ts</code></header>
         <div class="compare">
           <figure><figcaption>Oval</figcaption><div class="view dark follows lv" data-draw="map" data-track="oval"></div></figure>
-          <figure><figcaption>Brands Patch</figcaption><div class="view dark follows lv" data-draw="map" data-track="brands"></div></figure>
+          <figure><figcaption>Suzuqa Patch</figcaption><div class="view dark follows lv" data-draw="map" data-track="brands"></div></figure>
         </div>
         <dl class="spec"><dt>Decided</dt><dd><a href="adr/0037-instrument-panel-in-chibi-low-poly.md">ADR 0037</a></dd></dl>
-        <div class="notes"><p>The track as the world builds it: asphalt between white walls, the ink drop under it, a chequered start. Each kart is a faceted octagon in its key colour, lit on the top left like a hub; yours is bigger and ringed in white. Outlines are the real centrelines from each track's sidecar.</p></div>
+        <div class="notes"><p>The track as the world builds it: asphalt between white walls, the ink drop under it, a chequered start. Each kart is a faceted octagon in its key colour, lit on the top left like a hub; yours is bigger and ringed in white. Outlines are the real centrelines from each track's sidecar. Where a course crosses itself the deck is drawn again over the road beneath, its walls breaking that road, so the map reads as a bridge rather than an X.</p></div>
       </article>
 
       <article class="asset">
@@ -1032,6 +1042,27 @@
       ${poly([[280, 66], [296, 56], [296, 94], [280, 104]], `color-mix(in srgb, ${w} 62%, black)`)}
       <rect x="20" y="104" width="260" height="5" fill="rgba(0,0,0,.18)"/></svg>`;
   };
+  // The bridge from the side of the raised leg: the embankment's 110 m hill, 5 m at its crest,
+  // drawn 2.5 px a metre along and 12 up, with the span over the underpass in the middle.
+  draw.bridge = () => {
+    const grass = rgb([0.36, 0.69, 0.29]), wall = rgb([0.94, 0.94, 0.94]), under = rgb([0.706, 0.729, 0.761]);
+    const asphalt = rgb([0.42, 0.42, 0.47]), sand = rgb([0.91, 0.78, 0.45]);
+    const ground = 128, x = (m) => 22 + m * 2.5, y = (m) => ground - m * 12;
+    const h = (m) => 2.5 * (1 - Math.cos((2 * Math.PI * m) / 110));
+    const top = (from, to) => Array.from({ length: 23 }, (_, k) => { const m = from + ((to - from) * k) / 22; return [x(m), y(h(m))]; });
+    const bank = (from, to) => poly([...top(from, to), [x(to), ground], [x(from), ground]], grass);
+    const deck = top(40, 70);
+    const deckUnder = deck.map(([px, py]) => [px, py + 12]).reverse();
+    const parapet = top(0, 110);
+    return `<svg viewBox="0 0 320 150" role="img" aria-label="A bridge: a grass embankment cut by a span with a white deck over the road beneath">
+      <rect width="320" height="150" fill="#cfe8f5"/><rect y="${ground}" width="320" height="22" fill="${grass}"/>
+      ${poly([[x(43), ground], [x(67), ground], [x(67), ground + 4], [x(43), ground + 4]], sand)}${poly([[x(49), ground], [x(61), ground], [x(61), ground + 4], [x(49), ground + 4]], asphalt)}
+      <rect x="${x(42.6)}" y="${ground - 12}" width="1.5" height="12" fill="${wall}"/><rect x="${x(67)}" y="${ground - 12}" width="1.5" height="12" fill="${wall}"/>
+      ${bank(0, 40)}${bank(70, 110)}
+      ${poly([[x(40) - 2, y(h(40))], [x(40), y(h(40))], [x(40), ground], [x(40) - 2, ground]], wall)}${poly([[x(70), y(h(70))], [x(70) + 2, y(h(70))], [x(70) + 2, ground], [x(70), ground]], wall)}
+      ${poly([...deck, ...deckUnder], wall)}${poly([...deckUnder, ...deckUnder.map(([px, py]) => [px, py + 2]).reverse()], under)}
+      ${poly([...parapet, ...parapet.map(([px, py]) => [px, py - 12]).reverse()], `color-mix(in srgb, ${wall} 88%, black)`)}</svg>`;
+  };
   // An upright prism of `n` flat sides seen from slightly above, lit from the top left.
   const prism = (n, cx, cy, r, h, col) => {
     const ry = r * 0.32, rim = Array.from({ length: n }, (_, k) => { const a = (k * 2 * Math.PI) / n; return [Math.cos(a), Math.sin(a)]; });
@@ -1340,7 +1371,7 @@
   // Real centrelines from the sidecars, projected the way course-map.ts projects them.
   const TRACKS = {
     oval: { d: "M63.6 67.0 L63.6 64.8 L63.6 62.5 L63.6 60.2 L63.6 57.9 L63.6 55.7 L63.6 53.4 L63.6 51.1 L63.6 48.9 L63.6 46.6 L63.6 44.3 L63.6 42.1 L63.6 39.8 L63.6 37.5 L63.6 35.2 L63.6 33.0 L63.6 30.7 L63.6 28.4 L63.6 26.2 L63.6 23.9 L63.6 21.6 L63.4 19.4 L62.9 17.2 L61.9 15.1 L60.7 13.2 L59.1 11.5 L57.3 10.1 L55.3 9.1 L53.2 8.4 L50.9 8.0 L48.6 8.1 L46.4 8.5 L44.3 9.3 L42.3 10.4 L40.5 11.8 L39.0 13.5 L37.8 15.5 L37.0 17.6 L36.5 19.8 L36.4 22.1 L36.4 24.3 L36.4 26.6 L36.4 28.9 L36.4 31.2 L36.4 33.4 L36.4 35.7 L36.4 38.0 L36.4 40.2 L36.4 42.5 L36.4 44.8 L36.4 47.0 L36.4 49.3 L36.4 51.6 L36.4 53.9 L36.4 56.1 L36.4 58.4 L36.4 60.7 L36.4 62.9 L36.4 65.2 L36.4 67.5 L36.4 69.8 L36.4 72.0 L36.4 74.3 L36.4 76.6 L36.4 78.8 L36.7 81.1 L37.3 83.3 L38.3 85.3 L39.6 87.2 L41.2 88.8 L43.1 90.1 L45.1 91.1 L47.3 91.7 L49.5 92.0 L51.8 91.9 L54.0 91.4 L56.1 90.5 L58.1 89.3 L59.8 87.8 L61.2 86.1 L62.4 84.1 L63.1 82.0 L63.6 79.7 L63.6 77.5 L63.6 75.2 L63.6 72.9 L63.6 70.7 L63.6 68.4 Z", start: [63.6, 67.0] },
-    brands: { d: "M92.0 50.0 L92.0 47.0 L92.0 43.9 L92.0 40.9 L92.0 37.8 L92.0 34.8 L92.0 31.7 L92.0 28.7 L92.0 25.6 L90.9 22.8 L88.7 20.8 L85.7 20.2 L82.9 21.0 L80.7 23.1 L79.8 26.0 L79.8 29.0 L79.8 32.0 L79.8 35.1 L79.8 38.1 L79.8 41.2 L79.8 44.2 L79.8 47.3 L79.8 50.3 L79.8 53.4 L79.8 56.4 L79.8 59.5 L79.4 62.5 L78.0 65.1 L75.6 66.9 L72.7 67.6 L69.6 67.6 L66.6 67.6 L63.5 67.6 L60.5 67.6 L57.5 67.6 L54.4 67.6 L51.4 67.6 L48.3 67.6 L45.3 67.6 L42.2 67.6 L39.2 67.6 L36.1 67.6 L33.1 68.0 L30.7 69.8 L27.7 70.3 L25.0 69.0 L22.4 67.7 L19.3 67.6 L16.2 67.6 L13.1 67.7 L10.3 68.9 L8.5 71.3 L8.0 74.2 L9.0 77.0 L11.2 79.1 L14.1 79.8 L17.1 79.8 L20.2 79.8 L23.2 79.8 L26.3 79.8 L29.3 79.8 L32.4 79.8 L35.4 79.8 L38.5 79.8 L41.5 79.8 L44.6 79.8 L47.6 79.8 L50.7 79.8 L53.7 79.8 L56.8 79.8 L59.8 79.8 L62.9 79.8 L65.9 79.8 L69.0 79.8 L72.0 79.8 L75.1 79.8 L78.1 79.8 L81.2 79.8 L84.2 79.2 L86.9 77.8 L89.2 75.8 L90.9 73.2 L91.8 70.3 L92.0 67.3 L92.0 64.2 L92.0 61.2 L92.0 58.1 L92.0 55.1 L92.0 52.0 Z", start: [92.0, 50.0] },
+    brands: { d: "M82.2 51.3 L83.2 52.5 L84.2 53.7 L85.2 54.9 L86.2 56.1 L87.2 57.3 L88.2 58.5 L89.2 59.7 L90.2 60.9 L91.0 62.2 L91.6 63.6 L91.9 65.1 L92.0 66.7 L91.9 68.2 L91.6 69.7 L91.3 71.3 L91.0 72.8 L90.6 74.3 L89.7 75.5 L88.4 76.4 L86.9 76.7 L85.4 76.4 L84.0 75.6 L82.7 74.8 L81.4 74.0 L80.0 73.2 L78.6 72.6 L77.1 72.4 L75.6 72.6 L74.1 73.1 L72.6 73.3 L71.1 72.8 L69.9 71.8 L68.8 70.7 L67.5 69.9 L66.0 69.6 L64.4 69.7 L63.0 69.3 L61.7 68.3 L60.9 67.0 L60.7 65.5 L61.0 64.0 L61.4 62.5 L61.5 61.0 L61.2 59.5 L60.6 58.1 L59.7 56.8 L58.5 55.8 L57.1 55.2 L55.6 54.8 L54.1 54.8 L52.5 55.1 L51.1 55.6 L49.8 56.4 L48.7 57.5 L47.4 58.4 L45.9 58.8 L44.3 58.7 L42.8 58.1 L41.4 57.5 L40.0 56.9 L38.5 56.3 L37.1 55.7 L35.7 55.1 L34.2 54.5 L33.0 53.7 L32.1 52.4 L31.9 50.9 L32.1 49.3 L32.4 47.8 L32.6 46.2 L32.8 44.7 L33.0 43.1 L33.2 41.6 L33.4 40.0 L33.7 38.5 L33.9 36.9 L34.1 35.4 L34.3 33.8 L34.8 32.3 L35.5 31.0 L36.4 29.7 L37.3 28.4 L37.8 26.9 L37.6 25.4 L36.7 24.1 L35.3 23.4 L33.7 23.4 L32.3 24.1 L31.3 25.3 L30.4 26.6 L29.5 27.8 L28.5 29.0 L27.3 30.0 L25.9 30.8 L24.4 31.2 L22.9 31.4 L21.3 31.3 L19.8 31.0 L18.4 30.3 L17.1 29.4 L16.0 28.3 L14.8 27.3 L13.3 26.9 L11.8 27.3 L10.6 28.3 L9.9 29.7 L9.2 31.1 L8.5 32.5 L8.1 33.9 L8.0 35.5 L8.5 37.0 L9.2 38.3 L10.4 39.4 L11.7 40.1 L13.2 40.4 L14.8 40.6 L16.3 40.8 L17.9 41.1 L19.4 41.3 L21.0 41.5 L22.5 41.7 L24.1 41.9 L25.6 42.1 L27.1 42.4 L28.7 42.6 L30.2 42.8 L31.8 43.0 L33.3 43.2 L34.9 43.4 L36.4 43.7 L38.0 43.9 L39.5 44.1 L41.0 44.3 L42.6 44.5 L44.1 44.7 L45.7 45.0 L47.2 45.2 L48.8 45.4 L50.3 45.6 L51.9 45.6 L53.4 45.3 L54.9 44.8 L56.3 44.1 L57.6 43.2 L59.0 42.5 L60.5 42.5 L61.8 43.4 L63.2 43.7 L64.6 43.2 L65.9 42.3 L67.3 41.6 L68.8 41.2 L70.3 41.1 L71.9 41.3 L73.3 41.8 L74.7 42.7 L75.8 43.7 L76.8 44.9 L77.8 46.1 L78.8 47.3 L79.8 48.5 L80.8 49.7 L81.8 50.9 Z", start: [82.2, 51.3], deck: "M24.0 41.9 L32.9 43.2 L41.8 44.4" },
   };
   const FRACTIONS = [0.04, 0.16, 0.27, 0.38, 0.5, 0.63, 0.75, 0.88];
   draw.map = (el) => {
@@ -1351,11 +1382,12 @@
     return `<svg viewBox="0 0 100 100" style="width:min(100%,11rem)" role="img" aria-label="Course map">
       <path d="${t.d}" transform="translate(1.6 1.6)" fill="none" stroke="rgb(17 17 17 / 0.55)" stroke-width="9" stroke-linejoin="round"/>
       <path d="${t.d}" fill="none" stroke="#f0f0f0" stroke-width="9" stroke-linejoin="round"/>
-      <path d="${t.d}" fill="none" stroke="#6b6b78" stroke-width="6" stroke-linejoin="round"/>
+      <path d="${t.d}" fill="none" stroke="#6b6b78" stroke-width="6" stroke-linejoin="round" data-road/>
+      ${t.deck ? `<path d="${t.deck}" fill="none" stroke="#f0f0f0" stroke-width="9"/><path d="${t.deck}" fill="none" stroke="#6b6b78" stroke-width="6"/>` : ""}
       <g shape-rendering="crispEdges">${cq}</g><g data-markers></g></svg>`;
   };
   const placeMarkers = (svg) => {
-    const path = svg.querySelector("path:last-of-type");
+    const path = svg.querySelector("path[data-road]");
     const g = svg.querySelector("[data-markers]");
     const len = path.getTotalLength();
     const own = current;

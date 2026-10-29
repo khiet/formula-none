@@ -23,7 +23,7 @@ pub fn oval() -> Track {
 }
 
 pub fn brands_patch() -> Track {
-    Track::from_sidecar(BRANDS_PATCH).expect("Brands Patch loads")
+    Track::from_sidecar(BRANDS_PATCH).expect("Suzuqa Patch loads")
 }
 
 pub fn figure_eight() -> Track {
@@ -91,9 +91,9 @@ pub fn follow_line(state: &State, kart: usize, right_of_centre_m: f32) -> KartIn
 }
 
 /// A line a little right of the centreline: enough to lap either track on
-/// the asphalt and clear of the tyre walls that stand just left of the
-/// centreline in the oval's turns and on the inside of Brands Patch's
-/// hairpins.
+/// the asphalt and clear of the tyre walls, which stand left of the
+/// centreline on both: in the oval's turns, and on Suzuqa Patch inside the
+/// hairpin and Spoon and outside turn 2.
 pub fn follow_centreline(state: &State, kart: usize) -> KartInput {
     const RIGHT_OF_CENTRE_M: f32 = 2.5;
     follow_line(state, kart, RIGHT_OF_CENTRE_M)
@@ -123,6 +123,14 @@ pub fn without_walls(sidecar: &str) -> String {
 pub fn with_slot_at(sidecar: &str, slot: usize, position: [f32; 3], yaw: f32) -> String {
     edited(sidecar, |sidecar| {
         sidecar["spawn_grid"][slot] = serde_json::json!({ "position": position, "yaw": yaw });
+    })
+}
+
+/// `sidecar` with no runaway wheel, so a test driving past its crossing
+/// meets nothing it did not ask for.
+pub fn without_wheel_crossings(sidecar: &str) -> String {
+    edited(sidecar, |sidecar| {
+        sidecar["wheel_crossings"] = serde_json::json!([]);
     })
 }
 

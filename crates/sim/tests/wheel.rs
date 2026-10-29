@@ -1,4 +1,4 @@
-//! The runaway wheel at the sim's public seam: `wheel` on the Brands Patch
+//! The runaway wheel at the sim's public seam: `wheel` on the Suzuqa Patch
 //! crossing at moments of the race clock, one kart parked on or beside the
 //! wheel's path and stepped through the passes, a prediction run beside
 //! the server's race, and eight bots racing past the crossing.
@@ -16,7 +16,7 @@ use std::sync::OnceLock;
 
 use sim::{step, wheel, KartInput, Phase, Prediction, RaceEvent, State, Wheel, WheelCrossing};
 
-/// Brands Patch's crossing, loaded once: the helpers below ask for it at
+/// Suzuqa Patch's crossing, loaded once: the helpers below ask for it at
 /// every sample of the wheel.
 fn crossing() -> WheelCrossing {
     static CROSSING: OnceLock<WheelCrossing> = OnceLock::new();
@@ -48,7 +48,7 @@ fn local(position: [f32; 3]) -> [f32; 2] {
     [dx * cos - dz * sin, -dx * sin - dz * cos]
 }
 
-/// A race of one kart on Brands Patch, parked from the grid at `position`
+/// A race of one kart on Suzuqa Patch, parked from the grid at `position`
 /// facing along the track, past its countdown.
 fn parked_at(position: [f32; 3]) -> State {
     let sidecar = with_slot_at(BRANDS_PATCH, 0, position, crossing().yaw);
@@ -559,7 +559,7 @@ fn a_prediction_beside_the_servers_race_reports_the_wheels_spin_out_on_the_same_
 }
 
 #[test]
-fn eight_bots_racing_three_laps_of_brands_patch_are_never_hit_by_the_wheel() {
+fn eight_bots_racing_brands_patch_are_never_hit_by_the_wheel() {
     // Seeds 1 and 11 each caught out an earlier bot: one sped into a pass
     // it judged clear by a hundredth of a second, the other crawled up to
     // the crossing lifting for passes far ahead. On 80 a bot sped in on a
@@ -584,8 +584,11 @@ fn bots_backing_out_of_a_stall_by_the_crossing_are_never_hit_by_the_wheel() {
 fn a_bot_standing_short_of_the_crossing_at_go_sets_off_and_clears_it_before_the_first_pass() {
     // Standing where it is, the bot would be in the way of every pass, but
     // it sets off, and even slowly it is long past before the flag. Seed 0
-    // rolls the bot no start boost, so it does stand at Go.
-    let start = on_crossing(-30.0, BOT_LINE_RIGHT_OF_CENTRE_M);
+    // rolls the bot no start boost, so it does stand at Go. It starts at
+    // the bridge's edge, 12 m past the deck's centreline: any nearer, the
+    // whole-lap search a kart's first spline progress comes from could read
+    // the deck above it.
+    let start = on_crossing(-16.0, BOT_LINE_RIGHT_OF_CENTRE_M);
     let sidecar = with_slot_at(BRANDS_PATCH, 0, start, crossing().yaw);
     let mut state = started(State::with_bots(0, 0, 1, track(&sidecar)));
     state = step(state, &[], DT);
@@ -607,7 +610,41 @@ fn a_bot_standing_short_of_the_crossing_at_go_sets_off_and_clears_it_before_the_
     );
 }
 
-/// Eight bots on Brands Patch from `seed`, raced three laps: none is hit
+#[test]
+fn a_bot_turning_through_the_hairpin_past_the_crossing_as_the_flag_goes_up_never_stops_for_the_pass(
+) {
+    // The hairpin lies in line with the crossing, 50 m past it, so a bot
+    // turning through it faces back toward the wheel. Set off from 160 m
+    // into the lap, the bot is past the crossing before the first flag and
+    // in the hairpin through it.
+    const START_M: f32 = 160.0;
+    const HAIRPIN_M: std::ops::Range<f32> = 660.0..700.0;
+    let suzuqa = brands_patch();
+    let start = suzuqa.point_at(START_M);
+    let [dx, dz] = suzuqa.direction_at(START_M);
+    let sidecar = with_slot_at(BRANDS_PATCH, 0, start, (-dx).atan2(-dz));
+    let mut state = started(State::with_bots(0, 0, 1, track(&sidecar)));
+    let mut in_the_hairpin_s = None;
+    while racing_s(&state) < pass_start_s(1) + WHEEL_PERIOD_S / 2.0 {
+        state = step(state, &[], DT);
+        let kart = state.kart_readouts()[0];
+        if HAIRPIN_M.contains(&state.standings()[0].spline_progress) {
+            in_the_hairpin_s.get_or_insert(racing_s(&state));
+            assert!(
+                kart.speed > 1.0,
+                "stopped in the hairpin at {} s: {kart:?}",
+                racing_s(&state)
+            );
+        }
+    }
+    let in_the_hairpin_s = in_the_hairpin_s.expect("the bot reached the hairpin");
+    assert!(
+        (pass_start_s(1) - WHEEL_WARNING_S - 2.0..pass_start_s(1)).contains(&in_the_hairpin_s),
+        "in the hairpin at {in_the_hairpin_s} s, around the flag"
+    );
+}
+
+/// Eight bots on Suzuqa Patch from `seed`, raced the race's laps: none is hit
 /// by the wheel, each finishes, and some bot came up to a rolling wheel.
 fn bots_race_past_the_wheel(seed: u64) {
     let track = brands_patch();
@@ -617,7 +654,7 @@ fn bots_race_past_the_wheel(seed: u64) {
     // width, while the wheel rolled, so the bots were put to the test.
     let reach = WHEEL_LANDING_SPREAD_M + WHEEL_RADIUS_M + KART_HALF_LENGTH_M;
     let mut met = 0;
-    for _ in 0..ticks(LAPS_PER_RACE as f32 * 60.0) {
+    for _ in 0..ticks(LAPS_PER_RACE as f32 * 90.0) {
         state = step(state, &[], DT);
         for event in state.events() {
             assert!(
@@ -649,7 +686,7 @@ fn bots_race_past_the_wheel(seed: u64) {
             .standings()
             .iter()
             .all(|s| s.laps_completed >= LAPS_PER_RACE),
-        "seed {seed}: every bot raced its three laps"
+        "seed {seed}: every bot raced the race's laps"
     );
     assert!(met > 0, "seed {seed}: no bot came up to a rolling wheel");
 }

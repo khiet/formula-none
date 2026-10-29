@@ -99,7 +99,7 @@ pub const NICKNAME_MAX_CHARS: usize = 12;
 
 /// Karts on the grid; empty slots are filled by bots at Start.
 pub const KARTS_PER_RACE: usize = 8;
-pub const LAPS_PER_RACE: u32 = 3;
+pub const LAPS_PER_RACE: u32 = 2;
 /// Seconds the karts are held on the grid before Go: the start lights, one
 /// a second, all five out at Go. The Instrument panel always draws five
 /// lamps, so this must stay one second per lamp.
@@ -389,8 +389,8 @@ pub const BOT_LINE_RIGHT_OF_CENTRE_M: f32 = 2.5;
 /// Metres between a sausage kerb's near edge, at its middle, and the line
 /// a bot aims along while the kerb is in range: wide enough
 /// that pursuit's cut toward the apex misses the kerb's ends, which a
-/// straight kerb on a bend sets nearer the line. On Brands Patch the line
-/// is the centreline.
+/// straight kerb on a bend sets nearer the line. On Suzuqa Patch the line
+/// is the centreline past both kerbs.
 pub const BOT_KERB_GAP_M: f32 = 4.4;
 /// Metres short of a sausage kerb's near end from which a bot aims along
 /// the line clear of it, giving up any pass: far enough that a bot out wide

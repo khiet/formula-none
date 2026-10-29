@@ -9,7 +9,7 @@ from dataclasses import dataclass, field
 import math
 
 from . import mesh
-from .path import Feature, Path, elevation
+from .path import SAMPLE_STEP_M, Feature, Path, elevation
 from .sponsors import SPONSORS
 
 # Surface tags the sim understands; the sixth, out of world, is the absence
@@ -162,6 +162,12 @@ MARSHAL_LAMP_BELOW_TOP_M = 0.3
 # the left, the right column set back. Slot order is grid order. Placements
 # snap to the nearest centreline sample, so these distances hold to within
 # half a `SAMPLE_STEP_M`.
+# The bridge where a course crosses itself: a deck this thick over the
+# underpass, and its span wide enough to leave this much open ground beyond
+# each of the underpass's walls.
+BRIDGE_DECK_THICKNESS_M = 1.0
+BRIDGE_SPAN_CLEARANCE_M = 2.0
+
 GRID_SLOTS = 8
 GRID_ROW_SPACING_M = 5.0
 GRID_COLUMN_OFFSET_M = 2.0
@@ -226,12 +232,29 @@ class Grandstands:
 
 
 @dataclass(frozen=True)
+class Bridge:
+    """Where the course crosses itself: the leg from `s_start` to `s_end` rides an
+    embankment over the grass, cut by a span over the leg below.
+
+    `deck_s` is where the raised leg passes over the leg below, `underpass_s`
+    where that leg passes under it. Scenery only: the raised road's own
+    surfaces carry the karts.
+    """
+
+    deck_s: float
+    underpass_s: float
+    s_start: float
+    s_end: float
+
+
+@dataclass(frozen=True)
 class Decor:
     """The scenery a layout asks for beyond what every track gets (kerbs and the start line)."""
 
     hoardings: list[Hoardings] = field(default_factory=list)
     grandstands: list[Grandstands] = field(default_factory=list)
     gantry: bool = False
+    bridges: list[Bridge] = field(default_factory=list)
 
 
 @dataclass
@@ -425,6 +448,7 @@ def decorate(layout: Layout, height: list[float]) -> tuple[list[SceneryMesh], li
     scenery += boards + grandstands(layout)
     if layout.decor.gantry:
         scenery += gantry(layout)
+    scenery += bridges(layout, height)
     return scenery, lettering
 
 
@@ -943,4 +967,57 @@ def gantry(layout: Layout) -> list[SceneryMesh]:
                 material = "checker-dark" if (row + column) % 2 == 0 else "checker-light"
                 parts.add(material, flat(right, right + GANTRY_CHECKER_M, bottom, bottom + GANTRY_CHECKER_M))
 
+    return parts.scenery()
+
+
+def bridge_half_span(layout: Layout, bridge: Bridge) -> float:
+    """Half the span's length along the raised leg: past the underpass's walls by the clearance,
+    however squarely the legs cross."""
+    deck = layout.path.at(bridge.deck_s)
+    under = layout.path.at(bridge.underpass_s)
+    clear = layout.runoff_half_width + WALL_THICKNESS_M + BRIDGE_SPAN_CLEARANCE_M
+    return clear / abs(math.sin(deck.heading - under.heading))
+
+
+def bridges(layout: Layout, height: list[float]) -> list[SceneryMesh]:
+    """Each bridge's embankment, down from the raised road's walls to the grass, its two abutments
+    and the deck between them, with an underside over the underpass."""
+    path = layout.path
+    edge = layout.runoff_half_width + WALL_THICKNESS_M
+    ground = -GRASS_DROP_M
+    parts = ByMaterial("Bridge")
+
+    def rail(indices: list[int], side: int, lift: float | None = None) -> list[mesh.Vertex]:
+        """The outer foot of the wall on `side`, at the road's level or at `lift` metres under it,
+        or on the grass when `lift` is None."""
+        return [
+            (*path.samples[i].offset(side * edge), ground if lift is None else height[i] - GRASS_DROP_M - lift)
+            for i in indices
+        ]
+
+    for bridge in layout.decor.bridges:
+        half_span = bridge_half_span(layout, bridge)
+        # The span's ends land on samples, outward so it is never narrower than asked.
+        span_start = path.index_at(bridge.deck_s - half_span - SAMPLE_STEP_M / 2.0)
+        span_end = path.index_at(bridge.deck_s + half_span + SAMPLE_STEP_M / 2.0)
+        banks = (
+            path.indices_between(bridge.s_start, path.samples[span_start].s),
+            path.indices_between(path.samples[span_end].s, bridge.s_end),
+        )
+        span = path.indices_between(path.samples[span_start].s, path.samples[span_end].s)
+        for bank in banks:
+            for side in (1, -1):
+                top, foot = rail(bank, side, 0.0), rail(bank, side)
+                parts.add("grass", mesh.ribbon(top, foot, closed=False) if side == 1 else mesh.ribbon(foot, top, closed=False))
+        for end in (span_start, span_end):
+            (lt,), (lf,) = rail([end], 1, 0.0), rail([end], 1)
+            (rt,), (rf,) = rail([end], -1, 0.0), rail([end], -1)
+            parts.add("wall", mesh.quad(lf, rf, rt, lt))
+        for side in (1, -1):
+            top, under = rail(span, side, 0.0), rail(span, side, BRIDGE_DECK_THICKNESS_M)
+            parts.add("wall", mesh.ribbon(top, under, closed=False) if side == 1 else mesh.ribbon(under, top, closed=False))
+        parts.add(
+            "stand-plinth",
+            mesh.ribbon(rail(span, -1, BRIDGE_DECK_THICKNESS_M), rail(span, 1, BRIDGE_DECK_THICKNESS_M), closed=False),
+        )
     return parts.scenery()

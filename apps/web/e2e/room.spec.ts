@@ -72,7 +72,7 @@ test("a friend joins the room from the shared link and both can race", async ({
   // humans drive past them, and the creator's throttle reaches the server
   // and moves their kart in everyone's snapshots.
   for (const someone of [page, friend]) {
-    await expect(someone.locator('[data-instrument="lap"]')).toHaveText("Lap 1/3");
+    await expect(someone.locator('[data-instrument="lap"]')).toHaveText("Lap 1/2");
     await expect(someone.locator('[data-instrument="position"]')).toHaveText(/^[78]th$/, {
       timeout: 90_000,
     });

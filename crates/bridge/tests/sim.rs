@@ -358,7 +358,10 @@ fn the_phase_buffer_walks_countdown_racing_outro_and_finished_as_the_sim_does() 
         state = sim::step(state, &[], DT);
         race.step(&[], DT);
         ticks += 1;
-        assert!(ticks < 90 * TICKS_PER_SECOND, "three laps take under 90 s");
+        assert!(
+            ticks < 90 * TICKS_PER_SECOND,
+            "the race's laps take under 90 s"
+        );
     }
     let phase = race.phase();
     assert_eq!(phase[0], RACING);

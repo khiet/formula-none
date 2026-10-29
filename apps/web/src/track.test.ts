@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { centrelineOf, DEFAULT_TRACK, selectTrack, TRACKS } from "./track";
 
 describe("track selection from the query string", () => {
-  it("defaults to Brands Patch", () => {
+  it("defaults to Suzuqa Patch", () => {
     expect(selectTrack("").name).toBe(DEFAULT_TRACK);
     expect(DEFAULT_TRACK).toBe("brands-patch");
   });

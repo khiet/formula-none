@@ -8,7 +8,7 @@ import { START_LIGHTS } from "./instrument-panel";
 // The real wasm build, loaded from bytes because the default loader fetches
 // the module URL and fetch rejects file: URLs in Node. `pnpm build:bridge`
 // must have run first. Races run on the oval fixture's sidecar, and on
-// Brands Patch's for the runaway wheel.
+// Suzuqa Patch's for the runaway wheel.
 const wasm = readFileSync(new URL("./generated/bridge/bridge_bg.wasm", import.meta.url));
 const OVAL = readFileSync(
   new URL("../../../assets/tracks/oval/oval.track.json", import.meta.url),
@@ -73,7 +73,7 @@ describe("race phase", () => {
     while (finishers().length === 0) {
       race.step([], DT);
       ticks += 1;
-      expect(ticks, "three laps take under 90 s").toBeLessThan(90 * 60);
+      expect(ticks, "the race's laps take under 90 s").toBeLessThan(90 * 60);
     }
     const [first] = finishers();
     expect(first?.lap).toBe(bridge.lapsPerRace);
@@ -290,7 +290,7 @@ describe("bridge wrapper", () => {
 describe("standings", () => {
   it("reports a kart on the grid in first place on lap one with no best lap, and the race's lap count", async () => {
     const bridge = await loadBridge(wasm);
-    expect(bridge.lapsPerRace).toBe(3);
+    expect(bridge.lapsPerRace).toBe(2);
     const race = bridge.createRace(7n, 2, 0, OVAL);
     const [pole, second] = race.standings();
     expect(pole).toEqual({

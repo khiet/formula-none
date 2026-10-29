@@ -51,6 +51,7 @@ const DECISION_SLUGS = [
   "runaway-wheel-size",
   "marshal-waves-hazard-flags",
   "spline-progress-searched-near-the-last-reading",
+  "suzuqa-patch",
 ];
 
 const expectedFiles = DECISION_SLUGS.map(

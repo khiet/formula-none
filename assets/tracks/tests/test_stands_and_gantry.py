@@ -43,6 +43,17 @@ def faces_of(data: mesh.Mesh) -> list[list[mesh.Vertex]]:
     return [[vertices[v] for v in face] for face in faces]
 
 
+def stand_samples(layout):
+    """The centreline samples along the runs the stands line, so a stand is
+    measured from its own leg and never from another leg behind it."""
+    path = layout.path
+    return [
+        path.samples[i]
+        for run in layout.decor.grandstands
+        for i in path.indices_between(path.segment(run.segments[0]).s_start, path.segment(run.segments[-1]).s_end)
+    ]
+
+
 def pieces(family: str) -> dict[str, object]:
     """The scenery of `family` on the dressed track, by material."""
     geometry = build(load(DRESSED))
@@ -87,7 +98,7 @@ class Grandstands(unittest.TestCase):
 
     def test_the_tiers_step_up_away_from_the_track(self) -> None:
         layout = load(DRESSED)
-        samples = layout.path.samples
+        samples = stand_samples(layout)
         # Each tread's distance from the centreline, by its height.
         levels: dict[float, list[float]] = {}
         for face in faces_of(pieces("Grandstand")["wall"].mesh):
@@ -103,7 +114,8 @@ class Grandstands(unittest.TestCase):
         layout = load(DRESSED)
         wall_back = layout.runoff_half_width + WALL_THICKNESS_M
         vertices = [v for p in pieces("Grandstand").values() for v in p.mesh[0]]
-        nearest = min(min(math.dist(v[:2], (s.x, s.y)) for s in layout.path.samples) for v in vertices)
+        samples = stand_samples(layout)
+        nearest = min(min(math.dist(v[:2], (s.x, s.y)) for s in samples) for v in vertices)
         # The canopy reaches over the front of the stand, still well clear of the wall.
         self.assertGreater(nearest, wall_back + GRANDSTAND_SETBACK_M / 2.0)
         self.assertAlmostEqual(min(v[2] for v in vertices), -GRASS_DROP_M, places=6)

@@ -15,11 +15,22 @@ from trackgen.layouts import NAMES, load
 # Footprints are checked against the centreline samples, a metre apart, so
 # an edge on the asphalt's edge reads a hair either side of it.
 SAMPLE_SLACK_M = 0.01
+# Metres of arc length either side of a placement's own `s` searched for the
+# centreline sample nearest to it: past anything a placement draws, and short
+# of the other leg where a figure eight crosses itself.
+NEAR_S_M = 30.0
 
 
-def left_of_centre(layout, x: float, y: float) -> float:
-    """How far (x, y) lies left of the nearest centreline sample, in metres."""
-    sample = min(layout.path.samples, key=lambda s: (s.x - x) ** 2 + (s.y - y) ** 2)
+def nearest_sample(layout, x: float, y: float, s: float):
+    """The centreline sample nearest (x, y) within `NEAR_S_M` of arc length `s`."""
+    path = layout.path
+    near = [path.samples[i] for i in path.indices_between(s - NEAR_S_M, s + NEAR_S_M)]
+    return min(near, key=lambda sample: (sample.x - x) ** 2 + (sample.y - y) ** 2)
+
+
+def left_of_centre(layout, x: float, y: float, s: float) -> float:
+    """How far (x, y) lies left of the centreline near arc length `s`, in metres."""
+    sample = nearest_sample(layout, x, y, s)
     nx, ny = sample.left_normal
     return (x - sample.x) * nx + (y - sample.y) * ny
 
@@ -38,11 +49,10 @@ class TyreWalls(unittest.TestCase):
         kart_half_width = tuning_constant("KART_HALF_WIDTH_M")
         for name in NAMES:
             layout = load(name)
-            for surface in build(layout).surfaces:
-                if surface.surface != TYRES:
-                    continue
+            tyres = [surface for surface in build(layout).surfaces if surface.surface == TYRES]
+            for wall, surface in zip(layout.tyre_walls, tyres, strict=True):
                 with self.subTest(name, wall=surface.name):
-                    offsets = [left_of_centre(layout, x, y) for x, y, _ in surface.mesh[0]]
+                    offsets = [left_of_centre(layout, x, y, wall.s) for x, y, _ in surface.mesh[0]]
                     self.assertLessEqual(
                         max(abs(d) for d in offsets), layout.asphalt_half_width + SAMPLE_SLACK_M
                     )

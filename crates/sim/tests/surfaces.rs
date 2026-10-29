@@ -455,25 +455,18 @@ fn aim(state: &State, target: [f32; 2]) -> KartInput {
     }
 }
 
-/// Brands Patch with spawn slot 0 on the centreline `before_m` short of
-/// the chicane, facing along it, and the spline progress of the chicane's
-/// entry and exit (layouts/brands_patch.py: chicane-in through chicane-out).
-fn brands_patch_before_the_chicane(before_m: f32) -> (Track, f32, f32) {
+/// Suzuqa Patch with spawn slot 0 on the centreline `before_m` short of
+/// turn 2, facing along it, and the spline progress of the turn's entry and
+/// exit (layouts/brands_patch.py: a 111 degree right-hander of 21 m radius).
+fn brands_patch_before_turn_2(before_m: f32) -> (Track, f32, f32) {
     let brands_patch = brands_patch();
-    let (entry, exit) = (371.11, 415.09);
+    let (entry, exit) = (130.5, 171.2);
     let spawn = brands_patch.point_at(entry - before_m);
-    let ahead = brands_patch.point_at(entry - before_m + 1.0);
-    assert!(
-        ahead[0] < spawn[0] && (ahead[2] - spawn[2]).abs() < 1e-3,
-        "the hill straight runs along -X"
-    );
+    let [dx, dz] = brands_patch.direction_at(entry - before_m);
+    // A spawn yaw of zero faces -Z and turns counter-clockwise seen from above.
+    let yaw = (-dx).atan2(-dz);
     (
-        track(&with_slot_at(
-            BRANDS_PATCH,
-            0,
-            spawn,
-            std::f32::consts::FRAC_PI_2,
-        )),
+        track(&with_slot_at(BRANDS_PATCH, 0, spawn, yaw)),
         entry,
         exit,
     )
@@ -503,25 +496,37 @@ fn ticks_and_surfaces_to_pass(
 }
 
 #[test]
-fn cutting_the_chicane_through_the_sand_is_slower_than_driving_it() {
-    const APPROACH_M: f32 = 45.0;
+fn cutting_a_corner_through_the_sand_is_slower_than_driving_it() {
+    const APPROACH_M: f32 = 20.0;
     const LOOKAHEAD_M: f32 = 16.0;
-    let (track, entry, exit) = brands_patch_before_the_chicane(APPROACH_M);
+    let (track, entry, exit) = brands_patch_before_turn_2(APPROACH_M);
     let finish = exit + 5.0;
-    // The chicane's entry and exit lie on one line along the hill straight;
-    // the straight line between them crosses the sand on the inside of the
-    // middle bend.
+    // The cut runs straight from the grid through a point 9 m inside the
+    // apex, across the sand and short of the wall 12 m in, to the exit.
+    const CUT_INSIDE_M: f32 = 9.0;
+    let apex = (entry + exit) / 2.0;
     let exit_point = track.point_at(exit);
+    let apex_point = track.point_at(apex);
+    let [dx, dz] = track.direction_at(apex);
+    // Right of the direction of travel (dx, dz), seen from above, is (-dz, dx).
+    let inside_apex = [
+        apex_point[0] - dz * CUT_INSIDE_M,
+        apex_point[2] + dx * CUT_INSIDE_M,
+    ];
+    let driven = |state: &State| {
+        let ahead = state
+            .track()
+            .point_at(state.standings()[0].spline_progress + LOOKAHEAD_M);
+        aim(state, [ahead[0], ahead[2]])
+    };
     let (cut_ticks, cut_surfaces) = ticks_and_surfaces_to_pass(track.clone(), finish, |state| {
-        aim(state, [exit_point[0], exit_point[2]])
+        if state.standings()[0].spline_progress < apex {
+            aim(state, inside_apex)
+        } else {
+            aim(state, [exit_point[0], exit_point[2]])
+        }
     });
-    let (driven_ticks, driven_surfaces) =
-        ticks_and_surfaces_to_pass(track.clone(), finish, |state| {
-            let ahead = state
-                .track()
-                .point_at(state.standings()[0].spline_progress + LOOKAHEAD_M);
-            aim(state, [ahead[0], ahead[2]])
-        });
+    let (driven_ticks, driven_surfaces) = ticks_and_surfaces_to_pass(track.clone(), finish, driven);
 
     assert!(
         cut_surfaces.contains(&Surface::Sand),
@@ -534,7 +539,7 @@ fn cutting_the_chicane_through_the_sand_is_slower_than_driving_it() {
     );
     assert!(
         cut_ticks > driven_ticks + ticks(0.3),
-        "cut in {cut_ticks} ticks, driven in {driven_ticks}; from {} m before the {} m chicane",
+        "cut in {cut_ticks} ticks, driven in {driven_ticks}; from {} m before the {} m turn",
         APPROACH_M,
         exit - entry
     );
