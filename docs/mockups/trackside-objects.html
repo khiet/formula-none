@@ -1,0 +1,843 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Trackside Objects</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Bungee&family=Inter:wght@400;600&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #121316;
+    --card: #1b1d21;
+    --fg: #e8e8ea;
+    --muted: #8a8d94;
+    --rule: #2a2c31;
+    --code-bg: #24272c;
+    /* palette.ts and build.py MATERIALS, sRGB */
+    --poster-red: #c81d25;
+    --go-green: #3ddc84;
+    --gold: #e0b54a;
+    --asphalt: #6b6b78;
+    --wall: #f0f0f0;
+    --sand: #c9a86a;
+    --grass: #3f7a3a;
+    --tyre: #26262a;
+    --boost: #ff8800;
+    --hazard: #f5c542;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--fg); font: 15px/1.55 Inter, system-ui, sans-serif; }
+  body { padding: 2rem 16px 4rem; }
+  .wrap { max-width: 1080px; margin: 0 auto; }
+  h1 { font: 1.9rem/1.1 Bungee, Impact, sans-serif; margin: 0 0 .5rem; letter-spacing: .02em; }
+  h1 span { color: var(--poster-red); }
+  h2 { font: 1.2rem/1.2 Bungee, Impact, sans-serif; margin: 2.5rem 0 .75rem; }
+  h3 { font: 600 1rem/1.3 Inter, sans-serif; margin: 1.25rem 0 .4rem; color: var(--fg); }
+  p { margin: .4rem 0; }
+  .lede { color: var(--muted); max-width: 78ch; }
+  nav { display: flex; flex-wrap: wrap; gap: .4rem; margin: 1.25rem 0 0; }
+  nav a { color: var(--fg); text-decoration: none; font-size: .85rem; border: 1px solid var(--rule); border-radius: 999px; padding: .25rem .7rem; }
+  nav a:hover { border-color: var(--muted); }
+  .card { background: var(--card); border: 1px solid var(--rule); border-radius: 10px; padding: 1rem 1.15rem; }
+  .grid2 { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(min(100%, 440px), 1fr)); align-items: start; }
+  svg { display: block; width: 100%; height: auto; }
+  .table-wrap { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; font-size: .9rem; }
+  th, td { text-align: left; padding: .45rem .65rem; border-bottom: 1px solid var(--rule); vertical-align: top; }
+  th { color: var(--muted); font-weight: 600; white-space: nowrap; }
+  td.num { white-space: nowrap; font-variant-numeric: tabular-nums; }
+  td.ok { color: var(--go-green); }
+  td.bad { color: #ff7a6e; }
+  tr.hot td { background: #24272c; }
+  code { font: .85em ui-monospace, SFMono-Regular, Menlo, monospace; background: var(--code-bg); padding: .05rem .3rem; border-radius: 3px; }
+  pre { background: var(--code-bg); border-radius: 8px; padding: .8rem 1rem; overflow-x: auto; font-size: .8rem; line-height: 1.45; }
+  pre code { background: none; padding: 0; font-size: 1em; }
+  ul, ol { padding-left: 1.2rem; margin: .4rem 0; }
+  li { margin: .25rem 0; }
+  .muted { color: var(--muted); }
+  .decision { color: var(--go-green); font-weight: 600; }
+  .layers { display: flex; flex-wrap: wrap; gap: .35rem .9rem; margin: 0 0 .75rem; font-size: .85rem; color: var(--muted); }
+  .layers label { display: inline-flex; gap: .35rem; align-items: center; cursor: pointer; }
+  .stats { display: flex; flex-wrap: wrap; gap: .5rem 1.5rem; margin: 0 0 .75rem; font-size: .9rem; }
+  .stats b { font-variant-numeric: tabular-nums; }
+  .map-wrap { position: relative; }
+  #map { background: #15241a; border-radius: 8px; }
+  .pin circle { fill: var(--poster-red); stroke: #fff; stroke-width: .7; cursor: pointer; }
+  .pin text { fill: #fff; font: 600 5px Inter, sans-serif; text-anchor: middle; dominant-baseline: central; pointer-events: none; }
+  .pin.hot circle, .pin:hover circle { fill: var(--gold); }
+  .leader { stroke: rgba(255,255,255,.35); stroke-width: .5; }
+  .footprint { fill: rgba(255,255,255,.08); stroke: #fff; stroke-width: .6; stroke-dasharray: 2 1.2; }
+  .footprint.hot { fill: rgba(224,181,74,.35); stroke: var(--gold); }
+  .corner-label { fill: #8a8d94; font: 6px Inter, sans-serif; }
+  .tip { position: absolute; pointer-events: none; background: #0d0e10; border: 1px solid var(--rule); border-radius: 6px; padding: .4rem .6rem; font-size: .8rem; max-width: 280px; opacity: 0; transition: opacity .1s; }
+  .tip.show { opacity: 1; }
+  .legend { display: flex; flex-wrap: wrap; gap: .9rem; font-size: .85rem; color: var(--muted); margin-top: .5rem; }
+  .legend i { display: inline-block; width: .8rem; height: .8rem; border-radius: 50%; margin-right: .35rem; vertical-align: -.1rem; }
+  .objects { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(min(100%, 440px), 1fr)); align-items: start; }
+  .object { border-top: 3px solid var(--poster-red); }
+  .object.moving { border-top-color: var(--gold); }
+  .object .head { display: flex; align-items: baseline; gap: .6rem; flex-wrap: wrap; margin-bottom: .5rem; }
+  .object .head h3 { margin: 0; }
+  .object .head h3::before { content: attr(data-n) ". "; color: var(--poster-red); }
+  .tag { font: 600 .7rem/1 Inter, sans-serif; text-transform: uppercase; letter-spacing: .08em; padding: .3rem .5rem; border-radius: 4px; border: 1px solid var(--rule); color: var(--muted); }
+  .tag.moving { color: #111; background: var(--gold); border-color: var(--gold); }
+  .tag.joke { color: #111; background: var(--go-green); border-color: var(--go-green); }
+  .stage { background: var(--grass); border-radius: 8px; overflow: hidden; }
+  .stage.sky { background: linear-gradient(#5aa7e0, #a9d4f2 70%, var(--grass) 70%); }
+  dl.spec { display: grid; grid-template-columns: max-content 1fr; gap: .25rem .8rem; margin: .7rem 0; font-size: .88rem; }
+  dl.spec dt { color: var(--muted); }
+  dl.spec dd { margin: 0; }
+  .dont { color: #ff9b8f; }
+  .slices { counter-reset: slice; display: grid; gap: .75rem; }
+  .slice { counter-increment: slice; }
+  .slice h3 { margin-top: 0; }
+  .slice h3::before { content: counter(slice) ". "; color: var(--poster-red); }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1>Suzuqa Patch, <span>trackside</span> objects</h1>
+  <p class="lede">The course is a road through empty grass. Six pieces of scenery to fill the green space and give the corners landmarks: the Circuit Wheel by the first corner, woods along the back section, a pit building the grid faces, and one joke in the sky. Every one is scenery in the glTF and nothing collides with it, so the sim, the sidecar and the replay fixtures do not change; the two that move are moved by the View from the clock, as the marshal's flags are. The map is laid live from the same turtle steps as <code>trackgen/layouts/brands_patch.py</code>, and each footprint's clearance from the nearest wall is computed on it.</p>
+  <nav>
+    <a href="#decisions">Decisions</a>
+    <a href="#map-section">Map</a>
+    <a href="#objects">Objects</a>
+    <a href="#rules">Placing rules</a>
+    <a href="#build">Build notes</a>
+    <a href="#slices">Issues</a>
+    <a href="#out">Out of scope</a>
+  </nav>
+</header>
+
+<h2 id="decisions">Decisions</h2>
+<div class="table-wrap card">
+  <table>
+    <thead><tr><th>Question</th><th>Decision</th><th>Why</th></tr></thead>
+    <tbody>
+      <tr><td>Where the objects live</td><td class="decision">The layout's <code>Decor</code>, built by trackgen</td><td>The same path the stands, the hoardings and the bridge take: a layout declares them, Blender exports them, the glTF carries them. The sidecar does not change.</td></tr>
+      <tr><td>Do karts collide with them</td><td class="decision">No</td><td>Everything stands beyond the walls, which already stop the karts, and the sim reads sidecars, never meshes. No rule changes, no replay re-record.</td></tr>
+      <tr><td>Who moves the moving ones</td><td class="decision">The View, from its own clock</td><td>Presentation, like the marshal's flags and beacon: no state, no bytes in a snapshot. Two clients' wheels need not agree, so neither consults the sim.</td></tr>
+      <tr><td>Style</td><td class="decision">Chibi low-poly, flat facets</td><td>ADR 0034: each panel in a lit and a shaded tone of one colour, no textures. Trees are cones and lumps, the airship is a twelve-sided hull.</td></tr>
+      <tr><td>Lettering</td><td class="decision">Only names from <code>sponsors.py</code></td><td>ADR 0038: the arch and the airship carry invented sponsors we already have. The wheel carries no name at all.</td></tr>
+      <tr><td>Real Suzuka landmarks</td><td class="decision">Borrowed as kinds of thing, never copied</td><td>Suzuka has a Ferris wheel by the first corner and a tyre-shaped footbridge; ours are a Ferris wheel and a tyre-shaped footbridge, in our palette with our sponsors. Nothing carries the real circuit's or a real brand's marks (ADR 0007).</td></tr>
+      <tr><td>Draw calls</td><td class="decision">One mesh per material per family</td><td>As <code>ByMaterial</code> does today: a wood of 130 trees is four meshes. Only a moving prop gets nodes of its own.</td></tr>
+      <tr><td>The course map</td><td class="decision">Unchanged</td><td>It draws the road and the karts; scenery never reaches it.</td></tr>
+      <tr><td>The oval</td><td class="decision">Stays bare</td><td>It is the test fixture; a prop on it is a prop every sim test loads.</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<h2 id="map-section">Map</h2>
+<div class="card">
+  <div class="stats" id="stats"></div>
+  <div class="layers">
+    <label><input type="checkbox" data-layer="today" checked /> What stands today</label>
+    <label><input type="checkbox" data-layer="woods" checked /> Woods</label>
+    <label><input type="checkbox" data-layer="props" checked /> Proposed objects</label>
+    <label><input type="checkbox" data-layer="pins" checked /> Numbered pins</label>
+    <label><input type="checkbox" data-layer="labels" checked /> Corner names</label>
+    <label><input type="checkbox" data-layer="sky" checked /> The airship's circuit</label>
+  </div>
+  <div class="map-wrap">
+    <svg id="map" role="img" aria-label="Top-down map of Suzuqa Patch with the proposed trackside objects"></svg>
+    <div class="tip" id="tip"></div>
+  </div>
+  <div class="legend">
+    <span><i style="background:var(--asphalt)"></i>Asphalt, 12 m</span>
+    <span><i style="background:var(--sand)"></i>Run-off, 6 m each side</span>
+    <span><i style="background:#9aa0a8"></i>Grandstand today</span>
+    <span><i style="background:#c81d25"></i>Hoardings today</span>
+    <span><i style="background:#2f7a3a;border:1px solid #6fcf7a"></i>Pine</span>
+    <span><i style="background:#5cb04a"></i>Round tree</span>
+    <span><i style="background:#f2a3c0"></i>Cherry</span>
+    <span><i style="background:rgba(255,255,255,.08);border:1px dashed #fff"></i>Footprint of a proposed object</span>
+    <span><i style="background:none;border:1px dashed #a9d4f2"></i>Airship's circuit, 45 m up</span>
+  </div>
+</div>
+
+<div class="card table-wrap" style="margin-top:1rem">
+  <table>
+    <thead><tr><th>#</th><th>Object</th><th>Where</th><th>Footprint</th><th>Clearance to the nearest wall</th><th>Rule</th><th>Moves</th><th>Faces, about</th></tr></thead>
+    <tbody id="rows"></tbody>
+  </table>
+  <p class="muted" style="font-size:.82rem;margin-top:.6rem">Clearance is grass between the object's footprint and the nearest wall, measured on the map's centreline samples (walls stand 12 m off it). A low object keeps 3 m; anything over 3 m tall keeps 8 m, so it never comes between the chase camera and a kart on the outside of a corner. Hover a row or a pin to find it.</p>
+</div>
+
+<h2 id="objects">Objects</h2>
+<p class="lede">Each card is one family for <code>trackgen</code>: a drawing in the style guide's manner, where it stands, what it is built from, what it costs and why it is there. Red-topped cards stand still; gold-topped ones move in the View.</p>
+<div class="objects" id="cards"></div>
+
+<h2 id="rules">Placing rules</h2>
+<div class="grid2">
+  <div class="card">
+    <h3 style="margin-top:0">Where a thing may stand</h3>
+    <ul>
+      <li><b>Beyond the walls, always.</b> Nothing on the asphalt, the run-off or the walls' line; the sim never learns a prop exists, so a prop a kart could reach would be a wall it cannot see.</li>
+      <li><b>Three metres of grass from the wall</b> for anything low, <b>eight for anything tall</b> (over 3 m). The chase camera hangs behind and above the kart; on the outside of a corner it can sit over the wall, and a tall prop there would stand between it and the kart.</li>
+      <li><b>Seen down a straight.</b> A landmark earns its faces by being visible for seconds, not frames: the wheel sits ahead of the start straight, the arch at the top of the esses, the airship over everything.</li>
+      <li><b>The bridge keeps its sky.</b> Nothing taller than the deck's parapet within 60 m of the crossing, so the deck still reads as a bridge from the underpass.</li>
+      <li><b>Woods between legs, not on them.</b> A wood between the back straight and 130R hides the next leg, so the figure eight reads as roads through a landscape rather than a drawing on a lawn. Trees keep 5 m apart and 3 m from the wall.</li>
+    </ul>
+  </div>
+  <div class="card">
+    <h3 style="margin-top:0">What a thing may not be</h3>
+    <ul>
+      <li><b>Not mistakable for a kart, an item box or a hazard.</b> No kart-sized box in a livery colour near the road, no gold cube, no lone cone, no stack of tyres off the course.</li>
+      <li><b>No numbers, crests or team names</b> anywhere (ADR 0035): the pit garages are colours only.</li>
+      <li><b>No real sponsor, no real circuit's mark</b> (ADR 0007, ADR 0038): lettering comes from <code>sponsors.py</code> and nowhere else.</li>
+      <li><b>No face the player must read.</b> Oyaji is the marshal and stays the only character; no prop is a person.</li>
+      <li><b>Nothing that reads the race.</b> A scoreboard or a camera that follows the leader needs the standings in the View; that is a later decision, not scenery.</li>
+    </ul>
+  </div>
+</div>
+
+<h2 id="build">Build notes</h2>
+<div class="grid2">
+  <div class="card">
+    <h3 style="margin-top:0">The layout</h3>
+    <p><code>Decor</code> gains two lists. A <code>Prop</code> is a kind and a spot, either hung on the lap (<code>s</code> and an offset left of the centreline, as every placement is today) or set in the world (<code>x</code>, <code>y</code>) for the infield, with a heading. A <code>Wood</code> is a kind of tree, a patch (a disc or a line), a count and a seed; the builder scatters the trees itself and rejects any within 3 m of a wall, 5 m of a neighbour or inside a prop's footprint, so a layout never lists a tree.</p>
+<pre><code>decor=Decor(
+    ...,
+    props=[
+        Prop("circuit-wheel", Spot(s=86.0, offset=34.0)),
+        Prop("arch", Spot(s=path.segment("dunlop").s_mid)),
+        Prop("pits", Spot(s=0.0, offset=-26.0), length=90.0),
+        Prop("airship", World(-60.0, -40.0), radius=60.0, height=45.0),
+    ],
+    woods=[
+        Wood("pine", Disc(-215.0, -70.0, 35.0), count=40, seed=1),
+        Wood("round", Disc(-150.0, 5.0, 12.0), count=15, seed=2),
+        Wood("round", Disc(-300.0, 72.0, 14.0), count=12, seed=3),
+        Wood("pine", Disc(-230.0, 190.0, 25.0), count=25, seed=4),
+        Wood("pine", Disc(-400.0, 100.0, 25.0), count=30, seed=5),
+        Wood("round", Disc(-60.0, -45.0, 20.0), count=15, seed=6),
+        Wood("cherry", Line((-5.0, -150.0), (-105.0, -130.0)), count=12, seed=7),
+    ],
+)</code></pre>
+    <p>Each kind is a builder in a new <code>trackgen/props.py</code>, one function per family returning scenery meshes through <code>ByMaterial</code>, so <code>layout.py</code> does not grow by a thousand lines. <code>decorate</code> appends them after the bridges. The track tests hold every prop to its clearance rule and every wood's trees to theirs, the way <code>test_stands_and_gantry.py</code> holds the stands.</p>
+  </div>
+  <div class="card">
+    <h3 style="margin-top:0">Moving props and the View</h3>
+    <p>Today every scenery mesh is merged per material with its origin at the world's zero. A moving prop needs a node whose origin is its pivot: the wheel's hub, the airship's nose. <code>SceneryMesh</code> gains an optional <code>pivot</code>; <code>build.py</code> sets the object's origin there and names the node <code>Prop.&lt;kind&gt;.&lt;n&gt;.&lt;part&gt;</code>.</p>
+    <p>A <code>scenery-motion.ts</code> in the web app (Presentation) finds those nodes by name after the track loads and advances them from <code>performance.now()</code>: the rim turns and each gondola is counter-rotated to hang level, and the airship rides its circle. Nothing in it reads the bridge or the sim, so a stalled client's wheel simply stops.</p>
+    <h3>Palette</h3>
+    <p><code>MATERIALS</code> gains the trees (<code>canopy-pine</code>, <code>canopy</code>, <code>blossom</code>, each with a <code>-shade</code>, and <code>trunk</code>) and a <code>hull</code> for the airship. Garage doors, gondolas and flags reuse <code>crowd-&lt;slot&gt;</code>, the eight key colours. Everything else is already there: carbon, the stand greys, kerb red, the inks.</p>
+    <h3>What else changes</h3>
+    <ul>
+      <li>A card per family in <code>docs/style-guide.html</code>, in the same PR as the family.</li>
+      <li><code>assets/LICENSES.md</code> is unchanged: all of it is built from primitives here, CC0.</li>
+      <li>A re-export of <code>brands-patch.glb</code> per slice. The sidecar diff is empty every time; a test asserts it.</li>
+    </ul>
+  </div>
+</div>
+
+<h2 id="slices">Issues</h2>
+<div class="slices">
+  <div class="card slice">
+    <h3>Props in the layout, and the woods</h3>
+    <p><code>Decor.props</code> and <code>Decor.woods</code>, <code>trackgen/props.py</code>, the three trees and the cherry row with their scatter and the clearance test, the four canopy materials, the style guide's Woods card, the re-export. No moving part. The largest visible change for the least code.</p>
+  </div>
+  <div class="card slice">
+    <h3>The Circuit Wheel</h3>
+    <p>The family, the <code>pivot</code> on <code>SceneryMesh</code> and the named nodes in <code>build.py</code>, <code>scenery-motion.ts</code> with the rim and the sixteen gondolas, the asset card. Sets the pattern every later moving prop follows.</p>
+  </div>
+  <div class="card slice">
+    <h3>The arch and the pit building</h3>
+    <p>Two static landmarks with lettering through <code>TextProp</code>, the way the hoardings letter today. The pit building's doors in grid order, the flags, the cards.</p>
+  </div>
+  <div class="card slice">
+    <h3>The airship</h3>
+    <p>One more node on the motion module: the airship's circle and heading. The lettering goes through <code>TextProp</code> as the arch's does.</p>
+  </div>
+</div>
+
+<h2 id="out">Out of scope</h2>
+<div class="card">
+  <ul>
+    <li>Collisions with any prop. If a prop ever needs to stop a kart, it becomes a tyre wall or a wall in the sidecar, with its own ADR.</li>
+    <li>Lighting, shadows or a time of day. The View's sun does not move for a Ferris wheel.</li>
+    <li>Props on the oval.</li>
+    <li>Anything that reads the race: a scoreboard, a camera crane that follows the leader, a crowd that cheers a pass.</li>
+    <li>Sound. The airship is silent.</li>
+    <li>The course map, the Instrument panel and the Title and Results Scenes.</li>
+  </ul>
+</div>
+
+</div>
+
+<script>
+// Turtle steps, as in trackgen/path.py and trackgen/layouts/brands_patch.py:
+// straights are [ "s", name, length ], arcs [ "a", name, radius, degrees ]
+// with positive degrees turning left. close() adds the straight back to the line.
+const H0 = -50;
+const SPEC = [
+  ["s", "start", 60],
+  ["a", "first-curve", 50, -51],
+  ["s", "turn-2-approach", 26],
+  ["a", "turn-2", 21, -111],
+  ["s", "esses-run", 27],
+  ["a", "esses-1", 30, 57],
+  ["a", "esses-2", 20, -71],
+  ["s", "esses-link", 9],
+  ["a", "esses-3", 21, 55],
+  ["a", "esses-4", 21, -122],
+  ["a", "dunlop", 34, 102],
+  ["a", "dunlop-rise", 41, 58],
+  ["a", "degner-1", 24, -70],
+  ["s", "degner-link", 53],
+  ["a", "degner-2", 18, -75],
+  ["s", "underpass", 85.3],
+  ["a", "hairpin-kink", 43, -28],
+  ["s", "hairpin-approach", 12],
+  ["a", "hairpin", 17, 180],
+  ["s", "hairpin-exit", 21],
+  ["a", "two-hundred-r", 43, -99],
+  ["s", "spoon-entry", 8],
+  ["a", "spoon-1", 17, 109],
+  ["s", "spoon-link", 20],
+  ["a", "spoon-2", 29, 108],
+  ["s", "back-straight", 190.14],
+  ["a", "one-thirty-r", 52, 40],
+  ["s", "chicane-approach", 13],
+  ["a", "chicane-in", 12, -76],
+  ["a", "chicane-out", 13, 86],
+  ["a", "final-curve", 40, -92],
+];
+
+const ASPHALT_HALF = 6, RUNOFF = 6, EDGE = ASPHALT_HALF + RUNOFF;
+const BRIDGE = { underpass: 573.8, back: 1020.7 };
+const LOW_CLEARANCE_M = 3, TALL_CLEARANCE_M = 8;
+const TREE_WALL_CLEARANCE_M = 3, TREE_SPACING_M = 5;
+
+// What the layout already hangs on the lap, drawn so the proposals sit among it.
+const TODAY = {
+  hoardings: [[["grid", "start"], 1], [["spoon-2"], -1], [["one-thirty-r"], -1], [["final-curve"], 1]],
+  grandstands: [[["grid", "start"], 1], [["hairpin-exit"], -1]],
+  tyreWalls: [["turn-2", 0, -4.5], ["hairpin", -8, 4.5], ["hairpin", 8, 4.5], ["spoon-2", 0, 4.5]],
+  itemRows: [["esses-run", 0], ["degner-link", 0], ["back-straight", "end-15"]],
+  boostPads: [["dunlop-rise", 0, 0], ["hairpin-exit", 0, 3]],
+  kerbs: [["esses-3", 4.9], ["chicane-in", -4.9]],
+  wheelCrossing: { s: BRIDGE.underpass + 28, outside: -1 },
+};
+
+// The eight liveries' key colours in slot order (apps/web/src/livery.ts).
+const KEYS = ["#d00a12", "#1f3fb0", "#c8ccd0", "#ff7a00", "#00665a", "#37bedd", "#f282b4", "#2a2a2e"];
+// build.py MATERIALS, sRGB, plus the ones this page proposes.
+const M = {
+  asphalt: "#6b6b78", sand: "#e8c773", grass: "#5cb04a", wall: "#f0f0f0",
+  tyre: "#1a1a1d", tyreFace: "#2e2e32", kerbRed: "#d63b2e", kerbWhite: "#f5f5f5",
+  board: "#fafafa", carbon: "#2b2e33", carbonLit: "#3a3e45", carbonShade: "#1c1c1e",
+  standRiser: "#d7dbe0", standPlinth: "#b4bac2", canopyRed: "#e05547", canopyShade: "#a52a20",
+  beamTop: "#c9ced5", beamShade: "#9aa0a8",
+  inkBlue: "#1f54c7", inkGreen: "#218c40", inkRed: "#cc2929", inkBlack: "#1f1f1f", inkBrown: "#73471f", inkOrange: "#ed7814", inkPurple: "#8038b3",
+  // proposed
+  canopyPine: "#2f7a3a", canopy: "#5cb04a", blossom: "#f2a3c0", trunk: "#5a3a1e",
+  hull: "#f0f0f0",
+};
+
+// Each proposed object: where it stands, its footprint for the clearance
+// check, how it is drawn, and the card's text. `spot` hangs it on the lap
+// (s, metres left of the centreline); `world` sets it in track metres.
+const OBJECTS = [
+  {
+    id: "wheel", title: "The Circuit Wheel", tags: ["moving"], draw: "wheel", stage: "sky",
+    spot: { s: 86, off: 34 }, r: 13, tall: true, moves: true, faces: 420,
+    where: "Outside the first curve, 34 m left of the centreline, where the real one stands by the first corner",
+    size: "24 m across, hub 14 m up, 16 gondolas; the tallest thing on the course",
+    materials: "Rim and spokes in wall white over beam shade, hub and A-frame legs in carbon, gondolas two per livery key colour",
+    motion: "One turn every 90 s; each gondola counter-rotated so it hangs level",
+    why: "The one landmark every Suzuka fan knows, and the thing the start straight points at: ahead and a little left for the whole run to the first curve, then again across the infield from Dunlop. The gondolas take the crowd's eight colours, so the wheel and the stands match.",
+    dont: "Don't letter it, and don't put it inside the lap: the chase camera at turn 2 would clip the legs.",
+  },
+  {
+    id: "arch", title: "The GRIP & CO. arch", tags: [], draw: "arch", stage: "sky",
+    spot: { s: 357, off: 0 }, span: 16, depth: 2, tall: true, moves: false, faces: 260, special: "span", pin: [-14, -10],
+    where: "Across Dunlop at its middle, feet 2 m beyond each wall",
+    size: "32 m wide, 16 m to the crown, a ring 2.5 m thick and 2 m deep",
+    materials: "The ring in tyre black with a tyre-face lit edge, a kerb-white belt round its middle lettered GRIP & CO. TYRES in ink black on both faces, wall-white abutments",
+    motion: "None",
+    why: "Suzuka's tyre-shaped footbridge is the other thing everyone remembers. Dunlop is the uphill left out of the esses, and a ring over it frames the climb; a kart passes through a giant tyre on its way to the boost pad. The sponsor is one we already have.",
+    dont: "Don't lower the crown under the gantry's 7 m anywhere over the asphalt, and don't make the ring a wall: it spans the run-off, so its feet stand on grass.",
+  },
+  {
+    id: "pits", title: "The pit building", tags: [], draw: "pits", stage: "",
+    spot: { s: 0, off: -26 }, length: 90, depth: 10, tall: true, moves: false, faces: 110, special: "strip",
+    where: "Inside the start straight, from 45 m before the line to 45 m past it, front face 21 m right of the centreline",
+    size: "90 m long, 10 m deep, 6 m to the roof, eight garages, eight flag poles",
+    materials: "Walls in stand riser, roof lit, parapet in stand plinth, each garage door in a livery key colour with a lit band, flags the same eight colours on carbon poles",
+    motion: "None",
+    why: "The grid faces it through the countdown: eight karts, eight doors, the room's own colours, in grid order from the line back. A circuit without a pit lane is a road; this is the cheapest way to say a race happens here.",
+    dont: "Don't number the doors (ADR 0035) and don't put a kart in a garage: a parked kart is a kart the sim does not have.",
+  },
+  {
+    id: "woods", title: "The woods", tags: [], draw: "trees", stage: "",
+    wood: true, moves: false, faces: 1700,
+    where: "Seven patches: outside Degner, the slope between Dunlop and 130R, the 200R pocket, outside the hairpin, beyond Spoon, the middle of the east infield, and a cherry row outside the esses",
+    size: "About 130 trees: pines 7 m, round trees 5 m, young ones 3 m, cherries 5 m",
+    materials: "Pine canopies in two stacked six-sided cones, round canopies an eight-facet lump, cherries three overlapping lumps in blossom pink; each in a lit and a shade tone, trunks a four-sided post",
+    motion: "None",
+    why: "The biggest change for the least code. Suzuka's back section runs through trees; a wood between the back straight and 130R hides the next leg so the figure eight reads as roads through a landscape. The cherry row is the esses' backdrop, the one place the camera swings across both sides, and says Japan without a flag or a building.",
+    dont: "Don't let a tree within 3 m of a wall or 5 m of another; the scatter rejects both, and the layout never lists a tree by hand.",
+  },
+  {
+    id: "airship", title: "The SLIPSTREAM AIRWAYS airship", tags: ["moving", "joke"], draw: "airship", stage: "sky",
+    world: { x: -60, y: -40 }, orbit: 60, alt: 45, r: 12, moves: true, faces: 90, special: "orbit",
+    where: "45 m over the east infield, round a circle 60 m across its radius centred near the esses' inside",
+    size: "24 m long, 8 m across",
+    materials: "Hull in wall white lit over beam shade, fins in kerb red, a carbon gondola, SLIPSTREAM AIRWAYS in ink blue on both flanks",
+    motion: "One circuit every 4 min, nose along its path",
+    why: "The sky is the one green space every corner shares. It crosses over Dunlop, the esses, the chicane and the start straight in turn, so there is always something above the horizon, and it is the one sponsor a driver cannot avoid.",
+    dont: "Don't fly it under 30 m over any road, and don't give it a sound.",
+  },
+];
+// The cherry row has a card of its own below the woods, since it is a different tree in a different place.
+OBJECTS.splice(4, 0, {
+  id: "cherry", title: "The cherry row", tags: [], draw: "cherry", stage: "",
+  wood: "cherry", moves: false, faces: 150, pin: [0, 12],
+  where: "A line of twelve outside the esses, 20 m beyond the wall from the esses' run to the fourth S",
+  size: "Twelve trees, 5 m tall",
+  materials: "Three overlapping eight-facet lumps in blossom pink and blossom shade on trunk-brown posts",
+  motion: "None",
+  why: "The esses are the rhythm section, and the camera swings across both sides through them. A row of pink along the south is the clearest Japan the course can say with a palette and no building.",
+  dont: "Don't scatter petals. Particles are the sparks' and dust's job, and the esses already have both.",
+});
+
+// Woods: a kind, a patch and a count; the trees themselves come from the scatter.
+const WOODS = [
+  { kind: "pine", disc: [-215, -70, 35], count: 40, seed: 1 },
+  { kind: "round", disc: [-150, 5, 12], count: 15, seed: 2 },
+  { kind: "round", disc: [-300, 72, 14], count: 12, seed: 3 },
+  { kind: "pine", disc: [-230, 190, 25], count: 25, seed: 4 },
+  { kind: "pine", disc: [-400, 100, 25], count: 30, seed: 5 },
+  { kind: "round", disc: [-60, -45, 20], count: 15, seed: 6 },
+  { kind: "cherry", line: [[-5, -150], [-105, -130]], count: 12, seed: 7 },
+];
+const TREE = { pine: { r: 2.5, fill: M.canopyPine, stroke: "#6fcf7a" }, round: { r: 2.5, fill: M.canopy, stroke: "none" }, cherry: { r: 2.5, fill: M.blossom, stroke: "none" } };
+
+const LABELS = [
+  ["first-curve", "1"], ["turn-2", "2"], ["esses-2", "S curves"], ["dunlop", "Dunlop"],
+  ["degner-1", "Degner 1"], ["degner-2", "Degner 2"], ["hairpin", "Hairpin"],
+  ["two-hundred-r", "200R", 0.5, -25], ["spoon-1", "Spoon"], ["back-straight", "Back straight", 0.2, -25],
+  ["one-thirty-r", "130R"], ["chicane-in", "Chicane"], ["final-curve", "Final curve"],
+  ["start", "Start", 0.5],
+];
+
+const NS = "http://www.w3.org/2000/svg";
+const rad = (d) => (d * Math.PI) / 180;
+
+// Mirrors Turtle: samples about every metre, each primitive excluding its own
+// start point; close() appends the straight back to the line.
+function lay() {
+  let x = 0, y = 0, h = rad(H0), s = 0;
+  const pts = [{ x, y, h, s }];
+  const segs = [];
+  const straight = (name, len) => {
+    const n = Math.max(1, Math.round(len)), step = len / n, s0 = s;
+    for (let i = 0; i < n; i++) { x += step * Math.cos(h); y += step * Math.sin(h); s += step; pts.push({ x, y, h, s }); }
+    segs.push({ name, start: s0, end: s, turn: 0 });
+  };
+  const arc = (name, r, deg) => {
+    const t = deg > 0 ? 1 : -1, len = r * rad(Math.abs(deg));
+    const n = Math.max(1, Math.round(len)), da = rad(deg) / n, s0 = s;
+    const cx = x - t * r * Math.sin(h), cy = y + t * r * Math.cos(h);
+    for (let i = 0; i < n; i++) { h += da; x = cx + t * r * Math.sin(h); y = cy - t * r * Math.cos(h); s += len / n; pts.push({ x, y, h, s }); }
+    segs.push({ name, start: s0, end: s, turn: t });
+  };
+  for (const [k, name, a, b] of SPEC) (k === "s" ? straight(name, a) : arc(name, a, b));
+  const dx = -x, dy = -y;
+  const along = dx * Math.cos(h) + dy * Math.sin(h);
+  if (along > 0) straight("grid", along);
+  pts.pop();
+  for (const g of segs) g.mid = (g.start + g.end) / 2;
+  return { pts, segs, length: s };
+}
+
+const T = lay();
+const seg = (name) => T.segs.find((g) => g.name === name);
+function at(s) {
+  s = ((s % T.length) + T.length) % T.length;
+  let i = Math.min(T.pts.length - 1, Math.floor((s / T.length) * T.pts.length));
+  while (i > 0 && T.pts[i].s > s) i--;
+  while (i < T.pts.length - 1 && T.pts[i + 1].s <= s) i++;
+  const a = T.pts[i], b = T.pts[(i + 1) % T.pts.length];
+  const bs = i + 1 < T.pts.length ? b.s : T.length;
+  const f = bs > a.s ? (s - a.s) / (bs - a.s) : 0;
+  return { x: a.x + (b.x - a.x) * f, y: a.y + (b.y - a.y) * f, h: b.h };
+}
+// World point `off` metres left of the centreline at `s`.
+function W(s, off = 0) {
+  const p = at(s);
+  return { x: p.x - off * Math.sin(p.h), y: p.y + off * Math.cos(p.h), h: p.h };
+}
+// Screen point: world y flipped.
+const S = (w) => [w.x, -w.y];
+function P(s, off = 0) {
+  const w = W(s, off);
+  return [w.x, -w.y, (-w.h * 180) / Math.PI];
+}
+// Distance from a world point to the centreline, by its samples.
+function toCentreline(x, y) {
+  let best = Infinity;
+  for (const p of T.pts) { const d = Math.hypot(p.x - x, p.y - y); if (d < best) best = d; }
+  return best;
+}
+const clearanceOf = (x, y, r) => toCentreline(x, y) - EDGE - r;
+
+function el(tag, attrs, parent) {
+  const e = document.createElementNS(NS, tag);
+  for (const k in attrs) e.setAttribute(k, attrs[k]);
+  if (parent) parent.appendChild(e);
+  return e;
+}
+const pathOf = (from, to, off = 0, step = 1, close = false) => {
+  const out = [];
+  for (let s = from; s <= to + 1e-6; s += step) out.push(P(s, off));
+  return "M" + out.map((p) => p[0].toFixed(2) + " " + p[1].toFixed(2)).join("L") + (close ? "Z" : "");
+};
+
+// Resolve every object's world position and footprint outline once.
+for (const o of OBJECTS) {
+  if (o.spot) { const w = W(o.spot.s, o.spot.off); o.x = w.x; o.y = w.y; o.h = w.h; }
+  else if (o.world) { o.x = o.world.x; o.y = o.world.y; o.h = 0; }
+  if (o.special === "strip") {
+    // Outline of the building: the strip from s-length/2 to s+length/2 between off and off-depth (further right).
+    const inner = o.spot.off > 0 ? o.spot.off - o.depth / 2 : o.spot.off + o.depth / 2;
+    const outer = o.spot.off > 0 ? o.spot.off + o.depth / 2 : o.spot.off - o.depth / 2;
+    o.outline = [];
+    for (let s = o.spot.s - o.length / 2; s <= o.spot.s + o.length / 2; s += 2) o.outline.push(W(s, inner), W(s, outer));
+    o.clearance = Math.min(...o.outline.map((w) => toCentreline(w.x, w.y) - EDGE));
+  } else if (o.special === "span") {
+    // The ring's feet: two blocks just beyond each wall.
+    o.outline = [W(o.spot.s - o.depth / 2, o.span), W(o.spot.s + o.depth / 2, o.span), W(o.spot.s - o.depth / 2, -o.span), W(o.spot.s + o.depth / 2, -o.span)];
+    o.clearance = Math.min(...o.outline.map((w) => toCentreline(w.x, w.y) - EDGE));
+  } else if (o.special === "orbit" || o.wood) {
+    o.clearance = null;
+  } else {
+    o.clearance = clearanceOf(o.x, o.y, o.r);
+  }
+  o.rule = o.special === "orbit" ? null : o.wood ? TREE_WALL_CLEARANCE_M : o.special === "span" ? 0 : o.tall ? TALL_CLEARANCE_M : LOW_CLEARANCE_M;
+}
+
+// A seeded scatter, as the builder would do it: reject a tree within the
+// wall clearance, inside a prop's footprint, or too near another tree.
+function lcg(seed) {
+  let a = (seed * 2654435761) >>> 0 || 1;
+  return () => { a = (Math.imul(a, 1664525) + 1013904223) >>> 0; return a / 4294967296; };
+}
+const footprints = OBJECTS.filter((o) => o.r && !o.special).map((o) => ({ x: o.x, y: o.y, r: o.r }));
+function scatter() {
+  const trees = [];
+  for (const w of WOODS) {
+    const rnd = lcg(w.seed), kind = TREE[w.kind];
+    let placed = 0, tries = 0;
+    w.placed = 0;
+    while (placed < w.count && tries < 600) {
+      tries++;
+      let x, y;
+      if (w.disc) {
+        const [cx, cy, R] = w.disc, a = rnd() * 2 * Math.PI, d = Math.sqrt(rnd()) * R;
+        x = cx + d * Math.cos(a); y = cy + d * Math.sin(a);
+      } else {
+        const [[x0, y0], [x1, y1]] = w.line, f = (placed + 0.5) / w.count;
+        x = x0 + (x1 - x0) * f + (rnd() - 0.5) * 3; y = y0 + (y1 - y0) * f + (rnd() - 0.5) * 3;
+      }
+      if (clearanceOf(x, y, kind.r) < TREE_WALL_CLEARANCE_M) { if (w.line) placed++; continue; }
+      if (footprints.some((f) => Math.hypot(f.x - x, f.y - y) < f.r + kind.r + 2)) continue;
+      if (trees.some((t) => Math.hypot(t.x - x, t.y - y) < TREE_SPACING_M)) continue;
+      trees.push({ x, y, kind: w.kind, wood: w });
+      placed++; w.placed++;
+    }
+  }
+  return trees;
+}
+const TREES = scatter();
+for (const o of OBJECTS) {
+  if (!o.wood) continue;
+  const mine = TREES.filter((t) => (o.wood === "cherry") === (t.kind === "cherry"));
+  o.count = mine.length;
+  o.clearance = Math.min(...mine.map((t) => clearanceOf(t.x, t.y, TREE[t.kind].r)));
+}
+
+function drawMap() {
+  const svg = document.getElementById("map");
+  const xs = T.pts.map((p) => p.x).concat(TREES.map((t) => t.x), OBJECTS.map((o) => o.x ?? 0));
+  const ys = T.pts.map((p) => -p.y).concat(TREES.map((t) => -t.y), OBJECTS.map((o) => -(o.y ?? 0)));
+  const Mg = 30;
+  const minX = Math.min(...xs) - Mg, minY = Math.min(...ys) - Mg;
+  const w = Math.max(...xs) - Math.min(...xs) + 2 * Mg, hgt = Math.max(...ys) - Math.min(...ys) + 2 * Mg;
+  svg.setAttribute("viewBox", `${minX} ${minY} ${w} ${hgt}`);
+
+  const defs = el("defs", {}, svg);
+  const hz = el("pattern", { id: "hazard", width: 3, height: 3, patternUnits: "userSpaceOnUse", patternTransform: "rotate(45)" }, defs);
+  el("rect", { width: 1.5, height: 3, fill: "#f5c542" }, hz);
+  el("rect", { x: 1.5, width: 1.5, height: 3, fill: "#111" }, hz);
+  const kp = el("pattern", { id: "kerb", width: 2, height: 2, patternUnits: "userSpaceOnUse" }, defs);
+  el("rect", { width: 1, height: 2, fill: "#c81d25" }, kp);
+  el("rect", { x: 1, width: 1, height: 2, fill: "#fff" }, kp);
+  const ck = el("pattern", { id: "check", width: 2, height: 2, patternUnits: "userSpaceOnUse" }, defs);
+  el("rect", { width: 2, height: 2, fill: "#fff" }, ck);
+  el("rect", { width: 1, height: 1, fill: "#111" }, ck);
+  el("rect", { x: 1, y: 1, width: 1, height: 1, fill: "#111" }, ck);
+
+  const L = T.length;
+  const ground = el("g", {}, svg);
+  const loop = pathOf(0, L - 1, 0, 1, true);
+  el("path", { d: loop, fill: "none", stroke: "var(--sand)", "stroke-width": 2 * EDGE, "stroke-linejoin": "round" }, ground);
+  el("path", { d: loop, fill: "none", stroke: "var(--asphalt)", "stroke-width": 2 * ASPHALT_HALF, "stroke-linejoin": "round" }, ground);
+  for (const side of [1, -1]) el("path", { d: pathOf(0, L - 1, side * EDGE, 1, true), fill: "none", stroke: "var(--wall)", "stroke-width": 0.8 }, ground);
+
+  // The deck over the underpass, shadowed so it reads as above.
+  const b0 = BRIDGE.back - 20, b1 = BRIDGE.back + 20;
+  const deck = el("g", {}, svg);
+  el("path", { d: pathOf(b0, b1, -2.5), fill: "none", stroke: "rgba(0,0,0,.4)", "stroke-width": 2 * EDGE + 3 }, deck);
+  el("path", { d: pathOf(b0, b1), fill: "none", stroke: "var(--sand)", "stroke-width": 2 * EDGE }, deck);
+  el("path", { d: pathOf(b0, b1), fill: "none", stroke: "var(--asphalt)", "stroke-width": 2 * ASPHALT_HALF }, deck);
+  for (const side of [1, -1]) el("path", { d: pathOf(b0, b1, side * EDGE), fill: "none", stroke: "var(--wall)", "stroke-width": 1.4 }, deck);
+
+  // What stands today.
+  const today = el("g", { "data-layer": "today" }, svg);
+  for (const [names, side] of TODAY.grandstands)
+    for (const n of names) { const g = seg(n); el("path", { d: pathOf(g.start + 2, g.end - 2, side * (EDGE + 7)), fill: "none", stroke: "#9aa0a8", "stroke-width": 6 }, today); }
+  for (const [names, side] of TODAY.hoardings)
+    for (const n of names) { const g = seg(n); el("path", { d: pathOf(g.start + 1, g.end - 1, side * (EDGE + 2)), fill: "none", stroke: "#c81d25", "stroke-width": 1.2, "stroke-dasharray": "5 1.5" }, today); }
+  { const [x1, y1] = P(0, EDGE + 1), [x2, y2] = P(0, -EDGE - 1); el("line", { x1, y1, x2, y2, stroke: "#2b2e33", "stroke-width": 2.2 }, today); }
+  { const [x, y, a] = P(0); el("rect", { x: -1, y: -ASPHALT_HALF, width: 2, height: 2 * ASPHALT_HALF, fill: "url(#check)", transform: `translate(${x} ${y}) rotate(${a})` }, today); }
+  for (const [name, ds, off] of TODAY.tyreWalls) { const [x, y] = P(seg(name).mid + ds, off); el("circle", { cx: x, cy: y, r: 1.5, fill: "var(--tyre)", stroke: "#ddd", "stroke-width": 0.5 }, today); }
+  for (const [name, rule] of TODAY.itemRows) {
+    const g = seg(name), s = rule === "end-15" ? g.end - 15 : g.mid;
+    for (const o of [-4.5, -1.5, 1.5, 4.5]) { const [x, y, a] = P(s, o); el("rect", { x: -1.2, y: -1.2, width: 2.4, height: 2.4, rx: 0.3, fill: "var(--gold)", transform: `translate(${x} ${y}) rotate(${a + 45})` }, today); }
+  }
+  for (const [name, ds, off] of TODAY.boostPads) { const [x, y, a] = P(seg(name).mid + ds, off); el("rect", { x: -3, y: -2, width: 6, height: 4, fill: "var(--boost)", transform: `translate(${x} ${y}) rotate(${a})` }, today); }
+  for (const [name, off] of TODAY.kerbs) { const [x, y, a] = P(seg(name).mid, off); el("rect", { x: -4, y: -0.7, width: 8, height: 1.4, rx: 0.7, fill: "url(#kerb)", transform: `translate(${x} ${y}) rotate(${a})` }, today); }
+  { const c = TODAY.wheelCrossing, [x, y, a] = P(c.s); el("rect", { x: -6, y: -EDGE, width: 12, height: 2 * EDGE, fill: "url(#hazard)", opacity: 0.85, transform: `translate(${x} ${y}) rotate(${a})` }, today);
+    const [mx, my] = P(c.s, c.outside * (EDGE + 3)); el("rect", { x: mx - 1.6, y: my - 1.6, width: 3.2, height: 3.2, fill: "#ff8800", stroke: "#fff", "stroke-width": 0.4 }, today); }
+
+  // The woods.
+  const woods = el("g", { "data-layer": "woods" }, svg);
+  for (const t of TREES) { const k = TREE[t.kind]; el("circle", { cx: t.x, cy: -t.y, r: k.r, fill: k.fill, stroke: k.stroke, "stroke-width": 0.5 }, woods); }
+
+  // The airship's circuit.
+  const sky = el("g", { "data-layer": "sky" }, svg);
+  const ship = OBJECTS.find((o) => o.id === "airship");
+  el("circle", { cx: ship.x, cy: -ship.y, r: ship.orbit, fill: "none", stroke: "#a9d4f2", "stroke-width": 0.8, "stroke-dasharray": "4 2" }, sky);
+  { const a = -0.6, x = ship.x + ship.orbit * Math.cos(a), y = -(ship.y + ship.orbit * Math.sin(a));
+    el("ellipse", { cx: 0, cy: 0, rx: 12, ry: 4, fill: "#f0f0f0", stroke: "#9aa0a8", "stroke-width": 0.5, transform: `translate(${x} ${y}) rotate(${(-a * 180) / Math.PI + 90})` }, sky); }
+
+  // The proposed objects' footprints and pins.
+  const props = el("g", { "data-layer": "props" }, svg);
+  const pins = el("g", { "data-layer": "pins" }, svg);
+  const tip = document.getElementById("tip");
+  OBJECTS.forEach((o, i) => {
+    o.n = i + 1;
+    let anchor;
+    if (o.special === "strip") {
+      const d = "M" + o.outline.filter((_, k) => k % 2 === 0).map((w) => S(w).join(" ")).join("L") + "L" + o.outline.filter((_, k) => k % 2 === 1).reverse().map((w) => S(w).join(" ")).join("L") + "Z";
+      el("path", { d, class: "footprint", "data-id": o.id }, props);
+      anchor = S(W(o.spot.s, o.spot.off));
+    } else if (o.special === "span") {
+      const [x, y, a] = P(o.spot.s);
+      el("rect", { x: -o.depth / 2, y: -o.span, width: o.depth, height: 2 * o.span, class: "footprint", "data-id": o.id, transform: `translate(${x} ${y}) rotate(${a})` }, props);
+      anchor = [x, y];
+    } else if (o.special === "orbit") {
+      anchor = [o.x + o.orbit * Math.cos(-0.6), -(o.y + o.orbit * Math.sin(-0.6))];
+    } else if (o.wood) {
+      const mine = TREES.filter((t) => (o.wood === "cherry") === (t.kind === "cherry"));
+      const t = mine[Math.floor(mine.length / 2)] || { x: 0, y: 0 };
+      anchor = [t.x, -t.y];
+      for (const w of WOODS) {
+        if ((o.wood === "cherry") !== (w.kind === "cherry")) continue;
+        if (w.disc) el("circle", { cx: w.disc[0], cy: -w.disc[1], r: w.disc[2], class: "footprint", "data-id": o.id }, props);
+        else el("line", { x1: w.line[0][0], y1: -w.line[0][1], x2: w.line[1][0], y2: -w.line[1][1], class: "footprint", "data-id": o.id }, props);
+      }
+    } else {
+      el("circle", { cx: o.x, cy: -o.y, r: o.r, class: "footprint", "data-id": o.id }, props);
+      anchor = [o.x, -o.y];
+    }
+    const [ax, ay] = anchor;
+    const px = ax + (o.pin?.[0] ?? 0), py = ay + (o.pin?.[1] ?? -(o.r ?? 10) - 7);
+    el("line", { x1: ax, y1: ay, x2: px, y2: py, class: "leader" }, pins);
+    const pin = el("g", { class: "pin", "data-id": o.id, transform: `translate(${px} ${py})` }, pins);
+    el("circle", { r: 4.2 }, pin);
+    el("text", {}, pin).textContent = o.n;
+    pin.addEventListener("mouseenter", (e) => { hot(o.id, true); showTip(o, e); });
+    pin.addEventListener("mousemove", (e) => showTip(o, e));
+    pin.addEventListener("mouseleave", () => { hot(o.id, false); tip.classList.remove("show"); });
+  });
+  function showTip(o, e) {
+    const box = svg.parentElement.getBoundingClientRect();
+    const where = o.spot ? `s ${o.spot.s} m, ${o.spot.off >= 0 ? o.spot.off + " m left" : -o.spot.off + " m right"}` : o.world ? `x ${o.world.x}, y ${o.world.y}` : `${o.count} trees`;
+    const clr = o.clearance == null ? (o.alt ? `${o.alt} m up` : "") : `clearance ${o.clearance.toFixed(1)} m`;
+    tip.innerHTML = `<b>${o.n}. ${o.title}</b><br><span class="muted">${where}${clr ? ", " + clr : ""}</span>`;
+    tip.style.left = Math.min(e.clientX - box.left + 12, box.width - 290) + "px";
+    tip.style.top = e.clientY - box.top + 12 + "px";
+    tip.classList.add("show");
+  }
+
+  const labels = el("g", { "data-layer": "labels" }, svg);
+  for (const [name, text, frac, fixedOff] of LABELS) {
+    const g = seg(name);
+    const s = g.start + (g.end - g.start) * (frac ?? 0.5);
+    const off = fixedOff ?? (g.turn ? -g.turn * (EDGE + 13) : EDGE + 13);
+    const [x, y] = P(s, off);
+    el("text", { x, y, class: "corner-label", "text-anchor": "middle", "dominant-baseline": "central" }, labels).textContent = text;
+  }
+}
+
+function hot(id, on) {
+  document.querySelectorAll(`[data-id="${id}"]`).forEach((n) => n.classList.toggle("hot", on));
+}
+
+function fillTable() {
+  const body = document.getElementById("rows");
+  let faces = 0, moving = 0, bad = 0;
+  for (const o of OBJECTS) {
+    faces += o.faces; if (o.moves) moving++;
+    const tr = document.createElement("tr");
+    tr.dataset.id = o.id;
+    const where = o.spot ? `${o.spot.s === 0 ? "start line" : "s " + o.spot.s + " m"}, ${o.spot.off === 0 ? "across the road" : Math.abs(o.spot.off) + " m " + (o.spot.off > 0 ? "left" : "right")}` : o.world ? `x ${o.world.x}, y ${o.world.y}` : `${o.count} trees in ${o.wood === "cherry" ? "one row" : "six patches"}`;
+    const foot = o.special === "strip" ? `${o.length} x ${o.depth} m` : o.special === "span" ? `${2 * o.span} m span, feet ${o.depth} m deep` : o.special === "orbit" ? `${o.alt} m up, circle of ${o.orbit} m radius` : o.wood ? `canopies ${2 * TREE.pine.r} m` : `${2 * o.r} m across`;
+    let clr = "", cls = "num";
+    if (o.clearance == null) clr = "airborne";
+    else { clr = o.clearance.toFixed(1) + " m"; cls += o.clearance >= o.rule ? " ok" : " bad"; if (o.clearance < o.rule) bad++; }
+    const rule = o.rule == null ? "over 30 m up" : o.rule === 0 ? "feet on the grass" : `${o.rule} m`;
+    tr.innerHTML = `<td class="num">${o.n}</td><td>${o.title}</td><td>${where}</td><td>${foot}</td><td class="${cls}">${clr}</td><td class="num">${rule}</td><td>${o.moves ? "yes" : "no"}</td><td class="num">${o.faces}</td>`;
+    tr.addEventListener("mouseenter", () => hot(o.id, true));
+    tr.addEventListener("mouseleave", () => hot(o.id, false));
+    body.appendChild(tr);
+  }
+  const trees = TREES.length, asked = WOODS.reduce((n, w) => n + w.count, 0);
+  document.getElementById("stats").innerHTML =
+    `<span>Lap <b>${T.length.toFixed(0)} m</b></span><span>Objects <b>${OBJECTS.length}</b>, moving <b>${moving}</b></span>` +
+    `<span>Trees placed <b>${trees}</b> of ${asked} asked</span><span>Faces, about <b>${faces}</b></span>` +
+    `<span class="${bad ? "bad" : "ok"}">Clearance rule ${bad ? `broken by ${bad}` : "met by every object"}</span>`;
+}
+
+// Drawings in the style guide's manner: flat facets, a lit and a shaded tone of one colour.
+const poly = (pts, fill, extra = "") => `<polygon points="${pts.map((p) => p.join(",")).join(" ")}" fill="${fill}" ${extra}/>`;
+const lit = (c) => `color-mix(in srgb, ${c} 72%, white)`;
+const shade = (c) => `color-mix(in srgb, ${c} 66%, black)`;
+const ngon = (n, cx, cy, r, rot = 0) => Array.from({ length: n }, (_, i) => { const a = rot + (i * 2 * Math.PI) / n; return [cx + r * Math.cos(a), cy + r * Math.sin(a)]; });
+const lump = (n, cx, cy, r, c, rot = -Math.PI / 2) => {
+  // A faceted lump: the mid tone, its left third lit, its right third shaded.
+  const pts = ngon(n, cx, cy, r, rot);
+  const left = pts.filter((p) => p[0] <= cx + 0.01), right = pts.filter((p) => p[0] >= cx - 0.01);
+  return poly(pts, c) + poly(left.concat([[cx, cy]]), lit(c)) + poly(right.concat([[cx, cy]]), shade(c), 'opacity=".9"');
+};
+const ground = (w, y) => `<ellipse cx="${w / 2}" cy="${y}" rx="${w * 0.42}" ry="5" fill="rgba(0,0,0,.15)"/>`;
+const text = (x, y, t, c, size = 11, extra = "") => `<text x="${x}" y="${y}" text-anchor="middle" font-family="Bungee, Arial Black, sans-serif" font-size="${size}" fill="${c}" ${extra}>${t}</text>`;
+
+const draw = {};
+draw.wheel = () => {
+  const cx = 120, cy = 76, R = 58;
+  let s = "";
+  for (let i = 0; i < 8; i++) { const a = (i * Math.PI) / 8; s += `<line x1="${cx + R * Math.cos(a)}" y1="${cy + R * Math.sin(a)}" x2="${cx - R * Math.cos(a)}" y2="${cy - R * Math.sin(a)}" stroke="${M.beamShade}" stroke-width="1.6"/>`; }
+  let g = "";
+  ngon(16, cx, cy, R, -Math.PI / 2).forEach(([x, y], i) => { g += `<line x1="${x}" y1="${y}" x2="${x}" y2="${y + 5}" stroke="${M.carbon}" stroke-width="1"/>` + lump(6, x, y + 9, 5, KEYS[i % 8], 0); });
+  const rim = `<path d="${ngon(16, cx, cy, R + 3, -Math.PI / 2).map((p, i) => (i ? "L" : "M") + p.join(" ")).join("")}Z ${ngon(16, cx, cy, R - 2, -Math.PI / 2).map((p, i) => (i ? "L" : "M") + p.join(" ")).join("")}Z" fill="${M.wall}" fill-rule="evenodd"/>`;
+  return `<svg viewBox="0 0 240 180" role="img" aria-label="The Circuit Wheel, a low-poly Ferris wheel with gondolas in the eight livery colours">
+    ${ground(240, 172)}
+    ${poly([[cx, cy], [cx - 46, 170], [cx - 36, 170]], M.carbon)}${poly([[cx, cy], [cx + 36, 170], [cx + 46, 170]], M.carbonShade)}
+    <rect x="${cx - 40}" y="128" width="80" height="3" fill="${M.carbonLit}"/>
+    ${s}${rim}${g}${lump(8, cx, cy, 7, M.carbon, 0)}
+  </svg>`;
+};
+draw.arch = () => {
+  const cx = 160, cy = 162, Ro = 128, Ri = 106;
+  const arc = (r, sweep) => `A${r},${r} 0 0 ${sweep}`;
+  const ring = (ro, ri, fill) => `<path d="M${cx - ro},${cy} ${arc(ro, 1)} ${cx + ro},${cy} L${cx + ri},${cy} ${arc(ri, 0)} ${cx - ri},${cy} Z" fill="${fill}"/>`;
+  return `<svg viewBox="0 0 320 180" role="img" aria-label="A tyre-shaped arch over Dunlop with GRIP and Co. Tyres lettered on its white belt">
+    <rect y="150" width="320" height="30" fill="${M.sand}"/><rect x="88" y="150" width="144" height="30" fill="${M.asphalt}"/>
+    <rect x="86" y="150" width="2" height="30" fill="${M.wall}"/><rect x="232" y="150" width="2" height="30" fill="${M.wall}"/>
+    ${ring(Ro, Ri, M.tyre)}${ring(Ro, Ro - 6, M.tyreFace)}
+    ${ring(Ro - 8, Ro - 16, M.kerbWhite)}
+    <defs><path id="belt" d="M${cx - (Ro - 12)},${cy} ${arc(Ro - 12, 1)} ${cx + (Ro - 12)},${cy}"/></defs>
+    <text font-family="Bungee, Arial Black, sans-serif" font-size="11" fill="${M.inkBlack}"><textPath href="#belt" startOffset="50%" text-anchor="middle">GRIP &amp; CO. TYRES</textPath></text>
+    <rect x="${cx - Ro - 8}" y="140" width="${Ro - Ri + 16}" height="22" fill="${M.wall}"/><rect x="${cx + Ri - 8}" y="140" width="${Ro - Ri + 16}" height="22" fill="${M.wall}"/>
+    <rect x="${cx - Ro - 8}" y="158" width="${Ro - Ri + 16}" height="4" fill="${M.standPlinth}"/><rect x="${cx + Ri - 8}" y="158" width="${Ro - Ri + 16}" height="4" fill="${M.standPlinth}"/>
+  </svg>`;
+};
+draw.pits = () => {
+  let doors = "", flags = "";
+  for (let k = 0; k < 8; k++) {
+    const x = 34 + k * 32;
+    doors += `<rect x="${x}" y="86" width="26" height="44" fill="${KEYS[k]}"/><rect x="${x}" y="86" width="26" height="6" fill="${lit(KEYS[k])}"/><rect x="${x}" y="124" width="26" height="6" fill="${shade(KEYS[k])}"/>`;
+    flags += `<line x1="${x + 13}" y1="62" x2="${x + 13}" y2="30" stroke="${M.carbon}" stroke-width="1.5"/>${poly([[x + 14, 30], [x + 28, 35], [x + 14, 40]], KEYS[7 - k])}`;
+  }
+  return `<svg viewBox="0 0 320 160" role="img" aria-label="The pit building: eight garage doors in the livery colours under a flat roof with eight flags">
+    ${ground(320, 150)}
+    ${poly([[20, 70], [300, 70], [312, 58], [32, 58]], lit(M.standRiser))}
+    <rect x="20" y="70" width="280" height="64" fill="${M.standRiser}"/>
+    ${poly([[300, 70], [312, 58], [312, 122], [300, 134]], M.standPlinth)}
+    <rect x="20" y="70" width="280" height="6" fill="${M.standPlinth}"/>
+    ${doors}${flags}
+    <rect x="20" y="134" width="292" height="4" fill="${M.standPlinth}"/>
+  </svg>`;
+};
+const tree = (kind, x, base, h) => {
+  const trunk = `<rect x="${x - 2}" y="${base - h * 0.3}" width="4" height="${h * 0.3}" fill="${M.trunk}"/>`;
+  if (kind === "pine") {
+    const c = M.canopyPine, top = base - h;
+    const cone = (y0, y1, w) => poly([[x, y0], [x + w, y1], [x - w, y1]], c) + poly([[x, y0], [x - w, y1], [x, y1]], lit(c));
+    return trunk + cone(top + h * 0.35, base - h * 0.28, h * 0.32) + cone(top, base - h * 0.5, h * 0.24);
+  }
+  if (kind === "round") return trunk + lump(8, x, base - h * 0.62, h * 0.4, M.canopy);
+  if (kind === "young") return trunk + lump(4, x, base - h * 0.62, h * 0.36, M.canopy);
+  return trunk + lump(8, x - h * 0.18, base - h * 0.58, h * 0.26, M.blossom) + lump(8, x + h * 0.2, base - h * 0.6, h * 0.26, M.blossom) + lump(8, x, base - h * 0.74, h * 0.28, M.blossom);
+};
+draw.trees = () => `<svg viewBox="0 0 240 160" role="img" aria-label="Three low-poly trees: a pine, a round tree and a young one">
+    ${ground(240, 150)}${tree("pine", 60, 148, 110)}${tree("round", 140, 148, 80)}${tree("young", 200, 148, 50)}
+    ${text(60, 24, "7 m", M.wall, 8)}${text(140, 60, "5 m", M.wall, 8)}${text(200, 90, "3 m", M.wall, 8)}
+  </svg>`;
+draw.cherry = () => `<svg viewBox="0 0 240 160" role="img" aria-label="Three cherry trees in blossom pink">
+    ${ground(240, 150)}${tree("cherry", 50, 148, 80)}${tree("cherry", 125, 148, 86)}${tree("cherry", 200, 148, 78)}
+  </svg>`;
+draw.airship = () => {
+  const cx = 160, cy = 66, rx = 128, ry = 36;
+  const hull = ngon(16, cx, cy, 1).map(([x, y]) => [cx + (x - cx) * rx, cy + (y - cy) * ry]);
+  return `<svg viewBox="0 0 320 160" role="img" aria-label="The Slipstream Airways airship, a twelve-sided white hull with red fins">
+    ${poly(hull, M.hull)}${poly(hull.filter((p) => p[1] <= cy + 0.01), lit(M.hull))}${poly(hull.filter((p) => p[1] >= cy + ry * 0.55), M.beamShade)}
+    ${poly([[286, 54], [312, 30], [312, 58]], M.kerbRed)}${poly([[286, 78], [312, 102], [312, 74]], M.canopyShade)}
+    <rect x="130" y="100" width="60" height="16" fill="${M.carbon}"/><rect x="130" y="100" width="60" height="4" fill="${M.carbonLit}"/>
+    <line x1="140" y1="100" x2="150" y2="92" stroke="${M.carbon}" stroke-width="1.5"/><line x1="180" y1="100" x2="170" y2="92" stroke="${M.carbon}" stroke-width="1.5"/>
+    ${text(160, 72, "SLIPSTREAM AIRWAYS", M.inkBlue, 15)}
+  </svg>`;
+};
+
+function fillCards() {
+  const host = document.getElementById("cards");
+  for (const o of OBJECTS) {
+    const card = document.createElement("article");
+    card.className = "card object" + (o.moves ? " moving" : "");
+    card.dataset.id = o.id;
+    const tags = o.tags.map((t) => `<span class="tag ${t}">${t === "moving" ? "Moves in the View" : "Joke"}</span>`).join("");
+    const clr = o.clearance == null ? `${o.alt} m up` : `${o.clearance.toFixed(1)} m of grass to the nearest wall`;
+    card.innerHTML = `
+      <div class="head"><h3 data-n="${o.n}">${o.title}</h3>${tags}</div>
+      <div class="stage ${o.stage}">${draw[o.draw]()}</div>
+      <dl class="spec">
+        <dt>Where</dt><dd>${o.where}; ${clr}</dd>
+        <dt>Size</dt><dd>${o.size}</dd>
+        <dt>Built from</dt><dd>${o.materials}</dd>
+        <dt>Moves</dt><dd>${o.motion}</dd>
+        <dt>Cost</dt><dd>About ${o.faces} faces${o.moves ? ", with nodes of its own" : ", merged per material"}</dd>
+      </dl>
+      <p>${o.why}</p>
+      <p class="dont"><b>Don't</b> ${o.dont.replace(/^Don't /, "")}</p>`;
+    host.appendChild(card);
+  }
+}
+
+drawMap();
+fillTable();
+fillCards();
+document.querySelectorAll(".layers input").forEach((box) => {
+  box.addEventListener("change", () => {
+    document.querySelectorAll(`#map [data-layer="${box.dataset.layer}"]`).forEach((g) => { g.style.display = box.checked ? "" : "none"; });
+  });
+});
+</script>
+</body>
+</html>
