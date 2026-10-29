@@ -4,9 +4,9 @@ import { shortestTurn, yawOf } from "./kart-frame";
 const G_M_PER_S2 = 9.81;
 const DEGREE = Math.PI / 180;
 /** How far the head rolls for each g of lateral G. Visual, so not the sim's to tune. */
-export const ROLL_RAD_PER_G = 4 * DEGREE;
+export const ROLL_RAD_PER_G = 8 * DEGREE;
 /** The furthest the head rolls, a drift's included. */
-export const MAX_ROLL_RAD = 15 * DEGREE;
+export const MAX_ROLL_RAD = 30 * DEGREE;
 /** The head is within 5% of a new lean this long after the turn changes. */
 const SETTLE_S = 0.15;
 /**

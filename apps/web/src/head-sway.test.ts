@@ -110,7 +110,7 @@ describe("head sway", () => {
       let state = drive(turnAt(2), 1, START, frameHz);
       for (let frame = 0; frame < frameHz / 2; frame++) {
         state = drive(turnAt(2), 1 / frameHz, state, frameHz);
-        // A frame that repeats a tick still ripples the lean, by under a degree at 2 g.
+        // A frame that repeats a tick still ripples the lean, by under 8% of it.
         expect(Math.abs(state.sway.roll / lean - 1)).toBeLessThan(0.08);
       }
     },
