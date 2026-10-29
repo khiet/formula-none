@@ -149,7 +149,7 @@
 <main>
   <header>
     <div class="intro">
-      <span class="eyebrow">Audio / ADR 0008</span>
+      <span class="eyebrow">Audio / ADR 0025</span>
       <h1>Sound effects, tuned by ear</h1>
       <p>Every sound here is synthesised in the page from the sliders beside it, the way <code>assets/audio/build.py</code> synthesises the shipped set, so a tweak plays at once. The engine is an F1-style rig with gears that are derived from speed alone, as the client would derive them. Beside each cue runs a clip of the action it marks. Pick a variant per cue and the picks panel at the foot collects every chosen parameter as JSON.</p>
     </div>
@@ -209,7 +209,7 @@
 
   <section id="cues-section">
     <div class="section-head"><h2>Cues</h2><span class="tag">three takes each; A is today's sound where one ships; the starred pick is the proposal</span></div>
-    <p class="concept">Each card is one cue the race fires, named as <code>audio-cues.ts</code> names it, with the change that fires it. Each comes with a proposed pick, chosen so the cue sits above the engine note (a sawtooth between 110 and 770 Hz) and so the countdown and GO share a family while the mini-turbo and the boost pad do not; Pick this on another variant overrides it. Loops run until stopped and scale with the speed slider. The waveform under the transport is the rendered buffer, exactly what would be written to the WAV.</p>
+    <p class="concept">Each card is one cue the race fires, named as <code>audio-cues.ts</code> names it, with the change that fires it. Each comes with a proposed pick, chosen so the cue sits above the engine note (110 to 720 Hz) and so the countdown and GO share a family while the mini-turbo and the boost pad do not; Pick this on another variant overrides it. Loops run until stopped and scale with the speed slider. The waveform under the transport is the rendered buffer, exactly what would be written to the WAV.</p>
     <div class="cues" id="cues"></div>
   </section>
 
@@ -564,17 +564,17 @@ const CUES = [
   },
   {
     id: "tierChime", pick: 0, slug: "tier-chime", name: "Tier charged",
-    when: "as the drift's tier reaches blue, then orange; the preview plays both 0.3 s apart, as the charge times fall",
+    when: "as the drift's tier reaches orange, then red; the preview plays both 0.3 s apart, as the charge times fall",
     variants: [
-      { name: "Two step", blurb: "A pulse note for blue and a higher one for orange.",
-        params: { blue: [880, 300, 3000, 10], orange: [1320, 300, 4000, 10], length: [0.1, 0.03, 0.3, 0.01], decay: [12, 1, 40, 1], gain: [0.35, 0, 1, 0.05] },
-        render: (p) => concat(tone({ freq: p.blue, length: p.length, wave: "pulse", decay: p.decay, gain: p.gain }), silence(0.3 - p.length), tone({ freq: p.orange, length: p.length * 1.2, wave: "pulse", decay: p.decay, gain: p.gain })) },
+      { name: "Two step", blurb: "A pulse note for orange and a higher one for red.",
+        params: { orange: [880, 300, 3000, 10], red: [1320, 300, 4000, 10], length: [0.1, 0.03, 0.3, 0.01], decay: [12, 1, 40, 1], gain: [0.35, 0, 1, 0.05] },
+        render: (p) => concat(tone({ freq: p.orange, length: p.length, wave: "pulse", decay: p.decay, gain: p.gain }), silence(0.3 - p.length), tone({ freq: p.red, length: p.length * 1.2, wave: "pulse", decay: p.decay, gain: p.gain })) },
       { name: "Ding", blurb: "A sine ding with its octave under it, then one a fifth up.",
-        params: { blue: [1760, 300, 4000, 10], orange: [2637, 300, 5000, 10], ring: [0.2, 0.05, 0.5, 0.01], sub: [0.15, 0, 0.5, 0.01], gain: [0.3, 0, 1, 0.05] },
-        render: (p) => concat(mix(tone({ freq: p.blue, length: p.ring, decay: 8, gain: p.gain }), tone({ freq: p.blue / 2, length: p.ring, decay: 8, gain: p.sub })), silence(Math.max(0, 0.3 - p.ring)), mix(tone({ freq: p.orange, length: p.ring, decay: 8, gain: p.gain }), tone({ freq: p.orange / 2, length: p.ring, decay: 8, gain: p.sub }))) },
+        params: { orange: [1760, 300, 4000, 10], red: [2637, 300, 5000, 10], ring: [0.2, 0.05, 0.5, 0.01], sub: [0.15, 0, 0.5, 0.01], gain: [0.3, 0, 1, 0.05] },
+        render: (p) => concat(mix(tone({ freq: p.orange, length: p.ring, decay: 8, gain: p.gain }), tone({ freq: p.orange / 2, length: p.ring, decay: 8, gain: p.sub })), silence(Math.max(0, 0.3 - p.ring)), mix(tone({ freq: p.red, length: p.ring, decay: 8, gain: p.gain }), tone({ freq: p.red / 2, length: p.ring, decay: 8, gain: p.sub }))) },
       { name: "Chirp", blurb: "Two quick upward triangle chirps, the second higher.",
-        params: { blueFrom: [600, 100, 2000, 10], orangeFrom: [900, 100, 3000, 10], span: [2, 1.2, 3, 0.1], length: [0.08, 0.03, 0.3, 0.01], gain: [0.45, 0, 1, 0.05] },
-        render: (p) => concat(tone({ freq: p.blueFrom, length: p.length, wave: "triangle", decay: 12, sweepTo: p.blueFrom * p.span, gain: p.gain }), silence(0.3 - p.length), tone({ freq: p.orangeFrom, length: p.length * 1.25, wave: "triangle", decay: 12, sweepTo: p.orangeFrom * p.span, gain: p.gain })) },
+        params: { orangeFrom: [600, 100, 2000, 10], redFrom: [900, 100, 3000, 10], span: [2, 1.2, 3, 0.1], length: [0.08, 0.03, 0.3, 0.01], gain: [0.45, 0, 1, 0.05] },
+        render: (p) => concat(tone({ freq: p.orangeFrom, length: p.length, wave: "triangle", decay: 12, sweepTo: p.orangeFrom * p.span, gain: p.gain }), silence(0.3 - p.length), tone({ freq: p.redFrom, length: p.length * 1.25, wave: "triangle", decay: 12, sweepTo: p.redFrom * p.span, gain: p.gain })) },
     ],
   },
   {
@@ -803,7 +803,9 @@ class Engine {
     } else {
       const target = input.boost > 0 ? TOP_SPEED * input.boost : TOP_SPEED;
       if (input.brake) this.speed = Math.max(0, this.speed - BRAKING * dt);
-      else if (input.throttle || input.boost > 0) this.speed = this.speed < target ? Math.min(target, this.speed + ACCELERATION * dt * (input.boost > 0 ? 2 : 1)) : Math.max(target, this.speed - COASTING * dt);
+      // A live boost is a step, as the sim sets the speed to the boosted top outright.
+      else if (input.boost > 0) this.speed = target;
+      else if (input.throttle) this.speed = this.speed < target ? Math.min(target, this.speed + ACCELERATION * dt) : Math.max(target, this.speed - COASTING * dt);
       else this.speed = Math.max(0, this.speed - COASTING * dt);
     }
     const delta = dt > 0 ? (this.speed - before) / dt : 0;
@@ -811,19 +813,19 @@ class Engine {
     this.load += (rawLoad - this.load) * Math.min(1, dt * 12);
 
     const now = this.context.currentTime;
-    const { gear, revs } = gearFor(this.speed, this.gear, p);
+    const { gear, revs: bandRevs } = gearFor(this.speed, this.gear, p);
     if (gear > this.gear) this.cutUntil = now + p.shiftCutMs / 1000;
     if (gear < this.gear) this.blipUntil = now + 0.08;
     this.gear = gear;
-    let fraction = revs;
+    let revs = bandRevs;
     const tier = input.startTier;
-    if (tier !== null && this.speed < 0.5) fraction = Math.max(fraction, START_REVS[tier]);
+    if (tier !== null && this.speed < 0.5) revs = Math.max(revs, START_REVS[tier]);
     // The limiter chops only past top speed in top gear (a boost) or on a full or stalled grid rev.
-    this.atLimiter = (gear === p.gears && fraction > 1 + 1e-3) || (tier !== null && this.speed < 0.5 && START_REVS[tier] >= 1);
-    if (now < this.blipUntil) fraction *= 1 + p.blip;
-    this.revs = fraction;
+    this.atLimiter = (gear === p.gears && revs > 1 + 1e-3) || (tier !== null && this.speed < 0.5 && START_REVS[tier] >= 1);
+    if (now < this.blipUntil) revs *= 1 + p.blip;
+    this.revs = revs;
 
-    const hz = p.idleHz + (p.topHz - p.idleHz) * fraction;
+    const hz = p.idleHz + (p.topHz - p.idleHz) * revs;
     this.noteHz = hz;
     const detune = p.detune;
     this.osc[0].osc.frequency.setTargetAtTime(hz, now, 0.02);
@@ -835,11 +837,11 @@ class Engine {
     this.osc[1].gain.gain.value = 0.5;
     this.osc[2].gain.gain.value = p.sub;
     this.noiseFilter.frequency.setTargetAtTime(hz * 4, now, 0.05);
-    this.noiseGain.gain.setTargetAtTime(p.intake * (0.3 + 0.7 * Math.min(1, fraction)), now, 0.05);
+    this.noiseGain.gain.setTargetAtTime(p.intake * (0.3 + 0.7 * Math.min(1, revs)), now, 0.05);
 
     const onThrottle = Math.max(0, this.load);
     const overrun = Math.max(0, -this.load);
-    const open = Math.min(1, fraction) * (0.45 + 0.55 * onThrottle) * (1 - 0.5 * overrun);
+    const open = Math.min(1, revs) * (0.45 + 0.55 * onThrottle) * (1 - 0.5 * overrun);
     this.filter.frequency.setTargetAtTime(p.filterMin + (p.filterMax - p.filterMin) * open, now, 0.03);
     const level = (1 - overrun * (1 - p.overrun)) * (now < this.cutUntil ? 0 : 1);
     this.loadGain.gain.setTargetAtTime(level, now, now < this.cutUntil ? 0.003 : 0.02);
@@ -904,7 +906,7 @@ function boot() {
       }
     }
   } catch (_) { /* a blocked or empty store leaves the defaults */ }
-  const save = () => { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch (_) { /* fine */ } refreshPicks(); };
+  const save = () => { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch (_) { /* a blocked store keeps the picks for this visit only */ } refreshPicks(); };
 
   // ---- Theme ---------------------------------------------------------------
   const themeButton = $("#theme");
@@ -1230,7 +1232,7 @@ function boot() {
       render();
     };
     showVariant();
-    cards.set(cue.id, { showVariant, stopLoop: () => { if (playing !== null) stopLoop(); } });
+    cards.set(cue.id, { showVariant });
     return card;
   }
 
