@@ -569,9 +569,9 @@ fn a_kart_driving_into_the_ovals_wall_is_held_by_it() {
     });
 }
 
-/// The bump a kart carries as its readout shows it: its velocity along the
-/// ground less its speed along the way it faces.
-fn bump(kart: &KartReadout) -> [f32; 2] {
+/// A kart's velocity along the ground less its speed along the way it
+/// faces: the bump it carries, and any slide a wall left it with.
+fn off_its_facing(kart: &KartReadout) -> [f32; 2] {
     // Yaw zero faces -Z and grows counter-clockwise seen from above.
     let (sin, cos) = yaw(kart.rotation).sin_cos();
     [
@@ -582,14 +582,16 @@ fn bump(kart: &KartReadout) -> [f32; 2] {
 
 #[test]
 fn a_kart_driven_into_a_wall_and_a_tyre_wall_at_once_is_held_then_bumped_along_the_wall() {
-    // Slot 1 driven straight on meets the first turn's outer wall, 42 m
-    // round (0, -100), near (31.8, -125.9). The oval's first tyre wall is
-    // moved against that wall a little further round, so the kart's nose
-    // meets both in one tick.
+    // Slot 1 driven straight on along x = 32 meets the first turn's outer
+    // wall, 42 m round (0, -100), at (32, -127.2): a bearing of about -40
+    // degrees from the centre, turning from +X toward -Z. The oval's first
+    // tyre wall is moved against that wall 2 degrees further round, so the
+    // kart's nose meets both in one tick.
     const TURN_CENTRE: [f32; 2] = [0.0, -100.0];
     const WALL_RADIUS: f32 = 42.0;
     let (_, tyre_radius) = ovals_first_tyre_wall();
-    let (sin, cos) = (-42.0_f32).to_radians().sin_cos();
+    const TYRE_WALL_BEARING_DEG: f32 = -42.0;
+    let (sin, cos) = TYRE_WALL_BEARING_DEG.to_radians().sin_cos();
     let tyre_centre = [
         TURN_CENTRE[0] + (WALL_RADIUS - tyre_radius) * cos,
         TURN_CENTRE[1] + (WALL_RADIUS - tyre_radius) * sin,
@@ -627,13 +629,13 @@ fn a_kart_driven_into_a_wall_and_a_tyre_wall_at_once_is_held_then_bumped_along_t
             let held_alone = against_the_wall.kart_readouts()[1];
             assert!(
                 kart.speed <= held_alone.speed,
-                "the wall's hold alone left {} m/s, the corner {} m/s",
+                "the wall's hold alone left {} m/s, against both {} m/s",
                 held_alone.speed,
                 kart.speed
             );
         }
         if touch.is_some() {
-            let [bx, bz] = bump(&kart);
+            let [bx, bz] = off_its_facing(&kart);
             let into_the_wall = (bx * dx + bz * dz) / from_the_turn_centre;
             assert!(
                 into_the_wall < 0.01,
