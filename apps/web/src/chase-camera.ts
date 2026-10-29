@@ -1,4 +1,5 @@
 import type { CameraTuning, KartReadout } from "./bridge";
+import { shortestTurn, yawOf } from "./kart-frame";
 
 /** Where the Race View's camera sits and what it looks at, in world metres. */
 export interface CameraPose {
@@ -173,14 +174,4 @@ function shake(age: number, tuning: CameraTuning): readonly [number, number, num
     envelope * Math.cos(2 * Math.PI * SHAKE_HZ[1] * age),
     envelope * Math.cos(2 * Math.PI * SHAKE_HZ[2] * age),
   ];
-}
-
-/** Yaw about +Y from a unit quaternion `[x, y, z, w]`. */
-function yawOf([x, y, z, w]: readonly [number, number, number, number]): number {
-  return Math.atan2(2 * (w * y + x * z), 1 - 2 * (y * y + z * z));
-}
-
-/** `angle` wrapped to [-pi, pi], so the spring never goes the long way round. */
-function shortestTurn(angle: number): number {
-  return Math.atan2(Math.sin(angle), Math.cos(angle));
 }

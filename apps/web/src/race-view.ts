@@ -21,6 +21,7 @@ import type { CameraPose } from "./chase-camera";
 import { createDustEmitter } from "./dust";
 import { createExhaustFlames } from "./exhaust-flame";
 import { hazardZones } from "./hazard-zone";
+import { HEAD_LEVEL, type HeadSway, swayHead } from "./head-sway";
 import {
   type Beacon,
   hazardConeMesh,
@@ -208,7 +209,14 @@ export async function createRaceView(
     const wheels = kartWheels(model, fit.scale);
     const kart = kartPresentation(model, fit);
     world.add(kart);
-    return { kart, wheels };
+    // Missing only from a model without one; the asset test holds kart.glb to carrying it.
+    const head = model.getObjectByName("head");
+    /** Each kart measures its turn from the readout drawn for it last frame. */
+    const sway: { state: HeadSway; last: KartReadout | undefined } = {
+      state: HEAD_LEVEL,
+      last: undefined,
+    };
+    return { kart, wheels, head, sway };
   });
 
   const tyreMarks = createTyreMarks(kartCount, kartSize);
@@ -315,8 +323,13 @@ export async function createRaceView(
         if (drawn === undefined) {
           return;
         }
-        const { kart, wheels } = drawn;
+        const { kart, wheels, head, sway } = drawn;
         wheels.turn(readout.speed, frameSeconds);
+        sway.state = swayHead(sway.state, sway.last, readout, frameSeconds);
+        sway.last = readout;
+        if (head !== undefined) {
+          head.rotation.z = sway.state.roll;
+        }
         kart.position.set(...readout.position);
         kart.quaternion.set(...readout.rotation);
         if (readout.spinOutS !== null) {

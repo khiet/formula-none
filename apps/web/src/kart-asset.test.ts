@@ -12,25 +12,51 @@ const wasm = readFileSync(new URL("./generated/bridge/bridge_bg.wasm", import.me
 
 const kart = gltfJson(glb);
 
+/** Where each node's origin sits in the model: its translation and its parents'. */
+function origins(gltf: GltfJson): [number, number, number][] {
+  const at = gltf.nodes.map((): [number, number, number] => [0, 0, 0]);
+  const place = (index: number, parent: readonly [number, number, number]) => {
+    const node = gltf.nodes[index];
+    const origin = at[index];
+    if (node === undefined || origin === undefined) {
+      return;
+    }
+    for (let axis = 0; axis < 3; axis += 1) {
+      origin[axis] = (parent[axis] ?? 0) + (node.translation?.[axis] ?? 0);
+    }
+    for (const child of node.children ?? []) {
+      place(child, origin);
+    }
+  };
+  const children = new Set(gltf.nodes.flatMap((node) => node.children ?? []));
+  gltf.nodes.forEach((_, index) => {
+    if (!children.has(index)) {
+      place(index, [0, 0, 0]);
+    }
+  });
+  return at;
+}
+
 /**
- * The whole model's bounds: every node's mesh bounds moved by the node's
- * translation. The wheels are nodes placed at their axles, unrotated and
- * unscaled, so a translation is the only transform there is.
+ * The whole model's bounds: every node's mesh bounds moved to the node's
+ * origin. Every node is placed unrotated and unscaled, so a translation is
+ * the only transform there is.
  */
 function bounds(gltf: GltfJson) {
   const min = [Infinity, Infinity, Infinity];
   const max = [-Infinity, -Infinity, -Infinity];
-  for (const node of gltf.nodes) {
+  const at = origins(gltf);
+  gltf.nodes.forEach((node, index) => {
     const mesh = node.mesh === undefined ? undefined : gltf.meshes[node.mesh];
     for (const primitive of mesh?.primitives ?? []) {
       const accessor = gltf.accessors[primitive.attributes.POSITION];
       for (let axis = 0; axis < 3; axis += 1) {
-        const shift = node.translation?.[axis] ?? 0;
+        const shift = at[index]?.[axis] ?? 0;
         min[axis] = Math.min(min[axis] ?? Infinity, (accessor?.min?.[axis] ?? Infinity) + shift);
         max[axis] = Math.max(max[axis] ?? -Infinity, (accessor?.max?.[axis] ?? -Infinity) + shift);
       }
     }
-  }
+  });
   return { min: min as [number, number, number], max: max as [number, number, number] };
 }
 
@@ -61,6 +87,32 @@ describe("the exported kart", () => {
       expect(names).toContain(`facial-hair-${facialHair}`);
     }
     expect(names).toContain("earrings");
+  });
+
+  it("carries the driver's head as a node of its own, wearing every hair, facial hair and the earrings, for the View to roll", () => {
+    const head = kart.nodes.find(({ name }) => name === "head");
+    expect(head?.rotation).toBeUndefined();
+    const worn = (head?.children ?? []).map((child) => kart.nodes[child]?.name);
+    for (const hair of HAIRS) {
+      expect(worn).toContain(`hair-${hair}`);
+    }
+    for (const facialHair of FACIAL_HAIRS.filter((facialHair) => facialHair !== "none")) {
+      expect(worn).toContain(`facial-hair-${facialHair}`);
+    }
+    expect(worn).toContain("earrings");
+  });
+
+  it("pivots the head at the neck: on the kart's centreline, under the chin", () => {
+    const index = kart.nodes.findIndex(({ name }) => name === "head");
+    const head = kart.nodes[index];
+    const mesh = head?.mesh === undefined ? undefined : kart.meshes[head.mesh];
+    const lowest = Math.min(
+      ...(mesh?.primitives ?? []).map(
+        ({ attributes }) => kart.accessors[attributes.POSITION]?.min?.[1] ?? Infinity,
+      ),
+    );
+    expect(origins(kart)[index]?.[0]).toBeCloseTo(0, 6);
+    expect(lowest).toBeCloseTo(0, 3);
   });
 
   it("keeps the top of the driver's hair at or below 1.34 m", () => {
