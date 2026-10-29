@@ -19,3 +19,10 @@ services:
       TLS_KEY: /data/caddy/certificates/local/localhost/localhost.key
     logging:
       driver: local
+  prometheus:
+    logging:
+      driver: local
+  # On a laptop http://localhost:3000 is Grafana directly; no port forward.
+  grafana:
+    logging:
+      driver: local

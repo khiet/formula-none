@@ -87,6 +87,7 @@ export function createServerRace(
     if (kind === "raceEnded") {
       ended = true;
       prediction.endRace();
+      client.report({ correctionsPerSecond: prediction.correctionsPerSecond() });
       return;
     }
     if ("lapCompleted" in kind) {

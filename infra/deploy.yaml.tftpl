@@ -22,5 +22,10 @@ mainSteps:
         - rm -rf release.next && docker cp "$container:/release" release.next && docker rm "$container"
         - rm -rf release && mv release.next release
         - docker compose -f release/compose.yaml pull
-        - docker compose -f release/compose.yaml up -d --remove-orphans
+        # Every container is recreated, not only those whose definition
+        # changed: the bind mounts into release (Caddyfile, client,
+        # Prometheus config, Grafana's files) point at the directory just
+        # replaced, and a container kept running would go on reading the
+        # deleted one.
+        - docker compose -f release/compose.yaml up -d --remove-orphans --force-recreate
         - docker image prune -f

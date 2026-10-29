@@ -45,10 +45,13 @@ impl Outgoing {
 }
 
 /// A Pong answers the Ping datagram that proves a transport, so it rides
-/// a datagram too.
+/// a datagram too; the server's own Ping probes the lane the snapshots
+/// ride (ADR 0018).
 pub fn server_lane(message: &ServerMessage) -> Lane {
     match message {
-        ServerMessage::Snapshot(_) | ServerMessage::Pong { .. } => Lane::Datagram,
+        ServerMessage::Snapshot(_) | ServerMessage::Pong { .. } | ServerMessage::Ping { .. } => {
+            Lane::Datagram
+        }
         ServerMessage::Joined { .. }
         | ServerMessage::Refused(_)
         | ServerMessage::Room(_)
@@ -61,12 +64,15 @@ pub fn server_lane(message: &ServerMessage) -> Lane {
 
 pub fn client_lane(message: &ClientMessage) -> Lane {
     match message {
-        ClientMessage::Input(_) | ClientMessage::Ping { .. } => Lane::Datagram,
+        ClientMessage::Input(_) | ClientMessage::Ping { .. } | ClientMessage::Pong { .. } => {
+            Lane::Datagram
+        }
         ClientMessage::Join { .. }
         | ClientMessage::Ready { .. }
         | ClientMessage::Start
         | ClientMessage::Rematch
         | ClientMessage::Leave
-        | ClientMessage::Rejoin { .. } => Lane::Reliable,
+        | ClientMessage::Rejoin { .. }
+        | ClientMessage::RaceReport { .. } => Lane::Reliable,
     }
 }

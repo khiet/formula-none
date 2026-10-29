@@ -20,7 +20,7 @@
       "name": "join",
       "bytes": [
         1,
-        11,
+        12,
         4,
         66,
         88,
@@ -37,7 +37,7 @@
         "join": {
           "nickname": "khiet",
           "room": "BXQF",
-          "version": 11
+          "version": 12
         }
       }
     },
@@ -103,7 +103,7 @@
       "name": "rejoin",
       "bytes": [
         7,
-        11,
+        12,
         4,
         66,
         88,
@@ -147,7 +147,34 @@
         "rejoin": {
           "room": "BXQF",
           "token": "0123456789abcdef0123456789abcdef",
-          "version": 11
+          "version": 12
+        }
+      }
+    },
+    {
+      "name": "pong",
+      "bytes": [
+        8,
+        7
+      ],
+      "message": {
+        "pong": {
+          "nonce": 7
+        }
+      }
+    },
+    {
+      "name": "raceReport",
+      "bytes": [
+        9,
+        0,
+        0,
+        128,
+        62
+      ],
+      "message": {
+        "raceReport": {
+          "correctionsPerSecond": 0.25
         }
       }
     }
@@ -265,12 +292,12 @@
       "bytes": [
         2,
         3,
-        11
+        12
       ],
       "message": {
         "refused": {
           "versionMismatch": {
-            "server": 11
+            "server": 12
           }
         }
       }
@@ -1476,6 +1503,18 @@
         8
       ],
       "message": "replaced"
+    },
+    {
+      "name": "ping",
+      "bytes": [
+        9,
+        7
+      ],
+      "message": {
+        "ping": {
+          "nonce": 7
+        }
+      }
     }
   ]
 }

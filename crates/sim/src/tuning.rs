@@ -59,6 +59,15 @@ pub const PING_RESEND_S: f32 = 0.5;
 pub const CONNECTION_SILENCE_S: f32 = 2.0;
 /// How long a client waits after a failed reconnect before the next try.
 pub const RECONNECT_RETRY_S: f32 = 1.0;
+/// How often the server probes each seated player's connection with a
+/// Ping on the datagram lane, for the round-trip time and packet loss
+/// metrics (ADR 0018). A probe not answered before the next one counts as
+/// lost.
+pub const CONNECTION_PROBE_INTERVAL_S: f32 = 1.0;
+/// How many of the latest probes the packet loss gauge is read over: at a
+/// probe a second, about a minute, which resolves the 2 percent loss the
+/// reconciliation is tuned for (ADR 0009).
+pub const CONNECTION_PROBE_WINDOW: usize = 64;
 /// How long a client shows the fire it predicted from a press before it
 /// takes the server not to have fired, because the slot was already empty
 /// there. Longer than a round trip, so a press whose datagram was lost and

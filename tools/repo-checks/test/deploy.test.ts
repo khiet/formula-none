@@ -64,8 +64,13 @@ describe("deploy job", () => {
 });
 
 describe("Compose stack", () => {
-  it("runs caddy and the server, both restarting with the instance", () => {
-    expect(Object.keys(compose.services).sort()).toEqual(["caddy", "server"]);
+  it("runs caddy, the server, prometheus and grafana, all restarting with the instance", () => {
+    expect(Object.keys(compose.services).sort()).toEqual([
+      "caddy",
+      "grafana",
+      "prometheus",
+      "server",
+    ]);
     for (const service of Object.values(compose.services)) {
       expect(service.restart).toBe("unless-stopped");
     }
@@ -73,10 +78,14 @@ describe("Compose stack", () => {
     expect(compose.name).toBe("formula-none");
   });
 
-  it("publishes 443 TCP through caddy and 443 UDP through the server, nothing else", () => {
+  // The security group opens 443 alone (infra.test.ts); the stack must not
+  // rely on that by binding anything else to a public address.
+  it("publishes 443 TCP through caddy and 443 UDP through the server, and grafana on the loopback only", () => {
     expect(compose.services.caddy?.ports).toEqual(["443:443/tcp"]);
     expect(compose.services.server?.ports).toEqual(["443:4433/udp"]);
     expect(compose.services.server?.environment?.WEBTRANSPORT_ADDR).toBe("0.0.0.0:4433");
+    expect(compose.services.grafana?.ports).toEqual(["127.0.0.1:3000:3000"]);
+    expect(compose.services.prometheus?.ports).toBeUndefined();
   });
 
   it("keeps the certificate in a named volume that outlives the containers", () => {
@@ -104,5 +113,112 @@ describe("Compose stack", () => {
 
   it("runs the image the deploy document names", () => {
     expect(compose.services.server?.image).toBe(`\${SERVER_IMAGE}`);
+  });
+});
+
+// Metrics (ADR 0018): Prometheus scrapes the server over the Compose
+// network and Grafana reads Prometheus; the dashboard and the data source
+// are files in the repo, mounted into Grafana's provisioning directory.
+describe("metrics stack", () => {
+  const prometheus = parse(readRepoFile("deploy/prometheus.yml")) as {
+    scrape_configs: Array<{
+      job_name: string;
+      metrics_path?: string;
+      static_configs: Array<{ targets: string[] }>;
+    }>;
+  };
+  const datasource = parse(
+    readRepoFile("deploy/grafana/provisioning/datasources/prometheus.yml"),
+  ) as {
+    datasources: Array<{
+      name: string;
+      type: string;
+      uid: string;
+      url: string;
+      isDefault?: boolean;
+    }>;
+  };
+  const provider = parse(readRepoFile("deploy/grafana/provisioning/dashboards/dashboards.yml")) as {
+    providers: Array<{ options: { path: string } }>;
+  };
+  const dashboard = JSON.parse(readRepoFile("deploy/grafana/dashboards/netcode.json")) as {
+    uid: string;
+    title: string;
+    panels: Array<{
+      title: string;
+      datasource?: { uid: string };
+      targets: Array<{ expr: string; datasource?: { uid: string } }>;
+    }>;
+  };
+
+  it("scrapes the server's metrics endpoint, which Caddy does not proxy", () => {
+    const [job, ...others] = prometheus.scrape_configs;
+    expect(others).toEqual([]);
+    expect(job?.static_configs.flatMap((config) => config.targets)).toEqual(["server:8080"]);
+    const path = job?.metrics_path ?? "/metrics";
+    expect(path).toBe("/metrics");
+    // Caddy forwards /api/* alone, so the scrape path stays on the Compose network.
+    const caddyfile = readRepoFile("deploy/Caddyfile");
+    expect(caddyfile.match(/reverse_proxy/g)).toHaveLength(1);
+    expect(caddyfile).toMatch(/handle \/api\/\* \{\s*reverse_proxy server:8080/);
+  });
+
+  it("keeps Prometheus's data in a named volume, bounded in time and size", () => {
+    const service = compose.services.prometheus;
+    expect(service?.volumes).toContain("./prometheus.yml:/etc/prometheus/prometheus.yml:ro");
+    expect(service?.volumes).toContain("prometheus_data:/prometheus");
+    expect(Object.keys(compose.volumes ?? {})).toContain("prometheus_data");
+    const command = (service as { command?: string[] } | undefined)?.command ?? [];
+    expect(command.some((flag) => flag.startsWith("--storage.tsdb.retention.time="))).toBe(true);
+    expect(command.some((flag) => flag.startsWith("--storage.tsdb.retention.size="))).toBe(true);
+  });
+
+  it("provisions Grafana's data source and dashboard from the repo, with no login behind the SSM port forward", () => {
+    const grafana = compose.services.grafana;
+    expect(grafana?.volumes).toContain("./grafana/provisioning:/etc/grafana/provisioning:ro");
+    const [source, ...otherSources] = datasource.datasources;
+    expect(otherSources).toEqual([]);
+    expect(source?.type).toBe("prometheus");
+    expect(source?.url).toBe("http://prometheus:9090");
+    expect(source?.isDefault).toBe(true);
+    const [dashboards, ...otherProviders] = provider.providers;
+    expect(otherProviders).toEqual([]);
+    expect(grafana?.volumes).toContain(`./grafana/dashboards:${dashboards?.options.path}:ro`);
+    // Session Manager already authenticated whoever reaches the port.
+    expect(grafana?.environment?.GF_AUTH_ANONYMOUS_ENABLED).toBe("true");
+    expect(grafana?.environment?.GF_AUTH_ANONYMOUS_ORG_ROLE).toBe("Admin");
+    expect(grafana?.environment?.GF_AUTH_DISABLE_LOGIN_FORM).toBe("true");
+  });
+
+  it("draws the five metrics of ADR 0018, one panel each, from the provisioned data source", () => {
+    const [source] = datasource.datasources;
+    expect(dashboard.panels).toHaveLength(5);
+    const metricOf = (panel: (typeof dashboard.panels)[number]) =>
+      panel.targets.map((target) => target.expr).join(" ");
+    const exprs = dashboard.panels.map(metricOf);
+    const names = [
+      "formula_none_tick_duration_seconds",
+      "formula_none_room_players",
+      "formula_none_client_rtt_seconds",
+      "formula_none_client_packet_loss",
+      "formula_none_client_corrections_per_second",
+    ];
+    for (const name of names) {
+      expect(exprs.filter((expr) => expr.includes(name))).toHaveLength(1);
+    }
+    for (const panel of dashboard.panels) {
+      expect(panel.datasource?.uid).toBe(source?.uid);
+      for (const target of panel.targets) {
+        expect(target.datasource?.uid ?? source?.uid).toBe(source?.uid);
+      }
+    }
+  });
+
+  it("ships the Prometheus config and Grafana's files in the release bundle the instance runs from", () => {
+    const dockerfile = readRepoFile("Dockerfile");
+    expect(dockerfile).toMatch(
+      /^COPY deploy\/compose\.yaml deploy\/Caddyfile deploy\/prometheus\.yml \/release\/$/m,
+    );
+    expect(dockerfile).toMatch(/^COPY deploy\/grafana \/release\/grafana$/m);
   });
 });

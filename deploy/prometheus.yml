@@ -1,0 +1,11 @@
+# Prometheus for the Compose stack (ADR 0018): one job, the server's own
+# metrics endpoint over the Compose network. Caddy proxies only /api/*, so
+# the endpoint is reachable from nowhere else.
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: server
+    static_configs:
+      - targets: ["server:8080"]

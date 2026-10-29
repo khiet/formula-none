@@ -28,7 +28,7 @@ use ts_rs::TS;
 /// [`ClientMessage::Join`] and the server refuses a mismatch with
 /// [`Refusal::VersionMismatch`] (ADR 0013). The generator exports it next to
 /// the types, so the web app reads the same constant.
-pub const PROTOCOL_VERSION: u16 = 11;
+pub const PROTOCOL_VERSION: u16 = 12;
 
 /// What a client sends the server.
 #[derive(Serialize, Deserialize, TS, Debug, Clone, PartialEq)]
@@ -67,6 +67,15 @@ pub enum ClientMessage {
         room: String,
         token: String,
     },
+    /// The answer to a [`ServerMessage::Ping`] with that ping's nonce, on
+    /// the datagram lane it came on, so the server times the round trip
+    /// (ADR 0018).
+    Pong { nonce: u32 },
+    /// What the client measured over the race that just ended, sent once
+    /// the server says it ended (ADR 0018): reconciliation corrections of
+    /// the own kart per second raced. The only telemetry that leaves the
+    /// browser.
+    RaceReport { corrections_per_second: f32 },
 }
 
 /// One kart's controls for one tick, quantised to a byte each so the message
@@ -148,6 +157,10 @@ pub enum ServerMessage {
     /// this one hears nothing more; the client stops rather than rejoining
     /// back.
     Replaced,
+    /// The server's probe of this connection, sent to a seated player at
+    /// the tuned interval on the datagram lane; the client answers with a
+    /// [`ClientMessage::Pong`] carrying the nonce (ADR 0018).
+    Ping { nonce: u32 },
 }
 
 /// Why a [`ClientMessage::Join`] was refused.

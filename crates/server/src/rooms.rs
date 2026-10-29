@@ -10,7 +10,7 @@
 //! whatever the old one sends or reports after that, its drop included, is
 //! ignored.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, VecDeque};
 use std::sync::{Arc, Mutex, Weak};
 use std::time::Duration;
 
@@ -18,11 +18,15 @@ use protocol::{ClientMessage, Refusal, Room, ServerMessage};
 use rand::distr::slice::Choose;
 use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
-use sim::tuning::{ROOM_CLOSE_AFTER_EMPTY_S, ROOM_CODE_ALPHABET, ROOM_CODE_LENGTH};
+use sim::tuning::{
+    CONNECTION_PROBE_INTERVAL_S, CONNECTION_PROBE_WINDOW, ROOM_CLOSE_AFTER_EMPTY_S,
+    ROOM_CODE_ALPHABET, ROOM_CODE_LENGTH,
+};
 use tokio::sync::{mpsc, oneshot, watch};
 use tokio::time::{Instant, Interval, MissedTickBehavior};
 
 use crate::lane::{Outbound, Outgoing};
+use crate::metrics::Metrics;
 use crate::race::{Race, TICK_S};
 use crate::room::{HostedRoom, Left, Started};
 use crate::{tracks, Shutdown};
@@ -37,6 +41,8 @@ pub struct Rooms {
     track: &'static str,
     /// Where every race's seed comes from.
     seeds: RaceSeeds,
+    /// What every room records into (ADR 0018).
+    metrics: Metrics,
 }
 
 /// The source of race seeds: the OS's entropy on the server, so no two
@@ -167,7 +173,13 @@ impl Rooms {
             shutdown,
             track,
             seeds: RaceSeeds::Entropy,
+            metrics: Metrics::new(),
         }
+    }
+
+    /// What the rooms have recorded, for the scrape endpoint.
+    pub fn metrics(&self) -> &Metrics {
+        &self.metrics
     }
 
     /// `on_track`, with every race seeded from `seed` in start order, so a
@@ -204,6 +216,7 @@ impl Rooms {
             Arc::downgrade(&self.registry),
             self.shutdown.clone(),
             self.seeds.clone(),
+            self.metrics.clone(),
         ));
         code
     }
@@ -323,10 +336,72 @@ fn fresh_token(rng: &mut impl Rng) -> String {
     format!("{:032x}", rng.random::<u128>())
 }
 
-/// The connection a seat is reached through now.
+/// The connection a seat is reached through now, and how the server's
+/// probes of it have fared (ADR 0018).
 struct Connection {
     id: u64,
     outbound: Outbound,
+    /// The probe sent last and not answered yet.
+    probe: Option<Probe>,
+    /// Whether each of the latest probes was answered in time, newest last.
+    outcomes: VecDeque<bool>,
+}
+
+/// A Ping on its way to the client, or on its way back.
+struct Probe {
+    nonce: u32,
+    sent_at: Instant,
+}
+
+impl Connection {
+    fn new(id: u64, outbound: Outbound) -> Self {
+        Self {
+            id,
+            outbound,
+            probe: None,
+            outcomes: VecDeque::with_capacity(CONNECTION_PROBE_WINDOW),
+        }
+    }
+
+    /// Send the next probe, with `nonce`; one still outstanding was lost.
+    fn probe(&mut self, nonce: u32) {
+        if self.probe.take().is_some() {
+            self.settle(false);
+        }
+        let _ = self
+            .outbound
+            .send(Outgoing::from_server(&ServerMessage::Ping { nonce }));
+        self.probe = Some(Probe {
+            nonce,
+            sent_at: Instant::now(),
+        });
+    }
+
+    /// The client's Pong: the round trip, when it answers the outstanding
+    /// probe. A Pong for an older probe, which already counted as lost,
+    /// changes nothing.
+    fn pong(&mut self, nonce: u32) -> Option<Duration> {
+        let probe = self.probe.take_if(|probe| probe.nonce == nonce)?;
+        self.settle(true);
+        Some(probe.sent_at.elapsed())
+    }
+
+    fn settle(&mut self, in_time: bool) {
+        if self.outcomes.len() == CONNECTION_PROBE_WINDOW {
+            self.outcomes.pop_front();
+        }
+        self.outcomes.push_back(in_time);
+    }
+
+    /// The share in 0..=1 of the settled probes in the window that were
+    /// lost; 0 before any has settled.
+    fn packet_loss(&self) -> f64 {
+        if self.outcomes.is_empty() {
+            return 0.0;
+        }
+        let lost = self.outcomes.iter().filter(|&&in_time| !in_time).count();
+        lost as f64 / self.outcomes.len() as f64
+    }
 }
 
 /// A code of the tuned length from the unambiguous alphabet.
@@ -336,14 +411,13 @@ fn fresh_code(rng: &mut impl Rng) -> String {
     rng.sample_iter(letter).take(ROOM_CODE_LENGTH).collect()
 }
 
-/// A race under way in a room task: the race and how it started, the
-/// clock that ticks it and how long its ticks have taken.
+/// A race under way in a room task: the race and how it started, and the
+/// clock that ticks it.
 struct Running {
     race: Race,
     /// Sent again to a player who rejoins mid-race.
     started: Started,
     ticks: Interval,
-    timing: Timing,
 }
 
 /// What one tick did to the room, for the task to act on.
@@ -362,18 +436,18 @@ impl Running {
             race,
             started,
             ticks,
-            timing: Timing::default(),
         }
     }
 
     /// One tick: step the race, send what it produced to the players and
-    /// move the room along with the race's phase. Timed against the tick
-    /// budget from before the step until the broadcasts are queued; the
-    /// transports send them later.
+    /// move the room along with the race's phase. Timed for the tick
+    /// duration metric (ADR 0018) from before the step until the
+    /// broadcasts are queued; the transports send them later.
     fn tick(
         &mut self,
         room: &mut HostedRoom,
         players: &mut HashMap<u8, Connection>,
+        metrics: &Metrics,
     ) -> TickOutcome {
         let started_at = Instant::now();
         let ticked = self.race.tick();
@@ -409,50 +483,8 @@ impl Running {
                 .collect();
             players.retain(|slot, _| seated.contains(slot));
         }
-        self.timing.record(started_at.elapsed());
+        metrics.tick(started_at.elapsed());
         TickOutcome { finished }
-    }
-}
-
-/// How long the ticks of a race took on the server, for the log line that
-/// checks the budget until metrics land (ADR 0018).
-#[derive(Debug, Clone, Copy, Default)]
-struct Timing {
-    ticks: u32,
-    total: Duration,
-    longest: Duration,
-    /// Ticks whose work took longer than a tick.
-    over_budget: u32,
-}
-
-impl Timing {
-    fn record(&mut self, took: Duration) {
-        self.ticks += 1;
-        self.total += took;
-        self.longest = self.longest.max(took);
-        if took > Duration::from_secs_f32(TICK_S) {
-            self.over_budget += 1;
-        }
-    }
-
-    fn mean(&self) -> Duration {
-        if self.ticks == 0 {
-            Duration::ZERO
-        } else {
-            self.total / self.ticks
-        }
-    }
-
-    /// The budget check until metrics land (ADR 0018): one line per race.
-    fn log(&self, code: &str, ending: &str) {
-        println!(
-            "room {code} race {ending}: {} ticks, mean {:.2} ms, longest {:.2} ms, {} over the {:.1} ms budget",
-            self.ticks,
-            self.mean().as_secs_f64() * 1000.0,
-            self.longest.as_secs_f64() * 1000.0,
-            self.over_budget,
-            f64::from(TICK_S) * 1000.0,
-        );
     }
 }
 
@@ -467,6 +499,7 @@ async fn run(
     registry: Weak<Mutex<Registry>>,
     shutdown: Shutdown,
     seeds: RaceSeeds,
+    metrics: Metrics,
 ) {
     let close_after = Duration::from_secs_f32(ROOM_CLOSE_AFTER_EMPTY_S);
     let mut players: HashMap<u8, Connection> = HashMap::new();
@@ -476,6 +509,12 @@ async fn run(
     // Event ids count up per room, across its races, so a client's
     // de-duplication never meets an id again (ADR 0011).
     let mut next_event_id = 1;
+    // Probes of every connection, at the tuned interval while anyone is
+    // seated; the intervals missed while nobody was are not made up, so a
+    // joiner's first probes are not taken for lost ones.
+    let mut probes = tokio::time::interval(Duration::from_secs_f32(CONNECTION_PROBE_INTERVAL_S));
+    probes.set_missed_tick_behavior(MissedTickBehavior::Skip);
+    let mut nonces = 0u32..;
     loop {
         let closing = async {
             match empty_since {
@@ -489,6 +528,13 @@ async fn run(
                 None => std::future::pending().await,
             }
         };
+        let probe = async {
+            if players.is_empty() {
+                std::future::pending().await
+            } else {
+                probes.tick().await
+            }
+        };
         let before = room.view();
         // The joiner learns the room from Joined, not from the update too.
         let mut told_already = None;
@@ -496,12 +542,7 @@ async fn run(
         // is itself ending as departures.
         tokio::select! {
             biased;
-            () = shutdown.wait() => {
-                if let Some(running) = &running {
-                    running.timing.log(room.code(), "cut short by the server stopping");
-                }
-                break;
-            }
+            () = shutdown.wait() => break,
             () = closing => {
                 room.close();
                 let _ = publish.send(room.view());
@@ -511,11 +552,16 @@ async fn run(
                 let outcome = running
                     .as_mut()
                     .expect("the tick arm only runs with a race")
-                    .tick(&mut room, &mut players);
+                    .tick(&mut room, &mut players, &metrics);
                 if outcome.finished {
                     let finished = running.take().expect("the race that just finished");
                     next_event_id = finished.race.next_event_id();
-                    finished.timing.log(room.code(), "over");
+                }
+            }
+            _ = probe => {
+                for (&slot, connection) in players.iter_mut() {
+                    connection.probe(nonces.next().expect("nonces never run out"));
+                    metrics.packet_loss(room.code(), slot, connection.packet_loss());
                 }
             }
             command = inbox.recv() => {
@@ -530,7 +576,7 @@ async fn run(
                         let token = fresh_token(&mut rand::rng());
                         let joined = room.join(version, &nickname, token.clone()).map(|slot| {
                             let id = connections.next().expect("connection ids never run out");
-                            seat(&room, &mut players, slot, token, Connection { id, outbound });
+                            seat(&room, &mut players, slot, token, Connection::new(id, outbound));
                             told_already = Some(slot);
                             Seated { slot, connection: id }
                         });
@@ -550,7 +596,7 @@ async fn run(
                                 let Started { seed, track, grid } = running.started.clone();
                                 ServerMessage::Countdown { seed, track, grid }
                             });
-                            let connection = Connection { id, outbound };
+                            let connection = Connection::new(id, outbound);
                             let new = connection.outbound.clone();
                             let old = seat(&room, &mut players, slot, token, connection);
                             if let Some(countdown) = countdown {
@@ -610,6 +656,23 @@ async fn run(
                             room.rematch(slot);
                         }
                         ClientMessage::Leave => depart(&mut room, &mut players, running.as_mut(), slot),
+                        ClientMessage::Pong { nonce } => {
+                            if let Some(connection) = players.get_mut(&slot) {
+                                if let Some(round_trip) = connection.pong(nonce) {
+                                    metrics.rtt(room.code(), slot, round_trip);
+                                    metrics.packet_loss(room.code(), slot, connection.packet_loss());
+                                }
+                            }
+                        }
+                        ClientMessage::RaceReport { corrections_per_second } => {
+                            metrics.corrections_per_second(room.code(), slot, corrections_per_second);
+                            // Key=value fields, so CloudWatch Logs Insights
+                            // parses the line (ADR 0018).
+                            println!(
+                                "race_report room={} slot={slot} corrections_per_second={corrections_per_second:.3}",
+                                room.code()
+                            );
+                        }
                         // The session answers a Ping; a second Join or
                         // Rejoin has no meaning in a room.
                         ClientMessage::Ping { .. }
@@ -623,6 +686,7 @@ async fn run(
         let after = room.view();
         if after != before {
             broadcast(&players, &ServerMessage::Room(after.clone()), told_already);
+            metrics.room_players(room.code(), after.players.len());
             let _ = publish.send(after);
         }
         empty_since = match (room.connected_count(), empty_since) {
@@ -631,6 +695,7 @@ async fn run(
             (_, _) => None,
         };
     }
+    metrics.room_players(room.code(), 0);
     if let Some(registry) = registry.upgrade() {
         registry
             .lock()

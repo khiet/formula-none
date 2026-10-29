@@ -6,8 +6,9 @@
 // sequence the snapshots acknowledge. A lost connection mid-race is
 // replaced by resuming over a new one with the session token the join
 // dealt (ADR 0012): the listeners, the race and its input sequence carry
-// on. Messages travel as the bridge encodes them; this module never reads
-// the bytes.
+// on. The server's probe of the connection is answered here, and the race
+// report is the one measurement sent back (ADR 0018). Messages travel as
+// the bridge encodes them; this module never reads the bytes.
 
 import type { KartInput, MessageCodec } from "./bridge";
 import type { Connection } from "./connection";
@@ -35,6 +36,12 @@ export interface Countdown {
 
 /** Stops the listener; calling it again does nothing. */
 export type Unsubscribe = () => void;
+
+/** What the client measured over a race, for the server's metrics (ADR 0018). */
+export interface RaceReport {
+  /** Reconciliation corrections of the own kart per second raced. */
+  readonly correctionsPerSecond: number;
+}
 
 export interface RoomClient {
   /** This player's slot, which names them in every room update. */
@@ -79,6 +86,8 @@ export interface RoomClient {
    * which is returned; the sequence restarts at 1 with each Countdown.
    */
   sendInput(input: KartInput): number;
+  /** Send the server what this client measured over the race that just ended. */
+  report(report: RaceReport): void;
   /** Leave the room and close the connection; a session takes one Join, so another room needs a new connection. */
   leave(): void;
 }
@@ -250,7 +259,14 @@ function openRoom(
         return;
       }
       for (const listener of heardListeners) listener();
-      if (message === "replaced") {
+      if (typeof message === "object" && "ping" in message) {
+        // The server times the round trip, so the answer goes straight
+        // back on the lane the probe came on.
+        current.send(
+          codec.encodeClientMessage({ pong: { nonce: message.ping.nonce } }),
+          "datagram",
+        );
+      } else if (message === "replaced") {
         replaced = true;
         current.close();
       } else if ("joined" in message) {
@@ -352,6 +368,13 @@ function openRoom(
           "datagram",
         );
         return sequence;
+      },
+      report(report) {
+        current.send(
+          codec.encodeClientMessage({
+            raceReport: { correctionsPerSecond: report.correctionsPerSecond },
+          }),
+        );
       },
       leave() {
         current.send(codec.encodeClientMessage("leave"));

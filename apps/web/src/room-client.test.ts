@@ -107,6 +107,23 @@ describe("joinRoom", () => {
     expect(connection.closedByClient).toBe(true);
   });
 
+  it("answers the server's probe with its nonce on the datagram lane and sends the race report on the reliable one", async () => {
+    const connection = fakeConnection();
+    const joining = joinRoom(connection, codec, { code: "BXQF", nickname: "ada" });
+    connection.receive({ joined: { slot: 1, room: ROOM, token: TOKEN } });
+    const client = await joining;
+    connection.sent.length = 0;
+    connection.lanes.length = 0;
+
+    connection.receive({ ping: { nonce: 7 } });
+    client.report({ correctionsPerSecond: 0.25 });
+    expect(connection.sent).toEqual([
+      { pong: { nonce: 7 } },
+      { raceReport: { correctionsPerSecond: 0.25 } },
+    ]);
+    expect(connection.lanes).toEqual(["datagram", "reliable"]);
+  });
+
   it("stops a listener that unsubscribed", async () => {
     const connection = fakeConnection();
     const joining = joinRoom(connection, codec, { code: "BXQF", nickname: "ada" });
