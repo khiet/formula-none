@@ -25,7 +25,7 @@ from trackgen.path import elevation
 # in plan, from the other leg's centreline.
 CLEARANCE_M = 20.0
 # Metres of arc length either side of the crossing that count as a leg at
-# the bridge: as far as the embankment reaches.
+# the bridge: a little past the embankment's 55 m.
 LEG_REACH_M = 60.0
 # The span leaves at least this much open ground under the deck, wide enough
 # that both of the underpass's walls stand clear of the abutments.

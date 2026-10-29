@@ -95,8 +95,7 @@ LAYOUT = Layout(
     # Fifteen keeps every checkpoint at least 24 m from the bridge on both legs.
     checkpoint_count=15,
     tyre_walls=[
-        # Outside turn 2, not inside: the bots' line runs right of the centreline
-        # and every tyre wall stands left of it.
+        # Outside turn 2: a right-hander's inside is on the bots' line.
         TyreWall(path.segment("turn-2").s_mid, offset=TYRE_WALL_LEFT_M),
         TyreWall(hairpin.s_mid - 8.0, offset=TYRE_WALL_LEFT_M),
         TyreWall(hairpin.s_mid + 8.0, offset=TYRE_WALL_LEFT_M),
