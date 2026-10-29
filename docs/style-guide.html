@@ -560,7 +560,7 @@
       <article class="asset">
         <header><h3>Woods</h3><code>assets/tracks/trackgen/props.py, Wood in layout.py</code></header>
         <div class="compare"><figure><figcaption>A pine, a round tree, a young one and a cherry</figcaption><div class="stage" data-draw="woods"></div></figure></div>
-        <dl class="spec"><dt>Size</dt><dd>Pines 7 m, round trees 5 m, young ones 3 m, cherries 5 m; canopies 3.4 to 4.8 m across</dd><dt>Decided</dt><dd><a href="adr/0050-trackside-props.md">ADR 0050</a></dd></dl>
+        <dl class="spec"><dt>Size</dt><dd>Pines 7 m, round trees 5 m, young ones 3 m, cherries 5 m; canopies 4.5 m across, round ones 4 m and young ones 2.2 m</dd><dt>Decided</dt><dd><a href="adr/0050-trackside-props.md">ADR 0050</a></dd></dl>
         <div class="notes">
           <p>A layout declares a wood as a kind of tree, a patch of grass (a disc or a line), a cap on the count and a seed, and the builder scatters the trees: a tree within 3 m of a wall, canopy and all, or 5 m of another is dropped, and the seed makes every export scatter the same trees. A pine is two six-sided cones in <code>canopy-pine</code> <code>#2f7a3a</code>; a round tree an eight-facet lump in <code>canopy</code> <code>#5cb04a</code>, every third one young; a cherry three overlapping lumps in <code>blossom</code> <code>#f2a3c0</code>. A facet is lit when it faces up and not away from the View's sun, else it takes the colour's shade tone, two thirds of it. Trunks are a four-sided post in <code>trunk</code> <code>#5a3a1e</code>. Every tree stands flat on the grass slab, turned to its own angle. Scenery only: a kart never meets a tree.</p>
           <p class="dont"><b>Don't</b> place a tree by hand, and don't let a wood onto the oval: a patch goes in the layout's decor and the scatter keeps every tree off the walls.</p>
@@ -1079,16 +1079,20 @@
     const shade = (c) => `color-mix(in srgb, ${c} 66%, black)`;
     const pine = "#2f7a3a", round = "#5cb04a", blossom = "#f2a3c0", trunk = "#5a3a1e";
     const post = (x, base, top) => `<rect x="${x - 2}" y="${top}" width="4" height="${base - top}" fill="${trunk}"/>`;
-    // A cone's two visible facets, split at the apex: the sun's side lit, the other in shade.
-    const cone = (x, apex, base, r, c) => poly([[x, apex], [x - r, base], [x, base]], c) + poly([[x, apex], [x, base], [x + r, base]], shade(c));
-    // A lump's eight facets about its centre: the upper ones toward the sun lit, the rest in shade.
-    const lump = (cx, cy, r, c) => {
-      const v = ngon(8, cx, cy, r);
-      return v.map((a, i) => {
-        const b = v[(i + 1) % 8], mx = (a[0] + b[0]) / 2 - cx, my = (a[1] + b[1]) / 2 - cy;
-        return poly([[cx, cy], a, b], my <= 0 && mx <= r * 0.3 ? c : shade(c), `stroke="${my <= 0 && mx <= r * 0.3 ? c : shade(c)}" stroke-width="0.6"`);
-      }).join("");
+    // The facets facing the viewer, between ring vertices at these turns round the trunk; the
+    // sun stands to the left, so a facet is lit when it faces up and not to the right.
+    const facets = (cx, cy, r, apex, n, c, lower) => {
+      let out = "";
+      for (let k = 0; k < n / 2; k++) {
+        const a = (Math.PI * k) / (n / 2), b = (Math.PI * (k + 1)) / (n / 2), mid = Math.cos((a + b) / 2);
+        const lit = !lower && mid <= 1e-9;
+        out += poly([[cx + r * Math.cos(a), cy], [cx + r * Math.cos(b), cy], [cx, apex]], lit ? c : shade(c));
+      }
+      return out;
     };
+    const cone = (x, apex, base, r, c) => facets(x, base, r, apex, 6, c, false);
+    // A lump is a bipyramid: its upper facets rise to a point and its lower ones, all in shade, fall to one.
+    const lump = (cx, cy, r, c) => facets(cx, cy, r, cy - r, 8, c, false) + facets(cx, cy, r, cy + r, 8, c, true);
     // 14 px to the metre, the ground at y 144.
     const m = 14, g = 144, y = (h) => g - h * m;
     return `<svg viewBox="0 0 320 160" role="img" aria-label="A pine, a round tree, a young one and a cherry, flat-shaded, on the grass">

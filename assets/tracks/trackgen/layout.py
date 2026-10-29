@@ -344,7 +344,7 @@ class SceneryMesh:
 
 
 @dataclass(frozen=True)
-class TextProp:
+class Lettering:
     """Lettering Blender sets in the scenery: `size` metres tall, in `material`, read from `at.heading`."""
 
     name: str
@@ -365,7 +365,7 @@ class TrackGeometry:
     boost_pads: list[Placement]
     spawn_grid: list[Placement]
     scenery: list[SceneryMesh] = field(default_factory=list)
-    props: list[TextProp] = field(default_factory=list)
+    lettering: list[Lettering] = field(default_factory=list)
     kerbs: list[Placement] = field(default_factory=list)
     wheel_crossings: list[Placement] = field(default_factory=list)
 
@@ -469,13 +469,13 @@ def build(layout: Layout) -> TrackGeometry:
     ]
 
     centreline = [(sample.x, sample.y, h) for sample, h in zip(path.samples, height)]
-    scenery, props = decorate(layout, height)
+    scenery, lettering = decorate(layout, height)
     return TrackGeometry(
-        centreline, surfaces, checkpoints, item_boxes, boost_pads, spawn_grid, scenery, props, kerbs, wheel_crossings
+        centreline, surfaces, checkpoints, item_boxes, boost_pads, spawn_grid, scenery, lettering, kerbs, wheel_crossings
     )
 
 
-def decorate(layout: Layout, height: list[float]) -> tuple[list[SceneryMesh], list[TextProp]]:
+def decorate(layout: Layout, height: list[float]) -> tuple[list[SceneryMesh], list[Lettering]]:
     """The scenery: kerbs on every corner, the start line, and what the layout's decor asks for."""
     scenery = kerbs(layout, height) + start_line(layout) + boost_pads(layout) + tyre_stacks(layout)
     scenery += sausage_kerbs(layout) + hazard_zones(layout) + marshal_posts(layout)
@@ -822,10 +822,10 @@ def along_outside(
         s += spacing
 
 
-def hoardings(layout: Layout) -> tuple[list[SceneryMesh], list[TextProp]]:
+def hoardings(layout: Layout) -> tuple[list[SceneryMesh], list[Lettering]]:
     """White boards facing the track with a sponsor's name on each, cycling through the sponsors."""
     boards: list[SceneryMesh] = []
-    lettering: list[TextProp] = []
+    lettering: list[Lettering] = []
     for run in layout.decor.hoardings:
         for spot in along_outside(layout, run.segments, run.side, HOARDING_SETBACK_M, HOARDING_SPACING_M):
             number = len(boards)
@@ -843,7 +843,7 @@ def hoardings(layout: Layout) -> tuple[list[SceneryMesh], list[TextProp]]:
             name, ink = SPONSORS[number % len(SPONSORS)]
             proud = HOARDING_TEXT_PROUD_M
             lettering.append(
-                TextProp(
+                Lettering(
                     f"Sponsor.{number:02d}",
                     name,
                     ink,
@@ -941,7 +941,7 @@ def grandstands(layout: Layout) -> list[SceneryMesh]:
             )
             parts.add("kerb-red", canopy["z1"])
             for side in (*SIDES, "z0"):
-                parts.add("canopy-shade", canopy[side])
+                parts.add("stand-canopy-shade", canopy[side])
 
     return parts.scenery()
 

@@ -2,18 +2,20 @@
 places, never collided with and never in the sidecar (ADR 0050). Today the
 woods: a patch of trees the builder scatters, each tree the style guide's
 Woods card in three dimensions, flat facets in a lit and a shade tone on a
-trunk, standing flat on the grass slab."""
+trunk, standing flat at the grass's level."""
 
 from __future__ import annotations
 
 import math
 import random
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator, Sequence
 from dataclasses import dataclass
 
 from . import mesh
 from .layout import (
     GRASS_DROP_M,
+    GRASS_MARGIN_M,
+    SCENERY_LIFT_M,
     TREE_SPACING_M,
     TREE_WALL_CLEARANCE_M,
     WALL_THICKNESS_M,
@@ -25,13 +27,12 @@ from .layout import (
 )
 
 # The View's sun stands at (20, 40, 10) in the glTF frame: toward +X and -Y
-# here, high. A facet is lit when it faces up and not away from it.
+# here, high; the track tests hold it to `race-view.ts`. A facet is lit when
+# it faces up and not away from it.
 SUN_AZIMUTH = (20.0 / math.hypot(20.0, 10.0), -10.0 / math.hypot(20.0, 10.0))
 # How far a tree's canopy reaches from its trunk, which is what keeps its
 # clearance from the wall.
 CANOPY_RADIUS_M = {"pine": 2.24, "round": 2.0, "cherry": 2.4}
-# A tree's height by kind and whether it is young; only round trees are.
-TREE_HEIGHT_M = {("pine", False): 7.0, ("round", False): 5.0, ("round", True): 3.0, ("cherry", False): 5.0}
 # Every third round tree in a wood is young.
 YOUNG_EVERY = 3
 TRUNK_HALF_M = 0.2
@@ -67,44 +68,64 @@ class Tree:
     young: bool = False
 
 
-def scatter(layout: Layout, wood: Wood) -> list[Tree]:
+def trees(layout: Layout) -> list[Tree]:
+    """Every wood's trees, in the layout's order, each wood keeping clear of the ones before it."""
+    placed: list[Tree] = []
+    for wood in layout.decor.woods:
+        placed += scatter(layout, wood, placed)
+    return placed
+
+
+def scatter(layout: Layout, wood: Wood, placed: Sequence[Tree] = ()) -> list[Tree]:
     """Where `wood`'s trees stand: up to its count, from its own random stream, so the same
     layout scatters the same trees every export.
 
     A spot within `TREE_WALL_CLEARANCE_M` of a wall, canopy and all, or `TREE_SPACING_M` of
-    another tree is dropped. A disc draws again in its place; a row leaves the gap.
+    another tree, `placed` or this wood's own, is dropped. A disc draws again in its place; a
+    row leaves the gap.
     """
     rng = random.Random(wood.seed)
     reach = CANOPY_RADIUS_M[wood.kind] + TREE_WALL_CLEARANCE_M
     wall = layout.runoff_half_width + WALL_THICKNESS_M
     patch = wood.patch
-    if isinstance(patch, Disc):
-        centre, radius = (patch.x, patch.y), patch.r
-    else:
-        centre = ((patch.a[0] + patch.b[0]) / 2.0, (patch.a[1] + patch.b[1]) / 2.0)
-        radius = math.dist(patch.a, patch.b) / 2.0 + ROW_JITTER_M * math.sqrt(2.0)
+    (x0, y0, x1, y1) = patch_bounds(wood)
+    centre = ((x0 + x1) / 2.0, (y0 + y1) / 2.0)
+    radius = math.dist(centre, (x1, y1))
     # Only the centreline near the patch can put a wall within reach of a tree.
-    near = [
-        (s.x, s.y) for s in layout.path.samples if math.dist((s.x, s.y), centre) <= radius + wall + reach
-    ]
+    near = [(s.x, s.y) for s in layout.path.samples if math.dist((s.x, s.y), centre) <= radius + wall + reach]
 
     def clear(x: float, y: float) -> bool:
         return all(math.dist((x, y), p) >= wall + reach for p in near)
 
-    trees: list[Tree] = []
+    mine: list[Tree] = []
     if isinstance(patch, Disc):
         spots = _disc_spots(rng, patch, wood.count * TRIES_PER_TREE)
     else:
         spots = _row_spots(rng, patch.a, patch.b, wood.count)
     for x, y in spots:
-        if len(trees) == wood.count:
+        if len(mine) == wood.count:
             break
         yaw = rng.random() * math.tau
-        if not clear(x, y) or any(math.dist((x, y), (t.x, t.y)) < TREE_SPACING_M for t in trees):
+        if not clear(x, y) or any(math.dist((x, y), (t.x, t.y)) < TREE_SPACING_M for t in (*placed, *mine)):
             continue
-        young = wood.kind == "round" and len(trees) % YOUNG_EVERY == YOUNG_EVERY - 1
-        trees.append(Tree(wood.kind, x, y, yaw, young))
-    return trees
+        young = wood.kind == "round" and len(mine) % YOUNG_EVERY == YOUNG_EVERY - 1
+        mine.append(Tree(wood.kind, x, y, yaw, young))
+    return mine
+
+
+def patch_bounds(wood: Wood) -> tuple[float, float, float, float]:
+    """The ground a wood's trees can cover, canopies and all, as (min x, min y, max x, max y)."""
+    reach = CANOPY_RADIUS_M[wood.kind]
+    patch = wood.patch
+    if isinstance(patch, Disc):
+        return patch.x - patch.r - reach, patch.y - patch.r - reach, patch.x + patch.r + reach, patch.y + patch.r + reach
+    stray = ROW_JITTER_M + reach
+    return (
+        min(patch.a[0], patch.b[0]) - stray,
+        min(patch.a[1], patch.b[1]) - stray,
+        max(patch.a[0], patch.b[0]) + stray,
+        max(patch.a[1], patch.b[1]) + stray,
+    )
 
 
 def _disc_spots(rng: random.Random, disc: Disc, tries: int) -> Iterator[tuple[float, float]]:
@@ -128,32 +149,66 @@ def _row_spots(
 
 
 def woods(layout: Layout) -> list[SceneryMesh]:
-    """Every wood's trees, one mesh per material for the lot."""
+    """Every wood's trees, one mesh per material for the lot, and grass under any wood
+    that reaches past the slab's edge."""
     parts = ByMaterial("Woods")
-    for wood in layout.decor.woods:
-        for tree in scatter(layout, wood):
-            for material, piece in pieces_of(tree):
-                parts.add(material, piece)
-    return parts.scenery()
+    for tree in trees(layout):
+        for material, piece in pieces_of(tree):
+            parts.add(material, piece)
+    return parts.scenery() + ground(layout)
+
+
+def ground(layout: Layout) -> list[SceneryMesh]:
+    """Grass under the woods beyond the slab the sim stands on: a hair under it, so it shows
+    only past the slab's edge, and scenery, so the sidecar never grows for a wood."""
+    if not layout.decor.woods:
+        return []
+    min_x, min_y, max_x, max_y = layout.path.bounds()
+    slab = (min_x - GRASS_MARGIN_M, min_y - GRASS_MARGIN_M, max_x + GRASS_MARGIN_M, max_y + GRASS_MARGIN_M)
+    covered = [patch_bounds(wood) for wood in layout.decor.woods]
+    reach = (
+        min(slab[0], *(c[0] for c in covered)),
+        min(slab[1], *(c[1] for c in covered)),
+        max(slab[2], *(c[2] for c in covered)),
+        max(slab[3], *(c[3] for c in covered)),
+    )
+    if reach == slab:
+        return []
+    return [SceneryMesh("Woods.grass", "grass", mesh.slab(*reach, -GRASS_DROP_M - SCENERY_LIFT_M))]
 
 
 def pieces_of(tree: Tree) -> Iterator[tuple[str, mesh.Mesh]]:
-    """A tree's faces by material, standing on the grass slab."""
+    """A tree's faces by material, standing at the grass's level."""
+    return BUILDERS[tree.kind](tree)
+
+
+def _pine(tree: Tree) -> Iterator[tuple[str, mesh.Mesh]]:
     ground = -GRASS_DROP_M
-    if tree.kind == "pine":
-        yield from _trunk(tree, ground, PINE_TRUNK_M)
-        for base, apex, radius in PINE_CONES:
-            yield from _cone(tree, "canopy-pine", ground + base, ground + apex, radius)
-    elif tree.kind == "round":
-        (centre, radius), trunk = (YOUNG_LUMP, YOUNG_TRUNK_M) if tree.young else (ROUND_LUMP, ROUND_TRUNK_M)
-        yield from _trunk(tree, ground, trunk)
-        yield from _lump(tree, "canopy", 0.0, ground + centre, radius)
-    elif tree.kind == "cherry":
-        yield from _trunk(tree, ground, CHERRY_TRUNK_M)
-        for across, centre, radius in CHERRY_LUMPS:
-            yield from _lump(tree, "blossom", across, ground + centre, radius)
-    else:
-        raise ValueError(f"no such kind of tree as {tree.kind!r}")
+    yield from _trunk(tree, ground, PINE_TRUNK_M)
+    for base, apex, radius in PINE_CONES:
+        yield from _cone(tree, "canopy-pine", ground + base, ground + apex, radius)
+
+
+def _round(tree: Tree) -> Iterator[tuple[str, mesh.Mesh]]:
+    ground = -GRASS_DROP_M
+    (centre, radius), trunk = (YOUNG_LUMP, YOUNG_TRUNK_M) if tree.young else (ROUND_LUMP, ROUND_TRUNK_M)
+    yield from _trunk(tree, ground, trunk)
+    yield from _lump(tree, "canopy", 0.0, ground + centre, radius)
+
+
+def _cherry(tree: Tree) -> Iterator[tuple[str, mesh.Mesh]]:
+    ground = -GRASS_DROP_M
+    yield from _trunk(tree, ground, CHERRY_TRUNK_M)
+    for across, centre, radius in CHERRY_LUMPS:
+        yield from _lump(tree, "blossom", across, ground + centre, radius)
+
+
+# One builder per kind of tree.
+BUILDERS: dict[str, Callable[[Tree], Iterator[tuple[str, mesh.Mesh]]]] = {
+    "pine": _pine,
+    "round": _round,
+    "cherry": _cherry,
+}
 
 
 def _turned(tree: Tree, across: float, along: float, z: float) -> mesh.Vertex:
@@ -175,7 +230,10 @@ def _trunk(tree: Tree, ground: float, top: float) -> Iterator[tuple[str, mesh.Me
 
 def _cone(tree: Tree, material: str, base: float, apex: float, radius: float) -> Iterator[tuple[str, mesh.Mesh]]:
     """A six-sided cone with its base closed in shade, each side lit or shaded by where it faces."""
-    ring = [_turned(tree, radius * math.cos(math.tau * k / CONE_SIDES), radius * math.sin(math.tau * k / CONE_SIDES), base) for k in range(CONE_SIDES)]
+    ring = [
+        _turned(tree, radius * math.cos(math.tau * k / CONE_SIDES), radius * math.sin(math.tau * k / CONE_SIDES), base)
+        for k in range(CONE_SIDES)
+    ]
     tip = (tree.x, tree.y, apex)
     for k in range(CONE_SIDES):
         a, b = ring[k], ring[(k + 1) % CONE_SIDES]

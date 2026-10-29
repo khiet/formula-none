@@ -26,10 +26,14 @@ the sim would re-record every fixture.
   count and a seed. The count is a cap: a tree within 3 m of a wall, canopy
   and all, or 5 m of another tree is dropped, so a layout never places a
   tree by hand and a patch near a wall gets fewer. Each wood's seed starts
-  its own random stream, so the same layout exports the same trees.
-- Every prop stands flat on the grass slab. The only hill is inside the
+  its own random stream, which also turns each tree to its own angle, so
+  the same layout exports the same trees. Every third round tree is young.
+- Every prop stands flat at the grass's level. The only hill is inside the
   walls and the bridge's embankment is a vertical face at the walls' foot,
-  so a prop reads no height profile.
+  so a prop reads no height profile. A wood that reaches past the grass
+  slab's edge draws its own grass beneath it, scenery a hair under the
+  slab, since the slab is a surface in the sidecar and never grows for a
+  prop.
 - A moving prop is moved by the View from its own clock, as the marshal's
   flags are: Presentation, with no state in a snapshot. Two clients' wheels
   need not agree.
