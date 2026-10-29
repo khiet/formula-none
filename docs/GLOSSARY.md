@@ -409,3 +409,10 @@ a shadow disc on the road under each kart so a hop's height reads, and on
 every boost a flame at the exhaust and, for the own kart, wind lines and a
 wider field of view; and on the runaway wheel, flames off its back, a smoke
 trail, dust where it lands and sparks off each wall it rebounds from.
+
+### head sway
+
+The driver's head rolling at the neck against the lateral G of a turn:
+turn left and the head tips right, further the harder the turn up to a
+cap. The head holds level through a spin-out or a stall. Presentation
+worked out in the client from two kart readouts; the sim has no head.

@@ -54,3 +54,13 @@ export function rotate(
   out[2] = z + 2 * (qx * cy - qy * cx);
   return out;
 }
+
+/** Yaw about +Y from a unit quaternion `[x, y, z, w]`; positive turns the nose left. */
+export function yawOf([x, y, z, w]: readonly [number, number, number, number]): number {
+  return Math.atan2(2 * (w * y + x * z), 1 - 2 * (y * y + z * z));
+}
+
+/** `angle` wrapped to [-pi, pi], so a turn never goes the long way round. */
+export function shortestTurn(angle: number): number {
+  return Math.atan2(Math.sin(angle), Math.cos(angle));
+}

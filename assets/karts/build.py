@@ -13,7 +13,8 @@ the View's fit is close to a unit scale. Three materials, `Primary`,
 slot's driver; the rest keep the colours set here. Every hair style and
 facial hair in apps/web/src/livery.ts is a part of its own, `hair-<style>`
 and `facial-hair-<kind>`, beside `earrings`, for the View to show the
-driver's and hide the rest. The result, `kart.glb`, carries no texture and
+driver's and hide the rest. They are children of `head`, the driver's head
+pivoted at the neck, which the View rolls for the head sway. The result, `kart.glb`, carries no texture and
 is committed; CI has no Blender.
 """
 
@@ -55,6 +56,9 @@ HEAD_RADIUS = 0.3
 # A short jaw: below its middle the head narrows and shortens by these.
 JAW_WIDTH = 0.86
 JAW_HEIGHT = 0.78
+# The head's pivot, under the chin on the neck: the head and everything it
+# wears roll about it.
+NECK = Vector((0, HEAD.y, HEAD.z - HEAD_RADIUS * JAW_HEIGHT))
 
 WHEEL_SEGMENTS = 8
 # Three, so the View's per-frame spin cap stays under half their 120 degree repeat.
@@ -164,7 +168,16 @@ class Part:
             vert.co += HEAD
         self._paint(kept, material)
 
-    def finish(self, name: str, parent: bpy.types.Object | None = None) -> bpy.types.Object:
+    def finish(
+        self, name: str, parent: bpy.types.Object | None = None, pivot: Vector | None = None
+    ) -> bpy.types.Object:
+        """
+        The part as an object under `parent`. Built in the car's frame, it is
+        moved so its origin is `pivot`, where it turns; every parent sits
+        unrotated, so its location is the pivot less the parents' locations.
+        """
+        if pivot is not None:
+            bmesh.ops.translate(self.bm, vec=-pivot, verts=self.bm.verts)
         mesh = bpy.data.meshes.new(name)
         self.bm.to_mesh(mesh)
         self.bm.free()
@@ -176,13 +189,19 @@ class Part:
         obj = bpy.data.objects.new(name, mesh)
         bpy.context.scene.collection.objects.link(obj)
         obj.parent = parent
+        if pivot is not None:
+            origin = pivot.copy()
+            while parent is not None:
+                origin -= parent.location
+                parent = parent.parent
+            obj.location = origin
         return obj
 
 
 def body() -> bpy.types.Object:
     # Blender is Z up with the nose along +Y; the glTF exporter turns that
     # into Y up with the nose along -Z, the way the sim's kart drives.
-    part = Part(["Primary", "Secondary", "Accent", "Skin", "Carbon", "Whites", "Irises"])
+    part = Part(["Primary", "Secondary", "Accent", "Skin", "Carbon"])
     # The floor every panel sits on.
     part.box("Secondary", (0, -0.2, 0.1), (0.76, 1.1, 0.06))
     # The tub, the cockpit's sides, and the nose tapering down to the front wing.
@@ -218,12 +237,6 @@ def body() -> bpy.types.Object:
     part.box("Primary", (0, -0.12, 0.62), (0.46, 0.24, 0.2), front_scale=(0.85, 1.0))
     part.box("Accent", (0, -0.1, 0.735), (0.24, 0.18, 0.05))
     part.box("Skin", (0, -0.1, 0.77), (0.13, 0.12, 0.08))
-    part.head_shell("Skin", HEAD_RADIUS, lambda _: True)
-    for side in (-1, 1):
-        part.box("Skin", (side * 0.29, HEAD.y - 0.02, HEAD.z - 0.02), (0.05, 0.08, 0.1))
-        # Big eyes on the forward flat: whites, and irises proud of them looking ahead.
-        part.box("Whites", (side * 0.09, HEAD.y + 0.272, HEAD.z + 0.04), (0.1, 0.03, 0.13))
-        part.box("Irises", (side * 0.085, HEAD.y + 0.29, HEAD.z + 0.03), (0.06, 0.02, 0.085))
     # The halo: a central pillar up from the nose, a hoop at chin height
     # framing the face, and a leg down to the tub at each side.
     hoop_z = HEAD.z - HEAD_RADIUS * JAW_HEIGHT + 0.02
@@ -240,6 +253,18 @@ def body() -> bpy.types.Object:
     for end in (hoop[0], hoop[-1]):
         part.bar("Carbon", end, (end[0] * 0.75, end[1] - 0.08, 0.52), 0.022)
     return part.finish("kart")
+
+
+def head(root: bpy.types.Object) -> bpy.types.Object:
+    """The driver's bare head with its ears and eyes, on its own node so the View can roll it at the neck."""
+    part = Part(["Skin", "Whites", "Irises"])
+    part.head_shell("Skin", HEAD_RADIUS, lambda _: True)
+    for side in (-1, 1):
+        part.box("Skin", (side * 0.29, HEAD.y - 0.02, HEAD.z - 0.02), (0.05, 0.08, 0.1))
+        # Big eyes on the forward flat: whites, and irises proud of them looking ahead.
+        part.box("Whites", (side * 0.09, HEAD.y + 0.272, HEAD.z + 0.04), (0.1, 0.03, 0.13))
+        part.box("Irises", (side * 0.085, HEAD.y + 0.29, HEAD.z + 0.03), (0.06, 0.02, 0.085))
+    return part.finish("head", root, NECK)
 
 
 def cap(part: Part, radius: float = 0.32) -> None:
@@ -299,14 +324,14 @@ HAIR_STYLES: dict[str, tuple[list[str], Callable[[Part], None]]] = {
 }
 
 
-def hair_parts(root: bpy.types.Object) -> None:
+def hair_parts(head: bpy.types.Object) -> None:
     for name, (materials, build) in HAIR_STYLES.items():
         part = Part(materials)
         build(part)
-        part.finish(f"hair-{name}", root)
+        part.finish(f"hair-{name}", head, NECK)
 
 
-def facial_hair_parts(root: bpy.types.Object) -> None:
+def facial_hair_parts(head: bpy.types.Object) -> None:
     """One part per facial hair in livery.ts but none, lying on the jaw below the eyes."""
     jaw = {
         "light-stubble": (0.303, lambda p: p.z < -0.4 and p.y > 0.3),
@@ -317,14 +342,14 @@ def facial_hair_parts(root: bpy.types.Object) -> None:
     for name, (radius, keep) in jaw.items():
         part = Part(["Hair"])
         part.head_shell("Hair", radius, keep)
-        part.finish(f"facial-hair-{name}", root)
+        part.finish(f"facial-hair-{name}", head, NECK)
 
 
-def earrings(root: bpy.types.Object) -> None:
+def earrings(head: bpy.types.Object) -> None:
     part = Part(["Gold"])
     for side in (-1, 1):
         part.ball("Gold", (side * 0.29, HEAD.y - 0.02, HEAD.z - 0.1), 0.03)
-    part.finish("earrings", root)
+    part.finish("earrings", head, NECK)
 
 
 def wheel(name: str, spec: dict[str, float], side: int, parent: bpy.types.Object) -> None:
@@ -360,9 +385,10 @@ def build() -> None:
         ("back-right", REAR_WHEEL, 1),
     ):
         wheel(f"wheel-{corner}", spec, side, root)
-    hair_parts(root)
-    facial_hair_parts(root)
-    earrings(root)
+    driver = head(root)
+    hair_parts(driver)
+    facial_hair_parts(driver)
+    earrings(driver)
     bpy.ops.export_scene.gltf(
         filepath=str(OUTPUT),
         export_format="GLB",
