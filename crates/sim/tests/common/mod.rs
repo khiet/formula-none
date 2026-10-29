@@ -9,7 +9,7 @@ use sim::{step, KartInput, KartReadout, Phase, State, Track};
 pub const OVAL: &str = include_str!("../../../../assets/tracks/oval/oval.track.json");
 pub const BRANDS_PATCH: &str =
     include_str!("../../../../assets/tracks/brands-patch/brands-patch.track.json");
-/// A figure-eight whose legs cross square at the origin, one over the other:
+/// A figure-eight whose legs cross at the origin, one over the other:
 /// the leg through the crossing first in the lap rides a bridge 5 m high,
 /// the other is on the ground. Flat asphalt 180 m by 70 m lies under all of
 /// it, with nothing beyond. The start line is the east tip, with the lap

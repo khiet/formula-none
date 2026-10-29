@@ -115,9 +115,9 @@ fn a_projectile_flying_over_the_crossing_keeps_its_own_legs_height() {
     let base = figure_eight();
     let bridge = bridge_top(&base);
     // The target waits up the bridge leg; the owner fires from just short
-    // of the crossing, 2.5 m right of the centreline, so the projectile
-    // starts nearer the ground leg's centreline than the bridge's as it
-    // closes on the crossing.
+    // of the crossing, 2.5 m right of the centreline, so close to the
+    // crossing the projectile is nearer the ground leg's centreline than
+    // the bridge's.
     let (target_at, target_yaw) = beside_centreline(&base, bridge + 30.0, 0.0);
     let (owner_at, owner_yaw) = beside_centreline(&base, bridge - 4.0, 2.5);
     let sidecar = with_slot_at(FIGURE_EIGHT, 0, target_at, target_yaw);
@@ -171,9 +171,9 @@ fn a_projectile_flying_over_the_crossing_keeps_its_own_legs_height() {
 fn a_reading_never_lands_further_from_the_last_than_the_window() {
     let track = figure_eight();
     let lap = track.spline_length();
-    // Every point of the lap, read from a start line that may be far from
-    // it, lands within the window either way round, even partway along a
-    // centreline segment that only starts inside it.
+    // Every point of the lap, read from a last reading that may be far
+    // from it, lands within the window, even partway along a centreline
+    // segment that only starts inside it.
     for step in 0..(lap as usize) {
         let point = track.point_at(step as f32);
         for last in [0.0, lap / 4.0, lap / 2.0, 3.0 * lap / 4.0] {
