@@ -719,7 +719,7 @@
       <article class="asset">
         <header><h3>Favicon</h3><code>apps/web/public/favicon.svg</code></header>
         <div class="compare"><figure><figcaption>16 / 32 / 64</figcaption><div class="stage flat" data-draw="favicon"></div></figure></div>
-        <div class="notes"><p>A white chequer on an ink rounded square. The poster red sticker of the crossed-out 1 is planned in <a href="https://github.com/khiet/formula-none/issues/148">issue 148</a>.</p></div>
+        <div class="notes"><p>The struck 1: the Title logo's poster gold 1 with its ink outline and hard drop, the red strike running past both sides, drawn on a 16 px grid with crisp edges.</p><p>Draw the struck 1 alone: transparent, no tile, ink outline and hard drop. On a dark tab bar the outline disappears and the gold carries the shape; that is accepted, so no halo and no dark-theme swap.</p></div>
       </article>
     </div>
   </section>
@@ -1377,7 +1377,7 @@
   };
 
   // Favicon: apps/web/public/favicon.svg at three sizes.
-  draw.favicon = () => `<div style="display:flex;gap:1rem;align-items:end">${[16, 32, 64].map((s) => `<svg viewBox="0 0 32 32" width="${s}" height="${s}" aria-hidden="true"><rect width="32" height="32" rx="6" fill="#111"/><path fill="#fff" d="M8 8h4v4H8zm8 0h4v4h-4zm-4 4h4v4h-4zm8 0h4v4h-4zM8 16h4v4H8zm8 0h4v4h-4zm-4 4h4v4h-4zm8 0h4v4h-4z"/></svg>`).join("")}</div>`;
+  draw.favicon = () => `<div style="display:flex;gap:1rem;align-items:end">${[16, 32, 64].map((s) => `<svg viewBox="0 0 16 16" width="${s}" height="${s}" style="width:${s}px;height:${s}px" shape-rendering="crispEdges" aria-hidden="true"><path fill="#111111" d="M6 1h5v1H6zM5 2h2v1H5zM10 2h2v1H10zM4 3h2v1H4zM10 3h2v1H10zM4 4h1v1H4zM10 4h2v1H10zM4 5h3v1H4zM10 5h2v1H10zM1 6h6v1H1zM10 6h5v1H10zM1 7h1v1H1zM14 7h2v1H14zM1 8h1v1H1zM14 8h2v1H14zM1 9h6v1H1zM10 9h6v1H10zM2 10h5v1H2zM10 10h6v1H10zM4 11h1v1H4zM12 11h2v1H12zM4 12h1v1H4zM12 12h2v1H12zM4 13h10v1H4zM5 14h9v1H5z"/><path fill="#ffd23f" d="M7 2h3v1H7zM6 3h4v1H6zM5 4h5v1H5zM7 5h3v1H7zM7 6h3v1H7zM7 9h3v1H7zM7 10h3v1H7zM5 11h7v1H5zM5 12h7v1H5z"/><path fill="#e8333b" d="M2 7h12v1H2zM2 8h12v1H2z"/></svg>`).join("")}</div>`;
 
   // Palette groups. Entries with a token are copied from apps/web/src/palette.ts, and repo-checks holds them to it.
   const PAL = [
