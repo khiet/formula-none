@@ -397,8 +397,9 @@ interface RunawayWheels {
  * marshal and a beacon on each marshal post the track's glTF stands beside
  * one, crossing and post matched by their number. The wheel turns by the
  * ground it covers and bounces as it rolls, its flames flickering off its
- * back; the marshal faces the track, toward the post's lamp. Through the warning the wheel
- * rocks, burning, on the wall top, where no kart reaches it.
+ * back; the marshal faces the track, toward the post's lamp. Through the
+ * warning the wheel rocks, burning, on the wall top, where no kart
+ * reaches it.
  */
 function runawayWheels(world: ThreeScene, track: Object3D, radius: number): RunawayWheels {
   const posts = marshalPosts(track);

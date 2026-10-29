@@ -582,7 +582,7 @@ const DOWN = new Vector3(0, -1, 0);
  * steam rising, calm, his flags furled against the stool. From the flag
  * going up he is on his feet in a panic, arms up waving the flags out of
  * phase, and while the wheel rolls he hops. His parts are named for the
- * View's tests: `head`, `stool`, `cup`, `face.calm`, `face.panic`, and
+ * tests: `head`, `stool`, `cup`, `face.calm`, `face.panic`, and
  * `flag.left` and `flag.right`, left and right as seen from in front.
  */
 export function marshalMesh(): Marshal {
@@ -619,7 +619,7 @@ export function marshalMesh(): Marshal {
   // A narrower belly a hair proud of the jacket shows as the vest down its open front.
   const vest = part(body, new SphereGeometry(0.36, 8, 6), MARSHAL_VEST, [0, 0.82, 0.005]);
   vest.scale.set(0.3, 0.73, 0.83);
-  // Round the belly but over the vest.
+  // Round the belly, leaving the vest bare.
   const opening = 0.45;
   const reflective = part(
     body,
@@ -817,7 +817,7 @@ export function marshalMesh(): Marshal {
 export interface Beacon {
   /** Standing on its origin. */
   readonly mesh: Group;
-  /** Light it for the wheel's `kind` while the flag is up, its beam swept round `clockSeconds` into the View's clock; dark it otherwise. */
+  /** Light it for the wheel's `kind` while the flag is up, its beam swept side to side `clockSeconds` into the View's clock; dark it otherwise. */
   show(kind: Wheel["kind"], clockSeconds: number): void;
 }
 
