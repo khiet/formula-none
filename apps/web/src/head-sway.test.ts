@@ -78,6 +78,15 @@ describe("head sway", () => {
     expect(Math.abs(roll)).toBeGreaterThan(0.9 * 2 * ROLL_RAD_PER_G);
   });
 
+  it("leans the same through a turn whose heading crosses half a turn round", () => {
+    let state = drive(turnAt(2), 0.5, { sway: HEAD_LEVEL, previous: undefined, yaw: Math.PI - 1 });
+    const settled = state.sway.roll;
+    while (state.yaw < Math.PI + 0.5) {
+      state = drive(turnAt(2), FRAME_S, state);
+      expect(state.sway.roll).toBeCloseTo(settled, 3);
+    }
+  });
+
   it("eases back to level on a straight", () => {
     const leaning = drive(turnAt(2), 1);
     const easing = drive({ speed: 20, yawRate: 0 }, 0.05, leaning);
