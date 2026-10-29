@@ -1,0 +1,742 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Suzuka Course Draft</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Bungee&family=Inter:wght@400;600&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #121316;
+    --card: #1b1d21;
+    --fg: #e8e8ea;
+    --muted: #8a8d94;
+    --rule: #2a2c31;
+    --code-bg: #24272c;
+    /* palette.ts and the track materials */
+    --poster-red: #c81d25;
+    --go-green: #3ddc84;
+    --gold: #e0b54a;
+    --gold-lit: #f8e39a;
+    --asphalt: #6b6b78;
+    --wall: #f0f0f0;
+    --sand: #c9a86a;
+    --grass: #3f7a3a;
+    --hazard: #f5c542;
+    --boost: #ff8800;
+    --tyre: #26262a;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--fg); font: 15px/1.55 Inter, system-ui, sans-serif; }
+  body { padding: 2rem 16px 4rem; }
+  .wrap { max-width: 1180px; margin: 0 auto; }
+  h1 { font: 1.9rem/1.1 Bungee, Impact, sans-serif; margin: 0 0 .5rem; letter-spacing: .02em; }
+  h1 span { color: var(--poster-red); }
+  h2 { font: 1.2rem/1.2 Bungee, Impact, sans-serif; margin: 2.5rem 0 .75rem; }
+  h3 { font: 600 1rem/1.3 Inter, sans-serif; margin: 1.25rem 0 .4rem; }
+  p { margin: .4rem 0; }
+  .lede { color: var(--muted); max-width: 80ch; }
+  nav { display: flex; flex-wrap: wrap; gap: .4rem; margin: 1.25rem 0 0; }
+  nav a { color: var(--fg); text-decoration: none; font-size: .85rem; border: 1px solid var(--rule); border-radius: 999px; padding: .25rem .7rem; }
+  nav a:hover { border-color: var(--muted); }
+  .card { background: var(--card); border: 1px solid var(--rule); border-radius: 10px; padding: 1rem 1.15rem; }
+  .stats { display: flex; flex-wrap: wrap; gap: .5rem 1.5rem; margin: 0 0 .75rem; font-size: .9rem; }
+  .stats b { font-variant-numeric: tabular-nums; }
+  .stats .ok { color: var(--go-green); }
+  .stats .bad { color: #ff7a6e; }
+  .layers { display: flex; flex-wrap: wrap; gap: .35rem .9rem; margin: 0 0 .75rem; font-size: .85rem; color: var(--muted); }
+  .layers label { display: inline-flex; gap: .35rem; align-items: center; cursor: pointer; }
+  .map-wrap { position: relative; }
+  svg { display: block; width: 100%; height: auto; }
+  #map { background: var(--grass); border-radius: 8px; }
+  #map text { font-family: Inter, sans-serif; }
+  .corner-label { font-size: 7px; font-weight: 600; fill: #fff; paint-order: stroke; stroke: rgba(0,0,0,.55); stroke-width: 1.6px; }
+  .pin circle { fill: var(--poster-red); stroke: #fff; stroke-width: .9; }
+  .pin text { font-size: 5.6px; font-weight: 600; fill: #fff; text-anchor: middle; dominant-baseline: central; }
+  .pin { cursor: pointer; }
+  .pin.hot circle { fill: var(--gold-lit); }
+  .pin.hot text { fill: #111; }
+  #map g[data-id].hot { filter: drop-shadow(0 0 1.5px #fff) drop-shadow(0 0 1.5px #fff); }
+  .leader { stroke: #fff; stroke-width: .5; stroke-dasharray: 1.2 1; opacity: .8; }
+  .tip { position: absolute; pointer-events: none; background: #0d0e10; border: 1px solid var(--rule); border-radius: 6px; padding: .4rem .6rem; font-size: .8rem; max-width: 260px; opacity: 0; transition: opacity .1s; }
+  .tip.show { opacity: 1; }
+  .legend { display: flex; flex-wrap: wrap; gap: .5rem 1.1rem; margin-top: .75rem; font-size: .82rem; color: var(--muted); }
+  .legend span { display: inline-flex; align-items: center; gap: .4rem; }
+  .sw { display: inline-block; width: 14px; height: 14px; border-radius: 3px; }
+  .grid2 { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr)); align-items: start; }
+  .table-wrap { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; font-size: .88rem; }
+  th, td { text-align: left; padding: .45rem .6rem; border-bottom: 1px solid var(--rule); vertical-align: top; }
+  th { color: var(--muted); font-weight: 600; white-space: nowrap; }
+  td.num { white-space: nowrap; font-variant-numeric: tabular-nums; }
+  tbody tr.hot { background: #2a2614; }
+  tbody tr[data-id] { cursor: pointer; }
+  .idx { display: inline-grid; place-items: center; width: 1.5rem; height: 1.5rem; border-radius: 50%; background: var(--poster-red); color: #fff; font-weight: 600; font-size: .78rem; }
+  code { font: .85em ui-monospace, SFMono-Regular, Menlo, monospace; background: var(--code-bg); padding: .05rem .3rem; border-radius: 3px; }
+  pre { background: var(--code-bg); border-radius: 8px; padding: .9rem 1rem; overflow-x: auto; font: .8rem/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; margin: .5rem 0 0; }
+  pre code { background: none; padding: 0; }
+  ol.questions > li { margin: .9rem 0; }
+  ol.questions ol { list-style: lower-alpha; }
+  .rec { color: var(--go-green); font-weight: 600; }
+  .muted { color: var(--muted); }
+  ul, ol { padding-left: 1.3rem; margin: .4rem 0; }
+  li { margin: .25rem 0; }
+  #ref { background: #23262b; border-radius: 8px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1>Brands Patch, <span>Suzuka</span> cut</h1>
+  <p class="lede">A first draft of the race track reworked after Suzuka: the figure eight, the esses, Dunlop, the two Degners, the hairpin, 200R, Spoon, the back straight over the bridge, 130R, the chicane and the final curve. Corner angles are measured from the real circuit; straights are cut to kart length and radii opened so no two legs come within 32 m of each other except at the bridge. The map is laid live in this page from the same turtle steps as <code>trackgen/layouts</code>, so editing <code>SPEC</code> or <code>PLACEMENTS</code> in the source redraws it.</p>
+  <nav>
+    <a href="#map-section">Map</a>
+    <a href="#elevation">Elevation</a>
+    <a href="#placements">Placements</a>
+    <a href="#layout">Layout draft</a>
+    <a href="#risks">Engineering notes</a>
+    <a href="#questions">Open questions</a>
+  </nav>
+</header>
+
+<h2 id="map-section">Map</h2>
+<div class="card">
+  <div class="stats" id="stats"></div>
+  <div class="layers" id="layers">
+    <label><input type="checkbox" data-layer="obstacles" checked /> Obstacles</label>
+    <label><input type="checkbox" data-layer="pins" checked /> Numbered pins</label>
+    <label><input type="checkbox" data-layer="labels" checked /> Corner names</label>
+    <label><input type="checkbox" data-layer="checkpoints" /> Checkpoints</label>
+    <label><input type="checkbox" data-layer="centreline" /> Centreline and direction</label>
+    <label><input type="checkbox" data-layer="decor" checked /> Grandstands and hoardings</label>
+  </div>
+  <div class="map-wrap">
+    <svg id="map" role="img" aria-label="Top-down map of the Suzuka-style course with obstacles"></svg>
+    <div class="tip" id="tip"></div>
+  </div>
+  <div class="legend">
+    <span><i class="sw" style="background:var(--asphalt)"></i>Asphalt, 12 m</span>
+    <span><i class="sw" style="background:var(--sand)"></i>Run-off, 6 m each side</span>
+    <span><i class="sw" style="background:var(--wall)"></i>Wall</span>
+    <span><i class="sw" style="background:var(--gold)"></i>Item boxes</span>
+    <span><i class="sw" style="background:var(--boost)"></i>Boost pad</span>
+    <span><i class="sw" style="background:var(--tyre);border:2px solid #ddd"></i>Tyre wall</span>
+    <span><i class="sw" style="background:repeating-linear-gradient(90deg,#c81d25 0 4px,#fff 4px 8px)"></i>Sausage kerb</span>
+    <span><i class="sw" style="background:repeating-linear-gradient(45deg,#f5c542 0 4px,#111 4px 8px)"></i>Runaway wheel hazard zone</span>
+    <span><i class="sw" style="background:linear-gradient(90deg,#6b6b78,#e0b54a)"></i>Jump ramp</span>
+  </div>
+</div>
+
+<div class="grid2" style="margin-top:1rem">
+  <div class="card">
+    <h3 style="margin-top:0">Reference: the real circuit</h3>
+    <svg id="ref" role="img" aria-label="Outline of the real Suzuka circuit"></svg>
+    <p class="muted" style="font-size:.82rem">5807 m, same orientation as the draft (north up), from the public <code>bacinger/f1-circuits</code> GeoJSON. The draft keeps every corner's direction and roughly its angle, but at 1306 m it cannot keep the real gaps: 130R and the chicane sit further from Dunlop than they do at Suzuka.</p>
+  </div>
+  <div class="card">
+    <h3 style="margin-top:0">How the draft was made</h3>
+    <ol>
+      <li>Measured the heading change of each corner on the real outline (turn 1 and 2 together turn 187 degrees right; Spoon 209 left; the whole lap nets zero, as a figure eight must).</li>
+      <li>Laid the corners with <code>Turtle.arc</code> at those angles and kart-sized radii, hairpin 17 m, chicane 12 to 13 m, nothing tighter than the hairpins on Brands Patch would allow with the walls 12 m off the centreline.</li>
+      <li>Annealed radii and straight lengths so the lap closes, the back straight crosses the underpass at close to 90 degrees, and every other pair of legs keeps 32 m between centrelines (8 m of grass between walls).</li>
+      <li>Rounded to whole metres and degrees, then built the layout through <code>trackgen.layout.build</code>: it closes, 12 item boxes, 2 boost pads, 2 kerbs, 1 crossing, deck at 5.0 m over the underpass at 0.0 m.</li>
+    </ol>
+  </div>
+</div>
+
+<h2 id="elevation">Elevation</h2>
+<div class="card">
+  <svg id="profile" role="img" aria-label="Elevation along the lap"></svg>
+  <p class="muted" style="font-size:.85rem">The bridge is a <code>Hill</code> of 5 m over 110 m centred on the crossing, 14% at its steepest (Brands Patch's hill is 2 m over 50 m, 13%). The underpass stays at ground level. The jump ramp sits on the flat between Spoon's exit and the climb, so a kart lands before the bridge starts to rise.</p>
+</div>
+
+<h2 id="placements">Placements</h2>
+<div class="card table-wrap">
+  <table>
+    <thead><tr><th>#</th><th>What</th><th>Where</th><th>s (m)</th><th>Offset</th><th>Why this spot</th></tr></thead>
+    <tbody id="placement-rows"></tbody>
+  </table>
+  <p class="muted" style="font-size:.82rem;margin-top:.6rem">Offsets are metres left of the centreline, as in the layout. Hover a row to find it on the map.</p>
+</div>
+
+<h2 id="layout">Layout draft</h2>
+<div class="card">
+  <p>Drop-in shape for <code>assets/tracks/trackgen/layouts/</code>, in the style of <code>brands_patch.py</code>. It builds and closes as written; the map above draws from the same numbers.</p>
+<pre><code id="layout-code">"""Suzuka cut: a figure eight of about 1306 m.
+
+The start/finish straight runs south-east into the first curve and turn 2,
+then the esses, Dunlop and the two Degners; the run to the hairpin passes
+under the bridge, then the 200R, the double-apex Spoon and the back straight,
+which climbs over the bridge before 130R, the chicane and the final curve.
+Tyre walls stand inside turn 2, the hairpin and Spoon's second apex, sausage
+kerbs inside esses 3 and the chicane, the runaway wheel crosses the run from
+the bridge to the hairpin, its marshal post on the outside, and the jump sits
+at Spoon's exit. The scenery: grandstands along the outside of the start
+straight and the hairpin exit, hoardings round Spoon, 130R and the final
+curve, and the gantry over the line.
+"""
+
+from ..layout import (
+    BoostPad,
+    Decor,
+    Grandstands,
+    Hoardings,
+    ItemRow,
+    Kerb,
+    Layout,
+    TyreWall,
+    WheelCrossing,
+)
+from ..path import Hill, Ramp, Turtle
+
+KERB_INSIDE_M = 4.9
+TYRE_WALL_INSIDE_M = 4.5
+
+path = (
+    Turtle(x=0.0, y=0.0, heading_deg=-50.0)
+    .straight("start", 60.0)
+    .arc("first-curve", 50.0, -51.0)
+    .straight("turn-2-approach", 26.0)
+    .arc("turn-2", 21.0, -111.0)
+    .straight("esses-run", 27.0)
+    .arc("esses-1", 30.0, 57.0)
+    .arc("esses-2", 20.0, -71.0)
+    .straight("esses-link", 9.0)
+    .arc("esses-3", 21.0, 55.0)
+    .arc("esses-4", 21.0, -122.0)
+    .arc("dunlop", 34.0, 102.0)
+    .arc("dunlop-rise", 41.0, 58.0)
+    .arc("degner-1", 24.0, -70.0)
+    .straight("degner-link", 53.0)
+    .arc("degner-2", 18.0, -75.0)
+    .straight("underpass", 85.3)
+    .arc("hairpin-kink", 43.0, -28.0)
+    .straight("hairpin-approach", 12.0)
+    .arc("hairpin", 17.0, 180.0)
+    .straight("hairpin-exit", 21.0)
+    .arc("two-hundred-r", 43.0, -99.0)
+    .straight("spoon-entry", 8.0)
+    .arc("spoon-1", 17.0, 109.0)
+    .straight("spoon-link", 20.0)
+    .arc("spoon-2", 29.0, 108.0)
+    .straight("back-straight", 190.14)
+    .arc("one-thirty-r", 52.0, 40.0)
+    .straight("chicane-approach", 13.0)
+    .arc("chicane-in", 12.0, -76.0)
+    .arc("chicane-out", 13.0, 86.0)
+    .arc("final-curve", 40.0, -92.0)
+    .close("grid")
+)
+
+# Where the back straight passes over the underpass, metres along each leg.
+BRIDGE_UNDERPASS_S = 573.8
+BRIDGE_BACK_STRAIGHT_S = 1020.7
+BRIDGE_DECK_M = 5.0
+BRIDGE_HALF_SPAN_M = 55.0
+RAMP_HEIGHT_M = 1.5
+RAMP_LENGTH_M = 12.0
+
+back = path.segment("back-straight")
+hairpin = path.segment("hairpin")
+ramp_start = back.s_start + 14.0
+
+LAYOUT = Layout(
+    name="suzuka",
+    path=path,
+    asphalt_half_width=6.0,
+    runoff_width=6.0,
+    # Fifteen keeps every checkpoint at least 24 m from the bridge on both legs.
+    checkpoint_count=15,
+    tyre_walls=[
+        TyreWall(path.segment("turn-2").s_mid, offset=-TYRE_WALL_INSIDE_M),
+        TyreWall(hairpin.s_mid - 8.0, offset=TYRE_WALL_INSIDE_M),
+        TyreWall(hairpin.s_mid + 8.0, offset=TYRE_WALL_INSIDE_M),
+        TyreWall(path.segment("spoon-2").s_mid, offset=TYRE_WALL_INSIDE_M),
+    ],
+    item_rows=[
+        ItemRow(path.segment("esses-run").s_mid),
+        ItemRow(path.segment("degner-link").s_mid),
+        ItemRow(back.s_end - 15.0),
+    ],
+    boost_pads=[
+        BoostPad(path.segment("dunlop-rise").s_mid),
+        BoostPad(path.segment("hairpin-exit").s_mid, offset=3.0),
+    ],
+    kerbs=[
+        Kerb(path.segment("esses-3").s_mid, offset=KERB_INSIDE_M),
+        Kerb(path.segment("chicane-in").s_mid, offset=-KERB_INSIDE_M),
+    ],
+    # The hairpin turns left, so its outside is the right.
+    wheel_crossings=[WheelCrossing(BRIDGE_UNDERPASS_S + 28.0, outside=-1)],
+    elevation=[
+        Ramp(ramp_start, ramp_start + RAMP_LENGTH_M, RAMP_HEIGHT_M),
+        Hill(
+            BRIDGE_BACK_STRAIGHT_S - BRIDGE_HALF_SPAN_M,
+            BRIDGE_BACK_STRAIGHT_S + BRIDGE_HALF_SPAN_M,
+            BRIDGE_DECK_M,
+        ),
+    ],
+    decor=Decor(
+        hoardings=[
+            Hoardings(("grid", "start"), side=1),
+            Hoardings(("spoon-2",), side=-1),
+            Hoardings(("one-thirty-r",), side=-1),
+            Hoardings(("final-curve",), side=1),
+        ],
+        grandstands=[
+            Grandstands(("grid", "start"), side=1),
+            Grandstands(("hairpin-exit",), side=-1),
+        ],
+        gantry=True,
+    ),
+)</code></pre>
+</div>
+
+<h2 id="risks">Engineering notes</h2>
+<div class="card">
+  <ul>
+    <li><b>The crossover breaks spline progress.</b> <code>Track::progress_at</code> takes the nearest centreline point in x and z only, so a kart at the bridge reads either leg: about 574 m or 1021 m. Checkpoints, positions, bots (<code>bot.rs</code> reads progress for its line) and the wrong-way logic all lean on it. Height alone does not settle it either: the deck is 5 m up and the run-off reaches 12 m from the centreline. This needs a sim change and an ADR before the track can ship (question 2).</li>
+    <li><b>The surface probe is fine under the deck.</b> <code>surface_at</code> casts down from 0.1 m above the kart, so a kart in the underpass sees its own asphalt, not the bridge.</li>
+    <li><b>Checkpoints avoid the bridge.</b> They are evenly spaced; with 15 the nearest is 24 m from the crossing on either leg, so no checkpoint's wall-to-wall span sits under or over the other road. Changing the lap length means rechecking this (the stats line above does).</li>
+    <li><b>Walls on the deck.</b> The export stands walls on the run-off edge following the centreline's elevation, so the deck gets parapets for free; nothing yet draws the bridge's piers or the deck's underside. Those are Scenery, so they leave the sidecar alone.</li>
+    <li><b>The wheel's hazard zone.</b> The crossing is 28 m past the bridge and 18 m before the hairpin kink. If the zone reaches back under the deck it will paint there, which may read oddly from the chase camera.</li>
+    <li><b>Blast radius of reworking in place.</b> About 20 test files and the e2e autopilot name <code>brands-patch</code>, and two replay fixtures (<code>brands-patch-chicane</code>, <code>brands-patch-first-corners</code>) record its geometry. The scripted followers in the sim tests (hairpin lines, Brands straight timings) will need new targets.</li>
+    <li><b>Lap length.</b> 1306 m against Brands Patch's 797 m, so a lap takes about 1.6 times as long at the same pace.</li>
+  </ul>
+</div>
+
+<h2 id="questions">Open questions</h2>
+<div class="card">
+  <ol class="questions">
+    <li>Rework Brands Patch in place, or add this beside it?
+      <ol>
+        <li>Replace the <code>brands-patch</code> layout under the same id: one PR, but every Brands test and both replays move at once.</li>
+        <li><span class="rec">(Recommended)</span> Add it as a third track, migrate the tests that need a race track, then retire Brands Patch.</li>
+      </ol>
+    </li>
+    <li>How should spline progress resolve at the bridge?
+      <ol>
+        <li><span class="rec">(Recommended)</span> Search only a window of centreline around each kart's last progress, falling back to the whole lap on a respawn. On tracks without a crossing it answers the same as today, so the replays should hold.</li>
+        <li>Fake the bridge: the two legs pass side by side under a decorative span, no true crossing. No sim change, but it stops being a figure eight.</li>
+        <li>Nearest point in 3D. Fails here: the 5 m deck is closer than the 12 m run-off edge.</li>
+      </ol>
+    </li>
+    <li>Lap length?
+      <ol>
+        <li><span class="rec">(Recommended)</span> Keep about 1300 m and trim laps per race if races run long.</li>
+        <li>Squeeze toward 1000 m: the back straight and main straight are the only slack; the Dunlop-to-130R cluster already sits at the 32 m clearance.</li>
+      </ol>
+    </li>
+    <li>The name in the game?
+      <ol>
+        <li><span class="rec">(Recommended)</span> A pun in the Brands Patch vein, picked in the PR.</li>
+        <li>Keep Brands Patch.</li>
+      </ol>
+    </li>
+  </ol>
+</div>
+
+</div>
+
+<script>
+// Turtle steps, as in trackgen/path.py: straights are [ "s", name, length ],
+// arcs are [ "a", name, radius, degrees ] with positive degrees turning left.
+// The closing straight back to the line is added by close(), as there.
+const H0 = -50;
+const SPEC = [
+  ["s", "start", 60],
+  ["a", "first-curve", 50, -51],
+  ["s", "turn-2-approach", 26],
+  ["a", "turn-2", 21, -111],
+  ["s", "esses-run", 27],
+  ["a", "esses-1", 30, 57],
+  ["a", "esses-2", 20, -71],
+  ["s", "esses-link", 9],
+  ["a", "esses-3", 21, 55],
+  ["a", "esses-4", 21, -122],
+  ["a", "dunlop", 34, 102],
+  ["a", "dunlop-rise", 41, 58],
+  ["a", "degner-1", 24, -70],
+  ["s", "degner-link", 53],
+  ["a", "degner-2", 18, -75],
+  ["s", "underpass", 85.3],
+  ["a", "hairpin-kink", 43, -28],
+  ["s", "hairpin-approach", 12],
+  ["a", "hairpin", 17, 180],
+  ["s", "hairpin-exit", 21],
+  ["a", "two-hundred-r", 43, -99],
+  ["s", "spoon-entry", 8],
+  ["a", "spoon-1", 17, 109],
+  ["s", "spoon-link", 20],
+  ["a", "spoon-2", 29, 108],
+  ["s", "back-straight", 190.14],
+  ["a", "one-thirty-r", 52, 40],
+  ["s", "chicane-approach", 13],
+  ["a", "chicane-in", 12, -76],
+  ["a", "chicane-out", 13, 86],
+  ["a", "final-curve", 40, -92],
+];
+
+const ASPHALT_HALF = 6, RUNOFF = 6, EDGE = ASPHALT_HALF + RUNOFF;
+const CHECKPOINTS = 15;
+const MIN_CLEARANCE = 32;
+const BRIDGE = { underpass: 573.8, back: 1020.7, deck: 5, halfSpan: 55 };
+const RAMP = { fromBackStart: 14, length: 12, height: 1.5 };
+const ITEM_OFFSETS = [-4.5, -1.5, 1.5, 4.5];
+
+// Each placement: where it hangs (a segment and a rule for s), what it is,
+// and why it is there. `pin` is the numbered pin's offset from the centreline,
+// `pinS` moves it along the lap where pins would crowd.
+const PLACEMENTS = [
+  { kind: "start", seg: "start", at: () => 0, off: 0, pin: 26, title: "Start line, grid and gantry",
+    why: "Suzuka's main grandstand faces the pit straight; the eight-slot grid sits on the closing straight as on every track." },
+  { kind: "tyres", seg: "turn-2", at: (g) => g.mid, off: -4.5, pin: -24, title: "Tyre wall inside turn 2",
+    why: "Turns 1 and 2 are one long right that tightens. On lap one eight karts dive for this apex; the stack makes the tight line cost a bump, as the hairpin stacks do on Brands Patch." },
+  { kind: "items", seg: "esses-run", at: (g) => g.mid, off: 0, pin: 24, title: "Item row A",
+    why: "After the turn 1 and 2 squeeze and before the esses. The pack has strung out just enough that a row four wide reaches most of it." },
+  { kind: "kerb", seg: "esses-3", at: (g) => g.mid, off: 4.9, pin: 24, title: "Sausage kerb inside esses 3",
+    why: "The esses are about rhythm. A kerb on the middle apex stops a kart straight-lining the S, and costs a drift's charge to anyone who clips it." },
+  { kind: "boost", seg: "dunlop-rise", at: (g) => g.mid, off: 0, pin: 24, title: "Boost pad on Dunlop",
+    why: "Dunlop is the uphill exit of the esses. A pad on the line pays back a clean run through the S, so the section rewards flow, not just bravery." },
+  { kind: "items", seg: "degner-link", at: (g) => g.mid, off: 0, pin: -24, title: "Item row B",
+    why: "The only straight between Degner 1 and 2. Refills before the bridge, the hairpin and the runaway wheel." },
+  { kind: "bridge", seg: "underpass", at: () => BRIDGE.underpass, off: 0, pin: -24, pinS: BRIDGE.underpass - 30, title: "The bridge (crossover)",
+    why: "Suzuka's signature: the run from Degner 2 to the hairpin passes under the back straight. Deck at 5 m, near square crossing." },
+  { kind: "wheel", seg: "underpass", at: () => BRIDGE.underpass + 28, off: 0, outside: -1, pin: -24, title: "Runaway wheel crossing",
+    why: "Karts come out from under the bridge into the braking zone for the hairpin, so the marshal's flags are the only tell and there is time to react. The same role as the wheel before hairpin two on Brands Patch." },
+  { kind: "tyres", seg: "hairpin", at: (g) => g.mid - 8, off: 4.5, pin: null, title: "Tyre wall inside the hairpin (entry)",
+    why: "The slowest corner and the clearest overtaking spot. Two stacks on the inside, as on both Brands Patch hairpins, keep a late lunge honest." },
+  { kind: "tyres", seg: "hairpin", at: (g) => g.mid + 8, off: 4.5, pin: -22, title: "Tyre walls inside the hairpin",
+    why: "The slowest corner and the clearest overtaking spot. Two stacks on the inside, as on both Brands Patch hairpins, keep a late lunge honest." },
+  { kind: "boost", seg: "hairpin-exit", at: (g) => g.mid, off: 3, pin: -24, title: "Boost pad off the hairpin, inside",
+    why: "Three metres left of centre, off the wide exit line. Taking it means a tight, slow apex; skipping it means carrying a wider arc into 200R. A choice, not a gift." },
+  { kind: "tyres", seg: "spoon-2", at: (g) => g.mid, off: 4.5, pin: -24, title: "Tyre wall inside Spoon's second apex",
+    why: "Spoon is a double apex. The stack stops karts from cutting it into one corner, and exit speed here decides the back straight." },
+  { kind: "ramp", seg: "back-straight", at: (g) => g.start + RAMP.fromBackStart, off: 0, pin: 24, title: "Jump ramp at Spoon's exit",
+    why: "Brands Patch keeps its jump on the long straight; this is the long straight. A clean Spoon exit flies further, and the landing is on the flat before the bridge climbs." },
+  { kind: "hill", seg: "back-straight", at: () => BRIDGE.back, off: 0, pin: -24, pinS: BRIDGE.back + 32, title: "Bridge climb on the back straight",
+    why: "A 5 m Hill over 110 m, crest over the underpass. The back straight crests blind, as it does at Suzuka." },
+  { kind: "items", seg: "back-straight", at: (g) => g.end - 15, off: 0, pin: 24, title: "Item row C",
+    why: "After the bridge and before 130R. Arms the pack for the last two passing places, 130R and the chicane." },
+  { kind: "kerb", seg: "chicane-in", at: (g) => g.mid, off: -4.9, pin: -22, title: "Sausage kerb inside the chicane",
+    why: "As on the Brands Patch chicane: the inside of the right-hander is the shortcut, and the kerb makes it a gamble." },
+];
+
+// Scenery only; never collided with.
+const DECOR = {
+  hoardings: [[["grid", "start"], 1], [["spoon-2"], -1], [["one-thirty-r"], -1], [["final-curve"], 1]],
+  grandstands: [[["grid", "start"], 1], [["hairpin-exit"], -1]],
+};
+
+const LABELS = [
+  ["first-curve", "1"], ["turn-2", "2"], ["esses-2", "S curves"], ["dunlop", "Dunlop"],
+  ["degner-1", "Degner 1"], ["degner-2", "Degner 2"], ["hairpin", "Hairpin"],
+  ["two-hundred-r", "200R", 0.5, -25], ["spoon-1", "Spoon"], ["back-straight", "Back straight", 0.2, -25],
+  ["one-thirty-r", "130R"], ["chicane-in", "Chicane"], ["final-curve", "Final curve"],
+  ["start", "Start", 0.5],
+];
+
+const REAL_SUZUKA = "0,0,121,-146,263,-319,276,-337,283,-357,286,-374,286,-391,284,-404,268,-455,260,-468,248,-478,239,-484,221,-488,206,-487,189,-482,172,-469,156,-444,73,-316,57,-303,43,-298,23,-295,-20,-294,-42,-288,-57,-277,-69,-263,-75,-249,-94,-176,-102,-157,-115,-140,-130,-129,-149,-121,-169,-117,-219,-116,-242,-112,-258,-104,-274,-91,-286,-74,-294,-56,-297,-39,-297,-22,-294,-9,-269,59,-265,72,-265,90,-267,102,-274,120,-284,134,-302,147,-325,160,-351,173,-375,182,-392,187,-417,191,-445,192,-467,191,-485,186,-500,180,-523,170,-548,156,-576,133,-598,110,-690,-2,-694,-8,-709,-11,-844,-24,-852,-22,-862,-16,-865,-6,-867,3,-887,87,-915,245,-920,274,-921,289,-920,304,-917,320,-911,336,-904,352,-882,402,-880,410,-881,417,-885,423,-892,428,-900,430,-908,430,-917,424,-925,413,-956,358,-982,317,-999,293,-1013,277,-1025,266,-1045,250,-1067,239,-1089,232,-1129,226,-1166,224,-1194,227,-1228,234,-1264,244,-1306,260,-1331,272,-1354,285,-1375,301,-1397,321,-1420,346,-1435,368,-1449,393,-1483,482,-1501,521,-1510,537,-1522,548,-1538,556,-1558,559,-1581,559,-1603,556,-1624,551,-1644,543,-1661,530,-1671,513,-1675,498,-1674,478,-1669,463,-1663,448,-1651,435,-1629,414,-1601,391,-1573,366,-1538,340,-1498,313,-1457,287,-1411,265,-1371,244,-1329,228,-1260,205,-1185,176,-1095,144,-1004,115,-942,94,-862,63,-843,58,-825,58,-805,61,-786,67,-752,80,-721,95,-695,112,-668,133,-617,180,-547,245,-528,261,-514,271,-501,279,-493,285,-488,285,-481,282,-466,268,-454,259,-445,256,-436,258,-426,265,-409,280,-390,294,-369,302,-344,305,-320,303,-294,298,-269,288,-247,278,-220,260,-196,237,-171,209,0,0";
+
+const NS = "http://www.w3.org/2000/svg";
+const rad = (d) => (d * Math.PI) / 180;
+
+// Mirrors Turtle: samples about every metre, each primitive excluding its own
+// start point; close() appends the straight back to the line and drops the
+// duplicate start sample.
+function lay() {
+  let x = 0, y = 0, h = rad(H0), s = 0;
+  const pts = [{ x, y, h, s }];
+  const segs = [];
+  const straight = (name, len) => {
+    const n = Math.max(1, Math.round(len)), step = len / n, s0 = s;
+    for (let i = 0; i < n; i++) { x += step * Math.cos(h); y += step * Math.sin(h); s += step; pts.push({ x, y, h, s }); }
+    segs.push({ name, start: s0, end: s, turn: 0 });
+  };
+  const arc = (name, r, deg) => {
+    const t = deg > 0 ? 1 : -1, len = r * rad(Math.abs(deg));
+    const n = Math.max(1, Math.round(len)), da = rad(deg) / n, s0 = s;
+    const cx = x - t * r * Math.sin(h), cy = y + t * r * Math.cos(h);
+    for (let i = 0; i < n; i++) { h += da; x = cx + t * r * Math.sin(h); y = cy - t * r * Math.cos(h); s += len / n; pts.push({ x, y, h, s }); }
+    segs.push({ name, start: s0, end: s, turn: t });
+  };
+  for (const [k, name, a, b] of SPEC) (k === "s" ? straight(name, a) : arc(name, a, b));
+  const dx = -x, dy = -y;
+  const along = dx * Math.cos(h) + dy * Math.sin(h);
+  const across = -dx * Math.sin(h) + dy * Math.cos(h);
+  const turned = ((h - rad(H0) + Math.PI) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI) - Math.PI;
+  if (along > 0) straight("grid", along);
+  pts.pop();
+  for (const g of segs) g.mid = (g.start + g.end) / 2;
+  return { pts, segs, length: s, across, turned: (turned * 180) / Math.PI, along };
+}
+
+const T = lay();
+const seg = (name) => T.segs.find((g) => g.name === name);
+function at(s) {
+  s = ((s % T.length) + T.length) % T.length;
+  let i = Math.min(T.pts.length - 1, Math.floor((s / T.length) * T.pts.length));
+  while (i > 0 && T.pts[i].s > s) i--;
+  while (i < T.pts.length - 1 && T.pts[i + 1].s <= s) i++;
+  const a = T.pts[i], b = T.pts[(i + 1) % T.pts.length];
+  const bs = i + 1 < T.pts.length ? b.s : T.length;
+  const f = bs > a.s ? (s - a.s) / (bs - a.s) : 0;
+  return { x: a.x + (b.x - a.x) * f, y: a.y + (b.y - a.y) * f, h: b.h };
+}
+// Screen point `off` metres left of the centreline at `s`; screen y is -y.
+function P(s, off = 0) {
+  const p = at(s);
+  return [p.x - off * Math.sin(p.h), -(p.y + off * Math.cos(p.h)), (-p.h * 180) / Math.PI];
+}
+const segAt = (s) => (T.segs.find((g) => s >= g.start && s <= g.end) || { name: "grid" }).name;
+
+function el(tag, attrs, parent) {
+  const e = document.createElementNS(NS, tag);
+  for (const k in attrs) e.setAttribute(k, attrs[k]);
+  if (parent) parent.appendChild(e);
+  return e;
+}
+const pathOf = (from, to, off = 0, step = 1, close = false) => {
+  const out = [];
+  for (let s = from; s <= to + 1e-6; s += step) out.push(P(s, off));
+  return "M" + out.map((p) => p[0].toFixed(2) + " " + p[1].toFixed(2)).join("L") + (close ? "Z" : "");
+};
+
+function drawMap() {
+  const svg = document.getElementById("map");
+  const xs = T.pts.map((p) => p.x), ys = T.pts.map((p) => -p.y);
+  const M = 34;
+  const minX = Math.min(...xs) - M, minY = Math.min(...ys) - M;
+  const w = Math.max(...xs) - Math.min(...xs) + 2 * M, hgt = Math.max(...ys) - Math.min(...ys) + 2 * M;
+  svg.setAttribute("viewBox", `${minX} ${minY} ${w} ${hgt}`);
+
+  const defs = el("defs", {}, svg);
+  const hz = el("pattern", { id: "hazard", width: 3, height: 3, patternUnits: "userSpaceOnUse", patternTransform: "rotate(45)" }, defs);
+  el("rect", { width: 1.5, height: 3, fill: "#f5c542" }, hz);
+  el("rect", { x: 1.5, width: 1.5, height: 3, fill: "#111" }, hz);
+  const kp = el("pattern", { id: "kerb", width: 2, height: 2, patternUnits: "userSpaceOnUse" }, defs);
+  el("rect", { width: 1, height: 2, fill: "#c81d25" }, kp);
+  el("rect", { x: 1, width: 1, height: 2, fill: "#fff" }, kp);
+  const rg = el("linearGradient", { id: "ramp" }, defs);
+  el("stop", { offset: "0", "stop-color": "#6b6b78" }, rg);
+  el("stop", { offset: "1", "stop-color": "#e0b54a" }, rg);
+  const ck = el("pattern", { id: "check", width: 2, height: 2, patternUnits: "userSpaceOnUse" }, defs);
+  el("rect", { width: 2, height: 2, fill: "#fff" }, ck);
+  el("rect", { width: 1, height: 1, fill: "#111" }, ck);
+  el("rect", { x: 1, y: 1, width: 1, height: 1, fill: "#111" }, ck);
+
+  const L = T.length;
+  const ground = el("g", {}, svg);
+  const loop = pathOf(0, L - 1, 0, 1, true);
+  el("path", { d: loop, fill: "none", stroke: "var(--sand)", "stroke-width": 2 * EDGE, "stroke-linejoin": "round" }, ground);
+  el("path", { d: loop, fill: "none", stroke: "var(--asphalt)", "stroke-width": 2 * ASPHALT_HALF, "stroke-linejoin": "round" }, ground);
+  for (const side of [1, -1]) el("path", { d: pathOf(0, L - 1, side * EDGE, 1, true), fill: "none", stroke: "var(--wall)", "stroke-width": 0.8 }, ground);
+
+  // The deck drawn over the underpass, with a shadow so it reads as above.
+  const b0 = BRIDGE.back - 20, b1 = BRIDGE.back + 20;
+  const deck = el("g", {}, svg);
+  el("path", { d: pathOf(b0, b1, -2.5), fill: "none", stroke: "rgba(0,0,0,.4)", "stroke-width": 2 * EDGE + 3 }, deck);
+  el("path", { d: pathOf(b0, b1), fill: "none", stroke: "var(--sand)", "stroke-width": 2 * EDGE }, deck);
+  el("path", { d: pathOf(b0, b1), fill: "none", stroke: "var(--asphalt)", "stroke-width": 2 * ASPHALT_HALF }, deck);
+  for (const side of [1, -1]) el("path", { d: pathOf(b0, b1, side * EDGE), fill: "none", stroke: "var(--wall)", "stroke-width": 1.4 }, deck);
+
+  const decor = el("g", { "data-layer": "decor" }, svg);
+  for (const [names, side] of DECOR.grandstands)
+    for (const n of names) { const g = seg(n); el("path", { d: pathOf(g.start + 2, g.end - 2, side * (EDGE + 7)), fill: "none", stroke: "#9aa0a8", "stroke-width": 6 }, decor); }
+  for (const [names, side] of DECOR.hoardings)
+    for (const n of names) { const g = seg(n); el("path", { d: pathOf(g.start + 1, g.end - 1, side * (EDGE + 2)), fill: "none", stroke: "#c81d25", "stroke-width": 1.2, "stroke-dasharray": "5 1.5" }, decor); }
+  { const [x1, y1] = P(0, EDGE + 1), [x2, y2] = P(0, -EDGE - 1); el("line", { x1, y1, x2, y2, stroke: "#2b2e33", "stroke-width": 2.2 }, decor); }
+
+  const cps = el("g", { "data-layer": "checkpoints", style: "display:none" }, svg);
+  for (let i = 0; i < CHECKPOINTS; i++) {
+    const s = (i * L) / CHECKPOINTS, [x1, y1] = P(s, EDGE), [x2, y2] = P(s, -EDGE);
+    el("line", { x1, y1, x2, y2, stroke: "#7fc3ff", "stroke-width": 0.7, "stroke-dasharray": "1.5 1" }, cps);
+    const [tx, ty] = P(s, EDGE + 5);
+    el("text", { x: tx, y: ty, "font-size": 4.5, fill: "#7fc3ff", "text-anchor": "middle", "dominant-baseline": "central" }, cps).textContent = i;
+  }
+
+  const cl = el("g", { "data-layer": "centreline", style: "display:none" }, svg);
+  el("path", { d: loop, fill: "none", stroke: "#fff", "stroke-width": 0.4, "stroke-dasharray": "2 2" }, cl);
+  for (let s = 20; s < L; s += 60) {
+    const [x, y, a] = P(s);
+    el("path", { d: "M-2.5 -2.2 L2.5 0 L-2.5 2.2 Z", fill: "#fff", transform: `translate(${x} ${y}) rotate(${a})` }, cl);
+  }
+
+  const obs = el("g", { "data-layer": "obstacles" }, svg);
+  const pins = el("g", { "data-layer": "pins" }, svg);
+  const tip = document.getElementById("tip");
+  let number = 0;
+  PLACEMENTS.forEach((p, i) => {
+    const g = seg(p.seg);
+    p.s = p.at(g);
+    p.id = "p" + i;
+    const [x, y, a] = P(p.s, p.off);
+    const tf = `translate(${x} ${y}) rotate(${a})`;
+    const grp = el("g", { "data-id": p.id }, obs);
+    if (p.kind === "items") {
+      for (const o of ITEM_OFFSETS) { const [ix, iy, ia] = P(p.s, o); el("rect", { x: -1.2, y: -1.2, width: 2.4, height: 2.4, rx: 0.3, fill: "var(--gold)", stroke: "#f8e39a", "stroke-width": 0.4, transform: `translate(${ix} ${iy}) rotate(${ia + 45})` }, grp); }
+    } else if (p.kind === "boost") {
+      for (const d of [-2.4, 0, 2.4]) el("path", { d: `M${d - 1.4} -3 L${d + 1.2} 0 L${d - 1.4} 3 L${d - 0.4} 3 L${d + 2.2} 0 L${d - 0.4} -3 Z`, fill: "var(--boost)", transform: tf }, grp);
+    } else if (p.kind === "tyres") {
+      el("circle", { cx: x, cy: y, r: 1.5, fill: "var(--tyre)", stroke: "#ddd", "stroke-width": 0.5 }, grp);
+    } else if (p.kind === "kerb") {
+      el("rect", { x: -4, y: -0.7, width: 8, height: 1.4, rx: 0.7, fill: "url(#kerb)", stroke: "#111", "stroke-width": 0.2, transform: tf }, grp);
+    } else if (p.kind === "wheel") {
+      el("rect", { x: -6, y: -EDGE, width: 12, height: 2 * EDGE, fill: "url(#hazard)", opacity: 0.85, transform: tf }, grp);
+      const [mx, my] = P(p.s, p.outside * (EDGE + 3));
+      el("rect", { x: mx - 1.6, y: my - 1.6, width: 3.2, height: 3.2, fill: "#ff8800", stroke: "#fff", "stroke-width": 0.4 }, grp);
+    } else if (p.kind === "ramp") {
+      const [rx, ry, ra] = P(p.s + RAMP.length / 2);
+      el("rect", { x: -RAMP.length / 2, y: -ASPHALT_HALF, width: RAMP.length, height: 2 * ASPHALT_HALF, fill: "url(#ramp)", transform: `translate(${rx} ${ry}) rotate(${ra})` }, grp);
+    } else if (p.kind === "start") {
+      el("rect", { x: -1, y: -ASPHALT_HALF, width: 2, height: 2 * ASPHALT_HALF, fill: "url(#check)", transform: tf }, grp);
+      for (let k = 0; k < 8; k++) {
+        const behind = 4 + 5 * Math.floor(k / 2) + (k % 2 ? 2 : 0), side = k % 2 ? -2 : 2;
+        const [gx, gy, ga] = P(-behind, side);
+        el("rect", { x: -1.6, y: -0.8, width: 3.2, height: 1.6, fill: "none", stroke: "#fff", "stroke-width": 0.35, transform: `translate(${gx} ${gy}) rotate(${ga})` }, grp);
+      }
+    } else if (p.kind === "bridge" || p.kind === "hill") {
+      // The deck above already shows the bridge; the pin is enough.
+    }
+    if (p.pin != null) {
+      number += 1;
+      p.n = number;
+      const [px, py] = P(p.pinS ?? p.s, p.pin);
+      el("line", { x1: x, y1: y, x2: px, y2: py, class: "leader" }, pins);
+      const pin = el("g", { class: "pin", "data-id": p.id, transform: `translate(${px} ${py})` }, pins);
+      el("circle", { r: 4.2 }, pin);
+      el("text", {}, pin).textContent = number;
+      pin.addEventListener("mouseenter", (e) => { hot(p.id, true); showTip(p, e); });
+      pin.addEventListener("mousemove", (e) => showTip(p, e));
+      pin.addEventListener("mouseleave", () => { hot(p.id, false); tip.classList.remove("show"); });
+    } else {
+      p.n = number + 1; // shares the next pin's number
+    }
+  });
+  function showTip(p, e) {
+    const box = svg.parentElement.getBoundingClientRect();
+    tip.innerHTML = `<b>${p.n}. ${p.title}</b><br><span class="muted">${p.seg}, s ${p.s.toFixed(1)} m</span>`;
+    tip.style.left = Math.min(e.clientX - box.left + 12, box.width - 270) + "px";
+    tip.style.top = e.clientY - box.top + 12 + "px";
+    tip.classList.add("show");
+  }
+
+  const labels = el("g", { "data-layer": "labels" }, svg);
+  for (const [name, text, frac, fixedOff] of LABELS) {
+    const g = seg(name);
+    const s = g.start + (g.end - g.start) * (frac ?? 0.5);
+    const off = fixedOff ?? (g.turn ? -g.turn * (EDGE + 13) : EDGE + 13);
+    const [x, y] = P(s, off);
+    el("text", { x, y, class: "corner-label", "text-anchor": "middle", "dominant-baseline": "central" }, labels).textContent = text;
+  }
+}
+
+function hot(id, on) {
+  document.querySelectorAll(`[data-id="${id}"]`).forEach((n) => n.classList.toggle("hot", on));
+}
+
+function drawProfile() {
+  const svg = document.getElementById("profile");
+  const W = 1000, H = 170, padL = 34, padR = 10, padT = 14, padB = 34;
+  svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+  const L = T.length, maxZ = 6;
+  const X = (s) => padL + (s / L) * (W - padL - padR);
+  const Y = (z) => padT + (1 - z / maxZ) * (H - padT - padB);
+  const back = seg("back-straight");
+  const r0 = back.start + RAMP.fromBackStart;
+  const z = (s) => {
+    let v = 0;
+    if (s >= r0 && s <= r0 + RAMP.length) v += (RAMP.height * (s - r0)) / RAMP.length;
+    const h0 = BRIDGE.back - BRIDGE.halfSpan, h1 = BRIDGE.back + BRIDGE.halfSpan;
+    if (s >= h0 && s <= h1) v += (BRIDGE.deck * (1 - Math.cos((2 * Math.PI * (s - h0)) / (h1 - h0)))) / 2;
+    return v;
+  };
+  const axis = { stroke: "#2a2c31", "stroke-width": 1 };
+  for (const zz of [0, 2, 4, 6]) {
+    el("line", { x1: padL, x2: W - padR, y1: Y(zz), y2: Y(zz), ...axis }, svg);
+    el("text", { x: padL - 6, y: Y(zz), "font-size": 10, fill: "#8a8d94", "text-anchor": "end", "dominant-baseline": "central" }, svg).textContent = zz + " m";
+  }
+  for (const g of T.segs) el("line", { x1: X(g.start), x2: X(g.start), y1: Y(0), y2: Y(0) + 4, stroke: "#4a4f57" }, svg);
+  for (const [name, text] of [["esses-2", "Esses"], ["degner-link", "Degners"], ["hairpin", "Hairpin"], ["spoon-1", "Spoon"], ["one-thirty-r", "130R"], ["final-curve", "Final"]]) {
+    const g = seg(name);
+    el("text", { x: X(g.mid), y: H - 10, "font-size": 10, fill: "#8a8d94", "text-anchor": "middle" }, svg).textContent = text;
+  }
+  // The deck overhead where the underpass runs beneath it.
+  el("line", { x1: X(BRIDGE.underpass - 10), x2: X(BRIDGE.underpass + 10), y1: Y(BRIDGE.deck), y2: Y(BRIDGE.deck), stroke: "#e0b54a", "stroke-width": 3, "stroke-dasharray": "4 3" }, svg);
+  el("text", { x: X(BRIDGE.underpass), y: Y(BRIDGE.deck) - 8, "font-size": 10, fill: "#e0b54a", "text-anchor": "middle" }, svg).textContent = "deck overhead";
+  let d = "";
+  for (let s = 0; s <= L; s += 1) d += (s ? "L" : "M") + X(s).toFixed(1) + " " + Y(z(s)).toFixed(1);
+  el("path", { d, fill: "none", stroke: "#e8e8ea", "stroke-width": 2 }, svg);
+  el("text", { x: X(r0 + RAMP.length), y: Y(RAMP.height) - 8, "font-size": 10, fill: "#e8e8ea", "text-anchor": "middle" }, svg).textContent = "jump";
+  el("text", { x: X(BRIDGE.back), y: Y(BRIDGE.deck) - 8, "font-size": 10, fill: "#e8e8ea", "text-anchor": "middle" }, svg).textContent = "bridge";
+  el("text", { x: W - padR, y: H - 10, "font-size": 10, fill: "#8a8d94", "text-anchor": "end" }, svg).textContent = L.toFixed(0) + " m";
+}
+
+function drawReference() {
+  const svg = document.getElementById("ref");
+  const n = REAL_SUZUKA.split(",").map(Number);
+  const pts = [];
+  for (let i = 0; i < n.length; i += 2) pts.push([n[i], -n[i + 1]]);
+  const xs = pts.map((p) => p[0]), ys = pts.map((p) => p[1]), M = 60;
+  svg.setAttribute("viewBox", `${Math.min(...xs) - M} ${Math.min(...ys) - M} ${Math.max(...xs) - Math.min(...xs) + 2 * M} ${Math.max(...ys) - Math.min(...ys) + 2 * M}`);
+  el("polyline", { points: pts.map((p) => p.join(",")).join(" "), fill: "none", stroke: "#6b6b78", "stroke-width": 26, "stroke-linejoin": "round" }, svg);
+  el("circle", { cx: 0, cy: 0, r: 22, fill: "#c81d25" }, svg);
+}
+
+function stats() {
+  // Closest approach between parts of the lap more than 70 m apart along it,
+  // leaving out the bridge, where the two legs cross by design.
+  const L = T.length, step = 2, samples = [];
+  for (let s = 0; s < L; s += step) { const p = at(s); samples.push([p.x, p.y, s, segAt(s)]); }
+  let worst = Infinity, pair = "";
+  for (let i = 0; i < samples.length; i++)
+    for (let j = i + 1; j < samples.length; j++) {
+      const a = samples[i], b = samples[j];
+      const ds = Math.min(Math.abs(a[2] - b[2]), L - Math.abs(a[2] - b[2]));
+      if (ds < 70) continue;
+      const pairName = [a[3], b[3]].sort().join(" / ");
+      if (pairName === "back-straight / underpass") continue;
+      const d = Math.hypot(a[0] - b[0], a[1] - b[1]);
+      if (d < worst) { worst = d; pair = pairName; }
+    }
+  const cps = Array.from({ length: CHECKPOINTS }, (_, i) => (i * L) / CHECKPOINTS);
+  const cpGap = Math.min(...cps.map((c) => Math.min(Math.abs(c - BRIDGE.underpass), Math.abs(c - BRIDGE.back))));
+  const closes = Math.abs(T.across) < 0.01 && Math.abs(T.turned) < 1e-6 && T.along > 0;
+  const row = (label, value, ok) => `<span>${label}: <b class="${ok === undefined ? "" : ok ? "ok" : "bad"}">${value}</b></span>`;
+  document.getElementById("stats").innerHTML = [
+    row("Lap", L.toFixed(1) + " m (Brands Patch 797 m)"),
+    row("Closes", closes ? "yes" : `no: ${T.across.toFixed(3)} m across, ${T.turned.toFixed(2)} deg off`, closes),
+    row("Tightest gap between legs", `${worst.toFixed(1)} m, ${pair}`, worst >= MIN_CLEARANCE - 0.5),
+    row("Nearest checkpoint to the bridge", cpGap.toFixed(1) + " m", cpGap >= 15),
+  ].join("");
+}
+
+function fillTable() {
+  const body = document.getElementById("placement-rows");
+  const fmt = (o) => (o === 0 ? "centre" : (o > 0 ? "+" : "") + o + " m");
+  for (const p of PLACEMENTS) {
+    const tr = document.createElement("tr");
+    tr.dataset.id = p.id;
+    tr.innerHTML = `<td><span class="idx">${p.n}</span></td><td>${p.title}</td><td><code>${p.seg}</code></td><td class="num">${p.s.toFixed(1)}</td><td class="num">${p.kind === "wheel" ? "wall to wall, post on the right" : p.kind === "items" ? "4 boxes, -4.5 to +4.5" : fmt(p.off)}</td><td>${p.why}</td>`;
+    tr.addEventListener("mouseenter", () => hot(p.id, true));
+    tr.addEventListener("mouseleave", () => hot(p.id, false));
+    body.appendChild(tr);
+  }
+}
+
+document.querySelectorAll("#layers input").forEach((box) =>
+  box.addEventListener("change", () => {
+    document.querySelectorAll(`#map [data-layer="${box.dataset.layer}"]`).forEach((g) => (g.style.display = box.checked ? "" : "none"));
+  }),
+);
+
+drawMap();
+drawProfile();
+drawReference();
+stats();
+fillTable();
+</script>
+</body>
+</html>
