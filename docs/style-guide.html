@@ -556,6 +556,16 @@
           <p class="dont"><b>Don't</b> narrow the span to the road beneath: the underpass's walls stand clear of both abutments, so a kart under the deck never sees a wall end in a face.</p>
         </div>
       </article>
+
+      <article class="asset">
+        <header><h3>Woods</h3><code>assets/tracks/trackgen/props.py, Wood in layout.py</code></header>
+        <div class="compare"><figure><figcaption>A pine, a round tree, a young one and a cherry</figcaption><div class="stage" data-draw="woods"></div></figure></div>
+        <dl class="spec"><dt>Size</dt><dd>Pines 7 m, round trees 5 m, young ones 3 m, cherries 5 m; canopies 3.4 to 4.8 m across</dd><dt>Decided</dt><dd><a href="adr/0050-trackside-props.md">ADR 0050</a></dd></dl>
+        <div class="notes">
+          <p>A layout declares a wood as a kind of tree, a patch of grass (a disc or a line), a cap on the count and a seed, and the builder scatters the trees: a tree within 3 m of a wall, canopy and all, or 5 m of another is dropped, and the seed makes every export scatter the same trees. A pine is two six-sided cones in <code>canopy-pine</code> <code>#2f7a3a</code>; a round tree an eight-facet lump in <code>canopy</code> <code>#5cb04a</code>, every third one young; a cherry three overlapping lumps in <code>blossom</code> <code>#f2a3c0</code>. A facet is lit when it faces up and not away from the View's sun, else it takes the colour's shade tone, two thirds of it. Trunks are a four-sided post in <code>trunk</code> <code>#5a3a1e</code>. Every tree stands flat on the grass slab, turned to its own angle. Scenery only: a kart never meets a tree.</p>
+          <p class="dont"><b>Don't</b> place a tree by hand, and don't let a wood onto the oval: a patch goes in the layout's decor and the scatter keeps every tree off the walls.</p>
+        </div>
+      </article>
     </div>
   </section>
 
@@ -1063,6 +1073,32 @@
       ${poly([...deck, ...deckUnder], wall)}${poly([...deckUnder, ...deckUnder.map(([px, py]) => [px, py + 2]).reverse()], under)}
       ${poly([...parapet, ...parapet.map(([px, py]) => [px, py - 12]).reverse()], `color-mix(in srgb, ${wall} 88%, black)`)}</svg>`;
   };
+  // The woods' trees from the side, as the export builds them: a facet is lit when it faces up and
+  // not away from the sun on the left, else it takes the colour's shade tone, two thirds of it.
+  draw.woods = () => {
+    const shade = (c) => `color-mix(in srgb, ${c} 66%, black)`;
+    const pine = "#2f7a3a", round = "#5cb04a", blossom = "#f2a3c0", trunk = "#5a3a1e";
+    const post = (x, base, top) => `<rect x="${x - 2}" y="${top}" width="4" height="${base - top}" fill="${trunk}"/>`;
+    // A cone's two visible facets, split at the apex: the sun's side lit, the other in shade.
+    const cone = (x, apex, base, r, c) => poly([[x, apex], [x - r, base], [x, base]], c) + poly([[x, apex], [x, base], [x + r, base]], shade(c));
+    // A lump's eight facets about its centre: the upper ones toward the sun lit, the rest in shade.
+    const lump = (cx, cy, r, c) => {
+      const v = ngon(8, cx, cy, r);
+      return v.map((a, i) => {
+        const b = v[(i + 1) % 8], mx = (a[0] + b[0]) / 2 - cx, my = (a[1] + b[1]) / 2 - cy;
+        return poly([[cx, cy], a, b], my <= 0 && mx <= r * 0.3 ? c : shade(c), `stroke="${my <= 0 && mx <= r * 0.3 ? c : shade(c)}" stroke-width="0.6"`);
+      }).join("");
+    };
+    // 14 px to the metre, the ground at y 144.
+    const m = 14, g = 144, y = (h) => g - h * m;
+    return `<svg viewBox="0 0 320 160" role="img" aria-label="A pine, a round tree, a young one and a cherry, flat-shaded, on the grass">
+      <rect y="${g}" width="320" height="16" fill="#5cb04a"/>
+      ${post(44, g, y(2.1))}${cone(44, y(4.55), y(1.96), 2.24 * m, pine)}${cone(44, y(7), y(3.5), 1.68 * m, pine)}
+      ${post(124, g, y(1.5))}${lump(124, y(3), 2 * m, round)}
+      ${post(184, g, y(0.9))}${lump(184, y(1.92), 1.08 * m, round)}
+      ${post(260, g, y(2.4))}${lump(260 - 0.9 * m, y(2.7), 1.3 * m, blossom)}${lump(260 + 1 * m, y(2.8), 1.3 * m, blossom)}${lump(260, y(3.5), 1.5 * m, blossom)}
+    </svg>`;
+  };
   // An upright prism of `n` flat sides seen from slightly above, lit from the top left.
   const prism = (n, cx, cy, r, h, col) => {
     const ry = r * 0.32, rim = Array.from({ length: n }, (_, k) => { const a = (k * 2 * Math.PI) / n; return [Math.cos(a), Math.sin(a)]; });
@@ -1491,6 +1527,9 @@
       { hex: 0x2b2e33, role: "Carbon: pad, pillars, posts" },
       { hex: 0xff8800, role: "Chevron orange, the mini-turbo's" },
       { hex: 0x1a1a1d, role: "Tyre" },
+      { hex: 0x2f7a3a, role: "Canopy pine, and its shade at two thirds" },
+      { hex: 0xf2a3c0, role: "Blossom, the cherries; the round trees' canopy is Grass" },
+      { hex: 0x5a3a1e, role: "Trunk" },
       { hex: 0x3a3d42, role: "Rim, assets/karts/build.py" },
     ]],
   ];

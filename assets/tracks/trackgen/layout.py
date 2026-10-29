@@ -164,6 +164,11 @@ MARSHAL_LAMP_BELOW_TOP_M = 0.3
 BRIDGE_DECK_THICKNESS_M = 1.0
 BRIDGE_SPAN_CLEARANCE_M = 2.0
 
+# A wood's trees keep this much grass between a canopy's edge and the wall,
+# and this much between trunks, however many the layout asks for.
+TREE_WALL_CLEARANCE_M = 3.0
+TREE_SPACING_M = 5.0
+
 # The eight-slot spawn grid: two staggered columns of four, pole in front on
 # the left, the right column set back. Slot order is grid order. Placements
 # snap to the nearest centreline sample, so these distances hold to within
@@ -248,6 +253,35 @@ class Bridge:
 
 
 @dataclass(frozen=True)
+class Disc:
+    """A round patch of grass, `r` metres about (`x`, `y`) in track metres."""
+
+    x: float
+    y: float
+    r: float
+
+
+@dataclass(frozen=True)
+class Line:
+    """A row from `a` to `b`, each a point in track metres."""
+
+    a: tuple[float, float]
+    b: tuple[float, float]
+
+
+@dataclass(frozen=True)
+class Wood:
+    """A patch of trees of one `kind` (`pine`, `round` or `cherry`) the builder scatters over
+    `patch`: up to `count` of them, from the random stream `seed` starts, dropping any tree
+    too near a wall or another tree. A layout never places a tree by hand."""
+
+    kind: str
+    patch: Disc | Line
+    count: int
+    seed: int
+
+
+@dataclass(frozen=True)
 class Decor:
     """The scenery a layout asks for beyond what every track gets (kerbs and the start line)."""
 
@@ -255,6 +289,7 @@ class Decor:
     grandstands: list[Grandstands] = field(default_factory=list)
     gantry: bool = False
     bridges: list[Bridge] = field(default_factory=list)
+    woods: list[Wood] = field(default_factory=list)
 
 
 @dataclass
@@ -449,6 +484,11 @@ def decorate(layout: Layout, height: list[float]) -> tuple[list[SceneryMesh], li
     if layout.decor.gantry:
         scenery += gantry(layout)
     scenery += bridges(layout, height)
+    # The props build on this module's `ByMaterial` and walls, so they come
+    # in here rather than at the top.
+    from .props import woods
+
+    scenery += woods(layout)
     return scenery, lettering
 
 

@@ -68,6 +68,15 @@ MATERIALS = {
     "ink-brown": (0.45, 0.28, 0.14),
     "ink-orange": (0.93, 0.47, 0.08),
     "ink-purple": (0.50, 0.22, 0.70),
+    # The woods: each canopy colour in a lit tone and, at two thirds of it, a
+    # shade tone, as the style guide's Woods card draws them, and the trunk.
+    "canopy-pine": (0.184, 0.478, 0.227),
+    "canopy-pine-shade": (0.122, 0.316, 0.150),
+    "canopy": (0.361, 0.690, 0.290),
+    "canopy-shade": (0.238, 0.455, 0.191),
+    "blossom": (0.949, 0.639, 0.753),
+    "blossom-shade": (0.626, 0.422, 0.497),
+    "trunk": (0.353, 0.227, 0.118),
 }
 # The crowd in the stands, one material per livery's key colour.
 MATERIALS.update(

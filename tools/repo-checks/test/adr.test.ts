@@ -54,6 +54,7 @@ const DECISION_SLUGS = [
   "suzuqa-patch",
   "snapshots-carry-the-bump",
   "server-probes-each-connection",
+  "trackside-props",
 ];
 
 const expectedFiles = DECISION_SLUGS.map(

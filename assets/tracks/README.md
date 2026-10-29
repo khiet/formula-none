@@ -43,8 +43,10 @@ from straights and arcs, then hangs everything else on it by arc length:
 asphalt and run-off widths, tyre walls (`TyreWall(s, offset)`, metres
 left of the centreline), elevation (hills and the jump ramp),
 checkpoint count, item box rows and boost pads, and its decor:
-which segments get sponsor hoardings and grandstands, and whether the
-start line gets its gantry. The spawn grid is always eight slots behind
+which segments get sponsor hoardings and grandstands, whether the
+start line gets its gantry, where the course crosses itself on a bridge,
+and its woods (`Wood(kind, patch, count, seed)`, a disc or a line of grass
+the builder scatters up to `count` trees over). The spawn grid is always eight slots behind
 the start line. `trackgen/` is pure Python so a
 layout can be checked without Blender:
 
@@ -105,7 +107,13 @@ a bridge where the course crosses itself: a grass embankment under the
 raised leg down to the ground, white abutments either side of the span
 over the leg beneath, and the deck's sides and grey underside. Bridges
 are scenery, so a layout declares one in its decor and the sidecar never
-changes for it.
+changes for it. The woods are props the same way (ADR 0050): a layout
+declares a patch, a kind of tree, a cap on the count and a seed, and
+`trackgen/props.py` scatters the trees, dropping any within 3 m of a wall
+or 5 m of another, so the same layout exports the same trees and no tree
+is placed by hand. Pines are two six-sided cones, round trees and
+cherries eight-facet lumps, each in a lit and a shade tone on a
+four-sided trunk, flat on the grass.
 Original names only; nothing may resemble a real sponsor, a Nintendo
 character or circuit (ADR 0007), and no kart carries a sponsor (ADR 0038).
 

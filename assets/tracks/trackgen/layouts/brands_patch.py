@@ -18,13 +18,16 @@ from ..layout import (
     BoostPad,
     Bridge,
     Decor,
+    Disc,
     Grandstands,
     Hoardings,
     ItemRow,
     Kerb,
     Layout,
+    Line,
     TyreWall,
     WheelCrossing,
+    Wood,
 )
 from ..path import Hill, Ramp, Turtle
 
@@ -139,6 +142,23 @@ LAYOUT = Layout(
                 s_start=bridge_hill.s_start,
                 s_end=bridge_hill.s_end,
             )
+        ],
+        # The patches, counts and seeds of docs/mockups/trackside-objects.html.
+        woods=[
+            # Pines outside Degner.
+            Wood("pine", Disc(-215.0, -70.0, 35.0), count=40, seed=1),
+            # Round trees in the 200R pocket.
+            Wood("round", Disc(-150.0, 5.0, 12.0), count=15, seed=2),
+            # Round trees beyond Spoon.
+            Wood("round", Disc(-300.0, 72.0, 14.0), count=12, seed=3),
+            # Pines outside the hairpin.
+            Wood("pine", Disc(-230.0, 190.0, 25.0), count=25, seed=4),
+            # Pines between the back straight and 130R, hiding the next leg.
+            Wood("pine", Disc(-400.0, 100.0, 25.0), count=30, seed=5),
+            # Round trees in the middle of the east infield.
+            Wood("round", Disc(-60.0, -45.0, 20.0), count=15, seed=6),
+            # The cherry row outside the esses.
+            Wood("cherry", Line((-5.0, -150.0), (-105.0, -130.0)), count=12, seed=7),
         ],
     ),
 )
