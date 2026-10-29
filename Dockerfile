@@ -1,9 +1,9 @@
 # syntax=docker/dockerfile:1
 # One image per commit: the server binary plus, under /release, everything
 # the instance needs to run the stack (Compose file, Caddyfile, Prometheus
-# config, Grafana's provisioning and dashboard, built client). Build stages run on the build machine's own architecture and
-# cross-compile for arm64, so a laptop or an x86 runner produces the same
-# image without emulation.
+# config, Grafana's provisioning and dashboard, built client). Build stages
+# run on the build machine's own architecture and cross-compile for arm64,
+# so a laptop or an x86 runner produces the same image without emulation.
 #
 #   docker build --platform linux/arm64 --build-arg COMMIT=$(git rev-parse HEAD) -t formula-none:dev .
 
