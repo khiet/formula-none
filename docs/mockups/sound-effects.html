@@ -821,7 +821,8 @@ class Engine {
     const tier = input.startTier;
     if (tier !== null && this.speed < 0.5) revs = Math.max(revs, START_REVS[tier]);
     // The limiter chops only past top speed in top gear (a boost) or on a full or stalled grid rev.
-    this.atLimiter = (gear === p.gears && revs > 1 + 1e-3) || (tier !== null && this.speed < 0.5 && START_REVS[tier] >= 1);
+    // Judged by speed, not the capped revs, so a limiter set to 1.00 still chops past top speed.
+    this.atLimiter = (gear === p.gears && Math.abs(this.speed) > TOP_SPEED * (1 + 1e-3)) || (tier !== null && this.speed < 0.5 && START_REVS[tier] >= 1);
     if (now < this.blipUntil) revs *= 1 + p.blip;
     this.revs = revs;
 
@@ -945,7 +946,7 @@ function boot() {
     }
     if (context.state !== "running") await context.resume();
     unlock.hidden = unlocked();
-    if (!engineOn && state.bed.on) setEngine(true);
+    if (!engineOn && state.bed.on) { setEngine(true); engineForBed = true; }
   }
   $("#unlock-button").addEventListener("click", ensureAudio);
   document.addEventListener("pointerdown", () => { if (context === null || !unlocked()) ensureAudio(); }, { capture: true });
@@ -976,13 +977,17 @@ function boot() {
     state.bed.on = !state.bed.on;
     showBed();
     save();
+    // An engine the bed started goes quiet with it; one the user started keeps running.
+    const startForBed = state.bed.on && !engineOn;
     await ensureAudio();
-    if (state.bed.on && !engineOn) setEngine(true);
+    if (startForBed) { if (!engineOn) setEngine(true); engineForBed = true; }
+    else if (!state.bed.on && engineForBed) setEngine(false);
   });
   showBed();
 
   // ---- Engine rig ----------------------------------------------------------
   let engineOn = false;
+  let engineForBed = false;
   const held = { throttle: false, brake: false, shift: false };
   let boostUntil = 0;
   let boostFactor = 0;
@@ -995,7 +1000,7 @@ function boot() {
     if (engine) { if (on) engine.start(); else engine.stop(); }
     if (!on) { script = null; state.bed.on = false; showBed(); save(); }
   };
-  toggle.addEventListener("click", async () => { await ensureAudio(); setEngine(!engineOn); });
+  toggle.addEventListener("click", async () => { await ensureAudio(); engineForBed = false; setEngine(!engineOn); });
   const LAP = [
     { throttle: true, for: 3 }, { for: 1 }, { throttle: true, for: 1.5 }, { brake: true, for: 1.5 },
     { throttle: true, for: 2.5 }, { throttle: true, boost: 1.4, for: 1 }, { throttle: true, for: 2 }, { brake: true, for: 1.6 },
@@ -1253,9 +1258,10 @@ function boot() {
     catch (_) { picksOut.select(); $("#copy-note").textContent = "Select the text and copy it."; }
   });
   $("#reset-all").addEventListener("click", () => {
-    const theme = state.theme;
-    state = defaults();
-    state.theme = theme;
+    // Reset in place: each card holds its slot object, so the slots keep their identity and lose their values.
+    const fresh = defaults();
+    state.levels = fresh.levels; state.bed = fresh.bed; state.engine = fresh.engine;
+    for (const cue of CUES) Object.assign(state.cues[cue.id], fresh.cues[cue.id]);
     engine && (engine.params = state.engine);
     engineSliders.forEach((s) => s.refresh());
     showMaster(); showEngineLevel(); showSfxLevel(); showBedSpeed(); showBed();
