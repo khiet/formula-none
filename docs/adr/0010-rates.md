@@ -52,4 +52,6 @@ Landed with issue 17 (2026-10-19).
 - Issue 64 (2026-10-29) added each kart's bump to every snapshot, carried
   only while the kart has one, so a prediction rewound to the snapshot
   takes the server's bump instead of keeping its own. The busy sample,
-  with one kart bumped, is 570 bytes.
+  with one kart bumped, is 570 bytes; the budget holds while few karts
+  carry one, and a pile-up of all eight would pass the size test's cap
+  for the ticks their bumps last.

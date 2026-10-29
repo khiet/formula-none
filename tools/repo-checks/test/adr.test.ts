@@ -52,6 +52,7 @@ const DECISION_SLUGS = [
   "marshal-waves-hazard-flags",
   "spline-progress-searched-near-the-last-reading",
   "suzuqa-patch",
+  "snapshots-carry-the-bump",
 ];
 
 const expectedFiles = DECISION_SLUGS.map(
