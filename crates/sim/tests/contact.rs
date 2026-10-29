@@ -215,11 +215,32 @@ fn a_bump_dies_away_and_the_kart_hit_comes_to_rest_again() {
         pushed > 5.0,
         "the kart hit is shunted on up the column: {pushed} m/s"
     );
+    // The push is the bump the readout carries: up the column, and the
+    // whole of the kart's motion, since its speed is still nothing.
+    let carried = trace[touch + 1][1];
+    let bump = carried.bump.expect("the kart hit carries a bump");
+    assert!(bump[2] < -5.0, "the bump is up the column: {bump:?}");
+    assert!(
+        (bump[0] - carried.velocity[0]).abs() < 1e-3
+            && (bump[2] - carried.velocity[2]).abs() < 1e-3,
+        "the bump is all the kart's motion along the ground: {bump:?} of {:?}",
+        carried.velocity
+    );
     let settled = trace[touch + ticks(BUMP_SPENT_S)][1];
     let moving = (settled.velocity[0].powi(2) + settled.velocity[2].powi(2)).sqrt();
     assert!(
         moving < 0.1,
         "{BUMP_SPENT_S} s on the push is spent and the kart stands: {moving} m/s"
+    );
+    // Decayed below what the handling keeps, the bump drops off the
+    // readout too.
+    let gone = trace[touch..]
+        .iter()
+        .position(|karts| karts[1].bump.is_none())
+        .expect("a spent bump is not carried");
+    assert!(
+        gone > ticks(BUMP_SPENT_S),
+        "carried while it could show: gone after {gone} ticks"
     );
 }
 

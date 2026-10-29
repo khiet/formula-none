@@ -323,6 +323,21 @@ fn the_snapshots_item_is_taken_without_a_correction_and_firing_it_is_predicted()
 }
 
 #[test]
+fn the_snapshots_bump_is_taken_without_a_correction() {
+    let (mut prediction, grid) = on_the_grid();
+    assert_eq!(prediction.kart_readout().bump, None);
+
+    // The server's kart was nudged where it stands and carries the bump;
+    // the kart is where it was predicted, so nothing moves, but the bump is
+    // the snapshot's word and the prediction takes it in place of its own.
+    let mut nudged = grid;
+    nudged.bump = Some([2.0, 0.0, 0.0]);
+    assert_eq!(prediction.reconcile(12, 5, &nudged), 0.0);
+    assert_eq!(prediction.corrections(), 0);
+    assert_eq!(prediction.kart_readout().bump, Some([2.0, 0.0, 0.0]));
+}
+
+#[test]
 fn the_prediction_takes_no_box_and_fills_its_slot_from_the_snapshots_alone() {
     // The oval with a box under slot 0: the server's kart picks it up at Go,
     // the prediction's kart stands on it through Go with an empty slot.
