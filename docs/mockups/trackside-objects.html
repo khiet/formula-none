@@ -100,7 +100,7 @@
 
 <header>
   <h1>Suzuqa Patch, <span>trackside</span> objects</h1>
-  <p class="lede">The course is a road through empty grass. Twelve pieces of scenery to fill the green space and give each corner a landmark: the Circuit Wheel by the first corner, woods along the back section, a pit building the grid faces, and a few jokes. Every one is scenery in the glTF and nothing collides with it, so the sim, the sidecar and the replay fixtures do not change; the four that move are moved by the View from the clock, as the marshal's flags are. The map is laid live from the same turtle steps as <code>trackgen/layouts/brands_patch.py</code>, and each footprint's clearance from the nearest wall is computed on it.</p>
+  <p class="lede">The course is a road through empty grass. Seven pieces of scenery to fill the green space and give the corners landmarks: the Circuit Wheel by the first corner, woods along the back section, a pit building the grid faces, and two jokes. Every one is scenery in the glTF and nothing collides with it, so the sim, the sidecar and the replay fixtures do not change; the two that move are moved by the View from the clock, as the marshal's flags are. The map is laid live from the same turtle steps as <code>trackgen/layouts/brands_patch.py</code>, and each footprint's clearance from the nearest wall is computed on it.</p>
   <nav>
     <a href="#decisions">Decisions</a>
     <a href="#map-section">Map</a>
@@ -120,8 +120,8 @@
       <tr><td>Where the objects live</td><td class="decision">The layout's <code>Decor</code>, built by trackgen</td><td>The same path the stands, the hoardings and the bridge take: a layout declares them, Blender exports them, the glTF carries them. The sidecar does not change.</td></tr>
       <tr><td>Do karts collide with them</td><td class="decision">No</td><td>Everything stands beyond the walls, which already stop the karts, and the sim reads sidecars, never meshes. No rule changes, no replay re-record.</td></tr>
       <tr><td>Who moves the moving ones</td><td class="decision">The View, from its own clock</td><td>Presentation, like the marshal's flags and beacon: no state, no bytes in a snapshot. Two clients' wheels need not agree, so neither consults the sim.</td></tr>
-      <tr><td>Style</td><td class="decision">Chibi low-poly, flat facets</td><td>ADR 0034: each panel in a lit and a shaded tone of one colour, no textures. Trees are cones and lumps, the sheep are octagons, the airship is a twelve-sided hull.</td></tr>
-      <tr><td>Lettering</td><td class="decision">Only names from <code>sponsors.py</code></td><td>ADR 0038: the arch, the airship, the bottle, the stall and the clock carry invented sponsors we already have. The wheel carries no name at all.</td></tr>
+      <tr><td>Style</td><td class="decision">Chibi low-poly, flat facets</td><td>ADR 0034: each panel in a lit and a shaded tone of one colour, no textures. Trees are cones and lumps, the airship is a twelve-sided hull.</td></tr>
+      <tr><td>Lettering</td><td class="decision">Only names from <code>sponsors.py</code></td><td>ADR 0038: the arch and the airship carry invented sponsors we already have. The wheel and the tea tent carry no name at all.</td></tr>
       <tr><td>Real Suzuka landmarks</td><td class="decision">Borrowed as kinds of thing, never copied</td><td>Suzuka has a Ferris wheel by the first corner and a tyre-shaped footbridge; ours are a Ferris wheel and a tyre-shaped footbridge, in our palette with our sponsors. Nothing carries the real circuit's or a real brand's marks (ADR 0007).</td></tr>
       <tr><td>Draw calls</td><td class="decision">One mesh per material per family</td><td>As <code>ByMaterial</code> does today: a wood of 130 trees is four meshes. Only a moving prop gets nodes of its own.</td></tr>
       <tr><td>The course map</td><td class="decision">Unchanged</td><td>It draws the road and the karts; scenery never reaches it.</td></tr>
@@ -177,7 +177,7 @@
     <ul>
       <li><b>Beyond the walls, always.</b> Nothing on the asphalt, the run-off or the walls' line; the sim never learns a prop exists, so a prop a kart could reach would be a wall it cannot see.</li>
       <li><b>Three metres of grass from the wall</b> for anything low, <b>eight for anything tall</b> (over 3 m). The chase camera hangs behind and above the kart; on the outside of a corner it can sit over the wall, and a tall prop there would stand between it and the kart.</li>
-      <li><b>Seen down a straight.</b> A landmark earns its faces by being visible for seconds, not frames: the wheel sits ahead of the start straight, the bottle at the end of 130R's run, the clock at the lap's last look, the airship over everything.</li>
+      <li><b>Seen down a straight.</b> A landmark earns its faces by being visible for seconds, not frames: the wheel sits ahead of the start straight, the arch at the top of the esses, the airship over everything.</li>
       <li><b>The bridge keeps its sky.</b> Nothing taller than the deck's parapet within 60 m of the crossing, so the deck still reads as a bridge from the underpass.</li>
       <li><b>Woods between legs, not on them.</b> A wood between the back straight and 130R hides the next leg, so the figure eight reads as roads through a landscape rather than a drawing on a lawn. Trees keep 5 m apart and 3 m from the wall.</li>
     </ul>
@@ -185,10 +185,10 @@
   <div class="card">
     <h3 style="margin-top:0">What a thing may not be</h3>
     <ul>
-      <li><b>Not mistakable for a kart, an item box or a hazard.</b> No kart-sized box in a livery colour near the road, no gold cube, no lone cone, no stack of tyres off the course. The sheep stay fenced so none reads as an obstacle the sim does not know.</li>
+      <li><b>Not mistakable for a kart, an item box or a hazard.</b> No kart-sized box in a livery colour near the road, no gold cube, no lone cone, no stack of tyres off the course.</li>
       <li><b>No numbers, crests or team names</b> anywhere (ADR 0035): the pit garages are colours only.</li>
       <li><b>No real sponsor, no real circuit's mark</b> (ADR 0007, ADR 0038): lettering comes from <code>sponsors.py</code> and nowhere else.</li>
-      <li><b>No face the player must read.</b> Oyaji is the marshal and stays the only character; the fair is his tent, not him twice.</li>
+      <li><b>No face the player must read.</b> Oyaji is the marshal and stays the only character; the tea tent is his, not him twice.</li>
       <li><b>Nothing that reads the race.</b> A scoreboard or a camera that follows the leader needs the standings in the View; that is a later decision, not scenery.</li>
     </ul>
   </div>
@@ -206,12 +206,7 @@
         Prop("arch", Spot(s=path.segment("dunlop").s_mid)),
         Prop("pits", Spot(s=0.0, offset=-26.0), length=90.0),
         Prop("airship", World(-60.0, -40.0), radius=60.0, height=45.0),
-        Prop("pond", World(-330.0, 80.0)),
-        Prop("paddock", World(-350.0, 86.0)),
-        Prop("fair", World(-295.0, 152.0), heading=-50.0),
-        Prop("bottle", World(-120.0, 72.0)),
-        Prop("camera-crane", World(-148.0, 6.0), heading=100.0),
-        Prop("clock-tower", World(-40.0, 80.0), heading=-110.0),
+        Prop("tea-tent", World(-295.0, 152.0), heading=-50.0),
     ],
     woods=[
         Wood("pine", Disc(-215.0, -70.0, 35.0), count=40, seed=1),
@@ -227,10 +222,10 @@
   </div>
   <div class="card">
     <h3 style="margin-top:0">Moving props and the View</h3>
-    <p>Today every scenery mesh is merged per material with its origin at the world's zero. A moving prop needs a node whose origin is its pivot: the wheel's hub, the airship's nose, a sheep's feet, the clock's spindle. <code>SceneryMesh</code> gains an optional <code>pivot</code>; <code>build.py</code> sets the object's origin there and names the node <code>Prop.&lt;kind&gt;.&lt;n&gt;.&lt;part&gt;</code>.</p>
-    <p>A <code>scenery-motion.ts</code> in the web app (Presentation) finds those nodes by name after the track loads and advances them from <code>performance.now()</code>: the rim turns and each gondola is counter-rotated to hang level, the airship rides its circle, the sheep walk a seeded wander inside the paddock, the clock's hands read the viewer's clock four minutes behind. Nothing in it reads the bridge or the sim, so a stalled client's wheel simply stops.</p>
+    <p>Today every scenery mesh is merged per material with its origin at the world's zero. A moving prop needs a node whose origin is its pivot: the wheel's hub, the airship's nose. <code>SceneryMesh</code> gains an optional <code>pivot</code>; <code>build.py</code> sets the object's origin there and names the node <code>Prop.&lt;kind&gt;.&lt;n&gt;.&lt;part&gt;</code>.</p>
+    <p>A <code>scenery-motion.ts</code> in the web app (Presentation) finds those nodes by name after the track loads and advances them from <code>performance.now()</code>: the rim turns and each gondola is counter-rotated to hang level, and the airship rides its circle. Nothing in it reads the bridge or the sim, so a stalled client's wheel simply stops.</p>
     <h3>Palette</h3>
-    <p><code>MATERIALS</code> gains the trees (<code>canopy-pine</code>, <code>canopy</code>, <code>blossom</code>, each with a <code>-shade</code>, and <code>trunk</code>), <code>water</code>, <code>wool</code> and <code>wool-shade</code>, <code>cola-red</code> and <code>cola-red-shade</code>, and a <code>hull</code> for the airship. Garage doors, gondolas and flags reuse <code>crowd-&lt;slot&gt;</code>, the eight key colours. Everything else is already there: carbon, the stand greys, kerb red, the inks.</p>
+    <p><code>MATERIALS</code> gains the trees (<code>canopy-pine</code>, <code>canopy</code>, <code>blossom</code>, each with a <code>-shade</code>, and <code>trunk</code>) and a <code>hull</code> for the airship. Garage doors, gondolas and flags reuse <code>crowd-&lt;slot&gt;</code>, the eight key colours. Everything else is already there: carbon, the stand greys, kerb red, the inks.</p>
     <h3>What else changes</h3>
     <ul>
       <li>A card per family in <code>docs/style-guide.html</code>, in the same PR as the family.</li>
@@ -255,16 +250,12 @@
     <p>Two static landmarks with lettering through <code>TextProp</code>, the way the hoardings letter today. The pit building's doors in grid order, the flags, the cards.</p>
   </div>
   <div class="card slice">
-    <h3>The airship and the clock</h3>
-    <p>Two more nodes on the motion module: the airship's circle and heading, the clock's two hands. The clock's four-minute lateness is a constant in <code>scenery-motion.ts</code>, commented as the joke it is.</p>
+    <h3>The airship</h3>
+    <p>One more node on the motion module: the airship's circle and heading. The lettering goes through <code>TextProp</code> as the arch's does.</p>
   </div>
   <div class="card slice">
-    <h3>The hairpin fair, the pond, the bottle and the crane</h3>
-    <p>Static jokes in one PR: four families, four cards, one re-export.</p>
-  </div>
-  <div class="card slice">
-    <h3>The sheep</h3>
-    <p>Six nodes, the paddock fence, the seeded wander that never leaves the fence, and the test that holds the paddock clear of the wall by the full wander radius.</p>
+    <h3>The tea tent</h3>
+    <p>One static joke: the family, its card, one re-export. Small enough to ride with the arch and the pits if that PR is light.</p>
   </div>
 </div>
 
@@ -275,7 +266,7 @@
     <li>Lighting, shadows or a time of day. The View's sun does not move for a Ferris wheel.</li>
     <li>Props on the oval.</li>
     <li>Anything that reads the race: a scoreboard, a camera crane that follows the leader, a crowd that cheers a pass.</li>
-    <li>Sound. The airship is silent, the fountain is silent, the sheep are silent.</li>
+    <li>Sound. The airship is silent.</li>
     <li>The course map, the Instrument panel and the Title and Results Scenes.</li>
   </ul>
 </div>
@@ -349,7 +340,7 @@ const M = {
   inkBlue: "#1f54c7", inkGreen: "#218c40", inkRed: "#cc2929", inkBlack: "#1f1f1f", inkBrown: "#73471f", inkOrange: "#ed7814", inkPurple: "#8038b3",
   // proposed
   canopyPine: "#2f7a3a", canopy: "#5cb04a", blossom: "#f2a3c0", trunk: "#5a3a1e",
-  water: "#3b7dd8", wool: "#f4f1ea", colaRed: "#cc2929", hull: "#f0f0f0",
+  hull: "#f0f0f0",
 };
 
 // Each proposed object: where it stands, its footprint for the clearance
@@ -407,64 +398,14 @@ const OBJECTS = [
     dont: "Don't fly it under 30 m over any road, and don't give it a sound.",
   },
   {
-    id: "pond", title: "The Spoon pond", tags: [], draw: "pond", stage: "",
-    world: { x: -330, y: 80 }, r: 8, moves: false, faces: 70,
-    where: "The pocket between 200R and Spoon's two apexes",
-    size: "16 m across, bank 1 m wide, fountain 4 m",
-    materials: "Water flat in a pond blue, the bank in sand, three lily pads in canopy green, the fountain three stacked white octahedra on a stand-plinth base",
-    motion: "None; the fountain could bob later",
-    why: "The west lobe is all grass. The back straight falls away from Spoon with the pond on its right, and 200R sweeps round it on the left; two long looks at the only blue on the course.",
-    dont: "Don't reflect anything in it. The water is a flat colour like every surface.",
-  },
-  {
-    id: "sheep", title: "The lawnmower sheep", tags: ["moving", "joke"], draw: "sheep", stage: "",
-    world: { x: -350, y: 86 }, r: 7, moves: true, faces: 170,
-    where: "A fenced paddock beside the pond, between Spoon's two apexes",
-    size: "Six sheep, each 1.2 m long; a fence 14 m across",
-    materials: "Wool an eight-facet lump in wool white and wool shade, head and legs in carbon shade, fence posts and rails in trunk brown",
-    motion: "Each grazes: a seeded walk at 0.3 m/s to a fresh spot every 10 s or so, never past the fence",
-    why: "They are why the grass is short. Spoon is the slowest part of the west lobe, so a driver has time to notice them, and six slow white blobs among the only trees on that side make the pocket read as a farm rather than a lawn.",
-    dont: "Don't let one out. A sheep on the run-off reads as an obstacle the sim does not know, and the paddock test holds the fence clear of the wall by the full wander radius.",
-  },
-  {
-    id: "fair", title: "The hairpin fair", tags: ["joke"], draw: "fair", stage: "",
-    world: { x: -295, y: 152 }, r: 8, moves: false, faces: 180,
+    id: "tent", title: "Oyaji's tea tent", tags: ["joke"], draw: "tent", stage: "",
+    world: { x: -295, y: 152 }, r: 4, moves: false, faces: 60,
     where: "Behind the hairpin-exit grandstand, outside the hairpin",
-    size: "A tea tent 5 m square, a stall 4 m long, three portaloos 1.2 m each",
-    materials: "Oyaji's tent a kerb-red canopy on four carbon posts with a kettle on a stool; the PIT STOP ESPRESSO stall a board counter under a red-and-white striped awning with a steam puff; the portaloos ink-blue boxes lettered BOX BOX BOX",
+    size: "A tent 5 m square, 3 m to the ridge; a stool and a kettle",
+    materials: "A kerb-red canopy, lit on the sun side, on four carbon posts; a stool in trunk brown; a kettle, one eight-facet lump in stand riser with a spout",
     motion: "None",
     why: "The hairpin is where every lap slows to walking pace, the one place a player can read a joke. The marshal has a tea on his stool at the wheel crossing; this is where he got it.",
-    dont: "Don't put Oyaji himself here. He is the marshal, and he is one character, not two.",
-  },
-  {
-    id: "cola", title: "The CHICANE COLA bottle", tags: ["joke"], draw: "cola", stage: "sky",
-    world: { x: -120, y: 72 }, r: 4, tall: true, moves: false, faces: 120,
-    where: "Outside the chicane's right-hander, 10 m beyond the wall",
-    size: "14 m tall, 5 m across the body",
-    materials: "A twelve-sided body in cola red with a lit and a shade strip, a kerb-white label lettered CHICANE COLA in ink red, a carbon cap, a stand-plinth base",
-    motion: "None",
-    why: "It stands at the end of the run from 130R, so it grows for four seconds before the chicane's braking zone, and the chicane is where the sausage kerb lives. The joke writes itself.",
-    dont: "Don't make it a can, and don't let the label face away from the chicane approach.",
-  },
-  {
-    id: "crane", title: "The camera crane at 130R", tags: [], draw: "crane", stage: "sky",
-    world: { x: -148, y: 6 }, r: 2, tall: true, moves: false, faces: 90, pin: [-14, -6],
-    where: "Outside 130R, on the slope between it and Dunlop",
-    size: "9 m lattice tower, a 4 m boom",
-    materials: "Lattice in carbon lit over carbon shade, a camera box in carbon with a wall-white lens, a single crowd pixel for the operator",
-    motion: "None; a pan that follows the leader would read the race, which is out of scope",
-    why: "130R is the fastest corner and the television shot. A crane on its outside tells a new player that this is the place to be brave, and the lens points at the apex.",
-    dont: "Don't build the lattice from lines: it is quads like everything else, or the wasm build's flat shading has nothing to light.",
-  },
-  {
-    id: "clock", title: "The LATE BRAKING BANK clock", tags: ["moving", "joke"], draw: "clock", stage: "sky",
-    world: { x: -40, y: 80 }, r: 4, tall: true, moves: true, faces: 110,
-    where: "Outside the final curve, facing the curve and the start straight",
-    size: "12 m tower, a 4 m clock face",
-    materials: "Tower in stand riser with a stand-plinth base, a shallow kerb-red roof, a kerb-white octagonal face with ink-black ticks, hands and lettering",
-    motion: "The hands read the viewer's clock, four minutes behind",
-    why: "The final curve is the lap's last look before the line, and a clock tower is what a circuit's last corner has. The bank's clock runs late. That is the whole joke, and it costs two nodes.",
-    dont: "Don't make it read race time; it is not a readout and the Instrument panel owns those.",
+    dont: "Don't put Oyaji himself here. He is the marshal, and he is one character, not two. And no lettering: a tent with a name is a stall.",
   },
 ];
 // The cherry row has a card of its own below the woods, since it is a different tree in a different place.
@@ -879,88 +820,13 @@ draw.airship = () => {
     ${text(160, 72, "SLIPSTREAM AIRWAYS", M.inkBlue, 15)}
   </svg>`;
 };
-draw.pond = () => {
-  const pad = (x, y) => `<circle cx="${x}" cy="${y}" r="7" fill="${M.canopy}"/><polygon points="${x},${y} ${x + 7},${y - 2} ${x + 7},${y + 2}" fill="${M.water}"/>`;
-  const jet = (y, r) => lump(4, 120, y, r, M.kerbWhite, 0);
-  return `<svg viewBox="0 0 240 160" role="img" aria-label="An octagonal pond with a fountain and lily pads">
-    ${poly(ngon(8, 120, 100, 104, Math.PI / 8).map(([x, y]) => [x, 100 + (y - 100) * 0.5]), M.sand)}
-    ${poly(ngon(8, 120, 100, 96, Math.PI / 8).map(([x, y]) => [x, 100 + (y - 100) * 0.5]), M.water)}
-    ${poly(ngon(8, 120, 100, 96, Math.PI / 8).map(([x, y]) => [x, 100 + (y - 100) * 0.5]).filter((p) => p[0] < 120).concat([[120, 100]]), lit(M.water), 'opacity=".5"')}
-    ${pad(70, 118)}${pad(170, 92)}${pad(150, 126)}
-    <rect x="110" y="98" width="20" height="8" fill="${M.standPlinth}"/>
-    ${jet(88, 9)}${jet(72, 8)}${jet(58, 7)}
+draw.tent = () => `<svg viewBox="0 0 240 160" role="img" aria-label="Oyaji's tea tent: a red canopy on four posts, a stool and a kettle">
+    ${ground(240, 152)}
+    <rect x="70" y="70" width="3" height="70" fill="${M.carbon}"/><rect x="166" y="70" width="3" height="70" fill="${M.carbon}"/>
+    ${poly([[58, 72], [182, 72], [120, 28]], M.canopyRed)}${poly([[58, 72], [120, 28], [120, 72]], lit(M.canopyRed))}
+    <rect x="106" y="118" width="26" height="4" fill="${M.trunk}"/><rect x="110" y="122" width="3" height="18" fill="${M.trunk}"/><rect x="125" y="122" width="3" height="18" fill="${M.trunk}"/>
+    ${lump(8, 119, 110, 8, M.standRiser, 0)}<rect x="126" y="104" width="6" height="2" fill="${M.standRiser}"/>
   </svg>`;
-};
-draw.sheep = () => {
-  const sheep = (x, y, flip) => {
-    const d = flip ? -1 : 1;
-    return `<g transform="translate(${x} ${y}) scale(${d} 1)">
-      <rect x="-14" y="8" width="4" height="12" fill="${M.carbonShade}"/><rect x="-6" y="8" width="4" height="12" fill="${M.carbonShade}"/><rect x="4" y="8" width="4" height="12" fill="${M.carbonShade}"/><rect x="11" y="8" width="4" height="12" fill="${M.carbonShade}"/>
-      ${lump(8, 0, 0, 20, M.wool)}
-      <rect x="14" y="-10" width="14" height="14" rx="2" fill="${M.carbonShade}"/><rect x="26" y="-6" width="3" height="5" fill="${M.carbonShade}"/>
-      ${poly([[16, -10], [20, -16], [24, -10]], M.carbonShade)}</g>`;
-  };
-  let fence = "";
-  for (let x = 14; x < 240; x += 36) fence += `<rect x="${x}" y="40" width="4" height="40" fill="${M.trunk}"/>`;
-  fence += `<rect x="10" y="48" width="224" height="3" fill="${M.trunk}"/><rect x="10" y="66" width="224" height="3" fill="${M.trunk}"/>`;
-  return `<svg viewBox="0 0 240 160" role="img" aria-label="Three low-poly sheep grazing behind a rail fence">
-    ${fence}${sheep(60, 118, false)}${sheep(150, 126, true)}${sheep(205, 108, false)}
-  </svg>`;
-};
-draw.fair = () => `<svg viewBox="0 0 320 160" role="img" aria-label="The hairpin fair: a tea tent, an espresso stall and three portaloos">
-    ${ground(320, 152)}
-    <rect x="18" y="70" width="3" height="70" fill="${M.carbon}"/><rect x="94" y="70" width="3" height="70" fill="${M.carbon}"/>
-    ${poly([[8, 72], [108, 72], [58, 34]], M.canopyRed)}${poly([[8, 72], [58, 34], [58, 72]], lit(M.canopyRed))}
-    <rect x="44" y="118" width="26" height="4" fill="${M.trunk}"/><rect x="48" y="122" width="3" height="18" fill="${M.trunk}"/><rect x="63" y="122" width="3" height="18" fill="${M.trunk}"/>
-    ${lump(8, 57, 110, 8, M.standRiser, 0)}<rect x="64" y="104" width="6" height="2" fill="${M.standRiser}"/>
-    <rect x="128" y="96" width="90" height="44" fill="${M.board}"/><rect x="128" y="96" width="90" height="6" fill="${M.standPlinth}"/>
-    ${Array.from({ length: 9 }, (_, i) => `<rect x="${124 + i * 11}" y="80" width="11" height="14" fill="${i % 2 ? M.kerbWhite : M.kerbRed}"/>`).join("")}
-    ${poly([[124, 94], [223, 94], [223, 98], [124, 98]], M.canopyShade)}
-    ${text(173, 124, "PIT STOP ESPRESSO", M.inkBrown, 8)}
-    <circle cx="190" cy="66" r="6" fill="${M.kerbWhite}" opacity=".9"/><circle cx="198" cy="56" r="5" fill="${M.kerbWhite}" opacity=".7"/><circle cx="204" cy="47" r="4" fill="${M.kerbWhite}" opacity=".5"/>
-    ${[0, 1, 2].map((i) => { const x = 236 + i * 26; return `<rect x="${x}" y="88" width="22" height="52" fill="${M.inkBlue}"/><rect x="${x}" y="88" width="22" height="5" fill="${lit(M.inkBlue)}"/><rect x="${x + 16}" y="92" width="4" height="48" fill="${shade(M.inkBlue)}"/><rect x="${x + 4}" y="100" width="10" height="2" fill="${M.kerbWhite}"/>`; }).join("")}
-    ${text(275, 82, "BOX BOX BOX", M.inkRed, 7)}
-  </svg>`;
-draw.cola = () => {
-  const c = M.colaRed;
-  const body = [[96, 60], [144, 60], [150, 72], [150, 150], [90, 150], [90, 72]];
-  return `<svg viewBox="0 0 240 180" role="img" aria-label="A fourteen-metre Chicane Cola bottle">
-    ${ground(240, 168)}
-    <rect x="84" y="150" width="72" height="12" fill="${M.standPlinth}"/>
-    ${poly([[110, 22], [130, 22], [134, 60], [106, 60]], c)}${poly([[110, 22], [116, 22], [113, 60], [106, 60]], lit(c))}
-    ${poly(body, c)}${poly([[96, 60], [106, 60], [100, 150], [90, 150], [90, 72]], lit(c))}${poly([[134, 60], [144, 60], [150, 72], [150, 150], [138, 150]], shade(c))}
-    <rect x="108" y="12" width="24" height="12" fill="${M.carbon}"/><rect x="108" y="12" width="24" height="3" fill="${M.carbonLit}"/>
-    <rect x="90" y="92" width="60" height="30" fill="${M.kerbWhite}"/>
-    ${text(120, 108, "CHICANE", M.inkRed, 10)}${text(120, 119, "COLA", M.inkRed, 10)}
-  </svg>`;
-};
-draw.crane = () => {
-  let lattice = "";
-  for (let y = 40; y < 160; y += 24) lattice += `<line x1="100" y1="${y}" x2="140" y2="${y + 24}" stroke="${M.carbonLit}" stroke-width="2"/><line x1="140" y1="${y}" x2="100" y2="${y + 24}" stroke="${M.carbonLit}" stroke-width="2"/><rect x="100" y="${y}" width="40" height="2" fill="${M.carbonLit}"/>`;
-  return `<svg viewBox="0 0 240 180" role="img" aria-label="A lattice camera tower with a long lens pointing at the apex">
-    ${ground(240, 170)}
-    <rect x="96" y="36" width="6" height="128" fill="${M.carbon}"/><rect x="138" y="36" width="6" height="128" fill="${M.carbonShade}"/>${lattice}
-    <rect x="88" y="30" width="64" height="8" fill="${M.standPlinth}"/>
-    <rect x="104" y="8" width="34" height="24" fill="${M.carbon}"/><rect x="104" y="8" width="34" height="5" fill="${M.carbonLit}"/>
-    <rect x="52" y="14" width="52" height="12" fill="${M.carbonShade}"/><rect x="44" y="11" width="10" height="18" fill="${M.wall}"/>
-    <rect x="144" y="12" width="6" height="18" fill="${KEYS[3]}"/><rect x="144" y="6" width="6" height="6" fill="${M.canopyShade}"/>
-  </svg>`;
-};
-draw.clock = () => {
-  const now = new Date(Date.now() - 4 * 60 * 1000);
-  const mins = now.getMinutes(), hrs = (now.getHours() % 12) + mins / 60;
-  const hand = (deg, len, w) => `<line x1="120" y1="68" x2="${120 + len * Math.sin(rad(deg))}" y2="${68 - len * Math.cos(rad(deg))}" stroke="${M.inkBlack}" stroke-width="${w}" stroke-linecap="round"/>`;
-  const ticks = Array.from({ length: 12 }, (_, i) => { const a = rad(i * 30); return `<line x1="${120 + 26 * Math.sin(a)}" y1="${68 - 26 * Math.cos(a)}" x2="${120 + 30 * Math.sin(a)}" y2="${68 - 30 * Math.cos(a)}" stroke="${M.inkBlack}" stroke-width="2"/>`; }).join("");
-  return `<svg viewBox="0 0 240 180" role="img" aria-label="A clock tower whose hands run four minutes late">
-    ${ground(240, 170)}
-    <rect x="84" y="150" width="72" height="14" fill="${M.standPlinth}"/>
-    <rect x="92" y="38" width="56" height="112" fill="${M.standRiser}"/><rect x="92" y="38" width="12" height="112" fill="${lit(M.standRiser)}"/><rect x="138" y="38" width="10" height="112" fill="${M.standPlinth}"/>
-    ${poly([[84, 40], [156, 40], [120, 22]], M.canopyRed)}${poly([[84, 40], [120, 22], [120, 40]], lit(M.canopyRed))}
-    ${poly(ngon(8, 120, 68, 34, Math.PI / 8), M.kerbWhite)}${ticks}
-    ${hand(hrs * 30, 16, 4)}${hand(mins * 6, 24, 3)}<circle cx="120" cy="68" r="3" fill="${M.inkBlack}"/>
-    ${text(120, 118, "LATE", M.inkPurple, 9)}${text(120, 130, "BRAKING", M.inkPurple, 9)}${text(120, 142, "BANK", M.inkPurple, 9)}
-  </svg>`;
-};
 
 function fillCards() {
   const host = document.getElementById("cards");
