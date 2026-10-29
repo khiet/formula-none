@@ -190,6 +190,17 @@ fn brands_patchs_hazard_zone_reaches_as_far_as_the_wheel_can_land_and_its_tyre_b
 }
 
 #[test]
+fn brands_patchs_wheel_crossing_reads_its_own_leg_past_the_bridge_not_the_deck_above() {
+    // The crossing is 28 m past the bridge on the run to the hairpin,
+    // 601.8 m into the lap; the deck it passes under is 1020.7 m in.
+    let track = brands_patch();
+    let [progress] = track.wheel_crossing_progress() else {
+        panic!("one crossing: {:?}", track.wheel_crossings());
+    };
+    assert!((progress - 601.8).abs() < 1.0, "{progress} m");
+}
+
+#[test]
 fn a_wheel_crossing_too_wide_for_a_pass_and_its_flag_to_fit_in_the_period_is_rejected() {
     let crossing = |half_width: f32| {
         let mut sidecar: serde_json::Value = serde_json::from_str(OVAL).unwrap();
