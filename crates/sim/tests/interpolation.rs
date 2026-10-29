@@ -25,6 +25,7 @@ fn kart_at(x: f32) -> KartReadout {
         rotation: [0.0, 0.0, 0.0, 1.0],
         speed: 0.0,
         velocity: [0.0; 3],
+        bump: None,
         drift: None,
         mini_turbo: MiniTurbo::None,
         held_item: None,

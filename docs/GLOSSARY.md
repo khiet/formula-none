@@ -232,8 +232,8 @@ of letting one push the other along; the kart that drove in loses speed and
 the kart hit keeps its own. A new bump replaces one under way, never adds
 to it. A contact never turns a kart: only steering does. Resolved on the
 server; the client's prediction runs the same rule against the other karts'
-kinematic stand-ins and keeps its own bump on a rewind, since a snapshot
-does not carry one.
+kinematic stand-ins, and a snapshot carries each kart's bump, so a rewind
+takes the server's bump in place of the prediction's own.
 
 ### livery
 

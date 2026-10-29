@@ -187,6 +187,7 @@ const KART: KartSnapshot = {
   position: [10, 0.3, -20],
   rotation: [0, 0, 0, 1],
   velocity: [0, 0, -12],
+  bump: null,
   drift: null,
   racePosition: 3,
   lap: 2,

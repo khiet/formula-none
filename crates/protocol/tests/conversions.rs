@@ -9,7 +9,7 @@ use sim::{Drift, DriftDirection, Item, KartInput, KartReadout, MiniTurbo, RaceEv
 /// default: drifting left at red, holding a hazard, a hop and an orange
 /// boost under way, spun out, stalled, third on lap 2 and going the wrong way.
 /// Turned a quarter left, so its facing is -X and its velocity runs along
-/// it at 12 m/s, rising.
+/// it at 12 m/s, rising, with a bump from a touch carrying it sideways.
 fn busy_kart() -> KartReadout {
     let half = std::f32::consts::FRAC_1_SQRT_2;
     KartReadout {
@@ -17,6 +17,7 @@ fn busy_kart() -> KartReadout {
         rotation: [0.0, half, 0.0, half],
         speed: 12.5,
         velocity: [-12.0, 0.5, 0.0],
+        bump: Some([0.0, 0.0, 3.0]),
         drift: Some(Drift {
             direction: DriftDirection::Left,
             charge_s: 0.75,

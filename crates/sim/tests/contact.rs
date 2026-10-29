@@ -307,9 +307,9 @@ fn a_correction_during_a_bump_keeps_the_own_karts_speed_and_recoil() {
         (moved - 0.3).abs() < 0.05,
         "rewound to the snapshot: moved {moved} m"
     );
-    // A snapshot carries no bump, so the prediction keeps its own and
-    // reads the speed from the snapshot's velocity with that bump taken
-    // off, instead of counting the bump against the speed twice.
+    // The snapshot carries the bump the touch left, so the prediction
+    // takes it and reads the speed from the snapshot's velocity with that
+    // bump taken off, instead of counting the bump against the speed twice.
     let after = prediction.kart_readout();
     assert!(
         (after.speed - before.speed).abs() < 0.5,

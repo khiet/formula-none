@@ -221,15 +221,21 @@ impl Handling {
     }
 
     /// Take on a snapshot's word on the kart's motion: turned by `rotation`,
-    /// in `drift`, moving at `velocity`. The bump is not carried by a
-    /// snapshot, so the kart's own stands, and the speed is what the
-    /// velocity holds along the travel once that bump is taken off, as
-    /// `tick` built it.
-    pub(crate) fn adopt(&mut self, rotation: Rotation, drift: Option<Drift>, velocity: Vec3) {
+    /// in `drift`, moving at `velocity` and carrying `bump`, which replaces
+    /// the kart's own. The speed is what the velocity holds along the
+    /// travel once the bump is taken off, as `tick` built it.
+    pub(crate) fn adopt(
+        &mut self,
+        rotation: Rotation,
+        drift: Option<Drift>,
+        velocity: Vec3,
+        bump: Vec3,
+    ) {
         self.drift = drift;
         let slip = drift.map_or(0.0, |drift| drift_slip(drift.direction));
         self.travel = rotation * Rotation::from_rotation_y(slip) * Vec3::NEG_Z;
-        self.speed = self.travel.dot(velocity - self.bump);
+        self.bump = bump;
+        self.speed = self.travel.dot(velocity - bump);
     }
 
     /// Feed everything a later tick reads into the state hash. `travel` is

@@ -26,6 +26,14 @@ speed: number,
  */
 velocity: [number, number, number], 
 /**
+ * The bump the kart carries from a kart or tyre wall it touched, in
+ * metres per second, while it carries one: the part of `velocity`
+ * that is not its own driving, which decays away over the tuned time.
+ * A snapshot carries it so a prediction's kart adopts the server's
+ * bump on a rewind instead of keeping its own.
+ */
+bump: [number, number, number] | null, 
+/**
  * The drift the kart is in; `None` when it is not drifting.
  */
 drift: Drift | null, 
