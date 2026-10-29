@@ -40,7 +40,12 @@ No key pair exists. Open a shell through Session Manager:
 aws ssm start-session --profile neconote --target "$(tofu output -raw instance_id)"
 ```
 
-Grafana is reached the same way, with a port forward (ADR 0015).
+Grafana is reached the same way, through a port forward that one command
+opens (ADR 0015; `deploy/README.md` has the dashboard):
+
+```sh
+AWS_PROFILE=neconote deploy/grafana.sh
+```
 
 ## Deploying
 

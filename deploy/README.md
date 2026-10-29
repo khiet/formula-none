@@ -10,8 +10,8 @@ has passed on a push to main:
 
 1. Builds the image from the `Dockerfile` for arm64 and pushes it to ECR
    tagged with the commit. The image holds the server binary and, under
-   `/release`, this directory's `compose.yaml` and `Caddyfile` plus the
-   built client.
+   `/release`, this directory's `compose.yaml`, `Caddyfile`,
+   `prometheus.yml` and `grafana/` plus the built client.
 2. Runs `deploy/deploy.sh <commit>`: the deploy document (an SSM Run Command
    defined in `infra/deploy.tf`) pulls the image on the instance, copies
    `/release` out of it to `/opt/formula-none/release`, and runs
@@ -87,6 +87,7 @@ WEBTRANSPORT_PROBE_CA=/tmp/caddy-root.crt \
 | `/api/version` | server    | `{"commit":"<deployed sha>"}`                 |
 | `/api/ws`      | server    | WebSocket carrying the protocol's messages    |
 | `/wt`          | server    | WebTransport session on 443 UDP, same messages |
+| `/metrics`     | server    | Prometheus text format; Compose network only  |
 
 The server listens on 8080 inside the Compose network; Caddy publishes 443
 TCP and proxies `/api/*`, the WebSocket fallback included. HTTP/3 is off in
@@ -94,6 +95,48 @@ Caddy so 443 UDP is the server's: it terminates QUIC itself for WebTransport
 (ADR 0011) and the Compose file publishes it. The server exits promptly on
 SIGTERM, closing open sessions, so a `docker compose restart server`
 completes well inside Docker's ten-second grace period.
+
+## Metrics
+
+Whether the netcode works is read off one Grafana dashboard (ADR 0018). The
+server records five instruments with the OpenTelemetry metrics SDK and
+serves them at `/metrics` in Prometheus's text format; Caddy proxies only
+`/api/*`, so the endpoint never leaves the Compose network. The
+`prometheus` service scrapes it every 15 s and keeps 15 days or 1 GB of
+samples, whichever fills first. The `grafana` service is provisioned from
+`grafana/provisioning` (the Prometheus data source) and
+`grafana/dashboards/netcode.json` (the dashboard, five panels):
+
+| Panel                              | Series                                            |
+| ---------------------------------- | ------------------------------------------------- |
+| Tick duration                      | histogram, p50 and p99 against the 16.7 ms budget |
+| Players per room                   | gauge per room, closed rooms drop off             |
+| Round-trip time per client         | histogram per room and slot, p95                  |
+| Packet loss per client             | gauge per room and slot over the last 64 probes   |
+| Corrections per second per client  | gauge per room and slot, reported at race end     |
+
+The server measures the round trip and the loss itself: once a second it
+sends every seated player a `Ping` on the datagram lane, the client answers
+with a `Pong`, and a probe not answered before the next one counts as lost
+(ADR 0049). The client reports one number of its own, its reconciliation
+corrections per second, when the server says the race ended.
+
+Grafana listens on the instance's loopback only, so the one way in is an
+SSM port forward, which one command opens:
+
+```sh
+AWS_PROFILE=neconote deploy/grafana.sh
+```
+
+Then browse `http://localhost:3000`; Session Manager has authenticated you,
+so there is no login. Ctrl-C ends the session. `INSTANCE_ID` skips the
+OpenTofu lookup and `GRAFANA_LOCAL_PORT` moves the local end.
+
+Both services run on the one instance and add no AWS resource, so the
+estimate in ADR 0015, about USD 20 a month, stands under the USD 25 ceiling
+of ADR 0017; Prometheus's samples are capped at 1 GB of the root volume
+already paid for. Running the stack locally (above) brings them up too, with
+Grafana at `http://localhost:3000` directly.
 
 ## The certificate and its renewal
 

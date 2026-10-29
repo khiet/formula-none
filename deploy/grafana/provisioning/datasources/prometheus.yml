@@ -1,0 +1,11 @@
+# The one data source: the Prometheus beside Grafana in the Compose stack.
+# The dashboard names it by uid.
+apiVersion: 1
+datasources:
+  - name: Prometheus
+    type: prometheus
+    uid: prometheus
+    access: proxy
+    url: http://prometheus:9090
+    isDefault: true
+    editable: false
