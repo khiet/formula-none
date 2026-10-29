@@ -22,7 +22,7 @@ from trackgen.layout import (
     build,
 )
 from trackgen.layouts import load
-from trackgen.props import CANOPY_RADIUS_M, TREE_HEIGHT_M, pieces_of, scatter
+from trackgen.props import CANOPY_RADIUS_M, SUN_AZIMUTH, pieces_of, scatter
 
 BUILD_PY = Path(__file__).resolve().parents[1] / "build.py"
 # The only shipped track with woods; the oval stays bare.
@@ -36,6 +36,22 @@ TREE_MATERIALS = {
     "blossom-shade",
     "trunk",
 }
+# The Woods card's sizes, by kind and whether the tree is young.
+HEIGHT_M = {("pine", False): 7.0, ("round", False): 5.0, ("round", True): 3.0, ("cherry", False): 5.0}
+
+
+def normal(face: list[mesh.Vertex]) -> mesh.Vertex:
+    a, b, c = face[0], face[1], face[2]
+    u = (b[0] - a[0], b[1] - a[1], b[2] - a[2])
+    v = (c[0] - a[0], c[1] - a[1], c[2] - a[2])
+    n = (u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0])
+    length = math.sqrt(sum(c * c for c in n))
+    return n[0] / length, n[1] / length, n[2] / length
+
+
+def faces_of(data: mesh.Mesh) -> list[list[mesh.Vertex]]:
+    vertices, faces = data
+    return [[vertices[v] for v in face] for face in faces]
 
 
 def every_tree(layout):
@@ -121,7 +137,7 @@ class Trees(unittest.TestCase):
         for tree in every_tree(layout):
             with self.subTest(tree=tree):
                 top = max(v[2] for _, piece in pieces_of(tree) for v in piece[0])
-                self.assertAlmostEqual(top, -GRASS_DROP_M + TREE_HEIGHT_M[tree.kind, tree.young], places=6)
+                self.assertAlmostEqual(top, -GRASS_DROP_M + HEIGHT_M[tree.kind, tree.young], places=6)
 
     def test_each_kind_is_the_cards_shape(self) -> None:
         layout = load(WOODED)
@@ -143,6 +159,16 @@ class Trees(unittest.TestCase):
             with self.subTest(kind=kind):
                 canopy = {"pine": "canopy-pine", "round": "canopy", "cherry": "blossom"}[kind]
                 self.assertEqual(set(faces), {canopy, f"{canopy}-shade", "trunk"})
+
+    def test_a_facet_is_lit_when_it_faces_up_and_toward_the_sun(self) -> None:
+        pieces = woods_pieces(WOODED)
+        for canopy in ("canopy-pine", "canopy", "blossom"):
+            lit = [normal(face) for face in faces_of(pieces[canopy])]
+            shade = [normal(face) for face in faces_of(pieces[f"{canopy}-shade"])]
+            self.assertTrue(lit and shade, canopy)
+            toward = lambda n: n[2] >= 0.0 and n[0] * SUN_AZIMUTH[0] + n[1] * SUN_AZIMUTH[1] >= 0.0
+            self.assertTrue(all(toward(n) for n in lit), f"{canopy}: every lit facet faces up and toward the sun")
+            self.assertFalse(any(toward(n) for n in shade), f"{canopy}: no shaded facet does")
 
     def test_the_oval_has_no_woods(self) -> None:
         self.assertEqual(woods_pieces("oval"), {})
