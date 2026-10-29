@@ -10,6 +10,12 @@ import type { Start } from "./Start";
  */
 export type KartSnapshot = { position: [number, number, number], rotation: [number, number, number, number], velocity: [number, number, number], 
 /**
+ * The bump the kart carries from a touch, while it carries one: the
+ * part of its velocity that is not its own driving, so a prediction
+ * rewound to this snapshot carries the server's bump, not its own.
+ */
+bump: [number, number, number] | null, 
+/**
  * The drift under way, if any.
  */
 drift: DriftSnapshot | null, 

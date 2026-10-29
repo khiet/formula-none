@@ -96,6 +96,12 @@ pub struct KartReadout {
     /// travel, which a drift slips from the facing, and the vertical motion
     /// of a hop or a fall.
     pub velocity: [f32; 3],
+    /// The bump the kart carries from a kart or tyre wall it touched, in
+    /// metres per second, while it carries one: the part of `velocity`
+    /// that is not its own driving, which decays away over the tuned time.
+    /// A snapshot carries it so a prediction's kart adopts the server's
+    /// bump on a rewind instead of keeping its own.
+    pub bump: Option<[f32; 3]>,
     /// The drift the kart is in; `None` when it is not drifting.
     pub drift: Option<Drift>,
     /// The tier the drift has charged, the sparks' tell; `MiniTurbo::None`
@@ -593,6 +599,10 @@ impl Kart {
             rotation: body.rotation().to_array(),
             speed: self.handling.speed(),
             velocity: body.linvel().to_array(),
+            bump: {
+                let bump = self.handling.bump();
+                (bump != Vec3::ZERO).then_some(bump.to_array())
+            },
             drift: self.handling.drift(),
             mini_turbo: MiniTurbo::of(self.handling.drift()),
             held_item: self.held_item,
@@ -624,6 +634,7 @@ impl Kart {
             Rotation::from_array(readout.rotation).normalize(),
             readout.drift,
             Vec3::from(readout.velocity),
+            readout.bump.map_or(Vec3::ZERO, Vec3::from),
         );
         self.held_item = readout.held_item;
         // A spin-out the readout does not have is a hit the server never

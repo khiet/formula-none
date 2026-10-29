@@ -12,6 +12,7 @@ export const RESTING_KART: KartReadout = Object.freeze({
   surface: "asphalt",
   speed: 0,
   velocity: [0, 0, 0] as [number, number, number],
+  bump: null,
   drift: null,
   miniTurbo: "none",
   heldItem: null,

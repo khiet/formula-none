@@ -2,7 +2,9 @@
 
 ## Status
 
-Accepted (2026-10-23).
+Accepted (2026-10-23). The last point of its decision, that a snapshot does
+not carry the bump and the prediction keeps its own on a rewind, is
+superseded by ADR 0048.
 
 ## Context
 

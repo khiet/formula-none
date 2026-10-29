@@ -7,12 +7,9 @@
 
 mod common;
 
-use common::{started, ticks, track, with_slot_at, DT, OVAL, SEED};
+use common::{started, ticks, track, with_slot_at, BUMP_SPENT_S, DT, OVAL, SEED};
 
-use sim::tuning::{
-    KART_BUMP_DECAY_S, KART_BUMP_SPEED_LOSS, KART_HALF_LENGTH_M, KART_HALF_WIDTH_M,
-    TOP_SPEED_M_PER_S,
-};
+use sim::tuning::{KART_BUMP_SPEED_LOSS, KART_HALF_LENGTH_M, KART_HALF_WIDTH_M, TOP_SPEED_M_PER_S};
 use sim::{step, KartInput, KartReadout, Prediction, State, Track};
 
 /// Centres this far apart along the column are nose to tail.
@@ -96,10 +93,6 @@ fn first_hit(trace: &[[KartReadout; 2]]) -> usize {
 /// the closing speed, its own; this much of the speed may survive, with a
 /// tenth to spare for the tick's acceleration and the solver's part.
 const SURVIVING_SPEED_SHARE: f32 = 1.0 - KART_BUMP_SPEED_LOSS + 0.1;
-
-/// Seconds for a bump to decay to nothing a kart could show: five of its
-/// decay times leave under a percent of it.
-const BUMP_SPENT_S: f32 = 5.0 * KART_BUMP_DECAY_S;
 
 #[test]
 fn a_kart_driven_into_the_back_of_another_bounces_off_and_slows_instead_of_pushing_it_along() {
@@ -215,11 +208,32 @@ fn a_bump_dies_away_and_the_kart_hit_comes_to_rest_again() {
         pushed > 5.0,
         "the kart hit is shunted on up the column: {pushed} m/s"
     );
+    // The push is the bump the readout carries: up the column, and the
+    // whole of the kart's motion, since its speed is still nothing.
+    let carried = trace[touch + 1][1];
+    let bump = carried.bump.expect("the kart hit carries a bump");
+    assert!(bump[2] < -5.0, "the bump is up the column: {bump:?}");
+    assert!(
+        (bump[0] - carried.velocity[0]).abs() < 1e-3
+            && (bump[2] - carried.velocity[2]).abs() < 1e-3,
+        "the bump is all the kart's motion along the ground: {bump:?} of {:?}",
+        carried.velocity
+    );
     let settled = trace[touch + ticks(BUMP_SPENT_S)][1];
     let moving = (settled.velocity[0].powi(2) + settled.velocity[2].powi(2)).sqrt();
     assert!(
         moving < 0.1,
         "{BUMP_SPENT_S} s on the push is spent and the kart stands: {moving} m/s"
+    );
+    // Decayed below what the handling keeps, the bump drops off the
+    // readout too.
+    let gone = trace[touch..]
+        .iter()
+        .position(|karts| karts[1].bump.is_none())
+        .expect("a spent bump is not carried");
+    assert!(
+        gone > ticks(BUMP_SPENT_S),
+        "carried while it could show: gone after {gone} ticks"
     );
 }
 
@@ -307,9 +321,9 @@ fn a_correction_during_a_bump_keeps_the_own_karts_speed_and_recoil() {
         (moved - 0.3).abs() < 0.05,
         "rewound to the snapshot: moved {moved} m"
     );
-    // A snapshot carries no bump, so the prediction keeps its own and
-    // reads the speed from the snapshot's velocity with that bump taken
-    // off, instead of counting the bump against the speed twice.
+    // The snapshot carries the bump the touch left, so the prediction
+    // takes it and reads the speed from the snapshot's velocity with that
+    // bump taken off, instead of counting the bump against the speed twice.
     let after = prediction.kart_readout();
     assert!(
         (after.speed - before.speed).abs() < 0.5,

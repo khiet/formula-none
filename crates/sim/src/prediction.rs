@@ -447,10 +447,11 @@ impl Prediction {
 }
 
 /// Whether the snapshot puts the kart where the record does, to the tuned
-/// tolerance: its position, its nose, the tick of travel its velocity
-/// makes, its drift, its item, its spin-out, its stall, its place in the
-/// lap and, once `racing`, its rocket start's verdict; during the countdown
-/// the start is not compared, since a kart adopts it only from Go.
+/// tolerance: its position, its nose, the tick of travel its velocity and
+/// its bump make, its drift, its item, its spin-out, its stall, its place
+/// in the lap and, once `racing`, its rocket start's verdict; during the
+/// countdown the start is not compared, since a kart adopts it only from
+/// Go.
 fn agrees(record: &KartRecord, kart: &KartReadout, racing: bool) -> bool {
     let nose = |rotation: Rotation| rotation * Vec3::NEG_Z * KART_HALF_LENGTH_M;
     let near = |a: Vec3, b: Vec3| a.distance(b) <= RECONCILIATION_TOLERANCE_M;
@@ -468,6 +469,10 @@ fn agrees(record: &KartRecord, kart: &KartReadout, racing: bool) -> bool {
             nose(Rotation::from_array(kart.rotation)),
         )
         && near(record.linvel * TICK_S, Vec3::from(kart.velocity) * TICK_S)
+        && near(
+            record.kart.handling.bump() * TICK_S,
+            kart.bump.map_or(Vec3::ZERO, Vec3::from) * TICK_S,
+        )
         && drift
         && record.kart.held_item == kart.held_item
         && (record.kart.spin_out_left_s.max(0.0) - kart.spin_out_s.unwrap_or(0.0)).abs()

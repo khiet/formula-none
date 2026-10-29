@@ -3,7 +3,7 @@
 //! Each test binary compiles this module and uses only some of it.
 #![allow(dead_code)]
 
-use sim::tuning::{BOT_LOOKAHEAD_M, TICKS_PER_SECOND};
+use sim::tuning::{BOT_LOOKAHEAD_M, KART_BUMP_DECAY_S, TICKS_PER_SECOND};
 use sim::{step, KartInput, KartReadout, Phase, State, Track};
 
 pub const OVAL: &str = include_str!("../../../../assets/tracks/oval/oval.track.json");
@@ -47,6 +47,10 @@ pub fn started(mut state: State) -> State {
 pub fn ticks(seconds: f32) -> usize {
     (seconds * TICKS_PER_SECOND as f32).round() as usize
 }
+
+/// Seconds for a bump to decay to nothing a kart could show: five of its
+/// decay times leave under a percent of it.
+pub const BUMP_SPENT_S: f32 = 5.0 * KART_BUMP_DECAY_S;
 
 /// Yaw in radians recovered from the rotation quaternion `[x, y, z, w]`.
 pub fn yaw(rotation: [f32; 4]) -> f32 {

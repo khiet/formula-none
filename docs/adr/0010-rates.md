@@ -49,3 +49,9 @@ Landed with issue 17 (2026-10-19).
   the quarter over 400 the size test allowed; the test now holds the
   sample to a quarter either side of 500, so the gate still catches a
   per-kart field that does not belong.
+- Issue 64 (2026-10-29) added each kart's bump to every snapshot, carried
+  only while the kart has one, so a prediction rewound to the snapshot
+  takes the server's bump instead of keeping its own. The busy sample,
+  with one kart bumped, is 570 bytes; the budget holds while few karts
+  carry one, and a pile-up of all eight would pass the size test's cap
+  for the ticks their bumps last.

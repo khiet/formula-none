@@ -28,7 +28,7 @@ use ts_rs::TS;
 /// [`ClientMessage::Join`] and the server refuses a mismatch with
 /// [`Refusal::VersionMismatch`] (ADR 0013). The generator exports it next to
 /// the types, so the web app reads the same constant.
-pub const PROTOCOL_VERSION: u16 = 10;
+pub const PROTOCOL_VERSION: u16 = 11;
 
 /// What a client sends the server.
 #[derive(Serialize, Deserialize, TS, Debug, Clone, PartialEq)]
@@ -286,6 +286,10 @@ pub struct KartSnapshot {
     pub position: [f32; 3],
     pub rotation: [f32; 4],
     pub velocity: [f32; 3],
+    /// The bump the kart carries from a touch, while it carries one: the
+    /// part of its velocity that is not its own driving, so a prediction
+    /// rewound to this snapshot carries the server's bump, not its own.
+    pub bump: Option<[f32; 3]>,
     /// The drift under way, if any.
     pub drift: Option<DriftSnapshot>,
     /// Race position from 1, as the sim orders it.
