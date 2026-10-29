@@ -6,7 +6,7 @@ sidecar the sim reads (ADR 0007):
 | Track                | Role                              | Files                                   |
 | -------------------- | --------------------------------- | --------------------------------------- |
 | `oval`               | test fixture for the sim's tests  | `oval/oval.glb`, `oval/oval.track.json` |
-| `brands-patch`       | the race track                    | `brands-patch/brands-patch.glb`, `...track.json` |
+| `brands-patch`       | the race track, Suzuqa Patch      | `brands-patch/brands-patch.glb`, `...track.json` |
 
 ## Export
 
@@ -99,8 +99,13 @@ start line's checkers, a carbon plate with orange chevrons on each boost
 pad and a striped yellow capsule on each sausage kerb, each sized to the
 sim's rectangle, a white marshal post with an orange lamp on the outside
 run-off beside each wheel crossing, plus what a layout's decor asks for: hoardings with the
-sponsors in `trackgen/sponsors.py` (invented, every one), and grandstands
-and the start gantry built from boxes to the style guide's entries.
+sponsors in `trackgen/sponsors.py` (invented, every one), grandstands
+and the start gantry built from boxes to the style guide's entries, and
+a bridge where the course crosses itself: a grass embankment under the
+raised leg down to the ground, white abutments either side of the span
+over the leg beneath, and the deck's sides and grey underside. Bridges
+are scenery, so a layout declares one in its decor and the sidecar never
+changes for it.
 Original names only; nothing may resemble a real sponsor, a Nintendo
 character or circuit (ADR 0007), and no kart carries a sponsor (ADR 0038).
 

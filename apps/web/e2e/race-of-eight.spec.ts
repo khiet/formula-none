@@ -3,8 +3,8 @@ import { type BrowserContext, expect, type Page, test } from "@playwright/test";
 import { loadBridge } from "../src/bridge";
 import { autopilot, centreline } from "./autopilot";
 
-// Eight browser tabs on one machine complete a three-lap race on greybox
-// Brands Patch (issue 17): every tab is a human on the grid, so the race
+// Eight browser tabs on one machine complete a race on Suzuqa Patch:
+// every tab is a human on the grid, so the race
 // ends only when one of them finishes. The creator's tab is driven by an
 // autopilot that reads the kart's place from the snapshots on the page's
 // own WebSocket, decoded through the bridge, and presses the arrow keys;
@@ -27,7 +27,7 @@ async function roomCode(page: Page): Promise<string> {
   return code;
 }
 
-test("eight tabs complete a three-lap race on Brands Patch", async ({ browser }) => {
+test("eight tabs complete a race on Suzuqa Patch", async ({ browser }) => {
   const bridge = await loadBridge(readFileSync(WASM));
   const line = centreline();
   // One tab per kart on the grid, so no bot races.

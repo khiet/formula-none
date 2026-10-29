@@ -1,5 +1,5 @@
-"""Runaway wheel crossings checked without Blender: one across the middle of
-the Brands Patch approach to hairpin two, wall to wall, painted as a hazard
+"""Runaway wheel crossings checked without Blender: one across Suzuqa
+Patch's run from the bridge to the hairpin, wall to wall, painted as a hazard
 zone over all the wheel can reach, with its marshal post on the outside
 run-off clear of the wheel's path, and none on the oval.
 
@@ -37,27 +37,32 @@ def in_crossing_frame(crossing, pieces):
 
 
 class WheelCrossings(unittest.TestCase):
-    def test_brands_patch_has_one_crossing_across_the_middle_of_the_approach_wall_to_wall(self) -> None:
+    def test_brands_patch_has_one_crossing_between_the_bridge_and_the_hairpin_wall_to_wall(self) -> None:
         layout, geometry = brands_patch()
         self.assertEqual(len(geometry.wheel_crossings), 1)
         crossing = geometry.wheel_crossings[0]
-        approach = layout.path.segment("approach")
-        middle = layout.path.at(approach.s_mid)
-        self.assertAlmostEqual(crossing.x, middle.x, places=6)
-        self.assertAlmostEqual(crossing.y, middle.y, places=6)
-        self.assertAlmostEqual(crossing.heading, middle.heading, places=6)
+        (bridge,) = layout.decor.bridges
+        (placed,) = layout.wheel_crossings
+        underpass = layout.path.segment("underpass")
+        self.assertLess(bridge.underpass_s, placed.s)
+        self.assertLess(placed.s, underpass.s_end)
+        spot = layout.path.at(placed.s)
+        self.assertAlmostEqual(crossing.x, spot.x, places=6)
+        self.assertAlmostEqual(crossing.y, spot.y, places=6)
+        self.assertAlmostEqual(crossing.heading, spot.heading, places=6)
         self.assertEqual(crossing.half_width, layout.runoff_half_width)
         self.assertAlmostEqual(2.0 * crossing.half_width, 24.0)
 
     def test_the_marshal_post_stands_on_the_outside_run_off_short_of_the_wheels_path(self) -> None:
         layout, geometry = brands_patch()
         crossing = geometry.wheel_crossings[0]
-        hairpin = layout.path.segment("hairpin-2")
-        self.assertGreater(hairpin.turn, 0, "hairpin two turns left, so its outside is the right")
+        s = layout.wheel_crossings[0].s
+        hairpin = layout.path.segment("hairpin")
+        self.assertGreater(hairpin.turn, 0, "the hairpin turns left, so its outside is the right")
         vertices = [v for piece in post_pieces(geometry, 0) for v in piece.mesh[0]]
         self.assertTrue(vertices)
         for x, y, _ in vertices:
-            right = -left_of_centre(layout, x, y)
+            right = -left_of_centre(layout, x, y, s)
             self.assertGreater(right, layout.asphalt_half_width, "off the asphalt")
             self.assertLess(right, layout.runoff_half_width, "inside the walls")
             ahead, _ = in_pad_frame(crossing, (x, y))
@@ -65,6 +70,7 @@ class WheelCrossings(unittest.TestCase):
 
     def test_the_post_is_a_low_white_platform_banded_orange_under_its_top_with_an_orange_lamp_on_its_face_to_the_track(self) -> None:
         layout, geometry = brands_patch()
+        s = layout.wheel_crossings[0].s
         pieces = {p.material: p for p in post_pieces(geometry, 0)}
         self.assertEqual(set(pieces), {"board", "post-band", "chevron"})
         band = pieces["post-band"].mesh[0]
@@ -72,12 +78,12 @@ class WheelCrossings(unittest.TestCase):
         post = pieces["board"].mesh[0]
         ground = min(v[2] for v in post)
         self.assertAlmostEqual(max(v[2] for v in post) - ground, 1.0, places=6, msg="1 m tall")
-        across = [-left_of_centre(layout, x, y) for x, y, _ in post]
+        across = [-left_of_centre(layout, x, y, s) for x, y, _ in post]
         self.assertAlmostEqual(max(across) - min(across), 1.4, delta=0.01, msg="1.4 m wide")
         self.assertAlmostEqual(min(v[2] for v in band) - ground, 0.88, places=6, msg="0.12 m under the top")
         self.assertAlmostEqual(max(v[2] for v in band) - ground, 1.0, places=6)
         self.assertLess(max(v[2] for v in lamp) - ground, 0.88, "the lamp under the band")
-        nearest = lambda vertices: min(-left_of_centre(layout, x, y) for x, y, _ in vertices)
+        nearest = lambda vertices: min(-left_of_centre(layout, x, y, s) for x, y, _ in vertices)
         self.assertLess(nearest(lamp), nearest(post), "the lamp stands proud toward the track")
 
     def test_the_crossing_reaches_as_deep_as_the_hazard_zone(self) -> None:

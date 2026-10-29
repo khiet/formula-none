@@ -66,7 +66,7 @@ fn a_bot_fills_the_slot_behind_the_human_and_drives_off_without_an_input() {
 const LAP_S: f32 = 20.0;
 
 #[test]
-fn a_bot_alone_laps_the_oval_three_times_without_leaving_the_asphalt() {
+fn a_bot_alone_laps_the_oval_for_the_race_without_leaving_the_asphalt() {
     let mut state = started(State::with_bots(SEED, 0, 1, oval()));
     let mut lap_times = Vec::new();
     for _ in 0..ticks(LAPS_PER_RACE as f32 * LAP_S) {
@@ -141,18 +141,18 @@ fn hairpins(track: &Track) -> Vec<std::ops::Range<f32>> {
 }
 
 #[test]
-fn a_bot_drifts_through_each_hairpin_of_brands_patch_on_every_lap() {
+fn a_bot_drifts_through_the_hairpin_of_brands_patch_on_every_lap() {
     let track = brands_patch();
     let hairpins = hairpins(&track);
     assert_eq!(
         hairpins.len(),
-        2,
-        "Brands Patch has two hairpins: {hairpins:?}"
+        1,
+        "Suzuqa Patch has one hairpin: {hairpins:?}"
     );
-    let laps = 2;
+    let laps = LAPS_PER_RACE as usize;
     let mut state = started(State::with_bots(SEED, 0, 1, track));
     let mut drifted_in: Vec<Vec<bool>> = vec![vec![false; hairpins.len()]; laps];
-    for _ in 0..ticks(laps as f32 * 45.0) {
+    for _ in 0..ticks(laps as f32 * 75.0) {
         state = step(state, &[], DT);
         let standing = state.standings()[0];
         if standing.laps_completed as usize >= laps {

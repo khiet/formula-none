@@ -3,51 +3,33 @@
 //! along -Z from the start line at z = 0 through its first checkpoints, with
 //! the grid a few metres behind the line (layouts/oval.py). Both tracks are
 //! walled along both edges of the run-off, so a kart can leave the asphalt
-//! but never the course (ADR 0022); Brands Patch joins in for the cuts its
-//! walls close.
+//! but never the course (ADR 0022); Suzuqa Patch joins in for the cut
+//! its walls close and the bridge its parapets keep a kart on.
 
 mod common;
 
 use common::{
     brands_patch, follow_centreline, oval, race, run, started, steer_toward, straight, throttle,
-    ticks, DT, OVAL, SEED,
+    ticks, track, without_wheel_crossings, BRANDS_PATCH, DT, OVAL, SEED,
 };
-
-use std::f32::consts::PI;
 
 use sim::tuning::LAPS_PER_RACE;
 use sim::{step, KartInput, Standing, State, Surface, Track};
 
-/// Hairpin one on Brands Patch (layouts/brands_patch.py): a 180 degree
-/// left-hander of 18 m radius that begins 70 m past the line, with the
-/// return straight starting at its exit, 36 m to the left of its entry
-/// across the infield grass. The infield is walled along the inside edge
-/// of the run-off: 12 m left of the start straight's centreline at x = 80,
-/// then 6 m from the hairpin's centre round the turn.
-const HAIRPIN_ONE_ENTRY_M: f32 = 70.0;
-const HAIRPIN_ONE_EXIT_M: f32 = HAIRPIN_ONE_ENTRY_M + 18.0 * PI;
-const HAIRPIN_ONE_CENTRE: [f32; 2] = [62.0, -70.0];
-const HAIRPIN_ONE_INFIELD_WALL_X: f32 = 68.0;
-const HAIRPIN_ONE_INFIELD_WALL_RADIUS_M: f32 = 6.0;
-const CHECKPOINT_BEFORE_HAIRPIN_ONE: usize = 1;
-
-/// Hairpin two's infield. The chicane's middle arc, a right-hander of 14 m
-/// radius, bulges south at the top of the infield; the approach then runs
-/// west along z = 52 from the chicane's exit at x = -127.6 to the hairpin
-/// at x = -150, and the jump straight runs back east along z = 88. The
-/// infield's wall stands 12 m left of the centreline, 26 m from the middle
-/// arc's centre round the chicane's south side, with 12 m of grass between
-/// it and the jump straight's own wall. The checkpoint in the chicane,
-/// 398.7 m into the lap, is the seventh.
-const HILL_END_M: f32 = 365.0;
-const PAST_THE_CHICANE_CHECKPOINT_M: f32 = 401.0;
-const CHICANE_MID_CENTRE: [f32; 2] = [-107.8, 46.2];
-const CHICANE_MID_WALL_RADIUS_M: f32 = 26.0;
-/// Where the wall round the chicane's middle arc hands over to the one
-/// along the approach: 26 m from the arc's centre at its 135 degree end.
-const CHICANE_MID_WALL_END_X: f32 = -126.2;
-const JUMP_Z: f32 = 88.0;
-const CHECKPOINT_IN_THE_CHICANE: usize = 6;
+/// The hairpin on Suzuqa Patch (layouts/brands_patch.py): a 180 degree
+/// left-hander of 17 m radius, its exit 34 m to the left of its entry
+/// across the infield. The infield is walled along the inside edge of the
+/// run-off, 12 m left of the centreline, so 5 m from the hairpin's centre
+/// round the turn. The checkpoint 609 m into the lap, the eighth, is the
+/// last before it.
+const HAIRPIN_ENTRY_M: f32 = 652.9;
+const HAIRPIN_EXIT_M: f32 = 706.3;
+const CHECKPOINT_BEFORE_THE_HAIRPIN: usize = 7;
+/// Where the back straight crosses over the underpass, 5 m up, with a wall
+/// standing on the deck 12 m either side of the centreline.
+const BRIDGE_DECK_PROGRESS_M: f32 = 1020.7;
+const DECK_HEIGHT_M: f32 = 5.0;
+const RUN_OFF_HALF_WIDTH_M: f32 = 12.0;
 
 fn only_standing(state: &State) -> Standing {
     let standings = state.standings();
@@ -175,9 +157,9 @@ fn brands_patch_counts_its_checkpoints_the_same_way() {
         "the grid is behind the line"
     );
 
-    // Its front straight runs along -Z from the line too; pole drives up it
-    // past the first checkpoint while the kart behind stays on the grid.
-    let state = drive(state, &[Some(straight), None], 4.0);
+    // Pole drives up the start straight and into the first curve past the
+    // first checkpoint while the kart behind stays on the grid.
+    let state = drive(state, &[Some(follow_centreline), None], 5.0);
     let standings = state.standings();
     assert_eq!(standings[0].checkpoint, 1);
     assert_eq!(standings[0].laps_completed, 0);
@@ -187,32 +169,6 @@ fn brands_patch_counts_its_checkpoints_the_same_way() {
         [1, 2]
     );
 }
-
-/// Up Brands Patch's start straight to the checkpoint before hairpin one,
-/// braking over the last stretch to the speed a kart turns off the straight
-/// at: at top speed its turning circle is wider than the infield.
-fn slowed_past_the_checkpoint_before_hairpin_one() -> State {
-    const BRAKE_FROM_M: f32 = 20.0;
-    let mut state = started(State::new(SEED, 1, brands_patch()));
-    let checkpoint_z = state.track().checkpoints()[CHECKPOINT_BEFORE_HAIRPIN_ONE].position[2];
-    for _ in 0..ticks(10.0) {
-        let transform = state.kart_readouts()[0];
-        let input = if transform.position[2] > checkpoint_z + BRAKE_FROM_M {
-            throttle()
-        } else {
-            held_to(KartInput::default(), transform.speed, CUT_SPEED_M_PER_S)
-        };
-        state = step(state, &[input], DT);
-        if only_standing(&state).checkpoint == CHECKPOINT_BEFORE_HAIRPIN_ONE {
-            return state;
-        }
-    }
-    panic!("the start straight ends at checkpoint {CHECKPOINT_BEFORE_HAIRPIN_ONE}");
-}
-
-/// The speed a kart turns off a straight at to cut a corner: slow enough
-/// to turn inside an infield.
-const CUT_SPEED_M_PER_S: f32 = 16.0;
 
 /// `input` with the throttle let off and the brake on while the kart is
 /// faster than `cap`.
@@ -246,16 +202,15 @@ fn kart_xz(state: &State) -> [f32; 2] {
     [position[0], position[2]]
 }
 
-/// The top of the return straight (x, z) and whether the kart has reached it:
-/// the straight runs along +Z, so the kart is on it once its x is within the
-/// asphalt's.
-fn top_of_return(state: &State) -> ([f32; 2], impl Fn(&State) -> bool) {
-    const ON_THE_RETURN_M: f32 = 4.0;
-    let point = state.track().point_at(HAIRPIN_ONE_EXIT_M + 10.0);
-    let target = [point[0], point[2]];
-    (target, move |state: &State| {
-        kart_xz(state)[0] < target[0] + ON_THE_RETURN_M
-    })
+/// Metres the kart's centre lies left of the centreline, measured square to
+/// it at the kart's own spline progress.
+fn left_of_centreline(state: &State) -> f32 {
+    let progress = only_standing(state).spline_progress;
+    let point = state.track().point_at(progress);
+    let [dx, dz] = state.track().direction_at(progress);
+    let [x, z] = kart_xz(state);
+    // Left of the direction of travel (dx, dz), seen from above, is (dz, -dx).
+    (x - point[0]) * dz - (z - point[2]) * dx
 }
 
 /// A kart a wall has stopped: against it, on the sand, going nowhere under
@@ -301,40 +256,50 @@ fn steering_off_the_ovals_front_straight_ends_against_the_wall_at_the_run_offs_e
     assert_eq!(only_standing(&state).checkpoint, 0);
 }
 
-/// How far the kart is from hairpin one's infield wall, on the track's side
-/// of it; negative is through it.
-fn outside_hairpin_one_infield_wall(state: &State) -> f32 {
-    let [x, z] = kart_xz(state);
-    if z > HAIRPIN_ONE_CENTRE[1] {
-        x - HAIRPIN_ONE_INFIELD_WALL_X
-    } else {
-        (x - HAIRPIN_ONE_CENTRE[0]).hypot(z - HAIRPIN_ONE_CENTRE[1])
-            - HAIRPIN_ONE_INFIELD_WALL_RADIUS_M
-    }
-}
-
 #[test]
-fn cutting_hairpin_one_across_the_infield_ends_against_the_inside_wall_short_of_the_return() {
-    let state = slowed_past_the_checkpoint_before_hairpin_one();
+fn cutting_the_hairpin_across_the_infield_ends_against_the_inside_wall_short_of_the_exit() {
+    // The infield is short, so the kart turns in slow enough to meet its
+    // wall square on rather than slide round its end to the exit.
+    const TURN_IN_SPEED_M_PER_S: f32 = 8.0;
+    const SHORT_OF_THE_ENTRY_M: f32 = 8.0;
+    let state = round_to(
+        started(State::new(
+            SEED,
+            1,
+            track(&without_wheel_crossings(BRANDS_PATCH)),
+        )),
+        HAIRPIN_ENTRY_M - SHORT_OF_THE_ENTRY_M,
+        HAIRPIN_ENTRY_M - 60.0,
+        TURN_IN_SPEED_M_PER_S,
+    );
+    assert_eq!(
+        only_standing(&state).checkpoint,
+        CHECKPOINT_BEFORE_THE_HAIRPIN
+    );
+    let inside_wall = |state: &State| RUN_OFF_HALF_WIDTH_M - left_of_centreline(state);
 
-    // Straight across the infield toward the top of the return straight.
-    let (target, on_the_return) = top_of_return(&state);
-    let state = drive_toward(state, target, |state| {
-        let [x, z] = kart_xz(state);
+    // Straight across the infield toward the exit straight, at the point
+    // abreast of the kart.
+    let exit = state
+        .track()
+        .point_at(HAIRPIN_EXIT_M + SHORT_OF_THE_ENTRY_M);
+    let state = drive_toward(state, [exit[0], exit[2]], |state| {
+        let progress = only_standing(state).spline_progress;
         assert!(
-            !on_the_return(state),
-            "reached the return straight at x {x}"
+            progress < HAIRPIN_EXIT_M,
+            "reached the exit at {progress} m"
         );
         assert!(
-            outside_hairpin_one_infield_wall(state) > -0.1,
-            "went through the wall at ({x}, {z})"
+            inside_wall(state) > -0.1,
+            "went through the wall at {:?}",
+            kart_xz(state)
         );
     });
 
-    assert_held_by_the_wall(&state, outside_hairpin_one_infield_wall(&state));
+    assert_held_by_the_wall(&state, inside_wall(&state));
     assert_eq!(
         only_standing(&state).checkpoint,
-        CHECKPOINT_BEFORE_HAIRPIN_ONE
+        CHECKPOINT_BEFORE_THE_HAIRPIN
     );
 }
 
@@ -345,7 +310,7 @@ fn cutting_hairpin_one_across_the_infield_ends_against_the_inside_wall_short_of_
 /// `progress_m` counts as reaching it.
 fn round_to(mut state: State, progress_m: f32, cap_from_m: f32, cap: f32) -> State {
     const JUST_PAST_M: f32 = 30.0;
-    for _ in 0..ticks(60.0) {
+    for _ in 0..ticks(90.0) {
         let speed = state.kart_readouts()[0].speed;
         let progress = only_standing(&state).spline_progress;
         let input = follow_centreline(&state, 0);
@@ -364,49 +329,44 @@ fn round_to(mut state: State, progress_m: f32, cap_from_m: f32, cap: f32) -> Sta
 }
 
 #[test]
-fn leaving_the_chicane_southward_ends_against_the_inside_wall_short_of_the_jump_straight() {
-    // Slow enough to turn south within the chicane's run-off; faster, the
-    // kart meets the wall at a slant and slides along it.
+fn steering_off_the_deck_ends_against_its_wall_still_on_the_bridge() {
+    // Slow enough to turn square to the deck within its run-off.
     const LEAVE_SPEED_M_PER_S: f32 = 10.0;
-    const JUMP_RUNOFF_EDGE_Z: f32 = JUMP_Z - 12.0;
     let state = round_to(
-        started(State::new(SEED, 1, brands_patch())),
-        PAST_THE_CHICANE_CHECKPOINT_M,
-        HILL_END_M,
+        started(State::new(
+            SEED,
+            1,
+            track(&without_wheel_crossings(BRANDS_PATCH)),
+        )),
+        BRIDGE_DECK_PROGRESS_M - 6.0,
+        BRIDGE_DECK_PROGRESS_M - 60.0,
         LEAVE_SPEED_M_PER_S,
     );
-    assert_eq!(only_standing(&state).checkpoint, CHECKPOINT_IN_THE_CHICANE);
-    let from_the_chicanes_centre = |state: &State| {
-        let [x, z] = kart_xz(state);
-        (x - CHICANE_MID_CENTRE[0]).hypot(z - CHICANE_MID_CENTRE[1])
-    };
+    let checkpoint = only_standing(&state).checkpoint;
+    let height = |state: &State| state.kart_readouts()[0].position[1];
+    assert!(height(&state) > DECK_HEIGHT_M - 1.0, "on the deck");
+    let outside_wall = |state: &State| RUN_OFF_HALF_WIDTH_M + left_of_centreline(state);
 
-    // Due south across the infield toward the jump straight.
-    let target = [kart_xz(&state)[0], JUMP_Z];
-    let mut furthest_south = f32::NEG_INFINITY;
+    // Hard right, square off the deck toward the underpass below.
+    let progress = only_standing(&state).spline_progress;
+    let point = state.track().point_at(progress);
+    let [dx, dz] = state.track().direction_at(progress);
+    let target = [point[0] - dz * 40.0, point[2] + dx * 40.0];
     let state = drive_toward(state, target, |state| {
-        furthest_south = furthest_south.max(kart_xz(state)[1]);
         assert!(
-            from_the_chicanes_centre(state) < CHICANE_MID_WALL_RADIUS_M + 0.1,
+            outside_wall(state) > -0.1,
             "went through the wall at {:?}",
             kart_xz(state)
         );
+        assert!(
+            height(state) > DECK_HEIGHT_M - 1.5,
+            "fell off the bridge at {:?}",
+            state.kart_readouts()[0].position
+        );
     });
 
-    assert!(
-        furthest_south < JUMP_RUNOFF_EDGE_Z,
-        "reached the jump straight's run-off at z {furthest_south}"
-    );
-    let [x, _] = kart_xz(&state);
-    assert!(
-        x > CHICANE_MID_WALL_END_X,
-        "slid along the wall out of the chicane to x {x}"
-    );
-    assert_held_by_the_wall(
-        &state,
-        CHICANE_MID_WALL_RADIUS_M - from_the_chicanes_centre(&state),
-    );
-    assert_eq!(only_standing(&state).checkpoint, CHECKPOINT_IN_THE_CHICANE);
+    assert_held_by_the_wall(&state, outside_wall(&state));
+    assert_eq!(only_standing(&state).checkpoint, checkpoint);
 }
 
 #[test]
@@ -582,11 +542,11 @@ fn a_dead_heat_keeps_grid_order() {
 }
 
 #[test]
-fn three_laps_of_the_oval_end_with_the_lap_counter_at_three_and_a_best_lap() {
+fn two_laps_of_the_oval_end_with_the_lap_counter_at_two_and_a_best_lap() {
     let mut state = race(1);
     let mut lap_times = Vec::new();
     let mut laps_seen = 0;
-    for _ in 0..ticks(3.0 * LAP_S) {
+    for _ in 0..ticks(LAPS_PER_RACE as f32 * LAP_S) {
         let input = follow_centreline(&state, 0);
         state = step(state, &[input], DT);
         let standing = only_standing(&state);
@@ -600,11 +560,11 @@ fn three_laps_of_the_oval_end_with_the_lap_counter_at_three_and_a_best_lap() {
     }
 
     let standing = only_standing(&state);
-    assert_eq!(standing.laps_completed, 3);
-    assert_eq!(standing.lap, 3, "the counter stays on the last lap");
-    assert_eq!(lap_times.len(), 3);
+    assert_eq!(standing.laps_completed, 2);
+    assert_eq!(standing.lap, 2, "the counter stays on the last lap");
+    assert_eq!(lap_times.len(), 2);
     // The first lap starts from a standstill, so a flying lap is the best.
-    let best = standing.best_lap_s.expect("three laps were completed");
+    let best = standing.best_lap_s.expect("two laps were completed");
     assert!(
         best < lap_times[0],
         "best {best} s, first lap {} s",

@@ -57,7 +57,7 @@ import { kartWheels } from "./wheel-spin";
 import { createWheelTellEmitter, wheelBack } from "./wheel-tells";
 import { createWindLines, createWindParticles, windFade } from "./wind-lines";
 
-/** Far enough to see across Brands Patch from any point on it. */
+/** Far enough to see across Suzuqa Patch, about 430 m by 270 m, from any point on it. */
 const CAMERA_FAR_M = 1000;
 /**
  * Puffs live at once across the grid: eight karts' worth through their

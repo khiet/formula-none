@@ -1,19 +1,22 @@
-"""Brands Patch: the race track.
+"""Suzuqa Patch: the race track, a figure eight of about 1306 m after Suzuka.
 
-A counter-clockwise loop of about 800 m: the start/finish straight up the
-east side, hairpin one at the top, a run back down into a right-hander, the
-hill on the westbound straight, the chicane, hairpin two at the west end, the
-jump ramp on the long eastbound straight and a sweeping final corner. Tyre
-walls stand on the inside of both hairpins, a sausage kerb on the inside
-of the chicane's apex, and the runaway wheel crosses the middle of the
-approach to hairpin two, its marshal post on the outside. The start line is at s = 0 on the east straight,
-which runs along +Y (glTF -Z). The scenery: grandstands and
-sponsor hoardings along the outside of the start straight and the return,
-hoardings round the final corner, and the gantry over the line.
+It keeps the `brands-patch` id it had as Brands Patch. The start/finish
+straight runs south-east into the first curve and turn 2, then the esses,
+Dunlop and the two Degners; the run to the hairpin passes under the bridge,
+then the 200R, the double-apex Spoon and the back straight, which climbs
+over the bridge before 130R, the chicane and the final curve. Tyre walls
+stand outside turn 2 and inside the hairpin and Spoon's second apex, sausage kerbs
+inside esses 3 and the chicane, the runaway wheel crosses the run from the
+bridge to the hairpin, its marshal post on the outside, and the jump sits at
+Spoon's exit. The scenery: grandstands along the outside of the start
+straight and the hairpin exit, hoardings round Spoon, 130R and the final
+curve, the gantry over the line, and the bridge where the course crosses
+itself.
 """
 
 from ..layout import (
     BoostPad,
+    Bridge,
     Decor,
     Grandstands,
     Hoardings,
@@ -25,72 +28,117 @@ from ..layout import (
 )
 from ..path import Hill, Ramp, Turtle
 
-EAST_STRAIGHT_X = 80.0
-HAIRPIN_RADIUS_M = 18.0
-CHICANE_RADIUS_M = 14.0
-# Right of the centreline, just in from the painted kerb on the inside of
-# the chicane's right-hander.
-CHICANE_KERB_RIGHT_OF_CENTRE_M = 4.9
+# Just in from the painted kerb on the inside of a corner.
+KERB_INSIDE_M = 4.9
+# Left of the centreline, where every tyre wall stands clear of the bots' line.
+TYRE_WALL_LEFT_M = 4.5
 
 path = (
-    Turtle(x=EAST_STRAIGHT_X, y=0.0, heading_deg=90.0)
-    .straight("start", 70.0)
-    .arc("hairpin-1", HAIRPIN_RADIUS_M, 180.0)
-    .straight("return", 100.0)
-    .arc("corner-3", 22.0, -90.0)
-    .straight("hill", 110.0)
-    .arc("chicane-in", CHICANE_RADIUS_M, 45.0)
-    .arc("chicane-mid", CHICANE_RADIUS_M, -90.0)
-    .arc("chicane-out", CHICANE_RADIUS_M, 45.0)
-    .straight_until_x("approach", -150.0)
-    .arc("hairpin-2", HAIRPIN_RADIUS_M, 180.0)
-    .straight_until_x("jump", EAST_STRAIGHT_X - 34.0)
-    .arc("final", 34.0, 90.0)
+    Turtle(x=0.0, y=0.0, heading_deg=-50.0)
+    .straight("start", 60.0)
+    .arc("first-curve", 50.0, -51.0)
+    .straight("turn-2-approach", 26.0)
+    .arc("turn-2", 21.0, -111.0)
+    .straight("esses-run", 27.0)
+    .arc("esses-1", 30.0, 57.0)
+    .arc("esses-2", 20.0, -71.0)
+    .straight("esses-link", 9.0)
+    .arc("esses-3", 21.0, 55.0)
+    .arc("esses-4", 21.0, -122.0)
+    .arc("dunlop", 34.0, 102.0)
+    .arc("dunlop-rise", 41.0, 58.0)
+    .arc("degner-1", 24.0, -70.0)
+    .straight("degner-link", 53.0)
+    .arc("degner-2", 18.0, -75.0)
+    .straight("underpass", 85.3)
+    .arc("hairpin-kink", 43.0, -28.0)
+    .straight("hairpin-approach", 12.0)
+    .arc("hairpin", 17.0, 180.0)
+    .straight("hairpin-exit", 21.0)
+    .arc("two-hundred-r", 43.0, -99.0)
+    .straight("spoon-entry", 8.0)
+    .arc("spoon-1", 17.0, 109.0)
+    .straight("spoon-link", 20.0)
+    .arc("spoon-2", 29.0, 108.0)
+    .straight("back-straight", 190.14)
+    .arc("one-thirty-r", 52.0, 40.0)
+    .straight("chicane-approach", 13.0)
+    .arc("chicane-in", 12.0, -76.0)
+    .arc("chicane-out", 13.0, 86.0)
+    .arc("final-curve", 40.0, -92.0)
     .close("grid")
 )
 
-HILL_CREST_M = 2.0
+# Where the back straight passes over the underpass, metres along each leg.
+BRIDGE_UNDERPASS_S = 573.8
+BRIDGE_BACK_STRAIGHT_S = 1020.7
+BRIDGE_DECK_HEIGHT_M = 5.0
+BRIDGE_HILL_HALF_LENGTH_M = 55.0
 RAMP_HEIGHT_M = 1.5
 RAMP_LENGTH_M = 12.0
 
-hill = path.segment("hill")
-jump = path.segment("jump")
-ramp_start = jump.s_start + 70.0
+back = path.segment("back-straight")
+hairpin = path.segment("hairpin")
+ramp_start = back.s_start + 14.0
+# The road's climb over the bridge, which the embankment stands under.
+bridge_hill = Hill(
+    BRIDGE_BACK_STRAIGHT_S - BRIDGE_HILL_HALF_LENGTH_M,
+    BRIDGE_BACK_STRAIGHT_S + BRIDGE_HILL_HALF_LENGTH_M,
+    BRIDGE_DECK_HEIGHT_M,
+)
 
 LAYOUT = Layout(
     name="brands-patch",
     path=path,
     asphalt_half_width=6.0,
     runoff_width=6.0,
-    checkpoint_count=12,
+    # Fifteen keeps every checkpoint at least 24 m from the bridge on both legs.
+    checkpoint_count=15,
     tyre_walls=[
-        TyreWall(path.segment("hairpin-1").s_mid - 8.0, offset=4.5),
-        TyreWall(path.segment("hairpin-1").s_mid + 8.0, offset=4.5),
-        TyreWall(path.segment("hairpin-2").s_mid - 8.0, offset=4.5),
-        TyreWall(path.segment("hairpin-2").s_mid + 8.0, offset=4.5),
+        # Outside turn 2: a right-hander's inside is on the bots' line.
+        TyreWall(path.segment("turn-2").s_mid, offset=TYRE_WALL_LEFT_M),
+        TyreWall(hairpin.s_mid - 8.0, offset=TYRE_WALL_LEFT_M),
+        TyreWall(hairpin.s_mid + 8.0, offset=TYRE_WALL_LEFT_M),
+        TyreWall(path.segment("spoon-2").s_mid, offset=TYRE_WALL_LEFT_M),
     ],
     item_rows=[
-        ItemRow(hill.s_start + 15.0),
-        ItemRow(jump.s_start + 30.0),
+        ItemRow(path.segment("esses-run").s_mid),
+        ItemRow(path.segment("degner-link").s_mid),
+        ItemRow(back.s_end - 15.0),
     ],
     boost_pads=[
-        BoostPad(path.segment("return").s_mid),
-        BoostPad(ramp_start + RAMP_LENGTH_M + 40.0),
+        BoostPad(path.segment("dunlop-rise").s_mid),
+        BoostPad(path.segment("hairpin-exit").s_mid, offset=3.0),
     ],
-    kerbs=[Kerb(path.segment("chicane-mid").s_mid, offset=-CHICANE_KERB_RIGHT_OF_CENTRE_M)],
-    # Hairpin two turns left, so its outside is the right.
-    wheel_crossings=[WheelCrossing(path.segment("approach").s_mid, outside=-1)],
+    kerbs=[
+        Kerb(path.segment("esses-3").s_mid, offset=KERB_INSIDE_M),
+        Kerb(path.segment("chicane-in").s_mid, offset=-KERB_INSIDE_M),
+    ],
+    # The hairpin turns left, so its outside is the right.
+    wheel_crossings=[WheelCrossing(BRIDGE_UNDERPASS_S + 28.0, outside=-1)],
     elevation=[
-        Hill(hill.s_start + 30.0, hill.s_end - 30.0, HILL_CREST_M),
         Ramp(ramp_start, ramp_start + RAMP_LENGTH_M, RAMP_HEIGHT_M),
+        bridge_hill,
     ],
     decor=Decor(
         hoardings=[
-            Hoardings(("grid", "start"), side=-1),
-            Hoardings(("return",), side=1),
-            Hoardings(("final",), side=-1),
+            Hoardings(("grid", "start"), side=1),
+            Hoardings(("spoon-2",), side=-1),
+            Hoardings(("one-thirty-r",), side=-1),
+            Hoardings(("final-curve",), side=1),
         ],
-        grandstands=[Grandstands(("grid", "start"), side=-1)],
+        grandstands=[
+            Grandstands(("grid", "start"), side=1),
+            Grandstands(("hairpin-exit",), side=-1),
+        ],
         gantry=True,
+        bridges=[
+            Bridge(
+                deck_s=BRIDGE_BACK_STRAIGHT_S,
+                underpass_s=BRIDGE_UNDERPASS_S,
+                s_start=bridge_hill.s_start,
+                s_end=bridge_hill.s_end,
+            )
+        ],
     ),
 )

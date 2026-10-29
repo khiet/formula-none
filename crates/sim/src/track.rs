@@ -202,6 +202,7 @@ pub struct Track {
     /// more entry at the end so the closing segment has both ends.
     progress_at_point: Vec<f32>,
     checkpoint_progress: Vec<f32>,
+    wheel_crossing_progress: Vec<f32>,
 }
 
 impl fmt::Debug for Track {
@@ -330,6 +331,18 @@ impl Track {
                 )
             })
             .collect();
+        let wheel_crossing_progress = sidecar
+            .wheel_crossings
+            .iter()
+            .map(|crossing| {
+                progress_along(
+                    &sidecar.centreline,
+                    &progress_at_point,
+                    crossing.position,
+                    None,
+                )
+            })
+            .collect();
         Ok(Self {
             name: sidecar.name,
             centreline: sidecar.centreline,
@@ -343,6 +356,7 @@ impl Track {
             shapes,
             progress_at_point,
             checkpoint_progress,
+            wheel_crossing_progress,
         })
     }
 
@@ -489,6 +503,12 @@ impl Track {
     /// track without one.
     pub fn wheel_crossings(&self) -> &[WheelCrossing] {
         &self.wheel_crossings
+    }
+
+    /// The spline progress of each wheel crossing's centre, in
+    /// `wheel_crossings` order.
+    pub fn wheel_crossing_progress(&self) -> &[f32] {
+        &self.wheel_crossing_progress
     }
 
     /// Start positions in grid order; slot 0 is pole.

@@ -186,7 +186,7 @@ describe("the chase camera", () => {
   it("follows a slope without falling far behind and settles at the new height", () => {
     const camera = createChaseCamera(TUNING);
     camera.update(kart(0, [0, 0.3, 0]), FRAME_S);
-    // Brands Patch's climb: 2 m of elevation, taken here over 3 s.
+    // A climb of 2 m, taken here over 3 s.
     let previousY = Number.NEGATIVE_INFINITY;
     for (let frame = 1; frame <= 3 * 60; frame++) {
       const y = 0.3 + (2 * frame) / (3 * 60);

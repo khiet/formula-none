@@ -4,11 +4,11 @@ import { enterRace, startRace } from "./scenes";
 // The whole chain in a real browser, on each track: glTF and sidecar load,
 // a key, keyboard mapping, wasm sim on the track's colliders with seven
 // bots on the grid behind the player, transforms back out, Instrument panel
-// readouts. Brands Patch is the default; the oval fixture is selected by
+// readouts. Suzuqa Patch is the default; the oval fixture is selected by
 // query string. The arrows drive one track and WASD the other, so both
 // layouts are covered.
 for (const [name, url, throttleKey] of [
-  ["Brands Patch", "/", "ArrowUp"],
+  ["Suzuqa Patch", "/", "ArrowUp"],
   ["the oval", "/?track=oval", "w"],
 ] as const) {
   test(`holding ${throttleKey} drives the kart along ${name}`, async ({ page }) => {
@@ -22,7 +22,7 @@ for (const [name, url, throttleKey] of [
     // The Instrument panel's lap readouts come from the sim: on lap one, the
     // lap clock running and no best lap yet, and last once the seven bots
     // behind on the grid have driven past the idle kart.
-    await expect(page.locator('[data-instrument="lap"]')).toHaveText("Lap 1/3");
+    await expect(page.locator('[data-instrument="lap"]')).toHaveText("Lap 1/2");
     await expect(page.locator('[data-instrument="position"]')).toHaveText("8th", {
       timeout: 30_000,
     });

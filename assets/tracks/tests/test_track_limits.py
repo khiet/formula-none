@@ -56,14 +56,14 @@ class Walls(unittest.TestCase):
                 for wall in walls:
                     self.assertEqual(len(wall.mesh[1]), 3 * len(layout.path.samples), wall.name)
 
-    def test_the_walls_climb_the_hill_with_the_track(self) -> None:
+    def test_the_walls_climb_the_bridge_with_the_track(self) -> None:
         # A wall left at ground level would stand below the sand on the
-        # crest, a cliff at the edge of the track instead of a barrier on it.
+        # deck, a cliff at the edge of the track instead of a parapet on it.
         layout = load("brands-patch")
         bases = wall_bases(layout)
-        crest = layout.path.at(layout.path.segment("hill").s_mid)
+        crest = layout.path.at(layout.decor.bridges[0].deck_s)
         crest_height = elevation(layout.elevation, crest.s)
-        self.assertGreater(crest_height, 1.0, "the hill's crest")
+        self.assertGreater(crest_height, 4.0, "the deck")
         for side in (1, -1):
             self.assertAlmostEqual(
                 bases[edge(crest, layout, side)], crest_height - GRASS_DROP_M, places=3
@@ -85,10 +85,10 @@ class Checkpoints(unittest.TestCase):
                     self.assertAlmostEqual(checkpoint.y, expected.y, places=6)
                     self.assertEqual(checkpoint.half_width, layout.runoff_half_width)
 
-    def test_both_shipped_layouts_have_twelve(self) -> None:
-        for name in NAMES:
+    def test_the_oval_has_twelve_and_brands_patch_fifteen(self) -> None:
+        for name, count in (("oval", 12), ("brands-patch", 15)):
             with self.subTest(track=name):
-                self.assertEqual(len(build(load(name)).checkpoints), 12)
+                self.assertEqual(len(build(load(name)).checkpoints), count)
 
 
 if __name__ == "__main__":

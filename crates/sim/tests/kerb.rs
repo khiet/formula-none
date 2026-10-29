@@ -1,6 +1,7 @@
 //! The sausage kerb at the sim's public seam: one kart on the oval, its
 //! walls taken away, with a kerb laid where the kart is about to be, and
-//! eight bots racing Brands Patch past the kerb at its chicane. Each kerb
+//! eight bots racing Suzuqa Patch past its kerbs in the esses and the
+//! chicane. Each kerb
 //! test runs the kart twice, with the kerb and without, so the kerb's part
 //! is the difference; the sim is deterministic and the kerb touches nothing
 //! until the kart reaches it.
@@ -243,11 +244,11 @@ fn a_slow_kart_that_lands_back_on_the_kerb_is_not_launched_again_until_it_has_le
 }
 
 #[test]
-fn eight_bots_racing_three_laps_of_brands_patch_are_never_launched_by_the_kerb() {
+fn eight_bots_racing_brands_patch_are_never_launched_by_a_kerb() {
     let track = brands_patch();
-    assert_eq!(track.kerbs().len(), 1, "the chicane's kerb");
+    assert_eq!(track.kerbs().len(), 2, "the esses' kerb and the chicane's");
     let mut state = started(State::with_bots(SEED, 0, 8, track));
-    for _ in 0..ticks(LAPS_PER_RACE as f32 * 60.0) {
+    for _ in 0..ticks(LAPS_PER_RACE as f32 * 90.0) {
         state = step(state, &[], DT);
         for (slot, kart) in state.kart_readouts().iter().enumerate() {
             assert!(
@@ -269,6 +270,6 @@ fn eight_bots_racing_three_laps_of_brands_patch_are_never_launched_by_the_kerb()
             .standings()
             .iter()
             .all(|s| s.laps_completed >= LAPS_PER_RACE),
-        "every bot raced its three laps"
+        "every bot raced the race's laps"
     );
 }
