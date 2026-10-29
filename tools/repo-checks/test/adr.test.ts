@@ -49,6 +49,7 @@ const DECISION_SLUGS = [
   "runaway-wheel-bounces",
   "bots-set-off-for-the-wheel",
   "runaway-wheel-size",
+  "marshal-waves-hazard-flags",
 ];
 
 const expectedFiles = DECISION_SLUGS.map(

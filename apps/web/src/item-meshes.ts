@@ -1,30 +1,55 @@
 // The items on the road (ADR 0037), built in code from Three primitives:
 // lit, flat-shaded and in the palette the item slot draws them in, so the
 // cone and the gull on the road are the ones in the slot. The runaway wheel
-// and the marshal's flag (ADR 0041) are built the same way, save the
-// wheel's rim, hub and flames, which glow unlit. The sim collides with its
-// own sizes; these only fill them.
+// (ADR 0041) and the marshal waving his hazard flags at it (ADR 0045) are
+// built the same way, save the wheel's rim, hub and flames and the
+// beacon's glow and beam, which glow unlit. The sim collides with its own
+// sizes; these only fill them.
 
 import {
+  AdditiveBlending,
   BoxGeometry,
-  type BufferGeometry,
+  BufferGeometry,
   CircleGeometry,
   Color,
   ConeGeometry,
   CylinderGeometry,
+  DoubleSide,
   Float32BufferAttribute,
   Group,
   Mesh,
   MeshBasicMaterial,
   MeshLambertMaterial,
   SphereGeometry,
+  TorusGeometry,
+  Vector3,
 } from "three";
+import type { Wheel } from "./bridge";
 import {
+  BEACON_BEAM,
+  BEACON_LIT,
+  BEACON_OFF,
   GREYS,
   GULL_EYE,
+  HAZARD_FLAG_STRIPE,
   HAZARD_ORANGE,
   INK,
   ITEM_BOX_GOLD,
+  MARSHAL_BROWS,
+  MARSHAL_EYE,
+  MARSHAL_HAIR,
+  MARSHAL_JACKET,
+  MARSHAL_MOUTH,
+  MARSHAL_MUSTACHE,
+  MARSHAL_NOSE,
+  MARSHAL_REFLECTIVE,
+  MARSHAL_SANDALS,
+  MARSHAL_SHORTS,
+  MARSHAL_SKIN,
+  MARSHAL_STOOL,
+  MARSHAL_SWEAT,
+  MARSHAL_TOWEL,
+  MARSHAL_VEST,
   ROCKET,
   ROCKET_FLAME,
   ROCKET_STRAP,
@@ -74,11 +99,54 @@ const WHEEL_FLAME_TONGUES: readonly (readonly [number, number])[] = [
 const RUNAWAY_WHEEL_BOUNCE_M = 0.5;
 const RUNAWAY_WHEEL_BOUNCES_PER_LEG = 2;
 
-/** The marshal's flag: a pole, and the cloth flying from its top. */
-const FLAG_POLE_M = 1.4;
-const FLAG_POLE_THICKNESS_M = 0.05;
+/** A hazard flag: a pole, and the cloth flying from its top, striped on the diagonal. */
+const FLAG_POLE_M = 1;
+const FLAG_POLE_THICKNESS_M = 0.04;
 const FLAG_WIDTH_M = 0.9;
-const FLAG_HEIGHT_M = 0.6;
+const FLAG_HEIGHT_M = 0.62;
+const FLAG_STRIPE_M = 0.09;
+const FLAG_STRIPE_EVERY_M = 0.2;
+/**
+ * The cloth ripples out from the pole this fast, turning this far across
+ * its width, its free edge swinging this share of its height.
+ */
+const FLAG_RIPPLE_RAD_PER_S = 12;
+const FLAG_RIPPLE_RAD_ACROSS = 6.4;
+const FLAG_RIPPLE_SHARE = 0.13;
+/** Furled, the cloth is a roll this thick down the pole, banded black this many times. */
+const FLAG_FURL_M = 0.08;
+const FLAG_FURL_BANDS = 4;
+
+/**
+ * The marshal, chibi: a faceted head this big round, its centre this high,
+ * on a round belly, and his top about 1.75 m up. Seated on his stool he is
+ * this much lower; while the wheel rolls he hops this high this fast.
+ */
+const MARSHAL_HEAD_RADIUS_M = 0.34;
+const MARSHAL_HEAD_Y_M = 1.42;
+const MARSHAL_SEATED_DROP_M = 0.15;
+const MARSHAL_HOP_M = 0.18;
+const MARSHAL_HOP_RAD_PER_S = 9;
+/** His right shoulder, and his right hand held up with a flag; the left mirrors them. */
+const MARSHAL_SHOULDER: readonly [number, number] = [0.29, 1];
+const MARSHAL_HAND_UP: readonly [number, number] = [0.55, 1.36];
+/** He waves each flag this fast through this half-swing about this tilt out from his head. */
+const FLAG_WAVE_RAD_PER_S = 14;
+const FLAG_WAVE_SWING_RAD = (34 * Math.PI) / 180;
+const FLAG_WAVE_OUT_RAD = (18 * Math.PI) / 180;
+/** In a panic his mouth chatters this fast and sweat flies off him this often a second. */
+const MARSHAL_CHATTER_RAD_PER_S = 25;
+const MARSHAL_SWEAT_PER_S = 1.6;
+/** Steam rises this often a second, this high, off his tea. */
+const MARSHAL_STEAM_PER_S = 0.6;
+const MARSHAL_STEAM_RISE_M = 0.3;
+
+/** The marshal post's beacon: its size, its beam's reach, sweep and opacity. */
+const BEACON_RADIUS_M = 0.13;
+const BEACON_BEAM_M = 1.2;
+const BEACON_BEAM_RAD_PER_S = 11;
+const BEACON_BEAM_OPACITY = 0.4;
+const BEACON_GLOW_OPACITY = 0.35;
 
 function material(colour: number): MeshLambertMaterial {
   return new MeshLambertMaterial({ color: colour, flatShading: true });
@@ -89,7 +157,7 @@ function part(
   geometry: BufferGeometry,
   colour: number,
   [x, y, z]: readonly [number, number, number] = [0, 0, 0],
-): Mesh {
+): Mesh<BufferGeometry, MeshLambertMaterial> {
   const mesh = new Mesh(geometry, material(colour));
   mesh.position.set(x, y, z);
   parent.add(mesh);
@@ -213,7 +281,12 @@ export function homingGullMesh(): Group {
 }
 
 /** A mesh in `colour` that ignores the sun, so it glows; at `opacity` under 1, what is inside shows through. */
-function glowing(parent: Group, geometry: BufferGeometry, colour: number, opacity = 1): Mesh {
+function glowing(
+  parent: Group,
+  geometry: BufferGeometry,
+  colour: number,
+  opacity = 1,
+): Mesh<BufferGeometry, MeshBasicMaterial> {
   const material = new MeshBasicMaterial({ color: colour });
   if (opacity < 1) {
     material.transparent = true;
@@ -347,23 +420,461 @@ export function runawayWheelLanded(from: number, to: number): boolean {
   );
 }
 
+/** A hazard flag the marshal waves. */
+export interface HazardFlag {
+  /** Standing on its origin, the pole up +y and the cloth flying from its top toward +x. */
+  readonly mesh: Group;
+  /** Fly the cloth, rippled as it is `clockSeconds` into the View's clock. */
+  fly(clockSeconds: number): void;
+  /** Furl the cloth down the pole. */
+  furl(): void;
+}
+
 /**
- * The marshal's yellow flag standing on its origin: a white pole and the
- * cloth flying from its top toward +x. The View waves it by turning it
- * about z.
+ * A hazard flag: a 1 m pole in the white's shade and the cloth flying from
+ * its top, signal yellow striped black on the diagonal. Not a racing flag,
+ * so it is never read as one. The cloth is named `cloth`.
  */
-export function marshalFlagMesh(): Group {
-  const flag = new Group();
+export function hazardFlag(): HazardFlag {
+  const mesh = new Group();
   part(
-    flag,
+    mesh,
     new BoxGeometry(FLAG_POLE_THICKNESS_M, FLAG_POLE_M, FLAG_POLE_THICKNESS_M),
     WHITE.shaded,
     [0, FLAG_POLE_M / 2, 0],
   );
-  part(flag, new BoxGeometry(FLAG_WIDTH_M, FLAG_HEIGHT_M, 0.02), SIGNAL_YELLOW.mid, [
-    FLAG_WIDTH_M / 2,
+  const cloth = new Group();
+  cloth.name = "cloth";
+  const bands = clothBands();
+  bands.forEach((geometry, index) => {
+    const band = part(cloth, geometry, index === 0 ? SIGNAL_YELLOW.mid : HAZARD_FLAG_STRIPE);
+    band.material.side = DoubleSide;
+  });
+  // Rolled down the pole beside it, banded where the stripes fold in.
+  const furled = new Group();
+  const rollX = (FLAG_POLE_THICKNESS_M + FLAG_FURL_M) / 2;
+  part(furled, new BoxGeometry(FLAG_FURL_M, FLAG_HEIGHT_M, FLAG_FURL_M), SIGNAL_YELLOW.mid, [
+    rollX,
     FLAG_POLE_M - FLAG_HEIGHT_M / 2,
     0,
   ]);
+  const bandEvery = FLAG_HEIGHT_M / FLAG_FURL_BANDS;
+  for (let band = 0; band < FLAG_FURL_BANDS; band++) {
+    part(
+      furled,
+      new BoxGeometry(FLAG_FURL_M * 1.1, bandEvery / 3, FLAG_FURL_M * 1.1),
+      HAZARD_FLAG_STRIPE,
+      [rollX, FLAG_POLE_M - (band + 0.5) * bandEvery, 0],
+    );
+  }
+  mesh.add(cloth, furled);
+  const flag: HazardFlag = {
+    mesh,
+    fly(clockSeconds) {
+      cloth.visible = true;
+      furled.visible = false;
+      for (const geometry of bands) {
+        const positions = geometry.getAttribute("position");
+        for (let vertex = 0; vertex < positions.count; vertex++) {
+          // Pinned at the pole, swinging more the further out.
+          const out = positions.getX(vertex) / FLAG_WIDTH_M;
+          positions.setZ(
+            vertex,
+            FLAG_HEIGHT_M *
+              FLAG_RIPPLE_SHARE *
+              out *
+              Math.sin(clockSeconds * FLAG_RIPPLE_RAD_PER_S - out * FLAG_RIPPLE_RAD_ACROSS),
+          );
+        }
+        positions.needsUpdate = true;
+        geometry.computeBoundingBox();
+        geometry.computeBoundingSphere();
+      }
+    },
+    furl() {
+      cloth.visible = false;
+      furled.visible = true;
+    },
+  };
+  flag.fly(0);
   return flag;
+}
+
+type Point = readonly [number, number];
+
+/**
+ * The cloth flat in its plane, x out from the pole and y up, as two
+ * geometries: the yellow, and the black stripes between it. Each band runs
+ * between two lines of constant x + y, so it leans down away from the pole.
+ */
+function clothBands(): [BufferGeometry, BufferGeometry] {
+  const foot = FLAG_POLE_M - FLAG_HEIGHT_M;
+  const cloth: Point[] = [
+    [0, foot],
+    [FLAG_WIDTH_M, foot],
+    [FLAG_WIDTH_M, FLAG_POLE_M],
+    [0, FLAG_POLE_M],
+  ];
+  const yellow: number[] = [];
+  const black: number[] = [];
+  const band = (from: number, to: number, into: number[]) => {
+    const clipped = clip(
+      clip(cloth, ([x, y]) => x + y - from),
+      ([x, y]) => to - x - y,
+    );
+    // Each band is convex, so a fan from its first corner covers it.
+    const [first] = clipped;
+    if (first === undefined) return;
+    clipped.slice(1, -1).forEach((corner, index) => {
+      const next = clipped[index + 2] ?? corner;
+      for (const [x, y] of [first, corner, next]) into.push(x, y, 0);
+    });
+  };
+  const first = Math.floor(foot / FLAG_STRIPE_EVERY_M) * FLAG_STRIPE_EVERY_M;
+  for (let from = first; from < FLAG_WIDTH_M + FLAG_POLE_M; from += FLAG_STRIPE_EVERY_M) {
+    band(from, from + FLAG_STRIPE_M, black);
+    band(from + FLAG_STRIPE_M, from + FLAG_STRIPE_EVERY_M, yellow);
+  }
+  return [yellow, black].map((positions) => {
+    const geometry = new BufferGeometry();
+    geometry.setAttribute("position", new Float32BufferAttribute(positions, 3));
+    geometry.computeVertexNormals();
+    return geometry;
+  }) as [BufferGeometry, BufferGeometry];
+}
+
+/** What of convex `polygon` lies where `inside` is not negative; `inside` is linear. */
+function clip(polygon: readonly Point[], inside: (point: Point) => number): Point[] {
+  const kept: Point[] = [];
+  polygon.forEach((point, index) => {
+    const next = polygon[(index + 1) % polygon.length] ?? point;
+    const here = inside(point);
+    const there = inside(next);
+    if (here >= 0) kept.push(point);
+    if (here >= 0 !== there >= 0) {
+      const share = here / (here - there);
+      kept.push([point[0] + (next[0] - point[0]) * share, point[1] + (next[1] - point[1]) * share]);
+    }
+  });
+  return kept;
+}
+
+/** The marshal at a marshal post. */
+export interface Marshal {
+  /** Standing on his origin, facing +z. */
+  readonly figure: Group;
+  /** Pose him for the wheel's `kind`, `clockSeconds` into the View's clock. */
+  pose(kind: Wheel["kind"], clockSeconds: number): void;
+}
+
+const DOWN = new Vector3(0, -1, 0);
+
+/**
+ * The marshal, flat-shaded from primitives in Purrjump's colours for him:
+ * bald with a shine, grey side hair, heavy brows and a wide mustache on a
+ * faceted head, a round belly in a hi-vis jacket with a reflective band
+ * over a white vest, a towel round his neck, shorts and sandals, a hazard
+ * flag in each hand. Quiet, he sits on a green folding stool sipping tea,
+ * steam rising, calm, his flags furled against the stool. From the flag
+ * going up he is on his feet in a panic, arms up waving the flags out of
+ * phase, and while the wheel rolls he hops. His parts are named for the
+ * View's tests: `head`, `stool`, `cup`, `face.calm`, `face.panic`, and
+ * `flag.left` and `flag.right`, left and right as seen from in front.
+ */
+export function marshalMesh(): Marshal {
+  const figure = new Group();
+  // Everything above his legs, which sits and hops with him.
+  const body = new Group();
+  const standingLegs = new Group();
+  // Knees apart, thighs along the stool and shins down to the ground.
+  const seatedLegs = new Group();
+  figure.add(body, standingLegs, seatedLegs);
+  for (const side of [-1, 1]) {
+    part(standingLegs, new BoxGeometry(0.13, 0.33, 0.13), MARSHAL_SKIN.mid, [
+      side * 0.145,
+      0.215,
+      0,
+    ]);
+    part(standingLegs, new BoxGeometry(0.2, 0.06, 0.28), MARSHAL_SANDALS, [
+      side * 0.15,
+      0.03,
+      0.04,
+    ]);
+    part(seatedLegs, new BoxGeometry(0.13, 0.13, 0.32), MARSHAL_SKIN.mid, [
+      side * 0.25,
+      0.275,
+      0.16,
+    ]);
+    part(seatedLegs, new BoxGeometry(0.13, 0.24, 0.13), MARSHAL_SKIN.mid, [side * 0.27, 0.17, 0.3]);
+    part(seatedLegs, new BoxGeometry(0.2, 0.06, 0.28), MARSHAL_SANDALS, [side * 0.27, 0.03, 0.34]);
+  }
+
+  part(body, new BoxGeometry(0.66, 0.22, 0.44), MARSHAL_SHORTS, [0, 0.47, 0]);
+  const belly = part(body, new SphereGeometry(0.36, 8, 6), MARSHAL_JACKET, [0, 0.82, 0]);
+  belly.scale.set(1, 0.75, 0.8);
+  // A narrower belly a hair proud of the jacket shows as the vest down its open front.
+  const vest = part(body, new SphereGeometry(0.36, 8, 6), MARSHAL_VEST, [0, 0.82, 0.005]);
+  vest.scale.set(0.3, 0.73, 0.83);
+  // Round the belly but over the vest.
+  const opening = 0.45;
+  const reflective = part(
+    body,
+    new CylinderGeometry(0.345, 0.345, 0.045, 8, 1, true, opening, 2 * Math.PI - 2 * opening),
+    MARSHAL_REFLECTIVE,
+    [0, 0.72, 0],
+  );
+  reflective.scale.z = 0.8;
+  const towel = part(body, new TorusGeometry(0.2, 0.05, 4, 8), MARSHAL_TOWEL, [0, 1.08, 0]);
+  towel.rotation.x = Math.PI / 2;
+
+  const head = part(body, new SphereGeometry(MARSHAL_HEAD_RADIUS_M, 8, 6), MARSHAL_SKIN.mid, [
+    0,
+    MARSHAL_HEAD_Y_M,
+    0,
+  ]);
+  head.name = "head";
+  const headDepth = 0.9;
+  const headHeight = 0.97;
+  head.scale.set(1, headHeight, headDepth);
+  // Where the front of his head is at `x` across and `y` up, so a feature stands on it.
+  const faceZ = (x: number, y: number) => {
+    const across = x / MARSHAL_HEAD_RADIUS_M;
+    const up = (y - MARSHAL_HEAD_Y_M) / (MARSHAL_HEAD_RADIUS_M * headHeight);
+    return MARSHAL_HEAD_RADIUS_M * headDepth * Math.sqrt(Math.max(0, 1 - across ** 2 - up ** 2));
+  };
+  const feature = (
+    parent: Group,
+    [width, height]: readonly [number, number],
+    colour: number,
+    [x, y]: readonly [number, number],
+    tilt = 0,
+  ) => {
+    const piece = part(parent, new BoxGeometry(width, height, 0.05), colour, [x, y, faceZ(x, y)]);
+    piece.rotation.z = tilt;
+    // Turned to follow the head round.
+    piece.rotation.y = Math.asin(Math.min(1, x / MARSHAL_HEAD_RADIUS_M)) * 0.8;
+    return piece;
+  };
+  const shine = part(body, new SphereGeometry(0.1, 6, 4), MARSHAL_SKIN.lit, [-0.1, 1.66, 0.15]);
+  shine.scale.set(1, 0.45, 0.6);
+  for (const side of [-1, 1]) {
+    part(body, new SphereGeometry(0.07, 6, 4), MARSHAL_SKIN.shaded, [side * 0.34, 1.4, 0]);
+    part(body, new BoxGeometry(0.08, 0.2, 0.26), MARSHAL_HAIR, [side * 0.32, 1.44, -0.03]);
+    feature(body, [0.22, 0.07], MARSHAL_MUSTACHE, [side * 0.105, 1.305]);
+    // The towel's ends down his chest.
+    part(body, new BoxGeometry(0.08, 0.24, 0.03), MARSHAL_TOWEL, [side * 0.16, 0.93, 0.25]);
+  }
+  feature(body, [0.08, 0.08], MARSHAL_NOSE, [0, 1.37]);
+
+  // Calm: flat brows and dot eyes.
+  const calm = new Group();
+  calm.name = "face.calm";
+  // Panic: brows high and lifted at the middle, eyes wide, mouth open and sweat flying off.
+  const panic = new Group();
+  panic.name = "face.panic";
+  body.add(calm, panic);
+  for (const side of [-1, 1]) {
+    feature(calm, [0.16, 0.045], MARSHAL_BROWS, [side * 0.14, 1.51]);
+    feature(calm, [0.06, 0.06], MARSHAL_EYE, [side * 0.13, 1.42]);
+    feature(panic, [0.18, 0.05], MARSHAL_BROWS, [side * 0.14, 1.61], side * 0.2);
+    feature(panic, [0.13, 0.13], WHITE.lit, [side * 0.13, 1.43]);
+    const pupil = feature(panic, [0.04, 0.04], MARSHAL_EYE, [side * 0.13, 1.43]);
+    pupil.position.z += 0.02;
+  }
+  const mouth = feature(panic, [0.14, 0.16], MARSHAL_MOUTH, [0, 1.23]);
+  const sweat = [-1, 1].map((side) => ({
+    side,
+    drop: part(panic, new SphereGeometry(0.04, 4, 3), MARSHAL_SWEAT),
+  }));
+
+  // Each arm hangs from its shoulder along its -y, turned to point where the pose puts the hand.
+  const [shoulderX, shoulderY] = MARSHAL_SHOULDER;
+  const reach = Math.hypot(MARSHAL_HAND_UP[0] - shoulderX, MARSHAL_HAND_UP[1] - shoulderY);
+  const arms = [-1, 1].map((side) => {
+    const arm = new Group();
+    arm.position.set(side * shoulderX, shoulderY, 0);
+    part(arm, new BoxGeometry(0.12, reach, 0.12), MARSHAL_JACKET, [0, -reach / 2, 0]);
+    part(arm, new SphereGeometry(0.065, 6, 4), MARSHAL_SKIN.mid, [0, -reach, 0]);
+    body.add(arm);
+    const up = new Vector3(
+      side * (MARSHAL_HAND_UP[0] - shoulderX),
+      MARSHAL_HAND_UP[1] - shoulderY,
+      0,
+    );
+    // Seated, the left hand rests on his knee and the right holds the cup to his mouth.
+    const seated = side < 0 ? new Vector3(-0.11, -0.38, 0.25) : new Vector3(-0.12, 0.16, 0.38);
+    return { arm, up: up.normalize(), seated: seated.normalize() };
+  });
+  const cup = new Group();
+  cup.name = "cup";
+  part(cup, new CylinderGeometry(0.06, 0.05, 0.12, 6), MARSHAL_TOWEL, [0.15, 1.2, 0.45]);
+  const steam = Array.from({ length: 3 }, () => {
+    const puff = part(cup, new SphereGeometry(0.035, 4, 3), MARSHAL_TOWEL);
+    puff.material.transparent = true;
+    puff.material.depthWrite = false;
+    return puff;
+  });
+  body.add(cup);
+
+  const stool = new Group();
+  stool.name = "stool";
+  const seatTop = 0.36 - MARSHAL_SEATED_DROP_M;
+  part(stool, new BoxGeometry(0.5, 0.05, 0.36), MARSHAL_STOOL, [0, seatTop - 0.025, -0.05]);
+  // Its legs cross under the seat, front and back.
+  const span = 0.44;
+  const rise = seatTop - 0.05;
+  for (const z of [-0.2, 0.1]) {
+    for (const lean of [-1, 1]) {
+      const leg = part(stool, new BoxGeometry(Math.hypot(span, rise), 0.03, 0.03), ROCKET_STRAP, [
+        0,
+        rise / 2,
+        z,
+      ]);
+      leg.rotation.z = lean * Math.atan2(rise, span);
+    }
+  }
+  figure.add(stool);
+
+  // Each flag hangs in a holder its tilt turns, the flag inside flying toward its own side.
+  const flags = [-1, 1].map((side) => {
+    const flag = hazardFlag();
+    flag.mesh.scale.x = side;
+    const holder = new Group();
+    holder.name = side < 0 ? "flag.left" : "flag.right";
+    holder.add(flag.mesh);
+    figure.add(holder);
+    return { side, flag, holder };
+  });
+
+  const marshal: Marshal = {
+    figure,
+    pose(kind, clockSeconds) {
+      const alarm = kind !== "quiet";
+      const hop =
+        kind === "rolling"
+          ? MARSHAL_HOP_M * Math.abs(Math.sin(clockSeconds * MARSHAL_HOP_RAD_PER_S))
+          : 0;
+      body.position.y = (alarm ? 0 : -MARSHAL_SEATED_DROP_M) + hop;
+      standingLegs.position.y = hop;
+      standingLegs.visible = alarm;
+      seatedLegs.visible = !alarm;
+      stool.visible = !alarm;
+      cup.visible = !alarm;
+      calm.visible = !alarm;
+      panic.visible = alarm;
+      for (const { arm, up, seated } of arms) {
+        arm.quaternion.setFromUnitVectors(DOWN, alarm ? up : seated);
+      }
+      flags.forEach(({ side, flag, holder }, index) => {
+        if (alarm) {
+          // Out of phase: the right is half a wave behind the left.
+          const swing = Math.sin(clockSeconds * FLAG_WAVE_RAD_PER_S + (side > 0 ? Math.PI : 0));
+          holder.position.set(
+            side * MARSHAL_HAND_UP[0],
+            MARSHAL_HAND_UP[1] + body.position.y,
+            0.05,
+          );
+          holder.rotation.z = -side * (FLAG_WAVE_OUT_RAD + FLAG_WAVE_SWING_RAD * swing);
+          // The two ripple a step apart, so they never fly as one.
+          flag.fly(clockSeconds + side);
+        } else {
+          // Leaning against the stool's left end.
+          holder.position.set(-0.62 + index * 0.12, 0.02, -0.15);
+          holder.rotation.z = ((12 - index * 6) * Math.PI) / 180;
+          flag.furl();
+        }
+      });
+      if (alarm) {
+        mouth.scale.y = 1 + 0.12 * Math.sin(clockSeconds * MARSHAL_CHATTER_RAD_PER_S);
+        for (const { side, drop } of sweat) {
+          const flown = (clockSeconds * MARSHAL_SWEAT_PER_S + (side > 0 ? 0.5 : 0)) % 1;
+          drop.position.set(side * (0.4 + flown * 0.2), 1.62 + flown * 0.08, 0);
+          drop.scale.setScalar(1 - flown);
+        }
+      } else {
+        steam.forEach((puff, index) => {
+          const risen = (clockSeconds * MARSHAL_STEAM_PER_S + index / steam.length) % 1;
+          puff.position.set(
+            0.15 + Math.sin(clockSeconds * 3 + index * 2) * 0.04,
+            1.3 + risen * MARSHAL_STEAM_RISE_M,
+            0.45,
+          );
+          puff.scale.setScalar(1 + risen);
+          puff.material.opacity = 0.7 * (1 - risen);
+        });
+      }
+    },
+  };
+  marshal.pose("quiet", 0);
+  return marshal;
+}
+
+/** The amber beacon on a marshal post. */
+export interface Beacon {
+  /** Standing on its origin. */
+  readonly mesh: Group;
+  /** Light it for the wheel's `kind` while the flag is up, its beam swept round `clockSeconds` into the View's clock; dark it otherwise. */
+  show(kind: Wheel["kind"], clockSeconds: number): void;
+}
+
+/**
+ * The marshal post's beacon: an amber dome on a black base, lit by the sun
+ * and dark while the wheel is quiet. While the flag is up it glows, a halo
+ * round it, and a beam either side sweeps round. Its dome, halo and beam
+ * are named `dome`, `glow` and `beam`.
+ */
+export function marshalBeacon(): Beacon {
+  const mesh = new Group();
+  const base = BEACON_RADIUS_M * 0.4;
+  part(mesh, new CylinderGeometry(BEACON_RADIUS_M, BEACON_RADIUS_M, base, 8), INK, [
+    0,
+    base / 2,
+    0,
+  ]);
+  const dome = part(
+    mesh,
+    new SphereGeometry(BEACON_RADIUS_M * 0.8, 8, 4, 0, 2 * Math.PI, 0, Math.PI / 2),
+    BEACON_OFF,
+    [0, base, 0],
+  );
+  dome.name = "dome";
+  const glow = glowing(
+    mesh,
+    new SphereGeometry(BEACON_RADIUS_M * 3, 8, 6),
+    BEACON_LIT,
+    BEACON_GLOW_OPACITY,
+  );
+  glow.name = "glow";
+  glow.material.blending = AdditiveBlending;
+  glow.position.y = base;
+  const beam = new Group();
+  beam.name = "beam";
+  beam.position.y = base + BEACON_RADIUS_M * 0.4;
+  for (const side of [-1, 1]) {
+    // Its tip at the dome, opening out along x.
+    const cone = new ConeGeometry(BEACON_RADIUS_M * 2.5, BEACON_BEAM_M, 8, 1, true)
+      .translate(0, -BEACON_BEAM_M / 2, 0)
+      .rotateZ((side * Math.PI) / 2);
+    const ray = glowing(beam, cone, BEACON_BEAM, BEACON_BEAM_OPACITY);
+    ray.material.side = DoubleSide;
+    ray.material.blending = AdditiveBlending;
+  }
+  mesh.add(beam);
+  const beacon: Beacon = {
+    mesh,
+    show(kind, clockSeconds) {
+      const on = kind !== "quiet";
+      dome.material.color.setHex(on ? BEACON_LIT : BEACON_OFF);
+      dome.material.emissive.setHex(on ? BEACON_LIT : 0);
+      glow.visible = on;
+      beam.visible = on;
+      if (on) {
+        const sweep = clockSeconds * BEACON_BEAM_RAD_PER_S;
+        beam.rotation.y = sweep;
+        glow.scale.setScalar(1 + Math.abs(Math.cos(sweep)) / 3);
+      }
+    },
+  };
+  beacon.show("quiet", 0);
+  return beacon;
 }

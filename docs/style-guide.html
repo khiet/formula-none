@@ -458,7 +458,7 @@
         <dl class="spec"><dt>Size</dt><dd>8 x 1 m, 0.15 m proud</dd><dt>Decided</dt><dd><a href="adr/0041-track-obstacles.md">ADR 0041</a></dd></dl>
         <div class="notes">
           <p>A capsule in gold <code>#ffd23f</code> over the sim's 8 x 1 m rectangle, its ends rounded inside it, a squashed half-round with six black <code>#111111</code> stripes across it. It sits just in from the painted kerb on the inside of the Brands Patch chicane; a kart on the ground that reaches it is thrown into a hop that lands straight, and loses its drift.</p>
-          <p>The marshal's-flag yellow reads as a warning, and the stripes make its length read at speed. The launch is the sim's rectangle, not the mesh.</p>
+          <p>The hazard flags' yellow reads as a warning, and the stripes make its length read at speed. The launch is the sim's rectangle, not the mesh.</p>
         </div>
       </article>
 
@@ -486,12 +486,25 @@
       </article>
 
       <article class="asset">
-        <header><h3>Marshal post</h3><code>assets/tracks/trackgen/layout.py marshal_posts, apps/web/src/item-meshes.ts marshalFlagMesh</code></header>
-        <div class="compare"><figure><figcaption>Flag up before and through a pass</figcaption><div class="stage flat" data-draw="marshalPost"></div></figure></div>
-        <dl class="spec"><dt>Size</dt><dd>1.4 x 1.4 x 1 m, 3 m short of the wheel's crossing on the outside run-off</dd><dt>Decided</dt><dd><a href="adr/0041-track-obstacles.md">ADR 0041</a>, <a href="mockups/runaway-wheel-danger-spec.html">the danger spec</a></dd></dl>
+        <header><h3>Marshal post</h3><code>assets/tracks/trackgen/layout.py marshal_posts; apps/web/src/item-meshes.ts marshalMesh, hazardFlag, marshalBeacon</code></header>
+        <div class="compare"><figure><figcaption>Quiet</figcaption><div class="stage flat" data-draw="marshalPostQuiet"></div></figure><figure><figcaption>Flag up</figcaption><div class="stage flat" data-draw="marshalPost"></div></figure><figure><figcaption>Rolling</figcaption><div class="stage flat" data-draw="marshalPostRolling"></div></figure></div>
+        <dl class="spec"><dt>Size</dt><dd>1.4 x 1.4 x 1 m, 3 m short of the wheel's crossing on the outside run-off; each flag 0.9 x 0.62 m on a 1 m pole</dd><dt>Decided</dt><dd><a href="adr/0041-track-obstacles.md">ADR 0041</a>, <a href="adr/0045-marshal-waves-hazard-flags.md">ADR 0045</a>, <a href="mockups/runaway-wheel-danger-spec.html">the danger spec</a></dd></dl>
         <div class="notes">
-          <p>A low white platform, banded orange <code>#ff8800</code> 0.12 m deep under its top, with an orange lamp on its face to the track: scenery in the track's glTF. The View stands a yellow flag <code>#f5c542</code> on its top, flying across the track toward the lamp, and waves it from a second before each pass until the pass ends.</p>
-          <p>The yellow flag is the warning a racer already knows, and the post keeps it where the wheel will come from.</p>
+          <p>A low white platform, banded orange <code>#ff8800</code> 0.12 m deep under its top, with an orange lamp on its face to the track: scenery in the track's glTF. The View stands Oyaji, the marshal, on its top facing the track, and an amber beacon on its track-side corner.</p>
+          <p>His two hazard flags are <code>SIGNAL_YELLOW.mid</code> <code>#f5c542</code> with <code>HAZARD_FLAG_STRIPE</code> <code>#1f1f22</code> diagonals 0.09 m wide every 0.2 m, leaning down away from the pole, on a pole in <code>WHITE.shaded</code> <code>#cfd2d6</code>. Flying, the cloth ripples out from the pole. Quiet, they lean furled against his stool.</p>
+          <p>The beacon is <code>BEACON_OFF</code> <code>#7a5a14</code> while the wheel is quiet. From the flag going up to the end of the pass it is lit <code>BEACON_LIT</code> <code>#ffb020</code>, glowing with a halo, and two <code>BEACON_BEAM</code> <code>#ffcf4a</code> beams sweep round at 11 rad/s.</p>
+          <p class="dont"><b>Don't</b> give the flags red stripes: yellow and red is the racing flag for a slippery surface, and a hazard flag must not read as a racing flag.</p>
+        </div>
+      </article>
+
+      <article class="asset">
+        <header><h3>Oyaji</h3><code>apps/web/src/item-meshes.ts marshalMesh</code></header>
+        <div class="compare"><figure><figcaption>Calm, with his tea</figcaption><div class="stage flat" data-draw="oyajiCalm"></div></figure><figure><figcaption>Panic, waving</figcaption><div class="stage flat" data-draw="oyajiPanic"></div></figure></div>
+        <dl class="spec"><dt>Size</dt><dd>About 1.75 m standing; head 0.68 m across</dd><dt>Decided</dt><dd><a href="adr/0045-marshal-waves-hazard-flags.md">ADR 0045</a>, <a href="mockups/runaway-wheel-danger-spec.html">the danger spec</a></dd></dl>
+        <div class="notes">
+          <p>The marshal, adapted from the author's own Purrjump character and drawn as Purrjump draws him: bald with a <code>MARSHAL_SKIN.lit</code> shine, grey <code>MARSHAL_HAIR</code> side hair, heavy <code>MARSHAL_BROWS</code> brows and a wide <code>MARSHAL_MUSTACHE</code> mustache on a faceted <code>MARSHAL_SKIN</code> head, a round belly in a <code>MARSHAL_JACKET</code> hi-vis jacket with a <code>MARSHAL_REFLECTIVE</code> band over a <code>MARSHAL_VEST</code> vest, a white towel round his neck, <code>MARSHAL_SHORTS</code> shorts and <code>MARSHAL_SANDALS</code> sandals. Chibi like the drivers; built in code from flat-shaded primitives, because he moves, and the sun shades him.</p>
+          <p>His pose follows the wheel's kind. Quiet: seated on a green <code>MARSHAL_STOOL</code> folding stool, knees apart, sipping from a white cup as steam rises; calm, flat brows and dot eyes. Warning: on his feet, arms up, a flag in each hand waved out of phase at 14 rad/s through 34° either side of 18° out; panic, brows high, eyes wide, mouth open and <code>MARSHAL_SWEAT</code> sweat flying off. Rolling: as the warning, hopping up to 0.18 m.</p>
+          <p>The code calls him <code>marshal</code>; "Oyaji" is his name here and in <code>assets/LICENSES.md</code> only. He stands only on the marshal post.</p>
         </div>
       </article>
 
@@ -1126,11 +1139,123 @@
   };
   draw.hazardZone = () => hazardGround(false);
   draw.hazardZoneFlash = () => hazardGround(true);
-  // From the track: the low platform on the run-off, banded orange under its top, its lamp facing out, the flag up.
-  draw.marshalPost = () => `<svg viewBox="0 0 200 160" role="img" aria-label="Marshal post with its lamp and the yellow flag up">
-    <rect width="200" height="160" fill="#87ceeb"/><rect y="132" width="200" height="28" fill="#e8c773"/>
-    <rect x="72" y="92" width="56" height="40" fill="#f5f5f5"/><rect x="72" y="92" width="56" height="5" fill="#ff8800"/><rect x="93" y="104" width="14" height="14" fill="#ff8800"/>
-    <rect x="98" y="48" width="3" height="44" fill="#cfd2d6"/><rect x="101" y="48" width="34" height="22" fill="#f5c542" transform="rotate(-12 100 92)"/></svg>`;
+  // Oyaji as apps/web/src/item-meshes.ts poses him, front on, after the danger spec's drawing.
+  // `kind` is the wheel's: quiet, warning or rolling; `t` the moment drawn.
+  const OY = {
+    skin: "#f0c090", shade: "#d8a070", shine: "#f8dcb0", hair: "#50505c", brows: "#2a2a30", stache: "#6a6a78",
+    eye: "#1e1e28", nose: "#d89068", mouth: "#6a1e22", jacket: "#ff8800", reflect: "#d8dce0", vest: "#f4f4f4",
+    towel: "#f5f5f5", shorts: "#3060a8", sandals: "#b87050", sweat: "#7fc3ff", stool: "#2f6f3a", strap: "#3a3d42",
+    yellow: "#f5c542", stripe: "#1f1f22", pole: "#cfd2d6",
+  };
+  let oyClip = 0;
+  const oyFlag = (hx, hy, s, angle, side, furled) => {
+    const f = (n) => n.toFixed(1);
+    const top = hy - s, w = 0.9 * s, h = 0.62 * s;
+    let cloth;
+    if (furled) {
+      const x = hx + (side > 0 ? 0.02 * s : -0.1 * s);
+      cloth = `<rect x="${f(x)}" y="${f(top)}" width="${f(0.08 * s)}" height="${f(h)}" fill="${OY.yellow}"/>`;
+      for (let k = 0; k < 4; k++) cloth += `<rect x="${f(x)}" y="${f(top + (0.06 + k * 0.15) * s)}" width="${f(0.08 * s)}" height="${f(0.05 * s)}" fill="${OY.stripe}"/>`;
+    } else {
+      const shape = `${f(hx)},${f(top)} ${f(hx + side * w)},${f(top + h * 0.08)} ${f(hx + side * w)},${f(top + h * 1.08)} ${f(hx)},${f(top + h)}`;
+      const id = `oyflag${oyClip++}`;
+      let stripes = "";
+      for (let k = -4; k < 7; k++) {
+        const x0 = k * 0.2 * s, sw = 0.09 * s, run = h * 1.4;
+        const p = (x, y) => `${f(hx + side * x)},${f(y)}`;
+        stripes += `<polygon points="${p(x0, top - h * 0.2)} ${p(x0 + sw, top - h * 0.2)} ${p(x0 + sw + run, top + h * 1.2)} ${p(x0 + run, top + h * 1.2)}" fill="${OY.stripe}"/>`;
+      }
+      cloth = `<polygon points="${shape}" fill="${OY.yellow}"/><clipPath id="${id}"><polygon points="${shape}"/></clipPath><g clip-path="url(#${id})">${stripes}</g>`;
+    }
+    return `<g transform="rotate(${f(angle)} ${f(hx)} ${f(hy)})"><rect x="${f(hx - 0.02 * s)}" y="${f(top)}" width="${f(0.04 * s)}" height="${f(s)}" fill="${OY.pole}"/>${cloth}</g>`;
+  };
+  const oyaji = (gx, gy, s, kind, t) => {
+    const f = (n) => n.toFixed(1);
+    const alarm = kind !== "quiet";
+    const P = (x, y) => [gx + x * s, gy - y * s];
+    const pts = (arr) => arr.map(([x, y]) => P(x, y).map(f).join(",")).join(" ");
+    const poly = (arr, fill) => `<polygon points="${pts(arr)}" fill="${fill}"/>`;
+    const rect = (x, y, w, h, fill) => poly([[x, y], [x + w, y], [x + w, y + h], [x, y + h]], fill);
+    const circ = (x, y, r, fill) => { const [cx, cy] = P(x, y); return `<circle cx="${f(cx)}" cy="${f(cy)}" r="${f(r * s)}" fill="${fill}"/>`; };
+    const limb = (a, b, colour, width = 0.12) => { const [x1, y1] = P(...a), [x2, y2] = P(...b); return `<line x1="${f(x1)}" y1="${f(y1)}" x2="${f(x2)}" y2="${f(y2)}" stroke="${colour}" stroke-width="${f(width * s)}" stroke-linecap="round"/>`; };
+    const hop = kind === "rolling" ? 0.18 * Math.abs(Math.sin(t * 9)) : 0;
+    const dy = (alarm ? 0 : -0.15) + hop;
+    let back = "", body = "", front = "";
+    if (!alarm) {
+      back += limb([-0.22, 0], [0.22, 0.16], OY.strap, 0.04) + limb([0.22, 0], [-0.22, 0.16], OY.strap, 0.04) + rect(-0.25, 0.16, 0.5, 0.05, OY.stool);
+      back += oyFlag(...P(-0.62, 0.02), s, -12, -1, true) + oyFlag(...P(-0.5, 0.02), s, -6, -1, true);
+    }
+    const spread = alarm ? 0 : 0.12;
+    const hipY = 0.38 + dy;
+    body += rect(-0.21 - spread, hop + 0.05, 0.13, hipY - hop - 0.03, OY.skin) + rect(0.08 + spread, hop + 0.05, 0.13, hipY - hop - 0.03, OY.skin);
+    body += rect(-0.25 - spread, hop, 0.2, 0.06, OY.sandals) + rect(0.05 + spread, hop, 0.2, 0.06, OY.sandals);
+    body += rect(-0.33, 0.36 + dy, 0.66, 0.22, OY.shorts);
+    body += poly([[-0.28, 1.08], [0.28, 1.08], [0.37, 0.8], [0.33, 0.56], [-0.33, 0.56], [-0.37, 0.8]].map(([x, y]) => [x, y + dy]), OY.jacket);
+    body += poly([[-0.08, 1.06], [0.08, 1.06], [0.1, 0.58], [-0.1, 0.58]].map(([x, y]) => [x, y + dy]), OY.vest);
+    body += rect(-0.37, 0.7 + dy, 0.27, 0.045, OY.reflect) + rect(0.1, 0.7 + dy, 0.27, 0.045, OY.reflect);
+    body += rect(-0.24, 1.04 + dy, 0.48, 0.07, OY.towel) + rect(-0.2, 0.8 + dy, 0.08, 0.26, OY.towel) + rect(0.12, 0.82 + dy, 0.08, 0.24, OY.towel);
+    const shoulder = (side) => [side * 0.29, 1.0 + dy];
+    if (alarm) {
+      for (const side of [-1, 1]) {
+        const hand = [side * 0.55, 1.36 + dy];
+        body += limb(shoulder(side), hand, OY.jacket) + circ(...hand, 0.065, OY.skin);
+        const swing = Math.sin(t * 14 + (side > 0 ? Math.PI : 0));
+        front += oyFlag(...P(...hand), s, side * (18 + swing * 34), side, false);
+      }
+    } else {
+      const cupHand = [0.17, 1.16 + dy];
+      body += limb(shoulder(-1), [-0.4, 0.62 + dy], OY.jacket) + circ(-0.4, 0.62 + dy, 0.065, OY.skin);
+      body += limb(shoulder(1), [0.36, 0.86 + dy], OY.jacket) + limb([0.36, 0.86 + dy], cupHand, OY.jacket);
+      front += rect(0.1, 1.12 + dy, 0.14, 0.14, OY.towel) + circ(...cupHand, 0.055, OY.skin);
+      for (let k = 0; k < 3; k++) {
+        const rise = (t * 0.6 + k / 3) % 1;
+        front += circ(0.17 + Math.sin(t * 3 + k * 2) * 0.04, 1.32 + dy + rise * 0.3, 0.035 * (1 + rise), `rgba(245,245,245,${(0.7 * (1 - rise)).toFixed(2)})`);
+      }
+    }
+    const hy = 1.42 + dy;
+    const head = Array.from({ length: 8 }, (_, k) => { const a = Math.PI / 8 + (k * Math.PI) / 4; return [0.34 * Math.cos(a), hy + 0.32 * Math.sin(a)]; });
+    body += circ(-0.34, hy - 0.02, 0.07, OY.shade) + circ(0.34, hy - 0.02, 0.07, OY.shade);
+    body += poly(head, OY.skin) + poly([[0.13, hy + 0.3], [0.31, hy + 0.13], [0.31, hy - 0.13], [0.13, hy - 0.3]], OY.shade);
+    { const [cx, cy] = P(-0.1, hy + 0.24); body += `<ellipse cx="${f(cx)}" cy="${f(cy)}" rx="${f(0.1 * s)}" ry="${f(0.045 * s)}" fill="${OY.shine}"/>`; }
+    for (const side of [-1, 1]) body += poly([[side * 0.36, hy + 0.06], [side * 0.27, hy + 0.12], [side * 0.27, hy - 0.08], [side * 0.34, hy - 0.12]], OY.hair);
+    if (!alarm) {
+      body += rect(-0.22, hy + 0.07, 0.16, 0.045, OY.brows) + rect(0.06, hy + 0.07, 0.16, 0.045, OY.brows);
+      body += circ(-0.13, hy, 0.03, OY.eye) + circ(0.13, hy, 0.03, OY.eye);
+    } else {
+      for (const side of [-1, 1]) body += poly([[side * 0.23, hy + 0.18], [side * 0.05, hy + 0.22], [side * 0.05, hy + 0.27], [side * 0.23, hy + 0.23]], OY.brows);
+      body += circ(-0.13, hy + 0.01, 0.068, "#ffffff") + circ(0.13, hy + 0.01, 0.068, "#ffffff") + circ(-0.13, hy + 0.01, 0.02, OY.eye) + circ(0.13, hy + 0.01, 0.02, OY.eye);
+      { const [cx, cy] = P(0, hy - 0.19); body += `<ellipse cx="${f(cx)}" cy="${f(cy)}" rx="${f(0.07 * s)}" ry="${f(0.08 * s)}" fill="${OY.mouth}"/>`; }
+      for (const side of [-1, 1]) body += circ(side * 0.47, hy + 0.24, 0.035, OY.sweat);
+    }
+    body += poly([[0, hy - 0.01], [0.045, hy - 0.09], [-0.045, hy - 0.09]], OY.nose);
+    body += poly([[-0.21, hy - 0.08], [0.21, hy - 0.08], [0.17, hy - 0.15], [0, hy - 0.12], [-0.17, hy - 0.15]], OY.stache);
+    return back + body + front;
+  };
+  const beacon = (cx, cy, r, on, t) => {
+    const f = (n) => n.toFixed(1);
+    const dome = (fill) => `<rect x="${f(cx - r)}" y="${f(cy - r * 0.4)}" width="${f(2 * r)}" height="${f(r * 0.4)}" fill="#111111"/><path d="M ${f(cx - r * 0.8)} ${f(cy - r * 0.4)} A ${f(r * 0.8)} ${f(r * 0.9)} 0 0 1 ${f(cx + r * 0.8)} ${f(cy - r * 0.4)} Z" fill="${fill}"/>`;
+    if (!on) return dome("#7a5a14");
+    const a = t * 11;
+    const beam = (side, k) => `<polygon points="${f(cx)},${f(cy - r * 0.85)} ${f(cx + side * r * 8)},${f(cy - r * 2.8)} ${f(cx + side * r * 8)},${f(cy + r * 1.1)}" fill="#ffcf4a" opacity="${(0.4 * k).toFixed(2)}"/>`;
+    return `<circle cx="${f(cx)}" cy="${f(cy - r * 0.8)}" r="${f(r * (3 + Math.abs(Math.cos(a))))}" fill="url(#beaconGlow)"/>${beam(-1, Math.max(0, Math.cos(a)))}${beam(1, Math.max(0, -Math.cos(a)))}${dome("#ffb020")}`;
+  };
+  // From the track: the low platform on the run-off, banded orange under its top, its lamp facing out, Oyaji on top and the beacon on its corner.
+  const marshalPostAt = (kind, t) => {
+    const s = 38, gx = 100, gy = 150;
+    const r = (x, y, w, h, fill) => `<rect x="${(gx + x * s).toFixed(1)}" y="${(gy - (y + h) * s).toFixed(1)}" width="${(w * s).toFixed(1)}" height="${(h * s).toFixed(1)}" fill="${fill}"/>`;
+    return `<svg viewBox="0 0 200 160" role="img" aria-label="Marshal post with Oyaji, ${kind}">
+      <defs><radialGradient id="beaconGlow"><stop offset="0" stop-color="#ffcf4a" stop-opacity=".9"/><stop offset="1" stop-color="#ffcf4a" stop-opacity="0"/></radialGradient></defs>
+      <rect width="200" height="160" fill="#87ceeb"/><rect y="150" width="200" height="10" fill="#e8c773"/>
+      ${r(-0.7, 0, 1.4, 1.0, "#f5f5f5")}${r(-0.7, 0.88, 1.4, 0.12, "#ff8800")}${r(0.08, 0.2, 0.3, 0.3, "#ff8800")}
+      ${beacon(gx + 0.6 * s, gy - 1.0 * s, 0.13 * s, kind !== "quiet", t)}${oyaji(gx - 0.05 * s, gy - 1.0 * s, s, kind, t)}</svg>`;
+  };
+  draw.marshalPostQuiet = () => marshalPostAt("quiet", 0.4);
+  draw.marshalPost = () => marshalPostAt("warning", 0.1);
+  draw.marshalPostRolling = () => marshalPostAt("rolling", 0.17);
+  const oyajiAlone = (kind, t) => `<svg viewBox="0 0 200 160" role="img" aria-label="Oyaji, ${kind === "quiet" ? "calm with his tea" : "in a panic waving his flags"}">
+    <rect width="200" height="160" fill="#87ceeb"/><rect y="150" width="200" height="10" fill="#e8c773"/>${oyaji(100, 150, 56, kind, t)}</svg>`;
+  draw.oyajiCalm = () => oyajiAlone("quiet", 0.4);
+  draw.oyajiPanic = () => oyajiAlone("warning", 0.1);
   // Top-down: the track runs up the page, the pad's rectangle spans 6 m of its width.
   const padGround = (inner) => `<svg viewBox="0 0 200 160" role="img" aria-label="Boost pad on asphalt from above">
     <rect width="200" height="160" fill="#6b6b78"/><rect x="0" width="10" height="160" fill="#e8c773"/><rect x="190" width="10" height="160" fill="#e8c773"/>${inner}</svg>`;
@@ -1291,7 +1416,28 @@
       { token: "ROCKET", tones: [0xe8333b, 0xd00a12, 0x8f070c], role: "The snail's rocket; mid, the hot wheel's rim edge" },
       { token: "ROCKET_FLAME", hex: 0xffd23f, role: "The rocket's flame; the hot wheel's hub, rim centre and wall-hit sparks" },
       { token: "ROCKET_WINDOW", hex: 0x7fc3ff, role: "The rocket's porthole" },
-      { token: "ROCKET_STRAP", hex: 0x3a3d42, role: "The rocket's straps; the hot wheel's spokes" },
+      { token: "ROCKET_STRAP", hex: 0x3a3d42, role: "The rocket's straps; the hot wheel's spokes; the marshal's stool legs" },
+    ]],
+    ["The marshal and his post", [
+      { token: "MARSHAL_SKIN", tones: [0xf8dcb0, 0xf0c090, 0xd8a070], role: "Oyaji's skin: lit, his head's shine; shaded, his ears" },
+      { token: "MARSHAL_HAIR", hex: 0x50505c, role: "His grey side hair" },
+      { token: "MARSHAL_BROWS", hex: 0x2a2a30, role: "His heavy brows" },
+      { token: "MARSHAL_MUSTACHE", hex: 0x6a6a78, role: "His wide mustache" },
+      { token: "MARSHAL_EYE", hex: 0x1e1e28, role: "His eyes and pupils" },
+      { token: "MARSHAL_NOSE", hex: 0xd89068, role: "His nose" },
+      { token: "MARSHAL_MOUTH", hex: 0x6a1e22, role: "His mouth, open in a panic" },
+      { token: "MARSHAL_JACKET", hex: 0xff8800, role: "His hi-vis jacket and sleeves" },
+      { token: "MARSHAL_REFLECTIVE", hex: 0xd8dce0, role: "The jacket's reflective band" },
+      { token: "MARSHAL_VEST", hex: 0xf4f4f4, role: "Purrjump's white vest under the jacket" },
+      { token: "MARSHAL_TOWEL", hex: 0xf5f5f5, role: "His towel, his cup and its steam" },
+      { token: "MARSHAL_SHORTS", hex: 0x3060a8, role: "His shorts" },
+      { token: "MARSHAL_SANDALS", hex: 0xb87050, role: "His sandals" },
+      { token: "MARSHAL_SWEAT", hex: 0x7fc3ff, role: "The sweat flying off him" },
+      { token: "MARSHAL_STOOL", hex: 0x2f6f3a, role: "His folding stool's seat" },
+      { token: "HAZARD_FLAG_STRIPE", hex: 0x1f1f22, role: "The hazard flags' diagonals, over SIGNAL_YELLOW.mid" },
+      { token: "BEACON_OFF", hex: 0x7a5a14, role: "The beacon while the wheel is quiet" },
+      { token: "BEACON_LIT", hex: 0xffb020, role: "The beacon and its glow while the flag is up" },
+      { token: "BEACON_BEAM", hex: 0xffcf4a, role: "The beacon's sweeping beam" },
     ]],
     ["Poster, apps/web/index.html", [
       { hex: 0xc81d25, role: "Poster red: the backdrop" },

@@ -3,7 +3,7 @@
 ## Status
 
 Accepted (2026-10-27). The runaway wheel's path is superseded by ADR 0042,
-its size by ADR 0044.
+its size by ADR 0044, the marshal's flag by ADR 0045.
 
 ## Context
 
