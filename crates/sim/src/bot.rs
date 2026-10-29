@@ -70,7 +70,7 @@ pub fn drive(
         _ => false,
     };
     // A kerb ahead outranks a pass, whose point may lie on the kerb.
-    let kerb_line = line_clear_of_kerbs(track, kart.position);
+    let kerb_line = line_clear_of_kerbs(track, kart.position, progress);
     let target = match (kerb_line, kart_in_the_way(karts, slot)) {
         (Some(line), _) => line_point(track, progress + BOT_LOOKAHEAD_M, line),
         (None, Some(other)) => pass_point(
@@ -184,19 +184,20 @@ fn line_point(track: &Track, progress: f32, right: f32) -> [f32; 2] {
     [point[0] - tz * right, point[2] + tx * right]
 }
 
-/// The line, in metres right of the centreline, for a kart at `position` to
-/// aim along from the tuned approach short of a sausage kerb to its far end:
-/// the tuned gap from the kerb's near edge, or `None` with no kerb in range.
-/// Pursuit cuts toward an apex, where a kerb lies, so the usual line runs
-/// too close.
-fn line_clear_of_kerbs(track: &Track, position: [f32; 3]) -> Option<f32> {
+/// The line, in metres right of the centreline, for a kart at `position`
+/// reading `progress` to aim along from the tuned approach short of a
+/// sausage kerb to its far end: the tuned gap from the kerb's near edge, or
+/// `None` with no kerb in range. Pursuit cuts toward an apex, where a kerb
+/// lies, so the usual line runs too close.
+fn line_clear_of_kerbs(track: &Track, position: [f32; 3], progress: f32) -> Option<f32> {
     track.kerbs().iter().find_map(|kerb| {
         let (ahead, beside) = kerb.local(position);
         let approaching_or_alongside =
             (-KERB_HALF_LENGTH_M - BOT_KERB_APPROACH_M..=KERB_HALF_LENGTH_M).contains(&ahead)
                 && beside.abs() < BOT_LOOKAHEAD_M;
         approaching_or_alongside.then(|| {
-            let progress = track.progress_at(kerb.position);
+            // A kerb in range lies within the progress window of the kart.
+            let progress = track.progress_near(kerb.position, progress);
             let centre = track.point_at(progress);
             let [tx, tz] = track.direction_at(progress);
             let kerb_right =
@@ -256,7 +257,7 @@ fn waits_for_a_wheel(
         let (ahead, right) = line.local(kart.position);
         // Beside the crossing, as on the hairpin's way back, is not on it;
         // its run-off is.
-        let (_, stretch_right) = line.local(track.point_at(track.progress_at(kart.position)));
+        let (_, stretch_right) = line.local(track.point_at(kart.spline_progress));
         if stretch_right.abs() > crossing.half_width {
             return false;
         }
@@ -442,7 +443,7 @@ fn backs_into_a_wheel(track: &Track, kart: &KartReadout, seed: u64, clock: Phase
             yaw: crossing.yaw,
         };
         let (ahead, _) = line.local(kart.position);
-        let (_, stretch_right) = line.local(track.point_at(track.progress_at(kart.position)));
+        let (_, stretch_right) = line.local(track.point_at(kart.spline_progress));
         let pass = pass_not_over(crossing, seed, elapsed_s);
         ahead.abs() <= reach
             && stretch_right.abs() <= crossing.half_width

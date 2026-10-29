@@ -171,6 +171,14 @@ pub struct Projectile {
     pub target: usize,
 }
 
+/// A projectile as the rules keep it: what the View sees, plus its spline
+/// progress, which its next reading is searched near.
+#[derive(Debug, Clone, Copy, PartialEq)]
+struct FlyingProjectile {
+    projectile: Projectile,
+    progress: f32,
+}
+
 /// A hazard on the track, as the View draws it: where it lies, whose it is
 /// and whether that kart is still trailing it behind itself.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -496,7 +504,7 @@ pub struct State {
     /// The hazards on the track, in the order they were fired.
     hazards: Vec<PlacedHazard>,
     /// The projectiles in flight, in the order they were fired.
-    projectiles: Vec<Projectile>,
+    projectiles: Vec<FlyingProjectile>,
     /// Each kart's race position, in grid order, as the race ended; `None`
     /// until it has. The outro moves the karts but not the results.
     final_positions: Option<Vec<u32>>,
@@ -887,8 +895,11 @@ impl State {
 
     /// The projectiles in flight as of the last tick, in the order they
     /// were fired.
-    pub fn projectiles(&self) -> &[Projectile] {
-        &self.projectiles
+    pub fn projectiles(&self) -> Vec<Projectile> {
+        self.projectiles
+            .iter()
+            .map(|flying| flying.projectile)
+            .collect()
     }
 
     /// A bot drives the human's kart in `slot` from the next tick, with no
@@ -1031,10 +1042,11 @@ impl State {
             hasher.write_u8(u8::from(placed.clear_of_owner));
         }
         hasher.write_u64(self.projectiles.len() as u64);
-        for projectile in &self.projectiles {
-            hasher.write_f32s(projectile.position);
-            hasher.write_u64(projectile.owner as u64);
-            hasher.write_u64(projectile.target as u64);
+        for flying in &self.projectiles {
+            hasher.write_f32s(flying.projectile.position);
+            hasher.write_u64(flying.projectile.owner as u64);
+            hasher.write_u64(flying.projectile.target as u64);
+            hasher.write_f32(flying.progress);
         }
         for kart in &self.karts {
             let body = &self.physics.bodies[kart.body];
@@ -1254,10 +1266,15 @@ pub fn step(mut state: State, inputs: &[KartInput], dt: f32) -> State {
                 Item::Homing => {
                     if let Some(target) = kart_ahead(&standings, slot) {
                         let here = state.physics.bodies[kart.body].translation();
-                        state.projectiles.push(Projectile {
-                            position: at_centreline_height(&state.track, here),
-                            owner: slot,
-                            target,
+                        let (position, progress) =
+                            at_centreline_height(&state.track, here, kart.spline_progress);
+                        state.projectiles.push(FlyingProjectile {
+                            projectile: Projectile {
+                                position,
+                                owner: slot,
+                                target,
+                            },
+                            progress,
                         });
                     }
                 }
@@ -1383,6 +1400,7 @@ pub fn step(mut state: State, inputs: &[KartInput], dt: f32) -> State {
         );
         bump_off_tyre_walls(kart, &state.physics, sent_velocities[index], dt);
         let mut after = state.physics.bodies[kart.body].translation().to_array();
+        let mut respawned = false;
         if state.physics.surface_at(after) == Surface::OutOfWorld {
             kart.out_of_world_s += dt;
             if kart.out_of_world_s >= RESPAWN_DELAY_S {
@@ -1390,11 +1408,18 @@ pub fn step(mut state: State, inputs: &[KartInput], dt: f32) -> State {
                 state.events.push(RaceEvent::Respawned { kart: index });
                 // A teleport is not a move: it crosses no gate.
                 before = after;
+                respawned = true;
             }
         } else {
             kart.out_of_world_s = 0.0;
         }
-        let progress = state.track.progress_at(after);
+        // A respawn can land a kart anywhere on the lap, so its last reading
+        // says nothing about where to search.
+        let progress = if respawned {
+            state.track.progress_at(after)
+        } else {
+            state.track.progress_near(after, kart.spline_progress)
+        };
         // Progress wraps at the start line; the shorter way round says
         // which way the kart went.
         let moved = state.track.lap_relative_progress(kart.checkpoint, progress)
@@ -1513,10 +1538,11 @@ pub fn step(mut state: State, inputs: &[KartInput], dt: f32) -> State {
     // kart: on a hazard the kart trails, which goes with it, else on the
     // kart itself, which spins out unless it already is.
     let mut projectiles = std::mem::take(&mut state.projectiles);
-    projectiles.retain_mut(|projectile| {
-        let target = &mut state.karts[projectile.target];
+    projectiles.retain_mut(|flying| {
+        let target = &mut state.karts[flying.projectile.target];
         let body = &mut state.physics.bodies[target.body];
-        fly(projectile, &state.track, body.translation(), dt);
+        fly(flying, &state.track, body.translation(), dt);
+        let projectile = flying.projectile;
         if !reaches(
             body.translation(),
             body.rotation(),
@@ -1914,11 +1940,12 @@ fn kart_ahead(standings: &[Standing], slot: usize) -> Option<usize> {
         .position(|standing| standing.position + 1 == standings[slot].position)
 }
 
-/// `point` brought to the height of the centreline nearest it, where a
-/// projectile rides.
-fn at_centreline_height(track: &Track, point: Vec3) -> [f32; 3] {
-    let height = track.point_at(track.progress_at(point.to_array()))[1];
-    [point.x, height, point.z]
+/// `point` brought to the height of the centreline nearest it within reach
+/// of the `last` reading, where a projectile rides, and that spline progress.
+fn at_centreline_height(track: &Track, point: Vec3, last: f32) -> ([f32; 3], f32) {
+    let progress = track.progress_near(point.to_array(), last);
+    let height = track.point_at(progress)[1];
+    ([point.x, height, point.z], progress)
 }
 
 /// Fly the projectile one tick of `dt` seconds at the tuned speed: along
@@ -1926,14 +1953,13 @@ fn at_centreline_height(track: &Track, point: Vec3) -> [f32; 3] {
 /// where it is, until its target at `target` is within the tuned lock
 /// range, then straight at the target. Seen from above; the height is the
 /// centreline's where it ends up.
-fn fly(projectile: &mut Projectile, track: &Track, target: Vec3, dt: f32) {
-    let here = Vec3::from(projectile.position);
+fn fly(flying: &mut FlyingProjectile, track: &Track, target: Vec3, dt: f32) {
+    let here = Vec3::from(flying.projectile.position);
     let to_target = Vec3::new(target.x - here.x, 0.0, target.z - here.z);
     let aim = if to_target.length() <= HOMING_LOCK_RANGE_M {
         to_target
     } else {
-        let progress = track.progress_at(projectile.position);
-        let ahead = track.point_at(progress + HOMING_LOOKAHEAD_M);
+        let ahead = track.point_at(flying.progress + HOMING_LOOKAHEAD_M);
         Vec3::new(ahead[0] - here.x, 0.0, ahead[2] - here.z)
     };
     let reach = HOMING_SPEED_FACTOR * TOP_SPEED_M_PER_S * dt;
@@ -1942,7 +1968,8 @@ fn fly(projectile: &mut Projectile, track: &Track, target: Vec3, dt: f32) {
     } else {
         aim.normalize() * reach
     };
-    projectile.position = at_centreline_height(track, here + moved);
+    (flying.projectile.position, flying.progress) =
+        at_centreline_height(track, here + moved, flying.progress);
 }
 
 /// Stop the kart where it is and start its spin-out: a drift or a boost
