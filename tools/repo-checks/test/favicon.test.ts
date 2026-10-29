@@ -21,13 +21,13 @@ const GRID = [
   ".....kkkkkkkkk..",
   "................",
 ];
-// The issue's legend: k ink, y poster gold, R the strike; `.` is transparent.
+// Grid keys: k ink, y poster gold, R the strike; `.` is transparent.
 const COLOURS: Record<string, string> = { k: "#111111", y: "#ffd23f", R: "#e8333b" };
 
 /**
  * Paints an SVG's `<path fill d>` elements onto a 16 x 16 grid of colour
  * keys. Each subpath must be an axis-aligned rectangle drawn with M, H, V, h
- * and v; anything else, or two colours on one pixel, fails the test.
+ * and v; any other command, fill or pixel painted twice fails the test.
  */
 function rasterise(svg: string): string[] {
   const keyOf = new Map(Object.entries(COLOURS).map(([key, hex]) => [hex, key]));
