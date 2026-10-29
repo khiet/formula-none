@@ -315,12 +315,18 @@ async fn the_room_rides_the_reliable_stream_and_the_snapshots_ride_datagrams() {
     }
     assert_eq!(countdown, Some(vec![0]));
 
-    // Snapshots come as datagrams, never on the stream.
-    let datagram = tokio::time::timeout(Duration::from_secs(2), connection.receive_datagram())
-        .await
-        .expect("a snapshot datagram within 2 s")
-        .unwrap();
-    let message: ServerMessage = protocol::decode(datagram.payload().as_ref()).unwrap();
+    // Snapshots come as datagrams, never on the stream; the probe of the
+    // connection rides the same lane (ADR 0018).
+    let message = loop {
+        let datagram = tokio::time::timeout(Duration::from_secs(2), connection.receive_datagram())
+            .await
+            .expect("a snapshot datagram within 2 s")
+            .unwrap();
+        let message: ServerMessage = protocol::decode(datagram.payload().as_ref()).unwrap();
+        if !matches!(message, ServerMessage::Ping { .. }) {
+            break message;
+        }
+    };
     assert!(matches!(message, ServerMessage::Snapshot(_)), "{message:?}");
 }
 

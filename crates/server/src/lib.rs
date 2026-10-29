@@ -3,7 +3,8 @@
 //! both; tests drive the router directly or through a socket.
 
 use axum::extract::State;
-use axum::http::StatusCode;
+use axum::http::{header, StatusCode};
+use axum::response::IntoResponse;
 use axum::routing::{get, post};
 use axum::{Json, Router};
 use serde::Serialize;
@@ -12,6 +13,7 @@ use tokio::sync::watch;
 
 pub mod fake_transport;
 pub mod lane;
+pub mod metrics;
 pub mod probe;
 pub mod race;
 pub mod room;
@@ -21,6 +23,7 @@ pub mod tracks;
 mod websocket;
 pub mod webtransport;
 
+pub use metrics::Metrics;
 pub use rooms::Rooms;
 
 #[derive(Serialize)]
@@ -48,6 +51,15 @@ async fn create_room(State(state): State<AppState>) -> (StatusCode, Json<Created
     (StatusCode::CREATED, Json(CreatedRoom { code }))
 }
 
+/// What Prometheus scrapes (ADR 0018). Caddy proxies only `/api/*`, so this
+/// stays on the Compose network.
+async fn scrape(State(state): State<AppState>) -> impl IntoResponse {
+    (
+        [(header::CONTENT_TYPE, Metrics::content_type())],
+        state.rooms.metrics().scrape(),
+    )
+}
+
 /// What every route shares: the rooms and the stop signal.
 #[derive(Clone)]
 pub(crate) struct AppState {
@@ -57,7 +69,8 @@ pub(crate) struct AppState {
 
 /// Every route the server answers; `commit` is what the version endpoint
 /// reports and `rooms` is where a create puts a room and a session finds
-/// one. Sessions end when `shutdown` resolves.
+/// one, and whose metrics the scrape serves. Sessions end when `shutdown`
+/// resolves.
 pub fn app(commit: &'static str, rooms: Rooms, shutdown: Shutdown) -> Router {
     Router::new()
         .route("/api/health", get(health))
@@ -67,6 +80,7 @@ pub fn app(commit: &'static str, rooms: Rooms, shutdown: Shutdown) -> Router {
         )
         .route("/api/rooms", post(create_room))
         .route("/api/ws", get(websocket::upgrade))
+        .route("/metrics", get(scrape))
         .with_state(AppState { rooms, shutdown })
 }
 

@@ -30,6 +30,10 @@ pub fn client() -> Vec<ClientMessage> {
             room: "BXQF".to_owned(),
             token: token(),
         },
+        ClientMessage::Pong { nonce: 7 },
+        ClientMessage::RaceReport {
+            corrections_per_second: 0.25,
+        },
     ]
 }
 
@@ -70,6 +74,7 @@ pub fn server() -> Vec<ServerMessage> {
             ],
         },
         ServerMessage::Replaced,
+        ServerMessage::Ping { nonce: 7 },
     ]
 }
 

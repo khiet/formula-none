@@ -15,6 +15,10 @@ serde = { version = "1.0.229", features = ["derive"] }
 wtransport = "0.7"
 futures-util = { version = "0.3.34", default-features = false, features = ["std"] }
 rand = "0.9"
+opentelemetry-prometheus = "0.33"
+prometheus = "0.14"
+opentelemetry = "0.33"
+opentelemetry_sdk = { version = "0.33", features = ["metrics"] }
 
 [lints]
 workspace = true

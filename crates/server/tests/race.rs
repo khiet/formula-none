@@ -510,7 +510,7 @@ async fn a_humans_inputs_drive_their_kart_through_the_first_gate() {
                     snapshot.karts[0]
                 );
             }
-            ServerMessage::Events(_) | ServerMessage::Room(_) => {}
+            ServerMessage::Events(_) | ServerMessage::Room(_) | ServerMessage::Ping { .. } => {}
             other => panic!("unexpected {other:?}"),
         }
     }

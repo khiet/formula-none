@@ -22,7 +22,13 @@ import type {
 import { IDLE_INPUT } from "./input";
 import { kartReadout } from "./kart-readout-fixture";
 import { ITEM_FIRE_FLASH_S } from "./race-run";
-import { type Countdown, joinRoom, quantiseInput, type RoomClient } from "./room-client";
+import {
+  type Countdown,
+  joinRoom,
+  quantiseInput,
+  type RaceReport,
+  type RoomClient,
+} from "./room-client";
 import { createServerRace } from "./server-race";
 
 // The run reads the server's snapshots and events through the room client;
@@ -128,6 +134,7 @@ const bridge = {
 
 interface FakeClient extends RoomClient {
   readonly inputs: KartInput[];
+  readonly reports: RaceReport[];
   snapshot(snapshot: Snapshot): void;
   event(event: Event): void;
   results(standings: FinalStanding[]): void;
@@ -135,6 +142,7 @@ interface FakeClient extends RoomClient {
 
 function fakeClient(): FakeClient {
   const inputs: KartInput[] = [];
+  const reports: RaceReport[] = [];
   const snapshots = new Set<(snapshot: Snapshot) => void>();
   const events = new Set<(event: Event) => void>();
   const results = new Set<(standings: readonly FinalStanding[]) => void>();
@@ -156,6 +164,7 @@ function fakeClient(): FakeClient {
     resume: () => Promise.resolve(),
     onHeard: () => () => {},
     inputs,
+    reports,
     onRoom: () => () => {},
     onCountdown: () => () => {},
     onSnapshot: subscribe(snapshots),
@@ -168,6 +177,9 @@ function fakeClient(): FakeClient {
     sendInput(input) {
       inputs.push(input);
       return inputs.length;
+    },
+    report(report) {
+      reports.push(report);
     },
     snapshot(snapshot) {
       for (const listener of snapshots) listener(snapshot);
@@ -260,6 +272,15 @@ describe("createServerRace", () => {
     client.snapshot(snapshot(62));
     expect(prediction().snapshots.map((held) => held.tick)).toEqual([60, 62]);
     expect(run.correctionsPerSecond()).toBe(0.5);
+  });
+
+  it("reports its corrections per second to the server once the server says the race ended", () => {
+    const client = fakeClient();
+    createServerRace(bridge, client, COUNTDOWN, 0, "{}");
+    client.snapshot(snapshot(60));
+    expect(client.reports).toEqual([]);
+    client.event({ id: 1, kind: "raceEnded" });
+    expect(client.reports).toEqual([{ correctionsPerSecond: 0.5 }]);
   });
 
   it("draws the other karts where the interpolation puts them, the own kart where it is predicted", () => {

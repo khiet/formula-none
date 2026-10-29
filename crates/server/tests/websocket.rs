@@ -42,6 +42,17 @@ async fn connected_with_rooms() -> (
     (socket, stop, serving, rooms)
 }
 
+/// The next message from the server that is not a probe of the connection
+/// (ADR 0018), which the room sends on its own clock.
+async fn next_message(socket: &mut Socket) -> ServerMessage {
+    loop {
+        let message: ServerMessage = decode(&next_binary(socket).await).unwrap();
+        if !matches!(message, ServerMessage::Ping { .. }) {
+            return message;
+        }
+    }
+}
+
 async fn next_binary(socket: &mut Socket) -> Vec<u8> {
     loop {
         match tokio::time::timeout(Duration::from_secs(2), socket.next())
@@ -124,7 +135,7 @@ async fn a_join_over_the_socket_seats_the_player_and_the_session_keeps_answering
     // Room messages reach the room, and a Ping is still the session's to answer.
     let ready = encode(&ClientMessage::Ready { ready: true });
     socket.send(Message::Binary(ready.into())).await.unwrap();
-    let update: ServerMessage = decode(&next_binary(&mut socket).await).unwrap();
+    let update = next_message(&mut socket).await;
     let ServerMessage::Room(room) = update else {
         panic!("expected Room, got {update:?}");
     };
@@ -132,8 +143,8 @@ async fn a_join_over_the_socket_seats_the_player_and_the_session_keeps_answering
     let ping = encode(&ClientMessage::Ping { nonce: 9 });
     socket.send(Message::Binary(ping.into())).await.unwrap();
     assert_eq!(
-        next_binary(&mut socket).await,
-        encode(&ServerMessage::Pong { nonce: 9 })
+        next_message(&mut socket).await,
+        ServerMessage::Pong { nonce: 9 }
     );
 }
 
@@ -208,7 +219,10 @@ async fn the_race_flows_over_the_one_channel_too() {
                     snapshot = Some(received);
                 }
             }
-            ServerMessage::Joined { .. } | ServerMessage::Room(_) | ServerMessage::Events(_) => {}
+            ServerMessage::Joined { .. }
+            | ServerMessage::Room(_)
+            | ServerMessage::Events(_)
+            | ServerMessage::Ping { .. } => {}
             other => panic!("unexpected {other:?}"),
         }
     }

@@ -39,6 +39,8 @@ const CLIENT_KINDS = {
   rematch: true,
   leave: true,
   rejoin: true,
+  pong: true,
+  raceReport: true,
 } satisfies Record<Kind<ClientMessage>, true>;
 const SERVER_KINDS = {
   pong: true,
@@ -50,6 +52,7 @@ const SERVER_KINDS = {
   events: true,
   results: true,
   replaced: true,
+  ping: true,
 } satisfies Record<Kind<ServerMessage>, true>;
 
 /**

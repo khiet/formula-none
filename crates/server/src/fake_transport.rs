@@ -243,14 +243,19 @@ impl Client {
         self.token.as_deref()
     }
 
+    /// The server's answer; a probe sent as soon as the seat is taken may
+    /// land first on its own lane (ADR 0018), and is passed over.
     async fn joined(&mut self) -> Result<(u8, Room), Refusal> {
-        match self.recv().await {
-            Some(ServerMessage::Joined { slot, room, token }) => {
-                self.token = Some(token);
-                Ok((slot, room))
+        loop {
+            match self.recv().await {
+                Some(ServerMessage::Joined { slot, room, token }) => {
+                    self.token = Some(token);
+                    return Ok((slot, room));
+                }
+                Some(ServerMessage::Refused(refusal)) => return Err(refusal),
+                Some(ServerMessage::Ping { .. }) => {}
+                other => panic!("a Join is answered with Joined or Refused, not {other:?}"),
             }
-            Some(ServerMessage::Refused(refusal)) => Err(refusal),
-            other => panic!("a Join is answered with Joined or Refused, not {other:?}"),
         }
     }
 

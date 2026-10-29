@@ -53,6 +53,7 @@ const DECISION_SLUGS = [
   "spline-progress-searched-near-the-last-reading",
   "suzuqa-patch",
   "snapshots-carry-the-bump",
+  "server-probes-each-connection",
 ];
 
 const expectedFiles = DECISION_SLUGS.map(
