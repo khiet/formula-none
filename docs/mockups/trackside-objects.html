@@ -100,7 +100,7 @@
 
 <header>
   <h1>Suzuqa Patch, <span>trackside</span> objects</h1>
-  <p class="lede">The course is a road through empty grass. Seven pieces of scenery to fill the green space and give the corners landmarks: the Circuit Wheel by the first corner, woods along the back section, a pit building the grid faces, and two jokes. Every one is scenery in the glTF and nothing collides with it, so the sim, the sidecar and the replay fixtures do not change; the two that move are moved by the View from the clock, as the marshal's flags are. The map is laid live from the same turtle steps as <code>trackgen/layouts/brands_patch.py</code>, and each footprint's clearance from the nearest wall is computed on it.</p>
+  <p class="lede">The course is a road through empty grass. Six pieces of scenery to fill the green space and give the corners landmarks: the Circuit Wheel by the first corner, woods along the back section, a pit building the grid faces, and one joke in the sky. Every one is scenery in the glTF and nothing collides with it, so the sim, the sidecar and the replay fixtures do not change; the two that move are moved by the View from the clock, as the marshal's flags are. The map is laid live from the same turtle steps as <code>trackgen/layouts/brands_patch.py</code>, and each footprint's clearance from the nearest wall is computed on it.</p>
   <nav>
     <a href="#decisions">Decisions</a>
     <a href="#map-section">Map</a>
@@ -121,7 +121,7 @@
       <tr><td>Do karts collide with them</td><td class="decision">No</td><td>Everything stands beyond the walls, which already stop the karts, and the sim reads sidecars, never meshes. No rule changes, no replay re-record.</td></tr>
       <tr><td>Who moves the moving ones</td><td class="decision">The View, from its own clock</td><td>Presentation, like the marshal's flags and beacon: no state, no bytes in a snapshot. Two clients' wheels need not agree, so neither consults the sim.</td></tr>
       <tr><td>Style</td><td class="decision">Chibi low-poly, flat facets</td><td>ADR 0034: each panel in a lit and a shaded tone of one colour, no textures. Trees are cones and lumps, the airship is a twelve-sided hull.</td></tr>
-      <tr><td>Lettering</td><td class="decision">Only names from <code>sponsors.py</code></td><td>ADR 0038: the arch and the airship carry invented sponsors we already have. The wheel and the tea tent carry no name at all.</td></tr>
+      <tr><td>Lettering</td><td class="decision">Only names from <code>sponsors.py</code></td><td>ADR 0038: the arch and the airship carry invented sponsors we already have. The wheel carries no name at all.</td></tr>
       <tr><td>Real Suzuka landmarks</td><td class="decision">Borrowed as kinds of thing, never copied</td><td>Suzuka has a Ferris wheel by the first corner and a tyre-shaped footbridge; ours are a Ferris wheel and a tyre-shaped footbridge, in our palette with our sponsors. Nothing carries the real circuit's or a real brand's marks (ADR 0007).</td></tr>
       <tr><td>Draw calls</td><td class="decision">One mesh per material per family</td><td>As <code>ByMaterial</code> does today: a wood of 130 trees is four meshes. Only a moving prop gets nodes of its own.</td></tr>
       <tr><td>The course map</td><td class="decision">Unchanged</td><td>It draws the road and the karts; scenery never reaches it.</td></tr>
@@ -188,7 +188,7 @@
       <li><b>Not mistakable for a kart, an item box or a hazard.</b> No kart-sized box in a livery colour near the road, no gold cube, no lone cone, no stack of tyres off the course.</li>
       <li><b>No numbers, crests or team names</b> anywhere (ADR 0035): the pit garages are colours only.</li>
       <li><b>No real sponsor, no real circuit's mark</b> (ADR 0007, ADR 0038): lettering comes from <code>sponsors.py</code> and nowhere else.</li>
-      <li><b>No face the player must read.</b> Oyaji is the marshal and stays the only character; the tea tent is his, not him twice.</li>
+      <li><b>No face the player must read.</b> Oyaji is the marshal and stays the only character; no prop is a person.</li>
       <li><b>Nothing that reads the race.</b> A scoreboard or a camera that follows the leader needs the standings in the View; that is a later decision, not scenery.</li>
     </ul>
   </div>
@@ -206,7 +206,6 @@
         Prop("arch", Spot(s=path.segment("dunlop").s_mid)),
         Prop("pits", Spot(s=0.0, offset=-26.0), length=90.0),
         Prop("airship", World(-60.0, -40.0), radius=60.0, height=45.0),
-        Prop("tea-tent", World(-295.0, 152.0), heading=-50.0),
     ],
     woods=[
         Wood("pine", Disc(-215.0, -70.0, 35.0), count=40, seed=1),
@@ -252,10 +251,6 @@
   <div class="card slice">
     <h3>The airship</h3>
     <p>One more node on the motion module: the airship's circle and heading. The lettering goes through <code>TextProp</code> as the arch's does.</p>
-  </div>
-  <div class="card slice">
-    <h3>The tea tent</h3>
-    <p>One static joke: the family, its card, one re-export. Small enough to ride with the arch and the pits if that PR is light.</p>
   </div>
 </div>
 
@@ -396,16 +391,6 @@ const OBJECTS = [
     motion: "One circuit every 4 min, nose along its path",
     why: "The sky is the one green space every corner shares. It crosses over Dunlop, the esses, the chicane and the start straight in turn, so there is always something above the horizon, and it is the one sponsor a driver cannot avoid.",
     dont: "Don't fly it under 30 m over any road, and don't give it a sound.",
-  },
-  {
-    id: "tent", title: "Oyaji's tea tent", tags: ["joke"], draw: "tent", stage: "",
-    world: { x: -295, y: 152 }, r: 4, moves: false, faces: 60,
-    where: "Behind the hairpin-exit grandstand, outside the hairpin",
-    size: "A tent 5 m square, 3 m to the ridge; a stool and a kettle",
-    materials: "A kerb-red canopy, lit on the sun side, on four carbon posts; a stool in trunk brown; a kettle, one eight-facet lump in stand riser with a spout",
-    motion: "None",
-    why: "The hairpin is where every lap slows to walking pace, the one place a player can read a joke. The marshal has a tea on his stool at the wheel crossing; this is where he got it.",
-    dont: "Don't put Oyaji himself here. He is the marshal, and he is one character, not two. And no lettering: a tent with a name is a stall.",
   },
 ];
 // The cherry row has a card of its own below the woods, since it is a different tree in a different place.
@@ -820,13 +805,6 @@ draw.airship = () => {
     ${text(160, 72, "SLIPSTREAM AIRWAYS", M.inkBlue, 15)}
   </svg>`;
 };
-draw.tent = () => `<svg viewBox="0 0 240 160" role="img" aria-label="Oyaji's tea tent: a red canopy on four posts, a stool and a kettle">
-    ${ground(240, 152)}
-    <rect x="70" y="70" width="3" height="70" fill="${M.carbon}"/><rect x="166" y="70" width="3" height="70" fill="${M.carbon}"/>
-    ${poly([[58, 72], [182, 72], [120, 28]], M.canopyRed)}${poly([[58, 72], [120, 28], [120, 72]], lit(M.canopyRed))}
-    <rect x="106" y="118" width="26" height="4" fill="${M.trunk}"/><rect x="110" y="122" width="3" height="18" fill="${M.trunk}"/><rect x="125" y="122" width="3" height="18" fill="${M.trunk}"/>
-    ${lump(8, 119, 110, 8, M.standRiser, 0)}<rect x="126" y="104" width="6" height="2" fill="${M.standRiser}"/>
-  </svg>`;
 
 function fillCards() {
   const host = document.getElementById("cards");
