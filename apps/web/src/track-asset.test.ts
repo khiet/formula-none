@@ -84,12 +84,12 @@ describe.each(["brands-patch", "oval"])("%s's marshal posts", (name) => {
     ),
   ) as { wheel_crossings: { position: [number, number, number]; half_width: number }[] };
 
-  it("stands a post and its lamp beside each wheel crossing", () => {
+  it("stands a post, its band and its lamp beside each wheel crossing", () => {
     const posts = gltf.nodes.filter(({ name }) => name?.startsWith("MarshalPost."));
-    expect(posts).toHaveLength(2 * sidecar.wheel_crossings.length);
+    expect(posts).toHaveLength(3 * sidecar.wheel_crossings.length);
     sidecar.wheel_crossings.forEach(({ position: [x, , z], half_width }, number) => {
       const prefix = `MarshalPost.${String(number).padStart(2, "0")}.`;
-      for (const part of ["board", "chevron"]) {
+      for (const part of ["board", "post-band", "chevron"]) {
         const node = posts.find(({ name }) => name === `${prefix}${part}`);
         const mesh = node?.mesh === undefined ? undefined : gltf.meshes[node.mesh];
         const bounds = gltf.accessors[mesh?.primitives[0]?.attributes.POSITION ?? -1];
@@ -103,6 +103,38 @@ describe.each(["brands-patch", "oval"])("%s's marshal posts", (name) => {
         const away = Math.hypot(centre[0] - x, centre[1] - z);
         expect(away).toBeGreaterThan(2);
         expect(away).toBeLessThan(half_width);
+      }
+    });
+  });
+});
+
+describe.each(["brands-patch", "oval"])("%s's hazard zones", (name) => {
+  const gltf = track(name);
+  const sidecar = JSON.parse(
+    readFileSync(
+      new URL(`../../../assets/tracks/${name}/${name}.track.json`, import.meta.url),
+      "utf8",
+    ),
+  ) as { wheel_crossings: { position: [number, number, number] }[] };
+
+  it("paints a zone of tint and chevrons over each wheel crossing, which the View flashes", () => {
+    const zones = gltf.nodes.filter(({ name }) => name?.startsWith("HazardZone."));
+    const materials = ["hazard-asphalt", "hazard-sand", "kerb-yellow", "kerb-black"];
+    expect(zones).toHaveLength(materials.length * sidecar.wheel_crossings.length);
+    sidecar.wheel_crossings.forEach(({ position: [x, , z] }, number) => {
+      const prefix = `HazardZone.${String(number).padStart(2, "0")}.`;
+      const tint = zones.find(({ name }) => name === `${prefix}hazard-asphalt`);
+      const mesh = tint?.mesh === undefined ? undefined : gltf.meshes[tint.mesh];
+      const bounds = gltf.accessors[mesh?.primitives[0]?.attributes.POSITION ?? -1];
+      const [minX = Number.NaN, , minZ = Number.NaN] = bounds?.min ?? [];
+      const [maxX = Number.NaN, , maxZ = Number.NaN] = bounds?.max ?? [];
+      // Over the crossing.
+      expect(x).toBeGreaterThan(minX);
+      expect(x).toBeLessThan(maxX);
+      expect(z).toBeGreaterThan(minZ);
+      expect(z).toBeLessThan(maxZ);
+      for (const material of materials) {
+        expect(zones.map(({ name }) => name)).toContain(`${prefix}${material}`);
       }
     });
   });

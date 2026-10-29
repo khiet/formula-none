@@ -19,7 +19,7 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 
 import export  # noqa: E402
-from trackgen.layout import CROWD_KEYS, Placement, TextProp, TrackGeometry, build  # noqa: E402
+from trackgen.layout import CROWD_KEYS, HAZARD_TINT, Placement, TextProp, TrackGeometry, build  # noqa: E402
 from trackgen.layouts import NAMES, load  # noqa: E402
 
 # Flat colours in the 16-bit kart racer's key: one saturated tone per
@@ -52,6 +52,9 @@ MATERIALS = {
     "carbon-shade": (0.110, 0.110, 0.118),
     "chevron": (1.0, 0.533, 0.0),
     "chevron-shade": (0.769, 0.373, 0.0),
+    # The marshal post's band, in its lamp's orange; a material of its own
+    # so the View tells the lamp's face to the track from the band round it.
+    "post-band": (1.0, 0.533, 0.0),
     # The style guide's Grandstand and Start gantry entries.
     "stand-riser": (0.843, 0.859, 0.878),
     "stand-plinth": (0.706, 0.729, 0.761),
@@ -71,6 +74,15 @@ MATERIALS.update(
     {
         f"crowd-{slot}": tuple(((key >> shift) & 0xFF) / 255.0 for shift in (16, 8, 0))
         for slot, key in enumerate(CROWD_KEYS)
+    }
+)
+# The hazard zone's tint: the sausage kerb's gold over the ground it lies on.
+MATERIALS.update(
+    {
+        f"hazard-{ground}": tuple(
+            g + (y - g) * HAZARD_TINT for g, y in zip(MATERIALS[ground], MATERIALS["kerb-yellow"])
+        )
+        for ground in ("asphalt", "sand")
     }
 )
 # Deep enough for the lettering to read as a letter from the track and no
@@ -117,6 +129,8 @@ def add_empty(col: bpy.types.Collection, name: str, placement: Placement) -> bpy
     obj.rotation_euler = (0.0, 0.0, placement.heading - math.pi / 2.0)
     if placement.half_width:
         obj["half_width"] = placement.half_width
+    if placement.hazard_half_depth:
+        obj["hazard_half_depth_m"] = placement.hazard_half_depth
     col.objects.link(obj)
     return obj
 

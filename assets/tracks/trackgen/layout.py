@@ -133,13 +133,27 @@ SAUSAGE_KERB_STRIPE_PITCH_M = 1.3
 SAUSAGE_KERB_STRIPE_WIDTH_M = 0.45
 SAUSAGE_KERB_ACROSS_STEPS = 6
 SAUSAGE_KERB_END_STEPS = 4
-# The marshal post beside a wheel crossing: a white box on the outside
-# run-off, short of the wheel's path, with an orange lamp on its face to
-# the track. The View hangs the flag on its top.
+# The hazard zone painted over a wheel crossing: wall to wall and as deep
+# either side as the wheel can reach, `WHEEL_LANDING_SPREAD_M` plus
+# `WHEEL_RADIUS_M` in `crates/sim/src/tuning.rs`; the sim's tests hold the
+# sidecar to it. A band of yellow and black chevrons across each end, a
+# light yellow tint between: paint only, no surface tag.
+HAZARD_HALF_DEPTH_M = 9.2
+HAZARD_BAND_M = 1.0
+HAZARD_CHEVRON_M = 1.0
+# How far a chevron leans across the track over the band's depth.
+HAZARD_CHEVRON_LEAN_M = 0.6
+# The tint's share of yellow over the ground it lies on.
+HAZARD_TINT = 0.14
+# The marshal post beside a wheel crossing: a low white platform on the
+# outside run-off, short of the wheel's path, banded orange under its top
+# with an orange lamp on its face to the track. The View hangs the flag on
+# its top.
 MARSHAL_POST_BEFORE_CROSSING_M = 3.0
 MARSHAL_POST_INTO_RUNOFF_M = 3.0
-MARSHAL_POST_WIDTH_M = 1.0
-MARSHAL_POST_HEIGHT_M = 2.0
+MARSHAL_POST_WIDTH_M = 1.4
+MARSHAL_POST_HEIGHT_M = 1.0
+MARSHAL_POST_BAND_M = 0.12
 MARSHAL_LAMP_SIZE_M = 0.35
 MARSHAL_LAMP_PROUD_M = 0.1
 MARSHAL_LAMP_BELOW_TOP_M = 0.3
@@ -249,6 +263,7 @@ class Placement:
     z: float
     heading: float
     half_width: float = 0.0
+    hazard_half_depth: float = 0.0
 
 
 @dataclass(frozen=True)
@@ -366,10 +381,10 @@ def build(layout: Layout) -> TrackGeometry:
             )
         )
 
-    def place(s: float, offset: float = 0.0, half_width: float = 0.0) -> Placement:
+    def place(s: float, offset: float = 0.0, half_width: float = 0.0, hazard_half_depth: float = 0.0) -> Placement:
         sample = path.at(s)
         x, y = sample.offset(offset)
-        return Placement(x, y, elevation(layout.elevation, sample.s), sample.heading, half_width)
+        return Placement(x, y, elevation(layout.elevation, sample.s), sample.heading, half_width, hazard_half_depth)
 
     # Evenly spaced from the start line, each spanning the run-off, so a kart
     # between the walls crosses every one in order.
@@ -381,7 +396,10 @@ def build(layout: Layout) -> TrackGeometry:
     boost_pads = [place(pad.s, pad.offset) for pad in layout.boost_pads]
     kerbs = [place(kerb.s, kerb.offset) for kerb in layout.kerbs]
     # Wall to wall: the run-off's edges, where the walls stand.
-    wheel_crossings = [place(crossing.s, half_width=runoff) for crossing in layout.wheel_crossings]
+    wheel_crossings = [
+        place(crossing.s, half_width=runoff, hazard_half_depth=HAZARD_HALF_DEPTH_M)
+        for crossing in layout.wheel_crossings
+    ]
     spawn_grid = [
         place(
             -GRID_FRONT_ROW_BEHIND_LINE_M
@@ -402,7 +420,7 @@ def build(layout: Layout) -> TrackGeometry:
 def decorate(layout: Layout, height: list[float]) -> tuple[list[SceneryMesh], list[TextProp]]:
     """The scenery: kerbs on every corner, the start line, and what the layout's decor asks for."""
     scenery = kerbs(layout, height) + start_line(layout) + boost_pads(layout) + tyre_stacks(layout)
-    scenery += sausage_kerbs(layout) + marshal_posts(layout)
+    scenery += sausage_kerbs(layout) + hazard_zones(layout) + marshal_posts(layout)
     boards, lettering = hoardings(layout)
     scenery += boards + grandstands(layout)
     if layout.decor.gantry:
@@ -615,8 +633,62 @@ def sausage_kerbs(layout: Layout) -> list[SceneryMesh]:
     return result
 
 
+def hazard_zones(layout: Layout) -> list[SceneryMesh]:
+    """Paint over each wheel crossing, wall to wall and `HAZARD_HALF_DEPTH_M` either side: chevrons across
+    each end, a tint between, on the asphalt and the sand falling to the walls alike."""
+    half, runoff = layout.asphalt_half_width, layout.runoff_half_width
+    result: list[SceneryMesh] = []
+    for number, crossing in enumerate(layout.wheel_crossings):
+        sample = layout.path.at(crossing.s)
+        cos, sin = math.cos(sample.heading), math.sin(sample.heading)
+
+        def at(ahead: float, right: float) -> mesh.Vertex:
+            # The sand falls `GRASS_DROP_M` from the asphalt's edge to the wall.
+            drop = GRASS_DROP_M * max(abs(right) - half, 0.0) / (runoff - half)
+            return (
+                sample.x + ahead * cos + right * sin,
+                sample.y + ahead * sin - right * cos,
+                elevation(layout.elevation, sample.s + ahead) - drop + SCENERY_LIFT_M,
+            )
+
+        def flat(corners: list[tuple[float, float]]) -> mesh.Mesh:
+            # Corners counter-clockwise in (ahead, right), a mirror of the
+            # ground's frame, so reversed to face up.
+            return mesh.quad(*(at(a, r) for a, r in reversed(corners)))
+
+        parts = ByMaterial(f"HazardZone.{number:02d}")
+        inner = HAZARD_HALF_DEPTH_M - HAZARD_BAND_M
+        # The tint in strips at the asphalt's edges, so it lies on the sand's fall.
+        for material, left, right in (
+            ("hazard-sand", -runoff, -half),
+            ("hazard-asphalt", -half, half),
+            ("hazard-sand", half, runoff),
+        ):
+            parts.add(material, flat([(-inner, left), (inner, left), (inner, right), (-inner, right)]))
+        # Each chevron leans the same way at both ends, cut square at the walls.
+        chevrons = int(math.ceil((2.0 * runoff + HAZARD_CHEVRON_LEAN_M) / HAZARD_CHEVRON_M))
+        for back, front in ((-HAZARD_HALF_DEPTH_M, -inner), (inner, HAZARD_HALF_DEPTH_M)):
+            for k in range(chevrons):
+                left = -runoff - HAZARD_CHEVRON_LEAN_M + k * HAZARD_CHEVRON_M
+                right = left + HAZARD_CHEVRON_M
+                clip = lambda r: min(max(r, -runoff), runoff)
+                lean = HAZARD_CHEVRON_LEAN_M
+                corners = [
+                    (back, clip(left)),
+                    (front, clip(left + lean)),
+                    (front, clip(right + lean)),
+                    (back, clip(right)),
+                ]
+                if corners[0][1] == corners[3][1] and corners[1][1] == corners[2][1]:
+                    continue
+                parts.add("kerb-black" if k % 2 else "kerb-yellow", flat(corners))
+        result += parts.scenery()
+    return result
+
+
 def marshal_posts(layout: Layout) -> list[SceneryMesh]:
-    """A white box on the outside run-off beside each wheel crossing, an orange lamp on its face to the track."""
+    """A low white platform on the outside run-off beside each wheel crossing, banded orange under its top,
+    an orange lamp on its face to the track."""
     result: list[SceneryMesh] = []
     for number, crossing in enumerate(layout.wheel_crossings):
         sample = layout.path.at(crossing.s - MARSHAL_POST_BEFORE_CROSSING_M)
@@ -639,9 +711,14 @@ def marshal_posts(layout: Layout) -> list[SceneryMesh]:
 
         half = MARSHAL_POST_WIDTH_M / 2.0
         parts = ByMaterial(f"MarshalPost.{number:02d}")
-        post = box((-half, half), (-half, half), (0.0, MARSHAL_POST_HEIGHT_M))
-        for side in (*SIDES, "z1"):
+        band_bottom = MARSHAL_POST_HEIGHT_M - MARSHAL_POST_BAND_M
+        post = box((-half, half), (-half, half), (0.0, band_bottom))
+        for side in SIDES:
             parts.add("board", post[side])
+        band = box((-half, half), (-half, half), (band_bottom, MARSHAL_POST_HEIGHT_M))
+        for side in SIDES:
+            parts.add("post-band", band[side])
+        parts.add("board", band["z1"])
         lamp_half = MARSHAL_LAMP_SIZE_M / 2.0
         lamp_top = MARSHAL_POST_HEIGHT_M - MARSHAL_LAMP_BELOW_TOP_M
         lamp = box(

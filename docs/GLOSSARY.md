@@ -311,6 +311,14 @@ the walls, landing somewhere the race seed picks each time, and rolls out
 through the far wall. A kart it reaches spins out, by no one (ADRs 0041,
 0042).
 
+### hazard zone
+
+The paint over a runaway wheel's crossing: wall to wall and as far along
+the track either side as the wheel can reach, yellow and black chevrons
+across each end and a light yellow tint between. It flashes red from the
+flag going up to the end of the pass. Paint only: not a surface, and not
+the item called a hazard.
+
 ## Client
 
 ### Scene

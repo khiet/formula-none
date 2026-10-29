@@ -142,6 +142,10 @@ pub struct WheelCrossing {
     pub position: [f32; 3],
     pub yaw: f32,
     pub half_width: f32,
+    /// How far along the track either side of `position` the hazard zone
+    /// (GLOSSARY) is painted: as far as the wheel can reach, its landing
+    /// spread and its radius. Paint only; nothing in the sim reads it.
+    pub hazard_half_depth_m: f32,
 }
 
 /// One tagged collision mesh: a flat position buffer and a triangle index
