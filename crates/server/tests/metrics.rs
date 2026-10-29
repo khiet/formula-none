@@ -185,6 +185,23 @@ async fn the_server_probes_each_client_for_its_round_trip_time_and_loss() {
         Some(1.0),
         "every probe to the silent client is lost:\n{text}"
     );
+
+    // An answer to a probe the next one has already superseded is no round
+    // trip: that probe stays lost.
+    let stale = next_ping(&mut silent).await;
+    silent.send(&ClientMessage::Pong { nonce: stale });
+    tokio::time::sleep(one_way * 2).await;
+    settle().await;
+    let text = scrape(&harness).await;
+    assert_eq!(
+        sample(&text, "formula_none_client_rtt_seconds_count", &unanswered),
+        None,
+        "a late Pong records nothing:\n{text}"
+    );
+    assert_eq!(
+        sample(&text, "formula_none_client_packet_loss", &unanswered),
+        Some(1.0)
+    );
 }
 
 #[tokio::test(start_paused = true)]
