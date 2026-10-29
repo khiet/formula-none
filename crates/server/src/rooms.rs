@@ -344,7 +344,7 @@ struct Connection {
     /// The probe sent last and not answered yet.
     probe: Option<Probe>,
     /// Whether each of the latest probes was answered in time, newest last.
-    answered: VecDeque<bool>,
+    outcomes: VecDeque<bool>,
 }
 
 /// A Ping on its way to the client, or on its way back.
@@ -359,7 +359,7 @@ impl Connection {
             id,
             outbound,
             probe: None,
-            answered: VecDeque::with_capacity(CONNECTION_PROBE_WINDOW),
+            outcomes: VecDeque::with_capacity(CONNECTION_PROBE_WINDOW),
         }
     }
 
@@ -377,30 +377,30 @@ impl Connection {
         });
     }
 
-    /// The client answered a probe: its round trip, when it was the
-    /// outstanding one. A Pong for an older probe, which already counted
-    /// as lost, changes nothing.
-    fn answered(&mut self, nonce: u32) -> Option<Duration> {
+    /// The client's Pong: the round trip, when it answers the outstanding
+    /// probe. A Pong for an older probe, which already counted as lost,
+    /// changes nothing.
+    fn pong(&mut self, nonce: u32) -> Option<Duration> {
         let probe = self.probe.take_if(|probe| probe.nonce == nonce)?;
         self.settle(true);
         Some(probe.sent_at.elapsed())
     }
 
     fn settle(&mut self, in_time: bool) {
-        if self.answered.len() == CONNECTION_PROBE_WINDOW {
-            self.answered.pop_front();
+        if self.outcomes.len() == CONNECTION_PROBE_WINDOW {
+            self.outcomes.pop_front();
         }
-        self.answered.push_back(in_time);
+        self.outcomes.push_back(in_time);
     }
 
     /// The share in 0..=1 of the settled probes in the window that were
     /// lost; 0 before any has settled.
     fn packet_loss(&self) -> f64 {
-        if self.answered.is_empty() {
+        if self.outcomes.is_empty() {
             return 0.0;
         }
-        let lost = self.answered.iter().filter(|&&in_time| !in_time).count();
-        lost as f64 / self.answered.len() as f64
+        let lost = self.outcomes.iter().filter(|&&in_time| !in_time).count();
+        lost as f64 / self.outcomes.len() as f64
     }
 }
 
@@ -658,7 +658,7 @@ async fn run(
                         ClientMessage::Leave => depart(&mut room, &mut players, running.as_mut(), slot),
                         ClientMessage::Pong { nonce } => {
                             if let Some(connection) = players.get_mut(&slot) {
-                                if let Some(round_trip) = connection.answered(nonce) {
+                                if let Some(round_trip) = connection.pong(nonce) {
                                     metrics.rtt(room.code(), slot, round_trip);
                                     metrics.packet_loss(room.code(), slot, connection.packet_loss());
                                 }
@@ -666,8 +666,10 @@ async fn run(
                         }
                         ClientMessage::RaceReport { corrections_per_second } => {
                             metrics.corrections_per_second(room.code(), slot, corrections_per_second);
+                            // Key=value fields, so CloudWatch Logs Insights
+                            // parses the line (ADR 0018).
                             println!(
-                                "room {} slot {slot} reported {corrections_per_second:.2} reconciliation corrections per second",
+                                "race_report room={} slot={slot} corrections_per_second={corrections_per_second:.3}",
                                 room.code()
                             );
                         }
