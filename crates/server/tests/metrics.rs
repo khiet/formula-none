@@ -10,7 +10,7 @@ use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use common::{drive_to_results, race_together};
 use http_body_util::BodyExt;
-use protocol::{ClientMessage, ServerMessage};
+use protocol::ClientMessage;
 use server::fake_transport::{Conditions, Harness};
 use sim::tuning::CONNECTION_PROBE_INTERVAL_S;
 use tower::ServiceExt;
@@ -63,17 +63,6 @@ fn sample(text: &str, name: &str, labels: &[(&str, &str)]) -> Option<f64> {
 /// Let the room task act on what the clients sent.
 async fn settle() {
     tokio::time::sleep(Duration::from_millis(50)).await;
-}
-
-/// The nonce of the next probe the server sends this client.
-async fn next_ping(client: &mut server::fake_transport::Client) -> u32 {
-    client
-        .next_where(|message| match message {
-            ServerMessage::Ping { nonce } => Some(nonce),
-            _ => None,
-        })
-        .await
-        .expect("the server probes a seated player")
 }
 
 #[tokio::test(start_paused = true)]
@@ -143,7 +132,10 @@ async fn the_server_probes_each_client_for_its_round_trip_time_and_loss() {
 
     let mut first_probe_at = None;
     for _ in 0..PROBES {
-        let nonce = next_ping(&mut answering).await;
+        let nonce = answering
+            .next_ping()
+            .await
+            .expect("a seated player is probed");
         first_probe_at.get_or_insert_with(tokio::time::Instant::now);
         answering.send(&ClientMessage::Pong { nonce });
     }
@@ -188,7 +180,7 @@ async fn the_server_probes_each_client_for_its_round_trip_time_and_loss() {
 
     // An answer to a probe the next one has already superseded is no round
     // trip: that probe stays lost.
-    let stale = next_ping(&mut silent).await;
+    let stale = silent.next_ping().await.expect("a seated player is probed");
     silent.send(&ClientMessage::Pong { nonce: stale });
     tokio::time::sleep(one_way * 2).await;
     settle().await;

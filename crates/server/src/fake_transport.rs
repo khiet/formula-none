@@ -170,7 +170,9 @@ impl Lanes {
 }
 
 /// One client's end of the fake network. Dropping it is the connection
-/// dropping without a Leave.
+/// dropping without a Leave. The server's probes of the connection (ADR
+/// 0018) come on their own clock, so the receives pass over them and
+/// [`Client::next_ping`] is the one way to read one.
 pub struct Client {
     to_server: Lanes,
     from_server: mpsc::UnboundedReceiver<Vec<u8>>,
@@ -190,19 +192,45 @@ impl Client {
         self.send(&ClientMessage::Input(input));
     }
 
-    /// The next message from the server, or `None` once the server has
-    /// ended the session or nothing arrives within the receive timeout.
+    /// The next message from the server but a probe, or `None` once the
+    /// server has ended the session or nothing arrives within the receive
+    /// timeout.
     pub async fn recv(&mut self) -> Option<ServerMessage> {
+        loop {
+            let message = self.recv_any().await?;
+            if !matches!(message, ServerMessage::Ping { .. }) {
+                return Some(message);
+            }
+        }
+    }
+
+    /// The next message from the server but a probe, if one has arrived,
+    /// without waiting: what a client's tick loop reads between ticks.
+    pub fn try_recv(&mut self) -> Option<ServerMessage> {
+        loop {
+            let bytes = self.from_server.try_recv().ok()?;
+            let message = decode(&bytes).expect("the server sends only messages");
+            if !matches!(message, ServerMessage::Ping { .. }) {
+                return Some(message);
+            }
+        }
+    }
+
+    /// The nonce of the server's next probe, passing over every other
+    /// message; `None` as [`Self::recv`] is.
+    pub async fn next_ping(&mut self) -> Option<u32> {
+        loop {
+            if let ServerMessage::Ping { nonce } = self.recv_any().await? {
+                return Some(nonce);
+            }
+        }
+    }
+
+    /// The next message of any kind, probes included.
+    async fn recv_any(&mut self) -> Option<ServerMessage> {
         let bytes = tokio::time::timeout(RECEIVE_TIMEOUT, self.from_server.recv())
             .await
             .ok()??;
-        Some(decode(&bytes).expect("the server sends only messages"))
-    }
-
-    /// The next message from the server if one has arrived, without
-    /// waiting: what a client's tick loop reads between ticks.
-    pub fn try_recv(&mut self) -> Option<ServerMessage> {
-        let bytes = self.from_server.try_recv().ok()?;
         Some(decode(&bytes).expect("the server sends only messages"))
     }
 
@@ -243,19 +271,14 @@ impl Client {
         self.token.as_deref()
     }
 
-    /// The server's answer; a probe sent as soon as the seat is taken may
-    /// land first on its own lane (ADR 0018), and is passed over.
     async fn joined(&mut self) -> Result<(u8, Room), Refusal> {
-        loop {
-            match self.recv().await {
-                Some(ServerMessage::Joined { slot, room, token }) => {
-                    self.token = Some(token);
-                    return Ok((slot, room));
-                }
-                Some(ServerMessage::Refused(refusal)) => return Err(refusal),
-                Some(ServerMessage::Ping { .. }) => {}
-                other => panic!("a Join is answered with Joined or Refused, not {other:?}"),
+        match self.recv().await {
+            Some(ServerMessage::Joined { slot, room, token }) => {
+                self.token = Some(token);
+                Ok((slot, room))
             }
+            Some(ServerMessage::Refused(refusal)) => Err(refusal),
+            other => panic!("a Join is answered with Joined or Refused, not {other:?}"),
         }
     }
 
