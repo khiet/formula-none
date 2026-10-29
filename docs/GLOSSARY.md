@@ -306,10 +306,22 @@ of its speed and any drift under way with its charge (ADR 0041).
 ### runaway wheel
 
 A loose wheel that rolls in across the track on a fixed cycle of the race
-clock, with a marshal's yellow flag up before each pass, bounces twice off
-the walls, landing somewhere the race seed picks each time, and rolls out
-through the far wall. A kart it reaches spins out, by no one (ADRs 0041,
-0042).
+clock, with the marshal waving hazard flags for a second before each pass
+and through it, bounces twice off the walls, landing somewhere the race
+seed picks each time, and rolls out through the far wall. A kart it reaches
+spins out, by no one (ADRs 0041, 0042, 0045).
+
+### marshal
+
+The figure on a marshal post beside a runaway wheel's crossing. While the
+wheel is quiet he sits with a cup of tea; from the flag going up, a second
+before a pass, to the end of it he is on his feet waving two hazard flags,
+and while the wheel rolls he hops. Presentation only (ADR 0045).
+
+### hazard flag
+
+One of the two flags the marshal waves: yellow with black diagonals, not
+a racing flag. Nothing to do with the item called a hazard (ADR 0045).
 
 ### hazard zone
 

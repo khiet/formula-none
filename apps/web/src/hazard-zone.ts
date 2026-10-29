@@ -1,7 +1,7 @@
 // The hazard zone's flash (GLOSSARY), as docs/mockups/runaway-wheel-danger-spec.html
 // draws it: a red wash over the zone painted in the track's glTF, pulsing
 // from the flag going up to the end of the pass. Presentation only, keyed
-// on the wheel's kind like the marshal's flag.
+// on the wheel's kind like the marshal's pose.
 
 import { Mesh, MeshBasicMaterial, type Object3D } from "three";
 import type { Wheel } from "./bridge";

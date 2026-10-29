@@ -69,6 +69,32 @@ export const ROCKET_WINDOW = 0x7fc3ff;
 export const ROCKET_STRAP = 0x3a3d42;
 
 /**
+ * The marshal in the colours Purrjump draws him in, save the shaded tones
+ * of his jacket and vest: the sun shades those on the mesh.
+ */
+export const MARSHAL_SKIN: Tones = { lit: 0xf8dcb0, mid: 0xf0c090, shaded: 0xd8a070 };
+export const MARSHAL_HAIR = 0x50505c;
+export const MARSHAL_BROWS = 0x2a2a30;
+export const MARSHAL_MUSTACHE = 0x6a6a78;
+export const MARSHAL_EYE = 0x1e1e28;
+export const MARSHAL_NOSE = 0xd89068;
+export const MARSHAL_MOUTH = 0x6a1e22;
+export const MARSHAL_JACKET = 0xff8800;
+export const MARSHAL_REFLECTIVE = 0xd8dce0;
+export const MARSHAL_VEST = 0xf4f4f4;
+export const MARSHAL_TOWEL = 0xf5f5f5;
+export const MARSHAL_SHORTS = 0x3060a8;
+export const MARSHAL_SANDALS = 0xb87050;
+export const MARSHAL_SWEAT = 0x7fc3ff;
+export const MARSHAL_STOOL = 0x2f6f3a;
+/** The marshal's hazard flags' black diagonals, over signal yellow. */
+export const HAZARD_FLAG_STRIPE = 0x1f1f22;
+/** The marshal post's beacon: dark while the wheel is quiet, lit and sweeping its beam while the flag is up. */
+export const BEACON_OFF = 0x7a5a14;
+export const BEACON_LIT = 0xffb020;
+export const BEACON_BEAM = 0xffcf4a;
+
+/**
  * The lit and shaded tones of a colour that has only its mid, as the
  * catalog mixes a livery's: 72% of it with white, 66% of it with black.
  */

@@ -22,10 +22,13 @@ import { createDustEmitter } from "./dust";
 import { createExhaustFlames } from "./exhaust-flame";
 import { hazardZones } from "./hazard-zone";
 import {
+  type Beacon,
   hazardConeMesh,
   homingGullMesh,
   itemBoxMesh,
-  marshalFlagMesh,
+  type Marshal,
+  marshalBeacon,
+  marshalMesh,
   runawayWheelBounce,
   runawayWheelFlames,
   runawayWheelMesh,
@@ -74,9 +77,13 @@ const SPARK_HALO_BRIGHTNESS = 0.45;
 const ITEM_BOX_HEIGHT_M = 1;
 /** How high the projectile (ADR 0007) flies over where the sim has it. */
 const PROJECTILE_HEIGHT_M = 0.6;
-/** The marshal waves the flag this fast, radians a second, through this half-swing. */
-const FLAG_WAVE_RAD_PER_S = 14;
-const FLAG_WAVE_SWING_RAD = 0.6;
+/**
+ * On a marshal post the marshal stands this far off its middle, to the
+ * left as seen from the track, and the beacon this far toward the track
+ * and to the right: its track-side corner.
+ */
+const MARSHAL_OFF_MIDDLE_M = -0.05;
+const BEACON_CORNER_M = 0.55;
 /** The runaway wheel's flame tongues flicker this fast, each out of step, through this share of their length. */
 const WHEEL_FLAME_FLICKER_RAD_PER_S = 30;
 const WHEEL_FLAME_FLICKER_STEP_RAD = 2.1;
@@ -101,9 +108,9 @@ export interface RaceView {
    * hide every other kart's, move the camera to `camera`, show each item
    * box that is there to pick up, a cone at each hazard and a gull at
    * each projectile, turned toward the kart it homes in on, and at each
-   * wheel crossing the rolling wheel with its tells, the marshal's flag
-   * waving and the hazard zone flashing while it is up, and the wheel
-   * waiting on the wall through the warning.
+   * wheel crossing the rolling wheel with its tells, the marshal posed
+   * for it, the beacon lit and the hazard zone flashing while the flag is
+   * up, and the wheel waiting on the wall through the warning.
    */
   update(race: RaceReadout, camera: CameraPose, frameSeconds: number): void;
   render(): void;
@@ -142,7 +149,9 @@ export interface ViewAssets {
  * At each wheel crossing a runaway wheel `runawayWheelRadius` in size rolls
  * where the readout has it, burning, its flames off its back, trailing
  * smoke, kicking up dust where it lands and striking sparks off each wall
- * it rebounds from, and the marshal's flag waves while it is up.
+ * it rebounds from, the marshal sits with his tea or waves his hazard
+ * flags as the wheel has it, and the post's beacon is lit while the flag
+ * is up.
  * `labelsFor` names the karts to label and where, from the frame's readouts. Picks WebGPU when the
  * browser has it and WebGL otherwise.
  */
@@ -377,19 +386,20 @@ type Position = readonly [number, number, number];
 interface RunawayWheels {
   /**
    * Roll each crossing's wheel to where `wheels` has it, or stand it on the
-   * wall it will roll in from through the warning, and wave its flag and
-   * flash its hazard zone while the flag is up.
+   * wall it will roll in from through the warning, pose its marshal, and
+   * light its beacon and flash its hazard zone while the flag is up.
    */
   show(wheels: readonly Wheel[], frameSeconds: number): void;
 }
 
 /**
- * A runaway wheel `radius` in size per crossing in `world`, and a flag on
- * each marshal post the track's glTF stands beside one, crossing and post
- * matched by their number. The wheel turns by the ground it covers and
- * bounces as it rolls, its flames flickering off its back; the flag flies
- * across the track, toward the post's lamp. Through the warning the wheel
- * rocks, burning, on the wall top, where no kart reaches it.
+ * A runaway wheel `radius` in size per crossing in `world`, and the
+ * marshal and a beacon on each marshal post the track's glTF stands beside
+ * one, crossing and post matched by their number. The wheel turns by the
+ * ground it covers and bounces as it rolls, its flames flickering off its
+ * back; the marshal faces the track, toward the post's lamp. Through the
+ * warning the wheel rocks, burning, on the wall top, where no kart
+ * reaches it.
  */
 function runawayWheels(world: ThreeScene, track: Object3D, radius: number): RunawayWheels {
   const posts = marshalPosts(track);
@@ -403,7 +413,8 @@ function runawayWheels(world: ThreeScene, track: Object3D, radius: number): Runa
     readonly spin: Object3D;
     /** Not turned with the heading, so the flames point along the tells' back. */
     readonly flames: Object3D;
-    readonly flag: Object3D | undefined;
+    /** Who and what stands on the crossing's marshal post, when it has one. */
+    readonly postFigures: { readonly marshal: Marshal; readonly beacon: Beacon } | undefined;
     /** Where the wheel was last frame; unset while it is off the course. */
     last: Vector3 | undefined;
   }
@@ -416,16 +427,20 @@ function runawayWheels(world: ThreeScene, track: Object3D, radius: number): Runa
     heading.add(spin);
     const flames = flamesTemplate.clone();
     world.add(heading, flames);
-    const post = posts.get(crossing);
-    let flag: Object3D | undefined;
-    if (post !== undefined) {
-      flag = marshalFlagMesh();
-      flag.position.copy(post.top);
-      // The cloth flies along the flag's +x, turned toward the track.
-      flag.rotation.y = Math.atan2(-post.inward.z, post.inward.x);
-      world.add(flag);
+    const placed = posts.get(crossing);
+    let postFigures: Drawn["postFigures"];
+    if (placed !== undefined) {
+      postFigures = { marshal: marshalMesh(), beacon: marshalBeacon() };
+      // The marshal faces along the stand's +z, turned toward the track.
+      const stand = new Group();
+      stand.position.copy(placed.top);
+      stand.rotation.y = Math.atan2(placed.inward.x, placed.inward.z);
+      postFigures.marshal.figure.position.x = MARSHAL_OFF_MIDDLE_M;
+      postFigures.beacon.mesh.position.set(BEACON_CORNER_M, 0, BEACON_CORNER_M);
+      stand.add(postFigures.marshal.figure, postFigures.beacon.mesh);
+      world.add(stand);
     }
-    const entry: Drawn = { heading, spin, flames, flag, last: undefined };
+    const entry: Drawn = { heading, spin, flames, postFigures, last: undefined };
     drawn[crossing] = entry;
     return entry;
   };
@@ -441,11 +456,8 @@ function runawayWheels(world: ThreeScene, track: Object3D, radius: number): Runa
       zones.show(wheels, clockSeconds);
       wheels.forEach((wheel, crossing) => {
         const entry = drawnAt(crossing);
-        if (entry.flag !== undefined) {
-          entry.flag.visible = wheel.kind !== "quiet";
-          entry.flag.rotation.z =
-            Math.sin(clockSeconds * FLAG_WAVE_RAD_PER_S) * FLAG_WAVE_SWING_RAD;
-        }
+        entry.postFigures?.marshal.pose(wheel.kind, clockSeconds);
+        entry.postFigures?.beacon.show(wheel.kind, clockSeconds);
         entry.heading.visible = wheel.kind !== "quiet";
         entry.flames.visible = wheel.kind !== "quiet";
         if (wheel.kind === "quiet") {
@@ -491,7 +503,7 @@ function runawayWheels(world: ThreeScene, track: Object3D, radius: number): Runa
   };
 }
 
-/** Where a marshal post's flag stands, and the level way from the post toward the track. */
+/** Where a marshal post's marshal stands, and the level way from the post toward the track. */
 interface MarshalPost {
   readonly top: Vector3;
   readonly inward: Vector3;
@@ -499,7 +511,7 @@ interface MarshalPost {
 
 /**
  * Each marshal post in the track's glTF, by its number: the top of its box,
- * where the flag stands, and the level direction from the post to its lamp,
+ * where the marshal stands, and the level direction from the post to its lamp,
  * toward the track. The loader drops the dots from the exported names.
  */
 function marshalPosts(track: Object3D): Map<number, MarshalPost> {
