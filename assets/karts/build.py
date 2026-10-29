@@ -172,7 +172,7 @@ class Part:
         self, name: str, parent: bpy.types.Object | None = None, pivot: Vector | None = None
     ) -> bpy.types.Object:
         """
-        The part as an object under `parent`. Built in the car's frame, it is
+        The part as an object under `parent`. Built in the kart's frame, it is
         moved so its origin is `pivot`, where it turns; every parent sits
         unrotated, so its location is the pivot less the parents' locations.
         """

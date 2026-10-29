@@ -3,7 +3,8 @@ import type { KartReadout } from "./bridge";
 import { HEAD_LEVEL, type HeadSway, MAX_ROLL_RAD, ROLL_RAD_PER_G, swayHead } from "./head-sway";
 import { kartReadout, yawed } from "./kart-readout-fixture";
 
-const FRAME_S = 1 / 60;
+const TICK_S = 1 / 60;
+const FRAME_S = TICK_S;
 const G = 9.81;
 
 interface Turn {
@@ -14,34 +15,41 @@ interface Turn {
   readonly stallS?: number | null;
 }
 
+interface Drive {
+  readonly sway: HeadSway;
+  readonly previous: KartReadout | undefined;
+  readonly yaw: number;
+  /** Seconds driven, which ticks have run. */
+  readonly t: number;
+}
+
+const START: Drive = { sway: HEAD_LEVEL, previous: undefined, yaw: 0, t: 0 };
+
 /**
- * Drive `seconds` of one tick a frame through a steady `turn`, from `start`,
- * carrying on from `yaw` with `previous` as the last frame's readout.
+ * Drive `seconds` through a steady `turn` from `start`, the sim ticking at
+ * 60 Hz and the head swayed once a frame at `frameHz`: a frame between two
+ * ticks shows the last tick's readout again, as the Race Scene draws it.
  */
-function drive(
-  turn: Turn,
-  seconds: number,
-  start: { sway: HeadSway; previous: KartReadout | undefined; yaw: number } = {
-    sway: HEAD_LEVEL,
-    previous: undefined,
-    yaw: 0,
-  },
-) {
-  let { sway, previous, yaw } = start;
-  for (let t = 0; t < seconds - 1e-9; t += FRAME_S) {
-    yaw += turn.yawRate * FRAME_S;
-    const current = kartReadout({
-      speed: turn.speed,
-      rotation: yawed(yaw),
-      // A moving kart moves, so each tick's readout is a new one.
-      position: [0, 0, -turn.speed * t],
-      spinOutS: turn.spinOutS ?? null,
-      stallS: turn.stallS ?? null,
-    });
-    sway = swayHead(sway, previous, current, FRAME_S);
+function drive(turn: Turn, seconds: number, start: Drive = START, frameHz = 60): Drive {
+  let { sway, previous, yaw, t } = start;
+  const frameS = 1 / frameHz;
+  for (let frame = 0; frame < Math.round(seconds * frameHz); frame++) {
+    const ticks = Math.floor((t + frameS) / TICK_S + 1e-9) - Math.floor(t / TICK_S + 1e-9);
+    t += frameS;
+    yaw += turn.yawRate * TICK_S * ticks;
+    const current =
+      ticks === 0 && previous !== undefined
+        ? previous
+        : kartReadout({
+            speed: turn.speed,
+            rotation: yawed(yaw),
+            spinOutS: turn.spinOutS ?? null,
+            stallS: turn.stallS ?? null,
+          });
+    sway = swayHead(sway, previous, current, frameS);
     previous = current;
   }
-  return { sway, previous, yaw };
+  return { sway, previous, yaw, t };
 }
 
 /** A steady turn pulling `g` of lateral G at 20 m/s. */
@@ -68,7 +76,7 @@ describe("head sway", () => {
 
   it("settles on a new lean in about 0.15 s, without overshooting it", () => {
     let roll = 0;
-    let state = { sway: HEAD_LEVEL, previous: undefined as KartReadout | undefined, yaw: 0 };
+    let state = START;
     for (let frame = 0; frame < 9; frame++) {
       state = drive(turnAt(2), FRAME_S, state);
       expect(state.sway.roll).toBeLessThanOrEqual(roll);
@@ -79,7 +87,7 @@ describe("head sway", () => {
   });
 
   it("leans the same through a turn whose heading crosses half a turn round", () => {
-    let state = drive(turnAt(2), 0.5, { sway: HEAD_LEVEL, previous: undefined, yaw: Math.PI - 1 });
+    let state = drive(turnAt(2), 0.5, { ...START, yaw: Math.PI - 1 });
     const settled = state.sway.roll;
     while (state.yaw < Math.PI + 0.5) {
       state = drive(turnAt(2), FRAME_S, state);
@@ -95,12 +103,22 @@ describe("head sway", () => {
     expect(drive({ speed: 20, yawRate: 0 }, 0.5, easing).sway.roll).toBeCloseTo(0, 4);
   });
 
-  it("holds the lean between ticks, so a frame faster than the tick does not shake it", () => {
+  it.each([45, 60, 90, 120, 144])(
+    "leans as far, without a shake, on a %i Hz display over the 60 Hz tick",
+    (frameHz) => {
+      const lean = -2 * ROLL_RAD_PER_G;
+      let state = drive(turnAt(2), 1, START, frameHz);
+      for (let frame = 0; frame < frameHz / 2; frame++) {
+        state = drive(turnAt(2), 1 / frameHz, state, frameHz);
+        // A frame that repeats a tick still ripples the lean, by well under a degree.
+        expect(Math.abs(state.sway.roll / lean - 1)).toBeLessThan(0.08);
+      }
+    },
+  );
+
+  it("eases back to level when the kart stops dead mid-turn", () => {
     const leaning = drive(turnAt(2), 1);
-    // Two frames of one tick: the readout has not moved since the last frame.
-    const unchanged = kartReadout({ ...leaning.previous });
-    const held = swayHead(leaning.sway, leaning.previous, unchanged, FRAME_S / 2);
-    expect(held.roll).toBeCloseTo(leaning.sway.roll, 6);
+    expect(drive({ speed: 0, yawRate: 0 }, 0.5, leaning).sway.roll).toBeCloseTo(0, 4);
   });
 
   it.each([

@@ -211,7 +211,7 @@ export async function createRaceView(
     world.add(kart);
     // Missing only from a model without one; the asset test holds kart.glb to carrying it.
     const head = model.getObjectByName("head");
-    /** The head's sway, and the readout it was last measured from. */
+    /** Swayed from the readout drawn last frame, so every slot, remote karts too, measures its own turn. */
     const sway: { state: HeadSway; last: KartReadout | undefined } = {
       state: HEAD_LEVEL,
       last: undefined,
