@@ -19,7 +19,7 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 
 import export  # noqa: E402
-from trackgen.layout import CROWD_KEYS, HAZARD_TINT, Placement, TextProp, TrackGeometry, build  # noqa: E402
+from trackgen.layout import CROWD_KEYS, HAZARD_TINT, Lettering, Placement, TrackGeometry, build  # noqa: E402
 from trackgen.layouts import NAMES, load  # noqa: E402
 
 # Flat colours in the 16-bit kart racer's key: one saturated tone per
@@ -58,7 +58,7 @@ MATERIALS = {
     # The style guide's Grandstand and Start gantry entries.
     "stand-riser": (0.843, 0.859, 0.878),
     "stand-plinth": (0.706, 0.729, 0.761),
-    "canopy-shade": (0.647, 0.165, 0.125),
+    "stand-canopy-shade": (0.647, 0.165, 0.125),
     "beam-top": (0.788, 0.808, 0.835),
     "beam-shade": (0.604, 0.627, 0.659),
     "ink-blue": (0.12, 0.33, 0.78),
@@ -68,6 +68,15 @@ MATERIALS = {
     "ink-brown": (0.45, 0.28, 0.14),
     "ink-orange": (0.93, 0.47, 0.08),
     "ink-purple": (0.50, 0.22, 0.70),
+    # The woods: each canopy colour in a lit tone and, at two thirds of it, a
+    # shade tone, as the style guide's Woods card draws them, and the trunk.
+    "canopy-pine": (0.184, 0.478, 0.227),
+    "canopy-pine-shade": (0.122, 0.316, 0.150),
+    "canopy": (0.361, 0.690, 0.290),
+    "canopy-shade": (0.238, 0.455, 0.191),
+    "blossom": (0.949, 0.639, 0.753),
+    "blossom-shade": (0.626, 0.422, 0.497),
+    "trunk": (0.353, 0.227, 0.118),
 }
 # The crowd in the stands, one material per livery's key colour.
 MATERIALS.update(
@@ -159,7 +168,7 @@ def yaw_facing(facing: float) -> float:
     return math.atan2(math.cos(facing), -math.sin(facing))
 
 
-def text_object(prop: TextProp) -> bpy.types.Object:
+def text_object(prop: Lettering) -> bpy.types.Object:
     """Lettering standing upright, read from the way its placement faces, centred on it."""
     curve = bpy.data.curves.new(prop.name, "FONT")
     curve.body = prop.text
@@ -187,7 +196,7 @@ def populate(geometry: TrackGeometry) -> None:
     scenery = collection(export.SCENERY_COLLECTION)
     for piece in geometry.scenery:
         scenery.objects.link(mesh_object(piece.name, piece.mesh, piece.material))
-    for prop in geometry.props:
+    for prop in geometry.lettering:
         scenery.objects.link(text_object(prop))
 
     curve = bpy.data.curves.new(export.CENTRELINE_OBJECT, "CURVE")

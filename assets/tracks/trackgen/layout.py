@@ -164,6 +164,11 @@ MARSHAL_LAMP_BELOW_TOP_M = 0.3
 BRIDGE_DECK_THICKNESS_M = 1.0
 BRIDGE_SPAN_CLEARANCE_M = 2.0
 
+# A wood's trees keep this much grass between a canopy's edge and the wall,
+# and this much between trunks, however many the layout asks for.
+TREE_WALL_CLEARANCE_M = 3.0
+TREE_SPACING_M = 5.0
+
 # The eight-slot spawn grid: two staggered columns of four, pole in front on
 # the left, the right column set back. Slot order is grid order. Placements
 # snap to the nearest centreline sample, so these distances hold to within
@@ -248,6 +253,35 @@ class Bridge:
 
 
 @dataclass(frozen=True)
+class Disc:
+    """A round patch of grass, `r` metres about (`x`, `y`) in track metres."""
+
+    x: float
+    y: float
+    r: float
+
+
+@dataclass(frozen=True)
+class Line:
+    """A row from `a` to `b`, each a point in track metres."""
+
+    a: tuple[float, float]
+    b: tuple[float, float]
+
+
+@dataclass(frozen=True)
+class Wood:
+    """A patch of trees of one `kind` (`pine`, `round` or `cherry`) the builder scatters over
+    `patch`: up to `count` of them, from the random stream `seed` starts, dropping any tree
+    too near a wall or another tree. A layout never places a tree by hand."""
+
+    kind: str
+    patch: Disc | Line
+    count: int
+    seed: int
+
+
+@dataclass(frozen=True)
 class Decor:
     """The scenery a layout asks for beyond what every track gets (kerbs and the start line)."""
 
@@ -255,6 +289,7 @@ class Decor:
     grandstands: list[Grandstands] = field(default_factory=list)
     gantry: bool = False
     bridges: list[Bridge] = field(default_factory=list)
+    woods: list[Wood] = field(default_factory=list)
 
 
 @dataclass
@@ -309,7 +344,7 @@ class SceneryMesh:
 
 
 @dataclass(frozen=True)
-class TextProp:
+class Lettering:
     """Lettering Blender sets in the scenery: `size` metres tall, in `material`, read from `at.heading`."""
 
     name: str
@@ -330,7 +365,7 @@ class TrackGeometry:
     boost_pads: list[Placement]
     spawn_grid: list[Placement]
     scenery: list[SceneryMesh] = field(default_factory=list)
-    props: list[TextProp] = field(default_factory=list)
+    lettering: list[Lettering] = field(default_factory=list)
     kerbs: list[Placement] = field(default_factory=list)
     wheel_crossings: list[Placement] = field(default_factory=list)
 
@@ -434,13 +469,13 @@ def build(layout: Layout) -> TrackGeometry:
     ]
 
     centreline = [(sample.x, sample.y, h) for sample, h in zip(path.samples, height)]
-    scenery, props = decorate(layout, height)
+    scenery, lettering = decorate(layout, height)
     return TrackGeometry(
-        centreline, surfaces, checkpoints, item_boxes, boost_pads, spawn_grid, scenery, props, kerbs, wheel_crossings
+        centreline, surfaces, checkpoints, item_boxes, boost_pads, spawn_grid, scenery, lettering, kerbs, wheel_crossings
     )
 
 
-def decorate(layout: Layout, height: list[float]) -> tuple[list[SceneryMesh], list[TextProp]]:
+def decorate(layout: Layout, height: list[float]) -> tuple[list[SceneryMesh], list[Lettering]]:
     """The scenery: kerbs on every corner, the start line, and what the layout's decor asks for."""
     scenery = kerbs(layout, height) + start_line(layout) + boost_pads(layout) + tyre_stacks(layout)
     scenery += sausage_kerbs(layout) + hazard_zones(layout) + marshal_posts(layout)
@@ -449,6 +484,11 @@ def decorate(layout: Layout, height: list[float]) -> tuple[list[SceneryMesh], li
     if layout.decor.gantry:
         scenery += gantry(layout)
     scenery += bridges(layout, height)
+    # `props` imports this module, so it is imported here, once everything
+    # it needs is defined.
+    from .props import woods
+
+    scenery += woods(layout)
     return scenery, lettering
 
 
@@ -782,10 +822,10 @@ def along_outside(
         s += spacing
 
 
-def hoardings(layout: Layout) -> tuple[list[SceneryMesh], list[TextProp]]:
+def hoardings(layout: Layout) -> tuple[list[SceneryMesh], list[Lettering]]:
     """White boards facing the track with a sponsor's name on each, cycling through the sponsors."""
     boards: list[SceneryMesh] = []
-    lettering: list[TextProp] = []
+    lettering: list[Lettering] = []
     for run in layout.decor.hoardings:
         for spot in along_outside(layout, run.segments, run.side, HOARDING_SETBACK_M, HOARDING_SPACING_M):
             number = len(boards)
@@ -803,7 +843,7 @@ def hoardings(layout: Layout) -> tuple[list[SceneryMesh], list[TextProp]]:
             name, ink = SPONSORS[number % len(SPONSORS)]
             proud = HOARDING_TEXT_PROUD_M
             lettering.append(
-                TextProp(
+                Lettering(
                     f"Sponsor.{number:02d}",
                     name,
                     ink,
@@ -901,7 +941,7 @@ def grandstands(layout: Layout) -> list[SceneryMesh]:
             )
             parts.add("kerb-red", canopy["z1"])
             for side in (*SIDES, "z0"):
-                parts.add("canopy-shade", canopy[side])
+                parts.add("stand-canopy-shade", canopy[side])
 
     return parts.scenery()
 

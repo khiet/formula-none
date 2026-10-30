@@ -301,6 +301,22 @@ abutments are scenery; a kart rides the raised leg's own asphalt and sand,
 and reads its spline progress near its last reading so it keeps to its own
 leg through the crossing (ADRs 0046, 0047).
 
+### prop
+
+Scenery a layout declares in its decor and the builder places beyond the
+walls: in the glTF only, never in the sidecar, so karts never touch one
+and the sim never learns it exists. A prop that must stop a kart becomes a
+wall or a tyre wall with its own ADR. A moving prop is moved by the View
+from its own clock, as Presentation (ADR 0050).
+
+### wood
+
+A patch of trees of one kind, pine, round or cherry, that the builder
+scatters over a disc or along a line from a count and a seed. The count is
+a cap: a tree within 3 m of a wall or 5 m of another is dropped, so no tree
+is ever placed by hand, and the seed makes every export scatter the same
+trees. A prop (ADR 0050).
+
 ### tyre wall
 
 A stack of tyres standing on the asphalt, tagged `tyres`. A kart that
