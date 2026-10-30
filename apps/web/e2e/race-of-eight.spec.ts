@@ -17,7 +17,7 @@ test.skip(!!process.env.CI, "eight WebGL tabs through a whole race are a local s
 // eight tabs on the headless software renderer got a few frames a second
 // each, and inputs that late ran the autopilot's kart wide of the gates.
 test.use({ headless: false });
-test.setTimeout(900_000);
+test.setTimeout(1_350_000);
 
 const WASM = new URL("../src/generated/bridge/bridge_bg.wasm", import.meta.url);
 
@@ -66,7 +66,7 @@ test("eight tabs complete a race on Suzuqa Patch", async ({ browser }) => {
   // The autopilot laps; the cap from its finish ends the race, and
   // every tab reaches the results with every kart placed.
   await expect
-    .poll(() => driver.laps(), { timeout: 480_000, intervals: [2_000] })
+    .poll(() => driver.laps(), { timeout: 720_000, intervals: [2_000] })
     .toBeGreaterThanOrEqual(bridge.lapsPerRace);
   for (const page of pages) {
     await expect(page.locator("#results-scene")).toBeVisible({ timeout: 300_000 });

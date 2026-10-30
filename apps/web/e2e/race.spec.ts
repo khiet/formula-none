@@ -22,7 +22,7 @@ for (const [name, url, throttleKey] of [
     // The Instrument panel's lap readouts come from the sim: on lap one, the
     // lap clock running and no best lap yet, and last once the seven bots
     // behind on the grid have driven past the idle kart.
-    await expect(page.locator('[data-instrument="lap"]')).toHaveText("Lap 1/2");
+    await expect(page.locator('[data-instrument="lap"]')).toHaveText("Lap 1/3");
     await expect(page.locator('[data-instrument="position"]')).toHaveText("8th", {
       timeout: 30_000,
     });

@@ -3,7 +3,8 @@
 ## Status
 
 Accepted (2026-10-18). Its initial rule that the race ends 20 s after the
-first finisher is superseded by ADR 0032, and its three laps by ADR 0047.
+first finisher is superseded by ADR 0032, and its three laps by ADR 0047,
+which ADR 0054 in turn supersedes to restore them.
 
 ## Context
 

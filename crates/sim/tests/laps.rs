@@ -542,7 +542,7 @@ fn a_dead_heat_keeps_grid_order() {
 }
 
 #[test]
-fn two_laps_of_the_oval_end_with_the_lap_counter_at_two_and_a_best_lap() {
+fn the_races_laps_of_the_oval_end_with_the_lap_counter_on_the_last_and_a_best_lap() {
     let mut state = race(1);
     let mut lap_times = Vec::new();
     let mut laps_seen = 0;
@@ -560,11 +560,11 @@ fn two_laps_of_the_oval_end_with_the_lap_counter_at_two_and_a_best_lap() {
     }
 
     let standing = only_standing(&state);
-    assert_eq!(standing.laps_completed, 2);
-    assert_eq!(standing.lap, 2, "the counter stays on the last lap");
-    assert_eq!(lap_times.len(), 2);
+    assert_eq!(standing.laps_completed, LAPS_PER_RACE);
+    assert_eq!(standing.lap, LAPS_PER_RACE, "the counter stays on the last lap");
+    assert_eq!(lap_times.len(), LAPS_PER_RACE as usize);
     // The first lap starts from a standstill, so a flying lap is the best.
-    let best = standing.best_lap_s.expect("two laps were completed");
+    let best = standing.best_lap_s.expect("the race's laps were completed");
     assert!(
         best < lap_times[0],
         "best {best} s, first lap {} s",

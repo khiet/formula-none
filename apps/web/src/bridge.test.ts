@@ -290,7 +290,7 @@ describe("bridge wrapper", () => {
 describe("standings", () => {
   it("reports a kart on the grid in first place on lap one with no best lap, and the race's lap count", async () => {
     const bridge = await loadBridge(wasm);
-    expect(bridge.lapsPerRace).toBe(2);
+    expect(bridge.lapsPerRace).toBe(3);
     const race = bridge.createRace(7n, 2, 0, OVAL);
     const [pole, second] = race.standings();
     expect(pole).toEqual({

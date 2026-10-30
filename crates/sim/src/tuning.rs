@@ -114,7 +114,7 @@ pub const NICKNAME_MAX_CHARS: usize = 12;
 
 /// Karts on the grid; empty slots are filled by bots at Start.
 pub const KARTS_PER_RACE: usize = 8;
-pub const LAPS_PER_RACE: u32 = 2;
+pub const LAPS_PER_RACE: u32 = 3;
 /// Seconds the karts are held on the grid before Go: the start lights, one
 /// a second, all five out at Go. The Instrument panel always draws five
 /// lamps, so this must stay one second per lamp.
