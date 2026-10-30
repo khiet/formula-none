@@ -168,9 +168,9 @@ BRIDGE_SPAN_CLEARANCE_M = 2.0
 # and this much between trunks, however many the layout asks for.
 TREE_WALL_CLEARANCE_M = 3.0
 TREE_SPACING_M = 5.0
-# A prop keeps this much grass between its footprint and the wall: every
-# prop is over 3 m tall, and the chase camera hangs over the wall on the
-# outside of a corner, where a tall thing nearer would stand between it
+# A prop keeps this much grass between its footprint and the wall, the
+# rule for anything over 3 m tall: the chase camera hangs over the wall on
+# the outside of a corner, and a tall thing nearer would stand between it
 # and the kart.
 PROP_WALL_CLEARANCE_M = 8.0
 
