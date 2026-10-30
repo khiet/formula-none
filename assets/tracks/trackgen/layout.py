@@ -310,11 +310,11 @@ class World:
 
 @dataclass(frozen=True)
 class Prop:
-    """A trackside prop of one `kind` (`circuit-wheel`, `arch`, `pits` or `airship`) standing
-    at `at`, built by `trackgen.props`: scenery beyond the walls that no kart meets (ADR
-    0050). A kind that runs along the track, the pits, is `length` metres long, centred on
-    `at`. A kind that flies, the airship, circles `at` at `radius` metres, `height` metres
-    over the grass."""
+    """A trackside prop of one `kind` (`circuit-wheel`, `arch`, `pits` or `airship`) placed
+    by `at`, built by `trackgen.props`: scenery in the glTF only, which no kart meets, standing
+    beyond the walls or flying over them (ADR 0050). A kind that runs along the track, the
+    pits, is `length` metres long, centred on `at`. A kind that flies, the airship, circles
+    `at` at `radius` metres, `height` metres over the grass."""
 
     kind: str
     at: Spot | World

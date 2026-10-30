@@ -339,6 +339,15 @@ faces through the countdown: a prop with a door and a flag in each
 livery's key colour, no number on any door (ADR 0035), and no pit lane to
 drive (ADR 0050).
 
+### airship
+
+The SLIPSTREAM AIRWAYS airship over Suzuqa Patch's east infield: a prop
+that flies, so it has no footprint, a single node in the glTF with its
+origin at the nose, which the View flies once round its circle every four
+minutes from its own clock, nose along the tangent, its lowest point 30 m
+over every road under it. Its sponsor rides on both flanks as children of
+the node (ADR 0050, ADR 0038).
+
 ### tyre wall
 
 A stack of tyres standing on the asphalt, tagged `tyres`. A kart that

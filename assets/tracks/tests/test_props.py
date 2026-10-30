@@ -643,10 +643,6 @@ class PitBuilding(unittest.TestCase):
         self.assertTrue(60 <= faces <= 90, faces)
 
 
-if __name__ == "__main__":
-    unittest.main()
-
-
 class Airship(unittest.TestCase):
     def setUp(self) -> None:
         self.layout = load(DRESSED)
@@ -760,3 +756,7 @@ class Airship(unittest.TestCase):
     def test_the_airship_costs_about_90_faces(self) -> None:
         faces = len(self.hull.mesh[1])
         self.assertTrue(80 <= faces <= 100, faces)
+
+
+if __name__ == "__main__":
+    unittest.main()

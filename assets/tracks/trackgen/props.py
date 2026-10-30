@@ -182,14 +182,14 @@ AIRSHIP_CLEARANCE_M = 30.0
 # the nose, metres from the axis), root first, read round.
 AIRSHIP_FIN = ((18.0, 1.0), (22.5, 1.0), (23.5, 6.5), (20.5, 6.5))
 AIRSHIP_FIN_M = 0.3
-# The gondola: a carbon box hung under the bottom flat amidships on two
-# square struts, as (metres from the nose) along, this wide, this tall, this
-# far under the flat.
-AIRSHIP_GONDOLA = (9.0, 15.0)
+# The gondola: a carbon box hung under the bottom flat amidships, spanning
+# these metres from the nose, this wide, this tall, this far under the flat,
+# on two square struts of this side at these metres from the nose.
+AIRSHIP_GONDOLA_SPAN = (9.0, 15.0)
 AIRSHIP_GONDOLA_WIDTH_M = 2.0
 AIRSHIP_GONDOLA_HEIGHT_M = 1.6
 AIRSHIP_GONDOLA_DROP_M = 0.6
-AIRSHIP_STRUTS = (10.0, 14.0)
+AIRSHIP_STRUTS_AT = (10.0, 14.0)
 AIRSHIP_STRUT_M = 0.25
 # The name amidships on each flank, centred this far from the nose, just
 # proud of the flat.
@@ -670,7 +670,7 @@ def _block(
     return mesh.cuboid(corner)
 
 
-def _sides(faces: dict[str, mesh.Mesh], material: str, into: ByMaterial, shade: str | None = None, top: bool = False) -> None:
+def _sides(faces: dict[str, mesh.Mesh], material: str, into: ByMaterial | Node, shade: str | None = None, top: bool = False) -> None:
     """A block's four upright faces, and its top when asked, into `into`: toned by the sun
     against `shade` when one is named, else flat in `material`."""
     for key in ("x0", "x1", "y0", "y1", *(("z1",) if top else ())):
@@ -858,15 +858,17 @@ def airship(layout: Layout, prop: Prop, number: int, still: ByMaterial) -> tuple
         for i in range(1, len(AIRSHIP_FIN)):
             j = (i + 1) % len(AIRSHIP_FIN)
             hull.add("kerb-red", (_outward([plates[0][i], plates[0][j], plates[1][j], plates[1][i]], middle), [(0, 1, 2, 3)]))
-    # The gondola under the bottom flat, and the struts up to it.
+    # The gondola under the bottom flat, every face since it is seen from below, and the
+    # struts up to it; both in the frame `at` maps from, so their boxes run back from the nose.
+    astern = (-along[0], -along[1], 0.0)
     top = -AIRSHIP_APOTHEM_M - AIRSHIP_GONDOLA_DROP_M
     half = AIRSHIP_GONDOLA_WIDTH_M / 2.0
-    for face in _box(at, AIRSHIP_GONDOLA, (-half, half), (top - AIRSHIP_GONDOLA_HEIGHT_M, top)):
-        hull.add(*_toned("carbon", face))
-    for s in AIRSHIP_STRUTS:
-        strut = _box(at, (s - AIRSHIP_STRUT_M / 2.0, s + AIRSHIP_STRUT_M / 2.0), (-AIRSHIP_STRUT_M / 2.0, AIRSHIP_STRUT_M / 2.0), (top, -AIRSHIP_APOTHEM_M))
-        for face in strut[:4]:
-            hull.add(*_toned("carbon", face))
+    gondola = _block(nose, astern, left, AIRSHIP_GONDOLA_SPAN, (-half, half), (top - AIRSHIP_GONDOLA_HEIGHT_M, top))
+    for vertices, (face,) in gondola.values():
+        hull.add(*_toned("carbon", [vertices[i] for i in face]))
+    for s in AIRSHIP_STRUTS_AT:
+        strut = _block(nose, astern, left, (s - AIRSHIP_STRUT_M / 2.0, s + AIRSHIP_STRUT_M / 2.0), (-AIRSHIP_STRUT_M / 2.0, AIRSHIP_STRUT_M / 2.0), (top, -AIRSHIP_APOTHEM_M))
+        _sides(strut, "carbon", hull, shade="carbon-shade")
     # The name on each flank, just proud of the flat, read from that side.
     text, ink = AIRSHIP_SPONSOR
     proud = AIRSHIP_APOTHEM_M + HOARDING_TEXT_PROUD_M
@@ -882,26 +884,6 @@ def airship(layout: Layout, prop: Prop, number: int, still: ByMaterial) -> tuple
         for flank, side in (("left", 1.0), ("right", -1.0))
     ]
     return [hull.scenery()], lettering
-
-
-def _box(
-    at: Callable[[float, float, float], mesh.Vertex],
-    s: tuple[float, float],
-    b: tuple[float, float],
-    c: tuple[float, float],
-) -> list[list[mesh.Vertex]]:
-    """A box in the frame `at` maps from, spanning `s`, `b` and `c` on its three axes: its
-    four upright faces first, then the bottom and the top, each wound out of the box."""
-    centre = at(sum(s) / 2.0, sum(b) / 2.0, sum(c) / 2.0)
-    faces = [
-        [at(s[0], b[0], c[0]), at(s[0], b[0], c[1]), at(s[0], b[1], c[1]), at(s[0], b[1], c[0])],
-        [at(s[1], b[0], c[0]), at(s[1], b[0], c[1]), at(s[1], b[1], c[1]), at(s[1], b[1], c[0])],
-        [at(s[0], b[0], c[0]), at(s[0], b[0], c[1]), at(s[1], b[0], c[1]), at(s[1], b[0], c[0])],
-        [at(s[0], b[1], c[0]), at(s[0], b[1], c[1]), at(s[1], b[1], c[1]), at(s[1], b[1], c[0])],
-        [at(s[0], b[0], c[0]), at(s[0], b[1], c[0]), at(s[1], b[1], c[0]), at(s[1], b[0], c[0])],
-        [at(s[0], b[0], c[1]), at(s[0], b[1], c[1]), at(s[1], b[1], c[1]), at(s[1], b[0], c[1])],
-    ]
-    return [_outward(face, centre) for face in faces]
 
 
 def _outward(quad: list[mesh.Vertex], centre: mesh.Vertex) -> list[mesh.Vertex]:
