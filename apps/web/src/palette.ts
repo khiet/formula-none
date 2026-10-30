@@ -65,8 +65,9 @@ export const WHEEL_SMOKE = 0x8a8d94;
 export const DRONE_EYE = 0xd00a12;
 /**
  * The rocket reds, flame yellow and strap grey the items share: the runaway
- * wheel's hot rim and flames, the drone's tally light and antenna, the
- * champagne bottle's label band and foil, and the marshal's stool legs.
+ * wheel's hot rim, flames and wall-hit sparks, the drone's tally light and
+ * antenna, the champagne bottle's label band and foil, and the marshal's
+ * stool legs.
  */
 export const ROCKET: Tones = { lit: 0xe8333b, mid: 0xd00a12, shaded: 0x8f070c };
 export const ROCKET_FLAME = 0xffd23f;
