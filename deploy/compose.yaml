@@ -10,6 +10,9 @@
 # Caddy's volume: a renewal is a rewrite of those files, which the server
 # picks up by itself (deploy/README.md).
 #
+# Open rooms are kept in the rooms volume so a restart of the server, a
+# deploy included, brings them back (ADR 0005); a race under way is lost.
+#
 # Prometheus scrapes the server's metrics over the Compose network and
 # Grafana, provisioned from the files beside this one, draws them (ADR
 # 0018). Neither is published beyond the instance: Grafana listens on the
@@ -56,8 +59,11 @@ services:
       # Where Caddy keeps the certificate it obtained for the site.
       TLS_CERT: /data/caddy/certificates/acme-v02.api.letsencrypt.org-directory/${SITE_ADDRESS:-formulanone.sushimafia.com}/${SITE_ADDRESS:-formulanone.sushimafia.com}.crt
       TLS_KEY: /data/caddy/certificates/acme-v02.api.letsencrypt.org-directory/${SITE_ADDRESS:-formulanone.sushimafia.com}/${SITE_ADDRESS:-formulanone.sushimafia.com}.key
+      # Where Open rooms wait out a restart (crates/server/src/main.rs).
+      ROOMS_DIR: /var/lib/formula-none/rooms
     volumes:
       - caddy_data:/data:ro
+      - rooms:/var/lib/formula-none
     # Caddy writes its private key readable by root only, so the server runs
     # as root to read it; every capability is dropped and the filesystem is
     # read-only so that uid buys nothing else.
@@ -114,3 +120,4 @@ volumes:
   caddy_data:
   caddy_config:
   prometheus_data:
+  rooms:

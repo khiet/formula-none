@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Room } from "./generated/protocol";
-import { createRoomScene, type RoomHandlers } from "./room-scene";
+import { CONNECTION_LOST_STATUS, createRoomScene, type RoomHandlers } from "./room-scene";
 
 const ROOM: Room = {
   code: "BXQF",
@@ -166,6 +166,22 @@ describe("Room Scene", () => {
     expect(rows().map((row) => row.state)).toEqual(["unready", "finished"]);
     expect(button("ready").hidden).toBe(false);
     expect(button("start").disabled).toBe(true);
+  });
+
+  it("says the connection is lost while the client reconnects, then shows the room again", () => {
+    const { status, button, view } = scene(0);
+    view.connectionLost(true);
+    expect(status()).toBe(CONNECTION_LOST_STATUS);
+    // A player still reaches Leave, the one thing that works offline.
+    expect(button("leave").hidden).toBe(false);
+    // Back: the room as the server now sends it.
+    view.connectionLost(false);
+    view.update({
+      ...ROOM,
+      players: ROOM.players.map((player) => ({ ...player, state: "ready" })),
+    });
+    expect(status()).toBe("Everyone is ready: press Start");
+    expect(button("start").disabled).toBe(false);
   });
 
   it("copies the link from the chip and says so for about two seconds", async () => {

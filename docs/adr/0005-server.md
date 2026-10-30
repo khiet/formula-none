@@ -42,3 +42,7 @@ Landed with issue 17 (2026-10-19).
   mean of about 1.4 ms per tick of eight karts against the 16.7 ms budget.
 - A deploy's shutdown ends every session; a client whose connection ends
   mid-race goes back to the Title Scene with a message.
+
+Restart survival landed with issue 28 (2026-10-30), by ADR 0053: an Open
+room is kept as a file on a volume and brought back by the next server,
+and the client in the Room Scene rejoins it with its session token.

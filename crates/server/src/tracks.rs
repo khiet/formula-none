@@ -21,6 +21,17 @@ pub fn sidecar(name: &str) -> Option<&'static str> {
     }
 }
 
+/// The server's own spelling of the track called `name`, or `None` for a
+/// name the server has no track for; a room brought back from a file
+/// names its track through this.
+pub fn name(name: &str) -> Option<&'static str> {
+    match name {
+        "brands-patch" => Some("brands-patch"),
+        "oval" => Some("oval"),
+        _ => None,
+    }
+}
+
 #[derive(Debug)]
 pub enum LoadError {
     UnknownTrack(String),

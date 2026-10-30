@@ -100,6 +100,12 @@ pub const ROOM_CODE_LENGTH: usize = 4;
 pub const ROOM_PLAYERS_MAX: usize = KARTS_PER_RACE;
 /// Seconds after the last human leaves before a room enters Closing.
 pub const ROOM_CLOSE_AFTER_EMPTY_S: f32 = 300.0;
+/// Seconds a room brought back after a server restart (ADR 0005) holds
+/// each seat for its player's rejoin before freeing it: long enough for
+/// every client's reconnect, which retries each `RECONNECT_RETRY_S`
+/// through a restart of under ten seconds, and short enough that a seat
+/// whose player closed the tab does not hold up the next race.
+pub const RESTORED_SEAT_GRACE_S: f32 = 30.0;
 /// Bounds on a nickname's length in characters.
 pub const NICKNAME_MIN_CHARS: usize = 2;
 pub const NICKNAME_MAX_CHARS: usize = 12;

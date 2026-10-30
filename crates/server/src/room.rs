@@ -12,7 +12,10 @@
 //! or the race ends (ADR 0012).
 
 use protocol::{Player, PlayerState, Refusal, Room, RoomState, PROTOCOL_VERSION};
+use serde::{Deserialize, Serialize};
 use sim::tuning::{NICKNAME_MAX_CHARS, ROOM_PLAYERS_MAX};
+
+use crate::tracks;
 
 /// The room as the server holds it: the view every player gets plus the
 /// order players joined in, which creator handover follows.
@@ -28,11 +31,23 @@ pub struct HostedRoom {
     joins: u64,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 struct Seat {
     player: Player,
     joined_at: u64,
     token: String,
+}
+
+/// A room as it is written to disk between races (ADR 0005): everything
+/// [`HostedRoom`] holds, the seats' tokens included, so the players rejoin
+/// the room a restart brought back with the tokens they kept.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct KeptRoom {
+    pub code: String,
+    pub track: String,
+    pub state: RoomState,
+    seats: Vec<Option<Seat>>,
+    joins: u64,
 }
 
 /// What a leave did to the room, so the task knows whether the kart stays.
@@ -72,6 +87,35 @@ impl HostedRoom {
 
     pub fn code(&self) -> &str {
         &self.code
+    }
+
+    /// The room as it is kept on disk.
+    pub fn kept(&self) -> KeptRoom {
+        KeptRoom {
+            code: self.code.clone(),
+            track: self.track.to_owned(),
+            state: self.state,
+            seats: self.seats.clone(),
+            joins: self.joins,
+        }
+    }
+
+    /// The room `kept` describes, or `None` when it names a track this
+    /// server does not have, as after a track was renamed between deploys.
+    pub fn from_kept(kept: KeptRoom) -> Option<Self> {
+        Some(Self {
+            code: kept.code,
+            track: tracks::name(&kept.track)?,
+            state: kept.state,
+            seats: kept.seats,
+            joins: kept.joins,
+        })
+    }
+
+    /// Slots held by a player; the seats a restart brought back wait on
+    /// these players' rejoins.
+    pub fn slots(&self) -> Vec<u8> {
+        self.players().map(|player| player.slot).collect()
     }
 
     /// The room as every player sees it: the players in slot order.

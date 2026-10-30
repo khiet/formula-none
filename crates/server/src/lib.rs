@@ -12,7 +12,9 @@ use tokio::net::TcpListener;
 use tokio::sync::watch;
 
 pub mod fake_transport;
+pub mod kept;
 pub mod lane;
+pub mod log;
 pub mod metrics;
 pub mod probe;
 pub mod race;
@@ -23,6 +25,7 @@ pub mod tracks;
 mod websocket;
 pub mod webtransport;
 
+pub use log::Log;
 pub use metrics::Metrics;
 pub use rooms::Rooms;
 

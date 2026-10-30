@@ -1,28 +1,42 @@
 //! The binary as Docker runs it: it listens where LISTEN_ADDR says, answers
-//! health, terminates QUIC when TLS_CERT and TLS_KEY name Caddy's files, and
-//! exits cleanly on SIGTERM. A container restart stays under ten seconds
-//! only because that exit is prompt.
+//! health, terminates QUIC when TLS_CERT and TLS_KEY name Caddy's files,
+//! logs one JSON object per line (ADR 0018), and exits cleanly on SIGTERM.
+//! A container restart stays under ten seconds only because that exit is
+//! prompt.
 
 use std::io::{BufRead, BufReader, Read, Write};
 use std::net::{TcpStream, UdpSocket};
 use std::process::{Child, ChildStdout, Command, Stdio};
 use std::time::{Duration, Instant};
 
+use serde_json::Value;
 use server::probe::webtransport_round_trip;
 use wtransport::{ClientConfig, Identity};
 
-/// Reads stdout lines until one starts with `prefix` and returns its last word.
-fn wait_for_line(stdout: &mut BufReader<ChildStdout>, prefix: &str) -> String {
+/// Reads stdout lines, each of which must be a JSON object, until one is
+/// the event `event`, and returns it.
+fn wait_for_event(stdout: &mut BufReader<ChildStdout>, event: &str) -> Value {
     loop {
         let mut line = String::new();
         assert!(
             stdout.read_line(&mut line).unwrap() > 0,
-            "stdout ended before {prefix:?}"
+            "stdout ended before {event:?}"
         );
-        if line.starts_with(prefix) {
-            return line.trim().rsplit(' ').next().unwrap().to_string();
+        let parsed: Value =
+            serde_json::from_str(&line).unwrap_or_else(|_| panic!("not a JSON line: {line:?}"));
+        assert!(parsed.is_object(), "{line:?}");
+        if parsed["event"] == event {
+            return parsed;
         }
     }
+}
+
+/// The string field `key` of a logged line.
+fn field(line: &Value, key: &str) -> String {
+    line[key]
+        .as_str()
+        .unwrap_or_else(|| panic!("no string {key:?} in {line}"))
+        .to_owned()
 }
 
 fn health_answers(addr: &str) {
@@ -65,9 +79,9 @@ fn listens_on_the_configured_address_and_exits_on_sigterm() {
         .spawn()
         .unwrap();
     let mut stdout = BufReader::new(child.stdout.take().unwrap());
-    let addr = wait_for_line(&mut stdout, "server ");
-    health_answers(&addr);
-    wait_for_line(&mut stdout, "webtransport off");
+    let listening = wait_for_event(&mut stdout, "server_listening");
+    health_answers(&field(&listening, "addr"));
+    wait_for_event(&mut stdout, "webtransport_off");
     exits_promptly_on_sigterm(child);
 }
 
@@ -102,7 +116,10 @@ async fn terminates_quic_with_the_configured_certificate_and_exits_on_sigterm() 
         .spawn()
         .unwrap();
     let mut stdout = BufReader::new(child.stdout.take().unwrap());
-    let quic = wait_for_line(&mut stdout, "webtransport listening on ");
+    let quic = field(
+        &wait_for_event(&mut stdout, "webtransport_listening"),
+        "addr",
+    );
     assert_eq!(quic, port.to_string());
 
     let config = ClientConfig::builder()

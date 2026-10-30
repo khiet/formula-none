@@ -184,6 +184,12 @@ impl Race {
             .expect("state is only absent during a tick")
     }
 
+    /// Ticks stepped so far: the race clock as the snapshots report it,
+    /// for the log.
+    pub fn ticks(&self) -> u32 {
+        self.tick
+    }
+
     /// The id the next event gets; a rematch's race continues from it.
     pub fn next_event_id(&self) -> u32 {
         self.next_event_id

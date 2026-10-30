@@ -36,6 +36,12 @@ const RACE_GONE: Readonly<Record<Gone, string>> = {
   replaced: "The race went on in another tab",
 };
 
+/** What the Title says when a room's connection is gone for good: the room did not outlive the server, or the seat was freed. */
+const ROOM_GONE: Readonly<Record<Gone, string>> = {
+  refused: "Lost the connection to the room",
+  replaced: "The room went on in another tab",
+};
+
 /**
  * M0(b): reach the server, WebTransport first and WebSocket as the fallback,
  * and show which answered and how fast. The solo race runs locally, so no
@@ -272,12 +278,24 @@ async function main(container: HTMLElement): Promise<void> {
     const stopCountdown = client.onCountdown((countdown) =>
       take({ kind: "race", client, countdown }),
     );
-    client.closed.then(() =>
-      take({ kind: "title", message: "Lost the connection to the room", code: client.room.code }),
+    // A server restart ends the connection and brings the room back (ADR
+    // 0005): the seat is taken back with the session token, as mid-race,
+    // and the Room Scene shows the room as it stands on the new server.
+    const link = keepConnected(client, {
+      timing: bridge.reconnectTiming,
+      connect: connectToServer,
+    });
+    link.onLost((lost) => {
+      scene.connectionLost(lost);
+      if (!lost) scene.update(client.room);
+    });
+    link.gone.then((gone) =>
+      take({ kind: "title", message: ROOM_GONE[gone], code: client.room.code }),
     );
     return {
       exit,
       dispose() {
+        link.dispose();
         stopRoom();
         stopCountdown();
         scene.dispose();
