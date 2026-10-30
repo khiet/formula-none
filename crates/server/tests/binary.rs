@@ -70,9 +70,12 @@ fn exits_promptly_on_sigterm(mut child: Child) {
 }
 
 #[test]
-fn listens_on_the_configured_address_and_exits_on_sigterm() {
+fn listens_on_the_configured_address_keeps_rooms_where_told_and_exits_on_sigterm() {
+    let dir = tempfile::tempdir().unwrap();
+    let rooms_dir = dir.path().join("rooms");
     let mut child = Command::new(env!("CARGO_BIN_EXE_server"))
         .env("LISTEN_ADDR", "127.0.0.1:0")
+        .env("ROOMS_DIR", &rooms_dir)
         .env_remove("TLS_CERT")
         .env_remove("TLS_KEY")
         .stdout(Stdio::piped())
@@ -82,6 +85,10 @@ fn listens_on_the_configured_address_and_exits_on_sigterm() {
     let listening = wait_for_event(&mut stdout, "server_listening");
     health_answers(&field(&listening, "addr"));
     wait_for_event(&mut stdout, "webtransport_off");
+    // The directory the Compose volume mounts is made on the first start.
+    let kept = wait_for_event(&mut stdout, "rooms_kept_in");
+    assert_eq!(field(&kept, "dir"), rooms_dir.to_string_lossy());
+    assert!(rooms_dir.is_dir());
     exits_promptly_on_sigterm(child);
 }
 

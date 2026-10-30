@@ -7,7 +7,7 @@
 mod common;
 
 use common::race_together;
-use protocol::ClientMessage;
+use protocol::{ClientMessage, PlayerState, Refusal};
 use serde_json::Value;
 use server::fake_transport::{Conditions, Harness};
 use sim::tuning::{COUNTDOWN_S, TICKS_PER_SECOND};
@@ -71,6 +71,22 @@ async fn a_rooms_lines_carry_its_code_and_a_players_lines_their_slot() {
 }
 
 #[tokio::test(start_paused = true)]
+async fn a_refused_join_is_logged_against_the_code_it_asked_for() {
+    let mut harness = Harness::new(Conditions::PERFECT);
+    let mut client = harness.connect();
+    assert_eq!(
+        client.join("zzzz", "khiet").await,
+        Err(Refusal::UnknownRoom)
+    );
+
+    let lines = harness.logs();
+    let refused = lines_of(&lines, "join_refused");
+    assert_eq!(refused.len(), 1);
+    assert_eq!(refused[0]["room"], "ZZZZ");
+    assert_eq!(refused[0]["refusal"], "unknownRoom");
+}
+
+#[tokio::test(start_paused = true)]
 async fn a_races_lines_carry_the_tick() {
     let mut harness = Harness::new(Conditions::PERFECT);
     let code = harness.create_room();
@@ -84,14 +100,19 @@ async fn a_races_lines_carry_the_tick() {
             break;
         }
     }
-    // A dropped connection mid-race is logged with the tick it went at.
-    players.pop().unwrap().disconnect();
+    // A dropped connection mid-race is logged with the tick it went at,
+    // and so is the rejoin that takes the seat back.
+    let dropped = players.pop().unwrap();
+    let token = dropped.token().unwrap().to_owned();
+    dropped.disconnect();
     loop {
         let room = players[0].next_room().await.unwrap();
-        if room.players[1].state == protocol::PlayerState::Disconnected {
+        if room.players[1].state == PlayerState::Disconnected {
             break;
         }
     }
+    let mut back = harness.connect();
+    back.rejoin(&code, &token).await.unwrap();
 
     let lines = harness.logs();
     let race_started = lines_of(&lines, "race_started");
@@ -113,5 +134,14 @@ async fn a_races_lines_carry_the_tick() {
         left[0]["tick"].as_u64().is_some_and(|tick| tick > go_tick),
         "the tick the player went at: {}",
         left[0]
+    );
+
+    let rejoined = lines_of(&lines, "player_rejoined");
+    assert_eq!(rejoined.len(), 1);
+    assert_eq!(rejoined[0]["slot"], 1);
+    assert!(
+        rejoined[0]["tick"].as_u64() >= left[0]["tick"].as_u64(),
+        "the tick the player came back at: {}",
+        rejoined[0]
     );
 }

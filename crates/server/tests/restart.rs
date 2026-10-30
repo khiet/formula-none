@@ -99,6 +99,71 @@ async fn an_open_room_with_two_ready_players_is_back_after_a_restart_and_both_re
 }
 
 #[tokio::test(start_paused = true)]
+async fn a_room_nobody_has_joined_yet_is_back_too() {
+    let dir = tempfile::tempdir().unwrap();
+    let before = Harness::kept_in(Conditions::PERFECT, dir.path());
+    // The creator was given the code and is about to join it.
+    let code = before.create_room();
+    before.stop();
+    drop(before);
+
+    let mut after = Harness::kept_in(Conditions::PERFECT, dir.path());
+    let mut creator = after.connect();
+    let (slot, room) = creator.join(&code, "khiet").await.unwrap();
+    assert_eq!(slot, 0);
+    assert!(room.players[0].creator);
+}
+
+/// The file the last deploy wrote, as `crates/server/src/kept.rs` spells
+/// it: a deploy must read what the one before left, so the spelling is a
+/// contract and a change to it needs a migration.
+const KEPT_FILE: &str = r#"{"code":"WXYZ","track":"oval","state":"open","seats":[{"player":{"slot":0,"nickname":"khiet","livery":0,"state":"ready","creator":true},"joined_at":1,"token":"0123456789abcdef0123456789abcdef"},null,null,null,null,null,null,null],"joins":1}"#;
+
+#[tokio::test(start_paused = true)]
+async fn a_file_the_last_deploy_wrote_reads_back_and_its_token_rejoins() {
+    let dir = tempfile::tempdir().unwrap();
+    std::fs::write(dir.path().join("WXYZ.json"), KEPT_FILE).unwrap();
+
+    let mut after = Harness::kept_in(Conditions::PERFECT, dir.path());
+    let mut client = after.connect();
+    let (slot, room) = client
+        .rejoin("WXYZ", "0123456789abcdef0123456789abcdef")
+        .await
+        .unwrap();
+    assert_eq!(slot, 0);
+    assert_eq!(room.state, RoomState::Open);
+    assert_eq!(room.players[0].nickname, "khiet");
+    assert_eq!(room.players[0].state, PlayerState::Ready);
+}
+
+#[tokio::test(start_paused = true)]
+async fn a_kept_room_on_a_track_this_server_lacks_is_dropped_and_a_stray_file_left_alone() {
+    let dir = tempfile::tempdir().unwrap();
+    std::fs::write(
+        dir.path().join("WXYZ.json"),
+        KEPT_FILE.replace("\"track\":\"oval\"", "\"track\":\"monza\""),
+    )
+    .unwrap();
+    std::fs::write(dir.path().join("notes.json"), "not a room").unwrap();
+
+    let after = Harness::kept_in(Conditions::PERFECT, dir.path());
+    assert!(after.rooms().codes().is_empty());
+    assert!(
+        !dir.path().join("WXYZ.json").exists(),
+        "the dropped room's file goes with it"
+    );
+    assert!(
+        dir.path().join("notes.json").exists(),
+        "a stray file is not ours to remove"
+    );
+    let logs = after.logs();
+    assert!(logs
+        .iter()
+        .any(|line| line["event"] == "room_dropped" && line["room"] == "WXYZ"));
+    assert!(logs.iter().any(|line| line["event"] == "room_unreadable"));
+}
+
+#[tokio::test(start_paused = true)]
 async fn a_room_in_a_race_at_the_restart_is_lost() {
     let dir = tempfile::tempdir().unwrap();
     let mut before = Harness::kept_in(Conditions::PERFECT, dir.path());
