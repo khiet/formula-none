@@ -44,8 +44,8 @@ const KARTS = 8;
 const ITEM_BOX_RESPAWN_S = 3;
 const PREDICTED_FIRE_TIMEOUT_S = 1;
 const ITEM_BOXES = 8;
-const TYRES = 12;
-const TYRE_RESPAWN_S = 3;
+const COINS = 12;
+const COIN_RESPAWN_S = 3;
 const HAZARD_DROP_DISTANCE_M = 1;
 const KART_HEIGHT_M = 0.6;
 
@@ -83,7 +83,7 @@ const bridge = {
   kartsPerRace: KARTS,
   lapsPerRace: 3,
   itemBoxRespawnSeconds: ITEM_BOX_RESPAWN_S,
-  tyreRespawnSeconds: TYRE_RESPAWN_S,
+  coinRespawnSeconds: COIN_RESPAWN_S,
   predictedFireTimeoutSeconds: PREDICTED_FIRE_TIMEOUT_S,
   hazardDropDistanceMetres: HAZARD_DROP_DISTANCE_M,
   spinOutSeconds: 1,
@@ -94,9 +94,9 @@ const bridge = {
       itemBoxes: () =>
         Array.from({ length: ITEM_BOXES }, (_, box) => ({ position: [box, 0, -70], yaw: 0 })),
       itemBoxesPresent: () => Array<boolean>(ITEM_BOXES).fill(true),
-      tyres: () =>
-        Array.from({ length: TYRES }, (_, tyre) => ({ position: [tyre, 0, -40], yaw: 0 })),
-      tyresPresent: () => Array<boolean>(TYRES).fill(true),
+      coins: () =>
+        Array.from({ length: COINS }, (_, coin) => ({ position: [coin, 0, -40], yaw: 0 })),
+      coinsPresent: () => Array<boolean>(COINS).fill(true),
     }) as unknown as Race,
   createPrediction(_seed: bigint, kart: number): Prediction {
     const made: FakePrediction = {
@@ -213,7 +213,7 @@ const KART: KartSnapshot = {
   splineProgress: 321,
   wrongWay: false,
   heldItem: null,
-  tyres: 0,
+  coins: 0,
   spinOutS: null,
   start: "clean",
   stallS: null,
@@ -224,7 +224,7 @@ function snapshot(
   tick: number,
   karts: Partial<KartSnapshot>[] = [],
   hazards: HazardSnapshot[] = [],
-  tyresPresent: boolean[] = Array<boolean>(TYRES).fill(true),
+  coinsPresent: boolean[] = Array<boolean>(COINS).fill(true),
 ): Snapshot {
   return {
     tick,
@@ -233,7 +233,7 @@ function snapshot(
     events: [],
     hazards,
     projectiles: [],
-    tyresPresent,
+    coinsPresent,
   };
 }
 
@@ -520,33 +520,33 @@ describe("createServerRace", () => {
     expect(prediction().ended).toBe(true);
   });
 
-  it("reports every tyre there until a snapshot, then the newest snapshot's", () => {
+  it("reports every coin there until a snapshot, then the newest snapshot's", () => {
     const client = fakeClient();
     const run = createServerRace(bridge, client, COUNTDOWN, 0, "{}");
-    expect(run.tyres()).toHaveLength(TYRES);
-    expect(run.readout().tyresPresent).toEqual(Array<boolean>(TYRES).fill(true));
-    const taken = Array<boolean>(TYRES).fill(true);
+    expect(run.coins()).toHaveLength(COINS);
+    expect(run.readout().coinsPresent).toEqual(Array<boolean>(COINS).fill(true));
+    const taken = Array<boolean>(COINS).fill(true);
     taken[4] = false;
     client.snapshot(snapshot(60, [], [], taken));
-    expect(run.readout().tyresPresent).toEqual(taken);
+    expect(run.readout().coinsPresent).toEqual(taken);
     client.snapshot(snapshot(62));
-    expect(run.readout().tyresPresent).toEqual(Array<boolean>(TYRES).fill(true));
+    expect(run.readout().coinsPresent).toEqual(Array<boolean>(COINS).fill(true));
   });
 
-  it("hides a tyre from the server's pickup until its respawn, before a snapshot says so", () => {
+  it("hides a coin from the server's pickup until its respawn, before a snapshot says so", () => {
     const client = fakeClient();
     const run = createServerRace(bridge, client, COUNTDOWN, 0, "{}");
     client.snapshot(snapshot(60));
-    client.event({ id: 1, kind: { tyrePicked: { kart: 3, tyre: 4 } } });
-    const present = run.readout().tyresPresent;
+    client.event({ id: 1, kind: { coinPicked: { kart: 3, coin: 4 } } });
+    const present = run.readout().coinsPresent;
     expect(present[4]).toBe(false);
-    expect(present.filter(Boolean)).toHaveLength(TYRES - 1);
-    for (let tick = 1; tick < TYRE_RESPAWN_S * TICKS_PER_SECOND; tick++) {
+    expect(present.filter(Boolean)).toHaveLength(COINS - 1);
+    for (let tick = 1; tick < COIN_RESPAWN_S * TICKS_PER_SECOND; tick++) {
       run.tick(IDLE_INPUT, DT);
-      expect(run.readout().tyresPresent[4]).toBe(false);
+      expect(run.readout().coinsPresent[4]).toBe(false);
     }
     run.tick(IDLE_INPUT, DT);
-    expect(run.readout().tyresPresent[4]).toBe(true);
+    expect(run.readout().coinsPresent[4]).toBe(true);
   });
 
   it("hides a box the server reports picked up for the tuned respawn", () => {

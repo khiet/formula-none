@@ -58,8 +58,8 @@ export interface ItemBox {
   readonly yaw: number;
 }
 
-/** Where a tyre a kart collects lies on the track: metres, and a yaw about +Y, zero facing -Z. */
-export interface Tyre {
+/** Where a coin a kart collects lies on the track: metres, and a yaw about +Y, zero facing -Z. */
+export interface Coin {
   readonly position: readonly [number, number, number];
   readonly yaw: number;
 }
@@ -144,10 +144,10 @@ export interface Race {
   itemBoxes(): ItemBox[];
   /** Whether each item box, in the same order, is there to pick up as of the last step. */
   itemBoxesPresent(): boolean[];
-  /** The track's tyres, in the sidecar's order; fixed for the race. */
-  tyres(): Tyre[];
-  /** Whether each tyre, in the same order, is there to pick up as of the last step. */
-  tyresPresent(): boolean[];
+  /** The track's coins, in the sidecar's order; fixed for the race. */
+  coins(): Coin[];
+  /** Whether each coin, in the same order, is there to pick up as of the last step. */
+  coinsPresent(): boolean[];
   /** The hazards on the track as of the last step, in the order they were fired. */
   hazards(): Hazard[];
   /** The projectiles in flight as of the last step, in the order they were fired. */
@@ -285,12 +285,12 @@ export interface Bridge extends MessageCodec {
   readonly countdownSeconds: number;
   /** Seconds a picked-up item box is gone before it is back (ADR 0014). */
   readonly itemBoxRespawnSeconds: number;
-  /** What each tyre a kart carries adds to its top speed, as a share of it (ADR 0055). */
-  readonly tyreTopSpeedFactor: number;
-  /** The most tyres a kart carries, the tyre gauge's 100% (ADR 0055). */
-  readonly tyreSet: number;
-  /** Seconds a picked-up tyre is gone before it is back (ADR 0055). */
-  readonly tyreRespawnSeconds: number;
+  /** What each coin a kart carries adds to its top speed, as a share of it (ADR 0055). */
+  readonly coinTopSpeedFactor: number;
+  /** The most coins a kart carries, the coin count's cap (ADR 0056). */
+  readonly coinCap: number;
+  /** Seconds a picked-up coin is gone before it is back (ADR 0055). */
+  readonly coinRespawnSeconds: number;
   /** How long a fire predicted from a press shows before the server is taken not to have fired (ADR 0014). */
   readonly predictedFireTimeoutSeconds: number;
   /** Metres behind a kart a trailed hazard rides (ADR 0014). */
@@ -347,7 +347,7 @@ export interface Bridge extends MessageCodec {
 const FLOATS_PER_INPUT = 6;
 const FLOATS_PER_TRANSFORM = 7;
 const FLOATS_PER_ITEM_BOX = 4;
-const FLOATS_PER_TYRE = 4;
+const FLOATS_PER_COIN = 4;
 const FLOATS_PER_HAZARD = 5;
 const FLOATS_PER_PROJECTILE = 5;
 const FLOATS_PER_WHEEL = 8;
@@ -373,9 +373,9 @@ export async function loadBridge(wasm?: BufferSource): Promise<Bridge> {
     lapsPerRace: tuned.lapsPerRace,
     countdownSeconds: tuned.countdownS,
     itemBoxRespawnSeconds: tuned.itemBoxRespawnS,
-    tyreTopSpeedFactor: tuned.tyreTopSpeedFactor,
-    tyreSet: tuned.tyreSet,
-    tyreRespawnSeconds: tuned.tyreRespawnS,
+    coinTopSpeedFactor: tuned.coinTopSpeedFactor,
+    coinCap: tuned.coinCap,
+    coinRespawnSeconds: tuned.coinRespawnS,
     predictedFireTimeoutSeconds: tuned.predictedFireTimeoutS,
     hazardDropDistanceMetres: tuned.hazardDropDistanceM,
     spinOutSeconds: tuned.spinOutS,
@@ -501,15 +501,15 @@ class BridgedRace implements Race {
     return Array.from(this.#race.item_boxes_present(), (present) => present !== 0);
   }
 
-  tyres(): Tyre[] {
-    return recordsFrom(this.#race.tyres(), FLOATS_PER_TYRE, "tyre", (read) => ({
+  coins(): Coin[] {
+    return recordsFrom(this.#race.coins(), FLOATS_PER_COIN, "coin", (read) => ({
       position: [read(0), read(1), read(2)],
       yaw: read(3),
     }));
   }
 
-  tyresPresent(): boolean[] {
-    return Array.from(this.#race.tyres_present(), (present) => present !== 0);
+  coinsPresent(): boolean[] {
+    return Array.from(this.#race.coins_present(), (present) => present !== 0);
   }
 
   hazards(): Hazard[] {

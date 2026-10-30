@@ -1,4 +1,5 @@
 import type {
+  Coin,
   Hazard,
   ItemBox,
   KartInput,
@@ -6,7 +7,6 @@ import type {
   Phase,
   Projectile,
   Standing,
-  Tyre,
   Wheel,
 } from "./bridge";
 import type { Item } from "./generated/protocol";
@@ -36,8 +36,8 @@ export interface RaceReadout {
   readonly itemSlot: ItemSlot;
   /** Whether each item box, in the sidecar's order, is there to pick up. */
   readonly itemBoxesPresent: readonly boolean[];
-  /** Whether each tyre, in the sidecar's order, is there to pick up. */
-  readonly tyresPresent: readonly boolean[];
+  /** Whether each coin, in the sidecar's order, is there to pick up. */
+  readonly coinsPresent: readonly boolean[];
   /** The hazards on the track where the View draws them. */
   readonly hazards: readonly Hazard[];
   /** The projectiles in flight where the View draws them. */
@@ -61,8 +61,8 @@ export interface RaceRun {
   readout(): RaceReadout;
   /** The track's item boxes, in the sidecar's order; fixed for the race. */
   itemBoxes(): readonly ItemBox[];
-  /** The track's tyres, in the sidecar's order; fixed for the race. */
-  tyres(): readonly Tyre[];
+  /** The track's coins, in the sidecar's order; fixed for the race. */
+  coins(): readonly Coin[];
   /** The run as a replay fixture, when the rules ran here to record. */
   readonly replay?: ReplayRecorder;
   /** Let go of whatever the run follows; called when the Scene is disposed. */

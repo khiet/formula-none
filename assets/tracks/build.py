@@ -301,7 +301,7 @@ def populate(geometry: TrackGeometry) -> None:
         "Checkpoints": ("Checkpoint", geometry.checkpoints),
         "ItemBoxes": ("ItemBox", geometry.item_boxes),
         "BoostPads": ("BoostPad", geometry.boost_pads),
-        "Tyres": ("Tyre", geometry.tyres),
+        "Coins": ("Coin", geometry.coins),
         "Kerbs": ("Kerb", geometry.kerbs),
         "WheelCrossings": ("WheelCrossing", geometry.wheel_crossings),
         "SpawnGrid": ("Spawn", geometry.spawn_grid),

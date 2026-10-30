@@ -21,7 +21,7 @@ const SNAPSHOT: ServerMessage = {
     events: [],
     hazards: [],
     projectiles: [],
-    tyresPresent: [],
+    coinsPresent: [],
   },
 };
 

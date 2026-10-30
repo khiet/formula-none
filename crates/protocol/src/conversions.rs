@@ -124,7 +124,7 @@ impl From<&KartReadout> for KartSnapshot {
             spline_progress: kart.spline_progress,
             wrong_way: kart.wrong_way,
             held_item: kart.held_item.map(Item::from),
-            tyres: kart.tyres as u8,
+            coins: kart.coins as u8,
             spin_out_s: kart.spin_out_s,
             start: kart.start.into(),
             stall_s: kart.stall_s,
@@ -148,7 +148,7 @@ impl From<&KartSnapshot> for KartReadout {
             drift,
             mini_turbo: sim::MiniTurbo::of(drift),
             held_item: kart.held_item.map(sim::Item::from),
-            tyres: u32::from(kart.tyres),
+            coins: u32::from(kart.coins),
             spin_out_s: kart.spin_out_s,
             airborne: false,
             boost_s: kart.boost.map(|boost| boost.left_s),
@@ -204,15 +204,15 @@ impl From<sim::RaceEvent> for EventKind {
                 kart: kart as u8,
                 item: item.into(),
             },
-            sim::RaceEvent::TyrePicked { kart, tyre } => Self::TyrePicked {
+            sim::RaceEvent::CoinPicked { kart, coin } => Self::CoinPicked {
                 kart: kart as u8,
-                tyre: tyre as u8,
+                coin: coin as u8,
             },
             sim::RaceEvent::SpunOut { kart, by } => Self::Hit {
                 kart: kart as u8,
                 by: by.map(|by| by as u8),
             },
-            sim::RaceEvent::TyresLost { kart, count } => Self::TyresLost {
+            sim::RaceEvent::CoinsLost { kart, count } => Self::CoinsLost {
                 kart: kart as u8,
                 count: count as u8,
             },

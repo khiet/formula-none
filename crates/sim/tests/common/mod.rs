@@ -191,22 +191,22 @@ pub fn with_boxes_under(sidecar: &str, slots: impl IntoIterator<Item = usize>) -
     })
 }
 
-/// `sidecar` with no tyres, so a test driving over the tyres' lines meets
+/// `sidecar` with no coins, so a test driving over the coins' lines meets
 /// nothing it did not ask for.
-pub fn without_tyres(sidecar: &str) -> String {
+pub fn without_coins(sidecar: &str) -> String {
     edited(sidecar, |sidecar| {
-        sidecar["tyres"] = serde_json::json!([]);
+        sidecar["coins"] = serde_json::json!([]);
     })
 }
 
-/// `sidecar` with one more tyre at each of `positions`, facing -Z, in order
-/// after the tyres it had.
-pub fn with_tyres_at(sidecar: &str, positions: impl IntoIterator<Item = [f32; 3]>) -> String {
+/// `sidecar` with one more coin at each of `positions`, facing -Z, in order
+/// after the coins it had.
+pub fn with_coins_at(sidecar: &str, positions: impl IntoIterator<Item = [f32; 3]>) -> String {
     edited(sidecar, |sidecar| {
         for position in positions {
-            sidecar["tyres"]
+            sidecar["coins"]
                 .as_array_mut()
-                .expect("the sidecar lists its tyres")
+                .expect("the sidecar lists its coins")
                 .push(serde_json::json!({ "position": position, "yaw": 0.0 }));
         }
     })

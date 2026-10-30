@@ -10,8 +10,8 @@
 mod common;
 
 use common::{
-    oval, slot_position, track, with_boxes_under, with_slot_at, with_tyres_at, without_item_boxes,
-    without_tyres, BUMP_SPENT_S, DT, OVAL, SEED,
+    oval, slot_position, track, with_boxes_under, with_coins_at, with_slot_at, without_coins,
+    without_item_boxes, BUMP_SPENT_S, DT, OVAL, SEED,
 };
 
 use std::collections::VecDeque;
@@ -60,11 +60,11 @@ const FIRST_DRAWN_TICK: u32 = ONE_WAY_TICKS + 1;
 /// predicted kart stands where the server's will when that input lands.
 const PREDICTED_LEAD_TICKS: u32 = ONE_WAY_TICKS + 1;
 
-/// One kart raced round the oval with no tyres for `ticks` server ticks,
-/// as [`race_on`] races it: a tyre the server's kart takes, which the
+/// One kart raced round the oval with no coins for `ticks` server ticks,
+/// as [`race_on`] races it: a coin the server's kart takes, which the
 /// prediction never does, is a correction of its own.
 fn race(ticks: u32, lost: impl Fn(u32) -> bool) -> Run {
-    race_on(track(&without_tyres(OVAL)), ticks, lost)
+    race_on(track(&without_coins(OVAL)), ticks, lost)
 }
 
 /// One kart raced on `track` for `ticks` server ticks: once the first input lands
@@ -240,10 +240,10 @@ fn a_lost_input_is_corrected_by_less_than_a_player_can_see_and_counted() {
 }
 
 #[test]
-fn a_tyre_the_servers_kart_takes_is_corrected_by_less_than_a_player_can_see() {
+fn a_coin_the_servers_kart_takes_is_corrected_by_less_than_a_player_can_see() {
     let run = race_on(oval(), seconds(20.0), |_| false);
-    let taken = run.server.last().expect("the server raced")[0].tyres;
-    assert!(taken > 0, "the server's kart took a tyre");
+    let taken = run.server.last().expect("the server raced")[0].coins;
+    assert!(taken > 0, "the server's kart took a coin");
     assert!(run.prediction.corrections() > 0, "the prediction took none");
     let largest = run.corrections_m.iter().copied().fold(0.0, f32::max);
     assert!(
@@ -400,10 +400,10 @@ fn the_prediction_takes_no_box_and_fills_its_slot_from_the_snapshots_alone() {
 }
 
 #[test]
-fn the_prediction_takes_no_tyre_and_adopts_the_snapshots_count() {
-    // The oval with a tyre under slot 0: the server's kart takes it at Go,
+fn the_prediction_takes_no_coin_and_adopts_the_snapshots_count() {
+    // The oval with a coin under slot 0: the server's kart takes it at Go,
     // the prediction's kart stands on it through Go and takes nothing.
-    let sidecar = with_tyres_at(&without_tyres(OVAL), [slot_position(OVAL, 0)]);
+    let sidecar = with_coins_at(&without_coins(OVAL), [slot_position(OVAL, 0)]);
     let track = track(&sidecar);
     let mut server = State::new(SEED, 1, track.clone());
     let mut prediction = Prediction::new(SEED, 0, track);
@@ -419,20 +419,20 @@ fn the_prediction_takes_no_tyre_and_adopts_the_snapshots_count() {
         prediction.tick(sequence, KartInput::default(), &[]);
     }
     assert_eq!(
-        server.kart_readouts()[0].tyres,
+        server.kart_readouts()[0].coins,
         1,
         "the server's kart took it"
     );
-    assert_eq!(prediction.kart_readout().tyres, 0);
+    assert_eq!(prediction.kart_readout().coins, 0);
 
     // The snapshot's word is the count, kart standing where it was.
     prediction.reconcile(sequence, sequence, &server.kart_readouts()[0]);
-    assert_eq!(prediction.kart_readout().tyres, 1);
+    assert_eq!(prediction.kart_readout().coins, 1);
     for _ in 0..3 {
         sequence += 1;
         prediction.tick(sequence, KartInput::default(), &[]);
     }
-    assert_eq!(prediction.kart_readout().tyres, 1, "and keeps it");
+    assert_eq!(prediction.kart_readout().coins, 1, "and keeps it");
 }
 
 #[test]

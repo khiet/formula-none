@@ -35,7 +35,7 @@ hazards: Array<HazardSnapshot>,
  */
 projectiles: Array<ProjectileSnapshot>, 
 /**
- * Whether each of the track's tyres, in the sidecar's order, is there
+ * Whether each of the track's coins, in the sidecar's order, is there
  * to pick up at this tick.
  */
-tyresPresent: Array<boolean>, };
+coinsPresent: Array<boolean>, };

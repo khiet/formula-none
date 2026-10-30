@@ -227,26 +227,26 @@ impl Race {
             .collect()
     }
 
-    /// Four floats per tyre of the track, in the sidecar's order: its
+    /// Four floats per coin of the track, in the sidecar's order: its
     /// position x, y, z and its yaw in radians about +Y, zero facing -Z.
     /// Fixed for the race.
-    pub fn tyres(&self) -> Vec<f32> {
+    pub fn coins(&self) -> Vec<f32> {
         self.state()
             .track()
-            .tyres()
+            .coins()
             .iter()
-            .flat_map(|tyre| {
-                let [x, y, z] = tyre.position;
-                [x, y, z, tyre.yaw]
+            .flat_map(|coin| {
+                let [x, y, z] = coin.position;
+                [x, y, z, coin.yaw]
             })
             .collect()
     }
 
-    /// One float per tyre of the track, in the sidecar's order: 1 while the
-    /// tyre is there to pick up, 0 while it is gone after a pickup.
-    pub fn tyres_present(&self) -> Vec<f32> {
+    /// One float per coin of the track, in the sidecar's order: 1 while the
+    /// coin is there to pick up, 0 while it is gone after a pickup.
+    pub fn coins_present(&self) -> Vec<f32> {
         self.state()
-            .tyres_present()
+            .coins_present()
             .into_iter()
             .map(|present| f32::from(u8::from(present)))
             .collect()

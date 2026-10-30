@@ -47,10 +47,10 @@ miniTurbo: MiniTurbo,
  */
 heldItem: Item | null, 
 /**
- * The tyres the kart carries, from 0 to the tuned set; each raises its
+ * The coins the kart carries, from 0 to a full purse; each raises its
  * forward top speed by the tuned factor.
  */
-tyres: number, 
+coins: number, 
 /**
  * Seconds of spin-out left, while the kart is spun out: stopped, with
  * its inputs ignored. The View spins it for the duration.

@@ -60,6 +60,7 @@ const DECISION_SLUGS = [
   "open-rooms-kept-on-a-volume",
   "every-course-races-three-laps",
   "tyres-raise-top-speed",
+  "coins-replace-the-tyre-pickup",
 ];
 
 const expectedFiles = DECISION_SLUGS.map(

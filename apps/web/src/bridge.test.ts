@@ -398,7 +398,7 @@ describe("prediction", () => {
       splineProgress: 0,
       wrongWay: false,
       heldItem: null,
-      tyres: 0,
+      coins: 0,
       spinOutS: null,
       start: "clean",
       stallS: null,
@@ -411,7 +411,7 @@ describe("prediction", () => {
       events: [],
       hazards: [],
       projectiles: [],
-      tyresPresent: [],
+      coinsPresent: [],
     };
     expect(prediction.reconcile(snapshot)).toBeCloseTo(1, 3);
     // The snapshot's karts are drawn too, with the sim's surface under them.
@@ -449,7 +449,7 @@ describe("prediction", () => {
       splineProgress: 0,
       wrongWay: false,
       heldItem: "homing",
-      tyres: 0,
+      coins: 0,
       spinOutS: null,
       start: "clean",
       stallS: null,
@@ -462,7 +462,7 @@ describe("prediction", () => {
       events: [],
       hazards: [],
       projectiles: [],
-      tyresPresent: [],
+      coinsPresent: [],
     });
     expect(prediction.kartReadout().heldItem).toBe("homing");
     expect(prediction.interpolatedKartReadouts()[0]?.heldItem).toBe("homing");
@@ -490,7 +490,7 @@ describe("prediction", () => {
       splineProgress: 0,
       wrongWay: false,
       heldItem: null,
-      tyres: 0,
+      coins: 0,
       spinOutS: 0.5,
       start: "clean",
       stallS: null,
@@ -503,7 +503,7 @@ describe("prediction", () => {
       events: [],
       hazards: [],
       projectiles: [],
-      tyresPresent: [],
+      coinsPresent: [],
     });
     // Input Go+50 met tick Go+54, so input Go+60 meets tick Go+64: ten ticks of
     // the spin-out have run by the predicted kart's tick.
@@ -532,7 +532,7 @@ describe("prediction", () => {
       splineProgress: 0,
       wrongWay: false,
       heldItem: null,
-      tyres: 0,
+      coins: 0,
       spinOutS: null,
       start: "clean",
       stallS: null,
@@ -546,7 +546,7 @@ describe("prediction", () => {
       events: [],
       hazards: [],
       projectiles: [],
-      tyresPresent: [],
+      coinsPresent: [],
     });
     expect(prediction.interpolatedKartReadouts()[1]).toMatchObject({
       boostS: 0.5,
@@ -576,7 +576,7 @@ describe("prediction", () => {
       splineProgress: 0,
       wrongWay: false,
       heldItem: null,
-      tyres: 0,
+      coins: 0,
       spinOutS: null,
       start: "stall",
       stallS,
@@ -589,7 +589,7 @@ describe("prediction", () => {
       events: [],
       hazards: [],
       projectiles: [],
-      tyresPresent: [],
+      coinsPresent: [],
     });
     // Input Go+50 met tick Go+54, so input Go+60 meets tick Go+64: ten ticks of
     // the stall have run by the predicted kart's tick.
@@ -618,29 +618,29 @@ describe("items", () => {
     expect(bridge.hazardDropDistanceMetres).toBe(1);
   });
 
-  it("reports the track's tyres, a kart taking the one under it at Go and carrying it", async () => {
+  it("reports the track's coins, a kart taking the one under it at Go and carrying it", async () => {
     const bridge = await loadBridge(wasm);
-    expect(bridge.tyreSet).toBe(10);
-    expect(bridge.tyreRespawnSeconds).toBe(3);
-    expect(bridge.tyreTopSpeedFactor).toBeCloseTo(0.01);
+    expect(bridge.coinCap).toBe(10);
+    expect(bridge.coinRespawnSeconds).toBe(3);
+    expect(bridge.coinTopSpeedFactor).toBeCloseTo(0.01);
     const sidecar = JSON.parse(OVAL) as {
       spawn_grid: { position: [number, number, number] }[];
-      tyres: { position: [number, number, number]; yaw: number }[];
+      coins: { position: [number, number, number]; yaw: number }[];
     };
-    const own = sidecar.tyres.length;
+    const own = sidecar.coins.length;
     const under = sidecar.spawn_grid[0]?.position ?? [0, 0, 0];
-    sidecar.tyres.push({ position: under, yaw: 0 });
+    sidecar.coins.push({ position: under, yaw: 0 });
     const race = started(bridge.createRace(7n, 1, 0, JSON.stringify(sidecar)), 1);
-    const tyres = race.tyres();
-    expect(tyres).toHaveLength(own + 1);
-    expect(tyres[own]).toEqual({ position: under, yaw: 0 });
-    expect(race.tyresPresent()).toEqual(Array<boolean>(own + 1).fill(true));
-    expect(race.kartReadouts()[0]?.tyres).toBe(0);
+    const coins = race.coins();
+    expect(coins).toHaveLength(own + 1);
+    expect(coins[own]).toEqual({ position: under, yaw: 0 });
+    expect(race.coinsPresent()).toEqual(Array<boolean>(own + 1).fill(true));
+    expect(race.kartReadouts()[0]?.coins).toBe(0);
 
     race.step([IDLE_INPUT], DT);
-    expect(race.kartReadouts()[0]?.tyres).toBe(1);
-    expect(race.tyresPresent()[own]).toBe(false);
-    expect(race.tyresPresent().filter(Boolean)).toHaveLength(own);
+    expect(race.kartReadouts()[0]?.coins).toBe(1);
+    expect(race.coinsPresent()[own]).toBe(false);
+    expect(race.coinsPresent().filter(Boolean)).toHaveLength(own);
   });
 
   it("reports a projectile in flight from the sim, and from the snapshots as the interpolation draws it", async () => {
@@ -690,7 +690,7 @@ describe("items", () => {
           splineProgress: 0,
           wrongWay: false,
           heldItem: null,
-          tyres: 0,
+          coins: 0,
           spinOutS: null,
           start: "clean",
           stallS: null,
@@ -700,7 +700,7 @@ describe("items", () => {
       events: [],
       hazards: [],
       projectiles: [{ position: [x, 0, -10], owner: 1, target: 0 }],
-      tyresPresent: [],
+      coinsPresent: [],
     });
     for (let t = 0; t < 6; t++) prediction.reconcile(snapshot(2 * t, t));
     const idle: Input = {

@@ -6,7 +6,7 @@ use protocol::{EventKind, Input, KartSnapshot};
 use sim::{Drift, DriftDirection, Item, KartInput, KartReadout, MiniTurbo, RaceEvent, Start};
 
 /// A kart mid-race with every field the snapshot carries away from its
-/// default: drifting left at red, holding a hazard, carrying seven tyres, a hop and an orange
+/// default: drifting left at red, holding a hazard, carrying seven coins, a hop and an orange
 /// boost under way, spun out, stalled, third on lap 2 and going the wrong way.
 /// Turned a quarter left, so its facing is -X and its velocity runs along
 /// it at 12 m/s, rising, with a bump from a touch carrying it sideways.
@@ -24,7 +24,7 @@ fn busy_kart() -> KartReadout {
         }),
         mini_turbo: MiniTurbo::Red,
         held_item: Some(Item::Hazard),
-        tyres: 7,
+        coins: 7,
         spin_out_s: Some(0.4),
         airborne: true,
         boost_s: Some(0.2),
@@ -116,14 +116,14 @@ fn a_spin_out_is_told_as_a_hit() {
 }
 
 #[test]
-fn a_tyre_pickup_names_the_tyre_and_a_loss_its_count() {
+fn a_coin_pickup_names_the_coin_and_a_loss_its_count() {
     assert_eq!(
-        EventKind::from(RaceEvent::TyrePicked { kart: 4, tyre: 13 }),
-        EventKind::TyrePicked { kart: 4, tyre: 13 }
+        EventKind::from(RaceEvent::CoinPicked { kart: 4, coin: 13 }),
+        EventKind::CoinPicked { kart: 4, coin: 13 }
     );
     assert_eq!(
-        EventKind::from(RaceEvent::TyresLost { kart: 4, count: 3 }),
-        EventKind::TyresLost { kart: 4, count: 3 }
+        EventKind::from(RaceEvent::CoinsLost { kart: 4, count: 3 }),
+        EventKind::CoinsLost { kart: 4, count: 3 }
     );
 }
 

@@ -3,9 +3,8 @@
 // cone and the gull on the road are the ones in the slot. The runaway wheel
 // (ADR 0041) and the marshal waving his hazard flags at it (ADR 0045) are
 // built the same way, save the wheel's rim, hub and flames and the
-// beacon's glow and beam, which glow unlit. The tyres a kart collects
-// (ADR 0055) lie in the kart's own tyre black. The sim collides with its
-// own sizes; these only fill them.
+// beacon's glow and beam, which glow unlit. The sim collides with its own
+// sizes; these only fill them.
 
 import {
   AdditiveBlending,
@@ -25,7 +24,7 @@ import {
   TorusGeometry,
   Vector3,
 } from "three";
-import type { Tyre, Wheel } from "./bridge";
+import type { Wheel } from "./bridge";
 import {
   BEACON_BEAM,
   BEACON_LIT,
@@ -36,7 +35,6 @@ import {
   HAZARD_ORANGE,
   INK,
   ITEM_BOX_GOLD,
-  KART_PAINT,
   MARSHAL_BROWS,
   MARSHAL_EYE,
   MARSHAL_HAIR,
@@ -66,12 +64,6 @@ const ITEM_BOX_SIZE_M = 1;
 /** Each face's inset frame: its share of the face, and how far it stands proud. */
 const ITEM_BOX_INSET = 0.7;
 const ITEM_BOX_INSET_DEPTH_M = 0.02;
-
-/** A tyre on the track: a kart's tyre lying on its side, octagonal like every wheel the game draws. */
-const TYRE_RADIUS_M = 0.35;
-const TYRE_WIDTH_M = 0.26;
-const TYRE_SIDES = 8;
-const TYRE_RIM_SHARE = 0.55;
 
 /** The hazard cone (ADR 0007), on a grey slab. */
 const HAZARD_CONE_RADIUS_M = 0.5;
@@ -201,56 +193,6 @@ export function itemBoxMesh(): Group {
     if (axis === "y") face.rotation.x = Math.PI / 2;
   }
   return box;
-}
-
-/**
- * A tyre lying on its origin: an octagonal tread in the kart's tyre black
- * with its rim in the kart's rim grey on top, the tyre a kart collects.
- */
-export function tyreMesh(): Group {
-  const tyre = new Group();
-  part(
-    tyre,
-    new CylinderGeometry(TYRE_RADIUS_M, TYRE_RADIUS_M, TYRE_WIDTH_M, TYRE_SIDES),
-    KART_PAINT.tyre,
-    [0, TYRE_WIDTH_M / 2, 0],
-  );
-  const rim = TYRE_RADIUS_M * TYRE_RIM_SHARE;
-  // A hair proud of the tread's face so the two never fight for depth.
-  part(tyre, new CylinderGeometry(rim, rim, 0.01, TYRE_SIDES), KART_PAINT.rim, [
-    0,
-    TYRE_WIDTH_M + 0.005,
-    0,
-  ]);
-  return tyre;
-}
-
-/** The track's tyres as the View draws them, each shown while it is there to pick up. */
-export interface TyreMeshes {
-  readonly mesh: Group;
-  /** Show each tyre whose entry, in the sidecar's order, is true; a missing entry shows. */
-  show(present: readonly boolean[]): void;
-}
-
-/** A tyre mesh at each of `placed`, at its position and yaw, sharing one tyre's geometries and materials. */
-export function tyreMeshes(placed: readonly Tyre[]): TyreMeshes {
-  const mesh = new Group();
-  const tyre = tyreMesh();
-  const tyres = placed.map(({ position, yaw }) => {
-    const clone = tyre.clone();
-    clone.position.set(...position);
-    clone.rotation.y = yaw;
-    mesh.add(clone);
-    return clone;
-  });
-  return {
-    mesh,
-    show(present) {
-      tyres.forEach((clone, index) => {
-        clone.visible = present[index] ?? true;
-      });
-    },
-  };
 }
 
 /**

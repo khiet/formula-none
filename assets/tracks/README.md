@@ -42,8 +42,8 @@ so it diffs and reviews like code. A layout lays the centreline turtle-style
 from straights and arcs, then hangs everything else on it by arc length:
 asphalt and run-off widths, tyre walls (`TyreWall(s, offset)`, metres
 left of the centreline), elevation (hills and the jump ramp),
-checkpoint count, item box rows, boost pads and lines of tyres
-(`TyreLine(s, count, offset)`, the tyres a kart collects, four metres
+checkpoint count, item box rows, boost pads and lines of coins
+(`CoinLine(s, count, offset)`, the coins a kart collects, four metres
 apart along the track), and its decor:
 which segments get sponsor hoardings and grandstands, whether the
 start line gets its gantry, where the course crosses itself on a bridge,
@@ -83,10 +83,10 @@ blender my-track.blend --background --python assets/tracks/export.py -- my-track
 - A curve object `Centreline`: one closed POLY or BEZIER spline run in the
   direction of travel, starting at the start line. Spline progress is
   distance along it.
-- Collections `Checkpoints`, `ItemBoxes`, `BoostPads`, `Tyres`, `Kerbs`,
+- Collections `Checkpoints`, `ItemBoxes`, `BoostPads`, `Coins`, `Kerbs`,
   `WheelCrossings`, `SpawnGrid`: empties ordered by name, facing along their
-  local +Y, each written to the sidecar list of the same name (`tyres` for
-  the tyres a kart collects, not the tyre walls, which are surfaces; `kerbs` for
+  local +Y, each written to the sidecar list of the same name (`coins` for
+  the coins a kart collects; `kerbs` for
   the sausage kerbs, `wheel_crossings` for where the runaway wheel crosses,
   each centred on the centreline and facing along the track). Checkpoints
   and wheel crossings carry a `half_width` custom property: a crossing's

@@ -358,12 +358,12 @@ fn every_committed_fixture_replays_to_the_hashes_it_was_recorded_with() {
 /// touching (the contact solver), karts off the asphalt and a lone kart held
 /// by a wall (the track colliders), both tracks, a drift released into orange
 /// and another into red (the cornering rules), and a rocket start
-/// boosting at Go and another stalling there (the start rule), a tyre
-/// taken and tyres lost to a spin-out (the tyre rules). A fixture
+/// boosting at Go and another stalling there (the start rule), a coin
+/// taken and coins lost to a spin-out (the coin rules). A fixture
 /// that only drives up a straight would pass on a sim with most of its
 /// rules broken.
 #[test]
-fn the_fixture_set_exercises_kart_contact_off_track_walls_both_tracks_both_mini_turbos_a_rocket_start_a_stall_the_kerb_the_wheel_and_tyres(
+fn the_fixture_set_exercises_kart_contact_off_track_walls_both_tracks_both_mini_turbos_a_rocket_start_a_stall_the_kerb_the_wheel_and_coins(
 ) {
     let mut tracks = std::collections::BTreeSet::new();
     let mut surfaces = std::collections::HashSet::new();
@@ -375,8 +375,8 @@ fn the_fixture_set_exercises_kart_contact_off_track_walls_both_tracks_both_mini_
     let mut stalled = false;
     let mut launched_by_a_kerb = false;
     let mut hit_by_the_wheel = false;
-    let mut took_a_tyre = false;
-    let mut lost_tyres = false;
+    let mut took_a_coin = false;
+    let mut lost_coins = false;
     for (_, replay) in fixtures() {
         tracks.insert(replay.track.clone());
         let mut state = State::new(replay.seed, replay.human_count(), sidecar(&replay.track));
@@ -391,8 +391,8 @@ fn the_fixture_set_exercises_kart_contact_off_track_walls_both_tracks_both_mini_
                     .iter()
                     .any(|event| matches!(event, RaceEvent::SpunOut { by: None, .. }));
                 for event in state.events() {
-                    took_a_tyre |= matches!(event, RaceEvent::TyrePicked { .. });
-                    lost_tyres |= matches!(event, RaceEvent::TyresLost { .. });
+                    took_a_coin |= matches!(event, RaceEvent::CoinPicked { .. });
+                    lost_coins |= matches!(event, RaceEvent::CoinsLost { .. });
                 }
                 let transforms = state.kart_readouts();
                 for (slot, kart) in transforms.iter().enumerate() {
@@ -447,8 +447,8 @@ fn the_fixture_set_exercises_kart_contact_off_track_walls_both_tracks_both_mini_
     assert!(stalled, "no fixture stalls at Go");
     assert!(launched_by_a_kerb, "no fixture is launched by a kerb");
     assert!(hit_by_the_wheel, "no fixture is hit by the runaway wheel");
-    assert!(took_a_tyre, "no fixture takes a tyre");
-    assert!(lost_tyres, "no fixture loses tyres to a spin-out");
+    assert!(took_a_coin, "no fixture takes a coin");
+    assert!(lost_coins, "no fixture loses coins to a spin-out");
     // Centres within a kart's length of each other are in contact or about
     // to be, whichever way the two karts face.
     let touching = 2.0 * KART_HALF_LENGTH_M + 0.05;

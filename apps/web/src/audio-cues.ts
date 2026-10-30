@@ -17,7 +17,8 @@ export type SoundCue =
   | "hop"
   | "miniTurbo"
   | "itemPickup"
-  | "tyrePickup"
+  | "coinPickup"
+  | "coinLoss"
   | "itemFire"
   | "hit"
   | "sputter"
@@ -41,7 +42,7 @@ export interface SoundReading {
   /** The tier the drift under way has charged; null off a drift. */
   readonly miniTurbo: MiniTurbo | null;
   readonly item: Item | null;
-  readonly tyres: number;
+  readonly coins: number;
   readonly spunOut: boolean;
   /** Seconds of boost left while one holds the kart over top speed; null off a boost. */
   readonly boostSeconds: number | null;
@@ -74,7 +75,7 @@ export function soundReading(race: RaceReadout, kart: number): SoundReading {
     airborne: readout.airborne,
     miniTurbo: readout.drift !== null ? readout.miniTurbo : null,
     item: itemSlot.item,
-    tyres: readout.tyres,
+    coins: readout.coins,
     spunOut: readout.spinOutS !== null,
     boostSeconds: readout.boostS,
     lap: standing.lap,
@@ -109,9 +110,9 @@ const TIER_RANK: Readonly<Record<MiniTurbo, number>> = { none: 0, orange: 1, red
  * a release nor an item fired explains, since the transform tells boost
  * seconds and not their source; the tier chime as the drift's tier rises,
  * the same chime to orange and to red, the sparks telling which; the
- * pickup as the slot fills and the fire as it empties; the tyre pickup as
- * the tyres carried rise, a spin-out's loss being heard as the hit alone;
- * the hit as a spin-out begins; the sputter as a stall begins; the wrong
+ * pickup as the slot fills and the fire as it empties; the coin pickup as
+ * the coins carried rise; the hit as a spin-out begins, then the coin loss
+ * as the coins it cost fall; the sputter as a stall begins; the wrong
  * way as its flag raises; the finish as the kart finishes, else the lap
  * as the count rises. Nothing else from the first reading.
  */
@@ -136,8 +137,9 @@ export function soundCues(before: SoundReading | undefined, after: SoundReading)
   if (tierRank(after.miniTurbo) > tierRank(before.miniTurbo)) cues.push("tierChime");
   if (before.item === null && after.item !== null) cues.push("itemPickup");
   if (fired) cues.push("itemFire");
-  if (after.tyres > before.tyres) cues.push("tyrePickup");
+  if (after.coins > before.coins) cues.push("coinPickup");
   if (!before.spunOut && after.spunOut) cues.push("hit");
+  if (after.coins < before.coins) cues.push("coinLoss");
   if (!before.stalled && after.stalled) cues.push("sputter");
   if (!before.wrongWay && after.wrongWay) cues.push("wrongWay");
   if (!before.finished && after.finished) cues.push("finish");

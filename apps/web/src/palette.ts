@@ -24,6 +24,9 @@ export const LABEL_GREY = 0xc9ced5;
 export const CARBON: Tones = { lit: 0x4a4f57, mid: 0x2b2e33, shaded: 0x1b1d21 };
 /** The item box and its slot, the one gold in the game besides the posters'. */
 export const ITEM_BOX_GOLD: Tones = { lit: 0xf8e39a, mid: 0xe0b54a, shaded: 0xc99a2e };
+/** The coin a kart collects: poster gold faces, and its rim and embossed F. */
+export const COIN_GOLD = 0xffd23f;
+export const COIN_RIM = 0xb8860b;
 /** The item slot lit by a fire. */
 export const FIRING: Tones = { lit: VALUE_WHITE, mid: 0xfff6cf, shaded: 0xf8e39a };
 /** The gear on the limiter. */

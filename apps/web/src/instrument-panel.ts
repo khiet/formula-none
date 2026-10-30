@@ -25,6 +25,8 @@ import {
 } from "./low-poly-svg";
 import {
   CARBON,
+  COIN_GOLD,
+  COIN_RIM,
   FIRING,
   GO_GREEN,
   HAZARD_ORANGE,
@@ -41,12 +43,13 @@ import {
 } from "./palette";
 import { type ItemSlot, type RaceReadout, raceCount } from "./race-run";
 import {
+  coinCount,
+  coinTopSpeed,
   drivetrain,
   type SpeedClusterTuning,
   shiftLights,
-  tyreTopSpeed,
+  TYRE_WEAR_PLACEHOLDER_PERCENT,
   tyreWearBand,
-  tyreWearPercent,
 } from "./speed-cluster";
 
 /** The item slot as the panel prints it: the item's name and the slot's state. */
@@ -138,8 +141,8 @@ export function loadInstrumentFont(): Promise<void> {
 /**
  * The HUD over the Race View, with the course map of `course` in its
  * corner and the speed cluster read against `tuning` (ADR 0031): the
- * gears cut from the top speed the own kart's tyres raise, and the tyre
- * gauge reading its tyres against a full set (ADR 0055); once the own
+ * gears cut from the top speed the own kart's coins raise, and the coins
+ * it carries against the cap (ADR 0056); once the own
  * kart has finished or the race has ended, the finish banner and the
  * finishers by `name` in place of the lap. Reads state; never drives it.
  * The own kart's readouts wear `paint`, the own kart's livery (ADR 0037).
@@ -228,8 +231,8 @@ export function createInstrumentPanel(
   const standingsList = document.createElement("ol");
   standingsList.dataset.instrument = "standings";
   standingsList.hidden = true;
-  // The speed cluster (ADR 0031): the gear, speed and tyres stay as text;
-  // the shift lights and the kart from above are decorative.
+  // The speed cluster (ADR 0031): the gear, speed, coins and tyres stay as
+  // text; the shift lights, the coin and the kart from above are decorative.
   const cluster = document.createElement("div");
   cluster.dataset.cluster = "";
   const lightRow = svg(`0 0 ${SHIFT_LIGHT_PITCH * 12} 14`);
@@ -248,10 +251,14 @@ export function createInstrumentPanel(
   const speedUnit = part(speed, "speedUnit");
   const tyre = instrument("tyre");
   tyre.append(kartFromAbove(paint));
-  const tyrePercent = part(tyre, "tyrePercent");
-  cluster.append(gear, speed, tyre);
-  const showSpeed = (metresPerSecond: number, tyres: number) => {
-    const topSpeed = tyreTopSpeed(tuning.topSpeed, tyres, tuning.tyreTopSpeedFactor);
+  part(tyre, "tyrePercent").textContent = `${TYRE_WEAR_PLACEHOLDER_PERCENT}%`;
+  tyre.dataset.tyreWear = tyreWearBand(TYRE_WEAR_PLACEHOLDER_PERCENT);
+  const coins = instrument("coins");
+  coins.append(coinIcon());
+  const coinValue = part(coins, "coinCount");
+  cluster.append(coins, gear, speed, tyre);
+  const showSpeed = (metresPerSecond: number, carried: number) => {
+    const topSpeed = coinTopSpeed(tuning.topSpeed, carried, tuning.coinTopSpeedFactor);
     const reading = drivetrain(metresPerSecond, topSpeed);
     shiftLights(reading).forEach((state, index) => {
       const light = lights[index];
@@ -266,14 +273,12 @@ export function createInstrumentPanel(
     speedValue.textContent = parts.value;
     speedUnit.textContent = parts.unit;
   };
-  const showTyres = (tyres: number) => {
-    const percent = tyreWearPercent(tyres, tuning.tyreSet);
-    tyrePercent.textContent = `${percent}%`;
-    tyre.dataset.tyreWear = tyreWearBand(percent);
+  const showCoins = (carried: number) => {
+    coinValue.textContent = coinCount(carried, tuning.coinCap);
   };
-  // Every kart starts the race with no tyres.
+  // Every kart starts the race with no coins.
   showSpeed(0, 0);
-  showTyres(0);
+  showCoins(0);
   // The surface and connection readouts are greybox aids: the surface shows
   // the sidecar and the mesh agree about where the kart is. They sit in a
   // small line of their own, out of the driver's stack.
@@ -354,8 +359,8 @@ export function createInstrumentPanel(
       printLabelled(bestLap, readouts.bestLap);
       wrongWay.textContent = readouts.wrongWay;
       wrongWay.hidden = readouts.wrongWay === "";
-      showSpeed(local.speed, local.tyres);
-      showTyres(local.tyres);
+      showSpeed(local.speed, local.coins);
+      showCoins(local.coins);
       surface.textContent = local.surface;
       const held = itemReadout(slot);
       if (held.state !== shownItemState) {
@@ -638,6 +643,30 @@ function tyreFromAbove(parent: Element, x: number, y: number, width: number, hei
   for (const [points, tone] of faces) {
     polygon(tyre, points).dataset.tone = String(tone);
   }
+}
+
+/** The coin's octagon as the mockup draws it, a vertex up, on a 100-unit square. */
+const COIN_OCTAGON: readonly Point[] = [
+  [50, 6],
+  [81, 18],
+  [94, 50],
+  [81, 82],
+  [50, 94],
+  [19, 82],
+  [6, 50],
+  [19, 18],
+];
+
+/**
+ * The coin for the coin count (ADR 0056): the track's coin face on, a poster
+ * gold octagon in its rim's darker gold. Decorative: the count is the text.
+ */
+function coinIcon(): SVGSVGElement {
+  const coin = svg("0 0 100 100");
+  const face = polygon(coin, COIN_OCTAGON, COIN_GOLD);
+  face.setAttribute("stroke", hexCss(COIN_RIM));
+  face.setAttribute("stroke-width", "8");
+  return coin;
 }
 
 /**
