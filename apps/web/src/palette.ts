@@ -64,15 +64,17 @@ export const WHEEL_SMOKE = 0x8a8d94;
 /** The homing drone's lens, its eye locked on. */
 export const DRONE_EYE = 0xd00a12;
 /**
- * The rocket reds, flame yellow and strap grey the items share: the runaway
- * wheel's hot rim, flames and wall-hit sparks, the drone's tally light and
- * antenna, the champagne bottle's label band and foil, and the marshal's
- * stool legs.
+ * The rocket reds, flame yellow and strap grey: the runaway wheel's hot rim,
+ * flames and wall-hit sparks, the drone's tally light and antenna, the
+ * champagne bottle's label band and foil, and the marshal's stool legs.
  */
 export const ROCKET: Tones = { lit: 0xe8333b, mid: 0xd00a12, shaded: 0x8f070c };
 export const ROCKET_FLAME = 0xffd23f;
 export const ROCKET_STRAP = 0x3a3d42;
-/** The boost's champagne bottle, tonesOf(0x1f7a4a), and its cork, which needs no shaded tone. */
+/**
+ * The boost's champagne bottle, tonesOf(0x1f7a4a) written out because
+ * repo-checks reads only literal tones, and its cork, which needs no shaded tone.
+ */
 export const CHAMPAGNE_BOTTLE: Tones = { lit: 0x5e9f7d, mid: 0x1f7a4a, shaded: 0x145131 };
 export const CORK = {
   lit: 0xeec48f,
