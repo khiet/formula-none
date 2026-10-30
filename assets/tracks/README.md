@@ -45,8 +45,10 @@ left of the centreline), elevation (hills and the jump ramp),
 checkpoint count, item box rows and boost pads, and its decor:
 which segments get sponsor hoardings and grandstands, whether the
 start line gets its gantry, where the course crosses itself on a bridge,
-and its woods (`Wood(kind, patch, count, seed)`, a disc or a line of grass
-the builder scatters up to `count` trees over). The spawn grid is always eight slots behind
+its woods (`Wood(kind, patch, count, seed)`, a disc or a line of grass
+the builder scatters up to `count` trees over) and its props
+(`Prop(kind, at)`, hung on the lap with `Spot(s, offset)` or set in the
+world with `World(x, y, heading)`). The spawn grid is always eight slots behind
 the start line. `trackgen/` is pure Python so a
 layout can be checked without Blender:
 
@@ -113,7 +115,13 @@ declares a patch, a kind of tree, a cap on the count and a seed, and
 or 5 m of another, so the same layout exports the same trees and no tree
 is placed by hand. Pines are two six-sided cones, round trees and
 cherries eight-facet lumps, each in a lit and a shade tone on a
-four-sided trunk, flat on the grass.
+four-sided trunk, flat on the grass. The Circuit Wheel is a prop too: a
+tree keeps its canopy out of a prop's footprint, and a prop keeps 8 m of
+grass from every wall. The parts the View moves, the wheel's rim and its
+sixteen gondolas, carry a `Pivot`, so `build.py` exports each as a node of
+its own with its origin there (`Prop.circuit-wheel.1.rim` and its
+children `.gondola.1` to `.16`), and `apps/web/src/scenery-motion.ts`
+turns them from the View's clock.
 Original names only; nothing may resemble a real sponsor, a Nintendo
 character or circuit (ADR 0007), and no kart carries a sponsor (ADR 0038).
 

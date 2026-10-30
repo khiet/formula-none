@@ -566,6 +566,16 @@
           <p class="dont"><b>Don't</b> place a tree by hand, and don't let a wood onto the oval: a patch goes in the layout's decor and the scatter keeps every tree off the walls.</p>
         </div>
       </article>
+
+      <article class="asset">
+        <header><h3>Circuit Wheel</h3><code>assets/tracks/trackgen/props.py, Prop in layout.py, apps/web/src/scenery-motion.ts</code></header>
+        <div class="compare"><figure><figcaption>From the start straight, the rim a sixteenth of a turn on</figcaption><div class="stage" data-draw="circuitWheel"></div></figure></div>
+        <dl class="spec"><dt>Size</dt><dd>24 m across, hub 14 m up, legs 17 m apart at the feet; 418 faces</dd><dt>Decided</dt><dd><a href="adr/0050-trackside-props.md">ADR 0050</a></dd></dl>
+        <div class="notes">
+          <p>A Ferris wheel outside the first curve, 34 m left of the centreline, where the start straight points. A sixteen-sided rim of box section with a set of spokes either side of the hub, in <code>wall</code> <code>#f0f0f0</code> where a face looks up and toward the sun and <code>beam-shade</code> <code>#9aa0a8</code> elsewhere; an eight-sided hub carried on two carbon A-frames with a brace at 6 m. Sixteen six-sided gondolas hang 0.4 m under the rim's corners, two in each of the crowd's key colours in slot order, on carbon hangers, so the wheel matches the stands. The rim and each gondola are nodes of their own in the glTF, <code>Prop.circuit-wheel.1.rim</code> and its children <code>.gondola.1</code> to <code>.16</code>, each with its origin at its pivot; the View turns the rim once every 90 s from its own clock and turns every gondola back by the same angle, so each hangs level. It carries no name.</p>
+          <p class="dont"><b>Don't</b> letter it, and don't put it inside the lap: the chase camera at turn 2 would clip the legs. A prop stands 8 m clear of every wall.</p>
+        </div>
+      </article>
     </div>
   </section>
 
@@ -1101,6 +1111,34 @@
       ${post(124, g, y(1.5))}${lump(124, y(3), 2 * m, round)}
       ${post(184, g, y(0.9))}${lump(184, y(1.92), 1.08 * m, round)}
       ${post(260, g, y(2.4))}${lump(260 - 0.9 * m, y(2.7), 1.3 * m, blossom)}${lump(260 + 1 * m, y(2.8), 1.3 * m, blossom)}${lump(260, y(3.5), 1.5 * m, blossom)}
+    </svg>`;
+  };
+  // The Circuit Wheel from the start straight, as the export builds it at 5 px to the metre: the
+  // rim and spokes lit from the left like the trees, the gondolas in the crowd's eight colours.
+  draw.circuitWheel = () => {
+    const m = 5, g = 150, cx = 120, cy = g - 14 * m, R = 12 * m;
+    const wall = "#f0f0f0", beamShade = "#9aa0a8", carbon = "#2b2e33", carbonShade = "#1c1c1e";
+    const keys = LIVERIES.map((l) => hex(l.key));
+    const turn = Math.PI / 16;
+    const corners = Array.from({ length: 16 }, (_, k) => turn + (2 * Math.PI * k) / 16);
+    const at = (a, r) => [cx + r * Math.cos(a), cy - r * Math.sin(a)];
+    let spokes = "", rim = "", gondolas = "";
+    corners.forEach((a, k) => {
+      const [x, y] = at(a, R), [x1, y1] = at(corners[(k + 1) % 16], R);
+      // A spoke or a rim segment is lit when it rises to the left, toward the sun.
+      const lit = Math.cos(a) <= 0 ? wall : beamShade;
+      spokes += `<line x1="${cx}" y1="${cy}" x2="${x.toFixed(1)}" y2="${y.toFixed(1)}" stroke="${lit}" stroke-width="1.5"/>`;
+      rim += `<line x1="${x.toFixed(1)}" y1="${y.toFixed(1)}" x2="${x1.toFixed(1)}" y2="${y1.toFixed(1)}" stroke="${Math.sin((a + corners[(k + 1) % 16]) / 2) >= 0 ? wall : beamShade}" stroke-width="2.5"/>`;
+      const hy = y + 0.4 * m, r = 0.7 * m;
+      gondolas += `<line x1="${x.toFixed(1)}" y1="${y.toFixed(1)}" x2="${x.toFixed(1)}" y2="${hy.toFixed(1)}" stroke="${carbon}" stroke-width="1"/>` +
+        poly(Array.from({ length: 6 }, (_, i) => [x + r * Math.cos(Math.PI / 2 + (i * Math.PI) / 3), hy + r + r * Math.sin(Math.PI / 2 + (i * Math.PI) / 3)]), keys[k % 8]);
+    });
+    const leg = (dx, fill) => poly([[cx, cy - 2], [cx + dx * 8.5 * m + 0.35 * m, g], [cx + dx * 8.5 * m - 0.35 * m, g]], fill);
+    return `<svg viewBox="0 0 240 160" role="img" aria-label="The Circuit Wheel: a sixteen-sided low-poly Ferris wheel on carbon A-frames, its gondolas in the eight livery colours">
+      <rect y="${g}" width="240" height="10" fill="#5cb04a"/><ellipse cx="${cx}" cy="${g}" rx="60" ry="4" fill="rgba(0,0,0,.15)"/>
+      ${leg(-1, carbon)}${leg(1, carbonShade)}<rect x="${cx - (8.5 - 8.5 * 6 / 14) * m}" y="${g - 6 * m - 1}" width="${2 * (8.5 - 8.5 * 6 / 14) * m}" height="2" fill="${carbon}"/>
+      ${spokes}${rim}${gondolas}
+      <polygon points="${P(ngon(8, cx, cy, 1 * m))}" fill="${carbon}"/>
     </svg>`;
   };
   // An upright prism of `n` flat sides seen from slightly above, lit from the top left.

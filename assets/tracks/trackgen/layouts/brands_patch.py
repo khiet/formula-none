@@ -10,8 +10,9 @@ inside esses 3 and the chicane, the runaway wheel crosses the run from the
 bridge to the hairpin, its marshal post on the outside, and the jump sits at
 Spoon's exit. The scenery: grandstands along the outside of the start
 straight and the hairpin exit, hoardings round Spoon, 130R and the final
-curve, the gantry over the line, and the bridge where the course crosses
-itself.
+curve, the gantry over the line, the bridge where the course crosses
+itself, woods along the back section and the Circuit Wheel outside the
+first curve.
 """
 
 from ..layout import (
@@ -25,6 +26,8 @@ from ..layout import (
     Kerb,
     Layout,
     Line,
+    Prop,
+    Spot,
     TyreWall,
     WheelCrossing,
     Wood,
@@ -143,6 +146,9 @@ LAYOUT = Layout(
                 s_end=bridge_hill.s_end,
             )
         ],
+        # The Circuit Wheel outside the first curve, where the start straight
+        # points: docs/mockups/trackside-objects.html's spot.
+        props=[Prop("circuit-wheel", Spot(s=86.0, offset=34.0))],
         # The patches, counts and seeds of docs/mockups/trackside-objects.html.
         woods=[
             # Pines outside Degner.

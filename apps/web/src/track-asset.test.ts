@@ -169,6 +169,27 @@ describe("Suzuqa Patch's final art", () => {
     }
   });
 
+  it("stands the Circuit Wheel on a rim node with its sixteen gondolas hung under it", () => {
+    const rim = brandsPatch.nodes.find(({ name }) => name === "Prop.circuit-wheel.1.rim");
+    expect(rim).toBeDefined();
+    // Its origin at the hub, 14 m over the grass, and a mesh of its own to turn.
+    expect(rim?.translation?.[1]).toBeCloseTo(14 - 0.05, 2);
+    expect(rim?.mesh).toBeDefined();
+    const children = (rim?.children ?? []).flatMap((index) => brandsPatch.nodes[index] ?? []);
+    const gondolas = children.filter(({ name }) =>
+      name?.startsWith("Prop.circuit-wheel.1.gondola."),
+    );
+    expect(gondolas.map(({ name }) => name).sort()).toEqual(
+      Array.from({ length: 16 }, (_, k) => `Prop.circuit-wheel.1.gondola.${k + 1}`).sort(),
+    );
+    // Each gondola's origin is its hanger, 12 m out from the hub in the rim's own frame.
+    for (const gondola of gondolas) {
+      const [x = Number.NaN, y = Number.NaN, z = Number.NaN] = gondola.translation ?? [];
+      expect(Math.hypot(x, y, z), gondola.name).toBeCloseTo(12, 3);
+      expect(gondola.mesh, gondola.name).toBeDefined();
+    }
+  });
+
   it("maps the asphalt for tyre marks: a texture coordinate on every vertex", () => {
     expect(attributesOf(brandsPatch, "Asphalt")).toContain("TEXCOORD_0");
   });
@@ -185,5 +206,6 @@ describe("the oval fixture", () => {
     expect(families).toContain("StartLine");
     expect(families).not.toContain("Hoarding");
     expect(families).not.toContain("Grandstand");
+    expect(families).not.toContain("Prop");
   });
 });
