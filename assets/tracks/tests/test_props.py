@@ -26,6 +26,7 @@ from trackgen.layout import (
     GRASS_DROP_M,
     HOARDING_TEXT_PROUD_M,
     PROP_WALL_CLEARANCE_M,
+    SPAN_FOOT_CLEARANCE_M,
     WALL_THICKNESS_M,
     Disc,
     Prop,
@@ -183,7 +184,7 @@ class Placing(unittest.TestCase):
         self.assertEqual(locate(self.layout, World(-60.0, -40.0, 1.5)), (-60.0, -40.0, 1.5))
 
     def test_every_tall_props_footprint_keeps_8_m_of_grass_from_every_wall(self) -> None:
-        """A span is held to the span rule instead, in `Arch`: its feet only have to stand on grass."""
+        """A span is held to the span rule instead, under `Arch` below: its feet only stand on grass."""
         held = [f for f in footprints(self.layout) if f.kind != "arch"]
         self.assertEqual({f.kind for f in held}, {"circuit-wheel", "pits"})
         for footprint in held:
@@ -462,7 +463,7 @@ class Arch(unittest.TestCase):
             clearance = footprint_clearance(self.layout, foot)
             self.assertGreater(clearance, 0.0, "on grass")
             self.assertLess(clearance, PROP_WALL_CLEARANCE_M, "a span, not a tall prop beside the track")
-            self.assertEqual(foot.clearance, 0.0)
+            self.assertEqual(foot.clearance, SPAN_FOOT_CLEARANCE_M)
         # The abutments stand on the feet and nowhere else.
         for material in ("wall", "stand-plinth"):
             for v in self.pieces[f"{ARCH}.{material}"].mesh[0]:
@@ -591,9 +592,12 @@ class PitBuilding(unittest.TestCase):
             flags[slot] = [self.frame(piece.mesh[0][v]) for v in flag_faces[0]]
         tops = {round(max(c for _, _, c in f), 3) for f in flags.values()}
         self.assertEqual(len(tops), 1, "every flag at the same height")
-        # Each hangs from the pole over a door, in the plane along the track.
+        # Each hangs from the pole over a door, in the plane along the track, wound to face it.
         for slot, face in flags.items():
             self.assertEqual(len({round(b, 3) for _, b, _ in face}), 1, "flat along the track")
+            (a0, b0, c0), (a1, b1, c1), (a2, b2, c2) = face
+            toward_track = (a1 - a0) * (c2 - c0) - (c1 - c0) * (a2 - a0)
+            self.assertGreater(-toward_track, 0.0, f"flag {slot} faces the track")
         self.assertEqual(len({round(min(a for a, _, _ in f), 3) for f in flags.values()}), 8, "one per pole")
 
     def test_the_walls_are_stand_riser_the_roof_lit_and_the_parapet_stand_plinth(self) -> None:
@@ -623,9 +627,9 @@ class PitBuilding(unittest.TestCase):
         """ADR 0035: the doors are colours only, so the building letters nothing."""
         self.assertFalse(any(t.name.startswith(f"{PITS}.") for t in build(self.layout).lettering))
 
-    def test_the_building_costs_about_90_faces(self) -> None:
+    def test_the_building_costs_about_75_faces(self) -> None:
         faces = sum(len(piece.mesh[1]) for piece in self.pieces.values())
-        self.assertTrue(70 <= faces <= 130, faces)
+        self.assertTrue(60 <= faces <= 90, faces)
 
 
 if __name__ == "__main__":

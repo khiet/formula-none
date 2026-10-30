@@ -24,6 +24,7 @@ from .layout import (
     HOARDING_TEXT_PROUD_M,
     PROP_WALL_CLEARANCE_M,
     SCENERY_LIFT_M,
+    SPAN_FOOT_CLEARANCE_M,
     TREE_SPACING_M,
     TREE_WALL_CLEARANCE_M,
     WALL_THICKNESS_M,
@@ -445,7 +446,7 @@ def _arch_footprints(layout: Layout, prop: Prop) -> list[Footprint]:
             prop.kind,
             x + side * middle * left[0],
             y + side * middle * left[1],
-            0.0,
+            SPAN_FOOT_CLEARANCE_M,
             heading=heading,
             half_along=ARCH_DEPTH_M / 2.0 + ARCH_ABUTMENT_MARGIN_M,
             half_across=(foot_out - foot_in) / 2.0,
@@ -710,16 +711,15 @@ def pits(layout: Layout, prop: Prop, number: int, still: ByMaterial) -> tuple[li
     along its top, and a still flag on a carbon pole over each door, the flags in the same
     colours the other way round, as the style guide's card has them. No number and no kart:
     the doors are colours only."""
-    if prop.length is None:
-        raise ValueError("the pits need a length")
-    x, y, heading = locate(layout, prop.at)
+    (plan,) = _pits_footprint(layout, prop)
+    x, y, heading = plan.x, plan.y, plan.heading
     ground = -GRASS_DROP_M
     origin = (x, y, ground)
     along = (math.cos(heading), math.sin(heading), 0.0)
     across = (-math.sin(heading), math.cos(heading), 0.0)
-    half = prop.length / 2.0
+    half = plan.half_along
     # The track is to the left of the building, so its front face is its +across side.
-    front = PITS_DEPTH_M / 2.0
+    front = plan.half_across
     body = (0.0, PITS_HEIGHT_M - PITS_PARAPET_M)
     _sides(_block(origin, along, across, (-half, half), (-front, front), body), "stand-riser", still, shade="stand-plinth")
     parapet = _block(origin, along, across, (-half, half), (-front, front), (body[1], PITS_HEIGHT_M))
@@ -754,9 +754,10 @@ def pits(layout: Layout, prop: Prop, number: int, still: ByMaterial) -> tuple[li
         )
         _sides(pole, "carbon", still, top=True)
         # The flag: a pennant flying forward along the track from the pole's top, in the
-        # plane along the track so the grid sees it face on.
+        # plane along the track and wound to face it, so the grid sees it face on whether
+        # or not the material is drawn from both sides.
         hoist = middle + PITS_POLE_M / 2.0
-        flag = [at(hoist, pole_b, top), at(hoist, pole_b, top - PITS_FLAG_HEIGHT_M), at(hoist + PITS_FLAG_LENGTH_M, pole_b, top - PITS_FLAG_HEIGHT_M / 2.0)]
+        flag = [at(hoist, pole_b, top - PITS_FLAG_HEIGHT_M), at(hoist, pole_b, top), at(hoist + PITS_FLAG_LENGTH_M, pole_b, top - PITS_FLAG_HEIGHT_M / 2.0)]
         still.add(f"crowd-{slots - 1 - slot}", (flag, [(0, 1, 2)]))
     return [], []
 

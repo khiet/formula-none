@@ -173,6 +173,10 @@ TREE_SPACING_M = 5.0
 # the outside of a corner, and a tall thing nearer would stand between it
 # and the kart.
 PROP_WALL_CLEARANCE_M = 8.0
+# A span, the arch, is held to the span rule instead: its underside keeps
+# the gantry's height over the asphalt and its feet only have to stand on
+# grass, so they keep no set distance from the wall.
+SPAN_FOOT_CLEARANCE_M = 0.0
 
 # The eight-slot spawn grid: two staggered columns of four, pole in front on
 # the left, the right column set back. Slot order is grid order. Placements

@@ -230,11 +230,13 @@ describe("Suzuqa Patch's final art", () => {
       const node = brandsPatch.nodes.find(({ name }) => name === `Prop.arch.1.belt.${face}`);
       const mesh = node?.mesh === undefined ? undefined : brandsPatch.meshes[node.mesh];
       const bounds = brandsPatch.accessors[mesh?.primitives[0]?.attributes.POSITION ?? -1];
-      // Text lies in the node's XY plane reading along +X, so the belt's radius is along -Z.
-      const [, , nearest = Number.NaN] = bounds?.max ?? [];
-      const [, , furthest = Number.NaN] = bounds?.min ?? [];
+      // Text lies in the node's XY plane reading along +X, so the belt's radius is along -Z
+      // and the crown is at X zero: the name is centred on it.
+      const [left = Number.NaN, , nearest = Number.NaN] = bounds?.max ?? [];
+      const [right = Number.NaN, , furthest = Number.NaN] = bounds?.min ?? [];
       expect(-nearest, face).toBeGreaterThan(14.65 - 1.2);
       expect(-furthest, face).toBeLessThan(14.65 + 0.6);
+      expect(Math.abs(left + right), face).toBeLessThan(0.5);
     }
   });
 
