@@ -617,3 +617,102 @@ fn a_bots_steering_is_unchanged_by_a_tyre_off_its_line() {
         "the bot drove past the tyre"
     );
 }
+
+/// The longest any bot in an eight-bot race on `track` from `seed` sat under
+/// its stall speed before it finished, as `(seconds, slot, race clock)`.
+/// A spun-out kart is dead to every control and a bot held back for the
+/// runaway wheel stands by choice, so neither counts.
+fn longest_stall(seed: u64, track: Track) -> (f32, usize, f32) {
+    let mut state = started(State::with_bots(seed, 0, 8, track));
+    let mut stalled_s = [0.0; 8];
+    let mut longest = (0.0, 0, 0.0);
+    for _ in 0..ticks(LAPS_PER_RACE as f32 * 120.0) {
+        state = step(state, &[], DT);
+        let Phase::Racing { elapsed_s, .. } = state.phase() else {
+            break;
+        };
+        let standings = state.standings();
+        if standings.iter().all(|s| s.laps_completed >= LAPS_PER_RACE) {
+            break;
+        }
+        for (slot, kart) in state.kart_readouts().iter().enumerate() {
+            let finished = standings[slot].laps_completed >= LAPS_PER_RACE;
+            if finished || kart.speed.abs() >= BOT_STALL_SPEED_M_PER_S {
+                stalled_s[slot] = 0.0;
+            } else if kart.spin_out_s.is_none() && !state.bot_held_for_the_wheel(slot) {
+                stalled_s[slot] += DT;
+                if stalled_s[slot] > longest.0 {
+                    longest = (stalled_s[slot], slot, elapsed_s);
+                }
+            }
+        }
+    }
+    longest
+}
+
+/// Under its stall speed this long, a bot is stuck.
+const STUCK_S: f32 = 3.0;
+
+#[test]
+fn a_bot_jammed_against_the_wall_short_of_the_wheels_crossing_backs_out() {
+    // On 38 a bot hit the wall 90 m short of the crossing just before a
+    // pass, and jittered against it in and out of waiting for the wheel
+    // until the pass was over.
+    let (seconds, slot, at_s) = longest_stall(38, brands_patch());
+    assert!(
+        seconds <= STUCK_S,
+        "bot {slot} stuck {seconds} s until {at_s} s"
+    );
+}
+
+#[test]
+fn a_bot_waiting_for_the_wheel_never_backs_up() {
+    // On each of these a bot waiting for a pass held the brake, which backed
+    // it up into a kart or the wall behind, pinned there through the pass.
+    // Rolling back as it starts to wait, from backing out of a stall, it
+    // only slows.
+    for seed in [51, 121, 152, 163] {
+        let mut state = started(State::with_bots(seed, 0, 8, brands_patch()));
+        let mut waited = false;
+        for _ in 0..ticks(LAPS_PER_RACE as f32 * 90.0) {
+            let before = state.kart_readouts();
+            state = step(state, &[], DT);
+            for (slot, kart) in state.kart_readouts().iter().enumerate() {
+                if state.bot_held_for_the_wheel(slot) && kart.spin_out_s.is_none() {
+                    waited = true;
+                    assert!(
+                        kart.speed >= before[slot].speed.min(0.0),
+                        "seed {seed}: bot {slot} backs up from {} to {} m/s at {:?}",
+                        before[slot].speed,
+                        kart.speed,
+                        state.phase()
+                    );
+                }
+            }
+            if !matches!(state.phase(), Phase::Racing { .. }) {
+                break;
+            }
+        }
+        assert!(waited, "seed {seed}: no bot waited for the wheel");
+    }
+}
+
+/// Every course's 200-seed sweep, too slow for a debug build; run it with
+/// `cargo test --release -p sim --test bots -- --ignored` (about 30 s) after
+/// changing how a bot drives.
+#[test]
+#[ignore]
+fn in_200_races_of_eight_bots_on_each_course_no_bot_is_ever_stuck() {
+    for (name, course) in [("oval", oval as fn() -> Track), ("Suzuqa", brands_patch)] {
+        let races: Vec<_> = (0..200)
+            .map(|seed| std::thread::spawn(move || (seed, longest_stall(seed, course()))))
+            .collect();
+        for race in races {
+            let (seed, (seconds, slot, at_s)) = race.join().expect("the race ran");
+            assert!(
+                seconds <= STUCK_S,
+                "{name} seed {seed}: bot {slot} stuck {seconds} s until {at_s} s"
+            );
+        }
+    }
+}

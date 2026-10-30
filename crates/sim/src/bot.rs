@@ -8,21 +8,24 @@ use crate::tuning::{
     BOT_CORNER_SPEED_FRACTION, BOT_DRIFT_CURVATURE_RAD_PER_M, BOT_HAZARD_HOLD_S, BOT_HOP_STEER,
     BOT_ITEM_USE_DELAY_S, BOT_KERB_APPROACH_M, BOT_KERB_GAP_M, BOT_LINE_RIGHT_OF_CENTRE_M,
     BOT_LOOKAHEAD_M, BOT_PASS_GAP_M, BOT_REVERSE_S, BOT_STALL_S, BOT_STALL_SPEED_M_PER_S,
-    BOT_WHEEL_MARGIN_S, BOT_WHEEL_SET_OFF_FRACTION, DRIFT_SLIP_ANGLE_RAD, DRIFT_TURN_NEUTRAL,
-    DRIFT_TURN_STEER_RANGE, KART_HALF_LENGTH_M, KART_HALF_WIDTH_M, KERB_HALF_LENGTH_M,
-    KERB_HALF_WIDTH_M, REVERSE_TOP_SPEED_M_PER_S, STEER_RATE_LOW_SPEED_RAD_PER_S,
-    STEER_RATE_TOP_SPEED_RAD_PER_S, TOP_SPEED_M_PER_S, WHEEL_LANDING_SPREAD_M, WHEEL_RADIUS_M,
-    WHEEL_WARNING_S,
+    BOT_WHEEL_MARGIN_S, BOT_WHEEL_SET_OFF_FRACTION, BRAKE_TO_STOP_S, DRIFT_SLIP_ANGLE_RAD,
+    DRIFT_TURN_NEUTRAL, DRIFT_TURN_STEER_RANGE, KART_HALF_LENGTH_M, KART_HALF_WIDTH_M,
+    KERB_HALF_LENGTH_M, KERB_HALF_WIDTH_M, REVERSE_TOP_SPEED_M_PER_S,
+    STEER_RATE_LOW_SPEED_RAD_PER_S, STEER_RATE_TOP_SPEED_RAD_PER_S, TOP_SPEED_M_PER_S,
+    WHEEL_LANDING_SPREAD_M, WHEEL_RADIUS_M, WHEEL_WARNING_S,
 };
 use crate::wheel::{pass_not_over, pass_start_s, Path};
 use crate::{DriftDirection, Item, KartInput, KartReadout, Phase, Placement, Standing, Track};
 
 /// What a bot carries from one tick to the next: how long it has been
 /// stalled, how long it still backs up, how long it has held its item and
-/// how long it still trails a fired hazard. Steers the next tick, so
-/// [`crate::State::hash`] covers it.
+/// how long it still trails a fired hazard. The timers steer the next tick,
+/// so [`crate::State::hash`] covers them.
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
 pub struct Memory {
+    /// Whether the bot held back for a runaway wheel on its last tick. Only
+    /// reported, never steers, so the hash leaves it out.
+    held_for_the_wheel: bool,
     stalled_s: f32,
     reversing_s: f32,
     /// Seconds the bot has seen an item in its slot; zero while it is empty.
@@ -33,6 +36,11 @@ pub struct Memory {
 }
 
 impl Memory {
+    /// Whether the bot held back for a runaway wheel on its last tick.
+    pub fn held_for_the_wheel(&self) -> bool {
+        self.held_for_the_wheel
+    }
+
     /// The timers, for the hash.
     pub(crate) fn timers(&self) -> [f32; 4] {
         [
@@ -85,12 +93,17 @@ pub fn drive(
         ),
     };
     let mut steer = pursuit_steer(kart, target);
+    memory.held_for_the_wheel = false;
 
     // Stalled for the tuned time, the bot backs up for the tuned time with
     // its nose swinging toward the target, then drives on.
-    // Held back for a wheel is not stalled.
-    if memory.reversing_s <= 0.0 && kart.speed.abs() < BOT_STALL_SPEED_M_PER_S && !waiting {
-        memory.stalled_s += dt;
+    // Held back for a wheel is not stalled, but only setting off clears the
+    // stall: a kart jammed against a wall jitters in and out of waiting, and
+    // each wait clearing it would hold the kart there until the pass is over.
+    if memory.reversing_s <= 0.0 && kart.speed.abs() < BOT_STALL_SPEED_M_PER_S {
+        if !waiting {
+            memory.stalled_s += dt;
+        }
         // Backing up from just past a crossing can carry it into a pass.
         if memory.stalled_s >= BOT_STALL_S && !backs_into_a_wheel(track, kart, seed, clock) {
             memory.stalled_s = 0.0;
@@ -138,9 +151,19 @@ pub fn drive(
     let (throttle, brake) = if kart.speed > target_speed {
         (0.0, 1.0)
     } else if waiting {
+        memory.held_for_the_wheel = true;
         // It stops short of the wheel's reach, which coasting would carry
-        // it into.
-        (0.0, 1.0)
+        // it into. Within a tick of stopped the throttle joins the brake,
+        // which then stops the kart dead instead of backing it up into
+        // whatever is behind; already backing up, it coasts to a stop.
+        let braked_in_a_tick = TOP_SPEED_M_PER_S / BRAKE_TO_STOP_S * dt;
+        if kart.speed > braked_in_a_tick {
+            (0.0, 1.0)
+        } else if kart.speed > 0.0 {
+            (1.0, 1.0)
+        } else {
+            (0.0, 0.0)
+        }
     } else {
         (1.0, 0.0)
     };
