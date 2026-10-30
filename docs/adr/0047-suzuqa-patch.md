@@ -4,7 +4,8 @@
 
 Accepted (2026-10-29). Supersedes ADR 0014's three laps, and ADR 0041's
 places for the sausage kerb and the runaway wheel's crossing on Brands
-Patch.
+Patch. Its two laps are superseded by ADR 0054, which restores three;
+the course stands.
 
 ## Context
 
