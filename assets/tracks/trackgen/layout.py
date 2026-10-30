@@ -173,6 +173,10 @@ TREE_SPACING_M = 5.0
 # the outside of a corner, and a tall thing nearer would stand between it
 # and the kart.
 PROP_WALL_CLEARANCE_M = 8.0
+# A span, the arch, is held to the span rule instead: its underside keeps
+# the gantry's height over the asphalt and its feet only have to stand on
+# grass, so they keep no set distance from the wall.
+SPAN_FOOT_CLEARANCE_M = 0.0
 
 # The eight-slot spawn grid: two staggered columns of four, pole in front on
 # the left, the right column set back. Slot order is grid order. Placements
@@ -306,11 +310,13 @@ class World:
 
 @dataclass(frozen=True)
 class Prop:
-    """A trackside prop of one `kind` (today `circuit-wheel`) standing at `at`, built by
-    `trackgen.props`: scenery beyond the walls that no kart meets (ADR 0050)."""
+    """A trackside prop of one `kind` (`circuit-wheel`, `arch` or `pits`) standing at `at`,
+    built by `trackgen.props`: scenery beyond the walls that no kart meets (ADR 0050). A kind
+    that runs along the track, the pits, is `length` metres long, centred on `at`."""
 
     kind: str
     at: Spot | World
+    length: float | None = None
 
 
 @dataclass(frozen=True)
@@ -407,13 +413,17 @@ def locate(layout: Layout, at: Spot | World) -> tuple[float, float, float]:
 
 @dataclass(frozen=True)
 class Lettering:
-    """Lettering Blender sets in the scenery: `size` metres tall, in `material`, read from `at.heading`."""
+    """Lettering Blender sets in the scenery: `size` metres tall, in `material`, read from `at.heading`.
+
+    With `arc`, the text is bent round a circle of that radius about `at` in the plane it
+    faces, reading left to right over the circle's top, as the arch's belt is lettered."""
 
     name: str
     text: str
     material: str
     size: float
     at: Placement
+    arc: float | None = None
 
 
 @dataclass
@@ -550,8 +560,9 @@ def decorate(layout: Layout, height: list[float]) -> tuple[list[SceneryMesh], li
     # it needs is defined.
     from .props import props, woods
 
-    scenery += woods(layout) + props(layout)
-    return scenery, lettering
+    placed, lettered = props(layout)
+    scenery += woods(layout) + placed
+    return scenery, lettering + lettered
 
 
 def kerbs(layout: Layout, height: list[float]) -> list[SceneryMesh]:

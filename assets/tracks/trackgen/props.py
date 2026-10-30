@@ -4,7 +4,10 @@ woods: a patch of trees the builder scatters, each tree the style guide's
 Woods card in three dimensions, flat facets in a lit and a shade tone on a
 trunk, standing flat at the grass's level. The Circuit Wheel: the card's
 Ferris wheel outside the first curve, its rim and gondolas nodes of their
-own, pivoted where the View turns them."""
+own, pivoted where the View turns them. The arch: a giant tyre spanning
+Dunlop, lettered with its sponsor on both faces. The pit building: a row
+of garages inside the start straight, a door and a flag in each livery's
+key colour, which the grid faces through the countdown."""
 
 from __future__ import annotations
 
@@ -18,19 +21,25 @@ from .layout import (
     CROWD_KEYS,
     GRASS_DROP_M,
     GRASS_MARGIN_M,
+    HOARDING_TEXT_PROUD_M,
+    PROP_WALL_CLEARANCE_M,
     SCENERY_LIFT_M,
+    SPAN_FOOT_CLEARANCE_M,
     TREE_SPACING_M,
     TREE_WALL_CLEARANCE_M,
     WALL_THICKNESS_M,
     ByMaterial,
     Disc,
     Layout,
+    Lettering,
     Pivot,
+    Placement,
     Prop,
     SceneryMesh,
     Wood,
     locate,
 )
+from .sponsors import ARCH_SPONSOR
 
 # The View's sun stands at (20, 40, 10) in the glTF frame: toward +X and -Y
 # here, high; the track tests hold it to `race-view.ts`. A facet is lit when
@@ -98,6 +107,55 @@ GONDOLA_RADIUS_M = 0.7
 GONDOLA_DEPTH_M = 1.6
 GONDOLA_SIDES = 6
 
+# The arch, the style guide's card in three dimensions: a tyre stood across
+# the track with its centre at the grass, cut at the ground, so its crown is
+# its radius up, and a wall-white abutment hiding each foot. Only the half
+# above ground is built, in segments of the full tyre's polygon.
+ARCH_RADIUS_M = 16.0
+"""To the tread; the crown's height over the grass and half the span."""
+ARCH_RING_M = 2.5
+"""From the tread in to the lining."""
+ARCH_DEPTH_M = 2.0
+"""Along the track, face to face."""
+ARCH_SIDES = 48
+"""Of the full tyre's polygon; the arch is the half of them above ground."""
+# Each flat face, from the tread in: a tyre-face lit edge, tyre black, the
+# kerb-white belt the sponsor reads round, tyre black to the lining.
+ARCH_EDGE_M = 0.7
+ARCH_BELT_RADIUS_M = 14.65
+"""To the belt's middle, which the lettering, centred on its height, bends round."""
+ARCH_BELT_M = 0.9
+ARCH_TEXT_SIZE_M = 1.2
+# The abutments: a block round each foot of the ring, this much past the
+# ring on every side, with a stand-plinth band at its base.
+ARCH_ABUTMENT_HEIGHT_M = 2.5
+ARCH_ABUTMENT_MARGIN_M = 0.5
+ARCH_ABUTMENT_BAND_M = 0.4
+
+# The pit building, the card in three dimensions: a flat-roofed block the
+# layout's prop gives the length of, its front face toward the track, with
+# the parapet the top of its walls and a door for each livery from the line
+# forward, where the grid's chase cameras look, under a flag on a pole set
+# back from the front edge of the roof.
+PITS_DEPTH_M = 10.0
+PITS_HEIGHT_M = 6.0
+"""To the roof."""
+PITS_PARAPET_M = 0.6
+PITS_DOOR_WIDTH_M = 4.0
+PITS_DOOR_HEIGHT_M = 4.0
+PITS_DOOR_PITCH_M = 5.5
+PITS_DOOR_FIRST_M = 2.75
+"""From the line forward to the first door's middle; the rest follow at the pitch."""
+PITS_DOOR_PROUD_M = 0.05
+PITS_DOOR_BAND_M = 0.5
+"""The lit band across the top of a door."""
+PITS_POLE_M = 0.15
+PITS_POLE_HEIGHT_M = 4.0
+"""Above the roof."""
+PITS_POLE_FROM_FRONT_M = 0.5
+PITS_FLAG_LENGTH_M = 1.6
+PITS_FLAG_HEIGHT_M = 0.9
+
 
 @dataclass(frozen=True)
 class Tree:
@@ -108,6 +166,49 @@ class Tree:
     y: float
     yaw: float
     young: bool = False
+
+
+@dataclass(frozen=True)
+class Footprint:
+    """The ground one piece of a prop of `kind` stands on, in track metres: the disc of
+    `radius` about (`x`, `y`), or without one the rectangle reaching `half_along` either way
+    along `heading` and `half_across` either side of it. A tree keeps its canopy out of it,
+    and the prop keeps `clearance` metres of grass between it and every wall: the 8 m rule
+    for a tall prop, or none for a span's feet, which only have to stand on grass."""
+
+    kind: str
+    x: float
+    y: float
+    clearance: float
+    radius: float = 0.0
+    heading: float = 0.0
+    half_along: float = 0.0
+    half_across: float = 0.0
+
+    def distance(self, x: float, y: float) -> float:
+        """From the point to the footprint's edge, negative inside it."""
+        if self.radius:
+            return math.dist((x, y), (self.x, self.y)) - self.radius
+        dx, dy = x - self.x, y - self.y
+        cos, sin = math.cos(self.heading), math.sin(self.heading)
+        along, across = dx * cos + dy * sin, -dx * sin + dy * cos
+        out_along = abs(along) - self.half_along
+        out_across = abs(across) - self.half_across
+        if out_along > 0.0 or out_across > 0.0:
+            return math.hypot(max(out_along, 0.0), max(out_across, 0.0))
+        return max(out_along, out_across)
+
+    def bounds(self) -> tuple[float, float, float, float]:
+        """The ground it covers, as (min x, min y, max x, max y)."""
+        if self.radius:
+            return self.x - self.radius, self.y - self.radius, self.x + self.radius, self.y + self.radius
+        cos, sin = math.cos(self.heading), math.sin(self.heading)
+        corners = [
+            (self.x + a * cos - b * sin, self.y + a * sin + b * cos)
+            for a in (-self.half_along, self.half_along)
+            for b in (-self.half_across, self.half_across)
+        ]
+        return min(x for x, _ in corners), min(y for _, y in corners), max(x for x, _ in corners), max(y for _, y in corners)
 
 
 def trees(layout: Layout) -> list[Tree]:
@@ -140,7 +241,7 @@ def scatter(layout: Layout, wood: Wood, placed: Sequence[Tree] = ()) -> list[Tre
 
     def clear(x: float, y: float) -> bool:
         return all(math.dist((x, y), p) >= wall + reach for p in near) and all(
-            math.dist((x, y), (px, py)) >= r + canopy for px, py, r in taken
+            footprint.distance(x, y) >= canopy for footprint in taken
         )
 
     mine: list[Tree] = []
@@ -212,7 +313,7 @@ def ground(layout: Layout) -> list[SceneryMesh]:
     min_x, min_y, max_x, max_y = layout.path.bounds()
     slab = (min_x - GRASS_MARGIN_M, min_y - GRASS_MARGIN_M, max_x + GRASS_MARGIN_M, max_y + GRASS_MARGIN_M)
     covered = [patch_bounds(wood) for wood in layout.decor.woods]
-    covered += [(x - r, y - r, x + r, y + r) for x, y, r in footprints(layout)]
+    covered += [footprint.bounds() for footprint in footprints(layout)]
     reach = (
         min(slab[0], *(c[0] for c in covered)),
         min(slab[1], *(c[1] for c in covered)),
@@ -317,27 +418,75 @@ def _toned(material: str, face: list[mesh.Vertex], shade: str | None = None) -> 
     return material if lit else (shade or f"{material}-shade"), (face, [tuple(range(len(face)))])
 
 
-def footprints(layout: Layout) -> list[tuple[float, float, float]]:
-    """Each prop's footprint in the layout's order, as (x, y, radius) in track metres: the
-    ground it stands on, which keeps its clearance from the walls and the trees out."""
-    found = []
+def footprints(layout: Layout) -> list[Footprint]:
+    """Every prop's footprints in the layout's order: the ground each stands on, which keeps
+    its clearance from the walls and the trees out. The wheel's is the disc its legs, rim
+    and gondolas all fit in; the pits' is the building's plan; the arch's are its two feet."""
+    found: list[Footprint] = []
     for prop in layout.decor.props:
-        x, y, _ = locate(layout, prop.at)
-        found.append((x, y, FOOTPRINT_M[prop.kind]))
+        found += FOOTPRINTS[prop.kind](layout, prop)
     return found
 
 
-FOOTPRINT_M = {"circuit-wheel": WHEEL_FOOTPRINT_M}
+def _wheel_footprint(layout: Layout, prop: Prop) -> list[Footprint]:
+    x, y, _ = locate(layout, prop.at)
+    return [Footprint(prop.kind, x, y, PROP_WALL_CLEARANCE_M, radius=WHEEL_FOOTPRINT_M)]
 
 
-def props(layout: Layout) -> list[SceneryMesh]:
-    """Every prop's scenery: its still parts one mesh per material per kind, and each part
-    the View moves a pivoted mesh of its own, numbered from one in the layout's order."""
-    still = {kind: ByMaterial(f"Prop.{kind}") for kind in FOOTPRINT_M}
+def _arch_footprints(layout: Layout, prop: Prop) -> list[Footprint]:
+    """The two abutments, one round each foot of the ring: a span's feet keep no set grass
+    from the wall, only the ground they stand on."""
+    x, y, heading = locate(layout, prop.at)
+    left = (-math.sin(heading), math.cos(heading))
+    foot_in = ARCH_RADIUS_M - ARCH_RING_M - ARCH_ABUTMENT_MARGIN_M
+    foot_out = ARCH_RADIUS_M + ARCH_ABUTMENT_MARGIN_M
+    middle = (foot_in + foot_out) / 2.0
+    return [
+        Footprint(
+            prop.kind,
+            x + side * middle * left[0],
+            y + side * middle * left[1],
+            SPAN_FOOT_CLEARANCE_M,
+            heading=heading,
+            half_along=ARCH_DEPTH_M / 2.0 + ARCH_ABUTMENT_MARGIN_M,
+            half_across=(foot_out - foot_in) / 2.0,
+        )
+        for side in (1.0, -1.0)
+    ]
+
+
+def _pits_footprint(layout: Layout, prop: Prop) -> list[Footprint]:
+    x, y, heading = locate(layout, prop.at)
+    if prop.length is None:
+        raise ValueError("the pits need a length")
+    return [
+        Footprint(
+            prop.kind, x, y, PROP_WALL_CLEARANCE_M, heading=heading, half_along=prop.length / 2.0, half_across=PITS_DEPTH_M / 2.0
+        )
+    ]
+
+
+FOOTPRINTS: dict[str, Callable[[Layout, Prop], list[Footprint]]] = {
+    "circuit-wheel": _wheel_footprint,
+    "arch": _arch_footprints,
+    "pits": _pits_footprint,
+}
+
+
+def props(layout: Layout) -> tuple[list[SceneryMesh], list[Lettering]]:
+    """Every prop's scenery and lettering: its still parts one mesh per material per kind,
+    each part the View moves a pivoted mesh of its own, and each text a lettering of its
+    own, the props numbered from one among their kind in the layout's order."""
+    still = {kind: ByMaterial(f"Prop.{kind}") for kind in PROP_BUILDERS}
     moving: list[SceneryMesh] = []
-    for number, prop in enumerate(layout.decor.props, start=1):
-        moving += PROP_BUILDERS[prop.kind](layout, prop, number, still[prop.kind])
-    return [piece for family in still.values() for piece in family.scenery()] + moving
+    lettering: list[Lettering] = []
+    numbers: dict[str, int] = {}
+    for prop in layout.decor.props:
+        numbers[prop.kind] = numbers.get(prop.kind, 0) + 1
+        nodes, texts = PROP_BUILDERS[prop.kind](layout, prop, numbers[prop.kind], still[prop.kind])
+        moving += nodes
+        lettering += texts
+    return [piece for family in still.values() for piece in family.scenery()] + moving, lettering
 
 
 class Node:
@@ -358,9 +507,10 @@ class Node:
         return SceneryMesh(self.name, materials[0], merged, self.pivot, materials)
 
 
-def circuit_wheel(layout: Layout, prop: Prop, number: int, still: ByMaterial) -> list[SceneryMesh]:
+def circuit_wheel(layout: Layout, prop: Prop, number: int, still: ByMaterial) -> tuple[list[SceneryMesh], list[Lettering]]:
     """The Circuit Wheel at `prop`: its legs and hub into `still`, and the rim with its sixteen
-    gondolas as the nodes `Prop.circuit-wheel.<number>.rim` and `.gondola.1` to `.16`.
+    gondolas as the nodes `Prop.circuit-wheel.<number>.rim` and `.gondola.1` to `.16`. It
+    carries no name.
 
     The wheel's plane runs along the heading; its axle is the left normal, which the pivot's
     frame puts along local y. A gondola's node hangs under the rim's, its origin at its
@@ -449,7 +599,167 @@ def circuit_wheel(layout: Layout, prop: Prop, number: int, still: ByMaterial) ->
         for face in _drum(body, axle, GONDOLA_RADIUS_M, GONDOLA_DEPTH_M, GONDOLA_SIDES, up):
             node.add(colour, (face, [tuple(range(len(face)))]))
         gondolas.append(node.scenery())
-    return [rim.scenery(), *gondolas]
+    return [rim.scenery(), *gondolas], []
+
+
+def _block(
+    origin: mesh.Vertex,
+    along: mesh.Vertex,
+    across: mesh.Vertex,
+    a: tuple[float, float],
+    b: tuple[float, float],
+    c: tuple[float, float],
+) -> dict[str, mesh.Mesh]:
+    """A box in the frame at `origin`: from `a[0]` to `a[1]` along `along`, `b` along `across`
+    and `c` up, its faces keyed x along, y across and z up, each wound out of the box."""
+
+    def corner(i: int, j: int, k: int) -> mesh.Vertex:
+        return (
+            origin[0] + a[i] * along[0] + b[j] * across[0],
+            origin[1] + a[i] * along[1] + b[j] * across[1],
+            origin[2] + c[k],
+        )
+
+    return mesh.cuboid(corner)
+
+
+def _sides(faces: dict[str, mesh.Mesh], material: str, into: ByMaterial, shade: str | None = None, top: bool = False) -> None:
+    """A block's four upright faces, and its top when asked, into `into`: toned by the sun
+    against `shade` when one is named, else flat in `material`."""
+    for key in ("x0", "x1", "y0", "y1", *(("z1",) if top else ())):
+        vertices, (face,) = faces[key]
+        quad = [vertices[i] for i in face]
+        if shade is None:
+            into.add(material, (quad, [(0, 1, 2, 3)]))
+        else:
+            into.add(*_toned(material, quad, shade))
+
+
+def arch(layout: Layout, prop: Prop, number: int, still: ByMaterial) -> tuple[list[SceneryMesh], list[Lettering]]:
+    """The arch at `prop`, a tyre stood across the track: the half of a `ARCH_SIDES`-sided ring
+    above the grass, its tread and lining toned by the sun, its flat faces banded from the
+    tread in (lit edge, black, the belt, black), an abutment round each foot, and the
+    sponsor bent round the belt on both faces as `Prop.arch.<number>.belt.front` and
+    `.back`, the front the face a kart approaches."""
+    x, y, heading = locate(layout, prop.at)
+    ground = -GRASS_DROP_M
+    centre = (x, y, ground)
+    along = (math.cos(heading), math.sin(heading), 0.0)
+    across = (-math.sin(heading), math.cos(heading), 0.0)
+
+    def at(a: float, b: float, c: float) -> mesh.Vertex:
+        """`a` metres across the track, `b` along it and `c` up from the ring's centre."""
+        return (x + a * across[0] + b * along[0], y + a * across[1] + b * along[1], ground + c)
+
+    segments = ARCH_SIDES // 2
+    corners = [math.pi * k / segments for k in range(segments + 1)]
+    outer, inner = ARCH_RADIUS_M, ARCH_RADIUS_M - ARCH_RING_M
+    near, far = -ARCH_DEPTH_M / 2.0, ARCH_DEPTH_M / 2.0
+    bands = (
+        (outer, "tyre-face"),
+        (outer - ARCH_EDGE_M, "tyre"),
+        (ARCH_BELT_RADIUS_M + ARCH_BELT_M / 2.0, "kerb-white"),
+        (ARCH_BELT_RADIUS_M - ARCH_BELT_M / 2.0, "tyre"),
+        (inner, ""),
+    )
+
+    def ring(radius: float, b: float) -> list[mesh.Vertex]:
+        return [at(radius * math.cos(angle), b, radius * math.sin(angle)) for angle in corners]
+
+    rails = {(radius, b): ring(radius, b) for radius, _ in bands for b in (near, far)}
+    spine = ring((outer + inner) / 2.0, 0.0)
+    for k in range(segments):
+        j = k + 1
+        section = tuple((spine[k][i] + spine[j][i]) / 2.0 for i in range(3))
+        tread = [rails[outer, near][k], rails[outer, near][j], rails[outer, far][j], rails[outer, far][k]]
+        lining = [rails[inner, near][k], rails[inner, near][j], rails[inner, far][j], rails[inner, far][k]]
+        for quad in (tread, lining):
+            still.add(*_toned("tyre", _outward(quad, section)))
+        for (r0, material), (r1, _) in zip(bands, bands[1:]):
+            for b in (near, far):
+                quad = [rails[r0, b][k], rails[r0, b][j], rails[r1, b][j], rails[r1, b][k]]
+                still.add(material, (_outward(quad, section), [(0, 1, 2, 3)]))
+    # An abutment round each foot: a plinth band at the grass and wall white above it.
+    for footprint in _arch_footprints(layout, prop):
+        origin = (footprint.x, footprint.y, ground)
+        a = (-footprint.half_along, footprint.half_along)
+        b = (-footprint.half_across, footprint.half_across)
+        _sides(_block(origin, along, across, a, b, (0.0, ARCH_ABUTMENT_BAND_M)), "stand-plinth", still)
+        _sides(_block(origin, along, across, a, b, (ARCH_ABUTMENT_BAND_M, ARCH_ABUTMENT_HEIGHT_M)), "wall", still, top=True)
+    # The sponsor round the belt, just proud of each face, read from the side it is on.
+    name, ink = ARCH_SPONSOR
+    proud = ARCH_DEPTH_M / 2.0 + HOARDING_TEXT_PROUD_M
+    lettering = [
+        Lettering(
+            f"Prop.arch.{number}.belt.{face}",
+            name,
+            ink,
+            ARCH_TEXT_SIZE_M,
+            Placement(*at(0.0, side * proud, 0.0), heading + (math.pi if side < 0 else 0.0)),
+            arc=ARCH_BELT_RADIUS_M,
+        )
+        for face, side in (("front", -1.0), ("back", 1.0))
+    ]
+    return [], lettering
+
+
+def pits(layout: Layout, prop: Prop, number: int, still: ByMaterial) -> tuple[list[SceneryMesh], list[Lettering]]:
+    """The pit building at `prop`, `prop.length` long along the track with its front face
+    toward it: stand-riser walls toned against stand plinth under a stand-plinth parapet and
+    a lit roof, a door for each livery on the front face from the line forward in the
+    crowd's order, so every grid slot faces them, each in its key colour with a lit band
+    along its top, and a still flag on a carbon pole over each door, the flags in the same
+    colours the other way round, as the style guide's card has them. No number and no kart:
+    the doors are colours only."""
+    (plan,) = _pits_footprint(layout, prop)
+    x, y, heading = plan.x, plan.y, plan.heading
+    ground = -GRASS_DROP_M
+    origin = (x, y, ground)
+    along = (math.cos(heading), math.sin(heading), 0.0)
+    across = (-math.sin(heading), math.cos(heading), 0.0)
+    half = plan.half_along
+    # The track is to the left of the building, so its front face is its +across side.
+    front = plan.half_across
+    body = (0.0, PITS_HEIGHT_M - PITS_PARAPET_M)
+    _sides(_block(origin, along, across, (-half, half), (-front, front), body), "stand-riser", still, shade="stand-plinth")
+    parapet = _block(origin, along, across, (-half, half), (-front, front), (body[1], PITS_HEIGHT_M))
+    _sides(parapet, "stand-plinth", still)
+    vertices, (face,) = parapet["z1"]
+    still.add("wall", ([vertices[i] for i in face], [(0, 1, 2, 3)]))
+
+    def at(a: float, b: float, c: float) -> mesh.Vertex:
+        return (x + a * along[0] + b * across[0], y + a * along[1] + b * across[1], ground + c)
+
+    slots = len(CROWD_KEYS)
+    for slot in range(slots):
+        middle = PITS_DOOR_FIRST_M + slot * PITS_DOOR_PITCH_M
+        a0, a1 = middle - PITS_DOOR_WIDTH_M / 2.0, middle + PITS_DOOR_WIDTH_M / 2.0
+        b = front + PITS_DOOR_PROUD_M
+        band = PITS_DOOR_HEIGHT_M - PITS_DOOR_BAND_M
+        # Wound to face +across, toward the track.
+        still.add(f"crowd-{slot}", ([at(a1, b, 0.0), at(a0, b, 0.0), at(a0, b, band), at(a1, b, band)], [(0, 1, 2, 3)]))
+        still.add(
+            f"crowd-{slot}-lit",
+            ([at(a1, b, band), at(a0, b, band), at(a0, b, PITS_DOOR_HEIGHT_M), at(a1, b, PITS_DOOR_HEIGHT_M)], [(0, 1, 2, 3)]),
+        )
+        pole_b = front - PITS_POLE_FROM_FRONT_M
+        top = PITS_HEIGHT_M + PITS_POLE_HEIGHT_M
+        pole = _block(
+            origin,
+            along,
+            across,
+            (middle - PITS_POLE_M / 2.0, middle + PITS_POLE_M / 2.0),
+            (pole_b - PITS_POLE_M / 2.0, pole_b + PITS_POLE_M / 2.0),
+            (PITS_HEIGHT_M, top),
+        )
+        _sides(pole, "carbon", still, top=True)
+        # The flag: a pennant flying forward along the track from the pole's top, in the
+        # plane along the track and wound to face it, so the grid sees it face on whether
+        # or not the material is drawn from both sides.
+        hoist = middle + PITS_POLE_M / 2.0
+        flag = [at(hoist, pole_b, top - PITS_FLAG_HEIGHT_M), at(hoist, pole_b, top), at(hoist + PITS_FLAG_LENGTH_M, pole_b, top - PITS_FLAG_HEIGHT_M / 2.0)]
+        still.add(f"crowd-{slots - 1 - slot}", (flag, [(0, 1, 2)]))
+    return [], []
 
 
 def _outward(quad: list[mesh.Vertex], centre: mesh.Vertex) -> list[mesh.Vertex]:
@@ -482,6 +792,8 @@ def _drum(face: mesh.Vertex, axis: mesh.Vertex, radius: float, depth: float, sid
     return [_outward(f, centre) for f in faces]
 
 
-PROP_BUILDERS: dict[str, Callable[[Layout, Prop, int, ByMaterial], list[SceneryMesh]]] = {
+PROP_BUILDERS: dict[str, Callable[[Layout, Prop, int, ByMaterial], tuple[list[SceneryMesh], list[Lettering]]]] = {
     "circuit-wheel": circuit_wheel,
+    "arch": arch,
+    "pits": pits,
 }

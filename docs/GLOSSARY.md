@@ -324,6 +324,21 @@ sixteen gondolas are nodes of their own in the glTF, which the View turns
 from its own clock, each gondola turned back so it hangs level. It carries
 no name (ADR 0050).
 
+### arch
+
+The tyre-shaped ring across the middle of Suzuqa Patch's Dunlop curve: a
+prop a kart passes under on the climb to the boost pad, lettered with its
+sponsor round the belt on both faces. A span, so it is held to the span
+rule, not the 8 m one: its underside keeps the gantry's 7 m over the
+asphalt and its feet stand on grass beyond the walls (ADR 0050).
+
+### pit building
+
+The row of garages inside Suzuqa Patch's start straight, which the grid
+faces through the countdown: a prop with a door and a flag in each
+livery's key colour, no number on any door (ADR 0035), and no pit lane to
+drive (ADR 0050).
+
 ### tyre wall
 
 A stack of tyres standing on the asphalt, tagged `tyres`. A kart that

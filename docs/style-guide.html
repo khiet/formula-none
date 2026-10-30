@@ -576,6 +576,26 @@
           <p class="dont"><b>Don't</b> letter it, and don't put it inside the lap: the chase camera at turn 2 would clip the legs. A prop stands 8 m clear of every wall.</p>
         </div>
       </article>
+
+      <article class="asset">
+        <header><h3>Arch</h3><code>assets/tracks/trackgen/props.py arch, Lettering.arc in layout.py, arc_object in build.py</code></header>
+        <div class="compare"><figure><figcaption>From the esses, looking up Dunlop</figcaption><div class="stage" data-draw="arch"></div></figure></div>
+        <dl class="spec"><dt>Size</dt><dd>32 m across, 16 m to the crown, a ring 2.5 m thick and 2 m deep; 258 faces and the lettering</dd><dt>Decided</dt><dd><a href="adr/0050-trackside-props.md">ADR 0050</a></dd></dl>
+        <div class="notes">
+          <p>A giant tyre stood across the middle of Dunlop, its centre at the grass, so a kart passes through it on the climb to the boost pad. The half of a 48-sided ring above the ground: tread and lining in <code>tyre</code> <code>#1a1a1d</code> where a face looks up and toward the sun and <code>tyre-shade</code> <code>#121214</code> elsewhere; each flat face banded from the tread in, a 0.7 m lit edge in <code>tyre-face</code> <code>#2e2e32</code>, tyre black, the 0.9 m belt in <code>kerb-white</code> <code>#f5f5f5</code> at 14.65 m, tyre black to the lining. GRIP &amp; CO. TYRES from <code>sponsors.py</code> reads round the belt on both faces in <code>ink-black</code>, 1.2 m type bent on the belt's circle with Blender's text on curve, the way the hoardings letter. A <code>wall</code> abutment on a <code>stand-plinth</code> band hides each foot, half a metre past the ring on every side.</p>
+          <p class="dont"><b>Don't</b> hold a span to the 8 m rule: its feet stand on grass beyond the walls and its underside keeps the gantry's 7 m over every point of asphalt. Don't make the ring a wall; it is scenery, and a kart that leaves the run-off meets the track-limit wall, not the arch.</p>
+        </div>
+      </article>
+
+      <article class="asset">
+        <header><h3>Pit building</h3><code>assets/tracks/trackgen/props.py pits, Prop.length in layout.py</code></header>
+        <div class="compare"><figure><figcaption>From the grid, through the countdown</figcaption><div class="stage" data-draw="pits"></div></figure></div>
+        <dl class="spec"><dt>Size</dt><dd>90 m long, 10 m deep, 6 m to the roof; eight 4 m doors, eight flags on 4 m poles; 73 faces</dd><dt>Decided</dt><dd><a href="adr/0050-trackside-props.md">ADR 0050</a>, <a href="adr/0035-livery-palette.md">ADR 0035</a></dd></dl>
+        <div class="notes">
+          <p>A flat-roofed block inside the start straight, from 45 m before the line to 45 m past it, its front face 21 m right of the centreline, so the grid faces a pit lane through the countdown. Walls in <code>stand-riser</code> <code>#d7dbe0</code> where the sun reaches and <code>stand-plinth</code> <code>#b4bac2</code> elsewhere, a 0.6 m parapet in stand plinth round the top of every wall, the roof in <code>wall</code> <code>#f0f0f0</code>. Eight garage doors on the front face run forward from the line, where the grid's chase cameras look, at a 5.5 m pitch in the crowd's slot order, the first 2.75 m past the line: each 4 m by 4 m in its livery's key colour, <code>crowd-0</code> to <code>crowd-7</code>, with a 0.5 m band across its top in <code>crowd-<i>n</i>-lit</code>, the key mixed 28 percent toward white. A carbon pole over each door, set 0.5 m back from the roof's front edge, flies a still pennant in the same eight colours the other way round, so no flag matches the door under it. The glTF is static: the doors never show a room's picks.</p>
+          <p class="dont"><b>Don't</b> number the doors or put a crest on one (ADR 0035), and don't park a kart in a garage: a parked kart is a kart the sim does not have. The building is scenery; there is no pit lane to drive.</p>
+        </div>
+      </article>
     </div>
   </section>
 
@@ -1139,6 +1159,52 @@
       ${leg(-1, carbon)}${leg(1, carbonShade)}<rect x="${cx - (8.5 - 8.5 * 6 / 14) * m}" y="${g - 6 * m - 1}" width="${2 * (8.5 - 8.5 * 6 / 14) * m}" height="2" fill="${carbon}"/>
       ${spokes}${rim}${gondolas}
       <polygon points="${P(ngon(8, cx, cy, 1 * m))}" fill="${carbon}"/>
+    </svg>`;
+  };
+  // The arch from the esses at 5 px to the metre: the half ring above the ground with its
+  // banded face, the sponsor bent round the belt, and an abutment on a plinth band at each foot.
+  draw.arch = () => {
+    const m = 6.5, g = 150, cx = 120, cy = g, R = 16 * m;
+    const tyre = "#1a1a1d", tyreFace = "#2e2e32", kerbWhite = "#f5f5f5", wall = "#f0f0f0", plinth = "#b4bac2", ink = "#1f1f1f";
+    const arc = (r, sweep) => `A${r},${r} 0 0 ${sweep}`;
+    const ring = (ro, ri, fill) => `<path d="M${cx - ro},${cy} ${arc(ro, 1)} ${cx + ro},${cy} L${cx + ri},${cy} ${arc(ri, 0)} ${cx - ri},${cy} Z" fill="${fill}"/>`;
+    const belt = 14.65 * m;
+    const foot = (side) => {
+      const x0 = cx + side * (13.5 - 0.5) * m, x1 = cx + side * (16 + 0.5) * m;
+      const x = Math.min(x0, x1), w = Math.abs(x1 - x0);
+      return `<rect x="${x}" y="${g - 2.5 * m}" width="${w}" height="${2.1 * m}" fill="${wall}"/><rect x="${x}" y="${g - 0.4 * m}" width="${w}" height="${0.4 * m}" fill="${plinth}"/>`;
+    };
+    return `<svg viewBox="0 0 240 160" role="img" aria-label="The arch: a tyre-shaped ring over the track with GRIP and Co. Tyres lettered round its white belt">
+      <rect y="${g}" width="240" height="10" fill="#5cb04a"/><rect x="${cx - 12 * m}" y="${g}" width="${24 * m}" height="10" fill="#e8c773"/><rect x="${cx - 6 * m}" y="${g}" width="${12 * m}" height="10" fill="#6b6b78"/>
+      ${ring(R, R - 2.5 * m, tyre)}${ring(R, R - 0.7 * m, tyreFace)}${ring(belt + 0.45 * m, belt - 0.45 * m, kerbWhite)}
+      <defs><path id="arch-belt" d="M${cx - belt},${cy} ${arc(belt, 1)} ${cx + belt},${cy}"/></defs>
+      <text font-family="'Kenney Mini Square', monospace" font-size="${1.2 * m}" fill="${ink}"><textPath href="#arch-belt" startOffset="50%" text-anchor="middle">GRIP &amp; CO. TYRES</textPath></text>
+      ${foot(-1)}${foot(1)}
+    </svg>`;
+  };
+  // The pit building from the grid at 5 px to the metre: the half from the line forward, its
+  // eight doors each in its key colour under its lit band, the flags over the roof the other
+  // way round, and the shaded end wall; the dashed line is the start line's side.
+  draw.pits = () => {
+    const m = 5, g = 150, line = 10, riser = "#d7dbe0", plinth = "#b4bac2", wall = "#f0f0f0", carbon = "#2b2e33";
+    const keys = LIVERIES.map((l) => hex(l.key));
+    const lit = (c) => `color-mix(in srgb, ${c} 72%, white)`;
+    const x0 = 0, x1 = line + 45 * m, roof = g - 6 * m, parapet = 0.6 * m, end = 8;
+    let doors = "", flags = "";
+    for (let k = 0; k < 8; k++) {
+      const middle = line + (2.75 + 5.5 * k) * m, w = 4 * m, h = 4 * m, band = 0.5 * m;
+      doors += `<rect x="${middle - w / 2}" y="${g - h}" width="${w}" height="${h}" fill="${keys[k]}"/><rect x="${middle - w / 2}" y="${g - h}" width="${w}" height="${band}" fill="${lit(keys[k])}"/>`;
+      const top = roof - 4 * m;
+      flags += `<rect x="${middle - 0.4}" y="${top}" width="0.8" height="${4 * m}" fill="${carbon}"/>${poly([[middle, top], [middle, top + 0.9 * m], [middle + 1.6 * m, top + 0.45 * m]], keys[7 - k])}`;
+    }
+    return `<svg viewBox="0 0 240 160" role="img" aria-label="The pit building: eight garage doors in the livery colours under a flat roof with eight flags">
+      <rect y="${g}" width="240" height="10" fill="#5cb04a"/>
+      ${poly([[x0, roof], [x1, roof], [x1 + end, roof - end], [x0 + end, roof - end]], wall)}
+      <rect x="${x0}" y="${roof}" width="${x1 - x0}" height="${6 * m}" fill="${riser}"/>
+      ${poly([[x1, roof], [x1 + end, roof - end], [x1 + end, g - end], [x1, g]], plinth)}
+      <rect x="${x0}" y="${roof}" width="${x1 - x0}" height="${parapet}" fill="${plinth}"/>
+      ${doors}${flags}
+      <line x1="${line}" y1="${g}" x2="${line}" y2="${g + 10}" stroke="${wall}" stroke-width="1" stroke-dasharray="2 2"/>
     </svg>`;
   };
   // An upright prism of `n` flat sides seen from slightly above, lit from the top left.

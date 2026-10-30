@@ -11,8 +11,9 @@ bridge to the hairpin, its marshal post on the outside, and the jump sits at
 Spoon's exit. The scenery: grandstands along the outside of the start
 straight and the hairpin exit, hoardings round Spoon, 130R and the final
 curve, the gantry over the line, the bridge where the course crosses
-itself, woods along the back section and the Circuit Wheel outside the
-first curve.
+itself, woods along the back section, the Circuit Wheel outside the
+first curve, the tyre arch over the middle of Dunlop and the pit building
+the grid faces across the start straight.
 """
 
 from ..layout import (
@@ -147,8 +148,13 @@ LAYOUT = Layout(
             )
         ],
         # The Circuit Wheel outside the first curve, where the start straight
-        # points: docs/mockups/trackside-objects.html's spot.
-        props=[Prop("circuit-wheel", Spot(s=86.0, offset=34.0))],
+        # points, the arch over Dunlop's middle and the pit building inside the
+        # start straight: docs/mockups/trackside-objects.html's spots.
+        props=[
+            Prop("circuit-wheel", Spot(s=86.0, offset=34.0)),
+            Prop("arch", Spot(s=path.segment("dunlop").s_mid)),
+            Prop("pits", Spot(s=0.0, offset=-26.0), length=90.0),
+        ],
         # The patches, counts and seeds of docs/mockups/trackside-objects.html.
         woods=[
             # Pines outside Degner.

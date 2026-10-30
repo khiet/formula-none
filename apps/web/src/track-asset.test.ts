@@ -19,6 +19,13 @@ function attributesOf(gltf: GltfJson, nodeName: string): string[] {
   return Object.keys(mesh?.primitives[0]?.attributes ?? {});
 }
 
+/** The names of the materials a node's mesh paints with, sorted. */
+function materialsOf(gltf: GltfJson, nodeName: string): (string | undefined)[] {
+  const node = gltf.nodes.find(({ name }) => name === nodeName);
+  const primitives = node?.mesh === undefined ? [] : (gltf.meshes[node.mesh]?.primitives ?? []);
+  return primitives.map(({ material }) => gltf.materials?.[material ?? -1]?.name).sort();
+}
+
 describe.each(["brands-patch", "oval"])("%s's boost pads", (name) => {
   const gltf = track(name);
   const sidecar = JSON.parse(
@@ -191,21 +198,69 @@ describe("Suzuqa Patch's final art", () => {
   });
 
   it("paints the wheel in wall white over beam shade and its gondolas two per crowd colour", () => {
-    const materialsOf = (nodeName: string) => {
-      const node = brandsPatch.nodes.find(({ name }) => name === nodeName);
-      const primitives =
-        node?.mesh === undefined ? [] : (brandsPatch.meshes[node.mesh]?.primitives ?? []);
-      return primitives.map(({ material }) => brandsPatch.materials?.[material ?? -1]?.name).sort();
-    };
-    expect(materialsOf("Prop.circuit-wheel.1.rim")).toEqual(["beam-shade", "wall"]);
+    expect(materialsOf(brandsPatch, "Prop.circuit-wheel.1.rim")).toEqual(["beam-shade", "wall"]);
     const worn = new Map<string, number>();
     for (let k = 1; k <= 16; k++) {
-      const [hanger, colour] = materialsOf(`Prop.circuit-wheel.1.gondola.${k}`);
+      const [hanger, colour] = materialsOf(brandsPatch, `Prop.circuit-wheel.1.gondola.${k}`);
       expect(hanger, `gondola ${k}`).toBe("carbon");
       expect(colour, `gondola ${k}`).toMatch(/^crowd-[0-7]$/);
       worn.set(colour ?? "", (worn.get(colour ?? "") ?? 0) + 1);
     }
     expect([...worn.values()]).toEqual(Array.from({ length: 8 }, () => 2));
+  });
+
+  it("spans Dunlop with a tyre arch, its sponsor bent round the belt on both faces", () => {
+    for (const part of ["tyre", "tyre-shade", "tyre-face", "kerb-white", "wall", "stand-plinth"]) {
+      expect(materialsOf(brandsPatch, `Prop.arch.${part}`), part).toEqual([part]);
+    }
+    const belts = ["front", "back"].map((face): readonly number[] => {
+      const node = brandsPatch.nodes.find(({ name }) => name === `Prop.arch.1.belt.${face}`);
+      expect(node?.mesh, face).toBeDefined();
+      expect(materialsOf(brandsPatch, `Prop.arch.1.belt.${face}`)).toEqual(["ink-black"]);
+      return node?.translation ?? [];
+    });
+    // One lettering just off each face of the 2 m ring, at the grass, both bent round
+    // the same 14.65 m belt so the glyphs sit between its radii.
+    const [ax = 0, ay = 0, az = 0] = belts[0] ?? [];
+    const [bx = 0, by = 0, bz = 0] = belts[1] ?? [];
+    expect(Math.hypot(ax - bx, az - bz)).toBeCloseTo(2 + 2 * 0.06, 3);
+    expect(ay).toBeCloseTo(-0.05, 3);
+    expect(by).toBeCloseTo(-0.05, 3);
+    for (const face of ["front", "back"]) {
+      const node = brandsPatch.nodes.find(({ name }) => name === `Prop.arch.1.belt.${face}`);
+      const mesh = node?.mesh === undefined ? undefined : brandsPatch.meshes[node.mesh];
+      const bounds = brandsPatch.accessors[mesh?.primitives[0]?.attributes.POSITION ?? -1];
+      // Text lies in the node's XY plane reading along +X, so the belt's radius is along -Z
+      // and the crown is at X zero: the name is centred on it.
+      const [left = Number.NaN, , nearest = Number.NaN] = bounds?.max ?? [];
+      const [right = Number.NaN, , furthest = Number.NaN] = bounds?.min ?? [];
+      expect(-nearest, face).toBeGreaterThan(14.65 - 1.2);
+      expect(-furthest, face).toBeLessThan(14.65 + 0.6);
+      expect(Math.abs(left + right), face).toBeLessThan(0.5);
+    }
+  });
+
+  it("faces the grid with a pit building: a door with a lit band and a flag in each crowd colour", () => {
+    for (const part of ["stand-riser", "stand-plinth", "wall", "carbon"]) {
+      expect(materialsOf(brandsPatch, `Prop.pits.${part}`), part).toEqual([part]);
+    }
+    for (let slot = 0; slot < 8; slot++) {
+      expect(materialsOf(brandsPatch, `Prop.pits.crowd-${slot}`)).toEqual([`crowd-${slot}`]);
+      expect(materialsOf(brandsPatch, `Prop.pits.crowd-${slot}-lit`)).toEqual([
+        `crowd-${slot}-lit`,
+      ]);
+      const lit = brandsPatch.materials?.find(({ name }) => name === `crowd-${slot}-lit`);
+      const key = brandsPatch.materials?.find(({ name }) => name === `crowd-${slot}`);
+      const [lr = 0, lg = 0, lb = 0] = lit?.pbrMetallicRoughness?.baseColorFactor ?? [];
+      const [kr = 0, kg = 0, kb = 0] = key?.pbrMetallicRoughness?.baseColorFactor ?? [];
+      // The band is the key colour lifted toward white, never darker on any channel.
+      expect([lr >= kr, lg >= kg, lb >= kb], `crowd-${slot}`).toEqual([true, true, true]);
+      expect(lr + lg + lb, `crowd-${slot}`).toBeGreaterThan(kr + kg + kb);
+    }
+    // No lettering on the building: the doors are colours only (ADR 0035).
+    expect(nodeNames(brandsPatch).filter((name) => name.startsWith("Prop.pits."))).toHaveLength(
+      4 + 16,
+    );
   });
 
   it("maps the asphalt for tyre marks: a texture coordinate on every vertex", () => {

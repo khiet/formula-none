@@ -115,13 +115,19 @@ declares a patch, a kind of tree, a cap on the count and a seed, and
 or 5 m of another, so the same layout exports the same trees and no tree
 is placed by hand. Pines are two six-sided cones, round trees and
 cherries eight-facet lumps, each in a lit and a shade tone on a
-four-sided trunk, flat on the grass. The Circuit Wheel is a prop too: a
-tree keeps its canopy out of a prop's footprint, and a prop keeps 8 m of
-grass from every wall. The parts the View moves, the wheel's rim and its
+four-sided trunk, flat on the grass. The Circuit Wheel, the arch over
+Dunlop and the pit building are props too: a tree keeps its canopy out of
+a prop's footprint, and a tall prop keeps 8 m of grass from every wall. A
+span is held to the span rule instead: the arch's underside keeps the
+gantry's 7 m over the asphalt and its feet stand on grass beyond the
+walls. The parts the View moves, the wheel's rim and its
 sixteen gondolas, carry a `Pivot`, so `build.py` exports each as a node of
 its own with its origin there (`Prop.circuit-wheel.1.rim` and its
 children `.gondola.1` to `.16`), and `apps/web/src/scenery-motion.ts`
-turns them from the View's clock.
+turns them from the View's clock. The arch's sponsor is a `Lettering`
+with an `arc`, which `build.py` bends round the belt with Blender's text
+on curve; the pit building's eight doors and flags take the crowd's key
+colours, each door with a band in the key's lit tone, and no number.
 Original names only; nothing may resemble a real sponsor, a Nintendo
 character or circuit (ADR 0007), and no kart carries a sponsor (ADR 0038).
 
