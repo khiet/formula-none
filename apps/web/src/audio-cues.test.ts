@@ -10,6 +10,7 @@ const STILL: SoundReading = {
   airborne: false,
   miniTurbo: null,
   item: null,
+  tyres: 0,
   spunOut: false,
   boostSeconds: null,
   lap: 1,
@@ -158,6 +159,13 @@ describe("soundCues", () => {
     expect(soundCues(held, STILL)).toEqual(["itemFire"]);
   });
 
+  it("plays the tyre pickup as the tyres carried rise, and nothing as they fall", () => {
+    const one = { ...STILL, tyres: 1 };
+    expect(soundCues(STILL, one)).toEqual(["tyrePickup"]);
+    expect(soundCues(one, one)).toEqual([]);
+    expect(soundCues({ ...STILL, tyres: 4 }, one)).toEqual([]);
+  });
+
   it("plays the hit as the spin-out begins, once", () => {
     const spun = { ...STILL, spunOut: true };
     expect(soundCues(STILL, spun)).toEqual(["hit"]);
@@ -245,6 +253,7 @@ describe("soundReading", () => {
     speed: 12,
     drift: { direction: "left", chargeS: 1 },
     miniTurbo: "orange",
+    tyres: 3,
     spinOutS: 0.4,
     airborne: true,
   });
@@ -269,6 +278,7 @@ describe("soundReading", () => {
       airborne: true,
       miniTurbo: "orange",
       item: null,
+      tyres: 3,
       spunOut: true,
       boostSeconds: null,
       lap: 2,

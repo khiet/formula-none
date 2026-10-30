@@ -42,9 +42,11 @@ import {
 import { type ItemSlot, type RaceReadout, raceCount } from "./race-run";
 import {
   drivetrain,
+  type SpeedClusterTuning,
   shiftLights,
-  TYRE_WEAR_PLACEHOLDER_PERCENT,
+  tyreTopSpeed,
   tyreWearBand,
+  tyreWearPercent,
 } from "./speed-cluster";
 
 /** The item slot as the panel prints it: the item's name and the slot's state. */
@@ -135,9 +137,11 @@ export function loadInstrumentFont(): Promise<void> {
 
 /**
  * The HUD over the Race View, with the course map of `course` in its
- * corner and the speed cluster's gears cut from `topSpeed` in m/s (ADR
- * 0031); once the own kart has finished or the race has ended, the
- * finish banner and the finishers by `name` in place of the lap. Reads state; never drives it.
+ * corner and the speed cluster read against `tuning` (ADR 0031): the
+ * gears cut from the top speed the own kart's tyres raise, and the tyre
+ * gauge reading its tyres against a full set (ADR 0055); once the own
+ * kart has finished or the race has ended, the finish banner and the
+ * finishers by `name` in place of the lap. Reads state; never drives it.
  * The own kart's readouts wear `paint`, the own kart's livery (ADR 0037).
  * Each readout is addressable by `data-instrument` so tests and styles
  * find it the same way.
@@ -146,7 +150,7 @@ export function createInstrumentPanel(
   container: HTMLElement,
   lapsPerRace: number,
   course: CourseMapSetup,
-  topSpeed: number,
+  tuning: SpeedClusterTuning,
   name: (kart: number) => string,
   paint: Livery,
 ): InstrumentPanel {
@@ -231,7 +235,7 @@ export function createInstrumentPanel(
   const lightRow = svg(`0 0 ${SHIFT_LIGHT_PITCH * 12} 14`);
   lightRow.dataset.shiftLights = "";
   cluster.append(lightRow);
-  const lights = shiftLights(drivetrain(0, topSpeed)).map((state, index) => {
+  const lights = shiftLights(drivetrain(0, tuning.topSpeed)).map((state, index) => {
     const light = group(lightRow);
     light.dataset.shiftLight = state;
     facetted(light, 6, SHIFT_LIGHT_PITCH / 2 + index * SHIFT_LIGHT_PITCH, 7, 6.2);
@@ -246,7 +250,8 @@ export function createInstrumentPanel(
   tyre.append(kartFromAbove(paint));
   const tyrePercent = part(tyre, "tyrePercent");
   cluster.append(gear, speed, tyre);
-  const showSpeed = (metresPerSecond: number) => {
+  const showSpeed = (metresPerSecond: number, tyres: number) => {
+    const topSpeed = tyreTopSpeed(tuning.topSpeed, tyres, tuning.tyreTopSpeedFactor);
     const reading = drivetrain(metresPerSecond, topSpeed);
     shiftLights(reading).forEach((state, index) => {
       const light = lights[index];
@@ -261,9 +266,14 @@ export function createInstrumentPanel(
     speedValue.textContent = parts.value;
     speedUnit.textContent = parts.unit;
   };
-  showSpeed(0);
-  tyrePercent.textContent = `${TYRE_WEAR_PLACEHOLDER_PERCENT}%`;
-  tyre.dataset.tyreWear = tyreWearBand(TYRE_WEAR_PLACEHOLDER_PERCENT);
+  const showTyres = (tyres: number) => {
+    const percent = tyreWearPercent(tyres, tuning.tyreSet);
+    tyrePercent.textContent = `${percent}%`;
+    tyre.dataset.tyreWear = tyreWearBand(percent);
+  };
+  // Every kart starts the race with no tyres.
+  showSpeed(0, 0);
+  showTyres(0);
   // The surface and connection readouts are greybox aids: the surface shows
   // the sidecar and the mesh agree about where the kart is. They sit in a
   // small line of their own, out of the driver's stack.
@@ -344,7 +354,8 @@ export function createInstrumentPanel(
       printLabelled(bestLap, readouts.bestLap);
       wrongWay.textContent = readouts.wrongWay;
       wrongWay.hidden = readouts.wrongWay === "";
-      showSpeed(local.speed);
+      showSpeed(local.speed, local.tyres);
+      showTyres(local.tyres);
       surface.textContent = local.surface;
       const held = itemReadout(slot);
       if (held.state !== shownItemState) {

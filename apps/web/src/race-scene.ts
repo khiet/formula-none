@@ -67,6 +67,7 @@ export function localRaceRun(
   const replay = recordReplay(bridge, setup.seed, track, botCount, race);
   const inputs: KartInput[] = Array<KartInput>(setup.humanCount).fill(IDLE_INPUT);
   const boxes = race.itemBoxes();
+  const tyres = race.tyres();
   const heldItem = () => race.kartReadouts()[setup.localKart]?.heldItem ?? null;
   // The only way an item leaves the slot here is the fire, which the sim
   // applies the tick it is pressed; the slot shows it for the flash.
@@ -96,6 +97,7 @@ export function localRaceRun(
       wheels: race.wheels(),
     }),
     itemBoxes: () => boxes,
+    tyres: () => tyres,
     replay,
   };
 }
@@ -153,6 +155,7 @@ export async function createRaceScene(
       bridge.kartSize,
       { trackGltfUrl: track.gltfUrl, kartGltfUrl: KART_GLTF_URL },
       run.itemBoxes(),
+      run.tyres(),
       bridge.spinOutSeconds,
       bridge.runawayWheelRadiusMetres,
       (karts) => kartLabels(karts, run.localKart, name),
@@ -165,7 +168,11 @@ export async function createRaceScene(
     container,
     bridge.lapsPerRace,
     { centreline, kartCount: bridge.kartsPerRace, ownKart: run.localKart },
-    bridge.cameraTuning.topSpeedMetresPerSecond,
+    {
+      topSpeed: bridge.cameraTuning.topSpeedMetresPerSecond,
+      tyreTopSpeedFactor: bridge.tyreTopSpeedFactor,
+      tyreSet: bridge.tyreSet,
+    },
     name,
     livery(run.localKart),
   );

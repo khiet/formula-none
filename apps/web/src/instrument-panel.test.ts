@@ -31,8 +31,9 @@ function at(position: readonly [number, number, number]): KartReadout {
   return kartReadout({ position });
 }
 
-// The sim's tuned top speed, which the speed cluster's gears are cut from.
-const TOP_SPEED = 30;
+// The sim's tuned top speed, which the speed cluster's gears are cut from,
+// and its tyres: a set of ten, each worth 1% of it.
+const TUNING = { topSpeed: 30, tyreTopSpeedFactor: 0.01, tyreSet: 10 };
 
 const nameOf = (kart: number) => (kart === course.ownKart ? "You" : `Kart ${kart + 1}`);
 
@@ -94,7 +95,7 @@ describe("the lap instruments on the page", () => {
       container,
       3,
       course,
-      TOP_SPEED,
+      TUNING,
       nameOf,
       livery(course.ownKart),
     );
@@ -198,7 +199,7 @@ describe("the finish on the page", () => {
       container,
       3,
       course,
-      TOP_SPEED,
+      TUNING,
       nameOf,
       livery(course.ownKart),
     );
@@ -250,17 +251,17 @@ describe("the speed cluster on the page", () => {
       container,
       3,
       course,
-      TOP_SPEED,
+      TUNING,
       nameOf,
       livery(course.ownKart),
     );
     const find = (name: string) =>
       container.querySelector<HTMLElement>(`[data-instrument="${name}"]`);
-    const drive = (speed: number) =>
+    const drive = (speed: number, tyres = 0) =>
       panel.update(
         race(ON_THE_GRID, { item: null, firing: false }, [
           at([0, 0.3, 0]),
-          kartReadout({ speed }),
+          kartReadout({ speed, tyres }),
           at([0, 0.3, 0]),
         ]),
       );
@@ -271,13 +272,47 @@ describe("the speed cluster on the page", () => {
     const { find, drive } = mount();
     expect(find("speed")?.textContent).toBe("0 km/h");
     expect(find("gear")?.textContent).toBe("N");
-    expect(find("tyre")?.textContent).toBe("100%");
+    expect(find("tyre")?.textContent).toBe("0%");
     drive(23.6);
     expect(find("speed")?.textContent).toBe("85 km/h");
     expect(find("gear")?.textContent).toBe("5");
     drive(-5);
     expect(find("speed")?.textContent).toBe("18 km/h");
     expect(find("gear")?.textContent).toBe("R");
+  });
+
+  it("reads red at the lights, every kart starting with no tyres", () => {
+    const { find } = mount();
+    expect(find("tyre")?.dataset.tyreWear).toBe("bad");
+  });
+
+  it.each([
+    [0, "0%", "bad"],
+    [4, "40%", "warn"],
+    [7, "70%", "good"],
+    [10, "100%", "good"],
+  ])("reads %i tyres as %s, its band %s", (tyres, percent, band) => {
+    const { find, drive } = mount();
+    drive(20, tyres);
+    expect(find("tyre")?.textContent).toBe(percent);
+    expect(find("tyre")?.dataset.tyreWear).toBe(band);
+  });
+
+  it("drops the gauge as the count falls, as on a spin-out", () => {
+    const { find, drive } = mount();
+    drive(20, 7);
+    drive(5, 4);
+    expect(find("tyre")?.textContent).toBe("40%");
+    expect(find("tyre")?.dataset.tyreWear).toBe("warn");
+  });
+
+  it("stretches the gears to the top speed the own kart's tyres raise", () => {
+    const { find, drive } = mount();
+    drive(33, 0);
+    expect(find("gear")?.dataset.limiter).toBe("true");
+    drive(33, 10);
+    expect(find("gear")?.textContent).toBe("6");
+    expect(find("gear")?.dataset.limiter).toBe("false");
   });
 
   it("hides the shift lights and the kart icon from assistive technology", () => {
@@ -340,7 +375,7 @@ describe("the connection banner", () => {
       container,
       3,
       course,
-      TOP_SPEED,
+      TUNING,
       nameOf,
       livery(course.ownKart),
     );
@@ -375,7 +410,7 @@ describe("the item slot", () => {
       container,
       3,
       course,
-      TOP_SPEED,
+      TUNING,
       nameOf,
       livery(course.ownKart),
     );
@@ -402,7 +437,7 @@ describe("the item slot", () => {
       container,
       3,
       course,
-      TOP_SPEED,
+      TUNING,
       nameOf,
       livery(course.ownKart),
     );
@@ -428,7 +463,7 @@ describe("the item slot", () => {
       container,
       3,
       course,
-      TOP_SPEED,
+      TUNING,
       nameOf,
       livery(course.ownKart),
     );
@@ -458,7 +493,7 @@ describe("the course map", () => {
 
   it("outlines the track from the centreline with a start tick", () => {
     const container = document.createElement("div");
-    createInstrumentPanel(container, 3, course, TOP_SPEED, nameOf, livery(course.ownKart));
+    createInstrumentPanel(container, 3, course, TUNING, nameOf, livery(course.ownKart));
     const map = container.querySelector<SVGSVGElement>('svg[data-instrument="course-map"]');
     expect(map).not.toBeNull();
     const outline = map?.querySelector("path");
@@ -473,7 +508,7 @@ describe("the course map", () => {
       container,
       3,
       course,
-      TOP_SPEED,
+      TUNING,
       nameOf,
       livery(course.ownKart),
     );
@@ -501,7 +536,7 @@ describe("the course map", () => {
       container,
       3,
       course,
-      TOP_SPEED,
+      TUNING,
       nameOf,
       livery(course.ownKart),
     );
@@ -541,7 +576,7 @@ describe("the panel in the local kart's livery", () => {
   ])("paints slot %i's position plate, lap flags and tyre gauge, not slot %i's", (slot, other) => {
     const paint = livery(slot);
     const container = document.createElement("div");
-    createInstrumentPanel(container, 3, course, TOP_SPEED, nameOf, paint);
+    createInstrumentPanel(container, 3, course, TUNING, nameOf, paint);
     const find = (name: string) =>
       container.querySelector<HTMLElement>(`[data-instrument="${name}"]`);
 

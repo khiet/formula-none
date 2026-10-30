@@ -24,6 +24,7 @@ const STILL: SoundReading = {
   airborne: false,
   miniTurbo: null,
   item: null,
+  tyres: 0,
   spunOut: false,
   boostSeconds: null,
   lap: 1,
@@ -331,17 +332,17 @@ describe("preloading and the autoplay rule", () => {
     expect(new Set(fetched)).toEqual(
       new Set([...Object.values(SOUND_URLS), ...Object.values(LOOP_URLS), MUSIC_URL]),
     );
-    expect(fetched).toHaveLength(17);
+    expect(fetched).toHaveLength(18);
     await settled();
     expect(contexts).toHaveLength(0);
     await audio.unlock();
     expect(contexts).toHaveLength(1);
     expect(context().resumes).toBe(1);
     // Decoded once, from the bytes already fetched, so the first play is not late.
-    expect(context().decoded).toHaveLength(17);
+    expect(context().decoded).toHaveLength(18);
     await audio.unlock();
     expect(contexts).toHaveLength(1);
-    expect(context().decoded).toHaveLength(17);
+    expect(context().decoded).toHaveLength(18);
   });
 
   it("resumes a context the browser suspended on a later gesture", async () => {
@@ -520,6 +521,7 @@ describe("the SFX", () => {
   const CUES: readonly [SoundCue, Partial<SoundReading>][] = [
     ["hop", { airborne: true }],
     ["itemPickup", { item: "boost" }],
+    ["tyrePickup", { tyres: 1 }],
     ["hit", { spunOut: true }],
     ["lap", { lap: 2 }],
     ["countdownBeep", { count: 3 }],
@@ -718,7 +720,7 @@ describe("a sound that fails to load", () => {
     await audio.unlock();
     const context = contexts[0];
     if (context === undefined) throw new Error("no context was made");
-    expect(context.decoded).toHaveLength(15);
+    expect(context.decoded).toHaveLength(16);
     const race = audio.race();
     race.start();
     race.update(STILL);

@@ -20,11 +20,14 @@ import {
   runawayWheelBounce,
   runawayWheelFlames,
   runawayWheelMesh,
+  tyreMesh,
+  tyreMeshes,
 } from "./item-meshes";
 import {
   BEACON_LIT,
   BEACON_OFF,
   HAZARD_FLAG_STRIPE,
+  KART_PAINT,
   ROCKET,
   ROCKET_FLAME,
   ROCKET_STRAP,
@@ -72,6 +75,7 @@ function glowsOf(object: Object3D): number[] {
 describe("the item meshes", () => {
   it.each([
     ["item box", itemBoxMesh],
+    ["tyre", tyreMesh],
     ["hazard cone", hazardConeMesh],
     ["homing gull", homingGullMesh],
     ["hazard flag", () => hazardFlag().mesh],
@@ -87,6 +91,41 @@ describe("the item meshes", () => {
 
   it("paint the item box in the item slot's golds", () => {
     expect(coloursOf(itemBoxMesh())).toEqual(expect.arrayContaining([0xf8e39a, 0xe0b54a]));
+  });
+
+  it("lay a tyre on the asphalt in the kart's tyre black, its rim on top", () => {
+    const tyre = tyreMesh();
+    expect(coloursOf(tyre)).toEqual([KART_PAINT.tyre, KART_PAINT.rim]);
+    const bounds = new Box3().setFromObject(tyre);
+    expect(bounds.min.y).toBeCloseTo(0, 6);
+    // On its side: wider than it is tall.
+    expect(bounds.max.x - bounds.min.x).toBeGreaterThan(bounds.max.y);
+  });
+
+  it("draw a tyre at each of the sidecar's tyres, at its position and yaw", () => {
+    const placed = [
+      { position: [1, 0, -40], yaw: 0 },
+      { position: [-3, 0.2, 12], yaw: Math.PI / 2 },
+    ] as const;
+    const { mesh } = tyreMeshes(placed);
+    expect(mesh.children).toHaveLength(2);
+    mesh.children.forEach((tyre, index) => {
+      expect(tyre.position.toArray()).toEqual(placed[index]?.position);
+      expect(tyre.rotation.y).toBe(placed[index]?.yaw);
+      expect(tyre.visible).toBe(true);
+    });
+  });
+
+  it("hide a picked-up tyre until it is back", () => {
+    const tyres = tyreMeshes([
+      { position: [0, 0, 0], yaw: 0 },
+      { position: [0, 0, -2], yaw: 0 },
+    ]);
+    const shown = () => tyres.mesh.children.map((tyre) => tyre.visible);
+    tyres.show([true, false]);
+    expect(shown()).toEqual([true, false]);
+    tyres.show([true, true]);
+    expect(shown()).toEqual([true, true]);
   });
 
   it("paint the cone hazard orange with a white band and a grey slab", () => {

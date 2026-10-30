@@ -45,6 +45,7 @@ const ITEM_BOX_RESPAWN_S = 3;
 const PREDICTED_FIRE_TIMEOUT_S = 1;
 const ITEM_BOXES = 8;
 const TYRES = 12;
+const TYRE_RESPAWN_S = 3;
 const HAZARD_DROP_DISTANCE_M = 1;
 const KART_HEIGHT_M = 0.6;
 
@@ -82,6 +83,7 @@ const bridge = {
   kartsPerRace: KARTS,
   lapsPerRace: 3,
   itemBoxRespawnSeconds: ITEM_BOX_RESPAWN_S,
+  tyreRespawnSeconds: TYRE_RESPAWN_S,
   predictedFireTimeoutSeconds: PREDICTED_FIRE_TIMEOUT_S,
   hazardDropDistanceMetres: HAZARD_DROP_DISTANCE_M,
   spinOutSeconds: 1,
@@ -92,6 +94,8 @@ const bridge = {
       itemBoxes: () =>
         Array.from({ length: ITEM_BOXES }, (_, box) => ({ position: [box, 0, -70], yaw: 0 })),
       itemBoxesPresent: () => Array<boolean>(ITEM_BOXES).fill(true),
+      tyres: () =>
+        Array.from({ length: TYRES }, (_, tyre) => ({ position: [tyre, 0, -40], yaw: 0 })),
       tyresPresent: () => Array<boolean>(TYRES).fill(true),
     }) as unknown as Race,
   createPrediction(_seed: bigint, kart: number): Prediction {
@@ -519,6 +523,7 @@ describe("createServerRace", () => {
   it("reports every tyre there until a snapshot, then the newest snapshot's", () => {
     const client = fakeClient();
     const run = createServerRace(bridge, client, COUNTDOWN, 0, "{}");
+    expect(run.tyres()).toHaveLength(TYRES);
     expect(run.readout().tyresPresent).toEqual(Array<boolean>(TYRES).fill(true));
     const taken = Array<boolean>(TYRES).fill(true);
     taken[4] = false;
@@ -526,6 +531,22 @@ describe("createServerRace", () => {
     expect(run.readout().tyresPresent).toEqual(taken);
     client.snapshot(snapshot(62));
     expect(run.readout().tyresPresent).toEqual(Array<boolean>(TYRES).fill(true));
+  });
+
+  it("hides a tyre from the server's pickup until its respawn, before a snapshot says so", () => {
+    const client = fakeClient();
+    const run = createServerRace(bridge, client, COUNTDOWN, 0, "{}");
+    client.snapshot(snapshot(60));
+    client.event({ id: 1, kind: { tyrePicked: { kart: 3, tyre: 4 } } });
+    const present = run.readout().tyresPresent;
+    expect(present[4]).toBe(false);
+    expect(present.filter(Boolean)).toHaveLength(TYRES - 1);
+    for (let tick = 1; tick < TYRE_RESPAWN_S * TICKS_PER_SECOND; tick++) {
+      run.tick(IDLE_INPUT, DT);
+      expect(run.readout().tyresPresent[4]).toBe(false);
+    }
+    run.tick(IDLE_INPUT, DT);
+    expect(run.readout().tyresPresent[4]).toBe(true);
   });
 
   it("hides a box the server reports picked up for the tuned respawn", () => {
