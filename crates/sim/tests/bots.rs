@@ -703,7 +703,10 @@ fn a_bot_waiting_for_the_wheel_never_backs_up() {
 #[test]
 #[ignore]
 fn in_200_races_of_eight_bots_on_each_course_no_bot_is_ever_stuck() {
-    for (name, course) in [("oval", oval as fn() -> Track), ("Suzuqa Patch", brands_patch)] {
+    for (name, course) in [
+        ("oval", oval as fn() -> Track),
+        ("Suzuqa Patch", brands_patch),
+    ] {
         let races: Vec<_> = (0..200)
             .map(|seed| std::thread::spawn(move || (seed, longest_stall(seed, course()))))
             .collect();
