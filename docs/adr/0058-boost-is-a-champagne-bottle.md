@@ -17,14 +17,23 @@ should not look like the one thing that never is.
 
 `docs/mockups/boost-icon-alternatives.html` compares candidates drawn the
 way `item-sprites.ts` draws, each large, in the slot held and firing at the
-panel's size, and at 64 px, beside today's snail. It is round three: the
-two rounds before it tried the obvious boost icons and lost, and round
-three dropped them for odd things that could shove a kart, cards O to V: a
-champagne bottle, a marshal's extinguisher, a chilli, a loose balloon, an
-espresso, a wind-up key, a human cannon and a hairdryer. Card O won:
-motorsport's own celebration used as a propellant, so it reads as winning,
-and its silhouette, a tilted bottle with its cork off the neck, holds at
-64 px.
+panel's size, and at 64 px, beside today's snail. It took three rounds; the
+page draws the last and lists the first two, whose drawings were not kept.
+
+- Round one, cards A to F, was six takes on one red rocket: the snail's
+  rocket alone, climbing or flat out, an afterburner, a nitro bottle, a
+  rocket with a grin and twin boosters. None was liked; all six were the
+  same idea.
+- Round two, cards G to N, tried symbols, car parts and odd objects:
+  chevrons, a dash plate, a turbocharger, a backfire, a lightning bolt, a
+  firework, a rocket kart and a winged tyre. The chevrons were the safe
+  pick but boring, and the round as a whole did not surprise.
+- Round three, cards O to V, went for jokes: odd things that could shove a
+  kart, a champagne bottle, a marshal's extinguisher, a chilli, a loose
+  balloon, an espresso, a wind-up key, a human cannon and a hairdryer.
+  Card O won: motorsport's own celebration used as a propellant, so it
+  reads as winning, and its silhouette, a tilted bottle with its cork off
+  the neck, holds at 64 px.
 
 ## Decision
 

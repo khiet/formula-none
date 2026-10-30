@@ -81,6 +81,10 @@
   .row figure { margin: 0; display: grid; gap: 0.3rem; justify-items: center; }
   .row figcaption { font-family: var(--mono); font-size: 0.7rem; color: var(--muted); }
 
+  .rounds { display: grid; gap: 1rem; max-width: 44rem; }
+  .rounds h2 { font-family: var(--display); font-size: 1.2rem; margin: 0; }
+  .rounds p, .rounds ul { margin: 0; color: var(--muted); font-size: 0.9rem; }
+  .rounds li b { color: var(--fg); }
   footer { border-top: 2px solid var(--rule); padding-top: 1.25rem; color: var(--muted); max-width: 44rem; font-size: 0.95rem; }
 </style>
 </head>
@@ -92,7 +96,31 @@
     <p>Each candidate is drawn the way <code>apps/web/src/item-sprites.ts</code> draws: flat polygons on a 200 by 160 viewBox, toned lit, mid and shaded, standing on the same ink shadow, in the game's palette plus a few new colours. Round three drops the obvious: eight odd things that could shove a kart, most of them with a face, like the cone. Each card shows it large, then in the slot at the panel's size held and firing, then small.</p>
   </header>
   <div class="grid" id="grid"></div>
-  <footer>Reply with a letter (or two to combine). The winner ports to <code>item-sprites.ts</code> as polygon calls. The champagne green, the cork, the coffee and the pink are new colours; the style guide gains them with the winner.</footer>
+  <section class="rounds">
+    <h2>Rejected rounds</h2>
+    <p>Rounds one and two came before this page; their drawings were not kept. ADR 0058 records why each lost.</p>
+    <p><b>Round one: six takes on one red rocket.</b> None was liked; all six were the same idea.</p>
+    <ul>
+      <li><b>A Climb</b>: the snail's rocket alone, tilted up and away. The classic item-game read: arrow plus flame.</li>
+      <li><b>B Flat out</b>: the same rocket level, nose right like the drone, with speed streaks.</li>
+      <li><b>C Afterburner</b>: a grey jet engine with an orange-hot nozzle and shock diamonds in the flame.</li>
+      <li><b>D Nitro bottle</b>: a red N2O bottle with a white band and a bolt, jetting from the foot.</li>
+      <li><b>E Grin</b>: B's rocket with a face, matching the cone that hates you.</li>
+      <li><b>F Twin boosters</b>: two short rockets clamped together, like a strap-on booster pack.</li>
+    </ul>
+    <p><b>Round two: symbols, car parts and odd objects.</b> G was the safe pick but boring; the round did not surprise.</p>
+    <ul>
+      <li><b>G Chevrons</b>: three red arrows, the back two fading. The boost pad's language, readable at any size.</li>
+      <li><b>H Dash plate</b>: a strip of tarmac with gold chevrons running up it.</li>
+      <li><b>I Turbo</b>: a turbocharger glowing red on the turbine side; mechanics call the housing a snail.</li>
+      <li><b>J Backfire</b>: twin chrome exhaust tips spitting flame, with a bang.</li>
+      <li><b>K Bolt</b>: a faceted electric-blue bolt with streaks, the one candidate off the palette.</li>
+      <li><b>L Firework</b>: a stick firework, spiral-striped, sparks at the fuse.</li>
+      <li><b>M Rocket kart</b>: a kart with a rocket far too big for it bolted on behind the driver.</li>
+      <li><b>N Winged tyre</b>: a race tyre with white wings.</li>
+    </ul>
+  </section>
+  <footer>Chosen: O, the podium champagne, recorded in <code>docs/adr/0058-boost-is-a-champagne-bottle.md</code>. The winner ports to <code>item-sprites.ts</code> as polygon calls. The champagne green, the cork, the coffee and the pink are new colours; the style guide gains them with the winner.</footer>
 </main>
 
 <script>
