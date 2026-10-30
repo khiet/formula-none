@@ -917,6 +917,14 @@ impl State {
         self.karts[slot].bot.is_some()
     }
 
+    /// Whether the bot in `slot` held back for a runaway wheel on the last
+    /// tick; never for a human's kart.
+    pub fn bot_held_for_the_wheel(&self, slot: usize) -> bool {
+        self.karts[slot]
+            .bot
+            .is_some_and(|memory| memory.held_for_the_wheel())
+    }
+
     /// Whether each of the track's item boxes, in the track's order, is
     /// there to pick up as of the last tick; a picked-up box is back the tuned
     /// time after it was taken.
