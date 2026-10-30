@@ -622,7 +622,9 @@ describe("items", () => {
     const bridge = await loadBridge(wasm);
     expect(bridge.coinCap).toBe(10);
     expect(bridge.coinRespawnSeconds).toBe(3);
-    expect(bridge.coinTopSpeedFactor).toBeCloseTo(0.01);
+    expect(bridge.coinTopSpeeds).toHaveLength(11);
+    expect(bridge.coinTopSpeeds[0]).toBeCloseTo(30);
+    expect(bridge.coinTopSpeeds[10]).toBeCloseTo(33);
     const sidecar = JSON.parse(OVAL) as {
       spawn_grid: { position: [number, number, number] }[];
       coins: { position: [number, number, number]; yaw: number }[];

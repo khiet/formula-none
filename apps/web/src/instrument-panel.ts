@@ -238,7 +238,7 @@ export function createInstrumentPanel(
   const lightRow = svg(`0 0 ${SHIFT_LIGHT_PITCH * 12} 14`);
   lightRow.dataset.shiftLights = "";
   cluster.append(lightRow);
-  const lights = shiftLights(drivetrain(0, tuning.topSpeed)).map((state, index) => {
+  const lights = shiftLights(drivetrain(0, coinTopSpeed(tuning, 0))).map((state, index) => {
     const light = group(lightRow);
     light.dataset.shiftLight = state;
     facetted(light, 6, SHIFT_LIGHT_PITCH / 2 + index * SHIFT_LIGHT_PITCH, 7, 6.2);
@@ -258,7 +258,7 @@ export function createInstrumentPanel(
   const coinValue = part(coins, "coinCount");
   cluster.append(coins, gear, speed, tyre);
   const showSpeed = (metresPerSecond: number, carried: number) => {
-    const topSpeed = coinTopSpeed(tuning.topSpeed, carried, tuning.coinTopSpeedFactor);
+    const topSpeed = coinTopSpeed(tuning, carried);
     const reading = drivetrain(metresPerSecond, topSpeed);
     shiftLights(reading).forEach((state, index) => {
       const light = lights[index];

@@ -603,7 +603,7 @@ impl Kart {
 
     /// What the coins the kart carries multiply its forward top speed by.
     fn coin_factor(&self) -> f32 {
-        1.0 + self.coins as f32 * COIN_TOP_SPEED_FACTOR
+        coin_factor(self.coins)
     }
 
     /// The lap the kart is on, from 1; a kart that has completed the race's
@@ -718,16 +718,16 @@ struct Physics {
     ccd: CCDSolver,
 }
 
+use tuning::{
+    coin_factor, COINS_LOST_PER_SPIN_OUT, COIN_CAP, COIN_HALF_LENGTH_M, COIN_HALF_WIDTH_M,
+    COIN_RESPAWN_S,
+};
 use tuning::{BOOST_PAD_FACTOR, RESPAWN_DELAY_S, WRONG_WAY_WARNING_S};
 use tuning::{BOT_RUBBER_BAND_MAX_FACTOR, BOT_RUBBER_BAND_MIN_FACTOR, BOT_RUBBER_BAND_RANGE_M};
 use tuning::{
     BOT_START_BOOST_CHANCE, BOT_START_HOLD_S, COUNTDOWN_S, RACE_END_CAP_S, RACE_OUTRO_S,
     START_BOOST_FACTOR, START_BOOST_S, START_FULL_BOOST_HOLD_S, START_STALL_HOLD_S, START_STALL_S,
     START_THROTTLE_HELD, START_WEAK_BOOST_FACTOR, START_WEAK_BOOST_HOLD_S, START_WEAK_BOOST_S,
-};
-use tuning::{
-    COINS_LOST_PER_SPIN_OUT, COIN_CAP, COIN_HALF_LENGTH_M, COIN_HALF_WIDTH_M, COIN_RESPAWN_S,
-    COIN_TOP_SPEED_FACTOR,
 };
 use tuning::{
     GRAVITY_M_PER_S2, KART_EDGE_RADIUS_M, KART_HALF_HEIGHT_M, KART_HALF_LENGTH_M,

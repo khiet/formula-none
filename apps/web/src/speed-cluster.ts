@@ -3,7 +3,7 @@
 // the coin count (ADR 0056) and the tyre gauge. None of it is a rule; the
 // sim has no gearbox and no tyre wear, so the gearing constants are display
 // only and live here rather than in the sim's tuning (ADR 0014). The coin
-// cap and each coin's factor are the sim's, passed in.
+// cap and the top speed on each count of coins are the sim's, passed in.
 
 import { kmPerHour } from "./format";
 
@@ -21,11 +21,10 @@ export interface Drivetrain {
 /** What one shift light shows: unlit, or its third's colour as on an F1 wheel. */
 export type ShiftLight = "off" | "green" | "red" | "blue";
 
-/** The sim's tuning the cluster reads (ADR 0014): its top speed in m/s and its coins. */
+/** The sim's tuning the cluster reads (ADR 0014): its top speeds in m/s and its coins. */
 export interface SpeedClusterTuning {
-  readonly topSpeed: number;
-  /** What each coin carried adds to top speed, as a share of it. */
-  readonly coinTopSpeedFactor: number;
+  /** The top speed on each count of coins carried, from none to the cap. */
+  readonly coinTopSpeeds: readonly number[];
   /** The most coins a kart carries. */
   readonly coinCap: number;
 }
@@ -87,12 +86,12 @@ export function tyreWearBand(percent: number): TyreWearBand {
 }
 
 /**
- * The top speed `coins` raise `topSpeed` to, each multiplying it by
- * `perCoin` more, as the sim does; the gears stretch to it so the limiter
- * still means a boost.
+ * The top speed a kart carrying `coins` reaches, as the sim tunes it; the
+ * gears stretch to it so the limiter still means a boost.
  */
-export function coinTopSpeed(topSpeed: number, coins: number, perCoin: number): number {
-  return topSpeed * (1 + coins * perCoin);
+export function coinTopSpeed(tuning: SpeedClusterTuning, coins: number): number {
+  const speeds = tuning.coinTopSpeeds;
+  return speeds[Math.min(Math.max(coins, 0), speeds.length - 1)] ?? 0;
 }
 
 /** The coin count as the panel prints it: the coins carried in two digits over the cap. */

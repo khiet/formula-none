@@ -561,7 +561,10 @@ fn the_races_laps_of_the_oval_end_with_the_lap_counter_on_the_last_and_a_best_la
 
     let standing = only_standing(&state);
     assert_eq!(standing.laps_completed, LAPS_PER_RACE);
-    assert_eq!(standing.lap, LAPS_PER_RACE, "the counter stays on the last lap");
+    assert_eq!(
+        standing.lap, LAPS_PER_RACE,
+        "the counter stays on the last lap"
+    );
     assert_eq!(lap_times.len(), LAPS_PER_RACE as usize);
     // The first lap starts from a standstill, so a flying lap is the best.
     let best = standing.best_lap_s.expect("the race's laps were completed");

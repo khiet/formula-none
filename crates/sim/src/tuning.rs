@@ -351,8 +351,25 @@ pub const COIN_HALF_WIDTH_M: f32 = 1.0;
 /// Seconds after a coin is collected before it is back: the item box's.
 pub const COIN_RESPAWN_S: f32 = ITEM_BOX_RESPAWN_S;
 
+/// What `coins` carried multiply forward top speed by.
+pub const fn coin_factor(coins: u32) -> f32 {
+    1.0 + coins as f32 * COIN_TOP_SPEED_FACTOR
+}
+
 /// What a full purse multiplies forward top speed by.
-const COIN_CAP_FACTOR: f32 = 1.0 + COIN_CAP as f32 * COIN_TOP_SPEED_FACTOR;
+const COIN_CAP_FACTOR: f32 = coin_factor(COIN_CAP);
+
+/// The forward top speed on each count of coins carried, from none to a
+/// full purse, so the Instrument panel cuts its gears without repeating the rule.
+const COIN_TOP_SPEEDS_M_PER_S: [f32; COIN_CAP as usize + 1] = {
+    let mut speeds = [0.0; COIN_CAP as usize + 1];
+    let mut coins = 0;
+    while coins <= COIN_CAP {
+        speeds[coins as usize] = TOP_SPEED_M_PER_S * coin_factor(coins);
+        coins += 1;
+    }
+    speeds
+};
 
 /// Item roll weights for one band of race positions, in percent.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -615,7 +632,8 @@ pub struct Tuning {
     pub countdown_s: f32,
     pub predicted_fire_timeout_s: f32,
     pub item_box_respawn_s: f32,
-    pub coin_top_speed_factor: f32,
+    /// Indexed by the coins a kart carries.
+    pub coin_top_speeds_m_per_s: [f32; COIN_CAP as usize + 1],
     pub coin_cap: u32,
     pub coins_lost_per_spin_out: u32,
     pub coin_half_length_m: f32,
@@ -655,7 +673,7 @@ pub const TUNING: Tuning = Tuning {
     countdown_s: COUNTDOWN_S,
     predicted_fire_timeout_s: PREDICTED_FIRE_TIMEOUT_S,
     item_box_respawn_s: ITEM_BOX_RESPAWN_S,
-    coin_top_speed_factor: COIN_TOP_SPEED_FACTOR,
+    coin_top_speeds_m_per_s: COIN_TOP_SPEEDS_M_PER_S,
     coin_cap: COIN_CAP,
     coins_lost_per_spin_out: COINS_LOST_PER_SPIN_OUT,
     coin_half_length_m: COIN_HALF_LENGTH_M,

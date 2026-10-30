@@ -10,7 +10,11 @@ export type Tuning = { ticksPerSecond: number, lapsPerRace: number, kartsPerRace
  * The kart's width, height and length, so the View draws the box the
  * sim collides with.
  */
-kartSizeM: [number, number, number], replayHashIntervalTicks: number, countdownS: number, predictedFireTimeoutS: number, itemBoxRespawnS: number, coinTopSpeedFactor: number, coinCap: number, coinsLostPerSpinOut: number, coinHalfLengthM: number, coinHalfWidthM: number, coinRespawnS: number, hazardDropDistanceM: number, spinOutS: number, 
+kartSizeM: [number, number, number], replayHashIntervalTicks: number, countdownS: number, predictedFireTimeoutS: number, itemBoxRespawnS: number, 
+/**
+ * Indexed by the coins a kart carries.
+ */
+coinTopSpeedsMPerS: [number, number, number, number, number, number, number, number, number, number, number], coinCap: number, coinsLostPerSpinOut: number, coinHalfLengthM: number, coinHalfWidthM: number, coinRespawnS: number, hazardDropDistanceM: number, spinOutS: number, 
 /**
  * The runaway wheel's reach, so the View draws a wheel that size.
  */

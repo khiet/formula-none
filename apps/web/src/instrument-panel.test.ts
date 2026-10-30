@@ -31,9 +31,12 @@ function at(position: readonly [number, number, number]): KartReadout {
   return kartReadout({ position });
 }
 
-// The sim's tuned top speed, which the speed cluster's gears are cut from,
-// and its coins: ten at most, each worth 1% of it.
-const TUNING = { topSpeed: 30, coinTopSpeedFactor: 0.01, coinCap: 10 };
+// The sim's tuned top speeds, which the speed cluster's gears are cut from:
+// 30 m/s on no coins, each of the ten at most adding 1% of it.
+const TUNING = {
+  coinTopSpeeds: Array.from({ length: 11 }, (_, coins) => 30 * (1 + coins * 0.01)),
+  coinCap: 10,
+};
 
 const nameOf = (kart: number) => (kart === course.ownKart ? "You" : `Kart ${kart + 1}`);
 
