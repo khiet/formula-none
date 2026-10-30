@@ -90,6 +90,7 @@ export function localRaceRun(
       phase: race.phase(),
       itemSlot: { item: heldItem(), firing: flashTicksLeft > 0 },
       itemBoxesPresent: race.itemBoxesPresent(),
+      tyresPresent: race.tyresPresent(),
       hazards: race.hazards(),
       projectiles: race.projectiles(),
       wheels: race.wheels(),

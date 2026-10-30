@@ -130,8 +130,8 @@ seconds triggers the wrong-way warning.
 ### kart readout
 
 What the sim says of one kart at a tick: its transform, speed and
-velocity, drift and mini-turbo tier, item slot, spin-out, hop, boost,
-rocket start and stall, and its place in the race. The sim reports one per
+velocity, drift and mini-turbo tier, item slot, the tyres it carries,
+spin-out, hop, boost, rocket start and stall, and its place in the race. The sim reports one per
 kart every tick; a snapshot carries all of it but the hop, which only the
 sim stepping the kart knows; a prediction's kart adopts the snapshot's but
 for the boost, which it keeps its own. The View, the Instrument panel and
@@ -181,6 +181,19 @@ and twelve on Suzuqa Patch, in rows of four across the asphalt. A kart whose cen
 slot picks it up; the box is gone for three seconds and comes back. Every
 pickup is a server event naming the box, so every screen hides the same one.
 
+### tyre
+
+A pickup lying on the asphalt, from the sidecar: twelve on the oval and
+fifteen on Suzuqa Patch, in lines along the straights, ten of them on the
+centreline. Also the count a kart carries, from none at the lights to a
+full set of ten. A kart whose centre is on a tyre takes it unless it
+carries a full set or is spun out; the tyre is gone for three seconds and
+comes back. Each tyre carried raises the kart's top speed by 1%, so a full
+set cruises at 33 m/s, and every spin-out costs three, or all the kart has;
+lost tyres vanish. The server holds the count: a pickup and a loss are
+server events, and the snapshots carry the count and the tyres there to
+pick up. Not a tyre wall, which is a surface.
+
 ### item slot
 
 A kart's one place for an item: a boost, a hazard or a homing projectile.
@@ -219,8 +232,8 @@ flight; a client draws them between snapshots as it draws the other karts.
 
 A kart stopped and spun by an item or the runaway wheel for a fixed time
 (1 s): dead to its controls and moved by nothing until the time runs out.
-Every spin-out is a server event, and the snapshots carry the time left;
-clients only show it.
+Every spin-out costs the kart three tyres. Every spin-out is a server
+event, and the snapshots carry the time left; clients only show it.
 
 ### bump
 
@@ -432,16 +445,16 @@ Decorative: the gear and the speed are the text.
 
 ### tyre wear
 
-How worn a kart's tyres are, as a percentage. The Instrument panel's tyre
-gauge shows it on the local kart drawn from above, its tyres green above
-60%, yellow above 30% and red below. The sim does not wear tyres yet, so the gauge holds at 100%
-(ADR 0031).
+The Instrument panel's tyre gauge: the tyres the local kart carries as a
+percentage of a full set, so ten is 100% and one is 10%, shown on the kart
+drawn from above, its tyres green above 60%, yellow above 30% and red
+below (ADR 0055). Nothing wears; the gauge reads the count.
 
 ### race readout
 
 What the Race Scene reads of a race once a frame, as of the last tick:
 every kart readout and standing, the phase, the local kart's item slot, the
-item boxes there to pick up, the hazards and the projectiles. A solo race
+item boxes and the tyres there to pick up, the hazards and the projectiles. A solo race
 reports it from the sim in the browser and a room's race from the server's
 snapshots and events; the View, the Instrument panel and the audio each
 read the one readout. Not a snapshot, which is the server's message.

@@ -284,6 +284,7 @@ impl Race {
             events,
             hazards,
             projectiles,
+            tyres_present: state.tyres_present(),
         }
     }
 }

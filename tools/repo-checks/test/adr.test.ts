@@ -59,6 +59,7 @@ const DECISION_SLUGS = [
   "poster-kart-generated-from-kart-glb",
   "open-rooms-kept-on-a-volume",
   "every-course-races-three-laps",
+  "tyres-raise-top-speed",
 ];
 
 const expectedFiles = DECISION_SLUGS.map(

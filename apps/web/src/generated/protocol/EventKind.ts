@@ -4,4 +4,4 @@ import type { Item } from "./Item";
 /**
  * What an [`Event`] was. `kart` is the slot it happened to.
  */
-export type EventKind = { "itemPicked": { kart: number, item: Item, itemBox: number, } } | { "itemFired": { kart: number, item: Item, } } | { "hit": { kart: number, by: number | null, } } | { "lapCompleted": { kart: number, lap: number, lapTimeS: number, } } | { "finished": { kart: number, position: number, finishTimeS: number, } } | { "respawned": { kart: number, } } | "raceEnded";
+export type EventKind = { "itemPicked": { kart: number, item: Item, itemBox: number, } } | { "itemFired": { kart: number, item: Item, } } | { "tyrePicked": { kart: number, tyre: number, } } | { "hit": { kart: number, by: number | null, } } | { "tyresLost": { kart: number, count: number, } } | { "lapCompleted": { kart: number, lap: number, lapTimeS: number, } } | { "finished": { kart: number, position: number, finishTimeS: number, } } | { "respawned": { kart: number, } } | "raceEnded";

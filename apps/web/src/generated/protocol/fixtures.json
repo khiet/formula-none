@@ -20,7 +20,7 @@
       "name": "join",
       "bytes": [
         1,
-        12,
+        13,
         4,
         66,
         88,
@@ -37,7 +37,7 @@
         "join": {
           "nickname": "khiet",
           "room": "BXQF",
-          "version": 12
+          "version": 13
         }
       }
     },
@@ -103,7 +103,7 @@
       "name": "rejoin",
       "bytes": [
         7,
-        12,
+        13,
         4,
         66,
         88,
@@ -147,7 +147,7 @@
         "rejoin": {
           "room": "BXQF",
           "token": "0123456789abcdef0123456789abcdef",
-          "version": 12
+          "version": 13
         }
       }
     },
@@ -292,12 +292,12 @@
       "bytes": [
         2,
         3,
-        12
+        13
       ],
       "message": {
         "refused": {
           "versionMismatch": {
-            "server": 12
+            "server": 13
           }
         }
       }
@@ -466,6 +466,7 @@
         0,
         1,
         1,
+        7,
         0,
         0,
         0,
@@ -526,6 +527,7 @@
         68,
         0,
         0,
+        6,
         0,
         1,
         0,
@@ -582,6 +584,7 @@
         0,
         1,
         0,
+        5,
         0,
         2,
         0,
@@ -655,6 +658,7 @@
         0,
         1,
         1,
+        4,
         0,
         3,
         0,
@@ -710,6 +714,7 @@
         67,
         0,
         0,
+        3,
         0,
         0,
         0,
@@ -776,6 +781,7 @@
         1,
         1,
         0,
+        2,
         0,
         1,
         0,
@@ -830,6 +836,7 @@
         62,
         67,
         0,
+        1,
         1,
         1,
         1,
@@ -892,6 +899,7 @@
         0,
         0,
         0,
+        0,
         3,
         1,
         154,
@@ -899,7 +907,7 @@
         153,
         63,
         0,
-        8,
+        10,
         41,
         0,
         3,
@@ -911,34 +919,42 @@
         2,
         43,
         2,
+        1,
+        9,
+        44,
+        3,
         6,
         1,
         1,
-        44,
-        2,
+        45,
+        4,
+        6,
+        3,
+        46,
+        3,
         2,
         0,
-        45,
-        3,
+        47,
+        5,
         0,
         2,
         0,
         0,
         38,
         66,
-        46,
-        4,
+        48,
+        6,
         7,
         1,
         0,
         0,
         241,
         66,
-        47,
-        5,
+        49,
+        7,
         4,
-        48,
-        6,
+        50,
+        8,
         1,
         0,
         0,
@@ -968,7 +984,23 @@
         92,
         194,
         3,
-        2
+        2,
+        15,
+        1,
+        1,
+        1,
+        1,
+        0,
+        1,
+        1,
+        1,
+        1,
+        0,
+        1,
+        1,
+        1,
+        1,
+        1
       ],
       "message": {
         "snapshot": {
@@ -1005,6 +1037,15 @@
             {
               "id": 43,
               "kind": {
+                "tyrePicked": {
+                  "kart": 1,
+                  "tyre": 9
+                }
+              }
+            },
+            {
+              "id": 44,
+              "kind": {
                 "hit": {
                   "by": 1,
                   "kart": 6
@@ -1012,7 +1053,16 @@
               }
             },
             {
-              "id": 44,
+              "id": 45,
+              "kind": {
+                "tyresLost": {
+                  "count": 3,
+                  "kart": 6
+                }
+              }
+            },
+            {
+              "id": 46,
               "kind": {
                 "hit": {
                   "by": null,
@@ -1021,7 +1071,7 @@
               }
             },
             {
-              "id": 45,
+              "id": 47,
               "kind": {
                 "lapCompleted": {
                   "kart": 0,
@@ -1031,7 +1081,7 @@
               }
             },
             {
-              "id": 46,
+              "id": 48,
               "kind": {
                 "finished": {
                   "finishTimeS": 120.5,
@@ -1041,7 +1091,7 @@
               }
             },
             {
-              "id": 47,
+              "id": 49,
               "kind": {
                 "respawned": {
                   "kart": 4
@@ -1049,7 +1099,7 @@
               }
             },
             {
-              "id": 48,
+              "id": 50,
               "kind": "raceEnded"
             }
           ],
@@ -1088,6 +1138,7 @@
               "splineProgress": 640.0,
               "stallS": null,
               "start": "clean",
+              "tyres": 7,
               "velocity": [
                 21.0,
                 0.0,
@@ -1121,6 +1172,7 @@
               "splineProgress": 565.0,
               "stallS": null,
               "start": "weakBoost",
+              "tyres": 6,
               "velocity": [
                 21.0,
                 0.0,
@@ -1154,6 +1206,7 @@
               "splineProgress": 490.0,
               "stallS": null,
               "start": "fullBoost",
+              "tyres": 5,
               "velocity": [
                 21.0,
                 0.0,
@@ -1188,6 +1241,7 @@
               "splineProgress": 415.0,
               "stallS": null,
               "start": "stall",
+              "tyres": 4,
               "velocity": [
                 21.0,
                 0.0,
@@ -1221,6 +1275,7 @@
               "splineProgress": 340.0,
               "stallS": null,
               "start": "clean",
+              "tyres": 3,
               "velocity": [
                 21.0,
                 0.0,
@@ -1254,6 +1309,7 @@
               "splineProgress": 265.0,
               "stallS": null,
               "start": "weakBoost",
+              "tyres": 2,
               "velocity": [
                 21.0,
                 0.0,
@@ -1284,6 +1340,7 @@
               "splineProgress": 190.0,
               "stallS": null,
               "start": "fullBoost",
+              "tyres": 1,
               "velocity": [
                 21.0,
                 0.0,
@@ -1314,6 +1371,7 @@
               "splineProgress": 115.0,
               "stallS": 1.2000000476837158,
               "start": "stall",
+              "tyres": 0,
               "velocity": [
                 21.0,
                 0.0,
@@ -1333,7 +1391,24 @@
               "target": 2
             }
           ],
-          "tick": 7200
+          "tick": 7200,
+          "tyresPresent": [
+            true,
+            true,
+            true,
+            true,
+            false,
+            true,
+            true,
+            true,
+            true,
+            false,
+            true,
+            true,
+            true,
+            true,
+            true
+          ]
         }
       }
     },
@@ -1341,7 +1416,7 @@
       "name": "events",
       "bytes": [
         6,
-        8,
+        10,
         41,
         0,
         3,
@@ -1353,34 +1428,42 @@
         2,
         43,
         2,
+        1,
+        9,
+        44,
+        3,
         6,
         1,
         1,
-        44,
-        2,
+        45,
+        4,
+        6,
+        3,
+        46,
+        3,
         2,
         0,
-        45,
-        3,
+        47,
+        5,
         0,
         2,
         0,
         0,
         38,
         66,
-        46,
-        4,
+        48,
+        6,
         7,
         1,
         0,
         0,
         241,
         66,
-        47,
-        5,
+        49,
+        7,
         4,
-        48,
-        6
+        50,
+        8
       ],
       "message": {
         "events": [
@@ -1406,6 +1489,15 @@
           {
             "id": 43,
             "kind": {
+              "tyrePicked": {
+                "kart": 1,
+                "tyre": 9
+              }
+            }
+          },
+          {
+            "id": 44,
+            "kind": {
               "hit": {
                 "by": 1,
                 "kart": 6
@@ -1413,7 +1505,16 @@
             }
           },
           {
-            "id": 44,
+            "id": 45,
+            "kind": {
+              "tyresLost": {
+                "count": 3,
+                "kart": 6
+              }
+            }
+          },
+          {
+            "id": 46,
             "kind": {
               "hit": {
                 "by": null,
@@ -1422,7 +1523,7 @@
             }
           },
           {
-            "id": 45,
+            "id": 47,
             "kind": {
               "lapCompleted": {
                 "kart": 0,
@@ -1432,7 +1533,7 @@
             }
           },
           {
-            "id": 46,
+            "id": 48,
             "kind": {
               "finished": {
                 "finishTimeS": 120.5,
@@ -1442,7 +1543,7 @@
             }
           },
           {
-            "id": 47,
+            "id": 49,
             "kind": {
               "respawned": {
                 "kart": 4
@@ -1450,7 +1551,7 @@
             }
           },
           {
-            "id": 48,
+            "id": 50,
             "kind": "raceEnded"
           }
         ]

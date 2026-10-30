@@ -331,6 +331,29 @@ pub const HOMING_RADIUS_M: f32 = 0.5;
 /// builds only the wasted fire and refuses to compile if this is flipped.
 pub const HOMING_WITHOUT_TARGET_IS_WASTED: bool = true;
 
+// Tyres (GLOSSARY: tyre). A kart collects the tyres lying on the track, up
+// to a set, each raising its forward top speed; every spin-out costs it some.
+
+/// What each tyre a kart carries adds to its forward top speed, as a share
+/// of the tuned top speed: a full set raises 30 m/s to 33. Acceleration,
+/// reverse and handling are untouched.
+pub const TYRE_TOP_SPEED_FACTOR: f32 = 0.01;
+/// The most tyres a kart carries; with a full set it drives over tyres
+/// without taking them.
+pub const TYRE_SET: u32 = 10;
+/// Tyres a spin-out costs a kart, whatever spun it out; a kart carrying
+/// fewer loses them all. Lost tyres vanish.
+pub const TYRES_LOST_PER_SPIN_OUT: u32 = 3;
+/// A tyre is collected by a kart whose centre is within this much of its
+/// placement along the direction it faces and across it, airborne or not.
+pub const TYRE_HALF_LENGTH_M: f32 = 1.0;
+pub const TYRE_HALF_WIDTH_M: f32 = 1.0;
+/// Seconds after a tyre is collected before it is back: the item box's.
+pub const TYRE_RESPAWN_S: f32 = ITEM_BOX_RESPAWN_S;
+
+/// What a full set of tyres multiplies forward top speed by.
+const TYRE_FULL_SET_FACTOR: f32 = 1.0 + TYRE_SET as f32 * TYRE_TOP_SPEED_FACTOR;
+
 /// Item roll weights for one band of race positions, in percent.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct ItemRollWeights {
@@ -510,12 +533,28 @@ const _: () = {
     assert!(0.0 <= WHEEL_LANDING_SPREAD_M);
     assert!(WHEEL_WARNING_S <= WHEEL_FIRST_PASS_S);
     assert!(HOMING_SPEED_FACTOR > BOOST_PAD_FACTOR && HOMING_SPEED_FACTOR > ITEM_BOOST_FACTOR);
+    // Nor does a full set of tyres let a boosted kart outrun a projectile.
+    assert!(
+        HOMING_SPEED_FACTOR > TYRE_FULL_SET_FACTOR * BOOST_PAD_FACTOR
+            && HOMING_SPEED_FACTOR > TYRE_FULL_SET_FACTOR * ITEM_BOOST_FACTOR
+    );
     assert!(0.0 < HOMING_LOOKAHEAD_M && 0.0 < HOMING_LOCK_RANGE_M && 0.0 < HOMING_RADIUS_M);
     // A tick of flight never carries a projectile from outside its radius
-    // of the target's box to past the box.
+    // of the target's box to past the box, even closing on a kart that
+    // comes the other way at a full set's top speed.
     assert!(
-        HOMING_SPEED_FACTOR * TOP_SPEED_M_PER_S / (TICKS_PER_SECOND as f32)
+        (HOMING_SPEED_FACTOR + TYRE_FULL_SET_FACTOR) * TOP_SPEED_M_PER_S
+            / (TICKS_PER_SECOND as f32)
             < 2.0 * (HOMING_RADIUS_M + KART_HALF_LENGTH_M)
+    );
+    assert!(0.0 < TYRE_TOP_SPEED_FACTOR && 0 < TYRE_SET);
+    assert!(TYRES_LOST_PER_SPIN_OUT <= TYRE_SET);
+    assert!(0.0 < TYRE_HALF_LENGTH_M && 0.0 < TYRE_HALF_WIDTH_M && 0.0 < TYRE_RESPAWN_S);
+    // A tick at a full set's boosted speed never carries a kart's centre
+    // over a tyre without landing on it.
+    assert!(
+        TYRE_FULL_SET_FACTOR * BOOST_PAD_FACTOR * TOP_SPEED_M_PER_S / (TICKS_PER_SECOND as f32)
+            < 2.0 * TYRE_HALF_LENGTH_M
     );
     assert!(
         HOMING_SPEED_FACTOR * TOP_SPEED_M_PER_S / (TICKS_PER_SECOND as f32) < PROGRESS_WINDOW_M
@@ -575,6 +614,12 @@ pub struct Tuning {
     pub countdown_s: f32,
     pub predicted_fire_timeout_s: f32,
     pub item_box_respawn_s: f32,
+    pub tyre_top_speed_factor: f32,
+    pub tyre_set: u32,
+    pub tyres_lost_per_spin_out: u32,
+    pub tyre_half_length_m: f32,
+    pub tyre_half_width_m: f32,
+    pub tyre_respawn_s: f32,
     pub hazard_drop_distance_m: f32,
     pub spin_out_s: f32,
     /// The runaway wheel's reach, so the View draws a wheel that size.
@@ -609,6 +654,12 @@ pub const TUNING: Tuning = Tuning {
     countdown_s: COUNTDOWN_S,
     predicted_fire_timeout_s: PREDICTED_FIRE_TIMEOUT_S,
     item_box_respawn_s: ITEM_BOX_RESPAWN_S,
+    tyre_top_speed_factor: TYRE_TOP_SPEED_FACTOR,
+    tyre_set: TYRE_SET,
+    tyres_lost_per_spin_out: TYRES_LOST_PER_SPIN_OUT,
+    tyre_half_length_m: TYRE_HALF_LENGTH_M,
+    tyre_half_width_m: TYRE_HALF_WIDTH_M,
+    tyre_respawn_s: TYRE_RESPAWN_S,
     hazard_drop_distance_m: HAZARD_DROP_DISTANCE_M,
     spin_out_s: SPIN_OUT_S,
     wheel_radius_m: WHEEL_RADIUS_M,

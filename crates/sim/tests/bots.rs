@@ -5,8 +5,8 @@
 mod common;
 
 use common::{
-    brands_patch, oval, oval_without_item_boxes, started, ticks, track, with_slot_at, yaw, DT,
-    OVAL, SEED,
+    brands_patch, oval, oval_without_item_boxes, started, ticks, track, with_slot_at,
+    with_tyres_at, without_tyres, yaw, DT, OVAL, SEED,
 };
 
 use sim::tuning::{
@@ -67,7 +67,10 @@ const LAP_S: f32 = 20.0;
 
 #[test]
 fn a_bot_alone_laps_the_oval_for_the_race_without_leaving_the_asphalt() {
-    let mut state = started(State::with_bots(SEED, 0, 1, oval()));
+    // No tyres: a tyre taken changes when everything after happens, and
+    // with it whether the bot meets its own hazard, which this seed's race
+    // does not test.
+    let mut state = started(State::with_bots(SEED, 0, 1, track(&without_tyres(OVAL))));
     let mut lap_times = Vec::new();
     for _ in 0..ticks(LAPS_PER_RACE as f32 * LAP_S) {
         state = step(state, &[], DT);
@@ -565,4 +568,52 @@ fn bots_roll_the_full_boost_or_a_clean_start_from_the_seed_and_never_stall() {
         }
     }
     assert!(boosted > 0 && clean > 0, "{boosted} boosted, {clean} clean");
+}
+
+/// A race of one bot and no humans on the oval, with no tyres but those at
+/// `tyres`, past its countdown.
+fn lone_bot_over(tyres: impl IntoIterator<Item = [f32; 3]>) -> State {
+    let sidecar = with_tyres_at(&without_tyres(OVAL), tyres);
+    started(State::with_bots(SEED, 0, 1, track(&sidecar)))
+}
+
+#[test]
+fn a_bot_that_drives_over_a_tyre_carries_it() {
+    // A row abreast across the front straight 60 m from the grid: wherever
+    // the bot drives, its centre crosses one.
+    let row = (0..6).map(|k| [25.0 + 2.0 * k as f32, 0.0, -60.0]);
+    let mut state = lone_bot_over(row);
+    let mut picked = false;
+    for _ in 0..ticks(5.0) {
+        state = step(state, &[], DT);
+        picked |= state
+            .events()
+            .iter()
+            .any(|event| matches!(event, sim::RaceEvent::TyrePicked { kart: 0, .. }));
+    }
+
+    assert!(picked, "the bot took a tyre");
+    assert!(state.kart_readouts()[0].tyres >= 1);
+}
+
+#[test]
+fn a_bots_steering_is_unchanged_by_a_tyre_off_its_line() {
+    // Left of the front straight's centreline, while the bot keeps right.
+    let beside = [26.0, 0.0, -40.0];
+    let mut bare = lone_bot_over([]);
+    let mut beside_its_line = lone_bot_over([beside]);
+    for _ in 0..ticks(6.0) {
+        bare = step(bare, &[], DT);
+        beside_its_line = step(beside_its_line, &[], DT);
+        let (kart, other) = (bare.kart_readouts()[0], beside_its_line.kart_readouts()[0]);
+        assert_eq!(other.tyres, 0, "the tyre is off the bot's line");
+        assert_eq!(
+            (kart.position, kart.rotation),
+            (other.position, other.rotation)
+        );
+    }
+    assert!(
+        bare.kart_readouts()[0].position[2] < beside[2],
+        "the bot drove past the tyre"
+    );
 }

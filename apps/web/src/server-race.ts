@@ -189,6 +189,8 @@ export function createServerRace(
         phase: phase(),
         itemSlot: { item: heldItem, firing: predictedFireTicksLeft > 0 || flashTicksLeft > 0 },
         itemBoxesPresent: boxTicksLeft.map((left) => left <= 0),
+        // The newest snapshot's; before the first, the track's, every one there.
+        tyresPresent: latest?.tyresPresent ?? track.tyresPresent(),
         hazards: hazards(karts),
         projectiles: prediction.interpolatedProjectiles(),
         wheels: prediction.wheels(),

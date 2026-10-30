@@ -15,10 +15,14 @@ on the numbers below:
 - the front straight's boost pad covers the right half of the asphalt, 60 m
   past the line, so a kart from slot 1 crosses it and one from slot 0 does
   not; the back straight's pad is centred 45 m in, far enough before the
-  second turn that a pad boost has run out by the turn.
+  second turn that a pad boost has run out by the turn;
+- the front straight's ten tyres run down the centreline from 12 m past
+  the line to short of the pad, between the grid's columns, so a kart
+  that drives straight from slot 0 or 1 takes none, and its two off the
+  line lie 4.5 m left of centre past the pad.
 """
 
-from ..layout import GRID_COLUMN_OFFSET_M, BoostPad, ItemRow, Layout, TyreWall
+from ..layout import GRID_COLUMN_OFFSET_M, BoostPad, ItemRow, Layout, TyreLine, TyreWall
 from ..path import Sample, Turtle
 
 STRAIGHT_M = 125.0
@@ -64,5 +68,9 @@ LAYOUT = Layout(
     boost_pads=[
         BoostPad(path.segment("back").s_start + 45.0),
         BoostPad(path.segment("front-out").s_start + 60.0, offset=-FRONT_PAD_RIGHT_OF_CENTRE_M),
+    ],
+    tyre_lines=[
+        TyreLine(path.segment("front-out").s_start + 12.0, count=10),
+        TyreLine(path.segment("front-out").s_start + 75.0, count=2, offset=4.5),
     ],
 )

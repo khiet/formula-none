@@ -227,6 +227,31 @@ impl Race {
             .collect()
     }
 
+    /// Four floats per tyre of the track, in the sidecar's order: its
+    /// position x, y, z and its yaw in radians about +Y, zero facing -Z.
+    /// Fixed for the race.
+    pub fn tyres(&self) -> Vec<f32> {
+        self.state()
+            .track()
+            .tyres()
+            .iter()
+            .flat_map(|tyre| {
+                let [x, y, z] = tyre.position;
+                [x, y, z, tyre.yaw]
+            })
+            .collect()
+    }
+
+    /// One float per tyre of the track, in the sidecar's order: 1 while the
+    /// tyre is there to pick up, 0 while it is gone after a pickup.
+    pub fn tyres_present(&self) -> Vec<f32> {
+        self.state()
+            .tyres_present()
+            .into_iter()
+            .map(|present| f32::from(u8::from(present)))
+            .collect()
+    }
+
     /// Five floats per hazard on the track, in the order they were fired:
     /// its position x, y, z, the grid index of the kart that fired it, and
     /// 1 while that kart still trails it, else 0.

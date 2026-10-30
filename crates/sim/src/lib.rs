@@ -17,7 +17,8 @@
 //! walks Countdown, Racing and Finished through `step`, so a room on the
 //! server can drive the lifecycle a solo race in the browser does. What a
 //! tick changed that the players are told about, a lap completed, a finish,
-//! a respawn, an item picked up or fired, a spin-out, is read from
+//! a respawn, an item or a tyre picked up, an item fired, a spin-out and
+//! the tyres it cost, is read from
 //! [`State::events`] after that tick.
 
 pub mod bot;
@@ -109,6 +110,9 @@ pub struct KartReadout {
     pub mini_turbo: MiniTurbo,
     /// The item in the kart's slot; `None` while the slot is empty.
     pub held_item: Option<Item>,
+    /// The tyres the kart carries, from 0 to the tuned set; each raises its
+    /// forward top speed by the tuned factor.
+    pub tyres: u32,
     /// Seconds of spin-out left, while the kart is spun out: stopped, with
     /// its inputs ignored. The View spins it for the duration.
     pub spin_out_s: Option<f32>,
@@ -361,10 +365,17 @@ pub enum RaceEvent {
     },
     /// The kart fired the item it held; its slot is empty again.
     ItemFired { kart: usize, item: Item },
+    /// The kart picked up `tyre`, an index into the track's tyres, which is
+    /// gone for the tuned time, and carries one more.
+    TyrePicked { kart: usize, tyre: usize },
     /// The kart hit a hazard `by` fired, or was hit by a projectile `by`
     /// fired, or, with `by` `None`, was reached by the runaway wheel, and
     /// is spun out: stopped, with its inputs ignored, for the tuned time.
     SpunOut { kart: usize, by: Option<usize> },
+    /// The spin-out just reported cost the kart `count` tyres, the tuned
+    /// number or all it carried; they vanish. Not reported for a kart that
+    /// carried none.
+    TyresLost { kart: usize, count: u32 },
     /// The race ended: the standings are the results and the outro begins.
     RaceEnded,
 }
@@ -507,6 +518,9 @@ pub struct State {
     /// Seconds until each of the track's item boxes is back, in the
     /// track's order; zero or less while the box is there to pick up.
     item_box_respawn_s: Vec<f32>,
+    /// Seconds until each of the track's tyres is back, in the track's
+    /// order; zero or less while the tyre is there to pick up.
+    tyre_respawn_s: Vec<f32>,
     /// The hazards on the track, in the order they were fired.
     hazards: Vec<PlacedHazard>,
     /// The projectiles in flight, in the order they were fired.
@@ -560,6 +574,8 @@ struct Kart {
     /// The item in the kart's one slot. While it holds one it drives over
     /// item boxes without taking them.
     held_item: Option<Item>,
+    /// The tyres the kart carries, never more than the tuned set.
+    tyres: u32,
     /// Whether the item button was down last tick, so a held button fires
     /// once, as it goes down, and holding it through a pickup fires nothing.
     item_was_held: bool,
@@ -585,6 +601,11 @@ impl Kart {
         self.stall_left_s > 0.0 || self.spun_out()
     }
 
+    /// What the tyres the kart carries multiply its forward top speed by.
+    fn tyre_factor(&self) -> f32 {
+        1.0 + self.tyres as f32 * TYRE_TOP_SPEED_FACTOR
+    }
+
     /// The lap the kart is on, from 1; a kart that has completed the race's
     /// laps stays on the last one.
     fn lap(&self) -> u32 {
@@ -606,6 +627,7 @@ impl Kart {
             drift: self.handling.drift(),
             mini_turbo: MiniTurbo::of(self.handling.drift()),
             held_item: self.held_item,
+            tyres: self.tyres,
             spin_out_s: self.spun_out().then_some(self.spin_out_left_s),
             airborne: self.handling.airborne(),
             boost_s: self.handling.boost_s(),
@@ -637,6 +659,7 @@ impl Kart {
             readout.bump.map_or(Vec3::ZERO, Vec3::from),
         );
         self.held_item = readout.held_item;
+        self.tyres = readout.tyres;
         // A spin-out the readout does not have is a hit the server never
         // made, which in a prediction is only ever the wheel's: the pass
         // that made it may still hit the kart where the server has it.
@@ -717,6 +740,10 @@ use tuning::{
 };
 use tuning::{
     KART_BUMP_RESTITUTION, KART_BUMP_SPEED_LOSS, TYRE_WALL_RESTITUTION, TYRE_WALL_SPEED_LOSS,
+};
+use tuning::{
+    TYRES_LOST_PER_SPIN_OUT, TYRE_HALF_LENGTH_M, TYRE_HALF_WIDTH_M, TYRE_RESPAWN_S, TYRE_SET,
+    TYRE_TOP_SPEED_FACTOR,
 };
 
 // The sim builds only the wasted fire for a projectile with no kart ahead
@@ -823,6 +850,7 @@ impl State {
                     stall_left_s: 0.0,
                     finish_time_s: None,
                     held_item: None,
+                    tyres: 0,
                     item_was_held: false,
                     spin_out_left_s: 0.0,
                     wheel_pass_hit: 0,
@@ -835,6 +863,7 @@ impl State {
             seed,
             rng,
             item_box_respawn_s: vec![0.0; track.item_boxes().len()],
+            tyre_respawn_s: vec![0.0; track.tyres().len()],
             hazards: Vec::new(),
             projectiles: Vec::new(),
             final_positions: None,
@@ -893,6 +922,16 @@ impl State {
     /// time after it was taken.
     pub fn item_boxes_present(&self) -> Vec<bool> {
         self.item_box_respawn_s
+            .iter()
+            .map(|&respawn_s| respawn_s <= 0.0)
+            .collect()
+    }
+
+    /// Whether each of the track's tyres, in the track's order, is there to
+    /// pick up as of the last tick; a picked-up tyre is back the tuned time
+    /// after it was taken.
+    pub fn tyres_present(&self) -> Vec<bool> {
+        self.tyre_respawn_s
             .iter()
             .map(|&respawn_s| respawn_s <= 0.0)
             .collect()
@@ -1007,9 +1046,10 @@ impl State {
 
     /// A hash of everything that influences future ticks: the phase and its
     /// clocks, the results once the race has ended, the RNG, the item boxes'
-    /// respawn clocks, the hazards and projectiles and, per kart, its
-    /// handling, its item and its body's position, heading, velocities and
-    /// sleep state, including the timer that puts a resting body to sleep.
+    /// and the tyres' respawn clocks, the hazards and projectiles and, per
+    /// kart, its handling, its item, its tyres and its body's position,
+    /// heading, velocities and sleep state, including the timer that puts a
+    /// resting body to sleep.
     /// Bit-identical on every platform for bit-identical states, which is
     /// what the replay fixtures check (ADR 0002). A bot's memory is hashed
     /// with its kart, so a human's kart a bot drives hashes apart from one
@@ -1044,6 +1084,7 @@ impl State {
         hasher.write_u64(self.rng.get_stream());
         hasher.write_u128(self.rng.get_word_pos());
         hasher.write_f32s(self.item_box_respawn_s.iter().copied());
+        hasher.write_f32s(self.tyre_respawn_s.iter().copied());
         hasher.write_u64(self.hazards.len() as u64);
         for placed in &self.hazards {
             hasher.write_f32s(placed.hazard.position);
@@ -1075,6 +1116,7 @@ impl State {
             hasher.write_f32(kart.stall_left_s);
             hasher.write_f32(kart.finish_time_s.unwrap_or(NO_TIME));
             hasher.write_u8(kart.held_item.map_or(0, Item::code));
+            hasher.write_u32(kart.tyres);
             hasher.write_u8(u8::from(kart.item_was_held));
             hasher.write_f32(kart.spin_out_left_s);
             hasher.write_u32(kart.wheel_pass_hit);
@@ -1321,6 +1363,35 @@ pub fn step(mut state: State, inputs: &[KartInput], dt: f32) -> State {
             state.pick_up(slot, item_box, &standings);
         }
     }
+    // Tyres come back on their clocks as the boxes do. A kart takes every
+    // tyre its centre is on, airborne or not, until it carries a full set;
+    // a spun-out kart takes none, nor, as with boxes, a finished kart or
+    // any kart through the outro.
+    for respawn_s in &mut state.tyre_respawn_s {
+        if *respawn_s > 0.0 {
+            *respawn_s -= dt;
+        }
+    }
+    for slot in 0..state.karts.len() {
+        let kart = &mut state.karts[slot];
+        if kart.spun_out() || kart.finished() || elapsed_s.is_none() {
+            continue;
+        }
+        let position = state.physics.bodies[kart.body].translation().to_array();
+        for (tyre, placed) in state.track.tyres().iter().enumerate() {
+            if kart.tyres >= TYRE_SET {
+                break;
+            }
+            let respawn_s = &mut state.tyre_respawn_s[tyre];
+            if *respawn_s <= 0.0 && placed.covers(position, TYRE_HALF_LENGTH_M, TYRE_HALF_WIDTH_M) {
+                kart.tyres += 1;
+                *respawn_s = TYRE_RESPAWN_S;
+                state
+                    .events
+                    .push(RaceEvent::TyrePicked { kart: slot, tyre });
+            }
+        }
+    }
     let situations: Vec<Situation> = (0..state.karts.len())
         .map(|slot| {
             let body = &state.physics.bodies[state.karts[slot].body];
@@ -1331,7 +1402,10 @@ pub fn step(mut state: State, inputs: &[KartInput], dt: f32) -> State {
                 surface: state.physics.surface_at(position),
                 boost_pad: state.track.on_a_boost_pad(position),
                 kerb: state.track.on_a_kerb(position),
-                top_speed: TOP_SPEED_M_PER_S * state.rubber_band(slot),
+                tyre_factor: state.karts[slot].tyre_factor(),
+                top_speed: TOP_SPEED_M_PER_S
+                    * state.rubber_band(slot)
+                    * state.karts[slot].tyre_factor(),
             }
         })
         .collect();
@@ -1506,11 +1580,13 @@ pub fn step(mut state: State, inputs: &[KartInput], dt: f32) -> State {
             if !reached || kart.spun_out() {
                 continue;
             }
-            spin_out(kart, body);
-            state.events.push(RaceEvent::SpunOut {
-                kart: slot,
-                by: Some(placed.hazard.owner),
-            });
+            spin_out(
+                kart,
+                body,
+                slot,
+                Some(placed.hazard.owner),
+                &mut state.events,
+            );
             return false;
         }
         true
@@ -1536,12 +1612,8 @@ pub fn step(mut state: State, inputs: &[KartInput], dt: f32) -> State {
                 if !reached || kart.spun_out() || kart.wheel_pass_hit == pass {
                     continue;
                 }
-                spin_out(kart, body);
+                spin_out(kart, body, slot, None, &mut state.events);
                 kart.wheel_pass_hit = pass;
-                state.events.push(RaceEvent::SpunOut {
-                    kart: slot,
-                    by: None,
-                });
             }
         }
     }
@@ -1571,11 +1643,13 @@ pub fn step(mut state: State, inputs: &[KartInput], dt: f32) -> State {
                 state.hazards.remove(index);
             }
             None if !target.spun_out() => {
-                spin_out(target, body);
-                state.events.push(RaceEvent::SpunOut {
-                    kart: projectile.target,
-                    by: Some(projectile.owner),
-                });
+                spin_out(
+                    target,
+                    body,
+                    projectile.target,
+                    Some(projectile.owner),
+                    &mut state.events,
+                );
             }
             None => {}
         }
@@ -1983,10 +2057,27 @@ fn fly(flying: &mut FlyingProjectile, track: &Track, target: Vec3, dt: f32) {
         at_centreline_height(track, here + moved, flying.progress);
 }
 
-/// Stop the kart where it is and start its spin-out: a drift or a boost
-/// ends, a hop lands without a drift, and no control reaches it and no
-/// kart pushes it until the spin-out runs out.
-fn spin_out(kart: &mut Kart, body: &mut RigidBody) {
+/// Stop the kart in `slot` where it is and start its spin-out, `by` the
+/// kart whose item hit it or the runaway wheel: a drift or a boost ends, a
+/// hop lands without a drift, and no control reaches it and no kart pushes
+/// it until the spin-out runs out. Every spin-out costs the tuned tyres, or
+/// all the kart carries; both are reported to `events`.
+fn spin_out(
+    kart: &mut Kart,
+    body: &mut RigidBody,
+    slot: usize,
+    by: Option<usize>,
+    events: &mut Vec<RaceEvent>,
+) {
+    events.push(RaceEvent::SpunOut { kart: slot, by });
+    let lost = kart.tyres.min(TYRES_LOST_PER_SPIN_OUT);
+    if lost > 0 {
+        kart.tyres -= lost;
+        events.push(RaceEvent::TyresLost {
+            kart: slot,
+            count: lost,
+        });
+    }
     kart.spin_out_left_s = SPIN_OUT_S;
     kart.handling.stop();
     body.set_linvel(Vec3::ZERO, true);

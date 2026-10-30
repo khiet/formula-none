@@ -28,7 +28,7 @@ use ts_rs::TS;
 /// [`ClientMessage::Join`] and the server refuses a mismatch with
 /// [`Refusal::VersionMismatch`] (ADR 0013). The generator exports it next to
 /// the types, so the web app reads the same constant.
-pub const PROTOCOL_VERSION: u16 = 12;
+pub const PROTOCOL_VERSION: u16 = 13;
 
 /// What a client sends the server.
 #[derive(Serialize, Deserialize, TS, Debug, Clone, PartialEq)]
@@ -260,6 +260,9 @@ pub struct Snapshot {
     /// Every homing projectile in flight at this tick, in the order they
     /// were fired.
     pub projectiles: Vec<ProjectileSnapshot>,
+    /// Whether each of the track's tyres, in the sidecar's order, is there
+    /// to pick up at this tick.
+    pub tyres_present: Vec<bool>,
 }
 
 /// A homing projectile in flight: where it is, whose it is and which kart
@@ -317,6 +320,9 @@ pub struct KartSnapshot {
     pub wrong_way: bool,
     /// The item in the kart's slot, if any.
     pub held_item: Option<Item>,
+    /// The tyres the kart carries. A client's prediction takes its count
+    /// from here, never collecting one itself.
+    pub tyres: u8,
     /// Seconds of spin-out left, while the kart is spun out.
     pub spin_out_s: Option<f32>,
     /// The kart's rocket start: during the countdown the tier its throttle
@@ -411,6 +417,12 @@ pub enum EventKind {
         kart: u8,
         item: Item,
     },
+    /// `kart` picked up `tyre`, an index into the track's tyres, which is
+    /// gone until the tuned respawn, and carries one more.
+    TyrePicked {
+        kart: u8,
+        tyre: u8,
+    },
     /// `kart` was spun out by an item `by` fired or dropped, a hazard it
     /// ran into or a projectile that reached it, or, with `by` `None`, by
     /// the runaway wheel: stopped, with its inputs ignored, for the tuned
@@ -418,6 +430,12 @@ pub enum EventKind {
     Hit {
         kart: u8,
         by: Option<u8>,
+    },
+    /// The spin-out of the [`EventKind::Hit`] before it cost `kart` `count`
+    /// tyres, which vanish.
+    TyresLost {
+        kart: u8,
+        count: u8,
     },
     LapCompleted {
         kart: u8,

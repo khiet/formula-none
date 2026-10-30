@@ -316,8 +316,8 @@ async fn an_event_comes_once_on_the_reliable_lane_and_in_three_snapshots_under_i
     let (_, mut players, _) = racing_room(&mut harness, 1).await;
     let player = &mut players[0];
 
-    // The first event is a bot's, behind the idle human: an item picked up on
-    // the back straight.
+    // The first event is a bot's, behind the idle human: a tyre taken on the
+    // front straight.
     let first = loop {
         match next_events_or_snapshot(player).await.unwrap() {
             Ok(events) => break events,
@@ -326,7 +326,7 @@ async fn an_event_comes_once_on_the_reliable_lane_and_in_three_snapshots_under_i
     };
     let event = first[0];
     assert!(
-        matches!(event.kind, EventKind::ItemPicked { kart, .. } if kart >= 1),
+        matches!(event.kind, EventKind::TyrePicked { kart, .. } if kart >= 1),
         "{event:?}"
     );
 
@@ -401,9 +401,11 @@ async fn events_are_never_lost_on_a_lossy_link_and_every_id_is_distinct() {
             EventKind::LapCompleted { kart, .. }
                 | EventKind::ItemPicked { kart, .. }
                 | EventKind::ItemFired { kart, .. }
-                | EventKind::Hit { kart, .. } if usize::from(kart) >= 1
+                | EventKind::TyrePicked { kart, .. }
+                | EventKind::Hit { kart, .. }
+                | EventKind::TyresLost { kart, .. } if usize::from(kart) >= 1
         )),
-        "the idle human does nothing; the bots race and hit each other: {on_the_stream:?}"
+        "the idle human does nothing; the bots race, take tyres and hit each other: {on_the_stream:?}"
     );
 }
 
