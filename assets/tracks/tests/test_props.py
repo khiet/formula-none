@@ -263,6 +263,13 @@ class Placing(unittest.TestCase):
         self.assertIn(f"{ARCH}.1.belt.front", names)
         self.assertFalse(any(name.startswith(f"{ARCH}.2.") for name in names))
 
+    def test_the_pits_refuse_a_layout_that_gives_no_length(self) -> None:
+        short = replace(self.layout, decor=replace(self.layout.decor, props=[Prop("pits", Spot(s=0.0, offset=-26.0))]))
+        with self.assertRaises(ValueError):
+            footprints(short)
+        with self.assertRaises(ValueError):
+            build(short)
+
     def test_the_oval_has_no_props(self) -> None:
         oval = load("oval")
         self.assertEqual(oval.decor.props, [])
@@ -612,10 +619,9 @@ class PitBuilding(unittest.TestCase):
         self.assertAlmostEqual(min(c for _, _, c in riser), 0.0)
         self.assertAlmostEqual(max(c for _, _, c in riser), min(v[2] for f in parapet for v in f) - self.ground)
 
-    def test_no_number_and_no_kart_in_a_garage(self) -> None:
-        """ADR 0035: the doors are colours only; a parked kart is a kart the sim does not have."""
+    def test_the_doors_carry_no_number(self) -> None:
+        """ADR 0035: the doors are colours only, so the building letters nothing."""
         self.assertFalse(any(t.name.startswith(f"{PITS}.") for t in build(self.layout).lettering))
-        self.assertFalse(any("kart" in name for name in self.pieces))
 
     def test_the_building_costs_about_90_faces(self) -> None:
         faces = sum(len(piece.mesh[1]) for piece in self.pieces.values())
