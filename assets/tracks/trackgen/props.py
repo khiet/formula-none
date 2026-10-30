@@ -123,7 +123,7 @@ ARCH_SIDES = 48
 # kerb-white belt the sponsor reads round, tyre black to the lining.
 ARCH_EDGE_M = 0.7
 ARCH_BELT_RADIUS_M = 14.65
-"""To the belt's middle, where the lettering's baseline bends."""
+"""To the belt's middle, which the lettering, centred on its height, bends round."""
 ARCH_BELT_M = 0.9
 ARCH_TEXT_SIZE_M = 1.2
 # The abutments: a block round each foot of the ring, this much past the
