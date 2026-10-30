@@ -654,10 +654,10 @@ fn longest_stall(seed: u64, track: Track) -> (f32, usize, f32) {
 const STUCK_S: f32 = 3.0;
 
 #[test]
-fn a_bot_jammed_against_the_wall_short_of_the_wheels_crossing_backs_out() {
-    // On 38 a bot hit the wall 90 m short of the crossing just before a
-    // pass, and jittered against it in and out of waiting for the wheel
-    // until the pass was over.
+fn a_bot_jammed_short_of_the_wheels_crossing_backs_out() {
+    // On 38 a bot crashed to a stop 90 m short of the crossing just before
+    // a pass, and jittered there in and out of waiting for the wheel until
+    // the pass was over.
     let (seconds, slot, at_s) = longest_stall(38, brands_patch());
     assert!(
         seconds <= STUCK_S,
@@ -668,7 +668,7 @@ fn a_bot_jammed_against_the_wall_short_of_the_wheels_crossing_backs_out() {
 #[test]
 fn a_bot_waiting_for_the_wheel_never_backs_up() {
     // On each of these a bot waiting for a pass held the brake, which backed
-    // it up into a kart or the wall behind, pinned there through the pass.
+    // it up into whatever was behind, pinned there through the pass.
     // Rolling back as it starts to wait, from backing out of a stall, it
     // only slows.
     for seed in [51, 121, 152, 163] {
