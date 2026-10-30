@@ -328,7 +328,7 @@
           <li>White values, grey labels, a 0.1 em ink drop under each, in the pixel face.</li>
           <li>Your readouts wear your livery: the position plate in primary, flags and hubs in accent. Other karts show in their key colour.</li>
           <li>Polygons, not pixels: shift lights are hexagons, map markers octagons, the tyre gauge is your car from above with your driver's hair.</li>
-          <li>The item characters are the View's meshes drawn flat, so the slot and the road show one cone, one drone, one snail.</li>
+          <li>The item characters are the View's meshes drawn flat, so the slot and the road show one cone, one drone, one champagne bottle.</li>
           <li>Sized in HUD units, <code>max(0.55rem, 1.5vmin)</code>, so the panel scales with the window and still reads in a small one. Blinks hold steady under reduced motion.</li>
         </ul>
       </section>
@@ -660,9 +660,9 @@
       <article class="asset wide">
         <header><h3>Item slot and its characters</h3><code>apps/web/src/item-sprites.ts</code></header>
         <div class="compare"><figure><figcaption>Empty, boost, hazard, homing, firing</figcaption><div class="view"><div class="hud hud-row" id="slots"></div></div></figure></div>
-        <dl class="spec"><dt>Decided</dt><dd><a href="adr/0024-item-sprites.md">ADR 0024</a>, drawn from the meshes by <a href="adr/0037-instrument-panel-in-chibi-low-poly.md">0037</a></dd></dl>
+        <dl class="spec"><dt>Decided</dt><dd><a href="adr/0024-item-sprites.md">ADR 0024</a>, drawn from the meshes by <a href="adr/0037-instrument-panel-in-chibi-low-poly.md">0037</a>, the boost a champagne bottle by <a href="adr/0058-boost-is-a-champagne-bottle.md">0058</a></dd></dl>
         <div class="notes">
-          <p>The slot is the item box seen face on, in its golds. The characters are the View's meshes drawn flat: the faceted cone, the camera quad drone side on with its rotors blurred, and a snail with a faceted shell and a red rocket, which has no mesh since a boost never shows on the road. Firing lights the plate. The item's name stays as the slot's text.</p>
+          <p>The slot is the item box seen face on, in its golds. The characters are the View's meshes drawn flat: the faceted cone, the camera quad drone side on with its rotors blurred, and the podium champagne bottle, shaken, its cork flying off on a jet of foam, which has no mesh since a boost never shows on the road. Firing lights the plate. The item's name stays as the slot's text.</p>
           <p class="dont"><b>Don't</b> draw a character the road shows differently; a new item gets its mesh and its slot drawing together.</p>
         </div>
       </article>
@@ -1041,21 +1041,17 @@
     ${poly([[114, 98], [154, 98], [154, 126], [114, 126]], "#1b1d21")}
     ${poly(ngon(8, 154, 112, 13), "#eef0f2")}${poly(ngon(8, 154, 112, 9), "#d00a12")}${poly(ngon(6, 155, 111, 3), "#111111")}
     </svg>`;
-  // The boost character as a mesh would draw it: grey foot, faceted orange shell, a red rocket strapped on.
-  draw.snail = () => `<svg viewBox="0 0 200 160" role="img" aria-label="Low-poly snail with a rocket">
-    <ellipse cx="100" cy="146" rx="70" ry="5" fill="rgba(0,0,0,.15)"/>
-    ${poly([[30, 130], [150, 130], [176, 112], [160, 102], [60, 110], [34, 120]], "#b9bec5")}${poly([[60, 110], [160, 102], [168, 108], [64, 115]], "#d4d8dd")}${poly([[32, 126], [154, 126], [150, 132], [30, 132]], "#9aa0a8")}
-    <line x1="158" y1="86" x2="150" y2="58" stroke="#9aa0a8" stroke-width="4"/><line x1="168" y1="86" x2="174" y2="58" stroke="#b9bec5" stroke-width="4"/>
-    ${facets(6, 162, 96, 16, ["#d4d8dd", "#b9bec5", "#9aa0a8"])}
-    ${poly(ngon(6, 150, 54, 8), "#ffffff")}${poly(ngon(6, 174, 54, 8), "#eef0f2")}${poly(ngon(4, 153, 55, 3.4), "#111111")}${poly(ngon(4, 177, 55, 3.4), "#111111")}
-    <polyline points="164,104 170,107 176,104" stroke="#111111" stroke-width="2.5" fill="none"/>
-    ${facets(7, 90, 84, 36, ["#ff7a4d", "#ff5522", "#c73c14"])}${facets(6, 94, 82, 19, ["#ff9a72", "#ff6a3a", "#d84418"])}${poly(ngon(5, 97, 81, 7), "#c73c14")}
-    ${poly([[80, 56], [88, 56], [92, 100], [84, 100]], "#3a3d42")}
-    ${poly([[48, 38], [18, 46], [48, 54]], "#ffd23f")}${poly([[48, 41], [30, 46], [48, 51]], "#ff7a4d")}
-    ${poly([[52, 32], [118, 32], [122, 40], [48, 40]], "#e8333b")}${poly([[48, 40], [122, 40], [122, 50], [48, 50]], "#d00a12")}${poly([[48, 50], [122, 50], [118, 58], [52, 58]], "#8f070c")}
-    ${poly([[122, 32], [142, 45], [122, 45]], "#e8333b")}${poly([[122, 45], [142, 45], [122, 58]], "#8f070c")}
-    ${poly([[50, 32], [38, 20], [62, 32]], "#b9bec5")}${poly([[50, 58], [38, 70], [62, 58]], "#9aa0a8")}
-    ${poly(ngon(6, 100, 45, 6.5), "#ffffff")}${poly(ngon(6, 101, 46, 3.5), "#7fc3ff")}</svg>`;
+  // The boost's podium bottle as item-sprites.ts draws it: drawn along its own axis, base to cork, then tilted up to the right.
+  draw.champagne = () => `<svg viewBox="0 0 200 160" role="img" aria-label="Low-poly champagne bottle, its cork flying off on a jet of foam">
+    <ellipse cx="96" cy="146" rx="48" ry="5" fill="rgba(0,0,0,.15)"/>
+    <g transform="translate(88 92) rotate(-38) scale(0.84)">
+    ${[[64, 0, 10], [76, -11, 9], [78, 11, 8], [92, -3, 11], [104, -16, 7], [106, 12, 8], [118, -2, 6]].map(([x, y, r]) => poly(ngon(7, x, y, r), "#eef0f2") + poly(ngon(7, x - 2, y - 2, r * 0.6), "#ffffff")).join("")}
+    ${poly([[128, -8], [144, -10], [144, 10], [128, 8]], "#d9a066")}${poly([[128, -8], [144, -10], [144, -3], [128, -2]], "#eec48f")}
+    ${poly([[-62, -22], [10, -22], [10, -8], [-62, -8]], "#5e9f7d")}${poly([[-62, -8], [10, -8], [10, 8], [-62, 8]], "#1f7a4a")}${poly([[-62, 8], [10, 8], [10, 22], [-62, 22]], "#145131")}
+    ${poly([[10, -22], [32, -8], [32, 0], [10, 0]], "#5e9f7d")}${poly([[10, 0], [32, 0], [32, 8], [10, 22]], "#145131")}
+    ${poly([[30, -8], [58, -8], [58, 0], [30, 0]], "#ffdf75")}${poly([[30, 0], [58, 0], [58, 8], [30, 8]], "#a88b2a")}
+    ${poly([[-46, -16], [-12, -16], [-12, 16], [-46, 16]], "#eef0f2")}${poly([[-46, -4], [-12, -4], [-12, 4], [-46, 4]], "#d00a12")}
+    </g></svg>`;
   draw.tells = () => {
     const cube = (x, y, s, c, sh) => poly([[x, y - s], [x + s, y - s / 2], [x, y], [x - s, y - s / 2]], `color-mix(in srgb, ${c} 70%, white)`) + poly([[x - s, y - s / 2], [x, y], [x, y + s], [x - s, y + s / 2]], c) + poly([[x, y], [x + s, y - s / 2], [x + s, y + s / 2], [x, y + s]], sh);
     return `<svg viewBox="0 0 320 150" role="img" aria-label="Sparks, dust, tyre marks and a shadow disc on asphalt">
@@ -1611,20 +1607,20 @@
       { token: "GO_GREEN", tones: [0x6fe8a6, 0x3ddc84, 0x23a35e], role: "GO" },
     ]],
     ["Item characters", [
-      { token: "GREYS.white", hex: 0xffffff, role: "Grey, white: the snail's eyes" },
       { token: "GREYS.body", hex: 0xe3e6ea, role: "Grey, body" },
-      { token: "GREYS.pale", hex: 0xd4d8dd, role: "Grey, pale" },
-      { token: "GREYS.grey", hex: 0xb9bec5, role: "Grey: the snail's foot, the top of the cone's slab" },
+      { token: "GREYS.grey", hex: 0xb9bec5, role: "Grey: the top of the cone's slab" },
       { token: "GREYS.dark", hex: 0x9aa0a8, role: "Grey, dark: the cone's slab" },
       { token: "GREYS.deep", hex: 0x6f747b, role: "Grey, deep: the drone's arm in the slot" },
       { token: "WHEEL_TYRE", hex: 0x26262a, role: "The runaway wheel's tyre" },
       { token: "WHEEL_FLAME", hex: 0xff8800, role: "The runaway wheel's flames, round their flame-yellow core" },
       { token: "WHEEL_SMOKE", hex: 0x8a8d94, role: "The runaway wheel's smoke" },
       { token: "DRONE_EYE", hex: 0xd00a12, role: "The homing drone's lens, its eye locked on" },
-      { token: "ROCKET", tones: [0xe8333b, 0xd00a12, 0x8f070c], role: "The snail's rocket; mid, the hot wheel's rim edge; lit, the homing drone's tally light" },
-      { token: "ROCKET_FLAME", hex: 0xffd23f, role: "The rocket's flame; the hot wheel's hub, rim centre and wall-hit sparks" },
-      { token: "ROCKET_WINDOW", hex: 0x7fc3ff, role: "The rocket's porthole" },
-      { token: "ROCKET_STRAP", hex: 0x3a3d42, role: "The rocket's straps; the hot wheel's spokes; the marshal's stool legs; the homing drone's antenna" },
+      { token: "ROCKET", tones: [0xe8333b, 0xd00a12, 0x8f070c], role: "Mid, the hot wheel's rim edge and the champagne label's band; lit, the homing drone's tally light" },
+      { token: "ROCKET_FLAME", hex: 0xffd23f, role: "The champagne bottle's foil; the hot wheel's hub, rim centre and wall-hit sparks" },
+      { token: "ROCKET_STRAP", hex: 0x3a3d42, role: "The hot wheel's spokes; the marshal's stool legs; the homing drone's antenna" },
+      { token: "CHAMPAGNE_BOTTLE", tones: [0x5e9f7d, 0x1f7a4a, 0x145131], role: "The boost's champagne bottle" },
+      { token: "CORK.lit", hex: 0xeec48f, role: "Cork, lit: the champagne cork's top" },
+      { token: "CORK.mid", hex: 0xd9a066, role: "Cork: the champagne cork" },
     ]],
     ["The marshal and his post", [
       { token: "MARSHAL_SKIN", tones: [0xf8dcb0, 0xf0c090, 0xd8a070], role: "Oyaji's skin: lit, his head's shine; shaded, his ears" },
@@ -1694,7 +1690,7 @@
 
   // The panel's readouts: plates, with polygons for the lights and the items.
   const slot = (item, firing) => `<span class="pl"><span class="pf ${firing ? "t-flash" : "t-gold"} slot">${item ? draw[item]() : ""}</span></span>`;
-  document.getElementById("slots").innerHTML = slot(null) + slot("snail") + slot("cone") + slot("drone") + slot("snail", true);
+  document.getElementById("slots").innerHTML = slot(null) + slot("champagne") + slot("cone") + slot("drone") + slot("champagne", true);
   const hexLights = (lit, limiter) => `<svg class="lights" viewBox="0 0 156 14" aria-hidden="true">${Array.from({ length: 12 }, (_, i) =>
     facets(6, 6.5 + i * 13, 7, 6.2, TONES[limiter ? "blue" : i < lit ? ["green", "red", "blue"][Math.floor((i * 3) / 12)] : "off"])).join("")}</svg>`;
   const coinIcon = `<svg viewBox="0 0 100 100" aria-hidden="true"><polygon points="50,6 81,18 94,50 81,82 50,94 19,82 6,50 19,18" fill="#ffd23f" stroke="#b8860b" stroke-width="8"/></svg>`;

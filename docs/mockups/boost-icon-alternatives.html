@@ -1,0 +1,466 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Boost Icon Alternatives</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bungee&family=IBM+Plex+Sans:wght@400;600&family=Silkscreen&family=IBM+Plex+Mono&display=swap">
+<style>
+  /* Candidates for the boost's character, drawn with the item-sprites helpers ported below, beside today's snail. */
+  :root {
+    --bg: #eef0f3;
+    --fg: #1b1d22;
+    --muted: #5b6170;
+    --rule: #cfd3db;
+    --card: #ffffff;
+    --accent: #c99a2e;
+    --display: "Bungee", "Arial Black", Impact, sans-serif;
+    --body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --pixel: "Silkscreen", ui-monospace, monospace;
+    --mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #15171a; --fg: #ece7d8; --muted: #9a9fab; --rule: #2c3036; --card: #1e2126; color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #15171a; --fg: #ece7d8; --muted: #9a9fab; --rule: #2c3036; --card: #1e2126; color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--fg);
+    font-family: var(--body);
+    font-size: 16px;
+    line-height: 1.5;
+    padding: 2.5rem 16px 4rem;
+  }
+  main { max-width: 64rem; margin: 0 auto; display: grid; gap: 2.5rem; }
+  header { display: grid; gap: 0.6rem; max-width: 44rem; }
+  h1 { font-family: var(--display); font-size: clamp(1.6rem, 4vw, 2.4rem); line-height: 1.1; margin: 0; }
+  header p { margin: 0; color: var(--muted); }
+  .eyebrow { font-family: var(--pixel); font-size: 0.8rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); }
+
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 19rem), 1fr)); gap: 1.25rem; }
+  .card { background: var(--card); border: 1px solid var(--rule); border-radius: 8px; padding: 1rem; display: grid; gap: 0.85rem; align-content: start; }
+  .card.today { border-style: dashed; }
+  .card h2 { font-family: var(--display); font-size: 1.1rem; margin: 0; display: flex; gap: 0.6rem; align-items: baseline; }
+  .card h2 .letter { color: var(--accent); }
+  .card p { margin: 0; color: var(--muted); font-size: 0.9rem; }
+
+  /* The slot's plate: the item box face on, chamfered, gold while held and flashing to the firing tones. */
+  .plate {
+    --lit: #f8e39a; --mid: #e0b54a; --shaded: #c99a2e;
+    --chamfer: 18%;
+    position: relative;
+    display: grid; place-items: center;
+    aspect-ratio: 1;
+    background: #3a1c0a;
+    clip-path: polygon(var(--chamfer) 0, calc(100% - var(--chamfer)) 0, 100% var(--chamfer), 100% calc(100% - var(--chamfer)), calc(100% - var(--chamfer)) 100%, var(--chamfer) 100%, 0 calc(100% - var(--chamfer)), 0 var(--chamfer));
+  }
+  .plate::before {
+    content: "";
+    position: absolute; inset: 5%;
+    background: linear-gradient(160deg, var(--lit), var(--mid) 55%, var(--shaded));
+    clip-path: inherit;
+  }
+  .plate svg { position: relative; width: 88%; height: auto; display: block; }
+  .plate.big { width: 100%; --chamfer: 12%; }
+  .plate.hud { width: 109px; }
+  .plate.small { width: 64px; }
+  .plate.firing { --lit: #ffffff; --mid: #fff6cf; --shaded: #f8e39a; }
+  @media (prefers-reduced-motion: no-preference) {
+    .plate.firing { animation: item-fire 0.25s steps(1, end) infinite; }
+    @keyframes item-fire {
+      50%, 100% { --lit: #f8e39a; --mid: #e0b54a; --shaded: #c99a2e; }
+    }
+  }
+  .row { display: flex; align-items: end; gap: 0.9rem; flex-wrap: wrap; }
+  .row figure { margin: 0; display: grid; gap: 0.3rem; justify-items: center; }
+  .row figcaption { font-family: var(--mono); font-size: 0.7rem; color: var(--muted); }
+
+  .rounds { display: grid; gap: 1rem; max-width: 44rem; }
+  .rounds h2 { font-family: var(--display); font-size: 1.2rem; margin: 0; }
+  .rounds p, .rounds ul { margin: 0; color: var(--muted); font-size: 0.9rem; }
+  .rounds li b { color: var(--fg); }
+  footer { border-top: 2px solid var(--rule); padding-top: 1.25rem; color: var(--muted); max-width: 44rem; font-size: 0.95rem; }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <span class="eyebrow">Instrument panel / item slot / boost</span>
+    <h1>Boost icon, round three</h1>
+    <p>Each candidate is drawn the way <code>apps/web/src/item-sprites.ts</code> draws: flat polygons on a 200 by 160 viewBox, toned lit, mid and shaded, standing on the same ink shadow, in the game's palette plus a few new colours. Round three drops the obvious: eight odd things that could shove a kart, most of them with a face, like the cone. Each card shows it large, then in the slot at the panel's size held and firing, then small.</p>
+  </header>
+  <div class="grid" id="grid"></div>
+  <section class="rounds">
+    <h2>Rejected rounds</h2>
+    <p>Rounds one and two came before this page; their drawings were not kept. ADR 0058 records why each lost.</p>
+    <p><b>Round one: six takes on one red rocket.</b> None was liked; all six were the same idea.</p>
+    <ul>
+      <li><b>A Climb</b>: the snail's rocket alone, tilted up and away. The classic item-game read: arrow plus flame.</li>
+      <li><b>B Flat out</b>: the same rocket level, nose right like the drone, with speed streaks.</li>
+      <li><b>C Afterburner</b>: a grey jet engine with an orange-hot nozzle and shock diamonds in the flame.</li>
+      <li><b>D Nitro bottle</b>: a red N2O bottle with a white band and a bolt, jetting from the foot.</li>
+      <li><b>E Grin</b>: B's rocket with a face, matching the cone that hates you.</li>
+      <li><b>F Twin boosters</b>: two short rockets clamped together, like a strap-on booster pack.</li>
+    </ul>
+    <p><b>Round two: symbols, car parts and odd objects.</b> G was the safe pick but boring; the round did not surprise.</p>
+    <ul>
+      <li><b>G Chevrons</b>: three red arrows, the back two fading. The boost pad's language, readable at any size.</li>
+      <li><b>H Dash plate</b>: a strip of tarmac with gold chevrons running up it.</li>
+      <li><b>I Turbo</b>: a turbocharger glowing red on the turbine side; mechanics call the housing a snail.</li>
+      <li><b>J Backfire</b>: twin chrome exhaust tips spitting flame, with a bang.</li>
+      <li><b>K Bolt</b>: a faceted electric-blue bolt with streaks, the one candidate off the palette.</li>
+      <li><b>L Firework</b>: a stick firework, spiral-striped, sparks at the fuse.</li>
+      <li><b>M Rocket kart</b>: a kart with a rocket far too big for it bolted on behind the driver.</li>
+      <li><b>N Winged tyre</b>: a race tyre with white wings.</li>
+    </ul>
+  </section>
+  <footer>Chosen: O, the podium champagne, recorded in <code>docs/adr/0058-boost-is-a-champagne-bottle.md</code>. The winner ports to <code>item-sprites.ts</code> as polygon calls. The champagne green, the cork, the coffee and the pink are new colours; the style guide gains them with the winner.</footer>
+</main>
+
+<script>
+  // Ported from apps/web/src/palette.ts.
+  const INK = 0x111111, VALUE_WHITE = 0xffffff;
+  const CARBON = { lit: 0x4a4f57, mid: 0x2b2e33, shaded: 0x1b1d21 };
+  const WHITE = { lit: VALUE_WHITE, mid: 0xeef0f2, shaded: 0xcfd2d6 };
+  const HAZARD_ORANGE = { lit: 0xff7a4d, mid: 0xff5522, shaded: 0xc73c14 };
+  const GREYS = { white: VALUE_WHITE, body: 0xe3e6ea, pale: 0xd4d8dd, grey: 0xb9bec5, dark: 0x9aa0a8, deep: 0x6f747b };
+  const ROCKET = { lit: 0xe8333b, mid: 0xd00a12, shaded: 0x8f070c };
+  const POSTER_RED = { lit: 0xe8333b, mid: 0xc81d25, shaded: 0x8f141a };
+  const ROCKET_FLAME = 0xffd23f, ROCKET_WINDOW = 0x7fc3ff, ROCKET_STRAP = 0x3a3d42;
+  function tonesOf(colour) {
+    const mix = (toward, share) => [16, 8, 0].reduce((mixed, shift) => {
+      const channel = (colour >> shift) & 0xff;
+      return mixed | (Math.round(channel * share + toward * (1 - share)) << shift);
+    }, 0);
+    return { lit: mix(255, 0.72), mid: colour, shaded: mix(0, 0.66) };
+  }
+
+  // Ported from apps/web/src/low-poly-svg.ts and item-sprites.ts.
+  const NS = "http://www.w3.org/2000/svg";
+  const css = (c) => typeof c === "number" ? "#" + c.toString(16).padStart(6, "0") : c;
+  function el(parent, name, attrs) {
+    const e = document.createElementNS(NS, name);
+    for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, String(v));
+    parent.append(e);
+    return e;
+  }
+  const polygon = (p, pts, fill) => el(p, "polygon", { points: pts.map((q) => q.join(",")).join(" "), fill: css(fill) });
+  const line = (p, a, b, colour, width) => el(p, "line", { x1: a[0], y1: a[1], x2: b[0], y2: b[1], stroke: css(colour), "stroke-width": width });
+  const stroke = (p, pts, colour, width) => el(p, "polyline", { points: pts.map((q) => q.join(",")).join(" "), stroke: css(colour), "stroke-width": width, fill: "none", "stroke-linecap": "round", "stroke-linejoin": "round" });
+  const rect = (x1, y1, x2, y2) => [[x1, y1], [x2, y1], [x2, y2], [x1, y2]];
+  function ngon(sides, cx, cy, r) {
+    return Array.from({ length: sides }, (_, k) => {
+      const t = Math.PI / sides + (2 * Math.PI * k) / sides - Math.PI / 2;
+      return [cx + r * Math.cos(t), cy + r * Math.sin(t)];
+    });
+  }
+  const L = Math.hypot(-1, -1.3), LIGHT = [-1 / L, -1.3 / L];
+  function facetted(p, sides, cx, cy, r, tones) {
+    const rim = ngon(sides, cx, cy, r);
+    rim.forEach((a, i) => {
+      const b = rim[(i + 1) % sides];
+      const mx = (a[0] + b[0]) / 2 - cx, my = (a[1] + b[1]) / 2 - cy, len = Math.hypot(mx, my) || 1;
+      const dot = (mx / len) * LIGHT[0] + (my / len) * LIGHT[1];
+      const c = dot > 0.3 ? tones.lit : dot < -0.3 ? tones.shaded : tones.mid;
+      const f = polygon(p, [[cx, cy], a, b], c);
+      f.setAttribute("stroke", css(c)); f.setAttribute("stroke-width", "0.6"); f.setAttribute("stroke-linejoin", "round");
+    });
+  }
+  function shadow(p, cx, cy, rx, ry) { el(p, "ellipse", { cx, cy, rx, ry, fill: css(INK), "fill-opacity": 0.15 }); }
+  function blur(p, cx, cy, rx, ry) { el(p, "ellipse", { cx, cy, rx, ry, fill: css(VALUE_WHITE), "fill-opacity": 0.55 }); }
+  /** A group placed at `x`, `y`, turned `deg` and scaled `s`, so a part can be drawn once in its own frame. */
+  const place = (p, x, y, deg, s) => el(p, "g", { transform: `translate(${x} ${y}) rotate(${deg}) scale(${s})` });
+
+  /** A flickering flame out of x = `x0` to x = `x0 - length`, `half` tall either side of y = 0. */
+  function flame(p, x0, half, length, core = true) {
+    polygon(p, [[x0, -half], [x0 - length * 0.45, -half * 1.35], [x0 - length * 0.38, -half * 0.45], [x0 - length, 0], [x0 - length * 0.38, half * 0.45], [x0 - length * 0.45, half * 1.35], [x0, half]], ROCKET_FLAME);
+    polygon(p, [[x0, -half * 0.6], [x0 - length * 0.62, 0], [x0, half * 0.6]], HAZARD_ORANGE.lit);
+    if (core) polygon(p, [[x0, -half * 0.28], [x0 - length * 0.3, 0], [x0, half * 0.28]], VALUE_WHITE);
+  }
+
+  /** The snail's rocket on its own, nose right, banded lit over mid over shaded, centred on its porthole. */
+  function rocket(p, { porthole = true, flameLength = 52 } = {}) {
+    flame(p, -60, 12, flameLength);
+    polygon(p, [[-52, -10], [-60, -12], [-60, 12], [-52, 10]], CARBON.mid);
+    polygon(p, rect(-52, -16, 38, -6), ROCKET.lit);
+    polygon(p, rect(-52, -6, 38, 6), ROCKET.mid);
+    polygon(p, rect(-52, 6, 38, 16), ROCKET.shaded);
+    polygon(p, [[38, -16], [70, 0], [38, 0]], WHITE.lit);
+    polygon(p, [[38, 0], [70, 0], [38, 16]], WHITE.shaded);
+    polygon(p, rect(-40, -16, -33, -6), WHITE.lit);
+    polygon(p, rect(-40, -6, -33, 6), WHITE.mid);
+    polygon(p, rect(-40, 6, -33, 16), WHITE.shaded);
+    polygon(p, [[-52, -16], [-66, -32], [-28, -16]], GREYS.grey);
+    polygon(p, [[-52, 16], [-66, 32], [-28, 16]], GREYS.dark);
+    polygon(p, [[-50, -3], [-70, 0], [-50, 3]], GREYS.deep);
+    if (porthole) {
+      polygon(p, ngon(6, 8, 0, 8.5), GREYS.white);
+      polygon(p, ngon(6, 9, 1, 4.8), ROCKET_WINDOW);
+    }
+  }
+
+  /** Speed streaks behind a part, in the value white the rotor blur uses. */
+  function streaks(p, rows) {
+    for (const [x1, x2, y] of rows) {
+      const s = line(p, [x1, y], [x2, y], VALUE_WHITE, 4);
+      s.setAttribute("stroke-linecap", "round"); s.setAttribute("stroke-opacity", "0.8");
+    }
+  }
+
+  const DRAWINGS = {
+    /** Today's snail, copied from item-sprites.ts for comparison. */
+    snail(p) {
+      shadow(p, 100, 146, 70, 5);
+      polygon(p, [[30, 130], [150, 130], [176, 112], [160, 102], [60, 110], [34, 120]], GREYS.grey);
+      polygon(p, [[60, 110], [160, 102], [168, 108], [64, 115]], GREYS.pale);
+      polygon(p, [[32, 126], [154, 126], [150, 132], [30, 132]], GREYS.dark);
+      line(p, [158, 86], [150, 58], GREYS.dark, 4);
+      line(p, [168, 86], [174, 58], GREYS.grey, 4);
+      facetted(p, 6, 162, 96, 16, { lit: GREYS.pale, mid: GREYS.grey, shaded: GREYS.dark });
+      polygon(p, ngon(6, 150, 54, 8), GREYS.white);
+      polygon(p, ngon(6, 174, 54, 8), WHITE.mid);
+      polygon(p, ngon(4, 153, 55, 3.4), INK);
+      polygon(p, ngon(4, 177, 55, 3.4), INK);
+      stroke(p, [[164, 104], [170, 107], [176, 104]], INK, 2.5);
+      facetted(p, 7, 90, 84, 36, HAZARD_ORANGE);
+      facetted(p, 6, 94, 82, 19, tonesOf(HAZARD_ORANGE.lit));
+      polygon(p, ngon(5, 97, 81, 7), HAZARD_ORANGE.shaded);
+      polygon(p, [[80, 56], [88, 56], [92, 100], [84, 100]], ROCKET_STRAP);
+      polygon(p, [[48, 38], [18, 46], [48, 54]], ROCKET_FLAME);
+      polygon(p, [[48, 41], [30, 46], [48, 51]], HAZARD_ORANGE.lit);
+      polygon(p, [[52, 32], [118, 32], [122, 40], [48, 40]], ROCKET.lit);
+      polygon(p, [[48, 40], [122, 40], [122, 50], [48, 50]], ROCKET.mid);
+      polygon(p, [[48, 50], [122, 50], [118, 58], [52, 58]], ROCKET.shaded);
+      polygon(p, [[122, 32], [142, 45], [122, 45]], ROCKET.lit);
+      polygon(p, [[122, 45], [142, 45], [122, 58]], ROCKET.shaded);
+      polygon(p, [[50, 32], [38, 20], [62, 32]], GREYS.grey);
+      polygon(p, [[50, 58], [38, 70], [62, 58]], GREYS.dark);
+      polygon(p, ngon(6, 100, 45, 6.5), GREYS.white);
+      polygon(p, ngon(6, 101, 46, 3.5), ROCKET_WINDOW);
+    },
+
+    /** O: the podium bottle, shaken: cork gone, foam jetting, the bottle riding it. */
+    champagne(p) {
+      shadow(p, 96, 146, 48, 5);
+      const g = place(p, 90, 90, -38, 0.92);
+      const green = tonesOf(0x1f7a4a);
+      const foil = tonesOf(ROCKET_FLAME);
+      for (const [x, y, r] of [[64, 0, 10], [76, -11, 9], [78, 11, 8], [92, -3, 11], [104, -16, 7], [106, 12, 8], [118, -2, 6]]) {
+        polygon(g, ngon(7, x, y, r), WHITE.mid);
+        polygon(g, ngon(7, x - 2, y - 2, r * 0.6), VALUE_WHITE);
+      }
+      polygon(g, [[128, -8], [144, -10], [144, 10], [128, 8]], 0xd9a066);
+      polygon(g, [[128, -8], [144, -10], [144, -3], [128, -2]], 0xeec48f);
+      polygon(g, rect(-62, -22, 10, -8), green.lit);
+      polygon(g, rect(-62, -8, 10, 8), green.mid);
+      polygon(g, rect(-62, 8, 10, 22), green.shaded);
+      polygon(g, [[10, -22], [32, -8], [32, 0], [10, 0]], green.lit);
+      polygon(g, [[10, 0], [32, 0], [32, 8], [10, 22]], green.shaded);
+      polygon(g, rect(30, -8, 58, 0), foil.lit);
+      polygon(g, rect(30, 0, 58, 8), foil.shaded);
+      polygon(g, rect(-46, -16, -12, 16), WHITE.mid);
+      polygon(g, rect(-46, -4, -12, 4), ROCKET.mid);
+    },
+
+    /** P: a marshal's extinguisher let off, flying on its own white blast. */
+    extinguisher(p) {
+      shadow(p, 108, 146, 30, 4);
+      for (const [x, y, r] of [[54, 66, 9], [40, 76, 12], [24, 90, 15], [34, 106, 10], [14, 112, 12]]) {
+        polygon(p, ngon(7, x, y, r), WHITE.shaded);
+        polygon(p, ngon(7, x - 2, y - 3, r * 0.65), VALUE_WHITE);
+      }
+      const g = place(p, 108, 80, 14, 1);
+      stroke(g, [[0, -58], [-16, -60], [-34, -48], [-46, -26]], CARBON.mid, 5);
+      polygon(g, [[-50, -28], [-42, -24], [-48, -12], [-56, -16]], CARBON.shaded);
+      polygon(g, rect(-22, -40, -8, 54), ROCKET.lit);
+      polygon(g, rect(-8, -40, 8, 54), ROCKET.mid);
+      polygon(g, rect(8, -40, 22, 54), ROCKET.shaded);
+      polygon(g, [[-22, -40], [-12, -50], [-4, -50], [-8, -40]], ROCKET.lit);
+      polygon(g, [[-8, -40], [-4, -50], [4, -50], [8, -40]], ROCKET.mid);
+      polygon(g, [[8, -40], [4, -50], [12, -50], [22, -40]], ROCKET.shaded);
+      polygon(g, rect(-22, -6, -8, 18), WHITE.lit);
+      polygon(g, rect(-8, -6, 8, 18), WHITE.mid);
+      polygon(g, rect(8, -6, 22, 18), WHITE.shaded);
+      polygon(g, rect(-6, -62, 6, -50), GREYS.grey);
+      polygon(g, [[-4, -64], [30, -74], [31, -69], [-3, -59]], CARBON.lit);
+      polygon(g, [[-2, -58], [26, -56], [26, -52], [-2, -54]], CARBON.mid);
+    },
+
+    /** Q: a chilli too hot to hold, flames out of the tip, sweating. */
+    chilli(p) {
+      shadow(p, 100, 146, 66, 5);
+      streaks(p, [[150, 186, 92], [158, 190, 104]]);
+      flame(place(p, 32, 104, -35, 1), 0, 10, 44);
+      polygon(p, [[152, 46], [120, 44], [86, 50], [58, 64], [38, 84], [26, 106], [44, 98], [66, 86], [96, 78], [126, 76], [152, 74]], ROCKET.mid);
+      polygon(p, [[152, 46], [120, 44], [86, 50], [58, 64], [38, 84], [48, 80], [70, 66], [96, 56], [122, 52], [152, 54]], ROCKET.lit);
+      polygon(p, [[26, 106], [44, 98], [66, 86], [96, 78], [126, 76], [152, 74], [126, 70], [96, 72], [62, 82]], ROCKET.shaded);
+      const green = tonesOf(0x3ddc84);
+      polygon(p, [[148, 42], [166, 50], [168, 72], [148, 78]], green.mid);
+      polygon(p, [[148, 42], [166, 50], [158, 58], [148, 56]], green.lit);
+      stroke(p, [[164, 58], [176, 48], [178, 34]], green.shaded, 6);
+      for (const x of [114, 132]) {
+        polygon(p, ngon(6, x, 58, 6.5), GREYS.white);
+        polygon(p, ngon(4, x, 57, 3), INK);
+      }
+      stroke(p, [[107, 47], [118, 49]], INK, 2.5);
+      stroke(p, [[128, 49], [139, 47]], INK, 2.5);
+      polygon(p, ngon(6, 124, 68, 4), INK);
+      polygon(p, [[146, 26], [140, 38], [146, 42], [152, 38]], ROCKET_WINDOW);
+    },
+
+    /** R: a party balloon let go, farting itself round the room. */
+    balloon(p) {
+      shadow(p, 100, 146, 40, 4);
+      el(p, "path", { d: "M 82 98 C 44 132, 8 104, 34 82 S 68 112, 24 138", fill: "none", stroke: css(VALUE_WHITE), "stroke-width": 4, "stroke-dasharray": "6 7", "stroke-linecap": "round" });
+      for (const [x, y, r] of [[78, 102, 6], [70, 110, 4.5], [64, 98, 3.5]]) polygon(p, ngon(6, x, y, r), VALUE_WHITE);
+      const g = place(p, 120, 62, -32, 1);
+      const pink = tonesOf(0xff4f9a);
+      polygon(g, [[-42, -6], [-50, 0], [-42, 6]], pink.shaded);
+      facetted(g, 12, 0, 0, 40, pink);
+      polygon(g, [[-30, -14], [-20, -28], [-10, -30], [-20, -18]], VALUE_WHITE);
+      for (const y of [-10, 10]) {
+        polygon(g, ngon(6, 14, y, 7.5), GREYS.white);
+        polygon(g, ngon(6, 16, y, 3.5), INK);
+      }
+      polygon(g, ngon(8, 28, 0, 5), INK);
+    },
+
+    /** S: an espresso so strong its steam is flame, and the cup has not blinked since. */
+    espresso(p) {
+      shadow(p, 100, 148, 60, 4);
+      flame(place(p, 88, 82, 90, 0.8), 0, 9, 58);
+      flame(place(p, 114, 82, 90, 0.8), 0, 8, 46);
+      polygon(p, [[44, 132], [156, 132], [146, 142], [54, 142]], WHITE.shaded);
+      polygon(p, rect(48, 128, 152, 133), WHITE.lit);
+      stroke(p, [[134, 94], [152, 96], [152, 114], [130, 118]], WHITE.shaded, 7);
+      polygon(p, [[64, 84], [86, 84], [84, 130], [72, 130]], WHITE.lit);
+      polygon(p, [[86, 84], [116, 84], [116, 130], [84, 130]], WHITE.mid);
+      polygon(p, [[116, 84], [136, 84], [128, 130], [116, 130]], WHITE.shaded);
+      polygon(p, [[64, 84], [136, 84], [130, 91], [70, 91]], 0x6b3e26);
+      for (const x of [88, 112]) {
+        polygon(p, ngon(8, x, 104, 8), GREYS.white);
+        polygon(p, ngon(4, x, 104, 2), INK);
+      }
+      stroke(p, [[88, 120], [94, 116], [100, 120], [106, 116], [112, 120]], INK, 2.5);
+      for (const x of [52, 148]) stroke(p, [[x, 92], [x - 4, 98], [x, 104], [x - 4, 110]], VALUE_WHITE, 2.5);
+    },
+
+    /** T: your kart was a wind-up toy all along; the key turns. */
+    windUp(p) {
+      shadow(p, 120, 146, 70, 5);
+      polygon(p, [[130, 62], [200, 62], [200, 120], [130, 120]], POSTER_RED.mid);
+      polygon(p, rect(130, 62, 200, 74), POSTER_RED.lit);
+      polygon(p, rect(130, 112, 200, 120), POSTER_RED.shaded);
+      facetted(p, 8, 168, 124, 18, CARBON);
+      polygon(p, ngon(6, 168, 124, 6), GREYS.grey);
+      polygon(p, rect(78, 86, 132, 92), GREYS.white);
+      polygon(p, rect(78, 92, 132, 98), GREYS.dark);
+      const chrome = { lit: GREYS.white, mid: GREYS.pale, shaded: GREYS.dark };
+      for (const y of [64, 120]) {
+        facetted(p, 8, 64, y, 22, chrome);
+        polygon(p, ngon(8, 64, y, 8), CARBON.mid);
+      }
+      polygon(p, rect(58, 64, 70, 120), GREYS.grey);
+      polygon(p, ngon(6, 70, 92, 11), GREYS.deep);
+      el(p, "path", { d: "M 30 40 A 54 54 0 0 0 30 144", fill: "none", stroke: css(VALUE_WHITE), "stroke-width": 4, "stroke-linecap": "round" });
+      polygon(p, [[22, 138], [38, 140], [28, 150]], VALUE_WHITE);
+    },
+
+    /** U: the circus cannon; the driver is the shot. */
+    cannon(p) {
+      shadow(p, 96, 146, 66, 5);
+      streaks(p, [[132, 150, 60], [140, 156, 42]]);
+      const g = place(p, 80, 100, -32, 0.9);
+      facetted(g, 8, -50, 0, 18, CARBON);
+      polygon(g, rect(-50, -18, 40, -6), POSTER_RED.lit);
+      polygon(g, rect(-50, -6, 40, 6), POSTER_RED.mid);
+      polygon(g, rect(-50, 6, 40, 18), POSTER_RED.shaded);
+      for (const x of [-30, -6, 18]) polygon(g, rect(x, -18, x + 9, 18), WHITE.mid);
+      polygon(g, rect(40, -22, 50, 22), GREYS.deep);
+      facetted(p, 10, 70, 120, 22, tonesOf(0xb8860b));
+      polygon(p, ngon(6, 70, 120, 6), CARBON.mid);
+      for (const [x, y, r] of [[128, 70, 11], [118, 60, 8], [140, 82, 8], [112, 74, 6]]) {
+        polygon(p, ngon(7, x, y, r), WHITE.shaded);
+        polygon(p, ngon(7, x - 2, y - 2, r * 0.6), VALUE_WHITE);
+      }
+      facetted(p, 8, 166, 30, 15, WHITE);
+      polygon(p, rect(160, 24, 182, 33), INK);
+      polygon(p, [[152, 36], [180, 22], [181, 26], [153, 40]], ROCKET.mid);
+    },
+
+    /** V: a hairdryer on full heat, used as a jet. */
+    hairdryer(p) {
+      shadow(p, 104, 146, 54, 5);
+      flame(place(p, 40, 60, 0, 1), 0, 9, 38);
+      const pink = tonesOf(0xff4f9a);
+      stroke(p, [[116, 128], [120, 138], [140, 140], [152, 132], [166, 140]], CARBON.mid, 4);
+      polygon(p, [[110, 74], [134, 74], [126, 128], [104, 128]], pink.mid);
+      polygon(p, [[110, 74], [118, 74], [110, 128], [104, 128]], pink.lit);
+      polygon(p, rect(114, 86, 122, 98), WHITE.mid);
+      polygon(p, [[56, 50], [40, 54], [40, 66], [56, 70]], CARBON.mid);
+      polygon(p, rect(56, 42, 146, 52), pink.lit);
+      polygon(p, rect(56, 52, 146, 68), pink.mid);
+      polygon(p, rect(56, 68, 146, 78), pink.shaded);
+      facetted(p, 10, 148, 60, 20, pink);
+      facetted(p, 8, 148, 60, 11, CARBON);
+    },
+  };
+
+  const CARDS = [
+    ["", "Today: snail", "snail", "A snail with a rocket strapped to its shell, regretting it. Reads as slow at a glance, which is the joke and the problem.", true],
+    ["O", "Podium champagne", "champagne", "The winner's bottle, shaken, cork gone, riding its own foam. Motorsport's own celebration as a propellant."],
+    ["P", "Extinguisher", "extinguisher", "A marshal's fire extinguisher let off and flying on its blast. Motorsport kit used very wrongly."],
+    ["Q", "Chilli", "chilli", "A chilli so hot it spits flame from the tip, sweating with wide eyes. Spicy boost."],
+    ["R", "Loose balloon", "balloon", "A party balloon let go, zipping in loops on its own air. The most chaotic and childish one."],
+    ["S", "Espresso", "espresso", "A cup whose steam is flame, staring wide awake, jittering. Caffeine as a power-up."],
+    ["T", "Wind-up", "windUp", "A clockwork key in the back of a red kart: the kart was a toy all along. The arrow says it turns."],
+    ["U", "Human cannon", "cannon", "A circus cannon with the driver's helmet as the shot. Says what the boost does to you."],
+    ["V", "Hairdryer", "hairdryer", "A pink hairdryer on full heat, flame out of the nozzle. Domestic object, jet engine attitude."],
+  ];
+
+  function sprite(name) {
+    const s = document.createElementNS(NS, "svg");
+    s.setAttribute("viewBox", "0 0 200 160");
+    s.setAttribute("aria-hidden", "true");
+    DRAWINGS[name](s);
+    return s;
+  }
+  function plate(name, cls) {
+    const d = document.createElement("div");
+    d.className = "plate " + cls;
+    d.append(sprite(name));
+    return d;
+  }
+  function figure(name, cls, caption) {
+    const f = document.createElement("figure");
+    f.append(plate(name, cls));
+    const c = document.createElement("figcaption");
+    c.textContent = caption;
+    f.append(c);
+    return f;
+  }
+
+  const grid = document.getElementById("grid");
+  for (const [letter, title, name, note, today] of CARDS) {
+    const card = document.createElement("section");
+    card.className = "card" + (today ? " today" : "");
+    const h = document.createElement("h2");
+    if (letter) { const l = document.createElement("span"); l.className = "letter"; l.textContent = letter; h.append(l); }
+    h.append(title);
+    const p = document.createElement("p");
+    p.textContent = note;
+    const row = document.createElement("div");
+    row.className = "row";
+    row.append(figure(name, "hud", "held"), figure(name, "hud firing", "firing"), figure(name, "small", "64 px"));
+    card.append(h, plate(name, "big"), row, p);
+    grid.append(card);
+  }
+</script>
+</body>
+</html>

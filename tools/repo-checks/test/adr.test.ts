@@ -62,6 +62,7 @@ const DECISION_SLUGS = [
   "tyres-raise-top-speed",
   "coins-replace-the-tyre-pickup",
   "homing-projectile-is-a-camera-quad-drone",
+  "boost-is-a-champagne-bottle",
 ];
 
 const expectedFiles = DECISION_SLUGS.map(

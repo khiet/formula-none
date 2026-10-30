@@ -1,8 +1,10 @@
 import type { Item } from "./generated/protocol";
 import { hexCss } from "./livery";
-import { facetted, line, ngon, type Point, polygon, rectangle, SVG_NS, svg } from "./low-poly-svg";
+import { group, line, ngon, type Point, polygon, rectangle, SVG_NS, svg } from "./low-poly-svg";
 import {
   CARBON,
+  CHAMPAGNE_BOTTLE,
+  CORK,
   DRONE_EYE,
   GREYS,
   HAZARD_ORANGE,
@@ -11,7 +13,6 @@ import {
   ROCKET,
   ROCKET_FLAME,
   ROCKET_STRAP,
-  ROCKET_WINDOW,
   tonesOf,
   VALUE_WHITE,
   WHITE,
@@ -20,8 +21,8 @@ import {
 /**
  * The item slot's characters (ADR 0037): each item drawn flat from the
  * View's mesh for it, in polygons lifted from the style guide's drawings
- * (docs/style-guide.html). The snail has no mesh, since a boost
- * never shows on the road. Original work, CC0 like the rest of the art
+ * (docs/style-guide.html). The champagne bottle has no mesh, since a
+ * boost never shows on the road. Original work, CC0 like the rest of the art
  * (assets/LICENSES.md).
  */
 
@@ -210,157 +211,75 @@ const homing: Drawing = (parent) => {
   polygon(parent, ngon(6, 155, 111, 3), INK);
 };
 
-/** A snail with a rocket strapped to its faceted shell, regretting it. */
+/**
+ * The podium bottle, shaken: tilted up to the right, its cork flying off the
+ * neck on a jet of foam. No face; the cork and the foam carry it.
+ */
 const boost: Drawing = (parent) => {
-  shadow(parent, 100, 146, 70, 5);
+  shadow(parent, 96, 146, 48, 5);
+  // Drawn along the bottle's own axis, base to cork, then tilted.
+  const bottle = group(parent);
+  bottle.setAttribute("transform", "translate(88 92) rotate(-38) scale(0.84)");
+  for (const [x, y, r] of [
+    [64, 0, 10],
+    [76, -11, 9],
+    [78, 11, 8],
+    [92, -3, 11],
+    [104, -16, 7],
+    [106, 12, 8],
+    [118, -2, 6],
+  ] as const) {
+    polygon(bottle, ngon(7, x, y, r), WHITE.mid);
+    polygon(bottle, ngon(7, x - 2, y - 2, r * 0.6), VALUE_WHITE);
+  }
   polygon(
-    parent,
+    bottle,
     [
-      [30, 130],
-      [150, 130],
-      [176, 112],
-      [160, 102],
-      [60, 110],
-      [34, 120],
+      [128, -8],
+      [144, -10],
+      [144, 10],
+      [128, 8],
     ],
-    GREYS.grey,
-  );
-  polygon(
-    parent,
-    [
-      [60, 110],
-      [160, 102],
-      [168, 108],
-      [64, 115],
-    ],
-    GREYS.pale,
-  );
-  polygon(
-    parent,
-    [
-      [32, 126],
-      [154, 126],
-      [150, 132],
-      [30, 132],
-    ],
-    GREYS.dark,
-  );
-  line(parent, [158, 86], [150, 58], GREYS.dark, 4);
-  line(parent, [168, 86], [174, 58], GREYS.grey, 4);
-  facetted(parent, 6, 162, 96, 16, { lit: GREYS.pale, mid: GREYS.grey, shaded: GREYS.dark });
-  polygon(parent, ngon(6, 150, 54, 8), GREYS.white);
-  polygon(parent, ngon(6, 174, 54, 8), WHITE.mid);
-  polygon(parent, ngon(4, 153, 55, 3.4), INK);
-  polygon(parent, ngon(4, 177, 55, 3.4), INK);
-  stroke(
-    parent,
-    [
-      [164, 104],
-      [170, 107],
-      [176, 104],
-    ],
-    INK,
-    2.5,
-  );
-  facetted(parent, 7, 90, 84, 36, HAZARD_ORANGE);
-  facetted(parent, 6, 94, 82, 19, tonesOf(HAZARD_ORANGE.lit));
-  polygon(parent, ngon(5, 97, 81, 7), HAZARD_ORANGE.shaded);
-  polygon(
-    parent,
-    [
-      [80, 56],
-      [88, 56],
-      [92, 100],
-      [84, 100],
-    ],
-    ROCKET_STRAP,
+    CORK.mid,
   );
   polygon(
-    parent,
+    bottle,
     [
-      [48, 38],
-      [18, 46],
-      [48, 54],
+      [128, -8],
+      [144, -10],
+      [144, -3],
+      [128, -2],
     ],
-    ROCKET_FLAME,
+    CORK.lit,
+  );
+  polygon(bottle, rectangle(-62, -22, 10, -8), CHAMPAGNE_BOTTLE.lit);
+  polygon(bottle, rectangle(-62, -8, 10, 8), CHAMPAGNE_BOTTLE.mid);
+  polygon(bottle, rectangle(-62, 8, 10, 22), CHAMPAGNE_BOTTLE.shaded);
+  polygon(
+    bottle,
+    [
+      [10, -22],
+      [32, -8],
+      [32, 0],
+      [10, 0],
+    ],
+    CHAMPAGNE_BOTTLE.lit,
   );
   polygon(
-    parent,
+    bottle,
     [
-      [48, 41],
-      [30, 46],
-      [48, 51],
+      [10, 0],
+      [32, 0],
+      [32, 8],
+      [10, 22],
     ],
-    HAZARD_ORANGE.lit,
+    CHAMPAGNE_BOTTLE.shaded,
   );
-  polygon(
-    parent,
-    [
-      [52, 32],
-      [118, 32],
-      [122, 40],
-      [48, 40],
-    ],
-    ROCKET.lit,
-  );
-  polygon(
-    parent,
-    [
-      [48, 40],
-      [122, 40],
-      [122, 50],
-      [48, 50],
-    ],
-    ROCKET.mid,
-  );
-  polygon(
-    parent,
-    [
-      [48, 50],
-      [122, 50],
-      [118, 58],
-      [52, 58],
-    ],
-    ROCKET.shaded,
-  );
-  polygon(
-    parent,
-    [
-      [122, 32],
-      [142, 45],
-      [122, 45],
-    ],
-    ROCKET.lit,
-  );
-  polygon(
-    parent,
-    [
-      [122, 45],
-      [142, 45],
-      [122, 58],
-    ],
-    ROCKET.shaded,
-  );
-  polygon(
-    parent,
-    [
-      [50, 32],
-      [38, 20],
-      [62, 32],
-    ],
-    GREYS.grey,
-  );
-  polygon(
-    parent,
-    [
-      [50, 58],
-      [38, 70],
-      [62, 58],
-    ],
-    GREYS.dark,
-  );
-  polygon(parent, ngon(6, 100, 45, 6.5), GREYS.white);
-  polygon(parent, ngon(6, 101, 46, 3.5), ROCKET_WINDOW);
+  const foil = tonesOf(ROCKET_FLAME);
+  polygon(bottle, rectangle(30, -8, 58, 0), foil.lit);
+  polygon(bottle, rectangle(30, 0, 58, 8), foil.shaded);
+  polygon(bottle, rectangle(-46, -16, -12, 16), WHITE.mid);
+  polygon(bottle, rectangle(-46, -4, -12, 4), ROCKET.mid);
 };
 
 const DRAWINGS: Readonly<Record<Item, Drawing>> = { boost, hazard, homing };

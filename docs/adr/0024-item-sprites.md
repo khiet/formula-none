@@ -5,7 +5,8 @@
 Accepted (2026-10-25). Extends ADR 0023. Its 16x16 sprite grids and brown
 outline are superseded by ADR 0037; the characters, the slot's states and
 its accessible text stand. Its seagull for homing is superseded by ADR
-0057: the homing character is a camera quad drone.
+0057: the homing character is a camera quad drone. Its snail for boost is
+superseded by ADR 0058: the boost character is a podium champagne bottle.
 
 ## Context
 
