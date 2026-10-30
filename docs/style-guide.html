@@ -373,7 +373,7 @@
         </div>
         <dl class="spec"><dt>Size</dt><dd>Inside the sim's 1.2 x 1.8 m box</dd><dt>Decided</dt><dd><a href="adr/0034-chibi-low-poly-art.md">ADR 0034</a>, <a href="adr/0035-livery-palette.md">0035</a>, <a href="adr/0036-drivers-race-bare-headed.md">0036</a></dd></dl>
         <div class="notes">
-          <p>Built from primitives: tub, sidepods, wings, halo at chin height, octagon wheels with three spokes, one flat material per palette colour.</p>
+          <p>Built from primitives: tub, sidepods, wings, halo at chin height, octagon wheels with three spokes, one flat material per palette colour. The side view is the poster kart: <code>build.py</code>'s boxes projected part for part (<a href="adr/0051-poster-karts-wear-the-livery.md">ADR 0051</a>).</p>
           <p class="dont"><b>Don't</b> add a helmet, a race number, a name on the wing or a tyre stripe: the base mockup had all four and the ADRs removed them.</p>
         </div>
       </article>
@@ -735,7 +735,7 @@
         </div></figure></div>
         <dl class="spec"><dt>Decided</dt><dd><a href="adr/0033-grand-prix-poster.md">ADR 0033</a></dd></dl>
         <div class="notes">
-          <p>Red poster, rays, chequer bands top and bottom, the logo, chunky buttons and fields with hard ink shadows, and the audio toggles as ink chips: a lit square when on, the label struck through when off. Poster karts run along the bottom edge.</p>
+          <p>Red poster, rays, chequer bands top and bottom, the logo, chunky buttons and fields with hard ink shadows, and the audio toggles as ink chips: a lit square when on, the label struck through when off. Poster karts in their liveries run along the bottom edge, wheels turning.</p>
           <p>Go green marks the one primary action on a poster; poster gold marks the others.</p>
         </div>
       </article>
@@ -754,10 +754,10 @@
       <article class="asset wide">
         <header><h3>Poster kart: Title runners and the podium</h3><code>apps/web/src/poster.ts</code></header>
         <div class="compare"><figure><figcaption>The podium</figcaption><div class="poster" data-draw="poster"></div></figure></div>
-        <dl class="spec"><dt>Decided</dt><dd><a href="adr/0033-grand-prix-poster.md">ADR 0033</a>, <a href="adr/0035-livery-palette.md">0035</a>, <a href="adr/0036-drivers-race-bare-headed.md">0036</a></dd></dl>
+        <dl class="spec"><dt>Decided</dt><dd><a href="adr/0033-grand-prix-poster.md">ADR 0033</a>, <a href="adr/0035-livery-palette.md">0035</a>, <a href="adr/0036-drivers-race-bare-headed.md">0036</a>, <a href="adr/0051-poster-karts-wear-the-livery.md">0051</a></dd></dl>
         <div class="notes">
-          <p>The car side on, facing right: facets in primary, secondary and accent, octagon wheels, the bare head. The podium is the three cars you just raced, in their own palettes.</p>
-          <p class="dont"><b>Don't</b> draw a smooth wheel or a helmet on a poster; the poster car is the same car as the View's.</p>
+          <p>The car side on, facing right: <code>build.py</code>'s boxes in the same metres, far side first, in primary, secondary and accent as the View paints them, the carbon halo and pillar, the octagon wheels with their three spokes, the bare head. The podium is the three cars you just raced, in their own palettes; the Title Scene's runners and the Room Scene's grid are the same drawing in the same livery, and a runner's wheels turn as it drives.</p>
+          <p class="dont"><b>Don't</b> draw a smooth wheel, a helmet or an accent hub on a poster, and don't paint a poster kart in its key colour alone; the poster car is the same car as the View's, in the same paint.</p>
         </div>
       </article>
 
@@ -861,13 +861,15 @@
   };
   const at = (cx, cy, r) => (u, w) => [cx + u * r, cy + w * r];
 
+  // The wheel as build.py builds it: an octagon tyre, the rim at 0.58 of it, three spokes to 0.86, one straight up; grouped about its centre for a style to spin.
+  const RIM = "#3a3d42", SPOKE = "#4a4e55", CARBON = "#2b2e33";
   const wheel = (cx, cy, r) => {
     const spokes = [0, 1, 2].map((k) => {
-      const t = -Math.PI / 2 + (2 * Math.PI * k) / 3 + 0.35;
-      return `<line x1="${cx}" y1="${cy}" x2="${(cx + r * 0.86 * Math.cos(t)).toFixed(1)}" y2="${(cy + r * 0.86 * Math.sin(t)).toFixed(1)}" stroke="#4a4e55" stroke-width="${(r * 0.13).toFixed(1)}" stroke-linecap="round"/>`;
+      const t = -Math.PI / 2 + (2 * Math.PI * k) / 3;
+      return `<line x1="${cx}" y1="${cy}" x2="${(cx + r * 0.86 * Math.cos(t)).toFixed(1)}" y2="${(cy + r * 0.86 * Math.sin(t)).toFixed(1)}" stroke="${SPOKE}" stroke-width="${(r * 0.2).toFixed(1)}" stroke-linecap="round"/>`;
     }).join("");
-    return facets(8, cx, cy, r, ["#2f3237", "#1d1e21", "#111214"]) +
-      poly(ngon(8, cx, cy, r * 0.58), "#3a3d42") + spokes + poly(ngon(6, cx, cy, r * 0.16), "var(--a)");
+    return `<g class="wheel">` + facets(8, cx, cy, r, ["#2f3237", "#1d1e21", "#111214"]) +
+      poly(ngon(8, cx, cy, r * 0.58), RIM) + spokes + poly(ngon(6, cx, cy, r * 0.14), SPOKE) + "</g>";
   };
 
   // Hair from the side, the car facing right: a cap over the top and back, then the style's own shape.
@@ -915,32 +917,38 @@
       `<polyline points="${P([q(0.6, 0.52), q(0.82, 0.5)])}" stroke="#6e3428" stroke-width="3" stroke-linecap="round"/>`;
   };
 
-  // The base mockup's side view with ADR 0035 and 0036 applied: no number, no helmet, halo at chin height.
-  const sideCar = (d, label = "Chibi low-poly car, side view") => `<svg viewBox="0 0 520 260" role="img" aria-label="${label}">
-    <ellipse cx="270" cy="240" rx="225" ry="9" fill="rgba(0,0,0,.18)"/>
-    <polygon points="54,64 68,64 68,184 54,184" fill="var(--s)"/>
-    <polygon points="40,60 132,60 128,82 44,82" fill="var(--p)"/>
-    <polygon points="40,60 132,60 131,68 41,68" fill="var(--p-lt)"/>
-    <polygon points="44,86 126,86 122,94 48,94" fill="var(--a)"/>
-    <polygon points="70,196 70,150 100,124 190,116 222,92 262,92 292,118 400,140 478,168 482,190 460,196" fill="var(--p)"/>
-    <polygon points="100,124 190,116 222,92 262,92 292,118 400,140 478,168 470,174 400,150 292,128 190,126 100,134 70,150" fill="var(--p-lt)"/>
-    <polygon points="70,184 460,186 482,190 460,196 70,196" fill="var(--p-dk)"/>
-    <polygon points="80,194 472,194 468,204 84,204" fill="#1d1d1f"/>
-    <polygon points="150,188 158,146 200,134 330,138 372,162 362,188" fill="color-mix(in srgb, var(--s) 82%, black)"/>
-    <polygon points="158,146 200,134 330,138 372,162 330,148 200,144" fill="color-mix(in srgb, var(--s) 78%, white)"/>
-    <polygon points="176,162 372,162 440,174 440,178 372,168 176,168" fill="var(--a)"/>
-    <polygon points="196,120 222,104 282,106 292,120" fill="#111"/>
-    <polygon points="204,120 222,100 276,100 292,120" fill="var(--p)"/>
-    <polygon points="204,120 222,100 248,100 240,120" fill="var(--p-lt)"/>
-    <polygon points="226,102 272,102 268,94 230,94" fill="var(--a)"/>
-    <polygon points="240,96 262,96 262,86 240,86" fill="var(--sk-dk)"/>
-    ${headSide(d, 252, 50, 42)}
-    <polyline points="210,116 222,96 290,92 304,118" stroke="#1a1a1a" stroke-width="7" fill="none" stroke-linejoin="round" stroke-linecap="round"/>
-    <polygon points="440,202 506,202 506,188 496,188 490,196 440,196" fill="var(--s)"/>
-    <polygon points="498,174 506,174 506,204 498,204" fill="var(--a)"/>
-    <line x1="130" y1="190" x2="190" y2="170" stroke="#222" stroke-width="3"/>
-    <line x1="420" y1="198" x2="380" y2="170" stroke="#222" stroke-width="3"/>
-    ${wheel(130, 190, 47)}${wheel(420, 198, 39)}
+  // The car side on (poster.ts): build.py's boxes in the same metres, 250 units a metre, y = 0 at x 262 and the ground at y 350, far side first.
+  const UNITS_PER_M = 250, sx = (y) => 262 + y * UNITS_PER_M, sy = (z) => 350 - z * UNITS_PER_M, LIT_STRIP = 6;
+  const box = (fill, [, cy, cz], [, length, height], frontScale = 1, frontDrop = 0, lit) => {
+    const back = sx(cy - length / 2), front = sx(cy + length / 2);
+    const backTop = sy(cz + height / 2), frontTop = sy(cz + (height / 2) * frontScale - frontDrop);
+    const side = poly([[back, sy(cz - height / 2)], [back, backTop], [front, frontTop], [front, sy(cz - (height / 2) * frontScale - frontDrop)]], fill);
+    return lit ? side + poly([[back, backTop], [front, frontTop], [front, frontTop + LIT_STRIP], [back, backTop + LIT_STRIP]], lit) : side;
+  };
+  const wheelAt = (radius, y) => [sx(y), sy(radius * Math.cos(Math.PI / 8)), radius * UNITS_PER_M];
+  const sideCar = (d, label = "Chibi low-poly car, side view") => `<svg viewBox="0 0 520 380" role="img" aria-label="${label}">
+    <ellipse cx="260" cy="352" rx="232" ry="9" fill="rgba(0,0,0,.18)"/>
+    ${box("var(--a)", [0, -0.6, 0.6], [0.03, 0.34, 0.16], 0.5, 0, "var(--a-lt)")}
+    ${box(CARBON, [0, -0.78, 0.6], [0.05, 0.06, 0.36])}
+    ${box("var(--a)", [0, 0.81, 0.14], [0.13, 0.1, 0.09], 0.8)}
+    ${box("var(--sk)", [0, -0.1, 0.77], [0.13, 0.12, 0.08])}
+    ${box("var(--s)", [0, -0.36, 0.62], [0.18, 0.14, 0.16], 1, 0, "var(--s-lt)")}
+    ${box("var(--a)", [0, -0.1, 0.735], [0.24, 0.18, 0.05])}
+    ${box("var(--p)", [0, 0.52, 0.27], [0.26, 0.46, 0.26], 0.55, 0.07)}
+    ${box("var(--p)", [0, -0.52, 0.34], [0.32, 0.44, 0.42], 1.1, 0, "var(--p-lt)")}
+    ${box("var(--p)", [0, -0.04, 0.32], [0.42, 0.66, 0.4], 1, 0, "var(--p-lt)")}
+    ${box("var(--p)", [0, -0.12, 0.62], [0.46, 0.24, 0.2], 1, 0, "var(--p-lt)")}
+    ${headSide(d, sx(-0.1), sy(0.99), 0.29 * UNITS_PER_M)}
+    ${box("var(--s)", [0, -0.2, 0.1], [0.76, 1.1, 0.06])}
+    ${box("var(--s)", [0.29, -0.18, 0.28], [0.2, 0.52, 0.3], 0.75, 0.03, "var(--s-lt)")}
+    <polyline points="${P([[sx(0.4), sy(0.52)], [sx(0.34), sy(0.756)], [sx(-0.1), sy(0.756)], [sx(-0.18), sy(0.52)]])}" stroke="${CARBON}" stroke-width="11" fill="none" stroke-linejoin="round" stroke-linecap="round"/>
+    ${box("var(--p)", [0, -0.82, 0.8], [0.82, 0.14, 0.06])}
+    ${box("var(--a)", [0, -0.86, 0.87], [0.82, 0.08, 0.04])}
+    ${box("var(--a)", [0.42, -0.83, 0.73], [0.03, 0.18, 0.34], 1, 0, "var(--a-lt)")}
+    ${box("var(--s)", [0, 0.82, 0.07], [1.1, 0.14, 0.04])}
+    ${box("var(--p)", [0, 0.77, 0.12], [1.0, 0.06, 0.04])}
+    ${box("var(--a)", [0.56, 0.82, 0.11], [0.03, 0.16, 0.13], 1, 0, "var(--a-lt)")}
+    ${wheel(...wheelAt(0.3, -0.52))}${wheel(...wheelAt(0.27, 0.52))}
   </svg>`;
 
   // The back of the bare head from the chase camera: hair, ears, and the style's tell.

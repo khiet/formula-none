@@ -19,7 +19,11 @@ const IRIS = "#21170f";
 const WHITES = "#f6f1ea";
 const EARRING = "#dba833";
 const GREYING = "#a8a8ad";
+// The wheel and the carbon parts as build.py colours them.
 const TYRE = ["#2f3237", "#1d1e21", "#111214"] as const;
+const RIM = "#3a3d42";
+const SPOKE = "#4a4e55";
+const CARBON = "#2b2e33";
 
 type Point = readonly [number, number];
 type Tones = readonly [lit: string, mid: string, shaded: string];
@@ -60,21 +64,28 @@ const around =
   (cx: number, cy: number, r: number) =>
   (u: number, w: number): Point => [cx + u * r, cy + w * r];
 
-/** An octagon tyre with three spokes and the hub in the accent. */
+/**
+ * The wheel as build.py builds it: an octagon tyre, the rim an octagon at
+ * 0.58 of it, and three spokes out to 0.86, one straight up, so a turn
+ * shows every 120 degrees. In a group about its own centre for a style
+ * to spin: `.wheel` with `transform-box: fill-box`.
+ */
 function wheel(cx: number, cy: number, r: number): string {
   const spokes = [0, 1, 2]
     .map((k) => {
-      const t = -Math.PI / 2 + (2 * Math.PI * k) / 3 + 0.35;
+      const t = -Math.PI / 2 + (2 * Math.PI * k) / 3;
       const x = (cx + r * 0.86 * Math.cos(t)).toFixed(1);
       const y = (cy + r * 0.86 * Math.sin(t)).toFixed(1);
-      return `<line x1="${cx}" y1="${cy}" x2="${x}" y2="${y}" stroke="#4a4e55" stroke-width="${(r * 0.13).toFixed(1)}" stroke-linecap="round"/>`;
+      return `<line x1="${cx}" y1="${cy}" x2="${x}" y2="${y}" stroke="${SPOKE}" stroke-width="${(r * 0.2).toFixed(1)}" stroke-linecap="round"/>`;
     })
     .join("");
   return (
+    `<g class="wheel">` +
     facets(8, cx, cy, r, TYRE) +
-    poly(ngon(8, cx, cy, r * 0.58), "#3a3d42") +
+    poly(ngon(8, cx, cy, r * 0.58), RIM) +
     spokes +
-    poly(ngon(6, cx, cy, r * 0.16), "var(--a)")
+    poly(ngon(6, cx, cy, r * 0.14), SPOKE) +
+    "</g>"
   );
 }
 
@@ -205,39 +216,110 @@ function head(driver: Driver, cx: number, cy: number, r: number): string {
   );
 }
 
+// The side view's scale: build.py's metres to units of the 520 x 380 viewBox,
+// the kart's y = 0 at ORIGIN_X and the ground at GROUND_Y.
+const UNITS_PER_M = 250;
+const ORIGIN_X = 262;
+const GROUND_Y = 350;
+/** How deep the lit strip along a box's top edge is, standing for its top face. */
+const LIT_STRIP = 6;
+
+const sx = (y: number): number => ORIGIN_X + y * UNITS_PER_M;
+const sy = (z: number): number => GROUND_Y - z * UNITS_PER_M;
+
 /**
- * The kart side on, facing right, as the style guide draws it: facets in
- * the livery's primary, secondary and accent, octagon wheels, and its
- * driver bare-headed. The colours ride on the SVG as custom properties;
- * index.html derives their lit and shaded tones.
+ * The side of one of build.py's boxes, given as `box` gives it there: the
+ * centre and size in metres (x, y, z), the front end's height scaled by
+ * `frontScale` and lowered by `frontDrop`. Only y and z show side on; x is
+ * kept so each part reads as the line in build.py. A lit strip runs along
+ * the top edge when `lit` is given.
+ */
+function box(
+  fill: string,
+  [, cy, cz]: readonly [number, number, number],
+  [, length, height]: readonly [number, number, number],
+  frontScale = 1,
+  frontDrop = 0,
+  lit?: string,
+): string {
+  const back = sx(cy - length / 2);
+  const front = sx(cy + length / 2);
+  const backTop = sy(cz + height / 2);
+  const frontTop = sy(cz + (height / 2) * frontScale - frontDrop);
+  const side = poly(
+    [
+      [back, sy(cz - height / 2)],
+      [back, backTop],
+      [front, frontTop],
+      [front, sy(cz - (height / 2) * frontScale - frontDrop)],
+    ],
+    fill,
+  );
+  if (lit === undefined) return side;
+  return (
+    side +
+    poly(
+      [
+        [back, backTop],
+        [front, frontTop],
+        [front, frontTop + LIT_STRIP],
+        [back, backTop + LIT_STRIP],
+      ],
+      lit,
+    )
+  );
+}
+
+/** A wheel's centre and radius from build.py's spec: the octagon rests on a flat, so its axle stands its inradius up. */
+function wheelAt({ radius, y }: { radius: number; y: number }): [number, number, number] {
+  return [sx(y), sy(radius * Math.cos(Math.PI / 8)), radius * UNITS_PER_M];
+}
+
+/**
+ * The kart side on, facing right: build.py's car projected onto its side,
+ * part for part in the same metres, painted in the livery's primary,
+ * secondary and accent as the View paints it, its octagon wheels and its
+ * driver bare-headed. The parts go down far side first, so each nearer one
+ * covers what it hides in the View. The colours ride on the SVG as custom
+ * properties; index.html derives their lit and shaded tones.
  */
 export function kartSide({ primary, secondary, accent, driver }: Livery): SVGSVGElement {
+  const p = "var(--p)";
+  const s = "var(--s)";
+  const a = "var(--a)";
+  const body =
+    box(a, [0, -0.6, 0.6], [0.03, 0.34, 0.16], 0.5, 0, "var(--a-lt)") +
+    box(CARBON, [0, -0.78, 0.6], [0.05, 0.06, 0.36]) +
+    box(a, [0, 0.81, 0.14], [0.13, 0.1, 0.09], 0.8) +
+    box("var(--sk)", [0, -0.1, 0.77], [0.13, 0.12, 0.08]) +
+    box(s, [0, -0.36, 0.62], [0.18, 0.14, 0.16], 1, 0, "var(--s-lt)") +
+    box(a, [0, -0.1, 0.735], [0.24, 0.18, 0.05]) +
+    box(p, [0, 0.52, 0.27], [0.26, 0.46, 0.26], 0.55, 0.07) +
+    box(p, [0, -0.52, 0.34], [0.32, 0.44, 0.42], 1.1, 0, "var(--p-lt)") +
+    box(p, [0, -0.04, 0.32], [0.42, 0.66, 0.4], 1, 0, "var(--p-lt)") +
+    box(p, [0, -0.12, 0.62], [0.46, 0.24, 0.2], 1, 0, "var(--p-lt)") +
+    head(driver, sx(-0.1), sy(0.99), 0.29 * UNITS_PER_M) +
+    box(s, [0, -0.2, 0.1], [0.76, 1.1, 0.06]) +
+    box(s, [0.29, -0.18, 0.28], [0.2, 0.52, 0.3], 0.75, 0.03, "var(--s-lt)") +
+    // The halo: the pillar up from the nose, the hoop at chin height, the leg down to the tub.
+    `<polyline points="${points([
+      [sx(0.4), sy(0.52)],
+      [sx(0.34), sy(0.756)],
+      [sx(-0.1), sy(0.756)],
+      [sx(-0.18), sy(0.52)],
+    ])}" stroke="${CARBON}" stroke-width="11" fill="none" stroke-linejoin="round" stroke-linecap="round"/>` +
+    box(p, [0, -0.82, 0.8], [0.82, 0.14, 0.06]) +
+    box(a, [0, -0.86, 0.87], [0.82, 0.08, 0.04]) +
+    box(a, [0.42, -0.83, 0.73], [0.03, 0.18, 0.34], 1, 0, "var(--a-lt)") +
+    box(s, [0, 0.82, 0.07], [1.1, 0.14, 0.04]) +
+    box(p, [0, 0.77, 0.12], [1.0, 0.06, 0.04]) +
+    box(a, [0.56, 0.82, 0.11], [0.03, 0.16, 0.13], 1, 0, "var(--a-lt)") +
+    wheel(...wheelAt({ radius: 0.3, y: -0.52 })) +
+    wheel(...wheelAt({ radius: 0.27, y: 0.52 }));
   const template = document.createElement("template");
-  template.innerHTML = `<svg class="kart" viewBox="0 0 520 260" aria-hidden="true">
-    <ellipse cx="270" cy="240" rx="225" ry="9" fill="rgb(0 0 0 / 0.18)"/>
-    <polygon points="54,64 68,64 68,184 54,184" fill="var(--s)"/>
-    <polygon points="40,60 132,60 128,82 44,82" fill="var(--p)"/>
-    <polygon points="40,60 132,60 131,68 41,68" fill="var(--p-lt)"/>
-    <polygon points="44,86 126,86 122,94 48,94" fill="var(--a)"/>
-    <polygon points="70,196 70,150 100,124 190,116 222,92 262,92 292,118 400,140 478,168 482,190 460,196" fill="var(--p)"/>
-    <polygon points="100,124 190,116 222,92 262,92 292,118 400,140 478,168 470,174 400,150 292,128 190,126 100,134 70,150" fill="var(--p-lt)"/>
-    <polygon points="70,184 460,186 482,190 460,196 70,196" fill="var(--p-dk)"/>
-    <polygon points="80,194 472,194 468,204 84,204" fill="#1d1d1f"/>
-    <polygon points="150,188 158,146 200,134 330,138 372,162 362,188" fill="var(--s-dk)"/>
-    <polygon points="158,146 200,134 330,138 372,162 330,148 200,144" fill="var(--s-lt)"/>
-    <polygon points="176,162 372,162 440,174 440,178 372,168 176,168" fill="var(--a)"/>
-    <polygon points="196,120 222,104 282,106 292,120" fill="#111"/>
-    <polygon points="204,120 222,100 276,100 292,120" fill="var(--p)"/>
-    <polygon points="204,120 222,100 248,100 240,120" fill="var(--p-lt)"/>
-    <polygon points="226,102 272,102 268,94 230,94" fill="var(--a)"/>
-    <polygon points="240,96 262,96 262,86 240,86" fill="var(--sk-dk)"/>
-    ${head(driver, 252, 50, 42)}
-    <polyline points="210,116 222,96 290,92 304,118" stroke="#1a1a1a" stroke-width="7" fill="none" stroke-linejoin="round" stroke-linecap="round"/>
-    <polygon points="440,202 506,202 506,188 496,188 490,196 440,196" fill="var(--s)"/>
-    <polygon points="498,174 506,174 506,204 498,204" fill="var(--a)"/>
-    <line x1="130" y1="190" x2="190" y2="170" stroke="#222" stroke-width="3"/>
-    <line x1="420" y1="198" x2="380" y2="170" stroke="#222" stroke-width="3"/>
-    ${wheel(130, 190, 47)}${wheel(420, 198, 39)}
+  template.innerHTML = `<svg class="kart" viewBox="0 0 520 380" aria-hidden="true">
+    <ellipse cx="260" cy="352" rx="232" ry="9" fill="rgb(0 0 0 / 0.18)"/>
+    ${body}
   </svg>`;
   const kart = template.content.firstElementChild as SVGSVGElement;
   for (const [name, colour] of [

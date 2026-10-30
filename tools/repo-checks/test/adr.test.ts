@@ -55,6 +55,7 @@ const DECISION_SLUGS = [
   "snapshots-carry-the-bump",
   "server-probes-each-connection",
   "trackside-props",
+  "poster-karts-wear-the-livery",
 ];
 
 const expectedFiles = DECISION_SLUGS.map(
