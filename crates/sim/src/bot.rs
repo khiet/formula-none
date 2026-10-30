@@ -156,6 +156,7 @@ pub fn drive(
         // it into. Within a tick of stopped the throttle joins the brake,
         // which then stops the kart dead instead of backing it up into
         // whatever is behind; already backing up, it coasts to a stop.
+        // Handling's full brake, over one tick.
         let braked_in_a_tick = TOP_SPEED_M_PER_S / BRAKE_TO_STOP_S * dt;
         if kart.speed > braked_in_a_tick {
             (0.0, 1.0)
