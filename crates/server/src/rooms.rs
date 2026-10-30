@@ -299,6 +299,20 @@ impl Rooms {
     /// Put `room` in `registry` and start its task; `restored` when a
     /// restart brought it back, so its seats wait for their players.
     fn spawn(&self, registry: &mut Registry, room: HostedRoom, restored: bool) {
+        // A new room is kept from its creation, before its task has run, so
+        // a restart under the creator's join still has a room for the code
+        // they were given.
+        if !restored {
+            if let Some(store) = &self.store {
+                if let Err(error) = store.save(&room.kept()) {
+                    self.log
+                        .event("room_keep_failed")
+                        .room(room.code())
+                        .with("error", error.to_string())
+                        .emit();
+                }
+            }
+        }
         let (commands, inbox) = mpsc::unbounded_channel();
         let (publish, view) = watch::channel(room.view());
         registry
@@ -674,11 +688,6 @@ async fn run(
                 .emit();
         }
     };
-    // A new room is kept from its creation, so a restart under the
-    // creator's join still has a room for the code they were given.
-    if !restored {
-        keep(&room);
-    }
     // Whether the task ends because the server is stopping, which keeps the
     // room on disk, rather than because the room closed, which does not.
     let mut stopping = false;
