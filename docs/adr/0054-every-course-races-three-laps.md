@@ -46,6 +46,7 @@ and the release gate (issue 29) defines done as a three-lap race.
 - No replay fixture reaches a finish, so their hashes hold.
 - In the same sweep every kart finished, and no reading jumped to the other
   leg at Suzuqa Patch's bridge. A bot sat under its stall speed for over
-  3 s in 2 of 200 races on the oval and 5 of 200 on Suzuqa Patch, each time
-  freed by its own reverse. They are the bots' stall recovery, not
-  the lap count, and are left to a bot change.
+  3 s in 2 of 200 races on the oval and 5 of 200 on Suzuqa Patch, one of
+  them, Suzuqa Patch's seed 38, among the first 40; each such bot went on
+  to finish. The one traced, seed 38, stalled on its first lap, which the
+  lap count cannot reach. They are left to a bot change.
