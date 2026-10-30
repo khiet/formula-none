@@ -50,7 +50,7 @@ export const SHIFT_BLUE: Tones = { lit: 0x8aa8ff, mid: 0x4f7dff, shaded: 0x2f4fc
 export const ASPHALT = 0x6b6b78;
 export const WALL = 0xf0f0f0;
 
-/** The item characters' greys, slot and road alike: the gull, the snail's foot, the cone's slab. */
+/** The item characters' greys, slot and road alike: the snail's foot, the cone's slab. */
 export const GREYS = {
   white: VALUE_WHITE,
   body: 0xe3e6ea,
@@ -63,8 +63,8 @@ export const GREYS = {
 export const WHEEL_TYRE = 0x26262a;
 export const WHEEL_FLAME = 0xff8800;
 export const WHEEL_SMOKE = 0x8a8d94;
-/** The gull's eye, locked on. */
-export const GULL_EYE = 0xd00a12;
+/** The homing drone's lens, its eye locked on. */
+export const DRONE_EYE = 0xd00a12;
 /** The snail's rocket, its flame and its porthole. */
 export const ROCKET: Tones = { lit: 0xe8333b, mid: 0xd00a12, shaded: 0x8f070c };
 export const ROCKET_FLAME = 0xffd23f;

@@ -61,6 +61,7 @@ const DECISION_SLUGS = [
   "every-course-races-three-laps",
   "tyres-raise-top-speed",
   "coins-replace-the-tyre-pickup",
+  "homing-projectile-is-a-camera-quad-drone",
 ];
 
 const expectedFiles = DECISION_SLUGS.map(

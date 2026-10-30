@@ -13,7 +13,7 @@ import type { Wheel } from "./bridge";
 import {
   hazardConeMesh,
   hazardFlag,
-  homingGullMesh,
+  homingDroneMesh,
   itemBoxMesh,
   marshalBeacon,
   marshalMesh,
@@ -24,11 +24,17 @@ import {
 import {
   BEACON_LIT,
   BEACON_OFF,
+  CARBON,
+  DRONE_EYE,
   HAZARD_FLAG_STRIPE,
+  HAZARD_ORANGE,
+  INK,
+  POSTER_RED,
   ROCKET,
   ROCKET_FLAME,
   ROCKET_STRAP,
   SIGNAL_YELLOW,
+  VALUE_WHITE,
   WHEEL_FLAME,
   WHEEL_TYRE,
   WHITE,
@@ -73,7 +79,6 @@ describe("the item meshes", () => {
   it.each([
     ["item box", itemBoxMesh],
     ["hazard cone", hazardConeMesh],
-    ["homing gull", homingGullMesh],
     ["hazard flag", () => hazardFlag().mesh],
     ["marshal", () => marshalMesh().figure],
   ])("draw the %s lit by the sun and flat-shaded, facet by facet", (_, mesh) => {
@@ -95,10 +100,92 @@ describe("the item meshes", () => {
     );
   });
 
-  it("paint the gull white with a grey wing, an orange beak and a red eye", () => {
-    expect(coloursOf(homingGullMesh())).toEqual(
-      expect.arrayContaining([0xffffff, 0xb9bec5, 0xff5522, 0xd00a12]),
+  it("paint the drone's frame in carbon with a red canopy and orange motors, lit and flat-shaded", () => {
+    const drone = homingDroneMesh().figure;
+    expect(new Set(coloursOf(drone))).toEqual(
+      new Set([
+        CARBON.lit,
+        CARBON.mid,
+        CARBON.shaded,
+        POSTER_RED.mid,
+        HAZARD_ORANGE.mid,
+        WHITE.mid,
+        ROCKET_STRAP,
+      ]),
     );
+    for (const material of materialsOf(drone)) {
+      if (material instanceof MeshLambertMaterial) {
+        expect(material.flatShading).toBe(true);
+      }
+    }
+  });
+
+  it("glow the drone's red lens locked on, its tally light and its rotors' blur", () => {
+    expect(new Set(glowsOf(homingDroneMesh().figure))).toEqual(
+      new Set([DRONE_EYE, INK, ROCKET.lit, VALUE_WHITE]),
+    );
+  });
+
+  it("roll the whole drone about its nose, a positive tilt dropping its left side", () => {
+    const drone = homingDroneMesh();
+    const heightOfSide = (side: number) => {
+      drone.figure.updateMatrixWorld(true);
+      return new Vector3(side * 0.32, 0, 0).applyMatrix4(
+        drone.figure.getObjectByName("body")?.matrixWorld ?? drone.figure.matrixWorld,
+      ).y;
+    };
+    drone.fly(0.5, 0);
+    // The drone's left is +x, nose toward +z.
+    expect(heightOfSide(1)).toBeLessThan(heightOfSide(-1));
+    drone.fly(-0.5, 0);
+    expect(heightOfSide(1)).toBeGreaterThan(heightOfSide(-1));
+    drone.fly(0, 0);
+    expect(heightOfSide(1)).toBeCloseTo(heightOfSide(-1), 9);
+  });
+
+  it("spin the drone's rotors in diagonal pairs the opposite way, and blink its tally at 1.5 Hz", () => {
+    const drone = homingDroneMesh();
+    drone.fly(0, 0.01);
+    // Each rotor's spin, by its corner: front left, front right, back left, back right.
+    const spin = (x: number, z: number) => {
+      let turned = NaN;
+      drone.figure.traverse((child) => {
+        if (
+          child.name === "rotor" &&
+          Math.sign(child.position.x) === x &&
+          Math.sign(child.position.z) === z
+        ) {
+          turned = child.rotation.y;
+        }
+      });
+      return turned;
+    };
+    const [frontLeft, frontRight, backLeft, backRight] = [
+      spin(1, 1),
+      spin(-1, 1),
+      spin(1, -1),
+      spin(-1, -1),
+    ];
+    expect(frontLeft).not.toBe(0);
+    expect(frontLeft).toBe(backRight);
+    expect(frontRight).toBe(backLeft);
+    expect(frontLeft).toBe(-frontRight);
+    const lit = A_SECOND.map((clock) => {
+      drone.fly(0, clock);
+      return drone.figure.getObjectByName("tally")?.visible ?? false;
+    });
+    const changes = lit.filter((on, frame) => frame > 0 && on !== lit[frame - 1]).length;
+    expect(changes).toBe(2);
+  });
+
+  it("bob the drone 2 cm as it hovers", () => {
+    const drone = homingDroneMesh();
+    const heights = Array.from({ length: 240 }, (_, frame) => {
+      drone.fly(0, frame / 60);
+      return drone.figure.getObjectByName("body")?.position.y ?? NaN;
+    });
+    expect(Math.max(...heights)).toBeCloseTo(0.02, 3);
+    expect(Math.min(...heights)).toBeCloseTo(-0.02, 3);
   });
 
   it("draw the runaway wheel's tyre and spokes lit, and its rim and hub glowing red hot", () => {

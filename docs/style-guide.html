@@ -328,7 +328,7 @@
           <li>White values, grey labels, a 0.1 em ink drop under each, in the pixel face.</li>
           <li>Your readouts wear your livery: the position plate in primary, flags and hubs in accent. Other karts show in their key colour.</li>
           <li>Polygons, not pixels: shift lights are hexagons, map markers octagons, the tyre gauge is your car from above with your driver's hair.</li>
-          <li>The item characters are the View's meshes drawn flat, so the slot and the road show one cone, one gull, one snail.</li>
+          <li>The item characters are the View's meshes drawn flat, so the slot and the road show one cone, one drone, one snail.</li>
           <li>Sized in HUD units, <code>max(0.55rem, 1.5vmin)</code>, so the panel scales with the window and still reads in a small one. Blinks hold steady under reduced motion.</li>
         </ul>
       </section>
@@ -443,9 +443,12 @@
 
       <article class="asset">
         <header><h3>Homing projectile</h3><code>apps/web/src/item-meshes.ts</code></header>
-        <div class="compare"><figure><figcaption>On the road</figcaption><div class="stage" data-draw="gull"></div></figure></div>
-        <dl class="spec"><dt>Decided</dt><dd><a href="adr/0037-instrument-panel-in-chibi-low-poly.md">ADR 0037</a></dd></dl>
-        <div class="notes"><p>A low-poly seagull: white body, grey wings up, orange beak forward, a red eye locked on. It turns to face its target.</p></div>
+        <div class="compare"><figure><figcaption>On the road</figcaption><div class="stage" data-draw="drone"></div></figure></div>
+        <dl class="spec"><dt>Size</dt><dd>0.64 m between motors, 0.19 m rotors, 0.6 m over the road</dd><dt>Decided</dt><dd><a href="adr/0057-homing-projectile-is-a-camera-quad-drone.md">ADR 0057</a>, spec in <a href="mockups/homing-drone.html">mockups/homing-drone.html</a></dd></dl>
+        <div class="notes">
+          <p>A camera quad, a trackside broadcast FPV drone gone rogue: carbon body and X arms, a red canopy, orange motors, two-blade rotors over translucent blur discs spinning in opposite diagonal pairs, a camera pod whose red lens is its eye locked on, and an antenna whose tally light blinks at 1.5 Hz. It bobs 2 cm and turns to face its target.</p>
+          <p>It tilts into each turn, left side down to go left: in proportion to how fast its facing yaws, capped at 30 degrees from 2 rad/s, eased with a 0.12 s time constant. A new drone starts level.</p>
+        </div>
       </article>
 
       <article class="asset">
@@ -659,7 +662,7 @@
         <div class="compare"><figure><figcaption>Empty, boost, hazard, homing, firing</figcaption><div class="view"><div class="hud hud-row" id="slots"></div></div></figure></div>
         <dl class="spec"><dt>Decided</dt><dd><a href="adr/0024-item-sprites.md">ADR 0024</a>, drawn from the meshes by <a href="adr/0037-instrument-panel-in-chibi-low-poly.md">0037</a></dd></dl>
         <div class="notes">
-          <p>The slot is the item box seen face on, in its golds. The characters are the View's meshes drawn flat: the faceted cone, the low-poly gull, and a snail with a faceted shell and a red rocket, which has no mesh since a boost never shows on the road. Firing lights the plate. The item's name stays as the slot's text.</p>
+          <p>The slot is the item box seen face on, in its golds. The characters are the View's meshes drawn flat: the faceted cone, the camera quad drone side on with its rotors blurred, and a snail with a faceted shell and a red rocket, which has no mesh since a boost never shows on the road. Firing lights the plate. The item's name stays as the slot's text.</p>
           <p class="dont"><b>Don't</b> draw a character the road shows differently; a new item gets its mesh and its slot drawing together.</p>
         </div>
       </article>
@@ -1024,16 +1027,19 @@
       <polyline points="87,66 97,71" stroke="#111111" stroke-width="3.5"/><polyline points="113,66 103,71" stroke="#111111" stroke-width="3.5"/>
       <line x1="93" y1="99" x2="107" y2="99" stroke="#111111" stroke-width="3.5"/></svg>`;
   };
-  draw.gull = () => `<svg viewBox="0 0 200 160" role="img" aria-label="Low-poly seagull">
+  // The slot's camera quad, side on and nose right, as item-sprites.ts draws it.
+  draw.drone = () => `<svg viewBox="0 0 200 160" role="img" aria-label="Camera quad drone">
     <ellipse cx="100" cy="146" rx="56" ry="5" fill="rgba(0,0,0,.15)"/>
-    ${poly([[26, 82], [52, 90], [62, 104], [34, 102]], "#9aa0a8")}${poly([[26, 82], [52, 90], [40, 92]], "#b9bec5")}
-    ${poly([[50, 90], [82, 70], [132, 68], [150, 82], [140, 102], [92, 110], [62, 106]], "#e3e6ea")}
-    ${poly([[50, 90], [82, 70], [132, 68], [150, 82], [96, 88]], "#ffffff")}
-    ${poly([[84, 74], [104, 24], [122, 22], [114, 72]], "#b9bec5")}${poly([[104, 24], [122, 22], [114, 72], [108, 50]], "#9aa0a8")}${poly([[84, 74], [104, 24], [96, 30]], "#d4d8dd")}
-    ${facets(6, 150, 70, 19, ["#ffffff", "#eef0f2", "#d4d8dd"])}
-    ${poly([[166, 70], [192, 76], [166, 76]], "#ff7a4d")}${poly([[166, 76], [192, 76], [168, 82]], "#d84418")}
-    ${poly(ngon(6, 156, 64, 5), "#d00a12")}${poly(ngon(4, 157, 64, 2), "#111111")}
-    <line x1="146" y1="57" x2="162" y2="60" stroke="#111111" stroke-width="2.5"/>
+    <line x1="66" y1="80" x2="48" y2="46" stroke="#3a3d42" stroke-width="3"/>${poly(ngon(6, 48, 45, 4), "#d00a12")}
+    ${poly([[24, 84], [176, 84], [176, 94], [24, 94]], "#4a4f57")}${poly([[24, 84], [176, 84], [176, 87], [24, 87]], "#6f747b")}
+    ${[38, 162].map((x) => `
+      ${poly([[x - 9, 66], [x + 9, 66], [x + 9, 88], [x - 9, 88]], "#ff5522")}${poly([[x - 9, 66], [x + 9, 66], [x + 9, 71], [x - 9, 71]], "#ff7a4d")}
+      <ellipse cx="${x}" cy="62" rx="34" ry="5" fill="#ffffff" fill-opacity=".55"/>
+      <line x1="${x - 30}" y1="62" x2="${x + 30}" y2="62" stroke="#2b2e33" stroke-width="3"/>`).join("")}
+    ${poly([[60, 78], [140, 78], [148, 100], [52, 100]], "#2b2e33")}
+    ${poly([[70, 78], [84, 56], [118, 54], [134, 78]], "#c81d25")}${poly([[70, 78], [84, 56], [100, 55], [92, 78]], "#e8333b")}
+    ${poly([[114, 98], [154, 98], [154, 126], [114, 126]], "#1b1d21")}
+    ${poly(ngon(8, 154, 112, 13), "#eef0f2")}${poly(ngon(8, 154, 112, 9), "#d00a12")}${poly(ngon(6, 155, 111, 3), "#111111")}
     </svg>`;
   // The boost character as a mesh would draw it: grey foot, faceted orange shell, a red rocket strapped on.
   draw.snail = () => `<svg viewBox="0 0 200 160" role="img" aria-label="Low-poly snail with a rocket">
@@ -1585,7 +1591,7 @@
       { token: "VALUE_WHITE", hex: 0xffffff, role: "Values" },
       { token: "LABEL_GREY", hex: 0xc9ced5, role: "Labels" },
       { token: "INK", hex: 0x111111, role: "The ink drop under every plate and value" },
-      { token: "CARBON", tones: [0x4a4f57, 0x2b2e33, 0x1b1d21], role: "Plates: laps, times, gear, FINISH, standings" },
+      { token: "CARBON", tones: [0x4a4f57, 0x2b2e33, 0x1b1d21], role: "Plates: laps, times, gear, FINISH, standings; the homing drone's body, arms and camera pod" },
       { token: "ITEM_BOX_GOLD", tones: [0xf8e39a, 0xe0b54a, 0xc99a2e], role: "The item box, its slot, your standings row" },
       { token: "COIN_GOLD", hex: 0xffd23f, role: "The coin's faces, on the track, in the spray and on the coin count" },
       { token: "COIN_RIM", hex: 0xb8860b, role: "The coin's rim and embossed F" },
@@ -1600,25 +1606,25 @@
       { token: "SIGNAL_YELLOW", tones: [0xf9da7e, 0xf5c542, 0xb08a22], role: "The tyre gauge above 30%" },
       { token: "SIGNAL_RED", tones: [0xff7a6e, 0xe8483a, 0xa8261b], role: "Shift lights' second third, the tyre gauge at 30% and below" },
       { token: "SHIFT_BLUE", tones: [0x8aa8ff, 0x4f7dff, 0x2f4fc4], role: "Shift lights' last third, the limiter" },
-      { token: "HAZARD_ORANGE", tones: [0xff7a4d, 0xff5522, 0xc73c14], role: "Danger only: the hazard cone, wrong way" },
-      { token: "POSTER_RED", tones: [0xe8333b, 0xc81d25, 0x8f141a], role: "The connection banner, the start lights" },
+      { token: "HAZARD_ORANGE", tones: [0xff7a4d, 0xff5522, 0xc73c14], role: "Danger only: the hazard cone, wrong way, the homing drone's motors" },
+      { token: "POSTER_RED", tones: [0xe8333b, 0xc81d25, 0x8f141a], role: "The connection banner, the start lights, the homing drone's canopy" },
       { token: "GO_GREEN", tones: [0x6fe8a6, 0x3ddc84, 0x23a35e], role: "GO" },
     ]],
     ["Item characters", [
-      { token: "GREYS.white", hex: 0xffffff, role: "Grey, white: the gull's body" },
+      { token: "GREYS.white", hex: 0xffffff, role: "Grey, white: the snail's eyes" },
       { token: "GREYS.body", hex: 0xe3e6ea, role: "Grey, body" },
       { token: "GREYS.pale", hex: 0xd4d8dd, role: "Grey, pale" },
-      { token: "GREYS.grey", hex: 0xb9bec5, role: "Grey: the gull's wings" },
-      { token: "GREYS.dark", hex: 0x9aa0a8, role: "Grey, dark: the cone's slab, the gull's tail" },
-      { token: "GREYS.deep", hex: 0x6f747b, role: "Grey, deep" },
+      { token: "GREYS.grey", hex: 0xb9bec5, role: "Grey: the snail's foot, the top of the cone's slab" },
+      { token: "GREYS.dark", hex: 0x9aa0a8, role: "Grey, dark: the cone's slab" },
+      { token: "GREYS.deep", hex: 0x6f747b, role: "Grey, deep: the drone's arm in the slot" },
       { token: "WHEEL_TYRE", hex: 0x26262a, role: "The runaway wheel's tyre" },
       { token: "WHEEL_FLAME", hex: 0xff8800, role: "The runaway wheel's flames, round their flame-yellow core" },
       { token: "WHEEL_SMOKE", hex: 0x8a8d94, role: "The runaway wheel's smoke" },
-      { token: "GULL_EYE", hex: 0xd00a12, role: "The gull's eye, locked on" },
-      { token: "ROCKET", tones: [0xe8333b, 0xd00a12, 0x8f070c], role: "The snail's rocket; mid, the hot wheel's rim edge" },
+      { token: "DRONE_EYE", hex: 0xd00a12, role: "The homing drone's lens, its eye locked on" },
+      { token: "ROCKET", tones: [0xe8333b, 0xd00a12, 0x8f070c], role: "The snail's rocket; mid, the hot wheel's rim edge; lit, the homing drone's tally light" },
       { token: "ROCKET_FLAME", hex: 0xffd23f, role: "The rocket's flame; the hot wheel's hub, rim centre and wall-hit sparks" },
       { token: "ROCKET_WINDOW", hex: 0x7fc3ff, role: "The rocket's porthole" },
-      { token: "ROCKET_STRAP", hex: 0x3a3d42, role: "The rocket's straps; the hot wheel's spokes; the marshal's stool legs" },
+      { token: "ROCKET_STRAP", hex: 0x3a3d42, role: "The rocket's straps; the hot wheel's spokes; the marshal's stool legs; the homing drone's antenna" },
     ]],
     ["The marshal and his post", [
       { token: "MARSHAL_SKIN", tones: [0xf8dcb0, 0xf0c090, 0xd8a070], role: "Oyaji's skin: lit, his head's shine; shaded, his ears" },
@@ -1688,7 +1694,7 @@
 
   // The panel's readouts: plates, with polygons for the lights and the items.
   const slot = (item, firing) => `<span class="pl"><span class="pf ${firing ? "t-flash" : "t-gold"} slot">${item ? draw[item]() : ""}</span></span>`;
-  document.getElementById("slots").innerHTML = slot(null) + slot("snail") + slot("cone") + slot("gull") + slot("snail", true);
+  document.getElementById("slots").innerHTML = slot(null) + slot("snail") + slot("cone") + slot("drone") + slot("snail", true);
   const hexLights = (lit, limiter) => `<svg class="lights" viewBox="0 0 156 14" aria-hidden="true">${Array.from({ length: 12 }, (_, i) =>
     facets(6, 6.5 + i * 13, 7, 6.2, TONES[limiter ? "blue" : i < lit ? ["green", "red", "blue"][Math.floor((i * 3) / 12)] : "off"])).join("")}</svg>`;
   const coinIcon = `<svg viewBox="0 0 100 100" aria-hidden="true"><polygon points="50,6 81,18 94,50 81,82 50,94 19,82 6,50 19,18" fill="#ffd23f" stroke="#b8860b" stroke-width="8"/></svg>`;
