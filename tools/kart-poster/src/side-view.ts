@@ -1,7 +1,7 @@
 // The poster kart's frame: build.py's metres at 250 units each in a
 // 520 x 380 viewBox, the kart's origin at x 262 and its wheels on the
-// ground line at y 350, as apps/web/src/poster.ts has always framed it, so
-// the Scenes' rows and widths do not move. The camera is pitched down a few
+// ground line at y 350, the frame apps/web/src/poster.ts traced in, so the
+// Scenes' rows and widths do not move. The camera is pitched down a few
 // degrees so every top face shows as the lit strip the traced poster drew
 // along each box, and the far wheels as the sliver of tyre an elevated side
 // view gives.
@@ -29,7 +29,7 @@ export interface SideView {
   readonly nodes: readonly string[];
   /** Each material's colour as the glb exports it, sRGB hex by material name; the fixed ones are what palette.ts copies. */
   readonly materials: Readonly<Record<string, string>>;
-  /** In painter order: the first is furthest from the camera. */
+  /** In painter order, first to last. */
   readonly paths: readonly SidePath[];
   /** Each wheel node's axle on the picture, in viewBox units. */
   readonly wheels: Readonly<Record<string, readonly [number, number]>>;

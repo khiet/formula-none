@@ -441,7 +441,7 @@ export function order(
         split = true;
         break;
       }
-      // Faces wholly behind each other round a cycle: the lightest step gives way.
+      // No face in the cycle splits, so the lightest step gives way.
       if (!split) edgesOut.get(lightest.behind)?.delete(lightest.front);
     }
     if (split) continue;

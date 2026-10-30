@@ -12,7 +12,7 @@ export interface Triangle {
   readonly material: string;
   /** Counter-clockwise seen from the front, as glTF winds a face. */
   readonly corners: readonly [Vec3, Vec3, Vec3];
-  /** The export's normal, the mean of its corners', when the mesh carries them. */
+  /** The export's normal: its corners' summed, so only the direction counts, when the mesh carries them. */
   readonly normal?: Vec3;
 }
 
