@@ -169,6 +169,45 @@ describe("Suzuqa Patch's final art", () => {
     }
   });
 
+  it("stands the Circuit Wheel on a rim node with its sixteen gondolas hung under it", () => {
+    const rim = brandsPatch.nodes.find(({ name }) => name === "Prop.circuit-wheel.1.rim");
+    expect(rim).toBeDefined();
+    // Its origin at the hub, 14 m over the grass, and a mesh of its own to turn.
+    expect(rim?.translation?.[1]).toBeCloseTo(14 - 0.05, 2);
+    expect(rim?.mesh).toBeDefined();
+    const children = (rim?.children ?? []).flatMap((index) => brandsPatch.nodes[index] ?? []);
+    const gondolas = children.filter(({ name }) =>
+      name?.startsWith("Prop.circuit-wheel.1.gondola."),
+    );
+    expect(gondolas.map(({ name }) => name).sort()).toEqual(
+      Array.from({ length: 16 }, (_, k) => `Prop.circuit-wheel.1.gondola.${k + 1}`).sort(),
+    );
+    // Each gondola's origin is its hanger, 12 m out from the hub in the rim's own frame.
+    for (const gondola of gondolas) {
+      const [x = Number.NaN, y = Number.NaN, z = Number.NaN] = gondola.translation ?? [];
+      expect(Math.hypot(x, y, z), gondola.name).toBeCloseTo(12, 3);
+      expect(gondola.mesh, gondola.name).toBeDefined();
+    }
+  });
+
+  it("paints the wheel in wall white over beam shade and its gondolas two per crowd colour", () => {
+    const materialsOf = (nodeName: string) => {
+      const node = brandsPatch.nodes.find(({ name }) => name === nodeName);
+      const primitives =
+        node?.mesh === undefined ? [] : (brandsPatch.meshes[node.mesh]?.primitives ?? []);
+      return primitives.map(({ material }) => brandsPatch.materials?.[material ?? -1]?.name).sort();
+    };
+    expect(materialsOf("Prop.circuit-wheel.1.rim")).toEqual(["beam-shade", "wall"]);
+    const worn = new Map<string, number>();
+    for (let k = 1; k <= 16; k++) {
+      const [hanger, colour] = materialsOf(`Prop.circuit-wheel.1.gondola.${k}`);
+      expect(hanger, `gondola ${k}`).toBe("carbon");
+      expect(colour, `gondola ${k}`).toMatch(/^crowd-[0-7]$/);
+      worn.set(colour ?? "", (worn.get(colour ?? "") ?? 0) + 1);
+    }
+    expect([...worn.values()]).toEqual(Array.from({ length: 8 }, () => 2));
+  });
+
   it("maps the asphalt for tyre marks: a texture coordinate on every vertex", () => {
     expect(attributesOf(brandsPatch, "Asphalt")).toContain("TEXCOORD_0");
   });
@@ -185,5 +224,6 @@ describe("the oval fixture", () => {
     expect(families).toContain("StartLine");
     expect(families).not.toContain("Hoarding");
     expect(families).not.toContain("Grandstand");
+    expect(families).not.toContain("Prop");
   });
 });

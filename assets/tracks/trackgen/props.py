@@ -1,8 +1,10 @@
 """Trackside props: scenery a layout declares in its decor and the builder
-places, never collided with and never in the sidecar (ADR 0050). Today the
+places, never collided with and never in the sidecar (ADR 0050). The
 woods: a patch of trees the builder scatters, each tree the style guide's
 Woods card in three dimensions, flat facets in a lit and a shade tone on a
-trunk, standing flat at the grass's level."""
+trunk, standing flat at the grass's level. The Circuit Wheel: the card's
+Ferris wheel outside the first curve, its rim and gondolas nodes of their
+own, pivoted where the View turns them."""
 
 from __future__ import annotations
 
@@ -13,6 +15,7 @@ from dataclasses import dataclass
 
 from . import mesh
 from .layout import (
+    CROWD_KEYS,
     GRASS_DROP_M,
     GRASS_MARGIN_M,
     SCENERY_LIFT_M,
@@ -22,8 +25,11 @@ from .layout import (
     ByMaterial,
     Disc,
     Layout,
+    Pivot,
+    Prop,
     SceneryMesh,
     Wood,
+    locate,
 )
 
 # The View's sun stands at (20, 40, 10) in the glTF frame: toward +X and -Y
@@ -56,6 +62,42 @@ ROW_JITTER_M = 1.5
 # a crowded patch.
 TRIES_PER_TREE = 15
 
+# The Circuit Wheel, the style guide's card in three dimensions: a rim of
+# sixteen sides about a hub, a gondola hung level from every rim corner,
+# and the hub carried on an A-frame either side of the wheel's plane. Its
+# footprint is the disc the legs, the rim and the gondolas all fit in.
+WHEEL_RADIUS_M = 12.0
+"""From the hub to the middle of the rim's section."""
+WHEEL_HUB_HEIGHT_M = 14.0
+WHEEL_GONDOLAS = 16
+WHEEL_FOOTPRINT_M = 13.0
+# The rim's section: this deep along a spoke, this wide along the axle.
+WHEEL_RIM_DEPTH_M = 0.5
+WHEEL_RIM_WIDTH_M = 1.2
+# A set of spokes either side of the hub along the axle, each a square bar.
+WHEEL_SPOKE_OFFSET_M = 0.45
+WHEEL_SPOKE_M = 0.3
+# The hub: an eight-sided drum along the axle, long enough to take the legs.
+WHEEL_HUB_RADIUS_M = 1.0
+WHEEL_HUB_LENGTH_M = 4.0
+WHEEL_HUB_SIDES = 8
+# Each A-frame: two square legs from feet this far ahead of and behind the
+# hub along the wheel's plane, this far out along the axle, up to the hub,
+# with a brace between them at this height.
+WHEEL_LEG_FOOT_M = 8.5
+WHEEL_LEG_OUT_M = 1.7
+WHEEL_LEG_M = 0.7
+WHEEL_BRACE_HEIGHT_M = 6.0
+WHEEL_BRACE_M = 0.4
+# A gondola: a six-sided drum along the axle on a square hanger down from
+# its rim corner, short enough that the lowest clears the grass under the
+# 2 m the rim leaves.
+WHEEL_HANGER_M = 0.4
+WHEEL_HANGER_BAR_M = 0.2
+GONDOLA_RADIUS_M = 0.7
+GONDOLA_DEPTH_M = 1.6
+GONDOLA_SIDES = 6
+
 
 @dataclass(frozen=True)
 class Tree:
@@ -81,11 +123,12 @@ def scatter(layout: Layout, wood: Wood, placed: Sequence[Tree] = ()) -> list[Tre
     layout scatters the same trees every export.
 
     A spot within `TREE_WALL_CLEARANCE_M` of a wall, canopy and all, or `TREE_SPACING_M` of
-    another tree, `placed` or this wood's own, is dropped. A disc draws again in its place; a
-    row leaves the gap.
+    another tree, `placed` or this wood's own, or whose canopy reaches into a prop's
+    footprint, is dropped. A disc draws again in its place; a row leaves the gap.
     """
     rng = random.Random(wood.seed)
-    reach = CANOPY_RADIUS_M[wood.kind] + TREE_WALL_CLEARANCE_M
+    canopy = CANOPY_RADIUS_M[wood.kind]
+    reach = canopy + TREE_WALL_CLEARANCE_M
     wall = layout.runoff_half_width + WALL_THICKNESS_M
     patch = wood.patch
     (x0, y0, x1, y1) = patch_bounds(wood)
@@ -93,9 +136,12 @@ def scatter(layout: Layout, wood: Wood, placed: Sequence[Tree] = ()) -> list[Tre
     radius = math.dist(centre, (x1, y1))
     # Only the centreline near the patch can put a wall within reach of a tree.
     near = [(s.x, s.y) for s in layout.path.samples if math.dist((s.x, s.y), centre) <= radius + wall + reach]
+    taken = footprints(layout)
 
     def clear(x: float, y: float) -> bool:
-        return all(math.dist((x, y), p) >= wall + reach for p in near)
+        return all(math.dist((x, y), p) >= wall + reach for p in near) and all(
+            math.dist((x, y), (px, py)) >= r + canopy for px, py, r in taken
+        )
 
     mine: list[Tree] = []
     if isinstance(patch, Disc):
@@ -159,13 +205,14 @@ def woods(layout: Layout) -> list[SceneryMesh]:
 
 
 def ground(layout: Layout) -> list[SceneryMesh]:
-    """Grass under the woods beyond the slab the sim stands on: a hair under it, so it shows
-    only past the slab's edge, and scenery, so the sidecar never grows for a wood."""
-    if not layout.decor.woods:
+    """Grass under the woods and the props beyond the slab the sim stands on: a hair under it,
+    so it shows only past the slab's edge, and scenery, so the sidecar never grows for a prop."""
+    if not layout.decor.woods and not layout.decor.props:
         return []
     min_x, min_y, max_x, max_y = layout.path.bounds()
     slab = (min_x - GRASS_MARGIN_M, min_y - GRASS_MARGIN_M, max_x + GRASS_MARGIN_M, max_y + GRASS_MARGIN_M)
     covered = [patch_bounds(wood) for wood in layout.decor.woods]
+    covered += [(x - r, y - r, x + r, y + r) for x, y, r in footprints(layout)]
     reach = (
         min(slab[0], *(c[0] for c in covered)),
         min(slab[1], *(c[1] for c in covered)),
@@ -259,11 +306,182 @@ def _lump(tree: Tree, material: str, across: float, centre: float, radius: float
         yield _toned(material, [b, a, bottom])
 
 
-def _toned(material: str, triangle: list[mesh.Vertex]) -> tuple[str, mesh.Mesh]:
-    """The triangle, wound as given, in `material` when it faces up and toward the sun, else its shade."""
-    a, b, c = triangle
+def _toned(material: str, face: list[mesh.Vertex], shade: str | None = None) -> tuple[str, mesh.Mesh]:
+    """The face, wound as given, in `material` when it faces up and toward the sun, else in
+    `shade`, the colour's own shade tone unless named."""
+    a, b, c = face[0], face[1], face[2]
     u = (b[0] - a[0], b[1] - a[1], b[2] - a[2])
     v = (c[0] - a[0], c[1] - a[1], c[2] - a[2])
     normal = (u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0])
     lit = normal[2] >= 0.0 and normal[0] * SUN_AZIMUTH[0] + normal[1] * SUN_AZIMUTH[1] >= 0.0
-    return material if lit else f"{material}-shade", (triangle, [(0, 1, 2)])
+    return material if lit else (shade or f"{material}-shade"), (face, [tuple(range(len(face)))])
+
+
+def footprints(layout: Layout) -> list[tuple[float, float, float]]:
+    """Each prop's footprint in the layout's order, as (x, y, radius) in track metres: the
+    ground it stands on, which keeps its clearance from the walls and the trees out."""
+    found = []
+    for prop in layout.decor.props:
+        x, y, _ = locate(layout, prop.at)
+        found.append((x, y, FOOTPRINT_M[prop.kind]))
+    return found
+
+
+FOOTPRINT_M = {"circuit-wheel": WHEEL_FOOTPRINT_M}
+
+
+def props(layout: Layout) -> list[SceneryMesh]:
+    """Every prop's scenery: its still parts one mesh per material per kind, and each part
+    the View moves a pivoted mesh of its own, numbered from one in the layout's order."""
+    still = {kind: ByMaterial(f"Prop.{kind}") for kind in FOOTPRINT_M}
+    moving: list[SceneryMesh] = []
+    for number, prop in enumerate(layout.decor.props, start=1):
+        moving += PROP_BUILDERS[prop.kind](layout, prop, number, still[prop.kind])
+    return [piece for family in still.values() for piece in family.scenery()] + moving
+
+
+class Node:
+    """The faces of one mesh the View moves, gathered by material in face order, for a
+    `SceneryMesh` named `name` pivoted at `pivot`."""
+
+    def __init__(self, name: str, pivot: Pivot) -> None:
+        self.name = name
+        self.pivot = pivot
+        self.pieces: list[tuple[str, mesh.Mesh]] = []
+
+    def add(self, material: str, piece: mesh.Mesh) -> None:
+        self.pieces.append((material, piece))
+
+    def scenery(self) -> SceneryMesh:
+        merged = mesh.merge([piece for _, piece in self.pieces])
+        materials = tuple(material for material, (_, faces) in self.pieces for _ in faces)
+        return SceneryMesh(self.name, materials[0], merged, self.pivot, materials)
+
+
+def circuit_wheel(layout: Layout, prop: Prop, number: int, still: ByMaterial) -> list[SceneryMesh]:
+    """The Circuit Wheel at `prop`: its legs and hub into `still`, and the rim with its sixteen
+    gondolas as the nodes `Prop.circuit-wheel.<number>.rim` and `.gondola.1` to `.16`.
+
+    The wheel's plane runs along the heading; its axle is the left normal, which the pivot's
+    frame puts along local y. A gondola's node hangs under the rim's, its origin at its
+    hanger, so the View turns it back by the rim's angle and it stays level."""
+    x, y, heading = locate(layout, prop.at)
+    ground = -GRASS_DROP_M
+    hub = (x, y, ground + WHEEL_HUB_HEIGHT_M)
+    along = (math.cos(heading), math.sin(heading), 0.0)
+    axle = (-math.sin(heading), math.cos(heading), 0.0)
+    up = (0.0, 0.0, 1.0)
+
+    def at(centre: mesh.Vertex, a: float, b: float, c: float) -> mesh.Vertex:
+        """`a` metres along the plane, `b` along the axle and `c` up from `centre`."""
+        return tuple(centre[i] + a * along[i] + b * axle[i] + c * up[i] for i in range(3))
+
+    def bar(start: mesh.Vertex, end: mesh.Vertex, side: float, u: mesh.Vertex, v: mesh.Vertex) -> dict[str, mesh.Mesh]:
+        """A square bar of `side` from `start` to `end`, its section spanned by the units `u` and `v`."""
+        half = side / 2.0
+
+        def corner(i: int, j: int, k: int) -> mesh.Vertex:
+            p = (start, end)[k]
+            return tuple(p[n] + (-half, half)[i] * u[n] + (-half, half)[j] * v[n] for n in range(3))
+
+        return mesh.cuboid(corner)
+
+    def toned_sides(faces: dict[str, mesh.Mesh], material: str, shade: str | None, into: ByMaterial | Node, ends: tuple[str, ...] = ()) -> None:
+        """The upright faces of a `bar`, and `ends`, each wound out of it as the cuboid winds them."""
+        for key in ("x0", "x1", "y0", "y1", *ends):
+            vertices, (face,) = faces[key]
+            into.add(*_toned(material, [vertices[i] for i in face], shade))
+
+    rim_name = f"Prop.circuit-wheel.{number}.rim"
+    rim = Node(rim_name, Pivot(*hub, heading))
+    corners = [math.tau * k / WHEEL_GONDOLAS for k in range(WHEEL_GONDOLAS)]
+
+    def ring(radius: float, b: float) -> list[mesh.Vertex]:
+        return [at(hub, radius * math.cos(a), b, radius * math.sin(a)) for a in corners]
+
+    # The rim: a box section round the sixteen-sided ring, each face toned by where it faces.
+    inner, outer = WHEEL_RADIUS_M - WHEEL_RIM_DEPTH_M / 2.0, WHEEL_RADIUS_M + WHEEL_RIM_DEPTH_M / 2.0
+    near, far = -WHEEL_RIM_WIDTH_M / 2.0, WHEEL_RIM_WIDTH_M / 2.0
+    rails = {(r, b): ring(r, b) for r in (inner, outer) for b in (near, far)}
+    spine = ring(WHEEL_RADIUS_M, 0.0)
+    for k in range(WHEEL_GONDOLAS):
+        j = (k + 1) % WHEEL_GONDOLAS
+        quads = (
+            # Outer face, inner face, near side, far side.
+            [rails[outer, near][k], rails[outer, near][j], rails[outer, far][j], rails[outer, far][k]],
+            [rails[inner, far][k], rails[inner, far][j], rails[inner, near][j], rails[inner, near][k]],
+            [rails[inner, near][k], rails[inner, near][j], rails[outer, near][j], rails[outer, near][k]],
+            [rails[outer, far][k], rails[outer, far][j], rails[inner, far][j], rails[inner, far][k]],
+        )
+        # Each wound out of the section, away from its own middle: the inner face looks at the hub.
+        section = tuple((spine[k][i] + spine[j][i]) / 2.0 for i in range(3))
+        for quad in quads:
+            rim.add(*_toned("wall", _outward(quad, section), "beam-shade"))
+    # Two sets of spokes, one either side of the hub, each from the hub to a rim corner.
+    for b in (-WHEEL_SPOKE_OFFSET_M, WHEEL_SPOKE_OFFSET_M):
+        for a in corners:
+            radial = (math.cos(a), math.sin(a))
+            u = axle
+            v = at((0.0, 0.0, 0.0), -radial[1], 0.0, radial[0])
+            spoke = bar(at(hub, 0.0, b, 0.0), at(hub, WHEEL_RADIUS_M * radial[0], b, WHEEL_RADIUS_M * radial[1]), WHEEL_SPOKE_M, u, v)
+            toned_sides(spoke, "wall", "beam-shade", rim)
+    # The hub: a drum along the axle, and the A-frames carrying it.
+    hub_faces = _drum(at(hub, 0.0, -WHEEL_HUB_LENGTH_M / 2.0, 0.0), axle, WHEEL_HUB_RADIUS_M, WHEEL_HUB_LENGTH_M, WHEEL_HUB_SIDES, along)
+    for face in hub_faces:
+        still.add(*_toned("carbon", face))
+    for b in (-WHEEL_LEG_OUT_M, WHEEL_LEG_OUT_M):
+        for a in (-WHEEL_LEG_FOOT_M, WHEEL_LEG_FOOT_M):
+            leg = bar(at(hub, a, b, -WHEEL_HUB_HEIGHT_M), at(hub, 0.0, b, 0.0), WHEEL_LEG_M, along, axle)
+            toned_sides(leg, "carbon", None, still)
+        rise = WHEEL_BRACE_HEIGHT_M / WHEEL_HUB_HEIGHT_M
+        reach = WHEEL_LEG_FOOT_M * (1.0 - rise)
+        brace = bar(at(hub, -reach, b, WHEEL_BRACE_HEIGHT_M - WHEEL_HUB_HEIGHT_M), at(hub, reach, b, WHEEL_BRACE_HEIGHT_M - WHEEL_HUB_HEIGHT_M), WHEEL_BRACE_M, axle, up)
+        toned_sides(brace, "carbon", None, still)
+    # The gondolas: one per rim corner, two per key colour, each its own node at its hanger.
+    gondolas: list[SceneryMesh] = []
+    for k, a in enumerate(corners, start=1):
+        hanger = at(hub, WHEEL_RADIUS_M * math.cos(a), 0.0, WHEEL_RADIUS_M * math.sin(a))
+        node = Node(f"Prop.circuit-wheel.{number}.gondola.{k}", Pivot(*hanger, heading, parent=rim_name))
+        foot = at(hanger, 0.0, 0.0, -WHEEL_HANGER_M)
+        toned_sides(bar(hanger, foot, WHEEL_HANGER_BAR_M, along, axle), "carbon", "carbon", node)
+        colour = f"crowd-{(k - 1) % len(CROWD_KEYS)}"
+        body = at(foot, 0.0, -GONDOLA_DEPTH_M / 2.0, -GONDOLA_RADIUS_M)
+        for face in _drum(body, axle, GONDOLA_RADIUS_M, GONDOLA_DEPTH_M, GONDOLA_SIDES, up):
+            node.add(colour, (face, [tuple(range(len(face)))]))
+        gondolas.append(node.scenery())
+    return [rim.scenery(), *gondolas]
+
+
+def _outward(quad: list[mesh.Vertex], centre: mesh.Vertex) -> list[mesh.Vertex]:
+    """`quad` wound so its normal points away from `centre`."""
+    a, b, c = quad[0], quad[1], quad[2]
+    u = (b[0] - a[0], b[1] - a[1], b[2] - a[2])
+    v = (c[0] - a[0], c[1] - a[1], c[2] - a[2])
+    normal = (u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0])
+    middle = tuple(sum(p[i] for p in quad) / len(quad) for i in range(3))
+    away = sum(normal[i] * (middle[i] - centre[i]) for i in range(3))
+    return quad if away >= 0.0 else list(reversed(quad))
+
+
+def _drum(face: mesh.Vertex, axis: mesh.Vertex, radius: float, depth: float, sides: int, first: mesh.Vertex) -> list[list[mesh.Vertex]]:
+    """A closed drum of `sides` flat sides: a prism of `radius` running `depth` from the centre
+    of its `face` along the unit `axis`, a corner along `first`, every face wound to point out."""
+    u = tuple(first[i] - sum(first[j] * axis[j] for j in range(3)) * axis[i] for i in range(3))
+    length = math.sqrt(sum(c * c for c in u))
+    u = (u[0] / length, u[1] / length, u[2] / length)
+    v = (axis[1] * u[2] - axis[2] * u[1], axis[2] * u[0] - axis[0] * u[2], axis[0] * u[1] - axis[1] * u[0])
+    near = [
+        tuple(face[i] + radius * (math.cos(math.tau * k / sides) * u[i] + math.sin(math.tau * k / sides) * v[i]) for i in range(3))
+        for k in range(sides)
+    ]
+    far = [tuple(p[i] + depth * axis[i] for i in range(3)) for p in near]
+    centre = tuple(face[i] + depth / 2.0 * axis[i] for i in range(3))
+    faces = [[near[k], near[(k + 1) % sides], far[(k + 1) % sides], far[k]] for k in range(sides)]
+    faces.append(list(reversed(near)))
+    faces.append(far)
+    return [_outward(f, centre) for f in faces]
+
+
+PROP_BUILDERS: dict[str, Callable[[Layout, Prop, int, ByMaterial], list[SceneryMesh]]] = {
+    "circuit-wheel": circuit_wheel,
+}

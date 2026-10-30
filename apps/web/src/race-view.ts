@@ -42,6 +42,7 @@ import { livery } from "./livery";
 import { plate, tonesOf, writePalette } from "./palette";
 import { createParticles } from "./particles";
 import type { RaceReadout } from "./race-run";
+import { sceneryMotion } from "./scenery-motion";
 import { createSparkEmitter, createSparkParticles } from "./sparks";
 import { spinOutAngle } from "./spin";
 import {
@@ -288,6 +289,7 @@ export async function createRaceView(
   const cones = meshPool(world, hazardConeMesh(), 0);
   const gulls = meshPool(world, homingGullMesh(), PROJECTILE_HEIGHT_M);
   const runaways = runawayWheels(world, track.scene, runawayWheelRadius);
+  const motion = sceneryMotion(track.scene);
 
   const labels = Array.from({ length: kartCount }, (_, slot) => {
     const element = document.createElement("div");
@@ -362,6 +364,7 @@ export async function createRaceView(
       cones.show(hazards);
       gulls.show(projectiles, (projectile) => readouts[projectile.target]?.position);
       runaways.show(race.wheels, frameSeconds);
+      motion.update(performance.now());
       for (const label of labels) {
         label.visible = false;
       }

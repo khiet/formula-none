@@ -14,12 +14,22 @@ import sys
 from pathlib import Path
 
 import bpy
+from mathutils import Matrix, Vector
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 
 import export  # noqa: E402
-from trackgen.layout import CROWD_KEYS, HAZARD_TINT, Lettering, Placement, TrackGeometry, build  # noqa: E402
+from trackgen.layout import (  # noqa: E402
+    CROWD_KEYS,
+    HAZARD_TINT,
+    Lettering,
+    Pivot,
+    Placement,
+    SceneryMesh,
+    TrackGeometry,
+    build,
+)
 from trackgen.layouts import NAMES, load  # noqa: E402
 
 # Flat colours in the 16-bit kart racer's key: one saturated tone per
@@ -149,18 +159,53 @@ def mesh_object(
     data: tuple[list, list],
     material_name: str,
     uvs: list[tuple[float, float]] | None = None,
+    materials: tuple[str, ...] = (),
 ) -> bpy.types.Object:
+    """A mesh object in `material_name`, or with `materials` one slot per distinct name and
+    each face in its own, which the exporter writes as a primitive per slot."""
     vertices, faces = data
     mesh = bpy.data.meshes.new(name)
     mesh.from_pydata(vertices, [], faces)
+    slots = list(dict.fromkeys(materials or (material_name,)))
+    for slot in slots:
+        mesh.materials.append(material(slot))
+    if materials:
+        for polygon, slot in zip(mesh.polygons, materials, strict=True):
+            polygon.material_index = slots.index(slot)
     mesh.validate()
     mesh.update()
     if uvs is not None:
         layer = mesh.uv_layers.new(name="UVMap")
         for loop in mesh.loops:
             layer.data[loop.index].uv = uvs[loop.vertex_index]
-    mesh.materials.append(material(material_name))
     return bpy.data.objects.new(name, mesh)
+
+
+def frame_of(pivot: Pivot) -> Matrix:
+    """The world matrix of a pivot's node: its origin at the pivot, local x along its heading."""
+    return Matrix.Translation((pivot.x, pivot.y, pivot.z)) @ Matrix.Rotation(pivot.heading, 4, "Z")
+
+
+def pivoted_object(
+    piece: SceneryMesh, nodes: dict[str, tuple[bpy.types.Object, Matrix]]
+) -> bpy.types.Object:
+    """A scenery mesh the View moves as a node of its own: its vertices rebased on its pivot's
+    frame so the object's origin is there, and hung under its parent in `nodes` when it names
+    one, placed relative to that parent's frame. Parents come before children in the scenery."""
+    pivot = piece.pivot
+    frame = frame_of(pivot)
+    into_local = frame.inverted()
+    vertices, faces = piece.mesh
+    local = [tuple(into_local @ Vector(v)) for v in vertices]
+    obj = mesh_object(piece.name, (local, faces), piece.material, materials=piece.materials)
+    if pivot.parent is None:
+        obj.matrix_world = frame
+    else:
+        parent, parent_frame = nodes[pivot.parent]
+        obj.parent = parent
+        obj.matrix_local = parent_frame.inverted() @ frame
+    nodes[piece.name] = (obj, frame)
+    return obj
 
 
 def yaw_facing(facing: float) -> float:
@@ -194,8 +239,12 @@ def populate(geometry: TrackGeometry) -> None:
         track.objects.link(obj)
 
     scenery = collection(export.SCENERY_COLLECTION)
+    nodes: dict[str, tuple[bpy.types.Object, Matrix]] = {}
     for piece in geometry.scenery:
-        scenery.objects.link(mesh_object(piece.name, piece.mesh, piece.material))
+        if piece.pivot is None:
+            scenery.objects.link(mesh_object(piece.name, piece.mesh, piece.material))
+        else:
+            scenery.objects.link(pivoted_object(piece, nodes))
     for prop in geometry.lettering:
         scenery.objects.link(text_object(prop))
 

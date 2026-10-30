@@ -168,6 +168,11 @@ BRIDGE_SPAN_CLEARANCE_M = 2.0
 # and this much between trunks, however many the layout asks for.
 TREE_WALL_CLEARANCE_M = 3.0
 TREE_SPACING_M = 5.0
+# A prop keeps this much grass between its footprint and the wall, the
+# rule for anything over 3 m tall: the chase camera hangs over the wall on
+# the outside of a corner, and a tall thing nearer would stand between it
+# and the kart.
+PROP_WALL_CLEARANCE_M = 8.0
 
 # The eight-slot spawn grid: two staggered columns of four, pole in front on
 # the left, the right column set back. Slot order is grid order. Placements
@@ -282,6 +287,33 @@ class Wood:
 
 
 @dataclass(frozen=True)
+class Spot:
+    """A place hung on the lap: `s` metres along it and `offset` metres left of the centreline,
+    facing the way the lap runs there, as every placement is."""
+
+    s: float
+    offset: float = 0.0
+
+
+@dataclass(frozen=True)
+class World:
+    """A place set in the world: track metres, facing `heading` radians counter-clockwise from +X."""
+
+    x: float
+    y: float
+    heading: float = 0.0
+
+
+@dataclass(frozen=True)
+class Prop:
+    """A trackside prop of one `kind` (today `circuit-wheel`) standing at `at`, built by
+    `trackgen.props`: scenery beyond the walls that no kart meets (ADR 0050)."""
+
+    kind: str
+    at: Spot | World
+
+
+@dataclass(frozen=True)
 class Decor:
     """The scenery a layout asks for beyond what every track gets (kerbs and the start line)."""
 
@@ -290,6 +322,7 @@ class Decor:
     gantry: bool = False
     bridges: list[Bridge] = field(default_factory=list)
     woods: list[Wood] = field(default_factory=list)
+    props: list[Prop] = field(default_factory=list)
 
 
 @dataclass
@@ -335,12 +368,41 @@ class SurfaceMesh:
 
 
 @dataclass(frozen=True)
+class Pivot:
+    """The node of its own a mesh the View moves gets: its origin at (`x`, `y`, `z`) with its
+    local x along `heading` and its local y to the left of it, hung under the node named
+    `parent` when it moves with that one too. The build script sets the origin and the
+    parent; the View turns the node about its own axes."""
+
+    x: float
+    y: float
+    z: float
+    heading: float
+    parent: str | None = None
+
+
+@dataclass(frozen=True)
 class SceneryMesh:
     """A mesh drawn and never collided with: not in the sidecar."""
 
     name: str
     material: str
     mesh: mesh.Mesh
+    pivot: Pivot | None = None
+    """Set for a mesh the View moves: exported as a node named `name` with its origin at the
+    pivot, never merged into its material's family."""
+    materials: tuple[str, ...] = ()
+    """One material per face when a pivoted node mixes them; `material` is then its first.
+    A still family never mixes: `ByMaterial` splits it instead."""
+
+
+def locate(layout: Layout, at: Spot | World) -> tuple[float, float, float]:
+    """Where `at` stands in track metres, and the heading it faces, in radians."""
+    if isinstance(at, World):
+        return at.x, at.y, at.heading
+    sample = layout.path.at(at.s)
+    nx, ny = sample.left_normal
+    return sample.x + at.offset * nx, sample.y + at.offset * ny, sample.heading
 
 
 @dataclass(frozen=True)
@@ -486,9 +548,9 @@ def decorate(layout: Layout, height: list[float]) -> tuple[list[SceneryMesh], li
     scenery += bridges(layout, height)
     # `props` imports this module, so it is imported here, once everything
     # it needs is defined.
-    from .props import woods
+    from .props import props, woods
 
-    scenery += woods(layout)
+    scenery += woods(layout) + props(layout)
     return scenery, lettering
 
 
