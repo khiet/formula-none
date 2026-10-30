@@ -1,6 +1,6 @@
 // The items on the road (ADR 0037), built in code from Three primitives:
 // lit, flat-shaded and in the palette the item slot draws them in, so the
-// cone and the gull on the road are the ones in the slot. The runaway wheel
+// cone and the drone on the road are the ones in the slot. The runaway wheel
 // (ADR 0041) and the marshal waving his hazard flags at it (ADR 0045) are
 // built the same way, save the wheel's rim, hub and flames and the
 // beacon's glow and beam, which glow unlit. The sim collides with its own
@@ -29,8 +29,9 @@ import {
   BEACON_BEAM,
   BEACON_LIT,
   BEACON_OFF,
+  CARBON,
+  DRONE_EYE,
   GREYS,
-  GULL_EYE,
   HAZARD_FLAG_STRIPE,
   HAZARD_ORANGE,
   INK,
@@ -50,10 +51,12 @@ import {
   MARSHAL_SWEAT,
   MARSHAL_TOWEL,
   MARSHAL_VEST,
+  POSTER_RED,
   ROCKET,
   ROCKET_FLAME,
   ROCKET_STRAP,
   SIGNAL_YELLOW,
+  VALUE_WHITE,
   WHEEL_FLAME,
   WHEEL_TYRE,
   WHITE,
@@ -73,6 +76,19 @@ const HAZARD_SLAB_HEIGHT_M = 0.08;
 /** The white band, as shares of the way from the apex to the rim. */
 const HAZARD_BAND_FROM = 0.5;
 const HAZARD_BAND_TO = 0.66;
+
+/**
+ * The homing drone: its motors this far out on each axis, its rotors this
+ * big round and their blur this opaque. Its rotors spin this fast, its
+ * tally blinks this often, and it bobs this high this fast as it hovers.
+ */
+const DRONE_MOTOR_M = 0.32;
+const DRONE_ROTOR_M = 0.19;
+const DRONE_BLUR_OPACITY = 0.22;
+const DRONE_ROTOR_RAD_PER_S = 38;
+const DRONE_TALLY_HZ = 1.5;
+const DRONE_BOB_M = 0.02;
+const DRONE_BOB_RAD_PER_S = 3.1;
 
 /** The runaway wheel's width over its radius: the kart's rear wheel's. */
 const RUNAWAY_WHEEL_WIDTH_SHARE = 0.8;
@@ -257,31 +273,96 @@ export function hazardConeMesh(): Group {
   return cone;
 }
 
+/** The homing drone at a moment: posed by `fly`. */
+export interface HomingDrone {
+  /** Centred on its origin, nose toward +z, so it can be turned to face its target. */
+  readonly figure: Group;
+  /**
+   * Roll the whole drone `tilt` radians about its nose, positive dropping
+   * its left side (+x), and spin its rotors, blink its tally and bob it
+   * `clockSeconds` into the View's clock.
+   */
+  fly(tilt: number, clockSeconds: number): void;
+}
+
 /**
- * The homing projectile as a low-poly gull centred on its origin, beak
- * toward +z so it can be turned to face its target: white body and head,
- * grey wings up, a dark tail, an orange beak and red eyes locked on.
+ * The homing projectile as a camera quad (ADR 0057), a trackside broadcast
+ * FPV drone gone rogue: a carbon body under a red canopy, X arms out to
+ * orange motors, a two-blade rotor over a translucent blur disc on each,
+ * a camera pod under the nose whose red lens is its eye locked on, and an
+ * antenna at the rear left with a tally light on its tip. The lens, the
+ * blur and the tally glow unlit. Its rolling part is named `body`, its
+ * rotors `rotor`, its tally `tally`.
  */
-export function homingGullMesh(): Group {
-  const gull = new Group();
-  const body = part(gull, new SphereGeometry(0.3, 6, 4), GREYS.white);
-  body.scale.set(0.75, 0.65, 1.3);
-  part(gull, new SphereGeometry(0.17, 6, 4), GREYS.white, [0, 0.14, 0.38]);
-  const beak = part(gull, new ConeGeometry(0.06, 0.2, 4), HAZARD_ORANGE.mid, [0, 0.12, 0.6]);
-  beak.rotation.x = Math.PI / 2;
-  const tail = part(gull, new ConeGeometry(0.14, 0.3, 4), GREYS.dark, [0, 0.02, -0.45]);
-  tail.rotation.x = -Math.PI / 2;
-  for (const side of [-1, 1]) {
-    const wing = part(gull, new BoxGeometry(0.5, 0.03, 0.28), GREYS.grey, [
-      side * 0.32,
-      0.26,
-      -0.02,
-    ]);
-    wing.rotation.z = side * 0.9;
-    part(gull, new BoxGeometry(0.02, 0.06, 0.06), GULL_EYE, [side * 0.15, 0.19, 0.44]);
-    part(gull, new BoxGeometry(0.02, 0.03, 0.03), INK, [side * 0.16, 0.19, 0.46]);
+export function homingDroneMesh(): HomingDrone {
+  const figure = new Group();
+  const body = new Group();
+  body.name = "body";
+  figure.add(body);
+  part(body, new BoxGeometry(0.3, 0.1, 0.42), CARBON.mid);
+  const canopy = part(
+    body,
+    new SphereGeometry(0.15, 6, 3, 0, 2 * Math.PI, 0, Math.PI / 2),
+    POSTER_RED.mid,
+    [0, 0.05, -0.02],
+  );
+  canopy.scale.set(0.95, 0.8, 1.35);
+  const rotors: { readonly blades: Group; readonly way: number }[] = [];
+  const blur = new CircleGeometry(DRONE_ROTOR_M, 10);
+  for (const sx of [-1, 1]) {
+    for (const sz of [-1, 1]) {
+      const arm = part(body, new BoxGeometry(0.05, 0.035, 0.44), CARBON.lit, [
+        sx * 0.16,
+        0,
+        sz * 0.16,
+      ]);
+      arm.rotation.y = Math.atan2(sx, sz);
+      part(body, new CylinderGeometry(0.05, 0.055, 0.09, 6), HAZARD_ORANGE.mid, [
+        sx * DRONE_MOTOR_M,
+        0.03,
+        sz * DRONE_MOTOR_M,
+      ]);
+      const blades = new Group();
+      blades.name = "rotor";
+      blades.position.set(sx * DRONE_MOTOR_M, 0.09, sz * DRONE_MOTOR_M);
+      part(blades, new BoxGeometry(DRONE_ROTOR_M * 2, 0.012, 0.045), CARBON.mid);
+      body.add(blades);
+      const disc = glowing(body, blur, VALUE_WHITE, DRONE_BLUR_OPACITY);
+      disc.material.side = DoubleSide;
+      disc.position.copy(blades.position);
+      disc.rotation.x = -Math.PI / 2;
+      // Diagonal pairs spin opposite ways, as a quad's props do.
+      rotors.push({ blades, way: sx * sz });
+    }
   }
-  return gull;
+  part(body, new BoxGeometry(0.15, 0.13, 0.12), CARBON.shaded, [0, -0.08, 0.22]);
+  const ring = part(body, new CylinderGeometry(0.06, 0.06, 0.03, 8), WHITE.mid, [0, -0.08, 0.29]);
+  ring.rotation.x = Math.PI / 2;
+  glowing(body, new CircleGeometry(0.045, 8), DRONE_EYE).position.set(0, -0.08, 0.307);
+  glowing(body, new CircleGeometry(0.015, 6), INK).position.set(0.005, -0.075, 0.309);
+  const antenna = part(
+    body,
+    new CylinderGeometry(0.008, 0.008, 0.22, 4),
+    ROCKET_STRAP,
+    [0.08, 0.13, -0.22],
+  );
+  antenna.rotation.x = -0.5;
+  const tally = glowing(body, new SphereGeometry(0.025, 6, 4), ROCKET.lit);
+  tally.name = "tally";
+  tally.position.set(0.08, 0.23, -0.27);
+  const drone: HomingDrone = {
+    figure,
+    fly(tilt, clockSeconds) {
+      body.rotation.z = -tilt;
+      body.position.y = DRONE_BOB_M * Math.sin(clockSeconds * DRONE_BOB_RAD_PER_S);
+      for (const { blades, way } of rotors) {
+        blades.rotation.y = way * clockSeconds * DRONE_ROTOR_RAD_PER_S;
+      }
+      tally.visible = Math.floor(clockSeconds * DRONE_TALLY_HZ * 2) % 2 === 0;
+    },
+  };
+  drone.fly(0, 0);
+  return drone;
 }
 
 /** A mesh in `colour` that ignores the sun, so it glows; at `opacity` under 1, what is inside shows through. */

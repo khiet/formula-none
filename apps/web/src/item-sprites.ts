@@ -1,16 +1,19 @@
 import type { Item } from "./generated/protocol";
 import { hexCss } from "./livery";
-import { facetted, line, ngon, type Point, polygon, SVG_NS, svg } from "./low-poly-svg";
+import { facetted, line, ngon, type Point, polygon, rectangle, SVG_NS, svg } from "./low-poly-svg";
 import {
+  CARBON,
+  DRONE_EYE,
   GREYS,
-  GULL_EYE,
   HAZARD_ORANGE,
   INK,
+  POSTER_RED,
   ROCKET,
   ROCKET_FLAME,
   ROCKET_STRAP,
   ROCKET_WINDOW,
   tonesOf,
+  VALUE_WHITE,
   WHITE,
 } from "./palette";
 
@@ -143,105 +146,68 @@ const hazard: Drawing = (parent) => {
   );
 };
 
-/** A seagull with its eye locked on: white body, grey wing up, orange beak forward. */
+/** A rotor's blur seen edge on: a flat white ellipse the blade shows through. */
+function blur(parent: Element, cx: number, cy: number, rx: number, ry: number): void {
+  const element = document.createElementNS(SVG_NS, "ellipse");
+  for (const [name, value] of Object.entries({ cx, cy, rx, ry })) {
+    element.setAttribute(name, String(value));
+  }
+  element.setAttribute("fill", hexCss(VALUE_WHITE));
+  element.setAttribute("fill-opacity", "0.55");
+  parent.append(element);
+}
+
+/**
+ * A camera quad drone side on, nose right: carbon arms, orange motors
+ * under blurred rotors, a red canopy, the camera pod's red lens locked on
+ * and the antenna's tally light.
+ */
 const homing: Drawing = (parent) => {
   shadow(parent, 100, 146, 56, 5);
+  line(parent, [66, 80], [48, 46], ROCKET_STRAP, 3);
+  polygon(parent, ngon(6, 48, 45, 4), DRONE_EYE);
+  polygon(parent, rectangle(24, 84, 176, 94), CARBON.lit);
+  polygon(parent, rectangle(24, 84, 176, 87), GREYS.deep);
+  for (const x of [38, 162]) {
+    polygon(parent, rectangle(x - 9, 66, x + 9, 88), HAZARD_ORANGE.mid);
+    polygon(parent, rectangle(x - 9, 66, x + 9, 71), HAZARD_ORANGE.lit);
+    blur(parent, x, 62, 34, 5);
+    line(parent, [x - 30, 62], [x + 30, 62], CARBON.mid, 3);
+  }
   polygon(
     parent,
     [
-      [26, 82],
-      [52, 90],
-      [62, 104],
-      [34, 102],
+      [60, 78],
+      [140, 78],
+      [148, 100],
+      [52, 100],
     ],
-    GREYS.dark,
+    CARBON.mid,
   );
   polygon(
     parent,
     [
-      [26, 82],
-      [52, 90],
-      [40, 92],
+      [70, 78],
+      [84, 56],
+      [118, 54],
+      [134, 78],
     ],
-    GREYS.grey,
+    POSTER_RED.mid,
   );
   polygon(
     parent,
     [
-      [50, 90],
-      [82, 70],
-      [132, 68],
-      [150, 82],
-      [140, 102],
-      [92, 110],
-      [62, 106],
+      [70, 78],
+      [84, 56],
+      [100, 55],
+      [92, 78],
     ],
-    GREYS.body,
+    POSTER_RED.lit,
   );
-  polygon(
-    parent,
-    [
-      [50, 90],
-      [82, 70],
-      [132, 68],
-      [150, 82],
-      [96, 88],
-    ],
-    GREYS.white,
-  );
-  polygon(
-    parent,
-    [
-      [84, 74],
-      [104, 24],
-      [122, 22],
-      [114, 72],
-    ],
-    GREYS.grey,
-  );
-  polygon(
-    parent,
-    [
-      [104, 24],
-      [122, 22],
-      [114, 72],
-      [108, 50],
-    ],
-    GREYS.dark,
-  );
-  polygon(
-    parent,
-    [
-      [84, 74],
-      [104, 24],
-      [96, 30],
-    ],
-    GREYS.pale,
-  );
-  facetted(parent, 6, 150, 70, 19, { lit: GREYS.white, mid: WHITE.mid, shaded: GREYS.pale });
-  polygon(
-    parent,
-    [
-      [166, 70],
-      [192, 76],
-      [166, 76],
-    ],
-    HAZARD_ORANGE.lit,
-  );
-  polygon(
-    parent,
-    [
-      [166, 76],
-      [192, 76],
-      [168, 82],
-    ],
-    HAZARD_ORANGE.shaded,
-  );
-  polygon(parent, ngon(6, 156, 64, 5), GULL_EYE);
-  polygon(parent, ngon(4, 157, 64, 2), INK);
-  line(parent, [146, 57], [162, 60], INK, 2.5);
-  line(parent, [92, 110], [88, 128], HAZARD_ORANGE.lit, 3);
-  line(parent, [112, 108], [110, 128], HAZARD_ORANGE.lit, 3);
+  polygon(parent, rectangle(114, 98, 154, 126), CARBON.shaded);
+  polygon(parent, ngon(8, 154, 112, 13), WHITE.mid);
+  polygon(parent, ngon(8, 154, 112, 9), DRONE_EYE);
+  polygon(parent, ngon(6, 155, 111, 3), INK);
 };
 
 /** A snail with a rocket strapped to its faceted shell, regretting it. */

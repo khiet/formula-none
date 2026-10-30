@@ -16,17 +16,19 @@ import {
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { CSS2DObject, CSS2DRenderer } from "three/addons/renderers/CSS2DRenderer.js";
 import { WebGPURenderer } from "three/webgpu";
-import type { Coin, ItemBox, KartReadout, KartSize, Wheel } from "./bridge";
+import type { Coin, ItemBox, KartReadout, KartSize, Projectile, Wheel } from "./bridge";
 import type { CameraPose } from "./chase-camera";
 import { coinMeshes, coinSpray } from "./coin-meshes";
 import { createDustEmitter } from "./dust";
 import { createExhaustFlames } from "./exhaust-flame";
 import { hazardZones } from "./hazard-zone";
 import { HEAD_LEVEL, type HeadSway, swayHead } from "./head-sway";
+import { type DroneFlight, flyDrones } from "./homing-drones";
 import {
   type Beacon,
+  type HomingDrone,
   hazardConeMesh,
-  homingGullMesh,
+  homingDroneMesh,
   itemBoxMesh,
   type Marshal,
   marshalBeacon,
@@ -109,8 +111,9 @@ export interface RaceView {
    * what the readouts say and the phase (the rocket start's sparks show
    * only while it counts down), hang the labels the karts call for and
    * hide every other kart's, move the camera to `camera`, show each item
-   * box that is there to pick up, a cone at each hazard and a gull at
-   * each projectile, turned toward the kart it homes in on, and at each
+   * box that is there to pick up, a cone at each hazard and a drone at
+   * each projectile, turned toward the kart it homes in on and tilted
+   * into its turn, and at each
    * wheel crossing the rolling wheel with its tells, the marshal posed
    * for it, the beacon lit and the hazard zone flashing while the flag is
    * up, and the wheel waiting on the wall through the warning.
@@ -140,7 +143,7 @@ export interface ViewAssets {
  * the slot's livery and a box per item box, drawn by Three.js from the
  * kart readouts the bridge reports and the pose the chase camera computes,
  * with a name floating over each kart the Scene labels, a cone at each
- * hazard, a gull at each projectile and a coin at each of `coins` while
+ * hazard, a drone at each projectile and a coin at each of `coins` while
  * it is there to pick up, every coin turning on the View's clock. The
  * track mesh is Presentation
  * only; the sim has its own copy of the geometry from the sidecar. Every
@@ -300,7 +303,7 @@ export async function createRaceView(
   let clockSeconds = 0;
 
   const cones = meshPool(world, hazardConeMesh(), 0);
-  const gulls = meshPool(world, homingGullMesh(), PROJECTILE_HEIGHT_M);
+  const drones = homingDrones(world);
   const runaways = runawayWheels(world, track.scene, runawayWheelRadius);
   const motion = sceneryMotion(track.scene);
 
@@ -383,7 +386,7 @@ export async function createRaceView(
       shadowMesh.update();
       flameMesh.update(frameSeconds);
       cones.show(hazards);
-      gulls.show(projectiles, (projectile) => readouts[projectile.target]?.position);
+      drones.show(projectiles, (projectile) => readouts[projectile.target]?.position, frameSeconds);
       runaways.show(race.wheels, frameSeconds);
       motion.update(performance.now());
       for (const label of labels) {
@@ -571,6 +574,65 @@ function marshalPosts(track: Object3D): Map<number, MarshalPost> {
     posts.set(number, { top: new Vector3(centre.x, post.max.y, centre.z), inward });
   }
   return posts;
+}
+
+interface HomingDrones {
+  /**
+   * A drone at each of `projectiles`, `PROJECTILE_HEIGHT_M` over it, turned
+   * level to face the point `facing` names for it and tilted into its turn
+   * `frameSeconds` on; the rest hidden.
+   */
+  show(
+    projectiles: readonly Projectile[],
+    facing: (projectile: Projectile) => Position | undefined,
+    frameSeconds: number,
+  ): void;
+}
+
+/**
+ * The homing drones in `world`, made as they are needed and hidden, never
+ * removed, when not. Unlike `meshPool` it keeps each drone's flight from
+ * frame to frame, so a tilt follows the drone that earned it.
+ */
+function homingDrones(world: ThreeScene): HomingDrones {
+  const drawn: HomingDrone[] = [];
+  let flights: DroneFlight[] = [];
+  /** Seconds the View has shown: the rotors, the tally and the bob run on it. */
+  let clockSeconds = 0;
+  return {
+    show(projectiles, facing, frameSeconds) {
+      clockSeconds += frameSeconds;
+      flights = flyDrones(
+        flights,
+        projectiles.map((projectile, index) => {
+          const [x, , z] = projectile.position;
+          const target = facing(projectile);
+          // With no kart to face, a drone keeps the facing it was drawn at.
+          const yaw =
+            target === undefined
+              ? (drawn[index]?.figure.rotation.y ?? 0)
+              : Math.atan2(target[0] - x, target[2] - z);
+          return { position: projectile.position, yaw };
+        }),
+        frameSeconds,
+      );
+      while (drawn.length < flights.length) {
+        const drone = homingDroneMesh();
+        world.add(drone.figure);
+        drawn.push(drone);
+      }
+      drawn.forEach((drone, index) => {
+        const flight = flights[index];
+        drone.figure.visible = flight !== undefined;
+        if (flight !== undefined) {
+          const [x, y, z] = flight.position;
+          drone.figure.position.set(x, y + PROJECTILE_HEIGHT_M, z);
+          drone.figure.rotation.y = flight.yaw;
+          drone.fly(flight.tilt, clockSeconds);
+        }
+      });
+    },
+  };
 }
 
 interface MeshPool {
