@@ -88,12 +88,18 @@ MATERIALS = {
     "blossom-shade": (0.626, 0.422, 0.497),
     "trunk": (0.353, 0.227, 0.118),
 }
-# The crowd in the stands, one material per livery's key colour.
+# The crowd in the stands, one material per livery's key colour, and the lit
+# tone of each, the key mixed this far toward white, for the band across the
+# top of the pit building's doors.
+CROWD_LIT = 0.28
 MATERIALS.update(
     {
         f"crowd-{slot}": tuple(((key >> shift) & 0xFF) / 255.0 for shift in (16, 8, 0))
         for slot, key in enumerate(CROWD_KEYS)
     }
+)
+MATERIALS.update(
+    {f"crowd-{slot}-lit": tuple(c + (1.0 - c) * CROWD_LIT for c in MATERIALS[f"crowd-{slot}"]) for slot in range(len(CROWD_KEYS))}
 )
 # The hazard zone's tint: the sausage kerb's gold over the ground it lies on.
 MATERIALS.update(
@@ -107,6 +113,9 @@ MATERIALS.update(
 # Deep enough for the lettering to read as a letter from the track and no
 # deeper: every millimetre is more faces on every board.
 TEXT_EXTRUDE_M = 0.03
+# Lettering bent round an arc follows a polyline with a point about this far
+# apart, so a glyph bends smoothly and the arc costs no faces.
+TEXT_ARC_STEP_M = 0.25
 
 
 def reset_scene() -> None:
@@ -214,7 +223,8 @@ def yaw_facing(facing: float) -> float:
 
 
 def text_object(prop: Lettering) -> bpy.types.Object:
-    """Lettering standing upright, read from the way its placement faces, centred on it."""
+    """Lettering standing upright, read from the way its placement faces, centred on it, or
+    with an `arc` bent round a circle of that radius about it, centred on the circle's top."""
     curve = bpy.data.curves.new(prop.name, "FONT")
     curve.body = prop.text
     curve.size = prop.size
@@ -223,11 +233,31 @@ def text_object(prop: Lettering) -> bpy.types.Object:
     curve.align_y = "CENTER"
     curve.resolution_u = 2
     curve.materials.append(material(prop.material))
+    if prop.arc is not None:
+        curve.follow_curve = arc_object(f"{prop.name}.arc", prop.arc)
     obj = bpy.data.objects.new(prop.name, curve)
     obj.location = (prop.at.x, prop.at.y, prop.at.z)
     # Text lies in its local XY plane reading along +X; stood up on its
     # bottom edge it faces -Y.
     obj.rotation_euler = (math.pi / 2.0, 0.0, yaw_facing(prop.at.heading))
+    return obj
+
+
+def arc_object(name: str, radius: float) -> bpy.types.Object:
+    """The half circle text bends round: a polyline of `radius` about the origin in the XY
+    plane, run from -X over +Y to +X so the text reads left to right over the top. Blender
+    bends text in the text's own frame and ignores the curve's transform, so the curve
+    stays at the origin, in the data collection the exporter leaves out."""
+    curve = bpy.data.curves.new(name, "CURVE")
+    curve.dimensions = "2D"
+    spline = curve.splines.new("POLY")
+    count = max(8, math.ceil(math.pi * radius / TEXT_ARC_STEP_M))
+    spline.points.add(count)
+    for k, point in enumerate(spline.points):
+        angle = math.pi - math.pi * k / count
+        point.co = (radius * math.cos(angle), radius * math.sin(angle), 0.0, 1.0)
+    obj = bpy.data.objects.new(name, curve)
+    collection("Data").objects.link(obj)
     return obj
 
 

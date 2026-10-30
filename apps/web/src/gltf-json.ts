@@ -17,7 +17,10 @@ export interface GltfJson {
       readonly material?: number;
     }[];
   }[];
-  readonly materials?: readonly { readonly name?: string }[];
+  readonly materials?: readonly {
+    readonly name?: string;
+    readonly pbrMetallicRoughness?: { readonly baseColorFactor?: readonly number[] };
+  }[];
   readonly accessors: readonly { readonly min?: number[]; readonly max?: number[] }[];
   readonly images?: readonly unknown[];
   readonly textures?: readonly unknown[];

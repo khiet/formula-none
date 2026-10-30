@@ -306,11 +306,13 @@ class World:
 
 @dataclass(frozen=True)
 class Prop:
-    """A trackside prop of one `kind` (today `circuit-wheel`) standing at `at`, built by
-    `trackgen.props`: scenery beyond the walls that no kart meets (ADR 0050)."""
+    """A trackside prop of one `kind` (`circuit-wheel`, `arch` or `pits`) standing at `at`,
+    built by `trackgen.props`: scenery beyond the walls that no kart meets (ADR 0050). A kind
+    that runs along the track, the pits, is `length` metres long, centred on `at`."""
 
     kind: str
     at: Spot | World
+    length: float | None = None
 
 
 @dataclass(frozen=True)
@@ -407,13 +409,17 @@ def locate(layout: Layout, at: Spot | World) -> tuple[float, float, float]:
 
 @dataclass(frozen=True)
 class Lettering:
-    """Lettering Blender sets in the scenery: `size` metres tall, in `material`, read from `at.heading`."""
+    """Lettering Blender sets in the scenery: `size` metres tall, in `material`, read from `at.heading`.
+
+    With `arc`, the text is bent round a circle of that radius about `at` in the plane it
+    faces, reading left to right over the circle's top, as the arch's belt is lettered."""
 
     name: str
     text: str
     material: str
     size: float
     at: Placement
+    arc: float | None = None
 
 
 @dataclass
@@ -550,8 +556,9 @@ def decorate(layout: Layout, height: list[float]) -> tuple[list[SceneryMesh], li
     # it needs is defined.
     from .props import props, woods
 
-    scenery += woods(layout) + props(layout)
-    return scenery, lettering
+    placed, lettered = props(layout)
+    scenery += woods(layout) + placed
+    return scenery, lettering + lettered
 
 
 def kerbs(layout: Layout, height: list[float]) -> list[SceneryMesh]:
