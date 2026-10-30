@@ -10,14 +10,17 @@ mod common;
 
 use common::{
     brands_patch, slot_position, started, tap, throttle, ticks, track, with_boxes_under,
-    with_slot_at, with_tyres_at, without_item_boxes, without_tyres, BRANDS_PATCH, DT, OVAL, SEED,
+    with_slot_at, with_tyres_at, without_item_boxes, without_tyres, without_walls, BRANDS_PATCH,
+    DT, OVAL, SEED,
 };
 
+use std::f32::consts::FRAC_PI_2;
+
 use sim::tuning::{
-    BOOST_PAD_FACTOR, TOP_SPEED_M_PER_S, TYRES_LOST_PER_SPIN_OUT, TYRE_HALF_LENGTH_M,
-    TYRE_RESPAWN_S, TYRE_SET, TYRE_TOP_SPEED_FACTOR,
+    BOOST_PAD_FACTOR, OFF_TRACK_SPEED_FACTOR, TOP_SPEED_M_PER_S, TYRES_LOST_PER_SPIN_OUT,
+    TYRE_HALF_LENGTH_M, TYRE_RESPAWN_S, TYRE_SET, TYRE_TOP_SPEED_FACTOR,
 };
-use sim::{step, Item, KartInput, Phase, RaceEvent, State, Track};
+use sim::{step, Item, KartInput, Phase, RaceEvent, State, Surface, Track};
 
 /// Metres between the tyres of a line laid by `line_ahead_of`: wider than
 /// a tyre, so a kart takes them one at a time.
@@ -197,6 +200,34 @@ fn a_boost_multiplies_on_top_of_the_tyres() {
         (boosted.speed - expected).abs() < 1e-3,
         "{} m/s, expected {expected}",
         boosted.speed
+    );
+}
+
+#[test]
+fn off_the_asphalt_the_cap_is_raised_by_the_tyres_too() {
+    // On the oval's infield grass facing +X, walls gone, a full set stacked
+    // under the kart: the grass runs to x = 18.
+    let on_grass = [0.0, 0.0, -20.0];
+    let sidecar = with_slot_at(
+        &without_walls(&without_tyres(OVAL)),
+        0,
+        on_grass,
+        -FRAC_PI_2,
+    );
+    let sidecar = with_tyres_at(&sidecar, vec![on_grass; TYRE_SET as usize]);
+    let mut state = started(State::new(SEED, 1, track(&sidecar)));
+    let mut fastest: f32 = 0.0;
+    while state.kart_readouts()[0].position[0] < 17.0 {
+        assert_eq!(state.kart_surface(0), Surface::Grass);
+        state = step(state, &[throttle()], DT);
+        fastest = fastest.max(state.kart_readouts()[0].speed);
+    }
+
+    assert_eq!(tyres(&state, 0), TYRE_SET);
+    let cap = OFF_TRACK_SPEED_FACTOR * top_speed_with(TYRE_SET);
+    assert!(
+        (fastest - cap).abs() < 1e-3,
+        "{fastest} m/s, expected {cap}"
     );
 }
 
