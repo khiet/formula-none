@@ -287,7 +287,7 @@ def coin_pickup(first=1568, second=2093, gain=0.35):
 
 
 def coin_loss(freqs=(1760, 1397, 1175, 880), step=0.055, gain=0.3):
-    """Jingle: the chime's triangle falling a note at a time, over as the spin-out settles."""
+    """Jingle: the chime's triangle falling a note at a time."""
     return concat(*(tone(freq, step, triangle, decay=18, gain=gain) for freq in freqs))
 
 

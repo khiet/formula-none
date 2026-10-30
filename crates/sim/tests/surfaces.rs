@@ -23,7 +23,7 @@ fn oval_with_slot_0_at(position: [f32; 3], yaw: f32) -> Track {
 }
 
 fn open_oval_with_slot_0_at(position: [f32; 3], yaw: f32) -> Track {
-    // No coins either: one taken would raise the cap.
+    // No coins either: one taken would raise the off-track cap.
     let sidecar = without_coins(&without_walls(OVAL));
     track(&with_slot_at(&sidecar, 0, position, yaw))
 }
