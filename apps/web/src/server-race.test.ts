@@ -521,6 +521,7 @@ describe("createServerRace", () => {
   it("reports every tyre there until a snapshot, then the newest snapshot's", () => {
     const client = fakeClient();
     const run = createServerRace(bridge, client, COUNTDOWN, 0, "{}");
+    expect(run.tyres()).toHaveLength(TYRES);
     expect(run.readout().tyresPresent).toEqual(Array<boolean>(TYRES).fill(true));
     const taken = Array<boolean>(TYRES).fill(true);
     taken[4] = false;
