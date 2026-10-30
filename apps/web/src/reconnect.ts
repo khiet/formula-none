@@ -4,7 +4,10 @@
 // connection with its session token, trying again at the tuned interval
 // until it is back. Meanwhile a bot drives the kart on the server. It gives
 // up only on an answer: a refused rejoin, or another connection taking the
-// seat.
+// seat. The Room Scene keeps its connection the same way through a server
+// restart (ADR 0053), but on a closed connection alone: between races the
+// server frees the seat of a connection that drops, so giving up a quiet
+// one to rejoin would cost the seat.
 
 import type { ReconnectTiming } from "./bridge";
 import type { Connection } from "./connection";
@@ -23,6 +26,12 @@ export interface KeepConnectedOptions {
   connect(): Promise<Connection>;
   /** The clock silence is timed on, in milliseconds; `performance.now` by default. */
   readonly now?: () => number;
+  /**
+   * Whether the server's silence counts as a lost connection, as it does
+   * mid-race; false, and only the connection ending does, as in the Room
+   * Scene. True by default.
+   */
+  readonly silence?: boolean;
 }
 
 export interface RaceLink {
@@ -124,18 +133,21 @@ export function keepConnected(client: RoomClient, options: KeepConnectedOptions)
   // own stalls as the server's.
   const interval = silenceMs / CHECKS_PER_SILENCE;
   let checkedAt = now();
-  const checking = setInterval(() => {
-    const at = now();
-    const stalled = at - checkedAt >= 2 * interval;
-    checkedAt = at;
-    if (lost || over) return;
-    if (stalled && !unconfirmed) {
-      unconfirmed = true;
-      return;
-    }
-    unconfirmed = false;
-    if (at - heardAt >= silenceMs) reconnect();
-  }, interval);
+  const checking =
+    options.silence === false
+      ? undefined
+      : setInterval(() => {
+          const at = now();
+          const stalled = at - checkedAt >= 2 * interval;
+          checkedAt = at;
+          if (lost || over) return;
+          if (stalled && !unconfirmed) {
+            unconfirmed = true;
+            return;
+          }
+          unconfirmed = false;
+          if (at - heardAt >= silenceMs) reconnect();
+        }, interval);
   watch();
 
   return {

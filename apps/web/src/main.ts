@@ -279,11 +279,14 @@ async function main(container: HTMLElement): Promise<void> {
       take({ kind: "race", client, countdown }),
     );
     // A server restart ends the connection and brings the room back (ADR
-    // 0005): the seat is taken back with the session token, as mid-race,
+    // 0053): the seat is taken back with the session token, as mid-race,
     // and the Room Scene shows the room as it stands on the new server.
+    // Silence is not watched here: between races a dropped connection
+    // frees the seat, so a rejoin over a merely quiet one would lose it.
     const link = keepConnected(client, {
       timing: bridge.reconnectTiming,
       connect: connectToServer,
+      silence: false,
     });
     link.onLost((lost) => {
       scene.connectionLost(lost);
