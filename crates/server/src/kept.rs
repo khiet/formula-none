@@ -1,8 +1,8 @@
 //! Open rooms kept across a restart (ADR 0005, ADR 0012): one JSON file
 //! per room under a directory on a volume, written whenever an Open room
 //! changes and removed once it leaves Open or closes, and read back when
-//! the next server starts. A room in Countdown or Racing has no file, so a
-//! race under way at a deploy is lost, as ADR 0015 allows.
+//! the next server starts. A room in Countdown, Racing or Results has no
+//! file, so a race under way at a deploy is lost, as ADR 0015 allows.
 
 use std::fs;
 use std::io;

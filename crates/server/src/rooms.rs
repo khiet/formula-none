@@ -209,7 +209,8 @@ impl Rooms {
             ..self
         };
         let mut registry = rooms.registry.lock().expect("registry lock");
-        // A file that is not a room this server can host goes, with why.
+        // A kept room this server cannot host is logged with the reason and
+        // its file removed.
         let drop_kept = |code: &str, reason: &str| {
             rooms
                 .log
@@ -663,8 +664,9 @@ async fn run(
     let mut probes = tokio::time::interval(Duration::from_secs_f32(CONNECTION_PROBE_INTERVAL_S));
     probes.set_missed_tick_behavior(MissedTickBehavior::Skip);
     let mut nonces = 0u32..;
-    // Whether the task ends because the server is stopping, which keeps the
-    // room on disk, rather than because the room closed, which does not.
+    // True when the task ends because the server is stopping, which keeps
+    // the room on disk for the next server; a task that ends any other way
+    // removes it.
     let mut stopping = false;
     loop {
         let closing = async {

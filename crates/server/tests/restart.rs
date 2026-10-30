@@ -128,9 +128,10 @@ async fn a_room_nobody_has_joined_yet_is_back_too() {
     assert!(room.players[0].creator);
 }
 
-/// The file the last deploy wrote, as `crates/server/src/kept.rs` spells
-/// it: a deploy must read what the one before left, so the spelling is a
-/// contract and a change to it needs a migration.
+/// The file the last deploy wrote, as `KeptRoom` in `crates/server/src/room.rs`
+/// serializes it and `crates/server/src/kept.rs` names it: a deploy must read
+/// what the one before left, so the spelling is a contract and a change to
+/// it needs a migration.
 const KEPT_FILE: &str = r#"{"code":"WXYZ","track":"oval","state":"open","seats":[{"player":{"slot":0,"nickname":"khiet","livery":0,"state":"ready","creator":true},"joined_at":1,"token":"0123456789abcdef0123456789abcdef"},null,null,null,null,null,null,null],"joins":1,"next_event_id":1}"#;
 
 #[tokio::test(start_paused = true)]
