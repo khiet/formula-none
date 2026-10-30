@@ -4,8 +4,11 @@ import { coinCount, coinTopSpeed, drivetrain, shiftLights, tyreWearBand } from "
 // The sim's tuned top speed: 108 km/h, six bands of 18 km/h, 5 m/s each.
 const TOP_SPEED = 30;
 // The sim's tuned coins: ten at most, each worth 1% of top speed.
-const PER_COIN = 0.01;
 const COIN_CAP = 10;
+const TUNING = {
+  coinTopSpeeds: Array.from({ length: COIN_CAP + 1 }, (_, coins) => TOP_SPEED * (1 + coins * 0.01)),
+  coinCap: COIN_CAP,
+};
 
 describe("the gear", () => {
   it("splits top speed into six even bands, changing up on each band's edge", () => {
@@ -56,7 +59,7 @@ describe("the gear", () => {
 
 describe("the gear on coins", () => {
   it("stretches its bands to the top speed ten coins raise, so 33 m/s tops 6th and 30 m/s falls short", () => {
-    const raised = coinTopSpeed(TOP_SPEED, COIN_CAP, PER_COIN);
+    const raised = coinTopSpeed(TUNING, COIN_CAP);
     const top = drivetrain(33, raised);
     expect(top.gear).toBe("6");
     expect(top.rpm).toBeCloseTo(11500);
@@ -69,11 +72,11 @@ describe("the gear on coins", () => {
   });
 
   it("keeps the limiter for a boost past the raised top speed", () => {
-    expect(drivetrain(36, coinTopSpeed(TOP_SPEED, COIN_CAP, PER_COIN)).limiter).toBe(true);
+    expect(drivetrain(36, coinTopSpeed(TUNING, COIN_CAP)).limiter).toBe(true);
   });
 
   it("tops 6th at 30 m/s on no coins, as without them, and 33 m/s is over it", () => {
-    const bare = coinTopSpeed(TOP_SPEED, 0, PER_COIN);
+    const bare = coinTopSpeed(TUNING, 0);
     expect(drivetrain(30, bare)).toEqual(drivetrain(30, TOP_SPEED));
     expect(drivetrain(30, bare).rpm).toBe(11500);
     expect(drivetrain(33, bare).limiter).toBe(true);

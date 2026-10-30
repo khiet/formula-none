@@ -169,8 +169,7 @@ export async function createRaceScene(
     bridge.lapsPerRace,
     { centreline, kartCount: bridge.kartsPerRace, ownKart: run.localKart },
     {
-      topSpeed: bridge.cameraTuning.topSpeedMetresPerSecond,
-      coinTopSpeedFactor: bridge.coinTopSpeedFactor,
+      coinTopSpeeds: bridge.coinTopSpeeds,
       coinCap: bridge.coinCap,
     },
     name,

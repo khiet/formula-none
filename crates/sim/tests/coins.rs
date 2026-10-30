@@ -18,7 +18,7 @@ use std::f32::consts::FRAC_PI_2;
 
 use sim::tuning::{
     BOOST_PAD_FACTOR, COINS_LOST_PER_SPIN_OUT, COIN_CAP, COIN_HALF_LENGTH_M, COIN_RESPAWN_S,
-    COIN_TOP_SPEED_FACTOR, OFF_TRACK_SPEED_FACTOR, TOP_SPEED_M_PER_S,
+    OFF_TRACK_SPEED_FACTOR, TUNING,
 };
 use sim::{step, Item, KartInput, Phase, RaceEvent, State, Surface, Track};
 
@@ -75,9 +75,10 @@ fn idle() -> KartInput {
     KartInput::default()
 }
 
-/// The top speed of a kart carrying `count` coins.
+/// The top speed of a kart carrying `count` coins, as the sim's tuning
+/// hands it to the Instrument panel.
 fn top_speed_with(count: u32) -> f32 {
-    TOP_SPEED_M_PER_S * (1.0 + count as f32 * COIN_TOP_SPEED_FACTOR)
+    TUNING.coin_top_speeds_m_per_s[count as usize]
 }
 
 #[test]
