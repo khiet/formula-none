@@ -5,10 +5,10 @@ import { shortestTurn } from "./kart-frame";
 
 const DEGREE = Math.PI / 180;
 /** The furthest a drone tilts, which it reaches turning this fast. */
-export const DRONE_TILT_MAX_RAD = 30 * DEGREE;
-export const DRONE_TILT_FULL_RAD_PER_S = 2;
+const DRONE_TILT_MAX_RAD = 30 * DEGREE;
+const DRONE_TILT_FULL_RAD_PER_S = 2;
 /** The time constant the tilt eases toward the turn's with. */
-export const DRONE_TILT_EASE_S = 0.12;
+const DRONE_TILT_EASE_S = 0.12;
 /**
  * A drone this frame is the one nearest it last frame within this reach,
  * further than a projectile flies in any frame the View draws.
@@ -37,8 +37,8 @@ export function droneTilt(
     return previousTilt;
   }
   const rate = shortestTurn(yaw - previousYaw) / seconds;
-  const share = Math.min(Math.max(rate / DRONE_TILT_FULL_RAD_PER_S, -1), 1);
-  const wanted = DRONE_TILT_MAX_RAD * share;
+  const turnShare = Math.min(Math.max(rate / DRONE_TILT_FULL_RAD_PER_S, -1), 1);
+  const wanted = DRONE_TILT_MAX_RAD * turnShare;
   return previousTilt + (wanted - previousTilt) * (1 - Math.exp(-seconds / DRONE_TILT_EASE_S));
 }
 
@@ -55,10 +55,12 @@ export interface DroneFlight {
  * with no id, so when an earlier one hits the rest move up a place; each is
  * matched instead to the nearest drone last frame, closest pairs first, so
  * a tilt stays with the drone that earned it. One with no match is new.
+ * One with no `yaw`, no kart to face, keeps the facing it continues, or
+ * faces +z when new.
  */
 export function flyDrones(
   previous: readonly DroneFlight[],
-  now: readonly { readonly position: Position; readonly yaw: number }[],
+  now: readonly { readonly position: Position; readonly yaw: number | undefined }[],
   seconds: number,
 ): DroneFlight[] {
   const pairs: { readonly from: number; readonly to: number; readonly distance: number }[] = [];
@@ -85,8 +87,9 @@ export function flyDrones(
     taken.add(from);
     continues.set(to, before);
   }
-  return now.map(({ position, yaw }, to) => {
+  return now.map(({ position, yaw: facing }, to) => {
     const before = continues.get(to);
+    const yaw = facing ?? before?.yaw ?? 0;
     return { position, yaw, tilt: droneTilt(before?.yaw, yaw, before?.tilt ?? 0, seconds) };
   });
 }

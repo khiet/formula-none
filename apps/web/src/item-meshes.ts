@@ -307,7 +307,7 @@ export function homingDroneMesh(): HomingDrone {
     [0, 0.05, -0.02],
   );
   canopy.scale.set(0.95, 0.8, 1.35);
-  const rotors: { readonly blades: Group; readonly way: number }[] = [];
+  const rotors: { readonly blades: Group; readonly direction: number }[] = [];
   const blur = new CircleGeometry(DRONE_ROTOR_M, 10);
   for (const sx of [-1, 1]) {
     for (const sz of [-1, 1]) {
@@ -332,7 +332,7 @@ export function homingDroneMesh(): HomingDrone {
       disc.position.copy(blades.position);
       disc.rotation.x = -Math.PI / 2;
       // Diagonal pairs spin opposite ways, as a quad's props do.
-      rotors.push({ blades, way: sx * sz });
+      rotors.push({ blades, direction: sx * sz });
     }
   }
   part(body, new BoxGeometry(0.15, 0.13, 0.12), CARBON.shaded, [0, -0.08, 0.22]);
@@ -355,8 +355,8 @@ export function homingDroneMesh(): HomingDrone {
     fly(tilt, clockSeconds) {
       body.rotation.z = -tilt;
       body.position.y = DRONE_BOB_M * Math.sin(clockSeconds * DRONE_BOB_RAD_PER_S);
-      for (const { blades, way } of rotors) {
-        blades.rotation.y = way * clockSeconds * DRONE_ROTOR_RAD_PER_S;
+      for (const { blades, direction } of rotors) {
+        blades.rotation.y = direction * clockSeconds * DRONE_ROTOR_RAD_PER_S;
       }
       tally.visible = Math.floor(clockSeconds * DRONE_TALLY_HZ * 2) % 2 === 0;
     },

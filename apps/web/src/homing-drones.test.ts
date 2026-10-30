@@ -92,6 +92,17 @@ describe("the homing drones from frame to frame", () => {
     expect(after[1]?.tilt).toBeGreaterThan(0);
   });
 
+  it("holds a drone with no kart to face on its own last facing, not its old neighbour's", () => {
+    const after = flyDrones(
+      [flying(0, 0, 0), flying(50, 2, 0.3)],
+      [{ position: [50.5, 0, 0], yaw: undefined }],
+      FRAME_S,
+    );
+    expect(after).toEqual([
+      { position: [50.5, 0, 0], yaw: 2, tilt: droneTilt(2, 2, 0.3, FRAME_S) },
+    ]);
+  });
+
   it("starts a newly fired drone level, even beside one already tilted", () => {
     const after = flyDrones(
       [flying(0, 0, 0.4)],

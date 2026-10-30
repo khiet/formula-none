@@ -604,14 +604,10 @@ function homingDrones(world: ThreeScene): HomingDrones {
       clockSeconds += frameSeconds;
       flights = flyDrones(
         flights,
-        projectiles.map((projectile, index) => {
+        projectiles.map((projectile) => {
           const [x, , z] = projectile.position;
           const target = facing(projectile);
-          // With no kart to face, a drone keeps the facing it was drawn at.
-          const yaw =
-            target === undefined
-              ? (drawn[index]?.figure.rotation.y ?? 0)
-              : Math.atan2(target[0] - x, target[2] - z);
+          const yaw = target === undefined ? undefined : Math.atan2(target[0] - x, target[2] - z);
           return { position: projectile.position, yaw };
         }),
         frameSeconds,
