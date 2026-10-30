@@ -32,7 +32,7 @@ use tokio::time::{Instant, Interval, MissedTickBehavior};
 
 use crate::kept::Store;
 use crate::lane::{Outbound, Outgoing};
-use crate::log::Log;
+use crate::log::{Line, Log};
 use crate::metrics::Metrics;
 use crate::race::{Race, TICK_S};
 use crate::room::{HostedRoom, Left, Started};
@@ -303,15 +303,7 @@ impl Rooms {
         // a restart under the creator's join still has a room for the code
         // they were given.
         if !restored {
-            if let Some(store) = &self.store {
-                if let Err(error) = store.save(&room.kept()) {
-                    self.log
-                        .event("room_keep_failed")
-                        .room(room.code())
-                        .with("error", error.to_string())
-                        .emit();
-                }
-            }
+            keep(self.store.as_ref(), &self.log, &room);
         }
         let (commands, inbox) = mpsc::unbounded_channel();
         let (publish, view) = watch::channel(room.view());
@@ -665,29 +657,12 @@ async fn run(
     // The restored seats free at this instant unless reclaimed by then.
     let mut reclaim_by =
         restored.then(|| Instant::now() + Duration::from_secs_f32(RESTORED_SEAT_GRACE_S));
-    // Event ids count up per room, across its races, so a client's
-    // de-duplication never meets an id again (ADR 0011).
-    let mut next_event_id = 1;
     // Probes of every connection, at the tuned interval while anyone is
     // seated; the intervals missed while nobody was are not made up, so a
     // joiner's first probes are not taken for lost ones.
     let mut probes = tokio::time::interval(Duration::from_secs_f32(CONNECTION_PROBE_INTERVAL_S));
     probes.set_missed_tick_behavior(MissedTickBehavior::Skip);
     let mut nonces = 0u32..;
-    let keep = |room: &HostedRoom| {
-        let Some(store) = &store else { return };
-        let result = if room.view().state == RoomState::Open {
-            store.save(&room.kept())
-        } else {
-            store.forget(room.code())
-        };
-        if let Err(error) = result {
-            log.event("room_keep_failed")
-                .room(room.code())
-                .with("error", error.to_string())
-                .emit();
-        }
-    };
     // Whether the task ends because the server is stopping, which keeps the
     // room on disk, rather than because the room closed, which does not.
     let mut stopping = false;
@@ -738,12 +713,7 @@ async fn run(
                 reclaim_by = None;
                 for slot in room.slots() {
                     if !players.contains_key(&slot) {
-                        room.leave(slot);
-                        log.event("player_left")
-                            .room(room.code())
-                            .slot(slot)
-                            .with("how", "unclaimed")
-                            .emit();
+                        depart(&mut room, &mut players, running.as_mut(), slot, &log, Departure::Unclaimed);
                     }
                 }
             }
@@ -761,7 +731,7 @@ async fn run(
                 }
                 if outcome.finished {
                     let finished = running.take().expect("the race that just finished");
-                    next_event_id = finished.race.next_event_id();
+                    room.events_spent_through(finished.race.next_event_id());
                     log.event("race_finished").room(room.code()).tick(ticks).emit();
                 }
             }
@@ -820,11 +790,8 @@ async fn run(
                                     .send(Outgoing::from_server(&ServerMessage::Replaced));
                             }
                             told_already = Some(slot);
-                            let line = log.event("player_rejoined").room(room.code()).slot(slot);
-                            match running.as_ref() {
-                                Some(running) => line.tick(running.race.ticks()).emit(),
-                                None => line.emit(),
-                            }
+                            at_tick(log.event("player_rejoined").room(room.code()).slot(slot), running.as_ref())
+                                .emit();
                             Seated { slot, connection: id }
                         });
                         let _ = reply.send(rejoined);
@@ -866,7 +833,7 @@ async fn run(
                                         started.seed,
                                         track,
                                         started.grid.clone(),
-                                        next_event_id,
+                                        room.next_event_id(),
                                     ),
                                     started.clone(),
                                 ));
@@ -885,7 +852,7 @@ async fn run(
                             room.rematch(slot);
                         }
                         ClientMessage::Leave => {
-                            depart(&mut room, &mut players, running.as_mut(), slot, &log, "leave");
+                            depart(&mut room, &mut players, running.as_mut(), slot, &log, Departure::Leave);
                         }
                         ClientMessage::Pong { nonce } => {
                             if let Some(connection) = players.get_mut(&slot) {
@@ -910,7 +877,7 @@ async fn run(
                         | ClientMessage::Rejoin { .. } => {}
                     },
                     Command::Dropped { slot, .. } => {
-                        depart(&mut room, &mut players, running.as_mut(), slot, &log, "dropped");
+                        depart(&mut room, &mut players, running.as_mut(), slot, &log, Departure::Dropped);
                     }
                 }
             }
@@ -920,7 +887,7 @@ async fn run(
             broadcast(&players, &ServerMessage::Room(after.clone()), told_already);
             metrics.room_players(room.code(), after.players.len());
             let _ = publish.send(after);
-            keep(&room);
+            keep(store.as_ref(), &log, &room);
         }
         empty_since = match (room.connected_count(), empty_since) {
             (0, None) => Some(Instant::now()),
@@ -962,29 +929,77 @@ fn seat(
     players.insert(slot, connection)
 }
 
-/// The player leaves or drops, `how` saying which for the log: they stop
-/// receiving, and mid-race a bot drives their kart; a player already
-/// handed to a bot for falling silent only stops receiving.
+/// Keep `room` in `store` as its state asks: written while Open, removed
+/// once it leaves Open (ADR 0053). A store that fails is logged and the
+/// room goes on; only a restart would miss it.
+fn keep(store: Option<&Store>, log: &Log, room: &HostedRoom) {
+    let Some(store) = store else { return };
+    let result = if room.view().state == RoomState::Open {
+        store.save(&room.kept())
+    } else {
+        store.forget(room.code())
+    };
+    if let Err(error) = result {
+        log.event("room_keep_failed")
+            .room(room.code())
+            .with("error", error.to_string())
+            .emit();
+    }
+}
+
+/// `line` with the race's tick when one is running: the moment a player
+/// came or went, for a query of the race by its clock.
+fn at_tick<'a>(line: Line<'a>, running: Option<&Running>) -> Line<'a> {
+    match running {
+        Some(running) => line.tick(running.race.ticks()),
+        None => line,
+    }
+}
+
+/// How a player's stay ended, as the `player_left` line names it
+/// (deploy/README.md lists the names).
+#[derive(Clone, Copy)]
+enum Departure {
+    /// A Leave: on purpose.
+    Leave,
+    /// The connection went without one.
+    Dropped,
+    /// A seat a restart brought back that nobody rejoined within the grace.
+    Unclaimed,
+}
+
+impl Departure {
+    fn as_str(self) -> &'static str {
+        match self {
+            Self::Leave => "leave",
+            Self::Dropped => "dropped",
+            Self::Unclaimed => "unclaimed",
+        }
+    }
+}
+
+/// The player's stay ends by `how`: they stop receiving, and mid-race a
+/// bot drives their kart; a player already handed to a bot for falling
+/// silent only stops receiving.
 fn depart(
     room: &mut HostedRoom,
     players: &mut HashMap<u8, Connection>,
     running: Option<&mut Running>,
     slot: u8,
     log: &Log,
-    how: &str,
+    how: Departure,
 ) {
     players.remove(&slot);
     let left = room.leave(slot);
     if left != Left::Unknown {
-        let line = log
-            .event("player_left")
-            .room(room.code())
-            .slot(slot)
-            .with("how", how);
-        match running.as_ref() {
-            Some(running) => line.tick(running.race.ticks()).emit(),
-            None => line.emit(),
-        }
+        at_tick(
+            log.event("player_left")
+                .room(room.code())
+                .slot(slot)
+                .with("how", how.as_str()),
+            running.as_deref(),
+        )
+        .emit();
     }
     if let (Left::Disconnected, Some(running)) = (left, running) {
         running.race.hand_to_bot(slot);

@@ -88,7 +88,9 @@ leaves.
 The secret a room deals a player at their join, which takes their seat back
 over a new connection. Mid-race a bot drives the kart of a Disconnected
 player until the token rejoins or the race ends; the seat, and the token
-with it, is freed at the results.
+with it, is freed at the results. A seat an Open room brings back after a
+server restart waits Disconnected for its token too, and frees after the
+tuned grace if it never comes.
 
 ### creator
 

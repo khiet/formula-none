@@ -101,10 +101,11 @@ completes well inside Docker's ten-second grace period.
 A room in Open state outlives the server (ADR 0005, ADR 0053): the server
 writes each one as a JSON file under `ROOMS_DIR`, which the Compose file
 puts on the `rooms` volume, and the next server reads them back before it
-listens. The players' clients rejoin with their session tokens, so a deploy
-under a lobby shows "Connection lost: reconnecting" on the status line for
-a moment and nothing else; a seat whose player has not rejoined within
-thirty seconds frees. A race under way at the restart is lost, and so is a
+serves. The players' clients rejoin with their session tokens, so a deploy
+under an Open room shows "Connection lost: reconnecting" on the status line
+for a moment and nothing else; a seat shows Disconnected until its player
+is back, and one whose player has not rejoined within thirty seconds
+frees. A race under way at the restart is lost, and so is a
 room showing Results.
 
 To measure the restart on the instance, from a Session Manager shell
@@ -151,10 +152,13 @@ CloudWatch Logs Insights reads the fields by name. Every line about one
 room, in order, for a bad race reported by its code:
 
 ```
-fields @timestamp, event, slot, tick, how, refusal, corrections_per_second
+fields ts, event, slot, tick, how, refusal, corrections_per_second
 | filter room = "BXQF"
-| sort @timestamp asc
+| sort ts asc
 ```
+
+`ts` is the server's clock to the millisecond; `@timestamp` is when the
+line was ingested, which orders lines from the same moment less well.
 
 The same from a laptop with the AWS CLI, over the last day:
 
@@ -162,7 +166,7 @@ The same from a laptop with the AWS CLI, over the last day:
 query_id=$(aws logs start-query --region eu-west-2 \
   --log-group-name /formula-none/server \
   --start-time $(( $(date +%s) - 86400 )) --end-time $(date +%s) \
-  --query-string 'fields @timestamp, event, slot, tick, how | filter room = "BXQF" | sort @timestamp asc' \
+  --query-string 'fields ts, event, slot, tick, how | filter room = "BXQF" | sort ts asc' \
   --query queryId --output text)
 sleep 5; aws logs get-query-results --region eu-west-2 --query-id "$query_id"
 ```

@@ -7,29 +7,37 @@ use sim::{Track, TrackError};
 /// The track every room races until rooms pick one.
 pub const DEFAULT: &str = "brands-patch";
 
-const BRANDS_PATCH: &str =
-    include_str!("../../../assets/tracks/brands-patch/brands-patch.track.json");
-const OVAL: &str = include_str!("../../../assets/tracks/oval/oval.track.json");
+/// Every track by name with its sidecar; a track is added here and nowhere
+/// else, so a room kept across a restart (ADR 0053) finds it by the same
+/// name a Start does.
+const TRACKS: &[(&str, &str)] = &[
+    (
+        "brands-patch",
+        include_str!("../../../assets/tracks/brands-patch/brands-patch.track.json"),
+    ),
+    (
+        "oval",
+        include_str!("../../../assets/tracks/oval/oval.track.json"),
+    ),
+];
 
 /// The sidecar of the track called `name`, or `None` for a name the server
 /// has no track for.
 pub fn sidecar(name: &str) -> Option<&'static str> {
-    match name {
-        "brands-patch" => Some(BRANDS_PATCH),
-        "oval" => Some(OVAL),
-        _ => None,
-    }
+    TRACKS
+        .iter()
+        .find(|(known, _)| *known == name)
+        .map(|(_, sidecar)| *sidecar)
 }
 
-/// The server's own spelling of the track called `name`, or `None` for a
-/// name the server has no track for; a room brought back from a file
-/// names its track through this.
-pub fn name(name: &str) -> Option<&'static str> {
-    match name {
-        "brands-patch" => Some("brands-patch"),
-        "oval" => Some("oval"),
-        _ => None,
-    }
+/// The track called `name` as the server spells it, or `None` for a name
+/// the server has no track for; a room brought back from a file names its
+/// track through this.
+pub fn known(name: &str) -> Option<&'static str> {
+    TRACKS
+        .iter()
+        .find(|(known, _)| *known == name)
+        .map(|(known, _)| *known)
 }
 
 #[derive(Debug)]

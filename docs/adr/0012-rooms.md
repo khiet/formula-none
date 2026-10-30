@@ -66,7 +66,8 @@ Disconnect and rejoin landed with issue 20 (2026-10-19).
   room's link reopened in the same browser rejoins the race too.
 
 Open rooms survive a server restart since issue 28 (2026-10-30), by ADR
-0053: the seats and their tokens come back with the room, and the Room
-Scene rejoins the way the race does, its status line reading "Connection
-lost: reconnecting" meanwhile. A seat whose player does not rejoin within
-the tuned grace (thirty seconds) frees, so the room is not stuck on them.
+0053: the seats and their tokens come back with the room, each
+Disconnected until its token rejoins, and the Room Scene rejoins when its
+connection ends, its status line reading "Connection lost: reconnecting"
+meanwhile. A seat whose player does not rejoin within the tuned grace
+(thirty seconds) frees, so the room is not stuck on them.

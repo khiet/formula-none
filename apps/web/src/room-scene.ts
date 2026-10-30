@@ -7,7 +7,7 @@ export interface RoomScene {
   /** Show the room as it now stands. */
   update(room: Room): void;
   /**
-   * Say the connection is lost and being remade (ADR 0012) in place of the
+   * Say the connection is lost and being remade (ADR 0053) in place of the
    * status line, or stop saying so; the room shown stays as it last stood.
    */
   connectionLost(lost: boolean): void;
