@@ -50,11 +50,9 @@ export const SHIFT_BLUE: Tones = { lit: 0x8aa8ff, mid: 0x4f7dff, shaded: 0x2f4fc
 export const ASPHALT = 0x6b6b78;
 export const WALL = 0xf0f0f0;
 
-/** The item characters' greys, slot and road alike: the snail's foot, the cone's slab. */
+/** The item characters' greys, slot and road alike: the cone's slab, the drone's arms. */
 export const GREYS = {
-  white: VALUE_WHITE,
   body: 0xe3e6ea,
-  pale: 0xd4d8dd,
   grey: 0xb9bec5,
   dark: 0x9aa0a8,
   deep: 0x6f747b,
@@ -65,11 +63,20 @@ export const WHEEL_FLAME = 0xff8800;
 export const WHEEL_SMOKE = 0x8a8d94;
 /** The homing drone's lens, its eye locked on. */
 export const DRONE_EYE = 0xd00a12;
-/** The snail's rocket, its flame and its porthole. */
+/**
+ * The rocket reds, flame yellow and strap grey the items share: the runaway
+ * wheel's hot rim and flames, the drone's tally light and antenna, the
+ * champagne bottle's label band and foil, and the marshal's stool legs.
+ */
 export const ROCKET: Tones = { lit: 0xe8333b, mid: 0xd00a12, shaded: 0x8f070c };
 export const ROCKET_FLAME = 0xffd23f;
-export const ROCKET_WINDOW = 0x7fc3ff;
 export const ROCKET_STRAP = 0x3a3d42;
+/** The boost's champagne bottle, tonesOf(0x1f7a4a), and its cork, which needs no shaded tone. */
+export const CHAMPAGNE_BOTTLE: Tones = { lit: 0x5e9f7d, mid: 0x1f7a4a, shaded: 0x145131 };
+export const CORK = {
+  lit: 0xeec48f,
+  mid: 0xd9a066,
+} as const;
 
 /**
  * The marshal in the colours Purrjump draws him in, save the shaded tones

@@ -11,6 +11,8 @@ layout, notation, accessibility and reduced motion stands. Settles ADR
 Its octagonal start light for each count is superseded by ADR 0040.
 Its seagull, on the road and in the slot, is superseded by ADR 0057: the
 homing projectile is a camera quad drone that tilts into its turns.
+Its snail in the slot is superseded by ADR 0058: the boost character is a
+podium champagne bottle.
 
 ## Context
 
