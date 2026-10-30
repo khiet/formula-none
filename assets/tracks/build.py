@@ -14,7 +14,7 @@ import sys
 from pathlib import Path
 
 import bpy
-from mathutils import Matrix, Vector
+from mathutils import Euler, Matrix, Vector
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
@@ -222,9 +222,11 @@ def yaw_facing(facing: float) -> float:
     return math.atan2(math.cos(facing), -math.sin(facing))
 
 
-def text_object(prop: Lettering) -> bpy.types.Object:
+def text_object(prop: Lettering, nodes: dict[str, tuple[bpy.types.Object, Matrix]]) -> bpy.types.Object:
     """Lettering standing upright, read from the way its placement faces, centred on it, or
-    with an `arc` bent round a circle of that radius about it, centred on the circle's top."""
+    with an `arc` bent round a circle of that radius about it, centred on the circle's top.
+    Hung under its `parent` in `nodes` when it names one, placed relative to that node's
+    frame, so it rides wherever the View moves the node."""
     curve = bpy.data.curves.new(prop.name, "FONT")
     curve.body = prop.text
     curve.size = prop.size
@@ -236,10 +238,17 @@ def text_object(prop: Lettering) -> bpy.types.Object:
     if prop.arc is not None:
         curve.follow_curve = arc_object(f"{prop.name}.arc", prop.arc)
     obj = bpy.data.objects.new(prop.name, curve)
-    obj.location = (prop.at.x, prop.at.y, prop.at.z)
     # Text lies in its local XY plane reading along +X; stood up on its
     # bottom edge it faces -Y.
-    obj.rotation_euler = (math.pi / 2.0, 0.0, yaw_facing(prop.at.heading))
+    frame = Matrix.Translation((prop.at.x, prop.at.y, prop.at.z)) @ Euler(
+        (math.pi / 2.0, 0.0, yaw_facing(prop.at.heading))
+    ).to_matrix().to_4x4()
+    if prop.parent is None:
+        obj.matrix_world = frame
+    else:
+        parent, parent_frame = nodes[prop.parent]
+        obj.parent = parent
+        obj.matrix_local = parent_frame.inverted() @ frame
     return obj
 
 
@@ -276,7 +285,7 @@ def populate(geometry: TrackGeometry) -> None:
         else:
             scenery.objects.link(pivoted_object(piece, nodes))
     for prop in geometry.lettering:
-        scenery.objects.link(text_object(prop))
+        scenery.objects.link(text_object(prop, nodes))
 
     curve = bpy.data.curves.new(export.CENTRELINE_OBJECT, "CURVE")
     curve.dimensions = "3D"

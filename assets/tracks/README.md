@@ -116,18 +116,23 @@ or 5 m of another, so the same layout exports the same trees and no tree
 is placed by hand. Pines are two six-sided cones, round trees and
 cherries eight-facet lumps, each in a lit and a shade tone on a
 four-sided trunk, flat on the grass. The Circuit Wheel, the arch over
-Dunlop and the pit building are props too: a tree keeps its canopy out of
-a prop's footprint, and a tall prop keeps 8 m of grass from every wall. A
-span is held to the span rule instead: the arch's underside keeps the
-gantry's 7 m over the asphalt and its feet stand on grass beyond the
-walls. The parts the View moves, the wheel's rim and its
-sixteen gondolas, carry a `Pivot`, so `build.py` exports each as a node of
-its own with its origin there (`Prop.circuit-wheel.1.rim` and its
-children `.gondola.1` to `.16`), and `apps/web/src/scenery-motion.ts`
-turns them from the View's clock. The arch's sponsor is a `Lettering`
-with an `arc`, which `build.py` bends round the belt with Blender's text
-on curve; the pit building's eight doors and flags take the crowd's key
-colours, each door with a band in the key's lit tone, and no number.
+Dunlop, the pit building and the airship are props too: a tree keeps its
+canopy out of a prop's footprint, and a tall prop keeps 8 m of grass from
+every wall. A span is held to the span rule instead: the arch's underside
+keeps the gantry's 7 m over the asphalt and its feet stand on grass
+beyond the walls. The airship has no footprint: it circles its `Prop`'s
+`at` at its `radius`, `height` metres over the grass, and keeps 30 m over
+every road under its circle. The parts the View moves, the wheel's rim
+and its sixteen gondolas and the airship's hull, carry a `Pivot`, so
+`build.py` exports each as a node of its own with its origin there
+(`Prop.circuit-wheel.1.rim` and its children `.gondola.1` to `.16`;
+`Prop.airship.1.hull` at the nose), and `apps/web/src/scenery-motion.ts`
+turns and flies them from the View's clock. The arch's sponsor is a
+`Lettering` with an `arc`, which `build.py` bends round the belt with
+Blender's text on curve; the airship's is a `Lettering` with a `parent`,
+which `build.py` hangs under the hull's node so it rides with it; the pit
+building's eight doors and flags take the crowd's key colours, each door
+with a band in the key's lit tone, and no number.
 Original names only; nothing may resemble a real sponsor, a Nintendo
 character or circuit (ADR 0007), and no kart carries a sponsor (ADR 0038).
 

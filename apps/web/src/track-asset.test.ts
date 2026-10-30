@@ -263,6 +263,54 @@ describe("Suzuqa Patch's final art", () => {
     );
   });
 
+  it("flies the airship on a hull node with its name hung under it on both flanks", () => {
+    const hull = brandsPatch.nodes.find(({ name }) => name === "Prop.airship.1.hull");
+    expect(hull).toBeDefined();
+    expect(materialsOf(brandsPatch, "Prop.airship.1.hull")).toEqual([
+      "beam-shade",
+      "carbon",
+      "carbon-shade",
+      "kerb-red",
+      "wall",
+    ]);
+    const children = (hull?.children ?? []).flatMap((index) => brandsPatch.nodes[index] ?? []);
+    expect(children.map(({ name }) => name).sort()).toEqual([
+      "Prop.airship.1.flank.left",
+      "Prop.airship.1.flank.right",
+    ]);
+    for (const flank of ["left", "right"]) {
+      expect(materialsOf(brandsPatch, `Prop.airship.1.flank.${flank}`)).toEqual(["ink-blue"]);
+    }
+    // Nothing of it stands still: the whole airship rides the one node.
+    expect(nodeNames(brandsPatch).filter((name) => name.startsWith("Prop.airship."))).toHaveLength(
+      3,
+    );
+    // At rest the nose is 60 m along +x from the circle's centre, the track's (-60, -40),
+    // 44.95 m over the grass, which the Y-up export lays at (x, up, -y); the hull runs
+    // back along the node's -x, so the name's centre is 12 m behind the nose on a flank.
+    const [x = 0, y = 0, z = 0] = hull?.translation ?? [];
+    expect(x).toBeCloseTo(0, 5);
+    expect(y).toBeCloseTo(44.95, 5);
+    expect(z).toBeCloseTo(40, 5);
+    const flanks = children.map(({ translation }) => translation ?? [0, 0, 0]);
+    for (const [fx = 0, fy = 0, fz = 0] of flanks) {
+      expect(fx).toBeCloseTo(-12, 5);
+      expect(fy).toBeCloseTo(0, 5);
+      expect(Math.abs(fz)).toBeGreaterThan(3.8);
+      expect(Math.abs(fz)).toBeLessThan(4);
+    }
+    expect(Math.sign(flanks[0]?.[2] ?? 0)).toBe(-Math.sign(flanks[1]?.[2] ?? 0));
+    // The name fits the hull's 14 m cylinder, so no glyph floats off the taper.
+    const left = brandsPatch.nodes.find(({ name }) => name === "Prop.airship.1.flank.left");
+    const accessor =
+      brandsPatch.accessors[
+        brandsPatch.meshes[left?.mesh ?? -1]?.primitives[0]?.attributes.POSITION ?? -1
+      ];
+    const width = (accessor?.max?.[0] ?? 0) - (accessor?.min?.[0] ?? 0);
+    expect(width).toBeGreaterThan(10);
+    expect(width).toBeLessThan(14);
+  });
+
   it("maps the asphalt for tyre marks: a texture coordinate on every vertex", () => {
     expect(attributesOf(brandsPatch, "Asphalt")).toContain("TEXCOORD_0");
   });

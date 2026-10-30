@@ -7,7 +7,9 @@ Ferris wheel outside the first curve, its rim and gondolas nodes of their
 own, pivoted where the View turns them. The arch: a giant tyre spanning
 Dunlop, lettered with its sponsor on both faces. The pit building: a row
 of garages inside the start straight, a door and a flag in each livery's
-key colour, which the grid faces through the countdown."""
+key colour, which the grid faces through the countdown. The airship: a
+twelve-sided hull circling high over the infield, a node of its own the
+View flies round its circle, its sponsor riding on both flanks."""
 
 from __future__ import annotations
 
@@ -39,7 +41,7 @@ from .layout import (
     Wood,
     locate,
 )
-from .sponsors import ARCH_SPONSOR
+from .sponsors import AIRSHIP_SPONSOR, ARCH_SPONSOR
 
 # The View's sun stands at (20, 40, 10) in the glTF frame: toward +X and -Y
 # here, high; the track tests hold it to `race-view.ts`. A facet is lit when
@@ -155,6 +157,45 @@ PITS_POLE_HEIGHT_M = 4.0
 PITS_POLE_FROM_FRONT_M = 0.5
 PITS_FLAG_LENGTH_M = 1.6
 PITS_FLAG_HEIGHT_M = 0.9
+
+# The airship, the card in three dimensions: a hull of `AIRSHIP_SIDES` flat
+# sides round its axis, swelling from the nose to a cylinder amidships and
+# tapering to the tail, with a flat at the top, the bottom and each flank so
+# the gondola hangs from a flat and the name sits on one. Its node's origin
+# is the nose, on the axis, and its rest heading is the tangent of the
+# circle the View flies it round, the circle's centre to its left. The
+# layout's prop gives the circle and the height of the axis over the grass;
+# the track tests hold its lowest point `AIRSHIP_CLEARANCE_M` over every road
+# under its circle.
+AIRSHIP_LENGTH_M = 24.0
+AIRSHIP_RADIUS_M = 4.0
+"""To a corner of the widest ring; the hull is twice this across."""
+AIRSHIP_SIDES = 12
+AIRSHIP_APOTHEM_M = AIRSHIP_RADIUS_M * math.cos(math.pi / AIRSHIP_SIDES)
+"""From the axis to a flat of the widest ring."""
+# The hull's profile from the nose, as (metres from the nose, radius there);
+# the first and last are the nose and the tail, points on the axis.
+AIRSHIP_PROFILE = ((0.0, 0.0), (2.5, 2.4), (5.0, AIRSHIP_RADIUS_M), (19.0, AIRSHIP_RADIUS_M), (22.0, 2.2), (AIRSHIP_LENGTH_M, 0.0))
+AIRSHIP_CLEARANCE_M = 30.0
+"""The least the lowest point keeps over any road under its circle."""
+# Four fins at the tail, one up, one down and one each flank, each a thin
+# plate swept back, its root buried in the hull: its outline in (metres from
+# the nose, metres from the axis), root first, read round.
+AIRSHIP_FIN = ((18.0, 1.0), (22.5, 1.0), (23.5, 6.5), (20.5, 6.5))
+AIRSHIP_FIN_M = 0.3
+# The gondola: a carbon box hung under the bottom flat amidships, spanning
+# these metres from the nose, this wide, this tall, this far under the flat,
+# on two square struts of this side at these metres from the nose.
+AIRSHIP_GONDOLA_SPAN = (9.0, 15.0)
+AIRSHIP_GONDOLA_WIDTH_M = 2.0
+AIRSHIP_GONDOLA_HEIGHT_M = 1.6
+AIRSHIP_GONDOLA_DROP_M = 0.6
+AIRSHIP_STRUTS_AT = (10.0, 14.0)
+AIRSHIP_STRUT_M = 0.25
+# The name amidships on each flank, centred this far from the nose, just
+# proud of the flat.
+AIRSHIP_TEXT_AT_M = 12.0
+AIRSHIP_TEXT_SIZE_M = 1.2
 
 
 @dataclass(frozen=True)
@@ -428,6 +469,12 @@ def footprints(layout: Layout) -> list[Footprint]:
     return found
 
 
+def _no_footprint(layout: Layout, prop: Prop) -> list[Footprint]:
+    """A prop that flies stands on no ground: its plan position is free, since it passes
+    over the track."""
+    return []
+
+
 def _wheel_footprint(layout: Layout, prop: Prop) -> list[Footprint]:
     x, y, _ = locate(layout, prop.at)
     return [Footprint(prop.kind, x, y, PROP_WALL_CLEARANCE_M, radius=WHEEL_FOOTPRINT_M)]
@@ -470,6 +517,7 @@ FOOTPRINTS: dict[str, Callable[[Layout, Prop], list[Footprint]]] = {
     "circuit-wheel": _wheel_footprint,
     "arch": _arch_footprints,
     "pits": _pits_footprint,
+    "airship": _no_footprint,
 }
 
 
@@ -623,7 +671,7 @@ def _block(
     return mesh.cuboid(corner)
 
 
-def _sides(faces: dict[str, mesh.Mesh], material: str, into: ByMaterial, shade: str | None = None, top: bool = False) -> None:
+def _sides(faces: dict[str, mesh.Mesh], material: str, into: ByMaterial | Node, shade: str | None = None, top: bool = False) -> None:
     """A block's four upright faces, and its top when asked, into `into`: toned by the sun
     against `shade` when one is named, else flat in `material`."""
     for key in ("x0", "x1", "y0", "y1", *(("z1",) if top else ())):
@@ -762,6 +810,83 @@ def pits(layout: Layout, prop: Prop, number: int, still: ByMaterial) -> tuple[li
     return [], []
 
 
+def airship(layout: Layout, prop: Prop, number: int, still: ByMaterial) -> tuple[list[SceneryMesh], list[Lettering]]:
+    """The airship at `prop`: nothing into `still`, and the whole of it as the one node
+    `Prop.airship.<number>.hull`, its origin at the nose and its local x along the nose, at
+    rest `prop.radius` metres from `prop.at` along +x with the circle's centre to its left,
+    the axis `prop.height` metres over the grass. The hull in wall white where the sun
+    reaches and beam shade elsewhere, as it hangs at rest; the fins kerb red; the gondola
+    and struts carbon. The sponsor from `sponsors.py` on both flanks, each lettering hung
+    under the hull's node so it rides with it."""
+    if prop.radius is None or prop.height is None:
+        raise ValueError("the airship needs a radius and a height")
+    cx, cy, _ = locate(layout, prop.at)
+    nose = (cx + prop.radius, cy, -GRASS_DROP_M + prop.height)
+    heading = math.pi / 2.0
+    along = (math.cos(heading), math.sin(heading), 0.0)
+    left = (-math.sin(heading), math.cos(heading), 0.0)
+
+    def at(s: float, b: float, c: float) -> mesh.Vertex:
+        """`s` metres back from the nose, `b` to the left of the axis and `c` up from it."""
+        return (nose[0] - s * along[0] + b * left[0], nose[1] - s * along[1] + b * left[1], nose[2] + c)
+
+    name = f"Prop.airship.{number}.hull"
+    hull = Node(name, Pivot(*nose, heading))
+    # The hull: a ring at each station of the profile, its corners a half side off the
+    # flanks, closed to a point at the nose and the tail; every face wound out of the axis.
+    corners = [math.pi / AIRSHIP_SIDES + math.tau * k / AIRSHIP_SIDES for k in range(AIRSHIP_SIDES)]
+    rings = [[at(s, r * math.cos(a), r * math.sin(a)) for a in corners] for s, r in AIRSHIP_PROFILE[1:-1]]
+    stations = [s for s, _ in AIRSHIP_PROFILE[1:-1]]
+    for k in range(AIRSHIP_SIDES):
+        j = (k + 1) % AIRSHIP_SIDES
+        hull.add(*_toned("wall", _outward([at(0.0, 0.0, 0.0), rings[0][k], rings[0][j]], at(stations[0], 0.0, 0.0)), "beam-shade"))
+        for i in range(len(rings) - 1):
+            axis = at((stations[i] + stations[i + 1]) / 2.0, 0.0, 0.0)
+            hull.add(*_toned("wall", _outward([rings[i][k], rings[i][j], rings[i + 1][j], rings[i + 1][k]], axis), "beam-shade"))
+        hull.add(*_toned("wall", _outward([rings[-1][j], rings[-1][k], at(AIRSHIP_LENGTH_M, 0.0, 0.0)], at(stations[-1], 0.0, 0.0)), "beam-shade"))
+    # The fins: a plate either side of its plane and a face along each outer edge; the root
+    # edge is inside the hull.
+    for a in (0.0, math.pi / 2.0, math.pi, 3.0 * math.pi / 2.0):
+        radial = (math.cos(a), math.sin(a))
+        thick = (-math.sin(a) * AIRSHIP_FIN_M / 2.0, math.cos(a) * AIRSHIP_FIN_M / 2.0)
+        plates = [
+            [at(s, r * radial[0] + side * thick[0], r * radial[1] + side * thick[1]) for s, r in AIRSHIP_FIN]
+            for side in (1.0, -1.0)
+        ]
+        middle = at(sum(s for s, _ in AIRSHIP_FIN) / len(AIRSHIP_FIN), 0.0, 0.0)
+        for plate in plates:
+            hull.add("kerb-red", (_outward(plate, middle), [(0, 1, 2, 3)]))
+        for i in range(1, len(AIRSHIP_FIN)):
+            j = (i + 1) % len(AIRSHIP_FIN)
+            hull.add("kerb-red", (_outward([plates[0][i], plates[0][j], plates[1][j], plates[1][i]], middle), [(0, 1, 2, 3)]))
+    # The gondola under the bottom flat, every face since it is seen from below, and the
+    # struts up to it.
+    astern = (-along[0], -along[1], 0.0)
+    top = -AIRSHIP_APOTHEM_M - AIRSHIP_GONDOLA_DROP_M
+    half = AIRSHIP_GONDOLA_WIDTH_M / 2.0
+    gondola = _block(nose, astern, left, AIRSHIP_GONDOLA_SPAN, (-half, half), (top - AIRSHIP_GONDOLA_HEIGHT_M, top))
+    for vertices, (face,) in gondola.values():
+        hull.add(*_toned("carbon", [vertices[i] for i in face]))
+    for s in AIRSHIP_STRUTS_AT:
+        strut = _block(nose, astern, left, (s - AIRSHIP_STRUT_M / 2.0, s + AIRSHIP_STRUT_M / 2.0), (-AIRSHIP_STRUT_M / 2.0, AIRSHIP_STRUT_M / 2.0), (top, -AIRSHIP_APOTHEM_M))
+        _sides(strut, "carbon", hull, shade="carbon-shade")
+    # The name on each flank, just proud of the flat, read from that side.
+    text, ink = AIRSHIP_SPONSOR
+    proud = AIRSHIP_APOTHEM_M + HOARDING_TEXT_PROUD_M
+    lettering = [
+        Lettering(
+            f"Prop.airship.{number}.flank.{flank}",
+            text,
+            ink,
+            AIRSHIP_TEXT_SIZE_M,
+            Placement(*at(AIRSHIP_TEXT_AT_M, side * proud, 0.0), heading + side * math.pi / 2.0),
+            parent=name,
+        )
+        for flank, side in (("left", 1.0), ("right", -1.0))
+    ]
+    return [hull.scenery()], lettering
+
+
 def _outward(quad: list[mesh.Vertex], centre: mesh.Vertex) -> list[mesh.Vertex]:
     """`quad` wound so its normal points away from `centre`."""
     a, b, c = quad[0], quad[1], quad[2]
@@ -796,4 +921,5 @@ PROP_BUILDERS: dict[str, Callable[[Layout, Prop, int, ByMaterial], tuple[list[Sc
     "circuit-wheel": circuit_wheel,
     "arch": arch,
     "pits": pits,
+    "airship": airship,
 }
