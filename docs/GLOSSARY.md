@@ -317,6 +317,13 @@ a cap: a tree within 3 m of a wall or 5 m of another is dropped, so no tree
 is ever placed by hand, and the seed makes every export scatter the same
 trees. A prop (ADR 0050).
 
+### Circuit Wheel
+
+The Ferris wheel outside Suzuqa Patch's first curve: a prop whose rim and
+sixteen gondolas are nodes of their own in the glTF, which the View turns
+from its own clock, each gondola turned back so it hangs level. It carries
+no name (ADR 0050).
+
 ### tyre wall
 
 A stack of tyres standing on the asphalt, tagged `tyres`. A kart that

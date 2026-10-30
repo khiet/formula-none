@@ -9,9 +9,10 @@ export const WHEEL_TURN_MS = 90_000;
 
 /**
  * The axis a rim turns about, in its node's own frame: the track builder
- * puts the axle along the node's Blender y, which the Y-up export turns
- * into its -z. A gondola hangs under its rim's node, so the same local axis
- * turns it back.
+ * puts the axle along the node's Blender y, which the Y-up export lays
+ * along its z. Turning about +z rather than -z only picks the direction of
+ * turn. A gondola hangs under its rim's node, so the same local axis turns
+ * it back.
  */
 const AXLE = new Vector3(0, 0, 1);
 
@@ -20,7 +21,7 @@ export interface SceneryMotion {
   update(nowMs: number): void;
 }
 
-interface Wheel {
+interface CircuitWheel {
   readonly rim: Object3D;
   readonly rimRest: Quaternion;
   readonly gondolas: readonly { readonly node: Object3D; readonly rest: Quaternion }[];
@@ -34,7 +35,7 @@ interface Wheel {
  * each gondola is turned back by the rim's angle so it hangs level.
  */
 export function sceneryMotion(track: Object3D): SceneryMotion {
-  const wheels: Wheel[] = [];
+  const wheels: CircuitWheel[] = [];
   track.traverse((node) => {
     if (!/^Prop\.?circuit-wheel\.?\d+\.?rim$/.test(node.name)) return;
     const gondolas = node.children

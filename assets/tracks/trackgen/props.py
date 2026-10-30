@@ -387,9 +387,10 @@ def circuit_wheel(layout: Layout, prop: Prop, number: int, still: ByMaterial) ->
         return mesh.cuboid(corner)
 
     def toned_sides(faces: dict[str, mesh.Mesh], material: str, shade: str | None, into: ByMaterial | Node, ends: tuple[str, ...] = ()) -> None:
+        """The upright faces of a `bar`, and `ends`, each wound out of it as the cuboid winds them."""
         for key in ("x0", "x1", "y0", "y1", *ends):
-            vertices, _ = faces[key]
-            into.add(*_toned(material, vertices, shade))
+            vertices, (face,) = faces[key]
+            into.add(*_toned(material, [vertices[i] for i in face], shade))
 
     rim_name = f"Prop.circuit-wheel.{number}.rim"
     rim = Node(rim_name, Pivot(*hub, heading))
@@ -402,17 +403,20 @@ def circuit_wheel(layout: Layout, prop: Prop, number: int, still: ByMaterial) ->
     inner, outer = WHEEL_RADIUS_M - WHEEL_RIM_DEPTH_M / 2.0, WHEEL_RADIUS_M + WHEEL_RIM_DEPTH_M / 2.0
     near, far = -WHEEL_RIM_WIDTH_M / 2.0, WHEEL_RIM_WIDTH_M / 2.0
     rails = {(r, b): ring(r, b) for r in (inner, outer) for b in (near, far)}
+    spine = ring(WHEEL_RADIUS_M, 0.0)
     for k in range(WHEEL_GONDOLAS):
         j = (k + 1) % WHEEL_GONDOLAS
         quads = (
-            # Outer face, inner face, near side, far side: each wound to face out of the section.
+            # Outer face, inner face, near side, far side.
             [rails[outer, near][k], rails[outer, near][j], rails[outer, far][j], rails[outer, far][k]],
             [rails[inner, far][k], rails[inner, far][j], rails[inner, near][j], rails[inner, near][k]],
             [rails[inner, near][k], rails[inner, near][j], rails[outer, near][j], rails[outer, near][k]],
             [rails[outer, far][k], rails[outer, far][j], rails[inner, far][j], rails[inner, far][k]],
         )
+        # Each wound out of the section, away from its own middle: the inner face looks at the hub.
+        section = tuple((spine[k][i] + spine[j][i]) / 2.0 for i in range(3))
         for quad in quads:
-            rim.add(*_toned("wall", _outward(quad, hub), "beam-shade"))
+            rim.add(*_toned("wall", _outward(quad, section), "beam-shade"))
     # Two sets of spokes, one either side of the hub, each from the hub to a rim corner.
     for b in (-WHEEL_SPOKE_OFFSET_M, WHEEL_SPOKE_OFFSET_M):
         for a in corners:

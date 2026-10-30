@@ -39,6 +39,7 @@ from trackgen.props import (
     WHEEL_GONDOLAS,
     WHEEL_HUB_HEIGHT_M,
     WHEEL_RADIUS_M,
+    WHEEL_SPOKE_OFFSET_M,
     footprints,
     scatter,
 )
@@ -119,8 +120,8 @@ class Placing(unittest.TestCase):
             other_leg = [path.samples[i] for i in path.indices_between(other - LEG_REACH_M, other + LEG_REACH_M)]
             own_leg = [path.samples[i] for i in path.indices_between(own - LEG_REACH_M, own + LEG_REACH_M)]
             for prop, (x, y, radius) in zip(self.layout.decor.props, footprints(self.layout), strict=True):
-                # A prop beside this leg stands clear of the other.
-                if min(math.dist((x, y), (q.x, q.y)) for q in own_leg) - radius > PROP_WALL_CLEARANCE_M + 20.0:
+                # Only a prop beside this leg could reach the other; the wheel stands far from both today.
+                if min(math.dist((x, y), (q.x, q.y)) for q in own_leg) - radius > PROP_WALL_CLEARANCE_M + BRIDGE_CLEARANCE_M:
                     continue
                 nearest = min(math.dist((x, y), (q.x, q.y)) for q in other_leg) - radius
                 with self.subTest(prop=prop, leg=own):
@@ -222,6 +223,34 @@ class CircuitWheel(unittest.TestCase):
         faces = faces_by_material(self.rim)
         self.assertTrue(all(faces_up_and_toward_the_sun(f) for f in faces["wall"]))
         self.assertFalse(any(faces_up_and_toward_the_sun(f) for f in faces["beam-shade"]))
+
+    def test_every_rim_and_spoke_face_points_out_of_its_bar(self) -> None:
+        """A face wound inward would take the tone of the side it does not show."""
+        hub = (self.rim.pivot.x, self.rim.pivot.y, self.rim.pivot.z)
+        axle = (-math.sin(self.rim.pivot.heading), math.cos(self.rim.pivot.heading), 0.0)
+        along = (math.cos(self.rim.pivot.heading), math.sin(self.rim.pivot.heading), 0.0)
+        for face in [[self.rim.mesh[0][v] for v in f] for f in self.rim.mesh[1]]:
+            centre = tuple(sum(v[i] for v in face) / len(face) for i in range(3))
+            from_hub = tuple(centre[i] - hub[i] for i in range(3))
+            b = sum(from_hub[i] * axle[i] for i in range(3))
+            # The corner nearest the face's angle round the wheel is the bar it belongs to.
+            angle = math.atan2(from_hub[2], sum(from_hub[i] * along[i] for i in range(3)))
+            angle = round(angle / (math.tau / WHEEL_GONDOLAS)) * (math.tau / WHEEL_GONDOLAS)
+            radial = tuple(math.cos(angle) * along[i] + math.sin(angle) * (0.0, 0.0, 1.0)[i] for i in range(3))
+            reach = math.sqrt(sum(c * c for c in from_hub) - b * b)
+            if reach < WHEEL_RADIUS_M - 1.0:
+                # A spoke face: its bar runs from the hub along `radial`, either side of the plane.
+                b_bar = math.copysign(WHEEL_SPOKE_OFFSET_M, b)
+                out = sum(from_hub[i] * radial[i] for i in range(3))
+                spine = tuple(hub[i] + b_bar * axle[i] + out * radial[i] for i in range(3))
+            else:
+                # A rim face: its section's middle is on the ring, at the same angle.
+                spine = tuple(hub[i] + WHEEL_RADIUS_M * radial[i] for i in range(3))
+            u = tuple(face[1][i] - face[0][i] for i in range(3))
+            v = tuple(face[2][i] - face[0][i] for i in range(3))
+            n = (u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0])
+            away = sum(n[i] * (centre[i] - spine[i]) for i in range(3))
+            self.assertGreater(away, 0.0, (face, spine))
 
     def test_the_wheel_costs_about_420_faces(self) -> None:
         faces = sum(len(piece.mesh[1]) for piece in self.pieces.values())
