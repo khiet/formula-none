@@ -298,7 +298,7 @@ describe("the speed cluster on the page", () => {
     expect(find("tyre")?.dataset.tyreWear).toBe(band);
   });
 
-  it("drops the gauge as a spin-out costs tyres", () => {
+  it("drops the gauge as the count falls, as on a spin-out", () => {
     const { find, drive } = mount();
     drive(20, 7);
     drive(5, 4);

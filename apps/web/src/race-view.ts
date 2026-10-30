@@ -33,7 +33,7 @@ import {
   runawayWheelBounce,
   runawayWheelFlames,
   runawayWheelMesh,
-  trackTyres,
+  tyreMeshes,
 } from "./item-meshes";
 import type { Vec3 } from "./kart-frame";
 import type { KartLabel } from "./kart-labels";
@@ -289,8 +289,8 @@ export async function createRaceView(
     return mesh;
   });
 
-  const trackTyreMeshes = trackTyres(tyres);
-  world.add(trackTyreMeshes.mesh);
+  const drawnTyres = tyreMeshes(tyres);
+  world.add(drawnTyres.mesh);
 
   const cones = meshPool(world, hazardConeMesh(), 0);
   const gulls = meshPool(world, homingGullMesh(), PROJECTILE_HEIGHT_M);
@@ -326,7 +326,7 @@ export async function createRaceView(
       boxes.forEach((mesh, box) => {
         mesh.visible = itemBoxesPresent[box] ?? true;
       });
-      trackTyreMeshes.show(tyresPresent);
+      drawnTyres.show(tyresPresent);
       readouts.forEach((readout, slot) => {
         const drawn = karts[slot];
         if (drawn === undefined) {

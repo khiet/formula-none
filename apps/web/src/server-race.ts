@@ -74,6 +74,11 @@ export function createServerRace(
   let flashTicksLeft = 0;
   const boxes = track.itemBoxes();
   const tyres = track.tyres();
+  /**
+   * Ticks until each tyre the server reported picked up is back; 0 while it
+   * is there. The event hides it before a snapshot can, as a box's does.
+   */
+  const tyreTicksLeft: number[] = Array<number>(tyres.length).fill(0);
   /** Ticks until each box the server reported picked up is back; 0 while it is there. */
   const boxTicksLeft: number[] = Array<number>(boxes.length).fill(0);
 
@@ -103,6 +108,11 @@ export function createServerRace(
       if (kart === localKart) {
         heldItem = item;
         slotHeardOf = true;
+      }
+    } else if ("tyrePicked" in kind) {
+      const { tyre } = kind.tyrePicked;
+      if (tyre < tyreTicksLeft.length) {
+        tyreTicksLeft[tyre] = ticks(bridge.tyreRespawnSeconds);
       }
     } else if ("itemFired" in kind && kind.itemFired.kart === localKart) {
       // The server's word on the fire, predicted or not: the item is gone
@@ -181,6 +191,9 @@ export function createServerRace(
       for (let box = 0; box < boxTicksLeft.length; box++) {
         boxTicksLeft[box] = Math.max((boxTicksLeft[box] ?? 0) - 1, 0);
       }
+      for (let tyre = 0; tyre < tyreTicksLeft.length; tyre++) {
+        tyreTicksLeft[tyre] = Math.max((tyreTicksLeft[tyre] ?? 0) - 1, 0);
+      }
     },
     readout: () => {
       const karts = kartReadouts();
@@ -190,8 +203,11 @@ export function createServerRace(
         phase: phase(),
         itemSlot: { item: heldItem, firing: predictedFireTicksLeft > 0 || flashTicksLeft > 0 },
         itemBoxesPresent: boxTicksLeft.map((left) => left <= 0),
-        // Before the first snapshot every tyre is there.
-        tyresPresent: latest?.tyresPresent ?? track.tyresPresent(),
+        // Before the first snapshot every tyre is there; a pickup the
+        // server reported hides one whatever the snapshot says.
+        tyresPresent: (latest?.tyresPresent ?? track.tyresPresent()).map(
+          (present, tyre) => present && (tyreTicksLeft[tyre] ?? 0) <= 0,
+        ),
         hazards: hazards(karts),
         projectiles: prediction.interpolatedProjectiles(),
         wheels: prediction.wheels(),

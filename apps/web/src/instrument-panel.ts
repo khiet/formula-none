@@ -139,8 +139,9 @@ export function loadInstrumentFont(): Promise<void> {
  * The HUD over the Race View, with the course map of `course` in its
  * corner and the speed cluster read against `tuning` (ADR 0031): the
  * gears cut from the top speed the own kart's tyres raise, and the tyre
- * gauge reading its tyres against a full set (ADR 0055); once the own kart has finished or the race has ended, the
- * finish banner and the finishers by `name` in place of the lap. Reads state; never drives it.
+ * gauge reading its tyres against a full set (ADR 0055); once the own
+ * kart has finished or the race has ended, the finish banner and the
+ * finishers by `name` in place of the lap. Reads state; never drives it.
  * The own kart's readouts wear `paint`, the own kart's livery (ADR 0037).
  * Each readout is addressable by `data-instrument` so tests and styles
  * find it the same way.

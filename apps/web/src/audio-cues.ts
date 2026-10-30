@@ -111,8 +111,8 @@ const TIER_RANK: Readonly<Record<MiniTurbo, number>> = { none: 0, orange: 1, red
  * seconds and not their source; the tier chime as the drift's tier rises,
  * the same chime to orange and to red, the sparks telling which; the
  * pickup as the slot fills and the fire as it empties; the tyre pickup as
- * the tyres carried rise, a spin-out's loss being heard as the hit alone; the hit as a
- * spin-out begins; the sputter as a stall begins; the wrong way as its
+ * the tyres carried rise, a spin-out's loss being heard as the hit alone;
+ * the hit as a spin-out begins; the sputter as a stall begins; the wrong way as its
  * flag raises; the finish as the kart finishes, else the lap as the count
  * rises. Nothing else from the first reading.
  */

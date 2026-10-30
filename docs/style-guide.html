@@ -413,8 +413,8 @@
       </article>
 
       <article class="asset">
-        <header><h3>Track tyre</h3><code>apps/web/src/item-meshes.ts trackTyreMesh</code></header>
-        <div class="compare"><figure><figcaption>Lying on the asphalt</figcaption><div class="stage" data-draw="trackTyre"></div></figure></div>
+        <header><h3>Tyre</h3><code>apps/web/src/item-meshes.ts tyreMesh</code></header>
+        <div class="compare"><figure><figcaption>Lying on the asphalt</figcaption><div class="stage" data-draw="tyre"></div></figure></div>
         <dl class="spec"><dt>Size</dt><dd>0.35 m radius, 0.26 m wide; collected within 1 m of its centre</dd><dt>Decided</dt><dd><a href="adr/0055-tyres-raise-top-speed.md">ADR 0055</a></dd></dl>
         <div class="notes">
           <p>A kart's tyre lying on its side where the sidecar puts it, at its yaw: an eight-sided tread in <code>KART_PAINT.tyre</code> <code>#1c1c1f</code>, lit and flat-shaded, with its rim on top in <code>KART_PAINT.rim</code> <code>#3b3d42</code>, so it reads as one of the kart's own on the grey asphalt. Lines of them lie on the straights; a kart that takes one hides it until it is back three seconds later, as a box does, and a short squeak plays.</p>
@@ -986,8 +986,8 @@
       ${poly(left, "#e0b54a")}${poly(inset(left, 0.7), "#c99a2e")}
       ${poly(right, "#8c5a12")}${poly(inset(right, 0.7), "#a87418")}</svg>`;
   };
-  // A track tyre on its side: an octagon in plan, squashed as seen from above and ahead.
-  draw.trackTyre = () => {
+  // A tyre on its side: an octagon in plan, squashed as seen from above and ahead.
+  draw.tyre = () => {
     const cx = 100, top = 66, depth = 22, r = 56, squash = 0.42;
     const at = (k, share = 1) => { const a = Math.PI / 8 + (k * Math.PI) / 4; return [cx + r * share * Math.cos(a), top + r * share * squash * Math.sin(a)]; };
     const down = ([x, y]) => [x, y + depth];
@@ -1633,7 +1633,7 @@
     ]],
     ["Kart, assets/karts/build.py", [
       { token: "KART_PAINT.tyre", hex: 0x1c1c1f, role: "The tyres, the kart's and those lying on the track" },
-      { token: "KART_PAINT.rim", hex: 0x3b3d42, role: "The rims and spokes, and a track tyre's rim" },
+      { token: "KART_PAINT.rim", hex: 0x3b3d42, role: "The rims and spokes, and the rim of a tyre on the track" },
       { token: "KART_PAINT.carbon", hex: 0x2b2e33, role: "The halo, its pillar, the wishbones" },
       { token: "KART_PAINT.whites", hex: 0xf7f7f2, role: "The whites of the eyes" },
       { token: "KART_PAINT.irises", hex: 0x211712, role: "The irises, one colour for every driver" },

@@ -289,6 +289,8 @@ export interface Bridge extends MessageCodec {
   readonly tyreTopSpeedFactor: number;
   /** The most tyres a kart carries, the tyre gauge's 100% (ADR 0055). */
   readonly tyreSet: number;
+  /** Seconds a picked-up tyre is gone before it is back (ADR 0055). */
+  readonly tyreRespawnSeconds: number;
   /** How long a fire predicted from a press shows before the server is taken not to have fired (ADR 0014). */
   readonly predictedFireTimeoutSeconds: number;
   /** Metres behind a kart a trailed hazard rides (ADR 0014). */
@@ -373,6 +375,7 @@ export async function loadBridge(wasm?: BufferSource): Promise<Bridge> {
     itemBoxRespawnSeconds: tuned.itemBoxRespawnS,
     tyreTopSpeedFactor: tuned.tyreTopSpeedFactor,
     tyreSet: tuned.tyreSet,
+    tyreRespawnSeconds: tuned.tyreRespawnS,
     predictedFireTimeoutSeconds: tuned.predictedFireTimeoutS,
     hazardDropDistanceMetres: tuned.hazardDropDistanceM,
     spinOutSeconds: tuned.spinOutS,

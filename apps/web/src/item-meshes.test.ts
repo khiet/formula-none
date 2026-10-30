@@ -20,8 +20,8 @@ import {
   runawayWheelBounce,
   runawayWheelFlames,
   runawayWheelMesh,
-  trackTyreMesh,
-  trackTyres,
+  tyreMesh,
+  tyreMeshes,
 } from "./item-meshes";
 import {
   BEACON_LIT,
@@ -75,7 +75,7 @@ function glowsOf(object: Object3D): number[] {
 describe("the item meshes", () => {
   it.each([
     ["item box", itemBoxMesh],
-    ["track tyre", trackTyreMesh],
+    ["tyre", tyreMesh],
     ["hazard cone", hazardConeMesh],
     ["homing gull", homingGullMesh],
     ["hazard flag", () => hazardFlag().mesh],
@@ -93,8 +93,8 @@ describe("the item meshes", () => {
     expect(coloursOf(itemBoxMesh())).toEqual(expect.arrayContaining([0xf8e39a, 0xe0b54a]));
   });
 
-  it("lay the track tyre on the asphalt in the kart's tyre black, its rim on top", () => {
-    const tyre = trackTyreMesh();
+  it("lay a tyre on the asphalt in the kart's tyre black, its rim on top", () => {
+    const tyre = tyreMesh();
     expect(coloursOf(tyre)).toEqual([KART_PAINT.tyre, KART_PAINT.rim]);
     const bounds = new Box3().setFromObject(tyre);
     expect(bounds.min.y).toBeCloseTo(0, 6);
@@ -107,7 +107,7 @@ describe("the item meshes", () => {
       { position: [1, 0, -40], yaw: 0 },
       { position: [-3, 0.2, 12], yaw: Math.PI / 2 },
     ] as const;
-    const { mesh } = trackTyres(placed);
+    const { mesh } = tyreMeshes(placed);
     expect(mesh.children).toHaveLength(2);
     mesh.children.forEach((tyre, index) => {
       expect(tyre.position.toArray()).toEqual(placed[index]?.position);
@@ -117,7 +117,7 @@ describe("the item meshes", () => {
   });
 
   it("hide a picked-up tyre until it is back", () => {
-    const tyres = trackTyres([
+    const tyres = tyreMeshes([
       { position: [0, 0, 0], yaw: 0 },
       { position: [0, 0, -2], yaw: 0 },
     ]);
