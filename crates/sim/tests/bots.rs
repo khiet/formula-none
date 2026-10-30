@@ -579,7 +579,7 @@ fn lone_bot_over(tyres: impl IntoIterator<Item = [f32; 3]>) -> State {
 
 #[test]
 fn a_bot_that_drives_over_a_tyre_carries_it() {
-    // A row abreast across the front straight 60 m from the grid: wherever
+    // A row abreast across the front straight 60 m past the line: wherever
     // the bot drives, its centre crosses one.
     let row = (0..6).map(|k| [25.0 + 2.0 * k as f32, 0.0, -60.0]);
     let mut state = lone_bot_over(row);
