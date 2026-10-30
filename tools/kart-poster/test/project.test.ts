@@ -136,3 +136,24 @@ describe("hidden faces", () => {
     expect([...new Set(drawn)]).toEqual(["head", "hair-short", "hair-swept-back"]);
   });
 });
+
+describe("a node drawn whole", () => {
+  it("keeps its faces together even when another face lies between them in depth, ordering them among themselves", () => {
+    const pitched = { pitch: (4 * Math.PI) / 180, light: [0, 1.3, 1] as const };
+    // A far wheel: its wall behind a wing that reaches past it, its rim proud of the wall.
+    const wall = box("wheel-front-left", "Tyre", [-0.5, 0.3, 0], [0.2, 0.6, 0.6]);
+    const rim = box("wheel-front-left", "Rim", [-0.38, 0.3, 0], [0.04, 0.3, 0.3]);
+    const wing = box("kart", "Secondary", [0, 0.1, 0.4], [1.2, 0.04, 0.1]);
+    const drawn = order(
+      planes(project([...wing, ...wall, ...rim], pitched)),
+      () => true,
+      (node) => node.startsWith("wheel-"),
+    );
+    const nodes = drawn.map(({ node }) => node);
+    expect(nodes.indexOf("kart")).toBeGreaterThan(nodes.lastIndexOf("wheel-front-left"));
+    const wheel = drawn.filter(({ node }) => node === "wheel-front-left");
+    expect(wheel.findIndex(({ material }) => material === "Rim")).toBeGreaterThan(
+      wheel.findIndex(({ material }) => material === "Tyre"),
+    );
+  });
+});

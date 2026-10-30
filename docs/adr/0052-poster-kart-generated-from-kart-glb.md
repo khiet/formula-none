@@ -9,10 +9,10 @@ shows, and where, stands.
 
 ## Context
 
-ADR 0051 made the poster kart the View's car and put it in the whole livery
+ADR 0051 made the poster kart the View's kart and put it in the whole livery
 on the Title runners, the Room grid and the podium. It got there by tracing
 `assets/karts/build.py`'s boxes by hand into `apps/web/src/poster.ts`, and
-copying the tracing into `docs/style-guide.html`. Three drawings of one car
+copying the tracing into `docs/style-guide.html`. Three drawings of one kart
 meant a change to the build was three changes, and nothing failed when the
 poster fell behind the glb: the rim and tyre greys already disagreed, and
 the head was drawn once as a side-on circle and once as a faceted shell.
@@ -61,15 +61,20 @@ and a projection of the glb side by side for all eight liveries.
 
 ## Consequences
 
-- A change to the car in `build.py` is one change: export, and the poster
+- A change to the kart in `build.py` is one change: export, and the poster
   follows. A poster that looks wrong is fixed in `build.py`, not redrawn.
 - The poster is what the glb shows side on. The eyes, boxes on the head's
   forward flat, show as a sliver of white and iris rather than the round
   eye the tracing drew; the light stubble, one forward-facing face on the
   chin, shows nothing at all. These follow the build until the build
   changes.
-- All four wheels are groups, so a runner has four `.wheel`s; the far pair
-  turns as the sliver it is.
+- All four wheels are groups, so a runner has four `.wheel`s, and a wheel
+  keeps every face it has, hidden at rest or not, since a face behind the
+  near wheel comes round as it turns. `index.html`'s wheel rule moves from
+  the group's own box to the axle the data gives (`transform-box:
+  view-box`), its front-wheel rule picks the wheel by node rather than by
+  order, and it mixes lit and shaded tones for the fixed colours too; the
+  runners' motion is otherwise as it was.
 - A kart is at most 120 path elements, held by `poster.test.ts`; today it
   is about forty. The guide's chase view is still drawn by hand; the
   projector takes a camera, so it can follow in its own issue.

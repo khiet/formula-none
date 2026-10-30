@@ -33,7 +33,7 @@ const PROPERTIES: Readonly<Record<string, string>> = {
 const TONES = { lit: "-lt", mid: "", shaded: "-dk" } as const;
 
 /**
- * The kart side on, facing right: build.py's car as `pnpm generate:poster`
+ * The kart side on, facing right: build.py's kart as `pnpm generate:poster`
  * projects it from kart.glb (ADR 0052), painted in the livery's primary,
  * secondary and accent as the View paints it, its driver bare-headed in
  * only the parts they wear. The paths come in painter order, one `<g>` per

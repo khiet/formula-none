@@ -20,20 +20,21 @@ export interface View {
   readonly light: Vec3;
 }
 
-/** A front-facing triangle on the picture plane, with its depth towards the camera at each corner. */
-export interface Facet {
+/** What a path is drawn as: one node's faces in one material, lit one way. */
+export interface Face {
   readonly node: string;
   readonly material: string;
   readonly tone: Tone;
+}
+
+/** A front-facing triangle on the picture plane, with its depth towards the camera at each corner. */
+export interface Facet extends Face {
   readonly points: readonly [Point, Point, Point];
   readonly depths: readonly [number, number, number];
 }
 
 /** One flat face of one node, material and tone: its outline loops on the picture plane. */
-export interface Plane {
-  readonly node: string;
-  readonly material: string;
-  readonly tone: Tone;
+export interface Plane extends Face {
   readonly loops: readonly (readonly Point[])[];
   readonly facets: readonly Facet[];
   /** Mean depth towards the camera: the tie-break that draws the far before the near. */
@@ -79,7 +80,8 @@ export function project(triangles: readonly Triangle[], view: View): Facet[] {
   const facets: Facet[] = [];
   for (const triangle of triangles) {
     const [a, b, c] = triangle.corners;
-    const normal = unit(cross(sub(b, a), sub(c, a)));
+    // The export's normal lights the face; the winding says which way it faces the camera.
+    const normal = unit(triangle.normal ?? cross(sub(b, a), sub(c, a)));
     const projected = triangle.corners.map((corner) => projectPoint(corner, view.pitch));
     const points = projected.map(({ at }) => at) as [Point, Point, Point];
     // Front faces wind counter-clockwise on a y-up picture plane; a zero area is edge-on.
@@ -98,6 +100,8 @@ export function project(triangles: readonly Triangle[], view: View): Facet[] {
 
 const key = (point: Point): string => `${point[0].toFixed(5)},${point[1].toFixed(5)}`;
 
+const faceOf = (face: Face) => `${face.node}|${face.material}|${face.tone}`;
+
 /**
  * Merge each facet into the flat face it belongs to: facets of one node,
  * material and tone that lie in one plane. Every edge two of them share is
@@ -106,14 +110,8 @@ const key = (point: Point): string => `${point[0].toFixed(5)},${point[1].toFixed
 export function planes(facets: readonly Facet[]): Plane[] {
   const groups = new Map<string, Facet[]>();
   for (const facet of facets) {
-    const [[x0, y0], [x1, y1], [x2, y2]] = facet.points;
-    const [d0, d1, d2] = facet.depths;
-    // The plane of the depth over the picture: depth = gx * x + gy * y + g0.
-    const det = (x1 - x0) * (y2 - y0) - (x2 - x0) * (y1 - y0);
-    const gx = ((d1 - d0) * (y2 - y0) - (d2 - d0) * (y1 - y0)) / det;
-    const gy = ((x1 - x0) * (d2 - d0) - (x2 - x0) * (d1 - d0)) / det;
-    const g0 = d0 - gx * x0 - gy * y0;
-    const id = `${facet.node}|${facet.material}|${facet.tone}|${gx.toFixed(4)}|${gy.toFixed(4)}|${g0.toFixed(4)}`;
+    const { gx, gy, g0 } = depthPlane(facet);
+    const id = `${faceOf(facet)}|${gx.toFixed(4)}|${gy.toFixed(4)}|${g0.toFixed(4)}`;
     groups.set(id, [...(groups.get(id) ?? []), facet]);
   }
   return [...groups.values()].map((members) => {
@@ -165,12 +163,12 @@ export function planes(facets: readonly Facet[]): Plane[] {
   });
 }
 
-/** The polygon of `subject` clipped to the inside of the counter-clockwise triangle `clip`. */
-function clip(subject: readonly Point[], clip: readonly [Point, Point, Point]): Point[] {
+/** The polygon of `subject` clipped to the inside of the counter-clockwise `triangle`. */
+function clip(subject: readonly Point[], triangle: readonly [Point, Point, Point]): Point[] {
   let output: Point[] = [...subject];
   for (let index = 0; index < 3 && output.length > 0; index += 1) {
-    const a = clip[index] ?? [0, 0];
-    const b = clip[(index + 1) % 3] ?? a;
+    const a = triangle[index] ?? [0, 0];
+    const b = triangle[(index + 1) % 3] ?? a;
     const inside = ([x, y]: Point) => (b[0] - a[0]) * (y - a[1]) - (b[1] - a[1]) * (x - a[0]) >= 0;
     const input = output;
     output = [];
@@ -195,14 +193,20 @@ function clip(subject: readonly Point[], clip: readonly [Point, Point, Point]): 
   return output;
 }
 
-/** The depth of `facet`'s plane at a point on the picture, found from its three corners. */
-function depthAt(facet: Facet, [x, y]: Point): number {
+/** The depth of `facet`'s plane over the picture, `gx * x + gy * y + g0`, from its three corners. */
+function depthPlane(facet: Facet): { gx: number; gy: number; g0: number } {
   const [[x0, y0], [x1, y1], [x2, y2]] = facet.points;
   const [d0, d1, d2] = facet.depths;
   const det = (x1 - x0) * (y2 - y0) - (x2 - x0) * (y1 - y0);
-  const u = ((x - x0) * (y2 - y0) - (x2 - x0) * (y - y0)) / det;
-  const v = ((x1 - x0) * (y - y0) - (x - x0) * (y1 - y0)) / det;
-  return d0 + u * (d1 - d0) + v * (d2 - d0);
+  const gx = ((d1 - d0) * (y2 - y0) - (d2 - d0) * (y1 - y0)) / det;
+  const gy = ((x1 - x0) * (d2 - d0) - (x2 - x0) * (d1 - d0)) / det;
+  return { gx, gy, g0: d0 - gx * x0 - gy * y0 };
+}
+
+/** The depth of `facet`'s plane at a point on the picture. */
+function depthAt(facet: Facet, [x, y]: Point): number {
+  const { gx, gy, g0 } = depthPlane(facet);
+  return gx * x + gy * y + g0;
 }
 
 const bounds = (facet: Facet) => ({
@@ -226,11 +230,16 @@ const contains = ([a, b, c]: readonly [Point, Point, Point], [x, y]: Point): boo
  * Drop every facet nothing of can show: one whose every sample point lies
  * under a nearer facet of a node always drawn with it, `fixed` or its own.
  * A facet under a part that may be left off stays, since it shows when the
- * part is. The samples are the centroid and points most of the way to each
- * corner and each edge's middle, so a facet is dropped only when covered
- * well inside its outline.
+ * part is, and a `moving` part keeps every face, since what is hidden at
+ * rest shows as it turns. The samples are the centroid and points most of
+ * the way to each corner and each edge's middle, so a facet is dropped
+ * only when covered well inside its outline.
  */
-export function visible(facets: readonly Facet[], fixed: (node: string) => boolean): Facet[] {
+export function visible(
+  facets: readonly Facet[],
+  fixed: (node: string) => boolean,
+  moving: (node: string) => boolean = () => false,
+): Facet[] {
   const boxes = facets.map(bounds);
   const samples = (facet: Facet): Point[] => {
     const [a, b, c] = facet.points;
@@ -244,7 +253,7 @@ export function visible(facets: readonly Facet[], fixed: (node: string) => boole
   };
   return facets.filter((facet, index) => {
     const box = boxes[index];
-    if (box === undefined) return true;
+    if (box === undefined || moving(facet.node)) return true;
     const covered = samples(facet).every((sample) =>
       facets.some((other, otherIndex) => {
         const otherBox = boxes[otherIndex];
@@ -258,8 +267,6 @@ export function visible(facets: readonly Facet[], fixed: (node: string) => boole
     return !covered;
   });
 }
-
-const faceOf = (plane: Plane) => `${plane.node}|${plane.material}|${plane.tone}`;
 
 /**
  * What must be drawn before what: for every two planes drawn `together` that
@@ -332,15 +339,18 @@ const SPECK = 1e-4;
  * speck; otherwise the face behind splits into the planes behind the other
  * and the rest, and that face draws in two, which is as few paths as the
  * overlap allows. Among faces free to draw, the node just drawn goes on,
- * so a node's paths run together wherever the order allows.
+ * so a node's paths run together wherever the order allows; a `whole` node
+ * is one face to the rest and never splits, its own faces ordered among
+ * themselves, so its paths always run together.
  */
 export function order(
   input: readonly Plane[],
   together: (a: string, b: string) => boolean = () => true,
+  whole: (node: string) => boolean = () => false,
 ): Plane[] {
   const planesIn = [...input];
   const weights = dependencies(planesIn, together);
-  const faceOfPlane = planesIn.map(faceOf);
+  const faceOfPlane = planesIn.map((plane) => (whole(plane.node) ? plane.node : faceOf(plane)));
   let splits = 0;
   for (;;) {
     const members = new Map<string, number[]>();
@@ -373,6 +383,7 @@ export function order(
         }
       }
     }
+    const nodeOf = (face: number) => planesIn[members.get(names[face] ?? "")?.[0] ?? -1]?.node;
     const depthOf = (face: number) => {
       const own = members.get(names[face] ?? "") ?? [];
       return own.reduce((sum, index) => sum + (planesIn[index]?.depth ?? 0), 0) / (own.length || 1);
@@ -386,10 +397,10 @@ export function order(
       );
       if (free.length > 0) {
         // Stay with the node just drawn while it has a free face, so a node's paths run together.
-        const lastNode =
-          planesIn[members.get(names[drawn[drawn.length - 1] ?? -1] ?? "")?.[0] ?? -1]?.node;
-        const nodeOf = (face: number) => planesIn[members.get(names[face] ?? "")?.[0] ?? -1]?.node;
-        const continuing = free.filter((face) => nodeOf(face) === lastNode);
+        const last = drawn[drawn.length - 1];
+        const continuing = free.filter(
+          (face) => last !== undefined && nodeOf(face) === nodeOf(last),
+        );
         const pick = (continuing.length > 0 ? continuing : free).reduce((best, face) =>
           depthOf(face) < depthOf(best) ? face : best,
         );
@@ -413,6 +424,7 @@ export function order(
       for (const step of steps) {
         const behindFace = names[step.behind] ?? "";
         const frontFace = names[step.front] ?? "";
+        if (whole(nodeOf(step.behind) ?? "")) continue;
         const inFront = new Set(members.get(frontFace));
         const behindOnes = (members.get(behindFace) ?? []).filter((plane) => {
           let behind = 0;
@@ -433,9 +445,10 @@ export function order(
       if (!split) edgesOut.get(lightest.behind)?.delete(lightest.front);
     }
     if (split) continue;
-    return drawn.flatMap((face) =>
-      (members.get(names[face] ?? "") ?? []).map((index) => planesIn[index] as Plane),
-    );
+    return drawn.flatMap((face) => {
+      const own = (members.get(names[face] ?? "") ?? []).map((index) => planesIn[index] as Plane);
+      return whole(nodeOf(face) ?? "") ? order(own, together) : own;
+    });
   }
 }
 

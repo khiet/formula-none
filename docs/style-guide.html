@@ -766,7 +766,7 @@
         <div class="compare"><figure><figcaption>The podium</figcaption><div class="poster" data-draw="poster"></div></figure></div>
         <dl class="spec"><dt>Decided</dt><dd><a href="adr/0033-grand-prix-poster.md">ADR 0033</a>, <a href="adr/0035-livery-palette.md">0035</a>, <a href="adr/0036-drivers-race-bare-headed.md">0036</a>, <a href="adr/0051-poster-karts-wear-the-livery.md">0051</a>, <a href="adr/0052-poster-kart-generated-from-kart-glb.md">0052</a></dd></dl>
         <div class="notes">
-          <p>The car side on, facing right, drawn from <code>docs/kart-side.js</code>: every face of <code>kart.glb</code> that shows from the kart's right, pitched down four degrees so each top face is a lit strip and the far wheels a sliver of tyre, shaded by its normal against one light in three tones of its material's colour, in painter order. Primary, secondary and accent as the View paints them, the carbon halo and pillar, the octagon wheels with their three spokes, the bare head in only the driver's parts. Nothing here is traced by hand: <code>pnpm generate:poster</code> rewrites it from the glb, and CI fails on a stale copy. The podium is the three cars you just raced, in their own palettes; the Title Scene's runners and the Room Scene's grid are the same drawing in the same livery, and a runner's wheels turn as it drives.</p>
+          <p>The kart side on, facing right, drawn from <code>docs/kart-side.js</code>: every face of <code>kart.glb</code> that shows from the kart's right, pitched down four degrees so each top face is a lit strip and the far wheels a sliver of tyre, shaded by its normal against one light in three tones of its material's colour, in painter order. Primary, secondary and accent as the View paints them, the carbon halo and pillar, the octagon wheels with their three spokes, the bare head in only the driver's parts. Nothing here is traced by hand: <code>pnpm generate:poster</code> rewrites it from the glb, and CI fails on a stale copy. The podium is the three cars you just raced, in their own palettes; the Title Scene's runners and the Room Scene's grid are the same drawing in the same livery, and a runner's wheels turn as it drives.</p>
           <p class="dont"><b>Don't</b> draw a smooth wheel, a helmet or an accent hub on a poster, and don't paint a poster kart in its key colour alone; the poster car is the same car as the View's, in the same paint.</p>
         </div>
       </article>
@@ -886,12 +886,13 @@
         if (run) body += "</g>";
         run = p.node;
         const axle = KART_SIDE.wheels[p.node];
-        body += axle ? `<g class="wheel" style="transform-origin:${axle[0]}px ${axle[1]}px">` : "<g>";
+        body += axle ? `<g class="wheel" data-node="${p.node}" style="transform-origin:${axle[0]}px ${axle[1]}px">` : `<g data-node="${p.node}">`;
       }
       const fill = `var(--${KART_TOKENS[p.material]}${KART_TONES[p.tone]})`;
       body += `<path d="${p.d}" fill="${fill}" stroke="${fill}" stroke-width="0.5" stroke-linejoin="round"/>`;
     }
-    return `<svg viewBox="${KART_SIDE.viewBox}" role="img" aria-label="${label}"><ellipse cx="260" cy="352" rx="232" ry="9" fill="rgba(0,0,0,.18)"/>${body}</g></svg>`;
+    if (run) body += "</g>";
+    return `<svg viewBox="${KART_SIDE.viewBox}" role="img" aria-label="${label}"><ellipse cx="260" cy="352" rx="232" ry="9" fill="rgba(0,0,0,.18)"/>${body}</svg>`;
   };
 
   // The back of the bare head from the chase camera: hair, ears, and the style's tell.
@@ -1633,7 +1634,6 @@
       { hex: 0x2f7a3a, role: "Canopy pine, and its shade at two thirds" },
       { hex: 0xf2a3c0, role: "Blossom, the cherries; the round trees' canopy is Grass" },
       { hex: 0x5a3a1e, role: "Trunk" },
-      { hex: 0x3a3d42, role: "Rim, assets/karts/build.py" },
     ]],
   ];
   // build.py's fixed colours as the poster kart reads them, from the list above so the guide copies them once.

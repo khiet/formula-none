@@ -24,6 +24,14 @@ describe("the generated poster kart", () => {
     expect(drawn).toContain("earrings");
   });
 
+  it("names every fixed material's colour as palette.ts copies it", () => {
+    for (const [name, colour] of Object.entries(KART_PAINT)) {
+      expect(
+        side.materials[`${name[0]?.toUpperCase()}${name.slice(1)}` as keyof typeof side.materials],
+      ).toBe(hexCss(colour));
+    }
+  });
+
   it("places all four wheels, each with its axle inside the picture", () => {
     expect(Object.keys(side.wheels).sort()).toEqual([...WHEELS].sort());
     for (const [x, y] of Object.values(side.wheels)) {

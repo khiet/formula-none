@@ -53,6 +53,10 @@ describe("parseGlb", () => {
       new Set(kart.triangles.filter((t) => t.node === node).map((t) => t.material));
     expect(materials("wheel-front-left")).toEqual(new Set(["Tyre", "Rim"]));
     expect(materials("head")).toEqual(new Set(["Skin", "Whites", "Irises"]));
+    // build.py: Tyre is sRGB (0.11, 0.11, 0.12); an unpainted material is mid grey.
+    expect(kart.materials.get("Tyre")).toBe("#1c1c1f");
+    expect(kart.materials.get("Primary")).toBe("#808080");
+    expect(kart.triangles.find((t) => t.node === "head")?.normal).toHaveLength(3);
   });
 
   it("places a part by its own and its parents' translations: the head pivots at the neck, in the kart's frame", () => {
