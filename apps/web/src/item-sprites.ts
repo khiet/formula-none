@@ -146,7 +146,7 @@ const hazard: Drawing = (parent) => {
   );
 };
 
-/** A rotor's blur seen edge on: a flat white ellipse the blade shows through. */
+/** A rotor's blur seen edge on: a flat white ellipse under the blade. */
 function blur(parent: Element, cx: number, cy: number, rx: number, ry: number): void {
   const element = document.createElementNS(SVG_NS, "ellipse");
   for (const [name, value] of Object.entries({ cx, cy, rx, ry })) {

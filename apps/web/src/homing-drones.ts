@@ -7,11 +7,12 @@ const DEGREE = Math.PI / 180;
 /** The furthest a drone tilts, which it reaches turning this fast. */
 const DRONE_TILT_MAX_RAD = 30 * DEGREE;
 const DRONE_TILT_FULL_RAD_PER_S = 2;
-/** The time constant the tilt eases toward the turn's with. */
+/** The time constant of the tilt's ease toward the turn's. */
 const DRONE_TILT_EASE_S = 0.12;
 /**
- * A drone this frame is the one nearest it last frame within this reach,
- * further than a projectile flies in any frame the View draws.
+ * A drone this frame continues the nearest one last frame within this
+ * reach, about 0.2 s of a projectile's flight; after a longer frame every
+ * drone starts level again.
  */
 const DRONE_MATCH_REACH_M = 10;
 
@@ -20,7 +21,7 @@ type Position = readonly [number, number, number];
 /**
  * A drone's tilt `seconds` on from `previousTilt`, as its facing yaws from
  * `previousYaw` to `yaw`: positive drops its left side, as a turn to the
- * left, where yaw grows, wants. In proportion to the turn rate up to the
+ * left (yaw growing) wants. In proportion to the turn rate up to the
  * cap and eased toward it. A drone with no `previousYaw`, just fired,
  * starts level.
  */
