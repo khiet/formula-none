@@ -146,14 +146,30 @@ describe("the item meshes", () => {
   it("spin the drone's rotors in diagonal pairs the opposite way, and blink its tally at 1.5 Hz", () => {
     const drone = homingDroneMesh();
     drone.fly(0, 0.01);
-    const turns: number[] = [];
-    drone.figure.traverse((child) => {
-      if (child.name === "rotor")
-        turns.push(Math.sign(child.rotation.y) * child.position.x * child.position.z);
-    });
-    expect(turns).toHaveLength(4);
-    // Each rotor's way is the sign of its corner's x times its z.
-    expect(new Set(turns.map(Math.sign))).toEqual(new Set([1]));
+    // Each rotor's spin, by its corner: front left, front right, back left, back right.
+    const spin = (x: number, z: number) => {
+      let turned = NaN;
+      drone.figure.traverse((child) => {
+        if (
+          child.name === "rotor" &&
+          Math.sign(child.position.x) === x &&
+          Math.sign(child.position.z) === z
+        ) {
+          turned = child.rotation.y;
+        }
+      });
+      return turned;
+    };
+    const [frontLeft, frontRight, backLeft, backRight] = [
+      spin(1, 1),
+      spin(-1, 1),
+      spin(1, -1),
+      spin(-1, -1),
+    ];
+    expect(frontLeft).not.toBe(0);
+    expect(frontLeft).toBe(backRight);
+    expect(frontRight).toBe(backLeft);
+    expect(frontLeft).toBe(-frontRight);
     const lit = A_SECOND.map((clock) => {
       drone.fly(0, clock);
       return drone.figure.getObjectByName("tally")?.visible ?? false;
