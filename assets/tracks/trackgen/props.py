@@ -165,7 +165,8 @@ PITS_FLAG_HEIGHT_M = 0.9
 # is the nose, on the axis, and its rest heading is the tangent of the
 # circle the View flies it round, the circle's centre to its left. The
 # layout's prop gives the circle and the height of the axis over the grass;
-# the lowest point stays `AIRSHIP_CLEARANCE_M` over every road it passes.
+# the track tests hold its lowest point `AIRSHIP_CLEARANCE_M` over every road
+# under its circle.
 AIRSHIP_LENGTH_M = 24.0
 AIRSHIP_RADIUS_M = 4.0
 """To a corner of the widest ring; the hull is twice this across."""
@@ -859,7 +860,7 @@ def airship(layout: Layout, prop: Prop, number: int, still: ByMaterial) -> tuple
             j = (i + 1) % len(AIRSHIP_FIN)
             hull.add("kerb-red", (_outward([plates[0][i], plates[0][j], plates[1][j], plates[1][i]], middle), [(0, 1, 2, 3)]))
     # The gondola under the bottom flat, every face since it is seen from below, and the
-    # struts up to it; both in the frame `at` maps from, so their boxes run back from the nose.
+    # struts up to it.
     astern = (-along[0], -along[1], 0.0)
     top = -AIRSHIP_APOTHEM_M - AIRSHIP_GONDOLA_DROP_M
     half = AIRSHIP_GONDOLA_WIDTH_M / 2.0
