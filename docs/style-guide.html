@@ -413,6 +413,16 @@
       </article>
 
       <article class="asset">
+        <header><h3>Track tyre</h3><code>apps/web/src/item-meshes.ts trackTyreMesh</code></header>
+        <div class="compare"><figure><figcaption>Lying on the asphalt</figcaption><div class="stage" data-draw="trackTyre"></div></figure></div>
+        <dl class="spec"><dt>Size</dt><dd>0.35 m radius, 0.26 m wide; collected within 1 m of its centre</dd><dt>Decided</dt><dd><a href="adr/0055-tyres-raise-top-speed.md">ADR 0055</a></dd></dl>
+        <div class="notes">
+          <p>A kart's tyre lying on its side where the sidecar puts it, at its yaw: an eight-sided tread in <code>KART_PAINT.tyre</code> <code>#1c1c1f</code>, lit and flat-shaded, with its rim on top in <code>KART_PAINT.rim</code> <code>#3b3d42</code>, so it reads as one of the kart's own on the grey asphalt. Lines of them lie on the straights; a kart that takes one hides it until it is back three seconds later, as a box does, and a short squeak plays.</p>
+          <p class="dont"><b>Don't</b> draw a tyre the kart does not wear, or stand it on its tread: that is a tyre wall's tyre, which a kart bounces off.</p>
+        </div>
+      </article>
+
+      <article class="asset">
         <header><h3>Hazard cone</h3><code>apps/web/src/item-meshes.ts</code></header>
         <div class="compare"><figure><figcaption>On the road</figcaption><div class="stage" data-draw="cone"></div></figure></div>
         <dl class="spec"><dt>Size</dt><dd>0.6 m tall, 0.5 m radius, on a 1 m slab</dd><dt>Decided</dt><dd><a href="adr/0037-instrument-panel-in-chibi-low-poly.md">ADR 0037</a></dd></dl>
@@ -644,16 +654,16 @@
 
       <article class="asset wide">
         <header><h3>Speed cluster</h3><code>apps/web/src/speed-cluster.ts, instrument-panel.ts</code></header>
-        <div class="compare"><figure><figcaption>4th at 87 km/h, and on the limiter</figcaption><div class="view"><div class="hud hud-row" id="clusters"></div></div></figure></div>
+        <div class="compare"><figure><figcaption>4th at 87 km/h on four tyres, and on the limiter on seven</figcaption><div class="view"><div class="hud hud-row" id="clusters"></div></div></figure></div>
         <dl class="spec"><dt>Decided</dt><dd><a href="adr/0031-speed-cluster.md">ADR 0031</a>, drawn by <a href="adr/0037-instrument-panel-in-chibi-low-poly.md">0037</a></dd></dl>
-        <div class="notes"><p>Twelve hexagon shift lights, each a lit, mid and shaded facet like the wheel hubs, in green, red and blue thirds. The gear on a carbon plate, white on the limiter; km/h and the tyre gauge beside it.</p></div>
+        <div class="notes"><p>Twelve hexagon shift lights, each a lit, mid and shaded facet like the wheel hubs, in green, red and blue thirds. The gear on a carbon plate, white on the limiter; km/h and the tyre gauge beside it. The six gears share out the top speed your tyres raise, 1% a tyre, so 6th tops out at 108 km/h on none and 119 km/h on ten, and the limiter still means a boost.</p></div>
       </article>
 
       <article class="asset">
         <header><h3>Tyre gauge kart</h3><code>apps/web/src/instrument-panel.ts</code></header>
-        <div class="compare"><figure><figcaption>Your car from above</figcaption><div class="view"><div class="hud tyre-big follows lv" data-draw="tyreGauge"></div></div></figure></div>
-        <dl class="spec"><dt>Decided</dt><dd><a href="adr/0031-speed-cluster.md">ADR 0031</a>, <a href="adr/0037-instrument-panel-in-chibi-low-poly.md">0037</a></dd></dl>
-        <div class="notes"><p>Front and rear wings in secondary, the tub and sidepods in primary lit on the left, the accent stripe, the halo, and your driver's hair in the cockpit. Rears bigger than fronts, each tyre a faceted block in its wear colour: green, yellow, red.</p></div>
+        <div class="compare"><figure><figcaption>No tyres, at the lights</figcaption><div class="view"><div class="hud tyre-big follows lv" data-draw="tyreGauge" data-tyres="0"></div></div></figure><figure><figcaption>Four tyres</figcaption><div class="view"><div class="hud tyre-big follows lv" data-draw="tyreGauge" data-tyres="4"></div></div></figure><figure><figcaption>A full set of ten</figcaption><div class="view"><div class="hud tyre-big follows lv" data-draw="tyreGauge" data-tyres="10"></div></div></figure></div>
+        <dl class="spec"><dt>Decided</dt><dd><a href="adr/0031-speed-cluster.md">ADR 0031</a>, <a href="adr/0037-instrument-panel-in-chibi-low-poly.md">0037</a>, read by <a href="adr/0055-tyres-raise-top-speed.md">0055</a></dd></dl>
+        <div class="notes"><p>Front and rear wings in secondary, the tub and sidepods in primary lit on the left, the accent stripe, the halo, and your driver's hair in the cockpit. Rears bigger than fronts, each tyre a faceted block in the band of the tyres you carry: ten is 100% and each one 10%, green above 60%, yellow above 30%, red below. Every kart starts at zero, so it is red at the lights; it climbs as you collect tyres and drops by three during a spin-out. No digit for the count, only the percentage.</p></div>
       </article>
 
       <article class="asset">
@@ -975,6 +985,19 @@
       ${poly(top, "#fff6cf")}${poly(inset(top, 0.7), "#f8e39a")}
       ${poly(left, "#e0b54a")}${poly(inset(left, 0.7), "#c99a2e")}
       ${poly(right, "#8c5a12")}${poly(inset(right, 0.7), "#a87418")}</svg>`;
+  };
+  // A track tyre on its side: an octagon in plan, squashed as seen from above and ahead.
+  draw.trackTyre = () => {
+    const cx = 100, top = 66, depth = 22, r = 56, squash = 0.42;
+    const at = (k, share = 1) => { const a = Math.PI / 8 + (k * Math.PI) / 4; return [cx + r * share * Math.cos(a), top + r * share * squash * Math.sin(a)]; };
+    const down = ([x, y]) => [x, y + depth];
+    // Vertices 0 to 3 are the near half; the three sides between them show, shaded right to lit left.
+    const sides = [["color-mix(in srgb, #1c1c1f 66%, black)", 0], ["#1c1c1f", 1], ["color-mix(in srgb, #1c1c1f 72%, white)", 2]]
+      .map(([fill, k]) => poly([at(k), at(k + 1), down(at(k + 1)), down(at(k))], fill)).join("");
+    const ring = (share) => Array.from({ length: 8 }, (_, k) => at(k, share));
+    return `<svg viewBox="0 0 200 160" role="img" aria-label="An octagonal kart tyre lying on its side, its grey rim on top">
+      <ellipse cx="100" cy="${top + depth + 8}" rx="${r + 6}" ry="${r * squash + 4}" fill="rgba(0,0,0,.15)"/>
+      ${sides}${poly(ring(1), "color-mix(in srgb, #1c1c1f 72%, white)")}${poly(ring(0.55), "#3b3d42")}</svg>`;
   };
   draw.cone = () => {
     const apex = [100, 26], L = [62, 118], ML = [82, 126], MR = [118, 126], R = [138, 118];
@@ -1472,7 +1495,7 @@
   // The tyre gauge's kart: your car from above (instrument-panel.ts).
   // Lit, mid and shaded tones per signal colour, for anything faceted on the panel.
   const TONES = {
-    green: ["#8ee88e", "#5ad15a", "#3a9a3a"], red: ["#ff7a6e", "#e8483a", "#a8261b"], blue: ["#8aa8ff", "#4f7dff", "#2f4fc4"],
+    green: ["#8ee88e", "#5ad15a", "#3a9a3a"], yellow: ["#f9da7e", "#f5c542", "#b08a22"], red: ["#ff7a6e", "#e8483a", "#a8261b"], blue: ["#8aa8ff", "#4f7dff", "#2f4fc4"],
     off: ["#4a4f57", "#2b2e33", "#1b1d21"], white: ["#ffffff", "#eef0f2", "#cfd2d6"],
   };
   const keyTones = (key) => [`color-mix(in srgb, ${key} 72%, white)`, key, `color-mix(in srgb, ${key} 66%, black)`];
@@ -1497,7 +1520,12 @@
     ${poly([[24, 66], [36, 66], [34, 82], [26, 82]], "var(--p-dk)")}
     ${poly([[8, 80], [52, 80], [52, 89], [8, 89]], "var(--s)")}${poly([[8, 80], [52, 80], [52, 83], [8, 83]], "color-mix(in srgb, var(--s) 72%, white)")}${poly([[6, 79], [9, 79], [9, 90], [6, 90]], "var(--a)")}${poly([[51, 79], [54, 79], [54, 90], [51, 90]], "var(--a)")}
   </svg>`;
-  draw.tyreGauge = () => topCar();
+  // The gauge's band for a count of tyres, as speed-cluster.ts reads it against a set of ten.
+  const tyreBand = (tyres) => { const percent = tyres * 10; return percent > 60 ? "green" : percent > 30 ? "yellow" : "red"; };
+  draw.tyreGauge = (el) => {
+    const tyres = Number(el.dataset.tyres ?? 10);
+    return `${topCar(Array(4).fill(tyreBand(tyres)))}<span>${tyres * 10}%</span>`;
+  };
 
   // Real centrelines from the sidecars, projected the way course-map.ts projects them.
   const TRACKS = {
@@ -1558,9 +1586,9 @@
       { token: "WALL", hex: 0xf0f0f0, role: "Course map walls" },
     ]],
     ["Signals", [
-      { token: "SIGNAL_GREEN", tones: [0x8ee88e, 0x5ad15a, 0x3a9a3a], role: "Shift lights' first third, good tyres" },
-      { token: "SIGNAL_YELLOW", tones: [0xf9da7e, 0xf5c542, 0xb08a22], role: "Worn tyres" },
-      { token: "SIGNAL_RED", tones: [0xff7a6e, 0xe8483a, 0xa8261b], role: "Shift lights' second third, bad tyres" },
+      { token: "SIGNAL_GREEN", tones: [0x8ee88e, 0x5ad15a, 0x3a9a3a], role: "Shift lights' first third, the tyre gauge above 60%" },
+      { token: "SIGNAL_YELLOW", tones: [0xf9da7e, 0xf5c542, 0xb08a22], role: "The tyre gauge above 30%" },
+      { token: "SIGNAL_RED", tones: [0xff7a6e, 0xe8483a, 0xa8261b], role: "Shift lights' second third, the tyre gauge at 30% and below" },
       { token: "SHIFT_BLUE", tones: [0x8aa8ff, 0x4f7dff, 0x2f4fc4], role: "Shift lights' last third, the limiter" },
       { token: "HAZARD_ORANGE", tones: [0xff7a4d, 0xff5522, 0xc73c14], role: "Danger only: the hazard cone, wrong way" },
       { token: "POSTER_RED", tones: [0xe8333b, 0xc81d25, 0x8f141a], role: "The connection banner, the start lights" },
@@ -1604,8 +1632,8 @@
       { token: "BEACON_BEAM", hex: 0xffcf4a, role: "The beacon's sweeping beam" },
     ]],
     ["Kart, assets/karts/build.py", [
-      { token: "KART_PAINT.tyre", hex: 0x1c1c1f, role: "The tyres" },
-      { token: "KART_PAINT.rim", hex: 0x3b3d42, role: "The rims and spokes" },
+      { token: "KART_PAINT.tyre", hex: 0x1c1c1f, role: "The tyres, the kart's and those lying on the track" },
+      { token: "KART_PAINT.rim", hex: 0x3b3d42, role: "The rims and spokes, and a track tyre's rim" },
       { token: "KART_PAINT.carbon", hex: 0x2b2e33, role: "The halo, its pillar, the wishbones" },
       { token: "KART_PAINT.whites", hex: 0xf7f7f2, role: "The whites of the eyes" },
       { token: "KART_PAINT.irises", hex: 0x211712, role: "The irises, one colour for every driver" },
@@ -1653,8 +1681,8 @@
   document.getElementById("slots").innerHTML = slot(null) + slot("snail") + slot("cone") + slot("gull") + slot("snail", true);
   const hexLights = (lit, limiter) => `<svg class="lights" viewBox="0 0 156 14" aria-hidden="true">${Array.from({ length: 12 }, (_, i) =>
     facets(6, 6.5 + i * 13, 7, 6.2, TONES[limiter ? "blue" : i < lit ? ["green", "red", "blue"][Math.floor((i * 3) / 12)] : "off"])).join("")}</svg>`;
-  const cluster = (gear, kmh, lit, limiter) => `<div class="cluster">${hexLights(lit, limiter)}<span class="pl"><span class="pf ${limiter ? "t-white" : "t-carbon"} gear">${gear}</span></span><div class="speed"><b>${kmh}</b><span class="lab">KM/H</span></div><div class="tyre lv follows">${topCar()}<span>100%</span></div></div>`;
-  document.getElementById("clusters").innerHTML = cluster(4, 87, 7, false) + cluster(6, 112, 12, true);
+  const cluster = (gear, kmh, lit, limiter, tyres) => `<div class="cluster">${hexLights(lit, limiter)}<span class="pl"><span class="pf ${limiter ? "t-white" : "t-carbon"} gear">${gear}</span></span><div class="speed"><b>${kmh}</b><span class="lab">KM/H</span></div><div class="tyre lv follows">${topCar(Array(4).fill(tyreBand(tyres)))}<span>${tyres * 10}%</span></div></div>`;
+  document.getElementById("clusters").innerHTML = cluster(4, 87, 7, false, 4) + cluster(6, 122, 12, true, 7);
 
   // A flag folded once, lit on the left half; chequered once its lap is done.
   const lapFlag = (done) => `<svg viewBox="0 0 14 14" aria-hidden="true"><rect x="1" y="1" width="1.4" height="12.5" fill="#e3e6ea"/>

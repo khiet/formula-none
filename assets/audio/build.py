@@ -278,6 +278,14 @@ def item_pickup(first=988, second=1319, ring=0.25, gain=0.4):
     )
 
 
+def tyre_pickup(thud=160, from_hz=520, to_hz=1040, gain=0.4):
+    """Squeak: a soft rubber thud under a quick rising chirp, shorter than the coin."""
+    return mix(
+        tone(thud, 0.12, decay=25, gain=gain),
+        tone(from_hz, 0.09, triangle, decay=14, sweep_to=to_hz, gain=gain * 0.7, curve="exp"),
+    )
+
+
 def item_fire(from_hz=1200, to_hz=200, length=0.15, decay=10, gain=0.3):
     """Pew: a square zap falling fast."""
     return tone(from_hz, length, square, decay=decay, sweep_to=to_hz, gain=gain, curve="exp")
@@ -413,6 +421,7 @@ def sfx():
     write("hop", tame(hop()))
     write("mini-turbo", tame(mini_turbo()))
     write("item-pickup", tame(item_pickup()))
+    write("tyre-pickup", tame(tyre_pickup()))
     write("item-fire", tame(item_fire()))
     write("lap", tame(lap()))
     # The chime plays whole as the drift's tier rises to blue and again to

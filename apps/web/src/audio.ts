@@ -25,6 +25,7 @@ import musicUrl from "../../../assets/audio/music-loop.wav?url";
 import sandUrl from "../../../assets/audio/sand.wav?url";
 import sputterUrl from "../../../assets/audio/sputter.wav?url";
 import tierChimeUrl from "../../../assets/audio/tier-chime.wav?url";
+import tyrePickupUrl from "../../../assets/audio/tyre-pickup.wav?url";
 import wrongWayUrl from "../../../assets/audio/wrong-way.wav?url";
 import {
   loopPlayback,
@@ -49,6 +50,7 @@ export const SOUND_URLS: Readonly<Record<SoundCue, string>> = {
   hop: hopUrl,
   miniTurbo: miniTurboUrl,
   itemPickup: itemPickupUrl,
+  tyrePickup: tyrePickupUrl,
   itemFire: itemFireUrl,
   hit: hitUrl,
   sputter: sputterUrl,

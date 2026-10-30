@@ -16,7 +16,7 @@ import {
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { CSS2DObject, CSS2DRenderer } from "three/addons/renderers/CSS2DRenderer.js";
 import { WebGPURenderer } from "three/webgpu";
-import type { ItemBox, KartReadout, KartSize, Wheel } from "./bridge";
+import type { ItemBox, KartReadout, KartSize, Tyre, Wheel } from "./bridge";
 import type { CameraPose } from "./chase-camera";
 import { createDustEmitter } from "./dust";
 import { createExhaustFlames } from "./exhaust-flame";
@@ -33,6 +33,7 @@ import {
   runawayWheelBounce,
   runawayWheelFlames,
   runawayWheelMesh,
+  trackTyres,
 } from "./item-meshes";
 import type { Vec3 } from "./kart-frame";
 import type { KartLabel } from "./kart-labels";
@@ -139,7 +140,8 @@ export interface ViewAssets {
  * the slot's livery and a box per item box, drawn by Three.js from the
  * kart readouts the bridge reports and the pose the chase camera computes,
  * with a name floating over each kart the Scene labels, a cone at each
- * hazard and a gull at each projectile. The track mesh is Presentation
+ * hazard, a gull at each projectile and a tyre at each of `tyres` while
+ * it is there to pick up. The track mesh is Presentation
  * only; the sim has its own copy of the geometry from the sidecar. Every
  * mechanic's Feedback is drawn from the readouts and the phase alone:
  * tyre marks under a drift, sparks once a tier has charged, drifting or
@@ -163,6 +165,7 @@ export async function createRaceView(
   kartSize: KartSize,
   assets: ViewAssets,
   itemBoxes: readonly ItemBox[],
+  tyres: readonly Tyre[],
   spinOutSeconds: number,
   runawayWheelRadius: number,
   labelsFor: (karts: readonly KartReadout[]) => readonly KartLabel[],
@@ -286,6 +289,9 @@ export async function createRaceView(
     return mesh;
   });
 
+  const trackTyreMeshes = trackTyres(tyres);
+  world.add(trackTyreMeshes.mesh);
+
   const cones = meshPool(world, hazardConeMesh(), 0);
   const gulls = meshPool(world, homingGullMesh(), PROJECTILE_HEIGHT_M);
   const runaways = runawayWheels(world, track.scene, runawayWheelRadius);
@@ -315,11 +321,12 @@ export async function createRaceView(
   const up = new Vector3(0, 1, 0);
   return {
     update(race, pose, frameSeconds) {
-      const { karts: readouts, itemBoxesPresent, hazards, projectiles } = race;
+      const { karts: readouts, itemBoxesPresent, tyresPresent, hazards, projectiles } = race;
       const countingDown = race.phase.kind === "countdown";
       boxes.forEach((mesh, box) => {
         mesh.visible = itemBoxesPresent[box] ?? true;
       });
+      trackTyreMeshes.show(tyresPresent);
       readouts.forEach((readout, slot) => {
         const drawn = karts[slot];
         if (drawn === undefined) {

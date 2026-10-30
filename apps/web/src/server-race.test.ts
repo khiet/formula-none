@@ -92,6 +92,8 @@ const bridge = {
       itemBoxes: () =>
         Array.from({ length: ITEM_BOXES }, (_, box) => ({ position: [box, 0, -70], yaw: 0 })),
       itemBoxesPresent: () => Array<boolean>(ITEM_BOXES).fill(true),
+      tyres: () =>
+        Array.from({ length: TYRES }, (_, tyre) => ({ position: [tyre, 0, -40], yaw: 0 })),
       tyresPresent: () => Array<boolean>(TYRES).fill(true),
     }) as unknown as Race,
   createPrediction(_seed: bigint, kart: number): Prediction {

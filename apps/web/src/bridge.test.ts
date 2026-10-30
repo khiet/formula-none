@@ -620,6 +620,8 @@ describe("items", () => {
 
   it("reports the track's tyres, a kart taking the one under it at Go and carrying it", async () => {
     const bridge = await loadBridge(wasm);
+    expect(bridge.tyreSet).toBe(10);
+    expect(bridge.tyreTopSpeedFactor).toBeCloseTo(0.01);
     const sidecar = JSON.parse(OVAL) as {
       spawn_grid: { position: [number, number, number] }[];
       tyres: { position: [number, number, number]; yaw: number }[];
