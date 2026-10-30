@@ -122,13 +122,13 @@ LAYOUT = Layout(
     ],
     # Ten on the centreline, down the start straight and through the
     # underpass short of the wheel's crossing, so a clean lap takes a full
-    # set; five off it, out wide before turn 2 and past the back straight's
-    # ramp, for a wider entry.
+    # set; five off it, out wide before turn 2 and between the Spoon's two
+    # curves, for a wider entry.
     tyre_lines=[
         TyreLine(path.segment("start").s_start + 10.0, count=5),
         TyreLine(path.segment("underpass").s_start + 6.0, count=5),
         TyreLine(path.segment("turn-2-approach").s_start + 6.0, count=2, offset=-4.0),
-        TyreLine(back.s_start + 30.0, count=3, offset=4.0),
+        TyreLine(path.segment("spoon-link").s_start + 6.0, count=3, offset=4.0),
     ],
     kerbs=[
         Kerb(path.segment("esses-3").s_mid, offset=KERB_INSIDE_M),

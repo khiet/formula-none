@@ -549,6 +549,8 @@ const _: () = {
     );
     assert!(0.0 < TYRE_TOP_SPEED_FACTOR && 0 < TYRE_SET);
     assert!(TYRES_LOST_PER_SPIN_OUT <= TYRE_SET);
+    // The wire carries the count in a byte.
+    assert!(TYRE_SET <= u8::MAX as u32);
     assert!(0.0 < TYRE_HALF_LENGTH_M && 0.0 < TYRE_HALF_WIDTH_M && 0.0 < TYRE_RESPAWN_S);
     // A tick at a full set's boosted speed never carries a kart's centre
     // over a tyre without landing on it.

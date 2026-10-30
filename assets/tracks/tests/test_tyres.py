@@ -1,5 +1,5 @@
-"""Tyres placed where a kart collects them, checked without Blender: every tyre's rectangle on
-the asphalt, clear of every item box, boost pad and grid slot, enough on the centreline for a
+"""Tyres placed where a kart collects them, checked without Blender: every line along a straight
+no box row uses, every tyre's rectangle on the asphalt, clear of every item box, boost pad and grid slot, enough on the centreline for a
 clean lap to collect a full set, and about ten to twelve on the oval and fifteen on Suzuqa
 Patch.
 
@@ -88,6 +88,19 @@ class Tyres(unittest.TestCase):
                 off_line = sum(line.count for line in layout.tyre_lines if line.offset != 0.0)
                 self.assertGreaterEqual(on_line, TYRE_SET)
                 self.assertGreater(off_line, 0, "some reward a wider line")
+
+    def test_every_line_runs_along_a_straight_no_box_row_uses(self) -> None:
+        for name in NAMES:
+            layout = load(name)
+            for line in layout.tyre_lines:
+                with self.subTest(name, s=round(line.s), offset=line.offset):
+                    first, last = line.s - HALF_LENGTH_M, line.s + (line.count - 1) * TYRE_LINE_SPACING_M + HALF_LENGTH_M
+                    segment = next(seg for seg in layout.path.segments if seg.s_start <= line.s < seg.s_end)
+                    self.assertEqual(segment.turn, 0, f"{segment.name} is a curve")
+                    self.assertLessEqual(segment.s_start, first)
+                    self.assertLessEqual(last, segment.s_end, f"runs off the end of {segment.name}")
+                    rows = [row.s for row in layout.item_rows if segment.s_start <= row.s < segment.s_end]
+                    self.assertEqual(rows, [], f"{segment.name} has a box row")
 
     def test_a_line_spaces_its_tyres_so_a_kart_takes_them_one_at_a_time(self) -> None:
         self.assertGreater(TYRE_LINE_SPACING_M, 2.0 * HALF_LENGTH_M)

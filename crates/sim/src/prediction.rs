@@ -16,10 +16,11 @@
 //! snapshots' word, so a fire is predicted only once the server has said
 //! what the kart holds. The tyre pickups: a tyre another kart took first
 //! is the server's to know, so the count is the snapshots' word too, and a
-//! spin-out's loss predicted here gives way to it. And the hazards: a hazard the predicted kart fires
-//! is gone from this race the same tick, so the kart never hits one here;
-//! a hit is the server's, and reaches the kart as the spin-out timer in a
-//! snapshot, which holds it still through the replay.
+//! spin-out's loss predicted here gives way to it. And the hazards: a
+//! hazard the predicted kart fires is gone from this race the same tick, so
+//! the kart never hits one here; a hit is the server's, and reaches the
+//! kart as the spin-out timer in a snapshot, which holds it still through
+//! the replay.
 //!
 //! One thing it runs and then defers on: the rocket start. The prediction
 //! reads the hold as the server will, so the sparks and the boost answer
