@@ -8,7 +8,9 @@ The helmet colour and the `Helmet` material are superseded by ADR 0036:
 drivers race bare-headed, and a livery is primary, secondary and accent
 plus the key colour. The sponsor clause of the ban is superseded by ADR
 0038: no kart carries a sponsor and no real sponsor appears, but invented
-sponsors may stand on the scenery.
+sponsors may stand on the scenery. The Title Scene's runners as a use of
+the key colour is superseded by ADR 0051: the poster kart wears the whole
+livery wherever it is drawn.
 
 ## Context
 

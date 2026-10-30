@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from "vitest";
 import { type AudioSettings, DEFAULT_AUDIO_SETTINGS } from "./audio-settings";
-import { liveryCss } from "./livery";
+import { hexCss, livery } from "./livery";
 import { createTitleScene, type TitleHandlers, type TitleOptions } from "./title-scene";
 
 const OPTIONS: TitleOptions = {
@@ -61,12 +61,18 @@ describe("Title Scene", () => {
     expect(container.childElementCount).toBe(0);
   });
 
-  it("paints each runner wholly in its slot's key colour", () => {
+  it("paints each runner in its slot's livery, wheels in a group a style can turn", () => {
     const { container } = scene();
     const karts = Array.from(container.querySelectorAll<SVGElement>(".runner .kart"));
     expect(
       karts.map((kart) => ["p", "s", "a"].map((name) => kart.style.getPropertyValue(`--${name}`))),
-    ).toEqual([1, 2].map((slot) => Array(3).fill(liveryCss(slot))));
+    ).toEqual(
+      [1, 2].map((slot) => {
+        const paint = livery(slot);
+        return [paint.primary, paint.secondary, paint.accent].map(hexCss);
+      }),
+    );
+    expect(karts.map((kart) => kart.querySelectorAll(".wheel").length)).toEqual([2, 2]);
   });
 
   it("creates a room under the trimmed nickname", () => {

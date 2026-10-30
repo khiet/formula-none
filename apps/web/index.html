@@ -522,12 +522,18 @@
         height: auto;
         overflow: visible;
       }
+      /* Each wheel turns about its own centre, as the View turns the car's. */
+      :is(#title-scene, #room-scene, #results-scene) .kart .wheel {
+        transform-box: fill-box;
+        transform-origin: center;
+      }
       /* The lit and shaded tones of the colours poster.ts sets on each kart. */
       :is(#title-scene, #room-scene, #results-scene) .kart {
         --p-lt: color-mix(in srgb, var(--p) 72%, white);
         --p-dk: color-mix(in srgb, var(--p) 66%, black);
         --s-lt: color-mix(in srgb, var(--s) 78%, white);
         --s-dk: color-mix(in srgb, var(--s) 82%, black);
+        --a-lt: color-mix(in srgb, var(--a) 72%, white);
         --sk-lt: color-mix(in srgb, var(--sk) 80%, white);
         --sk-dk: color-mix(in srgb, var(--sk) 80%, black);
         --hair-lt: color-mix(in srgb, var(--hair) 78%, white);
@@ -749,16 +755,16 @@
       #room-scene .players {
         display: grid;
         grid-template-columns: repeat(2, 34em);
-        grid-auto-rows: 6.4em;
+        grid-auto-rows: 7em;
         column-gap: 4em;
         margin: 0;
-        padding: 0 0 3.2em;
+        padding: 0 0 3.5em;
         list-style: none;
       }
       #room-scene .players li {
         display: grid;
         grid-template-areas: "kart name name" "kart badges state";
-        grid-template-columns: 10em auto 1fr;
+        grid-template-columns: 9em auto 1fr;
         align-items: center;
         column-gap: 1em;
         padding: 0.2em 0.8em 0.2em 0.4em;
@@ -766,7 +772,7 @@
         border-bottom: 0.15em dashed rgb(255 255 255 / 0.5);
       }
       #room-scene .players li:nth-child(even) {
-        translate: 0 3.2em;
+        translate: 0 3.5em;
       }
       #room-scene .players .nickname {
         overflow: hidden;
@@ -984,7 +990,7 @@
       }
       #results-scene [data-podium] .kart {
         order: 3;
-        width: 9em;
+        width: 10em;
         margin: 0.4em 0 -0.2em;
       }
       #results-scene [data-podium] [data-place] {
@@ -1043,6 +1049,11 @@
           left: 110%;
         }
       }
+      @keyframes poster-roll {
+        to {
+          rotate: 360deg;
+        }
+      }
       @keyframes poster-stamp {
         from {
           scale: 3;
@@ -1094,11 +1105,25 @@
             translate 0.08s,
             box-shadow 0.08s;
         }
+        /*
+         * The runners drive: the wheels turn with the ground they cover, one
+         * turn of the rear wheel per 0.41 s for a 10 em kart crossing a
+         * 1440 px window in 5 s, and the front wheel, smaller by build.py's
+         * 0.9, that much faster. Forwards is clockwise, the kart facing right.
+         */
         #title-scene .runner {
+          --roll: 0.41s;
           animation: poster-run 5s linear infinite;
         }
         #title-scene .runner + .runner {
+          --roll: 0.33s;
           animation-delay: -2.4s;
+        }
+        #title-scene .runner .wheel {
+          animation: poster-roll var(--roll) linear infinite;
+        }
+        #title-scene .runner .wheel + .wheel {
+          animation-duration: calc(var(--roll) * 0.9);
         }
         #results-scene [data-race-over] {
           animation: poster-stamp 0.5s cubic-bezier(0.2, 1.6, 0.4, 1) both;
