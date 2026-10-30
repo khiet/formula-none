@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Homing Drone Designs</title>
+<title>Homing Drone</title>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link href="https://fonts.googleapis.com/css2?family=Bungee&family=Inter:wght@400;600&display=swap" rel="stylesheet" />
 <style>
@@ -20,52 +20,55 @@
     --gold: #e0b54a;
     --gold-lit: #f8e39a;
     --gold-shaded: #c99a2e;
+    --hazard-orange: #ff5522;
   }
   * { box-sizing: border-box; }
   html, body { margin: 0; background: var(--bg); color: var(--fg); font: 15px/1.55 Inter, system-ui, sans-serif; }
   body { padding: 2rem 16px 4rem; }
-  .wrap { max-width: 1120px; margin: 0 auto; }
+  .wrap { max-width: 1080px; margin: 0 auto; }
   h1 { font: 1.9rem/1.1 Bungee, Impact, sans-serif; margin: 0 0 .5rem; letter-spacing: .02em; }
   h1 span { color: var(--poster-red); }
   h2 { font: 1.2rem/1.2 Bungee, Impact, sans-serif; margin: 2.5rem 0 .75rem; }
-  h3 { font: 1rem/1.2 Bungee, Impact, sans-serif; margin: 0; }
+  h3 { font: 600 1rem/1.3 Inter, sans-serif; margin: 1rem 0 .4rem; }
   p { margin: .4rem 0; }
   .lede { color: var(--muted); max-width: 78ch; }
   .muted { color: var(--muted); }
+  .status { display: inline-block; font-size: .78rem; color: var(--go-green); border: 1px solid var(--go-green); border-radius: 999px; padding: .05rem .6rem; margin-bottom: .6rem; }
   code { font: .85em ui-monospace, SFMono-Regular, Menlo, monospace; background: var(--code-bg); padding: .05rem .3rem; border-radius: 3px; }
-  ul { padding-left: 1.2rem; margin: .4rem 0; }
-  li { margin: .2rem 0; }
+  ul, ol { padding-left: 1.2rem; margin: .4rem 0; }
+  li { margin: .3rem 0; }
   .card { background: var(--card); border: 1px solid var(--rule); border-radius: 10px; padding: 1rem 1.15rem; }
-  .designs { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(min(100%, 460px), 1fr)); align-items: start; }
-  .design { border-top: 3px solid var(--poster-red); display: flex; flex-direction: column; gap: .7rem; }
-  .design.today { border-top-color: var(--muted); }
-  .design .head { display: flex; align-items: baseline; gap: .6rem; flex-wrap: wrap; }
-  .tag { font-size: .75rem; color: var(--muted); border: 1px solid var(--rule); border-radius: 999px; padding: .05rem .55rem; }
-  .tag.pick { color: var(--go-green); border-color: var(--go-green); }
-  .stage { position: relative; aspect-ratio: 4 / 3; border-radius: 8px; overflow: hidden; background: #2a2c31; cursor: grab; touch-action: pan-y; }
-  .stage:active { cursor: grabbing; }
+  .card + .card { margin-top: 1rem; }
+  .grid2 { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr)); align-items: start; }
+  .stage { position: relative; border-radius: 8px; overflow: hidden; background: #2a2c31; }
   .stage canvas { display: block; width: 100%; height: 100%; }
-  .stage .hint { position: absolute; right: .5rem; bottom: .35rem; font-size: .7rem; color: rgba(255,255,255,.55); pointer-events: none; }
-  .pair { display: grid; grid-template-columns: 112px 1fr; gap: .8rem; align-items: center; }
-  .slot { width: 112px; aspect-ratio: 1; border-radius: 14px; padding: 8px; background: linear-gradient(160deg, var(--gold-lit), var(--gold) 55%, var(--gold-shaded)); box-shadow: inset 0 0 0 3px #111; display: grid; place-items: center; }
+  .stage .hint { position: absolute; right: .5rem; bottom: .35rem; font-size: .7rem; color: rgba(255,255,255,.6); pointer-events: none; }
+  #turntable { aspect-ratio: 4 / 3; cursor: grab; touch-action: pan-y; }
+  #turntable:active { cursor: grabbing; }
+  #poses { aspect-ratio: 3 / 1; background: #8fb7d8; }
+  #chase { aspect-ratio: 16 / 8; background: #8fb7d8; }
+  .labels { display: grid; grid-template-columns: repeat(3, 1fr); text-align: center; font-size: .82rem; color: var(--muted); margin-top: .35rem; }
+  .slot-row { display: flex; gap: 1rem; align-items: center; margin-top: .8rem; }
+  .slot { flex: none; width: 112px; aspect-ratio: 1; border-radius: 14px; padding: 8px; background: linear-gradient(160deg, var(--gold-lit), var(--gold) 55%, var(--gold-shaded)); box-shadow: inset 0 0 0 3px #111; display: grid; place-items: center; }
   .slot svg { width: 100%; height: auto; display: block; }
-  .facts { font-size: .85rem; }
-  .facts dt { color: var(--muted); float: left; clear: left; width: 6.2rem; }
-  .facts dd { margin: 0 0 .2rem 6.2rem; }
-  .pros li::marker { content: "+  "; color: var(--go-green); }
-  .cons li::marker { content: "-  "; color: #ff7a6e; }
-  .pros, .cons { font-size: .9rem; padding-left: 1rem; }
-  .controls { display: flex; flex-wrap: wrap; gap: .4rem; margin: 0 0 .6rem; }
-  .controls button { font: 600 .82rem Inter, sans-serif; color: var(--fg); background: var(--code-bg); border: 1px solid var(--rule); border-radius: 999px; padding: .3rem .8rem; cursor: pointer; }
-  .controls button[aria-pressed="true"] { border-color: var(--gold); color: var(--gold); }
-  #lineup { aspect-ratio: 16 / 7; border-radius: 8px; overflow: hidden; background: #8fb7d8; }
-  #lineup canvas { display: block; width: 100%; height: 100%; }
-  .labels { display: grid; grid-template-columns: repeat(4, 1fr); text-align: center; font-size: .8rem; color: var(--muted); margin-top: .35rem; }
   .table-wrap { overflow-x: auto; }
   table { border-collapse: collapse; width: 100%; font-size: .88rem; }
-  th, td { text-align: left; padding: .45rem .65rem; border-bottom: 1px solid var(--rule); vertical-align: top; }
+  th, td { text-align: left; padding: .4rem .6rem; border-bottom: 1px solid var(--rule); vertical-align: top; }
   th { color: var(--muted); font-weight: 600; }
-  .recommend { border-left: 3px solid var(--go-green); }
+  .controls { display: flex; flex-wrap: wrap; gap: .4rem; align-items: center; margin: 0 0 .6rem; }
+  .controls button { font: 600 .82rem Inter, sans-serif; color: var(--fg); background: var(--code-bg); border: 1px solid var(--rule); border-radius: 999px; padding: .3rem .8rem; cursor: pointer; }
+  .controls button[aria-pressed="true"] { border-color: var(--gold); color: var(--gold); }
+  .readout { margin-left: auto; font: .85rem ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .readout b { color: var(--fg); font-weight: 600; }
+  .rules { counter-reset: rule; list-style: none; padding: 0; }
+  .rules li { counter-increment: rule; position: relative; padding-left: 2.2rem; margin: .7rem 0; }
+  .rules li::before { content: counter(rule); position: absolute; left: 0; top: .05rem; width: 1.5rem; height: 1.5rem; border-radius: 50%; background: var(--poster-red); color: #fff; font: 600 .8rem/1.5rem Inter, sans-serif; text-align: center; }
+  .plot text { fill: var(--muted); font: 11px Inter, sans-serif; }
+  .plot .axis { stroke: #4a4f57; stroke-width: 1; }
+  .plot .grid { stroke: var(--rule); stroke-width: 1; }
+  .plot .curve { stroke: var(--gold); stroke-width: 3; fill: none; }
+  .plot .mark { stroke: var(--muted); stroke-dasharray: 3 3; }
+  .callout { border-left: 3px solid var(--hazard-orange); }
 </style>
 <script type="importmap">
   { "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js" } }
@@ -73,176 +76,164 @@
 </head>
 <body>
 <div class="wrap">
+  <span class="status">Design settled, 2026-10-30</span>
   <h1>Homing <span>drone</span></h1>
-  <p class="lede">Three ways to turn the homing projectile from a gull into a drone. Each is built from Three primitives in the palette, the way <code>homingGullMesh</code> is, nose toward +z and hovering at the projectile's 0.6 m. Drag any model to turn it. The slot icon beside each is the mesh drawn flat, as the item slot draws the gull today.</p>
+  <p class="lede">The homing projectile is drawn as a camera quad: a trackside broadcast FPV drone gone rogue. It replaces the gull on the road and in the item slot. While it chases its target it tilts into each turn: left side down to go left, right side down to go right. Nothing in the sim or the protocol changes; it stays the homing projectile.</p>
 
-  <h2>The designs</h2>
-  <div class="designs">
-    <article class="card design today">
-      <div class="head"><h3>Today: gull</h3><span class="tag">homingGullMesh</span></div>
-      <div class="stage" data-model="gull"><span class="hint">drag to turn</span></div>
-      <div class="pair"><div class="slot" data-icon="gull"></div>
-        <p class="muted">White body, grey wings up, orange beak, red eyes locked on. Static: nothing on it moves.</p></div>
-    </article>
-
-    <article class="card design">
-      <div class="head"><h3>A. Camera quad</h3><span class="tag pick">recommended</span></div>
-      <div class="stage" data-model="quad"><span class="hint">drag to turn</span></div>
-      <div class="pair"><div class="slot" data-icon="quad"></div>
-        <p>A trackside broadcast FPV drone gone rogue: carbon X frame, red canopy, four orange motors under spinning rotor discs, and a camera pod whose red lens is the locked-on eye.</p></div>
-      <ul class="pros">
-        <li>Reads as "drone" from any angle; the four rotors are the signifier, and they show best from the chase camera, which sees it from behind.</li>
-        <li>Belongs at a race: real F1 broadcasts fly FPV camera drones.</li>
-      </ul>
-      <ul class="cons">
-        <li>Widest of the three (1.0 m rotor to rotor); flat, so it is thin side on.</li>
-      </ul>
-    </article>
-
-    <article class="card design">
-      <div class="head"><h3>B. Seeker dart</h3><span class="tag">fixed wing</span></div>
-      <div class="stage" data-model="dart"><span class="hint">drag to turn</span></div>
-      <div class="pair"><div class="slot" data-icon="dart"></div>
-        <p>A small strike drone: white fuselage, swept grey wings, orange twin fins, a pusher prop at the tail and a red nose whose seeker light sweeps side to side across a dark visor.</p></div>
-      <ul class="pros">
-        <li>Says "this is coming for you" loudest; the shape points at its target.</li>
-        <li>Narrowest; slips cleanly between karts.</li>
-      </ul>
-      <ul class="cons">
-        <li>Closest to a missile, so less playful than the cone; from behind it is mostly a prop disc.</li>
-      </ul>
-    </article>
-
-    <article class="card design">
-      <div class="head"><h3>C. Grumpy eye</h3><span class="tag">character</span></div>
-      <div class="stage" data-model="eye"><span class="hint">drag to turn</span></div>
-      <div class="pair"><div class="slot" data-icon="eye"></div>
-        <p>A faceted white ball with one big red eye under the grumpy cone's brows, a ducted orange fan on top and a flame-yellow thruster underneath; it bobs as it hovers.</p></div>
-      <ul class="pros">
-        <li>Matches the item set's character: the cone has a face, and so does this.</li>
-        <li>The slot icon is the strongest of the three: one eye, face on.</li>
-      </ul>
-      <ul class="cons">
-        <li>Reads as "robot" before "drone"; the face hides from the chase camera behind it.</li>
-      </ul>
-    </article>
-  </div>
-
-  <h2>On the road</h2>
-  <div class="card">
-    <p class="muted" style="margin-top:0">All four at the projectile's height over asphalt, from roughly where the chase camera sits. Flip them to see one coming at you.</p>
-    <div class="controls" role="group" aria-label="Facing">
-      <button type="button" data-facing="away" aria-pressed="true">Chasing ahead</button>
-      <button type="button" data-facing="toward" aria-pressed="false">Coming at you</button>
+  <h2>The drone</h2>
+  <div class="grid2">
+    <div class="card">
+      <div class="stage" id="turntable"><span class="hint">drag to turn</span></div>
+      <div class="slot-row">
+        <div class="slot" id="slot-icon"></div>
+        <p class="muted">The item slot draws the mesh flat and side on, nose to the right, as it drew the gull: rotors as blurred discs, the lens red.</p>
+      </div>
     </div>
-    <div id="lineup"></div>
-    <div class="labels"><span>Gull (today)</span><span>A. Camera quad</span><span>B. Seeker dart</span><span>C. Grumpy eye</span></div>
+    <div class="card table-wrap">
+      <h3 style="margin-top:0">Parts</h3>
+      <p class="muted">Built in code from Three primitives, nose toward +z, centred on its origin and lifted to the projectile's 0.6 m, like every item on the road.</p>
+      <table>
+        <thead><tr><th>Part</th><th>Shape</th><th>Token</th></tr></thead>
+        <tbody>
+          <tr><td>Body</td><td>Box 0.30 x 0.10 x 0.42 m</td><td><code>CARBON.mid</code></td></tr>
+          <tr><td>Canopy</td><td>Half sphere, 6 x 3 facets, stretched along z</td><td><code>POSTER_RED.mid</code></td></tr>
+          <tr><td>Arms</td><td>Four boxes in an X to the corners at +/-0.32 m</td><td><code>CARBON.lit</code></td></tr>
+          <tr><td>Motors</td><td>Six-sided cylinders at each corner</td><td><code>HAZARD_ORANGE.mid</code></td></tr>
+          <tr><td>Rotors</td><td>Two-blade prop, 0.19 m radius, over a translucent blur disc</td><td><code>CARBON.mid</code>, white at 22%</td></tr>
+          <tr><td>Camera pod</td><td>Box under the nose</td><td><code>CARBON.shaded</code></td></tr>
+          <tr><td>Lens</td><td>White ring around an unlit red disc and a dark pupil: the locked-on eye</td><td><code>WHITE.mid</code>, <code>GULL_EYE</code> renamed <code>DRONE_EYE</code>, <code>INK</code></td></tr>
+          <tr><td>Antenna</td><td>Thin whip at the rear left, unlit tally light on its tip</td><td><code>ROCKET_STRAP</code>, <code>ROCKET.lit</code></td></tr>
+        </tbody>
+      </table>
+      <h3>What moves</h3>
+      <ul>
+        <li>Rotors spin, diagonal pairs in opposite directions.</li>
+        <li>The tally light blinks at 1.5 Hz.</li>
+        <li>The body bobs 2 cm as it hovers.</li>
+        <li>The whole drone tilts into each turn, below.</li>
+      </ul>
+    </div>
   </div>
 
-  <h2>Side by side</h2>
-  <div class="card table-wrap">
-    <table>
-      <thead><tr><th></th><th>A. Camera quad</th><th>B. Seeker dart</th><th>C. Grumpy eye</th></tr></thead>
-      <tbody>
-        <tr><th>Reads as a drone</th><td>At a glance, any angle</td><td>From the side and front</td><td>From above (the fan)</td></tr>
-        <tr><th>Locked-on eye</th><td>Camera lens, red</td><td>Seeker light sweeping</td><td>One big red eye, brows</td></tr>
-        <tr><th>Moves</th><td>Four rotors spin; tally light blinks</td><td>Prop spins; seeker sweeps</td><td>Fan spins; bobs; thruster flickers</td></tr>
-        <tr><th>Footprint</th><td>1.0 x 0.2 x 1.0 m</td><td>0.9 x 0.3 x 1.0 m</td><td>0.6 x 0.8 x 0.6 m</td></tr>
-        <tr><th>Meshes</th><td>~24</td><td>~16</td><td>~16</td></tr>
-        <tr><th>New tokens</th><td>None: <code>CARBON</code>, <code>POSTER_RED</code>, <code>HAZARD_ORANGE</code>, <code>GULL_EYE</code> renamed <code>DRONE_EYE</code></td><td>None: <code>GREYS</code>, <code>ROCKET</code>, <code>HAZARD_ORANGE</code>, <code>INK</code></td><td>None: <code>GREYS</code>, <code>HAZARD_ORANGE</code>, <code>ROCKET_FLAME</code>, <code>INK</code></td></tr>
-      </tbody>
-    </table>
+  <h2>Tilt into the turn</h2>
+  <div class="card">
+    <p style="margin-top:0">The drone tilts into each turn, as a real quad does, so you can read where it is about to go. Seen from behind, as the chase camera usually sees it:</p>
+    <div class="stage" id="poses"></div>
+    <div class="labels"><span>Turning left: left side down</span><span>Straight: level</span><span>Turning right: right side down</span></div>
   </div>
 
-  <h2>What changes in the code</h2>
-  <div class="card recommend">
-    <p style="margin-top:0"><b>Recommendation: A.</b> The rotors carry the word "drone" without help, and the chase camera mostly sees the projectile from behind, where A still reads and C's face does not.</p>
+  <div class="card">
+    <h3 style="margin-top:0">Watch it chase</h3>
+    <p class="muted">The drone chases a kart round a figure of eight from a chase camera behind it, so it turns left and right in turn. The demo runs at a quarter of race speed so the tilt is easy to watch.</p>
+    <div class="controls">
+      <span class="muted" style="font-size:.85rem">Tilt</span>
+      <button type="button" data-tilt="on" aria-pressed="true">On</button>
+      <button type="button" data-tilt="off" aria-pressed="false">Off</button>
+      <span class="readout" id="readout"></span>
+    </div>
+    <div class="stage" id="chase"></div>
+  </div>
+
+  <h2>The rule</h2>
+  <div class="grid2">
+    <div class="card">
+      <ol class="rules">
+        <li><b>Into the turn.</b> Turning left, the drone rolls about its own nose so its left side drops; turning right, its right side drops. Level when it flies straight.</li>
+        <li><b>Turn means facing.</b> The turn is how fast the drone's facing yaws, in radians per second, measured frame to frame. The View already turns it to face its target every frame, so that facing is the one the tilt follows. The difference between frames is wrapped into (-pi, pi], so crossing the yaw seam never reads as a full spin.</li>
+        <li><b>In proportion, then capped.</b> The tilt grows with the turn rate and reaches its cap of <b>30 degrees</b> at <b>2 rad/s</b>. A kart at top speed steers at 1.2 rad/s, so a drone following one through an ordinary corner tilts about 18 degrees. Only a hairpin or the snap onto its target at lock range hits the cap.</li>
+        <li><b>Eased, never snapped.</b> The tilt eases toward that value with a time constant of <b>0.12 s</b>, so the jitter in interpolated snapshots never shows as a wobble, and the drone rolls back to level over about a third of a second once the turn ends.</li>
+        <li><b>The whole drone tilts.</b> Rotors, canopy, arms and camera pod roll together. Roll comes after facing: face the target, then roll about the nose.</li>
+        <li><b>A new drone starts level.</b> One that has just been fired has no previous facing, so it shows no tilt until its second frame.</li>
+      </ol>
+    </div>
+    <div class="card">
+      <h3 style="margin-top:0">Tilt against turn rate</h3>
+      <svg class="plot" viewBox="0 0 420 260" role="img" aria-label="Tilt grows in proportion to turn rate up to 30 degrees at 2 radians per second, then holds">
+        <g transform="translate(40 20)">
+          <line class="grid" x1="0" y1="20" x2="360" y2="20"/><line class="grid" x1="0" y1="200" x2="360" y2="200"/>
+          <line class="axis" x1="0" y1="110" x2="360" y2="110"/><line class="axis" x1="180" y1="0" x2="180" y2="220"/>
+          <line class="mark" x1="108" y1="0" x2="108" y2="220"/><line class="mark" x1="252" y1="0" x2="252" y2="220"/>
+          <polyline class="curve" points="0,20 60,20 180,110 300,200 360,200"/>
+          <text x="-4" y="24" text-anchor="end">30&#176;</text><text x="-4" y="114" text-anchor="end">0</text><text x="-4" y="204" text-anchor="end">30&#176;</text>
+          <text x="6" y="14">left side down</text><text x="356" y="216" text-anchor="end">right side down</text>
+          <text x="60" y="236" text-anchor="middle">2</text><text x="180" y="236" text-anchor="middle">0</text><text x="300" y="236" text-anchor="middle">2</text>
+          <text x="0" y="236">left</text><text x="360" y="236" text-anchor="end">right</text>
+          <text x="180" y="252" text-anchor="middle">turn rate, rad/s</text>
+          <text x="112" y="196">kart at top speed, 1.2</text>
+        </g>
+      </svg>
+      <p class="muted">Dashed: the steer rate of a kart at top speed. Flat beyond 2 rad/s: the cap.</p>
+    </div>
+  </div>
+
+  <h2>Where it lands in the code</h2>
+  <div class="card">
     <ul>
-      <li><code>item-meshes.ts</code>: <code>homingGullMesh</code> becomes <code>homingDroneMesh</code>; the file header's "the cone and the gull" follows.</li>
-      <li><code>race-view.ts</code>: the <code>gulls</code> pool becomes <code>drones</code>, and spins its rotors each frame. That is new: the gull had no animation, so the pool needs a per-frame hook.</li>
-      <li><code>item-sprites.ts</code>: the <code>homing</code> drawing is redrawn as the slot icon here.</li>
-      <li><code>palette.ts</code>: <code>GULL_EYE</code> renamed for the drone.</li>
-      <li><code>docs/style-guide.html</code>: the gull card, the slot row and the palette roles, in the same PR.</li>
-      <li>The sim, the protocol and the glossary are untouched: it stays the homing projectile.</li>
+      <li><code>item-meshes.ts</code>: <code>homingGullMesh</code> becomes <code>homingDroneMesh</code>, returning the drone and the rotors to spin; the file header's "the cone and the gull" follows.</li>
+      <li><code>race-view.ts</code>: the <code>gulls</code> pool becomes <code>drones</code>. It is the first pool that keeps state from frame to frame: last facing and current tilt for each drone, plus the rotor, tally and bob animation. <code>meshPool</code> stays as it is for the cones.</li>
+      <li>The tilt as a pure function, roughly <code>tilt(previousYaw, yaw, previousTilt, seconds)</code>, so the rule above can be pinned by unit tests without drawing anything.</li>
+      <li>The cap, the full-tilt rate and the ease are View constants beside the drone, not in <code>tuning.rs</code>: they change nothing the sim decides.</li>
+      <li><code>item-sprites.ts</code>: the <code>homing</code> drawing redrawn as the slot icon above. <code>palette.ts</code>: <code>GULL_EYE</code> renamed <code>DRONE_EYE</code>.</li>
+      <li><code>docs/style-guide.html</code>: the gull card becomes the drone card, and the slot row and the palette roles follow, in the same PR.</li>
     </ul>
+  </div>
+  <div class="card callout">
+    <h3 style="margin-top:0">One thing to settle in the build</h3>
+    <p>The snapshot lists projectiles in the order they were fired, with no id. If an earlier one hits, every later one moves up a place, and a tilt kept by index would pass to a different drone. Options: match drones frame to frame by nearest position, or reset to level whenever the count drops. Nearest position is my pick: it keeps the tilt with the drone that earned it. Resetting makes the remaining drones snap level for a moment.</p>
   </div>
 </div>
 
 <script>
-  // Slot icons, drawn in the style guide's 200 x 160 box with its helpers.
-  const poly = (points, fill, extra = "") => `<polygon points="${points.map((p) => p.join(",")).join(" ")}" fill="${fill}" ${extra}/>`;
+  // The slot icon, in the style guide's 200 x 160 box.
+  const poly = (points, fill) => `<polygon points="${points.map((p) => p.join(",")).join(" ")}" fill="${fill}"/>`;
   const ngon = (n, cx, cy, r, turn = 0) => Array.from({ length: n }, (_, i) => {
     const a = turn + (2 * Math.PI * i) / n;
     return [+(cx + r * Math.cos(a)).toFixed(1), +(cy + r * Math.sin(a)).toFixed(1)];
   });
-  const facets = (n, cx, cy, r, tones) => ngon(n, cx, cy, r).map((p, i, all) => poly([[cx, cy], p, all[(i + 1) % n]], tones[i % tones.length])).join("");
-  const svg = (label, body) => `<svg viewBox="0 0 200 160" role="img" aria-label="${label}"><ellipse cx="100" cy="146" rx="56" ry="5" fill="rgba(0,0,0,.15)"/>${body}</svg>`;
-
-  const icons = {
-    gull: () => svg("Low-poly seagull", `
-      ${poly([[26, 82], [52, 90], [62, 104], [34, 102]], "#9aa0a8")}${poly([[26, 82], [52, 90], [40, 92]], "#b9bec5")}
-      ${poly([[50, 90], [82, 70], [132, 68], [150, 82], [140, 102], [92, 110], [62, 106]], "#e3e6ea")}
-      ${poly([[50, 90], [82, 70], [132, 68], [150, 82], [96, 88]], "#ffffff")}
-      ${poly([[84, 74], [104, 24], [122, 22], [114, 72]], "#b9bec5")}${poly([[104, 24], [122, 22], [114, 72], [108, 50]], "#9aa0a8")}${poly([[84, 74], [104, 24], [96, 30]], "#d4d8dd")}
-      ${facets(6, 150, 70, 19, ["#ffffff", "#eef0f2", "#d4d8dd"])}
-      ${poly([[166, 70], [192, 76], [166, 76]], "#ff7a4d")}${poly([[166, 76], [192, 76], [168, 82]], "#d84418")}
-      ${poly(ngon(6, 156, 64, 5), "#d00a12")}${poly(ngon(4, 157, 64, 2), "#111111")}`),
-
-    quad: () => svg("Camera quad drone", `
-      <line x1="66" y1="80" x2="48" y2="46" stroke="#3a3d42" stroke-width="3"/>${poly(ngon(6, 48, 45, 4), "#d00a12")}
-      ${poly([[24, 84], [176, 84], [176, 94], [24, 94]], "#4a4f57")}${poly([[24, 84], [176, 84], [176, 87], [24, 87]], "#6a7078")}
-      ${[38, 162].map((x) => `
-        ${poly([[x - 9, 66], [x + 9, 66], [x + 9, 88], [x - 9, 88]], "#ff5522")}${poly([[x - 9, 66], [x + 9, 66], [x + 9, 71], [x - 9, 71]], "#ff7a4d")}
-        <ellipse cx="${x}" cy="62" rx="34" ry="5" fill="#ffffff" opacity=".55"/>
-        <line x1="${x - 30}" y1="62" x2="${x + 30}" y2="62" stroke="#2b2e33" stroke-width="3"/>`).join("")}
-      ${poly([[60, 78], [140, 78], [148, 100], [52, 100]], "#2b2e33")}
-      ${poly([[70, 78], [84, 56], [118, 54], [134, 78]], "#c81d25")}${poly([[70, 78], [84, 56], [100, 55], [92, 78]], "#e8333b")}
-      ${poly([[114, 98], [154, 98], [154, 126], [114, 126]], "#1b1d21")}
-      ${poly(ngon(8, 154, 112, 13, Math.PI / 8), "#eef0f2")}${poly(ngon(8, 154, 112, 9, Math.PI / 8), "#d00a12")}${poly(ngon(6, 155, 111, 3), "#111111")}`),
-
-    dart: () => svg("Seeker dart drone", `
-      <ellipse cx="30" cy="91" rx="5" ry="34" fill="#ffffff" opacity=".55"/>
-      ${poly([[40, 84], [28, 91], [40, 98]], "#2b2e33")}
-      ${poly([[44, 84], [32, 46], [50, 46], [72, 82]], "#ff5522")}${poly([[44, 84], [32, 46], [40, 46], [56, 83]], "#ff7a4d")}
-      ${poly([[40, 82], [140, 76], [140, 102], [40, 100]], "#e3e6ea")}${poly([[40, 82], [140, 76], [140, 86], [40, 90]], "#ffffff")}
-      ${poly([[140, 76], [190, 90], [140, 102]], "#d00a12")}${poly([[140, 76], [190, 90], [140, 88]], "#e8333b")}
-      ${poly([[128, 77], [160, 81], [156, 89], [126, 87]], "#111111")}${poly(ngon(6, 146, 83, 4), "#ff3b3b")}
-      ${poly([[76, 96], [124, 94], [72, 128], [56, 126]], "#b9bec5")}${poly([[76, 96], [124, 94], [98, 106]], "#d4d8dd")}
-      ${poly([[56, 126], [72, 128], [70, 134], [54, 132]], "#ff5522")}`),
-
-    eye: () => svg("Grumpy eye drone", `
-      <ellipse cx="100" cy="34" rx="44" ry="11" fill="none" stroke="#ff5522" stroke-width="9"/>
-      <ellipse cx="100" cy="31" rx="44" ry="11" fill="none" stroke="#ff7a4d" stroke-width="3"/>
-      <ellipse cx="100" cy="34" rx="36" ry="6" fill="#ffffff" opacity=".55"/>
-      ${poly([[94, 36], [106, 36], [108, 52], [92, 52]], "#2b2e33")}
-      ${facets(8, 100, 92, 44, ["#ffffff", "#eef0f2", "#d4d8dd", "#cfd2d6", "#d4d8dd", "#eef0f2", "#ffffff", "#ffffff"])}
-      ${poly(ngon(8, 100, 96, 24, Math.PI / 8), "#111111")}${poly(ngon(8, 100, 96, 18, Math.PI / 8), "#d00a12")}
-      ${poly(ngon(6, 100, 96, 7), "#111111")}${poly(ngon(4, 107, 89, 3), "#ffffff")}
-      <polyline points="70,64 92,72" stroke="#111111" stroke-width="6"/><polyline points="130,64 108,72" stroke="#111111" stroke-width="6"/>
-      ${poly([[90, 134], [110, 134], [100, 154]], "#ffd23f")}`),
-  };
-  for (const el of document.querySelectorAll("[data-icon]")) el.innerHTML = icons[el.dataset.icon]();
+  document.getElementById("slot-icon").innerHTML = `<svg viewBox="0 0 200 160" role="img" aria-label="Camera quad drone">
+    <ellipse cx="100" cy="146" rx="56" ry="5" fill="rgba(0,0,0,.15)"/>
+    <line x1="66" y1="80" x2="48" y2="46" stroke="#3a3d42" stroke-width="3"/>${poly(ngon(6, 48, 45, 4), "#d00a12")}
+    ${poly([[24, 84], [176, 84], [176, 94], [24, 94]], "#4a4f57")}${poly([[24, 84], [176, 84], [176, 87], [24, 87]], "#6a7078")}
+    ${[38, 162].map((x) => `
+      ${poly([[x - 9, 66], [x + 9, 66], [x + 9, 88], [x - 9, 88]], "#ff5522")}${poly([[x - 9, 66], [x + 9, 66], [x + 9, 71], [x - 9, 71]], "#ff7a4d")}
+      <ellipse cx="${x}" cy="62" rx="34" ry="5" fill="#ffffff" opacity=".55"/>
+      <line x1="${x - 30}" y1="62" x2="${x + 30}" y2="62" stroke="#2b2e33" stroke-width="3"/>`).join("")}
+    ${poly([[60, 78], [140, 78], [148, 100], [52, 100]], "#2b2e33")}
+    ${poly([[70, 78], [84, 56], [118, 54], [134, 78]], "#c81d25")}${poly([[70, 78], [84, 56], [100, 55], [92, 78]], "#e8333b")}
+    ${poly([[114, 98], [154, 98], [154, 126], [114, 126]], "#1b1d21")}
+    ${poly(ngon(8, 154, 112, 13, Math.PI / 8), "#eef0f2")}${poly(ngon(8, 154, 112, 9, Math.PI / 8), "#d00a12")}${poly(ngon(6, 155, 111, 3), "#111111")}</svg>`;
 </script>
 
 <script type="module">
   import * as THREE from "three";
   const {
-    BoxGeometry, CircleGeometry, ConeGeometry, CylinderGeometry, Group, Mesh,
-    MeshBasicMaterial, MeshLambertMaterial, SphereGeometry, TorusGeometry, DoubleSide,
+    BoxGeometry, CircleGeometry, CylinderGeometry, Group, Mesh,
+    MeshBasicMaterial, MeshLambertMaterial, SphereGeometry, DoubleSide, Vector3,
   } = THREE;
 
   // palette.ts
   const INK = 0x111111;
   const CARBON = { lit: 0x4a4f57, mid: 0x2b2e33, shaded: 0x1b1d21 };
-  const WHITE = { lit: 0xffffff, mid: 0xeef0f2, shaded: 0xcfd2d6 };
-  const HAZARD_ORANGE = { lit: 0xff7a4d, mid: 0xff5522, shaded: 0xc73c14 };
-  const POSTER_RED = { lit: 0xe8333b, mid: 0xc81d25, shaded: 0x8f141a };
-  const GREYS = { white: 0xffffff, body: 0xe3e6ea, pale: 0xd4d8dd, grey: 0xb9bec5, dark: 0x9aa0a8 };
-  const GULL_EYE = 0xd00a12;
-  const ROCKET = { lit: 0xe8333b, mid: 0xd00a12 };
-  const ROCKET_FLAME = 0xffd23f;
+  const WHITE = { mid: 0xeef0f2 };
+  const HAZARD_ORANGE = { mid: 0xff5522 };
+  const POSTER_RED = { mid: 0xc81d25 };
+  const DRONE_EYE = 0xd00a12;
+  const ROCKET = { lit: 0xe8333b };
   const ROCKET_STRAP = 0x3a3d42;
   const ASPHALT = 0x6b6b78;
+
+  // The tilt rule, as the View would hold it.
+  const TILT_MAX_RAD = (30 * Math.PI) / 180;
+  const TILT_FULL_AT_RAD_PER_S = 2;
+  const TILT_EASE_S = 0.12;
+  /** The tilt after `seconds`, positive left side down, from the change in facing yaw (radians, increasing to the left). */
+  function tilt(previousYaw, yaw, previousTilt, seconds) {
+    let turn = yaw - previousYaw;
+    turn -= 2 * Math.PI * Math.round(turn / (2 * Math.PI));
+    const rate = turn / seconds;
+    const wanted = TILT_MAX_RAD * Math.max(-1, Math.min(1, rate / TILT_FULL_AT_RAD_PER_S));
+    return previousTilt + (wanted - previousTilt) * (1 - Math.exp(-seconds / TILT_EASE_S));
+  }
 
   const lit = new Map();
   const lambert = (colour) => {
@@ -262,7 +253,6 @@
     parent.add(mesh);
     return mesh;
   }
-  // A two-bladed prop and its blur disc, spinning about the group's y.
   function rotor(parent, radius, at) {
     const hub = new Group();
     hub.position.set(...at);
@@ -270,136 +260,46 @@
     const blades = new Group();
     hub.add(blades);
     part(blades, new BoxGeometry(radius * 2, 0.012, 0.045), CARBON.mid);
-    const disc = glowing(hub, new CircleGeometry(radius, 10), 0xffffff, 0.22);
-    disc.rotation.x = -Math.PI / 2;
+    glowing(hub, new CircleGeometry(radius, 10), 0xffffff, 0.22).rotation.x = -Math.PI / 2;
     return blades;
   }
 
-  // Each builder returns the model and a tick(t) for what moves on it.
-  function gull() {
-    const gull = new Group();
-    const body = part(gull, new SphereGeometry(0.3, 6, 4), GREYS.white);
-    body.scale.set(0.75, 0.65, 1.3);
-    part(gull, new SphereGeometry(0.17, 6, 4), GREYS.white, [0, 0.14, 0.38]);
-    const beak = part(gull, new ConeGeometry(0.06, 0.2, 4), HAZARD_ORANGE.mid, [0, 0.12, 0.6]);
-    beak.rotation.x = Math.PI / 2;
-    const tail = part(gull, new ConeGeometry(0.14, 0.3, 4), GREYS.dark, [0, 0.02, -0.45]);
-    tail.rotation.x = -Math.PI / 2;
-    for (const side of [-1, 1]) {
-      const wing = part(gull, new BoxGeometry(0.5, 0.03, 0.28), GREYS.grey, [side * 0.32, 0.26, -0.02]);
-      wing.rotation.z = side * 0.9;
-      part(gull, new BoxGeometry(0.02, 0.06, 0.06), GULL_EYE, [side * 0.15, 0.19, 0.44]);
-      part(gull, new BoxGeometry(0.02, 0.03, 0.03), INK, [side * 0.16, 0.19, 0.46]);
-    }
-    return { model: gull, tick() {} };
-  }
-
-  function quad() {
-    const drone = new Group();
-    part(drone, new BoxGeometry(0.3, 0.1, 0.42), CARBON.mid);
-    const canopy = part(drone, new SphereGeometry(0.15, 6, 3, 0, Math.PI * 2, 0, Math.PI / 2), POSTER_RED.mid, [0, 0.05, -0.02]);
+  // The drone faces +z. `facing` takes the yaw; `body` inside it takes the bob and the tilt.
+  function drone() {
+    const facing = new Group();
+    const body = new Group();
+    facing.add(body);
+    part(body, new BoxGeometry(0.3, 0.1, 0.42), CARBON.mid);
+    const canopy = part(body, new SphereGeometry(0.15, 6, 3, 0, Math.PI * 2, 0, Math.PI / 2), POSTER_RED.mid, [0, 0.05, -0.02]);
     canopy.scale.set(0.95, 0.8, 1.35);
     const rotors = [];
     for (const sx of [-1, 1]) {
       for (const sz of [-1, 1]) {
-        const arm = part(drone, new BoxGeometry(0.05, 0.035, 0.44), CARBON.lit, [sx * 0.16, 0, sz * 0.16]);
+        const arm = part(body, new BoxGeometry(0.05, 0.035, 0.44), CARBON.lit, [sx * 0.16, 0, sz * 0.16]);
         arm.rotation.y = Math.atan2(sx, sz);
-        part(drone, new CylinderGeometry(0.05, 0.055, 0.09, 6), HAZARD_ORANGE.mid, [sx * 0.32, 0.03, sz * 0.32]);
-        rotors.push(rotor(drone, 0.19, [sx * 0.32, 0.09, sz * 0.32]));
+        part(body, new CylinderGeometry(0.05, 0.055, 0.09, 6), HAZARD_ORANGE.mid, [sx * 0.32, 0.03, sz * 0.32]);
+        rotors.push({ blades: rotor(body, 0.19, [sx * 0.32, 0.09, sz * 0.32]), way: sx * sz });
       }
     }
-    // The camera pod hangs under the nose; its lens is the locked-on eye.
-    part(drone, new BoxGeometry(0.15, 0.13, 0.12), CARBON.shaded, [0, -0.08, 0.22]);
-    const ring = part(drone, new CylinderGeometry(0.06, 0.06, 0.03, 8), WHITE.mid, [0, -0.08, 0.29]);
-    ring.rotation.x = Math.PI / 2;
-    glowing(drone, new CircleGeometry(0.045, 8), GULL_EYE).position.set(0, -0.08, 0.307);
-    glowing(drone, new CircleGeometry(0.015, 6), INK).position.set(0.005, -0.075, 0.309);
-    const whip = part(drone, new CylinderGeometry(0.008, 0.008, 0.22, 4), ROCKET_STRAP, [-0.08, 0.13, -0.22]);
-    whip.rotation.x = -0.5;
-    const tally = glowing(drone, new SphereGeometry(0.025, 6, 4), ROCKET.lit);
-    tally.position.set(-0.08, 0.23, -0.27);
+    part(body, new BoxGeometry(0.15, 0.13, 0.12), CARBON.shaded, [0, -0.08, 0.22]);
+    part(body, new CylinderGeometry(0.06, 0.06, 0.03, 8), WHITE.mid, [0, -0.08, 0.29]).rotation.x = Math.PI / 2;
+    glowing(body, new CircleGeometry(0.045, 8), DRONE_EYE).position.set(0, -0.08, 0.307);
+    glowing(body, new CircleGeometry(0.015, 6), INK).position.set(0.005, -0.075, 0.309);
+    part(body, new CylinderGeometry(0.008, 0.008, 0.22, 4), ROCKET_STRAP, [0.08, 0.13, -0.22]).rotation.x = -0.5;
+    const tally = glowing(body, new SphereGeometry(0.025, 6, 4), ROCKET.lit);
+    tally.position.set(0.08, 0.23, -0.27);
     return {
-      model: drone,
-      tick(t) {
-        rotors.forEach((blades, i) => { blades.rotation.y = t * 38 * (i % 3 === 0 ? 1 : -1); });
+      facing,
+      body,
+      animate(t) {
+        for (const { blades, way } of rotors) blades.rotation.y = t * 38 * way;
         tally.visible = Math.floor(t * 3) % 2 === 0;
-        drone.position.y = drone.userData.y + Math.sin(t * 3.1) * 0.02;
+        body.position.y = Math.sin(t * 3.1) * 0.02;
       },
+      /** Positive `amount` drops the drone's left side, which faces +x. */
+      setTilt(amount) { body.rotation.z = -amount; },
     };
   }
-
-  function dart() {
-    const drone = new Group();
-    const fuselage = part(drone, new CylinderGeometry(0.09, 0.12, 0.7, 6), GREYS.white, [0, 0, -0.02]);
-    fuselage.rotation.x = Math.PI / 2;
-    const nose = part(drone, new ConeGeometry(0.09, 0.2, 6), ROCKET.mid, [0, 0, 0.43]);
-    nose.rotation.x = Math.PI / 2;
-    // A dark visor over the nose with a seeker light sweeping across it.
-    const visor = part(drone, new BoxGeometry(0.17, 0.02, 0.1), INK, [0, 0.085, 0.27]);
-    visor.rotation.x = 0.18;
-    const seeker = glowing(drone, new BoxGeometry(0.04, 0.025, 0.06), 0xff3b3b);
-    seeker.position.set(0, 0.095, 0.27);
-    seeker.rotation.x = 0.18;
-    for (const side of [-1, 1]) {
-      const wing = part(drone, new BoxGeometry(0.42, 0.025, 0.2), GREYS.grey, [side * 0.26, -0.02, -0.06]);
-      wing.rotation.y = side * 0.5;
-      part(drone, new BoxGeometry(0.04, 0.05, 0.12), HAZARD_ORANGE.mid, [side * 0.45, -0.02, -0.18]);
-      const fin = part(drone, new BoxGeometry(0.02, 0.2, 0.15), HAZARD_ORANGE.mid, [side * 0.07, 0.12, -0.28]);
-      fin.rotation.z = -side * 0.35;
-    }
-    const spinner = part(drone, new ConeGeometry(0.06, 0.1, 6), CARBON.mid, [0, 0, -0.42]);
-    spinner.rotation.x = -Math.PI / 2;
-    const hub = new Group();
-    hub.position.set(0, 0, -0.41);
-    hub.rotation.x = Math.PI / 2;
-    drone.add(hub);
-    const blades = rotor(hub, 0.22, [0, 0, 0]);
-    return {
-      model: drone,
-      tick(t) {
-        blades.rotation.y = t * 40;
-        seeker.position.x = Math.sin(t * 4) * 0.06;
-        drone.position.y = drone.userData.y + Math.sin(t * 2.4) * 0.015;
-      },
-    };
-  }
-
-  function eye() {
-    const drone = new Group();
-    part(drone, new SphereGeometry(0.28, 8, 6), GREYS.white);
-    // The eye sits in a dark socket on the front, under the cone's brows.
-    const socket = part(drone, new CylinderGeometry(0.15, 0.15, 0.06, 8), INK, [0, 0.0, 0.25]);
-    socket.rotation.x = Math.PI / 2;
-    glowing(drone, new CircleGeometry(0.115, 8), GULL_EYE).position.set(0, 0, 0.283);
-    glowing(drone, new CircleGeometry(0.045, 6), INK).position.set(0, 0, 0.286);
-    glowing(drone, new CircleGeometry(0.018, 4), 0xffffff).position.set(0.04, 0.04, 0.287);
-    for (const side of [-1, 1]) {
-      const brow = part(drone, new BoxGeometry(0.13, 0.035, 0.04), INK, [side * 0.075, 0.175, 0.22]);
-      brow.rotation.z = side * 0.4;
-      brow.rotation.x = -0.6;
-    }
-    part(drone, new CylinderGeometry(0.035, 0.05, 0.12, 6), CARBON.mid, [0, 0.31, 0]);
-    const duct = part(drone, new TorusGeometry(0.24, 0.04, 5, 10), HAZARD_ORANGE.mid, [0, 0.38, 0]);
-    duct.rotation.x = Math.PI / 2;
-    for (const side of [-1, 1]) {
-      part(drone, new BoxGeometry(0.22, 0.02, 0.025), CARBON.lit, [side * 0.12, 0.37, 0]);
-    }
-    const blades = rotor(drone, 0.2, [0, 0.39, 0]);
-    part(drone, new CylinderGeometry(0.07, 0.05, 0.06, 6), CARBON.mid, [0, -0.29, 0]);
-    const flame = glowing(drone, new ConeGeometry(0.05, 0.14, 6), ROCKET_FLAME, 0.85);
-    flame.position.set(0, -0.38, 0);
-    flame.rotation.x = Math.PI;
-    return {
-      model: drone,
-      tick(t) {
-        blades.rotation.y = t * 36;
-        flame.scale.y = 0.8 + 0.3 * Math.abs(Math.sin(t * 23));
-        drone.position.y = drone.userData.y + Math.sin(t * 2.2) * 0.05;
-      },
-    };
-  }
-
-  const builders = { gull, quad, dart, eye };
 
   function lights(scene) {
     scene.add(new THREE.HemisphereLight(0xdfe8f5, 0x55555f, 1.6));
@@ -407,13 +307,30 @@
     sun.position.set(3, 6, 4);
     scene.add(sun);
   }
+  function renderer(el) {
+    const r = new THREE.WebGLRenderer({ antialias: true });
+    r.setPixelRatio(Math.min(devicePixelRatio, 2));
+    el.prepend(r.domElement);
+    return r;
+  }
+  function fit(r, el, camera) {
+    const { clientWidth: w, clientHeight: h } = el;
+    if (r.domElement.width !== Math.floor(w * r.getPixelRatio())) {
+      r.setSize(w, h, false);
+      camera.aspect = w / h;
+      camera.updateProjectionMatrix();
+    }
+  }
+  function shadowDisc(radius) {
+    const disc = new Mesh(new CircleGeometry(radius, 16), new MeshBasicMaterial({ color: 0, transparent: true, opacity: 0.25 }));
+    disc.rotation.x = -Math.PI / 2;
+    return disc;
+  }
 
-  // One turntable per card: a dark plate of asphalt under the model, drag to turn.
-  const turntables = [];
-  for (const stage of document.querySelectorAll("[data-model]")) {
-    const renderer = new THREE.WebGLRenderer({ antialias: true });
-    renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
-    stage.prepend(renderer.domElement);
+  // The turntable.
+  const turntableEl = document.getElementById("turntable");
+  const turntable = (() => {
+    const r = renderer(turntableEl);
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x2a2c31);
     lights(scene);
@@ -421,104 +338,200 @@
     ground.rotation.x = -Math.PI / 2;
     ground.position.y = -0.6;
     scene.add(ground);
-    const shadow = new Mesh(new CircleGeometry(0.4, 16), new MeshBasicMaterial({ color: 0, transparent: true, opacity: 0.25 }));
-    shadow.rotation.x = -Math.PI / 2;
+    const shadow = shadowDisc(0.4);
     shadow.position.y = -0.595;
     scene.add(shadow);
-    const built = builders[stage.dataset.model]();
-    built.model.userData.y = 0;
-    const turn = new Group();
-    turn.add(built.model);
-    scene.add(turn);
-    const camera = new THREE.PerspectiveCamera(32, 4 / 3, 0.1, 50);
-    camera.position.set(0, 0.9, 2.4);
+    const d = drone();
+    scene.add(d.facing);
+    const camera = new THREE.PerspectiveCamera(30, 4 / 3, 0.1, 50);
+    camera.position.set(0, 0.8, 2.3);
     camera.lookAt(0, -0.05, 0);
     const state = { yaw: 0.7, spin: true, dragX: null };
-    stage.addEventListener("pointerdown", (e) => { state.dragX = e.clientX; state.spin = false; stage.setPointerCapture(e.pointerId); });
-    stage.addEventListener("pointermove", (e) => {
+    turntableEl.addEventListener("pointerdown", (e) => { state.dragX = e.clientX; state.spin = false; turntableEl.setPointerCapture(e.pointerId); });
+    turntableEl.addEventListener("pointermove", (e) => {
       if (state.dragX === null) return;
       state.yaw += (e.clientX - state.dragX) * 0.012;
       state.dragX = e.clientX;
     });
-    stage.addEventListener("pointerup", () => { state.dragX = null; });
-    turntables.push({ stage, renderer, scene, camera, turn, built, state });
-  }
+    turntableEl.addEventListener("pointerup", () => { state.dragX = null; });
+    return { r, scene, camera, d, state };
+  })();
 
-  // The lineup: all four over a stretch of road at the projectile's height.
-  const lineupEl = document.getElementById("lineup");
-  const lineup = (() => {
-    const renderer = new THREE.WebGLRenderer({ antialias: true });
-    renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
-    lineupEl.append(renderer.domElement);
+  // Three poses from behind: left, level, right.
+  const posesEl = document.getElementById("poses");
+  const poses = (() => {
+    const r = renderer(posesEl);
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x8fb7d8);
-    scene.fog = new THREE.Fog(0x8fb7d8, 18, 45);
     lights(scene);
-    const grass = new Mesh(new THREE.PlaneGeometry(80, 80), new MeshLambertMaterial({ color: 0x3f7a3a }));
+    const road = new Mesh(new THREE.PlaneGeometry(40, 40), new MeshLambertMaterial({ color: ASPHALT }));
+    road.rotation.x = -Math.PI / 2;
+    scene.add(road);
+    // The camera looks down +z, so +x is on screen left: left pose at +x.
+    const drones = [TILT_MAX_RAD, 0, -TILT_MAX_RAD].map((amount, i) => {
+      const d = drone();
+      d.facing.position.set((1 - i) * 1.5, 0.6, 0);
+      d.setTilt(amount);
+      scene.add(d.facing);
+      const shadow = shadowDisc(0.4);
+      shadow.position.set((1 - i) * 1.5, 0.01, 0);
+      scene.add(shadow);
+      return d;
+    });
+    const camera = new THREE.PerspectiveCamera(32, 3, 0.1, 100);
+    camera.position.set(0, 1.25, -4.2);
+    camera.lookAt(0, 0.55, 0);
+    return { r, scene, camera, drones };
+  })();
+
+  // The chase: a kart round a figure of eight, the drone behind it facing it.
+  const chaseEl = document.getElementById("chase");
+  const readoutEl = document.getElementById("readout");
+  const chase = (() => {
+    const r = renderer(chaseEl);
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x8fb7d8);
+    scene.fog = new THREE.Fog(0x8fb7d8, 25, 70);
+    lights(scene);
+    const grass = new Mesh(new THREE.PlaneGeometry(200, 200), new MeshLambertMaterial({ color: 0x3f7a3a }));
     grass.rotation.x = -Math.PI / 2;
     grass.position.y = -0.01;
     scene.add(grass);
-    const road = new Mesh(new THREE.PlaneGeometry(12, 80), new MeshLambertMaterial({ color: ASPHALT }));
-    road.rotation.x = -Math.PI / 2;
-    scene.add(road);
-    for (let z = -40; z < 40; z += 2) {
-      for (const side of [-1, 1]) {
-        const kerb = new Mesh(new THREE.PlaneGeometry(0.6, 1), new MeshLambertMaterial({ color: (z / 2) % 2 === 0 ? 0xffffff : 0xc81d25 }));
-        kerb.rotation.x = -Math.PI / 2;
-        kerb.position.set(side * 6.3, 0.005, z + 0.5);
-        scene.add(kerb);
+
+    // Sampled by distance so the kart runs at an even speed.
+    const point = (u) => new Vector3(26 * Math.sin(u), 0, 17 * Math.sin(2 * u));
+    const samples = [];
+    let length = 0;
+    let last = point(0);
+    for (let i = 0; i <= 2000; i += 1) {
+      const p = point((2 * Math.PI * i) / 2000);
+      length += p.distanceTo(last);
+      samples.push({ p, at: length });
+      last = p;
+    }
+    const along = (distance) => {
+      const d = ((distance % length) + length) % length;
+      let lo = 0;
+      let hi = samples.length - 1;
+      while (hi - lo > 1) {
+        const mid = (lo + hi) >> 1;
+        if (samples[mid].at < d) lo = mid; else hi = mid;
+      }
+      const a = samples[lo];
+      const b = samples[hi];
+      return a.p.clone().lerp(b.p, (d - a.at) / Math.max(1e-6, b.at - a.at));
+    };
+    // The road: a ribbon of asphalt along the path, with a white centre line.
+    for (let i = 0; i < 400; i += 1) {
+      const a = along((i / 400) * length);
+      const b = along(((i + 1) / 400) * length);
+      const span = a.distanceTo(b);
+      const strip = new Mesh(new THREE.PlaneGeometry(9, span + 0.3), new MeshLambertMaterial({ color: ASPHALT }));
+      strip.rotation.x = -Math.PI / 2;
+      strip.rotation.z = Math.atan2(b.x - a.x, b.z - a.z);
+      strip.position.copy(a).lerp(b, 0.5);
+      strip.position.y = 0.001 * (i % 2);
+      scene.add(strip);
+      if (i % 2 === 0) {
+        const dash = new Mesh(new THREE.PlaneGeometry(0.2, span), new MeshBasicMaterial({ color: 0xf0f0f0 }));
+        dash.rotation.copy(strip.rotation);
+        dash.position.copy(strip.position);
+        dash.position.y = 0.01;
+        scene.add(dash);
       }
     }
-    const models = ["gull", "quad", "dart", "eye"].map((name, i) => {
-      const built = builders[name]();
-      // Looking down +z puts -x on the right, so the first model goes at +x to read left to right.
-      built.model.position.set((1.5 - i) * 2.4, 0.6, 0);
-      built.model.userData.y = 0.6;
-      scene.add(built.model);
-      const shadow = new Mesh(new CircleGeometry(0.4, 16), new MeshBasicMaterial({ color: 0, transparent: true, opacity: 0.25 }));
-      shadow.rotation.x = -Math.PI / 2;
-      shadow.position.set((1.5 - i) * 2.4, 0.01, 0);
-      scene.add(shadow);
-      return built;
-    });
-    const camera = new THREE.PerspectiveCamera(50, 16 / 7, 0.1, 100);
-    camera.position.set(0, 2.0, -5);
-    camera.lookAt(0, 0.6, 4);
-    return { renderer, scene, camera, models };
+
+    const kart = new Group();
+    part(kart, new BoxGeometry(1.1, 0.4, 2.0), POSTER_RED.mid, [0, 0.35, 0]);
+    part(kart, new BoxGeometry(0.5, 0.35, 0.6), CARBON.mid, [0, 0.7, -0.2]);
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
+      part(kart, new CylinderGeometry(0.25, 0.25, 0.25, 8), 0x1c1c1f, [sx * 0.6, 0.25, sz * 0.7]).rotation.z = Math.PI / 2;
+    }
+    scene.add(kart);
+    const d = drone();
+    d.facing.scale.setScalar(1.6);
+    scene.add(d.facing);
+    const shadow = shadowDisc(0.6);
+    scene.add(shadow);
+
+    const camera = new THREE.PerspectiveCamera(55, 2, 0.1, 200);
+    const state = { tiltOn: true, previousYaw: null, tilt: 0, travelled: 0, rate: 0 };
+    return { r, scene, camera, along, kart, d, shadow, state };
   })();
 
-  for (const button of document.querySelectorAll("[data-facing]")) {
+  for (const button of document.querySelectorAll("[data-tilt]")) {
     button.addEventListener("click", () => {
-      for (const other of document.querySelectorAll("[data-facing]")) other.setAttribute("aria-pressed", String(other === button));
-      // The camera looks down +z; chasing ahead, the nose points away from it.
-      const yaw = button.dataset.facing === "away" ? 0 : Math.PI;
-      for (const built of lineup.models) built.model.rotation.y = yaw;
+      for (const other of document.querySelectorAll("[data-tilt]")) other.setAttribute("aria-pressed", String(other === button));
+      chase.state.tiltOn = button.dataset.tilt === "on";
     });
   }
 
-  function fit(renderer, el, camera) {
-    const { clientWidth: w, clientHeight: h } = el;
-    if (renderer.domElement.width !== Math.floor(w * renderer.getPixelRatio())) {
-      renderer.setSize(w, h, false);
-      camera.aspect = w / h;
-      camera.updateProjectionMatrix();
+  const KART_SPEED = 12;
+  const DRONE_BEHIND_M = 7;
+  const yawToward = (from, to) => Math.atan2(to.x - from.x, to.z - from.z);
+  const cameraAt = new Vector3();
+  const lookAt = new Vector3();
+
+  function stepChase(t, seconds) {
+    const { state, along, kart, d, shadow, camera } = chase;
+    state.travelled += KART_SPEED * seconds;
+    const kartAt = along(state.travelled);
+    kart.position.copy(kartAt);
+    kart.rotation.y = yawToward(kartAt, along(state.travelled + 0.5));
+    const droneAt = along(state.travelled - DRONE_BEHIND_M);
+    d.facing.position.set(droneAt.x, 1.0, droneAt.z);
+    shadow.position.set(droneAt.x, 0.02, droneAt.z);
+    // The drone faces its target, as meshPool's lookAt does.
+    const yaw = yawToward(droneAt, kartAt);
+    d.facing.rotation.y = yaw;
+    if (state.previousYaw !== null && seconds > 0) {
+      let turn = yaw - state.previousYaw;
+      turn -= 2 * Math.PI * Math.round(turn / (2 * Math.PI));
+      state.rate = state.rate + (turn / seconds - state.rate) * 0.2;
+      state.tilt = tilt(state.previousYaw, yaw, state.tilt, seconds);
     }
+    state.previousYaw = yaw;
+    d.setTilt(state.tiltOn ? state.tilt : 0);
+    d.animate(t);
+    // A chase camera behind and above the drone.
+    const back = new Vector3(Math.sin(yaw), 0, Math.cos(yaw));
+    cameraAt.copy(d.facing.position).addScaledVector(back, -4.2);
+    cameraAt.y = 2.2;
+    camera.position.lerp(cameraAt, camera.position.lengthSq() === 0 ? 1 : 0.12);
+    lookAt.copy(d.facing.position).addScaledVector(back, 3);
+    lookAt.y = 0.9;
+    camera.lookAt(lookAt);
+
+    const degrees = Math.round((state.tilt * 180) / Math.PI);
+    const side = (n) => (n > 0 ? "left" : n < 0 ? "right" : "");
+    readoutEl.innerHTML = `turn <b>${Math.abs(state.rate).toFixed(1)} rad/s ${side(Math.round(state.rate * 10))}</b> &middot; tilt <b>${state.tiltOn ? `${Math.abs(degrees)}&deg; ${side(degrees)}` : "off"}</b>`;
   }
 
   const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
   const start = performance.now();
+  let before = start;
+  if (reduced) {
+    // Settle into a turn and hold that frame.
+    for (let i = 0; i < 90; i += 1) stepChase(i / 60, 1 / 60);
+  }
   function frame(now) {
     const t = reduced ? 0.35 : (now - start) / 1000;
-    for (const tt of turntables) {
-      fit(tt.renderer, tt.stage, tt.camera);
-      if (tt.state.spin && !reduced) tt.state.yaw += 0.006;
-      tt.turn.rotation.y = tt.state.yaw;
-      tt.built.tick(t);
-      tt.renderer.render(tt.scene, tt.camera);
-    }
-    fit(lineup.renderer, lineupEl, lineup.camera);
-    for (const built of lineup.models) built.tick(t);
-    lineup.renderer.render(lineup.scene, lineup.camera);
+    const seconds = Math.min(0.05, (now - before) / 1000);
+    before = now;
+
+    fit(turntable.r, turntableEl, turntable.camera);
+    if (turntable.state.spin && !reduced) turntable.state.yaw += 0.006;
+    turntable.d.facing.rotation.y = turntable.state.yaw;
+    turntable.d.animate(t);
+    turntable.r.render(turntable.scene, turntable.camera);
+
+    fit(poses.r, posesEl, poses.camera);
+    for (const d of poses.drones) d.animate(t);
+    poses.r.render(poses.scene, poses.camera);
+
+    if (!reduced) stepChase(t, seconds);
+    fit(chase.r, chaseEl, chase.camera);
+    chase.r.render(chase.scene, chase.camera);
     requestAnimationFrame(frame);
   }
   requestAnimationFrame(frame);
