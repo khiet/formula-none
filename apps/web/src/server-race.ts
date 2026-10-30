@@ -74,10 +74,7 @@ export function createServerRace(
   let flashTicksLeft = 0;
   const boxes = track.itemBoxes();
   const tyres = track.tyres();
-  /**
-   * Ticks until each tyre the server reported picked up is back; 0 while it
-   * is there. The event hides it before a snapshot can, as a box's does.
-   */
+  /** Ticks until each tyre the server reported picked up is back; 0 while it is there. */
   const tyreTicksLeft: number[] = Array<number>(tyres.length).fill(0);
   /** Ticks until each box the server reported picked up is back; 0 while it is there. */
   const boxTicksLeft: number[] = Array<number>(boxes.length).fill(0);

@@ -67,10 +67,7 @@ const ITEM_BOX_SIZE_M = 1;
 const ITEM_BOX_INSET = 0.7;
 const ITEM_BOX_INSET_DEPTH_M = 0.02;
 
-/**
- * A tyre on the track: a kart's tyre lying on its side, octagonal like
- * every wheel the game draws, its rim showing on top.
- */
+/** A tyre on the track: a kart's tyre lying on its side, octagonal like every wheel the game draws. */
 const TYRE_RADIUS_M = 0.35;
 const TYRE_WIDTH_M = 0.26;
 const TYRE_SIDES = 8;
