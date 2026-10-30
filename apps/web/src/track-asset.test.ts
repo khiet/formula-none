@@ -190,6 +190,24 @@ describe("Suzuqa Patch's final art", () => {
     }
   });
 
+  it("paints the wheel in wall white over beam shade and its gondolas two per crowd colour", () => {
+    const materialsOf = (nodeName: string) => {
+      const node = brandsPatch.nodes.find(({ name }) => name === nodeName);
+      const primitives =
+        node?.mesh === undefined ? [] : (brandsPatch.meshes[node.mesh]?.primitives ?? []);
+      return primitives.map(({ material }) => brandsPatch.materials?.[material ?? -1]?.name).sort();
+    };
+    expect(materialsOf("Prop.circuit-wheel.1.rim")).toEqual(["beam-shade", "wall"]);
+    const worn = new Map<string, number>();
+    for (let k = 1; k <= 16; k++) {
+      const [hanger, colour] = materialsOf(`Prop.circuit-wheel.1.gondola.${k}`);
+      expect(hanger, `gondola ${k}`).toBe("carbon");
+      expect(colour, `gondola ${k}`).toMatch(/^crowd-[0-7]$/);
+      worn.set(colour ?? "", (worn.get(colour ?? "") ?? 0) + 1);
+    }
+    expect([...worn.values()]).toEqual(Array.from({ length: 8 }, () => 2));
+  });
+
   it("maps the asphalt for tyre marks: a texture coordinate on every vertex", () => {
     expect(attributesOf(brandsPatch, "Asphalt")).toContain("TEXCOORD_0");
   });
