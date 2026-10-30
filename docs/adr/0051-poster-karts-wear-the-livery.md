@@ -3,7 +3,9 @@
 ## Status
 
 Accepted (2026-10-30). Supersedes the clause of ADR 0035 that listed the
-Title Scene's runners among the key colour's uses.
+Title Scene's runners among the key colour's uses. Its consequence that the
+poster kart is traced by hand in `poster.ts` and the style guide is
+superseded by ADR 0052; the rest stands.
 
 ## Context
 

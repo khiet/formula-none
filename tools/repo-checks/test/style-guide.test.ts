@@ -8,7 +8,7 @@ import { ROOT, readRepoFile } from "./repo";
 // the code, so the guide never shows a colour the game does not paint.
 const guide = readRepoFile("docs/style-guide.html");
 
-/** Every colour palette.ts exports, keyed as the guide names it: `CARBON`, `GREYS.dark`. */
+/** Every colour palette.ts exports, keyed as the guide names it: `CARBON`, `GREYS.dark`, `KART_PAINT.tyre`. */
 function paletteColours(): Map<string, number[]> {
   const source = readRepoFile("apps/web/src/palette.ts");
   const numbers = new Map<string, number>();
@@ -26,9 +26,13 @@ function paletteColours(): Map<string, number[]> {
       [lit, mid, shaded].map((term) => resolve(term) ?? Number.NaN),
     );
   }
-  const greys = source.match(/^export const GREYS = \{\n([\s\S]*?)^\} as const;/m)?.[1] ?? "";
-  for (const [, shade, term = ""] of greys.matchAll(/^\s+(\w+): (\w+),/gm)) {
-    colours.set(`GREYS.${shade}`, [resolve(term) ?? Number.NaN]);
+  // A record of colours, such as GREYS and KART_PAINT, keyed as `RECORD.key`.
+  for (const [, record = "", body = ""] of source.matchAll(
+    /^export const (\w+) = \{\n([\s\S]*?)^\} as const;/gm,
+  )) {
+    for (const [, key, term = ""] of body.matchAll(/^\s+(\w+): (\w+),/gm)) {
+      colours.set(`${record}.${key}`, [resolve(term) ?? Number.NaN]);
+    }
   }
   return colours;
 }

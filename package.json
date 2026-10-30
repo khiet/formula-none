@@ -11,14 +11,15 @@
     "generate:protocol": "cargo run -q -p protocol --example generate",
     "export:tracks": "blender --background --python-exit-code 1 --python assets/tracks/build.py -- all",
     "test:tracks": "python3 -I -m unittest discover -s assets/tracks/tests -t assets/tracks",
-    "export:karts": "blender --background --python assets/karts/build.py",
+    "export:karts": "blender --background --python assets/karts/build.py && pnpm generate:poster",
+    "generate:poster": "node tools/kart-poster/src/main.ts",
     "export:audio": "python3 -I assets/audio/build.py",
     "build": "pnpm -r build",
     "lint": "biome ci .",
     "lint:fix": "biome check --write .",
     "test": "vitest run",
     "test:e2e": "pnpm --filter web test:e2e",
-    "check": "cargo clippy --all-targets -- -D warnings && cargo nextest run && pnpm build:bridge && pnpm generate:protocol && git diff --exit-code -- apps/web/src/generated/protocol apps/web/src/generated/sim && pnpm lint && pnpm -r typecheck && pnpm test && pnpm build && CI=1 pnpm test:e2e"
+    "check": "cargo clippy --all-targets -- -D warnings && cargo nextest run && pnpm build:bridge && pnpm generate:protocol && pnpm generate:poster && git diff --exit-code -- apps/web/src/generated/protocol apps/web/src/generated/sim apps/web/src/generated/kart docs/kart-side.js && pnpm lint && pnpm -r typecheck && pnpm test && pnpm build && CI=1 pnpm test:e2e"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.15",

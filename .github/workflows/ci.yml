@@ -62,6 +62,13 @@ jobs:
           pnpm generate:protocol
           git add -N apps/web/src/generated/protocol apps/web/src/generated/sim
           git diff --exit-code -- apps/web/src/generated/protocol apps/web/src/generated/sim
+      # The poster kart is projected from the committed kart.glb (ADR 0052);
+      # a build.py change that forgot to regenerate it shows here.
+      - name: Generated poster kart is current
+        run: |
+          pnpm generate:poster
+          git add -N apps/web/src/generated/kart docs/kart-side.js
+          git diff --exit-code -- apps/web/src/generated/kart docs/kart-side.js
       - name: Biome
         run: pnpm lint
       # The layouts' pure-Python checks; CI has no Blender to run the export.

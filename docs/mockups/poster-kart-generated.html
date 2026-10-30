@@ -1,0 +1,289 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Poster kart, generated</title>
+<style>
+  :root { --red: #c8321f; --ink: #111; --gold: #ffd23f; --paper: #fff7e6; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 16px/1.45 ui-sans-serif, system-ui, sans-serif; color: var(--ink); background: var(--paper); }
+  header { padding: 2.5rem 1.5rem 1.5rem; background: var(--red); color: #fff; }
+  header h1 { margin: 0 0 0.4rem; font-size: 2rem; text-transform: uppercase; letter-spacing: 0.04em; }
+  header p { margin: 0; max-width: 60rem; }
+  main { padding: 1.5rem; max-width: 80rem; margin: 0 auto; }
+  h2 { margin: 2.5rem 0 0.6rem; font-size: 1.3rem; text-transform: uppercase; letter-spacing: 0.04em; }
+  h2:first-child { margin-top: 0.5rem; }
+  .note { max-width: 60rem; margin: 0 0 1rem; }
+  .heads { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem; margin: 0 0 0.4rem; font-weight: 700; text-transform: uppercase; font-size: 0.85rem; }
+  .row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem; align-items: end; padding: 0.8rem; margin-bottom: 0.8rem; background: var(--red); border-radius: 6px; }
+  .row > div { min-width: 0; }
+  .row img { display: block; width: 100%; height: auto; }
+  .row svg { display: block; width: 100%; height: auto; overflow: visible; }
+  .row .cap { color: #fff; font-size: 0.8rem; margin-top: 0.3rem; text-transform: uppercase; }
+  /* The tones apps/web/index.html mixes for every colour the poster kart is painted in. */
+  .lv {
+    --p-lt: color-mix(in srgb, var(--p) 72%, white); --p-dk: color-mix(in srgb, var(--p) 66%, black);
+    --s-lt: color-mix(in srgb, var(--s) 78%, white); --s-dk: color-mix(in srgb, var(--s) 82%, black);
+    --a-lt: color-mix(in srgb, var(--a) 72%, white); --a-dk: color-mix(in srgb, var(--a) 66%, black);
+    --sk-lt: color-mix(in srgb, var(--sk) 80%, white); --sk-dk: color-mix(in srgb, var(--sk) 80%, black);
+    --hair-lt: color-mix(in srgb, var(--hair) 78%, white); --hair-dk: color-mix(in srgb, var(--hair) 70%, black);
+    --tyre-lt: color-mix(in srgb, var(--tyre) 72%, white); --tyre-dk: color-mix(in srgb, var(--tyre) 66%, black);
+    --rim-lt: color-mix(in srgb, var(--rim) 72%, white); --rim-dk: color-mix(in srgb, var(--rim) 66%, black);
+    --carbon-lt: color-mix(in srgb, var(--carbon) 72%, white); --carbon-dk: color-mix(in srgb, var(--carbon) 66%, black);
+    --whites-lt: color-mix(in srgb, var(--whites) 72%, white); --whites-dk: color-mix(in srgb, var(--whites) 66%, black);
+    --irises-lt: color-mix(in srgb, var(--irises) 72%, white); --irises-dk: color-mix(in srgb, var(--irises) 66%, black);
+    --gold-lt: color-mix(in srgb, var(--gold) 72%, white); --gold-dk: color-mix(in srgb, var(--gold) 66%, black);
+    --grey-lt: color-mix(in srgb, var(--grey) 72%, white); --grey-dk: color-mix(in srgb, var(--grey) 66%, black);
+  }
+  .lv .wheel { transform-box: view-box; }
+  /* The Title Scene's run and roll, as apps/web/index.html has them. */
+  .title { position: relative; height: 16em; overflow: hidden; background: var(--red); border-radius: 6px; font-size: 16px; }
+  .title .band { position: absolute; left: 0; right: 0; height: 1.6em; background: repeating-conic-gradient(#111 0 25%, #fff 0 50%) 0 0 / 1.6em 1.6em; }
+  .title .band.b { bottom: 0; }
+  .title .runner { position: absolute; z-index: 1; bottom: 3.6em; left: -12em; width: 10em; --roll: 0.41s; animation: poster-run 5s linear infinite; }
+  .title .runner + .runner { bottom: 4.4em; width: 8em; --roll: 0.33s; animation-delay: -2.4s; }
+  .title .runner svg { display: block; width: 100%; height: auto; overflow: visible; }
+  .title .runner .wheel { animation: poster-roll var(--roll) linear infinite; }
+  .title .runner .wheel[data-node^="wheel-front"] { animation-duration: calc(var(--roll) * 0.9); }
+  @keyframes poster-run { to { left: 110%; } }
+  @keyframes poster-roll { to { rotate: 360deg; } }
+  @media (prefers-reduced-motion: reduce) { .title .runner, .title .runner .wheel { animation: none; } .title .runner { left: 30%; } .title .runner + .runner { left: 60%; } }
+  .podium { display: flex; align-items: flex-end; gap: 0.5rem; max-width: 34rem; padding: 2rem 1rem 1rem; background: var(--red); border-radius: 6px; }
+  .podium .step { flex: 1; display: grid; justify-items: center; align-content: end; min-width: 0; }
+  .podium .step svg { display: block; width: 100%; height: auto; overflow: visible; margin-bottom: -0.2rem; }
+  .podium .block { width: 100%; display: grid; place-items: center; background: var(--ink); color: var(--gold); border-top: 3px solid currentColor; font-size: 1.6rem; font-weight: 700; }
+  ul { max-width: 60rem; padding-left: 1.2rem; }
+  li { margin: 0.3rem 0; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Poster kart, generated</h1>
+  <p>ADR 0052. The poster kart is no longer traced by hand: <code>pnpm generate:poster</code> projects <code>assets/karts/kart.glb</code>, the export the race loads, side on into <code>apps/web/src/generated/kart/side.json</code> and <code>docs/kart-side.js</code>. Left: the race car rendered side on from <code>kart.glb</code>. Middle: the poster kart as <code>apps/web/src/poster.ts</code> traced it (ADR 0051). Right: the generated poster kart, as this page draws it from <code>../kart-side.js</code>.</p>
+</header>
+<main>
+  <h2>One car, every livery</h2>
+  <p class="note">The race render is Blender's workbench view of the exported model with the slot's paint and driver parts applied, the same camera for all eight. The generated poster is every face of the glb that shows from the kart's right, pitched down four degrees so each top face is a lit strip and the far wheels a sliver of tyre, shaded by its normal against one light in three tones, in painter order; the same 250 units a metre, 520 x 380 frame and ground line as the tracing. Where the two differ, the glb is right: the eyes are the build's boxes on the head's forward flat, the hair its shells and balls, the halo its hoop and legs.</p>
+  <div class="heads"><span>Race car, kart.glb</span><span>Poster kart, traced (ADR 0051)</span><span>Poster kart, generated (ADR 0052)</span></div>
+  <div id="rows"></div>
+
+  <h2>Title Scene runners</h2>
+  <p class="note">Both runners wear their slot's livery (Notte, then Argento) and each of the four wheels is a group turning about its axle, as given in the generated data: the near pair as before, the far pair as the sliver it is. With reduced motion preferred, nothing moves.</p>
+  <div class="title"><div class="band t"></div><div class="band b"></div><div class="runner" id="run1"></div><div class="runner" id="run2"></div></div>
+
+  <h2>Podium</h2>
+  <p class="note">The same drawing on the Results Scene: the three karts you just raced, in their own palettes, still.</p>
+  <div class="podium" id="podium"></div>
+
+  <h2>What changed</h2>
+  <ul>
+    <li>Source: one car, drawn once in <code>build.py</code>. The poster follows the glb; a change there cannot leave it behind, and CI fails on a stale copy.</li>
+    <li>Shading: three tones from each face's normal against one light, so the lit strips along the tops and the facets on the head come from the geometry rather than being drawn in.</li>
+    <li>Colours: the tracing's rim and tyre greys had drifted from the build; the generated kart takes every fixed colour from the glb's materials, copied into <code>palette.ts</code> and held to the glb by a test.</li>
+    <li>Head: the eyes show as the build's boxes on the forward flat, a sliver of white and iris, not the round eye the tracing drew; the light stubble, one forward-facing face on the chin, shows nothing from the side. Both follow the build until the build changes.</li>
+    <li>Wheels: four groups, not two, each about its own axle; the far pair peeks over the near as a sliver of tyre.</li>
+    <li>Frame: unchanged, so the Room Scene's rows, the podium widths and the runners' CSS stay as they are.</li>
+  </ul>
+</main>
+<script src="../kart-side.js"></script>
+<script>
+  const hex = (n) => "#" + n.toString(16).padStart(6, "0");
+  const SKIN = { deepBrown: 0x74492f, fair: 0xe5bb98, olive: 0xc48a5f };
+  // Copied from apps/web/src/livery.ts; repo-checks holds them to it.
+  const LIVERIES = [
+    { name: "Rosso", after: "Ferrari", key: 0xd00a12, p: 0xd00a12, s: 0x141414, a: 0xffd400, d: { skin: SKIN.deepBrown, hair: "braids-tied-back", hc: 0x1a1210, fh: "short-beard", ear: true } },
+    { name: "Notte", after: "Red Bull", key: 0x1f3fb0, p: 0x16224d, s: 0xe2172b, a: 0xffc72c, d: { skin: SKIN.fair, hair: "short", hc: 0x8a6a48, fh: "light-stubble", ear: false } },
+    { name: "Argento", after: "Mercedes", key: 0xc8ccd0, p: 0xbfc5cb, s: 0x16181b, a: 0x00a19c, d: { skin: SKIN.fair, hair: "swept-side-part", hc: 0x5a3a22, fh: "none", ear: false } },
+    { name: "Papaya", after: "McLaren", key: 0xff7a00, p: 0xff7a00, s: 0x1e1e24, a: 0x3ec3f5, d: { skin: SKIN.fair, hair: "curly-fringe", hc: 0x6b4528, fh: "none", ear: false } },
+    { name: "Verde", after: "Aston Martin", key: 0x00665a, p: 0x00594f, s: 0x101614, a: 0xcedc00, d: { skin: SKIN.olive, hair: "short-greying-temples", hc: 0x1c1c1f, fh: "stubble", ear: false } },
+    { name: "Cobalto", after: "Williams", key: 0x37bedd, p: 0x0a2a5c, s: 0x37bedd, a: 0xffffff, d: { skin: SKIN.olive, hair: "swept-back", hc: 0x1c1c1f, fh: "heavy-stubble", ear: false } },
+    { name: "Rosa", after: "Alpine", key: 0xf282b4, p: 0xf282b4, s: 0x0b5ab0, a: 0xffffff, d: { skin: SKIN.fair, hair: "short-curls", hc: 0x241a14, fh: "stubble", ear: false } },
+    { name: "Titanio", after: "Audi", key: 0x2a2a2e, p: 0x2a2a2e, s: 0x9ea3a8, a: 0xf50537, d: { skin: SKIN.fair, hair: "short", hc: 0xb8955a, fh: "none", ear: false } },
+  ];
+
+  const RENDERS = ["rosso", "notte", "argento", "papaya", "verde", "cobalto", "rosa", "titanio"].map((name) => `poster-kart-generated/${name}.png`);
+  // build.py's fixed colours as palette.ts copies them (KART_PAINT); repo-checks holds that copy to the glb.
+  const KART_PAINT = { tyre: 0x1c1c1f, rim: 0x3b3d42, carbon: 0x2b2e33, whites: 0xf7f7f2, irises: 0x211712, gold: 0xdba833, grey: 0xa8a8ad };
+  const paint = (el, L) => {
+    el.classList.add("lv");
+    for (const [k, v] of [["p", L.p], ["s", L.s], ["a", L.a], ["key", L.key], ["sk", L.d.skin], ["hair", L.d.hc], ...Object.entries(KART_PAINT)]) el.style.setProperty("--" + k, hex(v));
+  };
+  const TRACED = (() => {
+  const IRIS = "#21170f";
+  const WHITES = "#f6f1ea";
+  const GOLD_FIXED = "#dba833";
+  const GREY_FIXED = "#a8a8ad";
+  const NICKS = ["Khiet", "Mai", "Bot 3", "Jules", "Bot 5", "Ana", "Bot 7", "Theo"];
+
+  const paint = (el, slot) => {
+    const L = LIVERIES[slot];
+    el.classList.add("lv");
+    el.style.setProperty("--p", hex(L.p));
+    el.style.setProperty("--s", hex(L.s));
+    el.style.setProperty("--a", hex(L.a));
+    el.style.setProperty("--key", hex(L.key));
+    el.style.setProperty("--sk", hex(L.d.skin));
+    el.style.setProperty("--hair", hex(L.d.hc));
+  };
+
+  // Regular n-gon, flat side down, as the base mockup draws its wheels and heads.
+  const ngon = (n, cx, cy, r) => Array.from({ length: n }, (_, k) => {
+    const t = Math.PI / n + (2 * Math.PI * k) / n - Math.PI / 2;
+    return [cx + r * Math.cos(t), cy + r * Math.sin(t)];
+  });
+  const P = (arr) => arr.map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(" ");
+  const poly = (arr, fill, extra = "") => `<polygon points="${P(arr)}" fill="${fill}" ${extra}/>`;
+  // Flat-shaded facets: a triangle per edge, toned by how its edge faces a light from the top left.
+  const LIGHT = (() => { const l = Math.hypot(-1, -1.3); return [-1 / l, -1.3 / l]; })();
+  const facets = (n, cx, cy, r, tones) => {
+    const v = ngon(n, cx, cy, r);
+    return v.map((a, i) => {
+      const b = v[(i + 1) % n];
+      const mx = (a[0] + b[0]) / 2 - cx, my = (a[1] + b[1]) / 2 - cy, ml = Math.hypot(mx, my) || 1;
+      const dot = (mx / ml) * LIGHT[0] + (my / ml) * LIGHT[1];
+      const tone = dot > 0.3 ? tones[0] : dot < -0.3 ? tones[2] : tones[1];
+      return poly([[cx, cy], a, b], tone, `stroke="${tone}" stroke-width="0.6"`);
+    }).join("");
+  };
+  const at = (cx, cy, r) => (u, w) => [cx + u * r, cy + w * r];
+
+  // The wheel as build.py builds it: an octagon tyre, the rim at 0.58 of it, three spokes to 0.86, one straight up; grouped about its centre for a style to spin.
+  const RIM = "#3a3d42", SPOKE = "#4a4e55", CARBON = "#2b2e33";
+  const wheel = (cx, cy, r) => {
+    const spokes = [0, 1, 2].map((k) => {
+      const t = -Math.PI / 2 + (2 * Math.PI * k) / 3;
+      return `<line x1="${cx}" y1="${cy}" x2="${(cx + r * 0.86 * Math.cos(t)).toFixed(1)}" y2="${(cy + r * 0.86 * Math.sin(t)).toFixed(1)}" stroke="${SPOKE}" stroke-width="${(r * 0.2).toFixed(1)}" stroke-linecap="round"/>`;
+    }).join("");
+    return `<g class="wheel">` + facets(8, cx, cy, r, ["#2f3237", "#1d1e21", "#111214"]) +
+      poly(ngon(8, cx, cy, r * 0.58), RIM) + spokes + poly(ngon(6, cx, cy, r * 0.14), SPOKE) + "</g>";
+  };
+
+  // Hair from the side, the car facing right: a cap over the top and back, then the style's own shape.
+  const hairSide = (style, cx, cy, r) => {
+    const q = at(cx, cy, r);
+    const v = ngon(8, cx, cy, r * 1.07);
+    let out = poly([v[5], v[6], v[7], v[0], q(0.74, -0.6), q(0.8, -0.44), q(0.3, -0.52), q(-0.28, -0.26), q(-0.48, 0.3), q(-0.84, 0.44)], "var(--hair)");
+    out += poly([v[7], v[0], q(0.74, -0.6), q(0.3, -0.52), q(-0.1, -0.66)], "var(--hair-lt)");
+    if (style === "braids-tied-back") {
+      out += [-0.5, -0.2, 0.1].map((u) => `<polyline points="${P([q(u + 0.3, -0.96), q(u - 0.25, -0.5), q(u - 0.55, 0.05)])}" stroke="var(--hair-dk)" stroke-width="2.5" fill="none"/>`).join("");
+      out += facets(6, cx - r * 1.05, cy - r * 0.15, r * 0.27, ["var(--hair-lt)", "var(--hair)", "var(--hair-dk)"]);
+    } else if (style === "swept-side-part") {
+      out += poly([q(-0.2, -1.04), q(0.5, -1.12), q(0.94, -0.62), q(0.5, -0.56)], "var(--hair-lt)");
+    } else if (style === "swept-back") {
+      out += poly([q(-0.2, -1.12), q(0.62, -0.96), q(0.3, -0.56), q(-0.9, -0.62), q(-1.12, -0.18)], "var(--hair)");
+      out += poly([q(0.1, -1.04), q(0.5, -0.94), q(-0.5, -0.66)], "var(--hair-lt)");
+    } else if (style === "curly-fringe" || style === "short-curls") {
+      const spots = style === "curly-fringe"
+        ? [[0.62, -0.62], [0.4, -0.82], [0.12, -0.96], [-0.18, -0.98], [0.78, -0.42]]
+        : [[0.5, -0.74], [0.18, -0.92], [-0.16, -0.94], [-0.48, -0.78], [-0.76, -0.5], [-0.9, -0.12], [0.1, -0.62], [-0.4, -0.5]];
+      out += spots.map(([u, w]) => poly(ngon(6, cx + u * r, cy + w * r, r * 0.17), "var(--hair-lt)")).join("");
+    } else if (style === "short-greying-temples") {
+      out += poly([q(-0.34, -0.2), q(0.02, -0.3), q(0.06, 0.0), q(-0.28, 0.06)], GREY_FIXED);
+    }
+    return out;
+  };
+  const facialSide = (kind, cx, cy, r) => {
+    const q = at(cx, cy, r);
+    const op = { none: 0, "light-stubble": 0.18, stubble: 0.3, "heavy-stubble": 0.5, "short-beard": 0.92 }[kind];
+    if (!op) return "";
+    return poly([q(-0.08, 0.28), q(0.2, 0.64), q(0.6, 0.88), q(0.9, 0.62), q(0.92, 0.42), q(0.72, 0.66), q(0.3, 0.6), q(0.04, 0.24)], "var(--hair)", `opacity="${op}"`);
+  };
+  const headSide = (d, cx, cy, r) => {
+    const q = at(cx, cy, r);
+    return facets(8, cx, cy, r, ["var(--sk-lt)", "var(--sk)", "var(--sk-dk)"]) +
+      facialSide(d.fh, cx, cy, r) +
+      hairSide(d.hair, cx, cy, r) +
+      poly(ngon(6, cx - r * 0.12, cy + r * 0.12, r * 0.17), "var(--sk-dk)") +
+      (d.ear ? poly(ngon(4, cx - r * 0.12, cy + r * 0.38, r * 0.08), GOLD_FIXED) : "") +
+      poly([q(0.92, 0.04), q(1.1, 0.24), q(0.92, 0.3)], "var(--sk-dk)") +
+      poly(ngon(6, cx + r * 0.6, cy + r * 0.04, r * 0.25), WHITES) +
+      poly(ngon(6, cx + r * 0.7, cy + r * 0.06, r * 0.15), IRIS) +
+      poly(ngon(4, cx + r * 0.74, cy - r * 0.02, r * 0.05), "#fff") +
+      poly([q(0.36, -0.3), q(0.86, -0.26), q(0.84, -0.18), q(0.36, -0.22)], "var(--hair)") +
+      `<polyline points="${P([q(0.6, 0.52), q(0.82, 0.5)])}" stroke="#6e3428" stroke-width="3" stroke-linecap="round"/>`;
+  };
+
+  // The car side on (poster.ts): build.py's boxes in the same metres, 250 units a metre, y = 0 at x 262 and the ground at y 350, far side first.
+  const UNITS_PER_M = 250, sx = (y) => 262 + y * UNITS_PER_M, sy = (z) => 350 - z * UNITS_PER_M, LIT_STRIP = 6;
+  const box = (fill, [, cy, cz], [, length, height], frontScale = 1, frontDrop = 0, lit) => {
+    const back = sx(cy - length / 2), front = sx(cy + length / 2);
+    const backTop = sy(cz + height / 2), frontTop = sy(cz + (height / 2) * frontScale - frontDrop);
+    const side = poly([[back, sy(cz - height / 2)], [back, backTop], [front, frontTop], [front, sy(cz - (height / 2) * frontScale - frontDrop)]], fill);
+    return lit ? side + poly([[back, backTop], [front, frontTop], [front, frontTop + LIT_STRIP], [back, backTop + LIT_STRIP]], lit) : side;
+  };
+  const wheelAt = (radius, y) => [sx(y), sy(radius * Math.cos(Math.PI / 8)), radius * UNITS_PER_M];
+  const sideCar = (d, label = "Chibi low-poly car, side view") => `<svg viewBox="0 0 520 380" role="img" aria-label="${label}">
+    <ellipse cx="260" cy="352" rx="232" ry="9" fill="rgba(0,0,0,.18)"/>
+    ${box("var(--a)", [0, -0.6, 0.6], [0.03, 0.34, 0.16], 0.5, 0, "var(--a-lt)")}
+    ${box(CARBON, [0, -0.78, 0.6], [0.05, 0.06, 0.36])}
+    ${box("var(--a)", [0, 0.81, 0.14], [0.13, 0.1, 0.09], 0.8)}
+    ${box("var(--sk)", [0, -0.1, 0.77], [0.13, 0.12, 0.08])}
+    ${box("var(--s)", [0, -0.36, 0.62], [0.18, 0.14, 0.16], 1, 0, "var(--s-lt)")}
+    ${box("var(--a)", [0, -0.1, 0.735], [0.24, 0.18, 0.05])}
+    ${box("var(--p)", [0, 0.52, 0.27], [0.26, 0.46, 0.26], 0.55, 0.07)}
+    ${box("var(--p)", [0, -0.52, 0.34], [0.32, 0.44, 0.42], 1.1, 0, "var(--p-lt)")}
+    ${box("var(--p)", [0, -0.04, 0.32], [0.42, 0.66, 0.4], 1, 0, "var(--p-lt)")}
+    ${box("var(--p)", [0, -0.12, 0.62], [0.46, 0.24, 0.2], 1, 0, "var(--p-lt)")}
+    ${headSide(d, sx(-0.1), sy(0.99), 0.29 * UNITS_PER_M)}
+    ${box("var(--s)", [0, -0.2, 0.1], [0.76, 1.1, 0.06])}
+    ${box("var(--s)", [0.29, -0.18, 0.28], [0.2, 0.52, 0.3], 0.75, 0.03, "var(--s-lt)")}
+    <polyline points="${P([[sx(0.4), sy(0.52)], [sx(0.34), sy(0.756)], [sx(-0.1), sy(0.756)], [sx(-0.18), sy(0.52)]])}" stroke="${CARBON}" stroke-width="11" fill="none" stroke-linejoin="round" stroke-linecap="round"/>
+    ${box("var(--p)", [0, -0.82, 0.8], [0.82, 0.14, 0.06])}
+    ${box("var(--a)", [0, -0.86, 0.87], [0.82, 0.08, 0.04])}
+    ${box("var(--a)", [0.42, -0.83, 0.73], [0.03, 0.18, 0.34], 1, 0, "var(--a-lt)")}
+    ${box("var(--s)", [0, 0.82, 0.07], [1.1, 0.14, 0.04])}
+    ${box("var(--p)", [0, 0.77, 0.12], [1.0, 0.06, 0.04])}
+    ${box("var(--a)", [0.56, 0.82, 0.11], [0.03, 0.16, 0.13], 1, 0, "var(--a-lt)")}
+    ${wheel(...wheelAt(0.3, -0.52))}${wheel(...wheelAt(0.27, 0.52))}
+  </svg>`;
+
+
+    return sideCar;
+  })();
+  // The generated poster kart, drawn as apps/web/src/poster.ts and docs/style-guide.html draw it.
+  const KART_TOKENS = { Primary: "p", Secondary: "s", Accent: "a", Skin: "sk", Hair: "hair", Tyre: "tyre", Rim: "rim", Carbon: "carbon", Whites: "whites", Irises: "irises", Gold: "gold", Grey: "grey" };
+  const KART_TONES = { lit: "-lt", mid: "", shaded: "-dk" };
+  const optionalPart = (node) => node.startsWith("hair-") || node.startsWith("facial-hair-") || node === "earrings";
+  const GENERATED = (d, label) => {
+    const worn = new Set([`hair-${d.hair}`, `facial-hair-${d.fh}`, ...(d.ear ? ["earrings"] : [])]);
+    let body = "", run;
+    for (const p of KART_SIDE.paths) {
+      if (optionalPart(p.node) && !worn.has(p.node)) continue;
+      if (p.node !== run) {
+        if (run) body += "</g>";
+        run = p.node;
+        const axle = KART_SIDE.wheels[p.node];
+        body += axle ? `<g class="wheel" data-node="${p.node}" style="transform-origin:${axle[0]}px ${axle[1]}px">` : `<g data-node="${p.node}">`;
+      }
+      const fill = `var(--${KART_TOKENS[p.material]}${KART_TONES[p.tone]})`;
+      body += `<path d="${p.d}" fill="${fill}" stroke="${fill}" stroke-width="0.5" stroke-linejoin="round"/>`;
+    }
+    return `<svg viewBox="${KART_SIDE.viewBox}" role="img" aria-label="${label}"><ellipse cx="260" cy="352" rx="232" ry="9" fill="rgba(0,0,0,.18)"/>${body}</g></svg>`;
+  };
+  const rows = document.getElementById("rows");
+  LIVERIES.forEach((L, k) => {
+    const row = document.createElement("div");
+    row.className = "row";
+    row.innerHTML = `<div><img src="${RENDERS[k]}" alt="${L.name} race car, side on"><div class="cap">${L.name}, after ${L.after}</div></div>` +
+      `<div>${TRACED(L.d, L.name + " traced")}<div class="cap">traced by hand</div></div>` +
+      `<div>${GENERATED(L.d, L.name + " generated")}<div class="cap">generated from kart.glb</div></div>`;
+    paint(row, L);
+    rows.append(row);
+  });
+  for (const [id, slot] of [["run1", 1], ["run2", 2]]) {
+    const el = document.getElementById(id);
+    el.innerHTML = GENERATED(LIVERIES[slot].d, LIVERIES[slot].name + " runner");
+    paint(el, LIVERIES[slot]);
+  }
+  const podium = document.getElementById("podium");
+  for (const [slot, place, h, col] of [[3, 2, "3.2rem", "#ddd"], [0, 1, "4.6rem", "#ffd23f"], [1, 3, "2.2rem", "#e08a3c"]]) {
+    const step = document.createElement("div");
+    step.className = "step";
+    step.innerHTML = GENERATED(LIVERIES[slot].d, LIVERIES[slot].name + " on the podium") + `<div class="block" style="height:${h};color:${col}">${place}</div>`;
+    paint(step, LIVERIES[slot]);
+    podium.append(step);
+  }
+</script>
+</body>
+</html>
