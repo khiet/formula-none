@@ -9,6 +9,7 @@
 //! inputs and snapshots ride, loses each message with the tuned
 //! probability and delays each on its own, so a later one can overtake.
 
+use std::path::Path;
 use std::time::Duration;
 
 use protocol::{
@@ -20,6 +21,7 @@ use rand::{Rng, SeedableRng};
 use tokio::sync::{mpsc, watch};
 
 use crate::lane::{Lane, Outgoing};
+use crate::log::{Captured, Log};
 use crate::room::Started;
 use crate::rooms::Rooms;
 use crate::session::{self, Channels};
@@ -59,13 +61,16 @@ const RECEIVE_TIMEOUT: Duration = Duration::from_secs(10);
 /// race costs seconds of CPU rather than tens.
 pub const TRACK: &str = "oval";
 
-/// A server and the network to it. Dropping it stops the server.
+/// A server and the network to it. Dropping it stops the server. The
+/// server logs into a buffer rather than stdout (ADR 0018), which
+/// [`Harness::logs`] reads back.
 pub struct Harness {
     rooms: Rooms,
     conditions: Conditions,
     shutdown: Shutdown,
     stop: watch::Sender<bool>,
     next_seed: u64,
+    captured: Captured,
 }
 
 impl Harness {
@@ -77,19 +82,48 @@ impl Harness {
     /// A server whose rooms race `track`, their seeds drawn from the
     /// conditions' seed so a run repeats.
     pub fn on_track(conditions: Conditions, track: &'static str) -> Self {
+        Self::build(conditions, track, None)
+    }
+
+    /// A server whose rooms race [`TRACK`] and whose Open rooms are kept
+    /// under `dir` (ADR 0005): a second harness over the same directory
+    /// is the server after a restart, with those rooms back.
+    pub fn kept_in(conditions: Conditions, dir: &Path) -> Self {
+        Self::build(conditions, TRACK, Some(dir))
+    }
+
+    fn build(conditions: Conditions, track: &'static str, kept_in: Option<&Path>) -> Self {
         let (stop, shutdown) = Shutdown::pair();
+        let (log, captured) = Log::capture();
+        let mut rooms = Rooms::seeded(shutdown.clone(), track, conditions.seed).logging_to(log);
+        if let Some(dir) = kept_in {
+            rooms = rooms
+                .kept_in(dir)
+                .expect("the kept rooms directory is usable");
+        }
         Self {
-            rooms: Rooms::seeded(shutdown.clone(), track, conditions.seed),
+            rooms,
             conditions,
             shutdown,
             stop,
             next_seed: conditions.seed,
+            captured,
         }
     }
 
     /// The server's rooms, as the HTTP endpoint and the sessions see them.
     pub fn rooms(&self) -> &Rooms {
         &self.rooms
+    }
+
+    /// Every line the server has logged so far, parsed.
+    pub fn logs(&self) -> Vec<serde_json::Value> {
+        self.captured.lines()
+    }
+
+    /// Every line the server has logged so far, as stdout would carry it.
+    pub fn log_text(&self) -> String {
+        self.captured.text()
     }
 
     /// What `POST /api/rooms` does: a new room's code.

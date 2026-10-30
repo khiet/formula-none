@@ -134,6 +134,33 @@ describe("keeping a race connected (ADR 0012)", () => {
     expect(connect).toHaveBeenCalledTimes(1);
   });
 
+  it("sits out any silence with silence off, as the Room Scene does, and still reconnects when the connection ends", async () => {
+    const first = fakeConnection();
+    const joining = joinRoom(first, jsonCodec, { code: "BXQF", nickname: "ada" });
+    first.receive(JOINED);
+    const client = await joining;
+    const connect = vi.fn(async (): Promise<Connection> => fakeConnection());
+    const link = keepConnected(client, {
+      timing: TIMING,
+      connect,
+      now: () => Date.now(),
+      silence: false,
+    });
+    const lost: boolean[] = [];
+    link.onLost((next) => lost.push(next));
+
+    await vi.advanceTimersByTimeAsync(TIMING.silenceMs * 10);
+    expect(lost).toEqual([]);
+    expect(connect).not.toHaveBeenCalled();
+    expect(first.closedByClient).toBe(false);
+
+    first.end();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(lost).toEqual([true]);
+    expect(connect).toHaveBeenCalledTimes(1);
+    link.dispose();
+  });
+
   it("tries again at the tuned interval until the server is reached", async () => {
     const { first, connect, opened, banner } = await racing(2);
     first.end();

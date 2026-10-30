@@ -6,6 +6,11 @@ import { backdrop, kartSide } from "./poster";
 export interface RoomScene {
   /** Show the room as it now stands. */
   update(room: Room): void;
+  /**
+   * Say the connection is lost and being remade (ADR 0053) in place of the
+   * status line, or stop saying so; the room shown stays as it last stood.
+   */
+  connectionLost(lost: boolean): void;
   dispose(): void;
 }
 
@@ -26,6 +31,9 @@ export interface RoomView {
 }
 
 const COPIED_MS = 2000;
+
+/** The status line while the client rejoins the room over a new connection, as the race's banner reads. */
+export const CONNECTION_LOST_STATUS = "Connection lost: reconnecting";
 
 /** What a player's row says about them. */
 const STATE_LABELS: Readonly<Record<Player["state"], string>> = {
@@ -153,6 +161,7 @@ export function createRoomScene(
   players.className = "players";
 
   let current = view.room;
+  let lost = false;
   const me = (): Player | undefined => current.players.find((player) => player.slot === view.slot);
   const ready = button("ready", "Ready", () => handlers.ready(me()?.state !== "ready"));
   const start = button("start", "Start", handlers.start);
@@ -172,7 +181,9 @@ export function createRoomScene(
     ready.hidden = !(local?.state === "ready" || local?.state === "unready");
     start.hidden = local?.creator !== true;
     start.disabled = !canStart;
-    status.textContent = roomStatus(current.state, everyoneReady, local?.creator === true);
+    status.textContent = lost
+      ? CONNECTION_LOST_STATUS
+      : roomStatus(current.state, everyoneReady, local?.creator === true);
   };
   render();
 
@@ -184,6 +195,10 @@ export function createRoomScene(
   return {
     update(room) {
       current = room;
+      render();
+    },
+    connectionLost(next) {
+      lost = next;
       render();
     },
     dispose() {

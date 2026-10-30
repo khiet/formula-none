@@ -9,10 +9,15 @@
 //! names it for the whole stay. The seat also holds the session token the
 //! join dealt, which takes it back after a lost connection: mid-race the
 //! player is Disconnected and a bot drives their kart until they are back
-//! or the race ends (ADR 0012).
+//! or the race ends (ADR 0012). A seat a restart brought back is
+//! Disconnected too, its player's state kept aside until their token
+//! rejoins, so the room cannot start around an absent player (ADR 0053).
 
 use protocol::{Player, PlayerState, Refusal, Room, RoomState, PROTOCOL_VERSION};
+use serde::{Deserialize, Serialize};
 use sim::tuning::{NICKNAME_MAX_CHARS, ROOM_PLAYERS_MAX};
+
+use crate::tracks;
 
 /// The room as the server holds it: the view every player gets plus the
 /// order players joined in, which creator handover follows.
@@ -26,13 +31,35 @@ pub struct HostedRoom {
     seats: Vec<Option<Seat>>,
     /// Counts up per join so the order is known even after seats are reused.
     joins: u64,
+    /// The id the room's next race gives its first event: ids count up
+    /// across the room's races, and across a restart, so a client's
+    /// de-duplication never meets an id again (ADR 0011).
+    next_event_id: u32,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 struct Seat {
     player: Player,
     joined_at: u64,
     token: String,
+    /// The state the player had before a restart, while the seat waits
+    /// Disconnected for their rejoin; never written to disk, so a second
+    /// restart finds the state and not the wait.
+    #[serde(skip)]
+    waiting: Option<PlayerState>,
+}
+
+/// A room as it is written to disk between races (ADR 0005): everything
+/// [`HostedRoom`] holds, the seats' tokens included, so the players rejoin
+/// the room a restart brought back with the tokens they kept.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct KeptRoom {
+    pub code: String,
+    pub track: String,
+    pub state: RoomState,
+    seats: Vec<Option<Seat>>,
+    joins: u64,
+    next_event_id: u32,
 }
 
 /// What a leave did to the room, so the task knows whether the kart stays.
@@ -67,11 +94,79 @@ impl HostedRoom {
             state: RoomState::Open,
             seats: vec![None; ROOM_PLAYERS_MAX],
             joins: 0,
+            next_event_id: 1,
         }
     }
 
     pub fn code(&self) -> &str {
         &self.code
+    }
+
+    /// The room as it is kept on disk: a seat waiting for its player is
+    /// written with the state it waits to give back.
+    pub fn kept(&self) -> KeptRoom {
+        let seats = self
+            .seats
+            .iter()
+            .map(|seat| {
+                seat.clone().map(|mut seat| {
+                    if let Some(state) = seat.waiting.take() {
+                        seat.player.state = state;
+                    }
+                    seat
+                })
+            })
+            .collect();
+        KeptRoom {
+            code: self.code.clone(),
+            track: self.track.to_owned(),
+            state: self.state,
+            seats,
+            joins: self.joins,
+            next_event_id: self.next_event_id,
+        }
+    }
+
+    /// The room `kept` describes, every seat Disconnected until its token
+    /// rejoins, or `None` when it names a track this server does not have,
+    /// as after a track was renamed between deploys.
+    pub fn from_kept(kept: KeptRoom) -> Option<Self> {
+        let seats = kept
+            .seats
+            .into_iter()
+            .map(|seat| {
+                seat.map(|mut seat| {
+                    seat.waiting = Some(seat.player.state);
+                    seat.player.state = PlayerState::Disconnected;
+                    seat
+                })
+            })
+            .collect();
+        Some(Self {
+            code: kept.code,
+            track: tracks::known(&kept.track)?,
+            state: kept.state,
+            seats,
+            joins: kept.joins,
+            next_event_id: kept.next_event_id,
+        })
+    }
+
+    /// The id the next race's first event gets.
+    pub fn next_event_id(&self) -> u32 {
+        self.next_event_id
+    }
+
+    /// The race just run spent the ids up to `next_event_id`; the next
+    /// race continues from there.
+    pub fn events_spent_through(&mut self, next_event_id: u32) {
+        self.next_event_id = next_event_id;
+    }
+
+    /// Slots held by a player; the seats a restart brought back wait on
+    /// these players' rejoins.
+    pub fn slots(&self) -> Vec<u8> {
+        self.players().map(|player| player.slot).collect()
     }
 
     /// The room as every player sees it: the players in slot order.
@@ -123,28 +218,35 @@ impl HostedRoom {
             },
             joined_at: self.joins,
             token,
+            waiting: None,
         });
         Ok(slot as u8)
     }
 
     /// Hand back the seat `token` holds, the player Racing again if they
-    /// were Disconnected; any other token is refused. Mid-race the seat is
-    /// the new connection's even while `connected` says the old one holds
-    /// it, since the server may not have noticed a lost one yet; between
-    /// races that is refused, so a second tab joins as a new player.
+    /// were Disconnected mid-race and as they were if the seat waited for
+    /// them through a restart; any other token is refused. Mid-race the
+    /// seat is the new connection's even while `connected` says the old
+    /// one holds it, since the server may not have noticed a lost one yet;
+    /// between races that is refused, so a second tab joins as a new
+    /// player.
     pub fn rejoin(&mut self, token: &str, connected: impl Fn(u8) -> bool) -> Result<u8, Refusal> {
-        let slot = self
+        let seat = self
             .seats
-            .iter()
+            .iter_mut()
             .flatten()
             .find(|seat| seat.token == token)
-            .map(|seat| seat.player.slot)
             .ok_or(Refusal::UnknownSession)?;
+        let slot = seat.player.slot;
         let racing = matches!(self.state, RoomState::Countdown | RoomState::Racing);
         if !racing && connected(slot) {
             return Err(Refusal::SessionInUse);
         }
-        self.reconnect(slot);
+        if let Some(state) = seat.waiting.take() {
+            seat.player.state = state;
+        } else {
+            self.reconnect(slot);
+        }
         Ok(slot)
     }
 

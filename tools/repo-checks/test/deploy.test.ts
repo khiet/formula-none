@@ -98,7 +98,7 @@ describe("Compose stack", () => {
   // 0011): it reads Caddy's volume, never a copy, so a renewal reaches it.
   it("hands the server Caddy's certificate files read-only, with no capabilities", () => {
     const server = compose.services.server;
-    expect(server?.volumes).toEqual(["caddy_data:/data:ro"]);
+    expect(server?.volumes).toContain("caddy_data:/data:ro");
     const site = "formulanone.sushimafia.com";
     const issuer = "/data/caddy/certificates/acme-v02.api.letsencrypt.org-directory";
     const expand = (value: string | undefined) =>
@@ -109,6 +109,21 @@ describe("Compose stack", () => {
     expect(server?.user).toBe("0:0");
     expect(server?.cap_drop).toEqual(["ALL"]);
     expect(server?.read_only).toBe(true);
+  });
+
+  // Open rooms survive a restart (ADR 0005): the server writes them under
+  // ROOMS_DIR, which is a named volume, the one writable path in a
+  // read-only container.
+  it("keeps open rooms in a named volume that outlives the server container", () => {
+    const server = compose.services.server;
+    const dir = server?.environment?.ROOMS_DIR;
+    expect(dir).toBeDefined();
+    const mount = (server?.volumes ?? []).find((volume) => {
+      const [name, path] = volume.split(":");
+      return name === "rooms" && dir?.startsWith(`${path}/`);
+    });
+    expect(mount).toBe("rooms:/var/lib/formula-none");
+    expect(Object.keys(compose.volumes ?? {})).toContain("rooms");
   });
 
   it("runs the image the deploy document names", () => {

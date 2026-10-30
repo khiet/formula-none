@@ -7,12 +7,17 @@
 //!   server terminates QUIC for WebTransport on `WEBTRANSPORT_ADDR` (default
 //!   `0.0.0.0:4433`, published as 443 UDP). Without both, WebTransport is
 //!   off and only the fallback serves, as in local development.
+//! - `ROOMS_DIR`: where Open rooms are kept across a restart (ADR 0005);
+//!   the Compose stack mounts a volume there. Unset, a restart loses every
+//!   room, as in local development.
+//!
+//! Logs are one JSON object per line on stdout (ADR 0018).
 
 use std::net::SocketAddr;
 use std::time::Duration;
 
 use server::webtransport::{WebTransportConfig, WebTransportServer};
-use server::{Rooms, Shutdown};
+use server::{Log, Rooms, Shutdown};
 use tokio::net::TcpListener;
 use tokio::signal::unix::{signal, SignalKind};
 
@@ -69,13 +74,19 @@ async fn serve_webtransport(
 
 #[tokio::main]
 async fn main() -> std::io::Result<()> {
+    let log = Log::stdout();
     let addr = std::env::var("LISTEN_ADDR").unwrap_or_else(|_| "0.0.0.0:8080".to_string());
     let listener = TcpListener::bind(&addr).await?;
     // The bound address, not the configured one: port 0 resolves here.
-    println!("server {COMMIT} listening on {}", listener.local_addr()?);
+    log.event("server_listening")
+        .with("commit", COMMIT)
+        .with("addr", listener.local_addr()?.to_string())
+        .emit();
     let webtransport = webtransport_config()?;
     if webtransport.is_none() {
-        println!("webtransport off: TLS_CERT and TLS_KEY unset");
+        log.event("webtransport_off")
+            .with("reason", "TLS_CERT and TLS_KEY unset")
+            .emit();
     }
 
     let (stop, shutdown) = Shutdown::pair();
@@ -83,7 +94,14 @@ async fn main() -> std::io::Result<()> {
         shutdown_signal().await;
         let _ = stop.send(true);
     });
-    let rooms = Rooms::new(shutdown.clone());
+    let mut rooms = Rooms::new(shutdown.clone()).logging_to(log.clone());
+    if let Ok(dir) = std::env::var("ROOMS_DIR") {
+        rooms = rooms.kept_in(&dir)?;
+        log.event("rooms_kept_in")
+            .with("dir", dir)
+            .with("rooms", rooms.codes())
+            .emit();
+    }
     let http = server::serve(
         listener,
         server::app(COMMIT, rooms.clone(), shutdown.clone()),

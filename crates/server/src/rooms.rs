@@ -9,23 +9,30 @@
 //! with the seat's session token moves it to the new connection, and
 //! whatever the old one sends or reports after that, its drop included, is
 //! ignored.
+//!
+//! An Open room is kept on disk through [`crate::kept`] so a restart brings
+//! it back (ADR 0005): its seats wait the tuned grace for their players'
+//! rejoins, then free.
 
 use std::collections::{HashMap, VecDeque};
+use std::path::PathBuf;
 use std::sync::{Arc, Mutex, Weak};
 use std::time::Duration;
 
-use protocol::{ClientMessage, Refusal, Room, ServerMessage};
+use protocol::{ClientMessage, Refusal, Room, RoomState, ServerMessage};
 use rand::distr::slice::Choose;
 use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
 use sim::tuning::{
-    CONNECTION_PROBE_INTERVAL_S, CONNECTION_PROBE_WINDOW, ROOM_CLOSE_AFTER_EMPTY_S,
-    ROOM_CODE_ALPHABET, ROOM_CODE_LENGTH,
+    CONNECTION_PROBE_INTERVAL_S, CONNECTION_PROBE_WINDOW, RESTORED_SEAT_GRACE_S,
+    ROOM_CLOSE_AFTER_EMPTY_S, ROOM_CODE_ALPHABET, ROOM_CODE_LENGTH,
 };
 use tokio::sync::{mpsc, oneshot, watch};
 use tokio::time::{Instant, Interval, MissedTickBehavior};
 
+use crate::kept::Store;
 use crate::lane::{Outbound, Outgoing};
+use crate::log::{Line, Log};
 use crate::metrics::Metrics;
 use crate::race::{Race, TICK_S};
 use crate::room::{HostedRoom, Left, Started};
@@ -43,6 +50,10 @@ pub struct Rooms {
     seeds: RaceSeeds,
     /// What every room records into (ADR 0018).
     metrics: Metrics,
+    /// Where every room's lines go (ADR 0018).
+    log: Log,
+    /// Where Open rooms are kept across a restart, when they are.
+    store: Option<Store>,
 }
 
 /// The source of race seeds: the OS's entropy on the server, so no two
@@ -174,12 +185,89 @@ impl Rooms {
             track,
             seeds: RaceSeeds::Entropy,
             metrics: Metrics::new(),
+            log: Log::stdout(),
+            store: None,
         }
+    }
+
+    /// The same registry, logging to `log` instead of stdout.
+    pub fn logging_to(self, log: Log) -> Self {
+        Self { log, ..self }
+    }
+
+    /// The same registry, keeping every Open room under `dir` across a
+    /// restart (ADR 0005): the rooms the last run kept there are brought
+    /// back now, each holding its seats for the tuned grace, and from here
+    /// on a room is written there while Open and removed once it leaves
+    /// Open or closes. Must run inside a tokio runtime, which spawns the
+    /// restored rooms' tasks; call it last, so they log where the rest do.
+    pub fn kept_in(self, dir: impl Into<PathBuf>) -> std::io::Result<Self> {
+        let store = Store::open(dir)?;
+        let kept = store.load()?;
+        let rooms = Self {
+            store: Some(store),
+            ..self
+        };
+        let mut registry = rooms.registry.lock().expect("registry lock");
+        // A kept room this server cannot host is logged with the reason and
+        // its file removed.
+        let drop_kept = |code: &str, reason: &str| {
+            rooms
+                .log
+                .event("room_dropped")
+                .room(code)
+                .with("reason", reason)
+                .emit();
+            if let Some(store) = &rooms.store {
+                let _ = store.forget(code);
+            }
+        };
+        for room in kept {
+            let room = match room {
+                Ok(kept) => kept,
+                Err(unreadable) => {
+                    rooms
+                        .log
+                        .event("room_unreadable")
+                        .with("path", unreadable.path.display().to_string())
+                        .with("reason", unreadable.reason)
+                        .emit();
+                    continue;
+                }
+            };
+            let code = room.code.clone();
+            let Some(room) = HostedRoom::from_kept(room) else {
+                drop_kept(&code, "unknown track");
+                continue;
+            };
+            if room.view().state != RoomState::Open {
+                drop_kept(&code, "not open");
+                continue;
+            }
+            if registry.rooms.contains_key(&code) {
+                drop_kept(&code, "code in use");
+                continue;
+            }
+            rooms
+                .log
+                .event("room_restored")
+                .room(&code)
+                .with("slots", room.slots())
+                .emit();
+            rooms.spawn(&mut registry, room, true);
+        }
+        drop(registry);
+        Ok(rooms)
     }
 
     /// What the rooms have recorded, for the scrape endpoint.
     pub fn metrics(&self) -> &Metrics {
         &self.metrics
+    }
+
+    /// Where the rooms log, for the rest of the server to log beside them.
+    pub fn log(&self) -> &Log {
+        &self.log
     }
 
     /// `on_track`, with every race seeded from `seed` in start order, so a
@@ -203,22 +291,40 @@ impl Rooms {
                 break code;
             }
         };
-        let (commands, inbox) = mpsc::unbounded_channel();
         let room = HostedRoom::on_track(code.clone(), self.track);
+        self.log.event("room_created").room(&code).emit();
+        self.spawn(&mut registry, room, false);
+        code
+    }
+
+    /// Put `room` in `registry` and start its task; `restored` when a
+    /// restart brought it back, so its seats wait for their players.
+    fn spawn(&self, registry: &mut Registry, room: HostedRoom, restored: bool) {
+        // A new room is kept from its creation, before its task has run, so
+        // a restart under the creator's join still has a room for the code
+        // they were given.
+        if !restored {
+            keep(self.store.as_ref(), &self.log, &room);
+        }
+        let (commands, inbox) = mpsc::unbounded_channel();
         let (publish, view) = watch::channel(room.view());
         registry
             .rooms
-            .insert(code.clone(), RoomHandle { commands, view });
+            .insert(room.code().to_owned(), RoomHandle { commands, view });
         tokio::spawn(run(
             room,
             inbox,
             publish,
             Arc::downgrade(&self.registry),
-            self.shutdown.clone(),
-            self.seeds.clone(),
-            self.metrics.clone(),
+            Shared {
+                shutdown: self.shutdown.clone(),
+                seeds: self.seeds.clone(),
+                metrics: self.metrics.clone(),
+                log: self.log.clone(),
+                store: self.store.clone(),
+            },
+            restored,
         ));
-        code
     }
 
     /// The room with this code as of its last change, or `None` for a code
@@ -294,7 +400,7 @@ impl Rooms {
     }
 
     /// Send the room with `code` the command `ask` makes and wait for the
-    /// seat it answers with.
+    /// seat it answers with; a refusal is logged against the code.
     async fn seat(
         &self,
         code: &str,
@@ -302,6 +408,23 @@ impl Rooms {
         ask: impl FnOnce(oneshot::Sender<Result<Seated, Refusal>>) -> Command,
     ) -> Result<Membership, Refusal> {
         let code = code.trim().to_ascii_uppercase();
+        self.seat_in(&code, version, ask)
+            .await
+            .inspect_err(|refusal| {
+                self.log
+                    .event("join_refused")
+                    .room(&code)
+                    .with("refusal", refusal)
+                    .emit();
+            })
+    }
+
+    async fn seat_in(
+        &self,
+        code: &str,
+        version: u16,
+        ask: impl FnOnce(oneshot::Sender<Result<Seated, Refusal>>) -> Command,
+    ) -> Result<Membership, Refusal> {
         if version != protocol::PROTOCOL_VERSION {
             return Err(Refusal::VersionMismatch {
                 server: protocol::PROTOCOL_VERSION,
@@ -312,7 +435,7 @@ impl Rooms {
             .lock()
             .expect("registry lock")
             .rooms
-            .get(&code)
+            .get(code)
             .map(|handle| handle.commands.clone())
             .ok_or(Refusal::UnknownRoom)?;
         let (reply, answer) = oneshot::channel();
@@ -420,10 +543,14 @@ struct Running {
     ticks: Interval,
 }
 
-/// What one tick did to the room, for the task to act on.
+/// What one tick did to the room, for the task to act on and log.
 struct TickOutcome {
+    /// The countdown ended this tick: the room is Racing.
+    go: bool,
     /// The results went out this tick; the task retires the race.
     finished: bool,
+    /// Humans the race stopped hearing from this tick.
+    silenced: Vec<u8>,
 }
 
 impl Running {
@@ -453,7 +580,7 @@ impl Running {
         let ticked = self.race.tick();
         // A silent player keeps their connection: their next input is them
         // back, and a client that hears nothing reconnects by itself.
-        for slot in ticked.silenced {
+        for &slot in &ticked.silenced {
             room.disconnect(slot);
         }
         if !ticked.events.is_empty() {
@@ -484,41 +611,73 @@ impl Running {
             players.retain(|slot, _| seated.contains(slot));
         }
         metrics.tick(started_at.elapsed());
-        TickOutcome { finished }
+        TickOutcome {
+            go: ticked.go,
+            finished,
+            silenced: ticked.silenced,
+        }
     }
+}
+
+/// What every room task shares with the registry that spawned it.
+struct Shared {
+    shutdown: Shutdown,
+    seeds: RaceSeeds,
+    metrics: Metrics,
+    log: Log,
+    store: Option<Store>,
 }
 
 /// The room task: apply each command to the room, tick its race, tell the
 /// players, and close the room once it has been empty for the tuned time
 /// or the server stops. Removes itself from the registry when it ends, so
-/// a closed code reads as unknown.
+/// a closed code reads as unknown. While Open the room is kept in the
+/// store, if there is one, so a restart brings it back; `restored` says
+/// this task is such a room, whose seats wait the tuned grace for their
+/// players' rejoins.
 async fn run(
     mut room: HostedRoom,
     mut inbox: mpsc::UnboundedReceiver<Command>,
     publish: watch::Sender<Room>,
     registry: Weak<Mutex<Registry>>,
-    shutdown: Shutdown,
-    seeds: RaceSeeds,
-    metrics: Metrics,
+    shared: Shared,
+    restored: bool,
 ) {
+    let Shared {
+        shutdown,
+        seeds,
+        metrics,
+        log,
+        store,
+    } = shared;
     let close_after = Duration::from_secs_f32(ROOM_CLOSE_AFTER_EMPTY_S);
     let mut players: HashMap<u8, Connection> = HashMap::new();
     let mut connections = 0..;
     let mut empty_since = Some(Instant::now());
     let mut running: Option<Running> = None;
-    // Event ids count up per room, across its races, so a client's
-    // de-duplication never meets an id again (ADR 0011).
-    let mut next_event_id = 1;
+    // The restored seats free at this instant unless reclaimed by then.
+    let mut reclaim_by =
+        restored.then(|| Instant::now() + Duration::from_secs_f32(RESTORED_SEAT_GRACE_S));
     // Probes of every connection, at the tuned interval while anyone is
     // seated; the intervals missed while nobody was are not made up, so a
     // joiner's first probes are not taken for lost ones.
     let mut probes = tokio::time::interval(Duration::from_secs_f32(CONNECTION_PROBE_INTERVAL_S));
     probes.set_missed_tick_behavior(MissedTickBehavior::Skip);
     let mut nonces = 0u32..;
+    // True when the task ends because the server is stopping, which keeps
+    // the room on disk for the next server; a task that ends any other way
+    // removes it.
+    let mut stopping = false;
     loop {
         let closing = async {
             match empty_since {
                 Some(since) => tokio::time::sleep_until(since + close_after).await,
+                None => std::future::pending().await,
+            }
+        };
+        let reclaim = async {
+            match reclaim_by {
+                Some(by) => tokio::time::sleep_until(by).await,
                 None => std::future::pending().await,
             }
         };
@@ -542,20 +701,40 @@ async fn run(
         // is itself ending as departures.
         tokio::select! {
             biased;
-            () = shutdown.wait() => break,
+            () = shutdown.wait() => {
+                stopping = true;
+                break;
+            }
             () = closing => {
                 room.close();
                 let _ = publish.send(room.view());
+                log.event("room_closed").room(room.code()).emit();
                 break;
+            }
+            () = reclaim => {
+                reclaim_by = None;
+                for slot in room.slots() {
+                    if !players.contains_key(&slot) {
+                        depart(&mut room, &mut players, running.as_mut(), slot, &log, Departure::Unclaimed);
+                    }
+                }
             }
             _ = tick => {
                 let outcome = running
                     .as_mut()
                     .expect("the tick arm only runs with a race")
                     .tick(&mut room, &mut players, &metrics);
+                let ticks = running.as_ref().expect("the race that just ticked").race.ticks();
+                for slot in outcome.silenced {
+                    log.event("player_silent").room(room.code()).slot(slot).tick(ticks).emit();
+                }
+                if outcome.go {
+                    log.event("race_go").room(room.code()).tick(ticks).emit();
+                }
                 if outcome.finished {
                     let finished = running.take().expect("the race that just finished");
-                    next_event_id = finished.race.next_event_id();
+                    room.events_spent_through(finished.race.next_event_id());
+                    log.event("race_finished").room(room.code()).tick(ticks).emit();
                 }
             }
             _ = probe => {
@@ -578,6 +757,11 @@ async fn run(
                             let id = connections.next().expect("connection ids never run out");
                             seat(&room, &mut players, slot, token, Connection::new(id, outbound));
                             told_already = Some(slot);
+                            log.event("player_joined")
+                                .room(room.code())
+                                .slot(slot)
+                                .with("nickname", &nickname)
+                                .emit();
                             Seated { slot, connection: id }
                         });
                         let _ = reply.send(joined);
@@ -608,6 +792,8 @@ async fn run(
                                     .send(Outgoing::from_server(&ServerMessage::Replaced));
                             }
                             told_already = Some(slot);
+                            at_tick(log.event("player_rejoined").room(room.code()).slot(slot), running.as_ref())
+                                .emit();
                             Seated { slot, connection: id }
                         });
                         let _ = reply.send(rejoined);
@@ -621,6 +807,11 @@ async fn run(
                                 // Heard from again after falling silent.
                                 if room.reconnect(slot) {
                                     running.race.hand_back(slot);
+                                    log.event("player_heard")
+                                        .room(room.code())
+                                        .slot(slot)
+                                        .tick(running.race.ticks())
+                                        .emit();
                                 }
                                 running.race.receive(slot, input);
                             }
@@ -632,12 +823,19 @@ async fn run(
                             if let Some(started) = room.start(slot, seeds.next()) {
                                 let track = tracks::load(&started.track)
                                     .expect("a room races a track the server has");
+                                log.event("race_started")
+                                    .room(room.code())
+                                    .slot(slot)
+                                    .with("seed", started.seed)
+                                    .with("track", &started.track)
+                                    .with("grid", &started.grid)
+                                    .emit();
                                 running = Some(Running::start(
                                     Race::new(
                                         started.seed,
                                         track,
                                         started.grid.clone(),
-                                        next_event_id,
+                                        room.next_event_id(),
                                     ),
                                     started.clone(),
                                 ));
@@ -655,7 +853,9 @@ async fn run(
                         ClientMessage::Rematch => {
                             room.rematch(slot);
                         }
-                        ClientMessage::Leave => depart(&mut room, &mut players, running.as_mut(), slot),
+                        ClientMessage::Leave => {
+                            depart(&mut room, &mut players, running.as_mut(), slot, &log, Departure::Leave);
+                        }
                         ClientMessage::Pong { nonce } => {
                             if let Some(connection) = players.get_mut(&slot) {
                                 if let Some(round_trip) = connection.pong(nonce) {
@@ -666,12 +866,11 @@ async fn run(
                         }
                         ClientMessage::RaceReport { corrections_per_second } => {
                             metrics.corrections_per_second(room.code(), slot, corrections_per_second);
-                            // Key=value fields, so CloudWatch Logs Insights
-                            // parses the line (ADR 0018).
-                            println!(
-                                "race_report room={} slot={slot} corrections_per_second={corrections_per_second:.3}",
-                                room.code()
-                            );
+                            log.event("race_report")
+                                .room(room.code())
+                                .slot(slot)
+                                .with("corrections_per_second", corrections_per_second)
+                                .emit();
                         }
                         // The session answers a Ping; a second Join or
                         // Rejoin has no meaning in a room.
@@ -679,7 +878,9 @@ async fn run(
                         | ClientMessage::Join { .. }
                         | ClientMessage::Rejoin { .. } => {}
                     },
-                    Command::Dropped { slot, .. } => depart(&mut room, &mut players, running.as_mut(), slot),
+                    Command::Dropped { slot, .. } => {
+                        depart(&mut room, &mut players, running.as_mut(), slot, &log, Departure::Dropped);
+                    }
                 }
             }
         }
@@ -688,6 +889,7 @@ async fn run(
             broadcast(&players, &ServerMessage::Room(after.clone()), told_already);
             metrics.room_players(room.code(), after.players.len());
             let _ = publish.send(after);
+            keep(store.as_ref(), &log, &room);
         }
         empty_since = match (room.connected_count(), empty_since) {
             (0, None) => Some(Instant::now()),
@@ -696,6 +898,11 @@ async fn run(
         };
     }
     metrics.room_players(room.code(), 0);
+    if !stopping {
+        if let Some(store) = &store {
+            let _ = store.forget(room.code());
+        }
+    }
     if let Some(registry) = registry.upgrade() {
         registry
             .lock()
@@ -724,17 +931,79 @@ fn seat(
     players.insert(slot, connection)
 }
 
-/// The player leaves or drops: they stop receiving, and mid-race a bot
-/// drives their kart; a player already handed to a bot for falling silent
-/// only stops receiving.
+/// Keep `room` in `store` as its state asks: written while Open, removed
+/// once it leaves Open (ADR 0053). A store that fails is logged and the
+/// room goes on; only a restart would miss it.
+fn keep(store: Option<&Store>, log: &Log, room: &HostedRoom) {
+    let Some(store) = store else { return };
+    let result = if room.view().state == RoomState::Open {
+        store.save(&room.kept())
+    } else {
+        store.forget(room.code())
+    };
+    if let Err(error) = result {
+        log.event("room_keep_failed")
+            .room(room.code())
+            .with("error", error.to_string())
+            .emit();
+    }
+}
+
+/// `line` with the race's tick when one is running: the moment a player
+/// came or went, for a query of the race by its clock.
+fn at_tick<'a>(line: Line<'a>, running: Option<&Running>) -> Line<'a> {
+    match running {
+        Some(running) => line.tick(running.race.ticks()),
+        None => line,
+    }
+}
+
+/// How a player's stay ended, as the `player_left` line names it
+/// (deploy/README.md lists the names).
+#[derive(Clone, Copy)]
+enum Departure {
+    /// A Leave: on purpose.
+    Leave,
+    /// The connection went without one.
+    Dropped,
+    /// A seat a restart brought back that nobody rejoined within the grace.
+    Unclaimed,
+}
+
+impl Departure {
+    fn as_str(self) -> &'static str {
+        match self {
+            Self::Leave => "leave",
+            Self::Dropped => "dropped",
+            Self::Unclaimed => "unclaimed",
+        }
+    }
+}
+
+/// The player's stay ends by `how`: they stop receiving, and mid-race a
+/// bot drives their kart; a player already handed to a bot for falling
+/// silent only stops receiving.
 fn depart(
     room: &mut HostedRoom,
     players: &mut HashMap<u8, Connection>,
     running: Option<&mut Running>,
     slot: u8,
+    log: &Log,
+    how: Departure,
 ) {
     players.remove(&slot);
-    if let (Left::Disconnected, Some(running)) = (room.leave(slot), running) {
+    let left = room.leave(slot);
+    if left != Left::Unknown {
+        at_tick(
+            log.event("player_left")
+                .room(room.code())
+                .slot(slot)
+                .with("how", how.as_str()),
+            running.as_deref(),
+        )
+        .emit();
+    }
+    if let (Left::Disconnected, Some(running)) = (left, running) {
         running.race.hand_to_bot(slot);
     }
 }

@@ -21,6 +21,7 @@ use tokio::sync::mpsc;
 use sim::tuning::RELIABLE_FRAME_MAX_BYTES;
 
 use crate::lane::{Lane, Outgoing};
+use crate::log::Log;
 use crate::rooms::Rooms;
 use crate::session::{self, Channels};
 use crate::Shutdown;
@@ -65,10 +66,12 @@ impl WebTransportServer {
                 Ok(loaded) => break loaded,
                 Err(error) => {
                     if !waiting {
-                        println!(
-                            "webtransport waiting for certificate {}: {error}",
-                            config.certificate.display()
-                        );
+                        rooms
+                            .log()
+                            .event("webtransport_waiting_for_certificate")
+                            .with("certificate", config.certificate.display().to_string())
+                            .with("error", error.to_string())
+                            .emit();
                         waiting = true;
                     }
                     tokio::time::sleep(config.certificate_poll).await;
@@ -76,7 +79,11 @@ impl WebTransportServer {
             }
         };
         let endpoint = Endpoint::server(server_config(config.bind, identity))?;
-        println!("webtransport listening on {}", endpoint.local_addr()?);
+        rooms
+            .log()
+            .event("webtransport_listening")
+            .with("addr", endpoint.local_addr()?.to_string())
+            .emit();
         Ok(Self {
             endpoint,
             config,
@@ -99,10 +106,11 @@ impl WebTransportServer {
             loaded,
             rooms,
         } = self;
+        let log = rooms.log().clone();
         tokio::select! {
             () = shutdown.wait() => {}
             () = accept_sessions(&endpoint, rooms, shutdown.clone()) => {}
-            () = reload_on_change(&endpoint, &config, loaded) => {}
+            () = reload_on_change(&endpoint, &config, loaded, &log) => {}
         }
         endpoint.close(wtransport::VarInt::from_u32(0), b"server stopping");
         Ok(())
@@ -249,7 +257,9 @@ async fn reload_on_change(
     endpoint: &Endpoint<Server>,
     config: &WebTransportConfig,
     mut loaded: Pems,
+    log: &Log,
 ) {
+    let certificate = config.certificate.display().to_string();
     loop {
         tokio::time::sleep(config.certificate_poll).await;
         match load(config).await {
@@ -257,18 +267,23 @@ async fn reload_on_change(
             Ok((pems, identity)) => {
                 match endpoint.reload_config(server_config(config.bind, identity), false) {
                     Ok(()) => {
-                        println!(
-                            "webtransport reloaded certificate {}",
-                            config.certificate.display()
-                        );
+                        log.event("webtransport_certificate_reloaded")
+                            .with("certificate", &certificate)
+                            .emit();
                         loaded = pems;
                     }
-                    Err(error) => println!("webtransport certificate reload failed: {error}"),
+                    Err(error) => log
+                        .event("webtransport_certificate_reload_failed")
+                        .with("certificate", &certificate)
+                        .with("error", error.to_string())
+                        .emit(),
                 }
             }
-            Err(error) => {
-                println!("webtransport certificate unreadable, keeping the loaded one: {error}")
-            }
+            Err(error) => log
+                .event("webtransport_certificate_unreadable")
+                .with("certificate", &certificate)
+                .with("error", error.to_string())
+                .emit(),
         }
     }
 }

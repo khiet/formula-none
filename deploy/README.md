@@ -96,6 +96,85 @@ Caddy so 443 UDP is the server's: it terminates QUIC itself for WebTransport
 SIGTERM, closing open sessions, so a `docker compose restart server`
 completes well inside Docker's ten-second grace period.
 
+## Rooms across a restart
+
+A room in Open state outlives the server (ADR 0005, ADR 0053): the server
+writes each one as a JSON file under `ROOMS_DIR`, which the Compose file
+puts on the `rooms` volume, and the next server reads them back before it
+serves. The players' clients rejoin with their session tokens, so a deploy
+under an Open room shows "Connection lost: reconnecting" on the status line
+for a moment and nothing else; a seat shows Disconnected until its player
+is back, and one whose player has not rejoined within thirty seconds
+frees. A race under way at the restart is lost, and so is a
+room showing Results.
+
+To measure the restart on the instance, from a Session Manager shell
+(`infra/README.md`), time the restart and the first healthy answer after
+it:
+
+```sh
+cd /opt/formula-none
+start=$(date +%s.%N)
+docker compose -f release/compose.yaml restart server
+until docker compose -f release/compose.yaml exec caddy \
+    wget -qO- http://server:8080/api/health >/dev/null 2>&1; do sleep 0.2; done
+echo "restarted in $(echo "$(date +%s.%N) - $start" | bc) s"
+```
+
+The log line `rooms_kept_in` the new server writes lists the codes it
+brought back.
+
+## Logs
+
+Every container's stdout goes to CloudWatch Logs through the `awslogs`
+driver in `compose.yaml`: the log group `/formula-none/server` in eu-west-2,
+kept for 14 days (`infra/logs.tf`), one stream per container named after
+it, `formula-none-server-1` for the server. The server writes one JSON
+object per line (ADR 0018, `crates/server/src/log.rs`): `ts` and `event`
+on every line, then `room` (the code), `slot` (the player's seat) and
+`tick` (the race clock) wherever the line is about one, and the rest named
+per event:
+
+| Event                         | Fields beyond `room`             |
+| ----------------------------- | -------------------------------- |
+| `room_created`, `room_closed` |                                  |
+| `room_restored`               | `slots` waiting for their players |
+| `player_joined`               | `slot`, `nickname`               |
+| `player_rejoined`             | `slot`, `tick` mid-race          |
+| `player_left`                 | `slot`, `how` (`leave`, `dropped`, `unclaimed`), `tick` mid-race |
+| `player_silent`, `player_heard` | `slot`, `tick`                 |
+| `join_refused`                | `refusal`                        |
+| `race_started`                | `slot` (the creator), `seed`, `track`, `grid` |
+| `race_go`, `race_finished`    | `tick`                           |
+| `race_report`                 | `slot`, `corrections_per_second` |
+
+CloudWatch Logs Insights reads the fields by name. Every line about one
+room, in order, for a bad race reported by its code:
+
+```
+fields ts, event, slot, tick, how, refusal, corrections_per_second
+| filter room = "BXQF"
+| sort ts asc
+```
+
+`ts` is the server's clock to the millisecond; `@timestamp` is when the
+line was ingested, which orders lines from the same moment less well.
+
+The same from a laptop with the AWS CLI, over the last day:
+
+```sh
+query_id=$(aws logs start-query --region eu-west-2 \
+  --log-group-name /formula-none/server \
+  --start-time $(( $(date +%s) - 86400 )) --end-time $(date +%s) \
+  --query-string 'fields ts, event, slot, tick, how | filter room = "BXQF" | sort ts asc' \
+  --query queryId --output text)
+sleep 5; aws logs get-query-results --region eu-west-2 --query-id "$query_id"
+```
+
+Startup and certificate lines (`server_listening`, `rooms_kept_in`,
+`webtransport_listening`, `webtransport_certificate_reloaded` and their
+failures) carry no room; filter on `event` for those.
+
 ## Metrics
 
 Whether the netcode works is read off one Grafana dashboard (ADR 0018). The
@@ -151,8 +230,8 @@ and a read-only filesystem.
 Renewal needs no rebuild and no restart. Caddy renews by rewriting the same
 two files; the server re-reads them once a minute and, when their bytes
 change, reloads the TLS configuration of its running QUIC endpoint
-(`crates/server/src/webtransport.rs`), logging `webtransport reloaded
-certificate`. A poll that lands between Caddy writing the certificate and
+(`crates/server/src/webtransport.rs`), logging
+`webtransport_certificate_reloaded`. A poll that lands between Caddy writing the certificate and
 its key sees a pair that does not match and keeps the loaded one until the
 next poll. Sessions already open keep their handshake; new ones get the
 renewed certificate. On a first deploy, when Caddy has not obtained a
