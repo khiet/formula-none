@@ -44,12 +44,13 @@ The wasm test then confirms the wasm build agrees with the new hashes.
 
 ## What the set must cover
 
-`the_fixture_set_exercises_kart_contact_off_track_walls_both_tracks_both_mini_turbos_a_rocket_start_a_stall_the_kerb_and_the_wheel`
+`the_fixture_set_exercises_kart_contact_off_track_walls_both_tracks_both_mini_turbos_a_rocket_start_a_stall_the_kerb_the_wheel_and_tyres`
 in the sim's tests requires the set, taken together, to have karts
 touching, karts on the sand, a lone kart held by a wall, a run on
 each track, a drift released into an orange mini-turbo and another into
 a red one, a kart boosting at Go and a kart stalling there, a kart
-launched by a sausage kerb and a kart spun out by the runaway wheel, so
+launched by a sausage kerb, a kart spun out by the runaway wheel, a tyre
+taken and tyres lost to a spin-out, so
 trimming the set cannot quietly weaken the gate. `oval-hop-drift.replay.json` was
 written by hand for the mini-turbo: a hop into a left drift held past
 red through the first turn, then on the back straight a hop into a left
@@ -57,11 +58,16 @@ drift let go between orange and red and a hop into a right drift let go
 before orange, ending against the back straight's outer wall; its holds
 count the hop's airtime before the charge starts, and its steering keeps
 the kart between the walls. `brands-patch-chicane.replay.json` was written by a scripted follower
-from the grid on Suzuqa Patch: a stop on the run to the hairpin with the
-kart on the wheel's crossing until a pass spins it out, then on round
-Spoon and over the bridge, a line over the chicane's kerb, which launches
-the kart, and three seconds past the line. Its steering is held six ticks
-at a time in eighths. `brands-patch-first-corners.replay.json` was
+from the grid on Suzuqa Patch: down the underpass's centreline, taking
+its five tyres, a stop on the run to the hairpin with the kart on the
+wheel's crossing until a pass spins it out and costs it three, then on
+round Spoon and over the bridge, a line over the chicane's kerb, which
+launches the kart, and three seconds past the line. Its steering is held
+six ticks at a time in eighths. From the spin-out on it was rewritten when
+tyres came in: a follower steering for the path the kart drove before,
+two percent faster on its two tyres, and for the kerb itself on the
+chicane's approach, with the throttle and brake the old run held at the
+same spline progress. `brands-patch-first-corners.replay.json` was
 written the same way: four karts from the grid through the first curve
 and turn 2, one of them cutting across turn 2's sand. `oval-rocket-start.replay.json` and
 `oval-stall.replay.json` were written by hand for the start: the throttle

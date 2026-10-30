@@ -44,6 +44,7 @@ const KARTS = 8;
 const ITEM_BOX_RESPAWN_S = 3;
 const PREDICTED_FIRE_TIMEOUT_S = 1;
 const ITEM_BOXES = 8;
+const TYRES = 12;
 const HAZARD_DROP_DISTANCE_M = 1;
 const KART_HEIGHT_M = 0.6;
 
@@ -91,6 +92,7 @@ const bridge = {
       itemBoxes: () =>
         Array.from({ length: ITEM_BOXES }, (_, box) => ({ position: [box, 0, -70], yaw: 0 })),
       itemBoxesPresent: () => Array<boolean>(ITEM_BOXES).fill(true),
+      tyresPresent: () => Array<boolean>(TYRES).fill(true),
     }) as unknown as Race,
   createPrediction(_seed: bigint, kart: number): Prediction {
     const made: FakePrediction = {
@@ -207,6 +209,7 @@ const KART: KartSnapshot = {
   splineProgress: 321,
   wrongWay: false,
   heldItem: null,
+  tyres: 0,
   spinOutS: null,
   start: "clean",
   stallS: null,
@@ -217,6 +220,7 @@ function snapshot(
   tick: number,
   karts: Partial<KartSnapshot>[] = [],
   hazards: HazardSnapshot[] = [],
+  tyresPresent: boolean[] = Array<boolean>(TYRES).fill(true),
 ): Snapshot {
   return {
     tick,
@@ -225,6 +229,7 @@ function snapshot(
     events: [],
     hazards,
     projectiles: [],
+    tyresPresent,
   };
 }
 
@@ -509,6 +514,18 @@ describe("createServerRace", () => {
     expect(prediction().ended).toBe(false);
     client.event({ id: 1, kind: "raceEnded" });
     expect(prediction().ended).toBe(true);
+  });
+
+  it("reports every tyre there until a snapshot, then the newest snapshot's", () => {
+    const client = fakeClient();
+    const run = createServerRace(bridge, client, COUNTDOWN, 0, "{}");
+    expect(run.readout().tyresPresent).toEqual(Array<boolean>(TYRES).fill(true));
+    const taken = Array<boolean>(TYRES).fill(true);
+    taken[4] = false;
+    client.snapshot(snapshot(60, [], [], taken));
+    expect(run.readout().tyresPresent).toEqual(taken);
+    client.snapshot(snapshot(62));
+    expect(run.readout().tyresPresent).toEqual(Array<boolean>(TYRES).fill(true));
   });
 
   it("hides a box the server reports picked up for the tuned respawn", () => {

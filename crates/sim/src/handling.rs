@@ -98,8 +98,11 @@ pub(crate) struct Situation {
     pub(crate) boost_pad: bool,
     /// Whether the kart's centre is on a sausage kerb, airborne or not.
     pub(crate) kerb: bool,
+    /// What the tyres the kart carries multiply its forward top speed by,
+    /// the off-track cap and a boost included; 1 with none.
+    pub(crate) tyre_factor: f32,
     /// The cap on the kart's speed: the tuned top speed under its rubber
-    /// band.
+    /// band and its tyres.
     pub(crate) top_speed: f32,
 }
 
@@ -316,7 +319,9 @@ impl Handling {
         // it, so it slows the tick it leaves the track. The cap reads the
         // surface below the kart, so a hop over a patch does not clear it.
         if situation.surface.slows_karts() {
-            self.speed = self.speed.min(OFF_TRACK_SPEED_FACTOR * TOP_SPEED_M_PER_S);
+            self.speed = self
+                .speed
+                .min(OFF_TRACK_SPEED_FACTOR * TOP_SPEED_M_PER_S * situation.tyre_factor);
         }
         let on_boost_pad = !self.airborne() && situation.boost_pad;
         if on_boost_pad && !self.on_boost_pad {
@@ -325,7 +330,7 @@ impl Handling {
         self.on_boost_pad = on_boost_pad;
         if self.boost_left_s > 0.0 {
             self.boost_left_s -= dt;
-            self.speed = TOP_SPEED_M_PER_S * self.boost_factor;
+            self.speed = TOP_SPEED_M_PER_S * situation.tyre_factor * self.boost_factor;
         }
         // A stopped kart loses whatever else it had going, a boost included:
         // a prediction that learns of a spin-out from a snapshot still holds
@@ -563,6 +568,7 @@ mod tests {
             surface: Surface::Asphalt,
             boost_pad: false,
             kerb: false,
+            tyre_factor: 1.0,
             top_speed: TOP_SPEED_M_PER_S,
         }
     }

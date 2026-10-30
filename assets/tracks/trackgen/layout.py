@@ -182,6 +182,10 @@ SPAN_FOOT_CLEARANCE_M = 0.0
 # the left, the right column set back. Slot order is grid order. Placements
 # snap to the nearest centreline sample, so these distances hold to within
 # half a `SAMPLE_STEP_M`.
+# Metres between the tyres of a line, centre to centre: wider than the length
+# the sim collects a tyre over, `TYRE_HALF_LENGTH_M` either side, so a kart
+# takes them one at a time.
+TYRE_LINE_SPACING_M = 4.0
 GRID_SLOTS = 8
 GRID_ROW_SPACING_M = 5.0
 GRID_COLUMN_OFFSET_M = 2.0
@@ -207,6 +211,16 @@ class ItemRow:
 @dataclass(frozen=True)
 class BoostPad:
     s: float
+    offset: float = 0.0
+
+
+@dataclass(frozen=True)
+class TyreLine:
+    """`count` tyres a kart collects (GLOSSARY: tyre), in a line along the direction of travel
+    from arc length `s`, `TYRE_LINE_SPACING_M` apart, `offset` metres left of the centreline."""
+
+    s: float
+    count: int
     offset: float = 0.0
 
 
@@ -345,6 +359,7 @@ class Layout:
     tyre_walls: list[TyreWall]
     item_rows: list[ItemRow]
     boost_pads: list[BoostPad]
+    tyre_lines: list[TyreLine] = field(default_factory=list)
     kerbs: list[Kerb] = field(default_factory=list)
     wheel_crossings: list[WheelCrossing] = field(default_factory=list)
     elevation: list[Feature] = field(default_factory=list)
@@ -448,6 +463,7 @@ class TrackGeometry:
     lettering: list[Lettering] = field(default_factory=list)
     kerbs: list[Placement] = field(default_factory=list)
     wheel_crossings: list[Placement] = field(default_factory=list)
+    tyres: list[Placement] = field(default_factory=list)
 
 
 def build(layout: Layout) -> TrackGeometry:
@@ -533,6 +549,9 @@ def build(layout: Layout) -> TrackGeometry:
     item_boxes = [place(row.s, offset) for row in layout.item_rows for offset in row.offsets]
     boost_pads = [place(pad.s, pad.offset) for pad in layout.boost_pads]
     kerbs = [place(kerb.s, kerb.offset) for kerb in layout.kerbs]
+    tyres = [
+        place(line.s + k * TYRE_LINE_SPACING_M, line.offset) for line in layout.tyre_lines for k in range(line.count)
+    ]
     # Wall to wall: the run-off's edges, where the walls stand.
     wheel_crossings = [
         place(crossing.s, half_width=runoff, hazard_half_depth=HAZARD_HALF_DEPTH_M)
@@ -551,7 +570,17 @@ def build(layout: Layout) -> TrackGeometry:
     centreline = [(sample.x, sample.y, h) for sample, h in zip(path.samples, height)]
     scenery, lettering = decorate(layout, height)
     return TrackGeometry(
-        centreline, surfaces, checkpoints, item_boxes, boost_pads, spawn_grid, scenery, lettering, kerbs, wheel_crossings
+        centreline,
+        surfaces,
+        checkpoints,
+        item_boxes,
+        boost_pads,
+        spawn_grid,
+        scenery,
+        lettering,
+        kerbs,
+        wheel_crossings,
+        tyres,
     )
 
 

@@ -10,7 +10,8 @@
 mod common;
 
 use common::{
-    oval, track, with_boxes_under, with_slot_at, without_item_boxes, BUMP_SPENT_S, DT, OVAL, SEED,
+    oval, slot_position, track, with_boxes_under, with_slot_at, with_tyres_at, without_item_boxes,
+    without_tyres, BUMP_SPENT_S, DT, OVAL, SEED,
 };
 
 use std::collections::VecDeque;
@@ -21,7 +22,7 @@ use sim::tuning::{
     RECONCILIATION_VISIBLE_CORRECTION_M, SNAPSHOTS_PER_SECOND, START_FULL_BOOST_HOLD_S,
     TICKS_PER_SECOND, TOP_SPEED_M_PER_S,
 };
-use sim::{step, KartInput, KartReadout, Phase, Prediction, Start, State};
+use sim::{step, KartInput, KartReadout, Phase, Prediction, Start, State, Track};
 
 const TICKS_PER_SNAPSHOT: u32 = TICKS_PER_SECOND / SNAPSHOTS_PER_SECOND;
 /// 100 ms round trip at the tick rate, split evenly.
@@ -59,19 +60,26 @@ const FIRST_DRAWN_TICK: u32 = ONE_WAY_TICKS + 1;
 /// predicted kart stands where the server's will when that input lands.
 const PREDICTED_LEAD_TICKS: u32 = ONE_WAY_TICKS + 1;
 
-/// One kart raced for `ticks` server ticks: once the first input lands
+/// One kart raced round the oval with no tyres for `ticks` server ticks,
+/// as [`race_on`] races it: a tyre the server's kart takes, which the
+/// prediction never does, is a correction of its own.
+fn race(ticks: u32, lost: impl Fn(u32) -> bool) -> Run {
+    race_on(track(&without_tyres(OVAL)), ticks, lost)
+}
+
+/// One kart raced on `track` for `ticks` server ticks: once the first input lands
 /// the server applies the next sequence each tick, the last controls
 /// standing in for one that never arrived, and snapshots every other tick;
 /// the client starts its countdown when the race's first message reaches
 /// it and sends one input per tick. Inputs whose sequence `lost` picks
 /// never arrive. The scripted driver is the bot's driving.
-fn race(ticks: u32, lost: impl Fn(u32) -> bool) -> Run {
+fn race_on(track: Track, ticks: u32, lost: impl Fn(u32) -> bool) -> Run {
     let mut memory = Memory::default();
     let mut item_held_ticks = 0;
     race_with(
         ticks,
         lost,
-        State::new(SEED, 1, oval()),
+        State::new(SEED, 1, track),
         |prediction, _| {
             let mut input = bot::drive(
                 prediction.track(),
@@ -231,6 +239,19 @@ fn a_lost_input_is_corrected_by_less_than_a_player_can_see_and_counted() {
     );
 }
 
+#[test]
+fn a_tyre_the_servers_kart_takes_is_corrected_by_less_than_a_player_can_see() {
+    let run = race_on(oval(), seconds(20.0), |_| false);
+    let taken = run.server.last().expect("the server raced")[0].tyres;
+    assert!(taken > 0, "the server's kart took a tyre");
+    assert!(run.prediction.corrections() > 0, "the prediction took none");
+    let largest = run.corrections_m.iter().copied().fold(0.0, f32::max);
+    assert!(
+        largest < RECONCILIATION_VISIBLE_CORRECTION_M,
+        "moved {largest} m"
+    );
+}
+
 /// A prediction on the grid, its countdown under way and its inputs
 /// acknowledged by a snapshot that agreed.
 fn on_the_grid() -> (Prediction, KartReadout) {
@@ -376,6 +397,42 @@ fn the_prediction_takes_no_box_and_fills_its_slot_from_the_snapshots_alone() {
     // The snapshot's word fills the slot.
     prediction.reconcile(sequence, sequence, &server.kart_readouts()[0]);
     assert_eq!(prediction.kart_readout().held_item, held);
+}
+
+#[test]
+fn the_prediction_takes_no_tyre_and_adopts_the_snapshots_count() {
+    // The oval with a tyre under slot 0: the server's kart takes it at Go,
+    // the prediction's kart stands on it through Go and takes nothing.
+    let sidecar = with_tyres_at(&without_tyres(OVAL), [slot_position(OVAL, 0)]);
+    let track = track(&sidecar);
+    let mut server = State::new(SEED, 1, track.clone());
+    let mut prediction = Prediction::new(SEED, 0, track);
+    let mut sequence = 0;
+    while !matches!(server.phase(), Phase::Racing { .. }) {
+        server = step(server, &[KartInput::default()], DT);
+        sequence += 1;
+        prediction.tick(sequence, KartInput::default(), &[]);
+    }
+    for _ in 0..3 {
+        server = step(server, &[KartInput::default()], DT);
+        sequence += 1;
+        prediction.tick(sequence, KartInput::default(), &[]);
+    }
+    assert_eq!(
+        server.kart_readouts()[0].tyres,
+        1,
+        "the server's kart took it"
+    );
+    assert_eq!(prediction.kart_readout().tyres, 0);
+
+    // The snapshot's word is the count, kart standing where it was.
+    prediction.reconcile(sequence, sequence, &server.kart_readouts()[0]);
+    assert_eq!(prediction.kart_readout().tyres, 1);
+    for _ in 0..3 {
+        sequence += 1;
+        prediction.tick(sequence, KartInput::default(), &[]);
+    }
+    assert_eq!(prediction.kart_readout().tyres, 1, "and keeps it");
 }
 
 #[test]

@@ -35,6 +35,8 @@ export interface RaceReadout {
   readonly itemSlot: ItemSlot;
   /** Whether each item box, in the sidecar's order, is there to pick up. */
   readonly itemBoxesPresent: readonly boolean[];
+  /** Whether each tyre, in the sidecar's order, is there to pick up. */
+  readonly tyresPresent: readonly boolean[];
   /** The hazards on the track where the View draws them. */
   readonly hazards: readonly Hazard[];
   /** The projectiles in flight where the View draws them. */

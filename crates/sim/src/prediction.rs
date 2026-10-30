@@ -12,12 +12,15 @@
 //! predicted the tick it happens, and the snapshots' spin-out timer then
 //! agrees with it.
 //!
-//! Two things the prediction never runs. The item roll: the slot is the
+//! Three things the prediction never runs. The item roll: the slot is the
 //! snapshots' word, so a fire is predicted only once the server has said
-//! what the kart holds. And the hazards: a hazard the predicted kart fires
-//! is gone from this race the same tick, so the kart never hits one here;
-//! a hit is the server's, and reaches the kart as the spin-out timer in a
-//! snapshot, which holds it still through the replay.
+//! what the kart holds. The tyre pickups: a tyre another kart took first
+//! is the server's to know, so the count is the snapshots' word too, and a
+//! spin-out's loss predicted here gives way to it. And the hazards: a
+//! hazard the predicted kart fires is gone from this race the same tick, so
+//! the kart never hits one here; a hit is the server's, and reaches the
+//! kart as the spin-out timer in a snapshot, which holds it still through
+//! the replay.
 //!
 //! One thing it runs and then defers on: the rocket start. The prediction
 //! reads the hold as the server will, so the sparks and the boost answer
@@ -163,6 +166,7 @@ impl Prediction {
         // what the snapshots say, which a press then fires as the server
         // fires it.
         state.item_box_respawn_s = vec![f32::INFINITY; state.item_box_respawn_s.len()];
+        state.tyre_respawn_s = vec![f32::INFINITY; state.tyre_respawn_s.len()];
         let spawn = Entry {
             sequence: 0,
             tick: 0,
@@ -448,7 +452,7 @@ impl Prediction {
 
 /// Whether the snapshot puts the kart where the record does, to the tuned
 /// tolerance: its position, its nose, the tick of travel its velocity and
-/// its bump make, its drift, its item, its spin-out, its stall, its place
+/// its bump make, its drift, its item, its tyres, its spin-out, its stall, its place
 /// in the lap and, once `racing`, its rocket start's verdict; during the
 /// countdown the start is not compared, since a kart adopts it only from
 /// Go.
@@ -475,6 +479,7 @@ fn agrees(record: &KartRecord, kart: &KartReadout, racing: bool) -> bool {
         )
         && drift
         && record.kart.held_item == kart.held_item
+        && record.kart.tyres == kart.tyres
         && (record.kart.spin_out_left_s.max(0.0) - kart.spin_out_s.unwrap_or(0.0)).abs()
             < TICK_S / 2.0
         && (record.kart.stall_left_s.max(0.0) - kart.stall_s.unwrap_or(0.0)).abs() < TICK_S / 2.0

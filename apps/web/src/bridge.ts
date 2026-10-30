@@ -58,6 +58,12 @@ export interface ItemBox {
   readonly yaw: number;
 }
 
+/** Where a tyre a kart collects lies on the track: metres, and a yaw about +Y, zero facing -Z. */
+export interface Tyre {
+  readonly position: readonly [number, number, number];
+  readonly yaw: number;
+}
+
 /**
  * A hazard on the track as the View draws it: its centre on the surface in
  * metres, the kart that fired it, and whether that kart still trails it.
@@ -138,6 +144,10 @@ export interface Race {
   itemBoxes(): ItemBox[];
   /** Whether each item box, in the same order, is there to pick up as of the last step. */
   itemBoxesPresent(): boolean[];
+  /** The track's tyres, in the sidecar's order; fixed for the race. */
+  tyres(): Tyre[];
+  /** Whether each tyre, in the same order, is there to pick up as of the last step. */
+  tyresPresent(): boolean[];
   /** The hazards on the track as of the last step, in the order they were fired. */
   hazards(): Hazard[];
   /** The projectiles in flight as of the last step, in the order they were fired. */
@@ -331,6 +341,7 @@ export interface Bridge extends MessageCodec {
 const FLOATS_PER_INPUT = 6;
 const FLOATS_PER_TRANSFORM = 7;
 const FLOATS_PER_ITEM_BOX = 4;
+const FLOATS_PER_TYRE = 4;
 const FLOATS_PER_HAZARD = 5;
 const FLOATS_PER_PROJECTILE = 5;
 const FLOATS_PER_WHEEL = 8;
@@ -479,6 +490,17 @@ class BridgedRace implements Race {
 
   itemBoxesPresent(): boolean[] {
     return Array.from(this.#race.item_boxes_present(), (present) => present !== 0);
+  }
+
+  tyres(): Tyre[] {
+    return recordsFrom(this.#race.tyres(), FLOATS_PER_TYRE, "tyre", (read) => ({
+      position: [read(0), read(1), read(2)],
+      yaw: read(3),
+    }));
+  }
+
+  tyresPresent(): boolean[] {
+    return Array.from(this.#race.tyres_present(), (present) => present !== 0);
   }
 
   hazards(): Hazard[] {

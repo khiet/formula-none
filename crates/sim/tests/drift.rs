@@ -7,7 +7,10 @@
 
 mod common;
 
-use common::{only_kart, run, started, throttle, ticks, track, without_walls, yaw, DT, OVAL, SEED};
+use common::{
+    only_kart, run, started, throttle, ticks, track, without_tyres, without_walls, yaw, DT, OVAL,
+    SEED,
+};
 
 use sim::tuning::{
     ACCELERATION_TO_TOP_S, DRIFT_ENTRY_SPEED_FRACTION, DRIFT_SLIP_ANGLE_RAD, HOP_AIRTIME_S,
@@ -16,8 +19,14 @@ use sim::tuning::{
 };
 use sim::{step, DriftDirection, KartInput, MiniTurbo, State};
 
+/// A kart on the oval with no walls and no tyres, so the boosts it is
+/// measured at are the tuned top speed's.
 fn race() -> State {
-    started(State::new(SEED, 1, track(&without_walls(OVAL))))
+    started(State::new(
+        SEED,
+        1,
+        track(&without_tyres(&without_walls(OVAL))),
+    ))
 }
 
 /// A kart at top speed on the front straight.

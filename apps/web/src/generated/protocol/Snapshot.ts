@@ -33,4 +33,9 @@ hazards: Array<HazardSnapshot>,
  * Every homing projectile in flight at this tick, in the order they
  * were fired.
  */
-projectiles: Array<ProjectileSnapshot>, };
+projectiles: Array<ProjectileSnapshot>, 
+/**
+ * Whether each of the track's tyres, in the sidecar's order, is there
+ * to pick up at this tick.
+ */
+tyresPresent: Array<boolean>, };

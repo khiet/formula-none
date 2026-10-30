@@ -8,8 +8,8 @@
 mod common;
 
 use common::{
-    brands_patch, oval, started, throttle, ticks, track, with_slot_at, without_walls, yaw,
-    BRANDS_PATCH, DT, OVAL, SEED,
+    brands_patch, oval, started, throttle, ticks, track, with_slot_at, without_tyres,
+    without_walls, yaw, BRANDS_PATCH, DT, OVAL, SEED,
 };
 
 use sim::tuning::{KART_HALF_WIDTH_M, OFF_TRACK_SPEED_FACTOR, TOP_SPEED_M_PER_S};
@@ -23,7 +23,9 @@ fn oval_with_slot_0_at(position: [f32; 3], yaw: f32) -> Track {
 }
 
 fn open_oval_with_slot_0_at(position: [f32; 3], yaw: f32) -> Track {
-    track(&with_slot_at(&without_walls(OVAL), 0, position, yaw))
+    // No tyres either: one taken would raise the cap.
+    let sidecar = without_tyres(&without_walls(OVAL));
+    track(&with_slot_at(&sidecar, 0, position, yaw))
 }
 
 #[test]

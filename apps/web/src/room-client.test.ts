@@ -151,6 +151,7 @@ const KART: KartSnapshot = {
   splineProgress: 0,
   wrongWay: false,
   heldItem: null,
+  tyres: 0,
   spinOutS: null,
   start: "clean",
   stallS: null,
@@ -158,7 +159,15 @@ const KART: KartSnapshot = {
 };
 
 function snapshot(tick: number, events: Event[] = []): Snapshot {
-  return { tick, acknowledged: [0, 0], karts: [KART, KART], events, hazards: [], projectiles: [] };
+  return {
+    tick,
+    acknowledged: [0, 0],
+    karts: [KART, KART],
+    events,
+    hazards: [],
+    projectiles: [],
+    tyresPresent: [],
+  };
 }
 
 function lapEvent(id: number, kart: number): Event {

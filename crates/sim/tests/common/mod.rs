@@ -191,6 +191,33 @@ pub fn with_boxes_under(sidecar: &str, slots: impl IntoIterator<Item = usize>) -
     })
 }
 
+/// `sidecar` with no tyres, so a test driving over the tyres' lines meets
+/// nothing it did not ask for.
+pub fn without_tyres(sidecar: &str) -> String {
+    edited(sidecar, |sidecar| {
+        sidecar["tyres"] = serde_json::json!([]);
+    })
+}
+
+/// `sidecar` with one more tyre at each of `positions`, facing -Z, in order
+/// after the tyres it had.
+pub fn with_tyres_at(sidecar: &str, positions: impl IntoIterator<Item = [f32; 3]>) -> String {
+    edited(sidecar, |sidecar| {
+        for position in positions {
+            sidecar["tyres"]
+                .as_array_mut()
+                .expect("the sidecar lists its tyres")
+                .push(serde_json::json!({ "position": position, "yaw": 0.0 }));
+        }
+    })
+}
+
+/// The position of spawn slot `slot` in `sidecar`.
+pub fn slot_position(sidecar: &str, slot: usize) -> [f32; 3] {
+    let sidecar: serde_json::Value = serde_json::from_str(sidecar).expect("valid JSON");
+    serde_json::from_value(sidecar["spawn_grid"][slot]["position"].clone()).expect("a position")
+}
+
 /// A race of `kart_count` karts on the oval, past its countdown.
 pub fn race(kart_count: usize) -> State {
     started(State::new(SEED, kart_count, oval()))

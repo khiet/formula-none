@@ -176,6 +176,7 @@ struct Sidecar {
     checkpoints: Vec<Checkpoint>,
     item_boxes: Vec<Placement>,
     boost_pads: Vec<Placement>,
+    tyres: Vec<Placement>,
     kerbs: Vec<Placement>,
     wheel_crossings: Vec<WheelCrossing>,
     spawn_grid: Vec<Placement>,
@@ -190,6 +191,8 @@ pub struct Track {
     checkpoints: Vec<Checkpoint>,
     item_boxes: Vec<Placement>,
     boost_pads: Vec<Placement>,
+    /// The tyres a kart collects (GLOSSARY: tyre).
+    tyres: Vec<Placement>,
     /// Sausage kerbs (GLOSSARY).
     kerbs: Vec<Placement>,
     /// Where the runaway wheel (GLOSSARY) crosses the track.
@@ -349,6 +352,7 @@ impl Track {
             checkpoints: sidecar.checkpoints,
             item_boxes: sidecar.item_boxes,
             boost_pads: sidecar.boost_pads,
+            tyres: sidecar.tyres,
             kerbs: sidecar.kerbs,
             wheel_crossings: sidecar.wheel_crossings,
             spawn_grid: sidecar.spawn_grid,
@@ -484,6 +488,11 @@ impl Track {
         self.boost_pads
             .iter()
             .any(|pad| pad.covers(point, BOOST_PAD_HALF_LENGTH_M, BOOST_PAD_HALF_WIDTH_M))
+    }
+
+    /// The tyres a kart collects, in the sidecar's order.
+    pub fn tyres(&self) -> &[Placement] {
+        &self.tyres
     }
 
     pub fn kerbs(&self) -> &[Placement] {
