@@ -730,7 +730,7 @@ use tuning::{
     START_THROTTLE_HELD, START_WEAK_BOOST_FACTOR, START_WEAK_BOOST_HOLD_S, START_WEAK_BOOST_S,
 };
 use tuning::{
-    GRAVITY_M_PER_S2, KART_EDGE_RADIUS_M, KART_HALF_HEIGHT_M, KART_HALF_LENGTH_M,
+    GRAVITY_M_PER_S2, GROUND_CONTACT_M, KART_EDGE_RADIUS_M, KART_HALF_HEIGHT_M, KART_HALF_LENGTH_M,
     KART_HALF_WIDTH_M, LAPS_PER_RACE, TOP_SPEED_M_PER_S,
 };
 use tuning::{
@@ -1408,6 +1408,7 @@ pub fn step(mut state: State, inputs: &[KartInput], dt: f32) -> State {
                 rotation: *body.rotation(),
                 vertical_m_per_s: body.linvel().y,
                 surface: state.physics.surface_at(position),
+                on_the_ground: state.physics.kart_on_the_ground(position),
                 boost_pad: state.track.on_a_boost_pad(position),
                 kerb: state.track.on_a_kerb(position),
                 coin_factor: state.karts[slot].coin_factor(),
@@ -2113,6 +2114,21 @@ impl Physics {
     /// The topmost tagged surface at or below `point`, or `OutOfWorld` when
     /// there is none. Karts are never an answer.
     fn surface_at(&self, point: [f32; 3]) -> Surface {
+        self.surface_below(point)
+            .map_or(Surface::OutOfWorld, |(surface, _)| surface)
+    }
+
+    /// Whether a kart whose centre is at `point` stands on the track: the
+    /// topmost surface under its centre is no further below its resting
+    /// height than the tuned contact allowance.
+    fn kart_on_the_ground(&self, point: [f32; 3]) -> bool {
+        self.surface_below(point)
+            .is_some_and(|(_, depth)| depth <= KART_HALF_HEIGHT_M + GROUND_CONTACT_M)
+    }
+
+    /// The topmost tagged surface at or below `point` and how far below it
+    /// lies, or `None` when there is none. Karts are never an answer.
+    fn surface_below(&self, point: [f32; 3]) -> Option<(Surface, f32)> {
         let ray = Ray::new(
             Vec3::from(point) + Vec3::Y * SURFACE_PROBE_RISE_M,
             Vec3::NEG_Y,
@@ -2123,10 +2139,9 @@ impl Physics {
             &self.colliders,
             QueryFilter::only_fixed(),
         );
-        pipeline
-            .cast_ray(&ray, f32::MAX, true)
-            .and_then(|(collider, _)| Surface::from_code(self.colliders[collider].user_data as u8))
-            .unwrap_or(Surface::OutOfWorld)
+        let (collider, toi) = pipeline.cast_ray(&ray, f32::MAX, true)?;
+        let surface = Surface::from_code(self.colliders[collider].user_data as u8)?;
+        Some((surface, toi - SURFACE_PROBE_RISE_M))
     }
 
     /// Register newly inserted colliders with the broad phase so scene queries

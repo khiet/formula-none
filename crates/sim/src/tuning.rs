@@ -145,6 +145,12 @@ pub const KART_HALF_LENGTH_M: f32 = 0.9;
 pub const KART_HALF_WIDTH_M: f32 = 0.6;
 /// Half the kart's height; a kart at rest sits this far above the surface.
 pub const KART_HALF_HEIGHT_M: f32 = 0.3;
+/// How much further than its resting height the surface under a kart's
+/// centre may lie while the kart still counts as on the ground. A kart
+/// stays level, so on a ramp it rests on its uphill edge with its centre
+/// raised over the road: room for the bridge's 14 percent grade, 0.13 m
+/// over the kart's half length, with some to spare.
+pub const GROUND_CONTACT_M: f32 = 0.2;
 /// Rounding on the kart's collision box, inside every half extent. A
 /// sharp-edged box catches on the seams between track triangles; a rounded
 /// one slides over them.
