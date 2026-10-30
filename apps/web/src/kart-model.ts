@@ -5,7 +5,8 @@
 import { type Material, Mesh, MeshStandardMaterial, type Object3D } from "three";
 import kartGltf from "../../../assets/karts/kart.glb?url";
 import type { KartSize } from "./bridge";
-import { type Driver, FACIAL_HAIRS, HAIRS, type Livery } from "./livery";
+import { DRIVER_PARTS, partsOf } from "./driver-parts";
+import type { Livery } from "./livery";
 
 /** The exported kart, as the View fetches it. */
 export const KART_GLTF_URL: string = kartGltf;
@@ -35,24 +36,6 @@ function paints(livery: Livery): Map<string, number> {
     ...Object.entries(DRIVER_MATERIALS).map(
       ([paint, name]) => [name, livery.driver[paint as DriverPaint]] as const,
     ),
-  ]);
-}
-
-/** Every swappable part on the head, by the name the exporter gives its node. */
-const DRIVER_PARTS: ReadonlySet<string> = new Set([
-  ...HAIRS.map((hair) => `hair-${hair}`),
-  ...FACIAL_HAIRS.filter((facialHair) => facialHair !== "none").map(
-    (facialHair) => `facial-hair-${facialHair}`,
-  ),
-  "earrings",
-]);
-
-/** The parts `driver` wears; a clean-shaven driver's "none" matches no part, so no facial hair shows. */
-function partsOf(driver: Driver): ReadonlySet<string> {
-  return new Set([
-    `hair-${driver.hair}`,
-    `facial-hair-${driver.facialHair}`,
-    ...(driver.earrings ? ["earrings"] : []),
   ]);
 }
 

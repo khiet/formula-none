@@ -95,6 +95,21 @@ export const BEACON_LIT = 0xffb020;
 export const BEACON_BEAM = 0xffcf4a;
 
 /**
+ * build.py's fixed materials as kart.glb exports them, by the custom
+ * property the poster kart reads each by; kart-asset.test.ts holds them to
+ * the glb. index.html mixes their lit and shaded tones.
+ */
+export const KART_PAINT = {
+  tyre: 0x1c1c1f,
+  rim: 0x3b3d42,
+  carbon: 0x2b2e33,
+  whites: 0xf7f7f2,
+  irises: 0x211712,
+  gold: 0xdba833,
+  grey: 0xa8a8ad,
+} as const;
+
+/**
  * The lit and shaded tones of a colour that has only its mid, as the
  * catalog mixes a livery's: 72% of it with white, 66% of it with black.
  */

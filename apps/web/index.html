@@ -522,22 +522,36 @@
         height: auto;
         overflow: visible;
       }
-      /* Each wheel turns about its own centre, as the View turns the car's. */
+      /* Each wheel turns about its axle, which poster.ts sets as its origin in viewBox units, as the View turns the kart's. */
       :is(#title-scene, #room-scene, #results-scene) .kart .wheel {
-        transform-box: fill-box;
-        transform-origin: center;
+        transform-box: view-box;
       }
-      /* The lit and shaded tones of the colours poster.ts sets on each kart. */
+      /* The lit and shaded tones of the colours poster.ts sets on each kart: the livery's, the driver's and build.py's fixed ones. */
       :is(#title-scene, #room-scene, #results-scene) .kart {
         --p-lt: color-mix(in srgb, var(--p) 72%, white);
         --p-dk: color-mix(in srgb, var(--p) 66%, black);
         --s-lt: color-mix(in srgb, var(--s) 78%, white);
         --s-dk: color-mix(in srgb, var(--s) 82%, black);
         --a-lt: color-mix(in srgb, var(--a) 72%, white);
+        --a-dk: color-mix(in srgb, var(--a) 66%, black);
         --sk-lt: color-mix(in srgb, var(--sk) 80%, white);
         --sk-dk: color-mix(in srgb, var(--sk) 80%, black);
         --hair-lt: color-mix(in srgb, var(--hair) 78%, white);
         --hair-dk: color-mix(in srgb, var(--hair) 70%, black);
+        --tyre-lt: color-mix(in srgb, var(--tyre) 72%, white);
+        --tyre-dk: color-mix(in srgb, var(--tyre) 66%, black);
+        --rim-lt: color-mix(in srgb, var(--rim) 72%, white);
+        --rim-dk: color-mix(in srgb, var(--rim) 66%, black);
+        --carbon-lt: color-mix(in srgb, var(--carbon) 72%, white);
+        --carbon-dk: color-mix(in srgb, var(--carbon) 66%, black);
+        --whites-lt: color-mix(in srgb, var(--whites) 72%, white);
+        --whites-dk: color-mix(in srgb, var(--whites) 66%, black);
+        --irises-lt: color-mix(in srgb, var(--irises) 72%, white);
+        --irises-dk: color-mix(in srgb, var(--irises) 66%, black);
+        --gold-lt: color-mix(in srgb, var(--gold) 72%, white);
+        --gold-dk: color-mix(in srgb, var(--gold) 66%, black);
+        --grey-lt: color-mix(in srgb, var(--grey) 72%, white);
+        --grey-dk: color-mix(in srgb, var(--grey) 66%, black);
       }
       /* Chunky buttons with hard shadows that press in; the way forward is green. */
       :is(#title-scene, #room-scene, #results-scene) button {
@@ -1122,7 +1136,7 @@
         #title-scene .runner .wheel {
           animation: poster-roll var(--roll) linear infinite;
         }
-        #title-scene .runner .wheel + .wheel {
+        #title-scene .runner .wheel[data-node^="wheel-front"] {
           animation-duration: calc(var(--roll) * 0.9);
         }
         #results-scene [data-race-over] {

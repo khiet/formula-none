@@ -61,7 +61,7 @@ describe("Title Scene", () => {
     expect(container.childElementCount).toBe(0);
   });
 
-  it("paints each runner in its slot's livery, wheels in a group a style can turn", () => {
+  it("paints each runner in its slot's livery, each wheel in a group a style can turn", () => {
     const { container } = scene();
     const karts = Array.from(container.querySelectorAll<SVGElement>(".runner .kart"));
     expect(
@@ -72,7 +72,8 @@ describe("Title Scene", () => {
         return [paint.primary, paint.secondary, paint.accent].map(hexCss);
       }),
     );
-    expect(karts.map((kart) => kart.querySelectorAll(".wheel").length)).toEqual([2, 2]);
+    // All four wheels of kart.glb, the far pair showing as the sliver above the near.
+    expect(karts.map((kart) => kart.querySelectorAll(".wheel").length)).toEqual([4, 4]);
   });
 
   it("creates a room under the trimmed nickname", () => {

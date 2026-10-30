@@ -57,12 +57,22 @@
     --p-lt: color-mix(in srgb, var(--p) 72%, white);
     --p-dk: color-mix(in srgb, var(--p) 66%, black);
     --a-lt: color-mix(in srgb, var(--a) 72%, white);
+    --a-dk: color-mix(in srgb, var(--a) 66%, black);
     --sk-lt: color-mix(in srgb, var(--sk) 80%, white);
     --sk-dk: color-mix(in srgb, var(--sk) 80%, black);
     --sk-deep: color-mix(in srgb, var(--sk) 64%, black);
     --hair-lt: color-mix(in srgb, var(--hair) 78%, white);
     --hair-dk: color-mix(in srgb, var(--hair) 70%, black);
+    --tyre-lt: color-mix(in srgb, var(--tyre) 72%, white); --tyre-dk: color-mix(in srgb, var(--tyre) 66%, black);
+    --rim-lt: color-mix(in srgb, var(--rim) 72%, white); --rim-dk: color-mix(in srgb, var(--rim) 66%, black);
+    --carbon-lt: color-mix(in srgb, var(--carbon) 72%, white); --carbon-dk: color-mix(in srgb, var(--carbon) 66%, black);
+    --whites-lt: color-mix(in srgb, var(--whites) 72%, white); --whites-dk: color-mix(in srgb, var(--whites) 66%, black);
+    --irises-lt: color-mix(in srgb, var(--irises) 72%, white); --irises-dk: color-mix(in srgb, var(--irises) 66%, black);
+    --gold-lt: color-mix(in srgb, var(--gold) 72%, white); --gold-dk: color-mix(in srgb, var(--gold) 66%, black);
+    --grey-lt: color-mix(in srgb, var(--grey) 72%, white); --grey-dk: color-mix(in srgb, var(--grey) 66%, black);
   }
+  /* Each wheel turns about its axle, which the generated data gives in viewBox units. */
+  .lv .wheel { transform-box: view-box; }
 
   * { box-sizing: border-box; }
   body {
@@ -373,7 +383,7 @@
         </div>
         <dl class="spec"><dt>Size</dt><dd>Inside the sim's 1.2 x 1.8 m box</dd><dt>Decided</dt><dd><a href="adr/0034-chibi-low-poly-art.md">ADR 0034</a>, <a href="adr/0035-livery-palette.md">0035</a>, <a href="adr/0036-drivers-race-bare-headed.md">0036</a></dd></dl>
         <div class="notes">
-          <p>Built from primitives: tub, sidepods, wings, halo at chin height, octagon wheels with three spokes, one flat material per palette colour. The side view is the poster kart: <code>build.py</code>'s boxes projected part for part (<a href="adr/0051-poster-karts-wear-the-livery.md">ADR 0051</a>).</p>
+          <p>Built from primitives: tub, sidepods, wings, halo at chin height, octagon wheels with three spokes, one flat material per palette colour. The side view is the poster kart: <code>kart.glb</code> projected side on by <code>pnpm generate:poster</code> (<a href="adr/0052-poster-kart-generated-from-kart-glb.md">ADR 0052</a>), so a change to the build cannot leave it behind.</p>
           <p class="dont"><b>Don't</b> add a helmet, a race number, a name on the wing or a tyre stripe: the base mockup had all four and the ADRs removed them.</p>
         </div>
       </article>
@@ -754,9 +764,9 @@
       <article class="asset wide">
         <header><h3>Poster kart: Title runners and the podium</h3><code>apps/web/src/poster.ts</code></header>
         <div class="compare"><figure><figcaption>The podium</figcaption><div class="poster" data-draw="poster"></div></figure></div>
-        <dl class="spec"><dt>Decided</dt><dd><a href="adr/0033-grand-prix-poster.md">ADR 0033</a>, <a href="adr/0035-livery-palette.md">0035</a>, <a href="adr/0036-drivers-race-bare-headed.md">0036</a>, <a href="adr/0051-poster-karts-wear-the-livery.md">0051</a></dd></dl>
+        <dl class="spec"><dt>Decided</dt><dd><a href="adr/0033-grand-prix-poster.md">ADR 0033</a>, <a href="adr/0035-livery-palette.md">0035</a>, <a href="adr/0036-drivers-race-bare-headed.md">0036</a>, <a href="adr/0051-poster-karts-wear-the-livery.md">0051</a>, <a href="adr/0052-poster-kart-generated-from-kart-glb.md">0052</a></dd></dl>
         <div class="notes">
-          <p>The car side on, facing right: <code>build.py</code>'s boxes in the same metres, far side first, in primary, secondary and accent as the View paints them, the carbon halo and pillar, the octagon wheels with their three spokes, the bare head. The podium is the three cars you just raced, in their own palettes; the Title Scene's runners and the Room Scene's grid are the same drawing in the same livery, and a runner's wheels turn as it drives.</p>
+          <p>The kart side on, facing right, drawn from <code>docs/kart-side.js</code>: every face of <code>kart.glb</code> that shows from the kart's right, pitched down four degrees so each top face is a lit strip and the far wheels a sliver of tyre, shaded by its normal against one light in three tones of its material's colour, in painter order. Primary, secondary and accent as the View paints them, the carbon halo and pillar, the octagon wheels with their three spokes, the bare head in only the driver's parts. Nothing here is traced by hand: <code>pnpm generate:poster</code> rewrites it from the glb, and CI fails on a stale copy. The podium is the three cars you just raced, in their own palettes; the Title Scene's runners and the Room Scene's grid are the same drawing in the same livery, and a runner's wheels turn as it drives.</p>
           <p class="dont"><b>Don't</b> draw a smooth wheel, a helmet or an accent hub on a poster, and don't paint a poster kart in its key colour alone; the poster car is the same car as the View's, in the same paint.</p>
         </div>
       </article>
@@ -808,6 +818,7 @@
 </main>
 
 
+<script src="kart-side.js"></script>
 <script>
 (() => {
   const hex = (n) => "#" + n.toString(16).padStart(6, "0");
@@ -823,8 +834,6 @@
     { name: "Rosa", after: "Alpine", key: 0xf282b4, p: 0xf282b4, s: 0x0b5ab0, a: 0xffffff, d: { skin: SKIN.fair, hair: "short-curls", hc: 0x241a14, fh: "stubble", ear: false } },
     { name: "Titanio", after: "Audi", key: 0x2a2a2e, p: 0x2a2a2e, s: 0x9ea3a8, a: 0xf50537, d: { skin: SKIN.fair, hair: "short", hc: 0xb8955a, fh: "none", ear: false } },
   ];
-  const IRIS = "#21170f";
-  const WHITES = "#f6f1ea";
   const GOLD_FIXED = "#dba833";
   const GREY_FIXED = "#a8a8ad";
   const NICKS = ["Khiet", "Mai", "Bot 3", "Jules", "Bot 5", "Ana", "Bot 7", "Theo"];
@@ -838,6 +847,7 @@
     el.style.setProperty("--key", hex(L.key));
     el.style.setProperty("--sk", hex(L.d.skin));
     el.style.setProperty("--hair", hex(L.d.hc));
+    for (const [name, colour] of Object.entries(KART_PAINT)) el.style.setProperty("--" + name, hex(colour));
   };
 
   // Regular n-gon, flat side down, as the base mockup draws its wheels and heads.
@@ -861,95 +871,29 @@
   };
   const at = (cx, cy, r) => (u, w) => [cx + u * r, cy + w * r];
 
-  // The wheel as build.py builds it: an octagon tyre, the rim at 0.58 of it, three spokes to 0.86, one straight up; grouped about its centre for a style to spin.
-  const RIM = "#3a3d42", SPOKE = "#4a4e55", CARBON = "#2b2e33";
-  const wheel = (cx, cy, r) => {
-    const spokes = [0, 1, 2].map((k) => {
-      const t = -Math.PI / 2 + (2 * Math.PI * k) / 3;
-      return `<line x1="${cx}" y1="${cy}" x2="${(cx + r * 0.86 * Math.cos(t)).toFixed(1)}" y2="${(cy + r * 0.86 * Math.sin(t)).toFixed(1)}" stroke="${SPOKE}" stroke-width="${(r * 0.2).toFixed(1)}" stroke-linecap="round"/>`;
-    }).join("");
-    return `<g class="wheel">` + facets(8, cx, cy, r, ["#2f3237", "#1d1e21", "#111214"]) +
-      poly(ngon(8, cx, cy, r * 0.58), RIM) + spokes + poly(ngon(6, cx, cy, r * 0.14), SPOKE) + "</g>";
-  };
-
-  // Hair from the side, the car facing right: a cap over the top and back, then the style's own shape.
-  const hairSide = (style, cx, cy, r) => {
-    const q = at(cx, cy, r);
-    const v = ngon(8, cx, cy, r * 1.07);
-    let out = poly([v[5], v[6], v[7], v[0], q(0.74, -0.6), q(0.8, -0.44), q(0.3, -0.52), q(-0.28, -0.26), q(-0.48, 0.3), q(-0.84, 0.44)], "var(--hair)");
-    out += poly([v[7], v[0], q(0.74, -0.6), q(0.3, -0.52), q(-0.1, -0.66)], "var(--hair-lt)");
-    if (style === "braids-tied-back") {
-      out += [-0.5, -0.2, 0.1].map((u) => `<polyline points="${P([q(u + 0.3, -0.96), q(u - 0.25, -0.5), q(u - 0.55, 0.05)])}" stroke="var(--hair-dk)" stroke-width="2.5" fill="none"/>`).join("");
-      out += facets(6, cx - r * 1.05, cy - r * 0.15, r * 0.27, ["var(--hair-lt)", "var(--hair)", "var(--hair-dk)"]);
-    } else if (style === "swept-side-part") {
-      out += poly([q(-0.2, -1.04), q(0.5, -1.12), q(0.94, -0.62), q(0.5, -0.56)], "var(--hair-lt)");
-    } else if (style === "swept-back") {
-      out += poly([q(-0.2, -1.12), q(0.62, -0.96), q(0.3, -0.56), q(-0.9, -0.62), q(-1.12, -0.18)], "var(--hair)");
-      out += poly([q(0.1, -1.04), q(0.5, -0.94), q(-0.5, -0.66)], "var(--hair-lt)");
-    } else if (style === "curly-fringe" || style === "short-curls") {
-      const spots = style === "curly-fringe"
-        ? [[0.62, -0.62], [0.4, -0.82], [0.12, -0.96], [-0.18, -0.98], [0.78, -0.42]]
-        : [[0.5, -0.74], [0.18, -0.92], [-0.16, -0.94], [-0.48, -0.78], [-0.76, -0.5], [-0.9, -0.12], [0.1, -0.62], [-0.4, -0.5]];
-      out += spots.map(([u, w]) => poly(ngon(6, cx + u * r, cy + w * r, r * 0.17), "var(--hair-lt)")).join("");
-    } else if (style === "short-greying-temples") {
-      out += poly([q(-0.34, -0.2), q(0.02, -0.3), q(0.06, 0.0), q(-0.28, 0.06)], GREY_FIXED);
+  // The poster kart (apps/web/src/poster.ts): kart.glb projected side on by `pnpm generate:poster` into
+  // docs/kart-side.js (ADR 0052), painted by custom property and dressed in the driver's parts alone.
+  const KART_TOKENS = { Primary: "p", Secondary: "s", Accent: "a", Skin: "sk", Hair: "hair", Tyre: "tyre", Rim: "rim", Carbon: "carbon", Whites: "whites", Irises: "irises", Gold: "gold", Grey: "grey" };
+  const KART_TONES = { lit: "-lt", mid: "", shaded: "-dk" };
+  const wornParts = (d) => new Set([`hair-${d.hair}`, `facial-hair-${d.fh}`, ...(d.ear ? ["earrings"] : [])]);
+  const optionalPart = (node) => node.startsWith("hair-") || node.startsWith("facial-hair-") || node === "earrings";
+  const sideCar = (d, label = "Chibi low-poly car, side view") => {
+    const worn = wornParts(d);
+    let body = "", run;
+    for (const p of KART_SIDE.paths) {
+      if (optionalPart(p.node) && !worn.has(p.node)) continue;
+      if (p.node !== run) {
+        if (run) body += "</g>";
+        run = p.node;
+        const axle = KART_SIDE.wheels[p.node];
+        body += axle ? `<g class="wheel" data-node="${p.node}" style="transform-origin:${axle[0]}px ${axle[1]}px">` : `<g data-node="${p.node}">`;
+      }
+      const fill = `var(--${KART_TOKENS[p.material]}${KART_TONES[p.tone]})`;
+      body += `<path d="${p.d}" fill="${fill}" stroke="${fill}" stroke-width="0.5" stroke-linejoin="round"/>`;
     }
-    return out;
+    if (run) body += "</g>";
+    return `<svg viewBox="${KART_SIDE.viewBox}" role="img" aria-label="${label}"><ellipse cx="260" cy="352" rx="232" ry="9" fill="rgba(0,0,0,.18)"/>${body}</svg>`;
   };
-  const facialSide = (kind, cx, cy, r) => {
-    const q = at(cx, cy, r);
-    const op = { none: 0, "light-stubble": 0.18, stubble: 0.3, "heavy-stubble": 0.5, "short-beard": 0.92 }[kind];
-    if (!op) return "";
-    return poly([q(-0.08, 0.28), q(0.2, 0.64), q(0.6, 0.88), q(0.9, 0.62), q(0.92, 0.42), q(0.72, 0.66), q(0.3, 0.6), q(0.04, 0.24)], "var(--hair)", `opacity="${op}"`);
-  };
-  const headSide = (d, cx, cy, r) => {
-    const q = at(cx, cy, r);
-    return facets(8, cx, cy, r, ["var(--sk-lt)", "var(--sk)", "var(--sk-dk)"]) +
-      facialSide(d.fh, cx, cy, r) +
-      hairSide(d.hair, cx, cy, r) +
-      poly(ngon(6, cx - r * 0.12, cy + r * 0.12, r * 0.17), "var(--sk-dk)") +
-      (d.ear ? poly(ngon(4, cx - r * 0.12, cy + r * 0.38, r * 0.08), GOLD_FIXED) : "") +
-      poly([q(0.92, 0.04), q(1.1, 0.24), q(0.92, 0.3)], "var(--sk-dk)") +
-      poly(ngon(6, cx + r * 0.6, cy + r * 0.04, r * 0.25), WHITES) +
-      poly(ngon(6, cx + r * 0.7, cy + r * 0.06, r * 0.15), IRIS) +
-      poly(ngon(4, cx + r * 0.74, cy - r * 0.02, r * 0.05), "#fff") +
-      poly([q(0.36, -0.3), q(0.86, -0.26), q(0.84, -0.18), q(0.36, -0.22)], "var(--hair)") +
-      `<polyline points="${P([q(0.6, 0.52), q(0.82, 0.5)])}" stroke="#6e3428" stroke-width="3" stroke-linecap="round"/>`;
-  };
-
-  // The car side on (poster.ts): build.py's boxes in the same metres, 250 units a metre, y = 0 at x 262 and the ground at y 350, far side first.
-  const UNITS_PER_M = 250, sx = (y) => 262 + y * UNITS_PER_M, sy = (z) => 350 - z * UNITS_PER_M, LIT_STRIP = 6;
-  const box = (fill, [, cy, cz], [, length, height], frontScale = 1, frontDrop = 0, lit) => {
-    const back = sx(cy - length / 2), front = sx(cy + length / 2);
-    const backTop = sy(cz + height / 2), frontTop = sy(cz + (height / 2) * frontScale - frontDrop);
-    const side = poly([[back, sy(cz - height / 2)], [back, backTop], [front, frontTop], [front, sy(cz - (height / 2) * frontScale - frontDrop)]], fill);
-    return lit ? side + poly([[back, backTop], [front, frontTop], [front, frontTop + LIT_STRIP], [back, backTop + LIT_STRIP]], lit) : side;
-  };
-  const wheelAt = (radius, y) => [sx(y), sy(radius * Math.cos(Math.PI / 8)), radius * UNITS_PER_M];
-  const sideCar = (d, label = "Chibi low-poly car, side view") => `<svg viewBox="0 0 520 380" role="img" aria-label="${label}">
-    <ellipse cx="260" cy="352" rx="232" ry="9" fill="rgba(0,0,0,.18)"/>
-    ${box("var(--a)", [0, -0.6, 0.6], [0.03, 0.34, 0.16], 0.5, 0, "var(--a-lt)")}
-    ${box(CARBON, [0, -0.78, 0.6], [0.05, 0.06, 0.36])}
-    ${box("var(--a)", [0, 0.81, 0.14], [0.13, 0.1, 0.09], 0.8)}
-    ${box("var(--sk)", [0, -0.1, 0.77], [0.13, 0.12, 0.08])}
-    ${box("var(--s)", [0, -0.36, 0.62], [0.18, 0.14, 0.16], 1, 0, "var(--s-lt)")}
-    ${box("var(--a)", [0, -0.1, 0.735], [0.24, 0.18, 0.05])}
-    ${box("var(--p)", [0, 0.52, 0.27], [0.26, 0.46, 0.26], 0.55, 0.07)}
-    ${box("var(--p)", [0, -0.52, 0.34], [0.32, 0.44, 0.42], 1.1, 0, "var(--p-lt)")}
-    ${box("var(--p)", [0, -0.04, 0.32], [0.42, 0.66, 0.4], 1, 0, "var(--p-lt)")}
-    ${box("var(--p)", [0, -0.12, 0.62], [0.46, 0.24, 0.2], 1, 0, "var(--p-lt)")}
-    ${headSide(d, sx(-0.1), sy(0.99), 0.29 * UNITS_PER_M)}
-    ${box("var(--s)", [0, -0.2, 0.1], [0.76, 1.1, 0.06])}
-    ${box("var(--s)", [0.29, -0.18, 0.28], [0.2, 0.52, 0.3], 0.75, 0.03, "var(--s-lt)")}
-    <polyline points="${P([[sx(0.4), sy(0.52)], [sx(0.34), sy(0.756)], [sx(-0.1), sy(0.756)], [sx(-0.18), sy(0.52)]])}" stroke="${CARBON}" stroke-width="11" fill="none" stroke-linejoin="round" stroke-linecap="round"/>
-    ${box("var(--p)", [0, -0.82, 0.8], [0.82, 0.14, 0.06])}
-    ${box("var(--a)", [0, -0.86, 0.87], [0.82, 0.08, 0.04])}
-    ${box("var(--a)", [0.42, -0.83, 0.73], [0.03, 0.18, 0.34], 1, 0, "var(--a-lt)")}
-    ${box("var(--s)", [0, 0.82, 0.07], [1.1, 0.14, 0.04])}
-    ${box("var(--p)", [0, 0.77, 0.12], [1.0, 0.06, 0.04])}
-    ${box("var(--a)", [0.56, 0.82, 0.11], [0.03, 0.16, 0.13], 1, 0, "var(--a-lt)")}
-    ${wheel(...wheelAt(0.3, -0.52))}${wheel(...wheelAt(0.27, 0.52))}
-  </svg>`;
 
   // The back of the bare head from the chase camera: hair, ears, and the style's tell.
   const headBack = (d, cx, cy, r) => {
@@ -1659,6 +1603,15 @@
       { token: "BEACON_LIT", hex: 0xffb020, role: "The beacon and its glow while the flag is up" },
       { token: "BEACON_BEAM", hex: 0xffcf4a, role: "The beacon's sweeping beam" },
     ]],
+    ["Kart, assets/karts/build.py", [
+      { token: "KART_PAINT.tyre", hex: 0x1c1c1f, role: "The tyres" },
+      { token: "KART_PAINT.rim", hex: 0x3b3d42, role: "The rims and spokes" },
+      { token: "KART_PAINT.carbon", hex: 0x2b2e33, role: "The halo, its pillar, the wishbones" },
+      { token: "KART_PAINT.whites", hex: 0xf7f7f2, role: "The whites of the eyes" },
+      { token: "KART_PAINT.irises", hex: 0x211712, role: "The irises, one colour for every driver" },
+      { token: "KART_PAINT.gold", hex: 0xdba833, role: "The earrings" },
+      { token: "KART_PAINT.grey", hex: 0xa8a8ad, role: "Greying temples" },
+    ]],
     ["Poster, apps/web/index.html", [
       { hex: 0xc81d25, role: "Poster red: the backdrop" },
       { hex: 0xffd23f, role: "Poster gold: the logo, buttons, your row" },
@@ -1681,9 +1634,10 @@
       { hex: 0x2f7a3a, role: "Canopy pine, and its shade at two thirds" },
       { hex: 0xf2a3c0, role: "Blossom, the cherries; the round trees' canopy is Grass" },
       { hex: 0x5a3a1e, role: "Trunk" },
-      { hex: 0x3a3d42, role: "Rim, assets/karts/build.py" },
     ]],
   ];
+  // build.py's fixed colours as the poster kart reads them, from the list above so the guide copies them once.
+  const KART_PAINT = Object.fromEntries(PAL.flatMap(([, list]) => list).flatMap((entry) => (entry.token?.startsWith("KART_PAINT.") ? [[entry.token.slice("KART_PAINT.".length), entry.hex]] : [])));
   // A swatch shows a faceted colour as its lit, mid and shaded thirds.
   const swatch = ({ token, hex: one, tones, role }) => {
     const cs = (tones ?? [one]).map(hex);

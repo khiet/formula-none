@@ -15,7 +15,8 @@
       "!assets/tracks",
       "!assets/replays",
       "!docs/mockups",
-      "!docs/style-guide.html"
+      "!docs/style-guide.html",
+      "!docs/kart-side.js"
     ]
   },
   "formatter": {

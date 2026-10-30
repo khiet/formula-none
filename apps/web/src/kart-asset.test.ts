@@ -4,6 +4,7 @@ import { loadBridge } from "./bridge";
 import { type GltfJson, gltfJson } from "./gltf-json";
 import { DRIVER_MATERIALS, fitKart, LIVERY_MATERIALS } from "./kart-model";
 import { FACIAL_HAIRS, HAIRS } from "./livery";
+import { KART_PAINT } from "./palette";
 import { WHEELS } from "./wheel-spin";
 
 // The exported kart as the View loads it, read as bytes.
@@ -71,6 +72,25 @@ describe("the exported kart", () => {
         primitives.some(({ material }) => material === index),
       );
       expect(used).toBe(true);
+    },
+  );
+
+  it.each(Object.entries(KART_PAINT))(
+    "paints its fixed %s as palette.ts copies it, so the poster kart matches the race",
+    (name, colour) => {
+      const material = (kart.materials ?? []).find(
+        (candidate) => candidate.name?.toLowerCase() === name,
+      );
+      const linear = material?.pbrMetallicRoughness?.baseColorFactor ?? [];
+      // The glb stores the colour linear; the palette holds it as the sRGB build.py set.
+      const srgb = (channel: number) =>
+        Math.round(
+          255 * (channel <= 0.0031308 ? channel * 12.92 : 1.055 * channel ** (1 / 2.4) - 0.055),
+        );
+      expect(linear).toHaveLength(4);
+      expect(linear.slice(0, 3).map(srgb)).toEqual(
+        [16, 8, 0].map((shift) => (colour >> shift) & 0xff),
+      );
     },
   );
 

@@ -19,7 +19,8 @@ crates/protocol   wire messages; TypeScript types are generated from here
 crates/bridge     wasm-bindgen surface over sim and protocol
 crates/server     authoritative server binary
 apps/web          Vite + Three.js client (TypeScript strict)
-tools/            workspace packages that are not shipped (repo-checks)
+tools/            workspace packages that are not shipped: repo-checks, and
+                  kart-poster, which projects kart.glb into the poster kart
 infra/            OpenTofu for the single-instance AWS environment
 deploy/           Compose stack, Caddyfile, and the deploy and smoke scripts;
                   the Dockerfile at the root packages them with the server
@@ -74,7 +75,11 @@ Tracks (needs Blender on `PATH`; see `assets/tracks/README.md`):
   output, since the sim's tests read the sidecars
 - Check the layouts without Blender: `pnpm test:tracks` (needs `python3`)
 - Kart: `pnpm export:karts` builds `assets/karts/kart.glb` from
-  primitives; rerun after changing `assets/karts/build.py`
+  primitives and then regenerates the poster kart; rerun after changing
+  `assets/karts/build.py` and commit both
+- Poster kart without Blender: `pnpm generate:poster` projects the
+  committed `kart.glb` side on into `apps/web/src/generated/kart/side.json`
+  and `docs/kart-side.js` (committed; CI fails on a stale copy)
 
 Audio (needs `python3` on `PATH`):
 
@@ -84,7 +89,7 @@ Audio (needs `python3` on `PATH`):
 
 CI (`.github/workflows/ci.yml`) runs on every PR: clippy with warnings as
 errors, nextest, the wasm build of the bridge, the protocol codegen diff,
-Biome, typecheck, Vitest, the web build, the Playwright smoke test, and the
+the poster kart diff, Biome, typecheck, Vitest, the web build, the Playwright smoke test, and the
 replay determinism job that reruns the fixtures under `assets/replays`
 natively and in wasm.
 
