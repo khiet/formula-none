@@ -287,7 +287,7 @@ export interface Bridge extends MessageCodec {
   readonly itemBoxRespawnSeconds: number;
   /** What each coin a kart carries adds to its top speed, as a share of it (ADR 0055). */
   readonly coinTopSpeedFactor: number;
-  /** The most coins a kart carries, the tyre gauge's 100% (ADR 0055). */
+  /** The most coins a kart carries, the coin count's cap (ADR 0056). */
   readonly coinCap: number;
   /** Seconds a picked-up coin is gone before it is back (ADR 0055). */
   readonly coinRespawnSeconds: number;
