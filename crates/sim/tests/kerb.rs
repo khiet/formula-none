@@ -9,7 +9,7 @@
 mod common;
 
 use common::{
-    only_kart, started, throttle, ticks, track, without_tyres, without_walls, yaw, BRANDS_PATCH,
+    only_kart, started, throttle, ticks, track, without_coins, without_walls, yaw, BRANDS_PATCH,
     DT, OVAL, SEED,
 };
 
@@ -246,10 +246,10 @@ fn a_slow_kart_that_lands_back_on_the_kerb_is_not_launched_again_until_it_has_le
 
 #[test]
 fn eight_bots_racing_brands_patch_are_never_launched_by_a_kerb() {
-    // No tyres: who takes one reshuffles the pack, and where a pass puts a
+    // No coins: who takes one reshuffles the pack, and where a pass puts a
     // bot beside the chicane's kerb with it, which is the seed's luck and
     // not the bots' line.
-    let track = track(&without_tyres(BRANDS_PATCH));
+    let track = track(&without_coins(BRANDS_PATCH));
     assert_eq!(track.kerbs().len(), 2, "the esses' kerb and the chicane's");
     let mut state = started(State::with_bots(SEED, 0, 8, track));
     for _ in 0..ticks(LAPS_PER_RACE as f32 * 90.0) {

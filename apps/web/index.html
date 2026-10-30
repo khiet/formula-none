@@ -196,15 +196,15 @@
       }
       /*
        * The speed cluster (ADR 0031), bottom-left opposite the course map:
-       * shift lights over the gear on its plate, km/h beside it and the
-       * tyre gauge under that.
+       * the coin count over the shift lights, the gear on its plate under
+       * them, km/h beside it and the tyre gauge under that.
        */
       #instrument-panel [data-cluster] {
         position: absolute;
         left: calc(var(--hud) * 2);
         bottom: calc(var(--hud) * 2);
         display: grid;
-        grid-template-areas: "lights lights" "gear speed" "gear tyre";
+        grid-template-areas: "coins coins" "lights lights" "gear speed" "gear tyre";
         grid-template-columns: auto auto;
         column-gap: calc(var(--hud) * 1.4);
         row-gap: calc(var(--hud) * 0.9);
@@ -294,6 +294,20 @@
       }
       [data-instrument="tyre"] svg {
         width: calc(var(--hud) * 3.6);
+        filter: drop-shadow(
+          calc(var(--hud) * 0.3) calc(var(--hud) * 0.3) 0
+            color-mix(in srgb, var(--ink) 55%, transparent)
+        );
+      }
+      [data-instrument="coins"] {
+        grid-area: coins;
+        display: flex;
+        align-items: center;
+        gap: calc(var(--hud) * 1);
+        font-size: calc(var(--hud) * 2.6);
+      }
+      [data-instrument="coins"] svg {
+        width: calc(var(--hud) * 2.8);
         filter: drop-shadow(
           calc(var(--hud) * 0.3) calc(var(--hud) * 0.3) 0
             color-mix(in srgb, var(--ink) 55%, transparent)

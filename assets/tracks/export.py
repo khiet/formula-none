@@ -15,7 +15,7 @@ scene follows these conventions:
   change to it leaves the sidecar, and the sim, untouched.
 - A curve object named `Centreline`, one closed POLY or BEZIER spline, run
   in the direction of travel starting at the start line.
-- Collections `Checkpoints`, `ItemBoxes`, `BoostPads`, `Tyres`, `Kerbs`,
+- Collections `Checkpoints`, `ItemBoxes`, `BoostPads`, `Coins`, `Kerbs`,
   `WheelCrossings` and `SpawnGrid` hold empties ordered by name. An empty
   faces along its local +Y; checkpoints and wheel crossings carry a
   `half_width` custom property, and wheel crossings a `hazard_half_depth_m`.
@@ -44,7 +44,7 @@ PLACEMENT_COLLECTIONS = {
     "checkpoints": "Checkpoints",
     "item_boxes": "ItemBoxes",
     "boost_pads": "BoostPads",
-    "tyres": "Tyres",
+    "coins": "Coins",
     "kerbs": "Kerbs",
     "wheel_crossings": "WheelCrossings",
     "spawn_grid": "SpawnGrid",

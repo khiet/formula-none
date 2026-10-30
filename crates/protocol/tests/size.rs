@@ -40,18 +40,18 @@ fn a_snapshot_for_eight_karts_is_roughly_five_hundred_bytes() {
 #[test]
 fn the_snapshot_sample_is_a_busy_mid_race_moment() {
     // The budget is only meaningful against a snapshot with something in it:
-    // karts drifting, boosting, holding items and carrying tyres, one spun
-    // out, a tyre taken, events to repeat.
+    // karts drifting, boosting, holding items and carrying coins, one spun
+    // out, a coin taken, events to repeat.
     let Snapshot {
         karts,
         events,
         hazards,
         projectiles,
-        tyres_present,
+        coins_present,
         ..
     } = samples::snapshot();
-    assert!(karts.iter().any(|kart| kart.tyres > 0));
-    assert!(tyres_present.contains(&false));
+    assert!(karts.iter().any(|kart| kart.coins > 0));
+    assert!(coins_present.contains(&false));
     assert!(karts.iter().any(|kart| kart.drift.is_some()));
     assert!(karts.iter().any(|kart| kart.held_item.is_some()));
     assert!(karts.iter().any(|kart| kart.spin_out_s.is_some()));

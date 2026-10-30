@@ -10,6 +10,8 @@
 // changes no sim state.
 
 import boostPadUrl from "../../../assets/audio/boost-pad.wav?url";
+import coinLossUrl from "../../../assets/audio/coin-loss.wav?url";
+import coinPickupUrl from "../../../assets/audio/coin-pickup.wav?url";
 import countdownBeepUrl from "../../../assets/audio/countdown-beep.wav?url";
 import driftSkidUrl from "../../../assets/audio/drift-skid.wav?url";
 import finishUrl from "../../../assets/audio/finish.wav?url";
@@ -25,7 +27,6 @@ import musicUrl from "../../../assets/audio/music-loop.wav?url";
 import sandUrl from "../../../assets/audio/sand.wav?url";
 import sputterUrl from "../../../assets/audio/sputter.wav?url";
 import tierChimeUrl from "../../../assets/audio/tier-chime.wav?url";
-import tyrePickupUrl from "../../../assets/audio/tyre-pickup.wav?url";
 import wrongWayUrl from "../../../assets/audio/wrong-way.wav?url";
 import {
   loopPlayback,
@@ -50,7 +51,8 @@ export const SOUND_URLS: Readonly<Record<SoundCue, string>> = {
   hop: hopUrl,
   miniTurbo: miniTurboUrl,
   itemPickup: itemPickupUrl,
-  tyrePickup: tyrePickupUrl,
+  coinPickup: coinPickupUrl,
+  coinLoss: coinLossUrl,
   itemFire: itemFireUrl,
   hit: hitUrl,
   sputter: sputterUrl,

@@ -1,9 +1,9 @@
 // The Instrument panel's speed cluster (ADR 0031): a gear, revs and shift
-// lights read off the kart's speed, and the tyre gauge read off the tyres
-// it carries (ADR 0055). None of it is a rule; the sim has no gearbox, so
-// the gearing constants are display only and live here rather than in the
-// sim's tuning (ADR 0014). The tyre set and each tyre's factor are the
-// sim's, passed in.
+// lights read off the kart's speed against the top speed its coins raise,
+// the coin count (ADR 0056) and the tyre gauge. None of it is a rule; the
+// sim has no gearbox and no tyre wear, so the gearing constants are display
+// only and live here rather than in the sim's tuning (ADR 0014). The coin
+// cap and each coin's factor are the sim's, passed in.
 
 import { kmPerHour } from "./format";
 
@@ -21,17 +21,20 @@ export interface Drivetrain {
 /** What one shift light shows: unlit, or its third's colour as on an F1 wheel. */
 export type ShiftLight = "off" | "green" | "red" | "blue";
 
-/** The sim's tuning the cluster reads (ADR 0014): its top speed in m/s and its tyres. */
+/** The sim's tuning the cluster reads (ADR 0014): its top speed in m/s and its coins. */
 export interface SpeedClusterTuning {
   readonly topSpeed: number;
-  /** What each tyre carried adds to top speed, as a share of it. */
-  readonly tyreTopSpeedFactor: number;
-  /** The most tyres a kart carries: the gauge's 100%. */
-  readonly tyreSet: number;
+  /** What each coin carried adds to top speed, as a share of it. */
+  readonly coinTopSpeedFactor: number;
+  /** The most coins a kart carries. */
+  readonly coinCap: number;
 }
 
 /** How worn the tyres read: green, yellow or red. */
 export type TyreWearBand = "good" | "warn" | "bad";
+
+/** The tyre gauge's reading until tyre wear exists in the sim: fresh tyres. */
+export const TYRE_WEAR_PLACEHOLDER_PERCENT = 100;
 
 const GEARS = 6;
 const IDLE_RPM = 4000;
@@ -84,15 +87,15 @@ export function tyreWearBand(percent: number): TyreWearBand {
 }
 
 /**
- * The top speed `tyres` raise `topSpeed` to, each multiplying it by
- * `perTyre` more, as the sim does; the gears stretch to it so the limiter
+ * The top speed `coins` raise `topSpeed` to, each multiplying it by
+ * `perCoin` more, as the sim does; the gears stretch to it so the limiter
  * still means a boost.
  */
-export function tyreTopSpeed(topSpeed: number, tyres: number, perTyre: number): number {
-  return topSpeed * (1 + tyres * perTyre);
+export function coinTopSpeed(topSpeed: number, coins: number, perCoin: number): number {
+  return topSpeed * (1 + coins * perCoin);
 }
 
-/** The tyre gauge's reading: the tyres carried as a whole percentage of a full set. */
-export function tyreWearPercent(tyres: number, tyreSet: number): number {
-  return Math.round((tyres / tyreSet) * 100);
+/** The coin count as the panel prints it: the coins carried in two digits over the cap. */
+export function coinCount(coins: number, cap: number): string {
+  return `x${String(coins).padStart(2, "0")} / ${cap}`;
 }

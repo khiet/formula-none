@@ -6,7 +6,9 @@ Accepted (2026-10-30). Supersedes the consequence of ADR 0031 that the sim
 does not wear tyres and that tyre wear, a sim field with wear per corner
 and an effect on grip, would replace the gauge's placeholder: the gauge
 reads the count of tyres a kart carries instead. The rest of ADR 0031
-stands.
+stands. Its choice of object, the tyre, and the gauge's reading of the
+count are superseded by ADR 0056: the pickup is a coin, read on a coin
+count, and the gauge holds at 100% again. Its rule stands.
 
 ## Context
 

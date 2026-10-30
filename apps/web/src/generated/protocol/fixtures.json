@@ -20,7 +20,7 @@
       "name": "join",
       "bytes": [
         1,
-        13,
+        14,
         4,
         66,
         88,
@@ -37,7 +37,7 @@
         "join": {
           "nickname": "khiet",
           "room": "BXQF",
-          "version": 13
+          "version": 14
         }
       }
     },
@@ -103,7 +103,7 @@
       "name": "rejoin",
       "bytes": [
         7,
-        13,
+        14,
         4,
         66,
         88,
@@ -147,7 +147,7 @@
         "rejoin": {
           "room": "BXQF",
           "token": "0123456789abcdef0123456789abcdef",
-          "version": 13
+          "version": 14
         }
       }
     },
@@ -292,12 +292,12 @@
       "bytes": [
         2,
         3,
-        13
+        14
       ],
       "message": {
         "refused": {
           "versionMismatch": {
-            "server": 13
+            "server": 14
           }
         }
       }
@@ -1014,6 +1014,23 @@
             0,
             0
           ],
+          "coinsPresent": [
+            true,
+            true,
+            true,
+            true,
+            false,
+            true,
+            true,
+            true,
+            true,
+            false,
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
           "events": [
             {
               "id": 41,
@@ -1037,9 +1054,9 @@
             {
               "id": 43,
               "kind": {
-                "tyrePicked": {
-                  "kart": 1,
-                  "tyre": 9
+                "coinPicked": {
+                  "coin": 9,
+                  "kart": 1
                 }
               }
             },
@@ -1055,7 +1072,7 @@
             {
               "id": 45,
               "kind": {
-                "tyresLost": {
+                "coinsLost": {
                   "count": 3,
                   "kart": 6
                 }
@@ -1119,6 +1136,7 @@
               "boost": null,
               "bump": null,
               "checkpoint": 11,
+              "coins": 7,
               "drift": null,
               "heldItem": "hazard",
               "lap": 2,
@@ -1138,7 +1156,6 @@
               "splineProgress": 640.0,
               "stallS": null,
               "start": "clean",
-              "tyres": 7,
               "velocity": [
                 21.0,
                 0.0,
@@ -1150,6 +1167,7 @@
               "boost": null,
               "bump": null,
               "checkpoint": 10,
+              "coins": 6,
               "drift": {
                 "chargeS": 0.75,
                 "direction": "left"
@@ -1172,7 +1190,6 @@
               "splineProgress": 565.0,
               "stallS": null,
               "start": "weakBoost",
-              "tyres": 6,
               "velocity": [
                 21.0,
                 0.0,
@@ -1187,6 +1204,7 @@
               },
               "bump": null,
               "checkpoint": 9,
+              "coins": 5,
               "drift": null,
               "heldItem": "boost",
               "lap": 2,
@@ -1206,7 +1224,6 @@
               "splineProgress": 490.0,
               "stallS": null,
               "start": "fullBoost",
-              "tyres": 5,
               "velocity": [
                 21.0,
                 0.0,
@@ -1222,6 +1239,7 @@
                 -2.5
               ],
               "checkpoint": 8,
+              "coins": 4,
               "drift": null,
               "heldItem": "hazard",
               "lap": 2,
@@ -1241,7 +1259,6 @@
               "splineProgress": 415.0,
               "stallS": null,
               "start": "stall",
-              "tyres": 4,
               "velocity": [
                 21.0,
                 0.0,
@@ -1256,6 +1273,7 @@
               },
               "bump": null,
               "checkpoint": 7,
+              "coins": 3,
               "drift": null,
               "heldItem": null,
               "lap": 2,
@@ -1275,7 +1293,6 @@
               "splineProgress": 340.0,
               "stallS": null,
               "start": "clean",
-              "tyres": 3,
               "velocity": [
                 21.0,
                 0.0,
@@ -1287,6 +1304,7 @@
               "boost": null,
               "bump": null,
               "checkpoint": 6,
+              "coins": 2,
               "drift": {
                 "chargeS": 0.75,
                 "direction": "right"
@@ -1309,7 +1327,6 @@
               "splineProgress": 265.0,
               "stallS": null,
               "start": "weakBoost",
-              "tyres": 2,
               "velocity": [
                 21.0,
                 0.0,
@@ -1321,6 +1338,7 @@
               "boost": null,
               "bump": null,
               "checkpoint": 5,
+              "coins": 1,
               "drift": null,
               "heldItem": "hazard",
               "lap": 2,
@@ -1340,7 +1358,6 @@
               "splineProgress": 190.0,
               "stallS": null,
               "start": "fullBoost",
-              "tyres": 1,
               "velocity": [
                 21.0,
                 0.0,
@@ -1352,6 +1369,7 @@
               "boost": null,
               "bump": null,
               "checkpoint": 4,
+              "coins": 0,
               "drift": null,
               "heldItem": null,
               "lap": 2,
@@ -1371,7 +1389,6 @@
               "splineProgress": 115.0,
               "stallS": 1.2000000476837158,
               "start": "stall",
-              "tyres": 0,
               "velocity": [
                 21.0,
                 0.0,
@@ -1391,24 +1408,7 @@
               "target": 2
             }
           ],
-          "tick": 7200,
-          "tyresPresent": [
-            true,
-            true,
-            true,
-            true,
-            false,
-            true,
-            true,
-            true,
-            true,
-            false,
-            true,
-            true,
-            true,
-            true,
-            true
-          ]
+          "tick": 7200
         }
       }
     },
@@ -1489,9 +1489,9 @@
           {
             "id": 43,
             "kind": {
-              "tyrePicked": {
-                "kart": 1,
-                "tyre": 9
+              "coinPicked": {
+                "coin": 9,
+                "kart": 1
               }
             }
           },
@@ -1507,7 +1507,7 @@
           {
             "id": 45,
             "kind": {
-              "tyresLost": {
+              "coinsLost": {
                 "count": 3,
                 "kart": 6
               }

@@ -16,8 +16,9 @@ import {
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { CSS2DObject, CSS2DRenderer } from "three/addons/renderers/CSS2DRenderer.js";
 import { WebGPURenderer } from "three/webgpu";
-import type { ItemBox, KartReadout, KartSize, Tyre, Wheel } from "./bridge";
+import type { Coin, ItemBox, KartReadout, KartSize, Wheel } from "./bridge";
 import type { CameraPose } from "./chase-camera";
+import { coinMeshes, coinSpray } from "./coin-meshes";
 import { createDustEmitter } from "./dust";
 import { createExhaustFlames } from "./exhaust-flame";
 import { hazardZones } from "./hazard-zone";
@@ -33,7 +34,6 @@ import {
   runawayWheelBounce,
   runawayWheelFlames,
   runawayWheelMesh,
-  tyreMeshes,
 } from "./item-meshes";
 import type { Vec3 } from "./kart-frame";
 import type { KartLabel } from "./kart-labels";
@@ -140,8 +140,9 @@ export interface ViewAssets {
  * the slot's livery and a box per item box, drawn by Three.js from the
  * kart readouts the bridge reports and the pose the chase camera computes,
  * with a name floating over each kart the Scene labels, a cone at each
- * hazard, a gull at each projectile and a tyre at each of `tyres` while
- * it is there to pick up. The track mesh is Presentation
+ * hazard, a gull at each projectile and a coin at each of `coins` while
+ * it is there to pick up, every coin turning on the View's clock. The
+ * track mesh is Presentation
  * only; the sim has its own copy of the geometry from the sidecar. Every
  * mechanic's Feedback is drawn from the readouts and the phase alone:
  * tyre marks under a drift, sparks once a tier has charged, drifting or
@@ -149,7 +150,8 @@ export interface ViewAssets {
  * stalled kart, a spun-out kart turned about its axis over
  * `spinOutSeconds`, a shadow disc on the track under every kart so a
  * hop's height reads against the ground, a flame at the exhaust of every
- * boosting kart and, round the own kart alone, wind lines while it boosts.
+ * boosting kart, a spray of the coins a kart's spin-out cost it as its
+ * count falls and, round the own kart alone, wind lines while it boosts.
  * At each wheel crossing a runaway wheel `runawayWheelRadius` in size rolls
  * where the readout has it, burning, its flames off its back, trailing
  * smoke, kicking up dust where it lands and striking sparks off each wall
@@ -165,7 +167,7 @@ export async function createRaceView(
   kartSize: KartSize,
   assets: ViewAssets,
   itemBoxes: readonly ItemBox[],
-  tyres: readonly Tyre[],
+  coins: readonly Coin[],
   spinOutSeconds: number,
   runawayWheelRadius: number,
   labelsFor: (karts: readonly KartReadout[]) => readonly KartLabel[],
@@ -289,8 +291,13 @@ export async function createRaceView(
     return mesh;
   });
 
-  const drawnTyres = tyreMeshes(tyres);
-  world.add(drawnTyres.mesh);
+  const drawnCoins = coinMeshes(coins);
+  world.add(drawnCoins.mesh);
+  const spray = coinSpray();
+  world.add(spray.mesh);
+  /** Each kart's coins as of the last frame; null before its first. */
+  const coinsBefore: (number | null)[] = Array<number | null>(kartCount).fill(null);
+  let clockSeconds = 0;
 
   const cones = meshPool(world, hazardConeMesh(), 0);
   const gulls = meshPool(world, homingGullMesh(), PROJECTILE_HEIGHT_M);
@@ -321,13 +328,19 @@ export async function createRaceView(
   const up = new Vector3(0, 1, 0);
   return {
     update(race, pose, frameSeconds) {
-      const { karts: readouts, itemBoxesPresent, tyresPresent, hazards, projectiles } = race;
+      const { karts: readouts, itemBoxesPresent, coinsPresent, hazards, projectiles } = race;
       const countingDown = race.phase.kind === "countdown";
       boxes.forEach((mesh, box) => {
         mesh.visible = itemBoxesPresent[box] ?? true;
       });
-      drawnTyres.show(tyresPresent);
+      clockSeconds += frameSeconds;
+      drawnCoins.show(coinsPresent);
+      drawnCoins.turn(clockSeconds);
       readouts.forEach((readout, slot) => {
+        // Only a spin-out lowers the count, so a fall is its loss.
+        const lost = (coinsBefore[slot] ?? readout.coins) - readout.coins;
+        if (lost > 0) spray.burst(readout.position, lost);
+        coinsBefore[slot] = readout.coins;
         const drawn = karts[slot];
         if (drawn === undefined) {
           return;
@@ -356,6 +369,7 @@ export async function createRaceView(
       wheelTells.emit(race.wheels, frameSeconds);
       windBrightness = windFade(own?.boostS ?? null);
       tyreMarks.update(readouts, frameSeconds);
+      spray.update(frameSeconds);
       sparks.update(frameSeconds);
       dust.update(frameSeconds);
       wind.update(frameSeconds);

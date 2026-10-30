@@ -121,8 +121,8 @@ pub fn room() -> Room {
 }
 
 /// A busy moment two minutes into a race with eight karts: two drifting,
-/// two boosting, five holding items, all but the last carrying tyres, one
-/// spun out, one just bumped, two of fifteen tyres taken, a
+/// two boosting, five holding items, all but the last carrying coins, one
+/// spun out, one just bumped, two of fifteen coins taken, a
 /// hazard trailed behind a kart, a projectile in flight, and every kind of
 /// event since the previous snapshot. The byte budget in ADR 0010 is
 /// measured against this.
@@ -153,7 +153,7 @@ pub fn snapshot() -> Snapshot {
                     1 => None,
                     _ => Some(Item::Boost),
                 },
-                tyres: 7 - slot.min(7),
+                coins: 7 - slot.min(7),
                 spin_out_s: (slot == 6).then_some(0.5),
                 start: match slot % 4 {
                     0 => Start::Clean,
@@ -191,7 +191,7 @@ pub fn snapshot() -> Snapshot {
             owner: 3,
             target: 2,
         }],
-        tyres_present: (0..15).map(|tyre| tyre != 4 && tyre != 9).collect(),
+        coins_present: (0..15).map(|coin| coin != 4 && coin != 9).collect(),
     }
 }
 
@@ -208,12 +208,12 @@ fn every_event_kind() -> Vec<Event> {
             kart: 3,
             item: Item::Homing,
         },
-        EventKind::TyrePicked { kart: 1, tyre: 9 },
+        EventKind::CoinPicked { kart: 1, coin: 9 },
         EventKind::Hit {
             kart: 6,
             by: Some(1),
         },
-        EventKind::TyresLost { kart: 6, count: 3 },
+        EventKind::CoinsLost { kart: 6, count: 3 },
         EventKind::Hit { kart: 2, by: None },
         EventKind::LapCompleted {
             kart: 0,

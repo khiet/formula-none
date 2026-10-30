@@ -151,7 +151,7 @@ const KART: KartSnapshot = {
   splineProgress: 0,
   wrongWay: false,
   heldItem: null,
-  tyres: 0,
+  coins: 0,
   spinOutS: null,
   start: "clean",
   stallS: null,
@@ -166,7 +166,7 @@ function snapshot(tick: number, events: Event[] = []): Snapshot {
     events,
     hazards: [],
     projectiles: [],
-    tyresPresent: [],
+    coinsPresent: [],
   };
 }
 

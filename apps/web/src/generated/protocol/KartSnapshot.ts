@@ -44,10 +44,10 @@ wrongWay: boolean,
  */
 heldItem: Item | null, 
 /**
- * The tyres the kart carries. A client's prediction takes its count
+ * The coins the kart carries. A client's prediction takes its count
  * from here, never collecting one itself.
  */
-tyres: number, 
+coins: number, 
 /**
  * Seconds of spin-out left, while the kart is spun out.
  */

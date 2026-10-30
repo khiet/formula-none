@@ -1,6 +1,6 @@
-//! Tyres at the sim's public seam: a kart whose centre is on a tyre takes
-//! it, up to a full set, and the tyre is back the tuned time later; each
-//! tyre raises the kart's forward top speed, with a boost on top; every
+//! Coins at the sim's public seam: a kart whose centre is on a coin takes
+//! it, up to a full purse, and the coin is back the tuned time later; each
+//! coin raises the kart's forward top speed, with a boost on top; every
 //! spin-out, from a hazard, a homing projectile or the runaway wheel, costs
 //! the tuned three or all the kart has; and a spun-out kart takes nothing.
 //! Pickups and losses are read from `State::events` after the `step` that
@@ -10,37 +10,37 @@ mod common;
 
 use common::{
     brands_patch, slot_position, started, tap, throttle, ticks, track, with_boxes_under,
-    with_slot_at, with_tyres_at, without_item_boxes, without_tyres, without_walls, BRANDS_PATCH,
+    with_coins_at, with_slot_at, without_coins, without_item_boxes, without_walls, BRANDS_PATCH,
     DT, OVAL, SEED,
 };
 
 use std::f32::consts::FRAC_PI_2;
 
 use sim::tuning::{
-    BOOST_PAD_FACTOR, OFF_TRACK_SPEED_FACTOR, TOP_SPEED_M_PER_S, TYRES_LOST_PER_SPIN_OUT,
-    TYRE_HALF_LENGTH_M, TYRE_RESPAWN_S, TYRE_SET, TYRE_TOP_SPEED_FACTOR,
+    BOOST_PAD_FACTOR, COINS_LOST_PER_SPIN_OUT, COIN_CAP, COIN_HALF_LENGTH_M, COIN_RESPAWN_S,
+    COIN_TOP_SPEED_FACTOR, OFF_TRACK_SPEED_FACTOR, TOP_SPEED_M_PER_S,
 };
 use sim::{step, Item, KartInput, Phase, RaceEvent, State, Surface, Track};
 
-/// Metres between the tyres of a line laid by `line_ahead_of`: wider than
-/// a tyre, so a kart takes them one at a time.
+/// Metres between the coins of a line laid by `line_ahead_of`: wider than
+/// a coin, so a kart takes them one at a time.
 const LINE_SPACING_M: f32 = 3.0;
 
-/// The oval with no tyres but those at `positions` and no item boxes but
+/// The oval with no coins but those at `positions` and no item boxes but
 /// one under each of `box_slots`.
 fn oval_with(positions: impl IntoIterator<Item = [f32; 3]>, box_slots: &[usize]) -> Track {
-    let sidecar = without_tyres(&without_item_boxes(OVAL));
+    let sidecar = without_coins(&without_item_boxes(OVAL));
     let sidecar = with_boxes_under(&sidecar, box_slots.iter().copied());
-    track(&with_tyres_at(&sidecar, positions))
+    track(&with_coins_at(&sidecar, positions))
 }
 
-/// `count` tyres stacked under the oval's spawn slot `slot`: a kart there
-/// takes them all, up to a full set, at Go.
+/// `count` coins stacked under the oval's spawn slot `slot`: a kart there
+/// takes them all, up to a full purse, at Go.
 fn under(slot: usize, count: usize) -> Vec<[f32; 3]> {
     vec![slot_position(OVAL, slot); count]
 }
 
-/// A line of `count` tyres down the oval's front straight from under spawn
+/// A line of `count` coins down the oval's front straight from under spawn
 /// slot `slot`, on the line a kart driving straight from it takes.
 fn line_ahead_of(slot: usize, count: usize) -> Vec<[f32; 3]> {
     let [x, y, z] = slot_position(OVAL, slot);
@@ -49,8 +49,8 @@ fn line_ahead_of(slot: usize, count: usize) -> Vec<[f32; 3]> {
         .collect()
 }
 
-fn tyres(state: &State, kart: usize) -> u32 {
-    state.kart_readouts()[kart].tyres
+fn coins(state: &State, kart: usize) -> u32 {
+    state.kart_readouts()[kart].coins
 }
 
 fn pickups(state: &State) -> Vec<RaceEvent> {
@@ -58,7 +58,7 @@ fn pickups(state: &State) -> Vec<RaceEvent> {
         .events()
         .iter()
         .copied()
-        .filter(|event| matches!(event, RaceEvent::TyrePicked { .. }))
+        .filter(|event| matches!(event, RaceEvent::CoinPicked { .. }))
         .collect()
 }
 
@@ -67,7 +67,7 @@ fn losses(state: &State) -> Vec<RaceEvent> {
         .events()
         .iter()
         .copied()
-        .filter(|event| matches!(event, RaceEvent::TyresLost { .. }))
+        .filter(|event| matches!(event, RaceEvent::CoinsLost { .. }))
         .collect()
 }
 
@@ -75,36 +75,36 @@ fn idle() -> KartInput {
     KartInput::default()
 }
 
-/// The top speed of a kart carrying `count` tyres.
+/// The top speed of a kart carrying `count` coins.
 fn top_speed_with(count: u32) -> f32 {
-    TOP_SPEED_M_PER_S * (1.0 + count as f32 * TYRE_TOP_SPEED_FACTOR)
+    TOP_SPEED_M_PER_S * (1.0 + count as f32 * COIN_TOP_SPEED_FACTOR)
 }
 
 #[test]
-fn every_kart_starts_the_race_with_no_tyres_and_takes_none_through_the_countdown() {
+fn every_kart_starts_the_race_with_no_coins_and_takes_none_through_the_countdown() {
     let positions = (0..4).flat_map(|slot| under(slot, 2));
     let mut state = State::new(SEED, 4, oval_with(positions, &[]));
     while matches!(state.phase(), Phase::Countdown { .. }) {
-        assert!(state.kart_readouts().iter().all(|kart| kart.tyres == 0));
+        assert!(state.kart_readouts().iter().all(|kart| kart.coins == 0));
         state = step(state, &[idle(); 4], DT);
         assert!(pickups(&state).is_empty(), "nothing is taken on the grid");
     }
-    assert!(state.kart_readouts().iter().all(|kart| kart.tyres == 0));
+    assert!(state.kart_readouts().iter().all(|kart| kart.coins == 0));
 }
 
 #[test]
-fn a_kart_on_a_tyre_takes_it_and_the_tyre_is_back_the_tuned_time_later() {
+fn a_kart_on_a_coin_takes_it_and_the_coin_is_back_the_tuned_time_later() {
     let state = started(State::new(SEED, 1, oval_with(under(0, 1), &[])));
-    assert_eq!(state.tyres_present(), vec![true]);
+    assert_eq!(state.coins_present(), vec![true]);
 
-    // The first racing tick: the kart stands on the tyre and takes it.
+    // The first racing tick: the kart stands on the coin and takes it.
     let mut state = step(state, &[idle()], DT);
     assert_eq!(
         pickups(&state),
-        [RaceEvent::TyrePicked { kart: 0, tyre: 0 }]
+        [RaceEvent::CoinPicked { kart: 0, coin: 0 }]
     );
-    assert_eq!(tyres(&state, 0), 1);
-    assert_eq!(state.tyres_present(), vec![false]);
+    assert_eq!(coins(&state, 0), 1);
+    assert_eq!(state.coins_present(), vec![false]);
 
     // Back the tuned time later, and taken again by the kart still on it.
     let mut since_pickup = 0;
@@ -115,72 +115,72 @@ fn a_kart_on_a_tyre_takes_it_and_the_tyre_is_back_the_tuned_time_later() {
             break;
         }
         assert!(
-            since_pickup <= ticks(TYRE_RESPAWN_S) + 2,
-            "the tyre never came back"
+            since_pickup <= ticks(COIN_RESPAWN_S) + 2,
+            "the coin never came back"
         );
     }
-    let expected = ticks(TYRE_RESPAWN_S);
+    let expected = ticks(COIN_RESPAWN_S);
     assert!(
         (expected - 1..=expected + 1).contains(&since_pickup),
-        "the tyre came back after {since_pickup} ticks, expected about {expected}"
+        "the coin came back after {since_pickup} ticks, expected about {expected}"
     );
-    assert_eq!(tyres(&state, 0), 2);
+    assert_eq!(coins(&state, 0), 2);
 }
 
 #[test]
-fn a_kart_carrying_a_full_set_drives_over_tyres_without_taking_them() {
-    let set = TYRE_SET as usize;
-    let line = line_ahead_of(0, set + 1);
-    let last = line[set];
+fn a_kart_carrying_a_full_purse_drives_over_coins_without_taking_them() {
+    let purse = COIN_CAP as usize;
+    let line = line_ahead_of(0, purse + 1);
+    let last = line[purse];
     let mut state = started(State::new(SEED, 1, oval_with(line, &[])));
     let mut taken = Vec::new();
-    // Past the last tyre, before the first is back.
-    while state.kart_readouts()[0].position[2] > last[2] - 2.0 * TYRE_HALF_LENGTH_M {
+    // Past the last coin, before the first is back.
+    while state.kart_readouts()[0].position[2] > last[2] - 2.0 * COIN_HALF_LENGTH_M {
         state = step(state, &[throttle()], DT);
         for event in pickups(&state) {
-            let RaceEvent::TyrePicked { tyre, .. } = event else {
+            let RaceEvent::CoinPicked { coin, .. } = event else {
                 unreachable!()
             };
-            taken.push(tyre);
+            taken.push(coin);
         }
         assert!(
-            !state.tyres_present()[0],
-            "the first tyre came back before the kart was past the line"
+            !state.coins_present()[0],
+            "the first coin came back before the kart was past the line"
         );
     }
 
     assert_eq!(
         taken,
-        (0..set).collect::<Vec<_>>(),
+        (0..purse).collect::<Vec<_>>(),
         "one at a time, in order"
     );
-    assert_eq!(tyres(&state, 0), TYRE_SET);
-    assert!(state.tyres_present()[set], "the last tyre is still there");
+    assert_eq!(coins(&state, 0), COIN_CAP);
+    assert!(state.coins_present()[purse], "the last coin is still there");
 }
 
 #[test]
-fn a_full_set_raises_top_speed_by_the_tuned_factor_per_tyre() {
+fn a_full_purse_raises_top_speed_by_the_tuned_factor_per_coin() {
     let mut state = started(State::new(SEED, 1, oval_with(line_ahead_of(0, 10), &[])));
     for _ in 0..ticks(4.0) {
         state = step(state, &[throttle()], DT);
     }
 
-    assert_eq!(tyres(&state, 0), TYRE_SET);
+    assert_eq!(coins(&state, 0), COIN_CAP);
     let speed = state.kart_readouts()[0].speed;
     assert!(
-        (speed - top_speed_with(TYRE_SET)).abs() < 1e-3,
+        (speed - top_speed_with(COIN_CAP)).abs() < 1e-3,
         "{speed} m/s, expected {}",
-        top_speed_with(TYRE_SET)
+        top_speed_with(COIN_CAP)
     );
-    assert!((top_speed_with(TYRE_SET) - 33.0).abs() < 1e-3);
+    assert!((top_speed_with(COIN_CAP) - 33.0).abs() < 1e-3);
 }
 
 #[test]
-fn a_boost_multiplies_on_top_of_the_tyres() {
+fn a_boost_multiplies_on_top_of_the_coins() {
     // From slot 1's spot the kart crosses the front straight's pad, a full
-    // set on.
-    let sidecar = with_slot_at(&without_tyres(OVAL), 0, slot_position(OVAL, 1), 0.0);
-    let sidecar = with_tyres_at(&sidecar, line_ahead_of(1, 10));
+    // purse on.
+    let sidecar = with_slot_at(&without_coins(OVAL), 0, slot_position(OVAL, 1), 0.0);
+    let sidecar = with_coins_at(&sidecar, line_ahead_of(1, 10));
     let mut state = started(State::new(SEED, 1, track(&sidecar)));
     let boosted = loop {
         state = step(state, &[throttle()], DT);
@@ -194,8 +194,8 @@ fn a_boost_multiplies_on_top_of_the_tyres() {
         );
     };
 
-    assert_eq!(boosted.tyres, TYRE_SET);
-    let expected = top_speed_with(TYRE_SET) * BOOST_PAD_FACTOR;
+    assert_eq!(boosted.coins, COIN_CAP);
+    let expected = top_speed_with(COIN_CAP) * BOOST_PAD_FACTOR;
     assert!(
         (boosted.speed - expected).abs() < 1e-3,
         "{} m/s, expected {expected}",
@@ -204,17 +204,17 @@ fn a_boost_multiplies_on_top_of_the_tyres() {
 }
 
 #[test]
-fn off_the_asphalt_the_cap_is_raised_by_the_tyres_too() {
-    // On the oval's infield grass facing +X, walls gone, a full set stacked
+fn off_the_asphalt_the_cap_is_raised_by_the_coins_too() {
+    // On the oval's infield grass facing +X, walls gone, a full purse stacked
     // under the kart: the grass runs to x = 18.
     let on_grass = [0.0, 0.0, -20.0];
     let sidecar = with_slot_at(
-        &without_walls(&without_tyres(OVAL)),
+        &without_walls(&without_coins(OVAL)),
         0,
         on_grass,
         -FRAC_PI_2,
     );
-    let sidecar = with_tyres_at(&sidecar, vec![on_grass; TYRE_SET as usize]);
+    let sidecar = with_coins_at(&sidecar, vec![on_grass; COIN_CAP as usize]);
     let mut state = started(State::new(SEED, 1, track(&sidecar)));
     let mut fastest: f32 = 0.0;
     while state.kart_readouts()[0].position[0] < 17.0 {
@@ -223,8 +223,8 @@ fn off_the_asphalt_the_cap_is_raised_by_the_tyres_too() {
         fastest = fastest.max(state.kart_readouts()[0].speed);
     }
 
-    assert_eq!(tyres(&state, 0), TYRE_SET);
-    let cap = OFF_TRACK_SPEED_FACTOR * top_speed_with(TYRE_SET);
+    assert_eq!(coins(&state, 0), COIN_CAP);
+    let cap = OFF_TRACK_SPEED_FACTOR * top_speed_with(COIN_CAP);
     assert!(
         (fastest - cap).abs() < 1e-3,
         "{fastest} m/s, expected {cap}"
@@ -232,7 +232,7 @@ fn off_the_asphalt_the_cap_is_raised_by_the_tyres_too() {
 }
 
 /// A race of four karts one tick past Go: kart 1 holds a hazard from a box
-/// under its slot, and kart 3, behind it, has taken `count` tyres stacked
+/// under its slot, and kart 3, behind it, has taken `count` coins stacked
 /// under its own. The seeds are tried in order until kart 1 rolls the
 /// hazard.
 fn kart_3_behind_a_hazard_with(count: usize) -> State {
@@ -269,42 +269,42 @@ fn hazard_hits_kart_3(state: State) -> State {
 }
 
 #[test]
-fn a_hazard_spin_out_costs_the_tuned_three_tyres_which_vanish() {
+fn a_hazard_spin_out_costs_the_tuned_three_coins_which_vanish() {
     let state = kart_3_behind_a_hazard_with(5);
-    assert_eq!(tyres(&state, 3), 5);
+    assert_eq!(coins(&state, 3), 5);
 
     let state = hazard_hits_kart_3(state);
 
     assert_eq!(
         losses(&state),
-        [RaceEvent::TyresLost {
+        [RaceEvent::CoinsLost {
             kart: 3,
-            count: TYRES_LOST_PER_SPIN_OUT
+            count: COINS_LOST_PER_SPIN_OUT
         }]
     );
-    assert_eq!(tyres(&state, 3), 5 - TYRES_LOST_PER_SPIN_OUT);
-    assert_eq!(state.tyres_present().len(), 5, "nothing is scattered");
+    assert_eq!(coins(&state, 3), 5 - COINS_LOST_PER_SPIN_OUT);
+    assert_eq!(state.coins_present().len(), 5, "nothing is scattered");
 }
 
 #[test]
 fn a_kart_with_fewer_than_three_loses_what_it_has() {
     let state = hazard_hits_kart_3(kart_3_behind_a_hazard_with(2));
 
-    assert_eq!(losses(&state), [RaceEvent::TyresLost { kart: 3, count: 2 }]);
-    assert_eq!(tyres(&state, 3), 0);
+    assert_eq!(losses(&state), [RaceEvent::CoinsLost { kart: 3, count: 2 }]);
+    assert_eq!(coins(&state, 3), 0);
 }
 
 #[test]
-fn a_kart_with_no_tyres_is_spun_out_without_a_loss() {
+fn a_kart_with_no_coins_is_spun_out_without_a_loss() {
     let state = hazard_hits_kart_3(kart_3_behind_a_hazard_with(0));
 
     assert!(losses(&state).is_empty());
-    assert_eq!(tyres(&state, 3), 0);
+    assert_eq!(coins(&state, 3), 0);
 }
 
 /// A race of two karts one tick past Go: kart 1 holds a homing projectile
 /// from a box under its slot and kart 0, ahead of it, has taken `count`
-/// tyres stacked under its own. The seeds are tried in order until kart 1
+/// coins stacked under its own. The seeds are tried in order until kart 1
 /// rolls the projectile.
 fn kart_1_homing_on_kart_0_with(count: usize) -> State {
     for seed in 0.. {
@@ -338,67 +338,67 @@ fn until_kart_0_is_hit(mut state: State) -> State {
 }
 
 #[test]
-fn a_homing_projectile_spin_out_costs_the_tuned_three_tyres() {
+fn a_homing_projectile_spin_out_costs_the_tuned_three_coins() {
     let state = kart_1_homing_on_kart_0_with(4);
-    assert_eq!(tyres(&state, 0), 4);
+    assert_eq!(coins(&state, 0), 4);
 
     let state = until_kart_0_is_hit(step(state, &[idle(), tap()], DT));
 
     assert_eq!(
         losses(&state),
-        [RaceEvent::TyresLost {
+        [RaceEvent::CoinsLost {
             kart: 0,
-            count: TYRES_LOST_PER_SPIN_OUT
+            count: COINS_LOST_PER_SPIN_OUT
         }]
     );
-    assert_eq!(tyres(&state, 0), 4 - TYRES_LOST_PER_SPIN_OUT);
+    assert_eq!(coins(&state, 0), 4 - COINS_LOST_PER_SPIN_OUT);
 }
 
 #[test]
-fn a_spun_out_kart_takes_no_tyre_until_its_spin_out_is_over() {
+fn a_spun_out_kart_takes_no_coin_until_its_spin_out_is_over() {
     let mut state = kart_1_homing_on_kart_0_with(1);
-    // Fired as the taken tyre is about to come back, so it is back under
+    // Fired as the taken coin is about to come back, so it is back under
     // kart 0 while the spin-out holds it.
-    for _ in 0..ticks(TYRE_RESPAWN_S - 0.5) {
+    for _ in 0..ticks(COIN_RESPAWN_S - 0.5) {
         state = step(state, &[idle(); 2], DT);
     }
     let mut state = until_kart_0_is_hit(step(state, &[idle(), tap()], DT));
-    assert_eq!(tyres(&state, 0), 0, "the one tyre is lost");
+    assert_eq!(coins(&state, 0), 0, "the one coin is lost");
 
     let mut back_while_spun_out = false;
     while state.kart_readouts()[0].spin_out_s.is_some() {
-        back_while_spun_out |= state.tyres_present()[0];
+        back_while_spun_out |= state.coins_present()[0];
         assert!(pickups(&state).is_empty(), "nothing is taken spun out");
-        assert_eq!(tyres(&state, 0), 0);
+        assert_eq!(coins(&state, 0), 0);
         state = step(state, &[idle(); 2], DT);
     }
     assert!(
         back_while_spun_out,
-        "the tyre came back under the spun-out kart"
+        "the coin came back under the spun-out kart"
     );
 
-    // Over, the kart takes the tyre it stands on.
+    // Over, the kart takes the coin it stands on.
     let state = step(state, &[idle(); 2], DT);
     assert_eq!(
         pickups(&state),
-        [RaceEvent::TyrePicked { kart: 0, tyre: 0 }]
+        [RaceEvent::CoinPicked { kart: 0, coin: 0 }]
     );
-    assert_eq!(tyres(&state, 0), 1);
+    assert_eq!(coins(&state, 0), 1);
 }
 
 #[test]
-fn a_runaway_wheel_spin_out_costs_the_tuned_three_tyres() {
+fn a_runaway_wheel_spin_out_costs_the_tuned_three_coins() {
     // Parked by the crossing's left wall on its line, where the first pass
-    // rolls in, on a full set stacked under the kart.
+    // rolls in, on a full purse stacked under the kart.
     let crossing = brands_patch().wheel_crossings()[0];
     let (sin, cos) = crossing.yaw.sin_cos();
     let left = crossing.half_width - 1.5;
     let [x, y, z] = crossing.position;
     let parked = [x - left * cos, y, z + left * sin];
-    let sidecar = with_slot_at(&without_tyres(BRANDS_PATCH), 0, parked, crossing.yaw);
-    let sidecar = with_tyres_at(&sidecar, vec![parked; TYRE_SET as usize]);
+    let sidecar = with_slot_at(&without_coins(BRANDS_PATCH), 0, parked, crossing.yaw);
+    let sidecar = with_coins_at(&sidecar, vec![parked; COIN_CAP as usize]);
     let mut state = step(started(State::new(SEED, 1, track(&sidecar))), &[idle()], DT);
-    assert_eq!(tyres(&state, 0), TYRE_SET);
+    assert_eq!(coins(&state, 0), COIN_CAP);
 
     let hit = RaceEvent::SpunOut { kart: 0, by: None };
     while !state.events().contains(&hit) {
@@ -411,10 +411,10 @@ fn a_runaway_wheel_spin_out_costs_the_tuned_three_tyres() {
 
     assert_eq!(
         losses(&state),
-        [RaceEvent::TyresLost {
+        [RaceEvent::CoinsLost {
             kart: 0,
-            count: TYRES_LOST_PER_SPIN_OUT
+            count: COINS_LOST_PER_SPIN_OUT
         }]
     );
-    assert_eq!(tyres(&state, 0), TYRE_SET - TYRES_LOST_PER_SPIN_OUT);
+    assert_eq!(coins(&state, 0), COIN_CAP - COINS_LOST_PER_SPIN_OUT);
 }

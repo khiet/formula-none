@@ -130,7 +130,7 @@ seconds triggers the wrong-way warning.
 ### kart readout
 
 What the sim says of one kart at a tick: its transform, speed and
-velocity, drift and mini-turbo tier, item slot, the tyres it carries,
+velocity, drift and mini-turbo tier, item slot, the coins it carries,
 spin-out, hop, boost, rocket start and stall, and its place in the race.
 The sim reports one per kart every tick; a snapshot carries all of it but
 the hop, which only the sim stepping the kart knows; a prediction's kart
@@ -181,18 +181,25 @@ and twelve on Suzuqa Patch, in rows of four across the asphalt. A kart whose cen
 slot picks it up; the box is gone for three seconds and comes back. Every
 pickup is a server event naming the box, so every screen hides the same one.
 
-### tyre
+### coin
 
 A pickup lying on the asphalt, from the sidecar: twelve on the oval and
 fifteen on Suzuqa Patch, in lines along the straights, ten of them on the
 centreline. Also the count a kart carries, from none at the lights to a
-full set of ten. A kart whose centre is on a tyre takes it unless it
-carries a full set or is spun out; the tyre is gone for three seconds and
-comes back. Each tyre carried raises the kart's top speed by 1%, so a full
-set cruises at 33 m/s, and every spin-out costs three, or all the kart has;
-lost tyres vanish. The server holds the count: a pickup and a loss are
-server events, and the snapshots carry the count and the tyres there to
-pick up. Not a tyre wall, which is a surface.
+full purse of ten. A kart whose centre is on a coin takes it unless it
+carries a full purse or is spun out; the coin is gone for three seconds and
+comes back. Each coin carried raises the kart's top speed by 1%, so a full
+purse cruises at 33 m/s, and every spin-out costs three, or all the kart
+has; lost coins vanish, and the View sprays them out of the kart, where
+nothing can pick them up. The server holds the count: a pickup and a loss
+are server events, and the snapshots carry the count and the coins there
+to pick up (ADR 0056).
+
+### tyre
+
+A kart's wheel, the rubber the tyre marks and the tyre wear gauge are
+named for. Not a coin, which is the pickup, nor a tyre wall, which is a
+surface.
 
 ### item slot
 
@@ -232,7 +239,7 @@ flight; a client draws them between snapshots as it draws the other karts.
 
 A kart stopped and spun by an item or the runaway wheel for a fixed time
 (1 s): dead to its controls and moved by nothing until the time runs out.
-Every spin-out costs the kart three tyres, or all it carries. Every
+Every spin-out costs the kart three coins, or all it carries. Every
 spin-out is a server event, and the snapshots carry the time left; clients
 only show it.
 
@@ -421,7 +428,7 @@ The part of a Scene that renders the world. The Race Scene has one View, the
 ### Instrument panel
 
 The HUD overlaid on a View: position, lap, lap time, best lap, item slot,
-speed, gear and tyre, wrong-way warning, connection banner, the start
+speed, gear, coins and tyre, wrong-way warning, connection banner, the start
 lights over the View and the course map. Reads state; never drives it.
 
 ### plate
@@ -446,18 +453,16 @@ Decorative: the gear and the speed are the text.
 
 ### tyre wear
 
-The Instrument panel's tyre gauge, shown on the local kart drawn from
-above, its tyres green above 60%, yellow above 30% and red below. Nothing
-wears: the gauge is to read the tyres the kart carries as a percentage of
-a full set, so ten is 100% and one is 10% (ADR 0055). Until the panel
-reads the count, which the kart readout already carries, it holds at
-100%.
+How worn a kart's tyres are, as a percentage. The Instrument panel's tyre
+gauge shows it on the local kart drawn from above, its tyres green above
+60%, yellow above 30% and red below. The sim does not wear tyres, so the
+gauge holds at 100% (ADR 0031, ADR 0056).
 
 ### race readout
 
 What the Race Scene reads of a race once a frame, as of the last tick:
 every kart readout and standing, the phase, the local kart's item slot, the
-item boxes and the tyres there to pick up, the hazards and the projectiles.
+item boxes and the coins there to pick up, the hazards and the projectiles.
 A solo race reports it from the sim in the browser and a room's race from
 the server's snapshots and events; the View, the Instrument panel and the
 audio each read the one readout. Not a snapshot, which is the server's message.

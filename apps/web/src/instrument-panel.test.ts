@@ -32,8 +32,8 @@ function at(position: readonly [number, number, number]): KartReadout {
 }
 
 // The sim's tuned top speed, which the speed cluster's gears are cut from,
-// and its tyres: a set of ten, each worth 1% of it.
-const TUNING = { topSpeed: 30, tyreTopSpeedFactor: 0.01, tyreSet: 10 };
+// and its coins: ten at most, each worth 1% of it.
+const TUNING = { topSpeed: 30, coinTopSpeedFactor: 0.01, coinCap: 10 };
 
 const nameOf = (kart: number) => (kart === course.ownKart ? "You" : `Kart ${kart + 1}`);
 
@@ -257,22 +257,22 @@ describe("the speed cluster on the page", () => {
     );
     const find = (name: string) =>
       container.querySelector<HTMLElement>(`[data-instrument="${name}"]`);
-    const drive = (speed: number, tyres = 0) =>
+    const drive = (speed: number, coins = 0) =>
       panel.update(
         race(ON_THE_GRID, { item: null, firing: false }, [
           at([0, 0.3, 0]),
-          kartReadout({ speed, tyres }),
+          kartReadout({ speed, coins }),
           at([0, 0.3, 0]),
         ]),
       );
     return { container, find, drive };
   };
 
-  it("reads the speed in km/h, the gear and the tyres as text", () => {
+  it("reads the speed in km/h, the gear and the coins as text", () => {
     const { find, drive } = mount();
     expect(find("speed")?.textContent).toBe("0 km/h");
     expect(find("gear")?.textContent).toBe("N");
-    expect(find("tyre")?.textContent).toBe("0%");
+    expect(find("coins")?.textContent).toBe("x00 / 10");
     drive(23.6);
     expect(find("speed")?.textContent).toBe("85 km/h");
     expect(find("gear")?.textContent).toBe("5");
@@ -281,32 +281,26 @@ describe("the speed cluster on the page", () => {
     expect(find("gear")?.textContent).toBe("R");
   });
 
-  it("reads red at the lights, every kart starting with no tyres", () => {
-    const { find } = mount();
-    expect(find("tyre")?.dataset.tyreWear).toBe("bad");
-  });
-
-  it.each([
-    [0, "0%", "bad"],
-    [4, "40%", "warn"],
-    [7, "70%", "good"],
-    [10, "100%", "good"],
-  ])("reads %i tyres as %s, its band %s", (tyres, percent, band) => {
-    const { find, drive } = mount();
-    drive(20, tyres);
-    expect(find("tyre")?.textContent).toBe(percent);
-    expect(find("tyre")?.dataset.tyreWear).toBe(band);
-  });
-
-  it("drops the gauge as the count falls, as on a spin-out", () => {
+  it("reads the coins the own kart carries, rising as it takes them and falling on a spin-out", () => {
     const { find, drive } = mount();
     drive(20, 7);
-    drive(5, 4);
-    expect(find("tyre")?.textContent).toBe("40%");
-    expect(find("tyre")?.dataset.tyreWear).toBe("warn");
+    expect(find("coins")?.textContent).toBe("x07 / 10");
+    drive(20, 10);
+    expect(find("coins")?.textContent).toBe("x10 / 10");
+    drive(5, 7);
+    expect(find("coins")?.textContent).toBe("x07 / 10");
   });
 
-  it("stretches the gears to the top speed the own kart's tyres raise", () => {
+  it("holds the tyre gauge at fresh tyres whatever the coins", () => {
+    const { find, drive } = mount();
+    expect(find("tyre")?.textContent).toBe("100%");
+    expect(find("tyre")?.dataset.tyreWear).toBe("good");
+    drive(20, 3);
+    expect(find("tyre")?.textContent).toBe("100%");
+    expect(find("tyre")?.dataset.tyreWear).toBe("good");
+  });
+
+  it("stretches the gears to the top speed the own kart's coins raise", () => {
     const { find, drive } = mount();
     drive(33, 0);
     expect(find("gear")?.dataset.limiter).toBe("true");
@@ -315,12 +309,13 @@ describe("the speed cluster on the page", () => {
     expect(find("gear")?.dataset.limiter).toBe("false");
   });
 
-  it("hides the shift lights and the kart icon from assistive technology", () => {
+  it("hides the shift lights, the kart icon and the coin icon from assistive technology", () => {
     const { container, find } = mount();
     const lights = container.querySelector("[data-shift-lights]");
     expect(lights?.getAttribute("aria-hidden")).toBe("true");
     expect(lights?.children).toHaveLength(12);
     expect(find("tyre")?.querySelector("svg")?.getAttribute("aria-hidden")).toBe("true");
+    expect(find("coins")?.querySelector("svg")?.getAttribute("aria-hidden")).toBe("true");
   });
 
   it("lights the shift lights with the revs and marks the limiter on the gear so it can flash", () => {

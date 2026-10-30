@@ -8,7 +8,7 @@
 mod common;
 
 use common::{
-    brands_patch, oval, started, throttle, ticks, track, with_slot_at, without_tyres,
+    brands_patch, oval, started, throttle, ticks, track, with_slot_at, without_coins,
     without_walls, yaw, BRANDS_PATCH, DT, OVAL, SEED,
 };
 
@@ -23,8 +23,8 @@ fn oval_with_slot_0_at(position: [f32; 3], yaw: f32) -> Track {
 }
 
 fn open_oval_with_slot_0_at(position: [f32; 3], yaw: f32) -> Track {
-    // No tyres either: one taken would raise the cap.
-    let sidecar = without_tyres(&without_walls(OVAL));
+    // No coins either: one taken would raise the cap.
+    let sidecar = without_coins(&without_walls(OVAL));
     track(&with_slot_at(&sidecar, 0, position, yaw))
 }
 

@@ -1,0 +1,348 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Top Speed Pickups</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Bungee&family=Inter:wght@400;600&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #121316;
+    --card: #1b1d21;
+    --fg: #e8e8ea;
+    --muted: #8a8d94;
+    --rule: #2a2c31;
+    --code-bg: #24272c;
+    /* palette.ts */
+    --poster-red: #c81d25;
+    --go-green: #3ddc84;
+    --gold: #ffd23f;
+    --asphalt: #6b6b78;
+    --orange: #f08a24;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--fg); font: 15px/1.55 Inter, system-ui, sans-serif; }
+  body { padding: 2rem 16px 4rem; }
+  .wrap { max-width: 1040px; margin: 0 auto; }
+  h1 { font: 1.9rem/1.1 Bungee, Impact, sans-serif; margin: 0 0 .5rem; letter-spacing: .02em; }
+  h1 span { color: var(--poster-red); }
+  h2 { font: 1.2rem/1.2 Bungee, Impact, sans-serif; margin: 0; }
+  h3 { font: 600 .8rem/1.3 Inter, sans-serif; margin: 1rem 0 .3rem; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; }
+  p { margin: .4rem 0; }
+  .lede { color: var(--muted); max-width: 75ch; }
+  nav { display: flex; flex-wrap: wrap; gap: .4rem; margin: 1.25rem 0 2rem; }
+  nav a { color: var(--fg); text-decoration: none; font-size: .85rem; border: 1px solid var(--rule); border-radius: 999px; padding: .25rem .7rem; }
+  nav a:hover { border-color: var(--muted); }
+  .option { background: var(--card); border: 1px solid var(--rule); border-top: 3px solid var(--accent, var(--poster-red)); border-radius: 10px; padding: 1.1rem 1.15rem 1.2rem; margin-bottom: 1.25rem; }
+  .head { display: flex; align-items: baseline; gap: .6rem; flex-wrap: wrap; margin-bottom: .5rem; }
+  .num { font: 1.2rem/1 Bungee, Impact, sans-serif; color: var(--accent); }
+  .tag { font: 600 .7rem/1 Inter, sans-serif; text-transform: uppercase; letter-spacing: .08em; padding: .3rem .5rem; border-radius: 4px; border: 1px solid var(--rule); color: var(--muted); }
+  .tag.rec { color: #111; background: var(--go-green); border-color: var(--go-green); }
+  .tag.mk { color: #111; background: var(--gold); border-color: var(--gold); }
+  .row { display: grid; gap: 1rem; grid-template-columns: 200px 1fr 1fr; align-items: start; }
+  @media (max-width: 820px) { .row { grid-template-columns: 1fr; } }
+  .stage { background: #2a2e35; border-radius: 8px; aspect-ratio: 1; display: grid; place-items: center; overflow: hidden; }
+  .stage svg { width: 78%; height: auto; animation: bob 2.4s ease-in-out infinite; }
+  @keyframes bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-6%); } }
+  .spin svg { animation: bob 2.4s ease-in-out infinite, spin 2.4s linear infinite; }
+  @keyframes spin { 0% { transform: scaleX(1); } 25% { transform: scaleX(.12); } 50% { transform: scaleX(-1); } 75% { transform: scaleX(.12); } 100% { transform: scaleX(1); } }
+  @media (prefers-reduced-motion: reduce) { .stage svg { animation: none; } }
+  .lane { display: block; width: 100%; height: auto; border-radius: 8px; margin-top: .25rem; }
+  .gauge { display: flex; align-items: center; gap: .6rem; background: #0d0e10; border: 2px solid #33363c; border-radius: 6px; padding: .5rem .65rem; margin-top: .25rem; font: .95rem/1 Bungee, Impact, sans-serif; }
+  .gauge svg { flex: none; }
+  .gauge .val { color: var(--fg); letter-spacing: .04em; }
+  .gauge .val small { color: var(--muted); font-size: .7rem; }
+  ul { padding-left: 1.1rem; margin: .3rem 0; }
+  li { margin: .2rem 0; }
+  .pro::marker { content: "+  "; color: var(--go-green); font-weight: 600; }
+  .con::marker { content: "-  "; color: var(--poster-red); font-weight: 600; }
+  code { font: .85em ui-monospace, SFMono-Regular, Menlo, monospace; background: var(--code-bg); padding: .05rem .3rem; border-radius: 3px; }
+  .muted { color: var(--muted); }
+  table { border-collapse: collapse; width: 100%; font-size: .9rem; }
+  th, td { text-align: left; padding: .45rem .65rem; border-bottom: 1px solid var(--rule); vertical-align: top; }
+  th { color: var(--muted); font-weight: 600; }
+  .table-wrap { overflow-x: auto; background: var(--card); border: 1px solid var(--rule); border-radius: 10px; padding: .5rem .6rem; }
+  .summary h2 { margin: 2.5rem 0 .75rem; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Top speed <span>pickups</span></h1>
+  <p class="lede">Five things to lie on the straights in place of the tyre. The rule from ADR 0055 stays as it is in every one:
+  collect up to ten, each raises top speed 1%, a spin-out costs three, the pickup is gone for 3 s. Only the object, its mesh,
+  its gauge and its word in the glossary change. Each card shows the pickup, a line of them on a straight from above, and the
+  Instrument panel readout at seven of ten.</p>
+  <nav>
+    <a href="#coin">1. Coin</a>
+    <a href="#ers">2. ERS cell</a>
+    <a href="#fuel">3. Fuel can</a>
+    <a href="#spanner">4. Spanner</a>
+    <a href="#sticker">5. Sponsor sticker</a>
+    <a href="#compare">Compare</a>
+  </nav>
+
+  <!-- 1. Coin -->
+  <section class="option" id="coin" style="--accent: var(--gold)">
+    <div class="head"><span class="num">1</span><h2>Coin</h2><span class="tag mk">Mario Kart's answer</span></div>
+    <div class="row">
+      <div class="stage spin">
+        <svg viewBox="0 0 100 100" aria-label="Coin">
+          <polygon points="50,6 81,18 94,50 81,82 50,94 19,82 6,50 19,18" fill="#b8860b"/>
+          <polygon points="50,12 77,22 88,50 77,78 50,88 23,78 12,50 23,22" fill="#ffd23f"/>
+          <polygon points="50,12 77,22 88,50 50,50" fill="#fde97a"/>
+          <polygon points="50,50 88,50 77,78 50,88" fill="#e8b923"/>
+          <polygon points="50,22 70,30 78,50 70,70 50,78 30,70 22,50 30,30" fill="none" stroke="#b8860b" stroke-width="3"/>
+          <!-- embossed F for Formula None -->
+          <path d="M42 34 H60 V41 H50 V47 H58 V54 H50 V66 H42 Z" fill="#b8860b"/>
+        </svg>
+      </div>
+      <div>
+        <h3>On the straight</h3>
+        <svg class="lane" viewBox="0 0 300 90" aria-label="Line of coins on a straight">
+          <rect width="300" height="90" fill="#3f7a3a"/><rect y="15" width="300" height="60" fill="#6b6b78"/>
+          <line x1="0" y1="45" x2="300" y2="45" stroke="#8a8a96" stroke-dasharray="10 10"/>
+          <g fill="#ffd23f" stroke="#b8860b" stroke-width="2">
+            <circle cx="70" cy="45" r="7"/><circle cx="105" cy="45" r="7"/><circle cx="140" cy="45" r="7"/><circle cx="175" cy="45" r="7"/><circle cx="210" cy="45" r="7"/>
+            <circle cx="160" cy="27" r="7"/><circle cx="190" cy="27" r="7"/>
+          </g>
+          <polygon points="22,38 42,45 22,52" fill="#c81d25"/>
+        </svg>
+        <h3>Instrument panel</h3>
+        <div class="gauge">
+          <svg width="26" height="26" viewBox="0 0 100 100"><polygon points="50,6 81,18 94,50 81,82 50,94 19,82 6,50 19,18" fill="#ffd23f" stroke="#b8860b" stroke-width="8"/></svg>
+          <span class="val">x07 <small>/ 10</small></span>
+        </div>
+      </div>
+      <div>
+        <h3>Fit</h3>
+        <ul>
+          <li class="pro">Every player already knows what a coin does: pick it up, go faster, lose some when hit.</li>
+          <li class="pro">A spin-out can spill three coins as a spray the View draws, the clearest loss cue of the five.</li>
+          <li class="pro">Cheap mesh: an octagonal prism, spun on its vertical axis.</li>
+          <li class="con">The most borrowed of the five; the game reads less like its own thing.</li>
+          <li class="con">Nothing about it says Formula. The embossed F does the work.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- 2. ERS cell -->
+  <section class="option" id="ers" style="--accent: var(--go-green)">
+    <div class="head"><span class="num">2</span><h2>ERS cell</h2><span class="tag rec">Recommended</span></div>
+    <div class="row">
+      <div class="stage">
+        <svg viewBox="0 0 100 100" aria-label="ERS cell">
+          <rect x="40" y="8" width="20" height="10" fill="#9a9fab"/>
+          <polygon points="24,16 76,16 82,22 82,90 18,90 18,22" fill="#1f2a24"/>
+          <polygon points="24,16 76,16 82,22 18,22" fill="#2f3d35"/>
+          <rect x="26" y="28" width="48" height="54" fill="#0f1612"/>
+          <rect x="30" y="66" width="40" height="12" fill="#3ddc84"/>
+          <rect x="30" y="51" width="40" height="12" fill="#3ddc84"/>
+          <rect x="30" y="36" width="40" height="12" fill="#3ddc84" opacity=".35"/>
+          <polygon points="54,30 40,56 50,56 46,78 62,48 52,48 58,30" fill="#ffd23f" stroke="#111" stroke-width="2"/>
+        </svg>
+      </div>
+      <div>
+        <h3>On the straight</h3>
+        <svg class="lane" viewBox="0 0 300 90" aria-label="Line of ERS cells on a straight">
+          <rect width="300" height="90" fill="#3f7a3a"/><rect y="15" width="300" height="60" fill="#6b6b78"/>
+          <line x1="0" y1="45" x2="300" y2="45" stroke="#8a8a96" stroke-dasharray="10 10"/>
+          <g fill="#1f2a24" stroke="#3ddc84" stroke-width="2">
+            <rect x="64" y="38" width="12" height="14" rx="1"/><rect x="99" y="38" width="12" height="14" rx="1"/><rect x="134" y="38" width="12" height="14" rx="1"/><rect x="169" y="38" width="12" height="14" rx="1"/><rect x="204" y="38" width="12" height="14" rx="1"/>
+            <rect x="154" y="20" width="12" height="14" rx="1"/><rect x="184" y="20" width="12" height="14" rx="1"/>
+          </g>
+          <polygon points="22,38 42,45 22,52" fill="#c81d25"/>
+        </svg>
+        <h3>Instrument panel</h3>
+        <div class="gauge">
+          <svg width="150" height="22" viewBox="0 0 150 22" aria-label="Seven of ten cells charged">
+            <rect x="0" y="0" width="144" height="22" fill="none" stroke="#9a9fab" stroke-width="2"/>
+            <rect x="144" y="6" width="6" height="10" fill="#9a9fab"/>
+            <g fill="#3ddc84">
+              <rect x="3" y="3" width="11" height="16"/><rect x="17" y="3" width="11" height="16"/><rect x="31" y="3" width="11" height="16"/><rect x="45" y="3" width="11" height="16"/><rect x="59" y="3" width="11" height="16"/><rect x="73" y="3" width="11" height="16"/><rect x="87" y="3" width="11" height="16"/>
+            </g>
+            <g fill="#26302a"><rect x="101" y="3" width="11" height="16"/><rect x="115" y="3" width="11" height="16"/><rect x="129" y="3" width="11" height="16"/></g>
+          </svg>
+          <span class="val">ERS</span>
+        </div>
+      </div>
+      <div>
+        <h3>Fit</h3>
+        <ul>
+          <li class="pro">Real F1 language: harvested energy makes the car faster. Fits the poster-F1 theme.</li>
+          <li class="pro">The gauge is a ten-segment battery, so "how full is my set" reads at a glance without a number.</li>
+          <li class="pro">Go-green on asphalt is the highest-contrast pickup of the five.</li>
+          <li class="con">Players may expect to spend the charge on a button, as in real ERS. It is passive here.</li>
+          <li class="con">Green collides with the start lights' go colour; the bolt keeps it distinct.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3. Fuel can -->
+  <section class="option" id="fuel" style="--accent: var(--poster-red)">
+    <div class="head"><span class="num">3</span><h2>Fuel can</h2></div>
+    <div class="row">
+      <div class="stage">
+        <svg viewBox="0 0 100 100" aria-label="Fuel can">
+          <polygon points="22,22 66,22 80,36 80,90 22,90" fill="#c81d25"/>
+          <polygon points="66,22 80,36 80,90 70,90 70,30" fill="#9a141b"/>
+          <rect x="66" y="10" width="12" height="12" fill="#ffd23f" transform="rotate(45 72 16)"/>
+          <rect x="28" y="12" width="26" height="10" rx="2" fill="none" stroke="#9a141b" stroke-width="5"/>
+          <path d="M28 36 L64 80 M64 36 L28 80" stroke="#9a141b" stroke-width="5"/>
+          <rect x="28" y="50" width="36" height="16" fill="#ffd23f"/>
+          <text x="46" y="62" text-anchor="middle" font-family="Bungee, Impact" font-size="11" fill="#111">FUEL</text>
+        </svg>
+      </div>
+      <div>
+        <h3>On the straight</h3>
+        <svg class="lane" viewBox="0 0 300 90" aria-label="Line of fuel cans on a straight">
+          <rect width="300" height="90" fill="#3f7a3a"/><rect y="15" width="300" height="60" fill="#6b6b78"/>
+          <line x1="0" y1="45" x2="300" y2="45" stroke="#8a8a96" stroke-dasharray="10 10"/>
+          <g fill="#c81d25" stroke="#ffd23f" stroke-width="2">
+            <rect x="64" y="38" width="12" height="14"/><rect x="99" y="38" width="12" height="14"/><rect x="134" y="38" width="12" height="14"/><rect x="169" y="38" width="12" height="14"/><rect x="204" y="38" width="12" height="14"/>
+            <rect x="154" y="20" width="12" height="14"/><rect x="184" y="20" width="12" height="14"/>
+          </g>
+          <polygon points="22,38 42,45 22,52" fill="#c81d25" stroke="#fff" stroke-width="1"/>
+        </svg>
+        <h3>Instrument panel</h3>
+        <div class="gauge">
+          <svg width="96" height="56" viewBox="0 0 96 56" aria-label="Fuel needle at seven tenths">
+            <path d="M8 50 A40 40 0 0 1 88 50" fill="none" stroke="#33363c" stroke-width="8"/>
+            <path d="M8 50 A40 40 0 0 1 72.1 18.1" fill="none" stroke="#f08a24" stroke-width="8"/>
+            <line x1="48" y1="50" x2="71" y2="22" stroke="#e8e8ea" stroke-width="3"/>
+            <circle cx="48" cy="50" r="4" fill="#e8e8ea"/>
+            <text x="4" y="44" font-family="Bungee" font-size="9" fill="#8a8d94">E</text>
+            <text x="86" y="44" font-family="Bungee" font-size="9" fill="#8a8d94">F</text>
+          </svg>
+          <span class="val">FUEL</span>
+        </div>
+      </div>
+      <div>
+        <h3>Fit</h3>
+        <ul>
+          <li class="pro">A needle from E to F is the most familiar gauge there is.</li>
+          <li class="pro">Poster red and gold, already the palette's loudest pair.</li>
+          <li class="con">Backwards to motorsport: in F1 more fuel is more weight, so slower.</li>
+          <li class="con">Empty sounds like the kart should stop, and at zero it drives at full base speed.</li>
+          <li class="con">Red cans read as hazards beside the red-and-white kerbs.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- 4. Spanner -->
+  <section class="option" id="spanner" style="--accent: #9a9fab">
+    <div class="head"><span class="num">4</span><h2>Spanner</h2></div>
+    <div class="row">
+      <div class="stage spin">
+        <svg viewBox="0 0 100 100" aria-label="Spanner">
+          <g transform="rotate(-40 50 50)">
+            <rect x="44" y="26" width="12" height="52" fill="#c4cad3"/>
+            <rect x="50" y="26" width="6" height="52" fill="#8a8d94"/>
+            <polygon points="36,8 64,8 70,22 60,30 40,30 30,22" fill="#c4cad3"/>
+            <polygon points="44,8 56,8 56,20 44,20" fill="#2a2e35"/>
+            <polygon points="38,74 62,74 68,86 60,96 40,96 32,86" fill="#c4cad3"/>
+            <polygon points="44,80 56,80 60,86 56,92 44,92 40,86" fill="#2a2e35"/>
+            <rect x="44" y="44" width="12" height="16" fill="#f08a24"/>
+          </g>
+        </svg>
+      </div>
+      <div>
+        <h3>On the straight</h3>
+        <svg class="lane" viewBox="0 0 300 90" aria-label="Line of spanners on a straight">
+          <rect width="300" height="90" fill="#3f7a3a"/><rect y="15" width="300" height="60" fill="#6b6b78"/>
+          <line x1="0" y1="45" x2="300" y2="45" stroke="#8a8a96" stroke-dasharray="10 10"/>
+          <g stroke="#e8e8ea" stroke-width="4" stroke-linecap="round">
+            <line x1="64" y1="51" x2="76" y2="39"/><line x1="99" y1="51" x2="111" y2="39"/><line x1="134" y1="51" x2="146" y2="39"/><line x1="169" y1="51" x2="181" y2="39"/><line x1="204" y1="51" x2="216" y2="39"/>
+            <line x1="154" y1="33" x2="166" y2="21"/><line x1="184" y1="33" x2="196" y2="21"/>
+          </g>
+          <polygon points="22,38 42,45 22,52" fill="#c81d25"/>
+        </svg>
+        <h3>Instrument panel</h3>
+        <div class="gauge">
+          <svg width="26" height="26" viewBox="0 0 100 100"><g transform="rotate(-40 50 50)"><rect x="42" y="24" width="16" height="56" fill="#c4cad3"/><polygon points="34,6 66,6 72,22 60,30 40,30 28,22" fill="#c4cad3"/><polygon points="44,6 56,6 56,20 44,20" fill="#0d0e10"/></g></svg>
+          <span class="val">SETUP 7 <small>/ 10</small></span>
+        </div>
+      </div>
+      <div>
+        <h3>Fit</h3>
+        <ul>
+          <li class="pro">Pit-crew theme: each spanner is one more tweak to the kart's setup.</li>
+          <li class="pro">The setup level can show on the kart as an extra part per few spanners (a wing, then a scoop).</li>
+          <li class="con">Thin and grey; the hardest of the five to spot on asphalt at 30 m/s.</li>
+          <li class="con">Losing three to a spin-out reads oddly: the kart unbuilds itself.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- 5. Sponsor sticker -->
+  <section class="option" id="sticker" style="--accent: var(--orange)">
+    <div class="head"><span class="num">5</span><h2>Sponsor sticker</h2></div>
+    <div class="row">
+      <div class="stage spin">
+        <svg viewBox="0 0 100 100" aria-label="Sponsor sticker">
+          <polygon points="50,4 61,36 96,36 68,57 78,92 50,71 22,92 32,57 4,36 39,36" fill="#f08a24" stroke="#fff" stroke-width="5" stroke-linejoin="round"/>
+          <polygon points="50,4 61,36 96,36 50,50" fill="#ffa64d"/>
+          <rect x="24" y="42" width="52" height="16" fill="#111" transform="rotate(-8 50 50)"/>
+          <text x="50" y="54" text-anchor="middle" font-family="Bungee, Impact" font-size="11" fill="#ffd23f" transform="rotate(-8 50 50)">SPONSOR</text>
+        </svg>
+      </div>
+      <div>
+        <h3>On the straight</h3>
+        <svg class="lane" viewBox="0 0 300 90" aria-label="Line of sponsor stickers on a straight">
+          <rect width="300" height="90" fill="#3f7a3a"/><rect y="15" width="300" height="60" fill="#6b6b78"/>
+          <line x1="0" y1="45" x2="300" y2="45" stroke="#8a8a96" stroke-dasharray="10 10"/>
+          <g fill="#f08a24" stroke="#fff" stroke-width="1.5" stroke-linejoin="round">
+            <polygon points="70,37 72,43 78,43 73,47 75,53 70,49 65,53 67,47 62,43 68,43"/>
+            <polygon points="105,37 107,43 113,43 108,47 110,53 105,49 100,53 102,47 97,43 103,43"/>
+            <polygon points="140,37 142,43 148,43 143,47 145,53 140,49 135,53 137,47 132,43 138,43"/>
+            <polygon points="175,37 177,43 183,43 178,47 180,53 175,49 170,53 172,47 167,43 173,43"/>
+            <polygon points="210,37 212,43 218,43 213,47 215,53 210,49 205,53 207,47 202,43 208,43"/>
+            <polygon points="160,19 162,25 168,25 163,29 165,35 160,31 155,35 157,29 152,25 158,25"/>
+            <polygon points="190,19 192,25 198,25 193,29 195,35 190,31 185,35 187,29 182,25 188,25"/>
+          </g>
+          <polygon points="22,38 42,45 22,52" fill="#c81d25"/>
+        </svg>
+        <h3>Instrument panel</h3>
+        <div class="gauge">
+          <svg width="150" height="22" viewBox="0 0 150 22" aria-label="Seven of ten stickers">
+            <g fill="#f08a24"><circle cx="7" cy="11" r="6"/><circle cx="22" cy="11" r="6"/><circle cx="37" cy="11" r="6"/><circle cx="52" cy="11" r="6"/><circle cx="67" cy="11" r="6"/><circle cx="82" cy="11" r="6"/><circle cx="97" cy="11" r="6"/></g>
+            <g fill="none" stroke="#33363c" stroke-width="2"><circle cx="112" cy="11" r="5"/><circle cx="127" cy="11" r="5"/><circle cx="142" cy="11" r="5"/></g>
+          </svg>
+        </div>
+      </div>
+      <div>
+        <h3>Fit</h3>
+        <ul>
+          <li class="pro">The count shows on the kart itself: each sticker lands on the bodywork, so rivals can read who carries a full set.</li>
+          <li class="pro">A spin-out peels three off, visibly, in the chase camera.</li>
+          <li class="pro">Most its own idea; nothing else in the genre does it.</li>
+          <li class="con">Why a sticker makes a kart faster needs a sentence ("sponsors pay for speed").</li>
+          <li class="con">Most View work: ten decal slots per kart on top of the livery.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section class="summary" id="compare">
+    <h2>Compare</h2>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Option</th><th>Reads as "faster" without a tutorial</th><th>Visible on asphalt</th><th>Theme fit</th><th>View cost</th></tr></thead>
+        <tbody>
+          <tr><td>1. Coin</td><td>Yes, from Mario Kart</td><td>High</td><td>Low</td><td>Low</td></tr>
+          <tr><td><strong>2. ERS cell</strong></td><td>Mostly; battery = power</td><td>Highest</td><td>High</td><td>Low</td></tr>
+          <tr><td>3. Fuel can</td><td>Yes, but empty misleads</td><td>Medium, clashes with kerbs</td><td>Medium</td><td>Low</td></tr>
+          <tr><td>4. Spanner</td><td>Partly</td><td>Low</td><td>Medium</td><td>Medium with parts on the kart</td></tr>
+          <tr><td>5. Sponsor sticker</td><td>Needs a line of text</td><td>High</td><td>High</td><td>High</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="muted">Whichever wins, the sim rule, wire and sidecar placements are unchanged; it is a rename across the glossary, code and protocol, a new mesh and gauge, and a new ADR superseding the tyre's object in ADR 0055.</p>
+  </section>
+</div>
+</body>
+</html>

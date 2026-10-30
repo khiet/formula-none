@@ -152,7 +152,7 @@
 
   /* The Instrument panel's own rules, copied from apps/web/index.html at one HUD unit. */
   .hud-row { display: flex; flex-wrap: wrap; gap: 1.2rem; align-items: center; justify-content: center; }
-  .cluster { display: grid; grid-template-areas: "lights lights" "gear speed" "gear tyre"; column-gap: calc(var(--hud) * 1.4); row-gap: calc(var(--hud) * 0.9); align-items: end; }
+  .cluster { display: grid; grid-template-areas: "coins coins" "lights lights" "gear speed" "gear tyre"; column-gap: calc(var(--hud) * 1.4); row-gap: calc(var(--hud) * 0.9); align-items: end; }
   .speed { grid-area: speed; display: flex; align-items: baseline; gap: calc(var(--hud) * 0.8); }
   .speed b { font-weight: normal; font-size: calc(var(--hud) * 5.2); }
   .speed span { font-size: calc(var(--hud) * 1.8); color: #fff; }
@@ -190,6 +190,8 @@
   .lights { grid-area: lights; width: calc(var(--hud) * 21); height: auto; filter: drop-shadow(calc(var(--hud) * 0.3) calc(var(--hud) * 0.3) 0 rgb(17 17 17 / 0.55)); }
   .gear { --c: calc(var(--hud) * 1.6); font-size: calc(var(--hud) * 7); width: 1.2em; height: 1.35em; justify-content: center; padding: 0; }
   .cluster > .pl { grid-area: gear; }
+  .coins { grid-area: coins; display: flex; align-items: center; gap: calc(var(--hud) * 1); font-size: calc(var(--hud) * 2.6); }
+  .coins svg { width: calc(var(--hud) * 2.8); height: auto; filter: drop-shadow(calc(var(--hud) * 0.3) calc(var(--hud) * 0.3) 0 rgb(17 17 17 / 0.55)); }
   .tyre { grid-area: tyre; display: flex; align-items: center; gap: calc(var(--hud) * 1); font-size: calc(var(--hud) * 2.2); }
   .tyre svg, .tyre-big svg { width: calc(var(--hud) * 3.6); height: auto; filter: drop-shadow(calc(var(--hud) * 0.3) calc(var(--hud) * 0.3) 0 rgb(17 17 17 / 0.55)); }
   .tyre-big svg { width: 4.6rem; }
@@ -413,12 +415,22 @@
       </article>
 
       <article class="asset">
-        <header><h3>Tyre</h3><code>apps/web/src/item-meshes.ts tyreMesh</code></header>
-        <div class="compare"><figure><figcaption>Lying on the asphalt</figcaption><div class="stage" data-draw="tyre"></div></figure></div>
-        <dl class="spec"><dt>Size</dt><dd>0.35 m radius, 0.26 m wide; collected within 1 m of its centre</dd><dt>Decided</dt><dd><a href="adr/0055-tyres-raise-top-speed.md">ADR 0055</a></dd></dl>
+        <header><h3>Coin</h3><code>apps/web/src/coin-meshes.ts coinMesh</code></header>
+        <div class="compare"><figure><figcaption>Standing on the asphalt, mid-turn</figcaption><div class="stage" data-draw="coin"></div></figure></div>
+        <dl class="spec"><dt>Size</dt><dd>0.8 m across, 0.12 m thick, its centre 0.6 m up; collected within 1 m of its placement</dd><dt>Decided</dt><dd><a href="adr/0056-coins-replace-the-tyre-pickup.md">ADR 0056</a>, rule by <a href="adr/0055-tyres-raise-top-speed.md">0055</a>; chosen from <a href="mockups/top-speed-pickups.html">top speed pickups</a></dd></dl>
         <div class="notes">
-          <p>A kart's tyre lying on its side where the sidecar puts it, at its yaw: an eight-sided tread in <code>KART_PAINT.tyre</code> <code>#1c1c1f</code>, lit and flat-shaded, with its rim on top in <code>KART_PAINT.rim</code> <code>#3b3d42</code>, so it reads as one of the kart's own on the grey asphalt. Lines of them lie on the straights; a kart that takes one hides it until it is back three seconds later, as a box does, and a short squeak plays.</p>
-          <p class="dont"><b>Don't</b> draw a tyre the kart does not wear, or stand it on its tread: that is a tyre wall's tyre, which a kart bounces off.</p>
+          <p>An octagonal prism standing on its edge, a vertex up, lit and flat-shaded: faces in <code>COIN_GOLD</code> <code>#ffd23f</code>, the rim and an F embossed on each face in <code>COIN_RIM</code> <code>#b8860b</code>, the F reading the right way round from either side. It turns once a second on its vertical axis and bobs 5 cm, off the View's clock, so every coin on the track faces the same way at once. Lines of them lie on the straights; a kart that takes one hides it until it is back three seconds later, as a box does, and a bright two-note chime plays.</p>
+          <p class="dont"><b>Don't</b> turn coins on their own phase or lay one flat: a line of coins turning together is what reads as a line to take.</p>
+        </div>
+      </article>
+
+      <article class="asset">
+        <header><h3>Coin spray</h3><code>apps/web/src/coin-meshes.ts coinSpray</code></header>
+        <div class="compare"><figure><figcaption>Three coins lost to a spin-out</figcaption><div class="stage" data-draw="coinSpray"></div></figure></div>
+        <dl class="spec"><dt>Timing</dt><dd>0.6 s, half-size coins thrown 3 m/s out and 5 m/s up</dd><dt>Decided</dt><dd><a href="adr/0056-coins-replace-the-tyre-pickup.md">ADR 0056</a></dd></dl>
+        <div class="notes">
+          <p>The spin-out's loss cue: as a kart's count falls, the View throws that many half-size coins out of it, spread evenly round it, spinning as they rise and fall, gone after 0.6 s. A short falling jingle plays after the hit. The sim has already made the lost coins vanish; the spray is Presentation only.</p>
+          <p class="dont"><b>Don't</b> leave the thrown coins lying: nothing can pick them up, so a coin left on the asphalt would lie.</p>
         </div>
       </article>
 
@@ -654,16 +666,16 @@
 
       <article class="asset wide">
         <header><h3>Speed cluster</h3><code>apps/web/src/speed-cluster.ts, instrument-panel.ts</code></header>
-        <div class="compare"><figure><figcaption>4th at 87 km/h on four tyres, and on the limiter on seven</figcaption><div class="view"><div class="hud hud-row" id="clusters"></div></div></figure></div>
-        <dl class="spec"><dt>Decided</dt><dd><a href="adr/0031-speed-cluster.md">ADR 0031</a>, drawn by <a href="adr/0037-instrument-panel-in-chibi-low-poly.md">0037</a></dd></dl>
-        <div class="notes"><p>Twelve hexagon shift lights, each a lit, mid and shaded facet like the wheel hubs, in green, red and blue thirds. The gear on a carbon plate, white on the limiter; km/h and the tyre gauge beside it. The six gears share out the top speed your tyres raise, 1% a tyre, so 6th tops out at 108 km/h on none and 119 km/h on ten, and the limiter still means a boost.</p></div>
+        <div class="compare"><figure><figcaption>4th at 87 km/h on four coins, and on the limiter on seven</figcaption><div class="view"><div class="hud hud-row" id="clusters"></div></div></figure></div>
+        <dl class="spec"><dt>Decided</dt><dd><a href="adr/0031-speed-cluster.md">ADR 0031</a>, drawn by <a href="adr/0037-instrument-panel-in-chibi-low-poly.md">0037</a>, coins by <a href="adr/0056-coins-replace-the-tyre-pickup.md">0056</a></dd></dl>
+        <div class="notes"><p>The coin count over the lights: a poster gold octagon in its rim's darker gold, and the coins you carry as two digits over the most you can, <code>x07 / 10</code>, reading <code>x00 / 10</code> at the lights. Twelve hexagon shift lights, each a lit, mid and shaded facet like the wheel hubs, in green, red and blue thirds. The gear on a carbon plate, white on the limiter; km/h and the tyre gauge beside it. The six gears share out the top speed your coins raise, 1% a coin, so 6th tops out at 108 km/h on none and 119 km/h on ten, and the limiter still means a boost.</p></div>
       </article>
 
       <article class="asset">
         <header><h3>Tyre gauge kart</h3><code>apps/web/src/instrument-panel.ts</code></header>
-        <div class="compare"><figure><figcaption>No tyres, at the lights</figcaption><div class="view"><div class="hud tyre-big follows lv" data-draw="tyreGauge" data-tyres="0"></div></div></figure><figure><figcaption>Four tyres</figcaption><div class="view"><div class="hud tyre-big follows lv" data-draw="tyreGauge" data-tyres="4"></div></div></figure><figure><figcaption>A full set of ten</figcaption><div class="view"><div class="hud tyre-big follows lv" data-draw="tyreGauge" data-tyres="10"></div></div></figure></div>
-        <dl class="spec"><dt>Decided</dt><dd><a href="adr/0031-speed-cluster.md">ADR 0031</a>, <a href="adr/0037-instrument-panel-in-chibi-low-poly.md">0037</a>, read by <a href="adr/0055-tyres-raise-top-speed.md">0055</a></dd></dl>
-        <div class="notes"><p>Front and rear wings in secondary, the tub and sidepods in primary lit on the left, the accent stripe, the halo, and your driver's hair in the cockpit. Rears bigger than fronts, each tyre a faceted block in the band of the tyres you carry: ten is 100% and each one 10%, green above 60%, yellow above 30%, red below. Every kart starts at zero, so it is red at the lights; it climbs as you collect tyres and drops by three during a spin-out. No digit for the count, only the percentage.</p></div>
+        <div class="compare"><figure><figcaption>Your car from above</figcaption><div class="view"><div class="hud tyre-big follows lv" data-draw="tyreGauge"></div></div></figure></div>
+        <dl class="spec"><dt>Decided</dt><dd><a href="adr/0031-speed-cluster.md">ADR 0031</a>, <a href="adr/0037-instrument-panel-in-chibi-low-poly.md">0037</a>, held by <a href="adr/0056-coins-replace-the-tyre-pickup.md">0056</a></dd></dl>
+        <div class="notes"><p>Front and rear wings in secondary, the tub and sidepods in primary lit on the left, the accent stripe, the halo, and your driver's hair in the cockpit. Rears bigger than fronts, each tyre a faceted block in its wear colour: green above 60%, yellow above 30%, red below. The sim does not wear tyres, so it holds at 100%, green.</p></div>
       </article>
 
       <article class="asset">
@@ -986,19 +998,19 @@
       ${poly(left, "#e0b54a")}${poly(inset(left, 0.7), "#c99a2e")}
       ${poly(right, "#8c5a12")}${poly(inset(right, 0.7), "#a87418")}</svg>`;
   };
-  // A tyre on its side: an octagon in plan, squashed as seen from above and ahead.
-  draw.tyre = () => {
-    const cx = 100, top = 66, depth = 22, r = 56, squash = 0.42;
-    const at = (k, share = 1) => { const a = Math.PI / 8 + (k * Math.PI) / 4; return [cx + r * share * Math.cos(a), top + r * share * squash * Math.sin(a)]; };
-    const down = ([x, y]) => [x, y + depth];
-    // Vertices 0 to 3 are the near half; the three sides between them show, shaded right to lit left.
-    const sides = [["color-mix(in srgb, #1c1c1f 66%, black)", 0], ["#1c1c1f", 1], ["color-mix(in srgb, #1c1c1f 72%, white)", 2]]
-      .map(([fill, k]) => poly([at(k), at(k + 1), down(at(k + 1)), down(at(k))], fill)).join("");
+  // A coin face on, turned a little: the mockup's octagon, its F embossed, a shadow under it.
+  const coinFace = (cx, cy, r) => {
+    const at = (k, share = 1) => { const a = -Math.PI / 2 + (k * Math.PI) / 4; return [cx + r * share * Math.cos(a), cy + r * share * Math.sin(a)]; };
     const ring = (share) => Array.from({ length: 8 }, (_, k) => at(k, share));
-    return `<svg viewBox="0 0 200 160" role="img" aria-label="An octagonal kart tyre lying on its side, its grey rim on top">
-      <ellipse cx="100" cy="${top + depth + 8}" rx="${r + 6}" ry="${r * squash + 4}" fill="rgba(0,0,0,.15)"/>
-      ${sides}${poly(ring(1), "color-mix(in srgb, #1c1c1f 72%, white)")}${poly(ring(0.55), "#3b3d42")}</svg>`;
+    const u = r / 44;
+    const bar = (x, y, w, h) => `<rect x="${cx + (x - w / 2) * u}" y="${cy - (y + h / 2) * u}" width="${w * u}" height="${h * u}" fill="#b8860b"/>`;
+    return `${poly(ring(1), "#b8860b")}${poly(ring(0.86), "#ffd23f")}${bar(-4, 0, 8, 32)}${bar(1, 12.5, 18, 7)}${bar(4, -0.5, 8, 7)}`;
   };
+  draw.coin = () => `<svg viewBox="0 0 200 160" role="img" aria-label="A gold octagonal coin standing on its edge, an F embossed on its face">
+      <ellipse cx="100" cy="146" rx="38" ry="7" fill="rgba(0,0,0,.15)"/>${coinFace(100, 70, 56)}</svg>`;
+  draw.coinSpray = () => `<svg viewBox="0 0 200 160" role="img" aria-label="Three small gold coins thrown up and out of a spun-out kart">
+      <ellipse cx="100" cy="140" rx="34" ry="7" fill="rgba(0,0,0,.15)"/>${poly([[74, 118], [126, 118], [132, 136], [68, 136]], "#2b2e33")}
+      ${coinFace(52, 70, 16)}${coinFace(100, 34, 16)}${coinFace(148, 70, 16)}</svg>`;
   draw.cone = () => {
     const apex = [100, 26], L = [62, 118], ML = [82, 126], MR = [118, 126], R = [138, 118];
     const lerp = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
@@ -1520,12 +1532,8 @@
     ${poly([[24, 66], [36, 66], [34, 82], [26, 82]], "var(--p-dk)")}
     ${poly([[8, 80], [52, 80], [52, 89], [8, 89]], "var(--s)")}${poly([[8, 80], [52, 80], [52, 83], [8, 83]], "color-mix(in srgb, var(--s) 72%, white)")}${poly([[6, 79], [9, 79], [9, 90], [6, 90]], "var(--a)")}${poly([[51, 79], [54, 79], [54, 90], [51, 90]], "var(--a)")}
   </svg>`;
-  // The gauge's band for a count of tyres, as speed-cluster.ts reads it against a set of ten.
-  const tyreBand = (tyres) => { const percent = tyres * 10; return percent > 60 ? "green" : percent > 30 ? "yellow" : "red"; };
-  draw.tyreGauge = (el) => {
-    const tyres = Number(el.dataset.tyres ?? 10);
-    return `${topCar(Array(4).fill(tyreBand(tyres)))}<span>${tyres * 10}%</span>`;
-  };
+  // The gauge holds at fresh tyres: the sim does not wear them.
+  draw.tyreGauge = () => `${topCar(Array(4).fill("green"))}<span>100%</span>`;
 
   // Real centrelines from the sidecars, projected the way course-map.ts projects them.
   const TRACKS = {
@@ -1579,6 +1587,8 @@
       { token: "INK", hex: 0x111111, role: "The ink drop under every plate and value" },
       { token: "CARBON", tones: [0x4a4f57, 0x2b2e33, 0x1b1d21], role: "Plates: laps, times, gear, FINISH, standings" },
       { token: "ITEM_BOX_GOLD", tones: [0xf8e39a, 0xe0b54a, 0xc99a2e], role: "The item box, its slot, your standings row" },
+      { token: "COIN_GOLD", hex: 0xffd23f, role: "The coin's faces, on the track, in the spray and on the coin count" },
+      { token: "COIN_RIM", hex: 0xb8860b, role: "The coin's rim and embossed F" },
       { token: "FIRING", tones: [0xffffff, 0xfff6cf, 0xf8e39a], role: "The item slot while firing" },
       { token: "WHITE", tones: [0xffffff, 0xeef0f2, 0xcfd2d6], role: "The gear on the limiter" },
       { token: "LAMP_OFF", tones: [0x2b2e33, 0x1b1d21, 0x111214], role: "A start light not yet on" },
@@ -1632,8 +1642,8 @@
       { token: "BEACON_BEAM", hex: 0xffcf4a, role: "The beacon's sweeping beam" },
     ]],
     ["Kart, assets/karts/build.py", [
-      { token: "KART_PAINT.tyre", hex: 0x1c1c1f, role: "The tyres, the kart's and those lying on the track" },
-      { token: "KART_PAINT.rim", hex: 0x3b3d42, role: "The rims and spokes, and the rim of a tyre on the track" },
+      { token: "KART_PAINT.tyre", hex: 0x1c1c1f, role: "The tyres" },
+      { token: "KART_PAINT.rim", hex: 0x3b3d42, role: "The rims and spokes" },
       { token: "KART_PAINT.carbon", hex: 0x2b2e33, role: "The halo, its pillar, the wishbones" },
       { token: "KART_PAINT.whites", hex: 0xf7f7f2, role: "The whites of the eyes" },
       { token: "KART_PAINT.irises", hex: 0x211712, role: "The irises, one colour for every driver" },
@@ -1681,7 +1691,8 @@
   document.getElementById("slots").innerHTML = slot(null) + slot("snail") + slot("cone") + slot("gull") + slot("snail", true);
   const hexLights = (lit, limiter) => `<svg class="lights" viewBox="0 0 156 14" aria-hidden="true">${Array.from({ length: 12 }, (_, i) =>
     facets(6, 6.5 + i * 13, 7, 6.2, TONES[limiter ? "blue" : i < lit ? ["green", "red", "blue"][Math.floor((i * 3) / 12)] : "off"])).join("")}</svg>`;
-  const cluster = (gear, kmh, lit, limiter, tyres) => `<div class="cluster">${hexLights(lit, limiter)}<span class="pl"><span class="pf ${limiter ? "t-white" : "t-carbon"} gear">${gear}</span></span><div class="speed"><b>${kmh}</b><span class="lab">KM/H</span></div><div class="tyre lv follows">${topCar(Array(4).fill(tyreBand(tyres)))}<span>${tyres * 10}%</span></div></div>`;
+  const coinIcon = `<svg viewBox="0 0 100 100" aria-hidden="true"><polygon points="50,6 81,18 94,50 81,82 50,94 19,82 6,50 19,18" fill="#ffd23f" stroke="#b8860b" stroke-width="8"/></svg>`;
+  const cluster = (gear, kmh, lit, limiter, coins) => `<div class="cluster"><div class="coins">${coinIcon}<span>x${String(coins).padStart(2, "0")} / 10</span></div>${hexLights(lit, limiter)}<span class="pl"><span class="pf ${limiter ? "t-white" : "t-carbon"} gear">${gear}</span></span><div class="speed"><b>${kmh}</b><span class="lab">KM/H</span></div><div class="tyre lv follows">${topCar(Array(4).fill("green"))}<span>100%</span></div></div>`;
   document.getElementById("clusters").innerHTML = cluster(4, 87, 7, false, 4) + cluster(6, 122, 12, true, 7);
 
   // A flag folded once, lit on the left half; chequered once its lap is done.
