@@ -3,8 +3,10 @@ checked without Blender: every footprint keeps its clearance from the walls
 and from the other leg at the bridge, no tree stands inside one, the sidecar
 never learns of one, the Circuit Wheel is the style guide's card in three
 dimensions with the named nodes the View turns, the arch spans Dunlop under
-the span rule with its sponsor on both faces, and the pit building faces
-the grid with a door and a flag in each key colour.
+the span rule with its sponsor on both faces, the pit building faces the
+grid with a door and a flag in each key colour, and the airship circles
+the infield high enough to clear every road with its sponsor on both
+flanks.
 
     python3 -I -m unittest discover -s assets/tracks/tests -t assets/tracks
 """
@@ -34,10 +36,18 @@ from trackgen.layout import (
     Wood,
     World,
     build,
+    elevation,
     locate,
 )
 from trackgen.layouts import load
 from trackgen.props import (
+    AIRSHIP_APOTHEM_M,
+    AIRSHIP_CLEARANCE_M,
+    AIRSHIP_LENGTH_M,
+    AIRSHIP_RADIUS_M,
+    AIRSHIP_SIDES,
+    AIRSHIP_TEXT_AT_M,
+    AIRSHIP_TEXT_SIZE_M,
     ARCH_BELT_RADIUS_M,
     ARCH_DEPTH_M,
     ARCH_RADIUS_M,
@@ -58,7 +68,7 @@ from trackgen.props import (
     footprints,
     scatter,
 )
-from trackgen.sponsors import ARCH_SPONSOR, SPONSORS
+from trackgen.sponsors import AIRSHIP_SPONSOR, ARCH_SPONSOR, SPONSORS
 
 BUILD_PY = Path(__file__).resolve().parents[1] / "build.py"
 # The only shipped track with props; the oval stays bare.
@@ -66,6 +76,7 @@ DRESSED = "brands-patch"
 WHEEL = "Prop.circuit-wheel.1"
 ARCH = "Prop.arch"
 PITS = "Prop.pits"
+AIRSHIP = "Prop.airship"
 # How finely a footprint's edge is walked when its clearance is measured.
 EDGE_STEP_M = 0.5
 # Gates and placements are height-blind in the sim, so a prop near the
@@ -634,3 +645,118 @@ class PitBuilding(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class Airship(unittest.TestCase):
+    def setUp(self) -> None:
+        self.layout = load(DRESSED)
+        (self.prop,) = [p for p in self.layout.decor.props if p.kind == "airship"]
+        self.geometry = build(self.layout)
+        (self.hull,) = [p for p in self.geometry.scenery if p.name.startswith(f"{AIRSHIP}.")]
+        self.lettering = [t for t in self.geometry.lettering if t.name.startswith(f"{AIRSHIP}.")]
+        self.ground = -GRASS_DROP_M
+
+    def frame(self, v: mesh.Vertex) -> tuple[float, float, float]:
+        """A vertex as (along the nose's heading, left of it, up from the axis) from the hull's pivot."""
+        pivot = self.hull.pivot
+        dx, dy = v[0] - pivot.x, v[1] - pivot.y
+        cos, sin = math.cos(pivot.heading), math.sin(pivot.heading)
+        return dx * cos + dy * sin, -dx * sin + dy * cos, v[2] - pivot.z
+
+    def test_it_circles_45_m_over_the_east_infield_round_a_60_m_circle_turning_left(self) -> None:
+        self.assertEqual(self.prop.at, World(-60.0, -40.0))
+        self.assertEqual((self.prop.radius, self.prop.height), (60.0, 45.0))
+        pivot = self.hull.pivot
+        self.assertIsNone(pivot.parent)
+        self.assertAlmostEqual(math.dist((pivot.x, pivot.y), (self.prop.at.x, self.prop.at.y)), self.prop.radius)
+        self.assertAlmostEqual(pivot.z, self.ground + self.prop.height)
+        # The nose points along the circle with its centre to the left: the cross product of
+        # the heading and the way to the centre points up.
+        along = (math.cos(pivot.heading), math.sin(pivot.heading))
+        to_centre = (self.prop.at.x - pivot.x, self.prop.at.y - pivot.y)
+        self.assertAlmostEqual(along[0] * to_centre[0] + along[1] * to_centre[1], 0.0)
+        self.assertGreater(along[0] * to_centre[1] - along[1] * to_centre[0], 0.0)
+        # The circle passes over the track, so the altitude rule below is not idle.
+        crossed = [s for s in self.layout.path.samples if abs(math.dist((s.x, s.y), (self.prop.at.x, self.prop.at.y)) - self.prop.radius) < self.layout.asphalt_half_width]
+        self.assertGreater(len(crossed), 0)
+
+    def test_the_hull_is_a_twelve_sided_node_24_m_long_and_8_m_across_with_its_origin_at_the_nose(self) -> None:
+        self.assertEqual(self.hull.name, f"{AIRSHIP}.1.hull")
+        hull = [self.frame(v) for face in faces_by_material(self.hull).get("wall", []) + faces_by_material(self.hull).get("beam-shade", []) for v in face]
+        self.assertAlmostEqual(max(a for a, _, _ in hull), 0.0)
+        self.assertAlmostEqual(min(a for a, _, _ in hull), -AIRSHIP_LENGTH_M)
+        self.assertEqual(AIRSHIP_LENGTH_M, 24.0)
+        self.assertEqual(AIRSHIP_RADIUS_M, 4.0)
+        self.assertAlmostEqual(max(math.hypot(b, c) for _, b, c in hull), AIRSHIP_RADIUS_M)
+        nose = [(b, c) for a, b, c in hull if abs(a) < 1e-9]
+        self.assertTrue(all(abs(b) < 1e-9 and abs(c) < 1e-9 for b, c in nose), "the origin is the nose, on the axis")
+        widest = {round(math.degrees(math.atan2(c, b)) % 360.0) for _, b, c in hull if abs(math.hypot(b, c) - AIRSHIP_RADIUS_M) < 1e-6}
+        self.assertEqual(len(widest), AIRSHIP_SIDES)
+        self.assertEqual(AIRSHIP_SIDES, 12)
+        # A flat at the top, the bottom and each flank, so the gondola hangs from a flat and
+        # the name sits on one.
+        self.assertEqual(min(widest), 15)
+
+    def test_it_never_flies_under_30_m_over_any_road_it_passes(self) -> None:
+        lowest = min(v[2] for v in self.hull.mesh[0])
+        centre = (self.prop.at.x, self.prop.at.y)
+        reach = self.prop.radius + AIRSHIP_LENGTH_M + 2.0 * AIRSHIP_RADIUS_M
+        under = [s for s in self.layout.path.samples if math.dist((s.x, s.y), centre) <= reach]
+        self.assertGreater(len(under), 0)
+        road = max(elevation(self.layout.elevation, s.s) for s in under)
+        self.assertGreaterEqual(lowest - road, AIRSHIP_CLEARANCE_M)
+        self.assertEqual(AIRSHIP_CLEARANCE_M, 30.0)
+
+    def test_the_hull_is_wall_white_lit_over_beam_shade_with_kerb_red_fins_and_a_carbon_gondola(self) -> None:
+        by_material = faces_by_material(self.hull)
+        self.assertEqual(set(by_material), {"wall", "beam-shade", "kerb-red", "carbon", "carbon-shade"})
+        self.assertTrue(materials_used([self.hull]) <= build_materials())
+        self.assertTrue(all(faces_up_and_toward_the_sun(f) for f in by_material["wall"]))
+        self.assertFalse(any(faces_up_and_toward_the_sun(f) for f in by_material["beam-shade"]))
+        # Four fins at the tail, reaching past the hull, one up, one down and one each side.
+        fins = [[self.frame(v) for v in f] for f in by_material["kerb-red"]]
+        self.assertTrue(all(a < -AIRSHIP_LENGTH_M / 2.0 for fin in fins for a, _, _ in fin))
+        tips = {(round(b / max(abs(b), abs(c))), round(c / max(abs(b), abs(c)))) for fin in fins for _, b, c in fin if math.hypot(b, c) > AIRSHIP_RADIUS_M + 1e-6}
+        self.assertEqual(tips, {(1, 0), (-1, 0), (0, 1), (0, -1)})
+        # The gondola hangs under the hull's bottom flat, amidships.
+        gondola = [self.frame(v) for f in by_material["carbon"] + by_material["carbon-shade"] for v in f]
+        self.assertTrue(all(c <= -AIRSHIP_APOTHEM_M + 1e-9 for _, _, c in gondola))
+        self.assertTrue(all(-AIRSHIP_LENGTH_M * 0.75 < a < -AIRSHIP_LENGTH_M * 0.25 for a, _, _ in gondola))
+
+    def test_slipstream_airways_from_sponsors_py_reads_on_both_flanks_and_rides_the_hull(self) -> None:
+        self.assertIn(AIRSHIP_SPONSOR, SPONSORS)
+        name, ink = AIRSHIP_SPONSOR
+        self.assertEqual(name, "SLIPSTREAM AIRWAYS")
+        self.assertEqual(ink, "ink-blue")
+        self.assertEqual({t.name for t in self.lettering}, {f"{AIRSHIP}.1.flank.left", f"{AIRSHIP}.1.flank.right"})
+        sides = set()
+        for text in self.lettering:
+            with self.subTest(text=text.name):
+                self.assertEqual(text.parent, self.hull.name)
+                self.assertEqual(text.text, name)
+                self.assertEqual(text.material, ink)
+                self.assertEqual(text.size, AIRSHIP_TEXT_SIZE_M)
+                self.assertIsNone(text.arc)
+                along, left, up = self.frame((text.at.x, text.at.y, text.at.z))
+                self.assertAlmostEqual(along, -AIRSHIP_TEXT_AT_M)
+                self.assertAlmostEqual(up, 0.0)
+                self.assertAlmostEqual(abs(left), AIRSHIP_APOTHEM_M + HOARDING_TEXT_PROUD_M)
+                # Read from outside the hull: it faces the way its flank does.
+                outward = math.sin(text.at.heading - self.hull.pivot.heading)
+                self.assertAlmostEqual(outward, math.copysign(1.0, left))
+                sides.add(round(left, 3))
+        self.assertEqual(len(sides), 2)
+        # The arch's lettering keeps the plain form.
+        self.assertTrue(all(t.parent is None for t in self.geometry.lettering if not t.name.startswith(f"{AIRSHIP}.")))
+
+    def test_it_has_no_footprint_since_it_flies_over_the_track(self) -> None:
+        self.assertNotIn("airship", {f.kind for f in footprints(self.layout)})
+
+    def test_it_refuses_a_layout_that_gives_no_circle_or_no_height(self) -> None:
+        for prop in (Prop("airship", World(-60.0, -40.0), height=45.0), Prop("airship", World(-60.0, -40.0), radius=60.0)):
+            with self.subTest(prop=prop), self.assertRaises(ValueError):
+                build(replace(self.layout, decor=replace(self.layout.decor, props=[prop])))
+
+    def test_the_airship_costs_about_90_faces(self) -> None:
+        faces = len(self.hull.mesh[1])
+        self.assertTrue(80 <= faces <= 100, faces)

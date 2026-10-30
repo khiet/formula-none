@@ -596,6 +596,16 @@
           <p class="dont"><b>Don't</b> number the doors or put a crest on one (ADR 0035), and don't park a kart in a garage: a parked kart is a kart the sim does not have. The building is scenery; there is no pit lane to drive.</p>
         </div>
       </article>
+
+      <article class="asset">
+        <header><h3>Airship</h3><code>assets/tracks/trackgen/props.py airship, Prop.radius and Prop.height and Lettering.parent in layout.py, apps/web/src/scenery-motion.ts</code></header>
+        <div class="compare"><figure><figcaption>Side on, as the export leaves it, nose to the right</figcaption><div class="stage" data-draw="airship"></div></figure></div>
+        <dl class="spec"><dt>Size</dt><dd>24 m long, 8 m across, fins to 6.5 m from the axis; 45 m up round a circle of 60 m radius; 94 faces and the lettering</dd><dt>Decided</dt><dd><a href="adr/0050-trackside-props.md">ADR 0050</a>, <a href="adr/0038-sponsors-on-the-scenery-only.md">ADR 0038</a></dd></dl>
+        <div class="notes">
+          <p>The course's one joke, and the one sponsor a driver cannot avoid. A twelve-sided hull with a flat at the top, the bottom and each flank, swelling from the nose over 5 m to a 14 m cylinder and tapering to the tail, in <code>wall</code> <code>#f0f0f0</code> where a face looks up and toward the sun as it hangs at rest and <code>beam-shade</code> <code>#9aa0a8</code> elsewhere. Four fins in <code>kerb-red</code> <code>#d63b2e</code> at the tail, thin plates swept back, one up, one down and one each flank. A <code>carbon</code> <code>#2b2e33</code> gondola 6 m long hangs 0.6 m under the bottom flat amidships on two struts, toned like the wheel's hub. SLIPSTREAM AIRWAYS from <code>sponsors.py</code> reads on both flanks in <code>ink-blue</code> <code>#1f54c7</code>, 1.2 m type just proud of the flat, centred 12 m back from the nose; each lettering is a child of the hull's node in the glTF, so it rides with it. The whole airship is the one node <code>Prop.airship.1.hull</code>, its origin at the nose, exported at rest 60 m along +x from the circle's centre at the track's (-60, -40), near the esses' inside, with its nose along the circle and the centre to its left. The View flies it once round every 4 min from its own clock, level, nose along the tangent, so it crosses Dunlop and the esses and hangs over the chicane and the start straight in turn; its lowest point keeps 30 m over every road under its circle. It has no footprint: a wood may grow under it.</p>
+          <p class="dont"><b>Don't</b> fly it under 30 m over any road, give it a sound or a shadow, or let it read the race: it is scenery on the View's clock, and a stalled client's airship hangs still. Don't letter the arch this way; its lettering keeps the plain form.</p>
+        </div>
+      </article>
     </div>
   </section>
 
@@ -1205,6 +1215,31 @@
       <rect x="${x0}" y="${roof}" width="${x1 - x0}" height="${parapet}" fill="${plinth}"/>
       ${doors}${flags}
       <line x1="${line}" y1="${g}" x2="${line}" y2="${g + 10}" stroke="${wall}" stroke-width="1" stroke-dasharray="2 2"/>
+    </svg>`;
+  };
+  // The airship side on at 8 px to the metre, nose to the right, as the export leaves it: the
+  // hull's profile swept round twelve sides with a flat on the flank, the two bands above it
+  // lit and the two below in shade, the fins at the tail, the gondola on its struts, and the
+  // name centred 12 m back from the nose.
+  draw.airship = () => {
+    const m = 8, nose = 228, cy = 70, wall = "#f0f0f0", beamShade = "#9aa0a8", kerbRed = "#d63b2e", carbon = "#2b2e33", carbonLit = "#3a3e45", ink = "#1f54c7";
+    const profile = [[0, 0], [2.5, 2.4], [5, 4], [19, 4], [22, 2.2], [24, 0]];
+    const x = (s) => nose - s * m;
+    // A band between two corner rows of the twelve-gon, at these fractions of the radius.
+    const band = (lo, hi, fill) => {
+      const top = profile.map(([s, r]) => [x(s), cy - r * hi * m]);
+      const bottom = profile.map(([s, r]) => [x(s), cy - r * lo * m]).reverse();
+      return poly([...top, ...bottom], fill);
+    };
+    const rows = [0.259, 0.707, 1];
+    const fin = (sign) => poly([[x(18), cy - sign * 1 * m], [x(22.5), cy - sign * 1 * m], [x(23.5), cy - sign * 6.5 * m], [x(20.5), cy - sign * 6.5 * m]], kerbRed);
+    const apothem = 4 * Math.cos(Math.PI / 12), top = cy + (apothem + 0.6) * m;
+    return `<svg viewBox="0 0 240 160" role="img" aria-label="The airship: a twelve-sided white hull with red fins and a carbon gondola, SLIPSTREAM AIRWAYS along its flank">
+      ${fin(1)}${fin(-1)}
+      ${band(rows[1], rows[2], wall)}${band(rows[0], rows[1], wall)}${band(-rows[0], rows[0], wall)}${band(-rows[1], -rows[0], beamShade)}${band(-rows[2], -rows[1], beamShade)}
+      <rect x="${x(10.125)}" y="${cy + apothem * m}" width="${0.25 * m}" height="${0.6 * m}" fill="${carbon}"/><rect x="${x(14.125)}" y="${cy + apothem * m}" width="${0.25 * m}" height="${0.6 * m}" fill="${carbon}"/>
+      <rect x="${x(15)}" y="${top}" width="${6 * m}" height="${1.6 * m}" fill="${carbon}"/><rect x="${x(15)}" y="${top}" width="${6 * m}" height="${0.3 * m}" fill="${carbonLit}"/>
+      <text x="${x(12)}" y="${cy + 0.42 * m}" font-family="'Kenney Mini Square', monospace" font-size="${1.2 * m}" fill="${ink}" text-anchor="middle">SLIPSTREAM AIRWAYS</text>
     </svg>`;
   };
   // An upright prism of `n` flat sides seen from slightly above, lit from the top left.
