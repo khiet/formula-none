@@ -1373,9 +1373,10 @@ pub fn step(mut state: State, inputs: &[KartInput], dt: f32) -> State {
         }
     }
     // Coins come back on their clocks as the boxes do. A kart takes every
-    // coin its centre is on, airborne or not, until it carries a full purse;
-    // a spun-out kart takes none, nor, as with boxes, a finished kart or
-    // any kart through the outro.
+    // coin its centre is on, airborne or not; with a full purse the count
+    // holds but the coin is still gone, so a kart in front denies it to the
+    // karts behind. A spun-out kart takes none, nor, as with boxes, a
+    // finished kart or any kart through the outro.
     for respawn_s in &mut state.coin_respawn_s {
         if *respawn_s > 0.0 {
             *respawn_s -= dt;
@@ -1388,12 +1389,9 @@ pub fn step(mut state: State, inputs: &[KartInput], dt: f32) -> State {
         }
         let position = state.physics.bodies[kart.body].translation().to_array();
         for (coin, placed) in state.track.coins().iter().enumerate() {
-            if kart.coins >= COIN_CAP {
-                break;
-            }
             let respawn_s = &mut state.coin_respawn_s[coin];
             if *respawn_s <= 0.0 && placed.covers(position, COIN_HALF_LENGTH_M, COIN_HALF_WIDTH_M) {
-                kart.coins += 1;
+                kart.coins = (kart.coins + 1).min(COIN_CAP);
                 *respawn_s = COIN_RESPAWN_S;
                 state
                     .events

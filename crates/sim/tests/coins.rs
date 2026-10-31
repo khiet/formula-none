@@ -1,5 +1,6 @@
 //! Coins at the sim's public seam: a kart whose centre is on a coin takes
-//! it, up to a full purse, and the coin is back the tuned time later; each
+//! it, its count holding at a full purse, and the coin is back the tuned
+//! time later, so a full kart denies it to the kart behind; each
 //! coin raises the kart's forward top speed, with a boost on top; every
 //! spin-out, from a hazard, a homing projectile or the runaway wheel, costs
 //! the tuned three or all the kart has; and a spun-out kart takes nothing.
@@ -129,7 +130,7 @@ fn a_kart_on_a_coin_takes_it_and_the_coin_is_back_the_tuned_time_later() {
 }
 
 #[test]
-fn a_kart_carrying_a_full_purse_drives_over_coins_without_taking_them() {
+fn a_kart_takes_a_line_of_coins_one_at_a_time_up_to_a_full_purse() {
     let purse = COIN_CAP as usize;
     let line = line_ahead_of(0, purse + 1);
     let last = line[purse];
@@ -152,11 +153,52 @@ fn a_kart_carrying_a_full_purse_drives_over_coins_without_taking_them() {
 
     assert_eq!(
         taken,
-        (0..purse).collect::<Vec<_>>(),
-        "one at a time, in order"
+        (0..=purse).collect::<Vec<_>>(),
+        "one at a time, in order, the last with the purse already full"
+    );
+    assert_eq!(
+        coins(&state, 0),
+        COIN_CAP,
+        "the count stops at a full purse"
+    );
+    assert!(!state.coins_present()[purse], "the last coin is taken too");
+}
+
+#[test]
+fn a_kart_carrying_a_full_purse_takes_a_coin_from_the_kart_behind_it() {
+    // Kart 0 fills its purse at Go from the stack under it; kart 2, on the
+    // slot straight behind, follows it down the straight over the coin ahead.
+    let purse = COIN_CAP as usize;
+    let [x, y, z] = slot_position(OVAL, 0);
+    let ahead = [x, y, z - 20.0];
+    let positions = under(0, purse).into_iter().chain([ahead]);
+    let mut state = started(State::new(SEED, 3, oval_with(positions, &[])));
+    let inputs = [throttle(), idle(), throttle()];
+    state = step(state, &inputs, DT);
+    assert_eq!(coins(&state, 0), COIN_CAP);
+
+    let mut taken_by = Vec::new();
+    while state.kart_readouts()[2].position[2] > ahead[2] - 2.0 * COIN_HALF_LENGTH_M {
+        state = step(state, &inputs, DT);
+        taken_by.extend(pickups(&state).into_iter().map(|event| {
+            let RaceEvent::CoinPicked { kart, coin } = event else {
+                unreachable!()
+            };
+            (kart, coin)
+        }));
+        assert!(
+            !state.coins_present()[purse] || taken_by.is_empty(),
+            "the coin came back before the kart behind was past it"
+        );
+    }
+
+    assert_eq!(
+        taken_by,
+        [(0, purse)],
+        "the full kart took it, not the one behind"
     );
     assert_eq!(coins(&state, 0), COIN_CAP);
-    assert!(state.coins_present()[purse], "the last coin is still there");
+    assert_eq!(coins(&state, 2), 0);
 }
 
 #[test]

@@ -345,8 +345,8 @@ pub const HOMING_WITHOUT_TARGET_IS_WASTED: bool = true;
 /// of the tuned top speed: a full purse raises 30 m/s to 33. Acceleration,
 /// reverse and handling are untouched.
 pub const COIN_TOP_SPEED_FACTOR: f32 = 0.01;
-/// The most coins a kart carries; with a full purse it drives over coins
-/// without taking them.
+/// The most coins a kart carries; with a full purse it still takes the
+/// coins it drives over, but its count holds.
 pub const COIN_CAP: u32 = 10;
 /// Coins a spin-out costs a kart, whatever spun it out; a kart carrying
 /// fewer loses them all. Lost coins vanish.
