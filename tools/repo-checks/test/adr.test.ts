@@ -71,6 +71,7 @@ const DECISION_SLUGS = [
   "monarch-joins-the-courses",
   "a-prop-beside-a-hill-stands-on-a-terrace",
   "open-source-under-mit-and-cc0",
+  "a-full-kart-still-takes-coins",
 ];
 
 const expectedFiles = DECISION_SLUGS.map(

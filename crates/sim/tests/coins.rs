@@ -1,5 +1,6 @@
 //! Coins at the sim's public seam: a kart whose centre is on a coin takes
-//! it, up to a full purse, and the coin is back the tuned time later; each
+//! it, its count holding at a full purse, and the coin is back the tuned
+//! time later, so a full kart denies it to the kart behind; each
 //! coin raises the kart's forward top speed, with a boost on top; every
 //! spin-out, from a hazard, a homing projectile or the runaway wheel, costs
 //! the tuned three or all the kart has; and a spun-out kart takes nothing.
@@ -17,8 +18,8 @@ use common::{
 use std::f32::consts::FRAC_PI_2;
 
 use sim::tuning::{
-    BOOST_PAD_FACTOR, COINS_LOST_PER_SPIN_OUT, COIN_CAP, COIN_HALF_LENGTH_M, COIN_RESPAWN_S,
-    OFF_TRACK_SPEED_FACTOR, TUNING,
+    BOOST_PAD_FACTOR, COINS_LOST_PER_SPIN_OUT, COIN_CAP, COIN_HALF_LENGTH_M, COIN_HALF_WIDTH_M,
+    COIN_RESPAWN_S, OFF_TRACK_SPEED_FACTOR, TUNING,
 };
 use sim::{step, Item, KartInput, Phase, RaceEvent, State, Surface, Track};
 
@@ -59,6 +60,19 @@ fn pickups(state: &State) -> Vec<RaceEvent> {
         .iter()
         .copied()
         .filter(|event| matches!(event, RaceEvent::CoinPicked { .. }))
+        .collect()
+}
+
+/// This tick's pickups as (kart, coin) pairs.
+fn takers(state: &State) -> Vec<(usize, usize)> {
+    pickups(state)
+        .into_iter()
+        .map(|event| {
+            let RaceEvent::CoinPicked { kart, coin } = event else {
+                unreachable!()
+            };
+            (kart, coin)
+        })
         .collect()
 }
 
@@ -129,7 +143,7 @@ fn a_kart_on_a_coin_takes_it_and_the_coin_is_back_the_tuned_time_later() {
 }
 
 #[test]
-fn a_kart_carrying_a_full_purse_drives_over_coins_without_taking_them() {
+fn a_kart_takes_a_line_of_coins_one_at_a_time_its_count_holding_at_a_full_purse() {
     let purse = COIN_CAP as usize;
     let line = line_ahead_of(0, purse + 1);
     let last = line[purse];
@@ -138,12 +152,7 @@ fn a_kart_carrying_a_full_purse_drives_over_coins_without_taking_them() {
     // Past the last coin, before the first is back.
     while state.kart_readouts()[0].position[2] > last[2] - 2.0 * COIN_HALF_LENGTH_M {
         state = step(state, &[throttle()], DT);
-        for event in pickups(&state) {
-            let RaceEvent::CoinPicked { coin, .. } = event else {
-                unreachable!()
-            };
-            taken.push(coin);
-        }
+        taken.extend(takers(&state).into_iter().map(|(_, coin)| coin));
         assert!(
             !state.coins_present()[0],
             "the first coin came back before the kart was past the line"
@@ -152,11 +161,78 @@ fn a_kart_carrying_a_full_purse_drives_over_coins_without_taking_them() {
 
     assert_eq!(
         taken,
-        (0..purse).collect::<Vec<_>>(),
-        "one at a time, in order"
+        (0..=purse).collect::<Vec<_>>(),
+        "one at a time, in order, the last with the purse already full"
+    );
+    assert_eq!(
+        coins(&state, 0),
+        COIN_CAP,
+        "the count stops at a full purse"
+    );
+    assert!(!state.coins_present()[purse], "the last coin is taken too");
+}
+
+#[test]
+fn a_kart_carrying_a_full_purse_takes_a_coin_from_the_kart_behind_it() {
+    // Kart 0 fills its purse at Go from the stack under it; the kart on the
+    // grid slot straight behind it follows it down the straight over the
+    // coin ahead. The third kart, beside them, stays put.
+    const BEHIND: usize = 2;
+    let purse = COIN_CAP as usize;
+    let [x, y, z] = slot_position(OVAL, 0);
+    let ahead = [x, y, z - 20.0];
+    let positions = under(0, purse).into_iter().chain([ahead]);
+    let mut state = started(State::new(SEED, 3, oval_with(positions, &[])));
+    let inputs = [throttle(), idle(), throttle()];
+    state = step(state, &inputs, DT);
+    assert_eq!(coins(&state, 0), COIN_CAP);
+
+    let mut taken = Vec::new();
+    let mut since_taken = 0;
+    // The hitbox restated, so the test cannot pass with the kart behind off
+    // the coin's line.
+    let mut behind_crossed_it = false;
+    while state.kart_readouts()[BEHIND].position[2] > ahead[2] - 2.0 * COIN_HALF_LENGTH_M {
+        state = step(state, &inputs, DT);
+        let [bx, _, bz] = state.kart_readouts()[BEHIND].position;
+        behind_crossed_it |=
+            (bx - ahead[0]).abs() < COIN_HALF_WIDTH_M && (bz - ahead[2]).abs() < COIN_HALF_LENGTH_M;
+        if !taken.is_empty() {
+            since_taken += 1;
+        }
+        taken.extend(takers(&state));
+        assert!(
+            !state.coins_present()[purse] || taken.is_empty(),
+            "the coin came back before the kart behind was past it"
+        );
+    }
+
+    assert!(
+        behind_crossed_it,
+        "the kart behind drove over the coin's spot"
+    );
+    assert_eq!(
+        taken,
+        [(0, purse)],
+        "the full kart took it, not the one behind"
     );
     assert_eq!(coins(&state, 0), COIN_CAP);
-    assert!(state.coins_present()[purse], "the last coin is still there");
+    assert_eq!(coins(&state, BEHIND), 0);
+
+    // Back the tuned time after the full kart took it.
+    while !state.coins_present()[purse] {
+        state = step(state, &inputs, DT);
+        since_taken += 1;
+        assert!(
+            since_taken <= ticks(COIN_RESPAWN_S) + 2,
+            "the coin never came back"
+        );
+    }
+    let expected = ticks(COIN_RESPAWN_S);
+    assert!(
+        (expected - 1..=expected + 1).contains(&since_taken),
+        "the coin came back after {since_taken} ticks, expected about {expected}"
+    );
 }
 
 #[test]

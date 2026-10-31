@@ -7,7 +7,9 @@ does not wear tyres and that tyre wear, a sim field with wear per corner
 and an effect on grip, would replace the gauge's placeholder: the gauge
 reads the count of tyres a kart carries instead. The rest of ADR 0031
 stands. Its choice of object, the tyre, and the gauge's reading of the
-count are superseded by ADR 0056; its rule stands.
+count are superseded by ADR 0056; its rule stands, but for the clause that
+a kart takes one only while it carries fewer than ten, superseded by ADR
+0067.
 
 ## Context
 
