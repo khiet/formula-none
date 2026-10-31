@@ -30,8 +30,10 @@ decisions and a layout draft that builds and closes as written.
 - The mockup's tyre pickups became coins under ADR 0056's rules: ten on the
   centreline, off the grid and down the Hangar Straight past its boost pad,
   and three out wide on the run to Vale, short of the wheel's crossing.
-  Thirteen in all. The draft's wide line on the Wellington Straight moved
-  because that straight holds a box row.
+  Thirteen in all. ADR 0056 asks for a full purse of ten on the centreline,
+  so the draft's wide line on the Hangar Straight moved onto the
+  centreline and grew to five. Its wide line on the Wellington Straight
+  moved to the run to Vale because that straight holds a box row.
 - The scenery is the mockup's third decision. A row of five airfield
   hangars stands outside the Hangar Straight, a new prop kind, `hangars`:
   barrel-roofed sheds 18 m wide and 24 m deep, 10 m to the ridge, each with
@@ -51,9 +53,10 @@ decisions and a layout draft that builds and closes as written.
 
 ## Consequences
 
-- Eight bots racing three laps on Goldstone took a median 154.7 s to
-  finish, measured over 40 seeds: a median of 141.0 s for the winner and
-  162.1 s for the last. Bell Deer measured the same way takes 162.0 s.
+- Eight bots racing three laps on Goldstone finish in a median 154.7 s,
+  the median of all 320 finishing times from 40 seeded races. The winner's
+  time has a median of 141.0 s across those races, and the last kart's
+  162.1 s. Bell Deer measured the same way gives 162.0 s.
 - No bot is stuck in 200 races of eight bots on Goldstone, so The Loop's
   12 m right-left after Village needs no change for bots.
 - The replay set now runs on every track, and its coverage test asks for

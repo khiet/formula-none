@@ -175,6 +175,7 @@ HANGAR_PITCH_M = 22.0
 HANGAR_ROOF_FACETS = 6
 HANGAR_DOOR_WIDTH_M = 12.0
 HANGAR_DOOR_HEIGHT_M = 5.0
+HANGAR_DOOR_PROUD_M = 0.05
 
 # The airship, the card in three dimensions: a hull of `AIRSHIP_SIDES` flat
 # sides round its axis, swelling from the nose to a cylinder amidships and
@@ -881,7 +882,7 @@ def hangars(layout: Layout, prop: Prop, number: int, still: ByMaterial) -> tuple
         for (u0, z0), (u1, z1) in zip(profile, profile[1:]):
             facet = [at(middle + u0, -front, z0), at(middle + u1, -front, z1), at(middle + u1, front, z1), at(middle + u0, front, z0)]
             still.add(*_toned("beam-top", _outward(facet, at(middle, 0.0, 0.0)), "beam-shade"))
-        b = front + PITS_DOOR_PROUD_M
+        b = front + HANGAR_DOOR_PROUD_M
         d = HANGAR_DOOR_WIDTH_M / 2.0
         door = [at(middle - d, b, 0.0), at(middle + d, b, 0.0), at(middle + d, b, HANGAR_DOOR_HEIGHT_M), at(middle - d, b, HANGAR_DOOR_HEIGHT_M)]
         still.add("carbon", (_outward(door, hub), [(0, 1, 2, 3)]))

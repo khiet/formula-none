@@ -25,6 +25,7 @@ from trackgen.layout import CROWD_KEYS, GRASS_DROP_M, PROP_WALL_CLEARANCE_M, Pro
 from trackgen.layouts import load
 from trackgen.props import (
     HANGAR_DEPTH_M,
+    HANGAR_DOOR_PROUD_M,
     HANGAR_EAVES_M,
     HANGAR_PITCH_M,
     HANGAR_RIDGE_M,
@@ -37,6 +38,13 @@ from trackgen.props import (
 NAME = "goldstone"
 PITS = "Prop.pits"
 HANGARS = "Prop.hangars"
+
+
+def faces_right(face) -> bool:
+    """Whether a face given as (along, left of, up) points right: toward the track from a
+    prop that stands left of it."""
+    (a0, _, c0), (a1, _, c1), (a2, _, c2) = face[:3]
+    return (c1 - c0) * (a2 - a0) - (a1 - a0) * (c2 - c0) < 0.0
 
 
 def family(geometry, prefix: str):
@@ -117,11 +125,7 @@ class WhitePits(unittest.TestCase):
             (door,) = [f for f in piece.mesh[1] if min(piece.mesh[0][v][2] for v in f) - self.ground < 1e-6]
             panel = [piece.mesh[0][v] for v in door]
             self.assertEqual({round(self.frame(v)[1], 3) for v in panel}, {round(front, 3)})
-            # Wound toward the track: its normal points right, toward the centreline.
-            (a0, b0, _), (a1, b1, _), (a2, b2, _) = (self.frame(v) for v in panel[:3])
-            c0, c1, c2 = (self.frame(v)[2] for v in panel[:3])
-            normal_left = (c1 - c0) * (a2 - a0) - (a1 - a0) * (c2 - c0)
-            self.assertLess(normal_left, 0.0, f"door {slot} faces the track")
+            self.assertTrue(faces_right([self.frame(v) for v in panel]), f"door {slot} faces the track")
             centres.append(sum(self.frame(v)[0] for v in panel) / len(panel))
         self.assertGreater(centres[0], 0.0)
         self.assertEqual(centres, sorted(centres))
@@ -130,9 +134,7 @@ class WhitePits(unittest.TestCase):
         for slot in range(len(CROWD_KEYS)):
             piece = self.pieces[f"{PITS}.crowd-{slot}"]
             (flag,) = [f for f in piece.mesh[1] if min(piece.mesh[0][v][2] for v in f) - self.ground > 1.0]
-            (a0, _, c0), (a1, _, c1), (a2, _, c2) = (self.frame(piece.mesh[0][v]) for v in flag)
-            normal_left = (c1 - c0) * (a2 - a0) - (a1 - a0) * (c2 - c0)
-            self.assertLess(normal_left, 0.0, f"flag {slot} faces the track")
+            self.assertTrue(faces_right([self.frame(piece.mesh[0][v]) for v in flag]), f"flag {slot} faces the track")
 
 
 class Hangars(unittest.TestCase):
@@ -156,7 +158,7 @@ class Hangars(unittest.TestCase):
         vertices = [self.frame(v) for piece in self.pieces.values() for v in piece.mesh[0]]
         self.assertGreaterEqual(min(c for _, _, c in vertices), -1e-9, "on the grass")
         self.assertAlmostEqual(max(c for _, _, c in vertices), HANGAR_RIDGE_M)
-        self.assertGreaterEqual(min(b for _, b, _ in vertices), self.prop.at.offset - HANGAR_DEPTH_M / 2.0 - PITS_DOOR_PROUD_M - 1e-6)
+        self.assertGreaterEqual(min(b for _, b, _ in vertices), self.prop.at.offset - HANGAR_DEPTH_M / 2.0 - HANGAR_DOOR_PROUD_M - 1e-6)
         self.assertLessEqual(max(b for _, b, _ in vertices), self.prop.at.offset + HANGAR_DEPTH_M / 2.0 + 1e-6)
 
     def test_as_many_hangars_as_the_length_holds_stand_at_the_pitch(self) -> None:
@@ -171,14 +173,13 @@ class Hangars(unittest.TestCase):
 
     def test_each_door_is_on_the_gable_toward_the_track_and_wound_to_face_it(self) -> None:
         doors = self.pieces[f"{HANGARS}.carbon"]
-        front = self.prop.at.offset - HANGAR_DEPTH_M / 2.0 - PITS_DOOR_PROUD_M
+        front = self.prop.at.offset - HANGAR_DEPTH_M / 2.0 - HANGAR_DOOR_PROUD_M
         for f in doors.mesh[1]:
             panel = [self.frame(doors.mesh[0][v]) for v in f]
             self.assertEqual({round(b, 3) for _, b, _ in panel}, {round(front, 3)})
             self.assertAlmostEqual(min(c for _, _, c in panel), 0.0)
             self.assertLess(max(c for _, _, c in panel), HANGAR_EAVES_M + 1e-9)
-            (a0, _, c0), (a1, _, c1), (a2, _, c2) = panel[:3]
-            self.assertLess((c1 - c0) * (a2 - a0) - (a1 - a0) * (c2 - c0), 0.0)
+            self.assertTrue(faces_right(panel))
 
     def test_the_barrel_roofs_are_beam_top_lit_over_beam_shade_on_toned_stand_walls(self) -> None:
         self.assertEqual(
