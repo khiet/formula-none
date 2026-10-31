@@ -32,7 +32,7 @@ KERB_INSIDE_M = 4.9
 TYRE_WALL_LEFT_M = 4.5
 CREST_HEIGHT_M = 8.0
 # The roof starts past the tunnel mouth and ends short of the chicane, so
-# both portals stand on the flat and the chicane's braking is in daylight.
+# both portals stand on the flat.
 TUNNEL_PAST_MOUTH_M = 10.0
 TUNNEL_SHORT_OF_EXIT_M = 15.0
 
@@ -88,9 +88,8 @@ LAYOUT = Layout(
     tyre_walls=[
         # Outside Sainte Devote: a right-hander's inside is on the bots' line.
         TyreWall(seg("sainte-devote").s_mid, offset=TYRE_WALL_LEFT_M),
-        # None in the Grand Hotel hairpin, though the mockup put two inside it
-        # as at Bell Deer's: round a 14 m hairpin walled 2 m off the asphalt,
-        # bots that met them lost laps there wherever they stood.
+        # None in the Grand Hotel hairpin, though the mockup put two inside it:
+        # bots lost laps on them wherever they stood (ADR 0064).
     ],
     item_rows=[
         ItemRow(seg("beau-rivage").s_mid),

@@ -2,7 +2,6 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { type GltfJson, gltfJson } from "./gltf-json";
 
-/** Every exported track. */
 const TRACK_NAMES = ["bell-deer", "goldstone", "monarch", "oval"];
 
 /** The exported track as the View loads it. */

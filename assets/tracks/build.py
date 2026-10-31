@@ -112,7 +112,6 @@ MATERIALS.update(
         for ground in ("asphalt", "sand")
     }
 )
-# The materials that glow rather than only reflect the light.
 EMISSIVE = frozenset({"lamp"})
 # Deep enough for the lettering to read as a letter from the track and no
 # deeper: every millimetre is more faces on every board.

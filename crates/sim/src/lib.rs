@@ -2131,9 +2131,9 @@ impl Physics {
     }
 
     /// Whether a wall stands between `on_the_line`, a point on the
-    /// centreline, and `kart`, seen level at a kart's height over the line:
-    /// a kart a wall shuts out of the course, which no way back crosses.
-    /// A kart held against a wall from the run-off is not behind it.
+    /// centreline, and `kart`, seen level at a kart's height over the line.
+    /// A kart behind a wall has left the course, since no way back crosses
+    /// one; a kart held against a wall from the run-off is not behind it.
     fn wall_between(&self, on_the_line: [f32; 3], kart: [f32; 3]) -> bool {
         let from = Vec3::from(on_the_line) + Vec3::Y * KART_HALF_HEIGHT_M;
         let across = Vec3::new(kart[0] - from.x, 0.0, kart[2] - from.z);
