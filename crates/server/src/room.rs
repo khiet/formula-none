@@ -17,7 +17,6 @@ use protocol::{Player, PlayerState, Refusal, Room, RoomState, PROTOCOL_VERSION};
 use serde::{Deserialize, Serialize};
 use sim::tuning::{NICKNAME_MAX_CHARS, ROOM_PLAYERS_MAX};
 
-
 /// The room as the server holds it: the view every player gets plus the
 /// order players joined in, which creator handover follows.
 #[derive(Debug, Clone)]
@@ -126,8 +125,9 @@ impl HostedRoom {
         }
     }
 
-    /// The room `kept` describes, racing `track` in place of the one it
-    /// names, every seat Disconnected until its token rejoins.
+    /// The room `kept` describes, racing `track`: the track it names,
+    /// that track's new name, or a stand-in for one this server lacks;
+    /// every seat is Disconnected until its token rejoins.
     pub fn from_kept(kept: KeptRoom, track: &'static str) -> Self {
         let seats = kept
             .seats

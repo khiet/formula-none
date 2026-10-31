@@ -1,7 +1,7 @@
 """Bell Deer: the race track, a figure eight of about 1306 m after Suzuka.
 
-The start/finish straight runs south-east into the first curve and turn 2, then the esses,
-Dunlop and the two Degners; the run to the hairpin passes under the bridge,
+The start/finish straight runs south-east into the first curve and turn 2,
+then the esses, Dunlop and the two Degners; the run to the hairpin passes under the bridge,
 then the 200R, the double-apex Spoon and the back straight, which climbs
 over the bridge before 130R, the chicane and the final curve. Tyre walls
 stand outside turn 2 and inside the hairpin and Spoon's second apex, sausage kerbs

@@ -47,7 +47,7 @@ const RENAMED: &[(&str, &str)] = &[("brands-patch", "bell-deer")];
 /// The track a room kept under `name` races after a restart: the track of
 /// that name, or the one it was renamed to. `None` for a name no track here
 /// has ever had.
-pub fn kept(name: &str) -> Option<&'static str> {
+pub fn for_kept_room(name: &str) -> Option<&'static str> {
     let name = RENAMED
         .iter()
         .find(|(old, _)| *old == name)

@@ -238,7 +238,7 @@ impl Rooms {
             let code = room.code.clone();
             // A room on a track this server lacks is still a room its
             // players can rejoin; it races the default instead.
-            let track = tracks::kept(&room.track).unwrap_or_else(|| {
+            let track = tracks::for_kept_room(&room.track).unwrap_or_else(|| {
                 rooms
                     .log
                     .event("room_track_unknown")
