@@ -36,7 +36,7 @@ from trackgen.layout import (
     build,
 )
 from trackgen.layouts import load
-from trackgen.props import QUAY_WIDTH_M, YACHT_LENGTHS_M, YACHT_PITCH_M, footprints
+from trackgen.props import YACHT_OFF_QUAY_M, footprints
 from trackgen.path import Hill, Ramp, elevation
 
 NAME = "monarch"
@@ -157,6 +157,36 @@ class TheTunnel(unittest.TestCase):
             Tunnel(s_start=10.0, s_end=5.0)
 
 
+def distance_to_outline(outline, x: float, y: float) -> float:
+    """From the point to the nearest edge of the closed outline."""
+    best = math.inf
+    for (ax, ay), (bx, by) in zip(outline, outline[1:] + outline[:1]):
+        dx, dy = bx - ax, by - ay
+        t = max(0.0, min(1.0, ((x - ax) * dx + (y - ay) * dy) / (dx * dx + dy * dy or 1.0)))
+        best = min(best, math.dist((x, y), (ax + t * dx, ay + t * dy)))
+    return best
+
+
+def inside(outline, x: float, y: float) -> bool:
+    crossings = 0
+    for (ax, ay), (bx, by) in zip(outline, outline[1:] + outline[:1]):
+        if (ay > y) != (by > y) and x < ax + (y - ay) * (bx - ax) / (by - ay):
+            crossings += 1
+    return crossings % 2 == 1
+
+
+def convex_overlap(a, b) -> bool:
+    """Whether two convex outlines overlap, by the separating axis test."""
+    for outline in (a, b):
+        for (x0, y0), (x1, y1) in zip(outline, outline[1:] + outline[:1]):
+            axis = (y0 - y1, x1 - x0)
+            pa = [axis[0] * x + axis[1] * y for x, y in a]
+            pb = [axis[0] * x + axis[1] * y for x, y in b]
+            if max(pa) <= min(pb) or max(pb) <= min(pa):
+                return False
+    return True
+
+
 def family(geometry, prefix: str):
     return {p.name: p for p in geometry.scenery if p.name.startswith(f"{prefix}.")}
 
@@ -206,15 +236,16 @@ class Harbour(unittest.TestCase):
         self.water = self.pieces[f"{HARBOUR}.water"]
 
     def test_the_water_lies_outside_the_harbour_straight_and_the_pool_close_behind_their_stands(self) -> None:
-        water = self.water.mesh[0]
+        water = self.water_outline()
         for name in ("harbour", "pool-straight"):
             segment = self.layout.path.segment(name)
+            sample = self.layout.path.at(segment.s_mid)
             with self.subTest(name):
                 self.assertEqual(segment.turn, 0)
-                lefts = [across_track(self.layout, segment.s_mid, x, y)[1] for x, y, _ in water]
                 # The lap runs clockwise, so the outside is the left; the stands fill the first 18 m.
-                self.assertGreater(min(lefts), 18.0)
-                self.assertLess(min(lefts), 30.0)
+                self.assertTrue(inside(water, *sample.offset(32.0)))
+                self.assertGreater(distance_to_outline(water, sample.x, sample.y), 18.0)
+                self.assertLess(distance_to_outline(water, sample.x, sample.y), 30.0)
 
     def test_it_lies_at_sea_level_a_hair_over_the_grass_inside_a_raised_quay(self) -> None:
         for name in ("harbour", "pool-straight"):
@@ -235,6 +266,38 @@ class Harbour(unittest.TestCase):
         quay = bounds(vertices_of([self.pieces[f"{HARBOUR}.stand-plinth"]]))
         self.assertTrue(quay[0] < water[0] and quay[1] < water[1] and quay[2] > water[2] and quay[3] > water[3])
 
+    def water_outline(self) -> list[tuple[float, float]]:
+        vertices, (face,) = self.water.mesh
+        return [vertices[i][:2] for i in face]
+
+    def decks(self) -> list[list[tuple[float, float]]]:
+        """Each yacht's deck in plan: the beam-top faces with five corners, the hull's outline."""
+        vertices, faces = self.pieces[f"{HARBOUR}.beam-top"].mesh
+        return [[vertices[i][:2] for i in f] for f in faces if len(f) == 5]
+
+    def test_the_water_comes_within_21_m_of_the_quay_and_rascasse(self) -> None:
+        # Their walls stand 8.5 m out, then the 8 m rule and the 2 m quay: 18.5 m at the nearest.
+        water = self.water_outline()
+        for name in ("quay", "rascasse"):
+            sample = self.layout.path.at(self.layout.path.segment(name).s_mid)
+            with self.subTest(name):
+                self.assertLess(distance_to_outline(water, sample.x, sample.y), 21.0)
+
+    def test_yachts_moor_stern_to_along_the_quays_toward_the_lap(self) -> None:
+        water = self.water_outline()
+        decks = self.decks()
+        self.assertEqual(len(decks), len(self.cabins()), "a deck and a cabin each")
+        for deck in decks:
+            self.assertAlmostEqual(min(distance_to_outline(water, x, y) for x, y in deck), YACHT_OFF_QUAY_M, places=6)
+        near_the_quay = [d for d in decks if min(distance_to_outline([(q.x, q.y) for q in self.quay_samples()], x, y) for x, y in d) < 30.0]
+        self.assertGreaterEqual(len(near_the_quay), 5, "yachts line the quay the lap runs along")
+        nearest_far_quay = min(math.dist(d[0], (200.0, -120.0)) for d in decks)
+        self.assertGreater(nearest_far_quay, 40.0, "none on the far quays")
+
+    def quay_samples(self):
+        segment = self.layout.path.segment("quay")
+        return [self.layout.path.samples[i] for i in self.layout.path.indices_between(segment.s_start, segment.s_end)]
+
     def cabins(self) -> list[tuple[float, float]]:
         """The plan middle of each yacht's cabin, from the band of dark windows round it."""
         cabin = self.pieces[f"{HARBOUR}.carbon"]
@@ -246,28 +309,18 @@ class Harbour(unittest.TestCase):
             middles.append((sum(v[0] for v in corners) / len(corners), sum(v[1] for v in corners) / len(corners)))
         return middles
 
-    def test_yachts_moor_along_the_quays_toward_the_lap_as_many_as_each_holds(self) -> None:
-        # The basin runs along +x: its north quay faces the harbour straight, its west quay the pool.
-        x, y = self.prop.at.x, self.prop.at.y
-        north = y + self.prop.width / 2.0 - QUAY_WIDTH_M
-        west = x - self.prop.length / 2.0 + QUAY_WIDTH_M
-        cabins = self.cabins()
-        on_north = [c for c in cabins if north - max(YACHT_LENGTHS_M) < c[1] < north]
-        on_west = [c for c in cabins if west < c[0] < west + max(YACHT_LENGTHS_M)]
-        self.assertEqual(len(on_north) + len(on_west), len(cabins), "none on the far quays")
-        # A 161 m quay holds 18 at a 7 m pitch with 20 m clear at each end; a 174 m one holds 20.
-        self.assertEqual((len(on_north), len(on_west)), (18, 20))
-        gaps = {round(b[0] - a[0], 6) for a, b in zip(sorted(on_north), sorted(on_north)[1:])}
-        self.assertEqual(gaps, {YACHT_PITCH_M})
+    def test_no_two_yachts_touch_and_every_one_floats_inside_the_quay(self) -> None:
+        water = self.water_outline()
+        decks = self.decks()
+        for k, deck in enumerate(decks):
+            self.assertTrue(all(inside(water, x, y) for x, y in deck), deck)
+            for other in decks[k + 1 :]:
+                self.assertFalse(convex_overlap(deck, other), (deck, other))
 
-    def test_every_yacht_floats_inside_the_quay_lower_than_the_stands(self) -> None:
-        water = self.water.mesh[0]
-        lo = (min(v[0] for v in water), min(v[1] for v in water))
-        hi = (max(v[0] for v in water), max(v[1] for v in water))
-        sea = water[0][2]
-        yachts = [p for name, p in self.pieces.items() if name.split(".")[-1] not in ("water", "stand-plinth", "beam-top")]
-        for x, y, z in vertices_of(yachts):
-            self.assertTrue(lo[0] < x < hi[0] and lo[1] < y < hi[1], (x, y))
+    def test_every_yacht_stands_lower_than_the_stands(self) -> None:
+        sea = self.water.mesh[0][0][2]
+        yachts = [p for name, p in self.pieces.items() if name.split(".")[-1] in ("wall", "carbon")]
+        for *_, z in vertices_of(yachts):
             self.assertTrue(sea <= z < sea + GRANDSTAND_CANOPY_BOTTOM_M)
 
     def test_every_yachts_windows_band_its_cabin_over_the_hull(self) -> None:
@@ -277,11 +330,10 @@ class Harbour(unittest.TestCase):
         self.assertGreater(min(windows), 1.4)
         self.assertLess(max(windows), 1.4 + 1.3)
 
-    def test_it_refuses_a_layout_that_gives_no_size(self) -> None:
-        for prop in (Prop("harbour", World(160.0, -20.0)), Prop("harbour", World(160.0, -20.0), length=100.0)):
-            short = replace(self.layout, decor=replace(self.layout.decor, props=[prop]))
-            with self.subTest(prop=prop), self.assertRaises(ValueError):
-                build(short)
+    def test_it_refuses_a_layout_that_gives_no_outline(self) -> None:
+        short = replace(self.layout, decor=replace(self.layout.decor, props=[Prop("harbour", World(160.0, -20.0))]))
+        with self.assertRaises(ValueError):
+            build(short)
 
 
 class Casino(unittest.TestCase):

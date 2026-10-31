@@ -222,19 +222,20 @@ AIRSHIP_TEXT_SIZE_M = 1.2
 
 # The harbour, Monarch's basin of sea water: a flat sheet of water a hair
 # over the grass, ringed by a stone quay standing proud of it. The layout's
-# prop gives the basin's length along its heading and its width across.
+# prop gives the quay's outer edge as an outline.
 QUAY_WIDTH_M = 2.0
 QUAY_HEIGHT_M = 0.6
 """Over the water, so the quay's inner face reads as the drop to the sea."""
-# The yachts moor stern-to along the two quays nearest the lap, one every
-# `YACHT_PITCH_M`, their lengths cycling through `YACHT_LENGTHS_M`, and keep
-# `YACHT_CORNER_CLEAR_M` clear of each end of a quay so two rows never meet
-# in a corner. A yacht is a pointed hull with a cabin and a flybridge on it,
-# each as a share of its length.
+# The yachts moor stern-to along every quay whose middle lies within
+# `YACHT_MOORING_REACH_M` of the lap, one every `YACHT_PITCH_M`, their
+# lengths cycling through `YACHT_LENGTHS_M`. As a wood drops a tree, the
+# harbour drops a yacht that would touch one already moored or come nearer
+# the quay than its stern does, so two rows never meet in a corner. A yacht
+# is a pointed hull with a cabin and a flybridge on it, each as a share of
+# its length.
 YACHT_PITCH_M = 7.0
 YACHT_LENGTHS_M = (14.0, 18.0, 12.0)
-YACHT_CORNER_CLEAR_M = 20.0
-YACHT_MOORED_QUAYS = 2
+YACHT_MOORING_REACH_M = 40.0
 YACHT_OFF_QUAY_M = 1.0
 YACHT_BEAM = 0.3
 YACHT_BOW = 0.3
@@ -295,8 +296,9 @@ class Tree:
 @dataclass(frozen=True)
 class Footprint:
     """The ground one piece of a prop of `kind` stands on, in track metres: the disc of
-    `radius` about (`x`, `y`), or without one the rectangle reaching `half_along` either way
-    along `heading` and `half_across` either side of it. A tree keeps its canopy out of it,
+    `radius` about (`x`, `y`), the counter-clockwise `outline` when it has one, or else the
+    rectangle reaching `half_along` either way along `heading` and `half_across` either side
+    of it. A tree keeps its canopy out of it,
     and the prop keeps `clearance` metres of grass between it and every wall: the 8 m rule
     for a tall prop, or none for a span's feet, which only have to stand on grass."""
 
@@ -308,9 +310,13 @@ class Footprint:
     heading: float = 0.0
     half_along: float = 0.0
     half_across: float = 0.0
+    outline: tuple[tuple[float, float], ...] = ()
 
     def distance(self, x: float, y: float) -> float:
         """From the point to the footprint's edge, negative inside it."""
+        if self.outline:
+            edge = _distance_to_outline(self.outline, x, y)
+            return -edge if _inside(self.outline, x, y) else edge
         if self.radius:
             return math.dist((x, y), (self.x, self.y)) - self.radius
         dx, dy = x - self.x, y - self.y
@@ -324,6 +330,9 @@ class Footprint:
 
     def bounds(self) -> tuple[float, float, float, float]:
         """The ground it covers, as (min x, min y, max x, max y)."""
+        if self.outline:
+            xs, ys = [x for x, _ in self.outline], [y for _, y in self.outline]
+            return min(xs), min(ys), max(xs), max(ys)
         if self.radius:
             return self.x - self.radius, self.y - self.radius, self.x + self.radius, self.y + self.radius
         cos, sin = math.cos(self.heading), math.sin(self.heading)
@@ -604,9 +613,11 @@ def _row_footprint(layout: Layout, prop: Prop, depth: float, missing: str) -> Fo
 def _harbour_footprint(layout: Layout, prop: Prop) -> list[Footprint]:
     """The basin, quay and all: yachts moor in it, so it keeps the 8 m rule."""
     x, y, heading = locate(layout, prop.at)
-    if prop.length is None or prop.width is None:
-        raise ValueError("the harbour needs a length and a width")
-    return [Footprint(prop.kind, x, y, PROP_WALL_CLEARANCE_M, heading=heading, half_along=prop.length / 2.0, half_across=prop.width / 2.0)]
+    if not prop.outline:
+        raise ValueError("the harbour needs an outline")
+    cos, sin = math.cos(heading), math.sin(heading)
+    outline = tuple((x + a * cos - b * sin, y + a * sin + b * cos) for a, b in prop.outline)
+    return [Footprint(prop.kind, x, y, PROP_WALL_CLEARANCE_M, outline=outline)]
 
 
 def _casino_footprint(layout: Layout, prop: Prop) -> list[Footprint]:
@@ -1049,59 +1060,48 @@ def airship(layout: Layout, prop: Prop, number: int, still: ByMaterial) -> tuple
 
 def harbour(layout: Layout, prop: Prop, number: int, still: ByMaterial) -> tuple[list[SceneryMesh], list[Lettering]]:
     """The harbour at `prop`: a sheet of `water` filling the basin inside a stone quay, the quay
-    `QUAY_WIDTH_M` wide round its edge with stand-plinth faces under a beam-top coping, and
-    yachts moored stern-to along the `YACHT_MOORED_QUAYS` quays nearest the lap, bows out into
-    the basin. No lettering."""
+    `QUAY_WIDTH_M` wide inside the outline with stand-plinth faces under a beam-top coping,
+    and yachts moored stern-to along the quays near the lap, bows out into the basin. No
+    lettering."""
     (plan,) = _harbour_footprint(layout, prop)
+    outer = list(plan.outline)
+    inner = _inset(outer, QUAY_WIDTH_M)
     ground = -GRASS_DROP_M
-    along = (math.cos(plan.heading), math.sin(plan.heading), 0.0)
-    across = (-math.sin(plan.heading), math.cos(plan.heading), 0.0)
-    origin = (plan.x, plan.y, ground)
-    a, b = plan.half_along, plan.half_across
-    inner_a, inner_b = a - QUAY_WIDTH_M, b - QUAY_WIDTH_M
-    sea = SCENERY_LIFT_M
-    # The quay's four sides: the two long ones the basin's whole length, the two short ones between them.
-    for span_a, span_b in (
-        ((-a, a), (inner_b, b)),
-        ((-a, a), (-b, -inner_b)),
-        ((inner_a, a), (-inner_b, inner_b)),
-        ((-a, -inner_a), (-inner_b, inner_b)),
-    ):
-        side = _block(origin, along, across, span_a, span_b, (0.0, sea + QUAY_HEIGHT_M))
-        _sides(side, "stand-plinth", still)
-        vertices, (face,) = side["z1"]
-        still.add("beam-top", ([vertices[i] for i in face], [(0, 1, 2, 3)]))
-    water = _block(origin, along, across, (-inner_a, inner_a), (-inner_b, inner_b), (sea, sea))
-    vertices, (face,) = water["z1"]
-    still.add("water", ([vertices[i] for i in face], [(0, 1, 2, 3)]))
+    sea = ground + SCENERY_LIFT_M
+    top = sea + QUAY_HEIGHT_M
+    count = len(outer)
+    for k in range(count):
+        (a, b), (c, d) = (outer[k], outer[(k + 1) % count]), (inner[k], inner[(k + 1) % count])
+        dx, dy = b[0] - a[0], b[1] - a[1]
+        # The outline runs counter-clockwise, so the basin is to each edge's left.
+        out = (dy, -dx, 0.0)
+        still.add("stand-plinth", mesh.quad_facing((*a, ground), (*b, ground), (*b, top), (*a, top), out))
+        still.add("stand-plinth", mesh.quad_facing((*c, sea), (*d, sea), (*d, top), (*c, top), (-dy, dx, 0.0)))
+        still.add("beam-top", mesh.quad_facing((*a, top), (*b, top), (*d, top), (*c, top), (0.0, 0.0, 1.0)))
+    still.add("water", ([(x, y, sea) for x, y in inner], [tuple(range(count))]))
 
-    def at(u: float, v: float) -> tuple[float, float]:
-        return plan.x + u * along[0] + v * across[0], plan.y + u * along[1] + v * across[1]
-
-    # Each quay in the basin's frame as (its inner edge's middle, the way into the basin, the
-    # way along it, its inner length).
-    quays = [
-        ((0.0, inner_b), (0.0, -1.0), (1.0, 0.0), 2.0 * inner_a),
-        ((0.0, -inner_b), (0.0, 1.0), (1.0, 0.0), 2.0 * inner_a),
-        ((inner_a, 0.0), (-1.0, 0.0), (0.0, 1.0), 2.0 * inner_b),
-        ((-inner_a, 0.0), (1.0, 0.0), (0.0, 1.0), 2.0 * inner_b),
-    ]
-
-    def to_lap(quay: tuple[tuple[float, float], ...]) -> float:
-        x, y = at(*quay[0])
-        return min(math.dist((x, y), (q.x, q.y)) for q in layout.path.samples)
-
-    number_moored = 0
-    for middle, inward, sideways, length in sorted(quays, key=to_lap)[:YACHT_MOORED_QUAYS]:
-        count = int((length - 2.0 * YACHT_CORNER_CLEAR_M) // YACHT_PITCH_M) + 1
-        for k in range(count):
-            along_quay = (k - (count - 1) / 2.0) * YACHT_PITCH_M
-            stern = tuple(middle[i] + inward[i] * YACHT_OFF_QUAY_M + sideways[i] * along_quay for i in range(2))
-            sx, sy = at(*stern)
-            fx, fy = at(stern[0] + inward[0], stern[1] + inward[1])
-            fore = (fx - sx, fy - sy)
-            _yacht(still, (sx, sy, ground + sea), fore, YACHT_LENGTHS_M[number_moored % len(YACHT_LENGTHS_M)])
-            number_moored += 1
+    moored: list[list[tuple[float, float]]] = []
+    for k in range(count):
+        a, b = inner[k], inner[(k + 1) % count]
+        middle = ((a[0] + b[0]) / 2.0, (a[1] + b[1]) / 2.0)
+        if min(math.dist(middle, (q.x, q.y)) for q in layout.path.samples) > YACHT_MOORING_REACH_M:
+            continue
+        length = math.dist(a, b)
+        along = ((b[0] - a[0]) / length, (b[1] - a[1]) / length)
+        inward = (-along[1], along[0])
+        berths = int(length // YACHT_PITCH_M)
+        for berth in range(berths):
+            at = (berth - (berths - 1) / 2.0) * YACHT_PITCH_M + length / 2.0
+            stern = (a[0] + along[0] * at + inward[0] * YACHT_OFF_QUAY_M, a[1] + along[1] * at + inward[1] * YACHT_OFF_QUAY_M)
+            size = YACHT_LENGTHS_M[len(moored) % len(YACHT_LENGTHS_M)]
+            hull = _hull_plan(stern, inward, size)
+            # Its stern corners stand the berth's distance off the quay; nothing may stand nearer.
+            if any(not _inside(inner, x, y) or _distance_to_outline(inner, x, y) < YACHT_OFF_QUAY_M - 1e-9 for x, y in hull):
+                continue
+            if any(_convex_overlap(hull, other) for other in moored):
+                continue
+            moored.append(hull)
+            _yacht(still, (*stern, sea), inward, size)
     return [], []
 
 
@@ -1212,6 +1212,66 @@ def _yacht(still: ByMaterial, stern: mesh.Vertex, fore: tuple[float, float], len
     b0, b1 = inset - half - YACHT_WINDOW_PROUD_M, half - inset + YACHT_WINDOW_PROUD_M
     band = _block(point(0.0, 0.0, 0.0), ahead, port, (a0, a1), (b0, b1), (sill, head))
     _sides(band, "carbon", still)
+
+
+def _hull_plan(stern: tuple[float, float], fore: tuple[float, float], length: float) -> list[tuple[float, float]]:
+    """A yacht's hull in plan, counter-clockwise from its stern's starboard corner."""
+    half = length * YACHT_BEAM / 2.0
+    shoulder = length * (1.0 - YACHT_BOW)
+    port = (-fore[1], fore[0])
+    return [
+        (stern[0] + f * fore[0] + p * port[0], stern[1] + f * fore[1] + p * port[1])
+        for f, p in ((0.0, -half), (shoulder, -half), (length, 0.0), (shoulder, half), (0.0, half))
+    ]
+
+
+def _inset(outline: list[tuple[float, float]], by: float) -> list[tuple[float, float]]:
+    """The counter-clockwise outline moved `by` metres in along every edge, each corner where
+    two moved edges meet. Every edge must be long enough not to vanish."""
+    moved = []
+    for (ax, ay), (bx, by_) in zip(outline, outline[1:] + outline[:1]):
+        length = math.dist((ax, ay), (bx, by_))
+        nx, ny = -(by_ - ay) / length * by, (bx - ax) / length * by
+        moved.append(((ax + nx, ay + ny), (bx + nx, by_ + ny)))
+    corners = []
+    for k in range(len(moved)):
+        (p0, p1), (q0, q1) = moved[k - 1], moved[k]
+        d1 = (p1[0] - p0[0], p1[1] - p0[1])
+        d2 = (q1[0] - q0[0], q1[1] - q0[1])
+        cross = d1[0] * d2[1] - d1[1] * d2[0]
+        t = ((q0[0] - p0[0]) * d2[1] - (q0[1] - p0[1]) * d2[0]) / cross
+        corners.append((p0[0] + t * d1[0], p0[1] + t * d1[1]))
+    return corners
+
+
+def _distance_to_outline(outline: Sequence[tuple[float, float]], x: float, y: float) -> float:
+    """From the point to the nearest edge of the closed outline."""
+    best = math.inf
+    for (ax, ay), (bx, by) in zip(outline, [*outline[1:], outline[0]]):
+        dx, dy = bx - ax, by - ay
+        t = max(0.0, min(1.0, ((x - ax) * dx + (y - ay) * dy) / (dx * dx + dy * dy)))
+        best = min(best, math.dist((x, y), (ax + t * dx, ay + t * dy)))
+    return best
+
+
+def _inside(outline: Sequence[tuple[float, float]], x: float, y: float) -> bool:
+    crossings = 0
+    for (ax, ay), (bx, by) in zip(outline, [*outline[1:], outline[0]]):
+        if (ay > y) != (by > y) and x < ax + (y - ay) * (bx - ax) / (by - ay):
+            crossings += 1
+    return crossings % 2 == 1
+
+
+def _convex_overlap(a: Sequence[tuple[float, float]], b: Sequence[tuple[float, float]]) -> bool:
+    """Whether two convex outlines overlap, by the separating axis test."""
+    for outline in (a, b):
+        for (x0, y0), (x1, y1) in zip(outline, [*outline[1:], outline[0]]):
+            axis = (y0 - y1, x1 - x0)
+            pa = [axis[0] * x + axis[1] * y for x, y in a]
+            pb = [axis[0] * x + axis[1] * y for x, y in b]
+            if max(pa) <= min(pb) or max(pb) <= min(pa):
+                return False
+    return True
 
 
 def _outward(quad: list[mesh.Vertex], centre: mesh.Vertex) -> list[mesh.Vertex]:

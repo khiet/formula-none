@@ -401,9 +401,9 @@ the node (ADR 0050, ADR 0038).
 ### harbour
 
 Monarch's basin of sea water outside the harbour straight and the pool,
-close behind their stands: a prop of flat water a hair over the grass inside
-a raised stone quay, with yachts moored stern-to along the two quays nearest
-the lap. Nothing in it moves, and it is held to the 8 m rule (ADR 0050).
+close behind their stands, and round the quay and Rascasse: a prop of flat
+water a hair over the grass inside a raised stone quay, with yachts moored
+stern-to along the quays near the lap. Nothing in it moves, and it is held to the 8 m rule (ADR 0050).
 
 ### casino
 
