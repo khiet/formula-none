@@ -871,7 +871,6 @@ def hangars(layout: Layout, prop: Prop, number: int, still: ByMaterial) -> tuple
     for k in range(count):
         middle = (k - (count - 1) / 2.0) * HANGAR_PITCH_M
         hub = at(middle, 0.0, HANGAR_EAVES_M / 2.0)
-        # The walls along the track, eaves high.
         for a in (middle - half, middle + half):
             wall = [at(a, -front, 0.0), at(a, front, 0.0), at(a, front, HANGAR_EAVES_M), at(a, -front, HANGAR_EAVES_M)]
             still.add(*_toned("stand-riser", _outward(wall, hub), "stand-plinth"))

@@ -329,8 +329,7 @@ class Prop:
     standing beyond the walls or flying over them (ADR 0050). A kind that runs along the track,
     the pits or a row of hangars, is `length` metres long, centred on `at`, on whichever side
     of the track `at` is, facing it. A kind that flies, the airship, circles `at` at `radius`
-    metres, `height` metres over the grass. `white` paints the pits' walls wall white, as
-    Goldstone's are."""
+    metres, `height` metres over the grass. `white` paints the pits' walls wall white."""
 
     kind: str
     at: Spot | World
