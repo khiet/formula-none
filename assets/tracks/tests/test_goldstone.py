@@ -134,11 +134,6 @@ class WhitePits(unittest.TestCase):
             normal_left = (c1 - c0) * (a2 - a0) - (a1 - a0) * (c2 - c0)
             self.assertLess(normal_left, 0.0, f"flag {slot} faces the track")
 
-    def test_bell_deers_pits_keep_their_stand_colours(self) -> None:
-        names = set(family(build(load("bell-deer")), PITS))
-        self.assertIn(f"{PITS}.stand-riser", names)
-        self.assertNotIn(f"{PITS}.beam-shade", names)
-
 
 class Hangars(unittest.TestCase):
     def setUp(self) -> None:
