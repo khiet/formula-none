@@ -24,7 +24,7 @@ const OPTIONS: TitleOptions = {
   courses: COURSES.map((course) => ({ course, centreline: SQUARE })),
   course: BELL_DEER,
   laps: 3,
-  reducedMotion: true,
+  reducedMotion: () => true,
 };
 
 interface Calls {

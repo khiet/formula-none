@@ -108,3 +108,21 @@ async fn a_room_on_an_unknown_track_is_refused_and_not_opened() {
     assert_eq!(status, StatusCode::BAD_REQUEST);
     assert!(rooms.codes().is_empty(), "{:?}", rooms.codes());
 }
+
+#[tokio::test]
+async fn a_body_is_read_whatever_its_content_type_and_one_naming_no_track_races_bell_deer() {
+    let (app, rooms, _stop) = app();
+    let (status, _) = send(
+        app.clone(),
+        Request::post("/api/rooms")
+            .body(Body::from(r#"{ "track": "monza" }"#))
+            .unwrap(),
+    )
+    .await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+    assert!(rooms.codes().is_empty(), "{:?}", rooms.codes());
+    let (status, body) = create(app, Body::from("{}")).await;
+    assert_eq!(status, StatusCode::CREATED);
+    let room = rooms.view(body["code"].as_str().unwrap()).unwrap();
+    assert_eq!(room.track, "bell-deer");
+}

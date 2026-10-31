@@ -72,18 +72,27 @@ export function courseStats(centreline: readonly WorldPoint[]): CourseStats {
   return { lapM, tightestM, straightM };
 }
 
+/** A course the picker offers, with its sidecar's centreline for the preview's map. */
+export interface CourseChoice {
+  readonly course: Course;
+  readonly centreline: readonly WorldPoint[];
+}
+
 export interface CoursePreviewOptions {
   /** Laps in a race, the second of the four numbers. */
   readonly laps: number;
-  /** Hold the dot on the start line, for a player who asks for reduced motion. */
-  readonly still: boolean;
+  /**
+   * Whether the player asks for reduced motion, read every frame so a
+   * change takes hold at once; while it does, the dot waits on the start line.
+   */
+  readonly reducedMotion: () => boolean;
 }
 
 export interface CoursePreview {
   /** The card; the caller puts it on the page. */
   readonly element: HTMLElement;
-  /** Show `course`, whose sidecar has `centreline`, in place of the last. */
-  show(course: Course, centreline: readonly WorldPoint[]): void;
+  /** Show `choice` in place of the last. */
+  show(choice: CourseChoice): void;
   dispose(): void;
 }
 
@@ -160,7 +169,7 @@ export function createCoursePreview(options: CoursePreviewOptions): CoursePrevie
   let frame = 0;
   return {
     element,
-    show(course, centreline) {
+    show({ course, centreline }) {
       cancelAnimationFrame(frame);
       const swap = document.createElement("div");
       swap.className = "map-swap";
@@ -187,11 +196,15 @@ export function createCoursePreview(options: CoursePreviewOptions): CoursePrevie
       );
       swap.append(header, map.svg, blurb, stats);
       element.replaceChildren(swap);
-      if (options.still) return;
       let started: number | undefined;
       const run = (now: number) => {
-        started ??= now;
-        map.place(((now - started) / LAP_MS) % 1);
+        if (options.reducedMotion()) {
+          started = undefined;
+          map.place(0);
+        } else {
+          started ??= now;
+          map.place(((now - started) / LAP_MS) % 1);
+        }
         frame = requestAnimationFrame(run);
       };
       frame = requestAnimationFrame(run);

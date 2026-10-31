@@ -83,6 +83,7 @@ export function loadCoursePick(storage: Storage): Course {
   } catch {
     // Storage that refuses reads as nothing saved.
   }
+  // The default track is always a course, so the cast cannot hide an undefined.
   return courseOf(saved ?? "") ?? (courseOf(DEFAULT_TRACK) as Course);
 }
 

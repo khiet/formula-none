@@ -288,7 +288,7 @@ impl Rooms {
         }
     }
 
-    /// [`Self::create_on`] the registry's own track.
+    /// Open a room on the registry's own track, as [`Self::create_on`] does.
     pub fn create(&self) -> String {
         self.create_on(self.track)
     }

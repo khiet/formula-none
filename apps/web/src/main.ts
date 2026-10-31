@@ -2,6 +2,7 @@ import { createAudio } from "./audio";
 import { loadAudioSettings, saveAudioSettings } from "./audio-settings";
 import { type Bridge, loadBridge } from "./bridge";
 import { connect, serverUrls } from "./connection";
+import type { CourseChoice } from "./course-preview";
 import { type InstrumentPanel, loadInstrumentFont } from "./instrument-panel";
 import { loadNickname, saveNickname } from "./nickname";
 import { ping } from "./ping";
@@ -15,7 +16,7 @@ import { createRoomScene } from "./room-scene";
 import { forgetSession } from "./room-session";
 import { createServerRace } from "./server-race";
 import { type Seat, takeSeat } from "./take-seat";
-import { type CourseChoice, createTitleScene } from "./title-scene";
+import { createTitleScene } from "./title-scene";
 import {
   COURSES,
   centrelineOf,
@@ -213,7 +214,8 @@ async function main(container: HTMLElement): Promise<void> {
   let course = loadCoursePick(window.localStorage);
   // A tester's `?track=` wins over the pick, so any track loads without the Title.
   const trackOverride = trackFromSearch(window.location.search);
-  const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const motion = window.matchMedia("(prefers-reduced-motion: reduce)");
+  const reducedMotion = () => motion.matches;
   const linkedCode = roomFromSearch(window.location.search) ?? "";
 
   const connectToServer = () =>

@@ -1,13 +1,13 @@
 import type { AudioSettings } from "./audio-settings";
 import type { NicknameChars } from "./bridge";
 import { button } from "./controls";
-import { createCoursePreview } from "./course-preview";
+import { type CourseChoice, createCoursePreview } from "./course-preview";
 import { flag } from "./flags";
 import { livery } from "./livery";
 import { validateNickname } from "./nickname";
 import { backdrop, kartSide } from "./poster";
 import { normaliseCode } from "./room-link";
-import type { Course, WorldPoint } from "./track";
+import type { Course } from "./track";
 
 export interface TitleScene {
   /** Show a message to the player, such as why a join was refused. */
@@ -28,12 +28,6 @@ export interface TitleHandlers {
   course(course: Course): void;
 }
 
-/** A course the picker offers, with its sidecar's centreline for the preview's map. */
-export interface CourseChoice {
-  readonly course: Course;
-  readonly centreline: readonly WorldPoint[];
-}
-
 export interface TitleOptions {
   /** The remembered nickname, or empty. */
   readonly nickname: string;
@@ -51,8 +45,8 @@ export interface TitleOptions {
   readonly course: Course;
   /** Laps in a race, for the preview. */
   readonly laps: number;
-  /** Hold the preview's lap dot still. */
-  readonly reducedMotion: boolean;
+  /** Whether the player asks for reduced motion, which holds the preview's lap dot still. */
+  readonly reducedMotion: () => boolean;
 }
 
 /**
@@ -208,7 +202,10 @@ export function createTitleScene(
   const flags = document.createElement("fieldset");
   flags.className = "flags";
   flags.setAttribute("aria-label", "Course");
-  const preview = createCoursePreview({ laps: options.laps, still: options.reducedMotion });
+  const preview = createCoursePreview({
+    laps: options.laps,
+    reducedMotion: options.reducedMotion,
+  });
   for (const choice of options.courses) {
     const radio = document.createElement("input");
     radio.type = "radio";
@@ -216,7 +213,7 @@ export function createTitleScene(
     radio.value = choice.course.track;
     radio.checked = choice.course.track === options.course.track;
     radio.addEventListener("change", () => {
-      preview.show(choice.course, choice.centreline);
+      preview.show(choice);
       handlers.course(choice.course);
     });
     const caption = document.createElement("span");
@@ -226,7 +223,7 @@ export function createTitleScene(
     tile.className = "flag-tile";
     tile.append(radio, flag(choice.course.flag), caption);
     flags.append(tile);
-    if (radio.checked) preview.show(choice.course, choice.centreline);
+    if (radio.checked) preview.show(choice);
   }
   const courseColumn = document.createElement("div");
   courseColumn.className = "course";
