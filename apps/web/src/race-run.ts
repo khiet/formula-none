@@ -21,6 +21,15 @@ export function landedItem(slot: KartReadout["itemSlot"]): Item | null {
 }
 
 /**
+ * The item rolling into a kart's slot as a sim readout or a snapshot has
+ * it, against a roll of `rollS`; null while the slot is empty or held.
+ */
+export function rollingOf(slot: KartReadout["itemSlot"], rollS: number): RollingItem | null {
+  if (typeof slot !== "object" || !("rolling" in slot)) return null;
+  return { item: slot.rolling.item, elapsedS: rollS - slot.rolling.rollLeftS, rollS };
+}
+
+/**
  * The item rolling into the local kart's slot (ADR 0070): the item it
  * lands on, how long it has rolled, held at the roll's length while a
  * room's client waits for the snapshot that lands it, and the roll's
@@ -107,7 +116,7 @@ export interface RaceRun {
 export const ITEM_FIRE_FLASH_S = 0.5;
 
 /** How long the slot flashes as a rolled item lands. Presentation, so not the sim's to tune. */
-export const ITEM_LANDING_FLASH_S = 0.12;
+export const ITEM_LANDING_FLASH_S = 0.11;
 
 /** How long the count shows Go once the race is on. Presentation, so not the sim's to tune. */
 const GO_S = 1;

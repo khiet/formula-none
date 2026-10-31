@@ -631,19 +631,19 @@ describe("items", () => {
     const under = sidecar.spawn_grid[0]?.position ?? [0, 0, 0];
     sidecar.item_boxes.push({ position: under, yaw: 0 }, { position: under, yaw: 0 });
     const race = started(bridge.createRace(7n, 1, 0, JSON.stringify(sidecar)), 1);
-    expect(race.boxesTaken(0)).toBe(0);
+    expect(race.boxesTakenLastStep(0)).toBe(0);
 
     race.step([IDLE_INPUT], DT);
-    expect(race.boxesTaken(0)).toBe(1);
+    expect(race.boxesTakenLastStep(0)).toBe(1);
     const rolled = race.kartReadouts()[0]?.itemSlot;
     expect(rolled).toEqual({
       rolling: { item: expect.any(String), rollLeftS: expect.closeTo(2.5, 5) },
     });
     race.step([IDLE_INPUT], DT);
-    expect(race.boxesTaken(0)).toBe(1);
+    expect(race.boxesTakenLastStep(0)).toBe(1);
     expect(race.itemBoxesPresent().slice(-2)).toEqual([false, false]);
     race.step([IDLE_INPUT], DT);
-    expect(race.boxesTaken(0)).toBe(0);
+    expect(race.boxesTakenLastStep(0)).toBe(0);
   });
 
   it("reports the track's coins, a kart taking the one under it at Go and carrying it", async () => {

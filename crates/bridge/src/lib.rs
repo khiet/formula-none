@@ -231,7 +231,7 @@ impl Race {
     /// The item boxes the kart in grid slot `kart` took on the last step,
     /// whether its slot was empty and an item began to roll or it was full
     /// and the box gave nothing.
-    pub fn boxes_taken(&self, kart: usize) -> u32 {
+    pub fn boxes_taken_last_step(&self, kart: usize) -> u32 {
         let taken = self
             .state()
             .events()

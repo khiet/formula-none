@@ -25,6 +25,7 @@ import {
   Vector3,
 } from "three";
 import type { ItemBox, Wheel } from "./bridge";
+import { COIN_BOB_M, COIN_BOB_S } from "./coin-meshes";
 import {
   BEACON_BEAM,
   BEACON_LIT,
@@ -71,9 +72,6 @@ const ITEM_BOX_INSET_DEPTH_M = 0.02;
 const ITEM_BOX_HEIGHT_M = 1;
 /** One turn about the vertical, half the coin's pace, so the bigger thing reads heavier. */
 const ITEM_BOX_TURN_S = 2;
-/** The coin's bob, so the boxes and the coins rise and fall in step. */
-const ITEM_BOX_BOB_M = 0.05;
-const ITEM_BOX_BOB_S = 2;
 
 /** The hazard cone (ADR 0007), on a grey slab. */
 const HAZARD_CONE_RADIUS_M = 0.5;
@@ -255,8 +253,7 @@ export function itemBoxMeshes(placed: readonly ItemBox[]): ItemBoxMeshes {
     turn(clockSeconds) {
       const angle = ((clockSeconds % ITEM_BOX_TURN_S) / ITEM_BOX_TURN_S) * 2 * Math.PI;
       const height =
-        ITEM_BOX_HEIGHT_M +
-        ITEM_BOX_BOB_M * Math.sin((clockSeconds / ITEM_BOX_BOB_S) * 2 * Math.PI);
+        ITEM_BOX_HEIGHT_M + COIN_BOB_M * Math.sin((clockSeconds / COIN_BOB_S) * 2 * Math.PI);
       for (const { clone, yaw } of boxes) {
         // Less the placement's yaw, so every box faces the same way.
         clone.rotation.y = angle - yaw;

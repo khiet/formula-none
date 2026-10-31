@@ -16,7 +16,13 @@
 
 import type { Bridge, Hazard, KartReadout, Phase, Standing } from "./bridge";
 import type { FinalStanding, Item, Snapshot } from "./generated/protocol";
-import { ITEM_FIRE_FLASH_S, ITEM_LANDING_FLASH_S, landedItem, type RaceRun } from "./race-run";
+import {
+  ITEM_FIRE_FLASH_S,
+  ITEM_LANDING_FLASH_S,
+  landedItem,
+  type RaceRun,
+  rollingOf,
+} from "./race-run";
 import { type Countdown, quantiseInput, type RoomClient } from "./room-client";
 
 export interface ServerRace extends RaceRun {
@@ -102,9 +108,9 @@ export function createServerRace(
       landingTicksLeft = ticks(ITEM_LANDING_FLASH_S);
     } else if (!slotHeardOf) {
       heldItem = landed;
-      const rolling = typeof slot === "object" && "rolling" in slot ? slot.rolling : null;
+      const rolling = slot === undefined ? null : rollingOf(slot, bridge.itemRollSeconds);
       rollingItem = rolling?.item ?? null;
-      rolledTicks = rolling === null ? 0 : ticks(bridge.itemRollSeconds - rolling.rollLeftS);
+      rolledTicks = rolling === null ? 0 : ticks(rolling.elapsedS);
     }
   });
   const stopEvents = client.onEvent(({ kind }) => {

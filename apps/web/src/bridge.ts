@@ -148,7 +148,7 @@ export interface Race {
    * The item boxes the kart in grid slot `kart` took on the last step,
    * whether an item began to roll or its full slot took nothing.
    */
-  boxesTaken(kart: number): number;
+  boxesTakenLastStep(kart: number): number;
   /** The track's coins, in the sidecar's order; fixed for the race. */
   coins(): Coin[];
   /** Whether each coin, in the same order, is there to pick up as of the last step. */
@@ -509,8 +509,8 @@ class BridgedRace implements Race {
     return Array.from(this.#race.item_boxes_present(), (present) => present !== 0);
   }
 
-  boxesTaken(kart: number): number {
-    return this.#race.boxes_taken(kart);
+  boxesTakenLastStep(kart: number): number {
+    return this.#race.boxes_taken_last_step(kart);
   }
 
   coins(): Coin[] {

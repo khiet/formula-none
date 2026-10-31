@@ -62,7 +62,7 @@ export interface SoundReading {
   readonly wrongWay: boolean;
   /** Every box the kart has taken; the pickup sounds as it rises, whatever the box gave. */
   readonly boxesTaken: number;
-  /** Whether an item rolls in the slot. */
+  /** Whether an item rolls in the slot; the landing sounds as it stops with an item held. */
   readonly rolling: boolean;
   /** The icon the slot's reel has stepped to while an item rolls; null while none does. */
   readonly reelStep: number | null;

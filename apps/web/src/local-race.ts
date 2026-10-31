@@ -1,13 +1,13 @@
 // A race whose rules run in this browser, as a solo race's do.
 
-import type { Bridge, KartInput, KartReadout } from "./bridge";
+import type { Bridge, KartInput } from "./bridge";
 import { IDLE_INPUT } from "./input";
 import {
   ITEM_FIRE_FLASH_S,
   ITEM_LANDING_FLASH_S,
   landedItem,
   type RaceRun,
-  type RollingItem,
+  rollingOf,
 } from "./race-run";
 import { recordReplay } from "./replay";
 import type { TrackName } from "./track";
@@ -62,14 +62,14 @@ export function localRaceRun(
       const before = slot();
       race.step(inputs, dt);
       replay.record(inputs);
-      boxesTaken += race.boxesTaken(setup.localKart);
+      boxesTaken += race.boxesTakenLastStep(setup.localKart);
       const after = slot();
       flashTicksLeft =
         landedItem(before) !== null && landedItem(after) === null
           ? ticks(ITEM_FIRE_FLASH_S)
           : Math.max(flashTicksLeft - 1, 0);
       landingTicksLeft =
-        rollingItem(before) !== null && landedItem(after) !== null
+        rollingOf(before, bridge.itemRollSeconds) !== null && landedItem(after) !== null
           ? ticks(ITEM_LANDING_FLASH_S)
           : Math.max(landingTicksLeft - 1, 0);
     },
@@ -82,7 +82,7 @@ export function localRaceRun(
         phase: race.phase(),
         itemSlot: {
           item: landedItem(own),
-          rolling: rollingItem(own),
+          rolling: rollingOf(own, bridge.itemRollSeconds),
           firing: flashTicksLeft > 0,
           landing: landingTicksLeft > 0,
           boxesTaken,
@@ -98,10 +98,4 @@ export function localRaceRun(
     coins: () => coins,
     replay,
   };
-
-  function rollingItem(at: KartReadout["itemSlot"]): RollingItem | null {
-    if (typeof at !== "object" || !("rolling" in at)) return null;
-    const rollS = bridge.itemRollSeconds;
-    return { item: at.rolling.item, elapsedS: rollS - at.rolling.rollLeftS, rollS };
-  }
 }
