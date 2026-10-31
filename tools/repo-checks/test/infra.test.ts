@@ -96,6 +96,30 @@ describe("infra", () => {
     expect(record.provider).toBe(ref("aws.dns"));
   });
 
+  // The public repository invites strangers to the hosted instance (ADR 0066),
+  // so spend past the ceiling (ADR 0017) mails the operator.
+  it("mails the operator when the month's cost nears, passes or is forecast to pass USD 25", () => {
+    const budget = only(Object.values(resourcesOfType("aws_budgets_budget")));
+    expect(budget.budget_type).toBe("COST");
+    expect(budget.time_unit).toBe("MONTHLY");
+    expect(resolved(budget.limit_amount)).toBe("25");
+    expect(budget.limit_unit).toBe("USD");
+    const alerts = (budget.notification as Block[])
+      .map((n) => [n.notification_type, n.comparison_operator, n.threshold, n.threshold_type])
+      .map((fields) => fields.join(" "))
+      .sort();
+    expect(alerts).toEqual([
+      "ACTUAL GREATER_THAN 100 PERCENTAGE",
+      "ACTUAL GREATER_THAN 80 PERCENTAGE",
+      "FORECASTED GREATER_THAN 100 PERCENTAGE",
+    ]);
+    for (const notification of budget.notification as Block[]) {
+      expect(notification.subscriber_email_addresses).toEqual([ref("var.billing_alert_email")]);
+    }
+    expect(variables.billing_alert_email).toBeDefined();
+    expect(variables.billing_alert_email?.default).toBeUndefined();
+  });
+
   describe("GitHub Actions role", () => {
     // Every statement across the role's own policy documents, flattened.
     function statementsOf(roleName: string): Block[] {

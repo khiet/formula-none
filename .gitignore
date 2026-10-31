@@ -14,6 +14,7 @@ blob-report
 infra/**/.terraform
 infra/**/*.tfstate
 infra/**/*.tfstate.backup
+infra/**/*.tfvars
 infra/**/.terraform.lock.hcl
 
 # Release bundle extracted from a local image (deploy/README.md)
