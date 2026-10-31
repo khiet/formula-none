@@ -229,8 +229,8 @@ QUAY_HEIGHT_M = 0.6
 # The yachts moor stern-to along the two quays nearest the lap, one every
 # `YACHT_PITCH_M`, their lengths cycling through `YACHT_LENGTHS_M`, and keep
 # `YACHT_CORNER_CLEAR_M` clear of each end of a quay so two rows never meet
-# in a corner. A yacht is a pointed hull with a dark glass cabin and a
-# flybridge on it, each as a share of its length.
+# in a corner. A yacht is a pointed hull with a cabin and a flybridge on it,
+# each as a share of its length.
 YACHT_PITCH_M = 7.0
 YACHT_LENGTHS_M = (14.0, 18.0, 12.0)
 YACHT_CORNER_CLEAR_M = 20.0
