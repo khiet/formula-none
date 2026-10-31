@@ -13,7 +13,9 @@ twelve-sided hull circling high over the infield, a node of its own the
 View flies round its circle, its sponsor riding on both flanks. The
 helicopter: Monarch's red-and-white helicopter circling the harbour, a body
 node the View flies and dips with two rotor nodes it turns under it, its
-sponsor riding on both cabin flanks. The harbour:
+sponsor riding on both cabin flanks. The display jets: Goldstone's three red
+jets in an arrowhead, each trailing a smoke ribbon, one node the View flies
+past over the hangars. The harbour:
 Monarch's basin of water inside a quay, yachts moored along it. The casino:
 Monarch's grand house outside Casino Square, on a terrace level with the
 crest."""
@@ -271,6 +273,42 @@ HELICOPTER_DIP_DEG = 5.0
 """The View's nose-down pitch; the track tests hold it to `scenery-motion.ts`."""
 HELICOPTER_CLEARANCE_M = 30.0
 """The least the lowest point keeps over any road under its circle."""
+
+# The display jets, the sky-objects mockup's Goldstone card in three
+# dimensions: three kerb-red jets in an arrowhead, each a square-sectioned
+# fuselage to a pointed nose with swept wings, a fin, a carbon canopy and a
+# wall flash down each flank, trailing a fixed smoke ribbon that swells from
+# a point at its tail and closes again. The formation is one node with its
+# origin at the leader's nose and its local x along the noses; the View only
+# slides it along that axis, so nothing turns and the colours are flat. Every
+# jet's parts are in metres back from its nose, to the left of its axis and
+# up from it. The layout's prop gives the pass's length, centred on `at`, and
+# the leader's height over the grass; the track tests hold the lowest point,
+# ribbons included, `JETS_CLEARANCE_M` over every road the pass crosses.
+JET_LENGTH_M = 9.0
+"""From the nose to the tail, where the ribbon starts."""
+JET_NOSE_M = 1.8
+"""From the point to the full section."""
+JET_BODY_M = 0.9
+"""The fuselage's square section, side to side and top to bottom."""
+JET_WING = ((3.0, 6.5), (5.8, 7.0), 4.2, 0.12)
+"""The root's and the tip's span back from the nose, the tip's reach left or right, and the thickness."""
+JET_FIN = ((6.8, 8.6), (8.3, 9.2), 2.6, 0.12)
+"""The root's and the tip's span back from the nose, the tip's height over the axis, and the thickness."""
+JET_CANOPY = ((2.0, 4.2), 0.6, 0.4)
+"""Back from the nose, across, and up from the fuselage's top."""
+JET_FLASH = ((JET_NOSE_M, JET_LENGTH_M), (-0.25, -0.05))
+"""Back from the nose and up from the axis, on each flank."""
+JET_PANEL_PROUD_M = 0.03
+JETS_FORMATION = ((0.0, 0.0, 0.0), (12.0, 8.0, 4.5), (12.0, -8.0, -4.5))
+"""Each jet's nose back from the leader's, left of it and up from it: the leader, then a
+wingman stepped up on the left and one stepped down on the right."""
+JETS_SMOKE = ("wall", "ink-blue", "kerb-red")
+"""Each jet's ribbon, in `JETS_FORMATION`'s order."""
+JETS_RIBBON = ((JET_LENGTH_M, 0.0), (56.0, 1.7), (60.0, 0.0))
+"""Back from the jet's nose and the ribbon's half-width there, up, down and to each side."""
+JETS_CLEARANCE_M = 30.0
+"""The least the lowest point keeps over any road under the pass."""
 
 # The harbour, Monarch's basin of sea water: a flat sheet of water a hair
 # over the grass, ringed by a stone quay standing proud of it. The layout's
@@ -696,6 +734,7 @@ FOOTPRINTS: dict[str, Callable[[Layout, Prop], list[Footprint]]] = {
     "hangars": _hangars_footprint,
     "airship": _no_footprint,
     "helicopter": _no_footprint,
+    "jets": _no_footprint,
     "harbour": _harbour_footprint,
     "casino": _casino_footprint,
 }
@@ -1229,6 +1268,72 @@ def _rotor(name: str, pivot: Pivot, along: mesh.Vertex, across: mesh.Vertex, rea
     return rotor
 
 
+def jets(layout: Layout, prop: Prop, number: int, still: ByMaterial) -> tuple[list[SceneryMesh], list[Lettering]]:
+    """The display jets at `prop`: nothing into `still`, and the whole formation, ribbons and
+    all, as the one node `Prop.jets.<number>.formation`, its origin at the leader's nose and
+    its local x along the noses, which point against the way `at` faces, so on a spot they fly
+    against the race. At rest the leader's nose is over `at`, `prop.height` metres over the
+    grass, in the middle of the `prop.length` pass. No lettering: it would not read at the
+    height it flies."""
+    if prop.length is None or prop.height is None:
+        raise ValueError("the jets need a pass length and a height")
+    x, y, facing = locate(layout, prop.at)
+    heading = facing + math.pi
+    leader = (x, y, -GRASS_DROP_M + prop.height)
+    along = (math.cos(heading), math.sin(heading))
+    left = (-along[1], along[0])
+    formation = Node(f"Prop.jets.{number}.formation", Pivot(*leader, heading))
+    half = JET_BODY_M / 2.0
+    for (s0, b0, c0), smoke in zip(JETS_FORMATION, JETS_SMOKE):
+
+        def at(s: float, b: float, c: float, s0: float = s0, b0: float = b0, c0: float = c0) -> mesh.Vertex:
+            """`s` metres back from this jet's nose, `b` to the left of its axis and `c` up from it."""
+            return (
+                leader[0] - (s0 + s) * along[0] + (b0 + b) * left[0],
+                leader[1] - (s0 + s) * along[1] + (b0 + b) * left[1],
+                leader[2] + c0 + c,
+            )
+
+        def flat(material: str, faces: dict[str, mesh.Mesh], buried: str) -> None:
+            """A box's faces but the one `buried` in the fuselage, flat in `material`."""
+            for key, (vertices, (face,)) in faces.items():
+                if key != buried:
+                    formation.add(material, ([vertices[i] for i in face], [(0, 1, 2, 3)]))
+
+        # The fuselage: a pyramid nose onto a square section running back to the tail.
+        axis = at(JET_LENGTH_M / 2.0, 0.0, 0.0)
+        corners = ((half, half), (-half, half), (-half, -half), (half, -half))
+        for k, (b, c) in enumerate(corners):
+            nb, nc = corners[(k + 1) % 4]
+            formation.add("kerb-red", (_outward([at(0.0, 0.0, 0.0), at(JET_NOSE_M, b, c), at(JET_NOSE_M, nb, nc)], axis), [(0, 1, 2)]))
+            side = [at(JET_NOSE_M, b, c), at(JET_LENGTH_M, b, c), at(JET_LENGTH_M, nb, nc), at(JET_NOSE_M, nb, nc)]
+            formation.add("kerb-red", (_outward(side, axis), [(0, 1, 2, 3)]))
+        formation.add("kerb-red", (_outward([at(JET_LENGTH_M, b, c) for b, c in corners], axis), [(0, 1, 2, 3)]))
+        # The wings, swept, their roots in the fuselage's flanks.
+        root, tip, reach, thick = JET_WING
+        for side in (1.0, -1.0):
+            wing = mesh.cuboid(lambda i, j, k, side=side: at((root, tip)[j][i], side * (half, reach)[j], (k - 0.5) * thick))
+            flat("kerb-red", wing, "y0")
+        # The fin on the fuselage's top.
+        root, tip, height, thick = JET_FIN
+        flat("kerb-red", mesh.cuboid(lambda i, j, k: at((root, tip)[j][i], (k - 0.5) * thick, (half, height)[j])), "y0")
+        # The canopy over the cockpit.
+        (g0, g1), width, rise = JET_CANOPY
+        flat("carbon", mesh.cuboid(lambda i, j, k: at((g0, g1)[i], (j - 0.5) * width, half + k * rise)), "z0")
+        # The flash down each flank, just proud of it.
+        (f0, f1), (u0, u1) = JET_FLASH
+        for side in (1.0, -1.0):
+            b = side * (half + JET_PANEL_PROUD_M)
+            formation.add("wall", (_outward([at(f0, b, u0), at(f1, b, u0), at(f1, b, u1), at(f0, b, u1)], axis), [(0, 1, 2, 3)]))
+        # The ribbon: a point at the tail swelling to a diamond section and closing again.
+        (r0, _), (r1, spread), (r2, _) = JETS_RIBBON
+        ring = [at(r1, spread * b, spread * c) for b, c in ((1.0, 0.0), (0.0, 1.0), (-1.0, 0.0), (0.0, -1.0))]
+        for point, middle in ((at(r0, 0.0, 0.0), at((r0 + r1) / 2.0, 0.0, 0.0)), (at(r2, 0.0, 0.0), at((r1 + r2) / 2.0, 0.0, 0.0))):
+            for k in range(4):
+                formation.add(smoke, (_outward([point, ring[k], ring[(k + 1) % 4]], middle), [(0, 1, 2)]))
+    return [formation.scenery()], []
+
+
 def harbour(layout: Layout, prop: Prop, number: int, still: ByMaterial) -> tuple[list[SceneryMesh], list[Lettering]]:
     """The harbour at `prop`: a sheet of `water` filling the basin inside a stone quay, the quay
     `QUAY_WIDTH_M` wide inside the outline with stand-plinth faces under a beam-top coping,
@@ -1482,6 +1587,7 @@ PROP_BUILDERS: dict[str, Callable[[Layout, Prop, int, ByMaterial], tuple[list[Sc
     "hangars": hangars,
     "airship": airship,
     "helicopter": helicopter,
+    "jets": jets,
     "harbour": harbour,
     "casino": casino,
 }

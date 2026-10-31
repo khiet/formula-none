@@ -8,8 +8,8 @@ Straight to Stowe, and Vale and Club back onto the grid. The ground is an old
 airfield, so there is no elevation; the lap is about speed and the esses.
 The scenery: the pits long and white outside the start straight with the
 grandstands across from them, hoardings round Luffield, Copse, Becketts and
-Stowe, the gantry over the line, and a row of airfield hangars outside the
-Hangar Straight. The layout is docs/mockups/silverstone-course.html's.
+Stowe, the gantry over the line, a row of airfield hangars outside the
+Hangar Straight, and the display jets' flypast over them. The layout is docs/mockups/silverstone-course.html's.
 """
 
 from ..layout import (
@@ -130,6 +130,9 @@ LAYOUT = Layout(
         props=[
             Prop("pits", Spot(s=0.0, offset=26.0), length=120.0, white=True),
             Prop("hangars", Spot(s=seg("hangar").s_mid, offset=33.0), length=110.0),
+            # The display jets' flypast over the hangars rather than the road, so the chase
+            # camera sees it, against the race so drivers on the straight see them coming.
+            Prop("jets", Spot(s=seg("hangar").s_mid, offset=33.0), length=600.0, height=60.0),
         ],
     ),
 )
