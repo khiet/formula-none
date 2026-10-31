@@ -540,9 +540,10 @@ struct Kart {
     /// How the kart answers its controls: its speed and everything that
     /// bends it.
     handling: Handling,
-    /// Seconds the kart has been outside the world without a break; it
-    /// respawns when this reaches the tuned delay.
-    out_of_world_s: f32,
+    /// Seconds the kart has been off the course without a break, outside
+    /// the world or behind a wall; it respawns when this reaches the
+    /// tuned delay.
+    off_course_s: f32,
     /// Seconds spline progress has been falling without rising; the
     /// wrong-way warning shows once this reaches the tuned time. Standing
     /// still neither adds to it nor clears it.
@@ -837,7 +838,7 @@ impl State {
                     collider,
                     bot: (index >= humans).then_some(bot::Memory::default()),
                     handling: Handling::new(),
-                    out_of_world_s: 0.0,
+                    off_course_s: 0.0,
                     wrong_way_s: 0.0,
                     laps_completed: 0,
                     checkpoint: 0,
@@ -1111,7 +1112,7 @@ impl State {
         for kart in &self.karts {
             let body = &self.physics.bodies[kart.body];
             kart.handling.hash(&mut hasher);
-            hasher.write_f32(kart.out_of_world_s);
+            hasher.write_f32(kart.off_course_s);
             hasher.write_f32(kart.wrong_way_s);
             hasher.write_u32(kart.laps_completed);
             hasher.write_u64(kart.checkpoint as u64);
@@ -1495,9 +1496,12 @@ pub fn step(mut state: State, inputs: &[KartInput], dt: f32) -> State {
         bump_off_tyre_walls(kart, &state.physics, sent_velocities[index], dt);
         let mut after = state.physics.bodies[kart.body].translation().to_array();
         let mut respawned = false;
-        if state.physics.surface_at(after) == Surface::OutOfWorld {
-            kart.out_of_world_s += dt;
-            if kart.out_of_world_s >= RESPAWN_DELAY_S {
+        let on_the_line = state.track.point_at(kart.spline_progress);
+        if state.physics.surface_at(after) == Surface::OutOfWorld
+            || state.physics.wall_between(on_the_line, after)
+        {
+            kart.off_course_s += dt;
+            if kart.off_course_s >= RESPAWN_DELAY_S {
                 after = respawn(kart, &state.track, &mut state.physics);
                 state.events.push(RaceEvent::Respawned { kart: index });
                 // A teleport is not a move: it crosses no gate.
@@ -1505,7 +1509,7 @@ pub fn step(mut state: State, inputs: &[KartInput], dt: f32) -> State {
                 respawned = true;
             }
         } else {
-            kart.out_of_world_s = 0.0;
+            kart.off_course_s = 0.0;
         }
         // A respawn can land a kart anywhere on the lap, so its last reading
         // says nothing about where to search.
@@ -1960,7 +1964,7 @@ fn respawn(kart: &mut Kart, track: &Track, physics: &mut Physics) -> [f32; 3] {
     body.set_linvel(Vec3::ZERO, true);
     body.set_angvel(Vec3::ZERO, true);
     kart.handling.respawn(facing * Vec3::NEG_Z);
-    kart.out_of_world_s = 0.0;
+    kart.off_course_s = 0.0;
     kart.wrong_way_s = 0.0;
     position.to_array()
 }
@@ -2124,6 +2128,31 @@ impl Physics {
     fn kart_on_the_ground(&self, point: [f32; 3]) -> bool {
         self.surface_below(point)
             .is_some_and(|(_, depth)| depth <= KART_HALF_HEIGHT_M + GROUND_CONTACT_M)
+    }
+
+    /// Whether a wall stands between `on_the_line`, a point on the
+    /// centreline, and `kart`, seen level at a kart's height over the line.
+    /// A kart behind a wall has left the course, since no way back crosses
+    /// one; a kart held against a wall from the run-off is not behind it.
+    fn wall_between(&self, on_the_line: [f32; 3], kart: [f32; 3]) -> bool {
+        let from = Vec3::from(on_the_line) + Vec3::Y * KART_HALF_HEIGHT_M;
+        let across = Vec3::new(kart[0] - from.x, 0.0, kart[2] - from.z);
+        let distance = across.length();
+        if distance == 0.0 {
+            return false;
+        }
+        let walls_only = |_: ColliderHandle, collider: &Collider| {
+            collider.user_data == u128::from(Surface::Wall.code())
+        };
+        let pipeline = self.broad_phase.as_query_pipeline(
+            self.narrow_phase.query_dispatcher(),
+            &self.bodies,
+            &self.colliders,
+            QueryFilter::only_fixed().predicate(&walls_only),
+        );
+        pipeline
+            .cast_ray(&Ray::new(from, across / distance), distance, true)
+            .is_some()
     }
 
     /// The topmost tagged surface at or below `point` and how far below it

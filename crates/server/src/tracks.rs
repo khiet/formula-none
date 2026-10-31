@@ -20,6 +20,10 @@ const TRACKS: &[(&str, &str)] = &[
         include_str!("../../../assets/tracks/goldstone/goldstone.track.json"),
     ),
     (
+        "monarch",
+        include_str!("../../../assets/tracks/monarch/monarch.track.json"),
+    ),
+    (
         "oval",
         include_str!("../../../assets/tracks/oval/oval.track.json"),
     ),
@@ -89,7 +93,9 @@ mod tests {
     #[test]
     fn every_track_loads_under_its_own_name() {
         let names: Vec<_> = TRACKS.iter().map(|(name, _)| *name).collect();
-        assert!(names.contains(&"goldstone"), "{names:?}");
+        for course in ["bell-deer", "goldstone", "monarch"] {
+            assert!(names.contains(&course), "{names:?}");
+        }
         for name in names {
             let track = load(name).unwrap_or_else(|error| panic!("{name}: {error}"));
             assert_eq!(track.name(), name);

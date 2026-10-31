@@ -435,7 +435,9 @@ fn the_fixture_set_exercises_kart_contact_off_track_walls_every_track_both_mini_
     }
     assert_eq!(
         tracks,
-        ["bell-deer", "goldstone", "oval"].map(String::from).into(),
+        ["bell-deer", "goldstone", "monarch", "oval"]
+            .map(String::from)
+            .into(),
         "every track"
     );
     for surface in [Surface::Asphalt, Surface::Sand] {

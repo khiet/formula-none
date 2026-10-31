@@ -2,6 +2,8 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { type GltfJson, gltfJson } from "./gltf-json";
 
+const TRACK_NAMES = ["bell-deer", "goldstone", "monarch", "oval"];
+
 /** The exported track as the View loads it. */
 function track(name: string): GltfJson {
   return gltfJson(
@@ -26,7 +28,7 @@ function materialsOf(gltf: GltfJson, nodeName: string): (string | undefined)[] {
   return primitives.map(({ material }) => gltf.materials?.[material ?? -1]?.name).sort();
 }
 
-describe.each(["bell-deer", "goldstone", "oval"])("%s's boost pads", (name) => {
+describe.each(TRACK_NAMES)("%s's boost pads", (name) => {
   const gltf = track(name);
   const sidecar = JSON.parse(
     readFileSync(
@@ -54,7 +56,7 @@ describe.each(["bell-deer", "goldstone", "oval"])("%s's boost pads", (name) => {
   });
 });
 
-describe.each(["bell-deer", "goldstone", "oval"])("%s's sausage kerbs", (name) => {
+describe.each(TRACK_NAMES)("%s's sausage kerbs", (name) => {
   const gltf = track(name);
   const sidecar = JSON.parse(
     readFileSync(
@@ -82,7 +84,7 @@ describe.each(["bell-deer", "goldstone", "oval"])("%s's sausage kerbs", (name) =
   });
 });
 
-describe.each(["bell-deer", "goldstone", "oval"])("%s's marshal posts", (name) => {
+describe.each(TRACK_NAMES)("%s's marshal posts", (name) => {
   const gltf = track(name);
   const sidecar = JSON.parse(
     readFileSync(
@@ -115,7 +117,7 @@ describe.each(["bell-deer", "goldstone", "oval"])("%s's marshal posts", (name) =
   });
 });
 
-describe.each(["bell-deer", "goldstone", "oval"])("%s's hazard zones", (name) => {
+describe.each(TRACK_NAMES)("%s's hazard zones", (name) => {
   const gltf = track(name);
   const sidecar = JSON.parse(
     readFileSync(
@@ -324,5 +326,20 @@ describe("the oval fixture", () => {
     expect(families).not.toContain("Hoarding");
     expect(families).not.toContain("Grandstand");
     expect(families).not.toContain("Prop");
+  });
+});
+
+describe("Monarch's tunnel", () => {
+  it("lights its lamps with the lamp material", () => {
+    expect(materialsOf(track("monarch"), "Tunnel.lamp")).toEqual(["lamp"]);
+  });
+});
+
+describe("glowing materials", () => {
+  it.each(TRACK_NAMES)("%s glows only in the tunnel's lamps, if it has a tunnel", (name) => {
+    const glowing = (track(name).materials ?? [])
+      .filter(({ emissiveFactor }) => emissiveFactor?.some((channel) => channel > 0))
+      .map((material) => material.name);
+    expect(glowing).toEqual(name === "monarch" ? ["lamp"] : []);
   });
 });

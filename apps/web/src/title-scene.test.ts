@@ -171,8 +171,9 @@ describe("Title Scene", () => {
     const radios = Array.from(
       container.querySelectorAll<HTMLInputElement>("input[type=radio][name=course]"),
     );
-    expect(radios.map((radio) => radio.value)).toEqual(["bell-deer", "goldstone"]);
-    expect(radios.map((radio) => radio.checked)).toEqual([false, true]);
+    expect(radios.map((radio) => radio.value)).toEqual(["bell-deer", "goldstone", "monarch"]);
+    expect(radios.map((radio) => radio.checked)).toEqual([false, true, false]);
+    expect(container.querySelectorAll(".flag-tile svg[data-flag]")).toHaveLength(3);
     const preview = () => container.querySelector(".preview h3")?.textContent;
     expect(preview()).toBe("Goldstone");
     const [bellDeer] = radios;

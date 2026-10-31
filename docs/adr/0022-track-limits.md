@@ -2,7 +2,8 @@
 
 ## Status
 
-Accepted (2026-10-24).
+Accepted (2026-10-24). That the respawn covers the edge of the world only is
+superseded by ADR 0063: a kart behind a wall respawns too.
 
 ## Context
 

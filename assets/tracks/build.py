@@ -65,6 +65,8 @@ MATERIALS = {
     # The marshal post's band, in its lamp's orange; a material of its own
     # so the View tells the lamp's face to the track from the band round it.
     "post-band": (1.0, 0.533, 0.0),
+    # The tunnel's lamps, warm and glowing: the one material that emits.
+    "lamp": (1.0, 0.851, 0.541),
     # The style guide's Grandstand and Start gantry entries.
     "stand-riser": (0.843, 0.859, 0.878),
     "stand-plinth": (0.706, 0.729, 0.761),
@@ -110,6 +112,7 @@ MATERIALS.update(
         for ground in ("asphalt", "sand")
     }
 )
+EMISSIVE = frozenset({"lamp"})
 # Deep enough for the lettering to read as a letter from the track and no
 # deeper: every millimetre is more faces on every board.
 TEXT_EXTRUDE_M = 0.03
@@ -136,6 +139,11 @@ def material(name: str) -> bpy.types.Material:
     bsdf = mat.node_tree.nodes["Principled BSDF"]
     bsdf.inputs["Base Color"].default_value = (*(srgb_to_linear(c) for c in srgb), 1.0)
     bsdf.inputs["Roughness"].default_value = 0.9
+    if name in EMISSIVE:
+        # The glTF exporter writes this as the material's emissive colour, so the
+        # lamp reads lit however little of the sun reaches under the roof.
+        bsdf.inputs["Emission Color"].default_value = bsdf.inputs["Base Color"].default_value
+        bsdf.inputs["Emission Strength"].default_value = 1.0
     mat.diffuse_color = (*srgb, 1.0)
     # The glTF exporter writes the material double-sided when culling is off,
     # so a ribbon reads from either side.

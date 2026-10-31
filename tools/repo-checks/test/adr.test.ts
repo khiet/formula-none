@@ -67,6 +67,8 @@ const DECISION_SLUGS = [
   "goldstone-joins-the-courses",
   "the-creator-picks-the-course",
   "the-room-scene-shows-the-course-card",
+  "a-kart-behind-a-wall-respawns",
+  "monarch-joins-the-courses",
 ];
 
 const expectedFiles = DECISION_SLUGS.map(

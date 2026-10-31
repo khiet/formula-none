@@ -85,8 +85,8 @@ class Checkpoints(unittest.TestCase):
                     self.assertAlmostEqual(checkpoint.y, expected.y, places=6)
                     self.assertEqual(checkpoint.half_width, layout.runoff_half_width)
 
-    def test_the_oval_has_twelve_and_bell_deer_and_goldstone_fifteen(self) -> None:
-        for name, count in (("oval", 12), ("bell-deer", 15), ("goldstone", 15)):
+    def test_the_oval_has_twelve_and_every_course_fifteen(self) -> None:
+        for name, count in (("oval", 12), ("bell-deer", 15), ("goldstone", 15), ("monarch", 15)):
             with self.subTest(track=name):
                 self.assertEqual(len(build(load(name)).checkpoints), count)
 

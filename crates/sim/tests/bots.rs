@@ -5,8 +5,8 @@
 mod common;
 
 use common::{
-    bell_deer, goldstone, oval, oval_without_item_boxes, started, ticks, track, with_coins_at,
-    with_slot_at, without_coins, yaw, DT, OVAL, SEED,
+    bell_deer, goldstone, monarch, oval, oval_without_item_boxes, started, ticks, track,
+    with_coins_at, with_slot_at, without_coins, yaw, DT, OVAL, SEED,
 };
 
 use sim::tuning::{
@@ -660,6 +660,15 @@ fn eight_bots_finishing_times(seed: u64, course: Track, seconds: f32) -> Vec<Opt
 }
 
 #[test]
+fn eight_bots_race_the_laps_of_monarch_and_every_one_finishes() {
+    let times = eight_bots_finishing_times(SEED, monarch(), LAPS_PER_RACE as f32 * 90.0);
+    assert!(
+        times.iter().all(Option::is_some),
+        "finishing times: {times:?}"
+    );
+}
+
+#[test]
 fn eight_bots_race_the_laps_of_goldstone_and_every_one_finishes() {
     let times = eight_bots_finishing_times(SEED, goldstone(), LAPS_PER_RACE as f32 * 90.0);
     assert!(
@@ -725,6 +734,7 @@ fn in_200_races_of_eight_bots_on_each_course_no_bot_is_ever_stuck() {
         ("oval", oval as fn() -> Track),
         ("Bell Deer", bell_deer),
         ("Goldstone", goldstone),
+        ("Monarch", monarch),
     ] {
         let races: Vec<_> = (0..200)
             .map(|seed| std::thread::spawn(move || (seed, longest_stall(seed, course()))))
