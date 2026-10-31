@@ -35,7 +35,7 @@ export const HELICOPTER_DIP_DEG = 5;
  * strobe at 60 fps into blades standing still or turning back.
  */
 export const HELICOPTER_MAIN_ROTOR_TURNS_PER_S = 1.5;
-/** Turns a second of the tail rotor, three times the main's, as on the real thing. */
+/** Turns a second of the tail rotor. */
 export const HELICOPTER_TAIL_ROTOR_TURNS_PER_S = 4.5;
 
 /**
@@ -125,11 +125,11 @@ const SPINNING: readonly { node: RegExp; axis: Vector3; turnsPerS: number }[] = 
  * dots from the exported names). Each `Prop.circuit-wheel.<n>.rim` with its
  * `Prop.circuit-wheel.<n>.gondola.<k>` children: the rim turns once per
  * `WHEEL_TURN_MS` about its axle from where the export left it, and each
- * gondola is turned back by the rim's angle so it hangs level. Each flier,
- * `Prop.airship.<n>.hull` and `Prop.helicopter.<n>.body`: it flies once per
- * its period round the circle its radius to its left of where the export
- * left it, turning left, nose along the tangent, the airship level and the
- * helicopter dipped, its children riding with it. Each helicopter's
+ * gondola is turned back by the rim's angle so it hangs level. Each
+ * `Prop.airship.<n>.hull` and `Prop.helicopter.<n>.body`: it flies left once
+ * per its kind's period round a circle of its kind's radius, centred to its
+ * left at rest, nose along the tangent, the airship level and the helicopter
+ * dipped, its children riding with it. Each helicopter's
  * `.main-rotor` and `.tail-rotor` spin about their own mast and axle.
  */
 export function sceneryMotion(track: Object3D): SceneryMotion {
