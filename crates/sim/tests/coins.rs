@@ -18,8 +18,8 @@ use common::{
 use std::f32::consts::FRAC_PI_2;
 
 use sim::tuning::{
-    BOOST_PAD_FACTOR, COINS_LOST_PER_SPIN_OUT, COIN_CAP, COIN_HALF_LENGTH_M, COIN_RESPAWN_S,
-    OFF_TRACK_SPEED_FACTOR, TUNING,
+    BOOST_PAD_FACTOR, COINS_LOST_PER_SPIN_OUT, COIN_CAP, COIN_HALF_LENGTH_M, COIN_HALF_WIDTH_M,
+    COIN_RESPAWN_S, OFF_TRACK_SPEED_FACTOR, TUNING,
 };
 use sim::{step, Item, KartInput, Phase, RaceEvent, State, Surface, Track};
 
@@ -178,8 +178,12 @@ fn a_kart_carrying_a_full_purse_takes_a_coin_from_the_kart_behind_it() {
     assert_eq!(coins(&state, 0), COIN_CAP);
 
     let mut taken_by = Vec::new();
+    let mut behind_crossed_it = false;
     while state.kart_readouts()[2].position[2] > ahead[2] - 2.0 * COIN_HALF_LENGTH_M {
         state = step(state, &inputs, DT);
+        let [bx, _, bz] = state.kart_readouts()[2].position;
+        behind_crossed_it |=
+            (bx - ahead[0]).abs() < COIN_HALF_WIDTH_M && (bz - ahead[2]).abs() < COIN_HALF_LENGTH_M;
         taken_by.extend(pickups(&state).into_iter().map(|event| {
             let RaceEvent::CoinPicked { kart, coin } = event else {
                 unreachable!()
@@ -192,6 +196,10 @@ fn a_kart_carrying_a_full_purse_takes_a_coin_from_the_kart_behind_it() {
         );
     }
 
+    assert!(
+        behind_crossed_it,
+        "the kart behind drove over the coin's spot"
+    );
     assert_eq!(
         taken_by,
         [(0, purse)],
