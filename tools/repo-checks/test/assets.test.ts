@@ -1,4 +1,4 @@
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { listRepoFiles, ROOT, readRepoFile } from "./repo";
@@ -58,6 +58,24 @@ describe("asset licences", () => {
 
   it("say Purrjump was private when the marshal was adapted from it", () => {
     expect(licences).toMatch(/Purrjump \(private at the time of writing\)/);
+  });
+});
+
+// ADR 0069: the music loop runs a minute or more, since the 8 s loop
+// repeated too often to race to. Chrome rejects an ADPCM WAV, so the
+// header is held to plain PCM too.
+describe("music loop", () => {
+  it("is a minute or more of 16-bit mono PCM", () => {
+    const wav = readFileSync(join(ROOT, "assets/audio/music-loop.wav"));
+    // The canonical 44-byte header Python's wave module writes: fmt fields
+    // from byte 20, the data chunk's size at byte 40.
+    const format = wav.readUInt16LE(20);
+    const channels = wav.readUInt16LE(22);
+    const rate = wav.readUInt32LE(24);
+    const bits = wav.readUInt16LE(34);
+    const dataBytes = wav.readUInt32LE(40);
+    expect({ format, channels, bits }).toEqual({ format: 1, channels: 1, bits: 16 });
+    expect(dataBytes / (rate * channels * (bits / 8))).toBeGreaterThanOrEqual(60);
   });
 });
 
