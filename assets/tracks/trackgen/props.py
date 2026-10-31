@@ -280,7 +280,9 @@ HELICOPTER_CLEARANCE_M = 30.0
 # wall flash down each flank, trailing a fixed smoke ribbon that swells from
 # a point at its tail and closes again. The formation is one node with its
 # origin at the leader's nose and its local x along the noses; the View only
-# slides it along that axis, so nothing turns and the colours are flat. Every
+# slides it along that axis. Every colour is flat, as the airship's fins and
+# the helicopter's stripe and fin are: neither kerb red nor ink blue has a
+# shade tone, and one ribbon toned beside two flat ones would not match. Every
 # jet's parts are in metres back from its nose, to the left of its axis and
 # up from it. The layout's prop gives the pass's length, centred on `at`, and
 # the leader's height over the grass; the track tests hold the lowest point,
