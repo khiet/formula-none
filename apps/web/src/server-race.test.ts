@@ -15,6 +15,7 @@ import type {
   FinalStanding,
   HazardSnapshot,
   Input,
+  Item,
   KartSnapshot,
   Room,
   Snapshot,
@@ -365,9 +366,9 @@ describe("createServerRace", () => {
   });
 
   const DT = 1 / TICKS_PER_SECOND;
-  const picked = (id: number, kart: number, itemBox = 2): Event => ({
+  const picked = (id: number, kart: number, itemBox = 2, item: Item | null = "boost"): Event => ({
     id,
-    kind: { itemPicked: { kart, item: "boost", itemBox } },
+    kind: { itemPicked: { kart, item, itemBox } },
   });
   const fired = (id: number, kart: number): Event => ({
     id,
@@ -392,6 +393,15 @@ describe("createServerRace", () => {
       run.tick(IDLE_INPUT, DT);
     }
     expect(run.readout().itemSlot).toEqual({ item: null, firing: false });
+  });
+
+  it("breaks the box a local kart holding an item drives through and leaves its item as it was", () => {
+    const client = fakeClient();
+    const run = createServerRace(bridge, client, COUNTDOWN, 0, "{}");
+    client.event(picked(1, 0));
+    client.event(picked(2, 0, 5, null));
+    expect(run.readout().itemBoxesPresent[5]).toBe(false);
+    expect(run.readout().itemSlot).toEqual({ item: "boost", firing: false });
   });
 
   it("predicts the fire from the press and reconciles it with the server's event", () => {

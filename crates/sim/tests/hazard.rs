@@ -23,7 +23,7 @@ fn holding_a_hazard(humans: usize, holder: usize) -> State {
         let rolled = state.events().iter().any(|event| {
             matches!(
                 event,
-                RaceEvent::ItemPicked { kart, item: Item::Hazard, .. } if *kart == holder
+                RaceEvent::ItemPicked { kart, item: Some(Item::Hazard), .. } if *kart == holder
             )
         });
         if rolled {
@@ -308,7 +308,7 @@ fn a_bot_drops_a_held_hazard_within_the_tuned_time() {
                     event,
                     RaceEvent::ItemPicked {
                         kart: 0,
-                        item: Item::Hazard,
+                        item: Some(Item::Hazard),
                         ..
                     }
                 )

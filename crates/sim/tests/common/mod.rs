@@ -202,6 +202,19 @@ pub fn with_boxes_under(sidecar: &str, slots: impl IntoIterator<Item = usize>) -
     })
 }
 
+/// `sidecar` with one more item box at each of `positions`, facing -Z, in
+/// order after the boxes it had.
+pub fn with_boxes_at(sidecar: &str, positions: impl IntoIterator<Item = [f32; 3]>) -> String {
+    edited(sidecar, |sidecar| {
+        for position in positions {
+            sidecar["item_boxes"]
+                .as_array_mut()
+                .expect("the sidecar lists its boxes")
+                .push(serde_json::json!({ "position": position, "yaw": 0.0 }));
+        }
+    })
+}
+
 /// `sidecar` with no coins, so a test driving over the coins' lines meets
 /// nothing it did not ask for.
 pub fn without_coins(sidecar: &str) -> String {

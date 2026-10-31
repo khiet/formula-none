@@ -689,11 +689,11 @@ async fn an_item_pickup_and_its_fire_are_server_events_the_snapshots_repeat_and_
     };
     let EventKind::ItemPicked {
         kart,
-        item,
+        item: Some(item),
         item_box,
     } = picked.kind
     else {
-        unreachable!()
+        panic!("the first pickup is into an empty slot: {picked:?}")
     };
     assert!(kart >= 1, "a bot took it: {picked:?}");
     let boxes = sim::Track::from_sidecar(OVAL_SIDECAR)

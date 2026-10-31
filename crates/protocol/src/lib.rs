@@ -409,10 +409,11 @@ pub struct Event {
 #[serde(rename_all = "camelCase", rename_all_fields = "camelCase")]
 pub enum EventKind {
     /// `kart` picked up `item_box`, an index into the track's item boxes, which
-    /// is gone until the tuned respawn, and rolled `item` into its slot.
+    /// is gone until the tuned respawn. With its slot empty it rolled `item`
+    /// into it; holding an item it rolled nothing, and `item` is `None`.
     ItemPicked {
         kart: u8,
-        item: Item,
+        item: Option<Item>,
         item_box: u8,
     },
     /// `kart` fired `item`; its slot is empty again.

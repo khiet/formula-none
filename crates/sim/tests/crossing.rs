@@ -135,7 +135,7 @@ fn a_projectile_flying_over_the_crossing_keeps_its_own_legs_height() {
                     event,
                     RaceEvent::ItemPicked {
                         kart: 1,
-                        item: Item::Homing,
+                        item: Some(Item::Homing),
                         ..
                     }
                 )
