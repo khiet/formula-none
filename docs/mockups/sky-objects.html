@@ -1,0 +1,233 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Sky Objects</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Bungee&family=Inter:wght@400;600&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #121316;
+    --card: #1b1d21;
+    --fg: #e8e8ea;
+    --muted: #8a8d94;
+    --rule: #2a2c31;
+    --code-bg: #24272c;
+    --poster-red: #c81d25;
+    --go-green: #3ddc84;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--fg); font: 15px/1.55 Inter, system-ui, sans-serif; }
+  body { padding: 2rem 16px 4rem; }
+  .wrap { max-width: 1080px; margin: 0 auto; }
+  h1 { font: 1.9rem/1.1 Bungee, Impact, sans-serif; margin: 0 0 .5rem; letter-spacing: .02em; }
+  h1 span { color: var(--poster-red); }
+  h2 { font: 1.25rem/1.2 Bungee, Impact, sans-serif; margin: 2.5rem 0 .2rem; }
+  h2 small { font: 600 .95rem Inter, sans-serif; color: var(--go-green); margin-left: .5rem; }
+  p { margin: .4rem 0; }
+  .lede { color: var(--muted); max-width: 80ch; }
+  code { font: .85em ui-monospace, SFMono-Regular, Menlo, monospace; background: var(--code-bg); padding: .05rem .3rem; border-radius: 3px; }
+  .card { background: var(--card); border: 1px solid var(--rule); border-radius: 12px; padding: 1rem 1.1rem 1.1rem; margin-top: .8rem; }
+  .views { display: grid; gap: .8rem; grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr)); align-items: start; }
+  figure { margin: 0; }
+  figcaption { color: var(--muted); font-size: .82rem; margin: 0 0 .3rem; }
+  svg { display: block; width: 100%; height: auto; border-radius: 8px; }
+  .detail { background: #87ceeb; }
+  dl { display: grid; grid-template-columns: max-content 1fr; gap: .25rem .8rem; margin: 1rem 0 0; font-size: .9rem; }
+  dt { color: var(--muted); }
+  dd { margin: 0; }
+  .swatches { display: flex; flex-wrap: wrap; gap: .4rem .9rem; margin: .9rem 0 0; font-size: .82rem; color: var(--muted); }
+  .swatches span { display: inline-flex; align-items: center; gap: .35rem; }
+  .swatches i { width: .9rem; height: .9rem; border-radius: 3px; border: 1px solid #0006; display: inline-block; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Sky <span>Objects</span></h1>
+  <p class="lede">The flying prop for each course that has none yet, chosen from six candidates (the earlier version of this page, in git history). Bell Deer keeps its airship. Each prop follows the airship's rules from ADR 0050 and <code>scenery-motion.ts</code>: it is scenery on the View's own clock, the sim never sees it, it has no shadow and no sound, its lowest point stays 30 m over every road, and it wears only sponsors already in <code>sponsors.py</code>.</p>
+
+  <h2>Monarch <small>Helicopter</small></h2>
+  <div class="card">
+    <div class="views">
+      <figure><figcaption>Race View sky over the harbour and casino</figcaption>
+        <svg class="stage" viewBox="0 0 480 220" data-scene="monarch" data-object="helicopter" role="img" aria-label="A white and red helicopter crossing the sky over the harbour and casino"></svg></figure>
+      <figure><figcaption>Side on, nose to the right</figcaption>
+        <svg class="detail" data-object="helicopter" role="img" aria-label="The helicopter side on: white body, red belly stripe, tail fin and BOX BOX BOX LOGISTICS lettering"></svg></figure>
+    </div>
+    <p class="lede">A white helicopter on a slow orbit between the casino and the harbour mouth, its rotors always turning. It is red and white, the colours of the real principality, and those reds are already the course's own: the <code>kerb-red</code> of its kerbs on the belly stripe and the fin. The sponsor is BOX BOX BOX LOGISTICS because its ink is red; a sponsor's ink comes with its name, so a red helicopter cannot wear LATE BRAKING BANK.</p>
+    <dl>
+      <dt>Size</dt><dd>12.8 m long, 11 m rotor</dd>
+      <dt>Flies</dt><dd>Once round every 2 min at 35 m, nose dipped 5&deg;</dd>
+      <dt>Moves</dt><dd>Main and tail rotors turn, the same kind of motion as the Circuit Wheel's rim</dd>
+      <dt>Wears</dt><dd>BOX BOX BOX LOGISTICS on the cabin, <code>ink-red</code></dd>
+      <dt>Build</dt><dd>The cabin, boom and fin in <code>props.py</code>. Two rotor nodes for <code>scenery-motion.ts</code> to turn, found by name like the wheel's rim.</dd>
+    </dl>
+    <div class="swatches">
+      <span><i style="background:#f0f0f0"></i><code>wall</code> body</span>
+      <span><i style="background:#9aa0a8"></i><code>beam-shade</code> underside</span>
+      <span><i style="background:#d63b2e"></i><code>kerb-red</code> stripe, fin</span>
+      <span><i style="background:#2b2e33"></i><code>carbon</code> glass, skids, rotors</span>
+      <span><i style="background:#cc2929"></i><code>ink-red</code> lettering</span>
+    </div>
+  </div>
+
+  <h2>Goldstone <small>Display jets</small></h2>
+  <div class="card">
+    <div class="views">
+      <figure><figcaption>Race View sky over the hangars and pits</figcaption>
+        <svg class="stage" viewBox="0 0 480 220" data-scene="goldstone" data-object="jets" role="img" aria-label="Three red jets in formation trailing blue, white and red smoke over the hangars"></svg></figure>
+      <figure><figcaption>Side on, nose to the right</figcaption>
+        <svg class="detail" data-object="jets" role="img" aria-label="The three display jets side on, each trailing a smoke ribbon"></svg></figure>
+    </div>
+    <p class="lede">Three red display jets in an arrowhead, each trailing a smoke ribbon, over the old airfield's hangars. It makes a fast flypast every lap or so, not a slow drift.</p>
+    <dl>
+      <dt>Size</dt><dd>9 m jets, 50 m smoke ribbons</dd>
+      <dt>Flies</dt><dd>Once round a wide circle every 45 s at 60 m</dd>
+      <dt>Moves</dt><dd>The whole formation; the smoke is fixed ribbons that ride with it, not particles</dd>
+      <dt>Wears</dt><dd>No lettering (it is too small at 60 m)</dd>
+      <dt>Build</dt><dd>Three small hulls plus ribbons under one node, flown on the airship's circle.</dd>
+    </dl>
+    <div class="swatches">
+      <span><i style="background:#d63b2e"></i><code>kerb-red</code> jets</span>
+      <span><i style="background:#f0f0f0"></i><code>wall</code> flash, lead smoke</span>
+      <span><i style="background:#2b2e33"></i><code>carbon</code> canopy</span>
+      <span><i style="background:#1f54c7"></i><code>ink-blue</code> upper smoke</span>
+      <span><i style="background:#d63b2e"></i><code>kerb-red</code> lower smoke</span>
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+  // Palette names from build.py MATERIALS and the style guide, sRGB.
+  const C = {
+    sky: "#87ceeb", wall: "#f0f0f0", shade: "#9aa0a8", beamTop: "#c9ced5", riser: "#d7dbe0", plinth: "#b4bac2",
+    kerbRed: "#d63b2e", carbon: "#2b2e33", carbonLit: "#3a3e45", inkBlue: "#1f54c7", inkRed: "#cc2929",
+    water: "#2a6fb0", stucco: "#f4e6c6", stuccoShade: "#a39984", copper: "#63ae97", canopy: "#5cb04a",
+  };
+  const FONT = "'Kenney Mini Square', ui-monospace, monospace";
+  const poly = (pts, fill, extra = "") => `<polygon points="${pts.map((p) => p.join(",")).join(" ")}" fill="${fill}" ${extra}/>`;
+  const rect = (x0, y0, x1, y1, fill) => `<rect x="${Math.min(x0, x1)}" y="${Math.min(y0, y1)}" width="${Math.abs(x1 - x0)}" height="${Math.abs(y1 - y0)}" fill="${fill}"/>`;
+  const line = (x0, y0, x1, y1, stroke, w) => `<line x1="${x0}" y1="${y0}" x2="${x1}" y2="${y1}" stroke="${stroke}" stroke-width="${w}" stroke-linecap="round"/>`;
+  const label = (x, y, size, fill, text, length) => `<text x="${x}" y="${y}" font-family="${FONT}" font-size="${size}" fill="${fill}" text-anchor="middle" textLength="${length}" lengthAdjust="spacingAndGlyphs">${text}</text>`;
+  // A rotor seen side on: a blade line the animation foreshortens about its hub.
+  const rotor = (cx, cy, half, w) => `<g class="rotor" data-cx="${cx}" data-cy="${cy}"><line x1="${-half}" y1="0" x2="${half}" y2="0" stroke="${C.carbon}" stroke-width="${w}" stroke-linecap="round"/></g>`;
+
+  // Each object in metres, nose to the right at x = 0, up is -y. `box` is
+  // [minX, minY, maxX, maxY] for the still; `scale`, `y` and `period` place it in the stage.
+  const OBJECTS = {
+    helicopter: {
+      box: [-13.8, -5.2, 6, 1.6], scale: 6.5, y: 84, period: 13000, bob: 5,
+      svg: () => [
+        poly([[-5.8, -2.9], [-12, -2.75], [-12, -2.25], [-5.8, -1.6]], C.wall),
+        poly([[-5.8, -1.6], [-12, -2.25], [-12, -2.45], [-5.8, -2.0]], C.shade),
+        poly([[-11, -2.6], [-12.3, -2.6], [-12.9, -4.6], [-12.1, -4.6]], C.kerbRed),
+        `<circle class="prop" cx="-12.4" cy="-3.2" r="1.05" fill="${C.carbon}" opacity=".3"/>`,
+        poly([[0, -1.2], [-0.8, -2.6], [-2.4, -3.4], [-5.2, -3.4], [-6, -2.6], [-6, -0.6], [-4.8, 0], [-1.2, 0]], C.wall),
+        poly([[-1.2, 0], [-4.8, 0], [-6, -0.6], [-6, -1.0], [-4.6, -0.45], [-0.9, -0.45], [0, -1.2]], C.shade),
+        poly([[-0.25, -1.5], [-0.9, -2.5], [-2.3, -3.05], [-2.55, -1.55]], C.carbon),
+        rect(-4.9, -2.9, -3.1, -1.9, C.carbon),
+        rect(-6, -1.6, -0.3, -1.15, C.kerbRed),
+        label(-3.0, -0.2, 0.42, C.inkRed, "BOX BOX BOX LOGISTICS", 5.2),
+        rect(-3.3, -4.05, -2.7, -3.4, C.carbon),
+        line(-1.4, 0.4, -1.2, 0, C.carbon, 0.16), line(-4.6, 0.4, -4.8, 0, C.carbon, 0.16),
+        line(-0.4, 0.45, -5.8, 0.45, C.carbon, 0.22),
+        rotor(-3, -4.1, 5.5, 0.28),
+      ].join(""),
+    },
+    jets: {
+      box: [-72, -9, 1.5, 7], scale: 3.2, y: 66, period: 7000, bob: 1.5,
+      svg: () => {
+        const jet = (dx, dy, smoke) => {
+          const T = (pts) => pts.map(([x, y]) => [x + dx, y + dy]);
+          return [
+            poly(T([[-9, -0.9], [-56, -2.4], [-60, -0.6], [-56, 1.0]]), smoke, `opacity=".85"`),
+            poly(T([[-7, -1.4], [-8.8, -1.4], [-9.4, -3.6], [-8.4, -3.6]]), C.kerbRed),
+            poly(T([[0, -0.8], [-2, -1.4], [-3, -1.9], [-4.2, -1.9], [-8, -1.3], [-9, -1.3], [-9, -0.3], [-1, -0.2]]), C.kerbRed),
+            poly(T([[-1, -0.6], [-9, -0.85], [-9, -0.6], [-1, -0.4]]), C.wall),
+            poly(T([[-1.6, -1.4], [-2.6, -2.25], [-4, -2.25], [-4.2, -1.9]]), C.carbon),
+            poly(T([[-2.6, -2.25], [-3.3, -2.25], [-3.1, -2.0]]), C.carbonLit),
+          ].join("");
+        };
+        return jet(-12, -4.5, C.inkBlue) + jet(-12, 4.5, C.kerbRed) + jet(0, 0, C.wall);
+      },
+    },
+  };
+
+  // The course under the stage: harbour and casino for Monarch, hangars and pits for Goldstone.
+  const SCENES = {
+    monarch: () => {
+      let yachts = "";
+      for (const [x0, len] of [[24, 34], [96, 46], [190, 30]]) {
+        yachts += poly([[x0, 176], [x0 + len, 176], [x0 + len * 0.95, 181], [x0 + len * 0.7, 184], [x0, 184]], C.wall);
+        yachts += rect(x0 + len * 0.2, 171, x0 + len * 0.65, 176, C.wall) + rect(x0 + len * 0.22, 172.5, x0 + len * 0.63, 174.5, C.carbon);
+      }
+      return [
+        rect(0, 0, 480, 220, C.sky),
+        rect(0, 172, 480, 220, C.water),
+        rect(330, 128, 450, 186, C.stucco), rect(330, 128, 450, 134, C.stuccoShade),
+        poly([[372, 128], [376, 114], [390, 106], [404, 114], [408, 128]], C.copper),
+        rect(338, 142, 350, 160, C.stuccoShade), rect(360, 142, 372, 160, C.stuccoShade), rect(408, 142, 420, 160, C.stuccoShade), rect(430, 142, 442, 160, C.stuccoShade),
+        yachts,
+        rect(0, 196, 480, 200, C.beamTop), rect(0, 200, 480, 220, C.plinth),
+      ].join("");
+    },
+    goldstone: () => {
+      let sheds = "";
+      for (let k = 0; k < 3; k++) {
+        const x0 = 28 + k * 78, w = 66;
+        const arc = [];
+        for (let i = 0; i <= 6; i++) arc.push([x0 + w / 2 - (w / 2) * Math.cos((i * Math.PI) / 6), 186 - 30 * Math.sin((i * Math.PI) / 6)]);
+        sheds += poly([[x0 + w, 186], [x0, 186], ...arc], C.beamTop);
+        sheds += rect(x0 + w * 0.22, 168, x0 + w * 0.78, 186, C.carbon);
+      }
+      return [
+        rect(0, 0, 480, 220, C.sky),
+        rect(0, 186, 480, 220, C.canopy),
+        sheds,
+        rect(300, 166, 470, 186, C.wall), rect(300, 162, 470, 166, C.riser),
+        rect(310, 172, 460, 180, C.carbon),
+        rect(0, 200, 480, 220, "#6b6b78"),
+      ].join("");
+    },
+  };
+
+  const stages = [];
+  for (const svg of document.querySelectorAll("svg.stage")) {
+    const o = OBJECTS[svg.dataset.object];
+    svg.innerHTML = SCENES[svg.dataset.scene]() + `<g class="mover">${o.svg()}</g>`;
+    stages.push({ o, mover: svg.querySelector(".mover"), phase: Math.random() });
+  }
+  for (const svg of document.querySelectorAll("svg.detail")) {
+    const o = OBJECTS[svg.dataset.object];
+    const [x0, y0, x1, y1] = o.box, w = x1 - x0, h = y1 - y0;
+    // A 5 m scale bar along the foot, so every still reads in metres.
+    const bar = `<g opacity=".7">${line(x0 + 0.6, y1 - 0.5, x0 + 5.6, y1 - 0.5, C.carbon, w / 160)}<text x="${x0 + 6.1}" y="${y1 - 0.5 + w / 120}" font-family="Inter, sans-serif" font-size="${w / 30}" fill="${C.carbon}">5 m</text></g>`;
+    svg.setAttribute("viewBox", `${x0} ${y0} ${w} ${h}`);
+    svg.style.aspectRatio = "480 / 220";
+    svg.setAttribute("preserveAspectRatio", "xMidYMid meet");
+    svg.innerHTML = o.svg() + bar;
+  }
+
+  const still = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const frame = (now) => {
+    for (const s of stages) {
+      const { o } = s;
+      const w = (o.box[2] - o.box[0]) * o.scale;
+      const t = still ? 0.55 : (now / o.period + s.phase) % 1;
+      const x = -40 + t * (480 + w + 40);
+      const y = o.y + (still ? 0 : Math.sin((now / 2600) * Math.PI * 2) * o.bob);
+      s.mover.setAttribute("transform", `translate(${x} ${y}) scale(${o.scale})`);
+      for (const r of s.mover.querySelectorAll(".rotor")) {
+        r.setAttribute("transform", `translate(${r.dataset.cx} ${r.dataset.cy}) scale(${Math.abs(Math.cos(now / 70))} 1)`);
+      }
+      for (const p of s.mover.querySelectorAll(".prop")) p.setAttribute("opacity", 0.2 + 0.25 * Math.abs(Math.sin(now / 40)));
+    }
+    if (!still) requestAnimationFrame(frame);
+  };
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
