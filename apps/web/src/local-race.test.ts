@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { loadBridge } from "./bridge";
 import { IDLE_INPUT } from "./input";
 import { localRaceRun } from "./local-race";
-import { EMPTY_SLOT, ITEM_LANDING_FLASH_S, type RaceRun } from "./race-run";
+import { EMPTY_SLOT, ITEM_FIRE_FLASH_S, ITEM_LANDING_FLASH_S, type RaceRun } from "./race-run";
 
 // The real wasm build, as bridge.test.ts loads it; `pnpm build:bridge`
 // must have run first.
@@ -63,6 +63,20 @@ describe("localRaceRun's item slot", () => {
     });
     for (let tick = 0; tick < ITEM_LANDING_FLASH_S * 60; tick++) run.tick(IDLE_INPUT, DT);
     expect(run.readout().itemSlot).toEqual({ ...EMPTY_SLOT, item: rolled, boxesTaken: 1 });
+  });
+
+  it("shows the fire for the flash as a landed item is fired, and none for a press while it rolls", async () => {
+    const bridge = await loadBridge(wasm);
+    const run = localRaceRun(bridge, "oval", boxesUnderTheGrid(1));
+    started(run);
+    run.tick(IDLE_INPUT, DT);
+    run.tick({ ...IDLE_INPUT, useItem: true }, DT);
+    expect(run.readout().itemSlot.firing).toBe(false);
+    while (run.readout().itemSlot.item === null) run.tick(IDLE_INPUT, DT);
+    run.tick({ ...IDLE_INPUT, useItem: true }, DT);
+    expect(run.readout().itemSlot).toMatchObject({ item: null, rolling: null, firing: true });
+    for (let tick = 0; tick < ITEM_FIRE_FLASH_S * 60; tick++) run.tick(IDLE_INPUT, DT);
+    expect(run.readout().itemSlot.firing).toBe(false);
   });
 
   it("counts a box taken into a full slot, which rolls nothing", async () => {

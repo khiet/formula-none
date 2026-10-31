@@ -400,7 +400,7 @@ describe("the connection banner", () => {
 });
 
 describe("the item slot", () => {
-  it("names the item held, in a state that says whether it is being fired", () => {
+  it("names the item once it lands, in a state that says whether it rolls or is being fired", () => {
     expect(itemReadout({ ...EMPTY_SLOT, item: null, firing: false })).toEqual({
       text: "",
       state: "empty",
@@ -421,6 +421,9 @@ describe("the item slot", () => {
       text: "",
       state: "firing",
     });
+    // Rolling, the slot names nothing until the item lands.
+    const rolling = { item: "boost" as const, elapsedS: 1, rollS: 2.5 };
+    expect(itemReadout({ ...EMPTY_SLOT, rolling })).toEqual({ text: "", state: "rolling" });
   });
 
   it("shows the slot the run reports on every update", () => {
@@ -494,13 +497,6 @@ describe("the item slot", () => {
     const reel = () => slot?.querySelector<HTMLElement>("[data-item-reel]") ?? null;
     return { slot, show, reel };
   };
-
-  it("names the slot rolling while an item rolls in it, with no name till it lands", () => {
-    expect(itemReadout({ ...EMPTY_SLOT, rolling: ROLLING })).toEqual({
-      text: "",
-      state: "rolling",
-    });
-  });
 
   it("runs the reel through the items while one rolls, scrolled by the roll's time, stopping on it", () => {
     const { slot, show, reel } = mountSlot();
