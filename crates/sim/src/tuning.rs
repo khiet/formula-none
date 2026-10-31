@@ -183,7 +183,7 @@ pub const DRIFT_TURN_NEUTRAL: f32 = 1.0;
 pub const DRIFT_TURN_STEER_RANGE: f32 = 0.5;
 /// How much a full brake tightens a drift's turn on top of the steer, as a
 /// multiple of full lock: the brake drift. A partial brake tightens in
-/// proportion. A first guess, to be tuned by feel on the Suzuka hairpin.
+/// proportion.
 pub const DRIFT_TURN_BRAKE: f32 = 0.5;
 /// Radians between where a drifting kart points and where it travels; the
 /// nose leads into the corner by this much.

@@ -175,8 +175,7 @@ drift. Holding a drift charges a mini-turbo.
 Braking during a drift: the brake tightens the drift's turn on top of the steer,
 in proportion to how hard it is held, and the mini-turbo keeps charging. It
 still slows the kart, so held too long it takes the drift under 40 percent of
-top speed, which ends the drift and loses its charge. Q brakes as S does, so
-the throttle can stay held through it.
+top speed, which ends the drift and loses its charge.
 
 ### mini-turbo
 

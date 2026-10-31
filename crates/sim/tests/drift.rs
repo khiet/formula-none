@@ -403,8 +403,9 @@ fn braking_in_a_drift_turns_it_tighter_than_the_speed_lost_alone_and_keeps_charg
     let seconds = 0.25;
     let plain = measured_yaw_rate(drifting_right(), brake_drift_right(0.0), seconds);
     let braked = measured_yaw_rate(drifting_right(), brake_drift_right(1.0), seconds);
-    // The speed a quarter second of brake costs turns the kart only a few
-    // percent faster on its own; the brake drift turns it much faster.
+    // Clockwise is negative, so tighter is more negative. The speed a quarter
+    // second of brake costs turns the kart about 3 percent faster on its own
+    // (measured with no brake drift); the brake drift turns it much faster.
     assert!(
         braked < 1.2 * plain,
         "clockwise and tighter: {braked} vs {plain} rad/s"

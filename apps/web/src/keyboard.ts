@@ -14,8 +14,8 @@ type Action = "left" | "right" | "throttle" | "brake" | "hop" | "item" | "lookBe
 
 /**
  * Arrows or WASD drive, space hops, shift is the item button, E looks
- * behind. Q brakes too, so the throttle can stay held: W and S share a
- * finger, and a brake drift needs both. Letters are lower case here.
+ * behind. Q brakes too, so the throttle can stay held through a brake drift:
+ * W and S share a finger. Letters are lower case here.
  */
 const KEY_ACTIONS: ReadonlyMap<string, Action> = new Map([
   ["ArrowLeft", "left"],
