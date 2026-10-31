@@ -50,7 +50,7 @@ describe("CONTRIBUTING.md", () => {
 describe("SECURITY.md", () => {
   const security = readRepoProse("SECURITY.md");
 
-  // A public address draws spam; GitHub's private reporting needs none.
+  // GitHub's private reporting needs no address, so the file publishes none.
   it("routes reports through GitHub's private vulnerability reporting, with no address", () => {
     expect(security).toContain("/security/advisories/new");
     expect(security).not.toMatch(/[\w.+-]+@[\w-]+\.[\w.]+/);
