@@ -243,6 +243,7 @@ YACHT_FREEBOARD_M = 1.4
 YACHT_CABIN = (0.2, 0.65, 1.0, 1.3)
 """From and to as shares of the length from the stern, inset from each side, and tall."""
 YACHT_FLYBRIDGE = (0.3, 0.55, 1.6, 0.9)
+"""As the cabin's, standing on its roof."""
 YACHT_WINDOW_BAND = (0.35, 0.8)
 """The cabin's window band, from and to as shares of its height."""
 YACHT_WINDOW_PROUD_M = 0.03
@@ -274,7 +275,7 @@ CASINO_DOOR_WIDTH_M = 4.0
 CASINO_DOOR_HEIGHT_M = 5.0
 CASINO_WINDOW_WIDTH_M = 1.6
 CASINO_WINDOWS_AT_M = (4.5, 8.5, 12.5)
-"""Each window's middle from the door's, either way along the front."""
+"""Each window's middle from the door's, either way along the front, all clear of the door."""
 CASINO_WINDOW_ROWS = ((1.5, 5.0), (7.0, 10.5))
 """Each row's sill and head."""
 CASINO_PANEL_PROUD_M = 0.05
@@ -609,6 +610,9 @@ def _harbour_footprint(layout: Layout, prop: Prop) -> list[Footprint]:
 
 
 def _casino_footprint(layout: Layout, prop: Prop) -> list[Footprint]:
+    """The casino's plan. It stands on the lap, since its terrace rises to the road's height there."""
+    if not isinstance(prop.at, Spot):
+        raise ValueError("the casino stands on a spot on the lap")
     x, y, heading = locate(layout, prop.at)
     return [Footprint(prop.kind, x, y, PROP_WALL_CLEARANCE_M, heading=heading, half_along=CASINO_LENGTH_M / 2.0, half_across=CASINO_DEPTH_M / 2.0)]
 
@@ -1074,7 +1078,8 @@ def harbour(layout: Layout, prop: Prop, number: int, still: ByMaterial) -> tuple
     def at(u: float, v: float) -> tuple[float, float]:
         return plan.x + u * along[0] + v * across[0], plan.y + u * along[1] + v * across[1]
 
-    # Each quay as (its inner edge's middle, the way into the basin, the way along it, its inner length).
+    # Each quay in the basin's frame as (its inner edge's middle, the way into the basin, the
+    # way along it, its inner length).
     quays = [
         ((0.0, inner_b), (0.0, -1.0), (1.0, 0.0), 2.0 * inner_a),
         ((0.0, -inner_b), (0.0, 1.0), (1.0, 0.0), 2.0 * inner_a),
@@ -1082,18 +1087,18 @@ def harbour(layout: Layout, prop: Prop, number: int, still: ByMaterial) -> tuple
         ((-inner_a, 0.0), (1.0, 0.0), (0.0, 1.0), 2.0 * inner_b),
     ]
 
-    def to_lap(quay: tuple) -> float:
+    def to_lap(quay: tuple[tuple[float, float], ...]) -> float:
         x, y = at(*quay[0])
         return min(math.dist((x, y), (q.x, q.y)) for q in layout.path.samples)
 
     number_moored = 0
-    for (mu, mv), (iu, iv), (lu, lv), length in sorted(quays, key=to_lap)[:YACHT_MOORED_QUAYS]:
+    for middle, inward, sideways, length in sorted(quays, key=to_lap)[:YACHT_MOORED_QUAYS]:
         count = int((length - 2.0 * YACHT_CORNER_CLEAR_M) // YACHT_PITCH_M) + 1
         for k in range(count):
             along_quay = (k - (count - 1) / 2.0) * YACHT_PITCH_M
-            stern = (mu + iu * YACHT_OFF_QUAY_M + lu * along_quay, mv + iv * YACHT_OFF_QUAY_M + lv * along_quay)
+            stern = tuple(middle[i] + inward[i] * YACHT_OFF_QUAY_M + sideways[i] * along_quay for i in range(2))
             sx, sy = at(*stern)
-            fx, fy = at(stern[0] + iu, stern[1] + iv)
+            fx, fy = at(stern[0] + inward[0], stern[1] + inward[1])
             fore = (fx - sx, fy - sy)
             _yacht(still, (sx, sy, ground + sea), fore, YACHT_LENGTHS_M[number_moored % len(YACHT_LENGTHS_M)])
             number_moored += 1
@@ -1106,7 +1111,7 @@ def casino(layout: Layout, prop: Prop, number: int, still: ByMaterial) -> tuple[
     and drum toned against stucco shade, the roofs, pyramids and dome in copper toned against
     copper shade, and a carbon door and windows just proud of the front. No lettering."""
     (plan,) = _casino_footprint(layout, prop)
-    road = elevation(layout.elevation, prop.at.s) if isinstance(prop.at, Spot) else 0.0
+    road = elevation(layout.elevation, prop.at.s)
     grass = -GRASS_DROP_M
     terrace = road + grass
     along, across = _facing_frame(prop, plan.heading)
@@ -1164,8 +1169,6 @@ def casino(layout: Layout, prop: Prop, number: int, still: ByMaterial) -> tuple[
     for middle in CASINO_WINDOWS_AT_M:
         for side in (-1.0, 1.0):
             for sill, head in CASINO_WINDOW_ROWS:
-                if sill < CASINO_DOOR_HEIGHT_M and abs(middle) < CASINO_DOOR_WIDTH_M:
-                    continue
                 m = side * middle
                 panels.append((m - CASINO_WINDOW_WIDTH_M / 2.0, m + CASINO_WINDOW_WIDTH_M / 2.0, sill, head))
     for a0, a1, c0, c1 in panels:
@@ -1207,7 +1210,7 @@ def _yacht(still: ByMaterial, stern: mesh.Vertex, fore: tuple[float, float], len
     sill, head = YACHT_FREEBOARD_M + tall * YACHT_WINDOW_BAND[0], YACHT_FREEBOARD_M + tall * YACHT_WINDOW_BAND[1]
     a0, a1 = start * length - YACHT_WINDOW_PROUD_M, end * length + YACHT_WINDOW_PROUD_M
     b0, b1 = inset - half - YACHT_WINDOW_PROUD_M, half - inset + YACHT_WINDOW_PROUD_M
-    band = _block(point(0.0, 0.0, 0.0), ahead, port, (a0, a1), (b0, b1), (sill - YACHT_FREEBOARD_M, head - YACHT_FREEBOARD_M))
+    band = _block(point(0.0, 0.0, 0.0), ahead, port, (a0, a1), (b0, b1), (sill, head))
     _sides(band, "carbon", still)
 
 

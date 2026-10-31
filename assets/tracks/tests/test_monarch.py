@@ -270,6 +270,13 @@ class Harbour(unittest.TestCase):
             self.assertTrue(lo[0] < x < hi[0] and lo[1] < y < hi[1], (x, y))
             self.assertTrue(sea <= z < sea + GRANDSTAND_CANOPY_BOTTOM_M)
 
+    def test_every_yachts_windows_band_its_cabin_over_the_hull(self) -> None:
+        sea = self.water.mesh[0][0][2]
+        windows = [z - sea for *_, z in self.pieces[f"{HARBOUR}.carbon"].mesh[0]]
+        # The hull's freeboard is 1.4 m and the cabin on it 1.3 m tall.
+        self.assertGreater(min(windows), 1.4)
+        self.assertLess(max(windows), 1.4 + 1.3)
+
     def test_it_refuses_a_layout_that_gives_no_size(self) -> None:
         for prop in (Prop("harbour", World(160.0, -20.0)), Prop("harbour", World(160.0, -20.0), length=100.0)):
             short = replace(self.layout, decor=replace(self.layout.decor, props=[prop]))
@@ -325,6 +332,11 @@ class Casino(unittest.TestCase):
 
     def test_it_letters_nothing(self) -> None:
         self.assertFalse(any(t.name.startswith(f"{CASINO}.") for t in build(self.layout).lettering))
+
+    def test_it_refuses_a_place_off_the_lap_since_its_terrace_reads_the_road(self) -> None:
+        astray = replace(self.layout, decor=replace(self.layout.decor, props=[Prop("casino", World(140.0, 260.0))]))
+        with self.assertRaises(ValueError):
+            build(astray)
 
 
 if __name__ == "__main__":

@@ -123,9 +123,8 @@ is placed by hand. Pines are two six-sided cones, round trees and
 cherries eight-facet lumps, each in a lit and a shade tone on a
 four-sided trunk, flat on the grass. The Circuit Wheel, the arch over
 Dunlop, the pit building, the airship and Monarch's harbour and casino are
-props too: a tree keeps its
-canopy out of a prop's footprint, and a tall prop keeps 8 m of grass from
-every wall. A span is held to the span rule instead: the arch's underside
+props too: a tree keeps its canopy out of a prop's footprint, and a tall
+prop keeps 8 m of grass from every wall. A span is held to the span rule instead: the arch's underside
 keeps the gantry's 7 m over the asphalt and its feet stand on grass
 beyond the walls. The airship has no footprint: it circles its `Prop`'s
 `at` at its `radius`, `height` metres over the grass, and keeps 30 m over
