@@ -335,6 +335,16 @@ describe("Monarch's tunnel", () => {
   });
 });
 
+describe("Monarch's harbour and casino", () => {
+  it("draws the harbour's water and yachts and the casino's stucco and copper", () => {
+    const gltf = track("monarch");
+    expect(materialsOf(gltf, "Prop.harbour.water")).toEqual(["water"]);
+    expect(materialsOf(gltf, "Prop.harbour.carbon")).toEqual(["carbon"]);
+    expect(materialsOf(gltf, "Prop.casino.stucco")).toEqual(["stucco"]);
+    expect(materialsOf(gltf, "Prop.casino.copper")).toEqual(["copper"]);
+  });
+});
+
 describe("glowing materials", () => {
   it.each(TRACK_NAMES)("%s glows only in the tunnel's lamps, if it has a tunnel", (name) => {
     const glowing = (track(name).materials ?? [])

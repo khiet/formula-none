@@ -122,7 +122,8 @@ or 5 m of another, so the same layout exports the same trees and no tree
 is placed by hand. Pines are two six-sided cones, round trees and
 cherries eight-facet lumps, each in a lit and a shade tone on a
 four-sided trunk, flat on the grass. The Circuit Wheel, the arch over
-Dunlop, the pit building and the airship are props too: a tree keeps its
+Dunlop, the pit building, the airship and Monarch's harbour and casino are
+props too: a tree keeps its
 canopy out of a prop's footprint, and a tall prop keeps 8 m of grass from
 every wall. A span is held to the span rule instead: the arch's underside
 keeps the gantry's 7 m over the asphalt and its feet stand on grass
@@ -138,7 +139,11 @@ turns and flies them from the View's clock. The arch's sponsor is a
 Blender's text on curve; the airship's is a `Lettering` with a `parent`,
 which `build.py` hangs under the hull's node so it rides with it; the pit
 building's eight doors and flags take the crowd's key colours, each door
-with a band in the key's lit tone, and no number.
+with a band in the key's lit tone, and no number. The harbour is a basin a
+`Prop`'s `length` along its heading and `width` across, its water a hair
+over the grass inside a raised quay, its yachts moored along the two quays
+nearest the lap; the casino stands on a terrace up to the road's height at
+its spot, so it is level with Casino Square's crest.
 Original names only; nothing may resemble a real sponsor, a Nintendo
 character or circuit (ADR 0007), and no kart carries a sponsor (ADR 0038).
 
