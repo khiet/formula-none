@@ -193,9 +193,9 @@ centreline. Also the count a kart carries, from none at the lights to a
 full purse of ten. A kart whose centre is on a coin takes it unless it is
 spun out; with a full purse its count holds, but the coin is still gone, so
 a kart in front denies it to the karts behind. A taken coin is gone for
-three seconds and comes back. Each coin carried raises the kart's top speed by 1%, so a full
-purse cruises at 33 m/s, and every spin-out costs three, or all the kart
-has; lost coins vanish, and the View sprays them out of the kart, where
+three seconds and comes back. Each coin carried raises the kart's top
+speed by 1%, so a full purse cruises at 33 m/s, and every spin-out costs
+three, or all the kart has; lost coins vanish, and the View sprays them out of the kart, where
 nothing can pick them up. The server holds the count: a pickup and a loss
 are server events, and the snapshots carry the count and the coins there
 to pick up (ADR 0056, ADR 0067).
