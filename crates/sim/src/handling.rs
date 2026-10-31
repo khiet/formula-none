@@ -696,6 +696,33 @@ mod tests {
     }
 
     #[test]
+    fn a_drift_over_a_crest_lands_with_the_charge_it_took_off_with() {
+        let mut handling = drifting_right();
+        ticks(&mut handling, hop_right(), 10);
+        let over_the_crest = Situation {
+            on_the_ground: false,
+            ..asphalt()
+        };
+        // The tick the road drops away still began on it, and charges.
+        handling.tick(&hop_right(), Freeze::Free, over_the_crest, TICK_S);
+        let before = handling.drift.expect("drifting").charge_s;
+        for _ in 0..10 {
+            handling.tick(&hop_right(), Freeze::Free, over_the_crest, TICK_S);
+        }
+        assert!(handling.airborne(), "off the road over the crest");
+
+        tick(&mut handling, hop_right());
+
+        assert_eq!(
+            handling.drift,
+            Some(Drift {
+                direction: DriftDirection::Right,
+                charge_s: before
+            })
+        );
+    }
+
+    #[test]
     fn a_landing_drifts_only_above_the_entry_speed() {
         // Held just inside either side of the edge through the hop, by a
         // rubber band at that speed.
