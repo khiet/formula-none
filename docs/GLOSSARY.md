@@ -112,7 +112,8 @@ events since the previous snapshot.
 ### checkpoint
 
 An ordered gate on the track used for lap counting and wrong-way detection.
-Spaced evenly round the lap, twelve on the oval and fifteen on Bell Deer,
+Spaced evenly round the lap, twelve on the oval and fifteen on Bell Deer
+and Goldstone,
 each spanning the run-off
 from wall to wall, so a kart between the walls crosses every one in order.
 A kart that leaves the world respawns at its last checkpoint facing the next
@@ -179,14 +180,15 @@ release by a flame at the exhaust in the tier's colour.
 ### item box
 
 One of a track's fixed pickup spots, from the sidecar: eight on the oval
-and twelve on Bell Deer, in rows of four across the asphalt. A kart whose centre is on a box with an empty item
+and twelve on Bell Deer and Goldstone, in rows of four across the asphalt. A kart whose centre is on a box with an empty item
 slot picks it up; the box is gone for three seconds and comes back. Every
 pickup is a server event naming the box, so every screen hides the same one.
 
 ### coin
 
 A pickup lying on the asphalt, from the sidecar: twelve on the oval and
-fifteen on Bell Deer, in lines along the straights, ten of them on the
+fifteen on Bell Deer and thirteen on Goldstone, in lines along the
+straights, ten of them on the
 centreline. Also the count a kart carries, from none at the lights to a
 full purse of ten. A kart whose centre is on a coin takes it unless it
 carries a full purse or is spun out; the coin is gone for three seconds and
@@ -359,10 +361,17 @@ asphalt and its feet stand on grass beyond the walls (ADR 0050).
 
 ### pit building
 
-The row of garages inside Bell Deer's start straight, which the grid
-faces through the countdown: a prop with a door and a flag in each
-livery's key colour, no number on any door (ADR 0035), and no pit lane to
-drive (ADR 0050).
+The row of garages beside the start straight, which the grid faces
+through the countdown: a prop with a door and a flag in each livery's key
+colour, no number on any door (ADR 0035), and no pit lane to drive (ADR
+0050). Inside Bell Deer's straight; outside Goldstone's, longer and white
+(ADR 0060).
+
+### hangars
+
+The row of five airfield hangars outside Goldstone's Hangar Straight: a
+prop of barrel-roofed sheds, each with a dark door in the gable toward the
+track, held to the 8 m rule like the pit building (ADR 0060).
 
 ### airship
 

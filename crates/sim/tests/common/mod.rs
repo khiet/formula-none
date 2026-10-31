@@ -9,6 +9,8 @@ use sim::{step, KartInput, KartReadout, Phase, State, Track};
 pub const OVAL: &str = include_str!("../../../../assets/tracks/oval/oval.track.json");
 pub const BELL_DEER: &str =
     include_str!("../../../../assets/tracks/bell-deer/bell-deer.track.json");
+pub const GOLDSTONE: &str =
+    include_str!("../../../../assets/tracks/goldstone/goldstone.track.json");
 /// A figure-eight whose legs cross at the origin, one over the other:
 /// the leg through the crossing first in the lap rides a bridge 5 m high,
 /// the other is on the ground. Flat asphalt 180 m by 70 m lies under all of
@@ -24,6 +26,10 @@ pub fn oval() -> Track {
 
 pub fn bell_deer() -> Track {
     Track::from_sidecar(BELL_DEER).expect("Bell Deer loads")
+}
+
+pub fn goldstone() -> Track {
+    Track::from_sidecar(GOLDSTONE).expect("Goldstone loads")
 }
 
 pub fn figure_eight() -> Track {

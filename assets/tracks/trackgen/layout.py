@@ -324,17 +324,20 @@ class World:
 
 @dataclass(frozen=True)
 class Prop:
-    """A trackside prop of one `kind` (`circuit-wheel`, `arch`, `pits` or `airship`) placed
-    by `at`, built by `trackgen.props`: scenery in the glTF only, which no kart meets, standing
-    beyond the walls or flying over them (ADR 0050). A kind that runs along the track, the
-    pits, is `length` metres long, centred on `at`. A kind that flies, the airship, circles
-    `at` at `radius` metres, `height` metres over the grass."""
+    """A trackside prop of one `kind` (`circuit-wheel`, `arch`, `pits`, `hangars` or `airship`)
+    placed by `at`, built by `trackgen.props`: scenery in the glTF only, which no kart meets,
+    standing beyond the walls or flying over them (ADR 0050). A kind that runs along the track,
+    the pits or a row of hangars, is `length` metres long, centred on `at`, on whichever side
+    of the track `at` is, facing it. A kind that flies, the airship, circles `at` at `radius`
+    metres, `height` metres over the grass. `white` paints the pits' walls wall white, as
+    Goldstone's are."""
 
     kind: str
     at: Spot | World
     length: float | None = None
     radius: float | None = None
     height: float | None = None
+    white: bool = False
 
 
 @dataclass(frozen=True)

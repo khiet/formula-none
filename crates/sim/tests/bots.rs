@@ -5,8 +5,8 @@
 mod common;
 
 use common::{
-    bell_deer, oval, oval_without_item_boxes, started, ticks, track, with_coins_at, with_slot_at,
-    without_coins, yaw, DT, OVAL, SEED,
+    bell_deer, goldstone, oval, oval_without_item_boxes, started, ticks, track, with_coins_at,
+    with_slot_at, without_coins, yaw, DT, OVAL, SEED,
 };
 
 use sim::tuning::{
@@ -646,6 +646,28 @@ fn longest_stall(seed: u64, track: Track) -> (f32, usize, f32) {
     longest
 }
 
+/// Each bot's finishing time in a race of eight bots on `course` from
+/// `seed`, `None` for one still racing after `seconds`.
+fn eight_bots_finishing_times(seed: u64, course: Track, seconds: f32) -> Vec<Option<f32>> {
+    let mut state = started(State::with_bots(seed, 0, 8, course));
+    for _ in 0..ticks(seconds) {
+        state = step(state, &[], DT);
+        if state.standings().iter().all(|s| s.finish_time_s.is_some()) {
+            break;
+        }
+    }
+    state.standings().iter().map(|s| s.finish_time_s).collect()
+}
+
+#[test]
+fn eight_bots_race_the_laps_of_goldstone_and_every_one_finishes() {
+    let times = eight_bots_finishing_times(SEED, goldstone(), LAPS_PER_RACE as f32 * 90.0);
+    assert!(
+        times.iter().all(Option::is_some),
+        "finishing times: {times:?}"
+    );
+}
+
 /// Under its stall speed this long, a bot is stuck.
 const STUCK_S: f32 = 3.0;
 
@@ -699,7 +721,11 @@ fn a_bot_waiting_for_the_wheel_never_backs_up() {
 #[test]
 #[ignore]
 fn in_200_races_of_eight_bots_on_each_course_no_bot_is_ever_stuck() {
-    for (name, course) in [("oval", oval as fn() -> Track), ("Bell Deer", bell_deer)] {
+    for (name, course) in [
+        ("oval", oval as fn() -> Track),
+        ("Bell Deer", bell_deer),
+        ("Goldstone", goldstone),
+    ] {
         let races: Vec<_> = (0..200)
             .map(|seed| std::thread::spawn(move || (seed, longest_stall(seed, course()))))
             .collect();

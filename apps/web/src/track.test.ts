@@ -12,6 +12,10 @@ describe("track selection from the query string", () => {
     expect(selectTrack("?debug=1&track=oval").name).toBe("oval");
   });
 
+  it("loads Goldstone on request", () => {
+    expect(selectTrack("?track=goldstone").name).toBe("goldstone");
+  });
+
   it("falls back to the default for an unknown track", () => {
     expect(selectTrack("?track=mushroom-cup").name).toBe(DEFAULT_TRACK);
     expect(selectTrack("?track=toString").name).toBe(DEFAULT_TRACK);

@@ -26,7 +26,7 @@ function materialsOf(gltf: GltfJson, nodeName: string): (string | undefined)[] {
   return primitives.map(({ material }) => gltf.materials?.[material ?? -1]?.name).sort();
 }
 
-describe.each(["bell-deer", "oval"])("%s's boost pads", (name) => {
+describe.each(["bell-deer", "goldstone", "oval"])("%s's boost pads", (name) => {
   const gltf = track(name);
   const sidecar = JSON.parse(
     readFileSync(
@@ -54,7 +54,7 @@ describe.each(["bell-deer", "oval"])("%s's boost pads", (name) => {
   });
 });
 
-describe.each(["bell-deer", "oval"])("%s's sausage kerbs", (name) => {
+describe.each(["bell-deer", "goldstone", "oval"])("%s's sausage kerbs", (name) => {
   const gltf = track(name);
   const sidecar = JSON.parse(
     readFileSync(
@@ -82,7 +82,7 @@ describe.each(["bell-deer", "oval"])("%s's sausage kerbs", (name) => {
   });
 });
 
-describe.each(["bell-deer", "oval"])("%s's marshal posts", (name) => {
+describe.each(["bell-deer", "goldstone", "oval"])("%s's marshal posts", (name) => {
   const gltf = track(name);
   const sidecar = JSON.parse(
     readFileSync(
@@ -115,7 +115,7 @@ describe.each(["bell-deer", "oval"])("%s's marshal posts", (name) => {
   });
 });
 
-describe.each(["bell-deer", "oval"])("%s's hazard zones", (name) => {
+describe.each(["bell-deer", "goldstone", "oval"])("%s's hazard zones", (name) => {
   const gltf = track(name);
   const sidecar = JSON.parse(
     readFileSync(

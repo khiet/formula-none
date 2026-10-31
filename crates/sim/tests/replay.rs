@@ -356,14 +356,14 @@ fn every_committed_fixture_replays_to_the_hashes_it_was_recorded_with() {
 
 /// What the fixture set must exercise for the gate to mean anything: karts
 /// touching (the contact solver), karts off the asphalt and a lone kart held
-/// by a wall (the track colliders), both tracks, a drift released into orange
+/// by a wall (the track colliders), every track, a drift released into orange
 /// and another into red (the cornering rules), and a rocket start
 /// boosting at Go and another stalling there (the start rule), a coin
 /// taken and coins lost to a spin-out (the coin rules). A fixture
 /// that only drives up a straight would pass on a sim with most of its
 /// rules broken.
 #[test]
-fn the_fixture_set_exercises_kart_contact_off_track_walls_both_tracks_both_mini_turbos_a_rocket_start_a_stall_the_kerb_the_wheel_and_coins(
+fn the_fixture_set_exercises_kart_contact_off_track_walls_every_track_both_mini_turbos_a_rocket_start_a_stall_the_kerb_the_wheel_and_coins(
 ) {
     let mut tracks = std::collections::BTreeSet::new();
     let mut surfaces = std::collections::HashSet::new();
@@ -433,7 +433,11 @@ fn the_fixture_set_exercises_kart_contact_off_track_walls_both_tracks_both_mini_
             }
         }
     }
-    assert_eq!(tracks.len(), 2, "both tracks: {tracks:?}");
+    assert_eq!(
+        tracks,
+        ["bell-deer", "goldstone", "oval"].map(String::from).into(),
+        "every track"
+    );
     for surface in [Surface::Asphalt, Surface::Sand] {
         assert!(
             surfaces.contains(&surface),
