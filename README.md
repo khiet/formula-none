@@ -1,8 +1,36 @@
 # Formula None
 
+[![Licence: MIT](https://img.shields.io/badge/licence-MIT-blue.svg)](LICENSE)
+
 A browser kart racer for up to eight friends: one link, a four-letter room
 code, no install, no account. Rust simulation shared between the browser and
 the server; Three.js for the picture.
+
+![A solo race on Monarch: the start lights, GO, and the bots drifting into the first chicane](docs/race-view.gif)
+
+Play it at <https://formulanone.sushimafia.com>: Solo race against seven
+bots, or Create room and send the code to friends.
+
+## How it's built
+
+- **One sim, two hosts.** The rules of the game live in one Rust crate,
+  `crates/sim`, with a deterministic `step(state, inputs, dt)`. The server
+  runs it natively as the authority; the browser runs the same code as
+  WebAssembly to predict its own kart, then reconciles with the server's
+  snapshots. CI replays recorded races natively and in wasm and fails if
+  the two disagree by a single bit.
+- **A decision per file.** The PRD is issue 1, and each decision in it is a
+  record in [`docs/adr`](docs/adr): what was chosen, what it rejected and
+  what it costs. A changed decision gets a new record, never an edit.
+- **A style guide that is checked.**
+  [`docs/style-guide.html`](docs/style-guide.html) shows every graphic the
+  game draws, with the palette, the type and the rules for the next one;
+  `tools/repo-checks` holds its palette and liveries to the code.
+  [`docs/GLOSSARY.md`](docs/GLOSSARY.md) fixes the words.
+- **Built with an agent.** The project is built with Claude Code, one
+  issue at a time: test first, a review pass, `pnpm check`, then a pull
+  request the author reviews and merges. [`CLAUDE.md`](CLAUDE.md) is the
+  brief it works from, and the quickest map of the repo for a person too.
 
 ## Getting started
 
@@ -43,6 +71,14 @@ Open `http://localhost:5173`. WebTransport is off without `TLS_CERT` and
 stack with Caddy, Prometheus and Grafana. The server's metrics are at
 `http://127.0.0.1:8080/metrics` once a room has a player in it (ADR 0018).
 
+## Hosting your own
+
+The Compose stack under `deploy/` runs the server behind Caddy on any
+machine with Docker: build the image and start it with `SITE_ADDRESS` set to
+your domain, as [`deploy/README.md`](deploy/README.md) describes. `infra/`
+describes the author's own deployment on AWS, not a template; to host the
+game yourself, use `deploy/`.
+
 ## Controls
 
 Keyboard only. Arrows and WASD do the same thing.
@@ -64,3 +100,13 @@ the 2 and the kart stalls. The beeps count 3, 2, 1 and GO.
 1. `CLAUDE.md` for the layout, the dependency rule and the commands.
 2. `docs/GLOSSARY.md` for the vocabulary.
 3. `docs/adr/` for the decisions, numbered in the PRD's order.
+
+## Licence
+
+The code is [MIT](LICENSE). The art and sound are CC0 1.0, made in this repo
+or taken from Kenney's CC0 kits; [`assets/LICENSES.md`](assets/LICENSES.md)
+records where each came from (ADR 0066). Contributions follow
+[`CONTRIBUTING.md`](CONTRIBUTING.md).
+
+Formula None is a parody and is not affiliated with Formula One or any
+circuit.
