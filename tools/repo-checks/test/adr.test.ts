@@ -72,6 +72,7 @@ const DECISION_SLUGS = [
   "a-prop-beside-a-hill-stands-on-a-terrace",
   "open-source-under-mit-and-cc0",
   "a-full-kart-still-takes-coins",
+  "a-kart-holding-an-item-still-takes-item-boxes",
 ];
 
 const expectedFiles = DECISION_SLUGS.map(

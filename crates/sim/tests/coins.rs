@@ -318,7 +318,7 @@ fn kart_3_behind_a_hazard_with(count: usize) -> State {
         let state = step(started(State::new(seed, 4, track)), &[idle(); 4], DT);
         let rolled = state.events().contains(&RaceEvent::ItemPicked {
             kart: 1,
-            item: Item::Hazard,
+            item: Some(Item::Hazard),
             item_box: 0,
         });
         if rolled {
@@ -389,7 +389,7 @@ fn kart_1_homing_on_kart_0_with(count: usize) -> State {
         let state = step(started(State::new(seed, 2, track)), &[idle(); 2], DT);
         let rolled = state.events().contains(&RaceEvent::ItemPicked {
             kart: 1,
-            item: Item::Homing,
+            item: Some(Item::Homing),
             item_box: 0,
         });
         if rolled {

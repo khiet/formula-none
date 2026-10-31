@@ -197,7 +197,7 @@ impl From<sim::RaceEvent> for EventKind {
                 item_box,
             } => Self::ItemPicked {
                 kart: kart as u8,
-                item: item.into(),
+                item: item.map(Into::into),
                 item_box: item_box as u8,
             },
             sim::RaceEvent::ItemFired { kart, item } => Self::ItemFired {

@@ -102,7 +102,9 @@ export function createServerRace(
       if (itemBox < boxTicksLeft.length) {
         boxTicksLeft[itemBox] = ticks(bridge.itemBoxRespawnSeconds);
       }
-      if (kart === localKart) {
+      // A null item is a box taken by a kart already holding one: the
+      // box goes, the slot does not change.
+      if (kart === localKart && item !== null) {
         heldItem = item;
         slotHeardOf = true;
       }

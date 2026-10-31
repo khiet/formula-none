@@ -30,7 +30,7 @@ fn holding_with_bots(humans: usize, bots: usize, rolls: &[(usize, Item)]) -> Sta
         let state = step(state, &vec![KartInput::default(); humans], DT);
         let rolled = rolls.iter().all(|&(slot, wanted)| {
             state.events().iter().any(|event| {
-                matches!(event, RaceEvent::ItemPicked { kart, item, .. } if *kart == slot && *item == wanted)
+                matches!(event, RaceEvent::ItemPicked { kart, item, .. } if *kart == slot && *item == Some(wanted))
             })
         });
         if rolled && even_start {

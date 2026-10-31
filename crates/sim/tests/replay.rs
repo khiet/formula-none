@@ -87,7 +87,10 @@ fn holding(seed: u64) -> (State, sim::Item) {
         &[KartInput::default()],
         DT,
     );
-    let [sim::RaceEvent::ItemPicked { item, .. }] = state.events() else {
+    let [sim::RaceEvent::ItemPicked {
+        item: Some(item), ..
+    }] = state.events()
+    else {
         panic!("one pickup: {:?}", state.events());
     };
     let item = *item;
@@ -165,7 +168,7 @@ fn a_projectiles_place_is_part_of_the_hash() {
                 event,
                 sim::RaceEvent::ItemPicked {
                     kart: 1,
-                    item: sim::Item::Homing,
+                    item: Some(sim::Item::Homing),
                     ..
                 }
             )

@@ -187,8 +187,10 @@ release by a flame at the exhaust in the tier's colour.
 ### item box
 
 One of a track's fixed pickup spots, from the sidecar: eight on the oval
-and twelve on Bell Deer, Goldstone and Monarch, in rows of four across the asphalt. A kart whose centre is on a box with an empty item
-slot picks it up; the box is gone for three seconds and comes back. Every
+and twelve on Bell Deer, Goldstone and Monarch, in rows of four across the asphalt. A kart whose centre is on a box picks it up, whatever
+it holds; the box is gone for three seconds and comes back. With an empty
+item slot the kart rolls an item into it; holding one, it keeps it and
+gets nothing, so a kart in front denies boxes to the karts behind (ADR 0068). Every
 pickup is a server event naming the box, so every screen hides the same one.
 
 ### coin
@@ -216,7 +218,7 @@ surface.
 ### item slot
 
 A kart's one place for an item: a boost, a hazard or a homing projectile.
-Full, the kart drives over boxes without picking them up; a press of the
+Full, the kart still takes boxes but gets nothing from them; a press of the
 item button fires what it holds and empties it. Every fire is a server
 event; the Instrument panel shows the local kart's slot, with the fire
 predicted from the press until the server's event confirms it.

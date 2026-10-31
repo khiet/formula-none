@@ -202,8 +202,14 @@ fn every_event_kind() -> Vec<Event> {
     [
         EventKind::ItemPicked {
             kart: 3,
-            item: Item::Homing,
+            item: Some(Item::Homing),
             item_box: 5,
+        },
+        // A kart already holding an item takes the box and rolls nothing.
+        EventKind::ItemPicked {
+            kart: 0,
+            item: None,
+            item_box: 2,
         },
         EventKind::ItemFired {
             kart: 3,

@@ -518,7 +518,7 @@ fn a_hit_the_server_decides_reaches_the_prediction_as_one_correction_and_the_spi
             let state = step(state, &idle, DT);
             let rolled = state.events().contains(&RaceEvent::ItemPicked {
                 kart: 1,
-                item: Item::Hazard,
+                item: Some(Item::Hazard),
                 item_box: 0,
             });
             rolled.then_some((seed, tick + 1))
