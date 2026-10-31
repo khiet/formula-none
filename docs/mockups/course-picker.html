@@ -164,7 +164,7 @@
     <a href="#title">Title Scene</a>
     <a href="#room">Room Scene</a>
     <a href="#behaviour">Behaviour</a>
-    <a href="#questions">Open questions</a>
+    <a href="#questions">Decisions</a>
   </nav>
 </header>
 
@@ -229,32 +229,12 @@
   <li><b>Addressable.</b> The flags are radios named <code>course</code> with the values <code>bell-deer</code>, <code>monarch</code> and <code>goldstone</code>, so the Playwright lobby flow can pick one by name as it does the audio toggles.</li>
 </ul>
 
-<h2 id="questions">Open questions</h2>
+<h2 id="questions">Decisions</h2>
 <ol class="questions">
-  <li>Where the creator picks the course.
-    <ol>
-      <li><span class="rec">(Recommended)</span> On the Title Scene, as drawn: one pick covers Create room and Solo race, and it sits beside the audio toggles you already set there.</li>
-      <li>In the Room Scene, before Start: the creator can change it while friends join, but Solo race needs a picker of its own.</li>
-    </ol>
-  </li>
-  <li>Whether the creator can change the course once the room is open.
-    <ol>
-      <li><span class="rec">(Recommended)</span> No: the Room Scene shows it read-only. Changing it means a new room.</li>
-      <li>Yes: the course badge in the Room Scene is a button for the creator, and the server tells everyone.</li>
-    </ol>
-  </li>
-  <li>Whether the Title Scene remembers the last course.
-    <ol>
-      <li><span class="rec">(Recommended)</span> Yes, saved in the browser like the audio toggles.</li>
-      <li>No, Bell Deer every time.</li>
-    </ol>
-  </li>
-  <li>What the preview shows.
-    <ol>
-      <li><span class="rec">(Recommended)</span> The flat map with the lap dot and four numbers, as drawn: cheap, and it reads at a glance.</li>
-      <li>A slow flyover of the course rendered in Three.js: richer, but it loads the track before anyone races it.</li>
-    </ol>
-  </li>
+  <li><span class="rec">(Decided)</span> The creator picks on the Title Scene, as drawn: one pick covers Create room and Solo race, beside the audio toggles.</li>
+  <li><span class="rec">(Decided)</span> The course is fixed once the room is open: the Room Scene shows it read-only, and changing it means a new room.</li>
+  <li><span class="rec">(Decided)</span> The Title Scene remembers the last course, saved in the browser like the audio toggles.</li>
+  <li><span class="rec">(Decided)</span> The preview is the flat map with the lap dot and four numbers, as drawn.</li>
 </ol>
 
 </div>
