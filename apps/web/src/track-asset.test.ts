@@ -415,7 +415,7 @@ describe("Goldstone's display jets", () => {
       "Prop.jets.1.formation",
     ]);
     // At rest the leader's nose is 33 m outside the Hangar Straight's middle, the track's
-    // (191.43, -57.19), 29.95 m over the grass, which the Y-up export lays at (x, up, -y).
+    // (191.43, -57.19), 30 m over the grass 0.05 m down, which the Y-up export lays at (x, up, -y).
     const [x = 0, y = 0, z = 0] = formation?.translation ?? [];
     expect(x).toBeCloseTo(191.43, 2);
     expect(y).toBeCloseTo(29.95, 5);
