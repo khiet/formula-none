@@ -205,6 +205,12 @@ def quad(a: Vertex, b: Vertex, c: Vertex, d: Vertex) -> Mesh:
     return [a, b, c, d], [(0, 1, 2, 3)]
 
 
+def quad_facing(a: Vertex, b: Vertex, c: Vertex, d: Vertex, direction: Vertex) -> Mesh:
+    """One four-sided face, wound so its normal has a positive component along `direction`."""
+    vertices = [a, b, c, d]
+    return vertices, [_facing((0, 1, 2, 3), vertices, direction)]
+
+
 def merge(meshes: list[Mesh]) -> Mesh:
     """One mesh from many, faces re-indexed; nothing is welded."""
     vertices: list[Vertex] = []

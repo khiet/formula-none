@@ -898,8 +898,8 @@ def marshal_posts(layout: Layout) -> list[SceneryMesh]:
     result: list[SceneryMesh] = []
     for number, crossing in enumerate(layout.wheel_crossings):
         sample = layout.path.at(crossing.s - MARSHAL_POST_BEFORE_CROSSING_M)
-        # A run-off too narrow for the usual setback, Monarch's, has the post
-        # in its middle, so it stands inside the wall.
+        # A run-off too narrow for the usual setback has the post in its
+        # middle, so it always stands inside the wall.
         into = min(MARSHAL_POST_INTO_RUNOFF_M, layout.runoff_width / 2.0)
         offset = crossing.outside * (layout.asphalt_half_width + into)
         x, y = sample.offset(offset)
@@ -1240,9 +1240,9 @@ def tunnels(layout: Layout, height: list[float]) -> list[SceneryMesh]:
             (lt,), (rt,) = rail([end], inside, roof_top), rail([end], -inside, roof_top)
             heading = path.samples[end].heading
             ahead = (outward * math.cos(heading), outward * math.sin(heading), 0.0)
-            parts.add("carbon", ([lb, rb, rt, lt], [mesh._facing((0, 1, 2, 3), [lb, rb, rt, lt], ahead)]))
+            parts.add("carbon", mesh.quad_facing(lb, rb, rt, lt, ahead))
 
-        half = TUNNEL_LAMP_LENGTH_M / 2.0
+        half_long, half_tall = TUNNEL_LAMP_LENGTH_M / 2.0, TUNNEL_LAMP_TALL_M / 2.0
         s = tunnel.s_start + TUNNEL_LAMP_SPACING_M / 2.0
         while s < tunnel.s_end:
             sample = path.at(s)
@@ -1250,12 +1250,12 @@ def tunnels(layout: Layout, height: list[float]) -> list[SceneryMesh]:
             z = elevation(layout.elevation, s) + TUNNEL_LAMP_HEIGHT_M
             for side in (1, -1):
                 x, y = sample.offset(side * (inside - TUNNEL_LAMP_PROUD_M))
-                corners = [
+                a, b, c, d = (
                     (x + cos * along, y + sin * along, z + up)
-                    for along, up in ((-half, -TUNNEL_LAMP_TALL_M / 2.0), (half, -TUNNEL_LAMP_TALL_M / 2.0), (half, TUNNEL_LAMP_TALL_M / 2.0), (-half, TUNNEL_LAMP_TALL_M / 2.0))
-                ]
+                    for along, up in ((-half_long, -half_tall), (half_long, -half_tall), (half_long, half_tall), (-half_long, half_tall))
+                )
                 # Lit toward the road, the way the side's inside faces.
                 toward_road = (side * sin, -side * cos, 0.0)
-                parts.add("lamp", (corners, [mesh._facing((0, 1, 2, 3), corners, toward_road)]))
+                parts.add("lamp", mesh.quad_facing(a, b, c, d, toward_road))
             s += TUNNEL_LAMP_SPACING_M
     return parts.scenery()

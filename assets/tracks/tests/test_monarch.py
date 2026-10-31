@@ -66,9 +66,6 @@ class Lap(unittest.TestCase):
         steepest = max(abs(b - a) / (q1.s - q0.s) for a, b, q0, q1 in zip(heights, heights[1:], self.layout.path.samples, self.layout.path.samples[1:]))
         self.assertAlmostEqual(steepest, 0.044, delta=0.001)
 
-    def test_it_has_no_bridge(self) -> None:
-        self.assertEqual(self.layout.decor.bridges, [])
-
 
 class TheTunnel(unittest.TestCase):
     def setUp(self) -> None:

@@ -74,7 +74,7 @@ export const COURSES: readonly Course[] = [
     name: "Monarch",
     after: "Monaco",
     flag: "mc",
-    blurb: "Barriers close, up to Casino Square, down through the tunnel",
+    blurb: "Walls close, up to Casino Square, down through the tunnel",
   },
 ];
 
