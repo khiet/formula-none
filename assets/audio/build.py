@@ -480,10 +480,11 @@ def arpeggio(*bars):
 
 
 # Each section: its chords, its lead as (semitones from C4, eighths) pairs
-# played an octave up, and its groove. "full" is four on the floor with
-# eighth hi-hats; "backbeat" adds a snare on two and four; "half" keeps one
-# kick and one sustained chord a bar and no hats; "fill" is a backbeat bar
-# whose snare plays every eighth, swelling.
+# played an octave up, and its groove per bar. "full" is four on the floor
+# with eighth hi-hats; "backbeat" bounces the bass an octave and adds a
+# snare on two and four; "fill" is a backbeat bar whose snare plays every
+# eighth, swelling; "half" keeps one kick, one held bass note and one
+# sustained chord a bar and no hats.
 SECTIONS = [
     Section(
         ["C", "G", "Am", "F", "C", "G", "Am", "F"],
@@ -599,7 +600,7 @@ def music():
                     if eighth % 2 == 0:
                         add(t, kick)
                     if groove == "fill":
-                        add(t, snare, 0.4 + 0.6 * eighth / 7)  # from 0.4 to full by the last eighth
+                        add(t, snare, 0.4 + 0.6 * eighth / 7)
                     elif groove == "backbeat" and eighth in (2, 6):
                         add(t, snare)
                 for beat in range(4):

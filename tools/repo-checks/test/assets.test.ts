@@ -62,8 +62,8 @@ describe("asset licences", () => {
 });
 
 // ADR 0069: the music loop runs a minute or more, since the 8 s loop
-// repeated too often to race to. Chrome decodes only plain PCM, so the
-// header is held to it too.
+// repeated too often to race to. Chrome rejects an ADPCM WAV, so the
+// header is held to plain PCM too.
 describe("music loop", () => {
   it("is a minute or more of 16-bit mono PCM", () => {
     const wav = readFileSync(join(ROOT, "assets/audio/music-loop.wav"));
