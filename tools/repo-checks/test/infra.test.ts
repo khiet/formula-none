@@ -98,7 +98,7 @@ describe("infra", () => {
 
   // The public repository invites strangers to the hosted instance (ADR 0066),
   // so spend past the ceiling (ADR 0017) mails the operator.
-  it("mails the operator when the month's cost passes, or is forecast to pass, USD 25", () => {
+  it("mails the operator when the month's cost nears, passes or is forecast to pass USD 25", () => {
     const budget = only(Object.values(resourcesOfType("aws_budgets_budget")));
     expect(budget.budget_type).toBe("COST");
     expect(budget.time_unit).toBe("MONTHLY");
@@ -110,6 +110,7 @@ describe("infra", () => {
       .sort();
     expect(alerts).toEqual([
       "ACTUAL GREATER_THAN 100 PERCENTAGE",
+      "ACTUAL GREATER_THAN 80 PERCENTAGE",
       "FORECASTED GREATER_THAN 100 PERCENTAGE",
     ]);
     for (const notification of budget.notification as Block[]) {

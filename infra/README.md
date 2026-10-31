@@ -9,8 +9,8 @@ nothing here runs from CI.
 
 Cost ceiling: USD 25 a month (ADR 0017). The estimate for what this applies
 is in ADR 0015; check it before applying a change. The budget mails
-`billing_alert_email` when the month's forecast passes the ceiling, and again
-when the actual bill does. It covers the whole account; a budget without
+`billing_alert_email` when the actual bill passes 80% of the ceiling, when the
+month's forecast passes the ceiling, and when the actual bill does. It covers the whole account; a budget without
 actions is free.
 
 This module describes the author's own deployment; to host the game
