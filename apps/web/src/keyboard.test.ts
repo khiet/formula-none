@@ -74,6 +74,23 @@ describe("keys map to one kart input", () => {
     expect(input.current().throttle).toBe(0);
   });
 
+  it("Q brakes too, alone or with the throttle held, so the left hand can brake drift", () => {
+    const keyboard = fakeKeyboard();
+    const input = keyboardKartInput(keyboard);
+
+    keyboard.press("q");
+    expect(input.current()).toEqual({ ...IDLE_INPUT, brake: 1 });
+
+    keyboard.press("w");
+    keyboard.press("d");
+    keyboard.press(" ");
+    expect(input.current()).toMatchObject({ steer: 1, throttle: 1, brake: 1, hop: true });
+
+    // Shift held for the item button turns the letter upper case.
+    keyboard.release("Q");
+    expect(input.current().brake).toBe(0);
+  });
+
   it("opposite steer keys held together cancel out", () => {
     const keyboard = fakeKeyboard();
     const input = keyboardKartInput(keyboard);

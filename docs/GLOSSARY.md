@@ -167,8 +167,16 @@ it; a press in the air does not hop again.
 ### drift
 
 Sliding through a corner after a hop. The drift direction is fixed at the hop;
-counter-steer widens the arc and inward steer tightens it. Holding a drift
-charges a mini-turbo.
+counter-steer widens the arc and inward steer tightens it, as does a brake
+drift. Holding a drift charges a mini-turbo.
+
+### brake drift
+
+Braking during a drift: the brake tightens the drift's turn on top of the steer,
+in proportion to how hard it is held, and the mini-turbo keeps charging. It
+still slows the kart, so held too long it takes the drift under 40 percent of
+top speed, which ends the drift and loses its charge. Q brakes as S does, so
+the throttle can stay held through it.
 
 ### mini-turbo
 
