@@ -98,7 +98,7 @@ describe("infra", () => {
 
   // The public repository invites strangers to the hosted instance (ADR 0066),
   // so spend past the ceiling (ADR 0017) mails the operator.
-  it("mails the operator when the month's cost is on course to pass USD 25", () => {
+  it("mails the operator when the month's cost passes, or is forecast to pass, USD 25", () => {
     const budget = only(Object.values(resourcesOfType("aws_budgets_budget")));
     expect(budget.budget_type).toBe("COST");
     expect(budget.time_unit).toBe("MONTHLY");
@@ -115,7 +115,6 @@ describe("infra", () => {
     for (const notification of budget.notification as Block[]) {
       expect(notification.subscriber_email_addresses).toEqual([ref("var.billing_alert_email")]);
     }
-    // The address is supplied at apply time, so the public repo never holds it.
     expect(variables.billing_alert_email).toBeDefined();
     expect(variables.billing_alert_email?.default).toBeUndefined();
   });

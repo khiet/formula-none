@@ -40,9 +40,9 @@ const compose = parse(readRepoFile("deploy/compose.yaml")) as {
 describe("deploy job", () => {
   const { deploy, ...gates } = workflow.jobs;
 
-  // The repository is public (ADR 0066): a fork's pull request must run its
-  // code in the fork's context, never in this repository's, where it could
-  // reach the deploy role's variables or a main-branch cache.
+  // The repository is public (ADR 0066): a fork's pull request must run with
+  // the fork's read-only token, never in this repository's context, where
+  // pull_request_target would hand it write access and the main-branch cache.
   it("is triggered only by pull requests and pushes to main", () => {
     expect(Object.keys(workflow.on).sort()).toEqual(["pull_request", "push"]);
     expect(workflow.on.push).toEqual({ branches: ["main"] });

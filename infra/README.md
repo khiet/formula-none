@@ -3,8 +3,9 @@
 OpenTofu for the single-instance environment described in ADR 0015: VPC,
 subnet, security group, one t4g.small with an Elastic IP, DNS record, ECR
 repository, CloudWatch log group, the deploy Run Command document, the
-GitHub Actions OIDC role, and a monthly budget that mails the operator. Applied by hand from the laptop with the `neconote`
-profile in `eu-west-2`; nothing here runs from CI.
+GitHub Actions OIDC role, and a monthly budget that mails the operator.
+Applied by hand from the laptop with the `neconote` profile in `eu-west-2`;
+nothing here runs from CI.
 
 Cost ceiling: USD 25 a month (ADR 0017). The estimate for what this applies
 is in ADR 0015; check it before applying a change. The budget mails
@@ -30,6 +31,9 @@ tofu init
 tofu plan          # review; expect a no-op after the first apply
 tofu apply
 ```
+
+AWS Budgets then mails the address a verification link; it sends no alert
+until the link is followed.
 
 The profile needs rights to create everything here plus `ssm:GetParameter`
 on the public AMI parameters and `route53:ListHostedZones`. If the
@@ -86,5 +90,5 @@ AWS_PROFILE=neconote deploy/deploy.sh <commit-sha>
 
 `tools/repo-checks` parses the configuration and asserts the contract from
 issue 5: two inbound rules, no key pair, 14-day retention, the A record, the
-exact permissions of the deploy role, and the budget's ceiling and alerts. `tofu fmt -check` and
-`tofu validate` run locally.
+exact permissions of the deploy role, and the budget's ceiling and alerts.
+`tofu fmt -check` and `tofu validate` run locally.
