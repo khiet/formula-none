@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { courseStats, createCoursePreview } from "./course-preview";
 import { COURSES, type WorldPoint } from "./track";
 
@@ -45,10 +45,41 @@ describe("the course preview", () => {
     expect(text).toContain("Goldstone");
     expect(text).toContain("After Silverstone");
     expect(text).toContain(course.blurb);
-    expect(text).toContain("326 m");
-    expect(text).toContain("3Laps");
-    expect(text).toContain("20 m");
-    expect(text).toContain("100 m");
+    const stats = Array.from(preview.element.querySelectorAll(".stats div"), (box) => [
+      box.querySelector("b")?.textContent,
+      box.querySelector("small")?.textContent,
+    ]);
+    expect(stats).toEqual([
+      ["326 m", "Lap"],
+      ["3", "Laps"],
+      ["20 m", "Tightest"],
+      ["100 m", "Straight"],
+    ]);
     preview.dispose();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  /** Where the lap dot is after `ms` of animation frames. */
+  function dotAfter(still: boolean, ms: number): [string | null, string | null] {
+    vi.useFakeTimers({ toFake: ["requestAnimationFrame", "cancelAnimationFrame", "performance"] });
+    const preview = createCoursePreview({ laps: 3, still });
+    preview.show(COURSES[0] as (typeof COURSES)[number], stadium());
+    vi.advanceTimersByTime(ms);
+    const dot = preview.element.querySelector("circle");
+    const at: [string | null, string | null] = [
+      dot?.getAttribute("cx") ?? null,
+      dot?.getAttribute("cy") ?? null,
+    ];
+    preview.dispose();
+    return at;
+  }
+
+  it("laps the dot round the map, and holds it on the start line under reduced motion", () => {
+    const start = dotAfter(true, 0);
+    expect(dotAfter(true, 2000)).toEqual(start);
+    expect(dotAfter(false, 2000)).not.toEqual(start);
   });
 });
