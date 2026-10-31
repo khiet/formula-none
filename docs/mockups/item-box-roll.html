@@ -137,6 +137,7 @@
     <div class="eyebrow">Formula None / mockup / items</div>
     <h1>Item Box Roll</h1>
     <div class="intro">
+      <p><b>Decided (issue 249):</b> turn A, yaw as the coin; contact B, crack and chime; reel B, slot machine, 2.5 s with the click tick; landing sound A, arpeggio up, with animation A, pop. The roll is a sim rule: the slot rolls for <code>ITEM_ROLL_S</code>, counts as full, and the item button does nothing until it lands.</p>
       <p>Four parts to agree: how the item box turns on the road, what touching one sounds like, how the item slot rolls through the items before it settles, and how it tells you what you got. Each part has variations; pick one per part, then try them together at the bottom.</p>
       <p>Today the box stands still, the slot fills the moment the server's pickup event lands, and the <code>itemPickup</code> cue (the "Coin" pick: 988 Hz then 1319 Hz) plays as it fills. The coin turns once a second and bobs 5 cm over 2 s. Sounds here are synthesised with the same kit as <code>assets/audio/build.py</code>, so a pick ports straight across. Click anywhere first so the browser lets sound play.</p>
     </div>
@@ -619,7 +620,7 @@ function animate(now) {
 // ---------------------------------------------------------------------------
 // The page.
 // ---------------------------------------------------------------------------
-const picks = { spin: "yaw", pickup: "crack", reel: "flicker", tick: "click", length: "2.5", wonSound: "arp", wonAnim: "burst" };
+const picks = { spin: "yaw", pickup: "crack", reel: "reel", tick: "click", length: "2.5", wonSound: "arp", wonAnim: "pop" };
 const randomItem = () => ITEMS[Math.floor(Math.random() * 3)];
 const nameOf = (list, id) => list.find((x) => x.id === id)?.name ?? id;
 
