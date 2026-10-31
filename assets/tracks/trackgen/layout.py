@@ -163,6 +163,22 @@ MARSHAL_LAMP_BELOW_TOP_M = 0.3
 # each of the underpass's walls.
 BRIDGE_DECK_THICKNESS_M = 1.0
 BRIDGE_SPAN_CLEARANCE_M = 2.0
+# A tunnel: a side standing against the back of each wall from the grass to
+# the roof, the roof spanning between them, and a row of lamps along each
+# side's inside face. The chase camera rides `ABOVE_M` over its kart in
+# `apps/web/src/chase-camera.ts`, which this mirrors and the track tests hold
+# it to; the roof's underside stands well clear of it, so the camera never
+# cuts through it.
+CHASE_CAMERA_ABOVE_M = 3.2
+TUNNEL_ROOF_M = 6.0
+TUNNEL_ROOF_THICKNESS_M = 0.6
+TUNNEL_SIDE_THICKNESS_M = 0.6
+TUNNEL_LAMP_SPACING_M = 12.0
+TUNNEL_LAMP_HEIGHT_M = 4.4
+"""From the road to the middle of a lamp."""
+TUNNEL_LAMP_LENGTH_M = 1.6
+TUNNEL_LAMP_TALL_M = 0.3
+TUNNEL_LAMP_PROUD_M = 0.05
 
 # A wood's trees keep this much grass between a canopy's edge and the wall,
 # and this much between trunks, however many the layout asks for.
@@ -276,6 +292,19 @@ class Bridge:
 
 
 @dataclass(frozen=True)
+class Tunnel:
+    """A roof over the road from `s_start` to `s_end` on sides behind the walls, lit along
+    both sides. Scenery only: the walls under it are what a kart meets."""
+
+    s_start: float
+    s_end: float
+
+    def __post_init__(self) -> None:
+        if self.s_end <= self.s_start:
+            raise ValueError("a tunnel runs forward along the lap")
+
+
+@dataclass(frozen=True)
 class Disc:
     """A round patch of grass, `r` metres about (`x`, `y`) in track metres."""
 
@@ -347,6 +376,7 @@ class Decor:
     grandstands: list[Grandstands] = field(default_factory=list)
     gantry: bool = False
     bridges: list[Bridge] = field(default_factory=list)
+    tunnels: list[Tunnel] = field(default_factory=list)
     woods: list[Wood] = field(default_factory=list)
     props: list[Prop] = field(default_factory=list)
 
@@ -594,7 +624,7 @@ def decorate(layout: Layout, height: list[float]) -> tuple[list[SceneryMesh], li
     scenery += boards + grandstands(layout)
     if layout.decor.gantry:
         scenery += gantry(layout)
-    scenery += bridges(layout, height)
+    scenery += bridges(layout, height) + tunnels(layout, height)
     # `props` imports this module, so it is imported here, once everything
     # it needs is defined.
     from .props import props, woods
@@ -868,7 +898,10 @@ def marshal_posts(layout: Layout) -> list[SceneryMesh]:
     result: list[SceneryMesh] = []
     for number, crossing in enumerate(layout.wheel_crossings):
         sample = layout.path.at(crossing.s - MARSHAL_POST_BEFORE_CROSSING_M)
-        offset = crossing.outside * (layout.asphalt_half_width + MARSHAL_POST_INTO_RUNOFF_M)
+        # A run-off too narrow for the usual setback, Monarch's, has the post
+        # in its middle, so it stands inside the wall.
+        into = min(MARSHAL_POST_INTO_RUNOFF_M, layout.runoff_width / 2.0)
+        offset = crossing.outside * (layout.asphalt_half_width + into)
         x, y = sample.offset(offset)
         cos, sin = math.cos(sample.heading), math.sin(sample.heading)
         ground = elevation(layout.elevation, sample.s) - GRASS_DROP_M
@@ -1172,4 +1205,57 @@ def bridges(layout: Layout, height: list[float]) -> list[SceneryMesh]:
             "stand-plinth",
             mesh.ribbon(rail(span, -1, BRIDGE_DECK_THICKNESS_M), rail(span, 1, BRIDGE_DECK_THICKNESS_M), closed=False),
         )
+    return parts.scenery()
+
+
+def tunnels(layout: Layout, height: list[float]) -> list[SceneryMesh]:
+    """Each tunnel's two sides, standing against the back of the walls from the grass to the top
+    of the roof, the roof between them with its underside at `TUNNEL_ROOF_M` over the road, its
+    two portal faces, and a lamp every `TUNNEL_LAMP_SPACING_M` along each side's inside."""
+    path = layout.path
+    # A hair off the wall's back, so the side never shares its plane.
+    inside = layout.runoff_half_width + WALL_THICKNESS_M + SCENERY_LIFT_M
+    outside = inside + TUNNEL_SIDE_THICKNESS_M
+    roof_top = TUNNEL_ROOF_M + TUNNEL_ROOF_THICKNESS_M
+    parts = ByMaterial("Tunnel")
+
+    def rail(indices: list[int], offset: float, up: float) -> list[mesh.Vertex]:
+        return [(*path.samples[i].offset(offset), height[i] + up) for i in indices]
+
+    for tunnel in layout.decor.tunnels:
+        indices = path.indices_between(tunnel.s_start, tunnel.s_end)
+        for side in (1, -1):
+            parts.add(
+                "beam-shade",
+                mesh.box_rail(
+                    rail(indices, side * inside, -GRASS_DROP_M),
+                    rail(indices, side * outside, -GRASS_DROP_M),
+                    roof_top + GRASS_DROP_M,
+                ),
+            )
+        parts.add("carbon", mesh.ribbon(rail(indices, outside, roof_top), rail(indices, -outside, roof_top), closed=False))
+        parts.add("carbon-shade", mesh.ribbon(rail(indices, -inside, TUNNEL_ROOF_M), rail(indices, inside, TUNNEL_ROOF_M), closed=False))
+        for end, outward in ((indices[0], -1.0), (indices[-1], 1.0)):
+            (lb,), (rb,) = rail([end], inside, TUNNEL_ROOF_M), rail([end], -inside, TUNNEL_ROOF_M)
+            (lt,), (rt,) = rail([end], inside, roof_top), rail([end], -inside, roof_top)
+            heading = path.samples[end].heading
+            ahead = (outward * math.cos(heading), outward * math.sin(heading), 0.0)
+            parts.add("carbon", ([lb, rb, rt, lt], [mesh._facing((0, 1, 2, 3), [lb, rb, rt, lt], ahead)]))
+
+        half = TUNNEL_LAMP_LENGTH_M / 2.0
+        s = tunnel.s_start + TUNNEL_LAMP_SPACING_M / 2.0
+        while s < tunnel.s_end:
+            sample = path.at(s)
+            cos, sin = math.cos(sample.heading), math.sin(sample.heading)
+            z = elevation(layout.elevation, s) + TUNNEL_LAMP_HEIGHT_M
+            for side in (1, -1):
+                x, y = sample.offset(side * (inside - TUNNEL_LAMP_PROUD_M))
+                corners = [
+                    (x + cos * along, y + sin * along, z + up)
+                    for along, up in ((-half, -TUNNEL_LAMP_TALL_M / 2.0), (half, -TUNNEL_LAMP_TALL_M / 2.0), (half, TUNNEL_LAMP_TALL_M / 2.0), (-half, TUNNEL_LAMP_TALL_M / 2.0))
+                ]
+                # Lit toward the road, the way the side's inside faces.
+                toward_road = (side * sin, -side * cos, 0.0)
+                parts.add("lamp", (corners, [mesh._facing((0, 1, 2, 3), corners, toward_road)]))
+            s += TUNNEL_LAMP_SPACING_M
     return parts.scenery()

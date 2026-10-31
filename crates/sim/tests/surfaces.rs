@@ -13,7 +13,7 @@ use common::{
 };
 
 use sim::tuning::{KART_HALF_WIDTH_M, OFF_TRACK_SPEED_FACTOR, TOP_SPEED_M_PER_S};
-use sim::{step, KartInput, KartReadout, State, Surface, Track};
+use sim::{step, KartInput, KartReadout, RaceEvent, State, Surface, Track};
 
 /// A quarter turn clockwise seen from above: from facing -Z to facing +X.
 const FACING_PLUS_X: f32 = -std::f32::consts::FRAC_PI_2;
@@ -389,6 +389,47 @@ fn a_kart_out_of_the_world_for_the_tuned_time_respawns_at_its_last_checkpoint_fa
     }
     assert_eq!(state.standings()[0].checkpoint, 1);
     assert_eq!(state.kart_surface(0), Surface::Asphalt);
+}
+
+/// Ticks until kart 0, idle where slot 0 stands on `track`, is respawned,
+/// or `None` if it is not within `seconds`.
+fn ticks_until_respawned(track: Track, seconds: f32) -> Option<usize> {
+    let mut state = started(State::new(SEED, 1, track));
+    for tick in 0..ticks(seconds) {
+        state = step(state, &[KartInput::default()], DT);
+        if state.events().contains(&RaceEvent::Respawned { kart: 0 }) {
+            return Some(tick);
+        }
+    }
+    None
+}
+
+#[test]
+fn a_kart_behind_a_wall_for_the_tuned_time_respawns_as_if_out_of_the_world() {
+    use sim::tuning::RESPAWN_DELAY_S;
+    // On the grass beyond the front straight's outer wall, which stands
+    // where the sand ends at x = 42: the wall is between it and the
+    // track, so it has left the course.
+    let behind = oval_with_slot_0_at([50.0, 0.0, 4.0], FACING_PLUS_X);
+    let respawned_at = ticks_until_respawned(behind, 2.0 * RESPAWN_DELAY_S)
+        .expect("a kart behind a wall comes back");
+    let expected = ticks(RESPAWN_DELAY_S);
+    assert!(
+        (expected - 1..=expected + 1).contains(&respawned_at),
+        "respawned after {respawned_at} ticks, expected {expected}"
+    );
+}
+
+#[test]
+fn a_kart_on_the_run_off_against_a_wall_or_on_grass_no_wall_bounds_is_never_respawned() {
+    use sim::tuning::RESPAWN_DELAY_S;
+    // Against the outer wall from the inside, on the sand.
+    let against = oval_with_slot_0_at([41.0, 0.0, 4.0], FACING_PLUS_X);
+    assert_eq!(ticks_until_respawned(against, 3.0 * RESPAWN_DELAY_S), None);
+    // The same grass as above with the walls taken away: nothing stands
+    // between it and the track.
+    let open = open_oval_with_slot_0_at([50.0, 0.0, 4.0], FACING_PLUS_X);
+    assert_eq!(ticks_until_respawned(open, 3.0 * RESPAWN_DELAY_S), None);
 }
 
 #[test]

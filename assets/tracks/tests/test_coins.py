@@ -1,7 +1,7 @@
 """Coins placed where a kart collects them, checked without Blender: every line along a straight
 no box row uses, every coin's rectangle on the asphalt, clear of every item box, boost pad and grid slot, enough on the centreline for a
 clean lap to collect a full purse, and about ten to twelve on the oval, thirteen on Goldstone and fifteen on Bell
-Deer.
+Deer and Monarch.
 
     python3 -I -m unittest discover -s assets/tracks/tests -t assets/tracks
 """
@@ -36,8 +36,8 @@ def tuning_count(name: str) -> int:
 
 COIN_CAP = tuning_count("COIN_CAP")
 
-# How many coins each layout lays: the oval about ten to twelve, Bell Deer fifteen or so, Goldstone thirteen.
-COUNTS = {"oval": range(10, 13), "bell-deer": range(14, 17), "goldstone": range(12, 15)}
+# How many coins each layout lays: the oval about ten to twelve, Bell Deer and Monarch fifteen or so, Goldstone thirteen.
+COUNTS = {"oval": range(10, 13), "bell-deer": range(14, 17), "goldstone": range(12, 15), "monarch": range(14, 17)}
 
 
 def corners(placement, half_length: float, half_width: float) -> list[tuple[float, float]]:

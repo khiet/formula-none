@@ -93,8 +93,8 @@ test("the creator's course is the room's: both Room Scenes show it and the race 
   await page.goto("/");
   await page.getByLabel("Nickname").fill("khiet");
   // The radio sits under its flag tile, which takes the click.
-  await page.locator(".flag-tile", { hasText: "Goldstone" }).click();
-  await expect(page.getByRole("radio", { name: "Goldstone" })).toBeChecked();
+  await page.locator(".flag-tile", { hasText: "Monarch" }).click();
+  await expect(page.getByRole("radio", { name: "Monarch" })).toBeChecked();
   await page.getByRole("button", { name: "Create room" }).click();
   await expect(page.locator("#room-scene")).toBeVisible({ timeout: 15_000 });
   const code = await roomCode(page);
@@ -112,14 +112,14 @@ test("the creator's course is the room's: both Room Scenes show it and the race 
   // Every player, the joiner included, sees the room's course card with its four numbers.
   for (const someone of [page, friend]) {
     const card = someone.locator("[data-room-course]");
-    await expect(card.locator("h3")).toHaveText("Goldstone");
+    await expect(card.locator("h3")).toHaveText("Monarch");
     await expect(card.locator(".stats small")).toHaveText(["Lap", "Laps", "Tightest", "Straight"]);
     await expect(card.locator(".stats b")).toHaveText([/^\d+ m$/, /^\d+$/, /^\d+ m$/, /^\d+ m$/]);
   }
 
-  // The Countdown names the course: each client loads Goldstone's mesh to race it.
+  // The Countdown names the course: each client loads Monarch's mesh to race it.
   const meshes = [page, friend].map((someone) =>
-    someone.waitForRequest(/goldstone\.glb/, { timeout: 60_000 }),
+    someone.waitForRequest(/monarch\.glb/, { timeout: 60_000 }),
   );
   await friend.getByRole("button", { name: "Ready", exact: true }).click();
   await page.getByRole("button", { name: "Ready", exact: true }).click();

@@ -54,6 +54,7 @@ export const WALL = 0xf0f0f0;
 export const FLAG_JP_RED = 0xbc002d;
 export const FLAG_GB_BLUE = 0x012169;
 export const FLAG_GB_RED = 0xc8102e;
+export const FLAG_MC_RED = 0xce1126;
 
 /** The item characters' greys, slot and road alike: the cone's slab, the drone's arms. */
 export const GREYS = {

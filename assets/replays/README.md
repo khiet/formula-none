@@ -75,4 +75,5 @@ held from the first half of the fourth light through Go, and from the top of the
 countdown. `goldstone-lap-with-bots.replay.json` was written by the sim tests'
 centreline follower, steering held six ticks at a time in eighths with the
 throttle down: one kart idle through the countdown, then a lap of Goldstone
-among seven bots.
+among seven bots. `monarch-lap-with-bots.replay.json` was written the same
+way on Monarch.

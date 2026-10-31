@@ -8,6 +8,9 @@ test("the Title Scene loads with the ways into a room and a race", async ({ page
   await expect(page.getByRole("button", { name: "Create room" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Join room" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Solo race" })).toBeVisible();
+  for (const course of ["Bell Deer", "Goldstone", "Monarch"]) {
+    await expect(page.locator(".flag-tile", { hasText: course }).locator("svg")).toBeVisible();
+  }
   for (const toggle of ["Sound effects", "Engine", "Music"]) {
     await expect(page.getByLabel(toggle)).toBeChecked();
   }

@@ -1,10 +1,11 @@
 // The course flags the Title Scene's picker and the Room Scene's badge
 // draw, as inline SVG at the real flags' proportions: Japan's at 3:2, the
-// Union Flag at 2:1, which the tile crops to 3:2 from its centre.
+// Union Flag at 2:1 and Monaco's at 5:4, which the tile crops to 3:2 from
+// their centres.
 
 import { hexCss } from "./livery";
 import { SVG_NS } from "./low-poly-svg";
-import { FLAG_GB_BLUE, FLAG_GB_RED, FLAG_JP_RED, VALUE_WHITE } from "./palette";
+import { FLAG_GB_BLUE, FLAG_GB_RED, FLAG_JP_RED, FLAG_MC_RED, VALUE_WHITE } from "./palette";
 import type { FlagName } from "./track";
 
 /** Each Union Flag needs its own clip path id, since every flag on the page shares one document. */
@@ -57,7 +58,19 @@ function unionFlag(): SVGSVGElement {
   return flag;
 }
 
-const FLAGS: Readonly<Record<FlagName, () => SVGSVGElement>> = { jp: japan, gb: unionFlag };
+function monaco(): SVGSVGElement {
+  const flag = svg("0 0 5 4");
+  flag.setAttribute("preserveAspectRatio", "xMidYMid slice");
+  shape(flag, "rect", { width: 5, height: 4, fill: hexCss(VALUE_WHITE) });
+  shape(flag, "rect", { width: 5, height: 2, fill: hexCss(FLAG_MC_RED) });
+  return flag;
+}
+
+const FLAGS: Readonly<Record<FlagName, () => SVGSVGElement>> = {
+  jp: japan,
+  gb: unionFlag,
+  mc: monaco,
+};
 
 /** A new SVG of `name`'s flag, hidden from assistive tech: the course's name beside it says which it is. */
 export function flag(name: FlagName): SVGSVGElement {

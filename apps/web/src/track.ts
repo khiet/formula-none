@@ -4,10 +4,12 @@ import bellDeerGltf from "../../../assets/tracks/bell-deer/bell-deer.glb?url";
 import bellDeerSidecar from "../../../assets/tracks/bell-deer/bell-deer.track.json?url";
 import goldstoneGltf from "../../../assets/tracks/goldstone/goldstone.glb?url";
 import goldstoneSidecar from "../../../assets/tracks/goldstone/goldstone.track.json?url";
+import monarchGltf from "../../../assets/tracks/monarch/monarch.glb?url";
+import monarchSidecar from "../../../assets/tracks/monarch/monarch.track.json?url";
 import ovalGltf from "../../../assets/tracks/oval/oval.glb?url";
 import ovalSidecar from "../../../assets/tracks/oval/oval.track.json?url";
 
-export type TrackName = "bell-deer" | "goldstone" | "oval";
+export type TrackName = "bell-deer" | "goldstone" | "monarch" | "oval";
 
 /** A point in the world's metres: x, y up, z. */
 export type WorldPoint = readonly [number, number, number];
@@ -27,6 +29,7 @@ export const TRACKS: Readonly<Record<TrackName, TrackFiles>> = {
     sidecarUrl: bellDeerSidecar,
   },
   goldstone: { name: "goldstone", gltfUrl: goldstoneGltf, sidecarUrl: goldstoneSidecar },
+  monarch: { name: "monarch", gltfUrl: monarchGltf, sidecarUrl: monarchSidecar },
   oval: { name: "oval", gltfUrl: ovalGltf, sidecarUrl: ovalSidecar },
 };
 
@@ -34,7 +37,7 @@ export const TRACKS: Readonly<Record<TrackName, TrackFiles>> = {
 export const DEFAULT_TRACK: TrackName = "bell-deer";
 
 /** A flag the Title Scene's picker and the Room Scene's badge draw. */
-export type FlagName = "jp" | "gb";
+export type FlagName = "jp" | "gb" | "mc";
 
 /** A track as players see it: its name and flag, and the real circuit it is after. */
 export interface Course {
@@ -65,6 +68,13 @@ export const COURSES: readonly Course[] = [
     after: "Silverstone",
     flag: "gb",
     blurb: "Flat out and open, Maggotts and Becketts, the Hangar Straight",
+  },
+  {
+    track: "monarch",
+    name: "Monarch",
+    after: "Monaco",
+    flag: "mc",
+    blurb: "Barriers close, up to Casino Square, down through the tunnel",
   },
 ];
 
@@ -98,7 +108,7 @@ export function saveCoursePick(storage: Storage, course: Course): void {
 
 /**
  * Pick a track from the page's query string (`?track=oval`,
- * `?track=goldstone`) so a tester can load any without a build. Anything else is the default.
+ * `?track=monarch`) so a tester can load any without a build. Anything else is the default.
  */
 export function selectTrack(search: string): TrackFiles {
   return trackFromSearch(search) ?? TRACKS[DEFAULT_TRACK];

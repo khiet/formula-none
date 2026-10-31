@@ -1,6 +1,6 @@
 # Tracks
 
-Three tracks, each exported from Blender as a glTF the View draws and a
+Four tracks, each exported from Blender as a glTF the View draws and a
 sidecar the sim reads (ADR 0007):
 
 | Track                | Role                              | Files                                   |
@@ -8,6 +8,7 @@ sidecar the sim reads (ADR 0007):
 | `oval`               | test fixture for the sim's tests  | `oval/oval.glb`, `oval/oval.track.json` |
 | `bell-deer`       | the race track, Bell Deer      | `bell-deer/bell-deer.glb`, `...track.json` |
 | `goldstone`       | the course after Silverstone   | `goldstone/goldstone.glb`, `...track.json` |
+| `monarch`         | the course after Monaco        | `monarch/monarch.glb`, `...track.json` |
 
 ## Export
 
@@ -47,7 +48,8 @@ checkpoint count, item box rows, boost pads and lines of coins
 (`CoinLine(s, count, offset)`, the coins a kart collects, four metres
 apart along the track), and its decor:
 which segments get sponsor hoardings and grandstands, whether the
-start line gets its gantry, where the course crosses itself on a bridge,
+start line gets its gantry, where the course crosses itself on a bridge, where a tunnel roofs the road
+(`Tunnel(s_start, s_end)`),
 its woods (`Wood(kind, patch, count, seed)`, a disc or a line of grass
 the builder scatters up to `count` trees over) and its props
 (`Prop(kind, at)`, hung on the lap with `Spot(s, offset)` or set in the

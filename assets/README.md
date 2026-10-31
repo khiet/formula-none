@@ -7,7 +7,7 @@ Blender sources and exported glTF (ADR 0007). Everything in here is CC0;
 primitives with its paint in four swappable materials, the livery.
 `karts/README.md` has the export command.
 
-`tracks/` holds the three tracks: the oval test fixture, Bell Deer and Goldstone.
+`tracks/` holds the four tracks: the oval test fixture, Bell Deer, Goldstone and Monarch.
 Each is exported as a glTF for the View and a sidecar for the sim carrying
 the centreline, checkpoints, item box and boost pad positions, the spawn
 grid and the tagged collision meshes (asphalt, sand, grass, wall). The sim

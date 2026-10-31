@@ -471,9 +471,10 @@
       <article class="asset">
         <header><h3>Track-limit walls</h3><code>assets/tracks/trackgen/layout.py, mesh.py</code></header>
         <div class="compare"><figure><figcaption>Along both edges of the run-off</figcaption><div class="stage flat" data-draw="wall"></div></figure></div>
-        <dl class="spec"><dt>Size</dt><dd>1 m high, 0.5 m thick</dd><dt>Decided</dt><dd><a href="adr/0022-track-limits.md">ADR 0022</a></dd></dl>
+        <dl class="spec"><dt>Size</dt><dd>1 m high, 0.5 m thick; 6 m off the asphalt, 2 m on Monarch</dd><dt>Decided</dt><dd><a href="adr/0022-track-limits.md">ADR 0022</a>, <a href="adr/0063-a-kart-behind-a-wall-respawns.md">ADR 0063</a>, <a href="adr/0064-monarch-joins-the-courses.md">ADR 0064</a></dd></dl>
         <div class="notes">
           <p>A box rail in wall white the whole way round every track. Flat faces, so the sun alone gives the lit top and the shaded face; the course map draws the same white edge.</p>
+          <p>Monarch's stand 2 m off the asphalt instead of 6 m, as the streets' barriers do, so the sand between is a strip and the walls close in on the road. A kart that ends up behind one respawns.</p>
           <p class="dont"><b>Don't</b> stripe it: a pattern adds faces along hundreds of metres, and plain white already reads against sand and grass.</p>
         </div>
       </article>
@@ -524,7 +525,7 @@
       <article class="asset">
         <header><h3>Marshal post</h3><code>assets/tracks/trackgen/layout.py marshal_posts; apps/web/src/item-meshes.ts marshalMesh, hazardFlag, marshalBeacon</code></header>
         <div class="compare"><figure><figcaption>Quiet</figcaption><div class="stage flat" data-draw="marshalPostQuiet"></div></figure><figure><figcaption>Flag up</figcaption><div class="stage flat" data-draw="marshalPost"></div></figure><figure><figcaption>Rolling</figcaption><div class="stage flat" data-draw="marshalPostRolling"></div></figure></div>
-        <dl class="spec"><dt>Size</dt><dd>1.4 x 1.4 x 1 m, 3 m short of the wheel's crossing on the outside run-off; each flag 0.9 x 0.62 m on a 1 m pole</dd><dt>Decided</dt><dd><a href="adr/0041-track-obstacles.md">ADR 0041</a>, <a href="adr/0045-marshal-waves-hazard-flags.md">ADR 0045</a>, <a href="mockups/runaway-wheel-danger-spec.html">the danger spec</a></dd></dl>
+        <dl class="spec"><dt>Size</dt><dd>1.4 x 1.4 x 1 m, 3 m short of the wheel's crossing, 3 m into the outside run-off or in its middle when it is narrower, as on Monarch; each flag 0.9 x 0.62 m on a 1 m pole</dd><dt>Decided</dt><dd><a href="adr/0041-track-obstacles.md">ADR 0041</a>, <a href="adr/0045-marshal-waves-hazard-flags.md">ADR 0045</a>, <a href="mockups/runaway-wheel-danger-spec.html">the danger spec</a></dd></dl>
         <div class="notes">
           <p>A low white platform, banded orange <code>#ff8800</code> 0.12 m deep under its top, with an orange lamp on its face to the track: scenery in the track's glTF. The View stands Oyaji, the marshal, on its top facing the track, and an amber beacon on its track-side corner.</p>
           <p>His two hazard flags are <code>SIGNAL_YELLOW.mid</code> <code>#f5c542</code> with <code>HAZARD_FLAG_STRIPE</code> <code>#1f1f22</code> diagonals 0.09 m wide every 0.2 m, leaning down away from the pole, on a pole in <code>WHITE.shaded</code> <code>#cfd2d6</code>. Flying, the cloth ripples out from the pole. Quiet, they lean furled against his stool.</p>
@@ -589,6 +590,16 @@
         <div class="notes">
           <p>Where a course crosses itself. The raised leg rides a grass embankment that falls straight from the foot of its walls to the ground, cut by a span over the leg beneath: a white abutment closes each end of the embankment, and the deck between them has white sides and an underside in the stands' plinth grey. The road, its sand and its walls climb with the leg, so the walls are the deck's parapets. Scenery only: the karts ride the raised leg's own surfaces.</p>
           <p class="dont"><b>Don't</b> narrow the span to the road beneath: the underpass's walls stand clear of both abutments, so a kart under the deck never sees a wall end in a face.</p>
+        </div>
+      </article>
+
+      <article class="asset">
+        <header><h3>Tunnel</h3><code>assets/tracks/trackgen/layout.py tunnels, Tunnel in layout.py, assets/tracks/build.py</code></header>
+        <div class="compare"><figure><figcaption>Monarch's tunnel from the road at its mouth</figcaption><div class="stage flat" data-draw="tunnel"></div></figure></div>
+        <dl class="spec"><dt>Size</dt><dd>About 150 m of the tunnel bend; roof underside 6 m over the road, 0.6 m thick; sides 0.6 m thick; a 1.6 m by 0.3 m lamp every 12 m, 4.4 m up</dd><dt>Decided</dt><dd><a href="adr/0064-monarch-joins-the-courses.md">ADR 0064</a></dd></dl>
+        <div class="notes">
+          <p>A roof over the road from 10 m past the tunnel mouth to 15 m short of the chicane, so both portals stand on the flat. A side stands against the back of each wall from the grass to the top of the roof, in <code>beam-shade</code> <code>#9aa0a8</code>; the roof's underside is <code>carbon-shade</code> <code>#1c1c1e</code>, its top and both portal faces <code>carbon</code> <code>#2b2e33</code>. The underside clears the chase camera, which rides 3.2 m over its kart, so the view never cuts through it. Along each side's inside, a lamp every 12 m in <code>lamp</code> <code>#ffd98a</code>, the one track material that emits, so it reads lit however little sun reaches under the roof. Scenery only: the walls under it hold the karts.</p>
+          <p class="dont"><b>Don't</b> lower the roof toward the road: the chase camera rides above the kart, and a roof under it would cut through the view.</p>
         </div>
       </article>
 
@@ -784,6 +795,7 @@
             <div style="display:flex;gap:0.7rem">
               <span style="display:grid;gap:0.3rem;justify-items:center;padding:0.35rem;background:var(--g-ink);box-shadow:4px 4px 0 rgb(0 0 0 / 0.4);font-size:0.7rem"><svg viewBox="0 0 900 600" style="display:block;width:3.6rem;height:2.4rem;filter:saturate(0.55) brightness(0.8);border:3px solid var(--g-ink)"><rect width="900" height="600" fill="#ffffff"/><circle cx="450" cy="300" r="180" fill="#bc002d"/></svg>Bell Deer</span>
               <span style="display:grid;gap:0.3rem;justify-items:center;padding:0.35rem;color:var(--g-ink);background:var(--g-pgold);box-shadow:6px 6px 0 var(--g-ink);translate:-2px -2px;font-size:0.7rem"><svg viewBox="0 0 60 30" preserveAspectRatio="xMidYMid slice" style="display:block;width:3.6rem;height:2.4rem;border:3px solid var(--g-ink)"><clipPath id="guide-union"><path d="M30,15 h30 v15 z v15 h-30 z h-30 v-15 z v-15 h30 z"/></clipPath><rect width="60" height="30" fill="#012169"/><path d="M0,0 L60,30 M60,0 L0,30" stroke="#ffffff" stroke-width="6"/><path d="M0,0 L60,30 M60,0 L0,30" clip-path="url(#guide-union)" stroke="#c8102e" stroke-width="4"/><path d="M30,0 v30 M0,15 h60" stroke="#ffffff" stroke-width="10"/><path d="M30,0 v30 M0,15 h60" stroke="#c8102e" stroke-width="6"/></svg>Goldstone</span>
+              <span style="display:grid;gap:0.3rem;justify-items:center;padding:0.35rem;background:var(--g-ink);box-shadow:4px 4px 0 rgb(0 0 0 / 0.4);font-size:0.7rem"><svg viewBox="0 0 5 4" preserveAspectRatio="xMidYMid slice" style="display:block;width:3.6rem;height:2.4rem;filter:saturate(0.55) brightness(0.8);border:3px solid var(--g-ink)"><rect width="5" height="4" fill="#ffffff"/><rect width="5" height="2" fill="#ce1126"/></svg>Monarch</span>
             </div>
             <div style="width:100%;max-width:17rem;padding:0.6rem 0.7rem;background:var(--g-ink);box-shadow:5px 5px 0 rgb(0 0 0 / 0.4)">
               <div style="display:flex;align-items:baseline;justify-content:space-between"><span style="font-size:1.3rem;color:var(--g-pgold)">Goldstone</span><span style="font-size:0.6rem;color:#c9ced5">After Silverstone</span></div>
@@ -799,7 +811,7 @@
         <div class="notes">
           <p>Red poster, rays, chequer bands top and bottom, the logo, chunky buttons and fields with hard ink shadows, and the audio toggles as ink chips: a lit square when on, the label struck through when off. Poster karts in their liveries run along the bottom edge, wheels turning.</p>
           <p>Two columns: the way in on the left, the course on the right. The course is a heading, a flag tile per course in the registry in <code>track.ts</code> (a radio group named <code>course</code>) and a preview card. The picked tile turns poster gold and lifts on a hard ink shadow; the others dim their flag. The card names the course in gold over "After" its circuit, draws the sidecar's centreline flat in asphalt over a white wall with the start line and a gold dot lapping it every eight seconds, still under reduced motion, then a blurb and four numbers measured from the centreline: lap, laps, tightest bend and longest straight.</p>
-          <p>The flags are the real ones in their own colours: Japan's at 3:2 and the Union Flag cropped from 2:1 to the tile's 3:2.</p>
+          <p>The flags are the real ones in their own colours: Japan's at 3:2, and the Union Flag and Monaco's red over white cropped from 2:1 and 5:4 to the tile's 3:2. Monaco's red is <code>FLAG_MC_RED</code> <code>#ce1126</code>.</p>
           <p>Go green marks the one primary action on a poster; poster gold marks the others.</p>
         </div>
       </article>
@@ -1130,6 +1142,29 @@
       ${poly([[x(40) - 2, y(h(40))], [x(40), y(h(40))], [x(40), ground], [x(40) - 2, ground]], wall)}${poly([[x(70), y(h(70))], [x(70) + 2, y(h(70))], [x(70) + 2, ground], [x(70), ground]], wall)}
       ${poly([...deck, ...deckUnder], wall)}${poly([...deckUnder, ...deckUnder.map(([px, py]) => [px, py + 2]).reverse()], under)}
       ${poly([...parapet, ...parapet.map(([px, py]) => [px, py - 12]).reverse()], `color-mix(in srgb, ${wall} 88%, black)`)}</svg>`;
+  };
+  // The tunnel from the road at its mouth, 13 px a metre at the portal: the walls and sand either
+  // side of the asphalt, the sides and roof receding to the bend, and the lamps along each side.
+  draw.tunnel = () => {
+    const grass = rgb([0.36, 0.69, 0.29]), sand = rgb([0.91, 0.78, 0.45]), asphalt = rgb([0.42, 0.42, 0.47]), wall = rgb([0.94, 0.94, 0.94]);
+    const side = rgb([0.604, 0.627, 0.659]), carbon = rgb([0.169, 0.18, 0.2]), under = rgb([0.11, 0.11, 0.118]), lamp = rgb([1.0, 0.851, 0.541]);
+    const ground = 138, vx = 160, vy = 104, far = 0.22;
+    const at = (m, up, s = 1) => [vx + (160 + m * 13 - vx) * s, vy + (ground - up * 13 - vy) * s];
+    const band = (m0, m1, up0, up1, fill) => poly([at(m0, up0), at(m1, up0), at(m1, up0, far), at(m0, up0, far)], fill);
+    const lamps = [1, 0.82, 0.66, 0.53, 0.42, 0.33, 0.26].flatMap((s) => [-1, 1].map((k) => {
+      const [x, y] = at(k * 8.45, 4.4, s);
+      return `<rect x="${x - (k < 0 ? 0 : 10 * s)}" y="${y - 2 * s}" width="${10 * s}" height="${4 * s}" fill="${lamp}"/>`;
+    })).join("");
+    return `<svg viewBox="0 0 320 150" role="img" aria-label="A tunnel: grey sides and a dark roof over the road, lit by warm lamps along both sides">
+      <rect width="320" height="150" fill="#cfe8f5"/><rect y="${ground}" width="320" height="12" fill="${grass}"/>
+      ${poly([at(-9.1, 0), at(9.1, 0), at(9.1, 0, far), at(-9.1, 0, far)], under)}
+      ${band(-8, 8, 0, 0, sand)}${band(-6, 6, 0, 0, asphalt)}
+      ${poly([at(-8.5, 0), at(-8.5, 6), at(-8.5, 6, far), at(-8.5, 0, far)], side)}${poly([at(8.5, 0), at(8.5, 6), at(8.5, 6, far), at(8.5, 0, far)], `color-mix(in srgb, ${side} 82%, black)`)}
+      ${poly([at(-8.5, 6), at(8.5, 6), at(8.5, 6, far), at(-8.5, 6, far)], under)}
+      ${poly([at(-8, 0), at(-8, 1), at(-8, 1, far), at(-8, 0, far)], wall)}${poly([at(8, 0), at(8, 1), at(8, 1, far), at(8, 0, far)], `color-mix(in srgb, ${wall} 82%, black)`)}
+      ${lamps}
+      ${poly([at(-9.1, 6), at(9.1, 6), at(9.1, 6.6), at(-9.1, 6.6)], carbon)}
+      ${poly([at(-9.1, 0), at(-8.5, 0), at(-8.5, 6), at(-9.1, 6)], carbon)}${poly([at(8.5, 0), at(9.1, 0), at(9.1, 6), at(8.5, 6)], carbon)}</svg>`;
   };
   // The woods' trees from the side, as the export builds them: a facet is lit when it faces up and
   // not away from the sun on the left, else it takes the colour's shade tone, two thirds of it.
@@ -1651,6 +1686,7 @@
       { token: "FLAG_JP_RED", hex: 0xbc002d, role: "Bell Deer's flag: Japan's disc" },
       { token: "FLAG_GB_BLUE", hex: 0x012169, role: "Goldstone's flag: the Union Flag's field" },
       { token: "FLAG_GB_RED", hex: 0xc8102e, role: "Goldstone's flag: the Union Flag's crosses" },
+      { token: "FLAG_MC_RED", hex: 0xce1126, role: "Monarch's flag: Monaco's upper band" },
     ]],
     ["Signals", [
       { token: "SIGNAL_GREEN", tones: [0x8ee88e, 0x5ad15a, 0x3a9a3a], role: "Shift lights' first third, the tyre gauge above 60%" },
