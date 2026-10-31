@@ -326,3 +326,17 @@ describe("the oval fixture", () => {
     expect(families).not.toContain("Prop");
   });
 });
+
+describe("Monarch's tunnel", () => {
+  const gltf = track("monarch");
+
+  it("lights its lamps with the one material on any track that glows", () => {
+    expect(materialsOf(gltf, "Tunnel.lamp")).toEqual(["lamp"]);
+    for (const name of ["bell-deer", "goldstone", "monarch", "oval"]) {
+      const glowing = (track(name).materials ?? [])
+        .filter(({ emissiveFactor }) => emissiveFactor?.some((channel) => channel > 0))
+        .map((material) => material.name);
+      expect(glowing).toEqual(name === "monarch" ? ["lamp"] : []);
+    }
+  });
+});
