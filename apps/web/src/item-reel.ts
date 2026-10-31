@@ -12,7 +12,7 @@ const REEL_ORDER: readonly Item[] = ["boost", "hazard", "homing"];
 /** The gap between changes at the roll's start, and how much it grows by its end. */
 const REEL_FIRST_GAP_S = 0.05;
 const REEL_GAP_GROWTH_S = 0.23;
-/** The overshoot past the landing icon and back, in the roll's last seconds. */
+/** How long the overshoot past the landing icon and back takes, at the end of the roll. */
 const REEL_SETTLE_S = 0.25;
 /** How far past the landing icon the overshoot reaches, in icons. */
 const REEL_OVERSHOOT = 0.16;

@@ -77,7 +77,6 @@ export function createServerRace(
   let rolledTicks = 0;
   /** Ticks left of the flash as the rolled item lands. */
   let landingTicksLeft = 0;
-  /** Every box the server reported the local kart took. */
   let boxesTaken = 0;
   /**
    * Whether an item event has named the local kart yet. Until one has, as

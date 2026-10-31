@@ -1,5 +1,3 @@
-// A race whose rules run in this browser, as a solo race's do.
-
 import type { Bridge, KartInput } from "./bridge";
 import { IDLE_INPUT } from "./input";
 import {

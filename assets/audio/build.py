@@ -271,7 +271,7 @@ def mini_turbo(from_hz=150, to_hz=1100, length=0.35, hiss=0.4, gain=0.35):
 
 
 def item_pickup(first=1047, second=1568, crack=0.55, gain=0.38):
-    """Crack and chime: the box breaking, then the coin chime's two triangle notes a fourth lower."""
+    """Crack and chime: the box breaking, then two triangle notes a fifth apart, a fifth under the coin chime."""
     return mix(
         highpass(noise(0.07, decay=45, gain=crack, seed=3), 2500),
         concat(
@@ -288,7 +288,7 @@ def item_roll_tick(gain=0.6):
 
 
 def item_rolled(freqs=(1047, 1319, 1568), top=2093, gain=0.35):
-    """Arpeggio up: triangle C, E, G then a ringing high C, the finish's family, short."""
+    """Arpeggio up: triangle C, E, G then a ringing high C."""
     return concat(
         notes(freqs, 0.06, triangle, 10, gain),
         tone(top, 0.38, triangle, decay=6, gain=gain),
