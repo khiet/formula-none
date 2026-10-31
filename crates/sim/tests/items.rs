@@ -1,23 +1,25 @@
 //! Items at the sim's public seam: a kart on an item box picks one up, the
-//! box comes back the tuned time later, a kart holding an item takes boxes
+//! box comes back the tuned time later, the item rolls in the slot for the
+//! tuned time before it can be fired, a kart with a full slot takes boxes
 //! without rolling and so denies them to the karts behind, the roll is
 //! weighted by race position, a fired boost gives the tuned speed for the
-//! tuned time, and a bot fires what it holds within the tuned delay.
+//! tuned time, and a bot fires what it holds within the tuned delay of its
+//! landing.
 //! Pickups and fires are read from `State::events` after the `step` that
 //! produced them.
 
 mod common;
 
 use common::{
-    oval, oval_with_boxes_under, slot_position, tap, throttle, ticks, track, with_boxes_at,
+    brake, oval, oval_with_boxes_under, slot_position, tap, throttle, ticks, track, with_boxes_at,
     with_boxes_under, without_coins, without_item_boxes, DT, OVAL, SEED,
 };
 
 use sim::tuning::{
     self, ITEM_BOOST_FACTOR, ITEM_BOOST_S, ITEM_BOX_HALF_LENGTH_M, ITEM_BOX_HALF_WIDTH_M,
-    ITEM_BOX_RESPAWN_S, ITEM_ROLL_WEIGHTS, TOP_SPEED_M_PER_S,
+    ITEM_BOX_RESPAWN_S, ITEM_ROLL_S, ITEM_ROLL_WEIGHTS, TOP_SPEED_M_PER_S,
 };
-use sim::{step, Item, KartInput, MiniTurbo, Phase, RaceEvent, State, Track};
+use sim::{step, Item, ItemSlot, KartInput, MiniTurbo, Phase, RaceEvent, State, Track};
 
 /// The box added under slot 0 by `oval_with_boxes_under`.
 fn box_under_slot_0() -> usize {
@@ -37,14 +39,15 @@ fn started(mut state: State) -> State {
     state
 }
 
+/// What the slot of `kart` holds as of the last tick.
+fn slot(state: &State, kart: usize) -> ItemSlot {
+    state.kart_readouts()[kart].item_slot
+}
+
 #[test]
 fn a_kart_on_a_box_picks_up_an_item_and_the_box_comes_back_the_tuned_time_later() {
     let state = started(State::new(SEED, 1, oval_with_boxes_under(0..1)));
-    assert_eq!(
-        state.kart_readouts()[0].held_item,
-        None,
-        "empty slot on the grid"
-    );
+    assert_eq!(slot(&state, 0), ItemSlot::Empty, "empty slot on the grid");
 
     // The first racing tick: the kart stands on the box and picks it up.
     let state = step(state, &[KartInput::default()], DT);
@@ -58,25 +61,35 @@ fn a_kart_on_a_box_picks_up_an_item_and_the_box_comes_back_the_tuned_time_later(
     };
     let item = *item;
     assert_eq!(*item_box, box_under_slot_0());
-    assert_eq!(state.kart_readouts()[0].held_item, Some(item));
+    assert_eq!(slot(&state, 0).item(), Some(item));
 
-    // Fired, the slot is empty again and the box is still gone.
-    let mut state = step(state, &[tap()], DT);
-    assert_eq!(
-        state.events(),
-        &[RaceEvent::ItemFired { kart: 0, item }],
-        "the fire is reported, and nothing is picked up from the empty box"
-    );
-    assert_eq!(state.kart_readouts()[0].held_item, None);
-
-    // The box comes back the tuned time after it was picked up, and the kart
-    // still standing on it takes it again.
-    let mut since_pickup = 1;
+    // Fired once it lands, the slot is empty again; the box comes back the
+    // tuned time after it was picked up, and the kart still standing on it
+    // takes it again.
+    let mut state = state;
+    let mut since_pickup = 0;
+    let mut fired = false;
     let picked_again_after = loop {
-        state = step(state, &[KartInput::default()], DT);
+        let input = if slot(&state, 0).held().is_some() {
+            tap()
+        } else {
+            KartInput::default()
+        };
+        state = step(state, &[input], DT);
         since_pickup += 1;
         if let [RaceEvent::ItemPicked { kart: 0, .. }] = state.events() {
             break since_pickup;
+        }
+        if let [RaceEvent::ItemFired {
+            kart: 0,
+            item: fired_item,
+        }] = state.events()
+        {
+            assert_eq!(*fired_item, item);
+            assert!(!fired, "fired once");
+            assert_eq!(slot(&state, 0), ItemSlot::Empty);
+            fired = true;
+            continue;
         }
         assert!(
             state.events().is_empty(),
@@ -88,11 +101,146 @@ fn a_kart_on_a_box_picks_up_an_item_and_the_box_comes_back_the_tuned_time_later(
             "the box never came back"
         );
     };
+    assert!(fired, "the item was fired before the box came back");
     let expected = ticks(ITEM_BOX_RESPAWN_S);
     assert!(
         (expected - 1..=expected + 1).contains(&picked_again_after),
         "the box came back after {picked_again_after} ticks, expected about {expected}"
     );
+}
+
+#[test]
+fn the_item_rolls_for_the_tuned_time_and_a_press_while_it_rolls_fires_nothing() {
+    let state = started(State::new(SEED, 1, oval_with_boxes_under(0..1)));
+    let mut state = step(state, &[KartInput::default()], DT);
+    let [(0, Some(item), _)] = pickups(&state)[..] else {
+        panic!("one pickup at Go: {:?}", state.events());
+    };
+    assert_eq!(
+        slot(&state, 0),
+        ItemSlot::Rolling {
+            item,
+            roll_left_s: ITEM_ROLL_S
+        }
+    );
+
+    // Pressed every other tick through the roll, the landing tick's
+    // included: nothing fires and the slot rolls on.
+    let mut rolled_for = 0;
+    while let ItemSlot::Rolling { .. } = slot(&state, 0) {
+        let input = if rolled_for % 2 == 0 {
+            tap()
+        } else {
+            KartInput::default()
+        };
+        state = step(state, &[input], DT);
+        rolled_for += 1;
+        assert!(
+            state.events().is_empty(),
+            "a press while the slot rolls fires nothing: {:?}",
+            state.events()
+        );
+        assert!(
+            rolled_for <= ticks(ITEM_ROLL_S) + 2,
+            "the roll never landed"
+        );
+    }
+    let expected = ticks(ITEM_ROLL_S);
+    assert!(
+        (expected - 1..=expected + 1).contains(&rolled_for),
+        "landed after {rolled_for} ticks, expected about {expected}"
+    );
+    assert_eq!(slot(&state, 0), ItemSlot::Held(item));
+
+    // The presses during the roll are not remembered; the next one fires.
+    let state = step(state, &[KartInput::default()], DT);
+    assert!(state.events().is_empty(), "{:?}", state.events());
+    let state = step(state, &[tap()], DT);
+    assert_eq!(state.events(), &[RaceEvent::ItemFired { kart: 0, item }]);
+}
+
+#[test]
+fn a_box_taken_while_the_slot_rolls_gives_nothing_and_the_roll_runs_on() {
+    const AHEAD_BOX: usize = 1;
+    let (track, _) = oval_with_a_box_ahead();
+    let mut state = step(started(State::new(SEED, 1, track)), &[throttle()], DT);
+    let [(0, Some(item), 0)] = pickups(&state)[..] else {
+        panic!("kart 0 rolls at Go: {:?}", state.events());
+    };
+    loop {
+        let ItemSlot::Rolling {
+            roll_left_s: before_s,
+            ..
+        } = slot(&state, 0)
+        else {
+            panic!("landed before the box ahead: {:?}", slot(&state, 0));
+        };
+        state = step(state, &[throttle()], DT);
+        if pickups(&state).is_empty() {
+            continue;
+        }
+        assert_eq!(pickups(&state), [(0, None, AHEAD_BOX)]);
+        let ItemSlot::Rolling {
+            item: rolling,
+            roll_left_s,
+        } = slot(&state, 0)
+        else {
+            panic!("still rolling: {:?}", slot(&state, 0));
+        };
+        assert_eq!(rolling, item, "the roll keeps its item");
+        assert!(roll_left_s < before_s, "the roll runs on");
+        assert!(!state.item_boxes_present()[AHEAD_BOX], "the box is taken");
+        return;
+    }
+}
+
+#[test]
+fn a_spin_out_does_not_stop_the_roll() {
+    // The kart drops its hazard on its box and drives off; backing up, it
+    // rolls from the box, back by then, and runs into the hazard with the
+    // roll under way.
+    let mut state = step(holding(Item::Hazard), &[tap()], DT);
+    for _ in 0..ticks(1.5) {
+        state = step(state, &[throttle()], DT);
+    }
+    let mut since_pickup = None;
+    loop {
+        state = step(state, &[brake()], DT);
+        since_pickup = since_pickup.map(|ticks| ticks + 1);
+        if let [(0, Some(_), _)] = pickups(&state)[..] {
+            since_pickup = Some(0);
+        }
+        if state.events().contains(&RaceEvent::SpunOut {
+            kart: 0,
+            by: Some(0),
+        }) {
+            break;
+        }
+        assert!(
+            since_pickup.unwrap_or(0) < ticks(ITEM_ROLL_S),
+            "never backed into its own hazard mid-roll"
+        );
+    }
+    let mut since_pickup = since_pickup.expect("rolled from the box before the hazard");
+    assert!(matches!(slot(&state, 0), ItemSlot::Rolling { .. }));
+
+    let mut spun_out_while_rolling = 0;
+    while let ItemSlot::Rolling { .. } = slot(&state, 0) {
+        state = step(state, &[KartInput::default()], DT);
+        since_pickup += 1;
+        spun_out_while_rolling += usize::from(state.kart_readouts()[0].spin_out_s.is_some());
+        assert!(
+            since_pickup <= ticks(ITEM_ROLL_S) + 2,
+            "the roll never landed"
+        );
+    }
+    assert!(spun_out_while_rolling > 0);
+    let expected = ticks(ITEM_ROLL_S);
+    assert!(
+        (expected - 1..=expected + 1).contains(&since_pickup),
+        "landed {since_pickup} ticks after the pickup, expected about {expected}"
+    );
+    assert!(slot(&state, 0).held().is_some());
 }
 
 /// The oval with no coins and no item boxes but one under spawn slot 0 and
@@ -169,8 +317,8 @@ fn a_kart_holding_an_item_takes_a_box_from_the_kart_behind_it_and_keeps_its_item
         [(0, None, AHEAD_BOX)],
         "the holding kart took it with nothing rolled, not the one behind"
     );
-    assert_eq!(state.kart_readouts()[0].held_item, Some(held));
-    assert_eq!(state.kart_readouts()[BEHIND].held_item, None);
+    assert_eq!(slot(&state, 0).item(), Some(held));
+    assert_eq!(slot(&state, BEHIND), ItemSlot::Empty);
 
     // Back the tuned time after the holding kart took it.
     while !state.item_boxes_present()[AHEAD_BOX] {
@@ -218,7 +366,7 @@ fn a_kart_that_fires_on_the_tick_its_box_comes_back_rolls_from_it() {
         [(0, None, box_under_slot_0())],
         "holding an item, the kart takes the box and rolls nothing"
     );
-    assert_eq!(state.kart_readouts()[0].held_item, Some(held));
+    assert_eq!(slot(&state, 0), ItemSlot::Held(held));
     assert!(!state.item_boxes_present()[box_under_slot_0()]);
 
     // Fired on that tick, the slot is empty, and the kart rolls an item from
@@ -238,7 +386,7 @@ fn a_kart_that_fires_on_the_tick_its_box_comes_back_rolls_from_it() {
         panic!("a fire then a roll: {:?}", state.events());
     };
     assert_eq!(*item, held);
-    assert!(state.kart_readouts()[0].held_item.is_some());
+    assert!(matches!(slot(&state, 0), ItemSlot::Rolling { .. }));
 }
 
 /// Seeds rolled per race for the weights test; eight rolls per seed.
@@ -299,12 +447,12 @@ fn the_roll_is_weighted_by_the_race_position_band_over_many_seeds() {
     }
 }
 
-/// A one-kart race on a box with `item` in the kart's slot from the first
-/// racing tick: the seeds are tried in order until one rolls it.
+/// A one-kart race on a box the tick `item`, rolled at Go, lands in the
+/// kart's slot: the seeds are tried in order until one rolls it.
 fn holding(item: Item) -> State {
     for seed in 0.. {
         let state = started(State::new(seed, 1, oval_with_boxes_under(0..1)));
-        let state = step(state, &[KartInput::default()], DT);
+        let mut state = step(state, &[KartInput::default()], DT);
         if state.events()
             == [RaceEvent::ItemPicked {
                 kart: 0,
@@ -312,6 +460,10 @@ fn holding(item: Item) -> State {
                 item_box: box_under_slot_0(),
             }]
         {
+            while slot(&state, 0) != ItemSlot::Held(item) {
+                state = step(state, &[KartInput::default()], DT);
+                assert!(state.events().is_empty(), "{:?}", state.events());
+            }
             return state;
         }
     }
@@ -352,7 +504,7 @@ fn a_fired_boost_gives_the_tuned_speed_for_the_tuned_time() {
             item: Item::Boost
         }]
     );
-    assert_eq!(state.kart_readouts()[0].held_item, None);
+    assert_eq!(slot(&state, 0), ItemSlot::Empty);
     assert_eq!(state.kart_readouts()[0].boost_tier, MiniTurbo::Red);
     let mut boosted_ticks = 0;
     while (state.kart_readouts()[0].speed - boosted).abs() < 1e-3 {
@@ -376,13 +528,13 @@ fn a_fired_hazard_or_homing_projectile_leaves_the_slot_empty_and_the_kart_unboos
     for item in [Item::Hazard, Item::Homing] {
         let state = step(holding(item), &[tap()], DT);
         assert_eq!(state.events(), &[RaceEvent::ItemFired { kart: 0, item }]);
-        assert_eq!(state.kart_readouts()[0].held_item, None);
+        assert_eq!(slot(&state, 0), ItemSlot::Empty);
         assert!(state.kart_readouts()[0].speed <= TOP_SPEED_M_PER_S);
     }
 }
 
 #[test]
-fn a_bot_fires_what_it_picks_up_within_the_tuned_delay() {
+fn a_bot_fires_what_it_picks_up_after_it_lands_within_the_tuned_delay() {
     use sim::tuning::BOT_ITEM_USE_DELAY_S;
     // A lone bot laps the oval; its line runs through the rows of boxes on
     // the back straight.
@@ -404,10 +556,14 @@ fn a_bot_fires_what_it_picks_up_within_the_tuned_delay() {
                 RaceEvent::ItemFired { kart: 0, item } => {
                     let (picked_at, held) = picked.take().expect("fired what it picked up");
                     assert_eq!(item, held);
+                    // A tick either way for the landing, and one more late
+                    // for the bot reading the slot a tick behind.
+                    let after = tick - picked_at;
                     assert!(
-                        tick - picked_at <= ticks(BOT_ITEM_USE_DELAY_S),
+                        ticks(ITEM_ROLL_S) <= after + 1
+                            && after <= ticks(ITEM_ROLL_S + BOT_ITEM_USE_DELAY_S) + 2,
                         "fired {} s after the pickup",
-                        (tick - picked_at) as f32 * DT
+                        after as f32 * DT
                     );
                     fired.push(item);
                 }
@@ -437,10 +593,11 @@ fn the_item_button_held_down_fires_once_as_it_goes_down() {
         }],
         "the button going down fires without a press being reported"
     );
-    // Held through the box coming back under the kart, the button fires
-    // nothing more; let go and pressed again, it fires the new item.
+    // Held through the box coming back under the kart and the new item
+    // landing, the button fires nothing more; let go and pressed again, it
+    // fires the new item.
     let mut state = state;
-    for _ in 0..ticks(ITEM_BOX_RESPAWN_S) + 2 {
+    for _ in 0..ticks(ITEM_BOX_RESPAWN_S + ITEM_ROLL_S) {
         state = step(state, &[hold], DT);
         assert!(
             !state
@@ -451,7 +608,7 @@ fn the_item_button_held_down_fires_once_as_it_goes_down() {
             state.events()
         );
     }
-    assert!(state.kart_readouts()[0].held_item.is_some());
+    assert!(slot(&state, 0).held().is_some());
     let state = step(state, &[KartInput::default()], DT);
     let state = step(state, &[hold], DT);
     assert!(

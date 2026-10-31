@@ -55,6 +55,19 @@ pub fn started(mut state: State) -> State {
     state
 }
 
+/// The race stepped on, every human idle, until the item rolling in the
+/// slot of each of `karts` has landed.
+pub fn landed(mut state: State, humans: usize, karts: impl IntoIterator<Item = usize>) -> State {
+    let karts: Vec<usize> = karts.into_iter().collect();
+    while karts
+        .iter()
+        .any(|&kart| state.kart_readouts()[kart].item_slot.held().is_none())
+    {
+        state = step(state, &vec![KartInput::default(); humans], DT);
+    }
+    state
+}
+
 pub fn ticks(seconds: f32) -> usize {
     (seconds * TICKS_PER_SECOND as f32).round() as usize
 }

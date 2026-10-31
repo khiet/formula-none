@@ -189,7 +189,7 @@ release by a flame at the exhaust in the tier's colour.
 One of a track's fixed pickup spots, from the sidecar: eight on the oval
 and twelve on Bell Deer, Goldstone and Monarch, in rows of four across the asphalt. A kart whose centre is on a box picks it up, whatever
 it holds; the box is gone for three seconds and comes back. With an empty
-item slot the kart rolls an item into it; holding one, it keeps it and
+item slot the kart rolls an item into it; with an item rolling or held, it
 gets nothing, so a kart in front denies boxes to the karts behind (ADR 0068). Every
 pickup is a server event naming the box, so every screen hides the same one.
 
@@ -218,17 +218,21 @@ surface.
 ### item slot
 
 A kart's one place for an item: a boost, a hazard or a homing projectile.
-Full, the kart still takes boxes but gets nothing from them; a press of the
-item button fires what it holds and empties it. Every fire is a server
-event; the Instrument panel shows the local kart's slot, with the fire
-predicted from the press until the server's event confirms it.
+It is empty, rolling or held. A box into an empty slot starts a roll that
+lands the item 2.5 s later; until then a press fires nothing and is not
+remembered, and nothing stops the roll early (ADR 0070). Rolling or held,
+the slot is full: the kart still takes boxes but gets nothing from them. A
+press of the item button fires a held item and empties the slot. Every fire
+is a server event; the Instrument panel shows the local kart's slot, with
+the fire predicted from the press until the server's event confirms it.
 
 ### roll
 
 The item a pickup puts in the slot, drawn on the sim's RNG with weights by
 the kart's race position band: the leaders mostly hazards, the back of the
-field mostly homing. Only the server rolls; a client's prediction never
-picks up a box and holds what the snapshots say.
+field mostly homing. Drawn at the pickup, it rolls in the slot for 2.5 s
+before it lands and can be fired (ADR 0070). Only the server rolls; a
+client's prediction never picks up a box and holds what the snapshots say.
 
 ### hazard
 

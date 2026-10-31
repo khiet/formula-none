@@ -50,8 +50,8 @@ use crate::tuning::{
     RECONCILIATION_TOLERANCE_M, TICK_S,
 };
 use crate::{
-    bot, clock_after, kart_collider, step, Kart, KartInput, KartReadout, Phase, Standing, State,
-    Surface, Track, Wheel,
+    bot, clock_after, kart_collider, step, ItemSlot, Kart, KartInput, KartReadout, Phase, Standing,
+    State, Surface, Track, Wheel,
 };
 
 /// The phase a prediction holds once the server's race has ended: the top
@@ -450,6 +450,24 @@ impl Prediction {
     }
 }
 
+/// Whether the snapshot's item slot is the record's: the same item, and a
+/// roll's time left within half a tick.
+fn slot_agrees(ours: ItemSlot, theirs: ItemSlot) -> bool {
+    match (ours, theirs) {
+        (
+            ItemSlot::Rolling {
+                item: ours,
+                roll_left_s: ours_s,
+            },
+            ItemSlot::Rolling {
+                item: theirs,
+                roll_left_s: theirs_s,
+            },
+        ) => ours == theirs && (ours_s - theirs_s).abs() < TICK_S / 2.0,
+        _ => ours == theirs,
+    }
+}
+
 /// Whether the snapshot puts the kart where the record does, to the tuned
 /// tolerance: its position, its nose, the tick of travel its velocity and
 /// its bump make, its drift, its item, its coins, its spin-out, its stall, its place
@@ -478,7 +496,7 @@ fn agrees(record: &KartRecord, kart: &KartReadout, racing: bool) -> bool {
             kart.bump.map_or(Vec3::ZERO, Vec3::from) * TICK_S,
         )
         && drift
-        && record.kart.held_item == kart.held_item
+        && slot_agrees(record.kart.item_slot, kart.item_slot)
         && record.kart.coins == kart.coins
         && (record.kart.spin_out_left_s.max(0.0) - kart.spin_out_s.unwrap_or(0.0)).abs()
             < TICK_S / 2.0

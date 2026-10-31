@@ -5,7 +5,9 @@
 
 mod common;
 
-use common::{bell_deer, started, ticks, track, with_slot_at, BELL_DEER, DT, SEED};
+use common::{
+    bell_deer, started, ticks, track, with_slot_at, without_item_boxes, BELL_DEER, DT, SEED,
+};
 
 use sim::tuning::{
     BOT_LINE_RIGHT_OF_CENTRE_M, COUNTDOWN_S, KART_HALF_LENGTH_M, KART_HALF_WIDTH_M, LAPS_PER_RACE,
@@ -616,13 +618,14 @@ fn a_bot_turning_through_the_hairpin_past_the_crossing_as_the_flag_goes_up_never
     // The hairpin lies in line with the crossing, 50 m past it, so a bot
     // turning through it faces back toward the wheel. Set off from 160 m
     // into the lap, the bot is past the crossing before the first flag and
-    // in the hairpin through it.
+    // in the hairpin through it. No item boxes: an item's boost or spin-out
+    // would move when it gets there.
     const START_M: f32 = 160.0;
     const HAIRPIN_M: std::ops::Range<f32> = 660.0..700.0;
     let course = bell_deer();
     let start = course.point_at(START_M);
     let [dx, dz] = course.direction_at(START_M);
-    let sidecar = with_slot_at(BELL_DEER, 0, start, (-dx).atan2(-dz));
+    let sidecar = with_slot_at(&without_item_boxes(BELL_DEER), 0, start, (-dx).atan2(-dz));
     let mut state = started(State::with_bots(0, 0, 1, track(&sidecar)));
     let mut in_the_hairpin_s = None;
     while racing_s(&state) < pass_start_s(1) + WHEEL_PERIOD_S / 2.0 {
@@ -645,7 +648,9 @@ fn a_bot_turning_through_the_hairpin_past_the_crossing_as_the_flag_goes_up_never
 }
 
 /// Eight bots on Bell Deer from `seed`, raced the race's laps: none is hit
-/// by the wheel, each finishes, and some bot came up to a rolling wheel.
+/// by the wheel, each finishes, and some bot came up to a rolling wheel. A
+/// bot an item spun out on the crossing is let off a hit within a second of
+/// its spin-out ending: it never had the wheel to judge.
 fn bots_race_past_the_wheel(seed: u64) {
     let track = bell_deer();
     assert_eq!(track.wheel_crossings().len(), 1, "the approach's crossing");
@@ -654,14 +659,31 @@ fn bots_race_past_the_wheel(seed: u64) {
     // width, while the wheel rolled, so the bots were put to the test.
     let reach = WHEEL_LANDING_SPREAD_M + WHEEL_RADIUS_M + KART_HALF_LENGTH_M;
     let mut met = 0;
+    // Per kart, ticks since a spin-out by an item ended, 0 while it runs;
+    // `None` once the wheel has hit it or before any item has.
+    let mut since_item_spin_out: [Option<usize>; 8] = [None; 8];
     for _ in 0..ticks(LAPS_PER_RACE as f32 * 90.0) {
         state = step(state, &[], DT);
         for event in state.events() {
-            assert!(
-                !matches!(event, RaceEvent::SpunOut { by: None, .. }),
-                "seed {seed}: {event:?} at {:?}",
-                state.phase()
-            );
+            match *event {
+                RaceEvent::SpunOut { kart, by: Some(_) } => since_item_spin_out[kart] = Some(0),
+                RaceEvent::SpunOut { kart, by: None } => {
+                    assert!(
+                        since_item_spin_out[kart].is_some_and(|since| since <= ticks(1.0)),
+                        "seed {seed}: {event:?} at {:?}",
+                        state.phase()
+                    );
+                    since_item_spin_out[kart] = None;
+                }
+                _ => {}
+            }
+        }
+        for (since, kart) in since_item_spin_out.iter_mut().zip(state.kart_readouts()) {
+            if let Some(ticks) = since {
+                if kart.spin_out_s.is_none() {
+                    *ticks += 1;
+                }
+            }
         }
         if let [Wheel::Rolling { .. }] = state.wheels()[..] {
             met += state

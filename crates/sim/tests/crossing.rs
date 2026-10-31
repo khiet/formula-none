@@ -7,8 +7,8 @@
 mod common;
 
 use common::{
-    figure_eight, follow_centreline, started, tap, throttle, ticks, track, with_boxes_under,
-    with_slot_at, DT, FIGURE_EIGHT, SEED,
+    figure_eight, follow_centreline, landed, started, tap, throttle, ticks, track,
+    with_boxes_under, with_slot_at, DT, FIGURE_EIGHT, SEED,
 };
 
 use sim::tuning::PROGRESS_WINDOW_M;
@@ -142,6 +142,7 @@ fn a_projectile_flying_over_the_crossing_keeps_its_own_legs_height() {
             })
         })
         .expect("some seed rolls the projectile");
+    state = landed(state, 2, [1]);
 
     state = step(state, &[idle, tap()], DT);
     assert_eq!(state.projectiles().len(), 1, "the projectile flies");

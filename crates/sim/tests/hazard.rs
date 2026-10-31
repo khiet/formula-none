@@ -8,13 +8,13 @@
 
 mod common;
 
-use common::{brake, oval_with_boxes_under, started, tap, throttle, ticks, DT};
+use common::{brake, landed, oval_with_boxes_under, started, tap, throttle, ticks, DT};
 
 use sim::tuning::{HAZARD_DROP_DISTANCE_M, HAZARD_LIFETIME_S, KART_HALF_LENGTH_M, SPIN_OUT_S};
-use sim::{step, Item, KartInput, RaceEvent, State};
+use sim::{step, Item, ItemSlot, KartInput, RaceEvent, State};
 
 /// A race of `humans` karts, every one on a box under its slot, with a
-/// hazard in the slot of kart `holder` from the first racing tick: the seeds
+/// hazard rolled at Go landed in the slot of kart `holder`: the seeds
 /// are tried in order until one rolls it.
 fn holding_a_hazard(humans: usize, holder: usize) -> State {
     for seed in 0.. {
@@ -27,7 +27,7 @@ fn holding_a_hazard(humans: usize, holder: usize) -> State {
             )
         });
         if rolled {
-            return state;
+            return landed(state, humans, [holder]);
         }
     }
     unreachable!()
@@ -48,7 +48,7 @@ fn a_fired_hazard_drops_the_tuned_distance_behind_the_kart() {
             item: Item::Hazard
         }]
     );
-    assert_eq!(state.kart_readouts()[0].held_item, None);
+    assert_eq!(state.kart_readouts()[0].item_slot, ItemSlot::Empty);
     let [hazard] = state.hazards()[..] else {
         panic!("one hazard: {:?}", state.hazards());
     };

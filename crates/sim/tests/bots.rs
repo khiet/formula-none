@@ -6,7 +6,7 @@ mod common;
 
 use common::{
     bell_deer, goldstone, monarch, oval, oval_without_item_boxes, started, ticks, track,
-    with_coins_at, with_slot_at, without_coins, yaw, DT, OVAL, SEED,
+    with_coins_at, with_slot_at, without_coins, without_item_boxes, yaw, DT, OVAL, SEED,
 };
 
 use sim::tuning::{
@@ -67,10 +67,15 @@ const LAP_S: f32 = 20.0;
 
 #[test]
 fn a_bot_alone_laps_the_oval_for_the_race_without_leaving_the_asphalt() {
-    // No coins: a coin taken changes when everything after happens, and
-    // with it whether the bot meets its own hazard, which this seed's race
-    // does not test.
-    let mut state = started(State::with_bots(SEED, 0, 1, track(&without_coins(OVAL))));
+    // No coins and no item boxes: what the bot takes changes when
+    // everything after happens, and with it whether the bot meets its own
+    // hazard, which this test does not test.
+    let mut state = started(State::with_bots(
+        SEED,
+        0,
+        1,
+        track(&without_item_boxes(&without_coins(OVAL))),
+    ));
     let mut lap_times = Vec::new();
     for _ in 0..ticks(LAPS_PER_RACE as f32 * LAP_S) {
         state = step(state, &[], DT);

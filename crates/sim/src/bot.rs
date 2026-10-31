@@ -9,8 +9,8 @@ use crate::tuning::{
     BOT_ITEM_USE_DELAY_S, BOT_KERB_APPROACH_M, BOT_KERB_GAP_M, BOT_LINE_RIGHT_OF_CENTRE_M,
     BOT_LOOKAHEAD_M, BOT_PASS_GAP_M, BOT_REVERSE_S, BOT_STALL_S, BOT_STALL_SPEED_M_PER_S,
     BOT_WHEEL_MARGIN_S, BOT_WHEEL_SET_OFF_FRACTION, BRAKE_TO_STOP_S, DRIFT_SLIP_ANGLE_RAD,
-    DRIFT_TURN_NEUTRAL, DRIFT_TURN_STEER_RANGE, KART_HALF_LENGTH_M, KART_HALF_WIDTH_M,
-    KERB_HALF_LENGTH_M, KERB_HALF_WIDTH_M, REVERSE_TOP_SPEED_M_PER_S,
+    DRIFT_TURN_NEUTRAL, DRIFT_TURN_STEER_RANGE, ITEM_BOOST_FACTOR, KART_HALF_LENGTH_M,
+    KART_HALF_WIDTH_M, KERB_HALF_LENGTH_M, KERB_HALF_WIDTH_M, REVERSE_TOP_SPEED_M_PER_S,
     STEER_RATE_LOW_SPEED_RAD_PER_S, STEER_RATE_TOP_SPEED_RAD_PER_S, TOP_SPEED_M_PER_S,
     WHEEL_LANDING_SPREAD_M, WHEEL_RADIUS_M, WHEEL_WARNING_S,
 };
@@ -182,23 +182,39 @@ pub fn drive(
         (throttle, brake)
     };
 
-    // An item is fired on the first straight after it is picked up, with
-    // no corner to slow for, and in any case once it has been held for the
-    // tuned delay. A projectile needs a kart ahead to chase, so a leading
-    // bot keeps it until it is passed. A fired hazard is trailed for the
-    // tuned time, then dropped.
-    let has_target = kart.held_item != Some(Item::Homing) || standings[slot].position > 1;
-    let use_item = match kart.held_item {
+    // An item is fired on the first straight after it lands in the slot,
+    // with no corner to slow for, and in any case once it has been held for
+    // the tuned delay. A projectile needs a kart ahead to chase, so a leading
+    // bot keeps it until it is passed. A boost is kept while the bot waits
+    // for the wheel and while the boosted kart would have to, so it never
+    // throws the bot into a pass it judged at its own speed. A fired hazard
+    // is trailed for the tuned time, then dropped.
+    let held = kart.item_slot.held();
+    let has_target = held != Some(Item::Homing) || standings[slot].position > 1;
+    let boost_meets_a_wheel = held == Some(Item::Boost)
+        && match clock {
+            Phase::Racing { elapsed_s, .. } => {
+                let boosted = KartReadout {
+                    speed: ITEM_BOOST_FACTOR * TOP_SPEED_M_PER_S,
+                    ..*kart
+                };
+                waiting || waits_for_a_wheel(track, &boosted, boosted.speed, seed, elapsed_s, dt)
+            }
+            _ => false,
+        };
+    let use_item = match held {
         Some(_) => {
             memory.item_held_s += dt;
-            has_target && ((!corner && brake == 0.0) || memory.item_held_s >= BOT_ITEM_USE_DELAY_S)
+            has_target
+                && !boost_meets_a_wheel
+                && ((!corner && brake == 0.0) || memory.item_held_s >= BOT_ITEM_USE_DELAY_S)
         }
         None => {
             memory.item_held_s = 0.0;
             false
         }
     };
-    if use_item && kart.held_item == Some(Item::Hazard) {
+    if use_item && held == Some(Item::Hazard) {
         memory.hazard_hold_left_s = BOT_HAZARD_HOLD_S;
     }
     let hold_item = use_item || memory.hazard_hold_left_s > 0.0;

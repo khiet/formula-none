@@ -10,7 +10,7 @@
 mod common;
 
 use common::{
-    bell_deer, slot_position, started, tap, throttle, ticks, track, with_boxes_under,
+    bell_deer, landed, slot_position, started, tap, throttle, ticks, track, with_boxes_under,
     with_coins_at, with_slot_at, without_coins, without_item_boxes, without_walls, BELL_DEER, DT,
     OVAL, SEED,
 };
@@ -308,8 +308,8 @@ fn off_the_asphalt_the_cap_is_raised_by_the_coins_too() {
     );
 }
 
-/// A race of four karts one tick past Go: kart 1 holds a hazard from a box
-/// under its slot, and kart 3, behind it, has taken `count` coins stacked
+/// A race of four karts the tick kart 1's hazard, rolled at Go from a box
+/// under its slot, lands, and kart 3, behind it, has taken `count` coins stacked
 /// under its own. The seeds are tried in order until kart 1 rolls the
 /// hazard.
 fn kart_3_behind_a_hazard_with(count: usize) -> State {
@@ -322,7 +322,7 @@ fn kart_3_behind_a_hazard_with(count: usize) -> State {
             item_box: 0,
         });
         if rolled {
-            return state;
+            return landed(state, 4, [1]);
         }
     }
     unreachable!()
@@ -379,8 +379,8 @@ fn a_kart_with_no_coins_is_spun_out_without_a_loss() {
     assert_eq!(coins(&state, 3), 0);
 }
 
-/// A race of two karts one tick past Go: kart 1 holds a homing projectile
-/// from a box under its slot and kart 0, ahead of it, has taken `count`
+/// A race of two karts the tick kart 1's homing projectile, rolled at Go
+/// from a box under its slot, lands, and kart 0, ahead of it, has taken `count`
 /// coins stacked under its own. The seeds are tried in order until kart 1
 /// rolls the projectile.
 fn kart_1_homing_on_kart_0_with(count: usize) -> State {
@@ -393,7 +393,7 @@ fn kart_1_homing_on_kart_0_with(count: usize) -> State {
             item_box: 0,
         });
         if rolled {
-            return state;
+            return landed(state, 2, [1]);
         }
     }
     unreachable!()

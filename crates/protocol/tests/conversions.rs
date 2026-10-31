@@ -3,10 +3,12 @@
 //! as the sim reports a kart only a snapshot speaks for.
 
 use protocol::{EventKind, Input, KartSnapshot};
-use sim::{Drift, DriftDirection, Item, KartInput, KartReadout, MiniTurbo, RaceEvent, Start};
+use sim::{
+    Drift, DriftDirection, Item, ItemSlot, KartInput, KartReadout, MiniTurbo, RaceEvent, Start,
+};
 
 /// A kart mid-race with every field the snapshot carries away from its
-/// default: drifting left at red, holding a hazard, carrying seven coins, a hop and an orange
+/// default: drifting left at red, rolling a hazard, carrying seven coins, a hop and an orange
 /// boost under way, spun out, stalled, third on lap 2 and going the wrong way.
 /// Turned a quarter left, so its facing is -X and its velocity runs along
 /// it at 12 m/s, rising, with a bump from a touch carrying it sideways.
@@ -23,7 +25,10 @@ fn busy_kart() -> KartReadout {
             charge_s: 0.75,
         }),
         mini_turbo: MiniTurbo::Red,
-        held_item: Some(Item::Hazard),
+        item_slot: ItemSlot::Rolling {
+            item: Item::Hazard,
+            roll_left_s: 1.5,
+        },
         coins: 7,
         spin_out_s: Some(0.4),
         airborne: true,

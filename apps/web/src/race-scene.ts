@@ -13,7 +13,7 @@ import { kartLabels } from "./kart-labels";
 import { KART_GLTF_URL } from "./kart-model";
 import { keyboardKartInput } from "./keyboard";
 import { livery } from "./livery";
-import { ITEM_FIRE_FLASH_S, type RaceRun } from "./race-run";
+import { ITEM_FIRE_FLASH_S, landedItem, type RaceRun } from "./race-run";
 import { createRaceView } from "./race-view";
 import { downloadReplay, recordReplay } from "./replay";
 import { kartName, type RaceResults } from "./results-scene";
@@ -68,7 +68,10 @@ export function localRaceRun(
   const inputs: KartInput[] = Array<KartInput>(setup.humanCount).fill(IDLE_INPUT);
   const boxes = race.itemBoxes();
   const coins = race.coins();
-  const heldItem = () => race.kartReadouts()[setup.localKart]?.heldItem ?? null;
+  const heldItem = () => {
+    const kart = race.kartReadouts()[setup.localKart];
+    return kart === undefined ? null : landedItem(kart.itemSlot);
+  };
   // The only way an item leaves the slot here is the fire, which the sim
   // applies the tick it is pressed; the slot shows it for the flash.
   let flashTicksLeft = 0;

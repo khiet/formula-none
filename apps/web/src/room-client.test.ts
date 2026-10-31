@@ -151,7 +151,7 @@ const KART: KartSnapshot = {
   checkpoint: 0,
   splineProgress: 0,
   wrongWay: false,
-  heldItem: null,
+  itemSlot: "empty",
   coins: 0,
   spinOutS: null,
   start: "clean",

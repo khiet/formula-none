@@ -2,6 +2,7 @@
 export type { Drift } from "./Drift";
 export type { DriftDirection } from "./DriftDirection";
 export type { Item } from "./Item";
+export type { ItemSlot } from "./ItemSlot";
 export type { KartReadout } from "./KartReadout";
 export type { MiniTurbo } from "./MiniTurbo";
 export type { Standing } from "./Standing";

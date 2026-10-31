@@ -6,7 +6,7 @@ use sim::KartReadout;
 
 use crate::{
     BoostSnapshot, BoostTier, DriftDirection, DriftSnapshot, EventKind, HazardSnapshot, Input,
-    Item, KartSnapshot, ProjectileSnapshot, Start,
+    Item, ItemSlot, KartSnapshot, ProjectileSnapshot, Start,
 };
 
 impl From<sim::Item> for Item {
@@ -15,6 +15,32 @@ impl From<sim::Item> for Item {
             sim::Item::Boost => Self::Boost,
             sim::Item::Hazard => Self::Hazard,
             sim::Item::Homing => Self::Homing,
+        }
+    }
+}
+
+impl From<sim::ItemSlot> for ItemSlot {
+    fn from(slot: sim::ItemSlot) -> Self {
+        match slot {
+            sim::ItemSlot::Empty => Self::Empty,
+            sim::ItemSlot::Rolling { item, roll_left_s } => Self::Rolling {
+                item: item.into(),
+                roll_left_s,
+            },
+            sim::ItemSlot::Held(item) => Self::Held(item.into()),
+        }
+    }
+}
+
+impl From<ItemSlot> for sim::ItemSlot {
+    fn from(slot: ItemSlot) -> Self {
+        match slot {
+            ItemSlot::Empty => Self::Empty,
+            ItemSlot::Rolling { item, roll_left_s } => Self::Rolling {
+                item: item.into(),
+                roll_left_s,
+            },
+            ItemSlot::Held(item) => Self::Held(item.into()),
         }
     }
 }
@@ -123,7 +149,7 @@ impl From<&KartReadout> for KartSnapshot {
             checkpoint: kart.checkpoint as u8,
             spline_progress: kart.spline_progress,
             wrong_way: kart.wrong_way,
-            held_item: kart.held_item.map(Item::from),
+            item_slot: kart.item_slot.into(),
             coins: kart.coins as u8,
             spin_out_s: kart.spin_out_s,
             start: kart.start.into(),
@@ -147,7 +173,7 @@ impl From<&KartSnapshot> for KartReadout {
             bump: kart.bump,
             drift,
             mini_turbo: sim::MiniTurbo::of(drift),
-            held_item: kart.held_item.map(sim::Item::from),
+            item_slot: kart.item_slot.into(),
             coins: u32::from(kart.coins),
             spin_out_s: kart.spin_out_s,
             airborne: false,

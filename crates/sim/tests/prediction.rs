@@ -22,7 +22,7 @@ use sim::tuning::{
     RECONCILIATION_VISIBLE_CORRECTION_M, SNAPSHOTS_PER_SECOND, START_FULL_BOOST_HOLD_S,
     TICKS_PER_SECOND, TOP_SPEED_M_PER_S,
 };
-use sim::{step, KartInput, KartReadout, Phase, Prediction, Start, State, Track};
+use sim::{step, ItemSlot, KartInput, KartReadout, Phase, Prediction, Start, State, Track};
 
 const TICKS_PER_SNAPSHOT: u32 = TICKS_PER_SECOND / SNAPSHOTS_PER_SECOND;
 /// 100 ms round trip at the tick rate, split evenly.
@@ -315,15 +315,18 @@ fn the_snapshots_item_is_taken_without_a_correction_and_firing_it_is_predicted()
     use sim::tuning::{ITEM_BOOST_FACTOR, TOP_SPEED_M_PER_S};
     use sim::Item;
     let (mut prediction, grid) = on_the_grid();
-    assert_eq!(prediction.kart_readout().held_item, None);
+    assert_eq!(prediction.kart_readout().item_slot, ItemSlot::Empty);
 
     // The server rolled the kart a boost from a box the prediction did not
     // see taken; the kart is where it was predicted, so nothing moves.
     let mut holding = grid;
-    holding.held_item = Some(Item::Boost);
+    holding.item_slot = ItemSlot::Held(Item::Boost);
     assert_eq!(prediction.reconcile(12, 5, &holding), 0.0);
     assert_eq!(prediction.corrections(), 0);
-    assert_eq!(prediction.kart_readout().held_item, Some(Item::Boost));
+    assert_eq!(
+        prediction.kart_readout().item_slot,
+        ItemSlot::Held(Item::Boost)
+    );
 
     // Past Go, the press fires the boost the server gave: the predicted
     // kart is at the boosted speed the tick it is pressed.
@@ -349,7 +352,7 @@ fn the_snapshots_item_is_taken_without_a_correction_and_firing_it_is_predicted()
         &[],
     );
     let kart = prediction.kart_readout();
-    assert_eq!(kart.held_item, None);
+    assert_eq!(kart.item_slot, ItemSlot::Empty);
     assert!(
         (kart.speed - ITEM_BOOST_FACTOR * TOP_SPEED_M_PER_S).abs() < 1e-3,
         "boosted: {} m/s",
@@ -390,13 +393,13 @@ fn the_prediction_takes_no_box_and_fills_its_slot_from_the_snapshots_alone() {
         sequence += 1;
         prediction.tick(sequence, KartInput::default(), &[]);
     }
-    let held = server.kart_readouts()[0].held_item;
-    assert!(held.is_some(), "the server's kart picked up the box");
-    assert_eq!(prediction.kart_readout().held_item, None);
+    let held = server.kart_readouts()[0].item_slot;
+    assert!(held.item().is_some(), "the server's kart picked up the box");
+    assert_eq!(prediction.kart_readout().item_slot, ItemSlot::Empty);
 
     // The snapshot's word fills the slot.
     prediction.reconcile(sequence, sequence, &server.kart_readouts()[0]);
-    assert_eq!(prediction.kart_readout().held_item, held);
+    assert_eq!(prediction.kart_readout().item_slot, held);
 }
 
 #[test]
@@ -443,7 +446,7 @@ fn the_prediction_never_spins_its_kart_out_on_a_hazard_it_dropped() {
     // the server would spin it out. Here the hit is left to the server.
     let (mut prediction, grid) = on_the_grid();
     let mut holding = grid;
-    holding.held_item = Some(Item::Hazard);
+    holding.item_slot = ItemSlot::Held(Item::Hazard);
     prediction.reconcile(12, 5, &holding);
     let mut sequence = 10;
     let mut tick = |prediction: &mut Prediction, input: KartInput| {
@@ -460,7 +463,11 @@ fn the_prediction_never_spins_its_kart_out_on_a_hazard_it_dropped() {
             ..KartInput::default()
         },
     );
-    assert_eq!(prediction.kart_readout().held_item, None, "fired");
+    assert_eq!(
+        prediction.kart_readout().item_slot,
+        ItemSlot::Empty,
+        "fired"
+    );
     let throttle = KartInput {
         throttle: 1.0,
         ..KartInput::default()
@@ -501,6 +508,7 @@ fn down_the_lane(kart: &sim::KartReadout, lane_x: f32) -> KartInput {
 
 #[test]
 fn a_hit_the_server_decides_reaches_the_prediction_as_one_correction_and_the_spin_out_holds_it() {
+    use sim::tuning::ITEM_ROLL_S;
     use sim::{Item, RaceEvent};
     // Two humans: the own kart on slot 0 and, on slot 1 beside it, a kart
     // standing on a box that rolls it a hazard at Go. The seeds are tried
@@ -525,27 +533,29 @@ fn a_hit_the_server_decides_reaches_the_prediction_as_one_correction_and_the_spi
         })
         .expect("a seed rolls a hazard");
     let server = State::new(seed, 2, track.clone());
+    // A tick past the hazard landing in the other kart's slot.
+    let has = go + seconds(ITEM_ROLL_S) + 2;
 
     // The other kart fires its hazard the tick after it has it, trails it
     // up the lane it stands in at full throttle and drops it two seconds
-    // on; the own kart waits a second after Go, then drives up that lane.
+    // on; the own kart waits a second after that, then drives up that lane.
     let other = |tick: u32| {
         vec![KartInput {
-            throttle: f32::from(u8::from(tick > go)),
-            use_item: tick == go + 1,
-            hold_item: tick > go && tick < go + seconds(2.0),
+            throttle: f32::from(u8::from(tick > has)),
+            use_item: tick == has + 1,
+            hold_item: tick > has && tick < has + seconds(2.0),
             ..KartInput::default()
         }]
     };
     let lane_x = track.spawn_grid()[1].position[0] + 0.5;
     let driver = |prediction: &Prediction, tick: u32| {
-        if tick < go + seconds(1.0) {
+        if tick < has + seconds(1.0) {
             KartInput::default()
         } else {
             down_the_lane(&prediction.kart_readout(), lane_x)
         }
     };
-    let run = race_with(go + seconds(6.0), |_| false, server, driver, other);
+    let run = race_with(has + seconds(6.0), |_| false, server, driver, other);
 
     assert_eq!(
         run.prediction.corrections(),
@@ -655,14 +665,16 @@ fn a_hold_at_a_window_edge_the_server_decides_differently_is_corrected_once_to_i
 #[test]
 fn a_finished_kart_is_predicted_driven_by_its_bot_not_by_the_players_inputs() {
     // The other human waits on the grid, holding the race open; the player
-    // laps with the bot's driving, then reverses hard on full lock.
+    // laps with the bot's driving, then reverses hard on full lock. No item
+    // boxes: the bot's items decide whether it meets its own hazard, which
+    // this test does not test.
     let mut memory = Memory::default();
     let mut finished_at = None;
     let mut corrections_at_the_line = 0;
     let run = race_with(
         seconds(90.0),
         |_| false,
-        State::new(SEED, 2, oval()),
+        State::new(SEED, 2, track(&without_item_boxes(OVAL))),
         |prediction, tick| {
             if prediction.standing().finish_time_s.is_some() {
                 if finished_at.is_none() {

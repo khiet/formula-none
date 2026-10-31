@@ -13,7 +13,7 @@ use sim::tuning::{
     START_FULL_BOOST_HOLD_S, START_STALL_HOLD_S, START_STALL_S, START_THROTTLE_HELD,
     START_WEAK_BOOST_FACTOR, START_WEAK_BOOST_HOLD_S, START_WEAK_BOOST_S, TOP_SPEED_M_PER_S,
 };
-use sim::{step, KartInput, MiniTurbo, Phase, RaceEvent, Start, State};
+use sim::{step, ItemSlot, KartInput, MiniTurbo, Phase, RaceEvent, Start, State};
 
 fn race(kart_count: usize) -> State {
     State::new(SEED, kart_count, oval())
@@ -652,7 +652,7 @@ fn a_finished_kart_takes_and_fires_no_items() {
     };
     let state = started(race(2));
     let mut state = drive_until_finished(state, &[firing, idle], 0);
-    assert_eq!(state.kart_readouts()[0].held_item, None);
+    assert_eq!(state.kart_readouts()[0].item_slot, ItemSlot::Empty);
     let mut events = Vec::new();
     for _ in 0..ticks(1.5 * LAP_S) {
         let inputs = inputs(&state, &[firing, idle]);
@@ -666,5 +666,5 @@ fn a_finished_kart_takes_and_fires_no_items() {
         )),
         "{events:?}"
     );
-    assert_eq!(state.kart_readouts()[0].held_item, None);
+    assert_eq!(state.kart_readouts()[0].item_slot, ItemSlot::Empty);
 }

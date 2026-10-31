@@ -12,7 +12,8 @@ use std::time::Duration;
 
 use common::{drive_to_results, seconds, speed, Raced};
 use protocol::{
-    ClientMessage, Event, EventKind, Input, PlayerState, RoomState, ServerMessage, Snapshot,
+    ClientMessage, Event, EventKind, Input, ItemSlot, PlayerState, RoomState, ServerMessage,
+    Snapshot,
 };
 use server::fake_transport::{Client, Conditions, Harness, TRACK};
 use server::room::Started;
@@ -660,7 +661,7 @@ async fn stopping_the_server_mid_race_ends_every_session() {
 
 #[tokio::test(start_paused = true)]
 async fn an_item_pickup_and_its_fire_are_server_events_the_snapshots_repeat_and_show() {
-    use sim::tuning::BOT_ITEM_USE_DELAY_S;
+    use sim::tuning::{BOT_ITEM_USE_DELAY_S, ITEM_ROLL_S};
     let mut harness = Harness::new(Conditions::PERFECT);
     let (_, mut players, _) = racing_room(&mut harness, 1).await;
     let player = &mut players[0];
@@ -680,7 +681,10 @@ async fn an_item_pickup_and_its_fire_are_server_events_the_snapshots_repeat_and_
             }
             Err(snapshot) => {
                 assert!(
-                    snapshot.karts.iter().all(|kart| kart.held_item.is_none()),
+                    snapshot
+                        .karts
+                        .iter()
+                        .all(|kart| kart.item_slot == ItemSlot::Empty),
                     "no item before the first pickup is reported"
                 );
                 last_tick = snapshot.tick;
@@ -703,9 +707,10 @@ async fn an_item_pickup_and_its_fire_are_server_events_the_snapshots_repeat_and_
     assert!(usize::from(item_box) < boxes, "one of the oval's boxes");
     let picked_tick = last_tick;
 
-    // The snapshots repeat the pickup under its id and show the item in
-    // the kart's slot until the bot fires it, within the tuned delay; the
-    // fire is reported the same way and empties the slot.
+    // The snapshots repeat the pickup under its id and show the item
+    // rolling in the kart's slot, then landed, until the bot fires it
+    // within the tuned delay of the landing; the fire is reported the same
+    // way and empties the slot.
     let mut pickup_repeats = 0;
     let mut fired = None;
     let mut fire_repeats = 0;
@@ -724,23 +729,31 @@ async fn an_item_pickup_and_its_fire_are_server_events_the_snapshots_repeat_and_
                     assert_eq!(event.kind, EventKind::ItemFired { kart, item });
                     assert!(event.id > picked.id);
                     fired = Some(*event);
+                    let after_s = seconds(last_tick - picked_tick);
                     assert!(
-                        seconds(last_tick - picked_tick) <= BOT_ITEM_USE_DELAY_S + 0.1,
-                        "fired {} s after the pickup",
-                        seconds(last_tick - picked_tick)
+                        (ITEM_ROLL_S - 0.1..=ITEM_ROLL_S + BOT_ITEM_USE_DELAY_S + 0.1)
+                            .contains(&after_s),
+                        "fired {after_s} s after the pickup"
                     );
                 }
             }
             Err(snapshot) => {
                 last_tick = snapshot.tick;
-                let held = snapshot.karts[usize::from(kart)].held_item;
+                let slot = snapshot.karts[usize::from(kart)].item_slot;
                 pickup_repeats += snapshot
                     .events
                     .iter()
                     .filter(|event| **event == picked)
                     .count();
                 match fired {
-                    None => assert_eq!(held, Some(item), "held until fired"),
+                    None => assert!(
+                        matches!(
+                            slot,
+                            ItemSlot::Rolling { item: rolled, .. } | ItemSlot::Held(rolled)
+                                if rolled == item
+                        ),
+                        "rolling, then held, until fired: {slot:?}"
+                    ),
                     Some(fired) => {
                         fire_repeats += snapshot
                             .events
