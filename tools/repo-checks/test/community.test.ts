@@ -24,8 +24,8 @@ describe("README", () => {
   });
 
   it("states the code and art licences, pointing at the files that hold them", () => {
-    expect(readme).toMatch(/MIT.*\(LICENSE\)/);
-    expect(readme).toMatch(/CC0.*\(assets\/LICENSES\.md\)/);
+    expect(readme).toContain("The code is [MIT](LICENSE).");
+    expect(readme).toMatch(/The art and sound are CC0 1\.0.*\(assets\/LICENSES\.md\)/);
   });
 
   it("disclaims any link to Formula One or a real circuit", () => {
