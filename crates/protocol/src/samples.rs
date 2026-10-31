@@ -205,7 +205,7 @@ fn every_event_kind() -> Vec<Event> {
             item: Some(Item::Homing),
             item_box: 5,
         },
-        // A kart already holding an item breaks the box and rolls nothing.
+        // A kart already holding an item takes the box and rolls nothing.
         EventKind::ItemPicked {
             kart: 0,
             item: None,

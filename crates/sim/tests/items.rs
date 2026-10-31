@@ -1,8 +1,8 @@
 //! Items at the sim's public seam: a kart on an item box picks one up, the
 //! box comes back the tuned time later, a kart holding an item takes boxes
-//! without rolling, so it denies them to the karts behind, the roll is weighted by race position, a fired boost gives
-//! the tuned speed for the tuned time, and a bot fires what it holds within
-//! the tuned delay. Pickups and fires are read from `State::events` after
+//! without rolling and so denies them to the karts behind, the roll is
+//! weighted by race position, a fired boost gives the tuned speed for the
+//! tuned time, and a bot fires what it holds within the tuned delay. Pickups and fires are read from `State::events` after
 //! the `step` that produced them.
 
 mod common;
@@ -215,7 +215,7 @@ fn a_kart_that_fires_on_the_tick_its_box_comes_back_rolls_from_it() {
     assert_eq!(
         pickups(&state),
         [(0, None, box_under_slot_0())],
-        "holding an item, the kart breaks the box and rolls nothing"
+        "holding an item, the kart takes the box and rolls nothing"
     );
     assert_eq!(state.kart_readouts()[0].held_item, Some(held));
     assert!(!state.item_boxes_present()[box_under_slot_0()]);

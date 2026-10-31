@@ -1206,14 +1206,13 @@ impl State {
     /// race position as of `standings`; a held item stays, and nothing is
     /// drawn from the RNG.
     fn pick_up(&mut self, slot: usize, item_box: usize, standings: &[Standing]) {
-        let item = self.karts[slot].held_item.is_none().then(|| {
+        let mut item = None;
+        if self.karts[slot].held_item.is_none() {
             // The draw scaled down to the table's range, so the roll is as
             // even as the draw.
             let roll =
                 ((u64::from(self.rng.next_u32()) * u64::from(ITEM_ROLL_PERCENT)) >> 32) as u32;
-            Item::rolled(standings[slot].position, roll)
-        });
-        if item.is_some() {
+            item = Some(Item::rolled(standings[slot].position, roll));
             self.karts[slot].held_item = item;
         }
         self.item_box_respawn_s[item_box] = ITEM_BOX_RESPAWN_S;
@@ -1354,8 +1353,7 @@ pub fn step(mut state: State, inputs: &[KartInput], dt: f32) -> State {
     // Picked-up boxes come back on their clocks; a kart standing on one
     // picks it up the tick it is back. A kart takes every box its centre is
     // on, holding an item or not, so a kart in front denies boxes to the
-    // karts behind; only an empty slot rolls. A finished kart and any kart
-    // through the outro take none.
+    // karts behind; only an empty slot rolls.
     for respawn_s in &mut state.item_box_respawn_s {
         if *respawn_s > 0.0 {
             *respawn_s -= dt;

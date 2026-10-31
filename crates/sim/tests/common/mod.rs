@@ -191,15 +191,11 @@ pub fn without_item_boxes(sidecar: &str) -> String {
 /// `sidecar` with one more item box under each of the spawn `slots`, in
 /// order after the boxes it had, so a kart on that slot stands on a box at Go.
 pub fn with_boxes_under(sidecar: &str, slots: impl IntoIterator<Item = usize>) -> String {
-    edited(sidecar, |sidecar| {
-        for slot in slots {
-            let position = sidecar["spawn_grid"][slot]["position"].clone();
-            sidecar["item_boxes"]
-                .as_array_mut()
-                .expect("the sidecar lists its boxes")
-                .push(serde_json::json!({ "position": position, "yaw": 0.0 }));
-        }
-    })
+    let positions: Vec<_> = slots
+        .into_iter()
+        .map(|slot| slot_position(sidecar, slot))
+        .collect();
+    with_boxes_at(sidecar, positions)
 }
 
 /// `sidecar` with one more item box at each of `positions`, facing -Z, in

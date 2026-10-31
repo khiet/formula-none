@@ -395,7 +395,7 @@ describe("createServerRace", () => {
     expect(run.readout().itemSlot).toEqual({ item: null, firing: false });
   });
 
-  it("breaks the box a local kart holding an item drives through and leaves its item as it was", () => {
+  it("hides the box a local kart holding an item takes and leaves its item as it was", () => {
     const client = fakeClient();
     const run = createServerRace(bridge, client, COUNTDOWN, 0, "{}");
     client.event(picked(1, 0));

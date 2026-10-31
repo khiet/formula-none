@@ -38,5 +38,5 @@ to the karts behind.
   roll from a different point in the RNG.
 - A leader holding an item now takes the boxes ahead of it, so the karts
   behind roll fewer items than they did.
-- A sound or Instrument panel cue for a box broken with nothing rolled,
+- A sound or Instrument panel cue for a box taken with nothing rolled,
   and bots steering to take or deny boxes, stay out of scope.
