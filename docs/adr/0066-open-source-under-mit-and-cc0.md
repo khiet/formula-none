@@ -27,7 +27,8 @@ loop had been swapped in PR 59 for a track with no recorded source, while
   the 8 s loop the game first shipped with; a file whose source the repo
   cannot show does not ship.
 - Contributions: issues are welcome; pull requests only for issues labelled
-  `help wanted`. No CLA, no DCO, no code of conduct beyond GitHub's default.
+  `help wanted`, a handful of them also `good first issue`. No CLA, no DCO,
+  no code of conduct beyond GitHub's default.
 - The hosted instance stays up. `infra/` describes the author's own
   deployment; self-hosters use the Compose stack under `deploy/`.
 

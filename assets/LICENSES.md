@@ -1,8 +1,8 @@
 # Asset licences
 
-Everything under `assets/` is CC0 1.0 (ADR 0007, ADR 0066): the Kenney kits vendored
-here and the files this repo makes from them, from its own layouts, from its
-own Blender scripts and from its own synthesis.
+Everything under `assets/` is CC0 1.0 (ADR 0007, ADR 0066): the Kenney kits
+vendored here and the files this repo makes from them, from its own layouts,
+from its own Blender scripts and from its own synthesis.
 
 | Files | Source | Licence |
 | --- | --- | --- |
@@ -11,7 +11,7 @@ own Blender scripts and from its own synthesis.
 | `tracks/*/*.glb`, `tracks/*/*.track.json`, `replays/*` | this repo, built from primitives by `tracks/build.py` and `tracks/trackgen` | CC0 1.0 |
 | `audio/*.wav` | this repo, synthesised by `audio/build.py` (ADR 0025) | CC0 1.0 |
 | `apps/web/src/item-sprites.ts` (from the repo root) | this repo, the item slot's characters drawn as string grids (ADR 0024) | CC0 1.0 |
-| `apps/web/src/item-meshes.ts` `marshalMesh` (from the repo root) | this repo: Oyaji, the marshal, adapted from the author's own Purrjump (private at the time of writing) character (ADR 0045); no third-party licence | CC0 1.0 |
+| `apps/web/src/item-meshes.ts` `marshalMesh` (from the repo root) | this repo: Oyaji, the marshal, adapted from a character in the author's own Purrjump (private at the time of writing) (ADR 0045); no third-party licence | CC0 1.0 |
 | `docs/**/*.png`, `docs/**/*.gif`, `apps/web/public/*` (from the repo root) | this repo: the poster kart renders, the sound-effect GIFs and the favicon (ADR 0066) | CC0 1.0 |
 
 Kenney asks for no credit; we give it anyway. Every vendored Kenney

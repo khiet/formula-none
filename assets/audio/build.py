@@ -361,8 +361,8 @@ def finish(beep=880, high=1320, length=0.1, hold=0.5, gain=0.3):
 
 
 # ---------------------------------------------------------------------------
-# The original helpers, bodies unchanged under new names, for the hit and
-# the sputter, whose bytes must not change.
+# The original helpers, bodies unchanged under new names, for the hit, the
+# sputter and the music loop, whose bytes must not change.
 # ---------------------------------------------------------------------------
 
 
@@ -468,7 +468,7 @@ LEAD = [
 ]
 
 
-def note(semitones, base=261.63):
+def semitone_freq(semitones, base=261.63):
     return base * 2 ** (semitones / 12)
 
 
@@ -498,7 +498,7 @@ def music():
                 add(t, legacy_tone(freq, BEAT, wave_fn=triangle, decay=2.5, gain=0.07))
     for i, semitones in enumerate(LEAD):
         t = seconds(i * BEAT / 2)
-        add(t, legacy_tone(note(semitones) * 2, BEAT / 2, wave_fn=triangle, decay=5, gain=0.14))
+        add(t, legacy_tone(semitone_freq(semitones) * 2, BEAT / 2, wave_fn=triangle, decay=5, gain=0.14))
     write("music-loop", out)
 
 
