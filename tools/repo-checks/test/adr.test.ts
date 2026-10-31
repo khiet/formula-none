@@ -69,6 +69,7 @@ const DECISION_SLUGS = [
   "the-room-scene-shows-the-course-card",
   "a-kart-behind-a-wall-respawns",
   "monarch-joins-the-courses",
+  "a-prop-beside-a-hill-stands-on-a-terrace",
 ];
 
 const expectedFiles = DECISION_SLUGS.map(

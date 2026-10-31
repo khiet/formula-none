@@ -20,9 +20,12 @@ from ..layout import (
     ItemRow,
     Kerb,
     Layout,
+    Prop,
+    Spot,
     Tunnel,
     TyreWall,
     WheelCrossing,
+    World,
 )
 from ..path import Hill, Turtle
 
@@ -31,6 +34,25 @@ KERB_INSIDE_M = 4.9
 # Left of the centreline, where every tyre wall stands clear of the bots' line.
 TYRE_WALL_LEFT_M = 4.5
 CREST_HEIGHT_M = 8.0
+# The harbour quay's outer edge, counter-clockwise, in metres east and north
+# of the harbour prop's place: the north edge behind the harbour straight's
+# stands, the west edge behind the pool's, then the quay and Rascasse.
+HARBOUR_OUTLINE = (
+    (100.0, 98.0),
+    (-65.0, 98.0),
+    (-65.0, 12.0),
+    (-89.0, 4.0),
+    (-91.0, -15.0),
+    (-83.0, -35.0),
+    (-73.5, -55.0),
+    (-77.5, -70.0),
+    (-88.5, -85.0),
+    (-104.0, -95.0),
+    (100.0, -95.0),
+)
+# The casino's middle, this far left of the centreline, puts its front 10 m
+# behind the wall, past the 8 m rule.
+CASINO_LEFT_M = 28.5
 # The roof starts past the tunnel mouth and ends short of the chicane, so
 # both portals stand on the flat.
 TUNNEL_PAST_MOUTH_M = 10.0
@@ -130,6 +152,14 @@ LAYOUT = Layout(
             Grandstands(("pool-straight", "pool-2-right"), side=1),
         ],
         gantry=True,
+        props=[
+            # The basin outside the harbour straight, the pool and the quay: behind the
+            # stands beside the first two, then close round the quay and Rascasse, the
+            # 8 m rule's width from their walls.
+            Prop("harbour", World(150.0, -30.0), outline=HARBOUR_OUTLINE),
+            # Outside Casino Square at the crest, a right-hander, so on the left.
+            Prop("casino", Spot(seg("casino").s_mid, offset=CASINO_LEFT_M)),
+        ],
         tunnels=[
             Tunnel(
                 seg("tunnel-entry").s_end + TUNNEL_PAST_MOUTH_M,

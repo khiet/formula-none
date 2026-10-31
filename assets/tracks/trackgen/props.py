@@ -10,7 +10,10 @@ of garages beside the start straight, a door and a flag in each livery's
 key colour, which the grid faces through the countdown. The hangars: a row
 of barrel-roofed sheds outside Goldstone's Hangar Straight. The airship: a
 twelve-sided hull circling high over the infield, a node of its own the
-View flies round its circle, its sponsor riding on both flanks."""
+View flies round its circle, its sponsor riding on both flanks. The harbour:
+Monarch's basin of water inside a quay, yachts moored along it. The casino:
+Monarch's grand house outside Casino Square, on a terrace level with the
+crest."""
 
 from __future__ import annotations
 
@@ -41,6 +44,7 @@ from .layout import (
     SceneryMesh,
     Spot,
     Wood,
+    elevation,
     locate,
 )
 from .sponsors import AIRSHIP_SPONSOR, ARCH_SPONSOR
@@ -216,6 +220,67 @@ AIRSHIP_STRUT_M = 0.25
 AIRSHIP_TEXT_AT_M = 12.0
 AIRSHIP_TEXT_SIZE_M = 1.2
 
+# The harbour, Monarch's basin of sea water: a flat sheet of water a hair
+# over the grass, ringed by a stone quay standing proud of it. The layout's
+# prop gives the quay's outer edge as an outline.
+QUAY_WIDTH_M = 2.0
+QUAY_HEIGHT_M = 0.6
+"""Over the water, so the quay's inner face reads as the drop to the sea."""
+# The yachts moor stern-to along every quay whose middle lies within
+# `YACHT_MOORING_REACH_M` of the lap, one every `YACHT_PITCH_M`, their
+# lengths cycling through `YACHT_LENGTHS_M`. As a wood drops a tree, the
+# harbour drops a yacht that would touch one already moored or come nearer
+# the quay than its stern does, so two rows never meet in a corner. A yacht
+# is a pointed hull with a cabin and a flybridge on it, each as a share of
+# its length.
+YACHT_PITCH_M = 7.0
+YACHT_LENGTHS_M = (14.0, 18.0, 12.0)
+YACHT_MOORING_REACH_M = 40.0
+YACHT_OFF_QUAY_M = 1.0
+YACHT_BEAM = 0.3
+YACHT_BOW = 0.3
+"""The share of the length the bow tapers over."""
+YACHT_FREEBOARD_M = 1.4
+YACHT_CABIN = (0.2, 0.65, 1.0, 1.3)
+"""From and to as shares of the length from the stern, inset from each side, and tall."""
+YACHT_FLYBRIDGE = (0.3, 0.55, 1.6, 0.9)
+"""As the cabin's, standing on its roof."""
+YACHT_WINDOW_BAND = (0.35, 0.8)
+"""The cabin's window band, from and to as shares of its height."""
+YACHT_WINDOW_PROUD_M = 0.03
+
+# The casino, Monarch's grand house outside Casino Square: a stucco block
+# under a copper hip roof, a square tower at each front corner under a copper
+# pyramid, and a copper dome on an eight-sided drum over the door, standing on
+# a stone terrace that rises from the grass to the road's height at its spot,
+# so it stands level with the crest. Its front faces the track with a dark
+# door and two rows of dark windows.
+CASINO_LENGTH_M = 40.0
+"""Along the track."""
+CASINO_DEPTH_M = 20.0
+CASINO_EAVES_M = 12.0
+"""Over the terrace, as every height of the casino's is."""
+CASINO_RIDGE_M = 16.0
+CASINO_TOWER_M = 6.0
+"""Square, flush with the front and the end."""
+CASINO_TOWER_EAVES_M = 18.0
+CASINO_TOP_M = 24.0
+"""The towers' apexes, the casino's highest point."""
+CASINO_DRUM_RADIUS_M = 3.5
+CASINO_DRUM_BACK_M = 1.0
+"""From the front to the drum's nearest edge."""
+CASINO_DRUM_TOP_M = 15.0
+CASINO_DOME_TOP_M = 21.0
+CASINO_DRUM_SIDES = 8
+CASINO_DOOR_WIDTH_M = 4.0
+CASINO_DOOR_HEIGHT_M = 5.0
+CASINO_WINDOW_WIDTH_M = 1.6
+CASINO_WINDOWS_AT_M = (4.5, 8.5, 12.5)
+"""Each window's middle from the door's, either way along the front, all clear of the door."""
+CASINO_WINDOW_ROWS = ((1.5, 5.0), (7.0, 10.5))
+"""Each row's sill and head."""
+CASINO_PANEL_PROUD_M = 0.05
+
 
 @dataclass(frozen=True)
 class Tree:
@@ -231,8 +296,9 @@ class Tree:
 @dataclass(frozen=True)
 class Footprint:
     """The ground one piece of a prop of `kind` stands on, in track metres: the disc of
-    `radius` about (`x`, `y`), or without one the rectangle reaching `half_along` either way
-    along `heading` and `half_across` either side of it. A tree keeps its canopy out of it,
+    `radius` about (`x`, `y`), the counter-clockwise `outline` when it has one, or else the
+    rectangle reaching `half_along` either way along `heading` and `half_across` either side
+    of it. A tree keeps its canopy out of it,
     and the prop keeps `clearance` metres of grass between it and every wall: the 8 m rule
     for a tall prop, or none for a span's feet, which only have to stand on grass."""
 
@@ -244,9 +310,13 @@ class Footprint:
     heading: float = 0.0
     half_along: float = 0.0
     half_across: float = 0.0
+    outline: tuple[tuple[float, float], ...] = ()
 
     def distance(self, x: float, y: float) -> float:
         """From the point to the footprint's edge, negative inside it."""
+        if self.outline:
+            edge = _distance_to_outline(self.outline, x, y)
+            return -edge if _inside(self.outline, x, y) else edge
         if self.radius:
             return math.dist((x, y), (self.x, self.y)) - self.radius
         dx, dy = x - self.x, y - self.y
@@ -260,6 +330,9 @@ class Footprint:
 
     def bounds(self) -> tuple[float, float, float, float]:
         """The ground it covers, as (min x, min y, max x, max y)."""
+        if self.outline:
+            xs, ys = [x for x, _ in self.outline], [y for _, y in self.outline]
+            return min(xs), min(ys), max(xs), max(ys)
         if self.radius:
             return self.x - self.radius, self.y - self.radius, self.x + self.radius, self.y + self.radius
         cos, sin = math.cos(self.heading), math.sin(self.heading)
@@ -537,6 +610,24 @@ def _row_footprint(layout: Layout, prop: Prop, depth: float, missing: str) -> Fo
     return Footprint(prop.kind, x, y, PROP_WALL_CLEARANCE_M, heading=heading, half_along=prop.length / 2.0, half_across=depth / 2.0)
 
 
+def _harbour_footprint(layout: Layout, prop: Prop) -> list[Footprint]:
+    """The basin, quay and all: yachts moor in it, so it keeps the 8 m rule."""
+    x, y, heading = locate(layout, prop.at)
+    if not prop.outline:
+        raise ValueError("the harbour needs an outline")
+    cos, sin = math.cos(heading), math.sin(heading)
+    outline = tuple((x + a * cos - b * sin, y + a * sin + b * cos) for a, b in prop.outline)
+    return [Footprint(prop.kind, x, y, PROP_WALL_CLEARANCE_M, outline=outline)]
+
+
+def _casino_footprint(layout: Layout, prop: Prop) -> list[Footprint]:
+    """The casino's plan. It stands on the lap, since its terrace rises to the road's height there."""
+    if not isinstance(prop.at, Spot):
+        raise ValueError("the casino stands on a spot on the lap")
+    x, y, heading = locate(layout, prop.at)
+    return [Footprint(prop.kind, x, y, PROP_WALL_CLEARANCE_M, heading=heading, half_along=CASINO_LENGTH_M / 2.0, half_across=CASINO_DEPTH_M / 2.0)]
+
+
 def _facing_frame(prop: Prop, heading: float) -> tuple[mesh.Vertex, mesh.Vertex]:
     """The (along, across) axes of a prop that runs along the track, `across` pointing from
     the prop toward the track whichever side it stands on, so its front face is +across."""
@@ -552,6 +643,8 @@ FOOTPRINTS: dict[str, Callable[[Layout, Prop], list[Footprint]]] = {
     "pits": _pits_footprint,
     "hangars": _hangars_footprint,
     "airship": _no_footprint,
+    "harbour": _harbour_footprint,
+    "casino": _casino_footprint,
 }
 
 
@@ -965,6 +1058,222 @@ def airship(layout: Layout, prop: Prop, number: int, still: ByMaterial) -> tuple
     return [hull.scenery()], lettering
 
 
+def harbour(layout: Layout, prop: Prop, number: int, still: ByMaterial) -> tuple[list[SceneryMesh], list[Lettering]]:
+    """The harbour at `prop`: a sheet of `water` filling the basin inside a stone quay, the quay
+    `QUAY_WIDTH_M` wide inside the outline with stand-plinth faces under a beam-top coping,
+    and yachts moored stern-to along the quays near the lap, bows out into the basin. No
+    lettering."""
+    (plan,) = _harbour_footprint(layout, prop)
+    outer = list(plan.outline)
+    inner = _inset(outer, QUAY_WIDTH_M)
+    ground = -GRASS_DROP_M
+    sea = ground + SCENERY_LIFT_M
+    top = sea + QUAY_HEIGHT_M
+    count = len(outer)
+    for k in range(count):
+        (a, b), (c, d) = (outer[k], outer[(k + 1) % count]), (inner[k], inner[(k + 1) % count])
+        dx, dy = b[0] - a[0], b[1] - a[1]
+        # The outline runs counter-clockwise, so the basin is to each edge's left.
+        out = (dy, -dx, 0.0)
+        still.add("stand-plinth", mesh.quad_facing((*a, ground), (*b, ground), (*b, top), (*a, top), out))
+        still.add("stand-plinth", mesh.quad_facing((*c, sea), (*d, sea), (*d, top), (*c, top), (-dy, dx, 0.0)))
+        still.add("beam-top", mesh.quad_facing((*a, top), (*b, top), (*d, top), (*c, top), (0.0, 0.0, 1.0)))
+    still.add("water", ([(x, y, sea) for x, y in inner], [tuple(range(count))]))
+
+    moored: list[list[tuple[float, float]]] = []
+    for k in range(count):
+        a, b = inner[k], inner[(k + 1) % count]
+        middle = ((a[0] + b[0]) / 2.0, (a[1] + b[1]) / 2.0)
+        if min(math.dist(middle, (q.x, q.y)) for q in layout.path.samples) > YACHT_MOORING_REACH_M:
+            continue
+        length = math.dist(a, b)
+        along = ((b[0] - a[0]) / length, (b[1] - a[1]) / length)
+        inward = (-along[1], along[0])
+        berths = int(length // YACHT_PITCH_M)
+        for berth in range(berths):
+            at = (berth - (berths - 1) / 2.0) * YACHT_PITCH_M + length / 2.0
+            stern = (a[0] + along[0] * at + inward[0] * YACHT_OFF_QUAY_M, a[1] + along[1] * at + inward[1] * YACHT_OFF_QUAY_M)
+            size = YACHT_LENGTHS_M[len(moored) % len(YACHT_LENGTHS_M)]
+            hull = _hull_plan(stern, inward, size)
+            # Its stern corners stand the berth's distance off the quay; nothing may stand nearer.
+            if any(not _inside(inner, x, y) or _distance_to_outline(inner, x, y) < YACHT_OFF_QUAY_M - 1e-9 for x, y in hull):
+                continue
+            if any(_convex_overlap(hull, other) for other in moored):
+                continue
+            moored.append(hull)
+            _yacht(still, (*stern, sea), inward, size)
+    return [], []
+
+
+def casino(layout: Layout, prop: Prop, number: int, still: ByMaterial) -> tuple[list[SceneryMesh], list[Lettering]]:
+    """The casino at `prop`, its front toward the track: a stand-plinth terrace with a beam-top
+    paving from the grass to the road's height at its spot, and on it the stucco block, towers
+    and drum toned against stucco shade, the roofs, pyramids and dome in copper toned against
+    copper shade, and a carbon door and windows just proud of the front. No lettering."""
+    (plan,) = _casino_footprint(layout, prop)
+    road = elevation(layout.elevation, prop.at.s)
+    grass = -GRASS_DROP_M
+    terrace = road + grass
+    along, across = _facing_frame(prop, plan.heading)
+    half, front = plan.half_along, plan.half_across
+    terrace_block = _block((plan.x, plan.y, grass), along, across, (-half, half), (-front, front), (0.0, terrace - grass))
+    _sides(terrace_block, "stand-plinth", still)
+    vertices, (face,) = terrace_block["z1"]
+    still.add("beam-top", ([vertices[i] for i in face], [(0, 1, 2, 3)]))
+    origin = (plan.x, plan.y, terrace)
+
+    def at(a: float, b: float, c: float) -> mesh.Vertex:
+        return (plan.x + a * along[0] + b * across[0], plan.y + a * along[1] + b * across[1], terrace + c)
+
+    def copper(face: list[mesh.Vertex], centre: mesh.Vertex) -> None:
+        still.add(*_toned("copper", _outward(face, centre)))
+
+    def pyramid(base: list[mesh.Vertex], apex: mesh.Vertex, centre: mesh.Vertex) -> None:
+        for k, a in enumerate(base):
+            copper([a, base[(k + 1) % len(base)], apex], centre)
+
+    # The block under its hip roof: a ridge along the middle, inset half the depth from each end.
+    body = _block(origin, along, across, (-half, half), (-front, front), (0.0, CASINO_EAVES_M))
+    _sides(body, "stucco", still, shade="stucco-shade")
+    inset = half - front
+    left, right = at(-inset, 0.0, CASINO_RIDGE_M), at(inset, 0.0, CASINO_RIDGE_M)
+    eaves = [at(-half, -front, CASINO_EAVES_M), at(half, -front, CASINO_EAVES_M), at(half, front, CASINO_EAVES_M), at(-half, front, CASINO_EAVES_M)]
+    hub = at(0.0, 0.0, CASINO_EAVES_M)
+    back_left, back_right, front_right, front_left = eaves
+    copper([back_left, back_right, right, left], hub)
+    copper([front_right, front_left, left, right], hub)
+    copper([back_right, front_right, right], hub)
+    copper([front_left, back_left, left], hub)
+    # A tower at each front corner under its pyramid.
+    for end in (-1.0, 1.0):
+        a0, a1 = sorted((end * half, end * (half - CASINO_TOWER_M)))
+        b0, b1 = front - CASINO_TOWER_M, front
+        tower = _block(origin, along, across, (a0, a1), (b0, b1), (CASINO_EAVES_M, CASINO_TOWER_EAVES_M))
+        _sides(tower, "stucco", still, shade="stucco-shade")
+        base = [at(a0, b0, CASINO_TOWER_EAVES_M), at(a1, b0, CASINO_TOWER_EAVES_M), at(a1, b1, CASINO_TOWER_EAVES_M), at(a0, b1, CASINO_TOWER_EAVES_M)]
+        pyramid(base, at((a0 + a1) / 2.0, (b0 + b1) / 2.0, CASINO_TOP_M), at((a0 + a1) / 2.0, (b0 + b1) / 2.0, CASINO_TOWER_EAVES_M))
+    # The dome over the door: a drum on the roof and a cone of copper facets on it.
+    drum_b = front - CASINO_DRUM_BACK_M - CASINO_DRUM_RADIUS_M
+    corners = [math.tau * (k + 0.5) / CASINO_DRUM_SIDES for k in range(CASINO_DRUM_SIDES)]
+    low = [at(CASINO_DRUM_RADIUS_M * math.cos(t), drum_b + CASINO_DRUM_RADIUS_M * math.sin(t), CASINO_EAVES_M) for t in corners]
+    high = [(x, y, terrace + CASINO_DRUM_TOP_M) for x, y, _ in low]
+    centre = at(0.0, drum_b, CASINO_EAVES_M)
+    for k in range(CASINO_DRUM_SIDES):
+        j = (k + 1) % CASINO_DRUM_SIDES
+        still.add(*_toned("stucco", _outward([low[k], low[j], high[j], high[k]], centre), "stucco-shade"))
+    pyramid(high, at(0.0, drum_b, CASINO_DOME_TOP_M), at(0.0, drum_b, CASINO_DRUM_TOP_M))
+    # The door and the windows, just proud of the front and wound toward the track.
+    b = front + CASINO_PANEL_PROUD_M
+    behind = at(0.0, 0.0, CASINO_EAVES_M / 2.0)
+    panels = [(-CASINO_DOOR_WIDTH_M / 2.0, CASINO_DOOR_WIDTH_M / 2.0, 0.0, CASINO_DOOR_HEIGHT_M)]
+    for middle in CASINO_WINDOWS_AT_M:
+        for side in (-1.0, 1.0):
+            for sill, head in CASINO_WINDOW_ROWS:
+                m = side * middle
+                panels.append((m - CASINO_WINDOW_WIDTH_M / 2.0, m + CASINO_WINDOW_WIDTH_M / 2.0, sill, head))
+    for a0, a1, c0, c1 in panels:
+        quad = [at(a0, b, c0), at(a1, b, c0), at(a1, b, c1), at(a0, b, c1)]
+        still.add("carbon", (_outward(quad, behind), [(0, 1, 2, 3)]))
+    return [], []
+
+
+def _yacht(still: ByMaterial, stern: mesh.Vertex, fore: tuple[float, float], length: float) -> None:
+    """A yacht with its stern's middle at `stern` on the water, its bow along the unit `fore`:
+    a wall-white hull under a beam-top deck, a wall-white cabin with a band of carbon windows
+    round it, and a wall-white flybridge under a beam-top one. The hull is not toned: the lap sees
+    its shaded side, and white is what reads as a yacht from there."""
+    port = (-fore[1], fore[0], 0.0)
+    ahead = (fore[0], fore[1], 0.0)
+    half = length * YACHT_BEAM / 2.0
+    shoulder = length * (1.0 - YACHT_BOW)
+
+    def point(f: float, p: float, z: float) -> mesh.Vertex:
+        return (stern[0] + f * ahead[0] + p * port[0], stern[1] + f * ahead[1] + p * port[1], stern[2] + z)
+
+    plan = [(0.0, -half), (shoulder, -half), (length, 0.0), (shoulder, half), (0.0, half)]
+    middle = point(length / 2.0, 0.0, YACHT_FREEBOARD_M / 2.0)
+    for (f0, p0), (f1, p1) in zip(plan, plan[1:] + plan[:1]):
+        side = [point(f0, p0, 0.0), point(f1, p1, 0.0), point(f1, p1, YACHT_FREEBOARD_M), point(f0, p0, YACHT_FREEBOARD_M)]
+        still.add("wall", (_outward(side, middle), [(0, 1, 2, 3)]))
+    deck = [point(f, p, YACHT_FREEBOARD_M) for f, p in plan]
+    still.add("beam-top", (_outward(deck, middle), [tuple(range(len(deck)))]))
+    for (start, end, inset, tall), roof, z in (
+        (YACHT_CABIN, "wall", YACHT_FREEBOARD_M),
+        (YACHT_FLYBRIDGE, "beam-top", YACHT_FREEBOARD_M + YACHT_CABIN[3]),
+    ):
+        box = _block(point(0.0, 0.0, 0.0), ahead, port, (start * length, end * length), (inset - half, half - inset), (z, z + tall))
+        _sides(box, "wall", still)
+        vertices, (face,) = box["z1"]
+        still.add(roof, ([vertices[i] for i in face], [(0, 1, 2, 3)]))
+    # The cabin's windows: a band of dark glass round it, just proud of each side.
+    start, end, inset, tall = YACHT_CABIN
+    sill, head = YACHT_FREEBOARD_M + tall * YACHT_WINDOW_BAND[0], YACHT_FREEBOARD_M + tall * YACHT_WINDOW_BAND[1]
+    a0, a1 = start * length - YACHT_WINDOW_PROUD_M, end * length + YACHT_WINDOW_PROUD_M
+    b0, b1 = inset - half - YACHT_WINDOW_PROUD_M, half - inset + YACHT_WINDOW_PROUD_M
+    band = _block(point(0.0, 0.0, 0.0), ahead, port, (a0, a1), (b0, b1), (sill, head))
+    _sides(band, "carbon", still)
+
+
+def _hull_plan(stern: tuple[float, float], fore: tuple[float, float], length: float) -> list[tuple[float, float]]:
+    """A yacht's hull in plan, counter-clockwise from its stern's starboard corner."""
+    half = length * YACHT_BEAM / 2.0
+    shoulder = length * (1.0 - YACHT_BOW)
+    port = (-fore[1], fore[0])
+    return [
+        (stern[0] + f * fore[0] + p * port[0], stern[1] + f * fore[1] + p * port[1])
+        for f, p in ((0.0, -half), (shoulder, -half), (length, 0.0), (shoulder, half), (0.0, half))
+    ]
+
+
+def _inset(outline: list[tuple[float, float]], by: float) -> list[tuple[float, float]]:
+    """The counter-clockwise outline moved `by` metres in along every edge, each corner where
+    two moved edges meet. Every edge must be long enough not to vanish."""
+    moved = []
+    for (ax, ay), (bx, by_) in zip(outline, outline[1:] + outline[:1]):
+        length = math.dist((ax, ay), (bx, by_))
+        nx, ny = -(by_ - ay) / length * by, (bx - ax) / length * by
+        moved.append(((ax + nx, ay + ny), (bx + nx, by_ + ny)))
+    corners = []
+    for k in range(len(moved)):
+        (p0, p1), (q0, q1) = moved[k - 1], moved[k]
+        d1 = (p1[0] - p0[0], p1[1] - p0[1])
+        d2 = (q1[0] - q0[0], q1[1] - q0[1])
+        cross = d1[0] * d2[1] - d1[1] * d2[0]
+        t = ((q0[0] - p0[0]) * d2[1] - (q0[1] - p0[1]) * d2[0]) / cross
+        corners.append((p0[0] + t * d1[0], p0[1] + t * d1[1]))
+    return corners
+
+
+def _distance_to_outline(outline: Sequence[tuple[float, float]], x: float, y: float) -> float:
+    """From the point to the nearest edge of the closed outline."""
+    best = math.inf
+    for (ax, ay), (bx, by) in zip(outline, [*outline[1:], outline[0]]):
+        dx, dy = bx - ax, by - ay
+        t = max(0.0, min(1.0, ((x - ax) * dx + (y - ay) * dy) / (dx * dx + dy * dy)))
+        best = min(best, math.dist((x, y), (ax + t * dx, ay + t * dy)))
+    return best
+
+
+def _inside(outline: Sequence[tuple[float, float]], x: float, y: float) -> bool:
+    crossings = 0
+    for (ax, ay), (bx, by) in zip(outline, [*outline[1:], outline[0]]):
+        if (ay > y) != (by > y) and x < ax + (y - ay) * (bx - ax) / (by - ay):
+            crossings += 1
+    return crossings % 2 == 1
+
+
+def _convex_overlap(a: Sequence[tuple[float, float]], b: Sequence[tuple[float, float]]) -> bool:
+    """Whether two convex outlines overlap, by the separating axis test."""
+    for outline in (a, b):
+        for (x0, y0), (x1, y1) in zip(outline, [*outline[1:], outline[0]]):
+            axis = (y0 - y1, x1 - x0)
+            pa = [axis[0] * x + axis[1] * y for x, y in a]
+            pb = [axis[0] * x + axis[1] * y for x, y in b]
+            if max(pa) <= min(pb) or max(pb) <= min(pa):
+                return False
+    return True
+
+
 def _outward(quad: list[mesh.Vertex], centre: mesh.Vertex) -> list[mesh.Vertex]:
     """`quad` wound so its normal points away from `centre`."""
     a, b, c = quad[0], quad[1], quad[2]
@@ -1001,4 +1310,6 @@ PROP_BUILDERS: dict[str, Callable[[Layout, Prop, int, ByMaterial], tuple[list[Sc
     "pits": pits,
     "hangars": hangars,
     "airship": airship,
+    "harbour": harbour,
+    "casino": casino,
 }

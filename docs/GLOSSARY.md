@@ -398,6 +398,21 @@ minutes from its own clock, nose along the tangent, its lowest point 30 m
 over every road under it. Its sponsor rides on both flanks as children of
 the node (ADR 0050, ADR 0038).
 
+### harbour
+
+Monarch's basin of sea water outside the harbour straight and the pool,
+close behind their stands, and round the quay and Rascasse: a prop of flat
+water a hair over the grass inside a raised stone quay, with yachts moored
+stern-to along the quays near the lap. Nothing in it moves, and it is held to the 8 m rule (ADR 0050).
+
+### casino
+
+The grand house outside Monarch's Casino Square, at the crest: a prop of
+stucco under copper roofs, two towers and a dome, standing on a terrace that
+rises from the grass to the road's height there, its dark door and windows
+toward the track. It carries no name, and it is held to the 8 m rule (ADRs
+0050, 0065).
+
 ### tyre wall
 
 A stack of tyres standing on the asphalt, tagged `tyres`. A kart that

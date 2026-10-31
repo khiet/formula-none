@@ -89,6 +89,14 @@ MATERIALS = {
     "blossom": (0.949, 0.639, 0.753),
     "blossom-shade": (0.626, 0.422, 0.497),
     "trunk": (0.353, 0.227, 0.118),
+    # Monarch's harbour: the sea in the basin.
+    "water": (0.165, 0.435, 0.690),
+    # Monarch's casino: cream stucco and verdigris copper, each with its shade
+    # tone at two thirds of it, as the woods' canopies have.
+    "stucco": (0.957, 0.902, 0.776),
+    "stucco-shade": (0.638, 0.601, 0.517),
+    "copper": (0.388, 0.682, 0.592),
+    "copper-shade": (0.259, 0.455, 0.395),
 }
 # The crowd in the stands, one material per livery's key colour, and the lit
 # tone of each, the key mixed this far toward white, for the band across the

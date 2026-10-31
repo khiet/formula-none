@@ -1,7 +1,9 @@
 """Monarch, the course after Monaco, checked without Blender: the lap
 docs/mockups/monaco-course.html decided, walled in close by a 2 m run-off,
-with one 8 m crest at Casino Square and no ramp; and the tunnel, walls and a
-roof over the road high enough to clear the chase camera, lit along both sides.
+with one 8 m crest at Casino Square and no ramp; the tunnel, walls and a
+roof over the road high enough to clear the chase camera, lit along both sides;
+the harbour's water and yachts outside the harbour straight and the pool; and
+the casino outside Casino Square, level with the crest.
 
     python3 -I -m unittest discover -s assets/tracks/tests -t assets/tracks
 """
@@ -13,20 +15,34 @@ import re
 import unittest
 from pathlib import Path
 
-from tests.test_props import across_track, build_materials, materials_used
+from dataclasses import replace
+
+from tests.test_goldstone import faces_right
+from tests.test_props import across_track, build_materials, faces_up_and_toward_the_sun, footprint_clearance, materials_used
 from trackgen.layout import (
     CHASE_CAMERA_ABOVE_M,
+    GRANDSTAND_CANOPY_BOTTOM_M,
+    GRANDSTAND_SETBACK_M,
+    GRANDSTAND_WIDTH_M,
+    GRASS_DROP_M,
+    PROP_WALL_CLEARANCE_M,
     TUNNEL_LAMP_SPACING_M,
     TUNNEL_ROOF_M,
     WALL_THICKNESS_M,
+    Prop,
     Tunnel,
+    World,
+    along_outside,
     build,
 )
 from trackgen.layouts import load
+from trackgen.props import YACHT_OFF_QUAY_M, footprints
 from trackgen.path import Hill, Ramp, elevation
 
 NAME = "monarch"
 TUNNEL = "Tunnel."
+HARBOUR = "Prop.harbour"
+CASINO = "Prop.casino"
 CHASE_CAMERA_TS = Path(__file__).resolve().parents[3] / "apps" / "web" / "src" / "chase-camera.ts"
 
 
@@ -139,6 +155,240 @@ class TheTunnel(unittest.TestCase):
     def test_a_tunnel_must_run_forward(self) -> None:
         with self.assertRaises(ValueError):
             Tunnel(s_start=10.0, s_end=5.0)
+
+
+def distance_to_outline(outline, x: float, y: float) -> float:
+    """From the point to the nearest edge of the closed outline."""
+    best = math.inf
+    for (ax, ay), (bx, by) in zip(outline, outline[1:] + outline[:1]):
+        dx, dy = bx - ax, by - ay
+        t = max(0.0, min(1.0, ((x - ax) * dx + (y - ay) * dy) / (dx * dx + dy * dy or 1.0)))
+        best = min(best, math.dist((x, y), (ax + t * dx, ay + t * dy)))
+    return best
+
+
+def inside(outline, x: float, y: float) -> bool:
+    crossings = 0
+    for (ax, ay), (bx, by) in zip(outline, outline[1:] + outline[:1]):
+        if (ay > y) != (by > y) and x < ax + (y - ay) * (bx - ax) / (by - ay):
+            crossings += 1
+    return crossings % 2 == 1
+
+
+def convex_overlap(a, b) -> bool:
+    """Whether two convex outlines overlap, by the separating axis test."""
+    for outline in (a, b):
+        for (x0, y0), (x1, y1) in zip(outline, outline[1:] + outline[:1]):
+            axis = (y0 - y1, x1 - x0)
+            pa = [axis[0] * x + axis[1] * y for x, y in a]
+            pb = [axis[0] * x + axis[1] * y for x, y in b]
+            if max(pa) <= min(pb) or max(pb) <= min(pa):
+                return False
+    return True
+
+
+def family(geometry, prefix: str):
+    return {p.name: p for p in geometry.scenery if p.name.startswith(f"{prefix}.")}
+
+
+def vertices_of(pieces) -> list[tuple[float, float, float]]:
+    return [v for piece in pieces for v in piece.mesh[0]]
+
+
+class Props(unittest.TestCase):
+    def setUp(self) -> None:
+        self.layout = load(NAME)
+        self.geometry = build(self.layout)
+
+    def test_every_footprint_keeps_8_m_of_grass_from_every_wall(self) -> None:
+        found = footprints(self.layout)
+        self.assertEqual({f.kind for f in found}, {"harbour", "casino"})
+        for footprint in found:
+            with self.subTest(footprint=footprint):
+                self.assertEqual(footprint.clearance, PROP_WALL_CLEARANCE_M)
+                self.assertGreaterEqual(footprint_clearance(self.layout, footprint), PROP_WALL_CLEARANCE_M - 1e-9)
+
+    def test_no_grandstand_stands_in_a_footprint(self) -> None:
+        for run in self.layout.decor.grandstands:
+            for front in along_outside(self.layout, run.segments, run.side, GRANDSTAND_SETBACK_M, GRANDSTAND_WIDTH_M):
+                for footprint in footprints(self.layout):
+                    with self.subTest(stand=front, footprint=footprint.kind):
+                        # Half a stand's width covers its depth and the canopy's overhang too.
+                        self.assertGreater(footprint.distance(front.x, front.y), GRANDSTAND_WIDTH_M / 2.0)
+
+    def test_its_props_paint_only_from_the_palette(self) -> None:
+        props = [p for p in self.geometry.scenery if p.name.startswith("Prop.")]
+        self.assertTrue(props)
+        self.assertTrue(materials_used(props) <= build_materials())
+
+    def test_no_prop_reaches_the_sidecar(self) -> None:
+        bare = build(replace(self.layout, decor=replace(self.layout.decor, props=[])))
+        for what in ("centreline", "surfaces", "checkpoints", "item_boxes", "boost_pads", "spawn_grid", "kerbs", "wheel_crossings", "coins"):
+            with self.subTest(what):
+                self.assertEqual(getattr(self.geometry, what), getattr(bare, what))
+
+
+class Harbour(unittest.TestCase):
+    def setUp(self) -> None:
+        self.layout = load(NAME)
+        (self.prop,) = [p for p in self.layout.decor.props if p.kind == "harbour"]
+        self.pieces = family(build(self.layout), HARBOUR)
+        self.water = self.pieces[f"{HARBOUR}.water"]
+
+    def test_the_water_lies_outside_the_harbour_straight_and_the_pool_close_behind_their_stands(self) -> None:
+        water = self.water_outline()
+        for name in ("harbour", "pool-straight"):
+            segment = self.layout.path.segment(name)
+            sample = self.layout.path.at(segment.s_mid)
+            with self.subTest(name):
+                self.assertEqual(segment.turn, 0)
+                # The lap runs clockwise, so the outside is the left; the stands fill the first 18 m.
+                self.assertTrue(inside(water, *sample.offset(32.0)))
+                self.assertGreater(distance_to_outline(water, sample.x, sample.y), 18.0)
+                self.assertLess(distance_to_outline(water, sample.x, sample.y), 30.0)
+
+    def test_it_lies_at_sea_level_a_hair_over_the_grass_inside_a_raised_quay(self) -> None:
+        for name in ("harbour", "pool-straight"):
+            self.assertEqual(elevation(self.layout.elevation, self.layout.path.segment(name).s_mid), 0.0, name)
+        heights = {round(z, 6) for _, _, z in self.water.mesh[0]}
+        self.assertEqual(len(heights), 1, "flat")
+        (sea,) = heights
+        self.assertGreater(sea, -GRASS_DROP_M)
+        self.assertLess(sea, -GRASS_DROP_M + 0.05)
+        quay = vertices_of([self.pieces[f"{HARBOUR}.stand-plinth"]])
+        self.assertGreater(max(z for *_, z in quay), sea + 0.3)
+
+    def test_the_quay_rings_the_water(self) -> None:
+        def bounds(vertices):
+            return (min(v[0] for v in vertices), min(v[1] for v in vertices), max(v[0] for v in vertices), max(v[1] for v in vertices))
+
+        water = bounds(self.water.mesh[0])
+        quay = bounds(vertices_of([self.pieces[f"{HARBOUR}.stand-plinth"]]))
+        self.assertTrue(quay[0] < water[0] and quay[1] < water[1] and quay[2] > water[2] and quay[3] > water[3])
+
+    def water_outline(self) -> list[tuple[float, float]]:
+        vertices, (face,) = self.water.mesh
+        return [vertices[i][:2] for i in face]
+
+    def decks(self) -> list[list[tuple[float, float]]]:
+        """Each yacht's deck in plan: the beam-top faces with five corners, the hull's outline."""
+        vertices, faces = self.pieces[f"{HARBOUR}.beam-top"].mesh
+        return [[vertices[i][:2] for i in f] for f in faces if len(f) == 5]
+
+    def test_the_water_comes_within_21_m_of_the_quay_and_rascasse(self) -> None:
+        # Their walls stand 8.5 m out, then the 8 m rule and the 2 m quay: 18.5 m at the nearest.
+        water = self.water_outline()
+        for name in ("quay", "rascasse"):
+            sample = self.layout.path.at(self.layout.path.segment(name).s_mid)
+            with self.subTest(name):
+                self.assertLess(distance_to_outline(water, sample.x, sample.y), 21.0)
+
+    def test_yachts_moor_stern_to_along_the_quays_toward_the_lap(self) -> None:
+        water = self.water_outline()
+        decks = self.decks()
+        self.assertEqual(len(decks), len(self.cabins()), "a deck and a cabin each")
+        for deck in decks:
+            self.assertAlmostEqual(min(distance_to_outline(water, x, y) for x, y in deck), YACHT_OFF_QUAY_M, places=6)
+        near_the_quay = [d for d in decks if min(distance_to_outline([(q.x, q.y) for q in self.quay_samples()], x, y) for x, y in d) < 30.0]
+        self.assertGreaterEqual(len(near_the_quay), 5, "yachts line the quay the lap runs along")
+        nearest_far_quay = min(math.dist(d[0], (200.0, -120.0)) for d in decks)
+        self.assertGreater(nearest_far_quay, 40.0, "none on the far quays")
+
+    def quay_samples(self):
+        segment = self.layout.path.segment("quay")
+        return [self.layout.path.samples[i] for i in self.layout.path.indices_between(segment.s_start, segment.s_end)]
+
+    def cabins(self) -> list[tuple[float, float]]:
+        """The plan middle of each yacht's cabin, from the band of dark windows round it."""
+        cabin = self.pieces[f"{HARBOUR}.carbon"]
+        vertices, faces = cabin.mesh
+        self.assertEqual(len(faces) % 4, 0, "four sides a band")
+        middles = []
+        for k in range(0, len(faces), 4):
+            corners = [vertices[i] for f in faces[k : k + 4] for i in f]
+            middles.append((sum(v[0] for v in corners) / len(corners), sum(v[1] for v in corners) / len(corners)))
+        return middles
+
+    def test_no_two_yachts_touch_and_every_one_floats_inside_the_quay(self) -> None:
+        water = self.water_outline()
+        decks = self.decks()
+        for k, deck in enumerate(decks):
+            self.assertTrue(all(inside(water, x, y) for x, y in deck), deck)
+            for other in decks[k + 1 :]:
+                self.assertFalse(convex_overlap(deck, other), (deck, other))
+
+    def test_every_yacht_stands_lower_than_the_stands(self) -> None:
+        sea = self.water.mesh[0][0][2]
+        yachts = [p for name, p in self.pieces.items() if name.split(".")[-1] in ("wall", "carbon")]
+        for *_, z in vertices_of(yachts):
+            self.assertTrue(sea <= z < sea + GRANDSTAND_CANOPY_BOTTOM_M)
+
+    def test_every_yachts_windows_band_its_cabin_over_the_hull(self) -> None:
+        sea = self.water.mesh[0][0][2]
+        windows = [z - sea for *_, z in self.pieces[f"{HARBOUR}.carbon"].mesh[0]]
+        # The hull's freeboard is 1.4 m and the cabin on it 1.3 m tall.
+        self.assertGreater(min(windows), 1.4)
+        self.assertLess(max(windows), 1.4 + 1.3)
+
+    def test_it_refuses_a_layout_that_gives_no_outline(self) -> None:
+        short = replace(self.layout, decor=replace(self.layout.decor, props=[Prop("harbour", World(160.0, -20.0))]))
+        with self.assertRaises(ValueError):
+            build(short)
+
+
+class Casino(unittest.TestCase):
+    def setUp(self) -> None:
+        self.layout = load(NAME)
+        (self.prop,) = [p for p in self.layout.decor.props if p.kind == "casino"]
+        self.pieces = family(build(self.layout), CASINO)
+        self.road = elevation(self.layout.elevation, self.prop.at.s)
+        self.terrace = self.road - GRASS_DROP_M
+
+    def frame(self, v):
+        """(along, left of, up from the terrace) at the casino's spot."""
+        along, left = across_track(self.layout, self.prop.at.s, v[0], v[1])
+        return along, left, v[2] - self.terrace
+
+    def test_it_stands_outside_casino_square_at_the_crest(self) -> None:
+        square = self.layout.path.segment("casino")
+        self.assertEqual(square.turn, -1, "a right-hander, so the outside is the left")
+        self.assertTrue(square.s_start <= self.prop.at.s <= square.s_end)
+        self.assertGreater(self.prop.at.offset, self.layout.runoff_half_width)
+        self.assertAlmostEqual(self.road, 8.0, delta=0.1, msg="at the crest")
+
+    def test_its_terrace_rises_from_the_grass_to_the_road_and_the_building_stands_on_it(self) -> None:
+        terrace = vertices_of([self.pieces[f"{CASINO}.stand-plinth"]])
+        self.assertAlmostEqual(min(z for *_, z in terrace), -GRASS_DROP_M)
+        self.assertAlmostEqual(max(z for *_, z in terrace), self.terrace)
+        building = vertices_of([p for name, p in self.pieces.items() if name.split(".")[-1].startswith(("stucco", "copper"))])
+        self.assertTrue(building)
+        self.assertAlmostEqual(min(self.frame(v)[2] for v in building), 0.0)
+
+    def test_its_towers_top_it_24_m_over_the_terrace_under_lit_copper(self) -> None:
+        copper = [self.frame(v) for v in vertices_of([p for name, p in self.pieces.items() if ".copper" in name])]
+        everything = [self.frame(v) for p in self.pieces.values() for v in p.mesh[0]]
+        self.assertAlmostEqual(max(c for *_, c in copper), 24.0, msg="the towers' apexes")
+        self.assertAlmostEqual(max(c for *_, c in everything), 24.0)
+        lit = self.pieces[f"{CASINO}.copper"]
+        self.assertTrue(all(faces_up_and_toward_the_sun([lit.mesh[0][i] for i in f]) for f in lit.mesh[1]))
+
+    def test_its_door_and_windows_face_the_track_on_its_front(self) -> None:
+        stucco = [self.frame(v) for name, p in self.pieces.items() if ".stucco" in name for v in p.mesh[0]]
+        front = min(b for _, b, _ in stucco)
+        dark = self.pieces[f"{CASINO}.carbon"]
+        self.assertGreaterEqual(len(dark.mesh[1]), 7, "a door and windows")
+        for f in dark.mesh[1]:
+            panel = [self.frame(dark.mesh[0][i]) for i in f]
+            self.assertLess(max(b for _, b, _ in panel), front, "proud of the front")
+            self.assertTrue(faces_right(panel), "toward the track, which is to the right")
+
+    def test_it_letters_nothing(self) -> None:
+        self.assertFalse(any(t.name.startswith(f"{CASINO}.") for t in build(self.layout).lettering))
+
+    def test_it_refuses_a_place_off_the_lap_since_its_terrace_reads_the_road(self) -> None:
+        astray = replace(self.layout, decor=replace(self.layout.decor, props=[Prop("casino", World(140.0, 260.0))]))
+        with self.assertRaises(ValueError):
+            build(astray)
 
 
 if __name__ == "__main__":

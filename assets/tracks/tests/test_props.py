@@ -93,6 +93,13 @@ def wall_clearance(layout, x: float, y: float) -> float:
 
 def edge_of(footprint: Footprint) -> list[tuple[float, float]]:
     """Points round the footprint's edge, every `EDGE_STEP_M` or so."""
+    if footprint.outline:
+        points = []
+        corners = list(footprint.outline)
+        for (ax, ay), (bx, by) in zip(corners, corners[1:] + corners[:1]):
+            steps = max(1, math.ceil(math.dist((ax, ay), (bx, by)) / EDGE_STEP_M))
+            points += [(ax + (bx - ax) * k / steps, ay + (by - ay) * k / steps) for k in range(steps)]
+        return points
     if footprint.radius:
         count = max(8, math.ceil(math.tau * footprint.radius / EDGE_STEP_M))
         return [
@@ -224,6 +231,12 @@ class Placing(unittest.TestCase):
         self.assertAlmostEqual(min_y, -4.0)
         self.assertAlmostEqual(max_x, 1.0)
         self.assertAlmostEqual(max_y, 4.0)
+        # An L of two 2 m squares: the notch is outside it.
+        ell = Footprint("x", 0.0, 0.0, clearance=0.0, outline=((0.0, 0.0), (4.0, 0.0), (4.0, 2.0), (2.0, 2.0), (2.0, 4.0), (0.0, 4.0)))
+        self.assertAlmostEqual(ell.distance(1.0, 1.0), -1.0)
+        self.assertAlmostEqual(ell.distance(3.0, 3.0), 1.0)
+        self.assertAlmostEqual(ell.distance(-2.0, 1.0), 2.0)
+        self.assertEqual(ell.bounds(), (0.0, 0.0, 4.0, 4.0))
 
     def test_no_prop_sits_within_20_m_in_plan_of_the_other_leg_at_the_bridge(self) -> None:
         path = self.layout.path

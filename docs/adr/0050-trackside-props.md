@@ -2,7 +2,8 @@
 
 ## Status
 
-Accepted (2026-10-29).
+Accepted (2026-10-29). Its rule that every prop stands flat at the grass's
+level is superseded for a prop on a terrace by ADR 0065.
 
 ## Context
 
