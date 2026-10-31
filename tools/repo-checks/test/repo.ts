@@ -8,6 +8,11 @@ export function readRepoFile(relativePath: string): string {
   return readFileSync(join(ROOT, relativePath), "utf8");
 }
 
+/** A prose file with every run of whitespace folded to one space, so a sentence matches however it wraps. */
+export function readRepoProse(relativePath: string): string {
+  return readRepoFile(relativePath).replace(/\s+/g, " ");
+}
+
 export function listRepoDir(relativePath: string): string[] {
   return readdirSync(join(ROOT, relativePath)).sort();
 }
