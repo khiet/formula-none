@@ -1,7 +1,6 @@
-// The Title Scene's preview of the picked course: its name and the circuit
-// it is after, the flat map with a dot lapping it, a blurb and four
-// numbers measured from the sidecar's centreline, so they can never
-// disagree with the track the sim races.
+// A course's card: its name and the circuit it is after, the flat map with
+// a dot lapping it, a blurb and four numbers measured from the sidecar's
+// centreline, so they can never disagree with the track the sim races.
 
 import { projectCentreline } from "./course-map";
 import { hexCss } from "./livery";

@@ -826,11 +826,11 @@
       </article>
 
       <article class="asset wide">
-        <header><h3>Room Scene</h3><code>apps/web/src/room-scene.ts, index.html #room-scene</code></header>
-        <div class="compare"><figure><figcaption>Waiting for everyone to be ready</figcaption><div class="poster" id="room"></div></figure></div>
-        <dl class="spec"><dt>Decided</dt><dd><a href="adr/0039-room-scene-on-the-grand-prix-poster.md">ADR 0039</a>, <a href="adr/0061-the-creator-picks-the-course.md">0061</a></dd></dl>
+        <header><h3>Room Scene</h3><code>apps/web/src/room-scene.ts, apps/web/src/course-preview.ts, index.html #room-scene</code></header>
+        <div class="compare"><figure><figcaption>Waiting for everyone to be ready, on Goldstone</figcaption><div class="poster" id="room"></div></figure></div>
+        <dl class="spec"><dt>Decided</dt><dd><a href="adr/0039-room-scene-on-the-grand-prix-poster.md">ADR 0039</a>, <a href="adr/0061-the-creator-picks-the-course.md">0061</a>, <a href="adr/0062-the-room-scene-shows-the-course-card.md">0062</a></dd></dl>
         <div class="notes">
-          <p>The poster backdrop and face: ROOM and the code in gold, tilted like the Title logo, with a player-count sticker and the room's course on an ink plate, its flag beside its name, read-only and left out for a track no course is; the room link on an ink plate with a Copy link button. Players sit in two columns, each as a poster kart with the name above purple YOU and CREATOR badges and a green READY or ink NOT READY chip. A status line on an ink plate, which reads "Connection lost: reconnecting" while the client rejoins the room after a server restart (ADR 0053), then Ready or Unready and Leave in gold, and Start in green for the creator, grey until everyone is ready.</p>
+          <p>The poster backdrop and face: ROOM and the code in gold, tilted like the Title logo, with a player-count sticker; the room link on an ink plate with a Copy link button. Players sit in two columns, each as a poster kart with the name above purple YOU and CREATOR badges and a green READY or ink NOT READY chip. A status line on an ink plate, which reads "Connection lost: reconnecting" while the client rejoins the room after a server restart (ADR 0053), then Ready or Unready and Leave in gold, and Start in green for the creator, grey until everyone is ready. Beside them, in its own column, the room's course card, the Title Scene's a size down, shown read-only to every player and left out for a track no course is; on a window taller than it is wide it stacks under the grid.</p>
         </div>
       </article>
     </div>
@@ -1768,12 +1768,20 @@
     `<li style="${t ? "" : "color:#888"}"><span>${p}</span><i style="width:1em;height:1em;background:${hex(LIVERIES[k].key)}"></i><span>${NICKS[k]}</span><span>${t ?? "Not finished"}</span></li>`).join("");
 
   const seat = (k, badges) => `<div class="seat"><div class="lv" data-room-slot="${k}">${sideCar(LIVERIES[k].d, `${NICKS[k]}'s kart`)}</div><div><b>${NICKS[k]}</b><span style="display:flex;flex-wrap:wrap;gap:0.25rem">${badges}</span></div></div>`;
-  document.getElementById("room").innerHTML = `<i class="cq t"></i><i class="cq b"></i><div style="display:grid;gap:0.8rem;justify-items:center;width:100%;max-width:30rem">
-    <div style="display:flex;align-items:center;gap:0.6rem;rotate:-3deg"><span class="p-head">Room <span style="color:var(--g-pgold)">KQXZ</span></span><span class="p-sticker" style="rotate:-6deg">3/8</span><span class="p-plate" style="display:flex;align-items:center;gap:0.4rem"><svg viewBox="0 0 60 30" preserveAspectRatio="xMidYMid slice" style="display:block;width:1.6rem;height:1.05rem;border:2px solid var(--g-ink)"><clipPath id="guide-union-room"><path d="M30,15 h30 v15 z v15 h-30 z h-30 v-15 z v-15 h30 z"/></clipPath><rect width="60" height="30" fill="#012169"/><path d="M0,0 L60,30 M60,0 L0,30" stroke="#ffffff" stroke-width="6"/><path d="M0,0 L60,30 M60,0 L0,30" clip-path="url(#guide-union-room)" stroke="#c8102e" stroke-width="4"/><path d="M30,0 v30 M0,15 h60" stroke="#ffffff" stroke-width="10"/><path d="M30,0 v30 M0,15 h60" stroke="#c8102e" stroke-width="6"/></svg>Goldstone</span></div>
+  document.getElementById("room").innerHTML = `<i class="cq t"></i><i class="cq b"></i><div style="display:grid;grid-template-columns:minmax(0,28rem) minmax(0,17rem);gap:1rem;align-items:center;width:100%;justify-content:center"><div style="display:grid;gap:0.8rem;justify-items:center">
+    <div style="display:flex;align-items:center;gap:0.6rem;rotate:-3deg"><span class="p-head">Room <span style="color:var(--g-pgold)">KQXZ</span></span><span class="p-sticker" style="rotate:-6deg">3/8</span></div>
     <span class="p-plate" style="display:flex;align-items:center;gap:0.6rem"><u style="text-transform:uppercase">formula-none.example/?room=KQXZ</u><span class="p-sticker" style="rotate:0deg;box-shadow:none;font-size:0.65rem">Copy link</span></span>
     <div class="seats">${seat(0, '<span class="p-badge">You</span><span class="p-badge">Creator</span><span class="p-badge ready">Ready</span>')}${seat(3, '<span class="p-badge wait">Not ready</span>')}${seat(1, '<span class="p-badge ready">Ready</span>')}</div>
     <span class="p-plate">Waiting for everyone to be ready</span>
-    <div style="display:flex;flex-wrap:wrap;gap:0.6rem;justify-content:center"><span class="p-btn">Unready</span><span class="p-btn off">Start</span><span class="p-btn">Leave</span></div></div>`;
+    <div style="display:flex;flex-wrap:wrap;gap:0.6rem;justify-content:center"><span class="p-btn">Unready</span><span class="p-btn off">Start</span><span class="p-btn">Leave</span></div></div>
+            <div style="width:100%;max-width:17rem;padding:0.6rem 0.7rem;background:var(--g-ink);box-shadow:5px 5px 0 rgb(0 0 0 / 0.4)">
+              <div style="display:flex;align-items:baseline;justify-content:space-between"><span style="font-size:1.3rem;color:var(--g-pgold)">Goldstone</span><span style="font-size:0.6rem;color:#c9ced5">After Silverstone</span></div>
+              <svg viewBox="0 0 160 70" style="display:block;width:100%;margin:0.4rem 0;background:#1b1d21"><path d="M30,15 H120 A20,20 0 0 1 120,55 H30 A20,20 0 0 1 30,15 Z" fill="none" stroke="#f0f0f0" stroke-width="7"/><path d="M30,15 H120 A20,20 0 0 1 120,55 H30 A20,20 0 0 1 30,15 Z" fill="none" stroke="#6b6b78" stroke-width="4.5"/><line x1="60" y1="10" x2="60" y2="20" stroke="#ffffff" stroke-width="1.5"/><circle cx="96" cy="15" r="3" fill="#ffd23f" stroke="#111111" stroke-width="1"/></svg>
+              <div style="font-size:0.6rem">Flat out and open, Maggotts and Becketts, the Hangar Straight</div>
+              <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0.25rem;margin-top:0.4rem;font-size:0.55rem">
+                <span style="display:grid;padding:0.25rem;background:#2b2e33"><b style="font-weight:normal;font-size:0.85rem">1323 m</b>Lap</span><span style="display:grid;padding:0.25rem;background:#2b2e33"><b style="font-weight:normal;font-size:0.85rem">3</b>Laps</span><span style="display:grid;padding:0.25rem;background:#2b2e33"><b style="font-weight:normal;font-size:0.85rem">12 m</b>Tightest</span><span style="display:grid;padding:0.25rem;background:#2b2e33"><b style="font-weight:normal;font-size:0.85rem">176 m</b>Straight</span>
+              </div>
+            </div></div>`;
   for (const el of document.querySelectorAll("[data-room-slot]")) paint(el, Number(el.dataset.roomSlot));
 
   // Grid and drivers, each in its own livery.

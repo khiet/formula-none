@@ -1,7 +1,9 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { courseStats } from "./course-preview";
 import type { Room } from "./generated/protocol";
 import { CONNECTION_LOST_STATUS, createRoomScene, type RoomHandlers } from "./room-scene";
+import { COURSES, type WorldPoint } from "./track";
 
 const ROOM: Room = {
   code: "BXQF",
@@ -13,6 +15,14 @@ const ROOM: Room = {
   ],
 };
 const LINK = "https://formulanone.sushimafia.com/?room=BXQF";
+/** A 50 m square standing in for every course's centreline. */
+const SQUARE: WorldPoint[] = [
+  [0, 0, 0],
+  [50, 0, 0],
+  [50, 0, 50],
+  [0, 0, 50],
+];
+const COURSE_CHOICES = COURSES.map((course) => ({ course, centreline: SQUARE }));
 
 function scene(slot: number, room: Room = ROOM) {
   const container = document.createElement("div");
@@ -22,7 +32,19 @@ function scene(slot: number, room: Room = ROOM) {
     start: () => calls.push("start"),
     leave: () => calls.push("leave"),
   };
-  const view = createRoomScene(container, { slot, room, link: LINK, capacity: 8 }, handlers);
+  const view = createRoomScene(
+    container,
+    {
+      slot,
+      room,
+      link: LINK,
+      capacity: 8,
+      courses: COURSE_CHOICES,
+      laps: 3,
+      reducedMotion: () => true,
+    },
+    handlers,
+  );
   const button = (name: string) => {
     const element = container.querySelector<HTMLButtonElement>(`button[name=${name}]`);
     if (!element) throw new Error(`no button ${name}`);
@@ -67,7 +89,26 @@ function stubClipboard(writeText: (text: string) => Promise<void>) {
 }
 
 describe("Room Scene", () => {
-  it("leaves the course badge out for a track no course is", () => {
+  it("shows the room's course card, read-only, with its name and four numbers", () => {
+    const { container } = scene(2);
+    const card = container.querySelector("[data-room-course]");
+    expect(card?.querySelector("h3")?.textContent).toBe("Goldstone");
+    const stats = Array.from(card?.querySelectorAll(".stats div") ?? [], (box) => [
+      box.querySelector("b")?.textContent,
+      box.querySelector("small")?.textContent,
+    ]);
+    const numbers = courseStats(SQUARE);
+    expect(stats).toEqual([
+      [`${Math.round(numbers.lapM)} m`, "Lap"],
+      ["3", "Laps"],
+      [`${Math.round(numbers.tightestM)} m`, "Tightest"],
+      [`${Math.round(numbers.straightM)} m`, "Straight"],
+    ]);
+    // Read-only: nothing on the card picks a course.
+    expect(card?.querySelector("input, button")).toBeNull();
+  });
+
+  it("leaves the course card out for a track no course is", () => {
     const { container } = scene(2, { ...ROOM, track: "oval" });
     expect(container.querySelector("[data-room-course]")).toBeNull();
   });
@@ -77,10 +118,6 @@ describe("Room Scene", () => {
     expect(container.querySelector("h1")?.textContent).toBe("Room BXQF");
     expect(container.querySelector("[data-room-code]")?.textContent).toBe("BXQF");
     expect(container.querySelector("[data-room-count]")?.textContent).toBe("2/8");
-    // The course the creator picked, read-only.
-    const course = container.querySelector("[data-room-course]");
-    expect(course?.textContent).toBe("Goldstone");
-    expect(course?.querySelector("svg[data-flag]")).not.toBeNull();
     const link = container.querySelector<HTMLAnchorElement>("a[data-room-link]");
     expect(link?.href).toBe(LINK);
     expect(link?.textContent).toBe(LINK);

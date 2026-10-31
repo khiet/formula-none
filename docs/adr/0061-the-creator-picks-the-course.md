@@ -2,7 +2,8 @@
 
 ## Status
 
-Accepted (2026-10-31).
+Accepted (2026-10-31). The Room Scene's read-only badge is superseded by
+ADR 0062, which shows the course card there instead.
 
 ## Context
 

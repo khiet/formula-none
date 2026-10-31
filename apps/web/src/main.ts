@@ -109,7 +109,7 @@ async function fetchBytes(url: string): Promise<ArrayBuffer> {
   return response.arrayBuffer();
 }
 
-/** Every course with its centreline, for the Title Scene's previews. */
+/** Every course with its centreline, for the course cards. */
 function loadCourseChoices(): Promise<CourseChoice[]> {
   return Promise.all(
     COURSES.map(async (course) => ({
@@ -304,6 +304,9 @@ async function main(container: HTMLElement): Promise<void> {
         room: client.room,
         link: roomLink(window.location, client.room.code),
         capacity: bridge.kartsPerRace,
+        courses,
+        laps: bridge.lapsPerRace,
+        reducedMotion,
       },
       {
         ready: (ready) => client.ready(ready),

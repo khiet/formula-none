@@ -66,6 +66,7 @@ const DECISION_SLUGS = [
   "kept-rooms-survive-a-track-rename",
   "goldstone-joins-the-courses",
   "the-creator-picks-the-course",
+  "the-room-scene-shows-the-course-card",
 ];
 
 const expectedFiles = DECISION_SLUGS.map(
