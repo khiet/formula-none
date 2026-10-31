@@ -7,7 +7,7 @@ use bridge::{Race, FLOATS_PER_TRANSFORM};
 use sim::tuning::{
     HOP_AIRTIME_S, KART_HALF_HEIGHT_M, MINI_TURBO_ORANGE_CHARGE_S, TICKS_PER_SECOND,
 };
-use sim::{DriftDirection, KartInput, KartReadout, MiniTurbo, Surface, Track};
+use sim::{DriftDirection, ItemSlot, KartInput, KartReadout, MiniTurbo, Surface, Track};
 
 const OVAL: &str = include_str!("../../../assets/tracks/oval/oval.track.json");
 const DT: f32 = 1.0 / TICKS_PER_SECOND as f32;
@@ -94,7 +94,11 @@ fn karts_spawn_on_the_spawn_grid_in_slot_order_at_rest_on_asphalt() {
         assert_eq!(kart.speed, 0.0, "karts spawn at rest");
         assert_eq!(*surface, Surface::Asphalt, "karts spawn on asphalt");
         assert_eq!(kart.drift, None, "karts spawn out of a drift");
-        assert_eq!(kart.held_item, None, "karts spawn with an empty item slot");
+        assert_eq!(
+            kart.item_slot,
+            ItemSlot::Empty,
+            "karts spawn with an empty item slot"
+        );
         assert_eq!(kart.spin_out_s, None, "karts spawn out of a spin-out");
         assert!(!kart.airborne, "karts spawn on the ground");
         assert_eq!(kart.boost_s, None, "karts spawn without a boost");

@@ -10,7 +10,7 @@ use std::collections::BTreeSet;
 use std::time::Duration;
 
 use common::{follow_the_line, race_together, seconds, wire, Heard};
-use protocol::{EventKind, Item};
+use protocol::{EventKind, Item, ItemSlot};
 use server::fake_transport::{Conditions, Harness};
 use sim::tuning::{COUNTDOWN_S, KARTS_PER_RACE, TICKS_PER_SECOND};
 use sim::Track;
@@ -60,7 +60,7 @@ async fn eight_clients_race_with_all_three_items_and_hear_the_same_race() {
             }
             let own = &newest.karts[kart];
             let mut input = follow_the_line(&track, own);
-            input.use_item = own.held_item.is_some();
+            input.use_item = matches!(own.item_slot, ItemSlot::Held(_));
             sequences[kart] += 1;
             player.send_input(wire(sequences[kart], input));
         }

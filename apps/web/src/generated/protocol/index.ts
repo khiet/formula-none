@@ -10,6 +10,7 @@ export type { FinalStanding } from "./FinalStanding";
 export type { HazardSnapshot } from "./HazardSnapshot";
 export type { Input } from "./Input";
 export type { Item } from "./Item";
+export type { ItemSlot } from "./ItemSlot";
 export type { KartSnapshot } from "./KartSnapshot";
 export type { Player } from "./Player";
 export type { PlayerState } from "./PlayerState";

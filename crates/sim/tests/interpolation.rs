@@ -6,7 +6,7 @@
 //! boost, as the earlier snapshot has it.
 
 use sim::tuning::{INTERPOLATION_TELEPORT_M_PER_TICK, SNAPSHOTS_PER_SECOND, TICKS_PER_SECOND};
-use sim::{Interpolation, KartReadout, MiniTurbo, Projectile, Start};
+use sim::{Interpolation, ItemSlot, KartReadout, MiniTurbo, Projectile, Start};
 
 const TICKS_PER_SNAPSHOT: u32 = TICKS_PER_SECOND / SNAPSHOTS_PER_SECOND;
 
@@ -28,7 +28,7 @@ fn kart_at(x: f32) -> KartReadout {
         bump: None,
         drift: None,
         mini_turbo: MiniTurbo::None,
-        held_item: None,
+        item_slot: ItemSlot::Empty,
         coins: 0,
         spin_out_s: None,
         airborne: false,

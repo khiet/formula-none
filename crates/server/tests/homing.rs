@@ -16,7 +16,7 @@ use common::{
     assert_no_bot_rocket_starts, follow_the_line, race_together, seconds, wire, with_rocket_start,
     Heard,
 };
-use protocol::{Event, EventKind, Item, ProjectileSnapshot, Snapshot};
+use protocol::{Event, EventKind, Item, ItemSlot, ProjectileSnapshot, Snapshot};
 use server::fake_transport::{Conditions, Harness};
 use sim::tuning::{COUNTDOWN_S, SPIN_OUT_S, TICKS_PER_SECOND};
 use sim::{Phase, Track};
@@ -144,7 +144,7 @@ async fn a_projectiles_fire_flight_and_hit_are_the_servers_and_both_clients_see_
         if elapsed >= COUNTDOWN_S + WAIT_ON_THE_GRID_S {
             let chaser = &newest.karts[usize::from(CHASER)];
             let mut input = follow_the_line(&track, chaser);
-            input.use_item = chaser.held_item.is_some();
+            input.use_item = matches!(chaser.item_slot, ItemSlot::Held(_));
             sequences[1] += 1;
             players[1].send_input(wire(sequences[1], input));
         }

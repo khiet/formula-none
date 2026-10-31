@@ -13,6 +13,14 @@ import type { Item } from "./generated/protocol";
 import type { ReplayRecorder } from "./replay";
 
 /**
+ * The item a kart's slot holds ready to fire, as a sim readout or a
+ * snapshot has it; null while the slot is empty or still rolling.
+ */
+export function landedItem(slot: KartReadout["itemSlot"]): Item | null {
+  return typeof slot === "object" && "held" in slot ? slot.held : null;
+}
+
+/**
  * The local kart's item slot as the run reports it: the item the server
  * says is held, and whether the fire is showing, predicted from the press
  * or confirmed by the server's event.

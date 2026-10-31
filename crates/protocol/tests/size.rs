@@ -4,7 +4,7 @@
 //! field can be added without moving the budget, and so the budget still
 //! catches a field that does not belong.
 
-use protocol::{encode, samples, ClientMessage, Input, ServerMessage, Snapshot};
+use protocol::{encode, samples, ClientMessage, Input, ItemSlot, ServerMessage, Snapshot};
 
 /// The budget is "roughly" this many bytes.
 const INPUT_BUDGET: usize = 8;
@@ -53,7 +53,12 @@ fn the_snapshot_sample_is_a_busy_mid_race_moment() {
     assert!(karts.iter().any(|kart| kart.coins > 0));
     assert!(coins_present.contains(&false));
     assert!(karts.iter().any(|kart| kart.drift.is_some()));
-    assert!(karts.iter().any(|kart| kart.held_item.is_some()));
+    assert!(karts
+        .iter()
+        .any(|kart| matches!(kart.item_slot, ItemSlot::Held(_))));
+    assert!(karts
+        .iter()
+        .any(|kart| matches!(kart.item_slot, ItemSlot::Rolling { .. })));
     assert!(karts.iter().any(|kart| kart.spin_out_s.is_some()));
     assert!(karts.iter().any(|kart| kart.stall_s.is_some()));
     assert!(karts.iter().any(|kart| kart.boost.is_some()));

@@ -5,17 +5,18 @@
 // Instrument panel needs that a snapshot does not carry are kept from the
 // events. The race clock is the prediction's, so the countdown shown is the
 // one the player's inputs meet on the server. Every item outcome is the
-// server's event: the slot shows the item the server rolled and the boxes
-// it reports taken, and a press only predicts the fire until the server's
-// event confirms it. The hazards are the newest snapshot's; one a kart
-// still trails is drawn behind that kart where the kart is drawn, so it
-// follows the predicted own kart and the interpolated others. The
-// projectiles are drawn between the snapshots as the other karts are, so
-// one reaches its target as the target is drawn spinning.
+// server's: the slot fills with the item the server rolled once a snapshot
+// shows it landed, the boxes go as it reports them taken, and a press only
+// predicts the fire until the server's event confirms it. The hazards are
+// the newest snapshot's; one a kart still trails is drawn behind that kart
+// where the kart is drawn, so it follows the predicted own kart and the
+// interpolated others. The projectiles are drawn between the snapshots as
+// the other karts are, so one reaches its target as the target is drawn
+// spinning.
 
 import type { Bridge, Hazard, KartReadout, Phase, Standing } from "./bridge";
 import type { FinalStanding, Item, Snapshot } from "./generated/protocol";
-import { ITEM_FIRE_FLASH_S, type RaceRun } from "./race-run";
+import { ITEM_FIRE_FLASH_S, landedItem, type RaceRun } from "./race-run";
 import { type Countdown, quantiseInput, type RoomClient } from "./room-client";
 
 export interface ServerRace extends RaceRun {
@@ -59,8 +60,13 @@ export function createServerRace(
   /** Whether the server has said the race ended: the outro runs until the results. */
   let ended = false;
   const ticks = (seconds: number) => Math.round(seconds * bridge.ticksPerSecond);
-  /** The item the server says the local kart holds. */
+  /** The item the server says the local kart holds, landed and ready to fire. */
   let heldItem: Item | null = null;
+  /**
+   * The item the server's pickup started rolling into the local kart's
+   * slot, until a snapshot shows it landed; null while nothing rolls.
+   */
+  let rollingItem: Item | null = null;
   /**
    * Whether an item event has named the local kart yet. Until one has, as
    * after a rejoin mid-race, the snapshots say what the slot holds; from
@@ -82,8 +88,13 @@ export function createServerRace(
   const stopSnapshots = client.onSnapshot((snapshot) => {
     latest = snapshot;
     prediction.reconcile(snapshot);
+    const slot = snapshot.karts[localKart]?.itemSlot;
+    const landed = slot === undefined ? null : landedItem(slot);
     if (!slotHeardOf) {
-      heldItem = snapshot.karts[localKart]?.heldItem ?? null;
+      heldItem = landed;
+    } else if (rollingItem !== null && landed === rollingItem) {
+      heldItem = landed;
+      rollingItem = null;
     }
   });
   const stopEvents = client.onEvent(({ kind }) => {
@@ -102,10 +113,11 @@ export function createServerRace(
       if (itemBox < boxTicksLeft.length) {
         boxTicksLeft[itemBox] = ticks(bridge.itemBoxRespawnSeconds);
       }
-      // A null item is a box taken by a kart already holding one: the
-      // box goes, the slot does not change.
+      // A null item is a box taken by a kart whose slot is full: the box
+      // goes, the slot does not change. An item rolls until a snapshot
+      // shows it landed.
       if (kart === localKart && item !== null) {
-        heldItem = item;
+        rollingItem = item;
         slotHeardOf = true;
       }
     } else if ("coinPicked" in kind) {
@@ -117,6 +129,7 @@ export function createServerRace(
       // The server's word on the fire, predicted or not: the item is gone
       // and the fire plays out.
       heldItem = null;
+      rollingItem = null;
       slotHeardOf = true;
       predictedFireTicksLeft = 0;
       flashTicksLeft = ticks(ITEM_FIRE_FLASH_S);

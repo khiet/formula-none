@@ -28,7 +28,7 @@ use ts_rs::TS;
 /// [`ClientMessage::Join`] and the server refuses a mismatch with
 /// [`Refusal::VersionMismatch`] (ADR 0013). The generator exports it next to
 /// the types, so the web app reads the same constant.
-pub const PROTOCOL_VERSION: u16 = 16;
+pub const PROTOCOL_VERSION: u16 = 17;
 
 /// What a client sends the server.
 #[derive(Serialize, Deserialize, TS, Debug, Clone, PartialEq)]
@@ -321,8 +321,7 @@ pub struct KartSnapshot {
     pub spline_progress: f32,
     /// The wrong-way warning is up for this kart.
     pub wrong_way: bool,
-    /// The item in the kart's slot, if any.
-    pub held_item: Option<Item>,
+    pub item_slot: ItemSlot,
     /// The coins the kart carries. A client's prediction takes its count
     /// from here, never collecting one itself.
     pub coins: u8,
@@ -392,6 +391,21 @@ pub enum Item {
     Hazard,
     /// Follows the track to the kart ahead and spins it out.
     Homing,
+}
+
+/// What a kart's item slot holds. A box into an empty slot starts a roll;
+/// until it lands the slot is full and nothing fires.
+#[derive(Serialize, Deserialize, TS, Debug, Clone, Copy, PartialEq)]
+#[serde(rename_all = "camelCase", rename_all_fields = "camelCase")]
+pub enum ItemSlot {
+    Empty,
+    /// Rolling into `item`, which lands in `roll_left_s` seconds.
+    Rolling {
+        item: Item,
+        roll_left_s: f32,
+    },
+    /// Holding `item`, ready to fire.
+    Held(Item),
 }
 
 /// Something that happened on the server between two snapshots. Clients

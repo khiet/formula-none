@@ -4,6 +4,7 @@ import { type KartInput, type KartReadout, loadBridge, type Race, type Wheel } f
 import type { Input, KartSnapshot, Snapshot } from "./generated/protocol";
 import { IDLE_INPUT } from "./input";
 import { START_LIGHTS } from "./instrument-panel";
+import { landedItem } from "./race-run";
 
 // The real wasm build, loaded from bytes because the default loader fetches
 // the module URL and fetch rejects file: URLs in Node. `pnpm build:bridge`
@@ -397,7 +398,7 @@ describe("prediction", () => {
       checkpoint: 0,
       splineProgress: 0,
       wrongWay: false,
-      heldItem: null,
+      itemSlot: "empty",
       coins: 0,
       spinOutS: null,
       start: "clean",
@@ -448,7 +449,7 @@ describe("prediction", () => {
       checkpoint: 0,
       splineProgress: 0,
       wrongWay: false,
-      heldItem: "homing",
+      itemSlot: { held: "homing" },
       coins: 0,
       spinOutS: null,
       start: "clean",
@@ -464,8 +465,8 @@ describe("prediction", () => {
       projectiles: [],
       coinsPresent: [],
     });
-    expect(prediction.kartReadout().heldItem).toBe("homing");
-    expect(prediction.interpolatedKartReadouts()[0]?.heldItem).toBe("homing");
+    expect(prediction.kartReadout().itemSlot).toEqual({ held: "homing" });
+    expect(prediction.interpolatedKartReadouts()[0]?.itemSlot).toEqual({ held: "homing" });
   });
 
   it("takes the spin-out a snapshot says the own kart is in and counts it down", async () => {
@@ -489,7 +490,7 @@ describe("prediction", () => {
       checkpoint: 0,
       splineProgress: 0,
       wrongWay: false,
-      heldItem: null,
+      itemSlot: "empty",
       coins: 0,
       spinOutS: 0.5,
       start: "clean",
@@ -531,7 +532,7 @@ describe("prediction", () => {
       checkpoint: 0,
       splineProgress: 0,
       wrongWay: false,
-      heldItem: null,
+      itemSlot: "empty",
       coins: 0,
       spinOutS: null,
       start: "clean",
@@ -575,7 +576,7 @@ describe("prediction", () => {
       checkpoint: 0,
       splineProgress: 0,
       wrongWay: false,
-      heldItem: null,
+      itemSlot: "empty",
       coins: 0,
       spinOutS: null,
       start: "stall",
@@ -608,7 +609,7 @@ describe("items", () => {
     expect(bridge.itemBoxRespawnSeconds).toBe(3);
     expect(bridge.predictedFireTimeoutSeconds).toBe(1);
     const race = bridge.createRace(7n, 1, 0, OVAL);
-    expect(race.kartReadouts()[0]?.heldItem).toBeNull();
+    expect(race.kartReadouts()[0]?.itemSlot).toBe("empty");
     const boxes = race.itemBoxes();
     expect(boxes).toHaveLength(8);
     expect(boxes[0]).toEqual({ position: [-34.5, 0, -70], yaw: expect.closeTo(-Math.PI, 5) });
@@ -664,8 +665,18 @@ describe("items", () => {
       const race = bridge.createRace(seed, 2, 0, boxed);
       while (race.phase().kind === "countdown") race.step([IDLE_INPUT, IDLE_INPUT], tick);
       race.step([IDLE_INPUT, IDLE_INPUT], tick);
-      if (race.kartReadouts()[1]?.heldItem !== "homing") continue;
-      for (let t = 0; t < bridge.ticksPerSecond; t++) race.step([THROTTLE, IDLE_INPUT], tick);
+      const rolled = race.kartReadouts()[1]?.itemSlot;
+      if (
+        typeof rolled !== "object" ||
+        !("rolling" in rolled) ||
+        rolled.rolling.item !== "homing"
+      ) {
+        continue;
+      }
+      // Kart 0 drives off while the projectile rolls, and it is fired once landed.
+      while (landedItem(race.kartReadouts()[1]?.itemSlot ?? "empty") === null) {
+        race.step([THROTTLE, IDLE_INPUT], tick);
+      }
       race.step([THROTTLE, fire], tick);
       const [projectile] = race.projectiles();
       expect(projectile).toMatchObject({ owner: 1, target: 0 });
@@ -691,7 +702,7 @@ describe("items", () => {
           checkpoint: 0,
           splineProgress: 0,
           wrongWay: false,
-          heldItem: null,
+          itemSlot: "empty",
           coins: 0,
           spinOutS: null,
           start: "clean",

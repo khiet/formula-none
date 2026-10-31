@@ -55,6 +55,23 @@ pub fn started(mut state: State) -> State {
     state
 }
 
+/// The race stepped on, every human idle, until the item rolling in the
+/// slot of each of `karts` has landed; fails the test when one has not
+/// landed a tuned roll and a tick later.
+pub fn landed(mut state: State, humans: usize, karts: impl IntoIterator<Item = usize>) -> State {
+    let karts: Vec<usize> = karts.into_iter().collect();
+    for _ in 0..=ticks(sim::tuning::ITEM_ROLL_S) + 1 {
+        if karts
+            .iter()
+            .all(|&kart| state.kart_readouts()[kart].item_slot.held().is_some())
+        {
+            return state;
+        }
+        state = step(state, &vec![KartInput::default(); humans], DT);
+    }
+    panic!("no item landed in the slots of {karts:?}");
+}
+
 pub fn ticks(seconds: f32) -> usize {
     (seconds * TICKS_PER_SECOND as f32).round() as usize
 }

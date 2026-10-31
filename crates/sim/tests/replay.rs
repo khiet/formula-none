@@ -6,7 +6,7 @@
 
 mod common;
 
-use common::{oval, started, track, with_boxes_under, without_item_boxes, DT, OVAL};
+use common::{landed, oval, started, track, with_boxes_under, without_item_boxes, DT, OVAL};
 
 use sim::tuning::{KART_HALF_LENGTH_M, REPLAY_HASH_INTERVAL_TICKS};
 use sim::{step, KartInput, MiniTurbo, Phase, RaceEvent, Replay, Segment, State, Surface, Track};
@@ -79,8 +79,8 @@ fn boxed_oval() -> Track {
     track(&with_boxes_under(&without_item_boxes(OVAL), [0]))
 }
 
-/// A one-kart race on the boxed oval one tick past Go, with the item the
-/// box rolled from `seed` in the kart's slot.
+/// A one-kart race on the boxed oval the tick the item the box rolled at Go
+/// from `seed` lands in the kart's slot.
 fn holding(seed: u64) -> (State, sim::Item) {
     let state = step(
         started(State::new(seed, 1, boxed_oval())),
@@ -94,7 +94,7 @@ fn holding(seed: u64) -> (State, sim::Item) {
         panic!("one pickup: {:?}", state.events());
     };
     let item = *item;
-    (state, item)
+    (landed(state, 1, [0]), item)
 }
 
 #[test]
@@ -178,10 +178,14 @@ fn a_projectiles_place_is_part_of_the_hash() {
         .find(|&seed| rolls_a_projectile(seed))
         .expect("some seed rolls a projectile");
     let fire_at = |fire_tick: u32| {
-        let mut state = step(
-            started(State::new(seed, 2, boxed())),
-            &[KartInput::default(); 2],
-            DT,
+        let mut state = landed(
+            step(
+                started(State::new(seed, 2, boxed())),
+                &[KartInput::default(); 2],
+                DT,
+            ),
+            2,
+            [1],
         );
         for tick in 0..3 {
             let fire = KartInput {

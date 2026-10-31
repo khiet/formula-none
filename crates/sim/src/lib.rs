@@ -108,8 +108,7 @@ pub struct KartReadout {
     /// The tier the drift has charged, the sparks' tell; `MiniTurbo::None`
     /// out of a drift.
     pub mini_turbo: MiniTurbo,
-    /// The item in the kart's slot; `None` while the slot is empty.
-    pub held_item: Option<Item>,
+    pub item_slot: ItemSlot,
     /// The coins the kart carries, from 0 to a full purse; each raises its
     /// forward top speed by the tuned factor.
     pub coins: u32,
@@ -213,6 +212,51 @@ struct PlacedHazard {
     /// it. Until then the owner cannot hit it: the drop puts it right
     /// behind the kart, and a hold keeps it there.
     clear_of_owner: bool,
+}
+
+/// What a kart's one item slot holds. A box taken into an empty slot
+/// starts a roll that lands the item `ITEM_ROLL_S` later; the roll counts
+/// as full, so nothing fires and no box rolls until it lands.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Serialize, TS)]
+#[serde(rename_all = "camelCase", rename_all_fields = "camelCase")]
+pub enum ItemSlot {
+    #[default]
+    Empty,
+    /// Rolling into `item`, which lands in `roll_left_s` seconds.
+    Rolling { item: Item, roll_left_s: f32 },
+    /// Holding `item`, ready to fire.
+    Held(Item),
+}
+
+impl ItemSlot {
+    /// The item ready to fire; `None` while the slot is empty or rolling.
+    pub fn held(self) -> Option<Item> {
+        match self {
+            Self::Held(item) => Some(item),
+            _ => None,
+        }
+    }
+
+    /// The item held or rolling into the slot; `None` while it is empty.
+    pub fn item(self) -> Option<Item> {
+        match self {
+            Self::Empty => None,
+            Self::Rolling { item, .. } | Self::Held(item) => Some(item),
+        }
+    }
+
+    /// The slot a tick of `dt` seconds later: a roll runs down, and lands
+    /// once it has run out.
+    fn after(self, dt: f32) -> Self {
+        match self {
+            Self::Rolling { item, roll_left_s } if roll_left_s - dt <= 0.0 => Self::Held(item),
+            Self::Rolling { item, roll_left_s } => Self::Rolling {
+                item,
+                roll_left_s: roll_left_s - dt,
+            },
+            slot => slot,
+        }
+    }
 }
 
 impl Item {
@@ -573,9 +617,8 @@ struct Kart {
     /// finished kart counts no more laps, its lap clock stops, and a bot
     /// drives it, taking and firing no items.
     finish_time_s: Option<f32>,
-    /// The item in the kart's one slot. While it holds one, a box it takes
-    /// leaves the slot as it is.
-    held_item: Option<Item>,
+    /// Unless it is empty, a box the kart takes leaves it as it is.
+    item_slot: ItemSlot,
     /// The coins the kart carries, never more than a full purse.
     coins: u32,
     /// Whether the item button was down last tick, so a held button fires
@@ -628,7 +671,7 @@ impl Kart {
             },
             drift: self.handling.drift(),
             mini_turbo: MiniTurbo::of(self.handling.drift()),
-            held_item: self.held_item,
+            item_slot: self.item_slot,
             coins: self.coins,
             spin_out_s: self.spun_out().then_some(self.spin_out_left_s),
             airborne: self.handling.airborne(),
@@ -660,7 +703,7 @@ impl Kart {
             Vec3::from(readout.velocity),
             readout.bump.map_or(Vec3::ZERO, Vec3::from),
         );
-        self.held_item = readout.held_item;
+        self.item_slot = readout.item_slot;
         self.coins = readout.coins;
         // A spin-out the readout does not have is a hit the server never
         // made, which in a prediction is only ever the wheel's: the pass
@@ -738,7 +781,7 @@ use tuning::{
 use tuning::{
     HAZARD_DROP_DISTANCE_M, HAZARD_LIFETIME_S, HAZARD_RADIUS_M, ITEM_BOOST_FACTOR, ITEM_BOOST_S,
     ITEM_BOX_HALF_LENGTH_M, ITEM_BOX_HALF_WIDTH_M, ITEM_BOX_RESPAWN_S, ITEM_ROLL_PERCENT,
-    ITEM_ROLL_WEIGHTS, SPIN_OUT_S, WHEEL_RADIUS_M,
+    ITEM_ROLL_S, ITEM_ROLL_WEIGHTS, SPIN_OUT_S, WHEEL_RADIUS_M,
 };
 use tuning::{
     HOMING_LOCK_RANGE_M, HOMING_LOOKAHEAD_M, HOMING_RADIUS_M, HOMING_SPEED_FACTOR,
@@ -851,7 +894,7 @@ impl State {
                     bot_start_hold_s,
                     stall_left_s: 0.0,
                     finish_time_s: None,
-                    held_item: None,
+                    item_slot: ItemSlot::Empty,
                     coins: 0,
                     item_was_held: false,
                     spin_out_left_s: 0.0,
@@ -1125,7 +1168,10 @@ impl State {
             hasher.write_f32(kart.bot_start_hold_s);
             hasher.write_f32(kart.stall_left_s);
             hasher.write_f32(kart.finish_time_s.unwrap_or(NO_TIME));
-            hasher.write_u8(kart.held_item.map_or(0, Item::code));
+            hasher.write_u8(kart.item_slot.item().map_or(0, Item::code));
+            if let ItemSlot::Rolling { roll_left_s, .. } = kart.item_slot {
+                hasher.write_f32(roll_left_s);
+            }
             hasher.write_u32(kart.coins);
             hasher.write_u8(u8::from(kart.item_was_held));
             hasher.write_f32(kart.spin_out_left_s);
@@ -1202,18 +1248,22 @@ impl State {
     }
 
     /// Take the item box `item_box` for the kart in `slot` and start the
-    /// box's respawn clock. An empty slot gets an item rolled by the kart's
-    /// race position as of `standings`; a held item stays, and nothing is
-    /// drawn from the RNG.
+    /// box's respawn clock. An empty slot starts rolling an item drawn by
+    /// the kart's race position as of `standings`; a slot rolling or
+    /// holding one stays as it is, and nothing is drawn from the RNG.
     fn pick_up(&mut self, slot: usize, item_box: usize, standings: &[Standing]) {
         let mut item = None;
-        if self.karts[slot].held_item.is_none() {
+        if self.karts[slot].item_slot == ItemSlot::Empty {
             // The draw scaled down to the table's range, so the roll is as
             // even as the draw.
             let roll =
                 ((u64::from(self.rng.next_u32()) * u64::from(ITEM_ROLL_PERCENT)) >> 32) as u32;
-            item = Some(Item::rolled(standings[slot].position, roll));
-            self.karts[slot].held_item = item;
+            let rolled = Item::rolled(standings[slot].position, roll);
+            self.karts[slot].item_slot = ItemSlot::Rolling {
+                item: rolled,
+                roll_left_s: ITEM_ROLL_S,
+            };
+            item = Some(rolled);
         }
         self.item_box_respawn_s[item_box] = ITEM_BOX_RESPAWN_S;
         self.events.push(RaceEvent::ItemPicked {
@@ -1312,7 +1362,8 @@ pub fn step(mut state: State, inputs: &[KartInput], dt: f32) -> State {
         if kart.ignores_inputs() || out_of_items || !pressed {
             continue;
         }
-        if let Some(item) = kart.held_item.take() {
+        if let Some(item) = kart.item_slot.held() {
+            kart.item_slot = ItemSlot::Empty;
             match item {
                 Item::Boost => kart
                     .handling
@@ -1349,6 +1400,13 @@ pub fn step(mut state: State, inputs: &[KartInput], dt: f32) -> State {
             }
             state.events.push(RaceEvent::ItemFired { kart: slot, item });
         }
+    }
+    // Rolls run down after the fires, so a press on the tick a roll lands
+    // fires nothing, and before the pickups, so a roll started this tick
+    // has the whole tuned time to run. Nothing stops a roll early: it runs
+    // through a spin-out, a respawn and the finish.
+    for kart in &mut state.karts {
+        kart.item_slot = kart.item_slot.after(dt);
     }
     // Picked-up boxes come back on their clocks; a kart standing on one
     // picks it up the tick it is back. A kart takes every box its centre is

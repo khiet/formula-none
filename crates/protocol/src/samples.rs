@@ -7,7 +7,7 @@
 
 use crate::{
     BoostSnapshot, BoostTier, ClientMessage, DriftDirection, DriftSnapshot, Event, EventKind,
-    FinalStanding, HazardSnapshot, Input, Item, KartSnapshot, Player, PlayerState,
+    FinalStanding, HazardSnapshot, Input, Item, ItemSlot, KartSnapshot, Player, PlayerState,
     ProjectileSnapshot, Refusal, Room, RoomState, ServerMessage, Snapshot, Start, PROTOCOL_VERSION,
 };
 
@@ -149,10 +149,14 @@ pub fn snapshot() -> Snapshot {
                 checkpoint: 11 - slot,
                 spline_progress: 640.0 - along * 10.0,
                 wrong_way: slot == 5,
-                held_item: match slot % 3 {
-                    0 => Some(Item::Hazard),
-                    1 => None,
-                    _ => Some(Item::Boost),
+                item_slot: match slot % 4 {
+                    0 => ItemSlot::Held(Item::Hazard),
+                    1 => ItemSlot::Empty,
+                    2 => ItemSlot::Rolling {
+                        item: Item::Homing,
+                        roll_left_s: 1.25,
+                    },
+                    _ => ItemSlot::Held(Item::Boost),
                 },
                 coins: 7 - slot.min(7),
                 spin_out_s: (slot == 6).then_some(0.5),

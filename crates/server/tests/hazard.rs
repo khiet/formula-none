@@ -10,7 +10,7 @@ mod common;
 use std::time::Duration;
 
 use common::{follow_the_line, race_together, seconds, speed, wire, Heard};
-use protocol::{Event, EventKind, Item, Snapshot};
+use protocol::{Event, EventKind, Item, ItemSlot, Snapshot};
 use server::fake_transport::{Conditions, Harness};
 use sim::tuning::{COUNTDOWN_S, SPIN_OUT_S, TICKS_PER_SECOND};
 use sim::{KartInput, Track};
@@ -101,7 +101,7 @@ async fn a_hit_is_the_servers_call_and_both_clients_see_the_same_hit_and_spin_ou
         } else {
             follow_the_line(&track, dropper)
         };
-        input.use_item = dropper.held_item.is_some();
+        input.use_item = matches!(dropper.item_slot, ItemSlot::Held(_));
         input.hold_item = true;
         sequences[0] += 1;
         players[0].send_input(wire(sequences[0], input));

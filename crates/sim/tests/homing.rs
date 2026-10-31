@@ -7,15 +7,16 @@
 
 mod common;
 
-use common::{oval_with_boxes_under, started, tap, throttle, ticks, DT};
+use common::{landed, oval_with_boxes_under, started, tap, throttle, ticks, DT};
 
 use sim::tuning::{BOT_ITEM_USE_DELAY_S, HOMING_SPEED_FACTOR, SPIN_OUT_S, TOP_SPEED_M_PER_S};
-use sim::{step, Item, KartInput, RaceEvent, State};
+use sim::{step, Item, ItemSlot, KartInput, RaceEvent, State};
 
-/// A race of `humans` karts and `bots` bots one tick past Go, each of
-/// `rolls` standing on a box under its slot and holding the item named,
-/// with every bot rolling the same rocket start so the items decide the
-/// race and not the start: the seeds are tried in order until one does.
+/// A race of `humans` karts and `bots` bots, each of `rolls` standing on a
+/// box under its slot and rolling the item named at Go, stepped on until
+/// those items have landed, with every bot rolling the same rocket start so
+/// the items decide the race and not the start: the seeds are tried in
+/// order until one does.
 fn holding_with_bots(humans: usize, bots: usize, rolls: &[(usize, Item)]) -> State {
     for seed in 0.. {
         let state = started(State::with_bots(
@@ -34,7 +35,7 @@ fn holding_with_bots(humans: usize, bots: usize, rolls: &[(usize, Item)]) -> Sta
             })
         });
         if rolled && even_start {
-            return state;
+            return landed(state, humans, rolls.iter().map(|&(slot, _)| slot));
         }
     }
     unreachable!()
@@ -80,7 +81,7 @@ fn a_fired_projectile_travels_the_spline_at_the_tuned_speed_and_spins_out_the_ka
             item: Item::Homing
         }]
     );
-    assert_eq!(state.kart_readouts()[1].held_item, None);
+    assert_eq!(state.kart_readouts()[1].item_slot, ItemSlot::Empty);
     let [projectile] = state.projectiles()[..] else {
         panic!("one projectile: {:?}", state.projectiles());
     };
@@ -199,8 +200,8 @@ fn a_projectile_fired_with_no_kart_ahead_is_wasted() {
         "the fire is still reported"
     );
     assert_eq!(
-        state.kart_readouts()[0].held_item,
-        None,
+        state.kart_readouts()[0].item_slot,
+        ItemSlot::Empty,
         "the slot is empty"
     );
     assert!(state.projectiles().is_empty(), "nothing flies");
@@ -374,5 +375,8 @@ fn a_bot_fires_a_projectile_within_the_tuned_delay_when_a_kart_is_ahead_and_hold
             state.events()
         );
     }
-    assert_eq!(state.kart_readouts()[0].held_item, Some(Item::Homing));
+    assert_eq!(
+        state.kart_readouts()[0].item_slot,
+        ItemSlot::Held(Item::Homing)
+    );
 }

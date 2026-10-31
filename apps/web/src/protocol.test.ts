@@ -126,7 +126,10 @@ describe("generated protocol types", () => {
     }
     const kart = decoded.snapshot.karts[1];
     expect(kart?.drift?.direction).toBe("left");
-    expect(kart?.heldItem).toBeNull();
+    expect(kart?.itemSlot).toBe("empty");
+    expect(decoded.snapshot.karts[2]?.itemSlot).toEqual({
+      rolling: { item: "homing", rollLeftS: 1.25 },
+    });
     expect(decoded.snapshot.events.map((event) => event.kind)).toContainEqual({
       hit: { kart: 6, by: 1 },
     });

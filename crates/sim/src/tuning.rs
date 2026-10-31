@@ -302,6 +302,9 @@ pub const TYRE_WALL_SPEED_LOSS: f32 = 0.7;
 
 /// Seconds after a box is picked up before it is back to pick up again.
 pub const ITEM_BOX_RESPAWN_S: f32 = 3.0;
+/// Seconds an item rolls in the slot after a box before it lands and can be
+/// fired. The slot counts as full while it rolls.
+pub const ITEM_ROLL_S: f32 = 2.5;
 /// A box is picked up by a kart whose centre is within this much of its
 /// placement along the direction it faces and across it. The boxes of a
 /// row stand 3 m apart, so the widths meet without overlapping and a kart
@@ -423,8 +426,9 @@ pub const ITEM_ROLL_WEIGHTS: [ItemRollWeights; 3] = [
 
 /// Metres ahead on the centreline spline a bot steers toward.
 pub const BOT_LOOKAHEAD_M: f32 = 12.0;
-/// Seconds after pickup by which a bot has used its item; it fires sooner
-/// on a straight.
+/// Seconds after its item lands in the slot by which a bot has used it; it
+/// fires sooner on a straight, and keeps a boost longer while the boost
+/// would carry it into the wheel.
 pub const BOT_ITEM_USE_DELAY_S: f32 = 2.0;
 /// Seconds a bot trails a fired hazard behind itself before dropping it;
 /// no longer than it would hold an unused item.
@@ -552,6 +556,7 @@ const _: () = {
     assert!(0.0 <= BOT_START_BOOST_CHANCE && BOT_START_BOOST_CHANCE <= 1.0);
     assert!(START_FULL_BOOST_HOLD_S < BOT_START_HOLD_S && BOT_START_HOLD_S < START_STALL_HOLD_S);
     assert!(0.0 < ITEM_BOX_RESPAWN_S);
+    assert!(0.0 < ITEM_ROLL_S);
     assert!(0.0 < ITEM_BOX_HALF_LENGTH_M && 0.0 < ITEM_BOX_HALF_WIDTH_M);
     assert!(0.0 < ITEM_BOOST_S && 1.0 < ITEM_BOOST_FACTOR);
     assert!(0.0 < HAZARD_RADIUS_M && 0.0 < HAZARD_LIFETIME_S && 0.0 < SPIN_OUT_S);
