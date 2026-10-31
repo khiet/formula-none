@@ -229,3 +229,47 @@ async fn the_race_flows_over_the_one_channel_too() {
     assert_eq!(countdown, Some(vec![0]));
     assert_eq!(snapshot.unwrap().karts.len(), sim::tuning::KARTS_PER_RACE);
 }
+
+#[tokio::test]
+async fn a_room_created_on_goldstone_counts_down_on_goldstone() {
+    use tower::ServiceExt;
+    let (mut socket, _stop, _serving, rooms) = connected_with_rooms().await;
+    // The create goes through the HTTP route a browser's does.
+    let created = server::app("0123abcd", rooms, server::Shutdown::pair().1)
+        .oneshot(
+            axum::http::Request::post("/api/rooms")
+                .header("content-type", "application/json")
+                .body(axum::body::Body::from(r#"{ "track": "goldstone" }"#))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    let bytes = http_body_util::BodyExt::collect(created.into_body())
+        .await
+        .unwrap()
+        .to_bytes();
+    let code = serde_json::from_slice::<serde_json::Value>(&bytes).unwrap()["code"]
+        .as_str()
+        .unwrap()
+        .to_owned();
+    for message in [
+        ClientMessage::Join {
+            version: PROTOCOL_VERSION,
+            room: code,
+            nickname: "khiet".to_owned(),
+        },
+        ClientMessage::Ready { ready: true },
+        ClientMessage::Start,
+    ] {
+        socket
+            .send(Message::Binary(encode(&message).into()))
+            .await
+            .unwrap();
+    }
+    let track = loop {
+        if let ServerMessage::Countdown { track, .. } = next_message(&mut socket).await {
+            break track;
+        }
+    };
+    assert_eq!(track, "goldstone");
+}

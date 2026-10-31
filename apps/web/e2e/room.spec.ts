@@ -86,6 +86,44 @@ test("a friend joins the room from the shared link and both can race", async ({
   await friendContext.close();
 });
 
+test("the creator's course is the room's: both Room Scenes show it and the race runs it", async ({
+  page,
+  browser,
+}) => {
+  await page.goto("/");
+  await page.getByLabel("Nickname").fill("khiet");
+  // The radio sits under its flag tile, which takes the click.
+  await page.locator(".flag-tile", { hasText: "Goldstone" }).click();
+  await expect(page.getByRole("radio", { name: "Goldstone" })).toBeChecked();
+  await page.getByRole("button", { name: "Create room" }).click();
+  await expect(page.locator("#room-scene")).toBeVisible({ timeout: 15_000 });
+  const code = await roomCode(page);
+
+  // A joiner's own pick, left at the default, does not change the room's course.
+  const friendContext = await browser.newContext();
+  const friend = await friendContext.newPage();
+  await friend.goto("/");
+  await expect(friend.getByRole("radio", { name: "Bell Deer" })).toBeChecked();
+  await friend.getByLabel("Nickname").fill("ada");
+  await friend.getByLabel("Room code").fill(code);
+  await friend.getByRole("button", { name: "Join room" }).click();
+  await expect(friend.locator("#room-scene")).toBeVisible({ timeout: 15_000 });
+
+  for (const someone of [page, friend]) {
+    await expect(someone.locator("[data-room-course]")).toHaveText("Goldstone");
+  }
+
+  // The Countdown names the course: each client loads Goldstone's mesh to race it.
+  const meshes = [page, friend].map((someone) =>
+    someone.waitForRequest(/goldstone\.glb/, { timeout: 60_000 }),
+  );
+  await friend.getByRole("button", { name: "Ready", exact: true }).click();
+  await page.getByRole("button", { name: "Ready", exact: true }).click();
+  await page.getByRole("button", { name: "Start" }).click();
+  await Promise.all(meshes);
+  await friendContext.close();
+});
+
 test("a wrong code, a short nickname and a shared link all say what to do", async ({ page }) => {
   await page.goto("/?room=ZZZZ");
   await expect(page.getByLabel("Room code")).toHaveValue("ZZZZ");

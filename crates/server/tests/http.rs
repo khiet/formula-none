@@ -68,3 +68,61 @@ async fn creating_a_room_answers_with_its_code_and_opens_it() {
     assert_eq!(room.state, RoomState::Open);
     assert!(room.players.is_empty());
 }
+
+async fn create(app: Router, body: Body) -> (StatusCode, Value) {
+    send(
+        app,
+        Request::post("/api/rooms")
+            .header("content-type", "application/json")
+            .body(body)
+            .unwrap(),
+    )
+    .await
+}
+
+#[tokio::test]
+async fn a_room_created_on_a_track_races_that_track() {
+    let (app, rooms, _stop) = app();
+    let (status, body) = create(app, Body::from(r#"{ "track": "goldstone" }"#)).await;
+    assert_eq!(status, StatusCode::CREATED);
+    let room = rooms.view(body["code"].as_str().unwrap()).unwrap();
+    assert_eq!(room.track, "goldstone");
+}
+
+#[tokio::test]
+async fn a_room_created_without_a_body_races_bell_deer() {
+    let (app, rooms, _stop) = app();
+    let (_, body) = send(
+        app,
+        Request::post("/api/rooms").body(Body::empty()).unwrap(),
+    )
+    .await;
+    let room = rooms.view(body["code"].as_str().unwrap()).unwrap();
+    assert_eq!(room.track, "bell-deer");
+}
+
+#[tokio::test]
+async fn a_room_on_an_unknown_track_is_refused_and_not_opened() {
+    let (app, rooms, _stop) = app();
+    let (status, _) = create(app, Body::from(r#"{ "track": "monza" }"#)).await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+    assert!(rooms.codes().is_empty(), "{:?}", rooms.codes());
+}
+
+#[tokio::test]
+async fn a_body_is_read_whatever_its_content_type_and_one_naming_no_track_races_bell_deer() {
+    let (app, rooms, _stop) = app();
+    let (status, _) = send(
+        app.clone(),
+        Request::post("/api/rooms")
+            .body(Body::from(r#"{ "track": "monza" }"#))
+            .unwrap(),
+    )
+    .await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+    assert!(rooms.codes().is_empty(), "{:?}", rooms.codes());
+    let (status, body) = create(app, Body::from("{}")).await;
+    assert_eq!(status, StatusCode::CREATED);
+    let room = rooms.view(body["code"].as_str().unwrap()).unwrap();
+    assert_eq!(room.track, "bell-deer");
+}

@@ -20,3 +20,13 @@ test("an audio toggle turned off stays off after a reload", async ({ page }) => 
   await expect(page.getByLabel("Music")).not.toBeChecked();
   await expect(page.getByLabel("Engine")).toBeChecked();
 });
+
+test("the picked course is remembered and a solo race runs it", async ({ page }) => {
+  await page.goto("/");
+  await page.locator(".flag-tile", { hasText: "Goldstone" }).click();
+  await page.reload();
+  await expect(page.getByRole("radio", { name: "Goldstone" })).toBeChecked();
+  const mesh = page.waitForRequest(/goldstone\.glb/, { timeout: 30_000 });
+  await page.getByRole("button", { name: "Solo race" }).click();
+  await mesh;
+});

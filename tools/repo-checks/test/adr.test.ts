@@ -65,6 +65,7 @@ const DECISION_SLUGS = [
   "boost-is-a-champagne-bottle",
   "kept-rooms-survive-a-track-rename",
   "goldstone-joins-the-courses",
+  "the-creator-picks-the-course",
 ];
 
 const expectedFiles = DECISION_SLUGS.map(

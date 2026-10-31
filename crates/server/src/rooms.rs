@@ -44,7 +44,7 @@ use crate::{tracks, Shutdown};
 pub struct Rooms {
     registry: Arc<Mutex<Registry>>,
     shutdown: Shutdown,
-    /// The track every room created here races.
+    /// The track a room created here races when its create names none.
     track: &'static str,
     /// Where every race's seed comes from.
     seeds: RaceSeeds,
@@ -288,11 +288,17 @@ impl Rooms {
         }
     }
 
-    /// Open a room under a fresh code and hand the code back; the HTTP
-    /// create endpoint is this. The room starts empty, so its closing clock
-    /// is already running: a code nobody joins expires like one everybody
-    /// left. Must run inside a tokio runtime, which spawns the room's task.
+    /// Open a room on the registry's own track, as [`Self::create_on`] does.
     pub fn create(&self) -> String {
+        self.create_on(self.track)
+    }
+
+    /// Open a room racing `track`, one of [`crate::tracks`], under a fresh
+    /// code and hand the code back; the HTTP create endpoint is this. The
+    /// room starts empty, so its closing clock is already running: a code
+    /// nobody joins expires like one everybody left. Must run inside a
+    /// tokio runtime, which spawns the room's task.
+    pub fn create_on(&self, track: &'static str) -> String {
         let mut registry = self.registry.lock().expect("registry lock");
         let code = loop {
             let code = fresh_code(&mut rand::rng());
@@ -300,8 +306,12 @@ impl Rooms {
                 break code;
             }
         };
-        let room = HostedRoom::on_track(code.clone(), self.track);
-        self.log.event("room_created").room(&code).emit();
+        let room = HostedRoom::on_track(code.clone(), track);
+        self.log
+            .event("room_created")
+            .room(&code)
+            .with("track", track)
+            .emit();
         self.spawn(&mut registry, room, false);
         code
     }

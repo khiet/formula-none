@@ -9,6 +9,7 @@ const codec = jsonCodec;
 
 const ROOM: Room = {
   code: "BXQF",
+  track: "goldstone",
   state: "open",
   players: [
     { slot: 0, nickname: "khiet", livery: 0, state: "unready", creator: true },

@@ -20,7 +20,7 @@
       "name": "join",
       "bytes": [
         1,
-        14,
+        15,
         4,
         66,
         88,
@@ -37,7 +37,7 @@
         "join": {
           "nickname": "khiet",
           "room": "BXQF",
-          "version": 14
+          "version": 15
         }
       }
     },
@@ -103,7 +103,7 @@
       "name": "rejoin",
       "bytes": [
         7,
-        14,
+        15,
         4,
         66,
         88,
@@ -147,7 +147,7 @@
         "rejoin": {
           "room": "BXQF",
           "token": "0123456789abcdef0123456789abcdef",
-          "version": 14
+          "version": 15
         }
       }
     },
@@ -206,6 +206,16 @@
         88,
         81,
         70,
+        9,
+        103,
+        111,
+        108,
+        100,
+        115,
+        116,
+        111,
+        110,
+        101,
         0,
         2,
         0,
@@ -280,7 +290,8 @@
                 "state": "unready"
               }
             ],
-            "state": "open"
+            "state": "open",
+            "track": "goldstone"
           },
           "slot": 1,
           "token": "0123456789abcdef0123456789abcdef"
@@ -292,12 +303,12 @@
       "bytes": [
         2,
         3,
-        14
+        15
       ],
       "message": {
         "refused": {
           "versionMismatch": {
-            "server": 14
+            "server": 15
           }
         }
       }
@@ -311,6 +322,16 @@
         88,
         81,
         70,
+        9,
+        103,
+        111,
+        108,
+        100,
+        115,
+        116,
+        111,
+        110,
+        101,
         0,
         2,
         0,
@@ -351,7 +372,8 @@
               "state": "unready"
             }
           ],
-          "state": "open"
+          "state": "open",
+          "track": "goldstone"
         }
       }
     },

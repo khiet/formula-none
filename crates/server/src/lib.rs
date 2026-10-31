@@ -2,12 +2,13 @@
 //! served by [`serve`], and WebTransport in [`webtransport`]. `main` binds
 //! both; tests drive the router directly or through a socket.
 
+use axum::body::Bytes;
 use axum::extract::State;
 use axum::http::{header, StatusCode};
 use axum::response::IntoResponse;
 use axum::routing::{get, post};
 use axum::{Json, Router};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use tokio::net::TcpListener;
 use tokio::sync::watch;
 
@@ -49,9 +50,34 @@ struct CreatedRoom {
     code: String,
 }
 
-async fn create_room(State(state): State<AppState>) -> (StatusCode, Json<CreatedRoom>) {
-    let code = state.rooms.create();
-    (StatusCode::CREATED, Json(CreatedRoom { code }))
+/// What a create may ask for: the track the room races, fixed for the
+/// room (ADR 0061). A create with no body, or one naming no track, races
+/// the server's default.
+#[derive(Deserialize)]
+struct CreateRoom {
+    track: Option<String>,
+}
+
+/// The body is read as JSON whatever its content type says, so a create
+/// that names a track always races it or is refused, never quietly opened
+/// on the default.
+async fn create_room(
+    State(state): State<AppState>,
+    body: Bytes,
+) -> Result<(StatusCode, Json<CreatedRoom>), StatusCode> {
+    let request = if body.is_empty() {
+        CreateRoom { track: None }
+    } else {
+        serde_json::from_slice(&body).map_err(|_| StatusCode::BAD_REQUEST)?
+    };
+    let code = match request.track {
+        None => state.rooms.create(),
+        Some(track) => {
+            let track = tracks::known(&track).ok_or(StatusCode::BAD_REQUEST)?;
+            state.rooms.create_on(track)
+        }
+    };
+    Ok((StatusCode::CREATED, Json(CreatedRoom { code })))
 }
 
 /// What Prometheus scrapes (ADR 0018). Caddy proxies only `/api/*`, so this

@@ -5,6 +5,7 @@ import { CONNECTION_LOST_STATUS, createRoomScene, type RoomHandlers } from "./ro
 
 const ROOM: Room = {
   code: "BXQF",
+  track: "goldstone",
   state: "open",
   players: [
     { slot: 0, nickname: "khiet", livery: 0, state: "unready", creator: true },
@@ -66,11 +67,20 @@ function stubClipboard(writeText: (text: string) => Promise<void>) {
 }
 
 describe("Room Scene", () => {
+  it("leaves the course badge out for a track no course is", () => {
+    const { container } = scene(2, { ...ROOM, track: "oval" });
+    expect(container.querySelector("[data-room-course]")).toBeNull();
+  });
+
   it("shows the code, the player count, the link to share and every player with their livery and state", () => {
     const { container, rows } = scene(2);
     expect(container.querySelector("h1")?.textContent).toBe("Room BXQF");
     expect(container.querySelector("[data-room-code]")?.textContent).toBe("BXQF");
     expect(container.querySelector("[data-room-count]")?.textContent).toBe("2/8");
+    // The course the creator picked, read-only.
+    const course = container.querySelector("[data-room-course]");
+    expect(course?.textContent).toBe("Goldstone");
+    expect(course?.querySelector("svg[data-flag]")).not.toBeNull();
     const link = container.querySelector<HTMLAnchorElement>("a[data-room-link]");
     expect(link?.href).toBe(LINK);
     expect(link?.textContent).toBe(LINK);

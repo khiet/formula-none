@@ -9,7 +9,12 @@ export type Room = {
 /**
  * Four letters from the unambiguous alphabet.
  */
-code: string, state: RoomState, 
+code: string, 
+/**
+ * The track every race in the room runs on, picked by the creator at
+ * the create and fixed for the room (ADR 0061).
+ */
+track: string, state: RoomState, 
 /**
  * In slot order. A joiner takes the lowest free slot, so a room nobody
  * has left lists its players in join order.

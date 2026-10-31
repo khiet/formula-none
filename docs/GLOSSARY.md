@@ -299,6 +299,13 @@ must report the same values for the same replay.
 
 ## Track
 
+### course
+
+A track as players see it: its name, its flag and the real circuit it is
+drawn after, such as Goldstone, after Silverstone. The creator picks the
+course on the Title Scene and it is fixed for the room (ADR 0061). The oval
+is a track but no course.
+
 ### sidecar
 
 The data file exported from Blender next to a track's glTF: the centreline,

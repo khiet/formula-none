@@ -3,6 +3,16 @@ import { describe, expect, it } from "vitest";
 import { type AudioSettings, DEFAULT_AUDIO_SETTINGS } from "./audio-settings";
 import { hexCss, livery } from "./livery";
 import { createTitleScene, type TitleHandlers, type TitleOptions } from "./title-scene";
+import { COURSES, type Course, type WorldPoint } from "./track";
+
+/** A square lap, enough for the preview to draw. */
+const SQUARE: WorldPoint[] = [
+  [0, 0, 0],
+  [50, 0, 0],
+  [50, 0, 50],
+  [0, 0, 50],
+];
+const [BELL_DEER, GOLDSTONE] = COURSES as [Course, Course];
 
 const OPTIONS: TitleOptions = {
   nickname: "",
@@ -11,6 +21,10 @@ const OPTIONS: TitleOptions = {
   audio: DEFAULT_AUDIO_SETTINGS,
   nicknameChars: { min: 2, max: 12 },
   roomCodeLength: 4,
+  courses: COURSES.map((course) => ({ course, centreline: SQUARE })),
+  course: BELL_DEER,
+  laps: 3,
+  reducedMotion: () => true,
 };
 
 interface Calls {
@@ -18,12 +32,13 @@ interface Calls {
   joined: [string, string][];
   races: number;
   audio: AudioSettings[];
+  courses: Course[];
 }
 
 function scene(options: Partial<TitleOptions> = {}) {
   const container = document.createElement("div");
   document.body.replaceChildren(container);
-  const calls: Calls = { created: [], joined: [], races: 0, audio: [] };
+  const calls: Calls = { created: [], joined: [], races: 0, audio: [], courses: [] };
   const handlers: TitleHandlers = {
     create: (nickname) => calls.created.push(nickname),
     join: (nickname, code) => calls.joined.push([nickname, code]),
@@ -31,6 +46,7 @@ function scene(options: Partial<TitleOptions> = {}) {
       calls.races += 1;
     },
     audio: (settings) => calls.audio.push(settings),
+    course: (course) => calls.courses.push(course),
   };
   const title = createTitleScene(container, { ...OPTIONS, ...options }, handlers);
   const input = (name: string) => {
@@ -148,5 +164,21 @@ describe("Title Scene", () => {
     expect(calls.audio).toEqual([{ sfx: true, engine: false, music: false }]);
     toggle("engine");
     expect(calls.audio.at(-1)).toEqual({ sfx: true, engine: true, music: false });
+  });
+
+  it("offers a flag per course with the saved one picked, and previews and reports each pick", () => {
+    const { container, calls } = scene({ course: GOLDSTONE });
+    const radios = Array.from(
+      container.querySelectorAll<HTMLInputElement>("input[type=radio][name=course]"),
+    );
+    expect(radios.map((radio) => radio.value)).toEqual(["bell-deer", "goldstone"]);
+    expect(radios.map((radio) => radio.checked)).toEqual([false, true]);
+    const preview = () => container.querySelector(".preview h3")?.textContent;
+    expect(preview()).toBe("Goldstone");
+    const [bellDeer] = radios;
+    bellDeer?.click();
+    expect(preview()).toBe("Bell Deer");
+    expect(container.querySelector(".preview")?.textContent).toContain("After Suzuka");
+    expect(calls.courses).toEqual([BELL_DEER]);
   });
 });
