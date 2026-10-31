@@ -10,10 +10,12 @@ import {
   lapReadouts,
   phaseReadout,
 } from "./instrument-panel";
+import { reelFrame } from "./item-reel";
 import { kartReadout } from "./kart-readout-fixture";
 import { hexCss, livery, liveryCss } from "./livery";
+import { FIRING, ITEM_BOX_GOLD } from "./palette";
 import { ON_THE_GRID, raceReadout } from "./race-readout-fixture";
-import type { ItemSlot, RaceReadout } from "./race-run";
+import { EMPTY_SLOT, type ItemSlot, type RaceReadout } from "./race-run";
 
 // A square loop, so the map's fit is easy to read: the grid faces -z.
 const course = {
@@ -109,7 +111,9 @@ describe("the lap instruments on the page", () => {
 
   it("print the position as a numeral with its suffix beside it, reading as one ordinal", () => {
     const { panel, find } = mount();
-    panel.update(race({ ...ON_THE_GRID, position: 3 }, { item: null, firing: false }));
+    panel.update(
+      race({ ...ON_THE_GRID, position: 3 }, { ...EMPTY_SLOT, item: null, firing: false }),
+    );
     const position = find("position");
     expect(position?.textContent).toBe("3rd");
     expect(position?.querySelector("[data-numeral]")?.textContent).toBe("3");
@@ -121,22 +125,27 @@ describe("the lap instruments on the page", () => {
     const lap = find("lap");
     const flags = () => [...(lap?.querySelectorAll<HTMLElement>("[data-flag]") ?? [])];
     const filled = () => flags().filter((flag) => flag.dataset.flag === "done").length;
-    panel.update(race(ON_THE_GRID, { item: null, firing: false }));
+    panel.update(race(ON_THE_GRID, { ...EMPTY_SLOT, item: null, firing: false }));
     expect(lap?.textContent).toBe("Lap 1/3");
     expect(flags()).toHaveLength(3);
     expect(filled()).toBe(0);
     expect(lap?.querySelector("[aria-hidden='true']")?.contains(flags()[0] ?? null)).toBe(true);
-    panel.update(race({ ...ON_THE_GRID, lap: 3 }, { item: null, firing: false }));
+    panel.update(race({ ...ON_THE_GRID, lap: 3 }, { ...EMPTY_SLOT, item: null, firing: false }));
     expect(lap?.textContent).toBe("Lap 3/3");
     expect(filled()).toBe(2);
-    panel.update(race({ ...ON_THE_GRID, lap: 3, finishTimeS: 70 }, { item: null, firing: false }));
+    panel.update(
+      race(
+        { ...ON_THE_GRID, lap: 3, finishTimeS: 70 },
+        { ...EMPTY_SLOT, item: null, firing: false },
+      ),
+    );
     expect(filled()).toBe(3);
   });
 
   it("show the start lights lit so far, then GO at lights out", () => {
     const { panel, find } = mount();
     const at = (phase: Phase) =>
-      panel.update({ ...race(ON_THE_GRID, { item: null, firing: false }), phase });
+      panel.update({ ...race(ON_THE_GRID, { ...EMPTY_SLOT, item: null, firing: false }), phase });
     const countdown = find("countdown");
     at({ kind: "countdown", remainingSeconds: 2.5 });
     expect(countdown?.hidden).toBe(false);
@@ -151,7 +160,10 @@ describe("the lap instruments on the page", () => {
   it("print the clocks with their label words in the text", () => {
     const { panel, find } = mount();
     panel.update(
-      race({ ...ON_THE_GRID, lapTimeS: 27.304, bestLapS: 44.91 }, { item: null, firing: false }),
+      race(
+        { ...ON_THE_GRID, lapTimeS: 27.304, bestLapS: 44.91 },
+        { ...EMPTY_SLOT, item: null, firing: false },
+      ),
     );
     expect(find("lap-time")?.textContent).toBe(`Time 0'27"304`);
     expect(find("best-lap")?.textContent).toBe(`Best 0'44"910`);
@@ -262,7 +274,7 @@ describe("the speed cluster on the page", () => {
       container.querySelector<HTMLElement>(`[data-instrument="${name}"]`);
     const drive = (speed: number, coins = 0) =>
       panel.update(
-        race(ON_THE_GRID, { item: null, firing: false }, [
+        race(ON_THE_GRID, { ...EMPTY_SLOT, item: null, firing: false }, [
           at([0, 0.3, 0]),
           kartReadout({ speed, coins }),
           at([0, 0.3, 0]),
@@ -389,17 +401,26 @@ describe("the connection banner", () => {
 
 describe("the item slot", () => {
   it("names the item held, in a state that says whether it is being fired", () => {
-    expect(itemReadout({ item: null, firing: false })).toEqual({ text: "", state: "empty" });
-    expect(itemReadout({ item: "boost", firing: false })).toEqual({ text: "Boost", state: "held" });
-    expect(itemReadout({ item: "hazard", firing: false })).toEqual({
+    expect(itemReadout({ ...EMPTY_SLOT, item: null, firing: false })).toEqual({
+      text: "",
+      state: "empty",
+    });
+    expect(itemReadout({ ...EMPTY_SLOT, item: "boost", firing: false })).toEqual({
+      text: "Boost",
+      state: "held",
+    });
+    expect(itemReadout({ ...EMPTY_SLOT, item: "hazard", firing: false })).toEqual({
       text: "Hazard",
       state: "held",
     });
-    expect(itemReadout({ item: "homing", firing: true })).toEqual({
+    expect(itemReadout({ ...EMPTY_SLOT, item: "homing", firing: true })).toEqual({
       text: "Homing",
       state: "firing",
     });
-    expect(itemReadout({ item: null, firing: true })).toEqual({ text: "", state: "firing" });
+    expect(itemReadout({ ...EMPTY_SLOT, item: null, firing: true })).toEqual({
+      text: "",
+      state: "firing",
+    });
   });
 
   it("shows the slot the run reports on every update", () => {
@@ -415,12 +436,12 @@ describe("the item slot", () => {
     const slot = container.querySelector<HTMLElement>('[data-instrument="item"]');
     expect(slot?.textContent).toBe("");
     expect(slot?.dataset.itemState).toBe("empty");
-    panel.update(race(ON_THE_GRID, { item: "boost", firing: false }));
+    panel.update(race(ON_THE_GRID, { ...EMPTY_SLOT, item: "boost", firing: false }));
     expect(slot?.textContent).toBe("Boost");
     expect(slot?.dataset.itemState).toBe("held");
-    panel.update(race(ON_THE_GRID, { item: "boost", firing: true }));
+    panel.update(race(ON_THE_GRID, { ...EMPTY_SLOT, item: "boost", firing: true }));
     expect(slot?.dataset.itemState).toBe("firing");
-    panel.update(race(ON_THE_GRID, { item: null, firing: false }));
+    panel.update(race(ON_THE_GRID, { ...EMPTY_SLOT, item: null, firing: false }));
     expect(slot?.textContent).toBe("");
     expect(slot?.dataset.itemState).toBe("empty");
   });
@@ -442,17 +463,91 @@ describe("the item slot", () => {
     const slot = container.querySelector<HTMLElement>('[data-instrument="item"]');
     expect(slot?.dataset.item).toBeUndefined();
     expect(slot?.querySelector("svg")).toBeNull();
-    panel.update(race(ON_THE_GRID, { item, firing: false }));
+    panel.update(race(ON_THE_GRID, { ...EMPTY_SLOT, item, firing: false }));
     expect(slot?.dataset.item).toBe(item);
     const sprite = slot?.querySelector("svg");
     expect(sprite?.getAttribute("aria-hidden")).toBe("true");
     expect(sprite?.querySelectorAll("polygon").length).toBeGreaterThan(0);
     expect(slot?.textContent).toBe(name);
-    panel.update(race(ON_THE_GRID, { item, firing: true }));
+    panel.update(race(ON_THE_GRID, { ...EMPTY_SLOT, item, firing: true }));
     expect(slot?.querySelector("svg")).toBe(sprite);
-    panel.update(race(ON_THE_GRID, { item: null, firing: false }));
+    panel.update(race(ON_THE_GRID, { ...EMPTY_SLOT, item: null, firing: false }));
     expect(slot?.dataset.item).toBeUndefined();
     expect(slot?.querySelector("svg")).toBeNull();
+  });
+
+  const ROLLING = { item: "homing" as const, elapsedS: 0, rollS: 2.5 };
+  const mountSlot = (reducedMotion = false) => {
+    const container = document.createElement("div");
+    const panel = createInstrumentPanel(
+      container,
+      3,
+      course,
+      TUNING,
+      nameOf,
+      livery(course.ownKart),
+      { reducedMotion },
+    );
+    const slot = container.querySelector<HTMLElement>('[data-instrument="item"]');
+    const show = (itemSlot: Partial<ItemSlot>) =>
+      panel.update(race(ON_THE_GRID, { ...EMPTY_SLOT, ...itemSlot }));
+    const reel = () => slot?.querySelector<HTMLElement>("[data-item-reel]") ?? null;
+    return { slot, show, reel };
+  };
+
+  it("names the slot rolling while an item rolls in it, with no name till it lands", () => {
+    expect(itemReadout({ ...EMPTY_SLOT, rolling: ROLLING })).toEqual({
+      text: "",
+      state: "rolling",
+    });
+  });
+
+  it("runs the reel through the items while one rolls, scrolled by the roll's time, stopping on it", () => {
+    const { slot, show, reel } = mountSlot();
+    show({ rolling: ROLLING });
+    expect(slot?.dataset.itemState).toBe("rolling");
+    expect(slot?.textContent).toBe("");
+    const strip = reel();
+    const icons = [...(strip?.querySelectorAll<SVGElement>("svg") ?? [])];
+    const landing = reelFrame(2.5, 2.5).step;
+    expect(icons).toHaveLength(landing + 2);
+    expect(icons[landing]?.dataset.sprite).toBe("homing");
+    expect(strip?.getAttribute("aria-hidden")).toBe("true");
+    const start = strip?.style.transform;
+    show({ rolling: { ...ROLLING, elapsedS: 1 } });
+    expect(reel()).toBe(strip);
+    expect(strip?.style.transform).not.toBe(start);
+    expect(strip?.style.transform).toMatch(/translateY\(-[\d.]+%\)/);
+  });
+
+  it("lands the item with one white flash and a pop, the reel gone", () => {
+    const { slot, show, reel } = mountSlot();
+    show({ rolling: { ...ROLLING, elapsedS: 2.5 } });
+    show({ item: "homing", landing: true });
+    expect(reel()).toBeNull();
+    expect(slot?.dataset.itemState).toBe("held");
+    expect(slot?.textContent).toBe("Homing");
+    const sprites = slot?.querySelectorAll<SVGElement>("svg") ?? [];
+    expect(sprites).toHaveLength(1);
+    expect(sprites[0]?.dataset.landed).toBe("");
+    expect(slot?.style.getPropertyValue("--plate-lit")).toBe(hexCss(FIRING.lit));
+    show({ item: "homing" });
+    expect(slot?.style.getPropertyValue("--plate-lit")).toBe(hexCss(ITEM_BOX_GOLD.lit));
+    // An item that was never seen rolling, as after a rejoin, lands with no pop.
+    show({ item: null });
+    show({ item: "boost" });
+    expect(slot?.querySelector<SVGElement>("svg")?.dataset.landed).toBeUndefined();
+  });
+
+  it("under reduced motion shows the plain box face while the item rolls, then the item with no pop", () => {
+    const { slot, show, reel } = mountSlot(true);
+    show({ rolling: ROLLING });
+    expect(slot?.dataset.itemState).toBe("rolling");
+    expect(reel()).toBeNull();
+    expect(slot?.querySelector("svg")).toBeNull();
+    show({ item: "homing", landing: true });
+    expect(slot?.querySelector<SVGElement>("svg")?.dataset.landed).toBeUndefined();
+    expect(slot?.style.getPropertyValue("--plate-lit")).toBe(hexCss(ITEM_BOX_GOLD.lit));
   });
 
   it("swaps the sprite when the server hands the kart a different item", () => {
@@ -466,8 +561,8 @@ describe("the item slot", () => {
       livery(course.ownKart),
     );
     const slot = container.querySelector<HTMLElement>('[data-instrument="item"]');
-    panel.update(race(ON_THE_GRID, { item: "boost", firing: false }));
-    panel.update(race(ON_THE_GRID, { item: "hazard", firing: false }));
+    panel.update(race(ON_THE_GRID, { ...EMPTY_SLOT, item: "boost", firing: false }));
+    panel.update(race(ON_THE_GRID, { ...EMPTY_SLOT, item: "hazard", firing: false }));
     expect(slot?.dataset.item).toBe("hazard");
     expect(slot?.textContent).toBe("Hazard");
     const sprites = slot?.querySelectorAll("svg") ?? [];
@@ -512,7 +607,7 @@ describe("the course map", () => {
     );
     const own = at([50, 0.3, -50]);
     const standing = ON_THE_GRID;
-    const slot = { item: null, firing: false };
+    const slot = { ...EMPTY_SLOT, item: null, firing: false };
     panel.update(race(standing, slot, [at([0, 0.3, 0]), own, at([100, 0.3, -100])]));
     const marker = container.querySelector('[data-instrument="course-map"] [data-kart="2"]');
     const [u0, v0] = markerAt(marker);
@@ -538,7 +633,7 @@ describe("the course map", () => {
       nameOf,
       livery(course.ownKart),
     );
-    panel.update(race(ON_THE_GRID, { item: null, firing: false }));
+    panel.update(race(ON_THE_GRID, { ...EMPTY_SLOT, item: null, firing: false }));
     const markers = [
       ...container.querySelectorAll<SVGGElement>('[data-instrument="course-map"] [data-kart]'),
     ];

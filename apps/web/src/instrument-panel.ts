@@ -10,6 +10,7 @@ import {
   speedParts,
 } from "./format";
 import type { Item } from "./generated/protocol";
+import { reelFrame, reelStrip } from "./item-reel";
 import { itemSprite } from "./item-sprites";
 import { hexCss, type Livery, livery as liveryOf } from "./livery";
 import {
@@ -55,7 +56,7 @@ import {
 /** The item slot as the panel prints it: the item's name and the slot's state. */
 export interface ItemReadout {
   readonly text: string;
-  readonly state: "empty" | "held" | "firing";
+  readonly state: "empty" | "rolling" | "held" | "firing";
 }
 
 export interface InstrumentPanel {
@@ -146,6 +147,9 @@ export function loadInstrumentFont(): Promise<void> {
  * kart has finished or the race has ended, the finish banner and the
  * finishers by `name` in place of the lap. Reads state; never drives it.
  * The own kart's readouts wear `paint`, the own kart's livery (ADR 0037).
+ * An item rolling in the slot runs the reel (ADR 0070), and lands with a
+ * pop and a flash; under `reducedMotion` the slot shows the plain box
+ * face through the roll and the item lands still.
  * Each readout is addressable by `data-instrument` so tests and styles
  * find it the same way.
  */
@@ -156,6 +160,7 @@ export function createInstrumentPanel(
   tuning: SpeedClusterTuning,
   name: (kart: number) => string,
   paint: Livery,
+  { reducedMotion }: { readonly reducedMotion: boolean } = { reducedMotion: false },
 ): InstrumentPanel {
   const panel = document.createElement("div");
   panel.id = "instrument-panel";
@@ -211,6 +216,11 @@ export function createInstrumentPanel(
   const itemName = part(item, "itemName");
   let shownItem: Item | null = null;
   let shownSprite: SVGSVGElement | null = null;
+  /** The item the reel is rolling to, and the strip it scrolls; null while it runs no roll. */
+  let reelItem: Item | null = null;
+  let reel: HTMLSpanElement | null = null;
+  let reelIcons = 1;
+  let shownLitPlate = false;
   const banner = instrument("connection-banner", CONNECTION_LOST_BANNER);
   plate(banner, POSTER_RED);
   banner.hidden = true;
@@ -363,10 +373,32 @@ export function createInstrumentPanel(
       showCoins(local.coins);
       surface.textContent = local.surface;
       const held = itemReadout(slot);
-      if (held.state !== shownItemState) {
+      // Firing lights the plate, and so does a landing, once.
+      const litPlate = held.state === "firing" || (slot.landing && !reducedMotion);
+      if (held.state !== shownItemState || litPlate !== shownLitPlate) {
         shownItemState = held.state;
+        shownLitPlate = litPlate;
         item.dataset.itemState = held.state;
-        plate(item, held.state === "firing" ? FIRING : ITEM_BOX_GOLD);
+        plate(item, litPlate ? FIRING : ITEM_BOX_GOLD);
+      }
+      const rolling = reducedMotion ? null : slot.rolling;
+      if ((rolling?.item ?? null) !== reelItem) {
+        reel?.remove();
+        reel = null;
+        reelItem = rolling?.item ?? null;
+        if (rolling !== null) {
+          const strip = reelStrip(rolling.item, rolling.rollS);
+          reel = document.createElement("span");
+          reel.dataset.itemReel = "";
+          reel.setAttribute("aria-hidden", "true");
+          reel.append(...strip.map(itemSprite));
+          reelIcons = strip.length;
+          item.append(reel);
+        }
+      }
+      if (reel !== null && rolling !== null) {
+        const { position } = reelFrame(rolling.elapsedS, rolling.rollS);
+        reel.style.transform = `translateY(${(-100 * position) / reelIcons}%)`;
       }
       if (slot.item !== shownItem) {
         shownItem = slot.item;
@@ -378,6 +410,7 @@ export function createInstrumentPanel(
         } else {
           item.dataset.item = slot.item;
           shownSprite = itemSprite(slot.item);
+          if (slot.landing && !reducedMotion) shownSprite.dataset.landed = "";
           item.append(shownSprite);
         }
       }
@@ -505,12 +538,19 @@ const ITEM_NAMES: Readonly<Record<Item, string>> = {
   homing: "Homing",
 };
 
-/** What the panel prints for the item slot: the item's name, in the firing state while the fire shows. */
+/**
+ * What the panel prints for the item slot: the item's name once it has
+ * landed, in the firing state while the fire shows.
+ */
 export function itemReadout(slot: ItemSlot): ItemReadout {
-  return {
-    text: slot.item === null ? "" : ITEM_NAMES[slot.item],
-    state: slot.firing ? "firing" : slot.item === null ? "empty" : "held",
-  };
+  const state = slot.firing
+    ? "firing"
+    : slot.item !== null
+      ? "held"
+      : slot.rolling !== null
+        ? "rolling"
+        : "empty";
+  return { text: slot.item === null ? "" : ITEM_NAMES[slot.item], state };
 }
 
 /** The shift lights' spacing in their drawing's units: each hexagon 12.4 across with a gap. */

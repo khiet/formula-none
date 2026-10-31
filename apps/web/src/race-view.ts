@@ -29,7 +29,7 @@ import {
   type HomingDrone,
   hazardConeMesh,
   homingDroneMesh,
-  itemBoxMesh,
+  itemBoxMeshes,
   type Marshal,
   marshalBeacon,
   marshalMesh,
@@ -78,8 +78,6 @@ const DUST_FADE_SHARE = 0.4;
 /** A red spark's halo is this many times as wide as the spark, and this bright at birth. */
 const SPARK_HALO_SCALE = 5;
 const SPARK_HALO_BRIGHTNESS = 0.45;
-/** How high an item box floats over where the sim has it. */
-const ITEM_BOX_HEIGHT_M = 1;
 /** How high the projectile (ADR 0007) flies over where the sim has it. */
 const PROJECTILE_HEIGHT_M = 0.6;
 /**
@@ -144,7 +142,7 @@ export interface ViewAssets {
  * kart readouts the bridge reports and the pose the chase camera computes,
  * with a name floating over each kart the Scene labels, a cone at each
  * hazard, a drone at each projectile and a coin at each of `coins` while
- * it is there to pick up, every coin turning on the View's clock. The
+ * it is there to pick up, every box and coin turning on the View's clock. The
  * track mesh is Presentation
  * only; the sim has its own copy of the geometry from the sidecar. Every
  * mechanic's Feedback is drawn from the readouts and the phase alone:
@@ -283,16 +281,8 @@ export async function createRaceView(
     shadowMesh.mesh,
   );
 
-  // Clones share the one box's geometries and materials.
-  const itemBox = itemBoxMesh();
-  const boxes = itemBoxes.map((placed) => {
-    const mesh = itemBox.clone();
-    const [x, y, z] = placed.position;
-    mesh.position.set(x, y + ITEM_BOX_HEIGHT_M, z);
-    mesh.rotation.y = placed.yaw;
-    world.add(mesh);
-    return mesh;
-  });
+  const boxes = itemBoxMeshes(itemBoxes);
+  world.add(boxes.mesh);
 
   const drawnCoins = coinMeshes(coins);
   world.add(drawnCoins.mesh);
@@ -333,10 +323,9 @@ export async function createRaceView(
     update(race, pose, frameSeconds) {
       const { karts: readouts, itemBoxesPresent, coinsPresent, hazards, projectiles } = race;
       const countingDown = race.phase.kind === "countdown";
-      boxes.forEach((mesh, box) => {
-        mesh.visible = itemBoxesPresent[box] ?? true;
-      });
       clockSeconds += frameSeconds;
+      boxes.show(itemBoxesPresent);
+      boxes.turn(clockSeconds);
       drawnCoins.show(coinsPresent);
       drawnCoins.turn(clockSeconds);
       readouts.forEach((readout, slot) => {

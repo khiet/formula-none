@@ -649,6 +649,8 @@ pub struct Tuning {
     pub countdown_s: f32,
     pub predicted_fire_timeout_s: f32,
     pub item_box_respawn_s: f32,
+    /// How long a box's item rolls in the slot, which the reel runs over.
+    pub item_roll_s: f32,
     /// Indexed by the coins a kart carries.
     pub coin_top_speeds_m_per_s: [f32; COIN_CAP as usize + 1],
     pub coin_cap: u32,
@@ -690,6 +692,7 @@ pub const TUNING: Tuning = Tuning {
     countdown_s: COUNTDOWN_S,
     predicted_fire_timeout_s: PREDICTED_FIRE_TIMEOUT_S,
     item_box_respawn_s: ITEM_BOX_RESPAWN_S,
+    item_roll_s: ITEM_ROLL_S,
     coin_top_speeds_m_per_s: COIN_TOP_SPEEDS_M_PER_S,
     coin_cap: COIN_CAP,
     coins_lost_per_spin_out: COINS_LOST_PER_SPIN_OUT,

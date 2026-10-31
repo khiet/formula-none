@@ -181,6 +181,38 @@
         width: 88%;
         height: auto;
       }
+      /*
+       * The reel: a strip of the items scrolled up through the slot, one
+       * slot-high cell per icon, so the panel scrolls it by a percentage
+       * of its own height.
+       */
+      [data-instrument="item"] {
+        overflow: hidden;
+      }
+      [data-item-reel] {
+        position: absolute;
+        inset: 0 0 auto;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        will-change: transform;
+      }
+      [data-item-reel] svg {
+        flex: none;
+        height: calc(var(--hud) * 9.9);
+      }
+      /* The landing: the icon swells and settles, once. */
+      [data-instrument="item"] svg[data-landed] {
+        animation: item-pop 0.38s ease-out;
+      }
+      @keyframes item-pop {
+        35% {
+          transform: scale(1.4);
+        }
+        65% {
+          transform: scale(0.92);
+        }
+      }
       /* Firing lights the plate, flashing back to the box's gold. */
       [data-instrument="item"][data-item-state="firing"] {
         animation: item-fire 0.25s steps(1, end) infinite;

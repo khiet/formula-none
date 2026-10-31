@@ -24,7 +24,7 @@ import {
   TorusGeometry,
   Vector3,
 } from "three";
-import type { Wheel } from "./bridge";
+import type { ItemBox, Wheel } from "./bridge";
 import {
   BEACON_BEAM,
   BEACON_LIT,
@@ -67,6 +67,13 @@ const ITEM_BOX_SIZE_M = 1;
 /** Each face's inset frame: its share of the face, and how far it stands proud. */
 const ITEM_BOX_INSET = 0.7;
 const ITEM_BOX_INSET_DEPTH_M = 0.02;
+/** The box's centre over the asphalt, before the bob. */
+const ITEM_BOX_HEIGHT_M = 1;
+/** One turn about the vertical, half the coin's pace, so the bigger thing reads heavier. */
+const ITEM_BOX_TURN_S = 2;
+/** The coin's bob, so the boxes and the coins rise and fall in step. */
+const ITEM_BOX_BOB_M = 0.05;
+const ITEM_BOX_BOB_S = 2;
 
 /** The hazard cone (ADR 0007), on a grey slab. */
 const HAZARD_CONE_RADIUS_M = 0.5;
@@ -209,6 +216,54 @@ export function itemBoxMesh(): Group {
     if (axis === "y") face.rotation.x = Math.PI / 2;
   }
   return box;
+}
+
+/** The track's item boxes as the View draws them. */
+export interface ItemBoxMeshes {
+  readonly mesh: Group;
+  /** Show each box, in the sidecar's order, while it is there to pick up. */
+  show(present: readonly boolean[]): void;
+  /** Turn and bob every box to `clockSeconds` on the View's clock. */
+  turn(clockSeconds: number): void;
+}
+
+/**
+ * A box at each of `placed`, sharing one box's geometries and materials:
+ * each placed group holds its box, which turns and bobs inside it off the
+ * View's clock, every box facing the same way at the same moment.
+ */
+export function itemBoxMeshes(placed: readonly ItemBox[]): ItemBoxMeshes {
+  const mesh = new Group();
+  const box = itemBoxMesh();
+  const boxes = placed.map(({ position, yaw }) => {
+    const group = new Group();
+    group.position.set(...position);
+    group.rotation.y = yaw;
+    const clone = box.clone();
+    clone.position.y = ITEM_BOX_HEIGHT_M;
+    group.add(clone);
+    mesh.add(group);
+    return { group, clone, yaw };
+  });
+  return {
+    mesh,
+    show(present) {
+      boxes.forEach(({ group }, index) => {
+        group.visible = present[index] ?? true;
+      });
+    },
+    turn(clockSeconds) {
+      const angle = ((clockSeconds % ITEM_BOX_TURN_S) / ITEM_BOX_TURN_S) * 2 * Math.PI;
+      const height =
+        ITEM_BOX_HEIGHT_M +
+        ITEM_BOX_BOB_M * Math.sin((clockSeconds / ITEM_BOX_BOB_S) * 2 * Math.PI);
+      for (const { clone, yaw } of boxes) {
+        // Less the placement's yaw, so every box faces the same way.
+        clone.rotation.y = angle - yaw;
+        clone.position.y = height;
+      }
+    },
+  };
 }
 
 /**

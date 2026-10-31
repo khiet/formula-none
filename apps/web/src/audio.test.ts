@@ -35,6 +35,9 @@ const STILL: SoundReading = {
   surface: "asphalt",
   drifting: false,
   wrongWay: false,
+  boxesTaken: 0,
+  rolling: false,
+  reelStep: null,
 };
 
 /** A decoded file stands in for its AudioBuffer: the test only asks which was played. */
@@ -332,17 +335,17 @@ describe("preloading and the autoplay rule", () => {
     expect(new Set(fetched)).toEqual(
       new Set([...Object.values(SOUND_URLS), ...Object.values(LOOP_URLS), MUSIC_URL]),
     );
-    expect(fetched).toHaveLength(19);
+    expect(fetched).toHaveLength(21);
     await settled();
     expect(contexts).toHaveLength(0);
     await audio.unlock();
     expect(contexts).toHaveLength(1);
     expect(context().resumes).toBe(1);
     // Decoded once, from the bytes already fetched, so the first play is not late.
-    expect(context().decoded).toHaveLength(19);
+    expect(context().decoded).toHaveLength(21);
     await audio.unlock();
     expect(contexts).toHaveLength(1);
-    expect(context().decoded).toHaveLength(19);
+    expect(context().decoded).toHaveLength(21);
   });
 
   it("resumes a context the browser suspended on a later gesture", async () => {
@@ -520,7 +523,7 @@ describe("the engine", () => {
 describe("the SFX", () => {
   const CUES: readonly [SoundCue, Partial<SoundReading>][] = [
     ["hop", { airborne: true }],
-    ["itemPickup", { item: "boost" }],
+    ["itemPickup", { boxesTaken: 1 }],
     ["coinPickup", { coins: 1 }],
     ["hit", { spunOut: true }],
     ["lap", { lap: 2 }],
@@ -560,6 +563,24 @@ describe("the SFX", () => {
     expect(played("coinLoss")).toBe(1);
     race.update({ ...STILL, coins: 1 });
     expect(played("coinLoss")).toBe(1);
+  });
+
+  it("clicks each step of the reel and plays the landing as the rolled item lands", async () => {
+    const { audio, played } = harness();
+    await audio.unlock();
+    const race = audio.race();
+    race.start();
+    const rolling = (reelStep: number): SoundReading => ({ ...STILL, rolling: true, reelStep });
+    race.update(rolling(0));
+    race.update(rolling(1));
+    race.update(rolling(1));
+    race.update(rolling(4));
+    expect(played("itemRollTick")).toBe(2);
+    expect(played("itemRolled")).toBe(0);
+    race.update({ ...STILL, item: "homing" });
+    race.update({ ...STILL, item: "homing" });
+    expect(played("itemRolled")).toBe(1);
+    expect(played("itemRollTick")).toBe(2);
   });
 
   it("plays the mini-turbo on release and the fire as the slot empties", async () => {
@@ -733,7 +754,7 @@ describe("a sound that fails to load", () => {
     await audio.unlock();
     const context = contexts[0];
     if (context === undefined) throw new Error("no context was made");
-    expect(context.decoded).toHaveLength(17);
+    expect(context.decoded).toHaveLength(19);
     const race = audio.race();
     race.start();
     race.update(STILL);

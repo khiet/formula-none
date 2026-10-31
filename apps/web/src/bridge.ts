@@ -144,6 +144,11 @@ export interface Race {
   itemBoxes(): ItemBox[];
   /** Whether each item box, in the same order, is there to pick up as of the last step. */
   itemBoxesPresent(): boolean[];
+  /**
+   * The item boxes the kart in grid slot `kart` took on the last step,
+   * whether an item began to roll or its full slot took nothing.
+   */
+  boxesTaken(kart: number): number;
   /** The track's coins, in the sidecar's order; fixed for the race. */
   coins(): Coin[];
   /** Whether each coin, in the same order, is there to pick up as of the last step. */
@@ -285,6 +290,8 @@ export interface Bridge extends MessageCodec {
   readonly countdownSeconds: number;
   /** Seconds a picked-up item box is gone before it is back (ADR 0014). */
   readonly itemBoxRespawnSeconds: number;
+  /** Seconds a box's item rolls in the slot before it lands (ADR 0070), which the reel runs over. */
+  readonly itemRollSeconds: number;
   /** The top speed in m/s on each count of coins a kart carries, from none to the cap (ADR 0055). */
   readonly coinTopSpeeds: readonly number[];
   /** The most coins a kart carries, the coin count's cap (ADR 0056). */
@@ -373,6 +380,7 @@ export async function loadBridge(wasm?: BufferSource): Promise<Bridge> {
     lapsPerRace: tuned.lapsPerRace,
     countdownSeconds: tuned.countdownS,
     itemBoxRespawnSeconds: tuned.itemBoxRespawnS,
+    itemRollSeconds: tuned.itemRollS,
     coinTopSpeeds: tuned.coinTopSpeedsMPerS,
     coinCap: tuned.coinCap,
     coinRespawnSeconds: tuned.coinRespawnS,
@@ -499,6 +507,10 @@ class BridgedRace implements Race {
 
   itemBoxesPresent(): boolean[] {
     return Array.from(this.#race.item_boxes_present(), (present) => present !== 0);
+  }
+
+  boxesTaken(kart: number): number {
+    return this.#race.boxes_taken(kart);
   }
 
   coins(): Coin[] {

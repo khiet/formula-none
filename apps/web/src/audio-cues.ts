@@ -8,6 +8,7 @@
 
 import type { MiniTurbo, Surface } from "./bridge";
 import type { Item, Start } from "./generated/protocol";
+import { reelFrame } from "./item-reel";
 import { type RaceCount, type RaceReadout, raceCount } from "./race-run";
 
 /** The sounds a race fires, each from the change that calls for it. */
@@ -17,6 +18,8 @@ export type SoundCue =
   | "hop"
   | "miniTurbo"
   | "itemPickup"
+  | "itemRollTick"
+  | "itemRolled"
   | "coinPickup"
   | "coinLoss"
   | "itemFire"
@@ -57,6 +60,12 @@ export interface SoundReading {
   /** Whether a drift is under way, at any tier; the skid runs on this, the chime on `miniTurbo`. */
   readonly drifting: boolean;
   readonly wrongWay: boolean;
+  /** Every box the kart has taken; the pickup sounds as it rises, whatever the box gave. */
+  readonly boxesTaken: number;
+  /** Whether an item rolls in the slot. */
+  readonly rolling: boolean;
+  /** The icon the slot's reel has stepped to while an item rolls; null while none does. */
+  readonly reelStep: number | null;
 }
 
 /**
@@ -86,6 +95,12 @@ export function soundReading(race: RaceReadout, kart: number): SoundReading {
     surface: readout.surface,
     drifting: readout.drift !== null,
     wrongWay: standing.wrongWay,
+    boxesTaken: itemSlot.boxesTaken,
+    rolling: itemSlot.rolling !== null,
+    reelStep:
+      itemSlot.rolling === null
+        ? null
+        : reelFrame(itemSlot.rolling.elapsedS, itemSlot.rolling.rollS).step,
   };
 }
 
@@ -110,7 +125,9 @@ const TIER_RANK: Readonly<Record<MiniTurbo, number>> = { none: 0, orange: 1, red
  * a release nor an item fired explains, since the transform tells boost
  * seconds and not their source; the tier chime as the drift's tier rises,
  * the same chime to orange and to red, the sparks telling which; the
- * pickup as the slot fills and the fire as it empties; the coin pickup as
+ * pickup as the kart takes a box, whatever it gave; the click as the
+ * slot's reel steps on, once a frame however far it went; the landing as
+ * the rolled item lands; the fire as the slot empties; the coin pickup as
  * the coins carried rise; the hit as a spin-out begins, then the coin loss
  * as the coins it cost fall; the sputter as a stall begins; the wrong
  * way as its flag raises; the finish as the kart finishes, else the lap
@@ -135,7 +152,11 @@ export function soundCues(before: SoundReading | undefined, after: SoundReading)
   if (released) cues.push("miniTurbo");
   if (boostBegan && !released && !fired) cues.push("boostPad");
   if (tierRank(after.miniTurbo) > tierRank(before.miniTurbo)) cues.push("tierChime");
-  if (before.item === null && after.item !== null) cues.push("itemPickup");
+  if (after.boxesTaken > before.boxesTaken) cues.push("itemPickup");
+  if (before.reelStep !== null && after.reelStep !== null && after.reelStep > before.reelStep) {
+    cues.push("itemRollTick");
+  }
+  if (before.rolling && !after.rolling && after.item !== null) cues.push("itemRolled");
   if (fired) cues.push("itemFire");
   if (after.coins > before.coins) cues.push("coinPickup");
   if (!before.spunOut && after.spunOut) cues.push("hit");
