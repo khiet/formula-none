@@ -17,6 +17,3 @@ settled in the ADRs first.
   pull request that fails it is not reviewed.
 - A change to what the game draws updates `docs/style-guide.html`; a change
   to a decision gets a new ADR under `docs/adr` rather than an edit.
-
-By contributing you agree that your code is released under the MIT licence
-and your art and sound under CC0 1.0, as the rest of the repo is.
