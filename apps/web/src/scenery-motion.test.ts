@@ -390,6 +390,7 @@ describe("the display jets' flypast", () => {
         [start + 1500, -150],
         [start + 3000, 0],
         [start + 4500, 150],
+        [start + 5900, 290],
       ] as const) {
         motion.update(nowMs);
         expect(formation.visible, `${nowMs} ms`).toBe(true);

@@ -321,6 +321,9 @@ class DisplayJets(unittest.TestCase):
         self.assertGreaterEqual(lowest - road, JETS_CLEARANCE_M)
         self.assertEqual(JETS_CLEARANCE_M, 30.0)
 
+    def test_it_has_no_footprint_since_it_flies_over_the_track(self) -> None:
+        self.assertNotIn("jets", {f.kind for f in footprints(self.layout)})
+
     def test_it_refuses_a_layout_that_gives_no_pass_or_no_height(self) -> None:
         for prop in (Prop("jets", World(190.0, -57.0), height=60.0), Prop("jets", World(190.0, -57.0), length=600.0)):
             with self.subTest(prop=prop), self.assertRaises(ValueError):
