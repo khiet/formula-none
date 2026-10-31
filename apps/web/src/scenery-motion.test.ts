@@ -379,12 +379,12 @@ describe("the display jets' flypast", () => {
   const along = (rest: Quaternion, metres: number) =>
     new Vector3(1, 0, 0).applyQuaternion(rest).multiplyScalar(metres).add(JETS_AT_REST);
 
-  it("flies the 600 m pass in 6 s, centred over the hangars, once a minute", () => {
+  it("flies the 600 m pass in 6 s, centred over the hangars, every 30 s", () => {
     const { track, formation } = trackWithJets();
     const rest = formation.quaternion.clone();
     const motion = sceneryMotion(track);
-    for (const minute of [0, 1, 37]) {
-      const start = minute * JETS_PERIOD_MS;
+    for (const period of [0, 1, 37]) {
+      const start = period * JETS_PERIOD_MS;
       for (const [nowMs, metres] of [
         [start, -300],
         [start + 1500, -150],
@@ -399,13 +399,13 @@ describe("the display jets' flypast", () => {
     }
     expect(JETS_PASS_M).toBe(600);
     expect(JETS_PASS_MS).toBe(6_000);
-    expect(JETS_PERIOD_MS).toBe(60_000);
+    expect(JETS_PERIOD_MS).toBe(30_000);
   });
 
   it("hides the formation between passes and shows it again at the next", () => {
     const { track, formation } = trackWithJets();
     const motion = sceneryMotion(track);
-    for (const nowMs of [JETS_PASS_MS, 20_000, JETS_PERIOD_MS - 1, 2 * JETS_PERIOD_MS + 7_000]) {
+    for (const nowMs of [JETS_PASS_MS, 15_000, JETS_PERIOD_MS - 1, 2 * JETS_PERIOD_MS + 7_000]) {
       motion.update(nowMs);
       expect(formation.visible, `${nowMs} ms`).toBe(false);
     }

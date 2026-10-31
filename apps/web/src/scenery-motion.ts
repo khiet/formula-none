@@ -46,7 +46,7 @@ export const JETS_PASS_M = 600;
 /** Milliseconds the jets take to fly the pass: 100 m/s. */
 export const JETS_PASS_MS = 6_000;
 /** Milliseconds from the start of one pass to the next; the formation is hidden in between. */
-export const JETS_PERIOD_MS = 60_000;
+export const JETS_PERIOD_MS = 30_000;
 
 /**
  * The axis a rim turns about, in its node's own frame: the track builder
