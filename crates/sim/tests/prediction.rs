@@ -400,6 +400,31 @@ fn the_prediction_takes_no_box_and_fills_its_slot_from_the_snapshots_alone() {
     // The snapshot's word fills the slot.
     prediction.reconcile(sequence, sequence, &server.kart_readouts()[0]);
     assert_eq!(prediction.kart_readout().item_slot, held);
+
+    // From there the prediction runs the roll down as the server does:
+    // the snapshots through the landing agree with it, and it lands the
+    // item itself.
+    let corrections = prediction.corrections();
+    let ItemSlot::Rolling { item, .. } = held else {
+        panic!("the item rolls first: {held:?}");
+    };
+    while prediction.kart_readout().item_slot != ItemSlot::Held(item) {
+        server = step(server, &[KartInput::default()], DT);
+        sequence += 1;
+        prediction.tick(sequence, KartInput::default(), &[]);
+        prediction.reconcile(sequence, sequence, &server.kart_readouts()[0]);
+        assert!(
+            sequence < 1_000,
+            "the prediction's roll never landed: {:?}",
+            prediction.kart_readout().item_slot
+        );
+    }
+    assert_eq!(server.kart_readouts()[0].item_slot, ItemSlot::Held(item));
+    assert_eq!(
+        prediction.corrections(),
+        corrections,
+        "no correction through the roll"
+    );
 }
 
 #[test]
