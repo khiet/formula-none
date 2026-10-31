@@ -1,0 +1,690 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Silverstone Course Draft</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Bungee&family=Inter:wght@400;600&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #121316;
+    --card: #1b1d21;
+    --fg: #e8e8ea;
+    --muted: #8a8d94;
+    --rule: #2a2c31;
+    --code-bg: #24272c;
+    /* palette.ts and the track materials */
+    --poster-red: #c81d25;
+    --go-green: #3ddc84;
+    --gold: #e0b54a;
+    --gold-lit: #f8e39a;
+    --asphalt: #6b6b78;
+    --wall: #f0f0f0;
+    --sand: #c9a86a;
+    --grass: #3f7a3a;
+    --hazard: #f5c542;
+    --boost: #ff8800;
+    --tyre: #26262a;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--fg); font: 15px/1.55 Inter, system-ui, sans-serif; }
+  body { padding: 2rem 16px 4rem; }
+  .wrap { max-width: 1180px; margin: 0 auto; }
+  h1 { font: 1.9rem/1.1 Bungee, Impact, sans-serif; margin: 0 0 .5rem; letter-spacing: .02em; }
+  h1 span { color: var(--poster-red); }
+  h2 { font: 1.2rem/1.2 Bungee, Impact, sans-serif; margin: 2.5rem 0 .75rem; }
+  h3 { font: 600 1rem/1.3 Inter, sans-serif; margin: 1.25rem 0 .4rem; }
+  p { margin: .4rem 0; }
+  .lede { color: var(--muted); max-width: 80ch; }
+  nav { display: flex; flex-wrap: wrap; gap: .4rem; margin: 1.25rem 0 0; }
+  nav a { color: var(--fg); text-decoration: none; font-size: .85rem; border: 1px solid var(--rule); border-radius: 999px; padding: .25rem .7rem; }
+  nav a:hover { border-color: var(--muted); }
+  .card { background: var(--card); border: 1px solid var(--rule); border-radius: 10px; padding: 1rem 1.15rem; }
+  .stats { display: flex; flex-wrap: wrap; gap: .5rem 1.5rem; margin: 0 0 .75rem; font-size: .9rem; }
+  .stats b { font-variant-numeric: tabular-nums; }
+  .stats .ok { color: var(--go-green); }
+  .stats .bad { color: #ff7a6e; }
+  .layers { display: flex; flex-wrap: wrap; gap: .35rem .9rem; margin: 0 0 .75rem; font-size: .85rem; color: var(--muted); }
+  .layers label { display: inline-flex; gap: .35rem; align-items: center; cursor: pointer; }
+  .map-wrap { position: relative; }
+  svg { display: block; width: 100%; height: auto; }
+  #map { background: var(--grass); border-radius: 8px; }
+  #map text { font-family: Inter, sans-serif; }
+  .corner-label { font-size: 7px; font-weight: 600; fill: #fff; paint-order: stroke; stroke: rgba(0,0,0,.55); stroke-width: 1.6px; }
+  .pin circle { fill: var(--poster-red); stroke: #fff; stroke-width: .9; }
+  .pin text { font-size: 5.6px; font-weight: 600; fill: #fff; text-anchor: middle; dominant-baseline: central; }
+  .pin { cursor: pointer; }
+  .pin.hot circle { fill: var(--gold-lit); }
+  .pin.hot text { fill: #111; }
+  #map g[data-id].hot { filter: drop-shadow(0 0 1.5px #fff) drop-shadow(0 0 1.5px #fff); }
+  .leader { stroke: #fff; stroke-width: .5; stroke-dasharray: 1.2 1; opacity: .8; }
+  .tip { position: absolute; pointer-events: none; background: #0d0e10; border: 1px solid var(--rule); border-radius: 6px; padding: .4rem .6rem; font-size: .8rem; max-width: 260px; opacity: 0; transition: opacity .1s; }
+  .tip.show { opacity: 1; }
+  .legend { display: flex; flex-wrap: wrap; gap: .5rem 1.1rem; margin-top: .75rem; font-size: .82rem; color: var(--muted); }
+  .legend span { display: inline-flex; align-items: center; gap: .4rem; }
+  .sw { display: inline-block; width: 14px; height: 14px; border-radius: 3px; }
+  .grid2 { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr)); align-items: start; }
+  .table-wrap { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; font-size: .88rem; }
+  th, td { text-align: left; padding: .45rem .6rem; border-bottom: 1px solid var(--rule); vertical-align: top; }
+  th { color: var(--muted); font-weight: 600; white-space: nowrap; }
+  td.num { white-space: nowrap; font-variant-numeric: tabular-nums; }
+  tbody tr.hot { background: #2a2614; }
+  tbody tr[data-id] { cursor: pointer; }
+  .idx { display: inline-grid; place-items: center; width: 1.5rem; height: 1.5rem; border-radius: 50%; background: var(--poster-red); color: #fff; font-weight: 600; font-size: .78rem; }
+  code { font: .85em ui-monospace, SFMono-Regular, Menlo, monospace; background: var(--code-bg); padding: .05rem .3rem; border-radius: 3px; }
+  pre { background: var(--code-bg); border-radius: 8px; padding: .9rem 1rem; overflow-x: auto; font: .8rem/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; margin: .5rem 0 0; }
+  pre code { background: none; padding: 0; }
+  ol.questions > li { margin: .9rem 0; }
+  ol.questions ol { list-style: lower-alpha; }
+  .rec { color: var(--go-green); font-weight: 600; }
+  .muted { color: var(--muted); }
+  ul, ol { padding-left: 1.3rem; margin: .4rem 0; }
+  li { margin: .25rem 0; }
+  #ref { background: #23262b; border-radius: 8px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1>Another course, <span>Silverstone</span> cut</h1>
+  <p class="lede">A first draft of a new course after Silverstone, run clockwise as the real one is, from the grid on the Hamilton Straight: Abbey, Farm, Village, The Loop and Aintree, the Wellington Straight, Brooklands and Luffield, Woodcote and the National Straight, Copse, the Maggotts and Becketts esses, Chapel, the Hangar Straight, Stowe, Vale and Club. Corner angles are measured from the real circuit and the lap was fitted to its outline at 0.22 scale, with radii opened to kart size. Where the <a href="monaco-course.html" style="color:inherit">Monaco draft</a> is slow and walled in, this one is flat, open and fast, with the standard 6 m run-off. The map is laid live in this page from the same turtle steps as <code>trackgen/layouts</code>, so editing <code>SPEC</code> or <code>PLACEMENTS</code> in the source redraws it.</p>
+  <nav>
+    <a href="#map-section">Map</a>
+    <a href="#placements">Placements</a>
+    <a href="#layout">Layout draft</a>
+    <a href="#risks">Engineering notes</a>
+    <a href="#questions">Open questions</a>
+  </nav>
+</header>
+
+<h2 id="map-section">Map</h2>
+<div class="card">
+  <div class="stats" id="stats"></div>
+  <div class="layers" id="layers">
+    <label><input type="checkbox" data-layer="obstacles" checked /> Obstacles</label>
+    <label><input type="checkbox" data-layer="pins" checked /> Numbered pins</label>
+    <label><input type="checkbox" data-layer="labels" checked /> Corner names</label>
+    <label><input type="checkbox" data-layer="checkpoints" /> Checkpoints</label>
+    <label><input type="checkbox" data-layer="centreline" /> Centreline and direction</label>
+    <label><input type="checkbox" data-layer="decor" checked /> Grandstands, hoardings and pits</label>
+  </div>
+  <div class="map-wrap">
+    <svg id="map" role="img" aria-label="Top-down map of the Silverstone-style course with obstacles"></svg>
+    <div class="tip" id="tip"></div>
+  </div>
+  <div class="legend">
+    <span><i class="sw" style="background:var(--asphalt)"></i>Asphalt, 12 m</span>
+    <span><i class="sw" style="background:var(--sand)"></i>Run-off, 6 m each side</span>
+    <span><i class="sw" style="background:var(--wall)"></i>Wall</span>
+    <span><i class="sw" style="background:var(--gold)"></i>Item boxes</span>
+    <span><i class="sw" style="background:var(--boost)"></i>Boost pad</span>
+    <span><i class="sw" style="background:var(--tyre);border:2px solid #ddd"></i>Tyre wall</span>
+    <span><i class="sw" style="background:#1d1d1d;border:2px solid #7fd17f"></i>Tyre pickup</span>
+    <span><i class="sw" style="background:repeating-linear-gradient(90deg,#c81d25 0 4px,#fff 4px 8px)"></i>Sausage kerb</span>
+    <span><i class="sw" style="background:repeating-linear-gradient(45deg,#f5c542 0 4px,#111 4px 8px)"></i>Runaway wheel hazard zone</span>
+    <span><i class="sw" style="background:#cfd3d8"></i>Pits</span>
+  </div>
+</div>
+
+<div class="grid2" style="margin-top:1rem">
+  <div class="card">
+    <h3 style="margin-top:0">Reference: the real circuit</h3>
+    <svg id="ref" role="img" aria-label="Outline of the real Silverstone circuit"></svg>
+    <p class="muted" style="font-size:.82rem">5891 m, north up, from the public <code>bacinger/f1-circuits</code> GeoJSON (<code>gb-1948</code>); the red dot is the start line on the Hamilton Straight. The draft keeps every corner's direction and roughly its angle. At 1323 m the straights keep their order of length (Hangar, then Wellington, then National) but are shorter against the corners, because the esses cannot shrink below kart radii.</p>
+  </div>
+  <div class="card">
+    <h3 style="margin-top:0">How the draft was made</h3>
+    <ol>
+      <li>Split the real outline into 27 pieces at its corners and measured each one's heading change: Copse turns about 66 degrees right, Becketts 95 right, Luffield 193 right, The Loop 134 left; the whole lap nets 360 right.</li>
+      <li>Fitted turtle steps to the outline scaled to 0.22 by annealing their lengths, holding each corner's angle, so the lap closes, the grid straight is at least 45 m, and every pair of legs keeps 32 m between centrelines (8 m of grass between walls with 6 m run-off), as on Suzuqa Patch.</li>
+      <li>Rounded to whole metres and degrees and re-solved the Hangar Straight (175.74 m) to close the lap.</li>
+      <li>Built the layout below through <code>trackgen.layout.build</code>: it closes at 1323.4 m with 12 item boxes, 2 boost pads, 5 kerbs, 11 tyres, 15 checkpoints and 8 grid slots. No elevation: the real circuit is an old airfield.</li>
+    </ol>
+  </div>
+</div>
+
+<h2 id="placements">Placements</h2>
+<div class="card table-wrap">
+  <table>
+    <thead><tr><th>#</th><th>What</th><th>Where</th><th>s (m)</th><th>Offset</th><th>Why this spot</th></tr></thead>
+    <tbody id="placement-rows"></tbody>
+  </table>
+  <p class="muted" style="font-size:.82rem;margin-top:.6rem">Offsets are metres left of the centreline, as in the layout. Hover a row to find it on the map.</p>
+</div>
+
+<h2 id="layout">Layout draft</h2>
+<div class="card">
+  <p>Drop-in shape for <code>assets/tracks/trackgen/layouts/silverstone.py</code>, in the style of <code>brands_patch.py</code>. It builds and closes as written; the map above draws from the same numbers. Woods and hangar props are left out until the scenery is settled (question 3).</p>
+<pre><code id="layout-code">"""Silverstone cut: a flat, fast, clockwise circuit of about 1323 m after Silverstone.
+
+The grid sits on the Hamilton Straight by the pits. The lap runs through
+Abbey and Farm to Village, The Loop and Aintree, down the Wellington Straight
+to Brooklands and the long right of Luffield, past Woodcote onto the National
+Straight, then Copse, the Maggotts and Becketts esses and Chapel, the Hangar
+Straight to Stowe, and Vale and Club back onto the grid. The ground is an old
+airfield, so there is no elevation; the lap is about speed and the esses.
+"""
+
+from ..layout import (
+    BoostPad,
+    Decor,
+    Grandstands,
+    Hoardings,
+    ItemRow,
+    Kerb,
+    Layout,
+    Prop,
+    Spot,
+    TyreLine,
+    TyreWall,
+    WheelCrossing,
+)
+from ..path import Turtle
+
+# Just in from the painted kerb on the inside of a corner.
+KERB_INSIDE_M = 4.9
+# Left of the centreline, where every tyre wall stands clear of the bots' line.
+TYRE_WALL_LEFT_M = 4.5
+
+path = (
+    Turtle(x=0.0, y=0.0, heading_deg=52.5)
+    .straight("start", 29.0)
+    .arc("abbey", 25.0, -57.0)
+    .straight("abbey-exit", 13.0)
+    .arc("farm", 33.0, 39.0)
+    .straight("village-approach", 31.0)
+    .arc("village", 15.0, -103.0)
+    .arc("the-loop", 12.0, 134.0)
+    .arc("aintree", 39.0, 64.0)
+    .straight("wellington", 145.0)
+    .arc("brooklands", 17.0, 113.0)
+    .straight("brooklands-exit", 10.0)
+    .arc("luffield", 18.0, -193.0)
+    .straight("woodcote-approach", 18.0)
+    .arc("woodcote", 47.0, -54.0)
+    .straight("national", 82.0)
+    .arc("copse", 22.0, -66.0)
+    .straight("copse-exit", 80.0)
+    .arc("maggotts", 47.0, 22.0)
+    .arc("becketts-right", 27.0, -46.0)
+    .arc("becketts-left", 20.0, 56.0)
+    .arc("becketts", 24.0, -95.0)
+    .arc("chapel", 39.0, 31.0)
+    .straight("hangar", 175.74)
+    .arc("stowe", 37.0, -125.0)
+    .straight("vale-approach", 102.0)
+    .arc("vale", 15.0, 72.0)
+    .arc("club", 20.0, -152.0)
+    .close("grid")
+)
+
+seg = path.segment
+
+LAYOUT = Layout(
+    name="silverstone",
+    path=path,
+    asphalt_half_width=6.0,
+    runoff_width=6.0,
+    checkpoint_count=15,
+    tyre_walls=[
+        # Outside the right-handers: their inside is on the bots' line.
+        TyreWall(seg("luffield").s_mid - 10.0, offset=TYRE_WALL_LEFT_M),
+        TyreWall(seg("luffield").s_mid + 10.0, offset=TYRE_WALL_LEFT_M),
+        TyreWall(seg("stowe").s_mid, offset=TYRE_WALL_LEFT_M),
+    ],
+    item_rows=[
+        ItemRow(seg("wellington").s_mid),
+        ItemRow(seg("national").s_mid),
+        ItemRow(seg("copse-exit").s_mid),
+    ],
+    boost_pads=[
+        BoostPad(seg("abbey-exit").s_mid, offset=3.0),
+        BoostPad(seg("hangar").s_start + 40.0),
+    ],
+    # Five on the centreline off the grid; six off it, wide on the Wellington
+    # and Hangar Straights.
+    tyre_lines=[
+        TyreLine(seg("start").s_start + 10.0, count=5),
+        TyreLine(seg("wellington").s_start + 12.0, count=3, offset=4.0),
+        TyreLine(seg("hangar").s_mid + 30.0, count=3, offset=-4.0),
+    ],
+    kerbs=[
+        Kerb(seg("the-loop").s_mid, offset=KERB_INSIDE_M),
+        Kerb(seg("becketts-right").s_mid, offset=-KERB_INSIDE_M),
+        Kerb(seg("becketts-left").s_mid, offset=KERB_INSIDE_M),
+        Kerb(seg("becketts").s_mid, offset=-KERB_INSIDE_M),
+        Kerb(seg("vale").s_mid, offset=KERB_INSIDE_M),
+    ],
+    # Vale turns left, so the approach's outside is the right.
+    wheel_crossings=[WheelCrossing(seg("vale-approach").s_mid, outside=-1)],
+    elevation=[],
+    decor=Decor(
+        hoardings=[
+            Hoardings(("luffield",), side=1),
+            Hoardings(("copse",), side=1),
+            Hoardings(("becketts",), side=1),
+            Hoardings(("stowe",), side=1),
+        ],
+        grandstands=[
+            Grandstands(("grid", "start"), side=1),
+            Grandstands(("luffield",), side=-1),
+            Grandstands(("copse-exit",), side=-1),
+            Grandstands(("vale-approach",), side=1),
+        ],
+        gantry=True,
+        props=[
+            Prop("pits", Spot(s=0.0, offset=-26.0), length=70.0),
+        ],
+    ),
+)</code></pre>
+</div>
+
+<h2 id="risks">Engineering notes</h2>
+<div class="card">
+  <ul>
+    <li><b>Choosing the course is its own change.</b> As in the Monaco draft: <code>Countdown</code> already carries <code>track: String</code>, but the creator's pick needs a field on <code>Room</code>, a creator-only message, the Room Scene's picker and an ADR. One issue covers both new courses.</li>
+    <li><b>Nothing new to build.</b> Every piece here exists on Suzuqa Patch: 6 m run-off, tyre walls, kerbs, the wheel crossing, grandstands, hoardings, the gantry and the pits prop. No elevation, no bridge, no new scenery kind. Of the two drafts this is the cheaper one to land first.</li>
+    <li><b>Fast corners need checking at kart speed.</b> Copse, Abbey, Maggotts and Chapel are 22 to 47 m: flat out in a kart, as they are in the real car. The esses only work if a kart has to lift for Becketts (24 m, 95 degrees). A centreline follower in <code>crates/sim/tests/laps.rs</code> should show a lift there and none through Maggotts; if Becketts is flat too, tighten it to 20 m.</li>
+    <li><b>The Loop is the slowest corner.</b> 12 m and 134 degrees straight after Village (15 m, 103 degrees right): a right-left at the tightest radius on any course. Check that bots get through without stalling on the kerb.</li>
+    <li><b>Spline progress is safe.</b> The course does not cross itself, and the closest legs are 32 m apart, so the windowed search of ADR 0046 has nothing to confuse.</li>
+    <li><b>Lap length.</b> 1323 m, within 20 m of Suzuqa Patch and the Monaco draft, so three laps (ADR 0054) take about as long as a race there; faster corners make it a few seconds quicker.</li>
+    <li><b>Tests and fixtures.</b> A new track adds a sidecar and glTF under <code>assets/tracks/silverstone/</code> from <code>pnpm export:tracks</code>, a case in the layout tests, and probably a replay fixture for the determinism gate.</li>
+  </ul>
+</div>
+
+<h2 id="questions">Open questions</h2>
+<div class="card">
+  <ol class="questions">
+    <li>The name in the game?
+      <ol>
+        <li><span class="rec">(Recommended)</span> A pun in the Brands Patch vein, picked in the PR.</li>
+        <li>Plain Silverstone.</li>
+      </ol>
+    </li>
+    <li>Elevation?
+      <ol>
+        <li><span class="rec">(Recommended)</span> None, as drafted: flat is true to the airfield, and it sets the course apart from Monaco's climb and the Suzuqa bridge.</li>
+        <li>A gentle 3 m rise along the Hangar Straight to Stowe, for something to see over.</li>
+      </ol>
+    </li>
+    <li>Which scenery, beyond grandstands, hoardings and the pits?
+      <ol>
+        <li><span class="rec">(Recommended)</span> A row of airfield hangars outside the Hangar Straight, and the pits drawn long and white as a nod to the Wing.</li>
+        <li>Grandstands, hoardings and the pits only for the first cut.</li>
+      </ol>
+    </li>
+    <li>A jump?
+      <ol>
+        <li><span class="rec">(Recommended)</span> None: the course's character is speed through the esses, and a ramp on a flat airfield has nothing to explain it.</li>
+        <li>A ramp on the Wellington Straight, landing before Brooklands.</li>
+      </ol>
+    </li>
+    <li>Which new course lands first?
+      <ol>
+        <li><span class="rec">(Recommended)</span> Silverstone: it uses only pieces that exist, so it proves the course picker without new tuning.</li>
+        <li>Monaco first, accepting the 2 m run-off and tunnel work up front.</li>
+      </ol>
+    </li>
+  </ol>
+</div>
+
+</div>
+
+<script>
+// Turtle steps, as in trackgen/path.py: straights are [ "s", name, length ],
+// arcs are [ "a", name, radius, degrees ] with positive degrees turning left.
+// The closing straight back to the line is added by close(), as there.
+const H0 = 52.5;
+const SPEC = [
+  ["s", "start", 29],
+  ["a", "abbey", 25, -57],
+  ["s", "abbey-exit", 13],
+  ["a", "farm", 33, 39],
+  ["s", "village-approach", 31],
+  ["a", "village", 15, -103],
+  ["a", "the-loop", 12, 134],
+  ["a", "aintree", 39, 64],
+  ["s", "wellington", 145],
+  ["a", "brooklands", 17, 113],
+  ["s", "brooklands-exit", 10],
+  ["a", "luffield", 18, -193],
+  ["s", "woodcote-approach", 18],
+  ["a", "woodcote", 47, -54],
+  ["s", "national", 82],
+  ["a", "copse", 22, -66],
+  ["s", "copse-exit", 80],
+  ["a", "maggotts", 47, 22],
+  ["a", "becketts-right", 27, -46],
+  ["a", "becketts-left", 20, 56],
+  ["a", "becketts", 24, -95],
+  ["a", "chapel", 39, 31],
+  ["s", "hangar", 175.74],
+  ["a", "stowe", 37, -125],
+  ["s", "vale-approach", 102],
+  ["a", "vale", 15, 72],
+  ["a", "club", 20, -152],
+];
+
+const ASPHALT_HALF = 6, RUNOFF = 6, EDGE = ASPHALT_HALF + RUNOFF;
+const CHECKPOINTS = 15;
+// 8 m of grass between walls.
+const MIN_CLEARANCE = 2 * EDGE + 8;
+const ITEM_OFFSETS = [-4.5, -1.5, 1.5, 4.5];
+const PITS = { s: 0, off: -26, length: 70 };
+
+// Each placement: where it hangs (a segment and a rule for s), what it is,
+// and why it is there. `pin` is the numbered pin's offset from the centreline,
+// `pinS` moves it along the lap where pins would crowd.
+const PLACEMENTS = [
+  { kind: "start", seg: "start", at: () => 0, off: 0, pin: 26, pinS: -20, title: "Start line, grid and gantry",
+    why: "The grid sits on the Hamilton Straight between Club and Abbey, beside the pits, where the real grid has been since 2011." },
+  { kind: "tyreline", seg: "start", at: (g) => g.start + 10, off: 0, count: 5, pin: 22, pinS: 24, title: "Tyre line off the grid",
+    why: "Five on the centreline from the line toward Abbey, so the leader takes a set on lap one and the pack has to choose between the tyres and the inside for Abbey." },
+  { kind: "boost", seg: "abbey-exit", at: (g) => g.mid, off: 3, pin: 22, title: "Boost pad between Abbey and Farm, inside",
+    why: "Three metres left of centre, on the inside for Farm. Taking it means a tight exit from Abbey; skipping it means a wider, faster arc. A choice, not a gift." },
+  { kind: "kerb", seg: "the-loop", at: (g) => g.mid, off: 4.9, pin: -22, title: "Sausage kerb inside The Loop",
+    why: "The slowest corner on the lap. The inside of the left-hander is the shortcut, and the kerb makes it a gamble." },
+  { kind: "tyreline", seg: "wellington", at: (g) => g.start + 12, off: 4, count: 3, pin: -22, pinS: 270, title: "Tyre line wide on the Wellington Straight",
+    why: "Three on the left out of Aintree, off the racing line." },
+  { kind: "items", seg: "wellington", at: (g) => g.mid, off: 0, pin: -22, title: "Item row A",
+    why: "The second longest straight, after the slow Loop has bunched the pack, so a row four wide reaches most of it and there is room to fire before Brooklands." },
+  { kind: "tyres", seg: "luffield", at: (g) => g.mid - 10, off: 4.5, pin: null, title: "Tyre wall outside Luffield (entry)",
+    why: "Luffield is one long right, the place to pass on the inside. Two stacks on the outside punish the kart that runs wide defending." },
+  { kind: "tyres", seg: "luffield", at: (g) => g.mid + 10, off: 4.5, pin: 22, title: "Tyre walls outside Luffield",
+    why: "Luffield is one long right, the place to pass on the inside. Two stacks on the outside punish the kart that runs wide defending." },
+  { kind: "items", seg: "national", at: (g) => g.mid, off: 0, pin: -22, title: "Item row B",
+    why: "Out of Woodcote, before Copse: refills ahead of the esses, where a shell has the most corners to cause trouble in." },
+  { kind: "items", seg: "copse-exit", at: (g) => g.mid, off: 0, pin: -22, title: "Item row C",
+    why: "Between Copse and Maggotts, so the karts that missed row B are armed for the esses and the Hangar Straight." },
+  { kind: "kerb", seg: "becketts-right", at: (g) => g.mid, off: -4.9, pin: null, title: "Sausage kerbs through Becketts",
+    why: "The esses are about rhythm. A kerb on each apex stops a kart straight-lining them." },
+  { kind: "kerb", seg: "becketts-left", at: (g) => g.mid, off: 4.9, pin: null, title: "Sausage kerbs through Becketts",
+    why: "The esses are about rhythm. A kerb on each apex stops a kart straight-lining them." },
+  { kind: "kerb", seg: "becketts", at: (g) => g.mid, off: -4.9, pin: 22, title: "Sausage kerbs through Becketts",
+    why: "The esses are about rhythm. A kerb on each apex stops a kart straight-lining them." },
+  { kind: "boost", seg: "hangar", at: (g) => g.start + 40, off: 0, pin: 22, title: "Boost pad on the Hangar Straight",
+    why: "On the line out of Chapel: pays back a clean run through the esses and sends karts into Stowe at the highest speed on the lap." },
+  { kind: "tyreline", seg: "hangar", at: (g) => g.mid + 30, off: -4, count: 3, pin: 22, title: "Tyre line wide on the Hangar Straight",
+    why: "Three on the right, past the boost pad, for a kart that pulls out of a slipstream." },
+  { kind: "tyres", seg: "stowe", at: (g) => g.mid, off: 4.5, pin: 22, title: "Tyre wall outside Stowe",
+    why: "The braking zone at the end of the fastest straight. Left of centre is outside the right-hander, clear of the bots' line." },
+  { kind: "wheel", seg: "vale-approach", at: (g) => g.mid, off: 0, outside: -1, pin: 22, title: "Runaway wheel crossing",
+    why: "Between Stowe and Vale, in the braking zone for the slowest pair of corners before the line. The marshal's flags show from Stowe's exit, the same role as the wheel before the Suzuqa hairpin." },
+  { kind: "kerb", seg: "vale", at: (g) => g.mid, off: 4.9, pin: 22, title: "Sausage kerb inside Vale",
+    why: "Vale's inside is the last shortcut before the line; the kerb keeps a lunge there honest." },
+];
+
+// Scenery only; never collided with.
+const DECOR = {
+  hoardings: [[["luffield"], 1], [["copse"], 1], [["becketts"], 1], [["stowe"], 1]],
+  grandstands: [[["grid", "start"], 1], [["luffield"], -1], [["copse-exit"], -1], [["vale-approach"], 1]],
+};
+
+const LABELS = [
+  ["abbey", "Abbey"], ["farm", "Farm"], ["village", "Village"], ["the-loop", "The Loop", 0.5, -30], ["aintree", "Aintree", 0.6, 22],
+  ["wellington", "Wellington Straight"], ["brooklands", "Brooklands"], ["luffield", "Luffield"], ["woodcote", "Woodcote"],
+  ["national", "National Straight"], ["copse", "Copse"], ["maggotts", "Maggotts"], ["becketts", "Becketts", 0.5, -30], ["chapel", "Chapel"],
+  ["hangar", "Hangar Straight"], ["stowe", "Stowe", 0.5, -30], ["vale", "Vale"], ["club", "Club"],
+  ["start", "Start", 0.4, -22],
+];
+
+const REAL_SILVERSTONE = "0,0,187,16,220,14,245,6,262,-5,282,-28,294,-54,304,-88,319,-144,333,-199,342,-260,345,-298,350,-391,352,-470,356,-501,367,-530,390,-570,399,-593,398,-611,394,-631,363,-715,361,-748,366,-772,377,-793,408,-836,416,-856,416,-880,411,-902,392,-925,368,-942,334,-962,309,-977,290,-995,269,-1030,228,-1108,1,-1526,-74,-1642,-95,-1670,-112,-1685,-132,-1695,-152,-1701,-171,-1699,-192,-1694,-210,-1686,-226,-1674,-239,-1654,-243,-1646,-264,-1602,-286,-1563,-310,-1530,-327,-1510,-346,-1490,-379,-1456,-452,-1368,-459,-1364,-469,-1363,-479,-1368,-510,-1395,-521,-1399,-531,-1398,-540,-1394,-553,-1382,-566,-1368,-583,-1346,-595,-1323,-603,-1299,-611,-1271,-611,-1260,-609,-1249,-603,-1239,-589,-1216,-365,-924,-315,-860,-304,-847,-286,-835,-264,-830,-247,-830,-222,-832,-153,-842,-130,-845,-107,-846,-80,-842,-56,-836,-34,-824,109,-710,118,-704,129,-698,141,-697,150,-700,158,-708,163,-716,187,-801,194,-813,204,-821,216,-821,229,-815,237,-805,243,-794,253,-766,261,-742,267,-719,270,-697,272,-673,270,-649,266,-638,253,-623,-209,-202,-222,-194,-239,-185,-260,-182,-283,-184,-305,-195,-313,-205,-319,-220,-328,-296,-334,-312,-345,-325,-362,-333,-381,-336,-401,-330,-416,-321,-425,-309,-432,-295,-433,-281,-430,-265,-419,-239,-359,-121,-340,-99,-322,-80,-295,-57,-273,-41,-245,-30,-222,-22,-171,-16";
+const REAL_START = [-456, -1042];
+
+const NS = "http://www.w3.org/2000/svg";
+const rad = (d) => (d * Math.PI) / 180;
+
+// Mirrors Turtle: samples about every metre, each primitive excluding its own
+// start point; close() appends the straight back to the line and drops the
+// duplicate start sample.
+function lay() {
+  let x = 0, y = 0, h = rad(H0), s = 0;
+  const pts = [{ x, y, h, s }];
+  const segs = [];
+  const straight = (name, len) => {
+    const n = Math.max(1, Math.round(len)), step = len / n, s0 = s;
+    for (let i = 0; i < n; i++) { x += step * Math.cos(h); y += step * Math.sin(h); s += step; pts.push({ x, y, h, s }); }
+    segs.push({ name, start: s0, end: s, turn: 0 });
+  };
+  const arc = (name, r, deg) => {
+    const t = deg > 0 ? 1 : -1, len = r * rad(Math.abs(deg));
+    const n = Math.max(1, Math.round(len)), da = rad(deg) / n, s0 = s;
+    const cx = x - t * r * Math.sin(h), cy = y + t * r * Math.cos(h);
+    for (let i = 0; i < n; i++) { h += da; x = cx + t * r * Math.sin(h); y = cy - t * r * Math.cos(h); s += len / n; pts.push({ x, y, h, s }); }
+    segs.push({ name, start: s0, end: s, turn: t, r });
+  };
+  for (const [k, name, a, b] of SPEC) (k === "s" ? straight(name, a) : arc(name, a, b));
+  const dx = -x, dy = -y;
+  const along = dx * Math.cos(h) + dy * Math.sin(h);
+  const across = -dx * Math.sin(h) + dy * Math.cos(h);
+  const turned = ((h - rad(H0) + Math.PI) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI) - Math.PI;
+  if (along > 0) straight("grid", along);
+  pts.pop();
+  for (const g of segs) g.mid = (g.start + g.end) / 2;
+  return { pts, segs, length: s, across, turned: (turned * 180) / Math.PI, along };
+}
+
+const T = lay();
+const seg = (name) => T.segs.find((g) => g.name === name);
+function at(s) {
+  s = ((s % T.length) + T.length) % T.length;
+  let i = Math.min(T.pts.length - 1, Math.floor((s / T.length) * T.pts.length));
+  while (i > 0 && T.pts[i].s > s) i--;
+  while (i < T.pts.length - 1 && T.pts[i + 1].s <= s) i++;
+  const a = T.pts[i], b = T.pts[(i + 1) % T.pts.length];
+  const bs = i + 1 < T.pts.length ? b.s : T.length;
+  const f = bs > a.s ? (s - a.s) / (bs - a.s) : 0;
+  return { x: a.x + (b.x - a.x) * f, y: a.y + (b.y - a.y) * f, h: b.h };
+}
+// Screen point `off` metres left of the centreline at `s`; screen y is -y.
+function P(s, off = 0) {
+  const p = at(s);
+  return [p.x - off * Math.sin(p.h), -(p.y + off * Math.cos(p.h)), (-p.h * 180) / Math.PI];
+}
+const segAt = (s) => (T.segs.find((g) => s >= g.start && s <= g.end) || { name: "grid" }).name;
+
+function el(tag, attrs, parent) {
+  const e = document.createElementNS(NS, tag);
+  for (const k in attrs) e.setAttribute(k, attrs[k]);
+  if (parent) parent.appendChild(e);
+  return e;
+}
+const pathOf = (from, to, off = 0, step = 1, close = false) => {
+  const out = [];
+  for (let s = from; s <= to + 1e-6; s += step) out.push(P(s, off));
+  return "M" + out.map((p) => p[0].toFixed(2) + " " + p[1].toFixed(2)).join("L") + (close ? "Z" : "");
+};
+
+function drawMap() {
+  const svg = document.getElementById("map");
+  const xs = T.pts.map((p) => p.x), ys = T.pts.map((p) => -p.y);
+  const M = 34;
+  const minX = Math.min(...xs) - M, minY = Math.min(...ys) - M;
+  const w = Math.max(...xs) - Math.min(...xs) + 2 * M, hgt = Math.max(...ys) - Math.min(...ys) + 2 * M;
+  svg.setAttribute("viewBox", `${minX} ${minY} ${w} ${hgt}`);
+
+  const defs = el("defs", {}, svg);
+  const hz = el("pattern", { id: "hazard", width: 3, height: 3, patternUnits: "userSpaceOnUse", patternTransform: "rotate(45)" }, defs);
+  el("rect", { width: 1.5, height: 3, fill: "#f5c542" }, hz);
+  el("rect", { x: 1.5, width: 1.5, height: 3, fill: "#111" }, hz);
+  const kp = el("pattern", { id: "kerb", width: 2, height: 2, patternUnits: "userSpaceOnUse" }, defs);
+  el("rect", { width: 1, height: 2, fill: "#c81d25" }, kp);
+  el("rect", { x: 1, width: 1, height: 2, fill: "#fff" }, kp);
+  const ck = el("pattern", { id: "check", width: 2, height: 2, patternUnits: "userSpaceOnUse" }, defs);
+  el("rect", { width: 2, height: 2, fill: "#fff" }, ck);
+  el("rect", { width: 1, height: 1, fill: "#111" }, ck);
+  el("rect", { x: 1, y: 1, width: 1, height: 1, fill: "#111" }, ck);
+
+  const L = T.length;
+  const ground = el("g", {}, svg);
+  const loop = pathOf(0, L - 1, 0, 1, true);
+  el("path", { d: loop, fill: "none", stroke: "var(--sand)", "stroke-width": 2 * EDGE, "stroke-linejoin": "round" }, ground);
+  el("path", { d: loop, fill: "none", stroke: "var(--asphalt)", "stroke-width": 2 * ASPHALT_HALF, "stroke-linejoin": "round" }, ground);
+  for (const side of [1, -1]) el("path", { d: pathOf(0, L - 1, side * EDGE, 1, true), fill: "none", stroke: "var(--wall)", "stroke-width": 0.8 }, ground);
+
+  const decor = el("g", { "data-layer": "decor" }, svg);
+  for (const [names, side] of DECOR.grandstands)
+    for (const n of names) { const g = seg(n); el("path", { d: pathOf(g.start + 2, g.end - 2, side * (EDGE + 7)), fill: "none", stroke: "#9aa0a8", "stroke-width": 6 }, decor); }
+  for (const [names, side] of DECOR.hoardings)
+    for (const n of names) { const g = seg(n); el("path", { d: pathOf(g.start + 1, g.end - 1, side * (EDGE + 2)), fill: "none", stroke: "#c81d25", "stroke-width": 1.2, "stroke-dasharray": "5 1.5" }, decor); }
+  { const [x1, y1] = P(0, EDGE + 1), [x2, y2] = P(0, -EDGE - 1); el("line", { x1, y1, x2, y2, stroke: "#2b2e33", "stroke-width": 2.2 }, decor); }
+  // The pits on the infield beside the grid, centred on the line.
+  el("path", { d: pathOf(PITS.s - PITS.length / 2, PITS.s + PITS.length / 2, PITS.off), fill: "none", stroke: "#cfd3d8", "stroke-width": 10 }, decor);
+
+  const cps = el("g", { "data-layer": "checkpoints", style: "display:none" }, svg);
+  for (let i = 0; i < CHECKPOINTS; i++) {
+    const s = (i * L) / CHECKPOINTS, [x1, y1] = P(s, EDGE), [x2, y2] = P(s, -EDGE);
+    el("line", { x1, y1, x2, y2, stroke: "#7fc3ff", "stroke-width": 0.7, "stroke-dasharray": "1.5 1" }, cps);
+    const [tx, ty] = P(s, EDGE + 5);
+    el("text", { x: tx, y: ty, "font-size": 4.5, fill: "#7fc3ff", "text-anchor": "middle", "dominant-baseline": "central" }, cps).textContent = i;
+  }
+
+  const cl = el("g", { "data-layer": "centreline", style: "display:none" }, svg);
+  el("path", { d: loop, fill: "none", stroke: "#fff", "stroke-width": 0.4, "stroke-dasharray": "2 2" }, cl);
+  for (let s = 20; s < L; s += 60) {
+    const [x, y, a] = P(s);
+    el("path", { d: "M-2.5 -2.2 L2.5 0 L-2.5 2.2 Z", fill: "#fff", transform: `translate(${x} ${y}) rotate(${a})` }, cl);
+  }
+
+  const obs = el("g", { "data-layer": "obstacles" }, svg);
+  const pins = el("g", { "data-layer": "pins" }, svg);
+  const tip = document.getElementById("tip");
+  let number = 0;
+  PLACEMENTS.forEach((p, i) => {
+    const g = seg(p.seg);
+    p.s = p.at(g);
+    p.id = "p" + i;
+    const [x, y, a] = P(p.s, p.off);
+    const tf = `translate(${x} ${y}) rotate(${a})`;
+    const grp = el("g", { "data-id": p.id }, obs);
+    if (p.kind === "items") {
+      for (const o of ITEM_OFFSETS) { const [ix, iy, ia] = P(p.s, o); el("rect", { x: -1.2, y: -1.2, width: 2.4, height: 2.4, rx: 0.3, fill: "var(--gold)", stroke: "#f8e39a", "stroke-width": 0.4, transform: `translate(${ix} ${iy}) rotate(${ia + 45})` }, grp); }
+    } else if (p.kind === "boost") {
+      for (const d of [-2.4, 0, 2.4]) el("path", { d: `M${d - 1.4} -3 L${d + 1.2} 0 L${d - 1.4} 3 L${d - 0.4} 3 L${d + 2.2} 0 L${d - 0.4} -3 Z`, fill: "var(--boost)", transform: tf }, grp);
+    } else if (p.kind === "tyres") {
+      el("circle", { cx: x, cy: y, r: 1.5, fill: "var(--tyre)", stroke: "#ddd", "stroke-width": 0.5 }, grp);
+    } else if (p.kind === "tyreline") {
+      for (let k = 0; k < p.count; k++) { const [tx, ty] = P(p.s + k * 6, p.off); el("circle", { cx: tx, cy: ty, r: 0.9, fill: "#1d1d1d", stroke: "#7fd17f", "stroke-width": 0.45 }, grp); }
+    } else if (p.kind === "kerb") {
+      el("rect", { x: -4, y: -0.7, width: 8, height: 1.4, rx: 0.7, fill: "url(#kerb)", stroke: "#111", "stroke-width": 0.2, transform: tf }, grp);
+    } else if (p.kind === "wheel") {
+      el("rect", { x: -6, y: -EDGE, width: 12, height: 2 * EDGE, fill: "url(#hazard)", opacity: 0.85, transform: tf }, grp);
+      const [mx, my] = P(p.s, p.outside * (EDGE + 3));
+      el("rect", { x: mx - 1.6, y: my - 1.6, width: 3.2, height: 3.2, fill: "#ff8800", stroke: "#fff", "stroke-width": 0.4 }, grp);
+    } else if (p.kind === "start") {
+      el("rect", { x: -1, y: -ASPHALT_HALF, width: 2, height: 2 * ASPHALT_HALF, fill: "url(#check)", transform: tf }, grp);
+      for (let k = 0; k < 8; k++) {
+        const behind = 4 + 5 * Math.floor(k / 2) + (k % 2 ? 2 : 0), side = k % 2 ? -2 : 2;
+        const [gx, gy, ga] = P(-behind, side);
+        el("rect", { x: -1.6, y: -0.8, width: 3.2, height: 1.6, fill: "none", stroke: "#fff", "stroke-width": 0.35, transform: `translate(${gx} ${gy}) rotate(${ga})` }, grp);
+      }
+    }
+    if (p.pin != null) {
+      number += 1;
+      p.n = number;
+      const [px, py] = P(p.pinS ?? p.s, p.pin);
+      el("line", { x1: x, y1: y, x2: px, y2: py, class: "leader" }, pins);
+      const pin = el("g", { class: "pin", "data-id": p.id, transform: `translate(${px} ${py})` }, pins);
+      el("circle", { r: 4.2 }, pin);
+      el("text", {}, pin).textContent = number;
+      pin.addEventListener("mouseenter", (e) => { hot(p.id, true); showTip(p, e); });
+      pin.addEventListener("mousemove", (e) => showTip(p, e));
+      pin.addEventListener("mouseleave", () => { hot(p.id, false); tip.classList.remove("show"); });
+    } else {
+      p.n = number + 1; // shares the next pin's number
+    }
+  });
+  function showTip(p, e) {
+    const box = svg.parentElement.getBoundingClientRect();
+    tip.innerHTML = `<b>${p.n}. ${p.title}</b><br><span class="muted">${p.seg}, s ${p.s.toFixed(1)} m</span>`;
+    tip.style.left = Math.min(e.clientX - box.left + 12, box.width - 270) + "px";
+    tip.style.top = e.clientY - box.top + 12 + "px";
+    tip.classList.add("show");
+  }
+
+  const labels = el("g", { "data-layer": "labels" }, svg);
+  for (const [name, text, frac, fixedOff] of LABELS) {
+    const g = seg(name);
+    const s = g.start + (g.end - g.start) * (frac ?? 0.5);
+    const off = fixedOff ?? (g.turn ? -g.turn * (EDGE + 13) : EDGE + 13);
+    const [x, y] = P(s, off);
+    el("text", { x, y, class: "corner-label", "text-anchor": "middle", "dominant-baseline": "central" }, labels).textContent = text;
+  }
+}
+
+function hot(id, on) {
+  document.querySelectorAll(`[data-id="${id}"]`).forEach((n) => n.classList.toggle("hot", on));
+}
+
+function drawReference() {
+  const svg = document.getElementById("ref");
+  const n = REAL_SILVERSTONE.split(",").map(Number);
+  const pts = [];
+  for (let i = 0; i < n.length; i += 2) pts.push([n[i], -n[i + 1]]);
+  const xs = pts.map((p) => p[0]), ys = pts.map((p) => p[1]), M = 40;
+  svg.setAttribute("viewBox", `${Math.min(...xs) - M} ${Math.min(...ys) - M} ${Math.max(...xs) - Math.min(...xs) + 2 * M} ${Math.max(...ys) - Math.min(...ys) + 2 * M}`);
+  el("polygon", { points: pts.map((p) => p.join(",")).join(" "), fill: "none", stroke: "#6b6b78", "stroke-width": 14, "stroke-linejoin": "round" }, svg);
+  el("circle", { cx: REAL_START[0], cy: -REAL_START[1], r: 12, fill: "#c81d25" }, svg);
+}
+
+function stats() {
+  // Closest approach between parts of the lap more than 70 m apart along it.
+  const L = T.length, step = 2, samples = [];
+  for (let s = 0; s < L; s += step) { const p = at(s); samples.push([p.x, p.y, s, segAt(s)]); }
+  let worst = Infinity, pair = "";
+  for (let i = 0; i < samples.length; i++)
+    for (let j = i + 1; j < samples.length; j++) {
+      const a = samples[i], b = samples[j];
+      const ds = Math.min(Math.abs(a[2] - b[2]), L - Math.abs(a[2] - b[2]));
+      if (ds < 70) continue;
+      const d = Math.hypot(a[0] - b[0], a[1] - b[1]);
+      if (d < worst) { worst = d; pair = [a[3], b[3]].sort().join(" / "); }
+    }
+  const longest = T.segs.filter((g) => !g.r).reduce((a, g) => (g.end - g.start > a.end - a.start ? g : a));
+  const tightest = Math.min(...T.segs.filter((g) => g.r).map((g) => g.r));
+  const closes = Math.abs(T.across) < 0.01 && Math.abs(T.turned) < 1e-6 && T.along > 0;
+  const row = (label, value, ok) => `<span>${label}: <b class="${ok === undefined ? "" : ok ? "ok" : "bad"}">${value}</b></span>`;
+  document.getElementById("stats").innerHTML = [
+    row("Lap", L.toFixed(1) + " m (Suzuqa Patch 1306 m, Monaco draft 1301 m)"),
+    row("Closes", closes ? "yes" : `no: ${T.across.toFixed(3)} m across, ${T.turned.toFixed(2)} deg off`, closes),
+    row("Grid straight", T.along.toFixed(1) + " m", T.along >= 45),
+    row("Tightest gap between legs", `${worst.toFixed(1)} m, ${pair}`, worst >= MIN_CLEARANCE - 0.5),
+    row("Tightest radius", tightest + " m", tightest >= 12),
+    row("Longest straight", `${longest.name}, ${(longest.end - longest.start).toFixed(0)} m`),
+  ].join("");
+}
+
+function fillTable() {
+  const body = document.getElementById("placement-rows");
+  const fmt = (o) => (o === 0 ? "centre" : (o > 0 ? "+" : "") + o + " m");
+  const offText = (p) =>
+    p.kind === "wheel" ? `wall to wall, post on the ${p.outside > 0 ? "left" : "right"}`
+    : p.kind === "items" ? "4 boxes, -4.5 to +4.5"
+    : p.kind === "tyreline" ? `${p.count} tyres, ${fmt(p.off)}`
+    : fmt(p.off);
+  for (const p of PLACEMENTS) {
+    const tr = document.createElement("tr");
+    tr.dataset.id = p.id;
+    tr.innerHTML = `<td><span class="idx">${p.n}</span></td><td>${p.title}</td><td><code>${p.seg}</code></td><td class="num">${p.s.toFixed(1)}</td><td class="num">${offText(p)}</td><td>${p.why}</td>`;
+    tr.addEventListener("mouseenter", () => hot(p.id, true));
+    tr.addEventListener("mouseleave", () => hot(p.id, false));
+    body.appendChild(tr);
+  }
+}
+
+document.querySelectorAll("#layers input").forEach((box) =>
+  box.addEventListener("change", () => {
+    document.querySelectorAll(`#map [data-layer="${box.dataset.layer}"]`).forEach((g) => (g.style.display = box.checked ? "" : "none"));
+  }),
+);
+
+drawMap();
+drawReference();
+stats();
+fillTable();
+</script>
+</body>
+</html>
