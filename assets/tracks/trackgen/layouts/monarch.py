@@ -160,7 +160,7 @@ LAYOUT = Layout(
             # Outside Casino Square at the crest, a right-hander, so on the left.
             Prop("casino", Spot(seg("casino").s_mid, offset=CASINO_LEFT_M)),
             # Circling between the casino and the harbour mouth, over the basin and within
-            # about 30 m of the casino. 40 m up, since the road climbs to 8 m at the crest
+            # about 20 m of the casino. 40 m up, since the road climbs to 8 m at the crest
             # under it and the skids keep 30 m over every road.
             Prop("helicopter", World(170.0, 120.0), radius=100.0, height=40.0),
         ],

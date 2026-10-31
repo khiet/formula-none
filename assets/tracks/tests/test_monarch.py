@@ -439,6 +439,11 @@ class Helicopter(unittest.TestCase):
         cos, sin = math.cos(pivot.heading), math.sin(pivot.heading)
         return dx * cos + dy * sin, -dx * sin + dy * cos, v[2] - pivot.z
 
+    def frame_to_world(self, a: float, b: float, c: float):
+        """The world point `a` along the nose's heading, `b` left of it and `c` up from the nose."""
+        heading = self.body.pivot.heading
+        return (self.nose[0] + a * math.cos(heading) + b * self.left[0], self.nose[1] + a * math.sin(heading) + b * self.left[1], self.nose[2] + c)
+
     def test_it_circles_40_m_up_round_a_100_m_circle_turning_left_over_the_harbour_and_near_the_casino(self) -> None:
         self.assertEqual(self.prop.at, World(170.0, 120.0))
         self.assertEqual((self.prop.radius, self.prop.height), (100.0, 40.0))
@@ -524,11 +529,6 @@ class Helicopter(unittest.TestCase):
         self.assertAlmostEqual(road, 8.0, delta=0.1, msg="its circle reaches the crest")
         self.assertGreaterEqual(lowest - road, HELICOPTER_CLEARANCE_M)
         self.assertEqual(HELICOPTER_CLEARANCE_M, 30.0)
-
-    def frame_to_world(self, a: float, b: float, c: float):
-        """The world point `a` along the nose's heading, `b` left of it and `c` up from the nose."""
-        heading = self.body.pivot.heading
-        return (self.nose[0] + a * math.cos(heading) + b * self.left[0], self.nose[1] + a * math.sin(heading) + b * self.left[1], self.nose[2] + c)
 
     def test_it_is_wall_white_lit_over_beam_shade_with_a_kerb_red_stripe_and_fin_and_carbon_glass_skids_and_rotors(self) -> None:
         by_material = faces_by_material(self.body)

@@ -248,8 +248,9 @@ HELICOPTER_LENGTH_M = 12.9
 HELICOPTER_PANEL_PROUD_M = 0.03
 HELICOPTER_STRIPE = ((0.3, 6.0), (1.15, 1.6))
 """Back from the nose and up from the floor, on each flank."""
-HELICOPTER_WINDSCREEN = ((0.25, 1.5), (0.9, 2.5), (2.3, 3.05), (2.55, 1.55))
-"""The windscreen's flank, each side, wrapping round from the nose's glass."""
+HELICOPTER_WINDSCREEN = ((0.3, 1.6), (0.9, 2.5), (2.3, 3.05), (2.55, 1.6))
+"""The windscreen's flank, each side, wrapping round from the nose's glass; it starts at the
+stripe's top, since the two stand equally proud and would fight where they overlapped."""
 HELICOPTER_WINDOW = ((3.1, 4.9), (1.9, 2.9))
 HELICOPTER_MAST = ((2.7, 3.3), 0.6, (3.4, 4.05))
 """Back from the nose, square across, from the roof up to the hub."""
@@ -1194,18 +1195,12 @@ def helicopter(layout: Layout, prop: Prop, number: int, still: ByMaterial) -> tu
             _sides(strut, "carbon", body, shade="carbon-shade")
     # The rotors, flat carbon, since a tone baked at rest would be wrong once they turn.
     main_hub = at(HELICOPTER_MAIN_HUB[0], 0.0, HELICOPTER_MAIN_HUB[1])
-    main = Node(f"Prop.helicopter.{number}.main-rotor", Pivot(*main_hub, heading, parent=name))
-    reach, chord, thick = HELICOPTER_MAIN_BLADE
-    for blade in ((0.0, reach), (-reach, 0.0)):
-        for vertices, (face,) in _block(main_hub, along, left, blade, (-chord / 2.0, chord / 2.0), (-thick / 2.0, thick / 2.0)).values():
-            main.add("carbon", (vertices, [face]))
+    main_reach, main_chord, main_thick = HELICOPTER_MAIN_BLADE
+    main = _rotor(f"Prop.helicopter.{number}.main-rotor", Pivot(*main_hub, heading, parent=name), along, left, main_reach, main_chord, main_thick)
     ts, tu, tb = HELICOPTER_TAIL_HUB
-    tail_hub = at(ts, tb, tu)
-    tail = Node(f"Prop.helicopter.{number}.tail-rotor", Pivot(*tail_hub, heading, parent=name))
-    reach, chord, thick = HELICOPTER_TAIL_BLADE
-    for blade in ((0.0, reach), (-reach, 0.0)):
-        for vertices, (face,) in _block(tail_hub, astern, left, blade, (-thick / 2.0, thick / 2.0), (-chord / 2.0, chord / 2.0)).values():
-            tail.add("carbon", (vertices, [face]))
+    tail_reach, tail_chord, tail_thick = HELICOPTER_TAIL_BLADE
+    # The tail rotor's blades lie in the fin's upright plane: thin across, their chord upright.
+    tail = _rotor(f"Prop.helicopter.{number}.tail-rotor", Pivot(*at(ts, tb, tu), heading, parent=name), astern, left, tail_reach, tail_thick, tail_chord)
     # The name on each flank, just proud of the cabin, read from that side.
     text, ink = HELICOPTER_SPONSOR
     lettering = [
@@ -1221,6 +1216,17 @@ def helicopter(layout: Layout, prop: Prop, number: int, still: ByMaterial) -> tu
     ]
     # Parents before children, as the build script places them.
     return [body.scenery(), main.scenery(), tail.scenery()], lettering
+
+
+def _rotor(name: str, pivot: Pivot, along: mesh.Vertex, across: mesh.Vertex, reach: float, width: float, height: float) -> Node:
+    """Two carbon blades from the hub at `pivot`, each `reach` long, one either way along
+    `along`, `width` across and `height` up."""
+    hub = (pivot.x, pivot.y, pivot.z)
+    rotor = Node(name, pivot)
+    for blade in ((0.0, reach), (-reach, 0.0)):
+        for vertices, (face,) in _block(hub, along, across, blade, (-width / 2.0, width / 2.0), (-height / 2.0, height / 2.0)).values():
+            rotor.add("carbon", (vertices, [face]))
+    return rotor
 
 
 def harbour(layout: Layout, prop: Prop, number: int, still: ByMaterial) -> tuple[list[SceneryMesh], list[Lettering]]:
