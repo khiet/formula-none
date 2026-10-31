@@ -41,11 +41,7 @@ drift: Drift | null,
  * The tier the drift has charged, the sparks' tell; `MiniTurbo::None`
  * out of a drift.
  */
-miniTurbo: MiniTurbo, 
-/**
- * What the kart's item slot holds: empty, rolling or an item.
- */
-itemSlot: ItemSlot, 
+miniTurbo: MiniTurbo, itemSlot: ItemSlot, 
 /**
  * The coins the kart carries, from 0 to a full purse; each raises its
  * forward top speed by the tuned factor.

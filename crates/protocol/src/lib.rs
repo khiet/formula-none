@@ -321,8 +321,6 @@ pub struct KartSnapshot {
     pub spline_progress: f32,
     /// The wrong-way warning is up for this kart.
     pub wrong_way: bool,
-    /// What the kart's item slot holds: empty, an item rolling with the
-    /// seconds until it lands, or an item ready to fire.
     pub item_slot: ItemSlot,
     /// The coins the kart carries. A client's prediction takes its count
     /// from here, never collecting one itself.

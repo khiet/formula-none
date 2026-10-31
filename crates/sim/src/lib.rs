@@ -108,7 +108,6 @@ pub struct KartReadout {
     /// The tier the drift has charged, the sparks' tell; `MiniTurbo::None`
     /// out of a drift.
     pub mini_turbo: MiniTurbo,
-    /// What the kart's item slot holds: empty, rolling or an item.
     pub item_slot: ItemSlot,
     /// The coins the kart carries, from 0 to a full purse; each raises its
     /// forward top speed by the tuned factor.
@@ -618,8 +617,7 @@ struct Kart {
     /// finished kart counts no more laps, its lap clock stops, and a bot
     /// drives it, taking and firing no items.
     finish_time_s: Option<f32>,
-    /// The kart's one item slot. Unless it is empty, a box the kart takes
-    /// leaves it as it is.
+    /// Unless it is empty, a box the kart takes leaves it as it is.
     item_slot: ItemSlot,
     /// The coins the kart carries, never more than a full purse.
     coins: u32,

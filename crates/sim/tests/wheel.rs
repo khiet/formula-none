@@ -649,8 +649,8 @@ fn a_bot_turning_through_the_hairpin_past_the_crossing_as_the_flag_goes_up_never
 
 /// Eight bots on Bell Deer from `seed`, raced the race's laps: none is hit
 /// by the wheel, each finishes, and some bot came up to a rolling wheel. A
-/// bot an item spun out on the crossing is let off a hit within a second of
-/// its spin-out ending: it never had the wheel to judge.
+/// bot an item spun out is let off a hit within a second of its spin-out
+/// ending: stopped by the item, it could not get out of the wheel's way.
 fn bots_race_past_the_wheel(seed: u64) {
     let track = bell_deer();
     assert_eq!(track.wheel_crossings().len(), 1, "the approach's crossing");

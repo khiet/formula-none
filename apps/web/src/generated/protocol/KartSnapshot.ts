@@ -38,12 +38,7 @@ splineProgress: number,
 /**
  * The wrong-way warning is up for this kart.
  */
-wrongWay: boolean, 
-/**
- * What the kart's item slot holds: empty, an item rolling with the
- * seconds until it lands, or an item ready to fire.
- */
-itemSlot: ItemSlot, 
+wrongWay: boolean, itemSlot: ItemSlot, 
 /**
  * The coins the kart carries. A client's prediction takes its count
  * from here, never collecting one itself.
