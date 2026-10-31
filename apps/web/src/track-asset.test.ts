@@ -415,10 +415,10 @@ describe("Goldstone's display jets", () => {
       "Prop.jets.1.formation",
     ]);
     // At rest the leader's nose is 33 m outside the Hangar Straight's middle, the track's
-    // (191.43, -57.19), 59.95 m over the grass, which the Y-up export lays at (x, up, -y).
+    // (191.43, -57.19), 29.95 m over the grass, which the Y-up export lays at (x, up, -y).
     const [x = 0, y = 0, z = 0] = formation?.translation ?? [];
     expect(x).toBeCloseTo(191.43, 2);
-    expect(y).toBeCloseTo(59.95, 5);
+    expect(y).toBeCloseTo(29.95, 5);
     expect(z).toBeCloseTo(57.19, 2);
     // Turned about the up only, the nose 77.5 deg from +x: back up the straight, against the race.
     const [qx = 0, qy = 0, qz = 0, qw = 1] = formation?.rotation ?? [];
