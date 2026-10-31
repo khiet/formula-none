@@ -83,9 +83,9 @@ Tracks (needs Blender on `PATH`; see `assets/tracks/README.md`):
 
 Audio (needs `python3` on `PATH`):
 
-- `pnpm export:audio` synthesises the SFX under `assets/audio/` and leaves
-  the hand-placed music loop alone; rerun after changing
-  `assets/audio/build.py` and commit the output
+- `pnpm export:audio` synthesises the SFX and the music loop under
+  `assets/audio/`; rerun after changing `assets/audio/build.py` and commit
+  the output
 
 CI (`.github/workflows/ci.yml`) runs on every PR: clippy with warnings as
 errors, nextest, the wasm build of the bridge, the protocol codegen diff,

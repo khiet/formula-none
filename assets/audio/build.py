@@ -2,8 +2,8 @@
 
 Run from the repo root with `pnpm export:audio`; stdlib only. Every SFX is
 synthesised here, so the set is this repo's own work and CC0 like the rest
-of `assets/` (LICENSES.md). The music loop is a hand-placed track that this
-script leaves alone.
+of `assets/` (LICENSES.md). The music is one bar-aligned loop whose last
+sample runs straight into its first.
 
 The cues were picked on the sound effects iteration page
 (`docs/mockups/sound-effects.html`), which synthesises each one in the
@@ -446,5 +446,62 @@ def sfx():
     write("sputter", sputter(2.0))
 
 
+# The loop: four bars of 4/4 at 120 bpm (8 s). Chords I, V, vi, IV in C.
+# It keeps the original helpers, so its bytes are the loop the game first
+# shipped with.
+BPM = 120
+BEAT = 60 / BPM
+BAR = 4 * BEAT
+CHORDS = [
+    (261.63, 329.63, 392.00),  # C E G
+    (196.00, 246.94, 293.66),  # G B D
+    (220.00, 261.63, 329.63),  # A C E
+    (174.61, 220.00, 261.63),  # F A C
+]
+# A lead line over the chords, one note per half beat, as semitone offsets
+# from C4 played an octave up.
+LEAD = [
+    0, 4, 7, 4, 7, 12, 7, 4,
+    -5, 2, 7, 2, 7, 11, 7, 2,
+    -3, 4, 9, 4, 9, 12, 9, 4,
+    -7, 0, 5, 0, 5, 9, 5, 0,
+]
+
+
+def note(semitones, base=261.63):
+    return base * 2 ** (semitones / 12)
+
+
+def music():
+    total = seconds(4 * BAR)
+    out = [0.0] * total
+    rng = random.Random(7)
+
+    def add(start, samples):
+        for i, s in enumerate(samples):
+            at = (start + i) % total  # a tail past the end wraps into the loop's head
+            out[at] += s
+
+    for bar, chord_freqs in enumerate(CHORDS):
+        bar_start = seconds(bar * BAR)
+        root = chord_freqs[0] / 2  # the bass an octave down
+        for eighth in range(8):
+            t = bar_start + seconds(eighth * BEAT / 2)
+            pitch = root if eighth % 4 != 3 else chord_freqs[2] / 2
+            add(t, legacy_tone(pitch, BEAT / 2, wave_fn=square, decay=4, gain=0.12))
+            add(t, legacy_noise(0.03, decay=120, gain=0.08, rng=rng))  # hi-hat tick
+            if eighth % 2 == 0:
+                add(t, legacy_tone(60, 0.15, decay=25, sweep_to=35, gain=0.5))  # kick
+        for beat in range(4):
+            t = bar_start + seconds(beat * BEAT)
+            for freq in chord_freqs:
+                add(t, legacy_tone(freq, BEAT, wave_fn=triangle, decay=2.5, gain=0.07))
+    for i, semitones in enumerate(LEAD):
+        t = seconds(i * BEAT / 2)
+        add(t, legacy_tone(note(semitones) * 2, BEAT / 2, wave_fn=triangle, decay=5, gain=0.14))
+    write("music-loop", out)
+
+
 if __name__ == "__main__":
     sfx()
+    music()
