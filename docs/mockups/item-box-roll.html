@@ -1,0 +1,737 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Item Box Roll</title>
+<meta name="description" content="Pick how the item box turns, what a pickup sounds like, how the item slot rolls through the items, and how it tells you what you got." />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bungee&family=IBM+Plex+Sans:wght@400;600&family=Silkscreen&family=IBM+Plex+Mono&display=swap">
+<style>
+  @font-face {
+    font-family: "Kenney Mini Square";
+    src: url("../../assets/fonts/kenney/Kenney%20Mini%20Square.ttf") format("truetype");
+  }
+  /* Tokens mirror docs/mockups/sound-effects.html so the mockups read as one family. */
+  :root {
+    --bg: #eef0f3; --fg: #1b1d22; --muted: #5b6170; --rule: #cfd3db; --card: #ffffff; --well: #e3e6eb;
+    --gold: #c99a2e; --gold-light: #fde97a; --accent: #d62828;
+    --display: "Bungee", "Arial Black", Impact, sans-serif;
+    --body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --pixel: "Silkscreen", "Kenney Mini Square", ui-monospace, monospace;
+    --mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+    --hudface: "Kenney Mini Square", "Silkscreen", ui-monospace, monospace;
+    --g-ink: #111;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) { --bg: #15171a; --fg: #ece7d8; --muted: #9a9fab; --rule: #2c3036; --card: #1e2126; --well: #121418; color-scheme: dark; }
+  }
+  :root[data-theme="dark"] { --bg: #15171a; --fg: #ece7d8; --muted: #9a9fab; --rule: #2c3036; --card: #1e2126; --well: #121418; color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--fg); font-family: var(--body); font-size: 16px; line-height: 1.5; padding: 2.5rem 16px 4rem; }
+  main { max-width: 64rem; margin: 0 auto; display: grid; gap: 3rem; }
+  header { display: grid; gap: 0.6rem; }
+  header .intro { max-width: 44rem; display: grid; gap: 0.6rem; }
+  h1 { font-family: var(--display); font-size: clamp(1.6rem, 4vw, 2.4rem); line-height: 1.1; margin: 0; letter-spacing: 0.01em; }
+  header p { margin: 0; color: var(--muted); }
+  .eyebrow { font-family: var(--pixel); font-size: 0.8rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--gold); }
+  h2 { font-family: var(--display); font-size: 1.35rem; margin: 0; }
+  h3 { font-family: var(--display); font-size: 1rem; margin: 0; font-weight: 400; }
+  code { font-family: var(--mono); font-size: 0.85em; }
+  button, select { font: inherit; color: inherit; }
+  button { background: var(--card); border: 1px solid var(--rule); border-radius: 6px; padding: 0.35rem 0.8rem; cursor: pointer; }
+  button:hover { border-color: var(--gold); }
+  button.primary { background: var(--gold); color: #1b1d22; border-color: var(--gold); font-weight: 600; }
+  button.primary:hover { background: var(--gold-light); }
+  select { background: var(--card); border: 1px solid var(--rule); border-radius: 6px; padding: 0.3rem 0.5rem; }
+  section { display: grid; gap: 1.25rem; border-top: 2px solid var(--rule); padding-top: 1.5rem; }
+  .section-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.5rem 1.25rem; }
+  .section-head .tag { font-family: var(--pixel); font-size: 0.75rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+  section > p { margin: 0; max-width: 44rem; color: var(--muted); }
+  .bar { display: flex; flex-wrap: wrap; align-items: center; gap: 0.6rem 1.25rem; padding: 0.8rem 1rem; border: 1px solid var(--rule); border-radius: 8px; background: var(--card); font-size: 0.9rem; }
+  .bar label { display: flex; gap: 0.5rem; align-items: center; }
+
+  /* One card per variant; the picked one rings gold. */
+  .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 14.5rem), 1fr)); gap: 1rem; }
+  .card { display: grid; gap: 0.6rem; align-content: start; padding: 1rem; border: 1px solid var(--rule); border-radius: 10px; background: var(--card); min-width: 0; }
+  .card.picked { border-color: var(--gold); box-shadow: 0 0 0 2px var(--gold); }
+  .card p { margin: 0; font-size: 0.85rem; color: var(--muted); }
+  .card .row { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; justify-content: space-between; }
+  .card .pick { display: flex; gap: 0.35rem; align-items: center; font-size: 0.85rem; cursor: pointer; }
+  .card .pick input { accent-color: var(--gold); }
+  .card .rec { font-family: var(--pixel); font-size: 0.6rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--gold); }
+  .card canvas { width: 100%; aspect-ratio: 4 / 3; display: block; border-radius: 6px; background: #8fb4c8; }
+  .stage { display: grid; place-items: center; min-height: 11rem; border-radius: 6px; background: linear-gradient(#7fa6bb 0 48%, #4d8a3f 48% 60%, #46464f 60%); }
+
+  /* The Instrument panel's plates, copied from docs/style-guide.html at a larger HUD unit. */
+  .hud { --hud: 11px; font-family: var(--hudface); color: #fff; line-height: 1; text-transform: uppercase; text-shadow: 0.1em 0.1em 0 var(--g-ink); }
+  .pl { display: inline-grid; filter: drop-shadow(calc(var(--hud) * 0.5) calc(var(--hud) * 0.5) 0 rgb(17 17 17 / 0.55)); }
+  .pf {
+    --c: calc(var(--hud) * 0.9);
+    display: flex; align-items: center; gap: 0.6em; padding: 0.45em 0.8em; white-space: nowrap;
+    clip-path: polygon(var(--c) 0, calc(100% - var(--c)) 0, 100% var(--c), 100% calc(100% - var(--c)), calc(100% - var(--c)) 100%, var(--c) 100%, 0 calc(100% - var(--c)), 0 var(--c));
+    background: linear-gradient(var(--t-lt) 0 34%, var(--t) 34% 70%, var(--t-dk) 70%);
+  }
+  .t-gold { --t-lt: #f8e39a; --t: #e0b54a; --t-dk: #c99a2e; color: var(--g-ink); text-shadow: none; }
+  .t-flash { --t-lt: #ffffff; --t: #fff6cf; --t-dk: #f8e39a; }
+  .t-carbon { --t-lt: #4a4f57; --t: #2b2e33; --t-dk: #1b1d21; }
+  .slot { --c: calc(var(--hud) * 2.2); width: calc(var(--hud) * 9.9); height: calc(var(--hud) * 9.9); justify-content: center; padding: 0; position: relative; overflow: hidden; }
+  .slot svg { width: 88%; height: auto; }
+
+  /* The slot and everything a roll throws round it. */
+  /* Isolated so the rays' negative z-index sits behind the plate but above the backdrop. */
+  .slotwrap { position: relative; isolation: isolate; display: grid; justify-items: center; gap: 0.6rem; }
+  .slotwrap .fx { position: absolute; left: 50%; top: calc(var(--hud) * 4.95); width: 0; height: 0; pointer-events: none; }
+  .name { font-size: calc(var(--hud) * 1.8); visibility: hidden; }
+  .name.show { visibility: visible; }
+
+  /* Reel: a strip of icons scrolled up through the plate. */
+  .strip { position: absolute; left: 0; top: 0; width: 100%; will-change: transform; }
+  .strip > div { height: calc(var(--hud) * 9.9); display: grid; place-items: center; }
+  /* Drum: icons on the faces of a hexagonal prism turning about the x axis. */
+  .drum-view { position: absolute; inset: 0; perspective: calc(var(--hud) * 30); }
+  .drum { position: absolute; inset: 0; transform-style: preserve-3d; }
+  .drum > div { position: absolute; inset: 0; display: grid; place-items: center; backface-visibility: hidden; }
+
+  /* Decided A: pop. */
+  @keyframes pop { 0% { transform: scale(1); } 35% { transform: scale(1.4); } 65% { transform: scale(0.92); } 100% { transform: scale(1); } }
+  .won-pop .slot > svg { animation: pop 0.38s ease-out; }
+  /* Decided B: burst of rays and sparks behind and round the plate. */
+  @keyframes rays { from { transform: translate(-50%, -50%) rotate(0deg) scale(0.4); opacity: 1; } to { transform: translate(-50%, -50%) rotate(50deg) scale(1.15); opacity: 0; } }
+  .fx .rays { position: absolute; width: calc(var(--hud) * 22); height: calc(var(--hud) * 22); animation: rays 0.7s ease-out forwards; }
+  @keyframes spark { 0% { transform: translate(-50%, -50%) scale(0.6); opacity: 1; } 100% { transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy))) scale(1.1) rotate(90deg); opacity: 0; } }
+  .fx .spark { position: absolute; width: calc(var(--hud) * 2.6); height: calc(var(--hud) * 2.6); animation: spark 0.6s ease-out forwards; }
+  /* Decided C: the name stamped in under the plate. */
+  @keyframes stamp { 0% { transform: scale(2.4); opacity: 0; } 55% { transform: scale(0.9); opacity: 1; } 100% { transform: scale(1); opacity: 1; } }
+  .won-stamp .name { animation: stamp 0.32s ease-out; }
+  /* Decided D: a shine across the plate and a ring going out. */
+  @keyframes shine { from { transform: translateX(-160%) skewX(-20deg); } to { transform: translateX(260%) skewX(-20deg); } }
+  .shine { position: absolute; top: -10%; bottom: -10%; width: 35%; left: 0; background: linear-gradient(90deg, transparent, rgb(255 255 255 / 0.9), transparent); animation: shine 0.45s ease-in forwards; pointer-events: none; }
+  @keyframes ring { from { transform: translate(-50%, -50%) scale(0.95); opacity: 0.95; } to { transform: translate(-50%, -50%) scale(1.7); opacity: 0; } }
+  .fx .ring { position: absolute; width: calc(var(--hud) * 10.5); height: calc(var(--hud) * 10.5); animation: ring 0.55s ease-out forwards; }
+
+  .compose { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 1.25rem; align-items: start; }
+  @media (max-width: 760px) { .compose { grid-template-columns: 1fr; } }
+  .scene { position: relative; border-radius: 10px; overflow: hidden; }
+  .scene canvas { width: 100%; aspect-ratio: 16 / 9; display: block; background: #8fb4c8; }
+  .scene .hud { position: absolute; right: 1rem; top: 1rem; }
+  .scene .hud .slotwrap { --hud: 8px; }
+  .picks { display: grid; gap: 0.6rem; font-size: 0.9rem; }
+  .picks label { display: grid; grid-template-columns: 7.5rem 1fr; gap: 0.6rem; align-items: center; }
+  .picks label span { color: var(--muted); }
+  .summary { font-family: var(--mono); font-size: 0.8rem; padding: 0.7rem 0.9rem; border-radius: 6px; background: var(--well); white-space: pre-wrap; }
+  .qs { margin: 0; padding-left: 1.2rem; display: grid; gap: 0.6rem; max-width: 46rem; }
+  .qs b { font-weight: 600; }
+  .qs .rec { color: var(--gold); font-weight: 600; }
+  @media (prefers-reduced-motion: reduce) {
+    .won-pop .slot > svg, .won-stamp .name, .fx > *, .shine { animation-duration: 0.01s !important; }
+  }
+</style>
+<script type="importmap">
+  { "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js" } }
+</script>
+</head>
+<body>
+<main>
+  <header>
+    <div class="eyebrow">Formula None / mockup / items</div>
+    <h1>Item Box Roll</h1>
+    <div class="intro">
+      <p>Four parts to agree: how the item box turns on the road, what touching one sounds like, how the item slot rolls through the items before it settles, and how it tells you what you got. Each part has variations; pick one per part, then try them together at the bottom.</p>
+      <p>Today the box stands still, the slot fills the moment the server's pickup event lands, and the <code>itemPickup</code> cue (the "Coin" pick: 988 Hz then 1319 Hz) plays as it fills. The coin turns once a second and bobs 5 cm over 2 s. Sounds here are synthesised with the same kit as <code>assets/audio/build.py</code>, so a pick ports straight across. Click anywhere first so the browser lets sound play.</p>
+    </div>
+  </header>
+
+  <section id="spin">
+    <div class="section-head"><h2>1. How the box turns</h2><span class="tag">View only</span></div>
+    <p>The real geometry: the 1 m gold cube with an inset frame on each face, 1 m up, beside the coin for scale. Every box turns off the View's clock in unison, as the coins do, so a row of four reads as one row.</p>
+    <div class="cards" id="spin-cards"></div>
+  </section>
+
+  <section id="pickup">
+    <div class="section-head"><h2>2. Touching the box</h2><span class="tag">Sound at contact</span></div>
+    <p>Plays the instant your kart's centre is on a box, before the roll starts, so it does the coin pickup's job. It should rhyme with the coin chime but read bigger, since the box gives more.</p>
+    <div class="cards" id="pickup-cards"></div>
+  </section>
+
+  <section id="roll">
+    <div class="section-head"><h2>3. The roll</h2><span class="tag">Slot animation + tick</span></div>
+    <p>The slot cycles boost, hazard and homing, fast at first and slowing to a stop on the item the server rolled. Each change ticks. Set the length and the tick here; they apply to every reel below.</p>
+    <div class="bar">
+      <label>Length <select id="roll-length"><option value="1.5">1.5 s</option><option value="2.5" selected>2.5 s (Recommended)</option><option value="3.5">3.5 s</option></select></label>
+      <label>Tick <select id="tick"></select></label>
+      <button id="tick-play">Hear the tick</button>
+    </div>
+    <div class="cards" id="reel-cards"></div>
+  </section>
+
+  <section id="decided">
+    <div class="section-head"><h2>4. "You got this!"</h2><span class="tag">Sound + animation on landing</span></div>
+    <p>Plays as the roll lands. The sound and the animation are picked separately; each animation card plays its own sound pick so you hear them together.</p>
+    <h3>Sound</h3>
+    <div class="cards" id="won-sound-cards"></div>
+    <h3>Animation</h3>
+    <div class="cards" id="won-anim-cards"></div>
+  </section>
+
+  <section id="together">
+    <div class="section-head"><h2>5. All together</h2><span class="tag">Your picks</span></div>
+    <p>A row of four boxes as the tracks lay them. Drive through one: the contact sound plays and the box goes, the slot rolls, and the landing plays. The box comes back after 3 s, as the sim brings it back.</p>
+    <div class="compose">
+      <div class="scene">
+        <canvas id="scene"></canvas>
+        <div class="hud"><div class="slotwrap" id="scene-slot"></div></div>
+      </div>
+      <div class="picks">
+        <label><span>Turn</span><select data-pick="spin"></select></label>
+        <label><span>Contact</span><select data-pick="pickup"></select></label>
+        <label><span>Reel</span><select data-pick="reel"></select></label>
+        <label><span>Tick</span><select data-pick="tick"></select></label>
+        <label><span>Length</span><select data-pick="length"><option value="1.5">1.5 s</option><option value="2.5" selected>2.5 s</option><option value="3.5">3.5 s</option></select></label>
+        <label><span>Landing sound</span><select data-pick="wonSound"></select></label>
+        <label><span>Landing anim</span><select data-pick="wonAnim"></select></label>
+        <button class="primary" id="drive">Drive through a box</button>
+        <div class="summary" id="summary"></div>
+        <button id="copy">Copy picks</button>
+      </div>
+    </div>
+  </section>
+
+  <section id="rules">
+    <div class="section-head"><h2>Rules to settle with the look</h2><span class="tag">Sim, not View</span></div>
+    <p>A roll that lasts seconds changes the game, not only the screen, so these need an answer before it is built. Each would land in a new ADR beside ADR 0068.</p>
+    <ol class="qs">
+      <li><b>Is the roll a sim rule or only the View's show?</b> a) <span class="rec">Sim rule (Recommended):</span> the server rolls at pickup as today, but the slot is "rolling" for the roll's length in <code>tuning.rs</code>; the item button does nothing until it lands, and bots wait too. Every screen agrees. b) View only: the item is usable at once and the reel is decoration a quick press skips.</li>
+      <li><b>Does a rolling slot count as full?</b> a) <span class="rec">Yes (Recommended):</span> a second box mid-roll gives nothing, as a held item does today. b) No: it queues.</li>
+      <li><b>Can a press stop the roll early?</b> a) <span class="rec">No (Recommended):</span> it always runs its length. b) Yes, after a minimum.</li>
+      <li><b>What happens to the old <code>itemPickup</code> cue?</b> a) <span class="rec">It becomes the contact sound (Recommended),</span> whichever you pick above, and the landing gets the new cue. b) Keep it on the slot filling and add only the landing.</li>
+    </ol>
+  </section>
+</main>
+
+<script type="module">
+import * as THREE from "three";
+
+// ---------------------------------------------------------------------------
+// The synth kit, as docs/mockups/sound-effects.html and assets/audio/build.py run it.
+// ---------------------------------------------------------------------------
+const RATE = 22050, TAU = Math.PI * 2;
+const sec = (n) => Math.max(0, Math.floor(n * RATE + 0.5));
+const WAVES = {
+  sine: Math.sin,
+  square: (p) => (Math.sin(p) >= 0 ? 1 : -1),
+  triangle: (p) => (2 / Math.PI) * Math.asin(Math.sin(p)),
+  saw: (p) => (p % TAU) / Math.PI - 1,
+  pulse: (p) => ((p % TAU) / TAU < 0.25 ? 1 : -1),
+};
+function rng(seed) {
+  let a = Math.imul(seed, 2654435761) >>> 0;
+  return () => {
+    a = (a + 0x6d2b79f5) >>> 0;
+    let t = a;
+    t = Math.imul(t ^ (t >>> 15), t | 1) >>> 0;
+    t = (t ^ ((t + (Math.imul(t ^ (t >>> 7), t | 61) >>> 0)) >>> 0)) >>> 0;
+    return (((t ^ (t >>> 14)) >>> 0) / 4294967296) * 2 - 1;
+  };
+}
+function tone({ freq, length, wave = "sine", decay = 6, gain = 0.5, sweepTo = null, attack = 0, curve = "linear" }) {
+  const n = sec(length), out = new Array(n), fn = WAVES[wave];
+  let phase = 0;
+  for (let i = 0; i < n; i++) {
+    const t = i / RATE, u = i / n;
+    const f = sweepTo === null ? freq : curve === "exp" ? freq * (sweepTo / freq) ** u : freq + (sweepTo - freq) * u;
+    phase += (TAU * f) / RATE;
+    const a = attack > 0 ? Math.min(1, t / attack) : 1;
+    out[i] = gain * a * Math.exp(-decay * t) * fn(phase);
+  }
+  return out;
+}
+function noise({ length, decay = 8, gain = 0.5, seed = 1 }) {
+  const draw = rng(seed);
+  return Array.from({ length: sec(length) }, (_, i) => gain * Math.exp((-decay * i) / RATE) * draw());
+}
+const silence = (length) => new Array(sec(length)).fill(0);
+function mix(...parts) {
+  const out = new Array(Math.max(...parts.map((p) => p.length))).fill(0);
+  for (const p of parts) p.forEach((s, i) => (out[i] += s));
+  return out;
+}
+const concat = (...parts) => parts.flat();
+function lowpass(samples, cutoff) {
+  const dt = 1 / RATE, rc = 1 / (TAU * cutoff), a = dt / (rc + dt);
+  let y = 0;
+  return samples.map((x) => (y += a * (x - y)));
+}
+function highpass(samples, cutoff) {
+  const dt = 1 / RATE, rc = 1 / (TAU * cutoff), a = rc / (rc + dt);
+  let y = 0, x1 = 0;
+  return samples.map((x) => { y = a * (y + x - x1); x1 = x; return y; });
+}
+const notes = (freqs, length, wave, decay, gain) => concat(...freqs.map((f) => tone({ freq: f, length, wave, decay, gain })));
+const chord = (freqs, length, wave, decay, gain) => mix(...freqs.map((f) => tone({ freq: f, length, wave, decay, gain })));
+function tame(samples, peak = 0.95) {
+  const top = Math.max(...samples.map(Math.abs));
+  return top > peak ? samples.map((s) => (s * peak) / top) : samples;
+}
+
+let audio = null;
+const buffers = new Map();
+function play(key, render) {
+  audio ??= new AudioContext();
+  if (audio.state === "suspended") audio.resume();
+  if (!buffers.has(key)) {
+    const samples = tame(render());
+    const buffer = audio.createBuffer(1, samples.length, RATE);
+    buffer.copyToChannel(Float32Array.from(samples), 0);
+    buffers.set(key, buffer);
+  }
+  const src = audio.createBufferSource();
+  src.buffer = buffers.get(key);
+  src.connect(audio.destination);
+  src.start();
+}
+addEventListener("pointerdown", () => { audio ??= new AudioContext(); audio.resume(); }, { once: true });
+
+// ---------------------------------------------------------------------------
+// The variations. `rec` marks the one I would pick.
+// ---------------------------------------------------------------------------
+const SPINS = [
+  { id: "yaw", name: "A. Yaw, as the coin", rec: true,
+    text: "Turns about the vertical like the coin, but once every 2 s, half the coin's pace, so the bigger thing reads heavier. Same 5 cm bob over 2 s, in phase with the coins.",
+    pose: (g, t) => { g.rotation.set(0, (t / 2) * TAU, 0); g.position.y = 1 + 0.05 * Math.sin((t / 2) * TAU); } },
+  { id: "corner", name: "B. On its corner",
+    text: "Stood on a corner with the long diagonal upright, turning once every 3 s. Shows three faces at once, so it reads as a gem rather than a crate. Bobs as A.",
+    pose: (g, t, inner) => { inner.rotation.set(-Math.atan(Math.SQRT1_2), 0, Math.PI / 4, "XYZ"); g.rotation.set(0, (t / 3) * TAU, 0); g.position.y = 1.15 + 0.05 * Math.sin((t / 2) * TAU); } },
+  { id: "tumble", name: "C. Tumble",
+    text: "Turns on two axes at once, 2.6 s round the vertical and 4 s end over end, so it never shows the same face twice in a row. The most motion; the busiest in a row of four.",
+    pose: (g, t) => { g.rotation.set((t / 4) * TAU, (t / 2.6) * TAU, 0, "YXZ"); g.position.y = 1 + 0.05 * Math.sin((t / 2) * TAU); } },
+  { id: "step", name: "D. Quarter steps",
+    text: "A quarter turn every second with a little hop, eased in and out: a tick you can count. The most arcade, and it never blurs.",
+    pose: (g, t) => {
+      const k = Math.floor(t), u = t - k, e = u < 0.35 ? (1 - Math.cos((u / 0.35) * Math.PI)) / 2 : 1;
+      g.rotation.set(0, (k + e) * (Math.PI / 2), 0);
+      g.position.y = 1 + (u < 0.35 ? 0.12 * Math.sin((u / 0.35) * Math.PI) : 0);
+    } },
+];
+
+const PICKUPS = [
+  { id: "coin", name: "A. Coin, as today",
+    text: "The current itemPickup: a short 988 Hz sine then a ringing 1319 Hz, moved from the slot filling to the contact.",
+    render: () => concat(tone({ freq: 988, length: 0.08, decay: 8, gain: 0.4 }), tone({ freq: 1319, length: 0.25, decay: 6, gain: 0.4 })) },
+  { id: "crack", name: "B. Crack and chime", rec: true,
+    text: "A bright crack as the box breaks, then the coin chime's two triangle notes a fourth lower (1047, 1568 Hz). Says the same \"got it\" as a coin, bigger.",
+    render: () => mix(highpass(noise({ length: 0.07, decay: 45, gain: 0.55, seed: 3 }), 2500), concat(silence(0.02), tone({ freq: 1047, length: 0.06, wave: "triangle", decay: 14, gain: 0.38 }), tone({ freq: 1568, length: 0.22, wave: "triangle", decay: 9, gain: 0.38 }))) },
+  { id: "low-chime", name: "C. Chime, an octave down",
+    text: "The coin chime itself (1568 then 2093 Hz) dropped an octave to 784 and 1047 Hz, longer ring. The closest rhyme with the coin.",
+    render: () => concat(tone({ freq: 784, length: 0.06, wave: "triangle", decay: 12, gain: 0.42 }), tone({ freq: 1047, length: 0.26, wave: "triangle", decay: 8, gain: 0.42 })) },
+  { id: "pop", name: "D. Pop and sparkle",
+    text: "A square pop rising an octave, then three quick triangle notes up (1319, 1568, 2093 Hz). The most playful.",
+    render: () => concat(tone({ freq: 500, length: 0.05, wave: "square", decay: 25, sweepTo: 1000, gain: 0.22 }), notes([1319, 1568], 0.045, "triangle", 16, 0.32), tone({ freq: 2093, length: 0.18, wave: "triangle", decay: 10, gain: 0.32 })) },
+];
+
+const TICKS = [
+  { id: "click", name: "Click (Recommended)", render: () => highpass(noise({ length: 0.025, decay: 140, gain: 0.6, seed: 5 }), 3000) },
+  { id: "blip", name: "Blip", render: () => tone({ freq: 1200, length: 0.03, wave: "square", decay: 50, gain: 0.16 }) },
+  { id: "tock", name: "Tick-tock", render: () => tone({ freq: 880, length: 0.04, wave: "triangle", decay: 35, gain: 0.35 }), alt: () => tone({ freq: 1175, length: 0.04, wave: "triangle", decay: 35, gain: 0.35 }) },
+  { id: "none", name: "None", render: null },
+];
+
+const REELS = [
+  { id: "flicker", name: "A. Flicker", rec: true,
+    text: "The icon cuts in place, faster than you can read at first, slowing to a stop. Smallest change to the slot, reads at any size, and stays legible at the panel's smallest HUD unit." },
+  { id: "reel", name: "B. Slot machine",
+    text: "A strip of icons scrolls up through the plate and lands with a small overshoot, like a fruit machine reel. Reads as \"chance\" the most." },
+  { id: "drum", name: "C. Drum",
+    text: "The icons sit on a six-sided drum that turns toward you and slows. The most 3D, and it echoes the turning box." },
+];
+
+const WON_SOUNDS = [
+  { id: "arp", name: "A. Arpeggio up", rec: true,
+    text: "Triangle C, E, G then a ringing high C: the finish's family, short. Clear \"done\" without being a fanfare.",
+    render: () => concat(notes([1047, 1319, 1568], 0.06, "triangle", 10, 0.35), tone({ freq: 2093, length: 0.38, wave: "triangle", decay: 6, gain: 0.35 })) },
+  { id: "bell", name: "B. Bell",
+    text: "A struck sine bell at 1319 Hz with its inharmonic partials. Calm, one hit, rings out under the engine.",
+    render: () => mix(highpass(noise({ length: 0.02, decay: 150, gain: 0.3, seed: 9 }), 3000), tone({ freq: 1319, length: 0.9, decay: 4.5, gain: 0.38 }), tone({ freq: 1319 * 2.76, length: 0.5, decay: 9, gain: 0.12 }), tone({ freq: 1319 * 5.4, length: 0.25, decay: 18, gain: 0.06 })) },
+  { id: "kaching", name: "C. Ka-ching",
+    text: "A clack and two bright pulse notes held together: the till. Most \"you won\", most cartoon.",
+    render: () => concat(mix(highpass(noise({ length: 0.04, decay: 70, gain: 0.5, seed: 11 }), 2000), tone({ freq: 1568, length: 0.05, wave: "pulse", decay: 20, gain: 0.16 })), mix(tone({ freq: 1760, length: 0.45, wave: "pulse", decay: 6, gain: 0.17 }), tone({ freq: 2637, length: 0.45, wave: "pulse", decay: 8, gain: 0.11 }))) },
+  { id: "stab", name: "D. Fanfare stab",
+    text: "Da-DAA: a short square G major then a held C major an octave up. The loudest; risks reading as a lap or the finish.",
+    render: () => concat(chord([392, 494, 587], 0.08, "square", 10, 0.09), silence(0.03), chord([523, 659, 784, 1047], 0.42, "square", 5, 0.08)) },
+];
+
+const WON_ANIMS = [
+  { id: "pop", name: "A. Pop",
+    text: "The icon swells 40% and settles, and the plate flashes white once, as firing lights it today. Quiet; nothing leaves the plate." },
+  { id: "burst", name: "B. Burst", rec: true,
+    text: "Gold rays wheel out from behind the plate with eight low-poly sparks, and the icon pops. The loudest: hard to miss at speed." },
+  { id: "stamp", name: "C. Name stamp",
+    text: "The item's name stamps in under the plate and stays while you hold it; the plate flashes twice. Teaches new players the names." },
+  { id: "shine", name: "D. Shine and ring",
+    text: "A white glint sweeps across the plate and an octagon ring goes out from it. Polished, reads as a prize without covering the road." },
+];
+
+// ---------------------------------------------------------------------------
+// The slot art, as docs/style-guide.html draws it from item-sprites.ts.
+// ---------------------------------------------------------------------------
+const ngon = (n, cx, cy, r) => Array.from({ length: n }, (_, k) => {
+  const t = Math.PI / n + (2 * Math.PI * k) / n - Math.PI / 2;
+  return [cx + r * Math.cos(t), cy + r * Math.sin(t)];
+});
+const P = (arr) => arr.map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(" ");
+const poly = (arr, fill) => `<polygon points="${P(arr)}" fill="${fill}"/>`;
+const draw = {};
+draw.hazard = () => {
+  const apex = [100, 26], L = [62, 118], ML = [82, 126], MR = [118, 126], R = [138, 118];
+  const lerp = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
+  const band = (a, b, t0, t1, fill) => poly([lerp(apex, a, t0), lerp(apex, b, t0), lerp(apex, b, t1), lerp(apex, a, t1)], fill);
+  return `<svg viewBox="0 0 200 160" role="img" aria-label="Hazard">
+    <ellipse cx="100" cy="146" rx="54" ry="6" fill="rgba(0,0,0,.15)"/>
+    ${poly([[52, 124], [72, 112], [128, 112], [148, 124]], "#b9bec5")}${poly([[52, 124], [148, 124], [148, 138], [52, 138]], "#9aa0a8")}${poly([[148, 124], [128, 112], [128, 116], [148, 128]], "#6f747b")}
+    ${poly([apex, L, ML], "#ff7a4d")}${poly([apex, ML, MR], "#ff5522")}${poly([apex, MR, R], "#c73c14")}
+    ${band(L, ML, 0.5, 0.66, "#ffffff")}${band(ML, MR, 0.5, 0.66, "#f1f1f1")}${band(MR, R, 0.5, 0.66, "#cfd2d6")}
+    <rect x="90" y="75" width="5" height="6" fill="#111111"/><rect x="105" y="75" width="5" height="6" fill="#111111"/>
+    <polyline points="87,66 97,71" stroke="#111111" stroke-width="3.5"/><polyline points="113,66 103,71" stroke="#111111" stroke-width="3.5"/>
+    <line x1="93" y1="99" x2="107" y2="99" stroke="#111111" stroke-width="3.5"/></svg>`;
+};
+draw.homing = () => `<svg viewBox="0 0 200 160" role="img" aria-label="Homing projectile">
+  <ellipse cx="100" cy="146" rx="56" ry="5" fill="rgba(0,0,0,.15)"/>
+  <line x1="66" y1="80" x2="48" y2="46" stroke="#3a3d42" stroke-width="3"/>${poly(ngon(6, 48, 45, 4), "#d00a12")}
+  ${poly([[24, 84], [176, 84], [176, 94], [24, 94]], "#4a4f57")}${poly([[24, 84], [176, 84], [176, 87], [24, 87]], "#6f747b")}
+  ${[38, 162].map((x) => `
+    ${poly([[x - 9, 66], [x + 9, 66], [x + 9, 88], [x - 9, 88]], "#ff5522")}${poly([[x - 9, 66], [x + 9, 66], [x + 9, 71], [x - 9, 71]], "#ff7a4d")}
+    <ellipse cx="${x}" cy="62" rx="34" ry="5" fill="#ffffff" fill-opacity=".55"/>
+    <line x1="${x - 30}" y1="62" x2="${x + 30}" y2="62" stroke="#2b2e33" stroke-width="3"/>`).join("")}
+  ${poly([[60, 78], [140, 78], [148, 100], [52, 100]], "#2b2e33")}
+  ${poly([[70, 78], [84, 56], [118, 54], [134, 78]], "#c81d25")}${poly([[70, 78], [84, 56], [100, 55], [92, 78]], "#e8333b")}
+  ${poly([[114, 98], [154, 98], [154, 126], [114, 126]], "#1b1d21")}
+  ${poly(ngon(8, 154, 112, 13), "#eef0f2")}${poly(ngon(8, 154, 112, 9), "#d00a12")}${poly(ngon(6, 155, 111, 3), "#111111")}
+  </svg>`;
+draw.boost = () => `<svg viewBox="0 0 200 160" role="img" aria-label="Boost">
+  <ellipse cx="96" cy="146" rx="48" ry="5" fill="rgba(0,0,0,.15)"/>
+  <g transform="translate(88 92) rotate(-38) scale(0.84)">
+  ${[[64, 0, 10], [76, -11, 9], [78, 11, 8], [92, -3, 11], [104, -16, 7], [106, 12, 8], [118, -2, 6]].map(([x, y, r]) => poly(ngon(7, x, y, r), "#eef0f2") + poly(ngon(7, x - 2, y - 2, r * 0.6), "#ffffff")).join("")}
+  ${poly([[128, -8], [144, -10], [144, 10], [128, 8]], "#d9a066")}${poly([[128, -8], [144, -10], [144, -3], [128, -2]], "#eec48f")}
+  ${poly([[-62, -22], [10, -22], [10, -8], [-62, -8]], "#5e9f7d")}${poly([[-62, -8], [10, -8], [10, 8], [-62, 8]], "#1f7a4a")}${poly([[-62, 8], [10, 8], [10, 22], [-62, 22]], "#145131")}
+  ${poly([[10, -22], [32, -8], [32, 0], [10, 0]], "#5e9f7d")}${poly([[10, 0], [32, 0], [32, 8], [10, 22]], "#145131")}
+  ${poly([[30, -8], [58, -8], [58, 0], [30, 0]], "#ffdf75")}${poly([[30, 0], [58, 0], [58, 8], [30, 8]], "#a88b2a")}
+  ${poly([[-46, -16], [-12, -16], [-12, 16], [-46, 16]], "#eef0f2")}${poly([[-46, -4], [-12, -4], [-12, 4], [-46, 4]], "#d00a12")}
+  </g></svg>`;
+const ITEMS = ["boost", "hazard", "homing"];
+
+// ---------------------------------------------------------------------------
+// The roll.
+// ---------------------------------------------------------------------------
+/**
+ * When each icon change falls: the gap grows from 50 ms to 280 ms with the
+ * square of the time gone, so it starts a blur and ends readable. The last
+ * change lands at the roll's length.
+ */
+function schedule(length) {
+  const times = [0];
+  for (let t = 0; t < length; ) {
+    t += 0.05 + 0.23 * (t / length) ** 2;
+    times.push(t);
+  }
+  const k = length / times.at(-1);
+  return times.map((t) => t * k);
+}
+function slotHtml(withName = true) {
+  return `<span class="pl"><span class="pf t-gold slot"></span></span>${withName ? `<span class="name hud">&nbsp;</span>` : ""}<div class="fx"></div>`;
+}
+function mountSlot(wrap) {
+  wrap.classList.add("hud");
+  wrap.innerHTML = slotHtml();
+  return { wrap, plate: wrap.querySelector(".slot"), name: wrap.querySelector(".name"), fx: wrap.querySelector(".fx"), run: 0 };
+}
+
+function roll(slot, { reel, tickId, length, target, onLand }) {
+  const run = ++slot.run;
+  const times = schedule(length), n = times.length - 1;
+  const seq = (k) => ITEMS[(((ITEMS.indexOf(target) - (n - k)) % 3) + 3) % 3];
+  const tick = TICKS.find((t) => t.id === tickId);
+  slot.name.classList.remove("show");
+  slot.wrap.classList.remove("won-pop", "won-stamp");
+  slot.plate.classList.remove("t-flash");
+  slot.plate.classList.add("t-gold");
+  const h = slot.plate.clientHeight;
+  let strip = null, drum = null;
+  if (reel === "reel") {
+    slot.plate.innerHTML = `<div class="strip">${Array.from({ length: n + 2 }, (_, k) => `<div>${draw[seq(k)]()}</div>`).join("")}</div>`;
+    strip = slot.plate.firstElementChild;
+    strip.querySelectorAll("svg").forEach((s) => (s.style.width = "88%"));
+  } else if (reel === "drum") {
+    const r = (h / 2) / Math.tan(Math.PI / 6);
+    slot.plate.innerHTML = `<div class="drum-view"><div class="drum">${Array.from({ length: 6 }, (_, j) =>
+      `<div style="transform: rotateX(${-j * 60}deg) translateZ(${r}px)">${draw[seq(j)]()}</div>`).join("")}</div></div>`;
+    drum = slot.plate.querySelector(".drum");
+    drum.style.transform = `translateZ(${-r}px)`;
+    drum.querySelectorAll("svg").forEach((s) => (s.style.width = "88%"));
+    drum._r = r;
+  }
+  const t0 = performance.now();
+  let shown = -1;
+  const settle = 0.25;
+  const frame = (now) => {
+    if (run !== slot.run) return;
+    const t = (now - t0) / 1000;
+    let k = times.findIndex((x) => x > t) - 1;
+    let p;
+    if (k < 0 || t >= length) { k = n; p = n; } else p = k + (t - times[k]) / (times[k + 1] - times[k]);
+    // The reel and drum overshoot the landing a little and come back.
+    if (t >= length && reel !== "flicker") {
+      const v = Math.min(1, (t - length) / settle);
+      p = n + 0.16 * Math.sin(Math.PI * v) * (1 - v);
+    }
+    if (k !== shown) {
+      if (k > 0 && tick.render) play(`tick-${tick.id}-${tick.alt && k % 2 ? "alt" : "main"}`, tick.alt && k % 2 ? tick.alt : tick.render);
+      if (reel === "flicker") slot.plate.innerHTML = draw[seq(k)]();
+      shown = k;
+    }
+    if (strip) strip.style.transform = `translateY(${-p * h}px)`;
+    if (drum) drum.style.transform = `translateZ(${-drum._r}px) rotateX(${p * 60}deg)`;
+    const done = t >= length + (reel === "flicker" ? 0 : settle);
+    if (!done) { requestAnimationFrame(frame); return; }
+    slot.plate.innerHTML = draw[target]();
+    onLand?.();
+  };
+  requestAnimationFrame(frame);
+}
+
+function celebrate(slot, anim, item) {
+  const { wrap, plate, name, fx } = slot;
+  fx.innerHTML = "";
+  wrap.classList.remove("won-pop", "won-stamp");
+  void wrap.offsetWidth;
+  const flash = (times) => {
+    for (let i = 0; i < times; i++) {
+      setTimeout(() => { plate.classList.replace("t-gold", "t-flash"); }, i * 220);
+      setTimeout(() => { plate.classList.replace("t-flash", "t-gold"); }, i * 220 + 110);
+    }
+  };
+  name.textContent = item;
+  if (anim === "pop") { wrap.classList.add("won-pop"); flash(1); }
+  if (anim === "burst") {
+    wrap.classList.add("won-pop");
+    const rays = Array.from({ length: 12 }, (_, i) => {
+      const a = (i / 12) * TAU, b = a + 0.13;
+      return poly([[50, 50], [50 + 50 * Math.cos(a), 50 + 50 * Math.sin(a)], [50 + 50 * Math.cos(b), 50 + 50 * Math.sin(b)]], i % 2 ? "#fde97a" : "#f8e39a");
+    }).join("");
+    fx.insertAdjacentHTML("beforeend", `<svg class="rays" viewBox="0 0 100 100" style="z-index:-1">${rays}</svg>`);
+    for (let i = 0; i < 8; i++) {
+      const a = (i / 8) * TAU + 0.3, d = slot.plate.clientWidth * 0.95;
+      const star = poly([[50, 0], [62, 38], [100, 50], [62, 62], [50, 100], [38, 62], [0, 50], [38, 38]], i % 2 ? "#ffffff" : "#fde97a");
+      fx.insertAdjacentHTML("beforeend", `<svg class="spark" viewBox="0 0 100 100" style="--dx:${(Math.cos(a) * d).toFixed(0)}px;--dy:${(Math.sin(a) * d).toFixed(0)}px">${star}</svg>`);
+    }
+    flash(1);
+  }
+  if (anim === "stamp") { name.classList.add("show"); wrap.classList.add("won-stamp"); flash(2); }
+  if (anim === "shine") {
+    plate.insertAdjacentHTML("beforeend", `<span class="shine"></span>`);
+    fx.insertAdjacentHTML("beforeend", `<svg class="ring" viewBox="0 0 100 100">${`<polygon points="${P(ngon(8, 50, 50, 48))}" fill="none" stroke="#fde97a" stroke-width="5"/>`}</svg>`);
+    setTimeout(() => plate.querySelector(".shine")?.remove(), 600);
+  }
+  setTimeout(() => { if (anim !== "stamp") fx.innerHTML = ""; }, 900);
+}
+
+// ---------------------------------------------------------------------------
+// The 3D boxes, built as item-meshes.ts and coin-meshes.ts build them.
+// ---------------------------------------------------------------------------
+const lambert = (c) => new THREE.MeshLambertMaterial({ color: c, flatShading: true });
+function itemBox() {
+  const inner = new THREE.Group();
+  inner.add(new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), lambert(0xf8e39a)));
+  const panel = new THREE.BoxGeometry(0.7, 0.7, 0.02), mid = lambert(0xe0b54a);
+  for (const [axis, sign] of [["x", 1], ["x", -1], ["y", 1], ["y", -1], ["z", 1], ["z", -1]]) {
+    const face = new THREE.Mesh(panel, mid);
+    face.position[axis] = sign * 0.5;
+    if (axis === "x") face.rotation.y = Math.PI / 2;
+    if (axis === "y") face.rotation.x = Math.PI / 2;
+    inner.add(face);
+  }
+  const outer = new THREE.Group();
+  outer.add(inner);
+  return { outer, inner };
+}
+function coin() {
+  const body = new THREE.Group();
+  const prism = new THREE.CylinderGeometry(0.4, 0.4, 0.12, 8);
+  prism.rotateX(Math.PI / 2);
+  const rim = lambert(0xb8860b), gold = lambert(0xffd23f);
+  body.add(new THREE.Mesh(prism, [rim, gold, gold]));
+  const u = 0.4 / 44;
+  for (const side of [1, -1]) for (const [x, y, w, h] of [[-4, 0, 8, 32], [1, 12.5, 18, 7], [4, -0.5, 8, 7]]) {
+    const bar = new THREE.Mesh(new THREE.BoxGeometry(w * u, h * u, 0.02), rim);
+    bar.position.set(side * x * u, y * u, (side * 0.14) / 2);
+    body.add(bar);
+  }
+  return body;
+}
+function world(canvas, { boxes, withCoin, camera: [cx, cy, cz], look }) {
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+  renderer.setPixelRatio(Math.min(2, devicePixelRatio));
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x8fb4c8);
+  scene.add(new THREE.HemisphereLight(0xdfefff, 0x3a3a40, 1.4));
+  const sun = new THREE.DirectionalLight(0xffffff, 2.2);
+  sun.position.set(-3, 6, 4);
+  scene.add(sun);
+  const ground = new THREE.Mesh(new THREE.PlaneGeometry(60, 60), lambert(0x46464f));
+  ground.rotation.x = -Math.PI / 2;
+  scene.add(ground);
+  const made = boxes.map((x) => { const b = itemBox(); b.outer.position.x = x; scene.add(b.outer); return { ...b, hiddenUntil: 0, popAt: -1 }; });
+  let coinBody = null;
+  if (withCoin) { coinBody = coin(); coinBody.position.set(1.1, 0.6, 0); scene.add(coinBody); }
+  const cam = new THREE.PerspectiveCamera(40, 4 / 3, 0.1, 100);
+  cam.position.set(cx, cy, cz);
+  cam.lookAt(...look);
+  return { renderer, scene, cam, boxes: made, coinBody };
+}
+
+const clockStart = performance.now();
+const worlds = [];
+function animate(now) {
+  const t = (now - clockStart) / 1000;
+  for (const w of worlds) {
+    const c = w.renderer.domElement;
+    const width = c.clientWidth, height = c.clientHeight;
+    if (c.width !== Math.round(width * w.renderer.getPixelRatio())) { w.renderer.setSize(width, height, false); w.cam.aspect = width / height; w.cam.updateProjectionMatrix(); }
+    const spin = SPINS.find((s) => s.id === w.spin());
+    for (const b of w.boxes) {
+      b.inner.rotation.set(0, 0, 0);
+      spin.pose(b.outer, t, b.inner);
+      // Gone for 3 s after a pickup, as the sim has it: a quick swell and vanish, then back.
+      if (b.popAt >= 0) {
+        const u = (now - b.popAt) / 150;
+        if (u < 1) b.outer.scale.setScalar(1 + 0.4 * u); else b.outer.scale.setScalar(0.0001);
+        if (now - b.popAt > 3000) { b.popAt = -1; b.outer.scale.setScalar(1); }
+      }
+    }
+    if (w.coinBody) {
+      w.coinBody.rotation.y = (t % 1) * TAU;
+      w.coinBody.position.y = 0.6 + 0.05 * Math.sin((t / 2) * TAU);
+    }
+    w.renderer.render(w.scene, w.cam);
+  }
+  requestAnimationFrame(animate);
+}
+
+// ---------------------------------------------------------------------------
+// The page.
+// ---------------------------------------------------------------------------
+const picks = { spin: "yaw", pickup: "crack", reel: "flicker", tick: "click", length: "2.5", wonSound: "arp", wonAnim: "burst" };
+const randomItem = () => ITEMS[Math.floor(Math.random() * 3)];
+const nameOf = (list, id) => list.find((x) => x.id === id)?.name ?? id;
+
+function card(group, v, inner, buttons) {
+  const el = document.createElement("div");
+  el.className = "card";
+  el.dataset.group = group;
+  el.dataset.id = v.id;
+  el.innerHTML = `<div class="row"><h3>${v.name}</h3>${v.rec ? `<span class="rec">Recommended</span>` : ""}</div>${inner}<p>${v.text}</p>
+    <div class="row"><label class="pick"><input type="radio" name="${group}" value="${v.id}"> Pick</label><span>${buttons}</span></div>`;
+  el.querySelector("input").addEventListener("change", () => setPick(group, v.id));
+  return el;
+}
+function setPick(group, id) {
+  picks[group] = id;
+  document.querySelectorAll(`.card[data-group="${group}"]`).forEach((c) => {
+    const on = c.dataset.id === id;
+    c.classList.toggle("picked", on);
+    c.querySelector("input").checked = on;
+  });
+  const sel = document.querySelector(`select[data-pick="${group}"]`);
+  if (sel) sel.value = id;
+  if (group === "tick") document.getElementById("tick").value = id;
+  if (group === "length") document.getElementById("roll-length").value = id;
+  summarise();
+}
+function summarise() {
+  document.getElementById("summary").textContent =
+    `Turn: ${nameOf(SPINS, picks.spin)}\nContact: ${nameOf(PICKUPS, picks.pickup)}\nReel: ${nameOf(REELS, picks.reel)}, ${picks.length} s, tick ${nameOf(TICKS, picks.tick)}\nLanding: ${nameOf(WON_SOUNDS, picks.wonSound)} + ${nameOf(WON_ANIMS, picks.wonAnim)}`;
+}
+
+// 1. Spins.
+const spinCards = document.getElementById("spin-cards");
+for (const s of SPINS) {
+  const el = card("spin", s, `<canvas></canvas>`, "");
+  spinCards.append(el);
+  worlds.push({ ...world(el.querySelector("canvas"), { boxes: [-0.6], withCoin: true, camera: [0.2, 1.7, 4.2], look: [0.2, 0.8, 0] }), spin: () => s.id });
+}
+// 2. Contact sounds.
+const pickupCards = document.getElementById("pickup-cards");
+for (const s of PICKUPS) {
+  const el = card("pickup", s, "", `<button>Play</button>`);
+  el.querySelector("button").addEventListener("click", () => play(`pickup-${s.id}`, s.render));
+  pickupCards.append(el);
+}
+// 3. Reels.
+const tickSel = document.getElementById("tick");
+tickSel.innerHTML = TICKS.map((t) => `<option value="${t.id}">${t.name}</option>`).join("");
+tickSel.addEventListener("change", () => setPick("tick", tickSel.value));
+document.getElementById("roll-length").addEventListener("change", (e) => setPick("length", e.target.value));
+document.getElementById("tick-play").addEventListener("click", () => {
+  const tick = TICKS.find((t) => t.id === picks.tick);
+  if (!tick.render) return;
+  schedule(1.2).forEach((at, k) => setTimeout(() => play(`tick-${tick.id}-${tick.alt && k % 2 ? "alt" : "main"}`, tick.alt && k % 2 ? tick.alt : tick.render), at * 1000));
+});
+const reelCards = document.getElementById("reel-cards");
+for (const r of REELS) {
+  const el = card("reel", r, `<div class="stage"><div class="slotwrap"></div></div>`, `<button>Roll</button>`);
+  reelCards.append(el);
+  const slot = mountSlot(el.querySelector(".slotwrap"));
+  slot.plate.innerHTML = draw.boost();
+  el.querySelector("button").addEventListener("click", () => {
+    const target = randomItem();
+    roll(slot, { reel: r.id, tickId: picks.tick, length: Number(picks.length), target, onLand: () => play(`won-${picks.wonSound}`, WON_SOUNDS.find((w) => w.id === picks.wonSound).render) });
+  });
+}
+// 4. Landing.
+const wonSoundCards = document.getElementById("won-sound-cards");
+for (const s of WON_SOUNDS) {
+  const el = card("wonSound", s, "", `<button>Play</button>`);
+  el.querySelector("button").addEventListener("click", () => play(`won-${s.id}`, s.render));
+  wonSoundCards.append(el);
+}
+const wonAnimCards = document.getElementById("won-anim-cards");
+for (const a of WON_ANIMS) {
+  const el = card("wonAnim", a, `<div class="stage"><div class="slotwrap"></div></div>`, `<button>Play</button>`);
+  wonAnimCards.append(el);
+  const slot = mountSlot(el.querySelector(".slotwrap"));
+  slot.plate.innerHTML = draw.homing();
+  el.querySelector("button").addEventListener("click", () => {
+    const item = randomItem();
+    slot.plate.innerHTML = draw[item]();
+    play(`won-${picks.wonSound}`, WON_SOUNDS.find((w) => w.id === picks.wonSound).render);
+    celebrate(slot, a.id, item);
+  });
+}
+// 5. Together.
+const sceneWorld = { ...world(document.getElementById("scene"), { boxes: [-3, -1, 1, 3], withCoin: false, camera: [0, 2.2, 8], look: [0, 0.9, 0] }), spin: () => picks.spin };
+worlds.push(sceneWorld);
+const sceneSlot = mountSlot(document.getElementById("scene-slot"));
+const fill = (group, list) => { const sel = document.querySelector(`select[data-pick="${group}"]`); sel.innerHTML = list.map((x) => `<option value="${x.id}">${x.name}</option>`).join(""); sel.addEventListener("change", () => setPick(group, sel.value)); };
+fill("spin", SPINS); fill("pickup", PICKUPS); fill("reel", REELS); fill("tick", TICKS); fill("wonSound", WON_SOUNDS); fill("wonAnim", WON_ANIMS);
+document.querySelector(`select[data-pick="length"]`).addEventListener("change", (e) => setPick("length", e.target.value));
+let rolling = false;
+document.getElementById("drive").addEventListener("click", () => {
+  const free = sceneWorld.boxes.filter((b) => b.popAt < 0);
+  if (free.length === 0 || rolling) return;
+  free[Math.floor(free.length / 2)].popAt = performance.now();
+  play(`pickup-${picks.pickup}`, PICKUPS.find((p) => p.id === picks.pickup).render);
+  rolling = true;
+  const target = randomItem();
+  roll(sceneSlot, { reel: picks.reel, tickId: picks.tick, length: Number(picks.length), target, onLand: () => {
+    play(`won-${picks.wonSound}`, WON_SOUNDS.find((w) => w.id === picks.wonSound).render);
+    celebrate(sceneSlot, picks.wonAnim, target);
+    // The held item stays until fired; here it clears so the next drive can roll.
+    setTimeout(() => { sceneSlot.plate.innerHTML = ""; sceneSlot.name.classList.remove("show"); rolling = false; }, 1800);
+  } });
+});
+document.getElementById("copy").addEventListener("click", () => navigator.clipboard?.writeText(document.getElementById("summary").textContent));
+
+for (const [g, id] of Object.entries(picks)) setPick(g, id);
+requestAnimationFrame(animate);
+</script>
+</body>
+</html>
