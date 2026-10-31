@@ -602,13 +602,155 @@
       #results-scene button[name="rematch"]:hover {
         background: #8ef0b7;
       }
+      /* Title: the way in on the left, the course on the right (ADR 0061). */
       #title-scene {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        align-items: center;
+        padding: 4em 5em;
+      }
+      #title-scene .way-in {
         display: flex;
         flex-direction: column;
         align-items: center;
-        justify-content: center;
         gap: 1.4em;
-        padding: 4em 0;
+      }
+      #title-scene .course {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 1.2em;
+      }
+      #title-scene .course-heading {
+        display: flex;
+        align-items: baseline;
+        gap: 0.8em;
+        rotate: -2deg;
+      }
+      #title-scene .course-heading h2 {
+        margin: 0;
+        font: inherit;
+        font-size: 3em;
+        text-shadow: 0.08em 0.08em 0 var(--ink);
+      }
+      #title-scene .course-heading p {
+        padding: 0.35em 0.6em;
+        font-size: 1.2em;
+        background: var(--ink);
+      }
+      /* The flags as a radio group: the arrows move between them, as a native radio's do. */
+      #title-scene .flags {
+        display: flex;
+        gap: 1.4em;
+        margin: 0;
+        padding: 0;
+        border: 0;
+      }
+      #title-scene .flag-tile {
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0.5em;
+        padding: 0.6em;
+        background: var(--ink);
+        box-shadow: 0.3em 0.3em 0 rgb(0 0 0 / 0.4);
+        cursor: pointer;
+      }
+      #title-scene .flag-tile:hover {
+        translate: -0.08em -0.08em;
+      }
+      #title-scene .flag-tile input {
+        position: absolute;
+        opacity: 0;
+        pointer-events: none;
+      }
+      #title-scene .flag-tile [data-flag] {
+        display: block;
+        width: 8.4em;
+        height: 5.6em;
+        border: 0.2em solid var(--ink);
+      }
+      #title-scene .flag-name {
+        font-size: 1.3em;
+      }
+      #title-scene .flag-tile:has(input:checked) {
+        background: var(--gold);
+        color: var(--ink);
+        translate: -0.15em -0.15em;
+        box-shadow: 0.45em 0.45em 0 var(--ink);
+      }
+      #title-scene .flag-tile:has(input:not(:checked)) [data-flag] {
+        filter: saturate(0.55) brightness(0.8);
+      }
+      #title-scene .flag-tile:has(input:focus-visible) {
+        outline: 0.15em solid #fff;
+        outline-offset: 0.15em;
+      }
+      #title-scene .preview {
+        width: 38em;
+        padding: 1.2em 1.4em 1.3em;
+        background: var(--ink);
+        box-shadow: 0.4em 0.4em 0 rgb(0 0 0 / 0.4);
+      }
+      #title-scene .preview-head {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 1em;
+      }
+      #title-scene .preview h3 {
+        margin: 0;
+        font: inherit;
+        font-size: 3em;
+        color: var(--gold);
+        text-shadow: 0.08em 0.08em 0 #000;
+      }
+      #title-scene .preview .after {
+        font-size: 1.3em;
+        color: #c9ced5;
+      }
+      #title-scene .preview .map {
+        display: block;
+        width: 100%;
+        height: 19em;
+        margin: 0.8em 0;
+        background: #1b1d21;
+      }
+      #title-scene .preview .blurb {
+        font-size: 1.3em;
+      }
+      #title-scene .stats {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 0.6em;
+        margin-top: 0.8em;
+      }
+      #title-scene .stats div {
+        display: flex;
+        flex-direction: column;
+        gap: 0.25em;
+        padding: 0.5em 0.6em;
+        background: #2b2e33;
+      }
+      #title-scene .stats b {
+        font-weight: normal;
+        font-size: 1.8em;
+      }
+      #title-scene .stats small {
+        font-size: 1em;
+        color: #c9ced5;
+      }
+      @media (prefers-reduced-motion: no-preference) {
+        #title-scene .map-swap {
+          animation: map-in 0.25s ease-out;
+        }
+      }
+      @keyframes map-in {
+        from {
+          opacity: 0;
+          translate: 0 0.6em;
+        }
       }
       #title-scene .logo {
         position: relative;
@@ -656,7 +798,7 @@
         display: flex;
         gap: 1em;
       }
-      #title-scene input:not([type="checkbox"]) {
+      #title-scene input:not([type="checkbox"], [type="radio"]) {
         width: 11em;
         padding: 0.45em 0.6em;
         font: inherit;
@@ -668,7 +810,7 @@
         box-shadow: 0.3em 0.3em 0 var(--ink);
         outline: none;
       }
-      #title-scene input:not([type="checkbox"]):focus {
+      #title-scene input:not([type="checkbox"], [type="radio"]):focus {
         background: #fff6cf;
       }
       #title-scene input::placeholder {
@@ -758,6 +900,20 @@
         color: var(--ink);
         background: var(--gold);
         border: 0.15em solid var(--ink);
+      }
+      /* The room's course, read-only: its flag and name beside the count. */
+      #room-scene [data-room-course] {
+        display: flex;
+        align-items: center;
+        gap: 0.6em;
+        padding: 0.4em 0.7em;
+        font-size: 1.8em;
+        background: var(--ink);
+      }
+      #room-scene [data-room-course] > svg {
+        width: 2.1em;
+        height: 1.4em;
+        border: 0.1em solid #000;
       }
       #room-scene .share {
         display: flex;

@@ -4,7 +4,7 @@
 
 use sim::{Track, TrackError};
 
-/// The track every room races until rooms pick one.
+/// The track a room races when its creator picks none.
 pub const DEFAULT: &str = "bell-deer";
 
 /// Every track by name with its sidecar; a track is added here and nowhere
@@ -36,7 +36,7 @@ pub fn sidecar(name: &str) -> Option<&'static str> {
 
 /// The track called `name` as the server spells it, or `None` for a name
 /// the server has no track for.
-fn known(name: &str) -> Option<&'static str> {
+pub fn known(name: &str) -> Option<&'static str> {
     TRACKS
         .iter()
         .find(|(known, _)| *known == name)

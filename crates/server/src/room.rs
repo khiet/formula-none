@@ -171,6 +171,7 @@ impl HostedRoom {
     pub fn view(&self) -> Room {
         Room {
             code: self.code.clone(),
+            track: self.track.to_owned(),
             state: self.state,
             players: self.players().cloned().collect(),
         }

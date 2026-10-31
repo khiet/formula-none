@@ -100,6 +100,7 @@ pub fn input() -> Input {
 pub fn room() -> Room {
     Room {
         code: "BXQF".to_owned(),
+        track: "goldstone".to_owned(),
         state: RoomState::Open,
         players: vec![
             Player {

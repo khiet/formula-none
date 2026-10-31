@@ -7,7 +7,7 @@ use axum::http::{header, StatusCode};
 use axum::response::IntoResponse;
 use axum::routing::{get, post};
 use axum::{Json, Router};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use tokio::net::TcpListener;
 use tokio::sync::watch;
 
@@ -49,9 +49,25 @@ struct CreatedRoom {
     code: String,
 }
 
-async fn create_room(State(state): State<AppState>) -> (StatusCode, Json<CreatedRoom>) {
-    let code = state.rooms.create();
-    (StatusCode::CREATED, Json(CreatedRoom { code }))
+/// What a create may ask for: the track the room races, fixed for the
+/// room (ADR 0061). A create with no body races the server's default.
+#[derive(Deserialize)]
+struct CreateRoom {
+    track: String,
+}
+
+async fn create_room(
+    State(state): State<AppState>,
+    request: Option<Json<CreateRoom>>,
+) -> Result<(StatusCode, Json<CreatedRoom>), StatusCode> {
+    let code = match request {
+        None => state.rooms.create(),
+        Some(Json(CreateRoom { track })) => {
+            let track = tracks::known(&track).ok_or(StatusCode::BAD_REQUEST)?;
+            state.rooms.create_on(track)
+        }
+    };
+    Ok((StatusCode::CREATED, Json(CreatedRoom { code })))
 }
 
 /// What Prometheus scrapes (ADR 0018). Caddy proxies only `/api/*`, so this

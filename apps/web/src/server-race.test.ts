@@ -163,7 +163,7 @@ function fakeClient(): FakeClient {
   return {
     slot: 1,
     token: TOKEN,
-    room: { code: "BXQF", state: "racing", players: [] },
+    room: { code: "BXQF", track: "bell-deer", state: "racing", players: [] },
     race: undefined,
     replaced: false,
     closed: new Promise(() => {}),
@@ -445,7 +445,7 @@ describe("createServerRace", () => {
   it("reports the phase and the predicted fire from what reaches it over the connection", async () => {
     const connection = fakeConnection();
     const joining = joinRoom(connection, jsonCodec, { code: "BXQF", nickname: "ada" });
-    const room: Room = { code: "BXQF", state: "racing", players: [] };
+    const room: Room = { code: "BXQF", track: "bell-deer", state: "racing", players: [] };
     connection.receive({ joined: { slot: 0, room, token: TOKEN } });
     const run = createServerRace(bridge, await joining, COUNTDOWN, 0, "{}");
     expect(run.readout().phase).toEqual({ kind: "countdown", remainingSeconds: COUNTDOWN_S });

@@ -28,7 +28,7 @@ use ts_rs::TS;
 /// [`ClientMessage::Join`] and the server refuses a mismatch with
 /// [`Refusal::VersionMismatch`] (ADR 0013). The generator exports it next to
 /// the types, so the web app reads the same constant.
-pub const PROTOCOL_VERSION: u16 = 14;
+pub const PROTOCOL_VERSION: u16 = 15;
 
 /// What a client sends the server.
 #[derive(Serialize, Deserialize, TS, Debug, Clone, PartialEq)]
@@ -192,6 +192,9 @@ pub enum Refusal {
 pub struct Room {
     /// Four letters from the unambiguous alphabet.
     pub code: String,
+    /// The track every race in the room runs on, picked by the creator at
+    /// the create and fixed for the room (ADR 0061).
+    pub track: String,
     pub state: RoomState,
     /// In slot order. A joiner takes the lowest free slot, so a room nobody
     /// has left lists its players in join order.

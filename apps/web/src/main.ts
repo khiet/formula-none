@@ -15,14 +15,19 @@ import { createRoomScene } from "./room-scene";
 import { forgetSession } from "./room-session";
 import { createServerRace } from "./server-race";
 import { type Seat, takeSeat } from "./take-seat";
-import { createTitleScene } from "./title-scene";
+import { type CourseChoice, createTitleScene } from "./title-scene";
 import {
+  COURSES,
   centrelineOf,
   fetchSidecar,
   isTrackName,
+  loadCoursePick,
+  saveCoursePick,
   selectTrack,
   TRACKS,
   type TrackFiles,
+  type TrackName,
+  trackFromSearch,
 } from "./track";
 
 /** The connection readout, kept across Race Scenes: each new panel shows the latest status. */
@@ -77,9 +82,13 @@ function reportConnection(bridge: Bridge): ConnectionReadout {
   };
 }
 
-/** Ask the server for a room; its answer is the code to share (ADR 0012). */
-async function createRoom(): Promise<string> {
-  const response = await fetch("/api/rooms", { method: "POST" });
+/** Ask the server for a room racing `track`; its answer is the code to share (ADR 0012, ADR 0061). */
+async function createRoom(track: TrackName): Promise<string> {
+  const response = await fetch("/api/rooms", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ track }),
+  });
   if (!response.ok) {
     throw new Error(`could not create a room: ${response.status}`);
   }
@@ -97,6 +106,16 @@ async function fetchBytes(url: string): Promise<ArrayBuffer> {
     throw new Error(`could not fetch ${url}: ${response.status}`);
   }
   return response.arrayBuffer();
+}
+
+/** Every course with its centreline, for the Title Scene's previews. */
+function loadCourseChoices(): Promise<CourseChoice[]> {
+  return Promise.all(
+    COURSES.map(async (course) => ({
+      course,
+      centreline: centrelineOf(await fetchSidecar(TRACKS[course.track])),
+    })),
+  );
 }
 
 /** The track a Countdown names; the default when the client has no such track. */
@@ -162,12 +181,17 @@ async function untilExit(scene: MountedScene): Promise<Step> {
 // The Scenes in order: Title into a room or a solo race, the Room Scene into
 // the race on the creator's Start, the race into its results, and the
 // results back into the room or another solo race, or the Title. A solo
-// race takes its track from `?track=` and runs the sim here; a room's comes
-// from the server, which runs the race (ADR 0009).
+// race runs the course picked on the Title, or the track `?track=` names,
+// and runs the sim here; a room's comes from the server, which runs the
+// race (ADR 0009).
 async function main(container: HTMLElement): Promise<void> {
   // The Title and Results Scenes are set in the Instrument panel's face
   // too (ADR 0033), so it loads before the first Scene.
-  const [bridge] = await Promise.all([loadBridge(), loadInstrumentFont()]);
+  const [bridge, , courses] = await Promise.all([
+    loadBridge(),
+    loadInstrumentFont(),
+    loadCourseChoices(),
+  ]);
   const connection = reportConnection(bridge);
   // The sound files load now; the AudioContext waits for the first gesture,
   // which the browser's autoplay rule asks for (ADR 0025). Any press or key
@@ -186,7 +210,10 @@ async function main(container: HTMLElement): Promise<void> {
   for (const gesture of ["pointerdown", "keydown"] as const) {
     window.addEventListener(gesture, unlockAudio);
   }
-  const soloTrack = selectTrack(window.location.search);
+  let course = loadCoursePick(window.localStorage);
+  // A tester's `?track=` wins over the pick, so any track loads without the Title.
+  const trackOverride = trackFromSearch(window.location.search);
+  const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   const linkedCode = roomFromSearch(window.location.search) ?? "";
 
   const connectToServer = () =>
@@ -206,6 +233,10 @@ async function main(container: HTMLElement): Promise<void> {
         audio: audioSettings,
         nicknameChars: bridge.nicknameChars,
         roomCodeLength: bridge.roomCodeLength,
+        courses,
+        course,
+        laps: bridge.lapsPerRace,
+        reducedMotion,
       },
       {
         create: (nickname) => take({ kind: "create", nickname }),
@@ -216,6 +247,10 @@ async function main(container: HTMLElement): Promise<void> {
           saveAudioSettings(window.localStorage, settings);
           audio.settings(settings);
         },
+        course(picked) {
+          course = picked;
+          saveCoursePick(window.localStorage, picked);
+        },
       },
     );
     return { exit, dispose: title.dispose };
@@ -224,7 +259,7 @@ async function main(container: HTMLElement): Promise<void> {
   /** Ask the server for a room and join it, or come back to the Title with why not. */
   const createAndJoin = async (nickname: string): Promise<Step> => {
     try {
-      return { kind: "join", nickname, code: await createRoom() };
+      return { kind: "join", nickname, code: await createRoom(course.track) };
     } catch (error) {
       console.warn("could not create a room", error);
       return { kind: "title", message: "Could not create a room; is the server up?" };
@@ -333,6 +368,7 @@ async function main(container: HTMLElement): Promise<void> {
   };
 
   const mountSoloRace = async () => {
+    const soloTrack = trackOverride ?? TRACKS[course.track];
     const sidecar = await fetchSidecar(soloTrack);
     const run = localRaceRun(bridge, soloTrack.name, sidecar);
     return mountRace(soloTrack, sidecar, run, () => undefined, {

@@ -50,6 +50,11 @@ export const SHIFT_BLUE: Tones = { lit: 0x8aa8ff, mid: 0x4f7dff, shaded: 0x2f4fc
 export const ASPHALT = 0x6b6b78;
 export const WALL = 0xf0f0f0;
 
+/** The course flags' colours other than white, as the real flags have them. */
+export const FLAG_JP_RED = 0xbc002d;
+export const FLAG_GB_BLUE = 0x012169;
+export const FLAG_GB_RED = 0xc8102e;
+
 /** The item characters' greys, slot and road alike: the cone's slab, the drone's arms. */
 export const GREYS = {
   body: 0xe3e6ea,
