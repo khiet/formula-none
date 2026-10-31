@@ -1,4 +1,4 @@
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { listRepoFiles, ROOT, readRepoFile } from "./repo";
@@ -39,6 +39,19 @@ describe("asset licences", () => {
   it("record the synthesised sounds and the music loop as CC0", () => {
     expect(licences).toContain("`audio/*.wav`");
     expect(existsSync(join(ROOT, "assets/audio/music-loop.wav"))).toBe(true);
+  });
+
+  // The 8 s loop repeated too often to race to; build.py's loop runs a minute
+  // or more. Chrome decodes only plain PCM, so the header is held to it too.
+  it("synthesise a music loop of a minute or more as 16-bit PCM", () => {
+    const wav = readFileSync(join(ROOT, "assets/audio/music-loop.wav"));
+    const format = wav.readUInt16LE(20);
+    const channels = wav.readUInt16LE(22);
+    const rate = wav.readUInt32LE(24);
+    const bits = wav.readUInt16LE(34);
+    const dataBytes = wav.readUInt32LE(40);
+    expect({ format, channels, bits }).toEqual({ format: 1, channels: 1, bits: 16 });
+    expect(dataBytes / (rate * channels * (bits / 8))).toBeGreaterThanOrEqual(60);
   });
 
   // The `audio/*.wav` row claims every WAV is synthesised; a hand-placed file

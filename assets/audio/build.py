@@ -361,8 +361,8 @@ def finish(beep=880, high=1320, length=0.1, hold=0.5, gain=0.3):
 
 
 # ---------------------------------------------------------------------------
-# The original helpers, bodies unchanged under new names, for the hit, the
-# sputter and the music loop, whose bytes must not change.
+# The original helpers, bodies unchanged under new names, for the hit and
+# the sputter, whose bytes must not change.
 # ---------------------------------------------------------------------------
 
 
@@ -446,25 +446,93 @@ def sfx():
     write("sputter", sputter(2.0))
 
 
-# The loop: four bars of 4/4 at 120 bpm (8 s). Chords I, V, vi, IV in C.
-# It keeps the original helpers, so its bytes are the loop the game first
-# shipped with.
+# The loop: 32 bars of 4/4 at 120 bpm (64 s) in C, four sections of eight
+# bars with one chord a bar. A states the theme, B moves to the relative
+# minor with longer notes, A' answers the theme an octave up, and C drops
+# to a half-time breakdown, builds back, and runs down the scale into A's
+# first note, so the last bar leads straight into the first.
 BPM = 120
 BEAT = 60 / BPM
 BAR = 4 * BEAT
-CHORDS = [
-    (261.63, 329.63, 392.00),  # C E G
-    (196.00, 246.94, 293.66),  # G B D
-    (220.00, 261.63, 329.63),  # A C E
-    (174.61, 220.00, 261.63),  # F A C
-]
-# A lead line over the chords, one note per half beat, as semitone offsets
-# from C4 played an octave up.
-LEAD = [
-    0, 4, 7, 4, 7, 12, 7, 4,
-    -5, 2, 7, 2, 7, 11, 7, 2,
-    -3, 4, 9, 4, 9, 12, 9, 4,
-    -7, 0, 5, 0, 5, 9, 5, 0,
+EIGHTH = BEAT / 2
+
+C, G, AM, F, EM = "C", "G", "Am", "F", "Em"
+TRIADS = {
+    C: (261.63, 329.63, 392.00),  # C E G
+    G: (196.00, 246.94, 293.66),  # G B D
+    AM: (220.00, 261.63, 329.63),  # A C E
+    F: (174.61, 220.00, 261.63),  # F A C
+    EM: (164.81, 196.00, 246.94),  # E G B
+}
+
+
+def arpeggio(*bars):
+    """Eight even eighths a bar, as (semitones, eighths) pairs."""
+    return [(semitones, 1) for bar in bars for semitones in bar]
+
+
+# Each section: its chords, its lead as (semitones from C4, eighths) pairs
+# played an octave up, and its groove. "full" is four on the floor with
+# eighth hi-hats; "backbeat" adds a snare on two and four; "half" keeps one
+# kick and one sustained chord a bar and no hats; "fill" is a backbeat bar
+# whose snare plays every eighth, swelling.
+SECTIONS = [
+    (
+        [C, G, AM, F, C, G, AM, F],
+        arpeggio(
+            [0, 4, 7, 4, 7, 12, 7, 4],
+            [-5, 2, 7, 2, 7, 11, 7, 2],
+            [-3, 4, 9, 4, 9, 12, 9, 4],
+            [-7, 0, 5, 0, 5, 9, 5, 0],
+            [0, 4, 7, 4, 7, 12, 7, 4],
+            [-5, 2, 7, 2, 7, 11, 14, 11],
+            [-3, 4, 9, 4, 9, 12, 16, 12],
+        )
+        + [(12, 1), (9, 1), (5, 1), (9, 1), (7, 4)],
+        ["full"] * 8,
+    ),
+    (
+        [AM, F, C, G, AM, F, G, G],
+        [
+            (9, 3), (7, 1), (4, 4),
+            (5, 3), (4, 1), (0, 4),
+            (4, 2), (7, 2), (12, 4),
+            (11, 3), (9, 1), (7, 4),
+            (9, 3), (11, 1), (12, 4),
+            (14, 3), (12, 1), (9, 4),
+            (11, 2), (12, 2), (14, 2), (11, 2),
+            (7, 8),
+        ],
+        ["backbeat"] * 7 + ["fill"],
+    ),
+    (
+        [C, G, AM, F, C, G, AM, F],
+        arpeggio(
+            [12, 7, 4, 7, 12, 16, 12, 7],
+            [11, 7, 2, 7, 11, 14, 11, 7],
+            [12, 9, 4, 9, 12, 16, 12, 9],
+            [12, 9, 5, 9, 12, 17, 12, 9],
+            [16, 12, 7, 12, 16, 19, 16, 12],
+            [14, 11, 7, 11, 14, 19, 14, 11],
+            [16, 12, 9, 12, 16, 21, 16, 12],
+        )
+        + [(17, 2), (16, 2), (14, 2), (12, 2)],
+        ["backbeat"] * 8,
+    ),
+    (
+        [F, G, EM, AM, F, G, C, G],
+        [
+            (9, 6), (7, 2),
+            (11, 6), (14, 2),
+            (7, 4), (11, 4),
+            (12, 8),
+            (9, 2), (12, 2), (17, 2), (12, 2),
+            (11, 2), (14, 2), (19, 2), (14, 2),
+            (16, 2), (12, 2), (7, 2), (12, 2),
+        ]
+        + arpeggio([14, 12, 11, 9, 7, 5, 4, 2]),
+        ["half"] * 4 + ["full"] * 3 + ["fill"],
+    ),
 ]
 
 
@@ -473,33 +541,70 @@ def semitone_freq(semitones, base=261.63):
 
 
 def music():
-    total = seconds(4 * BAR)
+    bars = sum(len(chords) for chords, _, _ in SECTIONS)
+    total = sec(bars * BAR)
     out = [0.0] * total
-    rng = random.Random(7)
+    # The same note recurs all through the loop, so each is rendered once.
+    rendered = {}
 
-    def add(start, samples):
+    def note(*args, **kwargs):
+        key = (args, tuple(sorted(kwargs.items())))
+        if key not in rendered:
+            rendered[key] = tone(*args, **kwargs)
+        return rendered[key]
+
+    def add(at_s, samples, gain=1.0):
+        start = sec(at_s)
         for i, s in enumerate(samples):
-            at = (start + i) % total  # a tail past the end wraps into the loop's head
-            out[at] += s
+            out[(start + i) % total] += s * gain  # a tail past the end wraps into the loop's head
 
-    for bar, chord_freqs in enumerate(CHORDS):
-        bar_start = seconds(bar * BAR)
-        root = chord_freqs[0] / 2  # the bass an octave down
-        for eighth in range(8):
-            t = bar_start + seconds(eighth * BEAT / 2)
-            pitch = root if eighth % 4 != 3 else chord_freqs[2] / 2
-            add(t, legacy_tone(pitch, BEAT / 2, wave_fn=square, decay=4, gain=0.12))
-            add(t, legacy_noise(0.03, decay=120, gain=0.08, rng=rng))  # hi-hat tick
-            if eighth % 2 == 0:
-                add(t, legacy_tone(60, 0.15, decay=25, sweep_to=35, gain=0.5))  # kick
-        for beat in range(4):
-            t = bar_start + seconds(beat * BEAT)
-            for freq in chord_freqs:
-                add(t, legacy_tone(freq, BEAT, wave_fn=triangle, decay=2.5, gain=0.07))
-    for i, semitones in enumerate(LEAD):
-        t = seconds(i * BEAT / 2)
-        add(t, legacy_tone(semitone_freq(semitones) * 2, BEAT / 2, wave_fn=triangle, decay=5, gain=0.14))
-    write("music-loop", out)
+    kick = tone(60, 0.15, decay=25, sweep_to=35, gain=0.5)
+    hat = highpass(noise(0.03, decay=120, gain=0.08, seed=7), 5000)
+    snare = mix(
+        highpass(noise(0.15, decay=22, gain=0.22, seed=8), 1500),
+        tone(190, 0.08, triangle, decay=30, gain=0.15),
+    )
+
+    bar = 0
+    for chords, lead, grooves in SECTIONS:
+        assert sum(length for _, length in lead) == 8 * len(chords), "a lead fills its section"
+        assert len(grooves) == len(chords), "a groove for every bar"
+        section_s = bar * BAR
+        for chord_name, groove in zip(chords, grooves):
+            triad = TRIADS[chord_name]
+            root = triad[0] / 2  # the bass an octave down
+            bar_s = bar * BAR
+            if groove == "half":
+                add(bar_s, note(root, BAR, square, decay=1.2, gain=0.12))
+                add(bar_s, kick)
+                for freq in triad:
+                    add(bar_s, note(freq, BAR, triangle, decay=0.8, gain=0.07))
+            else:
+                for eighth in range(8):
+                    t = bar_s + eighth * EIGHTH
+                    if groove == "full":
+                        pitch = root if eighth % 4 != 3 else triad[2] / 2
+                    else:
+                        pitch = root if eighth % 2 == 0 else root * 2  # the octave bounce
+                    add(t, note(pitch, EIGHTH, square, decay=4, gain=0.12))
+                    add(t, hat)
+                    if eighth % 2 == 0:
+                        add(t, kick)
+                    if groove == "fill":
+                        add(t, snare, 0.4 + 0.6 * eighth / 7)
+                    elif groove == "backbeat" and eighth in (2, 6):
+                        add(t, snare)
+                for beat in range(4):
+                    for freq in triad:
+                        add(bar_s + beat * BEAT, note(freq, BEAT, triangle, decay=2.5, gain=0.07))
+            bar += 1
+        t = section_s
+        for semitones, length in lead:
+            span = length * EIGHTH
+            decay = 5 if length == 1 else 2.5 / span
+            add(t, note(semitone_freq(semitones) * 2, span, triangle, decay=decay, gain=0.14))
+            t += span
+    write("music-loop", tame(out))
 
 
 if __name__ == "__main__":
