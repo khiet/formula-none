@@ -1,15 +1,13 @@
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { ROOT, readRepoFile } from "./repo";
+import { ROOT, readRepoFile, readRepoProse } from "./repo";
 
 // The repository is public (ADR 0066): the README is its front page, and
 // CONTRIBUTING.md and SECURITY.md are the files GitHub shows a visitor who
 // wants to help or to report a hole.
-const prose = (path: string) => readRepoFile(path).replace(/\s+/g, " ");
-
 describe("README", () => {
-  const readme = prose("README.md");
+  const readme = readRepoProse("README.md");
 
   it("opens on the Race View clip, a file the repo holds and licenses", () => {
     // The licence badge comes first; it is shields.io's image, not the repo's.
@@ -33,14 +31,16 @@ describe("README", () => {
   });
 
   it("sends self-hosters to deploy/, since infra/ is the author's own deployment", () => {
-    expect(readme).toMatch(/`infra\/` describes the author's own deployment.*`deploy\/`/);
+    expect(readme).toMatch(
+      /`infra\/` describes the author's own deployment.*Compose stack under `deploy\/`/,
+    );
   });
 });
 
 describe("CONTRIBUTING.md", () => {
-  const contributing = prose("CONTRIBUTING.md");
+  const contributing = readRepoProse("CONTRIBUTING.md");
 
-  it("takes pull requests for help wanted issues only, gated by pnpm check", () => {
+  it("names the help wanted label, the conventions in CLAUDE.md and the pnpm check gate", () => {
     expect(contributing).toContain("`help wanted`");
     expect(contributing).toContain("`pnpm check`");
     expect(contributing).toContain("CLAUDE.md");
@@ -48,7 +48,7 @@ describe("CONTRIBUTING.md", () => {
 });
 
 describe("SECURITY.md", () => {
-  const security = readRepoFile("SECURITY.md");
+  const security = readRepoProse("SECURITY.md");
 
   // A public address draws spam; GitHub's private reporting needs none.
   it("routes reports through GitHub's private vulnerability reporting, with no address", () => {

@@ -73,11 +73,12 @@ stack with Caddy, Prometheus and Grafana. The server's metrics are at
 
 ## Hosting your own
 
-The Compose stack under `deploy/` runs the server behind Caddy on any
-machine with Docker: build the image and start it with `SITE_ADDRESS` set to
-your domain, as [`deploy/README.md`](deploy/README.md) describes. `infra/`
-describes the author's own deployment on AWS, not a template; to host the
-game yourself, use `deploy/`.
+`infra/` describes the author's own deployment on AWS, not a template; to
+host the game yourself, use the Compose stack under `deploy/`, which runs
+the server behind Caddy. [`deploy/README.md`](deploy/README.md) builds the
+image and runs the stack on `https://localhost`. On a server of your own,
+set `SITE_ADDRESS` to your domain and drop the CloudWatch logging the base
+`compose.yaml` sends to the author's AWS account.
 
 ## Controls
 
@@ -104,7 +105,7 @@ the 2 and the kart stalls. The beeps count 3, 2, 1 and GO.
 ## Licence
 
 The code is [MIT](LICENSE). The art and sound are CC0 1.0, made in this repo
-or taken from Kenney's CC0 kits; [`assets/LICENSES.md`](assets/LICENSES.md)
+apart from one Kenney font; [`assets/LICENSES.md`](assets/LICENSES.md)
 records where each came from (ADR 0066). Contributions follow
 [`CONTRIBUTING.md`](CONTRIBUTING.md).
 

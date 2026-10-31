@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { readRepoFile } from "./repo";
+import { readRepoProse } from "./repo";
 
 // CLAUDE.md is the first file an agent reads. It must carry the one-way
 // dependency rule and the one command each for build, lint and test on both
@@ -15,7 +15,7 @@ const COMMANDS = [
 
 describe("CLAUDE.md", () => {
   // Prose wraps at 80 columns; the rule is a sentence, not a line.
-  const claudeMd = readRepoFile("CLAUDE.md").replace(/\s+/g, " ");
+  const claudeMd = readRepoProse("CLAUDE.md");
 
   it("states the one-way dependency rule", () => {
     expect(claudeMd).toContain("web depends on the bridge");
