@@ -1,0 +1,744 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Monaco Course Draft</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Bungee&family=Inter:wght@400;600&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #121316;
+    --card: #1b1d21;
+    --fg: #e8e8ea;
+    --muted: #8a8d94;
+    --rule: #2a2c31;
+    --code-bg: #24272c;
+    /* palette.ts and the track materials */
+    --poster-red: #c81d25;
+    --go-green: #3ddc84;
+    --gold: #e0b54a;
+    --gold-lit: #f8e39a;
+    --asphalt: #6b6b78;
+    --wall: #f0f0f0;
+    --sand: #c9a86a;
+    --grass: #3f7a3a;
+    --hazard: #f5c542;
+    --boost: #ff8800;
+    --tyre: #26262a;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--fg); font: 15px/1.55 Inter, system-ui, sans-serif; }
+  body { padding: 2rem 16px 4rem; }
+  .wrap { max-width: 1180px; margin: 0 auto; }
+  h1 { font: 1.9rem/1.1 Bungee, Impact, sans-serif; margin: 0 0 .5rem; letter-spacing: .02em; }
+  h1 span { color: var(--poster-red); }
+  h2 { font: 1.2rem/1.2 Bungee, Impact, sans-serif; margin: 2.5rem 0 .75rem; }
+  h3 { font: 600 1rem/1.3 Inter, sans-serif; margin: 1.25rem 0 .4rem; }
+  p { margin: .4rem 0; }
+  .lede { color: var(--muted); max-width: 80ch; }
+  nav { display: flex; flex-wrap: wrap; gap: .4rem; margin: 1.25rem 0 0; }
+  nav a { color: var(--fg); text-decoration: none; font-size: .85rem; border: 1px solid var(--rule); border-radius: 999px; padding: .25rem .7rem; }
+  nav a:hover { border-color: var(--muted); }
+  .card { background: var(--card); border: 1px solid var(--rule); border-radius: 10px; padding: 1rem 1.15rem; }
+  .stats { display: flex; flex-wrap: wrap; gap: .5rem 1.5rem; margin: 0 0 .75rem; font-size: .9rem; }
+  .stats b { font-variant-numeric: tabular-nums; }
+  .stats .ok { color: var(--go-green); }
+  .stats .bad { color: #ff7a6e; }
+  .layers { display: flex; flex-wrap: wrap; gap: .35rem .9rem; margin: 0 0 .75rem; font-size: .85rem; color: var(--muted); }
+  .layers label { display: inline-flex; gap: .35rem; align-items: center; cursor: pointer; }
+  .map-wrap { position: relative; }
+  svg { display: block; width: 100%; height: auto; }
+  #map { background: var(--grass); border-radius: 8px; }
+  #map text { font-family: Inter, sans-serif; }
+  .corner-label { font-size: 7px; font-weight: 600; fill: #fff; paint-order: stroke; stroke: rgba(0,0,0,.55); stroke-width: 1.6px; }
+  .pin circle { fill: var(--poster-red); stroke: #fff; stroke-width: .9; }
+  .pin text { font-size: 5.6px; font-weight: 600; fill: #fff; text-anchor: middle; dominant-baseline: central; }
+  .pin { cursor: pointer; }
+  .pin.hot circle { fill: var(--gold-lit); }
+  .pin.hot text { fill: #111; }
+  #map g[data-id].hot { filter: drop-shadow(0 0 1.5px #fff) drop-shadow(0 0 1.5px #fff); }
+  .leader { stroke: #fff; stroke-width: .5; stroke-dasharray: 1.2 1; opacity: .8; }
+  .tip { position: absolute; pointer-events: none; background: #0d0e10; border: 1px solid var(--rule); border-radius: 6px; padding: .4rem .6rem; font-size: .8rem; max-width: 260px; opacity: 0; transition: opacity .1s; }
+  .tip.show { opacity: 1; }
+  .legend { display: flex; flex-wrap: wrap; gap: .5rem 1.1rem; margin-top: .75rem; font-size: .82rem; color: var(--muted); }
+  .legend span { display: inline-flex; align-items: center; gap: .4rem; }
+  .sw { display: inline-block; width: 14px; height: 14px; border-radius: 3px; }
+  .grid2 { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr)); align-items: start; }
+  .table-wrap { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; font-size: .88rem; }
+  th, td { text-align: left; padding: .45rem .6rem; border-bottom: 1px solid var(--rule); vertical-align: top; }
+  th { color: var(--muted); font-weight: 600; white-space: nowrap; }
+  td.num { white-space: nowrap; font-variant-numeric: tabular-nums; }
+  tbody tr.hot { background: #2a2614; }
+  tbody tr[data-id] { cursor: pointer; }
+  .idx { display: inline-grid; place-items: center; width: 1.5rem; height: 1.5rem; border-radius: 50%; background: var(--poster-red); color: #fff; font-weight: 600; font-size: .78rem; }
+  code { font: .85em ui-monospace, SFMono-Regular, Menlo, monospace; background: var(--code-bg); padding: .05rem .3rem; border-radius: 3px; }
+  pre { background: var(--code-bg); border-radius: 8px; padding: .9rem 1rem; overflow-x: auto; font: .8rem/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; margin: .5rem 0 0; }
+  pre code { background: none; padding: 0; }
+  ol.questions > li { margin: .9rem 0; }
+  ol.questions ol { list-style: lower-alpha; }
+  .rec { color: var(--go-green); font-weight: 600; }
+  .muted { color: var(--muted); }
+  ul, ol { padding-left: 1.3rem; margin: .4rem 0; }
+  li { margin: .25rem 0; }
+  #ref { background: #23262b; border-radius: 8px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1>A third course, <span>Monaco</span> cut</h1>
+  <p class="lede">A first draft of a new course after the Monaco street circuit, run clockwise as the real one is: Sainte Devote, the climb up Beau Rivage, Massenet and Casino Square, Mirabeau, the Grand Hotel hairpin, Portier, the tunnel, the chicane, Tabac, the two swimming pool chicanes, La Rascasse and Anthony Noghes. Corner angles are measured from the real circuit and the lap was fitted to its outline at 0.37 scale, with radii opened to kart size. The run-off is a 2 m strip instead of 6 m, so the barriers stand close as they do in the streets. The map is laid live in this page from the same turtle steps as <code>trackgen/layouts</code>, so editing <code>SPEC</code> or <code>PLACEMENTS</code> in the source redraws it.</p>
+  <nav>
+    <a href="#map-section">Map</a>
+    <a href="#elevation">Elevation</a>
+    <a href="#placements">Placements</a>
+    <a href="#layout">Layout draft</a>
+    <a href="#risks">Engineering notes</a>
+    <a href="#questions">Decisions</a>
+  </nav>
+</header>
+
+<h2 id="map-section">Map</h2>
+<div class="card">
+  <div class="stats" id="stats"></div>
+  <div class="layers" id="layers">
+    <label><input type="checkbox" data-layer="obstacles" checked /> Obstacles</label>
+    <label><input type="checkbox" data-layer="pins" checked /> Numbered pins</label>
+    <label><input type="checkbox" data-layer="labels" checked /> Corner names</label>
+    <label><input type="checkbox" data-layer="checkpoints" /> Checkpoints</label>
+    <label><input type="checkbox" data-layer="centreline" /> Centreline and direction</label>
+    <label><input type="checkbox" data-layer="decor" checked /> Grandstands, hoardings and tunnel</label>
+  </div>
+  <div class="map-wrap">
+    <svg id="map" role="img" aria-label="Top-down map of the Monaco-style course with obstacles"></svg>
+    <div class="tip" id="tip"></div>
+  </div>
+  <div class="legend">
+    <span><i class="sw" style="background:var(--asphalt)"></i>Asphalt, 12 m</span>
+    <span><i class="sw" style="background:var(--sand)"></i>Run-off, 2 m each side</span>
+    <span><i class="sw" style="background:var(--wall)"></i>Barrier</span>
+    <span><i class="sw" style="background:#15161a;border:1px solid #555"></i>Tunnel roof</span>
+    <span><i class="sw" style="background:var(--gold)"></i>Item boxes</span>
+    <span><i class="sw" style="background:var(--boost)"></i>Boost pad</span>
+    <span><i class="sw" style="background:var(--tyre);border:2px solid #ddd"></i>Tyre wall</span>
+    <span><i class="sw" style="background:#1d1d1d;border:2px solid #7fd17f"></i>Tyre pickup</span>
+    <span><i class="sw" style="background:repeating-linear-gradient(90deg,#c81d25 0 4px,#fff 4px 8px)"></i>Sausage kerb</span>
+    <span><i class="sw" style="background:repeating-linear-gradient(45deg,#f5c542 0 4px,#111 4px 8px)"></i>Runaway wheel hazard zone</span>
+  </div>
+</div>
+
+<div class="grid2" style="margin-top:1rem">
+  <div class="card">
+    <h3 style="margin-top:0">Reference: the real circuit</h3>
+    <svg id="ref" role="img" aria-label="Outline of the real Monaco circuit"></svg>
+    <p class="muted" style="font-size:.82rem">3337 m, north up, from the public <code>bacinger/f1-circuits</code> GeoJSON (<code>mc-1929</code>); the red dot is the start line. The draft keeps every corner's direction and roughly its angle. At 1301 m it cannot keep the real proportions everywhere: the pit straight and the harbour are shorter against the corners, because no corner can be tighter than 12 m.</p>
+  </div>
+  <div class="card">
+    <h3 style="margin-top:0">How the draft was made</h3>
+    <ol>
+      <li>Split the real outline into 34 pieces at its corners and measured each one's heading change: Sainte Devote turns 84 degrees right, the Grand Hotel hairpin 195 left, La Rascasse 134 right; the whole lap nets 360 right.</li>
+      <li>Fitted turtle steps to the outline scaled to 0.37 by annealing their lengths, holding each corner's angle, so the lap closes, the grid straight is at least 30 m, and every pair of legs keeps 24 m between centrelines (8 m of grass between barriers with 2 m run-off).</li>
+      <li>Rounded to whole metres and degrees, opened the hairpin from 13 to 14 m so its two legs keep 24 m, and re-solved Beau Rivage (163.12 m) to close the lap.</li>
+      <li>Built the layout below through <code>trackgen.layout.build</code>: it closes at 1301.3 m with 12 item boxes, 2 boost pads, 3 kerbs, 15 tyres, 15 checkpoints and 8 grid slots, cresting 8.0 m up at Casino Square.</li>
+    </ol>
+  </div>
+</div>
+
+<h2 id="elevation">Elevation</h2>
+<div class="card">
+  <svg id="profile" role="img" aria-label="Elevation along the lap"></svg>
+  <p class="muted" style="font-size:.85rem">One <code>Hill</code> of 8 m from Sainte Devote to the tunnel mouth, 576 m long, so its crest falls in Casino Square, as the real circuit's high point does. 4.4% at its steepest, a third of the Suzuka bridge's grade, so it reads as a climb and a descent, not a bump. The tunnel, the harbour and the pool sit at sea level.</p>
+</div>
+
+<h2 id="placements">Placements</h2>
+<div class="card table-wrap">
+  <table>
+    <thead><tr><th>#</th><th>What</th><th>Where</th><th>s (m)</th><th>Offset</th><th>Why this spot</th></tr></thead>
+    <tbody id="placement-rows"></tbody>
+  </table>
+  <p class="muted" style="font-size:.82rem;margin-top:.6rem">Offsets are metres left of the centreline, as in the layout. Hover a row to find it on the map.</p>
+</div>
+
+<h2 id="layout">Layout draft</h2>
+<div class="card">
+  <p>Drop-in shape for <code>assets/tracks/trackgen/layouts/monaco.py</code>, in the style of <code>brands_patch.py</code>. It builds and closes as written; the map above draws from the same numbers. Woods and props are left out, and the tunnel and the harbour scenery are drawn only on this map; they are settled below (questions 3 and 5) and come with the build.</p>
+<pre><code id="layout-code">"""Monaco cut: a clockwise street circuit of about 1301 m after Monaco.
+
+The start/finish straight runs north into Sainte Devote, then the climb up
+Beau Rivage to Massenet and Casino Square, down to Mirabeau, round the
+Grand Hotel hairpin, Mirabeau Bas and Portier, through the tunnel to the
+chicane, along the harbour to Tabac, the two swimming pool chicanes, the
+quay, La Rascasse and Anthony Noghes. The run-off is a 2 m strip, so the
+barriers stand close as they do in the streets. The road climbs 8 m from
+Sainte Devote to its crest at Casino Square and falls again by the tunnel.
+"""
+
+from ..layout import (
+    BoostPad,
+    Decor,
+    Grandstands,
+    Hoardings,
+    ItemRow,
+    Kerb,
+    Layout,
+    TyreLine,
+    TyreWall,
+    WheelCrossing,
+)
+from ..path import Hill, Turtle
+
+# Just in from the painted kerb on the inside of a corner.
+KERB_INSIDE_M = 4.9
+# Left of the centreline, where every tyre wall stands clear of the bots' line.
+TYRE_WALL_LEFT_M = 4.5
+CREST_HEIGHT_M = 8.0
+
+path = (
+    Turtle(x=0.0, y=0.0, heading_deg=98.0)
+    .straight("start", 93.0)
+    .arc("sainte-devote", 13.0, -84.0)
+    .straight("beau-rivage", 163.12)
+    .arc("massenet", 37.0, 93.0)
+    .straight("casino-approach", 39.0)
+    .arc("casino", 26.0, -84.0)
+    .straight("casino-descent", 52.0)
+    .arc("mirabeau", 14.0, -140.0)
+    .arc("mirabeau-kink", 25.0, 27.0)
+    .straight("hairpin-approach", 14.0)
+    .arc("grand-hotel", 14.0, 195.0)
+    .straight("hairpin-exit", 7.0)
+    .arc("mirabeau-bas", 13.0, -104.0)
+    .straight("portier-approach", 10.0)
+    .arc("portier", 13.0, -97.0)
+    .straight("tunnel-entry", 34.0)
+    .arc("tunnel", 122.0, -81.0)
+    .arc("chicane-in", 14.0, 69.0)
+    .arc("chicane-out", 12.0, -97.0)
+    .arc("chicane-exit", 15.0, 25.0)
+    .straight("harbour", 69.0)
+    .arc("tabac", 17.0, 54.0)
+    .arc("tabac-exit", 100.0, 27.0)
+    .arc("pool-1-left", 13.0, 47.0)
+    .arc("pool-1-right", 22.0, -45.0)
+    .straight("pool-straight", 17.0)
+    .arc("pool-2-right", 12.0, -71.0)
+    .arc("pool-2-left", 12.0, 73.0)
+    .arc("quay", 90.0, 39.0)
+    .arc("rascasse", 12.0, -134.0)
+    .straight("rascasse-exit", 15.0)
+    .arc("noghes", 14.0, -78.0)
+    .arc("noghes-flick", 48.0, 27.0)
+    .arc("pit-bend", 40.0, -21.0)
+    .close("grid")
+)
+
+seg = path.segment
+# Sainte Devote to the tunnel mouth, so the crest falls in Casino Square.
+climb = Hill(seg("sainte-devote").s_start, seg("tunnel-entry").s_end, CREST_HEIGHT_M)
+
+LAYOUT = Layout(
+    name="monaco",
+    path=path,
+    asphalt_half_width=6.0,
+    runoff_width=2.0,
+    checkpoint_count=15,
+    tyre_walls=[
+        # Outside Sainte Devote: a right-hander's inside is on the bots' line.
+        TyreWall(seg("sainte-devote").s_mid, offset=TYRE_WALL_LEFT_M),
+        TyreWall(seg("grand-hotel").s_mid - 8.0, offset=TYRE_WALL_LEFT_M),
+        TyreWall(seg("grand-hotel").s_mid + 8.0, offset=TYRE_WALL_LEFT_M),
+    ],
+    item_rows=[
+        ItemRow(seg("beau-rivage").s_mid),
+        ItemRow(seg("tunnel-entry").s_mid),
+        ItemRow(seg("quay").s_mid),
+    ],
+    boost_pads=[
+        BoostPad(seg("tunnel").s_mid),
+        BoostPad(seg("noghes-flick").s_mid, offset=3.0),
+    ],
+    # Ten on the centreline, down the start straight and the harbour; five
+    # off it, wide on the climb and on the pool straight.
+    tyre_lines=[
+        TyreLine(seg("start").s_start + 10.0, count=5),
+        TyreLine(seg("harbour").s_start + 10.0, count=5),
+        TyreLine(seg("beau-rivage").s_start + 12.0, count=3, offset=-4.0),
+        TyreLine(seg("pool-straight").s_start + 4.0, count=2, offset=4.0),
+    ],
+    kerbs=[
+        Kerb(seg("chicane-out").s_mid, offset=-KERB_INSIDE_M),
+        Kerb(seg("pool-1-left").s_mid, offset=KERB_INSIDE_M),
+        Kerb(seg("pool-2-right").s_mid, offset=-KERB_INSIDE_M),
+    ],
+    # Mirabeau turns right, so the descent's outside is the left.
+    wheel_crossings=[WheelCrossing(seg("casino-descent").s_mid, outside=1)],
+    elevation=[climb],
+    decor=Decor(
+        hoardings=[
+            Hoardings(("casino",), side=-1),
+            Hoardings(("portier",), side=1),
+            Hoardings(("pool-1-left", "pool-1-right"), side=-1),
+            Hoardings(("rascasse",), side=1),
+        ],
+        grandstands=[
+            Grandstands(("grid", "start"), side=-1),
+            Grandstands(("harbour",), side=1),
+            Grandstands(("pool-straight", "pool-2-right"), side=1),
+        ],
+        gantry=True,
+    ),
+)</code></pre>
+</div>
+
+<h2 id="risks">Engineering notes</h2>
+<div class="card">
+  <ul>
+    <li><b>Choosing the course is its own change.</b> <code>Countdown</code> already carries <code>track: String</code>, so every client builds the right sim once the server names it. What is missing is the creator's pick: a field on <code>Room</code>, a creator-only message to change it, the Room Scene's picker, and an ADR. That belongs in its own issue, ahead of or beside this one.</li>
+    <li><b>2 m run-off is new.</b> Both tracks today use 6 m. <code>runoff_width</code> is already per layout, and checkpoints span wall to wall from it, but bots, respawn and the wall bounce were all tuned with 6 m of sand to recover in. A kart that runs wide here meets the barrier almost at once. Worth a scripted lap and a bot sweep before tuning anything.</li>
+    <li><b>Tight corners.</b> Six corners sit at 12 to 13 m (Sainte Devote, Mirabeau Bas, Portier, the chicane, the second pool chicane, La Rascasse) against the 17 m Suzuka hairpin. The inside barrier is 4 m from the centreline at 12 m. Check with a centreline follower in <code>crates/sim/tests/laps.rs</code> that a kart gets round each without stopping, and that bots do not stall on the hairpin's tyre walls.</li>
+    <li><b>The tunnel is new scenery.</b> A roof over the road from just past the tunnel mouth to before the chicane, about 150 m. The chase camera rides above and behind the kart, so a low roof would cut through the view; the roof needs to sit above the camera or be drawn only from outside. It is Scenery, so the sidecar does not change. Darker light inside would be the first lighting change along the lap.</li>
+    <li><b>Spline progress is safe.</b> The course does not cross itself, and the closest legs (the two sides of the hairpin) are 24 m apart, so the windowed search of ADR 0046 has nothing to confuse.</li>
+    <li><b>Lap length.</b> 1301 m, within 5 m of Suzuqa Patch, so three laps (ADR 0054) take about as long as a race there.</li>
+    <li><b>Tests and fixtures.</b> A new track adds a sidecar and glTF under <code>assets/tracks/monaco/</code> from <code>pnpm export:tracks</code>, a case in the layout tests, and probably a replay fixture for the determinism gate. Nothing that exists today has to move.</li>
+  </ul>
+</div>
+
+<h2 id="questions">Decisions</h2>
+<div class="card">
+  <ol class="questions">
+    <li>The name in the game?
+      <ol>
+        <li><span class="rec">(Decided)</span> Monarch: Monaco is a principality, and the name keeps its sound.</li>
+      </ol>
+    </li>
+    <li>How wide is the run-off?
+      <ol>
+        <li><span class="rec">(Decided)</span> 2 m, as drafted: the barriers are what makes it Monaco, and it sets the course apart from the other two.</li>
+      </ol>
+    </li>
+    <li>How is the tunnel drawn?
+      <ol>
+        <li><span class="rec">(Decided)</span> Walls and a roof high enough to clear the chase camera, with lights along it.</li>
+      </ol>
+    </li>
+    <li>A jump?
+      <ol>
+        <li><span class="rec">(Decided)</span> None: the crest at Casino Square is the course's lift, and a ramp on a street circuit lands in a barrier.</li>
+      </ol>
+    </li>
+    <li>Which scenery, beyond grandstands and hoardings?
+      <ol>
+        <li><span class="rec">(Decided)</span> The harbour's water and yachts beside the harbour straight and the pool, and the casino building outside Casino Square.</li>
+      </ol>
+    </li>
+  </ol>
+</div>
+
+</div>
+
+<script>
+// Turtle steps, as in trackgen/path.py: straights are [ "s", name, length ],
+// arcs are [ "a", name, radius, degrees ] with positive degrees turning left.
+// The closing straight back to the line is added by close(), as there.
+const H0 = 98;
+const SPEC = [
+  ["s", "start", 93],
+  ["a", "sainte-devote", 13, -84],
+  ["s", "beau-rivage", 163.12],
+  ["a", "massenet", 37, 93],
+  ["s", "casino-approach", 39],
+  ["a", "casino", 26, -84],
+  ["s", "casino-descent", 52],
+  ["a", "mirabeau", 14, -140],
+  ["a", "mirabeau-kink", 25, 27],
+  ["s", "hairpin-approach", 14],
+  ["a", "grand-hotel", 14, 195],
+  ["s", "hairpin-exit", 7],
+  ["a", "mirabeau-bas", 13, -104],
+  ["s", "portier-approach", 10],
+  ["a", "portier", 13, -97],
+  ["s", "tunnel-entry", 34],
+  ["a", "tunnel", 122, -81],
+  ["a", "chicane-in", 14, 69],
+  ["a", "chicane-out", 12, -97],
+  ["a", "chicane-exit", 15, 25],
+  ["s", "harbour", 69],
+  ["a", "tabac", 17, 54],
+  ["a", "tabac-exit", 100, 27],
+  ["a", "pool-1-left", 13, 47],
+  ["a", "pool-1-right", 22, -45],
+  ["s", "pool-straight", 17],
+  ["a", "pool-2-right", 12, -71],
+  ["a", "pool-2-left", 12, 73],
+  ["a", "quay", 90, 39],
+  ["a", "rascasse", 12, -134],
+  ["s", "rascasse-exit", 15],
+  ["a", "noghes", 14, -78],
+  ["a", "noghes-flick", 48, 27],
+  ["a", "pit-bend", 40, -21],
+];
+
+const ASPHALT_HALF = 6, RUNOFF = 2, EDGE = ASPHALT_HALF + RUNOFF;
+const CHECKPOINTS = 15;
+// 8 m of grass between barriers.
+const MIN_CLEARANCE = 2 * EDGE + 8;
+const CREST = 8;
+const ITEM_OFFSETS = [-4.5, -1.5, 1.5, 4.5];
+// The roof, from just inside the mouth to short of the chicane.
+const TUNNEL = { fromStart: 10, toEnd: 15 };
+
+// Each placement: where it hangs (a segment and a rule for s), what it is,
+// and why it is there. `pin` is the numbered pin's offset from the centreline,
+// `pinS` moves it along the lap where pins would crowd.
+const PLACEMENTS = [
+  { kind: "start", seg: "start", at: () => 0, off: 0, pin: -22, title: "Start line, grid and gantry",
+    why: "The grid sits on the pit straight after the bend out of Anthony Noghes, 48 m of it, as on every track." },
+  { kind: "tyreline", seg: "start", at: (g) => g.start + 10, off: 0, count: 5, pin: 20, pinS: 30, title: "Tyre line on the start straight",
+    why: "Five on the centreline from the line to Sainte Devote, so the leader takes a set on lap one and the pack has to choose between the tyres and a lunge." },
+  { kind: "tyres", seg: "sainte-devote", at: (g) => g.mid, off: 4.5, pin: 22, title: "Tyre wall outside Sainte Devote",
+    why: "The lap-one squeeze, as at the real first corner. Left of centre is outside a right-hander, clear of the bots' line, so it punishes the kart that runs wide into the barrier." },
+  { kind: "tyreline", seg: "beau-rivage", at: (g) => g.start + 12, off: -4, count: 3, pin: -20, title: "Tyre line wide on the climb",
+    why: "Three on the right of Beau Rivage, off the racing line out of Sainte Devote." },
+  { kind: "items", seg: "beau-rivage", at: (g) => g.mid, off: 0, pin: 20, title: "Item row A",
+    why: "The climb is the longest straight before Casino Square. The pack has strung out after Sainte Devote, so a row four wide reaches most of it." },
+  { kind: "hill", seg: "casino", at: (g) => (seg("sainte-devote").start + seg("tunnel-entry").end) / 2, off: 0, pin: 22, title: "Crest at Casino Square",
+    why: "The top of the 8 m climb. The road drops away down the descent to Mirabeau." },
+  { kind: "wheel", seg: "casino-descent", at: (g) => g.mid, off: 0, outside: 1, pin: 20, title: "Runaway wheel crossing",
+    why: "Downhill into the braking zone for Mirabeau. The marshal's flags show from the crest, so there is time to react, the same role as the wheel before the Suzuqa hairpin." },
+  { kind: "tyres", seg: "grand-hotel", at: (g) => g.mid - 8, off: 4.5, pin: null, title: "Tyre wall inside the hairpin (entry)",
+    why: "The slowest corner in Formula 1 and the clearest overtaking spot here. Two stacks on the inside, as on the Suzuqa hairpin, keep a late lunge honest." },
+  { kind: "tyres", seg: "grand-hotel", at: (g) => g.mid + 8, off: 4.5, pin: -20, title: "Tyre walls inside the Grand Hotel hairpin",
+    why: "The slowest corner in Formula 1 and the clearest overtaking spot here. Two stacks on the inside, as on the Suzuqa hairpin, keep a late lunge honest." },
+  { kind: "items", seg: "tunnel-entry", at: (g) => g.mid, off: 0, pin: 20, title: "Item row B",
+    why: "Between Portier and the tunnel: refills before the fastest part of the lap, so a shell fired in the tunnel has room to find its target." },
+  { kind: "boost", seg: "tunnel", at: (g) => g.mid, off: 0, pin: 22, title: "Boost pad in the tunnel",
+    why: "The tunnel is flat out. A pad on the line, in the dark, pays back a clean exit from Portier and sends karts into the chicane braking hard." },
+  { kind: "kerb", seg: "chicane-out", at: (g) => g.mid, off: -4.9, pin: -20, title: "Sausage kerb inside the chicane",
+    why: "As on the Suzuqa chicane: the inside of the right-hander is the shortcut, and the kerb makes it a gamble." },
+  { kind: "tyreline", seg: "harbour", at: (g) => g.start + 10, off: 0, count: 5, pin: 20, title: "Tyre line along the harbour",
+    why: "Five on the centreline from the chicane exit toward Tabac, so a clean chicane takes the set." },
+  { kind: "kerb", seg: "pool-1-left", at: (g) => g.mid, off: 4.9, pin: 20, title: "Sausage kerb inside the first pool chicane",
+    why: "The pool flick is about rhythm. A kerb on the first apex stops a kart straight-lining it." },
+  { kind: "tyreline", seg: "pool-straight", at: (g) => g.start + 4, off: 4, count: 2, pin: null, title: "Tyre line wide between the pool chicanes",
+    why: "Two on the left between the chicanes, off the line." },
+  { kind: "kerb", seg: "pool-2-right", at: (g) => g.mid, off: -4.9, pin: -20, title: "Sausage kerb inside the second pool chicane",
+    why: "The mirror of the first: the right-hander's inside is the shortcut." },
+  { kind: "items", seg: "quay", at: (g) => g.mid, off: 0, pin: -20, title: "Item row C",
+    why: "On the long left along the quay, before La Rascasse. Arms the pack for the last passing place and the run to the line." },
+  { kind: "boost", seg: "noghes-flick", at: (g) => g.mid, off: 3, pin: 20, title: "Boost pad off Anthony Noghes, inside",
+    why: "Three metres left of centre, inside the flick onto the pit straight. Taking it means a tight exit from Noghes; skipping it means a wider, faster arc. A choice, not a gift." },
+];
+
+// Scenery only; never collided with.
+const DECOR = {
+  hoardings: [[["casino"], -1], [["portier"], 1], [["pool-1-left", "pool-1-right"], -1], [["rascasse"], 1]],
+  grandstands: [[["grid", "start"], -1], [["harbour"], 1], [["pool-straight", "pool-2-right"], 1]],
+};
+
+const LABELS = [
+  ["sainte-devote", "Sainte Devote", 0.5, -30], ["beau-rivage", "Beau Rivage", 0.78],
+  ["massenet", "Massenet"], ["casino", "Casino"], ["mirabeau", "Mirabeau"],
+  ["grand-hotel", "Grand Hotel", 0.5, -26], ["mirabeau-bas", "Mirabeau Bas"], ["portier", "Portier"],
+  ["tunnel", "Tunnel", 0.5, -26], ["chicane-out", "Chicane"], ["tabac", "Tabac"],
+  ["pool-1-right", "Piscine", 0.5, -26], ["rascasse", "La Rascasse"], ["noghes", "Noghes"],
+  ["start", "Start", 0.4, 22],
+];
+
+const REAL_MONACO = "0,0,-2,10,1,19,6,31,12,40,29,62,116,179,122,188,131,190,141,187,149,181,154,171,156,160,156,151,157,144,161,135,166,128,176,114,183,102,185,95,189,90,194,89,200,91,204,95,206,102,203,108,195,113,173,142,169,149,169,156,171,161,173,166,184,171,200,175,209,179,219,182,231,187,245,188,252,184,255,173,253,106,242,38,232,-5,220,-36,200,-72,176,-102,143,-138,94,-168,65,-182,10,-208,-27,-221,-82,-234,-118,-240,-137,-243,-140,-249,-140,-253,-141,-259,-144,-264,-152,-267,-163,-269,-175,-262,-182,-262,-282,-275,-331,-282,-376,-289,-389,-291,-397,-292,-403,-298,-413,-317,-421,-335,-427,-353,-430,-366,-433,-389,-433,-427,-433,-437,-430,-443,-424,-450,-412,-459,-403,-467,-400,-475,-398,-487,-384,-569,-381,-583,-379,-588,-380,-594,-383,-599,-391,-604,-399,-608,-401,-614,-400,-625,-391,-652,-382,-672,-374,-688,-359,-709,-341,-727,-328,-735,-313,-742,-305,-745,-302,-749,-297,-762,-299,-769,-306,-773,-336,-781,-353,-784,-364,-784,-374,-782,-380,-778,-384,-774,-384,-765,-385,-757,-388,-748,-405,-728,-417,-708,-427,-693,-437,-664,-460,-586,-466,-560,-470,-533,-476,-494,-481,-442,-481,-408,-479,-383,-476,-356,-471,-337,-466,-321,-463,-310,-462,-301,-462,-288,-462,-279,-460,-274,-453,-271,-436,-267,-420,-266,-400,-264,-371,-260,-345,-255,-279,-236,-243,-226,-209,-221,-186,-219,-168,-212,-116,-188,-94,-178,-60,-171,-33,-167,-6,-162,9,-157,27,-146,42,-130,51,-116,55,-101,55,-86,52,-72,46,-56,39,-41,27,-32,16,-22,10,-17,5,-12";
+const REAL_START = [-471, -533];
+
+const NS = "http://www.w3.org/2000/svg";
+const rad = (d) => (d * Math.PI) / 180;
+
+// Mirrors Turtle: samples about every metre, each primitive excluding its own
+// start point; close() appends the straight back to the line and drops the
+// duplicate start sample.
+function lay() {
+  let x = 0, y = 0, h = rad(H0), s = 0;
+  const pts = [{ x, y, h, s }];
+  const segs = [];
+  const straight = (name, len) => {
+    const n = Math.max(1, Math.round(len)), step = len / n, s0 = s;
+    for (let i = 0; i < n; i++) { x += step * Math.cos(h); y += step * Math.sin(h); s += step; pts.push({ x, y, h, s }); }
+    segs.push({ name, start: s0, end: s, turn: 0 });
+  };
+  const arc = (name, r, deg) => {
+    const t = deg > 0 ? 1 : -1, len = r * rad(Math.abs(deg));
+    const n = Math.max(1, Math.round(len)), da = rad(deg) / n, s0 = s;
+    const cx = x - t * r * Math.sin(h), cy = y + t * r * Math.cos(h);
+    for (let i = 0; i < n; i++) { h += da; x = cx + t * r * Math.sin(h); y = cy - t * r * Math.cos(h); s += len / n; pts.push({ x, y, h, s }); }
+    segs.push({ name, start: s0, end: s, turn: t, r });
+  };
+  for (const [k, name, a, b] of SPEC) (k === "s" ? straight(name, a) : arc(name, a, b));
+  const dx = -x, dy = -y;
+  const along = dx * Math.cos(h) + dy * Math.sin(h);
+  const across = -dx * Math.sin(h) + dy * Math.cos(h);
+  const turned = ((h - rad(H0) + Math.PI) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI) - Math.PI;
+  if (along > 0) straight("grid", along);
+  pts.pop();
+  for (const g of segs) g.mid = (g.start + g.end) / 2;
+  return { pts, segs, length: s, across, turned: (turned * 180) / Math.PI, along };
+}
+
+const T = lay();
+const seg = (name) => T.segs.find((g) => g.name === name);
+function at(s) {
+  s = ((s % T.length) + T.length) % T.length;
+  let i = Math.min(T.pts.length - 1, Math.floor((s / T.length) * T.pts.length));
+  while (i > 0 && T.pts[i].s > s) i--;
+  while (i < T.pts.length - 1 && T.pts[i + 1].s <= s) i++;
+  const a = T.pts[i], b = T.pts[(i + 1) % T.pts.length];
+  const bs = i + 1 < T.pts.length ? b.s : T.length;
+  const f = bs > a.s ? (s - a.s) / (bs - a.s) : 0;
+  return { x: a.x + (b.x - a.x) * f, y: a.y + (b.y - a.y) * f, h: b.h };
+}
+// Screen point `off` metres left of the centreline at `s`; screen y is -y.
+function P(s, off = 0) {
+  const p = at(s);
+  return [p.x - off * Math.sin(p.h), -(p.y + off * Math.cos(p.h)), (-p.h * 180) / Math.PI];
+}
+const segAt = (s) => (T.segs.find((g) => s >= g.start && s <= g.end) || { name: "grid" }).name;
+// The one Hill: a raised cosine from Sainte Devote to the tunnel mouth.
+const HILL = { from: seg("sainte-devote").start, to: seg("tunnel-entry").end };
+const z = (s) => (s < HILL.from || s > HILL.to ? 0 : (CREST * (1 - Math.cos((2 * Math.PI * (s - HILL.from)) / (HILL.to - HILL.from)))) / 2);
+
+function el(tag, attrs, parent) {
+  const e = document.createElementNS(NS, tag);
+  for (const k in attrs) e.setAttribute(k, attrs[k]);
+  if (parent) parent.appendChild(e);
+  return e;
+}
+const pathOf = (from, to, off = 0, step = 1, close = false) => {
+  const out = [];
+  for (let s = from; s <= to + 1e-6; s += step) out.push(P(s, off));
+  return "M" + out.map((p) => p[0].toFixed(2) + " " + p[1].toFixed(2)).join("L") + (close ? "Z" : "");
+};
+
+function drawMap() {
+  const svg = document.getElementById("map");
+  const xs = T.pts.map((p) => p.x), ys = T.pts.map((p) => -p.y);
+  const M = 34;
+  const minX = Math.min(...xs) - M, minY = Math.min(...ys) - M;
+  const w = Math.max(...xs) - Math.min(...xs) + 2 * M, hgt = Math.max(...ys) - Math.min(...ys) + 2 * M;
+  svg.setAttribute("viewBox", `${minX} ${minY} ${w} ${hgt}`);
+
+  const defs = el("defs", {}, svg);
+  const hz = el("pattern", { id: "hazard", width: 3, height: 3, patternUnits: "userSpaceOnUse", patternTransform: "rotate(45)" }, defs);
+  el("rect", { width: 1.5, height: 3, fill: "#f5c542" }, hz);
+  el("rect", { x: 1.5, width: 1.5, height: 3, fill: "#111" }, hz);
+  const kp = el("pattern", { id: "kerb", width: 2, height: 2, patternUnits: "userSpaceOnUse" }, defs);
+  el("rect", { width: 1, height: 2, fill: "#c81d25" }, kp);
+  el("rect", { x: 1, width: 1, height: 2, fill: "#fff" }, kp);
+  const ck = el("pattern", { id: "check", width: 2, height: 2, patternUnits: "userSpaceOnUse" }, defs);
+  el("rect", { width: 2, height: 2, fill: "#fff" }, ck);
+  el("rect", { width: 1, height: 1, fill: "#111" }, ck);
+  el("rect", { x: 1, y: 1, width: 1, height: 1, fill: "#111" }, ck);
+
+  const L = T.length;
+  const ground = el("g", {}, svg);
+  const loop = pathOf(0, L - 1, 0, 1, true);
+  el("path", { d: loop, fill: "none", stroke: "var(--sand)", "stroke-width": 2 * EDGE, "stroke-linejoin": "round" }, ground);
+  el("path", { d: loop, fill: "none", stroke: "var(--asphalt)", "stroke-width": 2 * ASPHALT_HALF, "stroke-linejoin": "round" }, ground);
+  for (const side of [1, -1]) el("path", { d: pathOf(0, L - 1, side * EDGE, 1, true), fill: "none", stroke: "var(--wall)", "stroke-width": 0.8 }, ground);
+
+  const decor = el("g", { "data-layer": "decor" }, svg);
+  for (const [names, side] of DECOR.grandstands)
+    for (const n of names) { const g = seg(n); el("path", { d: pathOf(g.start + 2, g.end - 2, side * (EDGE + 7)), fill: "none", stroke: "#9aa0a8", "stroke-width": 6 }, decor); }
+  for (const [names, side] of DECOR.hoardings)
+    for (const n of names) { const g = seg(n); el("path", { d: pathOf(g.start + 1, g.end - 1, side * (EDGE + 2)), fill: "none", stroke: "#c81d25", "stroke-width": 1.2, "stroke-dasharray": "5 1.5" }, decor); }
+  { const [x1, y1] = P(0, EDGE + 1), [x2, y2] = P(0, -EDGE - 1); el("line", { x1, y1, x2, y2, stroke: "#2b2e33", "stroke-width": 2.2 }, decor); }
+  // The tunnel roof over the road, translucent so the boost pad shows through.
+  { const g = seg("tunnel"), t0 = seg("tunnel-entry").end + TUNNEL.fromStart, t1 = g.end - TUNNEL.toEnd;
+    el("path", { d: pathOf(t0, t1), fill: "none", stroke: "#15161a", "stroke-width": 2 * EDGE + 2, opacity: 0.72 }, decor);
+    for (const s of [t0, t1]) { const [x1, y1] = P(s, EDGE + 1), [x2, y2] = P(s, -EDGE - 1); el("line", { x1, y1, x2, y2, stroke: "#bbb", "stroke-width": 1.2 }, decor); }
+    for (let s = t0 + 12; s < t1; s += 18) { const [lx, ly] = P(s, 0); el("circle", { cx: lx, cy: ly, r: 0.8, fill: "#ffd98a" }, decor); } }
+
+  const cps = el("g", { "data-layer": "checkpoints", style: "display:none" }, svg);
+  for (let i = 0; i < CHECKPOINTS; i++) {
+    const s = (i * L) / CHECKPOINTS, [x1, y1] = P(s, EDGE), [x2, y2] = P(s, -EDGE);
+    el("line", { x1, y1, x2, y2, stroke: "#7fc3ff", "stroke-width": 0.7, "stroke-dasharray": "1.5 1" }, cps);
+    const [tx, ty] = P(s, EDGE + 5);
+    el("text", { x: tx, y: ty, "font-size": 4.5, fill: "#7fc3ff", "text-anchor": "middle", "dominant-baseline": "central" }, cps).textContent = i;
+  }
+
+  const cl = el("g", { "data-layer": "centreline", style: "display:none" }, svg);
+  el("path", { d: loop, fill: "none", stroke: "#fff", "stroke-width": 0.4, "stroke-dasharray": "2 2" }, cl);
+  for (let s = 20; s < L; s += 60) {
+    const [x, y, a] = P(s);
+    el("path", { d: "M-2.5 -2.2 L2.5 0 L-2.5 2.2 Z", fill: "#fff", transform: `translate(${x} ${y}) rotate(${a})` }, cl);
+  }
+
+  const obs = el("g", { "data-layer": "obstacles" }, svg);
+  const pins = el("g", { "data-layer": "pins" }, svg);
+  const tip = document.getElementById("tip");
+  let number = 0;
+  PLACEMENTS.forEach((p, i) => {
+    const g = seg(p.seg);
+    p.s = p.at(g);
+    p.id = "p" + i;
+    const [x, y, a] = P(p.s, p.off);
+    const tf = `translate(${x} ${y}) rotate(${a})`;
+    const grp = el("g", { "data-id": p.id }, obs);
+    if (p.kind === "items") {
+      for (const o of ITEM_OFFSETS) { const [ix, iy, ia] = P(p.s, o); el("rect", { x: -1.2, y: -1.2, width: 2.4, height: 2.4, rx: 0.3, fill: "var(--gold)", stroke: "#f8e39a", "stroke-width": 0.4, transform: `translate(${ix} ${iy}) rotate(${ia + 45})` }, grp); }
+    } else if (p.kind === "boost") {
+      for (const d of [-2.4, 0, 2.4]) el("path", { d: `M${d - 1.4} -3 L${d + 1.2} 0 L${d - 1.4} 3 L${d - 0.4} 3 L${d + 2.2} 0 L${d - 0.4} -3 Z`, fill: "var(--boost)", transform: tf }, grp);
+    } else if (p.kind === "tyres") {
+      el("circle", { cx: x, cy: y, r: 1.5, fill: "var(--tyre)", stroke: "#ddd", "stroke-width": 0.5 }, grp);
+    } else if (p.kind === "tyreline") {
+      for (let k = 0; k < p.count; k++) { const [tx, ty] = P(p.s + k * 6, p.off); el("circle", { cx: tx, cy: ty, r: 0.9, fill: "#1d1d1d", stroke: "#7fd17f", "stroke-width": 0.45 }, grp); }
+    } else if (p.kind === "kerb") {
+      el("rect", { x: -4, y: -0.7, width: 8, height: 1.4, rx: 0.7, fill: "url(#kerb)", stroke: "#111", "stroke-width": 0.2, transform: tf }, grp);
+    } else if (p.kind === "wheel") {
+      el("rect", { x: -6, y: -EDGE, width: 12, height: 2 * EDGE, fill: "url(#hazard)", opacity: 0.85, transform: tf }, grp);
+      const [mx, my] = P(p.s, p.outside * (EDGE + 3));
+      el("rect", { x: mx - 1.6, y: my - 1.6, width: 3.2, height: 3.2, fill: "#ff8800", stroke: "#fff", "stroke-width": 0.4 }, grp);
+    } else if (p.kind === "start") {
+      el("rect", { x: -1, y: -ASPHALT_HALF, width: 2, height: 2 * ASPHALT_HALF, fill: "url(#check)", transform: tf }, grp);
+      for (let k = 0; k < 8; k++) {
+        const behind = 4 + 5 * Math.floor(k / 2) + (k % 2 ? 2 : 0), side = k % 2 ? -2 : 2;
+        const [gx, gy, ga] = P(-behind, side);
+        el("rect", { x: -1.6, y: -0.8, width: 3.2, height: 1.6, fill: "none", stroke: "#fff", "stroke-width": 0.35, transform: `translate(${gx} ${gy}) rotate(${ga})` }, grp);
+      }
+    } else if (p.kind === "hill") {
+      el("path", { d: "M-3 2 L0 -2.5 L3 2 Z", fill: "#fff", opacity: 0.85, transform: `translate(${x} ${y})` }, grp);
+    }
+    if (p.pin != null) {
+      number += 1;
+      p.n = number;
+      const [px, py] = P(p.pinS ?? p.s, p.pin);
+      el("line", { x1: x, y1: y, x2: px, y2: py, class: "leader" }, pins);
+      const pin = el("g", { class: "pin", "data-id": p.id, transform: `translate(${px} ${py})` }, pins);
+      el("circle", { r: 4.2 }, pin);
+      el("text", {}, pin).textContent = number;
+      pin.addEventListener("mouseenter", (e) => { hot(p.id, true); showTip(p, e); });
+      pin.addEventListener("mousemove", (e) => showTip(p, e));
+      pin.addEventListener("mouseleave", () => { hot(p.id, false); tip.classList.remove("show"); });
+    } else {
+      p.n = number + 1; // shares the next pin's number
+    }
+  });
+  function showTip(p, e) {
+    const box = svg.parentElement.getBoundingClientRect();
+    tip.innerHTML = `<b>${p.n}. ${p.title}</b><br><span class="muted">${p.seg}, s ${p.s.toFixed(1)} m</span>`;
+    tip.style.left = Math.min(e.clientX - box.left + 12, box.width - 270) + "px";
+    tip.style.top = e.clientY - box.top + 12 + "px";
+    tip.classList.add("show");
+  }
+
+  const labels = el("g", { "data-layer": "labels" }, svg);
+  for (const [name, text, frac, fixedOff] of LABELS) {
+    const g = seg(name);
+    const s = g.start + (g.end - g.start) * (frac ?? 0.5);
+    const off = fixedOff ?? (g.turn ? -g.turn * (EDGE + 13) : EDGE + 13);
+    const [x, y] = P(s, off);
+    el("text", { x, y, class: "corner-label", "text-anchor": "middle", "dominant-baseline": "central" }, labels).textContent = text;
+  }
+}
+
+function hot(id, on) {
+  document.querySelectorAll(`[data-id="${id}"]`).forEach((n) => n.classList.toggle("hot", on));
+}
+
+function drawProfile() {
+  const svg = document.getElementById("profile");
+  const W = 1000, H = 170, padL = 34, padR = 10, padT = 14, padB = 34;
+  svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+  const L = T.length, maxZ = 10;
+  const X = (s) => padL + (s / L) * (W - padL - padR);
+  const Y = (v) => padT + (1 - v / maxZ) * (H - padT - padB);
+  const axis = { stroke: "#2a2c31", "stroke-width": 1 };
+  for (const zz of [0, 5, 10]) {
+    el("line", { x1: padL, x2: W - padR, y1: Y(zz), y2: Y(zz), ...axis }, svg);
+    el("text", { x: padL - 6, y: Y(zz), "font-size": 10, fill: "#8a8d94", "text-anchor": "end", "dominant-baseline": "central" }, svg).textContent = zz + " m";
+  }
+  for (const g of T.segs) el("line", { x1: X(g.start), x2: X(g.start), y1: Y(0), y2: Y(0) + 4, stroke: "#4a4f57" }, svg);
+  for (const [name, text] of [["sainte-devote", "Ste Devote"], ["casino", "Casino"], ["grand-hotel", "Hairpin"], ["portier", "Portier"], ["tunnel", "Tunnel"], ["tabac", "Tabac"], ["pool-2-right", "Piscine"], ["rascasse", "Rascasse"]]) {
+    const g = seg(name);
+    el("text", { x: X(g.mid), y: H - 10, "font-size": 10, fill: "#8a8d94", "text-anchor": "middle" }, svg).textContent = text;
+  }
+  // The tunnel's roof, overhead along the flat.
+  { const t0 = seg("tunnel-entry").end + TUNNEL.fromStart, t1 = seg("tunnel").end - TUNNEL.toEnd;
+    el("line", { x1: X(t0), x2: X(t1), y1: Y(4), y2: Y(4), stroke: "#e0b54a", "stroke-width": 3, "stroke-dasharray": "4 3" }, svg);
+    el("text", { x: X((t0 + t1) / 2), y: Y(4) - 8, "font-size": 10, fill: "#e0b54a", "text-anchor": "middle" }, svg).textContent = "tunnel roof"; }
+  let d = "";
+  for (let s = 0; s <= L; s += 1) d += (s ? "L" : "M") + X(s).toFixed(1) + " " + Y(z(s)).toFixed(1);
+  el("path", { d, fill: "none", stroke: "#e8e8ea", "stroke-width": 2 }, svg);
+  const crest = (HILL.from + HILL.to) / 2;
+  el("text", { x: X(crest), y: Y(CREST) - 8, "font-size": 10, fill: "#e8e8ea", "text-anchor": "middle" }, svg).textContent = "crest, " + CREST + " m";
+  el("text", { x: W - padR, y: H - 10, "font-size": 10, fill: "#8a8d94", "text-anchor": "end" }, svg).textContent = L.toFixed(0) + " m";
+}
+
+function drawReference() {
+  const svg = document.getElementById("ref");
+  const n = REAL_MONACO.split(",").map(Number);
+  const pts = [];
+  for (let i = 0; i < n.length; i += 2) pts.push([n[i], -n[i + 1]]);
+  const xs = pts.map((p) => p[0]), ys = pts.map((p) => p[1]), M = 40;
+  svg.setAttribute("viewBox", `${Math.min(...xs) - M} ${Math.min(...ys) - M} ${Math.max(...xs) - Math.min(...xs) + 2 * M} ${Math.max(...ys) - Math.min(...ys) + 2 * M}`);
+  el("polygon", { points: pts.map((p) => p.join(",")).join(" "), fill: "none", stroke: "#6b6b78", "stroke-width": 14, "stroke-linejoin": "round" }, svg);
+  el("circle", { cx: REAL_START[0], cy: -REAL_START[1], r: 12, fill: "#c81d25" }, svg);
+}
+
+function stats() {
+  // Closest approach between parts of the lap more than 70 m apart along it.
+  const L = T.length, step = 2, samples = [];
+  for (let s = 0; s < L; s += step) { const p = at(s); samples.push([p.x, p.y, s, segAt(s)]); }
+  let worst = Infinity, pair = "";
+  for (let i = 0; i < samples.length; i++)
+    for (let j = i + 1; j < samples.length; j++) {
+      const a = samples[i], b = samples[j];
+      const ds = Math.min(Math.abs(a[2] - b[2]), L - Math.abs(a[2] - b[2]));
+      if (ds < 70) continue;
+      const d = Math.hypot(a[0] - b[0], a[1] - b[1]);
+      if (d < worst) { worst = d; pair = [a[3], b[3]].sort().join(" / "); }
+    }
+  const tightest = Math.min(...T.segs.filter((g) => g.r).map((g) => g.r));
+  const grade = (100 * Math.PI * CREST) / (HILL.to - HILL.from);
+  const closes = Math.abs(T.across) < 0.01 && Math.abs(T.turned) < 1e-6 && T.along > 0;
+  const row = (label, value, ok) => `<span>${label}: <b class="${ok === undefined ? "" : ok ? "ok" : "bad"}">${value}</b></span>`;
+  document.getElementById("stats").innerHTML = [
+    row("Lap", L.toFixed(1) + " m (Suzuqa Patch 1306 m)"),
+    row("Closes", closes ? "yes" : `no: ${T.across.toFixed(3)} m across, ${T.turned.toFixed(2)} deg off`, closes),
+    row("Grid straight", T.along.toFixed(1) + " m", T.along >= 30),
+    row("Tightest gap between legs", `${worst.toFixed(1)} m, ${pair}`, worst >= MIN_CLEARANCE - 0.5),
+    row("Tightest radius", tightest + " m", tightest >= 12),
+    row("Steepest grade", grade.toFixed(1) + "%"),
+  ].join("");
+}
+
+function fillTable() {
+  const body = document.getElementById("placement-rows");
+  const fmt = (o) => (o === 0 ? "centre" : (o > 0 ? "+" : "") + o + " m");
+  const offText = (p) =>
+    p.kind === "wheel" ? "wall to wall, post on the left"
+    : p.kind === "items" ? "4 boxes, -4.5 to +4.5"
+    : p.kind === "tyreline" ? `${p.count} tyres, ${fmt(p.off)}`
+    : fmt(p.off);
+  for (const p of PLACEMENTS) {
+    const tr = document.createElement("tr");
+    tr.dataset.id = p.id;
+    tr.innerHTML = `<td><span class="idx">${p.n}</span></td><td>${p.title}</td><td><code>${p.seg}</code></td><td class="num">${p.s.toFixed(1)}</td><td class="num">${offText(p)}</td><td>${p.why}</td>`;
+    tr.addEventListener("mouseenter", () => hot(p.id, true));
+    tr.addEventListener("mouseleave", () => hot(p.id, false));
+    body.appendChild(tr);
+  }
+}
+
+document.querySelectorAll("#layers input").forEach((box) =>
+  box.addEventListener("change", () => {
+    document.querySelectorAll(`#map [data-layer="${box.dataset.layer}"]`).forEach((g) => (g.style.display = box.checked ? "" : "none"));
+  }),
+);
+
+drawMap();
+drawProfile();
+drawReference();
+stats();
+fillTable();
+</script>
+</body>
+</html>

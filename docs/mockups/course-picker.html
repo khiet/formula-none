@@ -1,0 +1,359 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Course Picker Draft</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Bungee&family=Inter:wght@400;600&display=swap" rel="stylesheet" />
+<style>
+  @font-face { font-family: "Kenney Mini Square"; src: url("../../assets/fonts/kenney/Kenney Mini Square.ttf"); }
+  :root {
+    --bg: #121316;
+    --card: #1b1d21;
+    --fg: #e8e8ea;
+    --muted: #8a8d94;
+    --rule: #2a2c31;
+    --code-bg: #24272c;
+    --poster-red: #c81d25;
+    --go-green: #3ddc84;
+    --asphalt: #6b6b78;
+    --wall: #f0f0f0;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--fg); font: 15px/1.55 Inter, system-ui, sans-serif; }
+  body { padding: 2rem 16px 4rem; }
+  .wrap { max-width: 1180px; margin: 0 auto; }
+  h1 { font: 1.9rem/1.1 Bungee, Impact, sans-serif; margin: 0 0 .5rem; letter-spacing: .02em; }
+  h1 span { color: var(--poster-red); }
+  h2 { font: 1.2rem/1.2 Bungee, Impact, sans-serif; margin: 2.5rem 0 .75rem; }
+  p { margin: .4rem 0; }
+  .lede { color: var(--muted); max-width: 80ch; }
+  nav { display: flex; flex-wrap: wrap; gap: .4rem; margin: 1.25rem 0 0; }
+  nav a { color: var(--fg); text-decoration: none; font-size: .85rem; border: 1px solid var(--rule); border-radius: 999px; padding: .25rem .7rem; }
+  nav a:hover { border-color: var(--muted); }
+  code { font: .85em ui-monospace, SFMono-Regular, Menlo, monospace; background: var(--code-bg); padding: .05rem .3rem; border-radius: 3px; }
+  ul, ol { padding-left: 1.3rem; margin: .4rem 0; }
+  li { margin: .25rem 0; max-width: 90ch; }
+  ol.questions > li { margin: .9rem 0; }
+  ol.questions ol { list-style: lower-alpha; }
+  .rec { color: var(--go-green); font-weight: 600; }
+  .caption { color: var(--muted); font-size: .85rem; margin-top: .6rem; max-width: 90ch; }
+  .frame { overflow-x: auto; border-radius: 8px; }
+
+  /*
+   * The poster, copied from the Title Scene's rules in apps/web/index.html.
+   * The real Scene's em is min(1vw, 1.6vh), which at 16:10 is 1% of the
+   * width; here it is 1% of the frame's width, so the frame is the window.
+   */
+  .poster {
+    --ink: #111;
+    --gold: #ffd23f;
+    --go: #3ddc84;
+    position: relative;
+    min-width: 760px;
+    aspect-ratio: 16 / 10;
+    container-type: inline-size;
+    overflow: hidden;
+    isolation: isolate;
+    color: #fff;
+    background: #c81d25;
+    font-family: "Kenney Mini Square", ui-monospace, SFMono-Regular, Menlo, monospace;
+    line-height: 1.2;
+    text-transform: uppercase;
+  }
+  .poster > .scene { position: absolute; inset: 0; font-size: 1cqw; }
+  .poster * { box-sizing: border-box; }
+  .poster :is(h1, h2, p) { margin: 0; font-weight: normal; letter-spacing: normal; }
+  .poster .rays {
+    position: absolute; z-index: -1; left: 50%; top: 40%; width: 160em; aspect-ratio: 1;
+    translate: -50% -50%; border-radius: 50%;
+    background: repeating-conic-gradient(rgb(255 210 60 / 0.18) 0 8deg, transparent 8deg 16deg);
+  }
+  .poster :is(.chequer-top, .chequer-bottom) {
+    position: absolute; z-index: 1; left: 0; right: 0; height: 3em;
+    background: conic-gradient(var(--ink) 25%, #fff 0 50%, var(--ink) 0 75%, #fff 0) 0 0 / 3em 3em;
+  }
+  .poster .chequer-top { top: 0; }
+  .poster .chequer-bottom { bottom: 0; }
+  .poster button {
+    padding: 0.5em 1em; font: inherit; font-size: 1.8em; color: var(--ink); text-transform: uppercase;
+    background: var(--gold); border: 0.2em solid var(--ink); box-shadow: 0.3em 0.3em 0 var(--ink); cursor: pointer;
+  }
+  .poster button:hover { background: #ffe27a; translate: -0.08em -0.08em; box-shadow: 0.38em 0.38em 0 var(--ink); }
+  .poster button:active { translate: 0.3em 0.3em; box-shadow: 0 0 0 var(--ink); }
+  .poster :is(button, input):focus-visible { outline: 0.15em solid #fff; outline-offset: 0.15em; }
+  .poster button[name="create"] { background: var(--go); }
+  .poster button[name="create"]:hover { background: #8ef0b7; }
+  .poster .logo { position: relative; rotate: -4deg; text-align: center; }
+  .poster .logo h1 { font-family: inherit; font-size: 6.4em; line-height: 0.95; letter-spacing: 0.02em; }
+  .poster .logo h1 span { display: block; color: #fff; text-shadow: 0.08em 0.08em 0 var(--ink); }
+  .poster .logo h1 span:first-child { color: var(--gold); text-shadow: 0.08em 0.08em 0 var(--ink), 0.16em 0.16em 0 rgb(0 0 0 / 0.35); }
+  .poster .one {
+    position: absolute; left: calc(50% + 3.6em); top: 1.9em; padding: 0.1em 0.25em; font-size: 2.9em;
+    color: var(--ink); background: var(--gold); border: 0.12em solid var(--ink); rotate: 14deg;
+    text-decoration-thickness: 0.18em; text-decoration-color: #c81d25;
+  }
+  .poster .tagline { margin-top: -0.4em; padding: 0.5em 1em; font-size: 1.4em; letter-spacing: 0.06em; background: var(--ink); rotate: -4deg; }
+  .poster .title-row { display: flex; gap: 1em; }
+  .poster input:not([type="checkbox"], [type="radio"]) {
+    width: 11em; padding: 0.45em 0.6em; font: inherit; font-size: 1.8em; color: var(--ink); text-transform: none;
+    background: #fff; border: 0.2em solid var(--ink); box-shadow: 0.3em 0.3em 0 var(--ink); outline: none;
+  }
+  .poster input::placeholder { color: #888; }
+  .poster input[name="code"] { width: 6em; letter-spacing: 0.3em; text-align: center; text-transform: uppercase; }
+  .poster .chip { display: flex; align-items: center; gap: 0.5em; padding: 0.5em 0.8em; font-size: 1.3em; background: var(--ink); cursor: pointer; }
+  .poster .chip input { appearance: none; width: 1em; height: 1em; margin: 0; background: #555; cursor: pointer; }
+  .poster .chip input:checked { background: var(--go); box-shadow: 0 0 0.6em var(--go); }
+  .poster .chip input:not(:checked) + span { opacity: 0.5; text-decoration: line-through; }
+  .poster [data-message] { min-height: 1.2em; font-size: 1.4em; color: var(--gold); text-transform: none; }
+
+  /* New: the Title Scene in two columns, the way in on the left and the course on the right. */
+  #title-scene { display: grid; grid-template-columns: 1fr 1fr; align-items: center; padding: 4em 5em; }
+  #title-scene .way-in { display: flex; flex-direction: column; align-items: center; gap: 1.4em; }
+  #title-scene .course { display: flex; flex-direction: column; align-items: center; gap: 1.2em; }
+  .poster .course-heading { display: flex; align-items: baseline; gap: 0.8em; rotate: -2deg; }
+  .poster .course-heading h2 { font-family: inherit; font-size: 3em; text-shadow: 0.08em 0.08em 0 var(--ink); }
+  .poster .course-heading p { padding: 0.35em 0.6em; font-size: 1.2em; background: var(--ink); }
+  /* The flags as a radio group: arrows move between them, as a native radio does. */
+  .poster .flags { display: flex; gap: 1.4em; margin: 0; padding: 0; border: 0; }
+  .poster .flag-tile { display: flex; flex-direction: column; align-items: center; gap: 0.5em; padding: 0.6em; background: var(--ink); box-shadow: 0.3em 0.3em 0 rgb(0 0 0 / 0.4); cursor: pointer; }
+  .poster .flag-tile:hover { translate: -0.08em -0.08em; }
+  .poster .flag-tile input { position: absolute; opacity: 0; pointer-events: none; }
+  .poster .flag-tile svg { display: block; width: 8.4em; height: 5.6em; border: 0.2em solid var(--ink); }
+  .poster .flag-tile span { font-size: 1.3em; }
+  .poster .flag-tile:has(input:checked) { background: var(--gold); color: var(--ink); translate: -0.15em -0.15em; box-shadow: 0.45em 0.45em 0 var(--ink); }
+  .poster .flag-tile:has(input:not(:checked)) svg { filter: saturate(0.55) brightness(0.8); }
+  .poster .flag-tile:has(input:focus-visible) { outline: 0.15em solid #fff; outline-offset: 0.15em; }
+  .poster .preview { width: 38em; padding: 1.2em 1.4em 1.3em; background: var(--ink); box-shadow: 0.4em 0.4em 0 rgb(0 0 0 / 0.4); }
+  .poster .preview header { display: flex; align-items: baseline; justify-content: space-between; gap: 1em; }
+  .poster .preview h3 { margin: 0; font: inherit; font-size: 3em; color: var(--gold); text-shadow: 0.08em 0.08em 0 #000; }
+  .poster .preview .after { font-size: 1.3em; color: #c9ced5; }
+  .poster .preview svg.map { display: block; width: 100%; height: 19em; margin: 0.8em 0; background: #1b1d21; }
+  .poster .preview .blurb { font-size: 1.3em; color: #fff; }
+  .poster .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.6em; margin-top: 0.8em; }
+  .poster .stats div { display: flex; flex-direction: column; gap: 0.25em; padding: 0.5em 0.6em; background: #2b2e33; }
+  .poster .stats b { font-weight: normal; font-size: 1.8em; }
+  .poster .stats small { font-size: 1em; color: #c9ced5; }
+  .poster .map-swap { animation: map-in 0.25s ease-out; }
+  @keyframes map-in { from { opacity: 0; translate: 0 0.6em; } }
+  @media (prefers-reduced-motion: no-preference) {
+    .poster .rays { animation: poster-spin 40s linear infinite; }
+  }
+  @keyframes poster-spin { to { rotate: 360deg; } }
+
+  /* The Room Scene's header with the course beside the code. */
+  .poster.room { aspect-ratio: 16 / 4; }
+  #room-scene { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1.4em; }
+  #room-scene header { display: flex; align-items: center; gap: 0.8em; rotate: -3deg; }
+  #room-scene h1 { font-family: inherit; font-size: 5em; text-shadow: 0.08em 0.08em 0 var(--ink); }
+  #room-scene [data-room-code] { color: var(--gold); letter-spacing: 0.08em; }
+  #room-scene [data-room-count] { padding: 0.3em 0.6em; font-size: 1.8em; color: var(--ink); background: var(--gold); border: 0.15em solid var(--ink); }
+  #room-scene [data-room-course] { display: flex; align-items: center; gap: 0.6em; padding: 0.4em 0.7em; font-size: 1.8em; background: var(--ink); }
+  #room-scene [data-room-course] svg { width: 2.1em; height: 1.4em; border: 0.1em solid #000; }
+  #room-scene .note { font-size: 1.3em; padding: 0.4em 0.8em; background: var(--ink); color: #c9ced5; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1>The Title Scene picks the <span>course</span></h1>
+  <p class="lede">A draft of the Title Scene with the three courses on it: Bell Deer (after Suzuka), Monarch (after Monaco) and Goldstone (after Silverstone). The way in stays as it is on the left, with the audio toggles under it; the course sits on the right as three flags, and the one picked shows its map, its name and its numbers below them. The pick goes with Create room and Solo race; a player joining by code races the room's course. The maps are laid live from the same turtle steps as the course drafts (<a href="suzuka-course.html" style="color:inherit">Bell Deer</a>, <a href="monaco-course.html" style="color:inherit">Monarch</a>, <a href="silverstone-course.html" style="color:inherit">Goldstone</a>). Click a flag, or tab to the flags and use the arrow keys.</p>
+  <nav>
+    <a href="#title">Title Scene</a>
+    <a href="#room">Room Scene</a>
+    <a href="#behaviour">Behaviour</a>
+    <a href="#questions">Decisions</a>
+  </nav>
+</header>
+
+<h2 id="title">Title Scene</h2>
+<div class="frame">
+  <div class="poster">
+    <div class="scene" id="title-scene">
+      <div class="rays" aria-hidden="true"></div>
+      <div class="chequer-top" aria-hidden="true"></div>
+      <div class="chequer-bottom" aria-hidden="true"></div>
+      <div class="way-in">
+        <div class="logo">
+          <h1><span>Formula</span> <span>None</span></h1>
+          <s class="one" aria-hidden="true">1</s>
+        </div>
+        <p class="tagline">Kart racing for up to 8 friends</p>
+        <div class="title-row"><input name="nickname" placeholder="Nickname" aria-label="Nickname" value="Khiet" /></div>
+        <div class="title-row"><button name="create" type="button">Create room</button></div>
+        <div class="title-row"><input name="code" placeholder="Code" aria-label="Room code" /><button name="join" type="button">Join room</button></div>
+        <div class="title-row"><button name="race" type="button">Solo race</button></div>
+        <div class="title-row audio-toggles">
+          <label class="chip"><input type="checkbox" name="sfx" checked /><span>Sound effects</span></label>
+          <label class="chip"><input type="checkbox" name="engine" checked /><span>Engine</span></label>
+          <label class="chip"><input type="checkbox" name="music" /><span>Music</span></label>
+        </div>
+        <p data-message></p>
+      </div>
+      <div class="course">
+        <div class="course-heading"><h2>Course</h2><p>For create room and solo race</p></div>
+        <fieldset class="flags" id="flags" aria-label="Course"></fieldset>
+        <section class="preview" id="preview" aria-live="polite"></section>
+      </div>
+    </div>
+  </div>
+</div>
+<p class="caption">Drawn at 16:10, where the poster's em is 1% of the width as in the game; it scales the same at 1024x640. The runners along the bottom band are left out of this draft and stay as they are.</p>
+
+<h2 id="room">Room Scene</h2>
+<div class="frame">
+  <div class="poster room">
+    <div class="scene" id="room-scene">
+      <div class="rays" aria-hidden="true"></div>
+      <div class="chequer-top" aria-hidden="true"></div>
+      <div class="chequer-bottom" aria-hidden="true"></div>
+      <header>
+        <h1>Room <span data-room-code>QWRTZ</span></h1>
+        <span data-room-count>3/8</span>
+        <span data-room-course id="room-course"></span>
+      </header>
+      <p class="note">Everyone in the room sees the course the creator picked</p>
+    </div>
+  </div>
+</div>
+<p class="caption">Only the header changes: the course's flag and name go beside the code and the count, so a player who joined by link knows where they are racing before the start. It follows the flag picked above.</p>
+
+<h2 id="behaviour">Behaviour</h2>
+<ul>
+  <li><b>Who picks.</b> The player on the Title Scene, for the room they create or the solo race they start; that player is the room's creator. Joining by code ignores the pick.</li>
+  <li><b>What it sends.</b> Create room carries the course to the server, which keeps it on the room and puts it in <code>Countdown{track}</code>, which already names the track. Solo race loads the picked course locally.</li>
+  <li><b>Default.</b> Bell Deer on a first visit; afterwards the last course picked, saved beside the audio toggles and the nickname.</li>
+  <li><b>Preview.</b> The map is the course's centreline from its sidecar, drawn the way the course map draws it (asphalt over a white wall line) with the start line and a gold dot lapping it. Under it: lap length, laps, the tightest corner and the longest straight.</li>
+  <li><b>Addressable.</b> The flags are radios named <code>course</code> with the values <code>bell-deer</code>, <code>monarch</code> and <code>goldstone</code>, so the Playwright lobby flow can pick one by name as it does the audio toggles.</li>
+</ul>
+
+<h2 id="questions">Decisions</h2>
+<ol class="questions">
+  <li><span class="rec">(Decided)</span> The creator picks on the Title Scene, as drawn: one pick covers Create room and Solo race, beside the audio toggles.</li>
+  <li><span class="rec">(Decided)</span> The course is fixed once the room is open: the Room Scene shows it read-only, and changing it means a new room.</li>
+  <li><span class="rec">(Decided)</span> The Title Scene remembers the last course, saved in the browser like the audio toggles.</li>
+  <li><span class="rec">(Decided)</span> The preview is the flat map with the lap dot and four numbers, as drawn.</li>
+</ol>
+
+</div>
+
+<script>
+// Turtle steps copied from the course drafts: [kind, name, length] or [kind, name, radius, degrees] (positive turns left).
+const COURSES = [
+  {
+    id: "bell-deer", name: "Bell Deer", after: "Suzuka", flag: "jp", h0: -50,
+    blurb: "A figure eight over the bridge, the esses, Spoon and 130R",
+    spec: [["s","start",60],["a","first-curve",50,-51],["s","turn-2-approach",26],["a","turn-2",21,-111],["s","esses-run",27],["a","esses-1",30,57],["a","esses-2",20,-71],["s","esses-link",9],["a","esses-3",21,55],["a","esses-4",21,-122],["a","dunlop",34,102],["a","dunlop-rise",41,58],["a","degner-1",24,-70],["s","degner-link",53],["a","degner-2",18,-75],["s","underpass",85.3],["a","hairpin-kink",43,-28],["s","hairpin-approach",12],["a","hairpin",17,180],["s","hairpin-exit",21],["a","two-hundred-r",43,-99],["s","spoon-entry",8],["a","spoon-1",17,109],["s","spoon-link",20],["a","spoon-2",29,108],["s","back-straight",190.14],["a","one-thirty-r",52,40],["s","chicane-approach",13],["a","chicane-in",12,-76],["a","chicane-out",13,86],["a","final-curve",40,-92]],
+  },
+  {
+    id: "monarch", name: "Monarch", after: "Monaco", flag: "mc", h0: 98,
+    blurb: "Streets with the walls close, the hairpin and the tunnel",
+    spec: [["s","start",93],["a","sainte-devote",13,-84],["s","beau-rivage",163.12],["a","massenet",37,93],["s","casino-approach",39],["a","casino",26,-84],["s","casino-descent",52],["a","mirabeau",14,-140],["a","mirabeau-kink",25,27],["s","hairpin-approach",14],["a","grand-hotel",14,195],["s","hairpin-exit",7],["a","mirabeau-bas",13,-104],["s","portier-approach",10],["a","portier",13,-97],["s","tunnel-entry",34],["a","tunnel",122,-81],["a","chicane-in",14,69],["a","chicane-out",12,-97],["a","chicane-exit",15,25],["s","harbour",69],["a","tabac",17,54],["a","tabac-exit",100,27],["a","pool-1-left",13,47],["a","pool-1-right",22,-45],["s","pool-straight",17],["a","pool-2-right",12,-71],["a","pool-2-left",12,73],["a","quay",90,39],["a","rascasse",12,-134],["s","rascasse-exit",15],["a","noghes",14,-78],["a","noghes-flick",48,27],["a","pit-bend",40,-21]],
+  },
+  {
+    id: "goldstone", name: "Goldstone", after: "Silverstone", flag: "gb", h0: 52.5,
+    blurb: "Flat out and open, Maggotts and Becketts, the Hangar Straight",
+    spec: [["s","start",29],["a","abbey",25,-57],["s","abbey-exit",13],["a","farm",33,39],["s","village-approach",31],["a","village",15,-103],["a","the-loop",12,134],["a","aintree",39,64],["s","wellington",145],["a","brooklands",17,113],["s","brooklands-exit",10],["a","luffield",18,-193],["s","woodcote-approach",18],["a","woodcote",47,-54],["s","national",82],["a","copse",22,-66],["s","copse-exit",80],["a","maggotts",47,22],["a","becketts-right",27,-46],["a","becketts-left",20,56],["a","becketts",24,-95],["a","chapel",39,31],["s","hangar",175.74],["a","stowe",37,-125],["s","vale-approach",102],["a","vale",15,72],["a","club",20,-152]],
+  },
+];
+const LAPS = 3;
+const rad = (d) => (d * Math.PI) / 180;
+
+// The centreline every metre, closed back to the start along the final heading as trackgen's close() does.
+function lay(course) {
+  let x = 0, y = 0, h = rad(course.h0), s = 0, tightest = Infinity, longest = 0;
+  const pts = [[x, y]];
+  const step = (nx, ny) => { x = nx; y = ny; pts.push([x, y]); };
+  const straight = (len) => {
+    const n = Math.max(1, Math.round(len));
+    for (let i = 0; i < n; i++) step(x + (len / n) * Math.cos(h), y + (len / n) * Math.sin(h));
+    s += len; longest = Math.max(longest, len);
+  };
+  for (const [kind, , a, b] of course.spec) {
+    if (kind === "s") { straight(a); continue; }
+    const t = b > 0 ? 1 : -1, len = a * rad(Math.abs(b)), n = Math.max(1, Math.round(len));
+    const cx = x - t * a * Math.sin(h), cy = y + t * a * Math.cos(h);
+    for (let i = 0; i < n; i++) { h += rad(b) / n; step(cx + t * a * Math.sin(h), cy - t * a * Math.cos(h)); }
+    s += len; tightest = Math.min(tightest, a);
+  }
+  const along = -x * Math.cos(h) - y * Math.sin(h);
+  if (along > 0) straight(along);
+  // SVG's y runs down; the turtle's runs up.
+  return { pts: pts.map(([px, py]) => [px, -py]), length: s, tightest, longest };
+}
+
+let clipIds = 0;
+const FLAGS = {
+  jp: () => `<svg viewBox="0 0 900 600" aria-hidden="true"><rect width="900" height="600" fill="#fff"/><circle cx="450" cy="300" r="180" fill="#bc002d"/></svg>`,
+  mc: () => `<svg viewBox="0 0 900 600" aria-hidden="true"><rect width="900" height="600" fill="#fff"/><rect width="900" height="300" fill="#ce1126"/></svg>`,
+  gb: () => {
+    const id = `uj${clipIds++}`;
+    return `<svg viewBox="0 0 60 30" preserveAspectRatio="xMidYMid slice" aria-hidden="true"><clipPath id="${id}"><path d="M30,15 h30 v15 z v15 h-30 z h-30 v-15 z v-15 h30 z"/></clipPath><rect width="60" height="30" fill="#012169"/><path d="M0,0 L60,30 M60,0 L0,30" stroke="#fff" stroke-width="6"/><path d="M0,0 L60,30 M60,0 L0,30" clip-path="url(#${id})" stroke="#c8102e" stroke-width="4"/><path d="M30,0 v30 M0,15 h60" stroke="#fff" stroke-width="10"/><path d="M30,0 v30 M0,15 h60" stroke="#c8102e" stroke-width="6"/></svg>`;
+  },
+};
+
+const LAID = Object.fromEntries(COURSES.map((c) => [c.id, lay(c)]));
+const flags = document.getElementById("flags");
+const preview = document.getElementById("preview");
+const roomCourse = document.getElementById("room-course");
+const still = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+flags.innerHTML = COURSES.map((c) => `<label class="flag-tile"><input type="radio" name="course" value="${c.id}" />${FLAGS[c.flag]()}<span>${c.name}</span></label>`).join("");
+
+let lapper = 0;
+function show(id) {
+  const course = COURSES.find((c) => c.id === id);
+  const { pts, length, tightest, longest } = LAID[id];
+  const xs = pts.map((p) => p[0]), ys = pts.map((p) => p[1]), m = 16;
+  const box = `${Math.min(...xs) - m} ${Math.min(...ys) - m} ${Math.max(...xs) - Math.min(...xs) + 2 * m} ${Math.max(...ys) - Math.min(...ys) + 2 * m}`;
+  const d = `M${pts.map((p) => `${p[0].toFixed(1)},${p[1].toFixed(1)}`).join("L")}Z`;
+  const [sx, sy] = pts[0], [nx, ny] = pts[4];
+  const heading = (Math.atan2(ny - sy, nx - sx) * 180) / Math.PI;
+  preview.innerHTML = `
+    <div class="map-swap">
+      <header><h3>${course.name}</h3><span class="after">After ${course.after}</span></header>
+      <svg class="map" viewBox="${box}" preserveAspectRatio="xMidYMid meet" aria-label="${course.name} course map">
+        <path d="${d}" fill="none" stroke="#f0f0f0" stroke-width="16" stroke-linejoin="round"/>
+        <path d="${d}" fill="none" stroke="#6b6b78" stroke-width="11" stroke-linejoin="round"/>
+        <g transform="translate(${sx} ${sy}) rotate(${heading})">
+          <rect x="-2" y="-8" width="4" height="16" fill="#fff"/>
+          <path d="M-2,-8 h2 v4 h-2z M0,-4 h2 v4 h-2z M-2,0 h2 v4 h-2z M0,4 h2 v4 h-2z" fill="#111"/>
+          <path d="M14,-5 L24,0 L14,5z" fill="#ffd23f" stroke="#111" stroke-width="1.2"/>
+        </g>
+        <circle id="lapper" r="6" cx="${sx}" cy="${sy}" fill="#ffd23f" stroke="#111" stroke-width="2"/>
+      </svg>
+      <p class="blurb">${course.blurb}</p>
+      <div class="stats">
+        <div><b>${Math.round(length)} m</b><small>Lap</small></div>
+        <div><b>${LAPS}</b><small>Laps</small></div>
+        <div><b>${tightest} m</b><small>Tightest</small></div>
+        <div><b>${Math.round(longest)} m</b><small>Straight</small></div>
+      </div>
+    </div>`;
+  roomCourse.innerHTML = `${FLAGS[course.flag]()}<span>${course.name}</span>`;
+  try { localStorage.setItem("course-picker-draft", id); } catch {}
+  cancelAnimationFrame(lapper);
+  if (still) return;
+  // A lap in about eight seconds, whatever the course's length.
+  const dot = document.getElementById("lapper"), t0 = performance.now();
+  const run = (now) => {
+    // The first frame's timestamp can fall before t0.
+    const p = pts[Math.floor(((Math.max(0, now - t0) / 8000) % 1) * pts.length)];
+    dot.setAttribute("cx", p[0]);
+    dot.setAttribute("cy", p[1]);
+    lapper = requestAnimationFrame(run);
+  };
+  lapper = requestAnimationFrame(run);
+}
+
+flags.addEventListener("change", (event) => show(event.target.value));
+let first = "bell-deer";
+try { first = localStorage.getItem("course-picker-draft") ?? first; } catch {}
+if (!LAID[first]) first = "bell-deer";
+flags.querySelector(`input[value="${first}"]`).checked = true;
+show(first);
+</script>
+</body>
+</html>
