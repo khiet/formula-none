@@ -125,9 +125,9 @@ impl HostedRoom {
         }
     }
 
-    /// The room `kept` describes, racing `track`: the track it names,
-    /// that track's new name, or a stand-in for one this server lacks;
-    /// every seat is Disconnected until its token rejoins.
+    /// The room `kept` describes, racing `track`, one of
+    /// [`crate::tracks`] picked by the caller; every seat is Disconnected
+    /// until its token rejoins.
     pub fn from_kept(kept: KeptRoom, track: &'static str) -> Self {
         let seats = kept
             .seats
