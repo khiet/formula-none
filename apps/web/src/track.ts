@@ -2,10 +2,12 @@
 // sidecar the sim reads, exported together from Blender (ADR 0007).
 import bellDeerGltf from "../../../assets/tracks/bell-deer/bell-deer.glb?url";
 import bellDeerSidecar from "../../../assets/tracks/bell-deer/bell-deer.track.json?url";
+import goldstoneGltf from "../../../assets/tracks/goldstone/goldstone.glb?url";
+import goldstoneSidecar from "../../../assets/tracks/goldstone/goldstone.track.json?url";
 import ovalGltf from "../../../assets/tracks/oval/oval.glb?url";
 import ovalSidecar from "../../../assets/tracks/oval/oval.track.json?url";
 
-export type TrackName = "bell-deer" | "oval";
+export type TrackName = "bell-deer" | "goldstone" | "oval";
 
 /** A point in the world's metres: x, y up, z. */
 export type WorldPoint = readonly [number, number, number];
@@ -24,6 +26,7 @@ export const TRACKS: Readonly<Record<TrackName, TrackFiles>> = {
     gltfUrl: bellDeerGltf,
     sidecarUrl: bellDeerSidecar,
   },
+  goldstone: { name: "goldstone", gltfUrl: goldstoneGltf, sidecarUrl: goldstoneSidecar },
   oval: { name: "oval", gltfUrl: ovalGltf, sidecarUrl: ovalSidecar },
 };
 
@@ -31,8 +34,8 @@ export const TRACKS: Readonly<Record<TrackName, TrackFiles>> = {
 export const DEFAULT_TRACK: TrackName = "bell-deer";
 
 /**
- * Pick a track from the page's query string (`?track=oval`) so a tester can
- * load either without a build. Anything else is the default.
+ * Pick a track from the page's query string (`?track=oval`,
+ * `?track=goldstone`) so a tester can load any without a build. Anything else is the default.
  */
 export function selectTrack(search: string): TrackFiles {
   const requested = new URLSearchParams(search).get("track");

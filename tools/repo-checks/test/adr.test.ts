@@ -64,6 +64,7 @@ const DECISION_SLUGS = [
   "homing-projectile-is-a-camera-quad-drone",
   "boost-is-a-champagne-bottle",
   "kept-rooms-survive-a-track-rename",
+  "goldstone-joins-the-courses",
 ];
 
 const expectedFiles = DECISION_SLUGS.map(

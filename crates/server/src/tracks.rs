@@ -16,6 +16,10 @@ const TRACKS: &[(&str, &str)] = &[
         include_str!("../../../assets/tracks/bell-deer/bell-deer.track.json"),
     ),
     (
+        "goldstone",
+        include_str!("../../../assets/tracks/goldstone/goldstone.track.json"),
+    ),
+    (
         "oval",
         include_str!("../../../assets/tracks/oval/oval.track.json"),
     ),
@@ -76,4 +80,19 @@ impl std::error::Error for LoadError {}
 pub fn load(name: &str) -> Result<Track, LoadError> {
     let sidecar = sidecar(name).ok_or_else(|| LoadError::UnknownTrack(name.to_owned()))?;
     Track::from_sidecar(sidecar).map_err(LoadError::Unusable)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn every_track_loads_under_its_own_name() {
+        let names: Vec<_> = TRACKS.iter().map(|(name, _)| *name).collect();
+        assert!(names.contains(&"goldstone"), "{names:?}");
+        for name in names {
+            let track = load(name).unwrap_or_else(|error| panic!("{name}: {error}"));
+            assert_eq!(track.name(), name);
+        }
+    }
 }

@@ -625,10 +625,21 @@
       <article class="asset">
         <header><h3>Pit building</h3><code>assets/tracks/trackgen/props.py pits, Prop.length in layout.py</code></header>
         <div class="compare"><figure><figcaption>From the grid, through the countdown</figcaption><div class="stage" data-draw="pits"></div></figure></div>
-        <dl class="spec"><dt>Size</dt><dd>90 m long, 10 m deep, 6 m to the roof; eight 4 m doors, eight flags on 4 m poles; 73 faces</dd><dt>Decided</dt><dd><a href="adr/0050-trackside-props.md">ADR 0050</a>, <a href="adr/0035-livery-palette.md">ADR 0035</a></dd></dl>
+        <dl class="spec"><dt>Size</dt><dd>90 m long, 10 m deep, 6 m to the roof; eight 4 m doors, eight flags on 4 m poles; 73 faces. Goldstone's is 120 m long</dd><dt>Decided</dt><dd><a href="adr/0050-trackside-props.md">ADR 0050</a>, <a href="adr/0035-livery-palette.md">ADR 0035</a>, <a href="adr/0060-goldstone-joins-the-courses.md">ADR 0060</a></dd></dl>
         <div class="notes">
           <p>A flat-roofed block inside the start straight, from 45 m before the line to 45 m past it, its front face 21 m right of the centreline, so the grid faces a pit lane through the countdown. Walls in <code>stand-riser</code> <code>#d7dbe0</code> where the sun reaches and <code>stand-plinth</code> <code>#b4bac2</code> elsewhere, a 0.6 m parapet in stand plinth round the top of every wall, the roof in <code>wall</code> <code>#f0f0f0</code>. Eight garage doors on the front face run forward from the line, where the grid's chase cameras look, at a 5.5 m pitch in the crowd's slot order, the first 2.75 m past the line: each 4 m by 4 m in its livery's key colour, <code>crowd-0</code> to <code>crowd-7</code>, with a 0.5 m band across its top in <code>crowd-<i>n</i>-lit</code>, the key mixed 28 percent toward white. A carbon pole over each door, set 0.5 m back from the roof's front edge, flies a still pennant in the same eight colours the other way round, so no flag matches the door under it. The glTF is static: the doors never show a room's picks.</p>
+          <p>Goldstone's, a nod to the Wing, is drawn long and white: 120 m from 60 m before the line to 60 m past it, outside the Hamilton Straight with its front face 21 m left of the centreline, since the infield between Club and Abbey is too tight for the 8 m rule. Its walls are <code>wall</code> <code>#f0f0f0</code> where the sun reaches and <code>beam-shade</code> <code>#9aa0a8</code> elsewhere, under a parapet in <code>beam-top</code> <code>#c9ced5</code>; doors, flags and roof as above. The building faces the track from whichever side it stands on, so the doors still run forward from the line.</p>
           <p class="dont"><b>Don't</b> number the doors or put a crest on one (ADR 0035), and don't park a kart in a garage: a parked kart is a kart the sim does not have. The building is scenery; there is no pit lane to drive.</p>
+        </div>
+      </article>
+
+      <article class="asset">
+        <header><h3>Hangars</h3><code>assets/tracks/trackgen/props.py hangars, Prop.length in layout.py</code></header>
+        <div class="compare"><figure><figcaption>From the Hangar Straight, looking across at the gables</figcaption><div class="stage" data-draw="hangars"></div></figure></div>
+        <dl class="spec"><dt>Size</dt><dd>Five sheds 18 m wide, 24 m deep, 6 m to the eaves and 10 m to the ridge at a 22 m pitch, a 12 m by 5 m door each; 11 faces a shed</dd><dt>Decided</dt><dd><a href="adr/0060-goldstone-joins-the-courses.md">ADR 0060</a></dd></dl>
+        <div class="notes">
+          <p>Goldstone stands on an old airfield, and a row of airfield hangars outside the Hangar Straight says so. The layout gives the row a spot and a length, 110 m from the straight's middle, fronts 21 m left of the centreline as the pits' are; as many sheds as the length holds stand at the pitch, the row centred on its spot. Each is a box to the eaves under a barrel roof of six flat facets on a circle through both eaves and the ridge, its gable end toward the track. Walls and gables in <code>stand-riser</code> <code>#d7dbe0</code> where the sun reaches and <code>stand-plinth</code> <code>#b4bac2</code> elsewhere; the roof's facets in <code>beam-top</code> <code>#c9ced5</code> lit over <code>beam-shade</code> <code>#9aa0a8</code>; a <code>carbon</code> <code>#2b2e33</code> door, the dark of an open hangar, in each front gable. Scenery only, held to the 8 m rule.</p>
+          <p class="dont"><b>Don't</b> letter a hangar or park an aircraft in one: the row carries no sponsor, and the sim knows nothing of it.</p>
         </div>
       </article>
 
@@ -686,6 +697,7 @@
         <div class="compare">
           <figure><figcaption>Oval</figcaption><div class="view dark follows lv" data-draw="map" data-track="oval"></div></figure>
           <figure><figcaption>Bell Deer</figcaption><div class="view dark follows lv" data-draw="map" data-track="bell-deer"></div></figure>
+          <figure><figcaption>Goldstone</figcaption><div class="view dark follows lv" data-draw="map" data-track="goldstone"></div></figure>
         </div>
         <dl class="spec"><dt>Decided</dt><dd><a href="adr/0037-instrument-panel-in-chibi-low-poly.md">ADR 0037</a></dd></dl>
         <div class="notes"><p>The track as the world builds it: asphalt between white walls, the ink drop under it, a chequered start. Each kart is a faceted octagon in its key colour, lit on the top left like a hub; yours is bigger and ringed in white. Outlines are the real centrelines from each track's sidecar. Where a course crosses itself the deck is drawn again over the road beneath, its walls breaking that road, so the map reads as a bridge rather than an X.</p></div>
@@ -1206,6 +1218,28 @@
       <line x1="${line}" y1="${g}" x2="${line}" y2="${g + 10}" stroke="${wall}" stroke-width="1" stroke-dasharray="2 2"/>
     </svg>`;
   };
+  // Three of Goldstone's hangars from the straight at 3.5 px to the metre: each gable's wall
+  // to the eaves under its six-facet arc, the carbon door in it, and the lit and shaded
+  // facets of the barrel roof seen over the gable's top.
+  draw.hangars = () => {
+    const m = 3.5, g = 140, riser = "#d7dbe0", plinth = "#b4bac2", top = "#c9ced5", shade = "#9aa0a8", carbon = "#2b2e33";
+    const half = 9, eaves = 6, ridge = 10, rise = ridge - eaves, r = (half * half + rise * rise) / (2 * rise), sweep = Math.asin(half / r);
+    const arc = [...Array(7).keys()].map((k) => { const t = -sweep + (2 * sweep * k) / 6; return [r * Math.sin(t), ridge - r + r * Math.cos(t)]; });
+    let sheds = "";
+    for (let k = 0; k < 3; k++) {
+      const cx = 43 + k * 22 * m;
+      const at = ([u, z]) => [cx + u * m, g - z * m];
+      const back = arc.map(([u, z]) => [cx + u * m + 10, g - z * m - 10]);
+      for (let i = 0; i < 6; i++) sheds += poly([at(arc[i]), at(arc[i + 1]), back[i + 1], back[i]], i < 3 ? shade : top);
+      sheds += poly([[cx + half * m, g], [cx - half * m, g], ...arc.map(at)], riser);
+      sheds += poly([[cx + half * m, g], [cx + half * m + 10, g - 10], back[6], at(arc[6])], plinth);
+      sheds += `<rect x="${cx - 6 * m}" y="${g - 5 * m}" width="${12 * m}" height="${5 * m}" fill="${carbon}"/>`;
+    }
+    return `<svg viewBox="0 0 240 160" role="img" aria-label="Three airfield hangars: grey barrel-roofed sheds with dark doors in their gables">
+      <rect y="${g}" width="240" height="20" fill="#5cb04a"/>
+      ${sheds}
+    </svg>`;
+  };
   // The airship side on at 8 px to the metre, nose to the right, as the export leaves it: the
   // hull's profile swept round twelve sides with a flat on the flank, the two bands above it
   // lit and the two below in shade, the fins at the tail, the gondola on its struts, and the
@@ -1541,6 +1575,7 @@
   const TRACKS = {
     oval: { d: "M63.6 67.0 L63.6 64.8 L63.6 62.5 L63.6 60.2 L63.6 57.9 L63.6 55.7 L63.6 53.4 L63.6 51.1 L63.6 48.9 L63.6 46.6 L63.6 44.3 L63.6 42.1 L63.6 39.8 L63.6 37.5 L63.6 35.2 L63.6 33.0 L63.6 30.7 L63.6 28.4 L63.6 26.2 L63.6 23.9 L63.6 21.6 L63.4 19.4 L62.9 17.2 L61.9 15.1 L60.7 13.2 L59.1 11.5 L57.3 10.1 L55.3 9.1 L53.2 8.4 L50.9 8.0 L48.6 8.1 L46.4 8.5 L44.3 9.3 L42.3 10.4 L40.5 11.8 L39.0 13.5 L37.8 15.5 L37.0 17.6 L36.5 19.8 L36.4 22.1 L36.4 24.3 L36.4 26.6 L36.4 28.9 L36.4 31.2 L36.4 33.4 L36.4 35.7 L36.4 38.0 L36.4 40.2 L36.4 42.5 L36.4 44.8 L36.4 47.0 L36.4 49.3 L36.4 51.6 L36.4 53.9 L36.4 56.1 L36.4 58.4 L36.4 60.7 L36.4 62.9 L36.4 65.2 L36.4 67.5 L36.4 69.8 L36.4 72.0 L36.4 74.3 L36.4 76.6 L36.4 78.8 L36.7 81.1 L37.3 83.3 L38.3 85.3 L39.6 87.2 L41.2 88.8 L43.1 90.1 L45.1 91.1 L47.3 91.7 L49.5 92.0 L51.8 91.9 L54.0 91.4 L56.1 90.5 L58.1 89.3 L59.8 87.8 L61.2 86.1 L62.4 84.1 L63.1 82.0 L63.6 79.7 L63.6 77.5 L63.6 75.2 L63.6 72.9 L63.6 70.7 L63.6 68.4 Z", start: [63.6, 67.0] },
     "bell-deer": { d: "M82.2 51.3 L83.2 52.5 L84.2 53.7 L85.2 54.9 L86.2 56.1 L87.2 57.3 L88.2 58.5 L89.2 59.7 L90.2 60.9 L91.0 62.2 L91.6 63.6 L91.9 65.1 L92.0 66.7 L91.9 68.2 L91.6 69.7 L91.3 71.3 L91.0 72.8 L90.6 74.3 L89.7 75.5 L88.4 76.4 L86.9 76.7 L85.4 76.4 L84.0 75.6 L82.7 74.8 L81.4 74.0 L80.0 73.2 L78.6 72.6 L77.1 72.4 L75.6 72.6 L74.1 73.1 L72.6 73.3 L71.1 72.8 L69.9 71.8 L68.8 70.7 L67.5 69.9 L66.0 69.6 L64.4 69.7 L63.0 69.3 L61.7 68.3 L60.9 67.0 L60.7 65.5 L61.0 64.0 L61.4 62.5 L61.5 61.0 L61.2 59.5 L60.6 58.1 L59.7 56.8 L58.5 55.8 L57.1 55.2 L55.6 54.8 L54.1 54.8 L52.5 55.1 L51.1 55.6 L49.8 56.4 L48.7 57.5 L47.4 58.4 L45.9 58.8 L44.3 58.7 L42.8 58.1 L41.4 57.5 L40.0 56.9 L38.5 56.3 L37.1 55.7 L35.7 55.1 L34.2 54.5 L33.0 53.7 L32.1 52.4 L31.9 50.9 L32.1 49.3 L32.4 47.8 L32.6 46.2 L32.8 44.7 L33.0 43.1 L33.2 41.6 L33.4 40.0 L33.7 38.5 L33.9 36.9 L34.1 35.4 L34.3 33.8 L34.8 32.3 L35.5 31.0 L36.4 29.7 L37.3 28.4 L37.8 26.9 L37.6 25.4 L36.7 24.1 L35.3 23.4 L33.7 23.4 L32.3 24.1 L31.3 25.3 L30.4 26.6 L29.5 27.8 L28.5 29.0 L27.3 30.0 L25.9 30.8 L24.4 31.2 L22.9 31.4 L21.3 31.3 L19.8 31.0 L18.4 30.3 L17.1 29.4 L16.0 28.3 L14.8 27.3 L13.3 26.9 L11.8 27.3 L10.6 28.3 L9.9 29.7 L9.2 31.1 L8.5 32.5 L8.1 33.9 L8.0 35.5 L8.5 37.0 L9.2 38.3 L10.4 39.4 L11.7 40.1 L13.2 40.4 L14.8 40.6 L16.3 40.8 L17.9 41.1 L19.4 41.3 L21.0 41.5 L22.5 41.7 L24.1 41.9 L25.6 42.1 L27.1 42.4 L28.7 42.6 L30.2 42.8 L31.8 43.0 L33.3 43.2 L34.9 43.4 L36.4 43.7 L38.0 43.9 L39.5 44.1 L41.0 44.3 L42.6 44.5 L44.1 44.7 L45.7 45.0 L47.2 45.2 L48.8 45.4 L50.3 45.6 L51.9 45.6 L53.4 45.3 L54.9 44.8 L56.3 44.1 L57.6 43.2 L59.0 42.5 L60.5 42.5 L61.8 43.4 L63.2 43.7 L64.6 43.2 L65.9 42.3 L67.3 41.6 L68.8 41.2 L70.3 41.1 L71.9 41.3 L73.3 41.8 L74.7 42.7 L75.8 43.7 L76.8 44.9 L77.8 46.1 L78.8 47.3 L79.8 48.5 L80.8 49.7 L81.8 50.9 Z", start: [82.2, 51.3], deck: "M24.0 41.9 L32.9 43.2 L41.8 44.4" },
+    goldstone: { d: "M33.7 57.7 L34.7 56.4 L35.7 55.0 L36.7 53.7 L37.8 52.4 L39.1 51.4 L40.6 50.9 L42.3 50.9 L44.0 51.0 L45.6 51.1 L47.3 50.8 L48.8 50.0 L50.2 49.1 L51.6 48.1 L53.0 47.2 L54.3 46.3 L55.9 45.7 L57.5 46.0 L58.7 47.1 L59.6 48.5 L61.1 49.2 L62.6 48.9 L63.7 47.6 L64.2 46.0 L64.3 44.4 L64.2 42.8 L63.7 41.2 L62.8 39.8 L61.8 38.5 L60.8 37.2 L59.7 35.9 L58.6 34.6 L57.6 33.3 L56.5 32.0 L55.5 30.8 L54.4 29.5 L53.3 28.2 L52.3 26.9 L51.2 25.6 L50.2 24.3 L49.1 23.0 L48.0 21.8 L47.0 20.5 L45.9 19.2 L44.9 17.9 L43.8 16.6 L42.7 15.4 L41.2 14.8 L39.6 14.8 L38.2 15.6 L37.2 17.0 L36.4 18.4 L35.4 19.7 L33.9 20.4 L32.3 20.4 L30.8 19.6 L29.8 18.4 L29.4 16.8 L29.7 15.1 L30.7 13.8 L31.8 12.5 L32.8 11.3 L34.1 10.1 L35.5 9.2 L37.0 8.5 L38.6 8.1 L40.3 8.0 L41.9 8.1 L43.6 8.2 L45.3 8.4 L46.9 8.5 L48.6 8.6 L50.3 8.8 L51.9 8.9 L53.6 9.0 L55.2 9.2 L56.9 9.3 L58.6 9.5 L60.1 10.1 L61.3 11.3 L62.0 12.8 L62.6 14.4 L63.1 15.9 L63.7 17.5 L64.2 19.1 L64.8 20.6 L65.4 22.2 L65.9 23.8 L66.5 25.4 L67.0 26.9 L67.6 28.5 L68.3 30.0 L69.3 31.3 L70.2 32.7 L70.7 34.3 L70.7 35.9 L71.1 37.5 L72.0 38.8 L73.2 40.0 L73.9 41.4 L74.2 43.0 L73.9 44.7 L73.1 46.1 L72.0 47.4 L71.2 48.9 L70.7 50.5 L70.4 52.1 L70.0 53.7 L69.6 55.3 L69.3 56.9 L68.9 58.6 L68.6 60.2 L68.2 61.8 L67.8 63.4 L67.5 65.1 L67.1 66.7 L66.8 68.3 L66.4 69.9 L66.0 71.6 L65.7 73.2 L65.3 74.8 L65.0 76.4 L64.6 78.1 L64.2 79.7 L63.9 81.3 L63.5 82.9 L63.2 84.5 L62.8 86.2 L62.2 87.7 L61.3 89.1 L60.2 90.3 L58.8 91.2 L57.2 91.8 L55.6 92.0 L53.9 91.9 L52.3 91.4 L50.9 90.6 L49.7 89.5 L48.5 88.3 L47.4 87.0 L46.3 85.8 L45.2 84.6 L44.0 83.4 L42.9 82.1 L41.8 80.9 L40.7 79.7 L39.5 78.5 L38.4 77.2 L37.3 76.0 L36.2 74.8 L35.0 73.6 L33.5 72.9 L31.9 73.0 L30.3 73.5 L28.7 73.3 L27.2 72.4 L26.2 71.1 L25.8 69.5 L26.1 67.9 L26.9 66.5 L28.0 65.1 L29.0 63.8 L30.0 62.5 L31.0 61.2 L32.0 59.8 L33.0 58.5 Z", start: [33.7, 57.7] },
   };
   const FRACTIONS = [0.04, 0.16, 0.27, 0.38, 0.5, 0.63, 0.75, 0.88];
   draw.map = (el) => {

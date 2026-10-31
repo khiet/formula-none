@@ -44,7 +44,7 @@ The wasm test then confirms the wasm build agrees with the new hashes.
 
 ## What the set must cover
 
-`the_fixture_set_exercises_kart_contact_off_track_walls_both_tracks_both_mini_turbos_a_rocket_start_a_stall_the_kerb_the_wheel_and_coins`
+`the_fixture_set_exercises_kart_contact_off_track_walls_every_track_both_mini_turbos_a_rocket_start_a_stall_the_kerb_the_wheel_and_coins`
 in the sim's tests requires the set, taken together, to have karts
 touching, karts on the sand, a lone kart held by a wall, a run on
 each track, a drift released into an orange mini-turbo and another into
@@ -72,4 +72,7 @@ written the same way: four karts from the grid through the first curve
 and turn 2, one of them cutting across turn 2's sand. `oval-rocket-start.replay.json` and
 `oval-stall.replay.json` were written by hand for the start: the throttle
 held from the first half of the fourth light through Go, and from the top of the
-countdown.
+countdown. `goldstone-lap-with-bots.replay.json` was written by the sim tests'
+centreline follower, steering held six ticks at a time in eighths with the
+throttle down: one kart idle through the countdown, then a lap of Goldstone
+among seven bots.

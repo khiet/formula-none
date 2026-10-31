@@ -1,12 +1,13 @@
 # Tracks
 
-Two tracks, each exported from Blender as a glTF the View draws and a
+Three tracks, each exported from Blender as a glTF the View draws and a
 sidecar the sim reads (ADR 0007):
 
 | Track                | Role                              | Files                                   |
 | -------------------- | --------------------------------- | --------------------------------------- |
 | `oval`               | test fixture for the sim's tests  | `oval/oval.glb`, `oval/oval.track.json` |
 | `bell-deer`       | the race track, Bell Deer      | `bell-deer/bell-deer.glb`, `...track.json` |
+| `goldstone`       | the course after Silverstone   | `goldstone/goldstone.glb`, `...track.json` |
 
 ## Export
 

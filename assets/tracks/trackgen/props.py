@@ -6,8 +6,9 @@ trunk, standing flat at the grass's level. The Circuit Wheel: the card's
 Ferris wheel outside the first curve, its rim and gondolas nodes of their
 own, pivoted where the View turns them. The arch: a giant tyre spanning
 Dunlop, lettered with its sponsor on both faces. The pit building: a row
-of garages inside the start straight, a door and a flag in each livery's
-key colour, which the grid faces through the countdown. The airship: a
+of garages beside the start straight, a door and a flag in each livery's
+key colour, which the grid faces through the countdown. The hangars: a row
+of barrel-roofed sheds outside Goldstone's Hangar Straight. The airship: a
 twelve-sided hull circling high over the infield, a node of its own the
 View flies round its circle, its sponsor riding on both flanks."""
 
@@ -38,6 +39,7 @@ from .layout import (
     Placement,
     Prop,
     SceneryMesh,
+    Spot,
     Wood,
     locate,
 )
@@ -157,6 +159,23 @@ PITS_POLE_HEIGHT_M = 4.0
 PITS_POLE_FROM_FRONT_M = 0.5
 PITS_FLAG_LENGTH_M = 1.6
 PITS_FLAG_HEIGHT_M = 0.9
+
+# A row of airfield hangars, Goldstone's nod to the airfield it stands on:
+# sheds side by side along the track, each a box to the eaves under a barrel
+# roof of `HANGAR_ROOF_FACETS` flat facets, its gable end toward the track
+# with a dark door in it. The layout's prop gives the row's length; as many
+# hangars as fit stand at the pitch, the row centred on its spot.
+HANGAR_WIDTH_M = 18.0
+"""Along the track, wall to wall."""
+HANGAR_DEPTH_M = 24.0
+"""Across the track, gable to gable."""
+HANGAR_EAVES_M = 6.0
+HANGAR_RIDGE_M = 10.0
+HANGAR_PITCH_M = 22.0
+HANGAR_ROOF_FACETS = 6
+HANGAR_DOOR_WIDTH_M = 12.0
+HANGAR_DOOR_HEIGHT_M = 5.0
+HANGAR_DOOR_PROUD_M = 0.05
 
 # The airship, the card in three dimensions: a hull of `AIRSHIP_SIDES` flat
 # sides round its axis, swelling from the nose to a cylinder amidships and
@@ -503,20 +522,35 @@ def _arch_footprints(layout: Layout, prop: Prop) -> list[Footprint]:
 
 
 def _pits_footprint(layout: Layout, prop: Prop) -> list[Footprint]:
+    return [_row_footprint(layout, prop, PITS_DEPTH_M, "the pits need a length")]
+
+
+def _hangars_footprint(layout: Layout, prop: Prop) -> list[Footprint]:
+    return [_row_footprint(layout, prop, HANGAR_DEPTH_M, "the hangars need a length")]
+
+
+def _row_footprint(layout: Layout, prop: Prop, depth: float, missing: str) -> Footprint:
+    """The plan of a prop that runs `prop.length` along the track, `depth` deep across it."""
     x, y, heading = locate(layout, prop.at)
     if prop.length is None:
-        raise ValueError("the pits need a length")
-    return [
-        Footprint(
-            prop.kind, x, y, PROP_WALL_CLEARANCE_M, heading=heading, half_along=prop.length / 2.0, half_across=PITS_DEPTH_M / 2.0
-        )
-    ]
+        raise ValueError(missing)
+    return Footprint(prop.kind, x, y, PROP_WALL_CLEARANCE_M, heading=heading, half_along=prop.length / 2.0, half_across=depth / 2.0)
+
+
+def _facing_frame(prop: Prop, heading: float) -> tuple[mesh.Vertex, mesh.Vertex]:
+    """The (along, across) axes of a prop that runs along the track, `across` pointing from
+    the prop toward the track whichever side it stands on, so its front face is +across."""
+    along = (math.cos(heading), math.sin(heading), 0.0)
+    left = (-math.sin(heading), math.cos(heading), 0.0)
+    toward_track = -1.0 if isinstance(prop.at, Spot) and prop.at.offset > 0.0 else 1.0
+    return along, (toward_track * left[0], toward_track * left[1], 0.0)
 
 
 FOOTPRINTS: dict[str, Callable[[Layout, Prop], list[Footprint]]] = {
     "circuit-wheel": _wheel_footprint,
     "arch": _arch_footprints,
     "pits": _pits_footprint,
+    "hangars": _hangars_footprint,
     "airship": _no_footprint,
 }
 
@@ -758,20 +792,20 @@ def pits(layout: Layout, prop: Prop, number: int, still: ByMaterial) -> tuple[li
     crowd's order, so every grid slot faces them, each in its key colour with a lit band
     along its top, and a still flag on a carbon pole over each door, the flags in the same
     colours the other way round, as the style guide's card has them. No number and no kart:
-    the doors are colours only."""
+    the doors are colours only. A `white` building, Goldstone's, has wall-white walls over beam
+    shade under a beam-top parapet instead. It faces the track from either side."""
     (plan,) = _pits_footprint(layout, prop)
     x, y, heading = plan.x, plan.y, plan.heading
     ground = -GRASS_DROP_M
     origin = (x, y, ground)
-    along = (math.cos(heading), math.sin(heading), 0.0)
-    across = (-math.sin(heading), math.cos(heading), 0.0)
+    along, across = _facing_frame(prop, heading)
     half = plan.half_along
-    # The track is to the left of the building, so its front face is its +across side.
     front = plan.half_across
+    walls, shade, rim = ("wall", "beam-shade", "beam-top") if prop.white else ("stand-riser", "stand-plinth", "stand-plinth")
     body = (0.0, PITS_HEIGHT_M - PITS_PARAPET_M)
-    _sides(_block(origin, along, across, (-half, half), (-front, front), body), "stand-riser", still, shade="stand-plinth")
+    _sides(_block(origin, along, across, (-half, half), (-front, front), body), walls, still, shade=shade)
     parapet = _block(origin, along, across, (-half, half), (-front, front), (body[1], PITS_HEIGHT_M))
-    _sides(parapet, "stand-plinth", still)
+    _sides(parapet, rim, still)
     vertices, (face,) = parapet["z1"]
     still.add("wall", ([vertices[i] for i in face], [(0, 1, 2, 3)]))
 
@@ -785,11 +819,11 @@ def pits(layout: Layout, prop: Prop, number: int, still: ByMaterial) -> tuple[li
         b = front + PITS_DOOR_PROUD_M
         band = PITS_DOOR_HEIGHT_M - PITS_DOOR_BAND_M
         # Wound to face +across, toward the track.
-        still.add(f"crowd-{slot}", ([at(a1, b, 0.0), at(a0, b, 0.0), at(a0, b, band), at(a1, b, band)], [(0, 1, 2, 3)]))
-        still.add(
-            f"crowd-{slot}-lit",
-            ([at(a1, b, band), at(a0, b, band), at(a0, b, PITS_DOOR_HEIGHT_M), at(a1, b, PITS_DOOR_HEIGHT_M)], [(0, 1, 2, 3)]),
-        )
+        behind = at(middle, 0.0, 0.0)
+        door = [at(a1, b, 0.0), at(a0, b, 0.0), at(a0, b, band), at(a1, b, band)]
+        still.add(f"crowd-{slot}", (_outward(door, behind), [(0, 1, 2, 3)]))
+        lit = [at(a1, b, band), at(a0, b, band), at(a0, b, PITS_DOOR_HEIGHT_M), at(a1, b, PITS_DOOR_HEIGHT_M)]
+        still.add(f"crowd-{slot}-lit", (_outward(lit, behind), [(0, 1, 2, 3)]))
         pole_b = front - PITS_POLE_FROM_FRONT_M
         top = PITS_HEIGHT_M + PITS_POLE_HEIGHT_M
         pole = _block(
@@ -806,7 +840,51 @@ def pits(layout: Layout, prop: Prop, number: int, still: ByMaterial) -> tuple[li
         # or not the material is drawn from both sides.
         hoist = middle + PITS_POLE_M / 2.0
         flag = [at(hoist, pole_b, top - PITS_FLAG_HEIGHT_M), at(hoist, pole_b, top), at(hoist + PITS_FLAG_LENGTH_M, pole_b, top - PITS_FLAG_HEIGHT_M / 2.0)]
-        still.add(f"crowd-{slots - 1 - slot}", (flag, [(0, 1, 2)]))
+        still.add(f"crowd-{slots - 1 - slot}", (_outward(flag, at(hoist, -front, top)), [(0, 1, 2)]))
+    return [], []
+
+
+def hangars(layout: Layout, prop: Prop, number: int, still: ByMaterial) -> tuple[list[SceneryMesh], list[Lettering]]:
+    """A row of airfield hangars at `prop`, `prop.length` long along the track: as many as fit
+    at `HANGAR_PITCH_M`, centred on the spot, each with its gable end toward the track. Walls
+    and gables in stand riser where the sun reaches and stand plinth elsewhere, the barrel
+    roof's facets in beam top lit over beam shade, and a carbon door on the front gable. No
+    lettering: the hangars carry no sponsor."""
+    (plan,) = _hangars_footprint(layout, prop)
+    ground = -GRASS_DROP_M
+    along, across = _facing_frame(prop, plan.heading)
+    count = int((plan.half_along * 2.0 - HANGAR_WIDTH_M) // HANGAR_PITCH_M) + 1
+    front = plan.half_across
+    half = HANGAR_WIDTH_M / 2.0
+    # The roof's arc across the hangar's width: a circle through both eaves and the ridge.
+    rise = HANGAR_RIDGE_M - HANGAR_EAVES_M
+    radius = (half * half + rise * rise) / (2.0 * rise)
+    sweep = math.asin(half / radius)
+    profile = [
+        (radius * math.sin(t), HANGAR_RIDGE_M - radius + radius * math.cos(t))
+        for t in (-sweep + 2.0 * sweep * k / HANGAR_ROOF_FACETS for k in range(HANGAR_ROOF_FACETS + 1))
+    ]
+
+    def at(a: float, b: float, c: float) -> mesh.Vertex:
+        return (plan.x + a * along[0] + b * across[0], plan.y + a * along[1] + b * across[1], ground + c)
+
+    for k in range(count):
+        middle = (k - (count - 1) / 2.0) * HANGAR_PITCH_M
+        hub = at(middle, 0.0, HANGAR_EAVES_M / 2.0)
+        for a in (middle - half, middle + half):
+            wall = [at(a, -front, 0.0), at(a, front, 0.0), at(a, front, HANGAR_EAVES_M), at(a, -front, HANGAR_EAVES_M)]
+            still.add(*_toned("stand-riser", _outward(wall, hub), "stand-plinth"))
+        # Each gable: the wall to the eaves with the roof's arc over it, one convex face.
+        for b in (-front, front):
+            gable = [at(middle + half, b, 0.0), at(middle - half, b, 0.0)] + [at(middle + u, b, z) for u, z in profile]
+            still.add(*_toned("stand-riser", _outward(gable, hub), "stand-plinth"))
+        for (u0, z0), (u1, z1) in zip(profile, profile[1:]):
+            facet = [at(middle + u0, -front, z0), at(middle + u1, -front, z1), at(middle + u1, front, z1), at(middle + u0, front, z0)]
+            still.add(*_toned("beam-top", _outward(facet, at(middle, 0.0, 0.0)), "beam-shade"))
+        b = front + HANGAR_DOOR_PROUD_M
+        d = HANGAR_DOOR_WIDTH_M / 2.0
+        door = [at(middle - d, b, 0.0), at(middle + d, b, 0.0), at(middle + d, b, HANGAR_DOOR_HEIGHT_M), at(middle - d, b, HANGAR_DOOR_HEIGHT_M)]
+        still.add("carbon", (_outward(door, hub), [(0, 1, 2, 3)]))
     return [], []
 
 
@@ -921,5 +999,6 @@ PROP_BUILDERS: dict[str, Callable[[Layout, Prop, int, ByMaterial], tuple[list[Sc
     "circuit-wheel": circuit_wheel,
     "arch": arch,
     "pits": pits,
+    "hangars": hangars,
     "airship": airship,
 }
