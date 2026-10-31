@@ -142,7 +142,7 @@ with a band in the key's lit tone, and no number. The harbour is a basin a
 `Prop`'s `length` along its heading and `width` across, its water a hair
 over the grass inside a raised quay, its yachts moored along the two quays
 nearest the lap; the casino stands on a terrace up to the road's height at
-its spot, so it is level with Casino Square's crest.
+its spot, so it is level with Casino Square's crest (ADR 0065).
 Original names only; nothing may resemble a real sponsor, a Nintendo
 character or circuit (ADR 0007), and no kart carries a sponsor (ADR 0038).
 

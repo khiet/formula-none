@@ -410,8 +410,8 @@ the lap. Nothing in it moves, and it is held to the 8 m rule (ADR 0050).
 The grand house outside Monarch's Casino Square, at the crest: a prop of
 stucco under copper roofs, two towers and a dome, standing on a terrace that
 rises from the grass to the road's height there, its dark door and windows
-toward the track. It carries no name, and it is held to the 8 m rule (ADR
-0050).
+toward the track. It carries no name, and it is held to the 8 m rule (ADRs
+0050, 0065).
 
 ### tyre wall
 
