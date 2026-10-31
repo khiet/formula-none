@@ -109,7 +109,7 @@ async function fetchBytes(url: string): Promise<ArrayBuffer> {
   return response.arrayBuffer();
 }
 
-/** Every course with its centreline, for the course cards on the Title and Room Scenes. */
+/** Every course with its centreline, for the course cards. */
 function loadCourseChoices(): Promise<CourseChoice[]> {
   return Promise.all(
     COURSES.map(async (course) => ({
