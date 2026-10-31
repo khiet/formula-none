@@ -10,7 +10,10 @@ of garages beside the start straight, a door and a flag in each livery's
 key colour, which the grid faces through the countdown. The hangars: a row
 of barrel-roofed sheds outside Goldstone's Hangar Straight. The airship: a
 twelve-sided hull circling high over the infield, a node of its own the
-View flies round its circle, its sponsor riding on both flanks. The harbour:
+View flies round its circle, its sponsor riding on both flanks. The
+helicopter: Monarch's red-and-white helicopter circling the harbour, a body
+node the View flies and dips with two rotor nodes it turns under it, its
+sponsor riding on both cabin flanks. The harbour:
 Monarch's basin of water inside a quay, yachts moored along it. The casino:
 Monarch's grand house outside Casino Square, on a terrace level with the
 crest."""
@@ -47,7 +50,7 @@ from .layout import (
     elevation,
     locate,
 )
-from .sponsors import AIRSHIP_SPONSOR, ARCH_SPONSOR
+from .sponsors import AIRSHIP_SPONSOR, ARCH_SPONSOR, HELICOPTER_SPONSOR
 
 # The View's sun stands at (20, 40, 10) in the glTF frame: toward +X and -Y
 # here, high; the track tests hold it to `race-view.ts`. A facet is lit when
@@ -219,6 +222,54 @@ AIRSHIP_STRUT_M = 0.25
 # proud of the flat.
 AIRSHIP_TEXT_AT_M = 12.0
 AIRSHIP_TEXT_SIZE_M = 1.2
+
+# The helicopter, the sky-objects mockup's Monarch card in three dimensions:
+# a cabin of one side profile across its width, a tapering boom to a kerb-red
+# fin, carbon glass, skids and rotors, and a kerb-red stripe down each flank.
+# Every profile is (metres back from the nose, metres up from the cabin's
+# floor). Its node's origin is the nose, its rest heading the tangent of the
+# circle the View flies it round, the circle's centre to its left; the
+# layout's prop gives the circle and the nose's height over the grass. The
+# View dips the nose `HELICOPTER_DIP_DEG` about it, and the track tests hold
+# the lowest point, dipped and with the rotors at any angle,
+# `HELICOPTER_CLEARANCE_M` over every road under its circle.
+HELICOPTER_NOSE_UP_M = 1.2
+"""The nose over the cabin's floor."""
+HELICOPTER_CABIN = ((0.0, 1.2), (0.8, 2.6), (2.4, 3.4), (5.2, 3.4), (6.0, 2.6), (6.0, 0.6), (4.8, 0.0), (1.2, 0.0))
+"""The cabin's side profile, round from the nose over the roof; the first edge is the windscreen."""
+HELICOPTER_CABIN_WIDTH_M = 2.2
+HELICOPTER_BOOM = ((5.8, 1.6, 2.9, 0.8), (12.0, 2.25, 2.75, 0.4))
+"""The boom's root, buried in the cabin, and its tail end: back from the nose, bottom, top, width."""
+HELICOPTER_FIN = ((11.0, 2.6), (12.3, 2.6), (12.9, 4.6), (12.1, 4.6))
+"""Root first, buried in the boom, read round."""
+HELICOPTER_FIN_M = 0.2
+HELICOPTER_LENGTH_M = 12.9
+"""From the nose to the fin's tip."""
+HELICOPTER_PANEL_PROUD_M = 0.03
+HELICOPTER_STRIPE = ((0.3, 6.0), (1.15, 1.6))
+"""Back from the nose and up from the floor, on each flank."""
+HELICOPTER_WINDSCREEN = ((0.25, 1.5), (0.9, 2.5), (2.3, 3.05), (2.55, 1.55))
+"""The windscreen's flank, each side, wrapping round from the nose's glass."""
+HELICOPTER_WINDOW = ((3.1, 4.9), (1.9, 2.9))
+HELICOPTER_MAST = ((2.7, 3.3), 0.6, (3.4, 4.05))
+"""Back from the nose, square across, from the roof up to the hub."""
+HELICOPTER_MAIN_HUB = (3.0, 4.1)
+HELICOPTER_MAIN_BLADE = (5.5, 0.3, 0.08)
+"""Reach from the hub, chord and thickness of each of the two blades: an 11 m rotor."""
+HELICOPTER_TAIL_HUB = (12.4, 3.2, 0.25)
+"""Back from the nose, up from the floor, and to the left of the fin's plane."""
+HELICOPTER_TAIL_BLADE = (1.05, 0.15, 0.05)
+HELICOPTER_SKIDS = ((0.4, 5.8), 1.3, -0.45, 0.15)
+"""Back from the nose, either side of the middle and clear of the cabin, the bar's middle under the floor, and its side."""
+HELICOPTER_STRUTS_AT = (1.3, 4.7)
+HELICOPTER_STRUT_M = 0.12
+HELICOPTER_TEXT_AT = (3.0, 0.8)
+"""The name's middle on each flank, between the skids' line and the stripe."""
+HELICOPTER_TEXT_SIZE_M = 0.42
+HELICOPTER_DIP_DEG = 5.0
+"""The View's nose-down pitch; the track tests hold it to `scenery-motion.ts`."""
+HELICOPTER_CLEARANCE_M = 30.0
+"""The least the lowest point keeps over any road under its circle."""
 
 # The harbour, Monarch's basin of sea water: a flat sheet of water a hair
 # over the grass, ringed by a stone quay standing proud of it. The layout's
@@ -643,6 +694,7 @@ FOOTPRINTS: dict[str, Callable[[Layout, Prop], list[Footprint]]] = {
     "pits": _pits_footprint,
     "hangars": _hangars_footprint,
     "airship": _no_footprint,
+    "helicopter": _no_footprint,
     "harbour": _harbour_footprint,
     "casino": _casino_footprint,
 }
@@ -1058,6 +1110,119 @@ def airship(layout: Layout, prop: Prop, number: int, still: ByMaterial) -> tuple
     return [hull.scenery()], lettering
 
 
+def helicopter(layout: Layout, prop: Prop, number: int, still: ByMaterial) -> tuple[list[SceneryMesh], list[Lettering]]:
+    """The helicopter at `prop`: nothing into `still`, and the body as the node
+    `Prop.helicopter.<number>.body`, its origin at the nose and its local x along the nose, at
+    rest `prop.radius` metres from `prop.at` along +x with the circle's centre to its left,
+    the nose `prop.height` metres over the grass. Under it hang `.main-rotor`, two blades
+    turning about its local z, and `.tail-rotor`, two blades turning about its local y, each
+    with its origin at its hub. The cabin and boom in wall white where the sun reaches and
+    beam shade elsewhere, as it hangs at rest; the stripe and fin kerb red; the glass, mast,
+    skids and rotors carbon. The sponsor from `sponsors.py` on both flanks, each lettering
+    hung under the body's node so it rides with it."""
+    if prop.radius is None or prop.height is None:
+        raise ValueError("the helicopter needs a radius and a height")
+    cx, cy, _ = locate(layout, prop.at)
+    nose = (cx + prop.radius, cy, -GRASS_DROP_M + prop.height)
+    heading = math.pi / 2.0
+    along = (math.cos(heading), math.sin(heading), 0.0)
+    left = (-math.sin(heading), math.cos(heading), 0.0)
+    astern = (-along[0], -along[1], 0.0)
+    floor = -HELICOPTER_NOSE_UP_M
+
+    def at(s: float, b: float, up: float) -> mesh.Vertex:
+        """`s` metres back from the nose, `b` to the left of the middle and `up` from the floor."""
+        return (nose[0] - s * along[0] + b * left[0], nose[1] - s * along[1] + b * left[1], nose[2] + floor + up)
+
+    name = f"Prop.helicopter.{number}.body"
+    body = Node(name, Pivot(*nose, heading))
+    # The cabin: its profile on each flank and a face along each edge between them, the
+    # windscreen's in glass.
+    half = HELICOPTER_CABIN_WIDTH_M / 2.0
+    middle = at(3.0, 0.0, 1.7)
+    for side in (1.0, -1.0):
+        body.add(*_toned("wall", _outward([at(s, side * half, u) for s, u in HELICOPTER_CABIN], middle), "beam-shade"))
+    for k, (s0, u0) in enumerate(HELICOPTER_CABIN):
+        s1, u1 = HELICOPTER_CABIN[(k + 1) % len(HELICOPTER_CABIN)]
+        edge = _outward([at(s0, half, u0), at(s1, half, u1), at(s1, -half, u1), at(s0, -half, u0)], middle)
+        body.add(*(("carbon", (edge, [(0, 1, 2, 3)])) if k == 0 else _toned("wall", edge, "beam-shade")))
+    # Panels just proud of each flank: the stripe, the windscreen's sides and the window.
+    proud = half + HELICOPTER_PANEL_PROUD_M
+    (s0, s1), (u0, u1) = HELICOPTER_STRIPE
+    (w0, w1), (v0, v1) = HELICOPTER_WINDOW
+    for side in (1.0, -1.0):
+        for material, outline in (
+            ("kerb-red", ((s0, u0), (s1, u0), (s1, u1), (s0, u1))),
+            ("carbon", HELICOPTER_WINDSCREEN),
+            ("carbon", ((w0, v0), (w1, v0), (w1, v1), (w0, v1))),
+        ):
+            body.add(material, (_outward([at(s, side * proud, u) for s, u in outline], middle), [(0, 1, 2, 3)]))
+
+    # The boom: a box tapering from its root inside the cabin to the tail.
+    def boom(i: int, j: int, k: int) -> mesh.Vertex:
+        s, bottom, top, width = HELICOPTER_BOOM[i]
+        return at(s, (j - 0.5) * width, (bottom, top)[k])
+
+    for vertices, (face,) in mesh.cuboid(boom).values():
+        body.add(*_toned("wall", [vertices[i] for i in face], "beam-shade"))
+    # The fin: a plate either side of the boom's plane and a face along each outer edge.
+    plates = [[at(s, side * HELICOPTER_FIN_M / 2.0, u) for s, u in HELICOPTER_FIN] for side in (1.0, -1.0)]
+    fin_middle = at(sum(s for s, _ in HELICOPTER_FIN) / len(HELICOPTER_FIN), 0.0, sum(u for _, u in HELICOPTER_FIN) / len(HELICOPTER_FIN))
+    for plate in plates:
+        body.add("kerb-red", (_outward(plate, fin_middle), [(0, 1, 2, 3)]))
+    for i in range(1, len(HELICOPTER_FIN)):
+        j = (i + 1) % len(HELICOPTER_FIN)
+        body.add("kerb-red", (_outward([plates[0][i], plates[0][j], plates[1][j], plates[1][i]], fin_middle), [(0, 1, 2, 3)]))
+    # The mast, the skids and their struts, in carbon toned against its shade.
+    (m0, m1), width, (mu0, mu1) = HELICOPTER_MAST
+    mast = _block(nose, astern, left, (m0, m1), (-width / 2.0, width / 2.0), (floor + mu0, floor + mu1))
+    _sides(mast, "carbon", body, shade="carbon-shade")
+    (k0, k1), apart, under, bar = HELICOPTER_SKIDS
+    for side in (1.0, -1.0):
+        skid = _block(nose, astern, left, (k0, k1), (side * apart - bar / 2.0, side * apart + bar / 2.0), (floor + under - bar / 2.0, floor + under + bar / 2.0))
+        for vertices, (face,) in skid.values():
+            body.add(*_toned("carbon", [vertices[i] for i in face]))
+        for s in HELICOPTER_STRUTS_AT:
+            strut = _block(
+                nose,
+                astern,
+                left,
+                (s - HELICOPTER_STRUT_M / 2.0, s + HELICOPTER_STRUT_M / 2.0),
+                (side * apart - HELICOPTER_STRUT_M / 2.0, side * apart + HELICOPTER_STRUT_M / 2.0),
+                (floor + under + bar / 2.0, floor),
+            )
+            _sides(strut, "carbon", body, shade="carbon-shade")
+    # The rotors, flat carbon, since a tone baked at rest would be wrong once they turn.
+    main_hub = at(HELICOPTER_MAIN_HUB[0], 0.0, HELICOPTER_MAIN_HUB[1])
+    main = Node(f"Prop.helicopter.{number}.main-rotor", Pivot(*main_hub, heading, parent=name))
+    reach, chord, thick = HELICOPTER_MAIN_BLADE
+    for blade in ((0.0, reach), (-reach, 0.0)):
+        for vertices, (face,) in _block(main_hub, along, left, blade, (-chord / 2.0, chord / 2.0), (-thick / 2.0, thick / 2.0)).values():
+            main.add("carbon", (vertices, [face]))
+    ts, tu, tb = HELICOPTER_TAIL_HUB
+    tail_hub = at(ts, tb, tu)
+    tail = Node(f"Prop.helicopter.{number}.tail-rotor", Pivot(*tail_hub, heading, parent=name))
+    reach, chord, thick = HELICOPTER_TAIL_BLADE
+    for blade in ((0.0, reach), (-reach, 0.0)):
+        for vertices, (face,) in _block(tail_hub, astern, left, blade, (-thick / 2.0, thick / 2.0), (-chord / 2.0, chord / 2.0)).values():
+            tail.add("carbon", (vertices, [face]))
+    # The name on each flank, just proud of the cabin, read from that side.
+    text, ink = HELICOPTER_SPONSOR
+    lettering = [
+        Lettering(
+            f"Prop.helicopter.{number}.flank.{flank}",
+            text,
+            ink,
+            HELICOPTER_TEXT_SIZE_M,
+            Placement(*at(HELICOPTER_TEXT_AT[0], side * (half + HOARDING_TEXT_PROUD_M), HELICOPTER_TEXT_AT[1]), heading + side * math.pi / 2.0),
+            parent=name,
+        )
+        for flank, side in (("left", 1.0), ("right", -1.0))
+    ]
+    # Parents before children, as the build script places them.
+    return [body.scenery(), main.scenery(), tail.scenery()], lettering
+
+
 def harbour(layout: Layout, prop: Prop, number: int, still: ByMaterial) -> tuple[list[SceneryMesh], list[Lettering]]:
     """The harbour at `prop`: a sheet of `water` filling the basin inside a stone quay, the quay
     `QUAY_WIDTH_M` wide inside the outline with stand-plinth faces under a beam-top coping,
@@ -1310,6 +1475,7 @@ PROP_BUILDERS: dict[str, Callable[[Layout, Prop, int, ByMaterial], tuple[list[Sc
     "pits": pits,
     "hangars": hangars,
     "airship": airship,
+    "helicopter": helicopter,
     "harbour": harbour,
     "casino": casino,
 }

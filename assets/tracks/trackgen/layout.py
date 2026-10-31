@@ -354,11 +354,11 @@ class World:
 @dataclass(frozen=True)
 class Prop:
     """A trackside prop of one `kind` (`circuit-wheel`, `arch`, `pits`, `hangars`, `airship`,
-    `harbour` or `casino`) placed by `at`, built by `trackgen.props`: scenery in the glTF only,
+    `helicopter`, `harbour` or `casino`) placed by `at`, built by `trackgen.props`: scenery in the glTF only,
     which no kart meets, standing beyond the walls or flying over them (ADR 0050). A kind that
     runs along the track, the pits or a row of hangars, is `length` metres long, centred on
-    `at`, on whichever side of the track `at` is, facing it. A kind that flies, the airship,
-    circles `at` at `radius` metres, `height` metres over the grass. The harbour's
+    `at`, on whichever side of the track `at` is, facing it. A kind that flies, the airship or
+    the helicopter, circles `at` at `radius` metres, its nose `height` metres over the grass. The harbour's
     `outline` is its quay's outer edge, counter-clockwise, each corner in metres along `at`'s
     heading and to its left. `white` paints the pits' walls wall white."""
 

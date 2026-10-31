@@ -32,3 +32,5 @@ def sponsor(name: str) -> tuple[str, str]:
 ARCH_SPONSOR = sponsor("GRIP & CO. TYRES")
 # The airship over the infield: the airline, on both flanks.
 AIRSHIP_SPONSOR = sponsor("SLIPSTREAM AIRWAYS")
+# The helicopter over Monarch's harbour: red ink, for a red-and-white helicopter.
+HELICOPTER_SPONSOR = sponsor("BOX BOX BOX LOGISTICS")
