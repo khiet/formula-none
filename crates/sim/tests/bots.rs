@@ -5,8 +5,8 @@
 mod common;
 
 use common::{
-    brands_patch, oval, oval_without_item_boxes, started, ticks, track, with_coins_at,
-    with_slot_at, without_coins, yaw, DT, OVAL, SEED,
+    bell_deer, oval, oval_without_item_boxes, started, ticks, track, with_coins_at, with_slot_at,
+    without_coins, yaw, DT, OVAL, SEED,
 };
 
 use sim::tuning::{
@@ -144,14 +144,10 @@ fn hairpins(track: &Track) -> Vec<std::ops::Range<f32>> {
 }
 
 #[test]
-fn a_bot_drifts_through_the_hairpin_of_brands_patch_on_every_lap() {
-    let track = brands_patch();
+fn a_bot_drifts_through_the_hairpin_of_bell_deer_on_every_lap() {
+    let track = bell_deer();
     let hairpins = hairpins(&track);
-    assert_eq!(
-        hairpins.len(),
-        1,
-        "Suzuqa Patch has one hairpin: {hairpins:?}"
-    );
+    assert_eq!(hairpins.len(), 1, "Bell Deer has one hairpin: {hairpins:?}");
     let laps = LAPS_PER_RACE as usize;
     let mut state = started(State::with_bots(SEED, 0, 1, track));
     let mut drifted_in: Vec<Vec<bool>> = vec![vec![false; hairpins.len()]; laps];
@@ -658,7 +654,7 @@ fn a_bot_jammed_short_of_the_wheels_crossing_backs_out() {
     // On 38 a bot crashed to a stop 90 m short of the crossing just before
     // a pass, and jittered there in and out of waiting for the wheel until
     // the pass was over.
-    let (seconds, slot, at_s) = longest_stall(38, brands_patch());
+    let (seconds, slot, at_s) = longest_stall(38, bell_deer());
     assert!(
         seconds <= STUCK_S,
         "bot {slot} stuck {seconds} s until {at_s} s"
@@ -672,7 +668,7 @@ fn a_bot_waiting_for_the_wheel_never_backs_up() {
     // Rolling back as it starts to wait, from backing out of a stall, it
     // only slows.
     for seed in [51, 121, 152, 163] {
-        let mut state = started(State::with_bots(seed, 0, 8, brands_patch()));
+        let mut state = started(State::with_bots(seed, 0, 8, bell_deer()));
         let mut waited = false;
         for _ in 0..ticks(LAPS_PER_RACE as f32 * 90.0) {
             let before = state.kart_readouts();
@@ -703,10 +699,7 @@ fn a_bot_waiting_for_the_wheel_never_backs_up() {
 #[test]
 #[ignore]
 fn in_200_races_of_eight_bots_on_each_course_no_bot_is_ever_stuck() {
-    for (name, course) in [
-        ("oval", oval as fn() -> Track),
-        ("Suzuqa Patch", brands_patch),
-    ] {
+    for (name, course) in [("oval", oval as fn() -> Track), ("Bell Deer", bell_deer)] {
         let races: Vec<_> = (0..200)
             .map(|seed| std::thread::spawn(move || (seed, longest_stall(seed, course()))))
             .collect();

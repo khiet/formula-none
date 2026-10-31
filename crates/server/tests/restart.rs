@@ -151,31 +151,68 @@ async fn a_file_the_last_deploy_wrote_reads_back_and_its_token_rejoins() {
     assert_eq!(room.players[0].state, PlayerState::Ready);
 }
 
-#[tokio::test(start_paused = true)]
-async fn a_kept_room_on_a_track_this_server_lacks_is_dropped_and_a_stray_file_left_alone() {
+/// The track a room kept on `track` races once a restart brings it back
+/// and its creator rejoins and presses Start, with the server that ran it.
+async fn track_raced_after_keeping_a_room_on(track: &str) -> (String, Harness) {
     let dir = tempfile::tempdir().unwrap();
     std::fs::write(
         dir.path().join("WXYZ.json"),
-        KEPT_FILE.replace("\"track\":\"oval\"", "\"track\":\"monza\""),
+        KEPT_FILE.replace("\"track\":\"oval\"", &format!("\"track\":\"{track}\"")),
     )
     .unwrap();
+
+    let mut after = Harness::kept_in(Conditions::PERFECT, dir.path());
+    assert_eq!(after.rooms().codes(), vec!["WXYZ".to_owned()]);
+    let mut creator = after.connect();
+    creator
+        .rejoin("WXYZ", "0123456789abcdef0123456789abcdef")
+        .await
+        .unwrap();
+    creator.send(&ClientMessage::Start);
+    let started = creator.next_countdown().await.expect("the race starts");
+    (started.track, after)
+}
+
+#[tokio::test(start_paused = true)]
+async fn a_kept_room_on_brands_patch_races_bell_deer_its_new_name() {
+    let (track, after) = track_raced_after_keeping_a_room_on("brands-patch").await;
+    assert_eq!(track, "bell-deer");
+    assert!(
+        !after
+            .logs()
+            .iter()
+            .any(|line| line["event"] == "room_track_unknown"),
+        "a renamed track is no surprise"
+    );
+}
+
+#[tokio::test(start_paused = true)]
+async fn a_kept_room_on_a_track_this_server_lacks_races_bell_deer_with_a_warning() {
+    let (track, after) = track_raced_after_keeping_a_room_on("monza").await;
+    assert_eq!(track, "bell-deer");
+    assert!(after
+        .logs()
+        .iter()
+        .any(|line| line["event"] == "room_track_unknown"
+            && line["room"] == "WXYZ"
+            && line["track"] == "monza"));
+}
+
+#[tokio::test(start_paused = true)]
+async fn a_stray_file_is_reported_and_left_alone() {
+    let dir = tempfile::tempdir().unwrap();
     std::fs::write(dir.path().join("notes.json"), "not a room").unwrap();
 
     let after = Harness::kept_in(Conditions::PERFECT, dir.path());
     assert!(after.rooms().codes().is_empty());
     assert!(
-        !dir.path().join("WXYZ.json").exists(),
-        "the dropped room's file goes with it"
-    );
-    assert!(
         dir.path().join("notes.json").exists(),
         "a stray file is not ours to remove"
     );
-    let logs = after.logs();
-    assert!(logs
+    assert!(after
+        .logs()
         .iter()
-        .any(|line| line["event"] == "room_dropped" && line["room"] == "WXYZ"));
-    assert!(logs.iter().any(|line| line["event"] == "room_unreadable"));
+        .any(|line| line["event"] == "room_unreadable"));
 }
 
 #[tokio::test(start_paused = true)]

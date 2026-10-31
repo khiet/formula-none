@@ -1,4 +1,4 @@
-"""The bridge where Suzuqa Patch crosses itself, checked without Blender:
+"""The bridge where Bell Deer crosses itself, checked without Blender:
 nothing the sim reads sits near the other leg, the deck clears the underpass,
 and the scenery stands the deck on an embankment with a span over the road
 below.
@@ -32,8 +32,8 @@ LEG_REACH_M = 60.0
 MIN_SPAN_M = 28.0
 
 
-def brands_patch():
-    layout = load("brands-patch")
+def bell_deer():
+    layout = load("bell-deer")
     return layout, build(layout), layout.decor.bridges[0]
 
 
@@ -81,7 +81,7 @@ def placements(layout, geometry):
 
 class Clearance(unittest.TestCase):
     def test_nothing_the_sim_reads_sits_within_20_m_in_plan_of_the_other_leg_at_the_bridge(self) -> None:
-        layout, geometry, bridge = brands_patch()
+        layout, geometry, bridge = bell_deer()
         for own, other in ((bridge.deck_s, bridge.underpass_s), (bridge.underpass_s, bridge.deck_s)):
             other_leg = leg(layout, other)
             for what, s, points in placements(layout, geometry):
@@ -92,7 +92,7 @@ class Clearance(unittest.TestCase):
                     self.assertGreaterEqual(nearest, CLEARANCE_M)
 
     def test_the_legs_cross_where_the_bridge_says(self) -> None:
-        layout, _, bridge = brands_patch()
+        layout, _, bridge = bell_deer()
         deck = layout.path.at(bridge.deck_s)
         under = layout.path.at(bridge.underpass_s)
         self.assertLess(math.dist((deck.x, deck.y), (under.x, under.y)), 1.0)
@@ -100,12 +100,12 @@ class Clearance(unittest.TestCase):
 
 class Deck(unittest.TestCase):
     def test_the_deck_stands_5_m_over_the_underpass(self) -> None:
-        layout, _, bridge = brands_patch()
+        layout, _, bridge = bell_deer()
         self.assertAlmostEqual(elevation(layout.elevation, bridge.deck_s), 5.0, delta=0.01)
         self.assertEqual(elevation(layout.elevation, bridge.underpass_s), 0.0)
 
     def test_the_span_leaves_28_m_open_under_the_deck_with_both_underpass_walls_clear(self) -> None:
-        layout, geometry, bridge = brands_patch()
+        layout, geometry, bridge = bell_deer()
         under = layout.path.at(bridge.underpass_s)
         across = under.left_normal
         # The abutments' faces, as metres left of the underpass's centreline.
@@ -124,7 +124,7 @@ class Deck(unittest.TestCase):
         self.assertGreater(far, walls)
 
     def test_the_underside_clears_a_kart_on_the_underpass(self) -> None:
-        _, geometry, _ = brands_patch()
+        _, geometry, _ = bell_deer()
         (underside,) = [p for p in geometry.scenery if p.name == "Bridge.stand-plinth"]
         lowest = min(z for _, _, z in underside.mesh[0])
         self.assertGreater(lowest, 3.0)
@@ -132,7 +132,7 @@ class Deck(unittest.TestCase):
         self.assertLess(top, 5.0 - BRIDGE_DECK_THICKNESS_M)
 
     def test_the_embankment_runs_from_the_road_down_to_the_grass(self) -> None:
-        _, geometry, _ = brands_patch()
+        _, geometry, _ = bell_deer()
         (bank,) = [p for p in geometry.scenery if p.name == "Bridge.grass"]
         heights = [z for _, _, z in bank.mesh[0]]
         self.assertAlmostEqual(min(heights), -GRASS_DROP_M, places=6)

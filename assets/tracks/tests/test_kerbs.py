@@ -1,6 +1,6 @@
 """Sausage kerbs checked without Blender: drawn on the rectangle the sim
 launches from, standing proud of the asphalt inside esses 3 and the chicane
-on Suzuqa Patch, and nowhere on the oval.
+on Bell Deer, and nowhere on the oval.
 
     python3 -I -m unittest discover -s assets/tracks/tests -t assets/tracks
 """
@@ -18,8 +18,8 @@ HALF_LENGTH_M = tuning_constant("KERB_HALF_LENGTH_M")
 HALF_WIDTH_M = tuning_constant("KERB_HALF_WIDTH_M")
 
 
-def brands_patch():
-    layout = load("brands-patch")
+def bell_deer():
+    layout = load("bell-deer")
     return layout, build(layout)
 
 
@@ -28,13 +28,13 @@ def pieces_of(geometry, number: int):
     return [p for p in geometry.scenery if p.name.startswith(prefix)]
 
 
-# Each kerb on Suzuqa Patch, by the corner whose apex it sits inside.
+# Each kerb on Bell Deer, by the corner whose apex it sits inside.
 CORNERS = ("esses-3", "chicane-in")
 
 
 class SausageKerbs(unittest.TestCase):
-    def test_brands_patch_has_a_kerb_inside_the_apex_of_esses_3_and_the_chicane_on_the_asphalt(self) -> None:
-        layout, geometry = brands_patch()
+    def test_bell_deer_has_a_kerb_inside_the_apex_of_esses_3_and_the_chicane_on_the_asphalt(self) -> None:
+        layout, geometry = bell_deer()
         self.assertEqual(len(geometry.kerbs), len(CORNERS))
         for number, (corner, kerb) in enumerate(zip(CORNERS, geometry.kerbs)):
             with self.subTest(corner):
@@ -54,7 +54,7 @@ class SausageKerbs(unittest.TestCase):
         self.assertFalse([p for p in geometry.scenery if p.name.startswith("SausageKerb.")])
 
     def test_each_kerb_is_drawn_on_the_rectangle_the_sim_launches_from(self) -> None:
-        _, geometry = brands_patch()
+        _, geometry = bell_deer()
         for number, kerb in enumerate(geometry.kerbs):
             with self.subTest(kerb=number):
                 local = [in_pad_frame(kerb, v) for piece in pieces_of(geometry, number) for v in piece.mesh[0]]
@@ -66,7 +66,7 @@ class SausageKerbs(unittest.TestCase):
                 self.assertAlmostEqual(max(across), HALF_WIDTH_M, places=6)
 
     def test_each_kerb_stands_proud_of_the_asphalt_in_yellow_and_black(self) -> None:
-        _, geometry = brands_patch()
+        _, geometry = bell_deer()
         for number, kerb in enumerate(geometry.kerbs):
             with self.subTest(kerb=number):
                 pieces = pieces_of(geometry, number)
@@ -76,7 +76,7 @@ class SausageKerbs(unittest.TestCase):
                 self.assertAlmostEqual(max(heights), SCENERY_LIFT_M + SAUSAGE_KERB_PROUD_M, places=6)
 
     def test_every_face_of_each_kerb_faces_away_from_the_ground(self) -> None:
-        _, geometry = brands_patch()
+        _, geometry = bell_deer()
         for number in range(len(geometry.kerbs)):
             for piece in pieces_of(geometry, number):
                 for face in faces_of(piece):

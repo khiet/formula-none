@@ -450,7 +450,7 @@ pub const BOT_LINE_RIGHT_OF_CENTRE_M: f32 = 2.5;
 /// Metres between a sausage kerb's near edge, at its middle, and the line
 /// a bot aims along while the kerb is in range: wide enough
 /// that pursuit's cut toward the apex misses the kerb's ends, which a
-/// straight kerb on a bend sets nearer the line. On Suzuqa Patch the line
+/// straight kerb on a bend sets nearer the line. On Bell Deer the line
 /// is the centreline past both kerbs.
 pub const BOT_KERB_GAP_M: f32 = 4.4;
 /// Metres short of a sausage kerb's near end from which a bot aims along

@@ -7,8 +7,8 @@ use sim::tuning::{BOT_LOOKAHEAD_M, KART_BUMP_DECAY_S, TICKS_PER_SECOND};
 use sim::{step, KartInput, KartReadout, Phase, State, Track};
 
 pub const OVAL: &str = include_str!("../../../../assets/tracks/oval/oval.track.json");
-pub const BRANDS_PATCH: &str =
-    include_str!("../../../../assets/tracks/brands-patch/brands-patch.track.json");
+pub const BELL_DEER: &str =
+    include_str!("../../../../assets/tracks/bell-deer/bell-deer.track.json");
 /// A figure-eight whose legs cross at the origin, one over the other:
 /// the leg through the crossing first in the lap rides a bridge 5 m high,
 /// the other is on the ground. Flat asphalt 180 m by 70 m lies under all of
@@ -22,8 +22,8 @@ pub fn oval() -> Track {
     Track::from_sidecar(OVAL).expect("the oval fixture loads")
 }
 
-pub fn brands_patch() -> Track {
-    Track::from_sidecar(BRANDS_PATCH).expect("Suzuqa Patch loads")
+pub fn bell_deer() -> Track {
+    Track::from_sidecar(BELL_DEER).expect("Bell Deer loads")
 }
 
 pub fn figure_eight() -> Track {
@@ -96,7 +96,7 @@ pub fn follow_line(state: &State, kart: usize, right_of_centre_m: f32) -> KartIn
 
 /// A line a little right of the centreline: enough to lap either track on
 /// the asphalt and clear of the tyre walls, which stand left of the
-/// centreline on both: in the oval's turns, and on Suzuqa Patch inside the
+/// centreline on both: in the oval's turns, and on Bell Deer inside the
 /// hairpin and Spoon and outside turn 2.
 pub fn follow_centreline(state: &State, kart: usize) -> KartInput {
     const RIGHT_OF_CENTRE_M: f32 = 2.5;

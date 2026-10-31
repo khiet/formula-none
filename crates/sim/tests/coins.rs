@@ -9,9 +9,9 @@
 mod common;
 
 use common::{
-    brands_patch, slot_position, started, tap, throttle, ticks, track, with_boxes_under,
-    with_coins_at, with_slot_at, without_coins, without_item_boxes, without_walls, BRANDS_PATCH,
-    DT, OVAL, SEED,
+    bell_deer, slot_position, started, tap, throttle, ticks, track, with_boxes_under,
+    with_coins_at, with_slot_at, without_coins, without_item_boxes, without_walls, BELL_DEER, DT,
+    OVAL, SEED,
 };
 
 use std::f32::consts::FRAC_PI_2;
@@ -391,12 +391,12 @@ fn a_spun_out_kart_takes_no_coin_until_its_spin_out_is_over() {
 fn a_runaway_wheel_spin_out_costs_the_tuned_three_coins() {
     // Parked by the crossing's left wall on its line, where the first pass
     // rolls in, on a full purse stacked under the kart.
-    let crossing = brands_patch().wheel_crossings()[0];
+    let crossing = bell_deer().wheel_crossings()[0];
     let (sin, cos) = crossing.yaw.sin_cos();
     let left = crossing.half_width - 1.5;
     let [x, y, z] = crossing.position;
     let parked = [x - left * cos, y, z + left * sin];
-    let sidecar = with_slot_at(&without_coins(BRANDS_PATCH), 0, parked, crossing.yaw);
+    let sidecar = with_slot_at(&without_coins(BELL_DEER), 0, parked, crossing.yaw);
     let sidecar = with_coins_at(&sidecar, vec![parked; COIN_CAP as usize]);
     let mut state = step(started(State::new(SEED, 1, track(&sidecar))), &[idle()], DT);
     assert_eq!(coins(&state, 0), COIN_CAP);

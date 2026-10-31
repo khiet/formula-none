@@ -72,7 +72,7 @@ from trackgen.sponsors import AIRSHIP_SPONSOR, ARCH_SPONSOR, SPONSORS
 
 BUILD_PY = Path(__file__).resolve().parents[1] / "build.py"
 # The only shipped track with props; the oval stays bare.
-DRESSED = "brands-patch"
+DRESSED = "bell-deer"
 WHEEL = "Prop.circuit-wheel.1"
 ARCH = "Prop.arch"
 PITS = "Prop.pits"

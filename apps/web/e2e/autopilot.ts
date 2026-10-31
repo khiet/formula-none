@@ -9,7 +9,7 @@ import type { KartSnapshot, ServerMessage } from "../src/generated/protocol";
 // page is reached into.
 
 const TRACK_SIDECAR = new URL(
-  "../../../assets/tracks/brands-patch/brands-patch.track.json",
+  "../../../assets/tracks/bell-deer/bell-deer.track.json",
   import.meta.url,
 );
 

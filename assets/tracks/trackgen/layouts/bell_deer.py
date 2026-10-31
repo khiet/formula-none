@@ -1,7 +1,6 @@
-"""Suzuqa Patch: the race track, a figure eight of about 1306 m after Suzuka.
+"""Bell Deer: the race track, a figure eight of about 1306 m after Suzuka.
 
-It keeps the `brands-patch` id it had as Brands Patch. The start/finish
-straight runs south-east into the first curve and turn 2, then the esses,
+The start/finish straight runs south-east into the first curve and turn 2, then the esses,
 Dunlop and the two Degners; the run to the hairpin passes under the bridge,
 then the 200R, the double-apex Spoon and the back straight, which climbs
 over the bridge before 130R, the chicane and the final curve. Tyre walls
@@ -98,7 +97,7 @@ bridge_hill = Hill(
 )
 
 LAYOUT = Layout(
-    name="brands-patch",
+    name="bell-deer",
     path=path,
     asphalt_half_width=6.0,
     runoff_width=6.0,

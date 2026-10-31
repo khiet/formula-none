@@ -109,10 +109,10 @@ describe("projecting the centreline onto the course map", () => {
     }
   });
 
-  it("draws Suzuqa Patch with one deck, where the back straight bridges the run to the hairpin", () => {
+  it("draws Bell Deer with one deck, where the back straight bridges the run to the hairpin", () => {
     const sidecar = JSON.parse(
       readFileSync(
-        new URL("../../../assets/tracks/brands-patch/brands-patch.track.json", import.meta.url),
+        new URL("../../../assets/tracks/bell-deer/bell-deer.track.json", import.meta.url),
         "utf8",
       ),
     ) as { centreline: [number, number, number][] };

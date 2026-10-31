@@ -57,8 +57,8 @@ red through the first turn, then on the back straight a hop into a left
 drift let go between orange and red and a hop into a right drift let go
 before orange, ending against the back straight's outer wall; its holds
 count the hop's airtime before the charge starts, and its steering keeps
-the kart between the walls. `brands-patch-chicane.replay.json` was written by a scripted follower
-from the grid on Suzuqa Patch: down the underpass's centreline, taking
+the kart between the walls. `bell-deer-chicane.replay.json` was written by a scripted follower
+from the grid on Bell Deer: down the underpass's centreline, taking
 its five coins, a stop on the run to the hairpin with the kart on the
 wheel's crossing until a pass spins it out and costs it three, then on
 round Spoon and over the bridge, a line over the chicane's kerb, which
@@ -67,7 +67,7 @@ six ticks at a time in eighths. From the spin-out on it was rewritten when
 the pickups came in: a follower steering for the path the kart drove before,
 two percent faster on the two it kept, and for the kerb itself on the
 chicane's approach, with the throttle and brake the old run held at the
-same spline progress. `brands-patch-first-corners.replay.json` was
+same spline progress. `bell-deer-first-corners.replay.json` was
 written the same way: four karts from the grid through the first curve
 and turn 2, one of them cutting across turn 2's sand. `oval-rocket-start.replay.json` and
 `oval-stall.replay.json` were written by hand for the start: the throttle

@@ -59,7 +59,7 @@ class Walls(unittest.TestCase):
     def test_the_walls_climb_the_bridge_with_the_track(self) -> None:
         # A wall left at ground level would stand below the sand on the
         # deck, a cliff at the edge of the track instead of a parapet on it.
-        layout = load("brands-patch")
+        layout = load("bell-deer")
         bases = wall_bases(layout)
         crest = layout.path.at(layout.decor.bridges[0].deck_s)
         crest_height = elevation(layout.elevation, crest.s)
@@ -85,8 +85,8 @@ class Checkpoints(unittest.TestCase):
                     self.assertAlmostEqual(checkpoint.y, expected.y, places=6)
                     self.assertEqual(checkpoint.half_width, layout.runoff_half_width)
 
-    def test_the_oval_has_twelve_and_brands_patch_fifteen(self) -> None:
-        for name, count in (("oval", 12), ("brands-patch", 15)):
+    def test_the_oval_has_twelve_and_bell_deer_fifteen(self) -> None:
+        for name, count in (("oval", 12), ("bell-deer", 15)):
             with self.subTest(track=name):
                 self.assertEqual(len(build(load(name)).checkpoints), count)
 

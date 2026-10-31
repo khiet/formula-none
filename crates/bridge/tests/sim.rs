@@ -304,7 +304,7 @@ fn replay_hashes_runs_a_replay_json_on_a_sidecar_and_reports_the_sims_hashes() {
     assert_eq!(bridge::replay_hashes(REPLAY, OVAL), Ok(expected));
     assert!(bridge::replay_hashes("{}", OVAL).is_err());
     assert!(
-        bridge::replay_hashes(&REPLAY.replace("\"oval\"", "\"brands-patch\""), OVAL).is_err(),
+        bridge::replay_hashes(&REPLAY.replace("\"oval\"", "\"bell-deer\""), OVAL).is_err(),
         "the sidecar must be the replay's track"
     );
 }

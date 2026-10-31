@@ -8,8 +8,8 @@
 mod common;
 
 use common::{
-    brands_patch, oval, started, throttle, ticks, track, with_slot_at, without_coins,
-    without_walls, yaw, BRANDS_PATCH, DT, OVAL, SEED,
+    bell_deer, oval, started, throttle, ticks, track, with_slot_at, without_coins, without_walls,
+    yaw, BELL_DEER, DT, OVAL, SEED,
 };
 
 use sim::tuning::{KART_HALF_WIDTH_M, OFF_TRACK_SPEED_FACTOR, TOP_SPEED_M_PER_S};
@@ -457,21 +457,17 @@ fn aim(state: &State, target: [f32; 2]) -> KartInput {
     }
 }
 
-/// Suzuqa Patch with spawn slot 0 on the centreline `before_m` short of
+/// Bell Deer with spawn slot 0 on the centreline `before_m` short of
 /// turn 2, facing along it, and the spline progress of the turn's entry and
-/// exit (layouts/brands_patch.py: a 111 degree right-hander of 21 m radius).
-fn brands_patch_before_turn_2(before_m: f32) -> (Track, f32, f32) {
-    let brands_patch = brands_patch();
+/// exit (layouts/bell_deer.py: a 111 degree right-hander of 21 m radius).
+fn bell_deer_before_turn_2(before_m: f32) -> (Track, f32, f32) {
+    let course = bell_deer();
     let (entry, exit) = (130.5, 171.2);
-    let spawn = brands_patch.point_at(entry - before_m);
-    let [dx, dz] = brands_patch.direction_at(entry - before_m);
+    let spawn = course.point_at(entry - before_m);
+    let [dx, dz] = course.direction_at(entry - before_m);
     // A spawn yaw of zero faces -Z and turns counter-clockwise seen from above.
     let yaw = (-dx).atan2(-dz);
-    (
-        track(&with_slot_at(BRANDS_PATCH, 0, spawn, yaw)),
-        entry,
-        exit,
-    )
+    (track(&with_slot_at(BELL_DEER, 0, spawn, yaw)), entry, exit)
 }
 
 /// Drive slot 0 by `driver` until its spline progress passes `until`:
@@ -501,7 +497,7 @@ fn ticks_and_surfaces_to_pass(
 fn cutting_a_corner_through_the_sand_is_slower_than_driving_it() {
     const APPROACH_M: f32 = 20.0;
     const LOOKAHEAD_M: f32 = 16.0;
-    let (track, entry, exit) = brands_patch_before_turn_2(APPROACH_M);
+    let (track, entry, exit) = bell_deer_before_turn_2(APPROACH_M);
     let finish = exit + 5.0;
     // The cut runs straight from the grid through a point 9 m inside the
     // apex, across the sand and short of the wall 12 m in, to the exit.

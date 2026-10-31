@@ -293,10 +293,10 @@ fn held(ticks: u32, karts: usize) -> Segment {
 
 #[test]
 fn a_replay_rejects_the_wrong_track_too_many_karts_or_an_uneven_grid() {
-    let error = replay_of("brands-patch", vec![held(60, 1)])
+    let error = replay_of("bell-deer", vec![held(60, 1)])
         .run(oval())
         .unwrap_err();
-    assert!(error.to_string().contains("brands-patch"), "{error}");
+    assert!(error.to_string().contains("bell-deer"), "{error}");
     assert!(error.to_string().contains("oval"), "{error}");
 
     let error = replay_of("oval", vec![held(60, 9)])

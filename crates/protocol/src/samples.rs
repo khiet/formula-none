@@ -52,7 +52,7 @@ pub fn server() -> Vec<ServerMessage> {
         ServerMessage::Room(room()),
         ServerMessage::Countdown {
             seed: 0x0123_4567_89ab_cdef,
-            track: "brands-patch".to_owned(),
+            track: "bell-deer".to_owned(),
             grid: vec![0, 1],
         },
         ServerMessage::Snapshot(snapshot()),

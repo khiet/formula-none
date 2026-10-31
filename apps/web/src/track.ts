@@ -1,11 +1,11 @@
 // The tracks the client can race on. Each is a glTF the View draws and a
 // sidecar the sim reads, exported together from Blender (ADR 0007).
-import brandsPatchGltf from "../../../assets/tracks/brands-patch/brands-patch.glb?url";
-import brandsPatchSidecar from "../../../assets/tracks/brands-patch/brands-patch.track.json?url";
+import bellDeerGltf from "../../../assets/tracks/bell-deer/bell-deer.glb?url";
+import bellDeerSidecar from "../../../assets/tracks/bell-deer/bell-deer.track.json?url";
 import ovalGltf from "../../../assets/tracks/oval/oval.glb?url";
 import ovalSidecar from "../../../assets/tracks/oval/oval.track.json?url";
 
-export type TrackName = "brands-patch" | "oval";
+export type TrackName = "bell-deer" | "oval";
 
 /** A point in the world's metres: x, y up, z. */
 export type WorldPoint = readonly [number, number, number];
@@ -19,16 +19,16 @@ export interface TrackFiles {
 }
 
 export const TRACKS: Readonly<Record<TrackName, TrackFiles>> = {
-  "brands-patch": {
-    name: "brands-patch",
-    gltfUrl: brandsPatchGltf,
-    sidecarUrl: brandsPatchSidecar,
+  "bell-deer": {
+    name: "bell-deer",
+    gltfUrl: bellDeerGltf,
+    sidecarUrl: bellDeerSidecar,
   },
   oval: { name: "oval", gltfUrl: ovalGltf, sidecarUrl: ovalSidecar },
 };
 
 /** The track raced by default; the oval is a test fixture. */
-export const DEFAULT_TRACK: TrackName = "brands-patch";
+export const DEFAULT_TRACK: TrackName = "bell-deer";
 
 /**
  * Pick a track from the page's query string (`?track=oval`) so a tester can

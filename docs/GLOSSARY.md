@@ -112,7 +112,7 @@ events since the previous snapshot.
 ### checkpoint
 
 An ordered gate on the track used for lap counting and wrong-way detection.
-Spaced evenly round the lap, twelve on the oval and fifteen on Suzuqa Patch,
+Spaced evenly round the lap, twelve on the oval and fifteen on Bell Deer,
 each spanning the run-off
 from wall to wall, so a kart between the walls crosses every one in order.
 A kart that leaves the world respawns at its last checkpoint facing the next
@@ -179,14 +179,14 @@ release by a flame at the exhaust in the tier's colour.
 ### item box
 
 One of a track's fixed pickup spots, from the sidecar: eight on the oval
-and twelve on Suzuqa Patch, in rows of four across the asphalt. A kart whose centre is on a box with an empty item
+and twelve on Bell Deer, in rows of four across the asphalt. A kart whose centre is on a box with an empty item
 slot picks it up; the box is gone for three seconds and comes back. Every
 pickup is a server event naming the box, so every screen hides the same one.
 
 ### coin
 
 A pickup lying on the asphalt, from the sidecar: twelve on the oval and
-fifteen on Suzuqa Patch, in lines along the straights, ten of them on the
+fifteen on Bell Deer, in lines along the straights, ten of them on the
 centreline. Also the count a kart carries, from none at the lights to a
 full purse of ten. A kart whose centre is on a coin takes it unless it
 carries a full purse or is spun out; the coin is gone for three seconds and
@@ -344,14 +344,14 @@ trees. A prop (ADR 0050).
 
 ### Circuit Wheel
 
-The Ferris wheel outside Suzuqa Patch's first curve: a prop whose rim and
+The Ferris wheel outside Bell Deer's first curve: a prop whose rim and
 sixteen gondolas are nodes of their own in the glTF, which the View turns
 from its own clock, each gondola turned back so it hangs level. It carries
 no name (ADR 0050).
 
 ### arch
 
-The tyre-shaped ring across the middle of Suzuqa Patch's Dunlop curve: a
+The tyre-shaped ring across the middle of Bell Deer's Dunlop curve: a
 prop a kart passes under on the climb to the boost pad, lettered with its
 sponsor round the belt on both faces. A span, so it is held to the span
 rule, not the 8 m one: its underside keeps the gantry's 7 m over the
@@ -359,14 +359,14 @@ asphalt and its feet stand on grass beyond the walls (ADR 0050).
 
 ### pit building
 
-The row of garages inside Suzuqa Patch's start straight, which the grid
+The row of garages inside Bell Deer's start straight, which the grid
 faces through the countdown: a prop with a door and a flag in each
 livery's key colour, no number on any door (ADR 0035), and no pit lane to
 drive (ADR 0050).
 
 ### airship
 
-The SLIPSTREAM AIRWAYS airship over Suzuqa Patch's east infield: a prop
+The SLIPSTREAM AIRWAYS airship over Bell Deer's east infield: a prop
 that flies, so it has no footprint, a single node in the glTF with its
 origin at the nose, which the View flies once round its circle every four
 minutes from its own clock, nose along the tangent, its lowest point 30 m

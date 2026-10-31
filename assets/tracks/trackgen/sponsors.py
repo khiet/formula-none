@@ -1,4 +1,4 @@
-"""The sponsors on Suzuqa Patch's hoardings: cartoon Formula 1 jokes, every one invented here.
+"""The sponsors on Bell Deer's hoardings: cartoon Formula 1 jokes, every one invented here.
 
 Each is a name and the colour of its lettering, so a board reads as a brand
 at a glance. Nothing here names a real company or borrows a real logo. A
