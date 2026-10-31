@@ -40,4 +40,35 @@ describe("asset licences", () => {
     expect(licences).toContain("`audio/*.wav`");
     expect(existsSync(join(ROOT, "assets/audio/music-loop.wav"))).toBe(true);
   });
+
+  // The `audio/*.wav` row claims every WAV is synthesised; a hand-placed file
+  // with no recorded source would make it false.
+  const wavs = listRepoFiles("assets/audio").filter((path) => path.endsWith(".wav"));
+  it.each(wavs)("synthesise %s in audio/build.py", (path) => {
+    const name = path.slice("assets/audio/".length, -".wav".length);
+    expect(readRepoFile("assets/audio/build.py")).toContain(`write("${name}"`);
+  });
+
+  // ADR 0066: the images the repo draws outside assets/ are CC0 too.
+  it("record the images under docs and the web app's public directory as CC0", () => {
+    expect(licences).toMatch(
+      /^\| `docs\/\*\*\/\*\.png`.*`apps\/web\/public\/\*`.*\| CC0 1\.0 \|$/m,
+    );
+  });
+
+  it("say Purrjump was private when the marshal was adapted from it", () => {
+    expect(licences).toMatch(/Purrjump \(private at the time of writing\)/);
+  });
+});
+
+// ADR 0066: the code is MIT, as the root LICENSE says, in every package manifest.
+describe("package licences", () => {
+  it.each([
+    "package.json",
+    "apps/web/package.json",
+    "tools/kart-poster/package.json",
+    "tools/repo-checks/package.json",
+  ])("%s declares MIT", (path) => {
+    expect(JSON.parse(readRepoFile(path)).license).toBe("MIT");
+  });
 });

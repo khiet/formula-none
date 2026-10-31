@@ -70,6 +70,7 @@ const DECISION_SLUGS = [
   "a-kart-behind-a-wall-respawns",
   "monarch-joins-the-courses",
   "a-prop-beside-a-hill-stands-on-a-terrace",
+  "open-source-under-mit-and-cc0",
 ];
 
 const expectedFiles = DECISION_SLUGS.map(
