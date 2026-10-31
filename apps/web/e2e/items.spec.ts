@@ -25,9 +25,23 @@ test("an item box taken at Go rolls, then lands in the slot", async ({ page }) =
     timeout: 60_000,
   });
   // Taken on Go's tick, the item rolls for 2.5 s: the slot shows nothing
-  // yet, then the item. A CI runner steps the sim slower than real time,
-  // so the wait for the landing is sized in wall time with room to spare.
+  // yet, then the item. The lap clock runs from Go on the sim's time, so
+  // it times the roll however slowly a CI runner steps the sim; the wait
+  // itself is sized in wall time with room to spare.
   await expect(item).toHaveAttribute("data-item-state", "empty");
-  await expect(item).toHaveAttribute("data-item-state", "held", { timeout: 10_000 });
+  const landed = await page.waitForFunction(
+    () => {
+      const slot = document.querySelector('[data-instrument="item"]');
+      if (slot?.getAttribute("data-item-state") !== "held") return null;
+      return document.querySelector('[data-instrument="lap-time"]')?.textContent ?? null;
+    },
+    null,
+    { timeout: 10_000 },
+  );
+  const lapTime = String(await landed.jsonValue());
+  const [, minutes, seconds, millis] = /(\d+)'(\d+)"(\d+)/.exec(lapTime) ?? [];
+  const rolledFor = Number(minutes) * 60 + Number(seconds) + Number(millis) / 1000;
+  expect(rolledFor, lapTime).toBeGreaterThan(2);
+  expect(rolledFor, lapTime).toBeLessThanOrEqual(3);
   await expect(item).toHaveAttribute("data-item", /^(boost|hazard|homing)$/);
 });

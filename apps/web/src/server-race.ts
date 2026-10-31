@@ -7,11 +7,12 @@
 // one the player's inputs meet on the server. Every item outcome is the
 // server's: the slot fills with the item the server rolled once a snapshot
 // shows it landed, the boxes go as it reports them taken, and a press only
-// predicts the fire until the server's event confirms it. The hazards are the newest snapshot's; one a kart
-// still trails is drawn behind that kart where the kart is drawn, so it
-// follows the predicted own kart and the interpolated others. The
-// projectiles are drawn between the snapshots as the other karts are, so
-// one reaches its target as the target is drawn spinning.
+// predicts the fire until the server's event confirms it. The hazards are
+// the newest snapshot's; one a kart still trails is drawn behind that kart
+// where the kart is drawn, so it follows the predicted own kart and the
+// interpolated others. The projectiles are drawn between the snapshots as
+// the other karts are, so one reaches its target as the target is drawn
+// spinning.
 
 import type { Bridge, Hazard, KartReadout, Phase, Standing } from "./bridge";
 import type { FinalStanding, Item, Snapshot } from "./generated/protocol";

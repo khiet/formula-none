@@ -427,7 +427,8 @@ pub const ITEM_ROLL_WEIGHTS: [ItemRollWeights; 3] = [
 /// Metres ahead on the centreline spline a bot steers toward.
 pub const BOT_LOOKAHEAD_M: f32 = 12.0;
 /// Seconds after its item lands in the slot by which a bot has used it; it
-/// fires sooner on a straight.
+/// fires sooner on a straight, and keeps a boost longer while the boost
+/// would carry it into the wheel.
 pub const BOT_ITEM_USE_DELAY_S: f32 = 2.0;
 /// Seconds a bot trails a fired hazard behind itself before dropping it;
 /// no longer than it would hold an unused item.
