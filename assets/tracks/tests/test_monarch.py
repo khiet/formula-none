@@ -36,7 +36,7 @@ from trackgen.layout import (
     build,
 )
 from trackgen.layouts import load
-from trackgen.props import CASINO_TOP_M, QUAY_WIDTH_M, YACHT_CORNER_CLEAR_M, YACHT_LENGTHS_M, YACHT_PITCH_M, footprints
+from trackgen.props import QUAY_WIDTH_M, YACHT_LENGTHS_M, YACHT_PITCH_M, footprints
 from trackgen.path import Hill, Ramp, elevation
 
 NAME = "monarch"
@@ -248,16 +248,17 @@ class Harbour(unittest.TestCase):
 
     def test_yachts_moor_along_the_quays_toward_the_lap_as_many_as_each_holds(self) -> None:
         # The basin runs along +x: its north quay faces the harbour straight, its west quay the pool.
-        x, y, _ = self.prop.at.x, self.prop.at.y, None
+        x, y = self.prop.at.x, self.prop.at.y
         north = y + self.prop.width / 2.0 - QUAY_WIDTH_M
         west = x - self.prop.length / 2.0 + QUAY_WIDTH_M
         cabins = self.cabins()
         on_north = [c for c in cabins if north - max(YACHT_LENGTHS_M) < c[1] < north]
         on_west = [c for c in cabins if west < c[0] < west + max(YACHT_LENGTHS_M)]
         self.assertEqual(len(on_north) + len(on_west), len(cabins), "none on the far quays")
-        for row, quay in ((on_north, self.prop.length), (on_west, self.prop.width)):
-            inner = quay - 2.0 * QUAY_WIDTH_M
-            self.assertEqual(len(row), math.floor((inner - 2.0 * YACHT_CORNER_CLEAR_M) / YACHT_PITCH_M) + 1)
+        # A 161 m quay holds 18 at a 7 m pitch with 20 m clear at each end; a 174 m one holds 20.
+        self.assertEqual((len(on_north), len(on_west)), (18, 20))
+        gaps = {round(b[0] - a[0], 6) for a, b in zip(sorted(on_north), sorted(on_north)[1:])}
+        self.assertEqual(gaps, {YACHT_PITCH_M})
 
     def test_every_yacht_floats_inside_the_quay_lower_than_the_stands(self) -> None:
         water = self.water.mesh[0]
@@ -304,10 +305,11 @@ class Casino(unittest.TestCase):
         self.assertTrue(building)
         self.assertAlmostEqual(min(self.frame(v)[2] for v in building), 0.0)
 
-    def test_its_towers_and_dome_top_it_over_everything_on_the_square(self) -> None:
+    def test_its_towers_top_it_24_m_over_the_terrace_under_lit_copper(self) -> None:
         copper = [self.frame(v) for v in vertices_of([p for name, p in self.pieces.items() if ".copper" in name])]
-        self.assertAlmostEqual(max(c for *_, c in copper), CASINO_TOP_M)
-        self.assertGreater(CASINO_TOP_M, GRANDSTAND_CANOPY_BOTTOM_M * 2.0)
+        everything = [self.frame(v) for p in self.pieces.values() for v in p.mesh[0]]
+        self.assertAlmostEqual(max(c for *_, c in copper), 24.0, msg="the towers' apexes")
+        self.assertAlmostEqual(max(c for *_, c in everything), 24.0)
         lit = self.pieces[f"{CASINO}.copper"]
         self.assertTrue(all(faces_up_and_toward_the_sun([lit.mesh[0][i] for i in f]) for f in lit.mesh[1]))
 
