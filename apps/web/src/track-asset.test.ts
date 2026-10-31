@@ -398,6 +398,36 @@ describe("Monarch's helicopter", () => {
   });
 });
 
+describe("Goldstone's display jets", () => {
+  const goldstone = track("goldstone");
+
+  it("flies the whole formation, ribbons included, as one node over the hangars", () => {
+    const formation = goldstone.nodes.find((node) => node.name === "Prop.jets.1.formation");
+    expect(formation).toBeDefined();
+    expect(formation?.children ?? []).toEqual([]);
+    expect(materialsOf(goldstone, "Prop.jets.1.formation")).toEqual([
+      "carbon",
+      "ink-blue",
+      "kerb-red",
+      "wall",
+    ]);
+    expect(nodeNames(goldstone).filter((name) => name.startsWith("Prop.jets."))).toEqual([
+      "Prop.jets.1.formation",
+    ]);
+    // At rest the leader's nose is 33 m outside the Hangar Straight's middle, the track's
+    // (191.43, -57.19), 59.95 m over the grass, which the Y-up export lays at (x, up, -y).
+    const [x = 0, y = 0, z = 0] = formation?.translation ?? [];
+    expect(x).toBeCloseTo(191.43, 2);
+    expect(y).toBeCloseTo(59.95, 5);
+    expect(z).toBeCloseTo(57.19, 2);
+    // Turned about the up only, the nose 77.5 deg from +x: back up the straight, against the race.
+    const [qx = 0, qy = 0, qz = 0, qw = 1] = formation?.rotation ?? [];
+    expect(qx).toBeCloseTo(0, 6);
+    expect(qz).toBeCloseTo(0, 6);
+    expect((2 * Math.atan2(qy, qw) * 180) / Math.PI).toBeCloseTo(77.5, 3);
+  });
+});
+
 describe("glowing materials", () => {
   it.each(TRACK_NAMES)("%s glows only in the tunnel's lamps, if it has a tunnel", (name) => {
     const glowing = (track(name).materials ?? [])

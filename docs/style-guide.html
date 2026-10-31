@@ -693,6 +693,16 @@
           <p class="dont"><b>Don't</b> fly it under 30 m over any road, give it a sound or a shadow, or let it read the race: it is scenery on the View's clock, nothing synced between clients. Don't spin the rotors at a real rotor's speed, or give it a sponsor whose ink is not red.</p>
         </div>
       </article>
+
+      <article class="asset">
+        <header><h3>Display jets</h3><code>assets/tracks/trackgen/props.py jets, layouts/goldstone.py, apps/web/src/scenery-motion.ts</code></header>
+        <div class="compare"><figure><figcaption>Side on, as the export leaves it, nose to the right</figcaption><div class="stage" data-draw="jets"></div></figure></div>
+        <dl class="spec"><dt>Size</dt><dd>Three 9 m jets with an 8.4 m wingspan, each trailing a 51 m ribbon 3.4 m across at its widest; the wingmen 12 m back, 8 m to each side and 4.5 m up or down; the leader's nose 60 m up; 117 faces and no lettering</dd><dt>Decided</dt><dd><a href="adr/0050-trackside-props.md">ADR 0050</a>, <a href="mockups/sky-objects.html">the sky-objects mockup</a></dd></dl>
+        <div class="notes">
+          <p>The old airfield gets its flypast, the same kind of joke in Goldstone's sky as Bell Deer's airship. Three jets in an arrowhead, each a square-sectioned fuselage to a pointed nose with swept wings and a fin in <code>kerb-red</code> <code>#d63b2e</code>, a <code>carbon</code> <code>#2b2e33</code> canopy and a <code>wall</code> <code>#f0f0f0</code> flash down each flank. Each trails a fixed ribbon that swells from a point at its tail to a diamond 3.4 m across 47 m back and closes 4 m later: <code>ink-blue</code> <code>#1f54c7</code> behind the wingman stepped up on the left, <code>wall</code> behind the leader, <code>kerb-red</code> behind the wingman stepped down on the right. Every colour is flat, as the airship's fins and the helicopter's stripe and fin are: neither kerb red nor ink blue has a shade tone, and one ribbon toned beside two flat ones would not match. The whole of it, ribbons included, is the one node <code>Prop.jets.1.formation</code>, its origin at the leader's nose, exported at rest 33 m outside the middle of the Hangar Straight, over the hangars, with the noses back up the straight. Once a minute the View flies it nose first along a 600 m pass centred there, in 6 s, against the race so drivers on the straight see it coming, and hides it for the rest of the minute; the pass runs on the View's own clock, so two clients see it at different times and a stalled client's jets hang still. Its lowest point, the lower wingman's ribbon, keeps 30 m over every road the pass crosses. It has no footprint.</p>
+          <p class="dont"><b>Don't</b> letter it, which would not read at 60 m, give it a sound, a shadow or particle smoke, fly it over the road, where the chase camera cannot see it, or sync the pass between clients.</p>
+        </div>
+      </article>
     </div>
   </section>
 
@@ -1412,6 +1422,27 @@
       ${box(-2.5, 8.5, 4.06, 4.14, carbon)}
       ${skids}
       <text x="${nose - 3 * m}" y="${floor - 0.8 * m + 0.21 * m}" font-family="'Kenney Mini Square', monospace" font-size="${0.42 * m}" fill="${ink}" text-anchor="middle">BOX BOX BOX LOGISTICS</text>
+    </svg>`;
+  };
+  // The display jets side on at 3 px to the metre, nose to the right, as the export leaves
+  // them: the right flank toward us, so the left wingman is drawn first and the right one
+  // last; each ribbon a diamond seen edge on, the wings edge on.
+  draw.jets = () => {
+    const m = 3, nose = 224, axis = 80, wall = "#f0f0f0", kerbRed = "#d63b2e", carbon = "#2b2e33", inkBlue = "#1f54c7";
+    const jet = (s0, c0, smoke) => {
+      const at = ([s, c]) => [nose - (s0 + s) * m, axis - (c0 + c) * m];
+      const box = (a0, a1, u0, u1, fill) => poly([[a0, u0], [a1, u0], [a1, u1], [a0, u1]].map(at), fill);
+      return [
+        poly([[9, 0], [56, 1.7], [60, 0], [56, -1.7]].map(at), smoke),
+        box(3, 7, -0.06, 0.06, kerbRed),
+        poly([[0, 0], [1.8, 0.45], [9, 0.45], [9, -0.45], [1.8, -0.45]].map(at), kerbRed),
+        poly([[6.8, 0.45], [8.6, 0.45], [9.2, 2.6], [8.3, 2.6]].map(at), kerbRed),
+        box(2, 4.2, 0.45, 0.85, carbon),
+        box(1.8, 9, -0.25, -0.05, wall),
+      ].join("");
+    };
+    return `<svg viewBox="0 0 240 160" role="img" aria-label="Three red display jets in an arrowhead side on, trailing blue, white and red smoke ribbons">
+      ${jet(12, 4.5, inkBlue)}${jet(0, 0, wall)}${jet(12, -4.5, kerbRed)}
     </svg>`;
   };
   // An upright prism of `n` flat sides seen from slightly above, lit from the top left.

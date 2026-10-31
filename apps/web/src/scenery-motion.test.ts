@@ -8,6 +8,9 @@ import {
   HELICOPTER_DIP_DEG,
   HELICOPTER_MAIN_ROTOR_TURNS_PER_S,
   HELICOPTER_TAIL_ROTOR_TURNS_PER_S,
+  JETS_PASS_M,
+  JETS_PASS_MS,
+  JETS_PERIOD_MS,
   sceneryMotion,
   WHEEL_TURN_MS,
 } from "./scenery-motion";
@@ -341,5 +344,88 @@ describe("the helicopter's motion", () => {
     motion.update(HELICOPTER_CIRCUIT_MS / 3);
     expect([main, tail, name].map((node) => node.position)).toEqual(local);
     expect(name.quaternion.equals(new Quaternion())).toBe(true);
+  });
+});
+
+/**
+ * The formation's rest in the export: the leader's nose 59.95 m over the grass
+ * over the hangars, the track's (191.43, -57.19), which the Y-up export lays at
+ * (x, up, -y).
+ */
+const JETS_AT_REST = new Vector3(191.43, 59.95, 57.19);
+/** The race's direction down the Hangar Straight, 257.5 deg from the track's +x, in the export's frame. */
+const HANGAR_STRAIGHT_RACE = new Vector3(
+  Math.cos((257.5 * Math.PI) / 180),
+  0,
+  -Math.sin((257.5 * Math.PI) / 180),
+);
+
+/** A track with the display jets as the loader hands them over: the formation's node turned against the race. */
+function trackWithJets(): { track: Object3D; formation: Object3D } {
+  const track = new Group();
+  const formation = new Group();
+  formation.name = "Propjets1formation";
+  formation.position.copy(JETS_AT_REST);
+  formation.quaternion.setFromUnitVectors(
+    new Vector3(1, 0, 0),
+    HANGAR_STRAIGHT_RACE.clone().negate(),
+  );
+  track.add(formation);
+  return { track, formation };
+}
+
+describe("the display jets' flypast", () => {
+  /** Where the leader's nose should be `metres` along the pass from its middle. */
+  const along = (rest: Quaternion, metres: number) =>
+    new Vector3(1, 0, 0).applyQuaternion(rest).multiplyScalar(metres).add(JETS_AT_REST);
+
+  it("flies the 600 m pass in 6 s, centred over the hangars, once a minute", () => {
+    const { track, formation } = trackWithJets();
+    const rest = formation.quaternion.clone();
+    const motion = sceneryMotion(track);
+    for (const minute of [0, 1, 37]) {
+      const start = minute * JETS_PERIOD_MS;
+      for (const [nowMs, metres] of [
+        [start, -300],
+        [start + 1500, -150],
+        [start + 3000, 0],
+        [start + 4500, 150],
+        [start + 5900, 290],
+      ] as const) {
+        motion.update(nowMs);
+        expect(formation.visible, `${nowMs} ms`).toBe(true);
+        expect(formation.position.distanceTo(along(rest, metres)), `${nowMs} ms`).toBeCloseTo(0, 4);
+      }
+    }
+    expect(JETS_PASS_M).toBe(600);
+    expect(JETS_PASS_MS).toBe(6_000);
+    expect(JETS_PERIOD_MS).toBe(60_000);
+  });
+
+  it("hides the formation between passes and shows it again at the next", () => {
+    const { track, formation } = trackWithJets();
+    const motion = sceneryMotion(track);
+    for (const nowMs of [JETS_PASS_MS, 20_000, JETS_PERIOD_MS - 1, 2 * JETS_PERIOD_MS + 7_000]) {
+      motion.update(nowMs);
+      expect(formation.visible, `${nowMs} ms`).toBe(false);
+    }
+    motion.update(JETS_PERIOD_MS + 10);
+    expect(formation.visible).toBe(true);
+  });
+
+  it("flies nose first against the race and never turns", () => {
+    const { track, formation } = trackWithJets();
+    const rest = formation.quaternion.clone();
+    const motion = sceneryMotion(track);
+    motion.update(1000);
+    const before = formation.position.clone();
+    motion.update(1100);
+    const travel = formation.position.clone().sub(before);
+    // 100 m/s: 10 m in a tenth of a second.
+    expect(travel.length()).toBeCloseTo(10, 4);
+    travel.normalize();
+    expect(travel.dot(HANGAR_STRAIGHT_RACE)).toBeCloseTo(-1, 6);
+    expect(travel.dot(noseOf(formation))).toBeCloseTo(1, 6);
+    expect(formation.quaternion.equals(rest)).toBe(true);
   });
 });

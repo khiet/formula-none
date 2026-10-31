@@ -3,7 +3,8 @@ docs/mockups/silverstone-course.html decided, flat and with no ramp; the
 pit building drawn long and white outside the Hamilton Straight, facing the
 grid; and the row of airfield hangars outside the Hangar Straight, each a
 barrel-roofed shed with its door toward the track, every footprint keeping
-the 8 m rule.
+the 8 m rule; and the display jets' formation over the hangars, flying
+against the race and keeping 30 m over every road its pass crosses.
 
     python3 -I -m unittest discover -s assets/tracks/tests -t assets/tracks
 """
@@ -11,8 +12,10 @@ the 8 m rule.
 from __future__ import annotations
 
 import math
+import re
 import unittest
 from dataclasses import replace
+from pathlib import Path
 
 from tests.test_props import (
     across_track,
@@ -21,7 +24,7 @@ from tests.test_props import (
     footprint_clearance,
     materials_used,
 )
-from trackgen.layout import CROWD_KEYS, GRASS_DROP_M, PROP_WALL_CLEARANCE_M, Prop, Spot, build
+from trackgen.layout import CROWD_KEYS, GRASS_DROP_M, PROP_WALL_CLEARANCE_M, Prop, Spot, World, build
 from trackgen.layouts import load
 from trackgen.props import (
     HANGAR_DEPTH_M,
@@ -30,14 +33,22 @@ from trackgen.props import (
     HANGAR_PITCH_M,
     HANGAR_RIDGE_M,
     HANGAR_WIDTH_M,
+    JET_LENGTH_M,
+    JETS_CLEARANCE_M,
+    JETS_FORMATION,
+    JETS_RIBBON,
+    JETS_SMOKE,
     PITS_DEPTH_M,
     PITS_DOOR_PROUD_M,
     footprints,
 )
+from trackgen.path import elevation
 
 NAME = "goldstone"
 PITS = "Prop.pits"
 HANGARS = "Prop.hangars"
+JETS = "Prop.jets.1"
+SCENERY_MOTION_TS = Path(__file__).resolve().parents[3] / "apps" / "web" / "src" / "scenery-motion.ts"
 
 
 def faces_right(face) -> bool:
@@ -219,6 +230,108 @@ class Hangars(unittest.TestCase):
         faces = sum(len(piece.mesh[1]) for piece in self.pieces.values())
         count = len(self.pieces[f"{HANGARS}.carbon"].mesh[1])
         self.assertTrue(10 * count <= faces <= 16 * count, faces)
+
+
+class DisplayJets(unittest.TestCase):
+    def setUp(self) -> None:
+        self.layout = load(NAME)
+        (self.prop,) = [p for p in self.layout.decor.props if p.kind == "jets"]
+        self.geometry = build(self.layout)
+        self.pieces = family(self.geometry, JETS)
+        self.formation = self.pieces[f"{JETS}.formation"]
+        self.pivot = self.formation.pivot
+
+    def frame(self, v):
+        """A vertex as (back from the leader's nose, left of it, up from it)."""
+        dx, dy = v[0] - self.pivot.x, v[1] - self.pivot.y
+        cos, sin = math.cos(self.pivot.heading), math.sin(self.pivot.heading)
+        return -(dx * cos + dy * sin), -dx * sin + dy * cos, v[2] - self.pivot.z
+
+    def test_it_flies_60_m_up_over_the_hangars_against_the_race(self) -> None:
+        (hangars,) = [p for p in self.layout.decor.props if p.kind == "hangars"]
+        self.assertEqual(self.prop.at, hangars.at)
+        self.assertEqual((self.prop.length, self.prop.height), (600.0, 60.0))
+        self.assertIsNone(self.pivot.parent)
+        sample = self.layout.path.at(self.prop.at.s)
+        nx, ny = sample.left_normal
+        self.assertAlmostEqual(self.pivot.x, sample.x + self.prop.at.offset * nx)
+        self.assertAlmostEqual(self.pivot.y, sample.y + self.prop.at.offset * ny)
+        self.assertAlmostEqual(self.pivot.z, -GRASS_DROP_M + self.prop.height)
+        # Against the race: the nose points back up the Hangar Straight, toward Chapel.
+        race = (math.cos(sample.heading), math.sin(sample.heading))
+        nose = (math.cos(self.pivot.heading), math.sin(self.pivot.heading))
+        self.assertAlmostEqual(race[0] * nose[0] + race[1] * nose[1], -1.0)
+
+    def test_the_formation_is_one_node_its_ribbons_part_of_it_and_letters_nothing(self) -> None:
+        self.assertEqual(set(self.pieces), {f"{JETS}.formation"})
+        self.assertFalse(any(t.name.startswith("Prop.jets.") for t in self.geometry.lettering))
+        self.assertEqual(set(self.formation.materials), {"kerb-red", "wall", "carbon", "ink-blue"})
+        self.assertTrue(set(self.formation.materials) <= build_materials())
+
+    def test_three_jets_fly_an_arrowhead_each_trailing_its_own_smoke(self) -> None:
+        leader, *wingmen = JETS_FORMATION
+        self.assertEqual(leader, (0.0, 0.0, 0.0))
+        self.assertEqual(len(wingmen), 2)
+        self.assertEqual({math.copysign(1.0, b) for _, b, _ in wingmen}, {1.0, -1.0}, "one either side")
+        self.assertTrue(all(s > JET_LENGTH_M for s, _, _ in wingmen), "behind the leader's tail")
+        # Ink blue above, wall for the leader, kerb red below.
+        by_height = [smoke for (_, _, c), smoke in sorted(zip(JETS_FORMATION, JETS_SMOKE), key=lambda pair: -pair[0][2])]
+        self.assertEqual(by_height, ["ink-blue", "wall", "kerb-red"])
+        vertices, faces = self.formation.mesh
+        s_end, _ = JETS_RIBBON[-1]
+        for (s0, b0, c0), smoke in zip(JETS_FORMATION, JETS_SMOKE):
+            with self.subTest(smoke=smoke):
+                local = [(material, [self.frame(vertices[i]) for i in face]) for material, face in zip(self.formation.materials, faces)]
+                # Every face whose middle is behind this jet's tail and in its lane.
+                behind = [
+                    (material, face)
+                    for material, face in local
+                    if sum(s for s, _, _ in face) / len(face) > s0 + JET_LENGTH_M + 1e-6 and abs(sum(b for _, b, _ in face) / len(face) - b0) < 3.0
+                ]
+                self.assertEqual({material for material, _ in behind}, {smoke})
+                # A tapered ribbon some 50 m long, from a point at the tail.
+                reach = max(s for _, face in behind for s, _, _ in face) - (s0 + JET_LENGTH_M)
+                self.assertAlmostEqual(reach, s_end - JET_LENGTH_M)
+                self.assertTrue(45.0 <= reach <= 55.0, reach)
+                widest = max(abs(c - c0) for _, face in behind for _, _, c in face)
+                self.assertAlmostEqual(widest, max(half for _, half in JETS_RIBBON))
+
+    def test_the_mirror_of_its_pass_matches_the_client(self) -> None:
+        source = SCENERY_MOTION_TS.read_text()
+        found = re.search(r"export const JETS_PASS_M = ([0-9_.]+);", source)
+        self.assertIsNotNone(found)
+        self.assertEqual(float(found.group(1).replace("_", "")), self.prop.length)
+
+    def test_it_never_flies_under_30_m_over_any_road_its_pass_crosses_ribbons_included(self) -> None:
+        lowest = min(v[2] for v in self.formation.mesh[0])
+        self.assertLess(lowest, self.pivot.z - 4.5, "the lowest wingman's ribbon")
+        # Anywhere along the pass, the formation's widest reach either side of its line.
+        reach = max(math.hypot(*self.frame(v)[:2]) for v in self.formation.mesh[0])
+        nose = (math.cos(self.pivot.heading), math.sin(self.pivot.heading))
+        half = self.prop.length / 2.0
+
+        def from_line(x: float, y: float) -> float:
+            dx, dy = x - self.pivot.x, y - self.pivot.y
+            along = max(-half, min(half, dx * nose[0] + dy * nose[1]))
+            return math.hypot(dx - along * nose[0], dy - along * nose[1])
+
+        under = [s for s in self.layout.path.samples if from_line(s.x, s.y) <= reach]
+        self.assertGreater(len(under), 0, "it crosses the Hangar Straight's run-off")
+        road = max(elevation(self.layout.elevation, s.s) for s in under)
+        self.assertGreaterEqual(lowest - road, JETS_CLEARANCE_M)
+        self.assertEqual(JETS_CLEARANCE_M, 30.0)
+
+    def test_it_has_no_footprint_since_it_flies_over_the_track(self) -> None:
+        self.assertNotIn("jets", {f.kind for f in footprints(self.layout)})
+
+    def test_it_refuses_a_layout_that_gives_no_pass_or_no_height(self) -> None:
+        for prop in (Prop("jets", World(190.0, -57.0), height=60.0), Prop("jets", World(190.0, -57.0), length=600.0)):
+            with self.subTest(prop=prop), self.assertRaises(ValueError):
+                build(replace(self.layout, decor=replace(self.layout.decor, props=[prop])))
+
+    def test_the_formation_costs_about_120_faces(self) -> None:
+        faces = len(self.formation.mesh[1])
+        self.assertTrue(100 <= faces <= 140, faces)
 
 
 if __name__ == "__main__":
