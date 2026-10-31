@@ -16,7 +16,6 @@ import math
 import random
 import struct
 import wave
-from typing import NamedTuple
 from pathlib import Path
 
 RATE = 22050
@@ -447,184 +446,718 @@ def sfx():
     write("sputter", sputter(2.0))
 
 
-# The loop: 48 bars of 4/4 at 160 bpm (72 s) in A minor, six sections of
-# eight bars with one chord a bar (ADR 0069). A drive of drums, bass and
-# arpeggio; a verse that states the lead; a chorus an octave up; a break
-# that drops the kick and rises back; the chorus again a tone higher; and a
-# drive that ends on E so the last bar resolves into the first.
-BPM = 160
-BEAT = 60 / BPM
-BAR = 4 * BEAT
-SIXTEENTH = BEAT / 4
+# ---------------------------------------------------------------------------
+# The music loop (ADR 0069): 64 bars of 4/4 at 160 bpm (96 s) in D minor.
+#
+#   bars  0-7   intro: the groove filters open; a distant trumpet previews
+#               the chorus hook
+#   bars  8-15  verse: synth lead over piano
+#   bars 16-23  build: galloping bass, snare roll and an engine rev
+#   bars 24-31  chorus: trumpet melody over Bb C Am Dm, strings beneath
+#   bars 32-39  breakdown: no kick, the trumpet over piano
+#   bars 40-47  bridge: disco-rock band, climbing Gm Am Bb C, landing on D,
+#               the dominant of the lifted key
+#   bars 48-55  last chorus a tone up: trumpets in harmony, horn section,
+#               strings, timpani, glockenspiel and piano
+#   bars 56-63  final lap: the chorus again, strings on the melody, the
+#               trumpets on a counter-line and a drum stop
+#
+# The last two bars of each chorus fall back to A, so the loop's end resolves
+# into its first bar.
+# ---------------------------------------------------------------------------
 
 
 def midi_freq(note):
     return 440.0 * 2 ** ((note - 69) / 12)
 
 
-# Each chord's root, as a MIDI note in the bass octave, and its third.
+# Each chord's root as a MIDI note in the bass register, and its third.
 CHORDS = {
+    "Dm": (38, 3),
+    "Bb": (34, 4),
+    "C": (36, 4),
+    "A": (33, 4),
+    "Gm": (43, 3),
+    "D": (38, 4),
     "Am": (45, 3),
-    "F": (41, 4),
-    "C": (48, 4),
-    "G": (43, 4),
-    "Dm": (50, 3),
-    "E": (40, 4),
 }
+# The note each pad adds over its chord, in semitones above the root: the
+# major sevenths, ninths and sevenths that give the chorus its ache.
+COLOUR = {"Bb": 11, "C": 14, "Am": 10, "Dm": 14, "Gm": 10}
 
+INTRO_CHORDS = ["Dm", "Dm", "Bb", "Bb", "C", "C", "A", "A"]
+VERSE_CHORDS = ["Dm", "Bb", "C", "A", "Dm", "Bb", "C", "A"]
+BUILD_CHORDS = ["Gm", "Gm", "Bb", "Bb", "C", "C", "A", "A"]
+CHORUS_CHORDS = ["Bb", "C", "Am", "Dm", "Bb", "C", "A", "A"]
+BRIDGE_CHORDS = ["Gm", "Am", "Bb", "C", "Gm", "Am", "C", "D"]
+# The last chorus and the final lap lift their first six bars a tone, into E
+# minor, and drop back for the two bars of A that lead into the loop's head.
+LIFT = 2
+LIFTED_BARS = 6
 
-def triad(name, lift=0):
-    root, third = CHORDS[name]
-    root += lift
-    return (root, root + third, root + 7)
-
-
-class Section(NamedTuple):
-    chords: list
-    # The lead as (MIDI note, sixteenths) pairs filling the section; empty
-    # for none.
-    lead: list
-    # "drive" is the full kit; "break" drops the kick, the snare and the
-    # bass for the first half and rises back; a section's last bar is a fill.
-    groove: str
-    # Semitones the whole section is lifted by.
-    lift: int = 0
-    crash: bool = False
-
-
+# Phrases are (MIDI note or None for a rest, sixteenths) pairs filling eight bars.
 VERSE = [
-    (69, 3), (72, 3), (76, 2), (74, 2), (72, 2), (76, 4),
-    (77, 3), (76, 3), (72, 2), (69, 4), (72, 4),
-    (67, 3), (72, 3), (76, 2), (79, 4), (76, 4),
-    (74, 6), (71, 2), (67, 4), (71, 4),
-    (69, 3), (72, 3), (76, 2), (81, 4), (79, 2), (76, 2),
-    (77, 3), (81, 3), (77, 2), (76, 4), (72, 4),
-    (74, 3), (79, 3), (74, 2), (71, 4), (74, 4),
-    (71, 2), (74, 2), (79, 12),
+    (74, 2), (72, 2), (69, 2), (74, 3), (76, 3), (77, 4),
+    (77, 2), (76, 2), (74, 2), (70, 4), (74, 2), (77, 4),
+    (79, 3), (77, 3), (76, 2), (72, 4), (76, 2), (79, 2),
+    (76, 6), (73, 2), (69, 4), (73, 2), (76, 2),
+    (74, 2), (72, 2), (69, 2), (74, 3), (76, 3), (81, 4),
+    (82, 2), (81, 2), (77, 2), (74, 4), (77, 2), (82, 4),
+    (84, 3), (82, 3), (81, 2), (79, 2), (77, 2), (76, 4),
+    (73, 4), (76, 4), (81, 8),
 ]
+# Long notes climbing over the build, then two beats of silence before the drop.
+CLIMB = [(74, 16), (77, 16), (77, 8), (79, 8), (81, 16), (79, 8), (81, 8), (84, 16), (85, 16), (88, 8), (None, 8)]
 CHORUS = [
-    (81, 3), (81, 3), (84, 2), (81, 2), (79, 2), (77, 4),
-    (79, 3), (79, 3), (83, 2), (79, 2), (77, 2), (74, 4),
-    (76, 3), (76, 3), (81, 2), (84, 4), (83, 2), (81, 2),
-    (76, 8), (72, 4), (76, 4),
-    (81, 3), (81, 3), (84, 2), (86, 4), (84, 4),
-    (83, 3), (81, 3), (79, 2), (83, 4), (86, 4),
-    (88, 6), (84, 2), (79, 4), (84, 4),
-    (83, 4), (80, 4), (76, 4), (80, 4),
+    (74, 2), (77, 2), (81, 8), (79, 2), (77, 2),
+    (76, 2), (77, 2), (79, 8), (74, 4),
+    (72, 2), (76, 2), (79, 6), (77, 2), (76, 4),
+    (77, 12), (74, 4),
+    (74, 2), (77, 2), (86, 8), (84, 2), (82, 2),
+    (81, 2), (82, 2), (84, 8), (79, 4),
+    (81, 4), (85, 4), (88, 8),
+    (86, 6), (85, 2), (81, 8),
 ]
-CHORUS_CHORDS = ["F", "G", "Am", "Am", "F", "G", "C", "E"]
-SECTIONS = [
-    Section(["Am", "Am", "F", "F", "C", "C", "G", "G"], [], "drive", crash=True),
-    Section(["Am", "F", "C", "G", "Am", "F", "G", "G"], VERSE, "drive"),
-    Section(CHORUS_CHORDS, CHORUS, "drive", crash=True),
-    Section(["Dm", "Dm", "Am", "Am", "F", "F", "G", "G"], [(74, 32), (76, 32), (77, 32), (79, 32)], "break"),
-    Section(CHORUS_CHORDS, CHORUS, "drive", lift=2, crash=True),
-    Section(["Am", "Am", "F", "F", "G", "G", "E", "E"], [], "drive"),
+# The chorus head, far away over the intro's Bb, C and A.
+FANFARE = [
+    (None, 32),
+    (74, 2), (77, 2), (81, 8), (79, 2), (77, 2), (None, 16),
+    (76, 2), (79, 2), (84, 8), (81, 2), (79, 2), (None, 16),
+    (76, 2), (81, 2), (85, 12), (None, 16),
 ]
-# The arpeggio's sixteenths as (chord tone, octaves up) over each bar.
-ARPEGGIO = [(0, 1), (1, 1), (2, 1), (0, 2), (2, 1), (1, 1), (0, 2), (2, 1)] * 2
-# The bass's eighths as semitones over the root: a gallop up the octave.
-BASS = [0, 0, 12, 0, 0, 12, 0, 7]
+BRIDGE = [
+    (70, 4), (69, 2), (67, 2), (70, 8),
+    (72, 6), (69, 2), (76, 8),
+    (77, 6), (74, 2), (72, 4), (74, 4),
+    (76, 12), (72, 4),
+    (74, 4), (70, 2), (74, 2), (79, 8),
+    (76, 6), (72, 2), (81, 8),
+    (79, 8), (76, 4), (79, 4),
+    (78, 4), (81, 4), (None, 8),
+]
+# Long notes on the chorus's chords: under the first chorus an octave down,
+# and on top of the final lap.
+COUNTER = [
+    (77, 8), (81, 8), (79, 8), (76, 8), (76, 8), (72, 8), (74, 16),
+    (77, 8), (81, 8), (79, 8), (84, 8), (85, 8), (88, 8), (85, 16),
+]
 
 
-def music():
-    bars = sum(len(section.chords) for section in SECTIONS)
-    total = sec(bars * BAR)
-    drums = [0.0] * total
-    keys = [0.0] * total
-    # The same note recurs all through the loop, so each is rendered once.
-    rendered = {}
+def lifted(phrase, lift=LIFT, bars=LIFTED_BARS):
+    """Lift the notes that start within the first `bars` bars."""
+    out, t = [], 0
+    for note, length in phrase:
+        out.append((note + lift if note is not None and t < 16 * bars else note, length))
+        t += length
+    return out
 
-    def once(key, render):
-        if key not in rendered:
-            rendered[key] = render()
-        return rendered[key]
 
-    def add(bus, at_s, samples, gain=1.0):
+def harmonise(phrase, lift=LIFT, bars=LIFTED_BARS):
+    """A chorus chord tone three to nine semitones above each note, so the harmony never rubs a semitone against the chord."""
+    out, t = [], 0
+    for note, length in phrase:
+        if note is None:
+            out.append((None, length))
+        else:
+            root, third = CHORDS[CHORUS_CHORDS[(t // 16) % len(CHORUS_CHORDS)]]
+            r = root + (lift if t < 16 * bars else 0)
+            tones = {r % 12, (r + third) % 12, (r + 7) % 12}
+            out.append((next(note + k for k in range(3, 10) if (note + k) % 12 in tones), length))
+        t += length
+    return out
+
+
+def chord_tones(name, lift=0):
+    root, third = CHORDS[name]
+    r = root + lift
+    return [r, r + third, r + 7]
+
+
+class Song:
+    """Two buses the length of the loop: drums, and everything pitched, which the kick ducks and the reverb fills."""
+
+    def __init__(self, bpm, bars):
+        self.beat = 60 / bpm
+        self.bar = 4 * self.beat
+        self.six = self.beat / 4
+        self.total = sec(bars * self.bar)
+        self.drums = [0.0] * self.total
+        self.keys = [0.0] * self.total
+        self.kicks = []
+        self.rendered = {}
+
+    def once(self, key, render):
+        """The same note recurs all through the loop, so each is rendered once."""
+        if key not in self.rendered:
+            self.rendered[key] = render()
+        return self.rendered[key]
+
+    def at(self, bar, step=0):
+        """Seconds to sixteenth `step` of `bar`."""
+        return bar * self.bar + step * self.six
+
+    def add(self, bus, at_s, samples, gain=1.0):
         start = sec(at_s)
+        total = self.total
         for i, s in enumerate(samples):
             bus[(start + i) % total] += s * gain  # a tail past the end wraps into the loop's head
 
-    def saws(freq, length, decay, gain, cutoff, attack=0.0, vibrato=0.0):
-        """Two saws a few cents apart, lowpassed: the lead's and the pad's body."""
-        return once(
-            ("saws", freq, length, decay, gain, cutoff, attack, vibrato),
-            lambda: lowpass(
-                mix(
-                    tone(freq * 1.004, length, saw, decay, gain, attack=attack, vibrato_hz=5.5, vibrato_depth=vibrato),
-                    tone(freq * 0.996, length, saw, decay, gain, attack=attack, vibrato_hz=5.5, vibrato_depth=vibrato),
-                ),
-                cutoff,
-                2,
-            ),
-        )
+    def kick(self, at_s, samples, gain=1.0):
+        self.add(self.drums, at_s, samples, gain)
+        self.kicks.append(sec(at_s))
 
-    kick = mix(
-        tone(150, 0.25, decay=12, sweep_to=45, gain=0.9, curve="exp"),
-        highpass(noise(0.01, decay=200, gain=0.4, seed=40), 2000),
-    )
-    snare = mix(
-        highpass(noise(0.18, decay=18, gain=0.5, seed=41), 1200),
-        tone(200, 0.1, triangle, decay=25, gain=0.3),
-    )
-    hat = highpass(noise(0.04, decay=60, gain=0.3, seed=42), 7000)
-    open_hat = highpass(noise(0.2, decay=14, gain=0.2, seed=43), 6000)
-    crash = highpass(noise(1.5, decay=2.5, gain=0.25, seed=44), 4000)
-    riser = highpass(noise(2 * BAR, decay=0, gain=0.2, seed=45), 3000)
-    kicks = []
-
-    bar = 0
-    for section in SECTIONS:
-        section_s = bar * BAR
-        if section.crash:
-            add(drums, section_s, crash)
-        for index, name in enumerate(section.chords):
-            bar_s = bar * BAR
-            low, third, fifth = triad(name, section.lift)
-            tones = (low, third, fifth)
-            quiet = section.groove == "break" and index < 4
-            fill = index == len(section.chords) - 1
-            for step in range(16):
-                t = bar_s + step * SIXTEENTH
-                if not quiet:
-                    if step % 4 == 0:
-                        add(drums, t, kick)
-                        kicks.append(sec(t))
-                    if step in (4, 12) or (fill and step >= 8 and step % 2 == 0):
-                        add(drums, t, snare, 1.0 if step in (4, 12) else 0.4 + 0.6 * (step - 8) / 6)
-                    if step % 2 == 0 and step % 4 != 0:
-                        add(drums, t, open_hat)
-                add(drums, t, hat, 1.0 if step % 2 else 0.6)
-                tone_index, octaves = ARPEGGIO[step]
-                note = tones[tone_index] + 12 * octaves
-                add(keys, t, once(("pluck", note), lambda: lowpass(tone(midi_freq(note), SIXTEENTH * 1.5, square, 14, 0.06), 6000)))
-            if not quiet:
-                for eighth, offset in enumerate(BASS):
-                    note = low + offset
-                    add(keys, bar_s + eighth * 2 * SIXTEENTH, saws(midi_freq(note), 2 * SIXTEENTH, 6, 0.11, 900))
-            for note in tones:
-                add(keys, bar_s, saws(midi_freq(note + 12), BAR, 0.6, 0.03, 1800, attack=0.05))
-            if section.groove == "break" and index == 6:
-                add(drums, bar_s, envelope(riser, lambda t: t / (2 * BAR)))  # swells over the last two bars
-            bar += 1
-        t = section_s
-        for note, length in section.lead:
-            span = length * SIXTEENTH
-            # Short notes keep a quick decay; a held note rings for its length.
-            decay = 6 if length <= 4 else 2.0 / span
-            add(keys, t, saws(midi_freq(note + section.lift), span, decay, 0.09, 6000, attack=0.01, vibrato=0.004))
+    def melody(self, bar0, phrase, voice, echo=()):
+        """Play `phrase` from `bar0` with `voice(note, seconds, sixteenths)`; `echo` repeats each note as (sixteenths later, gain)."""
+        t = self.at(bar0)
+        for note, length in phrase:
+            span = length * self.six
+            if note is not None:
+                samples = voice(note, span, length)
+                self.add(self.keys, t, samples)
+                for delay, gain in echo:
+                    self.add(self.keys, t + delay * self.six, samples, gain)
             t += span
 
-    # The kick ducks everything but the drums, so the bass pumps around it.
-    duck = [1.0] * total
-    release = sec(0.12)
-    for at in kicks:
-        for i in range(release):
-            duck[(at + i) % total] = min(duck[(at + i) % total], 1 - 0.55 * (1 - i / release))
-    bus = [d + k * g for d, k, g in zip(drums, keys, duck)]
-    # A soft clip for loudness; tame then keeps the peak under full scale.
-    drive = 1.2
-    write("music-loop", tame([math.tanh(drive * s) / math.tanh(drive) for s in bus]))
+
+def detuned(song, freq, length, decay, gain, cutoff, voices=2, spread=0.008, attack=0.0, vibrato=0.0):
+    """Saws spread `spread` either side of `freq`, lowpassed: the stabs', pads' and strings' body."""
+    def render():
+        parts = []
+        for v in range(voices):
+            d = 1 + spread * (v / (voices - 1) - 0.5) * 2 if voices > 1 else 1
+            parts.append(tone(freq * d, length, saw, decay, gain / math.sqrt(voices), attack=attack, vibrato_hz=5.5, vibrato_depth=vibrato))
+        return lowpass(mix(*parts), cutoff, 2)
+
+    return song.once(("detuned", freq, length, decay, gain, cutoff, voices, spread, attack, vibrato), render)
+
+
+class Kit:
+    def __init__(self, song):
+        self.song = song
+        self.kick = mix(
+            tone(170, 0.28, decay=11, sweep_to=44, gain=1.0, curve="exp"),
+            tone(55, 0.3, sine, decay=9, gain=0.35),
+            highpass(noise(0.012, decay=200, gain=0.55, seed=50), 2500),
+        )
+        # Three bursts 11 ms apart, the last ringing longest.
+        self.clap = mix(*[
+            [0.0] * sec(0.011 * k) + highpass(lowpass(noise(0.16, decay=22 if k == 2 else 90, gain=0.45, seed=51 + k), 3000), 900)
+            for k in range(3)
+        ])
+        self.hat = highpass(noise(0.035, decay=70, gain=0.28, seed=55), 8000)
+        self.open_hat = highpass(noise(0.18, decay=16, gain=0.22, seed=56), 7000)
+        self.crash = highpass(noise(2.0, decay=1.8, gain=0.3, seed=57), 4000)
+        self.impact = mix(tone(90, 1.2, sine, decay=3, sweep_to=30, gain=0.5, curve="exp"), lowpass(noise(0.8, decay=5, gain=0.3, seed=58), 600))
+        self.riser = highpass(noise(4 * song.bar, decay=0, gain=0.25, seed=59), 2000)
+        self.toms = [
+            mix(tone(f, 0.3, sine, decay=10, sweep_to=f * 0.55, gain=0.55), lowpass(noise(0.05, decay=60, gain=0.2, seed=90 + k), 2500))
+            for k, f in enumerate((220, 170, 130, 95))
+        ]
+        # Snares whose body pitches up, for rolls that climb.
+        self.roll = [
+            mix(highpass(noise(0.12, decay=26, gain=0.45, seed=60 + k), 1200), tone(190 * 1.25**k, 0.08, triangle, decay=30, gain=0.3))
+            for k in range(4)
+        ]
+        self.tambourine = mix(
+            highpass(noise(0.07, decay=45, gain=0.22, seed=80), 7000),
+            bandpass(noise(0.07, decay=50, gain=0.12, seed=81), 9500, 2000),
+        )
+        self.snare = mix(highpass(noise(0.2, decay=17, gain=0.5, seed=82), 1100), tone(200, 0.1, decay=25, gain=0.3))
+
+    def snare_roll(self, bar0, bars):
+        """Eighths, then sixteenths, swelling and pitching up over `bars` bars, stopping two beats short."""
+        s = self.song
+        steps = 16 * bars
+        for k in range(steps - 8):
+            u = k / steps
+            if u < 0.5 and k % 2:
+                continue
+            s.add(s.drums, s.at(bar0, k), self.roll[min(3, int(u * 4))], 0.2 + 0.8 * u)
+
+    def riser_into(self, bar):
+        """A noise swell over the four bars before `bar`, cut two beats early."""
+        s = self.song
+        r = envelope(self.riser, lambda t: (t / (4 * s.bar)) ** 2 if t < 4 * s.bar - 2 * s.beat else 0.0)
+        s.add(s.drums, s.at(bar - 4), r)
+
+    def drop(self, bar):
+        s = self.song
+        s.add(s.drums, s.at(bar), self.crash)
+        s.add(s.drums, s.at(bar), self.impact)
+
+    def tom_fill(self, bar):
+        s = self.song
+        for k, step in enumerate((8, 10, 12, 13, 14, 15)):
+            s.add(s.drums, s.at(bar, step), self.toms[min(3, k * 4 // 6)], 0.9)
+
+    def stop(self, bar):
+        """Silence the drums, kicks included, for the bar's second half, then a climbing snare pickup in its last beat."""
+        s = self.song
+        start, end = sec(s.at(bar, 8)), sec(s.at(bar + 1))
+        for i in range(start, end):
+            s.drums[i] = 0.0
+        s.kicks = [k for k in s.kicks if not start <= k < end]
+        for k, step in enumerate((12, 13, 14, 15)):
+            s.add(s.drums, s.at(bar, step), self.roll[k], 0.5 + 0.15 * k)
+
+
+def bass_note(song, note, root, length, cutoff, grit):
+    """A driven saw an octave above a sine sub on the chord's root."""
+    def render():
+        body = lowpass(mix(tone(midi_freq(note) * 1.003, length, saw, 6, 0.2), tone(midi_freq(note) * 0.997, length, saw, 6, 0.2)), cutoff, 2)
+        driven = [math.tanh(grit * x) / grit for x in body]
+        sub = tone(midi_freq(root), length, sine, 3, 0.3)
+        return [x + y for x, y in zip(driven, sub)]
+
+    return song.once(("bass", note, root, length, cutoff, grit), render)
+
+
+def synth_lead(song, gain=1.0):
+    """The verse's saw-square lead; a held note rings for its length."""
+    def voice(note, span, length):
+        decay = 5 if length <= 4 else 1.4 / span
+
+        def render():
+            f = midi_freq(note)
+            body = mix(
+                tone(f, span, saw, decay, 0.06, attack=0.005, vibrato_hz=6, vibrato_depth=0.004),
+                tone(f * 1.003, span, square, decay, 0.04, attack=0.005, vibrato_hz=6, vibrato_depth=0.004),
+                tone(f * 0.995, span, saw, decay, 0.035, attack=0.005),
+            )
+            return [x * gain for x in lowpass(body, 5500, 2)]
+
+        return song.once(("lead", note, span, gain), render)
+
+    return voice
+
+
+def brass(song, note, length, gain, bright=1.0, voices=1, swell=False, shake=False, fall=False):
+    """A trumpet: a scoop up into pitch, brightness that follows loudness, and delayed vibrato.
+
+    `swell` crescendos over the note; `shake` trills its second half a tone up;
+    `fall` drops the pitch off its end.
+    """
+    def render():
+        n = sec(length)
+        out = [0.0] * n
+        release = min(0.05, length * 0.3)
+        for v in range(voices):
+            base = midi_freq(note) * (1 + 0.004 * (v - (voices - 1) / 2))
+            tilt = (base / 440) ** 0.3
+            phase, y1, y2 = 0.0, 0.0, 0.0
+            for i in range(n):
+                t = i / RATE
+                if swell:
+                    a = (t / length) ** 1.6
+                else:
+                    a = min(1.0, t / 0.025) * (1 - 0.2 * min(1.0, max(0.0, (t - 0.03) / 0.15)))
+                if t > length - release:
+                    a *= max(0.0, (length - t) / release)
+                f = base * (1 - 0.02 * math.exp(-t / 0.02))
+                if shake and t > length * 0.45:
+                    u = math.sin(TAU * 7 * (t - length * 0.45))
+                    f *= 2 ** (1 / 12 * (1 + math.tanh(4 * u)))
+                    a *= 1.1
+                elif t > 0.2:
+                    f *= 1 + 0.005 * math.sin(TAU * 5.5 * (t - 0.2)) * min(1.0, (t - 0.2) / 0.2)
+                if fall and t > length * 0.55:
+                    f *= 1 - 0.3 * ((t - length * 0.55) / (length * 0.45)) ** 2
+                phase += TAU * f / RATE
+                x = 0.75 * saw(phase) + 0.25 * square(phase)
+                # A two-pole lowpass whose cutoff rises with loudness, as a real horn brightens.
+                g = 1 - math.exp(-TAU * (250 + bright * (400 + 5000 * min(1.0, a)) * tilt) / RATE)
+                y1 += g * (x - y1)
+                y2 += g * (y1 - y2)
+                out[i] += gain / math.sqrt(voices) * a * math.tanh(1.6 * y2)
+        return out
+
+    return song.once(("brass", note, round(length, 5), gain, bright, voices, swell, shake, fall), render)
+
+
+def trumpet(song, gain, voices=1, bright=1.0, shake_from=None, fall_at=()):
+    """A trumpet voice for `Song.melody`: notes `shake_from` sixteenths or longer shake, and the notes at indexes `fall_at` fall off."""
+    count = [0]
+
+    def voice(note, span, length):
+        index = count[0]
+        count[0] += 1
+        shake = shake_from is not None and length >= shake_from
+        return brass(song, note, span, gain, bright, voices, shake=shake, fall=index in fall_at)
+
+    return voice
+
+
+def horn_chord(song, bar, step, name, length, lift=0, gain=1.0, swell=False, fall=False):
+    """Three trumpets close on the chord between E4 and E5, and a trombone on the root below."""
+    r = CHORDS[name][0] + lift
+    trumpets = sorted(60 + n % 12 + (12 if 60 + n % 12 < 64 else 0) for n in chord_tones(name, lift))
+    t = song.at(bar, step)
+    for n in trumpets:
+        song.add(song.keys, t, brass(song, n, length, 0.17, voices=2, swell=swell, fall=fall), gain)
+    song.add(song.keys, t, brass(song, 48 + r % 12, length, 0.2, bright=0.7, voices=2, swell=swell, fall=fall), gain)
+
+
+def horn_answers(song, bar, index, name, lift=0, gain=1.0):
+    """Stabs in the gap while the chorus melody holds its long note: short, short, long; quarter hits in its seventh bar."""
+    if index in (0, 1, 2, 4, 5):
+        for step, length in ((8, 1.5), (10, 1.5), (12, 3.5)):
+            horn_chord(song, bar, step, name, length * song.six, lift, 0.8 * gain, fall=step == 12 and index == 5)
+    elif index == 6:
+        for step in (0, 4, 8, 12):
+            horn_chord(song, bar, step, name, 1.8 * song.six, lift, 0.9 * gain)
+
+
+def piano(song, note, length, gain=1.0):
+    def render():
+        f = midi_freq(note)
+        body = mix(
+            tone(f, length, triangle, 3.5, 0.10),
+            tone(2 * f, length, sine, 6, 0.04),
+            tone(3 * f, length, sine, 9, 0.015),
+            lowpass(noise(0.01, decay=300, gain=0.03, seed=note), 3000),
+        )
+        return [x * gain for x in body]
+
+    return song.once(("piano", note, length, gain), render)
+
+
+def piano_bar(song, bar, name, gain=1.0):
+    """A broken chord in eighths, climbing from the root an octave above the bass."""
+    root, third = CHORDS[name]
+    r = root + 12 if root < 45 else root
+    for k, n in enumerate([r, r + 7, r + 12, r + third + 12, r + 19, r + third + 12, r + 12, r + 7]):
+        song.add(song.keys, song.at(bar, 2 * k), piano(song, n, 2 * song.beat, gain))
+
+
+def colour_pad(song, bar, name, lift=0, gain=1.0):
+    if name in COLOUR:
+        root = CHORDS[name][0] + lift
+        song.add(song.keys, song.at(bar), detuned(song, midi_freq(root + COLOUR[name] + 24), song.bar, 0.8, 0.03 * gain, 2500, voices=5, spread=0.01, attack=0.04))
+
+
+def strings(song, notes, length, gain, attack=0.25):
+    def render():
+        return mix(*(detuned(song, midi_freq(n), length, 0.3, gain, 3800, voices=7, spread=0.012, attack=attack, vibrato=0.004) for n in notes))
+
+    return song.once(("strings", tuple(notes), round(length, 5), gain, attack), render)
+
+
+def timpani(song, note, gain=1.0):
+    def render():
+        f = midi_freq(note)
+        body = mix(
+            tone(f, 1.2, sine, decay=3.5, sweep_to=f * 0.97, gain=0.45),
+            tone(f * 1.5, 0.6, sine, decay=6, gain=0.12),
+            lowpass(noise(0.06, decay=60, gain=0.25, seed=note), 900),
+        )
+        return [gain * x for x in body]
+
+    return song.once(("timpani", note, gain), render)
+
+
+def glockenspiel(song, note):
+    """Inharmonic sine partials that die fast, an octave over the melody."""
+    def render():
+        f = midi_freq(note)
+        body = mix(tone(f, 0.9, sine, decay=5, gain=0.05), tone(f * 2.76, 0.4, sine, decay=12, gain=0.02), tone(f * 5.4, 0.2, sine, decay=25, gain=0.01))
+        return [2 * x for x in body]
+
+    return song.once(("glockenspiel", note), render)
+
+
+def rev(song, bar):
+    """An engine revving into the drop two bars after `bar`: two detuned saws sweeping up, driven, cut two beats early."""
+    def render():
+        length = 2 * song.bar - 2 * song.beat
+        body = mix(tone(70, length, saw, 0, 0.12, sweep_to=900, curve="exp"), tone(71.5, length, saw, 0, 0.12, sweep_to=920, curve="exp"))
+        n = len(body)
+        return lowpass([math.tanh(3 * x) * (i / n) ** 2 for i, x in enumerate(body)], 3000, 2)
+
+    song.add(song.keys, song.at(bar), song.once(("rev",), render), 0.35)
+
+
+class Band:
+    """The disco-rock layers: cutting guitar, tambourine, picked rock bass, an arpeggio and a sung "ah"."""
+
+    def __init__(self, song, kit):
+        self.song = song
+        self.kit = kit
+
+    def cut(self, notes, accent):
+        """A muted, slightly driven guitar chord, cut short like a disco strum."""
+        s = self.song
+
+        def render():
+            body = mix(*(tone(midi_freq(n) * d, s.six * 0.9, saw, 38 if accent else 70, 0.07) for n in notes for d in (1.0, 1.004)))
+            return bandpass([math.tanh(4 * x) / 4 for x in body], 1800, 2600)
+
+        return s.once(("cut", tuple(notes), accent), render)
+
+    def chant(self, note, span, gain):
+        """Saws through two vowel formants: a wordless "ah" with vibrato."""
+        def render():
+            body = mix(*(tone(midi_freq(note) * d, span, saw, 1.0 / span, 0.09, attack=0.06, vibrato_hz=5.2, vibrato_depth=0.006) for d in (0.997, 1.0, 1.003)))
+            return [gain * (a + 0.7 * b) for a, b in zip(bandpass(body, 750, 350), bandpass(body, 1200, 450))]
+
+        return self.song.once(("chant", note, span, gain), render)
+
+    def bar(self, bar, name, lift=0, four_snares=False, rock_bass=False, arp=False):
+        s = self.song
+        root = CHORDS[name][0] + lift
+        tones = chord_tones(name, lift)
+        voicing = [tones[0] + 24, tones[1] + 24, tones[2] + 24, tones[0] + 36]
+        for step in range(16):
+            t = s.at(bar, step)
+            s.add(s.drums, t, self.kit.tambourine, 1.0 if step % 4 == 2 else 0.45)
+            # Sixteenth cutting, accented on the offbeats.
+            accent = step % 4 == 2 or step in (7, 15)
+            s.add(s.keys, t, self.cut(voicing, accent), 1.0 if accent else 0.45)
+            if four_snares and step % 4 == 0:
+                s.add(s.drums, t, self.kit.snare, 0.7)
+            if rock_bass and step % 2 == 0:
+                # Picked eighths on the root, jumping the octave at the bar's end.
+                s.add(s.keys, t, bass_note(s, root + (12 if step >= 14 else 0), root, 2 * s.six * 0.9, 1100, 5), 0.8)
+            if arp:
+                n = tones[(0, 1, 2, 1)[step % 4]] + 36
+                s.add(s.keys, t, s.once(("arp", n), lambda: lowpass(tone(midi_freq(n), s.six * 0.8, saw, 12, 0.03), 6000)))
+
+
+def groove_bar(song, kit, bar, name, lift=0, kick=True, clap=True, hats=True, open_hats=True, stabs=True,
+               stab_cut=4500, bass="octave", bass_cut=1500, grit=2.5, pad=0.0, fill=False, cut_last_half=False, level=1.0):
+    """One bar of the dance groove on `name`.
+
+    `bass` is "octave" (disco eighths), "gallop" (root, root, octave per beat)
+    or None; `pad` scales a held chord; `cut_last_half` stops the bar at its
+    third beat for a drop; `level` scales the kick and the octave bass.
+    """
+    s = song
+    root = CHORDS[name][0] + lift
+    tones = chord_tones(name, lift)
+    for step in range(16):
+        if cut_last_half and step >= 8:
+            break
+        t = s.at(bar, step)
+        if kick and step % 4 == 0:
+            s.kick(t, kit.kick, level)
+        if clap and (step in (4, 12) or (fill and step >= 12)):
+            s.add(s.drums, t, kit.clap, 1.0 if step in (4, 12) else 0.6)
+        if open_hats and step % 4 == 2:
+            s.add(s.drums, t, kit.open_hat)
+        elif hats and step % 4 != 2:
+            s.add(s.drums, t, kit.hat, 0.5 + 0.5 * (step % 2))
+        if bass == "octave" and step % 2 == 0:
+            s.add(s.keys, t, bass_note(s, root + (12 if step % 4 == 2 else 0), root, 2 * s.six, bass_cut, grit), level)
+        elif bass == "gallop":
+            s.add(s.keys, t, bass_note(s, root + (0, 0, 12, 0)[step % 4], root, s.six * 1.1, bass_cut, grit), 0.9)
+        if stabs and step % 4 == 2:
+            for n in tones:
+                s.add(s.keys, t, detuned(s, midi_freq(n + 24), 1.5 * s.six, 12, 0.05, stab_cut, voices=5, spread=0.012))
+    if pad:
+        for n in tones:
+            s.add(s.keys, s.at(bar), detuned(s, midi_freq(n + 24), s.bar, 0.8, 0.028 * pad, 2500, voices=5, spread=0.01, attack=0.04))
+
+
+def opening(s, kit):
+    """Bars 0 to 39: intro, verse, build, chorus and breakdown."""
+    s.add(s.drums, s.at(0), kit.impact, 0.8)  # the loop's downbeat lands like a green light
+    for i, name in enumerate(INTRO_CHORDS):
+        u = i / 7
+        groove_bar(s, kit, i, name, clap=i >= 4, hats=i >= 2, open_hats=i >= 6,
+                   stab_cut=600 * 7.5**u, bass_cut=350 * 4**u, fill=i == 7, level=0.55 + 0.45 * u)
+    far = lambda n, span, length: s.once(("far", n, span), lambda: lowpass(brass(s, n, span, 0.28, bright=0.55), 2400))
+    s.melody(0, FANFARE, far, echo=((3, 0.45), (6, 0.3), (9, 0.18)))
+
+    lead = synth_lead(s)
+    for i, name in enumerate(VERSE_CHORDS):
+        groove_bar(s, kit, 8 + i, name, fill=i == 7)
+        piano_bar(s, 8 + i, name, 0.6)
+    s.add(s.drums, s.at(8), kit.crash)
+    s.melody(8, VERSE, lead, echo=((3, 0.3),))
+
+    for i, name in enumerate(BUILD_CHORDS):
+        groove_bar(s, kit, 16 + i, name, kick=i < 4, clap=i < 4, open_hats=i < 6, bass="gallop", bass_cut=600 + 150 * i,
+                   stab_cut=2500 + 400 * i, pad=0.6 + 0.1 * i, cut_last_half=i == 7)
+        if 4 <= i < 7:
+            s.kick(s.at(16 + i), kit.kick)
+    kit.snare_roll(20, 4)
+    kit.riser_into(24)
+    rev(s, 22)
+    s.melody(16, CLIMB, lead, echo=((3, 0.3),))
+
+    kit.drop(24)
+    for i, name in enumerate(CHORUS_CHORDS):
+        groove_bar(s, kit, 24 + i, name, pad=1.0, grit=3.5, fill=i == 7)
+        colour_pad(s, 24 + i, name)
+    kit.tom_fill(31)
+    # The chorus's last note falls off into the breakdown.
+    s.melody(24, CHORUS, trumpet(s, 0.3, fall_at=(len(CHORUS) - 1,)), echo=((3, 0.3),))
+    s.melody(24, [(n - 12, l) for n, l in CHORUS], synth_lead(s, 0.55))
+    s.melody(24, [(n - 12, l) for n, l in COUNTER], lambda n, span, length: strings(s, [n], span, 0.05, attack=0.12))
+
+    s.add(s.drums, s.at(32), kit.crash)
+    for i, name in enumerate(CHORUS_CHORDS):
+        groove_bar(s, kit, 32 + i, name, kick=False, clap=False, open_hats=False, stabs=False,
+                   bass_cut=400 + 200 * i, pad=4.0, cut_last_half=i == 7, level=0.5 + 0.07 * i)
+        colour_pad(s, 32 + i, name, gain=2.5)
+        if i < 7:
+            piano_bar(s, 32 + i, name, 1.0)
+        if i >= 6:
+            # The kick creeps back in under the roll.
+            for beat in range(4 if i == 6 else 2):
+                s.kick(s.at(32 + i, 4 * beat), kit.kick, 0.5 + 0.1 * beat)
+    kit.snare_roll(36, 4)
+    kit.riser_into(40)
+    head = CHORUS[:16]
+    s.melody(32, head + [(None, 128 - sum(l for _, l in head))], trumpet(s, 0.26, bright=0.75), echo=((3, 0.4), (6, 0.2)))
+
+
+def bridge(s, kit, band, bar0):
+    """Climbs from the chorus's own chords and lands on D, so the lifted chorus arrives as a resolution."""
+    kit.drop(bar0)
+    for i, name in enumerate(BRIDGE_CHORDS):
+        bar = bar0 + i
+        groove_bar(s, kit, bar, name, stabs=i >= 4, bass=None, pad=0.8 + 0.1 * i, cut_last_half=i == 7)
+        band.bar(bar, name, rock_bass=True)
+        colour_pad(s, bar, name, gain=1.2)
+        if i < 7:
+            piano_bar(s, bar, name, 0.5)
+        if 4 <= i < 7:
+            # The horns join halfway, so the brass grows into the last chorus.
+            horn_chord(s, bar, 0, name, s.bar, swell=True, gain=0.35 + 0.1 * (i - 4))
+    horn_chord(s, bar0 + 7, 0, "D", s.bar - 2 * s.six, swell=True, gain=1.3)
+    kit.snare_roll(bar0 + 4, 4)
+    kit.riser_into(bar0 + 8)
+    rev(s, bar0 + 6)
+    s.melody(bar0, BRIDGE, trumpet(s, 0.27), echo=((3, 0.25),))
+    s.melody(bar0, [(n - 12 if n else None, l) for n, l in BRIDGE], lambda n, span, length: band.chant(n, span, 0.6))
+
+
+def chorus_bed(s, kit, band, bar0, four_snares_from=4):
+    """The lifted chorus's band, its octave-down double, harmony, chant and orchestra; the melody on top is the caller's."""
+    kit.drop(bar0)
+    for i, name in enumerate(CHORUS_CHORDS):
+        up = LIFT if i < LIFTED_BARS else 0
+        groove_bar(s, kit, bar0 + i, name, lift=up, pad=1.4, grit=4, fill=i == 7)
+        band.bar(bar0 + i, name, lift=up, four_snares=i >= four_snares_from, arp=True)
+        colour_pad(s, bar0 + i, name, lift=up, gain=1.5)
+        if i == 4:
+            s.add(s.drums, s.at(bar0 + i), kit.crash, 0.8)
+    kit.tom_fill(bar0 + 7)
+    melody = lifted(CHORUS)
+    s.melody(bar0, [(n - 12, l) for n, l in melody], synth_lead(s, 0.6))
+    s.melody(bar0, harmonise(melody), synth_lead(s, 0.45))
+    s.melody(bar0, [(n - 12, l) for n, l in melody], lambda n, span, length: band.chant(n, span, 0.9))
+
+    for i, name in enumerate(CHORUS_CHORDS):
+        bar = bar0 + i
+        up = LIFT if i < LIFTED_BARS else 0
+        r = CHORDS[name][0] + up
+        tones = chord_tones(name, up)
+        # Strings sustained an octave above the pads, the root doubled on top,
+        # and an eighth-note ostinato bowed short.
+        s.add(s.keys, s.at(bar), strings(s, [t + 24 for t in tones] + [r + 36], s.bar, 0.035))
+        for k in range(8):
+            s.add(s.keys, s.at(bar, 2 * k), strings(s, [r + (36 if k % 2 else 24)], 1.6 * s.six, 0.05, attack=0.01), 0.8 if k % 2 else 1.0)
+        s.add(s.drums, s.at(bar), timpani(s, r + 12, 1.0))
+        s.add(s.drums, s.at(bar, 8), timpani(s, r + 19, 0.5))
+        if i == 4:
+            s.add(s.drums, s.at(bar), timpani(s, r + 12, 1.2))
+    # A timpani roll into the turnaround.
+    root = CHORDS[CHORUS_CHORDS[-1]][0]
+    for k in range(8, 16):
+        s.add(s.drums, s.at(bar0 + 7, k), timpani(s, root + 12, 0.25 + 0.06 * (k - 8)))
+    s.add(s.drums, s.at(bar0 + 4), kit.crash, 0.6)
+
+
+def music():
+    s = Song(160, 64)
+    kit = Kit(s)
+    band = Band(s, kit)
+    opening(s, kit)
+    bridge(s, kit, band, 40)
+
+    chorus_bed(s, kit, band, 48)
+    melody = lifted(CHORUS)
+    s.melody(48, melody, trumpet(s, 0.32, voices=2, shake_from=12), echo=((3, 0.25),))
+    s.melody(48, harmonise(melody), trumpet(s, 0.22, voices=2))
+    s.melody(48, [(n + 12, l) for n, l in melody], lambda n, span, length: glockenspiel(s, n))
+    for i, name in enumerate(CHORUS_CHORDS):
+        up = LIFT if i < LIFTED_BARS else 0
+        # Hammered piano chords, above the bass and trombone so the low mids stay clear.
+        for beat in range(4):
+            for n in chord_tones(name, up + 24):
+                s.add(s.keys, s.at(48 + i, 4 * beat), piano(s, n, s.beat), 0.8)
+        horn_answers(s, 48 + i, i, name, up)
+    horn_chord(s, 48, 0, "Bb", 2 * s.beat, lift=LIFT, fall=True, gain=1.4)
+
+    # The final lap: strings take the melody and the trumpets a counter-line,
+    # with a snare on every beat and the drums stopping under the held note.
+    chorus_bed(s, kit, band, 56, four_snares_from=0)
+    s.melody(56, melody, lambda n, span, length: strings(s, [n, n - 12], span, 0.06, attack=0.03))
+    counter = lifted(COUNTER)
+    s.melody(56, counter, trumpet(s, 0.3, voices=2, shake_from=16))
+    s.melody(56, harmonise(counter), trumpet(s, 0.2, voices=2))
+    for i, name in enumerate(CHORUS_CHORDS):
+        horn_answers(s, 56 + i, i, name, LIFT if i < LIFTED_BARS else 0, 1.1)
+    kit.stop(59)
+
+    # The first 60 s sit a little under the choruses that follow, so the end is the loudest part.
+    for bus in (s.drums, s.keys):
+        for i in range(sec(s.at(40))):
+            bus[i] *= 0.9
+    write("music-loop", master(s))
+
+
+def room(x, wet=0.16, predelay=0.02):
+    """A Schroeder reverb (four damped combs, two allpasses) run twice around the loop, so its tail wraps the seam."""
+    n = len(x)
+    pre = sec(predelay)
+    out = [0.0] * n
+    for delay, feedback in ((558, 0.83), (594, 0.82), (638, 0.81), (678, 0.80)):
+        buf = [0.0] * delay
+        j, damped = 0, 0.0
+        for lap in range(2):
+            for i in range(n):
+                y = buf[j]
+                damped = 0.6 * y + 0.4 * damped
+                buf[j] = x[(i - pre) % n] + feedback * damped
+                j = (j + 1) % delay
+                if lap:
+                    out[i] += y * 0.25
+    for delay in (278, 113):
+        buf = [0.0] * delay
+        j = 0
+        res = [0.0] * n
+        for lap in range(2):
+            for i in range(n):
+                b = buf[j]
+                y = -0.5 * out[i] + b
+                buf[j] = out[i] + 0.5 * b
+                j = (j + 1) % delay
+                if lap:
+                    res[i] = y
+        out = res
+    return [a + wet * w for a, w in zip(x, lowpass(out, 5000))]
+
+
+def master(s, duck_depth=0.5, release=0.12, drive=1.35, loudness=0.26):
+    """Reverb the pitched bus, duck it under the kick, EQ, soft clip, and set the loudest 6 s to `loudness` RMS."""
+    keys = room(s.keys)
+    duck = [1.0] * s.total
+    n = sec(release)
+    for at in s.kicks:
+        for i in range(n):
+            j = (at + i) % s.total
+            duck[j] = min(duck[j], 1 - duck_depth * (1 - i / n))
+    bus = [d + k * g for d, k, g in zip(s.drums, keys, duck)]
+    # Pull the sub back and lift 2.5 kHz and up, so the brass reads over the engines.
+    low = lowpass(bus, 90, 2)
+    air = [a - b for a, b in zip(bus, lowpass(bus, 2500, 1))]
+    bus = [a - 0.55 * lo + 0.4 * hi for a, lo, hi in zip(bus, low, air)]
+    out = tame([math.tanh(drive * x) / math.tanh(drive) for x in bus])
+    w = sec(6)
+    top = max(math.sqrt(sum(v * v for v in out[i:i + w]) / w) for i in range(0, len(out) - w + 1, w))
+    return [v * loudness / top for v in out]
 
 
 if __name__ == "__main__":

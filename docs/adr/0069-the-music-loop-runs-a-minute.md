@@ -19,21 +19,30 @@ still a copy of it.
 
 ## Decision
 
-- `build.py` renders the loop as 48 bars of 4/4 at 160 bpm in A minor,
-  72 s of 16-bit mono PCM at 22050 Hz, about 3.2 MB.
-- The energy matches the removed track's measured tempo (about 160 bpm),
-  loudness and density; nothing else of it is used.
-- Six sections of eight bars, one chord a bar: a drive of drums, galloping
-  saw bass and a sixteenth-note arpeggio; a verse with a detuned saw lead;
-  a chorus an octave up; a break that drops the kick and rises back; the
-  chorus a tone higher; and a drive ending on E, so the loop's last bar
-  resolves into its first.
-- The kick ducks the bass, pad and lead, and a soft clip sets the loudness.
+- `build.py` renders the loop as 64 bars of 4/4 at 160 bpm in D minor,
+  96 s of 16-bit mono PCM at 22050 Hz, about 4.2 MB.
+- The tempo matches the removed track's measured 160 bpm; nothing else of
+  it is used. The arrangement was picked by ear over several rounds of
+  renders; it leans on disco-rock with a synthesised trumpet lead.
+- Eight sections of eight bars: an intro whose filters open under a distant
+  trumpet previewing the chorus; a verse; a build with a snare roll and an
+  engine-rev sweep; the chorus (Bb C Am Dm) on trumpet; a breakdown over
+  piano; a disco-rock bridge that climbs Gm Am Bb C and lands on D; the
+  chorus a tone up with a horn section, strings, timpani and glockenspiel;
+  and a final lap of the chorus with the strings on the melody and a drum
+  stop. Each chorus ends on two bars of A, so the loop's end resolves into
+  its first bar.
+- Harmony lines take a chord tone above the melody, never a fixed interval,
+  so no line rubs a semitone against the chord under it.
+- The kick ducks everything pitched; a room reverb, run twice around the
+  loop so its tail wraps the seam, an EQ that lifts the brass above the
+  engines, and a soft clip finish the mix. The first 60 s sit under the
+  choruses, and the loudest 6 s set the level, so the end is the peak.
 - Repo-checks holds the committed loop to a minute or more of plain PCM.
 
 ## Consequences
 
-- The web build ships 3.2 MB of music in place of 350 KB; the game still
+- The web build ships 4.2 MB of music in place of 350 KB; the game still
   fetches it once and loops it under the music toggle (ADR 0025).
 - A longer or different loop is a change to `build.py` and a rerun of
   `pnpm export:audio`, never a hand-placed file.
