@@ -132,7 +132,7 @@ LAYOUT = Layout(
             Prop("hangars", Spot(s=seg("hangar").s_mid, offset=33.0), length=110.0),
             # The display jets' flypast over the hangars, against the race so drivers on the
             # straight see them coming.
-            Prop("jets", Spot(s=seg("hangar").s_mid, offset=33.0), length=600.0, height=60.0),
+            Prop("jets", Spot(s=seg("hangar").s_mid, offset=33.0), length=600.0, height=30.0),
         ],
     ),
 )

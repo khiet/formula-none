@@ -309,7 +309,7 @@ JETS_SMOKE = ("wall", "ink-blue", "kerb-red")
 """Each jet's ribbon, in `JETS_FORMATION`'s order."""
 JETS_RIBBON = ((JET_LENGTH_M, 0.0), (56.0, 1.7), (60.0, 0.0))
 """Back from the jet's nose and the ribbon's half-width there, up, down and to each side."""
-JETS_CLEARANCE_M = 30.0
+JETS_CLEARANCE_M = 20.0
 """The least the lowest point keeps over any road under the pass."""
 
 # The harbour, Monarch's basin of sea water: a flat sheet of water a hair

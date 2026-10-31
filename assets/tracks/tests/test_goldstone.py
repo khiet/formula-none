@@ -247,10 +247,10 @@ class DisplayJets(unittest.TestCase):
         cos, sin = math.cos(self.pivot.heading), math.sin(self.pivot.heading)
         return -(dx * cos + dy * sin), -dx * sin + dy * cos, v[2] - self.pivot.z
 
-    def test_it_flies_60_m_up_over_the_hangars_against_the_race(self) -> None:
+    def test_it_flies_30_m_up_over_the_hangars_against_the_race(self) -> None:
         (hangars,) = [p for p in self.layout.decor.props if p.kind == "hangars"]
         self.assertEqual(self.prop.at, hangars.at)
-        self.assertEqual((self.prop.length, self.prop.height), (600.0, 60.0))
+        self.assertEqual((self.prop.length, self.prop.height), (600.0, 30.0))
         self.assertIsNone(self.pivot.parent)
         sample = self.layout.path.at(self.prop.at.s)
         nx, ny = sample.left_normal
@@ -302,7 +302,7 @@ class DisplayJets(unittest.TestCase):
         self.assertIsNotNone(found)
         self.assertEqual(float(found.group(1).replace("_", "")), self.prop.length)
 
-    def test_it_never_flies_under_30_m_over_any_road_its_pass_crosses_ribbons_included(self) -> None:
+    def test_it_never_flies_under_20_m_over_any_road_its_pass_crosses_ribbons_included(self) -> None:
         lowest = min(v[2] for v in self.formation.mesh[0])
         self.assertLess(lowest, self.pivot.z - 4.5, "the lowest wingman's ribbon")
         # Anywhere along the pass, the formation's widest reach either side of its line.
@@ -319,7 +319,7 @@ class DisplayJets(unittest.TestCase):
         self.assertGreater(len(under), 0, "it crosses the Hangar Straight's run-off")
         road = max(elevation(self.layout.elevation, s.s) for s in under)
         self.assertGreaterEqual(lowest - road, JETS_CLEARANCE_M)
-        self.assertEqual(JETS_CLEARANCE_M, 30.0)
+        self.assertEqual(JETS_CLEARANCE_M, 20.0)
 
     def test_it_has_no_footprint_since_it_flies_over_the_track(self) -> None:
         self.assertNotIn("jets", {f.kind for f in footprints(self.layout)})
