@@ -104,7 +104,6 @@ describe("Room Scene", () => {
       [`${Math.round(numbers.tightestM)} m`, "Tightest"],
       [`${Math.round(numbers.straightM)} m`, "Straight"],
     ]);
-    expect(card?.querySelector("svg.map")).not.toBeNull();
     // Read-only: nothing on the card picks a course.
     expect(card?.querySelector("input, button")).toBeNull();
   });

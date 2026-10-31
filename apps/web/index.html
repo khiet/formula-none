@@ -898,7 +898,10 @@
           grid-template-areas: "header" "share" "players" "course" "status" "buttons";
         }
       }
-      /* The card is the Title's, a size down so it fits beside the grid. */
+      /* The card is the Title's, a size down, and the grid narrows, so both fit side by side. */
+      #room-scene:has([data-room-course]) .players {
+        grid-template-columns: repeat(2, 30em);
+      }
       #room-scene [data-room-course] {
         grid-area: course;
         align-self: center;
@@ -951,7 +954,7 @@
       #room-scene .players {
         grid-area: players;
         display: grid;
-        grid-template-columns: repeat(2, 30em);
+        grid-template-columns: repeat(2, 34em);
         grid-auto-rows: 7em;
         column-gap: 4em;
         margin: 0;
