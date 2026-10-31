@@ -94,14 +94,14 @@ fn a_kart_hopping_off_the_ramp_is_airborne_until_it_reaches_the_road() {
     // On the flat beyond the ramp. A kart rests a little higher on the ramp
     // itself, level on its uphill edge, so in the air means well above this.
     let (last, resting) = descent.last().expect("a descent");
-    let in_the_air = descent.iter().filter(|(_, height)| *height > resting + 0.3);
+    let in_the_air: Vec<_> = descent
+        .iter()
+        .filter(|(_, height)| *height > resting + 0.3)
+        .collect();
 
+    assert!(!in_the_air.is_empty(), "the hop leaves the road behind");
     assert!(
-        in_the_air.clone().count() > 0,
-        "the hop leaves the road behind"
-    );
-    assert!(
-        in_the_air.clone().all(|(readout, _)| readout.airborne),
+        in_the_air.iter().all(|(readout, _)| readout.airborne),
         "reported on the ground while still in the air"
     );
     assert!(!last.airborne, "landed by the foot of the ramp");
