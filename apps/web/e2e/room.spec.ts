@@ -109,8 +109,12 @@ test("the creator's course is the room's: both Room Scenes show it and the race 
   await friend.getByRole("button", { name: "Join room" }).click();
   await expect(friend.locator("#room-scene")).toBeVisible({ timeout: 15_000 });
 
+  // Every player, the joiner included, sees the room's course card with its four numbers.
   for (const someone of [page, friend]) {
-    await expect(someone.locator("[data-room-course]")).toHaveText("Goldstone");
+    const card = someone.locator("[data-room-course]");
+    await expect(card.locator("h3")).toHaveText("Goldstone");
+    await expect(card.locator(".stats small")).toHaveText(["Lap", "Laps", "Tightest", "Straight"]);
+    await expect(card.locator(".stats b")).toHaveText([/^\d+ m$/, /^\d+$/, /^\d+ m$/, /^\d+ m$/]);
   }
 
   // The Countdown names the course: each client loads Goldstone's mesh to race it.

@@ -687,62 +687,62 @@
         outline: 0.15em solid #fff;
         outline-offset: 0.15em;
       }
-      #title-scene .preview {
+      :is(#title-scene, #room-scene) .preview {
         width: 38em;
         padding: 1.2em 1.4em 1.3em;
         background: var(--ink);
         box-shadow: 0.4em 0.4em 0 rgb(0 0 0 / 0.4);
       }
-      #title-scene .preview-head {
+      :is(#title-scene, #room-scene) .preview-head {
         display: flex;
         align-items: baseline;
         justify-content: space-between;
         gap: 1em;
       }
-      #title-scene .preview h3 {
+      :is(#title-scene, #room-scene) .preview h3 {
         margin: 0;
         font: inherit;
         font-size: 3em;
         color: var(--gold);
         text-shadow: 0.08em 0.08em 0 #000;
       }
-      #title-scene .preview .after {
+      :is(#title-scene, #room-scene) .preview .after {
         font-size: 1.3em;
         color: #c9ced5;
       }
-      #title-scene .preview .map {
+      :is(#title-scene, #room-scene) .preview .map {
         display: block;
         width: 100%;
         height: 19em;
         margin: 0.8em 0;
         background: #1b1d21;
       }
-      #title-scene .preview .blurb {
+      :is(#title-scene, #room-scene) .preview .blurb {
         font-size: 1.3em;
       }
-      #title-scene .stats {
+      :is(#title-scene, #room-scene) .stats {
         display: grid;
         grid-template-columns: repeat(4, 1fr);
         gap: 0.6em;
         margin-top: 0.8em;
       }
-      #title-scene .stats div {
+      :is(#title-scene, #room-scene) .stats div {
         display: flex;
         flex-direction: column;
         gap: 0.25em;
         padding: 0.5em 0.6em;
         background: #2b2e33;
       }
-      #title-scene .stats b {
+      :is(#title-scene, #room-scene) .stats b {
         font-weight: normal;
         font-size: 1.8em;
       }
-      #title-scene .stats small {
+      :is(#title-scene, #room-scene) .stats small {
         font-size: 1em;
         color: #c9ced5;
       }
       @media (prefers-reduced-motion: no-preference) {
-        #title-scene .map-swap {
+        :is(#title-scene, #room-scene) .map-swap {
           animation: map-in 0.25s ease-out;
         }
       }
@@ -871,16 +871,41 @@
         bottom: 4.4em;
         width: 8em;
       }
-      /* Room: the code and count over the link to share, the grid, then the status and the buttons. */
+      /*
+       * Room: the code and count over the link to share, the grid, then the
+       * status and the buttons; the room's course card in a column beside
+       * them (ADR 0062), or under the grid on a window taller than it is wide.
+       */
       #room-scene {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        gap: 1.6em;
+        display: grid;
+        grid-template-columns: auto;
+        grid-template-areas: "header" "share" "players" "status" "buttons";
+        place-content: center;
+        justify-items: center;
+        row-gap: 1.6em;
+        column-gap: 3em;
         padding: 4.5em 2em;
       }
-      #room-scene header {
+      #room-scene:has([data-room-course]) {
+        grid-template-columns: auto auto;
+        grid-template-areas:
+          "header course" "share course" "players course" "status course"
+          "buttons course";
+      }
+      @media (max-aspect-ratio: 1/1) {
+        #room-scene:has([data-room-course]) {
+          grid-template-columns: auto;
+          grid-template-areas: "header" "share" "players" "course" "status" "buttons";
+        }
+      }
+      /* The card is the Title's, a size down so it fits beside the grid. */
+      #room-scene [data-room-course] {
+        grid-area: course;
+        align-self: center;
+        font-size: 0.8em;
+      }
+      #room-scene > header {
+        grid-area: header;
         display: flex;
         align-items: center;
         gap: 0.8em;
@@ -901,21 +926,8 @@
         background: var(--gold);
         border: 0.15em solid var(--ink);
       }
-      /* The room's course, read-only: its flag and name beside the count. */
-      #room-scene [data-room-course] {
-        display: flex;
-        align-items: center;
-        gap: 0.6em;
-        padding: 0.4em 0.7em;
-        font-size: 1.8em;
-        background: var(--ink);
-      }
-      #room-scene [data-room-course] > svg {
-        width: 2.1em;
-        height: 1.4em;
-        border: 0.1em solid #000;
-      }
       #room-scene .share {
+        grid-area: share;
         display: flex;
         align-items: center;
         gap: 1em;
@@ -937,8 +949,9 @@
       }
       /* Two staggered columns like a starting grid: players fill left, right, left, right in list order. */
       #room-scene .players {
+        grid-area: players;
         display: grid;
-        grid-template-columns: repeat(2, 34em);
+        grid-template-columns: repeat(2, 30em);
         grid-auto-rows: 7em;
         column-gap: 4em;
         margin: 0;
@@ -1010,11 +1023,13 @@
         opacity: 0.45;
       }
       #room-scene [data-room-state] {
+        grid-area: status;
         padding: 0.4em 0.8em;
         font-size: 1.4em;
         background: var(--ink);
       }
       #room-scene .room-buttons {
+        grid-area: buttons;
         display: flex;
         gap: 1em;
       }

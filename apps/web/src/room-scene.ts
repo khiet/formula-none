@@ -1,9 +1,8 @@
 import { button } from "./controls";
-import { flag } from "./flags";
+import { type CourseChoice, type CoursePreview, createCoursePreview } from "./course-preview";
 import type { Player, Room } from "./generated/protocol";
 import { livery } from "./livery";
 import { backdrop, kartSide } from "./poster";
-import { courseOf } from "./track";
 
 export interface RoomScene {
   /** Show the room as it now stands. */
@@ -30,6 +29,12 @@ export interface RoomView {
   readonly link: string;
   /** How many players a room holds, for the count beside the code. */
   readonly capacity: number;
+  /** Every course with its centreline; the room's track picks the card shown. */
+  readonly courses: readonly CourseChoice[];
+  /** Laps in a race, for the course card. */
+  readonly laps: number;
+  /** Whether the player asks for reduced motion, which holds the card's lap dot still. */
+  readonly reducedMotion: () => boolean;
 }
 
 const COPIED_MS = 2000;
@@ -103,13 +108,13 @@ function playerItem(player: Player, you: boolean): HTMLLIElement {
 }
 
 /**
- * The Room Scene (ADR 0012) on the Grand Prix poster (ADR 0039): the code
- * and the course the creator picked (ADR 0061), the link to share, with a
- * chip that copies the link, every joined player as a kart in their livery
- * on a two-column grid with whether they are ready, the local player's
- * ready toggle, the creator's Start, enabled once every player is ready,
- * and Leave. Each row is addressable by `data-slot`
- * and each button by its name.
+ * The Room Scene (ADR 0012) on the Grand Prix poster (ADR 0039): the code,
+ * the link to share, with a chip that copies the link, every joined player
+ * as a kart in their livery on a two-column grid with whether they are
+ * ready, the local player's ready toggle, the creator's Start, enabled once
+ * every player is ready, and Leave; beside them, the card of the course the
+ * creator picked (ADR 0062). Each row is addressable by `data-slot` and
+ * each button by its name.
  */
 export function createRoomScene(
   container: HTMLElement,
@@ -127,16 +132,14 @@ export function createRoomScene(
   const count = document.createElement("span");
   count.dataset.roomCount = "";
   header.append(heading, count);
-  // The course is fixed for the room, so the badge is drawn once; a track
-  // no course is, the oval a test races, has no flag to show.
-  const course = courseOf(view.room.track);
-  if (course !== undefined) {
-    const badge = document.createElement("span");
-    badge.dataset.roomCourse = "";
-    const name = document.createElement("span");
-    name.textContent = course.name;
-    badge.append(flag(course.flag), name);
-    header.append(badge);
+  // The course is fixed for the room, so the card is drawn once; a track
+  // no course is, the oval a test races, has no card.
+  const choice = view.courses.find(({ course }) => course.track === view.room.track);
+  let preview: CoursePreview | undefined;
+  if (choice !== undefined) {
+    preview = createCoursePreview({ laps: view.laps, reducedMotion: view.reducedMotion });
+    preview.element.dataset.roomCourse = "";
+    preview.show(choice);
   }
 
   const link = document.createElement("a");
@@ -205,6 +208,7 @@ export function createRoomScene(
   buttons.className = "room-buttons";
   buttons.append(ready, start, leave);
   scene.append(...backdrop(), header, share, players, status, buttons);
+  if (preview !== undefined) scene.append(preview.element);
   container.append(scene);
   return {
     update(room) {
@@ -217,6 +221,7 @@ export function createRoomScene(
     },
     dispose() {
       clearTimeout(copiedTimer);
+      preview?.dispose();
       scene.remove();
     },
   };
