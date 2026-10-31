@@ -168,6 +168,19 @@ pub fn drive(
     } else {
         (1.0, 0.0)
     };
+    // The brake tightens a drift (a brake drift), which the bot does not
+    // use: on a tick its drift steers, it coasts to slow instead. A drift
+    // steers while the hop is held, through a fall whether held or not, and
+    // from the tick a held hop lands. Waiting for the wheel outranks it.
+    let drift_steers = match kart.drift {
+        Some(_) => hop || kart.airborne,
+        None => hop && kart.airborne,
+    };
+    let (throttle, brake) = if drift_steers && !waiting && brake > 0.0 {
+        (0.0, 0.0)
+    } else {
+        (throttle, brake)
+    };
 
     // An item is fired on the first straight after it is picked up, with
     // no corner to slow for, and in any case once it has been held for the

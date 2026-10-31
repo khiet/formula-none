@@ -374,18 +374,76 @@ fn a_drift_that_slows_below_the_entry_speed_ends_with_no_boost() {
         steer: 0.0,
         ..hop_right()
     };
-    // Long enough to charge orange, then to brake under the entry speed.
+    // Long enough to charge orange, then to brake under the entry speed but
+    // not so long the kart backs up onto the oval's boost pad.
     let charged = run(
         drifting_right(),
         vec![hop_right(); ticks(MINI_TURBO_ORANGE_CHARGE_S + 0.1)],
     );
-    let slowed = run(charged, vec![brake_in_drift; ticks(2.0)]);
+    let slowed = run(charged, vec![brake_in_drift; ticks(0.75)]);
     let kart = only_kart(&slowed);
     assert!(kart.speed < DRIFT_ENTRY_SPEED_FRACTION * TOP_SPEED_M_PER_S);
     assert_eq!(kart.drift, None);
 
     let released = step(slowed, &[throttle()], DT);
     assert!(measured_speed(released, throttle()) < TOP_SPEED_M_PER_S);
+}
+
+/// A right drift held with the stick centred and the throttle down, with
+/// `brake` on top: a brake drift when `brake` is above 0.
+fn brake_drift_right(brake: f32) -> KartInput {
+    KartInput {
+        brake,
+        ..hold_right()
+    }
+}
+
+#[test]
+fn braking_in_a_drift_turns_it_tighter_than_the_speed_lost_alone_and_keeps_charging() {
+    let seconds = 0.25;
+    let plain = measured_yaw_rate(drifting_right(), brake_drift_right(0.0), seconds);
+    let braked = measured_yaw_rate(drifting_right(), brake_drift_right(1.0), seconds);
+    // Clockwise is negative, so tighter is more negative. The speed a quarter
+    // second of brake costs turns the kart about 3 percent faster on its own
+    // (measured with no brake drift); the brake drift turns it much faster.
+    assert!(
+        braked < 1.2 * plain,
+        "clockwise and tighter: {braked} vs {plain} rad/s"
+    );
+
+    let charge = |brake: f32| {
+        let state = run(
+            drifting_right(),
+            vec![brake_drift_right(brake); ticks(seconds)],
+        );
+        only_kart(&state).drift.expect("still drifting").charge_s
+    };
+    assert_eq!(
+        charge(1.0),
+        charge(0.0),
+        "the charge builds at its full rate"
+    );
+}
+
+#[test]
+fn a_half_brake_tightens_a_drift_less_than_a_full_brake() {
+    let rate = |brake: f32| measured_yaw_rate(drifting_right(), brake_drift_right(brake), 0.25);
+    let (none, half, full) = (rate(0.0), rate(0.5), rate(1.0));
+    // Clockwise is negative: tighter is more negative.
+    assert!(half < none - 0.05, "half tightens: {half} vs {none}");
+    assert!(full < half - 0.05, "full tightens more: {full} vs {half}");
+}
+
+#[test]
+fn a_brake_drift_held_under_the_entry_speed_ends_with_no_boost_even_with_the_throttle_down() {
+    // Long enough to charge red before the brake takes the kart under the
+    // entry speed, so a boost would show if the charge survived.
+    let held_too_long = run(drifting_right(), vec![brake_drift_right(1.0); ticks(3.0)]);
+    let kart = only_kart(&held_too_long);
+    assert!(kart.speed < DRIFT_ENTRY_SPEED_FRACTION * TOP_SPEED_M_PER_S);
+    assert_eq!(kart.drift, None, "under the entry speed");
+    let released = step(held_too_long, &[throttle()], DT);
+    assert_eq!(only_kart(&released).boost_s, None, "the charge is lost");
 }
 
 #[test]

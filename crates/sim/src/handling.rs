@@ -361,7 +361,7 @@ impl Handling {
         }
         let (steer, slip) = match self.drift {
             Some(drift) => (
-                drift_steer(drift.direction, input.steer),
+                drift_steer(drift.direction, input),
                 drift_slip(drift.direction),
             ),
             None => (input.steer.clamp(-1.0, 1.0), 0.0),
@@ -532,12 +532,14 @@ fn next_speed(speed: f32, input: &KartInput, dt: f32, top_speed: f32) -> f32 {
 
 /// The steer a drift turns with, in the units of `KartInput::steer` but
 /// past full lock when the player steers into it: the drift's own direction
-/// at the tuned neutral strength, tightened by inward steer and widened by
-/// counter-steer, never reversed.
-fn drift_steer(direction: DriftDirection, steer: f32) -> f32 {
-    use crate::tuning::{DRIFT_TURN_NEUTRAL, DRIFT_TURN_STEER_RANGE};
-    let inward = (steer * direction.steer_sign()).clamp(-1.0, 1.0);
-    direction.steer_sign() * (DRIFT_TURN_NEUTRAL + DRIFT_TURN_STEER_RANGE * inward)
+/// at the tuned neutral strength, tightened by inward steer and by the
+/// brake, widened by counter-steer, never reversed.
+fn drift_steer(direction: DriftDirection, input: &KartInput) -> f32 {
+    use crate::tuning::{DRIFT_TURN_BRAKE, DRIFT_TURN_NEUTRAL, DRIFT_TURN_STEER_RANGE};
+    let inward = (input.steer * direction.steer_sign()).clamp(-1.0, 1.0);
+    let brake = input.brake.clamp(0.0, 1.0);
+    direction.steer_sign()
+        * (DRIFT_TURN_NEUTRAL + DRIFT_TURN_STEER_RANGE * inward + DRIFT_TURN_BRAKE * brake)
 }
 
 /// The angle between where a drifting kart points and where it travels:
