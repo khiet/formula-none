@@ -2,8 +2,9 @@
 //! box comes back the tuned time later, a kart holding an item takes boxes
 //! without rolling and so denies them to the karts behind, the roll is
 //! weighted by race position, a fired boost gives the tuned speed for the
-//! tuned time, and a bot fires what it holds within the tuned delay. Pickups and fires are read from `State::events` after
-//! the `step` that produced them.
+//! tuned time, and a bot fires what it holds within the tuned delay.
+//! Pickups and fires are read from `State::events` after the `step` that
+//! produced them.
 
 mod common;
 
@@ -220,8 +221,8 @@ fn a_kart_that_fires_on_the_tick_its_box_comes_back_rolls_from_it() {
     assert_eq!(state.kart_readouts()[0].held_item, Some(held));
     assert!(!state.item_boxes_present()[box_under_slot_0()]);
 
-    // Fired on that tick, the slot is empty, and the box under the kart is
-    // rolled into it.
+    // Fired on that tick, the slot is empty, and the kart rolls an item from
+    // the box under it.
     let mut state = race();
     for _ in 1..back_after {
         state = step(state, &[KartInput::default()], DT);
