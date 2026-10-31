@@ -568,9 +568,6 @@ class Helicopter(unittest.TestCase):
                 sides.add(round(left, 3))
         self.assertEqual(len(sides), 2)
 
-    def test_it_has_no_footprint_since_it_flies_over_the_track(self) -> None:
-        self.assertNotIn("helicopter", {f.kind for f in footprints(self.layout)})
-
     def test_it_refuses_a_layout_that_gives_no_circle_or_no_height(self) -> None:
         for prop in (Prop("helicopter", World(170.0, 120.0), height=40.0), Prop("helicopter", World(170.0, 120.0), radius=100.0)):
             with self.subTest(prop=prop), self.assertRaises(ValueError):

@@ -40,12 +40,12 @@ function trackWithWheel(heading: number): { track: Object3D; rim: Object3D; gond
   return { track, rim, gondolas };
 }
 
-/** The angle, in turns, the rim has turned about its axle from `rest`. */
-function turnsFrom(rest: Quaternion, node: Object3D): number {
+/** The angle, in turns, a node has turned about its own `about`, a rim's axle unless named, from `rest`. */
+function turnsFrom(rest: Quaternion, node: Object3D, about: Vector3 = AXLE): number {
   const spin = rest.clone().invert().multiply(node.quaternion);
   const axis = new Vector3(spin.x, spin.y, spin.z);
   const angle = 2 * Math.atan2(axis.length(), spin.w);
-  const sign = axis.lengthSq() === 0 ? 1 : Math.sign(axis.normalize().dot(AXLE));
+  const sign = axis.lengthSq() === 0 ? 1 : Math.sign(axis.normalize().dot(about));
   return ((((sign * angle) / (Math.PI * 2)) % 1) + 1) % 1;
 }
 
@@ -256,15 +256,6 @@ function trackWithHelicopter(): {
   return { track, body, main, tail, name };
 }
 
-/** The turns, from 0 to 1, a node has made about its own `axis` since `rest`. */
-function turnsAbout(axis: Vector3, rest: Quaternion, node: Object3D): number {
-  const spin = rest.clone().invert().multiply(node.quaternion);
-  const vector = new Vector3(spin.x, spin.y, spin.z);
-  const angle = 2 * Math.atan2(vector.length(), spin.w);
-  const sign = vector.lengthSq() === 0 ? 1 : Math.sign(vector.normalize().dot(axis));
-  return ((((sign * angle) / (Math.PI * 2)) % 1) + 1) % 1;
-}
-
 describe("the helicopter's motion", () => {
   const dip = (HELICOPTER_DIP_DEG * Math.PI) / 180;
 
@@ -325,11 +316,11 @@ describe("the helicopter's motion", () => {
     for (const nowMs of [0, 100, 200, 1000, 61_100]) {
       motion.update(nowMs);
       const seconds = nowMs / 1000;
-      expect(turnsAbout(ROTOR_MAST, mainRest, main), `main at ${nowMs} ms`).toBeCloseTo(
+      expect(turnsFrom(mainRest, main, ROTOR_MAST), `main at ${nowMs} ms`).toBeCloseTo(
         (seconds * MAIN_ROTOR_TURNS_PER_S) % 1,
         6,
       );
-      expect(turnsAbout(AXLE, tailRest, tail), `tail at ${nowMs} ms`).toBeCloseTo(
+      expect(turnsFrom(tailRest, tail), `tail at ${nowMs} ms`).toBeCloseTo(
         (seconds * TAIL_ROTOR_TURNS_PER_S) % 1,
         6,
       );
