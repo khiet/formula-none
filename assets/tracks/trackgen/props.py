@@ -1316,10 +1316,8 @@ def jets(layout: Layout, prop: Prop, number: int, still: ByMaterial) -> tuple[li
         for side in (1.0, -1.0):
             wing = mesh.cuboid(lambda i, j, k, side=side: at((root, tip)[j][i], side * (half, reach)[j], (k - 0.5) * thick))
             flat("kerb-red", wing, "y0")
-        # The fin on the fuselage's top.
         root, tip, height, thick = JET_FIN
         flat("kerb-red", mesh.cuboid(lambda i, j, k: at((root, tip)[j][i], (k - 0.5) * thick, (half, height)[j])), "y0")
-        # The canopy over the cockpit.
         (g0, g1), width, rise = JET_CANOPY
         flat("carbon", mesh.cuboid(lambda i, j, k: at((g0, g1)[i], (j - 0.5) * width, half + k * rise)), "z0")
         # The flash down each flank, just proud of it.

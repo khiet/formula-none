@@ -130,8 +130,8 @@ LAYOUT = Layout(
         props=[
             Prop("pits", Spot(s=0.0, offset=26.0), length=120.0, white=True),
             Prop("hangars", Spot(s=seg("hangar").s_mid, offset=33.0), length=110.0),
-            # The display jets' flypast over the hangars rather than the road, so the chase
-            # camera sees it, against the race so drivers on the straight see them coming.
+            # The display jets' flypast over the hangars, against the race so drivers on the
+            # straight see them coming.
             Prop("jets", Spot(s=seg("hangar").s_mid, offset=33.0), length=600.0, height=60.0),
         ],
     ),
