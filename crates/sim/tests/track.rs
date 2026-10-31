@@ -5,8 +5,8 @@
 mod common;
 
 use common::{
-    brands_patch, oval, started, throttle, ticks, track, with_mesh_centred_on, with_slot_at, yaw,
-    DT, OVAL, SEED,
+    bell_deer, oval, started, throttle, ticks, track, with_mesh_centred_on, with_slot_at, yaw, DT,
+    OVAL, SEED,
 };
 
 use sim::tuning::{KART_HALF_HEIGHT_M, KART_HALF_LENGTH_M, WHEEL_LANDING_SPREAD_M, WHEEL_RADIUS_M};
@@ -37,10 +37,10 @@ fn the_oval_fixture_has_twelve_checkpoints_on_a_438_metre_lap() {
 }
 
 #[test]
-fn brands_patch_carries_the_whole_layout() {
-    let track = brands_patch();
+fn bell_deer_carries_the_whole_layout() {
+    let track = bell_deer();
 
-    assert_eq!(track.name(), "brands-patch");
+    assert_eq!(track.name(), "bell-deer");
     assert_eq!(track.checkpoints().len(), 15);
     assert_eq!(track.item_boxes().len(), 12);
     assert_eq!(track.boost_pads().len(), 2);
@@ -67,7 +67,7 @@ fn brands_patch_carries_the_whole_layout() {
 
 #[test]
 fn item_boxes_stand_in_three_rows_of_four() {
-    let track = brands_patch();
+    let track = bell_deer();
     let mut rows: Vec<usize> = track
         .item_boxes()
         .iter()
@@ -84,7 +84,7 @@ fn item_boxes_stand_in_three_rows_of_four() {
 
 #[test]
 fn checkpoints_run_in_lap_order_from_the_start_line() {
-    for track in [oval(), brands_patch()] {
+    for track in [oval(), bell_deer()] {
         let indices: Vec<usize> = track
             .checkpoints()
             .iter()
@@ -106,7 +106,7 @@ fn checkpoints_run_in_lap_order_from_the_start_line() {
 
 #[test]
 fn spline_progress_runs_from_the_start_line_through_each_checkpoint_and_back_to_its_point() {
-    for track in [oval(), brands_patch()] {
+    for track in [oval(), bell_deer()] {
         let lap = track.spline_length();
         let progress = track.checkpoint_progress();
         assert_eq!(progress.len(), track.checkpoints().len());
@@ -180,8 +180,8 @@ fn a_sidecar_the_sim_cannot_race_on_is_rejected() {
 }
 
 #[test]
-fn brands_patchs_hazard_zone_reaches_as_far_as_the_wheel_can_land_and_its_tyre_beyond() {
-    let track = brands_patch();
+fn bell_deers_hazard_zone_reaches_as_far_as_the_wheel_can_land_and_its_tyre_beyond() {
+    let track = bell_deer();
     assert!(!track.wheel_crossings().is_empty());
     for crossing in track.wheel_crossings() {
         // Short of this, re-export the track after retuning the wheel.
@@ -193,10 +193,10 @@ fn brands_patchs_hazard_zone_reaches_as_far_as_the_wheel_can_land_and_its_tyre_b
 }
 
 #[test]
-fn brands_patchs_wheel_crossing_reads_its_own_leg_past_the_bridge_not_the_deck_above() {
+fn bell_deers_wheel_crossing_reads_its_own_leg_past_the_bridge_not_the_deck_above() {
     // The crossing is 28 m past the bridge on the run to the hairpin,
     // 601.8 m into the lap; the deck it passes under is 1020.7 m in.
-    let track = brands_patch();
+    let track = bell_deer();
     let [progress] = track.wheel_crossing_progress() else {
         panic!("one crossing: {:?}", track.wheel_crossings());
     };
@@ -217,7 +217,7 @@ fn a_wheel_crossing_too_wide_for_a_pass_and_its_flag_to_fit_in_the_period_is_rej
         ]);
         Track::from_sidecar(&sidecar.to_string())
     };
-    assert!(crossing(12.0).is_ok(), "Suzuqa Patch's width");
+    assert!(crossing(12.0).is_ok(), "Bell Deer's width");
     assert!(matches!(crossing(30.0), Err(TrackError::Invalid(_))));
 }
 
@@ -279,7 +279,7 @@ fn more_karts_than_spawn_slots_is_a_caller_error() {
 
 #[test]
 fn every_spawn_slot_is_on_asphalt_before_the_first_tick() {
-    for track in [oval(), brands_patch()] {
+    for track in [oval(), bell_deer()] {
         let state = started(State::new(SEED, 8, track));
         for kart in 0..8 {
             assert_eq!(
@@ -359,7 +359,7 @@ fn the_run_off_is_walled_on_both_sides_at_every_checkpoint() {
     // wall: the course is a closed corridor, so no checkpoint can be skipped.
     const ON_THE_SAND_M: f32 = 11.0;
     const IN_THE_WALL_M: f32 = 12.25;
-    for track in [oval(), brands_patch()] {
+    for track in [oval(), bell_deer()] {
         let state = started(State::new(SEED, 1, track.clone()));
         for (checkpoint, &progress) in track.checkpoints().iter().zip(track.checkpoint_progress()) {
             let [x, y, z] = checkpoint.position;
@@ -650,20 +650,20 @@ fn a_kart_driven_into_a_wall_and_a_tyre_wall_at_once_is_held_then_bumped_along_t
 }
 
 #[test]
-fn a_kart_driving_into_a_brands_patch_wall_is_held_by_it() {
+fn a_kart_driving_into_a_bell_deer_wall_is_held_by_it() {
     // The start straight runs 60 m from the line at the origin along
     // (0.643, 0.766) into the first curve, a 50 m right-hander centred on
     // (0.3, 78.2). Driven straight on, slot 0 meets the wall 12 m outside
     // the centreline.
     let curve_start = [38.6, 46.0];
-    held_by_the_first_turns_wall(brands_patch(), 0, [0.3, 78.2], 62.0, |position| {
+    held_by_the_first_turns_wall(bell_deer(), 0, [0.3, 78.2], 62.0, |position| {
         (position[0] - curve_start[0]) * 0.643 + (position[2] - curve_start[1]) * 0.766 > 0.0
     });
 }
 
 #[test]
-fn a_kart_drives_brands_patch_without_falling_through() {
-    let mut state = started(State::new(SEED, 1, brands_patch()));
+fn a_kart_drives_bell_deer_without_falling_through() {
+    let mut state = started(State::new(SEED, 1, bell_deer()));
     let spawn = state.kart_readouts()[0];
     for _ in 0..ticks(3.0) {
         state = step(state, &[throttle()], DT);
@@ -715,10 +715,10 @@ fn direction_and_curvature_follow_the_centreline_with_a_left_turn_positive() {
         "a 30 m left turn reads +1/30 per metre, not {curvature}"
     );
 
-    // Suzuqa Patch's chicane turns in right on a 12 m arc, its tightest.
-    let brands = brands_patch();
-    let sharpest_right = (0..brands.spline_length() as u32)
-        .map(|at| brands.curvature_at(at as f32))
+    // Bell Deer's chicane turns in right on a 12 m arc, its tightest.
+    let course = bell_deer();
+    let sharpest_right = (0..course.spline_length() as u32)
+        .map(|at| course.curvature_at(at as f32))
         .fold(0.0_f32, f32::min);
     assert!(
         (sharpest_right + 1.0 / 12.0).abs() < 0.01,

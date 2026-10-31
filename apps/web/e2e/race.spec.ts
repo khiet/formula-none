@@ -4,11 +4,11 @@ import { enterRace, startRace } from "./scenes";
 // The whole chain in a real browser, on each track: glTF and sidecar load,
 // a key, keyboard mapping, wasm sim on the track's colliders with seven
 // bots on the grid behind the player, transforms back out, Instrument panel
-// readouts. Suzuqa Patch is the default; the oval fixture is selected by
+// readouts. Bell Deer is the default; the oval fixture is selected by
 // query string. The arrows drive one track and WASD the other, so both
 // layouts are covered.
 for (const [name, url, throttleKey] of [
-  ["Suzuqa Patch", "/", "ArrowUp"],
+  ["Bell Deer", "/", "ArrowUp"],
   ["the oval", "/?track=oval", "w"],
 ] as const) {
   test(`holding ${throttleKey} drives the kart along ${name}`, async ({ page }) => {

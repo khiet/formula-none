@@ -1,6 +1,6 @@
 //! The sausage kerb at the sim's public seam: one kart on the oval, its
 //! walls taken away, with a kerb laid where the kart is about to be, and
-//! eight bots racing Suzuqa Patch past its kerbs in the esses and the
+//! eight bots racing Bell Deer past its kerbs in the esses and the
 //! chicane. Each kerb
 //! test runs the kart twice, with the kerb and without, so the kerb's part
 //! is the difference; the sim is deterministic and the kerb touches nothing
@@ -9,8 +9,8 @@
 mod common;
 
 use common::{
-    only_kart, started, throttle, ticks, track, without_coins, without_walls, yaw, BRANDS_PATCH,
-    DT, OVAL, SEED,
+    only_kart, started, throttle, ticks, track, without_coins, without_walls, yaw, BELL_DEER, DT,
+    OVAL, SEED,
 };
 
 use sim::tuning::{
@@ -245,11 +245,11 @@ fn a_slow_kart_that_lands_back_on_the_kerb_is_not_launched_again_until_it_has_le
 }
 
 #[test]
-fn eight_bots_racing_brands_patch_are_never_launched_by_a_kerb() {
+fn eight_bots_racing_bell_deer_are_never_launched_by_a_kerb() {
     // No coins: who takes one reshuffles the pack, and where a pass puts a
     // bot beside the chicane's kerb with it, which is the seed's luck and
     // not the bots' line.
-    let track = track(&without_coins(BRANDS_PATCH));
+    let track = track(&without_coins(BELL_DEER));
     assert_eq!(track.kerbs().len(), 2, "the esses' kerb and the chicane's");
     let mut state = started(State::with_bots(SEED, 0, 8, track));
     for _ in 0..ticks(LAPS_PER_RACE as f32 * 90.0) {

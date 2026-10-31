@@ -131,13 +131,13 @@ describe("taking a seat in a room", () => {
       joined(TOKEN)(connection);
       // JSON carries the seed as a number here; the real codec gives a bigint.
       connection.receive({
-        countdown: { seed: 7 as unknown as bigint, track: "brands-patch", grid: [0, 1] },
+        countdown: { seed: 7 as unknown as bigint, track: "bell-deer", grid: [0, 1] },
       });
     });
     const seat = await takeSeat({ storage: store, codec: jsonCodec, ...reached }, REQUEST);
     expect(seat).toMatchObject({
       kind: "race",
-      countdown: { seed: 7n, track: "brands-patch", grid: [0, 1] },
+      countdown: { seed: 7n, track: "bell-deer", grid: [0, 1] },
     });
   });
 });

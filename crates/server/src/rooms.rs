@@ -236,10 +236,19 @@ impl Rooms {
                 }
             };
             let code = room.code.clone();
-            let Some(room) = HostedRoom::from_kept(room) else {
-                drop_kept(&code, "unknown track");
-                continue;
-            };
+            // A room on a track this server lacks is still a room its
+            // players can rejoin; it races the default instead.
+            let track = tracks::for_kept_room(&room.track).unwrap_or_else(|| {
+                rooms
+                    .log
+                    .event("room_track_unknown")
+                    .room(&code)
+                    .with("track", &room.track)
+                    .with("instead", tracks::DEFAULT)
+                    .emit();
+                tracks::DEFAULT
+            });
+            let room = HostedRoom::from_kept(room, track);
             if room.view().state != RoomState::Open {
                 drop_kept(&code, "not open");
                 continue;

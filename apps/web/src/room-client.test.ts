@@ -70,9 +70,9 @@ describe("joinRoom", () => {
     });
     // JSON carries the seed as a number here; the real codec gives a bigint.
     connection.receive({
-      countdown: { seed: 42 as unknown as bigint, track: "brands-patch", grid: [0, 1] },
+      countdown: { seed: 42 as unknown as bigint, track: "bell-deer", grid: [0, 1] },
     });
-    expect(countdown).toEqual({ seed: 42n, track: "brands-patch", grid: [0, 1] });
+    expect(countdown).toEqual({ seed: 42n, track: "bell-deer", grid: [0, 1] });
 
     let ended = false;
     client.closed.then(() => {
@@ -181,7 +181,7 @@ describe("the race side of the room client", () => {
     connection.receive({ joined: { slot: 1, room: ROOM, token: TOKEN } });
     const client = await joining;
     connection.receive({
-      countdown: { seed: 1 as unknown as bigint, track: "brands-patch", grid: [0, 1] },
+      countdown: { seed: 1 as unknown as bigint, track: "bell-deer", grid: [0, 1] },
     });
     connection.sent.length = 0;
     connection.lanes.length = 0;
@@ -196,7 +196,7 @@ describe("the race side of the room client", () => {
     expect(ticks).toEqual([2, 4, 8, 10]);
     // The next race's ticks start over.
     connection.receive({
-      countdown: { seed: 2 as unknown as bigint, track: "brands-patch", grid: [0, 1] },
+      countdown: { seed: 2 as unknown as bigint, track: "bell-deer", grid: [0, 1] },
     });
     connection.receive({ snapshot: snapshot(2) });
     expect(ticks).toEqual([2, 4, 8, 10, 2]);
@@ -259,7 +259,7 @@ describe("the race side of the room client", () => {
       },
     ]);
     connection.receive({
-      countdown: { seed: 2 as unknown as bigint, track: "brands-patch", grid: [0, 1] },
+      countdown: { seed: 2 as unknown as bigint, track: "bell-deer", grid: [0, 1] },
     });
     expect(client.sendInput(IDLE_INPUT)).toBe(1);
   });
@@ -267,7 +267,7 @@ describe("the race side of the room client", () => {
 
 describe("taking the seat back (ADR 0012)", () => {
   const SEED = 7 as unknown as bigint;
-  const COUNTDOWN = { seed: SEED, track: "brands-patch", grid: [0, 1] };
+  const COUNTDOWN = { seed: SEED, track: "bell-deer", grid: [0, 1] };
 
   async function racing() {
     const first = fakeConnection();

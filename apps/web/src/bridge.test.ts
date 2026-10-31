@@ -8,14 +8,14 @@ import { START_LIGHTS } from "./instrument-panel";
 // The real wasm build, loaded from bytes because the default loader fetches
 // the module URL and fetch rejects file: URLs in Node. `pnpm build:bridge`
 // must have run first. Races run on the oval fixture's sidecar, and on
-// Suzuqa Patch's for the runaway wheel.
+// Bell Deer's for the runaway wheel.
 const wasm = readFileSync(new URL("./generated/bridge/bridge_bg.wasm", import.meta.url));
 const OVAL = readFileSync(
   new URL("../../../assets/tracks/oval/oval.track.json", import.meta.url),
   "utf8",
 );
-const BRANDS_PATCH = readFileSync(
-  new URL("../../../assets/tracks/brands-patch/brands-patch.track.json", import.meta.url),
+const BELL_DEER = readFileSync(
+  new URL("../../../assets/tracks/bell-deer/bell-deer.track.json", import.meta.url),
   "utf8",
 );
 const DT = 1 / 60;
@@ -726,8 +726,8 @@ describe("items", () => {
 describe("runaway wheel", () => {
   it("reports the wheel quiet through the countdown, the flag up before the first pass and the wheel rolling through it, as the prediction does", async () => {
     const bridge = await loadBridge(wasm);
-    const race = bridge.createRace(7n, 1, 0, BRANDS_PATCH);
-    const prediction = bridge.createPrediction(7n, 0, BRANDS_PATCH);
+    const race = bridge.createRace(7n, 1, 0, BELL_DEER);
+    const prediction = bridge.createPrediction(7n, 0, BELL_DEER);
     // Stepped until the first pass is half way across, read off the wheel
     // itself so a retuned cycle needs no change here.
     const halfWay = () => {
@@ -759,10 +759,10 @@ describe("runaway wheel", () => {
     expect(rolling.legFraction).toBeGreaterThanOrEqual(0);
     expect(rolling.legFraction).toBeLessThanOrEqual(1);
     // The crossing it rolls over, as the sidecar has it: the walls run along its yaw.
-    expect(rolling.crossingYaw).toBeCloseTo(JSON.parse(BRANDS_PATCH).wheel_crossings[0].yaw, 5);
+    expect(rolling.crossingYaw).toBeCloseTo(JSON.parse(BELL_DEER).wheel_crossings[0].yaw, 5);
     // The race's seed lands the bounces: a race from another, stepped as
     // far, has its wheel somewhere else on the approach.
-    const other = bridge.createRace(8n, 1, 0, BRANDS_PATCH);
+    const other = bridge.createRace(8n, 1, 0, BELL_DEER);
     for (let step = 0; step < sequence; step += 1) other.step([IDLE_INPUT], DT);
     const [elsewhere] = other.wheels();
     if (elsewhere?.kind !== "rolling") throw new Error("not rolling");
@@ -775,8 +775,8 @@ describe("runaway wheel", () => {
 
   it("through the warning puts the wheel at the wall it then rolls in from, facing the way it rolls", async () => {
     const bridge = await loadBridge(wasm);
-    const race = bridge.createRace(7n, 1, 0, BRANDS_PATCH);
-    const [crossing] = JSON.parse(BRANDS_PATCH).wheel_crossings;
+    const race = bridge.createRace(7n, 1, 0, BELL_DEER);
+    const [crossing] = JSON.parse(BELL_DEER).wheel_crossings;
     let waiting: Extract<Wheel, { kind: "warning" }> | undefined;
     let [wheel] = race.wheels();
     while (wheel?.kind !== "rolling") {

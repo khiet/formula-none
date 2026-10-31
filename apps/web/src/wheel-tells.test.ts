@@ -8,16 +8,16 @@ import { ROCKET_FLAME, WHEEL_SMOKE } from "./palette";
 import type { ParticleBirth, Particles } from "./particles";
 import { createWheelTellEmitter, wheelBack } from "./wheel-tells";
 
-// The real wasm build and Suzuqa Patch's sidecar, so the passes are the
+// The real wasm build and Bell Deer's sidecar, so the passes are the
 // sim's own paths; `pnpm build:bridge` must have run first.
 const wasm = readFileSync(new URL("./generated/bridge/bridge_bg.wasm", import.meta.url));
-const BRANDS_PATCH = readFileSync(
-  new URL("../../../assets/tracks/brands-patch/brands-patch.track.json", import.meta.url),
+const BELL_DEER = readFileSync(
+  new URL("../../../assets/tracks/bell-deer/bell-deer.track.json", import.meta.url),
   "utf8",
 );
-/** Suzuqa Patch's one wheel crossing, from the sidecar. */
+/** Bell Deer's one wheel crossing, from the sidecar. */
 const CROSSING: { position: [number, number, number]; yaw: number; half_width: number } =
-  JSON.parse(BRANDS_PATCH).wheel_crossings[0];
+  JSON.parse(BELL_DEER).wheel_crossings[0];
 const DT = 1 / 60;
 const RADIUS_M = 1.2;
 
@@ -36,10 +36,10 @@ function recorder(): Particles & { births: ParticleBirth[] } {
   };
 }
 
-/** The first pass over Suzuqa Patch's crossing in the race from `seed`, a rolling wheel a tick. */
+/** The first pass over Bell Deer's crossing in the race from `seed`, a rolling wheel a tick. */
 async function firstPass(seed: bigint): Promise<Rolling[]> {
   const bridge = await loadBridge(wasm);
-  const race = bridge.createRace(seed, 1, 0, BRANDS_PATCH);
+  const race = bridge.createRace(seed, 1, 0, BELL_DEER);
   const pass: Rolling[] = [];
   for (;;) {
     race.step([IDLE_INPUT], DT);

@@ -26,7 +26,7 @@ function materialsOf(gltf: GltfJson, nodeName: string): (string | undefined)[] {
   return primitives.map(({ material }) => gltf.materials?.[material ?? -1]?.name).sort();
 }
 
-describe.each(["brands-patch", "oval"])("%s's boost pads", (name) => {
+describe.each(["bell-deer", "oval"])("%s's boost pads", (name) => {
   const gltf = track(name);
   const sidecar = JSON.parse(
     readFileSync(
@@ -54,7 +54,7 @@ describe.each(["brands-patch", "oval"])("%s's boost pads", (name) => {
   });
 });
 
-describe.each(["brands-patch", "oval"])("%s's sausage kerbs", (name) => {
+describe.each(["bell-deer", "oval"])("%s's sausage kerbs", (name) => {
   const gltf = track(name);
   const sidecar = JSON.parse(
     readFileSync(
@@ -82,7 +82,7 @@ describe.each(["brands-patch", "oval"])("%s's sausage kerbs", (name) => {
   });
 });
 
-describe.each(["brands-patch", "oval"])("%s's marshal posts", (name) => {
+describe.each(["bell-deer", "oval"])("%s's marshal posts", (name) => {
   const gltf = track(name);
   const sidecar = JSON.parse(
     readFileSync(
@@ -115,7 +115,7 @@ describe.each(["brands-patch", "oval"])("%s's marshal posts", (name) => {
   });
 });
 
-describe.each(["brands-patch", "oval"])("%s's hazard zones", (name) => {
+describe.each(["bell-deer", "oval"])("%s's hazard zones", (name) => {
   const gltf = track(name);
   const sidecar = JSON.parse(
     readFileSync(
@@ -147,11 +147,11 @@ describe.each(["brands-patch", "oval"])("%s's hazard zones", (name) => {
   });
 });
 
-describe("Suzuqa Patch's final art", () => {
-  const brandsPatch = track("brands-patch");
+describe("Bell Deer's final art", () => {
+  const bellDeer = track("bell-deer");
 
   it("dresses the track: kerbs on the corners, the start line, hoardings, stands and the gantry", () => {
-    const names = nodeNames(brandsPatch);
+    const names = nodeNames(bellDeer);
     const families = new Set(names.map((name) => name.split(".")[0]));
     for (const family of ["Kerb", "StartLine", "Hoarding", "Sponsor", "Grandstand", "Gantry"]) {
       expect(families, `no ${family} in the glTF`).toContain(family);
@@ -163,26 +163,26 @@ describe("Suzuqa Patch's final art", () => {
   });
 
   it("builds the stands and the gantry in the track's own colours, each part named for its material", () => {
-    const parts = brandsPatch.nodes.filter(
+    const parts = bellDeer.nodes.filter(
       ({ name }) => name?.startsWith("Grandstand.") || name?.startsWith("Gantry."),
     );
     expect(parts.length).toBeGreaterThan(0);
     for (const { name, mesh } of parts) {
-      const primitives = mesh === undefined ? [] : (brandsPatch.meshes[mesh]?.primitives ?? []);
+      const primitives = mesh === undefined ? [] : (bellDeer.meshes[mesh]?.primitives ?? []);
       const materials = primitives.map(
-        ({ material }) => brandsPatch.materials?.[material ?? -1]?.name,
+        ({ material }) => bellDeer.materials?.[material ?? -1]?.name,
       );
       expect(materials, name).toEqual([name?.split(".")[1]]);
     }
   });
 
   it("stands the Circuit Wheel on a rim node with its sixteen gondolas hung under it", () => {
-    const rim = brandsPatch.nodes.find(({ name }) => name === "Prop.circuit-wheel.1.rim");
+    const rim = bellDeer.nodes.find(({ name }) => name === "Prop.circuit-wheel.1.rim");
     expect(rim).toBeDefined();
     // Its origin at the hub, 14 m over the grass, and a mesh of its own to turn.
     expect(rim?.translation?.[1]).toBeCloseTo(14 - 0.05, 2);
     expect(rim?.mesh).toBeDefined();
-    const children = (rim?.children ?? []).flatMap((index) => brandsPatch.nodes[index] ?? []);
+    const children = (rim?.children ?? []).flatMap((index) => bellDeer.nodes[index] ?? []);
     const gondolas = children.filter(({ name }) =>
       name?.startsWith("Prop.circuit-wheel.1.gondola."),
     );
@@ -198,10 +198,10 @@ describe("Suzuqa Patch's final art", () => {
   });
 
   it("paints the wheel in wall white over beam shade and its gondolas two per crowd colour", () => {
-    expect(materialsOf(brandsPatch, "Prop.circuit-wheel.1.rim")).toEqual(["beam-shade", "wall"]);
+    expect(materialsOf(bellDeer, "Prop.circuit-wheel.1.rim")).toEqual(["beam-shade", "wall"]);
     const worn = new Map<string, number>();
     for (let k = 1; k <= 16; k++) {
-      const [hanger, colour] = materialsOf(brandsPatch, `Prop.circuit-wheel.1.gondola.${k}`);
+      const [hanger, colour] = materialsOf(bellDeer, `Prop.circuit-wheel.1.gondola.${k}`);
       expect(hanger, `gondola ${k}`).toBe("carbon");
       expect(colour, `gondola ${k}`).toMatch(/^crowd-[0-7]$/);
       worn.set(colour ?? "", (worn.get(colour ?? "") ?? 0) + 1);
@@ -211,12 +211,12 @@ describe("Suzuqa Patch's final art", () => {
 
   it("spans Dunlop with a tyre arch, its sponsor bent round the belt on both faces", () => {
     for (const part of ["tyre", "tyre-shade", "tyre-face", "kerb-white", "wall", "stand-plinth"]) {
-      expect(materialsOf(brandsPatch, `Prop.arch.${part}`), part).toEqual([part]);
+      expect(materialsOf(bellDeer, `Prop.arch.${part}`), part).toEqual([part]);
     }
     const belts = ["front", "back"].map((face): readonly number[] => {
-      const node = brandsPatch.nodes.find(({ name }) => name === `Prop.arch.1.belt.${face}`);
+      const node = bellDeer.nodes.find(({ name }) => name === `Prop.arch.1.belt.${face}`);
       expect(node?.mesh, face).toBeDefined();
-      expect(materialsOf(brandsPatch, `Prop.arch.1.belt.${face}`)).toEqual(["ink-black"]);
+      expect(materialsOf(bellDeer, `Prop.arch.1.belt.${face}`)).toEqual(["ink-black"]);
       return node?.translation ?? [];
     });
     // One lettering just off each face of the 2 m ring, at the grass, both bent round
@@ -227,9 +227,9 @@ describe("Suzuqa Patch's final art", () => {
     expect(ay).toBeCloseTo(-0.05, 3);
     expect(by).toBeCloseTo(-0.05, 3);
     for (const face of ["front", "back"]) {
-      const node = brandsPatch.nodes.find(({ name }) => name === `Prop.arch.1.belt.${face}`);
-      const mesh = node?.mesh === undefined ? undefined : brandsPatch.meshes[node.mesh];
-      const bounds = brandsPatch.accessors[mesh?.primitives[0]?.attributes.POSITION ?? -1];
+      const node = bellDeer.nodes.find(({ name }) => name === `Prop.arch.1.belt.${face}`);
+      const mesh = node?.mesh === undefined ? undefined : bellDeer.meshes[node.mesh];
+      const bounds = bellDeer.accessors[mesh?.primitives[0]?.attributes.POSITION ?? -1];
       // Text lies in the node's XY plane reading along +X, so the belt's radius is along -Z
       // and the crown is at X zero: the name is centred on it.
       const [left = Number.NaN, , nearest = Number.NaN] = bounds?.max ?? [];
@@ -242,15 +242,13 @@ describe("Suzuqa Patch's final art", () => {
 
   it("faces the grid with a pit building: a door with a lit band and a flag in each crowd colour", () => {
     for (const part of ["stand-riser", "stand-plinth", "wall", "carbon"]) {
-      expect(materialsOf(brandsPatch, `Prop.pits.${part}`), part).toEqual([part]);
+      expect(materialsOf(bellDeer, `Prop.pits.${part}`), part).toEqual([part]);
     }
     for (let slot = 0; slot < 8; slot++) {
-      expect(materialsOf(brandsPatch, `Prop.pits.crowd-${slot}`)).toEqual([`crowd-${slot}`]);
-      expect(materialsOf(brandsPatch, `Prop.pits.crowd-${slot}-lit`)).toEqual([
-        `crowd-${slot}-lit`,
-      ]);
-      const lit = brandsPatch.materials?.find(({ name }) => name === `crowd-${slot}-lit`);
-      const key = brandsPatch.materials?.find(({ name }) => name === `crowd-${slot}`);
+      expect(materialsOf(bellDeer, `Prop.pits.crowd-${slot}`)).toEqual([`crowd-${slot}`]);
+      expect(materialsOf(bellDeer, `Prop.pits.crowd-${slot}-lit`)).toEqual([`crowd-${slot}-lit`]);
+      const lit = bellDeer.materials?.find(({ name }) => name === `crowd-${slot}-lit`);
+      const key = bellDeer.materials?.find(({ name }) => name === `crowd-${slot}`);
       const [lr = 0, lg = 0, lb = 0] = lit?.pbrMetallicRoughness?.baseColorFactor ?? [];
       const [kr = 0, kg = 0, kb = 0] = key?.pbrMetallicRoughness?.baseColorFactor ?? [];
       // The band is the key colour lifted toward white, never darker on any channel.
@@ -258,33 +256,31 @@ describe("Suzuqa Patch's final art", () => {
       expect(lr + lg + lb, `crowd-${slot}`).toBeGreaterThan(kr + kg + kb);
     }
     // No lettering on the building: the doors are colours only (ADR 0035).
-    expect(nodeNames(brandsPatch).filter((name) => name.startsWith("Prop.pits."))).toHaveLength(
+    expect(nodeNames(bellDeer).filter((name) => name.startsWith("Prop.pits."))).toHaveLength(
       4 + 16,
     );
   });
 
   it("flies the airship on a hull node with its name hung under it on both flanks", () => {
-    const hull = brandsPatch.nodes.find(({ name }) => name === "Prop.airship.1.hull");
+    const hull = bellDeer.nodes.find(({ name }) => name === "Prop.airship.1.hull");
     expect(hull).toBeDefined();
-    expect(materialsOf(brandsPatch, "Prop.airship.1.hull")).toEqual([
+    expect(materialsOf(bellDeer, "Prop.airship.1.hull")).toEqual([
       "beam-shade",
       "carbon",
       "carbon-shade",
       "kerb-red",
       "wall",
     ]);
-    const children = (hull?.children ?? []).flatMap((index) => brandsPatch.nodes[index] ?? []);
+    const children = (hull?.children ?? []).flatMap((index) => bellDeer.nodes[index] ?? []);
     expect(children.map(({ name }) => name).sort()).toEqual([
       "Prop.airship.1.flank.left",
       "Prop.airship.1.flank.right",
     ]);
     for (const flank of ["left", "right"]) {
-      expect(materialsOf(brandsPatch, `Prop.airship.1.flank.${flank}`)).toEqual(["ink-blue"]);
+      expect(materialsOf(bellDeer, `Prop.airship.1.flank.${flank}`)).toEqual(["ink-blue"]);
     }
     // Nothing of it stands still: the whole airship rides the one node.
-    expect(nodeNames(brandsPatch).filter((name) => name.startsWith("Prop.airship."))).toHaveLength(
-      3,
-    );
+    expect(nodeNames(bellDeer).filter((name) => name.startsWith("Prop.airship."))).toHaveLength(3);
     // At rest the nose is 60 m along +x from the circle's centre, the track's (-60, -40),
     // 44.95 m over the grass, which the Y-up export lays at (x, up, -y); the hull runs
     // back along the node's -x, so the name's centre is 12 m behind the nose on a flank.
@@ -301,10 +297,10 @@ describe("Suzuqa Patch's final art", () => {
     }
     expect(Math.sign(flanks[0]?.[2] ?? 0)).toBe(-Math.sign(flanks[1]?.[2] ?? 0));
     // The name fits the hull's 14 m cylinder, so no glyph floats off the taper.
-    const left = brandsPatch.nodes.find(({ name }) => name === "Prop.airship.1.flank.left");
+    const left = bellDeer.nodes.find(({ name }) => name === "Prop.airship.1.flank.left");
     const accessor =
-      brandsPatch.accessors[
-        brandsPatch.meshes[left?.mesh ?? -1]?.primitives[0]?.attributes.POSITION ?? -1
+      bellDeer.accessors[
+        bellDeer.meshes[left?.mesh ?? -1]?.primitives[0]?.attributes.POSITION ?? -1
       ];
     const width = (accessor?.max?.[0] ?? 0) - (accessor?.min?.[0] ?? 0);
     expect(width).toBeGreaterThan(10);
@@ -312,11 +308,11 @@ describe("Suzuqa Patch's final art", () => {
   });
 
   it("maps the asphalt for tyre marks: a texture coordinate on every vertex", () => {
-    expect(attributesOf(brandsPatch, "Asphalt")).toContain("TEXCOORD_0");
+    expect(attributesOf(bellDeer, "Asphalt")).toContain("TEXCOORD_0");
   });
 
   it("is flat-coloured, with no texture to fetch", () => {
-    expect(brandsPatch.images ?? []).toHaveLength(0);
+    expect(bellDeer.images ?? []).toHaveLength(0);
   });
 });
 

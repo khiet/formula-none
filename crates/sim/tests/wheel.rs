@@ -1,11 +1,11 @@
-//! The runaway wheel at the sim's public seam: `wheel` on the Suzuqa Patch
+//! The runaway wheel at the sim's public seam: `wheel` on the Bell Deer
 //! crossing at moments of the race clock, one kart parked on or beside the
 //! wheel's path and stepped through the passes, a prediction run beside
 //! the server's race, and eight bots racing past the crossing.
 
 mod common;
 
-use common::{brands_patch, started, ticks, track, with_slot_at, BRANDS_PATCH, DT, SEED};
+use common::{bell_deer, started, ticks, track, with_slot_at, BELL_DEER, DT, SEED};
 
 use sim::tuning::{
     BOT_LINE_RIGHT_OF_CENTRE_M, COUNTDOWN_S, KART_HALF_LENGTH_M, KART_HALF_WIDTH_M, LAPS_PER_RACE,
@@ -16,11 +16,11 @@ use std::sync::OnceLock;
 
 use sim::{step, wheel, KartInput, Phase, Prediction, RaceEvent, State, Wheel, WheelCrossing};
 
-/// Suzuqa Patch's crossing, loaded once: the helpers below ask for it at
+/// Bell Deer's crossing, loaded once: the helpers below ask for it at
 /// every sample of the wheel.
 fn crossing() -> WheelCrossing {
     static CROSSING: OnceLock<WheelCrossing> = OnceLock::new();
-    *CROSSING.get_or_init(|| brands_patch().wheel_crossings()[0])
+    *CROSSING.get_or_init(|| bell_deer().wheel_crossings()[0])
 }
 
 /// The point `right` metres right of the crossing's centre and `ahead`
@@ -48,10 +48,10 @@ fn local(position: [f32; 3]) -> [f32; 2] {
     [dx * cos - dz * sin, -dx * sin - dz * cos]
 }
 
-/// A race of one kart on Suzuqa Patch, parked from the grid at `position`
+/// A race of one kart on Bell Deer, parked from the grid at `position`
 /// facing along the track, past its countdown.
 fn parked_at(position: [f32; 3]) -> State {
-    let sidecar = with_slot_at(BRANDS_PATCH, 0, position, crossing().yaw);
+    let sidecar = with_slot_at(BELL_DEER, 0, position, crossing().yaw);
     started(State::new(SEED, 1, track(&sidecar)))
 }
 
@@ -111,7 +111,7 @@ impl Leg {
 /// carried out along it to fractions 0 and 1.
 fn legs_of(seed: u64, pass: u32) -> Vec<Leg> {
     static TRACK: OnceLock<sim::Track> = OnceLock::new();
-    let track = TRACK.get_or_init(brands_patch);
+    let track = TRACK.get_or_init(bell_deer);
     let mut groups: Vec<Vec<(f32, [f32; 2], f32)>> = Vec::new();
     let mut last_fraction = f32::INFINITY;
     let start = pass_start_s(pass);
@@ -178,7 +178,7 @@ fn near(a: [f32; 2], b: [f32; 2]) -> bool {
 
 #[test]
 fn the_wheel_is_quiet_until_the_flag_goes_up_before_each_pass_and_rolls_through_it() {
-    let track = brands_patch();
+    let track = bell_deer();
     let at = |elapsed_s: f32| wheel(&track, 0, SEED, elapsed_s);
     for pass in 1..=3 {
         let start = pass_start_s(pass);
@@ -213,7 +213,7 @@ fn the_wheel_is_quiet_until_the_flag_goes_up_before_each_pass_and_rolls_through_
 
 #[test]
 fn through_the_warning_the_wheel_waits_at_the_wall_it_rolls_in_from_facing_the_way_it_will_roll() {
-    let track = brands_patch();
+    let track = bell_deer();
     let half = crossing().half_width;
     for pass in 1..=4 {
         // Odd passes roll in from the left wall, even ones from the right.
@@ -250,7 +250,7 @@ fn through_the_warning_the_wheel_waits_at_the_wall_it_rolls_in_from_facing_the_w
 
 #[test]
 fn each_pass_rolls_in_on_the_crossings_line_bounces_twice_and_leaves_through_the_far_wall() {
-    let track = brands_patch();
+    let track = bell_deer();
     let half = crossing().half_width;
     let rebound = half - WHEEL_RADIUS_M;
     for pass in 1..=4 {
@@ -309,7 +309,7 @@ fn every_landing_lies_within_the_spread_of_the_crossings_line() {
 
 #[test]
 fn the_same_seed_rolls_the_same_path_and_another_seed_another() {
-    let track = brands_patch();
+    let track = bell_deer();
     let positions = |seed: u64| -> Vec<Wheel> {
         (0..3000)
             .map(|step| wheel(&track, 0, seed, pass_start_s(1) + step as f32 * 0.01))
@@ -459,7 +459,7 @@ fn the_wheel_draws_nothing_from_the_races_generator_so_item_rolls_are_unchanged(
     // reach: the generator that rolls items is where it was, so the races
     // agree.
     let clear = WHEEL_LANDING_SPREAD_M + WHEEL_RADIUS_M + KART_HALF_LENGTH_M + 0.2;
-    let sidecar = with_slot_at(BRANDS_PATCH, 0, on_crossing(-clear, 0.0), crossing().yaw);
+    let sidecar = with_slot_at(BELL_DEER, 0, on_crossing(-clear, 0.0), crossing().yaw);
     let mut without: serde_json::Value = serde_json::from_str(&sidecar).unwrap();
     without["wheel_crossings"] = serde_json::json!([]);
     let mut with_wheel = started(State::new(SEED, 1, track(&sidecar)));
@@ -482,7 +482,7 @@ fn the_wheel_draws_nothing_from_the_races_generator_so_item_rolls_are_unchanged(
 #[test]
 fn through_the_countdown_the_wheel_is_quiet_and_hits_nothing() {
     let [right, ahead] = on_the_middle_leg();
-    let sidecar = with_slot_at(BRANDS_PATCH, 0, on_crossing(ahead, right), crossing().yaw);
+    let sidecar = with_slot_at(BELL_DEER, 0, on_crossing(ahead, right), crossing().yaw);
     let mut state = State::new(SEED, 1, track(&sidecar));
     while let Phase::Countdown { .. } = state.phase() {
         assert_eq!(state.wheels(), [Wheel::Quiet]);
@@ -522,7 +522,7 @@ fn through_the_outro_the_wheel_is_quiet_and_hits_nothing() {
 #[test]
 fn a_prediction_beside_the_servers_race_reports_the_wheels_spin_out_on_the_same_tick() {
     let [right, ahead] = on_the_middle_leg();
-    let sidecar = with_slot_at(BRANDS_PATCH, 0, on_crossing(ahead, right), crossing().yaw);
+    let sidecar = with_slot_at(BELL_DEER, 0, on_crossing(ahead, right), crossing().yaw);
     let mut server = State::new(SEED, 1, track(&sidecar));
     let mut prediction = Prediction::new(SEED, 0, track(&sidecar));
     // A client a few ticks ahead of the server, whose snapshots reach it a
@@ -559,7 +559,7 @@ fn a_prediction_beside_the_servers_race_reports_the_wheels_spin_out_on_the_same_
 }
 
 #[test]
-fn eight_bots_racing_brands_patch_are_never_hit_by_the_wheel() {
+fn eight_bots_racing_bell_deer_are_never_hit_by_the_wheel() {
     // Seeds 1 and 11 each caught out an earlier bot: one sped into a pass
     // it judged clear by a hundredth of a second, the other crawled up to
     // the crossing lifting for passes far ahead. On 80 a bot sped in on a
@@ -589,7 +589,7 @@ fn a_bot_standing_short_of_the_crossing_at_go_sets_off_and_clears_it_before_the_
     // whole-lap search a kart's first spline progress comes from could read
     // the deck above it.
     let start = on_crossing(-16.0, BOT_LINE_RIGHT_OF_CENTRE_M);
-    let sidecar = with_slot_at(BRANDS_PATCH, 0, start, crossing().yaw);
+    let sidecar = with_slot_at(BELL_DEER, 0, start, crossing().yaw);
     let mut state = started(State::with_bots(0, 0, 1, track(&sidecar)));
     state = step(state, &[], DT);
     assert!(
@@ -619,10 +619,10 @@ fn a_bot_turning_through_the_hairpin_past_the_crossing_as_the_flag_goes_up_never
     // in the hairpin through it.
     const START_M: f32 = 160.0;
     const HAIRPIN_M: std::ops::Range<f32> = 660.0..700.0;
-    let suzuqa = brands_patch();
-    let start = suzuqa.point_at(START_M);
-    let [dx, dz] = suzuqa.direction_at(START_M);
-    let sidecar = with_slot_at(BRANDS_PATCH, 0, start, (-dx).atan2(-dz));
+    let course = bell_deer();
+    let start = course.point_at(START_M);
+    let [dx, dz] = course.direction_at(START_M);
+    let sidecar = with_slot_at(BELL_DEER, 0, start, (-dx).atan2(-dz));
     let mut state = started(State::with_bots(0, 0, 1, track(&sidecar)));
     let mut in_the_hairpin_s = None;
     while racing_s(&state) < pass_start_s(1) + WHEEL_PERIOD_S / 2.0 {
@@ -644,10 +644,10 @@ fn a_bot_turning_through_the_hairpin_past_the_crossing_as_the_flag_goes_up_never
     );
 }
 
-/// Eight bots on Suzuqa Patch from `seed`, raced the race's laps: none is hit
+/// Eight bots on Bell Deer from `seed`, raced the race's laps: none is hit
 /// by the wheel, each finishes, and some bot came up to a rolling wheel.
 fn bots_race_past_the_wheel(seed: u64) {
-    let track = brands_patch();
+    let track = bell_deer();
     assert_eq!(track.wheel_crossings().len(), 1, "the approach's crossing");
     let mut state = started(State::with_bots(seed, 0, 8, track));
     // Ticks a bot spent short of the wheel's reach, within a crossing's
@@ -703,7 +703,7 @@ fn a_predicted_hit_the_snapshots_overrule_leaves_the_pass_free_to_hit_where_the_
     let leg = legs_of(SEED, 1)[1];
     let length = (leg.to[0] - leg.from[0]).hypot(leg.to[1] - leg.from[1]);
     let further = 0.4 / length;
-    let sidecar = with_slot_at(BRANDS_PATCH, 0, on_crossing(ahead, right), crossing().yaw);
+    let sidecar = with_slot_at(BELL_DEER, 0, on_crossing(ahead, right), crossing().yaw);
     let mut prediction = Prediction::new(SEED, 0, track(&sidecar));
     let mut tick = 0;
     let idle = KartInput::default();
@@ -740,7 +740,7 @@ fn a_prediction_told_the_race_has_ended_quiets_its_wheel_and_is_never_hit() {
     // The kart is parked on the middle leg; the server's race ends as the
     // first pass rolls toward it, and the client is told so.
     let [right, ahead] = on_the_middle_leg();
-    let sidecar = with_slot_at(BRANDS_PATCH, 0, on_crossing(ahead, right), crossing().yaw);
+    let sidecar = with_slot_at(BELL_DEER, 0, on_crossing(ahead, right), crossing().yaw);
     let mut prediction = Prediction::new(SEED, 0, track(&sidecar));
     let idle = KartInput::default();
     let mut tick = 0;

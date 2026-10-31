@@ -164,7 +164,7 @@
 
 <h2 id="layout">Layout draft</h2>
 <div class="card">
-  <p>Drop-in shape for <code>assets/tracks/trackgen/layouts/monaco.py</code>, in the style of <code>brands_patch.py</code>. It builds and closes as written; the map above draws from the same numbers. Woods and props are left out, and the tunnel and the harbour scenery are drawn only on this map; they are settled below (questions 3 and 5) and come with the build.</p>
+  <p>Drop-in shape for <code>assets/tracks/trackgen/layouts/monaco.py</code>, in the style of <code>bell_deer.py</code>. It builds and closes as written; the map above draws from the same numbers. Woods and props are left out, and the tunnel and the harbour scenery are drawn only on this map; they are settled below (questions 3 and 5) and come with the build.</p>
 <pre><code id="layout-code">"""Monaco cut: a clockwise street circuit of about 1301 m after Monaco.
 
 The start/finish straight runs north into Sainte Devote, then the climb up
@@ -301,7 +301,7 @@ LAYOUT = Layout(
     <li><b>Tight corners.</b> Six corners sit at 12 to 13 m (Sainte Devote, Mirabeau Bas, Portier, the chicane, the second pool chicane, La Rascasse) against the 17 m Suzuka hairpin. The inside barrier is 4 m from the centreline at 12 m. Check with a centreline follower in <code>crates/sim/tests/laps.rs</code> that a kart gets round each without stopping, and that bots do not stall on the hairpin's tyre walls.</li>
     <li><b>The tunnel is new scenery.</b> A roof over the road from just past the tunnel mouth to before the chicane, about 150 m. The chase camera rides above and behind the kart, so a low roof would cut through the view; the roof needs to sit above the camera or be drawn only from outside. It is Scenery, so the sidecar does not change. Darker light inside would be the first lighting change along the lap.</li>
     <li><b>Spline progress is safe.</b> The course does not cross itself, and the closest legs (the two sides of the hairpin) are 24 m apart, so the windowed search of ADR 0046 has nothing to confuse.</li>
-    <li><b>Lap length.</b> 1301 m, within 5 m of Suzuqa Patch, so three laps (ADR 0054) take about as long as a race there.</li>
+    <li><b>Lap length.</b> 1301 m, within 5 m of Bell Deer, so three laps (ADR 0054) take about as long as a race there.</li>
     <li><b>Tests and fixtures.</b> A new track adds a sidecar and glTF under <code>assets/tracks/monaco/</code> from <code>pnpm export:tracks</code>, a case in the layout tests, and probably a replay fixture for the determinism gate. Nothing that exists today has to move.</li>
   </ul>
 </div>
@@ -407,17 +407,17 @@ const PLACEMENTS = [
   { kind: "hill", seg: "casino", at: (g) => (seg("sainte-devote").start + seg("tunnel-entry").end) / 2, off: 0, pin: 22, title: "Crest at Casino Square",
     why: "The top of the 8 m climb. The road drops away down the descent to Mirabeau." },
   { kind: "wheel", seg: "casino-descent", at: (g) => g.mid, off: 0, outside: 1, pin: 20, title: "Runaway wheel crossing",
-    why: "Downhill into the braking zone for Mirabeau. The marshal's flags show from the crest, so there is time to react, the same role as the wheel before the Suzuqa hairpin." },
+    why: "Downhill into the braking zone for Mirabeau. The marshal's flags show from the crest, so there is time to react, the same role as the wheel before the Bell Deer hairpin." },
   { kind: "tyres", seg: "grand-hotel", at: (g) => g.mid - 8, off: 4.5, pin: null, title: "Tyre wall inside the hairpin (entry)",
-    why: "The slowest corner in Formula 1 and the clearest overtaking spot here. Two stacks on the inside, as on the Suzuqa hairpin, keep a late lunge honest." },
+    why: "The slowest corner in Formula 1 and the clearest overtaking spot here. Two stacks on the inside, as on the Bell Deer hairpin, keep a late lunge honest." },
   { kind: "tyres", seg: "grand-hotel", at: (g) => g.mid + 8, off: 4.5, pin: -20, title: "Tyre walls inside the Grand Hotel hairpin",
-    why: "The slowest corner in Formula 1 and the clearest overtaking spot here. Two stacks on the inside, as on the Suzuqa hairpin, keep a late lunge honest." },
+    why: "The slowest corner in Formula 1 and the clearest overtaking spot here. Two stacks on the inside, as on the Bell Deer hairpin, keep a late lunge honest." },
   { kind: "items", seg: "tunnel-entry", at: (g) => g.mid, off: 0, pin: 20, title: "Item row B",
     why: "Between Portier and the tunnel: refills before the fastest part of the lap, so a shell fired in the tunnel has room to find its target." },
   { kind: "boost", seg: "tunnel", at: (g) => g.mid, off: 0, pin: 22, title: "Boost pad in the tunnel",
     why: "The tunnel is flat out. A pad on the line, in the dark, pays back a clean exit from Portier and sends karts into the chicane braking hard." },
   { kind: "kerb", seg: "chicane-out", at: (g) => g.mid, off: -4.9, pin: -20, title: "Sausage kerb inside the chicane",
-    why: "As on the Suzuqa chicane: the inside of the right-hander is the shortcut, and the kerb makes it a gamble." },
+    why: "As on the Bell Deer chicane: the inside of the right-hander is the shortcut, and the kerb makes it a gamble." },
   { kind: "tyreline", seg: "harbour", at: (g) => g.start + 10, off: 0, count: 5, pin: 20, title: "Tyre line along the harbour",
     why: "Five on the centreline from the chicane exit toward Tabac, so a clean chicane takes the set." },
   { kind: "kerb", seg: "pool-1-left", at: (g) => g.mid, off: 4.9, pin: 20, title: "Sausage kerb inside the first pool chicane",
@@ -701,7 +701,7 @@ function stats() {
   const closes = Math.abs(T.across) < 0.01 && Math.abs(T.turned) < 1e-6 && T.along > 0;
   const row = (label, value, ok) => `<span>${label}: <b class="${ok === undefined ? "" : ok ? "ok" : "bad"}">${value}</b></span>`;
   document.getElementById("stats").innerHTML = [
-    row("Lap", L.toFixed(1) + " m (Suzuqa Patch 1306 m)"),
+    row("Lap", L.toFixed(1) + " m (Bell Deer 1306 m)"),
     row("Closes", closes ? "yes" : `no: ${T.across.toFixed(3)} m across, ${T.turned.toFixed(2)} deg off`, closes),
     row("Grid straight", T.along.toFixed(1) + " m", T.along >= 30),
     row("Tightest gap between legs", `${worst.toFixed(1)} m, ${pair}`, worst >= MIN_CLEARANCE - 0.5),

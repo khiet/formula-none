@@ -28,7 +28,7 @@ from trackgen.props import CANOPY_RADIUS_M, SUN_AZIMUTH, pieces_of, scatter, tre
 BUILD_PY = Path(__file__).resolve().parents[1] / "build.py"
 RACE_VIEW_TS = Path(__file__).resolve().parents[3] / "apps" / "web" / "src" / "race-view.ts"
 # The only shipped track with woods; the oval stays bare.
-WOODED = "brands-patch"
+WOODED = "bell-deer"
 TREE_MATERIALS = {
     "canopy-pine",
     "canopy-pine-shade",

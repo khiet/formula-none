@@ -1,4 +1,4 @@
-//! The hop off a slope at the sim's public seam: Suzuqa Patch's bridge
+//! The hop off a slope at the sim's public seam: Bell Deer's bridge
 //! comes down to ground level as the road falls away under a hop, so a kart
 //! hopping there is still in the air when the hop's airtime runs out. Tests
 //! drive one kart down the ramp and read `kart_readouts`.
@@ -6,8 +6,8 @@
 mod common;
 
 use common::{
-    follow_centreline, only_kart, started, track, with_slot_at, without_wheel_crossings,
-    BRANDS_PATCH, DT, SEED,
+    follow_centreline, only_kart, started, track, with_slot_at, without_wheel_crossings, BELL_DEER,
+    DT, SEED,
 };
 
 use sim::{step, KartInput, KartReadout, State};
@@ -16,21 +16,21 @@ use sim::{step, KartInput, KartReadout, State};
 /// bridge to reach the deck near top speed.
 const RUN_UP_PROGRESS_M: f32 = 950.0;
 /// Where the road starts down from the deck on the far side of the bridge
-/// (layouts/brands_patch.py); it is back at ground level by 1080 m.
+/// (layouts/bell_deer.py); it is back at ground level by 1080 m.
 const DESCENT_PROGRESS_M: f32 = 1028.0;
 /// Seconds from the top of the ramp to the flat beyond it, and then some.
 const DESCENT_S: f32 = 2.5;
 
-/// The kart alone on Suzuqa Patch, started on the run-up to the bridge
+/// The kart alone on Bell Deer, started on the run-up to the bridge
 /// facing along the track.
 fn on_the_run_up() -> State {
-    let base = track(BRANDS_PATCH);
+    let base = track(BELL_DEER);
     let point = base.point_at(RUN_UP_PROGRESS_M);
     let [dx, dz] = base.direction_at(RUN_UP_PROGRESS_M);
     // The kart faces -Z under the identity, so a heading along (dx, dz).
     let yaw = (-dx).atan2(-dz);
     let sidecar = with_slot_at(
-        &without_wheel_crossings(BRANDS_PATCH),
+        &without_wheel_crossings(BELL_DEER),
         0,
         [point[0], point[1] + 0.5, point[2]],
         yaw,

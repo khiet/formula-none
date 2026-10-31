@@ -17,8 +17,6 @@ use protocol::{Player, PlayerState, Refusal, Room, RoomState, PROTOCOL_VERSION};
 use serde::{Deserialize, Serialize};
 use sim::tuning::{NICKNAME_MAX_CHARS, ROOM_PLAYERS_MAX};
 
-use crate::tracks;
-
 /// The room as the server holds it: the view every player gets plus the
 /// order players joined in, which creator handover follows.
 #[derive(Debug, Clone)]
@@ -127,10 +125,10 @@ impl HostedRoom {
         }
     }
 
-    /// The room `kept` describes, every seat Disconnected until its token
-    /// rejoins, or `None` when it names a track this server does not have,
-    /// as after a track was renamed between deploys.
-    pub fn from_kept(kept: KeptRoom) -> Option<Self> {
+    /// The room `kept` describes, racing `track`, one of
+    /// [`crate::tracks`] picked by the caller; every seat is Disconnected
+    /// until its token rejoins.
+    pub fn from_kept(kept: KeptRoom, track: &'static str) -> Self {
         let seats = kept
             .seats
             .into_iter()
@@ -142,14 +140,14 @@ impl HostedRoom {
                 })
             })
             .collect();
-        Some(Self {
+        Self {
             code: kept.code,
-            track: tracks::known(&kept.track)?,
+            track,
             state: kept.state,
             seats,
             joins: kept.joins,
             next_event_id: kept.next_event_id,
-        })
+        }
     }
 
     /// The id the next race's first event gets.

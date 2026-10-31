@@ -39,7 +39,7 @@ const YAW_SPRING_DAMPING = 2 * Math.sqrt(YAW_SPRING_STIFFNESS);
  * the yaw's. Soft enough that a 0.3 s hop lifts the camera by under a third
  * of the kart's rise, so the kart climbs in the frame; stiff enough that the
  * camera trails a 2 m climb over 3 s by under a metre and settles at the new
- * height within about two seconds. Up Suzuqa Patch's 5 m bridge at a boosted
+ * height within about two seconds. Up Bell Deer's 5 m bridge at a boosted
  * 34 m/s it lags to 1.2 m over the kart's centre, still clear of the
  * driver's head; under the deck it rides 0.4 m below the underside.
  */

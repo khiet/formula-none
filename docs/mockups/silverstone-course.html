@@ -139,7 +139,7 @@
     <h3 style="margin-top:0">How the draft was made</h3>
     <ol>
       <li>Split the real outline into 27 pieces at its corners and measured each one's heading change: Copse turns about 66 degrees right, Becketts 95 right, Luffield 193 right, The Loop 134 left; the whole lap nets 360 right.</li>
-      <li>Fitted turtle steps to the outline scaled to 0.22 by annealing their lengths, holding each corner's angle, so the lap closes, the grid straight is at least 45 m, and every pair of legs keeps 32 m between centrelines (8 m of grass between walls with 6 m run-off), as on Suzuqa Patch.</li>
+      <li>Fitted turtle steps to the outline scaled to 0.22 by annealing their lengths, holding each corner's angle, so the lap closes, the grid straight is at least 45 m, and every pair of legs keeps 32 m between centrelines (8 m of grass between walls with 6 m run-off), as on Bell Deer.</li>
       <li>Rounded to whole metres and degrees and re-solved the Hangar Straight (175.74 m) to close the lap.</li>
       <li>Built the layout below through <code>trackgen.layout.build</code>: it closes at 1323.4 m with 12 item boxes, 2 boost pads, 5 kerbs, 11 tyres, 15 checkpoints and 8 grid slots. No elevation: the real circuit is an old airfield.</li>
     </ol>
@@ -157,7 +157,7 @@
 
 <h2 id="layout">Layout draft</h2>
 <div class="card">
-  <p>Drop-in shape for <code>assets/tracks/trackgen/layouts/silverstone.py</code>, in the style of <code>brands_patch.py</code>. It builds and closes as written; the map above draws from the same numbers. Woods and the hangar props are left out; the scenery is settled below (question 3) and comes with the build.</p>
+  <p>Drop-in shape for <code>assets/tracks/trackgen/layouts/silverstone.py</code>, in the style of <code>bell_deer.py</code>. It builds and closes as written; the map above draws from the same numbers. Woods and the hangar props are left out; the scenery is settled below (question 3) and comes with the build.</p>
 <pre><code id="layout-code">"""Silverstone cut: a flat, fast, clockwise circuit of about 1323 m after Silverstone.
 
 The grid sits on the Hamilton Straight by the pits. The lap runs through
@@ -286,11 +286,11 @@ LAYOUT = Layout(
 <div class="card">
   <ul>
     <li><b>Choosing the course is its own change.</b> As in the Monaco draft: <code>Countdown</code> already carries <code>track: String</code>, but the creator's pick needs a field on <code>Room</code>, a creator-only message, the Room Scene's picker and an ADR. One issue covers both new courses.</li>
-    <li><b>Nothing new to build.</b> Every piece here exists on Suzuqa Patch: 6 m run-off, tyre walls, kerbs, the wheel crossing, grandstands, hoardings, the gantry and the pits prop. No elevation, no bridge, no new scenery kind. Of the two drafts this is the cheaper one to land first.</li>
+    <li><b>Nothing new to build.</b> Every piece here exists on Bell Deer: 6 m run-off, tyre walls, kerbs, the wheel crossing, grandstands, hoardings, the gantry and the pits prop. No elevation, no bridge, no new scenery kind. Of the two drafts this is the cheaper one to land first.</li>
     <li><b>Fast corners need checking at kart speed.</b> Copse, Abbey, Maggotts and Chapel are 22 to 47 m: flat out in a kart, as they are in the real car. The esses only work if a kart has to lift for Becketts (24 m, 95 degrees). A centreline follower in <code>crates/sim/tests/laps.rs</code> should show a lift there and none through Maggotts; if Becketts is flat too, tighten it to 20 m.</li>
     <li><b>The Loop is the slowest corner.</b> 12 m and 134 degrees straight after Village (15 m, 103 degrees right): a right-left at the tightest radius on any course. Check that bots get through without stalling on the kerb.</li>
     <li><b>Spline progress is safe.</b> The course does not cross itself, and the closest legs are 32 m apart, so the windowed search of ADR 0046 has nothing to confuse.</li>
-    <li><b>Lap length.</b> 1323 m, within 20 m of Suzuqa Patch and the Monaco draft, so three laps (ADR 0054) take about as long as a race there; faster corners make it a few seconds quicker.</li>
+    <li><b>Lap length.</b> 1323 m, within 20 m of Bell Deer and the Monaco draft, so three laps (ADR 0054) take about as long as a race there; faster corners make it a few seconds quicker.</li>
     <li><b>Tests and fixtures.</b> A new track adds a sidecar and glTF under <code>assets/tracks/silverstone/</code> from <code>pnpm export:tracks</code>, a case in the layout tests, and probably a replay fixture for the determinism gate.</li>
   </ul>
 </div>
@@ -305,7 +305,7 @@ LAYOUT = Layout(
     </li>
     <li>Elevation?
       <ol>
-        <li><span class="rec">(Decided)</span> None, as drafted: flat is true to the airfield, and it sets the course apart from Monaco's climb and the Suzuqa bridge.</li>
+        <li><span class="rec">(Decided)</span> None, as drafted: flat is true to the airfield, and it sets the course apart from Monaco's climb and the Bell Deer bridge.</li>
       </ol>
     </li>
     <li>Which scenery, beyond grandstands, hoardings and the pits?
@@ -407,7 +407,7 @@ const PLACEMENTS = [
   { kind: "tyres", seg: "stowe", at: (g) => g.mid, off: 4.5, pin: 22, title: "Tyre wall outside Stowe",
     why: "The braking zone at the end of the fastest straight. Left of centre is outside the right-hander, clear of the bots' line." },
   { kind: "wheel", seg: "vale-approach", at: (g) => g.mid, off: 0, outside: -1, pin: 22, title: "Runaway wheel crossing",
-    why: "Between Stowe and Vale, in the braking zone for the slowest pair of corners before the line. The marshal's flags show from Stowe's exit, the same role as the wheel before the Suzuqa hairpin." },
+    why: "Between Stowe and Vale, in the braking zone for the slowest pair of corners before the line. The marshal's flags show from Stowe's exit, the same role as the wheel before the Bell Deer hairpin." },
   { kind: "kerb", seg: "vale", at: (g) => g.mid, off: 4.9, pin: 22, title: "Sausage kerb inside Vale",
     why: "Vale's inside is the last shortcut before the line; the kerb keeps a lunge there honest." },
 ];
@@ -643,7 +643,7 @@ function stats() {
   const closes = Math.abs(T.across) < 0.01 && Math.abs(T.turned) < 1e-6 && T.along > 0;
   const row = (label, value, ok) => `<span>${label}: <b class="${ok === undefined ? "" : ok ? "ok" : "bad"}">${value}</b></span>`;
   document.getElementById("stats").innerHTML = [
-    row("Lap", L.toFixed(1) + " m (Suzuqa Patch 1306 m, Monaco draft 1301 m)"),
+    row("Lap", L.toFixed(1) + " m (Bell Deer 1306 m, Monaco draft 1301 m)"),
     row("Closes", closes ? "yes" : `no: ${T.across.toFixed(3)} m across, ${T.turned.toFixed(2)} deg off`, closes),
     row("Grid straight", T.along.toFixed(1) + " m", T.along >= 45),
     row("Tightest gap between legs", `${worst.toFixed(1)} m, ${pair}`, worst >= MIN_CLEARANCE - 0.5),

@@ -3,20 +3,20 @@
 //! along -Z from the start line at z = 0 through its first checkpoints, with
 //! the grid a few metres behind the line (layouts/oval.py). Both tracks are
 //! walled along both edges of the run-off, so a kart can leave the asphalt
-//! but never the course (ADR 0022); Suzuqa Patch joins in for the cut
+//! but never the course (ADR 0022); Bell Deer joins in for the cut
 //! its walls close and the bridge its parapets keep a kart on.
 
 mod common;
 
 use common::{
-    brands_patch, follow_centreline, oval, race, run, started, steer_toward, straight, throttle,
-    ticks, track, without_wheel_crossings, BRANDS_PATCH, DT, OVAL, SEED,
+    bell_deer, follow_centreline, oval, race, run, started, steer_toward, straight, throttle,
+    ticks, track, without_wheel_crossings, BELL_DEER, DT, OVAL, SEED,
 };
 
 use sim::tuning::LAPS_PER_RACE;
 use sim::{step, KartInput, Standing, State, Surface, Track};
 
-/// The hairpin on Suzuqa Patch (layouts/brands_patch.py): a 180 degree
+/// The hairpin on Bell Deer (layouts/bell_deer.py): a 180 degree
 /// left-hander of 17 m radius, its exit 34 m to the left of its entry
 /// across the infield. The infield is walled along the inside edge of the
 /// run-off, 12 m left of the centreline, so 5 m from the hairpin's centre
@@ -148,8 +148,8 @@ fn a_lap_completes_at_the_start_line_after_every_checkpoint_and_records_its_time
 }
 
 #[test]
-fn brands_patch_counts_its_checkpoints_the_same_way() {
-    let track = brands_patch();
+fn bell_deer_counts_its_checkpoints_the_same_way() {
+    let track = bell_deer();
     let lap = track.spline_length();
     let state = started(State::new(SEED, 2, track));
     assert!(
@@ -266,7 +266,7 @@ fn cutting_the_hairpin_across_the_infield_ends_against_the_inside_wall_short_of_
         started(State::new(
             SEED,
             1,
-            track(&without_wheel_crossings(BRANDS_PATCH)),
+            track(&without_wheel_crossings(BELL_DEER)),
         )),
         HAIRPIN_ENTRY_M - SHORT_OF_THE_ENTRY_M,
         HAIRPIN_ENTRY_M - 60.0,
@@ -336,7 +336,7 @@ fn steering_off_the_deck_ends_against_its_wall_still_on_the_bridge() {
         started(State::new(
             SEED,
             1,
-            track(&without_wheel_crossings(BRANDS_PATCH)),
+            track(&without_wheel_crossings(BELL_DEER)),
         )),
         BRIDGE_DECK_PROGRESS_M - 6.0,
         BRIDGE_DECK_PROGRESS_M - 60.0,

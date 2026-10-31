@@ -1,5 +1,5 @@
-"""Runaway wheel crossings checked without Blender: one across Suzuqa
-Patch's run from the bridge to the hairpin, wall to wall, painted as a hazard
+"""Runaway wheel crossings checked without Blender: one across Bell
+Deer's run from the bridge to the hairpin, wall to wall, painted as a hazard
 zone over all the wheel can reach, with its marshal post on the outside
 run-off clear of the wheel's path, and none on the oval.
 
@@ -16,8 +16,8 @@ from trackgen.layout import build
 from trackgen.layouts import load
 
 
-def brands_patch():
-    layout = load("brands-patch")
+def bell_deer():
+    layout = load("bell-deer")
     return layout, build(layout)
 
 
@@ -37,8 +37,8 @@ def in_crossing_frame(crossing, pieces):
 
 
 class WheelCrossings(unittest.TestCase):
-    def test_brands_patch_has_one_crossing_between_the_bridge_and_the_hairpin_wall_to_wall(self) -> None:
-        layout, geometry = brands_patch()
+    def test_bell_deer_has_one_crossing_between_the_bridge_and_the_hairpin_wall_to_wall(self) -> None:
+        layout, geometry = bell_deer()
         self.assertEqual(len(geometry.wheel_crossings), 1)
         crossing = geometry.wheel_crossings[0]
         (bridge,) = layout.decor.bridges
@@ -54,7 +54,7 @@ class WheelCrossings(unittest.TestCase):
         self.assertAlmostEqual(2.0 * crossing.half_width, 24.0)
 
     def test_the_marshal_post_stands_on_the_outside_run_off_short_of_the_wheels_path(self) -> None:
-        layout, geometry = brands_patch()
+        layout, geometry = bell_deer()
         crossing = geometry.wheel_crossings[0]
         s = layout.wheel_crossings[0].s
         hairpin = layout.path.segment("hairpin")
@@ -69,7 +69,7 @@ class WheelCrossings(unittest.TestCase):
             self.assertLess(ahead, -1.0, "short of the wheel's path")
 
     def test_the_post_is_a_low_white_platform_banded_orange_under_its_top_with_an_orange_lamp_on_its_face_to_the_track(self) -> None:
-        layout, geometry = brands_patch()
+        layout, geometry = bell_deer()
         s = layout.wheel_crossings[0].s
         pieces = {p.material: p for p in post_pieces(geometry, 0)}
         self.assertEqual(set(pieces), {"board", "post-band", "chevron"})
@@ -87,11 +87,11 @@ class WheelCrossings(unittest.TestCase):
         self.assertLess(nearest(lamp), nearest(post), "the lamp stands proud toward the track")
 
     def test_the_crossing_reaches_as_deep_as_the_hazard_zone(self) -> None:
-        _, geometry = brands_patch()
+        _, geometry = bell_deer()
         self.assertAlmostEqual(geometry.wheel_crossings[0].hazard_half_depth, 9.2)
 
     def test_the_hazard_zone_is_painted_wall_to_wall_and_as_deep_as_the_wheel_reaches(self) -> None:
-        layout, geometry = brands_patch()
+        layout, geometry = bell_deer()
         crossing = geometry.wheel_crossings[0]
         pieces = zone_pieces(geometry, 0)
         points = in_crossing_frame(crossing, pieces)
@@ -103,7 +103,7 @@ class WheelCrossings(unittest.TestCase):
         self.assertAlmostEqual(max(rights), layout.runoff_half_width, delta=0.01)
 
     def test_the_hazard_zone_has_a_metre_of_yellow_and_black_chevrons_across_each_end_and_a_tint_between(self) -> None:
-        _, geometry = brands_patch()
+        _, geometry = bell_deer()
         crossing = geometry.wheel_crossings[0]
         by_material = {}
         for piece in zone_pieces(geometry, 0):
@@ -123,7 +123,7 @@ class WheelCrossings(unittest.TestCase):
         self.assertAlmostEqual(max(aheads), 8.2, delta=0.01)
 
     def test_the_hazard_zone_is_paint_and_faces_up(self) -> None:
-        _, geometry = brands_patch()
+        _, geometry = bell_deer()
         self.assertFalse([s for s in geometry.surfaces if s.name.startswith("HazardZone")])
         for piece in zone_pieces(geometry, 0):
             vertices, faces = piece.mesh

@@ -6,7 +6,7 @@ sidecar the sim reads (ADR 0007):
 | Track                | Role                              | Files                                   |
 | -------------------- | --------------------------------- | --------------------------------------- |
 | `oval`               | test fixture for the sim's tests  | `oval/oval.glb`, `oval/oval.track.json` |
-| `brands-patch`       | the race track, Suzuqa Patch      | `brands-patch/brands-patch.glb`, `...track.json` |
+| `bell-deer`       | the race track, Bell Deer      | `bell-deer/bell-deer.glb`, `...track.json` |
 
 ## Export
 

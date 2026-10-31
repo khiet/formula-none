@@ -199,7 +199,7 @@ function fakeClient(): FakeClient {
   };
 }
 
-const COUNTDOWN: Countdown = { seed: 7n, track: "brands-patch", grid: [0, 1] };
+const COUNTDOWN: Countdown = { seed: 7n, track: "bell-deer", grid: [0, 1] };
 
 const KART: KartSnapshot = {
   position: [10, 0.3, -20],

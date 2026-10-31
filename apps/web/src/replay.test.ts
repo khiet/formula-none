@@ -54,7 +54,7 @@ describe("replay determinism", () => {
     const bridge = await loadBridge(wasm);
     const [fixture] = fixtures().filter((fixture) => fixture.track === "oval");
     expect(fixture).toBeDefined();
-    expect(() => bridge.replayHashes(fixture?.json ?? "", sidecar("brands-patch"))).toThrow(
+    expect(() => bridge.replayHashes(fixture?.json ?? "", sidecar("bell-deer"))).toThrow(
       /recorded on oval/,
     );
     expect(() => bridge.replayHashes("{}", sidecar("oval"))).toThrow(/replay/);

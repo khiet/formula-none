@@ -26,7 +26,7 @@ from trackgen.path import elevation
 
 LIVERY_TS = Path(__file__).resolve().parents[3] / "apps" / "web" / "src" / "livery.ts"
 # The only shipped track with stands and a gantry; the oval stays plain.
-DRESSED = "brands-patch"
+DRESSED = "bell-deer"
 
 
 def normal(face: list[mesh.Vertex]) -> mesh.Vertex:

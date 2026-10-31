@@ -57,7 +57,7 @@ impl Conditions {
 const RECEIVE_TIMEOUT: Duration = Duration::from_secs(10);
 
 /// The race the fake transport's rooms run: the oval, which a bot laps in
-/// a fraction of the time Suzuqa Patch takes, so a test through a whole
+/// a fraction of the time Bell Deer takes, so a test through a whole
 /// race costs seconds of CPU rather than tens.
 pub const TRACK: &str = "oval";
 

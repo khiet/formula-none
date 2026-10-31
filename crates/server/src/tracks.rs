@@ -5,15 +5,15 @@
 use sim::{Track, TrackError};
 
 /// The track every room races until rooms pick one.
-pub const DEFAULT: &str = "brands-patch";
+pub const DEFAULT: &str = "bell-deer";
 
 /// Every track by name with its sidecar; a track is added here and nowhere
 /// else, so a room kept across a restart (ADR 0053) finds it by the same
 /// name a Start does.
 const TRACKS: &[(&str, &str)] = &[
     (
-        "brands-patch",
-        include_str!("../../../assets/tracks/brands-patch/brands-patch.track.json"),
+        "bell-deer",
+        include_str!("../../../assets/tracks/bell-deer/bell-deer.track.json"),
     ),
     (
         "oval",
@@ -31,13 +31,28 @@ pub fn sidecar(name: &str) -> Option<&'static str> {
 }
 
 /// The track called `name` as the server spells it, or `None` for a name
-/// the server has no track for; a room brought back from a file names its
-/// track through this.
-pub fn known(name: &str) -> Option<&'static str> {
+/// the server has no track for.
+fn known(name: &str) -> Option<&'static str> {
     TRACKS
         .iter()
         .find(|(known, _)| *known == name)
         .map(|(known, _)| *known)
+}
+
+/// Old names of tracks still on the server, each with its new name. A room
+/// kept across the deploy that renamed its track was written under the old
+/// one; keep an entry for as long as such a file may still be on the volume
+/// (ADR 0059).
+const RENAMED: &[(&str, &str)] = &[("brands-patch", "bell-deer")];
+
+/// The track a room kept under `name` races after a restart: the track of
+/// that name, or the one it was renamed to; `None` for any other name.
+pub fn for_kept_room(name: &str) -> Option<&'static str> {
+    let name = RENAMED
+        .iter()
+        .find(|(old, _)| *old == name)
+        .map_or(name, |(_, new)| *new);
+    known(name)
 }
 
 #[derive(Debug)]

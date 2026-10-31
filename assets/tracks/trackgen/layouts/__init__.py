@@ -6,7 +6,7 @@ from importlib import import_module
 
 from ..layout import Layout
 
-NAMES = ("oval", "brands-patch")
+NAMES = ("oval", "bell-deer")
 
 
 def load(name: str) -> Layout:
