@@ -182,9 +182,9 @@ async function untilExit(scene: MountedScene): Promise<Step> {
 // The Scenes in order: Title into a room or a solo race, the Room Scene into
 // the race on the creator's Start, the race into its results, and the
 // results back into the room or another solo race, or the Title. A solo
-// race runs the course picked on the Title, or the track `?track=` names,
-// and runs the sim here; a room's comes from the server, which runs the
-// race (ADR 0009).
+// race is on the track `?track=` names, else the course picked on the
+// Title, with the sim run here; a room's comes from the server, which runs
+// the race (ADR 0009).
 async function main(container: HTMLElement): Promise<void> {
   // The Title and Results Scenes are set in the Instrument panel's face
   // too (ADR 0033), so it loads before the first Scene.
@@ -212,7 +212,7 @@ async function main(container: HTMLElement): Promise<void> {
     window.addEventListener(gesture, unlockAudio);
   }
   let course = loadCoursePick(window.localStorage);
-  // A tester's `?track=` wins over the pick, so any track loads without the Title.
+  // A tester's `?track=` wins over the pick, so a solo race can run any track, the oval included.
   const trackOverride = trackFromSearch(window.location.search);
   const motion = window.matchMedia("(prefers-reduced-motion: reduce)");
   const reducedMotion = () => motion.matches;

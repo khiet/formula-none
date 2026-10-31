@@ -198,7 +198,7 @@ export function createTitleScene(
   const courseNote = document.createElement("p");
   courseNote.textContent = "For create room and solo race";
   courseHeading.append(courseTitle, courseNote);
-  // A fieldset of radios, so the arrow keys move between the flags as a native radio group does.
+  // The radios share the name `course`, so the arrow keys move between the flags as a native radio group's do.
   const flags = document.createElement("fieldset");
   flags.className = "flags";
   flags.setAttribute("aria-label", "Course");
