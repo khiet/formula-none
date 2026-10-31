@@ -96,7 +96,7 @@
     <a href="#placements">Placements</a>
     <a href="#layout">Layout draft</a>
     <a href="#risks">Engineering notes</a>
-    <a href="#questions">Open questions</a>
+    <a href="#questions">Decisions</a>
   </nav>
 </header>
 
@@ -157,7 +157,7 @@
 
 <h2 id="layout">Layout draft</h2>
 <div class="card">
-  <p>Drop-in shape for <code>assets/tracks/trackgen/layouts/silverstone.py</code>, in the style of <code>brands_patch.py</code>. It builds and closes as written; the map above draws from the same numbers. Woods and hangar props are left out until the scenery is settled (question 3).</p>
+  <p>Drop-in shape for <code>assets/tracks/trackgen/layouts/silverstone.py</code>, in the style of <code>brands_patch.py</code>. It builds and closes as written; the map above draws from the same numbers. Woods and the hangar props are left out; the scenery is settled below (question 3) and comes with the build.</p>
 <pre><code id="layout-code">"""Silverstone cut: a flat, fast, clockwise circuit of about 1323 m after Silverstone.
 
 The grid sits on the Hamilton Straight by the pits. The lap runs through
@@ -295,7 +295,7 @@ LAYOUT = Layout(
   </ul>
 </div>
 
-<h2 id="questions">Open questions</h2>
+<h2 id="questions">Decisions</h2>
 <div class="card">
   <ol class="questions">
     <li>The name in the game?
@@ -305,26 +305,22 @@ LAYOUT = Layout(
     </li>
     <li>Elevation?
       <ol>
-        <li><span class="rec">(Recommended)</span> None, as drafted: flat is true to the airfield, and it sets the course apart from Monaco's climb and the Suzuqa bridge.</li>
-        <li>A gentle 3 m rise along the Hangar Straight to Stowe, for something to see over.</li>
+        <li><span class="rec">(Decided)</span> None, as drafted: flat is true to the airfield, and it sets the course apart from Monaco's climb and the Suzuqa bridge.</li>
       </ol>
     </li>
     <li>Which scenery, beyond grandstands, hoardings and the pits?
       <ol>
-        <li><span class="rec">(Recommended)</span> A row of airfield hangars outside the Hangar Straight, and the pits drawn long and white as a nod to the Wing.</li>
-        <li>Grandstands, hoardings and the pits only for the first cut.</li>
+        <li><span class="rec">(Decided)</span> A row of airfield hangars outside the Hangar Straight, and the pits drawn long and white as a nod to the Wing.</li>
       </ol>
     </li>
     <li>A jump?
       <ol>
-        <li><span class="rec">(Recommended)</span> None: the course's character is speed through the esses, and a ramp on a flat airfield has nothing to explain it.</li>
-        <li>A ramp on the Wellington Straight, landing before Brooklands.</li>
+        <li><span class="rec">(Decided)</span> None: the course's character is speed through the esses, and a ramp on a flat airfield has nothing to explain it.</li>
       </ol>
     </li>
     <li>Which new course lands first?
       <ol>
         <li><span class="rec">(Decided)</span> Silverstone: it uses only pieces that exist, so it proves the course picker without new tuning.</li>
-        <li>Monaco first, accepting the 2 m run-off and tunnel work up front.</li>
       </ol>
     </li>
   </ol>

@@ -97,7 +97,7 @@
     <a href="#placements">Placements</a>
     <a href="#layout">Layout draft</a>
     <a href="#risks">Engineering notes</a>
-    <a href="#questions">Open questions</a>
+    <a href="#questions">Decisions</a>
   </nav>
 </header>
 
@@ -164,7 +164,7 @@
 
 <h2 id="layout">Layout draft</h2>
 <div class="card">
-  <p>Drop-in shape for <code>assets/tracks/trackgen/layouts/monaco.py</code>, in the style of <code>brands_patch.py</code>. It builds and closes as written; the map above draws from the same numbers. Woods, props and the tunnel are left out until the scenery is settled (questions 3 and 4).</p>
+  <p>Drop-in shape for <code>assets/tracks/trackgen/layouts/monaco.py</code>, in the style of <code>brands_patch.py</code>. It builds and closes as written; the map above draws from the same numbers. Woods and props are left out, and the tunnel and the harbour scenery are drawn only on this map; they are settled below (questions 3 and 5) and come with the build.</p>
 <pre><code id="layout-code">"""Monaco cut: a clockwise street circuit of about 1301 m after Monaco.
 
 The start/finish straight runs north into Sainte Devote, then the climb up
@@ -306,7 +306,7 @@ LAYOUT = Layout(
   </ul>
 </div>
 
-<h2 id="questions">Open questions</h2>
+<h2 id="questions">Decisions</h2>
 <div class="card">
   <ol class="questions">
     <li>The name in the game?
@@ -316,27 +316,22 @@ LAYOUT = Layout(
     </li>
     <li>How wide is the run-off?
       <ol>
-        <li><span class="rec">(Recommended)</span> 2 m, as drafted: the barriers are what makes it Monaco, and it sets the course apart from the other two.</li>
-        <li>6 m, as on the oval and Suzuqa Patch, with more room to recover and nothing new to tune.</li>
+        <li><span class="rec">(Decided)</span> 2 m, as drafted: the barriers are what makes it Monaco, and it sets the course apart from the other two.</li>
       </ol>
     </li>
     <li>How is the tunnel drawn?
       <ol>
-        <li><span class="rec">(Recommended)</span> Walls and a roof high enough to clear the chase camera, with lights along it.</li>
-        <li>Open arches over the road only, so nothing can come between the camera and the kart.</li>
-        <li>No tunnel in the first cut; add it as scenery later.</li>
+        <li><span class="rec">(Decided)</span> Walls and a roof high enough to clear the chase camera, with lights along it.</li>
       </ol>
     </li>
     <li>A jump?
       <ol>
-        <li><span class="rec">(Recommended)</span> None: the crest at Casino Square is the course's lift, and a ramp on a street circuit lands in a barrier.</li>
-        <li>A ramp on the harbour straight, landing before Tabac.</li>
+        <li><span class="rec">(Decided)</span> None: the crest at Casino Square is the course's lift, and a ramp on a street circuit lands in a barrier.</li>
       </ol>
     </li>
     <li>Which scenery, beyond grandstands and hoardings?
       <ol>
-        <li><span class="rec">(Recommended)</span> The harbour's water and yachts beside the harbour straight and the pool, and the casino building outside Casino Square.</li>
-        <li>Grandstands and hoardings only for the first cut.</li>
+        <li><span class="rec">(Decided)</span> The harbour's water and yachts beside the harbour straight and the pool, and the casino building outside Casino Square.</li>
       </ol>
     </li>
   </ol>
