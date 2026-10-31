@@ -345,6 +345,59 @@ describe("Monarch's harbour and casino", () => {
   });
 });
 
+describe("Monarch's helicopter", () => {
+  const monarch = track("monarch");
+  const nodeNamed = (name: string) => monarch.nodes.find((node) => node.name === name);
+
+  it("flies a body node with both rotors and its name on both flanks hung under it", () => {
+    const body = nodeNamed("Prop.helicopter.1.body");
+    expect(body).toBeDefined();
+    expect(materialsOf(monarch, "Prop.helicopter.1.body")).toEqual([
+      "beam-shade",
+      "carbon",
+      "carbon-shade",
+      "kerb-red",
+      "wall",
+    ]);
+    const children = (body?.children ?? []).flatMap((index) => monarch.nodes[index] ?? []);
+    expect(children.map(({ name }) => name).sort()).toEqual([
+      "Prop.helicopter.1.flank.left",
+      "Prop.helicopter.1.flank.right",
+      "Prop.helicopter.1.main-rotor",
+      "Prop.helicopter.1.tail-rotor",
+    ]);
+    for (const rotor of ["main-rotor", "tail-rotor"]) {
+      expect(materialsOf(monarch, `Prop.helicopter.1.${rotor}`)).toEqual(["carbon"]);
+    }
+    for (const flank of ["left", "right"]) {
+      expect(materialsOf(monarch, `Prop.helicopter.1.flank.${flank}`)).toEqual(["ink-red"]);
+    }
+    // Nothing of it stands still: the body and what hangs under it are all there is.
+    expect(nodeNames(monarch).filter((name) => name.startsWith("Prop.helicopter."))).toHaveLength(
+      5,
+    );
+    // At rest the nose is 100 m along +x from the circle's centre, the track's (170, 120),
+    // 39.95 m over the grass, which the Y-up export lays at (x, up, -y).
+    const [x = 0, y = 0, z = 0] = body?.translation ?? [];
+    expect(x).toBeCloseTo(270, 5);
+    expect(y).toBeCloseTo(39.95, 5);
+    expect(z).toBeCloseTo(-120, 5);
+    // The main rotor's hub over the cabin, the tail rotor's at the tail, both behind the nose.
+    const [mx = 0, my = 0] = nodeNamed("Prop.helicopter.1.main-rotor")?.translation ?? [];
+    const [tx = 0] = nodeNamed("Prop.helicopter.1.tail-rotor")?.translation ?? [];
+    expect(mx).toBeCloseTo(-3, 5);
+    expect(my).toBeGreaterThan(2);
+    expect(tx).toBeLessThan(-12);
+    // The name fits the cabin's 6 m flank.
+    const left = nodeNamed("Prop.helicopter.1.flank.left");
+    const accessor =
+      monarch.accessors[monarch.meshes[left?.mesh ?? -1]?.primitives[0]?.attributes.POSITION ?? -1];
+    const width = (accessor?.max?.[0] ?? 0) - (accessor?.min?.[0] ?? 0);
+    expect(width).toBeGreaterThan(4);
+    expect(width).toBeLessThan(5.5);
+  });
+});
+
 describe("glowing materials", () => {
   it.each(TRACK_NAMES)("%s glows only in the tunnel's lamps, if it has a tunnel", (name) => {
     const glowing = (track(name).materials ?? [])

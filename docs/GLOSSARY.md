@@ -398,6 +398,17 @@ minutes from its own clock, nose along the tangent, its lowest point 30 m
 over every road under it. Its sponsor rides on both flanks as children of
 the node (ADR 0050, ADR 0038).
 
+### helicopter
+
+The BOX BOX BOX LOGISTICS helicopter over Monarch's harbour: a prop that
+flies, like the airship, so it has no footprint. Its body is a node in the
+glTF with its origin at the nose, which the View flies anticlockwise once
+round its circle every two minutes from its own clock, nose along the
+tangent and dipped 5 deg; a main rotor and a tail rotor hang under it as
+nodes of their own, which the View spins, and its sponsor rides on both
+cabin flanks. Its lowest point keeps 30 m over every road under it
+(ADR 0050, ADR 0038).
+
 ### harbour
 
 Monarch's basin of sea water outside the harbour straight and the pool,

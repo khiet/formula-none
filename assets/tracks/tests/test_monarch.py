@@ -2,8 +2,10 @@
 docs/mockups/monaco-course.html decided, walled in close by a 2 m run-off,
 with one 8 m crest at Casino Square and no ramp; the tunnel, walls and a
 roof over the road high enough to clear the chase camera, lit along both sides;
-the harbour's water and yachts outside the harbour straight and the pool; and
-the casino outside Casino Square, level with the crest.
+the harbour's water and yachts outside the harbour straight and the pool;
+the casino outside Casino Square, level with the crest; and the helicopter
+circling between them, high enough to clear every road with its rotors at
+any angle, its sponsor on both cabin flanks.
 
     python3 -I -m unittest discover -s assets/tracks/tests -t assets/tracks
 """
@@ -18,13 +20,14 @@ from pathlib import Path
 from dataclasses import replace
 
 from tests.test_goldstone import faces_right
-from tests.test_props import across_track, build_materials, faces_up_and_toward_the_sun, footprint_clearance, materials_used
+from tests.test_props import across_track, build_materials, faces_by_material, faces_up_and_toward_the_sun, footprint_clearance, materials_used
 from trackgen.layout import (
     CHASE_CAMERA_ABOVE_M,
     GRANDSTAND_CANOPY_BOTTOM_M,
     GRANDSTAND_SETBACK_M,
     GRANDSTAND_WIDTH_M,
     GRASS_DROP_M,
+    HOARDING_TEXT_PROUD_M,
     PROP_WALL_CLEARANCE_M,
     TUNNEL_LAMP_SPACING_M,
     TUNNEL_ROOF_M,
@@ -36,14 +39,29 @@ from trackgen.layout import (
     build,
 )
 from trackgen.layouts import load
-from trackgen.props import YACHT_OFF_QUAY_M, footprints
+from trackgen.props import (
+    HELICOPTER_CABIN_WIDTH_M,
+    HELICOPTER_CLEARANCE_M,
+    HELICOPTER_DIP_DEG,
+    HELICOPTER_LENGTH_M,
+    HELICOPTER_MAIN_BLADE,
+    HELICOPTER_SKIDS,
+    HELICOPTER_TAIL_BLADE,
+    HELICOPTER_TEXT_SIZE_M,
+    YACHT_OFF_QUAY_M,
+    footprints,
+)
+from trackgen.sponsors import HELICOPTER_SPONSOR, SPONSORS
 from trackgen.path import Hill, Ramp, elevation
 
 NAME = "monarch"
 TUNNEL = "Tunnel."
 HARBOUR = "Prop.harbour"
 CASINO = "Prop.casino"
-CHASE_CAMERA_TS = Path(__file__).resolve().parents[3] / "apps" / "web" / "src" / "chase-camera.ts"
+HELICOPTER = "Prop.helicopter.1"
+WEB_SRC = Path(__file__).resolve().parents[3] / "apps" / "web" / "src"
+CHASE_CAMERA_TS = WEB_SRC / "chase-camera.ts"
+SCENERY_MOTION_TS = WEB_SRC / "scenery-motion.ts"
 
 
 class Lap(unittest.TestCase):
@@ -389,6 +407,175 @@ class Casino(unittest.TestCase):
         astray = replace(self.layout, decor=replace(self.layout.decor, props=[Prop("casino", World(140.0, 260.0))]))
         with self.assertRaises(ValueError):
             build(astray)
+
+
+def turned(v, pivot, axis, angle: float):
+    """`v` turned by `angle` radians about the unit `axis` through `pivot`, right-handed."""
+    d = [v[i] - pivot[i] for i in range(3)]
+    cos, sin = math.cos(angle), math.sin(angle)
+    dot = sum(d[i] * axis[i] for i in range(3))
+    cross = (axis[1] * d[2] - axis[2] * d[1], axis[2] * d[0] - axis[0] * d[2], axis[0] * d[1] - axis[1] * d[0])
+    return tuple(pivot[i] + d[i] * cos + cross[i] * sin + axis[i] * dot * (1.0 - cos) for i in range(3))
+
+
+class Helicopter(unittest.TestCase):
+    def setUp(self) -> None:
+        self.layout = load(NAME)
+        (self.prop,) = [p for p in self.layout.decor.props if p.kind == "helicopter"]
+        self.geometry = build(self.layout)
+        self.pieces = family(self.geometry, HELICOPTER)
+        self.body = self.pieces[f"{HELICOPTER}.body"]
+        self.main = self.pieces[f"{HELICOPTER}.main-rotor"]
+        self.tail = self.pieces[f"{HELICOPTER}.tail-rotor"]
+        self.lettering = [t for t in self.geometry.lettering if t.name.startswith(f"{HELICOPTER}.")]
+        pivot = self.body.pivot
+        self.nose = (pivot.x, pivot.y, pivot.z)
+        self.left = (-math.sin(pivot.heading), math.cos(pivot.heading), 0.0)
+
+    def frame(self, v):
+        """A vertex as (along the nose's heading, left of it, up from the nose) from the body's pivot."""
+        pivot = self.body.pivot
+        dx, dy = v[0] - pivot.x, v[1] - pivot.y
+        cos, sin = math.cos(pivot.heading), math.sin(pivot.heading)
+        return dx * cos + dy * sin, -dx * sin + dy * cos, v[2] - pivot.z
+
+    def frame_to_world(self, a: float, b: float, c: float):
+        """The world point `a` along the nose's heading, `b` left of it and `c` up from the nose."""
+        heading = self.body.pivot.heading
+        return (self.nose[0] + a * math.cos(heading) + b * self.left[0], self.nose[1] + a * math.sin(heading) + b * self.left[1], self.nose[2] + c)
+
+    def test_it_circles_40_m_up_round_a_100_m_circle_turning_left_over_the_harbour_and_near_the_casino(self) -> None:
+        self.assertEqual(self.prop.at, World(170.0, 120.0))
+        self.assertEqual((self.prop.radius, self.prop.height), (100.0, 40.0))
+        pivot = self.body.pivot
+        self.assertIsNone(pivot.parent)
+        centre = (self.prop.at.x, self.prop.at.y)
+        self.assertAlmostEqual(math.dist((pivot.x, pivot.y), centre), self.prop.radius)
+        self.assertAlmostEqual(pivot.z, -GRASS_DROP_M + self.prop.height)
+        # The nose along the circle with its centre to the left, so it turns anticlockwise.
+        along = (math.cos(pivot.heading), math.sin(pivot.heading))
+        to_centre = (centre[0] - pivot.x, centre[1] - pivot.y)
+        self.assertAlmostEqual(along[0] * to_centre[0] + along[1] * to_centre[1], 0.0)
+        self.assertGreater(along[0] * to_centre[1] - along[1] * to_centre[0], 0.0)
+        circle = [(centre[0] + self.prop.radius * math.cos(math.tau * k / 720), centre[1] + self.prop.radius * math.sin(math.tau * k / 720)) for k in range(720)]
+        found = {f.kind: f for f in footprints(self.layout)}
+        self.assertTrue(any(inside(found["harbour"].outline, x, y) for x, y in circle), "over the basin")
+        self.assertLess(min(found["casino"].distance(x, y) for x, y in circle), 30.0, "close by the casino")
+        # It crosses the track, so the altitude rule below is not idle.
+        crossed = [s for s in self.layout.path.samples if abs(math.dist((s.x, s.y), centre) - self.prop.radius) < self.layout.asphalt_half_width]
+        self.assertGreater(len(crossed), 0)
+
+    def test_the_mirrors_of_its_circle_and_dip_match_the_client(self) -> None:
+        source = SCENERY_MOTION_TS.read_text()
+        circle = re.search(r"export const HELICOPTER_CIRCLE_M = ([0-9.]+);", source)
+        dip = re.search(r"export const HELICOPTER_DIP_DEG = ([0-9.]+);", source)
+        self.assertIsNotNone(circle)
+        self.assertIsNotNone(dip)
+        self.assertEqual(float(circle.group(1)), self.prop.radius)
+        self.assertEqual(float(dip.group(1)), HELICOPTER_DIP_DEG)
+
+    def test_the_body_is_a_node_with_its_origin_at_the_nose_and_both_rotors_hung_under_it(self) -> None:
+        body = [self.frame(v) for v in self.body.mesh[0]]
+        self.assertAlmostEqual(max(a for a, _, _ in body), 0.0)
+        self.assertAlmostEqual(min(a for a, _, _ in body), -HELICOPTER_LENGTH_M)
+        _, apart, _, bar = HELICOPTER_SKIDS
+        self.assertGreater(apart - bar / 2.0, HELICOPTER_CABIN_WIDTH_M / 2.0)
+        self.assertAlmostEqual(max(abs(b) for _, b, _ in body), apart + bar / 2.0, msg="the skids stand clear of the cabin")
+        nose = [(b, c) for a, b, c in body if abs(a) < 1e-9]
+        self.assertTrue(nose and all(abs(c) < 1e-9 for _, c in nose), "the origin is the nose")
+        self.assertEqual(set(self.pieces), {f"{HELICOPTER}.body", f"{HELICOPTER}.main-rotor", f"{HELICOPTER}.tail-rotor"})
+        for rotor in (self.main, self.tail):
+            with self.subTest(rotor=rotor.name):
+                self.assertEqual(rotor.pivot.parent, self.body.name)
+                self.assertEqual(rotor.pivot.heading, self.body.pivot.heading)
+        # The main rotor over the cabin: two blades in the plane level with its hub, 11 m tip to tip.
+        hub = self.frame((self.main.pivot.x, self.main.pivot.y, self.main.pivot.z))
+        self.assertGreater(hub[2], max(c for a, _, c in body if abs(a - hub[0]) < 1.0), "on top of the mast")
+        blades = [self.frame(v) for v in self.main.mesh[0]]
+        reach, _, thick = HELICOPTER_MAIN_BLADE
+        self.assertTrue(all(abs(c - hub[2]) <= thick / 2.0 + 1e-9 for _, _, c in blades))
+        self.assertAlmostEqual(max(a for a, _, _ in blades) - min(a for a, _, _ in blades), 2.0 * reach)
+        self.assertEqual(2.0 * reach, 11.0)
+        self.assertEqual(len(self.main.mesh[1]), 12, "two blades of six faces")
+        # The tail rotor beside the fin: two blades in the upright plane its hub stands in.
+        hub = self.frame((self.tail.pivot.x, self.tail.pivot.y, self.tail.pivot.z))
+        blades = [self.frame(v) for v in self.tail.mesh[0]]
+        reach, _, thick = HELICOPTER_TAIL_BLADE
+        self.assertGreater(hub[1], 0.0, "on the left of the fin")
+        self.assertTrue(all(abs(b - hub[1]) <= thick / 2.0 + 1e-9 for _, b, _ in blades))
+        self.assertAlmostEqual(max(a for a, _, _ in blades) - min(a for a, _, _ in blades), 2.0 * reach)
+        self.assertEqual(len(self.tail.mesh[1]), 12, "two blades of six faces")
+        self.assertLess(hub[0], -HELICOPTER_LENGTH_M + 1.0, "at the tail")
+
+    def test_it_never_flies_under_30_m_over_any_road_dipped_with_its_rotors_at_any_angle(self) -> None:
+        up = (0.0, 0.0, 1.0)
+        main_hub = (self.main.pivot.x, self.main.pivot.y, self.main.pivot.z)
+        tail_hub = (self.tail.pivot.x, self.tail.pivot.y, self.tail.pivot.z)
+        points = list(self.body.mesh[0])
+        for step in range(36):
+            angle = math.tau * step / 36
+            points += [turned(v, main_hub, up, angle) for v in self.main.mesh[0]]
+            points += [turned(v, tail_hub, self.left, angle) for v in self.tail.mesh[0]]
+        # A right-handed turn about the left axis puts the nose down.
+        dip = math.radians(HELICOPTER_DIP_DEG)
+        self.assertLess(turned(self.frame_to_world(1.0, 0.0, 0.0), self.nose, self.left, dip)[2], self.nose[2])
+        # Level too, as the export leaves it before the View first dips it.
+        lowest = min(min(turned(v, self.nose, self.left, dip)[2] for v in points), min(v[2] for v in points))
+        centre = (self.prop.at.x, self.prop.at.y)
+        reach = self.prop.radius + HELICOPTER_LENGTH_M + HELICOPTER_MAIN_BLADE[0]
+        under = [s for s in self.layout.path.samples if math.dist((s.x, s.y), centre) <= reach]
+        self.assertGreater(len(under), 0)
+        road = max(elevation(self.layout.elevation, s.s) for s in under)
+        self.assertAlmostEqual(road, 8.0, delta=0.1, msg="its circle reaches the crest")
+        self.assertGreaterEqual(lowest - road, HELICOPTER_CLEARANCE_M)
+        self.assertEqual(HELICOPTER_CLEARANCE_M, 30.0)
+
+    def test_it_is_wall_white_lit_over_beam_shade_with_a_kerb_red_stripe_and_fin_and_carbon_glass_skids_and_rotors(self) -> None:
+        by_material = faces_by_material(self.body)
+        self.assertEqual(set(by_material), {"wall", "beam-shade", "kerb-red", "carbon", "carbon-shade"})
+        self.assertTrue(materials_used(self.pieces.values()) <= build_materials())
+        self.assertTrue(all(faces_up_and_toward_the_sun(f) for f in by_material["wall"]))
+        self.assertFalse(any(faces_up_and_toward_the_sun(f) for f in by_material["beam-shade"]))
+        self.assertEqual(materials_used([self.main, self.tail]), {"carbon"})
+        # The stripe runs down both flanks and the fin stands at the tail.
+        red = [[self.frame(v) for v in f] for f in by_material["kerb-red"]]
+        flanks = {round(f[0][1], 3) for f in red if all(abs(b - f[0][1]) < 1e-9 for _, b, _ in f) and abs(f[0][1]) > HELICOPTER_CABIN_WIDTH_M / 2.0}
+        self.assertEqual(len(flanks), 2, "a stripe proud of each flank")
+        self.assertTrue(any(min(a for a, _, _ in f) < -HELICOPTER_LENGTH_M + 1.0 for f in red), "the fin")
+        # The skids are the lowest of it.
+        lowest = min(c for f in by_material["carbon"] + by_material["carbon-shade"] for _, _, c in (self.frame(v) for v in f))
+        self.assertAlmostEqual(lowest, min(self.frame(v)[2] for v in self.body.mesh[0]))
+
+    def test_box_box_box_logistics_from_sponsors_py_reads_on_both_cabin_flanks_and_rides_the_body(self) -> None:
+        self.assertIn(HELICOPTER_SPONSOR, SPONSORS)
+        name, ink = HELICOPTER_SPONSOR
+        self.assertEqual((name, ink), ("BOX BOX BOX LOGISTICS", "ink-red"))
+        self.assertEqual({t.name for t in self.lettering}, {f"{HELICOPTER}.flank.left", f"{HELICOPTER}.flank.right"})
+        sides = set()
+        cabin = [self.frame(v) for v in self.body.mesh[0] if abs(abs(self.frame(v)[1]) - HELICOPTER_CABIN_WIDTH_M / 2.0) < 1e-9]
+        for text in self.lettering:
+            with self.subTest(text=text.name):
+                self.assertEqual(text.parent, self.body.name)
+                self.assertEqual((text.text, text.material, text.size), (name, ink, HELICOPTER_TEXT_SIZE_M))
+                self.assertIsNone(text.arc)
+                along, left, up = self.frame((text.at.x, text.at.y, text.at.z))
+                self.assertAlmostEqual(abs(left), HELICOPTER_CABIN_WIDTH_M / 2.0 + HOARDING_TEXT_PROUD_M)
+                # On the cabin's flank, not the boom's.
+                self.assertTrue(min(a for a, _, _ in cabin) < along < 0.0)
+                self.assertTrue(min(c for _, _, c in cabin) < up < max(c for _, _, c in cabin))
+                outward = math.sin(text.at.heading - self.body.pivot.heading)
+                self.assertAlmostEqual(outward, math.copysign(1.0, left))
+                sides.add(round(left, 3))
+        self.assertEqual(len(sides), 2)
+
+    def test_it_refuses_a_layout_that_gives_no_circle_or_no_height(self) -> None:
+        for prop in (Prop("helicopter", World(170.0, 120.0), height=40.0), Prop("helicopter", World(170.0, 120.0), radius=100.0)):
+            with self.subTest(prop=prop), self.assertRaises(ValueError):
+                build(replace(self.layout, decor=replace(self.layout.decor, props=[prop])))
+
+    def test_the_helicopter_costs_about_80_faces(self) -> None:
+        faces = sum(len(p.mesh[1]) for p in self.pieces.values())
+        self.assertTrue(70 <= faces <= 100, faces)
 
 
 if __name__ == "__main__":

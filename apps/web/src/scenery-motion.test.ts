@@ -3,6 +3,11 @@ import { describe, expect, it } from "vitest";
 import {
   AIRSHIP_CIRCLE_M,
   AIRSHIP_CIRCUIT_MS,
+  HELICOPTER_CIRCLE_M,
+  HELICOPTER_CIRCUIT_MS,
+  HELICOPTER_DIP_DEG,
+  HELICOPTER_MAIN_ROTOR_TURNS_PER_S,
+  HELICOPTER_TAIL_ROTOR_TURNS_PER_S,
   sceneryMotion,
   WHEEL_TURN_MS,
 } from "./scenery-motion";
@@ -35,12 +40,12 @@ function trackWithWheel(heading: number): { track: Object3D; rim: Object3D; gond
   return { track, rim, gondolas };
 }
 
-/** The angle, in turns, the rim has turned about its axle from `rest`. */
-function turnsFrom(rest: Quaternion, node: Object3D): number {
+/** The angle, in turns, a node has turned about its own `about`, a rim's axle unless named, from `rest`. */
+function turnsFrom(rest: Quaternion, node: Object3D, about: Vector3 = AXLE): number {
   const spin = rest.clone().invert().multiply(node.quaternion);
   const axis = new Vector3(spin.x, spin.y, spin.z);
   const angle = 2 * Math.atan2(axis.length(), spin.w);
-  const sign = axis.lengthSq() === 0 ? 1 : Math.sign(axis.normalize().dot(AXLE));
+  const sign = axis.lengthSq() === 0 ? 1 : Math.sign(axis.normalize().dot(about));
   return ((((sign * angle) / (Math.PI * 2)) % 1) + 1) % 1;
 }
 
@@ -210,5 +215,131 @@ describe("the airship's motion", () => {
     hull.updateMatrixWorld(true);
     const world = name.getWorldPosition(new Vector3());
     expect(world.distanceTo(hull.position)).toBeCloseTo(local.length(), 5);
+  });
+});
+
+/** The body's rest in the export: the nose 39.95 m over the grass at the track's (270, 120). */
+const HELICOPTER_NOSE_AT_REST = new Vector3(270, 39.95, -120);
+/** The circle's centre, the track's (170, 120): 100 m along -x from the nose, to its left. */
+const HELICOPTER_CENTRE = new Vector3(170, 39.95, -120);
+/** The main rotor's turning axis in its node's frame: the builder's up. */
+const ROTOR_MAST = new Vector3(0, 1, 0);
+
+/**
+ * A track with the helicopter as the loader hands it over: the body's node
+ * at its nose on the circle, turned to the circle's tangent, both rotors
+ * and the name hung under it.
+ */
+function trackWithHelicopter(): {
+  track: Object3D;
+  body: Object3D;
+  main: Object3D;
+  tail: Object3D;
+  name: Object3D;
+} {
+  const track = new Group();
+  const body = new Group();
+  body.name = "Prophelicopter1body";
+  body.position.copy(HELICOPTER_NOSE_AT_REST);
+  body.quaternion.setFromUnitVectors(new Vector3(1, 0, 0), NOSE_HEADING);
+  const main = new Group();
+  main.name = "Prophelicopter1main-rotor";
+  main.position.set(-3, 2.9, 0);
+  const tail = new Group();
+  tail.name = "Prophelicopter1tail-rotor";
+  tail.position.set(-12.4, 2, -0.25);
+  const name = new Group();
+  name.name = "Prophelicopter1flankleft";
+  name.position.set(-3, -0.4, -1.12);
+  body.add(main, tail, name);
+  track.add(body);
+  return { track, body, main, tail, name };
+}
+
+describe("the helicopter's motion", () => {
+  const dip = (HELICOPTER_DIP_DEG * Math.PI) / 180;
+
+  it("flies the body once round its 100 m circle every 2 min from where the export left it", () => {
+    const { track, body } = trackWithHelicopter();
+    const motion = sceneryMotion(track);
+    motion.update(0);
+    expect(body.position.distanceTo(HELICOPTER_NOSE_AT_REST)).toBeCloseTo(0, 6);
+    motion.update(HELICOPTER_CIRCUIT_MS / 4);
+    expect(
+      body.position.distanceTo(new Vector3(170, 39.95, -120 - HELICOPTER_CIRCLE_M)),
+    ).toBeCloseTo(0, 5);
+    motion.update(HELICOPTER_CIRCUIT_MS / 2);
+    expect(body.position.distanceTo(new Vector3(70, 39.95, -120))).toBeCloseTo(0, 5);
+    motion.update(HELICOPTER_CIRCUIT_MS);
+    expect(body.position.distanceTo(HELICOPTER_NOSE_AT_REST)).toBeCloseTo(0, 5);
+    expect(HELICOPTER_CIRCUIT_MS).toBe(2 * 60 * 1000);
+    expect(HELICOPTER_CIRCLE_M).toBe(100);
+  });
+
+  it("heads along the tangent with the nose dipped 5 deg and no roll at every sample", () => {
+    const { track, body } = trackWithHelicopter();
+    const motion = sceneryMotion(track);
+    const before = new Vector3();
+    const after = new Vector3();
+    for (const nowMs of [0, 1234, 20_000, HELICOPTER_CIRCUIT_MS / 3, 100_000, 777_777]) {
+      motion.update(nowMs);
+      expect(body.position.distanceTo(HELICOPTER_CENTRE), `${nowMs} ms`).toBeCloseTo(
+        HELICOPTER_CIRCLE_M,
+        5,
+      );
+      expect(body.position.y, `${nowMs} ms`).toBeCloseTo(HELICOPTER_NOSE_AT_REST.y, 6);
+      const nose = noseOf(body);
+      motion.update(nowMs - 1);
+      before.copy(body.position);
+      motion.update(nowMs + 1);
+      after.copy(body.position);
+      const travel = after.sub(before).normalize();
+      // Dipped: the nose points down by the dip, and its plan points along the travel.
+      expect(nose.y, `${nowMs} ms`).toBeCloseTo(-Math.sin(dip), 6);
+      expect(nose.clone().setY(0).normalize().dot(travel), `${nowMs} ms`).toBeCloseTo(1, 6);
+      // No roll: its left stays level and points at the centre.
+      const port = new Vector3(0, 0, -1).applyQuaternion(body.quaternion);
+      expect(port.y, `${nowMs} ms`).toBeCloseTo(0, 6);
+      expect(
+        HELICOPTER_CENTRE.clone().sub(body.position).normalize().dot(port),
+        `${nowMs} ms`,
+      ).toBeCloseTo(1, 6);
+    }
+    expect(HELICOPTER_DIP_DEG).toBe(5);
+  });
+
+  it("turns the main rotor 1.5 times a second about its mast and the tail rotor 4.5 about its axle", () => {
+    const { track, main, tail } = trackWithHelicopter();
+    const mainRest = main.quaternion.clone();
+    const tailRest = tail.quaternion.clone();
+    const motion = sceneryMotion(track);
+    for (const nowMs of [0, 100, 200, 1000, 61_100]) {
+      motion.update(nowMs);
+      const seconds = nowMs / 1000;
+      expect(turnsFrom(mainRest, main, ROTOR_MAST), `main at ${nowMs} ms`).toBeCloseTo(
+        (seconds * HELICOPTER_MAIN_ROTOR_TURNS_PER_S) % 1,
+        6,
+      );
+      expect(turnsFrom(tailRest, tail), `tail at ${nowMs} ms`).toBeCloseTo(
+        (seconds * HELICOPTER_TAIL_ROTOR_TURNS_PER_S) % 1,
+        6,
+      );
+      // Each turns about its own axis, which keeps where the export left it.
+      const mast = ROTOR_MAST.clone().applyQuaternion(main.quaternion);
+      expect(mast.distanceTo(ROTOR_MAST.clone().applyQuaternion(mainRest))).toBeCloseTo(0, 6);
+      const axle = AXLE.clone().applyQuaternion(tail.quaternion);
+      expect(axle.distanceTo(AXLE.clone().applyQuaternion(tailRest))).toBeCloseTo(0, 6);
+    }
+    expect(HELICOPTER_MAIN_ROTOR_TURNS_PER_S).toBe(1.5);
+    expect(HELICOPTER_TAIL_ROTOR_TURNS_PER_S).toBe(4.5);
+  });
+
+  it("carries the rotors and the name with the body without moving them on it", () => {
+    const { track, main, tail, name } = trackWithHelicopter();
+    const local = [main, tail, name].map((node) => node.position.clone());
+    const motion = sceneryMotion(track);
+    motion.update(HELICOPTER_CIRCUIT_MS / 3);
+    expect([main, tail, name].map((node) => node.position)).toEqual(local);
+    expect(name.quaternion.equals(new Quaternion())).toBe(true);
   });
 });
