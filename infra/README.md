@@ -2,20 +2,30 @@
 
 OpenTofu for the single-instance environment described in ADR 0015: VPC,
 subnet, security group, one t4g.small with an Elastic IP, DNS record, ECR
-repository, CloudWatch log group, the deploy Run Command document, and the
-GitHub Actions OIDC role. Applied by hand from the laptop with the `neconote`
+repository, CloudWatch log group, the deploy Run Command document, the
+GitHub Actions OIDC role, and a monthly budget that mails the operator. Applied by hand from the laptop with the `neconote`
 profile in `eu-west-2`; nothing here runs from CI.
 
 Cost ceiling: USD 25 a month (ADR 0017). The estimate for what this applies
-is in ADR 0015; check it before applying a change.
+is in ADR 0015; check it before applying a change. The budget mails
+`billing_alert_email` when the month's forecast passes the ceiling, and again
+when the actual bill does. It covers the whole account; a budget without
+actions is free.
+
+This module describes the author's own deployment; to host the game
+yourself, use the Compose stack under `deploy/`.
 
 ## Applying
 
 State is local to the laptop and gitignored; there is one environment and one
 operator.
 
+The alert address has no default, since the repository is public. Keep it in
+a gitignored `terraform.tfvars` beside this file:
+
 ```sh
 cd infra
+echo 'billing_alert_email = "you@example.com"' > terraform.tfvars
 tofu init
 tofu plan          # review; expect a no-op after the first apply
 tofu apply
@@ -75,6 +85,6 @@ AWS_PROFILE=neconote deploy/deploy.sh <commit-sha>
 ## Checks
 
 `tools/repo-checks` parses the configuration and asserts the contract from
-issue 5: two inbound rules, no key pair, 14-day retention, the A record, and
-the exact permissions of the deploy role. `tofu fmt -check` and
+issue 5: two inbound rules, no key pair, 14-day retention, the A record, the
+exact permissions of the deploy role, and the budget's ceiling and alerts. `tofu fmt -check` and
 `tofu validate` run locally.

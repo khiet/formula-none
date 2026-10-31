@@ -34,6 +34,13 @@ variable "github_repository" {
   default     = "khiet/formula-none"
 }
 
+# No default: the repository is public, so the address is passed at apply time
+# (infra/README.md) and never committed.
+variable "billing_alert_email" {
+  description = "Where the monthly budget mails its alerts."
+  type        = string
+}
+
 variable "instance_type" {
   description = "The one arm64 instance the cost ceiling allows (ADR 0017)."
   type        = string

@@ -27,7 +27,10 @@ type Service = {
 /** The workflow expression for the pushed commit, as the YAML spells it. */
 const SHA = `\${{ github.sha }}`;
 
-const workflow = parse(readRepoFile(".github/workflows/ci.yml")) as { jobs: Record<string, Job> };
+const workflow = parse(readRepoFile(".github/workflows/ci.yml")) as {
+  on: Record<string, unknown>;
+  jobs: Record<string, Job>;
+};
 const compose = parse(readRepoFile("deploy/compose.yaml")) as {
   name?: string;
   services: Record<string, Service>;
@@ -36,6 +39,14 @@ const compose = parse(readRepoFile("deploy/compose.yaml")) as {
 
 describe("deploy job", () => {
   const { deploy, ...gates } = workflow.jobs;
+
+  // The repository is public (ADR 0066): a fork's pull request must run its
+  // code in the fork's context, never in this repository's, where it could
+  // reach the deploy role's variables or a main-branch cache.
+  it("is triggered only by pull requests and pushes to main", () => {
+    expect(Object.keys(workflow.on).sort()).toEqual(["pull_request", "push"]);
+    expect(workflow.on.push).toEqual({ branches: ["main"] });
+  });
 
   it("runs only for a push to main, after every other job has passed", () => {
     expect(deploy).toBeDefined();
