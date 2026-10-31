@@ -619,6 +619,33 @@ describe("items", () => {
     expect(bridge.hazardDropDistanceMetres).toBe(1);
   });
 
+  it("reports each box a kart takes on the step it takes it, the one that rolls and the one that gives nothing", async () => {
+    const bridge = await loadBridge(wasm);
+    expect(bridge.itemRollSeconds).toBe(2.5);
+    const sidecar = JSON.parse(OVAL) as {
+      spawn_grid: { position: [number, number, number] }[];
+      item_boxes: { position: [number, number, number]; yaw: number }[];
+    };
+    // Two boxes under the grid slot: a kart takes one a step, so the first
+    // is taken at Go and rolls, and the second the step after, into a full slot.
+    const under = sidecar.spawn_grid[0]?.position ?? [0, 0, 0];
+    sidecar.item_boxes.push({ position: under, yaw: 0 }, { position: under, yaw: 0 });
+    const race = started(bridge.createRace(7n, 1, 0, JSON.stringify(sidecar)), 1);
+    expect(race.boxesTakenLastStep(0)).toBe(0);
+
+    race.step([IDLE_INPUT], DT);
+    expect(race.boxesTakenLastStep(0)).toBe(1);
+    const rolled = race.kartReadouts()[0]?.itemSlot;
+    expect(rolled).toEqual({
+      rolling: { item: expect.any(String), rollLeftS: expect.closeTo(2.5, 5) },
+    });
+    race.step([IDLE_INPUT], DT);
+    expect(race.boxesTakenLastStep(0)).toBe(1);
+    expect(race.itemBoxesPresent().slice(-2)).toEqual([false, false]);
+    race.step([IDLE_INPUT], DT);
+    expect(race.boxesTakenLastStep(0)).toBe(0);
+  });
+
   it("reports the track's coins, a kart taking the one under it at Go and carrying it", async () => {
     const bridge = await loadBridge(wasm);
     expect(bridge.coinCap).toBe(10);

@@ -21,14 +21,49 @@ export function landedItem(slot: KartReadout["itemSlot"]): Item | null {
 }
 
 /**
+ * The item rolling into a kart's slot as a sim readout or a snapshot has
+ * it, against a roll of `rollS`; null while the slot is empty or held.
+ */
+export function rollingOf(slot: KartReadout["itemSlot"], rollS: number): RollingItem | null {
+  if (typeof slot !== "object" || !("rolling" in slot)) return null;
+  return { item: slot.rolling.item, elapsedS: rollS - slot.rolling.rollLeftS, rollS };
+}
+
+/**
+ * The item rolling into the local kart's slot (ADR 0070): the item it
+ * lands on, how long it has rolled, held at the roll's length while a
+ * room's client waits for the snapshot that lands it, and the roll's
+ * length, so the reel and its clicks run off the run's clock.
+ */
+export interface RollingItem {
+  readonly item: Item;
+  readonly elapsedS: number;
+  readonly rollS: number;
+}
+
+/**
  * The local kart's item slot as the run reports it: the item the server
- * says is held, and whether the fire is showing, predicted from the press
- * or confirmed by the server's event.
+ * says is held, the item rolling in, whether the fire is showing,
+ * predicted from the press or confirmed by the server's event, whether
+ * the landing's flash is showing, and the boxes the kart has taken.
  */
 export interface ItemSlot {
   readonly item: Item | null;
+  readonly rolling: RollingItem | null;
   readonly firing: boolean;
+  readonly landing: boolean;
+  /** Every box the kart has taken this race, counted up whether it rolled an item or not. */
+  readonly boxesTaken: number;
 }
+
+/** The slot of a race with no item taken yet. */
+export const EMPTY_SLOT: ItemSlot = {
+  item: null,
+  rolling: null,
+  firing: false,
+  landing: false,
+  boxesTaken: 0,
+};
 
 /**
  * What the run says of the race as of the last tick, read once a frame and
@@ -79,6 +114,9 @@ export interface RaceRun {
 
 /** How long the item slot shows the fire after the item leaves it. Presentation, so not the sim's to tune. */
 export const ITEM_FIRE_FLASH_S = 0.5;
+
+/** How long the slot flashes as a rolled item lands. Presentation, so not the sim's to tune. */
+export const ITEM_LANDING_FLASH_S = 0.11;
 
 /** How long the count shows Go once the race is on. Presentation, so not the sim's to tune. */
 const GO_S = 1;

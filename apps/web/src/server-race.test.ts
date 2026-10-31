@@ -22,7 +22,7 @@ import type {
 } from "./generated/protocol";
 import { IDLE_INPUT } from "./input";
 import { kartReadout } from "./kart-readout-fixture";
-import { ITEM_FIRE_FLASH_S } from "./race-run";
+import { EMPTY_SLOT, ITEM_FIRE_FLASH_S, ITEM_LANDING_FLASH_S } from "./race-run";
 import {
   type Countdown,
   joinRoom,
@@ -43,6 +43,7 @@ const COUNTDOWN_S = 5;
 const KARTS = 8;
 
 const ITEM_BOX_RESPAWN_S = 3;
+const ITEM_ROLL_S = 2.5;
 const PREDICTED_FIRE_TIMEOUT_S = 1;
 const ITEM_BOXES = 8;
 const COINS = 12;
@@ -84,6 +85,7 @@ const bridge = {
   kartsPerRace: KARTS,
   lapsPerRace: 3,
   itemBoxRespawnSeconds: ITEM_BOX_RESPAWN_S,
+  itemRollSeconds: ITEM_ROLL_S,
   coinRespawnSeconds: COIN_RESPAWN_S,
   predictedFireTimeoutSeconds: PREDICTED_FIRE_TIMEOUT_S,
   hazardDropDistanceMetres: HAZARD_DROP_DISTANCE_M,
@@ -386,26 +388,82 @@ describe("createServerRace", () => {
   it("fills the slot with the item the server rolled for the local kart once a snapshot shows it landed, until the server fires it", () => {
     const client = fakeClient();
     const run = createServerRace(bridge, client, COUNTDOWN, 0, "{}");
-    expect(run.readout().itemSlot).toEqual({ item: null, firing: false });
+    expect(run.readout().itemSlot).toMatchObject({ item: null, firing: false });
     client.event(picked(1, 1));
-    expect(run.readout().itemSlot).toEqual({ item: null, firing: false });
-    // Rolling, the slot shows nothing, whatever the prediction holds.
+    expect(run.readout().itemSlot).toMatchObject({ item: null, firing: false });
+    // Rolling, the slot holds nothing to fire, whatever the prediction holds.
     client.event(picked(2, 0));
-    expect(run.readout().itemSlot).toEqual({ item: null, firing: false });
+    expect(run.readout().itemSlot).toMatchObject({ item: null, firing: false });
     client.snapshot(slotSnapshot(60, { rolling: { item: "boost", rollLeftS: 1 } }));
-    expect(run.readout().itemSlot).toEqual({ item: null, firing: false });
+    expect(run.readout().itemSlot).toMatchObject({ item: null, firing: false });
     client.snapshot(slotSnapshot(62, { held: "boost" }));
-    expect(run.readout().itemSlot).toEqual({ item: "boost", firing: false });
+    expect(run.readout().itemSlot).toMatchObject({ item: "boost", firing: false });
     // A bot's fire is not the local kart's; the local kart's empties the
     // slot and shows the fire for the flash.
     client.event(fired(3, 1));
-    expect(run.readout().itemSlot).toEqual({ item: "boost", firing: false });
+    expect(run.readout().itemSlot).toMatchObject({ item: "boost", firing: false });
     client.event(fired(4, 0));
-    expect(run.readout().itemSlot).toEqual({ item: null, firing: true });
+    expect(run.readout().itemSlot).toMatchObject({ item: null, firing: true });
     for (let tick = 0; tick < ITEM_FIRE_FLASH_S * TICKS_PER_SECOND; tick++) {
       run.tick(IDLE_INPUT, DT);
     }
-    expect(run.readout().itemSlot).toEqual({ item: null, firing: false });
+    expect(run.readout().itemSlot).toMatchObject({ item: null, firing: false });
+  });
+
+  it("rolls the item from the server's pickup on the run's clock until a snapshot lands it, then flashes the landing", () => {
+    const client = fakeClient();
+    const run = createServerRace(bridge, client, COUNTDOWN, 0, "{}");
+    expect(run.readout().itemSlot).toEqual(EMPTY_SLOT);
+    client.event(picked(1, 0, 2, "hazard"));
+    expect(run.readout().itemSlot).toEqual({
+      ...EMPTY_SLOT,
+      rolling: { item: "hazard", elapsedS: 0, rollS: ITEM_ROLL_S },
+      boxesTaken: 1,
+    });
+    for (let tick = 0; tick < TICKS_PER_SECOND; tick++) run.tick(IDLE_INPUT, DT);
+    expect(run.readout().itemSlot.rolling?.elapsedS).toBeCloseTo(1, 5);
+    // Past the roll's length the reel waits on the snapshot that lands it.
+    for (let tick = 0; tick < 2 * TICKS_PER_SECOND; tick++) run.tick(IDLE_INPUT, DT);
+    expect(run.readout().itemSlot.rolling?.elapsedS).toBe(ITEM_ROLL_S);
+    client.snapshot(slotSnapshot(60, { rolling: { item: "hazard", rollLeftS: 0.1 } }));
+    expect(run.readout().itemSlot.rolling?.item).toBe("hazard");
+    client.snapshot(slotSnapshot(62, { held: "hazard" }));
+    expect(run.readout().itemSlot).toEqual({
+      ...EMPTY_SLOT,
+      item: "hazard",
+      landing: true,
+      boxesTaken: 1,
+    });
+    for (let tick = 0; tick < ITEM_LANDING_FLASH_S * TICKS_PER_SECOND; tick++) {
+      run.tick(IDLE_INPUT, DT);
+    }
+    expect(run.readout().itemSlot).toEqual({ ...EMPTY_SLOT, item: "hazard", boxesTaken: 1 });
+  });
+
+  it("counts every box the local kart takes, one into a full slot too, and no other kart's", () => {
+    const client = fakeClient();
+    const run = createServerRace(bridge, client, COUNTDOWN, 0, "{}");
+    client.event(picked(1, 1));
+    expect(run.readout().itemSlot.boxesTaken).toBe(0);
+    client.event(picked(2, 0));
+    client.event(picked(3, 0, 4, null));
+    expect(run.readout().itemSlot).toMatchObject({
+      rolling: { item: "boost", elapsedS: 0 },
+      boxesTaken: 2,
+    });
+  });
+
+  it("rolls the item a snapshot shows rolling before any item event, as after a rejoin", () => {
+    const client = fakeClient();
+    const run = createServerRace(bridge, client, COUNTDOWN, 0, "{}");
+    client.snapshot(slotSnapshot(60, { rolling: { item: "homing", rollLeftS: 2 } }));
+    expect(run.readout().itemSlot.rolling).toEqual({
+      item: "homing",
+      elapsedS: ITEM_ROLL_S - 2,
+      rollS: ITEM_ROLL_S,
+    });
+    client.snapshot(slotSnapshot(62, { held: "homing" }));
+    expect(run.readout().itemSlot).toMatchObject({ item: "homing", rolling: null, landing: true });
   });
 
   it("hides the box a local kart holding an item takes and leaves its item as it was", () => {
@@ -414,7 +472,7 @@ describe("createServerRace", () => {
     pickedAndLanded(client, 1);
     client.event(picked(2, 0, 5, null));
     expect(run.readout().itemBoxesPresent[5]).toBe(false);
-    expect(run.readout().itemSlot).toEqual({ item: "boost", firing: false });
+    expect(run.readout().itemSlot).toMatchObject({ item: "boost", firing: false });
   });
 
   it("predicts no fire from a press while the item rolls", () => {
@@ -422,7 +480,7 @@ describe("createServerRace", () => {
     const run = createServerRace(bridge, client, COUNTDOWN, 0, "{}");
     client.event(picked(1, 0));
     run.tick({ ...IDLE_INPUT, useItem: true }, DT);
-    expect(run.readout().itemSlot).toEqual({ item: null, firing: false });
+    expect(run.readout().itemSlot).toMatchObject({ item: null, firing: false });
   });
 
   it("predicts the fire from the press and reconciles it with the server's event", () => {
@@ -430,19 +488,19 @@ describe("createServerRace", () => {
     const run = createServerRace(bridge, client, COUNTDOWN, 0, "{}");
     pickedAndLanded(client, 1);
     run.tick({ ...IDLE_INPUT, useItem: true }, DT);
-    expect(run.readout().itemSlot).toEqual({ item: "boost", firing: true });
+    expect(run.readout().itemSlot).toMatchObject({ item: "boost", firing: true });
     run.tick(IDLE_INPUT, DT);
-    expect(run.readout().itemSlot).toEqual({ item: "boost", firing: true });
+    expect(run.readout().itemSlot).toMatchObject({ item: "boost", firing: true });
     // The server's word: the item is gone, and the fire plays out.
     client.event(fired(2, 0));
-    expect(run.readout().itemSlot).toEqual({ item: null, firing: true });
+    expect(run.readout().itemSlot).toMatchObject({ item: null, firing: true });
     for (let tick = 0; tick < ITEM_FIRE_FLASH_S * TICKS_PER_SECOND; tick++) {
       run.tick(IDLE_INPUT, DT);
     }
-    expect(run.readout().itemSlot).toEqual({ item: null, firing: false });
+    expect(run.readout().itemSlot).toMatchObject({ item: null, firing: false });
     // A press with nothing held predicts nothing.
     run.tick({ ...IDLE_INPUT, useItem: true }, DT);
-    expect(run.readout().itemSlot).toEqual({ item: null, firing: false });
+    expect(run.readout().itemSlot).toMatchObject({ item: null, firing: false });
   });
 
   it("gives up a predicted fire the server never confirms and shows the item still held", () => {
@@ -452,27 +510,27 @@ describe("createServerRace", () => {
     run.tick({ ...IDLE_INPUT, useItem: true }, DT);
     for (let tick = 1; tick < PREDICTED_FIRE_TIMEOUT_S * TICKS_PER_SECOND; tick++) {
       run.tick(IDLE_INPUT, DT);
-      expect(run.readout().itemSlot).toEqual({ item: "boost", firing: true });
+      expect(run.readout().itemSlot).toMatchObject({ item: "boost", firing: true });
     }
     run.tick(IDLE_INPUT, DT);
-    expect(run.readout().itemSlot).toEqual({ item: "boost", firing: false });
+    expect(run.readout().itemSlot).toMatchObject({ item: "boost", firing: false });
   });
 
   it("fills the slot from the snapshots until the first item event names the local kart, as after a rejoin", () => {
     const client = fakeClient();
     const run = createServerRace(bridge, client, COUNTDOWN, 0, "{}");
     client.snapshot(slotSnapshot(60, { held: "homing" }));
-    expect(run.readout().itemSlot).toEqual({ item: "homing", firing: false });
+    expect(run.readout().itemSlot).toMatchObject({ item: "homing", firing: false });
     client.snapshot(slotSnapshot(62, "empty"));
-    expect(run.readout().itemSlot).toEqual({ item: null, firing: false });
+    expect(run.readout().itemSlot).toMatchObject({ item: null, firing: false });
     client.snapshot(slotSnapshot(63, { rolling: { item: "hazard", rollLeftS: 2 } }));
-    expect(run.readout().itemSlot).toEqual({ item: null, firing: false });
+    expect(run.readout().itemSlot).toMatchObject({ item: null, rolling: { item: "hazard" } });
     // From the first event on, a snapshot sent before the fire no longer
     // puts the item back.
     pickedAndLanded(client, 1);
     client.event(fired(2, 0));
     client.snapshot(slotSnapshot(64, { held: "boost" }));
-    expect(run.readout().itemSlot).toEqual({ item: null, firing: true });
+    expect(run.readout().itemSlot).toMatchObject({ item: null, firing: true });
   });
 
   it("reports the phase and the predicted fire from what reaches it over the connection", async () => {
@@ -485,9 +543,9 @@ describe("createServerRace", () => {
     connection.receive({ events: [picked(1, 0)] });
     connection.receive({ snapshot: slotSnapshot(60, { held: "boost" }) });
     run.tick({ ...IDLE_INPUT, useItem: true }, DT);
-    expect(run.readout().itemSlot).toEqual({ item: "boost", firing: true });
+    expect(run.readout().itemSlot).toMatchObject({ item: "boost", firing: true });
     connection.receive({ events: [fired(2, 0)] });
-    expect(run.readout().itemSlot).toEqual({ item: null, firing: true });
+    expect(run.readout().itemSlot).toMatchObject({ item: null, firing: true });
     connection.receive({
       results: { standings: [{ kart: 0, position: 1, finishTimeS: 90, bestLapS: 29 }] },
     });

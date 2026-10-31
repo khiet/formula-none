@@ -270,11 +270,28 @@ def mini_turbo(from_hz=150, to_hz=1100, length=0.35, hiss=0.4, gain=0.35):
     )
 
 
-def item_pickup(first=988, second=1319, ring=0.25, gain=0.4):
-    """Coin: a short note then a long ringing one a fourth up."""
+def item_pickup(first=1047, second=1568, crack=0.55, gain=0.38):
+    """Crack and chime: the box breaking, then two triangle notes a fifth apart, a fifth under the coin chime."""
+    return mix(
+        highpass(noise(0.07, decay=45, gain=crack, seed=3), 2500),
+        concat(
+            silence(0.02),
+            tone(first, 0.06, triangle, decay=14, gain=gain),
+            tone(second, 0.22, triangle, decay=9, gain=gain),
+        ),
+    )
+
+
+def item_roll_tick(gain=0.6):
+    """Click: a short bright noise burst, one per step of the slot's reel."""
+    return highpass(noise(0.025, decay=140, gain=gain, seed=5), 3000)
+
+
+def item_rolled(freqs=(1047, 1319, 1568), top=2093, gain=0.35):
+    """Arpeggio up: triangle C, E, G then a ringing high C."""
     return concat(
-        tone(first, 0.08, decay=8, gain=gain),
-        tone(second, ring, decay=6, gain=gain),
+        notes(freqs, 0.06, triangle, 10, gain),
+        tone(top, 0.38, triangle, decay=6, gain=gain),
     )
 
 
@@ -425,7 +442,11 @@ def sfx():
     write("go", tame(go()))
     write("hop", tame(hop()))
     write("mini-turbo", tame(mini_turbo()))
+    # On every box the kart takes, then a click on each step of the slot's
+    # reel and the arpeggio as the item lands (ADR 0070).
     write("item-pickup", tame(item_pickup()))
+    write("item-roll-tick", tame(item_roll_tick()))
+    write("item-rolled", tame(item_rolled()))
     write("coin-pickup", tame(coin_pickup()))
     write("coin-loss", tame(coin_loss()))
     write("item-fire", tame(item_fire()))

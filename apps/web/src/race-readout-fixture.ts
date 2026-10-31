@@ -1,6 +1,6 @@
 import type { Standing } from "./bridge";
 import { RESTING_KART } from "./kart-readout-fixture";
-import type { RaceReadout } from "./race-run";
+import { EMPTY_SLOT, type RaceReadout } from "./race-run";
 
 /** The standing of a kart first on lap 1 with no lap behind it. */
 export const ON_THE_GRID: Standing = Object.freeze({
@@ -25,7 +25,7 @@ export function raceReadout(overrides: Partial<RaceReadout> = {}): RaceReadout {
     karts: [RESTING_KART],
     standings: [ON_THE_GRID],
     phase: { kind: "racing", elapsedSeconds: 10, capLeftSeconds: null },
-    itemSlot: { item: null, firing: false },
+    itemSlot: EMPTY_SLOT,
     itemBoxesPresent: [],
     coinsPresent: [],
     hazards: [],

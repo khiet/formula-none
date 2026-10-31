@@ -6,6 +6,7 @@ import {
   MeshBasicMaterial,
   MeshLambertMaterial,
   type Object3D,
+  Quaternion,
   Vector3,
 } from "three";
 import { describe, expect, it } from "vitest";
@@ -15,6 +16,7 @@ import {
   hazardFlag,
   homingDroneMesh,
   itemBoxMesh,
+  itemBoxMeshes,
   marshalBeacon,
   marshalMesh,
   runawayWheelBounce,
@@ -293,6 +295,55 @@ function posed(wheel: Wheel, clockSeconds = 0) {
   });
   return { shown, head, flags };
 }
+
+describe("the item boxes on the track", () => {
+  const PLACED = [
+    { position: [1, 0, -70], yaw: 0 },
+    { position: [4, 0, -70], yaw: 2 },
+  ] as const;
+  /** The turning box inside each placed box, its one child. */
+  const turning = (boxes: ReturnType<typeof itemBoxMeshes>) =>
+    boxes.mesh.children.map((placed) => {
+      placed.updateWorldMatrix(true, true);
+      const box = placed.children[0];
+      if (box === undefined) throw new Error("a placed box holds the box");
+      return box;
+    });
+
+  it("stand where the track puts them, each shown while it is there to pick up", () => {
+    const boxes = itemBoxMeshes(PLACED);
+    expect(boxes.mesh.children.map((placed) => placed.position.toArray())).toEqual([
+      [1, 0, -70],
+      [4, 0, -70],
+    ]);
+    boxes.show([true, false]);
+    expect(boxes.mesh.children.map((placed) => placed.visible)).toEqual([true, false]);
+  });
+
+  it("turn about the vertical once every 2 s on the clock, every box in phase whatever its yaw", () => {
+    const boxes = itemBoxMeshes(PLACED);
+    boxes.turn(0.5);
+    const [first, second] = turning(boxes).map((box) => box.getWorldQuaternion(new Quaternion()));
+    expect(first?.angleTo(second ?? new Quaternion())).toBeCloseTo(0, 5);
+    expect(first?.angleTo(new Quaternion())).toBeCloseTo(Math.PI / 2, 5);
+    boxes.turn(2.5);
+    const [again] = turning(boxes).map((box) => box.getWorldQuaternion(new Quaternion()));
+    expect(again?.angleTo(first ?? new Quaternion())).toBeCloseTo(0, 5);
+  });
+
+  it("bob 5 cm about 1 m up over 2 s, together", () => {
+    const boxes = itemBoxMeshes(PLACED);
+    const heights: number[] = [];
+    for (let t = 0; t < 2; t += 0.05) {
+      boxes.turn(t);
+      const [first, second] = turning(boxes).map((box) => box.position.y);
+      expect(first).toBe(second);
+      heights.push(first ?? 0);
+    }
+    expect(Math.max(...heights)).toBeCloseTo(1.05, 3);
+    expect(Math.min(...heights)).toBeCloseTo(0.95, 3);
+  });
+});
 
 describe("the marshal", () => {
   it("sits calm on his stool with his tea while the wheel is quiet, his flags furled", () => {

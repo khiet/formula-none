@@ -225,6 +225,9 @@ the slot is full: the kart still takes boxes but gets nothing from them. A
 press of the item button fires a held item and empties the slot. Every fire
 is a server event; the Instrument panel shows the local kart's slot, with
 the fire predicted from the press until the server's event confirms it.
+While the local kart's item rolls, the slot runs the reel: the items
+scrolled up through it, slowing to a stop on the one that lands, a click on
+each change. Other karts' rolls show nothing.
 
 ### roll
 

@@ -16,8 +16,9 @@ const COIN_SIDES = 8;
 /** The coin's centre over the asphalt, before the bob. */
 const COIN_HEIGHT_M = 0.6;
 const COIN_TURN_S = 1;
-const COIN_BOB_M = 0.05;
-const COIN_BOB_S = 2;
+/** The coin's bob, which the item boxes share so the two rise and fall in step. */
+export const COIN_BOB_M = 0.05;
+export const COIN_BOB_S = 2;
 
 /** The F's metres per unit of the mockup's 100-unit coin, whose radius is 44 units. */
 const F_UNIT_M = COIN_RADIUS_M / 44;

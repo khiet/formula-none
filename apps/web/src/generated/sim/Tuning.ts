@@ -12,6 +12,10 @@ export type Tuning = { ticksPerSecond: number, lapsPerRace: number, kartsPerRace
  */
 kartSizeM: [number, number, number], replayHashIntervalTicks: number, countdownS: number, predictedFireTimeoutS: number, itemBoxRespawnS: number, 
 /**
+ * How long a box's item rolls in the slot, which the reel runs over.
+ */
+itemRollS: number, 
+/**
  * Indexed by the coins a kart carries.
  */
 coinTopSpeedsMPerS: [number, number, number, number, number, number, number, number, number, number, number], coinCap: number, coinsLostPerSpinOut: number, coinHalfLengthM: number, coinHalfWidthM: number, coinRespawnS: number, hazardDropDistanceM: number, spinOutS: number, 

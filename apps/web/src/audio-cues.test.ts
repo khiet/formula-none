@@ -1,9 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { loopPlayback, type SoundReading, soundCues, soundLoops, soundReading } from "./audio-cues";
 import type { KartReadout, Phase, Standing } from "./bridge";
+import { reelFrame } from "./item-reel";
 import { kartReadout } from "./kart-readout-fixture";
 import { raceReadout } from "./race-readout-fixture";
-import type { ItemSlot, RaceCount } from "./race-run";
+import { EMPTY_SLOT, type ItemSlot, type RaceCount } from "./race-run";
 
 const STILL: SoundReading = {
   speed: 0,
@@ -21,12 +22,15 @@ const STILL: SoundReading = {
   surface: "asphalt",
   drifting: false,
   wrongWay: false,
+  boxesTaken: 0,
+  rolling: false,
+  reelStep: null,
 };
 
 describe("soundCues", () => {
   it("is silent with no change, and before there is a reading to change from", () => {
     expect(soundCues(STILL, STILL)).toEqual([]);
-    expect(soundCues(undefined, { ...STILL, airborne: true, item: "boost" })).toEqual([]);
+    expect(soundCues(undefined, { ...STILL, airborne: true, boxesTaken: 1 })).toEqual([]);
   });
 
   it("beeps as each of the five start lights comes on, and sounds Go as they go out", () => {
@@ -152,9 +156,34 @@ describe("soundCues", () => {
     expect(soundCues(stalled, { ...STILL, count: "go" })).toEqual([]);
   });
 
-  it("plays the pickup as the slot fills and the fire as it empties", () => {
+  it("plays the pickup for every box taken, the one into a full slot that rolls nothing too", () => {
+    const one = { ...STILL, boxesTaken: 1 };
+    expect(soundCues(STILL, one)).toEqual(["itemPickup"]);
+    expect(soundCues(one, one)).toEqual([]);
+    const held = { ...one, item: "boost" as const };
+    expect(soundCues(held, { ...held, boxesTaken: 2 })).toEqual(["itemPickup"]);
+  });
+
+  it("clicks as the reel steps on, once a frame however far it went, and not as it starts or settles", () => {
+    const at = (reelStep: number | null): SoundReading => ({
+      ...STILL,
+      rolling: reelStep !== null,
+      reelStep,
+    });
+    expect(soundCues({ ...STILL, boxesTaken: 0 }, { ...at(0), boxesTaken: 1 })).toEqual([
+      "itemPickup",
+    ]);
+    expect(soundCues(at(0), at(0))).toEqual([]);
+    expect(soundCues(at(0), at(1))).toEqual(["itemRollTick"]);
+    expect(soundCues(at(3), at(5))).toEqual(["itemRollTick"]);
+    expect(soundCues(at(20), at(20))).toEqual([]);
+  });
+
+  it("plays the landing as the rolled item lands, nothing as the slot fills, and the fire as it empties", () => {
+    const rolling: SoundReading = { ...STILL, rolling: true, reelStep: 20 };
     const held = { ...STILL, item: "hazard" as const };
-    expect(soundCues(STILL, held)).toEqual(["itemPickup"]);
+    expect(soundCues(rolling, held)).toEqual(["itemRolled"]);
+    expect(soundCues(STILL, held)).toEqual([]);
     expect(soundCues(held, held)).toEqual([]);
     expect(soundCues(held, STILL)).toEqual(["itemFire"]);
   });
@@ -192,7 +221,7 @@ describe("soundCues", () => {
   });
 
   it("reports every change of one frame together", () => {
-    const after = { ...STILL, airborne: true, item: "boost" as const, lap: 2 };
+    const after = { ...STILL, airborne: true, boxesTaken: 1, lap: 2 };
     expect(soundCues(STILL, after)).toEqual(["hop", "itemPickup", "lap"]);
   });
 });
@@ -278,7 +307,7 @@ describe("soundReading", () => {
     soundReading(raceReadout({ karts: [kart], standings: [standing], itemSlot, phase }), 0);
 
   it("takes the kart's speed, hop, charge and spin from the transform and the lap from the standing", () => {
-    expect(read(kart, standing, { item: null, firing: false }, racing)).toEqual({
+    expect(read(kart, standing, EMPTY_SLOT, racing)).toEqual({
       speed: 12,
       airborne: true,
       miniTurbo: "orange",
@@ -294,11 +323,32 @@ describe("soundReading", () => {
       surface: "asphalt",
       drifting: true,
       wrongWay: false,
+      boxesTaken: 0,
+      rolling: false,
+      reelStep: null,
     });
   });
 
+  it("takes the boxes taken, and the roll and the reel's step from the slot", () => {
+    const rolling = { item: "boost" as const, elapsedS: 0, rollS: 2.5 };
+    expect(read(kart, standing, { ...EMPTY_SLOT, rolling, boxesTaken: 2 }, racing)).toMatchObject({
+      boxesTaken: 2,
+      rolling: true,
+      reelStep: 0,
+      item: null,
+    });
+    const later = read(
+      kart,
+      standing,
+      { ...EMPTY_SLOT, rolling: { ...rolling, elapsedS: 1 } },
+      racing,
+    );
+    expect(later.reelStep).toBe(reelFrame(1, 2.5).step);
+    expect(later.reelStep).toBeGreaterThan(0);
+  });
+
   it("takes the surface and the wrong-way flag, and whether a drift is under way at any tier", () => {
-    const slot = { item: null, firing: false };
+    const slot = EMPTY_SLOT;
     expect(
       read(
         {
@@ -322,7 +372,7 @@ describe("soundReading", () => {
     const reading = read(
       { ...kart, drift: null, spinOutS: null, boostS: 0.5 },
       { ...standing, finishTimeS: 61.2 },
-      { item: "homing", firing: false },
+      { ...EMPTY_SLOT, item: "homing" },
       racing,
     );
     expect(reading).toMatchObject({
@@ -335,7 +385,7 @@ describe("soundReading", () => {
   });
 
   it("takes the race's count and, while it counts, the rocket start's charge", () => {
-    const slot = { item: null, firing: false };
+    const slot = EMPTY_SLOT;
     const countingDown: Phase = { kind: "countdown", remainingSeconds: 1.4 };
     expect(read({ ...kart, start: "weakBoost" }, standing, slot, countingDown)).toMatchObject({
       count: 2,

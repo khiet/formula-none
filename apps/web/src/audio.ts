@@ -21,6 +21,8 @@ import hitUrl from "../../../assets/audio/hit.wav?url";
 import hopUrl from "../../../assets/audio/hop.wav?url";
 import itemFireUrl from "../../../assets/audio/item-fire.wav?url";
 import itemPickupUrl from "../../../assets/audio/item-pickup.wav?url";
+import itemRollTickUrl from "../../../assets/audio/item-roll-tick.wav?url";
+import itemRolledUrl from "../../../assets/audio/item-rolled.wav?url";
 import lapUrl from "../../../assets/audio/lap.wav?url";
 import miniTurboUrl from "../../../assets/audio/mini-turbo.wav?url";
 import musicUrl from "../../../assets/audio/music-loop.wav?url";
@@ -51,6 +53,8 @@ export const SOUND_URLS: Readonly<Record<SoundCue, string>> = {
   hop: hopUrl,
   miniTurbo: miniTurboUrl,
   itemPickup: itemPickupUrl,
+  itemRollTick: itemRollTickUrl,
+  itemRolled: itemRolledUrl,
   coinPickup: coinPickupUrl,
   coinLoss: coinLossUrl,
   itemFire: itemFireUrl,

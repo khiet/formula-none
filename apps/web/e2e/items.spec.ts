@@ -24,11 +24,12 @@ test("an item box taken at Go rolls, then lands in the slot", async ({ page }) =
   await expect(page.locator('[data-instrument="countdown"]')).toContainText("GO", {
     timeout: 60_000,
   });
-  // Taken on Go's tick, the item rolls for 2.5 s: the slot shows nothing
-  // yet, then the item. The lap clock runs from Go on the sim's time, so
+  // Taken on Go's tick, the item rolls for 2.5 s: the slot runs the reel,
+  // then holds the item. The lap clock runs from Go on the sim's time, so
   // it times the roll however slowly a CI runner steps the sim; the wait
   // itself is sized in wall time with room to spare.
-  await expect(item).toHaveAttribute("data-item-state", "empty");
+  await expect(item).toHaveAttribute("data-item-state", "rolling");
+  await expect(item.locator("[data-item-reel]")).toBeAttached();
   const landed = await page.waitForFunction(
     () => {
       const slot = document.querySelector('[data-instrument="item"]');

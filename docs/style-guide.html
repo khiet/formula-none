@@ -187,6 +187,11 @@
   .flags { display: flex; gap: 0.25em; }
   .slot { --c: calc(var(--hud) * 2.2); width: calc(var(--hud) * 9.9); height: calc(var(--hud) * 9.9); justify-content: center; padding: 0; }
   .slot svg { width: 88%; height: auto; }
+  /* The reel: one slot-high cell per character, scrolled up through the plate. */
+  .slot.reel { position: relative; overflow: hidden; }
+  .slot .strip { position: absolute; inset: 0 0 auto; display: flex; flex-direction: column; align-items: center; }
+  .slot .strip svg { flex: none; height: calc(var(--hud) * 9.9); }
+  .slot.landed svg { transform: scale(1.4); }
   .lights { grid-area: lights; width: calc(var(--hud) * 21); height: auto; filter: drop-shadow(calc(var(--hud) * 0.3) calc(var(--hud) * 0.3) 0 rgb(17 17 17 / 0.55)); }
   .gear { --c: calc(var(--hud) * 1.6); font-size: calc(var(--hud) * 7); width: 1.2em; height: 1.35em; justify-content: center; padding: 0; }
   .cluster > .pl { grid-area: gear; }
@@ -410,8 +415,8 @@
       <article class="asset">
         <header><h3>Item box</h3><code>apps/web/src/item-meshes.ts</code></header>
         <div class="compare"><figure><figcaption>On the road</figcaption><div class="stage" data-draw="box"></div></figure></div>
-        <dl class="spec"><dt>Size</dt><dd>1 m cube</dd><dt>Decided</dt><dd><a href="adr/0037-instrument-panel-in-chibi-low-poly.md">ADR 0037</a></dd></dl>
-        <div class="notes"><p>A lit, flat-shaded cube in the item box golds with an inset frame on each face. The item slot is this box seen face on, so a pickup rhymes with where it lands.</p></div>
+        <dl class="spec"><dt>Size</dt><dd>1 m cube, 1 m up</dd><dt>Motion</dt><dd>One turn about the vertical every 2 s; 5 cm bob over 2 s</dd><dt>Decided</dt><dd><a href="adr/0037-instrument-panel-in-chibi-low-poly.md">ADR 0037</a>, the turn by <a href="adr/0070-an-item-rolls-before-it-lands.md">0070</a></dd></dl>
+        <div class="notes"><p>A lit, flat-shaded cube in the item box golds with an inset frame on each face. The item slot is this box seen face on, so a pickup rhymes with where it lands. It turns like the coin at half the coin's pace, so the bigger thing reads heavier, and bobs with the coins; every box turns off the View's clock in step, so a row reads as one row.</p></div>
       </article>
 
       <article class="asset">
@@ -721,10 +726,11 @@
 
       <article class="asset wide">
         <header><h3>Item slot and its characters</h3><code>apps/web/src/item-sprites.ts</code></header>
-        <div class="compare"><figure><figcaption>Empty, boost, hazard, homing, firing</figcaption><div class="view"><div class="hud hud-row" id="slots"></div></div></figure></div>
-        <dl class="spec"><dt>Decided</dt><dd><a href="adr/0024-item-sprites.md">ADR 0024</a>, drawn from the meshes by <a href="adr/0037-instrument-panel-in-chibi-low-poly.md">0037</a>, the boost a champagne bottle by <a href="adr/0058-boost-is-a-champagne-bottle.md">0058</a></dd></dl>
+        <div class="compare"><figure><figcaption>Empty, boost, hazard, homing, firing; rolling, landing</figcaption><div class="view"><div class="hud hud-row" id="slots"></div></div></figure></div>
+        <dl class="spec"><dt>Decided</dt><dd><a href="adr/0024-item-sprites.md">ADR 0024</a>, drawn from the meshes by <a href="adr/0037-instrument-panel-in-chibi-low-poly.md">0037</a>, the boost a champagne bottle by <a href="adr/0058-boost-is-a-champagne-bottle.md">0058</a>, the roll by <a href="adr/0070-an-item-rolls-before-it-lands.md">0070</a>; picks in <a href="mockups/item-box-roll.html">the roll mockup</a></dd></dl>
         <div class="notes">
           <p>The slot is the item box seen face on, in its golds. The characters are the View's meshes drawn flat: the faceted cone, the camera quad drone side on with its rotors blurred, and the podium champagne bottle, shaken, its cork flying off on a jet of foam, which has no mesh since a boost never shows on the road. Firing lights the plate. The item's name stays as the slot's text.</p>
+          <p>While a box's item rolls, a slot machine reel scrolls the three characters up through the plate, a change every 50 ms at first slowing to about one every quarter second, and settles on the item over the roll's last quarter second with a small overshoot. Each change clicks. As it lands the character swells 40% and settles over 0.38 s and the plate flashes white once. Under reduced motion the slot stays the plain box face through the roll and the item appears with no pop. Only your own slot rolls; nothing shows for another kart's.</p>
           <p class="dont"><b>Don't</b> draw a character the road shows differently; a new item gets its mesh and its slot drawing together.</p>
         </div>
       </article>
@@ -1909,7 +1915,10 @@
 
   // The panel's readouts: plates, with polygons for the lights and the items.
   const slot = (item, firing) => `<span class="pl"><span class="pf ${firing ? "t-flash" : "t-gold"} slot">${item ? draw[item]() : ""}</span></span>`;
-  document.getElementById("slots").innerHTML = slot(null) + slot("champagne") + slot("cone") + slot("drone") + slot("champagne", true);
+  // Rolling: the reel caught halfway from the cone to the drone. Landing: the pop at its widest, on the flash.
+  const rolling = `<span class="pl"><span class="pf t-gold slot reel"><span class="strip" style="transform: translateY(-25%)">${draw.cone()}${draw.drone()}</span></span></span>`;
+  const landing = `<span class="pl"><span class="pf t-flash slot landed">${draw.drone()}</span></span>`;
+  document.getElementById("slots").innerHTML = slot(null) + slot("champagne") + slot("cone") + slot("drone") + slot("champagne", true) + rolling + landing;
   const hexLights = (lit, limiter) => `<svg class="lights" viewBox="0 0 156 14" aria-hidden="true">${Array.from({ length: 12 }, (_, i) =>
     facets(6, 6.5 + i * 13, 7, 6.2, TONES[limiter ? "blue" : i < lit ? ["green", "red", "blue"][Math.floor((i * 3) / 12)] : "off"])).join("")}</svg>`;
   const coinIcon = `<svg viewBox="0 0 100 100" aria-hidden="true"><polygon points="50,6 81,18 94,50 81,82 50,94 19,82 6,50 19,18" fill="#ffd23f" stroke="#b8860b" stroke-width="8"/></svg>`;

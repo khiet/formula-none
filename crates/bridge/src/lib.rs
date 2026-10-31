@@ -13,7 +13,8 @@ use protocol::{ClientMessage, Input, ServerMessage, Snapshot};
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 use sim::{
-    KartInput, KartReadout, Phase, Projectile, Replay, Standing, State, Surface, Track, Wheel,
+    KartInput, KartReadout, Phase, Projectile, RaceEvent, Replay, Standing, State, Surface, Track,
+    Wheel,
 };
 use wasm_bindgen::prelude::*;
 
@@ -225,6 +226,19 @@ impl Race {
             .into_iter()
             .map(|present| f32::from(u8::from(present)))
             .collect()
+    }
+
+    /// The item boxes the kart in grid slot `kart` took on the last step,
+    /// whether its slot was empty and an item began to roll or it was full
+    /// and the box gave nothing.
+    pub fn boxes_taken_last_step(&self, kart: usize) -> u32 {
+        let taken = self
+            .state()
+            .events()
+            .iter()
+            .filter(|event| matches!(event, RaceEvent::ItemPicked { kart: by, .. } if *by == kart))
+            .count();
+        u32::try_from(taken).expect("a step takes few boxes")
     }
 
     /// Four floats per coin of the track, in the sidecar's order: its

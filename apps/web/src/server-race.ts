@@ -16,7 +16,13 @@
 
 import type { Bridge, Hazard, KartReadout, Phase, Standing } from "./bridge";
 import type { FinalStanding, Item, Snapshot } from "./generated/protocol";
-import { ITEM_FIRE_FLASH_S, landedItem, type RaceRun } from "./race-run";
+import {
+  ITEM_FIRE_FLASH_S,
+  ITEM_LANDING_FLASH_S,
+  landedItem,
+  type RaceRun,
+  rollingOf,
+} from "./race-run";
 import { type Countdown, quantiseInput, type RoomClient } from "./room-client";
 
 export interface ServerRace extends RaceRun {
@@ -67,6 +73,11 @@ export function createServerRace(
    * slot, until a snapshot shows it landed; null while nothing rolls.
    */
   let rollingItem: Item | null = null;
+  /** Ticks the item has rolled on this run's clock, from the pickup. */
+  let rolledTicks = 0;
+  /** Ticks left of the flash as the rolled item lands. */
+  let landingTicksLeft = 0;
+  let boxesTaken = 0;
   /**
    * Whether an item event has named the local kart yet. Until one has, as
    * after a rejoin mid-race, the snapshots say what the slot holds; from
@@ -90,11 +101,15 @@ export function createServerRace(
     prediction.reconcile(snapshot);
     const slot = snapshot.karts[localKart]?.itemSlot;
     const landed = slot === undefined ? null : landedItem(slot);
-    if (!slotHeardOf) {
-      heldItem = landed;
-    } else if (rollingItem !== null && landed === rollingItem) {
+    if (rollingItem !== null && landed === rollingItem) {
       heldItem = landed;
       rollingItem = null;
+      landingTicksLeft = ticks(ITEM_LANDING_FLASH_S);
+    } else if (!slotHeardOf) {
+      heldItem = landed;
+      const rolling = slot === undefined ? null : rollingOf(slot, bridge.itemRollSeconds);
+      rollingItem = rolling?.item ?? null;
+      rolledTicks = rolling === null ? 0 : ticks(rolling.elapsedS);
     }
   });
   const stopEvents = client.onEvent(({ kind }) => {
@@ -116,8 +131,10 @@ export function createServerRace(
       // A null item is a box taken by a kart whose slot is full: the box
       // goes, the slot does not change. An item rolls until a snapshot
       // shows it landed.
+      if (kart === localKart) boxesTaken++;
       if (kart === localKart && item !== null) {
         rollingItem = item;
+        rolledTicks = 0;
         slotHeardOf = true;
       }
     } else if ("coinPicked" in kind) {
@@ -200,6 +217,8 @@ export function createServerRace(
         predictedFireTicksLeft = Math.max(predictedFireTicksLeft - 1, 0);
       }
       flashTicksLeft = Math.max(flashTicksLeft - 1, 0);
+      landingTicksLeft = Math.max(landingTicksLeft - 1, 0);
+      if (rollingItem !== null) rolledTicks++;
       for (let box = 0; box < boxTicksLeft.length; box++) {
         boxTicksLeft[box] = Math.max((boxTicksLeft[box] ?? 0) - 1, 0);
       }
@@ -213,7 +232,21 @@ export function createServerRace(
         karts,
         standings: standings(),
         phase: phase(),
-        itemSlot: { item: heldItem, firing: predictedFireTicksLeft > 0 || flashTicksLeft > 0 },
+        itemSlot: {
+          item: heldItem,
+          rolling:
+            rollingItem === null
+              ? null
+              : {
+                  item: rollingItem,
+                  // Held at the roll's end until the snapshot that lands it.
+                  elapsedS: Math.min(rolledTicks / bridge.ticksPerSecond, bridge.itemRollSeconds),
+                  rollS: bridge.itemRollSeconds,
+                },
+          firing: predictedFireTicksLeft > 0 || flashTicksLeft > 0,
+          landing: landingTicksLeft > 0,
+          boxesTaken,
+        },
         itemBoxesPresent: boxTicksLeft.map((left) => left <= 0),
         // Before the first snapshot every coin is there; a pickup the
         // server reported hides one whatever the snapshot says.

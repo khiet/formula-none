@@ -1,9 +1,9 @@
 import type { RaceAudio } from "./audio";
 import { soundReading } from "./audio-cues";
-import type { Bridge, KartInput } from "./bridge";
+import type { Bridge } from "./bridge";
 import { createChaseCamera } from "./chase-camera";
 import { gamepadKartInput } from "./gamepad";
-import { combinedKartInput, IDLE_INPUT } from "./input";
+import { combinedKartInput } from "./input";
 import {
   createInstrumentPanel,
   type InstrumentPanel,
@@ -13,24 +13,11 @@ import { kartLabels } from "./kart-labels";
 import { KART_GLTF_URL } from "./kart-model";
 import { keyboardKartInput } from "./keyboard";
 import { livery } from "./livery";
-import { ITEM_FIRE_FLASH_S, landedItem, type RaceRun } from "./race-run";
+import type { RaceRun } from "./race-run";
 import { createRaceView } from "./race-view";
-import { downloadReplay, recordReplay } from "./replay";
+import { downloadReplay } from "./replay";
 import { kartName, type RaceResults } from "./results-scene";
-import type { TrackFiles, TrackName, WorldPoint } from "./track";
-
-/**
- * Who is on the grid of a local race: the seed the sim is built from, how
- * many karts the humans take at the front of the grid, and which of them is
- * the local player's. A solo race is one human at kart 0 on a fixed seed.
- */
-export interface RaceSetup {
-  readonly seed: bigint;
-  readonly humanCount: number;
-  readonly localKart: number;
-}
-
-export const SOLO_RACE: RaceSetup = { seed: 1n, humanCount: 1, localKart: 0 };
+import type { TrackFiles, WorldPoint } from "./track";
 
 /** Ticks run per frame at most, so a stalled tab catches up instead of spiralling. */
 const MAX_TICKS_PER_FRAME = 5;
@@ -44,65 +31,6 @@ export interface RaceScene {
   readonly finished: Promise<RaceResults>;
   /** Stop stepping and drawing, and take the View and the panel off the page. */
   dispose(): void;
-}
-
-/**
- * A race whose rules run in this browser: the sim built from `setup` on the
- * track `sidecar` describes, the local kart driven by the Scene's input and
- * the other humans' karts held idle, with bots on the rest of the grid, and
- * every tick recorded as a replay. Throws when the local kart is not one of
- * the humans.
- */
-export function localRaceRun(
-  bridge: Bridge,
-  track: TrackName,
-  sidecar: string,
-  setup: RaceSetup = SOLO_RACE,
-): RaceRun {
-  if (setup.localKart < 0 || setup.localKart >= setup.humanCount) {
-    throw new RangeError(`local kart ${setup.localKart} is not one of ${setup.humanCount} humans`);
-  }
-  const botCount = bridge.kartsPerRace - setup.humanCount;
-  const race = bridge.createRace(setup.seed, setup.humanCount, botCount, sidecar);
-  const replay = recordReplay(bridge, setup.seed, track, botCount, race);
-  const inputs: KartInput[] = Array<KartInput>(setup.humanCount).fill(IDLE_INPUT);
-  const boxes = race.itemBoxes();
-  const coins = race.coins();
-  const heldItem = () => {
-    const kart = race.kartReadouts()[setup.localKart];
-    return kart === undefined ? null : landedItem(kart.itemSlot);
-  };
-  // The only way an item leaves the slot here is the fire, which the sim
-  // applies the tick it is pressed; the slot shows it for the flash.
-  let flashTicksLeft = 0;
-  return {
-    humanCount: setup.humanCount,
-    localKart: setup.localKart,
-    tick(input, dt) {
-      inputs[setup.localKart] = input;
-      const before = heldItem();
-      race.step(inputs, dt);
-      replay.record(inputs);
-      flashTicksLeft =
-        before !== null && heldItem() === null
-          ? Math.round(ITEM_FIRE_FLASH_S * bridge.ticksPerSecond)
-          : Math.max(flashTicksLeft - 1, 0);
-    },
-    readout: () => ({
-      karts: race.kartReadouts(),
-      standings: race.standings(),
-      phase: race.phase(),
-      itemSlot: { item: heldItem(), firing: flashTicksLeft > 0 },
-      itemBoxesPresent: race.itemBoxesPresent(),
-      coinsPresent: race.coinsPresent(),
-      hazards: race.hazards(),
-      projectiles: race.projectiles(),
-      wheels: race.wheels(),
-    }),
-    itemBoxes: () => boxes,
-    coins: () => coins,
-    replay,
-  };
 }
 
 /**
@@ -177,6 +105,7 @@ export async function createRaceScene(
     },
     name,
     livery(run.localKart),
+    { reducedMotion },
   );
 
   const present = (frameSeconds: number) => {
