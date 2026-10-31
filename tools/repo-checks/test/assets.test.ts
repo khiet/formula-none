@@ -41,19 +41,6 @@ describe("asset licences", () => {
     expect(existsSync(join(ROOT, "assets/audio/music-loop.wav"))).toBe(true);
   });
 
-  // The 8 s loop repeated too often to race to; build.py's loop runs a minute
-  // or more. Chrome decodes only plain PCM, so the header is held to it too.
-  it("synthesise a music loop of a minute or more as 16-bit PCM", () => {
-    const wav = readFileSync(join(ROOT, "assets/audio/music-loop.wav"));
-    const format = wav.readUInt16LE(20);
-    const channels = wav.readUInt16LE(22);
-    const rate = wav.readUInt32LE(24);
-    const bits = wav.readUInt16LE(34);
-    const dataBytes = wav.readUInt32LE(40);
-    expect({ format, channels, bits }).toEqual({ format: 1, channels: 1, bits: 16 });
-    expect(dataBytes / (rate * channels * (bits / 8))).toBeGreaterThanOrEqual(60);
-  });
-
   // The `audio/*.wav` row claims every WAV is synthesised; a hand-placed file
   // with no recorded source would make it false.
   const wavs = listRepoFiles("assets/audio").filter((path) => path.endsWith(".wav"));
@@ -71,6 +58,24 @@ describe("asset licences", () => {
 
   it("say Purrjump was private when the marshal was adapted from it", () => {
     expect(licences).toMatch(/Purrjump \(private at the time of writing\)/);
+  });
+});
+
+// ADR 0069: the music loop runs a minute or more, since the 8 s loop
+// repeated too often to race to. Chrome decodes only plain PCM, so the
+// header is held to it too.
+describe("music loop", () => {
+  it("is a minute or more of 16-bit mono PCM", () => {
+    const wav = readFileSync(join(ROOT, "assets/audio/music-loop.wav"));
+    // The canonical 44-byte header Python's wave module writes: fmt fields
+    // from byte 20, the data chunk's size at byte 40.
+    const format = wav.readUInt16LE(20);
+    const channels = wav.readUInt16LE(22);
+    const rate = wav.readUInt32LE(24);
+    const bits = wav.readUInt16LE(34);
+    const dataBytes = wav.readUInt32LE(40);
+    expect({ format, channels, bits }).toEqual({ format: 1, channels: 1, bits: 16 });
+    expect(dataBytes / (rate * channels * (bits / 8))).toBeGreaterThanOrEqual(60);
   });
 });
 

@@ -73,6 +73,7 @@ const DECISION_SLUGS = [
   "open-source-under-mit-and-cc0",
   "a-full-kart-still-takes-coins",
   "a-kart-holding-an-item-still-takes-item-boxes",
+  "the-music-loop-runs-a-minute",
 ];
 
 const expectedFiles = DECISION_SLUGS.map(

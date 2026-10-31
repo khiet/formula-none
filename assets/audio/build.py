@@ -16,6 +16,7 @@ import math
 import random
 import struct
 import wave
+from typing import NamedTuple
 from pathlib import Path
 
 RATE = 22050
@@ -448,26 +449,33 @@ def sfx():
 
 # The loop: 32 bars of 4/4 at 120 bpm (64 s) in C, four sections of eight
 # bars with one chord a bar. A states the theme, B moves to the relative
-# minor with longer notes, A' answers the theme an octave up, and C drops
-# to a half-time breakdown, builds back, and runs down the scale into A's
-# first note, so the last bar leads straight into the first.
+# minor with longer notes, A' answers the theme an octave up, and the
+# bridge drops to a half-time breakdown, builds back, and runs down the
+# scale into A's first note, so the last bar leads straight into the first
+# (ADR 0069).
 BPM = 120
 BEAT = 60 / BPM
 BAR = 4 * BEAT
 EIGHTH = BEAT / 2
 
-C, G, AM, F, EM = "C", "G", "Am", "F", "Em"
 TRIADS = {
-    C: (261.63, 329.63, 392.00),  # C E G
-    G: (196.00, 246.94, 293.66),  # G B D
-    AM: (220.00, 261.63, 329.63),  # A C E
-    F: (174.61, 220.00, 261.63),  # F A C
-    EM: (164.81, 196.00, 246.94),  # E G B
+    "C": (261.63, 329.63, 392.00),  # C E G
+    "G": (196.00, 246.94, 293.66),  # G B D
+    "Am": (220.00, 261.63, 329.63),  # A C E
+    "F": (174.61, 220.00, 261.63),  # F A C
+    "Em": (164.81, 196.00, 246.94),  # E G B
 }
+
+
+class Section(NamedTuple):
+    chords: list
+    lead: list
+    grooves: list
 
 
 def arpeggio(*bars):
     """Eight even eighths a bar, as (semitones, eighths) pairs."""
+    assert all(len(bar) == 8 for bar in bars), "an arpeggio bar is eight eighths"
     return [(semitones, 1) for bar in bars for semitones in bar]
 
 
@@ -477,8 +485,8 @@ def arpeggio(*bars):
 # kick and one sustained chord a bar and no hats; "fill" is a backbeat bar
 # whose snare plays every eighth, swelling.
 SECTIONS = [
-    (
-        [C, G, AM, F, C, G, AM, F],
+    Section(
+        ["C", "G", "Am", "F", "C", "G", "Am", "F"],
         arpeggio(
             [0, 4, 7, 4, 7, 12, 7, 4],
             [-5, 2, 7, 2, 7, 11, 7, 2],
@@ -488,11 +496,11 @@ SECTIONS = [
             [-5, 2, 7, 2, 7, 11, 14, 11],
             [-3, 4, 9, 4, 9, 12, 16, 12],
         )
-        + [(12, 1), (9, 1), (5, 1), (9, 1), (7, 4)],
+        + [(12, 1), (9, 1), (5, 1), (9, 1), (12, 4)],
         ["full"] * 8,
     ),
-    (
-        [AM, F, C, G, AM, F, G, G],
+    Section(
+        ["Am", "F", "C", "G", "Am", "F", "G", "G"],
         [
             (9, 3), (7, 1), (4, 4),
             (5, 3), (4, 1), (0, 4),
@@ -505,8 +513,8 @@ SECTIONS = [
         ],
         ["backbeat"] * 7 + ["fill"],
     ),
-    (
-        [C, G, AM, F, C, G, AM, F],
+    Section(
+        ["C", "G", "Am", "F", "C", "G", "Am", "F"],
         arpeggio(
             [12, 7, 4, 7, 12, 16, 12, 7],
             [11, 7, 2, 7, 11, 14, 11, 7],
@@ -519,8 +527,8 @@ SECTIONS = [
         + [(17, 2), (16, 2), (14, 2), (12, 2)],
         ["backbeat"] * 8,
     ),
-    (
-        [F, G, EM, AM, F, G, C, G],
+    Section(
+        ["F", "G", "Em", "Am", "F", "G", "C", "G"],
         [
             (9, 6), (7, 2),
             (11, 6), (14, 2),
@@ -541,7 +549,7 @@ def semitone_freq(semitones, base=261.63):
 
 
 def music():
-    bars = sum(len(chords) for chords, _, _ in SECTIONS)
+    bars = sum(len(section.chords) for section in SECTIONS)
     total = sec(bars * BAR)
     out = [0.0] * total
     # The same note recurs all through the loop, so each is rendered once.
@@ -591,7 +599,7 @@ def music():
                     if eighth % 2 == 0:
                         add(t, kick)
                     if groove == "fill":
-                        add(t, snare, 0.4 + 0.6 * eighth / 7)
+                        add(t, snare, 0.4 + 0.6 * eighth / 7)  # from 0.4 to full by the last eighth
                     elif groove == "backbeat" and eighth in (2, 6):
                         add(t, snare)
                 for beat in range(4):
@@ -601,6 +609,8 @@ def music():
         t = section_s
         for semitones, length in lead:
             span = length * EIGHTH
+            # An eighth keeps the original loop's quick decay; a longer note
+            # rings for its length rather than dying in the first eighth.
             decay = 5 if length == 1 else 2.5 / span
             add(t, note(semitone_freq(semitones) * 2, span, triangle, decay=decay, gain=0.14))
             t += span
