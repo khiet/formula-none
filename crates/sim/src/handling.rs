@@ -103,7 +103,6 @@ pub(crate) struct Situation {
     pub(crate) boost_pad: bool,
     /// Whether the kart's centre is on a sausage kerb, airborne or not.
     pub(crate) kerb: bool,
-    /// Whether the kart stands on the track rather than over it.
     pub(crate) on_the_ground: bool,
     /// What the coins the kart carries multiply its forward top speed by,
     /// the off-track cap and a boost included; 1 with none.
