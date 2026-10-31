@@ -63,6 +63,7 @@ const DECISION_SLUGS = [
   "coins-replace-the-tyre-pickup",
   "homing-projectile-is-a-camera-quad-drone",
   "boost-is-a-champagne-bottle",
+  "kept-rooms-survive-a-track-rename",
 ];
 
 const expectedFiles = DECISION_SLUGS.map(

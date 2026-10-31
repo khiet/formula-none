@@ -2,7 +2,8 @@
 
 ## Status
 
-Accepted (2026-10-30)
+Accepted (2026-10-30). Its rule that a room on a track the new server
+does not know is dropped is superseded by ADR 0059.
 
 ## Context
 

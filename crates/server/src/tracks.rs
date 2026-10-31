@@ -41,7 +41,8 @@ fn known(name: &str) -> Option<&'static str> {
 
 /// Old names of tracks still on the server, each with its new name. A room
 /// kept across the deploy that renamed its track was written under the old
-/// one; keep an entry for as long as such a file may still be on the volume.
+/// one; keep an entry for as long as such a file may still be on the volume
+/// (ADR 0059).
 const RENAMED: &[(&str, &str)] = &[("brands-patch", "bell-deer")];
 
 /// The track a room kept under `name` races after a restart: the track of
