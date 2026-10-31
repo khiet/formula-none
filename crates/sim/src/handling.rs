@@ -43,10 +43,15 @@ pub(crate) struct Handling {
     /// Speed along the travel, metres per second. Held outside Rapier so
     /// contacts and friction never leak into the handling.
     speed: f32,
-    /// Seconds of hop airtime left; zero or less on the ground. A timer
-    /// rather than a Rapier contact, so the landing tick never depends on
-    /// contact tolerances.
+    /// Seconds of hop airtime left; zero or less once it has run out. A
+    /// timer rather than a Rapier contact, so a hop on the flat lands on the
+    /// tuned tick whatever the contact tolerances; one over falling ground
+    /// lands later, when `was_on_the_ground` says the road has come up to it.
     airtime_left_s: f32,
+    /// Whether the kart stood on the track last tick, as its situation
+    /// said: the next tick reads it to know whether the kart was still in
+    /// the air before taking the new situation's word.
+    was_on_the_ground: bool,
     /// Whether the hop button was down last tick, so a hop needs a fresh
     /// press: holding the button through a landing never hops again.
     hop_was_held: bool,
@@ -98,6 +103,7 @@ pub(crate) struct Situation {
     pub(crate) boost_pad: bool,
     /// Whether the kart's centre is on a sausage kerb, airborne or not.
     pub(crate) kerb: bool,
+    pub(crate) on_the_ground: bool,
     /// What the coins the kart carries multiply its forward top speed by,
     /// the off-track cap and a boost included; 1 with none.
     pub(crate) coin_factor: f32,
@@ -123,6 +129,7 @@ impl Handling {
             bump: Vec3::ZERO,
             speed: 0.0,
             airtime_left_s: 0.0,
+            was_on_the_ground: true,
             hop_was_held: false,
             hop_direction: None,
             drift: None,
@@ -143,8 +150,10 @@ impl Handling {
         self.drift
     }
 
+    /// In a hop's airtime, or off the road for any reason: a kart that hops
+    /// as the road falls away is still in the air when the airtime runs out.
     pub(crate) fn airborne(&self) -> bool {
-        self.airtime_left_s > 0.0
+        self.airtime_left_s > 0.0 || !self.was_on_the_ground
     }
 
     /// Seconds of boost left, while boosting.
@@ -213,6 +222,7 @@ impl Handling {
     pub(crate) fn respawn(&mut self, travel: Vec3) {
         self.speed = 0.0;
         self.airtime_left_s = 0.0;
+        self.was_on_the_ground = true;
         self.hop_direction = None;
         self.drift = None;
         self.on_boost_pad = false;
@@ -247,6 +257,7 @@ impl Handling {
         use std::hash::Hasher;
         hasher.write_f32(self.speed);
         hasher.write_f32(self.airtime_left_s);
+        hasher.write_u8(u8::from(self.was_on_the_ground));
         hasher.write_u8(u8::from(self.hop_was_held));
         hasher.write_f32(self.hop_direction.map_or(0.0, DriftDirection::steer_sign));
         hasher.write_f32(self.drift.map_or(0.0, |drift| drift.direction.steer_sign()));
@@ -277,7 +288,9 @@ impl Handling {
             Freeze::Controls | Freeze::Stopped => &KartInput::default(),
         };
         let mut vertical = situation.vertical_m_per_s;
-        let launched = situation.kerb && !self.on_kerb && !self.airborne();
+        let was_airborne = self.airborne();
+        self.was_on_the_ground = situation.on_the_ground;
+        let launched = situation.kerb && !self.on_kerb && !was_airborne && situation.on_the_ground;
         self.on_kerb = situation.kerb;
         if launched {
             // A kerb throws the kart into a hop that lands straight, and a
@@ -288,10 +301,16 @@ impl Handling {
             self.drift = None;
             self.boost_left_s = 0.0;
             vertical = hop_launch_speed();
-        } else if self.airborne() {
-            self.airtime_left_s -= dt;
-            if !self.airborne() {
+        } else if was_airborne {
+            if self.airtime_left_s > 0.0 {
+                self.airtime_left_s -= dt;
+            }
+            // A drift that went over a crest keeps on through the fall; a
+            // hop is never taken in one, so it lands into its own. The hop's
+            // direction is spent here, so a later fall lands into nothing.
+            if !self.airborne() && self.drift.is_none() {
                 self.drift = self.landing_drift(input);
+                self.hop_direction = None;
             }
         } else if let Some(drift) = &mut self.drift {
             if input.hop && fast_enough_to_drift(self.speed) {
@@ -305,7 +324,7 @@ impl Handling {
                 }
                 self.drift = None;
             }
-        } else if input.hop && !self.hop_was_held {
+        } else if input.hop && !self.hop_was_held && situation.on_the_ground {
             self.airtime_left_s = HOP_AIRTIME_S;
             self.hop_direction = DriftDirection::from_steer(input.steer);
             vertical = hop_launch_speed();
@@ -568,6 +587,7 @@ mod tests {
             surface: Surface::Asphalt,
             boost_pad: false,
             kerb: false,
+            on_the_ground: true,
             coin_factor: 1.0,
             top_speed: TOP_SPEED_M_PER_S,
         }
@@ -648,6 +668,91 @@ mod tests {
         assert!(handling.airborne());
         assert!(sent.velocity.y > 0.0, "launched upward");
         assert_eq!(airtime_ticks(), (HOP_AIRTIME_S / TICK_S).round() as u32);
+    }
+
+    #[test]
+    fn a_hop_over_falling_ground_lands_only_on_the_road_and_a_press_in_the_air_does_not_hop() {
+        let mut handling = going(TOP_SPEED_M_PER_S);
+        let falling = Situation {
+            vertical_m_per_s: -2.0,
+            on_the_ground: false,
+            ..asphalt()
+        };
+        tick(&mut handling, hop_right());
+        for _ in 0..airtime_ticks() {
+            handling.tick(&KartInput::default(), Freeze::Free, falling, TICK_S);
+        }
+
+        let sent = handling.tick(&hop_right(), Freeze::Free, falling, TICK_S);
+        assert!(handling.airborne(), "still in the air past the airtime");
+        assert_eq!(sent.velocity.y, -2.0, "a press in the air does not hop");
+
+        tick(&mut handling, hop_right());
+        assert!(!handling.airborne(), "lands when the road comes up");
+        assert_eq!(
+            handling.drift.map(|drift| drift.direction),
+            Some(DriftDirection::Right),
+            "into the drift the hop set up"
+        );
+    }
+
+    #[test]
+    fn a_press_on_the_tick_the_road_drops_away_does_not_hop() {
+        let mut handling = going(TOP_SPEED_M_PER_S);
+        let leaving = Situation {
+            on_the_ground: false,
+            ..asphalt()
+        };
+
+        let sent = handling.tick(&hop_right(), Freeze::Free, leaving, TICK_S);
+
+        assert_eq!(sent.velocity.y, 0.0, "no launch off the road");
+    }
+
+    #[test]
+    fn a_press_in_the_air_off_a_crest_lands_into_no_drift() {
+        let mut handling = drifting_right();
+        tick(&mut handling, FULL_THROTTLE);
+        assert_eq!(handling.drift, None, "released");
+        let over_the_crest = Situation {
+            on_the_ground: false,
+            ..asphalt()
+        };
+        for _ in 0..10 {
+            handling.tick(&hop_right(), Freeze::Free, over_the_crest, TICK_S);
+        }
+
+        tick(&mut handling, hop_right());
+
+        assert!(!handling.airborne(), "landed");
+        assert_eq!(handling.drift, None, "no hop to land a drift from");
+    }
+
+    #[test]
+    fn a_drift_over_a_crest_lands_with_the_charge_it_took_off_with() {
+        let mut handling = drifting_right();
+        ticks(&mut handling, hop_right(), 10);
+        let over_the_crest = Situation {
+            on_the_ground: false,
+            ..asphalt()
+        };
+        // The tick the road drops away still began on it, and charges.
+        handling.tick(&hop_right(), Freeze::Free, over_the_crest, TICK_S);
+        let before = handling.drift.expect("drifting").charge_s;
+        for _ in 0..10 {
+            handling.tick(&hop_right(), Freeze::Free, over_the_crest, TICK_S);
+        }
+        assert!(handling.airborne(), "off the road over the crest");
+
+        tick(&mut handling, hop_right());
+
+        assert_eq!(
+            handling.drift,
+            Some(Drift {
+                direction: DriftDirection::Right,
+                charge_s: before
+            })
+        );
     }
 
     #[test]

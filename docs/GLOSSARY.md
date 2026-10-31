@@ -159,7 +159,9 @@ walls and karts it met.
 ### hop
 
 A short jump (0.3 s airtime) that starts a drift when it lands while the kart
-is steering above 40 percent of top speed.
+is steering above 40 percent of top speed. It lands once the airtime has run
+out and the kart is back on the road, later where the road falls away under
+it; a press in the air does not hop again.
 
 ### drift
 
