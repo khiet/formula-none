@@ -4,7 +4,7 @@ target
 node_modules
 **/node_modules
 apps/web/dist
-apps/web/src/generated
+apps/web/src/generated/bridge
 apps/web/test-results
 apps/web/playwright-report
 infra
