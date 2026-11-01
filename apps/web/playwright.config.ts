@@ -5,6 +5,10 @@ export default defineConfig({
   // Every spec waits through the race's countdown and then on sim time, and
   // a CI runner steps the sim far slower than real time.
   timeout: 120_000,
+  // Software rendering already takes the whole runner, so two browsers at once
+  // starve each other's sim past these timeouts. Playwright's default is half
+  // the CPUs, which is two on a public repository's four-CPU runner.
+  workers: process.env.CI ? 1 : "50%",
   // The dev server and, behind its /api proxy, the real Rust server: the
   // connection specs reach it over the WebSocket fallback (ADR 0011).
   webServer: [
