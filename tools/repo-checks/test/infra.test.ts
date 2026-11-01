@@ -183,7 +183,7 @@ describe("infra", () => {
       expect(conditions["token.actions.githubusercontent.com:sub"]).toEqual([
         `repo:${ref("var.github_repository")}:ref:refs/heads/main`,
       ]);
-      expect(variables.github_repository?.default).toBe("khiet/formula-none");
+      expect(variables.github_repository?.default).toBe("khiet@310614/formula-none@1424199161");
     });
 
     it("may push to the one repository and run the one deploy document, and nothing else", () => {

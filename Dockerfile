@@ -10,7 +10,7 @@
 ARG RUST_VERSION=1.97
 ARG NODE_VERSION=22
 
-FROM node:${NODE_VERSION}-bookworm-slim AS node
+FROM --platform=$BUILDPLATFORM node:${NODE_VERSION}-bookworm-slim AS node
 
 # --- server: cross-compiled release binary -----------------------------------
 FROM --platform=$BUILDPLATFORM rust:${RUST_VERSION}-bookworm AS server-build
