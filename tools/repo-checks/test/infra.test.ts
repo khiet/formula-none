@@ -120,6 +120,17 @@ describe("infra", () => {
     expect(variables.billing_alert_email?.default).toBeUndefined();
   });
 
+  // The account also runs other workloads (ADR 0071), so the budget counts the
+  // tag the provider puts on everything this module creates.
+  it("counts only the cost carrying the tag the provider applies", () => {
+    const budget = only(Object.values(resourcesOfType("aws_budgets_budget")));
+    expect(budget.cost_filter).toEqual([
+      { name: "TagKeyValue", values: ["user:Project$formula-none"] },
+    ]);
+    expect(readRepoFile("infra/providers.tf")).toMatch(/Project\s*=\s*local\.name/);
+    expect(readRepoFile("infra/locals.tf")).toMatch(/name\s*=\s*"formula-none"/);
+  });
+
   describe("GitHub Actions role", () => {
     // Every statement across the role's own policy documents, flattened.
     function statementsOf(roleName: string): Block[] {

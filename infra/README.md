@@ -10,8 +10,9 @@ nothing here runs from CI.
 Cost ceiling: USD 25 a month (ADR 0017). The estimate for what this applies
 is in ADR 0015; check it before applying a change. The budget mails
 `billing_alert_email` when the actual bill passes 80% of the ceiling, when the
-month's forecast passes the ceiling, and when the actual bill does. It covers the whole account; a budget without
-actions is free.
+month's forecast passes the ceiling, and when the actual bill does. It counts
+only cost tagged `Project=formula-none`, since the account runs other workloads
+(ADR 0071); a budget without actions is free.
 
 This module describes the author's own deployment; to host the game
 yourself, use the Compose stack under `deploy/`.
@@ -34,6 +35,11 @@ tofu apply
 
 AWS Budgets then mails the address a verification link; it sends no alert
 until the link is followed.
+
+The budget reads zero until its tag is activated, once, after the first apply:
+in Billing and Cost Management > Cost allocation tags, select `Project` and
+activate it. AWS can take a day to list a new tag and another to apply the
+activation, and it does not count cost from before it.
 
 The profile needs rights to create everything here plus `ssm:GetParameter`
 on the public AMI parameters and `route53:ListHostedZones`. If the

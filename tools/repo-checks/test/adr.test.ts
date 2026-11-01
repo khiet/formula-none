@@ -75,6 +75,7 @@ const DECISION_SLUGS = [
   "a-kart-holding-an-item-still-takes-item-boxes",
   "the-music-loop-runs-a-minute",
   "an-item-rolls-before-it-lands",
+  "the-budget-counts-the-games-own-cost",
 ];
 
 const expectedFiles = DECISION_SLUGS.map(
