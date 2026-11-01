@@ -70,7 +70,7 @@ resource "aws_vpc_security_group_ingress_rule" "quic_udp" {
 
 resource "aws_vpc_security_group_egress_rule" "all" {
   security_group_id = aws_security_group.instance.id
-  description       = "Image pulls, Let's Encrypt, SSM and CloudWatch endpoints"
+  description       = "Image pulls, Lets Encrypt, SSM and CloudWatch endpoints"
   ip_protocol       = "-1"
   cidr_ipv4         = "0.0.0.0/0"
 }

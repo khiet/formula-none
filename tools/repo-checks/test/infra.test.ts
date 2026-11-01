@@ -71,6 +71,17 @@ describe("infra", () => {
     expect(rules).toEqual(["tcp 443 443 0.0.0.0/0", "udp 443 443 0.0.0.0/0"]);
   });
 
+  // EC2 rejects any other character at apply time; validate and plan pass it.
+  it("describes every security group rule in the characters EC2 accepts", () => {
+    const rules = [
+      ...Object.values(resourcesOfType("aws_vpc_security_group_ingress_rule")),
+      ...Object.values(resourcesOfType("aws_vpc_security_group_egress_rule")),
+    ];
+    for (const rule of rules) {
+      expect(rule.description).toMatch(/^[a-zA-Z0-9. _\-:/()#,@[\]+=&;{}!$*]{1,255}$/);
+    }
+  });
+
   it("runs one t4g.small reached through SSM Session Manager, with no SSH key pair", () => {
     const instance = only(Object.values(resourcesOfType("aws_instance")));
     expect(resolved(instance.instance_type)).toBe("t4g.small");
@@ -91,6 +102,8 @@ describe("infra", () => {
   it("points formulanone.sushimafia.com at the Elastic IP from the zone's own account", () => {
     const record = only(Object.values(resourcesOfType("aws_route53_record")));
     expect(resolved(record.name)).toBe("formulanone.sushimafia.com");
+    // The zone holds this one name; the rest of the domain stays at the registrar (ADR 0072).
+    expect(variables.zone_name?.default).toBe("formulanone.sushimafia.com");
     expect(record.type).toBe("A");
     expect(record.records).toEqual([ref("aws_eip.server.public_ip")]);
     expect(record.provider).toBe(ref("aws.dns"));
@@ -118,6 +131,17 @@ describe("infra", () => {
     }
     expect(variables.billing_alert_email).toBeDefined();
     expect(variables.billing_alert_email?.default).toBeUndefined();
+  });
+
+  // The account also runs other workloads (ADR 0071), so the budget counts the
+  // tag the provider puts on everything this module creates.
+  it("counts only the cost carrying the tag the provider applies", () => {
+    const budget = only(Object.values(resourcesOfType("aws_budgets_budget")));
+    expect(budget.cost_filter).toEqual([
+      { name: "TagKeyValue", values: ["user:Project$formula-none"] },
+    ]);
+    expect(readRepoFile("infra/providers.tf")).toMatch(/Project\s*=\s*local\.name/);
+    expect(readRepoFile("infra/locals.tf")).toMatch(/name\s*=\s*"formula-none"/);
   });
 
   describe("GitHub Actions role", () => {
