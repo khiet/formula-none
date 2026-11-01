@@ -9,7 +9,7 @@ provider "aws" {
   }
 }
 
-# The hosted zone for sushimafia.com may live in another account (ADR 0015);
+# The hosted zone may live in another account (ADR 0015);
 # this alias is the one that writes the A record.
 provider "aws" {
   alias   = "dns"

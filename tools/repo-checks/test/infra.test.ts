@@ -102,6 +102,8 @@ describe("infra", () => {
   it("points formulanone.sushimafia.com at the Elastic IP from the zone's own account", () => {
     const record = only(Object.values(resourcesOfType("aws_route53_record")));
     expect(resolved(record.name)).toBe("formulanone.sushimafia.com");
+    // The zone holds this one name; the rest of the domain stays at the registrar (ADR 0072).
+    expect(variables.zone_name?.default).toBe("formulanone.sushimafia.com");
     expect(record.type).toBe("A");
     expect(record.records).toEqual([ref("aws_eip.server.public_ip")]);
     expect(record.provider).toBe(ref("aws.dns"));

@@ -4,7 +4,7 @@ OpenTofu for the single-instance environment described in ADR 0015: VPC,
 subnet, security group, one t4g.small with an Elastic IP, DNS record, ECR
 repository, CloudWatch log group, the deploy Run Command document, the
 GitHub Actions OIDC role, and a monthly budget that mails the operator.
-Applied by hand from the laptop with the `neconote` profile in `eu-west-2`;
+Applied by hand from the laptop with the `formula-none-admin` profile in `eu-west-2`;
 nothing here runs from CI.
 
 Cost ceiling: USD 25 a month (ADR 0017). The estimate for what this applies
@@ -42,8 +42,14 @@ activate it. AWS can take a day to list a new tag and another to apply the
 activation, and it does not count cost from before it.
 
 The profile needs rights to create everything here plus `ssm:GetParameter`
-on the public AMI parameters and `route53:ListHostedZones`. If the
-`sushimafia.com` zone lives in another account, pass its profile:
+on the public AMI parameters and `route53:ListHostedZones`. Its key is an
+administrator's, so create it for an apply and delete it afterwards (ADR 0072).
+
+The hosted zone comes first and stays outside this module (ADR 0072): create a
+public zone for `formulanone.sushimafia.com`, add its four nameservers as NS
+records for `formulanone` at the registrar, and check that
+`dig NS formulanone.sushimafia.com` returns them. If the zone lives in another
+account, pass its profile:
 
 ```sh
 tofu apply -var dns_aws_profile=<profile>
@@ -57,14 +63,14 @@ challenge; Caddy falls back to TLS-ALPN-01 on 443 by itself.
 No key pair exists. Open a shell through Session Manager:
 
 ```sh
-aws ssm start-session --profile neconote --target "$(tofu output -raw instance_id)"
+aws ssm start-session --profile formula-none-admin --target "$(tofu output -raw instance_id)"
 ```
 
 Grafana is reached the same way, through a port forward that one command
 opens (ADR 0015; `deploy/README.md` has the dashboard):
 
 ```sh
-AWS_PROFILE=neconote deploy/grafana.sh
+AWS_PROFILE=formula-none-admin deploy/grafana.sh
 ```
 
 ## Deploying
@@ -89,7 +95,7 @@ The same deploy by hand, including the smoke test, is one command
 (`deploy/README.md`):
 
 ```sh
-AWS_PROFILE=neconote deploy/deploy.sh <commit-sha>
+AWS_PROFILE=formula-none-admin deploy/deploy.sh <commit-sha>
 ```
 
 ## Checks

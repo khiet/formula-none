@@ -32,7 +32,7 @@ apply: `AWS_DEPLOY_ROLE_ARN` and `AWS_INSTANCE_ID` (see `infra/README.md`).
 For a commit whose image is already in ECR (every commit on main):
 
 ```sh
-AWS_PROFILE=neconote deploy/deploy.sh <commit-sha>
+AWS_PROFILE=formula-none-admin deploy/deploy.sh <commit-sha>
 ```
 
 The instance id comes from the OpenTofu state in `infra/`; set `INSTANCE_ID`
@@ -204,7 +204,7 @@ Grafana listens on the instance's loopback only, so the one way in is an
 SSM port forward, which one command opens:
 
 ```sh
-AWS_PROFILE=neconote deploy/grafana.sh
+AWS_PROFILE=formula-none-admin deploy/grafana.sh
 ```
 
 Then browse `http://localhost:3000`; Session Manager has authenticated you,

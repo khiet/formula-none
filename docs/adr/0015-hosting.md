@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted (2026-10-18)
+Accepted (2026-10-18). Its hosted zone and profile are superseded by ADR 0072.
 
 ## Context
 

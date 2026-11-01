@@ -1,7 +1,7 @@
 variable "aws_profile" {
-  description = "Named profile for the personal account that hosts the environment."
+  description = "Named profile for the account that hosts the environment (ADR 0072)."
   type        = string
-  default     = "neconote"
+  default     = "formula-none-admin"
 }
 
 variable "dns_aws_profile" {
@@ -17,9 +17,9 @@ variable "region" {
 }
 
 variable "zone_name" {
-  description = "Existing public hosted zone that receives the A record."
+  description = "Existing public hosted zone that receives the A record, delegated from the registrar (ADR 0072)."
   type        = string
-  default     = "sushimafia.com"
+  default     = "formulanone.sushimafia.com"
 }
 
 variable "hostname" {
