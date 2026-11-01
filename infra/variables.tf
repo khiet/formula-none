@@ -29,9 +29,9 @@ variable "hostname" {
 }
 
 variable "github_repository" {
-  description = "owner/name of the repository whose main-branch workflows may assume the deploy role."
+  description = "owner/name of the repository whose main-branch workflows may assume the deploy role, in the immutable form GitHub puts in this repository's OIDC subject: owner@id/name@id. The API's actions/oidc/customization/sub reports it."
   type        = string
-  default     = "khiet/formula-none"
+  default     = "khiet@310614/formula-none@1424199161"
 }
 
 # No default: the repository is public, so the address is passed at apply time
