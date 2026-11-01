@@ -84,13 +84,14 @@ set `SITE_ADDRESS` to your domain and drop the CloudWatch logging the base
 
 Keyboard only. Arrows and WASD do the same thing.
 
-| Action   | Keys                 | Notes                                                                            |
-| -------- | -------------------- | -------------------------------------------------------------------------------- |
-| Steer    | Left/Right, A/D      |                                                                                  |
-| Throttle | Up, W                |                                                                                  |
-| Brake    | Down, S              | Reverses from a standstill.                                                      |
-| Hop      | Space                | Land while steering to start a drift; keep it held, let go for the mini-turbo.   |
-| Item     | Shift                | Fires the held item. Keep it held to trail a hazard behind you until released.   |
+| Action      | Keys                 | Notes                                                                            |
+| ----------- | -------------------- | -------------------------------------------------------------------------------- |
+| Steer       | Left/Right, A/D      |                                                                                  |
+| Throttle    | Up, W                |                                                                                  |
+| Brake       | Down, S, Q           | Reverses from a standstill. Q leaves W free to stay held through a brake drift.  |
+| Hop         | Space                | Land while steering to start a drift; keep it held, let go for the mini-turbo.   |
+| Item        | Shift                | Fires the held item. Keep it held to trail a hazard behind you until released.   |
+| Look behind | E                    | While held.                                                                      |
 
 Rocket start: hold the throttle from the first half of the 2 through GO for
 the full boost, from the second half for a weaker one; hold it from before
