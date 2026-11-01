@@ -33,22 +33,31 @@ function fixtures(): { name: string; json: string; track: string; hashes: bigint
     });
 }
 
+// Every fixture runs in one test, so this gate takes seconds of wasm and more
+// when the rest of the suite shares the CI runner. How long it takes is not
+// what it checks, and a slow runner must not fail the deploy that depends on it.
+const REPLAY_ALL_FIXTURES_TIMEOUT_MS = 60_000;
+
 function hashFromHex(hex: string): bigint {
   return BigInt(`0x${hex}`);
 }
 
 describe("replay determinism", () => {
-  it("replays every committed fixture in wasm to the hashes it was recorded with", async () => {
-    const bridge = await loadBridge(wasm);
-    const all = fixtures();
-    expect(all.length).toBeGreaterThanOrEqual(3);
-    for (const fixture of all) {
-      expect(fixture.hashes.length, fixture.name).toBeGreaterThan(0);
-      expect(bridge.replayHashes(fixture.json, sidecar(fixture.track)), fixture.name).toEqual(
-        fixture.hashes,
-      );
-    }
-  });
+  it(
+    "replays every committed fixture in wasm to the hashes it was recorded with",
+    async () => {
+      const bridge = await loadBridge(wasm);
+      const all = fixtures();
+      expect(all.length).toBeGreaterThanOrEqual(3);
+      for (const fixture of all) {
+        expect(fixture.hashes.length, fixture.name).toBeGreaterThan(0);
+        expect(bridge.replayHashes(fixture.json, sidecar(fixture.track)), fixture.name).toEqual(
+          fixture.hashes,
+        );
+      }
+    },
+    REPLAY_ALL_FIXTURES_TIMEOUT_MS,
+  );
 
   it("rejects a replay run on a sidecar that is not its track, with the sim's reason", async () => {
     const bridge = await loadBridge(wasm);
