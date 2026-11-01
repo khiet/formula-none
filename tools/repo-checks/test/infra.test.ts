@@ -71,6 +71,17 @@ describe("infra", () => {
     expect(rules).toEqual(["tcp 443 443 0.0.0.0/0", "udp 443 443 0.0.0.0/0"]);
   });
 
+  // EC2 rejects any other character at apply time; validate and plan pass it.
+  it("describes every security group rule in the characters EC2 accepts", () => {
+    const rules = [
+      ...Object.values(resourcesOfType("aws_vpc_security_group_ingress_rule")),
+      ...Object.values(resourcesOfType("aws_vpc_security_group_egress_rule")),
+    ];
+    for (const rule of rules) {
+      expect(rule.description).toMatch(/^[a-zA-Z0-9. _\-:/()#,@[\]+=&;{}!$*]{1,255}$/);
+    }
+  });
+
   it("runs one t4g.small reached through SSM Session Manager, with no SSH key pair", () => {
     const instance = only(Object.values(resourcesOfType("aws_instance")));
     expect(resolved(instance.instance_type)).toBe("t4g.small");
