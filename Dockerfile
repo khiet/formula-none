@@ -18,9 +18,10 @@ ARG BUILDARCH
 ARG COMMIT
 RUN test -n "$COMMIT" || { echo "build-arg COMMIT is required" >&2; exit 1; }
 
-# A cross linker only when the build machine is not already arm64.
+# A cross compiler only when the build machine is not already arm64. Its arm64
+# C headers are only a recommended package, and the ring crate compiles C.
 RUN if [ "$BUILDARCH" != "arm64" ]; then \
-      apt-get update && apt-get install -y --no-install-recommends gcc-aarch64-linux-gnu \
+      apt-get update && apt-get install -y --no-install-recommends gcc-aarch64-linux-gnu libc6-dev-arm64-cross \
       && rm -rf /var/lib/apt/lists/*; \
     fi
 RUN rustup target add aarch64-unknown-linux-gnu
@@ -29,6 +30,9 @@ ENV CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc
 WORKDIR /src
 COPY Cargo.toml Cargo.lock ./
 COPY crates ./crates
+# The server embeds each course's sidecar (crates/server/src); the rest of the
+# course files are the client's. COPY's --parents keeps their paths.
+COPY --parents assets/tracks/*/*.track.json ./
 # The version endpoint reports this commit (crates/server/src/main.rs).
 ENV FORMULA_NONE_COMMIT=$COMMIT
 RUN --mount=type=cache,target=/usr/local/cargo/registry \
