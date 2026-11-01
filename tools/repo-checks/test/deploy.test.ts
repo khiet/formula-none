@@ -247,4 +247,14 @@ describe("metrics stack", () => {
     );
     expect(dockerfile).toMatch(/^COPY deploy\/grafana \/release\/grafana$/m);
   });
+
+  it("runs every build stage on the build machine, so an x86 runner can build the arm64 image", () => {
+    const stages = readRepoFile("Dockerfile")
+      .split("\n")
+      .filter((line) => /^FROM .* AS /.test(line));
+    expect(stages.length).toBeGreaterThan(0);
+    for (const stage of stages) {
+      expect(stage).toContain("--platform=$BUILDPLATFORM");
+    }
+  });
 });
