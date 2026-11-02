@@ -39,11 +39,13 @@ import {
   runawayWheelFlames,
   runawayWheelMesh,
 } from "./item-meshes";
-import type { Vec3 } from "./kart-frame";
+import { glint } from "./item-sprites";
+import { groundDistance, type Vec3 } from "./kart-frame";
 import type { KartLabel } from "./kart-labels";
 import { dressKart, fitKart, type KartFit, shineKart } from "./kart-model";
 import { createKartShadows } from "./kart-shadows";
-import { livery } from "./livery";
+import { hexCss, livery } from "./livery";
+import type { Point } from "./low-poly-svg";
 import { plate, tonesOf, writePalette } from "./palette";
 import { createParticles } from "./particles";
 import type { RaceReadout } from "./race-run";
@@ -408,21 +410,12 @@ export async function createRaceView(
         // of its sparkles marks it where the kart stands, which covers the
         // metres the interpolation's delay leaves between the two.
         const spunOut = readout.spinOutS !== null;
-        if (spunOut && !drawn.spunOut) {
+        if (spunOut && !drawn.spunOut && !viewer.reducedMotion) {
           const star = readouts.find(
-            (other) =>
-              other.starS !== null &&
-              Math.hypot(
-                other.position[0] - readout.position[0],
-                other.position[2] - readout.position[2],
-              ) <= STAR_HIT_REACH_M,
+            (other) => other.starS !== null && groundDistance(other, readout) <= STAR_HIT_REACH_M,
           );
-          if (star?.starS != null) {
-            starSparkles.burst(
-              readout.position,
-              starShine(star.starS, viewer.reducedMotion)?.colour ?? 0xffffff,
-            );
-          }
+          const shineOfStar = starShine(star?.starS ?? null, false);
+          if (shineOfStar !== null) starSparkles.burst(readout.position, shineOfStar.colour);
         }
         drawn.spunOut = spunOut;
       });
@@ -463,14 +456,15 @@ export async function createRaceView(
         label.visible = true;
         label.position.set(...anchor);
         label.element.textContent = text;
-        // A star kart's plate runs the loop, so the others see it coming.
+        // A star kart's plate underline runs the loop, so the others see it
+        // coming; the plate keeps the kart's key colour.
         const shine = starShine(readouts[kart]?.starS ?? null, viewer.reducedMotion);
         if (shine !== null) {
-          plate(label.element, tonesOf(shine.colour));
+          label.element.style.setProperty("--star", hexCss(shine.colour));
           label.element.dataset.star = "";
           labelShone[kart] = true;
         } else if (labelShone[kart]) {
-          plate(label.element, tonesOf(livery(kart).key));
+          label.element.style.removeProperty("--star");
           delete label.element.dataset.star;
           labelShone[kart] = false;
         }
@@ -752,25 +746,14 @@ function meshPool(world: ThreeScene, template: Object3D, lift: number): MeshPool
  * and one upright, so it reads from most angles without facing the camera.
  */
 function glintGeometry(): BufferGeometry {
-  const r = 0.5;
-  const q = r * 0.18;
-  const star = (x: number, y: number, flat: boolean): Vector3 =>
+  const rim = glint(0, 0, 0.5);
+  const point = ([x, y]: Point, flat: boolean): Vector3 =>
     flat ? new Vector3(x, 0, y) : new Vector3(x, y, 0);
   const points: Vector3[] = [];
   for (const flat of [true, false]) {
-    const rim = [
-      [0, -r],
-      [q, -q],
-      [r, 0],
-      [q, q],
-      [0, r],
-      [-q, q],
-      [-r, 0],
-      [-q, -q],
-    ] as const;
-    rim.forEach(([x, y], index) => {
-      const [nx, ny] = rim[(index + 1) % rim.length] ?? [0, 0];
-      points.push(star(0, 0, flat), star(x, y, flat), star(nx, ny, flat));
+    rim.forEach((corner, index) => {
+      const next = rim[(index + 1) % rim.length] ?? corner;
+      points.push(point([0, 0], flat), point(corner, flat), point(next, flat));
     });
   }
   return new BufferGeometry().setFromPoints(points);

@@ -52,7 +52,7 @@ import {
   TYRE_WEAR_PLACEHOLDER_PERCENT,
   tyreWearBand,
 } from "./speed-cluster";
-import { STAR_LOOP_S, STAR_RAINBOW, STAR_TILES, starColour, starTileColour } from "./star-shine";
+import { STAR_RAINBOW, STAR_TILES, starColour, starTileColour } from "./star-shine";
 
 /** The item slot as the panel prints it: the item's name and the slot's state. */
 export interface ItemReadout {
@@ -152,7 +152,7 @@ export function loadInstrumentFont(): Promise<void> {
  * pop and a flash; under `reducedMotion` the slot shows the plain box
  * face through the roll and the item lands still. A landed mirror ball
  * runs the rainbow loop through its tiles, and through the own kart's star
- * run a rainbow ring round the slot counts the `starSeconds` down (ADR
+ * run a rainbow ring round the slot counts the tuned run down (ADR
  * 0075); under `reducedMotion` the tiles hold their colours and the ring
  * still counts down.
  * Each readout is addressable by `data-instrument` so tests and styles
@@ -162,15 +162,10 @@ export function createInstrumentPanel(
   container: HTMLElement,
   lapsPerRace: number,
   course: CourseMapSetup,
-  tuning: SpeedClusterTuning,
+  tuning: PanelTuning,
   name: (kart: number) => string,
   paint: Livery,
-  {
-    reducedMotion,
-    starSeconds = DEFAULT_STAR_SECONDS,
-  }: { readonly reducedMotion: boolean; readonly starSeconds?: number } = {
-    reducedMotion: false,
-  },
+  { reducedMotion }: { readonly reducedMotion: boolean } = { reducedMotion: false },
 ): InstrumentPanel {
   const panel = document.createElement("div");
   panel.id = "instrument-panel";
@@ -457,7 +452,7 @@ export function createInstrumentPanel(
       const starS = local.starS;
       ring.style.display = starS === null ? "none" : "";
       if (starS !== null) {
-        const left = Math.min(Math.max(starS / starSeconds, 0), 1);
+        const left = Math.min(Math.max(starS / tuning.starSeconds, 0), 1);
         ringStroke.setAttribute("stroke-dasharray", `${RING_LENGTH * left} ${RING_LENGTH}`);
         ringStroke.setAttribute("stroke", hexCss(reducedMotion ? RING_STILL : starColour(starS)));
       }
@@ -586,8 +581,12 @@ const ITEM_NAMES: Readonly<Record<Item, string>> = {
   star: "Star",
 };
 
-/** The run's length when the caller names none: the sim's tuned six seconds, which tests stand in for. */
-const DEFAULT_STAR_SECONDS = 6;
+/** What the panel reads of the sim's tuning: the speed cluster's, and how long a star's run lasts. */
+export interface PanelTuning extends SpeedClusterTuning {
+  readonly starSeconds: number;
+}
+/** How far the landed ball's glow reaches, in CSS pixels. */
+const BALL_GLOW_PX = 5;
 /** The ring is drawn in a fixed square of units and scaled by CSS. */
 const RING_UNITS = 100;
 const RING_WIDTH = 7;
@@ -606,7 +605,7 @@ function shineBall(ball: SVGSVGElement, seconds: number): void {
     ball.style.setProperty(`--r${tile}`, hexCss(starTileColour(seconds, tile)));
   }
   ball.style.setProperty("--glow", hexCss(starColour(seconds)));
-  ball.style.filter = `drop-shadow(0 0 ${STAR_LOOP_S * 10}px var(--glow))`;
+  ball.style.filter = `drop-shadow(0 0 ${BALL_GLOW_PX}px var(--glow))`;
 }
 
 /**

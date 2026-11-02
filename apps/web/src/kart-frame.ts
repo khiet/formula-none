@@ -28,6 +28,14 @@ export function rearWheel(kart: KartReadout, side: Side, size: KartSize, out: Ve
 /** How wide a tyre's print is on the road. */
 export const TYRE_WIDTH_M = 0.2;
 
+/** Metres between two karts' centres along the ground, height ignored. */
+export function groundDistance(
+  a: Pick<KartReadout, "position">,
+  b: Pick<KartReadout, "position">,
+): number {
+  return Math.hypot(a.position[0] - b.position[0], a.position[2] - b.position[2]);
+}
+
 /** The point `[x, y, z]` in the kart's frame, in world metres, written to `out`. */
 export function toWorld(kart: KartReadout, x: number, y: number, z: number, out: Vec3): Vec3 {
   rotate(kart.rotation, x, y, z, out);

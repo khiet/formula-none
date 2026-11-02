@@ -39,6 +39,7 @@ function at(position: readonly [number, number, number]): KartReadout {
 const TUNING = {
   coinTopSpeeds: Array.from({ length: 11 }, (_, coins) => 30 * (1 + coins * 0.01)),
   coinCap: 10,
+  starSeconds: 6,
 };
 
 const nameOf = (kart: number) => (kart === course.ownKart ? "You" : `Kart ${kart + 1}`);
@@ -405,7 +406,6 @@ describe("the star's ring", () => {
     const container = document.createElement("div");
     const panel = createInstrumentPanel(container, 3, course, TUNING, () => "", livery(1), {
       reducedMotion: false,
-      starSeconds: 6,
     });
     const ring = container.querySelector<SVGSVGElement>("[data-star-ring]");
     const stroke = ring?.querySelector("circle");

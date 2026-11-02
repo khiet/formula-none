@@ -11,6 +11,7 @@
 import type { KartReadout, MiniTurbo, Surface } from "./bridge";
 import type { Item, Start } from "./generated/protocol";
 import { reelFrame } from "./item-reel";
+import { groundDistance } from "./kart-frame";
 import { type RaceCount, type RaceReadout, raceCount } from "./race-run";
 
 /** The sounds a race fires, each from the change that calls for it. */
@@ -130,10 +131,7 @@ function nearestStar(karts: readonly KartReadout[], kart: number): NearestStar |
   let nearest: NearestStar | null = null;
   karts.forEach((other, slot) => {
     if (slot === kart || other.starS === null) return;
-    const metres = Math.hypot(
-      other.position[0] - own.position[0],
-      other.position[2] - own.position[2],
-    );
+    const metres = groundDistance(other, own);
     if (nearest === null || metres < nearest.metres) {
       nearest = { kart: slot, seconds: other.starS, metres };
     }
@@ -170,10 +168,10 @@ export const STAR_RESTART_RISE_S = 0.5;
  * the same chime to orange and to red, the sparks telling which; the
  * pickup as the kart takes a box, whatever it gave; the click as the
  * slot's reel steps on, once a frame however far it went; the landing as
- * the rolled item lands; the fire as the slot empties, the star's own fire
- * in place of the item fire when the item was a star, and again as a
- * second star puts the run's seconds back up by more than a correction
- * could; the coin pickup as
+ * the rolled item lands; the fire as the slot empties, except for a star,
+ * whose own fire sounds instead as its run begins or as a second star puts
+ * the run's seconds back up by more than a correction could; the coin
+ * pickup as
  * the coins carried rise; the hit as a spin-out begins, then the coin loss
  * as the coins it cost fall; the sputter as a stall begins; the wrong
  * way as its flag raises; the star's end as the run runs out, unless the
@@ -197,18 +195,22 @@ export function soundCues(before: SoundReading | undefined, after: SoundReading)
   const released = ((charged && after.miniTurbo === null) || rocketStarted) && boostBegan;
   const fired = before.item !== null && after.item === null;
   if (released) cues.push("miniTurbo");
-  if (boostBegan && !released && !fired) cues.push("boostPad");
+  // A run beginning, or put back up by more than a correction could, is a
+  // star's fire: once, whether the slot empties on the same frame, as in a
+  // solo race, or only when the server confirms it, as in a room's, where
+  // the prediction starts the run first. Its kick is no pad.
+  const starRose =
+    after.starSeconds !== null &&
+    (before.starSeconds === null || after.starSeconds > before.starSeconds + STAR_RESTART_RISE_S);
+  if (boostBegan && !released && !fired && !starRose) cues.push("boostPad");
   if (tierRank(after.miniTurbo) > tierRank(before.miniTurbo)) cues.push("tierChime");
   if (after.boxesTaken > before.boxesTaken) cues.push("itemPickup");
   if (before.reelStep !== null && after.reelStep !== null && after.reelStep > before.reelStep) {
     cues.push("itemRollTick");
   }
   if (before.rolling && !after.rolling && after.item !== null) cues.push("itemRolled");
-  const starRose =
-    after.starSeconds !== null &&
-    (before.starSeconds === null || after.starSeconds > before.starSeconds + STAR_RESTART_RISE_S);
-  if ((fired && before.item === "star") || starRose) cues.push("starFire");
-  else if (fired) cues.push("itemFire");
+  if (starRose) cues.push("starFire");
+  else if (fired && before.item !== "star") cues.push("itemFire");
   if (after.coins > before.coins) cues.push("coinPickup");
   if (!before.spunOut && after.spunOut) cues.push("hit");
   if (after.coins < before.coins) cues.push("coinLoss");

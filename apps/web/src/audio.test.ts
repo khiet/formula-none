@@ -921,11 +921,18 @@ describe("the star music", () => {
     expect(starMusic()).toHaveLength(2);
     expect(away?.stopped).toBe(1);
     expect(starMusic()[1]?.offset).toBeCloseTo(1, 6);
+    // A second star of that kart puts its run back to the start: its music
+    // restarts at the top, with no fire sound.
+    race.update({ ...STILL, nearestStar: { kart: 5, seconds: 5.9, metres: 8 } });
+    expect(starMusic()).toHaveLength(3);
+    expect(starMusic()[1]?.stopped).toBe(1);
+    expect(starMusic()[2]?.offset).toBeCloseTo(0.1, 6);
+    expect(played("starFire")).toBe(0);
     // The own run outranks it, and the other's end plays no sound.
     race.update({ ...STILL, item: "star", nearestStar: { kart: 5, seconds: 4.9, metres: 8 } });
     race.update({ ...run(5.98), nearestStar: { kart: 5, seconds: 4.8, metres: 8 } });
-    expect(starMusic()).toHaveLength(3);
-    expect(starMusic()[2]?.offset).toBeCloseTo(STAR_RUN_S - 5.98, 6);
+    expect(starMusic()).toHaveLength(4);
+    expect(starMusic()[3]?.offset).toBeCloseTo(STAR_RUN_S - 5.98, 6);
     expect(played("starEnd")).toBe(0);
   });
 

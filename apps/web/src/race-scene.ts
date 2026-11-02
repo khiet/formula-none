@@ -102,10 +102,11 @@ export async function createRaceScene(
     {
       coinTopSpeeds: bridge.coinTopSpeeds,
       coinCap: bridge.coinCap,
+      starSeconds: bridge.starSeconds,
     },
     name,
     livery(run.localKart),
-    { reducedMotion, starSeconds: bridge.starSeconds },
+    { reducedMotion },
   );
 
   const present = (frameSeconds: number) => {

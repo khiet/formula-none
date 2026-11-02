@@ -40,6 +40,7 @@ import {
   type SoundCue,
   type SoundLoop,
   type SoundReading,
+  STAR_RESTART_RISE_S,
   type StarMusic,
   soundCues,
   soundLoops,
@@ -334,6 +335,8 @@ interface RunningStar {
   readonly kart: number | null;
   readonly source: SoundBufferSource;
   readonly gain: SoundGain;
+  /** How far into the run the music was last asked for, so a second star's jump back is seen. */
+  secondsIn: number;
 }
 
 /**
@@ -482,11 +485,15 @@ class LiveRace {
   #runStar(sounds: Sounds, wanted: StarMusic | null, cues: readonly SoundCue[]): void {
     const now = sounds.context.currentTime;
     const running = this.#star;
+    // A second star puts the run back to its start: the own kart's is its
+    // fire cue, another's its point in the run jumping back by more than a
+    // correction could move it.
     const restart =
       wanted !== null &&
       (running === undefined ||
         running.kart !== wanted.kart ||
-        (wanted.kart === null && cues.includes("starFire")));
+        (wanted.kart === null && cues.includes("starFire")) ||
+        wanted.secondsIn + STAR_RESTART_RISE_S < running.secondsIn);
     if (running !== undefined && (wanted === null || restart)) {
       running.gain.gain.setTargetAtTime(0, now, MUSIC_FADE_S);
       running.source.stop(now + MUSIC_FADE_STOP_S);
@@ -508,9 +515,10 @@ class LiveRace {
         source.connect(filter);
       }
       source.start(now, wanted.secondsIn);
-      this.#star = { kart: wanted.kart, source, gain };
+      this.#star = { kart: wanted.kart, source, gain, secondsIn: wanted.secondsIn };
     } else if (wanted !== null && this.#star !== undefined) {
       this.#star.gain.gain.setTargetAtTime(wanted.level, now, GLIDE_S);
+      this.#star.secondsIn = wanted.secondsIn;
     }
     // The race music keeps its place while silent, so it comes back
     // further along, not from the start.

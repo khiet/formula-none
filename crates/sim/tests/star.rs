@@ -73,8 +73,9 @@ fn rolling(
     unreachable!()
 }
 
-/// The oval with no coins and no item boxes but one under each of `slots`.
-fn oval_with_boxes_under(slots: impl IntoIterator<Item = usize>) -> Track {
+/// The oval with no coins and no item boxes but one under each of `slots`;
+/// `common::oval_with_boxes_under` keeps the track's coins and boxes.
+fn clean_oval_with_boxes_under(slots: impl IntoIterator<Item = usize>) -> Track {
     track(&with_boxes_under(
         &without_coins(&without_item_boxes(OVAL)),
         slots,
@@ -612,7 +613,7 @@ fn a_homing_projectile_is_used_up_on_a_star_kart_to_no_effect() {
     const FIRER: usize = 6;
     let humans = FIRER + 1;
     let state = rolling(
-        || oval_with_boxes_under([HOLDER, FIRER]),
+        || clean_oval_with_boxes_under([HOLDER, FIRER]),
         humans,
         0,
         &[(HOLDER, Item::Star), (FIRER, Item::Homing)],
@@ -818,7 +819,7 @@ fn a_bot_fires_a_star_within_the_tuned_delay_of_its_landing() {
             seed,
             0,
             karts,
-            oval_with_boxes_under(5..karts),
+            clean_oval_with_boxes_under(5..karts),
         ));
         let mut state = step(state, &[], DT);
         let Some(slot) = (5..karts).find(|&slot| rolled(&state, slot, Item::Star)) else {

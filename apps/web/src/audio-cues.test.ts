@@ -235,8 +235,11 @@ describe("soundCues", () => {
     const held = { ...STILL, item: "star" as const };
     const run = { ...STILL, starSeconds: 5.98, boostSeconds: 0.48 };
     expect(soundCues(held, run)).toEqual(["starFire"]);
-    // The kick is a boost that begins with the fire, so it is no pad.
-    expect(soundCues(held, run)).not.toContain("boostPad");
+    // In a room's race the prediction starts the run before the server
+    // confirms the fire: the fire sounds once, with the run, the kick is no
+    // pad, and the slot emptying on the confirmation adds nothing.
+    expect(soundCues(held, { ...run, item: "star" })).toEqual(["starFire"]);
+    expect(soundCues({ ...run, item: "star" }, { ...run, starSeconds: 5.5 })).toEqual([]);
     expect(soundCues({ ...STILL, item: "boost" }, { ...STILL, boostSeconds: 1.5 })).toEqual([
       "itemFire",
     ]);
@@ -251,8 +254,10 @@ describe("soundCues", () => {
     // A second star puts it back to the start.
     expect(soundCues(run(3), run(3.6))).toEqual(["starFire"]);
     expect(soundCues({ ...run(2.9), item: "star" }, run(5.98))).toEqual(["starFire"]);
-    // A run joined mid-way, as after a rejoin, is heard without a fire.
+    // A run appearing from nothing is a fire too; a rejoin's first reading
+    // has nothing to change from, so it is heard without one.
     expect(soundCues(STILL, run(4))).toEqual(["starFire"]);
+    expect(soundCues(undefined, run(4))).toEqual([]);
   });
 
   it("plays the star's end as the run runs out, and nothing but the finish when the finish ends it", () => {
