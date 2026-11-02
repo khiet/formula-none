@@ -14,6 +14,8 @@
     --display: "Bungee", "Arial Black", Impact, sans-serif;
     --body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
     --pixel: "Silkscreen", ui-monospace, monospace;
+    /* The mirror ball's tiles, rewritten every frame; these are their reduced-motion values. */
+    --r0: #ff4d4d; --r1: #ff9f1c; --r2: #ffe14d; --r3: #3ddc84; --r4: #37bedd; --r5: #b05cff;
   }
   @media (prefers-color-scheme: dark) {
     :root:not([data-theme="light"]) {
@@ -69,8 +71,14 @@
   .readout label { display: inline-flex; align-items: center; gap: .3rem; cursor: pointer; }
   .readout select { font: inherit; }
   .plate-box { display: grid; gap: .6rem; justify-items: center; }
-  .item-slot { width: 150px; height: 120px; background: linear-gradient(135deg, #f8e39a, #e0b54a 60%, #c99a2e); border: 3px solid #111; padding: 4px; }
-  .item-slot svg { width: 100%; height: 100%; display: block; filter: drop-shadow(0 0 8px var(--glow, transparent)); }
+  /* The slot's plate: the item box face on, chamfered, gold while held. */
+  .item-slot {
+    --chamfer: 18%;
+    position: relative; display: grid; place-items: center; width: 150px; aspect-ratio: 1; background: #3a1c0a;
+    clip-path: polygon(var(--chamfer) 0, calc(100% - var(--chamfer)) 0, 100% var(--chamfer), 100% calc(100% - var(--chamfer)), calc(100% - var(--chamfer)) 100%, var(--chamfer) 100%, 0 calc(100% - var(--chamfer)), 0 var(--chamfer));
+  }
+  .item-slot::before { content: ""; position: absolute; inset: 5%; background: linear-gradient(160deg, #f8e39a, #e0b54a 55%, #c99a2e); clip-path: inherit; }
+  .item-slot svg { position: relative; width: 88%; height: auto; display: block; filter: drop-shadow(0 0 5px var(--glow, transparent)); }
   .plate { font: .8rem/1 var(--pixel); padding: .3rem .6rem; background: #111; color: #fff; border-bottom: 3px solid var(--plate, #d00a12); }
   @media (max-width: 620px) { .demo { grid-template-columns: minmax(0, 1fr); } }
 
@@ -104,26 +112,6 @@
 
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
   <defs>
-    <symbol id="safety" viewBox="0 0 200 160">
-      <ellipse cx="100" cy="140" rx="78" ry="6" fill="#111" fill-opacity=".15"/>
-      <rect x="66" y="50" width="68" height="9" fill="#2b2e33"/>
-      <rect x="70" y="42" width="28" height="10" fill="#ff7a4d"/>
-      <rect x="102" y="42" width="28" height="10" fill="#ff5522"/>
-      <polygon points="62,94 80,59 124,59 148,94" fill="#2b2e33"/>
-      <polygon points="72,92 85,65 101,65 101,92" fill="#4a4f57"/>
-      <polygon points="105,92 105,65 121,65 137,92" fill="#4a4f57"/>
-      <polygon points="18,122 26,102 60,92 148,92 180,106 184,122" style="fill: var(--car-mid, #eef0f2)"/>
-      <polygon points="26,102 60,92 148,92 180,106" style="fill: var(--car-lit, #ffffff)"/>
-      <polygon points="18,122 184,122 178,130 24,130" style="fill: var(--car-shaded, #cfd2d6)"/>
-      <polygon points="30,112 172,112 176,118 26,118" fill="#c81d25"/>
-      <circle cx="90" cy="81" r="7" fill="#fff"/><circle cx="118" cy="81" r="7" fill="#fff"/>
-      <circle cx="93" cy="82" r="3.5" fill="#111"/><circle cx="121" cy="82" r="3.5" fill="#111"/>
-      <polyline points="80,70 98,75" stroke="#ff7a4d" stroke-width="4" fill="none"/>
-      <polyline points="128,70 110,75" stroke="#ff7a4d" stroke-width="4" fill="none"/>
-      <polyline points="82,99 100,107 124,99" stroke="#111" stroke-width="3.5" fill="none"/>
-      <circle cx="54" cy="126" r="15" fill="#1b1d21"/><circle cx="54" cy="126" r="6.5" fill="#cfd2d6"/>
-      <circle cx="150" cy="126" r="15" fill="#1b1d21"/><circle cx="150" cy="126" r="6.5" fill="#cfd2d6"/>
-    </symbol>
     <symbol id="horn" viewBox="0 0 200 160">
       <ellipse cx="72" cy="140" rx="46" ry="6" fill="#111" fill-opacity=".15"/>
       <rect x="54" y="34" width="24" height="10" fill="#2b2e33"/>
@@ -147,15 +135,15 @@
 
   <section>
     <div class="stack">
-      <span class="eyebrow">Item spec, proposed</span>
+      <span class="eyebrow">Item spec, design settled</span>
       <h1>The star and the Air Horn</h1>
-      <p class="lede">The two items to add to the boost, the hazard and the homing projectile. The rules below are written against the sim as it stands. Every number is a starting value for a bot sweep and a feel check, and no code has changed yet.</p>
+      <p class="lede">The two items to add to the boost, the hazard and the homing projectile. The rules below are written against the sim as it stands, and the star's icon was chosen in <code>star-icon-alternatives.html</code>. The numbers are still starting values for a bot sweep and a feel check, and no game code has changed yet.</p>
     </div>
     <div class="table"><table>
       <thead><tr><th></th><th>Star</th><th>Air Horn</th></tr></thead>
       <tbody>
         <tr><th>In one line</th><td>6 s of speed and immunity, spinning out every kart it touches</td><td>One blast that spins out nearby karts and clears hazards and drones</td></tr>
-        <tr><th>In the slot</th><td>A safety car</td><td>A grandstand air horn</td></tr>
+        <tr><th>In the slot</th><td>A podium mirror ball</td><td>A grandstand air horn</td></tr>
         <tr><th>Role</th><td>Comeback for the back of the field</td><td>Timed defence and close attack, for any place</td></tr>
         <tr><th>Most likely at</th><td>Places 6-8</td><td>Places 1-5</td></tr>
         <tr><th>Build</th><td>Medium</td><td>Small</td></tr>
@@ -174,7 +162,7 @@
       <div class="demo">
         <div class="kart" id="kart" role="img" aria-label="The poster kart cycling through rainbow colours during a star run"></div>
         <div class="plate-box">
-          <div class="item-slot" id="slot"><svg role="img" aria-label="A grinning safety car, shining"><use href="#safety"/></svg></div>
+          <div class="item-slot" id="slot"><svg id="ball" viewBox="0 0 200 160" role="img" aria-label="A podium mirror ball, shining"></svg></div>
           <span class="plate" id="plate">Rosso</span>
         </div>
       </div>
@@ -185,7 +173,7 @@
         </label>
         <label><input type="checkbox" id="reduced"> Reduced motion</label>
       </div>
-      <p class="note">The kart is the real side view from <code>docs/kart-side.js</code>, recoloured the way the View would recolour it. It runs 6 s, then rests for 1.5 s in its livery.</p>
+      <p class="note">The kart is the real side view from <code>docs/kart-side.js</code>, recoloured the way the View would recolour it. It runs 6 s, then rests for 1.5 s in its livery. The mirror ball is shown held in the slot, where it shines until it is fired.</p>
     </div>
 
     <div class="stats">
@@ -213,11 +201,11 @@
           <tr><th>Kart and driver</th><td>Every material, wheels and hair included, is pulled 70% toward the rainbow colour of the moment and lit by it as emissive, so its own shading still shows through. The loop takes 0.5 s.</td></tr>
           <tr><th>Glow</th><td>A soft additive halo behind the kart in the same colour, so the shine carries at chase-camera distance.</td></tr>
           <tr><th>Sparkles</th><td>Four-point glints thrown off the bodywork and left behind the kart, a few each second, white with a rainbow tip.</td></tr>
-          <tr><th>Item slot</th><td>The safety car's body shines through the same loop once the item has landed, with a glow behind it. Carbon, ink and the red stripe stay fixed so it still reads on the slot's gold.</td></tr>
+          <tr><th>Item slot</th><td>A faceted mirror ball on a short chain, with no face. Once the item has landed, its tiles run the same loop, each a step along the rainbow from its neighbours, with a glow behind it. The dark gaps between tiles and the white glints stay fixed, so it reads on the slot's gold at every point in the loop.</td></tr>
           <tr><th>Instrument panel during a run</th><td>A rainbow ring around the slot counts the 6 s down. The slot itself is free again and can roll another item.</td></tr>
           <tr><th>Plate and course map</th><td>The star kart's plate underline and map marker run the same loop, so other drivers can see it coming and tell where it is.</td></tr>
           <tr><th>Last second</th><td>The pull fades from 70% to nothing, so the driver sees it ending. The loop keeps its speed.</td></tr>
-          <tr><th>Reduced motion</th><td>No loop and no sparkles. Kart and sprite hold a steady white shine with the glow, and the ring still counts down.</td></tr>
+          <tr><th>Reduced motion</th><td>No loop and no sparkles. The kart holds a steady white shine with the glow, the ball's tiles hold their colours, and the ring still counts down.</td></tr>
         </tbody>
       </table></div>
       <div class="swatches" aria-label="The six rainbow stops">
@@ -227,8 +215,8 @@
         <li><strong>Same on every screen:</strong> the colour is worked out from <code>star_s</code> in the snapshot, so every client shows a kart in the same phase and the sim stays free of presentation.</li>
         <li><strong>Flashing limit:</strong> a 2 Hz colour sweep stays under the limit of three flashes a second. Check it on the real View, with a star kart filling the screen, before shipping.</li>
         <li><strong>Materials:</strong> <code>dressKart</code> copies only the painted materials, and carbon, tyre and rim are shared between karts. The shine needs a kart's own copy of every material, or one star would light up the whole grid.</li>
-        <li><strong>ADR 0024:</strong> it says the characters have no idle animation. The shining safety car is an exception, so the star's ADR needs to supersede that line for this item.</li>
-        <li><strong>No separate car on the road:</strong> the kart shines and stays a kart. As with the boost's bottle, the safety car appears only in the slot. This replaces the light bar in the first brief.</li>
+        <li><strong>ADR 0024:</strong> it says the characters have no idle animation. The shining mirror ball is an exception, so the star's ADR needs to supersede that line for this item.</li>
+        <li><strong>No mirror ball on the road:</strong> the kart shines and stays a kart. As with the boost's bottle, the ball appears only in the slot, so it needs no mesh.</li>
       </ul>
     </div>
 
@@ -277,7 +265,7 @@
         <li><strong>Bots:</strong> a bot fires a star as it fires a boost, on the first straight. During the run it stops waiting for the wheel and stops steering around karts (<code>kart_in_the_way</code>), or it would never hit anyone.</li>
         <li><strong>Prediction:</strong> the owner's client predicts the speed and the pass-through from the fire. Only the server spins a kart out, and clients learn of it from the snapshot, as they do with a drone.</li>
         <li><strong>Known rough edge:</strong> other karts are drawn 100 ms in the past, so a hit on a slow kart can land about 3 to 4 m before the star visibly arrives. A spark burst should cover it, and the smoke test should confirm that.</li>
-        <li><strong>Sound:</strong> a fanfare and a looped siren over the music for the star's driver, dropping in pitch for the last second. Other drivers hear the siren by distance.</li>
+        <li><strong>Sound:</strong> music plays for the whole run so the driver can hear it lasting, with a change in the last second. Other drivers hear it by distance. The versions to choose from are in <code>star-and-horn-sounds.html</code>.</li>
       </ul>
     </div>
   </section>
@@ -368,7 +356,7 @@
       <ul>
         <li><strong>On the road:</strong> a flat orange shockwave ring grows to 7 m in about 0.25 s, on every screen, so the reach can be learned by eye.</li>
         <li><strong>On the Instrument panel:</strong> the sprite stays still when held, as ADR 0024 asks, and the slot flashes on firing like any other item.</li>
-        <li><strong>Sound:</strong> a short, loud blast from <code>assets/audio/build.py</code>, positioned at the firing kart.</li>
+        <li><strong>Sound:</strong> a short, loud blast from <code>assets/audio/build.py</code>, positioned at the firing kart. The versions are in <code>star-and-horn-sounds.html</code>.</li>
         <li><strong>Network:</strong> no new snapshot field. The ring runs off the existing <code>ItemFired</code>, and <code>server-race.ts</code> must start acting on it for other karts as well as the local one.</li>
       </ul>
     </div>
@@ -409,7 +397,7 @@ pub const BOT_HORN_HOLD_S: f32 = 10.0;</code></pre>
     <div class="stack">
       <h3>Star</h3>
       <ol>
-        <li>A new ADR: extends ADR 0021's contact rule and supersedes ADR 0024's no-animation line for this item. A glossary entry for the star.</li>
+        <li>A new ADR: extends ADR 0021's contact rule, supersedes ADR 0024's no-animation line for this item, and cites <code>star-icon-alternatives.html</code> for the icon. A glossary entry for the star.</li>
         <li><strong>Sim:</strong> <code>Item</code>, <code>Item::code</code> and <code>Item::rolled</code> in <code>lib.rs</code>; <code>star_left_s</code> in the readout and state hash; the cap and off-track change in <code>handling.rs</code>; the immunity checks at the hazard, wheel and projectile hits; constants and weights in <code>tuning.rs</code>; the bot rules in <code>bot.rs</code>.</li>
         <li><strong>Protocol:</strong> the <code>Item</code> enum, the conversions and <code>star_s</code> on the kart snapshot, then <code>pnpm generate:protocol</code> and <code>pnpm build:bridge</code>.</li>
         <li><strong>Web:</strong> the sprite in <code>item-sprites.ts</code>, <code>item-reel.ts</code>, the ring in <code>instrument-panel.ts</code>, per-kart materials in <code>kart-model.ts</code>, the shine and sparkles, the plate and course map, and the audio cues.</li>
@@ -502,14 +490,56 @@ pub const BOT_HORN_HOLD_S: f32 = 10.0;</code></pre>
       el.setAttribute("fill", colour);
       el.setAttribute("stroke", colour);
     }
-    const glow = pull > 0 ? css(shine) : "transparent";
-    kartEl.style.setProperty("--glow", glow);
-    slotEl.style.setProperty("--glow", glow);
+    kartEl.style.setProperty("--glow", pull > 0 ? css(shine) : "transparent");
     plateEl.style.setProperty("--plate", pull > 0 ? css(shine) : livery.p);
-    const body = mix([238, 240, 242], shine, pull);
-    slotEl.style.setProperty("--car-lit", css(mix(body, WHITE, 0.35)));
-    slotEl.style.setProperty("--car-mid", css(body));
-    slotEl.style.setProperty("--car-shaded", css(mix(body, BLACK, 0.2)));
+  }
+
+  /** The mirror ball as the slot draws it: a latitude and longitude grid of tiles, each a step along the rainbow. */
+  function ballMarkup() {
+    const poly = (points, style) => `<polygon points="${points.map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(" ")}" style="${style}"/>`;
+    const [cx, cy, radius] = [100, 82, 56];
+    const point = (lat, lon) => [cx + radius * Math.cos(lat) * Math.sin(lon), cy + radius * Math.sin(lat)];
+    const disc = Array.from({ length: 24 }, (_, k) => {
+      const t = (2 * Math.PI * k) / 24;
+      return [cx + (radius + 1) * Math.cos(t), cy + (radius + 1) * Math.sin(t)];
+    });
+    let out = '<ellipse cx="100" cy="148" rx="46" ry="5" fill="#111" fill-opacity=".15"/>';
+    out += '<line x1="100" y1="0" x2="100" y2="24" stroke="#4a4f57" stroke-width="3"/><rect x="92" y="20" width="16" height="9" fill="#2b2e33"/>';
+    out += poly(disc, "fill:#1b1d21");
+    const rows = 8;
+    const cols = 8;
+    const inset = 0.05;
+    for (let row = 0; row < rows; row += 1) {
+      const lat0 = -Math.PI / 2 + (Math.PI * row) / rows;
+      const lat1 = lat0 + Math.PI / rows;
+      for (let col = 0; col < cols; col += 1) {
+        const lon0 = -Math.PI / 2 + (Math.PI * col) / cols;
+        const lon1 = lon0 + Math.PI / cols;
+        const tile = [point(lat0 + inset, lon0 + inset), point(lat0 + inset, lon1 - inset), point(lat1 - inset, lon1 - inset), point(lat1 - inset, lon0 + inset)];
+        out += poly(tile, `fill:var(--r${(row + col) % 6})`);
+        // Light from the top left, as the View's sun lights the facets.
+        const light = -(Math.sin((lon0 + lon1) / 2) + Math.sin((lat0 + lat1) / 2));
+        if (light > 0.55) out += poly(tile, "fill:#fff;fill-opacity:.45");
+        if (light < -0.55) out += poly(tile, "fill:#111;fill-opacity:.28");
+      }
+    }
+    for (const [x, y, r] of [[66, 46, 13], [136, 62, 8], [84, 112, 7]]) {
+      out += `<polygon points="${glint(x, y, r)}" fill="#fff"/>`;
+    }
+    return out;
+  }
+
+  /** The ball runs the loop while held, whatever the kart beside it is doing. */
+  function shineBall(seconds) {
+    if (reducedEl.checked) {
+      for (let i = 0; i < 6; i += 1) slotEl.style.removeProperty(`--r${i}`);
+      slotEl.style.setProperty("--glow", "rgba(255,255,255,.8)");
+      return;
+    }
+    for (let i = 0; i < 6; i += 1) {
+      slotEl.style.setProperty(`--r${i}`, css(loopColour(seconds - (i * LOOP_S) / 6 + LOOP_S)));
+    }
+    slotEl.style.setProperty("--glow", css(loopColour(seconds)));
   }
 
   /** A four-point glint at (x, y) of radius r. */
@@ -557,6 +587,7 @@ pub const BOT_HORN_HOLD_S: f32 = 10.0;</code></pre>
       paint(WHITE, 0);
       drawSparkles(dt, false, WHITE);
     }
+    shineBall(now / 1000);
     leftEl.textContent = starS > 0 ? `star_s ${starS.toFixed(1)}` : "star over";
     requestAnimationFrame(frame);
   }
@@ -565,6 +596,7 @@ pub const BOT_HORN_HOLD_S: f32 = 10.0;</code></pre>
     livery = LIVERIES[Number(liveryEl.value)];
     buildKart();
   });
+  document.getElementById("ball").innerHTML = ballMarkup();
   buildKart();
   requestAnimationFrame(frame);
 </script>
