@@ -846,11 +846,11 @@ use tuning::{
     ITEM_ROLL_S, ITEM_ROLL_WEIGHTS, SPIN_OUT_S, STAR_HIT_RADIUS_M, STAR_KICK_FACTOR, STAR_KICK_S,
     STAR_S, STAR_TOP_SPEED_FACTOR, WHEEL_RADIUS_M,
 };
-use tuning::{HORN_PROGRESS_WINDOW_M, HORN_RADIUS_M};
 use tuning::{
     HOMING_LOCK_RANGE_M, HOMING_LOOKAHEAD_M, HOMING_RADIUS_M, HOMING_SPEED_FACTOR,
     HOMING_WITHOUT_TARGET_IS_WASTED,
 };
+use tuning::{HORN_PROGRESS_WINDOW_M, HORN_RADIUS_M};
 use tuning::{
     KART_BUMP_RESTITUTION, KART_BUMP_SPEED_LOSS, TYRE_WALL_RESTITUTION, TYRE_WALL_SPEED_LOSS,
 };
@@ -2381,9 +2381,9 @@ fn blast_horn(state: &mut State, firer: usize) {
             None => spin_out(kart, body, slot, Some(firer), &mut state.events),
         }
     }
-    state.hazards.retain(|placed| {
-        placed.hazard.held || !in_reach(placed.hazard.position, placed.progress)
-    });
+    state
+        .hazards
+        .retain(|placed| placed.hazard.held || !in_reach(placed.hazard.position, placed.progress));
     state
         .projectiles
         .retain(|flying| !in_reach(flying.projectile.position, flying.progress));
