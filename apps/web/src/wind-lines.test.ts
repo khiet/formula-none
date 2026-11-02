@@ -62,7 +62,7 @@ describe("wind lines", () => {
 
   it("carries every line past the kart within its life, even from a standstill", () => {
     const particles = createWindParticles();
-    const lines = createWindLines(particles, SIZE, {}, fixedRandom());
+    const lines = createWindLines(particles, SIZE, { chargeSeconds: 1 }, fixedRandom());
     lines.emit(kartReadout({ boostS: 1, speed: 0 }), FRAME_S);
     for (let frame = 0; frame < 26; frame++) {
       particles.update(FRAME_S);
@@ -106,6 +106,12 @@ describe("wind lines in a slipstream", () => {
     expect(windRate(kartReadout(charging(0.5)), 2)).toBeCloseTo(10);
     expect(thrown(charging(0.9), 30).length).toBeGreaterThan(thrown(charging(0.3), 30).length);
     expect(thrown(charging(0.05), 30).length).toBeLessThan(thrown(charging(0.9), 30).length / 4);
+  });
+
+  it("still throws a thin charge's lines under reduced motion, which thins them under ten a second", () => {
+    const thinned = thrown(charging(0.5), 60, true).length;
+    expect(thinned).toBeGreaterThan(0);
+    expect(thinned).toBeLessThan(thrown(charging(0.5), 60).length);
   });
 
   it("throws a tow's lines at the boost's full rate, and a boost under way wins over the tow", () => {

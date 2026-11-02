@@ -76,4 +76,8 @@ countdown. `goldstone-lap-with-bots.replay.json` was written by the sim tests'
 centreline follower, steering held six ticks at a time in eighths with the
 throttle down: one kart idle through the countdown, then a lap of Goldstone
 among seven bots. `monarch-lap-with-bots.replay.json` was written the same
-way on Monarch.
+way on Monarch. `oval-nose-to-tail.replay.json` was written by hand for the
+slipstream (ADR 0077): three karts idle through the countdown, then the
+first and third hold the throttle down the straight, the third 5 m behind
+the first in the same column, so it is towed by the time both are at top
+speed, while the second sits on the grid.

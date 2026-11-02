@@ -1,0 +1,79 @@
+{
+  "version": 1,
+  "seed": "7",
+  "track": "oval",
+  "bots": 0,
+  "segments": [
+    {
+      "ticks": 300,
+      "inputs": [
+        {
+          "steer": 0.0,
+          "throttle": 0.0,
+          "brake": 0.0,
+          "hop": false,
+          "useItem": false,
+          "holdItem": false
+        },
+        {
+          "steer": 0.0,
+          "throttle": 0.0,
+          "brake": 0.0,
+          "hop": false,
+          "useItem": false,
+          "holdItem": false
+        },
+        {
+          "steer": 0.0,
+          "throttle": 0.0,
+          "brake": 0.0,
+          "hop": false,
+          "useItem": false,
+          "holdItem": false
+        }
+      ]
+    },
+    {
+      "ticks": 360,
+      "inputs": [
+        {
+          "steer": 0.0,
+          "throttle": 1.0,
+          "brake": 0.0,
+          "hop": false,
+          "useItem": false,
+          "holdItem": false
+        },
+        {
+          "steer": 0.0,
+          "throttle": 0.0,
+          "brake": 0.0,
+          "hop": false,
+          "useItem": false,
+          "holdItem": false
+        },
+        {
+          "steer": 0.0,
+          "throttle": 1.0,
+          "brake": 0.0,
+          "hop": false,
+          "useItem": false,
+          "holdItem": false
+        }
+      ]
+    }
+  ],
+  "hashes": [
+    "590eb02bf8f063c5",
+    "19baf8b56208bf09",
+    "96b0652805bb8c83",
+    "d9de6a850ffe91ed",
+    "1aa9b83dffca7eac",
+    "c683891aea86cb0b",
+    "1bbb87b08f06ad46",
+    "90f2439bf6af1800",
+    "bf719e2b449ff135",
+    "6d259d0cb52f974c",
+    "c365db9bcf2555a0"
+  ]
+}

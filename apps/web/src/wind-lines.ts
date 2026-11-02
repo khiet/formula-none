@@ -96,12 +96,9 @@ export function windRate(
 export interface WindLinesOptions {
   /** The viewer asked for less motion: far fewer lines. */
   readonly reducedMotion?: boolean;
-  /** Seconds a wake takes to charge, which the charge's rate climbs over; the sim's tuned value. */
-  readonly chargeSeconds?: number;
+  /** Seconds a wake takes to charge, which the charge's rate climbs over: the sim's tuned value, from the bridge (ADR 0014). */
+  readonly chargeSeconds: number;
 }
-
-/** The charge's length when none is given: the sim's tuned value. */
-const DEFAULT_CHARGE_S = 1;
 
 export interface WindLines {
   /** Throw this frame's lines round the own `kart` into the pool, while it boosts, charges or is towed. */
@@ -110,6 +107,8 @@ export interface WindLines {
 
 /** The most emission a frame can owe, so a stalled tab does not throw every line at once. */
 const MAX_OWED_S = 0.1;
+/** The owed lines always have room to reach one, so a rate under ten a second, a thin charge under reduced motion, still throws its lines. */
+const MIN_OWED = 1;
 
 /**
  * Throws wind lines ahead of the own kart while it boosts, charges or is
@@ -120,11 +119,11 @@ const MAX_OWED_S = 0.1;
 export function createWindLines(
   particles: Particles,
   size: KartSize,
-  options: WindLinesOptions = {},
+  options: WindLinesOptions,
   random: () => number = Math.random,
 ): WindLines {
   const share = options.reducedMotion === true ? WIND_REDUCED_SHARE : 1;
-  const chargeS = options.chargeSeconds ?? DEFAULT_CHARGE_S;
+  const chargeS = options.chargeSeconds;
   let owed = 0;
   const position: Vec3 = [0, 0, 0];
   const velocity: Vec3 = [0, 0, 0];
@@ -144,7 +143,7 @@ export function createWindLines(
         owed = 0;
         return;
       }
-      owed = Math.min(owed + rate * dtSeconds, rate * MAX_OWED_S);
+      owed = Math.min(owed + rate * dtSeconds, Math.max(rate * MAX_OWED_S, MIN_OWED));
       const ground = -size.height / 2;
       for (; owed >= 1; owed -= 1) {
         const ahead = -between(WIND_AHEAD_MIN_M, WIND_AHEAD_MAX_M);
