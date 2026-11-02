@@ -1,0 +1,420 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Star Icon Alternatives</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bungee&family=IBM+Plex+Sans:wght@400;600&family=Silkscreen&display=swap">
+<style>
+  /* Tokens follow docs/style-guide.html; the comparison follows boost-icon-alternatives.html. */
+  :root {
+    --bg: #eef0f3; --fg: #1b1d22; --muted: #5b6170; --rule: #cfd3db; --card: #ffffff; --gold: #a77a12; --chip: #f4f5f7;
+    --display: "Bungee", "Arial Black", Impact, sans-serif;
+    --body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --pixel: "Silkscreen", ui-monospace, monospace;
+    /* The shine, rewritten every frame; these are its reduced-motion and no-script values. */
+    --sh-lit: #ffffff; --sh-mid: #eef0f2; --sh-shaded: #cfd2d6; --glow: rgba(255, 255, 255, .8);
+    --r0: #ff4d4d; --r1: #ff9f1c; --r2: #ffe14d; --r3: #3ddc84; --r4: #37bedd; --r5: #b05cff;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #15171a; --fg: #ece7d8; --muted: #9a9fab; --rule: #2c3036; --card: #1e2126; --gold: #e2b84a; --chip: #262a30;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #15171a; --fg: #ece7d8; --muted: #9a9fab; --rule: #2c3036; --card: #1e2126; --gold: #e2b84a; --chip: #262a30;
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--fg); font: 15px/1.55 var(--body);
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+    padding-block: 2rem 4rem;
+  }
+  main { max-width: 1040px; margin: 0 auto; display: grid; gap: 2.5rem; }
+  section { display: grid; gap: 1.1rem; min-width: 0; }
+  h1 { font: 400 clamp(1.8rem, 5vw, 2.6rem)/1.05 var(--display); margin: 0; text-wrap: balance; }
+  h2 { font: 400 1.25rem/1.15 var(--display); margin: 0; }
+  p { margin: 0; max-width: 68ch; }
+  ul, ol { margin: 0; padding-left: 1.2rem; display: grid; gap: .3rem; max-width: 76ch; }
+  code { font: .84em ui-monospace, SFMono-Regular, Menlo, monospace; background: var(--chip); padding: .05em .35em; border-radius: 4px; overflow-wrap: anywhere; }
+  .eyebrow { font: .78rem/1.2 var(--pixel); letter-spacing: .08em; text-transform: uppercase; color: var(--gold); }
+  .lede { color: var(--muted); }
+  .note { font-size: .85rem; color: var(--muted); }
+  .stack { display: grid; gap: .55rem; min-width: 0; }
+  label { display: inline-flex; align-items: center; gap: .35rem; cursor: pointer; font-size: .9rem; }
+
+  /* The slot's plate: the item box face on, chamfered, gold while held and flashing to the firing tones. */
+  .plate {
+    --lit: #f8e39a; --mid: #e0b54a; --shaded: #c99a2e; --chamfer: 18%;
+    position: relative; display: grid; place-items: center; aspect-ratio: 1; background: #3a1c0a; flex: none;
+    clip-path: polygon(var(--chamfer) 0, calc(100% - var(--chamfer)) 0, 100% var(--chamfer), 100% calc(100% - var(--chamfer)), calc(100% - var(--chamfer)) 100%, var(--chamfer) 100%, 0 calc(100% - var(--chamfer)), 0 var(--chamfer));
+  }
+  .plate::before {
+    content: ""; position: absolute; inset: 5%;
+    background: linear-gradient(160deg, var(--lit), var(--mid) 55%, var(--shaded));
+    clip-path: inherit;
+  }
+  .plate svg { position: relative; width: 88%; height: auto; display: block; }
+  .plate.shines svg { filter: drop-shadow(0 0 5px var(--glow)); }
+  .plate.big { width: 100%; --chamfer: 12%; }
+  .plate.hud { width: 96px; }
+  .plate.small { width: 64px; }
+  .plate.reel { width: 46px; }
+  .plate.firing { --lit: #ffffff; --mid: #fff6cf; --shaded: #f8e39a; }
+
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(290px, 1fr)); gap: 1rem; align-items: start; }
+  .card { background: var(--card); border: 1px solid var(--rule); padding: 1rem; display: grid; gap: .85rem; min-width: 0; }
+  .card.best { border: 2px solid var(--gold); }
+  .tag { font: .7rem/1.2 var(--pixel); text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+  .best .tag { color: var(--gold); }
+  .sizes { display: flex; flex-wrap: wrap; gap: .75rem; align-items: flex-end; }
+  .sizes figure { margin: 0; display: grid; gap: .25rem; justify-items: center; }
+  figcaption, .strip-label { font: .64rem/1.2 var(--pixel); text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+  .strip { display: flex; flex-wrap: wrap; gap: .3rem; align-items: center; }
+  dl { margin: 0; display: grid; gap: .45rem; }
+  dt { font: .68rem/1.3 var(--pixel); text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+  dd { margin: 0; font-size: .92rem; }
+
+  .today { display: flex; flex-wrap: wrap; gap: 1rem; align-items: center; border: 1px dashed var(--rule); padding: .85rem 1rem; }
+  .today .stack { flex: 1 1 260px; }
+
+  .table { overflow-x: auto; border: 1px solid var(--rule); background: var(--card); }
+  table { border-collapse: collapse; width: 100%; font-size: .92rem; }
+  th, td { text-align: left; vertical-align: top; padding: .55rem .8rem; border-bottom: 1px solid var(--rule); }
+  tr:last-child > * { border-bottom: 0; }
+  thead th { font: .72rem/1.3 var(--pixel); letter-spacing: .05em; text-transform: uppercase; color: var(--muted); white-space: nowrap; }
+  tbody th { font-weight: 600; }
+</style>
+</head>
+<body>
+<main>
+
+  <section>
+    <div class="stack">
+      <span class="eyebrow">Star, item slot icon</span>
+      <h1>Three icons for the star</h1>
+      <p class="lede">The star's effect on the kart stays as it is. Only the slot's character changes. I recommend the unicorn. Each icon is drawn the way <code>item-sprites.ts</code> draws, shining through the same 2 Hz loop, large, in the slot held and firing, at 64 px, and beside the other items.</p>
+    </div>
+    <label><input type="checkbox" id="reduced"> Show reduced motion</label>
+    <div class="today">
+      <div class="sizes">
+        <div class="plate hud shines" data-sprite="safety"></div>
+        <div class="plate small shines" data-sprite="safety"></div>
+      </div>
+      <div class="stack">
+        <span class="tag">Today's icon, for comparison</span>
+        <p>The safety car in <code>star-and-air-horn.html</code>. Its shine is confined to the bodywork, and at 64 px it is mostly a small car, which is a poor signal in a racing game full of cars.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="cards">
+      <article class="card best" data-icon="unicorn">
+        <div class="stack"><span class="tag">A, recommended, your idea</span><h2>Unicorn</h2></div>
+        <dl>
+          <dt>The drawing</dt>
+          <dd>A chibi unicorn standing side on, in a chequered saddle cloth, with a rainbow mane, tail and horn that flow through the loop.</dd>
+          <dt>Why it works</dt>
+          <dd>The rainbow belongs to it, so the icon and the kart's shine say the same thing. It has a face, like the cone, and nothing else on the grid looks like it. It's the funniest thing to see land in the slot.</dd>
+          <dt>What it costs</dt>
+          <dd>It is the one item that isn't from the paddock. Keep all four hooves down and leave out any shield, so it can't be mistaken for Ferrari's prancing horse.</dd>
+        </dl>
+      </article>
+      <article class="card" data-icon="ball">
+        <div class="stack"><span class="tag">B, the shiniest</span><h2>Podium mirror ball</h2></div>
+        <dl>
+          <dt>The drawing</dt>
+          <dd>A faceted mirror ball on a short chain, each tile a step along the rainbow, with white glints. No face: the tiles carry it, as the cork carries the bottle.</dd>
+          <dt>Why it works</dt>
+          <dd>Polygons suit it better than any other object here, and the whole ball shines. It reads clearly at 64 px and belongs at the podium party with the champagne.</dd>
+          <dt>What it costs</dt>
+          <dd>It says party, not power. Nothing in it tells a new player they've become fast and untouchable.</dd>
+        </dl>
+      </article>
+      <article class="card" data-icon="helmet">
+        <div class="stack"><span class="tag">C, the best fit with the paddock</span><h2>Holographic helmet</h2></div>
+        <dl>
+          <dt>The drawing</dt>
+          <dd>A race helmet side on with a shining shell and an iridescent visor strip, and determined eyes behind the visor.</dd>
+          <dt>Why it works</dt>
+          <dd>A helmet means protection, so it comes closest to saying invincible. It is a real paddock object, like the bottle, cone and drone, and drivers do wear one-off special helmets.</dd>
+          <dt>What it costs</dt>
+          <dd>It's the safest and least memorable of the three. The game's drivers are bare-headed, so nothing on the road echoes it.</dd>
+        </dl>
+      </article>
+    </div>
+  </section>
+
+  <section>
+    <h2>Side by side</h2>
+    <div class="table"><table>
+      <thead><tr><th></th><th>Unicorn</th><th>Mirror ball</th><th>Helmet</th></tr></thead>
+      <tbody>
+        <tr><th>A glance says</th><td>Rainbow magic, something special</td><td>Party, shiny</td><td>Protected</td></tr>
+        <tr><th>Matches the kart's shine</th><td>Yes, a rainbow character</td><td>Yes, all over</td><td>Partly, shell and visor</td></tr>
+        <tr><th>At the loop's yellow, on the slot's gold</th><td>The body blends in for a moment. The mane and face still read</td><td>Unaffected, its tiles stay separate</td><td>Weakest: the shell blends in, leaving the dark visor</td></tr>
+        <tr><th>Has a face</th><td>Yes</td><td>No</td><td>Yes</td></tr>
+        <tr><th>From the paddock</th><td>No</td><td>Podium, loosely</td><td>Yes</td></tr>
+        <tr><th>Drawing effort</th><td>Most polygons</td><td>Generated from a grid</td><td>Fewest polygons</td></tr>
+      </tbody>
+    </table></div>
+    <p class="note">The cost to the game is the same for all three. A boost never shows on the road, so its bottle has no mesh, and the star's icon needs none either. The sim, the protocol and the bridge don't care which you pick.</p>
+  </section>
+
+  <section>
+    <h2>Once you've picked</h2>
+    <ol>
+      <li>Replace the <code>#safety</code> sprite in <code>star-and-air-horn.html</code> with the chosen drawing from this page.</li>
+      <li>Replace the page's mentions of a safety car in the slot, including the summary table and the shine table.</li>
+      <li>Record the choice and this page in the star's ADR, as ADR 0058 did for the bottle.</li>
+    </ol>
+  </section>
+</main>
+
+<script>
+  const INK = "#111111";
+  const WHITE_V = "#ffffff";
+  const WHITE = { lit: "#ffffff", mid: "#eef0f2", shaded: "#cfd2d6" };
+  const CARBON = { lit: "#4a4f57", mid: "#2b2e33", shaded: "#1b1d21" };
+  const GREYS = { grey: "#b9bec5", dark: "#9aa0a8", deep: "#6f747b" };
+  const ORANGE = { lit: "#ff7a4d", mid: "#ff5522", shaded: "#c73c14" };
+  const RED = { lit: "#e8333b", mid: "#c81d25", shaded: "#8f141a" };
+  const BOTTLE = { lit: "#5e9f7d", mid: "#1f7a4a", shaded: "#145131" };
+  const SHINE = { lit: "var(--sh-lit)", mid: "var(--sh-mid)", shaded: "var(--sh-shaded)" };
+  const RAINBOW_VARS = [0, 1, 2, 3, 4, 5].map((i) => `var(--r${i})`);
+
+  // The drawing helpers low-poly-svg.ts gives item-sprites.ts, returning markup.
+  const pts = (points) => points.map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(" ");
+  const poly = (points, fill, opacity) => `<polygon points="${pts(points)}" style="fill:${fill}"${opacity === undefined ? "" : ` fill-opacity="${opacity}"`}/>`;
+  const rect = (x1, y1, x2, y2) => [[x1, y1], [x2, y1], [x2, y2], [x1, y2]];
+  const ngon = (sides, cx, cy, r) => Array.from({ length: sides }, (_, k) => {
+    const t = Math.PI / sides + (2 * Math.PI * k) / sides - Math.PI / 2;
+    return [cx + r * Math.cos(t), cy + r * Math.sin(t)];
+  });
+  const stroke = (points, colour, width) => `<polyline points="${pts(points)}" stroke="${colour}" stroke-width="${width}" fill="none"/>`;
+  const shadow = (cx, cy, rx, ry) => `<ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}" fill="${INK}" fill-opacity=".15"/>`;
+  const lerp = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
+
+  /** A chibi unicorn, all four hooves down: a chequered saddle cloth, and a mane, tail and horn that run the rainbow. */
+  function unicorn() {
+    let out = shadow(96, 148, 66, 5);
+    [[40, 84, 11], [29, 95, 11], [25, 109, 10], [30, 122, 8]].forEach(([x, y, r], i) => { out += poly(ngon(6, x, y, r), RAINBOW_VARS[i]); });
+    for (const x of [68, 118]) {
+      out += poly(rect(x, 112, x + 12, 138), GREYS.grey) + poly(rect(x, 131, x + 12, 138), CARBON.mid);
+    }
+    out += poly([[44, 88], [58, 72], [120, 72], [138, 92], [132, 120], [52, 120]], SHINE.mid);
+    out += poly([[44, 88], [58, 72], [120, 72], [130, 84], [50, 88]], SHINE.lit);
+    out += poly([[50, 110], [135, 110], [132, 120], [52, 120]], SHINE.shaded);
+    for (const x of [52, 102]) {
+      out += poly(rect(x, 114, x + 14, 143), SHINE.mid) + poly(rect(x, 135, x + 14, 143), CARBON.shaded);
+    }
+    for (let row = 0; row < 3; row += 1) {
+      for (let col = 0; col < 4; col += 1) {
+        out += poly(rect(68 + col * 9, 72 + row * 9, 77 + col * 9, 81 + row * 9), (row + col) % 2 ? WHITE_V : INK);
+      }
+    }
+    out += poly([[106, 92], [116, 50], [150, 54], [142, 98]], SHINE.mid);
+    out += poly(ngon(8, 146, 54, 28), SHINE.mid);
+    out += poly([[126, 44], [134, 30], [158, 30], [166, 44]], SHINE.lit);
+    out += poly([[150, 54], [186, 60], [191, 78], [174, 88], [146, 82]], SHINE.mid);
+    out += poly([[150, 54], [186, 60], [188, 66], [152, 62]], SHINE.lit);
+    out += poly([[146, 82], [174, 88], [191, 78], [190, 84], [174, 93], [150, 88]], SHINE.shaded);
+    [[128, 36, 10], [116, 47, 11], [108, 61, 11], [102, 76, 10], [97, 89, 8]].forEach(([x, y, r], i) => { out += poly(ngon(6, x, y, r), RAINBOW_VARS[i]); });
+    out += poly(ngon(6, 138, 31, 7), RAINBOW_VARS[5]);
+    out += poly([[122, 32], [126, 12], [136, 28]], SHINE.lit);
+    out += poly([[142, 30], [158, 30], [164, 1]], RAINBOW_VARS[2]);
+    out += poly([[150, 30], [158, 30], [164, 1]], RAINBOW_VARS[4]);
+    out += poly(ngon(8, 151, 50, 7), INK) + poly(ngon(6, 153, 47, 2.5), WHITE_V);
+    out += stroke([[143, 38], [157, 40]], INK, 3);
+    out += poly(ngon(5, 181, 69, 2.5), INK);
+    out += stroke([[160, 79], [171, 80], [180, 77]], INK, 3);
+    return out;
+  }
+
+  /** A faceted mirror ball on a chain, its tiles a latitude and longitude grid, each a step along the rainbow. */
+  function ball() {
+    const [cx, cy, radius] = [100, 82, 56];
+    const point = (lat, lon) => [cx + radius * Math.cos(lat) * Math.sin(lon), cy + radius * Math.sin(lat)];
+    let out = shadow(100, 148, 46, 5);
+    out += stroke([[100, 0], [100, 24]], CARBON.lit, 3);
+    out += poly(rect(92, 20, 108, 29), CARBON.mid);
+    out += poly(ngon(24, cx, cy, radius + 1), CARBON.shaded);
+    const rows = 8;
+    const cols = 8;
+    for (let row = 0; row < rows; row += 1) {
+      const lat0 = -Math.PI / 2 + (Math.PI * row) / rows;
+      const lat1 = lat0 + Math.PI / rows;
+      for (let col = 0; col < cols; col += 1) {
+        const lon0 = -Math.PI / 2 + (Math.PI * col) / cols;
+        const lon1 = lon0 + Math.PI / cols;
+        const inset = 0.05;
+        const tile = [point(lat0 + inset, lon0 + inset), point(lat0 + inset, lon1 - inset), point(lat1 - inset, lon1 - inset), point(lat1 - inset, lon0 + inset)];
+        out += poly(tile, RAINBOW_VARS[(row + col) % 6]);
+        // Light from the top left, as the View's sun lights the facets.
+        const light = -(Math.sin((lon0 + lon1) / 2) + Math.sin((lat0 + lat1) / 2));
+        if (light > 0.55) out += poly(tile, WHITE_V, 0.45);
+        if (light < -0.55) out += poly(tile, INK, 0.28);
+      }
+    }
+    for (const [x, y, r] of [[66, 46, 13], [136, 62, 8], [84, 112, 7]]) {
+      const q = r * 0.18;
+      out += poly([[x, y - r], [x + q, y - q], [x + r, y], [x + q, y + q], [x, y + r], [x - q, y + q], [x - r, y], [x - q, y - q]], WHITE_V);
+    }
+    return out;
+  }
+
+  /** A race helmet side on, facing right: a shining shell, a visor with an iridescent strip and determined eyes. */
+  function helmet() {
+    let out = shadow(100, 148, 58, 5);
+    out += poly([[60, 128], [122, 128], [118, 142], [64, 142]], CARBON.mid);
+    out += poly([[52, 124], [36, 96], [36, 68], [52, 38], [84, 20], [120, 20], [148, 36], [164, 62], [176, 98], [172, 126], [122, 132], [60, 132]], SHINE.mid);
+    out += poly([[36, 68], [52, 38], [84, 20], [120, 20], [148, 36], [150, 44], [60, 48], [40, 74]], SHINE.lit);
+    out += poly([[36, 96], [52, 124], [60, 132], [90, 132], [68, 94]], SHINE.shaded);
+    out += poly([[38, 82], [86, 76], [86, 86], [41, 93]], RED.mid);
+    out += poly([[90, 54], [162, 54], [172, 80], [170, 92], [94, 94], [84, 76]], CARBON.shaded);
+    const top = [[90, 54], [162, 54]];
+    const base = [[86, 66], [167, 66]];
+    for (let i = 0; i < 6; i += 1) {
+      const a = i / 6;
+      const b = (i + 1) / 6;
+      out += poly([lerp(top[0], top[1], a), lerp(top[0], top[1], b), lerp(base[0], base[1], b), lerp(base[0], base[1], a)], RAINBOW_VARS[i]);
+    }
+    for (const x of [122, 150]) {
+      out += poly(ngon(8, x, 79, 7.5), WHITE_V) + poly(ngon(6, x + 2.5, 80, 3.5), INK);
+    }
+    out += stroke([[112, 70], [129, 74]], WHITE_V, 3.5);
+    out += stroke([[160, 70], [143, 74]], WHITE_V, 3.5);
+    out += poly(ngon(8, 84, 74, 8), GREYS.grey) + poly(ngon(6, 84, 74, 3.5), GREYS.deep);
+    for (const [x1, y, x2] of [[126, 104, 166], [126, 115, 162]]) {
+      out += poly(rect(x1, y, x2, y + 5), CARBON.mid);
+    }
+    return out;
+  }
+
+  /** Today's icon, as star-and-air-horn.html draws it. */
+  function safety() {
+    let out = shadow(100, 140, 78, 6);
+    out += poly(rect(66, 50, 134, 59), CARBON.mid) + poly(rect(70, 42, 98, 52), ORANGE.lit) + poly(rect(102, 42, 130, 52), ORANGE.mid);
+    out += poly([[62, 94], [80, 59], [124, 59], [148, 94]], CARBON.mid);
+    out += poly([[72, 92], [85, 65], [101, 65], [101, 92]], CARBON.lit) + poly([[105, 92], [105, 65], [121, 65], [137, 92]], CARBON.lit);
+    out += poly([[18, 122], [26, 102], [60, 92], [148, 92], [180, 106], [184, 122]], SHINE.mid);
+    out += poly([[26, 102], [60, 92], [148, 92], [180, 106]], SHINE.lit);
+    out += poly([[18, 122], [184, 122], [178, 130], [24, 130]], SHINE.shaded);
+    out += poly([[30, 112], [172, 112], [176, 118], [26, 118]], RED.mid);
+    for (const x of [90, 118]) out += poly(ngon(8, x, 81, 7), WHITE_V) + poly(ngon(6, x + 3, 82, 3.5), INK);
+    out += stroke([[80, 70], [98, 75]], ORANGE.lit, 4) + stroke([[128, 70], [110, 75]], ORANGE.lit, 4) + stroke([[82, 99], [100, 107], [124, 99]], INK, 3.5);
+    for (const x of [54, 150]) out += poly(ngon(8, x, 126, 15), CARBON.shaded) + poly(ngon(8, x, 126, 6.5), WHITE.shaded);
+    return out;
+  }
+
+  // The rest of the reel, ported from item-sprites.ts, and the Air Horn from star-and-air-horn.html.
+  function cone() {
+    let out = shadow(100, 146, 54, 6);
+    out += poly([[52, 124], [72, 112], [128, 112], [148, 124]], GREYS.grey) + poly(rect(52, 124, 148, 138), GREYS.dark);
+    const apex = [100, 26];
+    const rim = [[62, 118], [82, 126], [118, 126], [138, 118]];
+    [ORANGE.lit, ORANGE.mid, ORANGE.shaded].forEach((fill, side) => {
+      const a = rim[side];
+      const b = rim[side + 1];
+      out += poly([apex, a, b], fill);
+      out += poly([lerp(apex, a, 0.5), lerp(apex, b, 0.5), lerp(apex, b, 0.66), lerp(apex, a, 0.66)], [WHITE.lit, WHITE.mid, WHITE.shaded][side]);
+    });
+    for (const x of [90, 105]) out += poly(rect(x, 75, x + 5, 81), INK);
+    return out + stroke([[87, 66], [97, 71]], INK, 3.5) + stroke([[113, 66], [103, 71]], INK, 3.5) + stroke([[93, 99], [107, 99]], INK, 3.5);
+  }
+  function drone() {
+    let out = shadow(100, 146, 56, 5);
+    out += poly(rect(24, 84, 176, 94), CARBON.lit);
+    for (const x of [38, 162]) {
+      out += poly(rect(x - 9, 66, x + 9, 88), ORANGE.mid) + poly(rect(x - 9, 66, x + 9, 71), ORANGE.lit);
+      out += `<ellipse cx="${x}" cy="62" rx="34" ry="5" fill="#fff" fill-opacity=".55"/>`;
+    }
+    out += poly([[60, 78], [140, 78], [148, 100], [52, 100]], CARBON.mid);
+    out += poly([[70, 78], [84, 56], [118, 54], [134, 78]], RED.mid) + poly([[70, 78], [84, 56], [100, 55], [92, 78]], RED.lit);
+    out += poly(rect(114, 98, 154, 126), CARBON.shaded);
+    return out + poly(ngon(8, 154, 112, 13), WHITE.mid) + poly(ngon(8, 154, 112, 9), "#d00a12") + poly(ngon(6, 155, 111, 3), INK);
+  }
+  function bottle() {
+    let inner = "";
+    for (const [x, y, r] of [[64, 0, 10], [76, -11, 9], [78, 11, 8], [92, -3, 11], [104, -16, 7], [106, 12, 8], [118, -2, 6]]) {
+      inner += poly(ngon(7, x, y, r), WHITE.mid) + poly(ngon(7, x - 2, y - 2, r * 0.6), WHITE_V);
+    }
+    inner += poly([[128, -8], [144, -10], [144, 10], [128, 8]], "#d9a066");
+    inner += poly(rect(-62, -22, 10, -8), BOTTLE.lit) + poly(rect(-62, -8, 10, 8), BOTTLE.mid) + poly(rect(-62, 8, 10, 22), BOTTLE.shaded);
+    inner += poly([[10, -22], [32, -8], [32, 0], [10, 0]], BOTTLE.lit) + poly([[10, 0], [32, 0], [32, 8], [10, 22]], BOTTLE.shaded);
+    inner += poly(rect(30, -8, 58, 0), "#ffdf72") + poly(rect(30, 0, 58, 8), "#a88a2a");
+    inner += poly(rect(-46, -16, -12, 16), WHITE.mid) + poly(rect(-46, -4, -12, 4), "#d00a12");
+    return shadow(96, 146, 48, 5) + `<g transform="translate(88 92) rotate(-38) scale(0.84)">${inner}</g>`;
+  }
+  function airHorn() {
+    let out = shadow(72, 140, 46, 6);
+    out += poly(rect(54, 34, 78, 44), CARBON.mid) + poly(rect(52, 44, 80, 60), WHITE.shaded);
+    out += poly([[76, 46], [118, 46], [168, 18], [168, 92], [118, 66], [76, 60]], WHITE.mid) + poly([[118, 46], [168, 18], [168, 55], [118, 56]], WHITE.lit);
+    out += `<ellipse cx="168" cy="55" rx="8" ry="37" fill="${CARBON.mid}"/>`;
+    out += poly([[36, 70], [46, 60], [86, 60], [96, 70], [96, 136], [36, 136]], RED.mid);
+    out += poly([[36, 70], [46, 60], [60, 60], [60, 136], [36, 136]], RED.lit) + poly([[82, 60], [86, 60], [96, 70], [96, 136], [82, 136]], RED.shaded);
+    for (const x of [55, 78]) out += poly(ngon(8, x, 90, 7), WHITE_V) + poly(ngon(6, x + 2, 91, 3.5), INK);
+    return out + stroke([[46, 78], [62, 83]], INK, 4) + stroke([[87, 78], [71, 83]], INK, 4) + poly(ngon(8, 67, 113, 9), INK);
+  }
+
+  const DRAW = { unicorn, ball, helmet, safety, cone, drone, bottle, airHorn };
+  const sprite = (name) => `<svg viewBox="0 0 200 160" aria-hidden="true">${DRAW[name]()}</svg>`;
+
+  for (const plate of document.querySelectorAll("[data-sprite]")) {
+    plate.innerHTML = sprite(plate.dataset.sprite);
+  }
+  for (const card of document.querySelectorAll("[data-icon]")) {
+    const name = card.dataset.icon;
+    const plates = `
+      <div class="plate big shines">${sprite(name)}</div>
+      <div class="sizes">
+        <figure><div class="plate hud shines">${sprite(name)}</div><figcaption>Held</figcaption></figure>
+        <figure><div class="plate hud firing shines">${sprite(name)}</div><figcaption>Firing</figcaption></figure>
+        <figure><div class="plate small shines">${sprite(name)}</div><figcaption>64 px</figcaption></figure>
+      </div>
+      <div class="stack">
+        <span class="strip-label">In the reel</span>
+        <div class="strip">${["bottle", "cone", name, "drone", "airHorn"].map((item) => `<div class="plate reel${item === name ? " shines" : ""}">${sprite(item)}</div>`).join("")}</div>
+      </div>`;
+    card.querySelector(".stack").insertAdjacentHTML("afterend", plates);
+  }
+
+  // The loop from star-and-air-horn.html: 0.5 s round six stops, the body pulled 70% toward it.
+  const RAINBOW = ["#ff4d4d", "#ff9f1c", "#ffe14d", "#3ddc84", "#37bedd", "#b05cff"].map((hex) => [1, 3, 5].map((at) => parseInt(hex.slice(at, at + 2), 16)));
+  const LOOP_S = 0.5;
+  const PULL = 0.7;
+  const mix = (a, b, t) => a.map((value, i) => value + (b[i] - value) * t);
+  const css = (c) => `rgb(${c.map((value) => Math.round(value)).join(",")})`;
+  const loopColour = (s) => {
+    const at = (((s / LOOP_S) % 1) + 1) % 1 * RAINBOW.length;
+    const from = Math.floor(at);
+    return mix(RAINBOW[from], RAINBOW[(from + 1) % RAINBOW.length], at - from);
+  };
+  const root = document.documentElement.style;
+  const reduced = document.getElementById("reduced");
+  reduced.checked = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  function frame(now) {
+    const s = now / 1000;
+    if (reduced.checked) {
+      for (const name of ["--sh-lit", "--sh-mid", "--sh-shaded", "--glow", "--r0", "--r1", "--r2", "--r3", "--r4", "--r5"]) root.removeProperty(name);
+    } else {
+      const shine = loopColour(s);
+      const body = mix([238, 240, 242], shine, PULL);
+      root.setProperty("--sh-lit", css(mix(body, [255, 255, 255], 0.35)));
+      root.setProperty("--sh-mid", css(body));
+      root.setProperty("--sh-shaded", css(mix(body, [0, 0, 0], 0.2)));
+      root.setProperty("--glow", css(shine));
+      for (let i = 0; i < 6; i += 1) root.setProperty(`--r${i}`, css(loopColour(s - (i * LOOP_S) / 6)));
+    }
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+</script>
+</body>
+</html>
