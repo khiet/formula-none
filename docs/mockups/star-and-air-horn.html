@@ -1,0 +1,572 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Star and Air Horn</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bungee&family=IBM+Plex+Sans:ital,wght@0,400;0,600;1,400&family=Silkscreen&display=swap">
+<style>
+  /* Tokens follow docs/style-guide.html. */
+  :root {
+    --bg: #eef0f3; --fg: #1b1d22; --muted: #5b6170; --rule: #cfd3db; --card: #ffffff;
+    --stage: #dfe3e9; --gold: #a77a12; --chip: #f4f5f7; --hit: #c81d25; --safe: #5b6170;
+    --display: "Bungee", "Arial Black", Impact, sans-serif;
+    --body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --pixel: "Silkscreen", ui-monospace, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #15171a; --fg: #ece7d8; --muted: #9a9fab; --rule: #2c3036; --card: #1e2126;
+      --stage: #2a2e35; --gold: #e2b84a; --chip: #262a30; --hit: #ff6b70; --safe: #9a9fab;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #15171a; --fg: #ece7d8; --muted: #9a9fab; --rule: #2c3036; --card: #1e2126;
+    --stage: #2a2e35; --gold: #e2b84a; --chip: #262a30; --hit: #ff6b70; --safe: #9a9fab;
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--fg); font: 15px/1.55 var(--body);
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+    padding-block: 2rem 4rem;
+  }
+  .wrap { max-width: 1040px; margin: 0 auto; display: grid; gap: 3.5rem; }
+  section { display: grid; gap: 1.4rem; min-width: 0; }
+  h1 { font: 400 clamp(1.8rem, 5vw, 2.8rem)/1.05 var(--display); margin: 0; text-wrap: balance; }
+  h2 { font: 400 1.6rem/1.15 var(--display); margin: 0; text-wrap: balance; }
+  h3 { font: 600 1.02rem/1.3 var(--body); margin: 0; }
+  p { margin: 0; max-width: 68ch; }
+  ul, ol { margin: 0; padding-left: 1.2rem; display: grid; gap: .4rem; max-width: 76ch; }
+  code { font: .84em ui-monospace, SFMono-Regular, Menlo, monospace; background: var(--chip); padding: .05em .35em; border-radius: 4px; overflow-wrap: anywhere; }
+  .eyebrow { font: .78rem/1.2 var(--pixel); letter-spacing: .08em; text-transform: uppercase; color: var(--gold); }
+  .lede { color: var(--muted); }
+  .note { font-size: .85rem; color: var(--muted); }
+  .stack { display: grid; gap: .55rem; min-width: 0; }
+
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1px; background: var(--rule); border: 1px solid var(--rule); }
+  .stat { background: var(--card); padding: .75rem .9rem; display: grid; gap: .1rem; align-content: start; }
+  .stat b { font: 400 1.3rem/1.2 var(--display); font-variant-numeric: tabular-nums; }
+  .stat span { font-size: .84rem; color: var(--muted); }
+
+  .table { overflow-x: auto; border: 1px solid var(--rule); background: var(--card); }
+  table { border-collapse: collapse; width: 100%; font-size: .92rem; }
+  th, td { text-align: left; vertical-align: top; padding: .55rem .8rem; border-bottom: 1px solid var(--rule); }
+  tr:last-child > * { border-bottom: 0; }
+  thead th { font: .72rem/1.3 var(--pixel); letter-spacing: .05em; text-transform: uppercase; color: var(--muted); white-space: nowrap; }
+  tbody th { font-weight: 600; }
+  .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  td small { color: var(--muted); font-size: .8em; display: block; }
+
+  .demo { display: grid; grid-template-columns: minmax(0, 1fr) 180px; gap: 1rem; background: var(--stage); padding: 1rem; align-items: center; }
+  .demo .kart { min-width: 0; position: relative; width: 100%; max-width: 480px; justify-self: center; }
+  .demo .kart svg { display: block; width: 100%; height: auto; overflow: visible; filter: drop-shadow(0 0 14px var(--glow, transparent)); }
+  .readout { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem 1.1rem; font-size: .88rem; }
+  .readout output { font: .8rem/1.2 var(--pixel); font-variant-numeric: tabular-nums; }
+  .readout label { display: inline-flex; align-items: center; gap: .3rem; cursor: pointer; }
+  .readout select { font: inherit; }
+  .plate-box { display: grid; gap: .6rem; justify-items: center; }
+  .item-slot { width: 150px; height: 120px; background: linear-gradient(135deg, #f8e39a, #e0b54a 60%, #c99a2e); border: 3px solid #111; padding: 4px; }
+  .item-slot svg { width: 100%; height: 100%; display: block; filter: drop-shadow(0 0 8px var(--glow, transparent)); }
+  .plate { font: .8rem/1 var(--pixel); padding: .3rem .6rem; background: #111; color: #fff; border-bottom: 3px solid var(--plate, #d00a12); }
+  @media (max-width: 620px) { .demo { grid-template-columns: minmax(0, 1fr); } }
+
+  .timeline { display: grid; gap: .3rem; min-width: 0; }
+  .bar { display: flex; height: 34px; border: 1px solid var(--rule); }
+  .bar div { display: flex; align-items: center; justify-content: center; font: .66rem/1 var(--pixel); text-transform: uppercase; color: #111; overflow: hidden; white-space: nowrap; }
+  .bar .kick { width: 8.33%; background: #ff9f1c; }
+  .bar .run { width: 75%; background: linear-gradient(90deg, #ff4d4d, #ff9f1c, #ffe14d, #3ddc84, #37bedd, #b05cff); }
+  .bar .fade { width: 16.67%; background: linear-gradient(90deg, #b05cff, #eef0f2); }
+  .ticks { display: flex; justify-content: space-between; font-size: .78rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .swatches { display: flex; flex-wrap: wrap; gap: .4rem; }
+  .swatches span { font: .78rem/1 ui-monospace, Menlo, monospace; padding: .4rem .55rem; color: #111; }
+
+  .traps { display: grid; grid-template-columns: repeat(auto-fit, minmax(270px, 1fr)); gap: 1.25rem; }
+  .traps article { display: grid; gap: .3rem; align-content: start; border-top: 2px solid var(--fg); padding-top: .6rem; min-width: 0; }
+
+  .diagram { background: var(--card); border: 1px solid var(--rule); padding: 1rem; display: grid; gap: .7rem; min-width: 0; }
+  .diagram .scroll { overflow-x: auto; }
+  .diagram svg { display: block; width: 100%; min-width: 480px; height: auto; }
+  .diagram text { font: 10px var(--pixel); fill: var(--fg); }
+  .pulse { fill: none; stroke: #ff5522; stroke-width: 3; transform-origin: 260px 100px; animation: pulse 2.2s ease-out infinite; }
+  @keyframes pulse { 0% { transform: scale(.05); opacity: 1; } 18% { transform: scale(1); opacity: .9; } 34%, 100% { transform: scale(1); opacity: 0; } }
+  @media (prefers-reduced-motion: reduce) { .pulse { animation: none; opacity: 0; } }
+  .horn-row { display: grid; grid-template-columns: 150px minmax(0, 1fr); gap: 1rem; align-items: center; }
+  .horn-row .item-slot { justify-self: start; }
+  @media (max-width: 620px) { .horn-row { grid-template-columns: minmax(0, 1fr); } }
+  pre { margin: 0; padding: .9rem 1rem; background: var(--card); border: 1px solid var(--rule); overflow-x: auto; font: .84rem/1.55 ui-monospace, SFMono-Regular, Menlo, monospace; }
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="safety" viewBox="0 0 200 160">
+      <ellipse cx="100" cy="140" rx="78" ry="6" fill="#111" fill-opacity=".15"/>
+      <rect x="66" y="50" width="68" height="9" fill="#2b2e33"/>
+      <rect x="70" y="42" width="28" height="10" fill="#ff7a4d"/>
+      <rect x="102" y="42" width="28" height="10" fill="#ff5522"/>
+      <polygon points="62,94 80,59 124,59 148,94" fill="#2b2e33"/>
+      <polygon points="72,92 85,65 101,65 101,92" fill="#4a4f57"/>
+      <polygon points="105,92 105,65 121,65 137,92" fill="#4a4f57"/>
+      <polygon points="18,122 26,102 60,92 148,92 180,106 184,122" style="fill: var(--car-mid, #eef0f2)"/>
+      <polygon points="26,102 60,92 148,92 180,106" style="fill: var(--car-lit, #ffffff)"/>
+      <polygon points="18,122 184,122 178,130 24,130" style="fill: var(--car-shaded, #cfd2d6)"/>
+      <polygon points="30,112 172,112 176,118 26,118" fill="#c81d25"/>
+      <circle cx="90" cy="81" r="7" fill="#fff"/><circle cx="118" cy="81" r="7" fill="#fff"/>
+      <circle cx="93" cy="82" r="3.5" fill="#111"/><circle cx="121" cy="82" r="3.5" fill="#111"/>
+      <polyline points="80,70 98,75" stroke="#ff7a4d" stroke-width="4" fill="none"/>
+      <polyline points="128,70 110,75" stroke="#ff7a4d" stroke-width="4" fill="none"/>
+      <polyline points="82,99 100,107 124,99" stroke="#111" stroke-width="3.5" fill="none"/>
+      <circle cx="54" cy="126" r="15" fill="#1b1d21"/><circle cx="54" cy="126" r="6.5" fill="#cfd2d6"/>
+      <circle cx="150" cy="126" r="15" fill="#1b1d21"/><circle cx="150" cy="126" r="6.5" fill="#cfd2d6"/>
+    </symbol>
+    <symbol id="horn" viewBox="0 0 200 160">
+      <ellipse cx="72" cy="140" rx="46" ry="6" fill="#111" fill-opacity=".15"/>
+      <rect x="54" y="34" width="24" height="10" fill="#2b2e33"/>
+      <rect x="52" y="44" width="28" height="16" fill="#cfd2d6"/>
+      <polygon points="76,46 118,46 168,18 168,92 118,66 76,60" fill="#eef0f2"/>
+      <polygon points="118,46 168,18 168,55 118,56" fill="#ffffff"/>
+      <ellipse cx="168" cy="55" rx="8" ry="37" fill="#2b2e33"/>
+      <polygon points="36,70 46,60 86,60 96,70 96,136 36,136" fill="#c81d25"/>
+      <polygon points="36,70 46,60 60,60 60,136 36,136" fill="#e8333b"/>
+      <polygon points="82,60 86,60 96,70 96,136 82,136" fill="#8f141a"/>
+      <circle cx="55" cy="90" r="7" fill="#fff"/><circle cx="78" cy="90" r="7" fill="#fff"/>
+      <circle cx="57" cy="91" r="3.5" fill="#111"/><circle cx="80" cy="91" r="3.5" fill="#111"/>
+      <polyline points="46,78 62,83" stroke="#111" stroke-width="4" fill="none"/>
+      <polyline points="87,78 71,83" stroke="#111" stroke-width="4" fill="none"/>
+      <ellipse cx="67" cy="113" rx="10" ry="8" fill="#111"/>
+    </symbol>
+  </defs>
+</svg>
+
+<main class="wrap">
+
+  <section>
+    <div class="stack">
+      <span class="eyebrow">Item spec, proposed</span>
+      <h1>The star and the Air Horn</h1>
+      <p class="lede">The two items to add to the boost, the hazard and the homing projectile. The rules below are written against the sim as it stands. Every number is a starting value for a bot sweep and a feel check, and no code has changed yet.</p>
+    </div>
+    <div class="table"><table>
+      <thead><tr><th></th><th>Star</th><th>Air Horn</th></tr></thead>
+      <tbody>
+        <tr><th>In one line</th><td>6 s of speed and immunity, spinning out every kart it touches</td><td>One blast that spins out nearby karts and clears hazards and drones</td></tr>
+        <tr><th>In the slot</th><td>A safety car</td><td>A grandstand air horn</td></tr>
+        <tr><th>Role</th><td>Comeback for the back of the field</td><td>Timed defence and close attack, for any place</td></tr>
+        <tr><th>Most likely at</th><td>Places 6-8</td><td>Places 1-5</td></tr>
+        <tr><th>Build</th><td>Medium</td><td>Small</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <section id="star">
+    <div class="stack">
+      <span class="eyebrow">Item one</span>
+      <h2>The star</h2>
+      <p>For 6 s the kart is faster, takes no harm from items or the runaway wheel, ignores the off-track cap, and spins out every kart it touches. Kart and driver shine through the rainbow the whole time, as they do under Mario Kart's star.</p>
+    </div>
+
+    <div class="stack">
+      <div class="demo">
+        <div class="kart" id="kart" role="img" aria-label="The poster kart cycling through rainbow colours during a star run"></div>
+        <div class="plate-box">
+          <div class="item-slot" id="slot"><svg role="img" aria-label="A grinning safety car, shining"><use href="#safety"/></svg></div>
+          <span class="plate" id="plate">Rosso</span>
+        </div>
+      </div>
+      <div class="readout">
+        <output id="left">star_s 6.0</output>
+        <label>Livery
+          <select id="livery"><option value="0">Rosso</option><option value="1">Papaya</option><option value="2">Argento</option></select>
+        </label>
+        <label><input type="checkbox" id="reduced"> Reduced motion</label>
+      </div>
+      <p class="note">The kart is the real side view from <code>docs/kart-side.js</code>, recoloured the way the View would recolour it. It runs 6 s, then rests for 1.5 s in its livery.</p>
+    </div>
+
+    <div class="stats">
+      <div class="stat"><b>6 s</b><span>Length of a run</span></div>
+      <div class="stat"><b>37.5 m/s</b><span>Top speed, +25%. A full purse makes it 41.25</span></div>
+      <div class="stat"><b>+45 m</b><span>Gained at top speed. The boost item gains 18</span></div>
+      <div class="stat"><b>225 m</b><span>A run's reach: 17% of a 1300 m lap, 51% of the oval</span></div>
+      <div class="stat"><b>-68 m</b><span>What each hit costs a kart at top speed, plus 3 coins</span></div>
+    </div>
+
+    <div class="timeline" role="img" aria-label="Timeline of a 6 second star run: a half second kick, four and a half seconds of full shine, then a final second fading back to the livery.">
+      <div class="bar">
+        <div class="kick">Kick</div>
+        <div class="run">Full shine, raised top speed, hits on contact</div>
+        <div class="fade">Fading</div>
+      </div>
+      <div class="ticks"><span>0 s</span><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6 s</span></div>
+    </div>
+
+    <div class="stack">
+      <h3>How it shines</h3>
+      <div class="table"><table>
+        <thead><tr><th>Where</th><th>What it does</th></tr></thead>
+        <tbody>
+          <tr><th>Kart and driver</th><td>Every material, wheels and hair included, is pulled 70% toward the rainbow colour of the moment and lit by it as emissive, so its own shading still shows through. The loop takes 0.5 s.</td></tr>
+          <tr><th>Glow</th><td>A soft additive halo behind the kart in the same colour, so the shine carries at chase-camera distance.</td></tr>
+          <tr><th>Sparkles</th><td>Four-point glints thrown off the bodywork and left behind the kart, a few each second, white with a rainbow tip.</td></tr>
+          <tr><th>Item slot</th><td>The safety car's body shines through the same loop once the item has landed, with a glow behind it. Carbon, ink and the red stripe stay fixed so it still reads on the slot's gold.</td></tr>
+          <tr><th>Instrument panel during a run</th><td>A rainbow ring around the slot counts the 6 s down. The slot itself is free again and can roll another item.</td></tr>
+          <tr><th>Plate and course map</th><td>The star kart's plate underline and map marker run the same loop, so other drivers can see it coming and tell where it is.</td></tr>
+          <tr><th>Last second</th><td>The pull fades from 70% to nothing, so the driver sees it ending. The loop keeps its speed.</td></tr>
+          <tr><th>Reduced motion</th><td>No loop and no sparkles. Kart and sprite hold a steady white shine with the glow, and the ring still counts down.</td></tr>
+        </tbody>
+      </table></div>
+      <div class="swatches" aria-label="The six rainbow stops">
+        <span style="background:#ff4d4d">#ff4d4d</span><span style="background:#ff9f1c">#ff9f1c</span><span style="background:#ffe14d">#ffe14d</span><span style="background:#3ddc84">#3ddc84</span><span style="background:#37bedd">#37bedd</span><span style="background:#b05cff">#b05cff</span>
+      </div>
+      <ul>
+        <li><strong>Same on every screen:</strong> the colour is worked out from <code>star_s</code> in the snapshot, so every client shows a kart in the same phase and the sim stays free of presentation.</li>
+        <li><strong>Flashing limit:</strong> a 2 Hz colour sweep stays under the limit of three flashes a second. Check it on the real View, with a star kart filling the screen, before shipping.</li>
+        <li><strong>Materials:</strong> <code>dressKart</code> copies only the painted materials, and carbon, tyre and rim are shared between karts. The shine needs a kart's own copy of every material, or one star would light up the whole grid.</li>
+        <li><strong>ADR 0024:</strong> it says the characters have no idle animation. The shining safety car is an exception, so the star's ADR needs to supersede that line for this item.</li>
+        <li><strong>No separate car on the road:</strong> the kart shines and stays a kart. As with the boost's bottle, the safety car appears only in the slot. This replaces the light bar in the first brief.</li>
+      </ul>
+    </div>
+
+    <div class="stack">
+      <h3>What the star meets</h3>
+      <div class="table"><table>
+        <thead><tr><th>It meets</th><th>What happens</th></tr></thead>
+        <tbody>
+          <tr><th>Another kart</th><td>That kart spins out and loses 3 coins, reported as <code>SpunOut { by: Some(star's kart) }</code>. The star kart passes through at full speed. A kart already spun out is passed by.</td></tr>
+          <tr><th>A kart trailing a hazard</th><td>The trailed hazard does not shield it. The spin-out ends the hold, so the hazard is left where it is.</td></tr>
+          <tr><th>Another star</th><td>An ordinary bump (ADR 0021). Neither spins out.</td></tr>
+          <tr><th>A hazard on the road</th><td>Used up, with no effect on the star kart. This includes its own.</td></tr>
+          <tr><th>A homing projectile</th><td>Used up on reaching the kart, with no effect. It does not look for a new target.</td></tr>
+          <tr><th>The runaway wheel</th><td>Passes through. The wheel carries on and can still hit other karts.</td></tr>
+          <tr><th>An Air Horn</th><td>No effect on the star kart.</td></tr>
+          <tr><th>Grass and sand</th><td>The off-track cap does not apply. This opens no shortcut, because every course is walled along both run-off edges.</td></tr>
+          <tr><th>A wall or tyre wall</th><td>Unchanged. Walls still hold the kart and tyre walls still bump it, so driving remains the skill.</td></tr>
+          <tr><th>Item boxes, coins, the item button</th><td>Unchanged. The kart can take both and can fire a held item during the run.</td></tr>
+          <tr><th>Boost pad, mini-turbo, boost item</th><td>They still fire and set their own speed, then the kart settles back to the star's top speed. They do not multiply with it.</td></tr>
+          <tr><th>Respawn or finish</th><td>A respawn does not stop the timer. The finish ends the run.</td></tr>
+        </tbody>
+      </table></div>
+    </div>
+
+    <div class="stack">
+      <h3>Where the existing rules would get it wrong</h3>
+      <div class="traps">
+        <article>
+          <h3>It cannot be a long boost</h3>
+          <p><code>Handling::boost</code> replaces the boost under way, so the first mini-turbo or pad would end a run. The star needs its own <code>star_left_s</code> timer.</p>
+        </article>
+        <article>
+          <h3>It has to raise the cap</h3>
+          <p>A boost forces speed every tick, whatever the brake says. Six seconds of that would make a hairpin undriveable. The star raises <code>top_speed</code>, so braking still works, and a one-off 0.5 s kick gives the jump you feel on firing.</p>
+        </article>
+        <article>
+          <h3>It has to skip the bump</h3>
+          <p>Under ADR 0021 the kart that drives in loses speed, and a spun-out kart stands locked. For the run, the star kart's collider ignores other karts, and the sim tests hits with <code>reaches</code> against the star kart's centre. No contact pair means no bump for prediction and server to disagree over.</p>
+        </article>
+      </div>
+    </div>
+
+    <div class="stack">
+      <h3>Bots and network</h3>
+      <ul>
+        <li><strong>Bots:</strong> a bot fires a star as it fires a boost, on the first straight. During the run it stops waiting for the wheel and stops steering around karts (<code>kart_in_the_way</code>), or it would never hit anyone.</li>
+        <li><strong>Prediction:</strong> the owner's client predicts the speed and the pass-through from the fire. Only the server spins a kart out, and clients learn of it from the snapshot, as they do with a drone.</li>
+        <li><strong>Known rough edge:</strong> other karts are drawn 100 ms in the past, so a hit on a slow kart can land about 3 to 4 m before the star visibly arrives. A spark burst should cover it, and the smoke test should confirm that.</li>
+        <li><strong>Sound:</strong> a fanfare and a looped siren over the music for the star's driver, dropping in pitch for the last second. Other drivers hear the siren by distance.</li>
+      </ul>
+    </div>
+  </section>
+
+  <section id="horn-spec">
+    <div class="stack">
+      <span class="eyebrow">Item two</span>
+      <h2>The Air Horn</h2>
+      <div class="horn-row">
+        <div class="item-slot"><svg role="img" aria-label="An air horn with a scowling face"><use href="#horn"/></svg></div>
+        <p>One blast, on the press, 7 m around the kart. Karts in reach spin out, and hazards and homing projectiles in reach are used up. It is the only item you save and time, and its best moment is destroying a drone just before it hits you.</p>
+      </div>
+    </div>
+
+    <div class="stats">
+      <div class="stat"><b>7 m</b><span>Radius, wall to wall on a road about 12 m wide</span></div>
+      <div class="stat"><b>15 m</b><span>Most spline progress away that it can reach</span></div>
+      <div class="stat"><b>-68 m</b><span>What each hit costs a kart at top speed, plus 3 coins</span></div>
+      <div class="stat"><b>0.39 s</b><span>Time to fire once a drone is in reach of a kart at 30 m/s</span></div>
+      <div class="stat"><b>7</b><span>The most karts one blast can hit</span></div>
+    </div>
+
+    <div class="diagram">
+      <h3>The reach, to scale</h3>
+      <div class="scroll">
+        <svg viewBox="0 0 520 200" role="img" aria-label="Top-down diagram to scale. A 7 metre circle around the firing kart spans a 12 metre road. Two karts, a hazard and a drone inside it are hit. Two karts and a hazard outside it are not.">
+          <rect x="0" y="28" width="520" height="144" style="fill: var(--stage)"/>
+          <line x1="0" y1="28" x2="520" y2="28" style="stroke: var(--fg)" stroke-width="2"/>
+          <line x1="0" y1="172" x2="520" y2="172" style="stroke: var(--fg)" stroke-width="2"/>
+          <circle cx="260" cy="100" r="84" fill="#ff5522" fill-opacity=".12" stroke="#ff5522" stroke-width="1.5" stroke-dasharray="5 4"/>
+          <circle class="pulse" cx="260" cy="100" r="84"/>
+          <line x1="260" y1="100" x2="344" y2="100" stroke="#ff5522" stroke-width="1.5"/>
+          <text x="312" y="94">7 m</text>
+          <rect x="249" y="93" width="22" height="14" fill="#ff5522"/>
+          <rect x="189" y="63" width="22" height="14" style="fill: var(--hit)"/>
+          <rect x="299" y="123" width="22" height="14" style="fill: var(--hit)"/>
+          <polygon points="225,120 233,138 217,138" style="fill: var(--hit)"/>
+          <circle cx="190" cy="108" r="6" style="fill: var(--hit)"/>
+          <rect x="109" y="123" width="22" height="14" style="fill: var(--safe)"/>
+          <rect x="389" y="53" width="22" height="14" style="fill: var(--safe)"/>
+          <polygon points="440,120 448,138 432,138" style="fill: var(--safe)"/>
+          <text x="6" y="20">Wall</text>
+          <text x="6" y="192">Wall, about 12 m across</text>
+          <text x="514" y="192" text-anchor="end">Driving this way &gt;</text>
+        </svg>
+      </div>
+      <p class="note">Orange is the kart firing. Red is hit: two karts, a hazard (triangle) and a drone (circle). Grey is out of reach. A kart is 1.2 x 1.8 m. The road's width is read from a row of item boxes, which covers 12 m.</p>
+    </div>
+
+    <div class="stack">
+      <h3>What the blast meets</h3>
+      <div class="table"><table>
+        <thead><tr><th>In reach</th><th>What happens</th></tr></thead>
+        <tbody>
+          <tr><th>Another kart</th><td>Spins out and loses 3 coins, reported as <code>SpunOut { by: Some(horn's kart) }</code>.</td></tr>
+          <tr><th>A kart trailing a hazard</th><td>The trailed hazard is used up in its place, and the kart drives on. This is the rule a drone already follows.</td></tr>
+          <tr><th>A kart already spun out</th><td>Unaffected.</td></tr>
+          <tr><th>A star kart</th><td>Unaffected.</td></tr>
+          <tr><th>A hazard on the road</th><td>Used up, whoever dropped it. This includes the firer's.</td></tr>
+          <tr><th>The firer's own trailed hazard</th><td>Stays with the kart.</td></tr>
+          <tr><th>A homing projectile</th><td>Used up, whoever it was chasing, so a blast can save a neighbour.</td></tr>
+          <tr><th>The runaway wheel, item boxes, coins</th><td>Unaffected.</td></tr>
+          <tr><th>Nothing at all</th><td>The blast still fires and the item is spent.</td></tr>
+        </tbody>
+      </table></div>
+    </div>
+
+    <div class="stack">
+      <h3>Where the existing rules would get it wrong</h3>
+      <div class="traps">
+        <article>
+          <h3>Distance alone reaches too far</h3>
+          <p>Bell Deer's crossover puts one road 5 m over the other, so a 7 m sphere blasts through the bridge. Goldstone's and Monarch's closest sections are 17.8 m apart centre to centre, so a kart on the inside edge can reach across the barrier. Requiring the target to be within 15 m of spline progress fixes both, with the lap's wrap accounted for.</p>
+        </article>
+        <article>
+          <h3>Nothing warns of a drone</h3>
+          <p>Neither the Instrument panel nor the audio cues mark an incoming drone, and a 0.39 s window can't be met blind. The horn needs a warning: a rising beep and a slot-side marker once a drone chasing your kart is within 40 m, about 2.2 s out. Snapshots already name each drone's target, so this is client code only, and it helps every kart.</p>
+        </article>
+        <article>
+          <h3>Bots can't see drones</h3>
+          <p><code>bot::drive</code> reads karts, not projectiles. To start with, a bot fires when a kart is in reach, or after 10 s. It doesn't defend. Adding that means passing the projectiles in, which can wait for feel testing.</p>
+        </article>
+      </div>
+    </div>
+
+    <div class="stack">
+      <h3>What players see and hear</h3>
+      <ul>
+        <li><strong>On the road:</strong> a flat orange shockwave ring grows to 7 m in about 0.25 s, on every screen, so the reach can be learned by eye.</li>
+        <li><strong>On the Instrument panel:</strong> the sprite stays still when held, as ADR 0024 asks, and the slot flashes on firing like any other item.</li>
+        <li><strong>Sound:</strong> a short, loud blast from <code>assets/audio/build.py</code>, positioned at the firing kart.</li>
+        <li><strong>Network:</strong> no new snapshot field. The ring runs off the existing <code>ItemFired</code>, and <code>server-race.ts</code> must start acting on it for other karts as well as the local one.</li>
+      </ul>
+    </div>
+  </section>
+
+  <section id="numbers">
+    <div class="stack">
+      <span class="eyebrow">Numbers</span>
+      <h2>Roll weights and tuning</h2>
+      <p>The star never reaches the front two and is most likely at the back. The horn mostly goes to the front and middle, which have the most to protect and the most karts nearby. Small figures are today's <code>ITEM_ROLL_WEIGHTS</code>.</p>
+    </div>
+    <div class="table"><table>
+      <thead><tr><th>Item</th><th class="num">Places 1-2</th><th class="num">Places 3-5</th><th class="num">Places 6-8</th></tr></thead>
+      <tbody>
+        <tr><th>Hazard</th><td class="num">60%<small>today 70%</small></td><td class="num">25%<small>today 30%</small></td><td class="num">5%<small>today 10%</small></td></tr>
+        <tr><th>Boost</th><td class="num">15%<small>today 20%</small></td><td class="num">30%<small>today 40%</small></td><td class="num">35%<small>today 40%</small></td></tr>
+        <tr><th>Homing</th><td class="num">10%<small>today 10%</small></td><td class="num">25%<small>today 30%</small></td><td class="num">40%<small>today 50%</small></td></tr>
+        <tr><th>Star</th><td class="num">0%</td><td class="num">5%</td><td class="num">15%</td></tr>
+        <tr><th>Air Horn</th><td class="num">15%</td><td class="num">15%</td><td class="num">5%</td></tr>
+      </tbody>
+    </table></div>
+<pre><code>// crates/sim/src/tuning.rs, proposed
+pub const STAR_S: f32 = 6.0;
+pub const STAR_TOP_SPEED_FACTOR: f32 = 1.25;
+pub const STAR_KICK_S: f32 = 0.5;
+pub const STAR_HIT_RADIUS_M: f32 = 1.0;
+pub const HORN_RADIUS_M: f32 = 7.0;
+pub const HORN_PROGRESS_WINDOW_M: f32 = 15.0;
+pub const BOT_HORN_HOLD_S: f32 = 10.0;</code></pre>
+    <p class="note">The star at a full purse is 1.375 times tuned top speed, which is under <code>HOMING_SPEED_FACTOR</code> (1.6) and the interpolation's teleport limit, so those bounds need no change. The new constants get <code>const</code> asserts in the same block as the others. How the costs work out: a spin-out's 68 m is 1 s stopped (30 m) plus the 2.5 s ramp back to top speed (37.5 m), and the drone's 0.39 s is 7 m at the 18 m/s it closes on a kart at 30 m/s.</p>
+  </section>
+
+  <section id="build">
+    <div class="stack">
+      <span class="eyebrow">Build</span>
+      <h2>One issue and one PR each, star first</h2>
+    </div>
+    <div class="stack">
+      <h3>Star</h3>
+      <ol>
+        <li>A new ADR: extends ADR 0021's contact rule and supersedes ADR 0024's no-animation line for this item. A glossary entry for the star.</li>
+        <li><strong>Sim:</strong> <code>Item</code>, <code>Item::code</code> and <code>Item::rolled</code> in <code>lib.rs</code>; <code>star_left_s</code> in the readout and state hash; the cap and off-track change in <code>handling.rs</code>; the immunity checks at the hazard, wheel and projectile hits; constants and weights in <code>tuning.rs</code>; the bot rules in <code>bot.rs</code>.</li>
+        <li><strong>Protocol:</strong> the <code>Item</code> enum, the conversions and <code>star_s</code> on the kart snapshot, then <code>pnpm generate:protocol</code> and <code>pnpm build:bridge</code>.</li>
+        <li><strong>Web:</strong> the sprite in <code>item-sprites.ts</code>, <code>item-reel.ts</code>, the ring in <code>instrument-panel.ts</code>, per-kart materials in <code>kart-model.ts</code>, the shine and sparkles, the plate and course map, and the audio cues.</li>
+        <li><strong>Close out:</strong> re-record the replay fixtures, run a 200-seed bot sweep for DNFs and stuck karts, update <code>docs/style-guide.html</code>, and smoke test a star run.</li>
+      </ol>
+    </div>
+    <div class="stack">
+      <h3>Air Horn</h3>
+      <ol>
+        <li>A new ADR and a glossary entry for the Air Horn.</li>
+        <li><strong>Sim:</strong> the <code>Item</code> variant and its blast at the fire in <code>lib.rs</code>, constants and weights in <code>tuning.rs</code>, and the bot's rule in <code>bot.rs</code>.</li>
+        <li><strong>Protocol:</strong> the <code>Item</code> enum and its conversions, then regenerate.</li>
+        <li><strong>Web:</strong> the sprite and reel, the shockwave ring, the blast sound, and the drone warning.</li>
+        <li><strong>Close out:</strong> re-record the fixtures, sweep the bots, update the style guide, and smoke test a blast on Bell Deer's crossover.</li>
+      </ol>
+    </div>
+  </section>
+</main>
+
+<script src="../kart-side.js"></script>
+<script>
+  // Copied from docs/mockups/poster-kart-generated.html, which copies apps/web/src/livery.ts.
+  const LIVERIES = [
+    { name: "Rosso", p: "#d00a12", s: "#141414", a: "#ffd400", skin: "#74492f", hairColour: "#1a1210", parts: ["hair-braids-tied-back", "facial-hair-short-beard", "earrings"] },
+    { name: "Papaya", p: "#ff7a00", s: "#1e1e24", a: "#3ec3f5", skin: "#e5bb98", hairColour: "#6b4528", parts: ["hair-curly-fringe"] },
+    { name: "Argento", p: "#bfc5cb", s: "#16181b", a: "#00a19c", skin: "#e5bb98", hairColour: "#5a3a22", parts: ["hair-swept-side-part"] },
+  ];
+  const RAINBOW = ["#ff4d4d", "#ff9f1c", "#ffe14d", "#3ddc84", "#37bedd", "#b05cff"].map(rgb);
+  const WHITE = [255, 255, 255];
+  const BLACK = [0, 0, 0];
+  const LOOP_S = 0.5;
+  const PULL = 0.7;
+  const RUN_S = 6;
+  const REST_S = 1.5;
+
+  function rgb(hex) {
+    return [1, 3, 5].map((at) => parseInt(hex.slice(at, at + 2), 16));
+  }
+  const mix = (a, b, t) => a.map((value, i) => value + (b[i] - value) * t);
+  const css = (c) => `rgb(${c.map((value) => Math.round(value)).join(",")})`;
+  const TONES = {
+    lit: (c) => mix(c, WHITE, 0.28),
+    mid: (c) => c,
+    shaded: (c) => mix(c, BLACK, 0.34),
+  };
+
+  /** The colour of the loop `star_s` seconds from the end of a run, as every client would read it. */
+  function loopColour(starS) {
+    const at = ((starS / LOOP_S) % 1) * RAINBOW.length;
+    const from = Math.floor(at);
+    return mix(RAINBOW[from], RAINBOW[(from + 1) % RAINBOW.length], at - from);
+  }
+
+  const optional = (node) => node.startsWith("hair-") || node.startsWith("facial-hair-") || node === "earrings";
+  const kartEl = document.getElementById("kart");
+  const slotEl = document.getElementById("slot");
+  const plateEl = document.getElementById("plate");
+  const leftEl = document.getElementById("left");
+  const liveryEl = document.getElementById("livery");
+  const reducedEl = document.getElementById("reduced");
+  reducedEl.checked = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  let livery = LIVERIES[0];
+  let paths = [];
+  let sparkleLayer;
+  const sparkles = [];
+
+  function buildKart() {
+    const worn = new Set(livery.parts);
+    let body = "";
+    for (const p of KART_SIDE.paths) {
+      if (optional(p.node) && !worn.has(p.node)) continue;
+      body += `<path d="${p.d}" data-material="${p.material}" data-tone="${p.tone}" stroke-width="0.5" stroke-linejoin="round"/>`;
+    }
+    kartEl.innerHTML = `<svg viewBox="${KART_SIDE.viewBox}" aria-hidden="true"><ellipse cx="260" cy="352" rx="232" ry="9" fill="rgba(0,0,0,.18)"/>${body}<g id="sparkles"></g></svg>`;
+    paths = [...kartEl.querySelectorAll("path")].map((el) => ({ el, material: el.dataset.material, tone: el.dataset.tone }));
+    sparkleLayer = kartEl.querySelector("#sparkles");
+    sparkles.length = 0;
+    plateEl.textContent = livery.name;
+  }
+
+  function baseColour(material) {
+    const named = { Primary: livery.p, Secondary: livery.s, Accent: livery.a, Skin: livery.skin, Hair: livery.hairColour };
+    return rgb(named[material] ?? KART_SIDE.materials[material]);
+  }
+
+  function paint(shine, pull) {
+    for (const { el, material, tone } of paths) {
+      const colour = css(mix(TONES[tone](baseColour(material)), TONES[tone](shine), pull));
+      el.setAttribute("fill", colour);
+      el.setAttribute("stroke", colour);
+    }
+    const glow = pull > 0 ? css(shine) : "transparent";
+    kartEl.style.setProperty("--glow", glow);
+    slotEl.style.setProperty("--glow", glow);
+    plateEl.style.setProperty("--plate", pull > 0 ? css(shine) : livery.p);
+    const body = mix([238, 240, 242], shine, pull);
+    slotEl.style.setProperty("--car-lit", css(mix(body, WHITE, 0.35)));
+    slotEl.style.setProperty("--car-mid", css(body));
+    slotEl.style.setProperty("--car-shaded", css(mix(body, BLACK, 0.2)));
+  }
+
+  /** A four-point glint at (x, y) of radius r. */
+  function glint(x, y, r) {
+    const q = r * 0.18;
+    return [[0, -r], [q, -q], [r, 0], [q, q], [0, r], [-q, q], [-r, 0], [-q, -q]]
+      .map(([dx, dy]) => `${(x + dx).toFixed(1)},${(y + dy).toFixed(1)}`).join(" ");
+  }
+
+  function drawSparkles(dt, spawning, shine) {
+    if (spawning && Math.random() < dt * 14) {
+      sparkles.push({ x: 40 + Math.random() * 440, y: 40 + Math.random() * 280, life: 0, span: 0.35 + Math.random() * 0.3, r: 12 + Math.random() * 20, colour: css(mix(shine, WHITE, 0.55)) });
+    }
+    let out = "";
+    for (let i = sparkles.length - 1; i >= 0; i -= 1) {
+      const s = sparkles[i];
+      s.life += dt;
+      s.x -= dt * 90;
+      if (s.life >= s.span) {
+        sparkles.splice(i, 1);
+        continue;
+      }
+      const size = Math.sin((s.life / s.span) * Math.PI);
+      out += `<polygon points="${glint(s.x, s.y, s.r * size)}" fill="${s.colour}"/>`;
+    }
+    sparkleLayer.innerHTML = out;
+  }
+
+  /** The first frame and every later one: a run of RUN_S then REST_S in the livery. */
+  let last = performance.now();
+  let clock = 0;
+  function frame(now) {
+    const dt = Math.min(0.1, (now - last) / 1000);
+    last = now;
+    clock = (clock + dt) % (RUN_S + REST_S);
+    const starS = Math.max(0, RUN_S - clock);
+    if (reducedEl.checked) {
+      paint(WHITE, starS > 0 ? 0.55 : 0);
+      drawSparkles(dt, false, WHITE);
+    } else if (starS > 0) {
+      const shine = loopColour(starS);
+      paint(shine, PULL * Math.min(1, starS));
+      drawSparkles(dt, starS > 1, shine);
+    } else {
+      paint(WHITE, 0);
+      drawSparkles(dt, false, WHITE);
+    }
+    leftEl.textContent = starS > 0 ? `star_s ${starS.toFixed(1)}` : "star over";
+    requestAnimationFrame(frame);
+  }
+
+  liveryEl.addEventListener("change", () => {
+    livery = LIVERIES[Number(liveryEl.value)];
+    buildKart();
+  });
+  buildKart();
+  requestAnimationFrame(frame);
+</script>
+</body>
+</html>
