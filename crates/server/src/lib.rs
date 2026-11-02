@@ -79,7 +79,7 @@ async fn create_room(
     };
     let code = state
         .rooms
-        .create_on(track, forwarded_address(&headers))
+        .create_with(track, forwarded_address(&headers))
         .map_err(|refused| match refused {
             // The client tells these two apart for the Title Scene's message.
             CreateRefused::Full => StatusCode::SERVICE_UNAVAILABLE,

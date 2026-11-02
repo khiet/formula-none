@@ -14,8 +14,8 @@ test("the Title Scene loads with the ways into a room and a race", async ({ page
 });
 
 for (const [status, refusal] of [
-  [503, "The server is full; try again in a few minutes"],
-  [429, "Too many new rooms from here; try again in a minute"],
+  [503, "The server is full; try again later"],
+  [429, "Too many new rooms from here; try again shortly"],
 ] as const) {
   test(`a create refused with ${status} says why on the Title Scene`, async ({ page }) => {
     await page.route("**/api/rooms", (route) => route.fulfill({ status }));

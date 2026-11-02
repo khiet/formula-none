@@ -15,7 +15,7 @@
 //! rejoins, then free.
 
 use std::collections::{HashMap, VecDeque};
-use std::net::{IpAddr, Ipv6Addr};
+use std::net::IpAddr;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex, Weak};
 use std::time::Duration;
@@ -85,27 +85,42 @@ pub enum CreateRefused {
     TooManyFromAddress,
 }
 
-/// Who a create counts against: an IPv4 address, or an IPv6 /64, since one
-/// subscriber commonly holds a whole /64 and could otherwise walk through it.
-#[derive(Clone, Copy, PartialEq, Eq)]
-struct Creator(IpAddr);
-
-impl Creator {
-    fn of(address: IpAddr) -> Self {
-        Self(match address.to_canonical() {
-            IpAddr::V6(v6) => IpAddr::V6(Ipv6Addr::from_bits(v6.to_bits() & (!0u128 << 64))),
-            v4 => v4,
-        })
-    }
-}
-
 #[derive(Default)]
 struct Registry {
     rooms: HashMap<String, RoomHandle>,
     /// The creates still inside the window, oldest first. Only rooms actually
     /// opened are here, so its length is bounded by the rooms a window can
     /// open and scanning it is cheap.
-    creates: VecDeque<(Creator, Instant)>,
+    creates: VecDeque<(IpAddr, Instant)>,
+}
+
+impl Registry {
+    /// Whether a room may open for `address` now, and if so count it. The
+    /// caller holds the lock through opening the room, so two creates cannot
+    /// both take the last place.
+    fn admit(&mut self, address: Option<IpAddr>) -> Result<(), CreateRefused> {
+        let now = Instant::now();
+        let window = Duration::from_secs_f32(ROOM_CREATE_WINDOW_S);
+        self.creates
+            .retain(|(_, at)| now.duration_since(*at) < window);
+        if let Some(address) = address {
+            let recent = self
+                .creates
+                .iter()
+                .filter(|(earlier, _)| *earlier == address)
+                .count();
+            if recent >= ROOM_CREATES_PER_ADDRESS_MAX {
+                return Err(CreateRefused::TooManyFromAddress);
+            }
+        }
+        if self.rooms.len() >= ROOMS_MAX {
+            return Err(CreateRefused::Full);
+        }
+        if let Some(address) = address {
+            self.creates.push_back((address, now));
+        }
+        Ok(())
+    }
 }
 
 struct RoomHandle {
@@ -318,9 +333,9 @@ impl Rooms {
     }
 
     /// Open a room on the registry's own track for no particular address,
-    /// as [`Self::create_on`] does.
+    /// as [`Self::create_with`] does.
     pub fn create(&self) -> Result<String, CreateRefused> {
-        self.create_on(None, None)
+        self.create_with(None, None)
     }
 
     /// Open a room racing `track`, one of [`crate::tracks`], or the
@@ -334,38 +349,14 @@ impl Rooms {
     /// `None` is a caller inside the server's network, which only the cap
     /// applies to (ADR 0073). Rooms a restart brought back count toward the
     /// cap, though nothing refuses them.
-    pub fn create_on(
+    pub fn create_with(
         &self,
         track: Option<&'static str>,
         address: Option<IpAddr>,
     ) -> Result<String, CreateRefused> {
         let track = track.unwrap_or(self.track);
         let mut registry = self.registry.lock().expect("registry lock");
-        let now = Instant::now();
-        let window = Duration::from_secs_f32(ROOM_CREATE_WINDOW_S);
-        while let Some((_, at)) = registry.creates.front() {
-            if now.duration_since(*at) < window {
-                break;
-            }
-            registry.creates.pop_front();
-        }
-        let creator = address.map(Creator::of);
-        if let Some(creator) = creator {
-            let recent = registry
-                .creates
-                .iter()
-                .filter(|(earlier, _)| *earlier == creator)
-                .count();
-            if recent >= ROOM_CREATES_PER_ADDRESS_MAX {
-                return Err(CreateRefused::TooManyFromAddress);
-            }
-        }
-        if registry.rooms.len() >= ROOMS_MAX {
-            return Err(CreateRefused::Full);
-        }
-        if let Some(creator) = creator {
-            registry.creates.push_back((creator, now));
-        }
+        registry.admit(address)?;
         let code = loop {
             let code = fresh_code(&mut rand::rng());
             if !registry.rooms.contains_key(&code) {

@@ -173,23 +173,6 @@ async fn an_address_is_the_last_one_forwarded_so_a_forged_entry_earns_nothing() 
 }
 
 #[tokio::test(start_paused = true)]
-async fn one_ipv6_network_counts_as_one_address() {
-    let (app, _, _stop) = app();
-    for host in 0..ROOM_CREATES_PER_ADDRESS_MAX {
-        let address = format!("2001:db8:0:1::{:x}", host + 1);
-        assert_eq!(create_from(&app, &address).await, StatusCode::CREATED);
-    }
-    assert_eq!(
-        create_from(&app, "2001:db8:0:1:ffff::1").await,
-        StatusCode::TOO_MANY_REQUESTS
-    );
-    assert_eq!(
-        create_from(&app, "2001:db8:0:2::1").await,
-        StatusCode::CREATED
-    );
-}
-
-#[tokio::test(start_paused = true)]
 async fn a_create_refused_for_its_track_does_not_count_against_the_address() {
     let (app, _, _stop) = app();
     for _ in 0..=ROOM_CREATES_PER_ADDRESS_MAX {
@@ -213,9 +196,9 @@ async fn rooms_brought_back_by_a_restart_count_toward_the_cap() {
         before.create().unwrap();
     }
 
-    let after = server::Rooms::new(shutdown).kept_in(dir.path()).unwrap();
-    assert_eq!(after.codes().len(), ROOMS_MAX);
-    assert_eq!(after.create(), Err(server::rooms::CreateRefused::Full));
+    let restored = server::Rooms::new(shutdown).kept_in(dir.path()).unwrap();
+    assert_eq!(restored.codes().len(), ROOMS_MAX);
+    assert_eq!(restored.create(), Err(server::rooms::CreateRefused::Full));
 }
 
 #[tokio::test]

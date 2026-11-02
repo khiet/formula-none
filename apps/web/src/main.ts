@@ -86,8 +86,8 @@ function reportConnection(bridge: Bridge): ConnectionReadout {
 
 /** What the Title Scene says for each status the server refuses a create with (ADR 0073). */
 const CREATE_REFUSALS: Readonly<Record<number, string>> = {
-  429: "Too many new rooms from here; try again in a minute",
-  503: "The server is full; try again in a few minutes",
+  429: "Too many new rooms from here; try again shortly",
+  503: "The server is full; try again later",
 };
 
 /** A create the server answered and refused; the message is for the player. */
