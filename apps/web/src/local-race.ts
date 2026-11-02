@@ -1,8 +1,7 @@
 import type { Bridge, KartInput } from "./bridge";
 import { IDLE_INPUT } from "./input";
 import {
-  BLAST_S,
-  type Blast,
+  blastLedger,
   ITEM_FIRE_FLASH_S,
   ITEM_LANDING_FLASH_S,
   landedItem,
@@ -54,9 +53,7 @@ export function localRaceRun(
   // applies the tick it is pressed; the slot shows it for the flash.
   let flashTicksLeft = 0;
   let landingTicksLeft = 0;
-  /** The horn blasts under way, oldest first, each with the ticks it has run. */
-  const blasts: { blast: Blast; ticks: number }[] = [];
-  let blastsHeard = 0;
+  const blasts = blastLedger(bridge.ticksPerSecond);
   return {
     humanCount: setup.humanCount,
     localKart: setup.localKart,
@@ -75,15 +72,12 @@ export function localRaceRun(
         rollingOf(before, bridge.itemRollSeconds) !== null && landedItem(after) !== null
           ? ticks(ITEM_LANDING_FLASH_S)
           : Math.max(landingTicksLeft - 1, 0);
-      for (const running of blasts) running.ticks++;
-      while ((blasts[0]?.ticks ?? 0) >= ticks(BLAST_S)) blasts.shift();
+      blasts.tick();
       // A blast is where the sim has the kart the tick it fired.
       const karts = race.kartReadouts();
       for (const kart of race.hornsFiredLastStep()) {
         const position = karts[kart]?.position;
-        if (position === undefined) continue;
-        blastsHeard++;
-        blasts.push({ blast: { id: blastsHeard, kart, position, elapsedS: 0 }, ticks: 0 });
+        if (position !== undefined) blasts.fired(kart, position);
       }
     },
     readout: () => {
@@ -105,10 +99,7 @@ export function localRaceRun(
         hazards: race.hazards(),
         projectiles: race.projectiles(),
         wheels: race.wheels(),
-        blasts: blasts.map(({ blast, ticks }) => ({
-          ...blast,
-          elapsedS: ticks / bridge.ticksPerSecond,
-        })),
+        blasts: blasts.blasts(),
       };
     },
     itemBoxes: () => boxes,

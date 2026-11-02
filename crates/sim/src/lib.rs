@@ -2316,24 +2316,50 @@ fn progress_gap(lap: f32, a: f32, b: f32) -> f32 {
     gap.min(lap - gap)
 }
 
-/// Whether a horn's blast from a kart at `centre` with spline progress
-/// `progress` reaches a kart standing at `translation` facing `rotation`
-/// with spline progress `kart_progress`: the kart's collision box within
-/// the tuned radius of the centre, seen from above, and its progress within
-/// the tuned window, the shorter way round a lap of `lap` metres. The
-/// window keeps distance alone from reaching through a crossover or across
-/// the barrier between two sections of road. The bot fires its horn by the
-/// same test.
-pub(crate) fn horn_reaches_kart(
+/// The Air Horn's blast as its reach is judged (ADR 0076): from `centre`,
+/// the firing kart's, at spline `progress` on a lap of `lap` metres. In
+/// reach is within the tuned radius of the centre, seen from above, and
+/// within the tuned window of spline progress the shorter way round the
+/// lap, which keeps distance alone from reaching through a crossover or
+/// across the barrier between two sections of road.
+pub(crate) struct HornBlast {
     lap: f32,
     centre: Vec3,
     progress: f32,
-    translation: Vec3,
-    rotation: &Rotation,
-    kart_progress: f32,
-) -> bool {
-    progress_gap(lap, progress, kart_progress) <= HORN_PROGRESS_WINDOW_M
-        && reaches(translation, rotation, centre.to_array(), HORN_RADIUS_M)
+}
+
+impl HornBlast {
+    pub(crate) fn new(track: &Track, centre: Vec3, progress: f32) -> Self {
+        Self {
+            lap: track.spline_length(),
+            centre,
+            progress,
+        }
+    }
+
+    fn within_window(&self, progress: f32) -> bool {
+        progress_gap(self.lap, self.progress, progress) <= HORN_PROGRESS_WINDOW_M
+    }
+
+    /// Whether the blast reaches a kart standing at `translation` facing
+    /// `rotation` with spline `progress`: its collision box within the
+    /// radius, as every hit is judged. The bot fires its horn by this test.
+    pub(crate) fn reaches_kart(
+        &self,
+        translation: Vec3,
+        rotation: &Rotation,
+        progress: f32,
+    ) -> bool {
+        self.within_window(progress)
+            && reaches(translation, rotation, self.centre.to_array(), HORN_RADIUS_M)
+    }
+
+    /// Whether the blast reaches a hazard or a projectile centred at
+    /// `point` with spline `progress`.
+    fn reaches_point(&self, point: [f32; 3], progress: f32) -> bool {
+        let (dx, dz) = (point[0] - self.centre.x, point[2] - self.centre.z);
+        self.within_window(progress) && dx * dx + dz * dz <= HORN_RADIUS_M * HORN_RADIUS_M
+    }
 }
 
 /// The Air Horn's blast from the kart in `firer`, at the fire (ADR 0076).
@@ -2345,28 +2371,18 @@ pub(crate) fn horn_reaches_kart(
 /// trails stays. Every projectile in reach is used up, whoever it chases.
 /// The runaway wheel, the item boxes and the coins are not touched.
 fn blast_horn(state: &mut State, firer: usize) {
-    let lap = state.track.spline_length();
-    let centre = state.physics.bodies[state.karts[firer].body].translation();
-    let progress = state.karts[firer].spline_progress;
-    let in_reach = |point: [f32; 3], point_progress: f32| {
-        let (dx, dz) = (point[0] - centre.x, point[2] - centre.z);
-        progress_gap(lap, progress, point_progress) <= HORN_PROGRESS_WINDOW_M
-            && dx * dx + dz * dz <= HORN_RADIUS_M * HORN_RADIUS_M
-    };
+    let blast = HornBlast::new(
+        &state.track,
+        state.physics.bodies[state.karts[firer].body].translation(),
+        state.karts[firer].spline_progress,
+    );
     for slot in 0..state.karts.len() {
         let kart = &mut state.karts[slot];
         let body = &mut state.physics.bodies[kart.body];
         if slot == firer
             || kart.spun_out()
             || kart.starring()
-            || !horn_reaches_kart(
-                lap,
-                centre,
-                progress,
-                body.translation(),
-                body.rotation(),
-                kart.spline_progress,
-            )
+            || !blast.reaches_kart(body.translation(), body.rotation(), kart.spline_progress)
         {
             continue;
         }
@@ -2381,12 +2397,12 @@ fn blast_horn(state: &mut State, firer: usize) {
             None => spin_out(kart, body, slot, Some(firer), &mut state.events),
         }
     }
-    state
-        .hazards
-        .retain(|placed| placed.hazard.held || !in_reach(placed.hazard.position, placed.progress));
+    state.hazards.retain(|placed| {
+        placed.hazard.held || !blast.reaches_point(placed.hazard.position, placed.progress)
+    });
     state
         .projectiles
-        .retain(|flying| !in_reach(flying.projectile.position, flying.progress));
+        .retain(|flying| !blast.reaches_point(flying.projectile.position, flying.progress));
 }
 
 impl Physics {

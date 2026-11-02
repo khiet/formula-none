@@ -45,7 +45,7 @@ import { glint } from "./item-sprites";
 import { groundDistance, type Vec3 } from "./kart-frame";
 import type { KartLabel } from "./kart-labels";
 import { dressKart, fitKart, type KartFit, shineKart } from "./kart-model";
-import { createKartShadows } from "./kart-shadows";
+import { createKartShadows, type SurfaceProbe } from "./kart-shadows";
 import { hexCss, livery } from "./livery";
 import type { Point } from "./low-poly-svg";
 import { HAZARD_ORANGE, plate, tonesOf, writePalette } from "./palette";
@@ -100,10 +100,10 @@ const STAR_SPARKLE_DRAG_PER_S = 1.5;
 const STAR_SPARKLE_COOL_SHARE = 0.5;
 const STAR_HIT_REACH_M = 4;
 /**
- * The Air Horn's shockwave (ADR 0076): a flat orange ring that grows from
- * the firing kart to the blast's reach in this long, this wide, this far
- * over the ground, and fades out over the rest of the blast's time, so
- * the reach can be learned by eye.
+ * The Air Horn's blast (ADR 0076): a flat orange ring that grows from the
+ * firing kart to the blast's reach in this long, this wide, this far over
+ * the road, and fades out over the rest of the blast's time, so the reach
+ * can be learned by eye.
  */
 const HORN_RING_GROW_S = 0.25;
 const HORN_RING_WIDTH_M = 0.6;
@@ -317,7 +317,8 @@ export async function createRaceView(
   );
   // The discs find the surface in the View's own track mesh; the bridge
   // offers no surface query and Presentation never asks the sim.
-  const shadows = createKartShadows(kartCount, trackProbe(track.scene, kartSize.height / 2));
+  const surface = trackProbe(track.scene, kartSize.height / 2);
+  const shadows = createKartShadows(kartCount, surface);
   const shadowMesh = shadowDiscMesh(shadows, kartSize);
   world.add(
     marks.mesh,
@@ -343,7 +344,7 @@ export async function createRaceView(
 
   const cones = meshPool(world, hazardConeMesh(), 0);
   const drones = homingDrones(world);
-  const rings = hornRings(world, hornRadius, kartSize.height);
+  const rings = hornRings(world, hornRadius, surface, kartSize.height);
   const runaways = runawayWheels(world, track.scene, runawayWheelRadius);
   const motion = sceneryMotion(track.scene);
 
@@ -727,11 +728,6 @@ interface MeshPool {
   ): void;
 }
 
-/**
- * Copies of `template` in `world`, sharing its geometries and materials,
- * made as they are needed and hidden, never removed, when not, so a race of
- * many never churns the scene graph.
- */
 /** The horn blasts' rings in `world`, made as they are needed and hidden, never removed. */
 interface HornRings {
   /** Show one ring per blast, grown and faded by the blast's time. */
@@ -739,16 +735,24 @@ interface HornRings {
 }
 
 /**
- * The shockwave rings for a blast's reach of `radius`: each a flat ring of
- * unit outer radius lying on the ground under the kart, `kartHeight` under
- * its centre, scaled out to the reach over the ring's growth and faded over
- * the blast's time. Unlit and double sided, so it reads from the chase
- * camera on every surface.
+ * The rings for a blast's reach of `radius`: each a flat ring of unit outer
+ * radius laid on the road `surface` finds under the kart's centre, on the
+ * road's slope, or where the kart's underside was when nothing is found,
+ * scaled out to the reach over the ring's growth and faded over the
+ * blast's time. The road is read once per blast, as the ring appears. Unlit
+ * and double sided, so it reads from the chase camera on every surface.
  */
-function hornRings(world: ThreeScene, radius: number, kartHeight: number): HornRings {
-  const rings: Mesh<RingGeometry, MeshBasicMaterial>[] = [];
+function hornRings(
+  world: ThreeScene,
+  radius: number,
+  surface: SurfaceProbe,
+  kartHeight: number,
+): HornRings {
+  const rings: { mesh: Mesh<RingGeometry, MeshBasicMaterial>; blast: number | null }[] = [];
   const geometry = new RingGeometry(1 - HORN_RING_WIDTH_M / radius, 1, 48);
   geometry.rotateX(-Math.PI / 2);
+  const up = new Vector3(0, 1, 0);
+  const normal = new Vector3();
   return {
     show(blasts) {
       while (rings.length < blasts.length) {
@@ -759,25 +763,40 @@ function hornRings(world: ThreeScene, radius: number, kartHeight: number): HornR
           depthWrite: false,
           side: DoubleSide,
         });
-        const ring = new Mesh(geometry, material);
-        world.add(ring);
-        rings.push(ring);
+        const mesh = new Mesh(geometry, material);
+        world.add(mesh);
+        rings.push({ mesh, blast: null });
       }
       rings.forEach((ring, index) => {
         const blast = blasts[index];
-        ring.visible = blast !== undefined;
-        if (blast === undefined) return;
-        const [x, y, z] = blast.position;
-        ring.position.set(x, y - kartHeight / 2 + HORN_RING_LIFT_M, z);
+        ring.mesh.visible = blast !== undefined;
+        if (blast === undefined) {
+          ring.blast = null;
+          return;
+        }
+        if (ring.blast !== blast.id) {
+          ring.blast = blast.id;
+          const [x, y, z] = blast.position;
+          const road = surface.under(x, y, z);
+          normal.set(...(road?.normal ?? [0, 1, 0]));
+          const [rx, ry, rz] = road?.point ?? [x, y - kartHeight / 2, z];
+          ring.mesh.position.set(rx, ry, rz).addScaledVector(normal, HORN_RING_LIFT_M);
+          ring.mesh.quaternion.setFromUnitVectors(up, normal);
+        }
         const grown = Math.min(blast.elapsedS / HORN_RING_GROW_S, 1);
-        ring.scale.setScalar(Math.max(radius * grown, 1e-3));
+        ring.mesh.scale.setScalar(Math.max(radius * grown, 1e-3));
         const fade = Math.max(1 - blast.elapsedS / BLAST_S, 0);
-        ring.material.opacity = HORN_RING_OPACITY * fade;
+        ring.mesh.material.opacity = HORN_RING_OPACITY * fade;
       });
     },
   };
 }
 
+/**
+ * Copies of `template` in `world`, sharing its geometries and materials,
+ * made as they are needed and hidden, never removed, when not, so a race of
+ * many never churns the scene graph.
+ */
 function meshPool(world: ThreeScene, template: Object3D, lift: number): MeshPool {
   const meshes: Object3D[] = [];
   const toward = new Vector3();

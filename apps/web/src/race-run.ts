@@ -84,6 +84,38 @@ export interface Blast {
 export const BLAST_S = 0.5;
 
 /**
+ * A run's record of the horn blasts under way, whichever run sources the
+ * fires: each numbered as it is reported, aged a tick at a time on the
+ * run's clock and dropped once the blast's time is up.
+ */
+export interface BlastLedger {
+  /** Report `kart`'s fire where it was drawn. */
+  fired(kart: number, position: readonly [number, number, number]): void;
+  /** Age every blast a tick, dropping those whose time is up. */
+  tick(): void;
+  /** The blasts under way, oldest first. */
+  blasts(): Blast[];
+}
+
+export function blastLedger(ticksPerSecond: number): BlastLedger {
+  const running: { blast: Blast; ticks: number }[] = [];
+  const lifeTicks = Math.round(BLAST_S * ticksPerSecond);
+  let reported = 0;
+  return {
+    fired(kart, position) {
+      reported++;
+      running.push({ blast: { id: reported, kart, position, elapsedS: 0 }, ticks: 0 });
+    },
+    tick() {
+      for (const entry of running) entry.ticks++;
+      while ((running[0]?.ticks ?? 0) >= lifeTicks) running.shift();
+    },
+    blasts: () =>
+      running.map(({ blast, ticks }) => ({ ...blast, elapsedS: ticks / ticksPerSecond })),
+  };
+}
+
+/**
  * What the run says of the race as of the last tick, read once a frame and
  * handed whole to the View, the Instrument panel and the audio.
  */

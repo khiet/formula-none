@@ -664,7 +664,10 @@ const _: () = {
             < 2.0 * (STAR_HIT_RADIUS_M + KART_HALF_LENGTH_M)
     );
     // The blast reaches less far than its progress window, so a kart in
-    // reach by distance on the same road is never dropped by the window.
+    // reach by distance on the same road is never dropped by the window;
+    // and the window is narrower than the one a reading is searched in
+    // (ADR 0046), so the blast cannot reach a road the readings themselves
+    // could not tell apart.
     assert!(0.0 < HORN_RADIUS_M && HORN_RADIUS_M < HORN_PROGRESS_WINDOW_M);
     assert!(HORN_PROGRESS_WINDOW_M < PROGRESS_WINDOW_M);
     assert!(BOT_ITEM_USE_DELAY_S < BOT_HORN_HOLD_S);
@@ -768,8 +771,8 @@ pub struct Tuning {
     /// How long a star's run lasts, which the Instrument panel's ring counts
     /// down and the star music is joined against.
     pub star_s: f32,
-    /// How far the Air Horn's blast reaches, so the View's shockwave ring
-    /// grows to the reach.
+    /// How far the Air Horn's blast reaches, so the View's ring grows to
+    /// the reach.
     pub horn_radius_m: f32,
     /// The runaway wheel's reach, so the View draws a wheel that size.
     pub wheel_radius_m: f32,

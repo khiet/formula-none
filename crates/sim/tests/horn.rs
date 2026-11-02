@@ -384,21 +384,21 @@ fn a_homing_projectile_in_reach_is_used_up_whoever_it_chases() {
     // and its projectile chases the target past the firer 4 m beside it.
     const TARGET: usize = 0;
     const SHOOTER: usize = 1;
-    const FIRER: usize = 2;
+    const HOLDER: usize = 2;
     let state = rolling(
         || {
             track(&oval_sidecar(
                 &[
                     (TARGET, [33.0, 0.0, 2.0]),
                     (SHOOTER, [32.0, 0.0, 10.0]),
-                    (FIRER, [28.0, 0.0, 10.0]),
+                    (HOLDER, [28.0, 0.0, 10.0]),
                 ],
-                &[SHOOTER, FIRER],
+                &[SHOOTER, HOLDER],
             ))
         },
         3,
         0,
-        &[(SHOOTER, Item::Homing), (FIRER, Item::Horn)],
+        &[(SHOOTER, Item::Homing), (HOLDER, Item::Horn)],
     );
     let state = step(state, &[idle(), tap(), idle()], DT);
     let [projectile] = state.projectiles()[..] else {
@@ -412,12 +412,12 @@ fn a_homing_projectile_in_reach_is_used_up_whoever_it_chases() {
         state.events(),
         &[
             RaceEvent::ItemFired {
-                kart: FIRER,
+                kart: HOLDER,
                 item: Item::Horn
             },
             RaceEvent::SpunOut {
                 kart: SHOOTER,
-                by: Some(FIRER)
+                by: Some(HOLDER)
             },
         ]
     );

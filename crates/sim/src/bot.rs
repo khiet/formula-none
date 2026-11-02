@@ -16,8 +16,7 @@ use crate::tuning::{
 };
 use crate::wheel::{pass_not_over, pass_start_s, Path};
 use crate::{
-    horn_reaches_kart, DriftDirection, Item, KartInput, KartReadout, Phase, Placement, Standing,
-    Track,
+    DriftDirection, HornBlast, Item, KartInput, KartReadout, Phase, Placement, Standing, Track,
 };
 use rapier3d::prelude::{Rotation, Vec3};
 
@@ -249,19 +248,18 @@ pub fn drive(
     }
 }
 
-/// The point `right` metres right of the centreline at `progress`, as `[x, z]`.
-/// Whether the bot's horn, fired now, would spin a kart out: another kart
-/// in the blast's reach that is neither spun out nor on a star's run.
+/// Whether the bot's horn, fired now, would reach a kart its blast can
+/// hit: another kart in reach that is neither spun out nor on a star's
+/// run. One trailing a hazard counts, though the blast only takes the
+/// hazard.
 fn horn_hits_a_kart(track: &Track, karts: &[KartReadout], slot: usize) -> bool {
     let own = &karts[slot];
+    let blast = HornBlast::new(track, Vec3::from(own.position), own.spline_progress);
     karts.iter().enumerate().any(|(other, kart)| {
         other != slot
             && kart.spin_out_s.is_none()
             && kart.star_s.is_none()
-            && horn_reaches_kart(
-                track.spline_length(),
-                Vec3::from(own.position),
-                own.spline_progress,
+            && blast.reaches_kart(
                 Vec3::from(kart.position),
                 &Rotation::from_array(kart.rotation),
                 kart.spline_progress,
@@ -269,6 +267,7 @@ fn horn_hits_a_kart(track: &Track, karts: &[KartReadout], slot: usize) -> bool {
     })
 }
 
+/// The point `right` metres right of the centreline at `progress`, as `[x, z]`.
 fn line_point(track: &Track, progress: f32, right: f32) -> [f32; 2] {
     let point = track.point_at(progress);
     let [tx, tz] = track.direction_at(progress);

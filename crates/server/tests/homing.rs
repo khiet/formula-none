@@ -31,13 +31,13 @@ const WAIT_ON_THE_GRID_S: f32 = 6.0;
 const CHASER: u8 = 1;
 
 impl Heard {
-    /// The first hit the chaser scored with a projectile: one its last fire
-    /// before it was a projectile's, not a star's or a horn's, which hit
-    /// without a flight.
+    /// The first hit the chaser scored with a projectile: a hit by the
+    /// chaser whose last fire before it was a projectile's. A star or a
+    /// horn the chaser rolls hits without a flight and is passed over.
     fn hit(&self) -> Option<Event> {
         self.events.iter().copied().find(|event| {
             matches!(event.kind, EventKind::Hit { by, .. } if by == Some(CHASER))
-                && self.last_fire_before(*event).is_some_and(|fire| {
+                && self.fire_before(*event).is_some_and(|fire| {
                     fire.kind
                         == EventKind::ItemFired {
                             kart: CHASER,
@@ -47,23 +47,10 @@ impl Heard {
         })
     }
 
-    /// The chaser's last fire of any item before `hit`.
-    fn last_fire_before(&self, hit: Event) -> Option<Event> {
-        self.events.iter().copied().rfind(|event| {
-            event.id < hit.id && matches!(event.kind, EventKind::ItemFired { kart: CHASER, .. })
-        })
-    }
-
-    /// The chaser's last fire of a projectile before `hit`: the one that
-    /// scored it.
+    /// The chaser's last fire before `hit`: the one that scored it.
     fn fire_before(&self, hit: Event) -> Option<Event> {
         self.events.iter().copied().rfind(|event| {
-            event.id < hit.id
-                && event.kind
-                    == EventKind::ItemFired {
-                        kart: CHASER,
-                        item: Item::Homing,
-                    }
+            event.id < hit.id && matches!(event.kind, EventKind::ItemFired { kart: CHASER, .. })
         })
     }
 

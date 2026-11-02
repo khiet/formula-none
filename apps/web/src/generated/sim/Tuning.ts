@@ -25,8 +25,8 @@ coinTopSpeedsMPerS: [number, number, number, number, number, number, number, num
  */
 starS: number, 
 /**
- * How far the Air Horn's blast reaches, so the View's shockwave ring
- * grows to the reach.
+ * How far the Air Horn's blast reaches, so the View's ring grows to
+ * the reach.
  */
 hornRadiusM: number, 
 /**

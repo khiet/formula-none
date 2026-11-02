@@ -453,14 +453,14 @@ class LiveRace {
       shot.start();
     }
     for (const blast of hornBlasts(before, reading)) {
-      this.#playAway(sounds, "airHorn", distanceLevel(blast.metres));
+      this.#playBlast(sounds, distanceLevel(blast.metres));
     }
     this.#runWarning(sounds, droneBeep(reading.incomingDroneMetres));
   }
 
-  /** Play `cue` once from another kart, at `level` through the away lowpass; nothing out of earshot. */
-  #playAway(sounds: Sounds, cue: SoundCue, level: number): void {
-    const buffer = sounds.sfx[cue];
+  /** Play another kart's blast once, at `level` through the away lowpass; nothing out of earshot. */
+  #playBlast(sounds: Sounds, level: number): void {
+    const buffer = sounds.sfx.airHorn;
     if (buffer === undefined || level <= 0) return;
     const gain = sounds.context.createGain();
     gain.gain.value = level;

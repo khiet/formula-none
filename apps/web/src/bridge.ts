@@ -308,7 +308,7 @@ export interface Bridge extends MessageCodec {
   readonly spinOutSeconds: number;
   /** How long a star's run lasts (ADR 0075), which the panel's ring counts down and the star music is joined against. */
   readonly starSeconds: number;
-  /** How far the Air Horn's blast reaches, which the View's shockwave ring grows to. */
+  /** How far the Air Horn's blast reaches, which the View's ring grows to. */
   readonly hornRadiusMetres: number;
   /** The runaway wheel's reach (ADR 0014), which the View draws as its radius. */
   readonly runawayWheelRadiusMetres: number;
