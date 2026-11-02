@@ -64,6 +64,12 @@ airborne: boolean,
  */
 boostS: number | null, 
 /**
+ * Seconds of a star's run left, while the kart has one: faster, immune
+ * and spinning out every kart it touches. The shine's tell, and what
+ * every client works the rainbow's phase out from.
+ */
+starS: number | null, 
+/**
  * The tier the boost burns in, the flame's: orange for an orange
  * release or a weak rocket start, red for every other boost;
  * `MiniTurbo::None` while not boosting.

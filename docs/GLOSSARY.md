@@ -216,7 +216,8 @@ surface.
 
 ### item slot
 
-A kart's one place for an item: a boost, a hazard or a homing projectile.
+A kart's one place for an item: a boost, a hazard, a homing projectile or a
+star.
 It is empty, rolling or held. A box into an empty slot starts a roll that
 lands the item 2.5 s later; until then a press fires nothing and is not
 remembered, and nothing stops the roll early (ADR 0070). Rolling or held,
@@ -232,7 +233,7 @@ each change. Other karts' rolls show nothing.
 
 The item a pickup puts in the slot, drawn on the sim's RNG with weights by
 the kart's race position band: the leaders mostly hazards, the back of the
-field mostly homing. Drawn at the pickup, it rolls in the slot for 2.5 s
+field mostly homing, and the star only from third place back. Drawn at the pickup, it rolls in the slot for 2.5 s
 before it lands and can be fired (ADR 0070). Only the server rolls; a
 client's prediction never picks up a box and holds what the snapshots say.
 
@@ -255,9 +256,22 @@ goes with it, else on the kart, which spins out. Fired by the leader, with
 no kart ahead, it is wasted. Every snapshot carries the projectiles in
 flight; a client draws them between snapshots as it draws the other karts.
 
+### star
+
+The comeback item. Fired, it gives the kart a run of 6 s: its top speed cap
+raised a quarter, with the boost item's kick on the fire, immune to
+hazards, projectiles and the runaway wheel, and spinning out every ordinary
+kart it touches, which it passes through; two star karts bump as usual. A
+mini-turbo or a pad during the run sets its own speed, then the kart settles
+back to the star's cap; braking still works. A respawn keeps the timer and
+the finish ends it; a second star puts it back to 6 s. Every snapshot
+carries the seconds left, which every client shines the kart from through
+the rainbow in the same phase, and plays the star music to (ADR 0075). In
+the slot it is a faceted mirror ball on a chain, shining once landed.
+
 ### spin-out
 
-A kart stopped and spun by an item or the runaway wheel for a fixed time
+A kart stopped and spun by an item, a star kart or the runaway wheel for a fixed time
 (1 s): dead to its controls and moved by nothing until the time runs out.
 Every spin-out costs the kart three coins, or all it carries. Every
 spin-out is a server event, and the snapshots carry the time left; clients

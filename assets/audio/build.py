@@ -9,7 +9,9 @@ The cues were picked on the sound effects iteration page
 (`docs/mockups/sound-effects.html`), which synthesises each one in the
 browser from the DSP kit ported below, so a render here is the page's pick.
 The hit and the sputter predate the page and keep their original code path,
-so their bytes do not churn.
+so their bytes do not churn. The star's three sounds were picked on
+`docs/mockups/star-and-horn-sounds.html` and are specified, with the
+script ported below, in `docs/mockups/star-and-air-horn.html`.
 """
 
 import math
@@ -233,6 +235,15 @@ def chord(freqs, length, wave_fn, decay, gain):
     return mix(*(tone(f, length, wave_fn, decay, gain) for f in freqs))
 
 
+def place(out, at, samples, gain=1.0):
+    """Add `samples` into `out` from `at` seconds, dropping what runs past its end."""
+    start = sec(at)
+    for i, s in enumerate(samples):
+        if start + i >= len(out):
+            break
+        out[start + i] += s * gain
+
+
 # ---------------------------------------------------------------------------
 # The picks, parameters as the page names them.
 # ---------------------------------------------------------------------------
@@ -369,6 +380,69 @@ def wrong_way(freq=330, chop_hz=30, length=0.45, gain=0.3):
     return chop(tone(freq, length, square, decay=3, gain=gain), chop_hz, 1)
 
 
+# ---------------------------------------------------------------------------
+# The star (ADR 0075): six seconds of fast 8-bit music in the race music's
+# key and tempo, D minor at 160 bpm, where four bars are exactly the run,
+# over its verse's chords; a rising run for the fire and three falling
+# blips for the end. Original; none of it borrows from Nintendo's theme.
+# `STAR_S` in crates/sim/src/tuning.rs is the run; a retune there rebuilds
+# the music to the new length.
+# ---------------------------------------------------------------------------
+
+STAR_BEAT = 0.375
+STAR_SIXTEENTH = STAR_BEAT / 4
+STAR_RUN_S = 6.0
+# The last second tumbles downward on its own, so the driver hears the end coming.
+STAR_LAST_S = 5.0
+STAR_CHORDS = ((62, 65, 69), (58, 62, 65), (60, 64, 67), (57, 61, 64))
+
+
+def star_music():
+    """Pulse-wave arpeggios climbing an octave halfway, a square lead, a triangle bass, a tick and a snare, then 22 notes tumbling down."""
+    out = silence(STAR_RUN_S)
+    snare = bandpass(noise(0.08, decay=35, gain=0.7, seed=13), 2000, 3000)
+    tick = highpass(noise(0.03, decay=80, gain=0.2, seed=14), 6000)
+    lead = (74, 77, 81, 77, 82, 77, 74, 77, 84, 79, 76, 79, 85)
+    stop = math.floor(STAR_LAST_S / STAR_SIXTEENTH)
+    for i in range(stop):
+        bar = i // 16
+        chord_notes = STAR_CHORDS[bar]
+        steps = (chord_notes[0], chord_notes[1], chord_notes[2], chord_notes[0] + 12)
+        n = steps[(0, 1, 2, 3, 2, 1)[i % 6]] + (12, 12, 24, 24)[bar]
+        place(out, i * STAR_SIXTEENTH, tone(midi_freq(n), STAR_SIXTEENTH * 0.9, pulse, decay=10, gain=0.15))
+        if i % 2 == 0:
+            place(out, i * STAR_SIXTEENTH, tone(midi_freq(chord_notes[0] - 24), 0.16, triangle, decay=6, gain=0.45))
+            place(out, i * STAR_SIXTEENTH, tick)
+        if i % 8 == 4:
+            place(out, i * STAR_SIXTEENTH, snare)
+    for beat, n in enumerate(lead):
+        place(
+            out,
+            beat * STAR_BEAT,
+            tone(midi_freq(n), STAR_BEAT * 0.9, square, decay=3, gain=0.1, vibrato_hz=7, vibrato_depth=0.008),
+        )
+    for i in range(22):
+        place(
+            out,
+            STAR_LAST_S + i * 0.0455,
+            tone(midi_freq(91 - i), 0.05, square, decay=5, gain=0.17 * (1 - i / 30)),
+        )
+    return tame(out)
+
+
+def star_fire():
+    """A two-octave rising run of square-wave notes, in place of the item fire."""
+    out = silence(0.4)
+    for i in range(18):
+        place(out, i * 0.018, tone(midi_freq(62 + i * 2), 0.05, square, decay=4, gain=0.24))
+    return tame(out)
+
+
+def star_end():
+    """Three falling square-wave blips as the run ends."""
+    return tame(concat(*(tone(midi_freq(n), 0.08, square, decay=8, gain=0.3) for n in (76, 72, 64))))
+
+
 def finish(beep=880, high=1320, length=0.1, hold=0.5, gain=0.3):
     """Chequered: two pulse beeps at one pitch and a third higher, then a square chord."""
     return concat(
@@ -458,6 +532,11 @@ def sfx():
     write("wrong-way", tame(wrong_way()))
     # In place of the lap as the kart finishes.
     write("finish", tame(finish()))
+    # The star's run (ADR 0075): its music through the run, its fire in
+    # place of the item fire, and its end.
+    write("star-music", star_music())
+    write("star-fire", star_fire())
+    write("star-end", star_end())
     # Loops: 1.5 s, crossfaded to loop without a click, at LOOP_SPEED.
     write("drift-skid", tame(drift_skid(LOOP_SPEED)))
     write("grass", tame(grass(LOOP_SPEED)))

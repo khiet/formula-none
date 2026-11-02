@@ -105,7 +105,7 @@ export async function createRaceScene(
     },
     name,
     livery(run.localKart),
-    { reducedMotion },
+    { reducedMotion, starSeconds: bridge.starSeconds },
   );
 
   const present = (frameSeconds: number) => {

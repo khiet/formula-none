@@ -17,13 +17,15 @@ import {
   VALUE_WHITE,
   WHITE,
 } from "./palette";
+import { STAR_RAINBOW, STAR_TILES } from "./star-shine";
 
 /**
  * The item slot's characters (ADR 0037): each item drawn flat from the
  * View's mesh for it, in polygons lifted from the style guide's drawings
- * (docs/style-guide.html). The champagne bottle has no mesh, since a
- * boost never shows on the road. Original work, CC0 like the rest of the art
- * (assets/LICENSES.md).
+ * (docs/style-guide.html). The champagne bottle and the mirror ball have
+ * no mesh, since a boost and a star never show on the road: the star kart
+ * shines and stays a kart (ADR 0075). Original work, CC0 like the rest of
+ * the art (assets/LICENSES.md).
  */
 
 type Drawing = (parent: SVGSVGElement) => void;
@@ -282,7 +284,75 @@ const boost: Drawing = (parent) => {
   polygon(bottle, rectangle(-46, -4, -12, 4), ROCKET.mid);
 };
 
-const DRAWINGS: Readonly<Record<Item, Drawing>> = { boost, hazard, homing };
+/** A four-point glint at (`x`, `y`) of radius `r`: the ball's highlights, and the sparkles' shape. */
+export function glint(x: number, y: number, r: number): Point[] {
+  const q = r * 0.18;
+  return [
+    [x, y - r],
+    [x + q, y - q],
+    [x + r, y],
+    [x + q, y + q],
+    [x, y + r],
+    [x - q, y + q],
+    [x - r, y],
+    [x - q, y - q],
+  ];
+}
+
+/**
+ * The podium mirror ball on a short chain, with no face: a latitude and
+ * longitude grid of tiles, each a step along the rainbow from its
+ * neighbours, read from the six `--r0` to `--r5` properties the slot runs
+ * the loop through, with the dark gaps between the tiles and the white
+ * glints fixed so it reads on the slot's gold at every point of the loop.
+ * The properties default to the rainbow's stops, which under reduced
+ * motion the tiles hold.
+ */
+const star: Drawing = (parent) => {
+  STAR_RAINBOW.forEach((stop, tile) => {
+    parent.style.setProperty(`--r${tile}`, hexCss(stop));
+  });
+  shadow(parent, 100, 148, 46, 5);
+  line(parent, [100, 0], [100, 24], CARBON.lit, 3);
+  polygon(parent, rectangle(92, 20, 108, 29), CARBON.mid);
+  const [cx, cy, radius] = [100, 82, 56];
+  polygon(parent, ngon(24, cx, cy, radius + 1), CARBON.shaded);
+  const point = (lat: number, lon: number): Point => [
+    cx + radius * Math.cos(lat) * Math.sin(lon),
+    cy + radius * Math.sin(lat),
+  ];
+  const rows = 8;
+  const cols = 8;
+  const inset = 0.05;
+  for (let row = 0; row < rows; row++) {
+    const lat0 = -Math.PI / 2 + (Math.PI * row) / rows;
+    const lat1 = lat0 + Math.PI / rows;
+    for (let col = 0; col < cols; col++) {
+      const lon0 = -Math.PI / 2 + (Math.PI * col) / cols;
+      const lon1 = lon0 + Math.PI / cols;
+      const tile: Point[] = [
+        point(lat0 + inset, lon0 + inset),
+        point(lat0 + inset, lon1 - inset),
+        point(lat1 - inset, lon1 - inset),
+        point(lat1 - inset, lon0 + inset),
+      ];
+      polygon(parent, tile, `var(--r${(row + col) % STAR_TILES})`);
+      // Lit from the top left, as the View's sun lights the facets.
+      const light = -(Math.sin((lon0 + lon1) / 2) + Math.sin((lat0 + lat1) / 2));
+      if (light > 0.55) polygon(parent, tile, VALUE_WHITE).setAttribute("fill-opacity", "0.45");
+      if (light < -0.55) polygon(parent, tile, INK).setAttribute("fill-opacity", "0.28");
+    }
+  }
+  for (const [x, y, r] of [
+    [66, 46, 13],
+    [136, 62, 8],
+    [84, 112, 7],
+  ] as const) {
+    polygon(parent, glint(x, y, r), VALUE_WHITE);
+  }
+};
+
+const DRAWINGS: Readonly<Record<Item, Drawing>> = { boost, hazard, homing, star };
 
 /**
  * The item's character as an inline SVG, at whatever size the slot gives

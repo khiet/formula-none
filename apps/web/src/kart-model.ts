@@ -1,12 +1,15 @@
 // The kart the View draws: a chibi low-poly F1 car (ADR 0034) that
 // assets/karts/build.py builds from primitives, painted in the materials
 // named here, which the View swaps for the slot's livery (ADR 0035) and
-// driver, whose bare head wears only that driver's parts (ADR 0036).
+// driver, whose bare head wears only that driver's parts (ADR 0036). On a
+// star's run every material is pulled toward the shine (ADR 0075), so each
+// kart carries its own copy of every material.
 import { type Material, Mesh, MeshStandardMaterial, type Object3D } from "three";
 import kartGltf from "../../../assets/karts/kart.glb?url";
 import type { KartSize } from "./bridge";
 import { DRIVER_PARTS, partsOf } from "./driver-parts";
 import type { Livery } from "./livery";
+import { mixColour } from "./star-shine";
 
 /** The exported kart, as the View fetches it. */
 export const KART_GLTF_URL: string = kartGltf;
@@ -75,11 +78,11 @@ export function fitKart(bounds: Bounds, size: KartSize): KartFit {
 }
 
 /**
- * A kart in `livery`: a clone of `model` whose meshes wearing a livery or
- * driver material get a copy of it in that material's colour of the slot,
- * so each kart on the grid has its own paint and every other material stays
- * shared across them. Of the head's swappable parts, only the slot's
- * driver's stay visible.
+ * A kart in `livery`: a clone of `model` whose every mesh gets the kart's
+ * own copy of its material, the livery and driver materials in that
+ * material's colour of the slot and the rest, carbon, tyre and rim, as
+ * exported, so the shine of one kart's star never lights another. Of the
+ * head's swappable parts, only the slot's driver's stay visible.
  */
 export function dressKart(model: Object3D, livery: Livery): Object3D {
   const kart = model.clone();
@@ -94,22 +97,48 @@ export function dressKart(model: Object3D, livery: Livery): Object3D {
       return;
     }
     const material = object.material;
-    const colour = colours.get(material.name);
-    if (colour === undefined) {
-      return;
-    }
-    const copy = own.get(material) ?? repaint(material, colour);
+    const copy = own.get(material) ?? repaint(material, colours.get(material.name));
     own.set(material, copy);
     object.material = copy;
   });
   return kart;
 }
 
-/** A copy of `material` in `colour`. The glTF loader makes standard materials; anything else keeps its colour. */
-function repaint(material: Material, colour: number): Material {
+/** The copy's own colour, kept so a shine can be pulled toward and let go of. */
+const BASE_COLOUR = "baseColour";
+
+/**
+ * A copy of `material`, in `colour` when given. The glTF loader makes
+ * standard materials; anything else keeps its colour.
+ */
+function repaint(material: Material, colour: number | undefined): Material {
   const copy = material.clone();
   if (copy instanceof MeshStandardMaterial) {
-    copy.color.setHex(colour);
+    if (colour !== undefined) copy.color.setHex(colour);
+    copy.userData[BASE_COLOUR] = copy.color.getHex();
   }
   return copy;
+}
+
+/**
+ * Pull every material of a dressed `kart` `pull` of the way toward
+ * `colour` and light it by it as emissive, so its own shading still shows
+ * through; with `colour` null, or a pull of nothing, every material is its
+ * own colour again. Only a kart `dressKart` made has materials of its own
+ * to shine.
+ */
+export function shineKart(kart: Object3D, colour: number | null, pull: number): void {
+  kart.traverse((object) => {
+    if (!(object instanceof Mesh) || !(object.material instanceof MeshStandardMaterial)) return;
+    const material = object.material;
+    const base = material.userData[BASE_COLOUR];
+    if (typeof base !== "number") return;
+    if (colour === null || pull <= 0) {
+      material.color.setHex(base);
+      material.emissive.setHex(0);
+      return;
+    }
+    material.color.setHex(mixColour(base, colour, pull));
+    material.emissive.setHex(mixColour(0, colour, pull));
+  });
 }

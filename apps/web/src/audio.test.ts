@@ -13,6 +13,7 @@ import {
   type SoundNode,
   type SoundOscillator,
   type SoundParam,
+  STAR_MUSIC_URL,
 } from "./audio";
 import type { SoundCue, SoundLoop, SoundReading } from "./audio-cues";
 import { ENGINE, engineBandEdges, FULL_THROTTLE_SECONDS_TO_TOP } from "./audio-engine";
@@ -38,7 +39,10 @@ const STILL: SoundReading = {
   boxesTaken: 0,
   rolling: false,
   reelStep: null,
+  starSeconds: null,
+  nearestStar: null,
 };
+const STAR_RUN_S = 6;
 
 /** A decoded file stands in for its AudioBuffer: the test only asks which was played. */
 interface FakeBuffer {
@@ -96,6 +100,8 @@ interface FakeSource extends SoundBufferSource, FakeNode {
   readonly playbackRate: ReturnType<typeof param>;
   started: number;
   stopped: number;
+  /** Seconds into the buffer the last start began. */
+  offset: number;
 }
 
 interface FakeGain extends SoundGain, FakeNode {
@@ -176,8 +182,10 @@ function fakeContext(): FakeContext {
         playbackRate: param(1),
         started: 0,
         stopped: 0,
-        start() {
+        offset: 0,
+        start(_when, offset = 0) {
           this.started += 1;
+          this.offset = offset;
         },
         stop() {
           this.stopped += 1;
@@ -230,6 +238,8 @@ interface Harness {
   /** The gain the crackle bursts open past the filter. */
   crackleGain(): FakeGain;
   music(): FakeSource[];
+  /** The sources made for the star music's file, started or not. */
+  starMusic(): FakeSource[];
   /** The sources made for `loop`'s file, started or not. */
   loops(loop: SoundLoop): FakeSource[];
   /** The gain the engine reaches the speakers through, which its toggle sets. */
@@ -244,6 +254,7 @@ function harness(settings = DEFAULT_AUDIO_SETTINGS): Harness {
   const audio = createAudio({
     settings,
     topSpeedMetresPerSecond: TOP_SPEED,
+    starRunSeconds: STAR_RUN_S,
     fetchBytes(url) {
       fetched.push(url);
       return Promise.resolve(bytesOf(url));
@@ -320,6 +331,7 @@ function harness(settings = DEFAULT_AUDIO_SETTINGS): Harness {
       return gainOf(source);
     },
     music: () => sourcesOf(MUSIC_URL),
+    starMusic: () => sourcesOf(STAR_MUSIC_URL),
     loops: (loop) => sourcesOf(LOOP_URLS[loop]),
     engineGain: () => gainOf(engineLevel()),
     gainOf,
@@ -333,19 +345,24 @@ describe("preloading and the autoplay rule", () => {
   it("fetches every sound at creation and makes no AudioContext until a gesture unlocks it", async () => {
     const { audio, fetched, contexts, context } = harness();
     expect(new Set(fetched)).toEqual(
-      new Set([...Object.values(SOUND_URLS), ...Object.values(LOOP_URLS), MUSIC_URL]),
+      new Set([
+        ...Object.values(SOUND_URLS),
+        ...Object.values(LOOP_URLS),
+        MUSIC_URL,
+        STAR_MUSIC_URL,
+      ]),
     );
-    expect(fetched).toHaveLength(21);
+    expect(fetched).toHaveLength(24);
     await settled();
     expect(contexts).toHaveLength(0);
     await audio.unlock();
     expect(contexts).toHaveLength(1);
     expect(context().resumes).toBe(1);
     // Decoded once, from the bytes already fetched, so the first play is not late.
-    expect(context().decoded).toHaveLength(21);
+    expect(context().decoded).toHaveLength(24);
     await audio.unlock();
     expect(contexts).toHaveLength(1);
-    expect(context().decoded).toHaveLength(21);
+    expect(context().decoded).toHaveLength(24);
   });
 
   it("resumes a context the browser suspended on a later gesture", async () => {
@@ -739,6 +756,7 @@ describe("a sound that fails to load", () => {
     const audio = createAudio({
       settings: DEFAULT_AUDIO_SETTINGS,
       topSpeedMetresPerSecond: TOP_SPEED,
+      starRunSeconds: STAR_RUN_S,
       fetchBytes(url) {
         fetched.push(url);
         return missing.includes(url)
@@ -754,7 +772,7 @@ describe("a sound that fails to load", () => {
     await audio.unlock();
     const context = contexts[0];
     if (context === undefined) throw new Error("no context was made");
-    expect(context.decoded).toHaveLength(19);
+    expect(context.decoded).toHaveLength(22);
     const race = audio.race();
     race.start();
     race.update(STILL);
@@ -803,6 +821,145 @@ describe("the music loop", () => {
     expect(music()).toHaveLength(2);
     race.stop();
     expect(music()[1]?.stopped).toBe(1);
+  });
+});
+
+describe("the star music", () => {
+  /** The gain the race music loop reaches its toggle's gain through. */
+  const musicLevel = (harnessed: Harness) => {
+    const loop = harnessed.music()[0];
+    if (loop === undefined) throw new Error("no race music");
+    return harnessed.gainOf(loop);
+  };
+  const run = (starSeconds: number): SoundReading => ({ ...STILL, starSeconds });
+
+  it("starts with the own fire from the top under the SFX gain, fading the race music out and back at the end", async () => {
+    const harnessed = harness();
+    const { audio, starMusic, played, gainOf, context } = harnessed;
+    await audio.unlock();
+    const race = audio.race();
+    race.start();
+    race.update(STILL);
+    expect(musicLevel(harnessed).gain.value).toBe(1);
+    race.update({ ...STILL, item: "star" });
+    race.update(run(5.98));
+    expect(played("starFire")).toBe(1);
+    expect(played("itemFire")).toBe(0);
+    expect(starMusic()).toHaveLength(1);
+    const source = starMusic()[0];
+    expect(source?.started).toBe(1);
+    expect(source?.offset).toBeCloseTo(STAR_RUN_S - 5.98, 6);
+    // Through the SFX toggle's gain, with no filter in the way.
+    const sfxGain = context().gains.find(
+      (gain) =>
+        gain.connectedTo.includes(context().destination) &&
+        gain !== musicLevel(harnessed) &&
+        gain.gain.value === 0.8,
+    );
+    expect(sfxGain).toBeDefined();
+    expect(gainOf(source as FakeSource).connectedTo).toContain(sfxGain);
+    expect(musicLevel(harnessed).gain.value).toBe(0);
+    // Ticking down is the same run: the source is left alone.
+    race.update(run(4));
+    race.update(run(3.6));
+    expect(starMusic()).toHaveLength(1);
+    expect(source?.stopped).toBe(0);
+    // The run ends: the music fades, the race music comes back, the end plays.
+    race.update(STILL);
+    expect(played("starEnd")).toBe(1);
+    expect(source?.stopped).toBe(1);
+    expect(musicLevel(harnessed).gain.value).toBe(1);
+  });
+
+  it("restarts from the top on a second star's fire, and not on a small rise", async () => {
+    const { audio, starMusic } = harness();
+    await audio.unlock();
+    const race = audio.race();
+    race.start();
+    race.update(STILL);
+    race.update(run(5.98));
+    race.update(run(3));
+    race.update(run(3.4));
+    expect(starMusic()).toHaveLength(1);
+    race.update(run(5.98));
+    expect(starMusic()).toHaveLength(2);
+    expect(starMusic()[0]?.stopped).toBe(1);
+    expect(starMusic()[1]?.offset).toBeCloseTo(STAR_RUN_S - 5.98, 6);
+  });
+
+  it("joins a run already under way at its point, with no fire sound, as after a rejoin", async () => {
+    const { audio, starMusic, played } = harness();
+    await audio.unlock();
+    const race = audio.race();
+    race.start();
+    race.update(run(2.5));
+    expect(starMusic()[0]?.offset).toBeCloseTo(3.5, 6);
+    expect(played("starFire")).toBe(0);
+  });
+
+  it("plays the nearest other kart's run by distance through a lowpass, the race music untouched, and never two at once", async () => {
+    const harnessed = harness();
+    const { audio, starMusic, played, gainOf, context } = harnessed;
+    await audio.unlock();
+    const race = audio.race();
+    race.start();
+    race.update(STILL);
+    race.update({ ...STILL, nearestStar: { kart: 3, seconds: 4, metres: 35 } });
+    expect(played("starFire")).toBe(0);
+    const away = starMusic()[0];
+    expect(away?.offset).toBeCloseTo(2, 6);
+    const filter = context().filters.find((made) => away?.connectedTo.includes(made));
+    expect(filter?.type).toBe("lowpass");
+    expect(filter?.frequency.value).toBe(1200);
+    expect(gainOf(filter as FakeFilter).gain.value).toBeCloseTo(0.5, 6);
+    expect(musicLevel(harnessed).gain.value).toBe(1);
+    // Nearer, louder; another kart nearer still takes over at its point.
+    race.update({ ...STILL, nearestStar: { kart: 3, seconds: 3.9, metres: 10 } });
+    expect(gainOf(filter as FakeFilter).gain.value).toBe(1);
+    expect(starMusic()).toHaveLength(1);
+    race.update({ ...STILL, nearestStar: { kart: 5, seconds: 5, metres: 8 } });
+    expect(starMusic()).toHaveLength(2);
+    expect(away?.stopped).toBe(1);
+    expect(starMusic()[1]?.offset).toBeCloseTo(1, 6);
+    // The own run outranks it, and the other's end plays no sound.
+    race.update({ ...STILL, item: "star", nearestStar: { kart: 5, seconds: 4.9, metres: 8 } });
+    race.update({ ...run(5.98), nearestStar: { kart: 5, seconds: 4.8, metres: 8 } });
+    expect(starMusic()).toHaveLength(3);
+    expect(starMusic()[2]?.offset).toBeCloseTo(STAR_RUN_S - 5.98, 6);
+    expect(played("starEnd")).toBe(0);
+  });
+
+  it("plays none with the SFX toggle off, leaving the race music up, and stops with the race", async () => {
+    const harnessed = harness({ ...DEFAULT_AUDIO_SETTINGS, sfx: false });
+    const { audio, starMusic } = harnessed;
+    await audio.unlock();
+    const race = audio.race();
+    race.start();
+    race.update(STILL);
+    race.update(run(5.98));
+    expect(starMusic()).toHaveLength(0);
+    expect(musicLevel(harnessed).gain.value).toBe(1);
+    audio.settings(DEFAULT_AUDIO_SETTINGS);
+    race.update(run(5.9));
+    expect(starMusic()).toHaveLength(1);
+    expect(musicLevel(harnessed).gain.value).toBe(0);
+    race.stop();
+    expect(starMusic()[0]?.stopped).toBe(1);
+  });
+
+  it("fades at the finish with no end sound", async () => {
+    const harnessed = harness();
+    const { audio, starMusic, played } = harnessed;
+    await audio.unlock();
+    const race = audio.race();
+    race.start();
+    race.update(STILL);
+    race.update(run(2));
+    race.update({ ...STILL, finished: true });
+    expect(played("finish")).toBe(1);
+    expect(played("starEnd")).toBe(0);
+    expect(starMusic()[0]?.stopped).toBe(1);
+    expect(musicLevel(harnessed).gain.value).toBe(1);
   });
 });
 
