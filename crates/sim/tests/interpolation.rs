@@ -31,6 +31,7 @@ fn kart_at(x: f32) -> KartReadout {
         item_slot: ItemSlot::Empty,
         coins: 0,
         spin_out_s: None,
+        star_s: None,
         airborne: false,
         boost_s: None,
         boost_tier: MiniTurbo::None,

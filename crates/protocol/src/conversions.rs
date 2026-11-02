@@ -15,6 +15,7 @@ impl From<sim::Item> for Item {
             sim::Item::Boost => Self::Boost,
             sim::Item::Hazard => Self::Hazard,
             sim::Item::Homing => Self::Homing,
+            sim::Item::Star => Self::Star,
         }
     }
 }
@@ -51,6 +52,7 @@ impl From<Item> for sim::Item {
             Item::Boost => Self::Boost,
             Item::Hazard => Self::Hazard,
             Item::Homing => Self::Homing,
+            Item::Star => Self::Star,
         }
     }
 }
@@ -158,6 +160,7 @@ impl From<&KartReadout> for KartSnapshot {
                 left_s,
                 tier: kart.boost_tier.into(),
             }),
+            star_s: kart.star_s,
         }
     }
 }
@@ -183,6 +186,7 @@ impl From<&KartSnapshot> for KartReadout {
                 .map_or(sim::MiniTurbo::None, |boost| boost.tier.into()),
             start: kart.start.into(),
             stall_s: kart.stall_s,
+            star_s: kart.star_s,
             race_position: u32::from(kart.race_position),
             lap: u32::from(kart.lap),
             checkpoint: usize::from(kart.checkpoint),

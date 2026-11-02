@@ -2,7 +2,7 @@
 //! box comes back the tuned time later, the item rolls in the slot for the
 //! tuned time before it can be fired, a kart with a full slot takes boxes
 //! without rolling and so denies them to the karts behind, the roll is
-//! weighted by race position, a fired boost gives the tuned speed for the
+//! weighted by race position over four items, a fired boost gives the tuned speed for the
 //! tuned time, and a bot fires what it holds within the tuned delay of its
 //! landing.
 //! Pickups and fires are read from `State::events` after the `step` that
@@ -397,7 +397,7 @@ fn the_roll_is_weighted_by_the_race_position_band_over_many_seeds() {
     // Eight idle humans, each on a box under its slot, pick one up each at
     // Go, so one race rolls once in every race position.
     let karts = tuning::KARTS_PER_RACE;
-    let mut rolls: Vec<[u32; 3]> = vec![[0; 3]; karts];
+    let mut rolls: Vec<[u32; 4]> = vec![[0; 4]; karts];
     for seed in 0..ROLL_SEEDS {
         let state = started(State::new(seed, karts, oval_with_boxes_under(0..karts)));
         let standings = state.standings();
@@ -417,6 +417,7 @@ fn the_roll_is_weighted_by_the_race_position_band_over_many_seeds() {
                 Item::Hazard => counts[0] += 1,
                 Item::Boost => counts[1] += 1,
                 Item::Homing => counts[2] += 1,
+                Item::Star => counts[3] += 1,
             }
         }
     }
@@ -425,7 +426,7 @@ fn the_roll_is_weighted_by_the_race_position_band_over_many_seeds() {
     // positions are pooled, since the weights are the band's.
     for band in ITEM_ROLL_WEIGHTS {
         let (first, last) = band.positions;
-        let mut pooled = [0; 3];
+        let mut pooled = [0; 4];
         for position in first..=last {
             for (total, count) in pooled.iter_mut().zip(rolls[usize::from(position) - 1]) {
                 *total += count;
@@ -437,6 +438,7 @@ fn the_roll_is_weighted_by_the_race_position_band_over_many_seeds() {
             ("hazard", pooled[0], band.hazard),
             ("boost", pooled[1], band.boost),
             ("homing", pooled[2], band.homing),
+            ("star", pooled[3], band.star),
         ] {
             let percent = count as f32 * 100.0 / total as f32;
             assert!(

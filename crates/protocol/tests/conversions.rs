@@ -9,7 +9,8 @@ use sim::{
 
 /// A kart mid-race with every field the snapshot carries away from its
 /// default: drifting left at red, rolling a hazard, carrying seven coins, a hop and an orange
-/// boost under way, spun out, stalled, third on lap 2 and going the wrong way.
+/// boost under way, spun out, stalled, on a star's run, third on lap 2 and
+/// going the wrong way.
 /// Turned a quarter left, so its facing is -X and its velocity runs along
 /// it at 12 m/s, rising, with a bump from a touch carrying it sideways.
 fn busy_kart() -> KartReadout {
@@ -36,6 +37,7 @@ fn busy_kart() -> KartReadout {
         boost_tier: MiniTurbo::Orange,
         start: Start::WeakBoost,
         stall_s: Some(0.1),
+        star_s: Some(4.5),
         race_position: 3,
         lap: 2,
         checkpoint: 7,

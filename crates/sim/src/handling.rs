@@ -108,8 +108,12 @@ pub(crate) struct Situation {
     /// the off-track cap and a boost included; 1 with none.
     pub(crate) coin_factor: f32,
     /// The cap on the kart's speed: the tuned top speed under its rubber
-    /// band and its coins.
+    /// band, its coins and a star's run.
     pub(crate) top_speed: f32,
+    /// Whether the kart is on a star's run, which the off-track cap does
+    /// not apply to; every course is walled along both run-off edges, so
+    /// this opens no shortcut.
+    pub(crate) starring: bool,
 }
 
 /// What the handling sends the body off with for the solver.
@@ -337,7 +341,7 @@ impl Handling {
         // Off the asphalt the kart is held to the cap, not dragged down to
         // it, so it slows the tick it leaves the track. The cap reads the
         // surface below the kart, so a hop over a patch does not clear it.
-        if situation.surface.slows_karts() {
+        if situation.surface.slows_karts() && !situation.starring {
             self.speed = self
                 .speed
                 .min(OFF_TRACK_SPEED_FACTOR * TOP_SPEED_M_PER_S * situation.coin_factor);
@@ -592,6 +596,7 @@ mod tests {
             on_the_ground: true,
             coin_factor: 1.0,
             top_speed: TOP_SPEED_M_PER_S,
+            starring: false,
         }
     }
 
@@ -909,6 +914,20 @@ mod tests {
                 "{surface:?}"
             );
         }
+    }
+
+    #[test]
+    fn a_star_kart_is_not_held_to_the_off_track_cap() {
+        let mut handling = going(TOP_SPEED_M_PER_S);
+        let off = Situation {
+            surface: Surface::Grass,
+            starring: true,
+            ..asphalt()
+        };
+
+        handling.tick(&FULL_THROTTLE, Freeze::Free, off, TICK_S);
+
+        assert_eq!(handling.speed, TOP_SPEED_M_PER_S);
     }
 
     #[test]

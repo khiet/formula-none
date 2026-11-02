@@ -9,9 +9,9 @@ use protocol::{encode, samples, ClientMessage, Input, ItemSlot, ServerMessage, S
 /// The budget is "roughly" this many bytes.
 const INPUT_BUDGET: usize = 8;
 /// ADR 0010 estimated 400; its Outcome records the busy sample at 505
-/// bytes once the hazards and the projectiles rode along, and holds it
-/// there.
-const SNAPSHOT_BUDGET: usize = 500;
+/// bytes once the hazards and the projectiles rode along, and at 629 once
+/// the bump and the star's run did, and holds it there.
+const SNAPSHOT_BUDGET: usize = 600;
 
 /// A quarter either way.
 fn within_tolerance(size: usize, budget: usize) -> bool {
@@ -62,6 +62,7 @@ fn the_snapshot_sample_is_a_busy_mid_race_moment() {
     assert!(karts.iter().any(|kart| kart.spin_out_s.is_some()));
     assert!(karts.iter().any(|kart| kart.stall_s.is_some()));
     assert!(karts.iter().any(|kart| kart.boost.is_some()));
+    assert!(karts.iter().any(|kart| kart.star_s.is_some()));
     assert!(karts
         .iter()
         .any(|kart| kart.start != protocol::Start::Clean));

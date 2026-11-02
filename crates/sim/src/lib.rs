@@ -122,6 +122,10 @@ pub struct KartReadout {
     /// Seconds of boost left, while a mini-turbo, boost pad, item or start
     /// boost holds the kart over top speed; the release's tell.
     pub boost_s: Option<f32>,
+    /// Seconds of a star's run left, while the kart has one: faster, immune
+    /// and spinning out every kart it touches. The shine's tell, and what
+    /// every client works the rainbow's phase out from.
+    pub star_s: Option<f32>,
     /// The tier the boost burns in, the flame's: orange for an orange
     /// release or a weak rocket start, red for every other boost;
     /// `MiniTurbo::None` while not boosting.
@@ -163,6 +167,9 @@ pub enum Item {
     Hazard,
     /// Follows the track to the kart ahead and spins it out.
     Homing,
+    /// A run of the tuned time: a raised top speed, immunity from every
+    /// item and the wheel, and a spin-out for every kart the kart touches.
+    Star,
 }
 
 /// A homing projectile in flight, as the View draws it: where it is, whose
@@ -267,25 +274,32 @@ impl Item {
             Self::Boost => 1,
             Self::Hazard => 2,
             Self::Homing => 3,
+            Self::Star => 4,
         }
     }
 
     /// The item a roll in `0..ITEM_ROLL_PERCENT` picks for a kart in race `position`,
     /// from the tuned weights of the position's band: the first `hazard`
-    /// percent are the hazard, the next `boost` the boost and the rest the
-    /// homing projectile. A position past the last band rolls as the last.
+    /// percent are the hazard, the next `boost` the boost, the next `homing`
+    /// the homing projectile and the rest the star. A position past the last
+    /// band rolls as the last.
     fn rolled(position: u32, roll: u32) -> Self {
         let band = ITEM_ROLL_WEIGHTS
             .iter()
             .find(|band| position <= u32::from(band.positions.1))
             .or(ITEM_ROLL_WEIGHTS.last())
             .expect("the roll table has a band");
-        if roll < u32::from(band.hazard) {
+        let hazard = u32::from(band.hazard);
+        let boost = hazard + u32::from(band.boost);
+        let homing = boost + u32::from(band.homing);
+        if roll < hazard {
             Self::Hazard
-        } else if roll < u32::from(band.hazard) + u32::from(band.boost) {
+        } else if roll < boost {
             Self::Boost
-        } else {
+        } else if roll < homing {
             Self::Homing
+        } else {
+            Self::Star
         }
     }
 }
@@ -414,8 +428,9 @@ pub enum RaceEvent {
     /// gone for the tuned time, and carries one more.
     CoinPicked { kart: usize, coin: usize },
     /// The kart hit a hazard `by` fired, or was hit by a projectile `by`
-    /// fired, or, with `by` `None`, was reached by the runaway wheel, and
-    /// is spun out: stopped, with its inputs ignored, for the tuned time.
+    /// fired or touched by `by` on a star's run, or, with `by` `None`, was
+    /// reached by the runaway wheel, and is spun out: stopped, with its
+    /// inputs ignored, for the tuned time.
     SpunOut { kart: usize, by: Option<usize> },
     /// The spin-out just reported cost the kart `count` coins, the tuned
     /// number or all it carried; they vanish. Not reported for a kart that
@@ -630,6 +645,11 @@ struct Kart {
     /// The last runaway wheel pass that hit the kart, from 1; 0 before any
     /// has. A pass hits a kart once, however long it stands in its path.
     wheel_pass_hit: u32,
+    /// Seconds of a star's run left; zero or less off a run. Its own timer
+    /// and not a boost, so a mini-turbo or a pad during the run does not
+    /// end it and the brake still works; outside what a respawn clears, so
+    /// a respawn does not stop it.
+    star_left_s: f32,
 }
 
 impl Kart {
@@ -639,6 +659,11 @@ impl Kart {
 
     fn spun_out(&self) -> bool {
         self.spin_out_left_s > 0.0
+    }
+
+    /// On a star's run: faster, immune, and spinning out every kart it touches.
+    fn starring(&self) -> bool {
+        self.star_left_s > 0.0
     }
 
     /// Dead to every control: stalled at Go or spun out by an item.
@@ -677,6 +702,7 @@ impl Kart {
             airborne: self.handling.airborne(),
             boost_s: self.handling.boost_s(),
             boost_tier: self.handling.boost_tier(),
+            star_s: self.starring().then_some(self.star_left_s),
             start: self.start,
             stall_s: (self.stall_left_s > 0.0).then_some(self.stall_left_s),
             race_position: standing.position,
@@ -712,6 +738,7 @@ impl Kart {
             self.wheel_pass_hit = 0;
         }
         self.spin_out_left_s = readout.spin_out_s.unwrap_or(0.0);
+        self.star_left_s = readout.star_s.unwrap_or(0.0);
         if let Phase::Racing { elapsed_s, .. } = clock {
             if self.start != readout.start {
                 self.start = readout.start;
@@ -734,7 +761,30 @@ impl Kart {
 /// surface's code; no surface code reaches this.
 const KART_COLLIDER: u128 = u128::MAX;
 
-/// The box a kart collides with. Its length runs along -Z, its facing.
+/// The collision groups a kart's collider is in: an ordinary kart, or one
+/// on a star's run. The track's colliders are in every group. Two karts
+/// collide only when each is in the other's filter, so a star kart meets
+/// the track and other star karts but passes through ordinary karts, which
+/// in turn pass through it: no contact pair, so no bump (ADR 0021) for the
+/// prediction and the server to disagree over.
+const KART_GROUP: Group = Group::GROUP_1;
+const STAR_GROUP: Group = Group::GROUP_2;
+
+/// The groups a kart's collider is in while it is or is not `starring`.
+fn kart_groups(starring: bool) -> InteractionGroups {
+    if starring {
+        InteractionGroups::new(
+            STAR_GROUP,
+            Group::ALL.difference(KART_GROUP),
+            InteractionTestMode::And,
+        )
+    } else {
+        InteractionGroups::new(KART_GROUP, Group::ALL, InteractionTestMode::And)
+    }
+}
+
+/// The box a kart collides with, as an ordinary kart. Its length runs
+/// along -Z, its facing.
 fn kart_collider() -> Collider {
     ColliderBuilder::round_cuboid(
         KART_HALF_WIDTH_M - KART_EDGE_RADIUS_M,
@@ -744,6 +794,7 @@ fn kart_collider() -> Collider {
     )
     .friction(0.0)
     .restitution(0.0)
+    .collision_groups(kart_groups(false))
     .user_data(KART_COLLIDER)
     .build()
 }
@@ -781,7 +832,8 @@ use tuning::{
 use tuning::{
     HAZARD_DROP_DISTANCE_M, HAZARD_LIFETIME_S, HAZARD_RADIUS_M, ITEM_BOOST_FACTOR, ITEM_BOOST_S,
     ITEM_BOX_HALF_LENGTH_M, ITEM_BOX_HALF_WIDTH_M, ITEM_BOX_RESPAWN_S, ITEM_ROLL_PERCENT,
-    ITEM_ROLL_S, ITEM_ROLL_WEIGHTS, SPIN_OUT_S, WHEEL_RADIUS_M,
+    ITEM_ROLL_S, ITEM_ROLL_WEIGHTS, SPIN_OUT_S, STAR_HIT_RADIUS_M, STAR_KICK_FACTOR, STAR_KICK_S,
+    STAR_S, STAR_TOP_SPEED_FACTOR, WHEEL_RADIUS_M,
 };
 use tuning::{
     HOMING_LOCK_RANGE_M, HOMING_LOOKAHEAD_M, HOMING_RADIUS_M, HOMING_SPEED_FACTOR,
@@ -899,6 +951,7 @@ impl State {
                     item_was_held: false,
                     spin_out_left_s: 0.0,
                     wheel_pass_hit: 0,
+                    star_left_s: 0.0,
                 }
             })
             .collect();
@@ -1042,7 +1095,8 @@ impl State {
     }
 
     /// End the race: the standings as they are become the results, and a
-    /// bot drives every kart through the outro.
+    /// bot drives every kart through the outro, with no items, so a star's
+    /// run ends here as it does at the kart's own finish.
     fn end_race(&mut self) {
         let positions = self
             .standings()
@@ -1052,6 +1106,7 @@ impl State {
         self.final_positions = Some(positions);
         for kart in &mut self.karts {
             kart.bot.get_or_insert_with(bot::Memory::default);
+            kart.star_left_s = 0.0;
         }
     }
 
@@ -1176,6 +1231,7 @@ impl State {
             hasher.write_u8(u8::from(kart.item_was_held));
             hasher.write_f32(kart.spin_out_left_s);
             hasher.write_u32(kart.wheel_pass_hit);
+            hasher.write_f32(kart.star_left_s);
             if let Some(memory) = &kart.bot {
                 hasher.write_f32s(memory.timers());
             }
@@ -1397,6 +1453,13 @@ pub fn step(mut state: State, inputs: &[KartInput], dt: f32) -> State {
                         });
                     }
                 }
+                // The run's timer goes back to the start, never adding to
+                // what was left; the kick fires again.
+                Item::Star => {
+                    kart.star_left_s = STAR_S;
+                    kart.handling
+                        .boost(STAR_KICK_S, STAR_KICK_FACTOR, MiniTurbo::Red);
+                }
             }
             state.events.push(RaceEvent::ItemFired { kart: slot, item });
         }
@@ -1404,9 +1467,14 @@ pub fn step(mut state: State, inputs: &[KartInput], dt: f32) -> State {
     // Rolls run down after the fires, so a press on the tick a roll lands
     // fires nothing, and before the pickups, so a roll started this tick
     // has the whole tuned time to run. Nothing stops a roll early: it runs
-    // through a spin-out, a respawn and the finish.
+    // through a spin-out, a respawn and the finish. A star's run runs down
+    // the same way, from the tick of its fire, through all three but the
+    // finish.
     for kart in &mut state.karts {
         kart.item_slot = kart.item_slot.after(dt);
+        if kart.starring() {
+            kart.star_left_s -= dt;
+        }
     }
     // Picked-up boxes come back on their clocks; a kart standing on one
     // picks it up the tick it is back. A kart takes every box its centre is
@@ -1477,9 +1545,17 @@ pub fn step(mut state: State, inputs: &[KartInput], dt: f32) -> State {
                 boost_pad: state.track.on_a_boost_pad(position),
                 kerb: state.track.on_a_kerb(position),
                 coin_factor: state.karts[slot].coin_factor(),
+                // A star's run raises the cap on top of the coins and the
+                // rubber band, so the brake still works under it.
                 top_speed: TOP_SPEED_M_PER_S
                     * state.rubber_band(slot)
-                    * state.karts[slot].coin_factor(),
+                    * state.karts[slot].coin_factor()
+                    * if state.karts[slot].starring() {
+                        STAR_TOP_SPEED_FACTOR
+                    } else {
+                        1.0
+                    },
+                starring: state.karts[slot].starring(),
             }
         })
         .collect();
@@ -1508,6 +1584,10 @@ pub fn step(mut state: State, inputs: &[KartInput], dt: f32) -> State {
             Freeze::Free
         };
         *hold = freeze == Freeze::Free && input.hold_item;
+        // For the run the kart's collider ignores other karts, in both
+        // directions; a run that ends with karts overlapping resolves as an
+        // ordinary bump from here.
+        state.physics.colliders[kart.collider].set_collision_groups(kart_groups(kart.starring()));
         let body = &mut state.physics.bodies[kart.body];
         body.lock_translations(kart.spun_out(), true);
         let sent = kart.handling.tick(input, freeze, situation, dt);
@@ -1611,10 +1691,41 @@ pub fn step(mut state: State, inputs: &[KartInput], dt: f32) -> State {
                     finished_this_tick.push((index, finish_time_s));
                     starts_the_cap |= contends;
                     // Over the line, the kart is the bot's: nothing it does
-                    // can change the result for the karts still racing.
+                    // can change the result for the karts still racing. A
+                    // star's run ends there too.
                     kart.bot.get_or_insert_with(bot::Memory::default);
+                    kart.star_left_s = 0.0;
                 }
             }
+        }
+    }
+    // A star kart spins out every kart whose box its centre reaches, bar
+    // one already spun out and another star kart, which it bumps as usual,
+    // and passes through at full speed. The spin-out ends a hold on a
+    // hazard, which is left where it is: the hazard shields nobody from a
+    // star.
+    for star in 0..state.karts.len() {
+        if !state.karts[star].starring() {
+            continue;
+        }
+        let centre = state.physics.bodies[state.karts[star].body]
+            .translation()
+            .to_array();
+        for (slot, (kart, hold)) in state.karts.iter_mut().zip(&mut holds).enumerate() {
+            if slot == star || kart.starring() || kart.spun_out() {
+                continue;
+            }
+            let body = &mut state.physics.bodies[kart.body];
+            if !reaches(
+                body.translation(),
+                body.rotation(),
+                centre,
+                STAR_HIT_RADIUS_M,
+            ) {
+                continue;
+            }
+            spin_out(kart, body, slot, Some(star), &mut state.events);
+            *hold = false;
         }
     }
     // A held hazard trails its owner to where the owner ended the tick;
@@ -1633,7 +1744,10 @@ pub fn step(mut state: State, inputs: &[KartInput], dt: f32) -> State {
     }
     // A dropped hazard ages away; one still lying there spins out the first
     // kart to reach it, its owner included once the owner has got clear of
-    // it, and is used up. A kart already spun out hits nothing more.
+    // it, and is used up. A kart already spun out hits nothing more. A star
+    // kart uses a dropped hazard up and drives on; a held one it passes,
+    // whoever trails it, since a hazard shields nobody from a star and the
+    // hit drops it where it is.
     let mut hazards = std::mem::take(&mut state.hazards);
     hazards.retain_mut(|placed| {
         if !placed.hazard.held {
@@ -1657,6 +1771,12 @@ pub fn step(mut state: State, inputs: &[KartInput], dt: f32) -> State {
             if !reached || kart.spun_out() {
                 continue;
             }
+            if kart.starring() {
+                if placed.hazard.held {
+                    continue;
+                }
+                return false;
+            }
             spin_out(
                 kart,
                 body,
@@ -1670,7 +1790,8 @@ pub fn step(mut state: State, inputs: &[KartInput], dt: f32) -> State {
     });
     state.hazards = hazards;
     // A rolling wheel spins out every kart it reaches, once a pass: a kart
-    // already spun out, or hit by this pass, is passed by.
+    // already spun out, or hit by this pass, is passed by, and a star kart
+    // passes through it, the wheel rolling on.
     if let Some(elapsed_s) = elapsed_s {
         for crossing in 0..state.track.wheel_crossings().len() {
             let Wheel::Rolling { pass, position, .. } =
@@ -1686,7 +1807,7 @@ pub fn step(mut state: State, inputs: &[KartInput], dt: f32) -> State {
                     position,
                     WHEEL_RADIUS_M,
                 );
-                if !reached || kart.spun_out() || kart.wheel_pass_hit == pass {
+                if !reached || kart.spun_out() || kart.starring() || kart.wheel_pass_hit == pass {
                     continue;
                 }
                 spin_out(kart, body, slot, None, &mut state.events);
@@ -1696,7 +1817,9 @@ pub fn step(mut state: State, inputs: &[KartInput], dt: f32) -> State {
     }
     // A projectile flies after its target and is used up on reaching the
     // kart: on a hazard the kart trails, which goes with it, else on the
-    // kart itself, which spins out unless it already is.
+    // kart itself, which spins out unless it already is. On a star kart it
+    // is used up to no effect, the trailed hazard kept, and looks for no
+    // new target.
     let mut projectiles = std::mem::take(&mut state.projectiles);
     projectiles.retain_mut(|flying| {
         let target = &mut state.karts[flying.projectile.target];
@@ -1710,6 +1833,9 @@ pub fn step(mut state: State, inputs: &[KartInput], dt: f32) -> State {
             HOMING_RADIUS_M,
         ) {
             return true;
+        }
+        if target.starring() {
+            return false;
         }
         let shield = state
             .hazards
@@ -2135,7 +2261,7 @@ fn fly(flying: &mut FlyingProjectile, track: &Track, target: Vec3, dt: f32) {
 }
 
 /// Stop the kart in `slot` where it is and start its spin-out, `by` the
-/// kart whose item hit it or the runaway wheel: a drift or a boost ends, a
+/// kart whose item or star hit it or the runaway wheel: a drift or a boost ends, a
 /// hop lands without a drift, and no control reaches it and no kart pushes
 /// it until the spin-out runs out. Every spin-out costs the tuned coins, or
 /// all the kart carries; both are reported to `events`.

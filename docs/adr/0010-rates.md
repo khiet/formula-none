@@ -55,3 +55,7 @@ Landed with issue 17 (2026-10-19).
   with one kart bumped, is 570 bytes; the budget holds while few karts
   carry one, and a pile-up of all eight would pass the size test's cap
   for the ticks their bumps last.
+- Issue 263 (2026-11-02) added each kart's star run to every snapshot, the
+  seconds left while it has one, so every client shines the kart in the
+  same phase. The busy sample, with one kart on a run, is 629 bytes; the
+  test now holds the sample to a quarter either side of 600.

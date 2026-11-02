@@ -740,6 +740,7 @@ fn a_predicted_hit_the_snapshots_overrule_leaves_the_pass_free_to_hit_where_the_
             right + (leg.to[0] - leg.from[0]) * further,
         ),
         spin_out_s: None,
+        star_s: None,
         ..prediction.kart_readout()
     };
     prediction.reconcile(tick, tick, &snapshot);
