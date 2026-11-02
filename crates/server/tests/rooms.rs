@@ -7,7 +7,7 @@ use std::time::Duration;
 use protocol::{ClientMessage, PlayerState, Refusal, RoomState, ServerMessage, PROTOCOL_VERSION};
 use server::fake_transport::{Client, Conditions, Harness};
 use sim::tuning::{
-    NICKNAME_MAX_CHARS, ROOM_CLOSE_AFTER_EMPTY_S, ROOM_CODE_ALPHABET, ROOM_CODE_LENGTH,
+    NICKNAME_MAX_CHARS, ROOMS_MAX, ROOM_CLOSE_AFTER_EMPTY_S, ROOM_CODE_ALPHABET, ROOM_CODE_LENGTH,
     ROOM_PLAYERS_MAX,
 };
 
@@ -329,7 +329,7 @@ async fn codes_come_from_the_unambiguous_alphabet_and_never_repeat_while_open() 
         .all(|letter| letter.is_ascii_uppercase()));
 
     let harness = Harness::new(Conditions::PERFECT);
-    let mut codes: Vec<String> = (0..200).map(|_| harness.create_room()).collect();
+    let mut codes: Vec<String> = (0..ROOMS_MAX).map(|_| harness.create_room()).collect();
     for code in &codes {
         assert_eq!(code.len(), ROOM_CODE_LENGTH);
         assert!(
@@ -343,7 +343,7 @@ async fn codes_come_from_the_unambiguous_alphabet_and_never_repeat_while_open() 
     open.sort();
     assert_eq!(open, codes);
     codes.dedup();
-    assert_eq!(codes.len(), 200);
+    assert_eq!(codes.len(), ROOMS_MAX);
 }
 
 #[tokio::test(start_paused = true)]
