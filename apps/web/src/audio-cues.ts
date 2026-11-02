@@ -233,8 +233,7 @@ export const SOUND_AWAY_LOWPASS_HZ = 1200;
 
 /**
  * The level, 0 to 1, a sound from a kart `metres` away plays at: full
- * within the near distance, a straight line to silent at the far one. The
- * star's music uses it, and the horn will.
+ * within the near distance, a straight line to silent at the far one.
  */
 export function distanceLevel(metres: number): number {
   if (metres <= SOUND_NEAR_M) return 1;

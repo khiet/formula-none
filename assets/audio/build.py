@@ -385,8 +385,8 @@ def wrong_way(freq=330, chop_hz=30, length=0.45, gain=0.3):
 # key and tempo, D minor at 160 bpm, where four bars are exactly the run,
 # over its verse's chords; a rising run for the fire and three falling
 # blips for the end. Original; none of it borrows from Nintendo's theme.
-# `STAR_S` in crates/sim/src/tuning.rs is the run; a retune there rebuilds
-# the music to the new length.
+# STAR_RUN_S copies `STAR_S` in crates/sim/src/tuning.rs; a retune there
+# moves it here and the music is rebuilt to the new length.
 # ---------------------------------------------------------------------------
 
 STAR_BEAT = 0.375

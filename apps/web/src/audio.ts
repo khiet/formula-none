@@ -82,7 +82,7 @@ export const LOOP_URLS: Readonly<Record<SoundLoop, string>> = {
   sand: sandUrl,
 };
 export const MUSIC_URL: string = musicUrl;
-/** The star's six seconds of music, in place of the race music through the own run. */
+/** The star music, as long as a run, in place of the race music through the own run. */
 export const STAR_MUSIC_URL: string = starMusicUrl;
 
 // The slice of Web Audio the game uses, so tests can stand a fake in for

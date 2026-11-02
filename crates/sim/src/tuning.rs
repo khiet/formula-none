@@ -357,8 +357,9 @@ pub const HOMING_WITHOUT_TARGET_IS_WASTED: bool = true;
 // speed and immunity, spinning out every kart it touches, for a fixed time
 // that a second star puts back to the start without adding to it.
 
-/// Seconds a run lasts from the fire; the star music is rendered to the
-/// same length, so a retune here rebuilds it (assets/audio/build.py).
+/// Seconds a run lasts from the fire. assets/audio/build.py renders the
+/// star music to the same length from its own copy, `STAR_RUN_S`, so a
+/// retune here moves it there and rebuilds the music.
 pub const STAR_S: f32 = 6.0;
 /// What a run multiplies the kart's top speed cap by, on top of its coins
 /// and its rubber band. A cap and not a boost, so the brake still works.
