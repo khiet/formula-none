@@ -88,11 +88,11 @@ async fn create_room(
     Ok((StatusCode::CREATED, Json(CreatedRoom { code })))
 }
 
-/// The address Caddy saw this request come from. Caddy trusts no proxy, so it
-/// replaces any `X-Forwarded-For` a client sends, and the server's HTTP port
-/// is reachable only through it (ADR 0073); the last entry is taken so that
-/// would hold even behind a proxy that appends. A request with no such header
-/// did not come through Caddy: the Vite dev server, or the Compose network.
+/// The address Caddy saw this request come from. Caddy ignores any
+/// `X-Forwarded-For` a client sends, and the server's HTTP port is reachable
+/// only through it (ADR 0073). A proxy appends to the header, so only the last
+/// entry is its own. A request with no such header did not come through Caddy:
+/// the Vite dev server, or the Compose network.
 fn forwarded_address(headers: &HeaderMap) -> Option<IpAddr> {
     headers
         .get("x-forwarded-for")?
