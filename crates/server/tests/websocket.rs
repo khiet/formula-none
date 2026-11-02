@@ -117,7 +117,7 @@ async fn shutdown_closes_an_open_session_and_the_server_returns_promptly() {
 #[tokio::test]
 async fn a_join_over_the_socket_seats_the_player_and_the_session_keeps_answering_pings() {
     let (mut socket, _stop, _serving, rooms) = connected_with_rooms().await;
-    let code = rooms.create();
+    let code = rooms.create().unwrap();
     let join = encode(&ClientMessage::Join {
         version: PROTOCOL_VERSION,
         room: code.clone(),
@@ -178,7 +178,7 @@ async fn the_race_flows_over_the_one_channel_too() {
     // The fallback carries both lanes on the socket (ADR 0011): the
     // countdown and the events as binary messages like the snapshots.
     let (mut socket, _stop, _serving, rooms) = connected_with_rooms().await;
-    let code = rooms.create();
+    let code = rooms.create().unwrap();
     for message in [
         ClientMessage::Join {
             version: PROTOCOL_VERSION,

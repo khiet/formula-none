@@ -275,7 +275,7 @@ async fn the_room_rides_the_reliable_stream_and_the_snapshots_ride_datagrams() {
     // The room's task lives as long as the shutdown handle's sender.
     let (_stop, shutdown) = Shutdown::pair();
     let rooms = server::Rooms::new(shutdown.clone());
-    let code = rooms.create();
+    let code = rooms.create().unwrap();
     let server = WebTransportServer::bind(config(free_port(), &files), rooms)
         .await
         .unwrap();

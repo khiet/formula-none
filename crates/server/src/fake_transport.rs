@@ -128,7 +128,9 @@ impl Harness {
 
     /// What `POST /api/rooms` does: a new room's code.
     pub fn create_room(&self) -> String {
-        self.rooms.create()
+        self.rooms
+            .create()
+            .expect("the harness stays under the cap")
     }
 
     /// A client connected to the server through the fake network, not yet

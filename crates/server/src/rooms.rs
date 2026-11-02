@@ -15,6 +15,7 @@
 //! rejoins, then free.
 
 use std::collections::{HashMap, VecDeque};
+use std::net::{IpAddr, Ipv6Addr};
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex, Weak};
 use std::time::Duration;
@@ -24,8 +25,9 @@ use rand::distr::slice::Choose;
 use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
 use sim::tuning::{
-    CONNECTION_PROBE_INTERVAL_S, CONNECTION_PROBE_WINDOW, RESTORED_SEAT_GRACE_S,
-    ROOM_CLOSE_AFTER_EMPTY_S, ROOM_CODE_ALPHABET, ROOM_CODE_LENGTH,
+    CONNECTION_PROBE_INTERVAL_S, CONNECTION_PROBE_WINDOW, RESTORED_SEAT_GRACE_S, ROOMS_MAX,
+    ROOM_CLOSE_AFTER_EMPTY_S, ROOM_CODE_ALPHABET, ROOM_CODE_LENGTH, ROOM_CREATES_PER_ADDRESS_MAX,
+    ROOM_CREATE_WINDOW_S,
 };
 use tokio::sync::{mpsc, oneshot, watch};
 use tokio::time::{Instant, Interval, MissedTickBehavior};
@@ -74,9 +76,36 @@ impl RaceSeeds {
     }
 }
 
+/// Why a create opened no room (ADR 0073).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum CreateRefused {
+    /// The server hosts `ROOMS_MAX` rooms already.
+    Full,
+    /// This address has used its creates for the window.
+    TooManyFromAddress,
+}
+
+/// Who a create counts against: an IPv4 address, or an IPv6 /64, since one
+/// subscriber commonly holds a whole /64 and could otherwise walk through it.
+#[derive(Clone, Copy, PartialEq, Eq)]
+struct Creator(IpAddr);
+
+impl Creator {
+    fn of(address: IpAddr) -> Self {
+        Self(match address.to_canonical() {
+            IpAddr::V6(v6) => IpAddr::V6(Ipv6Addr::from_bits(v6.to_bits() & (!0u128 << 64))),
+            v4 => v4,
+        })
+    }
+}
+
 #[derive(Default)]
 struct Registry {
     rooms: HashMap<String, RoomHandle>,
+    /// The creates still inside the window, oldest first. Only rooms actually
+    /// opened are here, so its length is bounded by the rooms a window can
+    /// open and scanning it is cheap.
+    creates: VecDeque<(Creator, Instant)>,
 }
 
 struct RoomHandle {
@@ -288,18 +317,55 @@ impl Rooms {
         }
     }
 
-    /// Open a room on the registry's own track, as [`Self::create_on`] does.
-    pub fn create(&self) -> String {
-        self.create_on(self.track)
+    /// Open a room on the registry's own track for no particular address,
+    /// as [`Self::create_on`] does.
+    pub fn create(&self) -> Result<String, CreateRefused> {
+        self.create_on(None, None)
     }
 
-    /// Open a room racing `track`, one of [`crate::tracks`], under a fresh
-    /// code and hand the code back; the HTTP create endpoint is this. The
-    /// room starts empty, so its closing clock is already running: a code
-    /// nobody joins expires like one everybody left. Must run inside a
-    /// tokio runtime, which spawns the room's task.
-    pub fn create_on(&self, track: &'static str) -> String {
+    /// Open a room racing `track`, one of [`crate::tracks`], or the
+    /// registry's own track when `None`, under a fresh code and hand the code
+    /// back; the HTTP create endpoint is this. The room starts empty, so its
+    /// closing clock is already running: a code nobody joins expires like one
+    /// everybody left. Must run inside a tokio runtime, which spawns the
+    /// room's task.
+    ///
+    /// `address` is who is asking, counted against the per-address limit;
+    /// `None` is a caller inside the server's network, which only the cap
+    /// applies to (ADR 0073). Rooms a restart brought back count toward the
+    /// cap, though nothing refuses them.
+    pub fn create_on(
+        &self,
+        track: Option<&'static str>,
+        address: Option<IpAddr>,
+    ) -> Result<String, CreateRefused> {
+        let track = track.unwrap_or(self.track);
         let mut registry = self.registry.lock().expect("registry lock");
+        let now = Instant::now();
+        let window = Duration::from_secs_f32(ROOM_CREATE_WINDOW_S);
+        while let Some((_, at)) = registry.creates.front() {
+            if now.duration_since(*at) < window {
+                break;
+            }
+            registry.creates.pop_front();
+        }
+        let creator = address.map(Creator::of);
+        if let Some(creator) = creator {
+            let recent = registry
+                .creates
+                .iter()
+                .filter(|(earlier, _)| *earlier == creator)
+                .count();
+            if recent >= ROOM_CREATES_PER_ADDRESS_MAX {
+                return Err(CreateRefused::TooManyFromAddress);
+            }
+        }
+        if registry.rooms.len() >= ROOMS_MAX {
+            return Err(CreateRefused::Full);
+        }
+        if let Some(creator) = creator {
+            registry.creates.push_back((creator, now));
+        }
         let code = loop {
             let code = fresh_code(&mut rand::rng());
             if !registry.rooms.contains_key(&code) {
@@ -313,7 +379,7 @@ impl Rooms {
             .with("track", track)
             .emit();
         self.spawn(&mut registry, room, false);
-        code
+        Ok(code)
     }
 
     /// Put `room` in `registry` and start its task; `restored` when a
