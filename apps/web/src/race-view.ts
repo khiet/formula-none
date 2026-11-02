@@ -90,7 +90,7 @@ const PROJECTILE_HEIGHT_M = 0.6;
  * is thrown where a kart spins out within this much of a star kart.
  */
 const STAR_HALO_RADIUS_M = 1.6;
-const STAR_HALO_OPACITY = 0.35;
+const STAR_HALO_OPACITY = 0.1;
 const STAR_SPARKLE_CAPACITY_PER_KART = 48;
 const STAR_SPARKLE_DRAG_PER_S = 1.5;
 const STAR_SPARKLE_COOL_SHARE = 0.5;
