@@ -15,8 +15,12 @@ first deploy found four such problems, all in the `Dockerfile` or
 ## Decision
 
 - An `image` job in the CI workflow builds the root `Dockerfile` on every pull
-  request, with the deploy job's build inputs and `push: false`, sharing its
-  `type=gha` cache. Repo-checks holds the two builds to the same inputs.
+  request, with the deploy job's build inputs and `push: false`. Repo-checks
+  holds the two builds to the same inputs.
+- The job reads the deploy job's `type=gha` cache and never writes it. The deploy
+  cannot read a pull request's entries, they can evict main's from the 10 GB
+  limit, a failed write would fail the check, and the export took 150 s of the
+  deploy's 411 s image step.
 - The job has no AWS role, no secrets and a read-only token, so a fork's pull
   request runs it the same way.
 - It does not run on main, where the deploy job builds the same image, and the
@@ -30,9 +34,10 @@ first deploy found four such problems, all in the `Dockerfile` or
 ## Consequences
 
 - Every pull request pays for one more build; the image step took about 7
-  minutes in the deploy that first succeeded.
+  minutes in the deploy that first succeeded. A second push to a pull request
+  starts again from main's cache, not from its first build.
 - `pnpm check` can pass on a change that breaks the image, so this job is the
   first to show it unless the build is run by hand with the command in
   `deploy/README.md`.
-- Whether a failure blocks the merge is a branch protection setting on main, not
-  something this workflow decides.
+- The job is a required check on main, a branch protection setting rather than
+  anything in this workflow, so a broken image cannot merge.

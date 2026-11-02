@@ -90,12 +90,22 @@ describe("image job", () => {
     const {
       push: deployPush,
       tags: _registryTag,
+      "cache-to": deployCacheTo,
       ...deployBuild
     } = deploy?.steps.find(isImageBuild)?.with ?? {};
     const { push, ...build } = image?.steps.find(isImageBuild)?.with ?? {};
     expect(deployPush).toBe(true);
     expect(push).toBe(false);
     expect(build).toEqual(deployBuild);
+    expect(deployCacheTo).toBeDefined();
+  });
+
+  // The deploy cannot read a pull request's entries, and they can evict main's
+  // (ADR 0074).
+  it("reads the deploy job's cache and leaves writing it to the deploy", () => {
+    const build = image?.steps.find(isImageBuild)?.with;
+    expect(build?.["cache-from"]).toBe("type=gha");
+    expect(build?.["cache-to"]).toBeUndefined();
   });
 
   // A fork's pull request gets no AWS role and no secrets, so the job must
