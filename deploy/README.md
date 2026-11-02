@@ -112,13 +112,19 @@ room showing Results.
 
 To measure the restart on the instance, from a Session Manager shell
 (`infra/README.md`), time the restart and the first healthy answer after
-it:
+it. On the instance Compose refuses to load the file without `SERVER_IMAGE`,
+which only the deploy document sets, so take it from the running container.
+These commands were last run through Run Command, as root and with no
+terminal, hence `-T`. A Session Manager shell starts as `ssm-user`, outside the
+docker group, where the wait below would loop silently, so become root first:
 
 ```sh
+sudo -i
 cd /opt/formula-none
+export SERVER_IMAGE=$(docker inspect formula-none-server-1 --format '{{.Config.Image}}')
 start=$(date +%s.%N)
 docker compose -f release/compose.yaml restart server
-until docker compose -f release/compose.yaml exec caddy \
+until docker compose -f release/compose.yaml exec -T caddy \
     wget -qO- http://server:8080/api/health >/dev/null 2>&1; do sleep 0.2; done
 echo "restarted in $(echo "$(date +%s.%N) - $start" | bc) s"
 ```
