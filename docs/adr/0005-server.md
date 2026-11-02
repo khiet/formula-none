@@ -46,3 +46,11 @@ Landed with issue 17 (2026-10-19).
 Restart survival landed with issue 28 (2026-10-30), by ADR 0053: an Open
 room is kept as a file on a volume and brought back by the next server,
 and the client in the Room Scene rejoins it with its session token.
+
+Measured on the instance with issue 194 (2026-11-02), at commit abac71b: a
+`docker compose restart server` to the first healthy answer took 0.84 s,
+against the 10 s the Consequences ask for. A room open in a browser showed
+"Connection lost: reconnecting" for 1.2 s and came back in the Room Scene with
+its seat still Ready. The figure is for a restart of the running image; a
+deploy also pulls the image and recreates every container, which was not
+measured.
