@@ -112,11 +112,14 @@ room showing Results.
 
 To measure the restart on the instance, from a Session Manager shell
 (`infra/README.md`), time the restart and the first healthy answer after
-it. Compose refuses to load the file without `SERVER_IMAGE`, which only the
-deploy document sets, so take it from the running container. `-T` lets the
-same commands run through Run Command, which has no terminal:
+it. On the instance Compose refuses to load the file without `SERVER_IMAGE`,
+which only the deploy document sets, so take it from the running container.
+These commands were last run through Run Command, as root and with no
+terminal, hence `-T`. A Session Manager shell starts as `ssm-user`, outside the
+docker group, where the wait below would loop silently, so become root first:
 
 ```sh
+sudo -i
 cd /opt/formula-none
 export SERVER_IMAGE=$(docker inspect formula-none-server-1 --format '{{.Config.Image}}')
 start=$(date +%s.%N)
