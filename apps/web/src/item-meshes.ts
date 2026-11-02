@@ -707,7 +707,7 @@ export interface Marshal {
 const DOWN = new Vector3(0, -1, 0);
 
 /**
- * The marshal, flat-shaded from primitives in Purrjump's colours for him:
+ * The marshal, flat-shaded from primitives:
  * bald with a shine, grey side hair, heavy brows and a wide mustache on a
  * faceted head, a round belly in a hi-vis jacket with a reflective band
  * over a white vest, a towel round his neck, shorts and sandals, a hazard

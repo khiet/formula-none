@@ -55,10 +55,6 @@ describe("asset licences", () => {
       /^\| `docs\/\*\*\/\*\.png`.*`apps\/web\/public\/\*`.*\| CC0 1\.0 \|$/m,
     );
   });
-
-  it("say Purrjump was private when the marshal was adapted from it", () => {
-    expect(licences).toMatch(/Purrjump \(private at the time of writing\)/);
-  });
 });
 
 // ADR 0069: the music loop runs a minute or more, since the 8 s loop

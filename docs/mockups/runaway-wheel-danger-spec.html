@@ -91,7 +91,7 @@
 
 <header>
   <h1>Runaway wheel <span>danger</span> spec</h1>
-  <p class="lede">The runaway wheel and its marshal post read as scenery: a grey wheel on grey asphalt (1.2:1) and a yellow flag over a yellow run-off (1.1:1). This spec records the redesign chosen to make them read as danger: a burning wheel almost three times the size, Oyaji from Purrjump as the marshal, and four tells that show the pass coming. The wheel no longer vanishes into the far wall: it bounces off the walls twice, landing somewhere new each time, so the approach is dangerous for the whole pass, and the cycle stretches to 10 s to leave a way through.</p>
+  <p class="lede">The runaway wheel and its marshal post read as scenery: a grey wheel on grey asphalt (1.2:1) and a yellow flag over a yellow run-off (1.1:1). This spec records the redesign chosen to make them read as danger: a burning wheel almost three times the size, Oyaji as the marshal, and four tells that show the pass coming. The wheel no longer vanishes into the far wall: it bounces off the walls twice, landing somewhere new each time, so the approach is dangerous for the whole pass, and the cycle stretches to 10 s to leave a way through.</p>
   <nav>
     <a href="#decisions">Decisions</a>
     <a href="#preview">Chase view</a>
@@ -114,7 +114,7 @@
       <tr><td>Wheel size</td><td><b>1.2 m</b> radius, 2.4 m across: <code>WHEEL_RADIUS_M</code> 0.45 → 1.2, so the wheel drawn is still the wheel that hits</td><td class="was">0.45 m radius, 0.9 m across</td></tr>
       <tr><td>Wheel path</td><td>Rolls in at the crossing, <b>bounces twice</b> off the walls, each crossing landing at a random point within ±8 m along the track, then leaves through the far wall. Random from a hash of the race seed and the pass, so still a function of the race clock.</td><td class="was">Straight across, wall to wall, swallowed by the far wall</td></tr>
       <tr><td>Cycle</td><td><code>WHEEL_PERIOD_S</code> 7 → <b>10 s</b>: 1 s flag, a 4.5 to 5.3 s pass at a constant 15 m/s, 3.7 s or more of quiet</td><td class="was">7 s: 1 s flag, 1.6 s pass, 4.4 s quiet</td></tr>
-      <tr><td>Marshal</td><td>Oyaji from Purrjump on the tea break: sits with a cup while quiet, jumps up in a panic when the flag goes up, hops through the pass</td><td class="was">No figure; a flag stood on the box</td></tr>
+      <tr><td>Marshal</td><td>Oyaji on the tea break: sits with a cup while quiet, jumps up in a panic when the flag goes up, hops through the pass</td><td class="was">No figure; a flag stood on the box</td></tr>
       <tr><td>Flags</td><td>Two hazard-striped flags, yellow with black diagonals, double-waved</td><td class="was">One plain yellow flag</td></tr>
       <tr><td>Post</td><td>A 1.4 x 1 m platform with an orange band and lamp, and an amber beacon that flashes while the flag is up</td><td class="was">A 1 x 2 m box with an orange lamp</td></tr>
       <tr><td>Telegraph</td><td>Painted hazard zone over the whole bounce area, zone flashes red, wheel waits on the wall, dust at each hop and sparks at each wall hit</td><td class="was">The flag alone</td></tr>
@@ -203,7 +203,7 @@
     </div>
     <div>
       <div class="sprites" id="sprites"></div>
-      <p class="muted" style="margin-top:.5rem">Oyaji as Purrjump draws him: bald with a shine, grey side hair, heavy brows, a wide grey mustache, a round belly. His calm idle face shows while the wheel is quiet; his wide-eyed fall face shows from the flag going up.</p>
+      <p class="muted" style="margin-top:.5rem">Oyaji's sprite: bald with a shine, grey side hair, heavy brows, a wide grey mustache, a round belly. His calm idle face shows while the wheel is quiet; his wide-eyed fall face shows from the flag going up.</p>
     </div>
   </div>
 
@@ -213,7 +213,7 @@
       <tr><th>Built</th><td>In code from flat-shaded primitives, like the flag today and the item characters, because he moves. Chibi proportions, about 1.75 m standing: a faceted head 0.68 m across on a round belly.</td></tr>
       <tr><th>Skin</th><td><span class="swatch" style="background:#f0c090"></span><code>#f0c090</code>, shaded <code>#d8a070</code>, shine <code>#f8dcb0</code></td></tr>
       <tr><th>Hair, brows, mustache</th><td><span class="swatch" style="background:#50505c"></span><code>#50505c</code>, <span class="swatch" style="background:#2a2a30"></span><code>#2a2a30</code>, <span class="swatch" style="background:#6a6a78"></span><code>#6a6a78</code></td></tr>
-      <tr><th>Clothes</th><td>Orange hi-vis jacket <span class="swatch" style="background:#ff8800"></span><code>#ff8800</code> (shaded <code>#c45f00</code>) with reflective bands <code>#d8dce0</code>, over Purrjump's white vest <code>#f4f4f4</code>; a white towel round his neck; blue shorts <span class="swatch" style="background:#3060a8"></span><code>#3060a8</code>; sandals <code>#b87050</code></td></tr>
+      <tr><th>Clothes</th><td>Orange hi-vis jacket <span class="swatch" style="background:#ff8800"></span><code>#ff8800</code> (shaded <code>#c45f00</code>) with reflective bands <code>#d8dce0</code>, over a white vest <code>#f4f4f4</code>; a white towel round his neck; blue shorts <span class="swatch" style="background:#3060a8"></span><code>#3060a8</code>; sandals <code>#b87050</code></td></tr>
       <tr><th>Props</th><td>A green folding stool, a white cup with rising steam</td></tr>
     </tbody>
   </table></div>
@@ -272,7 +272,7 @@
       <tr><td><code>assets/tracks/trackgen/layout.py</code></td><td>The platform's size and band, the painted zone; re-export Brands Patch and commit the glTF and sidecar.</td></tr>
       <tr><td><code>apps/web/src/item-meshes.ts</code>, <code>palette.ts</code>, <code>race-view.ts</code></td><td>The hot wheel's mesh, Oyaji and his flags and beacon, the tells. New palette tokens for the hot tyre, Oyaji's colours and the hazard flag.</td></tr>
       <tr><td><code>docs/style-guide.html</code></td><td>The <i>Runaway wheel</i> and <i>Marshal post</i> entries, a new <i>Oyaji</i> entry and the painted zone; the repo-checks palette list gains the new tokens.</td></tr>
-      <tr><td><code>assets/LICENSES.md</code></td><td>Oyaji's design comes from Purrjump; say so.</td></tr>
+      <tr><td><code>assets/LICENSES.md</code></td><td>Oyaji is the author's own character; say so.</td></tr>
     </tbody>
   </table>
 </div>
@@ -307,7 +307,6 @@ const C = {
   orange: "#ff8800", orangeShade: "#c45f00", reflect: "#d8dce0", smoke: "#8a8d94", dust: "#d9c08a",
   livery: "#c81d25", hair: "#3a2a1e",
 };
-// Oyaji's palette, as Purrjump draws him.
 const OYAJI = {
   outline: "#1e1e28", skin: "#f0c090", skinShade: "#d8a070", shine: "#f8dcb0", sideHair: "#50505c",
   brows: "#2a2a30", nose: "#d89068", mustache: "#6a6a78", vest: "#f4f4f4", vestShade: "#d8d8dc",
@@ -800,7 +799,6 @@ function kartSide(x0, gy, s) {
     <polygon points="${ngon(x0 + 1.5 * s, gy - 0.25 * s, 0.25 * s, 8)}" fill="${C.tyre}"/>`;
 }
 
-// Purrjump's sprite as it is, from its text template.
 const SPRITE_PALETTE = { O: "#1e1e28", S: "#f0c090", L: "#f8dcb0", H: "#50505c", B: "#2a2a30", E: "#1e1e28", N: "#d89068", M: "#6a6a78", T: "#f4f4f4", P: "#3060a8", F: "#b87050" };
 const SPRITES = {
   idle: ["......OOOO......", "....OOSLLSOO....", "...OSSSSSSSSO...", "..OHSSSSSSSSHO..", "..OHSBBSSBBSHO..", "..OSSESSSSESSO..", "..OSSSSNNSSSSO..", "..OSSMMMMMMSSO..", "...OSSSSSSSSO...", "..OOOTTTTTTOOO..", ".OSSTTTTTTTTSSO.", ".OSOTTTTTTTTOSO.", "..OOTTTTTTTTOO..", "...OPPPPPPPPO...", "...OFFO..OFFO...", "................"],
@@ -810,7 +808,7 @@ function renderSprites() {
   const sprite = (rows) => {
     let px = "";
     rows.forEach((row, y) => [...row].forEach((ch, x) => { if (ch !== ".") px += `<rect x="${x}" y="${y}" width="1.02" height="1.02" fill="${SPRITE_PALETTE[ch]}"/>`; }));
-    return `<svg viewBox="-1 -1 18 18" role="img" aria-label="Purrjump's Oyaji sprite">${px}</svg>`;
+    return `<svg viewBox="-1 -1 18 18" role="img" aria-label="Oyaji's sprite">${px}</svg>`;
   };
   document.getElementById("sprites").innerHTML =
     `<figure>${sprite(SPRITES.idle)}<figcaption>Idle</figcaption></figure>

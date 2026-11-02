@@ -88,8 +88,8 @@ export const CORK = {
 } as const;
 
 /**
- * The marshal in the colours Purrjump draws him in, save the shaded tones
- * of his jacket and vest: the sun shades those on the mesh.
+ * The marshal's colours, save the shaded tones of his jacket and vest: the
+ * sun shades those on the mesh.
  */
 export const MARSHAL_SKIN: Tones = { lit: 0xf8dcb0, mid: 0xf0c090, shaded: 0xd8a070 };
 export const MARSHAL_HAIR = 0x50505c;
