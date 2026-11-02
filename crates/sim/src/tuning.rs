@@ -496,7 +496,7 @@ pub const BOT_ITEM_USE_DELAY_S: f32 = 2.0;
 /// Seconds a bot trails a fired hazard behind itself before dropping it;
 /// no longer than it would hold an unused item.
 pub const BOT_HAZARD_HOLD_S: f32 = 1.5;
-/// Seconds a bot keeps a horn with no kart in the blast's reach before it
+/// Seconds a bot keeps a horn with no kart its blast can hit before it
 /// fires it anyway, in place of the first-straight rule and the use delay:
 /// the horn is worth saving for a kart to hit.
 pub const BOT_HORN_HOLD_S: f32 = 10.0;

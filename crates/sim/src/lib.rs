@@ -217,8 +217,8 @@ pub struct Hazard {
 #[derive(Debug, Clone, Copy, PartialEq)]
 struct PlacedHazard {
     hazard: Hazard,
-    /// Its owner's spline progress, as of the drop: kept up while it
-    /// trails. What a horn's blast reads it by; the View never sees it.
+    /// Its owner's spline progress at the drop, kept up while it trails:
+    /// what a horn's blast judges its reach by.
     progress: f32,
     /// Seconds until a dropped hazard is gone; a held one does not age.
     lifetime_left_s: f32,

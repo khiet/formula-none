@@ -201,9 +201,9 @@ pub fn drive(
     // throws the bot into a pass it judged at its own speed; a star is not,
     // since the wheel cannot hurt a star kart. A fired hazard is trailed
     // for the tuned time, then dropped. A horn is worth saving: it is fired
-    // as soon as its blast would spin a kart out, and otherwise once it has
-    // been held for the horn's own, longer, hold. The bot reads karts and
-    // not projectiles, so it fires at no drone chasing it.
+    // as soon as its blast would reach a kart it can hit, and otherwise once
+    // it has been held for the horn's own, longer, hold. The bot reads karts
+    // and not projectiles, so it fires at no projectile chasing it.
     let held = kart.item_slot.held();
     let has_target = held != Some(Item::Homing) || standings[slot].position > 1;
     let boost_meets_a_wheel = held == Some(Item::Boost)

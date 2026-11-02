@@ -258,7 +258,7 @@ export function soundCues(before: SoundReading | undefined, after: SoundReading)
 /**
  * The other karts' blasts `after` carries that `before` did not: each is
  * heard once, the frame it first appears, however long the run reports
- * it, at the level its distance gives and through the away lowpass.
+ * it.
  */
 export function hornBlasts(before: SoundReading | undefined, after: SoundReading): HeardBlast[] {
   const heard = new Set(before?.blasts.map((blast) => blast.id));
@@ -268,7 +268,7 @@ export function hornBlasts(before: SoundReading | undefined, after: SoundReading
 /** The warning's beep repeats this often at the warning's edge, and this often at the kart. */
 const DRONE_BEEP_GAP_FAR_S = 0.35;
 const DRONE_BEEP_GAP_NEAR_S = 0.1;
-/** The beep's pitch rises to this rate over the file as rendered by the time the drone reaches the kart. */
+/** The rate the beep's file plays at by the time the drone reaches the kart; 1 at the warning's edge. */
 const DRONE_BEEP_RATE_NEAR = 1.5;
 
 /** How the drone warning's beep repeats: the gap to the next beep and the rate the file plays at. */
@@ -279,9 +279,9 @@ export interface DroneBeep {
 
 /**
  * The beep the warning calls for with the nearest drone chasing the own
- * kart `metres` away: none beyond the warning's reach; from there a beep
- * every 0.35 s at the file's pitch, closing in a straight line to one
- * every 0.1 s at half again the pitch as the drone reaches the kart.
+ * kart `metres` away: none beyond the warning's reach; from there the gap
+ * closes and the rate rises in a straight line from the edge's values to
+ * the kart's as the drone reaches the kart.
  */
 export function droneBeep(metres: number | null): DroneBeep | null {
   if (metres === null || !droneWarned(metres)) return null;

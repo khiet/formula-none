@@ -130,7 +130,7 @@ fn a_kart_trailing_a_hazard_loses_the_hazard_in_its_place_and_drives_on() {
 
 #[test]
 fn of_two_horns_on_one_tick_the_lower_slot_goes_first_and_a_kart_already_spun_out_is_unaffected() {
-    // Slot 2 stands 6 m from the near kart and 8 m from the firer, in reach
+    // Slot 2 stands 6 m from the near kart and 9 m from the firer, in reach
     // of the one and not the other.
     const THIRD: usize = 2;
     const THIRD_AT: [f32; 3] = [32.0, 0.0, 12.0];

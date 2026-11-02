@@ -322,8 +322,9 @@ pub fn rolled(state: &State, kart: usize, item: Item) -> bool {
 /// A race of `humans` karts and `bots` bots on the track `build` makes for
 /// the seed, stepped on until the items `rolls` names, rolled at Go by the
 /// karts standing on boxes under their slots, have landed: the seeds are
-/// tried in order until one rolls them all. An item a band never rolls
-/// needs a kart standing in another band, or no seed is found.
+/// tried in order until one rolls them all. A roll the slot's band never
+/// makes, such as a star in the front two, is never found: the search does
+/// not return.
 pub fn rolling(
     build: impl Fn() -> Track,
     humans: usize,

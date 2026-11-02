@@ -254,8 +254,8 @@ export function createInstrumentPanel(
   const itemWithRing = document.createElement("span");
   itemWithRing.dataset.itemWithRing = "";
   // The drone warning's marker to the right of the slot, toward the road:
-  // the drone's red eye, named for assistive technology, hidden until a
-  // drone chasing the own kart is within the warning distance.
+  // the drone's red eye, hidden until a drone chasing the own kart is
+  // within the warning distance.
   const droneWarning = document.createElement("span");
   droneWarning.dataset.droneWarning = "";
   droneWarning.setAttribute("role", "img");

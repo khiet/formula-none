@@ -101,9 +101,9 @@ const STAR_SPARKLE_COOL_SHARE = 0.5;
 const STAR_HIT_REACH_M = 4;
 /**
  * The Air Horn's blast (ADR 0076): a flat orange ring that grows from the
- * firing kart to the blast's reach in this long, this wide, this far over
- * the road, and fades out over the rest of the blast's time, so the reach
- * can be learned by eye.
+ * firing kart to the blast's reach in this long, this wide, lifted this
+ * far off the road and this opaque, fading out over the blast's time, so
+ * the reach can be learned by eye.
  */
 const HORN_RING_GROW_S = 0.25;
 const HORN_RING_WIDTH_M = 0.6;

@@ -66,12 +66,11 @@ export const EMPTY_SLOT: ItemSlot = {
 };
 
 /**
- * An Air Horn's blast under way: the fire the server reported, numbered
- * in the order the run heard of them, whose it was, where that kart was
- * drawn at the fire, and how long ago it went off on the run's clock. The
- * View grows its ring from this and the audio sounds it once; the sim's
- * effects of the blast reach the readout through the snapshots as every
- * spin-out does.
+ * An Air Horn's blast under way: a fire the run reported, numbered in the
+ * order the run heard of them, whose it was, where the run had that kart
+ * at the fire, and how long ago it went off on the run's clock. The View
+ * grows its ring from this and the audio sounds it once; what the blast
+ * did to the karts reaches the readout as every spin-out does.
  */
 export interface Blast {
   readonly id: number;
