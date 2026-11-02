@@ -2,7 +2,8 @@
 
 ## Status
 
-Accepted (2026-11-02). Adds a check to the pull request list in ADR 0016.
+Accepted (2026-11-02). Supersedes no ADR: it adds a check to the pull request
+list in ADR 0016.
 
 ## Context
 

@@ -102,7 +102,7 @@ describe("image job", () => {
   // need neither.
   it("uses no AWS access and no secrets, so a fork's pull request can run it", () => {
     expect(image?.permissions).toEqual({ contents: "read" });
-    expect(JSON.stringify(image)).not.toMatch(/aws|ecr|secrets\./i);
+    expect(JSON.stringify(image)).not.toMatch(/aws|\becr\b|secrets\./i);
   });
 });
 

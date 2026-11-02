@@ -93,9 +93,10 @@ the poster kart diff, Biome, typecheck, Vitest, the web build, the Playwright sm
 replay determinism job that reruns the fixtures under `assets/replays`
 natively and in wasm, and the arm64 build of the Docker image (ADR 0074).
 
-`pnpm check` runs the same checks locally in that order, apart from the image
-build (about 6 minutes), and is the suite to run before opening a PR. Its e2e step sets `CI=1`, so it starts
-fresh servers and fails fast if a stale one already holds port 8080 or 5173.
+`pnpm check` (about 6 minutes) runs the same checks locally in that order,
+apart from the image build, and is the suite to run before opening a PR. Its
+e2e step sets `CI=1`, so it starts fresh servers and fails fast if a stale one
+already holds port 8080 or 5173.
 
 ## Working here
 
