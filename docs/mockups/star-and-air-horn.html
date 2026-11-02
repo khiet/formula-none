@@ -36,8 +36,8 @@
     padding-right: max(16px, env(safe-area-inset-right, 0px));
     padding-block: 2rem 4rem;
   }
-  .wrap { max-width: 1040px; margin: 0 auto; display: grid; gap: 3.5rem; }
-  section { display: grid; gap: 1.4rem; min-width: 0; }
+  .wrap { max-width: 1040px; margin: 0 auto; display: grid; grid-template-columns: minmax(0, 1fr); gap: 3.5rem; }
+  section { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1.4rem; min-width: 0; }
   h1 { font: 400 clamp(1.8rem, 5vw, 2.8rem)/1.05 var(--display); margin: 0; text-wrap: balance; }
   h2 { font: 400 1.6rem/1.15 var(--display); margin: 0; text-wrap: balance; }
   h3 { font: 600 1.02rem/1.3 var(--body); margin: 0; }
@@ -60,6 +60,7 @@
   tr:last-child > * { border-bottom: 0; }
   thead th { font: .72rem/1.3 var(--pixel); letter-spacing: .05em; text-transform: uppercase; color: var(--muted); white-space: nowrap; }
   tbody th { font-weight: 600; }
+  tbody th code { white-space: nowrap; }
   .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
   td small { color: var(--muted); font-size: .8em; display: block; }
 
@@ -82,9 +83,10 @@
   .plate { font: .8rem/1 var(--pixel); padding: .3rem .6rem; background: #111; color: #fff; border-bottom: 3px solid var(--plate, #d00a12); }
   @media (max-width: 620px) { .demo { grid-template-columns: minmax(0, 1fr); } }
 
-  .timeline { display: grid; gap: .3rem; min-width: 0; }
+  .timeline { display: grid; grid-template-columns: minmax(0, 1fr); gap: .3rem; min-width: 0; }
+  .bar .run { white-space: normal; text-align: center; }
   .bar { display: flex; height: 34px; border: 1px solid var(--rule); }
-  .bar div { display: flex; align-items: center; justify-content: center; font: .66rem/1 var(--pixel); text-transform: uppercase; color: #111; overflow: hidden; white-space: nowrap; }
+  .bar div { min-width: 0; display: flex; align-items: center; justify-content: center; font: .66rem/1 var(--pixel); text-transform: uppercase; color: #111; overflow: hidden; white-space: nowrap; }
   .bar .kick { width: 8.33%; background: #ff9f1c; }
   .bar .run { width: 75%; background: linear-gradient(90deg, #ff4d4d, #ff9f1c, #ffe14d, #3ddc84, #37bedd, #b05cff); }
   .bar .fade { width: 16.67%; background: linear-gradient(90deg, #b05cff, #eef0f2); }
@@ -105,6 +107,18 @@
   .horn-row { display: grid; grid-template-columns: 150px minmax(0, 1fr); gap: 1rem; align-items: center; }
   .horn-row .item-slot { justify-self: start; }
   @media (max-width: 620px) { .horn-row { grid-template-columns: minmax(0, 1fr); } }
+  .player { background: var(--card); border: 1px solid var(--rule); padding: 1rem; display: grid; gap: .8rem; min-width: 0; }
+  .wave { position: relative; background: var(--stage); height: 88px; }
+  .wave canvas { display: block; width: 100%; height: 100%; }
+  .wave .cursor { position: absolute; top: 0; bottom: 0; left: 0; width: 2px; background: var(--gold); display: none; }
+  .wave .last { position: absolute; top: 0; bottom: 0; right: 0; width: 16.67%; background: var(--gold); opacity: .18; }
+  .scale { display: flex; justify-content: space-between; font-size: .72rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .buttons { display: flex; flex-wrap: wrap; gap: .4rem; align-items: center; }
+  button { font: 600 .88rem/1.2 var(--body); padding: .5rem .75rem; border: 1px solid var(--fg); background: var(--card); color: var(--fg); cursor: pointer; }
+  button.primary { background: var(--fg); color: var(--bg); }
+  button:hover { border-color: var(--gold); }
+  button:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+  .player label { display: inline-flex; gap: .35rem; align-items: center; cursor: pointer; font-size: .92rem; }
   pre { margin: 0; padding: .9rem 1rem; background: var(--card); border: 1px solid var(--rule); overflow-x: auto; font: .84rem/1.55 ui-monospace, SFMono-Regular, Menlo, monospace; }
 </style>
 </head>
@@ -135,15 +149,16 @@
 
   <section>
     <div class="stack">
-      <span class="eyebrow">Item spec, design settled</span>
+      <span class="eyebrow">Item spec, full design</span>
       <h1>The star and the Air Horn</h1>
-      <p class="lede">The two items to add to the boost, the hazard and the homing projectile. The rules below are written against the sim as it stands, and the star's icon was chosen in <code>star-icon-alternatives.html</code>. The numbers are still starting values for a bot sweep and a feel check, and no game code has changed yet.</p>
+      <p class="lede">The two items to add to the boost, the hazard and the homing projectile. The rules below are written against the sim and the audio as they stand. The star's icon was chosen in <code>star-icon-alternatives.html</code> and the Arcade sound set in <code>star-and-horn-sounds.html</code>. The numbers are still starting values for a bot sweep and a feel check, and no game code has changed yet.</p>
     </div>
     <div class="table"><table>
       <thead><tr><th></th><th>Star</th><th>Air Horn</th></tr></thead>
       <tbody>
         <tr><th>In one line</th><td>6 s of speed and immunity, spinning out every kart it touches</td><td>One blast that spins out nearby karts and clears hazards and drones</td></tr>
         <tr><th>In the slot</th><td>A podium mirror ball</td><td>A grandstand air horn</td></tr>
+        <tr><th>Sound</th><td>6 s of fast 8-bit music in place of the race music</td><td>One fat 8-bit blast that sags in pitch</td></tr>
         <tr><th>Role</th><td>Comeback for the back of the field</td><td>Timed defence and close attack, for any place</td></tr>
         <tr><th>Most likely at</th><td>Places 6-8</td><td>Places 1-5</td></tr>
         <tr><th>Build</th><td>Medium</td><td>Small</td></tr>
@@ -172,6 +187,7 @@
           <select id="livery"><option value="0">Rosso</option><option value="1">Papaya</option><option value="2">Argento</option></select>
         </label>
         <label><input type="checkbox" id="reduced"> Reduced motion</label>
+        <button type="button" class="primary" id="demo-sound">Play from the top with sound</button>
       </div>
       <p class="note">The kart is the real side view from <code>docs/kart-side.js</code>, recoloured the way the View would recolour it. It runs 6 s, then rests for 1.5 s in its livery. The mirror ball is shown held in the slot, where it shines until it is fired.</p>
     </div>
@@ -204,7 +220,7 @@
           <tr><th>Item slot</th><td>A faceted mirror ball on a short chain, with no face. Once the item has landed, its tiles run the same loop, each a step along the rainbow from its neighbours, with a glow behind it. The dark gaps between tiles and the white glints stay fixed, so it reads on the slot's gold at every point in the loop.</td></tr>
           <tr><th>Instrument panel during a run</th><td>A rainbow ring around the slot counts the 6 s down. The slot itself is free again and can roll another item.</td></tr>
           <tr><th>Plate and course map</th><td>The star kart's plate underline and map marker run the same loop, so other drivers can see it coming and tell where it is.</td></tr>
-          <tr><th>Last second</th><td>The pull fades from 70% to nothing, so the driver sees it ending. The loop keeps its speed.</td></tr>
+          <tr><th>Last second</th><td>The pull fades from 70% to nothing while the music's notes tumble downward, so the driver sees and hears it ending. The loop keeps its speed.</td></tr>
           <tr><th>Reduced motion</th><td>No loop and no sparkles. The kart holds a steady white shine with the glow, the ball's tiles hold their colours, and the ring still counts down.</td></tr>
         </tbody>
       </table></div>
@@ -235,6 +251,7 @@
           <tr><th>Grass and sand</th><td>The off-track cap does not apply. This opens no shortcut, because every course is walled along both run-off edges.</td></tr>
           <tr><th>A wall or tyre wall</th><td>Unchanged. Walls still hold the kart and tyre walls still bump it, so driving remains the skill.</td></tr>
           <tr><th>Item boxes, coins, the item button</th><td>Unchanged. The kart can take both and can fire a held item during the run.</td></tr>
+          <tr><th>A second star of its own</th><td>Firing it during a run puts the timer back to 6 s, without adding to what was left. The top speed doesn't stack, the kick fires again, and the music restarts.</td></tr>
           <tr><th>Boost pad, mini-turbo, boost item</th><td>They still fire and set their own speed, then the kart settles back to the star's top speed. They do not multiply with it.</td></tr>
           <tr><th>Respawn or finish</th><td>A respawn does not stop the timer. The finish ends the run.</td></tr>
         </tbody>
@@ -265,7 +282,6 @@
         <li><strong>Bots:</strong> a bot fires a star as it fires a boost, on the first straight. During the run it stops waiting for the wheel and stops steering around karts (<code>kart_in_the_way</code>), or it would never hit anyone.</li>
         <li><strong>Prediction:</strong> the owner's client predicts the speed and the pass-through from the fire. Only the server spins a kart out, and clients learn of it from the snapshot, as they do with a drone.</li>
         <li><strong>Known rough edge:</strong> other karts are drawn 100 ms in the past, so a hit on a slow kart can land about 3 to 4 m before the star visibly arrives. A spark burst should cover it, and the smoke test should confirm that.</li>
-        <li><strong>Sound:</strong> music plays for the whole run so the driver can hear it lasting, with a change in the last second. Other drivers hear it by distance. The versions to choose from are in <code>star-and-horn-sounds.html</code>.</li>
       </ul>
     </div>
   </section>
@@ -356,9 +372,102 @@
       <ul>
         <li><strong>On the road:</strong> a flat orange shockwave ring grows to 7 m in about 0.25 s, on every screen, so the reach can be learned by eye.</li>
         <li><strong>On the Instrument panel:</strong> the sprite stays still when held, as ADR 0024 asks, and the slot flashes on firing like any other item.</li>
-        <li><strong>Sound:</strong> a short, loud blast from <code>assets/audio/build.py</code>, positioned at the firing kart. The versions are in <code>star-and-horn-sounds.html</code>.</li>
+        <li><strong>Sound:</strong> the 0.55 s Air Horn blast, heard by distance from the firing kart, and the drone warning's beep. Both are specified under <a href="#sound">Sound</a>.</li>
         <li><strong>Network:</strong> no new snapshot field. The ring runs off the existing <code>ItemFired</code>, and <code>server-race.ts</code> must start acting on it for other karts as well as the local one.</li>
       </ul>
+    </div>
+  </section>
+
+  <section id="sound">
+    <div class="stack">
+      <span class="eyebrow">Sound</span>
+      <h2>The Arcade set</h2>
+      <p>The star's music tells the driver the run is still going, and its last second tells them it is ending. It is original, in the race music's key and tempo (D minor, 160 bpm), where 4 bars take exactly 6 s. None of it borrows from Nintendo's star theme.</p>
+    </div>
+
+    <div class="player">
+      <div class="stack">
+        <div class="wave"><canvas id="wave" width="1000" height="176" role="img" aria-label="Waveform of the 6 second star music, with its last second shaded"></canvas><div class="last"></div><div class="cursor" id="cursor"></div></div>
+        <div class="scale"><span>0 s</span><span>Star run, last second shaded</span><span>6 s</span></div>
+      </div>
+      <div class="buttons">
+        <button type="button" class="primary" id="play-run">Star run</button>
+        <button type="button" id="play-away">Star from another kart</button>
+        <button type="button" class="primary" id="play-horn">Air Horn</button>
+        <button type="button" id="play-horn-away">Air Horn from another kart</button>
+        <button type="button" id="play-beep">Drone warning</button>
+        <button type="button" id="stop">Stop</button>
+      </div>
+      <div class="buttons">
+        <label><input type="checkbox" id="bed" checked> Play the race music underneath, at its game level</label>
+        <span class="note" id="status" role="status"></span>
+      </div>
+      <p class="note">The script at the bottom of this page is the synthesis to port. The engine isn't included, so the game will sound busier than this.</p>
+    </div>
+
+    <div class="stack">
+      <h3>The five files</h3>
+      <div class="table"><table>
+        <thead><tr><th>File</th><th class="num">Length</th><th>Plays when</th><th>What it is</th></tr></thead>
+        <tbody>
+          <tr><th><code>star-music</code></th><td class="num">6 s</td><td>From the fire until <code>star_s</code> runs out</td><td>Fast pulse-wave arpeggios that climb an octave halfway through, a square-wave lead, a triangle bass, a tick and a snare. In the last second everything drops out but 22 notes tumbling downward.</td></tr>
+          <tr><th><code>star-fire</code></th><td class="num">0.4 s</td><td>The own kart fires a star, in place of <code>item-fire</code></td><td>A two-octave rising run of square-wave notes.</td></tr>
+          <tr><th><code>star-end</code></th><td class="num">0.24 s</td><td>The own kart's run ends, unless it ended at the finish</td><td>Three falling square-wave blips.</td></tr>
+          <tr><th><code>air-horn</code></th><td class="num">0.55 s</td><td>Any kart fires the horn, in place of <code>item-fire</code> for the own kart</td><td>Two square waves a fifth apart, sagging in pitch, then bit-crushed.</td></tr>
+          <tr><th><code>drone-beep</code></th><td class="num">0.07 s</td><td>Repeats while a drone chasing the own kart is within 40 m</td><td>One square-wave beep. It repeats every 0.35 s at 40 m, closing to 0.1 s at the kart, and its pitch rises by half.</td></tr>
+        </tbody>
+      </table></div>
+      <p class="note">All five are 16-bit mono PCM at 22050 Hz, written by <code>assets/audio/build.py</code> with <code>pnpm export:audio</code>. The drone beep wasn't one of the three sets. It is written in the same style because the drone warning needs a sound. The levels are tight at the fire: <code>star-fire</code> and <code>star-music</code> peak at 0.96 together at the SFX level, and in the worst case could reach 1.17 with the race music before it fades, plus the engine. Above 1.0 they clip, so check this in the game and lower <code>star-fire</code> if it does. The blast is safe at 0.69 over the race music.</p>
+    </div>
+
+    <div class="stack">
+      <h3>How it plays</h3>
+      <div class="table"><table>
+        <thead><tr><th>Moment</th><th>What happens</th></tr></thead>
+        <tbody>
+          <tr><th>Own star fires</th><td><code>star-fire</code> and <code>star-music</code> start together, and the race music fades to silence over about 0.2 s. The star's kick adds no boost pad sound, because the fire already rules it out in <code>soundCues</code>.</td></tr>
+          <tr><th>During the run</th><td>The race music keeps its place while silent, so it comes back further along, not from the start.</td></tr>
+          <tr><th>The run ends</th><td><code>star-end</code> plays and the race music fades back over about 0.2 s.</td></tr>
+          <tr><th>A second star</th><td><code>star-fire</code> plays and the music restarts from the top.</td></tr>
+          <tr><th>Reconnecting mid-run</th><td>The music joins <code>STAR_S - star_s</code> seconds in, with no fire sound.</td></tr>
+          <tr><th>The finish</th><td>The music fades over about 0.2 s, with no <code>star-end</code>, and <code>finish</code> plays as usual.</td></tr>
+          <tr><th>A race's stop</th><td>The music stops with the engine and the loops.</td></tr>
+          <tr><th>Landing a hit</th><td>No sound of its own to start with. The spark burst marks it, and the feel check decides if it needs one.</td></tr>
+        </tbody>
+      </table></div>
+    </div>
+
+    <div class="stack">
+      <h3>Toggles and other karts</h3>
+      <ul>
+        <li><strong>SFX toggle:</strong> all five files sit under it, including the star music, because that music tells you something about the race. A player who mutes the race music still hears a run lasting.</li>
+        <li><strong>SFX off:</strong> no star music plays, so the race music must not go silent. A run never leaves a player with no music at all.</li>
+        <li><strong>Other karts' stars:</strong> only the nearest star kart's music plays, joined at its point in the run, and none plays during your own run. Up to seven at once would be noise. Other karts' <code>star-fire</code> and <code>star-end</code> don't play, and the race music doesn't change.</li>
+        <li><strong>Other karts' horns:</strong> every blast plays, whoever fired it, since each is short.</li>
+        <li><strong>By distance:</strong> full level within 10 m, falling in a straight line to silent at 60 m, through a 1200 Hz lowpass so it sits behind the own kart's sounds. No stereo panning. These are starting values. The "from another kart" buttons above preview 45 m, which is 30% level.</li>
+      </ul>
+    </div>
+
+    <div class="stack">
+      <h3>Where the existing audio would get it wrong</h3>
+      <div class="traps">
+        <article>
+          <h3>Every item plays one fire sound</h3>
+          <p><code>soundCues</code> pushes <code>itemFire</code> whenever the slot empties. It has to pick the cue from <code>before.item</code>, or a star and a horn would each sound twice.</p>
+        </article>
+        <article>
+          <h3>The race music has no level of its own</h3>
+          <p>The music source connects straight to the toggle's gain, and <code>settings()</code> overwrites that gain's value. Silencing the race music needs a second gain between them, or flipping a toggle during a run would bring it back.</p>
+        </article>
+        <article>
+          <h3>Reconciliation can raise <code>star_s</code></h3>
+          <p>A correction can push the predicted timer up a little, and a restart on any rise would stutter the music. Only a rise of more than 0.5 s counts as a second star. Small changes leave the playing source alone.</p>
+        </article>
+        <article>
+          <h3>The audio hears only the own kart</h3>
+          <p>ADR 0025 has it read the own kart's readings, so <code>SoundReading</code> and <code>soundCues</code> can't see another kart's star or horn. Those cues need a new input from the race readout, and the star's ADR has to extend that rule. Engines stay the own kart's alone.</p>
+        </article>
+      </div>
     </div>
   </section>
 
@@ -397,11 +506,12 @@ pub const BOT_HORN_HOLD_S: f32 = 10.0;</code></pre>
     <div class="stack">
       <h3>Star</h3>
       <ol>
-        <li>A new ADR: extends ADR 0021's contact rule, supersedes ADR 0024's no-animation line for this item, and cites <code>star-icon-alternatives.html</code> for the icon. A glossary entry for the star.</li>
+        <li>A new ADR: extends ADR 0021's contact rule and ADR 0025's own-kart audio rule, supersedes ADR 0024's no-animation line for this item, and cites <code>star-icon-alternatives.html</code> for the icon and <code>star-and-horn-sounds.html</code> for the sound. A glossary entry for the star.</li>
         <li><strong>Sim:</strong> <code>Item</code>, <code>Item::code</code> and <code>Item::rolled</code> in <code>lib.rs</code>; <code>star_left_s</code> in the readout and state hash; the cap and off-track change in <code>handling.rs</code>; the immunity checks at the hazard, wheel and projectile hits; constants and weights in <code>tuning.rs</code>; the bot rules in <code>bot.rs</code>.</li>
         <li><strong>Protocol:</strong> the <code>Item</code> enum, the conversions and <code>star_s</code> on the kart snapshot, then <code>pnpm generate:protocol</code> and <code>pnpm build:bridge</code>.</li>
-        <li><strong>Web:</strong> the sprite in <code>item-sprites.ts</code>, <code>item-reel.ts</code>, the ring in <code>instrument-panel.ts</code>, per-kart materials in <code>kart-model.ts</code>, the shine and sparkles, the plate and course map, and the audio cues.</li>
-        <li><strong>Close out:</strong> re-record the replay fixtures, run a 200-seed bot sweep for DNFs and stuck karts, update <code>docs/style-guide.html</code>, and smoke test a star run.</li>
+        <li><strong>Audio files:</strong> port <code>star-music</code>, <code>star-fire</code> and <code>star-end</code> to <code>assets/audio/build.py</code>, run <code>pnpm export:audio</code>, and commit the output. Rebuild the music if <code>STAR_S</code> changes.</li>
+        <li><strong>Web:</strong> the sprite in <code>item-sprites.ts</code>, <code>item-reel.ts</code>, the ring in <code>instrument-panel.ts</code>, per-kart materials in <code>kart-model.ts</code>, the shine and sparkles, the plate and course map, and the rules under <a href="#sound">Sound</a> in <code>audio-cues.ts</code> and <code>audio.ts</code>.</li>
+        <li><strong>Close out:</strong> re-record the replay fixtures, run a 200-seed bot sweep for DNFs and stuck karts, update <code>docs/style-guide.html</code>, smoke test a star run, and listen to one over the engine for clipping and fatigue.</li>
       </ol>
     </div>
     <div class="stack">
@@ -410,7 +520,8 @@ pub const BOT_HORN_HOLD_S: f32 = 10.0;</code></pre>
         <li>A new ADR and a glossary entry for the Air Horn.</li>
         <li><strong>Sim:</strong> the <code>Item</code> variant and its blast at the fire in <code>lib.rs</code>, constants and weights in <code>tuning.rs</code>, and the bot's rule in <code>bot.rs</code>.</li>
         <li><strong>Protocol:</strong> the <code>Item</code> enum and its conversions, then regenerate.</li>
-        <li><strong>Web:</strong> the sprite and reel, the shockwave ring, the blast sound, and the drone warning.</li>
+        <li><strong>Audio files:</strong> port <code>air-horn</code> and <code>drone-beep</code> to <code>assets/audio/build.py</code>, run <code>pnpm export:audio</code>, and commit the output.</li>
+        <li><strong>Web:</strong> the sprite and reel, the shockwave ring, the blast by distance, and the drone warning's marker and beep. The star's PR adds the distance rule the blast uses.</li>
         <li><strong>Close out:</strong> re-record the fixtures, sweep the bots, update the style guide, and smoke test a blast on Bell Deer's crossover.</li>
       </ol>
     </div>
@@ -599,6 +710,294 @@ pub const BOT_HORN_HOLD_S: f32 = 10.0;</code></pre>
   document.getElementById("ball").innerHTML = ballMarkup();
   buildKart();
   requestAnimationFrame(frame);
+</script>
+<script>
+  // The Arcade set, the same samples star-and-horn-sounds.html plays. In a function so its
+  // `mix` and `RUN_S` stay apart from the kart's above.
+  (() => {
+    const RATE = 22050;
+    const TAU = Math.PI * 2;
+    const sec = (n) => Math.max(0, Math.round(n * RATE));
+    const WAVES = {
+      sine: (p) => Math.sin(p),
+      square: (p) => (Math.sin(p) >= 0 ? 1 : -1),
+      triangle: (p) => (2 / Math.PI) * Math.asin(Math.sin(p)),
+      pulse: (p) => ((p % TAU) / TAU < 0.25 ? 1 : -1),
+    };
+    function rng(seed) {
+      let a = (seed * 2654435761) >>> 0;
+      return () => {
+        a = (a + 0x6d2b79f5) >>> 0;
+        let t = a;
+        t = Math.imul(t ^ (t >>> 15), t | 1);
+        t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+        return (((t ^ (t >>> 14)) >>> 0) / 4294967296) * 2 - 1;
+      };
+    }
+    function tone({ freq, length, wave = "sine", decay = 6, gain = 0.5, sweepTo = null, attack = 0, vibratoHz = 0, vibratoDepth = 0, curve = "linear" }) {
+      const n = sec(length);
+      const out = new Float32Array(n);
+      const fn = WAVES[wave];
+      let phase = 0;
+      for (let i = 0; i < n; i++) {
+        const t = i / RATE;
+        const u = i / n;
+        let f = sweepTo === null ? freq : curve === "exp" ? freq * Math.pow(sweepTo / freq, u) : freq + (sweepTo - freq) * u;
+        if (vibratoHz > 0) f *= 1 + vibratoDepth * Math.sin(TAU * vibratoHz * t);
+        phase += (TAU * f) / RATE;
+        const a = attack > 0 ? Math.min(1, t / attack) : 1;
+        out[i] = gain * a * Math.exp(-decay * t) * fn(phase);
+      }
+      return out;
+    }
+    function noise({ length, decay = 8, gain = 0.5, seed = 1, attack = 0 }) {
+      const n = sec(length);
+      const out = new Float32Array(n);
+      const next = rng(seed);
+      for (let i = 0; i < n; i++) {
+        const t = i / RATE;
+        const a = attack > 0 ? Math.min(1, t / attack) : 1;
+        out[i] = gain * a * Math.exp(-decay * t) * next();
+      }
+      return out;
+    }
+    const silence = (length) => new Float32Array(sec(length));
+    function mix(...parts) {
+      const out = new Float32Array(Math.max(0, ...parts.map((p) => p.length)));
+      for (const part of parts) for (let i = 0; i < part.length; i++) out[i] += part[i];
+      return out;
+    }
+    function concat(...parts) {
+      const out = new Float32Array(parts.reduce((n, p) => n + p.length, 0));
+      let at = 0;
+      for (const part of parts) { out.set(part, at); at += part.length; }
+      return out;
+    }
+    function envelope(samples, fn) {
+      const out = new Float32Array(samples.length);
+      for (let i = 0; i < samples.length; i++) out[i] = samples[i] * fn(i / RATE);
+      return out;
+    }
+    function lowpass(samples, cutoff, passes = 1) {
+      let out = samples;
+      for (let p = 0; p < passes; p++) {
+        const next = new Float32Array(out.length);
+        const a = (1 / RATE) / (1 / (TAU * cutoff) + 1 / RATE);
+        let y = 0;
+        for (let i = 0; i < out.length; i++) { y += a * (out[i] - y); next[i] = y; }
+        out = next;
+      }
+      return out;
+    }
+    function highpass(samples, cutoff, passes = 1) {
+      let out = samples;
+      for (let p = 0; p < passes; p++) {
+        const next = new Float32Array(out.length);
+        const rc = 1 / (TAU * cutoff);
+        const a = rc / (rc + 1 / RATE);
+        let y = 0;
+        let x1 = 0;
+        for (let i = 0; i < out.length; i++) { y = a * (y + out[i] - x1); x1 = out[i]; next[i] = y; }
+        out = next;
+      }
+      return out;
+    }
+    const bandpass = (samples, centre, width, passes = 2) => highpass(lowpass(samples, centre + width / 2, passes), Math.max(20, centre - width / 2), passes);
+    function tame(samples, peak = 0.95) {
+      let max = 0;
+      for (let i = 0; i < samples.length; i++) max = Math.max(max, Math.abs(samples[i]));
+      if (max <= peak) return samples;
+      return samples.map((value) => (value * peak) / max);
+    }
+    const midi = (n) => 440 * Math.pow(2, (n - 69) / 12);
+    function place(out, at, samples, gain = 1) {
+      const start = sec(at);
+      for (let i = 0; i < samples.length && start + i < out.length; i++) out[start + i] += samples[i] * gain;
+    }
+    function crush(samples, hold) {
+      const out = new Float32Array(samples.length);
+      for (let i = 0; i < samples.length; i++) out[i] = samples[i - (i % hold)];
+      return out;
+    }
+    const release = (samples, seconds) => {
+      const end = samples.length / RATE;
+      return envelope(samples, (t) => Math.min(1, (end - t) / seconds));
+    };
+
+    // The race music's time and key: 160 bpm, so 4 bars are the 6 s run, over its verse's chords.
+    const BEAT = 0.375;
+    const SIX = BEAT / 4;
+    const RUN_S = 6;
+    const LAST_S = 5;
+    const CHORDS = [[62, 65, 69], [58, 62, 65], [60, 64, 67], [57, 61, 64]];
+
+    function starMusic() {
+      const out = silence(RUN_S);
+      const snare = bandpass(noise({ length: 0.08, decay: 35, gain: 0.7, seed: 13 }), 2000, 3000);
+      const tick = highpass(noise({ length: 0.03, decay: 80, gain: 0.2, seed: 14 }), 6000);
+      const lead = [74, 77, 81, 77, 82, 77, 74, 77, 84, 79, 76, 79, 85];
+      const stop = Math.floor(LAST_S / SIX);
+      for (let i = 0; i < stop; i++) {
+        const bar = Math.floor(i / 16);
+        const notes = CHORDS[bar];
+        const steps = [notes[0], notes[1], notes[2], notes[0] + 12];
+        const n = steps[[0, 1, 2, 3, 2, 1][i % 6]] + [12, 12, 24, 24][bar];
+        place(out, i * SIX, tone({ freq: midi(n), length: SIX * 0.9, wave: "pulse", decay: 10, gain: 0.15 }));
+        if (i % 2 === 0) {
+          place(out, i * SIX, tone({ freq: midi(notes[0] - 24), length: 0.16, wave: "triangle", decay: 6, gain: 0.45 }));
+          place(out, i * SIX, tick);
+        }
+        if (i % 8 === 4) place(out, i * SIX, snare);
+      }
+      lead.forEach((n, beat) => place(out, beat * BEAT, tone({ freq: midi(n), length: BEAT * 0.9, wave: "square", decay: 3, gain: 0.1, vibratoHz: 7, vibratoDepth: 0.008 })));
+      for (let i = 0; i < 22; i++) {
+        place(out, LAST_S + i * 0.0455, tone({ freq: midi(91 - i), length: 0.05, wave: "square", decay: 5, gain: 0.17 * (1 - i / 30) }));
+      }
+      return tame(out);
+    }
+    function starFire() {
+      const out = silence(0.4);
+      for (let i = 0; i < 18; i++) place(out, i * 0.018, tone({ freq: midi(62 + i * 2), length: 0.05, wave: "square", decay: 4, gain: 0.24 }));
+      return tame(out);
+    }
+    const starEnd = () => tame(concat(...[76, 72, 64].map((n) => tone({ freq: midi(n), length: 0.08, wave: "square", decay: 8, gain: 0.3 }))));
+    const airHorn = () => tame(release(crush(mix(
+      tone({ freq: 196, sweepTo: 175, curve: "exp", length: 0.55, wave: "square", decay: 1.5, gain: 0.34 }),
+      tone({ freq: 294, sweepTo: 262, curve: "exp", length: 0.55, wave: "square", decay: 1.5, gain: 0.26 }),
+    ), 8), 0.03));
+    const droneBeep = () => tone({ freq: 1320, length: 0.07, wave: "square", decay: 12, gain: 0.3 });
+
+    const sounds = { music: starMusic(), fire: starFire(), end: starEnd(), horn: airHorn(), beep: droneBeep() };
+
+    // The game's mix: SFX 0.8, music 0.35. A preview of another kart is 45 m away by the distance rule.
+    const SFX_LEVEL = 0.8;
+    const MUSIC_LEVEL = 0.35;
+    const AWAY_LEVEL = 0.3;
+    const AWAY_CUTOFF_HZ = 1200;
+    // A drone closes on a kart at top speed at 18 m/s, from the warning's 40 m to contact.
+    const DRONE_WARNING_M = 40;
+    const DRONE_CLOSING_M_S = 18;
+
+    const byId = (id) => document.getElementById(id);
+    const musicEl = new Audio("../../assets/audio/music-loop.wav");
+    musicEl.loop = true;
+    musicEl.preload = "none";
+    musicEl.volume = MUSIC_LEVEL;
+    const bedEl = byId("bed");
+    const statusEl = byId("status");
+    const cursorEl = byId("cursor");
+    let context = null;
+    let sources = [];
+    let run = null;
+    let musicTarget = MUSIC_LEVEL;
+    musicEl.addEventListener("error", () => { statusEl.textContent = "The race music couldn't load. Serve the repo root to hear it."; });
+
+    function start(samples, at, away = false, rate = 1) {
+      const source = context.createBufferSource();
+      source.buffer = context.createBuffer(1, samples.length, RATE);
+      source.buffer.copyToChannel(samples, 0);
+      source.playbackRate.value = rate;
+      const gain = context.createGain();
+      gain.gain.value = away ? AWAY_LEVEL * SFX_LEVEL : SFX_LEVEL;
+      if (away) {
+        const filter = context.createBiquadFilter();
+        filter.type = "lowpass";
+        filter.frequency.value = AWAY_CUTOFF_HZ;
+        source.connect(filter).connect(gain).connect(context.destination);
+      } else {
+        source.connect(gain).connect(context.destination);
+      }
+      source.start(at);
+      sources.push(source);
+    }
+    function stopAll() {
+      for (const source of sources) { try { source.stop(); } catch (_) { /* It had already ended. */ } }
+      sources = [];
+      cursorEl.style.display = "none";
+      run = null;
+      musicTarget = MUSIC_LEVEL;
+    }
+    function ready() {
+      context ??= new (window.AudioContext || window.webkitAudioContext)();
+      if (context.state === "suspended") context.resume();
+      stopAll();
+      if (bedEl.checked) {
+        musicEl.play().catch(() => { statusEl.textContent = "The race music couldn't start. The set still plays without it."; });
+      } else {
+        musicEl.pause();
+      }
+      return context.currentTime + 0.05;
+    }
+    function playRun() {
+      const at = ready();
+      start(sounds.fire, at);
+      start(sounds.music, at);
+      start(sounds.end, at + RUN_S);
+      musicTarget = 0;
+      run = { at };
+      cursorEl.style.display = "block";
+    }
+    function playBeeps() {
+      let at = ready();
+      for (let distance = DRONE_WARNING_M; distance > 0;) {
+        const left = distance / DRONE_WARNING_M;
+        start(sounds.beep, at, false, 1.5 - 0.5 * left);
+        const gap = 0.1 + 0.25 * left;
+        at += gap;
+        distance -= gap * DRONE_CLOSING_M_S;
+      }
+    }
+
+    function frame() {
+      if (run) {
+        const t = context.currentTime - run.at;
+        cursorEl.style.left = `${Math.min(100, Math.max(0, (t / RUN_S) * 100))}%`;
+        if (t >= RUN_S) {
+          cursorEl.style.display = "none";
+          run = null;
+          musicTarget = MUSIC_LEVEL;
+        }
+      }
+      // Eases the race music to its level for this moment, over about 0.2 s.
+      musicEl.volume += (musicTarget - musicEl.volume) * 0.15;
+      requestAnimationFrame(frame);
+    }
+
+    function drawWave(canvas, samples) {
+      const { width, height } = canvas;
+      const draw = canvas.getContext("2d");
+      draw.fillStyle = getComputedStyle(document.body).color;
+      const per = samples.length / width;
+      for (let x = 0; x < width; x++) {
+        let top = 0;
+        let bottom = 0;
+        const from = Math.floor(x * per);
+        for (let i = from; i < from + per; i++) {
+          top = Math.max(top, samples[i]);
+          bottom = Math.min(bottom, samples[i]);
+        }
+        draw.fillRect(x, (0.5 - top * 0.48) * height, 1, Math.max(1, (top - bottom) * 0.48 * height));
+      }
+    }
+
+    drawWave(byId("wave"), sounds.music);
+    byId("play-run").addEventListener("click", playRun);
+    byId("play-away").addEventListener("click", () => start(sounds.music, ready(), true));
+    byId("play-horn").addEventListener("click", () => start(sounds.horn, ready()));
+    byId("play-horn-away").addEventListener("click", () => start(sounds.horn, ready(), true));
+    byId("play-beep").addEventListener("click", playBeeps);
+    byId("stop").addEventListener("click", () => {
+      stopAll();
+      musicEl.pause();
+    });
+    bedEl.addEventListener("change", () => { if (!bedEl.checked) musicEl.pause(); });
+    // Starts the kart's run with the music, so the shine and the sound can be judged together.
+    byId("demo-sound").addEventListener("click", () => {
+      clock = 0;
+      playRun();
+    });
+    requestAnimationFrame(frame);
+  })();
 </script>
 </body>
 </html>
