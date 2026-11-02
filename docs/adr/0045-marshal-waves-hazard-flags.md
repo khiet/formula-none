@@ -16,9 +16,9 @@ and a beacon.
 
 ## Decision
 
-- A marshal stands on the post, adapted from the author's own Purrjump
-  character, built in code from flat-shaded primitives because he
-  moves. Chibi, about 1.75 m standing. The code calls him `marshal`.
+- A marshal stands on the post, the author's own character, built in
+  code from flat-shaded primitives because he moves. Chibi, about
+  1.75 m standing. The code calls him `marshal`.
 - His pose follows the wheel's kind. Quiet, he sits on a folding stool with
   a cup of tea, calm, his flags furled against the stool. Warning, he is
   on his feet in a panic, arms up, waving a flag in each hand out of phase,

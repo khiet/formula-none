@@ -2,8 +2,7 @@
 
 The vocabulary of Formula None. Code, tests, issues and ADRs use these words
 with these meanings; when a word here and a word in the code disagree, fix the
-code. Terms come from the PRD (issue 1); the client terms reuse the Purrjump
-glossary where they fit.
+code. Terms come from the PRD (issue 1).
 
 ## Race
 
