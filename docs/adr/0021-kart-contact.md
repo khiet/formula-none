@@ -4,7 +4,8 @@
 
 Accepted (2026-10-23). The last point of its decision, that a snapshot does
 not carry the bump and the prediction keeps its own on a rewind, is
-superseded by ADR 0048.
+superseded by ADR 0048. Extended by ADR 0075: a kart on a star's run passes
+through ordinary karts, with no contact pair and no bump, and spins them out.
 
 ## Context
 
