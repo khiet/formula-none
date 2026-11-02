@@ -131,7 +131,8 @@ seconds triggers the wrong-way warning.
 
 What the sim says of one kart at a tick: its transform, speed and
 velocity, drift and mini-turbo tier, item slot, the coins it carries,
-spin-out, hop, boost, rocket start and stall, and its place in the race.
+spin-out, hop, boost, slipstream, rocket start and stall, and its place in
+the race.
 The sim reports one per kart every tick; a snapshot carries all of it but
 the hop, which only the sim stepping the kart knows; a prediction's kart
 adopts the snapshot's but for the boost, which it keeps its own. The View, the Instrument panel and
@@ -182,6 +183,34 @@ The boost released at the end of a long enough drift: orange at 0.3 s of drift
 (0.6 s boost), red at 0.6 s (1.0 s boost), both at +30 percent top speed.
 Shown by sparks at the wheels while charging, orange then red, and on
 release by a flame at the exhaust in the tier's colour.
+
+### slipstream
+
+The pull of the kart ahead: a kart that holds another's wake for 1 s is
+towed. No item and no button; open to every kart and every bot, so a race
+stays close without the item table doing all the work. The server alone
+judges it; a client's prediction takes its kart's charge and tow from the
+snapshots (ADR 0077). The own kart feels it as wind lines building through
+the charge and a whoosh as the tow takes; other karts show nothing.
+
+### wake
+
+The 12 m straight behind a moving kart, 1.2 m either side of its travel,
+that the slipstream is judged in: a kart whose centre lies there, travelling
+within 0.5 rad of the leader's travel, is in the wake, airborne or not. A
+kart under half the tuned top speed, such as one spun out or stopped,
+leaves none. Travel is the body's velocity, so a drifting leader's wake lies
+along the road. Two wakes at once count as one.
+
+### tow
+
+What a full charge in a wake earns: the kart's top speed cap raised 15
+percent, to 34.5 m/s with no coins, held at its full 1 s every tick the
+kart stays in the wake and running down from the tick it leaves. A cap and
+not a boost: the kart ramps up to it, the brake still works, a mini-turbo or
+a pad under it fires and sets its own speed, and the kart then settles back
+to the towed cap, not the plain one. The off-track cap still wins. A
+spin-out, a respawn and a star's run clear it.
 
 ### item box
 

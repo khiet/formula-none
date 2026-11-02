@@ -239,6 +239,35 @@ pub const WHEEL_LANDING_SPREAD_M: f32 = 8.0;
 /// reads as a danger from the chase camera (ADR 0044).
 pub const WHEEL_RADIUS_M: f32 = 1.2;
 
+// The slipstream (GLOSSARY: slipstream). A kart that holds another's wake
+// for the charge is towed: its top speed cap rises for as long as it stays
+// there and for the tow's time after it pulls out. No item and no button,
+// open to every kart and every bot (ADR 0077).
+
+/// How far behind a kart, centre to centre along its travel, its wake
+/// reaches. The bots' lookahead, so a bot tucked in behind the kart it
+/// steers round is in its wake.
+pub const SLIPSTREAM_RANGE_M: f32 = BOT_LOOKAHEAD_M;
+/// How far either side of the leader's travel the follower's centre may
+/// sit: twice a kart's half width, so a kart half a kart off line is still
+/// in the wake.
+pub const SLIPSTREAM_HALF_WIDTH_M: f32 = 2.0 * KART_HALF_WIDTH_M;
+/// The most the two karts' travel directions may differ.
+pub const SLIPSTREAM_ANGLE_RAD: f32 = 0.5;
+/// A kart below this share of the tuned top speed leaves no wake, so a
+/// spun-out, stalled or stopped kart tows nobody.
+pub const SLIPSTREAM_LEADER_SPEED_FRACTION: f32 = 0.5;
+/// Continuous time in a wake before the tow takes. Counted in ticks, so no
+/// tick is paid late as an f32 sum would.
+pub const SLIPSTREAM_CHARGE_S: f32 = 1.0;
+pub const SLIPSTREAM_CHARGE_TICKS: u32 =
+    (SLIPSTREAM_CHARGE_S * TICKS_PER_SECOND as f32 + 0.5) as u32;
+/// How long the tow holds after the kart leaves the wake.
+pub const SLIPSTREAM_TOW_S: f32 = 1.0;
+/// What the tow multiplies the top speed cap by. A cap and not a boost, so
+/// the brake still works and a mini-turbo under way is never replaced.
+pub const SLIPSTREAM_TOP_SPEED_FACTOR: f32 = 1.15;
+
 // Rocket start (GLOSSARY). What the throttle hold ending at Go earns is
 // read from the hold's length; a release before Go resets it. The edges
 // approximate Mario Kart 8 Deluxe as its guides describe the timing, with
@@ -602,6 +631,18 @@ const _: () = {
     // its tier pays on.
     assert!(is_whole_ticks(MINI_TURBO_ORANGE_CHARGE_S));
     assert!(is_whole_ticks(MINI_TURBO_RED_CHARGE_S));
+    assert!(is_whole_ticks(SLIPSTREAM_CHARGE_S) && 0 < SLIPSTREAM_CHARGE_TICKS);
+    assert!(0.0 < SLIPSTREAM_RANGE_M && 0.0 < SLIPSTREAM_HALF_WIDTH_M);
+    assert!(0.0 < SLIPSTREAM_ANGLE_RAD && SLIPSTREAM_ANGLE_RAD < 1.0);
+    assert!(0.0 < SLIPSTREAM_LEADER_SPEED_FRACTION && SLIPSTREAM_LEADER_SPEED_FRACTION < 1.0);
+    assert!(0.0 < SLIPSTREAM_TOW_S && 1.0 < SLIPSTREAM_TOP_SPEED_FACTOR);
+    // A drift still pays more than a tow, and a projectile still beats a
+    // towed kart with a full purse under the bots' widest rubber band.
+    assert!(SLIPSTREAM_TOP_SPEED_FACTOR < MINI_TURBO_BOOST_FACTOR);
+    assert!(
+        HOMING_SPEED_FACTOR
+            > SLIPSTREAM_TOP_SPEED_FACTOR * COIN_CAP_FACTOR * BOT_RUBBER_BAND_MAX_FACTOR
+    );
     assert!(BOT_RUBBER_BAND_MIN_FACTOR < 1.0 && 1.0 < BOT_RUBBER_BAND_MAX_FACTOR);
     assert!(0.0 < BOT_RUBBER_BAND_RANGE_M);
     assert!(0.0 < BOT_CORNER_SAMPLE_M && BOT_CORNER_SAMPLE_M <= BOT_LOOKAHEAD_M);
@@ -771,6 +812,8 @@ pub struct Tuning {
     /// How long a star's run lasts, which the Instrument panel's ring counts
     /// down and the star music is joined against.
     pub star_s: f32,
+    /// How long a wake takes to charge, which the wind lines build over.
+    pub slipstream_charge_s: f32,
     /// How far the Air Horn's blast reaches, so the View's ring grows to
     /// the reach.
     pub horn_radius_m: f32,
@@ -816,6 +859,7 @@ pub const TUNING: Tuning = Tuning {
     hazard_drop_distance_m: HAZARD_DROP_DISTANCE_M,
     spin_out_s: SPIN_OUT_S,
     star_s: STAR_S,
+    slipstream_charge_s: SLIPSTREAM_CHARGE_S,
     horn_radius_m: HORN_RADIUS_M,
     wheel_radius_m: WHEEL_RADIUS_M,
     top_speed_m_per_s: TOP_SPEED_M_PER_S,

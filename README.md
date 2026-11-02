@@ -97,6 +97,10 @@ Rocket start: hold the throttle from the first half of the 2 through GO for
 the full boost, from the second half for a weaker one; hold it from before
 the 2 and the kart stalls. The beeps count 3, 2, 1 and GO.
 
+Slipstream: follow a kart closely for a second and its wake tows you past
+the tuned top speed, for as long as you hold it and a second after you pull
+out; wind lines build as the tow charges.
+
 ## Reading order
 
 1. `CLAUDE.md` for the layout, the dependency rule and the commands.

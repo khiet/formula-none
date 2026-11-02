@@ -28,7 +28,7 @@ use ts_rs::TS;
 /// [`ClientMessage::Join`] and the server refuses a mismatch with
 /// [`Refusal::VersionMismatch`] (ADR 0013). The generator exports it next to
 /// the types, so the web app reads the same constant.
-pub const PROTOCOL_VERSION: u16 = 19;
+pub const PROTOCOL_VERSION: u16 = 20;
 
 /// What a client sends the server.
 #[derive(Serialize, Deserialize, TS, Debug, Clone, PartialEq)]
@@ -337,6 +337,23 @@ pub struct KartSnapshot {
     /// Seconds of a star's run left, while the kart has one. Every client
     /// works the shine's phase out from it, so they all agree.
     pub star_s: Option<f32>,
+    /// The slipstream the kart is in, if any. Only the server judges the
+    /// wake, so a client's prediction takes its kart's charge and tow from
+    /// here (ADR 0077).
+    pub slipstream: Option<SlipstreamSnapshot>,
+}
+
+/// Where a kart stands with the slipstream: in another kart's wake short
+/// of the charge, or towed.
+#[derive(Serialize, Deserialize, TS, Debug, Clone, Copy, PartialEq)]
+#[serde(rename_all = "camelCase", rename_all_fields = "camelCase")]
+pub enum SlipstreamSnapshot {
+    /// In a wake for `s` seconds so far, short of the charge.
+    Charging { s: f32 },
+    /// Towed, with `left_s` seconds of tow left: put back to the full
+    /// tuned time every tick the kart is in a wake with a full charge,
+    /// running down every other tick.
+    Tow { left_s: f32 },
 }
 
 /// A boost under way: the seconds it has left and the tier it burns in.

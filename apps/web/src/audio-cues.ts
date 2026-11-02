@@ -10,7 +10,9 @@
 // kart's blast the reading carries, each heard once by distance. The
 // drone warning's beep is the one sound on a clock: it repeats while a
 // drone chasing the own kart is within the warning's reach, faster and
-// higher as it closes, from the distance the reading carries.
+// higher as it closes, from the distance the reading carries. The
+// slipstream's whoosh (ADR 0077) is the own kart's tow taking, an edge
+// like the rest.
 
 import type { KartReadout, MiniTurbo, Surface } from "./bridge";
 import { DRONE_WARNING_M, droneWarned, incomingDroneMetres } from "./drone-warning";
@@ -41,7 +43,8 @@ export type SoundCue =
   | "starFire"
   | "starEnd"
   | "airHorn"
-  | "droneBeep";
+  | "droneBeep"
+  | "slipstream";
 
 /** The sounds that run while a state holds: the drift skid and the two run-off surfaces. */
 export type SoundLoop = "driftSkid" | "grass" | "sand";
@@ -80,6 +83,8 @@ export interface SoundReading {
   readonly reelStep: number | null;
   /** Seconds of the own kart's star run left; null off a run. */
   readonly starSeconds: number | null;
+  /** Whether a slipstream tows the own kart; the whoosh sounds as it takes. Not a boost: the boost pad's inference never reads it. */
+  readonly towed: boolean;
   /** The nearest other kart on a star run, by distance; null while none is. */
   readonly nearestStar: NearestStar | null;
   /** The other karts' horn blasts under way, by distance; never the own kart's, whose fire the slot sounds. */
@@ -140,6 +145,7 @@ export function soundReading(race: RaceReadout, kart: number): SoundReading {
         ? null
         : reelFrame(itemSlot.rolling.elapsedS, itemSlot.rolling.rollS).step,
     starSeconds: readout.starS,
+    towed: readout.slipstream !== null && "tow" in readout.slipstream,
     nearestStar: nearestStar(race.karts, kart),
     blasts: race.blasts
       .filter((blast) => blast.kart !== kart)
@@ -204,8 +210,9 @@ export const STAR_RESTART_RISE_S = 0.5;
  * the coins carried rise; the hit as a spin-out begins, then the coin loss
  * as the coins it cost fall; the sputter as a stall begins; the wrong
  * way as its flag raises; the star's end as the run runs out, unless the
- * finish ended it; the finish as the kart finishes, else the lap
- * as the count rises. Nothing else from the first reading.
+ * finish ended it; the slipstream as a tow takes, and nothing as it holds,
+ * is re-armed or runs out (ADR 0077); the finish as the kart finishes,
+ * else the lap as the count rises. Nothing else from the first reading.
  */
 export function soundCues(before: SoundReading | undefined, after: SoundReading): SoundCue[] {
   const cues: SoundCue[] = [];
@@ -250,6 +257,7 @@ export function soundCues(before: SoundReading | undefined, after: SoundReading)
   if (before.starSeconds !== null && after.starSeconds === null && !finishedNow) {
     cues.push("starEnd");
   }
+  if (!before.towed && after.towed) cues.push("slipstream");
   if (finishedNow) cues.push("finish");
   else if (after.lap > before.lap) cues.push("lap");
   return cues;

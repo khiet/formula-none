@@ -384,6 +384,7 @@ fn the_fixture_set_exercises_kart_contact_off_track_walls_every_track_both_mini_
     let mut hit_by_the_wheel = false;
     let mut took_a_coin = false;
     let mut lost_coins = false;
+    let mut towed = false;
     for (_, replay) in fixtures() {
         tracks.insert(replay.track.clone());
         let mut state = State::new(replay.seed, replay.human_count(), sidecar(&replay.track));
@@ -404,6 +405,7 @@ fn the_fixture_set_exercises_kart_contact_off_track_walls_every_track_both_mini_
                 let transforms = state.kart_readouts();
                 for (slot, kart) in transforms.iter().enumerate() {
                     surfaces.insert(state.kart_surface(slot));
+                    towed |= matches!(kart.slipstream, Some(sim::Slipstream::Tow { .. }));
                     // A drift that ends with a boost was let go; the tier
                     // it paid is the one it showed the tick before, since
                     // the release tick adds no charge.
@@ -462,6 +464,7 @@ fn the_fixture_set_exercises_kart_contact_off_track_walls_every_track_both_mini_
     assert!(hit_by_the_wheel, "no fixture is hit by the runaway wheel");
     assert!(took_a_coin, "no fixture takes a coin");
     assert!(lost_coins, "no fixture loses coins to a spin-out");
+    assert!(towed, "no fixture tows a kart");
     // Centres within a kart's length of each other are in contact or about
     // to be, whichever way the two karts face.
     let touching = 2.0 * KART_HALF_LENGTH_M + 0.05;

@@ -130,6 +130,11 @@ pub struct KartReadout {
     /// release or a weak rocket start, red for every other boost;
     /// `MiniTurbo::None` while not boosting.
     pub boost_tier: MiniTurbo,
+    /// The slipstream the kart is in: charging in another's wake, or towed
+    /// to a raised top speed cap; `None` out of both. The wind lines' tell
+    /// for the own kart, and what a prediction's kart adopts from a
+    /// snapshot, since only the server judges the wake (ADR 0077).
+    pub slipstream: Option<Slipstream>,
     /// The kart's rocket start: while the countdown runs the tier its hold
     /// so far has reached, the sparks' tell, and from Go the verdict.
     pub start: Start,
@@ -240,6 +245,20 @@ pub enum ItemSlot {
     Rolling { item: Item, roll_left_s: f32 },
     /// Holding `item`, ready to fire.
     Held(Item),
+}
+
+/// Where a kart stands with the slipstream (GLOSSARY): in another kart's
+/// wake short of the charge, or towed. A tagged enum across the seams, as
+/// `ItemSlot` is (ADR 0026).
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, TS)]
+#[serde(rename_all = "camelCase", rename_all_fields = "camelCase")]
+pub enum Slipstream {
+    /// In a wake for `s` seconds so far, short of the charge.
+    Charging { s: f32 },
+    /// Towed, with `left_s` seconds of tow left: put back to the full
+    /// tuned time every tick the kart is in a wake with a full charge,
+    /// running down every other tick.
+    Tow { left_s: f32 },
 }
 
 impl ItemSlot {
@@ -599,6 +618,11 @@ pub struct State {
     /// Each kart's race position, in grid order, as the race ended; `None`
     /// until it has. The outro moves the karts but not the results.
     final_positions: Option<Vec<u32>>,
+    /// Whether `step` judges each kart's wake from the bodies. A
+    /// prediction's race holds the own kart alone, with the others drawn
+    /// 100 ms behind, so it cannot: there the slipstream is the snapshots'
+    /// word (ADR 0077). Fixed for the race, so not hashed.
+    wakes_judged: bool,
 }
 
 #[derive(Clone)]
@@ -713,6 +737,7 @@ impl Kart {
             airborne: self.handling.airborne(),
             boost_s: self.handling.boost_s(),
             boost_tier: self.handling.boost_tier(),
+            slipstream: self.handling.slipstream(),
             star_s: self.starring().then_some(self.star_left_s),
             start: self.start,
             stall_s: (self.stall_left_s > 0.0).then_some(self.stall_left_s),
@@ -742,6 +767,7 @@ impl Kart {
         );
         self.item_slot = readout.item_slot;
         self.coins = readout.coins;
+        self.handling.adopt_slipstream(readout.slipstream);
         // A spin-out the readout does not have is a hit the server never
         // made, which in a prediction is only ever the wheel's: the pass
         // that made it may still hit the kart where the server has it.
@@ -766,6 +792,44 @@ impl Kart {
         self.checkpoint = readout.checkpoint;
         self.spline_progress = readout.spline_progress;
     }
+}
+
+/// Whether the kart on `slot` sits in another kart's wake, judged from
+/// every kart's position and velocity in `motions`, in grid order, seen
+/// from above (ADR 0077): some other kart travels at the leader's share of
+/// the tuned top speed or more, this kart's centre lies from 0 to the
+/// tuned range behind that kart's centre along its travel and within the
+/// tuned half width of it across, and the two travel within the tuned
+/// angle of each other. Travel is the body's velocity, not its facing, so
+/// a drifting leader's wake lies along the road. Two wakes at once count
+/// as one, and a kart that is not moving has no travel to compare, so it
+/// is in no wake.
+fn in_a_wake(motions: &[(Vec3, Vec3)], slot: usize) -> bool {
+    let flat = |v: Vec3| Vec3::new(v.x, 0.0, v.z);
+    let (position, velocity) = motions[slot];
+    let Some(travel) = flat(velocity).try_normalize() else {
+        return false;
+    };
+    // libm, not std, so native and wasm agree bit for bit (ADR 0002).
+    let within_angle = libm::cosf(SLIPSTREAM_ANGLE_RAD);
+    motions
+        .iter()
+        .enumerate()
+        .filter(|&(other, _)| other != slot)
+        .any(|(_, &(leader_position, leader_velocity))| {
+            let leader_velocity = flat(leader_velocity);
+            let leader_speed = leader_velocity.length();
+            if leader_speed < SLIPSTREAM_LEADER_SPEED_FRACTION * TOP_SPEED_M_PER_S {
+                return false;
+            }
+            let leader_travel = leader_velocity / leader_speed;
+            let offset = flat(position - leader_position);
+            let behind = -offset.dot(leader_travel);
+            let across = (offset + leader_travel * behind).length();
+            (0.0..=SLIPSTREAM_RANGE_M).contains(&behind)
+                && across <= SLIPSTREAM_HALF_WIDTH_M
+                && travel.dot(leader_travel) >= within_angle
+        })
 }
 
 /// Marks a collider as a kart's, where a track collider carries its
@@ -853,6 +917,10 @@ use tuning::{
 use tuning::{HORN_PROGRESS_WINDOW_M, HORN_RADIUS_M};
 use tuning::{
     KART_BUMP_RESTITUTION, KART_BUMP_SPEED_LOSS, TYRE_WALL_RESTITUTION, TYRE_WALL_SPEED_LOSS,
+};
+use tuning::{
+    SLIPSTREAM_ANGLE_RAD, SLIPSTREAM_HALF_WIDTH_M, SLIPSTREAM_LEADER_SPEED_FRACTION,
+    SLIPSTREAM_RANGE_M,
 };
 
 // The sim builds only the wasted fire for a projectile with no kart ahead
@@ -977,6 +1045,7 @@ impl State {
             hazards: Vec::new(),
             projectiles: Vec::new(),
             final_positions: None,
+            wakes_judged: true,
             track,
             karts,
             humans,
@@ -1553,11 +1622,23 @@ pub fn step(mut state: State, inputs: &[KartInput], dt: f32) -> State {
             }
         }
     }
+    // The wakes are judged from every body as the tick begins, before any
+    // kart's handling moves it, so the order the karts are ticked in never
+    // decides who is in whose wake.
+    let motions: Vec<(Vec3, Vec3)> = state
+        .karts
+        .iter()
+        .map(|kart| {
+            let body = &state.physics.bodies[kart.body];
+            (body.translation(), body.linvel())
+        })
+        .collect();
     let situations: Vec<Situation> = (0..state.karts.len())
         .map(|slot| {
             let body = &state.physics.bodies[state.karts[slot].body];
             let position = body.translation().to_array();
             Situation {
+                wake: state.wakes_judged.then(|| in_a_wake(&motions, slot)),
                 rotation: *body.rotation(),
                 vertical_m_per_s: body.linvel().y,
                 surface: state.physics.surface_at(position),

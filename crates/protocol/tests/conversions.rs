@@ -4,7 +4,8 @@
 
 use protocol::{EventKind, Input, KartSnapshot};
 use sim::{
-    Drift, DriftDirection, Item, ItemSlot, KartInput, KartReadout, MiniTurbo, RaceEvent, Start,
+    Drift, DriftDirection, Item, ItemSlot, KartInput, KartReadout, MiniTurbo, RaceEvent,
+    Slipstream, Start,
 };
 
 /// A kart mid-race with every field the snapshot carries away from its
@@ -38,6 +39,7 @@ fn busy_kart() -> KartReadout {
         start: Start::WeakBoost,
         stall_s: Some(0.1),
         star_s: Some(4.5),
+        slipstream: Some(Slipstream::Tow { left_s: 0.6 }),
         race_position: 3,
         lap: 2,
         checkpoint: 7,
@@ -106,6 +108,24 @@ fn a_boost_is_red_through_a_snapshot_unless_it_burns_orange() {
     };
     let back = KartReadout::from(&KartSnapshot::from(&unboosted));
     assert_eq!((back.boost_s, back.boost_tier), (None, MiniTurbo::None));
+}
+
+#[test]
+fn the_slipstream_crosses_a_snapshot_in_both_states_and_as_nothing() {
+    for slipstream in [
+        None,
+        Some(Slipstream::Charging { s: 0.35 }),
+        Some(Slipstream::Tow { left_s: 0.8 }),
+    ] {
+        let kart = KartReadout {
+            slipstream,
+            ..busy_kart()
+        };
+        assert_eq!(
+            KartReadout::from(&KartSnapshot::from(&kart)).slipstream,
+            slipstream
+        );
+    }
 }
 
 #[test]

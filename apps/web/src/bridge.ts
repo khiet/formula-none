@@ -308,6 +308,8 @@ export interface Bridge extends MessageCodec {
   readonly spinOutSeconds: number;
   /** How long a star's run lasts (ADR 0075), which the panel's ring counts down and the star music is joined against. */
   readonly starSeconds: number;
+  /** How long a wake takes to charge (ADR 0077), which the wind lines build over. */
+  readonly slipstreamChargeSeconds: number;
   /** How far the Air Horn's blast reaches, which the View's ring grows to. */
   readonly hornRadiusMetres: number;
   /** The runaway wheel's reach (ADR 0014), which the View draws as its radius. */
@@ -394,6 +396,7 @@ export async function loadBridge(wasm?: BufferSource): Promise<Bridge> {
     hazardDropDistanceMetres: tuned.hazardDropDistanceM,
     spinOutSeconds: tuned.spinOutS,
     starSeconds: tuned.starS,
+    slipstreamChargeSeconds: tuned.slipstreamChargeS,
     hornRadiusMetres: tuned.hornRadiusM,
     runawayWheelRadiusMetres: tuned.wheelRadiusM,
     cameraTuning: {

@@ -37,6 +37,7 @@ const STILL: SoundReading = {
   rolling: false,
   reelStep: null,
   starSeconds: null,
+  towed: false,
   nearestStar: null,
   blasts: [],
   incomingDroneMetres: null,
@@ -271,6 +272,27 @@ describe("soundCues", () => {
     expect(soundCues(STILL, STILL)).toEqual([]);
   });
 
+  it("plays the slipstream as a tow takes, from charging or from nothing, and nothing as it holds, re-arms or runs out", () => {
+    const towed = { ...STILL, towed: true };
+    expect(soundCues(STILL, towed)).toEqual(["slipstream"]);
+    expect(soundCues(towed, towed)).toEqual([]);
+    expect(soundCues(towed, STILL)).toEqual([]);
+  });
+
+  it("plays no boost pad for a tow, which is not a boost", () => {
+    // The reading's boost seconds stay null under a tow, so the pad's
+    // inference, a boost that nothing explains, never sees one.
+    const race = raceReadout({
+      karts: [kartReadout({ slipstream: { tow: { leftS: 1 } }, speed: 34.5 })],
+    });
+    const reading = soundReading(race, 0);
+    expect(reading.boostSeconds).toBeNull();
+    expect(reading.towed).toBe(true);
+    expect(soundCues(soundReading(raceReadout({ karts: [kartReadout()] }), 0), reading)).toEqual([
+      "slipstream",
+    ]);
+  });
+
   it("plays the air horn in place of the item fire as a horn leaves the slot, once", () => {
     const held: SoundReading = { ...STILL, item: "horn" };
     expect(soundCues(held, STILL)).toEqual(["airHorn"]);
@@ -448,6 +470,7 @@ describe("soundReading", () => {
       rolling: false,
       reelStep: null,
       starSeconds: null,
+      towed: false,
       nearestStar: null,
       blasts: [],
       incomingDroneMetres: null,

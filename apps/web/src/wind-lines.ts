@@ -1,10 +1,14 @@
-// The air rushing past the own kart while it boosts: white streaks that
-// come from ahead and part around its sides and roof, densest as the boost
-// begins and fading over its last moments. The local player's only, so
-// the effect is felt from the seat; other karts show their boosts by the
-// flame. Presentation only, decided from the own kart's readout.
+// The air rushing past the own kart while it boosts or holds a slipstream
+// (ADR 0077): white streaks that come from ahead and part around its sides
+// and roof. A boost throws them densest as it begins and fades them over
+// its last moments; a wake throws them building from nothing through the
+// charge, and a tow at the boost's steady rate, fading as the tow runs out.
+// The local player's only, so the effect is felt from the seat; other karts
+// show their boosts by the flame and their tows by nothing. Presentation
+// only, decided from the own kart's readout.
 
 import type { KartReadout, KartSize } from "./bridge";
+import type { Slipstream } from "./generated/sim/Slipstream";
 import { rotate, toWorld, type Vec3 } from "./kart-frame";
 import { createParticles, type Particles } from "./particles";
 
@@ -57,39 +61,69 @@ export function createWindParticles(): Particles {
 
 /**
  * How brightly the lines show for a kart with `boostS` seconds of boost
- * left: fully until the boost's last moments, then fading to nothing as
- * it ends. Nothing off a boost.
+ * left, or else with the tow `slipstream` carries: fully until the last
+ * moments, then fading to nothing as it ends. Full through a charge, whose
+ * lines are few rather than dim. Nothing off all three.
  */
-export function windFade(boostS: number | null): number {
-  return boostS === null ? 0 : Math.min(Math.max(boostS, 0) / WIND_FADE_S, 1);
+export function windFade(boostS: number | null, slipstream: Slipstream | null = null): number {
+  if (boostS !== null) return fadeOver(boostS);
+  if (slipstream === null) return 0;
+  return "tow" in slipstream ? fadeOver(slipstream.tow.leftS) : 1;
+}
+
+function fadeOver(leftS: number): number {
+  return Math.min(Math.max(leftS, 0) / WIND_FADE_S, 1);
+}
+
+/**
+ * Lines thrown per second for `kart`: a boost's rate, densest as it
+ * begins; else a tow's steady rate, the boost's; else a charge's, climbing
+ * from nothing to the least boost rate as the charge fills; else none.
+ */
+export function windRate(
+  kart: Pick<KartReadout, "boostS" | "slipstream">,
+  chargeS: number,
+): number {
+  if (kart.boostS !== null) {
+    const dense = Math.min(Math.max(kart.boostS, 0) / WIND_DENSE_BOOST_S, 1);
+    return WIND_LEAST_RATE_PER_S + (WIND_RATE_PER_S - WIND_LEAST_RATE_PER_S) * dense;
+  }
+  if (kart.slipstream === null) return 0;
+  if ("tow" in kart.slipstream) return WIND_RATE_PER_S;
+  return WIND_LEAST_RATE_PER_S * Math.min(Math.max(kart.slipstream.charging.s, 0) / chargeS, 1);
 }
 
 export interface WindLinesOptions {
   /** The viewer asked for less motion: far fewer lines. */
   readonly reducedMotion?: boolean;
+  /** Seconds a wake takes to charge, which the charge's rate climbs over: the sim's tuned value, from the bridge (ADR 0014). */
+  readonly chargeSeconds: number;
 }
 
 export interface WindLines {
-  /** Throw this frame's lines round the own `kart` into the pool, while it boosts. */
+  /** Throw this frame's lines round the own `kart` into the pool, while it boosts, charges or is towed. */
   emit(kart: KartReadout, dtSeconds: number): void;
 }
 
 /** The most emission a frame can owe, so a stalled tab does not throw every line at once. */
 const MAX_OWED_S = 0.1;
+/** The owed lines always have room to reach one, so a rate under ten a second, a thin charge under reduced motion, still throws its lines. */
+const MIN_OWED = 1;
 
 /**
- * Throws wind lines ahead of the own kart while it boosts, at a rate that
- * falls as the boost runs down, each carried back past the kart and
- * parting outward around its sides or lifting over its roof. `random` is
+ * Throws wind lines ahead of the own kart while it boosts, charges or is
+ * towed, at `windRate`, each carried back past the kart and parting
+ * outward around its sides or lifting over its roof. `random` is
  * Math.random's shape; tests pass a fixed sequence.
  */
 export function createWindLines(
   particles: Particles,
   size: KartSize,
-  options: WindLinesOptions = {},
+  options: WindLinesOptions,
   random: () => number = Math.random,
 ): WindLines {
   const share = options.reducedMotion === true ? WIND_REDUCED_SHARE : 1;
+  const chargeS = options.chargeSeconds;
   let owed = 0;
   const position: Vec3 = [0, 0, 0];
   const velocity: Vec3 = [0, 0, 0];
@@ -104,14 +138,12 @@ export function createWindLines(
   const between = (least: number, most: number) => least + random() * (most - least);
   return {
     emit(kart, dtSeconds) {
-      if (kart.boostS === null) {
+      const rate = share * windRate(kart, chargeS);
+      if (rate === 0) {
         owed = 0;
         return;
       }
-      const dense = Math.min(Math.max(kart.boostS, 0) / WIND_DENSE_BOOST_S, 1);
-      const rate =
-        share * (WIND_LEAST_RATE_PER_S + (WIND_RATE_PER_S - WIND_LEAST_RATE_PER_S) * dense);
-      owed = Math.min(owed + rate * dtSeconds, rate * MAX_OWED_S);
+      owed = Math.min(owed + rate * dtSeconds, Math.max(rate * MAX_OWED_S, MIN_OWED));
       const ground = -size.height / 2;
       for (; owed >= 1; owed -= 1) {
         const ahead = -between(WIND_AHEAD_MIN_M, WIND_AHEAD_MAX_M);

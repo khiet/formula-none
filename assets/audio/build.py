@@ -482,6 +482,19 @@ def drone_beep():
     return tone(1320, 0.07, square, decay=12, gain=0.3)
 
 
+# Held under the other cues' levels: with no tone to fight the engine's, the
+# whoosh reads as air and not as a hit.
+SLIPSTREAM_LEVEL = 0.45
+
+
+def slipstream(length=0.3, seed=21):
+    """Whoosh: a swell of bandpassed noise with no tone, up over the first half and let go."""
+    air = noise(length, decay=0.0, gain=1.0, seed=seed)
+    air = envelope(air, lambda t: math.sin(math.pi * min(t / length, 1.0)) ** 2)
+    air = lowpass(highpass(air, 400), 2600, passes=2)
+    return scale(tame(release(air, 0.03)), SLIPSTREAM_LEVEL)
+
+
 def finish(beep=880, high=1320, length=0.1, hold=0.5, gain=0.3):
     """Chequered: two pulse beeps at one pitch and a third higher, then a square chord."""
     return concat(
@@ -581,6 +594,8 @@ def sfx():
     # repeats.
     write("air-horn", air_horn())
     write("drone-beep", drone_beep())
+    # The slipstream's whoosh (ADR 0077), as the own kart's tow takes.
+    write("slipstream", slipstream())
     # Loops: 1.5 s, crossfaded to loop without a click, at LOOP_SPEED.
     write("drift-skid", tame(drift_skid(LOOP_SPEED)))
     write("grass", tame(grass(LOOP_SPEED)))

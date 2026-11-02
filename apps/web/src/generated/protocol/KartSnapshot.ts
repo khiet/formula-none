@@ -2,6 +2,7 @@
 import type { BoostSnapshot } from "./BoostSnapshot";
 import type { DriftSnapshot } from "./DriftSnapshot";
 import type { ItemSlot } from "./ItemSlot";
+import type { SlipstreamSnapshot } from "./SlipstreamSnapshot";
 import type { Start } from "./Start";
 
 /**
@@ -65,4 +66,10 @@ boost: BoostSnapshot | null,
  * Seconds of a star's run left, while the kart has one. Every client
  * works the shine's phase out from it, so they all agree.
  */
-starS: number | null, };
+starS: number | null, 
+/**
+ * The slipstream the kart is in, if any. Only the server judges the
+ * wake, so a client's prediction takes its kart's charge and tow from
+ * here (ADR 0077).
+ */
+slipstream: SlipstreamSnapshot | null, };
