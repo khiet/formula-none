@@ -216,8 +216,8 @@ surface.
 
 ### item slot
 
-A kart's one place for an item: a boost, a hazard, a homing projectile or a
-star.
+A kart's one place for an item: a boost, a hazard, a homing projectile, a
+star or an Air Horn.
 It is empty, rolling or held. A box into an empty slot starts a roll that
 lands the item 2.5 s later; until then a press fires nothing and is not
 remembered, and nothing stops the roll early (ADR 0070). Rolling or held,
@@ -233,7 +233,8 @@ each change. Other karts' rolls show nothing.
 
 The item a pickup puts in the slot, drawn on the sim's RNG with weights by
 the kart's race position band: the leaders mostly hazards, the back of the
-field mostly homing, and the star only from third place back. Drawn at the pickup, it rolls in the slot for 2.5 s
+field mostly homing, the star only from third place back and the Air Horn
+mostly at the front and the middle. Drawn at the pickup, it rolls in the slot for 2.5 s
 before it lands and can be fired (ADR 0070). Only the server rolls; a
 client's prediction never picks up a box and holds what the snapshots say.
 
@@ -268,6 +269,23 @@ the finish ends it; a second star puts it back to 6 s. Every snapshot
 carries the seconds left, which every client shines the kart from through
 the rainbow in the same phase, and plays the star music to (ADR 0075). In
 the slot it is a faceted mirror ball on a chain, shining once landed.
+
+### Air Horn
+
+The item worth saving. Fired, it lets off one blast 7 m round the kart,
+reaching only within 15 m of spline progress the shorter way round the lap,
+so it never reaches through a crossover or across a barrier. Every other
+kart in reach spins out, unless it trails a hazard, which is used up in its
+place, or is a star kart or already spun out, which it leaves alone; every
+hazard lying on the road in reach is used up, the firer's own included,
+though not one the firer trails; every homing projectile in reach is used
+up, whoever it chases. The wheel, the boxes and the coins are not touched,
+and with nothing in reach the blast still fires. Every blast is a server
+event each client acts on: a flat orange ring grows on the road to the
+reach, and the blast is heard by distance (ADR 0076). The drone warning
+goes with it: a marker beside the slot and a rising beep while a homing
+projectile chasing the own kart is within 40 m, so the blast can be timed
+to meet it. In the slot it is a grandstand air horn, scowling.
 
 ### spin-out
 

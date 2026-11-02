@@ -16,6 +16,7 @@ impl From<sim::Item> for Item {
             sim::Item::Hazard => Self::Hazard,
             sim::Item::Homing => Self::Homing,
             sim::Item::Star => Self::Star,
+            sim::Item::Horn => Self::Horn,
         }
     }
 }
@@ -53,6 +54,7 @@ impl From<Item> for sim::Item {
             Item::Hazard => Self::Hazard,
             Item::Homing => Self::Homing,
             Item::Star => Self::Star,
+            Item::Horn => Self::Horn,
         }
     }
 }

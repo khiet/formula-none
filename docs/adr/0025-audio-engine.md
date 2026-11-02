@@ -4,7 +4,9 @@
 
 Accepted (2026-10-25). Supersedes ADR 0008 in full. Extended by ADR 0075:
 the star music is the one sound that hears another kart, the nearest star
-kart's run by distance.
+kart's run by distance. Extended again by ADR 0076: every other kart's Air
+Horn blast is heard once by the same rule, and the drone warning's beep
+repeats on the audio's clock.
 
 ## Context
 

@@ -5,12 +5,14 @@ import {
   BufferGeometry,
   Color,
   DirectionalLight,
+  DoubleSide,
   Group,
   Mesh,
   MeshBasicMaterial,
   type Object3D,
   PerspectiveCamera,
   Quaternion,
+  RingGeometry,
   SphereGeometry,
   Scene as ThreeScene,
   Vector3,
@@ -46,9 +48,9 @@ import { dressKart, fitKart, type KartFit, shineKart } from "./kart-model";
 import { createKartShadows } from "./kart-shadows";
 import { hexCss, livery } from "./livery";
 import type { Point } from "./low-poly-svg";
-import { plate, tonesOf, writePalette } from "./palette";
+import { HAZARD_ORANGE, plate, tonesOf, writePalette } from "./palette";
 import { createParticles } from "./particles";
-import type { RaceReadout } from "./race-run";
+import { BLAST_S, type Blast, type RaceReadout } from "./race-run";
 import { sceneryMotion } from "./scenery-motion";
 import { createSparkEmitter, createSparkParticles } from "./sparks";
 import { spinOutAngle } from "./spin";
@@ -97,6 +99,16 @@ const STAR_SPARKLE_CAPACITY_PER_KART = 48;
 const STAR_SPARKLE_DRAG_PER_S = 1.5;
 const STAR_SPARKLE_COOL_SHARE = 0.5;
 const STAR_HIT_REACH_M = 4;
+/**
+ * The Air Horn's shockwave (ADR 0076): a flat orange ring that grows from
+ * the firing kart to the blast's reach in this long, this wide, this far
+ * over the ground, and fades out over the rest of the blast's time, so
+ * the reach can be learned by eye.
+ */
+const HORN_RING_GROW_S = 0.25;
+const HORN_RING_WIDTH_M = 0.6;
+const HORN_RING_LIFT_M = 0.05;
+const HORN_RING_OPACITY = 0.85;
 /**
  * On a marshal post the marshal stands this far off its middle, to the
  * left as seen from the track, and the beacon this far toward the track
@@ -176,6 +188,8 @@ export interface ViewAssets {
  * it rebounds from, the marshal sits with his tea or waves his hazard
  * flags as the wheel has it, and the post's beacon is lit while the flag
  * is up.
+ * At each horn blast a flat orange ring grows to `hornRadius`, the blast's
+ * reach, and fades.
  * `labelsFor` names the karts to label and where, from the frame's readouts. Picks WebGPU when the
  * browser has it and WebGL otherwise.
  */
@@ -188,6 +202,7 @@ export async function createRaceView(
   coins: readonly Coin[],
   spinOutSeconds: number,
   runawayWheelRadius: number,
+  hornRadius: number,
   labelsFor: (karts: readonly KartReadout[]) => readonly KartLabel[],
   viewer: ViewerOptions,
 ): Promise<RaceView> {
@@ -328,6 +343,7 @@ export async function createRaceView(
 
   const cones = meshPool(world, hazardConeMesh(), 0);
   const drones = homingDrones(world);
+  const rings = hornRings(world, hornRadius, kartSize.height);
   const runaways = runawayWheels(world, track.scene, runawayWheelRadius);
   const motion = sceneryMotion(track.scene);
 
@@ -443,6 +459,7 @@ export async function createRaceView(
       flameMesh.update(frameSeconds);
       cones.show(hazards);
       drones.show(projectiles, (projectile) => readouts[projectile.target]?.position, frameSeconds);
+      rings.show(race.blasts);
       runaways.show(race.wheels, frameSeconds);
       motion.update(performance.now());
       for (const label of labels) {
@@ -715,6 +732,52 @@ interface MeshPool {
  * made as they are needed and hidden, never removed, when not, so a race of
  * many never churns the scene graph.
  */
+/** The horn blasts' rings in `world`, made as they are needed and hidden, never removed. */
+interface HornRings {
+  /** Show one ring per blast, grown and faded by the blast's time. */
+  show(blasts: readonly Blast[]): void;
+}
+
+/**
+ * The shockwave rings for a blast's reach of `radius`: each a flat ring of
+ * unit outer radius lying on the ground under the kart, `kartHeight` under
+ * its centre, scaled out to the reach over the ring's growth and faded over
+ * the blast's time. Unlit and double sided, so it reads from the chase
+ * camera on every surface.
+ */
+function hornRings(world: ThreeScene, radius: number, kartHeight: number): HornRings {
+  const rings: Mesh<RingGeometry, MeshBasicMaterial>[] = [];
+  const geometry = new RingGeometry(1 - HORN_RING_WIDTH_M / radius, 1, 48);
+  geometry.rotateX(-Math.PI / 2);
+  return {
+    show(blasts) {
+      while (rings.length < blasts.length) {
+        const material = new MeshBasicMaterial({
+          color: HAZARD_ORANGE.mid,
+          transparent: true,
+          opacity: HORN_RING_OPACITY,
+          depthWrite: false,
+          side: DoubleSide,
+        });
+        const ring = new Mesh(geometry, material);
+        world.add(ring);
+        rings.push(ring);
+      }
+      rings.forEach((ring, index) => {
+        const blast = blasts[index];
+        ring.visible = blast !== undefined;
+        if (blast === undefined) return;
+        const [x, y, z] = blast.position;
+        ring.position.set(x, y - kartHeight / 2 + HORN_RING_LIFT_M, z);
+        const grown = Math.min(blast.elapsedS / HORN_RING_GROW_S, 1);
+        ring.scale.setScalar(Math.max(radius * grown, 1e-3));
+        const fade = Math.max(1 - blast.elapsedS / BLAST_S, 0);
+        ring.material.opacity = HORN_RING_OPACITY * fade;
+      });
+    },
+  };
+}
+
 function meshPool(world: ThreeScene, template: Object3D, lift: number): MeshPool {
   const meshes: Object3D[] = [];
   const toward = new Vector3();

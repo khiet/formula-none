@@ -80,6 +80,7 @@ const DECISION_SLUGS = [
   "the-server-caps-rooms-and-creates",
   "pull-requests-build-the-image",
   "the-star-is-a-run-of-speed-and-immunity",
+  "the-air-horn-is-one-blast-round-the-kart",
 ];
 
 const expectedFiles = DECISION_SLUGS.map(

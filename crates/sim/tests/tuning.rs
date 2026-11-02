@@ -23,7 +23,8 @@ fn each_item_roll_band_sums_to_the_rolls_percent() {
         let total = u32::from(band.hazard)
             + u32::from(band.boost)
             + u32::from(band.homing)
-            + u32::from(band.star);
+            + u32::from(band.star)
+            + u32::from(band.horn);
         assert_eq!(total, ITEM_ROLL_PERCENT, "band {:?}", band.positions);
     }
 }

@@ -11,11 +11,13 @@
 // nearest other star kart's by distance. Presentation: it reads the own
 // kart's readings and changes no sim state.
 
+import airHornUrl from "../../../assets/audio/air-horn.wav?url";
 import boostPadUrl from "../../../assets/audio/boost-pad.wav?url";
 import coinLossUrl from "../../../assets/audio/coin-loss.wav?url";
 import coinPickupUrl from "../../../assets/audio/coin-pickup.wav?url";
 import countdownBeepUrl from "../../../assets/audio/countdown-beep.wav?url";
 import driftSkidUrl from "../../../assets/audio/drift-skid.wav?url";
+import droneBeepUrl from "../../../assets/audio/drone-beep.wav?url";
 import finishUrl from "../../../assets/audio/finish.wav?url";
 import goUrl from "../../../assets/audio/go.wav?url";
 import grassUrl from "../../../assets/audio/grass.wav?url";
@@ -36,7 +38,12 @@ import starMusicUrl from "../../../assets/audio/star-music.wav?url";
 import tierChimeUrl from "../../../assets/audio/tier-chime.wav?url";
 import wrongWayUrl from "../../../assets/audio/wrong-way.wav?url";
 import {
+  type DroneBeep,
+  distanceLevel,
+  droneBeep,
+  hornBlasts,
   loopPlayback,
+  SOUND_AWAY_LOWPASS_HZ,
   type SoundCue,
   type SoundLoop,
   type SoundReading,
@@ -75,6 +82,8 @@ export const SOUND_URLS: Readonly<Record<SoundCue, string>> = {
   finish: finishUrl,
   starFire: starFireUrl,
   starEnd: starEndUrl,
+  airHorn: airHornUrl,
+  droneBeep: droneBeepUrl,
 };
 export const LOOP_URLS: Readonly<Record<SoundLoop, string>> = {
   driftSkid: driftSkidUrl,
@@ -356,6 +365,8 @@ class LiveRace {
    */
   #musicLevel: SoundGain | undefined;
   #star: RunningStar | undefined;
+  /** The context's time the drone warning's next beep is due; 0 while no warning runs, so the first beep is at once. */
+  #nextBeepAt = 0;
   readonly #loops = new Map<SoundLoop, RunningLoop>();
   #last: SoundReading | undefined;
   readonly #topSpeed: number;
@@ -422,7 +433,8 @@ class LiveRace {
 
   update(reading: SoundReading): void {
     if (!this.racing) return;
-    const cues = soundCues(this.#last, reading);
+    const before = this.#last;
+    const cues = soundCues(before, reading);
     this.#last = reading;
     const sounds = this.#sounds;
     if (sounds === undefined) return;
@@ -440,6 +452,50 @@ class LiveRace {
       shot.connect(sounds.gains.sfx);
       shot.start();
     }
+    for (const blast of hornBlasts(before, reading)) {
+      this.#playAway(sounds, "airHorn", distanceLevel(blast.metres));
+    }
+    this.#runWarning(sounds, droneBeep(reading.incomingDroneMetres));
+  }
+
+  /** Play `cue` once from another kart, at `level` through the away lowpass; nothing out of earshot. */
+  #playAway(sounds: Sounds, cue: SoundCue, level: number): void {
+    const buffer = sounds.sfx[cue];
+    if (buffer === undefined || level <= 0) return;
+    const gain = sounds.context.createGain();
+    gain.gain.value = level;
+    gain.connect(sounds.gains.sfx);
+    const filter = sounds.context.createBiquadFilter();
+    filter.type = "lowpass";
+    filter.frequency.value = SOUND_AWAY_LOWPASS_HZ;
+    filter.connect(gain);
+    const shot = sounds.context.createBufferSource();
+    shot.buffer = buffer;
+    shot.connect(filter);
+    shot.start();
+  }
+
+  /**
+   * Beep as `beep` asks while a drone warning runs: at once as it starts,
+   * then each time the gap the last beep set has passed, at the rate the
+   * frame's distance gives; nothing once it is over, and at once again
+   * for the next.
+   */
+  #runWarning(sounds: Sounds, beep: DroneBeep | null): void {
+    if (beep === null) {
+      this.#nextBeepAt = 0;
+      return;
+    }
+    const now = sounds.context.currentTime;
+    if (now < this.#nextBeepAt) return;
+    this.#nextBeepAt = now + beep.gapS;
+    const buffer = sounds.sfx.droneBeep;
+    if (buffer === undefined) return;
+    const shot = sounds.context.createBufferSource();
+    shot.buffer = buffer;
+    shot.playbackRate.value = beep.rate;
+    shot.connect(sounds.gains.sfx);
+    shot.start();
   }
 
   /** Stop the loops not in `wanted`, start the ones not running, and glide every one to `speed`. */
@@ -527,6 +583,7 @@ class LiveRace {
 
   stop(): void {
     this.racing = false;
+    this.#nextBeepAt = 0;
     this.music(false);
     if (this.#star !== undefined) {
       this.#star.source.stop();

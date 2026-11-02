@@ -9,9 +9,9 @@
 mod common;
 
 use common::{
-    brake, follow_centreline, landed, started, tap, throttle, ticks, track, with_boxes_under,
-    with_slot_at, without_coins, without_item_boxes, without_walls, without_wheel_crossings, DT,
-    OVAL,
+    brake, follow_centreline, landed, rolled, rolling, started, tap, throttle, ticks, track,
+    with_boxes_under, with_slot_at, without_coins, without_item_boxes, without_walls,
+    without_wheel_crossings, DT, OVAL,
 };
 
 use sim::tuning::{
@@ -42,35 +42,6 @@ fn spun_out(state: &State) -> Vec<RaceEvent> {
 
 fn star_s(state: &State, kart: usize) -> Option<f32> {
     state.kart_readouts()[kart].star_s
-}
-
-/// Whether the pickups the last tick reported include `kart` rolling `item`.
-fn rolled(state: &State, kart: usize, item: Item) -> bool {
-    state.events().iter().any(|event| {
-        matches!(event, RaceEvent::ItemPicked { kart: by, item: Some(rolled), .. } if *by == kart && *rolled == item)
-    })
-}
-
-/// A race of `humans` karts and `bots` bots on the track `build` makes for
-/// the seed, stepped on until the items `rolls` names, rolled at Go by the
-/// karts standing on boxes under their slots, have landed: the seeds are
-/// tried in order until one rolls them all. The star never reaches the front
-/// two places, so a kart that rolls one stands third or further back on the
-/// grid.
-fn rolling(
-    build: impl Fn() -> Track,
-    humans: usize,
-    bots: usize,
-    rolls: &[(usize, Item)],
-) -> State {
-    for seed in 0.. {
-        let state = started(State::with_bots(seed, humans, bots, build()));
-        let state = step(state, &vec![idle(); humans], DT);
-        if rolls.iter().all(|&(slot, item)| rolled(&state, slot, item)) {
-            return landed(state, humans, rolls.iter().map(|&(slot, _)| slot));
-        }
-    }
-    unreachable!()
 }
 
 /// The oval with no coins and no item boxes but one under each of `slots`;

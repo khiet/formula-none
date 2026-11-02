@@ -89,6 +89,7 @@ export async function createRaceScene(
       run.coins(),
       bridge.spinOutSeconds,
       bridge.runawayWheelRadiusMetres,
+      bridge.hornRadiusMetres,
       (karts) => kartLabels(karts, run.localKart, name),
       { localKart: run.localKart, reducedMotion },
     ),

@@ -170,6 +170,9 @@ pub enum Item {
     /// A run of the tuned time: a raised top speed, immunity from every
     /// item and the wheel, and a spin-out for every kart the kart touches.
     Star,
+    /// One blast the tuned reach round the kart: spins out the karts in
+    /// reach and uses up the hazards and projectiles in reach.
+    Horn,
 }
 
 /// A homing projectile in flight, as the View draws it: where it is, whose
@@ -208,11 +211,15 @@ pub struct Hazard {
     pub held: bool,
 }
 
-/// A hazard as the rules keep it: what the View sees, plus how long it has
-/// left and whether its owner has got clear of it since the drop.
+/// A hazard as the rules keep it: what the View sees, plus its spline
+/// progress, how long it has left and whether its owner has got clear of
+/// it since the drop.
 #[derive(Debug, Clone, Copy, PartialEq)]
 struct PlacedHazard {
     hazard: Hazard,
+    /// Its owner's spline progress, as of the drop: kept up while it
+    /// trails. What a horn's blast reads it by; the View never sees it.
+    progress: f32,
     /// Seconds until a dropped hazard is gone; a held one does not age.
     lifetime_left_s: f32,
     /// Whether the owner has been out of the hazard's reach since firing
@@ -275,14 +282,15 @@ impl Item {
             Self::Hazard => 2,
             Self::Homing => 3,
             Self::Star => 4,
+            Self::Horn => 5,
         }
     }
 
     /// The item a roll in `0..ITEM_ROLL_PERCENT` picks for a kart in race `position`,
     /// from the tuned weights of the position's band: the first `hazard`
     /// percent are the hazard, the next `boost` the boost, the next `homing`
-    /// the homing projectile and the rest the star. A position past the last
-    /// band rolls as the last.
+    /// the homing projectile, the next `star` the star and the rest the
+    /// horn. A position past the last band rolls as the last.
     fn rolled(position: u32, roll: u32) -> Self {
         let band = ITEM_ROLL_WEIGHTS
             .iter()
@@ -292,14 +300,17 @@ impl Item {
         let hazard = u32::from(band.hazard);
         let boost = hazard + u32::from(band.boost);
         let homing = boost + u32::from(band.homing);
+        let star = homing + u32::from(band.star);
         if roll < hazard {
             Self::Hazard
         } else if roll < boost {
             Self::Boost
         } else if roll < homing {
             Self::Homing
-        } else {
+        } else if roll < star {
             Self::Star
+        } else {
+            Self::Horn
         }
     }
 }
@@ -835,6 +846,7 @@ use tuning::{
     ITEM_ROLL_S, ITEM_ROLL_WEIGHTS, SPIN_OUT_S, STAR_HIT_RADIUS_M, STAR_KICK_FACTOR, STAR_KICK_S,
     STAR_S, STAR_TOP_SPEED_FACTOR, WHEEL_RADIUS_M,
 };
+use tuning::{HORN_PROGRESS_WINDOW_M, HORN_RADIUS_M};
 use tuning::{
     HOMING_LOCK_RANGE_M, HOMING_LOOKAHEAD_M, HOMING_RADIUS_M, HOMING_SPEED_FACTOR,
     HOMING_WITHOUT_TARGET_IS_WASTED,
@@ -1198,6 +1210,7 @@ impl State {
             hasher.write_f32s(placed.hazard.position);
             hasher.write_u64(placed.hazard.owner as u64);
             hasher.write_u8(u8::from(placed.hazard.held));
+            hasher.write_f32(placed.progress);
             hasher.write_f32(placed.lifetime_left_s);
             hasher.write_u8(u8::from(placed.clear_of_owner));
         }
@@ -1410,6 +1423,8 @@ pub fn step(mut state: State, inputs: &[KartInput], dt: f32) -> State {
     // Fires come before pickups, so a press on the tick a box is picked up
     // fires what the kart held, never what it has just rolled. A stalled or
     // spun-out kart's press is as dead as its other controls.
+    // Fires run in slot order, so of two horns pressed on one tick the
+    // lower slot's blast goes first and a kart it spins out loses its press.
     for (slot, input) in inputs.iter().enumerate() {
         let kart = &mut state.karts[slot];
         let pressed = input.use_item || (input.hold_item && !kart.item_was_held);
@@ -1418,50 +1433,55 @@ pub fn step(mut state: State, inputs: &[KartInput], dt: f32) -> State {
         if kart.ignores_inputs() || out_of_items || !pressed {
             continue;
         }
-        if let Some(item) = kart.item_slot.held() {
-            kart.item_slot = ItemSlot::Empty;
-            match item {
-                Item::Boost => kart
-                    .handling
-                    .boost(ITEM_BOOST_S, ITEM_BOOST_FACTOR, MiniTurbo::Red),
-                Item::Hazard => {
-                    let body = &state.physics.bodies[kart.body];
-                    state.hazards.push(PlacedHazard {
-                        hazard: Hazard {
-                            position: behind(body.translation(), body.rotation()),
+        let Some(item) = kart.item_slot.held() else {
+            continue;
+        };
+        kart.item_slot = ItemSlot::Empty;
+        // The fire is reported before what it does.
+        state.events.push(RaceEvent::ItemFired { kart: slot, item });
+        let kart = &mut state.karts[slot];
+        match item {
+            Item::Boost => kart
+                .handling
+                .boost(ITEM_BOOST_S, ITEM_BOOST_FACTOR, MiniTurbo::Red),
+            Item::Hazard => {
+                let body = &state.physics.bodies[kart.body];
+                state.hazards.push(PlacedHazard {
+                    hazard: Hazard {
+                        position: behind(body.translation(), body.rotation()),
+                        owner: slot,
+                        held: true,
+                    },
+                    progress: kart.spline_progress,
+                    lifetime_left_s: HAZARD_LIFETIME_S,
+                    clear_of_owner: false,
+                });
+            }
+            // Fired with no kart ahead, the leader's projectile is
+            // wasted: the fire is reported and nothing flies.
+            Item::Homing => {
+                if let Some(target) = kart_ahead(&standings, slot) {
+                    let here = state.physics.bodies[kart.body].translation();
+                    let (position, progress) =
+                        at_centreline_height(&state.track, here, kart.spline_progress);
+                    state.projectiles.push(FlyingProjectile {
+                        projectile: Projectile {
+                            position,
                             owner: slot,
-                            held: true,
+                            target,
                         },
-                        lifetime_left_s: HAZARD_LIFETIME_S,
-                        clear_of_owner: false,
+                        progress,
                     });
                 }
-                // Fired with no kart ahead, the leader's projectile is
-                // wasted: the fire is reported and nothing flies.
-                Item::Homing => {
-                    if let Some(target) = kart_ahead(&standings, slot) {
-                        let here = state.physics.bodies[kart.body].translation();
-                        let (position, progress) =
-                            at_centreline_height(&state.track, here, kart.spline_progress);
-                        state.projectiles.push(FlyingProjectile {
-                            projectile: Projectile {
-                                position,
-                                owner: slot,
-                                target,
-                            },
-                            progress,
-                        });
-                    }
-                }
-                // The run's timer goes back to the start, never adding to
-                // what was left; the kick fires again.
-                Item::Star => {
-                    kart.star_left_s = STAR_S;
-                    kart.handling
-                        .boost(STAR_KICK_S, STAR_KICK_FACTOR, MiniTurbo::Red);
-                }
             }
-            state.events.push(RaceEvent::ItemFired { kart: slot, item });
+            // The run's timer goes back to the start, never adding to
+            // what was left; the kick fires again.
+            Item::Star => {
+                kart.star_left_s = STAR_S;
+                kart.handling
+                    .boost(STAR_KICK_S, STAR_KICK_FACTOR, MiniTurbo::Red);
+            }
+            Item::Horn => blast_horn(&mut state, slot),
         }
     }
     // Rolls run down after the fires, so a press on the tick a roll lands
@@ -1738,6 +1758,7 @@ pub fn step(mut state: State, inputs: &[KartInput], dt: f32) -> State {
         if holds[placed.hazard.owner] {
             let body = &state.physics.bodies[owner.body];
             placed.hazard.position = behind(body.translation(), body.rotation());
+            placed.progress = owner.spline_progress;
         } else {
             placed.hazard.held = false;
         }
@@ -2286,6 +2307,86 @@ fn spin_out(
     body.set_linvel(Vec3::ZERO, true);
     body.set_angvel(Vec3::ZERO, true);
     body.lock_translations(true, true);
+}
+
+/// How far apart two spline progress readings are the shorter way round a
+/// lap of `lap` metres.
+fn progress_gap(lap: f32, a: f32, b: f32) -> f32 {
+    let gap = (a - b).rem_euclid(lap);
+    gap.min(lap - gap)
+}
+
+/// Whether a horn's blast from a kart at `centre` with spline progress
+/// `progress` reaches a kart standing at `translation` facing `rotation`
+/// with spline progress `kart_progress`: the kart's collision box within
+/// the tuned radius of the centre, seen from above, and its progress within
+/// the tuned window, the shorter way round a lap of `lap` metres. The
+/// window keeps distance alone from reaching through a crossover or across
+/// the barrier between two sections of road. The bot fires its horn by the
+/// same test.
+pub(crate) fn horn_reaches_kart(
+    lap: f32,
+    centre: Vec3,
+    progress: f32,
+    translation: Vec3,
+    rotation: &Rotation,
+    kart_progress: f32,
+) -> bool {
+    progress_gap(lap, progress, kart_progress) <= HORN_PROGRESS_WINDOW_M
+        && reaches(translation, rotation, centre.to_array(), HORN_RADIUS_M)
+}
+
+/// The Air Horn's blast from the kart in `firer`, at the fire (ADR 0076).
+/// Every other kart in reach spins out, `SpunOut { by: Some(firer) }`,
+/// unless it trails a hazard, which is used up in its place as a
+/// projectile's hit uses it, or is a star kart or already spun out, which
+/// the blast leaves alone, trailed hazard and all. Every hazard lying on
+/// the road in reach is used up, the firer's own included; one the firer
+/// trails stays. Every projectile in reach is used up, whoever it chases.
+/// The runaway wheel, the item boxes and the coins are not touched.
+fn blast_horn(state: &mut State, firer: usize) {
+    let lap = state.track.spline_length();
+    let centre = state.physics.bodies[state.karts[firer].body].translation();
+    let progress = state.karts[firer].spline_progress;
+    let in_reach = |point: [f32; 3], point_progress: f32| {
+        let (dx, dz) = (point[0] - centre.x, point[2] - centre.z);
+        progress_gap(lap, progress, point_progress) <= HORN_PROGRESS_WINDOW_M
+            && dx * dx + dz * dz <= HORN_RADIUS_M * HORN_RADIUS_M
+    };
+    for slot in 0..state.karts.len() {
+        let kart = &mut state.karts[slot];
+        let body = &mut state.physics.bodies[kart.body];
+        if slot == firer
+            || kart.spun_out()
+            || kart.starring()
+            || !horn_reaches_kart(
+                lap,
+                centre,
+                progress,
+                body.translation(),
+                body.rotation(),
+                kart.spline_progress,
+            )
+        {
+            continue;
+        }
+        let shield = state
+            .hazards
+            .iter()
+            .position(|placed| placed.hazard.held && placed.hazard.owner == slot);
+        match shield {
+            Some(index) => {
+                state.hazards.remove(index);
+            }
+            None => spin_out(kart, body, slot, Some(firer), &mut state.events),
+        }
+    }
+    state.hazards.retain(|placed| {
+        placed.hazard.held || !in_reach(placed.hazard.position, placed.progress)
+    });
+    state
+        .projectiles
+        .retain(|flying| !in_reach(flying.projectile.position, flying.progress));
 }
 
 impl Physics {

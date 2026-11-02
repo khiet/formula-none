@@ -13,8 +13,8 @@ use protocol::{ClientMessage, Input, ServerMessage, Snapshot};
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 use sim::{
-    KartInput, KartReadout, Phase, Projectile, RaceEvent, Replay, Standing, State, Surface, Track,
-    Wheel,
+    Item, KartInput, KartReadout, Phase, Projectile, RaceEvent, Replay, Standing, State, Surface,
+    Track, Wheel,
 };
 use wasm_bindgen::prelude::*;
 
@@ -239,6 +239,23 @@ impl Race {
             .filter(|event| matches!(event, RaceEvent::ItemPicked { kart: by, .. } if *by == kart))
             .count();
         u32::try_from(taken).expect("a step takes few boxes")
+    }
+
+    /// The grid slots of the karts that fired a horn on the last step, in
+    /// the order they fired, so the View can grow each blast's ring where
+    /// the kart stands.
+    pub fn horns_fired_last_step(&self) -> Vec<u32> {
+        self.state()
+            .events()
+            .iter()
+            .filter_map(|event| match event {
+                RaceEvent::ItemFired {
+                    kart,
+                    item: Item::Horn,
+                } => Some(u32::try_from(*kart).expect("a grid slot fits")),
+                _ => None,
+            })
+            .collect()
     }
 
     /// Four floats per coin of the track, in the sidecar's order: its

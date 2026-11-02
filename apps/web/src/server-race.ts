@@ -12,11 +12,14 @@
 // where the kart is drawn, so it follows the predicted own kart and the
 // interpolated others. The projectiles are drawn between the snapshots as
 // the other karts are, so one reaches its target as the target is drawn
-// spinning.
+// spinning. Every kart's horn fire is acted on: its blast is reported
+// where that kart is drawn as the event arrives, for the blast's time.
 
 import type { Bridge, Hazard, KartReadout, Phase, Standing } from "./bridge";
 import type { FinalStanding, Item, Snapshot } from "./generated/protocol";
 import {
+  BLAST_S,
+  type Blast,
   ITEM_FIRE_FLASH_S,
   ITEM_LANDING_FLASH_S,
   landedItem,
@@ -95,6 +98,9 @@ export function createServerRace(
   const coinTicksLeft: number[] = Array<number>(coins.length).fill(0);
   /** Ticks until each box the server reported picked up is back; 0 while it is there. */
   const boxTicksLeft: number[] = Array<number>(boxes.length).fill(0);
+  /** The horn blasts under way, oldest first, each with the ticks it has run. */
+  const blasts: { blast: Blast; ticks: number }[] = [];
+  let blastsHeard = 0;
 
   const stopSnapshots = client.onSnapshot((snapshot) => {
     latest = snapshot;
@@ -142,14 +148,24 @@ export function createServerRace(
       if (coin < coinTicksLeft.length) {
         coinTicksLeft[coin] = ticks(bridge.coinRespawnSeconds);
       }
-    } else if ("itemFired" in kind && kind.itemFired.kart === localKart) {
-      // The server's word on the fire, predicted or not: the item is gone
-      // and the fire plays out.
-      heldItem = null;
-      rollingItem = null;
-      slotHeardOf = true;
-      predictedFireTicksLeft = 0;
-      flashTicksLeft = ticks(ITEM_FIRE_FLASH_S);
+    } else if ("itemFired" in kind) {
+      const { kart, item } = kind.itemFired;
+      if (item === "horn") {
+        const position = kartReadouts()[kart]?.position;
+        if (position !== undefined) {
+          blastsHeard++;
+          blasts.push({ blast: { id: blastsHeard, kart, position, elapsedS: 0 }, ticks: 0 });
+        }
+      }
+      if (kart === localKart) {
+        // The server's word on the fire, predicted or not: the item is gone
+        // and the fire plays out.
+        heldItem = null;
+        rollingItem = null;
+        slotHeardOf = true;
+        predictedFireTicksLeft = 0;
+        flashTicksLeft = ticks(ITEM_FIRE_FLASH_S);
+      }
     }
   });
   const stopResults = client.onResults((standings) => {
@@ -225,6 +241,8 @@ export function createServerRace(
       for (let coin = 0; coin < coinTicksLeft.length; coin++) {
         coinTicksLeft[coin] = Math.max((coinTicksLeft[coin] ?? 0) - 1, 0);
       }
+      for (const running of blasts) running.ticks++;
+      while ((blasts[0]?.ticks ?? 0) >= ticks(BLAST_S)) blasts.shift();
     },
     readout: () => {
       const karts = kartReadouts();
@@ -256,6 +274,10 @@ export function createServerRace(
         hazards: hazards(karts),
         projectiles: prediction.interpolatedProjectiles(),
         wheels: prediction.wheels(),
+        blasts: blasts.map(({ blast, ticks }) => ({
+          ...blast,
+          elapsedS: ticks / bridge.ticksPerSecond,
+        })),
       };
     },
     itemBoxes: () => boxes,

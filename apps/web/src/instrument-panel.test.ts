@@ -470,6 +470,30 @@ describe("the star's ring", () => {
   });
 });
 
+describe("the drone warning", () => {
+  it("marks a drone chasing the own kart from 40 m in, and not one further off or chasing another kart", () => {
+    const container = document.createElement("div");
+    const panel = createInstrumentPanel(container, 3, course, TUNING, () => "", livery(1), {
+      reducedMotion: false,
+    });
+    const marker = container.querySelector<HTMLElement>("[data-drone-warning]");
+    expect(marker?.hidden).toBe(true);
+    const chased = (position: readonly [number, number, number], target: number) => ({
+      ...race(ON_THE_GRID, EMPTY_SLOT),
+      projectiles: [{ position, owner: 2, target }],
+    });
+    panel.update(chased([0, 0, -40], 1));
+    expect(marker?.hidden).toBe(false);
+    panel.update(chased([0, 0, -41], 1));
+    expect(marker?.hidden).toBe(true);
+    panel.update(chased([0, 0, -5], 0));
+    expect(marker?.hidden).toBe(true);
+    panel.update(race(ON_THE_GRID, EMPTY_SLOT));
+    expect(marker?.hidden).toBe(true);
+    panel.dispose();
+  });
+});
+
 describe("the item slot", () => {
   it("names the item once it lands, in a state that says whether it rolls or is being fired", () => {
     expect(itemReadout({ ...EMPTY_SLOT, item: null, firing: false })).toEqual({

@@ -66,6 +66,24 @@ export const EMPTY_SLOT: ItemSlot = {
 };
 
 /**
+ * An Air Horn's blast under way: the fire the server reported, numbered
+ * in the order the run heard of them, whose it was, where that kart was
+ * drawn at the fire, and how long ago it went off on the run's clock. The
+ * View grows its ring from this and the audio sounds it once; the sim's
+ * effects of the blast reach the readout through the snapshots as every
+ * spin-out does.
+ */
+export interface Blast {
+  readonly id: number;
+  readonly kart: number;
+  readonly position: readonly [number, number, number];
+  readonly elapsedS: number;
+}
+
+/** How long a blast is reported after its fire: the ring's growth and its fade. Presentation, so not the sim's to tune. */
+export const BLAST_S = 0.5;
+
+/**
  * What the run says of the race as of the last tick, read once a frame and
  * handed whole to the View, the Instrument panel and the audio.
  */
@@ -87,6 +105,8 @@ export interface RaceReadout {
   readonly projectiles: readonly Projectile[];
   /** The runaway wheel at each of the track's crossings, in the sidecar's order. */
   readonly wheels: readonly Wheel[];
+  /** The horn blasts under way, every kart's, oldest first. */
+  readonly blasts: readonly Blast[];
 }
 
 /**

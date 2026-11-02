@@ -41,6 +41,8 @@ const STILL: SoundReading = {
   reelStep: null,
   starSeconds: null,
   nearestStar: null,
+  blasts: [],
+  incomingDroneMetres: null,
 };
 const STAR_RUN_S = 6;
 
@@ -352,17 +354,17 @@ describe("preloading and the autoplay rule", () => {
         STAR_MUSIC_URL,
       ]),
     );
-    expect(fetched).toHaveLength(24);
+    expect(fetched).toHaveLength(26);
     await settled();
     expect(contexts).toHaveLength(0);
     await audio.unlock();
     expect(contexts).toHaveLength(1);
     expect(context().resumes).toBe(1);
     // Decoded once, from the bytes already fetched, so the first play is not late.
-    expect(context().decoded).toHaveLength(24);
+    expect(context().decoded).toHaveLength(26);
     await audio.unlock();
     expect(contexts).toHaveLength(1);
-    expect(context().decoded).toHaveLength(24);
+    expect(context().decoded).toHaveLength(26);
   });
 
   it("resumes a context the browser suspended on a later gesture", async () => {
@@ -772,7 +774,7 @@ describe("a sound that fails to load", () => {
     await audio.unlock();
     const context = contexts[0];
     if (context === undefined) throw new Error("no context was made");
-    expect(context.decoded).toHaveLength(22);
+    expect(context.decoded).toHaveLength(24);
     const race = audio.race();
     race.start();
     race.update(STILL);
@@ -821,6 +823,110 @@ describe("the music loop", () => {
     expect(music()).toHaveLength(2);
     race.stop();
     expect(music()[1]?.stopped).toBe(1);
+  });
+});
+
+describe("the Air Horn and the drone warning", () => {
+  const sfxGainOf = (harnessed: Harness) => {
+    const gain = harnessed
+      .context()
+      .gains.find(
+        (candidate) =>
+          candidate.connectedTo.includes(harnessed.context().destination) &&
+          candidate.gain.value === 0.8,
+      );
+    if (gain === undefined) throw new Error("no SFX gain");
+    return gain;
+  };
+  const sourcesOf = (harnessed: Harness, cue: SoundCue) =>
+    harnessed
+      .context()
+      .sources.filter(
+        (source) => (source.buffer as unknown as FakeBuffer | null)?.url === SOUND_URLS[cue],
+      );
+
+  it("plays the horn's own blast in place of the item fire as the own horn leaves the slot", async () => {
+    const { audio, played } = harness();
+    await audio.unlock();
+    const race = audio.race();
+    race.start();
+    race.update({ ...STILL, item: "horn" });
+    race.update(STILL);
+    expect(played("airHorn")).toBe(1);
+    expect(played("itemFire")).toBe(0);
+    race.update(STILL);
+    expect(played("airHorn")).toBe(1);
+  });
+
+  it("plays another kart's blast once, by distance through the lowpass, and none out of earshot", async () => {
+    const harnessed = harness();
+    const { audio, played, gainOf, context } = harnessed;
+    await audio.unlock();
+    const race = audio.race();
+    race.start();
+    race.update(STILL);
+    const halfway = { id: 1, kart: 2, metres: 35 };
+    race.update({ ...STILL, blasts: [halfway] });
+    expect(played("airHorn")).toBe(1);
+    const [blast] = sourcesOf(harnessed, "airHorn");
+    const filter = context().filters.find((candidate) => blast?.connectedTo.includes(candidate));
+    expect(filter?.type).toBe("lowpass");
+    expect(filter?.frequency.value).toBe(1200);
+    const level = gainOf(filter as FakeNode);
+    expect(level.gain.value).toBeCloseTo(0.5, 6);
+    expect(level.connectedTo).toContain(sfxGainOf(harnessed));
+    // Reported for frames after, it is not heard again; a second blast is.
+    race.update({ ...STILL, blasts: [halfway] });
+    expect(played("airHorn")).toBe(1);
+    race.update({ ...STILL, blasts: [halfway, { id: 2, kart: 4, metres: 8 }] });
+    expect(played("airHorn")).toBe(2);
+    race.update({ ...STILL, blasts: [{ id: 3, kart: 5, metres: 70 }] });
+    expect(played("airHorn")).toBe(2);
+  });
+
+  it("beeps on its clock while a drone chases the own kart, closing in and rising, and stops as it is gone", async () => {
+    const harnessed = harness();
+    const { audio, played, context } = harnessed;
+    await audio.unlock();
+    const race = audio.race();
+    race.start();
+    race.update(STILL);
+    expect(played("droneBeep")).toBe(0);
+    race.update({ ...STILL, incomingDroneMetres: 40 });
+    expect(played("droneBeep")).toBe(1);
+    expect(sourcesOf(harnessed, "droneBeep")[0]?.playbackRate.value).toBe(1);
+    context().currentTime = 0.3;
+    race.update({ ...STILL, incomingDroneMetres: 36 });
+    expect(played("droneBeep")).toBe(1);
+    context().currentTime = 0.36;
+    race.update({ ...STILL, incomingDroneMetres: 35 });
+    expect(played("droneBeep")).toBe(2);
+    // At the kart the beeps come every 0.1 s, half again as high.
+    context().currentTime = 0.36 + 0.33;
+    race.update({ ...STILL, incomingDroneMetres: 0 });
+    expect(played("droneBeep")).toBe(3);
+    expect(sourcesOf(harnessed, "droneBeep")[2]?.playbackRate.value).toBe(1.5);
+    context().currentTime = 0.36 + 0.33 + 0.1;
+    race.update({ ...STILL, incomingDroneMetres: 0 });
+    expect(played("droneBeep")).toBe(4);
+    // Gone, the warning stops; the next drone is beeped at once.
+    context().currentTime = 2;
+    race.update(STILL);
+    race.update(STILL);
+    expect(played("droneBeep")).toBe(4);
+    race.update({ ...STILL, incomingDroneMetres: 30 });
+    expect(played("droneBeep")).toBe(5);
+  });
+
+  it("plays no blast and no beep with the SFX toggle off", async () => {
+    const { audio, played } = harness({ ...DEFAULT_AUDIO_SETTINGS, sfx: false });
+    await audio.unlock();
+    const race = audio.race();
+    race.start();
+    race.update(STILL);
+    race.update({ ...STILL, blasts: [{ id: 1, kart: 2, metres: 5 }], incomingDroneMetres: 10 });
+    expect(played("airHorn")).toBe(0);
+    expect(played("droneBeep")).toBe(0);
   });
 });
 

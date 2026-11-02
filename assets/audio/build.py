@@ -9,9 +9,10 @@ The cues were picked on the sound effects iteration page
 (`docs/mockups/sound-effects.html`), which synthesises each one in the
 browser from the DSP kit ported below, so a render here is the page's pick.
 The hit and the sputter predate the page and keep their original code path,
-so their bytes do not churn. The star's three sounds were picked on
-`docs/mockups/star-and-horn-sounds.html` and are specified, with the
-script ported below, in `docs/mockups/star-and-air-horn.html`.
+so their bytes do not churn. The star's three sounds and the Air Horn's
+blast were picked on `docs/mockups/star-and-horn-sounds.html` and are
+specified, with the script ported below and the drone warning's beep, in
+`docs/mockups/star-and-air-horn.html`.
 """
 
 import math
@@ -244,6 +245,17 @@ def place(out, at, samples, gain=1.0):
         out[start + i] += s * gain
 
 
+def crush(samples, hold):
+    """Bit-crush by holding each sample for `hold` samples: a sample-rate drop."""
+    return [samples[i - (i % hold)] for i in range(len(samples))]
+
+
+def release(samples, seconds):
+    """Fade the last `seconds` out linearly, so a cut-off tail does not click."""
+    end = len(samples) / RATE
+    return envelope(samples, lambda t: min(1.0, (end - t) / seconds))
+
+
 # ---------------------------------------------------------------------------
 # The picks, parameters as the page names them.
 # ---------------------------------------------------------------------------
@@ -449,6 +461,27 @@ def star_end():
     return tame(concat(*(tone(midi_freq(n), 0.08, square, decay=8, gain=0.3) for n in (76, 72, 64))))
 
 
+def air_horn():
+    """Two square waves a fifth apart, sagging in pitch, then bit-crushed: the grandstand horn."""
+    return tame(
+        release(
+            crush(
+                mix(
+                    tone(196, 0.55, square, decay=1.5, gain=0.34, sweep_to=175, curve="exp"),
+                    tone(294, 0.55, square, decay=1.5, gain=0.26, sweep_to=262, curve="exp"),
+                ),
+                8,
+            ),
+            0.03,
+        )
+    )
+
+
+def drone_beep():
+    """One square-wave beep; the client repeats it faster and higher as the drone closes."""
+    return tone(1320, 0.07, square, decay=12, gain=0.3)
+
+
 def finish(beep=880, high=1320, length=0.1, hold=0.5, gain=0.3):
     """Chequered: two pulse beeps at one pitch and a third higher, then a square chord."""
     return concat(
@@ -543,6 +576,11 @@ def sfx():
     write("star-music", star_music())
     write("star-fire", star_fire())
     write("star-end", star_end())
+    # The Air Horn's blast (ADR 0076), for any kart's fire and in place of
+    # the item fire for the own kart, and the beep the drone warning
+    # repeats.
+    write("air-horn", air_horn())
+    write("drone-beep", drone_beep())
     # Loops: 1.5 s, crossfaded to loop without a click, at LOOP_SPEED.
     write("drift-skid", tame(drift_skid(LOOP_SPEED)))
     write("grass", tame(grass(LOOP_SPEED)))

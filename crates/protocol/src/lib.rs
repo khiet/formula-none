@@ -28,7 +28,7 @@ use ts_rs::TS;
 /// [`ClientMessage::Join`] and the server refuses a mismatch with
 /// [`Refusal::VersionMismatch`] (ADR 0013). The generator exports it next to
 /// the types, so the web app reads the same constant.
-pub const PROTOCOL_VERSION: u16 = 18;
+pub const PROTOCOL_VERSION: u16 = 19;
 
 /// What a client sends the server.
 #[derive(Serialize, Deserialize, TS, Debug, Clone, PartialEq)]
@@ -396,6 +396,9 @@ pub enum Item {
     Homing,
     /// A run of speed and immunity that spins out every kart it touches.
     Star,
+    /// One blast round the kart that spins out the karts in reach and
+    /// uses up the hazards and projectiles in reach.
+    Horn,
 }
 
 /// What a kart's item slot holds. A box into an empty slot starts a roll;

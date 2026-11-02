@@ -726,10 +726,10 @@
 
       <article class="asset wide">
         <header><h3>Item slot and its characters</h3><code>apps/web/src/item-sprites.ts</code></header>
-        <div class="compare"><figure><figcaption>Empty, boost, hazard, homing, star, firing; rolling, landing</figcaption><div class="view"><div class="hud hud-row" id="slots"></div></div></figure></div>
-        <dl class="spec"><dt>Decided</dt><dd><a href="adr/0024-item-sprites.md">ADR 0024</a>, drawn from the meshes by <a href="adr/0037-instrument-panel-in-chibi-low-poly.md">0037</a>, the boost a champagne bottle by <a href="adr/0058-boost-is-a-champagne-bottle.md">0058</a>, the roll by <a href="adr/0070-an-item-rolls-before-it-lands.md">0070</a>, the star a mirror ball by <a href="adr/0075-the-star-is-a-run-of-speed-and-immunity.md">0075</a>; picks in <a href="mockups/item-box-roll.html">the roll mockup</a> and <a href="mockups/star-icon-alternatives.html">the star's icon mockup</a></dd></dl>
+        <div class="compare"><figure><figcaption>Empty, boost, hazard, homing, star, Air Horn, firing; rolling, landing</figcaption><div class="view"><div class="hud hud-row" id="slots"></div></div></figure></div>
+        <dl class="spec"><dt>Decided</dt><dd><a href="adr/0024-item-sprites.md">ADR 0024</a>, drawn from the meshes by <a href="adr/0037-instrument-panel-in-chibi-low-poly.md">0037</a>, the boost a champagne bottle by <a href="adr/0058-boost-is-a-champagne-bottle.md">0058</a>, the roll by <a href="adr/0070-an-item-rolls-before-it-lands.md">0070</a>, the star a mirror ball by <a href="adr/0075-the-star-is-a-run-of-speed-and-immunity.md">0075</a>, the Air Horn by <a href="adr/0076-the-air-horn-is-one-blast-round-the-kart.md">0076</a>; picks in <a href="mockups/item-box-roll.html">the roll mockup</a>, <a href="mockups/star-icon-alternatives.html">the star's icon mockup</a> and <a href="mockups/star-and-air-horn.html">the star and Air Horn spec</a></dd></dl>
         <div class="notes">
-          <p>The slot is the item box seen face on, in its golds. The characters are the View's meshes drawn flat: the faceted cone, the camera quad drone side on with its rotors blurred, and the podium champagne bottle, shaken, its cork flying off on a jet of foam, which has no mesh since a boost never shows on the road. The star is a podium mirror ball on a short chain with no face, its tiles a latitude and longitude grid, each a step along the rainbow; it has no mesh either, since the star kart shines and stays a kart. Firing lights the plate. The item's name stays as the slot's text.</p>
+          <p>The slot is the item box seen face on, in its golds. The characters are the View's meshes drawn flat: the faceted cone, the camera quad drone side on with its rotors blurred, and the podium champagne bottle, shaken, its cork flying off on a jet of foam, which has no mesh since a boost never shows on the road. The star is a podium mirror ball on a short chain with no face, its tiles a latitude and longitude grid, each a step along the rainbow; it has no mesh either, since the star kart shines and stays a kart. The Air Horn is the grandstand horn, scowling: a poster-red can with a lit left side and a shaded right, a grey cap and a carbon valve, the white bell flaring right to its dark mouth, round eyes under V brows and a round open mouth. It has no mesh either: the road shows its blast's ring alone. Firing lights the plate. The item's name stays as the slot's text.</p>
           <p>While a box's item rolls, a slot machine reel scrolls the three characters up through the plate, a change every 50 ms at first slowing to about one every quarter second, and settles on the item over the roll's last quarter second with a small overshoot. Each change clicks. As it lands the character swells 40% and settles over 0.38 s and the plate flashes white once. Under reduced motion the slot stays the plain box face through the roll and the item appears with no pop. Only your own slot rolls; nothing shows for another kart's.</p>
           <p class="dont"><b>Don't</b> draw a character the road shows differently; a new item gets its mesh and its slot drawing together.</p>
         </div>
@@ -743,6 +743,17 @@
           <p>Through a run the kart and its driver, wheels and hair included, are pulled 70% toward the colour of the moment and lit by it as emissive, so their own shading still shows through. The loop takes 0.5 s through red, orange, yellow, green, cyan and violet, worked out from the run's seconds left so every screen agrees, and the pull fades to nothing over the last second. A soft additive halo in the same colour sits round the kart, four-point sparkles drift off the bodywork, white with a rainbow tip, and a burst of them marks a hit. Once the mirror ball has landed its tiles run the same loop, a step apart, with a glow behind; the dark gaps and the white glints stay fixed. Through your own run a rainbow ring round the slot counts the seconds down, and a star kart's plate underline and map marker run the loop, so the others see it coming.</p>
           <p>Under reduced motion nothing loops: the kart holds a steady white shine with its glow, the ball's tiles hold the stops, there are no sparkles, and the ring still counts down, in the rainbow's green.</p>
           <p class="dont"><b>Don't</b> run the loop faster: a 2 Hz sweep stays under the limit of three flashes a second with a star kart filling the screen.</p>
+        </div>
+      </article>
+
+      <article class="asset wide">
+        <header><h3>The Air Horn's blast and the drone warning</h3><code>apps/web/src/race-view.ts hornRings, instrument-panel.ts, drone-warning.ts, index.html [data-drone-warning]</code></header>
+        <div class="compare"><figure><figcaption>The ring at its full 7 m, to scale on a 12 m road; the warning beside the slot</figcaption><div class="view"><div class="hud hud-row" id="horn"></div></div></figure></div>
+        <dl class="spec"><dt>Decided</dt><dd><a href="adr/0076-the-air-horn-is-one-blast-round-the-kart.md">ADR 0076</a>; the design in <a href="mockups/star-and-air-horn.html">the star and Air Horn spec</a></dd></dl>
+        <div class="notes">
+          <p>At every horn's fire, whoever pressed it, a flat ring in <code>HAZARD_ORANGE.mid</code> <code>#ff5522</code> grows on the road from the kart's centre to the blast's reach, 7 m, in 0.25 s, 0.6 m wide and unlit, and fades out over the rest of the blast's half second. It lies 5 cm over the ground under the kart's centre and is double sided, so it reads from the chase camera on every surface. It is the whole of the horn on the road: the karts it reaches spin, the cones and drones it reaches vanish, and nothing else is drawn.</p>
+          <p>The drone warning sits beside the slot on its right, toward the road: the drone's red eye, <code>DRONE_EYE</code> <code>#d00a12</code> in a white octagon with its ink highlight, named Drone incoming for assistive technology. It shows while a homing projectile chasing your kart is within 40 m, about 2.2 s out, and blinks at 0.35 s with a half-dim beat, the same beat the warning's beep starts on; the beep closes to every 0.1 s at the kart as its pitch rises by half. Under reduced motion the eye holds steady. It shows for every kart, whatever the slot holds.</p>
+          <p class="dont"><b>Don't</b> blink the eye faster than the beep: its 0.35 s beat stays under three flashes a second.</p>
         </div>
       </article>
 
@@ -1125,6 +1136,19 @@
       <rect x="90" y="75" width="5" height="6" fill="#111111"/><rect x="105" y="75" width="5" height="6" fill="#111111"/>
       <polyline points="87,66 97,71" stroke="#111111" stroke-width="3.5"/><polyline points="113,66 103,71" stroke="#111111" stroke-width="3.5"/>
       <line x1="93" y1="99" x2="107" y2="99" stroke="#111111" stroke-width="3.5"/></svg>`;
+  };
+  // The grandstand air horn, scowling, as item-sprites.ts draws it.
+  draw.horn = () => {
+    const ellipse = (cx, cy, rx, ry, n = 12) => Array.from({ length: n }, (_, k) => { const a = (2 * Math.PI * k) / n; return [cx + rx * Math.cos(a), cy + ry * Math.sin(a)]; });
+    const oct = (cx, cy, r, n = 8) => ellipse(cx, cy, r, r, n);
+    return `<svg viewBox="0 0 200 160" role="img" aria-label="An air horn with a scowling face">
+      <ellipse cx="72" cy="140" rx="46" ry="6" fill="rgba(0,0,0,.15)"/>
+      ${poly([[54, 34], [78, 34], [78, 44], [54, 44]], "#2b2e33")}${poly([[52, 44], [80, 44], [80, 60], [52, 60]], "#cfd2d6")}
+      ${poly([[76, 46], [118, 46], [168, 18], [168, 92], [118, 66], [76, 60]], "#eef0f2")}${poly([[118, 46], [168, 18], [168, 55], [118, 56]], "#ffffff")}${poly(ellipse(168, 55, 8, 37), "#2b2e33")}
+      ${poly([[36, 70], [46, 60], [86, 60], [96, 70], [96, 136], [36, 136]], "#c81d25")}${poly([[36, 70], [46, 60], [60, 60], [60, 136], [36, 136]], "#e8333b")}${poly([[82, 60], [86, 60], [96, 70], [96, 136], [82, 136]], "#8f141a")}
+      ${poly(oct(55, 90, 7), "#ffffff")}${poly(oct(78, 90, 7), "#ffffff")}${poly(oct(57, 91, 3.5), "#111111")}${poly(oct(80, 91, 3.5), "#111111")}
+      <polyline points="46,78 62,83" stroke="#111111" stroke-width="4" fill="none"/><polyline points="87,78 71,83" stroke="#111111" stroke-width="4" fill="none"/>
+      ${poly(ellipse(67, 113, 10, 8), "#111111")}</svg>`;
   };
   // The slot's camera quad, side on and nose right, as item-sprites.ts draws it.
   draw.drone = () => `<svg viewBox="0 0 200 160" role="img" aria-label="Camera quad drone">
@@ -1954,7 +1978,15 @@
   // Rolling: the reel caught halfway from the cone to the drone. Landing: the pop at its widest, on the flash.
   const rolling = `<span class="pl"><span class="pf t-gold slot reel"><span class="strip" style="transform: translateY(-25%)">${draw.cone()}${draw.drone()}</span></span></span>`;
   const landing = `<span class="pl"><span class="pf t-flash slot landed">${draw.drone()}</span></span>`;
-  document.getElementById("slots").innerHTML = slot(null) + slot("champagne") + slot("cone") + slot("drone") + slot("ball") + slot("champagne", true) + rolling + landing;
+  document.getElementById("slots").innerHTML = slot(null) + slot("champagne") + slot("cone") + slot("drone") + slot("ball") + slot("horn") + slot("champagne", true) + rolling + landing;
+  // The horn's blast to scale from above, a 12 m road 240 units wide, and the drone warning's eye beside a slot holding the horn.
+  const blastRing = `<svg viewBox="0 0 300 160" role="img" aria-label="From above: a 7 metre orange ring round a kart on a 12 metre road, two karts and a cone inside it and one kart outside" style="width:19rem;height:auto;display:block">
+      <rect x="0" y="20" width="300" height="120" fill="#6b6b78"/><line x1="0" y1="20" x2="300" y2="20" stroke="#f0f0f0" stroke-width="2"/><line x1="0" y1="140" x2="300" y2="140" stroke="#f0f0f0" stroke-width="2"/>
+      <circle cx="150" cy="80" r="70" fill="none" stroke="#ff5522" stroke-width="6" opacity=".85"/>
+      <rect x="144" y="71" width="12" height="18" fill="#ffd23f"/><rect x="108" y="46" width="12" height="18" fill="#c81d25"/><rect x="186" y="98" width="12" height="18" fill="#1f54c7"/><polygon points="126,112 134,126 118,126" fill="#ff5522"/><rect x="258" y="56" width="12" height="18" fill="#3ddc84"/>
+      <text x="6" y="156" font-family="Silkscreen, monospace" font-size="9" fill="currentColor">7 m ring, 12 m road</text></svg>`;
+  const droneWarning = `<span style="position:relative;display:inline-grid;margin-right:3.2rem"><span class="pl"><span class="pf t-gold slot">${draw.horn()}</span></span><svg viewBox="0 0 100 100" aria-hidden="true" style="position:absolute;left:calc(100% + var(--hud) * 1.2);top:50%;width:calc(var(--hud) * 4.2);height:calc(var(--hud) * 4.2);transform:translateY(-50%)">${poly(Array.from({ length: 8 }, (_, k) => [50 + 46 * Math.cos((2 * Math.PI * k) / 8), 50 + 46 * Math.sin((2 * Math.PI * k) / 8)]), "#eef0f2")}${poly(Array.from({ length: 8 }, (_, k) => [50 + 34 * Math.cos((2 * Math.PI * k) / 8), 50 + 34 * Math.sin((2 * Math.PI * k) / 8)]), "#d00a12")}${poly(Array.from({ length: 6 }, (_, k) => [54 + 11 * Math.cos((2 * Math.PI * k) / 6), 46 + 11 * Math.sin((2 * Math.PI * k) / 6)]), "#111111")}</svg></span>`;
+  document.getElementById("horn").innerHTML = blastRing + droneWarning;
   // The star's ring round the slot, two thirds of the run left in the loop's green, and the six stops.
   const ringLength = 2 * Math.PI * 46.5;
   const starRing = `<span style="position:relative;display:inline-grid"><span class="pl"><span class="pf t-gold slot">${draw.ball()}</span></span><svg viewBox="0 0 100 100" aria-hidden="true" style="position:absolute;inset:calc(var(--hud) * -0.8);width:auto;height:auto;overflow:visible"><circle cx="50" cy="50" r="46.5" fill="none" stroke="#3ddc84" stroke-width="7" stroke-dasharray="${(ringLength * 4 / 6).toFixed(1)} ${ringLength.toFixed(1)}" transform="rotate(-90 50 50)"/></svg></span>`;
