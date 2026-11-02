@@ -50,7 +50,9 @@ docker build --platform linux/arm64 --build-arg COMMIT=$(git rev-parse HEAD) -t 
 ```
 
 The build runs the Rust and web toolchains inside the image, so Docker is the
-only requirement. `COMMIT` is what `/api/version` reports.
+only requirement. `COMMIT` is what `/api/version` reports. The `image` job in
+`.github/workflows/ci.yml` runs this same build, without pushing, on every pull
+request (ADR 0074).
 
 ## Running the stack locally
 

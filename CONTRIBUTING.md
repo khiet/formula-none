@@ -13,7 +13,8 @@ settled in the ADRs first.
   reference the issue.
 - The conventions live in [`CLAUDE.md`](CLAUDE.md): the layout, the one-way
   dependency rule, the vocabulary in `docs/GLOSSARY.md` and the commands.
-- `pnpm check` runs what CI runs, in the same order; it is the gate, and a
-  pull request that fails it is not reviewed.
+- `pnpm check` runs what CI runs, in the same order, apart from the Docker
+  image build; it is the gate, and a pull request that fails it is not
+  reviewed.
 - A change to what the game draws updates `docs/style-guide.html`; a change
   to a decision gets a new ADR under `docs/adr` rather than an edit.

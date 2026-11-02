@@ -121,6 +121,28 @@ jobs:
       - name: Wasm replay of the fixtures
         run: pnpm --filter web exec vitest run src/replay.test.ts
 
+  # The deploy job's image build, stopped short of the push, so a broken image
+  # fails its PR instead of the deploy after the merge (ADR 0074). Main skips
+  # it because the deploy builds the same image there. A skipped need would
+  # skip the deploy, so the deploy does not need this job.
+  image:
+    name: Docker image (linux/arm64)
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v5
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/arm64
+          push: false
+          build-args: COMMIT=${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
   # Merge to main: build the arm64 image, push it to ECR under the commit,
   # run the deploy document on the instance and smoke-test the site (ADR
   # 0016). The role and instance come from repository variables set after
