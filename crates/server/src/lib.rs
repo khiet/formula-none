@@ -4,11 +4,13 @@
 
 use axum::body::Bytes;
 use axum::extract::State;
-use axum::http::{header, StatusCode};
+use axum::http::{header, HeaderMap, StatusCode};
 use axum::response::IntoResponse;
 use axum::routing::{get, post};
 use axum::{Json, Router};
+use rooms::CreateRefused;
 use serde::{Deserialize, Serialize};
+use std::net::IpAddr;
 use tokio::net::TcpListener;
 use tokio::sync::watch;
 
@@ -63,6 +65,7 @@ struct CreateRoom {
 /// on the default.
 async fn create_room(
     State(state): State<AppState>,
+    headers: HeaderMap,
     body: Bytes,
 ) -> Result<(StatusCode, Json<CreatedRoom>), StatusCode> {
     let request = if body.is_empty() {
@@ -70,14 +73,36 @@ async fn create_room(
     } else {
         serde_json::from_slice(&body).map_err(|_| StatusCode::BAD_REQUEST)?
     };
-    let code = match request.track {
-        None => state.rooms.create(),
-        Some(track) => {
-            let track = tracks::known(&track).ok_or(StatusCode::BAD_REQUEST)?;
-            state.rooms.create_on(track)
-        }
+    let track = match request.track {
+        None => None,
+        Some(track) => Some(tracks::known(&track).ok_or(StatusCode::BAD_REQUEST)?),
     };
+    let code = state
+        .rooms
+        .create_with(track, forwarded_address(&headers))
+        .map_err(|refused| match refused {
+            // The client tells these two apart for the Title Scene's message.
+            CreateRefused::Full => StatusCode::SERVICE_UNAVAILABLE,
+            CreateRefused::TooManyFromAddress => StatusCode::TOO_MANY_REQUESTS,
+        })?;
     Ok((StatusCode::CREATED, Json(CreatedRoom { code })))
+}
+
+/// The address Caddy saw this request come from. Caddy ignores any
+/// `X-Forwarded-For` a client sends, and the server's HTTP port is reachable
+/// only through it (ADR 0073). A proxy appends to the header, so only the last
+/// entry is its own. A request with no such header did not come through Caddy:
+/// the Vite dev server, or the Compose network.
+fn forwarded_address(headers: &HeaderMap) -> Option<IpAddr> {
+    headers
+        .get("x-forwarded-for")?
+        .to_str()
+        .ok()?
+        .rsplit(',')
+        .next()?
+        .trim()
+        .parse()
+        .ok()
 }
 
 /// What Prometheus scrapes (ADR 0018). Caddy proxies only `/api/*`, so this

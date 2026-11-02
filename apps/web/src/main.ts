@@ -84,6 +84,15 @@ function reportConnection(bridge: Bridge): ConnectionReadout {
   };
 }
 
+/** What the Title Scene says for each status the server refuses a create with (ADR 0073). */
+const CREATE_REFUSALS: Readonly<Record<number, string>> = {
+  429: "Too many new rooms from here; try again shortly",
+  503: "The server is full; try again later",
+};
+
+/** A create the server answered and refused; the message is for the player. */
+class CreateRefusedError extends Error {}
+
 /** Ask the server for a room racing `track`; its answer is the code to share (ADR 0012, ADR 0061). */
 async function createRoom(track: TrackName): Promise<string> {
   const response = await fetch("/api/rooms", {
@@ -92,6 +101,8 @@ async function createRoom(track: TrackName): Promise<string> {
     body: JSON.stringify({ track }),
   });
   if (!response.ok) {
+    const refusal = CREATE_REFUSALS[response.status];
+    if (refusal !== undefined) throw new CreateRefusedError(refusal);
     throw new Error(`could not create a room: ${response.status}`);
   }
   const body = (await response.json()) as { code?: unknown };
@@ -264,6 +275,7 @@ async function main(container: HTMLElement): Promise<void> {
     try {
       return { kind: "join", nickname, code: await createRoom(course.track) };
     } catch (error) {
+      if (error instanceof CreateRefusedError) return { kind: "title", message: error.message };
       console.warn("could not create a room", error);
       return { kind: "title", message: "Could not create a room; is the server up?" };
     }

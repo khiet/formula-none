@@ -77,6 +77,7 @@ const DECISION_SLUGS = [
   "an-item-rolls-before-it-lands",
   "the-budget-counts-the-games-own-cost",
   "the-games-subdomain-is-delegated-to-route-53",
+  "the-server-caps-rooms-and-creates",
 ];
 
 const expectedFiles = DECISION_SLUGS.map(

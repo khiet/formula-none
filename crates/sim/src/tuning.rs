@@ -100,6 +100,14 @@ pub const ROOM_CODE_LENGTH: usize = 4;
 pub const ROOM_PLAYERS_MAX: usize = KARTS_PER_RACE;
 /// Seconds after the last human leaves before a room enters Closing.
 pub const ROOM_CLOSE_AFTER_EMPTY_S: f32 = 300.0;
+/// Rooms the server hosts at once; a create past this is refused until one
+/// closes (ADR 0073). A guess at what one t4g.small races, not a measurement.
+pub const ROOMS_MAX: usize = 32;
+/// Rooms one address may create per `ROOM_CREATE_WINDOW_S` (ADR 0073). Empty
+/// rooms stand for `ROOM_CLOSE_AFTER_EMPTY_S`, so one address can hold this
+/// many per window in that time: under half of `ROOMS_MAX`.
+pub const ROOM_CREATES_PER_ADDRESS_MAX: usize = 3;
+pub const ROOM_CREATE_WINDOW_S: f32 = 60.0;
 /// Seconds a room brought back after a server restart (ADR 0005) holds
 /// each seat for its player's rejoin before freeing it: long enough for
 /// every client's reconnect, which retries each `RECONNECT_RETRY_S`
@@ -620,6 +628,14 @@ const _: () = {
     assert!(ROOM_PLAYERS_MAX <= KARTS_PER_RACE);
     assert!(0 < NICKNAME_MIN_CHARS && NICKNAME_MIN_CHARS <= NICKNAME_MAX_CHARS);
     assert!(0.0 < ROOM_CLOSE_AFTER_EMPTY_S);
+    assert!(0 < ROOMS_MAX);
+    assert!(0 < ROOM_CREATES_PER_ADDRESS_MAX);
+    assert!(0.0 < ROOM_CREATE_WINDOW_S);
+    // One address alone cannot fill the server with rooms it leaves empty.
+    assert!(
+        (ROOM_CREATES_PER_ADDRESS_MAX as f32 * ROOM_CLOSE_AFTER_EMPTY_S / ROOM_CREATE_WINDOW_S)
+            < ROOMS_MAX as f32 / 2.0
+    );
     assert!(TICKS_PER_SECOND.is_multiple_of(SNAPSHOTS_PER_SECOND));
     assert!(0.0 < DRIFT_ENTRY_SPEED_FRACTION && DRIFT_ENTRY_SPEED_FRACTION < 1.0);
     assert!(0.0 <= DRIFT_TURN_STEER_RANGE && DRIFT_TURN_STEER_RANGE < DRIFT_TURN_NEUTRAL);

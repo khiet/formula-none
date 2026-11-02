@@ -13,6 +13,20 @@ test("the Title Scene loads with the ways into a room and a race", async ({ page
   }
 });
 
+for (const [status, refusal] of [
+  [503, "The server is full; try again later"],
+  [429, "Too many new rooms from here; try again shortly"],
+] as const) {
+  test(`a create refused with ${status} says why on the Title Scene`, async ({ page }) => {
+    await page.route("**/api/rooms", (route) => route.fulfill({ status }));
+    await page.goto("/");
+    await page.getByLabel("Nickname").fill("Ada");
+    await page.getByRole("button", { name: "Create room" }).click();
+    await expect(page.getByText(refusal)).toBeVisible();
+    await expect(page.getByRole("button", { name: "Create room" })).toBeVisible();
+  });
+}
+
 test("an audio toggle turned off stays off after a reload", async ({ page }) => {
   await page.goto("/");
   await page.getByLabel("Music").uncheck();

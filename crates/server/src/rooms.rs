@@ -15,6 +15,7 @@
 //! rejoins, then free.
 
 use std::collections::{HashMap, VecDeque};
+use std::net::IpAddr;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex, Weak};
 use std::time::Duration;
@@ -24,8 +25,9 @@ use rand::distr::slice::Choose;
 use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
 use sim::tuning::{
-    CONNECTION_PROBE_INTERVAL_S, CONNECTION_PROBE_WINDOW, RESTORED_SEAT_GRACE_S,
-    ROOM_CLOSE_AFTER_EMPTY_S, ROOM_CODE_ALPHABET, ROOM_CODE_LENGTH,
+    CONNECTION_PROBE_INTERVAL_S, CONNECTION_PROBE_WINDOW, RESTORED_SEAT_GRACE_S, ROOMS_MAX,
+    ROOM_CLOSE_AFTER_EMPTY_S, ROOM_CODE_ALPHABET, ROOM_CODE_LENGTH, ROOM_CREATES_PER_ADDRESS_MAX,
+    ROOM_CREATE_WINDOW_S,
 };
 use tokio::sync::{mpsc, oneshot, watch};
 use tokio::time::{Instant, Interval, MissedTickBehavior};
@@ -74,9 +76,51 @@ impl RaceSeeds {
     }
 }
 
+/// Why a create opened no room (ADR 0073).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum CreateRefused {
+    /// The server hosts `ROOMS_MAX` rooms already.
+    Full,
+    /// This address has used its creates for the window.
+    TooManyFromAddress,
+}
+
 #[derive(Default)]
 struct Registry {
     rooms: HashMap<String, RoomHandle>,
+    /// The creates still inside the window, oldest first. Only rooms actually
+    /// opened are here, so its length is bounded by the rooms a window can
+    /// open and scanning it is cheap.
+    creates: VecDeque<(IpAddr, Instant)>,
+}
+
+impl Registry {
+    /// Whether a room may open for `address` now, and if so count it. The
+    /// caller holds the lock through opening the room, so two creates cannot
+    /// both take the last place.
+    fn admit(&mut self, address: Option<IpAddr>) -> Result<(), CreateRefused> {
+        let now = Instant::now();
+        let window = Duration::from_secs_f32(ROOM_CREATE_WINDOW_S);
+        self.creates
+            .retain(|(_, at)| now.duration_since(*at) < window);
+        if let Some(address) = address {
+            let recent = self
+                .creates
+                .iter()
+                .filter(|(earlier, _)| *earlier == address)
+                .count();
+            if recent >= ROOM_CREATES_PER_ADDRESS_MAX {
+                return Err(CreateRefused::TooManyFromAddress);
+            }
+        }
+        if self.rooms.len() >= ROOMS_MAX {
+            return Err(CreateRefused::Full);
+        }
+        if let Some(address) = address {
+            self.creates.push_back((address, now));
+        }
+        Ok(())
+    }
 }
 
 struct RoomHandle {
@@ -288,18 +332,31 @@ impl Rooms {
         }
     }
 
-    /// Open a room on the registry's own track, as [`Self::create_on`] does.
-    pub fn create(&self) -> String {
-        self.create_on(self.track)
+    /// Open a room on the registry's own track for no particular address,
+    /// as [`Self::create_with`] does.
+    pub fn create(&self) -> Result<String, CreateRefused> {
+        self.create_with(None, None)
     }
 
-    /// Open a room racing `track`, one of [`crate::tracks`], under a fresh
-    /// code and hand the code back; the HTTP create endpoint is this. The
-    /// room starts empty, so its closing clock is already running: a code
-    /// nobody joins expires like one everybody left. Must run inside a
-    /// tokio runtime, which spawns the room's task.
-    pub fn create_on(&self, track: &'static str) -> String {
+    /// Open a room racing `track`, one of [`crate::tracks`], or the
+    /// registry's own track when `None`, under a fresh code and hand the code
+    /// back; the HTTP create endpoint is this. The room starts empty, so its
+    /// closing clock is already running: a code nobody joins expires like one
+    /// everybody left. Must run inside a tokio runtime, which spawns the
+    /// room's task.
+    ///
+    /// `address` is who is asking, counted against the per-address limit;
+    /// `None` is a caller inside the server's network, which only the cap
+    /// applies to (ADR 0073). Rooms a restart brought back count toward the
+    /// cap, though nothing refuses them.
+    pub fn create_with(
+        &self,
+        track: Option<&'static str>,
+        address: Option<IpAddr>,
+    ) -> Result<String, CreateRefused> {
+        let track = track.unwrap_or(self.track);
         let mut registry = self.registry.lock().expect("registry lock");
+        registry.admit(address)?;
         let code = loop {
             let code = fresh_code(&mut rand::rng());
             if !registry.rooms.contains_key(&code) {
@@ -313,7 +370,7 @@ impl Rooms {
             .with("track", track)
             .emit();
         self.spawn(&mut registry, room, false);
-        code
+        Ok(code)
     }
 
     /// Put `room` in `registry` and start its task; `restored` when a

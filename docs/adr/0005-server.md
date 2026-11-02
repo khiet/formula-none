@@ -3,7 +3,7 @@
 ## Status
 
 Accepted (2026-10-18). The input handling in its Outcome is superseded by
-ADR 0019.
+ADR 0019, and its room count bounded only by CPU by ADR 0073.
 
 ## Context
 
