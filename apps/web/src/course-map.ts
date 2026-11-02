@@ -7,8 +7,9 @@
 
 import type { KartReadout } from "./bridge";
 import { hexCss, livery } from "./livery";
-import { facetted, group, line, ngon, polygon, SVG_NS } from "./low-poly-svg";
-import { ASPHALT, INK, tonesOf, VALUE_WHITE, WALL } from "./palette";
+import { facets, facetted, group, line, ngon, polygon, SVG_NS, type Tone } from "./low-poly-svg";
+import { ASPHALT, INK, type Tones, tonesOf, VALUE_WHITE, WALL } from "./palette";
+import { STAR_STILL_SHINE, starColour } from "./star-shine";
 import type { WorldPoint } from "./track";
 
 /** The box the map is drawn into, in map units, with the margin the outline keeps from its edges. */
@@ -177,8 +178,12 @@ export interface CourseMapSetup {
 export interface CourseMap {
   /** The SVG, addressable by `data-instrument="course-map"`; the caller puts it on the page. */
   readonly element: SVGSVGElement;
-  /** Move every marker to where `transforms` put its kart this frame. */
-  update(transforms: readonly KartReadout[]): void;
+  /**
+   * Move every marker to where `transforms` put its kart this frame, and
+   * run a star kart's marker through the rainbow loop (ADR 0075), or hold
+   * it white under `reducedMotion`.
+   */
+  update(transforms: readonly KartReadout[], reducedMotion?: boolean): void;
 }
 
 /**
@@ -203,6 +208,22 @@ const DECK_HALF = WALL_WIDTH;
 const MARKER_RADIUS = 3.6;
 const OWN_RING_RADIUS = 6;
 const OWN_MARKER_RADIUS = 4.4;
+
+/** A marker's faces with the tone each takes from how it faces the light, as `facetted` drew them. */
+interface MarkerFaces {
+  readonly faces: readonly SVGPolygonElement[];
+  readonly tones: readonly Tone[];
+}
+
+/** Paint a marker's faces in `tones`, each by its own tone. */
+function paintFacets({ faces, tones: byFace }: MarkerFaces, tones: Tones): void {
+  faces.forEach((face, index) => {
+    const tone = byFace[index] ?? 1;
+    const colour = hexCss([tones.lit, tones.mid, tones.shaded][tone] ?? tones.mid);
+    face.setAttribute("fill", colour);
+    face.setAttribute("stroke", colour);
+  });
+}
 
 /**
  * The course map's element: the track and its chequered start once, and a
@@ -273,26 +294,44 @@ export function createCourseMap(setup: CourseMapSetup): CourseMap {
       marker.dataset.own = "";
       polygon(marker, ngon(8, 0, 0, OWN_RING_RADIUS), VALUE_WHITE).dataset.ring = "";
     }
-    facetted(marker, 8, 0, 0, own ? OWN_MARKER_RADIUS : MARKER_RADIUS, tonesOf(livery(kart).key));
-    return marker;
+    const before = marker.childElementCount;
+    const radius = own ? OWN_MARKER_RADIUS : MARKER_RADIUS;
+    facetted(marker, 8, 0, 0, radius, tonesOf(livery(kart).key));
+    // The faces facetted drew, in order, so the star's loop repaints them by
+    // tone and the key colour comes back the same way.
+    const drawnFaces: MarkerFaces = {
+      faces: [...marker.children].slice(before) as SVGPolygonElement[],
+      tones: facets(8, 0, 0, radius).map((face) => face.tone),
+    };
+    return { marker, facets: drawnFaces, key: tonesOf(livery(kart).key), shining: false };
   });
   // Document order is paint order: the own kart's marker goes on last.
   const own = markers[setup.ownKart];
-  svg.append(...markers.filter((marker) => marker !== own));
+  svg.append(...markers.filter((drawn) => drawn !== own).map((drawn) => drawn.marker));
   if (own !== undefined) {
-    svg.append(own);
+    svg.append(own.marker);
   }
 
   return {
     element: svg,
-    update(transforms) {
+    update(transforms, reducedMotion = false) {
       transforms.forEach((transform, kart) => {
-        const marker = markers[kart];
-        if (marker === undefined) {
+        const drawn = markers[kart];
+        if (drawn === undefined) {
           return;
         }
         const [u, v] = projection.toMap(transform.position[0], transform.position[2]);
-        marker.setAttribute("transform", `translate(${u} ${v})`);
+        drawn.marker.setAttribute("transform", `translate(${u} ${v})`);
+        if (transform.starS !== null) {
+          const shine = reducedMotion ? STAR_STILL_SHINE : starColour(transform.starS);
+          paintFacets(drawn.facets, tonesOf(shine));
+          drawn.marker.dataset.star = "";
+          drawn.shining = true;
+        } else if (drawn.shining) {
+          paintFacets(drawn.facets, drawn.key);
+          delete drawn.marker.dataset.star;
+          drawn.shining = false;
+        }
       });
     },
   };

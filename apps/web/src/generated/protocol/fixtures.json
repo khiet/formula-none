@@ -20,7 +20,7 @@
       "name": "join",
       "bytes": [
         1,
-        17,
+        18,
         4,
         66,
         88,
@@ -37,7 +37,7 @@
         "join": {
           "nickname": "khiet",
           "room": "BXQF",
-          "version": 17
+          "version": 18
         }
       }
     },
@@ -103,7 +103,7 @@
       "name": "rejoin",
       "bytes": [
         7,
-        17,
+        18,
         4,
         66,
         88,
@@ -147,7 +147,7 @@
         "rejoin": {
           "room": "BXQF",
           "token": "0123456789abcdef0123456789abcdef",
-          "version": 17
+          "version": 18
         }
       }
     },
@@ -303,12 +303,12 @@
       "bytes": [
         2,
         3,
-        17
+        18
       ],
       "message": {
         "refused": {
           "versionMismatch": {
-            "server": 17
+            "server": 18
           }
         }
       }
@@ -492,6 +492,7 @@
         0,
         0,
         0,
+        0,
         160,
         65,
         154,
@@ -549,6 +550,7 @@
         6,
         0,
         1,
+        0,
         0,
         0,
         0,
@@ -616,6 +618,7 @@
         204,
         204,
         62,
+        0,
         0,
         0,
         0,
@@ -688,6 +691,7 @@
         0,
         0,
         0,
+        0,
         42,
         66,
         154,
@@ -750,6 +754,7 @@
         1,
         0,
         0,
+        0,
         72,
         66,
         154,
@@ -809,6 +814,11 @@
         1,
         0,
         0,
+        1,
+        0,
+        0,
+        144,
+        64,
         0,
         0,
         102,
@@ -876,6 +886,7 @@
         0,
         0,
         0,
+        0,
         130,
         66,
         154,
@@ -925,7 +936,7 @@
         66,
         0,
         2,
-        0,
+        3,
         0,
         0,
         3,
@@ -934,6 +945,7 @@
         153,
         153,
         63,
+        0,
         0,
         11,
         41,
@@ -1201,6 +1213,7 @@
               "spinOutS": null,
               "splineProgress": 640.0,
               "stallS": null,
+              "starS": null,
               "start": "clean",
               "velocity": [
                 21.0,
@@ -1235,6 +1248,7 @@
               "spinOutS": null,
               "splineProgress": 565.0,
               "stallS": null,
+              "starS": null,
               "start": "weakBoost",
               "velocity": [
                 21.0,
@@ -1274,6 +1288,7 @@
               "spinOutS": null,
               "splineProgress": 490.0,
               "stallS": null,
+              "starS": null,
               "start": "fullBoost",
               "velocity": [
                 21.0,
@@ -1311,6 +1326,7 @@
               "spinOutS": null,
               "splineProgress": 415.0,
               "stallS": null,
+              "starS": null,
               "start": "stall",
               "velocity": [
                 21.0,
@@ -1347,6 +1363,7 @@
               "spinOutS": null,
               "splineProgress": 340.0,
               "stallS": null,
+              "starS": null,
               "start": "clean",
               "velocity": [
                 21.0,
@@ -1381,6 +1398,7 @@
               "spinOutS": null,
               "splineProgress": 265.0,
               "stallS": null,
+              "starS": 4.5,
               "start": "weakBoost",
               "velocity": [
                 21.0,
@@ -1417,6 +1435,7 @@
               "spinOutS": 0.5,
               "splineProgress": 190.0,
               "stallS": null,
+              "starS": null,
               "start": "fullBoost",
               "velocity": [
                 21.0,
@@ -1432,7 +1451,7 @@
               "coins": 0,
               "drift": null,
               "itemSlot": {
-                "held": "boost"
+                "held": "star"
               },
               "lap": 2,
               "position": [
@@ -1450,6 +1469,7 @@
               "spinOutS": null,
               "splineProgress": 115.0,
               "stallS": 1.2000000476837158,
+              "starS": null,
               "start": "stall",
               "velocity": [
                 21.0,

@@ -20,7 +20,10 @@ fn item_roll_weights_cover_every_grid_slot_once() {
 #[test]
 fn each_item_roll_band_sums_to_the_rolls_percent() {
     for band in ITEM_ROLL_WEIGHTS {
-        let total = u32::from(band.hazard) + u32::from(band.boost) + u32::from(band.homing);
+        let total = u32::from(band.hazard)
+            + u32::from(band.boost)
+            + u32::from(band.homing)
+            + u32::from(band.star);
         assert_eq!(total, ITEM_ROLL_PERCENT, "band {:?}", band.positions);
     }
 }

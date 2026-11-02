@@ -2,9 +2,11 @@ import {
   AmbientLight,
   Box3,
   BoxGeometry,
+  BufferGeometry,
   Color,
   DirectionalLight,
   Group,
+  Mesh,
   MeshBasicMaterial,
   type Object3D,
   PerspectiveCamera,
@@ -37,17 +39,20 @@ import {
   runawayWheelFlames,
   runawayWheelMesh,
 } from "./item-meshes";
-import type { Vec3 } from "./kart-frame";
+import { glint } from "./item-sprites";
+import { groundDistance, type Vec3 } from "./kart-frame";
 import type { KartLabel } from "./kart-labels";
-import { dressKart, fitKart, type KartFit } from "./kart-model";
+import { dressKart, fitKart, type KartFit, shineKart } from "./kart-model";
 import { createKartShadows } from "./kart-shadows";
-import { livery } from "./livery";
+import { hexCss, livery } from "./livery";
+import type { Point } from "./low-poly-svg";
 import { plate, tonesOf, writePalette } from "./palette";
 import { createParticles } from "./particles";
 import type { RaceReadout } from "./race-run";
 import { sceneryMotion } from "./scenery-motion";
 import { createSparkEmitter, createSparkParticles } from "./sparks";
 import { spinOutAngle } from "./spin";
+import { createStarSparkles, starShine } from "./star-shine";
 import {
   additiveMaterial,
   exhaustFlameMesh,
@@ -80,6 +85,18 @@ const SPARK_HALO_SCALE = 5;
 const SPARK_HALO_BRIGHTNESS = 0.45;
 /** How high the projectile (ADR 0007) flies over where the sim has it. */
 const PROJECTILE_HEIGHT_M = 0.6;
+/**
+ * The star's halo (ADR 0075): an additive sphere round the kart this big,
+ * this bright at the full pull, so the shine carries at chase-camera
+ * distance. Its sparkles' pool holds this many per kart; the hit's burst
+ * is thrown where a kart spins out within this much of a star kart.
+ */
+const STAR_HALO_RADIUS_M = 1.6;
+const STAR_HALO_OPACITY = 0.1;
+const STAR_SPARKLE_CAPACITY_PER_KART = 48;
+const STAR_SPARKLE_DRAG_PER_S = 1.5;
+const STAR_SPARKLE_COOL_SHARE = 0.5;
+const STAR_HIT_REACH_M = 4;
 /**
  * On a marshal post the marshal stands this far off its middle, to the
  * left as seen from the track, and the beacon this far toward the track
@@ -223,7 +240,12 @@ export async function createRaceView(
       state: HEAD_LEVEL,
       last: undefined,
     };
-    return { kart, wheels, head, sway };
+    // The star's halo rides the kart; hidden off a run.
+    const haloMaterial = additiveMaterial();
+    const halo = new Mesh(new SphereGeometry(STAR_HALO_RADIUS_M, 12, 8), haloMaterial);
+    halo.visible = false;
+    kart.add(halo);
+    return { model, kart, wheels, head, sway, halo, haloMaterial, shining: false, spunOut: false };
   });
 
   const tyreMarks = createTyreMarks(kartCount, kartSize);
@@ -241,6 +263,17 @@ export async function createRaceView(
     scaleOf: (size, life) => size * SPARK_HALO_SCALE * life,
     include: (spark) => spark.glow,
     brightnessOf: (spark) => SPARK_HALO_BRIGHTNESS * spark.life,
+  });
+  // The star's sparkles: four-point glints that drift back off a star
+  // kart, white cooling to the shine, and burst where it lands a hit.
+  const starSparkleParticles = createParticles({
+    capacity: kartCount * STAR_SPARKLE_CAPACITY_PER_KART,
+    drag: STAR_SPARKLE_DRAG_PER_S,
+    coolShare: STAR_SPARKLE_COOL_SHARE,
+  });
+  const starSparkles = createStarSparkles(starSparkleParticles, kartSize);
+  const starSparkleMesh = particleMesh(starSparkleParticles, glintGeometry(), additiveMaterial(), {
+    scaleOf: (size, life) => size * Math.sin(Math.PI * life),
   });
   const flames = createExhaustFlames(kartCount, kartSize);
   const flameMesh = exhaustFlameMesh(flames);
@@ -275,6 +308,7 @@ export async function createRaceView(
     marks.mesh,
     sparkMesh.mesh,
     sparkHaloMesh.mesh,
+    starSparkleMesh.mesh,
     flameMesh.mesh,
     windMesh.mesh,
     dustMesh.mesh,
@@ -307,6 +341,8 @@ export async function createRaceView(
     world.add(label);
     return label;
   });
+  /** Whether each kart's label wore the star's shine last frame, so the key colour is put back once. */
+  const labelShone: boolean[] = Array<boolean>(kartCount).fill(false);
 
   const resize = () => {
     renderer.setSize(container.clientWidth, container.clientHeight);
@@ -353,6 +389,35 @@ export async function createRaceView(
         }
         sparkEmitters[slot]?.emit(readout, frameSeconds, countingDown);
         dustEmitter.emit(readout, frameSeconds);
+        // The star's shine, from the run's seconds every client agrees on:
+        // every material pulled toward the colour of the moment, the halo
+        // in it and the sparkles off the bodywork; the materials are the
+        // kart's own again once the run ends.
+        const shine = starShine(readout.starS, viewer.reducedMotion);
+        if (shine !== null) {
+          shineKart(drawn.model, shine.colour, shine.pull);
+          drawn.halo.visible = shine.pull > 0;
+          drawn.haloMaterial.color.setHex(shine.colour);
+          drawn.haloMaterial.opacity = STAR_HALO_OPACITY * shine.pull;
+          if (!viewer.reducedMotion) starSparkles.emit(readout, shine.colour, frameSeconds);
+          drawn.shining = true;
+        } else if (drawn.shining) {
+          shineKart(drawn.model, null, 0);
+          drawn.halo.visible = false;
+          drawn.shining = false;
+        }
+        // A spin-out within reach of a star kart is the star's hit: a burst
+        // of its sparkles marks it where the kart stands, which covers the
+        // metres the interpolation's delay leaves between the two.
+        const spunOut = readout.spinOutS !== null;
+        if (spunOut && !drawn.spunOut && !viewer.reducedMotion) {
+          const star = readouts.find(
+            (other) => other.starS !== null && groundDistance(other, readout) <= STAR_HIT_REACH_M,
+          );
+          const shineOfStar = starShine(star?.starS ?? null, false);
+          if (shineOfStar !== null) starSparkles.burst(readout.position, shineOfStar.colour);
+        }
+        drawn.spunOut = spunOut;
       });
       const own = readouts[viewer.localKart];
       if (own !== undefined) {
@@ -363,6 +428,7 @@ export async function createRaceView(
       tyreMarks.update(readouts, frameSeconds);
       spray.update(frameSeconds);
       sparks.update(frameSeconds);
+      starSparkleParticles.update(frameSeconds);
       dust.update(frameSeconds);
       wind.update(frameSeconds);
       shadows.update(readouts);
@@ -370,6 +436,7 @@ export async function createRaceView(
       marks.update();
       sparkMesh.update();
       sparkHaloMesh.update();
+      starSparkleMesh.update();
       dustMesh.update();
       windMesh.update();
       shadowMesh.update();
@@ -389,6 +456,18 @@ export async function createRaceView(
         label.visible = true;
         label.position.set(...anchor);
         label.element.textContent = text;
+        // A star kart's plate underline runs the loop, so the others see it
+        // coming; the plate keeps the kart's key colour.
+        const shine = starShine(readouts[kart]?.starS ?? null, viewer.reducedMotion);
+        if (shine !== null) {
+          label.element.style.setProperty("--star", hexCss(shine.colour));
+          label.element.dataset.star = "";
+          labelShone[kart] = true;
+        } else if (labelShone[kart]) {
+          label.element.style.removeProperty("--star");
+          delete label.element.dataset.star;
+          labelShone[kart] = false;
+        }
       }
       camera.position.set(...pose.position);
       camera.lookAt(target.set(...pose.target));
@@ -663,9 +742,27 @@ function meshPool(world: ThreeScene, template: Object3D, lift: number): MeshPool
 }
 
 /**
+ * A four-point glint for the star's sparkles: two crossed stars, one flat
+ * and one upright, so it reads from most angles without facing the camera.
+ */
+function glintGeometry(): BufferGeometry {
+  const rim = glint(0, 0, 0.5);
+  const point = ([x, y]: Point, flat: boolean): Vector3 =>
+    flat ? new Vector3(x, 0, y) : new Vector3(x, y, 0);
+  const points: Vector3[] = [];
+  for (const flat of [true, false]) {
+    rim.forEach((corner, index) => {
+      const next = rim[(index + 1) % rim.length] ?? corner;
+      points.push(point([0, 0], flat), point(corner, flat), point(next, flat));
+    });
+  }
+  return new BufferGeometry().setFromPoints(points);
+}
+
+/**
  * One kart on the grid: `model`, already in its livery, fitted into the box
  * the sim collides with. Its tells are drawn by the View's shared meshes
- * from the transform, not hung on the kart.
+ * from the transform, not hung on the kart; the star's halo alone rides it.
  */
 function kartPresentation(model: Object3D, fit: KartFit): Group {
   const kart = new Group();

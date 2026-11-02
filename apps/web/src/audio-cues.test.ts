@@ -1,5 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { loopPlayback, type SoundReading, soundCues, soundLoops, soundReading } from "./audio-cues";
+import {
+  distanceLevel,
+  loopPlayback,
+  SOUND_AWAY_LOWPASS_HZ,
+  type SoundReading,
+  soundCues,
+  soundLoops,
+  soundReading,
+  starMusic,
+} from "./audio-cues";
 import type { KartReadout, Phase, Standing } from "./bridge";
 import { reelFrame } from "./item-reel";
 import { kartReadout } from "./kart-readout-fixture";
@@ -25,6 +34,8 @@ const STILL: SoundReading = {
   boxesTaken: 0,
   rolling: false,
   reelStep: null,
+  starSeconds: null,
+  nearestStar: null,
 };
 
 describe("soundCues", () => {
@@ -220,9 +231,81 @@ describe("soundCues", () => {
     ).toEqual([]);
   });
 
+  it("plays the star's own fire as a star leaves the slot, in place of the item fire", () => {
+    const held = { ...STILL, item: "star" as const };
+    const run = { ...STILL, starSeconds: 5.98, boostSeconds: 0.48 };
+    expect(soundCues(held, run)).toEqual(["starFire"]);
+    // In a room's race the prediction starts the run before the server
+    // confirms the fire: the fire sounds once, with the run, the kick is no
+    // pad, and the slot emptying on the confirmation adds nothing.
+    expect(soundCues(held, { ...run, item: "star" })).toEqual(["starFire"]);
+    expect(soundCues({ ...run, item: "star" }, { ...run, starSeconds: 5.5 })).toEqual([]);
+    expect(soundCues({ ...STILL, item: "boost" }, { ...STILL, boostSeconds: 1.5 })).toEqual([
+      "itemFire",
+    ]);
+  });
+
+  it("plays the fire again for a second star, which puts the seconds back up, and not for a correction", () => {
+    const run = (starSeconds: number): SoundReading => ({ ...STILL, starSeconds });
+    // A run ticking down is the same run.
+    expect(soundCues(run(4), run(3.98))).toEqual([]);
+    // A correction can raise it a little; that restarts nothing.
+    expect(soundCues(run(3), run(3.4))).toEqual([]);
+    // A second star puts it back to the start.
+    expect(soundCues(run(3), run(3.6))).toEqual(["starFire"]);
+    expect(soundCues({ ...run(2.9), item: "star" }, run(5.98))).toEqual(["starFire"]);
+    // A run appearing from nothing is a fire too; a rejoin's first reading
+    // has nothing to change from, so it is heard without one.
+    expect(soundCues(STILL, run(4))).toEqual(["starFire"]);
+    expect(soundCues(undefined, run(4))).toEqual([]);
+  });
+
+  it("plays the star's end as the run runs out, and nothing but the finish when the finish ends it", () => {
+    const run = { ...STILL, starSeconds: 0.02 };
+    expect(soundCues(run, STILL)).toEqual(["starEnd"]);
+    expect(soundCues(run, { ...STILL, finished: true })).toEqual(["finish"]);
+    expect(soundCues(STILL, STILL)).toEqual([]);
+  });
+
   it("reports every change of one frame together", () => {
     const after = { ...STILL, airborne: true, boxesTaken: 1, lap: 2 };
     expect(soundCues(STILL, after)).toEqual(["hop", "itemPickup", "lap"]);
+  });
+});
+
+describe("starMusic", () => {
+  const RUN_S = 6;
+
+  it("plays the own run's music from the top at a fire, joined further in after a rejoin", () => {
+    expect(starMusic({ ...STILL, starSeconds: 6 }, RUN_S)).toEqual({
+      kart: null,
+      secondsIn: 0,
+      level: 1,
+      lowpassHz: null,
+    });
+    expect(starMusic({ ...STILL, starSeconds: 2.5 }, RUN_S)?.secondsIn).toBeCloseTo(3.5, 6);
+    expect(starMusic(STILL, RUN_S)).toBeNull();
+  });
+
+  it("plays only the nearest other star kart's music, at its point in the run, by distance and lowpassed", () => {
+    const nearest = { kart: 4, seconds: 4, metres: 35 };
+    expect(starMusic({ ...STILL, nearestStar: nearest }, RUN_S)).toEqual({
+      kart: 4,
+      secondsIn: 2,
+      level: distanceLevel(35),
+      lowpassHz: SOUND_AWAY_LOWPASS_HZ,
+    });
+    // The own run outranks every other kart's.
+    expect(starMusic({ ...STILL, starSeconds: 1, nearestStar: nearest }, RUN_S)?.kart).toBeNull();
+  });
+
+  it("is full within 10 m, a straight line to silent at 60 m", () => {
+    expect(distanceLevel(0)).toBe(1);
+    expect(distanceLevel(10)).toBe(1);
+    expect(distanceLevel(35)).toBeCloseTo(0.5, 6);
+    expect(distanceLevel(45)).toBeCloseTo(0.3, 6);
+    expect(distanceLevel(60)).toBe(0);
+    expect(distanceLevel(100)).toBe(0);
   });
 });
 
@@ -326,7 +409,29 @@ describe("soundReading", () => {
       boxesTaken: 0,
       rolling: false,
       reelStep: null,
+      starSeconds: null,
+      nearestStar: null,
     });
+  });
+
+  it("takes the own run's seconds, and the nearest other star kart by distance", () => {
+    const own = kartReadout({ position: [0, 0.3, 0], starS: 2 });
+    const far = kartReadout({ position: [40, 0.3, 0], starS: 5 });
+    const near = kartReadout({ position: [0, 0.3, -12], starS: 1.5 });
+    const off = kartReadout({ position: [1, 0.3, -1] });
+    const race = raceReadout({
+      karts: [own, far, near, off],
+      standings: [standing, standing, standing, standing],
+    });
+    expect(soundReading(race, 0)).toMatchObject({
+      starSeconds: 2,
+      nearestStar: { kart: 2, seconds: 1.5, metres: 12 },
+    });
+    expect(soundReading(race, 3)).toMatchObject({
+      starSeconds: null,
+      nearestStar: { kart: 0, seconds: 2, metres: Math.hypot(1, 1) },
+    });
+    expect(soundReading(raceReadout({ karts: [off, off] }), 0).nearestStar).toBeNull();
   });
 
   it("takes the boxes taken, and the roll and the reel's step from the slot", () => {

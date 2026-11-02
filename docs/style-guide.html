@@ -726,12 +726,23 @@
 
       <article class="asset wide">
         <header><h3>Item slot and its characters</h3><code>apps/web/src/item-sprites.ts</code></header>
-        <div class="compare"><figure><figcaption>Empty, boost, hazard, homing, firing; rolling, landing</figcaption><div class="view"><div class="hud hud-row" id="slots"></div></div></figure></div>
-        <dl class="spec"><dt>Decided</dt><dd><a href="adr/0024-item-sprites.md">ADR 0024</a>, drawn from the meshes by <a href="adr/0037-instrument-panel-in-chibi-low-poly.md">0037</a>, the boost a champagne bottle by <a href="adr/0058-boost-is-a-champagne-bottle.md">0058</a>, the roll by <a href="adr/0070-an-item-rolls-before-it-lands.md">0070</a>; picks in <a href="mockups/item-box-roll.html">the roll mockup</a></dd></dl>
+        <div class="compare"><figure><figcaption>Empty, boost, hazard, homing, star, firing; rolling, landing</figcaption><div class="view"><div class="hud hud-row" id="slots"></div></div></figure></div>
+        <dl class="spec"><dt>Decided</dt><dd><a href="adr/0024-item-sprites.md">ADR 0024</a>, drawn from the meshes by <a href="adr/0037-instrument-panel-in-chibi-low-poly.md">0037</a>, the boost a champagne bottle by <a href="adr/0058-boost-is-a-champagne-bottle.md">0058</a>, the roll by <a href="adr/0070-an-item-rolls-before-it-lands.md">0070</a>, the star a mirror ball by <a href="adr/0075-the-star-is-a-run-of-speed-and-immunity.md">0075</a>; picks in <a href="mockups/item-box-roll.html">the roll mockup</a> and <a href="mockups/star-icon-alternatives.html">the star's icon mockup</a></dd></dl>
         <div class="notes">
-          <p>The slot is the item box seen face on, in its golds. The characters are the View's meshes drawn flat: the faceted cone, the camera quad drone side on with its rotors blurred, and the podium champagne bottle, shaken, its cork flying off on a jet of foam, which has no mesh since a boost never shows on the road. Firing lights the plate. The item's name stays as the slot's text.</p>
+          <p>The slot is the item box seen face on, in its golds. The characters are the View's meshes drawn flat: the faceted cone, the camera quad drone side on with its rotors blurred, and the podium champagne bottle, shaken, its cork flying off on a jet of foam, which has no mesh since a boost never shows on the road. The star is a podium mirror ball on a short chain with no face, its tiles a latitude and longitude grid, each a step along the rainbow; it has no mesh either, since the star kart shines and stays a kart. Firing lights the plate. The item's name stays as the slot's text.</p>
           <p>While a box's item rolls, a slot machine reel scrolls the three characters up through the plate, a change every 50 ms at first slowing to about one every quarter second, and settles on the item over the roll's last quarter second with a small overshoot. Each change clicks. As it lands the character swells 40% and settles over 0.38 s and the plate flashes white once. Under reduced motion the slot stays the plain box face through the roll and the item appears with no pop. Only your own slot rolls; nothing shows for another kart's.</p>
           <p class="dont"><b>Don't</b> draw a character the road shows differently; a new item gets its mesh and its slot drawing together.</p>
+        </div>
+      </article>
+
+      <article class="asset wide">
+        <header><h3>The star's shine</h3><code>apps/web/src/star-shine.ts, kart-model.ts shineKart, instrument-panel.ts, course-map.ts</code></header>
+        <div class="compare"><figure><figcaption>The ring at 4 s of 6; the six stops of the loop</figcaption><div class="view"><div class="hud hud-row" id="star"></div></div></figure></div>
+        <dl class="spec"><dt>Decided</dt><dd><a href="adr/0075-the-star-is-a-run-of-speed-and-immunity.md">ADR 0075</a>; the design in <a href="mockups/star-and-air-horn.html">the star and Air Horn spec</a></dd></dl>
+        <div class="notes">
+          <p>Through a run the kart and its driver, wheels and hair included, are pulled 70% toward the colour of the moment and lit by it as emissive, so their own shading still shows through. The loop takes 0.5 s through red, orange, yellow, green, cyan and violet, worked out from the run's seconds left so every screen agrees, and the pull fades to nothing over the last second. A soft additive halo in the same colour sits round the kart, four-point sparkles drift off the bodywork, white with a rainbow tip, and a burst of them marks a hit. Once the mirror ball has landed its tiles run the same loop, a step apart, with a glow behind; the dark gaps and the white glints stay fixed. Through your own run a rainbow ring round the slot counts the seconds down, and a star kart's plate underline and map marker run the loop, so the others see it coming.</p>
+          <p>Under reduced motion nothing loops: the kart holds a steady white shine with its glow, the ball's tiles hold the stops, there are no sparkles, and the ring still counts down, in the rainbow's green.</p>
+          <p class="dont"><b>Don't</b> run the loop faster: a 2 Hz sweep stays under the limit of three flashes a second with a star kart filling the screen.</p>
         </div>
       </article>
 
@@ -1140,6 +1151,30 @@
     ${poly([[30, -8], [58, -8], [58, 0], [30, 0]], "#ffdf75")}${poly([[30, 0], [58, 0], [58, 8], [30, 8]], "#a88b2a")}
     ${poly([[-46, -16], [-12, -16], [-12, 16], [-46, 16]], "#eef0f2")}${poly([[-46, -4], [-12, -4], [-12, 4], [-46, 4]], "#d00a12")}
     </g></svg>`;
+  // The star's mirror ball as item-sprites.ts draws it: a latitude and longitude grid of tiles, each a step along the rainbow, at the loop's rest.
+  const RAINBOW = ["#ff4d4d", "#ff9f1c", "#ffe14d", "#3ddc84", "#37bedd", "#b05cff"];
+  draw.ball = () => {
+    const [cx, cy, radius] = [100, 82, 56];
+    const point = (lat, lon) => [cx + radius * Math.cos(lat) * Math.sin(lon), cy + radius * Math.sin(lat)];
+    const disc = Array.from({ length: 24 }, (_, k) => { const t = (2 * Math.PI * k) / 24; return [cx + (radius + 1) * Math.cos(t), cy + (radius + 1) * Math.sin(t)]; });
+    const glint = (x, y, r) => { const q = r * 0.18; return [[x, y - r], [x + q, y - q], [x + r, y], [x + q, y + q], [x, y + r], [x - q, y + q], [x - r, y], [x - q, y - q]]; };
+    let tiles = "";
+    for (let row = 0; row < 8; row++) {
+      const lat0 = -Math.PI / 2 + (Math.PI * row) / 8, lat1 = lat0 + Math.PI / 8;
+      for (let col = 0; col < 8; col++) {
+        const lon0 = -Math.PI / 2 + (Math.PI * col) / 8, lon1 = lon0 + Math.PI / 8;
+        const tile = [point(lat0 + 0.05, lon0 + 0.05), point(lat0 + 0.05, lon1 - 0.05), point(lat1 - 0.05, lon1 - 0.05), point(lat1 - 0.05, lon0 + 0.05)];
+        tiles += poly(tile, RAINBOW[(row + col) % 6]);
+        const light = -(Math.sin((lon0 + lon1) / 2) + Math.sin((lat0 + lat1) / 2));
+        if (light > 0.55) tiles += poly(tile, "#ffffff", 'fill-opacity=".45"');
+        if (light < -0.55) tiles += poly(tile, "#111111", 'fill-opacity=".28"');
+      }
+    }
+    return `<svg viewBox="0 0 200 160" role="img" aria-label="A podium mirror ball on a chain, its tiles stepping through the rainbow">
+      <ellipse cx="100" cy="148" rx="46" ry="5" fill="rgba(0,0,0,.15)"/>
+      <line x1="100" y1="0" x2="100" y2="24" stroke="#4a4f57" stroke-width="3"/><rect x="92" y="20" width="16" height="9" fill="#2b2e33"/>
+      ${poly(disc, "#1b1d21")}${tiles}${[[66, 46, 13], [136, 62, 8], [84, 112, 7]].map(([x, y, r]) => poly(glint(x, y, r), "#ffffff")).join("")}</svg>`;
+  };
   draw.tells = () => {
     const cube = (x, y, s, c, sh) => poly([[x, y - s], [x + s, y - s / 2], [x, y], [x - s, y - s / 2]], `color-mix(in srgb, ${c} 70%, white)`) + poly([[x - s, y - s / 2], [x, y], [x, y + s], [x - s, y + s / 2]], c) + poly([[x, y], [x + s, y - s / 2], [x + s, y + s / 2], [x, y + s]], sh);
     return `<svg viewBox="0 0 320 150" role="img" aria-label="Sparks, dust, tyre marks and a shadow disc on asphalt">
@@ -1919,7 +1954,12 @@
   // Rolling: the reel caught halfway from the cone to the drone. Landing: the pop at its widest, on the flash.
   const rolling = `<span class="pl"><span class="pf t-gold slot reel"><span class="strip" style="transform: translateY(-25%)">${draw.cone()}${draw.drone()}</span></span></span>`;
   const landing = `<span class="pl"><span class="pf t-flash slot landed">${draw.drone()}</span></span>`;
-  document.getElementById("slots").innerHTML = slot(null) + slot("champagne") + slot("cone") + slot("drone") + slot("champagne", true) + rolling + landing;
+  document.getElementById("slots").innerHTML = slot(null) + slot("champagne") + slot("cone") + slot("drone") + slot("ball") + slot("champagne", true) + rolling + landing;
+  // The star's ring round the slot, two thirds of the run left in the loop's green, and the six stops.
+  const ringLength = 2 * Math.PI * 46.5;
+  const starRing = `<span style="position:relative;display:inline-grid"><span class="pl"><span class="pf t-gold slot">${draw.ball()}</span></span><svg viewBox="0 0 100 100" aria-hidden="true" style="position:absolute;inset:calc(var(--hud) * -0.8);width:auto;height:auto;overflow:visible"><circle cx="50" cy="50" r="46.5" fill="none" stroke="#3ddc84" stroke-width="7" stroke-dasharray="${(ringLength * 4 / 6).toFixed(1)} ${ringLength.toFixed(1)}" transform="rotate(-90 50 50)"/></svg></span>`;
+  const stops = `<div style="display:flex;gap:0.3rem">${RAINBOW.map((stop) => `<span style="display:grid;place-items:center;width:4.2rem;height:2.2rem;background:${stop};color:#111;font:0.62rem ui-monospace,monospace;text-transform:none">${stop}</span>`).join("")}</div>`;
+  document.getElementById("star").innerHTML = starRing + stops;
   const hexLights = (lit, limiter) => `<svg class="lights" viewBox="0 0 156 14" aria-hidden="true">${Array.from({ length: 12 }, (_, i) =>
     facets(6, 6.5 + i * 13, 7, 6.2, TONES[limiter ? "blue" : i < lit ? ["green", "red", "blue"][Math.floor((i * 3) / 12)] : "off"])).join("")}</svg>`;
   const coinIcon = `<svg viewBox="0 0 100 100" aria-hidden="true"><polygon points="50,6 81,18 94,50 81,82 50,94 19,82 6,50 19,18" fill="#ffd23f" stroke="#b8860b" stroke-width="8"/></svg>`;

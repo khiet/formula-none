@@ -16,6 +16,7 @@ import { hexCss, livery, liveryCss } from "./livery";
 import { FIRING, ITEM_BOX_GOLD } from "./palette";
 import { ON_THE_GRID, raceReadout } from "./race-readout-fixture";
 import { EMPTY_SLOT, type ItemSlot, type RaceReadout } from "./race-run";
+import { STAR_RAINBOW } from "./star-shine";
 
 // A square loop, so the map's fit is easy to read: the grid faces -z.
 const course = {
@@ -38,6 +39,7 @@ function at(position: readonly [number, number, number]): KartReadout {
 const TUNING = {
   coinTopSpeeds: Array.from({ length: 11 }, (_, coins) => 30 * (1 + coins * 0.01)),
   coinCap: 10,
+  starSeconds: 6,
 };
 
 const nameOf = (kart: number) => (kart === course.ownKart ? "You" : `Kart ${kart + 1}`);
@@ -396,6 +398,75 @@ describe("the connection banner", () => {
     expect(banner?.hidden).toBe(false);
     panel.connectionLost(false);
     expect(banner?.hidden).toBe(true);
+  });
+});
+
+describe("the star's ring", () => {
+  it("counts the own run down round the slot, in the loop's colour, and hides off a run", () => {
+    const container = document.createElement("div");
+    const panel = createInstrumentPanel(container, 3, course, TUNING, () => "", livery(1), {
+      reducedMotion: false,
+    });
+    const ring = container.querySelector<SVGSVGElement>("[data-star-ring]");
+    const stroke = ring?.querySelector("circle");
+    expect(ring?.style.display).toBe("none");
+    panel.update(
+      race(ON_THE_GRID, EMPTY_SLOT, [
+        at([0, 0.3, 0]),
+        kartReadout({ starS: 3.2 }),
+        at([0, 0.3, 0]),
+      ]),
+    );
+    expect(ring?.style.display).toBe("");
+    const dash = (at: string | null | undefined) => Number(at?.split(" ")[0]);
+    const half = dash(stroke?.getAttribute("stroke-dasharray"));
+    const halfColour = stroke?.getAttribute("stroke");
+    panel.update(
+      race(ON_THE_GRID, EMPTY_SLOT, [
+        at([0, 0.3, 0]),
+        kartReadout({ starS: 1.6 }),
+        at([0, 0.3, 0]),
+      ]),
+    );
+    expect(dash(stroke?.getAttribute("stroke-dasharray"))).toBeCloseTo(half / 2, 3);
+    expect(stroke?.getAttribute("stroke")).not.toBe(halfColour);
+    // The star kart's map marker runs the loop too, and is its key colour again after.
+    const marker = container.querySelector<SVGGElement>(
+      '[data-instrument="course-map"] [data-kart="1"]',
+    );
+    expect(marker?.dataset.star).toBe("");
+    const shone = marker?.querySelector("polygon:last-of-type")?.getAttribute("fill");
+    panel.update(race(ON_THE_GRID, EMPTY_SLOT));
+    expect(ring?.style.display).toBe("none");
+    expect(marker?.dataset.star).toBeUndefined();
+    expect(marker?.querySelector("polygon:last-of-type")?.getAttribute("fill")).not.toBe(shone);
+    panel.dispose();
+  });
+
+  it("names the star and shows the mirror ball once it lands", () => {
+    const container = document.createElement("div");
+    const panel = createInstrumentPanel(container, 3, course, TUNING, () => "", livery(1));
+    panel.update(race(ON_THE_GRID, { ...EMPTY_SLOT, item: "star" }));
+    const slot = container.querySelector<HTMLElement>('[data-instrument="item"]');
+    expect(slot?.textContent).toBe("Star");
+    expect(slot?.dataset.item).toBe("star");
+    const ball = slot?.querySelector<SVGSVGElement>("svg[data-sprite='star']");
+    expect(ball).not.toBeNull();
+    // Landed, the ball runs the loop: its tiles and glow are rewritten each frame.
+    expect(ball?.style.getPropertyValue("--glow")).not.toBe("");
+    panel.dispose();
+  });
+
+  it("holds the ball's tiles still under reduced motion", () => {
+    const container = document.createElement("div");
+    const panel = createInstrumentPanel(container, 3, course, TUNING, () => "", livery(1), {
+      reducedMotion: true,
+    });
+    panel.update(race(ON_THE_GRID, { ...EMPTY_SLOT, item: "star" }));
+    const ball = container.querySelector<SVGSVGElement>("svg[data-sprite='star']");
+    expect(ball?.style.getPropertyValue("--glow")).toBe("");
+    expect(ball?.style.getPropertyValue("--r0")).toBe(hexCss(STAR_RAINBOW[0] ?? 0));
+    panel.dispose();
   });
 });
 

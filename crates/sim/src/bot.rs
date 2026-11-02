@@ -71,15 +71,23 @@ pub fn drive(
     let kart = &karts[slot];
     let progress = standings[slot].spline_progress;
     let target_speed = corner_speed(sharpest_ahead(track, progress, kart.speed));
+    // On a star's run the wheel cannot hurt it and the karts in its way are
+    // its targets, so it neither waits nor steers round anyone.
+    let starring = kart.star_s.is_some();
     let waiting = match clock {
-        Phase::Racing { elapsed_s, .. } => {
+        Phase::Racing { elapsed_s, .. } if !starring => {
             waits_for_a_wheel(track, kart, target_speed, seed, elapsed_s, dt)
         }
         _ => false,
     };
+    let in_the_way = if starring {
+        None
+    } else {
+        kart_in_the_way(karts, slot)
+    };
     // A kerb ahead outranks a pass, whose point may lie on the kerb.
     let kerb_line = line_clear_of_kerbs(track, kart.position, progress);
-    let target = match (kerb_line, kart_in_the_way(karts, slot)) {
+    let target = match (kerb_line, in_the_way) {
         (Some(line), _) => line_point(track, progress + BOT_LOOKAHEAD_M, line),
         (None, Some(other)) => pass_point(
             track,
@@ -187,8 +195,9 @@ pub fn drive(
     // the tuned delay. A projectile needs a kart ahead to chase, so a leading
     // bot keeps it until it is passed. A boost is kept while the bot waits
     // for the wheel and while the boosted kart would have to, so it never
-    // throws the bot into a pass it judged at its own speed. A fired hazard
-    // is trailed for the tuned time, then dropped.
+    // throws the bot into a pass it judged at its own speed; a star is not,
+    // since the wheel cannot hurt a star kart. A fired hazard is trailed
+    // for the tuned time, then dropped.
     let held = kart.item_slot.held();
     let has_target = held != Some(Item::Homing) || standings[slot].position > 1;
     let boost_meets_a_wheel = held == Some(Item::Boost)

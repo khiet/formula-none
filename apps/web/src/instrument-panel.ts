@@ -52,6 +52,7 @@ import {
   TYRE_WEAR_PLACEHOLDER_PERCENT,
   tyreWearBand,
 } from "./speed-cluster";
+import { STAR_RAINBOW, STAR_TILES, starColour, starTileColour } from "./star-shine";
 
 /** The item slot as the panel prints it: the item's name and the slot's state. */
 export interface ItemReadout {
@@ -149,7 +150,11 @@ export function loadInstrumentFont(): Promise<void> {
  * The own kart's readouts wear `paint`, the own kart's livery (ADR 0037).
  * An item rolling in the slot runs the reel (ADR 0070), and lands with a
  * pop and a flash; under `reducedMotion` the slot shows the plain box
- * face through the roll and the item lands still.
+ * face through the roll and the item lands still. A landed mirror ball
+ * runs the rainbow loop through its tiles, and through the own kart's star
+ * run a rainbow ring round the slot counts the tuned run down (ADR
+ * 0075); under `reducedMotion` the tiles hold their colours and the ring
+ * still counts down.
  * Each readout is addressable by `data-instrument` so tests and styles
  * find it the same way.
  */
@@ -157,7 +162,7 @@ export function createInstrumentPanel(
   container: HTMLElement,
   lapsPerRace: number,
   course: CourseMapSetup,
-  tuning: SpeedClusterTuning,
+  tuning: PanelTuning,
   name: (kart: number) => string,
   paint: Livery,
   { reducedMotion }: { readonly reducedMotion: boolean } = { reducedMotion: false },
@@ -221,6 +226,30 @@ export function createInstrumentPanel(
   let reel: HTMLSpanElement | null = null;
   let reelIcons = 1;
   let shownLitPlate = false;
+  // The ring round the slot through the own kart's run: a rainbow stroke
+  // whose dash shortens as the seconds run out.
+  const ring = svg(`0 0 ${RING_UNITS} ${RING_UNITS}`);
+  ring.dataset.starRing = "";
+  ring.style.display = "none";
+  const ringStroke = document.createElementNS(SVG_NS, "circle");
+  for (const [attribute, value] of Object.entries({
+    cx: RING_UNITS / 2,
+    cy: RING_UNITS / 2,
+    r: RING_RADIUS,
+    fill: "none",
+    "stroke-width": RING_WIDTH,
+    "stroke-linecap": "butt",
+    "stroke-dasharray": RING_LENGTH,
+    transform: `rotate(-90 ${RING_UNITS / 2} ${RING_UNITS / 2})`,
+  })) {
+    ringStroke.setAttribute(attribute, String(value));
+  }
+  ring.append(ringStroke);
+  // The ring sits round the slot, outside its plate, so the plate's chamfer
+  // and the reel's clip leave it whole.
+  const itemWithRing = document.createElement("span");
+  itemWithRing.dataset.itemWithRing = "";
+  itemWithRing.append(item, ring);
   const banner = instrument("connection-banner", CONNECTION_LOST_BANNER);
   plate(banner, POSTER_RED);
   banner.hidden = true;
@@ -299,7 +328,7 @@ export function createInstrumentPanel(
   greybox.append(surface, " ", connection);
   const stack = document.createElement("div");
   stack.dataset.stack = "";
-  stack.append(position, lap, lapTime, bestLap, item);
+  stack.append(position, lap, lapTime, bestLap, itemWithRing);
   const courseMap = createCourseMap(course);
   panel.append(
     stack,
@@ -357,7 +386,7 @@ export function createInstrumentPanel(
       const standing = race.standings[course.ownKart];
       if (local === undefined || standing === undefined) return;
       const slot = race.itemSlot;
-      courseMap.update(race.karts);
+      courseMap.update(race.karts, reducedMotion);
       const readouts = lapReadouts(standing, lapsPerRace);
       numeral.textContent = readouts.position.numeral;
       suffix.textContent = readouts.position.suffix;
@@ -413,6 +442,19 @@ export function createInstrumentPanel(
           if (slot.landing && !reducedMotion) shownSprite.dataset.landed = "";
           item.append(shownSprite);
         }
+      }
+      // The landed ball shines on the View's clock, whatever the kart
+      // beside it is doing; the ring runs on the run's seconds, which
+      // every client agrees on.
+      if (shownSprite !== null && slot.item === "star" && !reducedMotion) {
+        shineBall(shownSprite, performance.now() / 1000);
+      }
+      const starS = local.starS;
+      ring.style.display = starS === null ? "none" : "";
+      if (starS !== null) {
+        const left = Math.min(Math.max(starS / tuning.starSeconds, 0), 1);
+        ringStroke.setAttribute("stroke-dasharray", `${RING_LENGTH * left} ${RING_LENGTH}`);
+        ringStroke.setAttribute("stroke", hexCss(reducedMotion ? RING_STILL : starColour(starS)));
       }
       const lit = lampsLit(race.phase);
       const count = phaseReadout(race.phase);
@@ -536,7 +578,35 @@ const ITEM_NAMES: Readonly<Record<Item, string>> = {
   boost: "Boost",
   hazard: "Hazard",
   homing: "Homing",
+  star: "Star",
 };
+
+/** What the panel reads of the sim's tuning: the speed cluster's, and how long a star's run lasts. */
+export interface PanelTuning extends SpeedClusterTuning {
+  readonly starSeconds: number;
+}
+/** How far the landed ball's glow reaches, in CSS pixels. */
+const BALL_GLOW_PX = 5;
+/** The ring is drawn in a fixed square of units and scaled by CSS. */
+const RING_UNITS = 100;
+const RING_WIDTH = 7;
+const RING_RADIUS = RING_UNITS / 2 - RING_WIDTH / 2;
+const RING_LENGTH = 2 * Math.PI * RING_RADIUS;
+/** The ring's colour under reduced motion, where the loop does not run: the rainbow's green stop. */
+const RING_STILL = STAR_RAINBOW[3] ?? 0x3ddc84;
+
+/**
+ * Run the mirror ball's tiles through the rainbow loop at `seconds` on the
+ * View's clock: each tile a step along from the one before, with a glow
+ * behind the ball in the colour of the moment.
+ */
+function shineBall(ball: SVGSVGElement, seconds: number): void {
+  for (let tile = 0; tile < STAR_TILES; tile++) {
+    ball.style.setProperty(`--r${tile}`, hexCss(starTileColour(seconds, tile)));
+  }
+  ball.style.setProperty("--glow", hexCss(starColour(seconds)));
+  ball.style.filter = `drop-shadow(0 0 ${BALL_GLOW_PX}px var(--glow))`;
+}
 
 /**
  * What the panel prints for the item slot: the item's name once it has

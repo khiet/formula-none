@@ -304,6 +304,8 @@ export interface Bridge extends MessageCodec {
   readonly hazardDropDistanceMetres: number;
   /** How long a spin-out lasts (ADR 0014), which the spin animation runs once over. */
   readonly spinOutSeconds: number;
+  /** How long a star's run lasts (ADR 0075), which the panel's ring counts down and the star music is joined against. */
+  readonly starSeconds: number;
   /** The runaway wheel's reach (ADR 0014), which the View draws as its radius. */
   readonly runawayWheelRadiusMetres: number;
   /** The chase camera's pull-back and shake, from the sim's tuning (ADR 0020). */
@@ -387,6 +389,7 @@ export async function loadBridge(wasm?: BufferSource): Promise<Bridge> {
     predictedFireTimeoutSeconds: tuned.predictedFireTimeoutS,
     hazardDropDistanceMetres: tuned.hazardDropDistanceM,
     spinOutSeconds: tuned.spinOutS,
+    starSeconds: tuned.starS,
     runawayWheelRadiusMetres: tuned.wheelRadiusM,
     cameraTuning: {
       topSpeedMetresPerSecond: tuned.topSpeedMPerS,

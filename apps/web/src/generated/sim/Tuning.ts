@@ -20,6 +20,11 @@ itemRollS: number,
  */
 coinTopSpeedsMPerS: [number, number, number, number, number, number, number, number, number, number, number], coinCap: number, coinsLostPerSpinOut: number, coinHalfLengthM: number, coinHalfWidthM: number, coinRespawnS: number, hazardDropDistanceM: number, spinOutS: number, 
 /**
+ * How long a star's run lasts, which the Instrument panel's ring counts
+ * down and the star music is joined against.
+ */
+starS: number, 
+/**
  * The runaway wheel's reach, so the View draws a wheel that size.
  */
 wheelRadiusM: number, topSpeedMPerS: number, cameraPullBackM: number, cameraShakeS: number, cameraShakeAmplitudeM: number, cameraFieldOfViewDeg: number, cameraBoostKick: number, cameraBoostKickEaseS: number, webtransportConnectTimeoutS: number, pingTimeoutS: number, pingResendS: number, connectionSilenceS: number, reconnectRetryS: number, nicknameMinChars: number, nicknameMaxChars: number, roomCodeLength: number, };

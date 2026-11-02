@@ -213,6 +213,24 @@
           transform: scale(0.92);
         }
       }
+      /*
+       * The star's ring (ADR 0075): round the slot through the own kart's
+       * run, its rainbow stroke shortening as the seconds run out. Outside
+       * the plate, so its chamfer and the reel's clip leave the ring whole.
+       */
+      [data-item-with-ring] {
+        position: relative;
+        display: grid;
+        width: max-content;
+      }
+      [data-star-ring] {
+        position: absolute;
+        inset: calc(var(--hud) * -0.8);
+        width: auto;
+        height: auto;
+        pointer-events: none;
+        overflow: visible;
+      }
       /* Firing lights the plate, flashing back to the box's gold. */
       [data-instrument="item"][data-item-state="firing"] {
         animation: item-fire 0.25s steps(1, end) infinite;
@@ -493,6 +511,10 @@
         --chamfer: calc(var(--hud) * 0.6);
         padding: 0.3em 0.55em;
         font-size: calc(var(--hud) * 2);
+      }
+      /* A star kart's plate is underlined in the shine, so the others see it coming (ADR 0075). */
+      .kart-label[data-star] {
+        box-shadow: 0 0.25em 0 var(--star);
       }
       .kart-label::after {
         content: "";

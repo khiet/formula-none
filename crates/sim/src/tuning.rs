@@ -353,6 +353,26 @@ pub const HOMING_RADIUS_M: f32 = 0.5;
 /// builds only the wasted fire and refuses to compile if this is flipped.
 pub const HOMING_WITHOUT_TARGET_IS_WASTED: bool = true;
 
+// The star (GLOSSARY: star). Fired, it gives the kart a run: a raised top
+// speed and immunity, spinning out every kart it touches, for a fixed time
+// that a second star puts back to the start without adding to it.
+
+/// Seconds a run lasts from the fire. assets/audio/build.py renders the
+/// star music to the same length from its own copy, `STAR_RUN_S`, so a
+/// retune here moves it there and rebuilds the music.
+pub const STAR_S: f32 = 6.0;
+/// What a run multiplies the kart's top speed cap by, on top of its coins
+/// and its rubber band. A cap and not a boost, so the brake still works.
+pub const STAR_TOP_SPEED_FACTOR: f32 = 1.25;
+/// The kick on firing: a boost of this length at the boost item's factor,
+/// so the fire is felt as a jump before the cap takes over.
+pub const STAR_KICK_S: f32 = 0.5;
+pub const STAR_KICK_FACTOR: f32 = ITEM_BOOST_FACTOR;
+/// A kart whose collision box comes within this much of a star kart's
+/// centre is hit by it. The star kart's collider ignores other karts for
+/// the run, so this reach is the touch.
+pub const STAR_HIT_RADIUS_M: f32 = 1.0;
+
 // Coins (GLOSSARY: coin). A kart collects the coins lying on the track, up
 // to a full purse, each raising its forward top speed; every spin-out costs it some.
 
@@ -401,6 +421,14 @@ pub struct ItemRollWeights {
     pub hazard: u8,
     pub boost: u8,
     pub homing: u8,
+    pub star: u8,
+}
+
+impl ItemRollWeights {
+    /// What the band's weights sum to.
+    const fn total(&self) -> u32 {
+        self.hazard as u32 + self.boost as u32 + self.homing as u32 + self.star as u32
+    }
 }
 
 /// What each band's weights sum to: a roll in `0..ITEM_ROLL_PERCENT` picks
@@ -408,25 +436,29 @@ pub struct ItemRollWeights {
 pub const ITEM_ROLL_PERCENT: u32 = 100;
 
 /// Roll weights by race position. Bands are contiguous and cover every grid
-/// slot; each band's weights sum to `ITEM_ROLL_PERCENT`.
+/// slot; each band's weights sum to `ITEM_ROLL_PERCENT`. The star never
+/// reaches the front two and is most likely at the back: the comeback item.
 pub const ITEM_ROLL_WEIGHTS: [ItemRollWeights; 3] = [
     ItemRollWeights {
         positions: (1, 2),
         hazard: 70,
         boost: 20,
         homing: 10,
+        star: 0,
     },
     ItemRollWeights {
         positions: (3, 5),
         hazard: 30,
-        boost: 40,
+        boost: 35,
         homing: 30,
+        star: 5,
     },
     ItemRollWeights {
         positions: (6, 8),
         hazard: 10,
-        boost: 40,
-        homing: 50,
+        boost: 35,
+        homing: 40,
+        star: 15,
     },
 ];
 
@@ -587,6 +619,31 @@ const _: () = {
         (HOMING_SPEED_FACTOR + COIN_CAP_FACTOR) * TOP_SPEED_M_PER_S / (TICKS_PER_SECOND as f32)
             < 2.0 * (HOMING_RADIUS_M + KART_HALF_LENGTH_M)
     );
+    assert!(0.0 < STAR_S && 1.0 < STAR_TOP_SPEED_FACTOR && 0.0 < STAR_HIT_RADIUS_M);
+    assert!(0.0 < STAR_KICK_S && STAR_KICK_S < STAR_S && 1.0 < STAR_KICK_FACTOR);
+    // A star kart at a full purse still cannot outrun a projectile, and
+    // a tick of its travel never carries its centre over a coin.
+    assert!(HOMING_SPEED_FACTOR > COIN_CAP_FACTOR * STAR_TOP_SPEED_FACTOR);
+    assert!(
+        COIN_CAP_FACTOR * STAR_TOP_SPEED_FACTOR * TOP_SPEED_M_PER_S / (TICKS_PER_SECOND as f32)
+            < 2.0 * COIN_HALF_LENGTH_M
+    );
+    // A tick never carries a star kart from outside its reach of a kart's
+    // box to past the box, even closing on a kart coming the other way at a
+    // full purse's top speed.
+    assert!(
+        (COIN_CAP_FACTOR * STAR_TOP_SPEED_FACTOR + COIN_CAP_FACTOR) * TOP_SPEED_M_PER_S
+            / (TICKS_PER_SECOND as f32)
+            < 2.0 * (STAR_HIT_RADIUS_M + KART_HALF_LENGTH_M)
+    );
+    // Every band's roll weights share out the whole roll.
+    {
+        let mut band = 0;
+        while band < ITEM_ROLL_WEIGHTS.len() {
+            assert!(ITEM_ROLL_WEIGHTS[band].total() == ITEM_ROLL_PERCENT);
+            band += 1;
+        }
+    }
     assert!(0.0 < COIN_TOP_SPEED_FACTOR && 0 < COIN_CAP);
     assert!(COINS_LOST_PER_SPIN_OUT <= COIN_CAP);
     // The wire carries the count in a byte.
@@ -676,6 +733,9 @@ pub struct Tuning {
     pub coin_respawn_s: f32,
     pub hazard_drop_distance_m: f32,
     pub spin_out_s: f32,
+    /// How long a star's run lasts, which the Instrument panel's ring counts
+    /// down and the star music is joined against.
+    pub star_s: f32,
     /// The runaway wheel's reach, so the View draws a wheel that size.
     pub wheel_radius_m: f32,
     pub top_speed_m_per_s: f32,
@@ -717,6 +777,7 @@ pub const TUNING: Tuning = Tuning {
     coin_respawn_s: COIN_RESPAWN_S,
     hazard_drop_distance_m: HAZARD_DROP_DISTANCE_M,
     spin_out_s: SPIN_OUT_S,
+    star_s: STAR_S,
     wheel_radius_m: WHEEL_RADIUS_M,
     top_speed_m_per_s: TOP_SPEED_M_PER_S,
     camera_pull_back_m: CAMERA_PULL_BACK_M,

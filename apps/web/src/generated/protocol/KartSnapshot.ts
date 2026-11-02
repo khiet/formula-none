@@ -60,4 +60,9 @@ stallS: number | null,
 /**
  * The boost under way, if any.
  */
-boost: BoostSnapshot | null, };
+boost: BoostSnapshot | null, 
+/**
+ * Seconds of a star's run left, while the kart has one. Every client
+ * works the shine's phase out from it, so they all agree.
+ */
+starS: number | null, };

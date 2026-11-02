@@ -6,8 +6,10 @@
 // sputter's file runs the stall's length), a looping source per loop while
 // its state holds, pitched and swelled with the kart's speed, and a looping
 // source for the music, each behind the gain its toggle sets; the loops sit
-// under the SFX toggle. Presentation: it reads the own kart's readings and
-// changes no sim state.
+// under the SFX toggle, and so does the star music (ADR 0075): the own run's
+// in place of the race music, which fades out and keeps its place, else the
+// nearest other star kart's by distance. Presentation: it reads the own
+// kart's readings and changes no sim state.
 
 import boostPadUrl from "../../../assets/audio/boost-pad.wav?url";
 import coinLossUrl from "../../../assets/audio/coin-loss.wav?url";
@@ -28,6 +30,9 @@ import miniTurboUrl from "../../../assets/audio/mini-turbo.wav?url";
 import musicUrl from "../../../assets/audio/music-loop.wav?url";
 import sandUrl from "../../../assets/audio/sand.wav?url";
 import sputterUrl from "../../../assets/audio/sputter.wav?url";
+import starEndUrl from "../../../assets/audio/star-end.wav?url";
+import starFireUrl from "../../../assets/audio/star-fire.wav?url";
+import starMusicUrl from "../../../assets/audio/star-music.wav?url";
 import tierChimeUrl from "../../../assets/audio/tier-chime.wav?url";
 import wrongWayUrl from "../../../assets/audio/wrong-way.wav?url";
 import {
@@ -35,8 +40,11 @@ import {
   type SoundCue,
   type SoundLoop,
   type SoundReading,
+  STAR_RESTART_RISE_S,
+  type StarMusic,
   soundCues,
   soundLoops,
+  starMusic,
 } from "./audio-cues";
 import {
   ENGINE,
@@ -65,6 +73,8 @@ export const SOUND_URLS: Readonly<Record<SoundCue, string>> = {
   boostPad: boostPadUrl,
   wrongWay: wrongWayUrl,
   finish: finishUrl,
+  starFire: starFireUrl,
+  starEnd: starEndUrl,
 };
 export const LOOP_URLS: Readonly<Record<SoundLoop, string>> = {
   driftSkid: driftSkidUrl,
@@ -72,6 +82,8 @@ export const LOOP_URLS: Readonly<Record<SoundLoop, string>> = {
   sand: sandUrl,
 };
 export const MUSIC_URL: string = musicUrl;
+/** The star music, as long as a run, in place of the race music through the own run. */
+export const STAR_MUSIC_URL: string = starMusicUrl;
 
 // The slice of Web Audio the game uses, so tests can stand a fake in for
 // the browser's AudioContext, which satisfies these as it is.
@@ -108,7 +120,8 @@ export interface SoundBufferSource extends SoundNode {
   buffer: SoundBuffer | null;
   loop: boolean;
   readonly playbackRate: SoundParam;
-  start(when?: number): void;
+  /** `offset` seconds into the buffer, as the star music is joined mid-run. */
+  start(when?: number, offset?: number): void;
   stop(when?: number): void;
 }
 export interface SoundContext {
@@ -129,6 +142,8 @@ export interface AudioOptions {
   readonly settings: AudioSettings;
   /** The sim's top speed, which the engine's gear bands and the loops' swell are scaled to. */
   readonly topSpeedMetresPerSecond: number;
+  /** How long a star's run lasts, which the star music is rendered to and joined against. */
+  readonly starRunSeconds: number;
   /** Fetch one sound file's bytes; called for every file at creation. */
   fetchBytes(url: string): Promise<ArrayBuffer>;
   /** Make the AudioContext; called by `unlock` inside a user gesture, again only if it threw. */
@@ -166,6 +181,10 @@ const LEVELS: Readonly<Record<keyof AudioSettings, number>> = {
 const TOGGLES = Object.keys(LEVELS) as (keyof AudioSettings)[];
 /** The time constant the loops glide to each frame's pitch and level with, so neither jumps. */
 const GLIDE_S = 0.04;
+/** The time constant the race music and the star music fade with: about 0.2 s to settle. */
+const MUSIC_FADE_S = 0.07;
+/** How long after its fade begins a star music source is stopped. */
+const MUSIC_FADE_STOP_S = 0.3;
 
 /** The decoded files, once the context exists to decode them, and the gain each toggle sets. */
 interface Sounds {
@@ -173,6 +192,7 @@ interface Sounds {
   readonly sfx: Partial<Record<SoundCue, SoundBuffer>>;
   readonly loops: Partial<Record<SoundLoop, SoundBuffer>>;
   readonly music: SoundBuffer | undefined;
+  readonly starMusic: SoundBuffer | undefined;
   readonly gains: Readonly<Record<keyof AudioSettings, SoundGain>>;
 }
 
@@ -185,7 +205,12 @@ export function createAudio(options: AudioOptions): Audio {
       console.warn(`could not load the sound ${url}`, error);
       return undefined;
     });
-  for (const url of [...Object.values(SOUND_URLS), ...Object.values(LOOP_URLS), MUSIC_URL]) {
+  for (const url of [
+    ...Object.values(SOUND_URLS),
+    ...Object.values(LOOP_URLS),
+    MUSIC_URL,
+    STAR_MUSIC_URL,
+  ]) {
     fetched.set(url, fetching(url));
   }
 
@@ -230,8 +255,9 @@ export function createAudio(options: AudioOptions): Audio {
   const makeSounds = async (): Promise<void> => {
     const context = options.createContext();
     await context.resume();
-    const [music, sfx, loops] = await Promise.all([
+    const [music, starMusic, sfx, loops] = await Promise.all([
       decode(context, MUSIC_URL),
+      decode(context, STAR_MUSIC_URL),
       decodeAll(context, SOUND_URLS),
       decodeAll(context, LOOP_URLS),
     ]);
@@ -240,6 +266,7 @@ export function createAudio(options: AudioOptions): Audio {
       sfx,
       loops,
       music,
+      starMusic,
       gains: {
         engine: gainOf(context, "engine"),
         sfx: gainOf(context, "sfx"),
@@ -274,7 +301,11 @@ export function createAudio(options: AudioOptions): Audio {
       });
     },
     race() {
-      const race = new LiveRace(options.topSpeedMetresPerSecond, () => settings);
+      const race = new LiveRace(
+        options.topSpeedMetresPerSecond,
+        options.starRunSeconds,
+        () => settings,
+      );
       return {
         start() {
           live?.stop();
@@ -298,6 +329,16 @@ interface RunningLoop {
   readonly gain: SoundGain;
 }
 
+/** The star music sounding now: whose run, and its source through a gain of its own under the SFX gain. */
+interface RunningStar {
+  /** Null for the own run, else the other kart's grid slot. */
+  readonly kart: number | null;
+  readonly source: SoundBufferSource;
+  readonly gain: SoundGain;
+  /** How far into the run the music was last asked for, so a second star's jump back is seen. */
+  secondsIn: number;
+}
+
 /**
  * One race's nodes: made when both the race has started and the context
  * exists, whichever comes second, and torn down at the race's stop.
@@ -309,13 +350,21 @@ class LiveRace {
   /** The engine model, stepped from the first reading the context hears. */
   #engineState: EngineState | undefined;
   #music: SoundBufferSource | undefined;
+  /**
+   * The race music's own level, between its source and its toggle's gain,
+   * which `settings` overwrites: silent through the own run, up otherwise.
+   */
+  #musicLevel: SoundGain | undefined;
+  #star: RunningStar | undefined;
   readonly #loops = new Map<SoundLoop, RunningLoop>();
   #last: SoundReading | undefined;
   readonly #topSpeed: number;
+  readonly #starRunSeconds: number;
   readonly #settings: () => AudioSettings;
 
-  constructor(topSpeed: number, settings: () => AudioSettings) {
+  constructor(topSpeed: number, starRunSeconds: number, settings: () => AudioSettings) {
     this.#topSpeed = topSpeed;
+    this.#starRunSeconds = starRunSeconds;
     this.#settings = settings;
   }
 
@@ -344,21 +393,30 @@ class LiveRace {
     );
   }
 
-  /** Start the music loop when `on` and none plays; stop it when not `on`. */
+  /**
+   * Start the music loop when `on` and none plays, through its own level,
+   * silent while the own kart's star music plays; stop it when not `on`.
+   */
   music(on: boolean): void {
     const sounds = this.#sounds;
     if (sounds === undefined) return;
     if (on && this.racing && this.#music === undefined && sounds.music !== undefined) {
+      const level = sounds.context.createGain();
+      level.gain.value = this.#star?.kart === null ? 0 : 1;
+      level.connect(sounds.gains.music);
       const loop = sounds.context.createBufferSource();
       loop.buffer = sounds.music;
       loop.loop = true;
-      loop.connect(sounds.gains.music);
+      loop.connect(level);
       loop.start();
       this.#music = loop;
+      this.#musicLevel = level;
     } else if (!on && this.#music !== undefined) {
       this.#music.stop();
       this.#music.disconnect();
+      this.#musicLevel?.disconnect();
       this.#music = undefined;
+      this.#musicLevel = undefined;
     }
   }
 
@@ -372,6 +430,7 @@ class LiveRace {
     this.#engine?.follow(engineVoice(this.#engineState), this.#engineState.shift);
     const sfx = this.#settings().sfx;
     this.#runLoops(sounds, sfx ? soundLoops(reading) : new Set(), reading.speed);
+    this.#runStar(sounds, sfx ? starMusic(reading, this.#starRunSeconds) : null, cues);
     if (!sfx) return;
     for (const cue of cues) {
       const buffer = sounds.sfx[cue];
@@ -416,9 +475,65 @@ class LiveRace {
     }
   }
 
+  /**
+   * Play the star music `wanted` calls for: the own run's from the fire,
+   * restarted on a second star's fire and otherwise left alone through a
+   * correction, with the race music faded to silent and back at the end;
+   * or another kart's, joined at its point in the run and faded by
+   * distance, the race music untouched. Fading out what no longer plays.
+   */
+  #runStar(sounds: Sounds, wanted: StarMusic | null, cues: readonly SoundCue[]): void {
+    const now = sounds.context.currentTime;
+    const running = this.#star;
+    // A second star puts the run back to its start: the own kart's is its
+    // fire cue, another's its point in the run jumping back by more than a
+    // correction could move it.
+    const restart =
+      wanted !== null &&
+      (running === undefined ||
+        running.kart !== wanted.kart ||
+        (wanted.kart === null && cues.includes("starFire")) ||
+        wanted.secondsIn + STAR_RESTART_RISE_S < running.secondsIn);
+    if (running !== undefined && (wanted === null || restart)) {
+      running.gain.gain.setTargetAtTime(0, now, MUSIC_FADE_S);
+      running.source.stop(now + MUSIC_FADE_STOP_S);
+      this.#star = undefined;
+    }
+    if (wanted !== null && restart && sounds.starMusic !== undefined) {
+      const gain = sounds.context.createGain();
+      gain.gain.value = wanted.level;
+      gain.connect(sounds.gains.sfx);
+      const source = sounds.context.createBufferSource();
+      source.buffer = sounds.starMusic;
+      if (wanted.lowpassHz === null) {
+        source.connect(gain);
+      } else {
+        const filter = sounds.context.createBiquadFilter();
+        filter.type = "lowpass";
+        filter.frequency.value = wanted.lowpassHz;
+        filter.connect(gain);
+        source.connect(filter);
+      }
+      source.start(now, wanted.secondsIn);
+      this.#star = { kart: wanted.kart, source, gain, secondsIn: wanted.secondsIn };
+    } else if (wanted !== null && this.#star !== undefined) {
+      this.#star.gain.gain.setTargetAtTime(wanted.level, now, GLIDE_S);
+      this.#star.secondsIn = wanted.secondsIn;
+    }
+    // The race music keeps its place while silent, so it comes back
+    // further along, not from the start.
+    this.#musicLevel?.gain.setTargetAtTime(wanted?.kart === null ? 0 : 1, now, MUSIC_FADE_S);
+  }
+
   stop(): void {
     this.racing = false;
     this.music(false);
+    if (this.#star !== undefined) {
+      this.#star.source.stop();
+      this.#star.source.disconnect();
+      this.#star.gain.disconnect();
+      this.#star = undefined;
+    }
     if (this.#sounds !== undefined) this.#runLoops(this.#sounds, new Set(), 0);
     this.#engine?.stop();
     this.#engine = undefined;

@@ -2,7 +2,9 @@
 
 ## Status
 
-Accepted (2026-10-25). Supersedes ADR 0008 in full.
+Accepted (2026-10-25). Supersedes ADR 0008 in full. Extended by ADR 0075:
+the star music is the one sound that hears another kart, the nearest star
+kart's run by distance.
 
 ## Context
 

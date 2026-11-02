@@ -50,8 +50,8 @@ use crate::tuning::{
     RECONCILIATION_TOLERANCE_M, TICK_S,
 };
 use crate::{
-    bot, clock_after, kart_collider, step, ItemSlot, Kart, KartInput, KartReadout, Phase, Standing,
-    State, Surface, Track, Wheel,
+    bot, clock_after, kart_collider, kart_groups, step, ItemSlot, Kart, KartInput, KartReadout,
+    Phase, Standing, State, Surface, Track, Wheel,
 };
 
 /// The phase a prediction holds once the server's race has ended: the top
@@ -110,11 +110,14 @@ struct Entry {
     after: KartRecord,
 }
 
-/// Where a kart stands and which way it faces.
+/// Where a kart stands, which way it faces and whether it is on a star's
+/// run, which its stand-in's collider takes from it so the own kart passes
+/// through it as the server has it.
 #[derive(Clone, Copy)]
 struct Placed {
     translation: Vec3,
     rotation: Rotation,
+    starring: bool,
 }
 
 /// Everything about a kart that a later tick reads, so a rewind can put it
@@ -210,6 +213,7 @@ impl Prediction {
             .map(|(_, kart)| Placed {
                 translation: Vec3::from(kart.position),
                 rotation: Rotation::from_array(kart.rotation).normalize(),
+                starring: kart.star_s.is_some(),
             })
             .collect();
         self.advance(input, &others);
@@ -422,6 +426,9 @@ impl Prediction {
         }
         for (&body, placed) in self.others.iter().zip(others) {
             let body = &mut physics.bodies[body];
+            for &collider in body.colliders() {
+                physics.colliders[collider].set_collision_groups(kart_groups(placed.starring));
+            }
             if teleport {
                 body.set_translation(placed.translation, true);
                 body.set_rotation(placed.rotation, true);
@@ -470,10 +477,10 @@ fn slot_agrees(ours: ItemSlot, theirs: ItemSlot) -> bool {
 
 /// Whether the snapshot puts the kart where the record does, to the tuned
 /// tolerance: its position, its nose, the tick of travel its velocity and
-/// its bump make, its drift, its item, its coins, its spin-out, its stall, its place
-/// in the lap and, once `racing`, its rocket start's verdict; during the
-/// countdown the start is not compared, since a kart adopts it only from
-/// Go.
+/// its bump make, its drift, its item, its coins, its spin-out, its stall,
+/// its star's run, its place in the lap and, once `racing`, its rocket
+/// start's verdict; during the countdown the start is not compared, since
+/// a kart adopts it only from Go.
 fn agrees(record: &KartRecord, kart: &KartReadout, racing: bool) -> bool {
     let nose = |rotation: Rotation| rotation * Vec3::NEG_Z * KART_HALF_LENGTH_M;
     let near = |a: Vec3, b: Vec3| a.distance(b) <= RECONCILIATION_TOLERANCE_M;
@@ -501,6 +508,7 @@ fn agrees(record: &KartRecord, kart: &KartReadout, racing: bool) -> bool {
         && (record.kart.spin_out_left_s.max(0.0) - kart.spin_out_s.unwrap_or(0.0)).abs()
             < TICK_S / 2.0
         && (record.kart.stall_left_s.max(0.0) - kart.stall_s.unwrap_or(0.0)).abs() < TICK_S / 2.0
+        && (record.kart.star_left_s.max(0.0) - kart.star_s.unwrap_or(0.0)).abs() < TICK_S / 2.0
         && (!racing || record.kart.start == kart.start)
         && record.kart.lap() == kart.lap
         && record.kart.checkpoint == kart.checkpoint

@@ -3,4 +3,4 @@
 /**
  * The items a kart can hold: what an item box rolls.
  */
-export type Item = "boost" | "hazard" | "homing";
+export type Item = "boost" | "hazard" | "homing" | "star";

@@ -79,6 +79,7 @@ const DECISION_SLUGS = [
   "the-games-subdomain-is-delegated-to-route-53",
   "the-server-caps-rooms-and-creates",
   "pull-requests-build-the-image",
+  "the-star-is-a-run-of-speed-and-immunity",
 ];
 
 const expectedFiles = DECISION_SLUGS.map(

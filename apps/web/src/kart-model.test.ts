@@ -1,7 +1,8 @@
 import { BufferGeometry, Group, Mesh, MeshStandardMaterial, type Object3D } from "three";
 import { describe, expect, it } from "vitest";
-import { DRIVER_MATERIALS, dressKart, fitKart, LIVERY_MATERIALS } from "./kart-model";
+import { DRIVER_MATERIALS, dressKart, fitKart, LIVERY_MATERIALS, shineKart } from "./kart-model";
 import { livery } from "./livery";
+import { mixColour } from "./star-shine";
 
 const SIZE = { width: 1.2, height: 0.6, length: 1.8 };
 
@@ -111,8 +112,39 @@ describe("dressing a kart", () => {
     expect(colourOf(source, "body")).toBe(0x808080);
     // Meshes sharing a livery material share the kart's copy of it.
     expect(materialOf(rosso, "body")).toBe(materialOf(rosso, "nose"));
-    // The unpainted parts stay shared: one tyre material for the whole grid.
-    expect(materialOf(rosso, "wheel-front-left")).toBe(materialOf(papaya, "wheel-front-left"));
+    // The unpainted parts are the kart's own too, so a star lights one kart.
+    expect(materialOf(rosso, "wheel-front-left")).not.toBe(materialOf(papaya, "wheel-front-left"));
+    expect(colourOf(rosso, "wheel-front-left")).toBe(0x202020);
+  });
+});
+
+describe("shining a kart", () => {
+  it("pulls every material, tyres and hair included, toward the colour and lights it, then lets go", () => {
+    const rosso = dressKart(model(), livery(0));
+    shineKart(rosso, 0xff4d4d, 0.7);
+    for (const name of ["body", "wheel-front-left", "hair-braids-tied-back", "head"]) {
+      const material = materialOf(rosso, name);
+      expect(material.emissive.getHex()).not.toBe(0);
+      expect(material.color.getHex()).not.toBe(colourOf(dressKart(model(), livery(0)), name));
+    }
+    // Pulled 70% of the way from its paint toward the shine.
+    expect(colourOf(rosso, "body")).toBe(mixColour(livery(0).primary, 0xff4d4d, 0.7));
+    shineKart(rosso, null, 0);
+    expect(colourOf(rosso, "body")).toBe(livery(0).primary);
+    expect(colourOf(rosso, "wheel-front-left")).toBe(0x202020);
+    expect(materialOf(rosso, "body").emissive.getHex()).toBe(0);
+  });
+
+  it("leaves every other kart's materials alone", () => {
+    const source = model();
+    const rosso = dressKart(source, livery(0));
+    const papaya = dressKart(source, livery(3));
+    shineKart(rosso, 0x3ddc84, 0.7);
+    expect(colourOf(papaya, "body")).toBe(livery(3).primary);
+    expect(colourOf(papaya, "wheel-front-left")).toBe(0x202020);
+    expect(materialOf(papaya, "wheel-front-left").emissive.getHex()).toBe(0);
+    expect(colourOf(source, "body")).toBe(0x808080);
+    expect(colourOf(source, "wheel-front-left")).toBe(0x202020);
   });
 });
 

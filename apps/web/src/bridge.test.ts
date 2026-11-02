@@ -404,6 +404,7 @@ describe("prediction", () => {
       start: "clean",
       stallS: null,
       boost: null,
+      starS: null,
     };
     const snapshot: Snapshot = {
       tick: last - 6,
@@ -455,6 +456,7 @@ describe("prediction", () => {
       start: "clean",
       stallS: null,
       boost: null,
+      starS: null,
     };
     prediction.reconcile({
       tick: 10,
@@ -496,6 +498,7 @@ describe("prediction", () => {
       start: "clean",
       stallS: null,
       boost: null,
+      starS: null,
     };
     prediction.reconcile({
       tick: COUNTDOWN_TICKS + 54,
@@ -538,6 +541,7 @@ describe("prediction", () => {
       start: "clean",
       stallS: null,
       boost,
+      starS: null,
     });
     const [x, y, z] = prediction.kartReadout().position;
     prediction.reconcile({
@@ -582,6 +586,7 @@ describe("prediction", () => {
       start: "stall",
       stallS,
       boost: null,
+      starS: null,
     });
     prediction.reconcile({
       tick: COUNTDOWN_TICKS + 54,
@@ -735,6 +740,7 @@ describe("items", () => {
           start: "clean",
           stallS: null,
           boost: null,
+          starS: null,
         },
       ],
       events: [],

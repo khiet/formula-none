@@ -214,6 +214,7 @@ async function main(container: HTMLElement): Promise<void> {
   const audio = createAudio({
     settings: audioSettings,
     topSpeedMetresPerSecond: bridge.cameraTuning.topSpeedMetresPerSecond,
+    starRunSeconds: bridge.starSeconds,
     fetchBytes,
     createContext: () => new AudioContext(),
   });
