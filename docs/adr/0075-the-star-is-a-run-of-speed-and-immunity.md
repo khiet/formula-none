@@ -118,3 +118,7 @@ kart could not be heard.
   a kart, so the ball appears only in the slot, as the boost's bottle does.
 - The music's length is the run's: a retune of `STAR_S` rebuilds
   `star-music` with `pnpm export:audio`.
+- `star-fire` is rendered at 0.7 of the spec's level: summed with the
+  music, the race music still fading and the engine, the spec's level
+  reached about 1.05 in the fire's first 24 ms, past where Web Audio clips;
+  at 0.7 the worst case is about 0.98.

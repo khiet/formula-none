@@ -430,12 +430,18 @@ def star_music():
     return tame(out)
 
 
+# The fire's level under the spec's: with the music, the race music still
+# fading and the engine, the spec's level summed past 1.0 in the fire's
+# first 24 ms, where Web Audio clips; this keeps the worst case under it.
+STAR_FIRE_LEVEL = 0.7
+
+
 def star_fire():
     """A two-octave rising run of square-wave notes, in place of the item fire."""
     out = silence(0.4)
     for i in range(18):
         place(out, i * 0.018, tone(midi_freq(62 + i * 2), 0.05, square, decay=4, gain=0.24))
-    return tame(out)
+    return scale(tame(out), STAR_FIRE_LEVEL)
 
 
 def star_end():
