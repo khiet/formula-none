@@ -11,7 +11,7 @@
 mod common;
 
 use common::{
-    rolling, tap, track, with_boxes_under, with_coins_at, with_slot_at, without_coins,
+    rolling, tap, throttle, track, with_boxes_under, with_coins_at, with_slot_at, without_coins,
     without_item_boxes, DT, OVAL,
 };
 
@@ -93,7 +93,10 @@ fn a_blast_spins_out_the_karts_in_reach_and_costs_them_coins_and_leaves_the_rest
     // The blast is at the fire, before the tick's handling, so the hit kart
     // has stood a tick of its spin-out by the readout.
     let spin_out_s = state.kart_readouts()[NEAR].spin_out_s.expect("spun out");
-    assert!((spin_out_s - (SPIN_OUT_S - DT)).abs() < 1e-5, "{spin_out_s}");
+    assert!(
+        (spin_out_s - (SPIN_OUT_S - DT)).abs() < 1e-5,
+        "{spin_out_s}"
+    );
     assert_eq!(state.kart_readouts()[NEAR].coins, 0);
     assert_eq!(state.kart_readouts()[FAR].spin_out_s, None);
 }
@@ -226,9 +229,13 @@ fn closing_on_a_star_kart_trailing_a_hazard() -> (State, KartInput) {
         loop {
             let input = common::follow_centreline(&state, FIRER);
             let [firer, star_kart] = [FIRER, STAR].map(|kart| state.kart_readouts()[kart].position);
-            let gap = ((firer[0] - star_kart[0]).powi(2) + (firer[2] - star_kart[2]).powi(2)).sqrt();
+            let gap =
+                ((firer[0] - star_kart[0]).powi(2) + (firer[2] - star_kart[2]).powi(2)).sqrt();
             if gap < HORN_RADIUS_M - 2.0 {
-                assert!(state.kart_readouts()[STAR].star_s.is_some(), "the run ran out");
+                assert!(
+                    state.kart_readouts()[STAR].star_s.is_some(),
+                    "the run ran out"
+                );
                 assert!(state.hazards()[0].held, "the hazard still trails");
                 return (state, input);
             }
@@ -308,7 +315,11 @@ fn hazards_on_the_road(firer_holds: bool) -> State {
         if state.kart_readouts()[FIRER].item_slot != ItemSlot::Held(Item::Horn) {
             continue;
         }
-        assert_eq!(state.hazards().len(), 3, "all three hazards still lie there");
+        assert_eq!(
+            state.hazards().len(),
+            3,
+            "all three hazards still lie there"
+        );
         assert_eq!(state.hazards()[0].held, firer_holds);
         return state;
     }
@@ -527,12 +538,21 @@ fn a_blast_does_not_reach_a_kart_on_bell_deers_other_road_but_does_reach_one_alo
     );
     let [firer, under, behind] = [FIRER, UNDER, BEHIND].map(|kart| state.kart_readouts()[kart]);
     let plan = |a: [f32; 3], b: [f32; 3]| ((a[0] - b[0]).powi(2) + (a[2] - b[2]).powi(2)).sqrt();
-    assert!(plan(firer.position, under.position) < 4.0, "the kart under is in reach by distance");
-    assert!(firer.position[1] - under.position[1] > 4.0, "the bridge is 5 m up");
+    assert!(
+        plan(firer.position, under.position) < 4.0,
+        "the kart under is in reach by distance"
+    );
+    assert!(
+        firer.position[1] - under.position[1] > 4.0,
+        "the bridge is 5 m up"
+    );
     assert!(plan(firer.position, behind.position) < 6.0);
     let lap = bell_deer.spline_length();
     let gap = (firer.spline_progress - under.spline_progress).rem_euclid(lap);
-    assert!(gap.min(lap - gap) > 50.0, "the two roads are far apart round the lap");
+    assert!(
+        gap.min(lap - gap) > 50.0,
+        "the two roads are far apart round the lap"
+    );
 
     let state = step(state, &[tap(), idle(), idle()], DT);
     assert_eq!(
@@ -601,7 +621,10 @@ fn picked_and_fired(
         if common::rolled(&state, kart, item) {
             picked = Some(tick);
         }
-        if state.events().contains(&RaceEvent::ItemFired { kart, item }) {
+        if state
+            .events()
+            .contains(&RaceEvent::ItemFired { kart, item })
+        {
             return picked.map(|picked| (picked, tick, state));
         }
     }
@@ -623,8 +646,7 @@ fn a_bot_fires_its_horn_as_soon_as_a_kart_is_in_reach() {
             1,
             track(&oval_sidecar(&[(HUMAN, PARKED)], &[BOT])),
         ));
-        let Some((picked, fired, state)) =
-            picked_and_fired(state, &[idle()], BOT, Item::Horn, 8.0)
+        let Some((picked, fired, state)) = picked_and_fired(state, &[idle()], BOT, Item::Horn, 8.0)
         else {
             continue;
         };
@@ -639,7 +661,10 @@ fn a_bot_fires_its_horn_as_soon_as_a_kart_is_in_reach() {
         );
         // Held past the landing, on the straight the first-straight rule
         // would have fired it on at once, until the human was in reach.
-        assert!(fired > common::ticks(ITEM_ROLL_S) + 2, "fired at tick {fired}");
+        assert!(
+            fired > common::ticks(ITEM_ROLL_S) + 2,
+            "fired at tick {fired}"
+        );
         return;
     }
 }
@@ -654,9 +679,13 @@ fn a_bot_fires_its_horn_after_the_tuned_hold_with_no_kart_in_reach() {
             1,
             track(&oval_sidecar(&[], &[FIRER])),
         ));
-        let Some((picked, fired, _)) =
-            picked_and_fired(state, &[], FIRER, Item::Horn, ITEM_ROLL_S + BOT_HORN_HOLD_S + 1.0)
-        else {
+        let Some((picked, fired, _)) = picked_and_fired(
+            state,
+            &[],
+            FIRER,
+            Item::Horn,
+            ITEM_ROLL_S + BOT_HORN_HOLD_S + 1.0,
+        ) else {
             continue;
         };
         assert_eq!(picked, 0, "rolled at Go");
@@ -667,4 +696,53 @@ fn a_bot_fires_its_horn_after_the_tuned_hold_with_no_kart_in_reach() {
         );
         return;
     }
+}
+
+#[test]
+fn a_hazard_dropped_after_a_long_trail_is_judged_by_where_it_was_dropped() {
+    // The near kart rolls a hazard 30 m behind the firer, trails it up the
+    // straight past the firer and drops it 4 m beyond; the hazard's spline
+    // progress is the drop's, not the fire's, so the blast reaches it.
+    const START: [f32; 3] = [32.0, 0.0, 34.0];
+    let state = rolling(
+        || track(&oval_sidecar(&[(NEAR, START)], &[FIRER, NEAR])),
+        2,
+        0,
+        &[(FIRER, Item::Horn), (NEAR, Item::Hazard)],
+    );
+    let trailing = KartInput {
+        throttle: 1.0,
+        hold_item: true,
+        ..idle()
+    };
+    let mut state = step(
+        state,
+        &[
+            idle(),
+            KartInput {
+                use_item: true,
+                ..trailing
+            },
+        ],
+        DT,
+    );
+    let firer_z = state.kart_readouts()[FIRER].position[2];
+    while state.kart_readouts()[NEAR].position[2] > firer_z - 5.0 {
+        state = step(state, &[idle(), trailing], DT);
+        assert!(state.hazards()[0].held, "the hazard trails up the straight");
+        assert_eq!(spun_out(&state), [], "the firer is not in the hazard's way");
+    }
+    let state = step(state, &[idle(), throttle()], DT);
+    assert!(!state.hazards()[0].held, "dropped");
+
+    let state = step(state, &[tap(), throttle()], DT);
+    assert!(
+        state.hazards().is_empty(),
+        "the dropped hazard is in reach: {:?}",
+        state.hazards()
+    );
+    assert!(state.events().contains(&RaceEvent::SpunOut {
+        kart: NEAR,
+        by: Some(FIRER)
+    }));
 }

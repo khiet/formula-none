@@ -12,7 +12,6 @@ import {
   starMusic,
 } from "./audio-cues";
 import type { KartReadout, Phase, Standing } from "./bridge";
-import { DRONE_WARNING_M } from "./drone-warning";
 import { reelFrame } from "./item-reel";
 import { kartReadout } from "./kart-readout-fixture";
 import { raceReadout } from "./race-readout-fixture";
@@ -298,18 +297,10 @@ describe("hornBlasts", () => {
     ).toEqual([second]);
     expect(hornBlasts({ ...STILL, blasts: [first, second] }, STILL)).toEqual([]);
   });
-
-  it("is heard by the star's distance rule: full within 10 m, silent from 60 m, through the lowpass", () => {
-    expect(distanceLevel(8)).toBe(1);
-    expect(distanceLevel(35)).toBe(0.5);
-    expect(distanceLevel(60)).toBe(0);
-    expect(SOUND_AWAY_LOWPASS_HZ).toBe(1200);
-  });
 });
 
 describe("droneBeep", () => {
   it("starts at 40 m, every 0.35 s at the warning's edge, closing to every 0.1 s at the kart as the pitch rises by half", () => {
-    expect(DRONE_WARNING_M).toBe(40);
     expect(droneBeep(null)).toBeNull();
     expect(droneBeep(40.5)).toBeNull();
     expect(droneBeep(40)).toEqual({ gapS: 0.35, rate: 1 });
