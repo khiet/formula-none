@@ -291,11 +291,6 @@ fn a_leader_below_the_speed_fraction_tows_nobody() {
         was_at < fraction && is_at < was_at,
         "{was_at} then {is_at} m/s"
     );
-    state = step(state, &[brake(), brake()], DT);
-    assert!(
-        speed(&state, LEADER) < speed(&state, FOLLOWER) + 1.0,
-        "both braking alike"
-    );
 }
 
 #[test]

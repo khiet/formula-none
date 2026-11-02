@@ -1065,6 +1065,42 @@ mod tests {
     }
 
     #[test]
+    fn a_tow_keeps_running_down_in_a_wake_until_the_charge_fills_again() {
+        // Towed, out of the wake for a while, then back in: the tow runs
+        // down through the recharge and is re-armed only as the charge
+        // fills, so weaving in and out of a wake never freezes the clock.
+        let mut handling = going(TOP_SPEED_M_PER_S);
+        for _ in 0..SLIPSTREAM_CHARGE_TICKS {
+            handling.tick(&FULL_THROTTLE, Freeze::Free, in_a_wake(), TICK_S);
+        }
+        let out_for = 10;
+        ticks(&mut handling, FULL_THROTTLE, out_for);
+        let Some(Slipstream::Tow { left_s: left_out }) = handling.slipstream() else {
+            panic!("the tow outlasts a short spell out of the wake");
+        };
+        assert!((left_out - (SLIPSTREAM_TOW_S - out_for as f32 * TICK_S)).abs() < 1e-5);
+
+        handling.tick(&FULL_THROTTLE, Freeze::Free, in_a_wake(), TICK_S);
+        assert_eq!(
+            handling.slipstream(),
+            Some(Slipstream::Tow {
+                left_s: left_out - TICK_S
+            }),
+            "back in the wake the tow still runs down"
+        );
+        for _ in 1..SLIPSTREAM_CHARGE_TICKS {
+            handling.tick(&FULL_THROTTLE, Freeze::Free, in_a_wake(), TICK_S);
+        }
+        assert_eq!(
+            handling.slipstream(),
+            Some(Slipstream::Tow {
+                left_s: SLIPSTREAM_TOW_S
+            }),
+            "re-armed as the charge fills"
+        );
+    }
+
+    #[test]
     fn unjudged_the_slipstream_carries_on_as_the_last_word_left_it() {
         // In a prediction's race the wake is nobody's to judge: a charge
         // under way counts on, a full one keeps the tow armed, and a tow
