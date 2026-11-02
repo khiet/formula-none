@@ -410,7 +410,11 @@ describe("the star's ring", () => {
     const stroke = ring?.querySelector("circle");
     expect(ring?.style.display).toBe("none");
     panel.update(
-      race(ON_THE_GRID, EMPTY_SLOT, [at([0, 0.3, 0]), kartReadout({ starS: 3.2 }), at([0, 0.3, 0])]),
+      race(ON_THE_GRID, EMPTY_SLOT, [
+        at([0, 0.3, 0]),
+        kartReadout({ starS: 3.2 }),
+        at([0, 0.3, 0]),
+      ]),
     );
     expect(ring?.style.display).toBe("");
     const dash = (at: string | null | undefined) => Number(at?.split(" ")[0]);
