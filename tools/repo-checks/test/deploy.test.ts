@@ -38,7 +38,9 @@ const compose = parse(readRepoFile("deploy/compose.yaml")) as {
 };
 
 describe("deploy job", () => {
-  const { deploy, ...gates } = workflow.jobs;
+  // The image job runs on pull requests only, and a job whose need was skipped
+  // is skipped too, so it must not be one of the deploy's gates (ADR 0074).
+  const { deploy, image: _pullRequestsOnly, ...gates } = workflow.jobs;
 
   // The repository is public (ADR 0066): a fork's pull request must run with
   // the fork's read-only token, never in this repository's context, where
@@ -71,6 +73,46 @@ describe("deploy job", () => {
     expect(build?.with?.["build-args"]).toContain(`COMMIT=${SHA}`);
     const run = deploy?.steps.find((step) => step.run?.includes("deploy/deploy.sh"));
     expect(run?.run?.trim()).toBe(`deploy/deploy.sh ${SHA}`);
+  });
+});
+
+describe("image job", () => {
+  const { deploy, image } = workflow.jobs;
+  const isImageBuild = (step: Job["steps"][number]) =>
+    step.uses?.startsWith("docker/build-push-action@") ?? false;
+
+  it("runs on pull requests alone, where the deploy job's own build does not", () => {
+    expect(image?.if).toBe("github.event_name == 'pull_request'");
+  });
+
+  // Same inputs as the deploy, or a PR can pass with an image main cannot build.
+  it("builds what the deploy job builds, without pushing it anywhere", () => {
+    const {
+      push: deployPush,
+      tags: _registryTag,
+      "cache-to": deployCacheTo,
+      ...deployBuild
+    } = deploy?.steps.find(isImageBuild)?.with ?? {};
+    const { push, ...build } = image?.steps.find(isImageBuild)?.with ?? {};
+    expect(deployPush).toBe(true);
+    expect(push).toBe(false);
+    expect(build).toEqual(deployBuild);
+    expect(deployCacheTo).toBeDefined();
+  });
+
+  // The deploy cannot read a pull request's entries, and they can evict main's
+  // (ADR 0074).
+  it("reads the deploy job's cache and leaves writing it to the deploy", () => {
+    const build = image?.steps.find(isImageBuild)?.with;
+    expect(build?.["cache-from"]).toBe("type=gha");
+    expect(build?.["cache-to"]).toBeUndefined();
+  });
+
+  // A fork's pull request gets no AWS role and no secrets, so the job must
+  // need neither.
+  it("uses no AWS access and no secrets, so a fork's pull request can run it", () => {
+    expect(image?.permissions).toEqual({ contents: "read" });
+    expect(JSON.stringify(image)).not.toMatch(/aws|\becr\b|secrets\./i);
   });
 });
 

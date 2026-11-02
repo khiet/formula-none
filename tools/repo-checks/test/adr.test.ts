@@ -78,6 +78,7 @@ const DECISION_SLUGS = [
   "the-budget-counts-the-games-own-cost",
   "the-games-subdomain-is-delegated-to-route-53",
   "the-server-caps-rooms-and-creates",
+  "pull-requests-build-the-image",
 ];
 
 const expectedFiles = DECISION_SLUGS.map(
