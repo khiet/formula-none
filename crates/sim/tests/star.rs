@@ -19,7 +19,9 @@ use sim::tuning::{
     KART_HALF_LENGTH_M, MINI_TURBO_BOOST_FACTOR, OFF_TRACK_SPEED_FACTOR, STAR_KICK_S, STAR_S,
     STAR_TOP_SPEED_FACTOR, TOP_SPEED_M_PER_S, WHEEL_FIRST_PASS_S,
 };
-use sim::{step, Item, ItemSlot, KartInput, MiniTurbo, Phase, RaceEvent, State, Surface, Track};
+use sim::{
+    step, Item, ItemSlot, KartInput, MiniTurbo, Phase, Prediction, RaceEvent, State, Surface, Track,
+};
 
 /// The star kart's top speed cap on a run, with no coins and no rubber band.
 const STAR_TOP_SPEED: f32 = STAR_TOP_SPEED_FACTOR * TOP_SPEED_M_PER_S;
@@ -544,6 +546,10 @@ fn a_kart_trailing_a_hazard_still_spins_out_and_the_hazard_is_left_where_it_is()
                 state.hazards().iter().all(|hazard| !hazard.held),
                 "the hazard trails nobody after the hit"
             );
+        } else {
+            // On the way to the kart the star kart passes the trailed
+            // hazard without using it up.
+            assert_eq!(state.hazards().len(), 1, "a held hazard is not used up");
         }
     }
     assert!(hit, "the trailed hazard shielded the kart");
@@ -834,4 +840,63 @@ fn a_bot_fires_a_star_within_the_tuned_delay_of_its_landing() {
         }
         panic!("seed {seed}: bot {slot} held its star past the delay");
     }
+}
+
+#[test]
+fn the_prediction_passes_through_a_star_kart_the_snapshots_draw_and_adopts_the_snapshots_run() {
+    use common::SEED;
+    // The own kart at full throttle from slot 0; the snapshots draw a kart
+    // on a run standing 10 m up its column, which the own kart meets as a
+    // stand-in it passes through.
+    let mut sidecar = with_slot_at(OVAL, 0, [28.0, 0.0, 4.0], 0.0);
+    sidecar = with_slot_at(&sidecar, 1, [28.0, 0.0, -6.0], 0.0);
+    let course = track(&sidecar);
+    let mut prediction = Prediction::new(SEED, 0, course.clone());
+    let mut standing = started(State::new(SEED, 2, course)).kart_readouts();
+    standing[1].star_s = Some(5.0);
+    let countdown = ticks(sim::tuning::COUNTDOWN_S) as u32;
+    let mut sequence = 0;
+    let mut slowest_once_going = f32::MAX;
+    for _ in 0..countdown + ticks(2.0) as u32 {
+        sequence += 1;
+        let input = if sequence <= countdown {
+            idle()
+        } else {
+            throttle()
+        };
+        prediction.tick(sequence, input, &standing);
+        let kart = prediction.kart_readout();
+        if kart.speed > 10.0 {
+            slowest_once_going = slowest_once_going.min(kart.speed);
+        }
+    }
+    let kart = prediction.kart_readout();
+    assert!(
+        kart.position[2] < standing[1].position[2] - 2.0 * KART_HALF_LENGTH_M,
+        "through the star kart and out the other side: {:?}",
+        kart.position
+    );
+    assert!(slowest_once_going > 10.0, "never slowed by a touch");
+
+    // A snapshot that puts the own kart on a run is adopted on the rewind,
+    // and the run runs down from there.
+    let mut on_a_run = prediction.kart_readout();
+    on_a_run.star_s = Some(4.0);
+    prediction.reconcile(sequence, sequence, &on_a_run);
+    let left = prediction
+        .kart_readout()
+        .star_s
+        .expect("the run is adopted");
+    assert!((left - 4.0).abs() < 1e-5, "{left} s left");
+    for _ in 0..ticks(1.0) {
+        sequence += 1;
+        prediction.tick(sequence, throttle(), &standing);
+    }
+    let left = prediction.kart_readout().star_s.expect("still on the run");
+    assert!((left - 3.0).abs() < 2.0 * DT, "{left} s left");
+    assert!(
+        prediction.kart_readout().speed > TOP_SPEED_M_PER_S + 1.0,
+        "over the tuned top speed on the run: {} m/s",
+        prediction.kart_readout().speed
+    );
 }

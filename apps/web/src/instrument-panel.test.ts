@@ -16,6 +16,7 @@ import { hexCss, livery, liveryCss } from "./livery";
 import { FIRING, ITEM_BOX_GOLD } from "./palette";
 import { ON_THE_GRID, raceReadout } from "./race-readout-fixture";
 import { EMPTY_SLOT, type ItemSlot, type RaceReadout } from "./race-run";
+import { STAR_RAINBOW } from "./star-shine";
 
 // A square loop, so the map's fit is easy to read: the grid faces -z.
 const course = {
@@ -449,7 +450,22 @@ describe("the star's ring", () => {
     const slot = container.querySelector<HTMLElement>('[data-instrument="item"]');
     expect(slot?.textContent).toBe("Star");
     expect(slot?.dataset.item).toBe("star");
-    expect(slot?.querySelector("svg[data-sprite='star']")).not.toBeNull();
+    const ball = slot?.querySelector<SVGSVGElement>("svg[data-sprite='star']");
+    expect(ball).not.toBeNull();
+    // Landed, the ball runs the loop: its tiles and glow are rewritten each frame.
+    expect(ball?.style.getPropertyValue("--glow")).not.toBe("");
+    panel.dispose();
+  });
+
+  it("holds the ball's tiles still under reduced motion", () => {
+    const container = document.createElement("div");
+    const panel = createInstrumentPanel(container, 3, course, TUNING, () => "", livery(1), {
+      reducedMotion: true,
+    });
+    panel.update(race(ON_THE_GRID, { ...EMPTY_SLOT, item: "star" }));
+    const ball = container.querySelector<SVGSVGElement>("svg[data-sprite='star']");
+    expect(ball?.style.getPropertyValue("--glow")).toBe("");
+    expect(ball?.style.getPropertyValue("--r0")).toBe(hexCss(STAR_RAINBOW[0] ?? 0));
     panel.dispose();
   });
 });
