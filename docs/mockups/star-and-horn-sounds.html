@@ -1,0 +1,565 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Star and Horn Sounds</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bungee&family=IBM+Plex+Sans:wght@400;600&family=Silkscreen&display=swap">
+<style>
+  /* Tokens follow docs/style-guide.html. */
+  :root {
+    --bg: #eef0f3; --fg: #1b1d22; --muted: #5b6170; --rule: #cfd3db; --card: #ffffff; --well: #e3e6eb; --gold: #a77a12; --chip: #f4f5f7;
+    --display: "Bungee", "Arial Black", Impact, sans-serif;
+    --body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --pixel: "Silkscreen", ui-monospace, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #15171a; --fg: #ece7d8; --muted: #9a9fab; --rule: #2c3036; --card: #1e2126; --well: #2a2e35; --gold: #e2b84a; --chip: #262a30;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #15171a; --fg: #ece7d8; --muted: #9a9fab; --rule: #2c3036; --card: #1e2126; --well: #2a2e35; --gold: #e2b84a; --chip: #262a30;
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--fg); font: 15px/1.55 var(--body);
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+    padding-block: 2rem 4rem;
+  }
+  main { max-width: 1040px; margin: 0 auto; display: grid; gap: 2.5rem; }
+  section { display: grid; gap: 1.1rem; min-width: 0; }
+  h1 { font: 400 clamp(1.8rem, 5vw, 2.6rem)/1.05 var(--display); margin: 0; text-wrap: balance; }
+  h2 { font: 400 1.25rem/1.15 var(--display); margin: 0; }
+  p { margin: 0; max-width: 68ch; }
+  ul, ol { margin: 0; padding-left: 1.2rem; display: grid; gap: .35rem; max-width: 76ch; }
+  code { font: .84em ui-monospace, SFMono-Regular, Menlo, monospace; background: var(--chip); padding: .05em .35em; border-radius: 4px; overflow-wrap: anywhere; }
+  .eyebrow { font: .78rem/1.2 var(--pixel); letter-spacing: .08em; text-transform: uppercase; color: var(--gold); }
+  .lede { color: var(--muted); }
+  .note { font-size: .85rem; color: var(--muted); }
+  .stack { display: grid; gap: .55rem; min-width: 0; }
+  .controls { display: flex; flex-wrap: wrap; gap: .5rem 1.2rem; align-items: center; font-size: .92rem; }
+  .controls label { display: inline-flex; gap: .35rem; align-items: center; cursor: pointer; }
+
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(290px, 1fr)); gap: 1rem; align-items: start; }
+  .card { background: var(--card); border: 1px solid var(--rule); padding: 1rem; display: grid; gap: .8rem; min-width: 0; }
+  .card.best { border: 2px solid var(--gold); }
+  .tag { font: .7rem/1.2 var(--pixel); text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+  .best .tag { color: var(--gold); }
+  .wave { position: relative; background: var(--well); height: 72px; }
+  .wave canvas { display: block; width: 100%; height: 100%; }
+  .wave .cursor { position: absolute; top: 0; bottom: 0; left: 0; width: 2px; background: var(--gold); display: none; }
+  .wave .last { position: absolute; top: 0; bottom: 0; right: 0; width: 16.67%; background: var(--gold); opacity: .18; }
+  .scale { display: flex; justify-content: space-between; font-size: .72rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .buttons { display: flex; flex-wrap: wrap; gap: .4rem; }
+  button { font: 600 .88rem/1.2 var(--body); padding: .5rem .75rem; border: 1px solid var(--fg); background: var(--card); color: var(--fg); cursor: pointer; }
+  button.primary { background: var(--fg); color: var(--bg); }
+  button:hover { border-color: var(--gold); }
+  button:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+  dl { margin: 0; display: grid; gap: .45rem; }
+  dt { font: .68rem/1.3 var(--pixel); text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+  dd { margin: 0; font-size: .92rem; }
+
+  .table { overflow-x: auto; border: 1px solid var(--rule); background: var(--card); }
+  table { border-collapse: collapse; width: 100%; font-size: .92rem; }
+  th, td { text-align: left; vertical-align: top; padding: .55rem .8rem; border-bottom: 1px solid var(--rule); }
+  tr:last-child > * { border-bottom: 0; }
+  thead th { font: .72rem/1.3 var(--pixel); letter-spacing: .05em; text-transform: uppercase; color: var(--muted); white-space: nowrap; }
+  tbody th { font-weight: 600; }
+</style>
+</head>
+<body>
+<main>
+
+  <section>
+    <div class="stack">
+      <span class="eyebrow">Sound, the star and the Air Horn</span>
+      <h1>Three sound sets</h1>
+      <p class="lede">Each set has 6 s of music for the star, so you can hear the run lasting, plus a sound when it fires, a warning in the last second, a sound when it ends, and an Air Horn. I recommend the disco set. It suits the mirror ball, and the record slowing down is a clear warning that the run is ending. I built these from their waveforms and can't hear them, so the choice needs your ear.</p>
+    </div>
+    <div class="controls">
+      <label><input type="checkbox" id="bed" checked> Play the race music underneath, at its game level</label>
+      <button type="button" id="stop">Stop</button>
+      <span class="note" id="status" role="status"></span>
+    </div>
+  </section>
+
+  <section>
+    <div class="cards" id="cards"></div>
+    <p class="note">The shaded end of each waveform is the last second of the run. The race music plays at its game level here, but the engine is not included, so the game will sound busier than this page.</p>
+  </section>
+
+  <section>
+    <h2>Side by side</h2>
+    <div class="table"><table>
+      <thead><tr><th></th><th>Disco</th><th>Arcade</th><th>Glitter</th></tr></thead>
+      <tbody>
+        <tr><th>Race music during a run</th><td>Drops low</td><td>Goes silent</td><td>Keeps playing at full level</td></tr>
+        <tr><th>Character</th><td>Party, funny</td><td>Frantic, retro</td><td>Magical, light</td></tr>
+        <tr><th>Closest to Mario Kart's star feel</th><td>Partly: a new tune takes over</td><td>Most: a new, fast tune takes over</td><td>Least: no change of tune</td></tr>
+        <tr><th>Last-second warning</th><td>The record slows down</td><td>Notes tumble downward</td><td>Chimes fall and thin out</td></tr>
+        <tr><th>Air Horn</th><td>Three DJ blasts, 0.7 s</td><td>One 8-bit blast, 0.55 s</td><td>One deep stadium blast, 0.9 s</td></tr>
+        <tr><th>Risk</th><td>Could get old with repeated plays</td><td>The most tiring over a long session</td><td>The easiest to miss under the engine</td></tr>
+      </tbody>
+    </table></div>
+    <p class="note">The sets can be mixed, for example disco music with the stadium horn. All the music is original and synthesised here, in the race music's key and tempo (D minor, 160 bpm), where 4 bars take exactly 6 s. None of it borrows from Nintendo's star theme.</p>
+  </section>
+
+  <section>
+    <h2>Once you've picked</h2>
+    <ol>
+      <li>Add the chosen synthesis to <code>assets/audio/build.py</code> and run <code>pnpm export:audio</code> for four new files: star music, star fire, star end and Air Horn.</li>
+      <li>Play the star music from <code>star_s</code> in the snapshot, so a player reconnecting mid-run joins it at the right point. A second star restarts it from the top, and the finish fades it out.</li>
+      <li>Put the star music under the SFX toggle, with the other loops. It tells you something about the race, so it should still play for a player who has muted the music. The race music's level changes only when the music toggle is on.</li>
+      <li>Other karts' stars and blasts play by distance, as the "From another kart" buttons preview. This is new for these cues, since the audio engine plays only the own kart's sounds today.</li>
+      <li>If <code>STAR_S</code> changes, rebuild the music to match its new length.</li>
+    </ol>
+  </section>
+</main>
+
+<audio id="music" src="../../assets/audio/music-loop.wav" loop preload="none"></audio>
+
+<script>
+  // Synthesis helpers as docs/mockups/sound-effects.html has them, so a set ports to build.py the same way.
+  const RATE = 22050;
+  const TAU = Math.PI * 2;
+  const sec = (n) => Math.max(0, Math.round(n * RATE));
+  const WAVES = {
+    sine: (p) => Math.sin(p),
+    square: (p) => (Math.sin(p) >= 0 ? 1 : -1),
+    triangle: (p) => (2 / Math.PI) * Math.asin(Math.sin(p)),
+    saw: (p) => ((p % TAU) / Math.PI) - 1,
+    pulse: (p) => ((p % TAU) / TAU < 0.25 ? 1 : -1),
+  };
+  function rng(seed) {
+    let a = (seed * 2654435761) >>> 0;
+    return () => {
+      a = (a + 0x6d2b79f5) >>> 0;
+      let t = a;
+      t = Math.imul(t ^ (t >>> 15), t | 1);
+      t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+      return (((t ^ (t >>> 14)) >>> 0) / 4294967296) * 2 - 1;
+    };
+  }
+  function tone({ freq, length, wave = "sine", decay = 6, gain = 0.5, sweepTo = null, attack = 0, vibratoHz = 0, vibratoDepth = 0, curve = "linear" }) {
+    const n = sec(length);
+    const out = new Float32Array(n);
+    const fn = WAVES[wave];
+    let phase = 0;
+    for (let i = 0; i < n; i++) {
+      const t = i / RATE;
+      const u = i / n;
+      let f = sweepTo === null ? freq : curve === "exp" ? freq * Math.pow(sweepTo / freq, u) : freq + (sweepTo - freq) * u;
+      if (vibratoHz > 0) f *= 1 + vibratoDepth * Math.sin(TAU * vibratoHz * t);
+      phase += (TAU * f) / RATE;
+      const a = attack > 0 ? Math.min(1, t / attack) : 1;
+      out[i] = gain * a * Math.exp(-decay * t) * fn(phase);
+    }
+    return out;
+  }
+  function noise({ length, decay = 8, gain = 0.5, seed = 1, attack = 0 }) {
+    const n = sec(length);
+    const out = new Float32Array(n);
+    const next = rng(seed);
+    for (let i = 0; i < n; i++) {
+      const t = i / RATE;
+      const a = attack > 0 ? Math.min(1, t / attack) : 1;
+      out[i] = gain * a * Math.exp(-decay * t) * next();
+    }
+    return out;
+  }
+  const silence = (length) => new Float32Array(sec(length));
+  function mix(...parts) {
+    const out = new Float32Array(Math.max(0, ...parts.map((p) => p.length)));
+    for (const part of parts) for (let i = 0; i < part.length; i++) out[i] += part[i];
+    return out;
+  }
+  function concat(...parts) {
+    const out = new Float32Array(parts.reduce((n, p) => n + p.length, 0));
+    let at = 0;
+    for (const part of parts) { out.set(part, at); at += part.length; }
+    return out;
+  }
+  function envelope(samples, fn) {
+    const out = new Float32Array(samples.length);
+    for (let i = 0; i < samples.length; i++) out[i] = samples[i] * fn(i / RATE);
+    return out;
+  }
+  function lowpass(samples, cutoff, passes = 1) {
+    let out = samples;
+    for (let p = 0; p < passes; p++) {
+      const next = new Float32Array(out.length);
+      const a = (1 / RATE) / (1 / (TAU * cutoff) + 1 / RATE);
+      let y = 0;
+      for (let i = 0; i < out.length; i++) { y += a * (out[i] - y); next[i] = y; }
+      out = next;
+    }
+    return out;
+  }
+  function highpass(samples, cutoff, passes = 1) {
+    let out = samples;
+    for (let p = 0; p < passes; p++) {
+      const next = new Float32Array(out.length);
+      const rc = 1 / (TAU * cutoff);
+      const a = rc / (rc + 1 / RATE);
+      let y = 0;
+      let x1 = 0;
+      for (let i = 0; i < out.length; i++) { y = a * (y + out[i] - x1); x1 = out[i]; next[i] = y; }
+      out = next;
+    }
+    return out;
+  }
+  const bandpass = (samples, centre, width, passes = 2) => highpass(lowpass(samples, centre + width / 2, passes), Math.max(20, centre - width / 2), passes);
+  function tame(samples, peak = 0.95) {
+    let max = 0;
+    for (let i = 0; i < samples.length; i++) max = Math.max(max, Math.abs(samples[i]));
+    if (max <= peak) return samples;
+    return samples.map((value) => (value * peak) / max);
+  }
+
+  // The new pieces: a mix-down bus, the record slowing, and a sample-and-hold for the 8-bit horn.
+  const midi = (n) => 440 * Math.pow(2, (n - 69) / 12);
+  function place(out, at, samples, gain = 1) {
+    const start = sec(at);
+    for (let i = 0; i < samples.length && start + i < out.length; i++) out[start + i] += samples[i] * gain;
+  }
+  /** From `from` seconds on, playback drags from full speed down to `endRate`, like a record stopped by hand. */
+  function slowdown(samples, from, endRate) {
+    const start = sec(from);
+    const out = new Float32Array(samples.length);
+    out.set(samples.subarray(0, start));
+    const span = samples.length - start;
+    let at = start;
+    for (let i = 0; i < span; i++) {
+      const u = i / span;
+      const whole = Math.floor(at);
+      const part = at - whole;
+      const value = samples[whole] * (1 - part) + (samples[whole + 1] ?? 0) * part;
+      out[start + i] = value * Math.min(1, (1 - u) * 8);
+      at += 1 + (endRate - 1) * u;
+    }
+    return out;
+  }
+  function crush(samples, hold) {
+    const out = new Float32Array(samples.length);
+    for (let i = 0; i < samples.length; i++) out[i] = samples[i - (i % hold)];
+    return out;
+  }
+  const bell = (freq, gain, decay = 5, length = 0.7) => mix(tone({ freq, length, decay, gain }), tone({ freq: freq * 2, length, decay: decay * 1.6, gain: gain * 0.3 }));
+  const release = (samples, seconds) => {
+    const end = samples.length / RATE;
+    return envelope(samples, (t) => Math.min(1, (end - t) / seconds));
+  };
+
+  // The race music's time and key: 160 bpm, so 4 bars are the 6 s run, over its verse's chords.
+  const BEAT = 0.375;
+  const SIX = BEAT / 4;
+  const BAR = BEAT * 4;
+  const RUN_S = 6;
+  const LAST_S = 5;
+  const CHORDS = [[62, 65, 69], [58, 62, 65], [60, 64, 67], [57, 61, 64]];
+  const PENTATONIC = [62, 65, 67, 69, 72, 74, 77, 79, 81, 84, 86, 89];
+  // A blast plays over the race music at full level; below this the two can't clip together.
+  const HORN_PEAK = 0.8;
+
+  function discoMusic() {
+    const out = silence(RUN_S);
+    const kick = tone({ freq: 150, sweepTo: 50, curve: "exp", length: 0.16, decay: 16, gain: 0.8 });
+    const hat = highpass(noise({ length: 0.07, decay: 45, gain: 0.32, seed: 11 }), 5000, 2);
+    const clap = bandpass(noise({ length: 0.12, decay: 28, gain: 0.8, seed: 12 }), 1500, 1800);
+    for (let beat = 0; beat < 16; beat++) {
+      place(out, beat * BEAT, kick);
+      place(out, (beat + 0.5) * BEAT, hat);
+      if (beat % 2) place(out, beat * BEAT, clap);
+    }
+    CHORDS.forEach((notes, bar) => {
+      for (let eighth = 0; eighth < 8; eighth++) {
+        const n = notes[0] - 24 + (eighth % 2 ? 12 : 0);
+        place(out, bar * BAR + eighth * SIX * 2, lowpass(tone({ freq: midi(n), length: 0.17, wave: "saw", decay: 4, gain: 0.34 }), 700));
+      }
+      const stab = lowpass(mix(...notes.map((n) => tone({ freq: midi(n + 12), length: 0.14, wave: "saw", decay: 8, gain: 0.1 }))), 2600);
+      for (const step of [2, 6, 10, 13]) place(out, bar * BAR + step * SIX, stab);
+    });
+    place(out, BAR * 2 - BEAT, lowpass(tone({ freq: midi(62), sweepTo: midi(86), curve: "exp", length: BEAT, wave: "saw", decay: 0, gain: 0.09, attack: 0.1 }), 3000));
+    const hook = [
+      [0, 74, 0.5], [0.5, 77, 0.5], [1, 81, 1], [2, 79, 0.5], [2.5, 81, 0.5], [3, 84, 1],
+      [4, 82, 0.5], [4.5, 81, 0.5], [5, 77, 1], [6, 74, 0.5], [6.5, 77, 0.5], [7, 82, 1],
+      [8, 79, 0.5], [8.5, 84, 0.5], [9, 88, 1], [10, 86, 0.5], [10.5, 84, 0.5], [11, 79, 1],
+      [12, 85, 0.5], [12.5, 88, 0.5], [13, 93, 3],
+    ];
+    for (const [beat, n, beats] of hook) {
+      const length = beats * BEAT * 0.92;
+      const note = mix(
+        tone({ freq: midi(n), length, wave: "saw", decay: 2.5, gain: 0.1, attack: 0.008 }),
+        tone({ freq: midi(n) * 1.006, length, wave: "saw", decay: 2.5, gain: 0.1, attack: 0.008 }),
+      );
+      place(out, beat * BEAT, lowpass(note, 3400));
+    }
+    return tame(slowdown(out, LAST_S, 0.3));
+  }
+
+  function discoFire() {
+    const out = silence(0.6);
+    place(out, 0, lowpass(mix(...[50, 62, 65, 69, 74].map((n) => tone({ freq: midi(n), length: 0.55, wave: "saw", decay: 5, gain: 0.13 }))), 3200));
+    PENTATONIC.forEach((n, i) => place(out, i * 0.03, bell(midi(n + 12), 0.1, 8, 0.25)));
+    return tame(out);
+  }
+  const discoEnd = () => tame(mix(highpass(noise({ length: 0.03, decay: 120, gain: 0.5, seed: 21 }), 2000), tone({ freq: 90, sweepTo: 40, length: 0.22, decay: 12, gain: 0.55 })));
+  function discoHorn() {
+    const blast = (length) => release(lowpass(mix(...[233.08, 233.6, 349.23, 466.16].map((freq) => tone({ freq, length, wave: "saw", decay: 0.3, gain: 0.24, attack: 0.004 }))), 3400), 0.012);
+    return tame(concat(blast(0.11), silence(0.03), blast(0.11), silence(0.03), blast(0.42)), HORN_PEAK);
+  }
+
+  function arcadeMusic() {
+    const out = silence(RUN_S);
+    const snare = bandpass(noise({ length: 0.08, decay: 35, gain: 0.7, seed: 13 }), 2000, 3000);
+    const tick = highpass(noise({ length: 0.03, decay: 80, gain: 0.2, seed: 14 }), 6000);
+    const lead = [74, 77, 81, 77, 82, 77, 74, 77, 84, 79, 76, 79, 85];
+    const stop = Math.floor(LAST_S / SIX);
+    for (let i = 0; i < stop; i++) {
+      const bar = Math.floor(i / 16);
+      const notes = CHORDS[bar];
+      const steps = [notes[0], notes[1], notes[2], notes[0] + 12];
+      const n = steps[[0, 1, 2, 3, 2, 1][i % 6]] + [12, 12, 24, 24][bar];
+      place(out, i * SIX, tone({ freq: midi(n), length: SIX * 0.9, wave: "pulse", decay: 10, gain: 0.15 }));
+      if (i % 2 === 0) {
+        place(out, i * SIX, tone({ freq: midi(notes[0] - 24), length: 0.16, wave: "triangle", decay: 6, gain: 0.45 }));
+        place(out, i * SIX, tick);
+      }
+      if (i % 8 === 4) place(out, i * SIX, snare);
+    }
+    lead.forEach((n, beat) => place(out, beat * BEAT, tone({ freq: midi(n), length: BEAT * 0.9, wave: "square", decay: 3, gain: 0.1, vibratoHz: 7, vibratoDepth: 0.008 })));
+    for (let i = 0; i < 22; i++) {
+      place(out, LAST_S + i * 0.0455, tone({ freq: midi(91 - i), length: 0.05, wave: "square", decay: 5, gain: 0.17 * (1 - i / 30) }));
+    }
+    return tame(out);
+  }
+  function arcadeFire() {
+    const out = silence(0.4);
+    for (let i = 0; i < 18; i++) place(out, i * 0.018, tone({ freq: midi(62 + i * 2), length: 0.05, wave: "square", decay: 4, gain: 0.24 }));
+    return tame(out);
+  }
+  const arcadeEnd = () => tame(concat(...[76, 72, 64].map((n) => tone({ freq: midi(n), length: 0.08, wave: "square", decay: 8, gain: 0.3 }))));
+  const arcadeHorn = () => tame(release(crush(mix(
+    tone({ freq: 196, sweepTo: 175, curve: "exp", length: 0.55, wave: "square", decay: 1.5, gain: 0.34 }),
+    tone({ freq: 294, sweepTo: 262, curve: "exp", length: 0.55, wave: "square", decay: 1.5, gain: 0.26 }),
+  ), 8), 0.03));
+
+  function glitterMusic() {
+    const out = silence(RUN_S);
+    const stop = Math.floor(LAST_S / SIX);
+    for (let i = 0; i < stop; i++) {
+      const bar = Math.floor(i / 16);
+      const at = 2 + bar + [0, 1, 2, 3, 4, 3, 2, 1][i % 8];
+      place(out, i * SIX, bell(midi(PENTATONIC[at] + 12), 0.15));
+    }
+    for (let i = 0; i < 12; i++) {
+      place(out, LAST_S + i * SIX * 0.85, bell(midi(PENTATONIC[11 - i] + 12), 0.15 * (1 - i / 16), 7, 0.4));
+    }
+    const shimmer = bandpass(noise({ length: RUN_S, decay: 0, gain: 0.6, seed: 31 }), 6500, 3000);
+    place(out, 0, envelope(shimmer, (t) => {
+      const swell = t < LAST_S ? 0.25 + 0.75 * (t / LAST_S) : Math.max(0, RUN_S - t);
+      return swell * (1 - 0.3 * (1 - Math.cos(TAU * (t / BEAT))));
+    }));
+    const drone = mix(
+      tone({ freq: midi(38), length: RUN_S, wave: "saw", decay: 0, gain: 0.14, attack: 1 }),
+      tone({ freq: midi(50), length: RUN_S, wave: "saw", decay: 0, gain: 0.1, attack: 1 }),
+    );
+    place(out, 0, envelope(lowpass(drone, 420, 2), (t) => (t < LAST_S ? 1 : Math.max(0, RUN_S - t))));
+    return tame(out);
+  }
+  function glitterFire() {
+    const out = silence(0.8);
+    for (let i = 0; i < 12; i++) place(out, i * 0.028, bell(midi(PENTATONIC[i] + 12), 0.2, 6, 0.45));
+    place(out, 0, bandpass(noise({ length: 0.7, decay: 5, gain: 0.8, seed: 32, attack: 0.1 }), 6500, 3000));
+    return tame(out, 0.55);
+  }
+  const glitterEnd = () => tame(mix(
+    tone({ freq: 1200, sweepTo: 300, curve: "exp", length: 0.45, decay: 7, gain: 0.4 }),
+    bandpass(noise({ length: 0.3, decay: 12, gain: 0.5, seed: 33 }), 5000, 3000),
+  ));
+  const glitterHorn = () => tame(release(mix(
+    lowpass(mix(...[155.56, 233.08, 311.13].map((freq) => tone({ freq, length: 0.9, wave: "saw", decay: 1.1, gain: 0.34, attack: 0.03, vibratoHz: 5, vibratoDepth: 0.004 }))), 1500),
+    bandpass(noise({ length: 0.9, decay: 3, gain: 0.25, seed: 34, attack: 0.03 }), 900, 900),
+  ), 0.08), HORN_PEAK);
+
+  const VERSIONS = [
+    {
+      key: "disco", tag: "A, recommended, suits the mirror ball", title: "Disco", duck: 0.06,
+      music: discoMusic, fire: discoFire, end: discoEnd, horn: discoHorn,
+      facts: [
+        ["The star", "A four-on-the-floor kick, an octave bass, string stabs and a brass hook take over. The race music drops low."],
+        ["Fire and end", "A big chord with a run of glitter to start. A needle lift and a low thud to finish."],
+        ["Last second", "The whole groove drags to a stop, like a hand on a record."],
+        ["Air Horn", "Three DJ blasts: dah-dah-daaah."],
+      ],
+    },
+    {
+      key: "arcade", tag: "B, closest to Mario Kart's feel", title: "Arcade", duck: 0,
+      music: arcadeMusic, fire: arcadeFire, end: arcadeEnd, horn: arcadeHorn,
+      facts: [
+        ["The star", "Fast 8-bit arpeggios climb an octave halfway through, over a triangle bass. The race music stops."],
+        ["Fire and end", "A two-octave rising run to start. Three falling blips to finish."],
+        ["Last second", "Everything drops out but a stream of notes tumbling downward."],
+        ["Air Horn", "One fat 8-bit blast that sags in pitch."],
+      ],
+    },
+    {
+      key: "glitter", tag: "C, keeps the race music", title: "Glitter", duck: 0.35,
+      music: glitterMusic, fire: glitterFire, end: glitterEnd, horn: glitterHorn,
+      facts: [
+        ["The star", "Rising chimes and a swelling shimmer over a low drone, on top of the race music, which doesn't change. The notes sit over any of its chords, so it needs no beat matching."],
+        ["Fire and end", "A sweep of chimes to start. A soft falling tone to finish."],
+        ["Last second", "The chimes fall and thin out, and the shimmer fades."],
+        ["Air Horn", "One long, deep stadium blast."],
+      ],
+    },
+  ];
+  for (const version of VERSIONS) {
+    version.sounds = { music: version.music(), fire: version.fire(), end: version.end(), horn: version.horn() };
+  }
+
+  // The player. The levels are the game's mix: SFX 0.8, music 0.35.
+  const SFX_LEVEL = 0.8;
+  const MUSIC_LEVEL = 0.35;
+  const AWAY_LEVEL = 0.3;
+  const AWAY_CUTOFF_HZ = 1200;
+  const musicEl = document.getElementById("music");
+  const bedEl = document.getElementById("bed");
+  const statusEl = document.getElementById("status");
+  let context = null;
+  let sources = [];
+  let run = null;
+  let musicTarget = MUSIC_LEVEL;
+  musicEl.volume = MUSIC_LEVEL;
+  musicEl.addEventListener("error", () => { statusEl.textContent = "The race music couldn't load. The sets still play without it."; });
+
+  function buffer(samples) {
+    const made = context.createBuffer(1, samples.length, RATE);
+    made.copyToChannel(samples, 0);
+    return made;
+  }
+  function start(samples, at, away) {
+    const source = context.createBufferSource();
+    source.buffer = buffer(samples);
+    const gain = context.createGain();
+    gain.gain.value = away ? AWAY_LEVEL * SFX_LEVEL : SFX_LEVEL;
+    if (away) {
+      const filter = context.createBiquadFilter();
+      filter.type = "lowpass";
+      filter.frequency.value = AWAY_CUTOFF_HZ;
+      source.connect(filter).connect(gain).connect(context.destination);
+    } else {
+      source.connect(gain).connect(context.destination);
+    }
+    source.start(at);
+    sources.push(source);
+  }
+  function stopAll() {
+    for (const source of sources) { try { source.stop(); } catch (_) { /* It had already ended. */ } }
+    sources = [];
+    if (run) run.cursor.style.display = "none";
+    run = null;
+    musicTarget = MUSIC_LEVEL;
+  }
+  function ready() {
+    context ??= new (window.AudioContext || window.webkitAudioContext)();
+    if (context.state === "suspended") context.resume();
+    stopAll();
+    if (bedEl.checked) {
+      musicEl.play().catch(() => { statusEl.textContent = "The race music couldn't start. The sets still play without it."; });
+    } else {
+      musicEl.pause();
+    }
+    return context.currentTime + 0.05;
+  }
+  function playRun(version, card) {
+    const at = ready();
+    start(version.sounds.fire, at, false);
+    start(version.sounds.music, at, false);
+    start(version.sounds.end, at + RUN_S, false);
+    musicTarget = version.duck;
+    run = { at, cursor: card.querySelector(".cursor") };
+    run.cursor.style.display = "block";
+  }
+  function playAway(version) {
+    const at = ready();
+    start(version.sounds.music, at, true);
+  }
+  function playHorn(version, away) {
+    const at = ready();
+    start(version.sounds.horn, at, away);
+  }
+
+  function frame() {
+    if (run) {
+      const t = context.currentTime - run.at;
+      run.cursor.style.left = `${Math.min(100, Math.max(0, (t / RUN_S) * 100))}%`;
+      if (t >= RUN_S) {
+        run.cursor.style.display = "none";
+        run = null;
+        musicTarget = MUSIC_LEVEL;
+      }
+    }
+    // Eases the race music to its level for this moment, over about 0.2 s.
+    musicEl.volume += (musicTarget - musicEl.volume) * 0.15;
+    requestAnimationFrame(frame);
+  }
+
+  function drawWave(canvas, samples) {
+    const width = canvas.width;
+    const height = canvas.height;
+    const draw = canvas.getContext("2d");
+    draw.fillStyle = getComputedStyle(document.body).color;
+    const per = samples.length / width;
+    for (let x = 0; x < width; x++) {
+      let top = 0;
+      let bottom = 0;
+      const from = Math.floor(x * per);
+      for (let i = from; i < from + per; i++) {
+        top = Math.max(top, samples[i]);
+        bottom = Math.min(bottom, samples[i]);
+      }
+      draw.fillRect(x, (0.5 - top * 0.48) * height, 1, Math.max(1, (top - bottom) * 0.48 * height));
+    }
+  }
+
+  const cardsEl = document.getElementById("cards");
+  for (const version of VERSIONS) {
+    const card = document.createElement("article");
+    card.className = `card${version.key === "disco" ? " best" : ""}`;
+    card.innerHTML = `
+      <div class="stack"><span class="tag">${version.tag}</span><h2>${version.title}</h2></div>
+      <div class="stack">
+        <div class="wave"><canvas width="600" height="144" role="img" aria-label="Waveform of the 6 second star music"></canvas><div class="last"></div><div class="cursor"></div></div>
+        <div class="scale"><span>0 s</span><span>Star run</span><span>6 s</span></div>
+      </div>
+      <div class="buttons">
+        <button type="button" class="primary" data-play="run">Play a star run</button>
+        <button type="button" data-play="away">From another kart</button>
+      </div>
+      <div class="buttons">
+        <button type="button" class="primary" data-play="horn">Air Horn</button>
+        <button type="button" data-play="horn-away">From another kart</button>
+      </div>
+      <dl>${version.facts.map(([term, text]) => `<div><dt>${term}</dt><dd>${text}</dd></div>`).join("")}</dl>`;
+    cardsEl.append(card);
+    drawWave(card.querySelector("canvas"), version.sounds.music);
+    card.querySelector('[data-play="run"]').addEventListener("click", () => playRun(version, card));
+    card.querySelector('[data-play="away"]').addEventListener("click", () => playAway(version));
+    card.querySelector('[data-play="horn"]').addEventListener("click", () => playHorn(version, false));
+    card.querySelector('[data-play="horn-away"]').addEventListener("click", () => playHorn(version, true));
+  }
+  document.getElementById("stop").addEventListener("click", () => {
+    stopAll();
+    musicEl.pause();
+  });
+  bedEl.addEventListener("change", () => { if (!bedEl.checked) musicEl.pause(); });
+  requestAnimationFrame(frame);
+</script>
+</body>
+</html>
