@@ -203,6 +203,7 @@ export async function createRaceView(
   spinOutSeconds: number,
   runawayWheelRadius: number,
   hornRadius: number,
+  slipstreamChargeSeconds: number,
   labelsFor: (karts: readonly KartReadout[]) => readonly KartLabel[],
   viewer: ViewerOptions,
 ): Promise<RaceView> {
@@ -293,8 +294,11 @@ export async function createRaceView(
   const flames = createExhaustFlames(kartCount, kartSize);
   const flameMesh = exhaustFlameMesh(flames);
   const wind = createWindParticles();
-  const windLines = createWindLines(wind, kartSize, { reducedMotion: viewer.reducedMotion });
-  /** How brightly the wind lines show this frame, from the own kart's boost left. */
+  const windLines = createWindLines(wind, kartSize, {
+    reducedMotion: viewer.reducedMotion,
+    chargeSeconds: slipstreamChargeSeconds,
+  });
+  /** How brightly the wind lines show this frame, from the own kart's boost or tow left. */
   let windBrightness = 0;
   const windMesh = particleMesh(wind, new BoxGeometry(1, 1, 1), additiveMaterial(), {
     scaleOf: (size) => size,
@@ -441,7 +445,7 @@ export async function createRaceView(
         windLines.emit(own, frameSeconds);
       }
       wheelTells.emit(race.wheels, frameSeconds);
-      windBrightness = windFade(own?.boostS ?? null);
+      windBrightness = windFade(own?.boostS ?? null, own?.slipstream ?? null);
       tyreMarks.update(readouts, frameSeconds);
       spray.update(frameSeconds);
       sparks.update(frameSeconds);

@@ -8,7 +8,8 @@
 use crate::{
     BoostSnapshot, BoostTier, ClientMessage, DriftDirection, DriftSnapshot, Event, EventKind,
     FinalStanding, HazardSnapshot, Input, Item, ItemSlot, KartSnapshot, Player, PlayerState,
-    ProjectileSnapshot, Refusal, Room, RoomState, ServerMessage, Snapshot, Start, PROTOCOL_VERSION,
+    ProjectileSnapshot, Refusal, Room, RoomState, ServerMessage, SlipstreamSnapshot, Snapshot,
+    Start, PROTOCOL_VERSION,
 };
 
 /// Every [`ClientMessage`] variant once.
@@ -180,6 +181,11 @@ pub fn snapshot() -> Snapshot {
                     _ => None,
                 },
                 star_s: (slot == 5).then_some(4.5),
+                slipstream: match slot {
+                    1 => Some(SlipstreamSnapshot::Charging { s: 0.35 }),
+                    3 => Some(SlipstreamSnapshot::Tow { left_s: 0.8 }),
+                    _ => None,
+                },
             }
         })
         .collect();

@@ -158,6 +158,7 @@ const KART: KartSnapshot = {
   stallS: null,
   boost: null,
   starS: null,
+  slipstream: null,
 };
 
 function snapshot(tick: number, events: Event[] = []): Snapshot {

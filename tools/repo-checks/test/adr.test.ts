@@ -81,6 +81,7 @@ const DECISION_SLUGS = [
   "pull-requests-build-the-image",
   "the-star-is-a-run-of-speed-and-immunity",
   "the-air-horn-is-one-blast-round-the-kart",
+  "the-slipstream-is-a-tow-on-the-top-speed-cap",
 ];
 
 const expectedFiles = DECISION_SLUGS.map(

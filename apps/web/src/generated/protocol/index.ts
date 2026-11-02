@@ -19,6 +19,7 @@ export type { Refusal } from "./Refusal";
 export type { Room } from "./Room";
 export type { RoomState } from "./RoomState";
 export type { ServerMessage } from "./ServerMessage";
+export type { SlipstreamSnapshot } from "./SlipstreamSnapshot";
 export type { Snapshot } from "./Snapshot";
 export type { Start } from "./Start";
 export { PROTOCOL_VERSION } from "./version";

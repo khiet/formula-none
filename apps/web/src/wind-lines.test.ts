@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { KartSize } from "./bridge";
 import { kartReadout } from "./kart-readout-fixture";
 import type { Particle, Particles } from "./particles";
-import { createWindLines, createWindParticles, windFade } from "./wind-lines";
+import { createWindLines, createWindParticles, windFade, windRate } from "./wind-lines";
 
 const SIZE: KartSize = { width: 1.2, height: 0.6, length: 1.8 };
 const FRAME_S = 1 / 60;
@@ -83,5 +83,55 @@ describe("wind lines", () => {
     expect(windFade(0.35)).toBe(1);
     expect(windFade(0.175)).toBeCloseTo(0.5);
     expect(windFade(0)).toBe(0);
+  });
+});
+
+describe("wind lines in a slipstream", () => {
+  const charging = (s: number) => kartReadout({ slipstream: { charging: { s } } });
+  const towed = (leftS: number) => kartReadout({ slipstream: { tow: { leftS } } });
+
+  /** Lines thrown over `frames` frames of `kart`. */
+  function thrownRound(kart: ReturnType<typeof kartReadout>, frames: number): Particle[] {
+    const particles = createWindParticles();
+    const lines = createWindLines(particles, SIZE, { chargeSeconds: 1 }, fixedRandom());
+    for (let frame = 0; frame < frames; frame++) {
+      lines.emit(kart, FRAME_S);
+    }
+    return particlesOf(particles);
+  }
+
+  it("throws lines at a rate climbing from nothing with the charge to the least boost rate", () => {
+    expect(windRate(charging(0), 1)).toBe(0);
+    expect(windRate(charging(0.5), 1)).toBeCloseTo(20);
+    expect(windRate(charging(1), 1)).toBe(40);
+    expect(windRate(charging(0.5), 2)).toBeCloseTo(10);
+    expect(thrownRound(charging(0.9), 30).length).toBeGreaterThan(
+      thrownRound(charging(0.3), 30).length,
+    );
+    expect(thrownRound(charging(0.05), 30).length).toBeLessThan(
+      thrownRound(charging(0.9), 30).length / 4,
+    );
+  });
+
+  it("throws a tow's lines at the boost's full rate, and a boost under way wins over the tow", () => {
+    expect(windRate(towed(1), 1)).toBe(90);
+    expect(windRate(towed(0.1), 1)).toBe(90);
+    expect(windRate(kartReadout({ boostS: 0.2, slipstream: { tow: { leftS: 1 } } }), 1)).toBe(
+      windRate(kartReadout({ boostS: 0.2 }), 1),
+    );
+    expect(windRate(kartReadout({ boostS: 1.5, slipstream: { charging: { s: 0.1 } } }), 1)).toBe(
+      90,
+    );
+    expect(windRate(kartReadout(), 1)).toBe(0);
+  });
+
+  it("shows the lines fully through a charge and fades them over the tow's last 0.35 s", () => {
+    expect(windFade(null, { charging: { s: 0.1 } })).toBe(1);
+    expect(windFade(null, { tow: { leftS: 1 } })).toBe(1);
+    expect(windFade(null, { tow: { leftS: 0.175 } })).toBeCloseTo(0.5);
+    expect(windFade(null, { tow: { leftS: 0 } })).toBe(0);
+    // A boost under way sets the fade, whatever the tow has left.
+    expect(windFade(0.0875, { tow: { leftS: 1 } })).toBeCloseTo(0.25);
+    expect(windFade(null, null)).toBe(0);
   });
 });

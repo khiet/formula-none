@@ -12,15 +12,24 @@
 //! predicted the tick it happens, and the snapshots' spin-out timer then
 //! agrees with it.
 //!
-//! Three things the prediction never runs. The item roll: the slot is the
+//! Four things the prediction never runs. The item roll: the slot is the
 //! snapshots' word, so a fire is predicted only once the server has said
 //! what the kart holds. The coin pickups: a coin another kart took first
 //! is the server's to know, so the count is the snapshots' word too, and a
-//! spin-out's loss predicted here gives way to it. And the hazards: a
+//! spin-out's loss predicted here gives way to it. The hazards: a
 //! hazard the predicted kart fires is gone from this race the same tick, so
 //! the kart never hits one here; a hit is the server's, and reaches the
 //! kart as the spin-out timer in a snapshot, which holds it still through
-//! the replay.
+//! the replay. And the wake (ADR 0077): the other karts stand here 100 ms
+//! behind, so a verdict at the wake's edge would differ from the server's,
+//! and a tow fired or withheld by mistake is a correction of metres. The
+//! slipstream is the snapshots' word, carried on between them as the
+//! server would carry it while the kart stays where the snapshot had it:
+//! a charge counts on, a full one keeps the tow armed, a tow out of the
+//! wake runs down. A snapshot that says otherwise is a rewind that adopts
+//! it; a wake's entry therefore reaches the own kart about one round trip
+//! late, which no button press is waiting on, and the tow then takes on
+//! the server's tick.
 //!
 //! One thing it runs and then defers on: the rocket start. The prediction
 //! reads the hold as the server will, so the sparks and the boost answer
@@ -51,7 +60,7 @@ use crate::tuning::{
 };
 use crate::{
     bot, clock_after, kart_collider, kart_groups, step, ItemSlot, Kart, KartInput, KartReadout,
-    Phase, Standing, State, Surface, Track, Wheel,
+    Phase, Slipstream, Standing, State, Surface, Track, Wheel,
 };
 
 /// The phase a prediction holds once the server's race has ended: the top
@@ -170,6 +179,11 @@ impl Prediction {
         // fires it.
         state.item_box_respawn_s = vec![f32::INFINITY; state.item_box_respawn_s.len()];
         state.coin_respawn_s = vec![f32::INFINITY; state.coin_respawn_s.len()];
+        // The wake is the server's to judge: the other karts stand here
+        // where the client draws them, 100 ms behind, so a verdict at the
+        // wake's edge would differ from the server's. The slipstream is
+        // the snapshots' word, carried on between them.
+        state.wakes_judged = false;
         let spawn = Entry {
             sequence: 0,
             tick: 0,
@@ -509,9 +523,26 @@ fn agrees(record: &KartRecord, kart: &KartReadout, racing: bool) -> bool {
             < TICK_S / 2.0
         && (record.kart.stall_left_s.max(0.0) - kart.stall_s.unwrap_or(0.0)).abs() < TICK_S / 2.0
         && (record.kart.star_left_s.max(0.0) - kart.star_s.unwrap_or(0.0)).abs() < TICK_S / 2.0
+        && slipstream_agrees(record.kart.handling.slipstream(), kart.slipstream)
         && (!racing || record.kart.start == kart.start)
         && record.kart.lap() == kart.lap
         && record.kart.checkpoint == kart.checkpoint
+}
+
+/// Whether the snapshot's slipstream is the record's: the same state, with
+/// a charge or a tow's time within half a tick. The prediction carries a
+/// snapshot's slipstream on as the server does while the kart stays where
+/// the snapshot had it, so this disagrees only as the kart enters or
+/// leaves a wake, and a rewind then adopts the server's word.
+fn slipstream_agrees(ours: Option<Slipstream>, theirs: Option<Slipstream>) -> bool {
+    match (ours, theirs) {
+        (None, None) => true,
+        (Some(Slipstream::Charging { s: ours }), Some(Slipstream::Charging { s: theirs }))
+        | (Some(Slipstream::Tow { left_s: ours }), Some(Slipstream::Tow { left_s: theirs })) => {
+            (ours - theirs).abs() < TICK_S / 2.0
+        }
+        _ => false,
+    }
 }
 
 impl KartRecord {

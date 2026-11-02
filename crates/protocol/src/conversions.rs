@@ -6,7 +6,7 @@ use sim::KartReadout;
 
 use crate::{
     BoostSnapshot, BoostTier, DriftDirection, DriftSnapshot, EventKind, HazardSnapshot, Input,
-    Item, ItemSlot, KartSnapshot, ProjectileSnapshot, Start,
+    Item, ItemSlot, KartSnapshot, ProjectileSnapshot, SlipstreamSnapshot, Start,
 };
 
 impl From<sim::Item> for Item {
@@ -17,6 +17,24 @@ impl From<sim::Item> for Item {
             sim::Item::Homing => Self::Homing,
             sim::Item::Star => Self::Star,
             sim::Item::Horn => Self::Horn,
+        }
+    }
+}
+
+impl From<sim::Slipstream> for SlipstreamSnapshot {
+    fn from(slipstream: sim::Slipstream) -> Self {
+        match slipstream {
+            sim::Slipstream::Charging { s } => Self::Charging { s },
+            sim::Slipstream::Tow { left_s } => Self::Tow { left_s },
+        }
+    }
+}
+
+impl From<SlipstreamSnapshot> for sim::Slipstream {
+    fn from(slipstream: SlipstreamSnapshot) -> Self {
+        match slipstream {
+            SlipstreamSnapshot::Charging { s } => Self::Charging { s },
+            SlipstreamSnapshot::Tow { left_s } => Self::Tow { left_s },
         }
     }
 }
@@ -163,6 +181,7 @@ impl From<&KartReadout> for KartSnapshot {
                 tier: kart.boost_tier.into(),
             }),
             star_s: kart.star_s,
+            slipstream: kart.slipstream.map(SlipstreamSnapshot::from),
         }
     }
 }
@@ -189,6 +208,7 @@ impl From<&KartSnapshot> for KartReadout {
             start: kart.start.into(),
             stall_s: kart.stall_s,
             star_s: kart.star_s,
+            slipstream: kart.slipstream.map(sim::Slipstream::from),
             race_position: u32::from(kart.race_position),
             lap: u32::from(kart.lap),
             checkpoint: usize::from(kart.checkpoint),

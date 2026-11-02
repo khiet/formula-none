@@ -850,3 +850,141 @@ fn a_touch_the_server_places_elsewhere_corrects_the_kart_while_the_bump_lasts_an
     let pushed = run.drawn.iter().any(|kart| kart.velocity[2] < -1.0);
     assert!(pushed, "the own kart was pushed down the straight");
 }
+
+#[test]
+fn a_kart_alone_never_charges_even_with_a_kart_drawn_ahead_of_it() {
+    use sim::Slipstream;
+    // The oval raced alone: nothing to charge off.
+    let run = race(seconds(5.0), |_| false);
+    assert!(run.drawn.iter().all(|kart| kart.slipstream.is_none()));
+
+    // The client draws another kart 6 m ahead of the own kart every tick,
+    // which the prediction stands in its race as a kinematic body; the
+    // wake is the server's to judge, so the own kart never charges off it.
+    let course = track(&without_coins(&without_item_boxes(OVAL)));
+    let mut prediction = Prediction::new(SEED, 0, course.clone());
+    let mut drawn = common::started(State::new(SEED, 2, course)).kart_readouts();
+    let countdown = common::ticks(sim::tuning::COUNTDOWN_S) as u32;
+    let throttle = KartInput {
+        throttle: 1.0,
+        ..KartInput::default()
+    };
+    for sequence in 1..=countdown + seconds(4.0) {
+        let input = if sequence <= countdown {
+            KartInput::default()
+        } else {
+            throttle
+        };
+        let own = prediction.kart_readout();
+        drawn[0] = own;
+        drawn[1].position = [own.position[0], own.position[1], own.position[2] - 6.0];
+        drawn[1].rotation = own.rotation;
+        drawn[1].velocity = own.velocity;
+        prediction.tick(sequence, input, &drawn);
+        assert_eq!(prediction.kart_readout().slipstream, None::<Slipstream>);
+    }
+    assert_eq!(prediction.kart_readout().speed, TOP_SPEED_M_PER_S);
+}
+
+#[test]
+fn the_snapshots_slipstream_is_adopted_and_the_tow_runs_down_between_snapshots_without_a_correction(
+) {
+    use sim::tuning::{SLIPSTREAM_TOP_SPEED_FACTOR, SLIPSTREAM_TOW_S};
+    use sim::Slipstream;
+    // Two humans down the oval's front straight, the leader 6 m ahead of
+    // the predicted kart, both idle through the
+    // countdown and at full throttle from Go, so the gap holds until the
+    // tow takes. A little after it has, the leader pulls right a lane and
+    // straightens, leaving the predicted kart's tow to run down as it
+    // passes beside.
+    // The lane at x = 25 is clear of the tyre wall by the turn's entry,
+    // which the run stops short of.
+    let sidecar = with_slot_at(
+        &without_coins(&without_item_boxes(OVAL)),
+        0,
+        [25.0, 0.0, 4.0],
+        0.0,
+    );
+    let sidecar = with_slot_at(&sidecar, 1, [25.0, 0.0, -2.0], 0.0);
+    let throttle = KartInput {
+        throttle: 1.0,
+        ..KartInput::default()
+    };
+    let countdown = common::ticks(sim::tuning::COUNTDOWN_S) as u32;
+    let run = race_with(
+        countdown + seconds(4.4),
+        |_| false,
+        State::new(SEED, 2, track(&sidecar)),
+        |prediction, _| match prediction.phase() {
+            Phase::Countdown { .. } => KartInput::default(),
+            _ => throttle,
+        },
+        |tick| {
+            if tick <= countdown {
+                return vec![KartInput::default()];
+            }
+            let steer = match tick - countdown {
+                156..162 => 1.0,
+                186..192 => -1.0,
+                _ => 0.0,
+            };
+            vec![KartInput { steer, ..throttle }]
+        },
+    );
+
+    assert!(
+        run.corrections_m
+            .iter()
+            .all(|&moved| moved <= RECONCILIATION_TOLERANCE_M),
+        "corrections of {:?} m",
+        run.corrections_m
+            .iter()
+            .filter(|&&moved| moved > RECONCILIATION_TOLERANCE_M)
+            .collect::<Vec<_>>()
+    );
+    let slipstreams: Vec<Option<Slipstream>> =
+        run.drawn.iter().map(|kart| kart.slipstream).collect();
+    assert!(slipstreams
+        .iter()
+        .any(|slipstream| matches!(slipstream, Some(Slipstream::Charging { .. }))));
+    let fastest = run
+        .drawn
+        .iter()
+        .map(|kart| kart.speed)
+        .fold(0.0_f32, f32::max);
+    assert_eq!(fastest, TOP_SPEED_M_PER_S * SLIPSTREAM_TOP_SPEED_FACTOR);
+
+    // From the first drawn tick with the tow running down, every drawn
+    // tick runs it down by one tick until it is gone, with no snapshot
+    // putting it back.
+    let running_down = slipstreams
+        .iter()
+        .position(|slipstream| {
+            matches!(slipstream, Some(Slipstream::Tow { left_s }) if *left_s < SLIPSTREAM_TOW_S)
+        })
+        .expect("the tow ran down");
+    let mut expected = match slipstreams[running_down] {
+        Some(Slipstream::Tow { left_s }) => left_s,
+        _ => unreachable!(),
+    };
+    let mut ran_down_for = 1;
+    for slipstream in &slipstreams[running_down + 1..] {
+        expected -= DT;
+        match slipstream {
+            Some(Slipstream::Tow { left_s }) => {
+                assert!(
+                    (left_s - expected).abs() < 1e-4,
+                    "{left_s} s, expected {expected}"
+                );
+                ran_down_for += 1;
+            }
+            None => break,
+            other => panic!("{other:?} while the tow ran down"),
+        }
+    }
+    assert!(ran_down_for > 30, "ran down for {ran_down_for} ticks");
+    assert!(
+        slipstreams.last().unwrap().is_none(),
+        "the tow is gone by the end"
+    );
+}

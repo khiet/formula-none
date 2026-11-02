@@ -222,6 +222,7 @@ const KART: KartSnapshot = {
   stallS: null,
   boost: null,
   starS: null,
+  slipstream: null,
 };
 
 function snapshot(

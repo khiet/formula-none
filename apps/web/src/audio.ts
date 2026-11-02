@@ -31,6 +31,7 @@ import lapUrl from "../../../assets/audio/lap.wav?url";
 import miniTurboUrl from "../../../assets/audio/mini-turbo.wav?url";
 import musicUrl from "../../../assets/audio/music-loop.wav?url";
 import sandUrl from "../../../assets/audio/sand.wav?url";
+import slipstreamUrl from "../../../assets/audio/slipstream.wav?url";
 import sputterUrl from "../../../assets/audio/sputter.wav?url";
 import starEndUrl from "../../../assets/audio/star-end.wav?url";
 import starFireUrl from "../../../assets/audio/star-fire.wav?url";
@@ -84,6 +85,7 @@ export const SOUND_URLS: Readonly<Record<SoundCue, string>> = {
   starEnd: starEndUrl,
   airHorn: airHornUrl,
   droneBeep: droneBeepUrl,
+  slipstream: slipstreamUrl,
 };
 export const LOOP_URLS: Readonly<Record<SoundLoop, string>> = {
   driftSkid: driftSkidUrl,

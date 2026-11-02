@@ -25,6 +25,10 @@ coinTopSpeedsMPerS: [number, number, number, number, number, number, number, num
  */
 starS: number, 
 /**
+ * How long a wake takes to charge, which the wind lines build over.
+ */
+slipstreamChargeS: number, 
+/**
  * How far the Air Horn's blast reaches, so the View's ring grows to
  * the reach.
  */

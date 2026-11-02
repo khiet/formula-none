@@ -20,7 +20,7 @@
       "name": "join",
       "bytes": [
         1,
-        19,
+        20,
         4,
         66,
         88,
@@ -37,7 +37,7 @@
         "join": {
           "nickname": "khiet",
           "room": "BXQF",
-          "version": 19
+          "version": 20
         }
       }
     },
@@ -103,7 +103,7 @@
       "name": "rejoin",
       "bytes": [
         7,
-        19,
+        20,
         4,
         66,
         88,
@@ -147,7 +147,7 @@
         "rejoin": {
           "room": "BXQF",
           "token": "0123456789abcdef0123456789abcdef",
-          "version": 19
+          "version": 20
         }
       }
     },
@@ -303,12 +303,12 @@
       "bytes": [
         2,
         3,
-        19
+        20
       ],
       "message": {
         "refused": {
           "versionMismatch": {
-            "server": 19
+            "server": 20
           }
         }
       }
@@ -493,6 +493,7 @@
         0,
         0,
         0,
+        0,
         160,
         65,
         154,
@@ -553,6 +554,12 @@
         0,
         0,
         0,
+        1,
+        0,
+        51,
+        51,
+        179,
+        62,
         0,
         0,
         220,
@@ -618,6 +625,7 @@
         204,
         204,
         62,
+        0,
         0,
         0,
         0,
@@ -690,6 +698,12 @@
         0,
         0,
         0,
+        1,
+        1,
+        205,
+        204,
+        76,
+        63,
         0,
         0,
         42,
@@ -752,6 +766,7 @@
         140,
         63,
         1,
+        0,
         0,
         0,
         0,
@@ -821,6 +836,7 @@
         64,
         0,
         0,
+        0,
         102,
         66,
         154,
@@ -887,6 +903,7 @@
         0,
         0,
         0,
+        0,
         130,
         66,
         154,
@@ -945,6 +962,7 @@
         153,
         153,
         63,
+        0,
         0,
         0,
         12,
@@ -1223,6 +1241,7 @@
                 0.0,
                 0.9238795042037964
               ],
+              "slipstream": null,
               "spinOutS": null,
               "splineProgress": 640.0,
               "stallS": null,
@@ -1258,6 +1277,11 @@
                 0.0,
                 0.9238795042037964
               ],
+              "slipstream": {
+                "charging": {
+                  "s": 0.3499999940395355
+                }
+              },
               "spinOutS": null,
               "splineProgress": 565.0,
               "stallS": null,
@@ -1298,6 +1322,7 @@
                 0.0,
                 0.9238795042037964
               ],
+              "slipstream": null,
               "spinOutS": null,
               "splineProgress": 490.0,
               "stallS": null,
@@ -1336,6 +1361,11 @@
                 0.0,
                 0.9238795042037964
               ],
+              "slipstream": {
+                "tow": {
+                  "leftS": 0.800000011920929
+                }
+              },
               "spinOutS": null,
               "splineProgress": 415.0,
               "stallS": null,
@@ -1373,6 +1403,7 @@
                 0.0,
                 0.9238795042037964
               ],
+              "slipstream": null,
               "spinOutS": null,
               "splineProgress": 340.0,
               "stallS": null,
@@ -1408,6 +1439,7 @@
                 0.0,
                 0.9238795042037964
               ],
+              "slipstream": null,
               "spinOutS": null,
               "splineProgress": 265.0,
               "stallS": null,
@@ -1445,6 +1477,7 @@
                 0.0,
                 0.9238795042037964
               ],
+              "slipstream": null,
               "spinOutS": 0.5,
               "splineProgress": 190.0,
               "stallS": null,
@@ -1479,6 +1512,7 @@
                 0.0,
                 0.9238795042037964
               ],
+              "slipstream": null,
               "spinOutS": null,
               "splineProgress": 115.0,
               "stallS": 1.2000000476837158,

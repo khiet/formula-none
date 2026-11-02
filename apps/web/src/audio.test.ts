@@ -40,6 +40,7 @@ const STILL: SoundReading = {
   rolling: false,
   reelStep: null,
   starSeconds: null,
+  towed: false,
   nearestStar: null,
   blasts: [],
   incomingDroneMetres: null,
@@ -354,17 +355,17 @@ describe("preloading and the autoplay rule", () => {
         STAR_MUSIC_URL,
       ]),
     );
-    expect(fetched).toHaveLength(26);
+    expect(fetched).toHaveLength(27);
     await settled();
     expect(contexts).toHaveLength(0);
     await audio.unlock();
     expect(contexts).toHaveLength(1);
     expect(context().resumes).toBe(1);
     // Decoded once, from the bytes already fetched, so the first play is not late.
-    expect(context().decoded).toHaveLength(26);
+    expect(context().decoded).toHaveLength(27);
     await audio.unlock();
     expect(contexts).toHaveLength(1);
-    expect(context().decoded).toHaveLength(26);
+    expect(context().decoded).toHaveLength(27);
   });
 
   it("resumes a context the browser suspended on a later gesture", async () => {
@@ -774,7 +775,7 @@ describe("a sound that fails to load", () => {
     await audio.unlock();
     const context = contexts[0];
     if (context === undefined) throw new Error("no context was made");
-    expect(context.decoded).toHaveLength(24);
+    expect(context.decoded).toHaveLength(25);
     const race = audio.race();
     race.start();
     race.update(STILL);

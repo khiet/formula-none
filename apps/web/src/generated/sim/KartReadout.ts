@@ -2,6 +2,7 @@
 import type { Drift } from "./Drift";
 import type { ItemSlot } from "./ItemSlot";
 import type { MiniTurbo } from "./MiniTurbo";
+import type { Slipstream } from "./Slipstream";
 import type { Start } from "./Start";
 
 /**
@@ -75,6 +76,13 @@ starS: number | null,
  * `MiniTurbo::None` while not boosting.
  */
 boostTier: MiniTurbo, 
+/**
+ * The slipstream the kart is in: charging in another's wake, or towed
+ * to a raised top speed cap; `None` out of both. The wind lines' tell
+ * for the own kart, and what a prediction's kart adopts from a
+ * snapshot, since only the server judges the wake (ADR 0077).
+ */
+slipstream: Slipstream | null, 
 /**
  * The kart's rocket start: while the countdown runs the tier its hold
  * so far has reached, the sparks' tell, and from Go the verdict.

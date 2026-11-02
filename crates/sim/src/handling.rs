@@ -1,8 +1,8 @@
 //! The handling (GLOSSARY): how one kart answers its
 //! controls on the ground and in the air. Hop, drift, mini-turbo, boost,
-//! the surface cap, the freeze of a stall or spin-out, the hold of a wall
-//! and the bump off another kart are one rule over one [`Handling`] per
-//! kart, which [`Kart`](crate::Kart) holds.
+//! the slipstream's tow, the surface cap, the freeze of a stall or
+//! spin-out, the hold of a wall and the bump off another kart are one rule
+//! over one [`Handling`] per kart, which [`Kart`](crate::Kart) holds.
 //!
 //! Each tick `step` runs [`Handling::tick`] for every kart before the
 //! solver, setting the body to the velocity it returns, and after the
@@ -17,9 +17,10 @@ use crate::hash::Fnv1a;
 use crate::tuning::{
     BOOST_PAD_FACTOR, BOOST_PAD_S, DRIFT_ENTRY_SPEED_FRACTION, GRAVITY_M_PER_S2, HOP_AIRTIME_S,
     KART_BUMP_DECAY_S, KART_BUMP_MIN_M_PER_S, KERB_SPEED_KEEP, MINI_TURBO_BOOST_FACTOR,
-    OFF_TRACK_SPEED_FACTOR, TOP_SPEED_M_PER_S,
+    OFF_TRACK_SPEED_FACTOR, SLIPSTREAM_CHARGE_TICKS, SLIPSTREAM_TOP_SPEED_FACTOR, SLIPSTREAM_TOW_S,
+    TICK_S, TOP_SPEED_M_PER_S,
 };
-use crate::{Drift, DriftDirection, KartInput, MiniTurbo, Surface};
+use crate::{Drift, DriftDirection, KartInput, MiniTurbo, Slipstream, Surface};
 
 /// A bump below this is spent: dropped to zero rather than decayed on
 /// without end, so a settled kart hashes the same wherever it was bumped.
@@ -73,6 +74,14 @@ pub(crate) struct Handling {
     /// The tier the boost burns in, the flame's tell: whichever boost
     /// started last. Only reported, so it stays out of the hash.
     boost_tier: MiniTurbo,
+    /// Ticks without a break the kart has held another's wake, saturating
+    /// at the tuned charge; zero the tick it is out of one. Ticks, not f32
+    /// seconds, so the tow takes on the tick the tuned charge names.
+    slipstream_charge_ticks: u32,
+    /// Seconds of tow left: held at the tuned time every tick the kart is
+    /// in a wake with a full charge, run down every other tick. Zero or
+    /// less when not towed.
+    tow_left_s: f32,
 }
 
 /// Whether a kart answers its controls this tick.
@@ -114,6 +123,14 @@ pub(crate) struct Situation {
     /// not apply to; every course is walled along both run-off edges, so
     /// this opens no shortcut.
     pub(crate) starring: bool,
+    /// Whether the kart sits in another kart's wake this tick, as `step`
+    /// judges it from the bodies; `None` when the race cannot judge it. A
+    /// prediction's race holds the own kart alone, so there the charge
+    /// and the tow are the snapshots' word, carried on as the last one
+    /// left them: a charge under way counts on and a full one keeps the
+    /// tow armed, until a snapshot says the kart is out of the wake
+    /// (ADR 0077).
+    pub(crate) wake: Option<bool>,
 }
 
 /// What the handling sends the body off with for the solver.
@@ -142,6 +159,49 @@ impl Handling {
             boost_left_s: 0.0,
             boost_factor: 1.0,
             boost_tier: MiniTurbo::None,
+            slipstream_charge_ticks: 0,
+            tow_left_s: 0.0,
+        }
+    }
+
+    /// The slipstream the kart is in: the tow while one holds, else the
+    /// charge while one is under way, else `None`.
+    pub(crate) fn slipstream(&self) -> Option<Slipstream> {
+        if self.tow_left_s > 0.0 {
+            Some(Slipstream::Tow {
+                left_s: self.tow_left_s,
+            })
+        } else if self.slipstream_charge_ticks > 0 {
+            Some(Slipstream::Charging {
+                s: self.slipstream_charge_ticks as f32 * TICK_S,
+            })
+        } else {
+            None
+        }
+    }
+
+    /// Take on a snapshot's word on the slipstream, as `slipstream`
+    /// reports it. A tow at the full tuned time is one still in the wake,
+    /// re-armed that tick, so the charge behind it is taken as full; any
+    /// shorter tow is running down with the charge gone.
+    pub(crate) fn adopt_slipstream(&mut self, slipstream: Option<Slipstream>) {
+        match slipstream {
+            None => {
+                self.slipstream_charge_ticks = 0;
+                self.tow_left_s = 0.0;
+            }
+            Some(Slipstream::Charging { s }) => {
+                self.slipstream_charge_ticks = (s / TICK_S + 0.5) as u32;
+                self.tow_left_s = 0.0;
+            }
+            Some(Slipstream::Tow { left_s }) => {
+                self.slipstream_charge_ticks = if left_s >= SLIPSTREAM_TOW_S {
+                    SLIPSTREAM_CHARGE_TICKS
+                } else {
+                    0
+                };
+                self.tow_left_s = left_s;
+            }
         }
     }
 
@@ -232,6 +292,8 @@ impl Handling {
         self.on_boost_pad = false;
         self.on_kerb = false;
         self.boost_left_s = 0.0;
+        self.slipstream_charge_ticks = 0;
+        self.tow_left_s = 0.0;
         self.travel = travel;
         self.walls.clear();
         self.bump = Vec3::ZERO;
@@ -270,6 +332,8 @@ impl Handling {
         hasher.write_u8(u8::from(self.on_kerb));
         hasher.write_f32(self.boost_left_s);
         hasher.write_f32(self.boost_factor);
+        hasher.write_u32(self.slipstream_charge_ticks);
+        hasher.write_f32(self.tow_left_s);
         hasher.write_u64(self.walls.len() as u64);
         for wall in &self.walls {
             hasher.write_f32s(wall.to_array());
@@ -334,7 +398,41 @@ impl Handling {
             vertical = hop_launch_speed();
         }
         self.hop_was_held = input.hop;
-        self.speed = next_speed(self.speed, input, dt, situation.top_speed);
+        // The slipstream (ADR 0077). A tick in a wake counts toward the
+        // charge; the tick it fills, and every tick in the wake after, arms
+        // the tow at its full time. Every other tick a tow under way runs
+        // down, so a kart back in a wake with a tow still running recharges
+        // against it. A tick out of a wake drops the charge. A star kart
+        // neither charges nor holds a tow; its run already outpaces one.
+        let wake =
+            !situation.starring && situation.wake.unwrap_or(self.slipstream_charge_ticks > 0);
+        let mut armed = false;
+        if wake {
+            self.slipstream_charge_ticks =
+                (self.slipstream_charge_ticks + 1).min(SLIPSTREAM_CHARGE_TICKS);
+            if self.slipstream_charge_ticks == SLIPSTREAM_CHARGE_TICKS {
+                self.tow_left_s = SLIPSTREAM_TOW_S;
+                armed = true;
+            }
+        } else {
+            self.slipstream_charge_ticks = 0;
+        }
+        if situation.starring {
+            self.tow_left_s = 0.0;
+        }
+        let towed = self.tow_left_s > 0.0;
+        if towed && !armed {
+            self.tow_left_s -= dt;
+        }
+        // The tow is a cap and not a boost: the kart ramps up to it at the
+        // normal rate, the brake works under it and a boost that fires
+        // sets its own speed, after which the kart settles back to it.
+        let top_speed = if towed {
+            situation.top_speed * SLIPSTREAM_TOP_SPEED_FACTOR
+        } else {
+            situation.top_speed
+        };
+        self.speed = next_speed(self.speed, input, dt, top_speed);
         if launched {
             self.speed *= KERB_SPEED_KEEP;
         }
@@ -362,6 +460,8 @@ impl Handling {
             self.speed = 0.0;
             self.boost_left_s = 0.0;
             self.bump = Vec3::ZERO;
+            self.slipstream_charge_ticks = 0;
+            self.tow_left_s = 0.0;
         }
         let (steer, slip) = match self.drift {
             Some(drift) => (
@@ -581,7 +681,7 @@ mod tests {
     use crate::tuning::{
         ITEM_BOOST_FACTOR, ITEM_BOOST_S, KART_BUMP_RESTITUTION, KART_BUMP_SPEED_LOSS,
         MINI_TURBO_ORANGE_BOOST_S, MINI_TURBO_ORANGE_CHARGE_S, MINI_TURBO_RED_BOOST_S,
-        MINI_TURBO_RED_CHARGE_S, TICK_S,
+        MINI_TURBO_RED_CHARGE_S,
     };
     use crate::MiniTurbo;
 
@@ -597,6 +697,7 @@ mod tests {
             coin_factor: 1.0,
             top_speed: TOP_SPEED_M_PER_S,
             starring: false,
+            wake: Some(false),
         }
     }
 
@@ -928,6 +1029,81 @@ mod tests {
         handling.tick(&FULL_THROTTLE, Freeze::Free, off, TICK_S);
 
         assert_eq!(handling.speed, TOP_SPEED_M_PER_S);
+    }
+
+    /// Flat asphalt in another kart's wake.
+    fn in_a_wake() -> Situation {
+        Situation {
+            wake: Some(true),
+            ..asphalt()
+        }
+    }
+
+    #[test]
+    fn a_star_kart_neither_charges_nor_holds_a_tow_in_a_wake() {
+        let mut handling = going(TOP_SPEED_M_PER_S);
+        for _ in 0..SLIPSTREAM_CHARGE_TICKS {
+            handling.tick(&FULL_THROTTLE, Freeze::Free, in_a_wake(), TICK_S);
+        }
+        assert_eq!(
+            handling.slipstream(),
+            Some(Slipstream::Tow {
+                left_s: SLIPSTREAM_TOW_S
+            })
+        );
+        let starring = Situation {
+            starring: true,
+            ..in_a_wake()
+        };
+
+        handling.tick(&FULL_THROTTLE, Freeze::Free, starring, TICK_S);
+        assert_eq!(handling.slipstream(), None);
+        for _ in 0..SLIPSTREAM_CHARGE_TICKS {
+            handling.tick(&FULL_THROTTLE, Freeze::Free, starring, TICK_S);
+        }
+        assert_eq!(handling.slipstream(), None, "a star kart never charges");
+    }
+
+    #[test]
+    fn unjudged_the_slipstream_carries_on_as_the_last_word_left_it() {
+        // In a prediction's race the wake is nobody's to judge: a charge
+        // under way counts on, a full one keeps the tow armed, and a tow
+        // with the charge gone runs down.
+        let unjudged = Situation {
+            wake: None,
+            ..asphalt()
+        };
+        let mut handling = going(TOP_SPEED_M_PER_S);
+        handling.tick(&FULL_THROTTLE, Freeze::Free, unjudged, TICK_S);
+        assert_eq!(handling.slipstream(), None, "nothing to carry on");
+
+        handling.adopt_slipstream(Some(Slipstream::Charging { s: 2.0 * TICK_S }));
+        handling.tick(&FULL_THROTTLE, Freeze::Free, unjudged, TICK_S);
+        assert_eq!(
+            handling.slipstream(),
+            Some(Slipstream::Charging { s: 3.0 * TICK_S })
+        );
+
+        handling.adopt_slipstream(Some(Slipstream::Tow {
+            left_s: SLIPSTREAM_TOW_S,
+        }));
+        handling.tick(&FULL_THROTTLE, Freeze::Free, unjudged, TICK_S);
+        assert_eq!(
+            handling.slipstream(),
+            Some(Slipstream::Tow {
+                left_s: SLIPSTREAM_TOW_S
+            }),
+            "a full tow is one still in the wake"
+        );
+
+        handling.adopt_slipstream(Some(Slipstream::Tow { left_s: 0.5 }));
+        handling.tick(&FULL_THROTTLE, Freeze::Free, unjudged, TICK_S);
+        assert_eq!(
+            handling.slipstream(),
+            Some(Slipstream::Tow {
+                left_s: 0.5 - TICK_S
+            })
+        );
     }
 
     #[test]
