@@ -61,9 +61,9 @@ export function createWindParticles(): Particles {
 
 /**
  * How brightly the lines show for a kart with `boostS` seconds of boost
- * left, or else `towS` seconds of tow left: fully until the last moments,
- * then fading to nothing as it ends. Full through a charge, whose lines
- * are few rather than dim. Nothing off all three.
+ * left, or else with the tow `slipstream` carries: fully until the last
+ * moments, then fading to nothing as it ends. Full through a charge, whose
+ * lines are few rather than dim. Nothing off all three.
  */
 export function windFade(boostS: number | null, slipstream: Slipstream | null = null): number {
   if (boostS !== null) return fadeOver(boostS);

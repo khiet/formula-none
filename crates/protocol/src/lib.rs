@@ -350,8 +350,9 @@ pub struct KartSnapshot {
 pub enum SlipstreamSnapshot {
     /// In a wake for `s` seconds so far, short of the charge.
     Charging { s: f32 },
-    /// Towed, with `left_s` seconds of tow left: the full tuned time
-    /// while the kart stays in the wake, running down once it leaves.
+    /// Towed, with `left_s` seconds of tow left: put back to the full
+    /// tuned time every tick the kart is in a wake with a full charge,
+    /// running down every other tick.
     Tow { left_s: f32 },
 }
 

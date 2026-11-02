@@ -482,8 +482,8 @@ def drone_beep():
     return tone(1320, 0.07, square, decay=12, gain=0.3)
 
 
-# Under the engine at top speed, whose loop sits at about this level, the
-# whoosh reads as air and not as a hit: it has no tone to fight the engine's.
+# Held under the other cues' levels: with no tone to fight the engine's, the
+# whoosh reads as air and not as a hit.
 SLIPSTREAM_LEVEL = 0.45
 
 
