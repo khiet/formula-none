@@ -5,12 +5,14 @@ import {
   BufferGeometry,
   Color,
   DirectionalLight,
+  DoubleSide,
   Group,
   Mesh,
   MeshBasicMaterial,
   type Object3D,
   PerspectiveCamera,
   Quaternion,
+  RingGeometry,
   SphereGeometry,
   Scene as ThreeScene,
   Vector3,
@@ -43,12 +45,12 @@ import { glint } from "./item-sprites";
 import { groundDistance, type Vec3 } from "./kart-frame";
 import type { KartLabel } from "./kart-labels";
 import { dressKart, fitKart, type KartFit, shineKart } from "./kart-model";
-import { createKartShadows } from "./kart-shadows";
+import { createKartShadows, type SurfaceProbe } from "./kart-shadows";
 import { hexCss, livery } from "./livery";
 import type { Point } from "./low-poly-svg";
-import { plate, tonesOf, writePalette } from "./palette";
+import { HAZARD_ORANGE, plate, tonesOf, writePalette } from "./palette";
 import { createParticles } from "./particles";
-import type { RaceReadout } from "./race-run";
+import { BLAST_S, type Blast, type RaceReadout } from "./race-run";
 import { sceneryMotion } from "./scenery-motion";
 import { createSparkEmitter, createSparkParticles } from "./sparks";
 import { spinOutAngle } from "./spin";
@@ -97,6 +99,16 @@ const STAR_SPARKLE_CAPACITY_PER_KART = 48;
 const STAR_SPARKLE_DRAG_PER_S = 1.5;
 const STAR_SPARKLE_COOL_SHARE = 0.5;
 const STAR_HIT_REACH_M = 4;
+/**
+ * The Air Horn's blast (ADR 0076): a flat orange ring that grows from the
+ * firing kart to the blast's reach in this long, this wide, lifted this
+ * far off the road and this opaque, fading out over the blast's time, so
+ * the reach can be learned by eye.
+ */
+const HORN_RING_GROW_S = 0.25;
+const HORN_RING_WIDTH_M = 0.6;
+const HORN_RING_LIFT_M = 0.05;
+const HORN_RING_OPACITY = 0.85;
 /**
  * On a marshal post the marshal stands this far off its middle, to the
  * left as seen from the track, and the beacon this far toward the track
@@ -176,6 +188,8 @@ export interface ViewAssets {
  * it rebounds from, the marshal sits with his tea or waves his hazard
  * flags as the wheel has it, and the post's beacon is lit while the flag
  * is up.
+ * At each horn blast a flat orange ring grows to `hornRadius`, the blast's
+ * reach, and fades.
  * `labelsFor` names the karts to label and where, from the frame's readouts. Picks WebGPU when the
  * browser has it and WebGL otherwise.
  */
@@ -188,6 +202,7 @@ export async function createRaceView(
   coins: readonly Coin[],
   spinOutSeconds: number,
   runawayWheelRadius: number,
+  hornRadius: number,
   labelsFor: (karts: readonly KartReadout[]) => readonly KartLabel[],
   viewer: ViewerOptions,
 ): Promise<RaceView> {
@@ -302,7 +317,8 @@ export async function createRaceView(
   );
   // The discs find the surface in the View's own track mesh; the bridge
   // offers no surface query and Presentation never asks the sim.
-  const shadows = createKartShadows(kartCount, trackProbe(track.scene, kartSize.height / 2));
+  const surface = trackProbe(track.scene, kartSize.height / 2);
+  const shadows = createKartShadows(kartCount, surface);
   const shadowMesh = shadowDiscMesh(shadows, kartSize);
   world.add(
     marks.mesh,
@@ -328,6 +344,7 @@ export async function createRaceView(
 
   const cones = meshPool(world, hazardConeMesh(), 0);
   const drones = homingDrones(world);
+  const rings = hornRings(world, hornRadius, surface, kartSize.height);
   const runaways = runawayWheels(world, track.scene, runawayWheelRadius);
   const motion = sceneryMotion(track.scene);
 
@@ -443,6 +460,7 @@ export async function createRaceView(
       flameMesh.update(frameSeconds);
       cones.show(hazards);
       drones.show(projectiles, (projectile) => readouts[projectile.target]?.position, frameSeconds);
+      rings.show(race.blasts);
       runaways.show(race.wheels, frameSeconds);
       motion.update(performance.now());
       for (const label of labels) {
@@ -708,6 +726,70 @@ interface MeshPool {
     placed: readonly Placed[],
     facing?: (item: Placed) => Position | undefined,
   ): void;
+}
+
+/** The horn blasts' rings in `world`, made as they are needed and hidden, never removed. */
+interface HornRings {
+  /** Show one ring per blast, grown and faded by the blast's time. */
+  show(blasts: readonly Blast[]): void;
+}
+
+/**
+ * The rings for a blast's reach of `radius`: each a flat ring of unit outer
+ * radius laid on the road `surface` finds under the kart's centre, on the
+ * road's slope, or where the kart's underside was when nothing is found,
+ * scaled out to the reach over the ring's growth and faded over the
+ * blast's time. The road is read once per blast, as the ring appears. Unlit
+ * and double sided, so it reads from the chase camera on every surface.
+ */
+function hornRings(
+  world: ThreeScene,
+  radius: number,
+  surface: SurfaceProbe,
+  kartHeight: number,
+): HornRings {
+  const rings: { mesh: Mesh<RingGeometry, MeshBasicMaterial>; blast: number | null }[] = [];
+  const geometry = new RingGeometry(1 - HORN_RING_WIDTH_M / radius, 1, 48);
+  geometry.rotateX(-Math.PI / 2);
+  const up = new Vector3(0, 1, 0);
+  const normal = new Vector3();
+  return {
+    show(blasts) {
+      while (rings.length < blasts.length) {
+        const material = new MeshBasicMaterial({
+          color: HAZARD_ORANGE.mid,
+          transparent: true,
+          opacity: HORN_RING_OPACITY,
+          depthWrite: false,
+          side: DoubleSide,
+        });
+        const mesh = new Mesh(geometry, material);
+        world.add(mesh);
+        rings.push({ mesh, blast: null });
+      }
+      rings.forEach((ring, index) => {
+        const blast = blasts[index];
+        ring.mesh.visible = blast !== undefined;
+        if (blast === undefined) {
+          ring.blast = null;
+          return;
+        }
+        if (ring.blast !== blast.id) {
+          ring.blast = blast.id;
+          const [x, y, z] = blast.position;
+          const road = surface.under(x, y, z);
+          normal.set(...(road?.normal ?? [0, 1, 0]));
+          const [rx, ry, rz] = road?.point ?? [x, y - kartHeight / 2, z];
+          ring.mesh.position.set(rx, ry, rz).addScaledVector(normal, HORN_RING_LIFT_M);
+          ring.mesh.quaternion.setFromUnitVectors(up, normal);
+        }
+        const grown = Math.min(blast.elapsedS / HORN_RING_GROW_S, 1);
+        ring.mesh.scale.setScalar(Math.max(radius * grown, 1e-3));
+        const fade = Math.max(1 - blast.elapsedS / BLAST_S, 0);
+        ring.mesh.material.opacity = HORN_RING_OPACITY * fade;
+      });
+    },
+  };
 }
 
 /**

@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   distanceLevel,
+  droneBeep,
+  hornBlasts,
   loopPlayback,
   SOUND_AWAY_LOWPASS_HZ,
   type SoundReading,
@@ -36,6 +38,8 @@ const STILL: SoundReading = {
   reelStep: null,
   starSeconds: null,
   nearestStar: null,
+  blasts: [],
+  incomingDroneMetres: null,
 };
 
 describe("soundCues", () => {
@@ -267,9 +271,43 @@ describe("soundCues", () => {
     expect(soundCues(STILL, STILL)).toEqual([]);
   });
 
+  it("plays the air horn in place of the item fire as a horn leaves the slot, once", () => {
+    const held: SoundReading = { ...STILL, item: "horn" };
+    expect(soundCues(held, STILL)).toEqual(["airHorn"]);
+    expect(soundCues(STILL, STILL)).toEqual([]);
+    expect(soundCues({ ...STILL, item: "hazard" }, STILL)).toEqual(["itemFire"]);
+  });
+
   it("reports every change of one frame together", () => {
     const after = { ...STILL, airborne: true, boxesTaken: 1, lap: 2 };
     expect(soundCues(STILL, after)).toEqual(["hop", "itemPickup", "lap"]);
+  });
+});
+
+describe("hornBlasts", () => {
+  const heard = (id: number, kart: number, metres: number) => ({ id, kart, metres });
+
+  it("hears each other kart's blast once, as it first appears, however long it lasts", () => {
+    const first = heard(1, 2, 8);
+    const second = heard(2, 5, 30);
+    expect(hornBlasts(undefined, { ...STILL, blasts: [first] })).toEqual([first]);
+    expect(hornBlasts({ ...STILL, blasts: [first] }, { ...STILL, blasts: [first] })).toEqual([]);
+    expect(
+      hornBlasts({ ...STILL, blasts: [first] }, { ...STILL, blasts: [first, second] }),
+    ).toEqual([second]);
+    expect(hornBlasts({ ...STILL, blasts: [first, second] }, STILL)).toEqual([]);
+  });
+});
+
+describe("droneBeep", () => {
+  it("starts at 40 m, every 0.35 s at the warning's edge, closing to every 0.1 s at the kart as the pitch rises by half", () => {
+    expect(droneBeep(null)).toBeNull();
+    expect(droneBeep(40.5)).toBeNull();
+    expect(droneBeep(40)).toEqual({ gapS: 0.35, rate: 1 });
+    const halfway = droneBeep(20);
+    expect(halfway?.gapS).toBeCloseTo(0.225, 6);
+    expect(halfway?.rate).toBeCloseTo(1.25, 6);
+    expect(droneBeep(0)).toEqual({ gapS: 0.1, rate: 1.5 });
   });
 });
 
@@ -411,6 +449,8 @@ describe("soundReading", () => {
       reelStep: null,
       starSeconds: null,
       nearestStar: null,
+      blasts: [],
+      incomingDroneMetres: null,
     });
   });
 
@@ -432,6 +472,36 @@ describe("soundReading", () => {
       nearestStar: { kart: 0, seconds: 2, metres: Math.hypot(1, 1) },
     });
     expect(soundReading(raceReadout({ karts: [off, off] }), 0).nearestStar).toBeNull();
+  });
+
+  it("takes the other karts' blasts by distance, never the own kart's, and the nearest drone chasing the own kart", () => {
+    const own = kartReadout({ position: [0, 0.3, 0] });
+    const other = kartReadout({ position: [30, 0.3, 0] });
+    const race = raceReadout({
+      karts: [own, other],
+      standings: [standing, standing],
+      blasts: [
+        { id: 1, kart: 0, position: [0, 0.3, 0], elapsedS: 0.1 },
+        { id: 2, kart: 1, position: [30, 0.3, -40], elapsedS: 0 },
+      ],
+      projectiles: [
+        { position: [0, 0, -45], owner: 1, target: 0 },
+        { position: [0, 0, -20], owner: 1, target: 0 },
+        { position: [0, 0, -5], owner: 0, target: 1 },
+      ],
+    });
+    expect(soundReading(race, 0)).toMatchObject({
+      blasts: [{ id: 2, kart: 1, metres: 50 }],
+      incomingDroneMetres: 20,
+    });
+    expect(soundReading(race, 1)).toMatchObject({
+      blasts: [{ id: 1, kart: 0, metres: 30 }],
+      incomingDroneMetres: Math.hypot(30, 5),
+    });
+    expect(soundReading(raceReadout({ karts: [own] }), 0)).toMatchObject({
+      blasts: [],
+      incomingDroneMetres: null,
+    });
   });
 
   it("takes the boxes taken, and the roll and the reel's step from the slot", () => {

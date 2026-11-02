@@ -6,16 +6,19 @@
 use crate::tuning::{
     ACCELERATION_TO_TOP_S, BOT_AVOID_HALF_WIDTH_M, BOT_BRAKE_HORIZON_S, BOT_CORNER_SAMPLE_M,
     BOT_CORNER_SPEED_FRACTION, BOT_DRIFT_CURVATURE_RAD_PER_M, BOT_HAZARD_HOLD_S, BOT_HOP_STEER,
-    BOT_ITEM_USE_DELAY_S, BOT_KERB_APPROACH_M, BOT_KERB_GAP_M, BOT_LINE_RIGHT_OF_CENTRE_M,
-    BOT_LOOKAHEAD_M, BOT_PASS_GAP_M, BOT_REVERSE_S, BOT_STALL_S, BOT_STALL_SPEED_M_PER_S,
-    BOT_WHEEL_MARGIN_S, BOT_WHEEL_SET_OFF_FRACTION, BRAKE_TO_STOP_S, DRIFT_SLIP_ANGLE_RAD,
-    DRIFT_TURN_NEUTRAL, DRIFT_TURN_STEER_RANGE, ITEM_BOOST_FACTOR, KART_HALF_LENGTH_M,
-    KART_HALF_WIDTH_M, KERB_HALF_LENGTH_M, KERB_HALF_WIDTH_M, REVERSE_TOP_SPEED_M_PER_S,
-    STEER_RATE_LOW_SPEED_RAD_PER_S, STEER_RATE_TOP_SPEED_RAD_PER_S, TOP_SPEED_M_PER_S,
-    WHEEL_LANDING_SPREAD_M, WHEEL_RADIUS_M, WHEEL_WARNING_S,
+    BOT_HORN_HOLD_S, BOT_ITEM_USE_DELAY_S, BOT_KERB_APPROACH_M, BOT_KERB_GAP_M,
+    BOT_LINE_RIGHT_OF_CENTRE_M, BOT_LOOKAHEAD_M, BOT_PASS_GAP_M, BOT_REVERSE_S, BOT_STALL_S,
+    BOT_STALL_SPEED_M_PER_S, BOT_WHEEL_MARGIN_S, BOT_WHEEL_SET_OFF_FRACTION, BRAKE_TO_STOP_S,
+    DRIFT_SLIP_ANGLE_RAD, DRIFT_TURN_NEUTRAL, DRIFT_TURN_STEER_RANGE, ITEM_BOOST_FACTOR,
+    KART_HALF_LENGTH_M, KART_HALF_WIDTH_M, KERB_HALF_LENGTH_M, KERB_HALF_WIDTH_M,
+    REVERSE_TOP_SPEED_M_PER_S, STEER_RATE_LOW_SPEED_RAD_PER_S, STEER_RATE_TOP_SPEED_RAD_PER_S,
+    TOP_SPEED_M_PER_S, WHEEL_LANDING_SPREAD_M, WHEEL_RADIUS_M, WHEEL_WARNING_S,
 };
 use crate::wheel::{pass_not_over, pass_start_s, Path};
-use crate::{DriftDirection, Item, KartInput, KartReadout, Phase, Placement, Standing, Track};
+use crate::{
+    DriftDirection, HornBlast, Item, KartInput, KartReadout, Phase, Placement, Standing, Track,
+};
+use rapier3d::prelude::{Rotation, Vec3};
 
 /// What a bot carries from one tick to the next: how long it has been
 /// stalled, how long it still backs up, how long it has held its item and
@@ -197,7 +200,10 @@ pub fn drive(
     // for the wheel and while the boosted kart would have to, so it never
     // throws the bot into a pass it judged at its own speed; a star is not,
     // since the wheel cannot hurt a star kart. A fired hazard is trailed
-    // for the tuned time, then dropped.
+    // for the tuned time, then dropped. A horn is worth saving: it is fired
+    // as soon as its blast would reach a kart it can hit, and otherwise once
+    // it has been held for the horn's own, longer, hold. The bot reads karts
+    // and not projectiles, so it fires at no projectile chasing it.
     let held = kart.item_slot.held();
     let has_target = held != Some(Item::Homing) || standings[slot].position > 1;
     let boost_meets_a_wheel = held == Some(Item::Boost)
@@ -212,6 +218,10 @@ pub fn drive(
             _ => false,
         };
     let use_item = match held {
+        Some(Item::Horn) => {
+            memory.item_held_s += dt;
+            memory.item_held_s >= BOT_HORN_HOLD_S || horn_hits_a_kart(track, karts, slot)
+        }
         Some(_) => {
             memory.item_held_s += dt;
             has_target
@@ -236,6 +246,25 @@ pub fn drive(
         use_item,
         hold_item,
     }
+}
+
+/// Whether the bot's horn, fired now, would reach a kart its blast can
+/// hit: another kart in reach that is neither spun out nor on a star's
+/// run. One trailing a hazard counts, though the blast only takes the
+/// hazard.
+fn horn_hits_a_kart(track: &Track, karts: &[KartReadout], slot: usize) -> bool {
+    let own = &karts[slot];
+    let blast = HornBlast::new(track, Vec3::from(own.position), own.spline_progress);
+    karts.iter().enumerate().any(|(other, kart)| {
+        other != slot
+            && kart.spin_out_s.is_none()
+            && kart.star_s.is_none()
+            && blast.reaches_kart(
+                Vec3::from(kart.position),
+                &Rotation::from_array(kart.rotation),
+                kart.spline_progress,
+            )
+    })
 }
 
 /// The point `right` metres right of the centreline at `progress`, as `[x, z]`.

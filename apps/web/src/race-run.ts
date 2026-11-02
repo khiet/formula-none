@@ -66,6 +66,55 @@ export const EMPTY_SLOT: ItemSlot = {
 };
 
 /**
+ * An Air Horn's blast under way: a fire the run reported, numbered in the
+ * order the run heard of them, whose it was, where the run had that kart
+ * at the fire, and how long ago it went off on the run's clock. The View
+ * grows its ring from this and the audio sounds it once; what the blast
+ * did to the karts reaches the readout as every spin-out does.
+ */
+export interface Blast {
+  readonly id: number;
+  readonly kart: number;
+  readonly position: readonly [number, number, number];
+  readonly elapsedS: number;
+}
+
+/** How long a blast is reported after its fire: the ring's growth and its fade. Presentation, so not the sim's to tune. */
+export const BLAST_S = 0.5;
+
+/**
+ * A run's record of the horn blasts under way, whichever run sources the
+ * fires: each numbered as it is reported, aged a tick at a time on the
+ * run's clock and dropped once the blast's time is up.
+ */
+export interface BlastLedger {
+  /** Report `kart`'s fire where it was drawn. */
+  fired(kart: number, position: readonly [number, number, number]): void;
+  /** Age every blast a tick, dropping those whose time is up. */
+  tick(): void;
+  /** The blasts under way, oldest first. */
+  blasts(): Blast[];
+}
+
+export function blastLedger(ticksPerSecond: number): BlastLedger {
+  const running: { blast: Blast; ticks: number }[] = [];
+  const lifeTicks = Math.round(BLAST_S * ticksPerSecond);
+  let reported = 0;
+  return {
+    fired(kart, position) {
+      reported++;
+      running.push({ blast: { id: reported, kart, position, elapsedS: 0 }, ticks: 0 });
+    },
+    tick() {
+      for (const entry of running) entry.ticks++;
+      while ((running[0]?.ticks ?? 0) >= lifeTicks) running.shift();
+    },
+    blasts: () =>
+      running.map(({ blast, ticks }) => ({ ...blast, elapsedS: ticks / ticksPerSecond })),
+  };
+}
+
+/**
  * What the run says of the race as of the last tick, read once a frame and
  * handed whole to the View, the Instrument panel and the audio.
  */
@@ -87,6 +136,8 @@ export interface RaceReadout {
   readonly projectiles: readonly Projectile[];
   /** The runaway wheel at each of the track's crossings, in the sidecar's order. */
   readonly wheels: readonly Wheel[];
+  /** The horn blasts under way, every kart's, oldest first. */
+  readonly blasts: readonly Blast[];
 }
 
 /**

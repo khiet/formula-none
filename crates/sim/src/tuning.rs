@@ -373,6 +373,19 @@ pub const STAR_KICK_FACTOR: f32 = ITEM_BOOST_FACTOR;
 /// the run, so this reach is the touch.
 pub const STAR_HIT_RADIUS_M: f32 = 1.0;
 
+// The Air Horn (GLOSSARY: Air Horn). Fired, it lets off one blast round the
+// kart that spins out the karts in reach and uses up the hazards and
+// projectiles in reach; the one item worth saving and timing.
+
+/// How far from the firing kart's centre the blast reaches, seen from
+/// above: a kart whose collision box, a hazard or a projectile within this
+/// is in reach. Wall to wall on a road about 12 m wide.
+pub const HORN_RADIUS_M: f32 = 7.0;
+/// The most spline progress away, the shorter way round the lap, that the
+/// blast reaches, so distance alone does not carry it through a crossover
+/// or across the barrier between two sections of road.
+pub const HORN_PROGRESS_WINDOW_M: f32 = 15.0;
+
 // Coins (GLOSSARY: coin). A kart collects the coins lying on the track, up
 // to a full purse, each raising its forward top speed; every spin-out costs it some.
 
@@ -422,12 +435,17 @@ pub struct ItemRollWeights {
     pub boost: u8,
     pub homing: u8,
     pub star: u8,
+    pub horn: u8,
 }
 
 impl ItemRollWeights {
     /// What the band's weights sum to.
     const fn total(&self) -> u32 {
-        self.hazard as u32 + self.boost as u32 + self.homing as u32 + self.star as u32
+        self.hazard as u32
+            + self.boost as u32
+            + self.homing as u32
+            + self.star as u32
+            + self.horn as u32
     }
 }
 
@@ -438,27 +456,32 @@ pub const ITEM_ROLL_PERCENT: u32 = 100;
 /// Roll weights by race position. Bands are contiguous and cover every grid
 /// slot; each band's weights sum to `ITEM_ROLL_PERCENT`. The star never
 /// reaches the front two and is most likely at the back: the comeback item.
+/// The horn mostly goes to the front and the middle, which have the most
+/// to protect and the most karts nearby.
 pub const ITEM_ROLL_WEIGHTS: [ItemRollWeights; 3] = [
     ItemRollWeights {
         positions: (1, 2),
-        hazard: 70,
-        boost: 20,
+        hazard: 60,
+        boost: 15,
         homing: 10,
         star: 0,
+        horn: 15,
     },
     ItemRollWeights {
         positions: (3, 5),
-        hazard: 30,
-        boost: 35,
-        homing: 30,
+        hazard: 25,
+        boost: 30,
+        homing: 25,
         star: 5,
+        horn: 15,
     },
     ItemRollWeights {
         positions: (6, 8),
-        hazard: 10,
+        hazard: 5,
         boost: 35,
         homing: 40,
         star: 15,
+        horn: 5,
     },
 ];
 
@@ -473,6 +496,10 @@ pub const BOT_ITEM_USE_DELAY_S: f32 = 2.0;
 /// Seconds a bot trails a fired hazard behind itself before dropping it;
 /// no longer than it would hold an unused item.
 pub const BOT_HAZARD_HOLD_S: f32 = 1.5;
+/// Seconds a bot keeps a horn with no kart its blast can hit before it
+/// fires it anyway, in place of the first-straight rule and the use delay:
+/// the horn is worth saving for a kart to hit.
+pub const BOT_HORN_HOLD_S: f32 = 10.0;
 /// Top speed scale by distance to the nearest human: slower far ahead,
 /// faster far behind.
 pub const BOT_RUBBER_BAND_MIN_FACTOR: f32 = 0.92;
@@ -636,6 +663,14 @@ const _: () = {
             / (TICKS_PER_SECOND as f32)
             < 2.0 * (STAR_HIT_RADIUS_M + KART_HALF_LENGTH_M)
     );
+    // The blast reaches less far than its progress window, so a kart in
+    // reach by distance on the same road is never dropped by the window;
+    // and the window is narrower than the one a reading is searched in
+    // (ADR 0046), so the blast cannot reach a road the readings themselves
+    // could not tell apart.
+    assert!(0.0 < HORN_RADIUS_M && HORN_RADIUS_M < HORN_PROGRESS_WINDOW_M);
+    assert!(HORN_PROGRESS_WINDOW_M < PROGRESS_WINDOW_M);
+    assert!(BOT_ITEM_USE_DELAY_S < BOT_HORN_HOLD_S);
     // Every band's roll weights share out the whole roll.
     {
         let mut band = 0;
@@ -736,6 +771,9 @@ pub struct Tuning {
     /// How long a star's run lasts, which the Instrument panel's ring counts
     /// down and the star music is joined against.
     pub star_s: f32,
+    /// How far the Air Horn's blast reaches, so the View's ring grows to
+    /// the reach.
+    pub horn_radius_m: f32,
     /// The runaway wheel's reach, so the View draws a wheel that size.
     pub wheel_radius_m: f32,
     pub top_speed_m_per_s: f32,
@@ -778,6 +816,7 @@ pub const TUNING: Tuning = Tuning {
     hazard_drop_distance_m: HAZARD_DROP_DISTANCE_M,
     spin_out_s: SPIN_OUT_S,
     star_s: STAR_S,
+    horn_radius_m: HORN_RADIUS_M,
     wheel_radius_m: WHEEL_RADIUS_M,
     top_speed_m_per_s: TOP_SPEED_M_PER_S,
     camera_pull_back_m: CAMERA_PULL_BACK_M,

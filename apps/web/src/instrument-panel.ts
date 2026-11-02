@@ -1,6 +1,7 @@
 import instrumentFontUrl from "../../../assets/fonts/kenney/Kenney Mini Square.ttf?url";
 import type { Phase, Standing } from "./bridge";
 import { type CourseMapSetup, createCourseMap } from "./course-map";
+import { droneWarned, incomingDroneMetres } from "./drone-warning";
 import {
   formatLapTime,
   NO_LAP_TIME,
@@ -28,6 +29,7 @@ import {
   CARBON,
   COIN_GOLD,
   COIN_RIM,
+  DRONE_EYE,
   FIRING,
   GO_GREEN,
   HAZARD_ORANGE,
@@ -154,7 +156,9 @@ export function loadInstrumentFont(): Promise<void> {
  * runs the rainbow loop through its tiles, and through the own kart's star
  * run a rainbow ring round the slot counts the tuned run down (ADR
  * 0075); under `reducedMotion` the tiles hold their colours and the ring
- * still counts down.
+ * still counts down. Beside the slot the drone warning's marker shows
+ * while a homing projectile chasing the own kart is within the warning
+ * distance (ADR 0076), so the horn can be timed to meet it.
  * Each readout is addressable by `data-instrument` so tests and styles
  * find it the same way.
  */
@@ -249,7 +253,20 @@ export function createInstrumentPanel(
   // and the reel's clip leave it whole.
   const itemWithRing = document.createElement("span");
   itemWithRing.dataset.itemWithRing = "";
-  itemWithRing.append(item, ring);
+  // The drone warning's marker to the right of the slot, toward the road:
+  // the drone's red eye, hidden until a drone chasing the own kart is
+  // within the warning distance.
+  const droneWarning = document.createElement("span");
+  droneWarning.dataset.droneWarning = "";
+  droneWarning.setAttribute("role", "img");
+  droneWarning.setAttribute("aria-label", "Drone incoming");
+  droneWarning.hidden = true;
+  const eye = svg("0 0 100 100");
+  polygon(eye, ngon(8, 50, 50, 46), WHITE.mid);
+  polygon(eye, ngon(8, 50, 50, 34), DRONE_EYE);
+  polygon(eye, ngon(6, 54, 46, 11), INK);
+  droneWarning.append(eye);
+  itemWithRing.append(droneWarning, item, ring);
   const banner = instrument("connection-banner", CONNECTION_LOST_BANNER);
   plate(banner, POSTER_RED);
   banner.hidden = true;
@@ -449,6 +466,9 @@ export function createInstrumentPanel(
       if (shownSprite !== null && slot.item === "star" && !reducedMotion) {
         shineBall(shownSprite, performance.now() / 1000);
       }
+      droneWarning.hidden = !droneWarned(
+        incomingDroneMetres(race.projectiles, course.ownKart, local),
+      );
       const starS = local.starS;
       ring.style.display = starS === null ? "none" : "";
       if (starS !== null) {
@@ -579,6 +599,7 @@ const ITEM_NAMES: Readonly<Record<Item, string>> = {
   hazard: "Hazard",
   homing: "Homing",
   star: "Star",
+  horn: "Air Horn",
 };
 
 /** What the panel reads of the sim's tuning: the speed cluster's, and how long a star's run lasts. */

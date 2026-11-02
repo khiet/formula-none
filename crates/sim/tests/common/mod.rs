@@ -4,7 +4,7 @@
 #![allow(dead_code)]
 
 use sim::tuning::{BOT_LOOKAHEAD_M, KART_BUMP_DECAY_S, TICKS_PER_SECOND};
-use sim::{step, KartInput, KartReadout, Phase, State, Track};
+use sim::{step, Item, KartInput, KartReadout, Phase, RaceEvent, State, Track};
 
 pub const OVAL: &str = include_str!("../../../../assets/tracks/oval/oval.track.json");
 pub const BELL_DEER: &str =
@@ -310,4 +310,33 @@ pub fn oval_without_item_boxes() -> Track {
 /// A driver that holds the throttle with the wheel centred.
 pub fn straight(_: &State, _: usize) -> KartInput {
     throttle()
+}
+
+/// Whether the pickups the last tick reported include `kart` rolling `item`.
+pub fn rolled(state: &State, kart: usize, item: Item) -> bool {
+    state.events().iter().any(|event| {
+        matches!(event, RaceEvent::ItemPicked { kart: by, item: Some(rolled), .. } if *by == kart && *rolled == item)
+    })
+}
+
+/// A race of `humans` karts and `bots` bots on the track `build` makes for
+/// the seed, stepped on until the items `rolls` names, rolled at Go by the
+/// karts standing on boxes under their slots, have landed: the seeds are
+/// tried in order until one rolls them all. A roll the slot's band never
+/// makes, such as a star in the front two, is never found: the search does
+/// not return.
+pub fn rolling(
+    build: impl Fn() -> Track,
+    humans: usize,
+    bots: usize,
+    rolls: &[(usize, Item)],
+) -> State {
+    for seed in 0.. {
+        let state = started(State::with_bots(seed, humans, bots, build()));
+        let state = step(state, &vec![KartInput::default(); humans], DT);
+        if rolls.iter().all(|&(slot, item)| rolled(&state, slot, item)) {
+            return landed(state, humans, rolls.iter().map(|&(slot, _)| slot));
+        }
+    }
+    unreachable!()
 }

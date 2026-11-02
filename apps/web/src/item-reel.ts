@@ -8,7 +8,7 @@
 import type { Item } from "./generated/protocol";
 
 /** Each icon on the strip is the next of these after the one above it, so no two in a row match. */
-const REEL_ORDER: readonly Item[] = ["boost", "hazard", "homing", "star"];
+const REEL_ORDER: readonly Item[] = ["boost", "hazard", "homing", "star", "horn"];
 /** The gap between changes at the roll's start, and how much it grows by its end. */
 const REEL_FIRST_GAP_S = 0.05;
 const REEL_GAP_GROWTH_S = 0.23;

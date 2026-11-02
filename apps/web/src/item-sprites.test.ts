@@ -5,7 +5,7 @@ import { itemSprite } from "./item-sprites";
 import { hexCss } from "./livery";
 import { STAR_RAINBOW, STAR_TILES } from "./star-shine";
 
-const items: readonly Item[] = ["boost", "hazard", "homing", "star"];
+const items: readonly Item[] = ["boost", "hazard", "homing", "star", "horn"];
 
 describe("the item characters", () => {
   it.each(items)(

@@ -25,6 +25,11 @@ coinTopSpeedsMPerS: [number, number, number, number, number, number, number, num
  */
 starS: number, 
 /**
+ * How far the Air Horn's blast reaches, so the View's ring grows to
+ * the reach.
+ */
+hornRadiusM: number, 
+/**
  * The runaway wheel's reach, so the View draws a wheel that size.
  */
 wheelRadiusM: number, topSpeedMPerS: number, cameraPullBackM: number, cameraShakeS: number, cameraShakeAmplitudeM: number, cameraFieldOfViewDeg: number, cameraBoostKick: number, cameraBoostKickEaseS: number, webtransportConnectTimeoutS: number, pingTimeoutS: number, pingResendS: number, connectionSilenceS: number, reconnectRetryS: number, nicknameMinChars: number, nicknameMaxChars: number, roomCodeLength: number, };

@@ -3,7 +3,13 @@ import { describe, expect, it } from "vitest";
 import { loadBridge } from "./bridge";
 import { IDLE_INPUT } from "./input";
 import { localRaceRun } from "./local-race";
-import { EMPTY_SLOT, ITEM_FIRE_FLASH_S, ITEM_LANDING_FLASH_S, type RaceRun } from "./race-run";
+import {
+  BLAST_S,
+  EMPTY_SLOT,
+  ITEM_FIRE_FLASH_S,
+  ITEM_LANDING_FLASH_S,
+  type RaceRun,
+} from "./race-run";
 
 // The real wasm build, as bridge.test.ts loads it; `pnpm build:bridge`
 // must have run first.
@@ -89,5 +95,33 @@ describe("localRaceRun's item slot", () => {
     run.tick(IDLE_INPUT, DT);
     expect(run.readout().itemSlot.boxesTaken).toBe(2);
     expect(run.readout().itemSlot.rolling?.item).toBe(rolling?.item);
+  });
+});
+
+describe("localRaceRun's horn blasts", () => {
+  it("reports a horn's blast where the sim has the kart that fired it, for the blast's time", async () => {
+    const bridge = await loadBridge(wasm);
+    // The seeds are tried in order until the box under the grid rolls a horn.
+    let run: RaceRun | undefined;
+    for (let seed = 1n; run === undefined; seed++) {
+      const candidate = localRaceRun(bridge, "oval", boxesUnderTheGrid(1), {
+        seed,
+        humanCount: 1,
+        localKart: 0,
+      });
+      started(candidate);
+      candidate.tick(IDLE_INPUT, DT);
+      if (candidate.readout().itemSlot.rolling?.item === "horn") run = candidate;
+    }
+    while (run.readout().itemSlot.item === null) run.tick(IDLE_INPUT, DT);
+    expect(run.readout().blasts).toEqual([]);
+    run.tick({ ...IDLE_INPUT, useItem: true }, DT);
+    const own = run.readout().karts[0]?.position;
+    expect(run.readout().blasts).toEqual([{ id: 1, kart: 0, position: own, elapsedS: 0 }]);
+    for (let tick = 1; tick < BLAST_S * 60; tick++) run.tick(IDLE_INPUT, DT);
+    expect(run.readout().blasts).toMatchObject([{ id: 1, kart: 0 }]);
+    expect(run.readout().blasts[0]?.elapsedS).toBeCloseTo(BLAST_S - DT, 5);
+    run.tick(IDLE_INPUT, DT);
+    expect(run.readout().blasts).toEqual([]);
   });
 });

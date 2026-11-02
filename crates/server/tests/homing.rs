@@ -31,24 +31,26 @@ const WAIT_ON_THE_GRID_S: f32 = 6.0;
 const CHASER: u8 = 1;
 
 impl Heard {
-    /// The first hit the chaser scored.
+    /// The first hit the chaser scored with a projectile: a hit by the
+    /// chaser whose last fire before it was a projectile's. A star or a
+    /// horn the chaser rolls hits without a flight and is passed over.
     fn hit(&self) -> Option<Event> {
-        self.events
-            .iter()
-            .copied()
-            .find(|event| matches!(event.kind, EventKind::Hit { by, .. } if by == Some(CHASER)))
+        self.events.iter().copied().find(|event| {
+            matches!(event.kind, EventKind::Hit { by, .. } if by == Some(CHASER))
+                && self.fire_before(*event).is_some_and(|fire| {
+                    fire.kind
+                        == EventKind::ItemFired {
+                            kart: CHASER,
+                            item: Item::Homing,
+                        }
+                })
+        })
     }
 
-    /// The chaser's last fire of a projectile before `hit`: the one that
-    /// scored it.
+    /// The chaser's last fire before `hit`: the one that scored it.
     fn fire_before(&self, hit: Event) -> Option<Event> {
         self.events.iter().copied().rfind(|event| {
-            event.id < hit.id
-                && event.kind
-                    == EventKind::ItemFired {
-                        kart: CHASER,
-                        item: Item::Homing,
-                    }
+            event.id < hit.id && matches!(event.kind, EventKind::ItemFired { kart: CHASER, .. })
         })
     }
 
@@ -89,7 +91,7 @@ async fn a_projectiles_fire_flight_and_hit_are_the_servers_and_both_clients_see_
     // A seed whose race rolls no bot the start boost, so the bots pass the
     // waiting chaser clean and it chases from the back of the field.
     let mut harness = Harness::new(Conditions {
-        seed: 2,
+        seed: 122,
         ..Conditions::PERFECT
     });
     let code = harness.create_room();

@@ -22,7 +22,7 @@ import type {
 } from "./generated/protocol";
 import { IDLE_INPUT } from "./input";
 import { kartReadout } from "./kart-readout-fixture";
-import { EMPTY_SLOT, ITEM_FIRE_FLASH_S, ITEM_LANDING_FLASH_S } from "./race-run";
+import { BLAST_S, EMPTY_SLOT, ITEM_FIRE_FLASH_S, ITEM_LANDING_FLASH_S } from "./race-run";
 import {
   type Countdown,
   joinRoom,
@@ -584,6 +584,35 @@ describe("createServerRace", () => {
     expect(trailed?.position[0]).toBeCloseTo(20 + HAZARD_DROP_DISTANCE_M, 5);
     expect(trailed?.position[1]).toBeCloseTo(0.3 - KART_HEIGHT_M / 2, 5);
     expect(trailed?.position[2]).toBeCloseTo(-50, 5);
+  });
+
+  it("reports every kart's horn blast where that kart is drawn, for the blast's time", () => {
+    const client = fakeClient();
+    const run = createServerRace(bridge, client, COUNTDOWN, 0, "{}");
+    expect(run.readout().blasts).toEqual([]);
+    const other: KartReadout = { ...GRID_TRANSFORM, position: [20, 0.3, -50] };
+    prediction().interpolated = Array<KartReadout>(KARTS).fill(other);
+    client.event({ id: 1, kind: { itemFired: { kart: 3, item: "horn" } } });
+    expect(run.readout().blasts).toEqual([
+      { id: 1, kart: 3, position: [20, 0.3, -50], elapsedS: 0 },
+    ]);
+    // The own kart's blast is where it is predicted; the blasts age on the
+    // run's clock and go once the blast's time is up.
+    client.event({ id: 2, kind: { itemFired: { kart: 0, item: "horn" } } });
+    run.tick(IDLE_INPUT, 1 / TICKS_PER_SECOND);
+    expect(run.readout().blasts).toEqual([
+      { id: 1, kart: 3, position: [20, 0.3, -50], elapsedS: 1 / TICKS_PER_SECOND },
+      { id: 2, kart: 0, position: PREDICTED.position, elapsedS: 1 / TICKS_PER_SECOND },
+    ]);
+    for (let tick = 2; tick < BLAST_S * TICKS_PER_SECOND; tick++) {
+      run.tick(IDLE_INPUT, 1 / TICKS_PER_SECOND);
+    }
+    expect(run.readout().blasts).toHaveLength(2);
+    run.tick(IDLE_INPUT, 1 / TICKS_PER_SECOND);
+    expect(run.readout().blasts).toEqual([]);
+    // Another item's fire is no blast.
+    client.event({ id: 3, kind: { itemFired: { kart: 2, item: "boost" } } });
+    expect(run.readout().blasts).toEqual([]);
   });
 
   it("draws the projectiles where the interpolation has them between the snapshots", () => {

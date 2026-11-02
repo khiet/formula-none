@@ -149,6 +149,8 @@ export interface Race {
    * whether an item began to roll or its full slot took nothing.
    */
   boxesTakenLastStep(kart: number): number;
+  /** The grid slots of the karts that fired a horn on the last step, in the order they fired. */
+  hornsFiredLastStep(): number[];
   /** The track's coins, in the sidecar's order; fixed for the race. */
   coins(): Coin[];
   /** Whether each coin, in the same order, is there to pick up as of the last step. */
@@ -306,6 +308,8 @@ export interface Bridge extends MessageCodec {
   readonly spinOutSeconds: number;
   /** How long a star's run lasts (ADR 0075), which the panel's ring counts down and the star music is joined against. */
   readonly starSeconds: number;
+  /** How far the Air Horn's blast reaches, which the View's ring grows to. */
+  readonly hornRadiusMetres: number;
   /** The runaway wheel's reach (ADR 0014), which the View draws as its radius. */
   readonly runawayWheelRadiusMetres: number;
   /** The chase camera's pull-back and shake, from the sim's tuning (ADR 0020). */
@@ -390,6 +394,7 @@ export async function loadBridge(wasm?: BufferSource): Promise<Bridge> {
     hazardDropDistanceMetres: tuned.hazardDropDistanceM,
     spinOutSeconds: tuned.spinOutS,
     starSeconds: tuned.starS,
+    hornRadiusMetres: tuned.hornRadiusM,
     runawayWheelRadiusMetres: tuned.wheelRadiusM,
     cameraTuning: {
       topSpeedMetresPerSecond: tuned.topSpeedMPerS,
@@ -514,6 +519,10 @@ class BridgedRace implements Race {
 
   boxesTakenLastStep(kart: number): number {
     return this.#race.boxes_taken_last_step(kart);
+  }
+
+  hornsFiredLastStep(): number[] {
+    return Array.from(this.#race.horns_fired_last_step());
   }
 
   coins(): Coin[] {

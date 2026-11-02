@@ -44,5 +44,5 @@ test("an item box taken at Go rolls, then lands in the slot", async ({ page }) =
   const rolledFor = Number(minutes) * 60 + Number(seconds) + Number(millis) / 1000;
   expect(rolledFor, lapTime).toBeGreaterThan(2);
   expect(rolledFor, lapTime).toBeLessThanOrEqual(3);
-  await expect(item).toHaveAttribute("data-item", /^(boost|hazard|homing|star)$/);
+  await expect(item).toHaveAttribute("data-item", /^(boost|hazard|homing|star|horn)$/);
 });

@@ -1,6 +1,7 @@
 import type { Bridge, KartInput } from "./bridge";
 import { IDLE_INPUT } from "./input";
 import {
+  blastLedger,
   ITEM_FIRE_FLASH_S,
   ITEM_LANDING_FLASH_S,
   landedItem,
@@ -52,6 +53,7 @@ export function localRaceRun(
   // applies the tick it is pressed; the slot shows it for the flash.
   let flashTicksLeft = 0;
   let landingTicksLeft = 0;
+  const blasts = blastLedger(bridge.ticksPerSecond);
   return {
     humanCount: setup.humanCount,
     localKart: setup.localKart,
@@ -70,6 +72,13 @@ export function localRaceRun(
         rollingOf(before, bridge.itemRollSeconds) !== null && landedItem(after) !== null
           ? ticks(ITEM_LANDING_FLASH_S)
           : Math.max(landingTicksLeft - 1, 0);
+      blasts.tick();
+      // A blast is where the sim has the kart the tick it fired.
+      const karts = race.kartReadouts();
+      for (const kart of race.hornsFiredLastStep()) {
+        const position = karts[kart]?.position;
+        if (position !== undefined) blasts.fired(kart, position);
+      }
     },
     readout: () => {
       const karts = race.kartReadouts();
@@ -90,6 +99,7 @@ export function localRaceRun(
         hazards: race.hazards(),
         projectiles: race.projectiles(),
         wheels: race.wheels(),
+        blasts: blasts.blasts(),
       };
     },
     itemBoxes: () => boxes,

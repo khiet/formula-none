@@ -53,7 +53,7 @@ describe("reelFrame", () => {
 });
 
 describe("reelStrip", () => {
-  it.each(["boost", "hazard", "homing", "star"] as const)(
+  it.each(["boost", "hazard", "homing", "star", "horn"] as const)(
     "stops on %s, the item the roll lands",
     (item) => {
       const strip = reelStrip(item, ROLL_S);

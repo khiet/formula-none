@@ -221,6 +221,11 @@ fn every_event_kind() -> Vec<Event> {
             kart: 3,
             item: Item::Homing,
         },
+        // Another kart's horn, which every client acts on.
+        EventKind::ItemFired {
+            kart: 0,
+            item: Item::Horn,
+        },
         EventKind::CoinPicked { kart: 1, coin: 9 },
         EventKind::Hit {
             kart: 6,

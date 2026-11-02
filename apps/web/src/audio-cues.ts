@@ -4,11 +4,16 @@
 // own, `audio-engine.ts`. Presentation, so it reads what the sim reports
 // and never the inputs: a hop sounds when the kart leaves the ground, not
 // when the button goes down, and the countdown beeps as the race's count
-// changes, never from a clock of its own. The star's music is the one
-// sound that hears another kart (ADR 0075): the reading carries the
-// nearest star kart's run, and the music follows the own run first.
+// changes, never from a clock of its own. Two sounds hear other karts:
+// the star's music (ADR 0075), from the nearest star kart's run the
+// reading carries, and the Air Horn's blast (ADR 0076), from every other
+// kart's blast the reading carries, each heard once by distance. The
+// drone warning's beep is the one sound on a clock: it repeats while a
+// drone chasing the own kart is within the warning's reach, faster and
+// higher as it closes, from the distance the reading carries.
 
 import type { KartReadout, MiniTurbo, Surface } from "./bridge";
+import { DRONE_WARNING_M, droneWarned, incomingDroneMetres } from "./drone-warning";
 import type { Item, Start } from "./generated/protocol";
 import { reelFrame } from "./item-reel";
 import { groundDistance } from "./kart-frame";
@@ -34,7 +39,9 @@ export type SoundCue =
   | "wrongWay"
   | "finish"
   | "starFire"
-  | "starEnd";
+  | "starEnd"
+  | "airHorn"
+  | "droneBeep";
 
 /** The sounds that run while a state holds: the drift skid and the two run-off surfaces. */
 export type SoundLoop = "driftSkid" | "grass" | "sand";
@@ -75,6 +82,19 @@ export interface SoundReading {
   readonly starSeconds: number | null;
   /** The nearest other kart on a star run, by distance; null while none is. */
   readonly nearestStar: NearestStar | null;
+  /** The other karts' horn blasts under way, by distance; never the own kart's, whose fire the slot sounds. */
+  readonly blasts: readonly HeardBlast[];
+  /** Metres to the nearest homing projectile chasing the own kart; null while none is. */
+  readonly incomingDroneMetres: number | null;
+}
+
+/** Another kart's horn blast, as the own kart hears it. */
+export interface HeardBlast {
+  /** The run's number for the blast, so each is heard once however long it is reported. */
+  readonly id: number;
+  readonly kart: number;
+  /** Metres from the own kart, along the ground. */
+  readonly metres: number;
 }
 
 /** Another kart on a star run, as the own kart hears it. */
@@ -121,6 +141,14 @@ export function soundReading(race: RaceReadout, kart: number): SoundReading {
         : reelFrame(itemSlot.rolling.elapsedS, itemSlot.rolling.rollS).step,
     starSeconds: readout.starS,
     nearestStar: nearestStar(race.karts, kart),
+    blasts: race.blasts
+      .filter((blast) => blast.kart !== kart)
+      .map((blast) => ({
+        id: blast.id,
+        kart: blast.kart,
+        metres: groundDistance({ position: blast.position }, readout),
+      })),
+    incomingDroneMetres: incomingDroneMetres(race.projectiles, kart, readout),
   };
 }
 
@@ -168,7 +196,8 @@ export const STAR_RESTART_RISE_S = 0.5;
  * the same chime to orange and to red, the sparks telling which; the
  * pickup as the kart takes a box, whatever it gave; the click as the
  * slot's reel steps on, once a frame however far it went; the landing as
- * the rolled item lands; the fire as the slot empties, except for a star,
+ * the rolled item lands; the fire as the slot empties, the horn's own
+ * blast for a horn, except for a star,
  * whose own fire sounds instead as its run begins or as a second star puts
  * the run's seconds back up by more than a correction could; the coin
  * pickup as
@@ -210,6 +239,7 @@ export function soundCues(before: SoundReading | undefined, after: SoundReading)
   }
   if (before.rolling && !after.rolling && after.item !== null) cues.push("itemRolled");
   if (starRose) cues.push("starFire");
+  else if (fired && before.item === "horn") cues.push("airHorn");
   else if (fired && before.item !== "star") cues.push("itemFire");
   if (after.coins > before.coins) cues.push("coinPickup");
   if (!before.spunOut && after.spunOut) cues.push("hit");
@@ -223,6 +253,43 @@ export function soundCues(before: SoundReading | undefined, after: SoundReading)
   if (finishedNow) cues.push("finish");
   else if (after.lap > before.lap) cues.push("lap");
   return cues;
+}
+
+/**
+ * The other karts' blasts `after` carries that `before` did not: each is
+ * heard once, the frame it first appears, however long the run reports
+ * it.
+ */
+export function hornBlasts(before: SoundReading | undefined, after: SoundReading): HeardBlast[] {
+  const heard = new Set(before?.blasts.map((blast) => blast.id));
+  return after.blasts.filter((blast) => !heard.has(blast.id));
+}
+
+/** The warning's beep repeats this often at the warning's edge, and this often at the kart. */
+const DRONE_BEEP_GAP_FAR_S = 0.35;
+const DRONE_BEEP_GAP_NEAR_S = 0.1;
+/** The rate the beep's file plays at by the time the drone reaches the kart; 1 at the warning's edge. */
+const DRONE_BEEP_RATE_NEAR = 1.5;
+
+/** How the drone warning's beep repeats: the gap to the next beep and the rate the file plays at. */
+export interface DroneBeep {
+  readonly gapS: number;
+  readonly rate: number;
+}
+
+/**
+ * The beep the warning calls for with the nearest drone chasing the own
+ * kart `metres` away: none beyond the warning's reach; from there the gap
+ * closes and the rate rises in a straight line from the edge's values to
+ * the kart's as the drone reaches the kart.
+ */
+export function droneBeep(metres: number | null): DroneBeep | null {
+  if (metres === null || !droneWarned(metres)) return null;
+  const left = Math.max(metres, 0) / DRONE_WARNING_M;
+  return {
+    gapS: DRONE_BEEP_GAP_NEAR_S + (DRONE_BEEP_GAP_FAR_S - DRONE_BEEP_GAP_NEAR_S) * left,
+    rate: DRONE_BEEP_RATE_NEAR - (DRONE_BEEP_RATE_NEAR - 1) * left,
+  };
 }
 
 /** Within this far a sound from another kart plays at full level, falling in a straight line to silent at the far distance. */

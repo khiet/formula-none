@@ -22,10 +22,11 @@ import { STAR_RAINBOW, STAR_TILES } from "./star-shine";
 /**
  * The item slot's characters (ADR 0037): each item drawn flat from the
  * View's mesh for it, in polygons lifted from the style guide's drawings
- * (docs/style-guide.html). The champagne bottle and the mirror ball have
- * no mesh, since a boost and a star never show on the road: the star kart
- * shines and stays a kart (ADR 0075). Original work, CC0 like the rest of
- * the art (assets/LICENSES.md).
+ * (docs/style-guide.html). The champagne bottle, the mirror ball and the
+ * air horn have no mesh, since a boost and a star never show on the road,
+ * the star kart shining and staying a kart (ADR 0075), and a horn shows
+ * only as its blast's ring (ADR 0076). Original work, CC0 like the rest
+ * of the art (assets/LICENSES.md).
  */
 
 type Drawing = (parent: SVGSVGElement) => void;
@@ -55,6 +56,14 @@ const lerp = (a: Point, b: Point, t: number): Point => [
   a[0] + (b[0] - a[0]) * t,
   a[1] + (b[1] - a[1]) * t,
 ];
+
+/** An ellipse at (`cx`, `cy`) of radii `rx` and `ry` as a polygon of `sides`, for the horn's round parts. */
+function ellipse(cx: number, cy: number, rx: number, ry: number, sides = 12): Point[] {
+  return Array.from({ length: sides }, (_, side) => {
+    const angle = (2 * Math.PI * side) / sides;
+    return [cx + rx * Math.cos(angle), cy + ry * Math.sin(angle)];
+  });
+}
 
 /** A traffic cone that hates you: six faceted sides, a white band, V brows and a flat mouth. */
 const hazard: Drawing = (parent) => {
@@ -352,7 +361,102 @@ const star: Drawing = (parent) => {
   }
 };
 
-const DRAWINGS: Readonly<Record<Item, Drawing>> = { boost, hazard, homing, star };
+/**
+ * The grandstand air horn, scowling: a red can with a lit side and a
+ * shaded side, the grey cap and the carbon valve on top, the bell flaring
+ * right from the valve to its dark mouth, and on the can two round eyes
+ * under V brows over a round open mouth. Still when held (ADR 0024).
+ */
+const horn: Drawing = (parent) => {
+  shadow(parent, 72, 140, 46, 6);
+  polygon(parent, rectangle(54, 34, 78, 44), CARBON.mid);
+  polygon(parent, rectangle(52, 44, 80, 60), WHITE.shaded);
+  polygon(
+    parent,
+    [
+      [76, 46],
+      [118, 46],
+      [168, 18],
+      [168, 92],
+      [118, 66],
+      [76, 60],
+    ],
+    WHITE.mid,
+  );
+  polygon(
+    parent,
+    [
+      [118, 46],
+      [168, 18],
+      [168, 55],
+      [118, 56],
+    ],
+    WHITE.lit,
+  );
+  polygon(parent, ellipse(168, 55, 8, 37), CARBON.mid);
+  polygon(
+    parent,
+    [
+      [36, 70],
+      [46, 60],
+      [86, 60],
+      [96, 70],
+      [96, 136],
+      [36, 136],
+    ],
+    POSTER_RED.mid,
+  );
+  polygon(
+    parent,
+    [
+      [36, 70],
+      [46, 60],
+      [60, 60],
+      [60, 136],
+      [36, 136],
+    ],
+    POSTER_RED.lit,
+  );
+  polygon(
+    parent,
+    [
+      [82, 60],
+      [86, 60],
+      [96, 70],
+      [96, 136],
+      [82, 136],
+    ],
+    POSTER_RED.shaded,
+  );
+  for (const [x, pupil] of [
+    [55, 57],
+    [78, 80],
+  ] as const) {
+    polygon(parent, ngon(8, x, 90, 7), VALUE_WHITE);
+    polygon(parent, ngon(8, pupil, 91, 3.5), INK);
+  }
+  stroke(
+    parent,
+    [
+      [46, 78],
+      [62, 83],
+    ],
+    INK,
+    4,
+  );
+  stroke(
+    parent,
+    [
+      [87, 78],
+      [71, 83],
+    ],
+    INK,
+    4,
+  );
+  polygon(parent, ellipse(67, 113, 10, 8), INK);
+};
+
+const DRAWINGS: Readonly<Record<Item, Drawing>> = { boost, hazard, homing, star, horn };
 
 /**
  * The item's character as an inline SVG, at whatever size the slot gives
