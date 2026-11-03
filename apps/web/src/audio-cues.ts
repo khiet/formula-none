@@ -44,7 +44,8 @@ export type SoundCue =
   | "starEnd"
   | "airHorn"
   | "droneBeep"
-  | "slipstream";
+  | "slipstream"
+  | "boxChime";
 
 /** The sounds that run while a state holds: the drift skid and the two run-off surfaces. */
 export type SoundLoop = "driftSkid" | "grass" | "sand";
@@ -85,6 +86,8 @@ export interface SoundReading {
   readonly starSeconds: number | null;
   /** Whether a slipstream tows the own kart; the whoosh sounds as it takes. Not a boost: the boost pad's inference never reads it. */
   readonly towed: boolean;
+  /** Whether the BOX call is showing; the chime sounds as it comes up. */
+  readonly boxCall: boolean;
   /** The nearest other kart on a star run, by distance; null while none is. */
   readonly nearestStar: NearestStar | null;
   /** The other karts' horn blasts under way, by distance; never the own kart's, whose fire the slot sounds. */
@@ -113,9 +116,10 @@ export interface NearestStar {
 
 /**
  * The reading of `kart`, the own kart, from its readout and standing in
- * `race`, the item slot and the phase. Throws when `race` has no such kart.
+ * `race`, the item slot and the phase, with `boxCall` whether the BOX call
+ * shows. Throws when `race` has no such kart.
  */
-export function soundReading(race: RaceReadout, kart: number): SoundReading {
+export function soundReading(race: RaceReadout, kart: number, boxCall = false): SoundReading {
   const readout = race.karts[kart];
   const standing = race.standings[kart];
   if (readout === undefined || standing === undefined) {
@@ -146,6 +150,7 @@ export function soundReading(race: RaceReadout, kart: number): SoundReading {
         : reelFrame(itemSlot.rolling.elapsedS, itemSlot.rolling.rollS).step,
     starSeconds: readout.starS,
     towed: readout.slipstream !== null && "tow" in readout.slipstream,
+    boxCall,
     nearestStar: nearestStar(race.karts, kart),
     blasts: race.blasts
       .filter((blast) => blast.kart !== kart)
@@ -211,7 +216,8 @@ export const STAR_RESTART_RISE_S = 0.5;
  * as the coins it cost fall; the sputter as a stall begins; the wrong
  * way as its flag raises; the star's end as the run runs out, unless the
  * finish ended it; the slipstream as a tow takes, and nothing as it holds,
- * is re-armed or runs out (ADR 0077); the finish as the kart finishes,
+ * is re-armed or runs out (ADR 0077); the BOX chime as its call comes up
+ * (ADR 0080); the finish as the kart finishes,
  * else the lap as the count rises. Nothing else from the first reading.
  */
 export function soundCues(before: SoundReading | undefined, after: SoundReading): SoundCue[] {
@@ -258,6 +264,7 @@ export function soundCues(before: SoundReading | undefined, after: SoundReading)
     cues.push("starEnd");
   }
   if (!before.towed && after.towed) cues.push("slipstream");
+  if (!before.boxCall && after.boxCall) cues.push("boxChime");
   if (finishedNow) cues.push("finish");
   else if (after.lap > before.lap) cues.push("lap");
   return cues;

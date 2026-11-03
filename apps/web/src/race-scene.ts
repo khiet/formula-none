@@ -1,5 +1,6 @@
 import type { RaceAudio } from "./audio";
 import { soundReading } from "./audio-cues";
+import { createBoxCall } from "./box-call";
 import type { Bridge } from "./bridge";
 import { createChaseCamera } from "./chase-camera";
 import { gamepadKartInput } from "./gamepad";
@@ -91,6 +92,7 @@ export async function createRaceScene(
       bridge.runawayWheelRadiusMetres,
       bridge.hornRadiusMetres,
       bridge.slipstreamChargeSeconds,
+      bridge.tyreLifeCliff,
       (karts) => kartLabels(karts, run.localKart, name),
       { localKart: run.localKart, reducedMotion },
     ),
@@ -112,14 +114,25 @@ export async function createRaceScene(
     { reducedMotion },
   );
 
+  const boxCall = createBoxCall({
+    // No course has a pit lane to come in to yet (ADR 0081), so the call
+    // stays down; the lane's arrival on a course's sidecar takes this over.
+    pitLane: false,
+    lapsPerRace: bridge.lapsPerRace,
+    cliff: bridge.tyreLifeCliff,
+  });
+
   const present = (frameSeconds: number) => {
     const readout = run.readout();
     const local = readout.karts[run.localKart];
-    if (local && readout.standings[run.localKart]) {
+    const standing = readout.standings[run.localKart];
+    if (local && standing) {
       const pose = camera.update(local, frameSeconds, input.lookingBehind());
       view.update(readout, pose, frameSeconds);
       panel.update(readout);
-      audio.update(soundReading(readout, run.localKart));
+      const called = boxCall.update(local.tyreLife, standing.lap, frameSeconds);
+      panel.boxCall(called);
+      audio.update(soundReading(readout, run.localKart, called));
     }
   };
   audio.start();

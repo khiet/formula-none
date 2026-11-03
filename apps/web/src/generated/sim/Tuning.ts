@@ -18,7 +18,11 @@ itemRollS: number,
 /**
  * Indexed by the coins a kart carries.
  */
-coinTopSpeedsMPerS: [number, number, number, number, number, number, number, number, number, number, number], coinCap: number, tyreLifeNewPercent: number, coinsLostPerSpinOut: number, coinHalfLengthM: number, coinHalfWidthM: number, coinRespawnS: number, hazardDropDistanceM: number, spinOutS: number, 
+coinTopSpeedsMPerS: [number, number, number, number, number, number, number, number, number, number, number], coinCap: number, tyreLifeNewPercent: number, 
+/**
+ * The life from which a kart shows wear and the BOX call can sound.
+ */
+tyreLifeCliffPercent: number, coinsLostPerSpinOut: number, coinHalfLengthM: number, coinHalfWidthM: number, coinRespawnS: number, hazardDropDistanceM: number, spinOutS: number, 
 /**
  * How long a star's run lasts, which the Instrument panel's ring counts
  * down and the star music is joined against.

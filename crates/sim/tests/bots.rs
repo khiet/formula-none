@@ -14,7 +14,7 @@ use sim::tuning::{
     BOT_STALL_SPEED_M_PER_S, BOT_START_HOLD_S, COUNTDOWN_S, LAPS_PER_RACE, MINI_TURBO_RED_BOOST_S,
     TOP_SPEED_M_PER_S,
 };
-use sim::{step, BotLevel, KartInput, Phase, State, Surface, Track};
+use sim::{step, BotLevel, KartInput, KartReadout, Phase, State, Surface, Track, Tyres};
 
 /// Step `state` for `seconds` with every human idle.
 fn idle_humans(mut state: State, humans: usize, seconds: f32) -> State {
@@ -704,6 +704,17 @@ fn non_finishers(seed: u64, course: Track, level: BotLevel) -> Vec<usize> {
         .collect()
 }
 
+/// A course by name, built afresh for each race.
+type Course = (&'static str, fn() -> Track);
+
+/// Every course a sweep races.
+const COURSES: [Course; 4] = [
+    ("oval", oval),
+    ("Bell Deer", bell_deer),
+    ("Goldstone", goldstone),
+    ("Monarch", monarch),
+];
+
 /// A kart that hits Monarch's close walls at boost speed can fly over one
 /// and land back inside; a checkpoint it passes in the air still has to
 /// count, or it ends the race a lap short. Too slow for a debug build; run it
@@ -724,6 +735,93 @@ fn in_200_races_of_eight_bots_on_monarch_every_one_finishes_at_every_level() {
             );
         }
     }
+}
+
+/// The bots in a race on Tyres On that the end cap catches short of the final
+/// lap, with the lap each was on.
+fn short_of_the_final_lap(seed: u64, course: Track, level: BotLevel) -> Vec<(usize, u32)> {
+    let mut state = started(State::with_tyres(seed, 0, 8, course, level, Tyres::On));
+    while matches!(state.phase(), Phase::Racing { .. }) {
+        state = step(state, &[], DT);
+    }
+    let standings = state.standings();
+    (0..standings.len())
+        .filter(|&slot| standings[slot].finish_time_s.is_none())
+        .filter(|&slot| standings[slot].lap < LAPS_PER_RACE)
+        .map(|slot| (slot, standings[slot].lap))
+        .collect()
+}
+
+/// A bot wears out as a human does and must still get round on worn tyres
+/// (ADR 0080). Until bots pit, a few karts worn right out on the final lap
+/// are still on it when the end cap fires and are placed by progress; the
+/// cap is there for them. A kart short of the final lap has lost far more
+/// than its tyres. Too slow for a debug build; run it with the sweep above.
+#[test]
+#[ignore]
+fn in_200_races_of_eight_bots_on_tyres_on_every_one_reaches_the_final_lap_at_every_level() {
+    for (name, course) in COURSES {
+        for level in [BotLevel::Basic, BotLevel::Pro, BotLevel::Ace] {
+            let races: Vec<_> = (0..200)
+                .map(|seed| {
+                    std::thread::spawn(move || {
+                        (seed, short_of_the_final_lap(seed, course(), level))
+                    })
+                })
+                .collect();
+            for race in races {
+                let (seed, short) = race.join().expect("the race ran");
+                assert!(
+                    short.is_empty(),
+                    "{name} {level:?} seed {seed}: karts and laps {short:?}"
+                );
+            }
+        }
+    }
+}
+
+#[test]
+fn a_bot_brakes_on_worn_tyres_for_corners_it_would_take_on_new_ones() {
+    // At every tick of a lone bot's race, the same kart asked twice: once on
+    // the tyres it has and once on tyres worn right out.
+    let mut state = started(State::with_bots(SEED, 0, 1, bell_deer(), BotLevel::Pro));
+    let brakes = |state: &State, karts: &[KartReadout]| {
+        let input = sim::bot::drive(
+            state.track(),
+            BotLevel::Pro.profile(),
+            karts,
+            &state.standings(),
+            state.phase(),
+            SEED,
+            0,
+            &mut sim::bot::Memory::default(),
+            DT,
+        );
+        input.brake > 0.0
+    };
+    let (mut only_worn, mut only_new) = (0, 0);
+    while matches!(state.phase(), Phase::Racing { .. }) {
+        state = step(state, &[], DT);
+        let new = state.kart_readouts();
+        let worn: Vec<_> = new
+            .iter()
+            .map(|kart| KartReadout {
+                tyre_life: 0.0,
+                ..*kart
+            })
+            .collect();
+        match (brakes(&state, &new), brakes(&state, &worn)) {
+            (false, true) => only_worn += 1,
+            (true, false) => only_new += 1,
+            _ => {}
+        }
+    }
+    // Not never the other way: a worn kart's lower speed cap and a drift's
+    // coast shift the odd tick. Braking for corners far outweighs them.
+    assert!(
+        only_worn > 10 * only_new.max(1),
+        "braked {only_worn} ticks only on worn tyres, {only_new} only on new"
+    );
 }
 
 /// Under its stall speed this long, a bot is stuck.
@@ -779,12 +877,7 @@ fn a_bot_waiting_for_the_wheel_never_backs_up() {
 #[test]
 #[ignore]
 fn in_200_races_of_eight_bots_on_each_course_no_bot_is_ever_stuck() {
-    for (name, course) in [
-        ("oval", oval as fn() -> Track),
-        ("Bell Deer", bell_deer),
-        ("Goldstone", goldstone),
-        ("Monarch", monarch),
-    ] {
+    for (name, course) in COURSES {
         let races: Vec<_> = (0..200)
             .map(|seed| std::thread::spawn(move || (seed, longest_stall(seed, course()))))
             .collect();

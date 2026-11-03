@@ -73,6 +73,8 @@ export interface InstrumentPanel {
   connection(status: string): void;
   /** Show the connection banner while a room's race has lost the server, and take it down once back. */
   connectionLost(lost: boolean): void;
+  /** Show the BOX plate while the radio calls the kart in for tyres, and take it down after. */
+  boxCall(showing: boolean): void;
   /** Take the panel off the page. */
   dispose(): void;
 }
@@ -314,10 +316,15 @@ export function createInstrumentPanel(
     tyre.dataset.tyreWear = tyreWearBand(percent);
   };
   showTyres(tuning.tyreLifeNew);
+  // Beside the gauge whose red it warns of. "BOX" only ever means this radio
+  // call: an item box is never shortened to it (ADR 0081).
+  const boxPlate = instrument("box-call", "BOX");
+  plate(boxPlate, POSTER_RED);
+  boxPlate.hidden = true;
   const coins = instrument("coins");
   coins.append(coinIcon());
   const coinValue = part(coins, "coinCount");
-  cluster.append(coins, gear, speed, tyre);
+  cluster.append(coins, gear, speed, tyre, boxPlate);
   const showSpeed = (metresPerSecond: number, carried: number) => {
     const topSpeed = coinTopSpeed(tuning, carried);
     const reading = drivetrain(metresPerSecond, topSpeed);
@@ -518,6 +525,9 @@ export function createInstrumentPanel(
     },
     connection(status) {
       connection.textContent = status;
+    },
+    boxCall(showing) {
+      boxPlate.hidden = !showing;
     },
     connectionLost(lost) {
       banner.hidden = !lost;

@@ -25,6 +25,21 @@ function marksOf(marks: ReturnType<typeof createTyreMarks>): TyreMark[] {
 }
 
 describe("tyre marks", () => {
+  it("lays darker marks off tyres under the cliff, which fade all the same", () => {
+    const laid = (tyreLife: number) => {
+      const marks = createTyreMarks(1, SIZE, { wornBelow: 30 });
+      const at = (z: number) => ({ ...kart([0, 0.3, z], DRIFT), tyreLife });
+      marks.update([at(0)], FRAME_S);
+      marks.update([at(-0.5)], 0);
+      const fresh = marksOf(marks)[0]?.strength ?? 0;
+      marks.update([at(-0.5)], 2);
+      return { fresh, halfway: marksOf(marks)[0]?.strength ?? 0 };
+    };
+    expect(laid(30).fresh).toBe(1);
+    expect(laid(29).fresh).toBeGreaterThan(1);
+    expect(laid(29).halfway).toBeCloseTo(laid(29).fresh / 2);
+  });
+
   it("lays nothing under a kart that is not drifting", () => {
     const marks = createTyreMarks(1, SIZE);
     marks.update([kart([0, 0.3, 0], null)], FRAME_S);

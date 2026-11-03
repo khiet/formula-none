@@ -6,7 +6,7 @@ export interface TyreMark {
   /** Where the tyre was and where it is, on the floor of the kart's box, in world metres. */
   readonly from: Readonly<Vec3>;
   readonly to: Readonly<Vec3>;
-  /** How dark the mark still is: 1 fresh, falling to 0 at the end of its life. */
+  /** How dark the mark still is: 1 fresh, more off worn tyres, falling to 0 at the end of its life. */
   readonly strength: number;
 }
 
@@ -32,6 +32,8 @@ export interface TyreMarkOptions {
   readonly lifetimeSeconds?: number;
   /** Marks kept per wheel; past that the oldest in the store goes. */
   readonly capacityPerWheel?: number;
+  /** A kart with its tyre life under this lays darker marks. */
+  readonly wornBelow?: number;
 }
 
 /**
@@ -45,6 +47,8 @@ const DEFAULT_LIFETIME_S = 4;
 /** A lifetime of marks at top speed; a boost past it replaces the oldest a little early. */
 const DEFAULT_CAPACITY_PER_WHEEL = 400;
 const SIDES: readonly Side[] = [-1, 1];
+/** How much darker a fresh mark off worn tyres is, so rivals can read them (ADR 0080). */
+const WORN_MARK_STRENGTH = 1.6;
 
 /**
  * The Feedback for a drift (GLOSSARY): rubber laid under the rear wheels for
@@ -67,6 +71,9 @@ export function createTyreMarks(
   // live while its age is under the lifetime.
   const ends = new Float32Array(capacity * 6);
   const ages = new Float32Array(capacity).fill(lifetime);
+  /** How dark each mark was laid, fresh. */
+  const fresh = new Float32Array(capacity).fill(1);
+  const wornBelow = options.wornBelow ?? 0;
   /** The slot the next mark goes in: the oldest once the store has filled. */
   let head = 0;
   /** Where each wheel's trail ends while it drifts, or NaN when it does not. */
@@ -101,6 +108,7 @@ export function createTyreMarks(
           }
           ends.set([lastX, lastY, lastZ, wheel[0], wheel[1], wheel[2]], head * 6);
           ages[head] = 0;
+          fresh[head] = readout.tyreLife < wornBelow ? WORN_MARK_STRENGTH : 1;
           head = (head + 1) % capacity;
           lastWheel.set(wheel, at);
         });
@@ -120,7 +128,7 @@ export function createTyreMarks(
         mark.to[0] = ends[at + 3] ?? 0;
         mark.to[1] = ends[at + 4] ?? 0;
         mark.to[2] = ends[at + 5] ?? 0;
-        mark.strength = 1 - age / lifetime;
+        mark.strength = (fresh[slot] ?? 1) * (1 - age / lifetime);
         visit(mark, slot);
       }
     },

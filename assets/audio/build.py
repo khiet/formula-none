@@ -360,6 +360,15 @@ def tier_chime(blue=880, orange=1320, length=0.1, decay=12, gain=0.35):
     )
 
 
+def box_chime(low=659, high=988, length=0.12, decay=8, gain=0.35):
+    """Two rising pulse notes, spaced apart: the radio's call to come in for tyres."""
+    return concat(
+        tone(low, length, pulse, decay=decay, gain=gain),
+        silence(0.06),
+        tone(high, length * 1.5, pulse, decay=decay, gain=gain),
+    )
+
+
 def grass(speed, centre=1200, width=800, swish_hz=8, depth=0.5, gain=0.4):
     """Swish: a higher band of noise swishing slowly."""
     bed = noise(1.5, decay=0, gain=gain * (0.3 + 0.7 * fraction(speed)), seed=16)
@@ -580,6 +589,8 @@ def sfx():
     # The chime plays whole as the drift's tier rises to blue and again to
     # orange; the sparks say which tier.
     write("tier-chime", tame(tier_chime()))
+    # The BOX call (ADR 0080), as tyre life first falls to the cliff.
+    write("box-chime", tame(box_chime()))
     write("boost-pad", tame(boost_pad()))
     write("wrong-way", tame(wrong_way()))
     # In place of the lap as the kart finishes.

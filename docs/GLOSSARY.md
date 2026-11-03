@@ -614,8 +614,8 @@ The part of a Scene that renders the world. The Race Scene has one View, the
 ### Instrument panel
 
 The HUD overlaid on a View: position, lap, lap time, best lap, item slot,
-speed, gear, coins and tyre, wrong-way warning, connection banner, the start
-lights over the View and the course map. Reads state; never drives it.
+speed, gear, coins and tyre, the BOX call, wrong-way warning, connection
+banner, the start lights over the View and the course map. Reads state; never drives it.
 
 ### plate
 
@@ -644,7 +644,22 @@ is gone. It falls as the kart is driven and only a stop raises it. The
 Instrument panel's tyre gauge shows it on the local kart drawn from above,
 its tyres green above 60%, yellow above 30% and red at 30% and below, read rounded up so
 0% means truly gone (ADR 0080). With Tyres Off it holds at 100%. Avoid: tyre
-wear, for the number.
+wear, for the number. As it falls it costs speed and grip by ADR 0080's tables,
+steepest from the cliff at 30%; under that a kart trails light tyre smoke and
+lays darker tyre marks.
+
+### wash-out
+
+How far worn tyres let a kart's line of travel slide wide of its facing past a
+cornering limit: none from 60% tyre life up, 0.05 rad at 30% and 0.15 rad at
+0%, on top of any drift's slip.
+It builds over a few ticks, with no random twitch (ADR 0080).
+
+### BOX call
+
+The radio's call to come in for tyres: a plate beside the tyre gauge and a
+chime, for 2 s, as tyre life first falls to 30%. Not on a course without a pit
+lane, so it stays down until one exists, nor on the final lap (ADR 0080).
 
 ### Tyres
 
@@ -686,7 +701,8 @@ on a rocket start's charge, a sputter and dust at the wheels on its stall,
 a shadow disc on the road under each kart so a hop's height reads, and on
 every boost a flame at the exhaust and, for the own kart, wind lines and a
 wider field of view; and on the runaway wheel, flames off its back, a smoke
-trail, dust where it lands and sparks off each wall it rebounds from.
+trail, dust where it lands and sparks off each wall it rebounds from; and
+under 30% tyre life, light tyre smoke and darker tyre marks.
 
 ### head sway
 

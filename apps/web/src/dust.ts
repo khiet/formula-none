@@ -5,14 +5,17 @@ import type { Particles } from "./particles";
 /**
  * The dust tell behind a kart: shown off the rear bumper while it crosses
  * the run-off, coloured by the surface, and at the rear wheels while it
- * sits stalled at Go.
+ * sits stalled at Go or runs on worn tyres.
  */
 export interface DustTell {
   /** A Three.js colour hex. */
   readonly colour: number;
   readonly at: "bumper" | "wheels";
+  readonly puffsPerSecond: number;
 }
 
+/** Puffs per second off a kart on the run-off or stalled. */
+const PUFFS_PER_S = 30;
 /** Below this the kart is not kicking anything up. */
 const DUST_SPEED_M_PER_S = 1;
 
@@ -26,33 +29,42 @@ const DUST_COLOURS: Partial<Record<Surface, number>> = {
 };
 /** The tyre smoke of a stalled kart's spinning wheels: pale, so it reads on the grid's asphalt. */
 const STALL_SMOKE_COLOUR = 0xf2f2f2;
+/** The light smoke of tyres past the cliff: greyer and far thinner than a stall's. */
+const WORN_SMOKE_COLOUR = 0xc8c8c8;
+const WORN_SMOKE_PUFFS_PER_S = 6;
 
 /**
  * The Feedback for leaving the track and for a rocket start's stall
  * (GLOSSARY): dust puffed off the back of the kart while it moves over
  * sand or grass, in that surface's colour, and nothing on the asphalt, on
  * a wall top, in the air over nothing, or at a standstill; or smoke at the
- * rear wheels for as long as the kart is stalled at Go, wherever it stands.
- * Presentation only; reads state.
+ * rear wheels for as long as the kart is stalled at Go, wherever it stands;
+ * or light smoke there while it rolls on the ground with its tyre life under
+ * `wornBelow` (ADR 0080), the run-off's dust covering it. Presentation only;
+ * reads state.
  */
-export function dustTell(kart: KartReadout): DustTell | null {
+export function dustTell(kart: KartReadout, wornBelow: number): DustTell | null {
   if (kart.stallS !== null) {
-    return { colour: STALL_SMOKE_COLOUR, at: "wheels" };
+    return { colour: STALL_SMOKE_COLOUR, at: "wheels", puffsPerSecond: PUFFS_PER_S };
   }
-  const colour = DUST_COLOURS[kart.surface];
-  if (colour === undefined || Math.abs(kart.speed) < DUST_SPEED_M_PER_S) {
+  if (Math.abs(kart.speed) < DUST_SPEED_M_PER_S) {
     return null;
   }
-  return { colour, at: "bumper" };
+  const colour = DUST_COLOURS[kart.surface];
+  if (colour !== undefined) {
+    return { colour, at: "bumper", puffsPerSecond: PUFFS_PER_S };
+  }
+  if (kart.tyreLife < wornBelow && !kart.airborne) {
+    return { colour: WORN_SMOKE_COLOUR, at: "wheels", puffsPerSecond: WORN_SMOKE_PUFFS_PER_S };
+  }
+  return null;
 }
 
 export interface DustEmitter {
-  /** Puff this frame's dust for `kart` into the pool, if it is on the run-off or stalled. */
+  /** Puff this frame's dust for `kart` into the pool, if its dust tell shows. */
   emit(kart: KartReadout, dtSeconds: number): void;
 }
 
-/** Puffs per second off a kart on the run-off. */
-const PUFFS_PER_S = 30;
 /** A puff drifts back off the bumper this fast and rises as it spreads. */
 const PUFF_DRIFT_M_PER_S = 1;
 const PUFF_RISE_M_PER_S = 0.8;
@@ -72,6 +84,7 @@ const MAX_OWED_S = 0.1;
 export function createDustEmitter(
   particles: Particles,
   size: KartSize,
+  wornBelow: number,
   random: () => number = Math.random,
 ): DustEmitter {
   /** Puffs owed and not yet thrown; a fraction carries to the next frame. */
@@ -88,12 +101,12 @@ export function createDustEmitter(
   };
   return {
     emit(kart, dtSeconds) {
-      const tell = dustTell(kart);
+      const tell = dustTell(kart, wornBelow);
       if (tell === null) {
         return;
       }
       // A stalled frame throws a burst, not a frame's worth of the stall.
-      owed = Math.min(owed + PUFFS_PER_S * dtSeconds, PUFFS_PER_S * MAX_OWED_S);
+      owed = Math.min(owed + tell.puffsPerSecond * dtSeconds, PUFFS_PER_S * MAX_OWED_S);
       if (owed < 1) {
         return;
       }

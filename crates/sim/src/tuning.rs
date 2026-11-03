@@ -434,6 +434,31 @@ pub const COIN_CAP: u32 = 10;
 pub const COINS_LOST_PER_SPIN_OUT: u32 = 3;
 /// The life of new tyres, as a percentage (ADR 0080).
 pub const TYRE_LIFE_NEW_PERCENT: f32 = 100.0;
+/// The life at which the cliff starts: the steep column of every table below,
+/// the gauge's red, the BOX call, and a worn kart's smoke and darker marks.
+pub const TYRE_LIFE_CLIFF_PERCENT: f32 = 30.0;
+/// The lives the tables below are tuned at, new first; between two the
+/// handling reads in a straight line (ADR 0080).
+pub const TYRE_LIFE_COLUMNS_PERCENT: [f32; 4] =
+    [TYRE_LIFE_NEW_PERCENT, 60.0, TYRE_LIFE_CLIFF_PERCENT, 0.0];
+/// What those lives leave of the top speed cap, the steering rate, the
+/// acceleration and the braking.
+pub const TYRE_TOP_SPEED_FACTORS: [f32; 4] = [1.0, 0.99, 0.96, 0.86];
+pub const TYRE_STEER_RATE_FACTORS: [f32; 4] = [1.0, 0.97, 0.88, 0.65];
+pub const TYRE_ACCELERATION_FACTORS: [f32; 4] = [1.0, 0.97, 0.88, 0.70];
+pub const TYRE_BRAKING_FACTORS: [f32; 4] = [1.0, 0.98, 0.90, 0.75];
+/// The most, in radians, those lives let the line of travel slide wide of
+/// the facing.
+pub const TYRE_WASH_OUT_MOST_RAD: [f32; 4] = [0.0, 0.0, 0.05, 0.15];
+/// A worn kart holds its line up to this speed times yaw rate, in m/s^2, and
+/// slides all the worn tyres allow from the full load. Full lock flat out
+/// is about 22.5 at 0% and 31 at 30%, so at any life past the cliff it slides
+/// as far as the table says, and a gentle steer never slides.
+pub const TYRE_WASH_OUT_LIMIT_M_PER_S2: f32 = 16.0;
+pub const TYRE_WASH_OUT_FULL_M_PER_S2: f32 = 22.0;
+/// How fast a slide builds and lets go, so a keyed steer, all or nothing,
+/// bends the line rather than kinking it: the deepest in a quarter second.
+pub const TYRE_WASH_OUT_RATE_RAD_PER_S: f32 = 0.6;
 /// Life lost per second rolling on the ground.
 pub const TYRE_WEAR_ROLLING_PER_S: f32 = 0.06;
 /// Life lost per second cornering at [`TYRE_WEAR_CORNERING_REFERENCE_M_PER_S2`];
@@ -819,6 +844,38 @@ const _: () = {
     assert!(COINS_LOST_PER_SPIN_OUT <= COIN_CAP);
     assert!(TYRE_WEAR_BUMP_MIN_PERCENT <= TYRE_WEAR_BUMP_MAX_PERCENT);
     assert!(TYRE_WEAR_SPIN_OUT_PERCENT < TYRE_LIFE_NEW_PERCENT);
+    // New tyres cost nothing, wear only ever costs more, and no factor gives
+    // back more than new tyres have. A worn kart can still drift, tow a rival
+    // and outrun the run-off, and its slide stays under a drift's.
+    {
+        let tables = [
+            TYRE_TOP_SPEED_FACTORS,
+            TYRE_STEER_RATE_FACTORS,
+            TYRE_ACCELERATION_FACTORS,
+            TYRE_BRAKING_FACTORS,
+        ];
+        let mut table = 0;
+        while table < tables.len() {
+            assert!(tables[table][0] == 1.0);
+            let mut column = 1;
+            while column < TYRE_LIFE_COLUMNS_PERCENT.len() {
+                assert!(tables[table][column] <= tables[table][column - 1]);
+                assert!(0.0 < tables[table][column] && tables[table][column] <= 1.0);
+                assert!(TYRE_LIFE_COLUMNS_PERCENT[column] < TYRE_LIFE_COLUMNS_PERCENT[column - 1]);
+                assert!(TYRE_WASH_OUT_MOST_RAD[column - 1] <= TYRE_WASH_OUT_MOST_RAD[column]);
+                column += 1;
+            }
+            table += 1;
+        }
+    }
+    assert!(TYRE_LIFE_COLUMNS_PERCENT[3] == 0.0);
+    assert!(TYRE_WASH_OUT_MOST_RAD[0] == 0.0);
+    assert!(TYRE_WASH_OUT_MOST_RAD[3] < DRIFT_SLIP_ANGLE_RAD);
+    assert!(TYRE_WASH_OUT_LIMIT_M_PER_S2 < TYRE_WASH_OUT_FULL_M_PER_S2);
+    assert!(0.0 < TYRE_WASH_OUT_RATE_RAD_PER_S);
+    assert!(DRIFT_ENTRY_SPEED_FRACTION < TYRE_TOP_SPEED_FACTORS[3]);
+    assert!(SLIPSTREAM_LEADER_SPEED_FRACTION < TYRE_TOP_SPEED_FACTORS[3]);
+    assert!(OFF_TRACK_SPEED_FACTOR < TYRE_TOP_SPEED_FACTORS[3]);
     // The wire carries the count in a byte.
     assert!(COIN_CAP <= u8::MAX as u32);
     assert!(0.0 < COIN_HALF_LENGTH_M && 0.0 < COIN_HALF_WIDTH_M && 0.0 < COIN_RESPAWN_S);
@@ -901,6 +958,8 @@ pub struct Tuning {
     pub coin_top_speeds_m_per_s: [f32; COIN_CAP as usize + 1],
     pub coin_cap: u32,
     pub tyre_life_new_percent: f32,
+    /// The life from which a kart shows wear and the BOX call can sound.
+    pub tyre_life_cliff_percent: f32,
     pub coins_lost_per_spin_out: u32,
     pub coin_half_length_m: f32,
     pub coin_half_width_m: f32,
@@ -951,6 +1010,7 @@ pub const TUNING: Tuning = Tuning {
     coin_top_speeds_m_per_s: COIN_TOP_SPEEDS_M_PER_S,
     coin_cap: COIN_CAP,
     tyre_life_new_percent: TYRE_LIFE_NEW_PERCENT,
+    tyre_life_cliff_percent: TYRE_LIFE_CLIFF_PERCENT,
     coins_lost_per_spin_out: COINS_LOST_PER_SPIN_OUT,
     coin_half_length_m: COIN_HALF_LENGTH_M,
     coin_half_width_m: COIN_HALF_WIDTH_M,
