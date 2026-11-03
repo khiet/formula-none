@@ -10,8 +10,8 @@ has passed on a push to main:
 
 1. Builds the image from the `Dockerfile` for arm64 and pushes it to ECR
    tagged with the commit. The image holds the server binary and, under
-   `/release`, this directory's `compose.yaml`, `Caddyfile`,
-   `prometheus.yml` and `grafana/` plus the built client.
+   `/release`, this directory's `compose.yaml`, `compose.selfhost.yaml`,
+   `Caddyfile`, `prometheus.yml` and `grafana/` plus the built client.
 2. Runs `deploy/deploy.sh <commit>`: the deploy document (an SSM Run Command
    defined in `infra/deploy.tf`) pulls the image on the instance, copies
    `/release` out of it to `/opt/formula-none/release`, and runs
@@ -79,6 +79,56 @@ docker compose -f deploy/release/compose.yaml -f deploy/compose.local.yaml \
 WEBTRANSPORT_PROBE_CA=/tmp/caddy-root.crt \
   cargo run -p server --example webtransport-probe -- https://localhost/wt
 ```
+
+## Hosting your own
+
+On a server of your own, with Docker and a domain whose DNS points at it.
+`compose.selfhost.yaml` goes on top of the same stack: logs stay on the server
+with Docker's `local` driver instead of going to CloudWatch, and Compose
+refuses to start without your domain.
+
+1. Build the image, on the server or anywhere you can move it from. Name the
+   server's architecture, `linux/amd64` or `linux/arm64`:
+
+   ```sh
+   docker build --platform linux/amd64 --build-arg COMMIT=$(git rev-parse HEAD) -t formula-none:dev .
+   ```
+
+2. Extract the release bundle from it on the server, into a directory of its
+   own:
+
+   ```sh
+   container=$(docker create formula-none:dev)
+   docker cp "$container:/release" release && docker rm "$container"
+   ```
+
+3. Open 443 TCP and 443 UDP to the world. TCP is Caddy, including its
+   certificate challenge, so port 80 can stay closed; UDP is WebTransport.
+
+4. Set `SITE_ADDRESS` to your domain, and start the stack:
+
+   ```sh
+   export SITE_ADDRESS=your.domain SERVER_IMAGE=formula-none:dev
+   docker compose -f release/compose.yaml -f release/compose.selfhost.yaml up -d
+   ```
+
+   Keep both variables set for any later `docker compose` command; without
+   `SITE_ADDRESS` it stops with "set SITE_ADDRESS to your domain".
+
+5. Prometheus and Grafana run here too. Grafana listens on the server's
+   loopback with no login, so reach it over SSH and browse
+   `http://localhost:3000`:
+
+   ```sh
+   ssh -L 3000:localhost:3000 you@your.domain
+   ```
+
+6. From a checkout with Rust installed (the first run builds the WebTransport
+   probe), smoke-test it with the commit you built:
+
+   ```sh
+   deploy/smoke.sh <commit> https://your.domain
+   ```
 
 ## Endpoints
 

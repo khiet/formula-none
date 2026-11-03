@@ -22,6 +22,7 @@ type Service = {
   user?: string;
   cap_drop?: string[];
   read_only?: boolean;
+  logging?: { driver?: string };
 };
 
 /** The workflow expression for the pushed commit, as the YAML spells it. */
@@ -184,6 +185,46 @@ describe("Compose stack", () => {
   });
 });
 
+// A server of someone else's: compose.selfhost.yaml goes on top of the same
+// stack, so production's file stays the one definition of what runs.
+describe("self-hosting override", () => {
+  const selfhost = parse(readRepoFile("deploy/compose.selfhost.yaml")) as {
+    services: Record<string, Service>;
+  };
+
+  // The base file's awslogs driver needs the author's AWS account: one service
+  // left on it fails to start anywhere else.
+  it("takes every service in the stack off CloudWatch", () => {
+    for (const name of Object.keys(compose.services)) {
+      const driver = selfhost.services[name]?.logging?.driver;
+      expect(driver, name).toBeDefined();
+      expect(driver, name).not.toBe("awslogs");
+    }
+  });
+
+  // `:?` makes Compose refuse to start with this message, where the base
+  // file's fallback would ask Let's Encrypt for the author's domain.
+  it("requires SITE_ADDRESS, failing with what to do", () => {
+    expect(selfhost.services.caddy?.environment?.SITE_ADDRESS).toBe(
+      `\${SITE_ADDRESS:?set SITE_ADDRESS to your domain}`,
+    );
+  });
+
+  it("ships in the release bundle, so a server needs only the image", () => {
+    expect(readRepoFile("Dockerfile")).toMatch(
+      /^COPY .*deploy\/compose\.selfhost\.yaml .*\/release\/$/m,
+    );
+  });
+
+  // The README promises both; the deploy job's own test pins production to arm64.
+  it("builds the server for the architecture asked for, amd64 or arm64", () => {
+    const dockerfile = readRepoFile("Dockerfile");
+    expect(dockerfile).toMatch(/^ARG TARGETARCH$/m);
+    expect(dockerfile).toContain("x86_64-unknown-linux-gnu");
+    expect(dockerfile).toContain("aarch64-unknown-linux-gnu");
+  });
+});
+
 // Metrics (ADR 0018): Prometheus scrapes the server over the Compose
 // network and Grafana reads Prometheus; the dashboard and the data source
 // are files in the repo, mounted into Grafana's provisioning directory.
@@ -285,7 +326,7 @@ describe("metrics stack", () => {
   it("ships the Prometheus config and Grafana's files in the release bundle the instance runs from", () => {
     const dockerfile = readRepoFile("Dockerfile");
     expect(dockerfile).toMatch(
-      /^COPY deploy\/compose\.yaml deploy\/Caddyfile deploy\/prometheus\.yml \/release\/$/m,
+      /^COPY deploy\/compose\.yaml deploy\/compose\.selfhost\.yaml deploy\/Caddyfile deploy\/prometheus\.yml \/release\/$/m,
     );
     expect(dockerfile).toMatch(/^COPY deploy\/grafana \/release\/grafana$/m);
   });
