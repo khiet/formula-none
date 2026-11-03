@@ -9,8 +9,9 @@
 mod common;
 
 use common::{
-    bell_deer, follow_centreline, oval, race, run, started, steer_toward, straight, throttle,
-    ticks, track, without_wheel_crossings, BELL_DEER, DT, OVAL, SEED,
+    bell_deer, follow_centreline, monarch, oval, race, run, started, steer_toward, straight,
+    throttle, ticks, track, with_slot_at, without_wheel_crossings, BELL_DEER, DT, MONARCH, OVAL,
+    SEED,
 };
 
 use sim::tuning::LAPS_PER_RACE;
@@ -124,6 +125,32 @@ fn a_checkpoint_passed_outside_its_width_is_not_crossed_and_later_ones_wait_for_
     let z = state.kart_readouts()[0].position[2];
     assert!(z < -80.0, "the kart is past checkpoints 1 and 2 at z {z}");
     assert_eq!(only_standing(&state).checkpoint, 0);
+}
+
+/// A kart that hits a wall at boost speed can ride up it and pass the next
+/// checkpoint above it (ADR 0079): this one drives along the top of Monarch's
+/// left wall through checkpoint 1, before the respawn takes a kart behind a
+/// wall back.
+#[test]
+fn a_kart_over_a_wall_crosses_the_checkpoint_beside_it() {
+    // Monarch's walls stand 8 m from the centreline and are 0.5 m thick.
+    const LEFT_OF_CENTRE_M: f32 = 8.25;
+    const SHORT_OF_THE_LINE_M: f32 = 2.0;
+    const ABOVE_THE_WALL_M: f32 = 1.5;
+    let checkpoint = monarch().checkpoints()[1];
+    let (sin, cos) = checkpoint.yaw.sin_cos();
+    let (travel, right) = ([-sin, -cos], [cos, -sin]);
+    let position = [
+        checkpoint.position[0] - right[0] * LEFT_OF_CENTRE_M - travel[0] * SHORT_OF_THE_LINE_M,
+        checkpoint.position[1] + ABOVE_THE_WALL_M,
+        checkpoint.position[2] - right[1] * LEFT_OF_CENTRE_M - travel[1] * SHORT_OF_THE_LINE_M,
+    ];
+    let on_the_wall = with_slot_at(MONARCH, 0, position, checkpoint.yaw);
+    let state = started(State::new(SEED, 1, track(&on_the_wall)));
+
+    let state = run(state, std::iter::repeat_n(throttle(), ticks(1.0)));
+
+    assert_eq!(only_standing(&state).checkpoint, 1);
 }
 
 #[test]

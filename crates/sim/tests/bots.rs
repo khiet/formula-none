@@ -691,6 +691,41 @@ fn eight_bots_race_the_laps_of_goldstone_and_every_one_finishes() {
     );
 }
 
+/// The slots still racing when a race of eight bots at `level` on `course`
+/// from `seed` ended: the end cap fired before they finished.
+fn non_finishers(seed: u64, course: Track, level: BotLevel) -> Vec<usize> {
+    let mut state = started(State::with_bots(seed, 0, 8, course, level));
+    while matches!(state.phase(), Phase::Racing { .. }) {
+        state = step(state, &[], DT);
+    }
+    let standings = state.standings();
+    (0..standings.len())
+        .filter(|&slot| standings[slot].finish_time_s.is_none())
+        .collect()
+}
+
+/// A kart that hits Monarch's close walls at boost speed can fly over one
+/// and land back inside; a checkpoint it passes in the air still has to
+/// count, or it ends the race a lap short. Too slow for a debug build; run it
+/// with `cargo test --release -p sim --test bots -- --ignored` (a few minutes,
+/// with the stuck sweep).
+#[test]
+#[ignore]
+fn in_200_races_of_eight_bots_on_monarch_every_one_finishes_at_every_level() {
+    for level in [BotLevel::Basic, BotLevel::Pro, BotLevel::Ace] {
+        let races: Vec<_> = (0..200)
+            .map(|seed| std::thread::spawn(move || (seed, non_finishers(seed, monarch(), level))))
+            .collect();
+        for race in races {
+            let (seed, slots) = race.join().expect("the race ran");
+            assert!(
+                slots.is_empty(),
+                "{level:?} seed {seed}: karts {slots:?} never finished"
+            );
+        }
+    }
+}
+
 /// Under its stall speed this long, a bot is stuck.
 const STUCK_S: f32 = 3.0;
 

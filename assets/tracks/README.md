@@ -29,8 +29,8 @@ Every track is walled along both edges of the run-off the whole way
 round: the export stands a wall on the sand's outer edge on each side,
 following the centreline and its elevation, so a kart can leave the asphalt
 but never the course and no corner can be cut (ADR 0022). A layout declares
-no walls. The checkpoints are evenly spaced and span the run-off from wall
-to wall. The layouts are checked without Blender, with the tests beside
+no walls. The checkpoints are evenly spaced and reach the walls' outer faces
+(ADR 0079). The layouts are checked without Blender, with the tests beside
 them:
 
 ```sh

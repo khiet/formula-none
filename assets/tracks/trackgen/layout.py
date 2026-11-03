@@ -577,10 +577,11 @@ def build(layout: Layout) -> TrackGeometry:
         x, y = sample.offset(offset)
         return Placement(x, y, elevation(layout.elevation, sample.s), sample.heading, half_width, hazard_half_depth)
 
-    # Evenly spaced from the start line, each spanning the run-off, so a kart
-    # between the walls crosses every one in order.
+    # Evenly spaced from the start line, each reaching the walls' outer faces,
+    # so a kart between the walls or in the air over one crosses every one in
+    # order (ADR 0079).
     checkpoints = [
-        place(k * path.length / layout.checkpoint_count, half_width=runoff)
+        place(k * path.length / layout.checkpoint_count, half_width=runoff + WALL_THICKNESS_M)
         for k in range(layout.checkpoint_count)
     ]
     item_boxes = [place(row.s, offset) for row in layout.item_rows for offset in row.offsets]

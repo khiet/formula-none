@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import unittest
 
-from trackgen.layout import GRASS_DROP_M, WALL, build
+from trackgen.layout import GRASS_DROP_M, WALL, WALL_THICKNESS_M, build
 from trackgen.layouts import NAMES, load
 from trackgen.path import elevation
 
@@ -71,7 +71,7 @@ class Walls(unittest.TestCase):
 
 
 class Checkpoints(unittest.TestCase):
-    def test_checkpoints_are_evenly_spaced_from_the_start_line_and_span_the_run_off(self) -> None:
+    def test_checkpoints_are_evenly_spaced_from_the_start_line_and_reach_both_walls_outer_faces(self) -> None:
         for name in NAMES:
             layout = load(name)
             path = layout.path
@@ -83,7 +83,7 @@ class Checkpoints(unittest.TestCase):
                     expected = path.at(number * spacing)
                     self.assertAlmostEqual(checkpoint.x, expected.x, places=6)
                     self.assertAlmostEqual(checkpoint.y, expected.y, places=6)
-                    self.assertEqual(checkpoint.half_width, layout.runoff_half_width)
+                    self.assertEqual(checkpoint.half_width, layout.runoff_half_width + WALL_THICKNESS_M)
 
     def test_the_oval_has_twelve_and_every_course_fifteen(self) -> None:
         for name, count in (("oval", 12), ("bell-deer", 15), ("goldstone", 15), ("monarch", 15)):
