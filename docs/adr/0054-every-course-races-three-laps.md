@@ -4,7 +4,8 @@
 
 Accepted (2026-10-30). Supersedes ADR 0047's "a race drops from three laps
 to two" and restores ADR 0014's three laps; the rest of ADR 0047, the
-course itself, stands.
+course itself, stands. Its one lap count for every race is superseded by
+ADR 0083: three laps stay as the Sprint, beside a five-lap Grand Prix.
 
 ## Context
 

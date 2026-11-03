@@ -7,7 +7,8 @@ where the greybox readouts sit: speed leaves the stack for the cluster and
 the surface and connection line moves top-right. The bevelled gear box,
 square shift lights and pixel kart icon are superseded by ADR 0037. Its
 consequence that tyre wear would replace the gauge's placeholder is
-superseded by ADR 0055: the gauge reads the tyres a kart carries.
+superseded by ADR 0055: the gauge reads the tyres a kart carries. ADR 0080
+brings wear back: the gauge reads tyre life.
 
 ## Context
 

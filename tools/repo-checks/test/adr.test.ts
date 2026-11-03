@@ -84,6 +84,10 @@ const DECISION_SLUGS = [
   "the-slipstream-is-a-tow-on-the-top-speed-cap",
   "the-creator-picks-the-bot-level",
   "a-checkpoint-reaches-the-walls-outer-faces",
+  "tyres-wear-and-the-gauge-reads-their-life",
+  "a-pit-lane-to-drive-with-an-automatic-limiter",
+  "the-stop-is-rolled-from-the-seed",
+  "the-creator-picks-tyres-and-race-distance",
 ];
 
 const expectedFiles = DECISION_SLUGS.map(

@@ -169,7 +169,7 @@ button.roll:active { transform: translate(2px, 2px); box-shadow: 1px 1px 0 var(-
 
 <div class="page">
 <header>
-  <div class="eyebrow">Proposal - 2026-11-03</div>
+  <div class="eyebrow">Proposal - 2026-11-03 - decisions taken</div>
   <h1>Tyre wear and the pit lane</h1>
   <p class="lede">Tyres wear with how a kart is driven, the kart gets slower and harder to hold as they go, and a real pit lane on the three big courses puts on a new set in a stop whose length is down to chance.</p>
 </header>
@@ -190,36 +190,37 @@ button.roll:active { transform: translate(2px, 2px); box-shadow: 1px 1px 0 var(-
 </section>
 
 <section aria-labelledby="decide">
-  <h2 id="decide">Decisions for you</h2>
+  <h2 id="decide">Decisions taken</h2>
+  <p>Every recommendation was accepted on 2026-11-03 and is marked Chosen. They are recorded in ADRs 0080 to 0083.</p>
   <ol class="decisions">
     <li><strong>How long are races?</strong>
       <ol>
-        <li class="rec">Keep 3 laps as Sprint and add a 5-lap Grand Prix the creator can pick (Recommended)</li>
+        <li class="rec">Keep 3 laps as Sprint and add a 5-lap Grand Prix the creator can pick (Chosen)</li>
         <li>Always 3 laps: the stop stays a rescue</li>
         <li>Always 5 laps: every race has strategy, and takes about 4.5 minutes rather than 2.6</li>
       </ol>
     </li>
     <li><strong>Is the stop's length pure chance?</strong>
       <ol>
-        <li class="rec">Pure chance, as you asked; the driver only waits for green (Recommended)</li>
+        <li class="rec">Pure chance, as you asked; the driver only waits for green (Chosen)</li>
         <li>Chance, plus a small launch bonus for reacting to green, like the rocket start</li>
       </ol>
     </li>
     <li><strong>Who works the pit limiter?</strong>
       <ol>
-        <li class="rec">It engages by itself at the entry line, so no new control and no penalty (Recommended)</li>
+        <li class="rec">It engages by itself at the entry line, so no new control and no penalty (Chosen)</li>
         <li>A limiter key, with F1's 5 s penalty for speeding: truer, but one more key and an easy way to lose a race by accident</li>
       </ol>
     </li>
     <li><strong>Does the oval get a pit lane?</strong>
       <ol>
-        <li class="rec">No. A 16 s lap makes a stop cost a third of a lap, and tyres last the race anyway (Recommended)</li>
+        <li class="rec">No. A 16 s lap makes a stop cost a third of a lap, and tyres last the race anyway (Chosen)</li>
         <li>Yes, for consistency, though it would rarely be used</li>
       </ol>
     </li>
     <li><strong>Can a room turn tyres off?</strong>
       <ol>
-        <li class="rec">Yes: the creator picks Tyres On or Off, fixed for the room like the bot level, On by default (Recommended)</li>
+        <li class="rec">Yes: the creator picks Tyres On or Off, fixed for the room like the bot level, On by default (Chosen)</li>
         <li>No: tyres are always part of the game</li>
       </ol>
     </li>
@@ -482,7 +483,7 @@ button.roll:active { transform: translate(2px, 2px); box-shadow: 1px 1px 0 var(-
     <li><strong>At 3 laps,</strong> managing wins, by 2.6 to 4.9 s over pushing with no stop. Pushing with a stop and pushing without one are within about 2.5 s of each other, so a kart that has been hit a few times, at 6% a spin-out, should think about stopping.</li>
     <li><strong>At 5 laps,</strong> everyone should stop once. A second stop gains a pusher at most about 2.5 s, before the risk of another bad roll. Who pits when, and the luck of the roll, decide places.</li>
     <li><strong>I would not fix 3 laps by wearing tyres faster.</strong> Pushing already reaches the red band on lap 2. Any harsher and tyres are gone before the player has learned the course.</li>
-    <li><strong>The oval</strong> never needs a stop, which is why decision 4 recommends no lane there. A kart on it ends a 3-lap race on about 41%.</li>
+    <li><strong>The oval</strong> never needs a stop, which is why decision 4 gives it no lane. A kart on it ends a 3-lap race on about 41%. A pushing kart in a 5-lap race there reaches red during lap 4 and ends near 0%, with no way to fix it; ADR 0083 leaves that as a race of tyre management until playtests say otherwise.</li>
   </ul>
 </section>
 
@@ -539,7 +540,7 @@ button.roll:active { transform: translate(2px, 2px); box-shadow: 1px 1px 0 var(-
     <li><strong>ADR 0080, tyres wear.</strong> Supersedes ADR 0055's consequence that the gauge reads something other than wear, and ADR 0056's gauge holding at 100%. ADR 0055 dropped wear because the gauge needed something to read and wear had never been built, not because wear had failed. Coins and their rule stay as they are.</li>
     <li><strong>ADR 0081, a pit lane to drive.</strong> Supersedes the glossary's "no pit lane to drive", which it credits to ADR 0050.</li>
     <li><strong>ADR 0082, the stop is rolled from the seed.</strong></li>
-    <li><strong>ADR 0083, the creator picks tyres and distance.</strong> Only if you take those options.</li>
+    <li><strong>ADR 0083, the creator picks tyres and distance.</strong></li>
     <li><strong>Glossary.</strong> Add pit lane, pit box, pit limiter, pit crew, stop and tyre life. "Tyre wear" calls the percentage how worn the tyres are, but 100% means new, so it should read as life left.</li>
   </ul>
   <h3>Tests, all through <code>step</code> and the fake transport</h3>
@@ -560,12 +561,12 @@ button.roll:active { transform: translate(2px, 2px); box-shadow: 1px 1px 0 var(-
   <div class="scroll"><table>
     <thead><tr><th>Slice</th><th>Delivers</th><th>Size</th></tr></thead>
     <tbody>
-      <tr><td class="nowrap">1. Wear</td><td>Life in the sim, wear sources, the live gauge, the Tyres pick, ADR 0080.</td><td>M</td></tr>
+      <tr><td class="nowrap">1. Wear</td><td>Life in the sim, wear sources, the live gauge, the Tyres pick. ADRs 0080 and 0083.</td><td>M</td></tr>
       <tr><td class="nowrap">2. Effects</td><td>Speed, steering, acceleration, braking, wash-out. First feel test on keyboard and gamepad.</td><td>M</td></tr>
       <tr><td class="nowrap">3. Lane</td><td>Bell Deer's lane, limiter, safe ground and checkpoints. Drive through without stopping. ADR 0081.</td><td>L</td></tr>
       <tr><td class="nowrap">4. Stop</td><td>Pit boxes, the roll, crew, lights, panel, audio, Results. ADR 0082.</td><td>L</td></tr>
       <tr><td class="nowrap">5. Bots and courses</td><td>Bot pit calls, Goldstone and Monarch lanes, re-tune against playtests, Tyres On by default.</td><td>L</td></tr>
-      <tr><td class="nowrap">6. Grand Prix</td><td>The 5-lap pick. <code>LAPS_PER_RACE</code> becomes a room setting.</td><td>M</td></tr>
+      <tr><td class="nowrap">6. Grand Prix</td><td>The 5-lap pick. <code>LAPS_PER_RACE</code> becomes a room setting. ADR 0083.</td><td>M</td></tr>
     </tbody>
   </table></div>
 </section>
