@@ -768,6 +768,8 @@ impl Kart {
     /// readout's, run down by the ticks since. The caller puts the body
     /// where the readout has it.
     fn adopt(&mut self, readout: &KartReadout, clock: Phase) {
+        // First: the motion is read against what these tyres can slide.
+        self.handling.adopt_tyre_life(readout.tyre_life);
         self.handling.adopt(
             Rotation::from_array(readout.rotation).normalize(),
             readout.drift,
@@ -776,7 +778,6 @@ impl Kart {
         );
         self.item_slot = readout.item_slot;
         self.coins = readout.coins;
-        self.handling.adopt_tyre_life(readout.tyre_life);
         self.handling.adopt_slipstream(readout.slipstream);
         // A spin-out the readout does not have is a hit the server never
         // made, which in a prediction is only ever the wheel's: the pass

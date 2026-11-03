@@ -41,6 +41,7 @@ const STILL: SoundReading = {
   reelStep: null,
   starSeconds: null,
   towed: false,
+  boxCall: false,
   nearestStar: null,
   blasts: [],
   incomingDroneMetres: null,
@@ -355,17 +356,17 @@ describe("preloading and the autoplay rule", () => {
         STAR_MUSIC_URL,
       ]),
     );
-    expect(fetched).toHaveLength(27);
+    expect(fetched).toHaveLength(28);
     await settled();
     expect(contexts).toHaveLength(0);
     await audio.unlock();
     expect(contexts).toHaveLength(1);
     expect(context().resumes).toBe(1);
     // Decoded once, from the bytes already fetched, so the first play is not late.
-    expect(context().decoded).toHaveLength(27);
+    expect(context().decoded).toHaveLength(28);
     await audio.unlock();
     expect(contexts).toHaveLength(1);
-    expect(context().decoded).toHaveLength(27);
+    expect(context().decoded).toHaveLength(28);
   });
 
   it("resumes a context the browser suspended on a later gesture", async () => {
@@ -554,6 +555,7 @@ describe("the SFX", () => {
     ["boostPad", { boostSeconds: 0.6 }],
     ["wrongWay", { wrongWay: true }],
     ["finish", { finished: true }],
+    ["boxChime", { boxCall: true }],
   ];
 
   it.each(CUES)(
@@ -775,7 +777,7 @@ describe("a sound that fails to load", () => {
     await audio.unlock();
     const context = contexts[0];
     if (context === undefined) throw new Error("no context was made");
-    expect(context.decoded).toHaveLength(25);
+    expect(context.decoded).toHaveLength(26);
     const race = audio.race();
     race.start();
     race.update(STILL);

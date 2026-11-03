@@ -462,6 +462,7 @@
         <dl class="spec"><dt>Decided</dt><dd><a href="adr/0034-chibi-low-poly-art.md">ADR 0034</a></dd></dl>
         <div class="notes">
           <p>Sparks are box streaks stretched along their flight, dust is a 6 x 4 low-poly sphere, marks are flat quads. The drift tiers run orange then red, each spark born pale and cooling to its tier's colour; red's sparks glow and bounce. The boost's flame and wind lines are additive, so they light the road rather than cover it. The wind lines are the slipstream's tell too (ADR 0077): in another kart's wake they build from nothing to the boost's thinnest rate over the second of the charge, a tow throws them at the boost's full rate and fades them over its last 0.35 s as a boost does, and a boost under way wins; no flame, which stays the boost's.</p>
+          <p>Under 30% tyre life (<a href="adr/0080-tyres-wear-and-the-gauge-reads-their-life.md">ADR 0080</a>), so rivals can read each other: light tyre smoke at the rear wheels while the kart rolls on the ground, <code>#c8c8c8</code> at 6 puffs a second against a stall's 30, the run-off's dust taking over off the road; and drift marks 1.6 times as dark as a fresh tyre's, fading over the same 4 s.</p>
           <p>The shadow disc is a smooth 32-segment circle; its soft edge hides the segments.</p>
         </div>
       </article>
@@ -768,7 +769,7 @@
         <header><h3>Tyre gauge kart</h3><code>apps/web/src/instrument-panel.ts</code></header>
         <div class="compare"><figure><figcaption>Your car from above</figcaption><div class="view"><div class="hud tyre-big follows lv" data-draw="tyreGauge"></div></div></figure></div>
         <dl class="spec"><dt>Decided</dt><dd><a href="adr/0031-speed-cluster.md">ADR 0031</a>, <a href="adr/0037-instrument-panel-in-chibi-low-poly.md">0037</a>, read live by <a href="adr/0080-tyres-wear-and-the-gauge-reads-their-life.md">0080</a></dd></dl>
-        <div class="notes"><p>Front and rear wings in secondary, the tub and sidepods in primary lit on the left, the accent stripe, the halo, and your driver's hair in the cockpit. Rears bigger than fronts, each tyre a faceted block in its wear colour: green above 60%, yellow above 30%, red at 30% and below. Beside it the kart's tyre life, rounded up so 0% means truly gone; the race opens at 100%, green, and with Tyres Off it holds there. With Tyres On it falls through the bands as the kart is driven.</p></div>
+        <div class="notes"><p>Front and rear wings in secondary, the tub and sidepods in primary lit on the left, the accent stripe, the halo, and your driver's hair in the cockpit. Rears bigger than fronts, each tyre a faceted block in its wear colour: green above 60%, yellow above 30%, red at 30% and below. Beside it the kart's tyre life, rounded up so 0% means truly gone; the race opens at 100%, green, and with Tyres Off it holds there. With Tyres On it falls through the bands as the kart is driven.</p><p>The BOX plate sits off the cluster's right edge, level with the gauge: the word in white on <code>POSTER_RED</code>, for 2 s with a chime as life first falls to 30%. Not repeated, and not on the final lap nor a course without a pit lane, so no race shows it until one exists.</p></div>
       </article>
 
       <article class="asset">

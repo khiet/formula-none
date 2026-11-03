@@ -38,6 +38,7 @@ const STILL: SoundReading = {
   reelStep: null,
   starSeconds: null,
   towed: false,
+  boxCall: false,
   nearestStar: null,
   blasts: [],
   incomingDroneMetres: null,
@@ -471,6 +472,7 @@ describe("soundReading", () => {
       reelStep: null,
       starSeconds: null,
       towed: false,
+      boxCall: false,
       nearestStar: null,
       blasts: [],
       incomingDroneMetres: null,
@@ -600,5 +602,14 @@ describe("soundReading", () => {
       count: null,
       charge: null,
     });
+  });
+});
+
+describe("the BOX chime", () => {
+  it("sounds as the call comes up and not while it shows", () => {
+    const at = (boxCall: boolean) => ({ ...STILL, boxCall });
+    expect(soundCues(at(false), at(true))).toEqual(["boxChime"]);
+    expect(soundCues(at(true), at(true))).toEqual([]);
+    expect(soundCues(at(true), at(false))).toEqual([]);
   });
 });

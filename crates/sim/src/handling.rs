@@ -20,7 +20,10 @@ use crate::tuning::{
     BOOST_PAD_FACTOR, BOOST_PAD_S, DRIFT_ENTRY_SPEED_FRACTION, GRAVITY_M_PER_S2, HOP_AIRTIME_S,
     KART_BUMP_DECAY_S, KART_BUMP_MIN_M_PER_S, KERB_SPEED_KEEP, MINI_TURBO_BOOST_FACTOR,
     OFF_TRACK_SPEED_FACTOR, SLIPSTREAM_CHARGE_TICKS, SLIPSTREAM_TOP_SPEED_FACTOR, SLIPSTREAM_TOW_S,
-    TICK_S, TOP_SPEED_M_PER_S, TYRE_LIFE_NEW_PERCENT, TYRE_WEAR_BRAKING_PER_S,
+    TICK_S, TOP_SPEED_M_PER_S, TYRE_ACCELERATION_FACTORS, TYRE_BRAKING_FACTORS,
+    TYRE_LIFE_NEW_PERCENT, TYRE_LIFE_STOPS_PERCENT, TYRE_STEER_RATE_FACTORS,
+    TYRE_TOP_SPEED_FACTORS, TYRE_WASH_OUT_FULL_M_PER_S2, TYRE_WASH_OUT_LIMIT_M_PER_S2,
+    TYRE_WASH_OUT_MOST_RAD, TYRE_WASH_OUT_RATE_RAD_PER_S, TYRE_WEAR_BRAKING_PER_S,
     TYRE_WEAR_BUMP_MAX_PERCENT, TYRE_WEAR_BUMP_MIN_PERCENT, TYRE_WEAR_BUMP_PER_M_PER_S,
     TYRE_WEAR_CORNERING_PER_S, TYRE_WEAR_CORNERING_REFERENCE_M_PER_S2, TYRE_WEAR_DRIFT_PER_S,
     TYRE_WEAR_KERB_PERCENT, TYRE_WEAR_MINI_TURBO_PERCENT, TYRE_WEAR_OFF_TRACK_PER_S,
@@ -74,6 +77,10 @@ pub(crate) struct Handling {
     /// How much life the tyres have left, from 100 for new to 0. A respawn
     /// keeps it: only a stop raises it (ADR 0080).
     tyre_life: f32,
+    /// Radians the line of travel slides wide of the facing past the
+    /// cornering limit, on top of a drift's slip, signed as that slip is.
+    /// Zero until the tyres are worn enough to wash out.
+    wash_out_rad: f32,
     /// Whether anything wears the kart this tick: on the ground, moving,
     /// neither spun out nor on a star's run, as `tick` left it. What says
     /// whether a touch after the solver costs life. Rewritten every tick
@@ -202,6 +209,7 @@ impl Handling {
         Self {
             tyres,
             tyre_life: TYRE_LIFE_NEW_PERCENT,
+            wash_out_rad: 0.0,
             wearing: false,
             touches: Vec::new(),
             travel: Vec3::NEG_Z,
@@ -377,6 +385,7 @@ impl Handling {
         self.boost_left_s = 0.0;
         self.slipstream_charge_ticks = 0;
         self.tow_left_s = 0.0;
+        self.wash_out_rad = 0.0;
         self.travel = travel;
         self.walls.clear();
         self.bump = Vec3::ZERO;
@@ -385,8 +394,10 @@ impl Handling {
 
     /// Take on a snapshot's word on the kart's motion: turned by `rotation`,
     /// in `drift`, moving at `velocity` and carrying `bump`, which replaces
-    /// the kart's own. The speed is what the velocity holds along the
-    /// travel once the bump is taken off, as `tick` built it.
+    /// the kart's own. A snapshot carries no wash-out, but with the bump off
+    /// the velocity runs along the travel, so it holds the slide too, which
+    /// the tyre life adopted first bounds. The speed is what the velocity
+    /// holds along that travel, as `tick` built it.
     pub(crate) fn adopt(
         &mut self,
         rotation: Rotation,
@@ -396,7 +407,13 @@ impl Handling {
     ) {
         self.drift = drift;
         let slip = drift.map_or(0.0, |drift| drift_slip(drift.direction));
-        self.travel = rotation * Rotation::from_rotation_y(slip) * Vec3::NEG_Z;
+        let drifted = rotation * Rotation::from_rotation_y(slip);
+        self.wash_out_rad = wash_out_held(
+            drifted,
+            velocity - bump,
+            TyreGrip::at(self.tyre_life).wash_out_rad,
+        );
+        self.travel = drifted * Rotation::from_rotation_y(self.wash_out_rad) * Vec3::NEG_Z;
         self.bump = bump;
         self.speed = self.travel.dot(velocity - bump);
     }
@@ -427,6 +444,7 @@ impl Handling {
         hasher.write_f32s(self.bump.to_array());
         if self.tyres == Tyres::On {
             hasher.write_f32(self.tyre_life);
+            hasher.write_f32(self.wash_out_rad);
             hasher.write_u64(self.touches.len() as u64);
             for touch in &self.touches {
                 let (index, generation) = touch.with.into_raw_parts();
@@ -458,6 +476,8 @@ impl Handling {
             touch.this_tick = false;
             goes_on
         });
+        // The life this tick starts on; what it wears counts from the next.
+        let grip = TyreGrip::at(self.tyre_life);
         let mut released = false;
         let mut vertical = situation.vertical_m_per_s;
         let was_airborne = self.airborne();
@@ -537,7 +557,7 @@ impl Handling {
         } else {
             situation.top_speed
         };
-        self.speed = next_speed(self.speed, input, dt, top_speed);
+        self.speed = next_speed(self.speed, input, dt, top_speed * grip.top_speed, grip);
         if launched {
             self.speed *= KERB_SPEED_KEEP;
         }
@@ -575,7 +595,20 @@ impl Handling {
             ),
             None => (input.steer.clamp(-1.0, 1.0), 0.0),
         };
-        let forward = situation.rotation * Rotation::from_rotation_y(slip) * Vec3::NEG_Z;
+        // A kart in the air or stopped has no load on its tyres to slide on.
+        let wanted = if freeze == Freeze::Stopped || self.airborne() {
+            0.0
+        } else {
+            wash_out_wanted(
+                self.speed,
+                yaw_rate(self.speed, steer, grip.steer_rate),
+                grip.wash_out_rad,
+            )
+        };
+        let building = TYRE_WASH_OUT_RATE_RAD_PER_S * dt;
+        self.wash_out_rad += (wanted - self.wash_out_rad).clamp(-building, building);
+        let forward =
+            situation.rotation * Rotation::from_rotation_y(slip + self.wash_out_rad) * Vec3::NEG_Z;
         let moving = self.speed != 0.0;
         self.bump = decayed_bump(self.bump, dt);
         // A wall the kart is against takes the velocity into it, speed and
@@ -589,7 +622,7 @@ impl Handling {
             self.speed = forward.dot(velocity - self.bump);
         }
         self.travel = forward;
-        let yaw_rate = yaw_rate(self.speed, steer);
+        let yaw_rate = yaw_rate(self.speed, steer, grip.steer_rate);
         self.wear_for_tick(
             input,
             freeze,
@@ -758,6 +791,78 @@ impl Handling {
     }
 }
 
+/// What tyres on one life leave of the kart (ADR 0080). Factors of exactly 1
+/// and no wash-out at new, so a race on Tyres Off drives bit for bit as one
+/// from before there were tyres.
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct TyreGrip {
+    /// Multiplies the cap on the kart's speed; a boost sets its own.
+    pub(crate) top_speed: f32,
+    /// Multiplies the rate full lock turns at.
+    pub(crate) steer_rate: f32,
+    /// Multiply the throttle's and the brake's ramp.
+    pub(crate) acceleration: f32,
+    pub(crate) braking: f32,
+    /// The most the line of travel slides wide of the facing, radians.
+    pub(crate) wash_out_rad: f32,
+}
+
+impl TyreGrip {
+    /// The grip at `life` percent, interpolated between the tuned columns.
+    pub(crate) fn at(life: f32) -> Self {
+        let across = |column| across_life(life, column);
+        Self {
+            top_speed: across(TYRE_TOP_SPEED_FACTORS),
+            steer_rate: across(TYRE_STEER_RATE_FACTORS),
+            acceleration: across(TYRE_ACCELERATION_FACTORS),
+            braking: across(TYRE_BRAKING_FACTORS),
+            wash_out_rad: across(TYRE_WASH_OUT_MOST_RAD),
+        }
+    }
+}
+
+/// `column`, one value per life in `TYRE_LIFE_STOPS_PERCENT`, read at `life`
+/// in a straight line between its two neighbours. Each stop gives its own
+/// value exactly, so new tyres multiply by exactly 1.
+fn across_life(life: f32, column: [f32; TYRE_LIFE_STOPS_PERCENT.len()]) -> f32 {
+    for at in 1..column.len() {
+        let (above, below) = (TYRE_LIFE_STOPS_PERCENT[at - 1], TYRE_LIFE_STOPS_PERCENT[at]);
+        if life >= below {
+            let share = (life - below) / (above - below);
+            return column[at - 1] * share + column[at] * (1.0 - share);
+        }
+    }
+    column[column.len() - 1]
+}
+
+/// The slide a kart turning at `yaw_rate` asks of tyres that can give `most`:
+/// nothing up to the tuned cornering limit, all of it from the tuned full
+/// load, and wide of the turn, as a drift's slip is. A kart backing up has
+/// no load to slide on.
+fn wash_out_wanted(speed: f32, yaw_rate: f32, most: f32) -> f32 {
+    if speed <= 0.0 {
+        return 0.0;
+    }
+    let past_the_limit = (speed * yaw_rate.abs() - TYRE_WASH_OUT_LIMIT_M_PER_S2)
+        / (TYRE_WASH_OUT_FULL_M_PER_S2 - TYRE_WASH_OUT_LIMIT_M_PER_S2);
+    -yaw_rate.signum() * most * past_the_limit.clamp(0.0, 1.0)
+}
+
+/// The slide `moving`, a kart's velocity with its bump off, holds from
+/// `facing`, its facing turned by any drift's slip, at most `most` either way:
+/// a wall can turn the velocity further than any tyre slides. None on tyres
+/// that cannot slide or on a kart stopped or backing up.
+pub(crate) fn wash_out_held(facing: Rotation, moving: Vec3, most: f32) -> f32 {
+    if most == 0.0 {
+        return 0.0;
+    }
+    let local = facing.inverse() * moving;
+    if local.z >= 0.0 {
+        return 0.0;
+    }
+    libm::atan2f(-local.x, -local.z).clamp(-most, most)
+}
+
 /// A touch of one kart or tyre wall under way.
 #[derive(Clone)]
 struct Touch {
@@ -821,16 +926,17 @@ fn hop_launch_speed() -> f32 {
 /// Speed after one tick: throttle ramps toward `top_speed` and brake toward
 /// a standstill, each at its tuned rate, and the brake on its own carries on
 /// into reverse. With neither held the kart coasts toward a standstill and
-/// stays there. `top_speed` is the cap under the kart's rubber band; the
-/// ramp rates stay the tuned top speed's.
-fn next_speed(speed: f32, input: &KartInput, dt: f32, top_speed: f32) -> f32 {
+/// stays there. `top_speed` is the cap under the kart's rubber band and its
+/// tyres; the ramp rates stay the tuned top speed's, under `grip`. A coast
+/// asks nothing of the tyres.
+fn next_speed(speed: f32, input: &KartInput, dt: f32, top_speed: f32, grip: TyreGrip) -> f32 {
     use crate::tuning::{
         ACCELERATION_TO_TOP_S, BRAKE_TO_STOP_S, COAST_TO_STOP_S, REVERSE_TOP_SPEED_M_PER_S,
     };
     let throttle = input.throttle.clamp(0.0, 1.0);
     let brake = input.brake.clamp(0.0, 1.0);
-    let accelerate = throttle * TOP_SPEED_M_PER_S / ACCELERATION_TO_TOP_S;
-    let braking = brake * TOP_SPEED_M_PER_S / BRAKE_TO_STOP_S;
+    let accelerate = throttle * TOP_SPEED_M_PER_S / ACCELERATION_TO_TOP_S * grip.acceleration;
+    let braking = brake * TOP_SPEED_M_PER_S / BRAKE_TO_STOP_S * grip.braking;
     let coasted = if throttle == 0.0 && brake == 0.0 {
         let coast = TOP_SPEED_M_PER_S / COAST_TO_STOP_S * dt;
         // Toward zero from either side, never through it.
@@ -873,21 +979,22 @@ fn drift_slip(direction: DriftDirection) -> f32 {
 /// right, which is a negative rotation about +Y, and swings the nose of a
 /// kart backing up the other way, as a car's does. Faster karts steer slower,
 /// and a near-stationary kart barely turns at all. Full lock is 1; a drift
-/// may ask for more.
-fn yaw_rate(speed: f32, steer: f32) -> f32 {
+/// may ask for more. `tyres` is the steering rate the tyres leave.
+fn yaw_rate(speed: f32, steer: f32, tyres: f32) -> f32 {
     use crate::tuning::STEER_FULL_EFFECT_SPEED_M_PER_S;
     let grip = (speed.abs() / STEER_FULL_EFFECT_SPEED_M_PER_S).clamp(0.0, 1.0);
-    -steer * steer_rate(speed) * grip * speed.signum()
+    -steer * steer_rate(speed, tyres) * grip * speed.signum()
 }
 
 /// The yaw rate full lock gives at `speed`: the tuned low-speed rate
-/// falling to the tuned top-speed rate. Shared with the bot, so its model
-/// of the handling is the handling.
-pub(crate) fn steer_rate(speed: f32) -> f32 {
+/// falling to the tuned top-speed rate, times what the tyres leave of it.
+/// Shared with the bot, so its model of the handling is the handling.
+pub(crate) fn steer_rate(speed: f32, tyres: f32) -> f32 {
     use crate::tuning::{STEER_RATE_LOW_SPEED_RAD_PER_S, STEER_RATE_TOP_SPEED_RAD_PER_S};
     let speed_fraction = (speed.abs() / TOP_SPEED_M_PER_S).clamp(0.0, 1.0);
-    STEER_RATE_LOW_SPEED_RAD_PER_S
-        + (STEER_RATE_TOP_SPEED_RAD_PER_S - STEER_RATE_LOW_SPEED_RAD_PER_S) * speed_fraction
+    (STEER_RATE_LOW_SPEED_RAD_PER_S
+        + (STEER_RATE_TOP_SPEED_RAD_PER_S - STEER_RATE_LOW_SPEED_RAD_PER_S) * speed_fraction)
+        * tyres
 }
 
 #[cfg(test)]
@@ -896,7 +1003,7 @@ mod tests {
     use crate::tuning::{
         ITEM_BOOST_FACTOR, ITEM_BOOST_S, KART_BUMP_RESTITUTION, KART_BUMP_SPEED_LOSS,
         MINI_TURBO_ORANGE_BOOST_S, MINI_TURBO_ORANGE_CHARGE_S, MINI_TURBO_RED_BOOST_S,
-        MINI_TURBO_RED_CHARGE_S,
+        MINI_TURBO_RED_CHARGE_S, TICKS_PER_SECOND,
     };
     use crate::MiniTurbo;
 
@@ -1480,6 +1587,162 @@ mod tests {
         );
     }
 
+    /// A kart on tyres of `life` at `speed`, wearing nothing further, so a
+    /// measurement holds the one life.
+    fn on_life(life: f32, speed: f32) -> Handling {
+        let mut handling = going(speed);
+        handling.tyre_life = life;
+        handling
+    }
+
+    fn after_a_second(life: f32, from: f32, input: KartInput) -> f32 {
+        let mut handling = on_life(life, from);
+        ticks(&mut handling, input, TICKS_PER_SECOND);
+        handling.speed
+    }
+
+    #[test]
+    fn worn_tyres_hold_the_kart_under_the_tables_top_speed() {
+        for (life, cap) in [
+            (100.0, 30.0),
+            (60.0, 29.7),
+            (45.0, 29.25),
+            (30.0, 28.8),
+            (0.0, 25.8),
+        ] {
+            let top = after_a_second(life, TOP_SPEED_M_PER_S, FULL_THROTTLE);
+            assert!((top - cap).abs() < 1e-3, "at {life}%: {top}");
+        }
+    }
+
+    #[test]
+    fn worn_tyres_accelerate_and_brake_less_by_the_table() {
+        // Flat out from rest gains 12 m/s each second on new tyres, and a
+        // full brake sheds 20.
+        let gained = |life| after_a_second(life, 0.0, FULL_THROTTLE);
+        assert!((gained(100.0) - 12.0).abs() < 1e-2);
+        assert!((gained(30.0) - 12.0 * 0.88).abs() < 1e-2);
+        assert!((gained(0.0) - 12.0 * 0.7).abs() < 1e-2);
+        let brake = KartInput {
+            brake: 1.0,
+            ..KartInput::default()
+        };
+        let shed = |life| 25.0 - after_a_second(life, 25.0, brake);
+        assert!((shed(100.0) - 20.0).abs() < 1e-2);
+        assert!((shed(30.0) - 20.0 * 0.9).abs() < 1e-2);
+        assert!((shed(0.0) - 20.0 * 0.75).abs() < 1e-2);
+    }
+
+    #[test]
+    fn worn_tyres_turn_less_at_the_same_speed_and_lock() {
+        let lock = KartInput {
+            steer: 1.0,
+            ..KartInput::default()
+        };
+        let turning = |life| {
+            on_life(life, 20.0)
+                .tick(&lock, Freeze::Free, asphalt(), TICK_S)
+                .yaw_rate
+        };
+        // Full lock at 20 m/s is 2.2 - 20/30 rad/s on new tyres.
+        let new = turning(100.0);
+        assert!((new + (2.2 - 20.0 / 30.0)).abs() < 1e-2, "{new}");
+        assert!((turning(30.0) / new - 0.88).abs() < 1e-3);
+        assert!((turning(0.0) / new - 0.65).abs() < 1e-3);
+    }
+
+    #[test]
+    fn a_mini_turbo_charges_in_the_same_ticks_on_worn_tyres() {
+        let red = tick_charge_reaches(MINI_TURBO_RED_CHARGE_S);
+        let mut handling = drifting_right();
+        handling.tyre_life = 0.0;
+        ticks(&mut handling, hop_right(), red - 1);
+        assert_eq!(MiniTurbo::of(handling.drift), MiniTurbo::Orange);
+        tick(&mut handling, hop_right());
+        assert_eq!(MiniTurbo::of(handling.drift), MiniTurbo::Red);
+    }
+
+    /// The angle, signed as a slip is, between where a kart held at `steer`
+    /// for a second points and where the handling sends it.
+    fn slid_after_a_second(life: f32, speed: f32, steer: f32) -> f32 {
+        let mut handling = on_life(life, speed);
+        let input = KartInput {
+            steer,
+            ..FULL_THROTTLE
+        };
+        let situation = Situation {
+            top_speed: speed / TyreGrip::at(life).top_speed,
+            ..asphalt()
+        };
+        let mut sent = None;
+        for _ in 0..TICKS_PER_SECOND {
+            sent = Some(handling.tick(&input, Freeze::Free, situation, TICK_S));
+        }
+        let velocity = sent.expect("ticked").velocity;
+        libm::atan2f(-velocity.x, -velocity.z)
+    }
+
+    #[test]
+    fn wash_out_moves_the_line_of_travel_only_past_the_limit() {
+        // New tyres and 60% life never slide, whatever the load; at 0% full
+        // lock at 25 m/s is past the limit and a gentle steer is not.
+        assert_eq!(slid_after_a_second(100.0, 25.0, 1.0), 0.0);
+        assert_eq!(slid_after_a_second(60.0, 25.0, 1.0), 0.0);
+        assert_eq!(slid_after_a_second(0.0, 25.0, 0.2), 0.0);
+        assert!(slid_after_a_second(0.0, 25.0, 1.0) > 0.05);
+    }
+
+    #[test]
+    fn wash_out_slides_wide_of_the_corner_and_no_further_than_the_table() {
+        // Full lock at the speed each life tops out at is past the full load.
+        assert!((slid_after_a_second(30.0, 28.8, 1.0) - 0.05).abs() < 1e-3);
+        let wide_right = slid_after_a_second(0.0, 25.8, 1.0);
+        assert!((wide_right - 0.15).abs() < 1e-3, "{wide_right}");
+        let wide_left = slid_after_a_second(0.0, 25.8, -1.0);
+        assert!((wide_left + 0.15).abs() < 1e-3, "{wide_left}");
+    }
+
+    #[test]
+    fn wash_out_builds_over_ticks_so_a_keyed_steer_does_not_kink_the_line() {
+        let mut handling = on_life(0.0, 25.0);
+        let lock = KartInput {
+            steer: 1.0,
+            ..FULL_THROTTLE
+        };
+        tick(&mut handling, lock);
+        assert!(
+            handling.wash_out_rad.abs() < 0.02,
+            "{}",
+            handling.wash_out_rad
+        );
+    }
+
+    #[test]
+    fn taking_a_snapshots_word_keeps_the_wash_out_its_velocity_holds() {
+        let mut handling = on_life(0.0, 25.0);
+        let lock = KartInput {
+            steer: 1.0,
+            ..FULL_THROTTLE
+        };
+        let situation = Situation {
+            rotation: Rotation::from_rotation_y(0.7),
+            ..asphalt()
+        };
+        let mut sent = None;
+        for _ in 0..30 {
+            sent = Some(handling.tick(&lock, Freeze::Free, situation, TICK_S));
+        }
+        let velocity = sent.expect("ticked").velocity;
+        let (speed, washed) = (handling.speed, handling.wash_out_rad);
+        assert!(washed != 0.0);
+
+        let mut adopted = on_life(0.0, 3.0);
+        adopted.adopt(situation.rotation, None, velocity, Vec3::ZERO);
+
+        assert!((adopted.wash_out_rad - washed).abs() < 1e-4);
+        assert!((adopted.speed - speed).abs() < 1e-3);
+    }
+
     #[test]
     fn cornering_wears_with_the_square_of_speed_times_yaw_rate() {
         let speed = 20.0;
@@ -1487,7 +1750,7 @@ mod tests {
             steer: 1.0,
             ..FULL_THROTTLE
         };
-        let a = speed * steer_rate(speed);
+        let a = speed * steer_rate(speed, 1.0);
         close(
             lost_in_a_second(speed, corner, asphalt()),
             TYRE_WEAR_ROLLING_PER_S

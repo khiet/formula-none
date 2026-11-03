@@ -3,6 +3,7 @@
 //! with the [`KartInput`] a human's controller would, so a bot-driven kart is
 //! just a kart whose input comes from here instead of a device.
 
+use crate::handling::{wash_out_held, TyreGrip};
 use crate::tuning::{
     coin_factor, BotProfile, ACCELERATION_TO_TOP_S, BOT_AVOID_HALF_WIDTH_M, BOT_BRAKE_HORIZON_S,
     BOT_CORNER_SAMPLE_M, BOT_DRIFT_CURVATURE_RAD_PER_M, BOT_HAZARD_HOLD_S, BOT_HOP_STEER,
@@ -122,7 +123,12 @@ pub fn drive(
 ) -> KartInput {
     let kart = &karts[slot];
     let progress = standings[slot].spline_progress;
-    let target_speed = corner_speed(profile, sharpest_ahead(track, progress, kart.speed));
+    let grip = TyreGrip::at(kart.tyre_life);
+    let target_speed = corner_speed(
+        profile,
+        sharpest_ahead(track, progress, kart.speed, grip),
+        grip.steer_rate,
+    );
     // On a star's run the wheel cannot hurt it and the karts in its way are
     // its targets, so it neither waits nor steers round anyone.
     let starring = kart.star_s.is_some();
@@ -217,7 +223,7 @@ pub fn drive(
         // which then stops the kart dead instead of backing it up into
         // whatever is behind; already backing up, it coasts to a stop.
         // Handling's full brake, over one tick.
-        let braked_in_a_tick = TOP_SPEED_M_PER_S / BRAKE_TO_STOP_S * dt;
+        let braked_in_a_tick = TOP_SPEED_M_PER_S / BRAKE_TO_STOP_S * grip.braking * dt;
         if kart.speed > braked_in_a_tick {
             (0.0, 1.0)
         } else if kart.speed > 0.0 {
@@ -374,7 +380,8 @@ fn waits_for_a_wheel(
     let across_reach = KART_HALF_WIDTH_M + WHEEL_RADIUS_M;
     let speed = kart.speed.max(0.0);
     let top_speed = target_speed.max(speed);
-    let flat_out = TOP_SPEED_M_PER_S / ACCELERATION_TO_TOP_S;
+    let flat_out =
+        TOP_SPEED_M_PER_S / ACCELERATION_TO_TOP_S * TyreGrip::at(kart.tyre_life).acceleration;
     let setting_off = flat_out * BOT_WHEEL_SET_OFF_FRACTION;
     // How far along the kart is `after_s` from now, from `from` metres per
     // second, gaining `gain` metres per second each second up to the speed
@@ -527,7 +534,7 @@ fn pursuit_steer(kart: &KartReadout, target: [f32; 2]) -> f32 {
     let slip = kart.drift.map_or(0.0, |drift| {
         drift.direction.steer_sign() * DRIFT_SLIP_ANGLE_RAD
     });
-    let travel = yaw(kart.rotation) + slip;
+    let travel = yaw(kart.rotation) + slip + wash_out_of(kart, slip);
     let (dx, dz) = (target[0] - kart.position[0], target[1] - kart.position[2]);
     let distance = libm::sqrtf(dx * dx + dz * dz).max(f32::EPSILON);
     // Positive steer turns the kart right; right of a yaw is (cos, -sin) in x, z.
@@ -537,7 +544,8 @@ fn pursuit_steer(kart: &KartReadout, target: [f32; 2]) -> f32 {
     // curvature 2 sin(angle) / distance; the yaw rate for it is that times
     // the speed, and the lock is the yaw rate over the rate full lock gives.
     let curvature = 2.0 * rightward / distance;
-    let lock = kart.speed.abs() * curvature / crate::handling::steer_rate(kart.speed);
+    let tyres = TyreGrip::at(kart.tyre_life).steer_rate;
+    let lock = kart.speed.abs() * curvature / crate::handling::steer_rate(kart.speed, tyres);
     match kart.drift {
         None => lock.clamp(-1.0, 1.0),
         // A drift turns its own way at the neutral strength, trimmed by the
@@ -550,10 +558,25 @@ fn pursuit_steer(kart: &KartReadout, target: [f32; 2]) -> f32 {
     }
 }
 
+/// How far the kart's line of travel slides wide of its facing and `slip`,
+/// as its velocity holds it: worn tyres take the kart where the steer did not.
+fn wash_out_of(kart: &KartReadout, slip: f32) -> f32 {
+    let facing = Rotation::from_array(kart.rotation).normalize() * Rotation::from_rotation_y(slip);
+    let bump = kart.bump.map_or(Vec3::ZERO, Vec3::from);
+    wash_out_held(
+        facing,
+        Vec3::from(kart.velocity) - bump,
+        TyreGrip::at(kart.tyre_life).wash_out_rad,
+    )
+}
+
 /// The sharpest curvature, unsigned, of the centreline from the kart to as
 /// far as it travels in the brake horizon, and no nearer than the lookahead.
-fn sharpest_ahead(track: &Track, progress: f32, speed: f32) -> f32 {
-    let horizon = (speed * BOT_BRAKE_HORIZON_S).max(BOT_LOOKAHEAD_M);
+/// Worn tyres stretch the horizon: they brake less, for a corner they must
+/// take slower.
+fn sharpest_ahead(track: &Track, progress: f32, speed: f32, grip: TyreGrip) -> f32 {
+    let horizon_s = BOT_BRAKE_HORIZON_S / (grip.braking * grip.steer_rate);
+    let horizon = (speed * horizon_s).max(BOT_LOOKAHEAD_M);
     let samples = (horizon / BOT_CORNER_SAMPLE_M) as usize;
     (0..=samples)
         .map(|sample| {
@@ -568,14 +591,16 @@ fn sharpest_ahead(track: &Track, progress: f32, speed: f32) -> f32 {
 /// fraction of the fastest speed at which full lock still holds the turn's
 /// radius, given that the steer rate falls with speed. A straight asks for
 /// more than any top speed, banded or boosted, so the throttle stays open
-/// along it.
-fn corner_speed(profile: &BotProfile, curvature: f32) -> f32 {
+/// along it. `tyres` is the steering rate the tyres leave, so a bot slows
+/// for corners on worn tyres (ADR 0080).
+fn corner_speed(profile: &BotProfile, curvature: f32, tyres: f32) -> f32 {
     // Full lock turns a kart at speed v with radius v / rate(v), where
-    // rate(v) = low + (top - low) * v / TOP; solving radius = 1 / curvature
-    // for v gives the speed below.
+    // rate(v) = tyres * (low + (top - low) * v / TOP); solving radius =
+    // 1 / curvature for v gives the speed below.
     let rate_fall_per_m_per_s =
         (STEER_RATE_LOW_SPEED_RAD_PER_S - STEER_RATE_TOP_SPEED_RAD_PER_S) / TOP_SPEED_M_PER_S;
-    let fastest = STEER_RATE_LOW_SPEED_RAD_PER_S / (curvature + rate_fall_per_m_per_s);
+    let fastest =
+        tyres * STEER_RATE_LOW_SPEED_RAD_PER_S / (curvature + tyres * rate_fall_per_m_per_s);
     fastest * profile.corner_speed_fraction
 }
 

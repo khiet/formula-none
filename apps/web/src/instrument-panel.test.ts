@@ -283,7 +283,7 @@ describe("the speed cluster on the page", () => {
           at([0, 0.3, 0]),
         ]),
       );
-    return { container, find, drive };
+    return { container, find, drive, panel };
   };
 
   it("reads the speed in km/h, the gear and the coins as text", () => {
@@ -307,6 +307,17 @@ describe("the speed cluster on the page", () => {
     expect(find("coins")?.textContent).toBe("x10 / 10");
     drive(5, 7);
     expect(find("coins")?.textContent).toBe("x07 / 10");
+  });
+
+  it("shows the BOX plate only while the call shows", () => {
+    const { find, panel } = mount();
+    const plate = find("box");
+    expect(plate?.textContent).toBe("BOX");
+    expect(plate?.hidden).toBe(true);
+    panel.boxCall(true);
+    expect(plate?.hidden).toBe(false);
+    panel.boxCall(false);
+    expect(plate?.hidden).toBe(true);
   });
 
   it("opens the tyre gauge on new tyres", () => {

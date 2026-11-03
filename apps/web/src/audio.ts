@@ -13,6 +13,7 @@
 
 import airHornUrl from "../../../assets/audio/air-horn.wav?url";
 import boostPadUrl from "../../../assets/audio/boost-pad.wav?url";
+import boxChimeUrl from "../../../assets/audio/box-chime.wav?url";
 import coinLossUrl from "../../../assets/audio/coin-loss.wav?url";
 import coinPickupUrl from "../../../assets/audio/coin-pickup.wav?url";
 import countdownBeepUrl from "../../../assets/audio/countdown-beep.wav?url";
@@ -86,6 +87,7 @@ export const SOUND_URLS: Readonly<Record<SoundCue, string>> = {
   airHorn: airHornUrl,
   droneBeep: droneBeepUrl,
   slipstream: slipstreamUrl,
+  boxChime: boxChimeUrl,
 };
 export const LOOP_URLS: Readonly<Record<SoundLoop, string>> = {
   driftSkid: driftSkidUrl,

@@ -175,7 +175,7 @@ export interface ViewAssets {
  * track mesh is Presentation
  * only; the sim has its own copy of the geometry from the sidecar. Every
  * mechanic's Feedback is drawn from the readouts and the phase alone:
- * tyre marks under a drift, sparks once a tier has charged, drifting or
+ * tyre marks under a drift, darker and with light smoke off worn tyres, sparks once a tier has charged, drifting or
  * holding for the rocket start, dust on the run-off and at the wheels of a
  * stalled kart, a spun-out kart turned about its axis over
  * `spinOutSeconds`, a shadow disc on the track under every kart so a
@@ -204,6 +204,7 @@ export async function createRaceView(
   runawayWheelRadius: number,
   hornRadius: number,
   slipstreamChargeSeconds: number,
+  tyreLifeCliff: number,
   labelsFor: (karts: readonly KartReadout[]) => readonly KartLabel[],
   viewer: ViewerOptions,
 ): Promise<RaceView> {
@@ -264,7 +265,7 @@ export async function createRaceView(
     return { model, kart, wheels, head, sway, halo, haloMaterial, shining: false, spunOut: false };
   });
 
-  const tyreMarks = createTyreMarks(kartCount, kartSize);
+  const tyreMarks = createTyreMarks(kartCount, kartSize, { wornBelow: tyreLifeCliff });
   const marks = tyreMarkMesh(tyreMarks);
   const sparks = createSparkParticles(kartCount);
   // Each kart's emitter remembers its tier, so a tier's burst is the kart's own.
@@ -310,7 +311,7 @@ export async function createRaceView(
     drag: DUST_DRAG_PER_S,
     growth: DUST_GROWTH_PER_S,
   });
-  const dustEmitter = createDustEmitter(dust, kartSize);
+  const dustEmitter = createDustEmitter(dust, kartSize, tyreLifeCliff);
   // The wheel's smoke shares the dust's pool and mesh: puffs that spread and fade.
   const wheelTells = createWheelTellEmitter({ dust, smoke: dust, sparks }, runawayWheelRadius);
   const dustMesh = particleMesh(

@@ -382,6 +382,14 @@
             color-mix(in srgb, var(--ink) 55%, transparent)
         );
       }
+      /* Off the cluster's right edge, level with the tyre gauge it warns of. */
+      [data-instrument="box"] {
+        position: absolute;
+        left: calc(100% + var(--hud) * 1);
+        bottom: 0;
+        padding: 0.2em 0.5em;
+        font-size: calc(var(--hud) * 2.6);
+      }
       [data-instrument="coins"] {
         grid-area: coins;
         display: flex;

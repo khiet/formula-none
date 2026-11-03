@@ -1,6 +1,6 @@
 //! Tyre life at the sim's public seam (ADR 0080): with Tyres On a kart's
 //! life falls by how it is driven, read from `kart_readouts` after each
-//! `step`, and with Off nothing changes. Worn tyres cost nothing yet.
+//! `step`, and with Off nothing changes. Worn tyres cost speed and grip.
 
 mod common;
 
@@ -9,7 +9,7 @@ use common::{
     ticks, track, with_slot_at, DT, FIGURE_EIGHT, SEED,
 };
 
-use sim::tuning::{TYRE_LIFE_NEW_PERCENT, TYRE_WEAR_SPIN_OUT_PERCENT};
+use sim::tuning::{TOP_SPEED_M_PER_S, TYRE_LIFE_NEW_PERCENT, TYRE_WEAR_SPIN_OUT_PERCENT};
 use sim::{
     step, BotLevel, Item, KartInput, KartReadout, Prediction, RaceEvent, State, Track, Tyres,
 };
@@ -198,20 +198,67 @@ fn life_never_goes_below_zero() {
     assert_eq!(life(&state, 0), 0.0, "worn right out");
 }
 
+/// A kart on the figure-eight's open flat, its tyres held to a drift round in
+/// circles until they are gone.
+fn worn_right_out() -> State {
+    let sidecar = with_slot_at(FIGURE_EIGHT, 0, [0.0, 0.0, 0.0], 0.0);
+    let mut state = started(on(track(&sidecar), 1));
+    for tick in 0..ticks(120.0) {
+        let kart = state.kart_readouts()[0];
+        if kart.tyre_life == 0.0 {
+            return state;
+        }
+        let input = KartInput {
+            steer: 1.0,
+            hop: kart.drift.is_some() || kart.airborne || tick % 2 == 0,
+            ..throttle()
+        };
+        state = step(state, &[input], DT);
+    }
+    panic!("the tyres never wore out");
+}
+
 #[test]
-fn tyres_on_wear_without_changing_how_the_kart_drives() {
+fn a_kart_on_tyres_at_zero_finishes_a_lap_under_the_worn_top_speed() {
+    let mut state = worn_right_out();
+    let mut fastest = 0.0_f32;
+    for _ in 0..ticks(180.0) {
+        let input = follow_centreline(&state, 0);
+        // A boost sets its own speed, and the circles end in a mini-turbo:
+        // only a tick with no boost at either end answers to the cap.
+        let free = state.kart_readouts()[0].boost_s.is_none();
+        state = step(state, &[input], DT);
+        let kart = state.kart_readouts()[0];
+        if free && kart.boost_s.is_none() {
+            fastest = fastest.max(kart.speed);
+        }
+        let lapped = state
+            .events()
+            .iter()
+            .any(|event| matches!(event, RaceEvent::LapCompleted { .. }));
+        if lapped {
+            assert!(fastest <= 0.86 * TOP_SPEED_M_PER_S + 0.01, "{fastest}");
+            assert!(fastest > 0.8 * TOP_SPEED_M_PER_S, "{fastest}");
+            return;
+        }
+    }
+    panic!("the worn kart never finished a lap");
+}
+
+#[test]
+fn a_kart_worn_by_a_race_on_the_same_inputs_falls_behind_one_with_tyres_off() {
     let mut worn = on(oval(), 1);
     let mut off = State::new(SEED, 1, oval());
     for _ in 0..ticks(20.0) {
         let input = follow_centreline(&worn, 0);
         worn = step(worn, &[input], DT);
+        let input = follow_centreline(&off, 0);
         off = step(off, &[input], DT);
     }
-    let (worn, off): (KartReadout, KartReadout) = (worn.kart_readouts()[0], off.kart_readouts()[0]);
+    let (worn, off) = (worn.kart_readouts()[0], off.kart_readouts()[0]);
     assert!(worn.tyre_life < TYRE_LIFE_NEW_PERCENT);
     assert_eq!(off.tyre_life, TYRE_LIFE_NEW_PERCENT, "Off never wears");
-    assert_eq!(worn.position, off.position);
-    assert_eq!(worn.velocity, off.velocity);
+    assert!(worn.spline_progress < off.spline_progress);
 }
 
 #[test]
