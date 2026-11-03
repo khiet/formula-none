@@ -1718,6 +1718,25 @@ mod tests {
     }
 
     #[test]
+    fn a_kart_in_the_air_or_respawned_lets_a_wash_out_go() {
+        let mut handling = on_life(0.0, 25.0);
+        let lock = KartInput {
+            steer: 1.0,
+            ..FULL_THROTTLE
+        };
+        ticks(&mut handling, lock, 30);
+        assert!(handling.wash_out_rad != 0.0);
+
+        let mut in_the_air = handling.clone();
+        ticks(&mut in_the_air, KartInput { hop: true, ..lock }, 15);
+        assert!(in_the_air.airborne());
+        assert_eq!(in_the_air.wash_out_rad, 0.0);
+
+        handling.respawn(Vec3::NEG_Z);
+        assert_eq!(handling.wash_out_rad, 0.0);
+    }
+
+    #[test]
     fn taking_a_snapshots_word_keeps_the_wash_out_its_velocity_holds() {
         let mut handling = on_life(0.0, 25.0);
         let lock = KartInput {

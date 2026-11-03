@@ -14,7 +14,7 @@ use sim::tuning::{
     BOT_STALL_SPEED_M_PER_S, BOT_START_HOLD_S, COUNTDOWN_S, LAPS_PER_RACE, MINI_TURBO_RED_BOOST_S,
     TOP_SPEED_M_PER_S,
 };
-use sim::{step, BotLevel, KartInput, Phase, State, Surface, Track, Tyres};
+use sim::{step, BotLevel, KartInput, KartReadout, Phase, State, Surface, Track, Tyres};
 
 /// Step `state` for `seconds` with every human idle.
 fn idle_humans(mut state: State, humans: usize, seconds: f32) -> State {
@@ -764,6 +764,50 @@ fn in_200_races_of_eight_bots_on_tyres_on_every_one_finishes_every_course_at_eve
             }
         }
     }
+}
+
+#[test]
+fn a_bot_brakes_on_worn_tyres_for_corners_it_would_take_on_new_ones() {
+    // At every tick of a lone bot's race, the same kart asked twice: once on
+    // the tyres it has and once on tyres worn right out.
+    let mut state = started(State::with_bots(SEED, 0, 1, bell_deer(), BotLevel::Pro));
+    let brakes = |state: &State, karts: &[KartReadout]| {
+        let input = sim::bot::drive(
+            state.track(),
+            BotLevel::Pro.profile(),
+            karts,
+            &state.standings(),
+            state.phase(),
+            SEED,
+            0,
+            &mut sim::bot::Memory::default(),
+            DT,
+        );
+        input.brake > 0.0
+    };
+    let (mut only_worn, mut only_new) = (0, 0);
+    while matches!(state.phase(), Phase::Racing { .. }) {
+        state = step(state, &[], DT);
+        let new = state.kart_readouts();
+        let worn: Vec<_> = new
+            .iter()
+            .map(|kart| KartReadout {
+                tyre_life: 0.0,
+                ..*kart
+            })
+            .collect();
+        match (brakes(&state, &new), brakes(&state, &worn)) {
+            (false, true) => only_worn += 1,
+            (true, false) => only_new += 1,
+            _ => {}
+        }
+    }
+    // Not never the other way: a worn kart's lower speed cap and a drift's
+    // coast shift the odd tick. Braking for corners far outweighs them.
+    assert!(
+        only_worn > 10 * only_new.max(1),
+        "braked {only_worn} ticks only on worn tyres, {only_new} only on new"
+    );
 }
 
 /// Under its stall speed this long, a bot is stuck.
