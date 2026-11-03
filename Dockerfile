@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 # One image per commit: the server binary plus, under /release, everything
-# the instance needs to run the stack (Compose file, Caddyfile, Prometheus
+# a server needs to run the stack (Compose files, Caddyfile, Prometheus
 # config, Grafana's provisioning and dashboard, built client). Build stages
 # run on the build machine's own architecture and cross-compile for the
 # target, amd64 or arm64, so a laptop or an x86 runner produces the same image
@@ -22,8 +22,8 @@ RUN test -n "$COMMIT" || { echo "build-arg COMMIT is required" >&2; exit 1; }
 
 # The Rust target, and the Debian names of its cross compiler and C headers,
 # for the architecture asked for. The headers are only a recommended package
-# of the compiler, and the ring crate compiles C. Later steps read the target
-# from /rust-target, which keeps the mapping in this one place.
+# of the compiler, and the ring crate compiles C. The build step reads the
+# target from /rust-target.
 RUN case "$TARGETARCH" in \
       amd64) rust_target=x86_64-unknown-linux-gnu; gcc=gcc-x86-64-linux-gnu; headers=libc6-dev-amd64-cross ;; \
       arm64) rust_target=aarch64-unknown-linux-gnu; gcc=gcc-aarch64-linux-gnu; headers=libc6-dev-arm64-cross ;; \

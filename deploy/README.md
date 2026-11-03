@@ -87,19 +87,21 @@ On a server of your own, with Docker and a domain whose DNS points at it.
 with Docker's `local` driver instead of going to CloudWatch, and Compose
 refuses to start without your domain.
 
-1. Build the image, on the server or anywhere you can move it from. Name the
-   server's architecture, `linux/amd64` or `linux/arm64`:
+1. Build the image from a checkout of this repository, naming the server's
+   architecture, `linux/amd64` or `linux/arm64`. If you build elsewhere, move
+   the image across with `docker save formula-none:dev | ssh you@your.domain docker load`.
 
    ```sh
    docker build --platform linux/amd64 --build-arg COMMIT=$(git rev-parse HEAD) -t formula-none:dev .
    ```
 
-2. Extract the release bundle from it on the server, into a directory of its
-   own:
+2. Extract the release bundle from it on the server, into a directory outside
+   any checkout. Repeat this after each new build, so the stack and the image
+   stay the same commit:
 
    ```sh
    container=$(docker create formula-none:dev)
-   docker cp "$container:/release" release && docker rm "$container"
+   docker cp "$container:/release/." release && docker rm "$container"
    ```
 
 3. Open 443 TCP and 443 UDP to the world. TCP is Caddy, including its
@@ -112,11 +114,13 @@ refuses to start without your domain.
    docker compose -f release/compose.yaml -f release/compose.selfhost.yaml up -d
    ```
 
-   Keep both variables set for any later `docker compose` command; without
-   `SITE_ADDRESS` it stops with "set SITE_ADDRESS to your domain".
+   Any later `docker compose` command needs both variables and both files.
+   Without `SITE_ADDRESS` it stops with "set SITE_ADDRESS to your domain";
+   without the second file, services go back to CloudWatch and fail to start.
 
 5. Prometheus and Grafana run here too. Grafana listens on the server's
-   loopback with no login, so reach it over SSH and browse
+   loopback with no login, and whoever reaches it is an admin, so anyone with
+   a shell on the server has that. Reach it over SSH and browse
    `http://localhost:3000`:
 
    ```sh
@@ -184,8 +188,9 @@ brought back.
 
 ## Logs
 
-Every container's stdout goes to CloudWatch Logs through the `awslogs`
-driver in `compose.yaml`: the log group `/formula-none/server` in eu-west-2,
+In production every container's stdout goes to CloudWatch Logs through the
+`awslogs` driver in `compose.yaml` (a self-hosted stack keeps it on the server;
+read it with `docker compose logs`): the log group `/formula-none/server` in eu-west-2,
 kept for 14 days (`infra/logs.tf`), one stream per container named after
 it, `formula-none-server-1` for the server. The server writes one JSON
 object per line (ADR 0018, `crates/server/src/log.rs`): `ts` and `event`

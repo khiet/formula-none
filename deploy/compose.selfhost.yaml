@@ -1,6 +1,6 @@
 # Overrides for running the stack on a server of your own: no CloudWatch, and
-# Caddy obtains a Let's Encrypt certificate for your domain. The server's
-# TLS_CERT and TLS_KEY in the base file already follow SITE_ADDRESS.
+# no falling back to the author's domain. The server's TLS_CERT and TLS_KEY in
+# the base file already follow SITE_ADDRESS.
 #
 #   SITE_ADDRESS=your.domain SERVER_IMAGE=formula-none:dev docker compose \
 #     -f release/compose.yaml -f release/compose.selfhost.yaml up -d

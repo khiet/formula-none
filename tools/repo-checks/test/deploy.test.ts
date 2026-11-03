@@ -180,12 +180,20 @@ describe("Compose stack", () => {
     expect(Object.keys(compose.volumes ?? {})).toContain("rooms");
   });
 
+  it("ships the Compose files, the Caddyfile, the Prometheus config and Grafana's files in the release bundle a server runs from", () => {
+    const dockerfile = readRepoFile("Dockerfile");
+    expect(dockerfile).toMatch(
+      /^COPY deploy\/compose\.yaml deploy\/compose\.selfhost\.yaml deploy\/Caddyfile deploy\/prometheus\.yml \/release\/$/m,
+    );
+    expect(dockerfile).toMatch(/^COPY deploy\/grafana \/release\/grafana$/m);
+  });
+
   it("runs the image the deploy document names", () => {
     expect(compose.services.server?.image).toBe(`\${SERVER_IMAGE}`);
   });
 });
 
-// A server of someone else's: compose.selfhost.yaml goes on top of the same
+// A self-hoster's server: compose.selfhost.yaml goes on top of the same
 // stack, so production's file stays the one definition of what runs.
 describe("self-hosting override", () => {
   const selfhost = parse(readRepoFile("deploy/compose.selfhost.yaml")) as {
@@ -307,14 +315,6 @@ describe("metrics stack", () => {
         expect(target.datasource?.uid ?? source?.uid).toBe(source?.uid);
       }
     }
-  });
-
-  it("ships the self-hosting override, the Prometheus config and Grafana's files in the release bundle a server runs from", () => {
-    const dockerfile = readRepoFile("Dockerfile");
-    expect(dockerfile).toMatch(
-      /^COPY deploy\/compose\.yaml deploy\/compose\.selfhost\.yaml deploy\/Caddyfile deploy\/prometheus\.yml \/release\/$/m,
-    );
-    expect(dockerfile).toMatch(/^COPY deploy\/grafana \/release\/grafana$/m);
   });
 
   it("runs every build stage on the build machine, so an x86 runner can build the arm64 image", () => {
