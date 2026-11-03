@@ -352,14 +352,6 @@ describe("tyre life", () => {
     const on = started(bridge.createRace(7n, 1, 0, OVAL, "basic", "on"), 1);
     const off = started(bridge.createRace(7n, 1, 0, OVAL, "basic", "off"), 1);
     expect(on.kartReadouts()[0]?.tyreLife).toBe(100);
-    const throttle = {
-      steer: 0,
-      throttle: 1,
-      brake: 0,
-      hop: false,
-      useItem: false,
-      holdItem: false,
-    };
     for (let tick = 0; tick < 120; tick++) {
       on.step([THROTTLE], DT);
       off.step([THROTTLE], DT);

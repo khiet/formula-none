@@ -201,8 +201,7 @@ fn tyre_life_enters_the_hash_only_with_tyres_on() {
     let run = |tyres: Tyres| {
         let mut state = State::with_tyres(SEED, 1, 0, oval(), BotLevel::Basic, tyres);
         for _ in 0..ticks(5.0) {
-            let input = throttle();
-            state = step(state, &[input], DT);
+            state = step(state, &[throttle()], DT);
         }
         state.hash()
     };

@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { loadBridge } from "./bridge";
+import { loadBridge, type Tyres } from "./bridge";
 import { IDLE_INPUT } from "./input";
 import { localRaceRun } from "./local-race";
 import {
@@ -123,5 +123,19 @@ describe("localRaceRun's horn blasts", () => {
     expect(run.readout().blasts[0]?.elapsedS).toBeCloseTo(BLAST_S - DT, 5);
     run.tick(IDLE_INPUT, DT);
     expect(run.readout().blasts).toEqual([]);
+  });
+});
+
+describe("localRaceRun's tyres", () => {
+  it("wears the local kart's tyres on On, and leaves them new on Off", async () => {
+    const bridge = await loadBridge(wasm);
+    const drive = (tyres: Tyres) => {
+      const run = localRaceRun(bridge, "oval", OVAL, "basic", tyres);
+      started(run);
+      for (let tick = 0; tick < 120; tick++) run.tick({ ...IDLE_INPUT, throttle: 1 }, DT);
+      return run.readout().karts[0]?.tyreLife;
+    };
+    expect(drive("on")).toBeLessThan(100);
+    expect(drive("off")).toBe(100);
   });
 });
