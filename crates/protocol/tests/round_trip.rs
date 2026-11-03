@@ -4,7 +4,7 @@
 //! to one per variant of the generated unions.
 
 use protocol::{decode, encode, samples, ClientMessage, DecodeError, Room, ServerMessage};
-use sim::BotLevel;
+use sim::{BotLevel, Tyres};
 
 #[test]
 fn every_client_message_round_trips() {
@@ -43,6 +43,28 @@ fn garbage_is_rejected() {
 }
 
 #[test]
+fn a_room_and_a_countdown_round_trip_at_every_tyres_pick() {
+    for tyres in Tyres::ALL {
+        let room = ServerMessage::Room(Room {
+            tyres,
+            ..samples::room()
+        });
+        let decoded: ServerMessage = decode(&encode(&room)).unwrap();
+        assert_eq!(decoded, room);
+
+        let countdown = ServerMessage::Countdown {
+            seed: 7,
+            track: "oval".to_owned(),
+            bot_level: BotLevel::Basic,
+            tyres,
+            grid: vec![0],
+        };
+        let decoded: ServerMessage = decode(&encode(&countdown)).unwrap();
+        assert_eq!(decoded, countdown);
+    }
+}
+
+#[test]
 fn a_room_and_a_countdown_round_trip_at_every_bot_level() {
     for level in BotLevel::ALL {
         let room = ServerMessage::Room(Room {
@@ -56,6 +78,7 @@ fn a_room_and_a_countdown_round_trip_at_every_bot_level() {
             seed: 7,
             track: "oval".to_owned(),
             bot_level: level,
+            tyres: Tyres::Off,
             grid: vec![0],
         };
         let decoded: ServerMessage = decode(&encode(&countdown)).unwrap();

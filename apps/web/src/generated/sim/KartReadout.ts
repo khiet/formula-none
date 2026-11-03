@@ -49,6 +49,11 @@ miniTurbo: MiniTurbo, itemSlot: ItemSlot,
  */
 coins: number, 
 /**
+ * How much life the kart's tyres have left, as a percentage: 100 is
+ * new and 0 is gone. It holds at 100 in a race on Tyres Off (ADR 0080).
+ */
+tyreLife: number, 
+/**
  * Seconds of spin-out left, while the kart is spun out: stopped, with
  * its inputs ignored. The View spins it for the duration.
  */

@@ -11,6 +11,7 @@ const ROOM: Room = {
   code: "BXQF",
   track: "bell-deer",
   botLevel: "basic",
+  tyres: "off",
   state: "racing",
   players: [{ slot: 0, nickname: "ada", livery: 0, state: "racing", creator: true }],
 };

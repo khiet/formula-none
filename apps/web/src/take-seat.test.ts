@@ -24,6 +24,7 @@ const ROOM: Room = {
   code: "BXQF",
   track: "goldstone",
   botLevel: "basic",
+  tyres: "off",
   state: "open",
   players: [
     { slot: 0, nickname: "khiet", livery: 0, state: "unready", creator: true },
@@ -137,6 +138,7 @@ describe("taking a seat in a room", () => {
           seed: 7 as unknown as bigint,
           track: "bell-deer",
           botLevel: "basic",
+          tyres: "off",
           grid: [0, 1],
         },
       });

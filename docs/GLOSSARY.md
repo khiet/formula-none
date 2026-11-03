@@ -642,8 +642,16 @@ Decorative: the gear and the speed are the text.
 How much life a kart's tyres have left, as a percentage: 100% is new and 0%
 is gone. It falls as the kart is driven and only a stop raises it. The
 Instrument panel's tyre gauge shows it on the local kart drawn from above,
-its tyres green above 60%, yellow above 30% and red below (ADR 0080). Until
-that is built, the gauge holds at 100%. Avoid: tyre wear, for the number.
+its tyres green above 60%, yellow above 30% and red below, read rounded up so
+0% means truly gone (ADR 0080). With Tyres Off it holds at 100%. Avoid: tyre
+wear, for the number.
+
+### Tyres
+
+Whether a race's tyres wear: On or Off, the creator's pick on the Title Scene,
+fixed for the room as the course is and shown on the Room Scene (ADR 0083). Off
+is the race as it was before there was tyre life, and what a kept room or a
+replay without a pick is. A replay carries it.
 
 ### race readout
 

@@ -774,7 +774,7 @@
         outline: 0.15em solid #fff;
         outline-offset: 0.15em;
       }
-      /* The bot level under the flags (ADR 0078): a tile per level, the flag tile with the caption in the flag's place. */
+      /* The bot level and the Tyres pick under the flags (ADR 0078, ADR 0083): a tile per choice, the flag tile with the caption in the flag's place. */
       #title-scene .bots {
         display: flex;
         flex-direction: column;
@@ -799,13 +799,13 @@
         min-width: 6em;
         padding: 0.5em 0.8em;
       }
-      #title-scene [data-bots-blurb] {
+      #title-scene :is([data-bots-blurb], [data-tyres-blurb]) {
         margin: 0;
         padding: 0.35em 0.6em;
         font-size: 1.1em;
         background: var(--ink);
       }
-      #room-scene .room-bots {
+      #room-scene .room-pick {
         margin: 0.6em 0 0;
         padding: 0.35em 0.6em;
         font-size: 1.3em;

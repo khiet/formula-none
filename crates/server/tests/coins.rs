@@ -5,8 +5,7 @@
 
 use protocol::{EventKind, Snapshot};
 use server::race::Race;
-use sim::BotLevel;
-use sim::Track;
+use sim::{BotLevel, Track, Tyres};
 
 const OVAL: &str = include_str!("../../../assets/tracks/oval/oval.track.json");
 
@@ -27,7 +26,7 @@ fn oval_with_a_coin_under_slot_0() -> (Track, u8) {
 #[test]
 fn a_pickup_is_a_server_event_and_the_next_snapshot_carries_the_count_and_the_coin_gone() {
     let (track, coin) = oval_with_a_coin_under_slot_0();
-    let mut race = Race::new(0x5EED, track, BotLevel::Basic, vec![0], 1);
+    let mut race = Race::new(0x5EED, track, BotLevel::Basic, Tyres::Off, vec![0], 1);
 
     let mut picked = None;
     let mut after: Option<Snapshot> = None;

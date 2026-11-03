@@ -166,7 +166,14 @@ function fakeClient(): FakeClient {
   return {
     slot: 1,
     token: TOKEN,
-    room: { code: "BXQF", track: "bell-deer", botLevel: "basic", state: "racing", players: [] },
+    room: {
+      code: "BXQF",
+      track: "bell-deer",
+      botLevel: "basic",
+      tyres: "off",
+      state: "racing",
+      players: [],
+    },
     race: undefined,
     replaced: false,
     closed: new Promise(() => {}),
@@ -202,7 +209,13 @@ function fakeClient(): FakeClient {
   };
 }
 
-const COUNTDOWN: Countdown = { seed: 7n, track: "bell-deer", botLevel: "basic", grid: [0, 1] };
+const COUNTDOWN: Countdown = {
+  seed: 7n,
+  track: "bell-deer",
+  botLevel: "basic",
+  tyres: "off",
+  grid: [0, 1],
+};
 
 const KART: KartSnapshot = {
   position: [10, 0.3, -20],
@@ -217,6 +230,7 @@ const KART: KartSnapshot = {
   wrongWay: false,
   itemSlot: "empty",
   coins: 0,
+  tyreLife: 100,
   spinOutS: null,
   start: "clean",
   stallS: null,
@@ -542,6 +556,7 @@ describe("createServerRace", () => {
       code: "BXQF",
       track: "bell-deer",
       botLevel: "basic",
+      tyres: "off",
       state: "racing",
       players: [],
     };

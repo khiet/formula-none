@@ -3,12 +3,12 @@ import type { NicknameChars } from "./bridge";
 import { button } from "./controls";
 import { type CourseChoice, createCoursePreview } from "./course-preview";
 import { flag } from "./flags";
-import type { BotLevel } from "./generated/sim";
+import type { BotLevel, Tyres } from "./generated/sim";
 import { livery } from "./livery";
 import { validateNickname } from "./nickname";
 import { backdrop, kartSide } from "./poster";
 import { normaliseCode } from "./room-link";
-import { BOT_LEVELS, type Course } from "./track";
+import { BOT_LEVELS, type Course, TYRES_CHOICES } from "./track";
 
 export interface TitleScene {
   /** Show a message to the player, such as why a join was refused. */
@@ -29,6 +29,8 @@ export interface TitleHandlers {
   course(course: Course): void;
   /** The player picked this bot level, for the next Create room or Solo race. */
   botLevel(level: BotLevel): void;
+  /** The player picked this for the tyres, for the next Create room or Solo race. */
+  tyres(tyres: Tyres): void;
 }
 
 export interface TitleOptions {
@@ -48,6 +50,8 @@ export interface TitleOptions {
   readonly course: Course;
   /** The bot level picked when the Scene opens. */
   readonly botLevel: BotLevel;
+  /** The Tyres pick when the Scene opens. */
+  readonly tyres: Tyres;
   /** Laps in a race, for the preview. */
   readonly laps: number;
   /** Whether the player asks for reduced motion, which holds the preview's lap dot still. */
@@ -59,12 +63,14 @@ export interface TitleOptions {
  * ways in: create a room, join one by code, or race alone, with the three
  * audio toggles (ADR 0025) under them; beside them, the course a created
  * room or a solo race runs (ADR 0061), as a flag per course and a preview
- * of the one picked, with the bot level under the flags (ADR 0078) as a
- * tile per level and a line describing the one picked. The nickname and
+ * of the one picked, with the bot level (ADR 0078) and the Tyres pick
+ * (ADR 0083) under the flags as a tile per choice and a line describing
+ * the one picked. The nickname and
  * the code are checked here, so the handlers only ever see valid ones; a
  * refusal from the server comes back through `message`. Every control is
  * addressable by its name, the flags as radios named `course` with the
- * track's name as their value and the levels as radios named `bots`.
+ * track's name as their value, the levels as radios named `bots` and the
+ * Tyres picks as radios named `tyres`.
  */
 export function createTitleScene(
   container: HTMLElement,
@@ -262,9 +268,39 @@ export function createTitleScene(
     if (radio.checked) botsBlurb.textContent = `${choice.name}: ${choice.blurb}.`;
   }
   bots.append(botsHeading, botTiles, botsBlurb);
+  // The Tyres picks, another radio group of their own, styled as the bot levels are.
+  const tyres = document.createElement("fieldset");
+  tyres.className = "bots tyres";
+  tyres.setAttribute("aria-label", "Tyres");
+  const tyresHeading = document.createElement("h2");
+  tyresHeading.textContent = "Tyres";
+  const tyreTiles = document.createElement("div");
+  tyreTiles.className = "bot-tiles";
+  const tyresBlurb = document.createElement("p");
+  tyresBlurb.dataset.tyresBlurb = "";
+  for (const choice of TYRES_CHOICES) {
+    const radio = document.createElement("input");
+    radio.type = "radio";
+    radio.name = "tyres";
+    radio.value = choice.tyres;
+    radio.checked = choice.tyres === options.tyres;
+    radio.addEventListener("change", () => {
+      tyresBlurb.textContent = `${choice.name}: ${choice.blurb}.`;
+      handlers.tyres(choice.tyres);
+    });
+    const caption = document.createElement("span");
+    caption.className = "flag-name";
+    caption.textContent = choice.name;
+    const tile = document.createElement("label");
+    tile.className = "flag-tile bot-tile";
+    tile.append(radio, caption);
+    tyreTiles.append(tile);
+    if (radio.checked) tyresBlurb.textContent = `${choice.name}: ${choice.blurb}.`;
+  }
+  tyres.append(tyresHeading, tyreTiles, tyresBlurb);
   const courseColumn = document.createElement("div");
   courseColumn.className = "course";
-  courseColumn.append(courseHeading, flags, bots, preview.element);
+  courseColumn.append(courseHeading, flags, bots, tyres, preview.element);
 
   scene.append(...backdrop(), ...runners, wayIn, courseColumn);
   container.append(scene);

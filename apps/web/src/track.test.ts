@@ -7,10 +7,13 @@ import {
   DEFAULT_TRACK,
   loadBotLevel,
   loadCoursePick,
+  loadTyres,
   saveBotLevel,
   saveCoursePick,
+  saveTyres,
   selectTrack,
   TRACKS,
+  tyresFromSearch,
 } from "./track";
 
 describe("track selection from the query string", () => {
@@ -137,6 +140,31 @@ describe("the remembered bot level", () => {
     expect(BOT_LEVELS.map((level) => level.level)).toEqual(["basic", "pro", "ace"]);
     expect(BOT_LEVELS.map((level) => level.name)).toEqual(["Basic", "Pro", "Ace"]);
     for (const level of BOT_LEVELS) expect(level.blurb).toMatch(/\S/);
+  });
+});
+
+describe("the Tyres pick", () => {
+  it("is Off until saved, then what was saved", () => {
+    const store = storage();
+    expect(loadTyres(store)).toBe("off");
+    saveTyres(store, "on");
+    expect(loadTyres(store)).toBe("on");
+  });
+
+  it("falls back to Off for a saved pick that is none, and for storage that refuses", () => {
+    const store = storage();
+    store.setItem("tyres", "slick");
+    expect(loadTyres(store)).toBe("off");
+    const blocked = storage(true);
+    expect(loadTyres(blocked)).toBe("off");
+    expect(() => saveTyres(blocked, "on")).not.toThrow();
+  });
+
+  it("reads ?tyres= for a solo race and ignores anything else", () => {
+    expect(tyresFromSearch("?tyres=on")).toBe("on");
+    expect(tyresFromSearch("?track=oval&tyres=off")).toBe("off");
+    expect(tyresFromSearch("?tyres=slick")).toBeUndefined();
+    expect(tyresFromSearch("")).toBeUndefined();
   });
 });
 

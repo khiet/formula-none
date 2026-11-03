@@ -29,11 +29,8 @@ export interface SpeedClusterTuning {
   readonly coinCap: number;
 }
 
-/** How worn the tyres read: green, yellow or red. */
+/** How much life the tyres read as having: green, yellow or red. */
 export type TyreWearBand = "good" | "warn" | "bad";
-
-/** The tyre gauge's reading until tyre wear exists in the sim: fresh tyres. */
-export const TYRE_WEAR_PLACEHOLDER_PERCENT = 100;
 
 const GEARS = 6;
 const IDLE_RPM = 4000;
@@ -80,7 +77,15 @@ export function shiftLights(reading: Drivetrain): ShiftLight[] {
   });
 }
 
-/** The tyre gauge's colour for a wear percentage: green above 60%, yellow above 30%, red below. */
+/**
+ * The percentage the tyre gauge prints for `tyreLife`, rounded up so 0% means
+ * truly gone (ADR 0080).
+ */
+export function tyreLifePercent(tyreLife: number): number {
+  return Math.ceil(tyreLife);
+}
+
+/** The tyre gauge's colour for a tyre life percentage: green above 60%, yellow above 30%, red below. */
 export function tyreWearBand(percent: number): TyreWearBand {
   return percent > 60 ? "good" : percent > 30 ? "warn" : "bad";
 }

@@ -2,7 +2,7 @@
 // format is the sim's: crates/sim/src/replay.rs documents it and the native
 // and wasm runners both read it. Drop a recording into assets/replays and
 // both halves of the determinism gate pick it up.
-import type { BotLevel, Bridge, KartInput, Race } from "./bridge";
+import type { BotLevel, Bridge, KartInput, Race, Tyres } from "./bridge";
 import type { TrackName } from "./track";
 
 export interface ReplayRecorder {
@@ -26,6 +26,8 @@ export interface ReplayFile {
   readonly bots: number;
   /** How hard the bots drove (ADR 0078); a replay without one reruns at Basic. */
   readonly level: BotLevel;
+  /** Whether the tyres wore (ADR 0083); a replay without a pick reruns Off. */
+  readonly tyres: Tyres;
   readonly segments: readonly Segment[];
   /** 16 hex digits each. */
   readonly hashes: readonly string[];
@@ -38,7 +40,7 @@ export interface Segment {
 
 /**
  * Record `race`, which was created from `seed` on `track` with `bots` bot
- * karts at `level`, from its first tick. Consecutive ticks with the same inputs share a
+ * karts at `level` and the tyres as `tyres` says, from its first tick. Consecutive ticks with the same inputs share a
  * segment, and the race's hash is kept at every
  * `bridge.replayHashIntervalTicks`th tick.
  */
@@ -48,6 +50,7 @@ export function recordReplay(
   track: TrackName,
   bots: number,
   level: BotLevel,
+  tyres: Tyres,
   race: Race,
 ): ReplayRecorder {
   const segments: { ticks: number; inputs: KartInput[] }[] = [];
@@ -82,6 +85,7 @@ export function recordReplay(
         track,
         bots,
         level,
+        tyres,
         segments,
         hashes,
       };

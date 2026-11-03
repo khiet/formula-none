@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { coinCount, coinTopSpeed, drivetrain, shiftLights, tyreWearBand } from "./speed-cluster";
+import {
+  coinCount,
+  coinTopSpeed,
+  drivetrain,
+  shiftLights,
+  tyreLifePercent,
+  tyreWearBand,
+} from "./speed-cluster";
 
 // The sim's tuned top speed: 108 km/h, six bands of 18 km/h, 5 m/s each.
 const TOP_SPEED = 30;
@@ -122,5 +129,14 @@ describe("the tyre gauge's colour", () => {
     expect(tyreWearBand(31)).toBe("warn");
     expect(tyreWearBand(30)).toBe("bad");
     expect(tyreWearBand(0)).toBe("bad");
+  });
+});
+
+describe("tyreLifePercent", () => {
+  it("rounds up, so 0% means truly gone", () => {
+    expect(tyreLifePercent(100)).toBe(100);
+    expect(tyreLifePercent(99.01)).toBe(100);
+    expect(tyreLifePercent(0.01)).toBe(1);
+    expect(tyreLifePercent(0)).toBe(0);
   });
 });

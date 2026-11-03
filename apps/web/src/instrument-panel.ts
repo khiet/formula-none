@@ -51,7 +51,7 @@ import {
   drivetrain,
   type SpeedClusterTuning,
   shiftLights,
-  TYRE_WEAR_PLACEHOLDER_PERCENT,
+  tyreLifePercent,
   tyreWearBand,
 } from "./speed-cluster";
 import { STAR_RAINBOW, STAR_TILES, starColour, starTileColour } from "./star-shine";
@@ -307,8 +307,14 @@ export function createInstrumentPanel(
   const speedUnit = part(speed, "speedUnit");
   const tyre = instrument("tyre");
   tyre.append(kartFromAbove(paint));
-  part(tyre, "tyrePercent").textContent = `${TYRE_WEAR_PLACEHOLDER_PERCENT}%`;
-  tyre.dataset.tyreWear = tyreWearBand(TYRE_WEAR_PLACEHOLDER_PERCENT);
+  const tyrePercent = part(tyre, "tyrePercent");
+  // Every kart starts the race on new tyres.
+  const showTyres = (tyreLife: number) => {
+    const percent = tyreLifePercent(tyreLife);
+    tyrePercent.textContent = `${percent}%`;
+    tyre.dataset.tyreWear = tyreWearBand(percent);
+  };
+  showTyres(100);
   const coins = instrument("coins");
   coins.append(coinIcon());
   const coinValue = part(coins, "coinCount");
@@ -417,6 +423,7 @@ export function createInstrumentPanel(
       wrongWay.hidden = readouts.wrongWay === "";
       showSpeed(local.speed, local.coins);
       showCoins(local.coins);
+      showTyres(local.tyreLife);
       surface.textContent = local.surface;
       const held = itemReadout(slot);
       // Firing lights the plate, and so does a landing, once.

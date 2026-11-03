@@ -26,7 +26,7 @@ use crate::room::Started;
 use crate::rooms::Rooms;
 use crate::session::{self, Channels};
 use crate::Shutdown;
-use sim::BotLevel;
+use sim::{BotLevel, Tyres};
 
 /// What the fake network does to every message, in each direction.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -136,7 +136,15 @@ impl Harness {
     /// its bots at `bot_level`.
     pub fn create_room_at(&self, bot_level: BotLevel) -> String {
         self.rooms
-            .create_with(None, bot_level, None)
+            .create_with(None, bot_level, Tyres::Off, None)
+            .expect("the harness stays under the cap")
+    }
+
+    /// What `POST /api/rooms` with a `tyres` does: a new room's code, its
+    /// tyres as `tyres` says and its bots at Basic.
+    pub fn create_room_with_tyres(&self, tyres: Tyres) -> String {
+        self.rooms
+            .create_with(None, BotLevel::Basic, tyres, None)
             .expect("the harness stays under the cap")
     }
 
@@ -352,11 +360,13 @@ impl Client {
                 seed,
                 track,
                 bot_level,
+                tyres,
                 grid,
             } => Some(Started {
                 seed,
                 track,
                 bot_level,
+                tyres,
                 grid,
             }),
             _ => None,

@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from "vitest";
 import { type AudioSettings, DEFAULT_AUDIO_SETTINGS } from "./audio-settings";
-import type { BotLevel } from "./generated/sim";
+import type { BotLevel, Tyres } from "./generated/sim";
 import { hexCss, livery } from "./livery";
 import { createTitleScene, type TitleHandlers, type TitleOptions } from "./title-scene";
 import { COURSES, type Course, type WorldPoint } from "./track";
@@ -25,6 +25,7 @@ const OPTIONS: TitleOptions = {
   courses: COURSES.map((course) => ({ course, centreline: SQUARE })),
   course: BELL_DEER,
   botLevel: "basic",
+  tyres: "off",
   laps: 3,
   reducedMotion: () => true,
 };
@@ -36,12 +37,21 @@ interface Calls {
   audio: AudioSettings[];
   courses: Course[];
   botLevels: BotLevel[];
+  tyres: Tyres[];
 }
 
 function scene(options: Partial<TitleOptions> = {}) {
   const container = document.createElement("div");
   document.body.replaceChildren(container);
-  const calls: Calls = { created: [], joined: [], races: 0, audio: [], courses: [], botLevels: [] };
+  const calls: Calls = {
+    created: [],
+    joined: [],
+    races: 0,
+    audio: [],
+    courses: [],
+    botLevels: [],
+    tyres: [],
+  };
   const handlers: TitleHandlers = {
     create: (nickname) => calls.created.push(nickname),
     join: (nickname, code) => calls.joined.push([nickname, code]),
@@ -51,6 +61,7 @@ function scene(options: Partial<TitleOptions> = {}) {
     audio: (settings) => calls.audio.push(settings),
     course: (course) => calls.courses.push(course),
     botLevel: (level) => calls.botLevels.push(level),
+    tyres: (tyres) => calls.tyres.push(tyres),
   };
   const title = createTitleScene(container, { ...OPTIONS, ...options }, handlers);
   const input = (name: string) => {
@@ -185,6 +196,21 @@ describe("Title Scene", () => {
     expect(preview()).toBe("Bell Deer");
     expect(container.querySelector(".preview")?.textContent).toContain("After Suzuka");
     expect(calls.courses).toEqual([BELL_DEER]);
+  });
+
+  it("offers the Tyres picks under the bots with the saved one picked, describes the pick and reports each change", () => {
+    const { container, calls } = scene({ tyres: "off" });
+    const radios = Array.from(
+      container.querySelectorAll<HTMLInputElement>("input[type=radio][name=tyres]"),
+    );
+    expect(radios.map((radio) => radio.value)).toEqual(["off", "on"]);
+    expect(radios.map((radio) => radio.checked)).toEqual([true, false]);
+    expect(radios.map((radio) => radio.labels?.[0]?.textContent)).toEqual(["Off", "On"]);
+    const blurb = () => container.querySelector("[data-tyres-blurb]")?.textContent ?? "";
+    expect(blurb()).toMatch(/^Off: /);
+    radios[1]?.click();
+    expect(blurb()).toMatch(/^On: /);
+    expect(calls.tyres).toEqual(["on"]);
   });
 
   it("offers the three bot levels under the flags with the saved one picked, describes the pick and reports each change", () => {

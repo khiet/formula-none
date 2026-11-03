@@ -11,3 +11,4 @@ export type { Standing } from "./Standing";
 export type { Start } from "./Start";
 export type { Surface } from "./Surface";
 export type { Tuning } from "./Tuning";
+export type { Tyres } from "./Tyres";

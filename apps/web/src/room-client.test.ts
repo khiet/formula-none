@@ -11,6 +11,7 @@ const ROOM: Room = {
   code: "BXQF",
   track: "goldstone",
   botLevel: "basic",
+  tyres: "off",
   state: "open",
   players: [
     { slot: 0, nickname: "khiet", livery: 0, state: "unready", creator: true },
@@ -76,10 +77,17 @@ describe("joinRoom", () => {
         seed: 42 as unknown as bigint,
         track: "bell-deer",
         botLevel: "basic",
+        tyres: "off",
         grid: [0, 1],
       },
     });
-    expect(countdown).toEqual({ seed: 42n, track: "bell-deer", botLevel: "basic", grid: [0, 1] });
+    expect(countdown).toEqual({
+      seed: 42n,
+      track: "bell-deer",
+      botLevel: "basic",
+      tyres: "off",
+      grid: [0, 1],
+    });
 
     let ended = false;
     client.closed.then(() => {
@@ -159,6 +167,7 @@ const KART: KartSnapshot = {
   wrongWay: false,
   itemSlot: "empty",
   coins: 0,
+  tyreLife: 100,
   spinOutS: null,
   start: "clean",
   stallS: null,
@@ -194,6 +203,7 @@ describe("the race side of the room client", () => {
         seed: 1 as unknown as bigint,
         track: "bell-deer",
         botLevel: "basic",
+        tyres: "off",
         grid: [0, 1],
       },
     });
@@ -214,6 +224,7 @@ describe("the race side of the room client", () => {
         seed: 2 as unknown as bigint,
         track: "bell-deer",
         botLevel: "basic",
+        tyres: "off",
         grid: [0, 1],
       },
     });
@@ -282,6 +293,7 @@ describe("the race side of the room client", () => {
         seed: 2 as unknown as bigint,
         track: "bell-deer",
         botLevel: "basic",
+        tyres: "off",
         grid: [0, 1],
       },
     });
@@ -291,7 +303,13 @@ describe("the race side of the room client", () => {
 
 describe("taking the seat back (ADR 0012)", () => {
   const SEED = 7 as unknown as bigint;
-  const COUNTDOWN = { seed: SEED, track: "bell-deer", botLevel: "basic" as const, grid: [0, 1] };
+  const COUNTDOWN = {
+    seed: SEED,
+    track: "bell-deer",
+    botLevel: "basic" as const,
+    tyres: "off" as const,
+    grid: [0, 1],
+  };
 
   async function racing() {
     const first = fakeConnection();

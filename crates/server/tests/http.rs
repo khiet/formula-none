@@ -10,7 +10,7 @@ use sim::tuning::{
     ROOMS_MAX, ROOM_CLOSE_AFTER_EMPTY_S, ROOM_CODE_ALPHABET, ROOM_CODE_LENGTH,
     ROOM_CREATES_PER_ADDRESS_MAX, ROOM_CREATE_WINDOW_S,
 };
-use sim::BotLevel;
+use sim::{BotLevel, Tyres};
 use std::time::Duration;
 use tower::ServiceExt;
 
@@ -226,6 +226,36 @@ async fn a_body_is_read_whatever_its_content_type_and_one_naming_no_track_races_
     assert_eq!(status, StatusCode::CREATED);
     let room = rooms.view(body["code"].as_str().unwrap()).unwrap();
     assert_eq!(room.track, "bell-deer");
+}
+
+#[tokio::test]
+async fn a_room_created_with_tyres_on_races_them() {
+    let (app, rooms, _stop) = app();
+    let (status, body) = create(
+        app,
+        Body::from(r#"{ "track": "goldstone", "tyres": "on" }"#),
+    )
+    .await;
+    assert_eq!(status, StatusCode::CREATED);
+    let room = rooms.view(body["code"].as_str().unwrap()).unwrap();
+    assert_eq!(room.tyres, Tyres::On);
+}
+
+#[tokio::test]
+async fn a_room_created_without_a_tyres_pick_races_off() {
+    let (app, rooms, _stop) = app();
+    let (status, body) = create(app, Body::from(r#"{ "track": "goldstone" }"#)).await;
+    assert_eq!(status, StatusCode::CREATED);
+    let room = rooms.view(body["code"].as_str().unwrap()).unwrap();
+    assert_eq!(room.tyres, Tyres::Off);
+}
+
+#[tokio::test]
+async fn a_room_at_an_unknown_tyres_pick_is_refused_and_not_opened() {
+    let (app, rooms, _stop) = app();
+    let (status, _) = create(app, Body::from(r#"{ "tyres": "slick" }"#)).await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+    assert!(rooms.codes().is_empty(), "{:?}", rooms.codes());
 }
 
 #[tokio::test]

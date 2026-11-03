@@ -3,7 +3,7 @@ import { type CourseChoice, type CoursePreview, createCoursePreview } from "./co
 import type { Player, Room } from "./generated/protocol";
 import { livery } from "./livery";
 import { backdrop, kartSide } from "./poster";
-import { BOT_LEVELS } from "./track";
+import { BOT_LEVELS, TYRES_CHOICES } from "./track";
 
 export interface RoomScene {
   /** Show the room as it now stands. */
@@ -135,8 +135,8 @@ export function createRoomScene(
   header.append(heading, count);
   // The course is fixed for the room, so the card is drawn once; a track
   // no course is, the oval a test races, has no card.
-  // The bot level is fixed for the room too, so its line under the card is
-  // drawn once with it (ADR 0078).
+  // The bot level and the Tyres pick are fixed for the room too, so their
+  // lines under the card are drawn once with it (ADR 0078, ADR 0083).
   const choice = view.courses.find(({ course }) => course.track === view.room.track);
   let preview: CoursePreview | undefined;
   let card: HTMLElement | undefined;
@@ -144,14 +144,19 @@ export function createRoomScene(
     preview = createCoursePreview({ laps: view.laps, reducedMotion: view.reducedMotion });
     preview.show(choice);
     const bots = document.createElement("p");
-    bots.className = "room-bots";
+    bots.className = "room-pick";
     bots.dataset.roomBots = "";
     const level = BOT_LEVELS.find((level) => level.level === view.room.botLevel);
     bots.textContent = `Bots: ${level?.name ?? view.room.botLevel}`;
     card = document.createElement("div");
     card.className = "course";
     card.dataset.roomCourse = "";
-    card.append(preview.element, bots);
+    const tyres = document.createElement("p");
+    tyres.className = "room-pick";
+    tyres.dataset.roomTyres = "";
+    const pick = TYRES_CHOICES.find((choice) => choice.tyres === view.room.tyres);
+    tyres.textContent = `Tyres: ${pick?.name ?? view.room.tyres}`;
+    card.append(preview.element, bots, tyres);
   }
 
   const link = document.createElement("a");

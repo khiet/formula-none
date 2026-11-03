@@ -1,4 +1,4 @@
-import type { BotLevel, Bridge, KartInput } from "./bridge";
+import type { BotLevel, Bridge, KartInput, Tyres } from "./bridge";
 import { IDLE_INPUT } from "./input";
 import {
   blastLedger,
@@ -28,7 +28,7 @@ export const SOLO_RACE: RaceSetup = { seed: 1n, humanCount: 1, localKart: 0 };
  * A race whose rules run in this browser: the sim built from `setup` on the
  * track `sidecar` describes, the local kart driven by the Scene's input and
  * the other humans' karts held idle, with bots at `botLevel` on the rest of
- * the grid, and every tick recorded as a replay. Throws when the local kart
+ * the grid, the tyres as `tyres` says, and every tick recorded as a replay. Throws when the local kart
  * is not one of the humans.
  */
 export function localRaceRun(
@@ -36,14 +36,15 @@ export function localRaceRun(
   track: TrackName,
   sidecar: string,
   botLevel: BotLevel,
+  tyres: Tyres,
   setup: RaceSetup = SOLO_RACE,
 ): RaceRun {
   if (setup.localKart < 0 || setup.localKart >= setup.humanCount) {
     throw new RangeError(`local kart ${setup.localKart} is not one of ${setup.humanCount} humans`);
   }
   const botCount = bridge.kartsPerRace - setup.humanCount;
-  const race = bridge.createRace(setup.seed, setup.humanCount, botCount, sidecar, botLevel);
-  const replay = recordReplay(bridge, setup.seed, track, botCount, botLevel, race);
+  const race = bridge.createRace(setup.seed, setup.humanCount, botCount, sidecar, botLevel, tyres);
+  const replay = recordReplay(bridge, setup.seed, track, botCount, botLevel, tyres, race);
   const inputs: KartInput[] = Array<KartInput>(setup.humanCount).fill(IDLE_INPUT);
   const boxes = race.itemBoxes();
   const coins = race.coins();

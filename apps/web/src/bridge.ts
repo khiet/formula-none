@@ -19,6 +19,7 @@ import type {
   Standing,
   Surface,
   Tuning,
+  Tyres,
 } from "./generated/sim";
 
 export type {
@@ -28,6 +29,7 @@ export type {
   MiniTurbo,
   Standing,
   Surface,
+  Tyres,
 } from "./generated/sim";
 
 /**
@@ -338,8 +340,9 @@ export interface Bridge extends MessageCodec {
    * A race on the track described by `sidecar` (the JSON exported next to its
    * glTF) with `humanCount` karts on the front of its spawn grid and
    * `botCount` bot-driven karts on the slots behind them, driving at
-   * `botLevel` (ADR 0078). Throws, with the sim's reason, when the sidecar
-   * is unusable or has fewer spawn slots than the karts.
+   * `botLevel` (ADR 0078), with the creator's pick of `tyres` (ADR 0083).
+   * Throws, with the sim's reason, when the sidecar is unusable or has fewer
+   * spawn slots than the karts.
    */
   createRace(
     seed: bigint,
@@ -347,15 +350,22 @@ export interface Bridge extends MessageCodec {
     botCount: number,
     sidecar: string,
     botLevel: BotLevel,
+    tyres: Tyres,
   ): Race;
   /**
    * The prediction of the kart on grid slot `kart` in the race from `seed`
    * on the track described by `sidecar`, at the top of its countdown, its
-   * bot at `botLevel` once the kart has finished (ADR 0078). Throws, with
-   * the sim's reason, when the sidecar is unusable or its grid has no such
-   * slot.
+   * bot at `botLevel` once the kart has finished (ADR 0078), wearing its
+   * tyres as `tyres` says (ADR 0083). Throws, with the sim's reason, when
+   * the sidecar is unusable or its grid has no such slot.
    */
-  createPrediction(seed: bigint, kart: number, sidecar: string, botLevel: BotLevel): Prediction;
+  createPrediction(
+    seed: bigint,
+    kart: number,
+    sidecar: string,
+    botLevel: BotLevel,
+    tyres: Tyres,
+  ): Prediction;
   /** A replay's hashes are kept every this many ticks. */
   readonly replayHashIntervalTicks: number;
   /**
@@ -430,16 +440,16 @@ export async function loadBridge(wasm?: BufferSource): Promise<Bridge> {
     },
     kartsPerRace: tuned.kartsPerRace,
     replayHashIntervalTicks: tuned.replayHashIntervalTicks,
-    createRace(seed, humanCount, botCount, sidecar, botLevel) {
+    createRace(seed, humanCount, botCount, sidecar, botLevel, tyres) {
       return new BridgedRace(
-        rethrown(() => new WasmRace(seed, humanCount, botCount, sidecar, botLevel)),
+        rethrown(() => new WasmRace(seed, humanCount, botCount, sidecar, botLevel, tyres)),
         humanCount,
         humanCount + botCount,
       );
     },
-    createPrediction(seed, kart, sidecar, botLevel) {
+    createPrediction(seed, kart, sidecar, botLevel, tyres) {
       return new BridgedPrediction(
-        rethrown(() => new WasmPrediction(seed, kart, sidecar, botLevel)),
+        rethrown(() => new WasmPrediction(seed, kart, sidecar, botLevel, tyres)),
         kart,
       );
     },

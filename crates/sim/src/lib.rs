@@ -32,6 +32,7 @@ pub mod tuning;
 mod wheel;
 
 pub use bot::BotLevel;
+pub use handling::Tyres;
 pub use interpolation::Interpolation;
 pub use prediction::Prediction;
 pub use replay::{Replay, ReplayError, Segment};
@@ -113,6 +114,9 @@ pub struct KartReadout {
     /// The coins the kart carries, from 0 to a full purse; each raises its
     /// forward top speed by the tuned factor.
     pub coins: u32,
+    /// How much life the kart's tyres have left, as a percentage: 100 is
+    /// new and 0 is gone. It holds at 100 in a race on Tyres Off (ADR 0080).
+    pub tyre_life: f32,
     /// Seconds of spin-out left, while the kart is spun out: stopped, with
     /// its inputs ignored. The View spins it for the duration.
     pub spin_out_s: Option<f32>,
@@ -604,6 +608,9 @@ pub struct State {
     /// How hard the bots drive (ADR 0078). Fixed for the race, not part of
     /// what a tick changes, so not hashed.
     bot_level: BotLevel,
+    /// Whether the tyres wear (ADR 0083). Fixed for the race, so not hashed;
+    /// on On a kart's life is.
+    tyres: Tyres,
     physics: Physics,
     phase: Phase,
     /// What the last tick changed that the players are told about. Not
@@ -737,6 +744,7 @@ impl Kart {
             mini_turbo: MiniTurbo::of(self.handling.drift()),
             item_slot: self.item_slot,
             coins: self.coins,
+            tyre_life: self.handling.tyre_life(),
             spin_out_s: self.spun_out().then_some(self.spin_out_left_s),
             airborne: self.handling.airborne(),
             boost_s: self.handling.boost_s(),
@@ -771,6 +779,7 @@ impl Kart {
         );
         self.item_slot = readout.item_slot;
         self.coins = readout.coins;
+        self.handling.adopt_tyre_life(readout.tyre_life);
         self.handling.adopt_slipstream(readout.slipstream);
         // A spin-out the readout does not have is a hit the server never
         // made, which in a prediction is only ever the wheel's: the pass
@@ -959,6 +968,19 @@ impl State {
     /// at the top of its countdown. Together they must not exceed the
     /// track's spawn slots.
     pub fn with_bots(seed: u64, humans: usize, bots: usize, track: Track, level: BotLevel) -> Self {
+        Self::with_tyres(seed, humans, bots, track, level, Tyres::Off)
+    }
+
+    /// As [`State::with_bots`], the creator's pick of `tyres` in force
+    /// (ADR 0083).
+    pub fn with_tyres(
+        seed: u64,
+        humans: usize,
+        bots: usize,
+        track: Track,
+        level: BotLevel,
+        tyres: Tyres,
+    ) -> Self {
         let kart_count = humans + bots;
         assert!(
             kart_count <= track.spawn_grid().len(),
@@ -966,19 +988,21 @@ impl State {
             kart_count,
             track.spawn_grid().len()
         );
-        Self::on_spawn_slots(seed, humans, 0..kart_count, track, level)
+        Self::on_spawn_slots(seed, humans, 0..kart_count, track, level, tyres)
     }
 
     /// A fresh race with one kart on each of `slots` of the spawn grid, in
     /// order, the first `humans` of them human and the bots driving at
-    /// `level`, at the top of its countdown. Each bot kart's rocket start
-    /// is rolled here, in slot order, so the seed decides it.
+    /// `level` and the tyres as `tyres` says, at the top of its countdown.
+    /// Each bot kart's rocket start is rolled here, in slot order, so the
+    /// seed decides it.
     fn on_spawn_slots(
         seed: u64,
         humans: usize,
         slots: Range<usize>,
         track: Track,
         level: BotLevel,
+        tyres: Tyres,
     ) -> Self {
         let mut rng = ChaCha8Rng::seed_from_u64(seed);
         let mut physics = Physics::new();
@@ -1025,7 +1049,7 @@ impl State {
                     body,
                     collider,
                     bot: (index >= humans).then_some(bot::Memory::default()),
-                    handling: Handling::new(),
+                    handling: Handling::new(tyres),
                     off_course_s: 0.0,
                     wrong_way_s: 0.0,
                     laps_completed: 0,
@@ -1058,6 +1082,7 @@ impl State {
             projectiles: Vec::new(),
             final_positions: None,
             bot_level: level,
+            tyres,
             wakes_judged: true,
             track,
             karts,
@@ -1073,6 +1098,11 @@ impl State {
     /// How hard the bots drive (ADR 0078).
     pub fn bot_level(&self) -> BotLevel {
         self.bot_level
+    }
+
+    /// Whether the tyres wear (ADR 0083).
+    pub fn tyres(&self) -> Tyres {
+        self.tyres
     }
 
     pub fn track(&self) -> &Track {
@@ -2408,6 +2438,7 @@ fn spin_out(
     }
     kart.spin_out_left_s = SPIN_OUT_S;
     kart.handling.stop();
+    kart.handling.wear_for_spin_out();
     body.set_linvel(Vec3::ZERO, true);
     body.set_angvel(Vec3::ZERO, true);
     body.lock_translations(true, true);

@@ -1,6 +1,6 @@
 import { createAudio } from "./audio";
 import { loadAudioSettings, saveAudioSettings } from "./audio-settings";
-import { type BotLevel, type Bridge, loadBridge } from "./bridge";
+import { type BotLevel, type Bridge, loadBridge, type Tyres } from "./bridge";
 import { connect, serverUrls } from "./connection";
 import type { CourseChoice } from "./course-preview";
 import { type InstrumentPanel, loadInstrumentFont } from "./instrument-panel";
@@ -26,13 +26,16 @@ import {
   isTrackName,
   loadBotLevel,
   loadCoursePick,
+  loadTyres,
   saveBotLevel,
   saveCoursePick,
+  saveTyres,
   selectTrack,
   TRACKS,
   type TrackFiles,
   type TrackName,
   trackFromSearch,
+  tyresFromSearch,
 } from "./track";
 
 /** The connection readout, kept across Race Scenes: each new panel shows the latest status. */
@@ -96,12 +99,12 @@ const CREATE_REFUSALS: Readonly<Record<number, string>> = {
 /** A create the server answered and refused; the message is for the player. */
 class CreateRefusedError extends Error {}
 
-/** Ask the server for a room racing `track` against bots at `botLevel`; its answer is the code to share (ADR 0012, ADR 0061, ADR 0078). */
-async function createRoom(track: TrackName, botLevel: BotLevel): Promise<string> {
+/** Ask the server for a room racing `track` against bots at `botLevel` with the Tyres pick `tyres`; its answer is the code to share (ADR 0012, ADR 0061, ADR 0078, ADR 0083). */
+async function createRoom(track: TrackName, botLevel: BotLevel, tyres: Tyres): Promise<string> {
   const response = await fetch("/api/rooms", {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ track, botLevel }),
+    body: JSON.stringify({ track, botLevel, tyres }),
   });
   if (!response.ok) {
     const refusal = CREATE_REFUSALS[response.status];
@@ -229,9 +232,11 @@ async function main(container: HTMLElement): Promise<void> {
   }
   let course = loadCoursePick(window.localStorage);
   let botLevel = loadBotLevel(window.localStorage);
-  // A tester's `?track=` and `?bots=` win over the picks, so a solo race can run any track, the oval included, at any level.
+  let tyres = loadTyres(window.localStorage);
+  // A tester's `?track=`, `?bots=` and `?tyres=` win over the picks, so a solo race can run any track, the oval included, at any level, on either pick.
   const trackOverride = trackFromSearch(window.location.search);
   const botLevelOverride = botLevelFromSearch(window.location.search);
+  const tyresOverride = tyresFromSearch(window.location.search);
   const motion = window.matchMedia("(prefers-reduced-motion: reduce)");
   const reducedMotion = () => motion.matches;
   const linkedCode = roomFromSearch(window.location.search) ?? "";
@@ -256,6 +261,7 @@ async function main(container: HTMLElement): Promise<void> {
         courses,
         course,
         botLevel,
+        tyres,
         laps: bridge.lapsPerRace,
         reducedMotion,
       },
@@ -276,6 +282,10 @@ async function main(container: HTMLElement): Promise<void> {
           botLevel = picked;
           saveBotLevel(window.localStorage, picked);
         },
+        tyres(picked) {
+          tyres = picked;
+          saveTyres(window.localStorage, picked);
+        },
       },
     );
     return { exit, dispose: title.dispose };
@@ -284,7 +294,7 @@ async function main(container: HTMLElement): Promise<void> {
   /** Ask the server for a room and join it, or come back to the Title with why not. */
   const createAndJoin = async (nickname: string): Promise<Step> => {
     try {
-      return { kind: "join", nickname, code: await createRoom(course.track, botLevel) };
+      return { kind: "join", nickname, code: await createRoom(course.track, botLevel, tyres) };
     } catch (error) {
       if (error instanceof CreateRefusedError) return { kind: "title", message: error.message };
       console.warn("could not create a room", error);
@@ -399,7 +409,13 @@ async function main(container: HTMLElement): Promise<void> {
   const mountSoloRace = async () => {
     const soloTrack = trackOverride ?? TRACKS[course.track];
     const sidecar = await fetchSidecar(soloTrack);
-    const run = localRaceRun(bridge, soloTrack.name, sidecar, botLevelOverride ?? botLevel);
+    const run = localRaceRun(
+      bridge,
+      soloTrack.name,
+      sidecar,
+      botLevelOverride ?? botLevel,
+      tyresOverride ?? tyres,
+    );
     return mountRace(soloTrack, sidecar, run, () => undefined, {
       rematch: { kind: "solo" },
       leave: { kind: "title" },
