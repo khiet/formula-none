@@ -5,7 +5,8 @@
 Accepted (2026-10-30). Supersedes ADR 0055's choice of object, the tyre,
 and its consequence that the tyre gauge reads the count. ADR 0055's rule
 stands: placements, hitbox, the ten carried, 1% each, three lost to a
-spin-out and 3 s gone. ADR 0031's tyre gauge returns to its placeholder.
+spin-out and 3 s gone. ADR 0031's tyre gauge returns to its placeholder, until
+ADR 0080 has it read tyre life.
 
 ## Context
 

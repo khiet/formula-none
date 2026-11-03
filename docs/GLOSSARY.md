@@ -30,6 +30,39 @@ varies a bot's corner speed, its rubber band's lower bound, its item use
 delay and its rocket start chance, nothing else; it changes how the bots
 drive, not how many there are. A replay carries it.
 
+### race distance
+
+How long a race runs, the creator's pick: Sprint for three laps or Grand
+Prix for five, fixed for the room (ADR 0083).
+
+### pit lane
+
+The lane beside a course's start straight, from entry line to exit line,
+where a kart goes to get new tyres. Safe ground: no item touches a kart in
+it (ADR 0081). Not every course has one.
+
+### pit limiter
+
+What holds a kart to the pit lane's speed limit from entry line to exit
+line, by itself (ADR 0081). Not a control.
+
+### pit box
+
+A slot's own place in the pit lane, where its pit crew waits and its kart
+stops. Avoid: box, which is the item box; BOX is only the radio call on the
+Instrument panel.
+
+### pit crew
+
+The six figures at a pit box who change a kart's tyres. Presentation only:
+how long they take is the stop's roll.
+
+### stop
+
+A kart's time stationary in its pit box, rolled from the race seed, the slot
+and the kart's stop count; it ends on green with tyre life back at 100% (ADR
+0082).
+
 ### phase
 
 Where a race is: Countdown, Racing, Outro or Finished. Sim state, stepped
@@ -251,8 +284,8 @@ to pick up (ADR 0056, ADR 0067).
 
 ### tyre
 
-A kart's wheel, the rubber the tyre marks and the tyre wear gauge are
-named for. Not a coin, which is the pickup, nor a tyre wall, which is a
+A kart's wheel, the rubber the tyre marks and the tyre gauge are named
+for. Not a coin, which is the pickup, nor a tyre wall, which is a
 surface.
 
 ### item slot
@@ -462,8 +495,8 @@ asphalt and its feet stand on grass beyond the walls (ADR 0050).
 
 The row of garages beside the start straight, which the grid faces
 through the countdown: a prop with a door and a flag in each livery's key
-colour, no number on any door (ADR 0035), and no pit lane to drive (ADR
-0050). Inside Bell Deer's straight; outside Goldstone's, longer and white
+colour and no number on any door (ADR 0035). Its doors face the pit boxes
+where a course has a pit lane (ADR 0081). Inside Bell Deer's straight; outside Goldstone's, longer and white
 (ADR 0060).
 
 ### tunnel
@@ -604,12 +637,13 @@ The row of twelve lights over the gear, lit green, red then blue in thirds
 as the revs in the gear climb to the shift, all blue on the limiter.
 Decorative: the gear and the speed are the text.
 
-### tyre wear
+### tyre life
 
-How worn a kart's tyres are, as a percentage. The Instrument panel's tyre
-gauge shows it on the local kart drawn from above, its tyres green above
-60%, yellow above 30% and red below. The sim does not wear tyres, so the
-gauge holds at 100% (ADR 0031, ADR 0056).
+How much life a kart's tyres have left, as a percentage: 100% is new and 0%
+is gone. It falls as the kart is driven and only a stop raises it. The
+Instrument panel's tyre gauge shows it on the local kart drawn from above,
+its tyres green above 60%, yellow above 30% and red below (ADR 0080). Until
+that is built, the gauge holds at 100%. Avoid: tyre wear, for the number.
 
 ### race readout
 
