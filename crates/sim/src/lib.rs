@@ -36,7 +36,9 @@ pub use handling::Tyres;
 pub use interpolation::Interpolation;
 pub use prediction::Prediction;
 pub use replay::{Replay, ReplayError, Segment};
-pub use track::{Checkpoint, Placement, Surface, SurfaceMesh, Track, TrackError, WheelCrossing};
+pub use track::{
+    Checkpoint, PitLane, Placement, Surface, SurfaceMesh, Track, TrackError, WheelCrossing,
+};
 pub use wheel::{wheel, Wheel};
 
 use handling::{Freeze, Handling, Situation};
@@ -124,6 +126,10 @@ pub struct KartReadout {
     /// that steps the kart reports it: a snapshot does not carry it, so an
     /// interpolated kart is never airborne.
     pub airborne: bool,
+    /// Whether the kart is on the pit limiter, between a pit lane's lines
+    /// (ADR 0081); the gear slot's PIT. As with `airborne`, only the sim that
+    /// steps the kart reports it: a snapshot does not carry it.
+    pub in_pit_lane: bool,
     /// Seconds of boost left, while a mini-turbo, boost pad, item or start
     /// boost holds the kart over top speed; the release's tell.
     pub boost_s: Option<f32>,
@@ -693,6 +699,11 @@ struct Kart {
     /// end it and the brake still works; outside what a respawn clears, so
     /// a respawn does not stop it.
     star_left_s: f32,
+    /// Where the kart last was on a pit lane's road, metres along it from
+    /// the fork, kept while it is off the course, so a respawn puts it back
+    /// there; `None` once it stands anywhere else on the course. Hashed only
+    /// while there is one, so a race that never sees a lane hashes as before.
+    pit_lane_m: Option<f32>,
 }
 
 impl Kart {
@@ -726,8 +737,8 @@ impl Kart {
     }
 
     /// What the kart reports, with `body` its body and `standing` its
-    /// standing as of the same tick.
-    fn readout(&self, body: &RigidBody, standing: &Standing) -> KartReadout {
+    /// standing as of the same tick, on `track`.
+    fn readout(&self, body: &RigidBody, standing: &Standing, track: &Track) -> KartReadout {
         KartReadout {
             position: body.translation().to_array(),
             rotation: body.rotation().to_array(),
@@ -744,6 +755,7 @@ impl Kart {
             tyre_life: self.handling.tyre_life(),
             spin_out_s: self.spun_out().then_some(self.spin_out_left_s),
             airborne: self.handling.airborne(),
+            in_pit_lane: track.in_pit_lane(body.translation().to_array()),
             boost_s: self.handling.boost_s(),
             boost_tier: self.handling.boost_tier(),
             slipstream: self.handling.slipstream(),
@@ -1066,6 +1078,7 @@ impl State {
                     spin_out_left_s: 0.0,
                     wheel_pass_hit: 0,
                     star_left_s: 0.0,
+                    pit_lane_m: None,
                 }
             })
             .collect();
@@ -1355,6 +1368,9 @@ impl State {
             hasher.write_f32(kart.spin_out_left_s);
             hasher.write_u32(kart.wheel_pass_hit);
             hasher.write_f32(kart.star_left_s);
+            if let Some(metres) = kart.pit_lane_m {
+                hasher.write_f32(metres);
+            }
             if let Some(memory) = &kart.bot {
                 hasher.write_f32s(memory.timers());
             }
@@ -1422,8 +1438,17 @@ impl State {
         self.karts
             .iter()
             .zip(self.standings())
-            .map(|(kart, standing)| kart.readout(&self.physics.bodies[kart.body], &standing))
+            .map(|(kart, standing)| {
+                kart.readout(&self.physics.bodies[kart.body], &standing, &self.track)
+            })
             .collect()
+    }
+
+    /// Whether the kart in `slot` stands where the pit limiter holds and the
+    /// lane is safe ground (ADR 0081).
+    fn in_pit_lane(&self, slot: usize) -> bool {
+        let at = self.physics.bodies[self.karts[slot].body].translation();
+        self.track.in_pit_lane(at.to_array())
     }
 
     /// Take the item box `item_box` for the kart in `slot` and start the
@@ -1531,9 +1556,14 @@ pub fn step(mut state: State, inputs: &[KartInput], dt: f32) -> State {
     // Race positions as of the last tick: what a projectile picks its
     // target by and a pickup rolls by.
     let standings = state.standings();
+    // Who stands on the lane's safe ground as the tick begins (ADR 0081).
+    let in_pit_lane: Vec<bool> = (0..state.karts.len())
+        .map(|slot| state.in_pit_lane(slot))
+        .collect();
     // Fires come before pickups, so a press on the tick a box is picked up
     // fires what the kart held, never what it has just rolled. A stalled or
-    // spun-out kart's press is as dead as its other controls.
+    // spun-out kart's press is as dead as its other controls, and no item
+    // can be fired in the pit lane: the kart keeps it.
     // Fires run in slot order, so of two horns pressed on one tick the
     // lower slot's blast goes first and a kart it spins out loses its press.
     for (slot, input) in inputs.iter().enumerate() {
@@ -1541,7 +1571,7 @@ pub fn step(mut state: State, inputs: &[KartInput], dt: f32) -> State {
         let pressed = input.use_item || (input.hold_item && !kart.item_was_held);
         kart.item_was_held = input.hold_item;
         let out_of_items = kart.finished() || elapsed_s.is_none();
-        if kart.ignores_inputs() || out_of_items || !pressed {
+        if kart.ignores_inputs() || out_of_items || in_pit_lane[slot] || !pressed {
             continue;
         }
         let Some(item) = kart.item_slot.held() else {
@@ -1699,18 +1729,20 @@ pub fn step(mut state: State, inputs: &[KartInput], dt: f32) -> State {
                         1.0
                     },
                 starring: state.karts[slot].starring(),
+                pit_lane: in_pit_lane[slot],
             }
         })
         .collect();
     // Whether each kart holds the item button this tick, as the controls
     // reach the handling: a kart dead to its controls holds nothing.
     let mut holds = vec![false; state.karts.len()];
-    for (((kart, input), situation), hold) in state
+    for (slot, (((kart, input), situation), hold)) in state
         .karts
         .iter_mut()
         .zip(&inputs)
         .zip(situations)
         .zip(&mut holds)
+        .enumerate()
     {
         // A stalled or spun-out kart sits dead to every control until its
         // time runs out; a spun-out one stands where it is, whatever runs
@@ -1726,7 +1758,8 @@ pub fn step(mut state: State, inputs: &[KartInput], dt: f32) -> State {
         } else {
             Freeze::Free
         };
-        *hold = freeze == Freeze::Free && input.hold_item;
+        // A hold ends at the entry line: no hazard is trailed into the lane.
+        *hold = freeze == Freeze::Free && input.hold_item && !in_pit_lane[slot];
         // For the run the kart's collider ignores other karts, in both
         // directions; a run that ends with karts overlapping resolves as an
         // ordinary bump from here.
@@ -1784,12 +1817,20 @@ pub fn step(mut state: State, inputs: &[KartInput], dt: f32) -> State {
         let mut after = state.physics.bodies[kart.body].translation().to_array();
         let mut respawned = false;
         let on_the_line = state.track.point_at(kart.spline_progress);
+        // The pit wall stands between the lane and the centreline, so a kart
+        // on the lane's road has not left the course for being behind it.
+        let on_pit_lane = state.track.pit_lane().and_then(|lane| lane.reading(after));
         if state.physics.surface_at(after) == Surface::OutOfWorld
-            || state.physics.wall_between(on_the_line, after)
+            || (on_pit_lane.is_none() && state.physics.wall_between(on_the_line, after))
         {
             kart.off_course_s += dt;
             if kart.off_course_s >= RESPAWN_DELAY_S {
-                after = respawn(kart, &state.track, &mut state.physics);
+                after = match (kart.pit_lane_m, state.track.pit_lane()) {
+                    (Some(metres), Some(lane)) => {
+                        respawn_on_lane(kart, lane, metres, &mut state.physics)
+                    }
+                    _ => respawn(kart, &state.track, &mut state.physics),
+                };
                 state.events.push(RaceEvent::Respawned { kart: index });
                 // A teleport is not a move: it crosses no gate.
                 before = after;
@@ -1797,6 +1838,7 @@ pub fn step(mut state: State, inputs: &[KartInput], dt: f32) -> State {
             }
         } else {
             kart.off_course_s = 0.0;
+            kart.pit_lane_m = on_pit_lane;
         }
         // A respawn can land a kart anywhere on the lap, so its last reading
         // says nothing about where to search.
@@ -1842,20 +1884,25 @@ pub fn step(mut state: State, inputs: &[KartInput], dt: f32) -> State {
             }
         }
     }
+    // Who stands on the lane's safe ground now the karts have moved: no item
+    // or star touches them from here on (ADR 0081).
+    let in_pit_lane: Vec<bool> = (0..state.karts.len())
+        .map(|slot| state.in_pit_lane(slot))
+        .collect();
     // A star kart spins out every kart whose box its centre reaches, bar
     // one already spun out and another star kart, which it bumps as usual,
     // and passes through at full speed. The spin-out ends a hold on a
     // hazard, which is left where it is: the hazard shields nobody from a
     // star.
     for star in 0..state.karts.len() {
-        if !state.karts[star].starring() {
+        if !state.karts[star].starring() || in_pit_lane[star] {
             continue;
         }
         let centre = state.physics.bodies[state.karts[star].body]
             .translation()
             .to_array();
         for (slot, (kart, hold)) in state.karts.iter_mut().zip(&mut holds).enumerate() {
-            if slot == star || kart.starring() || kart.spun_out() {
+            if slot == star || kart.starring() || kart.spun_out() || in_pit_lane[slot] {
                 continue;
             }
             let body = &mut state.physics.bodies[kart.body];
@@ -1894,6 +1941,10 @@ pub fn step(mut state: State, inputs: &[KartInput], dt: f32) -> State {
     // hit drops it where it is.
     let mut hazards = std::mem::take(&mut state.hazards);
     hazards.retain_mut(|placed| {
+        // No hazard lands in the lane: one let go over it is gone.
+        if state.track.in_pit_lane(placed.hazard.position) {
+            return false;
+        }
         if !placed.hazard.held {
             placed.lifetime_left_s -= dt;
             if placed.lifetime_left_s <= 0.0 {
@@ -1912,7 +1963,7 @@ pub fn step(mut state: State, inputs: &[KartInput], dt: f32) -> State {
                 placed.clear_of_owner = !reached;
                 continue;
             }
-            if !reached || kart.spun_out() {
+            if !reached || kart.spun_out() || in_pit_lane[slot] {
                 continue;
             }
             if kart.starring() {
@@ -1966,6 +2017,10 @@ pub fn step(mut state: State, inputs: &[KartInput], dt: f32) -> State {
     // new target.
     let mut projectiles = std::mem::take(&mut state.projectiles);
     projectiles.retain_mut(|flying| {
+        // A projectile gives up on a kart that has reached the lane.
+        if in_pit_lane[flying.projectile.target] {
+            return false;
+        }
         let target = &mut state.karts[flying.projectile.target];
         let body = &mut state.physics.bodies[target.body];
         fly(flying, &state.track, body.translation(), dt);
@@ -2294,6 +2349,26 @@ fn respawn(kart: &mut Kart, track: &Track, physics: &mut Physics) -> [f32; 3] {
     let checkpoints = track.checkpoints();
     let here = checkpoints[kart.checkpoint].position;
     let next = checkpoints[(kart.checkpoint + 1) % checkpoints.len()].position;
+    respawn_at(kart, here, next, physics)
+}
+
+/// Put a kart that left the pit lane's road back on it, `metres` along it,
+/// where it last was, facing down it. It gains nothing: the lane is the
+/// slower road and it crosses no gate. Returns where it now stands.
+fn respawn_on_lane(
+    kart: &mut Kart,
+    lane: &track::PitLane,
+    metres: f32,
+    physics: &mut Physics,
+) -> [f32; 3] {
+    let here = lane.point_at(metres);
+    let next = lane.point_at(metres + 1.0);
+    respawn_at(kart, here, next, physics)
+}
+
+/// Stand the kart at `here` at rest, facing `next`, with nothing carried
+/// over from before it fell. Returns where it now stands.
+fn respawn_at(kart: &mut Kart, here: [f32; 3], next: [f32; 3], physics: &mut Physics) -> [f32; 3] {
     // Yaw zero faces -Z and grows counter-clockwise seen from above.
     let yaw = libm::atan2f(here[0] - next[0], here[2] - next[2]);
     let facing = Rotation::from_rotation_y(yaw);
@@ -2507,6 +2582,10 @@ fn blast_horn(state: &mut State, firer: usize) {
         state.karts[firer].spline_progress,
     );
     for slot in 0..state.karts.len() {
+        // The lane is safe ground, whatever reaches across the pit wall.
+        if state.in_pit_lane(slot) {
+            continue;
+        }
         let kart = &mut state.karts[slot];
         let body = &mut state.physics.bodies[kart.body];
         if slot == firer

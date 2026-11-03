@@ -65,6 +65,12 @@ spinOutS: number | null,
  */
 airborne: boolean, 
 /**
+ * Whether the kart is on the pit limiter, between a pit lane's lines
+ * (ADR 0081); the gear slot's PIT. As with `airborne`, only the sim that
+ * steps the kart reports it: a snapshot does not carry it.
+ */
+inPitLane: boolean, 
+/**
  * Seconds of boost left, while a mini-turbo, boost pad, item or start
  * boost holds the kart over top speed; the release's tell.
  */

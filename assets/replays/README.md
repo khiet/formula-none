@@ -52,7 +52,7 @@ touching, karts on the sand, a lone kart held by a wall, a run on
 each track, a drift released into an orange mini-turbo and another into
 a red one, a kart boosting at Go and a kart stalling there, a kart
 launched by a sausage kerb, a kart spun out by the runaway wheel, a coin
-taken and coins lost to a spin-out, and a race of Ace bots, so
+taken and coins lost to a spin-out, a lap completed in a pit lane and a race of Ace bots, so
 trimming the set cannot quietly weaken the gate. `oval-hop-drift.replay.json` was
 written by hand for the mini-turbo: a hop into a left drift held past
 red through the first turn, then on the back straight a hop into a left
@@ -69,7 +69,9 @@ six ticks at a time in eighths. From the spin-out on it was rewritten when
 the pickups came in: a follower steering for the path the kart drove before,
 two percent faster on the two it kept, and for the kerb itself on the
 chicane's approach, with the throttle and brake the old run held at the
-same spline progress. `bell-deer-first-corners.replay.json` was
+same spline progress. `bell-deer-lap-through-the-pits.replay.json` was
+written by a scripted follower too, on Tyres On: a lap of the centreline, then down
+the lane through the start gate, and on round the course. `bell-deer-first-corners.replay.json` was
 written the same way: four karts from the grid through the first curve
 and turn 2, one of them cutting across turn 2's sand. `oval-rocket-start.replay.json` and
 `oval-stall.replay.json` were written by hand for the start: the throttle

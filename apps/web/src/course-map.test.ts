@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { projectCentreline } from "./course-map";
+import { pitLanePath, projectCentreline } from "./course-map";
 
 // A rectangle twice as wide (x) as it is deep (z), starting on its left
 // edge and heading up the map (-z) the way a grid faces the first corner.
@@ -124,5 +124,35 @@ describe("projecting the centreline onto the course map", () => {
     const middle = points[Math.floor(points.length / 2)] as [number, number];
     const [u, v] = course.toMap(deckX, deckZ);
     expect(Math.hypot(middle[0] - u, middle[1] - v)).toBeLessThan(1);
+  });
+});
+
+describe("the pit lane on the course map", () => {
+  // Along the bottom of a wide rectangle, the lane 16 m to one side of the
+  // straight and joining it at both ends, as a lane is near the road's scale.
+  const straight: readonly (readonly [number, number, number])[] = [
+    [0, 0, 0],
+    [100, 0, 0],
+    [200, 0, 0],
+    [200, 0, 100],
+    [0, 0, 100],
+  ];
+  const lane: readonly (readonly [number, number, number])[] = [
+    [50, 0, 4],
+    [80, 0, 16],
+    [120, 0, 16],
+    [150, 0, 4],
+  ];
+  const projection = projectCentreline(straight, box, tickHalf, deckHalf);
+  const roadAt = (x: number) => projection.toMap(x, 0)[1];
+
+  it("stands the lane clear of the road beside the straight and joins it at the ends", () => {
+    const beside = 8;
+    const points = pointsOf(pitLanePath(projection, straight, lane, beside));
+    expect(points).toHaveLength(lane.length);
+    const [, middleV] = points[1] as [number, number];
+    expect(middleV - roadAt(80)).toBeCloseTo(beside, 5);
+    const [, endV] = points[0] as [number, number];
+    expect(endV - roadAt(50)).toBeCloseTo(beside / 4, 5);
   });
 });

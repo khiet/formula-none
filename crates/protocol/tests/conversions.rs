@@ -35,6 +35,7 @@ fn busy_kart() -> KartReadout {
         tyre_life: 42.5,
         spin_out_s: Some(0.4),
         airborne: true,
+        in_pit_lane: false,
         boost_s: Some(0.2),
         boost_tier: MiniTurbo::Orange,
         start: Start::WeakBoost,
@@ -59,6 +60,7 @@ fn a_readout_through_a_snapshot_keeps_what_the_snapshot_carries() {
         KartReadout {
             speed: back.speed,
             airborne: false,
+            in_pit_lane: false,
             ..kart
         }
     );

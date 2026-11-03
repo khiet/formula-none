@@ -461,6 +461,10 @@ pub const TYRE_WASH_OUT_FULL_M_PER_S2: f32 = 22.0;
 pub const TYRE_WASH_OUT_RATE_RAD_PER_S: f32 = 0.6;
 /// Life lost per second rolling on the ground.
 pub const TYRE_WEAR_ROLLING_PER_S: f32 = 0.06;
+/// The pit limiter's speed, from the entry line to the exit line of a pit
+/// lane: 54 km/h. It beats coins, the slipstream, a star and every boost
+/// (ADR 0081).
+pub const PIT_LIMIT_M_PER_S: f32 = 15.0;
 /// Life lost per second cornering at [`TYRE_WEAR_CORNERING_REFERENCE_M_PER_S2`];
 /// it goes with the square of the kart's speed times its yaw rate.
 pub const TYRE_WEAR_CORNERING_PER_S: f32 = 0.19;
@@ -824,6 +828,9 @@ const _: () = {
             / (TICKS_PER_SECOND as f32)
             < 2.0 * (STAR_HIT_RADIUS_M + KART_HALF_LENGTH_M)
     );
+    // The limiter slows a kart, and leaves it fast enough to carry on drifting
+    // and reverse no faster than the road allows.
+    assert!(PIT_LIMIT_M_PER_S < TOP_SPEED_M_PER_S && REVERSE_TOP_SPEED_M_PER_S < PIT_LIMIT_M_PER_S);
     // The blast reaches less far than its progress window, so a kart in
     // reach by distance on the same road is never dropped by the window;
     // and the window is narrower than the one a reading is searched in

@@ -325,17 +325,21 @@ export function createInstrumentPanel(
   coins.append(coinIcon());
   const coinValue = part(coins, "coinCount");
   cluster.append(coins, gear, speed, tyre, boxPlate);
-  const showSpeed = (metresPerSecond: number, carried: number) => {
+  const showSpeed = (metresPerSecond: number, carried: number, inPitLane: boolean) => {
     const topSpeed = coinTopSpeed(tuning, carried);
     const reading = drivetrain(metresPerSecond, topSpeed);
     shiftLights(reading).forEach((state, index) => {
       const light = lights[index];
       if (light) light.dataset.shiftLight = state;
     });
-    gear.textContent = reading.gear;
-    if (gear.dataset.limiter !== String(reading.limiter)) {
-      gear.dataset.limiter = String(reading.limiter);
-      plate(gear, reading.limiter ? WHITE : CARBON);
+    // The pit limiter takes the gear slot from the gears. It holds steady: the
+    // flash is for a boost running out of revs, and this is the speed held.
+    const limiter = reading.limiter && !inPitLane;
+    gear.textContent = inPitLane ? "PIT" : reading.gear;
+    if (gear.dataset.limiter !== String(limiter) || gear.dataset.pit !== String(inPitLane)) {
+      gear.dataset.limiter = String(limiter);
+      gear.dataset.pit = String(inPitLane);
+      plate(gear, limiter || inPitLane ? WHITE : CARBON);
     }
     const parts = speedParts(metresPerSecond);
     speedValue.textContent = parts.value;
@@ -345,7 +349,7 @@ export function createInstrumentPanel(
     coinValue.textContent = coinCount(carried, tuning.coinCap);
   };
   // Every kart starts the race with no coins.
-  showSpeed(0, 0);
+  showSpeed(0, 0, false);
   showCoins(0);
   // The surface and connection readouts are greybox aids: the surface shows
   // the sidecar and the mesh agree about where the kart is. They sit in a
@@ -427,7 +431,7 @@ export function createInstrumentPanel(
       printLabelled(bestLap, readouts.bestLap);
       wrongWay.textContent = readouts.wrongWay;
       wrongWay.hidden = readouts.wrongWay === "";
-      showSpeed(local.speed, local.coins);
+      showSpeed(local.speed, local.coins, local.inPitLane);
       showCoins(local.coins);
       showTyres(local.tyreLife);
       surface.textContent = local.surface;

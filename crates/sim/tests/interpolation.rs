@@ -34,6 +34,7 @@ fn kart_at(x: f32) -> KartReadout {
         spin_out_s: None,
         star_s: None,
         airborne: false,
+        in_pit_lane: false,
         boost_s: None,
         boost_tier: MiniTurbo::None,
         slipstream: None,

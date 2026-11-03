@@ -394,6 +394,7 @@ fn the_fixture_set_exercises_kart_contact_off_track_walls_every_track_both_mini_
     let mut took_a_coin = false;
     let mut lost_coins = false;
     let mut towed = false;
+    let mut lapped_in_the_pits = false;
     for (_, replay) in fixtures() {
         tracks.insert(replay.track.clone());
         levels.insert(replay.level.name());
@@ -410,6 +411,9 @@ fn the_fixture_set_exercises_kart_contact_off_track_walls_every_track_both_mini_
                     .iter()
                     .any(|event| matches!(event, RaceEvent::SpunOut { by: None, .. }));
                 for event in state.events() {
+                    if let RaceEvent::LapCompleted { kart, .. } = event {
+                        lapped_in_the_pits |= state.kart_readouts()[*kart].in_pit_lane;
+                    }
                     took_a_coin |= matches!(event, RaceEvent::CoinPicked { .. });
                     lost_coins |= matches!(event, RaceEvent::CoinsLost { .. });
                 }
@@ -484,6 +488,10 @@ fn the_fixture_set_exercises_kart_contact_off_track_walls_every_track_both_mini_
     assert!(took_a_coin, "no fixture takes a coin");
     assert!(lost_coins, "no fixture loses coins to a spin-out");
     assert!(towed, "no fixture tows a kart");
+    assert!(
+        lapped_in_the_pits,
+        "no fixture completes a lap in the pit lane"
+    );
     // Centres within a kart's length of each other are in contact or about
     // to be, whichever way the two karts face.
     let touching = 2.0 * KART_HALF_LENGTH_M + 0.05;

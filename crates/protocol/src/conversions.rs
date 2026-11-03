@@ -203,6 +203,7 @@ impl From<&KartSnapshot> for KartReadout {
             tyre_life: kart.tyre_life,
             spin_out_s: kart.spin_out_s,
             airborne: false,
+            in_pit_lane: false,
             boost_s: kart.boost.map(|boost| boost.left_s),
             boost_tier: kart
                 .boost

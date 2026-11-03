@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
   BOT_LEVELS,
@@ -8,6 +9,7 @@ import {
   loadBotLevel,
   loadCoursePick,
   loadTyres,
+  pitLaneOf,
   saveBotLevel,
   saveCoursePick,
   saveTyres,
@@ -70,6 +72,27 @@ describe("the centreline from a sidecar", () => {
   it("rejects a sidecar without a centreline", () => {
     expect(() => centrelineOf(JSON.stringify({ version: 1, name: "oval" }))).toThrow(/centreline/);
     expect(() => centrelineOf(JSON.stringify({ centreline: [[1, 2]] }))).toThrow(/centreline/);
+  });
+});
+
+describe("reading a sidecar's pit lane", () => {
+  it("gives the path of a course's lane, and nothing for a course without one", () => {
+    const path = [
+      [1, 0, 2],
+      [3, 0, 4],
+    ];
+    expect(pitLaneOf(JSON.stringify({ pit_lane: { path } }))).toEqual(path);
+    expect(pitLaneOf(JSON.stringify({ centreline: [] }))).toBeUndefined();
+  });
+
+  it("finds Bell Deer's lane and none on the oval in the sidecars the sim reads", () => {
+    const sidecar = (name: string) =>
+      readFileSync(
+        new URL(`../../../assets/tracks/${name}/${name}.track.json`, import.meta.url),
+        "utf8",
+      );
+    expect(pitLaneOf(sidecar("bell-deer"))?.length).toBeGreaterThan(100);
+    expect(pitLaneOf(sidecar("oval"))).toBeUndefined();
   });
 });
 
