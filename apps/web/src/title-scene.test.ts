@@ -198,7 +198,7 @@ describe("Title Scene", () => {
     expect(calls.courses).toEqual([BELL_DEER]);
   });
 
-  it("offers the Tyres picks under the bots with the saved one picked, describes the pick and reports each change", () => {
+  it("offers the Tyres picks beside the bots with the saved one picked, describes the pick and reports each change", () => {
     const { container, calls } = scene({ tyres: "off" });
     const radios = Array.from(
       container.querySelectorAll<HTMLInputElement>("input[type=radio][name=tyres]"),
@@ -223,7 +223,7 @@ describe("Title Scene", () => {
     expect(radios.map((radio) => radio.labels?.[0]?.textContent)).toEqual(["Basic", "Pro", "Ace"]);
     // The row sits under the flags, in the course column.
     const course = container.querySelector(".course");
-    expect(course?.querySelector(".flags + .bots")).not.toBeNull();
+    expect(course?.querySelector(".flags + .picks .bots")).not.toBeNull();
     const blurb = () => container.querySelector("[data-bots-blurb]")?.textContent ?? "";
     expect(blurb()).toMatch(/^Pro: /);
     const [, , ace] = radios;

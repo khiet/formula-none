@@ -297,9 +297,12 @@ export function createTitleScene(
     picked: options.tyres,
     onPick: handlers.tyres,
   });
+  const picks = document.createElement("div");
+  picks.className = "picks";
+  picks.append(bots, tyres);
   const courseColumn = document.createElement("div");
   courseColumn.className = "course";
-  courseColumn.append(courseHeading, flags, bots, tyres, preview.element);
+  courseColumn.append(courseHeading, flags, picks, preview.element);
 
   scene.append(...backdrop(), ...runners, wayIn, courseColumn);
   container.append(scene);

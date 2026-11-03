@@ -775,6 +775,13 @@
         outline-offset: 0.15em;
       }
       /* The bot level and the Tyres pick under the flags (ADR 0078, ADR 0083): a tile per choice, the flag tile with the caption in the flag's place. */
+      /* The picks side by side, as wide as the preview under them, so a new pick does not push it off the poster. */
+      #title-scene .picks {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1em;
+        width: 38em;
+      }
       #title-scene .bots {
         display: flex;
         flex-direction: column;
@@ -793,16 +800,17 @@
       }
       #title-scene .bot-tiles {
         display: flex;
-        gap: 1.4em;
+        gap: 0.8em;
       }
       #title-scene .bot-tile {
-        min-width: 6em;
-        padding: 0.5em 0.8em;
+        min-width: 4.5em;
+        padding: 0.5em 0.6em;
       }
       #title-scene :is([data-bots-blurb], [data-tyres-blurb]) {
         margin: 0;
         padding: 0.35em 0.6em;
         font-size: 1.1em;
+        text-align: center;
         background: var(--ink);
       }
       #room-scene .room-pick {
@@ -841,6 +849,10 @@
         height: 19em;
         margin: 0.8em 0;
         background: #1b1d21;
+      }
+      /* A size down on the Title, to make room for the picks' second line. */
+      #title-scene .preview .map {
+        height: 17.5em;
       }
       :is(#title-scene, #room-scene) .preview .blurb {
         font-size: 1.3em;
