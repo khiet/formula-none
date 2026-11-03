@@ -22,6 +22,7 @@ type Service = {
   user?: string;
   cap_drop?: string[];
   read_only?: boolean;
+  logging?: { driver?: string };
 };
 
 /** The workflow expression for the pushed commit, as the YAML spells it. */
@@ -179,8 +180,42 @@ describe("Compose stack", () => {
     expect(Object.keys(compose.volumes ?? {})).toContain("rooms");
   });
 
+  it("ships the Compose files, the Caddyfile, the Prometheus config and Grafana's files in the release bundle a server runs from", () => {
+    const dockerfile = readRepoFile("Dockerfile");
+    expect(dockerfile).toMatch(
+      /^COPY deploy\/compose\.yaml deploy\/compose\.selfhost\.yaml deploy\/Caddyfile deploy\/prometheus\.yml \/release\/$/m,
+    );
+    expect(dockerfile).toMatch(/^COPY deploy\/grafana \/release\/grafana$/m);
+  });
+
   it("runs the image the deploy document names", () => {
     expect(compose.services.server?.image).toBe(`\${SERVER_IMAGE}`);
+  });
+});
+
+// A self-hoster's server: compose.selfhost.yaml goes on top of the same
+// stack, so production's file stays the one definition of what runs.
+describe("self-hosting override", () => {
+  const selfhost = parse(readRepoFile("deploy/compose.selfhost.yaml")) as {
+    services: Record<string, Service>;
+  };
+
+  // The base file's awslogs driver needs the author's AWS account: one service
+  // left on it fails to start anywhere else.
+  it("takes every service in the stack off CloudWatch", () => {
+    for (const name of Object.keys(compose.services)) {
+      const driver = selfhost.services[name]?.logging?.driver;
+      expect(driver, name).toBeDefined();
+      expect(driver, name).not.toBe("awslogs");
+    }
+  });
+
+  // `:?` makes Compose refuse to start with this message, where the base
+  // file's fallback would ask Let's Encrypt for the author's domain.
+  it("requires SITE_ADDRESS, failing with what to do", () => {
+    expect(selfhost.services.caddy?.environment?.SITE_ADDRESS).toBe(
+      `\${SITE_ADDRESS:?set SITE_ADDRESS to your domain}`,
+    );
   });
 });
 
@@ -280,14 +315,6 @@ describe("metrics stack", () => {
         expect(target.datasource?.uid ?? source?.uid).toBe(source?.uid);
       }
     }
-  });
-
-  it("ships the Prometheus config and Grafana's files in the release bundle the instance runs from", () => {
-    const dockerfile = readRepoFile("Dockerfile");
-    expect(dockerfile).toMatch(
-      /^COPY deploy\/compose\.yaml deploy\/Caddyfile deploy\/prometheus\.yml \/release\/$/m,
-    );
-    expect(dockerfile).toMatch(/^COPY deploy\/grafana \/release\/grafana$/m);
   });
 
   it("runs every build stage on the build machine, so an x86 runner can build the arm64 image", () => {

@@ -1,0 +1,24 @@
+# Overrides for running the stack on a server of your own: no CloudWatch, and
+# no falling back to the author's domain. The server's TLS_CERT and TLS_KEY in
+# the base file already follow SITE_ADDRESS.
+#
+#   SITE_ADDRESS=your.domain SERVER_IMAGE=formula-none:dev docker compose \
+#     -f release/compose.yaml -f release/compose.selfhost.yaml up -d
+#
+# The image carries this file in its release bundle; see "Hosting your own"
+# in deploy/README.md.
+services:
+  caddy:
+    environment:
+      SITE_ADDRESS: ${SITE_ADDRESS:?set SITE_ADDRESS to your domain}
+    logging:
+      driver: local
+  server:
+    logging:
+      driver: local
+  prometheus:
+    logging:
+      driver: local
+  grafana:
+    logging:
+      driver: local

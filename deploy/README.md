@@ -10,8 +10,8 @@ has passed on a push to main:
 
 1. Builds the image from the `Dockerfile` for arm64 and pushes it to ECR
    tagged with the commit. The image holds the server binary and, under
-   `/release`, this directory's `compose.yaml`, `Caddyfile`,
-   `prometheus.yml` and `grafana/` plus the built client.
+   `/release`, this directory's `compose.yaml`, `compose.selfhost.yaml`,
+   `Caddyfile`, `prometheus.yml` and `grafana/` plus the built client.
 2. Runs `deploy/deploy.sh <commit>`: the deploy document (an SSM Run Command
    defined in `infra/deploy.tf`) pulls the image on the instance, copies
    `/release` out of it to `/opt/formula-none/release`, and runs
@@ -80,6 +80,60 @@ WEBTRANSPORT_PROBE_CA=/tmp/caddy-root.crt \
   cargo run -p server --example webtransport-probe -- https://localhost/wt
 ```
 
+## Hosting your own
+
+On a server of your own, with Docker and a domain whose DNS points at it.
+`compose.selfhost.yaml` goes on top of the same stack: logs stay on the server
+with Docker's `local` driver instead of going to CloudWatch, and Compose
+refuses to start without your domain.
+
+1. Build the image from a checkout of this repository, naming the server's
+   architecture, `linux/amd64` or `linux/arm64`. If you build elsewhere, move
+   the image across with `docker save formula-none:dev | ssh you@your.domain docker load`.
+
+   ```sh
+   docker build --platform linux/amd64 --build-arg COMMIT=$(git rev-parse HEAD) -t formula-none:dev .
+   ```
+
+2. Extract the release bundle from it on the server, into a directory outside
+   any checkout. Repeat this after each new build, so the stack and the image
+   stay the same commit:
+
+   ```sh
+   container=$(docker create formula-none:dev)
+   docker cp "$container:/release/." release && docker rm "$container"
+   ```
+
+3. Open 443 TCP and 443 UDP to the world. TCP is Caddy, including its
+   certificate challenge, so port 80 can stay closed; UDP is WebTransport.
+
+4. Set `SITE_ADDRESS` to your domain, and start the stack:
+
+   ```sh
+   export SITE_ADDRESS=your.domain SERVER_IMAGE=formula-none:dev
+   docker compose -f release/compose.yaml -f release/compose.selfhost.yaml up -d
+   ```
+
+   Any later `docker compose` command needs both variables and both files.
+   Without `SITE_ADDRESS` it stops with "set SITE_ADDRESS to your domain";
+   without the second file, services go back to CloudWatch and fail to start.
+
+5. Prometheus and Grafana run here too. Grafana listens on the server's
+   loopback with no login, and whoever reaches it is an admin, so anyone with
+   a shell on the server has that. Reach it over SSH and browse
+   `http://localhost:3000`:
+
+   ```sh
+   ssh -L 3000:localhost:3000 you@your.domain
+   ```
+
+6. From a checkout with Rust installed (the first run builds the WebTransport
+   probe), smoke-test it with the commit you built:
+
+   ```sh
+   deploy/smoke.sh <commit> https://your.domain
+   ```
+
 ## Endpoints
 
 | Path           | Served by | Answer                                        |
@@ -134,8 +188,9 @@ brought back.
 
 ## Logs
 
-Every container's stdout goes to CloudWatch Logs through the `awslogs`
-driver in `compose.yaml`: the log group `/formula-none/server` in eu-west-2,
+In production every container's stdout goes to CloudWatch Logs through the
+`awslogs` driver in `compose.yaml` (a self-hosted stack keeps it on the server;
+read it with `docker compose logs`): the log group `/formula-none/server` in eu-west-2,
 kept for 14 days (`infra/logs.tf`), one stream per container named after
 it, `formula-none-server-1` for the server. The server writes one JSON
 object per line (ADR 0018, `crates/server/src/log.rs`): `ts` and `event`

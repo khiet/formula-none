@@ -34,6 +34,8 @@ describe("README", () => {
     expect(readme).toMatch(
       /`infra\/` describes the author's own deployment.*Compose stack under `deploy\/`/,
     );
+    expect(readme).toContain("(deploy/README.md#hosting-your-own)");
+    expect(readRepoFile("deploy/README.md")).toMatch(/^## Hosting your own$/m);
   });
 });
 

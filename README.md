@@ -74,11 +74,8 @@ stack with Caddy, Prometheus and Grafana. The server's metrics are at
 ## Hosting your own
 
 `infra/` describes the author's own deployment on AWS, not a template; to
-host the game yourself, use the Compose stack under `deploy/`, which runs
-the server behind Caddy. [`deploy/README.md`](deploy/README.md) builds the
-image and runs the stack on `https://localhost`. On a server of your own,
-set `SITE_ADDRESS` to your domain and drop the CloudWatch logging the base
-`compose.yaml` sends to the author's AWS account.
+host the game yourself, use the Compose stack under `deploy/`, as
+[Hosting your own](deploy/README.md#hosting-your-own) sets out.
 
 ## Controls
 
