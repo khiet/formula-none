@@ -83,6 +83,7 @@ const DECISION_SLUGS = [
   "the-air-horn-is-one-blast-round-the-kart",
   "the-slipstream-is-a-tow-on-the-top-speed-cap",
   "the-creator-picks-the-bot-level",
+  "a-checkpoint-reaches-the-walls-outer-faces",
 ];
 
 const expectedFiles = DECISION_SLUGS.map(
