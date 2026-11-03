@@ -21,7 +21,7 @@ pub mod samples;
 
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
-use sim::BotLevel;
+use sim::{BotLevel, Tyres};
 use std::fmt;
 use ts_rs::TS;
 
@@ -29,7 +29,7 @@ use ts_rs::TS;
 /// [`ClientMessage::Join`] and the server refuses a mismatch with
 /// [`Refusal::VersionMismatch`] (ADR 0013). The generator exports it next to
 /// the types, so the web app reads the same constant.
-pub const PROTOCOL_VERSION: u16 = 21;
+pub const PROTOCOL_VERSION: u16 = 22;
 
 /// What a client sends the server.
 #[derive(Serialize, Deserialize, TS, Debug, Clone, PartialEq)]
@@ -146,6 +146,9 @@ pub enum ServerMessage {
         seed: u64,
         track: String,
         bot_level: BotLevel,
+        /// Whether the tyres wear (ADR 0083), so the client's prediction
+        /// and a replay recorded from it run the server's race.
+        tyres: Tyres,
         grid: Vec<u8>,
     },
     /// The authoritative state at a tick, on a datagram at the snapshot rate
@@ -202,6 +205,9 @@ pub struct Room {
     /// How hard the room's bots drive, picked by the creator at the create
     /// and fixed for the room as the track is (ADR 0078).
     pub bot_level: BotLevel,
+    /// Whether the room's tyres wear, picked by the creator at the create
+    /// and fixed for the room as the track is (ADR 0083).
+    pub tyres: Tyres,
     pub state: RoomState,
     /// In slot order. A joiner takes the lowest free slot, so a room nobody
     /// has left lists its players in join order.
@@ -332,6 +338,10 @@ pub struct KartSnapshot {
     /// The coins the kart carries. A client's prediction takes its count
     /// from here, never collecting one itself.
     pub coins: u8,
+    /// How much life the kart's tyres have left, as a percentage. A
+    /// client's prediction wears its own and takes wear it could not know
+    /// of from here (ADR 0080).
+    pub tyre_life: f32,
     /// Seconds of spin-out left, while the kart is spun out.
     pub spin_out_s: Option<f32>,
     /// The kart's rocket start: during the countdown the tier its throttle

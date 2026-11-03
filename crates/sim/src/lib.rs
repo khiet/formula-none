@@ -32,6 +32,7 @@ pub mod tuning;
 mod wheel;
 
 pub use bot::BotLevel;
+pub use handling::Tyres;
 pub use interpolation::Interpolation;
 pub use prediction::Prediction;
 pub use replay::{Replay, ReplayError, Segment};
@@ -113,6 +114,9 @@ pub struct KartReadout {
     /// The coins the kart carries, from 0 to a full purse; each raises its
     /// forward top speed by the tuned factor.
     pub coins: u32,
+    /// How much life the kart's tyres have left, as a percentage: 100 is
+    /// new and 0 is gone. It holds at 100 in a race on Tyres Off (ADR 0080).
+    pub tyre_life: f32,
     /// Seconds of spin-out left, while the kart is spun out: stopped, with
     /// its inputs ignored. The View spins it for the duration.
     pub spin_out_s: Option<f32>,
@@ -737,6 +741,7 @@ impl Kart {
             mini_turbo: MiniTurbo::of(self.handling.drift()),
             item_slot: self.item_slot,
             coins: self.coins,
+            tyre_life: self.handling.tyre_life(),
             spin_out_s: self.spun_out().then_some(self.spin_out_left_s),
             airborne: self.handling.airborne(),
             boost_s: self.handling.boost_s(),
@@ -771,6 +776,7 @@ impl Kart {
         );
         self.item_slot = readout.item_slot;
         self.coins = readout.coins;
+        self.handling.adopt_tyre_life(readout.tyre_life);
         self.handling.adopt_slipstream(readout.slipstream);
         // A spin-out the readout does not have is a hit the server never
         // made, which in a prediction is only ever the wheel's: the pass
@@ -959,6 +965,19 @@ impl State {
     /// at the top of its countdown. Together they must not exceed the
     /// track's spawn slots.
     pub fn with_bots(seed: u64, humans: usize, bots: usize, track: Track, level: BotLevel) -> Self {
+        Self::with_tyres(seed, humans, bots, track, level, Tyres::Off)
+    }
+
+    /// As [`State::with_bots`], the creator's pick of `tyres` in force
+    /// (ADR 0083).
+    pub fn with_tyres(
+        seed: u64,
+        humans: usize,
+        bots: usize,
+        track: Track,
+        level: BotLevel,
+        tyres: Tyres,
+    ) -> Self {
         let kart_count = humans + bots;
         assert!(
             kart_count <= track.spawn_grid().len(),
@@ -966,19 +985,21 @@ impl State {
             kart_count,
             track.spawn_grid().len()
         );
-        Self::on_spawn_slots(seed, humans, 0..kart_count, track, level)
+        Self::on_spawn_slots(seed, humans, 0..kart_count, track, level, tyres)
     }
 
     /// A fresh race with one kart on each of `slots` of the spawn grid, in
     /// order, the first `humans` of them human and the bots driving at
-    /// `level`, at the top of its countdown. Each bot kart's rocket start
-    /// is rolled here, in slot order, so the seed decides it.
+    /// `level` and the tyres as `tyres` says, at the top of its countdown.
+    /// Each bot kart's rocket start is rolled here, in slot order, so the
+    /// seed decides it.
     fn on_spawn_slots(
         seed: u64,
         humans: usize,
         slots: Range<usize>,
         track: Track,
         level: BotLevel,
+        tyres: Tyres,
     ) -> Self {
         let mut rng = ChaCha8Rng::seed_from_u64(seed);
         let mut physics = Physics::new();
@@ -1025,7 +1046,7 @@ impl State {
                     body,
                     collider,
                     bot: (index >= humans).then_some(bot::Memory::default()),
-                    handling: Handling::new(),
+                    handling: Handling::new(tyres),
                     off_course_s: 0.0,
                     wrong_way_s: 0.0,
                     laps_completed: 0,
@@ -2165,7 +2186,8 @@ fn normal_toward(pair: &ContactPair, collider: ColliderHandle, manifold: &Contac
 /// kart bounces off it.
 /// A kart that is not one of `karts`, a kinematic stand-in for another
 /// player's kart in a prediction, closes at the velocity the solver moved
-/// it with. Each kart of a pair runs this for itself.
+/// it with, and costs no tyre life: wear from another kart is the
+/// snapshots' word (ADR 0080). Each kart of a pair runs this for itself.
 fn bump_off_karts(
     karts: &mut [Kart],
     index: usize,
@@ -2187,12 +2209,10 @@ fn bump_off_karts(
         let other_body = physics.colliders[other]
             .parent()
             .expect("a kart collider has a body");
-        let other_sent = karts
-            .iter()
-            .position(|kart| kart.body == other_body)
-            .map_or(physics.bodies[other_body].linvel(), |slot| {
-                sent_velocities[slot]
-            });
+        let other_slot = karts.iter().position(|kart| kart.body == other_body);
+        let other_sent = other_slot.map_or(physics.bodies[other_body].linvel(), |slot| {
+            sent_velocities[slot]
+        });
         for (normal, closing_speed) in
             touches_this_tick(pair, collider, other_sent - sent_velocities[index], dt)
         {
@@ -2204,6 +2224,9 @@ fn bump_off_karts(
                 KART_BUMP_RESTITUTION / 2.0,
                 KART_BUMP_SPEED_LOSS,
             );
+            if other_slot.is_some() {
+                karts[index].handling.wear_for_touch(other, closing_speed);
+            }
         }
     }
 }
@@ -2231,6 +2254,7 @@ fn bump_off_tyre_walls(kart: &mut Kart, physics: &Physics, sent_velocity: Vec3, 
                 TYRE_WALL_RESTITUTION,
                 TYRE_WALL_SPEED_LOSS,
             );
+            kart.handling.wear_for_touch(other, closing_speed);
         }
     }
 }
@@ -2408,6 +2432,7 @@ fn spin_out(
     }
     kart.spin_out_left_s = SPIN_OUT_S;
     kart.handling.stop();
+    kart.handling.wear_for_spin_out();
     body.set_linvel(Vec3::ZERO, true);
     body.set_angvel(Vec3::ZERO, true);
     body.lock_translations(true, true);

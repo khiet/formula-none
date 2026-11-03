@@ -16,7 +16,7 @@
 use protocol::{Player, PlayerState, Refusal, Room, RoomState, PROTOCOL_VERSION};
 use serde::{Deserialize, Serialize};
 use sim::tuning::{NICKNAME_MAX_CHARS, ROOM_PLAYERS_MAX};
-use sim::BotLevel;
+use sim::{BotLevel, Tyres};
 
 /// The room as the server holds it: the view every player gets plus the
 /// order players joined in, which creator handover follows.
@@ -27,6 +27,8 @@ pub struct HostedRoom {
     track: &'static str,
     /// How hard the room's bots drive (ADR 0078).
     bot_level: BotLevel,
+    /// Whether the room's tyres wear (ADR 0083).
+    tyres: Tyres,
     state: RoomState,
     /// One entry per slot; `None` is a free seat.
     seats: Vec<Option<Seat>>,
@@ -60,6 +62,10 @@ pub struct KeptRoom {
     /// A room kept before there was a level comes back at Basic (ADR 0053).
     #[serde(default)]
     pub bot_level: BotLevel,
+    /// A room kept before there was a pick comes back Off, whatever the
+    /// default has become, so what was raced stays what it was (ADR 0083).
+    #[serde(default)]
+    pub tyres: Tyres,
     pub state: RoomState,
     seats: Vec<Option<Seat>>,
     joins: u64,
@@ -86,17 +92,20 @@ pub struct Started {
     pub seed: u64,
     pub track: String,
     pub bot_level: BotLevel,
+    pub tyres: Tyres,
     pub grid: Vec<u8>,
 }
 
 impl HostedRoom {
     /// An Open room with every seat free, racing `track`, one of
-    /// [`crate::tracks`], against bots at `bot_level`.
-    pub fn open(code: String, track: &'static str, bot_level: BotLevel) -> Self {
+    /// [`crate::tracks`], against bots at `bot_level`, the tyres as `tyres`
+    /// says.
+    pub fn open(code: String, track: &'static str, bot_level: BotLevel, tyres: Tyres) -> Self {
         Self {
             code,
             track,
             bot_level,
+            tyres,
             state: RoomState::Open,
             seats: vec![None; ROOM_PLAYERS_MAX],
             joins: 0,
@@ -127,6 +136,7 @@ impl HostedRoom {
             code: self.code.clone(),
             track: self.track.to_owned(),
             bot_level: self.bot_level,
+            tyres: self.tyres,
             state: self.state,
             seats,
             joins: self.joins,
@@ -153,6 +163,7 @@ impl HostedRoom {
             code: kept.code,
             track,
             bot_level: kept.bot_level,
+            tyres: kept.tyres,
             state: kept.state,
             seats,
             joins: kept.joins,
@@ -183,6 +194,7 @@ impl HostedRoom {
             code: self.code.clone(),
             track: self.track.to_owned(),
             bot_level: self.bot_level,
+            tyres: self.tyres,
             state: self.state,
             players: self.players().cloned().collect(),
         }
@@ -340,6 +352,7 @@ impl HostedRoom {
             seed,
             track: self.track.to_owned(),
             bot_level: self.bot_level,
+            tyres: self.tyres,
             grid: self.players().map(|player| player.slot).collect(),
         })
     }

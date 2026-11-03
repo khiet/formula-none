@@ -14,7 +14,7 @@ use serde::de::DeserializeOwned;
 use serde::Serialize;
 use sim::{
     BotLevel, Item, KartInput, KartReadout, Phase, Projectile, RaceEvent, Replay, Standing, State,
-    Surface, Track, Wheel,
+    Surface, Track, Tyres, Wheel,
 };
 use wasm_bindgen::prelude::*;
 
@@ -121,15 +121,21 @@ pub struct Race {
     state: Option<State>,
 }
 
+/// The Tyres pick spelled `name` on the wire, or why there is none.
+fn tyres_named(name: &str) -> Result<Tyres, String> {
+    Tyres::from_name(name).ok_or_else(|| format!("no Tyres pick called {name:?}"))
+}
+
 #[wasm_bindgen]
 impl Race {
     /// A fresh race from `seed` on the track described by `sidecar` (the JSON
     /// exported next to the track's glTF) with `human_count` karts on the
     /// front of its spawn grid and `bot_count` bot-driven karts on the slots
     /// behind them, driving at `bot_level`, spelled as the wire does
-    /// (`basic`, `pro`, `ace`). Fails when the sidecar is unusable or has
-    /// fewer spawn slots than the karts, or the level is unknown; the
-    /// reason is a plain string so the same code runs in native tests.
+    /// (`basic`, `pro`, `ace`), with the Tyres pick `tyres` (`off`, `on`).
+    /// Fails when the sidecar is unusable or has fewer spawn slots than the
+    /// karts, or the level or pick is unknown; the reason is a plain string
+    /// so the same code runs in native tests.
     #[wasm_bindgen(constructor)]
     pub fn new(
         seed: u64,
@@ -137,10 +143,12 @@ impl Race {
         bot_count: usize,
         sidecar: &str,
         bot_level: &str,
+        tyres: &str,
     ) -> Result<Race, String> {
         let track = Track::from_sidecar(sidecar).map_err(|error| error.to_string())?;
         let bot_level = BotLevel::from_name(bot_level)
             .ok_or_else(|| format!("no bot level called {bot_level:?}"))?;
+        let tyres = tyres_named(tyres)?;
         let kart_count = human_count + bot_count;
         if kart_count > track.spawn_grid().len() {
             return Err(format!(
@@ -150,12 +158,13 @@ impl Race {
             ));
         }
         Ok(Self {
-            state: Some(State::with_bots(
+            state: Some(State::with_tyres(
                 seed,
                 human_count,
                 bot_count,
                 track,
                 bot_level,
+                tyres,
             )),
         })
     }
@@ -386,19 +395,21 @@ pub struct Prediction {
 impl Prediction {
     /// The kart on grid slot `kart` of the race from `seed` on the track
     /// described by `sidecar`, at the top of its countdown, its bot at
-    /// `bot_level` (spelled as the wire does) once it has finished. Fails
-    /// when the sidecar is unusable, its grid has no such slot or the level
-    /// is unknown.
+    /// `bot_level` (spelled as the wire does) once it has finished, with
+    /// the Tyres pick `tyres`. Fails when the sidecar is unusable, its grid
+    /// has no such slot or the level or pick is unknown.
     #[wasm_bindgen(constructor)]
     pub fn new(
         seed: u64,
         kart: usize,
         sidecar: &str,
         bot_level: &str,
+        tyres: &str,
     ) -> Result<Prediction, String> {
         let track = Track::from_sidecar(sidecar).map_err(|error| error.to_string())?;
         let bot_level = BotLevel::from_name(bot_level)
             .ok_or_else(|| format!("no bot level called {bot_level:?}"))?;
+        let tyres = tyres_named(tyres)?;
         if kart >= track.spawn_grid().len() {
             return Err(format!(
                 "kart {kart} but {} has {} spawn slots",
@@ -407,7 +418,7 @@ impl Prediction {
             ));
         }
         Ok(Self {
-            inner: sim::Prediction::new(seed, kart, track, bot_level),
+            inner: sim::Prediction::with_tyres(seed, kart, track, bot_level, tyres),
             interpolation: sim::Interpolation::new(),
         })
     }

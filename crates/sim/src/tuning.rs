@@ -33,6 +33,10 @@ pub const RECONCILIATION_BLEND_TICKS: u32 = 6;
 /// client predicted it, and its nose and next tick's travel as close, agrees
 /// with the prediction: the difference is rounding, not a correction.
 pub const RECONCILIATION_TOLERANCE_M: f32 = 0.001;
+/// How far a snapshot's tyre life may sit from the prediction's, in percent,
+/// before it rewinds to take the server's word. A touch only the server
+/// knows of is not worth one: ADR 0080 sizes this at too little to see.
+pub const RECONCILIATION_TYRE_LIFE_TOLERANCE_PERCENT: f32 = 1.0;
 /// The largest correction of the own kart a player cannot see in the chase
 /// camera: blended over the tuned ticks it moves the kart under 5 cm a
 /// tick, against the half metre a tick the kart travels at top speed.
@@ -428,6 +432,33 @@ pub const COIN_CAP: u32 = 10;
 /// Coins a spin-out costs a kart, whatever spun it out; a kart carrying
 /// fewer loses them all. Lost coins vanish.
 pub const COINS_LOST_PER_SPIN_OUT: u32 = 3;
+/// The life of new tyres, as a percentage (ADR 0080).
+pub const TYRE_LIFE_NEW_PERCENT: f32 = 100.0;
+/// Life lost per second rolling on the ground.
+pub const TYRE_WEAR_ROLLING_PER_S: f32 = 0.06;
+/// Life lost per second cornering at [`TYRE_WEAR_CORNERING_REFERENCE_M_PER_S2`];
+/// it goes with the square of the kart's speed times its yaw rate.
+pub const TYRE_WEAR_CORNERING_PER_S: f32 = 0.19;
+pub const TYRE_WEAR_CORNERING_REFERENCE_M_PER_S2: f32 = 20.0;
+/// Life lost per second drifting, on top of cornering.
+pub const TYRE_WEAR_DRIFT_PER_S: f32 = 1.5;
+/// Life each paid mini-turbo release costs.
+pub const TYRE_WEAR_MINI_TURBO_PERCENT: f32 = 0.5;
+/// Life lost per second at full brake, scaled by the brake input.
+pub const TYRE_WEAR_BRAKING_PER_S: f32 = 0.25;
+/// Life lost per second on grass or sand.
+pub const TYRE_WEAR_OFF_TRACK_PER_S: f32 = 1.25;
+/// Life each spin-out costs, whatever caused it.
+pub const TYRE_WEAR_SPIN_OUT_PERCENT: f32 = 6.0;
+/// Life a touch with a kart or tyre wall costs: the least, then this much
+/// per metre per second of closing speed, up to the most.
+pub const TYRE_WEAR_BUMP_MIN_PERCENT: f32 = 0.3;
+pub const TYRE_WEAR_BUMP_PER_M_PER_S: f32 = 0.05;
+pub const TYRE_WEAR_BUMP_MAX_PERCENT: f32 = 2.5;
+/// Life lost per second held against a wall.
+pub const TYRE_WEAR_WALL_PER_S: f32 = 1.0;
+/// Life each sausage kerb launch costs.
+pub const TYRE_WEAR_KERB_PERCENT: f32 = 1.0;
 /// A coin is collected by a kart whose centre is within this much of its
 /// placement along the direction it faces and across it, airborne or not.
 pub const COIN_HALF_LENGTH_M: f32 = 1.0;
@@ -786,6 +817,8 @@ const _: () = {
     }
     assert!(0.0 < COIN_TOP_SPEED_FACTOR && 0 < COIN_CAP);
     assert!(COINS_LOST_PER_SPIN_OUT <= COIN_CAP);
+    assert!(TYRE_WEAR_BUMP_MIN_PERCENT <= TYRE_WEAR_BUMP_MAX_PERCENT);
+    assert!(TYRE_WEAR_SPIN_OUT_PERCENT < TYRE_LIFE_NEW_PERCENT);
     // The wire carries the count in a byte.
     assert!(COIN_CAP <= u8::MAX as u32);
     assert!(0.0 < COIN_HALF_LENGTH_M && 0.0 < COIN_HALF_WIDTH_M && 0.0 < COIN_RESPAWN_S);
@@ -867,6 +900,7 @@ pub struct Tuning {
     /// Indexed by the coins a kart carries.
     pub coin_top_speeds_m_per_s: [f32; COIN_CAP as usize + 1],
     pub coin_cap: u32,
+    pub tyre_life_new_percent: f32,
     pub coins_lost_per_spin_out: u32,
     pub coin_half_length_m: f32,
     pub coin_half_width_m: f32,
@@ -916,6 +950,7 @@ pub const TUNING: Tuning = Tuning {
     item_roll_s: ITEM_ROLL_S,
     coin_top_speeds_m_per_s: COIN_TOP_SPEEDS_M_PER_S,
     coin_cap: COIN_CAP,
+    tyre_life_new_percent: TYRE_LIFE_NEW_PERCENT,
     coins_lost_per_spin_out: COINS_LOST_PER_SPIN_OUT,
     coin_half_length_m: COIN_HALF_LENGTH_M,
     coin_half_width_m: COIN_HALF_WIDTH_M,

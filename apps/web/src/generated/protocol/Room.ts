@@ -2,6 +2,7 @@
 import type { BotLevel } from "./BotLevel";
 import type { Player } from "./Player";
 import type { RoomState } from "./RoomState";
+import type { Tyres } from "./Tyres";
 
 /**
  * A room as every player in it sees it (ADR 0012).
@@ -20,7 +21,12 @@ track: string,
  * How hard the room's bots drive, picked by the creator at the create
  * and fixed for the room as the track is (ADR 0078).
  */
-botLevel: BotLevel, state: RoomState, 
+botLevel: BotLevel, 
+/**
+ * Whether the room's tyres wear, picked by the creator at the create
+ * and fixed for the room as the track is (ADR 0083).
+ */
+tyres: Tyres, state: RoomState, 
 /**
  * In slot order. A joiner takes the lowest free slot, so a room nobody
  * has left lists its players in join order.

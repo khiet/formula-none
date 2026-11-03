@@ -9,7 +9,7 @@ import monarchSidecar from "../../../assets/tracks/monarch/monarch.track.json?ur
 import ovalGltf from "../../../assets/tracks/oval/oval.glb?url";
 import ovalSidecar from "../../../assets/tracks/oval/oval.track.json?url";
 
-import type { BotLevel } from "./generated/sim";
+import type { BotLevel, Tyres } from "./generated/sim";
 
 export type TrackName = "bell-deer" | "goldstone" | "monarch" | "oval";
 
@@ -157,6 +157,47 @@ export function saveBotLevel(storage: Storage, level: BotLevel): void {
 export function botLevelFromSearch(search: string): BotLevel | undefined {
   const requested = new URLSearchParams(search).get("bots");
   return requested !== null && isBotLevel(requested) ? requested : undefined;
+}
+
+/** A Tyres pick as the Title Scene offers it: its caption and the line describing it. */
+export interface TyresChoice {
+  readonly tyres: Tyres;
+  readonly name: string;
+  /** What the pick means for the race, in the course blurb's voice, after "Name: ". */
+  readonly blurb: string;
+}
+
+/** The picks in the Title Scene's order, Off first (ADR 0083). */
+export const TYRES_CHOICES: readonly TyresChoice[] = [
+  { tyres: "off", name: "Off", blurb: "tyres last the race, drive as hard as you like" },
+  { tyres: "on", name: "On", blurb: "corners, drifts and hits wear your tyres down" },
+];
+
+const DEFAULT_TYRES: Tyres = "off";
+const TYRES_STORAGE_KEY = "tyres";
+
+export function isTyres(name: string): name is Tyres {
+  return TYRES_CHOICES.some((choice) => choice.tyres === name);
+}
+
+/** The Tyres pick made last time, kept beside the course pick; Off when unsaved, unreadable or no pick. */
+export function loadTyres(storage: Storage): Tyres {
+  const saved = remembered(storage, TYRES_STORAGE_KEY);
+  return saved !== null && isTyres(saved) ? saved : DEFAULT_TYRES;
+}
+
+export function saveTyres(storage: Storage, tyres: Tyres): void {
+  remember(storage, TYRES_STORAGE_KEY, tyres);
+}
+
+/**
+ * The Tyres pick the page's query string asks for (`?tyres=on`), so a smoke
+ * run can load either into a solo race beside `?track=`; `undefined` for
+ * none or an unknown one.
+ */
+export function tyresFromSearch(search: string): Tyres | undefined {
+  const requested = new URLSearchParams(search).get("tyres");
+  return requested !== null && isTyres(requested) ? requested : undefined;
 }
 
 /**

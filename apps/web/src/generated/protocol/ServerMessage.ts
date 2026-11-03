@@ -5,8 +5,14 @@ import type { FinalStanding } from "./FinalStanding";
 import type { Refusal } from "./Refusal";
 import type { Room } from "./Room";
 import type { Snapshot } from "./Snapshot";
+import type { Tyres } from "./Tyres";
 
 /**
  * What the server sends a client.
  */
-export type ServerMessage = { "pong": { nonce: number, } } | { "joined": { slot: number, room: Room, token: string, } } | { "refused": Refusal } | { "room": Room } | { "countdown": { seed: bigint, track: string, botLevel: BotLevel, grid: Array<number>, } } | { "snapshot": Snapshot } | { "events": Array<Event> } | { "results": { standings: Array<FinalStanding>, } } | "replaced" | { "ping": { nonce: number, } };
+export type ServerMessage = { "pong": { nonce: number, } } | { "joined": { slot: number, room: Room, token: string, } } | { "refused": Refusal } | { "room": Room } | { "countdown": { seed: bigint, track: string, botLevel: BotLevel, 
+/**
+ * Whether the tyres wear (ADR 0083), so the client's prediction
+ * and a replay recorded from it run the server's race.
+ */
+tyres: Tyres, grid: Array<number>, } } | { "snapshot": Snapshot } | { "events": Array<Event> } | { "results": { standings: Array<FinalStanding>, } } | "replaced" | { "ping": { nonce: number, } };

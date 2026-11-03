@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import type {
+  BotLevel,
   Bridge,
   KartInput,
   KartReadout,
@@ -7,6 +8,7 @@ import type {
   Prediction,
   Projectile,
   Race,
+  Tyres,
   Wheel,
 } from "./bridge";
 import { fakeConnection, jsonCodec, TOKEN } from "./fake-connection";
@@ -61,6 +63,7 @@ const PREDICTED: KartReadout = kartReadout({
 
 interface FakePrediction extends Prediction {
   readonly kart: number;
+  readonly tyres: Tyres;
   readonly inputs: Input[];
   readonly snapshots: Snapshot[];
   clock: Phase;
@@ -101,9 +104,16 @@ const bridge = {
         Array.from({ length: COINS }, (_, coin) => ({ position: [coin, 0, -40], yaw: 0 })),
       coinsPresent: () => Array<boolean>(COINS).fill(true),
     }) as unknown as Race,
-  createPrediction(_seed: bigint, kart: number): Prediction {
+  createPrediction(
+    _seed: bigint,
+    kart: number,
+    _sidecar: string,
+    _botLevel: BotLevel,
+    tyres: Tyres,
+  ): Prediction {
     const made: FakePrediction = {
       kart,
+      tyres,
       inputs: [],
       snapshots: [],
       clock: { kind: "countdown", remainingSeconds: COUNTDOWN_S },
@@ -166,7 +176,14 @@ function fakeClient(): FakeClient {
   return {
     slot: 1,
     token: TOKEN,
-    room: { code: "BXQF", track: "bell-deer", botLevel: "basic", state: "racing", players: [] },
+    room: {
+      code: "BXQF",
+      track: "bell-deer",
+      botLevel: "basic",
+      tyres: "off",
+      state: "racing",
+      players: [],
+    },
     race: undefined,
     replaced: false,
     closed: new Promise(() => {}),
@@ -202,7 +219,13 @@ function fakeClient(): FakeClient {
   };
 }
 
-const COUNTDOWN: Countdown = { seed: 7n, track: "bell-deer", botLevel: "basic", grid: [0, 1] };
+const COUNTDOWN: Countdown = {
+  seed: 7n,
+  track: "bell-deer",
+  botLevel: "basic",
+  tyres: "off",
+  grid: [0, 1],
+};
 
 const KART: KartSnapshot = {
   position: [10, 0.3, -20],
@@ -217,6 +240,7 @@ const KART: KartSnapshot = {
   wrongWay: false,
   itemSlot: "empty",
   coins: 0,
+  tyreLife: 100,
   spinOutS: null,
   start: "clean",
   stallS: null,
@@ -257,6 +281,11 @@ describe("createServerRace", () => {
     expect(run.humanCount).toBe(2);
     expect(prediction().kart).toBe(1);
     expect(() => createServerRace(bridge, fakeClient(), COUNTDOWN, 5, "{}")).toThrow(/grid/);
+  });
+
+  it("predicts the own kart under the room's Tyres pick, as the Countdown says", () => {
+    createServerRace(bridge, fakeClient(), { ...COUNTDOWN, tyres: "on" }, 0, "{}");
+    expect(prediction().tyres).toBe("on");
   });
 
   it("stands the other karts on the grid until the first snapshot, the own kart where it is predicted", () => {
@@ -542,6 +571,7 @@ describe("createServerRace", () => {
       code: "BXQF",
       track: "bell-deer",
       botLevel: "basic",
+      tyres: "off",
       state: "racing",
       players: [],
     };

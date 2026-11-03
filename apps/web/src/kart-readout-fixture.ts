@@ -17,6 +17,7 @@ export const RESTING_KART: KartReadout = Object.freeze({
   miniTurbo: "none",
   itemSlot: "empty",
   coins: 0,
+  tyreLife: 100,
   spinOutS: null,
   airborne: false,
   boostS: null,

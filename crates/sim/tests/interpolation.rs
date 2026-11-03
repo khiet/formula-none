@@ -30,6 +30,7 @@ fn kart_at(x: f32) -> KartReadout {
         mini_turbo: MiniTurbo::None,
         item_slot: ItemSlot::Empty,
         coins: 0,
+        tyre_life: 100.0,
         spin_out_s: None,
         star_s: None,
         airborne: false,

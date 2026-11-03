@@ -46,6 +46,12 @@ wrongWay: boolean, itemSlot: ItemSlot,
  */
 coins: number, 
 /**
+ * How much life the kart's tyres have left, as a percentage. A
+ * client's prediction wears its own and takes wear it could not know
+ * of from here (ADR 0080).
+ */
+tyreLife: number, 
+/**
  * Seconds of spin-out left, while the kart is spun out.
  */
 spinOutS: number | null, 

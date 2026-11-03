@@ -63,12 +63,14 @@ export function createServerRace(
     kartCount - humanCount,
     sidecar,
     countdown.botLevel,
+    countdown.tyres,
   );
   const prediction = bridge.createPrediction(
     countdown.seed,
     localKart,
     sidecar,
     countdown.botLevel,
+    countdown.tyres,
   );
 
   let latest: Snapshot | undefined;

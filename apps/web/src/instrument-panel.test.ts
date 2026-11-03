@@ -39,6 +39,7 @@ function at(position: readonly [number, number, number]): KartReadout {
 const TUNING = {
   coinTopSpeeds: Array.from({ length: 11 }, (_, coins) => 30 * (1 + coins * 0.01)),
   coinCap: 10,
+  tyreLifeNew: 100,
   starSeconds: 6,
 };
 
@@ -274,11 +275,11 @@ describe("the speed cluster on the page", () => {
     );
     const find = (name: string) =>
       container.querySelector<HTMLElement>(`[data-instrument="${name}"]`);
-    const drive = (speed: number, coins = 0) =>
+    const drive = (speed: number, coins = 0, tyreLife = 100) =>
       panel.update(
         race(ON_THE_GRID, { ...EMPTY_SLOT, item: null, firing: false }, [
           at([0, 0.3, 0]),
-          kartReadout({ speed, coins }),
+          kartReadout({ speed, coins, tyreLife }),
           at([0, 0.3, 0]),
         ]),
       );
@@ -308,13 +309,25 @@ describe("the speed cluster on the page", () => {
     expect(find("coins")?.textContent).toBe("x07 / 10");
   });
 
-  it("holds the tyre gauge at fresh tyres whatever the coins", () => {
+  it("opens the tyre gauge on new tyres", () => {
+    const { find } = mount();
+    expect(find("tyre")?.textContent).toBe("100%");
+    expect(find("tyre")?.dataset.tyreWear).toBe("good");
+  });
+
+  it.each([
+    [100, "100%", "good"],
+    [60.2, "61%", "good"],
+    [60, "60%", "warn"],
+    [30.4, "31%", "warn"],
+    [30, "30%", "bad"],
+    [0.1, "1%", "bad"],
+    [0, "0%", "bad"],
+  ])("reads tyre life %f as %s, rounded up, in band %s", (tyreLife, reading, band) => {
     const { find, drive } = mount();
-    expect(find("tyre")?.textContent).toBe("100%");
-    expect(find("tyre")?.dataset.tyreWear).toBe("good");
-    drive(20, 3);
-    expect(find("tyre")?.textContent).toBe("100%");
-    expect(find("tyre")?.dataset.tyreWear).toBe("good");
+    drive(20, 0, tyreLife);
+    expect(find("tyre")?.textContent).toBe(reading);
+    expect(find("tyre")?.dataset.tyreWear).toBe(band);
   });
 
   it("stretches the gears to the top speed the own kart's coins raise", () => {

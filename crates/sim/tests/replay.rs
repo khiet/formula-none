@@ -6,11 +6,14 @@
 
 mod common;
 
-use common::{landed, oval, started, track, with_boxes_under, without_item_boxes, DT, OVAL};
+use common::{
+    landed, oval, started, throttle, track, with_boxes_under, without_item_boxes, DT, OVAL,
+};
 
 use sim::tuning::{KART_HALF_LENGTH_M, REPLAY_HASH_INTERVAL_TICKS};
 use sim::{
     step, BotLevel, KartInput, MiniTurbo, Phase, RaceEvent, Replay, Segment, State, Surface, Track,
+    Tyres,
 };
 
 fn race(seed: u64, kart_count: usize) -> State {
@@ -289,6 +292,7 @@ fn replay_of(track: &str, segments: Vec<Segment>) -> Replay {
         track: track.to_owned(),
         bots: 0,
         level: BotLevel::Basic,
+        tyres: Tyres::Off,
         segments,
         hashes: Vec::new(),
     }
@@ -377,6 +381,7 @@ fn the_fixture_set_exercises_kart_contact_off_track_walls_every_track_both_mini_
 ) {
     let mut tracks = std::collections::BTreeSet::new();
     let mut levels = std::collections::BTreeSet::new();
+    let mut tyres = std::collections::BTreeSet::new();
     let mut surfaces = std::collections::HashSet::new();
     let mut closest_karts = f32::MAX;
     let mut held_by_a_wall = false;
@@ -392,6 +397,7 @@ fn the_fixture_set_exercises_kart_contact_off_track_walls_every_track_both_mini_
     for (_, replay) in fixtures() {
         tracks.insert(replay.track.clone());
         levels.insert(replay.level.name());
+        tyres.insert(replay.tyres.name());
         let mut state = State::new(replay.seed, replay.human_count(), sidecar(&replay.track));
         for segment in &replay.segments {
             for _ in 0..segment.ticks {
@@ -458,6 +464,10 @@ fn the_fixture_set_exercises_kart_contact_off_track_walls_every_track_both_mini_
         levels.contains("ace"),
         "no fixture races Ace bots, so a retune of Ace could pass the gate: {levels:?}"
     );
+    assert!(
+        tyres.contains("on"),
+        "no fixture wears its tyres, so a retune of wear could pass the gate: {tyres:?}"
+    );
     for surface in [Surface::Asphalt, Surface::Sand] {
         assert!(
             surfaces.contains(&surface),
@@ -498,6 +508,7 @@ fn a_replay_with_bots_reruns_them_from_the_seed_and_carries_their_count() {
         track: "oval".to_owned(),
         bots,
         level: BotLevel::Basic,
+        tyres: Tyres::Off,
         segments: vec![held(120, 1)],
         hashes: Vec::new(),
     }
@@ -544,12 +555,44 @@ fn a_replay_recorded_before_bot_levels_existed_runs_its_bots_at_basic() {
 }
 
 #[test]
+fn a_replay_recorded_before_the_tyres_pick_races_off() {
+    assert_eq!(Replay::from_json(REPLAY).unwrap().tyres, Tyres::Off);
+}
+
+#[test]
+fn a_replay_carries_its_tyres_pick_and_reruns_with_it() {
+    let at = |tyres: Tyres| Replay {
+        seed: 7,
+        track: "oval".to_owned(),
+        bots: 0,
+        level: BotLevel::Basic,
+        tyres,
+        segments: vec![Segment {
+            ticks: 600,
+            inputs: vec![throttle()],
+        }],
+        hashes: Vec::new(),
+    };
+    let json = at(Tyres::On).to_json();
+    assert!(json.contains("\"tyres\": \"on\""), "{json}");
+    let replay = Replay::from_json(&json).unwrap();
+    assert_eq!(replay.tyres, Tyres::On);
+
+    assert_ne!(
+        replay.run(oval()).unwrap(),
+        at(Tyres::Off).run(oval()).unwrap(),
+        "tyre life enters the hash"
+    );
+}
+
+#[test]
 fn a_replay_carries_its_bot_level_and_reruns_its_bots_at_it() {
     let json = Replay {
         seed: 7,
         track: "oval".to_owned(),
         bots: 1,
         level: BotLevel::Ace,
+        tyres: Tyres::Off,
         // Ten seconds: well past Go, where the levels' bots part.
         segments: vec![held(600, 1)],
         hashes: Vec::new(),

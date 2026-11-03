@@ -13,6 +13,15 @@ test("the Title Scene loads with the ways into a room and a race", async ({ page
   }
 });
 
+test("the picked Tyres are remembered across a reload", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.getByRole("radio", { name: "Off", exact: true })).toBeChecked();
+  await page.locator(".bot-tile", { hasText: "On" }).click();
+  await expect(page.getByRole("radio", { name: "On", exact: true })).toBeChecked();
+  await page.reload();
+  await expect(page.getByRole("radio", { name: "On", exact: true })).toBeChecked();
+});
+
 for (const [status, refusal] of [
   [503, "The server is full; try again later"],
   [429, "Too many new rooms from here; try again shortly"],

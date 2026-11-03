@@ -12,13 +12,19 @@
 //! (ADR 0027).
 
 use rapier3d::prelude::*;
+use serde::{Deserialize, Serialize};
+use ts_rs::TS;
 
 use crate::hash::Fnv1a;
 use crate::tuning::{
     BOOST_PAD_FACTOR, BOOST_PAD_S, DRIFT_ENTRY_SPEED_FRACTION, GRAVITY_M_PER_S2, HOP_AIRTIME_S,
     KART_BUMP_DECAY_S, KART_BUMP_MIN_M_PER_S, KERB_SPEED_KEEP, MINI_TURBO_BOOST_FACTOR,
     OFF_TRACK_SPEED_FACTOR, SLIPSTREAM_CHARGE_TICKS, SLIPSTREAM_TOP_SPEED_FACTOR, SLIPSTREAM_TOW_S,
-    TICK_S, TOP_SPEED_M_PER_S,
+    TICK_S, TOP_SPEED_M_PER_S, TYRE_LIFE_NEW_PERCENT, TYRE_WEAR_BRAKING_PER_S,
+    TYRE_WEAR_BUMP_MAX_PERCENT, TYRE_WEAR_BUMP_MIN_PERCENT, TYRE_WEAR_BUMP_PER_M_PER_S,
+    TYRE_WEAR_CORNERING_PER_S, TYRE_WEAR_CORNERING_REFERENCE_M_PER_S2, TYRE_WEAR_DRIFT_PER_S,
+    TYRE_WEAR_KERB_PERCENT, TYRE_WEAR_MINI_TURBO_PERCENT, TYRE_WEAR_OFF_TRACK_PER_S,
+    TYRE_WEAR_ROLLING_PER_S, TYRE_WEAR_SPIN_OUT_PERCENT, TYRE_WEAR_WALL_PER_S,
 };
 use crate::{Drift, DriftDirection, KartInput, MiniTurbo, Slipstream, Surface};
 
@@ -26,9 +32,57 @@ use crate::{Drift, DriftDirection, KartInput, MiniTurbo, Slipstream, Surface};
 /// without end, so a settled kart hashes the same wherever it was bumped.
 const BUMP_SPENT_M_PER_S: f32 = 0.01;
 
+/// Whether a race's tyres wear (ADR 0080): the creator's pick, fixed for the
+/// room as its course is, and carried by a replay. Off is the race as it
+/// was before there were tyres to manage, and what a kept room or a replay
+/// without a pick comes back as, whatever a later default becomes (ADR 0083).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize, TS)]
+#[serde(rename_all = "kebab-case")]
+pub enum Tyres {
+    #[default]
+    Off,
+    On,
+}
+
+impl Tyres {
+    /// Every pick, Off first.
+    pub const ALL: [Self; 2] = [Self::Off, Self::On];
+
+    /// The pick as the wire spells it: `off` or `on`.
+    pub fn name(self) -> &'static str {
+        match self {
+            Self::Off => "off",
+            Self::On => "on",
+        }
+    }
+
+    /// The pick spelled `name` on the wire, or `None` for any other
+    /// spelling, so a caller that takes the pick as text refuses an unknown
+    /// one rather than racing Off.
+    pub fn from_name(name: &str) -> Option<Self> {
+        Self::ALL.into_iter().find(|tyres| tyres.name() == name)
+    }
+}
+
 /// One kart's handling: its speed and everything that bends it.
 #[derive(Clone)]
 pub(crate) struct Handling {
+    /// Whether this kart's tyres wear; fixed for the race. With Off the
+    /// tyre fields below never change and stay out of the hash, so a race
+    /// on Off hashes as one from before there were tyres (ADR 0083).
+    tyres: Tyres,
+    /// How much life the tyres have left, from 100 for new to 0. A respawn
+    /// keeps it: only a stop raises it (ADR 0080).
+    tyre_life: f32,
+    /// Whether anything wears the kart this tick: on the ground, moving,
+    /// neither spun out nor on a star's run, as `tick` left it. What says
+    /// whether a touch after the solver costs life. Rewritten every tick
+    /// before it is read, so not hashed.
+    wearing: bool,
+    /// The touches under way, one per collider touched. A touch can last
+    /// many ticks, so each costs its worst closing speed once rather than
+    /// per tick; another collider is another bump.
+    touches: Vec<Touch>,
     /// The unit direction the handling sent the kart this tick: its facing,
     /// turned by the slip angle in a drift. What a wall's hold and a bump's
     /// speed loss measure along. Rewritten every tick before it is read, so
@@ -142,9 +196,14 @@ pub(crate) struct Sent {
 }
 
 impl Handling {
-    /// A kart at rest on the ground facing -Z, with nothing under way.
-    pub(crate) fn new() -> Self {
+    /// A kart at rest on the ground facing -Z on new tyres, with nothing
+    /// under way.
+    pub(crate) fn new(tyres: Tyres) -> Self {
         Self {
+            tyres,
+            tyre_life: TYRE_LIFE_NEW_PERCENT,
+            wearing: false,
+            touches: Vec::new(),
             travel: Vec3::NEG_Z,
             walls: Vec::new(),
             bump: Vec3::ZERO,
@@ -203,6 +262,30 @@ impl Handling {
                 self.tow_left_s = left_s;
             }
         }
+    }
+
+    /// How much life the tyres have left, as a percentage.
+    pub(crate) fn tyre_life(&self) -> f32 {
+        self.tyre_life
+    }
+
+    /// Take on a snapshot's word on the tyres: wear from another kart or a
+    /// hit is the server's to know.
+    pub(crate) fn adopt_tyre_life(&mut self, tyre_life: f32) {
+        self.tyre_life = tyre_life;
+    }
+
+    /// The tyres lose `percent` of their life, if they wear at all.
+    fn wear(&mut self, percent: f32) {
+        if self.tyres == Tyres::On {
+            self.tyre_life = (self.tyre_life - percent).max(0.0);
+        }
+    }
+
+    /// A spin-out takes its tuned life, whatever caused it and wherever the
+    /// kart was.
+    pub(crate) fn wear_for_spin_out(&mut self) {
+        self.wear(TYRE_WEAR_SPIN_OUT_PERCENT);
     }
 
     /// Speed along the travel, metres per second; negative when backing up.
@@ -282,7 +365,7 @@ impl Handling {
     }
 
     /// Start over at rest facing `travel`, as a respawn puts the kart, with
-    /// nothing carried over from before.
+    /// nothing carried over from before but the tyres.
     pub(crate) fn respawn(&mut self, travel: Vec3) {
         self.speed = 0.0;
         self.airtime_left_s = 0.0;
@@ -297,6 +380,7 @@ impl Handling {
         self.travel = travel;
         self.walls.clear();
         self.bump = Vec3::ZERO;
+        self.touches.clear();
     }
 
     /// Take on a snapshot's word on the kart's motion: turned by `rotation`,
@@ -317,8 +401,10 @@ impl Handling {
         self.speed = self.travel.dot(velocity - bump);
     }
 
-    /// Feed everything a later tick reads into the state hash. `travel` is
-    /// left out: every tick writes it before anything reads it.
+    /// Feed everything a later tick reads into the state hash. `travel` and
+    /// `wearing` are left out: every tick writes them before anything reads
+    /// them. The tyres are left out on Off, where nothing changes them, so
+    /// a race on Off hashes as one recorded before there were tyres.
     pub(crate) fn hash(&self, hasher: &mut Fnv1a) {
         use std::hash::Hasher;
         hasher.write_f32(self.speed);
@@ -339,6 +425,17 @@ impl Handling {
             hasher.write_f32s(wall.to_array());
         }
         hasher.write_f32s(self.bump.to_array());
+        if self.tyres == Tyres::On {
+            hasher.write_f32(self.tyre_life);
+            hasher.write_u64(self.touches.len() as u64);
+            for touch in &self.touches {
+                let (index, generation) = touch.with.into_raw_parts();
+                hasher.write_u32(index);
+                hasher.write_u32(generation);
+                hasher.write_u8(u8::from(touch.this_tick));
+                hasher.write_f32(touch.wear_paid);
+            }
+        }
     }
 
     /// One tick of `dt` seconds of the kart answering `input`, frozen as
@@ -355,6 +452,13 @@ impl Handling {
             Freeze::Free => input,
             Freeze::Controls | Freeze::Stopped => &KartInput::default(),
         };
+        // A tick without a touch of a collider ends the touch of it.
+        self.touches.retain_mut(|touch| {
+            let goes_on = touch.this_tick;
+            touch.this_tick = false;
+            goes_on
+        });
+        let mut released = false;
         let mut vertical = situation.vertical_m_per_s;
         let was_airborne = self.airborne();
         self.was_on_the_ground = situation.on_the_ground;
@@ -388,6 +492,7 @@ impl Handling {
                 // speed to slide just ends it.
                 if !input.hop {
                     let tier = drift.mini_turbo();
+                    released = tier != MiniTurbo::None;
                     self.boost(tier.boost_s(), MINI_TURBO_BOOST_FACTOR, tier);
                 }
                 self.drift = None;
@@ -471,6 +576,7 @@ impl Handling {
             None => (input.steer.clamp(-1.0, 1.0), 0.0),
         };
         let forward = situation.rotation * Rotation::from_rotation_y(slip) * Vec3::NEG_Z;
+        let moving = self.speed != 0.0;
         self.bump = decayed_bump(self.bump, dt);
         // A wall the kart is against takes the velocity into it, speed and
         // bump alike, before the solver sees either; otherwise the kart
@@ -483,10 +589,65 @@ impl Handling {
             self.speed = forward.dot(velocity - self.bump);
         }
         self.travel = forward;
+        let yaw_rate = yaw_rate(self.speed, steer);
+        self.wear_for_tick(
+            input,
+            freeze,
+            &situation,
+            TickWear {
+                launched,
+                released,
+                moving,
+                yaw_rate,
+            },
+            dt,
+        );
         Sent {
             velocity: velocity + Vec3::Y * vertical,
-            yaw_rate: yaw_rate(self.speed, steer),
+            yaw_rate,
         }
+    }
+
+    /// What this tick took off the tyres (ADR 0080), read as the tick left
+    /// the kart. A kerb launch and a release are paid on the tick they
+    /// happen, the launch's though it leaves the kart in the air; the rates
+    /// are for a kart moving on the ground, spun out or starring neither.
+    fn wear_for_tick(
+        &mut self,
+        input: &KartInput,
+        freeze: Freeze,
+        situation: &Situation,
+        tick_wear: TickWear,
+        dt: f32,
+    ) {
+        let running = freeze != Freeze::Stopped && !situation.starring;
+        self.wearing = running && !self.airborne() && tick_wear.moving;
+        let mut lost = 0.0;
+        if running && tick_wear.launched {
+            lost += TYRE_WEAR_KERB_PERCENT;
+        }
+        if running && tick_wear.released {
+            lost += TYRE_WEAR_MINI_TURBO_PERCENT;
+        }
+        if self.wearing {
+            // Squared by multiplying, so the native and wasm builds agree.
+            let cornering =
+                self.speed * tick_wear.yaw_rate / TYRE_WEAR_CORNERING_REFERENCE_M_PER_S2;
+            let mut per_s = TYRE_WEAR_ROLLING_PER_S
+                + TYRE_WEAR_CORNERING_PER_S * cornering * cornering
+                + TYRE_WEAR_BRAKING_PER_S * input.brake.clamp(0.0, 1.0);
+            if self.drift.is_some() {
+                per_s += TYRE_WEAR_DRIFT_PER_S;
+            }
+            if situation.surface.slows_karts() {
+                per_s += TYRE_WEAR_OFF_TRACK_PER_S;
+            }
+            if !self.walls.is_empty() {
+                per_s += TYRE_WEAR_WALL_PER_S;
+            }
+            lost += per_s * dt;
+        }
+        self.wear(lost);
     }
 
     /// The wall holds the kart, with no bounce and no bump. `walls` are the
@@ -555,6 +716,36 @@ impl Handling {
         };
     }
 
+    /// The kart touched the collider `with`, the two closing at
+    /// `closing_speed`: the touch's tuned life, or what a harder moment of a
+    /// touch under way adds to what it has cost so far. A kart that is not
+    /// wearing pays nothing, though the touch still counts as under way.
+    pub(crate) fn wear_for_touch(&mut self, with: ColliderHandle, closing_speed: f32) {
+        let at = self
+            .touches
+            .iter()
+            .position(|touch| touch.with == with)
+            .unwrap_or_else(|| {
+                self.touches.push(Touch {
+                    with,
+                    this_tick: true,
+                    wear_paid: 0.0,
+                });
+                self.touches.len() - 1
+            });
+        self.touches[at].this_tick = true;
+        if !self.wearing {
+            return;
+        }
+        let worn = (TYRE_WEAR_BUMP_MIN_PERCENT + TYRE_WEAR_BUMP_PER_M_PER_S * closing_speed)
+            .min(TYRE_WEAR_BUMP_MAX_PERCENT);
+        let paid = self.touches[at].wear_paid;
+        if worn > paid {
+            self.wear(worn - paid);
+            self.touches[at].wear_paid = worn;
+        }
+    }
+
     /// The drift a landing starts: the hop's direction, when the kart hopped
     /// while steering, is still steering and holding the hop button as it
     /// lands, and is going fast enough to slide.
@@ -565,6 +756,30 @@ impl Handling {
             charge_s: 0.0,
         })
     }
+}
+
+/// A touch of one kart or tyre wall under way.
+#[derive(Clone)]
+struct Touch {
+    with: ColliderHandle,
+    /// Whether it touched since the last `tick` began.
+    this_tick: bool,
+    /// The life this touch has cost so far.
+    wear_paid: f32,
+}
+
+/// What a tick did that wears the tyres, beyond the kart's state as it left it.
+struct TickWear {
+    /// A sausage kerb launched the kart.
+    launched: bool,
+    /// A drift let go paid a mini-turbo.
+    released: bool,
+    /// The kart was going somewhere before a wall took its speed, so one
+    /// pinned against a wall under throttle is held, not stopped, while one
+    /// parked against it wears nothing.
+    moving: bool,
+    /// Radians per second about +Y.
+    yaw_rate: f32,
 }
 
 /// Fast enough to slide: what a landing needs to start a drift and a drift
@@ -702,7 +917,7 @@ mod tests {
     }
 
     fn going(speed: f32) -> Handling {
-        let mut handling = Handling::new();
+        let mut handling = Handling::new(Tyres::Off);
         handling.speed = speed;
         handling
     }
@@ -1144,7 +1359,7 @@ mod tests {
 
     #[test]
     fn a_stall_freezes_every_control() {
-        let mut handling = Handling::new();
+        let mut handling = Handling::new(Tyres::Off);
         let everything = KartInput {
             steer: 1.0,
             throttle: 1.0,
@@ -1190,7 +1405,7 @@ mod tests {
 
     #[test]
     fn a_bump_decays_to_about_a_third_in_its_time() {
-        let mut handling = Handling::new();
+        let mut handling = Handling::new(Tyres::Off);
         bumped_by_a_kart(&mut handling, 4.0);
         let start = handling.bump.x;
 
@@ -1207,7 +1422,7 @@ mod tests {
 
     #[test]
     fn a_new_bump_replaces_one_under_way_rather_than_adding_to_it() {
-        let mut handling = Handling::new();
+        let mut handling = Handling::new(Tyres::Off);
         bumped_by_a_kart(&mut handling, 4.0);
         let first = handling.bump.x;
 
@@ -1219,5 +1434,260 @@ mod tests {
             handling.bump.x,
             KART_BUMP_MIN_M_PER_S + KART_BUMP_RESTITUTION * 8.0 / 2.0
         );
+    }
+
+    /// Tyres On, on `situation`, at `speed`: the life one second of
+    /// `input` takes.
+    fn lost_in_a_second(speed: f32, input: KartInput, situation: Situation) -> f32 {
+        let mut handling = Handling::new(Tyres::On);
+        handling.speed = speed;
+        let top = Situation {
+            top_speed: speed.abs(),
+            ..situation
+        };
+        let ticks = (1.0 / TICK_S).round() as u32;
+        for _ in 0..ticks {
+            handling.speed = speed;
+            handling.tick(&input, Freeze::Free, top, TICK_S);
+        }
+        TYRE_LIFE_NEW_PERCENT - handling.tyre_life
+    }
+
+    fn close(actual: f32, expected: f32) {
+        assert!(
+            (actual - expected).abs() < 1e-3,
+            "lost {actual}, expected {expected}"
+        );
+    }
+
+    #[test]
+    fn rolling_on_the_ground_wears_at_the_tuned_rate() {
+        close(
+            lost_in_a_second(10.0, FULL_THROTTLE, asphalt()),
+            TYRE_WEAR_ROLLING_PER_S,
+        );
+    }
+
+    #[test]
+    fn braking_wears_by_the_brake_input() {
+        let half_brake = KartInput {
+            brake: 0.5,
+            ..FULL_THROTTLE
+        };
+        close(
+            lost_in_a_second(10.0, half_brake, asphalt()),
+            TYRE_WEAR_ROLLING_PER_S + 0.5 * TYRE_WEAR_BRAKING_PER_S,
+        );
+    }
+
+    #[test]
+    fn cornering_wears_with_the_square_of_speed_times_yaw_rate() {
+        let speed = 20.0;
+        let corner = KartInput {
+            steer: 1.0,
+            ..FULL_THROTTLE
+        };
+        let a = speed * steer_rate(speed);
+        close(
+            lost_in_a_second(speed, corner, asphalt()),
+            TYRE_WEAR_ROLLING_PER_S
+                + TYRE_WEAR_CORNERING_PER_S
+                    * (a / TYRE_WEAR_CORNERING_REFERENCE_M_PER_S2)
+                    * (a / TYRE_WEAR_CORNERING_REFERENCE_M_PER_S2),
+        );
+    }
+
+    #[test]
+    fn grass_and_sand_wear_at_the_tuned_rate() {
+        for surface in [Surface::Grass, Surface::Sand] {
+            let off = Situation {
+                surface,
+                ..asphalt()
+            };
+            close(
+                lost_in_a_second(5.0, FULL_THROTTLE, off),
+                TYRE_WEAR_ROLLING_PER_S + TYRE_WEAR_OFF_TRACK_PER_S,
+            );
+        }
+    }
+
+    #[test]
+    fn a_drift_wears_on_top_of_cornering_and_its_release_pays_once() {
+        let mut handling = going(TOP_SPEED_M_PER_S);
+        handling.tyres = Tyres::On;
+        ticks(&mut handling, hop_right(), 1 + airtime_ticks());
+        assert!(handling.drift.is_some());
+        let at_landing = handling.tyre_life;
+        tick(&mut handling, hop_right());
+        let a_tick = at_landing - handling.tyre_life;
+        assert!(a_tick > TYRE_WEAR_DRIFT_PER_S * TICK_S, "lost {a_tick}");
+
+        // Charged past orange, a release costs the tuned life on its tick.
+        ticks(
+            &mut handling,
+            hop_right(),
+            tick_charge_reaches(MINI_TURBO_ORANGE_CHARGE_S),
+        );
+        let before = handling.tyre_life;
+        tick(&mut handling, FULL_THROTTLE);
+        let released = before - handling.tyre_life;
+        assert!(released >= TYRE_WEAR_MINI_TURBO_PERCENT, "lost {released}");
+        let before = handling.tyre_life;
+        tick(&mut handling, FULL_THROTTLE);
+        assert!(before - handling.tyre_life < TYRE_WEAR_MINI_TURBO_PERCENT);
+    }
+
+    #[test]
+    fn a_kerb_launch_takes_the_tuned_life_and_nothing_wears_in_the_air_after() {
+        let mut handling = going(TOP_SPEED_M_PER_S);
+        handling.tyres = Tyres::On;
+        let on_kerb = Situation {
+            kerb: true,
+            ..asphalt()
+        };
+        handling.tick(&FULL_THROTTLE, Freeze::Free, on_kerb, TICK_S);
+        close(
+            TYRE_LIFE_NEW_PERCENT - handling.tyre_life,
+            TYRE_WEAR_KERB_PERCENT,
+        );
+        let launched = handling.tyre_life;
+        handling.tick(&FULL_THROTTLE, Freeze::Free, on_kerb, TICK_S);
+        assert_eq!(handling.tyre_life, launched);
+    }
+
+    #[test]
+    fn a_kart_on_a_stars_run_wears_nothing() {
+        let starring = Situation {
+            starring: true,
+            kerb: true,
+            ..asphalt()
+        };
+        assert_eq!(lost_in_a_second(10.0, FULL_THROTTLE, starring), 0.0);
+    }
+
+    #[test]
+    fn a_kart_held_against_a_wall_wears_at_the_tuned_rate() {
+        let mut handling = Handling::new(Tyres::On);
+        handling.speed = 10.0;
+        handling.walls = vec![Vec3::X];
+        // Facing -Z along a wall on its side, so the kart scrapes on.
+        tick(&mut handling, FULL_THROTTLE);
+        close(
+            TYRE_LIFE_NEW_PERCENT - handling.tyre_life,
+            (TYRE_WEAR_ROLLING_PER_S + TYRE_WEAR_WALL_PER_S) * TICK_S,
+        );
+    }
+
+    #[test]
+    fn a_kart_pinned_head_on_under_throttle_wears_and_one_parked_there_does_not() {
+        // Facing -Z with the wall ahead, its normal pointing back at the kart.
+        let at_the_wall = || {
+            let mut handling = Handling::new(Tyres::On);
+            handling.walls = vec![Vec3::Z];
+            handling
+        };
+        let mut pinned = at_the_wall();
+        tick(&mut pinned, FULL_THROTTLE);
+        assert!(pinned.speed.abs() < 1e-3, "the wall holds it");
+        close(
+            TYRE_LIFE_NEW_PERCENT - pinned.tyre_life,
+            (TYRE_WEAR_ROLLING_PER_S + TYRE_WEAR_WALL_PER_S) * TICK_S,
+        );
+
+        let mut parked = at_the_wall();
+        tick(&mut parked, KartInput::default());
+        assert_eq!(parked.tyre_life, TYRE_LIFE_NEW_PERCENT);
+    }
+
+    fn collider(index: u32) -> ColliderHandle {
+        ColliderHandle::from_raw_parts(index, 0)
+    }
+
+    /// A kart moving on Tyres On, ready to be touched after the solver.
+    fn wearing() -> Handling {
+        let mut handling = going(10.0);
+        handling.tyres = Tyres::On;
+        tick(&mut handling, FULL_THROTTLE);
+        handling
+    }
+
+    #[test]
+    fn a_bump_costs_by_its_closing_speed_up_to_the_most() {
+        for (closing_speed, expected) in [
+            (0.0, TYRE_WEAR_BUMP_MIN_PERCENT),
+            (
+                4.0,
+                TYRE_WEAR_BUMP_MIN_PERCENT + 4.0 * TYRE_WEAR_BUMP_PER_M_PER_S,
+            ),
+            (200.0, TYRE_WEAR_BUMP_MAX_PERCENT),
+        ] {
+            let mut handling = wearing();
+            let before = handling.tyre_life;
+            handling.wear_for_touch(collider(1), closing_speed);
+            close(before - handling.tyre_life, expected);
+        }
+    }
+
+    #[test]
+    fn a_touch_that_lasts_costs_its_worst_closing_speed_once() {
+        let mut handling = wearing();
+        let before = handling.tyre_life;
+        handling.wear_for_touch(collider(1), 4.0);
+        // The same tick's other manifold, weaker.
+        handling.wear_for_touch(collider(1), 2.0);
+        let once = TYRE_WEAR_BUMP_MIN_PERCENT + 4.0 * TYRE_WEAR_BUMP_PER_M_PER_S;
+        close(before - handling.tyre_life, once);
+
+        // Still touching next tick, at nothing and then harder.
+        handling.tick(&FULL_THROTTLE, Freeze::Free, asphalt(), 0.0);
+        handling.wear_for_touch(collider(1), 0.0);
+        close(before - handling.tyre_life, once);
+        handling.tick(&FULL_THROTTLE, Freeze::Free, asphalt(), 0.0);
+        handling.wear_for_touch(collider(1), 6.0);
+        let worst = TYRE_WEAR_BUMP_MIN_PERCENT + 6.0 * TYRE_WEAR_BUMP_PER_M_PER_S;
+        close(before - handling.tyre_life, worst);
+
+        // A tick clear of it ends the touch; the next one costs anew.
+        handling.tick(&FULL_THROTTLE, Freeze::Free, asphalt(), 0.0);
+        handling.tick(&FULL_THROTTLE, Freeze::Free, asphalt(), 0.0);
+        handling.wear_for_touch(collider(1), 0.0);
+        close(
+            before - handling.tyre_life,
+            worst + TYRE_WEAR_BUMP_MIN_PERCENT,
+        );
+    }
+
+    #[test]
+    fn two_colliders_touched_at_once_are_two_bumps() {
+        let mut handling = wearing();
+        let before = handling.tyre_life;
+        handling.wear_for_touch(collider(1), 0.0);
+        handling.wear_for_touch(collider(2), 0.0);
+        close(
+            before - handling.tyre_life,
+            2.0 * TYRE_WEAR_BUMP_MIN_PERCENT,
+        );
+    }
+
+    #[test]
+    fn a_touch_on_a_stopped_kart_or_with_tyres_off_costs_nothing() {
+        let mut stopped = Handling::new(Tyres::On);
+        tick(&mut stopped, KartInput::default());
+        stopped.wear_for_touch(collider(1), 4.0);
+        assert_eq!(stopped.tyre_life, TYRE_LIFE_NEW_PERCENT);
+
+        let mut off = going(10.0);
+        tick(&mut off, FULL_THROTTLE);
+        off.wear_for_touch(collider(1), 4.0);
+        off.wear_for_spin_out();
+        assert_eq!(off.tyre_life, TYRE_LIFE_NEW_PERCENT);
+    }
+
+    #[test]
+    fn a_respawn_keeps_the_tyres() {
+        let mut handling = wearing();
+        let worn = handling.tyre_life;
+        handling.respawn(Vec3::NEG_Z);
+        assert_eq!(handling.tyre_life, worn);
     }
 }

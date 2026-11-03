@@ -32,6 +32,7 @@ fn busy_kart() -> KartReadout {
             roll_left_s: 1.5,
         },
         coins: 7,
+        tyre_life: 42.5,
         spin_out_s: Some(0.4),
         airborne: true,
         boost_s: Some(0.2),

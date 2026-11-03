@@ -11,7 +11,7 @@ use crate::{
     ProjectileSnapshot, Refusal, Room, RoomState, ServerMessage, SlipstreamSnapshot, Snapshot,
     Start, PROTOCOL_VERSION,
 };
-use sim::BotLevel;
+use sim::{BotLevel, Tyres};
 
 /// Every [`ClientMessage`] variant once.
 pub fn client() -> Vec<ClientMessage> {
@@ -56,6 +56,7 @@ pub fn server() -> Vec<ServerMessage> {
             seed: 0x0123_4567_89ab_cdef,
             track: "bell-deer".to_owned(),
             bot_level: BotLevel::Ace,
+            tyres: Tyres::On,
             grid: vec![0, 1],
         },
         ServerMessage::Snapshot(snapshot()),
@@ -106,6 +107,7 @@ pub fn room() -> Room {
         code: "BXQF".to_owned(),
         track: "goldstone".to_owned(),
         bot_level: BotLevel::Pro,
+        tyres: Tyres::On,
         state: RoomState::Open,
         players: vec![
             Player {
@@ -165,6 +167,7 @@ pub fn snapshot() -> Snapshot {
                     _ => ItemSlot::Held(Item::Boost),
                 },
                 coins: 7 - slot.min(7),
+                tyre_life: 100.0 - f32::from(slot) * 12.5,
                 spin_out_s: (slot == 6).then_some(0.5),
                 start: match slot % 4 {
                     0 => Start::Clean,

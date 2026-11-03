@@ -12,6 +12,11 @@
 //! predicted the tick it happens, and the snapshots' spin-out timer then
 //! agrees with it.
 //!
+//! The tyres it wears as the server does, since that follows from the
+//! kart's own inputs and the static track; wear from other karts and the
+//! server's hits it leaves to the snapshots' tyre life. A snapshot within
+//! the tuned tolerance is no reason to rewind (ADR 0080).
+//!
 //! Four things the prediction never runs. The item roll: the slot is the
 //! snapshots' word, so a fire is predicted only once the server has said
 //! what the kart holds. The coin pickups: a coin another kart took first
@@ -56,12 +61,12 @@ use rapier3d::prelude::*;
 
 use crate::tuning::{
     COUNTDOWN_S, KART_HALF_LENGTH_M, RACE_OUTRO_S, RECONCILIATION_BLEND_TICKS,
-    RECONCILIATION_TOLERANCE_M, TICK_S,
+    RECONCILIATION_TOLERANCE_M, RECONCILIATION_TYRE_LIFE_TOLERANCE_PERCENT, TICK_S,
 };
 use crate::BotLevel;
 use crate::{
     bot, clock_after, kart_collider, kart_groups, step, ItemSlot, Kart, KartInput, KartReadout,
-    Phase, Slipstream, Standing, State, Surface, Track, Wheel,
+    Phase, Slipstream, Standing, State, Surface, Track, Tyres, Wheel,
 };
 
 /// The phase a prediction holds once the server's race has ended: the top
@@ -169,12 +174,18 @@ impl Prediction {
     /// finished, as the server's is (ADR 0078). `kart` must be a slot of
     /// the track's grid.
     pub fn new(seed: u64, kart: usize, track: Track, level: BotLevel) -> Self {
+        Self::with_tyres(seed, kart, track, level, Tyres::Off)
+    }
+
+    /// As [`Prediction::new`], with the creator's pick of `tyres`, so the
+    /// kart wears its own tyres from its own inputs as the server's does.
+    pub fn with_tyres(seed: u64, kart: usize, track: Track, level: BotLevel, tyres: Tyres) -> Self {
         assert!(
             kart < track.spawn_grid().len(),
             "kart {kart} but the track has {} spawn slots",
             track.spawn_grid().len()
         );
-        let mut state = State::on_spawn_slots(seed, 1, kart..kart + 1, track, level);
+        let mut state = State::on_spawn_slots(seed, 1, kart..kart + 1, track, level, tyres);
         // A box's roll is the server's: its RNG serves every kart's pickups
         // in the order they happen, which this race of one cannot follow.
         // So the boxes are never here to pick up, and the slot holds only
@@ -494,7 +505,7 @@ fn slot_agrees(ours: ItemSlot, theirs: ItemSlot) -> bool {
 
 /// Whether the snapshot puts the kart where the record does, to the tuned
 /// tolerance: its position, its nose, the tick of travel its velocity and
-/// its bump make, its drift, its item, its coins, its spin-out, its stall,
+/// its bump make, its drift, its item, its coins, its tyre life, its spin-out, its stall,
 /// its star's run, its place in the lap and, once `racing`, its rocket
 /// start's verdict; during the countdown the start is not compared, since
 /// a kart adopts it only from Go.
@@ -522,6 +533,8 @@ fn agrees(record: &KartRecord, kart: &KartReadout, racing: bool) -> bool {
         && drift
         && slot_agrees(record.kart.item_slot, kart.item_slot)
         && record.kart.coins == kart.coins
+        && (record.kart.handling.tyre_life() - kart.tyre_life).abs()
+            <= RECONCILIATION_TYRE_LIFE_TOLERANCE_PERCENT
         && (record.kart.spin_out_left_s.max(0.0) - kart.spin_out_s.unwrap_or(0.0)).abs()
             < TICK_S / 2.0
         && (record.kart.stall_left_s.max(0.0) - kart.stall_s.unwrap_or(0.0)).abs() < TICK_S / 2.0
