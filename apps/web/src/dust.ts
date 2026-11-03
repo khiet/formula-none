@@ -29,7 +29,7 @@ const DUST_COLOURS: Partial<Record<Surface, number>> = {
 };
 /** The tyre smoke of a stalled kart's spinning wheels: pale, so it reads on the grid's asphalt. */
 const STALL_SMOKE_COLOUR = 0xf2f2f2;
-/** The light smoke of tyres past the cliff: greyer and far thinner than a stall's, so rivals can read it without it hiding the road. */
+/** The light smoke of tyres past the cliff: greyer and far thinner than a stall's. */
 const WORN_SMOKE_COLOUR = 0xc8c8c8;
 const WORN_SMOKE_PUFFS_PER_S = 6;
 

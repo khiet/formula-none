@@ -16,9 +16,9 @@ export interface BoxCall {
 
 /**
  * The radio call to come in for tyres (ADR 0080): once a race, as life first
- * falls to the cliff, and never for a kart that reaches it on the final lap,
- * where a stop could not pay. Latched, so a reconciliation that moves life
- * back over the cliff does not call it again, nor will a later stop.
+ * falls to the cliff, and never for a kart that reaches it on the final lap.
+ * Latched, so a reconciliation that moves life back over the cliff does not
+ * call it again.
  */
 export function createBoxCall(rules: BoxCallRules): BoxCall {
   let reached = false;

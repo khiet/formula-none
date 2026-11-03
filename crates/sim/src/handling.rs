@@ -835,8 +835,8 @@ fn across_life(life: f32, column: [f32; TYRE_LIFE_COLUMNS_PERCENT.len()]) -> f32
 
 /// The slide a kart turning at `yaw_rate` asks of tyres that can give `most`:
 /// nothing up to the tuned cornering limit, all of it from the tuned full
-/// load, and wide of the turn, as a drift's slip is. A kart backing up has
-/// no load to slide on.
+/// load, and wide of the turn, as a drift's slip is. A kart backing up does
+/// not slide.
 fn wash_out_wanted(speed: f32, yaw_rate: f32, most: f32) -> f32 {
     if speed <= 0.0 {
         return 0.0;
