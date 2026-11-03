@@ -17,7 +17,7 @@ use sim::tuning::{
     ACCELERATION_TO_TOP_S, HOP_AIRTIME_S, KERB_HALF_LENGTH_M, KERB_HALF_WIDTH_M, KERB_SPEED_KEEP,
     LAPS_PER_RACE, MINI_TURBO_RED_CHARGE_S, TOP_SPEED_M_PER_S,
 };
-use sim::{step, KartInput, KartReadout, MiniTurbo, Phase, Placement, State};
+use sim::{step, BotLevel, KartInput, KartReadout, MiniTurbo, Phase, Placement, State};
 
 /// The oval without its walls, with `kerbs` laid on it and none of its own.
 fn race_with_kerbs(kerbs: &[Placement]) -> State {
@@ -251,7 +251,7 @@ fn eight_bots_racing_bell_deer_are_never_launched_by_a_kerb() {
     // not the bots' line.
     let track = track(&without_coins(BELL_DEER));
     assert_eq!(track.kerbs().len(), 2, "the esses' kerb and the chicane's");
-    let mut state = started(State::with_bots(SEED, 0, 8, track));
+    let mut state = started(State::with_bots(SEED, 0, 8, track, BotLevel::Basic));
     for _ in 0..ticks(LAPS_PER_RACE as f32 * 90.0) {
         state = step(state, &[], DT);
         for (slot, kart) in state.kart_readouts().iter().enumerate() {

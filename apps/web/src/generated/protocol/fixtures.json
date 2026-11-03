@@ -20,7 +20,7 @@
       "name": "join",
       "bytes": [
         1,
-        20,
+        21,
         4,
         66,
         88,
@@ -37,7 +37,7 @@
         "join": {
           "nickname": "khiet",
           "room": "BXQF",
-          "version": 20
+          "version": 21
         }
       }
     },
@@ -103,7 +103,7 @@
       "name": "rejoin",
       "bytes": [
         7,
-        20,
+        21,
         4,
         66,
         88,
@@ -147,7 +147,7 @@
         "rejoin": {
           "room": "BXQF",
           "token": "0123456789abcdef0123456789abcdef",
-          "version": 20
+          "version": 21
         }
       }
     },
@@ -216,6 +216,7 @@
         111,
         110,
         101,
+        1,
         0,
         2,
         0,
@@ -273,6 +274,7 @@
       "message": {
         "joined": {
           "room": {
+            "botLevel": "pro",
             "code": "BXQF",
             "players": [
               {
@@ -303,12 +305,12 @@
       "bytes": [
         2,
         3,
-        20
+        21
       ],
       "message": {
         "refused": {
           "versionMismatch": {
-            "server": 20
+            "server": 21
           }
         }
       }
@@ -332,6 +334,7 @@
         111,
         110,
         101,
+        1,
         0,
         2,
         0,
@@ -355,6 +358,7 @@
       ],
       "message": {
         "room": {
+          "botLevel": "pro",
           "code": "BXQF",
           "players": [
             {
@@ -401,11 +405,13 @@
         101,
         114,
         2,
+        2,
         0,
         1
       ],
       "message": {
         "countdown": {
+          "botLevel": "ace",
           "grid": [
             0,
             1

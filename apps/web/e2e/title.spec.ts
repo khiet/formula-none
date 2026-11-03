@@ -44,3 +44,11 @@ test("the picked course is remembered and a solo race runs it", async ({ page })
   await page.getByRole("button", { name: "Solo race" }).click();
   await mesh;
 });
+
+test("the picked bot level is remembered across a reload", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.getByRole("radio", { name: "Basic" })).toBeChecked();
+  await page.locator(".bot-tile", { hasText: "Ace" }).click();
+  await page.reload();
+  await expect(page.getByRole("radio", { name: "Ace" })).toBeChecked();
+});

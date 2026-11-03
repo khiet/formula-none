@@ -514,13 +514,14 @@ pub const ITEM_ROLL_WEIGHTS: [ItemRollWeights; 3] = [
     },
 ];
 
-// Bots.
+// Bots. The constants that vary by bot level (ADR 0078) are Basic's here
+// by name and the other levels' in `BOT_LEVELS` below.
 
 /// Metres ahead on the centreline spline a bot steers toward.
 pub const BOT_LOOKAHEAD_M: f32 = 12.0;
-/// Seconds after its item lands in the slot by which a bot has used it; it
-/// fires sooner on a straight, and keeps a boost longer while the boost
-/// would carry it into the wheel.
+/// Seconds after its item lands in the slot by which a Basic bot has used
+/// it; it fires sooner on a straight, and keeps a boost longer while the
+/// boost would carry it into the wheel.
 pub const BOT_ITEM_USE_DELAY_S: f32 = 2.0;
 /// Seconds a bot trails a fired hazard behind itself before dropping it;
 /// no longer than it would hold an unused item.
@@ -530,7 +531,8 @@ pub const BOT_HAZARD_HOLD_S: f32 = 1.5;
 /// the horn is worth saving for a kart to hit.
 pub const BOT_HORN_HOLD_S: f32 = 10.0;
 /// Top speed scale by distance to the nearest human: slower far ahead,
-/// faster far behind.
+/// faster far behind. The minimum is Basic's; the maximum is every
+/// level's.
 pub const BOT_RUBBER_BAND_MIN_FACTOR: f32 = 0.92;
 pub const BOT_RUBBER_BAND_MAX_FACTOR: f32 = 1.08;
 /// Metres along the spline from the nearest human at which the rubber band
@@ -539,9 +541,9 @@ pub const BOT_RUBBER_BAND_RANGE_M: f32 = 100.0;
 /// A bot hops into a drift when the centreline at its lookahead curves
 /// tighter than this, in radians per metre: a turn of 33 m radius or less.
 pub const BOT_DRIFT_CURVATURE_RAD_PER_M: f32 = 0.03;
-/// A bot slows for a corner to this fraction of the fastest speed full
-/// steer lock holds the corner's radius at. Below 1, so a human can carry
-/// more speed through a corner than a bot.
+/// A Basic bot slows for a corner to this fraction of the fastest speed
+/// full steer lock holds the corner's radius at. Below 1, so a human can
+/// carry more speed through a corner than a Basic bot; an Ace bot's is 1.
 pub const BOT_CORNER_SPEED_FRACTION: f32 = 0.85;
 /// How far ahead a bot looks for a corner to slow for, in seconds of its
 /// current speed.
@@ -586,12 +588,54 @@ pub const BOT_STALL_SPEED_M_PER_S: f32 = 1.0;
 pub const BOT_STALL_S: f32 = 1.0;
 /// Seconds a bot backs up before it drives on again.
 pub const BOT_REVERSE_S: f32 = 1.0;
-/// The chance a bot rolls the full boost at Go, from the race's seed once
-/// per race; otherwise it starts clean. A bot never stalls.
+/// The chance a Basic bot rolls the full boost at Go, from the race's seed
+/// once per race; otherwise it starts clean. A bot never stalls.
 pub const BOT_START_BOOST_CHANCE: f32 = 0.5;
 /// How long a bot that rolled the boost holds the throttle before Go:
 /// midway through the full boost's window, clear of both edges.
 pub const BOT_START_HOLD_S: f32 = (START_FULL_BOOST_HOLD_S + START_STALL_HOLD_S) / 2.0;
+
+/// The bot constants that vary by bot level (ADR 0078): how hard a bot
+/// drives, not whether it can get round, so the lookahead, the line, the
+/// kerb and wheel avoidance, the pass gap and the stall recovery stay one
+/// constant each. Each field is the constant of the same name at Basic.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct BotProfile {
+    pub corner_speed_fraction: f32,
+    pub rubber_band_min_factor: f32,
+    pub rubber_band_max_factor: f32,
+    pub item_use_delay_s: f32,
+    pub start_boost_chance: f32,
+}
+
+/// The profile of each bot level, indexed by `BotLevel` in its order:
+/// Basic, Pro, Ace. Basic is the named constants, so a retune of one still
+/// moves Basic. The band's top is the same on every level, so the
+/// slipstream's assert below holds whatever the level; Ace's bottom of one
+/// is the lever: an Ace bot ahead of every human is never slowed.
+pub const BOT_LEVELS: [BotProfile; 3] = [
+    BotProfile {
+        corner_speed_fraction: BOT_CORNER_SPEED_FRACTION,
+        rubber_band_min_factor: BOT_RUBBER_BAND_MIN_FACTOR,
+        rubber_band_max_factor: BOT_RUBBER_BAND_MAX_FACTOR,
+        item_use_delay_s: BOT_ITEM_USE_DELAY_S,
+        start_boost_chance: BOT_START_BOOST_CHANCE,
+    },
+    BotProfile {
+        corner_speed_fraction: 0.92,
+        rubber_band_min_factor: 0.96,
+        rubber_band_max_factor: BOT_RUBBER_BAND_MAX_FACTOR,
+        item_use_delay_s: 1.0,
+        start_boost_chance: 0.8,
+    },
+    BotProfile {
+        corner_speed_fraction: 1.0,
+        rubber_band_min_factor: 1.0,
+        rubber_band_max_factor: BOT_RUBBER_BAND_MAX_FACTOR,
+        item_use_delay_s: 0.0,
+        start_boost_chance: 1.0,
+    },
+];
 
 // Camera (ADR 0020). Presentation reads these through the bridge; the sim
 // never does. They live here so a feel pass tunes the camera in the same
@@ -644,6 +688,26 @@ const _: () = {
             > SLIPSTREAM_TOP_SPEED_FACTOR * COIN_CAP_FACTOR * BOT_RUBBER_BAND_MAX_FACTOR
     );
     assert!(BOT_RUBBER_BAND_MIN_FACTOR < 1.0 && 1.0 < BOT_RUBBER_BAND_MAX_FACTOR);
+    // Every level: the band never speeds a bot ahead nor slows one behind,
+    // its top is the one the slipstream's assert above covers, and each
+    // level drives at least as hard as the one below it.
+    let mut level = 0;
+    while level < BOT_LEVELS.len() {
+        let profile = BOT_LEVELS[level];
+        assert!(0.0 < profile.corner_speed_fraction && profile.corner_speed_fraction <= 1.0);
+        assert!(profile.rubber_band_min_factor <= 1.0 && 1.0 < profile.rubber_band_max_factor);
+        assert!(profile.rubber_band_max_factor == BOT_RUBBER_BAND_MAX_FACTOR);
+        assert!(0.0 <= profile.item_use_delay_s);
+        assert!(0.0 <= profile.start_boost_chance && profile.start_boost_chance <= 1.0);
+        if level > 0 {
+            let below = BOT_LEVELS[level - 1];
+            assert!(below.corner_speed_fraction <= profile.corner_speed_fraction);
+            assert!(below.rubber_band_min_factor <= profile.rubber_band_min_factor);
+            assert!(profile.item_use_delay_s <= below.item_use_delay_s);
+            assert!(below.start_boost_chance <= profile.start_boost_chance);
+        }
+        level += 1;
+    }
     assert!(0.0 < BOT_RUBBER_BAND_RANGE_M);
     assert!(0.0 < BOT_CORNER_SAMPLE_M && BOT_CORNER_SAMPLE_M <= BOT_LOOKAHEAD_M);
     assert!(0.0 < BOT_CORNER_SPEED_FRACTION && BOT_CORNER_SPEED_FRACTION <= 1.0);

@@ -10,6 +10,7 @@ use sim::tuning::{
     NICKNAME_MAX_CHARS, ROOMS_MAX, ROOM_CLOSE_AFTER_EMPTY_S, ROOM_CODE_ALPHABET, ROOM_CODE_LENGTH,
     ROOM_PLAYERS_MAX,
 };
+use sim::BotLevel;
 
 /// A room with `count` players in it, in join order, each holding its slot.
 async fn room_of(harness: &mut Harness, code: &str, count: usize) -> Vec<Client> {
@@ -400,4 +401,19 @@ async fn stopping_the_server_ends_every_session() {
     for player in &mut players {
         assert_eq!(player.recv().await, None);
     }
+}
+
+#[tokio::test(start_paused = true)]
+async fn a_room_created_at_a_bot_level_shows_it_and_its_countdown_carries_it() {
+    let mut harness = Harness::new(Conditions::PERFECT);
+    let code = harness.create_room_at(BotLevel::Pro);
+    let mut creator = harness.connect();
+    let (_, room) = creator.join(&code, "khiet").await.unwrap();
+    assert_eq!(room.bot_level, BotLevel::Pro);
+
+    creator.send(&ClientMessage::Ready { ready: true });
+    creator.next_room().await;
+    creator.send(&ClientMessage::Start);
+    let started = creator.next_countdown().await.expect("the race starts");
+    assert_eq!(started.bot_level, BotLevel::Pro);
 }

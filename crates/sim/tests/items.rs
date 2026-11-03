@@ -19,7 +19,7 @@ use sim::tuning::{
     self, ITEM_BOOST_FACTOR, ITEM_BOOST_S, ITEM_BOX_HALF_LENGTH_M, ITEM_BOX_HALF_WIDTH_M,
     ITEM_BOX_RESPAWN_S, ITEM_ROLL_S, ITEM_ROLL_WEIGHTS, TOP_SPEED_M_PER_S,
 };
-use sim::{step, Item, ItemSlot, KartInput, MiniTurbo, Phase, RaceEvent, State, Track};
+use sim::{step, BotLevel, Item, ItemSlot, KartInput, MiniTurbo, Phase, RaceEvent, State, Track};
 
 /// The box added under slot 0 by `oval_with_boxes_under`.
 fn box_under_slot_0() -> usize {
@@ -542,7 +542,7 @@ fn a_bot_fires_what_it_picks_up_after_it_lands_within_the_tuned_delay() {
     use sim::tuning::BOT_ITEM_USE_DELAY_S;
     // A lone bot laps the oval; its line runs through the rows of boxes on
     // the back straight.
-    let mut state = started(State::with_bots(SEED, 0, 1, oval()));
+    let mut state = started(State::with_bots(SEED, 0, 1, oval(), BotLevel::Basic));
     let mut picked: Option<(usize, Item)> = None;
     let mut fired = Vec::new();
     for tick in 0..ticks(60.0) {

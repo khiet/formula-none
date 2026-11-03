@@ -10,6 +10,7 @@ use sim::tuning::{
     ROOMS_MAX, ROOM_CLOSE_AFTER_EMPTY_S, ROOM_CODE_ALPHABET, ROOM_CODE_LENGTH,
     ROOM_CREATES_PER_ADDRESS_MAX, ROOM_CREATE_WINDOW_S,
 };
+use sim::BotLevel;
 use std::time::Duration;
 use tower::ServiceExt;
 
@@ -225,4 +226,35 @@ async fn a_body_is_read_whatever_its_content_type_and_one_naming_no_track_races_
     assert_eq!(status, StatusCode::CREATED);
     let room = rooms.view(body["code"].as_str().unwrap()).unwrap();
     assert_eq!(room.track, "bell-deer");
+}
+
+#[tokio::test]
+async fn a_room_created_at_a_bot_level_races_it_and_its_countdown_says_so() {
+    let (app, rooms, _stop) = app();
+    let (status, body) = create(
+        app,
+        Body::from(r#"{ "track": "goldstone", "botLevel": "ace" }"#),
+    )
+    .await;
+    assert_eq!(status, StatusCode::CREATED);
+    let code = body["code"].as_str().unwrap().to_owned();
+    let room = rooms.view(&code).unwrap();
+    assert_eq!(room.bot_level, BotLevel::Ace);
+}
+
+#[tokio::test]
+async fn a_room_created_without_a_bot_level_races_basic() {
+    let (app, rooms, _stop) = app();
+    let (status, body) = create(app, Body::from(r#"{ "track": "goldstone" }"#)).await;
+    assert_eq!(status, StatusCode::CREATED);
+    let room = rooms.view(body["code"].as_str().unwrap()).unwrap();
+    assert_eq!(room.bot_level, BotLevel::Basic);
+}
+
+#[tokio::test]
+async fn a_room_at_an_unknown_bot_level_is_refused_and_not_opened() {
+    let (app, rooms, _stop) = app();
+    let (status, _) = create(app, Body::from(r#"{ "botLevel": "wild" }"#)).await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+    assert!(rooms.codes().is_empty(), "{:?}", rooms.codes());
 }

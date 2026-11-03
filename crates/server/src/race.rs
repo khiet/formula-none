@@ -15,7 +15,7 @@ use sim::tuning::{
     CONNECTION_SILENCE_S, INPUT_QUEUE_MAX_TICKS, INPUT_QUEUE_START_TICKS, KARTS_PER_RACE,
     SNAPSHOTS_PER_SECOND, SNAPSHOT_EVENT_REPEATS, TICKS_PER_SECOND,
 };
-use sim::{KartInput, Phase, State, Track};
+use sim::{BotLevel, KartInput, Phase, State, Track};
 
 /// The sim's `dt`, and the budget a tick's work must fit in for the server
 /// to keep up (ADR 0010).
@@ -123,13 +123,20 @@ pub struct Ticked {
 impl Race {
     /// A race from `seed` on `track` with one human kart per slot in `grid`,
     /// in that order, and bots on the rest of the grid, at the top of its
-    /// countdown. Event ids count on from `first_event_id`, so a room's
-    /// ids never repeat across its races. `grid` must fit the race's grid.
-    pub fn new(seed: u64, track: Track, grid: Vec<u8>, first_event_id: u32) -> Self {
+    /// countdown, the bots driving at `bot_level`. Event ids count on from
+    /// `first_event_id`, so a room's ids never repeat across its races.
+    /// `grid` must fit the race's grid.
+    pub fn new(
+        seed: u64,
+        track: Track,
+        bot_level: BotLevel,
+        grid: Vec<u8>,
+        first_event_id: u32,
+    ) -> Self {
         assert!(grid.len() <= KARTS_PER_RACE, "more humans than karts");
         let bots = KARTS_PER_RACE - grid.len();
         Self {
-            state: Some(State::with_bots(seed, grid.len(), bots, track)),
+            state: Some(State::with_bots(seed, grid.len(), bots, track, bot_level)),
             humans: vec![HumanInput::default(); grid.len()],
             grid,
             tick: 0,

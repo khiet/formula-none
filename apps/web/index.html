@@ -774,6 +774,44 @@
         outline: 0.15em solid #fff;
         outline-offset: 0.15em;
       }
+      /* The bot level under the flags (ADR 0078): a tile per level, the flag tile with the caption in the flag's place. */
+      #title-scene .bots {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0.7em;
+        margin: 0;
+        padding: 0;
+        border: 0;
+      }
+      #title-scene .bots h2 {
+        margin: 0;
+        font: inherit;
+        font-size: 1.8em;
+        text-shadow: 0.08em 0.08em 0 var(--ink);
+        rotate: -2deg;
+      }
+      #title-scene .bot-tiles {
+        display: flex;
+        gap: 1.4em;
+      }
+      #title-scene .bot-tile {
+        min-width: 6em;
+        padding: 0.5em 0.8em;
+      }
+      #title-scene [data-bots-blurb] {
+        margin: 0;
+        padding: 0.35em 0.6em;
+        font-size: 1.1em;
+        background: var(--ink);
+      }
+      #room-scene .room-bots {
+        margin: 0.6em 0 0;
+        padding: 0.35em 0.6em;
+        font-size: 1.3em;
+        text-align: center;
+        background: var(--ink);
+      }
       :is(#title-scene, #room-scene) .preview {
         width: 38em;
         padding: 1.2em 1.4em 1.3em;

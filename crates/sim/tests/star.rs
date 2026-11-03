@@ -20,7 +20,8 @@ use sim::tuning::{
     STAR_TOP_SPEED_FACTOR, TOP_SPEED_M_PER_S, WHEEL_FIRST_PASS_S,
 };
 use sim::{
-    step, Item, ItemSlot, KartInput, MiniTurbo, Phase, Prediction, RaceEvent, State, Surface, Track,
+    step, BotLevel, Item, ItemSlot, KartInput, MiniTurbo, Phase, Prediction, RaceEvent, State,
+    Surface, Track,
 };
 
 /// The star kart's top speed cap on a run, with no coins and no rubber band.
@@ -791,6 +792,7 @@ fn a_bot_fires_a_star_within_the_tuned_delay_of_its_landing() {
             0,
             karts,
             clean_oval_with_boxes_under(5..karts),
+            BotLevel::Basic,
         ));
         let mut state = step(state, &[], DT);
         let Some(slot) = (5..karts).find(|&slot| rolled(&state, slot, Item::Star)) else {

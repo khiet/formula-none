@@ -19,7 +19,16 @@ finished kart until the race ends, and every kart through the outro. A bot
 reads only what any observer of the race can, the track and the karts'
 transforms and standings, and answers with the same input struct a human's
 controller produces. Bots start on the grid behind the
-humans.
+humans. How hard they drive is the room's bot level.
+
+### bot level
+
+How hard a race's bots drive: Basic, Pro or Ace, the creator's pick on the
+Title Scene, fixed for the room as the course is and shown on the Room
+Scene. Basic is the bots as they were before there was a pick. The level
+varies a bot's corner speed, its rubber band's lower bound, its item use
+delay and its rocket start chance, nothing else; it changes how the bots
+drive, not how many there are. A replay carries it.
 
 ### phase
 
@@ -72,8 +81,10 @@ time left, and a client's prediction adopts the server's verdict.
 ### rubber band
 
 The scale on a bot's top speed by its spline distance from the nearest
-human: slower far ahead, faster far behind, between the tuned bounds. A
-human's kart is never banded.
+human: slower far ahead, faster far behind, between the tuned bounds. The
+lower bound varies by bot level, up to one at Ace, where a bot ahead is
+never slowed; the upper bound is the same at every level. A human's kart
+is never banded.
 
 ### room
 
@@ -362,7 +373,8 @@ bodies it cannot push.
 
 ### replay
 
-A race as `{seed, track, bots, inputs[]}`: enough to rerun it anywhere.
+A race as `{seed, track, bots, level, inputs[]}`: enough to rerun it
+anywhere, the bots at the bot level it names.
 Inputs are run-length encoded into segments, one input per human kart in
 grid order for a run of ticks; the bots drive themselves from the seed. A
 replay committed under `assets/replays` with the state hashes it reported is

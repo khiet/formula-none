@@ -13,8 +13,8 @@ use protocol::{ClientMessage, Input, ServerMessage, Snapshot};
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 use sim::{
-    Item, KartInput, KartReadout, Phase, Projectile, RaceEvent, Replay, Standing, State, Surface,
-    Track, Wheel,
+    BotLevel, Item, KartInput, KartReadout, Phase, Projectile, RaceEvent, Replay, Standing, State,
+    Surface, Track, Wheel,
 };
 use wasm_bindgen::prelude::*;
 
@@ -126,17 +126,21 @@ impl Race {
     /// A fresh race from `seed` on the track described by `sidecar` (the JSON
     /// exported next to the track's glTF) with `human_count` karts on the
     /// front of its spawn grid and `bot_count` bot-driven karts on the slots
-    /// behind them. Fails when the sidecar is unusable or has fewer spawn
-    /// slots than the karts; the reason is a plain string so the same code
-    /// runs in native tests.
+    /// behind them, driving at `bot_level`, spelled as the wire does
+    /// (`basic`, `pro`, `ace`). Fails when the sidecar is unusable or has
+    /// fewer spawn slots than the karts, or the level is unknown; the
+    /// reason is a plain string so the same code runs in native tests.
     #[wasm_bindgen(constructor)]
     pub fn new(
         seed: u64,
         human_count: usize,
         bot_count: usize,
         sidecar: &str,
+        bot_level: &str,
     ) -> Result<Race, String> {
         let track = Track::from_sidecar(sidecar).map_err(|error| error.to_string())?;
+        let bot_level = BotLevel::from_name(bot_level)
+            .ok_or_else(|| format!("no bot level called {bot_level:?}"))?;
         let kart_count = human_count + bot_count;
         if kart_count > track.spawn_grid().len() {
             return Err(format!(
@@ -146,7 +150,13 @@ impl Race {
             ));
         }
         Ok(Self {
-            state: Some(State::with_bots(seed, human_count, bot_count, track)),
+            state: Some(State::with_bots(
+                seed,
+                human_count,
+                bot_count,
+                track,
+                bot_level,
+            )),
         })
     }
 

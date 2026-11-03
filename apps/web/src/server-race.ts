@@ -57,7 +57,13 @@ export function createServerRace(
   }
   const kartCount = bridge.kartsPerRace;
   // Never stepped: it stands the karts on the grid until the first snapshot.
-  const track = bridge.createRace(countdown.seed, humanCount, kartCount - humanCount, sidecar);
+  const track = bridge.createRace(
+    countdown.seed,
+    humanCount,
+    kartCount - humanCount,
+    sidecar,
+    countdown.botLevel,
+  );
   const prediction = bridge.createPrediction(countdown.seed, localKart, sidecar);
 
   let latest: Snapshot | undefined;

@@ -166,7 +166,7 @@ function fakeClient(): FakeClient {
   return {
     slot: 1,
     token: TOKEN,
-    room: { code: "BXQF", track: "bell-deer", state: "racing", players: [] },
+    room: { code: "BXQF", track: "bell-deer", botLevel: "basic", state: "racing", players: [] },
     race: undefined,
     replaced: false,
     closed: new Promise(() => {}),
@@ -202,7 +202,7 @@ function fakeClient(): FakeClient {
   };
 }
 
-const COUNTDOWN: Countdown = { seed: 7n, track: "bell-deer", grid: [0, 1] };
+const COUNTDOWN: Countdown = { seed: 7n, track: "bell-deer", botLevel: "basic", grid: [0, 1] };
 
 const KART: KartSnapshot = {
   position: [10, 0.3, -20],
@@ -538,7 +538,13 @@ describe("createServerRace", () => {
   it("reports the phase and the predicted fire from what reaches it over the connection", async () => {
     const connection = fakeConnection();
     const joining = joinRoom(connection, jsonCodec, { code: "BXQF", nickname: "ada" });
-    const room: Room = { code: "BXQF", track: "bell-deer", state: "racing", players: [] };
+    const room: Room = {
+      code: "BXQF",
+      track: "bell-deer",
+      botLevel: "basic",
+      state: "racing",
+      players: [],
+    };
     connection.receive({ joined: { slot: 0, room, token: TOKEN } });
     const run = createServerRace(bridge, await joining, COUNTDOWN, 0, "{}");
     expect(run.readout().phase).toEqual({ kind: "countdown", remainingSeconds: COUNTDOWN_S });

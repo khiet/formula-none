@@ -10,6 +10,7 @@ use axum::routing::{get, post};
 use axum::{Json, Router};
 use rooms::CreateRefused;
 use serde::{Deserialize, Serialize};
+use sim::BotLevel;
 use std::net::IpAddr;
 use tokio::net::TcpListener;
 use tokio::sync::watch;
@@ -53,11 +54,15 @@ struct CreatedRoom {
 }
 
 /// What a create may ask for: the track the room races, fixed for the
-/// room (ADR 0061). A create with no body, or one naming no track, races
-/// the server's default.
+/// room (ADR 0061), and how hard its bots drive, fixed likewise (ADR
+/// 0078). A create with no body, or one naming no track, races the
+/// server's default; one naming no level races Basic. The level is read
+/// as text so an unknown one is refused rather than raced at Basic.
 #[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
 struct CreateRoom {
     track: Option<String>,
+    bot_level: Option<String>,
 }
 
 /// The body is read as JSON whatever its content type says, so a create
@@ -69,7 +74,10 @@ async fn create_room(
     body: Bytes,
 ) -> Result<(StatusCode, Json<CreatedRoom>), StatusCode> {
     let request = if body.is_empty() {
-        CreateRoom { track: None }
+        CreateRoom {
+            track: None,
+            bot_level: None,
+        }
     } else {
         serde_json::from_slice(&body).map_err(|_| StatusCode::BAD_REQUEST)?
     };
@@ -77,9 +85,13 @@ async fn create_room(
         None => None,
         Some(track) => Some(tracks::known(&track).ok_or(StatusCode::BAD_REQUEST)?),
     };
+    let bot_level = match request.bot_level {
+        None => BotLevel::Basic,
+        Some(level) => BotLevel::from_name(&level).ok_or(StatusCode::BAD_REQUEST)?,
+    };
     let code = state
         .rooms
-        .create_with(track, forwarded_address(&headers))
+        .create_with(track, bot_level, forwarded_address(&headers))
         .map_err(|refused| match refused {
             // The client tells these two apart for the Title Scene's message.
             CreateRefused::Full => StatusCode::SERVICE_UNAVAILABLE,

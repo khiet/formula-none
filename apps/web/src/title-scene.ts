@@ -3,11 +3,12 @@ import type { NicknameChars } from "./bridge";
 import { button } from "./controls";
 import { type CourseChoice, createCoursePreview } from "./course-preview";
 import { flag } from "./flags";
+import type { BotLevel } from "./generated/sim";
 import { livery } from "./livery";
 import { validateNickname } from "./nickname";
 import { backdrop, kartSide } from "./poster";
 import { normaliseCode } from "./room-link";
-import type { Course } from "./track";
+import { BOT_LEVELS, type Course } from "./track";
 
 export interface TitleScene {
   /** Show a message to the player, such as why a join was refused. */
@@ -26,6 +27,8 @@ export interface TitleHandlers {
   audio(settings: AudioSettings): void;
   /** The player picked this course, for the next Create room or Solo race. */
   course(course: Course): void;
+  /** The player picked this bot level, for the next Create room or Solo race. */
+  botLevel(level: BotLevel): void;
 }
 
 export interface TitleOptions {
@@ -43,6 +46,8 @@ export interface TitleOptions {
   readonly courses: readonly CourseChoice[];
   /** The course picked when the Scene opens, one of `courses`. */
   readonly course: Course;
+  /** The bot level picked when the Scene opens. */
+  readonly botLevel: BotLevel;
   /** Laps in a race, for the preview. */
   readonly laps: number;
   /** Whether the player asks for reduced motion, which holds the preview's lap dot still. */
@@ -54,10 +59,12 @@ export interface TitleOptions {
  * ways in: create a room, join one by code, or race alone, with the three
  * audio toggles (ADR 0025) under them; beside them, the course a created
  * room or a solo race runs (ADR 0061), as a flag per course and a preview
- * of the one picked. The nickname and the code are checked here, so the
- * handlers only ever see valid ones; a refusal from the server comes back
- * through `message`. Every control is addressable by its name, the flags
- * as radios named `course` with the track's name as their value.
+ * of the one picked, with the bot level under the flags (ADR 0078) as a
+ * tile per level and a line describing the one picked. The nickname and
+ * the code are checked here, so the handlers only ever see valid ones; a
+ * refusal from the server comes back through `message`. Every control is
+ * addressable by its name, the flags as radios named `course` with the
+ * track's name as their value and the levels as radios named `bots`.
  */
 export function createTitleScene(
   container: HTMLElement,
@@ -225,9 +232,39 @@ export function createTitleScene(
     flags.append(tile);
     if (radio.checked) preview.show(choice);
   }
+  // The levels share the name `bots`, a radio group of their own, styled as the flag tiles are.
+  const bots = document.createElement("fieldset");
+  bots.className = "bots";
+  bots.setAttribute("aria-label", "Bots");
+  const botsHeading = document.createElement("h2");
+  botsHeading.textContent = "Bots";
+  const botTiles = document.createElement("div");
+  botTiles.className = "bot-tiles";
+  const botsBlurb = document.createElement("p");
+  botsBlurb.dataset.botsBlurb = "";
+  for (const choice of BOT_LEVELS) {
+    const radio = document.createElement("input");
+    radio.type = "radio";
+    radio.name = "bots";
+    radio.value = choice.level;
+    radio.checked = choice.level === options.botLevel;
+    radio.addEventListener("change", () => {
+      botsBlurb.textContent = `${choice.name}: ${choice.blurb}.`;
+      handlers.botLevel(choice.level);
+    });
+    const caption = document.createElement("span");
+    caption.className = "flag-name";
+    caption.textContent = choice.name;
+    const tile = document.createElement("label");
+    tile.className = "flag-tile bot-tile";
+    tile.append(radio, caption);
+    botTiles.append(tile);
+    if (radio.checked) botsBlurb.textContent = `${choice.name}: ${choice.blurb}.`;
+  }
+  bots.append(botsHeading, botTiles, botsBlurb);
   const courseColumn = document.createElement("div");
   courseColumn.className = "course";
-  courseColumn.append(courseHeading, flags, preview.element);
+  courseColumn.append(courseHeading, flags, bots, preview.element);
 
   scene.append(...backdrop(), ...runners, wayIn, courseColumn);
   container.append(scene);

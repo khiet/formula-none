@@ -39,7 +39,7 @@ function started(run: RaceRun): void {
 describe("localRaceRun's item slot", () => {
   it("rolls a box's item for the tuned roll, lands it with the flash, and counts the box", async () => {
     const bridge = await loadBridge(wasm);
-    const run = localRaceRun(bridge, "oval", boxesUnderTheGrid(1));
+    const run = localRaceRun(bridge, "oval", boxesUnderTheGrid(1), "basic");
     started(run);
     expect(run.readout().itemSlot).toEqual(EMPTY_SLOT);
 
@@ -73,7 +73,7 @@ describe("localRaceRun's item slot", () => {
 
   it("shows the fire for the flash as a landed item is fired, and none for a press while it rolls", async () => {
     const bridge = await loadBridge(wasm);
-    const run = localRaceRun(bridge, "oval", boxesUnderTheGrid(1));
+    const run = localRaceRun(bridge, "oval", boxesUnderTheGrid(1), "basic");
     started(run);
     run.tick(IDLE_INPUT, DT);
     run.tick({ ...IDLE_INPUT, useItem: true }, DT);
@@ -87,7 +87,7 @@ describe("localRaceRun's item slot", () => {
 
   it("counts a box taken into a full slot, which rolls nothing", async () => {
     const bridge = await loadBridge(wasm);
-    const run = localRaceRun(bridge, "oval", boxesUnderTheGrid(2));
+    const run = localRaceRun(bridge, "oval", boxesUnderTheGrid(2), "basic");
     started(run);
     run.tick(IDLE_INPUT, DT);
     const rolling = run.readout().itemSlot.rolling;
@@ -104,7 +104,7 @@ describe("localRaceRun's horn blasts", () => {
     // The seeds are tried in order until the box under the grid rolls a horn.
     let run: RaceRun | undefined;
     for (let seed = 1n; run === undefined; seed++) {
-      const candidate = localRaceRun(bridge, "oval", boxesUnderTheGrid(1), {
+      const candidate = localRaceRun(bridge, "oval", boxesUnderTheGrid(1), "basic", {
         seed,
         humanCount: 1,
         localKart: 0,

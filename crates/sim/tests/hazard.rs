@@ -11,7 +11,7 @@ mod common;
 use common::{brake, landed, oval_with_boxes_under, started, tap, throttle, ticks, DT};
 
 use sim::tuning::{HAZARD_DROP_DISTANCE_M, HAZARD_LIFETIME_S, KART_HALF_LENGTH_M, SPIN_OUT_S};
-use sim::{step, Item, ItemSlot, KartInput, RaceEvent, State};
+use sim::{step, BotLevel, Item, ItemSlot, KartInput, RaceEvent, State};
 
 /// A race of `humans` karts, every one on a box under its slot, with a
 /// hazard rolled at Go landed in the slot of kart `holder`: the seeds
@@ -299,7 +299,13 @@ fn a_bot_drops_a_held_hazard_within_the_tuned_time() {
     // straight ahead and trails it for the tuned time before dropping it.
     let mut state = (0..)
         .map(|seed| {
-            let state = started(State::with_bots(seed, 0, 1, oval_with_boxes_under(0..1)));
+            let state = started(State::with_bots(
+                seed,
+                0,
+                1,
+                oval_with_boxes_under(0..1),
+                BotLevel::Basic,
+            ));
             step(state, &[], DT)
         })
         .find(|state| {

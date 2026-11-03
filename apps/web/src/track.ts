@@ -9,6 +9,8 @@ import monarchSidecar from "../../../assets/tracks/monarch/monarch.track.json?ur
 import ovalGltf from "../../../assets/tracks/oval/oval.glb?url";
 import ovalSidecar from "../../../assets/tracks/oval/oval.track.json?url";
 
+import type { BotLevel } from "./generated/sim";
+
 export type TrackName = "bell-deer" | "goldstone" | "monarch" | "oval";
 
 /** A point in the world's metres: x, y up, z. */
@@ -104,6 +106,58 @@ export function saveCoursePick(storage: Storage, course: Course): void {
   } catch {
     // A private window or a full store; the next visit loads what was saved before.
   }
+}
+
+/** A bot level as the Title Scene offers it: its caption and the line describing the pick. */
+export interface BotLevelChoice {
+  readonly level: BotLevel;
+  readonly name: string;
+  /** How the bots drive at this level, in the course blurb's voice, after "Name: ". */
+  readonly blurb: string;
+}
+
+/** The three levels in the Title Scene's order, Basic first (ADR 0078). */
+export const BOT_LEVELS: readonly BotLevelChoice[] = [
+  { level: "basic", name: "Basic", blurb: "lift for corners, hold an item, wait for you" },
+  { level: "pro", name: "Pro", blurb: "carry speed, fire sooner, wait less" },
+  { level: "ace", name: "Ace", blurb: "corner flat out, fire on sight, never wait for you" },
+];
+
+const DEFAULT_BOT_LEVEL: BotLevel = "basic";
+const BOT_LEVEL_STORAGE_KEY = "bots";
+
+export function isBotLevel(name: string): name is BotLevel {
+  return BOT_LEVELS.some((choice) => choice.level === name);
+}
+
+/** The bot level picked last time, kept beside the course pick; Basic when unsaved, unreadable or no level. */
+export function loadBotLevel(storage: Storage): BotLevel {
+  let saved: string | null = null;
+  try {
+    saved = storage.getItem(BOT_LEVEL_STORAGE_KEY);
+  } catch {
+    // Storage that refuses reads as nothing saved.
+  }
+  return saved !== null && isBotLevel(saved) ? saved : DEFAULT_BOT_LEVEL;
+}
+
+/** Remember the pick for the next visit; storage that refuses is let be. */
+export function saveBotLevel(storage: Storage, level: BotLevel): void {
+  try {
+    storage.setItem(BOT_LEVEL_STORAGE_KEY, level);
+  } catch {
+    // A private window or a full store; the next visit loads what was saved before.
+  }
+}
+
+/**
+ * The bot level the page's query string asks for (`?bots=ace`), so a smoke
+ * run can load any level into a solo race beside `?track=`; `undefined` for
+ * none or an unknown one.
+ */
+export function botLevelFromSearch(search: string): BotLevel | undefined {
+  const requested = new URLSearchParams(search).get("bots");
+  return requested !== null && isBotLevel(requested) ? requested : undefined;
 }
 
 /**

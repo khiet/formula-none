@@ -8,6 +8,7 @@ import { COURSES, type WorldPoint } from "./track";
 const ROOM: Room = {
   code: "BXQF",
   track: "goldstone",
+  botLevel: "pro",
   state: "open",
   players: [
     { slot: 0, nickname: "khiet", livery: 0, state: "unready", creator: true },
@@ -105,6 +106,13 @@ describe("Room Scene", () => {
       [`${Math.round(numbers.straightM)} m`, "Straight"],
     ]);
     // Read-only: nothing on the card picks a course.
+    expect(card?.querySelector("input, button")).toBeNull();
+  });
+
+  it("says the room's bot level under the course card, read-only", () => {
+    const { container } = scene(2);
+    const card = container.querySelector("[data-room-course]");
+    expect(card?.querySelector("[data-room-bots]")?.textContent).toBe("Bots: Pro");
     expect(card?.querySelector("input, button")).toBeNull();
   });
 

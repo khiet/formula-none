@@ -13,7 +13,7 @@ use sim::tuning::{
     START_FULL_BOOST_HOLD_S, START_STALL_HOLD_S, START_STALL_S, START_THROTTLE_HELD,
     START_WEAK_BOOST_FACTOR, START_WEAK_BOOST_HOLD_S, START_WEAK_BOOST_S, TOP_SPEED_M_PER_S,
 };
-use sim::{step, ItemSlot, KartInput, MiniTurbo, Phase, RaceEvent, Start, State};
+use sim::{step, BotLevel, ItemSlot, KartInput, MiniTurbo, Phase, RaceEvent, Start, State};
 
 fn race(kart_count: usize) -> State {
     State::new(SEED, kart_count, oval())
@@ -83,7 +83,7 @@ fn started(state: State) -> State {
 #[test]
 fn the_karts_wait_on_the_grid_in_slot_order_through_the_countdown_then_go() {
     // Bots drive themselves, so the countdown must hold them too.
-    let mut state = State::with_bots(SEED, 1, 2, oval());
+    let mut state = State::with_bots(SEED, 1, 2, oval(), BotLevel::Basic);
     assert_eq!(
         state.phase(),
         Phase::Countdown {
@@ -389,7 +389,13 @@ fn humans_ahead_of_two_bots(behind_m: f32) -> State {
         ];
         sidecar = common::with_slot_at(&sidecar, slot, position, yaw);
     }
-    started(State::with_bots(SEED, 2, 2, common::track(&sidecar)))
+    started(State::with_bots(
+        SEED,
+        2,
+        2,
+        common::track(&sidecar),
+        BotLevel::Basic,
+    ))
 }
 
 fn positions(state: &State) -> Vec<u32> {
@@ -447,7 +453,7 @@ fn a_lone_kart_finishing_its_laps_ends_the_race_at_once_and_the_outro_runs_down(
 #[test]
 fn the_race_stays_on_while_a_human_races_whatever_the_bots_have_done() {
     // Pole and both bots lap; the other human never leaves the grid.
-    let state = started(State::with_bots(SEED, 2, 2, oval()));
+    let state = started(State::with_bots(SEED, 2, 2, oval(), BotLevel::Basic));
     let state = drive_until(state, &[follow_centreline, idle], 4.0 * LAP_S, |state| {
         [0, 2, 3].iter().all(|&kart| finished(state, kart))
     });

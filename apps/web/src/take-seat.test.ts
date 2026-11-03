@@ -23,6 +23,7 @@ function storage(initial: Record<string, string> = {}): Storage {
 const ROOM: Room = {
   code: "BXQF",
   track: "goldstone",
+  botLevel: "basic",
   state: "open",
   players: [
     { slot: 0, nickname: "khiet", livery: 0, state: "unready", creator: true },
@@ -132,13 +133,18 @@ describe("taking a seat in a room", () => {
       joined(TOKEN)(connection);
       // JSON carries the seed as a number here; the real codec gives a bigint.
       connection.receive({
-        countdown: { seed: 7 as unknown as bigint, track: "bell-deer", grid: [0, 1] },
+        countdown: {
+          seed: 7 as unknown as bigint,
+          track: "bell-deer",
+          botLevel: "basic",
+          grid: [0, 1],
+        },
       });
     });
     const seat = await takeSeat({ storage: store, codec: jsonCodec, ...reached }, REQUEST);
     expect(seat).toMatchObject({
       kind: "race",
-      countdown: { seed: 7n, track: "bell-deer", grid: [0, 1] },
+      countdown: { seed: 7n, track: "bell-deer", botLevel: "basic", grid: [0, 1] },
     });
   });
 });

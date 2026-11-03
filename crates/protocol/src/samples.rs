@@ -11,6 +11,7 @@ use crate::{
     ProjectileSnapshot, Refusal, Room, RoomState, ServerMessage, SlipstreamSnapshot, Snapshot,
     Start, PROTOCOL_VERSION,
 };
+use sim::BotLevel;
 
 /// Every [`ClientMessage`] variant once.
 pub fn client() -> Vec<ClientMessage> {
@@ -54,6 +55,7 @@ pub fn server() -> Vec<ServerMessage> {
         ServerMessage::Countdown {
             seed: 0x0123_4567_89ab_cdef,
             track: "bell-deer".to_owned(),
+            bot_level: BotLevel::Ace,
             grid: vec![0, 1],
         },
         ServerMessage::Snapshot(snapshot()),
@@ -97,11 +99,13 @@ pub fn input() -> Input {
     }
 }
 
-/// Two humans in an open room; the first is the creator and ready.
+/// Two humans in an open room racing Pro bots; the first is the creator
+/// and ready.
 pub fn room() -> Room {
     Room {
         code: "BXQF".to_owned(),
         track: "goldstone".to_owned(),
+        bot_level: BotLevel::Pro,
         state: RoomState::Open,
         players: vec![
             Player {

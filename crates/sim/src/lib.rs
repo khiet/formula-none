@@ -31,6 +31,7 @@ pub mod track;
 pub mod tuning;
 mod wheel;
 
+pub use bot::BotLevel;
 pub use interpolation::Interpolation;
 pub use prediction::Prediction;
 pub use replay::{Replay, ReplayError, Segment};
@@ -600,6 +601,9 @@ pub struct State {
     /// The first this many `karts` are humans'; fixed for the race, though
     /// a bot may drive one for a while (see [`State::hand_to_bot`]).
     humans: usize,
+    /// How hard the bots drive (ADR 0078). Fixed for the race, not part of
+    /// what a tick changes, so not hashed.
+    bot_level: BotLevel,
     physics: Physics,
     phase: Phase,
     /// What the last tick changed that the players are told about. Not
@@ -889,16 +893,16 @@ struct Physics {
     ccd: CCDSolver,
 }
 
+use tuning::BOT_RUBBER_BAND_RANGE_M;
 use tuning::{
     coin_factor, COINS_LOST_PER_SPIN_OUT, COIN_CAP, COIN_HALF_LENGTH_M, COIN_HALF_WIDTH_M,
     COIN_RESPAWN_S,
 };
 use tuning::{BOOST_PAD_FACTOR, RESPAWN_DELAY_S, WRONG_WAY_WARNING_S};
-use tuning::{BOT_RUBBER_BAND_MAX_FACTOR, BOT_RUBBER_BAND_MIN_FACTOR, BOT_RUBBER_BAND_RANGE_M};
 use tuning::{
-    BOT_START_BOOST_CHANCE, BOT_START_HOLD_S, COUNTDOWN_S, RACE_END_CAP_S, RACE_OUTRO_S,
-    START_BOOST_FACTOR, START_BOOST_S, START_FULL_BOOST_HOLD_S, START_STALL_HOLD_S, START_STALL_S,
-    START_THROTTLE_HELD, START_WEAK_BOOST_FACTOR, START_WEAK_BOOST_HOLD_S, START_WEAK_BOOST_S,
+    BOT_START_HOLD_S, COUNTDOWN_S, RACE_END_CAP_S, RACE_OUTRO_S, START_BOOST_FACTOR, START_BOOST_S,
+    START_FULL_BOOST_HOLD_S, START_STALL_HOLD_S, START_STALL_S, START_THROTTLE_HELD,
+    START_WEAK_BOOST_FACTOR, START_WEAK_BOOST_HOLD_S, START_WEAK_BOOST_S,
 };
 use tuning::{
     GRAVITY_M_PER_S2, GROUND_CONTACT_M, KART_EDGE_RADIUS_M, KART_HALF_HEIGHT_M, KART_HALF_LENGTH_M,
@@ -947,13 +951,14 @@ impl State {
     /// grid, in slot order, at the top of its countdown. `kart_count` must
     /// not exceed the track's spawn slots.
     pub fn new(seed: u64, kart_count: usize, track: Track) -> Self {
-        Self::with_bots(seed, kart_count, 0, track)
+        Self::with_bots(seed, kart_count, 0, track, BotLevel::Basic)
     }
 
     /// A fresh race on `track` with `humans` karts on the front of its spawn
-    /// grid and `bots` karts on the slots behind them, at the top of its
-    /// countdown. Together they must not exceed the track's spawn slots.
-    pub fn with_bots(seed: u64, humans: usize, bots: usize, track: Track) -> Self {
+    /// grid and `bots` karts on the slots behind them, driving at `level`,
+    /// at the top of its countdown. Together they must not exceed the
+    /// track's spawn slots.
+    pub fn with_bots(seed: u64, humans: usize, bots: usize, track: Track, level: BotLevel) -> Self {
         let kart_count = humans + bots;
         assert!(
             kart_count <= track.spawn_grid().len(),
@@ -961,14 +966,20 @@ impl State {
             kart_count,
             track.spawn_grid().len()
         );
-        Self::on_spawn_slots(seed, humans, 0..kart_count, track)
+        Self::on_spawn_slots(seed, humans, 0..kart_count, track, level)
     }
 
     /// A fresh race with one kart on each of `slots` of the spawn grid, in
-    /// order, the first `humans` of them human, at the top of its countdown.
-    /// Each bot kart's rocket start is rolled here, in slot order, so the
-    /// seed decides it.
-    fn on_spawn_slots(seed: u64, humans: usize, slots: Range<usize>, track: Track) -> Self {
+    /// order, the first `humans` of them human and the bots driving at
+    /// `level`, at the top of its countdown. Each bot kart's rocket start
+    /// is rolled here, in slot order, so the seed decides it.
+    fn on_spawn_slots(
+        seed: u64,
+        humans: usize,
+        slots: Range<usize>,
+        track: Track,
+        level: BotLevel,
+    ) -> Self {
         let mut rng = ChaCha8Rng::seed_from_u64(seed);
         let mut physics = Physics::new();
         let ground = physics.bodies.insert(RigidBodyBuilder::fixed().build());
@@ -1004,7 +1015,8 @@ impl State {
                     body,
                     &mut physics.bodies,
                 );
-                let bot_start_hold_s = if index >= humans && rolls_the_start_boost(&mut rng) {
+                let bot_start_hold_s = if index >= humans && rolls_the_start_boost(&mut rng, level)
+                {
                     BOT_START_HOLD_S
                 } else {
                     0.0
@@ -1045,6 +1057,7 @@ impl State {
             hazards: Vec::new(),
             projectiles: Vec::new(),
             final_positions: None,
+            bot_level: level,
             wakes_judged: true,
             track,
             karts,
@@ -1214,10 +1227,11 @@ impl State {
             .min_by(|a, b| a.abs().total_cmp(&b.abs()))
             .expect("a race with humans has a nearest one");
         let fraction = (ahead_of_nearest / BOT_RUBBER_BAND_RANGE_M).clamp(-1.0, 1.0);
+        let profile = self.bot_level.profile();
         if fraction > 0.0 {
-            1.0 - fraction * (1.0 - BOT_RUBBER_BAND_MIN_FACTOR)
+            1.0 - fraction * (1.0 - profile.rubber_band_min_factor)
         } else {
-            1.0 - fraction * (BOT_RUBBER_BAND_MAX_FACTOR - 1.0)
+            1.0 - fraction * (profile.rubber_band_max_factor - 1.0)
         }
     }
 
@@ -1474,14 +1488,15 @@ pub fn step(mut state: State, inputs: &[KartInput], dt: f32) -> State {
         let clock = state.phase;
         let seed = state.seed;
         let track = &state.track;
+        let profile = state.bot_level.profile();
         state
             .karts
             .iter_mut()
             .enumerate()
             .map(|(slot, kart)| match &mut kart.bot {
-                Some(memory) => {
-                    bot::drive(track, &readouts, &standings, clock, seed, slot, memory, dt)
-                }
+                Some(memory) => bot::drive(
+                    track, profile, &readouts, &standings, clock, seed, slot, memory, dt,
+                ),
                 None => inputs[slot],
             })
             .collect()
@@ -1983,9 +1998,12 @@ pub fn step(mut state: State, inputs: &[KartInput], dt: f32) -> State {
 }
 
 /// Whether a bot kart rolls the full boost, drawn on the race's RNG at the
-/// tuned chance.
-fn rolls_the_start_boost(rng: &mut ChaCha8Rng) -> bool {
-    (f64::from(rng.next_u32()) / f64::from(u32::MAX)) < f64::from(BOT_START_BOOST_CHANCE)
+/// level's chance. The draw is made at every level, so the RNG runs on the
+/// same from one seed whatever the level; a chance of one always rolls it.
+fn rolls_the_start_boost(rng: &mut ChaCha8Rng, level: BotLevel) -> bool {
+    let chance = level.profile().start_boost_chance;
+    let draw = f64::from(rng.next_u32()) / f64::from(u32::MAX);
+    chance >= 1.0 || draw < f64::from(chance)
 }
 
 /// Give `kart` what `start` earns at Go: a boost for its tuned time, or the

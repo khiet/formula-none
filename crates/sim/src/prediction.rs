@@ -58,6 +58,7 @@ use crate::tuning::{
     COUNTDOWN_S, KART_HALF_LENGTH_M, RACE_OUTRO_S, RECONCILIATION_BLEND_TICKS,
     RECONCILIATION_TOLERANCE_M, TICK_S,
 };
+use crate::BotLevel;
 use crate::{
     bot, clock_after, kart_collider, kart_groups, step, ItemSlot, Kart, KartInput, KartReadout,
     Phase, Slipstream, Standing, State, Surface, Track, Wheel,
@@ -171,7 +172,9 @@ impl Prediction {
             "kart {kart} but the track has {} spawn slots",
             track.spawn_grid().len()
         );
-        let mut state = State::on_spawn_slots(seed, 1, kart..kart + 1, track);
+        // A prediction's race holds the own kart alone, so no bot drives
+        // in it and the level is moot.
+        let mut state = State::on_spawn_slots(seed, 1, kart..kart + 1, track, BotLevel::Basic);
         // A box's roll is the server's: its RNG serves every kart's pickups
         // in the order they happen, which this race of one cannot follow.
         // So the boxes are never here to pick up, and the slot holds only

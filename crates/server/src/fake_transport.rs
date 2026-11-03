@@ -26,6 +26,7 @@ use crate::room::Started;
 use crate::rooms::Rooms;
 use crate::session::{self, Channels};
 use crate::Shutdown;
+use sim::BotLevel;
 
 /// What the fake network does to every message, in each direction.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -126,10 +127,16 @@ impl Harness {
         self.captured.text()
     }
 
-    /// What `POST /api/rooms` does: a new room's code.
+    /// What `POST /api/rooms` does: a new room's code, its bots at Basic.
     pub fn create_room(&self) -> String {
+        self.create_room_at(BotLevel::Basic)
+    }
+
+    /// What `POST /api/rooms` with a `botLevel` does: a new room's code,
+    /// its bots at `bot_level`.
+    pub fn create_room_at(&self, bot_level: BotLevel) -> String {
         self.rooms
-            .create()
+            .create_with(None, bot_level, None)
             .expect("the harness stays under the cap")
     }
 
@@ -341,7 +348,17 @@ impl Client {
     /// started.
     pub async fn next_countdown(&mut self) -> Option<Started> {
         self.next_where(|message| match message {
-            ServerMessage::Countdown { seed, track, grid } => Some(Started { seed, track, grid }),
+            ServerMessage::Countdown {
+                seed,
+                track,
+                bot_level,
+                grid,
+            } => Some(Started {
+                seed,
+                track,
+                bot_level,
+                grid,
+            }),
             _ => None,
         })
         .await

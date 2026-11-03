@@ -1,9 +1,13 @@
 import { describe, expect, it } from "vitest";
 import {
+  BOT_LEVELS,
+  botLevelFromSearch,
   COURSES,
   centrelineOf,
   DEFAULT_TRACK,
+  loadBotLevel,
   loadCoursePick,
+  saveBotLevel,
   saveCoursePick,
   selectTrack,
   TRACKS,
@@ -109,5 +113,38 @@ describe("the remembered course", () => {
     const blocked = storage(true);
     expect(loadCoursePick(blocked).track).toBe("bell-deer");
     expect(() => saveCoursePick(blocked, loadCoursePick(blocked))).not.toThrow();
+  });
+});
+
+describe("the remembered bot level", () => {
+  it("is Basic until saved, then what was saved", () => {
+    const store = storage();
+    expect(loadBotLevel(store)).toBe("basic");
+    saveBotLevel(store, "ace");
+    expect(loadBotLevel(store)).toBe("ace");
+  });
+
+  it("falls back to Basic for a saved level that is none, and for storage that refuses", () => {
+    const store = storage();
+    store.setItem("bots", "wild");
+    expect(loadBotLevel(store)).toBe("basic");
+    const blocked = storage(true);
+    expect(loadBotLevel(blocked)).toBe("basic");
+    expect(() => saveBotLevel(blocked, "pro")).not.toThrow();
+  });
+
+  it("describes every level in order, Basic first, for the Title Scene's row", () => {
+    expect(BOT_LEVELS.map((level) => level.level)).toEqual(["basic", "pro", "ace"]);
+    expect(BOT_LEVELS.map((level) => level.name)).toEqual(["Basic", "Pro", "Ace"]);
+    for (const level of BOT_LEVELS) expect(level.blurb).toMatch(/\S/);
+  });
+});
+
+describe("bot level from the query string", () => {
+  it("reads ?bots= for a solo race and ignores anything else", () => {
+    expect(botLevelFromSearch("?bots=ace")).toBe("ace");
+    expect(botLevelFromSearch("?track=oval&bots=pro")).toBe("pro");
+    expect(botLevelFromSearch("?bots=wild")).toBeUndefined();
+    expect(botLevelFromSearch("")).toBeUndefined();
   });
 });

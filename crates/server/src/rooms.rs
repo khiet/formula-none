@@ -39,6 +39,7 @@ use crate::metrics::Metrics;
 use crate::race::{Race, TICK_S};
 use crate::room::{HostedRoom, Left, Started};
 use crate::{tracks, Shutdown};
+use sim::BotLevel;
 
 /// Every room on this server. Cheap to clone; every clone is the same
 /// registry.
@@ -335,12 +336,13 @@ impl Rooms {
     /// Open a room on the registry's own track for no particular address,
     /// as [`Self::create_with`] does.
     pub fn create(&self) -> Result<String, CreateRefused> {
-        self.create_with(None, None)
+        self.create_with(None, BotLevel::Basic, None)
     }
 
     /// Open a room racing `track`, one of [`crate::tracks`], or the
-    /// registry's own track when `None`, under a fresh code and hand the code
-    /// back; the HTTP create endpoint is this. The room starts empty, so its
+    /// registry's own track when `None`, against bots at `bot_level`, under
+    /// a fresh code and hand the code back; the HTTP create endpoint is
+    /// this. The room starts empty, so its
     /// closing clock is already running: a code nobody joins expires like one
     /// everybody left. Must run inside a tokio runtime, which spawns the
     /// room's task.
@@ -352,6 +354,7 @@ impl Rooms {
     pub fn create_with(
         &self,
         track: Option<&'static str>,
+        bot_level: BotLevel,
         address: Option<IpAddr>,
     ) -> Result<String, CreateRefused> {
         let track = track.unwrap_or(self.track);
@@ -363,11 +366,12 @@ impl Rooms {
                 break code;
             }
         };
-        let room = HostedRoom::on_track(code.clone(), track);
+        let room = HostedRoom::on_track(code.clone(), track, bot_level);
         self.log
             .event("room_created")
             .room(&code)
             .with("track", track)
+            .with("bot_level", bot_level.name())
             .emit();
         self.spawn(&mut registry, room, false);
         Ok(code)
@@ -853,8 +857,8 @@ async fn run(
                             let id = connections.next().expect("connection ids never run out");
                             let countdown = running.as_mut().map(|running| {
                                 running.race.hand_back(slot);
-                                let Started { seed, track, grid } = running.started.clone();
-                                ServerMessage::Countdown { seed, track, grid }
+                                let Started { seed, track, bot_level, grid } = running.started.clone();
+                                ServerMessage::Countdown { seed, track, bot_level, grid }
                             });
                             let connection = Connection::new(id, outbound);
                             let new = connection.outbound.clone();
@@ -904,12 +908,14 @@ async fn run(
                                     .slot(slot)
                                     .with("seed", started.seed)
                                     .with("track", &started.track)
+                                    .with("bot_level", started.bot_level.name())
                                     .with("grid", &started.grid)
                                     .emit();
                                 running = Some(Running::start(
                                     Race::new(
                                         started.seed,
                                         track,
+                                        started.bot_level,
                                         started.grid.clone(),
                                         room.next_event_id(),
                                     ),
@@ -920,6 +926,7 @@ async fn run(
                                     &ServerMessage::Countdown {
                                         seed: started.seed,
                                         track: started.track,
+                                        bot_level: started.bot_level,
                                         grid: started.grid,
                                     },
                                     None,

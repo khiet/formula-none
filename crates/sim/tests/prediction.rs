@@ -22,7 +22,9 @@ use sim::tuning::{
     RECONCILIATION_VISIBLE_CORRECTION_M, SNAPSHOTS_PER_SECOND, START_FULL_BOOST_HOLD_S,
     TICKS_PER_SECOND, TOP_SPEED_M_PER_S,
 };
-use sim::{step, ItemSlot, KartInput, KartReadout, Phase, Prediction, Start, State, Track};
+use sim::{
+    step, BotLevel, ItemSlot, KartInput, KartReadout, Phase, Prediction, Start, State, Track,
+};
 
 const TICKS_PER_SNAPSHOT: u32 = TICKS_PER_SECOND / SNAPSHOTS_PER_SECOND;
 /// 100 ms round trip at the tick rate, split evenly.
@@ -83,6 +85,7 @@ fn race_on(track: Track, ticks: u32, lost: impl Fn(u32) -> bool) -> Run {
         |prediction, _| {
             let mut input = bot::drive(
                 prediction.track(),
+                BotLevel::Basic.profile(),
                 &[prediction.kart_readout()],
                 &[prediction.standing()],
                 prediction.phase(),
@@ -714,6 +717,7 @@ fn a_finished_kart_is_predicted_driven_by_its_bot_not_by_the_players_inputs() {
             }
             bot::drive(
                 prediction.track(),
+                BotLevel::Basic.profile(),
                 &[prediction.kart_readout()],
                 &[prediction.standing()],
                 prediction.phase(),
