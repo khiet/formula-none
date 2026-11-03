@@ -106,7 +106,7 @@ impl Memory {
 /// The input the bot in `slot` gives its kart this tick, from the track,
 /// every kart's readouts and the race clock as of the last tick, and the
 /// race's seed, which decides the runaway wheel's path, updating what it
-/// remembers. `profile` is the race's bot level's, how hard it drives.
+/// remembers. `profile`, the race's bot level's, sets how hard it drives.
 // Each argument is a separate thing any observer of the race can read.
 #[allow(clippy::too_many_arguments)]
 pub fn drive(

@@ -28,8 +28,8 @@ export const SOLO_RACE: RaceSetup = { seed: 1n, humanCount: 1, localKart: 0 };
  * A race whose rules run in this browser: the sim built from `setup` on the
  * track `sidecar` describes, the local kart driven by the Scene's input and
  * the other humans' karts held idle, with bots at `botLevel` on the rest of
- * the grid, and every tick recorded as a replay. Throws when the local kart is not one of
- * the humans.
+ * the grid, and every tick recorded as a replay. Throws when the local kart
+ * is not one of the humans.
  */
 export function localRaceRun(
   bridge: Bridge,

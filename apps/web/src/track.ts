@@ -96,12 +96,12 @@ function remembered(storage: Storage, key: string): string | null {
   }
 }
 
-/** Remember `value` under `key` for the next visit; storage that refuses, a private window or a full store, is let be, and the next visit loads what was saved before. */
+/** Remember `value` under `key` for the next visit; storage that refuses, a private window or a full store, is let be. */
 function remember(storage: Storage, key: string, value: string): void {
   try {
     storage.setItem(key, value);
   } catch {
-    // Let be.
+    // The next visit loads what was saved before.
   }
 }
 

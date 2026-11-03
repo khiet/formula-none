@@ -342,10 +342,9 @@ impl Rooms {
     /// Open a room racing `track`, one of [`crate::tracks`], or the
     /// registry's own track when `None`, against bots at `bot_level`, under
     /// a fresh code and hand the code back; the HTTP create endpoint is
-    /// this. The room starts empty, so its
-    /// closing clock is already running: a code nobody joins expires like one
-    /// everybody left. Must run inside a tokio runtime, which spawns the
-    /// room's task.
+    /// this. The room starts empty, so its closing clock is already running:
+    /// a code nobody joins expires like one everybody left. Must run inside
+    /// a tokio runtime, which spawns the room's task.
     ///
     /// `address` is who is asking, counted against the per-address limit;
     /// `None` is a caller inside the server's network, which only the cap
