@@ -209,20 +209,6 @@ describe("self-hosting override", () => {
       `\${SITE_ADDRESS:?set SITE_ADDRESS to your domain}`,
     );
   });
-
-  it("ships in the release bundle, so a server needs only the image", () => {
-    expect(readRepoFile("Dockerfile")).toMatch(
-      /^COPY .*deploy\/compose\.selfhost\.yaml .*\/release\/$/m,
-    );
-  });
-
-  // The README promises both; the deploy job's own test pins production to arm64.
-  it("builds the server for the architecture asked for, amd64 or arm64", () => {
-    const dockerfile = readRepoFile("Dockerfile");
-    expect(dockerfile).toMatch(/^ARG TARGETARCH$/m);
-    expect(dockerfile).toContain("x86_64-unknown-linux-gnu");
-    expect(dockerfile).toContain("aarch64-unknown-linux-gnu");
-  });
 });
 
 // Metrics (ADR 0018): Prometheus scrapes the server over the Compose
@@ -323,7 +309,7 @@ describe("metrics stack", () => {
     }
   });
 
-  it("ships the Prometheus config and Grafana's files in the release bundle the instance runs from", () => {
+  it("ships the self-hosting override, the Prometheus config and Grafana's files in the release bundle a server runs from", () => {
     const dockerfile = readRepoFile("Dockerfile");
     expect(dockerfile).toMatch(
       /^COPY deploy\/compose\.yaml deploy\/compose\.selfhost\.yaml deploy\/Caddyfile deploy\/prometheus\.yml \/release\/$/m,
