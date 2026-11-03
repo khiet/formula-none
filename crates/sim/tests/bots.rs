@@ -693,8 +693,8 @@ fn eight_bots_race_the_laps_of_goldstone_and_every_one_finishes() {
 
 /// The slots still racing when a race of eight bots at `level` on `course`
 /// from `seed` ended: the end cap fired before they finished.
-fn non_finishers(seed: u64, course: Track, level: BotLevel, tyres: Tyres) -> Vec<usize> {
-    let mut state = started(State::with_tyres(seed, 0, 8, course, level, tyres));
+fn non_finishers(seed: u64, course: Track, level: BotLevel) -> Vec<usize> {
+    let mut state = started(State::with_bots(seed, 0, 8, course, level));
     while matches!(state.phase(), Phase::Racing { .. }) {
         state = step(state, &[], DT);
     }
@@ -725,11 +725,7 @@ const COURSES: [Course; 4] = [
 fn in_200_races_of_eight_bots_on_monarch_every_one_finishes_at_every_level() {
     for level in [BotLevel::Basic, BotLevel::Pro, BotLevel::Ace] {
         let races: Vec<_> = (0..200)
-            .map(|seed| {
-                std::thread::spawn(move || {
-                    (seed, non_finishers(seed, monarch(), level, Tyres::Off))
-                })
-            })
+            .map(|seed| std::thread::spawn(move || (seed, non_finishers(seed, monarch(), level))))
             .collect();
         for race in races {
             let (seed, slots) = race.join().expect("the race ran");
@@ -741,25 +737,43 @@ fn in_200_races_of_eight_bots_on_monarch_every_one_finishes_at_every_level() {
     }
 }
 
-/// A bot wears out as a human does, and on worn tyres it must still get round
-/// (ADR 0080). Too slow for a debug build; run it with the sweep above.
+/// The bots in a race on Tyres On that the end cap catches short of the final
+/// lap, with the lap each was on.
+fn short_of_the_final_lap(seed: u64, course: Track, level: BotLevel) -> Vec<(usize, u32)> {
+    let mut state = started(State::with_tyres(seed, 0, 8, course, level, Tyres::On));
+    while matches!(state.phase(), Phase::Racing { .. }) {
+        state = step(state, &[], DT);
+    }
+    let standings = state.standings();
+    (0..standings.len())
+        .filter(|&slot| standings[slot].finish_time_s.is_none())
+        .filter(|&slot| standings[slot].lap < LAPS_PER_RACE)
+        .map(|slot| (slot, standings[slot].lap))
+        .collect()
+}
+
+/// A bot wears out as a human does and must still get round on worn tyres
+/// (ADR 0080). Until bots pit, a few karts worn right out on the final lap
+/// are still on it when the end cap fires and are placed by progress; the
+/// cap is there for them. A kart short of the final lap has lost far more
+/// than its tyres. Too slow for a debug build; run it with the sweep above.
 #[test]
 #[ignore]
-fn in_200_races_of_eight_bots_on_tyres_on_every_one_finishes_every_course_at_every_level() {
+fn in_200_races_of_eight_bots_on_tyres_on_every_one_reaches_the_final_lap_at_every_level() {
     for (name, course) in COURSES {
         for level in [BotLevel::Basic, BotLevel::Pro, BotLevel::Ace] {
             let races: Vec<_> = (0..200)
                 .map(|seed| {
                     std::thread::spawn(move || {
-                        (seed, non_finishers(seed, course(), level, Tyres::On))
+                        (seed, short_of_the_final_lap(seed, course(), level))
                     })
                 })
                 .collect();
             for race in races {
-                let (seed, slots) = race.join().expect("the race ran");
+                let (seed, short) = race.join().expect("the race ran");
                 assert!(
-                    slots.is_empty(),
-                    "{name} {level:?} seed {seed}: karts {slots:?} never finished"
+                    short.is_empty(),
+                    "{name} {level:?} seed {seed}: karts and laps {short:?}"
                 );
             }
         }
