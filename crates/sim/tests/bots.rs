@@ -762,3 +762,47 @@ fn in_200_races_of_eight_bots_on_each_course_no_bot_is_ever_stuck() {
         }
     }
 }
+
+#[test]
+fn an_ace_bot_ahead_of_every_human_is_never_slowed_and_is_still_hurried_from_behind() {
+    // The same start as the Basic band's test: the bot over 100 m behind
+    // the idle human, passing it and running over 100 m ahead.
+    let mut state = started(State::with_bots(
+        SEED,
+        1,
+        1,
+        oval_with_slot_1_on_the_back_straight_and_no_boost_pads(),
+        BotLevel::Ace,
+    ));
+    assert_eq!(
+        state.rubber_band(1),
+        BOT_RUBBER_BAND_MAX_FACTOR,
+        "far behind at the start the band is the same at every level"
+    );
+    let mut least = f32::MAX;
+    let mut passed = false;
+    for _ in 0..ticks(LAP_S) {
+        state = step(state, &[KartInput::default()], DT);
+        least = least.min(state.rubber_band(1));
+        passed |= state.standings()[1].position == 1;
+    }
+    assert!(passed, "the bot passed the human");
+    assert_eq!(
+        least, 1.0,
+        "ahead of the human an Ace bot runs at full speed"
+    );
+}
+
+#[test]
+fn ace_bots_always_roll_the_full_boost_at_go() {
+    use sim::Start;
+    for seed in 0..4 {
+        let state = started(State::with_bots(seed, 0, 7, oval(), BotLevel::Ace));
+        let verdicts: Vec<Start> = state
+            .kart_readouts()
+            .iter()
+            .map(|kart| kart.start)
+            .collect();
+        assert_eq!(verdicts, vec![Start::FullBoost; 7], "seed {seed}");
+    }
+}

@@ -410,3 +410,20 @@ fn a_race_at_an_unknown_bot_level_is_an_error_not_basic() {
     assert!(error.contains("wild"), "{error}");
     assert!(Race::new(7, 1, 1, OVAL, "ace").is_ok());
 }
+
+#[test]
+fn the_bot_level_reaches_the_race_so_ace_bots_drive_another_race_than_basic_ones() {
+    let mut basic = Race::new(7, 1, 1, OVAL, "basic").expect("the karts fit the oval");
+    let mut ace = Race::new(7, 1, 1, OVAL, "ace").expect("the karts fit the oval");
+    assert_eq!(
+        basic.state_hash(),
+        ace.state_hash(),
+        "the level is not hashed"
+    );
+    // Ten seconds: well past Go, where the levels' bots part.
+    for _ in 0..600 {
+        basic.step(&[0.0; FLOATS_PER_INPUT], DT);
+        ace.step(&[0.0; FLOATS_PER_INPUT], DT);
+    }
+    assert_ne!(basic.state_hash(), ace.state_hash());
+}
