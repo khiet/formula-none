@@ -706,8 +706,9 @@ fn non_finishers(seed: u64, course: Track, level: BotLevel) -> Vec<usize> {
 
 /// A kart that hits Monarch's close walls at boost speed can fly over one
 /// and land back inside; a checkpoint it passes in the air still has to
-/// count, or its lap never does. Too slow for a debug build; run it with
-/// `cargo test --release -p sim --test bots -- --ignored` (about a minute).
+/// count, or it ends the race a lap short. Too slow for a debug build; run it
+/// with `cargo test --release -p sim --test bots -- --ignored` (a few minutes,
+/// with the stuck sweep).
 #[test]
 #[ignore]
 fn in_200_races_of_eight_bots_on_monarch_every_one_finishes_at_every_level() {
