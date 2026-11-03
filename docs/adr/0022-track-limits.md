@@ -3,7 +3,9 @@
 ## Status
 
 Accepted (2026-10-24). That the respawn covers the edge of the world only is
-superseded by ADR 0063: a kart behind a wall respawns too.
+superseded by ADR 0063: a kart behind a wall respawns too. That a checkpoint
+spans the run-off from wall to wall is superseded by ADR 0079: it reaches the
+walls' outer faces.
 
 ## Context
 
