@@ -71,7 +71,7 @@ class Walls(unittest.TestCase):
 
 
 class Checkpoints(unittest.TestCase):
-    def test_checkpoints_are_evenly_spaced_from_the_start_line_and_reach_past_both_walls(self) -> None:
+    def test_checkpoints_are_evenly_spaced_from_the_start_line_and_reach_both_walls_outer_faces(self) -> None:
         for name in NAMES:
             layout = load(name)
             path = layout.path

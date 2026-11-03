@@ -125,7 +125,8 @@ An ordered gate on the track used for lap counting and wrong-way detection.
 Spaced evenly round the lap, twelve on the oval and fifteen on Bell Deer,
 Goldstone and Monarch,
 each reaching the
-walls' outer faces, so a kart between the walls or in the air over one crosses every one in order (ADR 0079).
+walls' outer faces, so a kart between the walls or in the air over one crosses
+every one in order (ADR 0079).
 A kart that leaves the world, or ends up behind a wall, respawns at its
 last checkpoint facing the next one (ADR 0063); a kart that misses a checkpoint is not respawned and drives back
 through it (ADR 0022).

@@ -31,10 +31,14 @@ place on the lap.
 
 ## Consequences
 
-- In 600 seeds at each bot level on Monarch no kart is left unfinished by a
-  missed checkpoint; two were at Ace and at least one at Basic before.
+- In 600 seeds at each bot level on Monarch, run once by hand, no kart is left
+  unfinished; before, one was at Basic and two at Ace. The sweep the repo keeps
+  runs 200 seeds at each level.
+- A kart that flies further out than the outer face and lands back inside can
+  still miss a checkpoint and lose the lap; none did in those seeds.
 - A kart cannot gain from the extra half metre: a checkpoint still counts
   only as the next in order, and the walls still close every cut.
-- The sidecars change in `half_width` only; the glTFs do not. Bell Deer and
-  Goldstone have 6 m of sand that slows a kart before a wall, so nothing
-  changes for them in practice.
+- The sidecars change in `half_width` only; the glTFs do not. The oval, Bell
+  Deer and Goldstone have wider run-off that slows a kart before a wall, and
+  600 seeds at each level of Bell Deer and Goldstone left the same karts
+  unfinished at the wider reach.
