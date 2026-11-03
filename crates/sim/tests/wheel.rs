@@ -16,7 +16,9 @@ use sim::tuning::{
 };
 use std::sync::OnceLock;
 
-use sim::{step, wheel, KartInput, Phase, Prediction, RaceEvent, State, Wheel, WheelCrossing};
+use sim::{
+    step, wheel, BotLevel, KartInput, Phase, Prediction, RaceEvent, State, Wheel, WheelCrossing,
+};
 
 /// Bell Deer's crossing, loaded once: the helpers below ask for it at
 /// every sample of the wheel.
@@ -526,7 +528,7 @@ fn a_prediction_beside_the_servers_race_reports_the_wheels_spin_out_on_the_same_
     let [right, ahead] = on_the_middle_leg();
     let sidecar = with_slot_at(BELL_DEER, 0, on_crossing(ahead, right), crossing().yaw);
     let mut server = State::new(SEED, 1, track(&sidecar));
-    let mut prediction = Prediction::new(SEED, 0, track(&sidecar));
+    let mut prediction = Prediction::new(SEED, 0, track(&sidecar), BotLevel::Basic);
     // A client a few ticks ahead of the server, whose snapshots reach it a
     // few ticks late: the prediction steps each server tick's input before
     // the server does, and reconciles with each snapshot when it lands.
@@ -592,7 +594,7 @@ fn a_bot_standing_short_of_the_crossing_at_go_sets_off_and_clears_it_before_the_
     // the deck above it.
     let start = on_crossing(-16.0, BOT_LINE_RIGHT_OF_CENTRE_M);
     let sidecar = with_slot_at(BELL_DEER, 0, start, crossing().yaw);
-    let mut state = started(State::with_bots(0, 0, 1, track(&sidecar)));
+    let mut state = started(State::with_bots(0, 0, 1, track(&sidecar), BotLevel::Basic));
     state = step(state, &[], DT);
     assert!(
         state.kart_readouts()[0].speed.abs() < 1.0,
@@ -626,7 +628,7 @@ fn a_bot_turning_through_the_hairpin_past_the_crossing_as_the_flag_goes_up_never
     let start = course.point_at(START_M);
     let [dx, dz] = course.direction_at(START_M);
     let sidecar = with_slot_at(&without_item_boxes(BELL_DEER), 0, start, (-dx).atan2(-dz));
-    let mut state = started(State::with_bots(0, 0, 1, track(&sidecar)));
+    let mut state = started(State::with_bots(0, 0, 1, track(&sidecar), BotLevel::Basic));
     let mut in_the_hairpin_s = None;
     while racing_s(&state) < pass_start_s(1) + WHEEL_PERIOD_S / 2.0 {
         state = step(state, &[], DT);
@@ -654,7 +656,7 @@ fn a_bot_turning_through_the_hairpin_past_the_crossing_as_the_flag_goes_up_never
 fn bots_race_past_the_wheel(seed: u64) {
     let track = bell_deer();
     assert_eq!(track.wheel_crossings().len(), 1, "the approach's crossing");
-    let mut state = started(State::with_bots(seed, 0, 8, track));
+    let mut state = started(State::with_bots(seed, 0, 8, track, BotLevel::Basic));
     // Ticks a bot spent short of the wheel's reach, within a crossing's
     // width, while the wheel rolled, so the bots were put to the test.
     let reach = WHEEL_LANDING_SPREAD_M + WHEEL_RADIUS_M + KART_HALF_LENGTH_M;
@@ -726,7 +728,7 @@ fn a_predicted_hit_the_snapshots_overrule_leaves_the_pass_free_to_hit_where_the_
     let length = (leg.to[0] - leg.from[0]).hypot(leg.to[1] - leg.from[1]);
     let further = 0.4 / length;
     let sidecar = with_slot_at(BELL_DEER, 0, on_crossing(ahead, right), crossing().yaw);
-    let mut prediction = Prediction::new(SEED, 0, track(&sidecar));
+    let mut prediction = Prediction::new(SEED, 0, track(&sidecar), BotLevel::Basic);
     let mut tick = 0;
     let idle = KartInput::default();
     while prediction.kart_readout().spin_out_s.is_none() {
@@ -764,7 +766,7 @@ fn a_prediction_told_the_race_has_ended_quiets_its_wheel_and_is_never_hit() {
     // first pass rolls toward it, and the client is told so.
     let [right, ahead] = on_the_middle_leg();
     let sidecar = with_slot_at(BELL_DEER, 0, on_crossing(ahead, right), crossing().yaw);
-    let mut prediction = Prediction::new(SEED, 0, track(&sidecar));
+    let mut prediction = Prediction::new(SEED, 0, track(&sidecar), BotLevel::Basic);
     let idle = KartInput::default();
     let mut tick = 0;
     let ends_s = pass_start_s(1) + 0.5;

@@ -4,7 +4,7 @@
 #![allow(dead_code)]
 
 use sim::tuning::{BOT_LOOKAHEAD_M, KART_BUMP_DECAY_S, TICKS_PER_SECOND};
-use sim::{step, Item, KartInput, KartReadout, Phase, RaceEvent, State, Track};
+use sim::{step, BotLevel, Item, KartInput, KartReadout, Phase, RaceEvent, State, Track};
 
 pub const OVAL: &str = include_str!("../../../../assets/tracks/oval/oval.track.json");
 pub const BELL_DEER: &str =
@@ -332,7 +332,13 @@ pub fn rolling(
     rolls: &[(usize, Item)],
 ) -> State {
     for seed in 0.. {
-        let state = started(State::with_bots(seed, humans, bots, build()));
+        let state = started(State::with_bots(
+            seed,
+            humans,
+            bots,
+            build(),
+            BotLevel::Basic,
+        ));
         let state = step(state, &vec![KartInput::default(); humans], DT);
         if rolls.iter().all(|&(slot, item)| rolled(&state, slot, item)) {
             return landed(state, humans, rolls.iter().map(|&(slot, _)| slot));

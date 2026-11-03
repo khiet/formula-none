@@ -10,7 +10,7 @@ mod common;
 use common::{landed, oval_with_boxes_under, started, tap, throttle, ticks, DT};
 
 use sim::tuning::{BOT_ITEM_USE_DELAY_S, HOMING_SPEED_FACTOR, SPIN_OUT_S, TOP_SPEED_M_PER_S};
-use sim::{step, Item, ItemSlot, KartInput, RaceEvent, State};
+use sim::{step, BotLevel, Item, ItemSlot, KartInput, RaceEvent, State};
 
 /// A race of `humans` karts and `bots` bots, each of `rolls` standing on a
 /// box under its slot and rolling the item named at Go, stepped on until
@@ -24,6 +24,7 @@ fn holding_with_bots(humans: usize, bots: usize, rolls: &[(usize, Item)]) -> Sta
             humans,
             bots,
             oval_with_boxes_under(rolls.iter().map(|&(slot, _)| slot)),
+            BotLevel::Basic,
         ));
         let even_start = state.kart_readouts()[humans..]
             .windows(2)

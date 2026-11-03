@@ -3,6 +3,7 @@ import { type CourseChoice, type CoursePreview, createCoursePreview } from "./co
 import type { Player, Room } from "./generated/protocol";
 import { livery } from "./livery";
 import { backdrop, kartSide } from "./poster";
+import { BOT_LEVELS } from "./track";
 
 export interface RoomScene {
   /** Show the room as it now stands. */
@@ -134,12 +135,23 @@ export function createRoomScene(
   header.append(heading, count);
   // The course is fixed for the room, so the card is drawn once; a track
   // no course is, the oval a test races, has no card.
+  // The bot level is fixed for the room too, so its line under the card is
+  // drawn once with it (ADR 0078).
   const choice = view.courses.find(({ course }) => course.track === view.room.track);
   let preview: CoursePreview | undefined;
+  let card: HTMLElement | undefined;
   if (choice !== undefined) {
     preview = createCoursePreview({ laps: view.laps, reducedMotion: view.reducedMotion });
-    preview.element.dataset.roomCourse = "";
     preview.show(choice);
+    const bots = document.createElement("p");
+    bots.className = "room-bots";
+    bots.dataset.roomBots = "";
+    const level = BOT_LEVELS.find((level) => level.level === view.room.botLevel);
+    bots.textContent = `Bots: ${level?.name ?? view.room.botLevel}`;
+    card = document.createElement("div");
+    card.className = "course";
+    card.dataset.roomCourse = "";
+    card.append(preview.element, bots);
   }
 
   const link = document.createElement("a");
@@ -208,7 +220,7 @@ export function createRoomScene(
   buttons.className = "room-buttons";
   buttons.append(ready, start, leave);
   scene.append(...backdrop(), header, share, players, status, buttons);
-  if (preview !== undefined) scene.append(preview.element);
+  if (card !== undefined) scene.append(card);
   container.append(scene);
   return {
     update(room) {

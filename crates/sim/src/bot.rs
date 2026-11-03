@@ -4,22 +4,69 @@
 //! just a kart whose input comes from here instead of a device.
 
 use crate::tuning::{
-    coin_factor, ACCELERATION_TO_TOP_S, BOT_AVOID_HALF_WIDTH_M, BOT_BRAKE_HORIZON_S,
-    BOT_CORNER_SAMPLE_M, BOT_CORNER_SPEED_FRACTION, BOT_DRIFT_CURVATURE_RAD_PER_M,
-    BOT_HAZARD_HOLD_S, BOT_HOP_STEER, BOT_HORN_HOLD_S, BOT_ITEM_USE_DELAY_S, BOT_KERB_APPROACH_M,
-    BOT_KERB_GAP_M, BOT_LINE_RIGHT_OF_CENTRE_M, BOT_LOOKAHEAD_M, BOT_PASS_GAP_M, BOT_REVERSE_S,
-    BOT_STALL_S, BOT_STALL_SPEED_M_PER_S, BOT_WHEEL_MARGIN_S, BOT_WHEEL_SET_OFF_FRACTION,
-    BRAKE_TO_STOP_S, DRIFT_SLIP_ANGLE_RAD, DRIFT_TURN_NEUTRAL, DRIFT_TURN_STEER_RANGE,
-    ITEM_BOOST_FACTOR, KART_HALF_LENGTH_M, KART_HALF_WIDTH_M, KERB_HALF_LENGTH_M,
-    KERB_HALF_WIDTH_M, REVERSE_TOP_SPEED_M_PER_S, STEER_RATE_LOW_SPEED_RAD_PER_S,
-    STEER_RATE_TOP_SPEED_RAD_PER_S, TOP_SPEED_M_PER_S, WHEEL_LANDING_SPREAD_M, WHEEL_RADIUS_M,
-    WHEEL_WARNING_S,
+    coin_factor, BotProfile, ACCELERATION_TO_TOP_S, BOT_AVOID_HALF_WIDTH_M, BOT_BRAKE_HORIZON_S,
+    BOT_CORNER_SAMPLE_M, BOT_DRIFT_CURVATURE_RAD_PER_M, BOT_HAZARD_HOLD_S, BOT_HOP_STEER,
+    BOT_HORN_HOLD_S, BOT_KERB_APPROACH_M, BOT_KERB_GAP_M, BOT_LEVELS, BOT_LINE_RIGHT_OF_CENTRE_M,
+    BOT_LOOKAHEAD_M, BOT_PASS_GAP_M, BOT_REVERSE_S, BOT_STALL_S, BOT_STALL_SPEED_M_PER_S,
+    BOT_WHEEL_MARGIN_S, BOT_WHEEL_SET_OFF_FRACTION, BRAKE_TO_STOP_S, DRIFT_SLIP_ANGLE_RAD,
+    DRIFT_TURN_NEUTRAL, DRIFT_TURN_STEER_RANGE, ITEM_BOOST_FACTOR, KART_HALF_LENGTH_M,
+    KART_HALF_WIDTH_M, KERB_HALF_LENGTH_M, KERB_HALF_WIDTH_M, REVERSE_TOP_SPEED_M_PER_S,
+    STEER_RATE_LOW_SPEED_RAD_PER_S, STEER_RATE_TOP_SPEED_RAD_PER_S, TOP_SPEED_M_PER_S,
+    WHEEL_LANDING_SPREAD_M, WHEEL_RADIUS_M, WHEEL_WARNING_S,
 };
 use crate::wheel::{pass_not_over, pass_start_s, Path};
 use crate::{
     DriftDirection, HornBlast, Item, KartInput, KartReadout, Phase, Placement, Standing, Track,
 };
 use rapier3d::prelude::{Rotation, Vec3};
+use serde::{Deserialize, Serialize};
+use ts_rs::TS;
+
+/// How hard a race's bots drive (ADR 0078): the creator's pick, fixed for
+/// the room as its course is, and carried by a replay. Basic is the bots
+/// as they were before there was a pick; the levels above it read the
+/// profile of the same name in [`BOT_LEVELS`]. Ace above Pro is the racing
+/// sense: a pro drives for a living, an ace wins.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize, TS)]
+#[serde(rename_all = "kebab-case")]
+pub enum BotLevel {
+    /// Lifts for corners, waits on an item, and the rubber band slows it
+    /// when it gets ahead of the humans.
+    #[default]
+    Basic,
+    /// Carries more speed through corners, uses an item sooner and waits
+    /// less for the humans.
+    Pro,
+    /// Corners as a human does, uses an item the moment it lands, always
+    /// rolls the full rocket start and never slows for a human behind it.
+    Ace,
+}
+
+impl BotLevel {
+    /// Every level, Basic first, in the order [`BOT_LEVELS`] is indexed.
+    pub const ALL: [Self; 3] = [Self::Basic, Self::Pro, Self::Ace];
+
+    /// The constants the bots read at this level.
+    pub fn profile(self) -> &'static BotProfile {
+        &BOT_LEVELS[self as usize]
+    }
+
+    /// The level as the wire spells it: `basic`, `pro` or `ace`.
+    pub fn name(self) -> &'static str {
+        match self {
+            Self::Basic => "basic",
+            Self::Pro => "pro",
+            Self::Ace => "ace",
+        }
+    }
+
+    /// The level spelled `name` on the wire, or `None` for any other
+    /// spelling, so a caller that takes the level as text refuses an
+    /// unknown one rather than racing Basic.
+    pub fn from_name(name: &str) -> Option<Self> {
+        Self::ALL.into_iter().find(|level| level.name() == name)
+    }
+}
 
 /// What a bot carries from one tick to the next: how long it has been
 /// stalled, how long it still backs up, how long it has held its item and
@@ -59,11 +106,12 @@ impl Memory {
 /// The input the bot in `slot` gives its kart this tick, from the track,
 /// every kart's readouts and the race clock as of the last tick, and the
 /// race's seed, which decides the runaway wheel's path, updating what it
-/// remembers.
+/// remembers. `profile`, the race's bot level's, sets how hard it drives.
 // Each argument is a separate thing any observer of the race can read.
 #[allow(clippy::too_many_arguments)]
 pub fn drive(
     track: &Track,
+    profile: &BotProfile,
     karts: &[KartReadout],
     standings: &[Standing],
     clock: Phase,
@@ -74,7 +122,7 @@ pub fn drive(
 ) -> KartInput {
     let kart = &karts[slot];
     let progress = standings[slot].spline_progress;
-    let target_speed = corner_speed(sharpest_ahead(track, progress, kart.speed));
+    let target_speed = corner_speed(profile, sharpest_ahead(track, progress, kart.speed));
     // On a star's run the wheel cannot hurt it and the karts in its way are
     // its targets, so it neither waits nor steers round anyone.
     let starring = kart.star_s.is_some();
@@ -227,7 +275,7 @@ pub fn drive(
             memory.item_held_s += dt;
             has_target
                 && !boost_meets_a_wheel
-                && ((!corner && brake == 0.0) || memory.item_held_s >= BOT_ITEM_USE_DELAY_S)
+                && ((!corner && brake == 0.0) || memory.item_held_s >= profile.item_use_delay_s)
         }
         None => {
             memory.item_held_s = 0.0;
@@ -516,18 +564,19 @@ fn sharpest_ahead(track: &Track, progress: f32, speed: f32) -> f32 {
         .fold(0.0, f32::max)
 }
 
-/// The speed a bot aims for through a turn of `curvature`: the tuned fraction
-/// of the fastest speed at which full lock still holds the turn's radius,
-/// given that the steer rate falls with speed. A straight asks for more than
-/// any top speed, banded or boosted, so the throttle stays open along it.
-fn corner_speed(curvature: f32) -> f32 {
+/// The speed a bot aims for through a turn of `curvature`: the profile's
+/// fraction of the fastest speed at which full lock still holds the turn's
+/// radius, given that the steer rate falls with speed. A straight asks for
+/// more than any top speed, banded or boosted, so the throttle stays open
+/// along it.
+fn corner_speed(profile: &BotProfile, curvature: f32) -> f32 {
     // Full lock turns a kart at speed v with radius v / rate(v), where
     // rate(v) = low + (top - low) * v / TOP; solving radius = 1 / curvature
     // for v gives the speed below.
     let rate_fall_per_m_per_s =
         (STEER_RATE_LOW_SPEED_RAD_PER_S - STEER_RATE_TOP_SPEED_RAD_PER_S) / TOP_SPEED_M_PER_S;
     let fastest = STEER_RATE_LOW_SPEED_RAD_PER_S / (curvature + rate_fall_per_m_per_s);
-    fastest * BOT_CORNER_SPEED_FRACTION
+    fastest * profile.corner_speed_fraction
 }
 
 /// Whether the kart, backing up from a stall at `clock`, could back into

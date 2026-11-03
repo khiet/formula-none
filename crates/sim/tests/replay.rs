@@ -9,7 +9,9 @@ mod common;
 use common::{landed, oval, started, track, with_boxes_under, without_item_boxes, DT, OVAL};
 
 use sim::tuning::{KART_HALF_LENGTH_M, REPLAY_HASH_INTERVAL_TICKS};
-use sim::{step, KartInput, MiniTurbo, Phase, RaceEvent, Replay, Segment, State, Surface, Track};
+use sim::{
+    step, BotLevel, KartInput, MiniTurbo, Phase, RaceEvent, Replay, Segment, State, Surface, Track,
+};
 
 fn race(seed: u64, kart_count: usize) -> State {
     State::new(seed, kart_count, oval())
@@ -286,6 +288,7 @@ fn replay_of(track: &str, segments: Vec<Segment>) -> Replay {
         seed: 7,
         track: track.to_owned(),
         bots: 0,
+        level: BotLevel::Basic,
         segments,
         hashes: Vec::new(),
     }
@@ -370,9 +373,10 @@ fn every_committed_fixture_replays_to_the_hashes_it_was_recorded_with() {
 /// that only drives up a straight would pass on a sim with most of its
 /// rules broken.
 #[test]
-fn the_fixture_set_exercises_kart_contact_off_track_walls_every_track_both_mini_turbos_a_rocket_start_a_stall_the_kerb_the_wheel_and_coins(
+fn the_fixture_set_exercises_kart_contact_off_track_walls_every_track_both_mini_turbos_a_rocket_start_a_stall_the_kerb_the_wheel_coins_and_ace_bots(
 ) {
     let mut tracks = std::collections::BTreeSet::new();
+    let mut levels = std::collections::BTreeSet::new();
     let mut surfaces = std::collections::HashSet::new();
     let mut closest_karts = f32::MAX;
     let mut held_by_a_wall = false;
@@ -387,6 +391,7 @@ fn the_fixture_set_exercises_kart_contact_off_track_walls_every_track_both_mini_
     let mut towed = false;
     for (_, replay) in fixtures() {
         tracks.insert(replay.track.clone());
+        levels.insert(replay.level.name());
         let mut state = State::new(replay.seed, replay.human_count(), sidecar(&replay.track));
         for segment in &replay.segments {
             for _ in 0..segment.ticks {
@@ -449,6 +454,10 @@ fn the_fixture_set_exercises_kart_contact_off_track_walls_every_track_both_mini_
             .into(),
         "every track"
     );
+    assert!(
+        levels.contains("ace"),
+        "no fixture races Ace bots, so a retune of Ace could pass the gate: {levels:?}"
+    );
     for surface in [Surface::Asphalt, Surface::Sand] {
         assert!(
             surfaces.contains(&surface),
@@ -488,6 +497,7 @@ fn a_replay_with_bots_reruns_them_from_the_seed_and_carries_their_count() {
         seed: 7,
         track: "oval".to_owned(),
         bots,
+        level: BotLevel::Basic,
         segments: vec![held(120, 1)],
         hashes: Vec::new(),
     }
@@ -502,7 +512,7 @@ fn a_replay_with_bots_reruns_them_from_the_seed_and_carries_their_count() {
     );
 
     let hashes = replay.run(oval()).expect("the replay runs with its bots");
-    let mut state = State::with_bots(7, 1, bots, oval());
+    let mut state = State::with_bots(7, 1, bots, oval(), BotLevel::Basic);
     let mut expected = Vec::new();
     for tick in 1..=120 {
         state = step(state, &[THROTTLE], DT);
@@ -526,4 +536,44 @@ fn a_replay_with_bots_reruns_them_from_the_seed_and_carries_their_count() {
 #[test]
 fn a_replay_recorded_before_bots_existed_has_none() {
     assert_eq!(Replay::from_json(REPLAY).unwrap().bots, 0);
+}
+
+#[test]
+fn a_replay_recorded_before_bot_levels_existed_runs_its_bots_at_basic() {
+    assert_eq!(Replay::from_json(REPLAY).unwrap().level, BotLevel::Basic);
+}
+
+#[test]
+fn a_replay_carries_its_bot_level_and_reruns_its_bots_at_it() {
+    let json = Replay {
+        seed: 7,
+        track: "oval".to_owned(),
+        bots: 1,
+        level: BotLevel::Ace,
+        // Ten seconds: well past Go, where the levels' bots part.
+        segments: vec![held(600, 1)],
+        hashes: Vec::new(),
+    }
+    .to_json();
+    assert!(json.contains("\"level\": \"ace\""), "{json}");
+    let replay = Replay::from_json(&json).unwrap();
+    assert_eq!(replay.level, BotLevel::Ace);
+
+    let hashes = replay.run(oval()).expect("the replay runs at its level");
+    let mut ace = State::with_bots(7, 1, 1, oval(), BotLevel::Ace);
+    let mut basic = State::with_bots(7, 1, 1, oval(), BotLevel::Basic);
+    let mut expected = Vec::new();
+    for tick in 1..=600 {
+        ace = step(ace, &[THROTTLE], DT);
+        basic = step(basic, &[THROTTLE], DT);
+        if tick % REPLAY_HASH_INTERVAL_TICKS == 0 {
+            expected.push(ace.hash());
+        }
+    }
+    assert_eq!(hashes, expected);
+    assert_ne!(
+        ace.hash(),
+        basic.hash(),
+        "the level changes how the bot drives"
+    );
 }

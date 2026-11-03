@@ -22,7 +22,9 @@ use sim::tuning::{
     RECONCILIATION_VISIBLE_CORRECTION_M, SNAPSHOTS_PER_SECOND, START_FULL_BOOST_HOLD_S,
     TICKS_PER_SECOND, TOP_SPEED_M_PER_S,
 };
-use sim::{step, ItemSlot, KartInput, KartReadout, Phase, Prediction, Start, State, Track};
+use sim::{
+    step, BotLevel, ItemSlot, KartInput, KartReadout, Phase, Prediction, Start, State, Track,
+};
 
 const TICKS_PER_SNAPSHOT: u32 = TICKS_PER_SECOND / SNAPSHOTS_PER_SECOND;
 /// 100 ms round trip at the tick rate, split evenly.
@@ -83,6 +85,7 @@ fn race_on(track: Track, ticks: u32, lost: impl Fn(u32) -> bool) -> Run {
         |prediction, _| {
             let mut input = bot::drive(
                 prediction.track(),
+                BotLevel::Basic.profile(),
                 &[prediction.kart_readout()],
                 &[prediction.standing()],
                 prediction.phase(),
@@ -130,7 +133,7 @@ fn race_drawing(
     mut others: impl FnMut(u32) -> Vec<KartInput>,
     draws_others: bool,
 ) -> Run {
-    let mut prediction = Prediction::new(SEED, 0, server.track().clone());
+    let mut prediction = Prediction::new(SEED, 0, server.track().clone(), server.bot_level());
     let mut history = vec![server.kart_readouts()];
     let mut inputs_in_flight: VecDeque<(u32, u32, KartInput)> = VecDeque::new();
     let mut snapshots_in_flight: VecDeque<InFlight> = VecDeque::new();
@@ -255,7 +258,7 @@ fn a_coin_the_servers_kart_takes_is_corrected_by_less_than_a_player_can_see() {
 /// A prediction on the grid, its countdown under way and its inputs
 /// acknowledged by a snapshot that agreed.
 fn on_the_grid() -> (Prediction, KartReadout) {
-    let mut prediction = Prediction::new(SEED, 0, oval());
+    let mut prediction = Prediction::new(SEED, 0, oval(), BotLevel::Basic);
     for sequence in 1..=10 {
         prediction.tick(sequence, KartInput::default(), &[]);
     }
@@ -381,7 +384,7 @@ fn the_prediction_takes_no_box_and_fills_its_slot_from_the_snapshots_alone() {
     // the prediction's kart stands on it through Go with an empty slot.
     let track = track(&with_boxes_under(&without_item_boxes(OVAL), [0]));
     let mut server = State::new(SEED, 1, track.clone());
-    let mut prediction = Prediction::new(SEED, 0, track);
+    let mut prediction = Prediction::new(SEED, 0, track, BotLevel::Basic);
     let mut sequence = 0;
     while !matches!(server.phase(), Phase::Racing { .. }) {
         server = step(server, &[KartInput::default()], DT);
@@ -434,7 +437,7 @@ fn the_prediction_takes_no_coin_and_adopts_the_snapshots_count() {
     let sidecar = with_coins_at(&without_coins(OVAL), [slot_position(OVAL, 0)]);
     let track = track(&sidecar);
     let mut server = State::new(SEED, 1, track.clone());
-    let mut prediction = Prediction::new(SEED, 0, track);
+    let mut prediction = Prediction::new(SEED, 0, track, BotLevel::Basic);
     let mut sequence = 0;
     while !matches!(server.phase(), Phase::Racing { .. }) {
         server = step(server, &[KartInput::default()], DT);
@@ -688,59 +691,73 @@ fn a_hold_at_a_window_edge_the_server_decides_differently_is_corrected_once_to_i
 }
 
 #[test]
-fn a_finished_kart_is_predicted_driven_by_its_bot_not_by_the_players_inputs() {
+fn a_finished_kart_is_predicted_driven_by_its_bot_at_the_races_level_not_by_the_players_inputs() {
     // The other human waits on the grid, holding the race open; the player
     // laps with the bot's driving, then reverses hard on full lock. No item
     // boxes: the bot's items decide whether it meets its own hazard, which
-    // this test does not test.
-    let mut memory = Memory::default();
-    let mut finished_at = None;
-    let mut corrections_at_the_line = 0;
-    let run = race_with(
-        seconds(90.0),
-        |_| false,
-        State::new(SEED, 2, track(&without_item_boxes(OVAL))),
-        |prediction, tick| {
-            if prediction.standing().finish_time_s.is_some() {
-                if finished_at.is_none() {
-                    finished_at = Some(tick);
-                    corrections_at_the_line = prediction.corrections();
+    // this test does not test. At Ace the bot past the line corners flat
+    // out on both sides, so the server never moves the predicted kart.
+    for level in [BotLevel::Basic, BotLevel::Ace] {
+        let mut memory = Memory::default();
+        let mut finished_at = None;
+        let mut corrections_at_the_line = 0;
+        let run = race_with(
+            seconds(90.0),
+            |_| false,
+            State::with_bots(SEED, 2, 0, track(&without_item_boxes(OVAL)), level),
+            |prediction, tick| {
+                if prediction.standing().finish_time_s.is_some() {
+                    if finished_at.is_none() {
+                        finished_at = Some(tick);
+                        corrections_at_the_line = prediction.corrections();
+                    }
+                    return KartInput {
+                        brake: 1.0,
+                        steer: 1.0,
+                        ..KartInput::default()
+                    };
                 }
-                return KartInput {
-                    brake: 1.0,
-                    steer: 1.0,
-                    ..KartInput::default()
-                };
-            }
-            bot::drive(
-                prediction.track(),
-                &[prediction.kart_readout()],
-                &[prediction.standing()],
-                prediction.phase(),
-                SEED,
-                0,
-                &mut memory,
-                DT,
-            )
-        },
-        |_| vec![KartInput::default()],
-    );
-    let finished_at = finished_at.expect("the kart finished");
-    assert!(
-        seconds(90.0) - finished_at > seconds(10.0),
-        "ten seconds past the line"
-    );
-    let kart = run.prediction.kart_readout();
-    assert!(
-        kart.speed > 0.5 * TOP_SPEED_M_PER_S,
-        "the bot drives on at {} m/s",
-        kart.speed
-    );
-    assert_eq!(
-        run.prediction.corrections(),
-        corrections_at_the_line,
-        "the bot's driving past the line is not counted against the player"
-    );
+                bot::drive(
+                    prediction.track(),
+                    level.profile(),
+                    &[prediction.kart_readout()],
+                    &[prediction.standing()],
+                    prediction.phase(),
+                    SEED,
+                    0,
+                    &mut memory,
+                    DT,
+                )
+            },
+            |_| vec![KartInput::default()],
+        );
+        let finished_at = finished_at.expect("the kart finished");
+        assert!(
+            seconds(90.0) - finished_at > seconds(10.0),
+            "{level:?}: ten seconds past the line"
+        );
+        let kart = run.prediction.kart_readout();
+        assert!(
+            kart.speed > 0.5 * TOP_SPEED_M_PER_S,
+            "{level:?}: the bot drives on at {} m/s",
+            kart.speed
+        );
+        assert_eq!(
+            run.prediction.corrections(),
+            corrections_at_the_line,
+            "{level:?}: the bot's driving past the line is not counted against the player"
+        );
+        let moved_past_the_line: Vec<u32> = run
+            .corrected_at
+            .iter()
+            .copied()
+            .filter(|&tick| tick > finished_at + ONE_WAY_TICKS)
+            .collect();
+        assert!(
+            moved_past_the_line.is_empty(),
+            "{level:?}: the server moved the finished kart at ticks {moved_past_the_line:?}"
+        );
+    }
 }
 
 #[test]
@@ -862,7 +879,7 @@ fn a_kart_alone_never_charges_even_with_a_kart_drawn_ahead_of_it() {
     // which the prediction stands in its race as a kinematic body; the
     // wake is the server's to judge, so the own kart never charges off it.
     let course = track(&without_coins(&without_item_boxes(OVAL)));
-    let mut prediction = Prediction::new(SEED, 0, course.clone());
+    let mut prediction = Prediction::new(SEED, 0, course.clone(), BotLevel::Basic);
     let mut drawn = common::started(State::new(SEED, 2, course)).kart_readouts();
     let countdown = common::ticks(sim::tuning::COUNTDOWN_S) as u32;
     let throttle = KartInput {

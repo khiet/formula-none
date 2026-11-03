@@ -141,3 +141,31 @@ test("a wrong code, a short nickname and a shared link all say what to do", asyn
   });
   await expect(page.getByLabel("Room code")).toHaveValue("ZZZZ");
 });
+
+test("the creator's bot level is the room's: the joiner's Room Scene says it too", async ({
+  page,
+  browser,
+}) => {
+  await page.goto("/");
+  await page.getByLabel("Nickname").fill("khiet");
+  // The radio sits under its tile, which takes the click.
+  await page.locator(".bot-tile", { hasText: "Pro" }).click();
+  await expect(page.getByRole("radio", { name: "Pro" })).toBeChecked();
+  await page.getByRole("button", { name: "Create room" }).click();
+  await expect(page.locator("#room-scene")).toBeVisible({ timeout: 15_000 });
+  const code = await roomCode(page);
+
+  const friendContext = await browser.newContext();
+  const friend = await friendContext.newPage();
+  await friend.goto("/");
+  await expect(friend.getByRole("radio", { name: "Basic" })).toBeChecked();
+  await friend.getByLabel("Nickname").fill("ada");
+  await friend.getByLabel("Room code").fill(code);
+  await friend.getByRole("button", { name: "Join room" }).click();
+  await expect(friend.locator("#room-scene")).toBeVisible({ timeout: 15_000 });
+
+  for (const someone of [page, friend]) {
+    await expect(someone.locator("[data-room-bots]")).toHaveText("Bots: Pro");
+  }
+  await friendContext.close();
+});

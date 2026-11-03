@@ -14,7 +14,7 @@ use sim::tuning::{
     BOT_STALL_SPEED_M_PER_S, BOT_START_HOLD_S, COUNTDOWN_S, LAPS_PER_RACE, MINI_TURBO_RED_BOOST_S,
     TOP_SPEED_M_PER_S,
 };
-use sim::{step, KartInput, Phase, State, Surface, Track};
+use sim::{step, BotLevel, KartInput, Phase, State, Surface, Track};
 
 /// Step `state` for `seconds` with every human idle.
 fn idle_humans(mut state: State, humans: usize, seconds: f32) -> State {
@@ -27,7 +27,7 @@ fn idle_humans(mut state: State, humans: usize, seconds: f32) -> State {
 
 #[test]
 fn a_bot_fills_the_slot_behind_the_human_and_drives_off_without_an_input() {
-    let state = started(State::with_bots(SEED, 1, 1, oval()));
+    let state = started(State::with_bots(SEED, 1, 1, oval(), BotLevel::Basic));
     let grid = state.kart_readouts();
     assert_eq!(grid.len(), 2, "one human and one bot");
     assert_eq!(state.standings().len(), 2);
@@ -75,6 +75,7 @@ fn a_bot_alone_laps_the_oval_for_the_race_without_leaving_the_asphalt() {
         0,
         1,
         track(&without_item_boxes(&without_coins(OVAL))),
+        BotLevel::Basic,
     ));
     let mut lap_times = Vec::new();
     for _ in 0..ticks(LAPS_PER_RACE as f32 * LAP_S) {
@@ -154,7 +155,7 @@ fn a_bot_drifts_through_the_hairpin_of_bell_deer_on_every_lap() {
     let hairpins = hairpins(&track);
     assert_eq!(hairpins.len(), 1, "Bell Deer has one hairpin: {hairpins:?}");
     let laps = LAPS_PER_RACE as usize;
-    let mut state = started(State::with_bots(SEED, 0, 1, track));
+    let mut state = started(State::with_bots(SEED, 0, 1, track, BotLevel::Basic));
     let mut drifted_in: Vec<Vec<bool>> = vec![vec![false; hairpins.len()]; laps];
     for _ in 0..ticks(laps as f32 * 75.0) {
         state = step(state, &[], DT);
@@ -218,6 +219,7 @@ fn the_rubber_band_hurries_a_bot_far_behind_and_slows_one_far_ahead_within_the_t
         1,
         1,
         oval_with_slot_1_on_the_back_straight_and_no_boost_pads(),
+        BotLevel::Basic,
     ));
     assert_eq!(state.rubber_band(0), 1.0, "a human is never banded");
     assert_eq!(
@@ -287,7 +289,7 @@ fn the_rubber_band_hurries_a_bot_far_behind_and_slows_one_far_ahead_within_the_t
 
 #[test]
 fn a_bot_in_a_race_with_no_humans_has_no_rubber_band() {
-    let state = started(State::with_bots(SEED, 0, 2, oval()));
+    let state = started(State::with_bots(SEED, 0, 2, oval(), BotLevel::Basic));
     let state = idle_humans(state, 0, 5.0);
     assert_eq!(state.rubber_band(0), 1.0);
     assert_eq!(state.rubber_band(1), 1.0);
@@ -353,7 +355,7 @@ fn race_against_seven_bots(
     seconds: f32,
 ) -> (Vec<usize>, State) {
     // No boxes: no boost to even the field and no traffic from a boosted kart.
-    let mut state = State::with_bots(SEED, 1, 7, oval_without_item_boxes());
+    let mut state = State::with_bots(SEED, 1, 7, oval_without_item_boxes(), BotLevel::Basic);
     let mut finished: Vec<usize> = Vec::new();
     for _ in 0..ticks(seconds + COUNTDOWN_S) {
         let input = driver.map_or(KartInput::default(), |driver| driver(&state, 0));
@@ -422,6 +424,7 @@ fn a_bot_held_by_a_wall_backs_up_and_drives_on() {
         0,
         1,
         oval_with_slot_0_facing_the_first_turns_wall(),
+        BotLevel::Basic,
     ));
     let start = state.standings()[0].spline_progress;
     let mut stopped_at = None;
@@ -465,7 +468,7 @@ fn a_bot_held_by_a_wall_backs_up_and_drives_on() {
 #[test]
 fn a_humans_kart_handed_to_a_bot_drives_itself_until_handed_back() {
     // The second human, idle on the grid, holds the race open.
-    let mut state = started(State::with_bots(SEED, 2, 0, oval()));
+    let mut state = started(State::with_bots(SEED, 2, 0, oval(), BotLevel::Basic));
     let grid = state.kart_readouts()[0];
     state.hand_to_bot(0);
     assert!(state.is_bot(0));
@@ -503,9 +506,9 @@ fn a_humans_kart_handed_to_a_bot_drives_itself_until_handed_back() {
 fn a_human_handed_to_a_bot_in_the_countdown_sets_up_no_start() {
     // A held throttle before the window stalls a human's start; a bot sits
     // the countdown out, so a kart handed over before Go starts clean.
-    let mut handed = State::with_bots(SEED, 1, 0, oval());
+    let mut handed = State::with_bots(SEED, 1, 0, oval(), BotLevel::Basic);
     handed.hand_to_bot(0);
-    let mut stalled = State::with_bots(SEED, 1, 0, oval());
+    let mut stalled = State::with_bots(SEED, 1, 0, oval(), BotLevel::Basic);
     let throttle = [KartInput {
         throttle: 1.0,
         ..KartInput::default()
@@ -532,13 +535,13 @@ fn bots_roll_the_full_boost_or_a_clean_start_from_the_seed_and_never_stall() {
     let mut boosted = 0;
     let mut clean = 0;
     for seed in 0..4 {
-        let state = started(State::with_bots(seed, 0, 7, oval()));
+        let state = started(State::with_bots(seed, 0, 7, oval(), BotLevel::Basic));
         let verdicts: Vec<Start> = state
             .kart_readouts()
             .iter()
             .map(|kart| kart.start)
             .collect();
-        let again = started(State::with_bots(seed, 0, 7, oval()));
+        let again = started(State::with_bots(seed, 0, 7, oval(), BotLevel::Basic));
         let repeat: Vec<Start> = again
             .kart_readouts()
             .iter()
@@ -575,7 +578,13 @@ fn bots_roll_the_full_boost_or_a_clean_start_from_the_seed_and_never_stall() {
 /// `coins`, past its countdown.
 fn lone_bot_over(coins: impl IntoIterator<Item = [f32; 3]>) -> State {
     let sidecar = with_coins_at(&without_coins(OVAL), coins);
-    started(State::with_bots(SEED, 0, 1, track(&sidecar)))
+    started(State::with_bots(
+        SEED,
+        0,
+        1,
+        track(&sidecar),
+        BotLevel::Basic,
+    ))
 }
 
 #[test]
@@ -624,7 +633,7 @@ fn a_bots_steering_is_unchanged_by_a_coin_off_its_line() {
 /// A spun-out kart is dead to every control and a bot held back for the
 /// runaway wheel stands by choice, so neither counts.
 fn longest_stall(seed: u64, track: Track) -> (f32, usize, f32) {
-    let mut state = started(State::with_bots(seed, 0, 8, track));
+    let mut state = started(State::with_bots(seed, 0, 8, track, BotLevel::Basic));
     let mut stalled_s = [0.0; 8];
     let mut longest = (0.0, 0, 0.0);
     for _ in 0..ticks(LAPS_PER_RACE as f32 * 120.0) {
@@ -654,7 +663,7 @@ fn longest_stall(seed: u64, track: Track) -> (f32, usize, f32) {
 /// Each bot's finishing time in a race of eight bots on `course` from
 /// `seed`, `None` for one still racing after `seconds`.
 fn eight_bots_finishing_times(seed: u64, course: Track, seconds: f32) -> Vec<Option<f32>> {
-    let mut state = started(State::with_bots(seed, 0, 8, course));
+    let mut state = started(State::with_bots(seed, 0, 8, course, BotLevel::Basic));
     for _ in 0..ticks(seconds) {
         state = step(state, &[], DT);
         if state.standings().iter().all(|s| s.finish_time_s.is_some()) {
@@ -704,7 +713,7 @@ fn a_bot_waiting_for_the_wheel_never_backs_up() {
     // Rolling back as it starts to wait, from backing out of a stall, it
     // only slows.
     for seed in [51, 121, 152, 163] {
-        let mut state = started(State::with_bots(seed, 0, 8, bell_deer()));
+        let mut state = started(State::with_bots(seed, 0, 8, bell_deer(), BotLevel::Basic));
         let mut waited = false;
         for _ in 0..ticks(LAPS_PER_RACE as f32 * 90.0) {
             let before = state.kart_readouts();
@@ -751,5 +760,49 @@ fn in_200_races_of_eight_bots_on_each_course_no_bot_is_ever_stuck() {
                 "{name} seed {seed}: bot {slot} stuck {seconds} s until {at_s} s"
             );
         }
+    }
+}
+
+#[test]
+fn an_ace_bot_ahead_of_every_human_is_never_slowed_and_is_still_hurried_from_behind() {
+    // The same start as the Basic band's test: the bot over 100 m behind
+    // the idle human, passing it and running over 100 m ahead.
+    let mut state = started(State::with_bots(
+        SEED,
+        1,
+        1,
+        oval_with_slot_1_on_the_back_straight_and_no_boost_pads(),
+        BotLevel::Ace,
+    ));
+    assert_eq!(
+        state.rubber_band(1),
+        BOT_RUBBER_BAND_MAX_FACTOR,
+        "far behind at the start the band is the same at every level"
+    );
+    let mut least = f32::MAX;
+    let mut passed = false;
+    for _ in 0..ticks(LAP_S) {
+        state = step(state, &[KartInput::default()], DT);
+        least = least.min(state.rubber_band(1));
+        passed |= state.standings()[1].position == 1;
+    }
+    assert!(passed, "the bot passed the human");
+    assert_eq!(
+        least, 1.0,
+        "ahead of the human an Ace bot runs at full speed"
+    );
+}
+
+#[test]
+fn ace_bots_always_roll_the_full_boost_at_go() {
+    use sim::Start;
+    for seed in 0..4 {
+        let state = started(State::with_bots(seed, 0, 7, oval(), BotLevel::Ace));
+        let verdicts: Vec<Start> = state
+            .kart_readouts()
+            .iter()
+            .map(|kart| kart.start)
+            .collect();
+        assert_eq!(verdicts, vec![Start::FullBoost; 7], "seed {seed}");
     }
 }

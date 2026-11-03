@@ -58,6 +58,7 @@ use crate::tuning::{
     COUNTDOWN_S, KART_HALF_LENGTH_M, RACE_OUTRO_S, RECONCILIATION_BLEND_TICKS,
     RECONCILIATION_TOLERANCE_M, TICK_S,
 };
+use crate::BotLevel;
 use crate::{
     bot, clock_after, kart_collider, kart_groups, step, ItemSlot, Kart, KartInput, KartReadout,
     Phase, Slipstream, Standing, State, Surface, Track, Wheel,
@@ -164,14 +165,16 @@ impl Blend {
 
 impl Prediction {
     /// The kart on grid slot `kart` of a race from `seed` on `track`, at the
-    /// top of its countdown. `kart` must be a slot of the track's grid.
-    pub fn new(seed: u64, kart: usize, track: Track) -> Self {
+    /// top of its countdown, driven by a bot at `level` once it has
+    /// finished, as the server's is (ADR 0078). `kart` must be a slot of
+    /// the track's grid.
+    pub fn new(seed: u64, kart: usize, track: Track, level: BotLevel) -> Self {
         assert!(
             kart < track.spawn_grid().len(),
             "kart {kart} but the track has {} spawn slots",
             track.spawn_grid().len()
         );
-        let mut state = State::on_spawn_slots(seed, 1, kart..kart + 1, track);
+        let mut state = State::on_spawn_slots(seed, 1, kart..kart + 1, track, level);
         // A box's roll is the server's: its RNG serves every kart's pickups
         // in the order they happen, which this race of one cannot follow.
         // So the boxes are never here to pick up, and the slot holds only

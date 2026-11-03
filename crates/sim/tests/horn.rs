@@ -16,7 +16,7 @@ use common::{
 };
 
 use sim::tuning::{COINS_LOST_PER_SPIN_OUT, HORN_RADIUS_M, SPIN_OUT_S};
-use sim::{step, Item, ItemSlot, KartInput, RaceEvent, State, Track};
+use sim::{step, BotLevel, Item, ItemSlot, KartInput, RaceEvent, State, Track};
 
 fn idle() -> KartInput {
     KartInput::default()
@@ -645,6 +645,7 @@ fn a_bot_fires_its_horn_as_soon_as_a_kart_is_in_reach() {
             1,
             1,
             track(&oval_sidecar(&[(HUMAN, PARKED)], &[BOT])),
+            BotLevel::Basic,
         ));
         let Some((picked, fired, state)) = picked_and_fired(state, &[idle()], BOT, Item::Horn, 8.0)
         else {
@@ -678,6 +679,7 @@ fn a_bot_fires_its_horn_after_the_tuned_hold_with_no_kart_in_reach() {
             0,
             1,
             track(&oval_sidecar(&[], &[FIRER])),
+            BotLevel::Basic,
         ));
         let Some((picked, fired, _)) = picked_and_fired(
             state,

@@ -14,7 +14,7 @@ use common::{
 };
 
 use sim::tuning::LAPS_PER_RACE;
-use sim::{step, KartInput, Standing, State, Surface, Track};
+use sim::{step, BotLevel, KartInput, Standing, State, Surface, Track};
 
 /// The hairpin on Bell Deer (layouts/bell_deer.py): a 180 degree
 /// left-hander of 17 m radius, its exit 34 m to the left of its entry
@@ -576,5 +576,31 @@ fn the_races_laps_of_the_oval_end_with_the_lap_counter_on_the_last_and_a_best_la
     assert!(
         lap_times.windows(2).all(|pair| pair[1] <= pair[0]),
         "{lap_times:?}"
+    );
+}
+
+/// The best lap of the one bot in a race with a human idle on the grid,
+/// from the oval's seed at `level`, within forty seconds: with the human
+/// never moving the bot is ahead of it the whole way, so the level's
+/// rubber band, corner speed and start all tell.
+fn bot_best_lap_at(level: BotLevel) -> f32 {
+    let mut state = started(State::with_bots(SEED, 1, 1, oval(), level));
+    for _ in 0..ticks(2.0 * LAP_S) {
+        state = step(state, &[KartInput::default()], DT);
+    }
+    state.standings()[1]
+        .best_lap_s
+        .expect("the bot laps the oval twice in forty seconds")
+}
+
+#[test]
+fn from_one_seed_an_ace_bot_laps_faster_than_a_pro_bot_which_laps_faster_than_a_basic_bot() {
+    let basic = bot_best_lap_at(BotLevel::Basic);
+    let pro = bot_best_lap_at(BotLevel::Pro);
+    let ace = bot_best_lap_at(BotLevel::Ace);
+
+    assert!(
+        ace < pro && pro < basic,
+        "best laps: basic {basic}, pro {pro}, ace {ace}"
     );
 }

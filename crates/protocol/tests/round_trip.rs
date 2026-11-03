@@ -3,7 +3,8 @@
 //! generated TypeScript is checked against in Vitest, which also holds them
 //! to one per variant of the generated unions.
 
-use protocol::{decode, encode, samples, ClientMessage, DecodeError, ServerMessage};
+use protocol::{decode, encode, samples, ClientMessage, DecodeError, Room, ServerMessage};
+use sim::BotLevel;
 
 #[test]
 fn every_client_message_round_trips() {
@@ -39,4 +40,25 @@ fn trailing_bytes_are_rejected() {
 fn garbage_is_rejected() {
     let result: Result<ServerMessage, DecodeError> = decode(&[0xff, 0xff]);
     assert!(result.is_err(), "{result:?}");
+}
+
+#[test]
+fn a_room_and_a_countdown_round_trip_at_every_bot_level() {
+    for level in BotLevel::ALL {
+        let room = ServerMessage::Room(Room {
+            bot_level: level,
+            ..samples::room()
+        });
+        let decoded: ServerMessage = decode(&encode(&room)).unwrap();
+        assert_eq!(decoded, room);
+
+        let countdown = ServerMessage::Countdown {
+            seed: 7,
+            track: "oval".to_owned(),
+            bot_level: level,
+            grid: vec![0],
+        };
+        let decoded: ServerMessage = decode(&encode(&countdown)).unwrap();
+        assert_eq!(decoded, countdown);
+    }
 }

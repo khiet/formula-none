@@ -1,6 +1,6 @@
 # Replay fixtures
 
-A race replay is `{seed, track, bots, inputs[]}`. Each file here is one replay
+A race replay is `{seed, track, bots, level, inputs[]}`. Each file here is one replay
 with the state hash the sim reported at every 60th tick when it was
 recorded. Two tests rerun every file and hold the sim to those hashes:
 `crates/sim/tests/replay.rs` natively and `apps/web/src/replay.test.ts`
@@ -12,8 +12,9 @@ determinism (native vs wasm)` CI job runs both on every PR.
 
 `crates/sim/src/replay.rs` documents the format. Inputs are run-length
 encoded, one input per human kart in grid order; the bots behind them on
-the grid drive themselves from the seed, so the file carries only their
-count. The seed is a decimal string and each hash 16 hex digits, since a
+the grid drive themselves from the seed at the bot level the file names
+(ADR 0078; a file naming none runs them at Basic), so the file carries only
+their count and the level. The seed is a decimal string and each hash 16 hex digits, since a
 JSON number cannot carry every u64.
 
 ## Record a fixture from a browser session
@@ -44,13 +45,13 @@ The wasm test then confirms the wasm build agrees with the new hashes.
 
 ## What the set must cover
 
-`the_fixture_set_exercises_kart_contact_off_track_walls_every_track_both_mini_turbos_a_rocket_start_a_stall_the_kerb_the_wheel_and_coins`
+`the_fixture_set_exercises_kart_contact_off_track_walls_every_track_both_mini_turbos_a_rocket_start_a_stall_the_kerb_the_wheel_coins_and_ace_bots`
 in the sim's tests requires the set, taken together, to have karts
 touching, karts on the sand, a lone kart held by a wall, a run on
 each track, a drift released into an orange mini-turbo and another into
 a red one, a kart boosting at Go and a kart stalling there, a kart
 launched by a sausage kerb, a kart spun out by the runaway wheel, a coin
-taken and coins lost to a spin-out, so
+taken and coins lost to a spin-out, and a race of Ace bots, so
 trimming the set cannot quietly weaken the gate. `oval-hop-drift.replay.json` was
 written by hand for the mini-turbo: a hop into a left drift held past
 red through the first turn, then on the back straight a hop into a left
@@ -80,4 +81,8 @@ way on Monarch. `oval-nose-to-tail.replay.json` was written by hand for the
 slipstream (ADR 0077): three karts idle through the countdown, then the
 first and third hold the throttle down the straight, the third 5 m behind
 the first in the same column, so it is towed by the time both are at top
-speed, while the second sits on the grid.
+speed, while the second sits on the grid. `oval-ace-bots.replay.json` was
+written by hand for the bot level (ADR 0078): one kart idle on the grid
+through the countdown and thirty seconds of the race while seven Ace bots
+lap the oval past it, so a retune of Ace's profile fails the gate where a
+retune of Basic fails every other fixture with bots.

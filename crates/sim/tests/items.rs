@@ -19,7 +19,7 @@ use sim::tuning::{
     self, ITEM_BOOST_FACTOR, ITEM_BOOST_S, ITEM_BOX_HALF_LENGTH_M, ITEM_BOX_HALF_WIDTH_M,
     ITEM_BOX_RESPAWN_S, ITEM_ROLL_S, ITEM_ROLL_WEIGHTS, TOP_SPEED_M_PER_S,
 };
-use sim::{step, Item, ItemSlot, KartInput, MiniTurbo, Phase, RaceEvent, State, Track};
+use sim::{step, BotLevel, Item, ItemSlot, KartInput, MiniTurbo, Phase, RaceEvent, State, Track};
 
 /// The box added under slot 0 by `oval_with_boxes_under`.
 fn box_under_slot_0() -> usize {
@@ -542,7 +542,7 @@ fn a_bot_fires_what_it_picks_up_after_it_lands_within_the_tuned_delay() {
     use sim::tuning::BOT_ITEM_USE_DELAY_S;
     // A lone bot laps the oval; its line runs through the rows of boxes on
     // the back straight.
-    let mut state = started(State::with_bots(SEED, 0, 1, oval()));
+    let mut state = started(State::with_bots(SEED, 0, 1, oval(), BotLevel::Basic));
     let mut picked: Option<(usize, Item)> = None;
     let mut fired = Vec::new();
     for tick in 0..ticks(60.0) {
@@ -620,4 +620,43 @@ fn the_item_button_held_down_fires_once_as_it_goes_down() {
         "{:?}",
         state.events()
     );
+}
+
+#[test]
+fn an_ace_bot_fires_what_it_picks_up_the_moment_it_lands() {
+    // The Basic bot's run above, at Ace: no delay past the landing, corner
+    // or not.
+    let mut state = started(State::with_bots(SEED, 0, 1, oval(), BotLevel::Ace));
+    let mut picked: Option<(usize, Item)> = None;
+    let mut fired = 0;
+    for tick in 0..ticks(60.0) {
+        state = step(state, &[], DT);
+        for event in state.events() {
+            match *event {
+                RaceEvent::ItemPicked {
+                    kart: 0,
+                    item: Some(item),
+                    ..
+                } => picked = Some((tick, item)),
+                RaceEvent::ItemFired { kart: 0, item } => {
+                    let (picked_at, held) = picked.take().expect("fired what it picked up");
+                    assert_eq!(item, held);
+                    // A tick either way for the landing, and one more late
+                    // for the bot reading the slot a tick behind.
+                    let after = tick - picked_at;
+                    assert!(
+                        ticks(ITEM_ROLL_S) <= after + 1 && after <= ticks(ITEM_ROLL_S) + 2,
+                        "fired {} s after the pickup",
+                        after as f32 * DT
+                    );
+                    fired += 1;
+                }
+                _ => {}
+            }
+        }
+        if fired >= 2 {
+            return;
+        }
+    }
+    panic!("the bot fired {fired} items in a minute");
 }

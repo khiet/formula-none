@@ -13,9 +13,22 @@ import init, {
   Race as WasmRace,
 } from "./generated/bridge/bridge.js";
 import type { ClientMessage, Input, ServerMessage, Snapshot } from "./generated/protocol";
-import type { KartReadout as SimKartReadout, Standing, Surface, Tuning } from "./generated/sim";
+import type {
+  BotLevel,
+  KartReadout as SimKartReadout,
+  Standing,
+  Surface,
+  Tuning,
+} from "./generated/sim";
 
-export type { Drift, DriftDirection, MiniTurbo, Standing, Surface } from "./generated/sim";
+export type {
+  BotLevel,
+  Drift,
+  DriftDirection,
+  MiniTurbo,
+  Standing,
+  Surface,
+} from "./generated/sim";
 
 /**
  * One kart's controls for one tick, whichever device produced them: steer
@@ -324,18 +337,25 @@ export interface Bridge extends MessageCodec {
   /**
    * A race on the track described by `sidecar` (the JSON exported next to its
    * glTF) with `humanCount` karts on the front of its spawn grid and
-   * `botCount` bot-driven karts on the slots behind them. Throws, with the
-   * sim's reason, when the sidecar is unusable or has fewer spawn slots than
-   * the karts.
+   * `botCount` bot-driven karts on the slots behind them, driving at
+   * `botLevel` (ADR 0078). Throws, with the sim's reason, when the sidecar
+   * is unusable or has fewer spawn slots than the karts.
    */
-  createRace(seed: bigint, humanCount: number, botCount: number, sidecar: string): Race;
+  createRace(
+    seed: bigint,
+    humanCount: number,
+    botCount: number,
+    sidecar: string,
+    botLevel: BotLevel,
+  ): Race;
   /**
    * The prediction of the kart on grid slot `kart` in the race from `seed`
-   * on the track described by `sidecar`, at the top of its countdown.
-   * Throws, with the sim's reason, when the sidecar is unusable or its grid
-   * has no such slot.
+   * on the track described by `sidecar`, at the top of its countdown, its
+   * bot at `botLevel` once the kart has finished (ADR 0078). Throws, with
+   * the sim's reason, when the sidecar is unusable or its grid has no such
+   * slot.
    */
-  createPrediction(seed: bigint, kart: number, sidecar: string): Prediction;
+  createPrediction(seed: bigint, kart: number, sidecar: string, botLevel: BotLevel): Prediction;
   /** A replay's hashes are kept every this many ticks. */
   readonly replayHashIntervalTicks: number;
   /**
@@ -410,16 +430,16 @@ export async function loadBridge(wasm?: BufferSource): Promise<Bridge> {
     },
     kartsPerRace: tuned.kartsPerRace,
     replayHashIntervalTicks: tuned.replayHashIntervalTicks,
-    createRace(seed, humanCount, botCount, sidecar) {
+    createRace(seed, humanCount, botCount, sidecar, botLevel) {
       return new BridgedRace(
-        rethrown(() => new WasmRace(seed, humanCount, botCount, sidecar)),
+        rethrown(() => new WasmRace(seed, humanCount, botCount, sidecar, botLevel)),
         humanCount,
         humanCount + botCount,
       );
     },
-    createPrediction(seed, kart, sidecar) {
+    createPrediction(seed, kart, sidecar, botLevel) {
       return new BridgedPrediction(
-        rethrown(() => new WasmPrediction(seed, kart, sidecar)),
+        rethrown(() => new WasmPrediction(seed, kart, sidecar, botLevel)),
         kart,
       );
     },

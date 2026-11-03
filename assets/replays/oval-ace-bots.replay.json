@@ -1,0 +1,54 @@
+{
+  "version": 1,
+  "seed": "7",
+  "track": "oval",
+  "bots": 7,
+  "level": "ace",
+  "segments": [
+    {
+      "ticks": 1800,
+      "inputs": [
+        {
+          "steer": 0.0,
+          "throttle": 0.0,
+          "brake": 0.0,
+          "hop": false,
+          "useItem": false,
+          "holdItem": false
+        }
+      ]
+    }
+  ],
+  "hashes": [
+    "cb7bf387b4c32c9c",
+    "620046730ab54dc8",
+    "49abb3cc7699690e",
+    "924efd7e99cf5c12",
+    "dd719e7114512741",
+    "fdb7476983f92b3f",
+    "6fd44982be3093ba",
+    "132bd0ea459e02fb",
+    "aee8db2ba5a635ad",
+    "8c707b865f6b1596",
+    "e1dfa58337c8473b",
+    "a8017f6efc9a6b74",
+    "8ee9a107ed0adadf",
+    "44af3d2100f49882",
+    "50e65a0621271bd9",
+    "afcc606e5f6640f3",
+    "1e28c2976c79ae1f",
+    "5f36ccbadf551cad",
+    "c93c7d0c897983a6",
+    "2d3529778b8c65c7",
+    "3294d7dc864abc6a",
+    "04a17d3d02888c9c",
+    "3d6429fc21aad379",
+    "d32ff6020851f8e3",
+    "57c4816d8dfe1a6d",
+    "5912ed2f839df34f",
+    "9931937c97adac57",
+    "b2b91d8d33d3d90f",
+    "82640d84bc3e8234",
+    "27225cb45227ee2a"
+  ]
+}

@@ -21,6 +21,7 @@ import type {
   Snapshot,
 } from "./generated/protocol";
 import { PROTOCOL_VERSION } from "./generated/protocol";
+import type { BotLevel } from "./generated/sim";
 import { normaliseCode } from "./room-link";
 
 /**
@@ -31,6 +32,8 @@ import { normaliseCode } from "./room-link";
 export interface Countdown {
   readonly seed: bigint;
   readonly track: string;
+  /** How hard the bots drive, so a replay recorded here reruns the server's race (ADR 0078). */
+  readonly botLevel: BotLevel;
   readonly grid: readonly number[];
 }
 
@@ -289,7 +292,12 @@ function openRoom(
         sequence = 0;
         spentEventIds = highestEventId;
         seenEvents.clear();
-        race = { seed, track: message.countdown.track, grid: message.countdown.grid };
+        race = {
+          seed,
+          track: message.countdown.track,
+          botLevel: message.countdown.botLevel,
+          grid: message.countdown.grid,
+        };
         for (const listener of countdownListeners) listener(race);
       } else if ("snapshot" in message) {
         const { snapshot } = message;
