@@ -64,7 +64,12 @@ export function createServerRace(
     sidecar,
     countdown.botLevel,
   );
-  const prediction = bridge.createPrediction(countdown.seed, localKart, sidecar);
+  const prediction = bridge.createPrediction(
+    countdown.seed,
+    localKart,
+    sidecar,
+    countdown.botLevel,
+  );
 
   let latest: Snapshot | undefined;
   /** Each kart's completed lap times, in order. */

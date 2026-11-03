@@ -350,11 +350,12 @@ export interface Bridge extends MessageCodec {
   ): Race;
   /**
    * The prediction of the kart on grid slot `kart` in the race from `seed`
-   * on the track described by `sidecar`, at the top of its countdown.
-   * Throws, with the sim's reason, when the sidecar is unusable or its grid
-   * has no such slot.
+   * on the track described by `sidecar`, at the top of its countdown, its
+   * bot at `botLevel` once the kart has finished (ADR 0078). Throws, with
+   * the sim's reason, when the sidecar is unusable or its grid has no such
+   * slot.
    */
-  createPrediction(seed: bigint, kart: number, sidecar: string): Prediction;
+  createPrediction(seed: bigint, kart: number, sidecar: string, botLevel: BotLevel): Prediction;
   /** A replay's hashes are kept every this many ticks. */
   readonly replayHashIntervalTicks: number;
   /**
@@ -436,9 +437,9 @@ export async function loadBridge(wasm?: BufferSource): Promise<Bridge> {
         humanCount + botCount,
       );
     },
-    createPrediction(seed, kart, sidecar) {
+    createPrediction(seed, kart, sidecar, botLevel) {
       return new BridgedPrediction(
-        rethrown(() => new WasmPrediction(seed, kart, sidecar)),
+        rethrown(() => new WasmPrediction(seed, kart, sidecar, botLevel)),
         kart,
       );
     },

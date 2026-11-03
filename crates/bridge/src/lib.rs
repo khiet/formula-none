@@ -385,11 +385,20 @@ pub struct Prediction {
 #[wasm_bindgen]
 impl Prediction {
     /// The kart on grid slot `kart` of the race from `seed` on the track
-    /// described by `sidecar`, at the top of its countdown. Fails when the
-    /// sidecar is unusable or its grid has no such slot.
+    /// described by `sidecar`, at the top of its countdown, its bot at
+    /// `bot_level` (spelled as the wire does) once it has finished. Fails
+    /// when the sidecar is unusable, its grid has no such slot or the level
+    /// is unknown.
     #[wasm_bindgen(constructor)]
-    pub fn new(seed: u64, kart: usize, sidecar: &str) -> Result<Prediction, String> {
+    pub fn new(
+        seed: u64,
+        kart: usize,
+        sidecar: &str,
+        bot_level: &str,
+    ) -> Result<Prediction, String> {
         let track = Track::from_sidecar(sidecar).map_err(|error| error.to_string())?;
+        let bot_level = BotLevel::from_name(bot_level)
+            .ok_or_else(|| format!("no bot level called {bot_level:?}"))?;
         if kart >= track.spawn_grid().len() {
             return Err(format!(
                 "kart {kart} but {} has {} spawn slots",
@@ -398,7 +407,7 @@ impl Prediction {
             ));
         }
         Ok(Self {
-            inner: sim::Prediction::new(seed, kart, track),
+            inner: sim::Prediction::new(seed, kart, track, bot_level),
             interpolation: sim::Interpolation::new(),
         })
     }

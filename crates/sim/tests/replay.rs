@@ -566,7 +566,7 @@ fn a_replay_carries_its_bot_level_and_reruns_its_bots_at_it() {
     for tick in 1..=600 {
         ace = step(ace, &[THROTTLE], DT);
         basic = step(basic, &[THROTTLE], DT);
-        if tick % 60 == 0 {
+        if tick % REPLAY_HASH_INTERVAL_TICKS == 0 {
             expected.push(ace.hash());
         }
     }

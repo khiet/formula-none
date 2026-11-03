@@ -61,6 +61,7 @@ async fn at_a_100_ms_round_trip_and_2_percent_loss_the_own_kart_is_corrected_out
         countdown.seed,
         kart,
         Track::from_sidecar(OVAL).expect("the oval fixture loads"),
+        BotLevel::Basic,
     );
     let mut memory = Memory::default();
     // A hand holds the item button past the tick it goes down; a lost
@@ -189,6 +190,7 @@ async fn driving_into_another_kart_never_predicts_the_own_kart_visibly_past_wher
         countdown.seed,
         kart,
         Track::from_sidecar(OVAL).expect("the oval fixture loads"),
+        BotLevel::Basic,
     );
     // Idle through the countdown, then straight down the grid at full
     // throttle, into the parked kart.

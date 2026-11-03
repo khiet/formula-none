@@ -366,7 +366,7 @@ impl Rooms {
                 break code;
             }
         };
-        let room = HostedRoom::on_track(code.clone(), track, bot_level);
+        let room = HostedRoom::open(code.clone(), track, bot_level);
         self.log
             .event("room_created")
             .room(&code)

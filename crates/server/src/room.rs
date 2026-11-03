@@ -92,7 +92,7 @@ pub struct Started {
 impl HostedRoom {
     /// An Open room with every seat free, racing `track`, one of
     /// [`crate::tracks`], against bots at `bot_level`.
-    pub fn on_track(code: String, track: &'static str, bot_level: BotLevel) -> Self {
+    pub fn open(code: String, track: &'static str, bot_level: BotLevel) -> Self {
         Self {
             code,
             track,

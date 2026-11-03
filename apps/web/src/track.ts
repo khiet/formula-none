@@ -87,25 +87,34 @@ export function courseOf(track: string): Course | undefined {
 
 const COURSE_STORAGE_KEY = "course";
 
-/** The course picked last time, kept beside the audio toggles; the default's when unsaved, unreadable or no course. */
-export function loadCoursePick(storage: Storage): Course {
-  let saved: string | null = null;
+/** What was saved under `key` last time, or `null` when nothing was or the storage refuses, which reads as nothing saved. */
+function remembered(storage: Storage, key: string): string | null {
   try {
-    saved = storage.getItem(COURSE_STORAGE_KEY);
+    return storage.getItem(key);
   } catch {
-    // Storage that refuses reads as nothing saved.
+    return null;
   }
-  // The default track is always a course, so the cast cannot hide an undefined.
-  return courseOf(saved ?? "") ?? (courseOf(DEFAULT_TRACK) as Course);
 }
 
-/** Remember the pick for the next visit; storage that refuses is let be. */
-export function saveCoursePick(storage: Storage, course: Course): void {
+/** Remember `value` under `key` for the next visit; storage that refuses, a private window or a full store, is let be, and the next visit loads what was saved before. */
+function remember(storage: Storage, key: string, value: string): void {
   try {
-    storage.setItem(COURSE_STORAGE_KEY, course.track);
+    storage.setItem(key, value);
   } catch {
-    // A private window or a full store; the next visit loads what was saved before.
+    // Let be.
   }
+}
+
+/** The course picked last time, kept beside the audio toggles; the default's when unsaved, unreadable or no course. */
+export function loadCoursePick(storage: Storage): Course {
+  // The default track is always a course, so the cast cannot hide an undefined.
+  return (
+    courseOf(remembered(storage, COURSE_STORAGE_KEY) ?? "") ?? (courseOf(DEFAULT_TRACK) as Course)
+  );
+}
+
+export function saveCoursePick(storage: Storage, course: Course): void {
+  remember(storage, COURSE_STORAGE_KEY, course.track);
 }
 
 /** A bot level as the Title Scene offers it: its caption and the line describing the pick. */
@@ -132,22 +141,12 @@ export function isBotLevel(name: string): name is BotLevel {
 
 /** The bot level picked last time, kept beside the course pick; Basic when unsaved, unreadable or no level. */
 export function loadBotLevel(storage: Storage): BotLevel {
-  let saved: string | null = null;
-  try {
-    saved = storage.getItem(BOT_LEVEL_STORAGE_KEY);
-  } catch {
-    // Storage that refuses reads as nothing saved.
-  }
+  const saved = remembered(storage, BOT_LEVEL_STORAGE_KEY);
   return saved !== null && isBotLevel(saved) ? saved : DEFAULT_BOT_LEVEL;
 }
 
-/** Remember the pick for the next visit; storage that refuses is let be. */
 export function saveBotLevel(storage: Storage, level: BotLevel): void {
-  try {
-    storage.setItem(BOT_LEVEL_STORAGE_KEY, level);
-  } catch {
-    // A private window or a full store; the next visit loads what was saved before.
-  }
+  remember(storage, BOT_LEVEL_STORAGE_KEY, level);
 }
 
 /**

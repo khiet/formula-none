@@ -825,7 +825,7 @@ fn the_prediction_passes_through_a_star_kart_the_snapshots_draw_and_adopts_the_s
     let mut sidecar = with_slot_at(OVAL, 0, [28.0, 0.0, 4.0], 0.0);
     sidecar = with_slot_at(&sidecar, 1, [28.0, 0.0, -6.0], 0.0);
     let course = track(&sidecar);
-    let mut prediction = Prediction::new(SEED, 0, course.clone());
+    let mut prediction = Prediction::new(SEED, 0, course.clone(), BotLevel::Basic);
     let mut standing = started(State::new(SEED, 2, course)).kart_readouts();
     standing[1].star_s = Some(5.0);
     let countdown = ticks(sim::tuning::COUNTDOWN_S) as u32;

@@ -1070,6 +1070,11 @@ impl State {
         }
     }
 
+    /// How hard the bots drive (ADR 0078).
+    pub fn bot_level(&self) -> BotLevel {
+        self.bot_level
+    }
+
     pub fn track(&self) -> &Track {
         &self.track
     }

@@ -358,7 +358,7 @@ describe("prediction", () => {
   it("stands the kart on its grid slot and drives it by the sim's rules from the inputs sent", async () => {
     const bridge = await loadBridge(wasm);
     const race = bridge.createRace(7n, 2, 0, OVAL, "basic");
-    const prediction = bridge.createPrediction(7n, 1, OVAL);
+    const prediction = bridge.createPrediction(7n, 1, OVAL, "basic");
     // The prediction races its kart alone, so its race position counts
     // only that kart.
     const alone = (kart: KartReadout | undefined) => ({ ...kart, racePosition: 1 });
@@ -379,7 +379,7 @@ describe("prediction", () => {
 
   it("is moved by a snapshot that disagrees, and counts the correction", async () => {
     const bridge = await loadBridge(wasm);
-    const prediction = bridge.createPrediction(7n, 0, OVAL);
+    const prediction = bridge.createPrediction(7n, 0, OVAL, "basic");
     expect(prediction.interpolatedKartReadouts()).toEqual([]);
     // Idle on the grid through the countdown and a second of the race, so
     // one correction is one a second. The tick that goes is the first raced.
@@ -435,7 +435,7 @@ describe("prediction", () => {
 
   it("carries the item a snapshot says the own kart holds through the prediction", async () => {
     const bridge = await loadBridge(wasm);
-    const prediction = bridge.createPrediction(7n, 0, OVAL);
+    const prediction = bridge.createPrediction(7n, 0, OVAL, "basic");
     for (let sequence = 1; sequence <= 10; sequence++) {
       prediction.tick(wire(IDLE_INPUT, sequence));
     }
@@ -476,7 +476,7 @@ describe("prediction", () => {
   it("takes the spin-out a snapshot says the own kart is in and counts it down", async () => {
     const bridge = await loadBridge(wasm);
     expect(bridge.spinOutSeconds).toBe(1);
-    const prediction = bridge.createPrediction(7n, 0, OVAL);
+    const prediction = bridge.createPrediction(7n, 0, OVAL, "basic");
     // Idle on the grid through the countdown and a second of the race.
     for (let sequence = 1; sequence <= COUNTDOWN_TICKS + 60; sequence++) {
       prediction.tick(wire(IDLE_INPUT, sequence));
@@ -520,7 +520,7 @@ describe("prediction", () => {
 
   it("draws another kart's boost, and the tier it burns in, from the snapshots", async () => {
     const bridge = await loadBridge(wasm);
-    const prediction = bridge.createPrediction(7n, 0, OVAL);
+    const prediction = bridge.createPrediction(7n, 0, OVAL, "basic");
     for (let sequence = 1; sequence <= COUNTDOWN_TICKS + 60; sequence++) {
       prediction.tick(wire(IDLE_INPUT, sequence));
     }
@@ -565,7 +565,7 @@ describe("prediction", () => {
 
   it("takes the rocket start verdict and the stall a snapshot says, and draws another kart's from the snapshots", async () => {
     const bridge = await loadBridge(wasm);
-    const prediction = bridge.createPrediction(7n, 0, OVAL);
+    const prediction = bridge.createPrediction(7n, 0, OVAL, "basic");
     // Idle on the grid through the countdown and a second of the race: a
     // clean start predicted, which the server decided a stall.
     for (let sequence = 1; sequence <= COUNTDOWN_TICKS + 60; sequence++) {
@@ -722,7 +722,7 @@ describe("items", () => {
     }
     expect(fired, "some seed rolls kart 1 a projectile").toBe(true);
 
-    const prediction = bridge.createPrediction(7n, 0, OVAL);
+    const prediction = bridge.createPrediction(7n, 0, OVAL, "basic");
     expect(prediction.interpolatedProjectiles()).toEqual([]);
     const snapshot = (tick: number, x: number): Snapshot => ({
       tick,
@@ -777,7 +777,7 @@ describe("runaway wheel", () => {
   it("reports the wheel quiet through the countdown, the flag up before the first pass and the wheel rolling through it, as the prediction does", async () => {
     const bridge = await loadBridge(wasm);
     const race = bridge.createRace(7n, 1, 0, BELL_DEER, "basic");
-    const prediction = bridge.createPrediction(7n, 0, BELL_DEER);
+    const prediction = bridge.createPrediction(7n, 0, BELL_DEER, "basic");
     // Stepped until the first pass is half way across, read off the wheel
     // itself so a retuned cycle needs no change here.
     const halfWay = () => {

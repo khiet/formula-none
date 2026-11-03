@@ -528,7 +528,7 @@ fn a_prediction_beside_the_servers_race_reports_the_wheels_spin_out_on_the_same_
     let [right, ahead] = on_the_middle_leg();
     let sidecar = with_slot_at(BELL_DEER, 0, on_crossing(ahead, right), crossing().yaw);
     let mut server = State::new(SEED, 1, track(&sidecar));
-    let mut prediction = Prediction::new(SEED, 0, track(&sidecar));
+    let mut prediction = Prediction::new(SEED, 0, track(&sidecar), BotLevel::Basic);
     // A client a few ticks ahead of the server, whose snapshots reach it a
     // few ticks late: the prediction steps each server tick's input before
     // the server does, and reconciles with each snapshot when it lands.
@@ -728,7 +728,7 @@ fn a_predicted_hit_the_snapshots_overrule_leaves_the_pass_free_to_hit_where_the_
     let length = (leg.to[0] - leg.from[0]).hypot(leg.to[1] - leg.from[1]);
     let further = 0.4 / length;
     let sidecar = with_slot_at(BELL_DEER, 0, on_crossing(ahead, right), crossing().yaw);
-    let mut prediction = Prediction::new(SEED, 0, track(&sidecar));
+    let mut prediction = Prediction::new(SEED, 0, track(&sidecar), BotLevel::Basic);
     let mut tick = 0;
     let idle = KartInput::default();
     while prediction.kart_readout().spin_out_s.is_none() {
@@ -766,7 +766,7 @@ fn a_prediction_told_the_race_has_ended_quiets_its_wheel_and_is_never_hit() {
     // first pass rolls toward it, and the client is told so.
     let [right, ahead] = on_the_middle_leg();
     let sidecar = with_slot_at(BELL_DEER, 0, on_crossing(ahead, right), crossing().yaw);
-    let mut prediction = Prediction::new(SEED, 0, track(&sidecar));
+    let mut prediction = Prediction::new(SEED, 0, track(&sidecar), BotLevel::Basic);
     let idle = KartInput::default();
     let mut tick = 0;
     let ends_s = pass_start_s(1) + 0.5;

@@ -37,6 +37,9 @@ creator pick how hard the bots drive, from three levels.
   for the race and not part of what a tick changes. The rocket start draw
   is made at every level, so the RNG runs on the same from one seed
   whatever the level.
+- The prediction carries it too (ADR 0009): a finished kart drives on
+  under its bot in the prediction as on the server, so the two corner at
+  the same level and the server never moves the finished kart.
 - The creator picks on the Title Scene, under the flags, as the course is
   picked (ADR 0061): a radio group named `bots`, one pick for Create room
   and Solo race, remembered in the browser beside the course pick, Basic
