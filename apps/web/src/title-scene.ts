@@ -58,6 +58,50 @@ export interface TitleOptions {
   readonly reducedMotion: () => boolean;
 }
 
+/** A pick under the flags: a heading, a tile per choice and a line describing the one picked. */
+function pickRow<Value extends string>(row: {
+  readonly name: string;
+  readonly heading: string;
+  readonly choices: readonly {
+    readonly value: Value;
+    readonly name: string;
+    readonly blurb: string;
+  }[];
+  readonly picked: Value;
+  onPick(value: Value): void;
+}): HTMLElement {
+  const fieldset = document.createElement("fieldset");
+  fieldset.className = "bots";
+  fieldset.setAttribute("aria-label", row.heading);
+  const heading = document.createElement("h2");
+  heading.textContent = row.heading;
+  const tiles = document.createElement("div");
+  tiles.className = "bot-tiles";
+  const blurb = document.createElement("p");
+  blurb.dataset[`${row.name}Blurb`] = "";
+  for (const choice of row.choices) {
+    const radio = document.createElement("input");
+    radio.type = "radio";
+    radio.name = row.name;
+    radio.value = choice.value;
+    radio.checked = choice.value === row.picked;
+    radio.addEventListener("change", () => {
+      blurb.textContent = `${choice.name}: ${choice.blurb}.`;
+      row.onPick(choice.value);
+    });
+    const caption = document.createElement("span");
+    caption.className = "flag-name";
+    caption.textContent = choice.name;
+    const tile = document.createElement("label");
+    tile.className = "flag-tile bot-tile";
+    tile.append(radio, caption);
+    tiles.append(tile);
+    if (radio.checked) blurb.textContent = `${choice.name}: ${choice.blurb}.`;
+  }
+  fieldset.append(heading, tiles, blurb);
+  return fieldset;
+}
+
 /**
  * The Title Scene: the game's name, the nickname typed once, and the three
  * ways in: create a room, join one by code, or race alone, with the three
@@ -238,66 +282,21 @@ export function createTitleScene(
     flags.append(tile);
     if (radio.checked) preview.show(choice);
   }
-  // The levels share the name `bots`, a radio group of their own, styled as the flag tiles are.
-  const bots = document.createElement("fieldset");
-  bots.className = "bots";
-  bots.setAttribute("aria-label", "Bots");
-  const botsHeading = document.createElement("h2");
-  botsHeading.textContent = "Bots";
-  const botTiles = document.createElement("div");
-  botTiles.className = "bot-tiles";
-  const botsBlurb = document.createElement("p");
-  botsBlurb.dataset.botsBlurb = "";
-  for (const choice of BOT_LEVELS) {
-    const radio = document.createElement("input");
-    radio.type = "radio";
-    radio.name = "bots";
-    radio.value = choice.level;
-    radio.checked = choice.level === options.botLevel;
-    radio.addEventListener("change", () => {
-      botsBlurb.textContent = `${choice.name}: ${choice.blurb}.`;
-      handlers.botLevel(choice.level);
-    });
-    const caption = document.createElement("span");
-    caption.className = "flag-name";
-    caption.textContent = choice.name;
-    const tile = document.createElement("label");
-    tile.className = "flag-tile bot-tile";
-    tile.append(radio, caption);
-    botTiles.append(tile);
-    if (radio.checked) botsBlurb.textContent = `${choice.name}: ${choice.blurb}.`;
-  }
-  bots.append(botsHeading, botTiles, botsBlurb);
-  // The Tyres picks, another radio group of their own, styled as the bot levels are.
-  const tyres = document.createElement("fieldset");
-  tyres.className = "bots tyres";
-  tyres.setAttribute("aria-label", "Tyres");
-  const tyresHeading = document.createElement("h2");
-  tyresHeading.textContent = "Tyres";
-  const tyreTiles = document.createElement("div");
-  tyreTiles.className = "bot-tiles";
-  const tyresBlurb = document.createElement("p");
-  tyresBlurb.dataset.tyresBlurb = "";
-  for (const choice of TYRES_CHOICES) {
-    const radio = document.createElement("input");
-    radio.type = "radio";
-    radio.name = "tyres";
-    radio.value = choice.tyres;
-    radio.checked = choice.tyres === options.tyres;
-    radio.addEventListener("change", () => {
-      tyresBlurb.textContent = `${choice.name}: ${choice.blurb}.`;
-      handlers.tyres(choice.tyres);
-    });
-    const caption = document.createElement("span");
-    caption.className = "flag-name";
-    caption.textContent = choice.name;
-    const tile = document.createElement("label");
-    tile.className = "flag-tile bot-tile";
-    tile.append(radio, caption);
-    tyreTiles.append(tile);
-    if (radio.checked) tyresBlurb.textContent = `${choice.name}: ${choice.blurb}.`;
-  }
-  tyres.append(tyresHeading, tyreTiles, tyresBlurb);
+  // Each pick is a radio group of its own, styled as the flag tiles are.
+  const bots = pickRow({
+    name: "bots",
+    heading: "Bots",
+    choices: BOT_LEVELS.map(({ level, name, blurb }) => ({ value: level, name, blurb })),
+    picked: options.botLevel,
+    onPick: handlers.botLevel,
+  });
+  const tyres = pickRow({
+    name: "tyres",
+    heading: "Tyres",
+    choices: TYRES_CHOICES.map(({ tyres, name, blurb }) => ({ value: tyres, name, blurb })),
+    picked: options.tyres,
+    onPick: handlers.tyres,
+  });
   const courseColumn = document.createElement("div");
   courseColumn.className = "course";
   courseColumn.append(courseHeading, flags, bots, tyres, preview.element);

@@ -34,9 +34,8 @@ pub const RECONCILIATION_BLEND_TICKS: u32 = 6;
 /// with the prediction: the difference is rounding, not a correction.
 pub const RECONCILIATION_TOLERANCE_M: f32 = 0.001;
 /// How far a snapshot's tyre life may sit from the prediction's, in percent,
-/// before it rewinds to take the server's word. A touch the two judge a
-/// little apart is not worth one: 1% moves the top speed cap by at most
-/// 10 cm/s, too little to see (ADR 0080).
+/// before it rewinds to take the server's word. A touch only the server
+/// knows of is not worth one: ADR 0080 sizes this at too little to see.
 pub const RECONCILIATION_TYRE_LIFE_TOLERANCE_PERCENT: f32 = 1.0;
 /// The largest correction of the own kart a player cannot see in the chase
 /// camera: blended over the tuned ticks it moves the kart under 5 cm a
@@ -901,6 +900,7 @@ pub struct Tuning {
     /// Indexed by the coins a kart carries.
     pub coin_top_speeds_m_per_s: [f32; COIN_CAP as usize + 1],
     pub coin_cap: u32,
+    pub tyre_life_new_percent: f32,
     pub coins_lost_per_spin_out: u32,
     pub coin_half_length_m: f32,
     pub coin_half_width_m: f32,
@@ -950,6 +950,7 @@ pub const TUNING: Tuning = Tuning {
     item_roll_s: ITEM_ROLL_S,
     coin_top_speeds_m_per_s: COIN_TOP_SPEEDS_M_PER_S,
     coin_cap: COIN_CAP,
+    tyre_life_new_percent: TYRE_LIFE_NEW_PERCENT,
     coins_lost_per_spin_out: COINS_LOST_PER_SPIN_OUT,
     coin_half_length_m: COIN_HALF_LENGTH_M,
     coin_half_width_m: COIN_HALF_WIDTH_M,

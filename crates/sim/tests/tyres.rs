@@ -141,6 +141,24 @@ fn a_stopped_kart_loses_none() {
 }
 
 #[test]
+fn a_kart_brought_to_rest_loses_none() {
+    let mut state = started(on(oval(), 1));
+    for _ in 0..ticks(2.0) {
+        state = step(state, &[throttle()], DT);
+    }
+    let lift = KartInput::default();
+    while state.kart_readouts()[0].speed != 0.0 {
+        state = step(state, &[lift], DT);
+    }
+    let at_rest = life(&state, 0);
+    assert!(at_rest < TYRE_LIFE_NEW_PERCENT, "it wore on the way");
+    for _ in 0..ticks(2.0) {
+        state = step(state, &[lift], DT);
+    }
+    assert_eq!(life(&state, 0), at_rest);
+}
+
+#[test]
 fn a_kart_in_the_air_loses_none() {
     let mut state = started(on(oval(), 1));
     for _ in 0..ticks(2.0) {
@@ -271,5 +289,27 @@ fn a_prediction_adopts_a_hits_wear_from_the_snapshot_and_lets_a_small_gap_stand(
         prediction.kart_readout().tyre_life,
         hit.tyre_life,
         "the server's word stands"
+    );
+}
+
+#[test]
+fn a_prediction_leaves_wear_from_another_kart_to_the_snapshots() {
+    let (mut touching, _, mut sequence) = predicted_beside_the_server();
+    let (mut alone, _, _) = predicted_beside_the_server();
+    loop {
+        sequence += 1;
+        let own = touching.kart_readout();
+        let mut ahead = own;
+        ahead.position[2] -= 2.0;
+        touching.tick(sequence, throttle(), &[own, ahead]);
+        alone.tick(sequence, throttle(), &[]);
+        if touching.kart_readout().bump.is_some() {
+            break;
+        }
+        assert!(sequence < 3000, "the kart drawn ahead never touched it");
+    }
+    assert_eq!(
+        touching.kart_readout().tyre_life,
+        alone.kart_readout().tyre_life
     );
 }

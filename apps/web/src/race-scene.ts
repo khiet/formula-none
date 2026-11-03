@@ -104,6 +104,7 @@ export async function createRaceScene(
     {
       coinTopSpeeds: bridge.coinTopSpeeds,
       coinCap: bridge.coinCap,
+      tyreLifeNew: bridge.tyreLifeNew,
       starSeconds: bridge.starSeconds,
     },
     name,

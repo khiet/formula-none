@@ -26,7 +26,9 @@ fn snapshots_carry_tyre_life_falling_with_tyres_on() {
     let snapshot = snapshot_ten_seconds_in(Tyres::On);
     assert_eq!(snapshot.karts[0].tyre_life, 100.0, "the idle human's stand");
     assert!(
-        snapshot.karts[1..].iter().all(|kart| kart.tyre_life < 100.0),
+        snapshot.karts[1..]
+            .iter()
+            .all(|kart| kart.tyre_life < 100.0),
         "every bot has driven on them"
     );
 }

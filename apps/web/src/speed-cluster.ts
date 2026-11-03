@@ -27,6 +27,8 @@ export interface SpeedClusterTuning {
   readonly coinTopSpeeds: readonly number[];
   /** The most coins a kart carries. */
   readonly coinCap: number;
+  /** The life of new tyres, as a percentage. */
+  readonly tyreLifeNew: number;
 }
 
 /** How much life the tyres read as having: green, yellow or red. */
@@ -85,7 +87,7 @@ export function tyreLifePercent(tyreLife: number): number {
   return Math.ceil(tyreLife);
 }
 
-/** The tyre gauge's colour for a tyre life percentage: green above 60%, yellow above 30%, red below. */
+/** The tyre gauge's colour for a tyre life percentage: green above 60%, yellow above 30%, red at 30% and below. */
 export function tyreWearBand(percent: number): TyreWearBand {
   return percent > 60 ? "good" : percent > 30 ? "warn" : "bad";
 }

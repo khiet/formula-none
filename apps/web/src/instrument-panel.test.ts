@@ -39,6 +39,7 @@ function at(position: readonly [number, number, number]): KartReadout {
 const TUNING = {
   coinTopSpeeds: Array.from({ length: 11 }, (_, coins) => 30 * (1 + coins * 0.01)),
   coinCap: 10,
+  tyreLifeNew: 100,
   starSeconds: 6,
 };
 

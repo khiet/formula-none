@@ -642,7 +642,7 @@ Decorative: the gear and the speed are the text.
 How much life a kart's tyres have left, as a percentage: 100% is new and 0%
 is gone. It falls as the kart is driven and only a stop raises it. The
 Instrument panel's tyre gauge shows it on the local kart drawn from above,
-its tyres green above 60%, yellow above 30% and red below, read rounded up so
+its tyres green above 60%, yellow above 30% and red at 30% and below, read rounded up so
 0% means truly gone (ADR 0080). With Tyres Off it holds at 100%. Avoid: tyre
 wear, for the number.
 

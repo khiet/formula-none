@@ -13,9 +13,9 @@
 //! agrees with it.
 //!
 //! The tyres it wears as the server does, since that follows from the
-//! kart's own inputs; wear from other karts and hits is the server's, so
-//! the snapshots' tyre life stands. A snapshot within the tuned tolerance
-//! is no reason to rewind (ADR 0080).
+//! kart's own inputs and the static track; wear from other karts and the
+//! server's hits it leaves to the snapshots' tyre life. A snapshot within
+//! the tuned tolerance is no reason to rewind (ADR 0080).
 //!
 //! Four things the prediction never runs. The item roll: the slot is the
 //! snapshots' word, so a fire is predicted only once the server has said

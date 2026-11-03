@@ -313,6 +313,8 @@ export interface Bridge extends MessageCodec {
   readonly coinTopSpeeds: readonly number[];
   /** The most coins a kart carries, the coin count's cap (ADR 0056). */
   readonly coinCap: number;
+  /** The life of new tyres, as a percentage (ADR 0080). */
+  readonly tyreLifeNew: number;
   /** Seconds a picked-up coin is gone before it is back (ADR 0055). */
   readonly coinRespawnSeconds: number;
   /** How long a fire predicted from a press shows before the server is taken not to have fired (ADR 0014). */
@@ -421,6 +423,7 @@ export async function loadBridge(wasm?: BufferSource): Promise<Bridge> {
     itemRollSeconds: tuned.itemRollS,
     coinTopSpeeds: tuned.coinTopSpeedsMPerS,
     coinCap: tuned.coinCap,
+    tyreLifeNew: tuned.tyreLifeNewPercent,
     coinRespawnSeconds: tuned.coinRespawnS,
     predictedFireTimeoutSeconds: tuned.predictedFireTimeoutS,
     hazardDropDistanceMetres: tuned.hazardDropDistanceM,

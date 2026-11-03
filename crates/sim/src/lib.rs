@@ -608,9 +608,6 @@ pub struct State {
     /// How hard the bots drive (ADR 0078). Fixed for the race, not part of
     /// what a tick changes, so not hashed.
     bot_level: BotLevel,
-    /// Whether the tyres wear (ADR 0083). Fixed for the race, so not hashed;
-    /// on On a kart's life is.
-    tyres: Tyres,
     physics: Physics,
     phase: Phase,
     /// What the last tick changed that the players are told about. Not
@@ -1082,7 +1079,6 @@ impl State {
             projectiles: Vec::new(),
             final_positions: None,
             bot_level: level,
-            tyres,
             wakes_judged: true,
             track,
             karts,
@@ -1098,11 +1094,6 @@ impl State {
     /// How hard the bots drive (ADR 0078).
     pub fn bot_level(&self) -> BotLevel {
         self.bot_level
-    }
-
-    /// Whether the tyres wear (ADR 0083).
-    pub fn tyres(&self) -> Tyres {
-        self.tyres
     }
 
     pub fn track(&self) -> &Track {
@@ -2195,7 +2186,8 @@ fn normal_toward(pair: &ContactPair, collider: ColliderHandle, manifold: &Contac
 /// kart bounces off it.
 /// A kart that is not one of `karts`, a kinematic stand-in for another
 /// player's kart in a prediction, closes at the velocity the solver moved
-/// it with. Each kart of a pair runs this for itself.
+/// it with, and costs no tyre life: wear from another kart is the
+/// snapshots' word (ADR 0080). Each kart of a pair runs this for itself.
 fn bump_off_karts(
     karts: &mut [Kart],
     index: usize,
@@ -2217,12 +2209,10 @@ fn bump_off_karts(
         let other_body = physics.colliders[other]
             .parent()
             .expect("a kart collider has a body");
-        let other_sent = karts
-            .iter()
-            .position(|kart| kart.body == other_body)
-            .map_or(physics.bodies[other_body].linvel(), |slot| {
-                sent_velocities[slot]
-            });
+        let other_slot = karts.iter().position(|kart| kart.body == other_body);
+        let other_sent = other_slot.map_or(physics.bodies[other_body].linvel(), |slot| {
+            sent_velocities[slot]
+        });
         for (normal, closing_speed) in
             touches_this_tick(pair, collider, other_sent - sent_velocities[index], dt)
         {
@@ -2234,6 +2224,9 @@ fn bump_off_karts(
                 KART_BUMP_RESTITUTION / 2.0,
                 KART_BUMP_SPEED_LOSS,
             );
+            if other_slot.is_some() {
+                karts[index].handling.wear_for_touch(other, closing_speed);
+            }
         }
     }
 }
@@ -2261,6 +2254,7 @@ fn bump_off_tyre_walls(kart: &mut Kart, physics: &Physics, sent_velocity: Vec3, 
                 TYRE_WALL_RESTITUTION,
                 TYRE_WALL_SPEED_LOSS,
             );
+            kart.handling.wear_for_touch(other, closing_speed);
         }
     }
 }

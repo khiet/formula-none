@@ -15,6 +15,7 @@ const COIN_CAP = 10;
 const TUNING = {
   coinTopSpeeds: Array.from({ length: COIN_CAP + 1 }, (_, coins) => TOP_SPEED * (1 + coins * 0.01)),
   coinCap: COIN_CAP,
+  tyreLifeNew: 100,
 };
 
 describe("the gear", () => {

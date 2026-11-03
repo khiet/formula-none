@@ -308,13 +308,12 @@ export function createInstrumentPanel(
   const tyre = instrument("tyre");
   tyre.append(kartFromAbove(paint));
   const tyrePercent = part(tyre, "tyrePercent");
-  // Every kart starts the race on new tyres.
   const showTyres = (tyreLife: number) => {
     const percent = tyreLifePercent(tyreLife);
     tyrePercent.textContent = `${percent}%`;
     tyre.dataset.tyreWear = tyreWearBand(percent);
   };
-  showTyres(100);
+  showTyres(tuning.tyreLifeNew);
   const coins = instrument("coins");
   coins.append(coinIcon());
   const coinValue = part(coins, "coinCount");
