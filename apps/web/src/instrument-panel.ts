@@ -318,13 +318,13 @@ export function createInstrumentPanel(
   showTyres(tuning.tyreLifeNew);
   // Beside the gauge whose red it warns of. "BOX" only ever means this radio
   // call: an item box is never shortened to it (ADR 0081).
-  const box = instrument("box", "BOX");
-  plate(box, POSTER_RED);
-  box.hidden = true;
+  const boxPlate = instrument("box-call", "BOX");
+  plate(boxPlate, POSTER_RED);
+  boxPlate.hidden = true;
   const coins = instrument("coins");
   coins.append(coinIcon());
   const coinValue = part(coins, "coinCount");
-  cluster.append(coins, gear, speed, tyre, box);
+  cluster.append(coins, gear, speed, tyre, boxPlate);
   const showSpeed = (metresPerSecond: number, carried: number) => {
     const topSpeed = coinTopSpeed(tuning, carried);
     const reading = drivetrain(metresPerSecond, topSpeed);
@@ -527,7 +527,7 @@ export function createInstrumentPanel(
       connection.textContent = status;
     },
     boxCall(showing) {
-      box.hidden = !showing;
+      boxPlate.hidden = !showing;
     },
     connectionLost(lost) {
       banner.hidden = !lost;

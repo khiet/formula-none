@@ -9,7 +9,9 @@ use common::{
     ticks, track, with_slot_at, DT, FIGURE_EIGHT, SEED,
 };
 
-use sim::tuning::{TOP_SPEED_M_PER_S, TYRE_LIFE_NEW_PERCENT, TYRE_WEAR_SPIN_OUT_PERCENT};
+use sim::tuning::{
+    TOP_SPEED_M_PER_S, TYRE_LIFE_NEW_PERCENT, TYRE_TOP_SPEED_FACTORS, TYRE_WEAR_SPIN_OUT_PERCENT,
+};
 use sim::{
     step, BotLevel, Item, KartInput, KartReadout, Prediction, RaceEvent, State, Track, Tyres,
 };
@@ -237,8 +239,14 @@ fn a_kart_on_tyres_at_zero_finishes_a_lap_under_the_worn_top_speed() {
             .iter()
             .any(|event| matches!(event, RaceEvent::LapCompleted { .. }));
         if lapped {
-            assert!(fastest <= 0.86 * TOP_SPEED_M_PER_S + 0.01, "{fastest}");
-            assert!(fastest > 0.8 * TOP_SPEED_M_PER_S, "{fastest}");
+            assert!(
+                fastest <= TYRE_TOP_SPEED_FACTORS[3] * TOP_SPEED_M_PER_S + 0.01,
+                "{fastest}"
+            );
+            assert!(
+                fastest > TYRE_TOP_SPEED_FACTORS[3] * TOP_SPEED_M_PER_S - 2.0,
+                "{fastest}"
+            );
             return;
         }
     }

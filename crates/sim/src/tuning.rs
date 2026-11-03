@@ -439,7 +439,7 @@ pub const TYRE_LIFE_NEW_PERCENT: f32 = 100.0;
 pub const TYRE_LIFE_CLIFF_PERCENT: f32 = 30.0;
 /// The lives the tables below are tuned at, new first; between two the
 /// handling reads in a straight line (ADR 0080).
-pub const TYRE_LIFE_STOPS_PERCENT: [f32; 4] =
+pub const TYRE_LIFE_COLUMNS_PERCENT: [f32; 4] =
     [TYRE_LIFE_NEW_PERCENT, 60.0, TYRE_LIFE_CLIFF_PERCENT, 0.0];
 /// What those lives leave of the top speed cap, the steering rate, the
 /// acceleration and the braking.
@@ -857,18 +857,18 @@ const _: () = {
         let mut table = 0;
         while table < tables.len() {
             assert!(tables[table][0] == 1.0);
-            let mut stop = 1;
-            while stop < TYRE_LIFE_STOPS_PERCENT.len() {
-                assert!(tables[table][stop] <= tables[table][stop - 1]);
-                assert!(0.0 < tables[table][stop] && tables[table][stop] <= 1.0);
-                assert!(TYRE_LIFE_STOPS_PERCENT[stop] < TYRE_LIFE_STOPS_PERCENT[stop - 1]);
-                assert!(TYRE_WASH_OUT_MOST_RAD[stop - 1] <= TYRE_WASH_OUT_MOST_RAD[stop]);
-                stop += 1;
+            let mut column = 1;
+            while column < TYRE_LIFE_COLUMNS_PERCENT.len() {
+                assert!(tables[table][column] <= tables[table][column - 1]);
+                assert!(0.0 < tables[table][column] && tables[table][column] <= 1.0);
+                assert!(TYRE_LIFE_COLUMNS_PERCENT[column] < TYRE_LIFE_COLUMNS_PERCENT[column - 1]);
+                assert!(TYRE_WASH_OUT_MOST_RAD[column - 1] <= TYRE_WASH_OUT_MOST_RAD[column]);
+                column += 1;
             }
             table += 1;
         }
     }
-    assert!(TYRE_LIFE_STOPS_PERCENT[3] == 0.0);
+    assert!(TYRE_LIFE_COLUMNS_PERCENT[3] == 0.0);
     assert!(TYRE_WASH_OUT_MOST_RAD[0] == 0.0);
     assert!(TYRE_WASH_OUT_MOST_RAD[3] < DRIFT_SLIP_ANGLE_RAD);
     assert!(TYRE_WASH_OUT_LIMIT_M_PER_S2 < TYRE_WASH_OUT_FULL_M_PER_S2);

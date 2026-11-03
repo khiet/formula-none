@@ -3,7 +3,7 @@
 //! with the [`KartInput`] a human's controller would, so a bot-driven kart is
 //! just a kart whose input comes from here instead of a device.
 
-use crate::handling::{wash_out_held, TyreGrip};
+use crate::handling::TyreGrip;
 use crate::tuning::{
     coin_factor, BotProfile, ACCELERATION_TO_TOP_S, BOT_AVOID_HALF_WIDTH_M, BOT_BRAKE_HORIZON_S,
     BOT_CORNER_SAMPLE_M, BOT_DRIFT_CURVATURE_RAD_PER_M, BOT_HAZARD_HOLD_S, BOT_HOP_STEER,
@@ -127,7 +127,7 @@ pub fn drive(
     let target_speed = corner_speed(
         profile,
         sharpest_ahead(track, progress, kart.speed, grip),
-        grip.steer_rate,
+        grip,
     );
     // On a star's run the wheel cannot hurt it and the karts in its way are
     // its targets, so it neither waits nor steers round anyone.
@@ -534,7 +534,7 @@ fn pursuit_steer(kart: &KartReadout, target: [f32; 2]) -> f32 {
     let slip = kart.drift.map_or(0.0, |drift| {
         drift.direction.steer_sign() * DRIFT_SLIP_ANGLE_RAD
     });
-    let travel = yaw(kart.rotation) + slip + wash_out_of(kart, slip);
+    let travel = yaw(kart.rotation) + slip;
     let (dx, dz) = (target[0] - kart.position[0], target[1] - kart.position[2]);
     let distance = libm::sqrtf(dx * dx + dz * dz).max(f32::EPSILON);
     // Positive steer turns the kart right; right of a yaw is (cos, -sin) in x, z.
@@ -544,8 +544,8 @@ fn pursuit_steer(kart: &KartReadout, target: [f32; 2]) -> f32 {
     // curvature 2 sin(angle) / distance; the yaw rate for it is that times
     // the speed, and the lock is the yaw rate over the rate full lock gives.
     let curvature = 2.0 * rightward / distance;
-    let tyres = TyreGrip::at(kart.tyre_life).steer_rate;
-    let lock = kart.speed.abs() * curvature / crate::handling::steer_rate(kart.speed, tyres);
+    let factor = TyreGrip::at(kart.tyre_life).steer_rate;
+    let lock = kart.speed.abs() * curvature / crate::handling::steer_rate(kart.speed, factor);
     match kart.drift {
         None => lock.clamp(-1.0, 1.0),
         // A drift turns its own way at the neutral strength, trimmed by the
@@ -556,18 +556,6 @@ fn pursuit_steer(kart: &KartReadout, target: [f32; 2]) -> f32 {
             ((lock * sign - DRIFT_TURN_NEUTRAL) / DRIFT_TURN_STEER_RANGE * sign).clamp(-1.0, 1.0)
         }
     }
-}
-
-/// How far the kart's line of travel slides wide of its facing and `slip`,
-/// as its velocity holds it: worn tyres take the kart where the steer did not.
-fn wash_out_of(kart: &KartReadout, slip: f32) -> f32 {
-    let facing = Rotation::from_array(kart.rotation).normalize() * Rotation::from_rotation_y(slip);
-    let bump = kart.bump.map_or(Vec3::ZERO, Vec3::from);
-    wash_out_held(
-        facing,
-        Vec3::from(kart.velocity) - bump,
-        TyreGrip::at(kart.tyre_life).wash_out_rad,
-    )
 }
 
 /// The sharpest curvature, unsigned, of the centreline from the kart to as
@@ -591,16 +579,17 @@ fn sharpest_ahead(track: &Track, progress: f32, speed: f32, grip: TyreGrip) -> f
 /// fraction of the fastest speed at which full lock still holds the turn's
 /// radius, given that the steer rate falls with speed. A straight asks for
 /// more than any top speed, banded or boosted, so the throttle stays open
-/// along it. `tyres` is the steering rate the tyres leave, so a bot slows
-/// for corners on worn tyres (ADR 0080).
-fn corner_speed(profile: &BotProfile, curvature: f32, tyres: f32) -> f32 {
+/// along it. `grip` is the tyres', so a bot slows for corners on worn ones
+/// (ADR 0080).
+fn corner_speed(profile: &BotProfile, curvature: f32, grip: TyreGrip) -> f32 {
     // Full lock turns a kart at speed v with radius v / rate(v), where
-    // rate(v) = tyres * (low + (top - low) * v / TOP); solving radius =
-    // 1 / curvature for v gives the speed below.
+    // rate(v) = f * (low + (top - low) * v / TOP), f the tyres' factor; solving
+    // radius = 1 / curvature for v gives the speed below.
     let rate_fall_per_m_per_s =
         (STEER_RATE_LOW_SPEED_RAD_PER_S - STEER_RATE_TOP_SPEED_RAD_PER_S) / TOP_SPEED_M_PER_S;
+    let factor = grip.steer_rate;
     let fastest =
-        tyres * STEER_RATE_LOW_SPEED_RAD_PER_S / (curvature + tyres * rate_fall_per_m_per_s);
+        factor * STEER_RATE_LOW_SPEED_RAD_PER_S / (curvature + factor * rate_fall_per_m_per_s);
     fastest * profile.corner_speed_fraction
 }
 

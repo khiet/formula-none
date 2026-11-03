@@ -130,9 +130,9 @@ export async function createRaceScene(
       const pose = camera.update(local, frameSeconds, input.lookingBehind());
       view.update(readout, pose, frameSeconds);
       panel.update(readout);
-      const box = boxCall.update(local.tyreLife, standing.lap, frameSeconds);
-      panel.boxCall(box);
-      audio.update(soundReading(readout, run.localKart, box));
+      const called = boxCall.update(local.tyreLife, standing.lap, frameSeconds);
+      panel.boxCall(called);
+      audio.update(soundReading(readout, run.localKart, called));
     }
   };
   audio.start();
