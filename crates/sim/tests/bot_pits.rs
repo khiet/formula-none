@@ -309,10 +309,10 @@ fn a_pro_bot_drops_its_drifts_on_worn_tyres_and_a_basic_bot_does_not() {
     assert!(asks(&basic, BotLevel::Basic, 20.0, ItemSlot::Empty).hop);
 }
 
-/// Whether an Ace bot hops at the hairpin, on what it read at the lane approach
-/// a lap into three on tyres at `life`.
-fn ace_hops_at_the_hairpin_after_reading(life: f32) -> bool {
-    let drive = |state: &State, memory: &mut sim::bot::Memory| {
+#[test]
+fn an_ace_bot_saving_its_tyres_drops_its_drifts_until_it_reads_otherwise() {
+    let mut memory = sim::bot::Memory::default();
+    let mut look = |state: &State, life: f32| {
         let mut kart = state.kart_readouts()[0];
         kart.tyre_life = life;
         kart.speed = 15.0;
@@ -325,29 +325,20 @@ fn ace_hops_at_the_hairpin_after_reading(life: f32) -> bool {
             SEED,
             3,
             0,
-            memory,
+            &mut memory,
             DT,
         )
     };
-    let mut memory = sim::bot::Memory::default();
     let approach = lone_bot_at(
         |course| course.pit_lane_fork().expect("a lane") - 20.0,
         BotLevel::Ace,
     );
-    drive(&approach, &mut memory);
-    drive(&lone_bot_at(hairpin, BotLevel::Ace), &mut memory).hop
-}
-
-#[test]
-fn an_ace_bot_saving_its_tyres_drops_its_drifts_until_it_reads_otherwise() {
-    assert!(
-        !ace_hops_at_the_hairpin_after_reading(68.0),
-        "saving reaches the flag"
-    );
-    assert!(
-        ace_hops_at_the_hairpin_after_reading(95.0),
-        "pushing reaches the flag"
-    );
+    let corner = lone_bot_at(hairpin, BotLevel::Ace);
+    assert!(look(&corner, 68.0).hop, "nothing read yet");
+    look(&approach, 68.0);
+    assert!(!look(&corner, 68.0).hop, "saving reaches the flag");
+    look(&approach, 95.0);
+    assert!(look(&corner, 95.0).hop, "pushing reaches the flag");
 }
 
 /// On Bell Deer four laps is where a lone Ace bot's clean 25% a lap falls short
