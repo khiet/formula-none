@@ -136,7 +136,7 @@ pub fn room() -> Room {
 
 /// A busy moment two minutes into a race with eight karts: two drifting,
 /// two boosting, five holding items, one of them a star, all but the last
-/// carrying coins, one spun out, one just bumped, one on a star's run, two of fifteen coins taken, a
+/// carrying coins, one spun out, one just bumped, one on a star's run, one in the air, two of fifteen coins taken, a
 /// hazard trailed behind a kart, a projectile in flight, and every kind of
 /// event since the previous snapshot. The byte budget in ADR 0010 is
 /// measured against this.
@@ -175,6 +175,7 @@ pub fn snapshot() -> Snapshot {
                 coins: 7 - slot.min(7),
                 tyre_life: 100.0 - f32::from(slot) * 12.5,
                 spin_out_s: (slot == 6).then_some(0.5),
+                airborne: slot == 0,
                 start: match slot % 4 {
                     0 => Start::Clean,
                     1 => Start::WeakBoost,

@@ -1,6 +1,6 @@
 //! The wire's types for the sim's and back. What the wire leaves out comes
-//! back as the sim reports a kart only a snapshot speaks for: never
-//! airborne, going at the speed its velocity has along its facing.
+//! back as the sim reports a kart only a snapshot speaks for: off the pit
+//! limiter, going at the speed its velocity has along its facing.
 
 use sim::KartReadout;
 
@@ -222,6 +222,7 @@ impl From<&KartReadout> for KartSnapshot {
             coins: kart.coins as u8,
             tyre_life: kart.tyre_life,
             spin_out_s: kart.spin_out_s,
+            airborne: kart.airborne,
             start: kart.start.into(),
             stall_s: kart.stall_s,
             boost: kart.boost_s.map(|left_s| BoostSnapshot {
@@ -251,7 +252,7 @@ impl From<&KartSnapshot> for KartReadout {
             coins: u32::from(kart.coins),
             tyre_life: kart.tyre_life,
             spin_out_s: kart.spin_out_s,
-            airborne: false,
+            airborne: kart.airborne,
             in_pit_lane: false,
             stop: kart.stop.map(sim::Stop::from),
             stops: u32::from(kart.stops),

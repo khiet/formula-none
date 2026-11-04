@@ -66,7 +66,6 @@ fn a_readout_through_a_snapshot_keeps_what_the_snapshot_carries() {
         back,
         KartReadout {
             speed: back.speed,
-            airborne: false,
             in_pit_lane: false,
             ..kart
         }

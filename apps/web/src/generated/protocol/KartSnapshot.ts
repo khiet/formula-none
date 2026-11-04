@@ -57,6 +57,10 @@ tyreLife: number,
  */
 spinOutS: number | null, 
 /**
+ * Whether the kart is in the air, which stops a rival's worn smoke.
+ */
+airborne: boolean, 
+/**
  * The kart's rocket start: during the countdown the tier its throttle
  * hold so far has reached, and from Go the verdict.
  */
