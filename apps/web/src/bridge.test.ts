@@ -655,7 +655,7 @@ describe("prediction", () => {
     expect(dustTell(racing(false).drawn, 30)?.at).toBe("wheels");
     const { drawn, predicted } = racing(true);
     expect(dustTell(drawn, 30)).toBeNull();
-    // The own kart's hop stays the prediction's, so the hop cue does not sound on another's word.
+    // The hop cue reads the own kart, whose hop stays the prediction's.
     expect(predicted.airborne).toBe(false);
   });
 
