@@ -175,7 +175,7 @@ struct PitLaneSidecar {
     half_width: f32,
     entry: Checkpoint,
     exit: Checkpoint,
-    /// One per grid slot, so karts never queue. Checked here; the stop reads them.
+    /// One per grid slot, so karts never queue. Only their count is read so far.
     pit_boxes: Vec<Placement>,
 }
 

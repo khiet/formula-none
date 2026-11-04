@@ -249,7 +249,7 @@ fn the_limit_beats_a_full_purse() {
 
 #[test]
 fn a_touch_at_the_limit_does_not_carry_a_kart_over_it() {
-    // Two karts abreast on the lane, up to the limit, and then one drifts
+    // Two karts abreast on the lane, up to the limit, and then one turns
     // across into the other: the bump goes on top of a kart already at it.
     let across = 2.2;
     let beside = |course: &Track, metres: f32| {
@@ -559,7 +559,7 @@ fn beside_the_lane(item: Item) -> State {
         let lane = course.pit_lane().expect("a lane");
         let metres = lane.entry_m() + 40.0;
         let (on_lane, yaw) = along_lane(&course, metres);
-        // Across the pit wall from the lane's kart: well within any reach.
+        // Across the pit wall from the lane's kart: well within the horn's reach.
         let across = 5.5;
         let (sin, cos) = yaw.sin_cos();
         let beside = [on_lane[0] - cos * across, 0.0, on_lane[2] + sin * across];
