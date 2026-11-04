@@ -714,14 +714,15 @@ pub enum BotPitCall {
     AtLifeOrBeforeItRunsOut { life: f32 },
     /// Its life, carried to the flag at the rate it has worn so far, ends under
     /// `flag_life`, and stopping now costs less time than staying out or
-    /// stopping a lap later. Only under `last_lap_life` for the last lap.
+    /// stopping on any later lap. Only under `last_lap_life` for the last lap.
     Projected { flag_life: f32, last_lap_life: f32 },
 }
 
 /// The bot constants that vary by bot level (ADR 0078): how hard a bot
 /// drives, not whether it can get round, so the lookahead, the line, the
 /// kerb and wheel avoidance, the pass gap and the stall recovery stay one
-/// constant each. Each field is the constant of the same name at Basic.
+/// constant each. Each field with a `BOT_` constant of the same name is that
+/// constant at Basic.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct BotProfile {
     pub pit_call: BotPitCall,
