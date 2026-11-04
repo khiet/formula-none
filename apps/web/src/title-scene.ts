@@ -3,12 +3,12 @@ import type { NicknameChars } from "./bridge";
 import { button } from "./controls";
 import { type CourseChoice, createCoursePreview } from "./course-preview";
 import { flag } from "./flags";
-import type { BotLevel, Tyres } from "./generated/sim";
+import type { BotLevel, RaceDistance, Tyres } from "./generated/sim";
 import { livery } from "./livery";
 import { validateNickname } from "./nickname";
 import { backdrop, kartSide } from "./poster";
 import { normaliseCode } from "./room-link";
-import { BOT_LEVELS, type Course, TYRES_CHOICES } from "./track";
+import { BOT_LEVELS, type Course, DISTANCE_CHOICES, TYRES_CHOICES } from "./track";
 
 export interface TitleScene {
   /** Show a message to the player, such as why a join was refused. */
@@ -31,6 +31,8 @@ export interface TitleHandlers {
   botLevel(level: BotLevel): void;
   /** The player picked this for the tyres, for the next Create room or Solo race. */
   tyres(tyres: Tyres): void;
+  /** The player picked this race distance, for the next Create room or Solo race. */
+  distance(distance: RaceDistance): void;
 }
 
 export interface TitleOptions {
@@ -52,8 +54,10 @@ export interface TitleOptions {
   readonly botLevel: BotLevel;
   /** The Tyres pick when the Scene opens. */
   readonly tyres: Tyres;
-  /** Laps in a race, for the preview. */
-  readonly laps: number;
+  /** The race distance picked when the Scene opens. */
+  readonly distance: RaceDistance;
+  /** Laps in a race of each distance, for the preview. */
+  readonly raceLaps: Readonly<Record<RaceDistance, number>>;
   /** Whether the player asks for reduced motion, which holds the preview's lap dot still. */
   readonly reducedMotion: () => boolean;
 }
@@ -114,7 +118,8 @@ function pickRow<Value extends string>(row: {
  * refusal from the server comes back through `message`. Every control is
  * addressable by its name, the flags as radios named `course` with the
  * track's name as their value, the levels as radios named `bots` and the
- * Tyres picks as radios named `tyres`.
+ * Tyres picks as radios named `tyres` and the race distance picks as radios
+ * named `distance`.
  */
 export function createTitleScene(
   container: HTMLElement,
@@ -260,7 +265,7 @@ export function createTitleScene(
   flags.className = "flags";
   flags.setAttribute("aria-label", "Course");
   const preview = createCoursePreview({
-    laps: options.laps,
+    laps: options.raceLaps[options.distance],
     reducedMotion: options.reducedMotion,
   });
   for (const choice of options.courses) {
@@ -299,7 +304,21 @@ export function createTitleScene(
   });
   const picks = document.createElement("div");
   picks.className = "picks";
-  picks.append(bots, tyres);
+  const distance = pickRow({
+    name: "distance",
+    heading: "Distance",
+    choices: DISTANCE_CHOICES.map(({ distance, name, blurb }) => ({
+      value: distance,
+      name,
+      blurb,
+    })),
+    picked: options.distance,
+    onPick(picked) {
+      preview.laps(options.raceLaps[picked]);
+      handlers.distance(picked);
+    },
+  });
+  picks.append(bots, tyres, distance);
   const courseColumn = document.createElement("div");
   courseColumn.className = "course";
   courseColumn.append(courseHeading, flags, picks, preview.element);

@@ -10,7 +10,7 @@ use axum::routing::{get, post};
 use axum::{Json, Router};
 use rooms::CreateRefused;
 use serde::{Deserialize, Serialize};
-use sim::{BotLevel, Tyres};
+use sim::{BotLevel, RaceDistance, Tyres};
 use std::net::IpAddr;
 use tokio::net::TcpListener;
 use tokio::sync::watch;
@@ -65,6 +65,7 @@ struct CreateRoom {
     track: Option<String>,
     bot_level: Option<String>,
     tyres: Option<String>,
+    distance: Option<String>,
 }
 
 /// The body is read as JSON whatever its content type says, so a create
@@ -80,6 +81,7 @@ async fn create_room(
             track: None,
             bot_level: None,
             tyres: None,
+            distance: None,
         }
     } else {
         serde_json::from_slice(&body).map_err(|_| StatusCode::BAD_REQUEST)?
@@ -96,9 +98,19 @@ async fn create_room(
         None => Tyres::Off,
         Some(tyres) => Tyres::from_name(&tyres).ok_or(StatusCode::BAD_REQUEST)?,
     };
+    let distance = match request.distance {
+        None => RaceDistance::Sprint,
+        Some(distance) => RaceDistance::from_name(&distance).ok_or(StatusCode::BAD_REQUEST)?,
+    };
     let code = state
         .rooms
-        .create_with(track, bot_level, tyres, forwarded_address(&headers))
+        .create_with(
+            track,
+            bot_level,
+            tyres,
+            distance,
+            forwarded_address(&headers),
+        )
         .map_err(|refused| match refused {
             // The client tells these two apart for the Title Scene's message.
             CreateRefused::Full => StatusCode::SERVICE_UNAVAILABLE,

@@ -39,7 +39,7 @@ function recorder(): Particles & { births: ParticleBirth[] } {
 /** The first pass over Bell Deer's crossing in the race from `seed`, a rolling wheel a tick. */
 async function firstPass(seed: bigint): Promise<Rolling[]> {
   const bridge = await loadBridge(wasm);
-  const race = bridge.createRace(seed, 1, 0, BELL_DEER, "basic", "off");
+  const race = bridge.createRace(seed, 1, 0, BELL_DEER, "basic", "off", "sprint");
   const pass: Rolling[] = [];
   for (;;) {
     race.step([IDLE_INPUT], DT);

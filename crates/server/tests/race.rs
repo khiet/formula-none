@@ -21,6 +21,7 @@ use sim::tuning::{
     BOT_START_HOLD_S, COUNTDOWN_S, INPUT_QUEUE_MAX_TICKS, INPUT_QUEUE_START_TICKS, KARTS_PER_RACE,
     RACE_OUTRO_S, SNAPSHOTS_PER_SECOND, TICKS_PER_SECOND,
 };
+use sim::RaceDistance;
 
 const TICKS_PER_SNAPSHOT: u32 = TICKS_PER_SECOND / SNAPSHOTS_PER_SECOND;
 /// The sidecar of the track the harness races, for what the track holds.
@@ -408,6 +409,38 @@ async fn events_are_never_lost_on_a_lossy_link_and_every_id_is_distinct() {
         )),
         "the idle human does nothing; the bots race, take coins and hit each other: {on_the_stream:?}"
     );
+}
+
+/// The laps a lone human drives before the results of a race over `distance`.
+async fn laps_raced_to_the_results(distance: RaceDistance) -> usize {
+    let mut harness = Harness::new(Conditions::PERFECT);
+    let code = harness.create_room_over(distance);
+    let mut players = vec![harness.connect()];
+    players[0].join(&code, "khiet").await.unwrap();
+    let countdown = start_race(&mut players).await;
+    assert_eq!(countdown[0].distance, distance);
+    let raced = drive_to_results(&mut players, &[(0, 0.0)]).await;
+    let finisher = raced[0]
+        .results
+        .iter()
+        .find(|standing| standing.kart == 0)
+        .expect("the human is placed");
+    assert!(finisher.finish_time_s.is_some(), "the human finished");
+    raced[0]
+        .events
+        .iter()
+        .filter(|(_, event)| matches!(event.kind, EventKind::LapCompleted { kart: 0, .. }))
+        .count()
+}
+
+#[tokio::test(start_paused = true)]
+async fn a_sprint_ends_after_three_laps() {
+    assert_eq!(laps_raced_to_the_results(RaceDistance::Sprint).await, 3);
+}
+
+#[tokio::test(start_paused = true)]
+async fn a_grand_prix_ends_after_five_laps() {
+    assert_eq!(laps_raced_to_the_results(RaceDistance::GrandPrix).await, 5);
 }
 
 #[tokio::test(start_paused = true)]

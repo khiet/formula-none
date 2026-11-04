@@ -104,7 +104,7 @@ export async function createRaceScene(
   const camera = createChaseCamera(bridge.cameraTuning, { reducedMotion });
   const panel = createInstrumentPanel(
     container,
-    bridge.lapsPerRace,
+    run.laps,
     { centreline, pitLane, kartCount: bridge.kartsPerRace, ownKart: run.localKart },
     {
       coinTopSpeeds: bridge.coinTopSpeeds,
@@ -121,7 +121,7 @@ export async function createRaceScene(
     // A lane with no stop in it yet has no new tyres to call the kart in for
     // (ADR 0081); the stop's arrival takes this over from the course's sidecar.
     pitLane: false,
-    lapsPerRace: bridge.lapsPerRace,
+    lapsPerRace: run.laps,
     cliff: bridge.tyreLifeCliff,
   });
 

@@ -9,7 +9,7 @@ import monarchSidecar from "../../../assets/tracks/monarch/monarch.track.json?ur
 import ovalGltf from "../../../assets/tracks/oval/oval.glb?url";
 import ovalSidecar from "../../../assets/tracks/oval/oval.track.json?url";
 
-import type { BotLevel, Tyres } from "./generated/sim";
+import type { BotLevel, RaceDistance, Tyres } from "./generated/sim";
 
 export type TrackName = "bell-deer" | "goldstone" | "monarch" | "oval";
 
@@ -159,6 +159,47 @@ export function botLevelFromSearch(search: string): BotLevel | undefined {
   return requested !== null && isBotLevel(requested) ? requested : undefined;
 }
 
+/** A race distance as the Title Scene offers it: its caption and the line describing it. */
+export interface DistanceChoice {
+  readonly distance: RaceDistance;
+  readonly name: string;
+  /** What the pick means for the race, in the course blurb's voice, after "Name: ". */
+  readonly blurb: string;
+}
+
+/** The picks in the Title Scene's order, the Sprint first (ADR 0083). */
+export const DISTANCE_CHOICES: readonly DistanceChoice[] = [
+  { distance: "sprint", name: "Sprint", blurb: "the short race, flat out from the lights" },
+  { distance: "grand-prix", name: "Grand Prix", blurb: "the long race, more laps to manage" },
+];
+
+const DEFAULT_DISTANCE: RaceDistance = "sprint";
+const DISTANCE_STORAGE_KEY = "distance";
+
+export function isRaceDistance(name: string): name is RaceDistance {
+  return DISTANCE_CHOICES.some((choice) => choice.distance === name);
+}
+
+/** The race distance picked last time, kept beside the course pick; a Sprint when unsaved, unreadable or no pick. */
+export function loadDistance(storage: Storage): RaceDistance {
+  const saved = remembered(storage, DISTANCE_STORAGE_KEY);
+  return saved !== null && isRaceDistance(saved) ? saved : DEFAULT_DISTANCE;
+}
+
+export function saveDistance(storage: Storage, distance: RaceDistance): void {
+  remember(storage, DISTANCE_STORAGE_KEY, distance);
+}
+
+/**
+ * The race distance the page's query string asks for (`?distance=grand-prix`),
+ * so a smoke run can load either into a solo race beside `?track=`; `undefined`
+ * for none or an unknown one.
+ */
+export function distanceFromSearch(search: string): RaceDistance | undefined {
+  const requested = new URLSearchParams(search).get("distance");
+  return requested !== null && isRaceDistance(requested) ? requested : undefined;
+}
+
 /** A Tyres pick as the Title Scene offers it: its caption and the line describing it. */
 export interface TyresChoice {
   readonly tyres: Tyres;
@@ -169,8 +210,8 @@ export interface TyresChoice {
 
 /** The picks in the Title Scene's order, Off first (ADR 0083). */
 export const TYRES_CHOICES: readonly TyresChoice[] = [
-  { tyres: "off", name: "Off", blurb: "tyres last the race, drive as hard as you like" },
-  { tyres: "on", name: "On", blurb: "corners, drifts and hits wear your tyres down" },
+  { tyres: "off", name: "Off", blurb: "they last the race" },
+  { tyres: "on", name: "On", blurb: "driving wears them" },
 ];
 
 const DEFAULT_TYRES: Tyres = "off";

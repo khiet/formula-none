@@ -3,7 +3,7 @@
 //! messages as bytes next to their JSON for Vitest (ADR 0004). Beside it,
 //! the sim's types the bridge hands over as JavaScript values: the kart
 //! readout, the surface under a kart, the standing, the tuning, the bot
-//! level and the Tyres pick (ADR 0026).
+//! level, the Tyres pick and the race distance (ADR 0026).
 //!
 //! `pnpm generate:protocol` runs this; CI runs it and fails on a diff
 //! against the committed output. Each output directory is replaced whole,
@@ -16,7 +16,7 @@
 use protocol::{encode, samples, ClientMessage, ServerMessage, PROTOCOL_VERSION};
 use serde::Serialize;
 use sim::tuning::Tuning;
-use sim::{BotLevel, KartReadout, Standing, Surface, Tyres};
+use sim::{BotLevel, KartReadout, RaceDistance, Standing, Surface, Tyres};
 use std::error::Error;
 use std::path::{Path, PathBuf};
 use std::{env, fs};
@@ -54,6 +54,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     Standing::export_all(&cfg)?;
     Surface::export_all(&cfg)?;
     Tyres::export_all(&cfg)?;
+    RaceDistance::export_all(&cfg)?;
     Tuning::export_all(&cfg)?;
     fs::write(sim_dir.join("index.ts"), index(&sim_dir, None)?)?;
 

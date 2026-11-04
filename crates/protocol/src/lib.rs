@@ -21,7 +21,7 @@ pub mod samples;
 
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
-use sim::{BotLevel, Tyres};
+use sim::{BotLevel, RaceDistance, Tyres};
 use std::fmt;
 use ts_rs::TS;
 
@@ -29,7 +29,7 @@ use ts_rs::TS;
 /// [`ClientMessage::Join`] and the server refuses a mismatch with
 /// [`Refusal::VersionMismatch`] (ADR 0013). The generator exports it next to
 /// the types, so the web app reads the same constant.
-pub const PROTOCOL_VERSION: u16 = 22;
+pub const PROTOCOL_VERSION: u16 = 23;
 
 /// What a client sends the server.
 #[derive(Serialize, Deserialize, TS, Debug, Clone, PartialEq)]
@@ -149,6 +149,9 @@ pub enum ServerMessage {
         /// Whether the tyres wear (ADR 0083), so the client's prediction
         /// and a replay recorded from it run the server's race.
         tyres: Tyres,
+        /// How many laps the race runs (ADR 0083), so the client's Instrument
+        /// panel and prediction count the server's race.
+        distance: RaceDistance,
         grid: Vec<u8>,
     },
     /// The authoritative state at a tick, on a datagram at the snapshot rate
@@ -208,6 +211,9 @@ pub struct Room {
     /// Whether the room's tyres wear, picked by the creator at the create
     /// and fixed for the room as the track is (ADR 0083).
     pub tyres: Tyres,
+    /// How many laps the room's races run, picked by the creator at the
+    /// create and fixed for the room as the track is (ADR 0083).
+    pub distance: RaceDistance,
     pub state: RoomState,
     /// In slot order. A joiner takes the lowest free slot, so a room nobody
     /// has left lists its players in join order.

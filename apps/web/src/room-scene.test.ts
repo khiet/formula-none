@@ -10,6 +10,7 @@ const ROOM: Room = {
   track: "goldstone",
   botLevel: "pro",
   tyres: "off",
+  distance: "sprint",
   state: "open",
   players: [
     { slot: 0, nickname: "khiet", livery: 0, state: "unready", creator: true },
@@ -115,6 +116,7 @@ describe("Room Scene", () => {
     const card = container.querySelector("[data-room-course]");
     expect(card?.querySelector("[data-room-bots]")?.textContent).toBe("Bots: Pro");
     expect(card?.querySelector("[data-room-tyres]")?.textContent).toBe("Tyres: Off");
+    expect(card?.querySelector("[data-room-distance]")?.textContent).toBe("Distance: Sprint");
     expect(card?.querySelector("input, button")).toBeNull();
   });
 

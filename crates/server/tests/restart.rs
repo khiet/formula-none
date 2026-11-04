@@ -13,7 +13,7 @@ use common::{drive_to_results, race_together};
 use protocol::{ClientMessage, PlayerState, Refusal, Room, RoomState, ServerMessage};
 use server::fake_transport::{Client, Conditions, Harness};
 use sim::tuning::{RESTORED_SEAT_GRACE_S, ROOM_CLOSE_AFTER_EMPTY_S};
-use sim::{BotLevel, Tyres};
+use sim::{BotLevel, RaceDistance, Tyres};
 
 /// Two players in an Open room, both Ready, as a room stands while its
 /// creator reaches for Start. Returns the code and the clients in slot
@@ -416,6 +416,41 @@ async fn a_room_kept_before_the_tyres_pick_comes_back_off() {
         .await
         .unwrap();
     assert_eq!(room.tyres, Tyres::Off);
+}
+
+#[tokio::test(start_paused = true)]
+async fn a_room_kept_before_the_distance_pick_comes_back_a_sprint() {
+    let dir = tempfile::tempdir().unwrap();
+    std::fs::write(dir.path().join("WXYZ.json"), KEPT_FILE).unwrap();
+
+    let mut after = Harness::kept_in(Conditions::PERFECT, dir.path());
+    let mut client = after.connect();
+    let (_, room) = client
+        .rejoin("WXYZ", "0123456789abcdef0123456789abcdef")
+        .await
+        .unwrap();
+    assert_eq!(room.distance, RaceDistance::Sprint);
+}
+
+#[tokio::test(start_paused = true)]
+async fn a_room_kept_at_grand_prix_distance_comes_back_at_it() {
+    let dir = tempfile::tempdir().unwrap();
+    std::fs::write(
+        dir.path().join("WXYZ.json"),
+        KEPT_FILE.replace(
+            "\"track\":\"oval\"",
+            "\"track\":\"oval\",\"distance\":\"grand-prix\"",
+        ),
+    )
+    .unwrap();
+
+    let mut after = Harness::kept_in(Conditions::PERFECT, dir.path());
+    let mut client = after.connect();
+    let (_, room) = client
+        .rejoin("WXYZ", "0123456789abcdef0123456789abcdef")
+        .await
+        .unwrap();
+    assert_eq!(room.distance, RaceDistance::GrandPrix);
 }
 
 #[tokio::test(start_paused = true)]

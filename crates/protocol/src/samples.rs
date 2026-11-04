@@ -11,7 +11,7 @@ use crate::{
     ProjectileSnapshot, Refusal, Room, RoomState, ServerMessage, SlipstreamSnapshot, Snapshot,
     Start, PROTOCOL_VERSION,
 };
-use sim::{BotLevel, Tyres};
+use sim::{BotLevel, RaceDistance, Tyres};
 
 /// Every [`ClientMessage`] variant once.
 pub fn client() -> Vec<ClientMessage> {
@@ -57,6 +57,7 @@ pub fn server() -> Vec<ServerMessage> {
             track: "bell-deer".to_owned(),
             bot_level: BotLevel::Ace,
             tyres: Tyres::On,
+            distance: RaceDistance::GrandPrix,
             grid: vec![0, 1],
         },
         ServerMessage::Snapshot(snapshot()),
@@ -108,6 +109,7 @@ pub fn room() -> Room {
         track: "goldstone".to_owned(),
         bot_level: BotLevel::Pro,
         tyres: Tyres::On,
+        distance: RaceDistance::GrandPrix,
         state: RoomState::Open,
         players: vec![
             Player {

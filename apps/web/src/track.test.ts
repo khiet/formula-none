@@ -6,12 +6,15 @@ import {
   COURSES,
   centrelineOf,
   DEFAULT_TRACK,
+  distanceFromSearch,
   loadBotLevel,
   loadCoursePick,
+  loadDistance,
   loadTyres,
   pitLaneOf,
   saveBotLevel,
   saveCoursePick,
+  saveDistance,
   saveTyres,
   selectTrack,
   TRACKS,
@@ -163,6 +166,28 @@ describe("the remembered bot level", () => {
     expect(BOT_LEVELS.map((level) => level.level)).toEqual(["basic", "pro", "ace"]);
     expect(BOT_LEVELS.map((level) => level.name)).toEqual(["Basic", "Pro", "Ace"]);
     for (const level of BOT_LEVELS) expect(level.blurb).toMatch(/\S/);
+  });
+});
+
+describe("the race distance pick", () => {
+  it("is a Sprint until picked, and remembered once it is", () => {
+    const store = storage();
+    expect(loadDistance(store)).toBe("sprint");
+    saveDistance(store, "grand-prix");
+    expect(loadDistance(store)).toBe("grand-prix");
+  });
+
+  it("reads anything else saved as a Sprint", () => {
+    const store = storage();
+    store.setItem("distance", "marathon");
+    expect(loadDistance(store)).toBe("sprint");
+  });
+
+  it("reads ?distance= for a solo race and ignores anything else", () => {
+    expect(distanceFromSearch("?distance=grand-prix")).toBe("grand-prix");
+    expect(distanceFromSearch("?track=oval&distance=sprint")).toBe("sprint");
+    expect(distanceFromSearch("?distance=marathon")).toBeUndefined();
+    expect(distanceFromSearch("")).toBeUndefined();
   });
 });
 

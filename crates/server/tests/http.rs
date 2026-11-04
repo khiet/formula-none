@@ -10,7 +10,7 @@ use sim::tuning::{
     ROOMS_MAX, ROOM_CLOSE_AFTER_EMPTY_S, ROOM_CODE_ALPHABET, ROOM_CODE_LENGTH,
     ROOM_CREATES_PER_ADDRESS_MAX, ROOM_CREATE_WINDOW_S,
 };
-use sim::{BotLevel, Tyres};
+use sim::{BotLevel, RaceDistance, Tyres};
 use std::time::Duration;
 use tower::ServiceExt;
 
@@ -226,6 +226,36 @@ async fn a_body_is_read_whatever_its_content_type_and_one_naming_no_track_races_
     assert_eq!(status, StatusCode::CREATED);
     let room = rooms.view(body["code"].as_str().unwrap()).unwrap();
     assert_eq!(room.track, "bell-deer");
+}
+
+#[tokio::test]
+async fn a_room_created_at_grand_prix_distance_races_it() {
+    let (app, rooms, _stop) = app();
+    let (status, body) = create(
+        app,
+        Body::from(r#"{ "track": "goldstone", "distance": "grand-prix" }"#),
+    )
+    .await;
+    assert_eq!(status, StatusCode::CREATED);
+    let room = rooms.view(body["code"].as_str().unwrap()).unwrap();
+    assert_eq!(room.distance, RaceDistance::GrandPrix);
+}
+
+#[tokio::test]
+async fn a_room_created_without_a_distance_races_a_sprint() {
+    let (app, rooms, _stop) = app();
+    let (status, body) = create(app, Body::from(r#"{ "track": "goldstone" }"#)).await;
+    assert_eq!(status, StatusCode::CREATED);
+    let room = rooms.view(body["code"].as_str().unwrap()).unwrap();
+    assert_eq!(room.distance, RaceDistance::Sprint);
+}
+
+#[tokio::test]
+async fn a_room_at_an_unknown_distance_is_refused_and_not_opened() {
+    let (app, rooms, _stop) = app();
+    let (status, _) = create(app, Body::from(r#"{ "distance": "marathon" }"#)).await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+    assert!(rooms.codes().is_empty(), "{:?}", rooms.codes());
 }
 
 #[tokio::test]

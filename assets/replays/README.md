@@ -1,6 +1,6 @@
 # Replay fixtures
 
-A race replay is `{seed, track, bots, level, tyres, inputs[]}`. Each file here is one replay
+A race replay is `{seed, track, bots, level, tyres, distance, inputs[]}`. Each file here is one replay
 with the state hash the sim reported at every 60th tick when it was
 recorded. Two tests rerun every file and hold the sim to those hashes:
 `crates/sim/tests/replay.rs` natively and `apps/web/src/replay.test.ts`
@@ -15,7 +15,8 @@ encoded, one input per human kart in grid order; the bots behind them on
 the grid drive themselves from the seed at the bot level the file names
 (ADR 0078; a file naming none runs them at Basic), so the file carries only
 their count and the level. It also names the Tyres pick (ADR 0083; a file
-naming none races Off, so its hash has no tyre life in it). The seed is a decimal string and each hash 16 hex digits, since a
+naming none races Off, so its hash has no tyre life in it) and the race
+distance (ADR 0083; a file naming none runs a Sprint of three laps). The seed is a decimal string and each hash 16 hex digits, since a
 JSON number cannot carry every u64.
 
 ## Record a fixture from a browser session

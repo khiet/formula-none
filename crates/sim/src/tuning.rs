@@ -126,7 +126,11 @@ pub const NICKNAME_MAX_CHARS: usize = 12;
 
 /// Karts on the grid; empty slots are filled by bots at Start.
 pub const KARTS_PER_RACE: usize = 8;
+/// Laps in a Sprint, the short race and the one a kept room or a replay
+/// without a pick runs (ADR 0083).
 pub const LAPS_PER_RACE: u32 = 3;
+/// Laps in a Grand Prix: long enough that one stop beats none (ADR 0083).
+pub const GRAND_PRIX_LAPS: u32 = 5;
 /// Seconds the karts are held on the grid before Go: the start lights, one
 /// a second, all five out at Go. The Instrument panel always draws five
 /// lamps, so this must stay one second per lamp.
@@ -950,6 +954,7 @@ const _: () = {
 pub struct Tuning {
     pub ticks_per_second: u32,
     pub laps_per_race: u32,
+    pub grand_prix_laps: u32,
     pub karts_per_race: usize,
     /// The kart's width, height and length, so the View draws the box the
     /// sim collides with.
@@ -1002,6 +1007,7 @@ pub struct Tuning {
 pub const TUNING: Tuning = Tuning {
     ticks_per_second: TICKS_PER_SECOND,
     laps_per_race: LAPS_PER_RACE,
+    grand_prix_laps: GRAND_PRIX_LAPS,
     karts_per_race: KARTS_PER_RACE,
     kart_size_m: [
         2.0 * KART_HALF_WIDTH_M,

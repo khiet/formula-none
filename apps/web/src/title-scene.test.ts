@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from "vitest";
 import { type AudioSettings, DEFAULT_AUDIO_SETTINGS } from "./audio-settings";
-import type { BotLevel, Tyres } from "./generated/sim";
+import type { BotLevel, RaceDistance, Tyres } from "./generated/sim";
 import { hexCss, livery } from "./livery";
 import { createTitleScene, type TitleHandlers, type TitleOptions } from "./title-scene";
 import { COURSES, type Course, type WorldPoint } from "./track";
@@ -26,7 +26,8 @@ const OPTIONS: TitleOptions = {
   course: BELL_DEER,
   botLevel: "basic",
   tyres: "off",
-  laps: 3,
+  distance: "sprint",
+  raceLaps: { sprint: 3, "grand-prix": 5 },
   reducedMotion: () => true,
 };
 
@@ -38,6 +39,7 @@ interface Calls {
   courses: Course[];
   botLevels: BotLevel[];
   tyres: Tyres[];
+  distance: RaceDistance[];
 }
 
 function scene(options: Partial<TitleOptions> = {}) {
@@ -51,6 +53,7 @@ function scene(options: Partial<TitleOptions> = {}) {
     courses: [],
     botLevels: [],
     tyres: [],
+    distance: [],
   };
   const handlers: TitleHandlers = {
     create: (nickname) => calls.created.push(nickname),
@@ -62,6 +65,7 @@ function scene(options: Partial<TitleOptions> = {}) {
     course: (course) => calls.courses.push(course),
     botLevel: (level) => calls.botLevels.push(level),
     tyres: (tyres) => calls.tyres.push(tyres),
+    distance: (distance) => calls.distance.push(distance),
   };
   const title = createTitleScene(container, { ...OPTIONS, ...options }, handlers);
   const input = (name: string) => {
@@ -196,6 +200,38 @@ describe("Title Scene", () => {
     expect(preview()).toBe("Bell Deer");
     expect(container.querySelector(".preview")?.textContent).toContain("After Suzuka");
     expect(calls.courses).toEqual([BELL_DEER]);
+  });
+
+  it("offers the race distances beside the Tyres with the saved one picked, counts its laps on the card and reports each change", () => {
+    const { container, calls } = scene({ distance: "sprint" });
+    const radios = Array.from(
+      container.querySelectorAll<HTMLInputElement>("input[type=radio][name=distance]"),
+    );
+    expect(radios.map((radio) => radio.value)).toEqual(["sprint", "grand-prix"]);
+    expect(radios.map((radio) => radio.checked)).toEqual([true, false]);
+    expect(radios.map((radio) => radio.labels?.[0]?.textContent)).toEqual(["Sprint", "Grand Prix"]);
+    const blurb = () => container.querySelector("[data-distance-blurb]")?.textContent ?? "";
+    const laps = () =>
+      Array.from(container.querySelectorAll(".stats div"))
+        .find((box) => box.querySelector("small")?.textContent === "Laps")
+        ?.querySelector("b")?.textContent;
+    expect(blurb()).toMatch(/^Sprint: /);
+    expect(laps()).toBe("3");
+    radios[1]?.click();
+    expect(blurb()).toMatch(/^Grand Prix: /);
+    expect(laps()).toBe("5");
+    expect(calls.distance).toEqual(["grand-prix"]);
+  });
+
+  it("opens the card on the laps of the saved distance, and keeps them when the course changes", () => {
+    const { container } = scene({ distance: "grand-prix" });
+    const laps = () =>
+      Array.from(container.querySelectorAll(".stats div"))
+        .find((box) => box.querySelector("small")?.textContent === "Laps")
+        ?.querySelector("b")?.textContent;
+    expect(laps()).toBe("5");
+    container.querySelector<HTMLInputElement>("input[name=course]:not(:checked)")?.click();
+    expect(laps()).toBe("5");
   });
 
   it("offers the Tyres picks beside the bots with the saved one picked, describes the pick and reports each change", () => {

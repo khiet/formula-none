@@ -20,7 +20,7 @@ const OUTRO: f32 = 2.0;
 const FINISHED: f32 = 3.0;
 
 fn race(seed: u64, kart_count: usize) -> Race {
-    Race::new(seed, kart_count, 0, OVAL, "basic", "off").expect("the oval fixture loads")
+    Race::new(seed, kart_count, 0, OVAL, "basic", "off", "sprint").expect("the oval fixture loads")
 }
 
 /// Step the race idle through its countdown.
@@ -70,8 +70,8 @@ fn sims_readouts(state: &sim::State) -> Vec<(KartReadout, Surface)> {
 
 /// A race with `humans` humans and `bots` bots, past its countdown.
 fn started_race(seed: u64, humans: usize, bots: usize) -> Race {
-    let mut race =
-        Race::new(seed, humans, bots, OVAL, "basic", "off").expect("the karts fit the oval");
+    let mut race = Race::new(seed, humans, bots, OVAL, "basic", "off", "sprint")
+        .expect("the karts fit the oval");
     go(&mut race, humans);
     race
 }
@@ -171,18 +171,19 @@ fn the_readouts_report_a_drift_its_direction_tier_and_charge_as_the_sim_does() {
 
 #[test]
 fn an_unusable_sidecar_or_too_many_karts_is_an_error_not_a_panic() {
-    assert!(Race::new(7, 1, 0, "not json", "basic", "off").is_err());
+    assert!(Race::new(7, 1, 0, "not json", "basic", "off", "sprint").is_err());
     assert!(Race::new(
         7,
         1,
         0,
         &OVAL.replacen("\"version\":1", "\"version\":9", 1),
         "basic",
-        "off"
+        "off",
+        "sprint"
     )
     .is_err());
     assert!(
-        Race::new(7, 9, 0, OVAL, "basic", "off").is_err(),
+        Race::new(7, 9, 0, OVAL, "basic", "off", "sprint").is_err(),
         "the oval has eight spawn slots"
     );
 }
@@ -338,7 +339,7 @@ fn bots_fill_the_slots_behind_the_humans_and_step_takes_only_the_humans_inputs()
     assert_eq!(karts[0].0.race_position, 3);
     assert!(karts[2].0.speed > 20.0, "the second bot is at speed");
     assert!(
-        Race::new(7, 1, 8, OVAL, "basic", "off").is_err(),
+        Race::new(7, 1, 8, OVAL, "basic", "off", "sprint").is_err(),
         "nine karts do not fit the oval's grid"
     );
 }
@@ -347,7 +348,8 @@ fn bots_fill_the_slots_behind_the_humans_and_step_takes_only_the_humans_inputs()
 fn the_phase_buffer_walks_countdown_racing_outro_and_finished_as_the_sim_does() {
     use sim::tuning::{COUNTDOWN_S, RACE_END_CAP_S, RACE_OUTRO_S};
     // With no humans, the bots' own finishes start the cap and end the race.
-    let mut race = Race::new(42, 0, 2, OVAL, "basic", "off").expect("two bots fit the oval");
+    let mut race =
+        Race::new(42, 0, 2, OVAL, "basic", "off", "sprint").expect("two bots fit the oval");
     assert_eq!(race.phase(), vec![COUNTDOWN, COUNTDOWN_S, -1.0]);
     go(&mut race, 0);
     assert_eq!(race.phase(), vec![RACING, 0.0, -1.0]);
@@ -405,27 +407,38 @@ fn the_phase_buffer_walks_countdown_racing_outro_and_finished_as_the_sim_does() 
 }
 
 #[test]
+fn a_race_at_an_unknown_distance_is_an_error_not_a_sprint() {
+    let error = Race::new(7, 1, 1, OVAL, "basic", "off", "marathon")
+        .err()
+        .expect("an unknown pick is refused");
+    assert!(error.contains("marathon"), "{error}");
+    assert!(Race::new(7, 1, 1, OVAL, "basic", "off", "grand-prix").is_ok());
+    assert!(bridge::Prediction::new(7, 0, OVAL, "basic", "off", "marathon").is_err());
+}
+
+#[test]
 fn a_race_at_an_unknown_tyres_pick_is_an_error_not_off() {
-    let error = Race::new(7, 1, 1, OVAL, "basic", "slick")
+    let error = Race::new(7, 1, 1, OVAL, "basic", "slick", "sprint")
         .err()
         .expect("an unknown pick is refused");
     assert!(error.contains("slick"), "{error}");
-    assert!(Race::new(7, 1, 1, OVAL, "basic", "on").is_ok());
+    assert!(Race::new(7, 1, 1, OVAL, "basic", "on", "sprint").is_ok());
 }
 
 #[test]
 fn a_race_at_an_unknown_bot_level_is_an_error_not_basic() {
-    let error = Race::new(7, 1, 1, OVAL, "wild", "off")
+    let error = Race::new(7, 1, 1, OVAL, "wild", "off", "sprint")
         .err()
         .expect("an unknown level is refused");
     assert!(error.contains("wild"), "{error}");
-    assert!(Race::new(7, 1, 1, OVAL, "ace", "off").is_ok());
+    assert!(Race::new(7, 1, 1, OVAL, "ace", "off", "sprint").is_ok());
 }
 
 #[test]
 fn the_bot_level_reaches_the_race_so_ace_bots_drive_another_race_than_basic_ones() {
-    let mut basic = Race::new(7, 1, 1, OVAL, "basic", "off").expect("the karts fit the oval");
-    let mut ace = Race::new(7, 1, 1, OVAL, "ace", "off").expect("the karts fit the oval");
+    let mut basic =
+        Race::new(7, 1, 1, OVAL, "basic", "off", "sprint").expect("the karts fit the oval");
+    let mut ace = Race::new(7, 1, 1, OVAL, "ace", "off", "sprint").expect("the karts fit the oval");
     assert_eq!(
         basic.state_hash(),
         ace.state_hash(),

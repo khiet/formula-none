@@ -14,7 +14,9 @@ use sim::tuning::{
     BOT_STALL_SPEED_M_PER_S, BOT_START_HOLD_S, COUNTDOWN_S, LAPS_PER_RACE, MINI_TURBO_RED_BOOST_S,
     TOP_SPEED_M_PER_S,
 };
-use sim::{step, BotLevel, KartInput, KartReadout, Phase, State, Surface, Track, Tyres};
+use sim::{
+    step, BotLevel, KartInput, KartReadout, Phase, RaceDistance, State, Surface, Track, Tyres,
+};
 
 /// Step `state` for `seconds` with every human idle.
 fn idle_humans(mut state: State, humans: usize, seconds: f32) -> State {
@@ -737,19 +739,81 @@ fn in_200_races_of_eight_bots_on_monarch_every_one_finishes_at_every_level() {
     }
 }
 
-/// The bots in a race on Tyres On that the end cap catches short of the final
-/// lap, with the lap each was on.
-fn short_of_the_final_lap(seed: u64, course: Track, level: BotLevel) -> Vec<(usize, u32)> {
-    let mut state = started(State::with_tyres(seed, 0, 8, course, level, Tyres::On));
+/// The bots in a race over `distance` on the `tyres` pick that the end cap
+/// catches short of the final lap, with the lap each was on.
+fn short_of_the_final_lap(
+    seed: u64,
+    course: Track,
+    level: BotLevel,
+    tyres: Tyres,
+    distance: RaceDistance,
+) -> Vec<(usize, u32)> {
+    let mut state =
+        started(State::with_tyres(seed, 0, 8, course, level, tyres).with_distance(distance));
     while matches!(state.phase(), Phase::Racing { .. }) {
         state = step(state, &[], DT);
     }
     let standings = state.standings();
     (0..standings.len())
         .filter(|&slot| standings[slot].finish_time_s.is_none())
-        .filter(|&slot| standings[slot].lap < LAPS_PER_RACE)
+        .filter(|&slot| standings[slot].lap < distance.laps())
         .map(|slot| (slot, standings[slot].lap))
         .collect()
+}
+
+#[test]
+fn eight_bots_race_a_grand_prix_of_the_oval_and_every_one_finishes() {
+    let mut state = started(
+        State::with_bots(SEED, 0, 8, oval(), BotLevel::Basic)
+            .with_distance(RaceDistance::GrandPrix),
+    );
+    while matches!(state.phase(), Phase::Racing { .. }) {
+        state = step(state, &[], DT);
+    }
+    let standings = state.standings();
+    assert!(
+        standings
+            .iter()
+            .all(|standing| standing.finish_time_s.is_some()),
+        "{standings:?}"
+    );
+}
+
+/// Every course and level, the oval with no lane included, on both Tyres
+/// picks (ADR 0083). The end cap stays as ADR 0054 set it, so a kart far enough
+/// behind over five laps is placed by progress on its final lap, more often on
+/// worn tyres until bots pit; a kart short of the final lap has lost far more
+/// than time. Too slow for a debug build; run it with the sweep below.
+#[test]
+#[ignore]
+fn in_200_grands_prix_of_eight_bots_every_one_reaches_the_final_lap() {
+    for (name, course) in COURSES {
+        for level in [BotLevel::Basic, BotLevel::Pro, BotLevel::Ace] {
+            for tyres in Tyres::ALL {
+                let races: Vec<_> = (0..200)
+                    .map(|seed| {
+                        std::thread::spawn(move || {
+                            let short = short_of_the_final_lap(
+                                seed,
+                                course(),
+                                level,
+                                tyres,
+                                RaceDistance::GrandPrix,
+                            );
+                            (seed, short)
+                        })
+                    })
+                    .collect();
+                for race in races {
+                    let (seed, short) = race.join().expect("the race ran");
+                    assert!(
+                        short.is_empty(),
+                        "{name} {level:?} {tyres:?} seed {seed}: karts and laps {short:?}"
+                    );
+                }
+            }
+        }
+    }
 }
 
 /// A bot wears out as a human does and must still get round on worn tyres
@@ -765,7 +829,14 @@ fn in_200_races_of_eight_bots_on_tyres_on_every_one_reaches_the_final_lap_at_eve
             let races: Vec<_> = (0..200)
                 .map(|seed| {
                     std::thread::spawn(move || {
-                        (seed, short_of_the_final_lap(seed, course(), level))
+                        let short = short_of_the_final_lap(
+                            seed,
+                            course(),
+                            level,
+                            Tyres::On,
+                            RaceDistance::Sprint,
+                        );
+                        (seed, short)
                     })
                 })
                 .collect();

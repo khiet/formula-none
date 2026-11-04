@@ -22,6 +22,7 @@
 //! [`State::events`] after that tick.
 
 pub mod bot;
+mod distance;
 mod handling;
 mod hash;
 pub mod interpolation;
@@ -32,6 +33,7 @@ pub mod tuning;
 mod wheel;
 
 pub use bot::BotLevel;
+pub use distance::RaceDistance;
 pub use handling::Tyres;
 pub use interpolation::Interpolation;
 pub use prediction::Prediction;
@@ -658,6 +660,11 @@ struct Kart {
     /// still neither adds to it nor clears it.
     wrong_way_s: f32,
     laps_completed: u32,
+    /// The laps that finish this race, fixed by its distance. Out of the
+    /// hash, like the Tyres pick, so a Sprint hashes as a race from before
+    /// there was a pick; the laps completed show a Grand Prix's difference
+    /// from the tick it matters (ADR 0083).
+    race_laps: u32,
     /// The last checkpoint crossed in order this lap. The grid starts at 0,
     /// the start line, so the first lap begins at Go.
     checkpoint: usize,
@@ -733,7 +740,7 @@ impl Kart {
     /// The lap the kart is on, from 1; a kart that has completed the race's
     /// laps stays on the last one.
     fn lap(&self) -> u32 {
-        (self.laps_completed + 1).min(LAPS_PER_RACE)
+        (self.laps_completed + 1).min(self.race_laps)
     }
 
     /// What the kart reports, with `body` its body and `standing` its
@@ -1063,6 +1070,7 @@ impl State {
                     off_course_s: 0.0,
                     wrong_way_s: 0.0,
                     laps_completed: 0,
+                    race_laps: LAPS_PER_RACE,
                     checkpoint: 0,
                     spline_progress: track.progress_at(slot.position),
                     lap_time_s: 0.0,
@@ -1103,6 +1111,16 @@ impl State {
             },
             events: Vec::new(),
         }
+    }
+
+    /// This race, run over the creator's pick of `distance` (ADR 0083). A
+    /// race is a Sprint until told otherwise; call this before the first
+    /// step, as nothing else about the race depends on it.
+    pub fn with_distance(mut self, distance: RaceDistance) -> Self {
+        for kart in &mut self.karts {
+            kart.race_laps = distance.laps();
+        }
+        self
     }
 
     /// How hard the bots drive (ADR 0078).
@@ -2421,7 +2439,7 @@ fn cross_checkpoint(
             kart.best_lap_s
                 .map_or(lap_time_s, |best| best.min(lap_time_s)),
         );
-        if kart.laps_completed >= LAPS_PER_RACE {
+        if kart.laps_completed >= kart.race_laps {
             kart.finish_time_s = Some(elapsed_s - rest_of_tick_s);
             kart.lap_time_s = lap_time_s;
         } else {

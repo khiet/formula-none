@@ -86,7 +86,7 @@ const bridge = {
   ticksPerSecond: TICKS_PER_SECOND,
   countdownSeconds: COUNTDOWN_S,
   kartsPerRace: KARTS,
-  lapsPerRace: 3,
+  raceLaps: { sprint: 3, "grand-prix": 5 },
   itemBoxRespawnSeconds: ITEM_BOX_RESPAWN_S,
   itemRollSeconds: ITEM_ROLL_S,
   coinRespawnSeconds: COIN_RESPAWN_S,
@@ -181,6 +181,7 @@ function fakeClient(): FakeClient {
       track: "bell-deer",
       botLevel: "basic",
       tyres: "off",
+      distance: "sprint",
       state: "racing",
       players: [],
     },
@@ -224,6 +225,7 @@ const COUNTDOWN: Countdown = {
   track: "bell-deer",
   botLevel: "basic",
   tyres: "off",
+  distance: "sprint",
   grid: [0, 1],
 };
 
@@ -269,6 +271,14 @@ function snapshot(
 function lap(id: number, kart: number, lapTimeS: number): Event {
   return { id, kind: { lapCompleted: { kart, lap: 1, lapTimeS } } };
 }
+
+describe("createServerRace's distance", () => {
+  it("counts the race's laps from the countdown for the panel", () => {
+    expect(createServerRace(bridge, fakeClient(), COUNTDOWN, 0, "{}").laps).toBe(3);
+    const grandPrix = { ...COUNTDOWN, distance: "grand-prix" as const };
+    expect(createServerRace(bridge, fakeClient(), grandPrix, 0, "{}").laps).toBe(5);
+  });
+});
 
 describe("createServerRace", () => {
   beforeEach(() => {
@@ -572,6 +582,7 @@ describe("createServerRace", () => {
       track: "bell-deer",
       botLevel: "basic",
       tyres: "off",
+      distance: "sprint",
       state: "racing",
       players: [],
     };

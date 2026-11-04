@@ -66,7 +66,7 @@ use crate::tuning::{
 use crate::BotLevel;
 use crate::{
     bot, clock_after, kart_collider, kart_groups, step, ItemSlot, Kart, KartInput, KartReadout,
-    Phase, Slipstream, Standing, State, Surface, Track, Tyres, Wheel,
+    Phase, RaceDistance, Slipstream, Standing, State, Surface, Track, Tyres, Wheel,
 };
 
 /// The phase a prediction holds once the server's race has ended: the top
@@ -175,6 +175,14 @@ impl Prediction {
     /// the track's grid.
     pub fn new(seed: u64, kart: usize, track: Track, level: BotLevel) -> Self {
         Self::with_tyres(seed, kart, track, level, Tyres::Off)
+    }
+
+    /// This prediction, of a race over the creator's pick of `distance`, so
+    /// the lap it holds agrees with the snapshots' past a Sprint's last
+    /// (ADR 0083). Call this before the first tick.
+    pub fn with_distance(mut self, distance: RaceDistance) -> Self {
+        self.state = self.state.take().map(|state| state.with_distance(distance));
+        self
     }
 
     /// As [`Prediction::new`], with the creator's pick of `tyres`, so the
