@@ -90,4 +90,7 @@ speed, while the second sits on the grid. `oval-ace-bots.replay.json` was
 written by hand for the bot level (ADR 0078): one kart idle on the grid
 through the countdown and thirty seconds of the race while seven Ace bots
 lap the oval past it, so a retune of Ace's profile fails the gate where a
-retune of Basic fails every other fixture with bots.
+retune of Basic fails every other fixture with bots. `goldstone-bots-pit.replay.json`
+was written by hand for the pit call (ADR 0081): one kart idle on the grid through
+two minutes and more of a five-lap race on Tyres On while seven Ace bots lap
+Goldstone and come in for new tyres.

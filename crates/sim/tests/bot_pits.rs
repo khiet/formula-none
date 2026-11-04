@@ -7,12 +7,12 @@
 mod common;
 
 use common::{
-    bell_deer, goldstone, monarch, oval, quiet_bell_deer, started, ticks, track, with_slot_on_lane,
-    BELL_DEER, DT, GOLDSTONE, MONARCH, SEED,
+    bell_deer, goldstone, monarch, oval, quiet_bell_deer, started, ticks, track, with_slot_at,
+    with_slot_on_lane, BELL_DEER, DT, GOLDSTONE, MONARCH, SEED,
 };
 use sim::bot::{calls_for_the_pits, PitReading};
-use sim::tuning::{BotPitCall, BOT_LEVELS, PIT_LIMIT_M_PER_S};
-use sim::{step, BotLevel, State, Surface, Track, Tyres};
+use sim::tuning::{BotPitCall, BOT_LEVELS, COUNTDOWN_S, PIT_LIMIT_M_PER_S};
+use sim::{step, BotLevel, Item, ItemSlot, State, Surface, Track, Tyres};
 
 /// A course by name, built afresh for each race.
 type Course = (&'static str, fn() -> Track);
@@ -199,6 +199,98 @@ fn a_kart_handed_to_a_bot_between_the_lines_drives_on_down_the_lane() {
         "and away at racing speed: {}",
         kart.speed
     );
+}
+
+/// A lone bot put on Bell Deer's centreline at the spline progress `progress`
+/// picks, past its countdown.
+fn lone_bot_at(progress: impl FnOnce(&Track) -> f32, level: BotLevel) -> State {
+    let course = bell_deer();
+    let at = progress(&course);
+    let here = course.point_at(at);
+    let ahead = course.point_at(at + 1.0);
+    let yaw = f32::atan2(here[0] - ahead[0], here[2] - ahead[2]);
+    let sidecar = with_slot_at(&quiet_bell_deer(), 0, here, yaw);
+    started(State::with_tyres(
+        SEED,
+        0,
+        1,
+        track(&sidecar),
+        level,
+        Tyres::On,
+    ))
+}
+
+/// What the bot asks for on one look at `state`, on tyres at `life` and holding `item`.
+fn asks(state: &State, level: BotLevel, life: f32, item: ItemSlot) -> sim::KartInput {
+    let mut kart = state.kart_readouts()[0];
+    kart.tyre_life = life;
+    kart.item_slot = item;
+    kart.speed = 15.0;
+    sim::bot::drive(
+        state.track(),
+        level.profile(),
+        &[kart],
+        &state.standings(),
+        state.phase(),
+        SEED,
+        3,
+        0,
+        &mut sim::bot::Memory::default(),
+        DT,
+    )
+}
+
+#[test]
+fn called_in_a_bot_keeps_its_boost_for_after_the_lane() {
+    let state = lone_bot_at(
+        |course| course.pit_lane_span().expect("a lane").0 - 20.0,
+        BotLevel::Basic,
+    );
+    let boost = ItemSlot::Held(Item::Boost);
+    assert!(
+        asks(&state, BotLevel::Basic, 100.0, boost).use_item,
+        "on new tyres it fires"
+    );
+    assert!(
+        !asks(&state, BotLevel::Basic, 5.0, boost).use_item,
+        "called in, it does not"
+    );
+}
+
+#[test]
+fn a_pro_bot_drops_its_drifts_on_worn_tyres_and_a_basic_bot_does_not() {
+    let hairpin = |course: &Track| {
+        (0..course.spline_length() as usize)
+            .map(|at| at as f32)
+            .find(|&at| course.curvature_at(at + 12.0).abs() > 0.05 && at > 150.0)
+            .expect("a tight corner")
+    };
+    let pro = lone_bot_at(hairpin, BotLevel::Pro);
+    assert!(asks(&pro, BotLevel::Pro, 80.0, ItemSlot::Empty).hop);
+    assert!(!asks(&pro, BotLevel::Pro, 20.0, ItemSlot::Empty).hop);
+    let basic = lone_bot_at(hairpin, BotLevel::Basic);
+    assert!(asks(&basic, BotLevel::Basic, 20.0, ItemSlot::Empty).hop);
+}
+
+#[test]
+fn a_bot_driven_through_the_countdown_does_not_back_off_the_line() {
+    let state = State::with_tyres(SEED, 1, 0, oval(), BotLevel::Basic, Tyres::Off);
+    let mut memory = sim::bot::Memory::default();
+    for _ in 0..ticks(COUNTDOWN_S) {
+        let input = sim::bot::drive(
+            state.track(),
+            BotLevel::Basic.profile(),
+            &state.kart_readouts(),
+            &state.standings(),
+            state.phase(),
+            SEED,
+            3,
+            0,
+            &mut memory,
+            DT,
+        );
+        assert_eq!(input.brake, 0.0);
+    }
 }
 
 /// Every race of the sweep across `seeds`, one thread each.
