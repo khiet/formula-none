@@ -119,7 +119,7 @@ impl Memory {
     }
 
     /// What the lane approach's reading steers by, for the hash; `None` until a
-    /// call, a stop or a saved tyre has moved it from where every bot starts.
+    /// call, a stop or saving has moved it from where every bot starts.
     pub(crate) fn pitting(&self) -> Option<[f32; 3]> {
         (self.pit_called || self.saving_tyres || self.stops_seen > 0).then_some([
             f32::from(u8::from(self.pit_called)),

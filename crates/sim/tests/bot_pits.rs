@@ -113,7 +113,7 @@ fn an_ace_bot_saves_its_tyres_only_when_saving_is_what_reaches_the_flag() {
 #[test]
 fn an_ace_bot_that_saving_gets_to_the_flag_stays_out_where_pushing_would_stop() {
     let call = level_call(BotLevel::Ace);
-    // Pushing ends on 1 and a stop pays; saving ends on about 15.7.
+    // Pushing ends on 1 and a stop pays; saving ends on about 15.5.
     let close = reading(45.0, Some(22.0), 2);
     assert!(saves_its_tyres(call, close));
     assert!(!calls_for_the_pits(call, close));
@@ -296,7 +296,7 @@ fn called_in_a_bot_keeps_its_boost_for_after_the_lane() {
     );
 }
 
-/// Where a bot on the line next hops for a tight corner on Bell Deer.
+/// A point past the grid just short of a tight corner, where a bot hops for it.
 fn hairpin(course: &Track) -> f32 {
     (0..course.spline_length() as usize)
         .map(|at| at as f32)
