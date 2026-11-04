@@ -1,7 +1,7 @@
-//! A race replay: `{seed, track, bots, level, tyres, inputs[]}`, enough to
+//! A race replay: `{seed, track, bots, level, tyres, laps, inputs[]}`, enough to
 //! rerun a race anywhere (ADR 0002). Bots drive themselves from the seed at
 //! the race's bot level, so a replay carries how many there were, the level,
-//! the Tyres pick and only the humans' inputs. Rerunning reports [`State::hash`] at every
+//! the Tyres pick, the laps and only the humans' inputs. Rerunning reports [`State::hash`] at every
 //! [`REPLAY_HASH_INTERVAL_TICKS`]th tick; a fixture carries the hashes a
 //! previous run reported so a later run, native or wasm, can be held to
 //! them.
@@ -17,6 +17,7 @@
 //!   "bots": 0,
 //!   "level": "basic",
 //!   "tyres": "off",
+//!   "laps": 3,
 //!   "segments": [
 //!     {
 //!       "ticks": 90,
@@ -35,12 +36,12 @@
 //! Inputs are run-length encoded: a segment holds one input per human kart
 //! in grid order and the number of consecutive ticks it was held. A missing
 //! button reads as unpressed, a missing bot count as none, a missing level
-//! as Basic and a missing Tyres pick as Off, so a replay recorded before any of them existed still
-//! runs. The seed and the hashes are 64-bit values, which JSON numbers
+//! as Basic, a missing Tyres pick as Off and a missing lap count as three, so a replay recorded
+//! before any of them existed still runs. The seed and the hashes are 64-bit values, which JSON numbers
 //! cannot carry exactly, so the seed is written as a decimal string and
 //! each hash as 16 hex digits.
 
-use crate::tuning::REPLAY_HASH_INTERVAL_TICKS;
+use crate::tuning::{DEFAULT_LAPS, LAP_CHOICES, REPLAY_HASH_INTERVAL_TICKS};
 use crate::{step, BotLevel, KartInput, State, Track, Tyres};
 use serde::{Deserialize, Serialize};
 use std::fmt;
@@ -59,6 +60,8 @@ pub struct Replay {
     pub level: BotLevel,
     /// Whether the tyres wear (ADR 0083).
     pub tyres: Tyres,
+    /// How many laps the race runs (ADR 0084).
+    pub laps: u32,
     pub segments: Vec<Segment>,
     /// [`State::hash`] after every [`REPLAY_HASH_INTERVAL_TICKS`]th tick, as
     /// recorded. Empty until a run has been recorded against the replay.
@@ -79,6 +82,8 @@ struct ReplayFile {
     level: BotLevel,
     #[serde(default)]
     tyres: Tyres,
+    #[serde(default = "default_laps")]
+    laps: u32,
     segments: Vec<Segment>,
     #[serde(with = "hex_hashes")]
     hashes: Vec<u64>,
@@ -97,6 +102,8 @@ pub enum ReplayError {
     Json(serde_json::Error),
     /// The file is from another format version than this build reads.
     Version(u32),
+    /// The file names a lap count no creator can pick.
+    Laps(u32),
     /// The replay was recorded on one track and run on another.
     WrongTrack {
         expected: String,
@@ -120,6 +127,7 @@ impl fmt::Display for ReplayError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Json(error) => write!(f, "replay is not valid: {error}"),
+            Self::Laps(laps) => write!(f, "replay runs {laps} laps, which no race can"),
             Self::Version(version) => {
                 write!(
                     f,
@@ -147,6 +155,11 @@ impl fmt::Display for ReplayError {
     }
 }
 
+/// A replay naming no lap count: one from before there was a pick.
+fn default_laps() -> u32 {
+    DEFAULT_LAPS
+}
+
 impl std::error::Error for ReplayError {}
 
 impl From<serde_json::Error> for ReplayError {
@@ -161,12 +174,16 @@ impl Replay {
         if wire.version != VERSION {
             return Err(ReplayError::Version(wire.version));
         }
+        if !LAP_CHOICES.contains(&wire.laps) {
+            return Err(ReplayError::Laps(wire.laps));
+        }
         Ok(Self {
             seed: wire.seed,
             track: wire.track,
             bots: wire.bots,
             level: wire.level,
             tyres: wire.tyres,
+            laps: wire.laps,
             segments: wire.segments,
             hashes: wire.hashes,
         })
@@ -181,6 +198,7 @@ impl Replay {
             bots: self.bots,
             level: self.level,
             tyres: self.tyres,
+            laps: self.laps,
             segments: self.segments.clone(),
             hashes: self.hashes.clone(),
         };
@@ -231,7 +249,8 @@ impl Replay {
 
         let dt = 1.0 / crate::tuning::TICKS_PER_SECOND as f32;
         let mut state =
-            State::with_tyres(self.seed, humans, self.bots, track, self.level, self.tyres);
+            State::with_tyres(self.seed, humans, self.bots, track, self.level, self.tyres)
+                .with_laps(self.laps);
         let mut hashes =
             Vec::with_capacity((self.tick_count() / REPLAY_HASH_INTERVAL_TICKS) as usize);
         let mut tick = 0;

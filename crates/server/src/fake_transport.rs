@@ -26,6 +26,7 @@ use crate::room::Started;
 use crate::rooms::Rooms;
 use crate::session::{self, Channels};
 use crate::Shutdown;
+use sim::tuning::DEFAULT_LAPS;
 use sim::{BotLevel, Tyres};
 
 /// What the fake network does to every message, in each direction.
@@ -136,7 +137,7 @@ impl Harness {
     /// its bots at `bot_level`.
     pub fn create_room_at(&self, bot_level: BotLevel) -> String {
         self.rooms
-            .create_with(None, bot_level, Tyres::Off, None)
+            .create_with(None, bot_level, Tyres::Off, DEFAULT_LAPS, None)
             .expect("the harness stays under the cap")
     }
 
@@ -144,7 +145,15 @@ impl Harness {
     /// tyres as `tyres` says and its bots at Basic.
     pub fn create_room_with_tyres(&self, tyres: Tyres) -> String {
         self.rooms
-            .create_with(None, BotLevel::Basic, tyres, None)
+            .create_with(None, BotLevel::Basic, tyres, DEFAULT_LAPS, None)
+            .expect("the harness stays under the cap")
+    }
+
+    /// What `POST /api/rooms` with a `laps` does: a new room's code,
+    /// its races over `laps`, its bots at Basic and its tyres Off.
+    pub fn create_room_of_laps(&self, laps: u32) -> String {
+        self.rooms
+            .create_with(None, BotLevel::Basic, Tyres::Off, laps, None)
             .expect("the harness stays under the cap")
     }
 
@@ -361,12 +370,14 @@ impl Client {
                 track,
                 bot_level,
                 tyres,
+                laps,
                 grid,
             } => Some(Started {
                 seed,
                 track,
                 bot_level,
                 tyres,
+                laps,
                 grid,
             }),
             _ => None,

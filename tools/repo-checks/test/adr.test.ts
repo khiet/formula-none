@@ -88,6 +88,7 @@ const DECISION_SLUGS = [
   "a-pit-lane-to-drive-with-an-automatic-limiter",
   "the-stop-is-rolled-from-the-seed",
   "the-creator-picks-tyres-and-race-distance",
+  "the-creator-picks-the-laps",
 ];
 
 const expectedFiles = DECISION_SLUGS.map(

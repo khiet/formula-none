@@ -64,6 +64,7 @@ export function createServerRace(
     sidecar,
     countdown.botLevel,
     countdown.tyres,
+    countdown.laps,
   );
   const prediction = bridge.createPrediction(
     countdown.seed,
@@ -71,6 +72,7 @@ export function createServerRace(
     sidecar,
     countdown.botLevel,
     countdown.tyres,
+    countdown.laps,
   );
 
   let latest: Snapshot | undefined;
@@ -247,6 +249,7 @@ export function createServerRace(
   return {
     humanCount,
     localKart,
+    laps: countdown.laps,
     tick(input) {
       const sequence = client.sendInput(input);
       prediction.tick(quantiseInput(input, sequence));

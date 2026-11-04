@@ -419,6 +419,38 @@ async fn a_room_kept_before_the_tyres_pick_comes_back_off() {
 }
 
 #[tokio::test(start_paused = true)]
+async fn a_room_kept_before_the_laps_pick_comes_back_at_three() {
+    let dir = tempfile::tempdir().unwrap();
+    std::fs::write(dir.path().join("WXYZ.json"), KEPT_FILE).unwrap();
+
+    let mut after = Harness::kept_in(Conditions::PERFECT, dir.path());
+    let mut client = after.connect();
+    let (_, room) = client
+        .rejoin("WXYZ", "0123456789abcdef0123456789abcdef")
+        .await
+        .unwrap();
+    assert_eq!(room.laps, 3);
+}
+
+#[tokio::test(start_paused = true)]
+async fn a_room_kept_at_five_laps_comes_back_at_them() {
+    let dir = tempfile::tempdir().unwrap();
+    std::fs::write(
+        dir.path().join("WXYZ.json"),
+        KEPT_FILE.replace("\"track\":\"oval\"", "\"track\":\"oval\",\"laps\":5"),
+    )
+    .unwrap();
+
+    let mut after = Harness::kept_in(Conditions::PERFECT, dir.path());
+    let mut client = after.connect();
+    let (_, room) = client
+        .rejoin("WXYZ", "0123456789abcdef0123456789abcdef")
+        .await
+        .unwrap();
+    assert_eq!(room.laps, 5);
+}
+
+#[tokio::test(start_paused = true)]
 async fn a_room_kept_with_tyres_on_comes_back_on() {
     let dir = tempfile::tempdir().unwrap();
     std::fs::write(

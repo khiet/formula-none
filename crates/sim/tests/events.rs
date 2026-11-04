@@ -12,7 +12,7 @@ use common::{
     without_walls, DT, OVAL, SEED,
 };
 
-use sim::tuning::{LAPS_PER_RACE, RESPAWN_DELAY_S};
+use sim::tuning::{DEFAULT_LAPS, RESPAWN_DELAY_S};
 use sim::{step, KartInput, Phase, RaceEvent, State, Surface};
 
 /// A quarter turn clockwise seen from above: from facing -Z to facing +X.
@@ -116,13 +116,13 @@ fn finishing_reports_the_finish_with_the_place_taken_and_the_clock() {
         .collect();
     assert_eq!(
         laps.len(),
-        2 * LAPS_PER_RACE as usize,
+        2 * DEFAULT_LAPS as usize,
         "every lap of both karts was reported: {laps:?}"
     );
     // The last lap's completion and the finish come on the same tick.
     let last_lap_tick = events
         .iter()
-        .filter(|(_, event)| matches!(event, RaceEvent::LapCompleted { kart: 0, lap, .. } if *lap == LAPS_PER_RACE))
+        .filter(|(_, event)| matches!(event, RaceEvent::LapCompleted { kart: 0, lap, .. } if *lap == DEFAULT_LAPS))
         .map(|(tick, _)| *tick)
         .next()
         .expect("kart 0 completed its last lap");

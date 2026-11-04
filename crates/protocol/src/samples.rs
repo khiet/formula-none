@@ -57,6 +57,7 @@ pub fn server() -> Vec<ServerMessage> {
             track: "bell-deer".to_owned(),
             bot_level: BotLevel::Ace,
             tyres: Tyres::On,
+            laps: 5,
             grid: vec![0, 1],
         },
         ServerMessage::Snapshot(snapshot()),
@@ -112,6 +113,7 @@ pub fn room() -> Room {
         track: "goldstone".to_owned(),
         bot_level: BotLevel::Pro,
         tyres: Tyres::On,
+        laps: 5,
         state: RoomState::Open,
         players: vec![
             Player {

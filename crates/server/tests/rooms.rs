@@ -404,6 +404,37 @@ async fn stopping_the_server_ends_every_session() {
 }
 
 #[tokio::test(start_paused = true)]
+async fn a_room_created_at_five_laps_shows_them_and_its_countdown_carries_it() {
+    let mut harness = Harness::new(Conditions::PERFECT);
+    let code = harness.create_room_of_laps(5);
+    let mut creator = harness.connect();
+    let (_, room) = creator.join(&code, "khiet").await.unwrap();
+    assert_eq!(room.laps, 5);
+
+    // Everyone in the room sees it, whoever joins.
+    let mut friend = harness.connect();
+    let (_, room) = friend.join(&code, "ada").await.unwrap();
+    assert_eq!(room.laps, 5);
+    creator.next_room().await;
+
+    creator.send(&ClientMessage::Ready { ready: true });
+    friend.send(&ClientMessage::Ready { ready: true });
+    while !creator
+        .next_room()
+        .await
+        .unwrap()
+        .players
+        .iter()
+        .all(|player| player.state == PlayerState::Ready)
+    {}
+    creator.send(&ClientMessage::Start);
+    for player in [&mut creator, &mut friend] {
+        let started = player.next_countdown().await.expect("the race starts");
+        assert_eq!(started.laps, 5);
+    }
+}
+
+#[tokio::test(start_paused = true)]
 async fn a_room_created_with_tyres_on_shows_it_and_its_countdown_carries_it() {
     let mut harness = Harness::new(Conditions::PERFECT);
     let code = harness.create_room_with_tyres(Tyres::On);

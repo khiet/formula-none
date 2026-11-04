@@ -20,7 +20,7 @@
       "name": "join",
       "bytes": [
         1,
-        23,
+        24,
         4,
         66,
         88,
@@ -37,7 +37,7 @@
         "join": {
           "nickname": "khiet",
           "room": "BXQF",
-          "version": 23
+          "version": 24
         }
       }
     },
@@ -103,7 +103,7 @@
       "name": "rejoin",
       "bytes": [
         7,
-        23,
+        24,
         4,
         66,
         88,
@@ -147,7 +147,7 @@
         "rejoin": {
           "room": "BXQF",
           "token": "0123456789abcdef0123456789abcdef",
-          "version": 23
+          "version": 24
         }
       }
     },
@@ -218,6 +218,7 @@
         101,
         1,
         1,
+        5,
         0,
         2,
         0,
@@ -277,6 +278,7 @@
           "room": {
             "botLevel": "pro",
             "code": "BXQF",
+            "laps": 5,
             "players": [
               {
                 "creator": true,
@@ -307,12 +309,12 @@
       "bytes": [
         2,
         3,
-        23
+        24
       ],
       "message": {
         "refused": {
           "versionMismatch": {
-            "server": 23
+            "server": 24
           }
         }
       }
@@ -338,6 +340,7 @@
         101,
         1,
         1,
+        5,
         0,
         2,
         0,
@@ -363,6 +366,7 @@
         "room": {
           "botLevel": "pro",
           "code": "BXQF",
+          "laps": 5,
           "players": [
             {
               "creator": true,
@@ -410,6 +414,7 @@
         114,
         2,
         1,
+        5,
         2,
         0,
         1
@@ -421,6 +426,7 @@
             0,
             1
           ],
+          "laps": 5,
           "seed": 81985529216486895,
           "track": "bell-deer",
           "tyres": "on"

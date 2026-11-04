@@ -32,8 +32,6 @@ export interface RoomView {
   readonly capacity: number;
   /** Every course with its centreline; the room's track picks the card shown. */
   readonly courses: readonly CourseChoice[];
-  /** Laps in a race, for the course card. */
-  readonly laps: number;
   /** Whether the player asks for reduced motion, which holds the card's lap dot still. */
   readonly reducedMotion: () => boolean;
 }
@@ -141,7 +139,7 @@ export function createRoomScene(
   let preview: CoursePreview | undefined;
   let card: HTMLElement | undefined;
   if (choice !== undefined) {
-    preview = createCoursePreview({ laps: view.laps, reducedMotion: view.reducedMotion });
+    preview = createCoursePreview({ laps: view.room.laps, reducedMotion: view.reducedMotion });
     preview.show(choice);
     const bots = document.createElement("p");
     bots.className = "room-pick";

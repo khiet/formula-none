@@ -11,7 +11,7 @@ use common::{
 
 use sim::tuning::{
     BOT_LOOKAHEAD_M, BOT_RUBBER_BAND_MAX_FACTOR, BOT_RUBBER_BAND_MIN_FACTOR,
-    BOT_STALL_SPEED_M_PER_S, BOT_START_HOLD_S, COUNTDOWN_S, LAPS_PER_RACE, MINI_TURBO_RED_BOOST_S,
+    BOT_STALL_SPEED_M_PER_S, BOT_START_HOLD_S, COUNTDOWN_S, DEFAULT_LAPS, MINI_TURBO_RED_BOOST_S,
     TOP_SPEED_M_PER_S,
 };
 use sim::{step, BotLevel, KartInput, KartReadout, Phase, State, Surface, Track, Tyres};
@@ -78,7 +78,7 @@ fn a_bot_alone_laps_the_oval_for_the_race_without_leaving_the_asphalt() {
         BotLevel::Basic,
     ));
     let mut lap_times = Vec::new();
-    for _ in 0..ticks(LAPS_PER_RACE as f32 * LAP_S) {
+    for _ in 0..ticks(DEFAULT_LAPS as f32 * LAP_S) {
         state = step(state, &[], DT);
         let kart = state.kart_readouts()[0];
         assert_eq!(
@@ -92,13 +92,13 @@ fn a_bot_alone_laps_the_oval_for_the_race_without_leaving_the_asphalt() {
         if standing.laps_completed as usize > lap_times.len() {
             lap_times.push(standing.best_lap_s.expect("a lap just completed"));
         }
-        if standing.laps_completed == LAPS_PER_RACE {
+        if standing.laps_completed == DEFAULT_LAPS {
             break;
         }
     }
     assert_eq!(
         lap_times.len(),
-        LAPS_PER_RACE as usize,
+        DEFAULT_LAPS as usize,
         "lap times {lap_times:?}"
     );
     assert!(
@@ -154,7 +154,7 @@ fn a_bot_drifts_through_the_hairpin_of_bell_deer_on_every_lap() {
     let track = bell_deer();
     let hairpins = hairpins(&track);
     assert_eq!(hairpins.len(), 1, "Bell Deer has one hairpin: {hairpins:?}");
-    let laps = LAPS_PER_RACE as usize;
+    let laps = DEFAULT_LAPS as usize;
     let mut state = started(State::with_bots(SEED, 0, 1, track, BotLevel::Basic));
     let mut drifted_in: Vec<Vec<bool>> = vec![vec![false; hairpins.len()]; laps];
     for _ in 0..ticks(laps as f32 * 75.0) {
@@ -363,7 +363,7 @@ fn race_against_seven_bots(
         let standings = state.standings();
         let mut done: Vec<usize> = (0..standings.len())
             .filter(|&slot| {
-                standings[slot].laps_completed >= LAPS_PER_RACE && !finished.contains(&slot)
+                standings[slot].laps_completed >= DEFAULT_LAPS && !finished.contains(&slot)
             })
             .collect();
         // Two finishing on one tick are ordered by race position.
@@ -383,13 +383,13 @@ fn race_against_seven_bots(
 }
 
 /// Long enough for the whole field to finish, with the traffic off the grid.
-const RACE_S: f32 = LAPS_PER_RACE as f32 * 30.0;
+const RACE_S: f32 = DEFAULT_LAPS as f32 * 30.0;
 
 #[test]
 fn a_scripted_perfect_driver_beats_all_seven_bots() {
     let (order, state) = race_against_seven_bots(Some(perfect_driver), RACE_S);
     assert_eq!(order[0], 0, "finishing order by grid slot: {order:?}");
-    assert!(state.standings()[0].laps_completed >= LAPS_PER_RACE);
+    assert!(state.standings()[0].laps_completed >= DEFAULT_LAPS);
 }
 
 #[test]
@@ -636,17 +636,17 @@ fn longest_stall(seed: u64, track: Track) -> (f32, usize, f32) {
     let mut state = started(State::with_bots(seed, 0, 8, track, BotLevel::Basic));
     let mut stalled_s = [0.0; 8];
     let mut longest = (0.0, 0, 0.0);
-    for _ in 0..ticks(LAPS_PER_RACE as f32 * 120.0) {
+    for _ in 0..ticks(DEFAULT_LAPS as f32 * 120.0) {
         state = step(state, &[], DT);
         let Phase::Racing { elapsed_s, .. } = state.phase() else {
             break;
         };
         let standings = state.standings();
-        if standings.iter().all(|s| s.laps_completed >= LAPS_PER_RACE) {
+        if standings.iter().all(|s| s.laps_completed >= DEFAULT_LAPS) {
             break;
         }
         for (slot, kart) in state.kart_readouts().iter().enumerate() {
-            let finished = standings[slot].laps_completed >= LAPS_PER_RACE;
+            let finished = standings[slot].laps_completed >= DEFAULT_LAPS;
             if finished || kart.speed.abs() >= BOT_STALL_SPEED_M_PER_S {
                 stalled_s[slot] = 0.0;
             } else if kart.spin_out_s.is_none() && !state.bot_held_for_the_wheel(slot) {
@@ -675,7 +675,7 @@ fn eight_bots_finishing_times(seed: u64, course: Track, seconds: f32) -> Vec<Opt
 
 #[test]
 fn eight_bots_race_the_laps_of_monarch_and_every_one_finishes() {
-    let times = eight_bots_finishing_times(SEED, monarch(), LAPS_PER_RACE as f32 * 90.0);
+    let times = eight_bots_finishing_times(SEED, monarch(), DEFAULT_LAPS as f32 * 90.0);
     assert!(
         times.iter().all(Option::is_some),
         "finishing times: {times:?}"
@@ -684,7 +684,7 @@ fn eight_bots_race_the_laps_of_monarch_and_every_one_finishes() {
 
 #[test]
 fn eight_bots_race_the_laps_of_goldstone_and_every_one_finishes() {
-    let times = eight_bots_finishing_times(SEED, goldstone(), LAPS_PER_RACE as f32 * 90.0);
+    let times = eight_bots_finishing_times(SEED, goldstone(), DEFAULT_LAPS as f32 * 90.0);
     assert!(
         times.iter().all(Option::is_some),
         "finishing times: {times:?}"
@@ -737,19 +737,71 @@ fn in_200_races_of_eight_bots_on_monarch_every_one_finishes_at_every_level() {
     }
 }
 
-/// The bots in a race on Tyres On that the end cap catches short of the final
-/// lap, with the lap each was on.
-fn short_of_the_final_lap(seed: u64, course: Track, level: BotLevel) -> Vec<(usize, u32)> {
-    let mut state = started(State::with_tyres(seed, 0, 8, course, level, Tyres::On));
+/// The bots in a race over `laps` on the `tyres` pick that the end cap
+/// catches short of the final lap, with the lap each was on.
+fn short_of_the_final_lap(
+    seed: u64,
+    course: Track,
+    level: BotLevel,
+    tyres: Tyres,
+    laps: u32,
+) -> Vec<(usize, u32)> {
+    let mut state = started(State::with_tyres(seed, 0, 8, course, level, tyres).with_laps(laps));
     while matches!(state.phase(), Phase::Racing { .. }) {
         state = step(state, &[], DT);
     }
     let standings = state.standings();
     (0..standings.len())
         .filter(|&slot| standings[slot].finish_time_s.is_none())
-        .filter(|&slot| standings[slot].lap < LAPS_PER_RACE)
+        .filter(|&slot| standings[slot].lap < laps)
         .map(|slot| (slot, standings[slot].lap))
         .collect()
+}
+
+#[test]
+fn eight_bots_race_five_laps_of_the_oval_and_every_one_finishes() {
+    let mut state = started(State::with_bots(SEED, 0, 8, oval(), BotLevel::Basic).with_laps(5));
+    while matches!(state.phase(), Phase::Racing { .. }) {
+        state = step(state, &[], DT);
+    }
+    let standings = state.standings();
+    assert!(
+        standings
+            .iter()
+            .all(|standing| standing.finish_time_s.is_some()),
+        "{standings:?}"
+    );
+}
+
+/// Every course and level, the oval with no lane included, on both Tyres
+/// picks (ADR 0083). The end cap stays as ADR 0054 set it, so a kart far enough
+/// behind over five laps is placed by progress on its final lap, more often on
+/// worn tyres until bots pit; a kart short of the final lap has lost far more
+/// than time. Too slow for a debug build; run it with the sweep below.
+#[test]
+#[ignore]
+fn in_200_five_lap_races_of_eight_bots_every_one_reaches_the_final_lap() {
+    for (name, course) in COURSES {
+        for level in [BotLevel::Basic, BotLevel::Pro, BotLevel::Ace] {
+            for tyres in Tyres::ALL {
+                let races: Vec<_> = (0..200)
+                    .map(|seed| {
+                        std::thread::spawn(move || {
+                            let short = short_of_the_final_lap(seed, course(), level, tyres, 5);
+                            (seed, short)
+                        })
+                    })
+                    .collect();
+                for race in races {
+                    let (seed, short) = race.join().expect("the race ran");
+                    assert!(
+                        short.is_empty(),
+                        "{name} {level:?} {tyres:?} seed {seed}: karts and laps {short:?}"
+                    );
+                }
+            }
+        }
+    }
 }
 
 /// A bot wears out as a human does and must still get round on worn tyres
@@ -765,7 +817,8 @@ fn in_200_races_of_eight_bots_on_tyres_on_every_one_reaches_the_final_lap_at_eve
             let races: Vec<_> = (0..200)
                 .map(|seed| {
                     std::thread::spawn(move || {
-                        (seed, short_of_the_final_lap(seed, course(), level))
+                        let short = short_of_the_final_lap(seed, course(), level, Tyres::On, 3);
+                        (seed, short)
                     })
                 })
                 .collect();
@@ -848,7 +901,7 @@ fn a_bot_waiting_for_the_wheel_never_backs_up() {
     for seed in [51, 121, 152, 163] {
         let mut state = started(State::with_bots(seed, 0, 8, bell_deer(), BotLevel::Basic));
         let mut waited = false;
-        for _ in 0..ticks(LAPS_PER_RACE as f32 * 90.0) {
+        for _ in 0..ticks(DEFAULT_LAPS as f32 * 90.0) {
             let before = state.kart_readouts();
             state = step(state, &[], DT);
             for (slot, kart) in state.kart_readouts().iter().enumerate() {

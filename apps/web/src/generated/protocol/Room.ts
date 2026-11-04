@@ -26,7 +26,12 @@ botLevel: BotLevel,
  * Whether the room's tyres wear, picked by the creator at the create
  * and fixed for the room as the track is (ADR 0083).
  */
-tyres: Tyres, state: RoomState, 
+tyres: Tyres, 
+/**
+ * How many laps the room's races run, picked by the creator at the
+ * create and fixed for the room as the track is (ADR 0083).
+ */
+laps: number, state: RoomState, 
 /**
  * In slot order. A joiner takes the lowest free slot, so a room nobody
  * has left lists its players in join order.

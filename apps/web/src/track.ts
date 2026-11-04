@@ -11,6 +11,9 @@ import ovalSidecar from "../../../assets/tracks/oval/oval.track.json?url";
 
 import type { BotLevel, Tyres } from "./generated/sim";
 
+/** The laps a creator can pick from, the default first (ADR 0084). */
+export type LapChoices = readonly [number, number];
+
 export type TrackName = "bell-deer" | "goldstone" | "monarch" | "oval";
 
 /** A point in the world's metres: x, y up, z. */
@@ -159,6 +162,32 @@ export function botLevelFromSearch(search: string): BotLevel | undefined {
   return requested !== null && isBotLevel(requested) ? requested : undefined;
 }
 
+const LAPS_STORAGE_KEY = "laps";
+
+/** `text` as a lap count when a creator can pick it. */
+function offeredLaps(text: string | null, choices: LapChoices): number | undefined {
+  const laps = Number(text);
+  return choices.includes(laps) ? laps : undefined;
+}
+
+/** The laps picked last time, kept beside the course pick; the first choice when unsaved, unreadable or no pick (ADR 0084). */
+export function loadLaps(storage: Storage, choices: LapChoices): number {
+  return offeredLaps(remembered(storage, LAPS_STORAGE_KEY), choices) ?? choices[0];
+}
+
+export function saveLaps(storage: Storage, laps: number): void {
+  remember(storage, LAPS_STORAGE_KEY, String(laps));
+}
+
+/**
+ * The laps the page's query string asks for (`?laps=5`), so a smoke run can
+ * load either into a solo race beside `?track=`; `undefined` for none or a
+ * count nobody can pick.
+ */
+export function lapsFromSearch(search: string, choices: LapChoices): number | undefined {
+  return offeredLaps(new URLSearchParams(search).get("laps"), choices);
+}
+
 /** A Tyres pick as the Title Scene offers it: its caption and the line describing it. */
 export interface TyresChoice {
   readonly tyres: Tyres;
@@ -169,8 +198,8 @@ export interface TyresChoice {
 
 /** The picks in the Title Scene's order, Off first (ADR 0083). */
 export const TYRES_CHOICES: readonly TyresChoice[] = [
-  { tyres: "off", name: "Off", blurb: "tyres last the race, drive as hard as you like" },
-  { tyres: "on", name: "On", blurb: "corners, drifts and hits wear your tyres down" },
+  { tyres: "off", name: "Off", blurb: "they last the race" },
+  { tyres: "on", name: "On", blurb: "driving wears them" },
 ];
 
 const DEFAULT_TYRES: Tyres = "off";

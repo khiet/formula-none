@@ -10,7 +10,7 @@ const OVAL: &str = include_str!("../../../assets/tracks/oval/oval.track.json");
 /// The first snapshot ten seconds into a race with one idle human and bots.
 fn snapshot_ten_seconds_in(tyres: Tyres) -> Snapshot {
     let track = Track::from_sidecar(OVAL).expect("the oval loads");
-    let mut race = Race::new(0x5EED, track, BotLevel::Basic, tyres, vec![0], 1);
+    let mut race = Race::new(0x5EED, track, BotLevel::Basic, tyres, 3, vec![0], 1);
     loop {
         let ticked = race.tick();
         if race.ticks() >= 10 * sim::tuning::TICKS_PER_SECOND {

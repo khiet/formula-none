@@ -748,7 +748,7 @@ fn the_finish_ends_the_run() {
     };
     let mut state = rolling(build, 3, 0, &[(STAR, Item::Star)]);
     let lap_length = state.track().spline_length();
-    let laps = sim::tuning::LAPS_PER_RACE;
+    let laps = sim::tuning::DEFAULT_LAPS;
     let mut fired = false;
     let mut starring_before_the_line = false;
     for _ in 0..ticks(200.0) {

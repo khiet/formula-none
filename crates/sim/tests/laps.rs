@@ -14,7 +14,7 @@ use common::{
     SEED,
 };
 
-use sim::tuning::LAPS_PER_RACE;
+use sim::tuning::DEFAULT_LAPS;
 use sim::{step, BotLevel, KartInput, Standing, State, Surface, Track};
 
 /// The hairpin on Bell Deer (layouts/bell_deer.py): a 180 degree
@@ -573,7 +573,7 @@ fn the_races_laps_of_the_oval_end_with_the_lap_counter_on_the_last_and_a_best_la
     let mut state = race(1);
     let mut lap_times = Vec::new();
     let mut laps_seen = 0;
-    for _ in 0..ticks(LAPS_PER_RACE as f32 * LAP_S) {
+    for _ in 0..ticks(DEFAULT_LAPS as f32 * LAP_S) {
         let input = follow_centreline(&state, 0);
         state = step(state, &[input], DT);
         let standing = only_standing(&state);
@@ -581,18 +581,18 @@ fn the_races_laps_of_the_oval_end_with_the_lap_counter_on_the_last_and_a_best_la
             laps_seen = standing.laps_completed;
             lap_times.push(standing.best_lap_s.expect("a lap just completed"));
         }
-        if laps_seen == LAPS_PER_RACE {
+        if laps_seen == DEFAULT_LAPS {
             break;
         }
     }
 
     let standing = only_standing(&state);
-    assert_eq!(standing.laps_completed, LAPS_PER_RACE);
+    assert_eq!(standing.laps_completed, DEFAULT_LAPS);
     assert_eq!(
-        standing.lap, LAPS_PER_RACE,
+        standing.lap, DEFAULT_LAPS,
         "the counter stays on the last lap"
     );
-    assert_eq!(lap_times.len(), LAPS_PER_RACE as usize);
+    assert_eq!(lap_times.len(), DEFAULT_LAPS as usize);
     // The first lap starts from a standstill, so a flying lap is the best.
     let best = standing.best_lap_s.expect("the race's laps were completed");
     assert!(

@@ -36,6 +36,8 @@ export interface Countdown {
   readonly botLevel: BotLevel;
   /** Whether the tyres wear, so the prediction and a replay run the server's race (ADR 0083). */
   readonly tyres: Tyres;
+  /** How many laps the race runs, so the panel and the prediction count the server's race (ADR 0083). */
+  readonly laps: number;
   readonly grid: readonly number[];
 }
 
@@ -299,6 +301,7 @@ function openRoom(
           track: message.countdown.track,
           botLevel: message.countdown.botLevel,
           tyres: message.countdown.tyres,
+          laps: message.countdown.laps,
           grid: message.countdown.grid,
         };
         for (const listener of countdownListeners) listener(race);

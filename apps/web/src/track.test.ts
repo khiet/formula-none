@@ -6,12 +6,15 @@ import {
   COURSES,
   centrelineOf,
   DEFAULT_TRACK,
+  lapsFromSearch,
   loadBotLevel,
   loadCoursePick,
+  loadLaps,
   loadTyres,
   pitLaneOf,
   saveBotLevel,
   saveCoursePick,
+  saveLaps,
   saveTyres,
   selectTrack,
   TRACKS,
@@ -169,6 +172,28 @@ describe("the remembered bot level", () => {
     expect(BOT_LEVELS.map((level) => level.level)).toEqual(["basic", "pro", "ace"]);
     expect(BOT_LEVELS.map((level) => level.name)).toEqual(["Basic", "Pro", "Ace"]);
     for (const level of BOT_LEVELS) expect(level.blurb).toMatch(/\S/);
+  });
+});
+
+describe("the laps pick", () => {
+  it("is the first choice until picked, and remembered once it is", () => {
+    const store = storage();
+    expect(loadLaps(store, [3, 5])).toBe(3);
+    saveLaps(store, 5);
+    expect(loadLaps(store, [3, 5])).toBe(5);
+  });
+
+  it("reads anything else saved as the first choice", () => {
+    const store = storage();
+    store.setItem("laps", "4");
+    expect(loadLaps(store, [3, 5])).toBe(3);
+  });
+
+  it("reads ?laps= for a solo race and ignores anything else", () => {
+    expect(lapsFromSearch("?laps=5", [3, 5])).toBe(5);
+    expect(lapsFromSearch("?track=oval&laps=3", [3, 5])).toBe(3);
+    expect(lapsFromSearch("?laps=4", [3, 5])).toBeUndefined();
+    expect(lapsFromSearch("", [3, 5])).toBeUndefined();
   });
 });
 

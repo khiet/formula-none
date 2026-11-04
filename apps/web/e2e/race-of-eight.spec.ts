@@ -67,7 +67,7 @@ test("eight tabs complete a race on Bell Deer", async ({ browser }) => {
   // every tab reaches the results with every kart placed.
   await expect
     .poll(() => driver.laps(), { timeout: 720_000, intervals: [2_000] })
-    .toBeGreaterThanOrEqual(bridge.lapsPerRace);
+    .toBeGreaterThanOrEqual(bridge.lapChoices[0]);
   for (const page of pages) {
     await expect(page.locator("#results-scene")).toBeVisible({ timeout: 300_000 });
     await expect(page.locator("li[data-result]")).toHaveCount(TABS);

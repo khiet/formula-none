@@ -78,7 +78,7 @@ export interface CourseChoice {
 }
 
 export interface CoursePreviewOptions {
-  /** Laps in a race, the second of the four numbers. */
+  /** Laps in a race when the card opens, the second of the four numbers. */
   readonly laps: number;
   /**
    * Whether the player asks for reduced motion, read every frame so a
@@ -92,6 +92,8 @@ export interface CoursePreview {
   readonly element: HTMLElement;
   /** Show `choice` in place of the last. */
   show(choice: CourseChoice): void;
+  /** Show `laps` as the laps in a race, on this course and any shown next. */
+  laps(laps: number): void;
   dispose(): void;
 }
 
@@ -166,8 +168,15 @@ export function createCoursePreview(options: CoursePreviewOptions): CoursePrevie
   element.className = "preview";
   element.setAttribute("aria-live", "polite");
   let frame = 0;
+  let laps = options.laps;
+  // The Laps number on the card showing now, for a pick to change in place.
+  let lapsNumber: Element | null = null;
   return {
     element,
+    laps(picked) {
+      laps = picked;
+      if (lapsNumber !== null) lapsNumber.textContent = String(laps);
+    },
     show({ course, centreline }) {
       cancelAnimationFrame(frame);
       const swap = document.createElement("div");
@@ -185,11 +194,13 @@ export function createCoursePreview(options: CoursePreviewOptions): CoursePrevie
       blurb.className = "blurb";
       blurb.textContent = course.blurb;
       const numbers = courseStats(centreline);
+      const lapsBox = stat(String(laps), "Laps");
+      lapsNumber = lapsBox.querySelector("b");
       const stats = document.createElement("div");
       stats.className = "stats";
       stats.append(
         stat(`${Math.round(numbers.lapM)} m`, "Lap"),
-        stat(String(options.laps), "Laps"),
+        lapsBox,
         stat(`${Math.round(numbers.tightestM)} m`, "Tightest"),
         stat(`${Math.round(numbers.straightM)} m`, "Straight"),
       );

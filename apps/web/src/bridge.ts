@@ -303,8 +303,8 @@ export interface Bridge extends MessageCodec {
   readonly ticksPerSecond: number;
   /** The kart's box, read from the sim's tuning so the View never repeats it (ADR 0014). */
   readonly kartSize: KartSize;
-  /** Laps in a race, from the sim's tuning (ADR 0014). */
-  readonly lapsPerRace: number;
+  /** The laps a creator can pick from, the default first, from the sim's tuning (ADR 0014, ADR 0084). */
+  readonly lapChoices: readonly [number, number];
   /** Seconds the karts are held on the grid before Go (ADR 0014). */
   readonly countdownSeconds: number;
   /** Seconds a picked-up item box is gone before it is back (ADR 0014). */
@@ -348,7 +348,7 @@ export interface Bridge extends MessageCodec {
    * A race on the track described by `sidecar` (the JSON exported next to its
    * glTF) with `humanCount` karts on the front of its spawn grid and
    * `botCount` bot-driven karts on the slots behind them, driving at
-   * `botLevel` (ADR 0078), with the creator's pick of `tyres` (ADR 0083).
+   * `botLevel` (ADR 0078), with the creator's pick of `tyres`, over `laps` laps (ADR 0084).
    * Throws, with the sim's reason, when the sidecar is unusable or has fewer
    * spawn slots than the karts.
    */
@@ -359,12 +359,13 @@ export interface Bridge extends MessageCodec {
     sidecar: string,
     botLevel: BotLevel,
     tyres: Tyres,
+    laps: number,
   ): Race;
   /**
    * The prediction of the kart on grid slot `kart` in the race from `seed`
    * on the track described by `sidecar`, at the top of its countdown, its
    * bot at `botLevel` once the kart has finished (ADR 0078), wearing its
-   * tyres as `tyres` says (ADR 0083). Throws, with the sim's reason, when
+   * tyres as `tyres` says, over `laps` laps (ADR 0084). Throws, with the sim's reason, when
    * the sidecar is unusable or its grid has no such slot.
    */
   createPrediction(
@@ -373,6 +374,7 @@ export interface Bridge extends MessageCodec {
     sidecar: string,
     botLevel: BotLevel,
     tyres: Tyres,
+    laps: number,
   ): Prediction;
   /** A replay's hashes are kept every this many ticks. */
   readonly replayHashIntervalTicks: number;
@@ -423,7 +425,7 @@ export async function loadBridge(wasm?: BufferSource): Promise<Bridge> {
     protocolVersion: protocol_version(),
     ticksPerSecond: tuned.ticksPerSecond,
     kartSize: { width, height, length },
-    lapsPerRace: tuned.lapsPerRace,
+    lapChoices: tuned.lapChoices,
     countdownSeconds: tuned.countdownS,
     itemBoxRespawnSeconds: tuned.itemBoxRespawnS,
     itemRollSeconds: tuned.itemRollS,
@@ -451,16 +453,16 @@ export async function loadBridge(wasm?: BufferSource): Promise<Bridge> {
     },
     kartsPerRace: tuned.kartsPerRace,
     replayHashIntervalTicks: tuned.replayHashIntervalTicks,
-    createRace(seed, humanCount, botCount, sidecar, botLevel, tyres) {
+    createRace(seed, humanCount, botCount, sidecar, botLevel, tyres, laps) {
       return new BridgedRace(
-        rethrown(() => new WasmRace(seed, humanCount, botCount, sidecar, botLevel, tyres)),
+        rethrown(() => new WasmRace(seed, humanCount, botCount, sidecar, botLevel, tyres, laps)),
         humanCount,
         humanCount + botCount,
       );
     },
-    createPrediction(seed, kart, sidecar, botLevel, tyres) {
+    createPrediction(seed, kart, sidecar, botLevel, tyres, laps) {
       return new BridgedPrediction(
-        rethrown(() => new WasmPrediction(seed, kart, sidecar, botLevel, tyres)),
+        rethrown(() => new WasmPrediction(seed, kart, sidecar, botLevel, tyres, laps)),
         kart,
       );
     },

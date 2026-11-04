@@ -15,6 +15,7 @@
 
 use protocol::{Player, PlayerState, Refusal, Room, RoomState, PROTOCOL_VERSION};
 use serde::{Deserialize, Serialize};
+use sim::tuning::DEFAULT_LAPS;
 use sim::tuning::{NICKNAME_MAX_CHARS, ROOM_PLAYERS_MAX};
 use sim::{BotLevel, Tyres};
 
@@ -29,6 +30,8 @@ pub struct HostedRoom {
     bot_level: BotLevel,
     /// Whether the room's tyres wear (ADR 0083).
     tyres: Tyres,
+    /// How many laps the room's races run (ADR 0083).
+    laps: u32,
     state: RoomState,
     /// One entry per slot; `None` is a free seat.
     seats: Vec<Option<Seat>>,
@@ -52,6 +55,11 @@ struct Seat {
     waiting: Option<PlayerState>,
 }
 
+/// A room kept before there was a pick.
+fn default_laps() -> u32 {
+    DEFAULT_LAPS
+}
+
 /// A room as it is written to disk between races (ADR 0005): everything
 /// [`HostedRoom`] holds, the seats' tokens included, so the players rejoin
 /// the room a restart brought back with the tokens they kept.
@@ -66,6 +74,9 @@ pub struct KeptRoom {
     /// default has become, so what was raced stays what it was (ADR 0083).
     #[serde(default)]
     pub tyres: Tyres,
+    /// A room kept before there was a pick comes back at three laps (ADR 0084).
+    #[serde(default = "default_laps")]
+    pub laps: u32,
     pub state: RoomState,
     seats: Vec<Option<Seat>>,
     joins: u64,
@@ -93,19 +104,27 @@ pub struct Started {
     pub track: String,
     pub bot_level: BotLevel,
     pub tyres: Tyres,
+    pub laps: u32,
     pub grid: Vec<u8>,
 }
 
 impl HostedRoom {
     /// An Open room with every seat free, racing `track`, one of
     /// [`crate::tracks`], against bots at `bot_level`, the tyres as `tyres`
-    /// says.
-    pub fn open(code: String, track: &'static str, bot_level: BotLevel, tyres: Tyres) -> Self {
+    /// says, over `laps`.
+    pub fn open(
+        code: String,
+        track: &'static str,
+        bot_level: BotLevel,
+        tyres: Tyres,
+        laps: u32,
+    ) -> Self {
         Self {
             code,
             track,
             bot_level,
             tyres,
+            laps,
             state: RoomState::Open,
             seats: vec![None; ROOM_PLAYERS_MAX],
             joins: 0,
@@ -137,6 +156,7 @@ impl HostedRoom {
             track: self.track.to_owned(),
             bot_level: self.bot_level,
             tyres: self.tyres,
+            laps: self.laps,
             state: self.state,
             seats,
             joins: self.joins,
@@ -164,6 +184,7 @@ impl HostedRoom {
             track,
             bot_level: kept.bot_level,
             tyres: kept.tyres,
+            laps: kept.laps,
             state: kept.state,
             seats,
             joins: kept.joins,
@@ -195,6 +216,7 @@ impl HostedRoom {
             track: self.track.to_owned(),
             bot_level: self.bot_level,
             tyres: self.tyres,
+            laps: self.laps,
             state: self.state,
             players: self.players().cloned().collect(),
         }
@@ -353,6 +375,7 @@ impl HostedRoom {
             track: self.track.to_owned(),
             bot_level: self.bot_level,
             tyres: self.tyres,
+            laps: self.laps,
             grid: self.players().map(|player| player.slot).collect(),
         })
     }

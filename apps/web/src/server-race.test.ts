@@ -64,6 +64,7 @@ const PREDICTED: KartReadout = kartReadout({
 interface FakePrediction extends Prediction {
   readonly kart: number;
   readonly tyres: Tyres;
+  readonly laps: number;
   readonly inputs: Input[];
   readonly snapshots: Snapshot[];
   clock: Phase;
@@ -86,7 +87,7 @@ const bridge = {
   ticksPerSecond: TICKS_PER_SECOND,
   countdownSeconds: COUNTDOWN_S,
   kartsPerRace: KARTS,
-  lapsPerRace: 3,
+  lapChoices: [3, 5],
   itemBoxRespawnSeconds: ITEM_BOX_RESPAWN_S,
   itemRollSeconds: ITEM_ROLL_S,
   coinRespawnSeconds: COIN_RESPAWN_S,
@@ -110,10 +111,12 @@ const bridge = {
     _sidecar: string,
     _botLevel: BotLevel,
     tyres: Tyres,
+    laps: number,
   ): Prediction {
     const made: FakePrediction = {
       kart,
       tyres,
+      laps,
       inputs: [],
       snapshots: [],
       clock: { kind: "countdown", remainingSeconds: COUNTDOWN_S },
@@ -181,6 +184,7 @@ function fakeClient(): FakeClient {
       track: "bell-deer",
       botLevel: "basic",
       tyres: "off",
+      laps: 3,
       state: "racing",
       players: [],
     },
@@ -224,6 +228,7 @@ const COUNTDOWN: Countdown = {
   track: "bell-deer",
   botLevel: "basic",
   tyres: "off",
+  laps: 3,
   grid: [0, 1],
 };
 
@@ -283,6 +288,13 @@ describe("createServerRace", () => {
     expect(run.humanCount).toBe(2);
     expect(prediction().kart).toBe(1);
     expect(() => createServerRace(bridge, fakeClient(), COUNTDOWN, 5, "{}")).toThrow(/grid/);
+  });
+
+  it("predicts and counts the room's laps, as the Countdown says", () => {
+    expect(createServerRace(bridge, fakeClient(), COUNTDOWN, 0, "{}").laps).toBe(3);
+    const fiveLaps = { ...COUNTDOWN, laps: 5 };
+    expect(createServerRace(bridge, fakeClient(), fiveLaps, 0, "{}").laps).toBe(5);
+    expect(prediction().laps).toBe(5);
   });
 
   it("predicts the own kart under the room's Tyres pick, as the Countdown says", () => {
@@ -593,6 +605,7 @@ describe("createServerRace", () => {
       track: "bell-deer",
       botLevel: "basic",
       tyres: "off",
+      laps: 3,
       state: "racing",
       players: [],
     };

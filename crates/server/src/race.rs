@@ -123,8 +123,8 @@ pub struct Ticked {
 impl Race {
     /// A race from `seed` on `track` with one human kart per slot in `grid`,
     /// in that order, and bots on the rest of the grid, at the top of its
-    /// countdown, the bots driving at `bot_level` and the tyres as `tyres`
-    /// says. Event ids count on from
+    /// countdown, the bots driving at `bot_level`, the tyres as `tyres` says
+    /// and over `laps`. Event ids count on from
     /// `first_event_id`, so a room's ids never repeat across its races.
     /// `grid` must fit the race's grid.
     pub fn new(
@@ -132,20 +132,16 @@ impl Race {
         track: Track,
         bot_level: BotLevel,
         tyres: Tyres,
+        laps: u32,
         grid: Vec<u8>,
         first_event_id: u32,
     ) -> Self {
         assert!(grid.len() <= KARTS_PER_RACE, "more humans than karts");
         let bots = KARTS_PER_RACE - grid.len();
         Self {
-            state: Some(State::with_tyres(
-                seed,
-                grid.len(),
-                bots,
-                track,
-                bot_level,
-                tyres,
-            )),
+            state: Some(
+                State::with_tyres(seed, grid.len(), bots, track, bot_level, tyres).with_laps(laps),
+            ),
             humans: vec![HumanInput::default(); grid.len()],
             grid,
             tick: 0,

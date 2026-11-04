@@ -10,6 +10,7 @@ const ROOM: Room = {
   track: "goldstone",
   botLevel: "pro",
   tyres: "off",
+  laps: 3,
   state: "open",
   players: [
     { slot: 0, nickname: "khiet", livery: 0, state: "unready", creator: true },
@@ -42,7 +43,6 @@ function scene(slot: number, room: Room = ROOM) {
       link: LINK,
       capacity: 8,
       courses: COURSE_CHOICES,
-      laps: 3,
       reducedMotion: () => true,
     },
     handlers,

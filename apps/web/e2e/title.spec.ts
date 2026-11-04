@@ -13,6 +13,15 @@ test("the Title Scene loads with the ways into a room and a race", async ({ page
   }
 });
 
+test("the picked laps are remembered across a reload", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.getByRole("radio", { name: "3" })).toBeChecked();
+  await page.locator(".bot-tile", { hasText: "5" }).click();
+  await expect(page.getByRole("radio", { name: "5" })).toBeChecked();
+  await page.reload();
+  await expect(page.getByRole("radio", { name: "5" })).toBeChecked();
+});
+
 test("the picked Tyres are remembered across a reload", async ({ page }) => {
   await page.goto("/");
   await expect(page.getByRole("radio", { name: "Off", exact: true })).toBeChecked();

@@ -410,6 +410,38 @@ async fn events_are_never_lost_on_a_lossy_link_and_every_id_is_distinct() {
     );
 }
 
+/// The laps a lone human drives before the results of a race over `laps`.
+async fn laps_raced_to_the_results(laps: u32) -> usize {
+    let mut harness = Harness::new(Conditions::PERFECT);
+    let code = harness.create_room_of_laps(laps);
+    let mut players = vec![harness.connect()];
+    players[0].join(&code, "khiet").await.unwrap();
+    let countdown = start_race(&mut players).await;
+    assert_eq!(countdown[0].laps, laps);
+    let raced = drive_to_results(&mut players, &[(0, 0.0)]).await;
+    let finisher = raced[0]
+        .results
+        .iter()
+        .find(|standing| standing.kart == 0)
+        .expect("the human is placed");
+    assert!(finisher.finish_time_s.is_some(), "the human finished");
+    raced[0]
+        .events
+        .iter()
+        .filter(|(_, event)| matches!(event.kind, EventKind::LapCompleted { kart: 0, .. }))
+        .count()
+}
+
+#[tokio::test(start_paused = true)]
+async fn a_race_of_three_laps_ends_after_three() {
+    assert_eq!(laps_raced_to_the_results(3).await, 3);
+}
+
+#[tokio::test(start_paused = true)]
+async fn a_race_of_five_laps_ends_after_five() {
+    assert_eq!(laps_raced_to_the_results(5).await, 5);
+}
+
 #[tokio::test(start_paused = true)]
 async fn a_room_of_two_gets_its_results_only_once_both_humans_have_finished_and_the_outro_has_run()
 {

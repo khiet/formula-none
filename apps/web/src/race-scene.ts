@@ -107,7 +107,7 @@ export async function createRaceScene(
   const camera = createChaseCamera(bridge.cameraTuning, { reducedMotion });
   const panel = createInstrumentPanel(
     container,
-    bridge.lapsPerRace,
+    run.laps,
     { centreline, pitLane: pitLane?.path, kartCount: bridge.kartsPerRace, ownKart: run.localKart },
     {
       coinTopSpeeds: bridge.coinTopSpeeds,
@@ -123,7 +123,7 @@ export async function createRaceScene(
   const boxCall = createBoxCall({
     // A course with a lane has a pit box to come in to (ADR 0082).
     pitLane: pitLane !== undefined,
-    lapsPerRace: bridge.lapsPerRace,
+    lapsPerRace: run.laps,
     cliff: bridge.tyreLifeCliff,
   });
 

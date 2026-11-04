@@ -27,6 +27,7 @@ const OPTIONS: TitleOptions = {
   botLevel: "basic",
   tyres: "off",
   laps: 3,
+  lapChoices: [3, 5],
   reducedMotion: () => true,
 };
 
@@ -38,6 +39,7 @@ interface Calls {
   courses: Course[];
   botLevels: BotLevel[];
   tyres: Tyres[];
+  laps: number[];
 }
 
 function scene(options: Partial<TitleOptions> = {}) {
@@ -51,6 +53,7 @@ function scene(options: Partial<TitleOptions> = {}) {
     courses: [],
     botLevels: [],
     tyres: [],
+    laps: [],
   };
   const handlers: TitleHandlers = {
     create: (nickname) => calls.created.push(nickname),
@@ -62,6 +65,7 @@ function scene(options: Partial<TitleOptions> = {}) {
     course: (course) => calls.courses.push(course),
     botLevel: (level) => calls.botLevels.push(level),
     tyres: (tyres) => calls.tyres.push(tyres),
+    laps: (laps) => calls.laps.push(laps),
   };
   const title = createTitleScene(container, { ...OPTIONS, ...options }, handlers);
   const input = (name: string) => {
@@ -74,6 +78,12 @@ function scene(options: Partial<TitleOptions> = {}) {
   };
   const message = () => container.querySelector("[data-message]")?.textContent ?? "";
   return { container, title, calls, input, press, message };
+}
+
+function lapsOnTheCard(container: HTMLElement): string | null | undefined {
+  return Array.from(container.querySelectorAll(".stats div"))
+    .find((box) => box.querySelector("small")?.textContent === "Laps")
+    ?.querySelector("b")?.textContent;
 }
 
 describe("Title Scene", () => {
@@ -196,6 +206,30 @@ describe("Title Scene", () => {
     expect(preview()).toBe("Bell Deer");
     expect(container.querySelector(".preview")?.textContent).toContain("After Suzuka");
     expect(calls.courses).toEqual([BELL_DEER]);
+  });
+
+  it("offers the laps beside the Tyres with the saved count picked, counts them on the card and reports each change", () => {
+    const { container, calls } = scene({ laps: 3 });
+    const radios = Array.from(
+      container.querySelectorAll<HTMLInputElement>("input[type=radio][name=laps]"),
+    );
+    expect(radios.map((radio) => radio.value)).toEqual(["3", "5"]);
+    expect(radios.map((radio) => radio.checked)).toEqual([true, false]);
+    expect(radios.map((radio) => radio.labels?.[0]?.textContent)).toEqual(["3", "5"]);
+    expect(container.querySelector("[data-laps-blurb]")).toBeNull();
+    const laps = () => lapsOnTheCard(container);
+    expect(laps()).toBe("3");
+    radios[1]?.click();
+    expect(laps()).toBe("5");
+    expect(calls.laps).toEqual([5]);
+  });
+
+  it("opens the card on the saved laps, and keeps them when the course changes", () => {
+    const { container } = scene({ laps: 5 });
+    const laps = () => lapsOnTheCard(container);
+    expect(laps()).toBe("5");
+    container.querySelector<HTMLInputElement>("input[name=course]:not(:checked)")?.click();
+    expect(laps()).toBe("5");
   });
 
   it("offers the Tyres picks beside the bots with the saved one picked, describes the pick and reports each change", () => {

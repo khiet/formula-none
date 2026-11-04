@@ -28,6 +28,8 @@ export interface ReplayFile {
   readonly level: BotLevel;
   /** Whether the tyres wore (ADR 0083); a replay without a pick reruns Off. */
   readonly tyres: Tyres;
+  /** How many laps the race ran (ADR 0084); a replay without a count reruns three. */
+  readonly laps: number;
   readonly segments: readonly Segment[];
   /** 16 hex digits each. */
   readonly hashes: readonly string[];
@@ -40,7 +42,7 @@ export interface Segment {
 
 /**
  * Record `race`, which was created from `seed` on `track` with `bots` bot
- * karts at `level` and the tyres as `tyres` says, from its first tick. Consecutive ticks with the same inputs share a
+ * karts at `level`, the tyres as `tyres` says and over `laps`, from its first tick. Consecutive ticks with the same inputs share a
  * segment, and the race's hash is kept at every
  * `bridge.replayHashIntervalTicks`th tick.
  */
@@ -51,6 +53,7 @@ export function recordReplay(
   bots: number,
   level: BotLevel,
   tyres: Tyres,
+  laps: number,
   race: Race,
 ): ReplayRecorder {
   const segments: { ticks: number; inputs: KartInput[] }[] = [];
@@ -86,6 +89,7 @@ export function recordReplay(
         bots,
         level,
         tyres,
+        laps,
         segments,
         hashes,
       };

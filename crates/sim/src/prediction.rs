@@ -178,6 +178,14 @@ impl Prediction {
         Self::with_tyres(seed, kart, track, level, Tyres::Off)
     }
 
+    /// This prediction, of a race over the creator's pick of `laps`, so
+    /// the lap it holds agrees with the snapshots' past the third
+    /// (ADR 0084). Call this before the first tick.
+    pub fn with_laps(mut self, laps: u32) -> Self {
+        self.state = self.state.take().map(|state| state.with_laps(laps));
+        self
+    }
+
     /// As [`Prediction::new`], with the creator's pick of `tyres`, so the
     /// kart wears its own tyres from its own inputs as the server's does.
     pub fn with_tyres(seed: u64, kart: usize, track: Track, level: BotLevel, tyres: Tyres) -> Self {

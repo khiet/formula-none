@@ -39,6 +39,7 @@ use crate::metrics::Metrics;
 use crate::race::{Race, TICK_S};
 use crate::room::{HostedRoom, Left, Started};
 use crate::{tracks, Shutdown};
+use sim::tuning::DEFAULT_LAPS;
 use sim::{BotLevel, Tyres};
 
 /// Every room on this server. Cheap to clone; every clone is the same
@@ -336,13 +337,13 @@ impl Rooms {
     /// Open a room on the registry's own track for no particular address,
     /// as [`Self::create_with`] does.
     pub fn create(&self) -> Result<String, CreateRefused> {
-        self.create_with(None, BotLevel::Basic, Tyres::Off, None)
+        self.create_with(None, BotLevel::Basic, Tyres::Off, DEFAULT_LAPS, None)
     }
 
     /// Open a room racing `track`, one of [`crate::tracks`], or the
     /// registry's own track when `None`, against bots at `bot_level`, the
-    /// tyres as `tyres` says, under a fresh code and hand the code back; the HTTP create endpoint is
-    /// this. The room starts empty, so its closing clock is already running:
+    /// tyres as `tyres` says and over `laps`, under a fresh code and hand the code back; the HTTP
+    /// create endpoint is this. The room starts empty, so its closing clock is already running:
     /// a code nobody joins expires like one everybody left. Must run inside
     /// a tokio runtime, which spawns the room's task.
     ///
@@ -355,6 +356,7 @@ impl Rooms {
         track: Option<&'static str>,
         bot_level: BotLevel,
         tyres: Tyres,
+        laps: u32,
         address: Option<IpAddr>,
     ) -> Result<String, CreateRefused> {
         let track = track.unwrap_or(self.track);
@@ -366,13 +368,14 @@ impl Rooms {
                 break code;
             }
         };
-        let room = HostedRoom::open(code.clone(), track, bot_level, tyres);
+        let room = HostedRoom::open(code.clone(), track, bot_level, tyres, laps);
         self.log
             .event("room_created")
             .room(&code)
             .with("track", track)
             .with("bot_level", bot_level.name())
             .with("tyres", tyres.name())
+            .with("laps", laps)
             .emit();
         self.spawn(&mut registry, room, false);
         Ok(code)
@@ -858,8 +861,8 @@ async fn run(
                             let id = connections.next().expect("connection ids never run out");
                             let countdown = running.as_mut().map(|running| {
                                 running.race.hand_back(slot);
-                                let Started { seed, track, bot_level, tyres, grid } = running.started.clone();
-                                ServerMessage::Countdown { seed, track, bot_level, tyres, grid }
+                                let Started { seed, track, bot_level, tyres, laps, grid } = running.started.clone();
+                                ServerMessage::Countdown { seed, track, bot_level, tyres, laps, grid }
                             });
                             let connection = Connection::new(id, outbound);
                             let new = connection.outbound.clone();
@@ -911,6 +914,7 @@ async fn run(
                                     .with("track", &started.track)
                                     .with("bot_level", started.bot_level.name())
                                     .with("tyres", started.tyres.name())
+                                    .with("laps", started.laps)
                                     .with("grid", &started.grid)
                                     .emit();
                                 running = Some(Running::start(
@@ -919,6 +923,7 @@ async fn run(
                                         track,
                                         started.bot_level,
                                         started.tyres,
+                                        started.laps,
                                         started.grid.clone(),
                                         room.next_event_id(),
                                     ),
@@ -931,6 +936,7 @@ async fn run(
                                         track: started.track,
                                         bot_level: started.bot_level,
                                         tyres: started.tyres,
+                                        laps: started.laps,
                                         grid: started.grid,
                                     },
                                     None,

@@ -229,6 +229,32 @@ async fn a_body_is_read_whatever_its_content_type_and_one_naming_no_track_races_
 }
 
 #[tokio::test]
+async fn a_room_created_at_five_laps_races_them() {
+    let (app, rooms, _stop) = app();
+    let (status, body) = create(app, Body::from(r#"{ "track": "goldstone", "laps": 5 }"#)).await;
+    assert_eq!(status, StatusCode::CREATED);
+    let room = rooms.view(body["code"].as_str().unwrap()).unwrap();
+    assert_eq!(room.laps, 5);
+}
+
+#[tokio::test]
+async fn a_room_created_without_laps_races_three() {
+    let (app, rooms, _stop) = app();
+    let (status, body) = create(app, Body::from(r#"{ "track": "goldstone" }"#)).await;
+    assert_eq!(status, StatusCode::CREATED);
+    let room = rooms.view(body["code"].as_str().unwrap()).unwrap();
+    assert_eq!(room.laps, 3);
+}
+
+#[tokio::test]
+async fn a_room_of_laps_nobody_can_pick_is_refused_and_not_opened() {
+    let (app, rooms, _stop) = app();
+    let (status, _) = create(app, Body::from(r#"{ "laps": 4 }"#)).await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+    assert!(rooms.codes().is_empty(), "{:?}", rooms.codes());
+}
+
+#[tokio::test]
 async fn a_room_created_with_tyres_on_races_them() {
     let (app, rooms, _stop) = app();
     let (status, body) = create(

@@ -149,6 +149,8 @@ export interface RaceReadout {
 export interface RaceRun {
   readonly humanCount: number;
   readonly localKart: number;
+  /** The laps that finish this race (ADR 0083). */
+  readonly laps: number;
   /** One tick of `dt` seconds with the local player's input: stepped here, or sent to the server. */
   tick(input: KartInput, dt: number): void;
   /** The race as of the last tick. */
