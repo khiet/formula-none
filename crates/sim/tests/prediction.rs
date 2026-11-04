@@ -1074,15 +1074,10 @@ fn the_prediction_and_the_server_agree_on_the_tick_of_green_with_no_correction()
             .position(|pair| pair[0].stop.is_some() && pair[1].stop.is_none())
             .map(|index| index + 1)
     };
-    let server_green = green(
-        &run.server
-            .iter()
-            .map(|karts| karts[0])
-            .collect::<Vec<_>>(),
-    )
-    .expect("the server's kart was let go") as u32;
-    let client_green = green(&run.drawn).expect("the predicted kart was let go") as u32
-        + FIRST_DRAWN_TICK;
+    let server_green = green(&run.server.iter().map(|karts| karts[0]).collect::<Vec<_>>())
+        .expect("the server's kart was let go") as u32;
+    let client_green =
+        green(&run.drawn).expect("the predicted kart was let go") as u32 + FIRST_DRAWN_TICK;
     assert_eq!(
         client_green + PREDICTED_LEAD_TICKS,
         server_green,
@@ -1099,5 +1094,87 @@ fn the_prediction_and_the_server_agree_on_the_tick_of_green_with_no_correction()
         run.drawn[(client_green - FIRST_DRAWN_TICK) as usize].tyre_life,
         sim::tuning::TYRE_LIFE_NEW_PERCENT,
         "new tyres predicted at green"
+    );
+}
+
+#[test]
+fn the_prediction_passes_through_a_kart_on_its_mark_as_the_server_does_without_a_correction() {
+    use common::{quiet_bell_deer, with_pit_box_at, with_slot_on_lane};
+    use sim::tuning::PIT_BOX_CATCH_M;
+    use sim::Tyres;
+    // Two humans on Bell Deer's lane: slot 1 starts a hair short of its
+    // catch, so it is on its mark at once; the own kart on slot 0, its own
+    // pit box moved to the lane's end, drives at the mark and through it,
+    // the other kart drawn where the server had it.
+    let base = quiet_bell_deer();
+    let lane = track(&base).pit_lane().expect("a lane").clone();
+    let mark = lane.pit_boxes()[1].position;
+    let sidecar = with_pit_box_at(&base, 0, lane.exit_m() - 3.0);
+    let sidecar = with_slot_on_lane(&sidecar, 1, lane.pit_box_m(1) - PIT_BOX_CATCH_M - 1.0);
+    let sidecar = with_slot_on_lane(&sidecar, 0, lane.pit_box_m(1) - 35.0);
+    let server = State::with_tyres(SEED, 2, 0, track(&sidecar), BotLevel::Basic, Tyres::On);
+    let driver = |prediction: &Prediction, _: u32| {
+        let kart = prediction.kart_readout();
+        let past = lane
+            .reading(kart.position)
+            .is_some_and(|metres| metres > lane.pit_box_m(1) + 1.0);
+        if past {
+            down_the_pit_lane(prediction, 8.0)
+        } else {
+            let [qx, qy, qz, qw] = kart.rotation;
+            let yaw = (2.0 * (qw * qy + qx * qz)).atan2(1.0 - 2.0 * (qy * qy + qz * qz));
+            let (dx, dz) = (mark[0] - kart.position[0], mark[2] - kart.position[2]);
+            let distance = (dx * dx + dz * dz).sqrt().max(0.001);
+            let (sin, cos) = yaw.sin_cos();
+            let rightward = (dx * cos - dz * sin) / distance;
+            KartInput {
+                steer: (rightward * 4.0).clamp(-1.0, 1.0),
+                throttle: 1.0,
+                ..KartInput::default()
+            }
+        }
+    };
+    // The other kart holds the throttle: the catch is a crossing, so a kart
+    // standing short of it is never taken in.
+    let run = race_drawing(
+        seconds(sim::tuning::COUNTDOWN_S + 6.0),
+        |_| false,
+        server,
+        driver,
+        |_| {
+            vec![KartInput {
+                throttle: 1.0,
+                ..KartInput::default()
+            }]
+        },
+        true,
+    );
+    let closest = run
+        .server
+        .iter()
+        .filter_map(|karts| {
+            let (own, other) = (karts[0], karts[1]);
+            other.stop.is_some().then(|| {
+                ((own.position[0] - other.position[0]).powi(2)
+                    + (own.position[2] - other.position[2]).powi(2))
+                .sqrt()
+            })
+        })
+        .fold(f32::MAX, f32::min);
+    assert!(
+        closest < 0.5,
+        "the own kart drove through the mark, closest {closest:.2} m"
+    );
+    assert_eq!(
+        run.prediction.corrections(),
+        0,
+        "no correction passing through: {:?}",
+        run.corrections_m
+    );
+    let own = run.prediction.kart_readout();
+    assert!(
+        lane.reading(own.position)
+            .is_some_and(|metres| metres > lane.pit_box_m(1) + 5.0),
+        "carried on down the lane"
     );
 }

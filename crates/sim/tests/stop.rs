@@ -8,8 +8,8 @@ mod common;
 use std::collections::BTreeMap;
 
 use common::{
-    steer_toward, track, with_boxes_at, with_slot_at, without_item_boxes,
-    without_wheel_crossings, BELL_DEER, DT, SEED,
+    along_lane, drive_lane, quiet_bell_deer, steer_toward, track, with_boxes_at, with_pit_box_at,
+    with_slot_on_lane, DT, SEED,
 };
 use sim::tuning::{
     KART_HALF_LENGTH_M, PIT_BOX_CATCH_M, PIT_BOX_GUIDE_S, PIT_LIMIT_M_PER_S, STOP_ROLL_CHANCES,
@@ -20,41 +20,8 @@ use sim::{
     Track, Tyres,
 };
 
-/// How far ahead along the lane a driver aims.
-const LOOK_AHEAD_M: f32 = 8.0;
 /// Where a kart starts on the lane: on the limiter, short of the first catch.
 const START_M: f32 = 40.0;
-
-/// Bell Deer with nothing on it but the lane.
-fn quiet_bell_deer() -> String {
-    without_item_boxes(&without_wheel_crossings(BELL_DEER))
-}
-
-/// The point `metres` along the lane's path from the fork, and the facing
-/// a kart there has down it.
-fn along_lane(track: &Track, metres: f32) -> ([f32; 3], f32) {
-    let lane = track.pit_lane().expect("Bell Deer has a pit lane");
-    let at = lane.point_at(metres);
-    let ahead = lane.point_at(metres + 1.0);
-    (at, f32::atan2(at[0] - ahead[0], at[2] - ahead[2]))
-}
-
-/// `sidecar` with spawn `slot` on the lane, `metres` along it from the fork.
-fn with_slot_on_lane(sidecar: &str, slot: usize, metres: f32) -> String {
-    let (position, yaw) = along_lane(&track(sidecar), metres);
-    with_slot_at(sidecar, slot, position, yaw)
-}
-
-/// Full throttle down the lane's path.
-fn drive_lane(state: &State, kart: usize) -> KartInput {
-    let lane = state.track().pit_lane().expect("a lane");
-    let here = state.kart_readouts()[kart].position;
-    let aim = lane
-        .reading(here)
-        .map_or(0.0, |metres| metres + LOOK_AHEAD_M);
-    let target = lane.point_at(aim);
-    steer_toward(state, kart, [target[0], target[2]])
-}
 
 /// A race of `karts` humans on `sidecar`, past its countdown.
 fn race_on(sidecar: &str, karts: usize, tyres: Tyres) -> State {
@@ -135,9 +102,16 @@ fn a_kart_on_tyres_on_is_taken_onto_its_mark_at_the_catch_and_let_go_on_green_wi
         );
     }
     let yaw = common::yaw(on_the_mark.rotation);
-    assert!((yaw - mark.yaw).abs() < 0.01, "facing down the lane: {yaw} against {}", mark.yaw);
+    assert!(
+        (yaw - mark.yaw).abs() < 0.01,
+        "facing down the lane: {yaw} against {}",
+        mark.yaw
+    );
     assert_eq!(on_the_mark.speed, 0.0);
-    assert!(on_the_mark.in_pit_lane, "the mark is on the limiter's ground");
+    assert!(
+        on_the_mark.in_pit_lane,
+        "the mark is on the limiter's ground"
+    );
 
     // Held there, dead to the throttle and the steering, until green.
     let last = seen.last().expect("some ticks");
@@ -194,7 +168,10 @@ fn green_hands_the_controls_back_and_the_stop_is_counted_in_the_standings() {
         state = step(state, &[input], DT);
         let kart = state.kart_readouts()[0];
         assert_eq!(kart.stop, None, "not taken in again on the way out");
-        assert!(kart.speed <= PIT_LIMIT_M_PER_S + 0.001, "still on the limiter");
+        assert!(
+            kart.speed <= PIT_LIMIT_M_PER_S + 0.001,
+            "still on the limiter"
+        );
     }
     let kart = state.kart_readouts()[0];
     assert!(kart.speed > 5.0, "driving on at {} m/s", kart.speed);
@@ -220,8 +197,6 @@ fn on_tyres_off_the_boxes_do_nothing() {
         furthest > lane.pit_box_m(0) + 10.0,
         "drove past the pit box, to {furthest} m"
     );
-    let standing = &seen.len();
-    assert!(*standing > 0);
 }
 
 #[test]
@@ -302,7 +277,10 @@ fn the_item_rolls_are_unchanged_by_a_stop() {
     let (stopped, after_a_stop): (bool, Item) = boxed(Tyres::On);
     let (drove_through, without_one): (bool, Item) = boxed(Tyres::Off);
     assert!(stopped && !drove_through);
-    assert_eq!(after_a_stop, without_one, "the roll drew nothing from the item generator");
+    assert_eq!(
+        after_a_stop, without_one,
+        "the roll drew nothing from the item generator"
+    );
 }
 
 #[test]
@@ -312,12 +290,9 @@ fn a_kart_on_its_mark_cannot_be_shunted_and_the_other_kart_passes_through_it() {
     // limit straight through slot 0's mark.
     let sidecar = {
         let base = quiet_bell_deer();
-        let course = track(&base);
-        let lane = course.pit_lane().expect("a lane");
-        let mut edited: serde_json::Value = serde_json::from_str(&base).expect("JSON");
-        let (far, yaw) = along_lane(&course, lane.exit_m() - 3.0);
-        edited["pit_lane"]["pit_boxes"][1] = serde_json::json!({ "position": far, "yaw": yaw });
-        let sidecar = with_slot_on_lane(&edited.to_string(), 0, lane.pit_box_m(0) - PIT_BOX_CATCH_M - 2.0);
+        let lane = track(&base).pit_lane().expect("a lane").clone();
+        let sidecar = with_pit_box_at(&base, 1, lane.exit_m() - 3.0);
+        let sidecar = with_slot_on_lane(&sidecar, 0, lane.pit_box_m(0) - PIT_BOX_CATCH_M - 2.0);
         with_slot_on_lane(&sidecar, 1, lane.pit_box_m(0) - 30.0)
     };
     let mut state = race_on(&sidecar, 2, Tyres::On);
@@ -350,13 +325,18 @@ fn a_kart_on_its_mark_cannot_be_shunted_and_the_other_kart_passes_through_it() {
             continue;
         }
         let mark = *on_the_mark.get_or_insert(held.position);
-        assert_eq!(held.position, mark, "held on the mark whatever runs into it");
+        assert_eq!(
+            held.position, mark,
+            "held on the mark whatever runs into it"
+        );
         assert_eq!(held.bump, None, "nothing bumps it");
-        let gap = ((other.position[0] - mark[0]).powi(2) + (other.position[2] - mark[2]).powi(2))
-            .sqrt();
+        let gap =
+            ((other.position[0] - mark[0]).powi(2) + (other.position[2] - mark[2]).powi(2)).sqrt();
         closest = closest.min(gap);
         assert_eq!(other.bump, None, "and it bumps nobody");
-        passed_through |= lane.reading(other.position).is_some_and(|m| m > mark_m + 5.0);
+        passed_through |= lane
+            .reading(other.position)
+            .is_some_and(|m| m > mark_m + 5.0);
     }
     assert!(on_the_mark.is_some(), "slot 0 stood on its mark");
     assert!(
@@ -386,4 +366,24 @@ fn a_stop_is_part_of_the_hash() {
     let state = step(state, &[KartInput::default()], DT);
     assert_eq!(state.kart_readouts()[0].speed, 0.0);
     assert_ne!(before, state.hash());
+}
+
+#[test]
+fn a_pit_box_off_the_lanes_road_is_refused_with_the_sidecar() {
+    let sidecar = quiet_bell_deer();
+    let course = track(&sidecar);
+    let lane = course.pit_lane().expect("a lane");
+    // Well across from the lane, out on the course.
+    let (on_the_path, yaw) = along_lane(&course, lane.pit_box_m(0));
+    let off_the_road = [on_the_path[0] + 40.0, on_the_path[1], on_the_path[2] + 40.0];
+    let mut edited: serde_json::Value = serde_json::from_str(&sidecar).expect("JSON");
+    edited["pit_lane"]["pit_boxes"][3] =
+        serde_json::json!({ "position": off_the_road, "yaw": yaw });
+    let Err(error) = Track::from_sidecar(&edited.to_string()) else {
+        panic!("a pit box off the road was accepted");
+    };
+    assert!(
+        error.to_string().contains("pit box"),
+        "names the pit box: {error}"
+    );
 }

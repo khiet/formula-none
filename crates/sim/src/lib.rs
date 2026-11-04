@@ -958,7 +958,6 @@ use tuning::{
     COIN_RESPAWN_S,
 };
 use tuning::{BOOST_PAD_FACTOR, RESPAWN_DELAY_S, WRONG_WAY_WARNING_S};
-use tuning::{PIT_BOX_CATCH_M, PIT_BOX_GUIDE_S};
 use tuning::{
     BOT_START_HOLD_S, COUNTDOWN_S, RACE_END_CAP_S, RACE_OUTRO_S, START_BOOST_FACTOR, START_BOOST_S,
     START_FULL_BOOST_HOLD_S, START_STALL_HOLD_S, START_STALL_S, START_THROTTLE_HELD,
@@ -982,6 +981,7 @@ use tuning::{HORN_PROGRESS_WINDOW_M, HORN_RADIUS_M};
 use tuning::{
     KART_BUMP_RESTITUTION, KART_BUMP_SPEED_LOSS, TYRE_WALL_RESTITUTION, TYRE_WALL_SPEED_LOSS,
 };
+use tuning::{PIT_BOX_CATCH_M, PIT_BOX_GUIDE_S};
 use tuning::{
     SLIPSTREAM_ANGLE_RAD, SLIPSTREAM_HALF_WIDTH_M, SLIPSTREAM_LEADER_SPEED_FRACTION,
     SLIPSTREAM_RANGE_M,
@@ -2493,7 +2493,10 @@ fn hold_in_pit_box(kart: &mut Kart, track: &Track, physics: &mut Physics, dt: f3
     let stationary_s = stop.stationary_s;
     kart.stop = None;
     kart.stops += 1;
-    kart.best_stop_s = Some(kart.best_stop_s.map_or(stationary_s, |best| best.min(stationary_s)));
+    kart.best_stop_s = Some(
+        kart.best_stop_s
+            .map_or(stationary_s, |best| best.min(stationary_s)),
+    );
     kart.handling.new_tyres();
     kart.handling.respawn(facing * Vec3::NEG_Z);
 }
