@@ -7,7 +7,8 @@ Accepted (2026-11-04), pending the maintainer's playtest. Supersedes ADR 0080's
 effects stand. Supersedes ADR 0081's Pro rule that it pits "if life would run
 out", now read to the next lane and not the flag. Adds a drift floor to what
 ADR 0078 varies by level. The numbers below come from
-bots racing `crates/sim/tests/bot_pits.rs`; nobody has played them yet.
+bots racing `crates/sim/tests/bot_pits.rs`; nobody has played them yet. ADR 0086
+supersedes its Ace call where saving its tyres reaches the flag.
 
 ## Context
 

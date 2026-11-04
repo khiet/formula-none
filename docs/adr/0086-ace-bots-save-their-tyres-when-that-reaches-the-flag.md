@@ -3,8 +3,9 @@
 ## Status
 
 Accepted (2026-11-04), pending the maintainer's playtest. Builds what ADR 0085
-left out, the mockup's Ace that "manages when a no-stop race works". The rest of
-ADR 0085 stands. The numbers below come from bots racing; nobody has played them
+left out, the mockup's Ace that "manages when a no-stop race works", and supersedes
+ADR 0085's Ace call where saving reaches the flag: that bot stays out even if a
+stop would pay. The rest of ADR 0085 stands. The numbers below come from bots racing; nobody has played them
 yet, and ADR 0085's retune has not been played either.
 
 ## Context
@@ -37,11 +38,13 @@ and 1 to 3% faster on Goldstone and Monarch.
   its stop in 70% of them and finishes 4.2 s sooner. On Bell Deer and Monarch it
   still stops, as the projection at 25% a lap falls short even saving.
 - A pack barely changes. Stops per kart moved by 0.04 at most, too small to read
-  over 40 races. The first lap's traffic takes 41 to 46%, which the rate over the stint reads as the
-  bot's pace, so most karts in a pack look too far short to save. Whether to read
+  over 40 races. The first lap's traffic takes 41 to 46%, which the rate over the
+  stint reads as the bot's pace, so most karts in a pack look too far short to save. Whether to read
   wear differently is left until ADR 0085's retune has been played.
-- The rate over a stint falls while a bot saves, so a later projection at 0.67 of
-  it is a little optimistic. It is read again each lap, so a bot that falls short
-  stops or stays out on the rule it would have had anyway.
+- The rate over a stint falls while a bot saves, so a later reading can say pushing
+  now reaches the flag and the bot drifts again, saving on alternate laps. It saves
+  no more than it must, and can land a few points short: those lone five-lap
+  Goldstone bots that skip their stop reach the flag on a mean of 11%, under the 15%
+  they aim for.
 - Replay fixtures with Ace bots on Tyres On change; `goldstone-bots-pit` was
   re-recorded. Tyres Off hashes as before, since its life never wears.

@@ -166,7 +166,11 @@ fn race(seed: u64, course: Track, level: BotLevel, tyres: Tyres, laps: u32) -> R
 
 /// A lone bot's stops and finish over five laps.
 fn lone_five_laps(course: Track, level: BotLevel) -> (u32, Option<f32>) {
-    let mut state = started(State::with_tyres(SEED, 0, 1, course, level, Tyres::On).with_laps(5));
+    lone_five_laps_from(SEED, course, level)
+}
+
+fn lone_five_laps_from(seed: u64, course: Track, level: BotLevel) -> (u32, Option<f32>) {
+    let mut state = started(State::with_tyres(seed, 0, 1, course, level, Tyres::On).with_laps(5));
     for _ in 0..ticks(5.0 * 120.0) {
         state = step(state, &[], DT);
         if state.standings()[0].finish_time_s.is_some() {
@@ -361,6 +365,16 @@ fn a_lone_ace_bot_saves_its_way_to_the_flag_with_no_stop() {
         "it reached the flag on {}",
         kart.tyre_life
     );
+}
+
+/// Most seeds' read of the first lap lands a lone bot within reach here, not all,
+/// so any of a handful will do.
+#[test]
+fn a_lone_ace_bot_can_save_its_way_through_five_laps_of_goldstone() {
+    assert!((0..10).any(|seed| {
+        let (stops, finish) = lone_five_laps_from(seed, goldstone(), BotLevel::Ace);
+        stops == 0 && finish.is_some()
+    }));
 }
 
 #[test]

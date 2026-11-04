@@ -146,7 +146,7 @@ pub struct PitReading {
 pub fn saves_its_tyres(call: BotPitCall, reading: PitReading) -> bool {
     let BotPitCall::Projected {
         flag_life,
-        saving_wear,
+        saving_wear_fraction,
         ..
     } = call
     else {
@@ -156,7 +156,7 @@ pub fn saves_its_tyres(call: BotPitCall, reading: PitReading) -> bool {
     reading.wear_per_lap.is_some_and(|wear| {
         reading.laps_to_go > 0
             && reading.life - wear * laps < flag_life
-            && reading.life - wear * saving_wear * laps >= flag_life
+            && reading.life - wear * saving_wear_fraction * laps >= flag_life
     })
 }
 

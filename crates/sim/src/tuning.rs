@@ -717,12 +717,12 @@ pub enum BotPitCall {
     /// Its life, carried to the flag at the rate it has worn so far, ends under
     /// `flag_life`, and stopping now costs less time than staying out or
     /// stopping on any later lap. Only under `last_lap_life` for the last lap.
-    /// Where pushing ends under `flag_life` and wearing `saving_wear` of its
+    /// Where pushing ends under `flag_life` and wearing `saving_wear_fraction` of its
     /// rate would not, it stays out and drops its drifts (ADR 0086).
     Projected {
         flag_life: f32,
         last_lap_life: f32,
-        saving_wear: f32,
+        saving_wear_fraction: f32,
     },
 }
 
@@ -735,7 +735,8 @@ pub enum BotPitCall {
 pub struct BotProfile {
     pub pit_call: BotPitCall,
     /// Tyre life under which a bot drops its optional drifts: it still gets
-    /// round a corner on full lock, slower. Zero never does.
+    /// round a corner on full lock, slower. Zero has no floor; an Ace bot may
+    /// still drop them to save its tyres, which its `pit_call` decides.
     pub drift_floor_life: f32,
     pub corner_speed_fraction: f32,
     pub rubber_band_min_factor: f32,
@@ -772,7 +773,7 @@ pub const BOT_LEVELS: [BotProfile; 3] = [
         pit_call: BotPitCall::Projected {
             flag_life: 15.0,
             last_lap_life: 10.0,
-            saving_wear: 0.67,
+            saving_wear_fraction: 0.67,
         },
         drift_floor_life: 0.0,
         corner_speed_fraction: 1.0,
