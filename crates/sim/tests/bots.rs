@@ -628,8 +628,8 @@ fn a_bots_steering_is_unchanged_by_a_coin_off_its_line() {
     );
 }
 
-/// Slower than this a bot is not moving to speak of. A crawl up to the stall speed
-/// is a bot on its way out of a stall, which the stall speed is set to catch.
+/// Slower than this a bot is not moving to speak of; a crawl faster than this
+/// is on its way out of a stall.
 const STUCK_SPEED_M_PER_S: f32 = 1.0;
 
 /// The longest any bot in an eight-bot race on `track` from `seed` sat under
