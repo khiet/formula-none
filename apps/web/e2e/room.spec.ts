@@ -142,7 +142,7 @@ test("a wrong code, a short nickname and a shared link all say what to do", asyn
   await expect(page.getByLabel("Room code")).toHaveValue("ZZZZ");
 });
 
-test("the creator's bot level, Tyres pick and race distance are the room's: the joiner's Room Scene says them too", async ({
+test("the creator's bot level, Tyres pick and laps are the room's: the joiner's Room Scene says them too", async ({
   page,
   browser,
 }) => {
@@ -152,7 +152,7 @@ test("the creator's bot level, Tyres pick and race distance are the room's: the 
   await page.locator(".bot-tile", { hasText: "Pro" }).click();
   await expect(page.getByRole("radio", { name: "Pro" })).toBeChecked();
   await page.locator(".bot-tile", { hasText: "On" }).click();
-  await page.locator(".bot-tile", { hasText: "Grand Prix" }).click();
+  await page.locator(".bot-tile", { hasText: "5" }).click();
   await page.getByRole("button", { name: "Create room" }).click();
   await expect(page.locator("#room-scene")).toBeVisible({ timeout: 15_000 });
   const code = await roomCode(page);
@@ -169,7 +169,7 @@ test("the creator's bot level, Tyres pick and race distance are the room's: the 
   for (const someone of [page, friend]) {
     await expect(someone.locator("[data-room-bots]")).toHaveText("Bots: Pro");
     await expect(someone.locator("[data-room-tyres]")).toHaveText("Tyres: On");
-    await expect(someone.locator("[data-room-distance]")).toHaveText("Distance: Grand Prix");
+    await expect(someone.locator(".stats > *", { hasText: "Laps" }).locator("b")).toHaveText("5");
   }
   await friendContext.close();
 });

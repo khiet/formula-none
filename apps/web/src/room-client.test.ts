@@ -12,7 +12,7 @@ const ROOM: Room = {
   track: "goldstone",
   botLevel: "basic",
   tyres: "off",
-  distance: "sprint",
+  laps: 3,
   state: "open",
   players: [
     { slot: 0, nickname: "khiet", livery: 0, state: "unready", creator: true },
@@ -79,7 +79,7 @@ describe("joinRoom", () => {
         track: "bell-deer",
         botLevel: "basic",
         tyres: "off",
-        distance: "sprint",
+        laps: 3,
         grid: [0, 1],
       },
     });
@@ -88,7 +88,7 @@ describe("joinRoom", () => {
       track: "bell-deer",
       botLevel: "basic",
       tyres: "off",
-      distance: "sprint",
+      laps: 3,
       grid: [0, 1],
     });
 
@@ -207,7 +207,7 @@ describe("the race side of the room client", () => {
         track: "bell-deer",
         botLevel: "basic",
         tyres: "off",
-        distance: "sprint",
+        laps: 3,
         grid: [0, 1],
       },
     });
@@ -229,7 +229,7 @@ describe("the race side of the room client", () => {
         track: "bell-deer",
         botLevel: "basic",
         tyres: "off",
-        distance: "sprint",
+        laps: 3,
         grid: [0, 1],
       },
     });
@@ -299,7 +299,7 @@ describe("the race side of the room client", () => {
         track: "bell-deer",
         botLevel: "basic",
         tyres: "off",
-        distance: "sprint",
+        laps: 3,
         grid: [0, 1],
       },
     });
@@ -314,7 +314,7 @@ describe("taking the seat back (ADR 0012)", () => {
     track: "bell-deer",
     botLevel: "basic" as const,
     tyres: "off" as const,
-    distance: "sprint" as const,
+    laps: 3,
     grid: [0, 1],
   };
 

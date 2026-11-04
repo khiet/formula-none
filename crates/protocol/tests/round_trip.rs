@@ -4,7 +4,8 @@
 //! to one per variant of the generated unions.
 
 use protocol::{decode, encode, samples, ClientMessage, DecodeError, Room, ServerMessage};
-use sim::{BotLevel, RaceDistance, Tyres};
+use sim::tuning::LAP_CHOICES;
+use sim::{BotLevel, Tyres};
 
 #[test]
 fn every_client_message_round_trips() {
@@ -43,10 +44,10 @@ fn garbage_is_rejected() {
 }
 
 #[test]
-fn a_room_and_a_countdown_round_trip_at_every_race_distance() {
-    for distance in RaceDistance::ALL {
+fn a_room_and_a_countdown_round_trip_at_every_lap_choice() {
+    for laps in LAP_CHOICES {
         let room = ServerMessage::Room(Room {
-            distance,
+            laps,
             ..samples::room()
         });
         let decoded: ServerMessage = decode(&encode(&room)).unwrap();
@@ -57,7 +58,7 @@ fn a_room_and_a_countdown_round_trip_at_every_race_distance() {
             track: "oval".to_owned(),
             bot_level: BotLevel::Basic,
             tyres: Tyres::Off,
-            distance,
+            laps,
             grid: vec![0],
         };
         let decoded: ServerMessage = decode(&encode(&countdown)).unwrap();
@@ -80,7 +81,7 @@ fn a_room_and_a_countdown_round_trip_at_every_tyres_pick() {
             track: "oval".to_owned(),
             bot_level: BotLevel::Basic,
             tyres,
-            distance: RaceDistance::Sprint,
+            laps: 3,
             grid: vec![0],
         };
         let decoded: ServerMessage = decode(&encode(&countdown)).unwrap();
@@ -103,7 +104,7 @@ fn a_room_and_a_countdown_round_trip_at_every_bot_level() {
             track: "oval".to_owned(),
             bot_level: level,
             tyres: Tyres::Off,
-            distance: RaceDistance::Sprint,
+            laps: 3,
             grid: vec![0],
         };
         let decoded: ServerMessage = decode(&encode(&countdown)).unwrap();

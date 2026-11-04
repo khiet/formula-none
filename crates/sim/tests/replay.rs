@@ -12,8 +12,8 @@ use common::{
 
 use sim::tuning::{KART_HALF_LENGTH_M, REPLAY_HASH_INTERVAL_TICKS};
 use sim::{
-    step, BotLevel, KartInput, MiniTurbo, Phase, RaceDistance, RaceEvent, Replay, Segment, State,
-    Surface, Track, Tyres,
+    step, BotLevel, KartInput, MiniTurbo, Phase, RaceEvent, Replay, Segment, State, Surface, Track,
+    Tyres,
 };
 
 fn race(seed: u64, kart_count: usize) -> State {
@@ -293,7 +293,7 @@ fn replay_of(track: &str, segments: Vec<Segment>) -> Replay {
         bots: 0,
         level: BotLevel::Basic,
         tyres: Tyres::Off,
-        distance: RaceDistance::Sprint,
+        laps: 3,
         segments,
         hashes: Vec::new(),
     }
@@ -409,7 +409,7 @@ fn the_fixture_set_exercises_kart_contact_off_track_walls_every_track_both_mini_
             replay.level,
             replay.tyres,
         )
-        .with_distance(replay.distance);
+        .with_laps(replay.laps);
         for segment in &replay.segments {
             for _ in 0..segment.ticks {
                 let before = state.kart_readouts();
@@ -530,7 +530,7 @@ fn a_replay_with_bots_reruns_them_from_the_seed_and_carries_their_count() {
         bots,
         level: BotLevel::Basic,
         tyres: Tyres::Off,
-        distance: RaceDistance::Sprint,
+        laps: 3,
         segments: vec![held(120, 1)],
         hashes: Vec::new(),
     }
@@ -577,9 +577,9 @@ fn a_replay_recorded_before_bot_levels_existed_runs_its_bots_at_basic() {
 }
 
 /// A lone bot's replay on the oval, long enough to take it past its fifth lap,
-/// with `distance` as the JSON's field when there is one.
-fn lone_bot_replay(distance: Option<&str>) -> Replay {
-    let field = distance.map_or(String::new(), |name| format!(r#""distance": "{name}","#));
+/// with `laps` as the JSON's field when there is one.
+fn lone_bot_replay(laps: Option<u32>) -> Replay {
+    let field = laps.map_or(String::new(), |name| format!(r#""laps": {name},"#));
     Replay::from_json(&format!(
         r#"{{ "version": 1, "seed": "7", "track": "oval", "bots": 1, {field}
              "segments": [{{ "ticks": {}, "inputs": [] }}], "hashes": [] }}"#,
@@ -589,9 +589,9 @@ fn lone_bot_replay(distance: Option<&str>) -> Replay {
 }
 
 #[test]
-fn a_replay_without_a_distance_runs_three_laps() {
+fn a_replay_without_laps_runs_three() {
     let replay = lone_bot_replay(None);
-    assert_eq!(replay.distance, RaceDistance::Sprint);
+    assert_eq!(replay.laps, 3);
     let hashes = replay.run(sidecar("oval")).unwrap();
 
     // The same race by hand, every hash held to it, finishing on its third lap.
@@ -608,15 +608,23 @@ fn a_replay_without_a_distance_runs_three_laps() {
 }
 
 #[test]
-fn a_replay_carries_its_distance_through_the_json_and_reruns_it() {
-    let replay = lone_bot_replay(Some("grand-prix"));
-    assert_eq!(replay.distance, RaceDistance::GrandPrix);
+fn a_replay_carries_its_laps_through_the_json_and_reruns_it() {
+    let replay = lone_bot_replay(Some(5));
+    assert_eq!(replay.laps, 5);
     assert_eq!(Replay::from_json(&replay.to_json()).unwrap(), replay);
     assert_ne!(
         replay.run(sidecar("oval")).unwrap(),
         lone_bot_replay(None).run(sidecar("oval")).unwrap(),
-        "the bot keeps lapping past a Sprint's finish"
+        "the bot keeps lapping past a third lap"
     );
+}
+
+#[test]
+fn a_replay_of_laps_nobody_can_pick_is_refused() {
+    let json = lone_bot_replay(Some(5))
+        .to_json()
+        .replace("\"laps\": 5", "\"laps\": 4");
+    assert!(Replay::from_json(&json).is_err());
 }
 
 #[test]
@@ -632,7 +640,7 @@ fn a_replay_carries_its_tyres_pick_and_reruns_with_it() {
         bots: 0,
         level: BotLevel::Basic,
         tyres,
-        distance: RaceDistance::Sprint,
+        laps: 3,
         segments: vec![Segment {
             ticks: 600,
             inputs: vec![throttle()],
@@ -659,7 +667,7 @@ fn a_replay_carries_its_bot_level_and_reruns_its_bots_at_it() {
         bots: 1,
         level: BotLevel::Ace,
         tyres: Tyres::Off,
-        distance: RaceDistance::Sprint,
+        laps: 3,
         // Ten seconds: well past Go, where the levels' bots part.
         segments: vec![held(600, 1)],
         hashes: Vec::new(),

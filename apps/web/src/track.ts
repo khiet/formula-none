@@ -9,7 +9,10 @@ import monarchSidecar from "../../../assets/tracks/monarch/monarch.track.json?ur
 import ovalGltf from "../../../assets/tracks/oval/oval.glb?url";
 import ovalSidecar from "../../../assets/tracks/oval/oval.track.json?url";
 
-import type { BotLevel, RaceDistance, Tyres } from "./generated/sim";
+import type { BotLevel, Tyres } from "./generated/sim";
+
+/** The laps a creator can pick from, the default first (ADR 0084). */
+export type LapChoices = readonly [number, number];
 
 export type TrackName = "bell-deer" | "goldstone" | "monarch" | "oval";
 
@@ -159,45 +162,30 @@ export function botLevelFromSearch(search: string): BotLevel | undefined {
   return requested !== null && isBotLevel(requested) ? requested : undefined;
 }
 
-/** A race distance as the Title Scene offers it: its caption and the line describing it. */
-export interface DistanceChoice {
-  readonly distance: RaceDistance;
-  readonly name: string;
-  /** What the pick means for the race, in the course blurb's voice, after "Name: ". */
-  readonly blurb: string;
+const LAPS_STORAGE_KEY = "laps";
+
+/** `text` as a lap count when a creator can pick it. */
+function offeredLaps(text: string | null, choices: LapChoices): number | undefined {
+  const laps = Number(text);
+  return choices.includes(laps) ? laps : undefined;
 }
 
-/** The picks in the Title Scene's order, the Sprint first (ADR 0083). */
-export const DISTANCE_CHOICES: readonly DistanceChoice[] = [
-  { distance: "sprint", name: "Sprint", blurb: "the short race, flat out from the lights" },
-  { distance: "grand-prix", name: "Grand Prix", blurb: "the long race, more laps to manage" },
-];
-
-const DEFAULT_DISTANCE: RaceDistance = "sprint";
-const DISTANCE_STORAGE_KEY = "distance";
-
-export function isRaceDistance(name: string): name is RaceDistance {
-  return DISTANCE_CHOICES.some((choice) => choice.distance === name);
+/** The laps picked last time, kept beside the course pick; the first choice when unsaved, unreadable or no pick (ADR 0084). */
+export function loadLaps(storage: Storage, choices: LapChoices): number {
+  return offeredLaps(remembered(storage, LAPS_STORAGE_KEY), choices) ?? choices[0];
 }
 
-/** The race distance picked last time, kept beside the course pick; a Sprint when unsaved, unreadable or no pick. */
-export function loadDistance(storage: Storage): RaceDistance {
-  const saved = remembered(storage, DISTANCE_STORAGE_KEY);
-  return saved !== null && isRaceDistance(saved) ? saved : DEFAULT_DISTANCE;
-}
-
-export function saveDistance(storage: Storage, distance: RaceDistance): void {
-  remember(storage, DISTANCE_STORAGE_KEY, distance);
+export function saveLaps(storage: Storage, laps: number): void {
+  remember(storage, LAPS_STORAGE_KEY, String(laps));
 }
 
 /**
- * The race distance the page's query string asks for (`?distance=grand-prix`),
- * so a smoke run can load either into a solo race beside `?track=`; `undefined`
- * for none or an unknown one.
+ * The laps the page's query string asks for (`?laps=5`), so a smoke run can
+ * load either into a solo race beside `?track=`; `undefined` for none or a
+ * count nobody can pick.
  */
-export function distanceFromSearch(search: string): RaceDistance | undefined {
-  const requested = new URLSearchParams(search).get("distance");
-  return requested !== null && isRaceDistance(requested) ? requested : undefined;
+export function lapsFromSearch(search: string, choices: LapChoices): number | undefined {
+  return offeredLaps(new URLSearchParams(search).get("laps"), choices);
 }
 
 /** A Tyres pick as the Title Scene offers it: its caption and the line describing it. */

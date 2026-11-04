@@ -3,12 +3,12 @@ import type { NicknameChars } from "./bridge";
 import { button } from "./controls";
 import { type CourseChoice, createCoursePreview } from "./course-preview";
 import { flag } from "./flags";
-import type { BotLevel, RaceDistance, Tyres } from "./generated/sim";
+import type { BotLevel, Tyres } from "./generated/sim";
 import { livery } from "./livery";
 import { validateNickname } from "./nickname";
 import { backdrop, kartSide } from "./poster";
 import { normaliseCode } from "./room-link";
-import { BOT_LEVELS, type Course, DISTANCE_CHOICES, TYRES_CHOICES } from "./track";
+import { BOT_LEVELS, type Course, type LapChoices, TYRES_CHOICES } from "./track";
 
 export interface TitleScene {
   /** Show a message to the player, such as why a join was refused. */
@@ -31,8 +31,8 @@ export interface TitleHandlers {
   botLevel(level: BotLevel): void;
   /** The player picked this for the tyres, for the next Create room or Solo race. */
   tyres(tyres: Tyres): void;
-  /** The player picked this race distance, for the next Create room or Solo race. */
-  distance(distance: RaceDistance): void;
+  /** The player picked these laps, for the next Create room or Solo race. */
+  laps(laps: number): void;
 }
 
 export interface TitleOptions {
@@ -54,10 +54,10 @@ export interface TitleOptions {
   readonly botLevel: BotLevel;
   /** The Tyres pick when the Scene opens. */
   readonly tyres: Tyres;
-  /** The race distance picked when the Scene opens. */
-  readonly distance: RaceDistance;
-  /** Laps in a race of each distance, for the preview. */
-  readonly raceLaps: Readonly<Record<RaceDistance, number>>;
+  /** The laps picked when the Scene opens. */
+  readonly laps: number;
+  /** The laps to pick from. */
+  readonly lapChoices: LapChoices;
   /** Whether the player asks for reduced motion, which holds the preview's lap dot still. */
   readonly reducedMotion: () => boolean;
 }
@@ -69,7 +69,8 @@ function pickRow<Value extends string>(row: {
   readonly choices: readonly {
     readonly value: Value;
     readonly name: string;
-    readonly blurb: string;
+    /** The line under the tiles, in the course blurb's voice, after "Name: "; none draws no line. */
+    readonly blurb?: string;
   }[];
   readonly picked: Value;
   onPick(value: Value): void;
@@ -83,6 +84,8 @@ function pickRow<Value extends string>(row: {
   tiles.className = "bot-tiles";
   const blurb = document.createElement("p");
   blurb.dataset[`${row.name}Blurb`] = "";
+  const line = (choice: { name: string; blurb?: string }) =>
+    choice.blurb === undefined ? "" : `${choice.name}: ${choice.blurb}.`;
   for (const choice of row.choices) {
     const radio = document.createElement("input");
     radio.type = "radio";
@@ -90,7 +93,7 @@ function pickRow<Value extends string>(row: {
     radio.value = choice.value;
     radio.checked = choice.value === row.picked;
     radio.addEventListener("change", () => {
-      blurb.textContent = `${choice.name}: ${choice.blurb}.`;
+      blurb.textContent = line(choice);
       row.onPick(choice.value);
     });
     const caption = document.createElement("span");
@@ -100,9 +103,10 @@ function pickRow<Value extends string>(row: {
     tile.className = "flag-tile bot-tile";
     tile.append(radio, caption);
     tiles.append(tile);
-    if (radio.checked) blurb.textContent = `${choice.name}: ${choice.blurb}.`;
+    if (radio.checked) blurb.textContent = line(choice);
   }
-  fieldset.append(heading, tiles, blurb);
+  fieldset.append(heading, tiles);
+  if (blurb.textContent !== "") fieldset.append(blurb);
   return fieldset;
 }
 
@@ -118,8 +122,7 @@ function pickRow<Value extends string>(row: {
  * refusal from the server comes back through `message`. Every control is
  * addressable by its name, the flags as radios named `course` with the
  * track's name as their value, the levels as radios named `bots` and the
- * Tyres picks as radios named `tyres` and the race distance picks as radios
- * named `distance`.
+ * Tyres picks as radios named `tyres` and the laps as radios named `laps`.
  */
 export function createTitleScene(
   container: HTMLElement,
@@ -265,7 +268,7 @@ export function createTitleScene(
   flags.className = "flags";
   flags.setAttribute("aria-label", "Course");
   const preview = createCoursePreview({
-    laps: options.raceLaps[options.distance],
+    laps: options.laps,
     reducedMotion: options.reducedMotion,
   });
   for (const choice of options.courses) {
@@ -304,21 +307,17 @@ export function createTitleScene(
   });
   const picks = document.createElement("div");
   picks.className = "picks";
-  const distance = pickRow({
-    name: "distance",
-    heading: "Distance",
-    choices: DISTANCE_CHOICES.map(({ distance, name, blurb }) => ({
-      value: distance,
-      name,
-      blurb,
-    })),
-    picked: options.distance,
+  const laps = pickRow({
+    name: "laps",
+    heading: "Laps",
+    choices: options.lapChoices.map((choice) => ({ value: String(choice), name: String(choice) })),
+    picked: String(options.laps),
     onPick(picked) {
-      preview.laps(options.raceLaps[picked]);
-      handlers.distance(picked);
+      preview.laps(Number(picked));
+      handlers.laps(Number(picked));
     },
   });
-  picks.append(bots, tyres, distance);
+  picks.append(bots, tyres, laps);
   const courseColumn = document.createElement("div");
   courseColumn.className = "course";
   courseColumn.append(courseHeading, flags, picks, preview.element);

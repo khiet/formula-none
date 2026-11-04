@@ -3,7 +3,7 @@ import { type CourseChoice, type CoursePreview, createCoursePreview } from "./co
 import type { Player, Room } from "./generated/protocol";
 import { livery } from "./livery";
 import { backdrop, kartSide } from "./poster";
-import { BOT_LEVELS, DISTANCE_CHOICES, TYRES_CHOICES } from "./track";
+import { BOT_LEVELS, TYRES_CHOICES } from "./track";
 
 export interface RoomScene {
   /** Show the room as it now stands. */
@@ -32,8 +32,6 @@ export interface RoomView {
   readonly capacity: number;
   /** Every course with its centreline; the room's track picks the card shown. */
   readonly courses: readonly CourseChoice[];
-  /** Laps in the room's races, for the course card. */
-  readonly laps: number;
   /** Whether the player asks for reduced motion, which holds the card's lap dot still. */
   readonly reducedMotion: () => boolean;
 }
@@ -135,13 +133,13 @@ export function createRoomScene(
   header.append(heading, count);
   // The course is fixed for the room, so the card is drawn once; a track
   // no course is, the oval a test races, has no card.
-  // The bot level, the Tyres pick and the distance are fixed for the room too, so their
+  // The bot level and the Tyres pick are fixed for the room too, so their
   // lines under the card are drawn once with it (ADR 0078, ADR 0083).
   const choice = view.courses.find(({ course }) => course.track === view.room.track);
   let preview: CoursePreview | undefined;
   let card: HTMLElement | undefined;
   if (choice !== undefined) {
-    preview = createCoursePreview({ laps: view.laps, reducedMotion: view.reducedMotion });
+    preview = createCoursePreview({ laps: view.room.laps, reducedMotion: view.reducedMotion });
     preview.show(choice);
     const bots = document.createElement("p");
     bots.className = "room-pick";
@@ -156,12 +154,7 @@ export function createRoomScene(
     tyres.dataset.roomTyres = "";
     const pick = TYRES_CHOICES.find((choice) => choice.tyres === view.room.tyres);
     tyres.textContent = `Tyres: ${pick?.name ?? view.room.tyres}`;
-    const distance = document.createElement("p");
-    distance.className = "room-pick";
-    distance.dataset.roomDistance = "";
-    const picked = DISTANCE_CHOICES.find((choice) => choice.distance === view.room.distance);
-    distance.textContent = `Distance: ${picked?.name ?? view.room.distance}`;
-    card.append(preview.element, bots, tyres, distance);
+    card.append(preview.element, bots, tyres);
   }
 
   const link = document.createElement("a");

@@ -10,7 +10,7 @@ use common::{
 };
 
 use sim::tuning::{
-    BOT_LINE_RIGHT_OF_CENTRE_M, COUNTDOWN_S, KART_HALF_LENGTH_M, KART_HALF_WIDTH_M, LAPS_PER_RACE,
+    BOT_LINE_RIGHT_OF_CENTRE_M, COUNTDOWN_S, DEFAULT_LAPS, KART_HALF_LENGTH_M, KART_HALF_WIDTH_M,
     TICKS_PER_SECOND, WHEEL_BOUNCES, WHEEL_FIRST_PASS_S, WHEEL_LANDING_SPREAD_M, WHEEL_PERIOD_S,
     WHEEL_RADIUS_M, WHEEL_WARNING_S,
 };
@@ -664,7 +664,7 @@ fn bots_race_past_the_wheel(seed: u64) {
     // Per kart, ticks since a spin-out by an item ended, 0 while it runs;
     // `None` once the wheel has hit it or before any item has.
     let mut since_item_spin_out: [Option<usize>; 8] = [None; 8];
-    for _ in 0..ticks(LAPS_PER_RACE as f32 * 90.0) {
+    for _ in 0..ticks(DEFAULT_LAPS as f32 * 90.0) {
         state = step(state, &[], DT);
         for event in state.events() {
             match *event {
@@ -700,7 +700,7 @@ fn bots_race_past_the_wheel(seed: u64) {
         if state
             .standings()
             .iter()
-            .all(|s| s.laps_completed >= LAPS_PER_RACE)
+            .all(|s| s.laps_completed >= DEFAULT_LAPS)
         {
             break;
         }
@@ -709,7 +709,7 @@ fn bots_race_past_the_wheel(seed: u64) {
         state
             .standings()
             .iter()
-            .all(|s| s.laps_completed >= LAPS_PER_RACE),
+            .all(|s| s.laps_completed >= DEFAULT_LAPS),
         "seed {seed}: every bot raced the race's laps"
     );
     assert!(met > 0, "seed {seed}: no bot came up to a rolling wheel");

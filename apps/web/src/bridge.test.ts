@@ -37,7 +37,7 @@ function started(race: Race, humanCount: number): Race {
 describe("race phase", () => {
   it("starts at the top of the countdown, holds the karts until Go, then races", async () => {
     const bridge = await loadBridge(wasm);
-    const race = bridge.createRace(7n, 1, 1, OVAL, "basic", "off", "sprint");
+    const race = bridge.createRace(7n, 1, 1, OVAL, "basic", "off", 3);
     expect(race.phase()).toEqual({ kind: "countdown", remainingSeconds: 5 });
     // A press this early is the stall, and the bot sits the countdown out.
     let ticks = 0;
@@ -65,22 +65,22 @@ describe("race phase", () => {
     expect(bot?.speed).toBeGreaterThan(1);
   });
 
-  it("runs a Grand Prix to its fifth lap", async () => {
+  it("runs five laps to the fifth", async () => {
     const bridge = await loadBridge(wasm);
-    const race = started(bridge.createRace(7n, 0, 1, OVAL, "basic", "off", "grand-prix"), 0);
+    const race = started(bridge.createRace(7n, 0, 1, OVAL, "basic", "off", 5), 0);
     let ticks = 0;
     while (race.standings()[0]?.finishTimeS === null) {
       race.step([], DT);
       ticks += 1;
       expect(ticks, "five laps take under 150 s").toBeLessThan(150 * 60);
     }
-    expect(race.standings()[0]?.lap).toBe(bridge.raceLaps["grand-prix"]);
+    expect(race.standings()[0]?.lap).toBe(5);
   });
 
   it("reports the cap from the first finish, the outro once all have finished, and the end of the race", async () => {
     const bridge = await loadBridge(wasm);
     // With no humans, the bots' own finishes start the cap and end the race.
-    const race = started(bridge.createRace(7n, 0, 2, OVAL, "basic", "off", "sprint"), 0);
+    const race = started(bridge.createRace(7n, 0, 2, OVAL, "basic", "off", 3), 0);
     const finishers = () => race.standings().filter((standing) => standing.finishTimeS !== null);
     let ticks = 0;
     while (finishers().length === 0) {
@@ -89,7 +89,7 @@ describe("race phase", () => {
       expect(ticks, "the race's laps take under 90 s").toBeLessThan(90 * 60);
     }
     const [first] = finishers();
-    expect(first?.lap).toBe(bridge.raceLaps.sprint);
+    expect(first?.lap).toBe(3);
     expect(first?.finishTimeS).toBeCloseTo(ticks * DT, 1);
     expect(first?.position).toBe(1);
     const phase = race.phase();
@@ -127,7 +127,7 @@ describe("bridge wrapper", () => {
 
   it("steps each kart by its own input and reports transforms in grid order", async () => {
     const bridge = await loadBridge(wasm);
-    const race = started(bridge.createRace(7n, 2, 0, OVAL, "basic", "off", "sprint"), 2);
+    const race = started(bridge.createRace(7n, 2, 0, OVAL, "basic", "off", 3), 2);
     const spawn = race.kartReadouts();
     for (let tick = 0; tick < 60; tick++) {
       race.step([THROTTLE, IDLE_INPUT], DT);
@@ -167,7 +167,7 @@ describe("bridge wrapper", () => {
 
   it("reports the surface under a kart that steers off the asphalt", async () => {
     const bridge = await loadBridge(wasm);
-    const race = started(bridge.createRace(7n, 1, 0, OVAL, "basic", "off", "sprint"), 1);
+    const race = started(bridge.createRace(7n, 1, 0, OVAL, "basic", "off", 3), 1);
     const seen = new Set<string>();
     for (let tick = 0; tick < 180; tick++) {
       race.step([TURN], DT);
@@ -197,16 +197,14 @@ describe("bridge wrapper", () => {
 
   it("rejects a sidecar the sim cannot race on with the sim's reason", async () => {
     const bridge = await loadBridge(wasm);
-    expect(() => bridge.createRace(7n, 1, 0, "{}", "basic", "off", "sprint")).toThrow(/sidecar/);
-    expect(() => bridge.createRace(7n, 9, 0, OVAL, "basic", "off", "sprint")).toThrow(
-      /spawn slots/,
-    );
+    expect(() => bridge.createRace(7n, 1, 0, "{}", "basic", "off", 3)).toThrow(/sidecar/);
+    expect(() => bridge.createRace(7n, 9, 0, OVAL, "basic", "off", 3)).toThrow(/spawn slots/);
   });
 
   it("replays the same seed and inputs to the same transform", async () => {
     const bridge = await loadBridge(wasm);
     const drive = (): KartReadout[] => {
-      const race = started(bridge.createRace(99n, 1, 0, OVAL, "basic", "off", "sprint"), 1);
+      const race = started(bridge.createRace(99n, 1, 0, OVAL, "basic", "off", 3), 1);
       for (let tick = 0; tick < 120; tick++) {
         race.step([tick < 60 ? THROTTLE : TURN], DT);
       }
@@ -218,7 +216,7 @@ describe("bridge wrapper", () => {
 
   it("reports a hop landed into a drift, with its direction and charge tier", async () => {
     const bridge = await loadBridge(wasm);
-    const race = started(bridge.createRace(7n, 1, 0, OVAL, "basic", "off", "sprint"), 1);
+    const race = started(bridge.createRace(7n, 1, 0, OVAL, "basic", "off", 3), 1);
     const hopRight: KartInput = { ...TURN, hop: true };
     for (let tick = 0; tick < 180; tick++) {
       race.step([THROTTLE], DT);
@@ -253,7 +251,7 @@ describe("bridge wrapper", () => {
     const bridge = await loadBridge(wasm);
     // The throttle held from the top of the countdown: the tiers come as
     // the hold lengthens, and the hold is too long by Go.
-    const stalling = bridge.createRace(7n, 1, 0, OVAL, "basic", "off", "sprint");
+    const stalling = bridge.createRace(7n, 1, 0, OVAL, "basic", "off", 3);
     const tiers: string[] = [];
     while (stalling.phase().kind === "countdown") {
       stalling.step([THROTTLE], DT);
@@ -266,7 +264,7 @@ describe("bridge wrapper", () => {
     expect(stalling.kartReadouts()[0]?.speed).toBe(0);
 
     // Held 1.75 s, from the first half of the fourth light: the full boost off the line.
-    const boosting = bridge.createRace(7n, 1, 0, OVAL, "basic", "off", "sprint");
+    const boosting = bridge.createRace(7n, 1, 0, OVAL, "basic", "off", 3);
     for (let tick = 0; tick < COUNTDOWN_TICKS - 105; tick++) boosting.step([IDLE_INPUT], DT);
     while (boosting.phase().kind === "countdown") boosting.step([THROTTLE], DT);
     expect(boosting.kartReadouts()[0]?.start).toBe("fullBoost");
@@ -277,7 +275,7 @@ describe("bridge wrapper", () => {
 
   it("refuses an input list that does not match the kart count", async () => {
     const bridge = await loadBridge(wasm);
-    const race = bridge.createRace(7n, 2, 0, OVAL, "basic", "off", "sprint");
+    const race = bridge.createRace(7n, 2, 0, OVAL, "basic", "off", 3);
     expect(() => race.step([IDLE_INPUT], DT)).toThrow(RangeError);
     expect(() => race.step([IDLE_INPUT, IDLE_INPUT, IDLE_INPUT], DT)).toThrow(RangeError);
   });
@@ -287,7 +285,7 @@ describe("bridge wrapper", () => {
     expect(bridge.kartsPerRace).toBe(8);
     // A seed that rolls no bot the start boost, so none shoves the idle human.
     const race = started(
-      bridge.createRace(181n, 1, bridge.kartsPerRace - 1, OVAL, "basic", "off", "sprint"),
+      bridge.createRace(181n, 1, bridge.kartsPerRace - 1, OVAL, "basic", "off", 3),
       1,
     );
     expect(race.kartReadouts()).toHaveLength(8);
@@ -301,17 +299,15 @@ describe("bridge wrapper", () => {
     expect(human?.speed).toBe(0);
     expect(bots.every((bot) => bot.speed > 20)).toBe(true);
     expect(race.standings()[0]?.position).toBe(8);
-    expect(() => bridge.createRace(7n, 1, 8, OVAL, "basic", "off", "sprint")).toThrow(
-      /spawn slots/,
-    );
+    expect(() => bridge.createRace(7n, 1, 8, OVAL, "basic", "off", 3)).toThrow(/spawn slots/);
   });
 });
 
 describe("standings", () => {
   it("reports a kart on the grid in first place on lap one with no best lap, and the race's lap count", async () => {
     const bridge = await loadBridge(wasm);
-    expect(bridge.raceLaps).toEqual({ sprint: 3, "grand-prix": 5 });
-    const race = bridge.createRace(7n, 2, 0, OVAL, "basic", "off", "sprint");
+    expect(bridge.lapChoices).toEqual([3, 5]);
+    const race = bridge.createRace(7n, 2, 0, OVAL, "basic", "off", 3);
     const [pole, second] = race.standings();
     expect(pole).toEqual({
       position: 1,
@@ -330,7 +326,7 @@ describe("standings", () => {
 
   it("times the lap, crosses gates in order and swaps positions as the sim reports them", async () => {
     const bridge = await loadBridge(wasm);
-    const race = started(bridge.createRace(7n, 2, 0, OVAL, "basic", "off", "sprint"), 2);
+    const race = started(bridge.createRace(7n, 2, 0, OVAL, "basic", "off", 3), 2);
     // Pole idles while the second kart drives up the straight past it and checkpoint 1.
     for (let tick = 0; tick < 180; tick++) {
       race.step([IDLE_INPUT, THROTTLE], DT);
@@ -347,7 +343,7 @@ describe("standings", () => {
 
   it("raises the wrong-way warning after backing away from the line for the tuned time", async () => {
     const bridge = await loadBridge(wasm);
-    const race = started(bridge.createRace(7n, 1, 0, OVAL, "basic", "off", "sprint"), 1);
+    const race = started(bridge.createRace(7n, 1, 0, OVAL, "basic", "off", 3), 1);
     const brake = { ...IDLE_INPUT, brake: 1 };
     // Two seconds of reversing, as the sim's tuning has it, plus a tick.
     for (let tick = 0; tick < 121; tick++) {
@@ -369,7 +365,7 @@ describe("the pit lane", () => {
     const [position] = sidecar.pit_lane.path.slice(60);
     sidecar.spawn_grid[0] = { position, yaw: sidecar.pit_lane.entry.yaw };
     const race = started(
-      bridge.createRace(7n, 2, 0, JSON.stringify(sidecar), "basic", "off", "sprint"),
+      bridge.createRace(7n, 2, 0, JSON.stringify(sidecar), "basic", "off", 3),
       2,
     );
     expect(race.kartReadouts().map((kart) => kart.inPitLane)).toEqual([true, false]);
@@ -379,8 +375,8 @@ describe("the pit lane", () => {
 describe("tyre life", () => {
   it("falls from 100 as a kart drives with Tyres On, and holds there with Off", async () => {
     const bridge = await loadBridge(wasm);
-    const on = started(bridge.createRace(7n, 1, 0, OVAL, "basic", "on", "sprint"), 1);
-    const off = started(bridge.createRace(7n, 1, 0, OVAL, "basic", "off", "sprint"), 1);
+    const on = started(bridge.createRace(7n, 1, 0, OVAL, "basic", "on", 3), 1);
+    const off = started(bridge.createRace(7n, 1, 0, OVAL, "basic", "off", 3), 1);
     expect(on.kartReadouts()[0]?.tyreLife).toBe(100);
     for (let tick = 0; tick < 120; tick++) {
       on.step([THROTTLE], DT);
@@ -393,19 +389,18 @@ describe("tyre life", () => {
   it("refuses an unknown Tyres pick", async () => {
     const bridge = await loadBridge(wasm);
     // @ts-expect-error: a pick the types rule out, as a stale caller could send.
-    expect(() => bridge.createRace(7n, 1, 0, OVAL, "basic", "slick", "sprint")).toThrow(/slick/);
+    expect(() => bridge.createRace(7n, 1, 0, OVAL, "basic", "slick", 3)).toThrow(/slick/);
   });
 
-  it("refuses an unknown race distance", async () => {
+  it("refuses laps nobody can pick", async () => {
     const bridge = await loadBridge(wasm);
-    // @ts-expect-error: a pick the types rule out, as a stale caller might send.
-    expect(() => bridge.createRace(7n, 1, 0, OVAL, "basic", "off", "marathon")).toThrow(/marathon/);
+    expect(() => bridge.createRace(7n, 1, 0, OVAL, "basic", "off", 4)).toThrow(/4 laps/);
   });
 
   it("predicts the own kart's wear as the server wears it", async () => {
     const bridge = await loadBridge(wasm);
-    const race = bridge.createRace(7n, 1, 0, OVAL, "basic", "on", "sprint");
-    const prediction = bridge.createPrediction(7n, 0, OVAL, "basic", "on", "sprint");
+    const race = bridge.createRace(7n, 1, 0, OVAL, "basic", "on", 3);
+    const prediction = bridge.createPrediction(7n, 0, OVAL, "basic", "on", 3);
     for (let sequence = 1; sequence <= COUNTDOWN_TICKS + 60; sequence++) {
       const input = sequence > COUNTDOWN_TICKS ? THROTTLE : IDLE_INPUT;
       prediction.tick({
@@ -439,8 +434,8 @@ describe("prediction", () => {
 
   it("stands the kart on its grid slot and drives it by the sim's rules from the inputs sent", async () => {
     const bridge = await loadBridge(wasm);
-    const race = bridge.createRace(7n, 2, 0, OVAL, "basic", "off", "sprint");
-    const prediction = bridge.createPrediction(7n, 1, OVAL, "basic", "off", "sprint");
+    const race = bridge.createRace(7n, 2, 0, OVAL, "basic", "off", 3);
+    const prediction = bridge.createPrediction(7n, 1, OVAL, "basic", "off", 3);
     // The prediction races its kart alone, so its race position counts
     // only that kart.
     const alone = (kart: KartReadout | undefined) => ({ ...kart, racePosition: 1 });
@@ -461,7 +456,7 @@ describe("prediction", () => {
 
   it("is moved by a snapshot that disagrees, and counts the correction", async () => {
     const bridge = await loadBridge(wasm);
-    const prediction = bridge.createPrediction(7n, 0, OVAL, "basic", "off", "sprint");
+    const prediction = bridge.createPrediction(7n, 0, OVAL, "basic", "off", 3);
     expect(prediction.interpolatedKartReadouts()).toEqual([]);
     // Idle on the grid through the countdown and a second of the race, so
     // one correction is one a second. The tick that goes is the first raced.
@@ -518,7 +513,7 @@ describe("prediction", () => {
 
   it("carries the item a snapshot says the own kart holds through the prediction", async () => {
     const bridge = await loadBridge(wasm);
-    const prediction = bridge.createPrediction(7n, 0, OVAL, "basic", "off", "sprint");
+    const prediction = bridge.createPrediction(7n, 0, OVAL, "basic", "off", 3);
     for (let sequence = 1; sequence <= 10; sequence++) {
       prediction.tick(wire(IDLE_INPUT, sequence));
     }
@@ -560,7 +555,7 @@ describe("prediction", () => {
   it("takes the spin-out a snapshot says the own kart is in and counts it down", async () => {
     const bridge = await loadBridge(wasm);
     expect(bridge.spinOutSeconds).toBe(1);
-    const prediction = bridge.createPrediction(7n, 0, OVAL, "basic", "off", "sprint");
+    const prediction = bridge.createPrediction(7n, 0, OVAL, "basic", "off", 3);
     // Idle on the grid through the countdown and a second of the race.
     for (let sequence = 1; sequence <= COUNTDOWN_TICKS + 60; sequence++) {
       prediction.tick(wire(IDLE_INPUT, sequence));
@@ -605,7 +600,7 @@ describe("prediction", () => {
 
   it("draws another kart's boost, and the tier it burns in, from the snapshots", async () => {
     const bridge = await loadBridge(wasm);
-    const prediction = bridge.createPrediction(7n, 0, OVAL, "basic", "off", "sprint");
+    const prediction = bridge.createPrediction(7n, 0, OVAL, "basic", "off", 3);
     for (let sequence = 1; sequence <= COUNTDOWN_TICKS + 60; sequence++) {
       prediction.tick(wire(IDLE_INPUT, sequence));
     }
@@ -651,7 +646,7 @@ describe("prediction", () => {
 
   it("takes the rocket start verdict and the stall a snapshot says, and draws another kart's from the snapshots", async () => {
     const bridge = await loadBridge(wasm);
-    const prediction = bridge.createPrediction(7n, 0, OVAL, "basic", "off", "sprint");
+    const prediction = bridge.createPrediction(7n, 0, OVAL, "basic", "off", 3);
     // Idle on the grid through the countdown and a second of the race: a
     // clean start predicted, which the server decided a stall.
     for (let sequence = 1; sequence <= COUNTDOWN_TICKS + 60; sequence++) {
@@ -705,7 +700,7 @@ describe("items", () => {
     const bridge = await loadBridge(wasm);
     expect(bridge.itemBoxRespawnSeconds).toBe(3);
     expect(bridge.predictedFireTimeoutSeconds).toBe(1);
-    const race = bridge.createRace(7n, 1, 0, OVAL, "basic", "off", "sprint");
+    const race = bridge.createRace(7n, 1, 0, OVAL, "basic", "off", 3);
     expect(race.kartReadouts()[0]?.itemSlot).toBe("empty");
     const boxes = race.itemBoxes();
     expect(boxes).toHaveLength(8);
@@ -728,7 +723,7 @@ describe("items", () => {
     const under = sidecar.spawn_grid[0]?.position ?? [0, 0, 0];
     sidecar.item_boxes.push({ position: under, yaw: 0 }, { position: under, yaw: 0 });
     const race = started(
-      bridge.createRace(7n, 1, 0, JSON.stringify(sidecar), "basic", "off", "sprint"),
+      bridge.createRace(7n, 1, 0, JSON.stringify(sidecar), "basic", "off", 3),
       1,
     );
     expect(race.boxesTakenLastStep(0)).toBe(0);
@@ -761,7 +756,7 @@ describe("items", () => {
     const under = sidecar.spawn_grid[0]?.position ?? [0, 0, 0];
     sidecar.coins.push({ position: under, yaw: 0 });
     const race = started(
-      bridge.createRace(7n, 1, 0, JSON.stringify(sidecar), "basic", "off", "sprint"),
+      bridge.createRace(7n, 1, 0, JSON.stringify(sidecar), "basic", "off", 3),
       1,
     );
     const coins = race.coins();
@@ -792,7 +787,7 @@ describe("items", () => {
     const fire: KartInput = { ...IDLE_INPUT, useItem: true };
     let fired = false;
     for (let seed = 0n; seed < 50n && !fired; seed++) {
-      const race = bridge.createRace(seed, 2, 0, boxed, "basic", "off", "sprint");
+      const race = bridge.createRace(seed, 2, 0, boxed, "basic", "off", 3);
       while (race.phase().kind === "countdown") race.step([IDLE_INPUT, IDLE_INPUT], tick);
       race.step([IDLE_INPUT, IDLE_INPUT], tick);
       const rolled = race.kartReadouts()[1]?.itemSlot;
@@ -815,7 +810,7 @@ describe("items", () => {
     }
     expect(fired, "some seed rolls kart 1 a projectile").toBe(true);
 
-    const prediction = bridge.createPrediction(7n, 0, OVAL, "basic", "off", "sprint");
+    const prediction = bridge.createPrediction(7n, 0, OVAL, "basic", "off", 3);
     expect(prediction.interpolatedProjectiles()).toEqual([]);
     const snapshot = (tick: number, x: number): Snapshot => ({
       tick,
@@ -870,8 +865,8 @@ describe("items", () => {
 describe("runaway wheel", () => {
   it("reports the wheel quiet through the countdown, the flag up before the first pass and the wheel rolling through it, as the prediction does", async () => {
     const bridge = await loadBridge(wasm);
-    const race = bridge.createRace(7n, 1, 0, BELL_DEER, "basic", "off", "sprint");
-    const prediction = bridge.createPrediction(7n, 0, BELL_DEER, "basic", "off", "sprint");
+    const race = bridge.createRace(7n, 1, 0, BELL_DEER, "basic", "off", 3);
+    const prediction = bridge.createPrediction(7n, 0, BELL_DEER, "basic", "off", 3);
     // Stepped until the first pass is half way across, read off the wheel
     // itself so a retuned cycle needs no change here.
     const halfWay = () => {
@@ -906,7 +901,7 @@ describe("runaway wheel", () => {
     expect(rolling.crossingYaw).toBeCloseTo(JSON.parse(BELL_DEER).wheel_crossings[0].yaw, 5);
     // The race's seed lands the bounces: a race from another, stepped as
     // far, has its wheel somewhere else on the approach.
-    const other = bridge.createRace(8n, 1, 0, BELL_DEER, "basic", "off", "sprint");
+    const other = bridge.createRace(8n, 1, 0, BELL_DEER, "basic", "off", 3);
     for (let step = 0; step < sequence; step += 1) other.step([IDLE_INPUT], DT);
     const [elsewhere] = other.wheels();
     if (elsewhere?.kind !== "rolling") throw new Error("not rolling");
@@ -919,7 +914,7 @@ describe("runaway wheel", () => {
 
   it("through the warning puts the wheel at the wall it then rolls in from, facing the way it rolls", async () => {
     const bridge = await loadBridge(wasm);
-    const race = bridge.createRace(7n, 1, 0, BELL_DEER, "basic", "off", "sprint");
+    const race = bridge.createRace(7n, 1, 0, BELL_DEER, "basic", "off", 3);
     const [crossing] = JSON.parse(BELL_DEER).wheel_crossings;
     let waiting: Extract<Wheel, { kind: "warning" }> | undefined;
     let [wheel] = race.wheels();

@@ -14,8 +14,8 @@ use common::{
 };
 
 use sim::tuning::{
-    ACCELERATION_TO_TOP_S, HOP_AIRTIME_S, KERB_HALF_LENGTH_M, KERB_HALF_WIDTH_M, KERB_SPEED_KEEP,
-    LAPS_PER_RACE, MINI_TURBO_RED_CHARGE_S, TOP_SPEED_M_PER_S,
+    ACCELERATION_TO_TOP_S, DEFAULT_LAPS, HOP_AIRTIME_S, KERB_HALF_LENGTH_M, KERB_HALF_WIDTH_M,
+    KERB_SPEED_KEEP, MINI_TURBO_RED_CHARGE_S, TOP_SPEED_M_PER_S,
 };
 use sim::{step, BotLevel, KartInput, KartReadout, MiniTurbo, Phase, Placement, State};
 
@@ -252,7 +252,7 @@ fn eight_bots_racing_bell_deer_are_never_launched_by_a_kerb() {
     let track = track(&without_coins(BELL_DEER));
     assert_eq!(track.kerbs().len(), 2, "the esses' kerb and the chicane's");
     let mut state = started(State::with_bots(SEED, 0, 8, track, BotLevel::Basic));
-    for _ in 0..ticks(LAPS_PER_RACE as f32 * 90.0) {
+    for _ in 0..ticks(DEFAULT_LAPS as f32 * 90.0) {
         state = step(state, &[], DT);
         for (slot, kart) in state.kart_readouts().iter().enumerate() {
             assert!(
@@ -264,7 +264,7 @@ fn eight_bots_racing_bell_deer_are_never_launched_by_a_kerb() {
             || state
                 .standings()
                 .iter()
-                .all(|s| s.laps_completed >= LAPS_PER_RACE)
+                .all(|s| s.laps_completed >= DEFAULT_LAPS)
         {
             break;
         }
@@ -273,7 +273,7 @@ fn eight_bots_racing_bell_deer_are_never_launched_by_a_kerb() {
         state
             .standings()
             .iter()
-            .all(|s| s.laps_completed >= LAPS_PER_RACE),
+            .all(|s| s.laps_completed >= DEFAULT_LAPS),
         "every bot raced the race's laps"
     );
 }

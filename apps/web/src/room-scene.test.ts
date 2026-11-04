@@ -10,7 +10,7 @@ const ROOM: Room = {
   track: "goldstone",
   botLevel: "pro",
   tyres: "off",
-  distance: "sprint",
+  laps: 3,
   state: "open",
   players: [
     { slot: 0, nickname: "khiet", livery: 0, state: "unready", creator: true },
@@ -43,7 +43,6 @@ function scene(slot: number, room: Room = ROOM) {
       link: LINK,
       capacity: 8,
       courses: COURSE_CHOICES,
-      laps: 3,
       reducedMotion: () => true,
     },
     handlers,
@@ -116,7 +115,6 @@ describe("Room Scene", () => {
     const card = container.querySelector("[data-room-course]");
     expect(card?.querySelector("[data-room-bots]")?.textContent).toBe("Bots: Pro");
     expect(card?.querySelector("[data-room-tyres]")?.textContent).toBe("Tyres: Off");
-    expect(card?.querySelector("[data-room-distance]")?.textContent).toBe("Distance: Sprint");
     expect(card?.querySelector("input, button")).toBeNull();
   });
 

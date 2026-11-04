@@ -6,7 +6,6 @@ export type { Item } from "./Item";
 export type { ItemSlot } from "./ItemSlot";
 export type { KartReadout } from "./KartReadout";
 export type { MiniTurbo } from "./MiniTurbo";
-export type { RaceDistance } from "./RaceDistance";
 export type { Slipstream } from "./Slipstream";
 export type { Standing } from "./Standing";
 export type { Start } from "./Start";

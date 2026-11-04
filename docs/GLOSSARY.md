@@ -30,10 +30,10 @@ varies a bot's corner speed, its rubber band's lower bound, its item use
 delay and its rocket start chance, nothing else; it changes how the bots
 drive, not how many there are. A replay carries it.
 
-### race distance
+### laps
 
-How long a race runs, the creator's pick: Sprint for three laps or Grand
-Prix for five, fixed for the room (ADR 0083).
+How long a race runs, the creator's pick: 3 or 5, fixed for the room
+(ADR 0084).
 
 ### pit lane
 

@@ -12,9 +12,10 @@
 use protocol::{ClientMessage, Input, ServerMessage, Snapshot};
 use serde::de::DeserializeOwned;
 use serde::Serialize;
+use sim::tuning::LAP_CHOICES;
 use sim::{
-    BotLevel, Item, KartInput, KartReadout, Phase, Projectile, RaceDistance, RaceEvent, Replay,
-    Standing, State, Surface, Track, Tyres, Wheel,
+    BotLevel, Item, KartInput, KartReadout, Phase, Projectile, RaceEvent, Replay, Standing, State,
+    Surface, Track, Tyres, Wheel,
 };
 use wasm_bindgen::prelude::*;
 
@@ -121,9 +122,13 @@ pub struct Race {
     state: Option<State>,
 }
 
-/// The race distance spelled `name` on the wire, or why there is none.
-fn distance_named(name: &str) -> Result<RaceDistance, String> {
-    RaceDistance::from_name(name).ok_or_else(|| format!("no race distance called {name:?}"))
+/// `laps` when a creator could pick it, or why not.
+fn offered_laps(laps: u32) -> Result<u32, String> {
+    if LAP_CHOICES.contains(&laps) {
+        Ok(laps)
+    } else {
+        Err(format!("no race of {laps} laps"))
+    }
 }
 
 /// The Tyres pick spelled `name` on the wire, or why there is none.
@@ -138,7 +143,7 @@ impl Race {
     /// front of its spawn grid and `bot_count` bot-driven karts on the slots
     /// behind them, driving at `bot_level`, spelled as the wire does
     /// (`basic`, `pro`, `ace`), with the Tyres pick `tyres` (`off`, `on`), over
-    /// `distance` (`sprint`, `grand-prix`).
+    /// `laps` laps.
     /// Fails when the sidecar is unusable or has fewer spawn slots than the
     /// karts, or the level or a pick is unknown; the reason is a plain string
     /// so the same code runs in native tests.
@@ -150,13 +155,13 @@ impl Race {
         sidecar: &str,
         bot_level: &str,
         tyres: &str,
-        distance: &str,
+        laps: u32,
     ) -> Result<Race, String> {
         let track = Track::from_sidecar(sidecar).map_err(|error| error.to_string())?;
         let bot_level = BotLevel::from_name(bot_level)
             .ok_or_else(|| format!("no bot level called {bot_level:?}"))?;
         let tyres = tyres_named(tyres)?;
-        let distance = distance_named(distance)?;
+        let laps = offered_laps(laps)?;
         let kart_count = human_count + bot_count;
         if kart_count > track.spawn_grid().len() {
             return Err(format!(
@@ -168,7 +173,7 @@ impl Race {
         Ok(Self {
             state: Some(
                 State::with_tyres(seed, human_count, bot_count, track, bot_level, tyres)
-                    .with_distance(distance),
+                    .with_laps(laps),
             ),
         })
     }
@@ -400,7 +405,7 @@ impl Prediction {
     /// The kart on grid slot `kart` of the race from `seed` on the track
     /// described by `sidecar`, at the top of its countdown, its bot at
     /// `bot_level` (spelled as the wire does) once it has finished, with
-    /// the Tyres pick `tyres`, over `distance`. Fails when the sidecar is
+    /// the Tyres pick `tyres`, over `laps`. Fails when the sidecar is
     /// unusable, its grid has no such slot or the level or a pick is unknown.
     #[wasm_bindgen(constructor)]
     pub fn new(
@@ -409,13 +414,13 @@ impl Prediction {
         sidecar: &str,
         bot_level: &str,
         tyres: &str,
-        distance: &str,
+        laps: u32,
     ) -> Result<Prediction, String> {
         let track = Track::from_sidecar(sidecar).map_err(|error| error.to_string())?;
         let bot_level = BotLevel::from_name(bot_level)
             .ok_or_else(|| format!("no bot level called {bot_level:?}"))?;
         let tyres = tyres_named(tyres)?;
-        let distance = distance_named(distance)?;
+        let laps = offered_laps(laps)?;
         if kart >= track.spawn_grid().len() {
             return Err(format!(
                 "kart {kart} but {} has {} spawn slots",
@@ -424,8 +429,7 @@ impl Prediction {
             ));
         }
         Ok(Self {
-            inner: sim::Prediction::with_tyres(seed, kart, track, bot_level, tyres)
-                .with_distance(distance),
+            inner: sim::Prediction::with_tyres(seed, kart, track, bot_level, tyres).with_laps(laps),
             interpolation: sim::Interpolation::new(),
         })
     }

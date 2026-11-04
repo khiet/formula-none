@@ -2,7 +2,6 @@
 import type { BotLevel } from "./BotLevel";
 import type { Event } from "./Event";
 import type { FinalStanding } from "./FinalStanding";
-import type { RaceDistance } from "./RaceDistance";
 import type { Refusal } from "./Refusal";
 import type { Room } from "./Room";
 import type { Snapshot } from "./Snapshot";
@@ -18,7 +17,7 @@ export type ServerMessage = { "pong": { nonce: number, } } | { "joined": { slot:
  */
 tyres: Tyres, 
 /**
- * How many laps the race runs (ADR 0083), so the client's Instrument
+ * How many laps the race runs (ADR 0084), so the client's Instrument
  * panel and prediction count the server's race.
  */
-distance: RaceDistance, grid: Array<number>, } } | { "snapshot": Snapshot } | { "events": Array<Event> } | { "results": { standings: Array<FinalStanding>, } } | "replaced" | { "ping": { nonce: number, } };
+laps: number, grid: Array<number>, } } | { "snapshot": Snapshot } | { "events": Array<Event> } | { "results": { standings: Array<FinalStanding>, } } | "replaced" | { "ping": { nonce: number, } };

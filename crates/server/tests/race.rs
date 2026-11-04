@@ -21,7 +21,6 @@ use sim::tuning::{
     BOT_START_HOLD_S, COUNTDOWN_S, INPUT_QUEUE_MAX_TICKS, INPUT_QUEUE_START_TICKS, KARTS_PER_RACE,
     RACE_OUTRO_S, SNAPSHOTS_PER_SECOND, TICKS_PER_SECOND,
 };
-use sim::RaceDistance;
 
 const TICKS_PER_SNAPSHOT: u32 = TICKS_PER_SECOND / SNAPSHOTS_PER_SECOND;
 /// The sidecar of the track the harness races, for what the track holds.
@@ -411,14 +410,14 @@ async fn events_are_never_lost_on_a_lossy_link_and_every_id_is_distinct() {
     );
 }
 
-/// The laps a lone human drives before the results of a race over `distance`.
-async fn laps_raced_to_the_results(distance: RaceDistance) -> usize {
+/// The laps a lone human drives before the results of a race over `laps`.
+async fn laps_raced_to_the_results(laps: u32) -> usize {
     let mut harness = Harness::new(Conditions::PERFECT);
-    let code = harness.create_room_over(distance);
+    let code = harness.create_room_of_laps(laps);
     let mut players = vec![harness.connect()];
     players[0].join(&code, "khiet").await.unwrap();
     let countdown = start_race(&mut players).await;
-    assert_eq!(countdown[0].distance, distance);
+    assert_eq!(countdown[0].laps, laps);
     let raced = drive_to_results(&mut players, &[(0, 0.0)]).await;
     let finisher = raced[0]
         .results
@@ -434,13 +433,13 @@ async fn laps_raced_to_the_results(distance: RaceDistance) -> usize {
 }
 
 #[tokio::test(start_paused = true)]
-async fn a_sprint_ends_after_three_laps() {
-    assert_eq!(laps_raced_to_the_results(RaceDistance::Sprint).await, 3);
+async fn a_race_of_three_laps_ends_after_three() {
+    assert_eq!(laps_raced_to_the_results(3).await, 3);
 }
 
 #[tokio::test(start_paused = true)]
-async fn a_grand_prix_ends_after_five_laps() {
-    assert_eq!(laps_raced_to_the_results(RaceDistance::GrandPrix).await, 5);
+async fn a_race_of_five_laps_ends_after_five() {
+    assert_eq!(laps_raced_to_the_results(5).await, 5);
 }
 
 #[tokio::test(start_paused = true)]

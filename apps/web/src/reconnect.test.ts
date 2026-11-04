@@ -12,7 +12,7 @@ const ROOM: Room = {
   track: "bell-deer",
   botLevel: "basic",
   tyres: "off",
-  distance: "sprint",
+  laps: 3,
   state: "racing",
   players: [{ slot: 0, nickname: "ada", livery: 0, state: "racing", creator: true }],
 };

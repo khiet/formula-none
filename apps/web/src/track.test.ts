@@ -6,15 +6,15 @@ import {
   COURSES,
   centrelineOf,
   DEFAULT_TRACK,
-  distanceFromSearch,
+  lapsFromSearch,
   loadBotLevel,
   loadCoursePick,
-  loadDistance,
+  loadLaps,
   loadTyres,
   pitLaneOf,
   saveBotLevel,
   saveCoursePick,
-  saveDistance,
+  saveLaps,
   saveTyres,
   selectTrack,
   TRACKS,
@@ -169,25 +169,25 @@ describe("the remembered bot level", () => {
   });
 });
 
-describe("the race distance pick", () => {
-  it("is a Sprint until picked, and remembered once it is", () => {
+describe("the laps pick", () => {
+  it("is the first choice until picked, and remembered once it is", () => {
     const store = storage();
-    expect(loadDistance(store)).toBe("sprint");
-    saveDistance(store, "grand-prix");
-    expect(loadDistance(store)).toBe("grand-prix");
+    expect(loadLaps(store, [3, 5])).toBe(3);
+    saveLaps(store, 5);
+    expect(loadLaps(store, [3, 5])).toBe(5);
   });
 
-  it("reads anything else saved as a Sprint", () => {
+  it("reads anything else saved as the first choice", () => {
     const store = storage();
-    store.setItem("distance", "marathon");
-    expect(loadDistance(store)).toBe("sprint");
+    store.setItem("laps", "4");
+    expect(loadLaps(store, [3, 5])).toBe(3);
   });
 
-  it("reads ?distance= for a solo race and ignores anything else", () => {
-    expect(distanceFromSearch("?distance=grand-prix")).toBe("grand-prix");
-    expect(distanceFromSearch("?track=oval&distance=sprint")).toBe("sprint");
-    expect(distanceFromSearch("?distance=marathon")).toBeUndefined();
-    expect(distanceFromSearch("")).toBeUndefined();
+  it("reads ?laps= for a solo race and ignores anything else", () => {
+    expect(lapsFromSearch("?laps=5", [3, 5])).toBe(5);
+    expect(lapsFromSearch("?track=oval&laps=3", [3, 5])).toBe(3);
+    expect(lapsFromSearch("?laps=4", [3, 5])).toBeUndefined();
+    expect(lapsFromSearch("", [3, 5])).toBeUndefined();
   });
 });
 

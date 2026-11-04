@@ -9,7 +9,7 @@ mod common;
 use common::{follow_centreline, oval, straight, throttle, ticks, DT, SEED};
 
 use sim::tuning::{
-    COUNTDOWN_S, LAPS_PER_RACE, RACE_END_CAP_S, RACE_OUTRO_S, START_BOOST_FACTOR, START_BOOST_S,
+    COUNTDOWN_S, DEFAULT_LAPS, RACE_END_CAP_S, RACE_OUTRO_S, START_BOOST_FACTOR, START_BOOST_S,
     START_FULL_BOOST_HOLD_S, START_STALL_HOLD_S, START_STALL_S, START_THROTTLE_HELD,
     START_WEAK_BOOST_FACTOR, START_WEAK_BOOST_HOLD_S, START_WEAK_BOOST_S, TOP_SPEED_M_PER_S,
 };
@@ -360,12 +360,9 @@ fn finished(state: &State, kart: usize) -> bool {
 
 /// Drive until `kart` has finished its laps, with time for traffic.
 fn drive_until_finished(state: State, drivers: &[Driver], kart: usize) -> State {
-    drive_until(
-        state,
-        drivers,
-        LAPS_PER_RACE as f32 * 1.5 * LAP_S,
-        |state| finished(state, kart),
-    )
+    drive_until(state, drivers, DEFAULT_LAPS as f32 * 1.5 * LAP_S, |state| {
+        finished(state, kart)
+    })
 }
 
 /// A race of two humans on the oval's grid and two bots `behind_m` short
@@ -424,7 +421,7 @@ fn a_lone_kart_finishing_its_laps_ends_the_race_at_once_and_the_outro_runs_down(
     let standing = state.standings()[0];
     let finish = standing.finish_time_s.expect("the kart finished");
     assert!(
-        (30.0..LAPS_PER_RACE as f32 * LAP_S).contains(&finish),
+        (30.0..DEFAULT_LAPS as f32 * LAP_S).contains(&finish),
         "finish time {finish} s"
     );
     assert_eq!(standing.position, 1);
@@ -632,7 +629,7 @@ fn a_finished_kart_counts_no_more_laps_and_keeps_its_clocks() {
     let state = drive(state, &[idle, idle], 1.5 * LAP_S);
     let standing = state.standings()[0];
     assert_eq!(
-        standing.laps_completed, LAPS_PER_RACE,
+        standing.laps_completed, DEFAULT_LAPS,
         "no lap past the last"
     );
     assert_eq!(standing.finish_time_s, finish.finish_time_s);

@@ -21,7 +21,7 @@ pub mod samples;
 
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
-use sim::{BotLevel, RaceDistance, Tyres};
+use sim::{BotLevel, Tyres};
 use std::fmt;
 use ts_rs::TS;
 
@@ -149,9 +149,9 @@ pub enum ServerMessage {
         /// Whether the tyres wear (ADR 0083), so the client's prediction
         /// and a replay recorded from it run the server's race.
         tyres: Tyres,
-        /// How many laps the race runs (ADR 0083), so the client's Instrument
+        /// How many laps the race runs (ADR 0084), so the client's Instrument
         /// panel and prediction count the server's race.
-        distance: RaceDistance,
+        laps: u32,
         grid: Vec<u8>,
     },
     /// The authoritative state at a tick, on a datagram at the snapshot rate
@@ -213,7 +213,7 @@ pub struct Room {
     pub tyres: Tyres,
     /// How many laps the room's races run, picked by the creator at the
     /// create and fixed for the room as the track is (ADR 0083).
-    pub distance: RaceDistance,
+    pub laps: u32,
     pub state: RoomState,
     /// In slot order. A joiner takes the lowest free slot, so a room nobody
     /// has left lists its players in join order.

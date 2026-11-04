@@ -21,7 +21,7 @@ import type {
   Snapshot,
 } from "./generated/protocol";
 import { PROTOCOL_VERSION } from "./generated/protocol";
-import type { BotLevel, RaceDistance, Tyres } from "./generated/sim";
+import type { BotLevel, Tyres } from "./generated/sim";
 import { normaliseCode } from "./room-link";
 
 /**
@@ -37,7 +37,7 @@ export interface Countdown {
   /** Whether the tyres wear, so the prediction and a replay run the server's race (ADR 0083). */
   readonly tyres: Tyres;
   /** How many laps the race runs, so the panel and the prediction count the server's race (ADR 0083). */
-  readonly distance: RaceDistance;
+  readonly laps: number;
   readonly grid: readonly number[];
 }
 
@@ -301,7 +301,7 @@ function openRoom(
           track: message.countdown.track,
           botLevel: message.countdown.botLevel,
           tyres: message.countdown.tyres,
-          distance: message.countdown.distance,
+          laps: message.countdown.laps,
           grid: message.countdown.grid,
         };
         for (const listener of countdownListeners) listener(race);

@@ -790,7 +790,7 @@
         outline: 0.15em solid #fff;
         outline-offset: 0.15em;
       }
-      /* The bot level, the Tyres pick and the race distance under the flags (ADR 0078, ADR 0083): a tile per choice, the flag tile with the caption in the flag's place. */
+      /* The bot level, the Tyres pick and the laps under the flags (ADR 0078, ADR 0083, ADR 0084): a tile per choice, the flag tile with the caption in the flag's place. */
       /* The picks side by side, as wide as the preview under them, so a new pick does not push it off the poster. */
       #title-scene .picks {
         display: grid;
@@ -822,7 +822,7 @@
         padding: 0.45em 0.5em;
         white-space: nowrap;
       }
-      #title-scene :is([data-bots-blurb], [data-tyres-blurb], [data-distance-blurb]) {
+      #title-scene :is([data-bots-blurb], [data-tyres-blurb]) {
         /* The tiles set the column's width, so a long line wraps rather than pushing the row wider. */
         width: 0;
         min-width: 100%;

@@ -22,7 +22,6 @@
 //! [`State::events`] after that tick.
 
 pub mod bot;
-mod distance;
 mod handling;
 mod hash;
 pub mod interpolation;
@@ -33,7 +32,6 @@ pub mod tuning;
 mod wheel;
 
 pub use bot::BotLevel;
-pub use distance::RaceDistance;
 pub use handling::Tyres;
 pub use interpolation::Interpolation;
 pub use prediction::Prediction;
@@ -661,7 +659,7 @@ struct Kart {
     wrong_way_s: f32,
     laps_completed: u32,
     /// The laps that finish this race. Out of the hash, like the Tyres pick,
-    /// so a Sprint hashes as a race from before there was a pick (ADR 0083).
+    /// so a three-lap race hashes as one from before there was a pick (ADR 0083).
     race_laps: u32,
     /// The last checkpoint crossed in order this lap. The grid starts at 0,
     /// the start line, so the first lap begins at Go.
@@ -929,8 +927,8 @@ use tuning::{
     START_WEAK_BOOST_FACTOR, START_WEAK_BOOST_HOLD_S, START_WEAK_BOOST_S,
 };
 use tuning::{
-    GRAVITY_M_PER_S2, GROUND_CONTACT_M, KART_EDGE_RADIUS_M, KART_HALF_HEIGHT_M, KART_HALF_LENGTH_M,
-    KART_HALF_WIDTH_M, LAPS_PER_RACE, TOP_SPEED_M_PER_S,
+    DEFAULT_LAPS, GRAVITY_M_PER_S2, GROUND_CONTACT_M, KART_EDGE_RADIUS_M, KART_HALF_HEIGHT_M,
+    KART_HALF_LENGTH_M, KART_HALF_WIDTH_M, TOP_SPEED_M_PER_S,
 };
 use tuning::{
     HAZARD_DROP_DISTANCE_M, HAZARD_LIFETIME_S, HAZARD_RADIUS_M, ITEM_BOOST_FACTOR, ITEM_BOOST_S,
@@ -1068,7 +1066,7 @@ impl State {
                     off_course_s: 0.0,
                     wrong_way_s: 0.0,
                     laps_completed: 0,
-                    race_laps: LAPS_PER_RACE,
+                    race_laps: DEFAULT_LAPS,
                     checkpoint: 0,
                     spline_progress: track.progress_at(slot.position),
                     lap_time_s: 0.0,
@@ -1111,12 +1109,12 @@ impl State {
         }
     }
 
-    /// This race, run over the creator's pick of `distance` (ADR 0083). A
-    /// race is a Sprint until told otherwise. Call this before the first
+    /// This race, run over the creator\'s pick of `laps` (ADR 0084). A race
+    /// runs [`DEFAULT_LAPS`] until told otherwise. Call this before the first
     /// step: a kart that has already finished stays finished.
-    pub fn with_distance(mut self, distance: RaceDistance) -> Self {
+    pub fn with_laps(mut self, laps: u32) -> Self {
         for kart in &mut self.karts {
-            kart.race_laps = distance.laps();
+            kart.race_laps = laps;
         }
         self
     }

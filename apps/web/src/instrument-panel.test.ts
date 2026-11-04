@@ -113,7 +113,7 @@ describe("the lap instruments on the page", () => {
     return { panel, find };
   };
 
-  it("draw a flag per lap and count the laps of a Grand Prix", () => {
+  it("draw a flag per lap and count five laps", () => {
     const container = document.createElement("div");
     const panel = createInstrumentPanel(
       container,

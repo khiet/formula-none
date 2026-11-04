@@ -5,7 +5,7 @@
  * them over in one call, decoded into the generated TypeScript type
  * (ADR 0026). Each field is the constant of the same name.
  */
-export type Tuning = { ticksPerSecond: number, lapsPerRace: number, grandPrixLaps: number, kartsPerRace: number, 
+export type Tuning = { ticksPerSecond: number, lapChoices: [number, number], kartsPerRace: number, 
 /**
  * The kart's width, height and length, so the View draws the box the
  * sim collides with.

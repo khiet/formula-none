@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from "vitest";
 import { type AudioSettings, DEFAULT_AUDIO_SETTINGS } from "./audio-settings";
-import type { BotLevel, RaceDistance, Tyres } from "./generated/sim";
+import type { BotLevel, Tyres } from "./generated/sim";
 import { hexCss, livery } from "./livery";
 import { createTitleScene, type TitleHandlers, type TitleOptions } from "./title-scene";
 import { COURSES, type Course, type WorldPoint } from "./track";
@@ -26,8 +26,8 @@ const OPTIONS: TitleOptions = {
   course: BELL_DEER,
   botLevel: "basic",
   tyres: "off",
-  distance: "sprint",
-  raceLaps: { sprint: 3, "grand-prix": 5 },
+  laps: 3,
+  lapChoices: [3, 5],
   reducedMotion: () => true,
 };
 
@@ -39,7 +39,7 @@ interface Calls {
   courses: Course[];
   botLevels: BotLevel[];
   tyres: Tyres[];
-  distance: RaceDistance[];
+  laps: number[];
 }
 
 function scene(options: Partial<TitleOptions> = {}) {
@@ -53,7 +53,7 @@ function scene(options: Partial<TitleOptions> = {}) {
     courses: [],
     botLevels: [],
     tyres: [],
-    distance: [],
+    laps: [],
   };
   const handlers: TitleHandlers = {
     create: (nickname) => calls.created.push(nickname),
@@ -65,7 +65,7 @@ function scene(options: Partial<TitleOptions> = {}) {
     course: (course) => calls.courses.push(course),
     botLevel: (level) => calls.botLevels.push(level),
     tyres: (tyres) => calls.tyres.push(tyres),
-    distance: (distance) => calls.distance.push(distance),
+    laps: (laps) => calls.laps.push(laps),
   };
   const title = createTitleScene(container, { ...OPTIONS, ...options }, handlers);
   const input = (name: string) => {
@@ -208,26 +208,24 @@ describe("Title Scene", () => {
     expect(calls.courses).toEqual([BELL_DEER]);
   });
 
-  it("offers the race distances beside the Tyres with the saved one picked, counts its laps on the card and reports each change", () => {
-    const { container, calls } = scene({ distance: "sprint" });
+  it("offers the laps beside the Tyres with the saved count picked, counts them on the card and reports each change", () => {
+    const { container, calls } = scene({ laps: 3 });
     const radios = Array.from(
-      container.querySelectorAll<HTMLInputElement>("input[type=radio][name=distance]"),
+      container.querySelectorAll<HTMLInputElement>("input[type=radio][name=laps]"),
     );
-    expect(radios.map((radio) => radio.value)).toEqual(["sprint", "grand-prix"]);
+    expect(radios.map((radio) => radio.value)).toEqual(["3", "5"]);
     expect(radios.map((radio) => radio.checked)).toEqual([true, false]);
-    expect(radios.map((radio) => radio.labels?.[0]?.textContent)).toEqual(["Sprint", "Grand Prix"]);
-    const blurb = () => container.querySelector("[data-distance-blurb]")?.textContent ?? "";
+    expect(radios.map((radio) => radio.labels?.[0]?.textContent)).toEqual(["3", "5"]);
+    expect(container.querySelector("[data-laps-blurb]")).toBeNull();
     const laps = () => lapsOnTheCard(container);
-    expect(blurb()).toMatch(/^Sprint: /);
     expect(laps()).toBe("3");
     radios[1]?.click();
-    expect(blurb()).toMatch(/^Grand Prix: /);
     expect(laps()).toBe("5");
-    expect(calls.distance).toEqual(["grand-prix"]);
+    expect(calls.laps).toEqual([5]);
   });
 
-  it("opens the card on the laps of the saved distance, and keeps them when the course changes", () => {
-    const { container } = scene({ distance: "grand-prix" });
+  it("opens the card on the saved laps, and keeps them when the course changes", () => {
+    const { container } = scene({ laps: 5 });
     const laps = () => lapsOnTheCard(container);
     expect(laps()).toBe("5");
     container.querySelector<HTMLInputElement>("input[name=course]:not(:checked)")?.click();

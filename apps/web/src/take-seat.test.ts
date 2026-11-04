@@ -25,7 +25,7 @@ const ROOM: Room = {
   track: "goldstone",
   botLevel: "basic",
   tyres: "off",
-  distance: "sprint",
+  laps: 3,
   state: "open",
   players: [
     { slot: 0, nickname: "khiet", livery: 0, state: "unready", creator: true },
@@ -140,7 +140,7 @@ describe("taking a seat in a room", () => {
           track: "bell-deer",
           botLevel: "basic",
           tyres: "off",
-          distance: "sprint",
+          laps: 3,
           grid: [0, 1],
         },
       });

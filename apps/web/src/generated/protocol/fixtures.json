@@ -218,7 +218,7 @@
         101,
         1,
         1,
-        1,
+        5,
         0,
         2,
         0,
@@ -278,7 +278,7 @@
           "room": {
             "botLevel": "pro",
             "code": "BXQF",
-            "distance": "grand-prix",
+            "laps": 5,
             "players": [
               {
                 "creator": true,
@@ -340,7 +340,7 @@
         101,
         1,
         1,
-        1,
+        5,
         0,
         2,
         0,
@@ -366,7 +366,7 @@
         "room": {
           "botLevel": "pro",
           "code": "BXQF",
-          "distance": "grand-prix",
+          "laps": 5,
           "players": [
             {
               "creator": true,
@@ -414,7 +414,7 @@
         114,
         2,
         1,
-        1,
+        5,
         2,
         0,
         1
@@ -422,11 +422,11 @@
       "message": {
         "countdown": {
           "botLevel": "ace",
-          "distance": "grand-prix",
           "grid": [
             0,
             1
           ],
+          "laps": 5,
           "seed": 81985529216486895,
           "track": "bell-deer",
           "tyres": "on"

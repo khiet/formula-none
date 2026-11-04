@@ -10,7 +10,7 @@ use sim::tuning::{
     ROOMS_MAX, ROOM_CLOSE_AFTER_EMPTY_S, ROOM_CODE_ALPHABET, ROOM_CODE_LENGTH,
     ROOM_CREATES_PER_ADDRESS_MAX, ROOM_CREATE_WINDOW_S,
 };
-use sim::{BotLevel, RaceDistance, Tyres};
+use sim::{BotLevel, Tyres};
 use std::time::Duration;
 use tower::ServiceExt;
 
@@ -229,31 +229,27 @@ async fn a_body_is_read_whatever_its_content_type_and_one_naming_no_track_races_
 }
 
 #[tokio::test]
-async fn a_room_created_at_grand_prix_distance_races_it() {
+async fn a_room_created_at_five_laps_races_them() {
     let (app, rooms, _stop) = app();
-    let (status, body) = create(
-        app,
-        Body::from(r#"{ "track": "goldstone", "distance": "grand-prix" }"#),
-    )
-    .await;
+    let (status, body) = create(app, Body::from(r#"{ "track": "goldstone", "laps": 5 }"#)).await;
     assert_eq!(status, StatusCode::CREATED);
     let room = rooms.view(body["code"].as_str().unwrap()).unwrap();
-    assert_eq!(room.distance, RaceDistance::GrandPrix);
+    assert_eq!(room.laps, 5);
 }
 
 #[tokio::test]
-async fn a_room_created_without_a_distance_races_a_sprint() {
+async fn a_room_created_without_laps_races_three() {
     let (app, rooms, _stop) = app();
     let (status, body) = create(app, Body::from(r#"{ "track": "goldstone" }"#)).await;
     assert_eq!(status, StatusCode::CREATED);
     let room = rooms.view(body["code"].as_str().unwrap()).unwrap();
-    assert_eq!(room.distance, RaceDistance::Sprint);
+    assert_eq!(room.laps, 3);
 }
 
 #[tokio::test]
-async fn a_room_at_an_unknown_distance_is_refused_and_not_opened() {
+async fn a_room_of_laps_nobody_can_pick_is_refused_and_not_opened() {
     let (app, rooms, _stop) = app();
-    let (status, _) = create(app, Body::from(r#"{ "distance": "marathon" }"#)).await;
+    let (status, _) = create(app, Body::from(r#"{ "laps": 4 }"#)).await;
     assert_eq!(status, StatusCode::BAD_REQUEST);
     assert!(rooms.codes().is_empty(), "{:?}", rooms.codes());
 }

@@ -15,7 +15,7 @@ use sim::tuning::{
     CONNECTION_SILENCE_S, INPUT_QUEUE_MAX_TICKS, INPUT_QUEUE_START_TICKS, KARTS_PER_RACE,
     SNAPSHOTS_PER_SECOND, SNAPSHOT_EVENT_REPEATS, TICKS_PER_SECOND,
 };
-use sim::{BotLevel, KartInput, Phase, RaceDistance, State, Track, Tyres};
+use sim::{BotLevel, KartInput, Phase, State, Track, Tyres};
 
 /// The sim's `dt`, and the budget a tick's work must fit in for the server
 /// to keep up (ADR 0010).
@@ -124,7 +124,7 @@ impl Race {
     /// A race from `seed` on `track` with one human kart per slot in `grid`,
     /// in that order, and bots on the rest of the grid, at the top of its
     /// countdown, the bots driving at `bot_level`, the tyres as `tyres` says
-    /// and over `distance`. Event ids count on from
+    /// and over `laps`. Event ids count on from
     /// `first_event_id`, so a room's ids never repeat across its races.
     /// `grid` must fit the race's grid.
     pub fn new(
@@ -132,7 +132,7 @@ impl Race {
         track: Track,
         bot_level: BotLevel,
         tyres: Tyres,
-        distance: RaceDistance,
+        laps: u32,
         grid: Vec<u8>,
         first_event_id: u32,
     ) -> Self {
@@ -140,8 +140,7 @@ impl Race {
         let bots = KARTS_PER_RACE - grid.len();
         Self {
             state: Some(
-                State::with_tyres(seed, grid.len(), bots, track, bot_level, tyres)
-                    .with_distance(distance),
+                State::with_tyres(seed, grid.len(), bots, track, bot_level, tyres).with_laps(laps),
             ),
             humans: vec![HumanInput::default(); grid.len()],
             grid,
