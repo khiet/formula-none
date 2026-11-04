@@ -165,6 +165,20 @@ export interface ViewAssets {
   readonly kartGltfUrl: string;
 }
 
+/** What the View reads of the sim's tuning. */
+export interface ViewTuning {
+  /** How long a spin-out turns a kart about its axis. */
+  readonly spinOutSeconds: number;
+  /** The size a runaway wheel is drawn at. */
+  readonly runawayWheelRadiusMetres: number;
+  /** A horn blast's reach, which its ring grows to. */
+  readonly hornRadiusMetres: number;
+  /** How long a slipstream takes to charge. */
+  readonly slipstreamChargeSeconds: number;
+  /** The tyre life below which a kart's tyres read as worn. */
+  readonly tyreLifeCliff: number;
+}
+
 /**
  * The Race Scene's View: the track's glTF, the kart's glTF once per slot in
  * the slot's livery and a box per item box, drawn by Three.js from the
@@ -178,17 +192,17 @@ export interface ViewAssets {
  * tyre marks under a drift, darker off worn tyres, light smoke off them too, sparks once a tier has charged, drifting or
  * holding for the rocket start, dust on the run-off and at the wheels of a
  * stalled kart, a spun-out kart turned about its axis over
- * `spinOutSeconds`, a shadow disc on the track under every kart so a
+ * `tuning.spinOutSeconds`, a shadow disc on the track under every kart so a
  * hop's height reads against the ground, a flame at the exhaust of every
  * boosting kart, a spray of the coins a kart's spin-out cost it as its
  * count falls and, round the own kart alone, wind lines while it boosts.
- * At each wheel crossing a runaway wheel `runawayWheelRadius` in size rolls
+ * At each wheel crossing a runaway wheel `tuning.runawayWheelRadiusMetres` in size rolls
  * where the readout has it, burning, its flames off its back, trailing
  * smoke, kicking up dust where it lands and striking sparks off each wall
  * it rebounds from, the marshal sits with his tea or waves his hazard
  * flags as the wheel has it, and the post's beacon is lit while the flag
  * is up.
- * At each horn blast a flat orange ring grows to `hornRadius`, the blast's
+ * At each horn blast a flat orange ring grows to `tuning.hornRadiusMetres`, the blast's
  * reach, and fades.
  * `labelsFor` names the karts to label and where, from the frame's readouts. Picks WebGPU when the
  * browser has it and WebGL otherwise.
@@ -200,11 +214,7 @@ export async function createRaceView(
   assets: ViewAssets,
   itemBoxes: readonly ItemBox[],
   coins: readonly Coin[],
-  spinOutSeconds: number,
-  runawayWheelRadius: number,
-  hornRadius: number,
-  slipstreamChargeSeconds: number,
-  tyreLifeCliff: number,
+  tuning: ViewTuning,
   labelsFor: (karts: readonly KartReadout[]) => readonly KartLabel[],
   viewer: ViewerOptions,
 ): Promise<RaceView> {
@@ -265,7 +275,7 @@ export async function createRaceView(
     return { model, kart, wheels, head, sway, halo, haloMaterial, shining: false, spunOut: false };
   });
 
-  const tyreMarks = createTyreMarks(kartCount, kartSize, { wornBelow: tyreLifeCliff });
+  const tyreMarks = createTyreMarks(kartCount, kartSize, { wornBelow: tuning.tyreLifeCliff });
   const marks = tyreMarkMesh(tyreMarks);
   const sparks = createSparkParticles(kartCount);
   // Each kart's emitter remembers its tier, so a tier's burst is the kart's own.
@@ -297,7 +307,7 @@ export async function createRaceView(
   const wind = createWindParticles();
   const windLines = createWindLines(wind, kartSize, {
     reducedMotion: viewer.reducedMotion,
-    chargeSeconds: slipstreamChargeSeconds,
+    chargeSeconds: tuning.slipstreamChargeSeconds,
   });
   /** How brightly the wind lines show this frame, from the own kart's boost or tow left. */
   let windBrightness = 0;
@@ -314,10 +324,13 @@ export async function createRaceView(
   // One each, so a kart's slow trickle of worn smoke is its own and never
   // lands on the next kart to ask.
   const dustEmitters = Array.from({ length: kartCount }, () =>
-    createDustEmitter(dust, kartSize, tyreLifeCliff),
+    createDustEmitter(dust, kartSize, tuning.tyreLifeCliff),
   );
   // The wheel's smoke shares the dust's pool and mesh: puffs that spread and fade.
-  const wheelTells = createWheelTellEmitter({ dust, smoke: dust, sparks }, runawayWheelRadius);
+  const wheelTells = createWheelTellEmitter(
+    { dust, smoke: dust, sparks },
+    tuning.runawayWheelRadiusMetres,
+  );
   const dustMesh = particleMesh(
     dust,
     new SphereGeometry(0.5, 6, 4),
@@ -353,8 +366,8 @@ export async function createRaceView(
 
   const cones = meshPool(world, hazardConeMesh(), 0);
   const drones = homingDrones(world);
-  const rings = hornRings(world, hornRadius, surface, kartSize.height);
-  const runaways = runawayWheels(world, track.scene, runawayWheelRadius);
+  const rings = hornRings(world, tuning.hornRadiusMetres, surface, kartSize.height);
+  const runaways = runawayWheels(world, track.scene, tuning.runawayWheelRadiusMetres);
   const motion = sceneryMotion(track.scene);
 
   const labels = Array.from({ length: kartCount }, (_, slot) => {
@@ -410,7 +423,7 @@ export async function createRaceView(
         kart.quaternion.set(...readout.rotation);
         if (readout.spinOutS !== null) {
           kart.quaternion.multiply(
-            spin.setFromAxisAngle(up, spinOutAngle(readout.spinOutS, spinOutSeconds)),
+            spin.setFromAxisAngle(up, spinOutAngle(readout.spinOutS, tuning.spinOutSeconds)),
           );
         }
         sparkEmitters[slot]?.emit(readout, frameSeconds, countingDown);
