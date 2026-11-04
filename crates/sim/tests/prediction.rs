@@ -133,7 +133,13 @@ fn race_drawing(
     mut others: impl FnMut(u32) -> Vec<KartInput>,
     draws_others: bool,
 ) -> Run {
-    let mut prediction = Prediction::new(SEED, 0, server.track().clone(), server.bot_level());
+    let mut prediction = Prediction::with_tyres(
+        SEED,
+        0,
+        server.track().clone(),
+        server.bot_level(),
+        server.tyres(),
+    );
     let mut history = vec![server.kart_readouts()];
     let mut inputs_in_flight: VecDeque<(u32, u32, KartInput)> = VecDeque::new();
     let mut snapshots_in_flight: VecDeque<InFlight> = VecDeque::new();
@@ -1003,5 +1009,208 @@ fn the_snapshots_slipstream_is_adopted_and_the_tow_runs_down_between_snapshots_w
     assert!(
         slipstreams.last().unwrap().is_none(),
         "the tow is gone by the end"
+    );
+}
+
+/// Full throttle toward the point `x`, `z` from where `kart` is drawn.
+fn steer_at(kart: &KartReadout, [x, z]: [f32; 2]) -> KartInput {
+    let [qx, qy, qz, qw] = kart.rotation;
+    let yaw = (2.0 * (qw * qy + qx * qz)).atan2(1.0 - 2.0 * (qy * qy + qz * qz));
+    let (dx, dz) = (x - kart.position[0], z - kart.position[2]);
+    let distance = (dx * dx + dz * dz).sqrt().max(0.001);
+    let (sin, cos) = yaw.sin_cos();
+    let rightward = (dx * cos - dz * sin) / distance;
+    KartInput {
+        steer: (rightward * 4.0).clamp(-1.0, 1.0),
+        throttle: 1.0,
+        ..KartInput::default()
+    }
+}
+
+/// Full throttle down a lane's path from where the kart is drawn, aiming
+/// `look_ahead_m` on.
+fn down_the_pit_lane(prediction: &Prediction, look_ahead_m: f32) -> KartInput {
+    let lane = prediction.track().pit_lane().expect("a lane");
+    let kart = prediction.kart_readout();
+    let aim = lane
+        .reading(kart.position)
+        .map_or(0.0, |metres| metres + look_ahead_m);
+    let [x, _, z] = lane.point_at(aim);
+    steer_at(&kart, [x, z])
+}
+
+#[test]
+fn the_prediction_and_the_server_agree_on_the_tick_of_green_with_no_correction() {
+    use common::{quiet_bell_deer, with_slot_on_lane};
+    use sim::tuning::{PIT_BOX_CATCH_M, PIT_BOX_GUIDE_S};
+    use sim::{stop_roll, Tyres};
+    // The own kart starts on Bell Deer's lane short of its pit box's catch,
+    // on Tyres On, and drives down the lane: the stop is rolled from the
+    // seed on both sides, so the server's snapshots say what the
+    // prediction already has.
+    let base = quiet_bell_deer();
+    let lane = track(&base).pit_lane().expect("a lane").clone();
+    let sidecar = with_slot_on_lane(&base, 0, lane.pit_box_m(0) - PIT_BOX_CATCH_M - 20.0);
+    let server = State::with_tyres(SEED, 1, 0, track(&sidecar), BotLevel::Basic, Tyres::On);
+    let (_, stationary_s) = stop_roll(SEED, 0, 0);
+    let ticks = seconds(sim::tuning::COUNTDOWN_S + 4.0 + PIT_BOX_GUIDE_S + stationary_s);
+    let run = race_with(
+        ticks,
+        |_| false,
+        server,
+        |prediction, _| down_the_pit_lane(prediction, 8.0),
+        |_| Vec::new(),
+    );
+
+    assert_eq!(
+        run.prediction.corrections(),
+        0,
+        "no correction through the stop: {:?}",
+        run.corrections_m
+    );
+    let green = |karts: &[KartReadout]| {
+        karts
+            .windows(2)
+            .position(|pair| pair[0].stop.is_some() && pair[1].stop.is_none())
+            .map(|index| index + 1)
+    };
+    let server_green = green(&run.server.iter().map(|karts| karts[0]).collect::<Vec<_>>())
+        .expect("the server's kart was let go") as u32;
+    let client_green =
+        green(&run.drawn).expect("the predicted kart was let go") as u32 + FIRST_DRAWN_TICK;
+    assert_eq!(
+        client_green + PREDICTED_LEAD_TICKS,
+        server_green,
+        "green on the same server tick"
+    );
+    let server_stop = run.server[server_green as usize - 1][0]
+        .stop
+        .expect("stopping the tick before");
+    let client_stop = run.drawn[(client_green - FIRST_DRAWN_TICK) as usize - 1]
+        .stop
+        .expect("stopping the tick before");
+    assert_eq!(server_stop, client_stop, "the same roll on both sides");
+    assert_eq!(
+        run.drawn[(client_green - FIRST_DRAWN_TICK) as usize].tyre_life,
+        sim::tuning::TYRE_LIFE_NEW_PERCENT,
+        "new tyres predicted at green"
+    );
+}
+
+#[test]
+fn the_prediction_passes_through_a_kart_on_its_mark_as_the_server_does_without_a_correction() {
+    use common::{quiet_bell_deer, with_pit_box_at, with_slot_on_lane};
+    use sim::tuning::PIT_BOX_CATCH_M;
+    use sim::Tyres;
+    // Two humans on Bell Deer's lane: slot 1 starts a hair short of its
+    // catch, so it is on its mark at once; the own kart on slot 0, its own
+    // pit box moved to the lane's end, drives at the mark and through it,
+    // the other kart drawn where the server had it.
+    let base = quiet_bell_deer();
+    let lane = track(&base).pit_lane().expect("a lane").clone();
+    let mark = lane.pit_boxes()[1].position;
+    let sidecar = with_pit_box_at(&base, 0, lane.exit_m() - 3.0);
+    let sidecar = with_slot_on_lane(&sidecar, 1, lane.pit_box_m(1) - PIT_BOX_CATCH_M - 1.0);
+    let sidecar = with_slot_on_lane(&sidecar, 0, lane.pit_box_m(1) - 35.0);
+    let server = State::with_tyres(SEED, 2, 0, track(&sidecar), BotLevel::Basic, Tyres::On);
+    let driver = |prediction: &Prediction, _: u32| {
+        let kart = prediction.kart_readout();
+        let past = lane
+            .reading(kart.position)
+            .is_some_and(|metres| metres > lane.pit_box_m(1) + 1.0);
+        if past {
+            down_the_pit_lane(prediction, 8.0)
+        } else {
+            steer_at(&kart, [mark[0], mark[2]])
+        }
+    };
+    // The other kart holds the throttle: the catch is a crossing, so a kart
+    // standing short of it is never taken in.
+    let run = race_drawing(
+        seconds(sim::tuning::COUNTDOWN_S + 6.0),
+        |_| false,
+        server,
+        driver,
+        |_| {
+            vec![KartInput {
+                throttle: 1.0,
+                ..KartInput::default()
+            }]
+        },
+        true,
+    );
+    let closest = run
+        .server
+        .iter()
+        .filter_map(|karts| {
+            let (own, other) = (karts[0], karts[1]);
+            other.stop.is_some().then(|| {
+                ((own.position[0] - other.position[0]).powi(2)
+                    + (own.position[2] - other.position[2]).powi(2))
+                .sqrt()
+            })
+        })
+        .fold(f32::MAX, f32::min);
+    assert!(
+        closest < 0.5,
+        "the own kart drove through the mark, closest {closest:.2} m"
+    );
+    assert_eq!(
+        run.prediction.corrections(),
+        0,
+        "no correction passing through: {:?}",
+        run.corrections_m
+    );
+    let own = run.prediction.kart_readout();
+    assert!(
+        lane.reading(own.position)
+            .is_some_and(|metres| metres > lane.pit_box_m(1) + 5.0),
+        "carried on down the lane"
+    );
+}
+
+#[test]
+fn a_prediction_that_joins_after_a_stop_takes_the_count_and_rolls_the_next_stop_as_the_server_does()
+{
+    use common::{quiet_bell_deer, with_slot_on_lane};
+    use sim::tuning::PIT_BOX_CATCH_M;
+    use sim::{stop_roll, Tyres};
+    // A snapshot from the grid says the kart has stopped once already, as a
+    // rejoin mid-race would: the next stop is the kart's second.
+    let base = quiet_bell_deer();
+    let lane = track(&base).pit_lane().expect("a lane").clone();
+    let sidecar = with_slot_on_lane(&base, 0, lane.pit_box_m(0) - PIT_BOX_CATCH_M - 20.0);
+    let course = track(&sidecar);
+    let mut prediction =
+        Prediction::with_tyres(SEED, 0, course.clone(), BotLevel::Basic, Tyres::On);
+    for sequence in 1..=10 {
+        prediction.tick(sequence, KartInput::default(), &[]);
+    }
+    let mut grid =
+        State::with_tyres(SEED, 1, 0, course, BotLevel::Basic, Tyres::On).kart_readouts()[0];
+    grid.stops = 1;
+    prediction.reconcile(10, 4, &grid);
+    assert_eq!(
+        prediction.kart_readout().stops,
+        1,
+        "the count is the snapshot's"
+    );
+
+    let mut sequence = 10;
+    let stop = loop {
+        sequence += 1;
+        assert!(sequence < 2000, "the kart never reached its pit box");
+        let input = down_the_pit_lane(&prediction, 8.0);
+        prediction.tick(sequence, input, &[]);
+        if let Some(stop) = prediction.kart_readout().stop {
+            break stop;
+        }
+    };
+    let (tier, stationary_s) = stop_roll(SEED, 0, 1);
+    assert_eq!((stop.tier, stop.stationary_s), (tier, stationary_s));
+    assert_ne!(
+        stop_roll(SEED, 0, 0),
+        (tier, stationary_s),
+        "the second stop rolls apart from the first"
     );
 }

@@ -9,11 +9,22 @@ import {
   lampsLit,
   lapReadouts,
   phaseReadout,
+  STOP_TIME_HOLD_S,
+  stopPlateTones,
 } from "./instrument-panel";
 import { reelFrame } from "./item-reel";
 import { kartReadout } from "./kart-readout-fixture";
 import { hexCss, livery, liveryCss } from "./livery";
-import { FIRING, ITEM_BOX_GOLD } from "./palette";
+import {
+  CARBON,
+  FIRING,
+  GO_GREEN,
+  HAZARD_ORANGE,
+  ITEM_BOX_GOLD,
+  POSTER_RED,
+  SIGNAL_YELLOW,
+  WHITE,
+} from "./palette";
 import { ON_THE_GRID, raceReadout } from "./race-readout-fixture";
 import { EMPTY_SLOT, type ItemSlot, type RaceReadout } from "./race-run";
 import { STAR_RAINBOW } from "./star-shine";
@@ -355,6 +366,52 @@ describe("the speed cluster on the page", () => {
     expect(plate?.hidden).toBe(false);
     panel.boxCall(false);
     expect(plate?.hidden).toBe(true);
+  });
+
+  it("counts the stop up on a carbon plate, then holds the final time coloured by the roll", () => {
+    const { find, panel } = mount();
+    const plate = find("stop");
+    expect(plate?.hidden).toBe(true);
+    const slot = { ...EMPTY_SLOT, item: null, firing: false };
+    const at = (elapsedSeconds: number, stop: KartReadout["stop"]) =>
+      raceReadout({
+        karts: [at0, kartReadout({ stop }), at0],
+        standings: [ON_THE_GRID, ON_THE_GRID, ON_THE_GRID],
+        phase: { kind: "racing", elapsedSeconds, capLeftSeconds: null },
+        itemSlot: slot,
+      });
+    const at0 = kartReadout();
+    const roll = {
+      tier: "botched",
+      stationaryS: 5.5,
+      guideLeftS: 0.5,
+      stationarySoFarS: 0,
+    } as const;
+    panel.update(at(20, roll));
+    expect(plate?.hidden).toBe(false);
+    expect(plate?.dataset.stop).toBe("counting");
+    expect(plate?.querySelector("[data-stop-time]")?.textContent).toBe("0.0 s");
+    expect(plate?.style.getPropertyValue("--plate")).toBe(hexCss(CARBON.mid));
+    panel.update(at(23, { ...roll, guideLeftS: 0, stationarySoFarS: 2.56 }));
+    expect(plate?.querySelector("[data-stop-time]")?.textContent).toBe("2.6 s");
+    // Green: the final time on the roll's plate, held for a few seconds.
+    panel.update(at(26, null));
+    expect(plate?.hidden).toBe(false);
+    expect(plate?.dataset.stop).toBe("botched");
+    expect(plate?.querySelector("[data-stop-time]")?.textContent).toBe("5.5 s");
+    expect(plate?.style.getPropertyValue("--plate")).toBe(hexCss(HAZARD_ORANGE.mid));
+    panel.update(at(26 + STOP_TIME_HOLD_S - 0.1, null));
+    expect(plate?.hidden).toBe(false);
+    panel.update(at(26 + STOP_TIME_HOLD_S, null));
+    expect(plate?.hidden).toBe(true);
+  });
+
+  it("colours the final time by the roll: green, white, yellow, orange, red", () => {
+    expect(stopPlateTones("record")).toBe(GO_GREEN);
+    expect(stopPlateTones("clean")).toBe(WHITE);
+    expect(stopPlateTones("slow")).toBe(SIGNAL_YELLOW);
+    expect(stopPlateTones("botched")).toBe(HAZARD_ORANGE);
+    expect(stopPlateTones("disaster")).toBe(POSTER_RED);
   });
 
   it("opens the tyre gauge on new tyres", () => {

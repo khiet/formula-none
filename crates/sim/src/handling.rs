@@ -288,6 +288,16 @@ impl Handling {
         self.tyre_life = tyre_life;
     }
 
+    /// Whether this kart's tyres wear: the creator's pick.
+    pub(crate) fn tyres(&self) -> Tyres {
+        self.tyres
+    }
+
+    /// A stop's new set: life back to new (ADR 0082).
+    pub(crate) fn new_tyres(&mut self) {
+        self.tyre_life = TYRE_LIFE_NEW_PERCENT;
+    }
+
     /// The tyres lose `percent` of their life, if they wear at all.
     fn wear(&mut self, percent: f32) {
         if self.tyres == Tyres::On {

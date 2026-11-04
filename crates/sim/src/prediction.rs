@@ -66,7 +66,7 @@ use crate::tuning::{
 use crate::BotLevel;
 use crate::{
     bot, clock_after, kart_collider, kart_groups, step, ItemSlot, Kart, KartInput, KartReadout,
-    Phase, Slipstream, Standing, State, Surface, Track, Tyres, Wheel,
+    Phase, Slipstream, Standing, State, Stop, Surface, Track, Tyres, Wheel,
 };
 
 /// The phase a prediction holds once the server's race has ended: the top
@@ -126,13 +126,14 @@ struct Entry {
 }
 
 /// Where a kart stands, which way it faces and whether it is on a star's
-/// run, which its stand-in's collider takes from it so the own kart passes
-/// through it as the server has it.
+/// run or in its pit box for a stop, which its stand-in's collider takes
+/// from it so the own kart passes through it as the server has it.
 #[derive(Clone, Copy)]
 struct Placed {
     translation: Vec3,
     rotation: Rotation,
     starring: bool,
+    stopping: bool,
 }
 
 /// Everything about a kart that a later tick reads, so a rewind can put it
@@ -250,6 +251,7 @@ impl Prediction {
                 translation: Vec3::from(kart.position),
                 rotation: Rotation::from_array(kart.rotation).normalize(),
                 starring: kart.star_s.is_some(),
+                stopping: kart.stop.is_some(),
             })
             .collect();
         self.advance(input, &others);
@@ -463,7 +465,8 @@ impl Prediction {
         for (&body, placed) in self.others.iter().zip(others) {
             let body = &mut physics.bodies[body];
             for &collider in body.colliders() {
-                physics.colliders[collider].set_collision_groups(kart_groups(placed.starring));
+                physics.colliders[collider]
+                    .set_collision_groups(kart_groups(placed.starring, placed.stopping));
             }
             if teleport {
                 body.set_translation(placed.translation, true);
@@ -514,7 +517,7 @@ fn slot_agrees(ours: ItemSlot, theirs: ItemSlot) -> bool {
 /// Whether the snapshot puts the kart where the record does, to the tuned
 /// tolerance: its position, its nose, the tick of travel its velocity and
 /// its bump make, its drift, its item, its coins, its tyre life, its spin-out, its stall,
-/// its star's run, its place in the lap and, once `racing`, its rocket
+/// its star's run, its stop and its stops so far, its place in the lap and, once `racing`, its rocket
 /// start's verdict; during the countdown the start is not compared, since
 /// a kart adopts it only from Go.
 fn agrees(record: &KartRecord, kart: &KartReadout, racing: bool) -> bool {
@@ -547,10 +550,29 @@ fn agrees(record: &KartRecord, kart: &KartReadout, racing: bool) -> bool {
             < TICK_S / 2.0
         && (record.kart.stall_left_s.max(0.0) - kart.stall_s.unwrap_or(0.0)).abs() < TICK_S / 2.0
         && (record.kart.star_left_s.max(0.0) - kart.star_s.unwrap_or(0.0)).abs() < TICK_S / 2.0
+        && stop_agrees(record.kart.stop, kart.stop)
+        && record.kart.stops == kart.stops
         && slipstream_agrees(record.kart.handling.slipstream(), kart.slipstream)
         && (!racing || record.kart.start == kart.start)
         && record.kart.lap() == kart.lap
         && record.kart.checkpoint == kart.checkpoint
+}
+
+/// Whether the snapshot's stop is the record's: none, or the same roll with
+/// the guide's and the crew's clocks within half a tick. Both roll the stop
+/// from the seed, so this disagrees only when one was caught at its mark
+/// and the other not yet, and a rewind then adopts the server's word.
+fn stop_agrees(ours: Option<Stop>, theirs: Option<Stop>) -> bool {
+    match (ours, theirs) {
+        (None, None) => true,
+        (Some(ours), Some(theirs)) => {
+            ours.tier == theirs.tier
+                && ours.stationary_s == theirs.stationary_s
+                && (ours.guide_left_s - theirs.guide_left_s).abs() < TICK_S / 2.0
+                && (ours.stationary_so_far_s - theirs.stationary_so_far_s).abs() < TICK_S / 2.0
+        }
+        _ => false,
+    }
 }
 
 /// Whether the snapshot's slipstream is the record's: the same state, with
@@ -604,6 +626,6 @@ impl State {
         body.set_rotation(record.rotation, true);
         body.set_linvel(record.linvel, true);
         body.set_angvel(record.angvel, true);
-        body.lock_translations(kart.spun_out(), true);
+        body.lock_translations(kart.held_still(), true);
     }
 }

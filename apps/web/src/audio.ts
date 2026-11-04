@@ -28,6 +28,7 @@ import itemFireUrl from "../../../assets/audio/item-fire.wav?url";
 import itemPickupUrl from "../../../assets/audio/item-pickup.wav?url";
 import itemRollTickUrl from "../../../assets/audio/item-roll-tick.wav?url";
 import itemRolledUrl from "../../../assets/audio/item-rolled.wav?url";
+import jackDropUrl from "../../../assets/audio/jack-drop.wav?url";
 import lapUrl from "../../../assets/audio/lap.wav?url";
 import miniTurboUrl from "../../../assets/audio/mini-turbo.wav?url";
 import musicUrl from "../../../assets/audio/music-loop.wav?url";
@@ -38,6 +39,7 @@ import starEndUrl from "../../../assets/audio/star-end.wav?url";
 import starFireUrl from "../../../assets/audio/star-fire.wav?url";
 import starMusicUrl from "../../../assets/audio/star-music.wav?url";
 import tierChimeUrl from "../../../assets/audio/tier-chime.wav?url";
+import wheelGunUrl from "../../../assets/audio/wheel-gun.wav?url";
 import wrongWayUrl from "../../../assets/audio/wrong-way.wav?url";
 import {
   type DroneBeep,
@@ -88,6 +90,8 @@ export const SOUND_URLS: Readonly<Record<SoundCue, string>> = {
   droneBeep: droneBeepUrl,
   slipstream: slipstreamUrl,
   boxChime: boxChimeUrl,
+  wheelGun: wheelGunUrl,
+  jackDrop: jackDropUrl,
 };
 export const LOOP_URLS: Readonly<Record<SoundLoop, string>> = {
   driftSkid: driftSkidUrl,

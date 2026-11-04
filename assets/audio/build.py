@@ -369,6 +369,22 @@ def box_chime(low=659, high=988, length=0.12, decay=8, gain=0.35):
     )
 
 
+def wheel_gun(bursts=16, every=0.05, burst=0.035, centre=2600, width=1800, gain=0.5, seed=5):
+    """Rattle: a run of short bright bursts of bandpassed noise, a wheel gun hammering a nut off and on (ADR 0082)."""
+    out = silence(bursts * every + 0.1)
+    for i in range(bursts):
+        place(out, i * every, bandpass(noise(burst, decay=50, gain=1.0, seed=seed + i), centre, width), gain)
+    return release(out, 0.03)
+
+
+def jack_drop(thud=95, length=0.22, gain=0.6, seed=9):
+    """Thud: a low sine knock falling in pitch under a click of noise, the kart dropping off the jacks (ADR 0082)."""
+    return mix(
+        tone(thud, length, sine, decay=16, gain=gain, sweep_to=45, curve="exp"),
+        noise(0.04, decay=80, gain=0.35, seed=seed),
+    )
+
+
 def grass(speed, centre=1200, width=800, swish_hz=8, depth=0.5, gain=0.4):
     """Swish: a higher band of noise swishing slowly."""
     bed = noise(1.5, decay=0, gain=gain * (0.3 + 0.7 * fraction(speed)), seed=16)
@@ -591,6 +607,10 @@ def sfx():
     write("tier-chime", tame(tier_chime()))
     # The BOX call (ADR 0080), as tyre life first falls to the cliff.
     write("box-chime", tame(box_chime()))
+    # The stop (ADR 0082): the crew's wheel guns as the kart lands on its
+    # mark, and the jack's drop as it is let go.
+    write("wheel-gun", tame(wheel_gun()))
+    write("jack-drop", tame(jack_drop()))
     write("boost-pad", tame(boost_pad()))
     write("wrong-way", tame(wrong_way()))
     # In place of the lap as the kart finishes.

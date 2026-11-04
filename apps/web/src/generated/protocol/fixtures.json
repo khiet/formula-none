@@ -20,7 +20,7 @@
       "name": "join",
       "bytes": [
         1,
-        23,
+        24,
         4,
         66,
         88,
@@ -37,7 +37,7 @@
         "join": {
           "nickname": "khiet",
           "room": "BXQF",
-          "version": 23
+          "version": 24
         }
       }
     },
@@ -103,7 +103,7 @@
       "name": "rejoin",
       "bytes": [
         7,
-        23,
+        24,
         4,
         66,
         88,
@@ -147,7 +147,7 @@
         "rejoin": {
           "room": "BXQF",
           "token": "0123456789abcdef0123456789abcdef",
-          "version": 23
+          "version": 24
         }
       }
     },
@@ -309,12 +309,12 @@
       "bytes": [
         2,
         3,
-        23
+        24
       ],
       "message": {
         "refused": {
           "versionMismatch": {
-            "server": 23
+            "server": 24
           }
         }
       }
@@ -516,6 +516,8 @@
         0,
         0,
         0,
+        0,
+        0,
         160,
         65,
         154,
@@ -588,6 +590,8 @@
         62,
         0,
         0,
+        0,
+        0,
         220,
         65,
         154,
@@ -655,6 +659,8 @@
         204,
         204,
         62,
+        0,
+        0,
         0,
         0,
         0,
@@ -740,6 +746,8 @@
         63,
         0,
         0,
+        0,
+        0,
         42,
         66,
         154,
@@ -806,6 +814,21 @@
         1,
         0,
         0,
+        1,
+        2,
+        205,
+        204,
+        108,
+        64,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        160,
+        63,
+        1,
         0,
         0,
         72,
@@ -879,6 +902,8 @@
         0,
         0,
         0,
+        0,
+        0,
         102,
         66,
         154,
@@ -949,6 +974,8 @@
         0,
         0,
         0,
+        1,
+        0,
         0,
         130,
         66,
@@ -1012,6 +1039,8 @@
         153,
         153,
         63,
+        0,
+        0,
         0,
         0,
         0,
@@ -1297,6 +1326,8 @@
               "stallS": null,
               "starS": null,
               "start": "clean",
+              "stop": null,
+              "stops": 0,
               "tyreLife": 100.0,
               "velocity": [
                 21.0,
@@ -1338,6 +1369,8 @@
               "stallS": null,
               "starS": null,
               "start": "weakBoost",
+              "stop": null,
+              "stops": 0,
               "tyreLife": 87.5,
               "velocity": [
                 21.0,
@@ -1380,6 +1413,8 @@
               "stallS": null,
               "starS": null,
               "start": "fullBoost",
+              "stop": null,
+              "stops": 0,
               "tyreLife": 75.0,
               "velocity": [
                 21.0,
@@ -1424,6 +1459,8 @@
               "stallS": null,
               "starS": null,
               "start": "stall",
+              "stop": null,
+              "stops": 0,
               "tyreLife": 62.5,
               "velocity": [
                 21.0,
@@ -1463,6 +1500,13 @@
               "stallS": null,
               "starS": null,
               "start": "clean",
+              "stop": {
+                "guideLeftS": 0.0,
+                "stationaryS": 3.700000047683716,
+                "stationarySoFarS": 1.25,
+                "tier": "slow"
+              },
+              "stops": 1,
               "tyreLife": 50.0,
               "velocity": [
                 21.0,
@@ -1500,6 +1544,8 @@
               "stallS": null,
               "starS": 4.5,
               "start": "weakBoost",
+              "stop": null,
+              "stops": 0,
               "tyreLife": 37.5,
               "velocity": [
                 21.0,
@@ -1539,6 +1585,8 @@
               "stallS": null,
               "starS": null,
               "start": "fullBoost",
+              "stop": null,
+              "stops": 1,
               "tyreLife": 25.0,
               "velocity": [
                 21.0,
@@ -1575,6 +1623,8 @@
               "stallS": 1.2000000476837158,
               "starS": null,
               "start": "stall",
+              "stop": null,
+              "stops": 0,
               "tyreLife": 12.5,
               "velocity": [
                 21.0,
@@ -1790,8 +1840,16 @@
         0,
         29,
         66,
+        1,
+        1,
+        102,
+        102,
+        38,
+        64,
         0,
         2,
+        0,
+        0,
         0,
         0
       ],
@@ -1800,15 +1858,19 @@
           "standings": [
             {
               "bestLapS": 39.25,
+              "bestStopS": 2.5999999046325684,
               "finishTimeS": 121.5,
               "kart": 1,
-              "position": 1
+              "position": 1,
+              "stops": 1
             },
             {
               "bestLapS": null,
+              "bestStopS": null,
               "finishTimeS": null,
               "kart": 0,
-              "position": 2
+              "position": 2,
+              "stops": 0
             }
           ]
         }

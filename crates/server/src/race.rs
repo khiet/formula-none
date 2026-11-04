@@ -312,6 +312,8 @@ fn results(state: &State) -> Vec<FinalStanding> {
             position: standing.position as u8,
             finish_time_s: standing.finish_time_s,
             best_lap_s: standing.best_lap_s,
+            stops: standing.stops as u8,
+            best_stop_s: standing.best_stop_s,
         })
         .collect();
     results.sort_by_key(|standing| standing.position);

@@ -50,6 +50,7 @@ import { hexCss, livery } from "./livery";
 import type { Point } from "./low-poly-svg";
 import { HAZARD_ORANGE, plate, tonesOf, writePalette } from "./palette";
 import { createParticles } from "./particles";
+import { pitBoxMeshes } from "./pit-box-meshes";
 import { BLAST_S, type Blast, type RaceReadout } from "./race-run";
 import { sceneryMotion } from "./scenery-motion";
 import { createSparkEmitter, createSparkParticles } from "./sparks";
@@ -62,6 +63,7 @@ import {
   shadowDiscMesh,
   tyreMarkMesh,
 } from "./tell-meshes";
+import type { PitBox } from "./track";
 import { trackProbe } from "./track-probe";
 import { createTyreMarks } from "./tyre-marks";
 import { kartWheels } from "./wheel-spin";
@@ -173,6 +175,8 @@ export interface ViewTuning {
   readonly slipstreamChargeSeconds: number;
   /** A percentage of tyre life: below it a kart's tyre marks darken and its tyres smoke. */
   readonly tyreLifeCliff: number;
+  /** The longest a clean stop lasts: past it a pit crew acts the roll out. */
+  readonly cleanStopSeconds: number;
 }
 
 /**
@@ -181,7 +185,9 @@ export interface ViewTuning {
  * kart readouts the bridge reports and the pose the chase camera computes,
  * with a name floating over each kart the Scene labels, a cone at each
  * hazard, a drone at each projectile and a coin at each of `coins` while
- * it is there to pick up, every box and coin turning on the View's clock. The
+ * it is there to pick up, every box and coin turning on the View's clock,
+ * and at each of `pitBoxes` its mark, its light and its crew, lit and posed
+ * by its slot's stop (ADR 0082). The
  * track mesh is Presentation
  * only; the sim has its own copy of the geometry from the sidecar. Every
  * mechanic's Feedback is drawn from the readouts and the phase alone:
@@ -210,6 +216,7 @@ export async function createRaceView(
   assets: ViewAssets,
   itemBoxes: readonly ItemBox[],
   coins: readonly Coin[],
+  pitBoxes: readonly PitBox[],
   tuning: ViewTuning,
   labelsFor: (karts: readonly KartReadout[]) => readonly KartLabel[],
   viewer: ViewerOptions,
@@ -354,6 +361,8 @@ export async function createRaceView(
 
   const drawnCoins = coinMeshes(coins);
   world.add(drawnCoins.mesh);
+  const pits = pitBoxMeshes(pitBoxes, kartSize, { cleanStopSeconds: tuning.cleanStopSeconds });
+  world.add(pits.mesh);
   const spray = coinSpray();
   world.add(spray.mesh);
   /** Each kart's coins as of the last frame; null before its first. */
@@ -461,6 +470,7 @@ export async function createRaceView(
       wheelTells.emit(race.wheels, frameSeconds);
       windBrightness = windFade(own?.boostS ?? null, own?.slipstream ?? null);
       tyreMarks.update(readouts, frameSeconds);
+      pits.show(readouts, pose.position, frameSeconds);
       spray.update(frameSeconds);
       sparks.update(frameSeconds);
       starSparkleParticles.update(frameSeconds);

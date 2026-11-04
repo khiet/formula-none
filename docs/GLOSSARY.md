@@ -55,7 +55,8 @@ Instrument panel.
 ### pit crew
 
 The six figures at a pit box who change a kart's tyres. Presentation only:
-how long they take is the stop's roll.
+how long they take is the stop's roll. The View draws them, with the pit
+box's light, from the kart readout, and only near the camera.
 
 ### stop
 

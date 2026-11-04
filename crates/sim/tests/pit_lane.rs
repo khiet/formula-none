@@ -1,12 +1,13 @@
 //! The pit lane (ADR 0081), through `step`: Bell Deer's lane is driven at the
 //! limit and back on the track, the lap counts, and nothing in it can hurt a
-//! kart. A stop in a pit box is a later slice; this lane is only driven.
+//! kart. The stop in a pit box is `stop.rs`; here the lane is only driven.
 
 mod common;
 
 use common::{
-    follow_centreline, rolling, started, steer_toward, tap, track, with_boxes_at, with_slot_at,
-    without_item_boxes, without_wheel_crossings, BELL_DEER, DT, SEED,
+    along_lane, drive_lane, follow_centreline, quiet_bell_deer, rolling, started, steer_toward,
+    tap, track, with_boxes_at, with_pit_box_at, with_slot_at, with_slot_on_lane, BELL_DEER, DT,
+    LANE_LOOK_AHEAD_M, SEED,
 };
 use sim::tuning::{HAZARD_DROP_DISTANCE_M, PIT_LIMIT_M_PER_S, TYRE_WEAR_ROLLING_PER_S};
 use sim::{
@@ -16,32 +17,10 @@ use sim::{
 
 /// Metres short of the fork that a staged kart starts from, on the centreline.
 const RUN_UP_M: f32 = 25.0;
-/// How far ahead along the lane a driver aims.
-const LOOK_AHEAD_M: f32 = 8.0;
 const HIGHEST_LIMITED_SPEED: f32 = PIT_LIMIT_M_PER_S + 0.001;
 
 fn sidecar_with(edit: impl FnOnce(&str) -> String) -> String {
     edit(&quiet_bell_deer())
-}
-
-/// Bell Deer with nothing on it but the lane.
-fn quiet_bell_deer() -> String {
-    without_item_boxes(&without_wheel_crossings(BELL_DEER))
-}
-
-/// The point `metres` along the lane's path from the fork, and the facing
-/// a kart there has down it.
-fn along_lane(track: &Track, metres: f32) -> ([f32; 3], f32) {
-    let lane = track.pit_lane().expect("Bell Deer has a pit lane");
-    let at = lane.point_at(metres);
-    let ahead = lane.point_at(metres + 1.0);
-    (at, f32::atan2(at[0] - ahead[0], at[2] - ahead[2]))
-}
-
-/// The sidecar with spawn `slot` on the lane, `metres` along it from the fork.
-fn with_slot_on_lane(sidecar: &str, slot: usize, metres: f32) -> String {
-    let (position, yaw) = along_lane(&track(sidecar), metres);
-    with_slot_at(sidecar, slot, position, yaw)
 }
 
 /// The sidecar with spawn slot 0 on the centreline `RUN_UP_M` short of the fork.
@@ -57,19 +36,6 @@ fn with_slot_short_of_the_fork(sidecar: &str) -> String {
         at,
         f32::atan2(at[0] - ahead[0], at[2] - ahead[2]),
     )
-}
-
-/// Full throttle down the lane's path, which starts at the fork: the aim for
-/// a kart on the road short of it is the fork itself.
-fn drive_lane(state: &State, kart: usize) -> KartInput {
-    let track = state.track();
-    let lane = track.pit_lane().expect("a lane");
-    let here = state.kart_readouts()[kart].position;
-    let aim = lane
-        .reading(here)
-        .map_or(0.0, |metres| metres + LOOK_AHEAD_M);
-    let target = lane.point_at(aim);
-    steer_toward(state, kart, [target[0], target[2]])
 }
 
 /// What the limiter promises of a kart in the lane: its speed and its whole
@@ -271,7 +237,7 @@ fn a_touch_at_the_limit_does_not_carry_a_kart_over_it() {
         // Holding its own line, then turning in on the kart abreast of it.
         let across_input = if tick < 180 {
             let here = state.kart_readouts()[1].position;
-            let metres = lane.reading(here).expect("on the lane") + LOOK_AHEAD_M;
+            let metres = lane.reading(here).expect("on the lane") + LANE_LOOK_AHEAD_M;
             let (aim, _) = beside(state.track(), metres);
             steer_toward(&state, 1, [aim[0], aim[2]])
         } else {
@@ -720,10 +686,15 @@ fn a_homing_projectile_gives_up_on_a_kart_in_the_lane() {
 #[test]
 fn tyres_wear_only_by_rolling_in_the_lane() {
     // Weaving hard and braking in the lane, at the limit: what would wear a
-    // kart anywhere else costs nothing here but the roll.
+    // kart anywhere else costs nothing here but the roll. The kart's pit
+    // box is moved to the lane's end, so no stop cuts the weave short.
     let sidecar = sidecar_with(|sidecar| {
-        let lane_entry = track(sidecar).pit_lane().expect("a lane").entry_m();
-        with_slot_on_lane(sidecar, 0, lane_entry + 1.0)
+        let lane = track(sidecar).pit_lane().expect("a lane").clone();
+        with_slot_on_lane(
+            &with_pit_box_at(sidecar, 0, lane.exit_m() - 3.0),
+            0,
+            lane.entry_m() + 1.0,
+        )
     });
     let mut state = race_on(&sidecar, 1, Tyres::On);
     // Up to the limit first, in a line, so the wear measured is the moving kind.

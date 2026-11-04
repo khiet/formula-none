@@ -18,7 +18,7 @@ import type { RaceRun } from "./race-run";
 import { createRaceView } from "./race-view";
 import { downloadReplay } from "./replay";
 import { kartName, type RaceResults } from "./results-scene";
-import type { TrackFiles, WorldPoint } from "./track";
+import type { PitLaneLayout, TrackFiles, WorldPoint } from "./track";
 
 /** Ticks run per frame at most, so a stalled tab catches up instead of spiralling. */
 const MAX_TICKS_PER_FRAME = 5;
@@ -39,7 +39,8 @@ export interface RaceScene {
  * the gamepad for the local kart, its one View drawn every frame from the
  * chase camera with every other kart named over it, by `nickname` for the
  * humans the room named, and the Instrument panel over it with the course
- * map drawn from `centreline` and `pitLane`. `audio` sounds the race from the own kart's
+ * map drawn from `centreline` and `pitLane`, whose pit boxes the View draws with
+ * their lights and crews. `audio` sounds the race from the own kart's
  * readings and is stopped with the Scene. The run carries the race from its
  * countdown to its finish; the Scene keeps drawing the finished race until
  * it is disposed.
@@ -49,7 +50,7 @@ export async function createRaceScene(
   bridge: Bridge,
   track: TrackFiles,
   centreline: readonly WorldPoint[],
-  pitLane: readonly WorldPoint[] | undefined,
+  pitLane: PitLaneLayout | undefined,
   run: RaceRun,
   nickname: (kart: number) => string | undefined,
   audio: RaceAudio,
@@ -89,12 +90,14 @@ export async function createRaceScene(
       { trackGltfUrl: track.gltfUrl, kartGltfUrl: KART_GLTF_URL },
       run.itemBoxes(),
       run.coins(),
+      pitLane?.pitBoxes ?? [],
       {
         spinOutSeconds: bridge.spinOutSeconds,
         runawayWheelRadiusMetres: bridge.runawayWheelRadiusMetres,
         hornRadiusMetres: bridge.hornRadiusMetres,
         slipstreamChargeSeconds: bridge.slipstreamChargeSeconds,
         tyreLifeCliff: bridge.tyreLifeCliff,
+        cleanStopSeconds: bridge.cleanStopSeconds,
       },
       (karts) => kartLabels(karts, run.localKart, name),
       { localKart: run.localKart, reducedMotion },
@@ -105,7 +108,7 @@ export async function createRaceScene(
   const panel = createInstrumentPanel(
     container,
     run.laps,
-    { centreline, pitLane, kartCount: bridge.kartsPerRace, ownKart: run.localKart },
+    { centreline, pitLane: pitLane?.path, kartCount: bridge.kartsPerRace, ownKart: run.localKart },
     {
       coinTopSpeeds: bridge.coinTopSpeeds,
       coinCap: bridge.coinCap,
@@ -118,9 +121,8 @@ export async function createRaceScene(
   );
 
   const boxCall = createBoxCall({
-    // A lane with no stop in it yet has no new tyres to call the kart in for
-    // (ADR 0081); the stop's arrival takes this over from the course's sidecar.
-    pitLane: false,
+    // A course with a lane has a pit box to come in to (ADR 0082).
+    pitLane: pitLane !== undefined,
     lapsPerRace: run.laps,
     cliff: bridge.tyreLifeCliff,
   });

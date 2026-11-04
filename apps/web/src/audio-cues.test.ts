@@ -18,6 +18,8 @@ import { raceReadout } from "./race-readout-fixture";
 import { EMPTY_SLOT, type ItemSlot, type RaceCount } from "./race-run";
 
 const STILL: SoundReading = {
+  stopping: false,
+  onTheMark: false,
   speed: 0,
   airborne: false,
   miniTurbo: null,
@@ -442,6 +444,8 @@ describe("soundReading", () => {
     splineProgress: 100,
     lapTimeS: 10,
     bestLapS: null,
+    stops: 0,
+    bestStopS: null,
     wrongWay: false,
     finishTimeS: null,
   };
@@ -449,6 +453,26 @@ describe("soundReading", () => {
   /** The reading of the one kart of a race at `kart` on `standing` holding `itemSlot`. */
   const read = (kart: KartReadout, standing: Standing, itemSlot: ItemSlot, phase: Phase) =>
     soundReading(raceReadout({ karts: [kart], standings: [standing], itemSlot, phase }), 0);
+
+  it("reads the own kart's stop from its readout", () => {
+    const stop = { tier: "clean", stationaryS: 2.6, guideLeftS: 0.2, stationarySoFarS: 0 } as const;
+    expect(read({ ...kart, stop }, standing, EMPTY_SLOT, racing)).toMatchObject({
+      stopping: true,
+      onTheMark: false,
+    });
+    expect(
+      read(
+        { ...kart, stop: { ...stop, guideLeftS: 0, stationarySoFarS: 1 } },
+        standing,
+        EMPTY_SLOT,
+        racing,
+      ),
+    ).toMatchObject({ stopping: true, onTheMark: true });
+    expect(read(kart, standing, EMPTY_SLOT, racing)).toMatchObject({
+      stopping: false,
+      onTheMark: false,
+    });
+  });
 
   it("takes the kart's speed, hop, charge and spin from the transform and the lap from the standing", () => {
     expect(read(kart, standing, EMPTY_SLOT, racing)).toEqual({
@@ -473,6 +497,8 @@ describe("soundReading", () => {
       starSeconds: null,
       towed: false,
       boxCall: false,
+      stopping: false,
+      onTheMark: false,
       nearestStar: null,
       blasts: [],
       incomingDroneMetres: null,
@@ -611,5 +637,16 @@ describe("the BOX chime", () => {
     expect(soundCues(at(false), at(true))).toEqual(["boxChime"]);
     expect(soundCues(at(true), at(true))).toEqual([]);
     expect(soundCues(at(true), at(false))).toEqual([]);
+  });
+});
+
+describe("the stop's sounds", () => {
+  it("rattles the wheel guns as the kart lands on its mark and drops the jack as the stop ends", () => {
+    const guided = { ...STILL, stopping: true, onTheMark: false };
+    const onTheMark = { ...STILL, stopping: true, onTheMark: true };
+    expect(soundCues(STILL, guided)).toEqual([]);
+    expect(soundCues(guided, onTheMark)).toEqual(["wheelGun"]);
+    expect(soundCues(onTheMark, onTheMark)).toEqual([]);
+    expect(soundCues(onTheMark, STILL)).toEqual(["jackDrop"]);
   });
 });

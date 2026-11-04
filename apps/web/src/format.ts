@@ -35,6 +35,11 @@ export function formatLapTime(seconds: number): string {
   return `${minutes}'${String(wholeSeconds).padStart(2, "0")}"${String(milliseconds).padStart(3, "0")}`;
 }
 
+/** A stop's time in tenths, as the crew's clock reads it: `2.6 s`. */
+export function formatStopTime(seconds: number): string {
+  return `${seconds.toFixed(1)} s`;
+}
+
 /** Metres per second as kilometres per hour, keeping the sign. */
 export function kmPerHour(metresPerSecond: number): number {
   return metresPerSecond * 3.6;
