@@ -90,6 +90,7 @@ const DECISION_SLUGS = [
   "the-creator-picks-tyres-and-race-distance",
   "the-creator-picks-the-laps",
   "the-first-tyre-retune-from-bot-races",
+  "ace-bots-save-their-tyres-when-that-reaches-the-flag",
 ];
 
 const expectedFiles = DECISION_SLUGS.map(
