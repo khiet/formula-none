@@ -5,7 +5,7 @@
 //! Everything is in the glTF frame the renderer uses: metres, Y up, a kart
 //! with yaw zero faces -Z, and yaw grows counter-clockwise seen from above.
 
-use crate::tuning::{PROGRESS_WINDOW_M, WHEEL_PERIOD_S, WHEEL_WARNING_S};
+use crate::tuning::{KARTS_PER_RACE, PROGRESS_WINDOW_M, WHEEL_PERIOD_S, WHEEL_WARNING_S};
 use rapier3d::prelude::{SharedShape, TriMeshFlags, Vec3};
 use serde::{Deserialize, Serialize};
 use std::fmt;
@@ -175,7 +175,8 @@ struct PitLaneSidecar {
     half_width: f32,
     entry: Checkpoint,
     exit: Checkpoint,
-    boxes: Vec<Placement>,
+    /// One per grid slot, so karts never queue. Checked here; the stop reads them.
+    pit_boxes: Vec<Placement>,
 }
 
 /// A lane beside the course (ADR 0081): the road a kart takes from the fork to
@@ -191,21 +192,17 @@ pub struct PitLane {
     metres_at_point: Vec<f32>,
     entry_m: f32,
     exit_m: f32,
-    boxes: Vec<Placement>,
 }
-
-/// The pit boxes a lane has: one per grid slot, so karts never queue.
-const PIT_BOXES: usize = 8;
 
 impl PitLane {
     fn from_sidecar(sidecar: PitLaneSidecar) -> Result<Self, String> {
         if sidecar.path.len() < 2 {
             return Err("a pit lane's path needs at least two points".into());
         }
-        if sidecar.boxes.len() != PIT_BOXES {
+        if sidecar.pit_boxes.len() != KARTS_PER_RACE {
             return Err(format!(
-                "a pit lane has {PIT_BOXES} pit boxes, not {}",
-                sidecar.boxes.len()
+                "a pit lane has {KARTS_PER_RACE} pit boxes, not {}",
+                sidecar.pit_boxes.len()
             ));
         }
         let mut metres_at_point = vec![0.0];
@@ -220,7 +217,6 @@ impl PitLane {
             metres_at_point,
             entry_m: 0.0,
             exit_m: 0.0,
-            boxes: sidecar.boxes,
         };
         let on_the_path = |lane: &Self, line: &Checkpoint| {
             lane.reading(line.position)
@@ -234,9 +230,9 @@ impl PitLane {
         Ok(lane)
     }
 
-    /// The path from the fork to the merge, in the direction of travel.
-    pub fn path(&self) -> &[[f32; 3]] {
-        &self.path
+    /// The path's whole length, fork to merge.
+    pub(crate) fn length_m(&self) -> f32 {
+        self.metres_at_point.last().copied().unwrap_or(0.0)
     }
 
     /// Metres along the path to the entry line, where the limiter engages.
@@ -247,11 +243,6 @@ impl PitLane {
     /// Metres along the path to the exit line, where the limiter lets go.
     pub fn exit_m(&self) -> f32 {
         self.exit_m
-    }
-
-    /// One per spawn slot, in slot order.
-    pub fn boxes(&self) -> &[Placement] {
-        &self.boxes
     }
 
     /// Metres along the path of the nearest point on it to `point`, while

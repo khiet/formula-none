@@ -44,7 +44,7 @@ class PitLaneData:
     half_width: float
     entry: Placement
     exit: Placement
-    boxes: list[Placement]
+    pit_boxes: list[Placement]
 
 
 def _smoothstep(t: float) -> float:
@@ -179,7 +179,7 @@ def data(layout: Layout) -> PitLaneData:
         half_width=half,
         entry=edges.place(lane.s_entry, edges.centre(lane.s_entry), half),
         exit=edges.place(lane.s_exit, edges.centre(lane.s_exit), half),
-        boxes=[edges.place(PITS_DOOR_FIRST_M + k * PITS_DOOR_PITCH_M, apron) for k in range(PIT_BOXES)],
+        pit_boxes=[edges.place(PITS_DOOR_FIRST_M + k * PITS_DOOR_PITCH_M, apron) for k in range(PIT_BOXES)],
     )
 
 

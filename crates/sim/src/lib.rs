@@ -1815,6 +1815,14 @@ pub fn step(mut state: State, inputs: &[KartInput], dt: f32) -> State {
         );
         bump_off_tyre_walls(kart, &state.physics, sent_velocities[index], dt);
         let mut after = state.physics.bodies[kart.body].translation().to_array();
+        // The tick's handling read the kart where it stood before it moved, and
+        // a contact can add to what it sent: a kart that ends the tick in the
+        // lane ends it at the limit, the tick it came over the line included.
+        if state.track.in_pit_lane(after) {
+            let body = &mut state.physics.bodies[kart.body];
+            let held = kart.handling.held_to_the_pit_limit(body.linvel());
+            body.set_linvel(held, true);
+        }
         let mut respawned = false;
         let on_the_line = state.track.point_at(kart.spline_progress);
         // The pit wall stands between the lane and the centreline, so a kart
@@ -2361,6 +2369,8 @@ fn respawn_on_lane(
     metres: f32,
     physics: &mut Physics,
 ) -> [f32; 3] {
+    // A metre of the path is left ahead, for the kart to read which way it faces.
+    let metres = metres.min(lane.length_m() - 1.0);
     let here = lane.point_at(metres);
     let next = lane.point_at(metres + 1.0);
     respawn_at(kart, here, next, physics)

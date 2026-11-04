@@ -628,6 +628,9 @@ impl Handling {
             self.bump = stopped_by_walls(self.bump, &self.walls);
             self.speed = forward.dot(velocity - self.bump);
         }
+        if situation.pit_lane {
+            velocity = self.held_to_the_pit_limit(velocity);
+        }
         self.travel = forward;
         let yaw_rate = yaw_rate(self.speed, steer, grip.steer_rate);
         self.wear_for_tick(
@@ -697,6 +700,23 @@ impl Handling {
             lost += per_s * dt;
         }
         self.wear(lost);
+    }
+
+    /// `velocity` with its motion along the ground no more than the pit limit,
+    /// whatever made it up: the speed and the bump give up the same share, so
+    /// the speed still reads back from a velocity with the bump taken off.
+    pub(crate) fn held_to_the_pit_limit(&mut self, velocity: Vec3) -> Vec3 {
+        let along_the_ground = Vec3::new(velocity.x, 0.0, velocity.z).length();
+        let mut held = velocity;
+        if along_the_ground > PIT_LIMIT_M_PER_S {
+            let share = PIT_LIMIT_M_PER_S / along_the_ground;
+            self.speed *= share;
+            self.bump *= share;
+            held.x *= share;
+            held.z *= share;
+        }
+        self.speed = self.speed.min(PIT_LIMIT_M_PER_S);
+        held
     }
 
     /// The wall holds the kart, with no bounce and no bump. `walls` are the

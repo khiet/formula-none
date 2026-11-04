@@ -158,7 +158,7 @@ def pit_lane() -> dict | None:
         "half_width": tidy(float(obj["half_width"])),
         "entry": entry,
         "exit": exit_,
-        "boxes": placements(PIT_BOXES_COLLECTION, with_half_width=False, with_hazard=False),
+        "pit_boxes": placements(PIT_BOXES_COLLECTION, with_half_width=False, with_hazard=False),
     }
 
 

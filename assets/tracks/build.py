@@ -346,7 +346,7 @@ def populate_pit_lane(lane: PitLaneData) -> None:
     add_empty(lines, "Entry", lane.entry)
     add_empty(lines, "Exit", lane.exit)
     boxes = collection(export.PIT_BOXES_COLLECTION)
-    for number, box in enumerate(lane.boxes):
+    for number, box in enumerate(lane.pit_boxes):
         add_empty(boxes, f"PitBox.{number:02d}", box)
 
 

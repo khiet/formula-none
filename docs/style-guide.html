@@ -658,7 +658,7 @@
         <div class="notes">
           <p>The run-off turns to <code>asphalt</code> <code>#6b6b78</code> at the fork: the lane's two edges start on the run-off's and sweep out behind the wall, so the fork is seen from the road with no gate to mark it. The right wall opens for the fork and the merge. Between them it stands on as the pit wall, and a matching <code>wall</code> <code>#f0f0f0</code> rail runs round the lane's far side, 1 m clear of the pit building. The lane's surface stands a hair over the sand and grass, flush with the road's edge.</p>
           <p>The entry line and exit line are <code>kerb-white</code> <code>#f5f5f5</code> bars across the lane. The pit limiter holds from one to the other, and the Instrument panel's gear slot reads PIT between them.</p>
-          <p class="dont"><b>Don't</b> paint a lane where the sim has none: the path, lines and pit boxes in the sidecar are what the rules read. The boxes are data for now; nothing is drawn at them until a stop is built.</p>
+          <p class="dont"><b>Don't</b> paint a lane where the sim has none: the path, lines and pit boxes in the sidecar are what the rules read. The pit boxes are data for now; nothing is drawn at them until a stop is built.</p>
         </div>
       </article>
 
@@ -1366,9 +1366,6 @@
       ${foot(-1)}${foot(1)}
     </svg>`;
   };
-  // The pit building from the grid at 5 px to the metre: the half from the line forward, its
-  // eight doors each in its key colour under its lit band, the flags over the roof the other
-  // way round, and the shaded end wall; the dashed line is the start line's side.
   // The lane in plan, the track along the bottom: the wall opens at both ends and stands on between.
   draw.pitLane = () => {
     const road = "#6b6b78", white = "#f0f0f0", sand = "#e8c773";
@@ -1383,6 +1380,9 @@
     </svg>`;
   };
 
+  // The pit building from the grid at 5 px to the metre: the half from the line forward, its
+  // eight doors each in its key colour under its lit band, the flags over the roof the other
+  // way round, and the shaded end wall; the dashed line is the start line's side.
   draw.pits = () => {
     const m = 5, g = 150, line = 10, riser = "#d7dbe0", plinth = "#b4bac2", wall = "#f0f0f0", carbon = "#2b2e33";
     const keys = LIVERIES.map((l) => hex(l.key));

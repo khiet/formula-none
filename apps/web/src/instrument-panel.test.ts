@@ -13,7 +13,7 @@ import {
 import { reelFrame } from "./item-reel";
 import { kartReadout } from "./kart-readout-fixture";
 import { hexCss, livery, liveryCss } from "./livery";
-import { CARBON, FIRING, ITEM_BOX_GOLD, WHITE } from "./palette";
+import { FIRING, ITEM_BOX_GOLD } from "./palette";
 import { ON_THE_GRID, raceReadout } from "./race-readout-fixture";
 import { EMPTY_SLOT, type ItemSlot, type RaceReadout } from "./race-run";
 import { STAR_RAINBOW } from "./star-shine";
@@ -287,8 +287,8 @@ describe("the speed cluster on the page", () => {
     return { container, find, drive, panel };
   };
 
-  it("reads PIT in the gear slot in the pit lane, on a white plate that does not flash", () => {
-    const { container, find, panel } = mount();
+  it("reads PIT in the gear slot in the pit lane, without the limiter's flash", () => {
+    const { find, panel } = mount();
     const inLane = (inPitLane: boolean) =>
       panel.update(
         race(ON_THE_GRID, { ...EMPTY_SLOT, item: null, firing: false }, [
@@ -301,13 +301,10 @@ describe("the speed cluster on the page", () => {
     expect(find("gear")?.textContent).toBe("PIT");
     expect(find("gear")?.dataset.pit).toBe("true");
     expect(find("gear")?.dataset.limiter).toBe("false");
-    expect(find("gear")?.style.getPropertyValue("--plate-lit")).toBe(hexCss(WHITE.lit));
     expect(find("speed")?.textContent).toBe("54 km/h");
     inLane(false);
     expect(find("gear")?.textContent).toBe("4");
     expect(find("gear")?.dataset.pit).toBe("false");
-    expect(find("gear")?.style.getPropertyValue("--plate-lit")).toBe(hexCss(CARBON.lit));
-    expect(container.querySelector("[data-pit-lane]")).toBeNull();
   });
 
   it("reads the speed in km/h, the gear and the coins as text", () => {

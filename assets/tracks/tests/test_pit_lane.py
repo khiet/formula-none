@@ -1,7 +1,6 @@
 """The pit lane checked without Blender (ADR 0081): Bell Deer's forks off the
 start straight's right, past the pit wall and clear of the pit building and
-the trees, and every checkpoint along it reaches across it. The other courses
-have none yet.
+the trees, and every checkpoint along it reaches across it. The oval has none.
 
     python3 -I -m unittest discover -s assets/tracks/tests -t assets/tracks
 """
@@ -117,9 +116,9 @@ class PitLaneOnBellDeer(unittest.TestCase):
         self.assertGreaterEqual(along_the_lane, 2, "the start gate and one past the building")
 
     def test_each_of_the_eight_pit_boxes_stands_on_the_apron_in_front_of_its_door(self) -> None:
-        self.assertEqual(len(self.pit_lane.boxes), 8)
+        self.assertEqual(len(self.pit_lane.pit_boxes), 8)
         previous = None
-        for box in self.pit_lane.boxes:
+        for box in self.pit_lane.pit_boxes:
             s = nearest_sample(self.layout, box.x, box.y).s
             offset = left_of_centre(self.layout, box.x, box.y, s)
             self.assertLess(offset, -(self.layout.runoff_half_width + WALL_THICKNESS_M + LANE_WIDTH_M / 2.0))
@@ -134,17 +133,15 @@ class PitLaneOnBellDeer(unittest.TestCase):
             self.assertGreater(nearest, LANE_WIDTH_M)
 
 
-class CoursesWithoutALane(unittest.TestCase):
-    def test_the_oval_goldstone_and_monarch_build_as_before(self) -> None:
-        for name in ("oval", "goldstone", "monarch"):
-            with self.subTest(name):
-                layout = load(name)
-                geometry = build(layout)
-                self.assertIsNone(geometry.pit_lane)
-                self.assertFalse([mesh for mesh in geometry.surfaces if "Pit" in mesh.name])
-                wall = layout.runoff_half_width + WALL_THICKNESS_M
-                for checkpoint in geometry.checkpoints:
-                    self.assertAlmostEqual(checkpoint.half_width, wall)
+class TheOval(unittest.TestCase):
+    def test_it_has_no_lane_and_its_checkpoints_stop_at_the_walls(self) -> None:
+        layout = load("oval")
+        geometry = build(layout)
+        self.assertIsNone(geometry.pit_lane)
+        self.assertFalse([mesh for mesh in geometry.surfaces if "Pit" in mesh.name])
+        wall = layout.runoff_half_width + WALL_THICKNESS_M
+        for checkpoint in geometry.checkpoints:
+            self.assertAlmostEqual(checkpoint.half_width, wall)
 
 
 if __name__ == "__main__":

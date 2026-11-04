@@ -179,7 +179,8 @@ velocity, drift and mini-turbo tier, item slot, the coins it carries,
 spin-out, hop, boost, slipstream, rocket start and stall, and its place in
 the race.
 The sim reports one per kart every tick; a snapshot carries all of it but
-the hop, which only the sim stepping the kart knows; a prediction's kart
+the hop, which only the sim stepping the kart knows, and whether the kart is
+in the pit lane, which is read from where it stands; a prediction's kart
 adopts the snapshot's but for the boost, which it keeps its own. The View, the Instrument panel and
 the bots read it. Not a snapshot, which is the server's message about
 every kart.
@@ -445,7 +446,8 @@ point.
 ### wall
 
 The barrier along each edge of the run-off, the whole way round every
-track: the track limit. A kart can leave the asphalt for the sand but never
+track but for the gaps at a pit lane's fork and merge, whose outer wall takes
+over: the track limit. A kart can leave the asphalt for the sand but never
 the course, so no corner can be cut and no checkpoint skipped. A wall holds
 a kart at the corner that met it, with no bounce (ADR 0022). It stands 6 m
 off the asphalt on Bell Deer and Goldstone and 2 m off it on Monarch (ADR
@@ -628,8 +630,8 @@ item box gold for the item slot, a kart's key colour for its label.
 
 The Instrument panel's reading of the local kart's speed as a gearbox: six
 even bands up to top speed, N while the speed shows as 0 km/h, R while
-reversing, and 6th held on the limiter over top speed. Worked out in the
-client from the kart readout's speed; the sim has no gears (ADR 0031).
+reversing, 6th held on the limiter over top speed, and PIT in the pit lane.
+Worked out in the client from the kart readout's speed; the sim has no gears (ADR 0031).
 
 ### shift lights
 
