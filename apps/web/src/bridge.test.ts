@@ -612,7 +612,7 @@ describe("prediction", () => {
 
   it("stops a rival's worn smoke while the snapshots have it in the air", async () => {
     const bridge = await loadBridge(wasm);
-    const drawn = (airborne: boolean): KartReadout => {
+    const racing = (airborne: boolean) => {
       const prediction = bridge.createPrediction(7n, 0, OVAL, "basic", "off", 3);
       prediction.reconcile({
         tick: 2,
@@ -648,12 +648,15 @@ describe("prediction", () => {
         projectiles: [],
         coinsPresent: [],
       });
-      const [kart] = prediction.interpolatedKartReadouts();
-      if (kart === undefined) throw new Error("no kart drawn");
-      return kart;
+      const [drawn] = prediction.interpolatedKartReadouts();
+      if (drawn === undefined) throw new Error("no kart drawn");
+      return { drawn, predicted: prediction.kartReadout() };
     };
-    expect(dustTell(drawn(false), 30)?.at).toBe("wheels");
-    expect(dustTell(drawn(true), 30)).toBeNull();
+    expect(dustTell(racing(false).drawn, 30)?.at).toBe("wheels");
+    const { drawn, predicted } = racing(true);
+    expect(dustTell(drawn, 30)).toBeNull();
+    // The own kart's hop stays the prediction's, so the hop cue does not sound on another's word.
+    expect(predicted.airborne).toBe(false);
   });
 
   it("draws another kart's boost, and the tier it burns in, from the snapshots", async () => {

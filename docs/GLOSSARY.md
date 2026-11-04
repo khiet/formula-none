@@ -181,9 +181,9 @@ velocity, drift and mini-turbo tier, item slot, the coins it carries,
 spin-out, hop, boost, slipstream, rocket start and stall, and its place in
 the race.
 The sim reports one per kart every tick; a snapshot carries all of it but
-the hop, which only the sim stepping the kart knows, and whether the kart is
-in the pit lane, which is read from where it stands; a prediction's kart
-adopts the snapshot's but for the boost, which it keeps its own. The View, the Instrument panel and
+whether the kart is in the pit lane, which is read from where it stands; a
+prediction's kart adopts the snapshot's but for the boost and the hop, which
+it keeps its own. The View, the Instrument panel and
 the bots read it. Not a snapshot, which is the server's message about
 every kart.
 
