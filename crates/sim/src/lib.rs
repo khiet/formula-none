@@ -2465,8 +2465,8 @@ fn respawn(kart: &mut Kart, track: &Track, physics: &mut Physics) -> [f32; 3] {
 /// Run the kart's stop one tick of `dt`: over the guide it slides onto its
 /// mark, the pit box of its slot, turning to face down the lane; on the
 /// mark it stands, the crew at work, until the rolled time is up. Then it
-/// is let go on green, at rest on new tyres, its stop counted and the race
-/// clock none the wiser: nothing about the mark is a gate.
+/// is let go on green, at rest on new tyres, its stop counted. The mark is
+/// no checkpoint: the lap clock runs on through the stop.
 fn hold_in_pit_box(kart: &mut Kart, track: &Track, physics: &mut Physics, dt: f32) {
     let lane = track
         .pit_lane()

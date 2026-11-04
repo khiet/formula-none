@@ -843,9 +843,9 @@ const _: () = {
     );
     // The limiter slows a kart going forward and never touches its reverse.
     assert!(PIT_LIMIT_M_PER_S < TOP_SPEED_M_PER_S && REVERSE_TOP_SPEED_M_PER_S < PIT_LIMIT_M_PER_S);
-    // The catch leaves the guide a run at the limit onto the mark, the roll's
-    // chances share out all of 1, and a stop's time says its tier: each
-    // tier's times start above where the last tier's end.
+    // The guide covers the catch at no more than twice the limit's speed, the
+    // roll's chances share out all of 1, and a stop's time says its tier:
+    // each tier's times start above where the last tier's end.
     assert!(PIT_BOX_CATCH_M <= PIT_LIMIT_M_PER_S * PIT_BOX_GUIDE_S * 2.0);
     assert!(0.0 < PIT_BOX_GUIDE_S);
     {

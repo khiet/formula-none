@@ -34,7 +34,7 @@ export const PIT_DRAW_RANGE_M = 160;
 export const GREEN_HOLD_S = 3;
 export const CREW_PER_BOX = 6;
 
-/** The mark: a painted outline a kart's size and a bit, on the asphalt. */
+/** The mark: a painted outline round a kart's footprint with this much clearance, in lines this wide, this far off the asphalt. */
 const MARK_CLEARANCE_M = 0.5;
 const MARK_LINE_M = 0.2;
 const MARK_LIFT_M = 0.02;

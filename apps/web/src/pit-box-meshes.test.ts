@@ -16,7 +16,7 @@ import {
 import type { PitBox } from "./track";
 
 const KART: KartSize = { width: 1.2, height: 0.6, length: 2 };
-/** Two boxes 5 m apart along -z, facing -z. */
+/** Two pit boxes 5 m apart along -z, facing -z. */
 const BOXES: readonly PitBox[] = [
   { position: [10, 0, -40], yaw: 0 },
   { position: [10, 0, -45], yaw: 0 },
@@ -43,7 +43,7 @@ function instanced(pits: PitBoxMeshes, name: string): InstancedMesh {
   return found;
 }
 
-/** Where each of box `slot`'s crew stands in the world, or null for one drawn at no size. */
+/** Where each of pit box `slot`'s crew stands in the world, or null for one drawn at no size. */
 function crewAt(pits: PitBoxMeshes, slot: number): (Vector3 | null)[] {
   const bodies = instanced(pits, "crewBodies");
   const matrix = new Matrix4();
@@ -141,7 +141,7 @@ describe("the pit boxes", () => {
     const [front, rear] = working.slice(4);
     expect(front?.z).toBeLessThan(-40 - KART.length / 2);
     expect(rear?.z).toBeGreaterThan(-40 + KART.length / 2);
-    // The other box's crew waits on.
+    // The other pit box's crew waits on.
     for (const member of crewAt(pits, 1)) {
       expect(member?.x).toBeGreaterThan(10 + KART.width);
     }

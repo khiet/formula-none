@@ -234,9 +234,10 @@ impl PitLane {
         if lane.entry_m >= lane.exit_m {
             return Err("a pit lane's entry line must come before its exit line".into());
         }
-        // A kart is taken onto its mark from the lane's road, so a respawn
-        // from the mark knows where it stands. A box outside the lines is
-        // never reached: the catch happens only where the limiter holds.
+        // The mark must read as the lane's road: the catch is measured along
+        // the path to it, and a kart on it is still on the lane's safe
+        // ground. A pit box outside the lines is never reached, since the
+        // catch happens only where the limiter holds.
         for pit_box in &sidecar.pit_boxes {
             let metres = lane
                 .reading(pit_box.position)
