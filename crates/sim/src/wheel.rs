@@ -9,6 +9,7 @@
 //! wall, and leaves through the far wall. Each leg ends at a point drawn
 //! from the seed within `WHEEL_LANDING_SPREAD_M` of the crossing's line.
 
+use crate::hash;
 use crate::track::WheelCrossing;
 use crate::tuning::{
     WHEEL_BOUNCES, WHEEL_FIRST_PASS_S, WHEEL_LANDING_SPREAD_M, WHEEL_PERIOD_S, WHEEL_RADIUS_M,
@@ -231,16 +232,7 @@ pub(crate) fn pass_not_over(crossing: &WheelCrossing, seed: u64, elapsed_s: f32)
     }
 }
 
-/// A number in [0, 1) that only `seed`, `pass` and `leg` decide: an
-/// integer hash, so it is the same natively and in wasm and draws nothing
-/// from the race's item generator.
+/// A number in [0, 1) that only `seed`, `pass` and `leg` decide.
 fn unit(seed: u64, pass: u32, leg: u32) -> f32 {
-    let mut hash =
-        seed ^ (u64::from(pass) << 32 | u64::from(leg)).wrapping_mul(0x9E37_79B9_7F4A_7C15);
-    // The SplitMix64 finaliser.
-    hash = (hash ^ (hash >> 30)).wrapping_mul(0xBF58_476D_1CE4_E5B9);
-    hash = (hash ^ (hash >> 27)).wrapping_mul(0x94D0_49BB_1331_11EB);
-    hash ^= hash >> 31;
-    // The top 24 bits, which an f32 holds exactly.
-    (hash >> 40) as f32 / (1u32 << 24) as f32
+    hash::unit(seed, u64::from(pass) << 32 | u64::from(leg))
 }

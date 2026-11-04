@@ -175,6 +175,8 @@ export interface ViewTuning {
   readonly slipstreamChargeSeconds: number;
   /** A percentage of tyre life: below it a kart's tyre marks darken and its tyres smoke. */
   readonly tyreLifeCliff: number;
+  /** The longest a clean stop lasts: past it a pit crew acts the roll out. */
+  readonly cleanStopSeconds: number;
 }
 
 /**
@@ -359,7 +361,7 @@ export async function createRaceView(
 
   const drawnCoins = coinMeshes(coins);
   world.add(drawnCoins.mesh);
-  const pits = pitBoxMeshes(pitBoxes, kartSize);
+  const pits = pitBoxMeshes(pitBoxes, kartSize, { cleanStopSeconds: tuning.cleanStopSeconds });
   world.add(pits.mesh);
   const spray = coinSpray();
   world.add(spray.mesh);

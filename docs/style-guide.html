@@ -658,7 +658,7 @@
         <div class="notes">
           <p>The run-off turns to <code>asphalt</code> <code>#6b6b78</code> at the fork: the lane's two edges start on the run-off's and sweep out behind the wall, so the fork is seen from the road with no gate to mark it. The right wall opens for the fork and the merge. Between them it stands on as the pit wall, and a matching <code>wall</code> <code>#f0f0f0</code> rail runs round the lane's far side, 1 m clear of the pit building. The lane's surface stands a hair over the sand and grass, flush with the road's edge.</p>
           <p>The entry line and exit line are <code>kerb-white</code> <code>#f5f5f5</code> bars across the lane. The pit limiter holds from one to the other, and the Instrument panel's gear slot reads PIT between them.</p>
-          <p class="dont"><b>Don't</b> paint a lane where the sim has none: the path, lines and pit boxes in the sidecar are what the rules read; the boxes are drawn at them, the next entry.</p>
+          <p class="dont"><b>Don't</b> paint a lane where the sim has none: the path, lines and pit boxes in the sidecar are what the rules read; the pit boxes are drawn at them, the next entry.</p>
         </div>
       </article>
 
@@ -668,8 +668,8 @@
         <dl class="spec"><dt>Size</dt><dd>A mark 0.5 m clear of the kart's box all round in 0.2 m lines; a 2.2 m gantry; six crew 1 m tall; drawn within 160 m of the camera</dd><dt>Decided</dt><dd><a href="adr/0081-a-pit-lane-to-drive-with-an-automatic-limiter.md">ADR 0081</a>, <a href="adr/0082-the-stop-is-rolled-from-the-seed.md">ADR 0082</a></dd></dl>
         <div class="notes">
           <p>Each slot's pit box is where the sidecar puts it, 1.75 m onto the apron, facing down the lane: its mark painted in the slot's key colour, <code>crowd-0</code> to <code>crowd-7</code> like the garage door behind it, a <code>carbon</code> <code>#2b2e33</code> gantry at the mark's front right corner with two lamps, and six chibi crew in overalls of the same key under white helmets, flat-shaded and instanced across the eight boxes. Idle, the crew waits in a row 2.6 m to the right of the mark, bobbing. While the slot's kart stands on its mark four gunners kneel at its wheels and judder, and a jack stands off each end. The light reads <code>POSTER_RED</code> <code>#e8333b</code> through the stop and <code>GO_GREEN</code> <code>#6fe8a6</code> for 3 s as the kart is let go, both unlit so they glow, and dark otherwise.</p>
-          <p>Everything reads the kart readout's stop: the sim rolls it and guides the kart, and nothing drawn here enters the sim. The crews are drawn only while the camera is within 160 m of a box, so a race round the rest of the course never draws forty-eight figures nobody can see.</p>
-          <p class="dont"><b>Don't</b> animate the crew to the roll's tier: a botched stop looks like a long clean one, since the panel's colour says what happened and the crew never sees the roll. Don't draw a kart in a box the sim has not put there.</p>
+          <p>Everything reads the kart readout's stop: the sim rolls it and guides the kart, and nothing drawn here enters the sim. Once a clean stop's 3 s are up the crew acts the roll out, as the mockup has it: on a slow stop one gunner stays at the rear left wheel and the rest go back to the row; on a botched stop all four swarm that wheel; on a disaster the gunners go back and the jacks stand off, the kart waiting. The crews are drawn only while the camera is within 160 m of a pit box, so a race round the rest of the course never draws forty-eight figures nobody can see.</p>
+          <p class="dont"><b>Don't</b> draw a kart in a pit box the sim has not put there, and don't let the crew's act hurry or hold the kart: the panel's clock and the light are the sim's word on green.</p>
         </div>
       </article>
 

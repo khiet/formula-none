@@ -203,6 +203,7 @@ pub fn snapshot() -> Snapshot {
                     guide_left_s: 0.0,
                     stationary_so_far_s: 1.25,
                 }),
+                stops: u8::from(slot == 4 || slot == 6),
             }
         })
         .collect();

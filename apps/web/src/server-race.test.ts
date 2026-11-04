@@ -248,6 +248,7 @@ const KART: KartSnapshot = {
   starS: null,
   slipstream: null,
   stop: null,
+  stops: 0,
 };
 
 function snapshot(
@@ -369,7 +370,7 @@ describe("createServerRace", () => {
     expect(run.readout().standings[0]?.bestLapS).toBe(40);
   });
 
-  it("counts a kart's stops as the snapshots show each end, until the results say for sure", () => {
+  it("reads a kart's stops from the snapshots and its best stop from each end it sees, until the results say for sure", () => {
     const client = fakeClient();
     const run = createServerRace(bridge, client, COUNTDOWN, 0, "{}");
     prediction().clock = { kind: "racing", elapsedSeconds: 50, capLeftSeconds: null };
@@ -377,11 +378,11 @@ describe("createServerRace", () => {
     client.snapshot(snapshot(3000, [{}, { stop }]));
     expect(run.readout().standings[1]).toMatchObject({ stops: 0, bestStopS: null });
     client.snapshot(snapshot(3002, [{}, { stop: { ...stop, stationarySoFarS: 2 } }]));
-    client.snapshot(snapshot(3004, [{}, { stop: null }]));
+    client.snapshot(snapshot(3004, [{}, { stop: null, stops: 1 }]));
     expect(run.readout().standings[1]).toMatchObject({ stops: 1, bestStopS: 2.7 });
     expect(run.readout().standings[0]).toMatchObject({ stops: 0, bestStopS: null });
-    client.snapshot(snapshot(3006, [{}, { stop: { ...stop, stationaryS: 2.1 } }]));
-    client.snapshot(snapshot(3008, [{}, { stop: null }]));
+    client.snapshot(snapshot(3006, [{}, { stop: { ...stop, stationaryS: 2.1 }, stops: 1 }]));
+    client.snapshot(snapshot(3008, [{}, { stop: null, stops: 2 }]));
     expect(run.readout().standings[1]).toMatchObject({ stops: 2, bestStopS: 2.1 });
   });
 

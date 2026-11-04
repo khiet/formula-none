@@ -511,6 +511,7 @@
         0,
         0,
         0,
+        0,
         160,
         65,
         154,
@@ -584,6 +585,7 @@
         0,
         0,
         0,
+        0,
         220,
         65,
         154,
@@ -651,6 +653,7 @@
         204,
         204,
         62,
+        0,
         0,
         0,
         0,
@@ -738,6 +741,7 @@
         0,
         0,
         0,
+        0,
         42,
         66,
         154,
@@ -818,6 +822,7 @@
         0,
         160,
         63,
+        1,
         0,
         0,
         72,
@@ -892,6 +897,7 @@
         0,
         0,
         0,
+        0,
         102,
         66,
         154,
@@ -962,6 +968,7 @@
         0,
         0,
         0,
+        1,
         0,
         0,
         130,
@@ -1026,6 +1033,7 @@
         153,
         153,
         63,
+        0,
         0,
         0,
         0,
@@ -1313,6 +1321,7 @@
               "starS": null,
               "start": "clean",
               "stop": null,
+              "stops": 0,
               "tyreLife": 100.0,
               "velocity": [
                 21.0,
@@ -1355,6 +1364,7 @@
               "starS": null,
               "start": "weakBoost",
               "stop": null,
+              "stops": 0,
               "tyreLife": 87.5,
               "velocity": [
                 21.0,
@@ -1398,6 +1408,7 @@
               "starS": null,
               "start": "fullBoost",
               "stop": null,
+              "stops": 0,
               "tyreLife": 75.0,
               "velocity": [
                 21.0,
@@ -1443,6 +1454,7 @@
               "starS": null,
               "start": "stall",
               "stop": null,
+              "stops": 0,
               "tyreLife": 62.5,
               "velocity": [
                 21.0,
@@ -1488,6 +1500,7 @@
                 "stationarySoFarS": 1.25,
                 "tier": "slow"
               },
+              "stops": 1,
               "tyreLife": 50.0,
               "velocity": [
                 21.0,
@@ -1526,6 +1539,7 @@
               "starS": 4.5,
               "start": "weakBoost",
               "stop": null,
+              "stops": 0,
               "tyreLife": 37.5,
               "velocity": [
                 21.0,
@@ -1566,6 +1580,7 @@
               "starS": null,
               "start": "fullBoost",
               "stop": null,
+              "stops": 1,
               "tyreLife": 25.0,
               "velocity": [
                 21.0,
@@ -1603,6 +1618,7 @@
               "starS": null,
               "start": "stall",
               "stop": null,
+              "stops": 0,
               "tyreLife": 12.5,
               "velocity": [
                 21.0,

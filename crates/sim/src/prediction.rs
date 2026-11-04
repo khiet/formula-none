@@ -509,7 +509,7 @@ fn slot_agrees(ours: ItemSlot, theirs: ItemSlot) -> bool {
 /// Whether the snapshot puts the kart where the record does, to the tuned
 /// tolerance: its position, its nose, the tick of travel its velocity and
 /// its bump make, its drift, its item, its coins, its tyre life, its spin-out, its stall,
-/// its star's run, its stop, its place in the lap and, once `racing`, its rocket
+/// its star's run, its stop and its stops so far, its place in the lap and, once `racing`, its rocket
 /// start's verdict; during the countdown the start is not compared, since
 /// a kart adopts it only from Go.
 fn agrees(record: &KartRecord, kart: &KartReadout, racing: bool) -> bool {
@@ -543,6 +543,7 @@ fn agrees(record: &KartRecord, kart: &KartReadout, racing: bool) -> bool {
         && (record.kart.stall_left_s.max(0.0) - kart.stall_s.unwrap_or(0.0)).abs() < TICK_S / 2.0
         && (record.kart.star_left_s.max(0.0) - kart.star_s.unwrap_or(0.0)).abs() < TICK_S / 2.0
         && stop_agrees(record.kart.stop, kart.stop)
+        && record.kart.stops == kart.stops
         && slipstream_agrees(record.kart.handling.slipstream(), kart.slipstream)
         && (!racing || record.kart.start == kart.start)
         && record.kart.lap() == kart.lap

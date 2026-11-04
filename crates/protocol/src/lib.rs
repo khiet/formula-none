@@ -362,6 +362,9 @@ pub struct KartSnapshot {
     /// client's prediction rolls its own from the seed and takes the
     /// server's word on a rewind.
     pub stop: Option<StopSnapshot>,
+    /// Stops the kart has made, which seed its next roll; a client's
+    /// prediction takes the count from here.
+    pub stops: u8,
 }
 
 /// A stop in a pit box under way: the roll and its two clocks.

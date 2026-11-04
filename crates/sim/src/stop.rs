@@ -8,6 +8,7 @@
 use serde::Serialize;
 use ts_rs::TS;
 
+use crate::hash;
 use crate::tuning::{STOP_ROLL_CHANCES, STOP_ROLL_STATIONARY_S};
 
 /// How a stop went, in the order of the roll's table: what its time says
@@ -91,17 +92,11 @@ pub fn stop_roll(seed: u64, slot: usize, stops: u32) -> (StopTier, f32) {
 }
 
 /// A number in [0, 1) that only `seed`, `slot`, `stops` and `draw` decide:
-/// an integer hash, so it is the same natively and in wasm and draws
-/// nothing from the race's item generator. The runaway wheel's, salted so
-/// a stop never repeats a landing.
+/// the runaway wheel's hash, salted so a stop never repeats a landing.
 fn unit(seed: u64, slot: usize, stops: u32, draw: u32) -> f32 {
     const STOP_SALT: u64 = 0x5354_4f50_0000_0000;
-    let mixed = (slot as u64) << 48 | u64::from(stops) << 16 | u64::from(draw);
-    let mut hash = seed ^ STOP_SALT ^ mixed.wrapping_mul(0x9E37_79B9_7F4A_7C15);
-    // The SplitMix64 finaliser.
-    hash = (hash ^ (hash >> 30)).wrapping_mul(0xBF58_476D_1CE4_E5B9);
-    hash = (hash ^ (hash >> 27)).wrapping_mul(0x94D0_49BB_1331_11EB);
-    hash ^= hash >> 31;
-    // The top 24 bits, which an f32 holds exactly.
-    (hash >> 40) as f32 / (1u32 << 24) as f32
+    hash::unit(
+        seed ^ STOP_SALT,
+        (slot as u64) << 48 | u64::from(stops) << 16 | u64::from(draw),
+    )
 }

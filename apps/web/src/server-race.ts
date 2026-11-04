@@ -112,8 +112,7 @@ export function createServerRace(
   const boxTicksLeft: number[] = Array<number>(boxes.length).fill(0);
   const blasts = blastLedger(bridge.ticksPerSecond);
 
-  /** Each kart's stops seen to end between snapshots, and the shortest; the results say for sure. */
-  const stopsSeen: number[] = Array<number>(kartCount).fill(0);
+  /** The shortest stop each kart was seen to end between snapshots; the results say for sure. */
   const bestStopSeen: (number | null)[] = Array<number | null>(kartCount).fill(null);
   const stopSnapshots = client.onSnapshot((snapshot) => {
     // A stop lasts seconds, so one that was under way in the last snapshot
@@ -121,7 +120,6 @@ export function createServerRace(
     snapshot.karts.forEach((kart, slot) => {
       const before = latest?.karts[slot]?.stop ?? null;
       if (before !== null && kart.stop === null) {
-        stopsSeen[slot] = (stopsSeen[slot] ?? 0) + 1;
         const best = bestStopSeen[slot];
         bestStopSeen[slot] =
           best === null || best === undefined
@@ -221,7 +219,7 @@ export function createServerRace(
         bestLapS: final?.bestLapS ?? (laps.length === 0 ? null : Math.min(...laps)),
         wrongWay: snapshot?.wrongWay ?? false,
         finishTimeS: finishTime,
-        stops: final?.stops ?? stopsSeen[kart] ?? 0,
+        stops: final?.stops ?? snapshot?.stops ?? 0,
         bestStopS: final?.bestStopS ?? bestStopSeen[kart] ?? null,
       };
     });

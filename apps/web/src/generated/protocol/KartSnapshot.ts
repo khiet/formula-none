@@ -85,4 +85,9 @@ slipstream: SlipstreamSnapshot | null,
  * client's prediction rolls its own from the seed and takes the
  * server's word on a rewind.
  */
-stop: StopSnapshot | null, };
+stop: StopSnapshot | null, 
+/**
+ * Stops the kart has made, which seed its next roll; a client's
+ * prediction takes the count from here.
+ */
+stops: number, };

@@ -42,3 +42,16 @@ impl Hasher for Fnv1a {
         }
     }
 }
+
+/// A number in [0, 1) that only `seed` and `mixed` decide: an integer hash,
+/// so it is the same natively and in wasm and draws nothing from the race's
+/// item generator. `mixed` packs whatever else picks the draw.
+pub(crate) fn unit(seed: u64, mixed: u64) -> f32 {
+    let mut hash = seed ^ mixed.wrapping_mul(0x9E37_79B9_7F4A_7C15);
+    // The SplitMix64 finaliser.
+    hash = (hash ^ (hash >> 30)).wrapping_mul(0xBF58_476D_1CE4_E5B9);
+    hash = (hash ^ (hash >> 27)).wrapping_mul(0x94D0_49BB_1331_11EB);
+    hash ^= hash >> 31;
+    // The top 24 bits, which an f32 holds exactly.
+    (hash >> 40) as f32 / (1u32 << 24) as f32
+}

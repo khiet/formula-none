@@ -1012,15 +1012,8 @@ fn the_snapshots_slipstream_is_adopted_and_the_tow_runs_down_between_snapshots_w
     );
 }
 
-/// Full throttle down a lane's path from where the kart is drawn, aiming
-/// `look_ahead_m` on.
-fn down_the_pit_lane(prediction: &Prediction, look_ahead_m: f32) -> KartInput {
-    let lane = prediction.track().pit_lane().expect("a lane");
-    let kart = prediction.kart_readout();
-    let aim = lane
-        .reading(kart.position)
-        .map_or(0.0, |metres| metres + look_ahead_m);
-    let [x, _, z] = lane.point_at(aim);
+/// Full throttle toward the point `x`, `z` from where `kart` is drawn.
+fn steer_at(kart: &KartReadout, [x, z]: [f32; 2]) -> KartInput {
     let [qx, qy, qz, qw] = kart.rotation;
     let yaw = (2.0 * (qw * qy + qx * qz)).atan2(1.0 - 2.0 * (qy * qy + qz * qz));
     let (dx, dz) = (x - kart.position[0], z - kart.position[2]);
@@ -1034,23 +1027,30 @@ fn down_the_pit_lane(prediction: &Prediction, look_ahead_m: f32) -> KartInput {
     }
 }
 
+/// Full throttle down a lane's path from where the kart is drawn, aiming
+/// `look_ahead_m` on.
+fn down_the_pit_lane(prediction: &Prediction, look_ahead_m: f32) -> KartInput {
+    let lane = prediction.track().pit_lane().expect("a lane");
+    let kart = prediction.kart_readout();
+    let aim = lane
+        .reading(kart.position)
+        .map_or(0.0, |metres| metres + look_ahead_m);
+    let [x, _, z] = lane.point_at(aim);
+    steer_at(&kart, [x, z])
+}
+
 #[test]
 fn the_prediction_and_the_server_agree_on_the_tick_of_green_with_no_correction() {
-    use common::{without_item_boxes, without_wheel_crossings, BELL_DEER};
+    use common::{quiet_bell_deer, with_slot_on_lane};
     use sim::tuning::{PIT_BOX_CATCH_M, PIT_BOX_GUIDE_S};
     use sim::{stop_roll, Tyres};
     // The own kart starts on Bell Deer's lane short of its pit box's catch,
     // on Tyres On, and drives down the lane: the stop is rolled from the
     // seed on both sides, so the server's snapshots say what the
     // prediction already has.
-    let base = without_item_boxes(&without_wheel_crossings(BELL_DEER));
-    let course = track(&base);
-    let lane = course.pit_lane().expect("a lane");
-    let start_m = lane.pit_box_m(0) - PIT_BOX_CATCH_M - 20.0;
-    let at = lane.point_at(start_m);
-    let ahead = lane.point_at(start_m + 1.0);
-    let yaw = f32::atan2(at[0] - ahead[0], at[2] - ahead[2]);
-    let sidecar = with_slot_at(&base, 0, at, yaw);
+    let base = quiet_bell_deer();
+    let lane = track(&base).pit_lane().expect("a lane").clone();
+    let sidecar = with_slot_on_lane(&base, 0, lane.pit_box_m(0) - PIT_BOX_CATCH_M - 20.0);
     let server = State::with_tyres(SEED, 1, 0, track(&sidecar), BotLevel::Basic, Tyres::On);
     let (_, stationary_s) = stop_roll(SEED, 0, 0);
     let ticks = seconds(sim::tuning::COUNTDOWN_S + 4.0 + PIT_BOX_GUIDE_S + stationary_s);
@@ -1121,17 +1121,7 @@ fn the_prediction_passes_through_a_kart_on_its_mark_as_the_server_does_without_a
         if past {
             down_the_pit_lane(prediction, 8.0)
         } else {
-            let [qx, qy, qz, qw] = kart.rotation;
-            let yaw = (2.0 * (qw * qy + qx * qz)).atan2(1.0 - 2.0 * (qy * qy + qz * qz));
-            let (dx, dz) = (mark[0] - kart.position[0], mark[2] - kart.position[2]);
-            let distance = (dx * dx + dz * dz).sqrt().max(0.001);
-            let (sin, cos) = yaw.sin_cos();
-            let rightward = (dx * cos - dz * sin) / distance;
-            KartInput {
-                steer: (rightward * 4.0).clamp(-1.0, 1.0),
-                throttle: 1.0,
-                ..KartInput::default()
-            }
+            steer_at(&kart, [mark[0], mark[2]])
         }
     };
     // The other kart holds the throttle: the catch is a crossing, so a kart
@@ -1176,5 +1166,51 @@ fn the_prediction_passes_through_a_kart_on_its_mark_as_the_server_does_without_a
         lane.reading(own.position)
             .is_some_and(|metres| metres > lane.pit_box_m(1) + 5.0),
         "carried on down the lane"
+    );
+}
+
+#[test]
+fn a_prediction_that_joins_after_a_stop_takes_the_count_and_rolls_the_next_stop_as_the_server_does()
+{
+    use common::{quiet_bell_deer, with_slot_on_lane};
+    use sim::tuning::PIT_BOX_CATCH_M;
+    use sim::{stop_roll, Tyres};
+    // A snapshot from the grid says the kart has stopped once already, as a
+    // rejoin mid-race would: the next stop is the kart's second.
+    let base = quiet_bell_deer();
+    let lane = track(&base).pit_lane().expect("a lane").clone();
+    let sidecar = with_slot_on_lane(&base, 0, lane.pit_box_m(0) - PIT_BOX_CATCH_M - 20.0);
+    let course = track(&sidecar);
+    let mut prediction =
+        Prediction::with_tyres(SEED, 0, course.clone(), BotLevel::Basic, Tyres::On);
+    for sequence in 1..=10 {
+        prediction.tick(sequence, KartInput::default(), &[]);
+    }
+    let mut grid =
+        State::with_tyres(SEED, 1, 0, course, BotLevel::Basic, Tyres::On).kart_readouts()[0];
+    grid.stops = 1;
+    prediction.reconcile(10, 4, &grid);
+    assert_eq!(
+        prediction.kart_readout().stops,
+        1,
+        "the count is the snapshot's"
+    );
+
+    let mut sequence = 10;
+    let stop = loop {
+        sequence += 1;
+        assert!(sequence < 2000, "the kart never reached its pit box");
+        let input = down_the_pit_lane(&prediction, 8.0);
+        prediction.tick(sequence, input, &[]);
+        if let Some(stop) = prediction.kart_readout().stop {
+            break stop;
+        }
+    };
+    let (tier, stationary_s) = stop_roll(SEED, 0, 1);
+    assert_eq!((stop.tier, stop.stationary_s), (tier, stationary_s));
+    assert_ne!(
+        stop_roll(SEED, 0, 0),
+        (tier, stationary_s),
+        "the second stop rolls apart from the first"
     );
 }

@@ -231,6 +231,7 @@ impl From<&KartReadout> for KartSnapshot {
             star_s: kart.star_s,
             slipstream: kart.slipstream.map(SlipstreamSnapshot::from),
             stop: kart.stop.map(StopSnapshot::from),
+            stops: kart.stops as u8,
         }
     }
 }
@@ -253,6 +254,7 @@ impl From<&KartSnapshot> for KartReadout {
             airborne: false,
             in_pit_lane: false,
             stop: kart.stop.map(sim::Stop::from),
+            stops: u32::from(kart.stops),
             boost_s: kart.boost.map(|boost| boost.left_s),
             boost_tier: kart
                 .boost

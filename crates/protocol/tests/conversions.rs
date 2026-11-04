@@ -42,6 +42,7 @@ fn busy_kart() -> KartReadout {
             guide_left_s: 0.0,
             stationary_so_far_s: 2.25,
         }),
+        stops: 2,
         boost_s: Some(0.2),
         boost_tier: MiniTurbo::Orange,
         start: Start::WeakBoost,

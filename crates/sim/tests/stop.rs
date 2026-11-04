@@ -1,7 +1,7 @@
 //! The stop in a pit box (ADR 0082), through `step` and `stop_roll`: a kart
 //! on Tyres On that reaches its pit box is taken onto its mark, held there
 //! for the time the seed rolls, dead to its controls and out of everyone's
-//! way, and let go on green on new tyres; on Tyres Off the boxes do nothing.
+//! way, and let go on green on new tyres; on Tyres Off the pit boxes do nothing.
 
 mod common;
 
@@ -183,7 +183,7 @@ fn green_hands_the_controls_back_and_the_stop_is_counted_in_the_standings() {
 }
 
 #[test]
-fn on_tyres_off_the_boxes_do_nothing() {
+fn on_tyres_off_the_pit_boxes_do_nothing() {
     let sidecar = with_slot_on_lane(&quiet_bell_deer(), 0, START_M);
     let course = track(&sidecar);
     let lane = course.pit_lane().expect("a lane");
@@ -248,7 +248,7 @@ fn ten_thousand_seeds_roll_the_chance_table_within_its_tiers_times() {
 
 #[test]
 fn the_item_rolls_are_unchanged_by_a_stop() {
-    // A box on the lane past the pit box: the kart that stops reaches it
+    // An item box on the lane past the pit box: the kart that stops reaches it
     // seconds after the kart that drives through, on the same seed.
     let boxed = |tyres: Tyres| {
         let sidecar = with_slot_on_lane(&quiet_bell_deer(), 0, START_M);
@@ -272,7 +272,7 @@ fn the_item_rolls_are_unchanged_by_a_stop() {
                 return (stopped, item);
             }
         }
-        panic!("the kart never reached the box");
+        panic!("the kart never reached the item box");
     };
     let (stopped, after_a_stop): (bool, Item) = boxed(Tyres::On);
     let (drove_through, without_one): (bool, Item) = boxed(Tyres::Off);

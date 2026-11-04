@@ -79,6 +79,12 @@ inPitLane: boolean,
  */
 stop: Stop | null, 
 /**
+ * Stops the kart has made, each ended on green, which seeds its next
+ * roll (ADR 0082). A snapshot carries it so a prediction that joined
+ * after a stop rolls the next one as the server does.
+ */
+stops: number, 
+/**
  * Seconds of boost left, while a mini-turbo, boost pad, item or start
  * boost holds the kart over top speed; the release's tell.
  */

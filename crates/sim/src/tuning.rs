@@ -489,15 +489,16 @@ pub const TYRE_WEAR_KERB_PERCENT: f32 = 1.0;
 /// (ADR 0081).
 pub const PIT_LIMIT_M_PER_S: f32 = 15.0;
 /// A kart in the lane on Tyres On is taken onto its mark as it comes within
-/// this many metres of its pit box along the lane, and guided onto it over
-/// this long, dead to its controls and touching nothing (ADR 0081).
+/// this many metres of its pit box along the lane (ADR 0081).
 pub const PIT_BOX_CATCH_M: f32 = 7.5;
+/// How long the guide onto the mark takes, the kart dead to its controls
+/// and touching nothing.
 pub const PIT_BOX_GUIDE_S: f32 = 0.5;
-/// The stop's roll (ADR 0082), one entry per [`crate::StopTier`] in tier
-/// order: the tier's chance as a share of 1, and the stationary time it
-/// draws, from the first second to the last. Judgement, not measured; the
-/// chances sum to 1 and each tier's times sit above the last tier's.
+/// The stop's roll (ADR 0082): each [`crate::StopTier`]'s chance as a share
+/// of 1, in tier order. Judgement, not measured; they sum to 1.
 pub const STOP_ROLL_CHANCES: [f32; 5] = [0.05, 0.65, 0.20, 0.08, 0.02];
+/// The stationary time each tier draws, from the first second to the last,
+/// in tier order; each tier's times sit above the last tier's.
 pub const STOP_ROLL_STATIONARY_S: [[f32; 2]; 5] =
     [[1.9, 2.2], [2.3, 3.0], [3.1, 4.5], [5.0, 7.0], [9.0, 12.0]];
 /// A coin is collected by a kart whose centre is within this much of its
@@ -998,6 +999,8 @@ pub struct Tuning {
     pub tyre_life_new_percent: f32,
     /// The life from which a kart shows wear and the BOX call can sound.
     pub tyre_life_cliff_percent: f32,
+    /// The longest a clean stop lasts: past it the crew shows what went wrong (ADR 0082).
+    pub stop_clean_s: f32,
     pub coins_lost_per_spin_out: u32,
     pub coin_half_length_m: f32,
     pub coin_half_width_m: f32,
@@ -1049,6 +1052,7 @@ pub const TUNING: Tuning = Tuning {
     coin_cap: COIN_CAP,
     tyre_life_new_percent: TYRE_LIFE_NEW_PERCENT,
     tyre_life_cliff_percent: TYRE_LIFE_CLIFF_PERCENT,
+    stop_clean_s: STOP_ROLL_STATIONARY_S[1][1],
     coins_lost_per_spin_out: COINS_LOST_PER_SPIN_OUT,
     coin_half_length_m: COIN_HALF_LENGTH_M,
     coin_half_width_m: COIN_HALF_WIDTH_M,

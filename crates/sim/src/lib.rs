@@ -137,6 +137,10 @@ pub struct KartReadout {
     /// nothing, until green. The crew's, the light's and the stop timer's
     /// tell; a snapshot carries it and a prediction's kart adopts it.
     pub stop: Option<Stop>,
+    /// Stops the kart has made, each ended on green, which seeds its next
+    /// roll (ADR 0082). A snapshot carries it so a prediction that joined
+    /// after a stop rolls the next one as the server does.
+    pub stops: u32,
     /// Seconds of boost left, while a mini-turbo, boost pad, item or start
     /// boost holds the kart over top speed; the release's tell.
     pub boost_s: Option<f32>,
@@ -791,6 +795,7 @@ impl Kart {
             airborne: self.handling.airborne(),
             in_pit_lane: track.in_pit_lane(body.translation().to_array()),
             stop: self.stop,
+            stops: self.stops,
             boost_s: self.handling.boost_s(),
             boost_tier: self.handling.boost_tier(),
             slipstream: self.handling.slipstream(),
@@ -834,6 +839,7 @@ impl Kart {
         }
         self.spin_out_left_s = readout.spin_out_s.unwrap_or(0.0);
         self.stop = readout.stop;
+        self.stops = readout.stops;
         self.star_left_s = readout.star_s.unwrap_or(0.0);
         if let Phase::Racing { elapsed_s, .. } = clock {
             if self.start != readout.start {
@@ -1902,7 +1908,7 @@ pub fn step(mut state: State, inputs: &[KartInput], dt: f32) -> State {
         let on_pit_lane = state.track.pit_lane().and_then(|lane| lane.reading(after));
         // A kart on Tyres On that comes within the catch of its pit box along
         // the lane, between the lines, is taken in for a stop (ADR 0082); on
-        // Tyres Off the boxes do nothing. Read as a crossing of the catch, so
+        // Tyres Off the pit boxes do nothing. Read as a crossing of the catch, so
         // a kart let go on green, standing past it, is not taken in again.
         if let (Some(last_m), Some(now_m), Some(lane)) =
             (kart.pit_lane_m, on_pit_lane, state.track.pit_lane())

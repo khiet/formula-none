@@ -347,7 +347,7 @@ pub fn rolling(
     unreachable!()
 }
 
-/// Bell Deer with nothing on it but the lane: no boxes to roll and no wheel to dodge.
+/// Bell Deer with nothing on it but the lane: no item boxes to roll and no wheel to dodge.
 pub fn quiet_bell_deer() -> String {
     without_item_boxes(&without_wheel_crossings(BELL_DEER))
 }
