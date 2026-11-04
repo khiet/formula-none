@@ -384,7 +384,10 @@ pub fn drive(
     // Held back for a wheel is not stalled, but only setting off clears the
     // stall: a kart jammed against a wall jitters in and out of waiting, and
     // each wait clearing it would hold the kart there until the pass is over.
-    if memory.reversing_s <= 0.0 && kart.speed.abs() < BOT_STALL_SPEED_M_PER_S {
+    // Standing on the grid before Go is no stall, or a bot could back off the
+    // line as the lights go out.
+    let racing = matches!(clock, Phase::Racing { .. });
+    if racing && memory.reversing_s <= 0.0 && kart.speed.abs() < BOT_STALL_SPEED_M_PER_S {
         if !waiting {
             memory.stalled_s += dt;
         }
