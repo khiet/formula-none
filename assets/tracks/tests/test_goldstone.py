@@ -109,7 +109,7 @@ class WhitePits(unittest.TestCase):
         return along, left, v[2] - self.ground
 
     def test_it_stands_outside_the_hamilton_straight_longer_than_bell_deers(self) -> None:
-        self.assertEqual(self.prop.at.s, 0.0)
+        self.assertLess(self.prop.at.s + self.prop.length / 2.0, self.layout.path.segment("abbey").s_mid)
         self.assertGreater(self.prop.at.offset, self.layout.runoff_half_width, "left of the track, on the outside")
         (bell_deer,) = [p for p in load("bell-deer").decor.props if p.kind == "pits"]
         self.assertGreater(self.prop.length, bell_deer.length)

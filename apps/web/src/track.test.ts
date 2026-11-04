@@ -85,11 +85,26 @@ describe("reading a sidecar's pit lane", () => {
       [3, 0, 4],
     ];
     const pit_boxes = [{ position: [2, 0, 3], yaw: 0.5 }];
-    expect(pitLaneOf(JSON.stringify({ pit_lane: { path, pit_boxes } }))).toEqual({
-      path,
-      pitBoxes: pit_boxes,
-    });
+    expect(pitLaneOf(JSON.stringify({ pit_lane: { path, pit_boxes } }))?.path).toEqual(path);
+    expect(
+      pitLaneOf(JSON.stringify({ pit_lane: { path, pit_boxes } }))?.pitBoxes.map(
+        ({ position, yaw }) => ({ position, yaw }),
+      ),
+    ).toEqual(pit_boxes);
     expect(pitLaneOf(JSON.stringify({ centreline: [] }))).toBeUndefined();
+  });
+
+  it("has the crew on the pit building's side of each lane, whichever side of the road it runs", () => {
+    const sidecar = (name: string) =>
+      readFileSync(
+        new URL(`../../../assets/tracks/${name}/${name}.track.json`, import.meta.url),
+        "utf8",
+      );
+    const sides = (name: string) =>
+      new Set(pitLaneOf(sidecar(name))?.pitBoxes.map((box) => box.buildingSide));
+    expect(sides("bell-deer")).toEqual(new Set([1]));
+    expect(sides("goldstone")).toEqual(new Set([-1]));
+    expect(sides("monarch")).toEqual(new Set([-1]));
   });
 
   it("finds Bell Deer's lane and none on the oval in the sidecars the sim reads", () => {
@@ -198,20 +213,20 @@ describe("the laps pick", () => {
 });
 
 describe("the Tyres pick", () => {
-  it("is Off until saved, then what was saved", () => {
+  it("is On until saved, then what was saved", () => {
     const store = storage();
-    expect(loadTyres(store)).toBe("off");
-    saveTyres(store, "on");
     expect(loadTyres(store)).toBe("on");
+    saveTyres(store, "off");
+    expect(loadTyres(store)).toBe("off");
   });
 
-  it("falls back to Off for a saved pick that is none, and for storage that refuses", () => {
+  it("falls back to On for a saved pick that is none, and for storage that refuses", () => {
     const store = storage();
     store.setItem("tyres", "slick");
-    expect(loadTyres(store)).toBe("off");
+    expect(loadTyres(store)).toBe("on");
     const blocked = storage(true);
-    expect(loadTyres(blocked)).toBe("off");
-    expect(() => saveTyres(blocked, "on")).not.toThrow();
+    expect(loadTyres(blocked)).toBe("on");
+    expect(() => saveTyres(blocked, "off")).not.toThrow();
   });
 
   it("reads ?tyres= for a solo race and ignores anything else", () => {

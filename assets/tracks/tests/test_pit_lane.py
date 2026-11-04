@@ -1,6 +1,6 @@
-"""The pit lane checked without Blender (ADR 0081): Bell Deer's forks off the
-start straight's right, past the pit wall and clear of the pit building and
-the trees, and every checkpoint along it reaches across it. The oval has none.
+"""The pit lanes checked without Blender (ADR 0081): each forks off its start
+straight, past the pit wall and clear of the pit building and the trees, and
+every checkpoint along it reaches across it. The oval has none.
 
     python3 -I -m unittest discover -s assets/tracks/tests -t assets/tracks
 """
@@ -10,19 +10,16 @@ from __future__ import annotations
 import math
 import unittest
 
+from tests.test_props import across_track
 from tests.test_tyre_walls import left_of_centre
 from trackgen.layout import WALL_THICKNESS_M, build
 from trackgen.layouts import load
 from trackgen.pit_lane import LANE_WIDTH_M
-from trackgen.props import PITS_DEPTH_M, trees
+from trackgen.props import PITS_DEPTH_M, PITS_DOOR_FIRST_M, PITS_DOOR_PITCH_M, trees
 
-LANE_LENGTH_M = 140.0
-"""ADR 0081's lane, line to line, which sets the cost of a stop."""
-
-
-def bell_deer():
-    layout = load("bell-deer")
-    return layout, build(layout)
+LANE_LENGTH_M = {"bell-deer": 130.0, "goldstone": 140.0, "monarch": 120.0}
+"""ADR 0081's lanes, line to line along the path, which set the cost of a stop. Bell Deer's
+140 m is along the centreline; its lane runs inside the first curve, so is shorter itself."""
 
 
 def nearest_sample(layout, x: float, y: float):
@@ -35,20 +32,36 @@ def surface(geometry, name: str):
     return found
 
 
-class PitLaneOnBellDeer(unittest.TestCase):
+class ThePitLane:
+    """What every course's lane promises; a subclass names the course."""
+
+    NAME = ""
+    WALL_ON_ITS_SIDE = ""
+
     def setUp(self) -> None:
-        self.layout, self.geometry = bell_deer()
+        self.layout = load(self.NAME)
+        self.geometry = build(self.layout)
         self.lane = self.layout.pit_lane
         self.pit_lane = self.geometry.pit_lane
+        self.side = self.lane.side
+
+    def building(self):
+        (pits,) = [prop for prop in self.layout.decor.props if prop.kind == "pits"]
+        return pits
 
     def test_the_lines_are_about_the_length_adr_0081_costs_a_stop_by(self) -> None:
-        self.assertAlmostEqual(self.lane.s_exit - self.lane.s_entry, LANE_LENGTH_M, delta=5.0)
+        path = self.pit_lane.path
+        def index_at(line):
+            return min(range(len(path)), key=lambda i: math.dist(path[i][:2], (line.x, line.y)))
+        between = path[index_at(self.pit_lane.entry) : index_at(self.pit_lane.exit) + 1]
+        length = sum(math.dist(a[:2], b[:2]) for a, b in zip(between, between[1:]))
+        self.assertAlmostEqual(length, LANE_LENGTH_M[self.NAME], delta=5.0)
 
     def test_the_path_runs_from_the_fork_to_the_merge_through_both_lines(self) -> None:
         path = self.pit_lane.path
         for point, s in ((path[0], self.lane.s_fork), (path[-1], self.lane.s_merge)):
             self.assertLess(
-                math.dist(point[:2], self.layout.path.at(s).offset(-9.0)),
+                math.dist(point[:2], self.layout.path.at(s).offset(self.side * (self.layout.asphalt_half_width + self.layout.runoff_half_width) / 2.0)),
                 1.0,
                 "the path starts and ends in the middle of the run-off",
             )
@@ -59,22 +72,36 @@ class PitLaneOnBellDeer(unittest.TestCase):
 
     def test_the_lane_lies_between_the_pit_wall_and_the_building_line_to_line(self) -> None:
         wall = self.layout.runoff_half_width + WALL_THICKNESS_M
-        (pits,) = [prop for prop in self.layout.decor.props if prop.kind == "pits"]
-        building_front = -pits.at.offset - PITS_DEPTH_M / 2.0
+        building_front = self.side * self.building().at.offset - PITS_DEPTH_M / 2.0
         for x, y, _ in self.pit_lane.path:
             s = nearest_sample(self.layout, x, y).s
             if (s - self.lane.s_entry) % self.layout.path.length > self.lane.s_exit - self.lane.s_entry:
                 continue
             offset = left_of_centre(self.layout, x, y, s)
-            self.assertAlmostEqual(offset, -(wall + LANE_WIDTH_M / 2.0), delta=0.05)
+            self.assertAlmostEqual(self.side * offset, wall + LANE_WIDTH_M / 2.0, delta=0.05)
         self.assertLess(wall + LANE_WIDTH_M + WALL_THICKNESS_M, building_front)
 
     def test_the_lane_surface_stands_a_hair_over_what_it_crosses_and_flush_with_the_asphalt_edge(self) -> None:
         vertices = surface(self.geometry, "PitLane").mesh[0]
         heights = [z for _, _, z in vertices]
-        self.assertLessEqual(max(heights), 0.0)
+        self.assertLessEqual(max(heights), 0.0, "no higher than the flat straight it runs beside")
         self.assertGreater(min(heights), -0.05, "above the grass")
         self.assertEqual(surface(self.geometry, "PitLane").surface, "asphalt")
+
+    def test_no_grass_shows_between_the_run_off_and_the_lane_at_either_end_of_the_pit_wall(self) -> None:
+        # A kart at the pit wall's end, off the road's middle, stands on asphalt or sand.
+        (vertices, _) = surface(self.geometry, "PitLane").mesh
+        for s in (self.lane.s_entry - 2.0, self.lane.s_entry + 2.0, self.lane.s_exit - 2.0, self.lane.s_exit + 2.0):
+            sample = self.layout.path.at(s)
+            near = min(
+                (v for v in vertices if abs(across_track(self.layout, s, v[0], v[1])[0]) < 1.0),
+                key=lambda v: abs(across_track(self.layout, s, v[0], v[1])[1]),
+            )
+            self.assertLessEqual(
+                abs(across_track(self.layout, s, near[0], near[1])[1]),
+                self.layout.runoff_half_width + 0.01,
+                f"the lane reaches the run-off at s={s} ({sample.s})",
+            )
 
     def test_the_outer_wall_runs_on_from_the_wall_it_replaces(self) -> None:
         # Where the lane's wall meets the gap's edges there is no way round
@@ -82,25 +109,25 @@ class PitLaneOnBellDeer(unittest.TestCase):
         runoff = self.layout.runoff_half_width
         for s in (self.lane.s_fork, self.lane.s_merge):
             sample = self.layout.path.at(s)
-            face = sample.offset(-runoff)
-            for name in ("WallRight", "WallPitLane"):
+            face = sample.offset(self.side * runoff)
+            for name in (self.WALL_ON_ITS_SIDE, "WallPitLane"):
                 nearest = min(math.dist((x, y), face) for x, y, _ in surface(self.geometry, name).mesh[0])
                 self.assertLess(nearest, 0.01, f"{name} reaches the gap's edge at s={s}")
 
-    def test_the_right_wall_leaves_a_gap_at_the_fork_and_the_merge_and_the_pit_wall_stands_between(self) -> None:
+    def test_the_wall_on_its_side_leaves_a_gap_at_the_fork_and_the_merge_and_the_pit_wall_stands_between(self) -> None:
         runoff = self.layout.runoff_half_width
-        right = surface(self.geometry, "WallRight").mesh[0]
+        wall_on_its_side = surface(self.geometry, self.WALL_ON_ITS_SIDE).mesh[0]
         pit_wall = surface(self.geometry, "WallPit").mesh[0]
         for gap_s in (
             (self.lane.s_fork + self.lane.s_entry) / 2.0,
             (self.lane.s_exit + self.lane.s_merge) / 2.0,
         ):
-            middle = self.layout.path.at(gap_s).offset(-runoff)
-            for wall in (right, pit_wall):
+            middle = self.layout.path.at(gap_s).offset(self.side * runoff)
+            for wall in (wall_on_its_side, pit_wall):
                 self.assertGreater(min(math.dist((x, y), middle) for x, y, _ in wall), 5.0)
-        beside_the_grid = self.layout.path.at(0.0).offset(-runoff)
+        beside_the_grid = self.layout.path.at(0.0).offset(self.side * runoff)
         self.assertLess(min(math.dist((x, y), beside_the_grid) for x, y, _ in pit_wall), 1.0)
-        self.assertGreater(min(math.dist((x, y), beside_the_grid) for x, y, _ in right), 5.0)
+        self.assertGreater(min(math.dist((x, y), beside_the_grid) for x, y, _ in wall_on_its_side), 5.0)
 
     def test_every_checkpoint_along_the_lane_reaches_across_it_and_no_other_grows(self) -> None:
         outer_face = self.layout.runoff_half_width + WALL_THICKNESS_M + LANE_WIDTH_M + WALL_THICKNESS_M
@@ -117,20 +144,48 @@ class PitLaneOnBellDeer(unittest.TestCase):
 
     def test_each_of_the_eight_pit_boxes_stands_on_the_apron_in_front_of_its_door(self) -> None:
         self.assertEqual(len(self.pit_lane.pit_boxes), 8)
-        previous = None
-        for box in self.pit_lane.pit_boxes:
+        wall = self.layout.runoff_half_width + WALL_THICKNESS_M
+        building = self.building()
+        here = self.layout.path.at(building.at.s)
+        centre = here.offset(self.side * abs(building.at.offset))
+        forward = (here.left_normal[1], -here.left_normal[0])
+        for slot, box in enumerate(self.pit_lane.pit_boxes):
             s = nearest_sample(self.layout, box.x, box.y).s
-            offset = left_of_centre(self.layout, box.x, box.y, s)
-            self.assertLess(offset, -(self.layout.runoff_half_width + WALL_THICKNESS_M + LANE_WIDTH_M / 2.0))
-            self.assertGreater(offset, -(self.layout.runoff_half_width + WALL_THICKNESS_M + LANE_WIDTH_M))
-            if previous is not None:
-                self.assertAlmostEqual(s - previous, 5.5, delta=1.0)
-            previous = s
+            offset = self.side * left_of_centre(self.layout, box.x, box.y, s)
+            self.assertGreater(offset, wall + LANE_WIDTH_M / 2.0)
+            self.assertLess(offset, wall + LANE_WIDTH_M)
+            along_the_building = (box.x - centre[0]) * forward[0] + (box.y - centre[1]) * forward[1]
+            door = PITS_DOOR_FIRST_M + slot * PITS_DOOR_PITCH_M
+            self.assertAlmostEqual(along_the_building, door, delta=0.5, msg=f"slot {slot}'s door")
 
     def test_no_tree_stands_on_the_lane(self) -> None:
         for tree in trees(self.layout):
             nearest = min(math.dist((tree.x, tree.y), point[:2]) for point in self.pit_lane.path)
             self.assertGreater(nearest, LANE_WIDTH_M)
+
+
+class PitLaneOnBellDeer(ThePitLane, unittest.TestCase):
+    NAME = "bell-deer"
+    WALL_ON_ITS_SIDE = "WallRight"
+
+
+class PitLaneOnGoldstone(ThePitLane, unittest.TestCase):
+    NAME = "goldstone"
+    WALL_ON_ITS_SIDE = "WallLeft"
+
+
+class PitLaneOnMonarch(ThePitLane, unittest.TestCase):
+    NAME = "monarch"
+    WALL_ON_ITS_SIDE = "WallLeft"
+
+    def test_the_building_keeps_clear_of_every_other_road(self) -> None:
+        building = self.building()
+        here = self.layout.path.at(building.at.s)
+        back = here.offset(self.side * (abs(building.at.offset) + PITS_DEPTH_M / 2.0))
+        lap = self.layout.path.length
+        for sample in self.layout.path.samples:
+            if min((sample.s - building.at.s) % lap, (building.at.s - sample.s) % lap) > building.length:
+                self.assertGreater(math.dist((sample.x, sample.y), back), self.layout.runoff_half_width + WALL_THICKNESS_M + 8.0)
 
 
 class TheOval(unittest.TestCase):

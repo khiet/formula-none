@@ -89,6 +89,7 @@ const DECISION_SLUGS = [
   "the-stop-is-rolled-from-the-seed",
   "the-creator-picks-tyres-and-race-distance",
   "the-creator-picks-the-laps",
+  "the-first-tyre-retune-from-bot-races",
 ];
 
 const expectedFiles = DECISION_SLUGS.map(

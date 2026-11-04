@@ -500,7 +500,7 @@ The row of garages beside the start straight, which the grid faces
 through the countdown: a prop with a door and a flag in each livery's key
 colour and no number on any door (ADR 0035). Its doors face the pit boxes
 where a course has a pit lane (ADR 0081). Inside Bell Deer's straight; outside Goldstone's, longer and white
-(ADR 0060).
+(ADR 0060); left of Monarch's, across from the stands.
 
 ### tunnel
 

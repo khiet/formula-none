@@ -628,8 +628,12 @@ fn a_bots_steering_is_unchanged_by_a_coin_off_its_line() {
     );
 }
 
+/// Slower than this a bot is not moving to speak of. A crawl up to the stall speed
+/// is a bot on its way out of a stall, which the stall speed is set to catch.
+const STUCK_SPEED_M_PER_S: f32 = 1.0;
+
 /// The longest any bot in an eight-bot race on `track` from `seed` sat under
-/// its stall speed before it finished, as `(seconds, slot, race clock)`.
+/// the stuck speed before it finished, as `(seconds, slot, race clock)`.
 /// A spun-out kart is dead to every control and a bot held back for the
 /// runaway wheel stands by choice, so neither counts.
 fn longest_stall(seed: u64, track: Track) -> (f32, usize, f32) {
@@ -647,7 +651,7 @@ fn longest_stall(seed: u64, track: Track) -> (f32, usize, f32) {
         }
         for (slot, kart) in state.kart_readouts().iter().enumerate() {
             let finished = standings[slot].laps_completed >= DEFAULT_LAPS;
-            if finished || kart.speed.abs() >= BOT_STALL_SPEED_M_PER_S {
+            if finished || kart.speed.abs() >= STUCK_SPEED_M_PER_S {
                 stalled_s[slot] = 0.0;
             } else if kart.spin_out_s.is_none() && !state.bot_held_for_the_wheel(slot) {
                 stalled_s[slot] += DT;
@@ -773,52 +777,23 @@ fn eight_bots_race_five_laps_of_the_oval_and_every_one_finishes() {
     );
 }
 
-/// Every course and level, the oval with no lane included, on both Tyres
-/// picks (ADR 0083). The end cap stays as ADR 0054 set it, so a kart far enough
-/// behind over five laps is placed by progress on its final lap, more often on
-/// worn tyres until bots pit; a kart short of the final lap has lost far more
-/// than time. Too slow for a debug build; run it with the sweep below.
+/// Every course and level, the oval with no lane included, on Tyres Off (ADR
+/// 0083); `bot_pits.rs` sweeps Tyres On. The end cap stays as ADR 0054 set it, so
+/// a kart far enough behind over five laps is placed by progress on its final lap;
+/// a kart short of the final lap has lost far more than time. Too slow for a debug
+/// build; run it with the sweep below.
 #[test]
 #[ignore]
-fn in_200_five_lap_races_of_eight_bots_every_one_reaches_the_final_lap() {
-    for (name, course) in COURSES {
-        for level in [BotLevel::Basic, BotLevel::Pro, BotLevel::Ace] {
-            for tyres in Tyres::ALL {
-                let races: Vec<_> = (0..200)
-                    .map(|seed| {
-                        std::thread::spawn(move || {
-                            let short = short_of_the_final_lap(seed, course(), level, tyres, 5);
-                            (seed, short)
-                        })
-                    })
-                    .collect();
-                for race in races {
-                    let (seed, short) = race.join().expect("the race ran");
-                    assert!(
-                        short.is_empty(),
-                        "{name} {level:?} {tyres:?} seed {seed}: karts and laps {short:?}"
-                    );
-                }
-            }
-        }
-    }
-}
-
-/// A bot wears out as a human does and must still get round on worn tyres
-/// (ADR 0080). Until bots pit, a few karts worn right out on the final lap
-/// are still on it when the end cap fires and are placed by progress; the
-/// cap is there for them. A kart short of the final lap has lost far more
-/// than its tyres. Too slow for a debug build; run it with the sweep above.
-#[test]
-#[ignore]
-fn in_200_races_of_eight_bots_on_tyres_on_every_one_reaches_the_final_lap_at_every_level() {
+fn in_200_five_lap_races_of_eight_bots_on_tyres_off_every_one_reaches_the_final_lap() {
     for (name, course) in COURSES {
         for level in [BotLevel::Basic, BotLevel::Pro, BotLevel::Ace] {
             let races: Vec<_> = (0..200)
                 .map(|seed| {
                     std::thread::spawn(move || {
-                        let short = short_of_the_final_lap(seed, course(), level, Tyres::On, 3);
-                        (seed, short)
+                        (
+                            seed,
+                            short_of_the_final_lap(seed, course(), level, Tyres::Off, 5),
+                        )
                     })
                 })
                 .collect();
@@ -846,6 +821,7 @@ fn a_bot_brakes_on_worn_tyres_for_corners_it_would_take_on_new_ones() {
             &state.standings(),
             state.phase(),
             SEED,
+            DEFAULT_LAPS,
             0,
             &mut sim::bot::Memory::default(),
             DT,
@@ -877,8 +853,11 @@ fn a_bot_brakes_on_worn_tyres_for_corners_it_would_take_on_new_ones() {
     );
 }
 
-/// Under its stall speed this long, a bot is stuck.
+/// Under its stuck speed this long, a bot is stuck.
 const STUCK_S: f32 = 3.0;
+/// The same across a sweep, which also finds a bot crawling along the sand at
+/// the wheel's crossing, where it may not back up into a pass.
+const SWEEP_STUCK_S: f32 = 8.0;
 
 #[test]
 fn a_bot_jammed_short_of_the_wheels_crossing_backs_out() {
@@ -937,7 +916,7 @@ fn in_200_races_of_eight_bots_on_each_course_no_bot_is_ever_stuck() {
         for race in races {
             let (seed, (seconds, slot, at_s)) = race.join().expect("the race ran");
             assert!(
-                seconds <= STUCK_S,
+                seconds <= SWEEP_STUCK_S,
                 "{name} seed {seed}: bot {slot} stuck {seconds} s until {at_s} s"
             );
         }

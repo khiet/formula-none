@@ -395,13 +395,15 @@ class PitLane:
     """A pit lane on `side` of the centreline (1 left, -1 right), in metres of arc length: it
     forks off the run-off at `s_fork`, the pit limiter holds from `s_entry` to `s_exit` (ADR
     0081) and it is back on the run-off at `s_merge`. `s_fork` and `s_entry` may be negative,
-    behind the start line."""
+    behind the start line. `s_building` is the pit building's middle, the prop's `Spot.s`, which
+    the pit boxes line up on; props never reach the sidecar, so the layout says it twice."""
 
     side: int
     s_fork: float
     s_entry: float
     s_exit: float
     s_merge: float
+    s_building: float = 0.0
 
 
 @dataclass

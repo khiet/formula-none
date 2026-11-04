@@ -23,6 +23,7 @@ from ..layout import (
     Prop,
     Spot,
     CoinLine,
+    PitLane,
     TyreWall,
     WheelCrossing,
 )
@@ -32,6 +33,8 @@ from ..path import Turtle
 KERB_INSIDE_M = 4.9
 # Left of the centreline, where every tyre wall stands clear of the bots' line.
 TYRE_WALL_LEFT_M = 4.5
+# Where the pits' middle stands: the first door 2.75 m past this, the last 41.25 m.
+PITS_S = -20.0
 
 path = (
     Turtle(x=0.0, y=0.0, heading_deg=52.5)
@@ -107,6 +110,10 @@ LAYOUT = Layout(
     # Vale turns left, so the approach's outside is the right.
     wheel_crossings=[WheelCrossing(seg("vale-approach").s_mid, outside=-1)],
     elevation=[],
+    # Outside the Hamilton Straight, where the pits stand: 30 m of fork round
+    # the outside of Club, past the line round the outside of Abbey, and the
+    # merge inside Farm, which leans a kart back that way (ADR 0081).
+    pit_lane=PitLane(side=1, s_fork=-90.0, s_entry=-60.0, s_exit=60.0, s_merge=90.0, s_building=PITS_S),
     decor=Decor(
         hoardings=[
             Hoardings(("luffield",), side=1),
@@ -126,9 +133,11 @@ LAYOUT = Layout(
         # the Wing; the infield between Club and Abbey is too tight for a
         # building that clears both by the 8 m rule. A row of five airfield
         # hangars outside the Hangar Straight, fronts 21 m from the
-        # centreline as the pits' are.
+        # centreline as the pits' are. The pits stand back along the grid so
+        # every door is on the straight, short of Abbey, with its pit box in
+        # front of it.
         props=[
-            Prop("pits", Spot(s=0.0, offset=26.0), length=120.0, white=True),
+            Prop("pits", Spot(s=PITS_S, offset=26.0), length=120.0, white=True),
             Prop("hangars", Spot(s=seg("hangar").s_mid, offset=33.0), length=110.0),
             # The display jets' flypast over the hangars, against the race so drivers on the
             # straight see them coming.

@@ -58,7 +58,7 @@ struct CreatedRoom {
 /// room (ADR 0061), and how hard its bots drive, fixed likewise (ADR
 /// 0078). A create with no body, or one naming no track, races the
 /// server's default; one naming no level races Basic. So too the Tyres
-/// pick, fixed likewise (ADR 0083), Off when it names none. The level and
+/// pick, fixed likewise (ADR 0083), On when it names none. The level and
 /// the pick are read as text so an unknown one is refused rather than raced.
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -96,7 +96,7 @@ async fn create_room(
         Some(level) => BotLevel::from_name(&level).ok_or(StatusCode::BAD_REQUEST)?,
     };
     let tyres = match request.tyres {
-        None => Tyres::Off,
+        None => Tyres::On,
         Some(tyres) => Tyres::from_name(&tyres).ok_or(StatusCode::BAD_REQUEST)?,
     };
     let laps = match request.laps {

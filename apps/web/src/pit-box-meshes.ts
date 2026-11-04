@@ -38,7 +38,7 @@ export const CREW_PER_BOX = 6;
 const MARK_CLEARANCE_M = 0.5;
 const MARK_LINE_M = 0.2;
 const MARK_LIFT_M = 0.02;
-/** The gantry light: a post at the mark's front right, its lamps up where the driver sees them. */
+/** The gantry light: a post at the mark's front corner on the building's side, its lamps up where the driver sees them. */
 const GANTRY_POST_M = 2.2;
 const GANTRY_POST_THICKNESS_M = 0.08;
 const LAMP_M = 0.26;
@@ -50,8 +50,8 @@ const CREW_BODY_DEPTH_M = 0.3;
 const CREW_HELMET_RADIUS_M = 0.21;
 /** Crouched at a wheel the figure is this share of its standing height. */
 const CREW_CROUCH_SHARE = 0.72;
-/** Idle, the crew waits in a row this far to the right of the mark, this far apart. */
-const CREW_ROW_RIGHT_M = 2.6;
+/** Idle, the crew waits in a row this far from the mark toward the building, this far apart. */
+const CREW_ROW_FROM_MARK_M = 2.6;
 const CREW_ROW_PITCH_M = 0.7;
 /** At work the gunners kneel this far out from each wheel and the jacks stand this far off each end. */
 const GUNNER_OUT_M = 0.5;
@@ -188,10 +188,11 @@ export function pitBoxMeshes(
       side.name = "mark";
       frame.add(side);
     }
-    // The gantry at the mark's front right corner, its lamps facing the kart.
+    // The gantry at the mark's front corner on the building's side, clear of
+    // the fast lane, its lamps facing the kart.
     const gantry = new Group();
     gantry.name = "gantry";
-    gantry.position.set(markWidth / 2 + MARK_LINE_M, 0, -markLength / 2);
+    gantry.position.set(pitBox.buildingSide * (markWidth / 2 + MARK_LINE_M), 0, -markLength / 2);
     const post = new Mesh(
       new BoxGeometry(GANTRY_POST_THICKNESS_M, GANTRY_POST_M, GANTRY_POST_THICKNESS_M),
       lambert(CARBON.mid),
@@ -233,9 +234,10 @@ export function pitBoxMeshes(
   const stance = (
     member: number,
     work: CrewWork,
+    buildingSide: 1 | -1,
   ): { x: number; z: number; crouched: boolean; judder: boolean } => {
     const inTheRow = {
-      x: CREW_ROW_RIGHT_M,
+      x: buildingSide * CREW_ROW_FROM_MARK_M,
       z: (member - (CREW_PER_BOX - 1) / 2) * CREW_ROW_PITCH_M,
       crouched: false,
       judder: false,
@@ -298,7 +300,11 @@ export function pitBoxMeshes(
             helmets.setMatrixAt(index, hidden);
             continue;
           }
-          const { x, z, crouched, judder } = stance(member, work);
+          const { x, z, crouched, judder } = stance(
+            member,
+            work,
+            pitBoxes[slot]?.buildingSide ?? 1,
+          );
           const height = crouched ? CREW_CROUCH_SHARE : 1;
           const phase =
             clockSeconds * (judder ? GUN_JUDDER_RAD_PER_S : IDLE_BOB_RAD_PER_S) + member;
