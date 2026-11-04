@@ -1,0 +1,1228 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Pit Crew Animations</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bungee&family=IBM+Plex+Sans:wght@400;600&family=Silkscreen:wght@400;700&display=swap">
+<style>
+  /* Layout: a sticky picker, a recommendation, the shared face kit, then three animated
+     versions of the stop, each a live Three.js stage drawn the way the View draws. */
+  :root {
+    --bg: #eef0f3;
+    --fg: #1b1d22;
+    --muted: #5b6170;
+    --rule: #cfd3db;
+    --card: #ffffff;
+    --stage: #dfe3e9;
+    --stage-line: #c4cad3;
+    --gold: #a77a12;
+    --chip-bg: #f4f5f7;
+    --display: "Bungee", "Arial Black", Impact, sans-serif;
+    --body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --pixel: "Silkscreen", ui-monospace, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #15171a; --fg: #ece7d8; --muted: #9a9fab; --rule: #2c3036; --card: #1e2126;
+      --stage: #2a2e35; --stage-line: #3a3f48; --gold: #e2b84a; --chip-bg: #262a30; color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #15171a; --fg: #ece7d8; --muted: #9a9fab; --rule: #2c3036; --card: #1e2126;
+    --stage: #2a2e35; --stage-line: #3a3f48; --gold: #e2b84a; --chip-bg: #262a30; color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body { background: var(--bg); color: var(--fg); font-family: var(--body); line-height: 1.5; }
+  main { max-width: 68rem; margin: 0 auto; padding: 1.5rem 16px 4rem; display: grid; gap: 2.2rem; }
+  h1 { font-family: var(--display); font-size: clamp(1.7rem, 4.4vw, 2.6rem); line-height: 1.05; margin: 0; text-wrap: balance; }
+  h2 { font-family: var(--display); font-size: 1.35rem; margin: 0; text-wrap: balance; }
+  h3 { font-size: 1.05rem; margin: 0; }
+  p { margin: 0; }
+  .lede { color: var(--muted); max-width: 48rem; }
+  .eyebrow { font-family: var(--pixel); font-size: 0.8rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--gold); }
+  code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.82em; background: var(--chip-bg); padding: 0.05em 0.35em; border-radius: 4px; overflow-wrap: anywhere; }
+  a { color: inherit; }
+  section { display: grid; gap: 0.9rem; }
+
+  .picker {
+    position: sticky; top: 0; z-index: 2; display: flex; flex-wrap: wrap; gap: 0.5rem 0.9rem; align-items: center;
+    padding: 0.7rem 0; background: var(--bg); border-bottom: 1px solid var(--rule);
+  }
+  .picker .group { display: flex; flex-wrap: wrap; gap: 0.3rem; align-items: center; }
+  .picker .group > span { font-family: var(--pixel); font-size: 0.72rem; text-transform: uppercase; color: var(--muted); margin-right: 0.25rem; }
+  .picker button {
+    font: 600 0.8rem var(--body); color: var(--fg); cursor: pointer;
+    background: var(--card); border: 2px solid var(--rule); border-radius: 999px; padding: 0.3rem 0.7rem;
+    display: inline-flex; align-items: center; gap: 0.4rem;
+  }
+  .picker button[aria-pressed="true"] { border-color: var(--gold); box-shadow: 0 0 0 2px color-mix(in srgb, var(--gold) 35%, transparent); }
+  .picker button:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
+  .picker .dot { width: 0.8rem; height: 0.8rem; border-radius: 50%; border: 1px solid rgba(0,0,0,.25); display: inline-block; }
+
+  .card { background: var(--card); border: 1px solid var(--rule); border-radius: 8px; padding: 1rem 1.1rem; display: grid; gap: 0.7rem; }
+  .rec { border-left: 4px solid var(--gold); }
+  .rec ol { margin: 0; padding-left: 1.2rem; display: grid; gap: 0.35rem; }
+
+  .variant { background: var(--card); border: 1px solid var(--rule); border-radius: 8px; overflow: hidden; display: grid; }
+  .variant > header { display: flex; flex-wrap: wrap; gap: 0.3rem 0.8rem; align-items: baseline; padding: 0.9rem 1.1rem 0.6rem; }
+  .variant > header h2 { font-size: 1.2rem; }
+  .variant > header .crew { font-family: var(--pixel); font-size: 0.72rem; text-transform: uppercase; color: var(--muted); }
+  .stage { position: relative; background: var(--stage); aspect-ratio: 16 / 9; border-block: 1px solid var(--rule); }
+  .stage canvas { display: block; width: 100%; height: 100%; }
+  .stage .clock {
+    position: absolute; left: 0.7rem; bottom: 0.6rem; font-family: var(--pixel); font-size: 0.78rem; text-transform: uppercase;
+    color: #fff; text-shadow: 0.1em 0.1em 0 #111; letter-spacing: 0.04em; pointer-events: none;
+  }
+  .stage .clock b { font-size: 1.3rem; display: block; }
+  .stage .clock[data-tier="record"] b { color: #6fe8a6; }
+  .stage .clock[data-tier="slow"] b, .stage .clock[data-tier="botched"] b, .stage .clock[data-tier="disaster"] b { color: #ffb020; }
+  .timeline { position: relative; height: 2rem; margin: 0.6rem 1.1rem 0; background: var(--chip-bg); border-radius: 4px; overflow: hidden; }
+  .timeline span {
+    position: absolute; top: 0; bottom: 0; display: flex; align-items: center; justify-content: center; overflow: hidden;
+    font-family: var(--pixel); font-size: 0.58rem; text-transform: uppercase; letter-spacing: 0.03em; color: var(--muted);
+    border-right: 1px solid var(--rule); white-space: nowrap; padding: 0 0.2rem;
+  }
+  .timeline span.stop { background: color-mix(in srgb, var(--gold) 18%, transparent); color: var(--fg); }
+  .timeline span.act { background: color-mix(in srgb, #ffb020 28%, transparent); color: var(--fg); }
+  .timeline span.go { background: color-mix(in srgb, #3ddc84 30%, transparent); color: var(--fg); }
+  .timeline .head { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--fg); pointer-events: none; }
+  .roster { display: flex; flex-wrap: wrap; gap: 0.3rem; padding: 0.6rem 1.1rem 0; }
+  .roster span { font-family: var(--pixel); font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.03em; background: var(--chip-bg); border-radius: 999px; padding: 0.2rem 0.55rem; color: var(--muted); }
+  .roster span b { color: var(--fg); font-weight: 400; }
+  .notes { padding: 0.8rem 1.1rem 1.1rem; display: grid; gap: 0.6rem; }
+  .notes .dont { color: #b4262e; }
+  :root[data-theme="dark"] .notes .dont { color: #ff8a8f; }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .notes .dont { color: #ff8a8f; } }
+  dl.spec { display: grid; grid-template-columns: max-content 1fr; gap: 0.25rem 0.8rem; margin: 0; font-size: 0.9rem; }
+  dl.spec dt { font-family: var(--pixel); font-size: 0.68rem; text-transform: uppercase; color: var(--muted); padding-top: 0.2rem; }
+  dl.spec dd { margin: 0; }
+
+  .faces { background: var(--stage); border: 1px solid var(--rule); border-radius: 8px; overflow: hidden; }
+  .faces canvas { display: block; width: 100%; aspect-ratio: 11 / 1.5; }
+  .faces .labels { display: grid; grid-template-columns: repeat(11, 1fr); background: var(--card); border-top: 1px solid var(--rule); }
+  .faces .labels span { font-family: var(--pixel); font-size: 0.55rem; text-transform: uppercase; text-align: center; padding: 0.35rem 0.1rem; color: var(--muted); line-height: 1.3; overflow-wrap: anywhere; }
+  .faces .labels span:first-child { color: var(--gold); }
+
+  table { border-collapse: collapse; width: 100%; font-size: 0.9rem; }
+  th, td { text-align: left; vertical-align: top; padding: 0.45rem 0.6rem; border-bottom: 1px solid var(--rule); }
+  th { font-family: var(--pixel); font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); font-weight: 400; }
+  ul { margin: 0; padding-left: 1.2rem; display: grid; gap: 0.3rem; }
+  .fallback { padding: 1rem; font-family: var(--pixel); font-size: 0.8rem; color: var(--muted); }
+</style>
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.186.1/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.186.1/examples/jsm/"
+} }
+</script>
+</head>
+<body>
+<main>
+  <header>
+    <p class="eyebrow">Mockup / pit box crew</p>
+    <h1>Pit crew animations</h1>
+    <p class="lede">Three ways to act a stop out at the pit box: who stands where, who crouches, who lifts the kart, who works the nuts and who holds the sign that says go. Every crew member is a chibi with the driver's own head kit, so the crew reads as people and no two faces match. The stages play the stop the sim rolls: pick a tier and the crew acts that roll out past a clean stop's time, as <a href="../adr/0082-the-stop-is-rolled-from-the-seed.md">ADR 0082</a> has it.</p>
+  </header>
+
+  <nav class="picker" aria-label="What the stages show">
+    <div class="group" data-pick="livery"><span>Livery</span></div>
+    <div class="group" data-pick="tier"><span>Roll</span></div>
+    <div class="group" data-pick="camera"><span>Camera</span></div>
+    <div class="group"><button type="button" id="play" aria-pressed="true">Pause</button><button type="button" id="slow" aria-pressed="false">Half speed</button></div>
+  </nav>
+
+  <section aria-labelledby="rec">
+    <h2 id="rec">Recommendation</h2>
+    <div class="card rec">
+      <p><b>Ship version B, the lollipop crew of seven, with the head kit of this page on the driver too.</b> It is the classic picture of a stop that every player recognises: a jack at each end, four gunners crouched at the wheels and one person standing in front of the kart holding a round sign that spins from STOP to GO and lifts as the kart is let go. It is the smallest crew that shows every job the brief asks for, and it is the one where the sign is the thing the driver looks at, which is the sign's point.</p>
+      <ol>
+        <li><b>A</b>, the cap crew of five, is the cheap fallback if forty figures a lane prove too many parts: each gunner does both wheels on a side, which is a clear, busy act, but at a clean stop's 2.65 s the gunners sprint and the stop reads rushed.</li>
+        <li><b>C</b>, the helmeted crew of nine with wheel carriers and a light paddle, is the most faithful to a modern stop, but the helmets hide the hair, which is half of what tells the faces apart, and the extra bodies crowd the chase camera's frame.</li>
+        <li>In every version the sim's clock is the word on green: the act is cut to the rolled time, the sign and the gantry light flip on the tick of green, and nothing drawn hurries or holds the kart.</li>
+      </ol>
+    </div>
+  </section>
+
+  <section aria-labelledby="kit">
+    <h2 id="kit">The head kit every version shares</h2>
+    <p class="lede">The driver's head from <code>assets/karts/build.py</code>, rebuilt in code: an eight-sided ball with a short jaw and a flat forward face, big eyes, ears, one of the hair styles and facial hairs in <code>livery.ts</code>, earrings. The crew adds what the driver's head has not got yet: brows at an angle, a nose, a mouth, glasses, four more hair styles and two more skin tones, and a little height. A cast of ten per pit box is drawn from a seed of the slot, with no hair style used twice, and each version takes its crew from the same cast, so the front jack is the same person in all three. The driver sits first, with the same kit, to show the two read as one cast.</p>
+    <div class="faces">
+      <canvas id="faces" aria-label="The driver and the nine crew of the chosen livery, turning slowly"></canvas>
+      <div class="labels" id="face-labels"></div>
+    </div>
+    <div class="card">
+      <dl class="spec">
+        <dt>Head</dt><dd>Radius 0.3 m for the driver and 0.26 m for the crew; jaw 0.86 wide and 0.78 high below the middle; the eyes on the forward flat, whites 0.1 by 0.13 m with irises proud of them.</dd>
+        <dt>Varies</dt><dd>Skin from five tones; hair from eleven styles in nine colours; facial hair from five kinds and a moustache; brow angle and weight; eye spacing and size; nose size; a line, a smile, a grin or an open mouth; glasses; earrings; height 0.92 to 1.08 of the base.</dd>
+        <dt>Costs</dt><dd>A head is 15 to 30 flat-shaded parts. Five to nine faces per box over eight boxes is 40 to 72 heads, each built once; only the pose changes per frame.</dd>
+        <dt>Don't</dt><dd>Don't hide the face under a visor or a balaclava in the versions that keep the hair: the face is the point of the kit. Don't name a crew member anywhere; like the driver's name, the cast shows nowhere.</dd>
+      </dl>
+    </div>
+  </section>
+
+  <section aria-labelledby="versions">
+    <h2 id="versions">Three versions of the stop</h2>
+    <p class="lede">All three run the same clock. The kart rolls onto its mark, the stop counts up on the Instrument panel, and at the rolled time the light goes green. Past 3 s, a clean stop's longest, the crew acts the roll out. The chase camera is the player's own view, 6 m behind and 3.2 m up; the other cameras are for judging the poses.</p>
+
+    <article class="variant" id="variant-a" data-variant="A">
+      <header><h2>A. The cap crew</h2><span class="crew">Five crew, caps, two gunners who each do a side</span></header>
+      <div class="stage"><canvas aria-label="Version A: a five-strong crew in team caps changes the kart's wheels"></canvas><div class="clock"><span>On the mark</span><b>0.0 s</b></div></div>
+      <div class="timeline"></div>
+      <div class="roster"></div>
+      <div class="notes">
+        <p>The small crew. A jack at each end, a gunner on each side who works the front wheel then runs to the rear, and a chief who stands ahead of the nose with a two-faced board held over their head, STOP toward the driver, swung to GO on the tick of green. Fresh wheels wait on the apron beside each corner before the kart arrives, so the gunner reaches for the new wheel without a carrier. Everyone wears a cap in the slot's key colour, peak forward, with the hair showing under it.</p>
+        <p>Crouching and standing: the gunners crouch at each wheel and sprint upright between them; the jacks stand, leaning into the lever as they pump; the chief stands with both arms up. On a slow roll the left gunner goes back down at the rear left; on a botched roll the right gunner runs over to help and the chief comes to point; on a disaster the front jack lets go, the kart drops on its nose, the front jack steps back with arms up and the gunners stand off until the jack is pumped again.</p>
+        <p><b>For</b> the game: 5 figures by 8 boxes is 40 figures, the cheapest of the three, and the busiest act per person. <b>Against</b>: a clean stop gives each wheel 1.05 s, so the gunners' sprint reads frantic, and two gunners cannot show a corner going wrong while the rest stand ready, which is what the slow and botched tiers mean.</p>
+        <p class="dont"><b>Don't</b> stage the fresh wheels on the lane side of the mark, where a passing kart would clip them: the sim has no wheel there, and the mockup keeps them on the apron.</p>
+      </div>
+    </article>
+
+    <article class="variant" id="variant-b" data-variant="B">
+      <header><h2>B. The lollipop crew</h2><span class="crew">Seven crew, headsets, a gunner at every wheel and a lollipop</span></header>
+      <div class="stage"><canvas aria-label="Version B: a seven-strong crew with a lollipop sign changes the kart's wheels"></canvas><div class="clock"><span>On the mark</span><b>0.0 s</b></div></div>
+      <div class="timeline"></div>
+      <div class="roster"></div>
+      <div class="notes">
+        <p>The classic stop. A jack at each end, a gunner crouched at every wheel, and the lollipop: a round sign on a pole, held by a seventh crew member who stands off the nose on the building's side, right in the driver's eyeline. It shows STOP in poster red through the stop, spins to GO in go green half a second before the tick, and lifts clear as the kart is let go, the holder stepping aside. Everyone wears a headset over their hair, band over the crown and a mic to the mouth, which keeps every face and every haircut in view.</p>
+        <p>Each gunner's act is one wheel: judder the nut off, pull the worn wheel out and shove it back behind them, pull the fresh wheel in from the apron, judder the nut on, and throw a hand up. The jack crew pump the lever twice to lift, drop it on the last beat and drag the jack clear. The acts of the roll are the ones the View already has: on a slow roll the rear-left gunner goes back down alone; on a botched roll the other three run over and crowd that corner; on a disaster the front jack lets go and everyone stands off until it is pumped again.</p>
+        <p><b>For</b> the game: 7 by 8 is 56 figures, every job in the brief has a body, and the sign is held where the chase camera sees it over the kart's head. <b>Against</b>: two more figures than the current six, and the lollipop holder is in the kart's path, so the step aside must land before the kart moves.</p>
+        <p class="dont"><b>Don't</b> let the lollipop lift before the tick: the sim rolls the stop, and a sign that lifts early tells the player a lie the panel's clock then contradicts.</p>
+      </div>
+    </article>
+
+    <article class="variant" id="variant-c" data-variant="C">
+      <header><h2>C. The helmet crew</h2><span class="crew">Nine crew, open-face helmets, wheel carriers and a light paddle</span></header>
+      <div class="stage"><canvas aria-label="Version C: a nine-strong helmeted crew with wheel carriers changes the kart's wheels"></canvas><div class="clock"><span>On the mark</span><b>0.0 s</b></div></div>
+      <div class="timeline"></div>
+      <div class="roster"></div>
+      <div class="notes">
+        <p>The modern stop. Jacks at both ends, four gunners, a wheel carrier on each side standing between the two wheels with a fresh wheel held at the chest, who crouches to pull the worn wheel and push the fresh one on while the gunner keeps the gun on the nut, and a chief at the gantry with a handheld light paddle: a red lamp through the stop, green on the tick, raised overhead. Everyone wears an open-face helmet with the visor up in the slot's key colour: skin, brows, beards, mouths and glasses still tell them apart, but the hair is gone.</p>
+        <p>Crouching and standing: four gunners crouch for the whole stop, the carriers stand and crouch in turn, the jacks and the chief stand. On a slow roll the rear-left gunner goes back down and the left carrier waits beside them; on a botched roll both carriers and the far gunners run to that corner; on a disaster the front jack lets go and the crew stands off.</p>
+        <p><b>For</b> the game: the most faithful stop, and the carriers make the wheel change itself legible from the chase camera, where a gunner's hands are hidden behind the kart. <b>Against</b>: 9 by 8 is 72 figures, the most parts of the three; the helmets hide half the face kit; nine bodies round a 1.8 m kart crowd the frame, and the chief's paddle is off to one side, where the player's eye is not.</p>
+        <p class="dont"><b>Don't</b> give the paddle's lamp its own clock: it is the gantry light in the hand, and reads the same stop.</p>
+      </div>
+    </article>
+  </section>
+
+  <section aria-labelledby="compare">
+    <h2 id="compare">Side by side</h2>
+    <div class="card">
+      <table>
+        <thead><tr><th>Version</th><th>Crew per box</th><th>Standing / crouching</th><th>The sign</th><th>Faces</th><th>Figures a lane</th></tr></thead>
+        <tbody>
+          <tr><td>A. Cap crew</td><td>5</td><td>3 stand, 2 crouch and sprint</td><td>Board over the chief's head, STOP / GO</td><td>Hair under a cap</td><td>40</td></tr>
+          <tr><td>B. Lollipop crew</td><td>7</td><td>3 stand, 4 crouch</td><td>Lollipop in the driver's eyeline, spun then lifted</td><td>Hair under a headset</td><td>56</td></tr>
+          <tr><td>C. Helmet crew</td><td>9</td><td>3 stand, 4 crouch, 2 alternate</td><td>Light paddle at the gantry, red then green, raised</td><td>Helmet, visor up, no hair</td><td>72</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section aria-labelledby="code">
+    <h2 id="code">How it fits the code</h2>
+    <div class="card">
+      <ul>
+        <li><code>apps/web/src/pit-box-meshes.ts</code> keeps its shape: <code>crewWork</code> reads the kart readout's stop, and <code>stance(member, work)</code> grows into <code>stance(member, work, secondsOnMark)</code>, a pure function of the member, the work and the stop clock that returns a place, a yaw, a pose name and a pose blend. The page's choreography is that function, written for three rosters.</li>
+        <li>The head kit moves to a module the kart model and the crew share: <code>head-kit.ts</code> builds a head from a face record the way <code>build.py</code> does, so the driver and the crew come from one builder. The driver's record gains brows, a nose and a mouth in the same change, or stays as it is; either way the parts are optional.</li>
+        <li>Figures stay instanced: one <code>InstancedMesh</code> per part kind (torso, upper arm, forearm, thigh, shin, boot, hand, head shell, eye, hair cap and so on), posed from a rig that writes one matrix per part per figure. A crew member is about 30 parts; version B is 56 figures and about 1,700 instances per lane, drawn only within <code>PIT_DRAW_RANGE_M</code>.</li>
+        <li>The signs are two <code>CanvasTexture</code>s in the Kenney pixel face, STOP and GO, built once; the gantry light's materials swap as today.</li>
+        <li>Nothing here enters the sim. A test through the public seam drives <code>stance</code> with a stop readout and asserts the pose at the tick of green and the step aside before the kart's first metre.</li>
+        <li>The style guide's pit box entry gains the crew's heights, the kit's parts and the sign's two faces in the same PR.</li>
+      </ul>
+    </div>
+  </section>
+
+  <p class="fallback" id="fallback" hidden>The stages need WebGL and the Three.js module from jsdelivr. Serve the page over http, not file://, and allow the CDN.</p>
+</main>
+
+<script type="module">
+import * as THREE from "three";
+import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+
+// ---------- what the code already decides (livery.ts, palette.ts, build.py, tuning.rs) ----------
+const SKIN = { deepBrown: 0x74492f, fair: 0xe5bb98, olive: 0xc48a5f, tan: 0xb87a52, dark: 0x4e2f1d };
+const LIVERIES = [
+  { name: "Rosso", key: 0xd00a12, primary: 0xd00a12, secondary: 0x141414, accent: 0xffd400, driver: { skin: SKIN.deepBrown, hair: "braids-tied-back", hairColour: 0x1a1210, facialHair: "short-beard", earrings: true } },
+  { name: "Notte", key: 0x1f3fb0, primary: 0x16224d, secondary: 0xe2172b, accent: 0xffc72c, driver: { skin: SKIN.fair, hair: "short", hairColour: 0x8a6a48, facialHair: "light-stubble", earrings: false } },
+  { name: "Argento", key: 0xc8ccd0, primary: 0xbfc5cb, secondary: 0x16181b, accent: 0x00a19c, driver: { skin: SKIN.fair, hair: "swept-side-part", hairColour: 0x5a3a22, facialHair: "none", earrings: false } },
+  { name: "Papaya", key: 0xff7a00, primary: 0xff7a00, secondary: 0x1e1e24, accent: 0x3ec3f5, driver: { skin: SKIN.fair, hair: "curly-fringe", hairColour: 0x6b4528, facialHair: "none", earrings: false } },
+  { name: "Verde", key: 0x00665a, primary: 0x00594f, secondary: 0x101614, accent: 0xcedc00, driver: { skin: SKIN.olive, hair: "short-greying-temples", hairColour: 0x1c1c1f, facialHair: "stubble", earrings: false } },
+  { name: "Cobalto", key: 0x37bedd, primary: 0x0a2a5c, secondary: 0x37bedd, accent: 0xffffff, driver: { skin: SKIN.olive, hair: "swept-back", hairColour: 0x1c1c1f, facialHair: "heavy-stubble", earrings: false } },
+  { name: "Rosa", key: 0xf282b4, primary: 0xf282b4, secondary: 0x0b5ab0, accent: 0xffffff, driver: { skin: SKIN.fair, hair: "short-curls", hairColour: 0x241a14, facialHair: "stubble", earrings: false } },
+  { name: "Titanio", key: 0x2a2a2e, primary: 0x2a2a2e, secondary: 0x9ea3a8, accent: 0xf50537, driver: { skin: SKIN.fair, hair: "short", hairColour: 0xb8955a, facialHair: "none", earrings: false } },
+];
+const C = {
+  carbon: 0x2b2e33, carbonShade: 0x1b1d21, asphalt: 0x6b6b78, wall: 0xf0f0f0, riser: 0xd7dbe0, plinth: 0xb4bac2,
+  red: 0xe8333b, redMid: 0xc81d25, green: 0x6fe8a6, greenMid: 0x3ddc84, lampOff: 0x1b1d21, white: 0xffffff,
+  tyre: 0x1c1c1f, wornTyre: 0x4a443c, rim: 0x3a3d42, whites: 0xf7f7f2, irises: 0x211710, gold: 0xdba833, grey: 0xa8a8ad,
+  mouth: 0x6a1e22, glove: 0xeeeeee, boot: 0x1b1d21, steel: 0x8e939b, jackRed: 0xc81d25,
+};
+// The stop's roll (tuning.rs): the stationary time each tier draws, shown at its middle.
+const TIERS = { record: 2.05, clean: 2.65, slow: 3.8, botched: 6.0, disaster: 10.5 };
+const CLEAN_LONGEST_S = 3.0;
+const GUIDE_S = 0.5;
+const GREEN_HOLD_S = 3;
+const HAIR_COLOURS = [0x1a1210, 0x8a6a48, 0x5a3a22, 0x6b4528, 0x1c1c1f, 0x241a14, 0xb8955a, 0xc9c3b8, 0xa83a1e];
+const CREW_HAIRS = ["braids-tied-back", "short", "swept-side-part", "curly-fringe", "short-greying-temples", "swept-back", "short-curls", "buzz", "ponytail", "bun", "bald"];
+const FACIAL = ["none", "none", "none", "light-stubble", "stubble", "heavy-stubble", "short-beard", "moustache"];
+
+// ---------- small maths ----------
+const lerp = (a, b, t) => a + (b - a) * t;
+const clamp01 = (x) => Math.max(0, Math.min(1, x));
+const ramp = (t, a, b) => clamp01((t - a) / (b - a));
+const ease = (x) => x * x * (3 - 2 * x);
+const between = (t, a, b) => t >= a && t < b;
+function mulberry(seed) {
+  let a = seed >>> 0;
+  return () => {
+    a = (a + 0x6d2b79f5) >>> 0;
+    let t = a;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+// ---------- materials and parts ----------
+const materials = new Map();
+function mat(colour, extra = {}) {
+  const key = `${colour}|${JSON.stringify(extra)}`;
+  if (!materials.has(key)) materials.set(key, new THREE.MeshLambertMaterial({ color: colour, flatShading: true, ...extra }));
+  return materials.get(key);
+}
+const boxes = new Map();
+function box(w, h, d) {
+  const key = `${w}|${h}|${d}`;
+  if (!boxes.has(key)) boxes.set(key, new THREE.BoxGeometry(w, h, d));
+  return boxes.get(key);
+}
+function part(parent, geometry, colour, [x, y, z] = [0, 0, 0], extra) {
+  const mesh = new THREE.Mesh(geometry, mat(colour, extra));
+  mesh.position.set(x, y, z);
+  parent.add(mesh);
+  return mesh;
+}
+function ball(parent, radius, colour, at) {
+  return part(parent, new THREE.SphereGeometry(radius, 8, 6), colour, at);
+}
+/**
+ * The head's shape at `radius`: an eight-sided ball with a flat facing +z,
+ * kept only where `keep` holds of every corner of a face (on the unit
+ * sphere, y up, z forward), then squashed into the jaw below the middle.
+ */
+function shell(radius, keep) {
+  const sphere = new THREE.SphereGeometry(radius, 8, 6, Math.PI / 8).toNonIndexed();
+  const src = sphere.getAttribute("position").array;
+  const out = [];
+  for (let i = 0; i < src.length; i += 9) {
+    let ok = true;
+    for (let v = 0; v < 3 && ok; v += 1) {
+      const p = new THREE.Vector3(src[i + v * 3], src[i + v * 3 + 1], src[i + v * 3 + 2]).divideScalar(radius);
+      ok = keep(p);
+    }
+    if (!ok) continue;
+    for (let v = 0; v < 3; v += 1) {
+      let x = src[i + v * 3], y = src[i + v * 3 + 1], z = src[i + v * 3 + 2];
+      if (y < 0) { x *= 0.86; z *= 0.86; y *= 0.78; }
+      out.push(x, y, z);
+    }
+  }
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute("position", new THREE.Float32BufferAttribute(out, 3));
+  geometry.computeVertexNormals();
+  return geometry;
+}
+const cap = (p) => p.y > -0.1 && !(p.z > 0.5 && p.y < 0.3);
+
+// ---------- the head kit ----------
+const HAIR = {
+  "short": (g, c) => part(g, shell(0.32, cap), c),
+  "buzz": (g, c) => part(g, shell(0.295, cap), c),
+  "short-curls": (g, c) => {
+    part(g, shell(0.31, cap), c);
+    for (let k = 0; k < 8; k += 1) {
+      const a = (k * Math.PI) / 4;
+      ball(g, 0.08, c, [0.2 * Math.cos(a), 0.22, -0.03 + 0.2 * Math.sin(a)]);
+    }
+    ball(g, 0.08, c, [0, 0.28, -0.03]);
+  },
+  "curly-fringe": (g, c) => {
+    part(g, shell(0.32, cap), c);
+    for (const x of [-0.15, -0.05, 0.05, 0.15]) ball(g, 0.075, c, [x, 0.18, 0.22]);
+  },
+  "swept-side-part": (g, c) => { part(g, shell(0.32, cap), c); part(g, box(0.26, 0.07, 0.24), c, [0.06, 0.24, 0.14]); },
+  "swept-back": (g, c) => { part(g, shell(0.32, cap), c); part(g, box(0.26, 0.08, 0.5), c, [0, 0.3, -0.04]); },
+  "short-greying-temples": (g, c) => {
+    part(g, shell(0.32, cap), c);
+    for (const s of [-1, 1]) part(g, box(0.04, 0.12, 0.14), C.grey, [s * 0.3, 0.1, 0.02]);
+  },
+  "braids-tied-back": (g, c) => {
+    part(g, shell(0.31, cap), c);
+    [0.24, 0.12, 0, -0.12].forEach((y, k) => ball(g, 0.075, c, [0, y, -0.3 - 0.03 * k]));
+  },
+  "ponytail": (g, c) => { part(g, shell(0.32, cap), c); for (let k = 0; k < 3; k += 1) ball(g, 0.07, c, [0, -0.02 - 0.11 * k, -0.3]); },
+  "bun": (g, c) => { part(g, shell(0.32, cap), c); ball(g, 0.11, c, [0, 0.26, -0.2]); },
+  "bald": (g, c) => part(g, shell(0.315, (p) => p.y > -0.1 && p.y < 0.2 && p.z < 0.3), c),
+};
+const FACIAL_HAIR = {
+  "light-stubble": [0.303, (p) => p.y < -0.4 && p.z > 0.3],
+  "stubble": [0.305, (p) => p.y < -0.4 && p.z > -0.3],
+  "heavy-stubble": [0.308, (p) => p.y < -0.4 && p.z > -0.6],
+  "short-beard": [0.318, (p) => (p.y < -0.4 || (p.y < 0.1 && Math.abs(p.x) > 0.7)) && p.z > -0.6],
+};
+/**
+ * A head pivoted at the neck, built at the driver's 0.3 m radius and scaled
+ * to `radius`: the kit's face with the headgear of the version's kit.
+ */
+function makeHead(face, kit, radius) {
+  const neck = new THREE.Group();
+  neck.scale.setScalar(radius / 0.3);
+  const g = new THREE.Group();
+  g.position.y = 0.3 * 0.78;
+  neck.add(g);
+  part(g, shell(0.3, () => true), face.skin);
+  const spread = face.eyes?.spread ?? 0.09, size = face.eyes?.size ?? 1;
+  for (const s of [-1, 1]) {
+    part(g, box(0.05, 0.1, 0.08), face.skin, [s * 0.29, -0.02, -0.02]);
+    part(g, box(0.1 * size, 0.13 * size, 0.03), C.whites, [s * spread, 0.04, 0.272]);
+    part(g, box(0.06 * size, 0.085 * size, 0.02), C.irises, [s * (spread - 0.005), 0.03, 0.29]);
+    if (face.brows) {
+      const brow = part(g, box(0.12, face.brows.thick, 0.02), face.hairColour, [s * (spread + 0.01), 0.14, 0.285]);
+      brow.rotation.z = -s * face.brows.angle;
+    }
+    if (face.earrings) ball(g, 0.03, C.gold, [s * 0.29, -0.1, -0.02]);
+  }
+  if (face.nose) part(g, box(0.05 * face.nose, 0.06 * face.nose, 0.04), new THREE.Color(face.skin).multiplyScalar(0.82).getHex(), [0, -0.03, 0.295]);
+  if (face.mouth) {
+    const { kind, width } = face.mouth;
+    if (kind === "line") part(g, box(width, 0.02, 0.02), C.mouth, [0, -0.12, 0.282]);
+    if (kind === "open") part(g, box(width * 0.7, 0.06, 0.02), C.mouth, [0, -0.13, 0.282]);
+    if (kind === "smile" || kind === "grin") {
+      part(g, box(width * 0.6, 0.02, 0.02), C.mouth, [0, -0.13, 0.282]);
+      for (const s of [-1, 1]) {
+        const corner = part(g, box(width * 0.3, 0.02, 0.02), C.mouth, [s * width * 0.4, -0.11, 0.282]);
+        corner.rotation.z = -s * 0.6;
+      }
+      if (kind === "grin") part(g, box(width * 0.5, 0.025, 0.01), C.whites, [0, -0.118, 0.29]);
+    }
+  }
+  if (face.glasses) {
+    for (const s of [-1, 1]) {
+      const rim = part(g, new THREE.TorusGeometry(0.085, 0.012, 4, 8), C.carbon, [s * spread, 0.04, 0.3]);
+      rim.rotation.y = 0;
+    }
+    part(g, box(0.06, 0.012, 0.012), C.carbon, [0, 0.05, 0.3]);
+    for (const s of [-1, 1]) part(g, box(0.012, 0.012, 0.26), C.carbon, [s * 0.28, 0.06, 0.17]);
+  }
+  const hairy = kit.headgear !== "helmet" && face.hair && HAIR[face.hair];
+  if (hairy) HAIR[face.hair](g, face.hairColour);
+  if (face.facialHair === "moustache") part(g, box(0.16, 0.035, 0.03), face.hairColour, [0, -0.065, 0.29]);
+  else if (FACIAL_HAIR[face.facialHair]) {
+    const [r, keep] = FACIAL_HAIR[face.facialHair];
+    part(g, shell(r, keep), face.hairColour);
+  }
+  if (kit.headgear === "headset") {
+    const band = part(g, new THREE.TorusGeometry(0.335, 0.02, 4, 12, Math.PI), C.carbon, [0, 0.0, -0.02]);
+    band.rotation.y = 0;
+    for (const s of [-1, 1]) {
+      const cup = part(g, new THREE.CylinderGeometry(0.09, 0.09, 0.06, 8), C.carbon, [s * 0.315, -0.02, -0.02]);
+      cup.rotation.z = Math.PI / 2;
+    }
+    const mic = part(g, box(0.015, 0.015, 0.22), C.carbon, [0.24, -0.09, 0.12]);
+    mic.rotation.y = -0.5;
+    ball(g, 0.025, C.carbon, [0.14, -0.12, 0.24]);
+  }
+  if (kit.headgear === "helmet") {
+    part(g, shell(0.345, (p) => p.y > -0.62 && !(p.z > 0.3 && p.y < 0.55 && p.y > -0.55)), kit.colour);
+    part(g, box(0.1, 0.03, 0.5), C.white, [0, 0.35, -0.02]);
+    const visor = part(g, box(0.5, 0.1, 0.07), 0x2a2f38, [0, 0.31, 0.25], { transparent: true, opacity: 0.75 });
+    visor.rotation.x = -0.6;
+  }
+  if (kit.headgear === "cap") {
+    part(g, shell(0.335, (p) => p.y > 0.08 && !(p.z > 0.5 && p.y < 0.35)), kit.colour);
+    const peak = part(g, box(0.26, 0.02, 0.18), kit.colour, [0, 0.15, 0.37]);
+    peak.rotation.x = 0.2;
+  }
+  return neck;
+}
+
+/** The cast of ten a pit box's crews are drawn from, seeded by `slot`, with no hair style twice. */
+function roster(slot) {
+  const rnd = mulberry(slot * 7919 + 17);
+  const hairs = [...CREW_HAIRS];
+  const skins = Object.values(SKIN);
+  const people = [];
+  for (let i = 0; i < 10; i += 1) {
+    const hair = hairs.splice(Math.floor(rnd() * hairs.length), 1)[0];
+    const mouths = ["line", "smile", "grin", "open"];
+    people.push({
+      skin: skins[(i + Math.floor(rnd() * 2) + slot) % skins.length],
+      hair,
+      hairColour: HAIR_COLOURS[Math.floor(rnd() * HAIR_COLOURS.length)],
+      facialHair: FACIAL[Math.floor(rnd() * FACIAL.length)],
+      earrings: rnd() < 0.15,
+      brows: { angle: rnd() * 0.6 - 0.3, thick: 0.02 + rnd() * 0.025 },
+      eyes: { spread: 0.08 + rnd() * 0.025, size: 0.9 + rnd() * 0.25 },
+      mouth: { kind: mouths[Math.floor(rnd() * mouths.length)], width: 0.07 + rnd() * 0.08 },
+      nose: 0.8 + rnd() * 0.5,
+      glasses: rnd() < 0.15,
+      height: 0.92 + rnd() * 0.16,
+    });
+  }
+  return people;
+}
+/** The slot's driver with the kit's extra parts, so the driver and the crew read as one cast. */
+function driverFace(slot) {
+  const rnd = mulberry(slot * 131 + 5);
+  return { ...LIVERIES[slot].driver, brows: { angle: 0.05 + rnd() * 0.2, thick: 0.028 }, eyes: { spread: 0.09, size: 1 }, mouth: { kind: "line", width: 0.1 }, nose: 1 };
+}
+
+// ---------- the rig: a chibi body with joints, smoothed toward a goal place and pose ----------
+const THIGH = 0.24, SHIN = 0.22, BOOT = 0.04, TORSO = 0.42, UPPER = 0.24, FORE = 0.22;
+const POSES = {
+  stand: { lean: 0, headPitch: 0, headYaw: 0, shL: 0, rollL: -0.12, elL: -0.15, shR: 0, rollR: 0.12, elR: -0.15, hipL: 0, kneeL: 0, hipR: 0, kneeR: 0 },
+  crouch: { lean: 0.45, headPitch: -0.15, headYaw: 0, shL: 0.95, rollL: -0.2, elL: -0.5, shR: 0.95, rollR: 0.2, elR: -0.5, hipL: 1.5, kneeL: -1.55, hipR: 1.5, kneeR: -1.55 },
+  pull: { lean: 0.2, headPitch: 0, headYaw: 0, shL: 0.6, rollL: -0.2, elL: -1.3, shR: 0.6, rollR: 0.2, elR: -1.3, hipL: 1.5, kneeL: -1.55, hipR: 1.5, kneeR: -1.55 },
+  push: { lean: 0.55, headPitch: -0.2, headYaw: 0, shL: 1.3, rollL: -0.2, elL: -0.2, shR: 1.3, rollR: 0.2, elR: -0.2, hipL: 1.5, kneeL: -1.55, hipR: 1.5, kneeR: -1.55 },
+  crouchHandUp: { lean: 0.3, headPitch: -0.3, headYaw: 0, shL: 0.95, rollL: -0.2, elL: -0.5, shR: 3.0, rollR: 0.25, elR: -0.1, hipL: 1.5, kneeL: -1.55, hipR: 1.5, kneeR: -1.55 },
+  jack: { lean: 0.35, headPitch: -0.2, headYaw: 0, shL: 0.95, rollL: -0.15, elL: -0.3, shR: 0.95, rollR: 0.15, elR: -0.3, hipL: 0.15, kneeL: -0.2, hipR: 0.15, kneeR: -0.2 },
+  jackPush: { lean: 0.75, headPitch: -0.3, headYaw: 0, shL: 0.35, rollL: -0.15, elL: -0.1, shR: 0.35, rollR: 0.15, elR: -0.1, hipL: 0.5, kneeL: -0.6, hipR: 0.5, kneeR: -0.6 },
+  armsUp: { lean: -0.1, headPitch: -0.2, headYaw: 0, shL: 2.9, rollL: -0.35, elL: -0.2, shR: 2.9, rollR: 0.35, elR: -0.2, hipL: 0, kneeL: 0, hipR: 0, kneeR: 0 },
+  dismay: { lean: -0.15, headPitch: -0.3, headYaw: 0, shL: 2.4, rollL: -0.8, elL: -0.9, shR: 2.4, rollR: 0.8, elR: -0.9, hipL: 0, kneeL: 0, hipR: 0, kneeR: 0 },
+  holdChest: { lean: 0.05, headPitch: 0, headYaw: 0, shL: 0.9, rollL: -0.25, elL: -1.2, shR: 0.9, rollR: 0.25, elR: -1.2, hipL: 0, kneeL: 0, hipR: 0, kneeR: 0 },
+  holdHigh: { lean: -0.05, headPitch: -0.25, headYaw: 0, shL: 2.6, rollL: -0.2, elL: -0.3, shR: 2.6, rollR: 0.2, elR: -0.3, hipL: 0, kneeL: 0, hipR: 0, kneeR: 0 },
+  holdPole: { lean: 0, headPitch: 0, headYaw: 0, shL: 0.1, rollL: -0.12, elL: -0.15, shR: 1.2, rollR: 0.15, elR: -1.1, hipL: 0, kneeL: 0, hipR: 0, kneeR: 0 },
+  raisePole: { lean: -0.08, headPitch: -0.2, headYaw: 0, shL: 0.1, rollL: -0.12, elL: -0.15, shR: 2.9, rollR: 0.25, elR: -0.1, hipL: 0, kneeL: 0, hipR: 0, kneeR: 0 },
+  point: { lean: 0.1, headPitch: 0, headYaw: 0, shL: 0.1, rollL: -0.12, elL: -0.15, shR: 1.55, rollR: 0.1, elR: 0, hipL: 0.1, kneeL: -0.1, hipR: -0.1, kneeR: 0 },
+};
+class Rig {
+  constructor(face, kit, colours) {
+    this.root = new THREE.Group();
+    this.scaleY = face.height ?? 1;
+    this.root.scale.setScalar(this.scaleY);
+    this.hips = new THREE.Group();
+    this.root.add(this.hips);
+    this.torso = new THREE.Group();
+    this.hips.add(this.torso);
+    part(this.torso, box(0.4, TORSO, 0.26), colours.suit, [0, TORSO / 2, 0]);
+    part(this.torso, box(0.28, 0.08, 0.02), colours.stripe, [0, TORSO * 0.62, 0.135]);
+    part(this.torso, box(0.42, 0.05, 0.28), C.carbon, [0, 0.03, 0]);
+    this.neck = new THREE.Group();
+    this.neck.position.y = TORSO + 0.01;
+    this.torso.add(this.neck);
+    this.head = makeHead(face, kit, 0.26);
+    this.neck.add(this.head);
+    const arm = (s) => {
+      const sh = new THREE.Group();
+      sh.position.set(s * 0.25, TORSO - 0.05, 0);
+      this.torso.add(sh);
+      ball(sh, 0.07, colours.suit, [0, 0, 0]);
+      part(sh, box(0.1, UPPER, 0.1), colours.suit, [0, -UPPER / 2, 0]);
+      const el = new THREE.Group();
+      el.position.y = -UPPER;
+      sh.add(el);
+      part(el, box(0.09, FORE, 0.09), colours.suit, [0, -FORE / 2, 0]);
+      const hand = new THREE.Group();
+      hand.position.y = -FORE - 0.03;
+      el.add(hand);
+      ball(hand, 0.06, colours.glove, [0, 0, 0]);
+      return { sh, el, hand };
+    };
+    this.armL = arm(-1);
+    this.armR = arm(1);
+    const leg = (s) => {
+      const hip = new THREE.Group();
+      hip.position.set(s * 0.11, 0, 0);
+      this.hips.add(hip);
+      part(hip, box(0.14, THIGH, 0.14), colours.suit, [0, -THIGH / 2, 0]);
+      const knee = new THREE.Group();
+      knee.position.y = -THIGH;
+      hip.add(knee);
+      part(knee, box(0.12, SHIN, 0.12), colours.suit, [0, -SHIN / 2, 0]);
+      part(knee, box(0.14, BOOT * 2, 0.22), C.boot, [0, -SHIN - BOOT / 2 + 0.02, 0.03]);
+      return { hip, knee };
+    };
+    this.legL = leg(-1);
+    this.legR = leg(1);
+    this.cur = { ...POSES.stand };
+    this.goal = { ...POSES.stand };
+    this.pos = new THREE.Vector3();
+    this.at = new THREE.Vector3();
+    this.yaw = 0;
+    this.goalYaw = 0;
+    this.walk = 0;
+    this.judder = 0;
+    this.speed = 3.2;
+    this.moving = false;
+    this.props = new THREE.Group();
+    this.torso.add(this.props);
+  }
+  place(x, z, yaw) { this.pos.set(x, 0, z); this.at.copy(this.pos); this.yaw = yaw; this.goalYaw = yaw; }
+  /** Where to be, which way to face and what to do; `blend` mixes a second pose in. */
+  set(x, z, yaw, pose, opts = {}) {
+    this.at.set(x, 0, z);
+    this.goalYaw = yaw;
+    const a = POSES[pose], b = opts.blendWith ? POSES[opts.blendWith] : null;
+    for (const k of Object.keys(a)) this.goal[k] = b ? lerp(a[k], b[k], opts.blend ?? 0) : a[k];
+    if (opts.headYaw !== undefined) this.goal.headYaw = opts.headYaw;
+    if (opts.headPitch !== undefined) this.goal.headPitch = opts.headPitch;
+    this.judder = opts.judder ?? 0;
+  }
+  update(dt, clock) {
+    const dx = this.at.x - this.pos.x, dz = this.at.z - this.pos.z, dist = Math.hypot(dx, dz);
+    this.moving = dist > 0.04;
+    let faceYaw = this.goalYaw;
+    if (this.moving) {
+      const step = Math.min(dist, this.speed * dt);
+      this.pos.x += (dx / dist) * step;
+      this.pos.z += (dz / dist) * step;
+      faceYaw = Math.atan2(dx, dz);
+      this.walk += dt * 11;
+    }
+    let dy = faceYaw - this.yaw;
+    dy = Math.atan2(Math.sin(dy), Math.cos(dy));
+    this.yaw += dy * (1 - Math.exp(-dt * 10));
+    const k = 1 - Math.exp(-dt * 11);
+    const target = this.moving ? { ...POSES.stand, lean: 0.12 } : this.goal;
+    for (const key of Object.keys(this.cur)) this.cur[key] = lerp(this.cur[key], target[key], k);
+    const p = this.cur;
+    let hipL = p.hipL, hipR = p.hipR, kneeL = p.kneeL, kneeR = p.kneeR, shL = p.shL, shR = p.shR, bob = 0;
+    if (this.moving) {
+      const s = Math.sin(this.walk);
+      hipL += 0.7 * s; hipR -= 0.7 * s;
+      kneeL += -0.5 * Math.max(0, -s); kneeR += -0.5 * Math.max(0, s);
+      shL -= 0.5 * s; shR += 0.5 * s;
+      bob = Math.abs(Math.cos(this.walk)) * 0.03;
+    }
+    const legHeight = (a, b) => THIGH * Math.cos(a) + SHIN * Math.cos(a + b) + BOOT;
+    const hipY = Math.max(legHeight(hipL, kneeL), legHeight(hipR, kneeR), 0.22) + bob;
+    const jx = this.judder ? Math.sin(clock * 28 + this.pos.z) * 0.03 * this.judder : 0;
+    const jz = this.judder ? Math.cos(clock * 31 + this.pos.x) * 0.02 * this.judder : 0;
+    this.root.position.set(this.pos.x + jx, 0, this.pos.z + jz);
+    this.root.rotation.y = this.yaw;
+    this.hips.position.y = hipY;
+    this.torso.rotation.x = p.lean;
+    this.head.rotation.set(p.headPitch - p.lean * 0.6, p.headYaw, 0);
+    this.armL.sh.rotation.set(shL, 0, p.rollL);
+    this.armL.el.rotation.x = p.elL;
+    this.armR.sh.rotation.set(shR, 0, p.rollR);
+    this.armR.el.rotation.x = p.elR;
+    this.legL.hip.rotation.x = hipL;
+    this.legL.knee.rotation.x = kneeL;
+    this.legR.hip.rotation.x = hipR;
+    this.legR.knee.rotation.x = kneeR;
+  }
+}
+
+// ---------- props ----------
+function makeGun(colour) {
+  const g = new THREE.Group();
+  const body = part(g, new THREE.CylinderGeometry(0.05, 0.05, 0.3, 8), C.carbon, [0, 0, 0.1]);
+  body.rotation.x = Math.PI / 2;
+  const socket = part(g, new THREE.CylinderGeometry(0.035, 0.035, 0.12, 6), C.steel, [0, 0, 0.31]);
+  socket.rotation.x = Math.PI / 2;
+  part(g, box(0.04, 0.12, 0.05), colour, [0, -0.08, 0.04]);
+  part(g, box(0.02, 0.02, 0.3), C.steel, [0, -0.13, -0.1]);
+  g.spin = socket;
+  return g;
+}
+function makeJack(colour) {
+  const g = new THREE.Group();
+  part(g, box(0.34, 0.08, 0.5), C.carbon, [0, 0.06, 0]);
+  for (const s of [-1, 1]) {
+    const w = part(g, new THREE.CylinderGeometry(0.06, 0.06, 0.05, 8), C.steel, [s * 0.2, 0.06, 0.18]);
+    w.rotation.z = Math.PI / 2;
+  }
+  part(g, box(0.1, 0.12, 0.3), colour, [0, 0.14, -0.1]);
+  const pad = part(g, box(0.2, 0.04, 0.16), colour, [0, 0.2, -0.3]);
+  const handle = new THREE.Group();
+  handle.position.set(0, 0.16, 0.12);
+  g.add(handle);
+  part(handle, box(0.05, 0.05, 1.0), C.steel, [0, 0, 0.5]);
+  part(handle, box(0.3, 0.05, 0.05), colour, [0, 0, 1.0]);
+  g.handle = handle;
+  g.pad = pad;
+  return g;
+}
+const textures = new Map();
+function signTexture(text, bg, fg) {
+  const key = `${text}|${bg}|${fg}`;
+  if (textures.has(key)) return textures.get(key);
+  const c = document.createElement("canvas");
+  c.width = 256; c.height = 256;
+  const ctx = c.getContext("2d");
+  ctx.fillStyle = bg; ctx.fillRect(0, 0, 256, 256);
+  ctx.fillStyle = fg;
+  ctx.font = `bold ${text.length > 3 ? 72 : 100}px "Silkscreen", monospace`;
+  ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  ctx.fillText(text, 128, 136);
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  textures.set(key, t);
+  return t;
+}
+function signMaterial(text, bg, fg) {
+  return new THREE.MeshLambertMaterial({ map: signTexture(text, bg, fg) });
+}
+/**
+ * A disc on a pole: STOP faces the way its holder faces, so the driver the
+ * holder looks at reads it; GO is on the back, shown by a half turn.
+ */
+function makeLollipop() {
+  const g = new THREE.Group();
+  part(g, box(0.04, 1.3, 0.04), C.steel, [0, 0.65, 0]);
+  const disc = part(g, new THREE.CylinderGeometry(0.34, 0.34, 0.03, 16), C.carbon, [0, 1.5, 0]);
+  disc.rotation.x = Math.PI / 2;
+  const stop = new THREE.Mesh(new THREE.CircleGeometry(0.32, 16), signMaterial("STOP", "#c81d25", "#ffffff"));
+  stop.position.set(0, 1.5, 0.017);
+  const go = new THREE.Mesh(new THREE.CircleGeometry(0.32, 16), signMaterial("GO", "#3ddc84", "#111111"));
+  go.position.set(0, 1.5, -0.017); go.rotation.y = Math.PI;
+  g.add(stop, go);
+  return g;
+}
+/** A board on a pole, STOP the way its holder faces and GO on the back. */
+function makeBoard() {
+  const g = new THREE.Group();
+  part(g, box(0.04, 0.9, 0.04), C.steel, [0, 0.45, 0]);
+  part(g, box(0.9, 0.5, 0.03), C.carbon, [0, 1.1, 0]);
+  const stop = new THREE.Mesh(new THREE.PlaneGeometry(0.86, 0.46), signMaterial("STOP", "#c81d25", "#ffffff"));
+  stop.position.set(0, 1.1, 0.017);
+  const go = new THREE.Mesh(new THREE.PlaneGeometry(0.86, 0.46), signMaterial("GO", "#3ddc84", "#111111"));
+  go.position.set(0, 1.1, -0.017); go.rotation.y = Math.PI;
+  g.add(stop, go);
+  return g;
+}
+/** A handheld light paddle with one lamp, red through the stop and green at the tick. */
+function makePaddle() {
+  const g = new THREE.Group();
+  part(g, box(0.04, 0.35, 0.04), C.carbon, [0, 0.17, 0]);
+  part(g, box(0.34, 0.4, 0.04), C.carbonShade, [0, 0.55, 0]);
+  const lamp = new THREE.Mesh(new THREE.CircleGeometry(0.12, 12), new THREE.MeshBasicMaterial({ color: C.lampOff }));
+  lamp.position.set(0, 0.6, -0.022); lamp.rotation.y = Math.PI;
+  const lamp2 = lamp.clone(); lamp2.position.z = 0.022; lamp2.rotation.y = 0;
+  g.add(lamp, lamp2);
+  g.lamps = [lamp, lamp2];
+  return g;
+}
+function makeWheel(r, w, worn) {
+  const g = new THREE.Group();
+  const tyre = part(g, new THREE.CylinderGeometry(r, r, w, 8), worn ? C.wornTyre : C.tyre, [0, 0, 0]);
+  tyre.rotation.z = Math.PI / 2;
+  for (const s of [-1, 1]) {
+    const rim = part(g, new THREE.CylinderGeometry(r * 0.58, r * 0.58, 0.02, 8), C.rim, [s * (w / 2), 0, 0]);
+    rim.rotation.z = Math.PI / 2;
+    for (let k = 0; k < 3; k += 1) {
+      const turn = (k * 2 * Math.PI) / 3;
+      const spoke = part(g, box(0.02, r * 0.86, 0.05), C.rim, [s * (w / 2 + 0.01), r * 0.43 * Math.cos(turn), r * 0.43 * Math.sin(turn)]);
+      spoke.rotation.x = turn;
+    }
+  }
+  return g;
+}
+const CORNERS = [
+  { x: -0.49, z: 0.52, r: 0.27, w: 0.22 },
+  { x: 0.49, z: 0.52, r: 0.27, w: 0.22 },
+  { x: -0.49, z: -0.52, r: 0.3, w: 0.24 },
+  { x: 0.49, z: -0.52, r: 0.3, w: 0.24 },
+];
+/** The kart on its mark: tub, wings, pods and the driver, its wheels kept apart so they come off. */
+function makeKart(slot) {
+  const l = LIVERIES[slot];
+  const body = new THREE.Group();
+  part(body, box(0.62, 0.3, 1.5), l.primary, [0, 0.38, 0]);
+  part(body, box(0.36, 0.16, 0.5), l.primary, [0, 0.3, 1.0]);
+  part(body, box(1.3, 0.05, 0.3), l.accent, [0, 0.14, 1.1]);
+  for (const s of [-1, 1]) {
+    part(body, box(0.26, 0.24, 0.8), l.secondary, [s * 0.44, 0.36, -0.1]);
+    part(body, box(0.04, 0.26, 0.08), l.secondary, [s * 0.5, 0.65, -0.86]);
+  }
+  part(body, box(1.1, 0.2, 0.06), l.accent, [0, 0.78, -0.9]);
+  part(body, box(0.36, 0.08, 0.3), C.carbon, [0, 0.5, -0.75]);
+  part(body, box(0.46, 0.2, 0.24), l.primary, [0, 0.62, -0.12]);
+  part(body, box(0.24, 0.05, 0.18), l.accent, [0, 0.735, -0.1]);
+  part(body, box(0.13, 0.08, 0.12), l.driver.skin, [0, 0.77, -0.1]);
+  const head = makeHead(driverFace(slot), { headgear: "none" }, 0.3);
+  head.position.set(0, 0.736, -0.1);
+  body.add(head);
+  body.head = head;
+  const wheels = CORNERS.map((c) => ({ old: makeWheel(c.r, c.w, true), fresh: makeWheel(c.r, c.w, false) }));
+  return { body, wheels };
+}
+
+// ---------- the pit box, as the View draws it ----------
+function makeBox(scene, slot) {
+  const key = LIVERIES[slot].key;
+  const floor = part(scene, new THREE.PlaneGeometry(60, 60), C.asphalt, [0, 0, 0]);
+  floor.rotation.x = -Math.PI / 2;
+  const mw = 2.2, ml = 2.8, line = 0.2;
+  for (const e of [-1, 1]) {
+    part(scene, box(mw, 0.02, line), key, [0, 0.01, (e * ml) / 2]);
+    part(scene, box(line, 0.02, ml), key, [(e * mw) / 2, 0.01, 0]);
+  }
+  // The gantry at the mark's front corner on the building's side, lamps toward the kart.
+  const gantry = new THREE.Group();
+  gantry.position.set(mw / 2 + line + 0.1, 0, ml / 2);
+  part(gantry, box(0.08, 2.2, 0.08), C.carbon, [0, 1.1, 0]);
+  part(gantry, box(0.34, 0.68, 0.34), C.carbonShade, [0, 2.2 - 0.34, 0]);
+  const red = new THREE.Mesh(box(0.26, 0.26, 0.04), new THREE.MeshBasicMaterial({ color: C.lampOff }));
+  red.position.set(0, 2.2 - 0.17, -0.18);
+  const green = new THREE.Mesh(box(0.26, 0.26, 0.04), new THREE.MeshBasicMaterial({ color: C.lampOff }));
+  green.position.set(0, 2.2 - 0.51, -0.18);
+  gantry.add(red, green);
+  scene.add(gantry);
+  // The pit building behind the apron and the pit wall on the lane side.
+  part(scene, box(2, 6, 24), C.riser, [6.2, 3, 0]);
+  part(scene, box(0.1, 4, 4), key, [5.15, 2, 0]);
+  part(scene, box(0.1, 0.5, 4), new THREE.Color(key).lerp(new THREE.Color(1, 1, 1), 0.28).getHex(), [5.14, 3.75, 0]);
+  for (const z of [-8, 8]) part(scene, box(0.1, 4, 4), C.plinth, [5.15, 2, z]);
+  part(scene, box(0.2, 1, 40), C.wall, [-4.4, 0.5, 0]);
+  part(scene, box(0.3, 0.02, 40), C.wall, [-2.2, 0.011, 0]);
+  const hemi = new THREE.HemisphereLight(0xffffff, 0x8a8f99, 1.1);
+  const sun = new THREE.DirectionalLight(0xffffff, 2.4);
+  sun.position.set(-4, 9, 3);
+  scene.add(hemi, sun);
+  return { red, green };
+}
+
+// ---------- the versions ----------
+const VARIANTS = {
+  A: { kit: (slot) => ({ headgear: "cap", colour: LIVERIES[slot].key }), people: [0, 1, 2, 3, 9], roles: ["Front jack", "Rear jack", "Gunner left", "Gunner right", "Chief, board"], stances: ["stands", "stands", "crouches, sprints", "crouches, sprints", "stands"] },
+  B: { kit: () => ({ headgear: "headset" }), people: [0, 1, 2, 3, 4, 5, 6], roles: ["Front jack", "Rear jack", "Gunner FL", "Gunner FR", "Gunner RL", "Gunner RR", "Lollipop"], stances: ["stands", "stands", "crouches", "crouches", "crouches", "crouches", "stands"] },
+  C: { kit: (slot) => ({ headgear: "helmet", colour: LIVERIES[slot].key }), people: [0, 1, 2, 3, 4, 5, 7, 8, 9], roles: ["Front jack", "Rear jack", "Gunner FL", "Gunner FR", "Gunner RL", "Gunner RR", "Carrier left", "Carrier right", "Chief, paddle"], stances: ["stands", "stands", "crouches", "crouches", "crouches", "crouches", "stands, crouches", "stands, crouches", "stands"] },
+};
+const APPROACH_S = 1.8;
+const MARK_S = APPROACH_S + GUIDE_S;
+const GUNNER_X = 0.6 + 0.5;
+const ROW_X = 2.6, ROW_PITCH = 0.7;
+const rowSpot = (i, n) => ({ x: ROW_X, z: (i - (n - 1) / 2) * ROW_PITCH, yaw: -Math.PI / 2 });
+const faceKart = (x) => (x > 0 ? -Math.PI / 2 : Math.PI / 2);
+
+/** The stop's beats for a tier's stationary time, seconds on the mark. */
+function schedule(tier) {
+  const T = TIERS[tier];
+  const f = Math.min(1, T / 2.65);
+  const k = (x) => x * f;
+  const s = {
+    T, tier, mark: MARK_S, go: MARK_S + T, reset: MARK_S + T + GREEN_HOLD_S, loop: MARK_S + T + GREEN_HOLD_S + 3.2,
+    jackUp: [0, k(0.4)], gunOff: [k(0.25), k(0.85)], wheelOff: [k(0.85), k(1.25)], wheelOn: [k(1.25), k(1.65)], gunOn: [k(1.65), k(2.15)],
+    done: k(2.15), jackDown: [T - 0.3, T - 0.05],
+    // The act of the roll, past a clean stop's longest.
+    act: CLEAN_LONGEST_S, stuckUntil: T - 0.5, swarmAt: CLEAN_LONGEST_S + 0.25,
+    fail: CLEAN_LONGEST_S, rejack: [T - 3.0, T - 2.6], redo: [T - 2.5, T - 1.1],
+    // Version A: one gunner per side, front wheel then rear.
+    cycle: (w, b) => ({ gunOff: [k(0.1 + w), k(0.4 + w)], wheelOff: [k(0.4 + w), k(0.6 + w)], wheelOn: [k(0.6 + w), k(0.8 + w)], gunOn: [k(0.8 + w), k(1.1 + w)], done: k(1.1 + w) }),
+  };
+  s.cycles = [s.cycle(0.05), s.cycle(1.35)];
+  s.cycles[0].done = k(1.15); s.cycles[1].done = k(2.45);
+  return s;
+}
+
+/** The segments the timeline strip shows. */
+function segments(s) {
+  const out = [["Run out", 0, APPROACH_S], ["Guide", APPROACH_S, s.mark], ["Jack", s.mark, s.mark + s.jackUp[1], "stop"], ["Nuts off", s.mark + s.jackUp[1], s.mark + s.wheelOff[0], "stop"], ["Wheels", s.mark + s.wheelOff[0], s.mark + s.wheelOn[1], "stop"], ["Nuts on", s.mark + s.wheelOn[1], s.mark + s.done, "stop"]];
+  if (s.tier === "record" || s.tier === "clean") out.push(["Hold", s.mark + s.done, s.go - 0.3, "stop"]);
+  else {
+    out.push(["Hold", s.mark + s.done, s.mark + s.act, "stop"]);
+    const label = { slow: "One corner again", botched: "Stuck nut, swarm", disaster: "Jack fails, stand off" }[s.tier];
+    out.push([label, s.mark + s.act, s.go - 0.3, "act"]);
+  }
+  out.push(["Drop", s.go - 0.3, s.go, "stop"], ["Go", s.go, s.reset, "go"], ["Back", s.reset, s.loop]);
+  return out;
+}
+
+class Stage {
+  constructor(article, variantKey) {
+    this.article = article;
+    this.key = variantKey;
+    this.variant = VARIANTS[variantKey];
+    this.canvas = article.querySelector("canvas");
+    this.clockEl = article.querySelector(".clock");
+    this.timelineEl = article.querySelector(".timeline");
+    this.rosterEl = article.querySelector(".roster");
+    this.renderer = new THREE.WebGLRenderer({ canvas: this.canvas, antialias: true });
+    this.renderer.setPixelRatio(Math.min(2, window.devicePixelRatio));
+    this.camera = new THREE.PerspectiveCamera(50, 16 / 9, 0.1, 120);
+    this.controls = new OrbitControls(this.camera, this.canvas);
+    this.controls.enabled = false;
+    this.controls.target.set(0, 0.6, 0.5);
+    this.scene = null;
+    this.rosterEl.innerHTML = this.variant.roles.map((r, i) => `<span><b>${i + 1}</b> ${r}: ${this.variant.stances[i]}</span>`).join("");
+    new ResizeObserver(() => this.resize()).observe(this.canvas);
+    this.resize();
+  }
+  resize() {
+    const w = this.canvas.clientWidth || 640, h = this.canvas.clientHeight || 360;
+    this.renderer.setSize(w, h, false);
+    this.camera.aspect = w / h;
+    this.camera.updateProjectionMatrix();
+  }
+  setCamera(name) {
+    this.cameraName = name;
+    this.controls.enabled = name === "orbit";
+    if (name === "chase") this.chase(0);
+    if (name === "side") { this.camera.position.set(-6.5, 2.2, 0.8); this.camera.lookAt(0, 0.5, 0.3); }
+    if (name === "above") { this.camera.position.set(0.6, 9, -2.6); this.camera.lookAt(0, 0, 0.4); }
+    if (name === "orbit") { this.controls.target.set(0, 0.6, 0.4); this.controls.update(); }
+  }
+  /** The game's chase camera: 6 m behind the kart, 3.2 m up, looking 4 m ahead of it. */
+  chase(kartZ) { this.camera.position.set(0, 3.2, kartZ - 6); this.camera.lookAt(0, 0.4, kartZ + 4); }
+  build(slot) {
+    this.scene = new THREE.Scene();
+    this.scene.background = new THREE.Color(0xbfd4e6);
+    this.lamps = makeBox(this.scene, slot);
+    this.kart = makeKart(slot);
+    this.scene.add(this.kart.body);
+    for (const w of this.kart.wheels) this.scene.add(w.old, w.fresh);
+    const people = roster(slot);
+    const kit = this.variant.kit(slot);
+    const l = LIVERIES[slot];
+    const colours = { suit: l.key, stripe: this.key === "C" ? l.accent : C.white, glove: this.key === "A" ? people[0].skin : C.glove };
+    this.rigs = this.variant.people.map((p, i) => {
+      const rig = new Rig(people[p], kit, { ...colours, glove: this.key === "A" ? people[p].skin : C.glove });
+      const spot = rowSpot(i, this.variant.people.length);
+      rig.place(spot.x, spot.z, spot.yaw);
+      this.scene.add(rig.root);
+      return rig;
+    });
+    // Props: the gunners' guns in their hands, two jacks on the apron, the version's sign.
+    this.guns = [];
+    for (const i of this.gunnerIndices()) {
+      const gun = makeGun(l.key);
+      gun.position.set(0.1, 0.1, 0.42);
+      gun.rig = this.rigs[i];
+      this.rigs[i].props.add(gun);
+      this.guns.push(gun);
+    }
+    this.carried = [true, true, false, false];
+    this.frontJack = makeJack(C.jackRed);
+    this.rearJack = makeJack(C.jackRed);
+    this.rearJack.rotation.y = Math.PI;
+    this.scene.add(this.frontJack, this.rearJack);
+    if (this.key === "B") { this.sign = makeLollipop(); this.sign.position.set(0.32, -0.25, 0.3); this.rigs[6].props.add(this.sign); }
+    if (this.key === "A") { this.sign = makeBoard(); this.sign.position.set(0, 0.55, 0.15); this.rigs[4].props.add(this.sign); }
+    if (this.key === "C") { this.sign = makePaddle(); this.sign.position.set(0.3, 0.2, 0.3); this.rigs[8].props.add(this.sign); }
+    this.timelineEl.innerHTML = "";
+  }
+  gunnerIndices() { return this.key === "A" ? [2, 3] : [2, 3, 4, 5]; }
+  drawTimeline(s) {
+    const segs = segments(s);
+    this.timelineEl.innerHTML = segs.map(([label, a, b, cls]) => `<span class="${cls ?? ""}" style="left:${(a / s.loop) * 100}%;width:${((b - a) / s.loop) * 100}%">${label}</span>`).join("") + `<div class="head"></div>`;
+    this.head = this.timelineEl.querySelector(".head");
+  }
+  /** Everything at loop time `t`: the kart, the lamps, the wheels and the crew's goals. */
+  act(t, s, dt, clock) {
+    const onMark = t - s.mark;
+    // The kart: in on the guide, lifted by the jacks, off at the tick of green.
+    let z = 0, v = 0;
+    if (t < s.mark) { const u = t / s.mark; z = -14 * (1 - ease(u)) * (1 - u); v = 14 / s.mark; }
+    if (t >= s.go) { const dtg = t - s.go; z = 0.5 * 7 * dtg * dtg; v = 7 * dtg; }
+    const hidden = z > 24;
+    this.kart.body.visible = !hidden;
+    if (this.cameraName === "chase") this.chase(hidden ? 0 : z);
+    let front = ramp(onMark, s.jackUp[0], s.jackUp[1]), rear = ramp(onMark, s.jackUp[0] + 0.05, s.jackUp[1] + 0.05);
+    const down = 1 - ramp(onMark, s.jackDown[0], s.jackDown[1]);
+    front *= down; rear *= down;
+    let frontFailed = 0;
+    if (s.tier === "disaster" && onMark > s.fail) {
+      const dropped = 1 - ramp(onMark, s.fail, s.fail + 0.25);
+      const back = ramp(onMark, s.rejack[0], s.rejack[1]);
+      front = Math.max(dropped, back) * down;
+      frontFailed = between(onMark, s.fail, s.rejack[0]) ? 1 : 0;
+      if (between(onMark, s.fail, s.fail + 0.6)) front += Math.abs(Math.sin((onMark - s.fail) * 20)) * 0.25 * (1 - ramp(onMark, s.fail, s.fail + 0.6));
+    }
+    const LIFT = 0.16;
+    this.kart.body.position.set(0, (front + rear) * LIFT * 0.5, z);
+    this.kart.body.rotation.x = Math.atan2((rear - front) * LIFT, 1.04);
+    this.kart.body.head.rotation.y = t >= s.go - 0.6 ? 0 : Math.sin(clock * 0.8) * 0.3;
+    // The lamps: red from the guide to the tick, green for the hold after it.
+    const red = between(t, APPROACH_S, s.go), green = between(t, s.go, s.go + GREEN_HOLD_S);
+    this.lamps.red.material.color.setHex(red ? C.red : C.lampOff);
+    this.lamps.green.material.color.setHex(green ? C.green : C.lampOff);
+    // The jacks: handle pumped to lift, flipped up to drop, dragged clear as the kart goes.
+    const pump = (p) => (p >= 1 ? 0.1 : 0.6 - Math.abs(Math.sin(p * Math.PI * 2)) * 0.5);
+    const clear = ramp(t, s.go - 0.35, s.go + 0.2);
+    this.frontJack.position.set(0.9 * clear, 0, 1.3 + 0.3 * clear);
+    this.frontJack.handle.rotation.x = -(frontFailed ? 0.9 : t < s.mark ? 0.6 : down < 1 ? 0.8 : pump(front));
+    this.rearJack.position.set(0, 0, -1.3 - 0.4 * clear);
+    this.rearJack.handle.rotation.x = -(t < s.mark ? 0.6 : down < 1 ? 0.8 : pump(rear));
+    // The wheels: worn ones on the hubs until pulled, fresh ones staged or carried until pushed.
+    const wheelWorld = (c) => this.kart.body.localToWorld(new THREE.Vector3(c.x, c.r, c.z));
+    const spin = (v / 0.28) * dt;
+    const corners = this.cornerBeats(s);
+    CORNERS.forEach((c, i) => {
+      const w = this.kart.wheels[i], beats = corners[i], side = Math.sign(c.x);
+      const off = ramp(onMark, beats.wheelOff[0], beats.wheelOff[1]), on = ramp(onMark, beats.wheelOn[0], beats.wheelOn[1]);
+      const hub = wheelWorld(c);
+      w.old.visible = !hidden && t < s.loop - 0.5;
+      if (off === 0) { w.old.position.copy(hub); w.old.rotation.x -= spin; }
+      else {
+        const roll = ramp(onMark, beats.wheelOff[1], beats.wheelOff[1] + 1.2);
+        w.old.position.set(lerp(hub.x, side * 1.55, ease(off)), lerp(hub.y, c.r, ease(off)), c.z - roll * 1.9);
+        w.old.rotation.x += roll < 1 ? -dt * 6 : 0;
+      }
+      const staged = this.stagedSpot(i, c, side);
+      w.fresh.visible = !hidden;
+      if (on === 0) { w.fresh.position.copy(staged); }
+      else { w.fresh.position.lerpVectors(staged, hub, ease(on)); }
+      if (on >= 1 && t >= s.go) { w.fresh.position.copy(hub); w.fresh.rotation.x -= spin; }
+    });
+    this.sign.visible = true;
+    this.crew(t, s, onMark, clock, { front, rear, frontFailed, corners });
+    for (const rig of this.rigs) rig.update(dt, clock);
+    for (const gun of this.guns) gun.spin.rotation.y += dt * 40 * gun.rig.judder;
+    this.clockEl.dataset.tier = s.tier;
+    this.clockEl.querySelector("b").textContent = `${Math.max(0, Math.min(onMark, s.T)).toFixed(1)} s`;
+    this.clockEl.querySelector("span").textContent = t < s.mark ? "Guide" : t < s.go ? `On the mark, ${s.tier}` : "Let go";
+    if (this.head) this.head.style.left = `${(t / s.loop) * 100}%`;
+  }
+  /** Where a corner's fresh wheel waits before it goes on. */
+  stagedSpot(i, c, side) {
+    if (this.key === "C") {
+      if (this.carried[i]) return this.rigs[side < 0 ? 6 : 7].torso.localToWorld(new THREE.Vector3(0, 0.25, 0.4));
+      return new THREE.Vector3(side * 1.95, c.r, c.z);
+    }
+    return new THREE.Vector3(side * 1.75, c.r, c.z - 0.1);
+  }
+  cornerBeats(s) {
+    if (this.key === "A") return [s.cycles[0], s.cycles[0], s.cycles[1], s.cycles[1]];
+    return [s, s, s, s];
+  }
+  /** The crew's goals: who is where, facing what, in which pose. */
+  crew(t, s, onMark, clock, state) {
+    const n = this.rigs.length;
+    const row = (i) => { const r = rowSpot(i, n); this.rigs[i].set(r.x, r.z, r.yaw, "stand"); };
+    const runningOut = t < APPROACH_S - 0.9;
+    const goingBack = t >= s.reset;
+    if (runningOut || goingBack) { this.rigs.forEach((_, i) => row(i)); if (this.key === "C") this.carried = [true, true, false, false]; return; }
+    const leaving = t >= s.go;
+    const act = s.tier !== "record" && s.tier !== "clean" && onMark >= s.act;
+    const disaster = s.tier === "disaster" && act && onMark < s.rejack[0];
+    // Jacks: at the lever through the lift, pushing on each pump, a step aside at the tick.
+    const jackPose = (lift, failed) => (failed ? "dismay" : lift > 0 && lift < 1 ? "jackPush" : "jack");
+    if (disaster) this.rigs[0].set(0.4, 3.3, Math.PI, "dismay", { headYaw: Math.sin(clock * 6) * 0.4 });
+    else if (leaving) this.rigs[0].set(1.3, 2.4, Math.PI, "stand", { headYaw: -0.6 });
+    else this.rigs[0].set(0, 2.35, Math.PI, jackPose(state.front, false), { judder: 0 });
+    this.rigs[1].set(0, leaving ? -2.6 : -2.35, 0, leaving ? "stand" : jackPose(state.rear, false));
+    // Gunners.
+    const gunner = (i, corner, beats, opts = {}) => {
+      const c = CORNERS[corner], side = Math.sign(c.x);
+      const x = opts.x ?? side * GUNNER_X, z = opts.z ?? c.z, yaw = opts.yaw ?? faceKart(x);
+      let pose = "crouch", judder = 0;
+      if (between(onMark, beats.gunOff[0], beats.gunOff[1]) || between(onMark, beats.gunOn[0], beats.gunOn[1])) judder = 1;
+      else if (between(onMark, beats.wheelOff[0], beats.wheelOff[1])) pose = "pull";
+      else if (between(onMark, beats.wheelOn[0], beats.wheelOn[1])) pose = "push";
+      else if (onMark >= beats.done) pose = "crouchHandUp";
+      if (opts.pose) pose = opts.pose;
+      if (opts.judder !== undefined) judder = opts.judder;
+      this.rigs[i].set(x, z, yaw, pose, { judder, headYaw: opts.headYaw ?? 0 });
+    };
+    const standOff = (i, corner) => {
+      const c = CORNERS[corner], side = Math.sign(c.x);
+      this.rigs[i].set(side * (GUNNER_X + 0.5), c.z, faceKart(side), "stand", { headYaw: side > 0 ? 0.9 : -0.9 });
+    };
+    if (this.key === "A") {
+      // Two gunners, each the front wheel of a side then the rear.
+      for (const [i, side] of [[2, -1], [3, 1]]) {
+        const first = side < 0 ? 0 : 1, second = side < 0 ? 2 : 3;
+        const corner = onMark < s.cycles[0].done + 0.1 ? first : second;
+        const beats = corner === first ? s.cycles[0] : s.cycles[1];
+        if (leaving) standOff(i, corner);
+        else if (disaster) standOff(i, corner);
+        else if (act && s.tier === "slow" && side < 0) gunner(i, 2, beats, { pose: onMark < s.stuckUntil ? "crouch" : "crouchHandUp", judder: onMark < s.stuckUntil ? 1 : 0 });
+        else if (act && s.tier === "botched") {
+          if (side < 0) gunner(i, 2, beats, { pose: onMark < s.stuckUntil ? "crouch" : "crouchHandUp", judder: onMark < s.stuckUntil ? 1 : 0 });
+          else if (onMark >= s.swarmAt) gunner(i, 2, beats, { x: -GUNNER_X, z: CORNERS[2].z - 0.5, yaw: Math.PI / 2 + 0.5, pose: onMark < s.stuckUntil ? "crouch" : "crouchHandUp", judder: onMark < s.stuckUntil ? 0.6 : 0 });
+          else gunner(i, corner, beats);
+        }
+        else if (s.tier === "disaster" && act) gunner(i, corner, s.cycles[1], { pose: onMark < s.redo[1] ? "crouch" : "crouchHandUp", judder: between(onMark, s.redo[0], s.redo[1]) ? 1 : 0 });
+        else gunner(i, corner, beats);
+      }
+      // The chief: ahead of the nose on the building's side, board overhead, swung to GO at the tick.
+      const chief = this.rigs[4];
+      const swing = ramp(t, s.go - 0.35, s.go + 0.05);
+      if (act && s.tier === "botched" && onMark >= s.swarmAt && !leaving) chief.set(-1.9, -0.2, Math.PI / 2, "point", { headYaw: 0.2 });
+      else chief.set(1.1, 3.2, Math.PI, "holdHigh", { headYaw: leaving ? 0.5 : 0 });
+      // STOP stays toward the lane whatever way the chief is turned, so the driver never reads GO early.
+      this.sign.rotation.y = Math.PI - chief.yaw + swing * Math.PI + (leaving ? Math.sin(clock * 10) * 0.15 : 0);
+      this.sign.rotation.z = leaving ? Math.sin(clock * 8) * 0.25 : 0;
+    }
+    if (this.key === "B") {
+      for (let corner = 0; corner < 4; corner += 1) {
+        const i = 2 + corner;
+        if (leaving) standOff(i, corner);
+        else if (disaster) standOff(i, corner);
+        else if (act && s.tier === "slow") {
+          if (corner === 2) gunner(i, 2, s, { pose: onMark < s.stuckUntil ? "crouch" : "crouchHandUp", judder: onMark < s.stuckUntil ? 1 : 0 });
+          else gunner(i, corner, s);
+        }
+        else if (act && s.tier === "botched") {
+          if (corner === 2) gunner(i, 2, s, { pose: onMark < s.stuckUntil ? "crouch" : "crouchHandUp", judder: onMark < s.stuckUntil ? 1 : 0 });
+          else if (onMark >= s.swarmAt) {
+            const spots = [[-GUNNER_X, CORNERS[2].z - 0.5, Math.PI / 2 + 0.6], [-GUNNER_X - 0.55, CORNERS[2].z, Math.PI / 2], [-GUNNER_X, CORNERS[2].z + 0.5, Math.PI / 2 - 0.6]];
+            const [x, z, yaw] = spots[corner > 2 ? corner - 1 : corner];
+            gunner(i, 2, s, { x, z, yaw, pose: onMark < s.stuckUntil ? (corner === 3 ? "crouch" : "push") : "crouchHandUp", judder: onMark < s.stuckUntil && corner === 3 ? 0.7 : 0 });
+          } else gunner(i, corner, s);
+        }
+        else if (s.tier === "disaster" && act) {
+          const redo = corner < 2;
+          gunner(i, corner, s, { pose: redo ? (onMark < s.redo[1] ? "crouch" : "crouchHandUp") : "crouchHandUp", judder: redo && between(onMark, s.redo[0], s.redo[1]) ? 1 : 0 });
+        }
+        else gunner(i, corner, s);
+      }
+      // The lollipop: off the nose on the building's side, STOP to the driver, spun then lifted.
+      const holder = this.rigs[6];
+      const spun = ramp(t, s.go - 0.6, s.go - 0.2), up = ramp(t, s.go, s.go + 0.3);
+      if (t >= s.go - 0.05) holder.set(1.35, 2.9, Math.PI + 0.3, "raisePole", { headYaw: -0.4 });
+      else holder.set(0.75, 2.9, Math.PI, "holdPole", { headPitch: 0.1 });
+      this.sign.rotation.y = Math.PI - holder.yaw + spun * Math.PI;
+      this.sign.position.set(0.32, -0.25 + up * 0.7, 0.3 - up * 0.2);
+      this.sign.rotation.x = -up * 0.4;
+    }
+    if (this.key === "C") {
+      for (let corner = 0; corner < 4; corner += 1) {
+        const i = 2 + corner;
+        if (leaving) standOff(i, corner);
+        else if (disaster) standOff(i, corner);
+        else if (act && s.tier === "slow" && corner === 2) gunner(i, 2, s, { pose: onMark < s.stuckUntil ? "crouch" : "crouchHandUp", judder: onMark < s.stuckUntil ? 1 : 0 });
+        else if (act && s.tier === "botched") {
+          if (corner === 2) gunner(i, 2, s, { pose: onMark < s.stuckUntil ? "crouch" : "crouchHandUp", judder: onMark < s.stuckUntil ? 1 : 0 });
+          else if (onMark >= s.swarmAt && corner === 3) gunner(i, 2, s, { x: -GUNNER_X, z: CORNERS[2].z - 0.55, yaw: Math.PI / 2 + 0.6, pose: onMark < s.stuckUntil ? "crouch" : "crouchHandUp", judder: onMark < s.stuckUntil ? 0.7 : 0 });
+          else gunner(i, corner, s);
+        }
+        else if (s.tier === "disaster" && act) {
+          const redo = corner < 2;
+          gunner(i, corner, s, { pose: redo ? (onMark < s.redo[1] ? "crouch" : "crouchHandUp") : "crouchHandUp", judder: redo && between(onMark, s.redo[0], s.redo[1]) ? 1 : 0 });
+        }
+        else gunner(i, corner, s);
+      }
+      // Carriers: a fresh wheel at the chest between the two wheels of a side, down to pull and push.
+      this.carried = this.carried ?? [true, true, false, false];
+      for (const [i, side] of [[6, -1], [7, 1]]) {
+        const frontCorner = side < 0 ? 0 : 1, rearCorner = side < 0 ? 2 : 3;
+        const x = side * (GUNNER_X + 0.75);
+        const busy = between(onMark, s.wheelOff[0] - 0.15, s.wheelOn[1] + 0.1);
+        if (leaving) this.rigs[i].set(side * (GUNNER_X + 1.1), 0, faceKart(side), "holdChest", { headYaw: side > 0 ? 0.9 : -0.9 });
+        else if (disaster) this.rigs[i].set(side * (GUNNER_X + 1.1), 0, faceKart(side), "stand", { headYaw: side > 0 ? 0.9 : -0.9 });
+        else if (act && (s.tier === "botched" || s.tier === "slow") && side < 0) this.rigs[i].set(-GUNNER_X - 0.1, CORNERS[2].z + 0.55, Math.PI / 2 - 0.6, onMark < s.stuckUntil ? "crouch" : "crouchHandUp");
+        else if (act && s.tier === "botched" && side > 0 && onMark >= s.swarmAt) this.rigs[i].set(-GUNNER_X - 0.6, CORNERS[2].z - 0.1, Math.PI / 2, "stand", { headPitch: 0.4 });
+        else if (busy) this.rigs[i].set(x, CORNERS[frontCorner].z, faceKart(side), between(onMark, s.wheelOff[0], s.wheelOff[1]) ? "pull" : "push");
+        else this.rigs[i].set(x, 0, faceKart(side), "holdChest");
+        // The front corners' fresh wheels are in the carriers' hands until they are on.
+        this.carried[frontCorner] = onMark < s.wheelOn[1];
+      }
+      // The chief beside the gantry: paddle red through the stop, green and raised at the tick.
+      const chief = this.rigs[8];
+      const up = ramp(t, s.go, s.go + 0.3);
+      chief.set(2.1, 2.0, Math.PI - 0.6, t >= s.go ? "raisePole" : "holdPole", { headYaw: -0.2 });
+      this.sign.position.set(0.3, 0.2 + up * 0.8, 0.3 - up * 0.15);
+      const lamp = t >= s.go && t < s.go + GREEN_HOLD_S ? C.green : t >= APPROACH_S && t < s.go ? C.red : C.lampOff;
+      for (const l of this.sign.lamps) l.material.color.setHex(lamp);
+    }
+  }
+  render() { if (this.scene) this.renderer.render(this.scene, this.camera); }
+}
+
+// ---------- the faces strip ----------
+class Faces {
+  constructor(canvas, labels) {
+    this.canvas = canvas;
+    this.labels = labels;
+    this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+    this.renderer.setPixelRatio(Math.min(2, window.devicePixelRatio));
+    this.camera = new THREE.OrthographicCamera(-5.5, 5.5, 0.75, -0.75, 0.1, 50);
+    this.camera.position.set(0, 0, 10);
+    this.camera.lookAt(0, 0, 0);
+    new ResizeObserver(() => this.resize()).observe(canvas);
+    this.resize();
+  }
+  resize() {
+    const w = this.canvas.clientWidth || 880, h = this.canvas.clientHeight || 192;
+    this.renderer.setSize(w, h, false);
+  }
+  build(slot) {
+    this.scene = new THREE.Scene();
+    this.scene.background = new THREE.Color(0xd5dbe3);
+    this.scene.add(new THREE.HemisphereLight(0xffffff, 0x8a8f99, 1.1));
+    const sun = new THREE.DirectionalLight(0xffffff, 2.2);
+    sun.position.set(-3, 5, 6);
+    this.scene.add(sun);
+    const people = roster(slot);
+    const kit = { headgear: "none" };
+    const l = LIVERIES[slot];
+    this.heads = [makeHead(driverFace(slot), kit, 0.3), ...people.map((p) => makeHead(p, kit, 0.3))];
+    this.heads.forEach((h, i) => {
+      h.position.set(-5 + i, -0.3, 0);
+      this.scene.add(h);
+      part(this.scene, box(0.6, 0.2, 0.3), i === 0 ? l.primary : l.key, [-5 + i, -0.4, 0]);
+      part(this.scene, box(0.3, 0.06, 0.2), i === 0 ? l.accent : C.white, [-5 + i, -0.29, 0.06]);
+    });
+    this.labels.innerHTML = ["Driver", ...people.map((p, i) => `${i + 1} ${p.hair.replace(/-/g, " ")}`)].map((t) => `<span>${t}</span>`).join("");
+  }
+  render(clock) {
+    if (!this.scene) return;
+    this.heads.forEach((h, i) => { h.rotation.y = Math.sin(clock * 0.7 + i * 0.6) * 0.7; });
+    this.renderer.render(this.scene, this.camera);
+  }
+}
+
+// ---------- the page ----------
+async function main() {
+  try { await document.fonts.load('bold 100px "Silkscreen"'); } catch { /* the sign falls back to monospace */ }
+  const state = { slot: 0, tier: "clean", camera: "chase", playing: true, half: false };
+  const stages = [...document.querySelectorAll(".variant")].map((a) => new Stage(a, a.dataset.variant));
+  const faces = new Faces(document.getElementById("faces"), document.getElementById("face-labels"));
+  let sched = schedule(state.tier);
+  let loopT = 0, last = performance.now(), clock = 0;
+  const rebuild = () => {
+    for (const st of stages) { st.build(state.slot); st.drawTimeline(sched); st.setCamera(state.camera); }
+    faces.build(state.slot);
+    loopT = 0;
+  };
+  const picker = (group, items, current, onPick) => {
+    const host = document.querySelector(`.picker [data-pick="${group}"]`);
+    for (const [value, label, dot] of items) {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.dataset.value = value;
+      b.setAttribute("aria-pressed", String(value === current));
+      b.innerHTML = (dot ? `<span class="dot" style="background:${dot}"></span>` : "") + label;
+      b.addEventListener("click", () => {
+        for (const o of host.querySelectorAll("button")) o.setAttribute("aria-pressed", String(o === b));
+        onPick(value);
+      });
+      host.append(b);
+    }
+  };
+  picker("livery", LIVERIES.map((l, i) => [String(i), l.name, `#${l.key.toString(16).padStart(6, "0")}`]), "0", (v) => { state.slot = Number(v); rebuild(); });
+  picker("tier", Object.keys(TIERS).map((k) => [k, `${k[0].toUpperCase()}${k.slice(1)} ${TIERS[k].toFixed(1)} s`]), state.tier, (v) => { state.tier = v; sched = schedule(v); for (const st of stages) st.drawTimeline(sched); loopT = 0; });
+  picker("camera", [["chase", "Chase"], ["side", "Side"], ["above", "Above"], ["orbit", "Orbit"]], state.camera, (v) => { state.camera = v; for (const st of stages) st.setCamera(v); });
+  const play = document.getElementById("play");
+  play.addEventListener("click", () => { state.playing = !state.playing; play.textContent = state.playing ? "Pause" : "Play"; play.setAttribute("aria-pressed", String(state.playing)); });
+  const slow = document.getElementById("slow");
+  slow.addEventListener("click", () => { state.half = !state.half; slow.setAttribute("aria-pressed", String(state.half)); });
+  rebuild();
+  // For the smoke script: jump the loop to a time.
+  window.pitMockup = { seek: (t) => { loopT = t; }, at: () => loopT };
+  const frame = (now) => {
+    let dt = Math.min(0.05, (now - last) / 1000);
+    last = now;
+    if (!state.playing) dt = 0;
+    if (state.half) dt *= 0.5;
+    clock += dt;
+    loopT += dt;
+    if (loopT >= sched.loop) loopT -= sched.loop;
+    for (const st of stages) { st.act(loopT, sched, dt, clock); st.render(); }
+    faces.render(clock);
+    requestAnimationFrame(frame);
+  };
+  requestAnimationFrame(frame);
+}
+main().catch((error) => {
+  document.getElementById("fallback").hidden = false;
+  console.error(error);
+});
+</script>
+</body>
+</html>
