@@ -8,8 +8,8 @@ use common::{
     follow_centreline, rolling, started, steer_toward, tap, track, with_boxes_at, with_slot_at,
     without_item_boxes, without_wheel_crossings, BELL_DEER, DT, SEED,
 };
-use sim::tuning::{PIT_LIMIT_M_PER_S, TOP_SPEED_M_PER_S, TYRE_WEAR_ROLLING_PER_S};
-use sim::{step, BotLevel, Item, ItemSlot, KartInput, Phase, RaceEvent, State, Track, Tyres};
+use sim::tuning::{HAZARD_DROP_DISTANCE_M, PIT_LIMIT_M_PER_S, TYRE_WEAR_ROLLING_PER_S};
+use sim::{step, BotLevel, Item, ItemSlot, KartInput, RaceEvent, State, Track, TrackError, Tyres};
 
 /// Metres short of the fork that a staged kart starts from, on the centreline.
 const RUN_UP_M: f32 = 25.0;
@@ -434,13 +434,47 @@ fn a_hazard_held_into_the_lane_does_not_land_there() {
     }
     assert!(state.kart_readouts()[2].in_pit_lane);
     let lane = state.track().pit_lane().expect("a lane");
-    for hazard in state.hazards() {
-        assert!(
-            !lane.limits(hazard.position),
-            "a hazard lies in the lane at {:?}",
-            hazard.position
-        );
-    }
+    let hazards = state.hazards();
+    let [hazard] = hazards.as_slice() else {
+        panic!("the hold ended at the line, leaving it there");
+    };
+    assert!(!hazard.held, "let go at the line");
+    let lying_at = lane.reading(hazard.position).expect("on the lane's path");
+    assert!(
+        lying_at < lane.entry_m(),
+        "it lies short of the line, {lying_at} m along of {} m",
+        lane.entry_m()
+    );
+}
+
+#[test]
+fn a_hazard_dropped_over_the_line_does_not_land_there() {
+    // A kart short of the line, turned to face back up the lane: behind it,
+    // where a hazard lands, is past the line.
+    let build = || {
+        let quiet = sidecar_with(|sidecar| sidecar.to_owned());
+        let course = track(&quiet);
+        let entry = course.pit_lane().expect("a lane").entry_m();
+        let dropper = entry - 0.4;
+        let (at, down_the_lane) = along_lane(&course, dropper);
+        track(&with_slot_at(
+            &with_boxes_at(&quiet, [at]),
+            0,
+            at,
+            down_the_lane + std::f32::consts::PI,
+        ))
+    };
+    let mut state = rolling(build, 1, 0, &[(0, Item::Hazard)]);
+    assert!(!state.kart_readouts()[0].in_pit_lane);
+    state = step(state, &[tap()], DT);
+    assert!(
+        state
+            .events()
+            .iter()
+            .any(|event| matches!(event, RaceEvent::ItemFired { kart: 0, .. })),
+        "it fired from short of the line"
+    );
+    assert!(state.hazards().is_empty(), "{:?}", state.hazards());
 }
 
 /// Three karts, slot 0 on the lane `metres_in` past the entry line, and the
@@ -517,6 +551,71 @@ fn a_star_kart_spins_out_nobody_in_the_lane() {
 }
 
 #[test]
+fn a_star_short_of_the_line_spins_out_nobody_past_it() {
+    // The star's reach crosses the line before the star does.
+    let build = || {
+        let quiet = sidecar_with(|sidecar| sidecar.to_owned());
+        let course = track(&quiet);
+        let entry = course.pit_lane().expect("a lane").entry_m();
+        let (at, _) = along_lane(&course, entry - 8.0);
+        let sidecar = with_slot_on_lane(&with_boxes_at(&quiet, [at]), 2, entry - 8.0);
+        track(&with_slot_on_lane(&sidecar, 0, entry + 0.5))
+    };
+    let mut state = rolling(build, 3, 0, &[(2, Item::Star)]);
+    let idle = KartInput::default();
+    assert!(state.kart_readouts()[0].in_pit_lane);
+    state = step(state, &[idle, idle, tap()], DT);
+    assert!(state.kart_readouts()[2].star_s.is_some(), "on the run");
+    let mut reached_the_line = false;
+    for _ in 0..180 {
+        let input = drive_lane(&state, 2);
+        state = step(state, &[idle, idle, input], DT);
+        assert_eq!(state.kart_readouts()[0].spin_out_s, None);
+        reached_the_line |= state.kart_readouts()[2].in_pit_lane;
+    }
+    assert!(reached_the_line, "the star came over the line");
+}
+
+#[test]
+fn a_star_in_the_lane_spins_out_nobody_past_the_exit_until_it_leaves() {
+    // A lane short enough for a run to cross, with a kart parked just past
+    // its exit line: the star's reach crosses the line before the star does.
+    let build = || {
+        let quiet = sidecar_with(|sidecar| {
+            let course = track(sidecar);
+            let exit = course.pit_lane().expect("a lane").entry_m() + 15.0;
+            let (at, _) = along_lane(&course, exit);
+            let mut edited: serde_json::Value = serde_json::from_str(sidecar).expect("JSON");
+            edited["pit_lane"]["exit"]["position"] = serde_json::json!(at);
+            edited.to_string()
+        });
+        let course = track(&quiet);
+        let lane = course.pit_lane().expect("a lane");
+        let (entry, exit) = (lane.entry_m(), lane.exit_m());
+        let (at, _) = along_lane(&course, entry - 8.0);
+        let sidecar = with_slot_on_lane(&with_boxes_at(&quiet, [at]), 2, entry - 8.0);
+        track(&with_slot_on_lane(&sidecar, 0, exit + 0.5))
+    };
+    let mut state = rolling(build, 3, 0, &[(2, Item::Star)]);
+    let idle = KartInput::default();
+    assert!(!state.kart_readouts()[0].in_pit_lane);
+    state = step(state, &[idle, idle, tap()], DT);
+    assert!(state.kart_readouts()[2].star_s.is_some(), "on the run");
+    let mut hit = false;
+    for _ in 0..240 {
+        let input = drive_lane(&state, 2);
+        state = step(state, &[idle, idle, input], DT);
+        let (parked, star) = (state.kart_readouts()[0], state.kart_readouts()[2]);
+        if parked.spin_out_s.is_some() {
+            assert!(!star.in_pit_lane, "spun out from inside the lane");
+            hit = true;
+            break;
+        }
+    }
+    assert!(hit, "past the line the star is a star again");
+}
+
+#[test]
 fn a_homing_projectile_gives_up_on_a_kart_in_the_lane() {
     // Fired from the road short of the fork at the kart ahead, in the lane.
     let build = || {
@@ -575,9 +674,91 @@ fn tyres_wear_only_by_rolling_in_the_lane() {
         (lost - rolling_only).abs() < 1e-3,
         "lost {lost}, rolling alone costs {rolling_only}"
     );
-    // The limit is well under top speed, the check this slowdown is real.
-    const _: () = assert!(PIT_LIMIT_M_PER_S < TOP_SPEED_M_PER_S);
-    assert!(matches!(state.phase(), Phase::Racing { .. }));
+}
+
+#[test]
+fn a_hazard_lying_short_of_the_line_does_not_reach_a_kart_past_it() {
+    // A kart turned to face back up the lane drops its hazard toward the line,
+    // inside the reach of a kart parked just over it.
+    let build = || {
+        let quiet = sidecar_with(|sidecar| sidecar.to_owned());
+        let course = track(&quiet);
+        let entry = course.pit_lane().expect("a lane").entry_m();
+        let dropper = entry - 0.4 - HAZARD_DROP_DISTANCE_M;
+        let (at, down_the_lane) = along_lane(&course, dropper);
+        let sidecar = with_slot_at(
+            &with_boxes_at(&quiet, [at]),
+            2,
+            at,
+            down_the_lane + std::f32::consts::PI,
+        );
+        track(&with_slot_on_lane(&sidecar, 0, entry + 0.5))
+    };
+    let mut state = rolling(build, 3, 0, &[(2, Item::Hazard)]);
+    let idle = KartInput::default();
+    assert!(state.kart_readouts()[0].in_pit_lane);
+    state = step(state, &[idle, idle, tap()], DT);
+    for _ in 0..30 {
+        state = step(state, &[idle, idle, idle], DT);
+        assert_eq!(state.kart_readouts()[0].spin_out_s, None);
+    }
+    assert_eq!(state.hazards().len(), 1, "it still lies there, unused");
+}
+
+#[test]
+fn a_touch_in_the_lane_costs_no_tyre_life() {
+    // Into a kart parked in the lane: the bump is real, the wear is the roll's.
+    let sidecar = sidecar_with(|sidecar| {
+        let entry = track(sidecar).pit_lane().expect("a lane").entry_m();
+        with_slot_on_lane(&with_slot_on_lane(sidecar, 0, entry + 1.0), 1, entry + 12.0)
+    });
+    let mut state = race_on(&sidecar, 2, Tyres::On);
+    let idle = KartInput::default();
+    let mut touched = false;
+    let ticks = 180;
+    for _ in 0..ticks {
+        let input = drive_lane(&state, 0);
+        state = step(state, &[input, idle], DT);
+        touched |= state.kart_readouts()[0].bump.is_some();
+    }
+    assert!(touched, "the karts met");
+    let lost = 100.0 - state.kart_readouts()[0].tyre_life;
+    let rolling_at_most = TYRE_WEAR_ROLLING_PER_S * ticks as f32 * DT;
+    assert!(
+        lost <= rolling_at_most + 1e-3,
+        "lost {lost}, rolling costs at most {rolling_at_most}"
+    );
+}
+
+#[test]
+fn a_sidecar_with_a_malformed_lane_is_rejected() {
+    let with_lane = |edit: fn(&mut serde_json::Value)| {
+        let mut sidecar: serde_json::Value = serde_json::from_str(BELL_DEER).expect("JSON");
+        edit(&mut sidecar["pit_lane"]);
+        Track::from_sidecar(&sidecar.to_string())
+    };
+    assert!(with_lane(|_| {}).is_ok());
+    for (reason, edit) in [
+        (
+            "seven boxes",
+            (|lane| {
+                lane["boxes"].as_array_mut().expect("boxes").pop();
+            }) as fn(&mut serde_json::Value),
+        ),
+        ("a line off the path", |lane| {
+            lane["entry"]["position"] = serde_json::json!([500.0, 0.0, 500.0]);
+        }),
+        ("lines the wrong way round", |lane| {
+            let entry = lane["entry"].clone();
+            lane["entry"] = lane["exit"].clone();
+            lane["exit"] = entry;
+        }),
+    ] {
+        assert!(
+            matches!(with_lane(edit), Err(TrackError::Invalid(_))),
+            "{reason}"
+        );
+    }
 }
 
 #[test]

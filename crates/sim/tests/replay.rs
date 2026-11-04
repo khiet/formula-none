@@ -399,7 +399,15 @@ fn the_fixture_set_exercises_kart_contact_off_track_walls_every_track_both_mini_
         tracks.insert(replay.track.clone());
         levels.insert(replay.level.name());
         tyres.insert(replay.tyres.name());
-        let mut state = State::new(replay.seed, replay.human_count(), sidecar(&replay.track));
+        // The race the fixture records: the same inputs on another pick drive elsewhere.
+        let mut state = State::with_tyres(
+            replay.seed,
+            replay.human_count(),
+            replay.bots,
+            sidecar(&replay.track),
+            replay.level,
+            replay.tyres,
+        );
         for segment in &replay.segments {
             for _ in 0..segment.ticks {
                 let before = state.kart_readouts();
@@ -441,7 +449,10 @@ fn the_fixture_set_exercises_kart_contact_off_track_walls_every_track_both_mini_
                     // tick while the throttle is held and the kart stays
                     // put: the brake takes more than a second over it, and
                     // a respawn moves the kart to a checkpoint.
-                    let throttled = segment.inputs[slot].throttle > 0.5;
+                    let throttled = segment
+                        .inputs
+                        .get(slot)
+                        .is_some_and(|input| input.throttle > 0.5);
                     if transforms.len() == 1
                         && throttled
                         && before[slot].speed > 5.0
