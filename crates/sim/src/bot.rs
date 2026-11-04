@@ -11,11 +11,12 @@ use crate::tuning::{
     BOT_LINE_RIGHT_OF_CENTRE_M, BOT_LOOKAHEAD_M, BOT_PASS_GAP_M, BOT_PIT_APPROACH_M_PER_S,
     BOT_PIT_CALL_FROM_M, BOT_PIT_CALL_UNTIL_M, BOT_PIT_CALL_VARIES_BY, BOT_PIT_LEAST_STINT_LAPS,
     BOT_PIT_STOP_COST_S, BOT_REVERSE_S, BOT_STALL_S, BOT_STALL_SPEED_M_PER_S,
-    BOT_TYRE_LOSS_S_PER_LAP, BOT_WHEEL_MARGIN_S, BOT_WHEEL_SET_OFF_FRACTION, BRAKE_TO_STOP_S,
-    DRIFT_SLIP_ANGLE_RAD, DRIFT_TURN_NEUTRAL, DRIFT_TURN_STEER_RANGE, ITEM_BOOST_FACTOR,
-    KART_HALF_LENGTH_M, KART_HALF_WIDTH_M, KERB_HALF_LENGTH_M, KERB_HALF_WIDTH_M,
-    REVERSE_TOP_SPEED_M_PER_S, STEER_RATE_LOW_SPEED_RAD_PER_S, STEER_RATE_TOP_SPEED_RAD_PER_S,
-    TOP_SPEED_M_PER_S, WHEEL_LANDING_SPREAD_M, WHEEL_RADIUS_M, WHEEL_WARNING_S,
+    BOT_TYRE_LOSS_S_PER_LAP, BOT_TYRE_LOSS_WORN_OUT_S_PER_LAP, BOT_WHEEL_MARGIN_S,
+    BOT_WHEEL_SET_OFF_FRACTION, BRAKE_TO_STOP_S, DRIFT_SLIP_ANGLE_RAD, DRIFT_TURN_NEUTRAL,
+    DRIFT_TURN_STEER_RANGE, ITEM_BOOST_FACTOR, KART_HALF_LENGTH_M, KART_HALF_WIDTH_M,
+    KERB_HALF_LENGTH_M, KERB_HALF_WIDTH_M, REVERSE_TOP_SPEED_M_PER_S,
+    STEER_RATE_LOW_SPEED_RAD_PER_S, STEER_RATE_TOP_SPEED_RAD_PER_S, TOP_SPEED_M_PER_S,
+    TYRE_LIFE_NEW_PERCENT, WHEEL_LANDING_SPREAD_M, WHEEL_RADIUS_M, WHEEL_WARNING_S,
 };
 use crate::wheel::{pass_not_over, pass_start_s, Path};
 use crate::{
@@ -159,12 +160,12 @@ pub fn calls_for_the_pits(call: BotPitCall, reading: PitReading) -> bool {
             if laps_to_go == 1 && life >= last_lap_life {
                 return false;
             }
-            let now = BOT_PIT_STOP_COST_S + stint_loss_s(100.0, wear, laps_to_go);
+            let now = BOT_PIT_STOP_COST_S + stint_loss_s(TYRE_LIFE_NEW_PERCENT, wear, laps_to_go);
             let later = (1..laps_to_go)
                 .map(|stay_out| {
                     stint_loss_s(life, wear, stay_out)
                         + BOT_PIT_STOP_COST_S
-                        + stint_loss_s(100.0, wear, laps_to_go - stay_out)
+                        + stint_loss_s(TYRE_LIFE_NEW_PERCENT, wear, laps_to_go - stay_out)
                 })
                 .fold(f32::INFINITY, f32::min);
             now < stint_loss_s(life, wear, laps_to_go) && now <= later
@@ -185,7 +186,7 @@ fn lap_loss_s(life: f32) -> f32 {
     BOT_TYRE_LOSS_S_PER_LAP
         .windows(2)
         .find(|rows| life >= rows[1][0])
-        .map_or(BOT_TYRE_LOSS_S_PER_LAP[6][1], |rows| {
+        .map_or(BOT_TYRE_LOSS_WORN_OUT_S_PER_LAP, |rows| {
             let [[high, at_high], [low, at_low]] = [rows[0], rows[1]];
             at_low + (at_high - at_low) * (life - low) / (high - low)
         })
@@ -197,6 +198,12 @@ fn pit_call_offset(seed: u64, slot: usize) -> f32 {
     const PIT_CALL_SALT: u64 = 0x5049_5443_414c_4c00;
     let unit = crate::hash::unit(seed ^ PIT_CALL_SALT, slot as u64);
     (unit * 2.0 - 1.0) * BOT_PIT_CALL_VARIES_BY
+}
+
+/// How far along the lap the next pit lane fork is; `None` on a course without one.
+fn metres_to_the_fork(track: &Track, standing: &Standing) -> Option<f32> {
+    let fork = track.pit_lane_fork()?;
+    Some((fork - standing.spline_progress).rem_euclid(track.spline_length()))
 }
 
 /// Make the bot's pit call at the approach to the lane, keep its stint up to
@@ -213,7 +220,8 @@ fn update_pit_call(
     slot: usize,
     memory: &mut Memory,
 ) {
-    let (Some(lane), Some((fork, _))) = (track.pit_lane(), track.pit_lane_span()) else {
+    let (Some(lane), Some(to_fork)) = (track.pit_lane(), metres_to_the_fork(track, standing))
+    else {
         return;
     };
     let lap = track.spline_length();
@@ -222,7 +230,6 @@ fn update_pit_call(
         memory.stops_seen = kart.stops;
         memory.stint_from_m = raced_m;
     }
-    let to_fork = (fork - standing.spline_progress).rem_euclid(lap);
     let reading = lane.reading(kart.position);
     if memory.pit_called {
         // Off the road a lookahead past the fork, it missed; past the road's
@@ -243,7 +250,7 @@ fn update_pit_call(
             PitReading {
                 life: kart.tyre_life + pit_call_offset(seed, slot),
                 wear_per_lap: (stint_laps >= BOT_PIT_LEAST_STINT_LAPS)
-                    .then(|| (100.0 - kart.tyre_life) / stint_laps),
+                    .then(|| (TYRE_LIFE_NEW_PERCENT - kart.tyre_life) / stint_laps),
                 laps_to_go: laps.saturating_sub(standing.laps_completed + 1),
             },
         );
@@ -265,10 +272,10 @@ fn pit_lane_target(
     if !called && !lane.limits(kart.position) {
         return None;
     }
-    let (fork, _) = track.pit_lane_span()?;
-    let to_fork = (fork - standing.spline_progress).rem_euclid(track.spline_length());
+    let to_fork = metres_to_the_fork(track, standing)?;
     if lane.reading(kart.position).is_none() && to_fork <= BOT_PIT_CALL_FROM_M {
         let start = lane.point_at(0.0);
+        let fork = standing.spline_progress + to_fork;
         let centre = track.point_at(fork);
         let [tx, tz] = track.direction_at(fork);
         let road_right = (start[0] - centre[0]) * -tz + (start[2] - centre[2]) * tx;

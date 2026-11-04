@@ -696,8 +696,10 @@ pub const BOT_TYRE_LOSS_S_PER_LAP: [[f32; 2]; 7] = [
     [30.0, 2.7],
     [20.0, 5.0],
     [10.0, 7.5],
-    [0.0, 10.6],
+    [0.0, BOT_TYRE_LOSS_WORN_OUT_S_PER_LAP],
 ];
+/// The table's last row: seconds a lap lost on tyres worn right out.
+pub const BOT_TYRE_LOSS_WORN_OUT_S_PER_LAP: f32 = 10.6;
 
 /// How long a bot that rolled the boost holds the throttle before Go:
 /// midway through the full boost's window, clear of both edges.

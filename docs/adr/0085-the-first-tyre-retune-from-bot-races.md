@@ -3,8 +3,10 @@
 ## Status
 
 Accepted (2026-11-04), pending the maintainer's playtest. Supersedes ADR 0080's
-1.5% / s for drifting and 6% for a spin-out. The rest of its table and its
-effects stand. Extends ADR 0081's bot thresholds. The numbers below come from
+1.5% / s for drifting and 6% for a spin-out; the rest of its table and its
+effects stand. Supersedes ADR 0081's Pro rule that it pits "if life would run
+out", now read to the next lane and not the flag. Adds a drift floor to what
+ADR 0078 varies by level. The numbers below come from
 bots racing `crates/sim/tests/bot_pits.rs`; nobody has played them yet.
 
 ## Context
@@ -42,14 +44,22 @@ when building them.
   20 m back along the grid so every door is on the straight.
 - The sweep holds budgets, not zero. Of 1600 karts on a course, level and lap
   count, the end cap may catch 4 over three laps and 24 over five; 40 may touch
-  grass; in 2 races a kart may end short of the final lap.
+  grass; in 2 races a kart may end short of the final lap. Over five laps a level's
+eight bots may all make their first stop on one lap in 1 race in 5, which Basic on
+Bell Deer reaches; the stuck sweep allows 8 s where it allowed 3 s, for a bot
+crawling along the sand at the wheel's crossing.
 
 ## Consequences
 
 - On this tune Ace bots stop about once over five laps and about one race in
   three over three, as ADR 0083 expected. Five-lap winners are 10 s sooner on
   Bell Deer, 11 s on Goldstone and 30 s on Monarch than on the same course with
-  no lane, against the model's 8 to 14 s. Monarch's gap is wider than the model's.
+  no lane, against the model's 8 to 14 s. That compares a field that can stop with
+one that cannot, and the winner may not have stopped, so it is not one stop against
+none. Monarch's gap is wider than the model's and has no explanation yet.
+- The stall speed changes bots on Tyres Off as well, and Monarch's pad and both new
+  lanes change those courses, so replay fixtures with bots were re-recorded where ADR
+  0083 expected Off to pass untouched. Its hash still leaves out the tyres.
 - The issue asked that every bot finish. In the last sweep the end cap caught 7
   of 19,200 karts over three laps and 71 over five. `RACE_END_CAP_S` stays, as
   ADR 0083 left it, so the odd far-behind kart is placed by progress. A wider cap

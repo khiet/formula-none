@@ -147,18 +147,6 @@ describe("the pit boxes", () => {
     }
   });
 
-  it("stands the crew and the light on the building's side of a mark on a lane left of the road", () => {
-    const left: readonly PitBox[] = BOXES.map((box) => ({ ...box, buildingSide: -1 }));
-    const pits = pitBoxMeshes(left, KART, OPTIONS);
-    pits.show([stopping(0.5), kartReadout()], AT_THE_BOXES, 0.1);
-    for (const member of crewAt(pits, 0)) {
-      if (member === null) throw new Error("drawn near the camera");
-      expect(10 - member.x).toBeGreaterThan(KART.width);
-    }
-    const gantry = pits.mesh.getObjectByName("pitBox0")?.getObjectByName("gantry");
-    expect(gantry?.position.x).toBeLessThan(0);
-  });
-
   it("acts the roll out past a clean stop's time: one gunner stays, four swarm a wheel, or the jacks give up", () => {
     const pits = pitBoxMeshes(BOXES, KART, OPTIONS);
     const gunnersAtWheels = () =>

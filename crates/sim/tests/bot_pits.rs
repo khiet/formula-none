@@ -243,7 +243,7 @@ fn asks(state: &State, level: BotLevel, life: f32, item: ItemSlot) -> sim::KartI
 #[test]
 fn called_in_a_bot_keeps_its_boost_for_after_the_lane() {
     let state = lone_bot_at(
-        |course| course.pit_lane_span().expect("a lane").0 - 20.0,
+        |course| course.pit_lane_fork().expect("a lane") - 20.0,
         BotLevel::Basic,
     );
     let boost = ItemSlot::Held(Item::Boost);
