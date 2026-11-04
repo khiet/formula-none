@@ -167,15 +167,11 @@ export interface ViewAssets {
 
 /** What the View reads of the sim's tuning. */
 export interface ViewTuning {
-  /** How long a spin-out turns a kart about its axis. */
   readonly spinOutSeconds: number;
-  /** The size a runaway wheel is drawn at. */
   readonly runawayWheelRadiusMetres: number;
-  /** A horn blast's reach, which its ring grows to. */
   readonly hornRadiusMetres: number;
-  /** How long a slipstream takes to charge. */
   readonly slipstreamChargeSeconds: number;
-  /** The tyre life below which a kart's tyres read as worn. */
+  /** A percentage of tyre life: below it a kart's tyre marks darken and its tyres smoke. */
   readonly tyreLifeCliff: number;
 }
 
