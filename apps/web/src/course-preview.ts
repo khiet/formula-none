@@ -169,12 +169,13 @@ export function createCoursePreview(options: CoursePreviewOptions): CoursePrevie
   element.setAttribute("aria-live", "polite");
   let frame = 0;
   let laps = options.laps;
-  const lapsStat = document.createElement("b");
+  // The Laps number on the card showing now, for a pick to change in place.
+  let lapsNumber: Element | null = null;
   return {
     element,
     laps(picked) {
       laps = picked;
-      lapsStat.textContent = String(laps);
+      if (lapsNumber !== null) lapsNumber.textContent = String(laps);
     },
     show({ course, centreline }) {
       cancelAnimationFrame(frame);
@@ -193,9 +194,8 @@ export function createCoursePreview(options: CoursePreviewOptions): CoursePrevie
       blurb.className = "blurb";
       blurb.textContent = course.blurb;
       const numbers = courseStats(centreline);
-      lapsStat.textContent = String(laps);
-      const lapsBox = stat("", "Laps");
-      lapsBox.querySelector("b")?.replaceWith(lapsStat);
+      const lapsBox = stat(String(laps), "Laps");
+      lapsNumber = lapsBox.querySelector("b");
       const stats = document.createElement("div");
       stats.className = "stats";
       stats.append(

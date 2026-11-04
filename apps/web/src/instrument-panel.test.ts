@@ -113,6 +113,22 @@ describe("the lap instruments on the page", () => {
     return { panel, find };
   };
 
+  it("draw a flag per lap and count the laps of a Grand Prix", () => {
+    const container = document.createElement("div");
+    const panel = createInstrumentPanel(
+      container,
+      5,
+      course,
+      TUNING,
+      nameOf,
+      livery(course.ownKart),
+    );
+    panel.update(race(ON_THE_GRID, { ...EMPTY_SLOT, item: null, firing: false }));
+    const lap = container.querySelector<HTMLElement>('[data-instrument="lap"]');
+    expect(lap?.querySelectorAll("[data-flag]")).toHaveLength(5);
+    expect(lap?.textContent).toBe("Lap 1/5");
+  });
+
   it("print the position as a numeral with its suffix beside it, reading as one ordinal", () => {
     const { panel, find } = mount();
     panel.update(

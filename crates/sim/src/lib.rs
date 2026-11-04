@@ -1114,8 +1114,8 @@ impl State {
     }
 
     /// This race, run over the creator's pick of `distance` (ADR 0083). A
-    /// race is a Sprint until told otherwise; call this before the first
-    /// step, as nothing else about the race depends on it.
+    /// race is a Sprint until told otherwise. Call this before the first
+    /// step: a kart that has already finished stays finished.
     pub fn with_distance(mut self, distance: RaceDistance) -> Self {
         for kart in &mut self.karts {
             kart.race_laps = distance.laps();
