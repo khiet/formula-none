@@ -28,8 +28,8 @@ Title Scene, fixed for the room as the course is and shown on the Room
 Scene. Basic is the bots as they were before there was a pick. The level
 varies a bot's corner speed, its rubber band's lower bound, its item use
 delay, its rocket start chance, when it calls itself in for the pit lane and
-when it drops its drifts on worn tyres, nothing else; it changes how the bots
-drive, not how many there are. A replay carries it.
+when it drops its drifts, on worn tyres or to save them for the flag, nothing
+else; it changes how the bots drive, not how many there are. A replay carries it.
 
 ### laps
 

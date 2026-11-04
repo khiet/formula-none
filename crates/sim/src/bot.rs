@@ -92,6 +92,9 @@ pub struct Memory {
     /// fork. Latched so its life falling or rising through a threshold on the
     /// way cannot turn it back at the wall.
     pit_called: bool,
+    /// Whether the bot dropped its drifts at its last lane approach, to make
+    /// its tyres reach the flag.
+    saving_tyres: bool,
     /// The stops the bot has seen its kart make, and the race distance, in
     /// metres, when the last one left it on new tyres: the start of its stint,
     /// which its rate of wear is read over.
@@ -115,11 +118,14 @@ impl Memory {
         ]
     }
 
-    /// What the pit call steers by, for the hash; `None` until a call or a
-    /// stop has moved it from where every bot starts.
-    pub(crate) fn pitting(&self) -> Option<[f32; 2]> {
-        (self.pit_called || self.stops_seen > 0)
-            .then_some([f32::from(u8::from(self.pit_called)), self.stint_from_m])
+    /// What the lane approach's reading steers by, for the hash; `None` until a
+    /// call, a stop or saving has moved it from where every bot starts.
+    pub(crate) fn pitting(&self) -> Option<[f32; 3]> {
+        (self.pit_called || self.saving_tyres || self.stops_seen > 0).then_some([
+            f32::from(u8::from(self.pit_called)),
+            f32::from(u8::from(self.saving_tyres)),
+            self.stint_from_m,
+        ])
     }
 }
 
@@ -134,15 +140,36 @@ pub struct PitReading {
     pub laps_to_go: u32,
 }
 
+/// Whether a bot on `call` drops its drifts on `reading` (ADR 0086): pushing
+/// would end under the life it wants at the flag, and saving would not. Over a
+/// race too long for that, the stop is the plan.
+pub fn saves_its_tyres(call: BotPitCall, reading: PitReading) -> bool {
+    let BotPitCall::Projected {
+        flag_life,
+        saving_wear_fraction,
+        ..
+    } = call
+    else {
+        return false;
+    };
+    let laps = reading.laps_to_go as f32;
+    reading.wear_per_lap.is_some_and(|wear| {
+        reading.laps_to_go > 0
+            && reading.life - wear * laps < flag_life
+            && reading.life - wear * saving_wear_fraction * laps >= flag_life
+    })
+}
+
 /// Whether a bot on `call` comes in on `reading` (ADR 0081). A stop with the
-/// flag at the line ahead buys nothing at any level.
+/// flag at the line ahead buys nothing at any level, nor does one for a bot
+/// that saving its tyres gets to the flag.
 pub fn calls_for_the_pits(call: BotPitCall, reading: PitReading) -> bool {
     let PitReading {
         life,
         wear_per_lap,
         laps_to_go,
     } = reading;
-    if laps_to_go == 0 {
+    if laps_to_go == 0 || saves_its_tyres(call, reading) {
         return false;
     }
     match call {
@@ -153,6 +180,7 @@ pub fn calls_for_the_pits(call: BotPitCall, reading: PitReading) -> bool {
         BotPitCall::Projected {
             flag_life,
             last_lap_life,
+            ..
         } => wear_per_lap.is_some_and(|wear| {
             if life - wear * laps_to_go as f32 >= flag_life {
                 return false;
@@ -245,15 +273,14 @@ fn update_pit_call(
         && standing.finish_time_s.is_none()
     {
         let stint_laps = (raced_m + to_fork - memory.stint_from_m) / lap;
-        memory.pit_called = calls_for_the_pits(
-            profile.pit_call,
-            PitReading {
-                life: kart.tyre_life + pit_call_offset(seed, slot),
-                wear_per_lap: (stint_laps >= BOT_PIT_LEAST_STINT_LAPS)
-                    .then(|| (TYRE_LIFE_NEW_PERCENT - kart.tyre_life) / stint_laps),
-                laps_to_go: laps.saturating_sub(standing.laps_completed + 1),
-            },
-        );
+        let reading = PitReading {
+            life: kart.tyre_life + pit_call_offset(seed, slot),
+            wear_per_lap: (stint_laps >= BOT_PIT_LEAST_STINT_LAPS)
+                .then(|| (TYRE_LIFE_NEW_PERCENT - kart.tyre_life) / stint_laps),
+            laps_to_go: laps.saturating_sub(standing.laps_completed + 1),
+        };
+        memory.pit_called = calls_for_the_pits(profile.pit_call, reading);
+        memory.saving_tyres = saves_its_tyres(profile.pit_call, reading);
     }
 }
 
@@ -422,10 +449,12 @@ pub fn drive(
     // No drift while a kerb is in range: a drift always turns into its
     // corner, so it can carry the kart onto the kerb whatever the bot aims at.
     // None on the way to the lane, whose road the corner does not turn, nor
-    // once the tyres are under the level's floor for a drift it can do without.
+    // once the tyres are under the level's floor for a drift it can do without,
+    // nor while saving them for the flag.
     let drifting_corner = corner
         && kerb_line.is_none()
         && lane_target.is_none()
+        && !memory.saving_tyres
         && kart.tyre_life >= profile.drift_floor_life;
     let into_corner = if curvature > 0.0 {
         DriftDirection::Left

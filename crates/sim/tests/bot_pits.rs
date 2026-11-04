@@ -1,8 +1,8 @@
 //! Bots and the pit lane (ADR 0081), through `step`: a bot calls itself in by
 //! its level's rule, takes the lane's road to its pit box and rejoins; the
 //! whole field gets round every course on Tyres On. The call's rule itself is
-//! read off [`sim::bot::calls_for_the_pits`] with made-up numbers, since a race
-//! does not reach every case on demand.
+//! read off [`sim::bot::calls_for_the_pits`] and [`sim::bot::saves_its_tyres`]
+//! with made-up numbers, since a race does not reach every case on demand.
 
 mod common;
 
@@ -10,7 +10,7 @@ use common::{
     bell_deer, goldstone, monarch, oval, quiet_bell_deer, started, ticks, track, with_slot_at,
     with_slot_on_lane, BELL_DEER, DT, GOLDSTONE, MONARCH, SEED,
 };
-use sim::bot::{calls_for_the_pits, PitReading};
+use sim::bot::{calls_for_the_pits, saves_its_tyres, PitReading};
 use sim::tuning::{BotPitCall, BOT_LEVELS, COUNTDOWN_S, PIT_LIMIT_M_PER_S};
 use sim::{step, BotLevel, Item, ItemSlot, State, Surface, Track, Tyres};
 
@@ -94,6 +94,41 @@ fn an_ace_bot_projects_nothing_from_no_stint() {
     assert!(!calls_for_the_pits(call, reading(40.0, None, 4)));
 }
 
+#[test]
+fn an_ace_bot_saves_its_tyres_only_when_saving_is_what_reaches_the_flag() {
+    let call = level_call(BotLevel::Ace);
+    // 20 a lap from 50 over two: pushing ends on 10, saving a third ends on 23.
+    assert!(saves_its_tyres(call, reading(50.0, Some(20.0), 2)));
+    // Pushing already ends on 30.
+    assert!(!saves_its_tyres(call, reading(70.0, Some(20.0), 2)));
+    // Even saving ends on 3.
+    assert!(!saves_its_tyres(call, reading(30.0, Some(20.0), 2)));
+    assert!(!saves_its_tyres(call, reading(50.0, None, 2)));
+    assert!(
+        !saves_its_tyres(call, reading(5.0, Some(20.0), 0)),
+        "the flag is at the line ahead"
+    );
+}
+
+#[test]
+fn an_ace_bot_that_saving_gets_to_the_flag_stays_out_where_pushing_would_stop() {
+    let call = level_call(BotLevel::Ace);
+    // Pushing ends on 1 and a stop pays; saving ends on about 15.5.
+    let close = reading(45.0, Some(22.0), 2);
+    assert!(saves_its_tyres(call, close));
+    assert!(!calls_for_the_pits(call, close));
+}
+
+#[test]
+fn only_an_ace_bot_saves_its_tyres() {
+    for level in [BotLevel::Basic, BotLevel::Pro] {
+        assert!(!saves_its_tyres(
+            level_call(level),
+            reading(50.0, Some(20.0), 2)
+        ));
+    }
+}
+
 /// What a race did, per bot: the laps it stopped on, whether it finished
 /// and how many ticks it spent on grass.
 struct Raced {
@@ -131,7 +166,11 @@ fn race(seed: u64, course: Track, level: BotLevel, tyres: Tyres, laps: u32) -> R
 
 /// A lone bot's stops and finish over five laps.
 fn lone_five_laps(course: Track, level: BotLevel) -> (u32, Option<f32>) {
-    let mut state = started(State::with_tyres(SEED, 0, 1, course, level, Tyres::On).with_laps(5));
+    lone_five_laps_from(SEED, course, level)
+}
+
+fn lone_five_laps_from(seed: u64, course: Track, level: BotLevel) -> (u32, Option<f32>) {
+    let mut state = started(State::with_tyres(seed, 0, 1, course, level, Tyres::On).with_laps(5));
     for _ in 0..ticks(5.0 * 120.0) {
         state = step(state, &[], DT);
         if state.standings()[0].finish_time_s.is_some() {
@@ -257,19 +296,85 @@ fn called_in_a_bot_keeps_its_boost_for_after_the_lane() {
     );
 }
 
+/// A point past the grid just short of a tight corner, where a bot hops for it.
+fn hairpin(course: &Track) -> f32 {
+    (0..course.spline_length() as usize)
+        .map(|at| at as f32)
+        .find(|&at| course.curvature_at(at + 12.0).abs() > 0.05 && at > 150.0)
+        .expect("a tight corner")
+}
+
 #[test]
 fn a_pro_bot_drops_its_drifts_on_worn_tyres_and_a_basic_bot_does_not() {
-    let hairpin = |course: &Track| {
-        (0..course.spline_length() as usize)
-            .map(|at| at as f32)
-            .find(|&at| course.curvature_at(at + 12.0).abs() > 0.05 && at > 150.0)
-            .expect("a tight corner")
-    };
     let pro = lone_bot_at(hairpin, BotLevel::Pro);
     assert!(asks(&pro, BotLevel::Pro, 80.0, ItemSlot::Empty).hop);
     assert!(!asks(&pro, BotLevel::Pro, 20.0, ItemSlot::Empty).hop);
     let basic = lone_bot_at(hairpin, BotLevel::Basic);
     assert!(asks(&basic, BotLevel::Basic, 20.0, ItemSlot::Empty).hop);
+}
+
+#[test]
+fn an_ace_bot_saving_its_tyres_drops_its_drifts_until_it_reads_otherwise() {
+    let mut memory = sim::bot::Memory::default();
+    let mut look = |state: &State, life: f32| {
+        let mut kart = state.kart_readouts()[0];
+        kart.tyre_life = life;
+        kart.speed = 15.0;
+        sim::bot::drive(
+            state.track(),
+            BotLevel::Ace.profile(),
+            &[kart],
+            &state.standings(),
+            state.phase(),
+            SEED,
+            3,
+            0,
+            &mut memory,
+            DT,
+        )
+    };
+    let approach = lone_bot_at(
+        |course| course.pit_lane_fork().expect("a lane") - 20.0,
+        BotLevel::Ace,
+    );
+    let corner = lone_bot_at(hairpin, BotLevel::Ace);
+    assert!(look(&corner, 68.0).hop, "nothing read yet");
+    look(&approach, 68.0);
+    assert!(!look(&corner, 68.0).hop, "saving reaches the flag");
+    look(&approach, 95.0);
+    assert!(look(&corner, 95.0).hop, "pushing reaches the flag");
+}
+
+/// On Bell Deer four laps is where a lone Ace bot's clean 25% a lap falls short
+/// pushing and reaches the flag saving; three never needs it and five wants a stop.
+#[test]
+fn a_lone_ace_bot_saves_its_way_to_the_flag_with_no_stop() {
+    let mut state =
+        started(State::with_tyres(SEED, 0, 1, bell_deer(), BotLevel::Ace, Tyres::On).with_laps(4));
+    for _ in 0..ticks(4.0 * 120.0) {
+        state = step(state, &[], DT);
+        if state.standings()[0].finish_time_s.is_some() {
+            break;
+        }
+    }
+    let kart = state.kart_readouts()[0];
+    assert!(state.standings()[0].finish_time_s.is_some());
+    assert_eq!(kart.stops, 0);
+    assert!(
+        kart.tyre_life >= 15.0,
+        "it reached the flag on {}",
+        kart.tyre_life
+    );
+}
+
+/// Most seeds' read of the first lap lands a lone bot within reach here, not all,
+/// so any of a handful will do.
+#[test]
+fn a_lone_ace_bot_can_save_its_way_through_five_laps_of_goldstone() {
+    assert!((0..10).any(|seed| {
+        let (stops, finish) = lone_five_laps_from(seed, goldstone(), BotLevel::Ace);
+        stops == 0 && finish.is_some()
+    }));
 }
 
 #[test]
