@@ -3,7 +3,7 @@
 //! held where the earlier snapshot had one the later no longer carries,
 //! and not drawn before the snapshot that first carries one; a kart moved
 //! further than a kart drives, which is drawn in one move; and a kart's
-//! boost, as the earlier snapshot has it.
+//! boost and hop, as the earlier snapshot has them.
 
 use sim::tuning::{INTERPOLATION_TELEPORT_M_PER_TICK, SNAPSHOTS_PER_SECOND, TICKS_PER_SECOND};
 use sim::{Interpolation, ItemSlot, KartReadout, MiniTurbo, Projectile, Start};
@@ -200,4 +200,19 @@ fn a_kart_boosting_in_the_earlier_snapshot_is_drawn_boosting_in_its_tier() {
     let earlier = 1.0 - TICKS_PER_SNAPSHOT as f32 / TICKS_PER_SECOND as f32;
     assert_eq!(drawn.boost_s, Some(earlier));
     assert_eq!(drawn.boost_tier, MiniTurbo::Orange);
+}
+
+#[test]
+fn a_kart_is_drawn_in_the_air_as_the_earlier_snapshot_has_it() {
+    let hopping_at = |hop_tick: u32| {
+        drawing_snapshots_between_the_second_and_third(6, move |tick| {
+            let kart = KartReadout {
+                airborne: tick == hop_tick,
+                ..kart_at(0.0)
+            };
+            (vec![kart], Vec::new())
+        })
+    };
+    assert!(hopping_at(TICKS_PER_SNAPSHOT).kart_readouts()[0].airborne);
+    assert!(!hopping_at(2 * TICKS_PER_SNAPSHOT).kart_readouts()[0].airborne);
 }

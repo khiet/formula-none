@@ -20,7 +20,7 @@
       "name": "join",
       "bytes": [
         1,
-        24,
+        25,
         4,
         66,
         88,
@@ -37,7 +37,7 @@
         "join": {
           "nickname": "khiet",
           "room": "BXQF",
-          "version": 24
+          "version": 25
         }
       }
     },
@@ -103,7 +103,7 @@
       "name": "rejoin",
       "bytes": [
         7,
-        24,
+        25,
         4,
         66,
         88,
@@ -147,7 +147,7 @@
         "rejoin": {
           "room": "BXQF",
           "token": "0123456789abcdef0123456789abcdef",
-          "version": 24
+          "version": 25
         }
       }
     },
@@ -309,12 +309,12 @@
       "bytes": [
         2,
         3,
-        24
+        25
       ],
       "message": {
         "refused": {
           "versionMismatch": {
-            "server": 24
+            "server": 25
           }
         }
       }
@@ -509,6 +509,7 @@
         200,
         66,
         0,
+        1,
         0,
         0,
         0,
@@ -577,6 +578,7 @@
         0,
         175,
         66,
+        0,
         0,
         1,
         0,
@@ -651,6 +653,7 @@
         0,
         150,
         66,
+        0,
         0,
         2,
         0,
@@ -734,6 +737,7 @@
         122,
         66,
         0,
+        0,
         3,
         0,
         0,
@@ -803,6 +807,7 @@
         0,
         72,
         66,
+        0,
         0,
         0,
         0,
@@ -891,6 +896,7 @@
         22,
         66,
         0,
+        0,
         1,
         0,
         0,
@@ -968,6 +974,7 @@
         0,
         0,
         63,
+        0,
         2,
         0,
         0,
@@ -1032,6 +1039,7 @@
         0,
         72,
         65,
+        0,
         0,
         3,
         1,
@@ -1299,6 +1307,7 @@
           ],
           "karts": [
             {
+              "airborne": true,
               "boost": null,
               "bump": null,
               "checkpoint": 11,
@@ -1337,6 +1346,7 @@
               "wrongWay": false
             },
             {
+              "airborne": false,
               "boost": null,
               "bump": null,
               "checkpoint": 10,
@@ -1380,6 +1390,7 @@
               "wrongWay": false
             },
             {
+              "airborne": false,
               "boost": {
                 "leftS": 0.4000000059604645,
                 "tier": "orange"
@@ -1424,6 +1435,7 @@
               "wrongWay": false
             },
             {
+              "airborne": false,
               "boost": null,
               "bump": [
                 -2.5,
@@ -1470,6 +1482,7 @@
               "wrongWay": false
             },
             {
+              "airborne": false,
               "boost": {
                 "leftS": 1.100000023841858,
                 "tier": "red"
@@ -1516,6 +1529,7 @@
               "wrongWay": false
             },
             {
+              "airborne": false,
               "boost": null,
               "bump": null,
               "checkpoint": 6,
@@ -1555,6 +1569,7 @@
               "wrongWay": true
             },
             {
+              "airborne": false,
               "boost": null,
               "bump": null,
               "checkpoint": 5,
@@ -1596,6 +1611,7 @@
               "wrongWay": false
             },
             {
+              "airborne": false,
               "boost": null,
               "bump": null,
               "checkpoint": 4,

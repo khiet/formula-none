@@ -11,8 +11,9 @@ use protocol::{
 /// The budget is "roughly" this many bytes.
 const INPUT_BUDGET: usize = 8;
 /// ADR 0010 estimated 400; its Outcome records the busy sample at 505
-/// bytes once the hazards and the projectiles rode along, and at 629 once
-/// the bump and the star's run did, and holds it there.
+/// bytes once the hazards and the projectiles rode along, at 629 once the
+/// bump and the star's run did, and at 720 once the tyres, the stops and the
+/// hop did, and holds it there.
 const SNAPSHOT_BUDGET: usize = 600;
 
 /// A quarter either way.

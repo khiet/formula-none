@@ -59,3 +59,6 @@ Landed with issue 17 (2026-10-19).
   seconds left while it has one, so every client shines the kart in the
   same phase. The busy sample, with one kart on a run, is 629 bytes; the
   test now holds the sample to a quarter either side of 600.
+- Issue 284 (2026-11-04) added whether each kart is in the air to every
+  snapshot, so a rival's worn smoke stops through a hop as the own kart's
+  does. The busy sample is 720 bytes, within the quarter either side of 600.

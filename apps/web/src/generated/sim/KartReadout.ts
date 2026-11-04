@@ -60,15 +60,15 @@ tyreLife: number,
  */
 spinOutS: number | null, 
 /**
- * Whether the kart is in a hop's airtime; the hop's tell. Only the sim
- * that steps the kart reports it: a snapshot does not carry it, so an
- * interpolated kart is never airborne.
+ * Whether the kart is in a hop's airtime; the hop's tell. A snapshot
+ * carries it, so an interpolated kart is in the air as the earlier
+ * snapshot has it.
  */
 airborne: boolean, 
 /**
  * Whether the kart is on the pit limiter, between a pit lane's lines
- * (ADR 0081); the gear slot's PIT. As with `airborne`, only the sim that
- * steps the kart reports it: a snapshot does not carry it.
+ * (ADR 0081); the gear slot's PIT. Only the sim that steps the kart
+ * reports it: a snapshot does not carry it.
  */
 inPitLane: boolean, 
 /**

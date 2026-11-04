@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { type KartInput, type KartReadout, loadBridge, type Race, type Wheel } from "./bridge";
+import { dustTell } from "./dust";
 import type { Input, KartSnapshot, Snapshot } from "./generated/protocol";
 import { IDLE_INPUT } from "./input";
 import { START_LIGHTS } from "./instrument-panel";
@@ -481,6 +482,7 @@ describe("prediction", () => {
       coins: 0,
       tyreLife: 100,
       spinOutS: null,
+      airborne: false,
       start: "clean",
       stallS: null,
       boost: null,
@@ -537,6 +539,7 @@ describe("prediction", () => {
       coins: 0,
       tyreLife: 100,
       spinOutS: null,
+      airborne: false,
       start: "clean",
       stallS: null,
       boost: null,
@@ -583,6 +586,7 @@ describe("prediction", () => {
       coins: 0,
       tyreLife: 100,
       spinOutS: 0.5,
+      airborne: false,
       start: "clean",
       stallS: null,
       boost: null,
@@ -604,6 +608,55 @@ describe("prediction", () => {
     // the spin-out have run by the predicted kart's tick.
     expect(prediction.kartReadout().spinOutS).toBeCloseTo(0.5 - 10 * DT, 4);
     expect(prediction.interpolatedKartReadouts()[0]?.spinOutS).toBe(0.5);
+  });
+
+  it("stops a rival's worn smoke while the snapshots have it in the air", async () => {
+    const bridge = await loadBridge(wasm);
+    const racing = (airborne: boolean) => {
+      const prediction = bridge.createPrediction(7n, 0, OVAL, "basic", "off", 3);
+      prediction.reconcile({
+        tick: 2,
+        acknowledged: [0],
+        karts: [
+          {
+            position: [...prediction.kartReadout().position],
+            rotation: [0, 0, 0, 1],
+            velocity: [0, 0, -20],
+            bump: null,
+            drift: null,
+            racePosition: 1,
+            lap: 1,
+            checkpoint: 0,
+            splineProgress: 0,
+            wrongWay: false,
+            itemSlot: "empty",
+            coins: 0,
+            tyreLife: 20,
+            spinOutS: null,
+            airborne,
+            start: "clean",
+            stallS: null,
+            boost: null,
+            starS: null,
+            slipstream: null,
+            stop: null,
+            stops: 0,
+          },
+        ],
+        events: [],
+        hazards: [],
+        projectiles: [],
+        coinsPresent: [],
+      });
+      const [drawn] = prediction.interpolatedKartReadouts();
+      if (drawn === undefined) throw new Error("no kart drawn");
+      return { drawn, predicted: prediction.kartReadout() };
+    };
+    expect(dustTell(racing(false).drawn, 30)?.at).toBe("wheels");
+    const { drawn, predicted } = racing(true);
+    expect(dustTell(drawn, 30)).toBeNull();
+    // The hop cue reads the own kart, whose hop stays the prediction's.
+    expect(predicted.airborne).toBe(false);
   });
 
   it("draws another kart's boost, and the tier it burns in, from the snapshots", async () => {
@@ -630,6 +683,7 @@ describe("prediction", () => {
       coins: 0,
       tyreLife: 100,
       spinOutS: null,
+      airborne: false,
       start: "clean",
       stallS: null,
       boost,
@@ -679,6 +733,7 @@ describe("prediction", () => {
       coins: 0,
       tyreLife: 100,
       spinOutS: null,
+      airborne: false,
       start: "stall",
       stallS,
       boost: null,
@@ -843,6 +898,7 @@ describe("items", () => {
           coins: 0,
           tyreLife: 100,
           spinOutS: null,
+          airborne: false,
           start: "clean",
           stallS: null,
           boost: null,

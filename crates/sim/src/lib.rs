@@ -124,13 +124,13 @@ pub struct KartReadout {
     /// Seconds of spin-out left, while the kart is spun out: stopped, with
     /// its inputs ignored. The View spins it for the duration.
     pub spin_out_s: Option<f32>,
-    /// Whether the kart is in a hop's airtime; the hop's tell. Only the sim
-    /// that steps the kart reports it: a snapshot does not carry it, so an
-    /// interpolated kart is never airborne.
+    /// Whether the kart is in a hop's airtime; the hop's tell. A snapshot
+    /// carries it, so an interpolated kart is in the air as the earlier
+    /// snapshot has it.
     pub airborne: bool,
     /// Whether the kart is on the pit limiter, between a pit lane's lines
-    /// (ADR 0081); the gear slot's PIT. As with `airborne`, only the sim that
-    /// steps the kart reports it: a snapshot does not carry it.
+    /// (ADR 0081); the gear slot's PIT. Only the sim that steps the kart
+    /// reports it: a snapshot does not carry it.
     pub in_pit_lane: bool,
     /// The kart's stop in its pit box, while it is in one (ADR 0082): guided
     /// onto its mark and held there, dead to every control and touching
@@ -816,9 +816,9 @@ impl Kart {
     /// Take on the word of `readout` on everything a snapshot carries, at
     /// `clock`, the race clock at the snapshot's tick: the inverse of
     /// [`Kart::readout`] for the fields the kart keeps beside the body.
-    /// What a snapshot does not carry, and the boost, which it carries for
-    /// the flame, stay the kart's own, run by the same rules on the same
-    /// inputs. From Go, a rocket start verdict other than the kart's
+    /// What a snapshot does not carry, the boost, which it carries for the
+    /// flame, and the hop, which it carries for the other karts' tells, stay
+    /// the kart's own, run by the same rules on the same inputs. From Go, a rocket start verdict other than the kart's
     /// replaces the boost or stall it was given at Go with the
     /// readout's, run down by the ticks since. The caller puts the body
     /// where the readout has it.

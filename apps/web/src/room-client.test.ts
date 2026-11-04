@@ -172,6 +172,7 @@ const KART: KartSnapshot = {
   coins: 0,
   tyreLife: 100,
   spinOutS: null,
+  airborne: false,
   start: "clean",
   stallS: null,
   boost: null,
