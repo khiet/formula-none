@@ -660,10 +660,8 @@ struct Kart {
     /// still neither adds to it nor clears it.
     wrong_way_s: f32,
     laps_completed: u32,
-    /// The laps that finish this race, fixed by its distance. Out of the
-    /// hash, like the Tyres pick, so a Sprint hashes as a race from before
-    /// there was a pick; the laps completed show a Grand Prix's difference
-    /// from the tick it matters (ADR 0083).
+    /// The laps that finish this race. Out of the hash, like the Tyres pick,
+    /// so a Sprint hashes as a race from before there was a pick (ADR 0083).
     race_laps: u32,
     /// The last checkpoint crossed in order this lap. The grid starts at 0,
     /// the start line, so the first lap begins at Go.

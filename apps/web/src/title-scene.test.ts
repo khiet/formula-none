@@ -80,7 +80,6 @@ function scene(options: Partial<TitleOptions> = {}) {
   return { container, title, calls, input, press, message };
 }
 
-/** The Laps number on the course card. */
 function lapsOnTheCard(container: HTMLElement): string | null | undefined {
   return Array.from(container.querySelectorAll(".stats div"))
     .find((box) => box.querySelector("small")?.textContent === "Laps")
