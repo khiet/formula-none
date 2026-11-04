@@ -306,6 +306,8 @@ describe("standings", () => {
       bestLapS: null,
       wrongWay: false,
       finishTimeS: null,
+      stops: 0,
+      bestStopS: null,
     });
     expect(second?.position).toBe(2);
     // The grid is just behind the start line, at the far end of the lap.
@@ -464,6 +466,7 @@ describe("prediction", () => {
       boost: null,
       starS: null,
       slipstream: null,
+      stop: null,
     };
     const snapshot: Snapshot = {
       tick: last - 6,
@@ -518,6 +521,7 @@ describe("prediction", () => {
       boost: null,
       starS: null,
       slipstream: null,
+      stop: null,
     };
     prediction.reconcile({
       tick: 10,
@@ -562,6 +566,7 @@ describe("prediction", () => {
       boost: null,
       starS: null,
       slipstream: null,
+      stop: null,
     };
     prediction.reconcile({
       tick: COUNTDOWN_TICKS + 54,
@@ -607,6 +612,7 @@ describe("prediction", () => {
       boost,
       starS: null,
       slipstream: null,
+      stop: null,
     });
     const [x, y, z] = prediction.kartReadout().position;
     prediction.reconcile({
@@ -654,6 +660,7 @@ describe("prediction", () => {
       boost: null,
       starS: null,
       slipstream: null,
+      stop: null,
     });
     prediction.reconcile({
       tick: COUNTDOWN_TICKS + 54,
@@ -810,6 +817,7 @@ describe("items", () => {
           boost: null,
           starS: null,
           slipstream: null,
+          stop: null,
         },
       ],
       events: [],

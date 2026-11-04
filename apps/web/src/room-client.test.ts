@@ -174,6 +174,7 @@ const KART: KartSnapshot = {
   boost: null,
   starS: null,
   slipstream: null,
+  stop: null,
 };
 
 function snapshot(tick: number, events: Event[] = []): Snapshot {
@@ -254,7 +255,9 @@ describe("the race side of the room client", () => {
     client.onResults((standings) => {
       results = standings;
     });
-    const standings = [{ kart: 1, position: 1, finishTimeS: 90.5, bestLapS: 30 }];
+    const standings = [
+      { kart: 1, position: 1, finishTimeS: 90.5, bestLapS: 30, stops: 1, bestStopS: 2.4 },
+    ];
     connection.receive({ results: { standings } });
     expect(results).toEqual(standings);
   });

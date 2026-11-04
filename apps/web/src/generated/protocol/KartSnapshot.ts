@@ -4,6 +4,7 @@ import type { DriftSnapshot } from "./DriftSnapshot";
 import type { ItemSlot } from "./ItemSlot";
 import type { SlipstreamSnapshot } from "./SlipstreamSnapshot";
 import type { Start } from "./Start";
+import type { StopSnapshot } from "./StopSnapshot";
 
 /**
  * One kart's state in a snapshot. Metres, seconds and metres per second;
@@ -78,4 +79,10 @@ starS: number | null,
  * wake, so a client's prediction takes its kart's charge and tow from
  * here (ADR 0077).
  */
-slipstream: SlipstreamSnapshot | null, };
+slipstream: SlipstreamSnapshot | null, 
+/**
+ * The kart's stop in its pit box, while it is in one (ADR 0082). A
+ * client's prediction rolls its own from the seed and takes the
+ * server's word on a rewind.
+ */
+stop: StopSnapshot | null, };

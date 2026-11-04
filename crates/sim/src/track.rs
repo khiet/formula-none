@@ -175,7 +175,8 @@ struct PitLaneSidecar {
     half_width: f32,
     entry: Checkpoint,
     exit: Checkpoint,
-    /// One per grid slot, so karts never queue. Only their count is read so far.
+    /// One per grid slot, so karts never queue: where that slot's kart
+    /// stands for its stop, facing down the lane.
     pit_boxes: Vec<Placement>,
 }
 
@@ -192,6 +193,10 @@ pub struct PitLane {
     metres_at_point: Vec<f32>,
     entry_m: f32,
     exit_m: f32,
+    /// The pit boxes in grid slot order, each on the lane's road, and
+    /// metres along the path to each one's mark.
+    pit_boxes: Vec<Placement>,
+    pit_box_m: Vec<f32>,
 }
 
 impl PitLane {
@@ -217,6 +222,8 @@ impl PitLane {
             metres_at_point,
             entry_m: 0.0,
             exit_m: 0.0,
+            pit_boxes: Vec::new(),
+            pit_box_m: Vec::new(),
         };
         let on_the_path = |lane: &Self, line: &Checkpoint| {
             lane.reading(line.position)
@@ -227,7 +234,28 @@ impl PitLane {
         if lane.entry_m >= lane.exit_m {
             return Err("a pit lane's entry line must come before its exit line".into());
         }
+        // A kart is taken onto its mark from the lane's road, so a respawn
+        // from the mark knows where it stands. A box outside the lines is
+        // never reached: the catch happens only where the limiter holds.
+        for pit_box in &sidecar.pit_boxes {
+            let metres = lane
+                .reading(pit_box.position)
+                .ok_or("a pit box must lie on the lane's road")?;
+            lane.pit_box_m.push(metres);
+        }
+        lane.pit_boxes = sidecar.pit_boxes;
         Ok(lane)
+    }
+
+    /// The pit boxes in grid slot order: where each slot's kart stands for
+    /// its stop, on the lane's road, facing down the lane.
+    pub fn pit_boxes(&self) -> &[Placement] {
+        &self.pit_boxes
+    }
+
+    /// Metres along the path to the mark of grid slot `slot`'s pit box.
+    pub fn pit_box_m(&self, slot: usize) -> f32 {
+        self.pit_box_m[slot]
     }
 
     /// The path's whole length, fork to merge.

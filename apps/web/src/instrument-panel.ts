@@ -1,9 +1,10 @@
 import instrumentFontUrl from "../../../assets/fonts/kenney/Kenney Mini Square.ttf?url";
-import type { Phase, Standing } from "./bridge";
+import type { Phase, Standing, Stop, StopTier } from "./bridge";
 import { type CourseMapSetup, createCourseMap } from "./course-map";
 import { droneWarned, incomingDroneMetres } from "./drone-warning";
 import {
   formatLapTime,
+  formatStopTime,
   NO_LAP_TIME,
   type OrdinalParts,
   ordinal,
@@ -38,6 +39,8 @@ import {
   LABEL_GREY,
   POSTER_RED,
   plate,
+  SIGNAL_YELLOW,
+  type Tones,
   tonesOf,
   VALUE_WHITE,
   WHITE,
@@ -55,6 +58,25 @@ import {
   tyreWearBand,
 } from "./speed-cluster";
 import { STAR_RAINBOW, STAR_TILES, starColour, starTileColour } from "./star-shine";
+
+/** The stop readout holds the final time this long after green. */
+export const STOP_TIME_HOLD_S = 3;
+
+/** The plate the final time is printed on, by the roll: green for a record, white for clean, then the signal's yellow, the hazard's orange and poster red. */
+export function stopPlateTones(tier: StopTier): Tones {
+  switch (tier) {
+    case "record":
+      return GO_GREEN;
+    case "clean":
+      return WHITE;
+    case "slow":
+      return SIGNAL_YELLOW;
+    case "botched":
+      return HAZARD_ORANGE;
+    case "disaster":
+      return POSTER_RED;
+  }
+}
 
 /** The item slot as the panel prints it: the item's name and the slot's state. */
 export interface ItemReadout {
@@ -321,10 +343,45 @@ export function createInstrumentPanel(
   const boxPlate = instrument("box-call", "BOX");
   plate(boxPlate, POSTER_RED);
   boxPlate.hidden = true;
+  // The stop readout (ADR 0082): the crew's clock counting up on a carbon
+  // plate while the kart is in its pit box, then the final time on a plate
+  // in the roll's colour, held a few seconds after green.
+  const stopPlate = instrument("stop");
+  plate(stopPlate, CARBON);
+  stopPlate.hidden = true;
+  part(stopPlate, "stopLabel").textContent = "STOP";
+  const stopTime = part(stopPlate, "stopTime");
+  /** The stop shown last frame, so green is read as it goes, and the race clock the final time comes down at. */
+  let shownStop: Stop | null = null;
+  let stopShownUntil: number | null = null;
+  const showStop = (stop: Stop | null, raceClock: number | null) => {
+    if (stop !== null) {
+      stopPlate.hidden = false;
+      stopTime.textContent = formatStopTime(stop.stationarySoFarS);
+      if (stopPlate.dataset.stop !== "counting") {
+        stopPlate.dataset.stop = "counting";
+        plate(stopPlate, CARBON);
+      }
+      shownStop = stop;
+      stopShownUntil = null;
+      return;
+    }
+    if (shownStop !== null) {
+      stopTime.textContent = formatStopTime(shownStop.stationaryS);
+      stopPlate.dataset.stop = shownStop.tier;
+      plate(stopPlate, stopPlateTones(shownStop.tier));
+      stopShownUntil = (raceClock ?? 0) + STOP_TIME_HOLD_S;
+      shownStop = null;
+    }
+    if (stopShownUntil !== null && raceClock !== null && raceClock >= stopShownUntil) {
+      stopPlate.hidden = true;
+      stopShownUntil = null;
+    }
+  };
   const coins = instrument("coins");
   coins.append(coinIcon());
   const coinValue = part(coins, "coinCount");
-  cluster.append(coins, gear, speed, tyre, boxPlate);
+  cluster.append(coins, gear, speed, tyre, boxPlate, stopPlate);
   const showSpeed = (metresPerSecond: number, carried: number, inPitLane: boolean) => {
     const topSpeed = coinTopSpeed(tuning, carried);
     const reading = drivetrain(metresPerSecond, topSpeed);
@@ -434,6 +491,7 @@ export function createInstrumentPanel(
       showSpeed(local.speed, local.coins, local.inPitLane);
       showCoins(local.coins);
       showTyres(local.tyreLife);
+      showStop(local.stop, race.phase.kind === "racing" ? race.phase.elapsedSeconds : null);
       surface.textContent = local.surface;
       const held = itemReadout(slot);
       // Firing lights the plate, and so does a landing, once.

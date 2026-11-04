@@ -248,11 +248,28 @@ export function centrelineOf(sidecar: string): readonly WorldPoint[] {
   return centreline as WorldPoint[];
 }
 
+/** A pit box (ADR 0081): where its slot's kart stands for a stop, and a yaw about +Y, zero facing -Z, down the lane. */
+export interface PitBox {
+  readonly position: WorldPoint;
+  readonly yaw: number;
+}
+
+/** The course's pit lane as the Race Scene draws it: its path for the course map and its pit boxes for the View. */
+export interface PitLaneLayout {
+  readonly path: readonly WorldPoint[];
+  /** One per grid slot, in slot order. */
+  readonly pitBoxes: readonly PitBox[];
+}
+
 /**
- * The path of the course's pit lane the course map draws, read from the
- * sidecar's text; `undefined` on a course without one (ADR 0081).
+ * The course's pit lane, read from the sidecar's text; `undefined` on a
+ * course without one (ADR 0081).
  */
-export function pitLaneOf(sidecar: string): readonly WorldPoint[] | undefined {
-  const parsed = JSON.parse(sidecar) as { pit_lane?: { path: readonly WorldPoint[] } };
-  return parsed.pit_lane?.path;
+export function pitLaneOf(sidecar: string): PitLaneLayout | undefined {
+  const parsed = JSON.parse(sidecar) as {
+    pit_lane?: { path: readonly WorldPoint[]; pit_boxes?: readonly PitBox[] };
+  };
+  const lane = parsed.pit_lane;
+  if (lane === undefined) return undefined;
+  return { path: lane.path, pitBoxes: lane.pit_boxes ?? [] };
 }

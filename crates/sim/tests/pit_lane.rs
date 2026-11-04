@@ -1,6 +1,6 @@
 //! The pit lane (ADR 0081), through `step`: Bell Deer's lane is driven at the
 //! limit and back on the track, the lap counts, and nothing in it can hurt a
-//! kart. A stop in a pit box is a later slice; this lane is only driven.
+//! kart. The stop in a pit box is `stop.rs`; here the lane is only driven.
 
 mod common;
 
@@ -720,10 +720,15 @@ fn a_homing_projectile_gives_up_on_a_kart_in_the_lane() {
 #[test]
 fn tyres_wear_only_by_rolling_in_the_lane() {
     // Weaving hard and braking in the lane, at the limit: what would wear a
-    // kart anywhere else costs nothing here but the roll.
+    // kart anywhere else costs nothing here but the roll. The kart's pit
+    // box is moved to the lane's end, so no stop cuts the weave short.
     let sidecar = sidecar_with(|sidecar| {
-        let lane_entry = track(sidecar).pit_lane().expect("a lane").entry_m();
-        with_slot_on_lane(sidecar, 0, lane_entry + 1.0)
+        let course = track(sidecar);
+        let lane = course.pit_lane().expect("a lane");
+        let (far, yaw) = along_lane(&course, lane.exit_m() - 3.0);
+        let mut edited: serde_json::Value = serde_json::from_str(sidecar).expect("JSON");
+        edited["pit_lane"]["pit_boxes"][0] = serde_json::json!({ "position": far, "yaw": yaw });
+        with_slot_on_lane(&edited.to_string(), 0, lane.entry_m() + 1.0)
     });
     let mut state = race_on(&sidecar, 1, Tyres::On);
     // Up to the limit first, in a line, so the wear measured is the moving kind.

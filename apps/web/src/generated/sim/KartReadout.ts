@@ -4,6 +4,7 @@ import type { ItemSlot } from "./ItemSlot";
 import type { MiniTurbo } from "./MiniTurbo";
 import type { Slipstream } from "./Slipstream";
 import type { Start } from "./Start";
+import type { Stop } from "./Stop";
 
 /**
  * What the sim says of one kart at a tick (GLOSSARY: kart readout): what
@@ -70,6 +71,13 @@ airborne: boolean,
  * steps the kart reports it: a snapshot does not carry it.
  */
 inPitLane: boolean, 
+/**
+ * The kart's stop in its pit box, while it is in one (ADR 0082): guided
+ * onto its mark and held there, dead to every control and touching
+ * nothing, until green. The crew's, the light's and the stop timer's
+ * tell; a snapshot carries it and a prediction's kart adopts it.
+ */
+stop: Stop | null, 
 /**
  * Seconds of boost left, while a mini-turbo, boost pad, item or start
  * boost holds the kart over top speed; the release's tell.

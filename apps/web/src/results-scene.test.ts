@@ -2,7 +2,7 @@
 import { describe, expect, it } from "vitest";
 import type { Standing } from "./bridge";
 import { hexCss, livery, liveryCss } from "./livery";
-import { createResultsScene, type RaceResults, resultsRows } from "./results-scene";
+import { createResultsScene, type RaceResults, resultsRows, stopsText } from "./results-scene";
 
 function standing(position: number, overrides: Partial<Standing> = {}): Standing {
   return {
@@ -14,6 +14,8 @@ function standing(position: number, overrides: Partial<Standing> = {}): Standing
     bestLapS: 14 + position,
     wrongWay: false,
     finishTimeS: 45 + position,
+    stops: 0,
+    bestStopS: null,
     ...overrides,
   };
 }
@@ -60,6 +62,7 @@ describe("results rows", () => {
         bestLap: `0'15"000`,
         fastestLap: true,
         finished: true,
+        stops: "",
         you: false,
       },
       {
@@ -71,6 +74,7 @@ describe("results rows", () => {
         bestLap: `0'16"000`,
         fastestLap: false,
         finished: true,
+        stops: "",
         you: false,
       },
       {
@@ -82,9 +86,26 @@ describe("results rows", () => {
         bestLap: "Not finished",
         fastestLap: false,
         finished: false,
+        stops: "",
         you: true,
       },
     ]);
+  });
+
+  it("prints a kart's stops under its name: the one stop's time, or the count and the best", () => {
+    expect(stopsText(0, null)).toBe("");
+    expect(stopsText(1, 2.64)).toBe("1 stop, 2.6 s");
+    expect(stopsText(2, 2.64)).toBe("2 stops, best 2.6 s");
+    const stopped = {
+      ...results,
+      standings: [standing(3, { stops: 2, bestStopS: 3.75 }), standing(1), standing(2)],
+    };
+    expect(resultsRows(stopped).map((row) => row.stops)).toEqual(["", "", "2 stops, best 3.8 s"]);
+    const { container } = mount(stopped);
+    const cells = Array.from(container.querySelectorAll<HTMLElement>("li[data-result]")).map(
+      (row) => row.querySelector("[data-stops]")?.textContent ?? null,
+    );
+    expect(cells).toEqual([null, null, "2 stops, best 3.8 s"]);
   });
 
   it("names another human by the nickname the room gave, and by slot without one", () => {

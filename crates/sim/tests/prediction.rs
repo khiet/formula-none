@@ -133,7 +133,13 @@ fn race_drawing(
     mut others: impl FnMut(u32) -> Vec<KartInput>,
     draws_others: bool,
 ) -> Run {
-    let mut prediction = Prediction::new(SEED, 0, server.track().clone(), server.bot_level());
+    let mut prediction = Prediction::with_tyres(
+        SEED,
+        0,
+        server.track().clone(),
+        server.bot_level(),
+        server.tyres(),
+    );
     let mut history = vec![server.kart_readouts()];
     let mut inputs_in_flight: VecDeque<(u32, u32, KartInput)> = VecDeque::new();
     let mut snapshots_in_flight: VecDeque<InFlight> = VecDeque::new();
@@ -1003,5 +1009,95 @@ fn the_snapshots_slipstream_is_adopted_and_the_tow_runs_down_between_snapshots_w
     assert!(
         slipstreams.last().unwrap().is_none(),
         "the tow is gone by the end"
+    );
+}
+
+/// Full throttle down a lane's path from where the kart is drawn, aiming
+/// `look_ahead_m` on.
+fn down_the_pit_lane(prediction: &Prediction, look_ahead_m: f32) -> KartInput {
+    let lane = prediction.track().pit_lane().expect("a lane");
+    let kart = prediction.kart_readout();
+    let aim = lane
+        .reading(kart.position)
+        .map_or(0.0, |metres| metres + look_ahead_m);
+    let [x, _, z] = lane.point_at(aim);
+    let [qx, qy, qz, qw] = kart.rotation;
+    let yaw = (2.0 * (qw * qy + qx * qz)).atan2(1.0 - 2.0 * (qy * qy + qz * qz));
+    let (dx, dz) = (x - kart.position[0], z - kart.position[2]);
+    let distance = (dx * dx + dz * dz).sqrt().max(0.001);
+    let (sin, cos) = yaw.sin_cos();
+    let rightward = (dx * cos - dz * sin) / distance;
+    KartInput {
+        steer: (rightward * 4.0).clamp(-1.0, 1.0),
+        throttle: 1.0,
+        ..KartInput::default()
+    }
+}
+
+#[test]
+fn the_prediction_and_the_server_agree_on_the_tick_of_green_with_no_correction() {
+    use common::{without_item_boxes, without_wheel_crossings, BELL_DEER};
+    use sim::tuning::{PIT_BOX_CATCH_M, PIT_BOX_GUIDE_S};
+    use sim::{stop_roll, Tyres};
+    // The own kart starts on Bell Deer's lane short of its pit box's catch,
+    // on Tyres On, and drives down the lane: the stop is rolled from the
+    // seed on both sides, so the server's snapshots say what the
+    // prediction already has.
+    let base = without_item_boxes(&without_wheel_crossings(BELL_DEER));
+    let course = track(&base);
+    let lane = course.pit_lane().expect("a lane");
+    let start_m = lane.pit_box_m(0) - PIT_BOX_CATCH_M - 20.0;
+    let at = lane.point_at(start_m);
+    let ahead = lane.point_at(start_m + 1.0);
+    let yaw = f32::atan2(at[0] - ahead[0], at[2] - ahead[2]);
+    let sidecar = with_slot_at(&base, 0, at, yaw);
+    let server = State::with_tyres(SEED, 1, 0, track(&sidecar), BotLevel::Basic, Tyres::On);
+    let (_, stationary_s) = stop_roll(SEED, 0, 0);
+    let ticks = seconds(sim::tuning::COUNTDOWN_S + 4.0 + PIT_BOX_GUIDE_S + stationary_s);
+    let run = race_with(
+        ticks,
+        |_| false,
+        server,
+        |prediction, _| down_the_pit_lane(prediction, 8.0),
+        |_| Vec::new(),
+    );
+
+    assert_eq!(
+        run.prediction.corrections(),
+        0,
+        "no correction through the stop: {:?}",
+        run.corrections_m
+    );
+    let green = |karts: &[KartReadout]| {
+        karts
+            .windows(2)
+            .position(|pair| pair[0].stop.is_some() && pair[1].stop.is_none())
+            .map(|index| index + 1)
+    };
+    let server_green = green(
+        &run.server
+            .iter()
+            .map(|karts| karts[0])
+            .collect::<Vec<_>>(),
+    )
+    .expect("the server's kart was let go") as u32;
+    let client_green = green(&run.drawn).expect("the predicted kart was let go") as u32
+        + FIRST_DRAWN_TICK;
+    assert_eq!(
+        client_green + PREDICTED_LEAD_TICKS,
+        server_green,
+        "green on the same server tick"
+    );
+    let server_stop = run.server[server_green as usize - 1][0]
+        .stop
+        .expect("stopping the tick before");
+    let client_stop = run.drawn[(client_green - FIRST_DRAWN_TICK) as usize - 1]
+        .stop
+        .expect("stopping the tick before");
+    assert_eq!(server_stop, client_stop, "the same roll on both sides");
+    assert_eq!(
+        run.drawn[(client_green - FIRST_DRAWN_TICK) as usize].tyre_life,
+        sim::tuning::TYRE_LIFE_NEW_PERCENT,
+        "new tyres predicted at green"
     );
 }

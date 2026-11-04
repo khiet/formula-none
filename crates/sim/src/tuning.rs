@@ -488,6 +488,18 @@ pub const TYRE_WEAR_KERB_PERCENT: f32 = 1.0;
 /// lane: 54 km/h. It beats coins, the slipstream, a star and every boost
 /// (ADR 0081).
 pub const PIT_LIMIT_M_PER_S: f32 = 15.0;
+/// A kart in the lane on Tyres On is taken onto its mark as it comes within
+/// this many metres of its pit box along the lane, and guided onto it over
+/// this long, dead to its controls and touching nothing (ADR 0081).
+pub const PIT_BOX_CATCH_M: f32 = 7.5;
+pub const PIT_BOX_GUIDE_S: f32 = 0.5;
+/// The stop's roll (ADR 0082), one entry per [`crate::StopTier`] in tier
+/// order: the tier's chance as a share of 1, and the stationary time it
+/// draws, from the first second to the last. Judgement, not measured; the
+/// chances sum to 1 and each tier's times sit above the last tier's.
+pub const STOP_ROLL_CHANCES: [f32; 5] = [0.05, 0.65, 0.20, 0.08, 0.02];
+pub const STOP_ROLL_STATIONARY_S: [[f32; 2]; 5] =
+    [[1.9, 2.2], [2.3, 3.0], [3.1, 4.5], [5.0, 7.0], [9.0, 12.0]];
 /// A coin is collected by a kart whose centre is within this much of its
 /// placement along the direction it faces and across it, airborne or not.
 pub const COIN_HALF_LENGTH_M: f32 = 1.0;
@@ -830,6 +842,26 @@ const _: () = {
     );
     // The limiter slows a kart going forward and never touches its reverse.
     assert!(PIT_LIMIT_M_PER_S < TOP_SPEED_M_PER_S && REVERSE_TOP_SPEED_M_PER_S < PIT_LIMIT_M_PER_S);
+    // The catch leaves the guide a run at the limit onto the mark, the roll's
+    // chances share out all of 1, and a stop's time says its tier: each
+    // tier's times start above where the last tier's end.
+    assert!(PIT_BOX_CATCH_M <= PIT_LIMIT_M_PER_S * PIT_BOX_GUIDE_S * 2.0);
+    assert!(0.0 < PIT_BOX_GUIDE_S);
+    {
+        let mut sum = 0.0;
+        let mut tier = 0;
+        while tier < STOP_ROLL_CHANCES.len() {
+            assert!(0.0 < STOP_ROLL_CHANCES[tier]);
+            sum += STOP_ROLL_CHANCES[tier];
+            let [from, to] = STOP_ROLL_STATIONARY_S[tier];
+            assert!(0.0 < from && from < to);
+            if tier > 0 {
+                assert!(STOP_ROLL_STATIONARY_S[tier - 1][1] < from);
+            }
+            tier += 1;
+        }
+        assert!(0.999_999 < sum && sum < 1.000_001);
+    }
     // The blast reaches less far than its progress window, so a kart in
     // reach by distance on the same road is never dropped by the window;
     // and the window is narrower than the one a reading is searched in

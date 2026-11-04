@@ -29,7 +29,7 @@ use ts_rs::TS;
 /// [`ClientMessage::Join`] and the server refuses a mismatch with
 /// [`Refusal::VersionMismatch`] (ADR 0013). The generator exports it next to
 /// the types, so the web app reads the same constant.
-pub const PROTOCOL_VERSION: u16 = 22;
+pub const PROTOCOL_VERSION: u16 = 23;
 
 /// What a client sends the server.
 #[derive(Serialize, Deserialize, TS, Debug, Clone, PartialEq)]
@@ -358,6 +358,34 @@ pub struct KartSnapshot {
     /// wake, so a client's prediction takes its kart's charge and tow from
     /// here (ADR 0077).
     pub slipstream: Option<SlipstreamSnapshot>,
+    /// The kart's stop in its pit box, while it is in one (ADR 0082). A
+    /// client's prediction rolls its own from the seed and takes the
+    /// server's word on a rewind.
+    pub stop: Option<StopSnapshot>,
+}
+
+/// A stop in a pit box under way: the roll and its two clocks.
+#[derive(Serialize, Deserialize, TS, Debug, Clone, Copy, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct StopSnapshot {
+    pub tier: StopTier,
+    /// The stationary time rolled: seconds from the mark to green.
+    pub stationary_s: f32,
+    /// Seconds of the guide onto the mark left; zero on the mark.
+    pub guide_left_s: f32,
+    /// Seconds stood on the mark so far, which reaches `stationary_s` at green.
+    pub stationary_so_far_s: f32,
+}
+
+/// How a stop's roll went, in the order of the roll's table.
+#[derive(Serialize, Deserialize, TS, Debug, Clone, Copy, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub enum StopTier {
+    Record,
+    Clean,
+    Slow,
+    Botched,
+    Disaster,
 }
 
 /// Where a kart stands with the slipstream: in another kart's wake short
@@ -527,6 +555,10 @@ pub struct FinalStanding {
     pub finish_time_s: Option<f32>,
     /// None when the kart completed no lap.
     pub best_lap_s: Option<f32>,
+    /// Stops the kart made in its pit box (ADR 0082).
+    pub stops: u8,
+    /// The shortest of those stops' stationary times; none without a stop.
+    pub best_stop_s: Option<f32>,
 }
 
 /// The bytes a message travels as.

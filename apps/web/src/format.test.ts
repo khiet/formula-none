@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { formatLapTime, NO_LAP_TIME, ordinal, ordinalParts, speedParts } from "./format";
+import {
+  formatLapTime,
+  formatStopTime,
+  NO_LAP_TIME,
+  ordinal,
+  ordinalParts,
+  speedParts,
+} from "./format";
 
 describe("lap times", () => {
   it("print in the 16-bit notation at the sim's precision: minutes, seconds and thousandths", () => {
@@ -39,5 +46,13 @@ describe("speed", () => {
   it("stays positive while reversing, with no minus zero creeping to a stop", () => {
     expect(speedParts(-8)).toEqual({ value: "29", unit: "km/h" });
     expect(speedParts(-0.01)).toEqual({ value: "0", unit: "km/h" });
+  });
+});
+
+describe("stop times", () => {
+  it("print in tenths of a second with the unit, as the crew's clock reads", () => {
+    expect(formatStopTime(0)).toBe("0.0 s");
+    expect(formatStopTime(2.64)).toBe("2.6 s");
+    expect(formatStopTime(11.96)).toBe("12.0 s");
   });
 });

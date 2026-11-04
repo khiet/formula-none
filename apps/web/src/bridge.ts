@@ -28,6 +28,8 @@ export type {
   DriftDirection,
   MiniTurbo,
   Standing,
+  Stop,
+  StopTier,
   Surface,
   Tyres,
 } from "./generated/sim";

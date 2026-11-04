@@ -23,5 +23,7 @@ export type { ServerMessage } from "./ServerMessage";
 export type { SlipstreamSnapshot } from "./SlipstreamSnapshot";
 export type { Snapshot } from "./Snapshot";
 export type { Start } from "./Start";
+export type { StopSnapshot } from "./StopSnapshot";
+export type { StopTier } from "./StopTier";
 export type { Tyres } from "./Tyres";
 export { PROTOCOL_VERSION } from "./version";

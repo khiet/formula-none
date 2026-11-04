@@ -390,6 +390,35 @@
             color-mix(in srgb, var(--ink) 55%, transparent)
         );
       }
+      /* The stop readout stands over the BOX plate's spot, off the cluster's
+         right edge: the crew's clock counting up, then the final time on a
+         plate in the roll's colour. Light plates take ink type. */
+      [data-instrument="stop"] {
+        position: absolute;
+        left: calc(100% + var(--hud) * 1);
+        bottom: calc(var(--hud) * 5);
+        display: flex;
+        align-items: baseline;
+        gap: calc(var(--hud) * 0.8);
+        padding: 0.2em 0.5em;
+        font-size: calc(var(--hud) * 2.6);
+        white-space: nowrap;
+      }
+      [data-stop-label] {
+        font-size: 0.7em;
+        color: var(--label);
+      }
+      [data-instrument="stop"][data-stop="record"],
+      [data-instrument="stop"][data-stop="clean"],
+      [data-instrument="stop"][data-stop="slow"] {
+        color: var(--ink);
+        text-shadow: none;
+      }
+      [data-instrument="stop"][data-stop="record"] [data-stop-label],
+      [data-instrument="stop"][data-stop="clean"] [data-stop-label],
+      [data-instrument="stop"][data-stop="slow"] [data-stop-label] {
+        color: var(--ink);
+      }
       /* Off the cluster's right edge, level with the tyre gauge it warns of. */
       [data-instrument="box-call"] {
         position: absolute;
@@ -1263,7 +1292,7 @@
       }
       #results-scene [data-board] li {
         display: grid;
-        grid-template-areas: "place swatch name badge lap";
+        grid-template-areas: "place swatch name badge lap" "place swatch stops stops stops";
         grid-template-columns: 2.6em 0.8em 1fr auto 6.6em;
         align-items: center;
         column-gap: 0.6em;
@@ -1292,6 +1321,12 @@
       #results-scene [data-board] [data-best-lap] {
         grid-area: lap;
         text-align: right;
+      }
+      /* The stops under the name, in the label's grey. */
+      #results-scene [data-board] [data-stops] {
+        grid-area: stops;
+        font-size: 0.75em;
+        color: var(--label);
       }
       #results-scene [data-board] li[data-not-finished] {
         color: #888;
@@ -1343,6 +1378,11 @@
       #results-scene [data-podium] [data-fastest-lap] {
         order: 2;
         margin-top: 0.3em;
+      }
+      #results-scene [data-podium] [data-stops] {
+        order: 2;
+        margin-top: 0.3em;
+        font-size: 0.85em;
       }
       #results-scene [data-podium] .kart {
         order: 3;
