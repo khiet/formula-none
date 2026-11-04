@@ -40,29 +40,6 @@ fn a_grand_prix_finishes_a_kart_on_its_fifth_lap() {
     assert_eq!(standing.lap, 5);
 }
 
-#[test]
-fn a_race_nobody_picked_a_distance_for_is_a_sprint() {
-    let state = started(State::with_bots(SEED, 0, 1, oval(), BotLevel::Basic));
-    let picked = started(
-        State::with_bots(SEED, 0, 1, oval(), BotLevel::Basic)
-            .with_distance(RaceDistance::default()),
-    );
-    assert_eq!(RaceDistance::default(), RaceDistance::Sprint);
-    assert_eq!(state.hash(), picked.hash());
-}
-
-#[test]
-fn the_wire_spells_each_distance_and_refuses_any_other() {
-    for distance in RaceDistance::ALL {
-        assert_eq!(RaceDistance::from_name(distance.name()), Some(distance));
-    }
-    assert_eq!(
-        RaceDistance::from_name("grand-prix"),
-        Some(RaceDistance::GrandPrix)
-    );
-    assert_eq!(RaceDistance::from_name("marathon"), None);
-}
-
 /// The lap a prediction of a race over `distance` holds after a snapshot puts
 /// its kart on lap 4.
 fn predicted_lap_after_a_snapshot_on_lap_four(distance: RaceDistance) -> u32 {

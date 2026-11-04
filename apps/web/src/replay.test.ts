@@ -177,14 +177,20 @@ describe("replay recorder", () => {
     expect(bridge.replayHashes(json, oval)).toEqual(hashes);
   });
 
-  it("carries the race distance, so a Grand Prix is recorded with its distance", async () => {
+  it("names the race distance, so a Grand Prix reruns as one", async () => {
     const bridge = await loadBridge(wasm);
     const oval = sidecar("oval");
     const race = bridge.createRace(9n, 1, 0, oval, "basic", "off", "grand-prix");
     const recorder = recordReplay(bridge, 9n, "oval", 0, "basic", "off", "grand-prix", race);
-    race.step([THROTTLE], 1 / bridge.ticksPerSecond);
-    recorder.record([THROTTLE]);
-    expect((JSON.parse(recorder.toJSON()) as ReplayFile).distance).toBe("grand-prix");
+    const hashes: bigint[] = [];
+    for (let tick = 1; tick <= 300; tick++) {
+      race.step([THROTTLE], 1 / bridge.ticksPerSecond);
+      recorder.record([THROTTLE]);
+      if (tick % bridge.replayHashIntervalTicks === 0) hashes.push(race.stateHash());
+    }
+    const json = recorder.toJSON();
+    expect((JSON.parse(json) as ReplayFile).distance).toBe("grand-prix");
+    expect(bridge.replayHashes(json, oval)).toEqual(hashes);
   });
 
   it("keeps a seed a JSON number could not", async () => {

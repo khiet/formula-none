@@ -65,6 +65,18 @@ describe("race phase", () => {
     expect(bot?.speed).toBeGreaterThan(1);
   });
 
+  it("runs a Grand Prix to its fifth lap", async () => {
+    const bridge = await loadBridge(wasm);
+    const race = started(bridge.createRace(7n, 0, 1, OVAL, "basic", "off", "grand-prix"), 0);
+    let ticks = 0;
+    while (race.standings()[0]?.finishTimeS === null) {
+      race.step([], DT);
+      ticks += 1;
+      expect(ticks, "five laps take under 150 s").toBeLessThan(150 * 60);
+    }
+    expect(race.standings()[0]?.lap).toBe(bridge.raceLaps["grand-prix"]);
+  });
+
   it("reports the cap from the first finish, the outro once all have finished, and the end of the race", async () => {
     const bridge = await loadBridge(wasm);
     // With no humans, the bots' own finishes start the cap and end the race.

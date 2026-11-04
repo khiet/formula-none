@@ -8,6 +8,7 @@ import type {
   Prediction,
   Projectile,
   Race,
+  RaceDistance,
   Tyres,
   Wheel,
 } from "./bridge";
@@ -64,6 +65,7 @@ const PREDICTED: KartReadout = kartReadout({
 interface FakePrediction extends Prediction {
   readonly kart: number;
   readonly tyres: Tyres;
+  readonly distance: RaceDistance;
   readonly inputs: Input[];
   readonly snapshots: Snapshot[];
   clock: Phase;
@@ -110,10 +112,12 @@ const bridge = {
     _sidecar: string,
     _botLevel: BotLevel,
     tyres: Tyres,
+    distance: RaceDistance,
   ): Prediction {
     const made: FakePrediction = {
       kart,
       tyres,
+      distance,
       inputs: [],
       snapshots: [],
       clock: { kind: "countdown", remainingSeconds: COUNTDOWN_S },
@@ -272,14 +276,6 @@ function lap(id: number, kart: number, lapTimeS: number): Event {
   return { id, kind: { lapCompleted: { kart, lap: 1, lapTimeS } } };
 }
 
-describe("createServerRace's distance", () => {
-  it("counts the race's laps from the countdown for the panel", () => {
-    expect(createServerRace(bridge, fakeClient(), COUNTDOWN, 0, "{}").laps).toBe(3);
-    const grandPrix = { ...COUNTDOWN, distance: "grand-prix" as const };
-    expect(createServerRace(bridge, fakeClient(), grandPrix, 0, "{}").laps).toBe(5);
-  });
-});
-
 describe("createServerRace", () => {
   beforeEach(() => {
     predictions = [];
@@ -291,6 +287,13 @@ describe("createServerRace", () => {
     expect(run.humanCount).toBe(2);
     expect(prediction().kart).toBe(1);
     expect(() => createServerRace(bridge, fakeClient(), COUNTDOWN, 5, "{}")).toThrow(/grid/);
+  });
+
+  it("predicts and counts the laps of the room's race distance, as the Countdown says", () => {
+    expect(createServerRace(bridge, fakeClient(), COUNTDOWN, 0, "{}").laps).toBe(3);
+    const grandPrix = { ...COUNTDOWN, distance: "grand-prix" as const };
+    expect(createServerRace(bridge, fakeClient(), grandPrix, 0, "{}").laps).toBe(5);
+    expect(prediction().distance).toBe("grand-prix");
   });
 
   it("predicts the own kart under the room's Tyres pick, as the Countdown says", () => {

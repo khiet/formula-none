@@ -80,6 +80,13 @@ function scene(options: Partial<TitleOptions> = {}) {
   return { container, title, calls, input, press, message };
 }
 
+/** The Laps number on the course card. */
+function lapsOnTheCard(container: HTMLElement): string | null | undefined {
+  return Array.from(container.querySelectorAll(".stats div"))
+    .find((box) => box.querySelector("small")?.textContent === "Laps")
+    ?.querySelector("b")?.textContent;
+}
+
 describe("Title Scene", () => {
   it("names the game and offers the nickname, a room to create or join, and a solo race", () => {
     const { container, title, calls, press } = scene();
@@ -211,10 +218,7 @@ describe("Title Scene", () => {
     expect(radios.map((radio) => radio.checked)).toEqual([true, false]);
     expect(radios.map((radio) => radio.labels?.[0]?.textContent)).toEqual(["Sprint", "Grand Prix"]);
     const blurb = () => container.querySelector("[data-distance-blurb]")?.textContent ?? "";
-    const laps = () =>
-      Array.from(container.querySelectorAll(".stats div"))
-        .find((box) => box.querySelector("small")?.textContent === "Laps")
-        ?.querySelector("b")?.textContent;
+    const laps = () => lapsOnTheCard(container);
     expect(blurb()).toMatch(/^Sprint: /);
     expect(laps()).toBe("3");
     radios[1]?.click();
@@ -225,10 +229,7 @@ describe("Title Scene", () => {
 
   it("opens the card on the laps of the saved distance, and keeps them when the course changes", () => {
     const { container } = scene({ distance: "grand-prix" });
-    const laps = () =>
-      Array.from(container.querySelectorAll(".stats div"))
-        .find((box) => box.querySelector("small")?.textContent === "Laps")
-        ?.querySelector("b")?.textContent;
+    const laps = () => lapsOnTheCard(container);
     expect(laps()).toBe("5");
     container.querySelector<HTMLInputElement>("input[name=course]:not(:checked)")?.click();
     expect(laps()).toBe("5");
