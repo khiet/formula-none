@@ -85,6 +85,11 @@ class _Lane:
     def centre(self, s: float) -> float:
         return (self.inner(s) + self.outer(s)) / 2.0
 
+    def surface_inner(self, s: float) -> float:
+        """Where the lane's asphalt starts: no further out than the run-off's edge, under the pit
+        wall between the lines, so no grass shows beside either end of that wall."""
+        return min(self.inner(s), self.runoff)
+
     def height(self, s: float, offset: float) -> float:
         """The lane's surface at `offset` from the centreline: flush with the asphalt's edge, and
         a hair over the sand's fall from there to the grass, level beyond."""
@@ -133,7 +138,7 @@ def surfaces(layout: Layout) -> list[SurfaceMesh]:
     """The lane's asphalt and outer wall, and the two walls that replace the closed one on its side."""
     lane = layout.pit_lane
     edges = _Lane(layout)
-    near = edges.rail(edges.inner)
+    near = edges.rail(edges.surface_inner)
     far = edges.rail(edges.outer)
     left, right = (far, near) if lane.side > 0 else (near, far)
     uvs = [(0.0, edges.path.samples[i].s) for i in edges.indices] + [
@@ -179,7 +184,7 @@ def data(layout: Layout) -> PitLaneData:
         half_width=half,
         entry=edges.place(lane.s_entry, edges.centre(lane.s_entry), half),
         exit=edges.place(lane.s_exit, edges.centre(lane.s_exit), half),
-        pit_boxes=[edges.place(PITS_DOOR_FIRST_M + k * PITS_DOOR_PITCH_M, apron) for k in range(PIT_BOXES)],
+        pit_boxes=[edges.place(lane.s_building + PITS_DOOR_FIRST_M + k * PITS_DOOR_PITCH_M, apron) for k in range(PIT_BOXES)],
     )
 
 

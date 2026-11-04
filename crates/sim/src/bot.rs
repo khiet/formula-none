@@ -5,15 +5,18 @@
 
 use crate::handling::TyreGrip;
 use crate::tuning::{
-    coin_factor, BotProfile, ACCELERATION_TO_TOP_S, BOT_AVOID_HALF_WIDTH_M, BOT_BRAKE_HORIZON_S,
-    BOT_CORNER_SAMPLE_M, BOT_DRIFT_CURVATURE_RAD_PER_M, BOT_HAZARD_HOLD_S, BOT_HOP_STEER,
-    BOT_HORN_HOLD_S, BOT_KERB_APPROACH_M, BOT_KERB_GAP_M, BOT_LEVELS, BOT_LINE_RIGHT_OF_CENTRE_M,
-    BOT_LOOKAHEAD_M, BOT_PASS_GAP_M, BOT_REVERSE_S, BOT_STALL_S, BOT_STALL_SPEED_M_PER_S,
-    BOT_WHEEL_MARGIN_S, BOT_WHEEL_SET_OFF_FRACTION, BRAKE_TO_STOP_S, DRIFT_SLIP_ANGLE_RAD,
-    DRIFT_TURN_NEUTRAL, DRIFT_TURN_STEER_RANGE, ITEM_BOOST_FACTOR, KART_HALF_LENGTH_M,
-    KART_HALF_WIDTH_M, KERB_HALF_LENGTH_M, KERB_HALF_WIDTH_M, REVERSE_TOP_SPEED_M_PER_S,
+    coin_factor, BotPitCall, BotProfile, ACCELERATION_TO_TOP_S, BOT_AVOID_HALF_WIDTH_M,
+    BOT_BRAKE_HORIZON_S, BOT_CORNER_SAMPLE_M, BOT_DRIFT_CURVATURE_RAD_PER_M, BOT_HAZARD_HOLD_S,
+    BOT_HOP_STEER, BOT_HORN_HOLD_S, BOT_KERB_APPROACH_M, BOT_KERB_GAP_M, BOT_LEVELS,
+    BOT_LINE_RIGHT_OF_CENTRE_M, BOT_LOOKAHEAD_M, BOT_PASS_GAP_M, BOT_PIT_APPROACH_M_PER_S,
+    BOT_PIT_CALL_FROM_M, BOT_PIT_CALL_UNTIL_M, BOT_PIT_CALL_VARIES_BY, BOT_PIT_LEAST_STINT_LAPS,
+    BOT_PIT_STOP_COST_S, BOT_REVERSE_S, BOT_STALL_S, BOT_STALL_SPEED_M_PER_S,
+    BOT_TYRE_LOSS_S_PER_LAP, BOT_TYRE_LOSS_WORN_OUT_S_PER_LAP, BOT_WHEEL_MARGIN_S,
+    BOT_WHEEL_SET_OFF_FRACTION, BRAKE_TO_STOP_S, DRIFT_SLIP_ANGLE_RAD, DRIFT_TURN_NEUTRAL,
+    DRIFT_TURN_STEER_RANGE, ITEM_BOOST_FACTOR, KART_HALF_LENGTH_M, KART_HALF_WIDTH_M,
+    KERB_HALF_LENGTH_M, KERB_HALF_WIDTH_M, REVERSE_TOP_SPEED_M_PER_S,
     STEER_RATE_LOW_SPEED_RAD_PER_S, STEER_RATE_TOP_SPEED_RAD_PER_S, TOP_SPEED_M_PER_S,
-    WHEEL_LANDING_SPREAD_M, WHEEL_RADIUS_M, WHEEL_WARNING_S,
+    TYRE_LIFE_NEW_PERCENT, WHEEL_LANDING_SPREAD_M, WHEEL_RADIUS_M, WHEEL_WARNING_S,
 };
 use crate::wheel::{pass_not_over, pass_start_s, Path};
 use crate::{
@@ -85,6 +88,15 @@ pub struct Memory {
     /// Seconds the bot keeps the item button down after firing a hazard,
     /// trailing it; zero or less once dropped.
     hazard_hold_left_s: f32,
+    /// Whether the bot has called itself in: it takes the lane at the next
+    /// fork. Latched so its life falling or rising through a threshold on the
+    /// way cannot turn it back at the wall.
+    pit_called: bool,
+    /// The stops the bot has seen its kart make, and the race distance, in
+    /// metres, when the last one left it on new tyres: the start of its stint,
+    /// which its rate of wear is read over.
+    stops_seen: u32,
+    stint_from_m: f32,
 }
 
 impl Memory {
@@ -102,12 +114,193 @@ impl Memory {
             self.hazard_hold_left_s,
         ]
     }
+
+    /// What the pit call steers by, for the hash; `None` until a call or a
+    /// stop has moved it from where every bot starts.
+    pub(crate) fn pitting(&self) -> Option<[f32; 2]> {
+        (self.pit_called || self.stops_seen > 0)
+            .then_some([f32::from(u8::from(self.pit_called)), self.stint_from_m])
+    }
+}
+
+/// What a bot reads at a lane approach to make its pit call.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct PitReading {
+    /// Its tyre life, off by the few points the seed gives this kart.
+    pub life: f32,
+    /// Life lost per lap of this stint; `None` before there is enough of one.
+    pub wear_per_lap: Option<f32>,
+    /// Whole laps left after the line ahead.
+    pub laps_to_go: u32,
+}
+
+/// Whether a bot on `call` comes in on `reading` (ADR 0081). A stop with the
+/// flag at the line ahead buys nothing at any level.
+pub fn calls_for_the_pits(call: BotPitCall, reading: PitReading) -> bool {
+    let PitReading {
+        life,
+        wear_per_lap,
+        laps_to_go,
+    } = reading;
+    if laps_to_go == 0 {
+        return false;
+    }
+    match call {
+        BotPitCall::AtLife { life: at } => life <= at,
+        BotPitCall::AtLifeOrBeforeItRunsOut { life: at } => {
+            life <= at || wear_per_lap.is_some_and(|wear| life - wear <= 0.0)
+        }
+        BotPitCall::Projected {
+            flag_life,
+            last_lap_life,
+        } => wear_per_lap.is_some_and(|wear| {
+            if life - wear * laps_to_go as f32 >= flag_life {
+                return false;
+            }
+            if laps_to_go == 1 && life >= last_lap_life {
+                return false;
+            }
+            let now = BOT_PIT_STOP_COST_S + stint_loss_s(TYRE_LIFE_NEW_PERCENT, wear, laps_to_go);
+            let later = (1..laps_to_go)
+                .map(|stay_out| {
+                    stint_loss_s(life, wear, stay_out)
+                        + BOT_PIT_STOP_COST_S
+                        + stint_loss_s(TYRE_LIFE_NEW_PERCENT, wear, laps_to_go - stay_out)
+                })
+                .fold(f32::INFINITY, f32::min);
+            now < stint_loss_s(life, wear, laps_to_go) && now <= later
+        }),
+    }
+}
+
+/// The seconds worn tyres cost over `laps` from `life`, wearing `wear` a lap,
+/// each lap read at its middle.
+fn stint_loss_s(life: f32, wear: f32, laps: u32) -> f32 {
+    (0..laps)
+        .map(|lap| lap_loss_s((life - wear * (lap as f32 + 0.5)).max(0.0)))
+        .sum()
+}
+
+/// The seconds a lap costs at `life`, between the table's rows.
+fn lap_loss_s(life: f32) -> f32 {
+    BOT_TYRE_LOSS_S_PER_LAP
+        .windows(2)
+        .find(|rows| life >= rows[1][0])
+        .map_or(BOT_TYRE_LOSS_WORN_OUT_S_PER_LAP, |rows| {
+            let [[high, at_high], [low, at_low]] = [rows[0], rows[1]];
+            at_low + (at_high - at_low) * (life - low) / (high - low)
+        })
+}
+
+/// The points this kart's pit call is off by: only the seed and its slot decide
+/// it, and it draws nothing from the sim's random stream, as a stop's roll does not.
+fn pit_call_offset(seed: u64, slot: usize) -> f32 {
+    const PIT_CALL_SALT: u64 = 0x5049_5443_414c_4c00;
+    let unit = crate::hash::unit(seed ^ PIT_CALL_SALT, slot as u64);
+    (unit * 2.0 - 1.0) * BOT_PIT_CALL_VARIES_BY
+}
+
+/// How far along the lap the next pit lane fork is; `None` on a course without one.
+fn metres_to_the_fork(track: &Track, standing: &Standing) -> Option<f32> {
+    let fork = track.pit_lane_fork()?;
+    Some((fork - standing.spline_progress).rem_euclid(track.spline_length()))
+}
+
+/// Make the bot's pit call at the approach to the lane, keep its stint up to
+/// date, and let go of a call it has acted on or missed.
+// Each argument is a separate thing any observer of the race can read.
+#[allow(clippy::too_many_arguments)]
+fn update_pit_call(
+    track: &Track,
+    profile: &BotProfile,
+    kart: &KartReadout,
+    standing: &Standing,
+    seed: u64,
+    laps: u32,
+    slot: usize,
+    memory: &mut Memory,
+) {
+    let (Some(lane), Some(to_fork)) = (track.pit_lane(), metres_to_the_fork(track, standing))
+    else {
+        return;
+    };
+    let lap = track.spline_length();
+    let raced_m = standing.laps_completed as f32 * lap + standing.spline_progress;
+    if kart.stops != memory.stops_seen {
+        memory.stops_seen = kart.stops;
+        memory.stint_from_m = raced_m;
+    }
+    let reading = lane.reading(kart.position);
+    if memory.pit_called {
+        // Off the road a lookahead past the fork, it missed; past the road's
+        // end, it is done. Either way the racing line takes over.
+        let past_fork = lap - to_fork;
+        let missed =
+            reading.is_none() && to_fork > BOT_PIT_CALL_FROM_M && past_fork > BOT_LOOKAHEAD_M;
+        let through = reading.is_some_and(|metres| metres + BOT_LOOKAHEAD_M >= lane.length_m());
+        if missed || through {
+            memory.pit_called = false;
+        }
+    } else if (BOT_PIT_CALL_UNTIL_M..=BOT_PIT_CALL_FROM_M).contains(&to_fork)
+        && standing.finish_time_s.is_none()
+    {
+        let stint_laps = (raced_m + to_fork - memory.stint_from_m) / lap;
+        memory.pit_called = calls_for_the_pits(
+            profile.pit_call,
+            PitReading {
+                life: kart.tyre_life + pit_call_offset(seed, slot),
+                wear_per_lap: (stint_laps >= BOT_PIT_LEAST_STINT_LAPS)
+                    .then(|| (TYRE_LIFE_NEW_PERCENT - kart.tyre_life) / stint_laps),
+                laps_to_go: laps.saturating_sub(standing.laps_completed + 1),
+            },
+        );
+    }
+}
+
+/// The point to aim at for a kart that has called itself in or stands between
+/// the lines, where the pit wall leaves it no other road; `None` for any other.
+/// On the lane's road it follows the path. Short of it, it eases across from
+/// the racing line to where the road starts, so it arrives running along the
+/// road and not across it into the lane's outer wall.
+fn pit_lane_target(
+    track: &Track,
+    kart: &KartReadout,
+    standing: &Standing,
+    called: bool,
+) -> Option<[f32; 2]> {
+    let lane = track.pit_lane()?;
+    if !called && !lane.limits(kart.position) {
+        return None;
+    }
+    let to_fork = metres_to_the_fork(track, standing)?;
+    if lane.reading(kart.position).is_none() && to_fork <= BOT_PIT_CALL_FROM_M {
+        let start = lane.point_at(0.0);
+        let fork = standing.spline_progress + to_fork;
+        let centre = track.point_at(fork);
+        let [tx, tz] = track.direction_at(fork);
+        let road_right = (start[0] - centre[0]) * -tz + (start[2] - centre[2]) * tx;
+        let across = 1.0 - to_fork / BOT_PIT_CALL_FROM_M;
+        let right = BOT_LINE_RIGHT_OF_CENTRE_M + (road_right - BOT_LINE_RIGHT_OF_CENTRE_M) * across;
+        return Some(line_point(
+            track,
+            standing.spline_progress + BOT_LOOKAHEAD_M,
+            right,
+        ));
+    }
+    // Off to the side of the road past the fork, it is about as far along it
+    // as it is past the fork.
+    let metres = lane
+        .reading(kart.position)
+        .unwrap_or(track.spline_length() - to_fork);
+    let point = lane.point_at(metres + BOT_LOOKAHEAD_M);
+    Some([point[0], point[2]])
 }
 
 /// The input the bot in `slot` gives its kart this tick, from the track,
 /// every kart's readouts and the race clock as of the last tick, and the
 /// race's seed, which decides the runaway wheel's path, updating what it
-/// remembers. `profile`, the race's bot level's, sets how hard it drives.
+/// remembers. `profile`, the race's bot level's, sets how hard it drives;
+/// `laps`, the race's count, is what its pit call projects to.
 // Each argument is a separate thing any observer of the race can read.
 #[allow(clippy::too_many_arguments)]
 pub fn drive(
@@ -117,18 +310,50 @@ pub fn drive(
     standings: &[Standing],
     clock: Phase,
     seed: u64,
+    laps: u32,
     slot: usize,
     memory: &mut Memory,
     dt: f32,
 ) -> KartInput {
     let kart = &karts[slot];
     let progress = standings[slot].spline_progress;
-    let grip = TyreGrip::at(kart.tyre_life);
-    let target_speed = corner_speed(
+    memory.held_for_the_wheel = false;
+    update_pit_call(
+        track,
         profile,
-        sharpest_ahead(track, progress, kart.speed, grip),
-        grip,
+        kart,
+        &standings[slot],
+        seed,
+        laps,
+        slot,
+        memory,
     );
+    // Stopped in its pit box the crew has the kart and nothing it presses
+    // counts, and standing there is no stall to back out of.
+    if kart.stop.is_some() {
+        memory.stalled_s = 0.0;
+        memory.reversing_s = 0.0;
+        return KartInput::default();
+    }
+    let lane_target = pit_lane_target(track, kart, &standings[slot], memory.pit_called);
+    let grip = TyreGrip::at(kart.tyre_life);
+    // Between the lines the limiter holds the speed, and the corners read
+    // off the centreline are not on this road. Called in, it slows to make the
+    // fork.
+    let target_speed = if track.in_pit_lane(kart.position) {
+        f32::INFINITY
+    } else {
+        let for_the_corners = corner_speed(
+            profile,
+            sharpest_ahead(track, progress, kart.speed, grip),
+            grip,
+        );
+        if memory.pit_called {
+            for_the_corners.min(BOT_PIT_APPROACH_M_PER_S)
+        } else {
+            for_the_corners
+        }
+    };
     // On a star's run the wheel cannot hurt it and the karts in its way are
     // its targets, so it neither waits nor steers round anyone.
     let starring = kart.star_s.is_some();
@@ -138,35 +363,38 @@ pub fn drive(
         }
         _ => false,
     };
-    let in_the_way = if starring {
+    let in_the_way = if starring || lane_target.is_some() {
         None
     } else {
         kart_in_the_way(karts, slot)
     };
     // A kerb ahead outranks a pass, whose point may lie on the kerb.
     let kerb_line = line_clear_of_kerbs(track, kart.position, progress);
-    let target = match (kerb_line, in_the_way) {
-        (Some(line), _) => line_point(track, progress + BOT_LOOKAHEAD_M, line),
-        (None, Some(other)) => pass_point(
+    let target = match (kerb_line, lane_target, in_the_way) {
+        (Some(line), _, _) => line_point(track, progress + BOT_LOOKAHEAD_M, line),
+        (None, Some(point), _) => point,
+        (None, None, Some(other)) => pass_point(
             track,
             standings[other].spline_progress,
             karts[other].position,
         ),
-        (None, None) => line_point(
+        (None, None, None) => line_point(
             track,
             progress + BOT_LOOKAHEAD_M,
             BOT_LINE_RIGHT_OF_CENTRE_M,
         ),
     };
     let mut steer = pursuit_steer(kart, target);
-    memory.held_for_the_wheel = false;
 
     // Stalled for the tuned time, the bot backs up for the tuned time with
     // its nose swinging toward the target, then drives on.
     // Held back for a wheel is not stalled, but only setting off clears the
     // stall: a kart jammed against a wall jitters in and out of waiting, and
     // each wait clearing it would hold the kart there until the pass is over.
-    if memory.reversing_s <= 0.0 && kart.speed.abs() < BOT_STALL_SPEED_M_PER_S {
+    // Standing on the grid before Go is no stall, or a bot could back off the
+    // line as the lights go out.
+    let racing = matches!(clock, Phase::Racing { .. });
+    if racing && memory.reversing_s <= 0.0 && kart.speed.abs() < BOT_STALL_SPEED_M_PER_S {
         if !waiting {
             memory.stalled_s += dt;
         }
@@ -190,9 +418,15 @@ pub fn drive(
     }
 
     let curvature = track.curvature_at(progress + BOT_LOOKAHEAD_M);
+    let corner = curvature.abs() >= BOT_DRIFT_CURVATURE_RAD_PER_M;
     // No drift while a kerb is in range: a drift always turns into its
     // corner, so it can carry the kart onto the kerb whatever the bot aims at.
-    let corner = curvature.abs() >= BOT_DRIFT_CURVATURE_RAD_PER_M && kerb_line.is_none();
+    // None on the way to the lane, whose road the corner does not turn, nor
+    // once the tyres are under the level's floor for a drift it can do without.
+    let drifting_corner = corner
+        && kerb_line.is_none()
+        && lane_target.is_none()
+        && kart.tyre_life >= profile.drift_floor_life;
     let into_corner = if curvature > 0.0 {
         DriftDirection::Left
     } else {
@@ -202,15 +436,15 @@ pub fn drive(
         // Let a drift go when the corner is behind, or when the next bend
         // turns the other way: the release boosts, and a fresh press hops
         // again next tick.
-        Some(drift) => corner && drift.direction == into_corner,
+        Some(drift) => drifting_corner && drift.direction == into_corner,
         None => {
-            if corner {
+            if drifting_corner {
                 // The hop fixes the drift's direction from the steer, so
                 // the steer must point into the corner as the kart hops.
                 let inward = steer * into_corner.steer_sign();
                 steer = into_corner.steer_sign() * inward.max(BOT_HOP_STEER);
             }
-            corner
+            drifting_corner
         }
     };
 
@@ -273,6 +507,9 @@ pub fn drive(
             _ => false,
         };
     let use_item = match held {
+        // On its way to the lane it keeps the item: a boost would throw it at
+        // the pit wall and nothing can be fired past the line.
+        Some(_) if lane_target.is_some() => false,
         Some(Item::Horn) => {
             memory.item_held_s += dt;
             memory.item_held_s >= BOT_HORN_HOLD_S || horn_hits_a_kart(track, karts, slot)

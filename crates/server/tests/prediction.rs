@@ -118,6 +118,7 @@ async fn at_a_100_ms_round_trip_and_2_percent_loss_the_own_kart_is_corrected_out
                 &[prediction.standing()],
                 prediction.phase(),
                 countdown.seed,
+                sim::tuning::DEFAULT_LAPS,
                 0,
                 &mut memory,
                 TICK.as_secs_f32(),

@@ -471,7 +471,7 @@ pub const TYRE_WEAR_ROLLING_PER_S: f32 = 0.06;
 pub const TYRE_WEAR_CORNERING_PER_S: f32 = 0.19;
 pub const TYRE_WEAR_CORNERING_REFERENCE_M_PER_S2: f32 = 20.0;
 /// Life lost per second drifting, on top of cornering.
-pub const TYRE_WEAR_DRIFT_PER_S: f32 = 1.5;
+pub const TYRE_WEAR_DRIFT_PER_S: f32 = 0.8;
 /// Life each paid mini-turbo release costs.
 pub const TYRE_WEAR_MINI_TURBO_PERCENT: f32 = 0.5;
 /// Life lost per second at full brake, scaled by the brake input.
@@ -479,7 +479,7 @@ pub const TYRE_WEAR_BRAKING_PER_S: f32 = 0.25;
 /// Life lost per second on grass or sand.
 pub const TYRE_WEAR_OFF_TRACK_PER_S: f32 = 1.25;
 /// Life each spin-out costs, whatever caused it.
-pub const TYRE_WEAR_SPIN_OUT_PERCENT: f32 = 6.0;
+pub const TYRE_WEAR_SPIN_OUT_PERCENT: f32 = 4.0;
 /// Life a touch with a kart or tyre wall costs: the least, then this much
 /// per metre per second of closing speed, up to the most.
 pub const TYRE_WEAR_BUMP_MIN_PERCENT: f32 = 0.3;
@@ -659,8 +659,10 @@ pub const BOT_HOP_STEER: f32 = 0.25;
 pub const BOT_AVOID_HALF_WIDTH_M: f32 = 2.0;
 /// Centre to centre, how far beside a kart in its way a bot aims to pass.
 pub const BOT_PASS_GAP_M: f32 = 2.5;
-/// Under this speed a bot counts as stalled: held by a wall or a kart.
-pub const BOT_STALL_SPEED_M_PER_S: f32 = 1.0;
+/// Under this speed a bot counts as stalled: held by a wall or a kart. Over
+/// the 3 m/s kick a kart pinned on a wall takes every 2 s or so, or the stall
+/// never lasts long enough to back out of.
+pub const BOT_STALL_SPEED_M_PER_S: f32 = 3.2;
 /// Seconds stalled before a bot backs up. Longer than a standing start
 /// takes to get going, so no bot reverses off the grid.
 pub const BOT_STALL_S: f32 = 1.0;
@@ -669,16 +671,66 @@ pub const BOT_REVERSE_S: f32 = 1.0;
 /// The chance a Basic bot rolls the full boost at Go, from the race's seed
 /// once per race; otherwise it starts clean. A bot never stalls.
 pub const BOT_START_BOOST_CHANCE: f32 = 0.5;
+/// Points of tyre life a bot's pit call is off by, either way, from a hash of
+/// the seed and its slot, so a level's bots do not all pit on one lap (ADR 0081).
+pub const BOT_PIT_CALL_VARIES_BY: f32 = 5.0;
+/// Metres short of the fork that a bot makes its pit call and turns for the
+/// lane, and the nearest it will: inside that it could no longer get across.
+pub const BOT_PIT_CALL_FROM_M: f32 = 35.0;
+pub const BOT_PIT_CALL_UNTIL_M: f32 = 10.0;
+/// The speed a bot called in slows to for the fork, where it has a lane's
+/// width to find the road and a wall behind it.
+pub const BOT_PIT_APPROACH_M_PER_S: f32 = 20.0;
+/// Laps of the race a bot must have worn tyres over before it trusts its
+/// rate of wear, so a kart handed over mid-stint projects nothing from nothing.
+pub const BOT_PIT_LEAST_STINT_LAPS: f32 = 0.25;
+/// Seconds an Ace bot reckons a whole stop costs (ADR 0081).
+pub const BOT_PIT_STOP_COST_S: f32 = 8.0;
+/// `[tyre life, seconds a lap lost at it]`, new tyres first: the model's lap
+/// costs (`docs/mockups/tyre-wear-and-pit-lane.html`), which an Ace bot's
+/// projection weighs a stop against.
+pub const BOT_TYRE_LOSS_S_PER_LAP: [[f32; 2]; 7] = [
+    [100.0, 0.0],
+    [60.0, 0.6],
+    [40.0, 2.0],
+    [30.0, 2.7],
+    [20.0, 5.0],
+    [10.0, 7.5],
+    [0.0, BOT_TYRE_LOSS_WORN_OUT_S_PER_LAP],
+];
+/// The table's last row: seconds a lap lost on tyres worn right out.
+pub const BOT_TYRE_LOSS_WORN_OUT_S_PER_LAP: f32 = 10.6;
+
 /// How long a bot that rolled the boost holds the throttle before Go:
 /// midway through the full boost's window, clear of both edges.
 pub const BOT_START_HOLD_S: f32 = (START_FULL_BOOST_HOLD_S + START_STALL_HOLD_S) / 2.0;
 
+/// When a bot calls itself in for new tyres (ADR 0081), read at each lane
+/// approach with a lap or more to go.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum BotPitCall {
+    /// Its life is `life` percent or less; it often overstays and lives with it.
+    AtLife { life: f32 },
+    /// Its life is `life` percent or less, or would run out before the next
+    /// lane, a lap on.
+    AtLifeOrBeforeItRunsOut { life: f32 },
+    /// Its life, carried to the flag at the rate it has worn so far, ends under
+    /// `flag_life`, and stopping now costs less time than staying out or
+    /// stopping on any later lap. Only under `last_lap_life` for the last lap.
+    Projected { flag_life: f32, last_lap_life: f32 },
+}
+
 /// The bot constants that vary by bot level (ADR 0078): how hard a bot
 /// drives, not whether it can get round, so the lookahead, the line, the
 /// kerb and wheel avoidance, the pass gap and the stall recovery stay one
-/// constant each. Each field is the constant of the same name at Basic.
+/// constant each. Each field with a `BOT_` constant of the same name is that
+/// constant at Basic.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct BotProfile {
+    pub pit_call: BotPitCall,
+    /// Tyre life under which a bot drops its optional drifts: it still gets
+    /// round a corner on full lock, slower. Zero never does.
+    pub drift_floor_life: f32,
     pub corner_speed_fraction: f32,
     pub rubber_band_min_factor: f32,
     pub rubber_band_max_factor: f32,
@@ -693,6 +745,8 @@ pub struct BotProfile {
 /// is the lever: an Ace bot ahead of every human is never slowed.
 pub const BOT_LEVELS: [BotProfile; 3] = [
     BotProfile {
+        pit_call: BotPitCall::AtLife { life: 25.0 },
+        drift_floor_life: 0.0,
         corner_speed_fraction: BOT_CORNER_SPEED_FRACTION,
         rubber_band_min_factor: BOT_RUBBER_BAND_MIN_FACTOR,
         rubber_band_max_factor: BOT_RUBBER_BAND_MAX_FACTOR,
@@ -700,6 +754,8 @@ pub const BOT_LEVELS: [BotProfile; 3] = [
         start_boost_chance: BOT_START_BOOST_CHANCE,
     },
     BotProfile {
+        pit_call: BotPitCall::AtLifeOrBeforeItRunsOut { life: 30.0 },
+        drift_floor_life: 30.0,
         corner_speed_fraction: 0.92,
         rubber_band_min_factor: 0.96,
         rubber_band_max_factor: BOT_RUBBER_BAND_MAX_FACTOR,
@@ -707,6 +763,11 @@ pub const BOT_LEVELS: [BotProfile; 3] = [
         start_boost_chance: 0.8,
     },
     BotProfile {
+        pit_call: BotPitCall::Projected {
+            flag_life: 15.0,
+            last_lap_life: 10.0,
+        },
+        drift_floor_life: 0.0,
         corner_speed_fraction: 1.0,
         rubber_band_min_factor: 1.0,
         rubber_band_max_factor: BOT_RUBBER_BAND_MAX_FACTOR,

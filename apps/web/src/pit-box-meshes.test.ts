@@ -18,8 +18,8 @@ import type { PitBox } from "./track";
 const KART: KartSize = { width: 1.2, height: 0.6, length: 2 };
 /** Two pit boxes 5 m apart along -z, facing -z. */
 const BOXES: readonly PitBox[] = [
-  { position: [10, 0, -40], yaw: 0 },
-  { position: [10, 0, -45], yaw: 0 },
+  { position: [10, 0, -40], yaw: 0, buildingSide: 1 },
+  { position: [10, 0, -45], yaw: 0, buildingSide: 1 },
 ];
 const AT_THE_BOXES: readonly [number, number, number] = [10, 2, -30];
 const OPTIONS = { cleanStopSeconds: 3 };

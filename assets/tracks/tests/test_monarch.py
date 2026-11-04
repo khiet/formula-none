@@ -220,7 +220,7 @@ class Props(unittest.TestCase):
 
     def test_every_footprint_keeps_8_m_of_grass_from_every_wall(self) -> None:
         found = footprints(self.layout)
-        self.assertEqual({f.kind for f in found}, {"harbour", "casino"})
+        self.assertEqual({f.kind for f in found}, {"pits", "harbour", "casino"})
         for footprint in found:
             with self.subTest(footprint=footprint):
                 self.assertEqual(footprint.clearance, PROP_WALL_CLEARANCE_M)

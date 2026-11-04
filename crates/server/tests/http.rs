@@ -268,12 +268,12 @@ async fn a_room_created_with_tyres_on_races_them() {
 }
 
 #[tokio::test]
-async fn a_room_created_without_a_tyres_pick_races_off() {
+async fn a_room_created_without_a_tyres_pick_races_on() {
     let (app, rooms, _stop) = app();
     let (status, body) = create(app, Body::from(r#"{ "track": "goldstone" }"#)).await;
     assert_eq!(status, StatusCode::CREATED);
     let room = rooms.view(body["code"].as_str().unwrap()).unwrap();
-    assert_eq!(room.tyres, Tyres::Off);
+    assert_eq!(room.tyres, Tyres::On);
 }
 
 #[tokio::test]

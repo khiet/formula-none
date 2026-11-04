@@ -370,6 +370,9 @@ pub struct Track {
     progress_at_point: Vec<f32>,
     checkpoint_progress: Vec<f32>,
     wheel_crossing_progress: Vec<f32>,
+    /// The spline progress of the pit lane's fork, where a kart leaves the
+    /// centreline for it.
+    pit_lane_fork: Option<f32>,
 }
 
 impl fmt::Debug for Track {
@@ -515,7 +518,7 @@ impl Track {
                 )
             })
             .collect();
-        Ok(Self {
+        let mut track = Self {
             name: sidecar.name,
             centreline: sidecar.centreline,
             checkpoints: sidecar.checkpoints,
@@ -531,7 +534,12 @@ impl Track {
             progress_at_point,
             checkpoint_progress,
             wheel_crossing_progress,
-        })
+            pit_lane_fork: None,
+        };
+        track.pit_lane_fork = track
+            .pit_lane()
+            .map(|lane| track.progress_at(lane.point_at(0.0)));
+        Ok(track)
     }
 
     pub fn name(&self) -> &str {
@@ -693,6 +701,11 @@ impl Track {
     /// Start positions in grid order; slot 0 is pole.
     pub fn spawn_grid(&self) -> &[Placement] {
         &self.spawn_grid
+    }
+
+    /// The spline progress of the pit lane's fork; `None` on a course without one.
+    pub fn pit_lane_fork(&self) -> Option<f32> {
+        self.pit_lane_fork
     }
 
     /// The course's pit lane; `None` on a course without one (ADR 0081).

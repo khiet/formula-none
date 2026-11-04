@@ -20,6 +20,7 @@ from ..layout import (
     ItemRow,
     Kerb,
     Layout,
+    PitLane,
     Prop,
     Spot,
     Tunnel,
@@ -120,7 +121,9 @@ LAYOUT = Layout(
     ],
     boost_pads=[
         BoostPad(seg("tunnel").s_mid),
-        BoostPad(seg("noghes-flick").s_mid, offset=3.0),
+        # On the fork's far side, where a kart called in for the pit lane has crossed
+        # past it and no boost throws it at the pit wall.
+        BoostPad(seg("pit-bend").s_start, offset=3.0),
     ],
     # Ten on the centreline, down the start straight and the harbour; five
     # off it, wide on the climb and on the pool straight. The climb's three
@@ -139,6 +142,12 @@ LAYOUT = Layout(
     # Mirabeau turns right, so the descent's outside is the left.
     wheel_crossings=[WheelCrossing(seg("casino-descent").s_mid, outside=1)],
     elevation=[climb],
+    # Left of the start straight, the one side with room behind a 2 m run-off:
+    # right of it lie the stands and the harbour. The fork leaves on the
+    # noghes flick's own lean, where the pit bend turns the road away, and the
+    # merge ends short of Sainte Devote, where the climb starts. 120 m between
+    # the lines (ADR 0081).
+    pit_lane=PitLane(side=1, s_fork=-78.0, s_entry=-53.0, s_exit=67.0, s_merge=92.0),
     decor=Decor(
         hoardings=[
             Hoardings(("casino",), side=-1),
@@ -153,6 +162,8 @@ LAYOUT = Layout(
         ],
         gantry=True,
         props=[
+            # Across the straight from the stands, its front 1 m behind the lane's wall.
+            Prop("pits", Spot(s=0.0, offset=22.0), length=90.0),
             # The basin outside the harbour straight, the pool and the quay: behind the
             # stands beside the first two, then close round the quay and Rascasse, the
             # 8 m rule's width from their walls.

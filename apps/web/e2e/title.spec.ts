@@ -24,11 +24,11 @@ test("the picked laps are remembered across a reload", async ({ page }) => {
 
 test("the picked Tyres are remembered across a reload", async ({ page }) => {
   await page.goto("/");
+  await expect(page.getByRole("radio", { name: "On", exact: true })).toBeChecked();
+  await page.locator(".bot-tile", { hasText: "Off" }).click();
   await expect(page.getByRole("radio", { name: "Off", exact: true })).toBeChecked();
-  await page.locator(".bot-tile", { hasText: "On" }).click();
-  await expect(page.getByRole("radio", { name: "On", exact: true })).toBeChecked();
   await page.reload();
-  await expect(page.getByRole("radio", { name: "On", exact: true })).toBeChecked();
+  await expect(page.getByRole("radio", { name: "Off", exact: true })).toBeChecked();
 });
 
 for (const [status, refusal] of [

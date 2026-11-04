@@ -5,7 +5,8 @@
 Accepted (2026-11-03). Supersedes ADR 0056's tyre gauge holding at 100%,
 and ADR 0055's consequence that the gauge does not read wear. Coins and
 their rule stand. The specification and its evidence are in
-`docs/mockups/tyre-wear-and-pit-lane.html`.
+`docs/mockups/tyre-wear-and-pit-lane.html`. ADR 0085 supersedes its rates for
+drifting and a spin-out.
 
 ## Context
 

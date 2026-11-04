@@ -202,14 +202,14 @@ export const TYRES_CHOICES: readonly TyresChoice[] = [
   { tyres: "on", name: "On", blurb: "driving wears them" },
 ];
 
-const DEFAULT_TYRES: Tyres = "off";
+const DEFAULT_TYRES: Tyres = "on";
 const TYRES_STORAGE_KEY = "tyres";
 
 export function isTyres(name: string): name is Tyres {
   return TYRES_CHOICES.some((choice) => choice.tyres === name);
 }
 
-/** The Tyres pick made last time, kept beside the course pick; Off when unsaved, unreadable or no pick. */
+/** The Tyres pick made last time, kept beside the course pick; On when unsaved, unreadable or no pick (ADR 0083). */
 export function loadTyres(storage: Storage): Tyres {
   const saved = remembered(storage, TYRES_STORAGE_KEY);
   return saved !== null && isTyres(saved) ? saved : DEFAULT_TYRES;
@@ -281,6 +281,8 @@ export function centrelineOf(sidecar: string): readonly WorldPoint[] {
 export interface PitBox {
   readonly position: WorldPoint;
   readonly yaw: number;
+  /** Which side of the kart on its mark the pit building stands, 1 for its right and -1 for its left, where the crew wait and the light stands, off the fast lane. */
+  readonly buildingSide: 1 | -1;
 }
 
 /** The course's pit lane as the Race Scene draws it: its path for the course map and its pit boxes for the View. */
@@ -296,9 +298,36 @@ export interface PitLaneLayout {
  */
 export function pitLaneOf(sidecar: string): PitLaneLayout | undefined {
   const parsed = JSON.parse(sidecar) as {
-    pit_lane?: { path: readonly WorldPoint[]; pit_boxes?: readonly PitBox[] };
+    pit_lane?: {
+      path: readonly WorldPoint[];
+      pit_boxes?: readonly Pick<PitBox, "position" | "yaw">[];
+    };
   };
   const lane = parsed.pit_lane;
   if (lane === undefined) return undefined;
-  return { path: lane.path, pitBoxes: lane.pit_boxes ?? [] };
+  return {
+    path: lane.path,
+    pitBoxes: (lane.pit_boxes ?? []).map((box) => ({
+      ...box,
+      buildingSide: sideOfThePath(lane.path, box.position),
+    })),
+  };
+}
+
+/** Which side of the path, as it runs, `point` stands on: 1 for its right, -1 for its left. */
+function sideOfThePath(path: readonly WorldPoint[], point: readonly number[]): 1 | -1 {
+  const [px = 0, , pz = 0] = point;
+  let nearest = Number.POSITIVE_INFINITY;
+  let side: 1 | -1 = 1;
+  for (let i = 0; i + 1 < path.length; i += 1) {
+    const [ax = 0, , az = 0] = path[i] ?? [];
+    const [bx = 0, , bz = 0] = path[i + 1] ?? [];
+    const distance = (ax + bx - 2 * px) ** 2 + (az + bz - 2 * pz) ** 2;
+    if (distance < nearest) {
+      nearest = distance;
+      // Right of the direction of travel (x, z), seen from above, is (-z, x).
+      side = -(bz - az) * (px - ax) + (bx - ax) * (pz - az) >= 0 ? 1 : -1;
+    }
+  }
+  return side;
 }

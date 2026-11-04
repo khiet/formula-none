@@ -1456,6 +1456,11 @@ impl State {
             }
             if let Some(memory) = &kart.bot {
                 hasher.write_f32s(memory.timers());
+                // Only once a pit call or a stop has set them, so a race
+                // that has neither hashes as it did before bots pitted.
+                if let Some(pitting) = memory.pitting() {
+                    hasher.write_f32s(pitting);
+                }
             }
             hasher.write_f32s(body.translation().to_array());
             hasher.write_f32s(body.rotation().to_array());
@@ -1632,7 +1637,16 @@ pub fn step(mut state: State, inputs: &[KartInput], dt: f32) -> State {
             .enumerate()
             .map(|(slot, kart)| match &mut kart.bot {
                 Some(memory) => bot::drive(
-                    track, profile, &readouts, &standings, clock, seed, slot, memory, dt,
+                    track,
+                    profile,
+                    &readouts,
+                    &standings,
+                    clock,
+                    seed,
+                    kart.race_laps,
+                    slot,
+                    memory,
+                    dt,
                 ),
                 None => inputs[slot],
             })

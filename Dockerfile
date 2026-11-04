@@ -46,7 +46,9 @@ COPY crates ./crates
 COPY --parents assets/tracks/*/*.track.json ./
 # The version endpoint reports this commit (crates/server/src/main.rs).
 ENV FORMULA_NONE_COMMIT=$COMMIT
-RUN --mount=type=cache,target=/usr/local/cargo/registry \
+# Each stage keeps its own registry: the stages build in parallel and cargo's
+# package lock lives outside the mount, so a shared one races on unpacking.
+RUN --mount=type=cache,id=registry-server,target=/usr/local/cargo/registry \
     --mount=type=cache,id=target-server,target=/src/target \
     if [ "$BUILDARCH" = "$TARGETARCH" ]; then \
       unset CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_LINKER; \
@@ -66,7 +68,7 @@ RUN ln -s ../lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm \
 
 WORKDIR /src
 COPY . .
-RUN --mount=type=cache,target=/usr/local/cargo/registry \
+RUN --mount=type=cache,id=registry-web,target=/usr/local/cargo/registry \
     --mount=type=cache,id=target-web,target=/src/target \
     --mount=type=cache,target=/root/.local/share/pnpm/store \
     pnpm install --frozen-lockfile \
