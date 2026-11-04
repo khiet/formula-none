@@ -27,6 +27,7 @@ mod hash;
 pub mod interpolation;
 pub mod prediction;
 pub mod replay;
+mod stop;
 pub mod track;
 pub mod tuning;
 mod wheel;
@@ -36,6 +37,7 @@ pub use handling::Tyres;
 pub use interpolation::Interpolation;
 pub use prediction::Prediction;
 pub use replay::{Replay, ReplayError, Segment};
+pub use stop::{stop_roll, Stop, StopTier};
 pub use track::{
     Checkpoint, PitLane, Placement, Surface, SurfaceMesh, Track, TrackError, WheelCrossing,
 };
@@ -130,6 +132,15 @@ pub struct KartReadout {
     /// (ADR 0081); the gear slot's PIT. As with `airborne`, only the sim that
     /// steps the kart reports it: a snapshot does not carry it.
     pub in_pit_lane: bool,
+    /// The kart's stop in its pit box, while it is in one (ADR 0082): guided
+    /// onto its mark and held there, dead to every control and touching
+    /// nothing, until green. The crew's, the light's and the stop timer's
+    /// tell; a snapshot carries it and a prediction's kart adopts it.
+    pub stop: Option<Stop>,
+    /// Stops the kart has made, each ended on green, which seeds its next
+    /// roll (ADR 0082). A snapshot carries it so a prediction that joined
+    /// after a stop rolls the next one as the server does.
+    pub stops: u32,
     /// Seconds of boost left, while a mini-turbo, boost pad, item or start
     /// boost holds the kart over top speed; the release's tell.
     pub boost_s: Option<f32>,
@@ -595,6 +606,10 @@ pub struct Standing {
     /// Spline progress has been falling for the tuned time: the kart is
     /// going the wrong way. Stays up until progress rises again.
     pub wrong_way: bool,
+    /// Stops the kart has made in its pit box, each ended on green (ADR 0082).
+    pub stops: u32,
+    /// The shortest of those stops' stationary times; `None` before the first.
+    pub best_stop_s: Option<f32>,
 }
 
 /// Everything the sim knows about a race. Owns the physics world and the
@@ -704,6 +719,17 @@ struct Kart {
     /// there; `None` once it stands anywhere else on the course. Hashed only
     /// while there is one, so a race that never sees a lane hashes as before.
     pit_lane_m: Option<f32>,
+    /// The kart's grid slot, which names its pit box and seeds its stops.
+    /// Fixed for the race, so not hashed.
+    slot: usize,
+    /// The stop under way in the kart's pit box, if one is (ADR 0082); the
+    /// kart is dead to every control and touches nothing until green.
+    /// Hashed only while there is one, as `pit_lane_m` is.
+    stop: Option<Stop>,
+    /// Stops ended on green so far, which seeds the next one's roll, and the
+    /// shortest stationary time among them. Hashed only once there is one.
+    stops: u32,
+    best_stop_s: Option<f32>,
 }
 
 impl Kart {
@@ -720,9 +746,21 @@ impl Kart {
         self.star_left_s > 0.0
     }
 
-    /// Dead to every control: stalled at Go or spun out by an item.
+    /// In its pit box for a stop, from the catch to green.
+    fn stopping(&self) -> bool {
+        self.stop.is_some()
+    }
+
+    /// Held where it stands, whatever runs into it: spun out, or in its pit
+    /// box for a stop.
+    fn held_still(&self) -> bool {
+        self.spun_out() || self.stopping()
+    }
+
+    /// Dead to every control: stalled at Go, spun out by an item or in its
+    /// pit box for a stop.
     fn ignores_inputs(&self) -> bool {
-        self.stall_left_s > 0.0 || self.spun_out()
+        self.stall_left_s > 0.0 || self.held_still()
     }
 
     /// What the coins the kart carries multiply its forward top speed by.
@@ -756,6 +794,8 @@ impl Kart {
             spin_out_s: self.spun_out().then_some(self.spin_out_left_s),
             airborne: self.handling.airborne(),
             in_pit_lane: track.in_pit_lane(body.translation().to_array()),
+            stop: self.stop,
+            stops: self.stops,
             boost_s: self.handling.boost_s(),
             boost_tier: self.handling.boost_tier(),
             slipstream: self.handling.slipstream(),
@@ -798,6 +838,8 @@ impl Kart {
             self.wheel_pass_hit = 0;
         }
         self.spin_out_left_s = readout.spin_out_s.unwrap_or(0.0);
+        self.stop = readout.stop;
+        self.stops = readout.stops;
         self.star_left_s = readout.star_s.unwrap_or(0.0);
         if let Phase::Racing { elapsed_s, .. } = clock {
             if self.start != readout.start {
@@ -864,13 +906,17 @@ const KART_COLLIDER: u128 = u128::MAX;
 /// collide only when each is in the other's filter, so a star kart meets
 /// the track and other star karts but passes through ordinary karts, which
 /// in turn pass through it: no contact pair, so no bump (ADR 0021) for the
-/// prediction and the server to disagree over.
+/// prediction and the server to disagree over. A kart in its pit box for a
+/// stop is in no group and meets nothing: nobody can shunt it (ADR 0081).
 const KART_GROUP: Group = Group::GROUP_1;
 const STAR_GROUP: Group = Group::GROUP_2;
 
-/// The groups a kart's collider is in while it is or is not `starring`.
-fn kart_groups(starring: bool) -> InteractionGroups {
-    if starring {
+/// The groups a kart's collider is in while it is or is not `starring`,
+/// unless it is `stopping`, when it is in none.
+fn kart_groups(starring: bool, stopping: bool) -> InteractionGroups {
+    if stopping {
+        InteractionGroups::none()
+    } else if starring {
         InteractionGroups::new(
             STAR_GROUP,
             Group::ALL.difference(KART_GROUP),
@@ -892,7 +938,7 @@ fn kart_collider() -> Collider {
     )
     .friction(0.0)
     .restitution(0.0)
-    .collision_groups(kart_groups(false))
+    .collision_groups(kart_groups(false, false))
     .user_data(KART_COLLIDER)
     .build()
 }
@@ -941,6 +987,7 @@ use tuning::{HORN_PROGRESS_WINDOW_M, HORN_RADIUS_M};
 use tuning::{
     KART_BUMP_RESTITUTION, KART_BUMP_SPEED_LOSS, TYRE_WALL_RESTITUTION, TYRE_WALL_SPEED_LOSS,
 };
+use tuning::{PIT_BOX_CATCH_M, PIT_BOX_GUIDE_S};
 use tuning::{
     SLIPSTREAM_ANGLE_RAD, SLIPSTREAM_HALF_WIDTH_M, SLIPSTREAM_LEADER_SPEED_FRACTION,
     SLIPSTREAM_RANGE_M,
@@ -1028,6 +1075,7 @@ impl State {
             );
         }
 
+        let first_slot = slots.start;
         let karts = track.spawn_grid()[slots]
             .iter()
             .enumerate()
@@ -1079,6 +1127,10 @@ impl State {
                     wheel_pass_hit: 0,
                     star_left_s: 0.0,
                     pit_lane_m: None,
+                    slot: first_slot + index,
+                    stop: None,
+                    stops: 0,
+                    best_stop_s: None,
                 }
             })
             .collect();
@@ -1108,6 +1160,13 @@ impl State {
     /// How hard the bots drive (ADR 0078).
     pub fn bot_level(&self) -> BotLevel {
         self.bot_level
+    }
+
+    /// Whether the race's tyres wear: the creator's pick, fixed for the race.
+    pub fn tyres(&self) -> Tyres {
+        self.karts
+            .first()
+            .map_or(Tyres::Off, |kart| kart.handling.tyres())
     }
 
     pub fn track(&self) -> &Track {
@@ -1371,6 +1430,16 @@ impl State {
             if let Some(metres) = kart.pit_lane_m {
                 hasher.write_f32(metres);
             }
+            if let Some(stop) = kart.stop {
+                hasher.write_u8(stop.tier.code());
+                hasher.write_f32(stop.stationary_s);
+                hasher.write_f32(stop.guide_left_s);
+                hasher.write_f32(stop.stationary_so_far_s);
+            }
+            if kart.stops > 0 {
+                hasher.write_u32(kart.stops);
+                hasher.write_f32(kart.best_stop_s.unwrap_or(NO_TIME));
+            }
             if let Some(memory) = &kart.bot {
                 hasher.write_f32s(memory.timers());
             }
@@ -1429,6 +1498,8 @@ impl State {
                 lap_time_s: kart.lap_time_s,
                 best_lap_s: kart.best_lap_s,
                 wrong_way: kart.wrong_way_s >= WRONG_WAY_WARNING_S,
+                stops: kart.stops,
+                best_stop_s: kart.best_stop_s,
             })
             .collect()
     }
@@ -1744,13 +1815,14 @@ pub fn step(mut state: State, inputs: &[KartInput], dt: f32) -> State {
         .zip(&mut holds)
         .enumerate()
     {
-        // A stalled or spun-out kart sits dead to every control until its
-        // time runs out; a spun-out one stands where it is, whatever runs
-        // into it, and the tick its spin-out runs out it moves again.
+        // A stalled, spun-out or stopping kart sits dead to every control
+        // until its time runs out; a spun-out or stopping one stands where
+        // it is, whatever runs into it, and the tick its spin-out or stop
+        // runs out it moves again.
         let freeze = if kart.ignores_inputs() {
             kart.stall_left_s -= dt;
             kart.spin_out_left_s -= dt;
-            if kart.spun_out() {
+            if kart.held_still() {
                 Freeze::Stopped
             } else {
                 Freeze::Controls
@@ -1763,9 +1835,10 @@ pub fn step(mut state: State, inputs: &[KartInput], dt: f32) -> State {
         // For the run the kart's collider ignores other karts, in both
         // directions; a run that ends with karts overlapping resolves as an
         // ordinary bump from here.
-        state.physics.colliders[kart.collider].set_collision_groups(kart_groups(kart.starring()));
+        state.physics.colliders[kart.collider]
+            .set_collision_groups(kart_groups(kart.starring(), kart.stopping()));
         let body = &mut state.physics.bodies[kart.body];
-        body.lock_translations(kart.spun_out(), true);
+        body.lock_translations(kart.held_still(), true);
         let sent = kart.handling.tick(input, freeze, situation, dt);
         body.set_linvel(sent.velocity, true);
         body.set_angvel(Vec3::Y * sent.yaw_rate, true);
@@ -1814,6 +1887,11 @@ pub fn step(mut state: State, inputs: &[KartInput], dt: f32) -> State {
             dt,
         );
         bump_off_tyre_walls(kart, &state.physics, sent_velocities[index], dt);
+        // A stopping kart is where its stop puts it: guided onto its mark and
+        // held there until green, when it stands on new tyres.
+        if kart.stopping() {
+            hold_in_pit_box(kart, &state.track, &mut state.physics, dt);
+        }
         let mut after = state.physics.bodies[kart.body].translation().to_array();
         // The tick's handling read the kart where it stood before it moved, and
         // a contact can add to what it sent: a kart that ends the tick in the
@@ -1828,6 +1906,30 @@ pub fn step(mut state: State, inputs: &[KartInput], dt: f32) -> State {
         // The pit wall stands between the lane and the centreline, so a kart
         // on the lane's road has not left the course for being behind it.
         let on_pit_lane = state.track.pit_lane().and_then(|lane| lane.reading(after));
+        // A kart on Tyres On that comes within the catch of its pit box along
+        // the lane, between the lines, is taken in for a stop (ADR 0082); on
+        // Tyres Off the pit boxes do nothing. Read as a crossing of the catch, so
+        // a kart let go on green, standing past it, is not taken in again.
+        if let (Some(last_m), Some(now_m), Some(lane)) =
+            (kart.pit_lane_m, on_pit_lane, state.track.pit_lane())
+        {
+            let catch_m = lane.pit_box_m(kart.slot) - PIT_BOX_CATCH_M;
+            if !kart.stopping()
+                && kart.handling.tyres() == Tyres::On
+                && elapsed_s.is_some()
+                && lane.limits(after)
+                && last_m < catch_m
+                && now_m >= catch_m
+            {
+                let (tier, stationary_s) = stop_roll(state.seed, kart.slot, kart.stops);
+                kart.stop = Some(Stop {
+                    tier,
+                    stationary_s,
+                    guide_left_s: PIT_BOX_GUIDE_S,
+                    stationary_so_far_s: 0.0,
+                });
+            }
+        }
         if state.physics.surface_at(after) == Surface::OutOfWorld
             || (on_pit_lane.is_none() && state.physics.wall_between(on_the_line, after))
         {
@@ -2358,6 +2460,51 @@ fn respawn(kart: &mut Kart, track: &Track, physics: &mut Physics) -> [f32; 3] {
     let here = checkpoints[kart.checkpoint].position;
     let next = checkpoints[(kart.checkpoint + 1) % checkpoints.len()].position;
     respawn_at(kart, here, next, physics)
+}
+
+/// Run the kart's stop one tick of `dt`: over the guide it slides onto its
+/// mark, the pit box of its slot, turning to face down the lane; on the
+/// mark it stands, the crew at work, until the rolled time is up. Then it
+/// is let go on green, at rest on new tyres, its stop counted. The mark is
+/// no checkpoint: the lap clock runs on through the stop.
+fn hold_in_pit_box(kart: &mut Kart, track: &Track, physics: &mut Physics, dt: f32) {
+    let lane = track
+        .pit_lane()
+        .expect("a kart stops only on a course with a pit lane");
+    let mark = lane.pit_boxes()[kart.slot];
+    let on_the_mark = Vec3::from(mark.position) + Vec3::Y * KART_HALF_HEIGHT_M;
+    let facing = Rotation::from_rotation_y(mark.yaw);
+    let stop = kart.stop.as_mut().expect("the kart is stopping");
+    let body = &mut physics.bodies[kart.body];
+    if stop.guide_left_s > 0.0 {
+        // The last tick of the guide lands exactly on the mark.
+        let share = (dt / stop.guide_left_s).min(1.0);
+        body.set_translation(body.translation().lerp(on_the_mark, share), true);
+        body.set_rotation(body.rotation().lerp(facing, share).normalize(), true);
+        stop.guide_left_s = if share < 1.0 {
+            stop.guide_left_s - dt
+        } else {
+            0.0
+        };
+    } else {
+        body.set_translation(on_the_mark, true);
+        body.set_rotation(facing, true);
+        stop.stationary_so_far_s += dt;
+    }
+    body.set_linvel(Vec3::ZERO, true);
+    body.set_angvel(Vec3::ZERO, true);
+    if stop.stationary_so_far_s < stop.stationary_s {
+        return;
+    }
+    let stationary_s = stop.stationary_s;
+    kart.stop = None;
+    kart.stops += 1;
+    kart.best_stop_s = Some(
+        kart.best_stop_s
+            .map_or(stationary_s, |best| best.min(stationary_s)),
+    );
+    kart.handling.new_tyres();
+    kart.handling.respawn(facing * Vec3::NEG_Z);
 }
 
 /// Put a kart that left the pit lane's road back on it, `metres` along it,

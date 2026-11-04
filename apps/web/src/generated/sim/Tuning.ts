@@ -22,7 +22,11 @@ coinTopSpeedsMPerS: [number, number, number, number, number, number, number, num
 /**
  * The life from which a kart shows wear and the BOX call can sound.
  */
-tyreLifeCliffPercent: number, coinsLostPerSpinOut: number, coinHalfLengthM: number, coinHalfWidthM: number, coinRespawnS: number, hazardDropDistanceM: number, spinOutS: number, 
+tyreLifeCliffPercent: number, 
+/**
+ * The longest a clean stop lasts: past it the crew shows what went wrong (ADR 0082).
+ */
+stopCleanS: number, coinsLostPerSpinOut: number, coinHalfLengthM: number, coinHalfWidthM: number, coinRespawnS: number, hazardDropDistanceM: number, spinOutS: number, 
 /**
  * How long a star's run lasts, which the Instrument panel's ring counts
  * down and the star music is joined against.

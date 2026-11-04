@@ -247,6 +247,8 @@ const KART: KartSnapshot = {
   boost: null,
   starS: null,
   slipstream: null,
+  stop: null,
+  stops: 0,
 };
 
 function snapshot(
@@ -368,6 +370,22 @@ describe("createServerRace", () => {
     expect(run.readout().standings[0]?.bestLapS).toBe(40);
   });
 
+  it("reads a kart's stops from the snapshots and its best stop from each end it sees, until the results say for sure", () => {
+    const client = fakeClient();
+    const run = createServerRace(bridge, client, COUNTDOWN, 0, "{}");
+    prediction().clock = { kind: "racing", elapsedSeconds: 50, capLeftSeconds: null };
+    const stop = { tier: "clean", stationaryS: 2.7, guideLeftS: 0, stationarySoFarS: 1 } as const;
+    client.snapshot(snapshot(3000, [{}, { stop }]));
+    expect(run.readout().standings[1]).toMatchObject({ stops: 0, bestStopS: null });
+    client.snapshot(snapshot(3002, [{}, { stop: { ...stop, stationarySoFarS: 2 } }]));
+    client.snapshot(snapshot(3004, [{}, { stop: null, stops: 1 }]));
+    expect(run.readout().standings[1]).toMatchObject({ stops: 1, bestStopS: 2.7 });
+    expect(run.readout().standings[0]).toMatchObject({ stops: 0, bestStopS: null });
+    client.snapshot(snapshot(3006, [{}, { stop: { ...stop, stationaryS: 2.1 }, stops: 1 }]));
+    client.snapshot(snapshot(3008, [{}, { stop: null, stops: 2 }]));
+    expect(run.readout().standings[1]).toMatchObject({ stops: 2, bestStopS: 2.1 });
+  });
+
   it("finishes on the results, whose standings replace the snapshot's and stop the lap clock", () => {
     const client = fakeClient();
     const run = createServerRace(bridge, client, COUNTDOWN, 0, "{}");
@@ -383,14 +401,17 @@ describe("createServerRace", () => {
     client.event({ id: 5, kind: "raceEnded" });
     expect(run.readout().phase).toEqual({ kind: "outro" });
     client.results([
-      { kart: 0, position: 1, finishTimeS: 123.5, bestLapS: 40 },
-      { kart: 1, position: 2, finishTimeS: null, bestLapS: null },
+      { kart: 0, position: 1, finishTimeS: 123.5, bestLapS: 40, stops: 1, bestStopS: 2.7 },
+      { kart: 1, position: 2, finishTimeS: null, bestLapS: null, stops: 0, bestStopS: null },
     ]);
     expect(run.readout().phase).toEqual({ kind: "finished" });
+    expect(run.readout().standings[0]).toMatchObject({ stops: 1, bestStopS: 2.7 });
     expect(run.readout().standings[1]).toMatchObject({
       position: 2,
       finishTimeS: null,
       bestLapS: null,
+      stops: 0,
+      bestStopS: null,
     });
     // Disposed, the run stops following the client.
     run.dispose();
@@ -585,7 +606,11 @@ describe("createServerRace", () => {
     connection.receive({ events: [fired(2, 0)] });
     expect(run.readout().itemSlot).toMatchObject({ item: null, firing: true });
     connection.receive({
-      results: { standings: [{ kart: 0, position: 1, finishTimeS: 90, bestLapS: 29 }] },
+      results: {
+        standings: [
+          { kart: 0, position: 1, finishTimeS: 90, bestLapS: 29, stops: 0, bestStopS: null },
+        ],
+      },
     });
     expect(run.readout().phase).toEqual({ kind: "finished" });
   });

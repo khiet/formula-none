@@ -346,3 +346,48 @@ pub fn rolling(
     }
     unreachable!()
 }
+
+/// Bell Deer with nothing on it but the lane: no item boxes to roll and no wheel to dodge.
+pub fn quiet_bell_deer() -> String {
+    without_item_boxes(&without_wheel_crossings(BELL_DEER))
+}
+
+/// The point `metres` along the pit lane's path from the fork, and the
+/// facing a kart there has down it.
+pub fn along_lane(track: &Track, metres: f32) -> ([f32; 3], f32) {
+    let lane = track.pit_lane().expect("the course has a pit lane");
+    let at = lane.point_at(metres);
+    let ahead = lane.point_at(metres + 1.0);
+    (at, f32::atan2(at[0] - ahead[0], at[2] - ahead[2]))
+}
+
+/// `sidecar` with spawn `slot` on the pit lane, `metres` along it from the fork.
+pub fn with_slot_on_lane(sidecar: &str, slot: usize, metres: f32) -> String {
+    let (position, yaw) = along_lane(&track(sidecar), metres);
+    with_slot_at(sidecar, slot, position, yaw)
+}
+
+/// `sidecar` with grid slot `slot`'s pit box moved `metres` along the lane
+/// from the fork, facing down it: out of a driving kart's way, or into it.
+pub fn with_pit_box_at(sidecar: &str, slot: usize, metres: f32) -> String {
+    let (position, yaw) = along_lane(&track(sidecar), metres);
+    edited(sidecar, |sidecar| {
+        sidecar["pit_lane"]["pit_boxes"][slot] =
+            serde_json::json!({ "position": position, "yaw": yaw });
+    })
+}
+
+/// How far ahead along the lane `drive_lane` aims.
+pub const LANE_LOOK_AHEAD_M: f32 = 8.0;
+
+/// Full throttle down the pit lane's path, which starts at the fork: the aim
+/// for a kart on the road short of it is the fork itself.
+pub fn drive_lane(state: &State, kart: usize) -> KartInput {
+    let lane = state.track().pit_lane().expect("the course has a pit lane");
+    let here = state.kart_readouts()[kart].position;
+    let aim = lane
+        .reading(here)
+        .map_or(0.0, |metres| metres + LANE_LOOK_AHEAD_M);
+    let target = lane.point_at(aim);
+    steer_toward(state, kart, [target[0], target[2]])
+}

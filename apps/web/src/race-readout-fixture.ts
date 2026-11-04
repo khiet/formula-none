@@ -12,6 +12,8 @@ export const ON_THE_GRID: Standing = Object.freeze({
   bestLapS: null,
   wrongWay: false,
   finishTimeS: null,
+  stops: 0,
+  bestStopS: null,
 });
 
 /**

@@ -44,4 +44,12 @@ bestLapS: number | null,
  * Spline progress has been falling for the tuned time: the kart is
  * going the wrong way. Stays up until progress rises again.
  */
-wrongWay: boolean, };
+wrongWay: boolean, 
+/**
+ * Stops the kart has made in its pit box, each ended on green (ADR 0082).
+ */
+stops: number, 
+/**
+ * The shortest of those stops' stationary times; `None` before the first.
+ */
+bestStopS: number | null, };

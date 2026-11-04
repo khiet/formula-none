@@ -76,12 +76,16 @@ describe("the centreline from a sidecar", () => {
 });
 
 describe("reading a sidecar's pit lane", () => {
-  it("gives the path of a course's lane, and nothing for a course without one", () => {
+  it("gives the path and the pit boxes of a course's lane, and nothing for a course without one", () => {
     const path = [
       [1, 0, 2],
       [3, 0, 4],
     ];
-    expect(pitLaneOf(JSON.stringify({ pit_lane: { path } }))).toEqual(path);
+    const pit_boxes = [{ position: [2, 0, 3], yaw: 0.5 }];
+    expect(pitLaneOf(JSON.stringify({ pit_lane: { path, pit_boxes } }))).toEqual({
+      path,
+      pitBoxes: pit_boxes,
+    });
     expect(pitLaneOf(JSON.stringify({ centreline: [] }))).toBeUndefined();
   });
 
@@ -91,7 +95,9 @@ describe("reading a sidecar's pit lane", () => {
         new URL(`../../../assets/tracks/${name}/${name}.track.json`, import.meta.url),
         "utf8",
       );
-    expect(pitLaneOf(sidecar("bell-deer"))?.length).toBeGreaterThan(100);
+    const bellDeer = pitLaneOf(sidecar("bell-deer"));
+    expect(bellDeer?.path.length).toBeGreaterThan(100);
+    expect(bellDeer?.pitBoxes).toHaveLength(8);
     expect(pitLaneOf(sidecar("oval"))).toBeUndefined();
   });
 });

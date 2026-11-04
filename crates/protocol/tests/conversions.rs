@@ -5,7 +5,7 @@
 use protocol::{EventKind, Input, KartSnapshot};
 use sim::{
     Drift, DriftDirection, Item, ItemSlot, KartInput, KartReadout, MiniTurbo, RaceEvent,
-    Slipstream, Start,
+    Slipstream, Start, Stop, StopTier,
 };
 
 /// A kart mid-race with every field the snapshot carries away from its
@@ -36,6 +36,13 @@ fn busy_kart() -> KartReadout {
         spin_out_s: Some(0.4),
         airborne: true,
         in_pit_lane: false,
+        stop: Some(Stop {
+            tier: StopTier::Botched,
+            stationary_s: 5.5,
+            guide_left_s: 0.0,
+            stationary_so_far_s: 2.25,
+        }),
+        stops: 2,
         boost_s: Some(0.2),
         boost_tier: MiniTurbo::Orange,
         start: Start::WeakBoost,

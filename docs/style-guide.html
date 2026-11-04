@@ -658,7 +658,18 @@
         <div class="notes">
           <p>The run-off turns to <code>asphalt</code> <code>#6b6b78</code> at the fork: the lane's two edges start on the run-off's and sweep out behind the wall, so the fork is seen from the road with no gate to mark it. The right wall opens for the fork and the merge. Between them it stands on as the pit wall, and a matching <code>wall</code> <code>#f0f0f0</code> rail runs round the lane's far side, 1 m clear of the pit building. The lane's surface stands a hair over the sand and grass, flush with the road's edge.</p>
           <p>The entry line and exit line are <code>kerb-white</code> <code>#f5f5f5</code> bars across the lane. The pit limiter holds from one to the other, and the Instrument panel's gear slot reads PIT between them.</p>
-          <p class="dont"><b>Don't</b> paint a lane where the sim has none: the path, lines and pit boxes in the sidecar are what the rules read. The pit boxes are data for now; nothing is drawn at them until a stop is built.</p>
+          <p class="dont"><b>Don't</b> paint a lane where the sim has none: the path, lines and pit boxes in the sidecar are what the rules read; the pit boxes are drawn at them, the next entry.</p>
+        </div>
+      </article>
+
+      <article class="asset">
+        <header><h3>Pit box, light and crew</h3><code>apps/web/src/pit-box-meshes.ts</code></header>
+        <div class="compare"><figure><figcaption>Seen from above, a kart on its mark</figcaption><div class="stage flat" data-draw="pitBox"></div></figure></div>
+        <dl class="spec"><dt>Size</dt><dd>A mark 0.5 m clear of the kart's box all round in 0.2 m lines; a 2.2 m gantry; six crew 1 m tall; drawn within 160 m of the camera</dd><dt>Decided</dt><dd><a href="adr/0081-a-pit-lane-to-drive-with-an-automatic-limiter.md">ADR 0081</a>, <a href="adr/0082-the-stop-is-rolled-from-the-seed.md">ADR 0082</a></dd></dl>
+        <div class="notes">
+          <p>Each slot's pit box is where the sidecar puts it, 1.75 m onto the apron, facing down the lane: its mark painted in the slot's key colour, <code>crowd-0</code> to <code>crowd-7</code> like the garage door behind it, a <code>carbon</code> <code>#2b2e33</code> gantry at the mark's front right corner with two lamps, and six chibi crew in overalls of the same key under white helmets, flat-shaded and instanced across the eight boxes. Idle, the crew waits in a row 2.6 m to the right of the mark, bobbing. While the slot's kart stands on its mark four gunners kneel at its wheels and judder, and a jack stands off each end. The light reads <code>POSTER_RED</code> <code>#e8333b</code> through the stop and <code>GO_GREEN</code> <code>#6fe8a6</code> for 3 s as the kart is let go, both unlit so they glow, and dark otherwise.</p>
+          <p>Everything reads the kart readout's stop: the sim rolls it and guides the kart, and nothing drawn here enters the sim. Once a clean stop's 3 s are up the crew acts the roll out, as the mockup has it: on a slow stop one gunner stays at the rear left wheel and the rest go back to the row; on a botched stop all four swarm that wheel; on a disaster the gunners go back and the jacks stand off, the kart waiting. The crews are drawn only while the camera is within 160 m of a pit box, so a race round the rest of the course never draws forty-eight figures nobody can see.</p>
+          <p class="dont"><b>Don't</b> draw a kart in a pit box the sim has not put there, and don't let the crew's act hurry or hold the kart: the panel's clock and the light are the sim's word on green.</p>
         </div>
       </article>
 
@@ -785,6 +796,13 @@
       </article>
 
       <article class="asset">
+        <header><h3>Stop readout</h3><code>apps/web/src/instrument-panel.ts</code></header>
+        <div class="compare"><figure><figcaption>Counting up, then a clean stop's final time</figcaption><div class="view"><div class="hud hud-row" data-draw="stopReadout"></div></div></figure></div>
+        <dl class="spec"><dt>Decided</dt><dd><a href="adr/0082-the-stop-is-rolled-from-the-seed.md">ADR 0082</a></dd></dl>
+        <div class="notes"><p>Off the cluster's right edge, over the BOX plate's spot: STOP in the label's grey and the crew's clock in tenths, <code>1.4 s</code>, on a carbon plate from the catch, reading <code>0.0 s</code> through the guide onto the mark. On green it holds the final time for 3 s on a plate in the roll's colour: <code>GO_GREEN</code> for a record, white for clean, <code>SIGNAL_YELLOW</code> for slow, <code>HAZARD_ORANGE</code> for botched and <code>POSTER_RED</code> for a disaster, ink type on the three light plates. The Results Scene lists each kart's stops under its name, <code>1 stop, 2.6 s</code> or <code>2 stops, best 2.6 s</code>, and nothing for a kart that made none.</p></div>
+      </article>
+
+      <article class="asset">
         <header><h3>Course map</h3><code>apps/web/src/course-map.ts</code></header>
         <div class="compare">
           <figure><figcaption>Bell Deer</figcaption><div class="view dark follows lv" data-draw="map" data-track="bell-deer"></div></figure>
@@ -908,7 +926,7 @@
           <div style="display:flex;gap:0.6rem"><span class="p-btn go">Rematch</span><span class="p-btn">Leave</span></div>
         </div></div></figure></div>
         <dl class="spec"><dt>Decided</dt><dd><a href="adr/0033-grand-prix-poster.md">ADR 0033</a></dd></dl>
-        <div class="notes"><p>A RACE OVER sticker, the headline with your place, confetti, and the top three on the podium; the ink board lists 4th and below, one key-colour square per row, with Not finished in grey. Your car carries a gold YOU tag, and the fastest lap a purple badge F1 viewers already read. Rematch in green, Leave in gold.</p></div>
+        <div class="notes"><p>A RACE OVER sticker, the headline with your place, confetti, and the top three on the podium; the ink board lists 4th and below, one key-colour square per row, with Not finished in grey, and a kart's stops under its name in the label's grey (ADR 0082). Your car carries a gold YOU tag, and the fastest lap a purple badge F1 viewers already read. Rematch in green, Leave in gold.</p></div>
       </article>
 
       <article class="asset wide">
@@ -1377,6 +1395,23 @@
       <path d="M20 57 C50 57 50 25 80 25 L240 25 C270 25 270 57 300 57" fill="none" stroke="${white}" stroke-width="3"/>
       <path d="M0 58 H20 M300 58 H320 M80 54 H240" fill="none" stroke="${white}" stroke-width="3"/>
       <path d="M80 26 V52 M240 26 V52" fill="none" stroke="#f5f5f5" stroke-width="3"/>
+    </svg>`;
+  };
+
+  // A pit box in plan at 20 px to the metre: the mark in slot 2's key round a kart on it, the
+  // gantry's lamps at its front right, and the crew at work, four at the wheels and two on the jacks.
+  draw.pitBox = () => {
+    const m = 20, road = "#6b6b78", key = hex(LIVERIES[2].key), carbon = "#2b2e33", white = "#f7f7f2";
+    const cx = 150, cz = 60, w = 1.2 * m, l = 2.0 * m, clear = 0.5 * m, line = 0.2 * m;
+    const crew = (x, z, r) => `<circle cx="${cx + x * m}" cy="${cz + z * m}" r="${r}" fill="${key}"/><circle cx="${cx + x * m}" cy="${cz + z * m}" r="${r * 0.55}" fill="${white}"/>`;
+    return `<svg viewBox="0 0 320 120" role="img" aria-label="A pit box seen from above: a painted mark round a kart, a gantry light at its front right corner and six crew at its wheels and ends">
+      <rect width="320" height="120" fill="${road}"/>
+      <rect x="${cx - w / 2 - clear}" y="${cz - l / 2 - clear}" width="${w + 2 * clear}" height="${l + 2 * clear}" fill="none" stroke="${key}" stroke-width="${line}"/>
+      <rect x="${cx - w / 2}" y="${cz - l / 2}" width="${w}" height="${l}" rx="3" fill="${carbon}"/>
+      <rect x="${cx + w / 2 + clear + 2}" y="${cz - l / 2 - clear - 10}" width="8" height="14" fill="${carbon}"/>
+      <rect x="${cx + w / 2 + clear + 3}" y="${cz - l / 2 - clear - 9}" width="6" height="5" fill="#e8333b"/>
+      <rect x="${cx + w / 2 + clear + 3}" y="${cz - l / 2 - clear - 3}" width="6" height="5" fill="#1b1d21"/>
+      ${crew(-1.1, -1, 6)}${crew(1.1, -1, 6)}${crew(-1.1, 1, 6)}${crew(1.1, 1, 6)}${crew(0, -1.9, 7)}${crew(0, 1.9, 7)}
     </svg>`;
   };
 
@@ -2027,6 +2062,9 @@
   const coinIcon = `<svg viewBox="0 0 100 100" aria-hidden="true"><polygon points="50,6 81,18 94,50 81,82 50,94 19,82 6,50 19,18" fill="#ffd23f" stroke="#b8860b" stroke-width="8"/></svg>`;
   const cluster = (gear, kmh, lit, limiter, coins) => `<div class="cluster"><div class="coins">${coinIcon}<span>x${String(coins).padStart(2, "0")} / 10</span></div>${hexLights(lit, limiter)}<span class="pl"><span class="pf ${limiter || gear === "PIT" ? "t-white" : "t-carbon"} gear${gear === "PIT" ? " pit" : ""}">${gear}</span></span><div class="speed"><b>${kmh}</b><span class="lab">KM/H</span></div><div class="tyre lv follows">${topCar(Array(4).fill("green"))}<span>100%</span></div></div>`;
   document.getElementById("clusters").innerHTML = cluster(4, 87, 7, false, 4) + cluster(6, 122, 12, true, 7) + cluster("PIT", 54, 3, false, 2);
+  // The stop readout: the crew's clock on carbon, then a clean stop's final time on white.
+  const stopPlate = (tone, text, ink) => `<span class="pl"><span class="pf ${tone}" style="padding:0.2em 0.5em;display:inline-flex;gap:0.5em;align-items:baseline${ink ? ";color:#111111;text-shadow:none" : ""}"><span style="font-size:0.7em;${ink ? "color:#111111" : "color:var(--label)"}">STOP</span>${text}</span></span>`;
+  draw.stopReadout = () => stopPlate("t-carbon", "1.4 s", false) + stopPlate("t-white", "2.6 s", true);
 
   // A flag folded once, lit on the left half; chequered once its lap is done.
   const lapFlag = (done) => `<svg viewBox="0 0 14 14" aria-hidden="true"><rect x="1" y="1" width="1.4" height="12.5" fill="#e3e6ea"/>

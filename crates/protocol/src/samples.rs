@@ -9,7 +9,7 @@ use crate::{
     BoostSnapshot, BoostTier, ClientMessage, DriftDirection, DriftSnapshot, Event, EventKind,
     FinalStanding, HazardSnapshot, Input, Item, ItemSlot, KartSnapshot, Player, PlayerState,
     ProjectileSnapshot, Refusal, Room, RoomState, ServerMessage, SlipstreamSnapshot, Snapshot,
-    Start, PROTOCOL_VERSION,
+    Start, StopSnapshot, StopTier, PROTOCOL_VERSION,
 };
 use sim::{BotLevel, Tyres};
 
@@ -68,12 +68,16 @@ pub fn server() -> Vec<ServerMessage> {
                     position: 1,
                     finish_time_s: Some(121.5),
                     best_lap_s: Some(39.25),
+                    stops: 1,
+                    best_stop_s: Some(2.6),
                 },
                 FinalStanding {
                     kart: 0,
                     position: 2,
                     finish_time_s: None,
                     best_lap_s: None,
+                    stops: 0,
+                    best_stop_s: None,
                 },
             ],
         },
@@ -193,6 +197,13 @@ pub fn snapshot() -> Snapshot {
                     3 => Some(SlipstreamSnapshot::Tow { left_s: 0.8 }),
                     _ => None,
                 },
+                stop: (slot == 4).then_some(StopSnapshot {
+                    tier: StopTier::Slow,
+                    stationary_s: 3.7,
+                    guide_left_s: 0.0,
+                    stationary_so_far_s: 1.25,
+                }),
+                stops: u8::from(slot == 4 || slot == 6),
             }
         })
         .collect();

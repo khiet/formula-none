@@ -9,6 +9,8 @@ export type { MiniTurbo } from "./MiniTurbo";
 export type { Slipstream } from "./Slipstream";
 export type { Standing } from "./Standing";
 export type { Start } from "./Start";
+export type { Stop } from "./Stop";
+export type { StopTier } from "./StopTier";
 export type { Surface } from "./Surface";
 export type { Tuning } from "./Tuning";
 export type { Tyres } from "./Tyres";

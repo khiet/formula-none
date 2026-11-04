@@ -12,7 +12,8 @@
 // drone chasing the own kart is within the warning's reach, faster and
 // higher as it closes, from the distance the reading carries. The
 // slipstream's whoosh (ADR 0077) is the own kart's tow taking, an edge
-// like the rest.
+// like the rest, as are the pit crew's wheel guns as the own kart lands on
+// its mark and the jack's drop as its stop ends (ADR 0082).
 
 import type { KartReadout, MiniTurbo, Surface } from "./bridge";
 import { DRONE_WARNING_M, droneWarned, incomingDroneMetres } from "./drone-warning";
@@ -45,7 +46,9 @@ export type SoundCue =
   | "airHorn"
   | "droneBeep"
   | "slipstream"
-  | "boxChime";
+  | "boxChime"
+  | "wheelGun"
+  | "jackDrop";
 
 /** The sounds that run while a state holds: the drift skid and the two run-off surfaces. */
 export type SoundLoop = "driftSkid" | "grass" | "sand";
@@ -88,6 +91,10 @@ export interface SoundReading {
   readonly towed: boolean;
   /** Whether the BOX call is showing; the chime sounds as it comes up. */
   readonly boxCall: boolean;
+  /** Whether the own kart is in its pit box for a stop (ADR 0082); the jack drops as the stop ends. */
+  readonly stopping: boolean;
+  /** Whether it stands on its mark with the crew at work; the wheel guns rattle as it lands there. */
+  readonly onTheMark: boolean;
   /** The nearest other kart on a star run, by distance; null while none is. */
   readonly nearestStar: NearestStar | null;
   /** The other karts' horn blasts under way, by distance; never the own kart's, whose fire the slot sounds. */
@@ -151,6 +158,8 @@ export function soundReading(race: RaceReadout, kart: number, boxCall = false): 
     starSeconds: readout.starS,
     towed: readout.slipstream !== null && "tow" in readout.slipstream,
     boxCall,
+    stopping: readout.stop !== null,
+    onTheMark: readout.stop !== null && readout.stop.guideLeftS <= 0,
     nearestStar: nearestStar(race.karts, kart),
     blasts: race.blasts
       .filter((blast) => blast.kart !== kart)
@@ -265,6 +274,8 @@ export function soundCues(before: SoundReading | undefined, after: SoundReading)
   }
   if (!before.towed && after.towed) cues.push("slipstream");
   if (!before.boxCall && after.boxCall) cues.push("boxChime");
+  if (!before.onTheMark && after.onTheMark) cues.push("wheelGun");
+  if (before.stopping && !after.stopping) cues.push("jackDrop");
   if (finishedNow) cues.push("finish");
   else if (after.lap > before.lap) cues.push("lap");
   return cues;

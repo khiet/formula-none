@@ -16,4 +16,12 @@ finishTimeS: number | null,
 /**
  * None when the kart completed no lap.
  */
-bestLapS: number | null, };
+bestLapS: number | null, 
+/**
+ * Stops the kart made in its pit box (ADR 0082).
+ */
+stops: number, 
+/**
+ * The shortest of those stops' stationary times; none without a stop.
+ */
+bestStopS: number | null, };

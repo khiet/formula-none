@@ -1,6 +1,6 @@
 import type { Standing } from "./bridge";
 import { button } from "./controls";
-import { formatLapTime, NO_LAP_TIME, ordinal } from "./format";
+import { formatLapTime, formatStopTime, NO_LAP_TIME, ordinal } from "./format";
 import { livery, liveryCss } from "./livery";
 import { backdrop, kartSide } from "./poster";
 
@@ -30,6 +30,8 @@ export interface ResultRow {
   readonly fastestLap: boolean;
   /** Whether the kart completed the race's laps before the race ended. */
   readonly finished: boolean;
+  /** The kart's stops and the best of them, as printed; empty for a kart that made none (ADR 0082). */
+  readonly stops: string;
   readonly you: boolean;
 }
 
@@ -90,9 +92,17 @@ export function resultsRows(results: RaceResults): ResultRow[] {
             : formatLapTime(standing.bestLapS),
         fastestLap: finished && standing.bestLapS === fastest,
         finished,
+        stops: stopsText(standing.stops, standing.bestStopS),
         you: slot === results.localKart,
       };
     });
+}
+
+/** The stops as the board prints them: none for no stop, the one stop's time, or the count and the best. */
+export function stopsText(stops: number, bestStopS: number | null): string {
+  if (stops === 0 || bestStopS === null) return "";
+  if (stops === 1) return `1 stop, ${formatStopTime(bestStopS)}`;
+  return `${stops} stops, best ${formatStopTime(bestStopS)}`;
 }
 
 /**
@@ -123,7 +133,7 @@ function verdict(you: ResultRow | undefined): Verdict {
   };
 }
 
-/** A kart's line: its place, name, best lap and any fastest-lap badge, each addressable by a data attribute. */
+/** A kart's line: its place, name, best lap, any fastest-lap badge and its stops, each addressable by a data attribute. */
 function resultItem(row: ResultRow, cells: { kart: boolean }): HTMLLIElement {
   const item = document.createElement("li");
   item.dataset.result = row.position;
@@ -143,6 +153,7 @@ function resultItem(row: ResultRow, cells: { kart: boolean }): HTMLLIElement {
     cell("bestLap", row.bestLap),
   );
   if (row.fastestLap) item.append(cell("fastestLap", "Fastest lap"));
+  if (row.stops !== "") item.append(cell("stops", row.stops));
   return item;
 }
 

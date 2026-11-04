@@ -6,7 +6,8 @@ use sim::KartReadout;
 
 use crate::{
     BoostSnapshot, BoostTier, DriftDirection, DriftSnapshot, EventKind, HazardSnapshot, Input,
-    Item, ItemSlot, KartSnapshot, ProjectileSnapshot, SlipstreamSnapshot, Start,
+    Item, ItemSlot, KartSnapshot, ProjectileSnapshot, SlipstreamSnapshot, Start, StopSnapshot,
+    StopTier,
 };
 
 impl From<sim::Item> for Item {
@@ -117,6 +118,52 @@ impl From<DriftDirection> for sim::DriftDirection {
     }
 }
 
+impl From<sim::StopTier> for StopTier {
+    fn from(tier: sim::StopTier) -> Self {
+        match tier {
+            sim::StopTier::Record => Self::Record,
+            sim::StopTier::Clean => Self::Clean,
+            sim::StopTier::Slow => Self::Slow,
+            sim::StopTier::Botched => Self::Botched,
+            sim::StopTier::Disaster => Self::Disaster,
+        }
+    }
+}
+
+impl From<StopTier> for sim::StopTier {
+    fn from(tier: StopTier) -> Self {
+        match tier {
+            StopTier::Record => Self::Record,
+            StopTier::Clean => Self::Clean,
+            StopTier::Slow => Self::Slow,
+            StopTier::Botched => Self::Botched,
+            StopTier::Disaster => Self::Disaster,
+        }
+    }
+}
+
+impl From<sim::Stop> for StopSnapshot {
+    fn from(stop: sim::Stop) -> Self {
+        Self {
+            tier: stop.tier.into(),
+            stationary_s: stop.stationary_s,
+            guide_left_s: stop.guide_left_s,
+            stationary_so_far_s: stop.stationary_so_far_s,
+        }
+    }
+}
+
+impl From<StopSnapshot> for sim::Stop {
+    fn from(stop: StopSnapshot) -> Self {
+        Self {
+            tier: stop.tier.into(),
+            stationary_s: stop.stationary_s,
+            guide_left_s: stop.guide_left_s,
+            stationary_so_far_s: stop.stationary_so_far_s,
+        }
+    }
+}
+
 impl From<sim::Drift> for DriftSnapshot {
     fn from(drift: sim::Drift) -> Self {
         Self {
@@ -183,6 +230,8 @@ impl From<&KartReadout> for KartSnapshot {
             }),
             star_s: kart.star_s,
             slipstream: kart.slipstream.map(SlipstreamSnapshot::from),
+            stop: kart.stop.map(StopSnapshot::from),
+            stops: kart.stops as u8,
         }
     }
 }
@@ -204,6 +253,8 @@ impl From<&KartSnapshot> for KartReadout {
             spin_out_s: kart.spin_out_s,
             airborne: false,
             in_pit_lane: false,
+            stop: kart.stop.map(sim::Stop::from),
+            stops: u32::from(kart.stops),
             boost_s: kart.boost.map(|boost| boost.left_s),
             boost_tier: kart
                 .boost
