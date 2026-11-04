@@ -40,6 +40,10 @@ SURFACE_TAGS = ("asphalt", "sand", "grass", "wall", "tyres")
 TRACK_COLLECTION = "Track"
 SCENERY_COLLECTION = "Scenery"
 CENTRELINE_OBJECT = "Centreline"
+# A scene without this curve has no pit lane, and its sidecar no `pit_lane`.
+PIT_LANE_OBJECT = "PitLanePath"
+PIT_LINES_COLLECTION = "PitLines"
+PIT_BOXES_COLLECTION = "PitBoxes"
 PLACEMENT_COLLECTIONS = {
     "checkpoints": "Checkpoints",
     "item_boxes": "ItemBoxes",
@@ -140,6 +144,24 @@ def placements(collection_name: str, with_half_width: bool, with_hazard: bool) -
     return result
 
 
+def pit_lane() -> dict | None:
+    """The lane's path, lines and pit boxes (ADR 0081), when the scene has one."""
+    obj = bpy.data.objects.get(PIT_LANE_OBJECT)
+    if obj is None:
+        return None
+    if obj.type != "CURVE":
+        raise RuntimeError(f"{PIT_LANE_OBJECT} must be a curve")
+    path = [to_gltf(obj.matrix_world @ Vector(p.co[:3])) for p in obj.data.splines[0].points]
+    entry, exit_ = placements(PIT_LINES_COLLECTION, with_half_width=True, with_hazard=False)
+    return {
+        "path": path,
+        "half_width": tidy(float(obj["half_width"])),
+        "entry": entry,
+        "exit": exit_,
+        "pit_boxes": placements(PIT_BOXES_COLLECTION, with_half_width=False, with_hazard=False),
+    }
+
+
 def sidecar(name: str) -> dict:
     depsgraph = bpy.context.evaluated_depsgraph_get()
     data = {"version": SIDECAR_VERSION, "name": name, "centreline": centreline()}
@@ -149,6 +171,9 @@ def sidecar(name: str) -> dict:
             with_half_width=key in HALF_WIDTH_COLLECTIONS,
             with_hazard=key in HAZARD_COLLECTIONS,
         )
+    lane = pit_lane()
+    if lane is not None:
+        data["pit_lane"] = lane
     data["surfaces"] = surface_meshes(depsgraph)
     return data
 

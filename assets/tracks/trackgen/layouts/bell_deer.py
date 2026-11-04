@@ -13,7 +13,8 @@ curve, the gantry over the line, the bridge where the course crosses
 itself, woods along the back section, the Circuit Wheel outside the
 first curve, the tyre arch over the middle of Dunlop, the pit building
 the grid faces across the start straight and the airship circling over
-the east infield.
+the east infield. The pit lane leaves the inside of the final curve, runs
+between the pit wall and the pit building and rejoins inside the first curve.
 """
 
 from ..layout import (
@@ -27,6 +28,7 @@ from ..layout import (
     Kerb,
     Layout,
     Line,
+    PitLane,
     Prop,
     Spot,
     CoinLine,
@@ -139,6 +141,9 @@ LAYOUT = Layout(
         Ramp(ramp_start, ramp_start + RAMP_LENGTH_M, RAMP_HEIGHT_M),
         bridge_hill,
     ],
+    # 30 m of fork each end, inside curves that already lean a kart that way,
+    # and 140 m between the lines (ADR 0081).
+    pit_lane=PitLane(side=-1, s_fork=-80.0, s_entry=-50.0, s_exit=90.0, s_merge=120.0),
     decor=Decor(
         hoardings=[
             Hoardings(("grid", "start"), side=1),

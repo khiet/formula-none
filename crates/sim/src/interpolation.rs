@@ -223,6 +223,7 @@ fn between(from: &KartReadout, to: &KartReadout, ticks: u32, share: f32) -> Kart
         speed: KartReadout::facing_speed(rotation, velocity),
         velocity,
         airborne: false,
+        in_pit_lane: false,
         ..*from
     }
 }

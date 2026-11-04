@@ -247,3 +247,12 @@ export function centrelineOf(sidecar: string): readonly WorldPoint[] {
   }
   return centreline as WorldPoint[];
 }
+
+/**
+ * The path of the course's pit lane the course map draws, read from the
+ * sidecar's text; `undefined` on a course without one (ADR 0081).
+ */
+export function pitLaneOf(sidecar: string): readonly WorldPoint[] | undefined {
+  const parsed = JSON.parse(sidecar) as { pit_lane?: { path: readonly WorldPoint[] } };
+  return parsed.pit_lane?.path;
+}

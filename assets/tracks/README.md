@@ -26,11 +26,14 @@ Commit the glTF and sidecar: CI has no Blender, and the sim's tests include
 the sidecars.
 
 Every track is walled along both edges of the run-off the whole way
-round: the export stands a wall on the sand's outer edge on each side,
+round, but for the gaps a pit lane comes and goes by (ADR 0081): the export stands a wall on the sand's outer edge on each side,
 following the centreline and its elevation, so a kart can leave the asphalt
 but never the course and no corner can be cut (ADR 0022). A layout declares
 no walls. The checkpoints are evenly spaced and reach the walls' outer faces
-(ADR 0079). The layouts are checked without Blender, with the tests beside
+(ADR 0079), or the far wall's along a pit lane. A layout's `PitLane(side, s_fork,
+s_entry, s_exit, s_merge)` gets a lane from the shared builder in
+`trackgen/pit_lane.py`: its asphalt and walls, painted lines, and the sidecar's
+optional `pit_lane`. The layouts are checked without Blender, with the tests beside
 them:
 
 ```sh
@@ -94,6 +97,10 @@ blender my-track.blend --background --python assets/tracks/export.py -- my-track
   each centred on the centreline and facing along the track). Checkpoints
   and wheel crossings carry a `half_width` custom property: a crossing's
   reaches wall to wall.
+- Optional, for a pit lane: a poly curve named `PitLanePath` with a `half_width`
+  custom property, collection `PitLines` holding the entry and exit empties, in
+  that name order, with `half_width`, and collection `PitBoxes` holding eight.
+  A scene without the curve has no pit lane.
 
 Blender is Z up; the sidecar is written in the glTF frame (metres, Y up, -Z
 forward, yaw in radians about +Y with zero facing -Z) so it matches the

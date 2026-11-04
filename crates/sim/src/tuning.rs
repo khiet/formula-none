@@ -484,6 +484,10 @@ pub const TYRE_WEAR_BUMP_MAX_PERCENT: f32 = 2.5;
 pub const TYRE_WEAR_WALL_PER_S: f32 = 1.0;
 /// Life each sausage kerb launch costs.
 pub const TYRE_WEAR_KERB_PERCENT: f32 = 1.0;
+/// The pit limiter's speed, from the entry line to the exit line of a pit
+/// lane: 54 km/h. It beats coins, the slipstream, a star and every boost
+/// (ADR 0081).
+pub const PIT_LIMIT_M_PER_S: f32 = 15.0;
 /// A coin is collected by a kart whose centre is within this much of its
 /// placement along the direction it faces and across it, airborne or not.
 pub const COIN_HALF_LENGTH_M: f32 = 1.0;
@@ -824,6 +828,8 @@ const _: () = {
             / (TICKS_PER_SECOND as f32)
             < 2.0 * (STAR_HIT_RADIUS_M + KART_HALF_LENGTH_M)
     );
+    // The limiter slows a kart going forward and never touches its reverse.
+    assert!(PIT_LIMIT_M_PER_S < TOP_SPEED_M_PER_S && REVERSE_TOP_SPEED_M_PER_S < PIT_LIMIT_M_PER_S);
     // The blast reaches less far than its progress window, so a kart in
     // reach by distance on the same road is never dropped by the window;
     // and the window is narrower than the one a reading is searched in

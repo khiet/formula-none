@@ -338,6 +338,14 @@
         padding: 0;
         font-size: calc(var(--hud) * 7);
       }
+      /* In the pit lane the slot reads PIT on a white plate of the same size, in smaller type to fit. */
+      [data-instrument="gear"][data-pit="true"] {
+        width: calc(var(--hud) * 8.4);
+        height: calc(var(--hud) * 9.45);
+        font-size: calc(var(--hud) * 3.4);
+        color: var(--ink);
+        text-shadow: none;
+      }
       /* On the limiter the gear turns white and flashes back to carbon. */
       [data-instrument="gear"][data-limiter="true"] {
         color: var(--ink);

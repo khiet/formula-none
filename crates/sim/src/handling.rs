@@ -19,15 +19,16 @@ use crate::hash::Fnv1a;
 use crate::tuning::{
     BOOST_PAD_FACTOR, BOOST_PAD_S, DRIFT_ENTRY_SPEED_FRACTION, GRAVITY_M_PER_S2, HOP_AIRTIME_S,
     KART_BUMP_DECAY_S, KART_BUMP_MIN_M_PER_S, KERB_SPEED_KEEP, MINI_TURBO_BOOST_FACTOR,
-    OFF_TRACK_SPEED_FACTOR, SLIPSTREAM_CHARGE_TICKS, SLIPSTREAM_TOP_SPEED_FACTOR, SLIPSTREAM_TOW_S,
-    TICK_S, TOP_SPEED_M_PER_S, TYRE_ACCELERATION_FACTORS, TYRE_BRAKING_FACTORS,
-    TYRE_LIFE_COLUMNS_PERCENT, TYRE_LIFE_NEW_PERCENT, TYRE_STEER_RATE_FACTORS,
-    TYRE_TOP_SPEED_FACTORS, TYRE_WASH_OUT_FULL_M_PER_S2, TYRE_WASH_OUT_LIMIT_M_PER_S2,
-    TYRE_WASH_OUT_MOST_RAD, TYRE_WASH_OUT_RATE_RAD_PER_S, TYRE_WEAR_BRAKING_PER_S,
-    TYRE_WEAR_BUMP_MAX_PERCENT, TYRE_WEAR_BUMP_MIN_PERCENT, TYRE_WEAR_BUMP_PER_M_PER_S,
-    TYRE_WEAR_CORNERING_PER_S, TYRE_WEAR_CORNERING_REFERENCE_M_PER_S2, TYRE_WEAR_DRIFT_PER_S,
-    TYRE_WEAR_KERB_PERCENT, TYRE_WEAR_MINI_TURBO_PERCENT, TYRE_WEAR_OFF_TRACK_PER_S,
-    TYRE_WEAR_ROLLING_PER_S, TYRE_WEAR_SPIN_OUT_PERCENT, TYRE_WEAR_WALL_PER_S,
+    OFF_TRACK_SPEED_FACTOR, PIT_LIMIT_M_PER_S, SLIPSTREAM_CHARGE_TICKS,
+    SLIPSTREAM_TOP_SPEED_FACTOR, SLIPSTREAM_TOW_S, TICK_S, TOP_SPEED_M_PER_S,
+    TYRE_ACCELERATION_FACTORS, TYRE_BRAKING_FACTORS, TYRE_LIFE_COLUMNS_PERCENT,
+    TYRE_LIFE_NEW_PERCENT, TYRE_STEER_RATE_FACTORS, TYRE_TOP_SPEED_FACTORS,
+    TYRE_WASH_OUT_FULL_M_PER_S2, TYRE_WASH_OUT_LIMIT_M_PER_S2, TYRE_WASH_OUT_MOST_RAD,
+    TYRE_WASH_OUT_RATE_RAD_PER_S, TYRE_WEAR_BRAKING_PER_S, TYRE_WEAR_BUMP_MAX_PERCENT,
+    TYRE_WEAR_BUMP_MIN_PERCENT, TYRE_WEAR_BUMP_PER_M_PER_S, TYRE_WEAR_CORNERING_PER_S,
+    TYRE_WEAR_CORNERING_REFERENCE_M_PER_S2, TYRE_WEAR_DRIFT_PER_S, TYRE_WEAR_KERB_PERCENT,
+    TYRE_WEAR_MINI_TURBO_PERCENT, TYRE_WEAR_OFF_TRACK_PER_S, TYRE_WEAR_ROLLING_PER_S,
+    TYRE_WEAR_SPIN_OUT_PERCENT, TYRE_WEAR_WALL_PER_S,
 };
 use crate::{Drift, DriftDirection, KartInput, MiniTurbo, Slipstream, Surface};
 
@@ -192,6 +193,10 @@ pub(crate) struct Situation {
     /// tow armed, until a snapshot says the kart is out of the wake
     /// (ADR 0077).
     pub(crate) wake: Option<bool>,
+    /// Whether the kart is on the pit limiter, between a pit lane's lines
+    /// (ADR 0081): held to the limit, whatever raised its cap or boosts it,
+    /// and worn only by rolling.
+    pub(crate) pit_lane: bool,
 }
 
 /// What the handling sends the body off with for the solver.
@@ -573,6 +578,13 @@ impl Handling {
             self.boost_left_s -= dt;
             self.speed = TOP_SPEED_M_PER_S * situation.coin_factor * self.boost_factor;
         }
+        // The limiter beats every cap and boost above; it holds the kart to
+        // the limit outright, as the off-track cap does, and spends a boost
+        // that would resume at the exit line.
+        if situation.pit_lane {
+            self.boost_left_s = 0.0;
+            self.speed = self.speed.min(PIT_LIMIT_M_PER_S);
+        }
         // A stopped kart loses whatever else it had going, a boost included:
         // a prediction that learns of a spin-out from a snapshot still holds
         // its own boost, which it does not adopt.
@@ -616,6 +628,9 @@ impl Handling {
             self.bump = stopped_by_walls(self.bump, &self.walls);
             self.speed = forward.dot(velocity - self.bump);
         }
+        if situation.pit_lane {
+            velocity = self.held_to_the_pit_limit(velocity);
+        }
         self.travel = forward;
         let yaw_rate = yaw_rate(self.speed, steer, grip.steer_rate);
         self.wear_for_tick(
@@ -649,7 +664,16 @@ impl Handling {
         dt: f32,
     ) {
         let running = freeze != Freeze::Stopped && !situation.starring;
-        self.wearing = running && !self.airborne() && tick_wear.moving;
+        let rolling = running && !self.airborne() && tick_wear.moving;
+        // The pit lane is safe ground: nothing but the roll wears a kart in
+        // it, a touch included (ADR 0081).
+        self.wearing = rolling && !situation.pit_lane;
+        if situation.pit_lane {
+            if rolling {
+                self.wear(TYRE_WEAR_ROLLING_PER_S * dt);
+            }
+            return;
+        }
         let mut lost = 0.0;
         if running && tick_wear.launched {
             lost += TYRE_WEAR_KERB_PERCENT;
@@ -676,6 +700,23 @@ impl Handling {
             lost += per_s * dt;
         }
         self.wear(lost);
+    }
+
+    /// `velocity` with its motion along the ground no more than the pit limit,
+    /// whatever made it up: the speed and the bump give up the same share, so
+    /// the speed still reads back from a velocity with the bump taken off.
+    pub(crate) fn held_to_the_pit_limit(&mut self, velocity: Vec3) -> Vec3 {
+        let along_the_ground = Vec3::new(velocity.x, 0.0, velocity.z).length();
+        let mut held = velocity;
+        if along_the_ground > PIT_LIMIT_M_PER_S {
+            let share = PIT_LIMIT_M_PER_S / along_the_ground;
+            self.speed *= share;
+            self.bump *= share;
+            held.x *= share;
+            held.z *= share;
+        }
+        self.speed = self.speed.min(PIT_LIMIT_M_PER_S);
+        held
     }
 
     /// The wall holds the kart, with no bounce and no bump. `walls` are the
@@ -1003,6 +1044,7 @@ mod tests {
             on_the_ground: true,
             coin_factor: 1.0,
             top_speed: TOP_SPEED_M_PER_S,
+            pit_lane: false,
             starring: false,
             wake: Some(false),
         }

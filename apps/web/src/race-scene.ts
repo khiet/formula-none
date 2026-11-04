@@ -39,7 +39,7 @@ export interface RaceScene {
  * the gamepad for the local kart, its one View drawn every frame from the
  * chase camera with every other kart named over it, by `nickname` for the
  * humans the room named, and the Instrument panel over it with the course
- * map drawn from `centreline`. `audio` sounds the race from the own kart's
+ * map drawn from `centreline` and `pitLane`. `audio` sounds the race from the own kart's
  * readings and is stopped with the Scene. The run carries the race from its
  * countdown to its finish; the Scene keeps drawing the finished race until
  * it is disposed.
@@ -49,6 +49,7 @@ export async function createRaceScene(
   bridge: Bridge,
   track: TrackFiles,
   centreline: readonly WorldPoint[],
+  pitLane: readonly WorldPoint[] | undefined,
   run: RaceRun,
   nickname: (kart: number) => string | undefined,
   audio: RaceAudio,
@@ -102,7 +103,7 @@ export async function createRaceScene(
   const panel = createInstrumentPanel(
     container,
     bridge.lapsPerRace,
-    { centreline, kartCount: bridge.kartsPerRace, ownKart: run.localKart },
+    { centreline, pitLane, kartCount: bridge.kartsPerRace, ownKart: run.localKart },
     {
       coinTopSpeeds: bridge.coinTopSpeeds,
       coinCap: bridge.coinCap,
@@ -115,8 +116,8 @@ export async function createRaceScene(
   );
 
   const boxCall = createBoxCall({
-    // No course has a pit lane to come in to yet (ADR 0081), so the call
-    // stays down; the lane's arrival on a course's sidecar takes this over.
+    // A lane with no stop in it yet has no new tyres to call the kart in for
+    // (ADR 0081); the stop's arrival takes this over from the course's sidecar.
     pitLane: false,
     lapsPerRace: bridge.lapsPerRace,
     cliff: bridge.tyreLifeCliff,

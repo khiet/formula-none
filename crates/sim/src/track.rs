@@ -5,7 +5,7 @@
 //! Everything is in the glTF frame the renderer uses: metres, Y up, a kart
 //! with yaw zero faces -Z, and yaw grows counter-clockwise seen from above.
 
-use crate::tuning::{PROGRESS_WINDOW_M, WHEEL_PERIOD_S, WHEEL_WARNING_S};
+use crate::tuning::{KARTS_PER_RACE, PROGRESS_WINDOW_M, WHEEL_PERIOD_S, WHEEL_WARNING_S};
 use rapier3d::prelude::{SharedShape, TriMeshFlags, Vec3};
 use serde::{Deserialize, Serialize};
 use std::fmt;
@@ -168,6 +168,137 @@ impl SurfaceMesh {
     }
 }
 
+/// A pit lane as the sidecar has it (ADR 0081).
+#[derive(Deserialize)]
+struct PitLaneSidecar {
+    path: Vec<[f32; 3]>,
+    half_width: f32,
+    entry: Checkpoint,
+    exit: Checkpoint,
+    /// One per grid slot, so karts never queue. Only their count is read so far.
+    pit_boxes: Vec<Placement>,
+}
+
+/// A lane beside the course (ADR 0081): the road a kart takes from the fork to
+/// the merge, and on it the stretch from the entry line to the exit line where
+/// the limiter holds and nothing can hurt the kart. Whether a kart is in it is
+/// read from where it stands and nowhere else, so nothing is locked in by
+/// crossing a line and a prediction needs telling nothing.
+#[derive(Debug, Clone, PartialEq)]
+pub struct PitLane {
+    path: Vec<[f32; 3]>,
+    half_width: f32,
+    /// Metres along `path` at each of its points.
+    metres_at_point: Vec<f32>,
+    entry_m: f32,
+    exit_m: f32,
+}
+
+impl PitLane {
+    fn from_sidecar(sidecar: PitLaneSidecar) -> Result<Self, String> {
+        if sidecar.path.len() < 2 {
+            return Err("a pit lane's path needs at least two points".into());
+        }
+        if sidecar.pit_boxes.len() != KARTS_PER_RACE {
+            return Err(format!(
+                "a pit lane has {KARTS_PER_RACE} pit boxes, not {}",
+                sidecar.pit_boxes.len()
+            ));
+        }
+        let mut metres_at_point = vec![0.0];
+        let mut metres = 0.0;
+        for (a, b) in sidecar.path.iter().zip(sidecar.path.iter().skip(1)) {
+            metres += Vec3::from(*a).distance(Vec3::from(*b));
+            metres_at_point.push(metres);
+        }
+        let mut lane = Self {
+            path: sidecar.path,
+            half_width: sidecar.half_width,
+            metres_at_point,
+            entry_m: 0.0,
+            exit_m: 0.0,
+        };
+        let on_the_path = |lane: &Self, line: &Checkpoint| {
+            lane.reading(line.position)
+                .ok_or("a pit lane's lines must lie on its path")
+        };
+        lane.entry_m = on_the_path(&lane, &sidecar.entry)?;
+        lane.exit_m = on_the_path(&lane, &sidecar.exit)?;
+        if lane.entry_m >= lane.exit_m {
+            return Err("a pit lane's entry line must come before its exit line".into());
+        }
+        Ok(lane)
+    }
+
+    /// The path's whole length, fork to merge.
+    pub(crate) fn length_m(&self) -> f32 {
+        self.metres_at_point.last().copied().unwrap_or(0.0)
+    }
+
+    /// Metres along the path to the entry line, where the limiter engages.
+    pub fn entry_m(&self) -> f32 {
+        self.entry_m
+    }
+
+    /// Metres along the path to the exit line, where the limiter lets go.
+    pub fn exit_m(&self) -> f32 {
+        self.exit_m
+    }
+
+    /// Metres along the path of the nearest point on it to `point`, while
+    /// `point` is on the lane's road from fork to merge, and `None` off it.
+    /// Seen from above; no course has a road over or under its lane.
+    pub fn reading(&self, point: [f32; 3]) -> Option<f32> {
+        let (px, pz) = (point[0], point[2]);
+        let mut nearest = (f32::INFINITY, 0.0);
+        for (index, (a, b)) in self.path.iter().zip(self.path.iter().skip(1)).enumerate() {
+            let (dx, dz) = (b[0] - a[0], b[2] - a[2]);
+            let length_squared = dx * dx + dz * dz;
+            let t = if length_squared > 0.0 {
+                (((px - a[0]) * dx + (pz - a[2]) * dz) / length_squared).clamp(0.0, 1.0)
+            } else {
+                0.0
+            };
+            let (nx, nz) = (a[0] + dx * t, a[2] + dz * t);
+            let distance_squared = (px - nx) * (px - nx) + (pz - nz) * (pz - nz);
+            if distance_squared < nearest.0 {
+                let start = self.metres_at_point[index];
+                nearest = (
+                    distance_squared,
+                    start + (self.metres_at_point[index + 1] - start) * t,
+                );
+            }
+        }
+        (nearest.0 <= self.half_width * self.half_width).then_some(nearest.1)
+    }
+
+    /// Whether `point` lies from the entry line to the exit line of the lane:
+    /// where the pit limiter holds and the lane is safe ground (ADR 0081).
+    pub fn limits(&self, point: [f32; 3]) -> bool {
+        self.reading(point)
+            .is_some_and(|metres| (self.entry_m..=self.exit_m).contains(&metres))
+    }
+
+    /// The point `metres` along the path, held to its two ends.
+    pub fn point_at(&self, metres: f32) -> [f32; 3] {
+        let index = self
+            .metres_at_point
+            .partition_point(|&at| at <= metres)
+            .saturating_sub(1)
+            .min(self.path.len() - 2);
+        let start = self.metres_at_point[index];
+        let end = self.metres_at_point[index + 1];
+        let t = if end > start {
+            ((metres - start) / (end - start)).clamp(0.0, 1.0)
+        } else {
+            0.0
+        };
+        Vec3::from(self.path[index])
+            .lerp(Vec3::from(self.path[index + 1]), t)
+            .to_array()
+    }
+}
+
 #[derive(Deserialize)]
 struct Sidecar {
     version: u32,
@@ -180,6 +311,9 @@ struct Sidecar {
     kerbs: Vec<Placement>,
     wheel_crossings: Vec<WheelCrossing>,
     spawn_grid: Vec<Placement>,
+    /// A course without one has no pits (ADR 0081).
+    #[serde(default)]
+    pit_lane: Option<PitLaneSidecar>,
     surfaces: Vec<SurfaceMesh>,
 }
 
@@ -198,6 +332,7 @@ pub struct Track {
     /// Where the runaway wheel (GLOSSARY) crosses the track.
     wheel_crossings: Vec<WheelCrossing>,
     spawn_grid: Vec<Placement>,
+    pit_lane: Option<PitLane>,
     surfaces: Vec<SurfaceMesh>,
     /// One collision shape per surface mesh, in `surfaces` order.
     shapes: Vec<SharedShape>,
@@ -273,6 +408,11 @@ impl Track {
                 ));
             }
         }
+        let pit_lane = sidecar
+            .pit_lane
+            .map(PitLane::from_sidecar)
+            .transpose()
+            .map_err(TrackError::Invalid)?;
         let mut shapes = Vec::with_capacity(sidecar.surfaces.len());
         for mesh in &sidecar.surfaces {
             if mesh.surface == Surface::OutOfWorld {
@@ -356,6 +496,7 @@ impl Track {
             kerbs: sidecar.kerbs,
             wheel_crossings: sidecar.wheel_crossings,
             spawn_grid: sidecar.spawn_grid,
+            pit_lane,
             surfaces: sidecar.surfaces,
             shapes,
             progress_at_point,
@@ -523,6 +664,17 @@ impl Track {
     /// Start positions in grid order; slot 0 is pole.
     pub fn spawn_grid(&self) -> &[Placement] {
         &self.spawn_grid
+    }
+
+    /// The course's pit lane; `None` on a course without one (ADR 0081).
+    pub fn pit_lane(&self) -> Option<&PitLane> {
+        self.pit_lane.as_ref()
+    }
+
+    /// Whether `point` is where the pit limiter holds and the lane is safe
+    /// ground: from entry line to exit line; never on a course without a lane.
+    pub fn in_pit_lane(&self, point: [f32; 3]) -> bool {
+        self.pit_lane().is_some_and(|lane| lane.limits(point))
     }
 
     pub fn surfaces(&self) -> &[SurfaceMesh] {

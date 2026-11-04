@@ -17,6 +17,7 @@ import { FIRING, ITEM_BOX_GOLD } from "./palette";
 import { ON_THE_GRID, raceReadout } from "./race-readout-fixture";
 import { EMPTY_SLOT, type ItemSlot, type RaceReadout } from "./race-run";
 import { STAR_RAINBOW } from "./star-shine";
+import type { WorldPoint } from "./track";
 
 // A square loop, so the map's fit is easy to read: the grid faces -z.
 const course = {
@@ -285,6 +286,26 @@ describe("the speed cluster on the page", () => {
       );
     return { container, find, drive, panel };
   };
+
+  it("reads PIT in the gear slot in the pit lane, without the limiter's flash", () => {
+    const { find, panel } = mount();
+    const inLane = (inPitLane: boolean) =>
+      panel.update(
+        race(ON_THE_GRID, { ...EMPTY_SLOT, item: null, firing: false }, [
+          at([0, 0.3, 0]),
+          kartReadout({ speed: 15, inPitLane }),
+          at([0, 0.3, 0]),
+        ]),
+      );
+    inLane(true);
+    expect(find("gear")?.textContent).toBe("PIT");
+    expect(find("gear")?.dataset.pit).toBe("true");
+    expect(find("gear")?.dataset.limiter).toBe("false");
+    expect(find("speed")?.textContent).toBe("54 km/h");
+    inLane(false);
+    expect(find("gear")?.textContent).toBe("4");
+    expect(find("gear")?.dataset.pit).toBe("false");
+  });
 
   it("reads the speed in km/h, the gear and the coins as text", () => {
     const { find, drive } = mount();
@@ -698,6 +719,24 @@ describe("the course map", () => {
         (shape.getAttribute("points") ?? "").split(/[ ,]/).map((n) => Math.abs(Number(n))),
       ),
     );
+
+  it("draws the pit lane of a course that has one, and none on a course without", () => {
+    const panelWith = (pitLane?: readonly (readonly [number, number, number])[]) => {
+      const container = document.createElement("div");
+      createInstrumentPanel(
+        container,
+        3,
+        { ...course, pitLane },
+        TUNING,
+        nameOf,
+        livery(course.ownKart),
+      );
+      return container.querySelector("[data-pit-lane]");
+    };
+    expect(panelWith()).toBeNull();
+    const [a, b] = course.centreline;
+    expect(panelWith([a as WorldPoint, b as WorldPoint])?.getAttribute("d")).toMatch(/^M /);
+  });
 
   it("outlines the track from the centreline with a start tick", () => {
     const container = document.createElement("div");

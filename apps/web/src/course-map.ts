@@ -167,9 +167,65 @@ function deckPath(mapped: readonly [number, number][], crossing: Crossing, half:
   return points.map((point, i) => `${i === 0 ? "M" : "L"} ${point.join(" ")}`).join(" ");
 }
 
-/** What the map is built from: the track's centreline and who is on the grid. */
+/**
+ * An open path along a pit lane's points on the map. A lane stands closer to
+ * the centreline than the map's road is wide, so it is drawn further out, each
+ * point scaled away from the road's nearest point so the lane's furthest stands
+ * `beside` map units off the line: it still leaves and joins the road at its ends.
+ */
+export function pitLanePath(
+  projection: MapProjection,
+  centreline: readonly WorldPoint[],
+  lane: readonly WorldPoint[],
+  beside: number,
+): string {
+  const road = centreline.map(([x, , z]) => projection.toMap(x, z));
+  const onTheMap = lane.map(([x, , z]) => {
+    const point = projection.toMap(x, z);
+    const near = nearestOn(road, point);
+    return { near, away: [point[0] - near[0], point[1] - near[1]] as const };
+  });
+  const furthest = Math.max(...onTheMap.map(({ away }) => Math.hypot(away[0], away[1])));
+  const scale = beside / (furthest || 1);
+  return onTheMap
+    .map(({ near, away }, i) => {
+      const u = near[0] + away[0] * scale;
+      const v = near[1] + away[1] * scale;
+      return `${i === 0 ? "M" : "L"} ${u} ${v}`;
+    })
+    .join(" ");
+}
+
+/** The nearest point to `point` on the closed polyline `road`. */
+function nearestOn(
+  road: readonly (readonly [number, number])[],
+  point: readonly [number, number],
+): readonly [number, number] {
+  let best: readonly [number, number] = point;
+  let bestSquared = Number.POSITIVE_INFINITY;
+  road.forEach((a, i) => {
+    const b = road[(i + 1) % road.length] as readonly [number, number];
+    const dx = b[0] - a[0];
+    const dy = b[1] - a[1];
+    const lengthSquared = dx * dx + dy * dy;
+    const along =
+      lengthSquared === 0 ? 0 : ((point[0] - a[0]) * dx + (point[1] - a[1]) * dy) / lengthSquared;
+    const t = Math.min(1, Math.max(0, along));
+    const u = a[0] + dx * t;
+    const v = a[1] + dy * t;
+    const squared = (point[0] - u) ** 2 + (point[1] - v) ** 2;
+    if (squared < bestSquared) {
+      bestSquared = squared;
+      best = [u, v];
+    }
+  });
+  return best;
+}
+
+/** What the map is built from: the track's centreline and pit lane, if any, and who is on the grid. */
 export interface CourseMapSetup {
   readonly centreline: readonly WorldPoint[];
+  readonly pitLane?: readonly WorldPoint[] | undefined;
   readonly kartCount: number;
   /** The kart whose marker is the big ringed one. */
   readonly ownKart: number;
@@ -205,6 +261,9 @@ const CHEQUER = 2.4;
 const START_TICK_HALF = CHEQUER * 2;
 /** How far a deck reaches along its leg either side of the crossing: past the road it bridges. */
 const DECK_HALF = WALL_WIDTH;
+/** A thin line beside the road, its middle clear of the road's walls. */
+const PIT_LANE_WIDTH = 1.5;
+const PIT_LANE_BESIDE = WALL_WIDTH / 2 + PIT_LANE_WIDTH;
 const MARKER_RADIUS = 3.6;
 const OWN_RING_RADIUS = 6;
 const OWN_MARKER_RADIUS = 4.4;
@@ -254,6 +313,11 @@ export function createCourseMap(setup: CourseMapSetup): CourseMap {
   const drop = road(INK, WALL_WIDTH);
   drop.setAttribute("stroke-opacity", String(DROP_OPACITY));
   drop.setAttribute("transform", `translate(${DROP_OFFSET} ${DROP_OFFSET})`);
+  // Under the road, so its two ends tuck in where it leaves and joins it.
+  if (setup.pitLane) {
+    const d = pitLanePath(projection, setup.centreline, setup.pitLane, PIT_LANE_BESIDE);
+    road(WALL, PIT_LANE_WIDTH, d).dataset.pitLane = "";
+  }
   road(WALL, WALL_WIDTH);
   road(ASPHALT, ASPHALT_WIDTH);
   // Each deck again on top, so its walls break the road it passes over and

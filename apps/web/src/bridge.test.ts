@@ -346,6 +346,17 @@ describe("standings", () => {
   });
 });
 
+describe("the pit lane", () => {
+  it("reads across the seam: a kart past the entry line is in it, one on the grid is not", async () => {
+    const bridge = await loadBridge(wasm);
+    const sidecar = JSON.parse(BELL_DEER);
+    const [position] = sidecar.pit_lane.path.slice(60);
+    sidecar.spawn_grid[0] = { position, yaw: sidecar.pit_lane.entry.yaw };
+    const race = started(bridge.createRace(7n, 2, 0, JSON.stringify(sidecar), "basic", "off"), 2);
+    expect(race.kartReadouts().map((kart) => kart.inPitLane)).toEqual([true, false]);
+  });
+});
+
 describe("tyre life", () => {
   it("falls from 100 as a kart drives with Tyres On, and holds there with Off", async () => {
     const bridge = await loadBridge(wasm);

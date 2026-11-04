@@ -31,21 +31,38 @@ def edge(sample, layout, side: int) -> tuple[float, float]:
     return round(x, 3), round(y, 3)
 
 
+def in_a_gap(layout, s: float) -> bool:
+    """Whether `s` is in the stretch a pit lane sweeps across its wall's line, at the fork or the merge."""
+    lane, lap = layout.pit_lane, layout.path.length
+    along = (s - lane.s_fork) % lap
+    fork = lane.s_entry - lane.s_fork
+    merge_from = lane.s_exit - lane.s_fork
+    merge_to = lane.s_merge - lane.s_fork
+    return 0.0 < along < fork or merge_from < along < merge_to
+
+
 class Walls(unittest.TestCase):
     def test_a_wall_stands_on_both_edges_of_the_run_off_at_every_centreline_sample(self) -> None:
         for name in NAMES:
             layout = load(name)
             bases = wall_bases(layout)
             with self.subTest(track=name):
+                lane = layout.pit_lane
                 for sample in layout.path.samples:
                     for side in (1, -1):
+                        # A pit lane comes and goes by a gap in the wall on its
+                        # side; test_pit_lane holds those shut behind its own wall.
+                        if lane is not None and side == lane.side and in_a_gap(layout, sample.s):
+                            continue
                         self.assertIn(edge(sample, layout, side), bases, f"{sample.s} m, side {side}")
 
-    def test_the_walls_are_unbroken_loops(self) -> None:
+    def test_the_walls_are_unbroken_loops_on_a_course_without_a_pit_lane(self) -> None:
         # Both faces and the top between every pair of samples, the last pair
         # joined back to the first, and no end anywhere a kart could get round.
         for name in NAMES:
             layout = load(name)
+            if layout.pit_lane is not None:
+                continue
             with self.subTest(track=name):
                 walls = [
                     surface
@@ -83,7 +100,8 @@ class Checkpoints(unittest.TestCase):
                     expected = path.at(number * spacing)
                     self.assertAlmostEqual(checkpoint.x, expected.x, places=6)
                     self.assertAlmostEqual(checkpoint.y, expected.y, places=6)
-                    self.assertEqual(checkpoint.half_width, layout.runoff_half_width + WALL_THICKNESS_M)
+                    # At least: test_pit_lane holds those along a lane to reaching across it.
+                    self.assertGreaterEqual(checkpoint.half_width, layout.runoff_half_width + WALL_THICKNESS_M)
 
     def test_the_oval_has_twelve_and_every_course_fifteen(self) -> None:
         for name, count in (("oval", 12), ("bell-deer", 15), ("goldstone", 15), ("monarch", 15)):

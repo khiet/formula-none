@@ -5,12 +5,16 @@ from __future__ import annotations
 
 from collections.abc import Iterator
 from dataclasses import dataclass, field
+from typing import TYPE_CHECKING
 
 import math
 
 from . import mesh
 from .path import SAMPLE_STEP_M, Feature, Path, elevation
 from .sponsors import SPONSORS
+
+if TYPE_CHECKING:
+    from .pit_lane import PitLaneData
 
 # Surface tags the sim understands; the sixth, out of world, is the absence
 # of any surface below a point.
@@ -386,6 +390,20 @@ class Decor:
     props: list[Prop] = field(default_factory=list)
 
 
+@dataclass(frozen=True)
+class PitLane:
+    """A pit lane on `side` of the centreline (1 left, -1 right), in metres of arc length: it
+    forks off the run-off at `s_fork`, the pit limiter holds from `s_entry` to `s_exit` (ADR
+    0081) and it is back on the run-off at `s_merge`. `s_fork` and `s_entry` may be negative,
+    behind the start line."""
+
+    side: int
+    s_fork: float
+    s_entry: float
+    s_exit: float
+    s_merge: float
+
+
 @dataclass
 class Layout:
     name: str
@@ -401,6 +419,7 @@ class Layout:
     wheel_crossings: list[WheelCrossing] = field(default_factory=list)
     elevation: list[Feature] = field(default_factory=list)
     decor: Decor = field(default_factory=Decor)
+    pit_lane: PitLane | None = None
 
     @property
     def runoff_half_width(self) -> float:
@@ -501,6 +520,7 @@ class TrackGeometry:
     kerbs: list[Placement] = field(default_factory=list)
     wheel_crossings: list[Placement] = field(default_factory=list)
     coins: list[Placement] = field(default_factory=list)
+    pit_lane: PitLaneData | None = None
 
 
 def build(layout: Layout) -> TrackGeometry:
@@ -551,11 +571,22 @@ def build(layout: Layout) -> TrackGeometry:
         )
     )
 
+    # `pit_lane` imports this module, so it is imported here, once everything
+    # it needs is defined.
+    from . import pit_lane
+
+    lane = layout.pit_lane
+    if lane is not None:
+        surfaces += pit_lane.surfaces(layout)
+
     # Track limits: a wall along each edge of the run-off the whole way
     # round, standing on the sand's outer edge so it follows the hill and
     # the ramp with the track. A kart can go off the asphalt but never off
-    # the course, so no corner can be cut (ADR 0022).
+    # the course, so no corner can be cut (ADR 0022). A pit lane's side has
+    # its own walls, with the gaps the lane comes and goes by.
     for name, side in (("WallLeft", 1), ("WallRight", -1)):
+        if lane is not None and side == lane.side:
+            continue
         inner = rail(side * runoff, GRASS_DROP_M)
         outer = rail(side * (runoff + WALL_THICKNESS_M), GRASS_DROP_M)
         surfaces.append(
@@ -577,12 +608,19 @@ def build(layout: Layout) -> TrackGeometry:
         x, y = sample.offset(offset)
         return Placement(x, y, elevation(layout.elevation, sample.s), sample.heading, half_width, hazard_half_depth)
 
+    def checkpoint_reach(s: float) -> float:
+        """To the walls' outer faces, or along a pit lane to its outer wall's, on both sides as
+        every checkpoint is (ADR 0079): a lap through the pits crosses these too."""
+        if lane is not None and (s - lane.s_fork) % path.length <= lane.s_merge - lane.s_fork:
+            return pit_lane.outer_face(layout)
+        return runoff + WALL_THICKNESS_M
+
     # Evenly spaced from the start line, each reaching the walls' outer faces,
     # so a kart between the walls or in the air over one crosses every one in
     # order (ADR 0079).
     checkpoints = [
-        place(k * path.length / layout.checkpoint_count, half_width=runoff + WALL_THICKNESS_M)
-        for k in range(layout.checkpoint_count)
+        place(s, half_width=checkpoint_reach(s))
+        for s in (k * path.length / layout.checkpoint_count for k in range(layout.checkpoint_count))
     ]
     item_boxes = [place(row.s, offset) for row in layout.item_rows for offset in row.offsets]
     boost_pads = [place(pad.s, pad.offset) for pad in layout.boost_pads]
@@ -619,6 +657,7 @@ def build(layout: Layout) -> TrackGeometry:
         kerbs,
         wheel_crossings,
         coins,
+        pit_lane.data(layout) if lane is not None else None,
     )
 
 
@@ -626,6 +665,10 @@ def decorate(layout: Layout, height: list[float]) -> tuple[list[SceneryMesh], li
     """The scenery: kerbs on every corner, the start line, and what the layout's decor asks for."""
     scenery = kerbs(layout, height) + start_line(layout) + boost_pads(layout) + tyre_stacks(layout)
     scenery += sausage_kerbs(layout) + hazard_zones(layout) + marshal_posts(layout)
+    if layout.pit_lane is not None:
+        from . import pit_lane
+
+        scenery += pit_lane.lines(layout)
     boards, lettering = hoardings(layout)
     scenery += boards + grandstands(layout)
     if layout.decor.gantry:

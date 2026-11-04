@@ -20,6 +20,7 @@ export const RESTING_KART: KartReadout = Object.freeze({
   tyreLife: 100,
   spinOutS: null,
   airborne: false,
+  inPitLane: false,
   boostS: null,
   boostTier: "none",
   starS: null,

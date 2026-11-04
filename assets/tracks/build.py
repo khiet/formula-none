@@ -31,6 +31,7 @@ from trackgen.layout import (  # noqa: E402
     build,
 )
 from trackgen.layouts import NAMES, load  # noqa: E402
+from trackgen.pit_lane import PitLaneData  # noqa: E402
 
 # Flat colours in the 16-bit kart racer's key: one saturated tone per
 # surface, red-and-white kerbs, white boards with bold lettering. sRGB, as
@@ -326,6 +327,27 @@ def populate(geometry: TrackGeometry) -> None:
         col = collection(collection_name)
         for number, placement in enumerate(items):
             add_empty(col, f"{prefix}.{number:02d}", placement)
+
+    if geometry.pit_lane is not None:
+        populate_pit_lane(geometry.pit_lane)
+
+
+def populate_pit_lane(lane: PitLaneData) -> None:
+    curve = bpy.data.curves.new(export.PIT_LANE_OBJECT, "CURVE")
+    curve.dimensions = "3D"
+    spline = curve.splines.new("POLY")
+    spline.points.add(len(lane.path) - 1)
+    for point, (x, y, z) in zip(spline.points, lane.path):
+        point.co = (x, y, z, 1.0)
+    obj = bpy.data.objects.new(export.PIT_LANE_OBJECT, curve)
+    obj["half_width"] = lane.half_width
+    collection("Data").objects.link(obj)
+    lines = collection(export.PIT_LINES_COLLECTION)
+    add_empty(lines, "Entry", lane.entry)
+    add_empty(lines, "Exit", lane.exit)
+    boxes = collection(export.PIT_BOXES_COLLECTION)
+    for number, box in enumerate(lane.pit_boxes):
+        add_empty(boxes, f"PitBox.{number:02d}", box)
 
 
 def build_track(name: str) -> None:
