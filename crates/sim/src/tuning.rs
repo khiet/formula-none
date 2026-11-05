@@ -1006,6 +1006,8 @@ const _: () = {
         assert!(flat_out * full_lock_rad_per_s < TYRE_WASH_OUT_FULL_M_PER_S2);
     }
     assert!(0.0 < TYRE_WASH_OUT_RATE_RAD_PER_S);
+    // A hop's airtime lets the deepest slide go, so a kart lands on its line.
+    assert!(TYRE_WASH_OUT_MOST_RAD[3] <= TYRE_WASH_OUT_RATE_RAD_PER_S * HOP_AIRTIME_S);
     // The lap costs run from new tyres, costing nothing, down to worn out,
     // costing the most, so a life between two rows reads between them.
     {
@@ -1019,7 +1021,6 @@ const _: () = {
         }
         assert!(BOT_TYRE_LOSS_S_PER_LAP[BOT_TYRE_LOSS_S_PER_LAP.len() - 1][0] == 0.0);
     }
-    assert!(TYRE_WASH_OUT_MOST_RAD[3] <= TYRE_WASH_OUT_RATE_RAD_PER_S * HOP_AIRTIME_S);
     assert!(DRIFT_ENTRY_SPEED_FRACTION < TYRE_TOP_SPEED_FACTORS[3]);
     assert!(SLIPSTREAM_LEADER_SPEED_FRACTION < TYRE_TOP_SPEED_FACTORS[3]);
     assert!(OFF_TRACK_SPEED_FACTOR < TYRE_TOP_SPEED_FACTORS[3]);

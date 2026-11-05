@@ -604,15 +604,17 @@ fn the_lap_costs_an_ace_bot_weighs_are_measured_on_the_courses_with_a_lane() {
         ("Monarch", monarch_bare),
     ];
     let new = BOT_TYRE_LOSS_S_PER_LAP[0][0];
+    let on_new: Vec<f32> = bare
+        .iter()
+        .map(|&(_, course)| lap_time_held_at(course, new, 0..4))
+        .collect();
     let mut off = Vec::new();
     let mut rows = Vec::new();
     for [life, in_the_table] in BOT_TYRE_LOSS_S_PER_LAP {
         let costs: Vec<(&str, f32)> = bare
             .iter()
-            .map(|&(name, course)| {
-                let on_new = lap_time_held_at(course, new, 0..4);
-                (name, lap_time_held_at(course, life, 0..4) - on_new)
-            })
+            .zip(&on_new)
+            .map(|(&(name, course), on_new)| (name, lap_time_held_at(course, life, 0..4) - on_new))
             .collect();
         let mean = costs.iter().map(|(_, cost)| cost).sum::<f32>() / costs.len() as f32;
         println!("{life:>5}%: {mean:5.1} s a lap, {costs:?}");
@@ -632,6 +634,8 @@ fn without_its_lane(sidecar: &str) -> Track {
     track(&without_its_lane_sidecar(sidecar))
 }
 
+/// `sidecar` without its lane, for `without_its_lane` and for a course to edit
+/// further before it is built.
 fn without_its_lane_sidecar(sidecar: &str) -> String {
     let mut parsed: serde_json::Value = serde_json::from_str(sidecar).expect("valid JSON");
     parsed

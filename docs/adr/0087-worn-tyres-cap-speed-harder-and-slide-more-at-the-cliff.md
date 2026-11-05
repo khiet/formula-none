@@ -1,4 +1,4 @@
-# ADR 0087: Worn tyres cap speed harder and cost more steering
+# ADR 0087: Worn tyres cap speed harder and slide more at the cliff
 
 ## Status
 
@@ -14,7 +14,7 @@ ADR 0086 are pending; the numbers below come from bots racing
 ## Context
 
 Worn tyres barely showed on the speedo. The base cap is 108 km/h and ADR 0080's
-factor at 30% life is 0.96, so a kart at 70% wear still capped at 104 km/h, and
+factor at 30% life is 0.96, so a kart at 30% life still capped at 104 km/h, and
 coins, a tow and boosts multiply on top: 100 to 140 km/h was normal at the
 cliff. The two bands above the cliff cost almost nothing, so a driver could not
 read their wear until the gauge turned red, and skipping the stop cost too little
@@ -48,7 +48,7 @@ off Monarch's last bend. `docs/mockups/tyre-wear-and-pit-lane.html` keeps ADR
 - The wash-out loads stay ADR 0080's 16 and 22 m/s^2. Full lock flat out on
   tyres worn right out now loads them at 20.5, under the full load, so a kart
   worn right out slides most of the table's 0.15 and never all of it, which an
-  assert holds. Loads scaled down with the steering (11 and 15) were tried and
+  assert holds, as another holds that a hop's airtime lets the deepest slide go. Loads scaled down with the steering (11 and 15) were tried and
   put Ace bots at 0% off Monarch's last bend in a fifth of three-lap races.
 - Unchanged: the acceleration and braking factors, so the first playtest has
   fewer variables; every wear rate from ADR 0085; and how coins, the tow and
@@ -65,7 +65,8 @@ off Monarch's last bend. `docs/mockups/tyre-wear-and-pit-lane.html` keeps ADR
 - ADR 0085's sweep budgets hold unchanged, and the sweep below reports two
   cells over them.
 - Reconciliation: 1% of life now moves the cap by up to 0.18 m/s past the
-  cliff, from 0.1. Still invisible, so the tolerance stays at 1%.
+  cliff, from 0.1; the issue reckoned 0.3 on a steeper column. Still invisible,
+  so the tolerance stays at 1%.
 
 ## Consequences
 
