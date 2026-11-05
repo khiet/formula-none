@@ -450,7 +450,7 @@ pub const TYRE_LIFE_COLUMNS_PERCENT: [f32; 4] =
 /// acceleration and the braking. The cap falls steeply enough to read on
 /// the speedo before the gauge turns red (ADR 0087). The steering rate
 /// stays ADR 0080's: a bot shares it, and bots on a steeper one wore to 0%
-/// and then fell past the race's end cap and off Monarch's last bend.
+/// and then fell past the race's end cap and onto Monarch's grass.
 pub const TYRE_TOP_SPEED_FACTORS: [f32; 4] = [1.0, 0.97, 0.88, 0.70];
 pub const TYRE_STEER_RATE_FACTORS: [f32; 4] = [1.0, 0.97, 0.88, 0.65];
 pub const TYRE_ACCELERATION_FACTORS: [f32; 4] = [1.0, 0.97, 0.88, 0.70];
@@ -461,7 +461,7 @@ pub const TYRE_BRAKING_FACTORS: [f32; 4] = [1.0, 0.98, 0.90, 0.75];
 pub const TYRE_WASH_OUT_MOST_RAD: [f32; 4] = [0.0, 0.0, 0.10, 0.15];
 /// A worn kart holds its line up to this speed times yaw rate, in m/s^2, and
 /// slides all the worn tyres allow from the full load. Full lock flat out
-/// is about 26.5 at 30% and 20.5 at 0%, where the worn cap holds the load
+/// is about 30.7 at 30% and 20.5 at 0%, where the worn cap holds the load
 /// short of the full one, so past the cliff it slides as far as the table
 /// says and worn right out most of it; the lane's approach at 20 m/s on
 /// tyres worn right out loads 19.9, and a gentle steer never slides.
