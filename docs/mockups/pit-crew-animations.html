@@ -3,11 +3,11 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Pit Crew Animations</title>
+<title>Pit Crew Animation</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bungee&family=IBM+Plex+Sans:wght@400;600&family=Silkscreen:wght@400;700&display=swap">
 <style>
-  /* Layout: a sticky picker, a recommendation, the shared face kit, then three animated
-     versions of the stop, each a live Three.js stage drawn the way the View draws. */
+  /* Layout: a sticky picker, the decision, the head kit, the live stage of the lollipop crew
+     drawn the way the View draws, its spec, then the beats of the stop with a sound on each. */
   :root {
     --bg: #eef0f3;
     --fg: #1b1d22;
@@ -18,6 +18,7 @@
     --stage-line: #c4cad3;
     --gold: #a77a12;
     --chip-bg: #f4f5f7;
+    --wave: #1b1d22;
     --display: "Bungee", "Arial Black", Impact, sans-serif;
     --body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
     --pixel: "Silkscreen", ui-monospace, monospace;
@@ -25,12 +26,12 @@
   @media (prefers-color-scheme: dark) {
     :root:not([data-theme="light"]) {
       --bg: #15171a; --fg: #ece7d8; --muted: #9a9fab; --rule: #2c3036; --card: #1e2126;
-      --stage: #2a2e35; --stage-line: #3a3f48; --gold: #e2b84a; --chip-bg: #262a30; color-scheme: dark;
+      --stage: #2a2e35; --stage-line: #3a3f48; --gold: #e2b84a; --chip-bg: #262a30; --wave: #ece7d8; color-scheme: dark;
     }
   }
   :root[data-theme="dark"] {
     --bg: #15171a; --fg: #ece7d8; --muted: #9a9fab; --rule: #2c3036; --card: #1e2126;
-    --stage: #2a2e35; --stage-line: #3a3f48; --gold: #e2b84a; --chip-bg: #262a30; color-scheme: dark;
+    --stage: #2a2e35; --stage-line: #3a3f48; --gold: #e2b84a; --chip-bg: #262a30; --wave: #ece7d8; color-scheme: dark;
   }
   * { box-sizing: border-box; }
   html, body { margin: 0; }
@@ -52,18 +53,18 @@
   }
   .picker .group { display: flex; flex-wrap: wrap; gap: 0.3rem; align-items: center; }
   .picker .group > span { font-family: var(--pixel); font-size: 0.72rem; text-transform: uppercase; color: var(--muted); margin-right: 0.25rem; }
-  .picker button {
+  .picker button, .play {
     font: 600 0.8rem var(--body); color: var(--fg); cursor: pointer;
     background: var(--card); border: 2px solid var(--rule); border-radius: 999px; padding: 0.3rem 0.7rem;
     display: inline-flex; align-items: center; gap: 0.4rem;
   }
   .picker button[aria-pressed="true"] { border-color: var(--gold); box-shadow: 0 0 0 2px color-mix(in srgb, var(--gold) 35%, transparent); }
-  .picker button:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
+  .picker button:focus-visible, .play:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
   .picker .dot { width: 0.8rem; height: 0.8rem; border-radius: 50%; border: 1px solid rgba(0,0,0,.25); display: inline-block; }
 
   .card { background: var(--card); border: 1px solid var(--rule); border-radius: 8px; padding: 1rem 1.1rem; display: grid; gap: 0.7rem; }
   .rec { border-left: 4px solid var(--gold); }
-  .rec ol { margin: 0; padding-left: 1.2rem; display: grid; gap: 0.35rem; }
+  .rec ul { margin: 0; padding-left: 1.2rem; display: grid; gap: 0.35rem; }
 
   .variant { background: var(--card); border: 1px solid var(--rule); border-radius: 8px; overflow: hidden; display: grid; }
   .variant > header { display: flex; flex-wrap: wrap; gap: 0.3rem 0.8rem; align-items: baseline; padding: 0.9rem 1.1rem 0.6rem; }
@@ -78,15 +79,21 @@
   .stage .clock b { font-size: 1.3rem; display: block; }
   .stage .clock[data-tier="record"] b { color: #6fe8a6; }
   .stage .clock[data-tier="slow"] b, .stage .clock[data-tier="botched"] b, .stage .clock[data-tier="disaster"] b { color: #ffb020; }
-  .timeline { position: relative; height: 2rem; margin: 0.6rem 1.1rem 0; background: var(--chip-bg); border-radius: 4px; overflow: hidden; }
+  .stage .cue {
+    position: absolute; right: 0.7rem; bottom: 0.6rem; font-family: var(--pixel); font-size: 0.72rem; text-transform: uppercase;
+    color: #fff; text-shadow: 0.1em 0.1em 0 #111; letter-spacing: 0.04em; pointer-events: none; text-align: right; opacity: 0; transition: opacity 0.25s;
+  }
+  .stage .cue.lit { opacity: 1; transition: none; }
+  .timeline { position: relative; height: 2.5rem; margin: 0.6rem 1.1rem 0; background: var(--chip-bg); border-radius: 4px; overflow: hidden; }
   .timeline span {
-    position: absolute; top: 0; bottom: 0; display: flex; align-items: center; justify-content: center; overflow: hidden;
+    position: absolute; top: 0; height: 2rem; display: flex; align-items: center; justify-content: center; overflow: hidden;
     font-family: var(--pixel); font-size: 0.58rem; text-transform: uppercase; letter-spacing: 0.03em; color: var(--muted);
     border-right: 1px solid var(--rule); white-space: nowrap; padding: 0 0.2rem;
   }
   .timeline span.stop { background: color-mix(in srgb, var(--gold) 18%, transparent); color: var(--fg); }
   .timeline span.act { background: color-mix(in srgb, #ffb020 28%, transparent); color: var(--fg); }
   .timeline span.go { background: color-mix(in srgb, #3ddc84 30%, transparent); color: var(--fg); }
+  .timeline i { position: absolute; bottom: 0.12rem; width: 0.28rem; height: 0.28rem; margin-left: -0.14rem; border-radius: 50%; background: var(--gold); }
   .timeline .head { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--fg); pointer-events: none; }
   .roster { display: flex; flex-wrap: wrap; gap: 0.3rem; padding: 0.6rem 1.1rem 0; }
   .roster span { font-family: var(--pixel); font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.03em; background: var(--chip-bg); border-radius: 999px; padding: 0.2rem 0.55rem; color: var(--muted); }
@@ -100,14 +107,23 @@
   dl.spec dd { margin: 0; }
 
   .faces { background: var(--stage); border: 1px solid var(--rule); border-radius: 8px; overflow: hidden; }
-  .faces canvas { display: block; width: 100%; aspect-ratio: 11 / 1.5; }
-  .faces .labels { display: grid; grid-template-columns: repeat(11, 1fr); background: var(--card); border-top: 1px solid var(--rule); }
+  .faces canvas { display: block; width: 100%; aspect-ratio: 8 / 1.5; }
+  .faces .labels { display: grid; grid-template-columns: repeat(8, 1fr); background: var(--card); border-top: 1px solid var(--rule); }
   .faces .labels span { font-family: var(--pixel); font-size: 0.55rem; text-transform: uppercase; text-align: center; padding: 0.35rem 0.1rem; color: var(--muted); line-height: 1.3; overflow-wrap: anywhere; }
   .faces .labels span:first-child { color: var(--gold); }
 
-  table { border-collapse: collapse; width: 100%; font-size: 0.9rem; }
+  table { border-collapse: collapse; width: 100%; font-size: 0.88rem; }
   th, td { text-align: left; vertical-align: top; padding: 0.45rem 0.6rem; border-bottom: 1px solid var(--rule); }
   th { font-family: var(--pixel); font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); font-weight: 400; }
+  td.when { font-family: var(--pixel); font-size: 0.7rem; white-space: nowrap; color: var(--muted); padding-top: 0.6rem; }
+  td .name { font-weight: 600; }
+  td .status { font-family: var(--pixel); font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.03em; color: var(--gold); margin-left: 0.3rem; }
+  td .status.new { color: var(--muted); }
+  td canvas.wave { display: block; width: 9rem; height: 1.6rem; margin-top: 0.3rem; background: var(--chip-bg); border-radius: 3px; }
+  td .recipe { color: var(--muted); font-size: 0.82rem; }
+  .play { padding: 0.25rem 0.6rem; }
+  .play[aria-pressed="true"] { border-color: var(--gold); }
+  .cues { overflow-x: auto; }
   ul { margin: 0; padding-left: 1.2rem; display: grid; gap: 0.3rem; }
   .fallback { padding: 1rem; font-family: var(--pixel); font-size: 0.8rem; color: var(--muted); }
 </style>
@@ -122,101 +138,94 @@
 <main>
   <header>
     <p class="eyebrow">Mockup / pit box crew</p>
-    <h1>Pit crew animations</h1>
-    <p class="lede">Three ways to act a stop out at the pit box: who stands where, who crouches, who lifts the kart, who works the nuts and who holds the sign that says go. Every crew member is a chibi with the driver's own head kit, so the crew reads as people and no two faces match. The stages play the stop the sim rolls: pick a tier and the crew acts that roll out past a clean stop's time, as <a href="../adr/0082-the-stop-is-rolled-from-the-seed.md">ADR 0082</a> has it.</p>
+    <h1>Pit crew animation: the lollipop crew</h1>
+    <p class="lede">The stop acted out at the pit box by a crew of seven: a jack at each end of the kart, a gunner crouched at every wheel and a lollipop held in the driver's eyeline that says STOP until the tick of green. Every crew member is a chibi with the driver's own head kit, so the crew reads as people and no two faces match. The stage plays the stop the sim rolls: pick a tier and the crew acts that roll out past a clean stop's time, as <a href="../adr/0082-the-stop-is-rolled-from-the-seed.md">ADR 0082</a> has it. Every beat of the stop has a sound; turn them on in the picker.</p>
   </header>
 
-  <nav class="picker" aria-label="What the stages show">
+  <nav class="picker" aria-label="What the stage shows">
     <div class="group" data-pick="livery"><span>Livery</span></div>
     <div class="group" data-pick="tier"><span>Roll</span></div>
     <div class="group" data-pick="camera"><span>Camera</span></div>
-    <div class="group"><button type="button" id="play" aria-pressed="true">Pause</button><button type="button" id="slow" aria-pressed="false">Half speed</button></div>
+    <div class="group"><button type="button" id="play" aria-pressed="true">Pause</button><button type="button" id="slow" aria-pressed="false">Half speed</button><button type="button" id="sound" aria-pressed="false">Sound off</button></div>
   </nav>
 
   <section aria-labelledby="rec">
-    <h2 id="rec">Recommendation</h2>
+    <h2 id="rec">The decision</h2>
     <div class="card rec">
-      <p><b>Ship version B, the lollipop crew of seven, with the head kit of this page on the driver too.</b> It is the classic picture of a stop that every player recognises: a jack at each end, four gunners crouched at the wheels and one person standing in front of the kart holding a round sign that spins from STOP to GO and lifts as the kart is let go. It is the smallest crew that shows every job the brief asks for, and it is the one where the sign is the thing the driver looks at, which is the sign's point.</p>
-      <ol>
-        <li><b>A</b>, the cap crew of five, is the cheap fallback if forty figures a lane prove too many parts: each gunner does both wheels on a side, which is a clear, busy act, but at a clean stop's 2.65 s the gunners sprint and the stop reads rushed.</li>
-        <li><b>C</b>, the helmeted crew of nine with wheel carriers and a light paddle, is the most faithful to a modern stop, but the helmets hide the hair, which is half of what tells the faces apart, and the extra bodies crowd the chase camera's frame.</li>
-        <li>In every version the sim's clock is the word on green: the act is cut to the rolled time, the sign and the gantry light flip on the tick of green, and nothing drawn hurries or holds the kart.</li>
-      </ol>
+      <p><b>The lollipop crew of seven, with the head kit on the driver too.</b> It is the classic picture of a stop that every player recognises: a jack at each end, four gunners crouched at the wheels and one person standing off the nose holding a round sign that spins from STOP to GO and lifts as the kart is let go. It is the smallest crew that gives every job a body, and the sign is the thing the driver looks at, which is the sign's point. The earlier takes, a cap crew of five with sprinting gunners and a helmeted crew of nine with wheel carriers, were set aside: the first reads rushed at a clean stop and the second hides the hair under helmets and crowds the chase camera.</p>
+      <ul>
+        <li>The sim's clock is the word on green: the act is cut to the rolled time, the sign and the gantry light flip on the tick, and nothing drawn hurries or holds the kart.</li>
+        <li>Everyone wears a headset over their hair, band over the crown and a mic to the mouth, which keeps every face and every haircut in view.</li>
+        <li>Each beat of the stop fires one cue, from the same clock the poses read, so a sound never plays for a movement the player cannot see.</li>
+      </ul>
     </div>
   </section>
 
   <section aria-labelledby="kit">
-    <h2 id="kit">The head kit every version shares</h2>
-    <p class="lede">The driver's head from <code>assets/karts/build.py</code>, rebuilt in code: an eight-sided ball with a short jaw and a flat forward face, big eyes, ears, one of the hair styles and facial hairs in <code>livery.ts</code>, earrings. The crew adds what the driver's head has not got yet: brows at an angle, a nose, a mouth, glasses, four more hair styles and two more skin tones, and a little height. A cast of ten per pit box is drawn from a seed of the slot, with no hair style used twice, and each version takes its crew from the same cast, so the front jack is the same person in all three. The driver sits first, with the same kit, to show the two read as one cast.</p>
+    <h2 id="kit">The head kit</h2>
+    <p class="lede">The driver's head from <code>assets/karts/build.py</code>, rebuilt in code: an eight-sided ball with a short jaw and a flat forward face, big eyes, ears, one of the hair styles and facial hairs in <code>livery.ts</code>, earrings. The crew adds what the driver's head has not got yet: brows at an angle, a nose, a mouth, glasses, four more hair styles and two more skin tones, and a little height. The seven are drawn from a seed of the slot, with no hair style used twice. The driver sits first, with the same kit, to show the two read as one cast.</p>
     <div class="faces">
-      <canvas id="faces" aria-label="The driver and the nine crew of the chosen livery, turning slowly"></canvas>
+      <canvas id="faces" aria-label="The driver and the seven crew of the chosen livery, turning slowly"></canvas>
       <div class="labels" id="face-labels"></div>
     </div>
     <div class="card">
       <dl class="spec">
         <dt>Head</dt><dd>Radius 0.3 m for the driver and 0.26 m for the crew; jaw 0.86 wide and 0.78 high below the middle; the eyes on the forward flat, whites 0.1 by 0.13 m with irises proud of them.</dd>
         <dt>Varies</dt><dd>Skin from five tones; hair from eleven styles in nine colours; facial hair from five kinds and a moustache; brow angle and weight; eye spacing and size; nose size; a line, a smile, a grin or an open mouth; glasses; earrings; height 0.92 to 1.08 of the base.</dd>
-        <dt>Costs</dt><dd>A head is 15 to 30 flat-shaded parts. Five to nine faces per box over eight boxes is 40 to 72 heads, each built once; only the pose changes per frame.</dd>
-        <dt>Don't</dt><dd>Don't hide the face under a visor or a balaclava in the versions that keep the hair: the face is the point of the kit. Don't name a crew member anywhere; like the driver's name, the cast shows nowhere.</dd>
+        <dt>Headset</dt><dd>A half-torus band of 0.335 radius over the crown, cups of 0.09 radius at the ears, a mic boom to the right corner of the mouth, all carbon. It sits over any hair style without hiding it.</dd>
+        <dt>Costs</dt><dd>A head is 15 to 30 flat-shaded parts. Seven faces per box over eight boxes is 56 heads, each built once; only the pose changes per frame.</dd>
+        <dt>Don't</dt><dd>Don't hide the face under a visor or a balaclava: the face is the point of the kit. Don't name a crew member anywhere; like the driver's name, the cast shows nowhere.</dd>
       </dl>
     </div>
   </section>
 
-  <section aria-labelledby="versions">
-    <h2 id="versions">Three versions of the stop</h2>
-    <p class="lede">All three run the same clock. The kart rolls onto its mark, the stop counts up on the Instrument panel, and at the rolled time the light goes green. Past 3 s, a clean stop's longest, the crew acts the roll out. The chase camera is the player's own view, 6 m behind and 3.2 m up; the other cameras are for judging the poses.</p>
-
-    <article class="variant" id="variant-a" data-variant="A">
-      <header><h2>A. The cap crew</h2><span class="crew">Five crew, caps, two gunners who each do a side</span></header>
-      <div class="stage"><canvas aria-label="Version A: a five-strong crew in team caps changes the kart's wheels"></canvas><div class="clock"><span>On the mark</span><b>0.0 s</b></div></div>
-      <div class="timeline"></div>
-      <div class="roster"></div>
-      <div class="notes">
-        <p>The small crew. A jack at each end, a gunner on each side who works the front wheel then runs to the rear, and a chief who stands ahead of the nose with a two-faced board held over their head, STOP toward the driver, swung to GO on the tick of green. Fresh wheels wait on the apron beside each corner before the kart arrives, so the gunner reaches for the new wheel without a carrier. Everyone wears a cap in the slot's key colour, peak forward, with the hair showing under it.</p>
-        <p>Crouching and standing: the gunners crouch at each wheel and sprint upright between them; the jacks stand, leaning into the lever as they pump; the chief stands with both arms up. On a slow roll the left gunner goes back down at the rear left; on a botched roll the right gunner runs over to help and the chief comes to point; on a disaster the front jack lets go, the kart drops on its nose, the front jack steps back with arms up and the gunners stand off until the jack is pumped again.</p>
-        <p><b>For</b> the game: 5 figures by 8 boxes is 40 figures, the cheapest of the three, and the busiest act per person. <b>Against</b>: a clean stop gives each wheel 1.05 s, so the gunners' sprint reads frantic, and two gunners cannot show a corner going wrong while the rest stand ready, which is what the slow and botched tiers mean.</p>
-        <p class="dont"><b>Don't</b> stage the fresh wheels on the lane side of the mark, where a passing kart would clip them: the sim has no wheel there, and the mockup keeps them on the apron.</p>
-      </div>
-    </article>
+  <section aria-labelledby="stop">
+    <h2 id="stop">The stop</h2>
+    <p class="lede">The kart rolls onto its mark on the guide, the stop counts up on the Instrument panel, and at the rolled time the light goes green. Past 3 s, a clean stop's longest, the crew acts the roll out. The chase camera is the player's own view, 6 m behind and 3.2 m up; the other cameras are for judging the poses.</p>
 
     <article class="variant" id="variant-b" data-variant="B">
-      <header><h2>B. The lollipop crew</h2><span class="crew">Seven crew, headsets, a gunner at every wheel and a lollipop</span></header>
-      <div class="stage"><canvas aria-label="Version B: a seven-strong crew with a lollipop sign changes the kart's wheels"></canvas><div class="clock"><span>On the mark</span><b>0.0 s</b></div></div>
+      <header><h2>The lollipop crew</h2><span class="crew">Seven crew, headsets, a gunner at every wheel and a lollipop</span></header>
+      <div class="stage"><canvas aria-label="A seven-strong crew with a lollipop sign changes the kart's wheels"></canvas><div class="clock"><span>On the mark</span><b>0.0 s</b></div><div class="cue" aria-live="off"></div></div>
       <div class="timeline"></div>
       <div class="roster"></div>
       <div class="notes">
-        <p>The classic stop. A jack at each end, a gunner crouched at every wheel, and the lollipop: a round sign on a pole, held by a seventh crew member who stands off the nose on the building's side, right in the driver's eyeline. It shows STOP in poster red through the stop, spins to GO in go green half a second before the tick, and lifts clear as the kart is let go, the holder stepping aside. Everyone wears a headset over their hair, band over the crown and a mic to the mouth, which keeps every face and every haircut in view.</p>
-        <p>Each gunner's act is one wheel: judder the nut off, pull the worn wheel out and shove it back behind them, pull the fresh wheel in from the apron, judder the nut on, and throw a hand up. The jack crew pump the lever twice to lift, drop it on the last beat and drag the jack clear. The acts of the roll are the ones the View already has: on a slow roll the rear-left gunner goes back down alone; on a botched roll the other three run over and crowd that corner; on a disaster the front jack lets go and everyone stands off until it is pumped again.</p>
-        <p><b>For</b> the game: 7 by 8 is 56 figures, every job in the brief has a body, and the sign is held where the chase camera sees it over the kart's head. <b>Against</b>: two more figures than the current six, and the lollipop holder is in the kart's path, so the step aside must land before the kart moves.</p>
-        <p class="dont"><b>Don't</b> let the lollipop lift before the tick: the sim rolls the stop, and a sign that lifts early tells the player a lie the panel's clock then contradicts.</p>
+        <p><b>Before the kart.</b> The crew waits in a row on the apron and runs out on the box call. The gunners crouch at their hubs with the gun up, each gun on an air line that hangs from the boom over the box. The front jack is walked in nose first on the guide. The rear jack waits on the building's side and swings in behind the kart as its tail clears the mark, because the kart drives through where it has to stand.</p>
+        <p><b>On the mark.</b> The jack crew pump the lever twice and the kart comes up 0.16 m at each end, the front a beat ahead of the rear. Each gunner's act is one wheel: judder the nut off, pull the worn wheel out and shove it back behind them so it rolls clear, pull the fresh wheel in from the apron, judder the nut on, and throw a hand up. The driver's eyes are on the lollipop the whole time; the holder's are on the driver, with one look down the lane for traffic a second before the tick.</p>
+        <p><b>The release.</b> The sign spins to GO half a second before the tick, the jacks drop the kart on the last beat and are dragged clear, and on the tick the lollipop lifts and the holder steps aside out of the kart's path. The gantry light goes green for the hold and the kart leaves under its own power. The crew walks back to the row.</p>
+        <p><b>The acts of the roll</b> are the ones the View already has: on a slow roll the rear-left gunner goes back down alone; on a botched roll the other three run over and crowd that corner; on a disaster the front jack lets go, the kart drops on its nose, the crew stands off, and the front wheels are done again once the jack is pumped back up.</p>
+        <p><b>For</b> the game: 7 by 8 is 56 figures, every job has a body, and the sign is held where the chase camera sees it over the kart's head. <b>Against</b>: one more figure than the current six, and the holder is in the kart's path, so the step aside must land before the kart moves.</p>
+        <p class="dont"><b>Don't</b> let the lollipop lift before the tick: the sim rolls the stop, and a sign that lifts early tells the player a lie the panel's clock then contradicts. <b>Don't</b> stage the fresh wheels on the lane side of the mark where a passing kart would clip them; they wait on the apron side of each corner.</p>
       </div>
     </article>
 
-    <article class="variant" id="variant-c" data-variant="C">
-      <header><h2>C. The helmet crew</h2><span class="crew">Nine crew, open-face helmets, wheel carriers and a light paddle</span></header>
-      <div class="stage"><canvas aria-label="Version C: a nine-strong helmeted crew with wheel carriers changes the kart's wheels"></canvas><div class="clock"><span>On the mark</span><b>0.0 s</b></div></div>
-      <div class="timeline"></div>
-      <div class="roster"></div>
-      <div class="notes">
-        <p>The modern stop. Jacks at both ends, four gunners, a wheel carrier on each side standing between the two wheels with a fresh wheel held at the chest, who crouches to pull the worn wheel and push the fresh one on while the gunner keeps the gun on the nut, and a chief at the gantry with a handheld light paddle: a red lamp through the stop, green on the tick, raised overhead. Everyone wears an open-face helmet with the visor up in the slot's key colour: skin, brows, beards, mouths and glasses still tell them apart, but the hair is gone.</p>
-        <p>Crouching and standing: four gunners crouch for the whole stop, the carriers stand and crouch in turn, the jacks and the chief stand. On a slow roll the rear-left gunner goes back down and the left carrier waits beside them; on a botched roll both carriers and the far gunners run to that corner; on a disaster the front jack lets go and the crew stands off.</p>
-        <p><b>For</b> the game: the most faithful stop, and the carriers make the wheel change itself legible from the chase camera, where a gunner's hands are hidden behind the kart. <b>Against</b>: 9 by 8 is 72 figures, the most parts of the three; the helmets hide half the face kit; nine bodies round a 1.8 m kart crowd the frame, and the chief's paddle is off to one side, where the player's eye is not.</p>
-        <p class="dont"><b>Don't</b> give the paddle's lamp its own clock: it is the gantry light in the hand, and reads the same stop.</p>
-      </div>
-    </article>
+    <div class="card">
+      <dl class="spec">
+        <dt>Places</dt><dd>Front jack at the nose, z +2.35, rear jack at the tail, z −2.35; gunners at x ±1.1 beside each hub, z ±0.52; the lollipop holder at (0.75, 2.9) facing the kart, stepping to (1.35, 2.9) at the tick; the row on the apron at x 2.6, 0.7 m apart. The pit box is 2.2 by 2.8 m with the gantry at its front corner on the building's side.</dd>
+        <dt>Beats</dt><dd>At a clean 2.65 s: jack 0 to 0.4, nuts off 0.25 to 0.85, wheels off 0.85 to 1.25, wheels on 1.25 to 1.65, nuts on 1.65 to 2.15, hands up at 2.15, drop from T−0.3 to T−0.05. A record stop scales the beats by T/2.65; a longer one holds the hands up until 3 s, then acts the roll.</dd>
+        <dt>Sign</dt><dd>A 0.34 m disc on a 1.3 m pole, STOP in white on poster red toward the driver, GO in black on go green on the back. It spins over 0.4 s ending 0.2 s before the tick, lifts 0.7 m over 0.3 s from the tick, and is never shown GO toward the lane while the holder turns.</dd>
+        <dt>Jacks</dt><dd>A 0.34 by 0.5 m trolley on two wheels with a 1 m lever. The front jack rolls in over the last 0.7 s of the guide; the rear swings in from (1.0, −2.0) in the 0.3 s around the mark. The lever is pumped to lift, flipped up to drop, and the jack is dragged clear over the 0.55 s around the tick.</dd>
+        <dt>Air lines</dt><dd>A boom at 4.8 m from the building's face across the box, above the chase camera's frame once the kart is on its mark; a reel over each side at x ±1.2 and a line sagging to each gun's hand.</dd>
+        <dt>Acts</dt><dd>Slow 3.8 s: the rear-left nut again from 3.0 until T−0.5. Botched 6.0 s: the rear-left nut stuck from 3.0, the other three run over at 3.25, free at T−0.5. Disaster 10.5 s: the front jack fails at 3.0, the nose drops, the crew stands off, the jack is pumped back at T−3.0 and the front wheels are redone from T−2.5 to T−1.1: nuts off for 0.5 s, the wheel pulled and pushed back, nuts on.</dd>
+      </dl>
+    </div>
   </section>
 
-  <section aria-labelledby="compare">
-    <h2 id="compare">Side by side</h2>
-    <div class="card">
+  <section aria-labelledby="sounds">
+    <h2 id="sounds">The sounds of the stop</h2>
+    <p class="lede">One cue per beat, played from the loop above when sound is on and from the buttons here. Each is synthesised with the DSP kit of the <a href="sound-effects.html">sound effects page</a>, which is <code>assets/audio/build.py</code>'s kit line for line, so a cue that reads well here ports to a WAV by the same recipe. Three of them ship already: the box chime, the wheel gun and the jack drop. The left and right gunners play their cues a few hundredths apart, panned to their side, so four guns read as a crew and not a loop.</p>
+    <div class="card cues">
       <table>
-        <thead><tr><th>Version</th><th>Crew per box</th><th>Standing / crouching</th><th>The sign</th><th>Faces</th><th>Figures a lane</th></tr></thead>
-        <tbody>
-          <tr><td>A. Cap crew</td><td>5</td><td>3 stand, 2 crouch and sprint</td><td>Board over the chief's head, STOP / GO</td><td>Hair under a cap</td><td>40</td></tr>
-          <tr><td>B. Lollipop crew</td><td>7</td><td>3 stand, 4 crouch</td><td>Lollipop in the driver's eyeline, spun then lifted</td><td>Hair under a headset</td><td>56</td></tr>
-          <tr><td>C. Helmet crew</td><td>9</td><td>3 stand, 4 crouch, 2 alternate</td><td>Light paddle at the gantry, red then green, raised</td><td>Helmet, visor up, no hair</td><td>72</td></tr>
-        </tbody>
+        <thead><tr><th>At</th><th>Beat</th><th>Sound</th><th>Recipe</th><th></th></tr></thead>
+        <tbody id="cue-rows"></tbody>
       </table>
+    </div>
+    <div class="card">
+      <dl class="spec">
+        <dt>Levels</dt><dd>Every render is tamed to a 0.95 peak as build.py does, and none is raised to it. The stage plays the gunners' cues at 0.8 of the jacks' and the launch stand-in at 0.6, so the sign and the jacks lead the mix. The shipped wheel gun renders at a 0.13 peak, under every other cue, so the page plays it at 2.5 times; the game should raise its gain in build.py or in the mixer in the same change.</dd>
+        <dt>Panning</dt><dd>Lane side left, building side right, half way: the chase camera looks up the lane with the building on the right, so a gun on the right of the frame sounds on the right.</dd>
+        <dt>Not here</dt><dd>The engine's rev and the tyres' chirp as the kart leaves belong to the engine loop of <a href="../adr/0025-audio-engine.md">ADR 0025</a>; the launch cue here is a stand-in to hear the release whole and does not go to build.py. No voice: the crew does not speak, like the driver.</dd>
+        <dt>Don't</dt><dd>Don't fire a cue from the stop's tier: the botched and disaster sounds come from the act's beats, the same ones the poses read, so a stall never sounds while a gunner's hand is up.</dd>
+      </dl>
     </div>
   </section>
 
@@ -224,17 +233,19 @@
     <h2 id="code">How it fits the code</h2>
     <div class="card">
       <ul>
-        <li><code>apps/web/src/pit-box-meshes.ts</code> keeps its shape: <code>crewWork</code> reads the kart readout's stop, and <code>stance(member, work)</code> grows into <code>stance(member, work, secondsOnMark)</code>, a pure function of the member, the work and the stop clock that returns a place, a yaw, a pose name and a pose blend. The page's choreography is that function, written for three rosters.</li>
+        <li><code>apps/web/src/pit-box-meshes.ts</code> keeps its shape: <code>crewWork</code> reads the kart readout's stop, and <code>stance(member, work)</code> grows into <code>stance(member, work, secondsOnMark)</code>, a pure function of the member, the work and the stop clock that returns a place, a yaw, a pose name and a pose blend. The page's choreography is that function, written for a roster of seven.</li>
+        <li>The beats are one table, <code>STOP_BEATS</code>, that both the stance and the cues read: a beat's start on the stop clock, scaled by the stationary time below a clean stop's. <code>soundCues(before, after)</code> in <code>audio-cues.ts</code> fires a cue when the stop's <code>stationary_so_far_s</code> crosses a beat's start, as it fires the wheel gun on the mark today, and the tier's act beats come from the same table.</li>
         <li>The head kit moves to a module the kart model and the crew share: <code>head-kit.ts</code> builds a head from a face record the way <code>build.py</code> does, so the driver and the crew come from one builder. The driver's record gains brows, a nose and a mouth in the same change, or stays as it is; either way the parts are optional.</li>
-        <li>Figures stay instanced: one <code>InstancedMesh</code> per part kind (torso, upper arm, forearm, thigh, shin, boot, hand, head shell, eye, hair cap and so on), posed from a rig that writes one matrix per part per figure. A crew member is about 30 parts; version B is 56 figures and about 1,700 instances per lane, drawn only within <code>PIT_DRAW_RANGE_M</code>.</li>
+        <li>Figures stay instanced: one <code>InstancedMesh</code> per part kind (torso, upper arm, forearm, thigh, shin, boot, hand, head shell, eye, hair cap and so on), posed from a rig that writes one matrix per part per figure. A crew member is about 30 parts; 56 figures is about 1,700 instances per lane, drawn only within <code>PIT_DRAW_RANGE_M</code>. The air lines are one <code>LineSegments</code> per lane.</li>
         <li>The signs are two <code>CanvasTexture</code>s in the Kenney pixel face, STOP and GO, built once; the gantry light's materials swap as today.</li>
-        <li>Nothing here enters the sim. A test through the public seam drives <code>stance</code> with a stop readout and asserts the pose at the tick of green and the step aside before the kart's first metre.</li>
-        <li>The style guide's pit box entry gains the crew's heights, the kit's parts and the sign's two faces in the same PR.</li>
+        <li>The new cues go into <code>build.py</code> as <code>jack_lift</code>, <code>wheel_off</code>, <code>wheel_on</code>, <code>gun_stall</code>, <code>jack_fail</code>, <code>lollipop_spin</code>, <code>release_chime</code> and <code>boots</code>, with the shorter wheel gun as a <code>bursts</code> argument, and into the manifest in <code>audio.ts</code>; the preload check in the e2e counts them.</li>
+        <li>Nothing here enters the sim. A test through the public seam drives <code>stance</code> and <code>soundCues</code> with a stop readout and asserts the pose and the cue at the tick of green, and the step aside before the kart's first metre.</li>
+        <li>The style guide's pit box entry gains the crew's heights, the kit's parts, the sign's two faces and the boom in the same PR.</li>
       </ul>
     </div>
   </section>
 
-  <p class="fallback" id="fallback" hidden>The stages need WebGL and the Three.js module from jsdelivr. Serve the page over http, not file://, and allow the CDN.</p>
+  <p class="fallback" id="fallback" hidden>The stage needs WebGL and the Three.js module from jsdelivr. Serve the page over http, not file://, and allow the CDN.</p>
 </main>
 
 <script type="module">
@@ -257,7 +268,7 @@ const C = {
   carbon: 0x2b2e33, carbonShade: 0x1b1d21, asphalt: 0x6b6b78, wall: 0xf0f0f0, riser: 0xd7dbe0, plinth: 0xb4bac2,
   red: 0xe8333b, redMid: 0xc81d25, green: 0x6fe8a6, greenMid: 0x3ddc84, lampOff: 0x1b1d21, white: 0xffffff,
   tyre: 0x1c1c1f, wornTyre: 0x4a443c, rim: 0x3a3d42, whites: 0xf7f7f2, irises: 0x211710, gold: 0xdba833, grey: 0xa8a8ad,
-  mouth: 0x6a1e22, glove: 0xeeeeee, boot: 0x1b1d21, steel: 0x8e939b, jackRed: 0xc81d25,
+  mouth: 0x6a1e22, glove: 0xeeeeee, boot: 0x1b1d21, steel: 0x8e939b, jackRed: 0xc81d25, hose: 0x3a3d42,
 };
 // The stop's roll (tuning.rs): the stationary time each tier draws, shown at its middle.
 const TIERS = { record: 2.05, clean: 2.65, slow: 3.8, botched: 6.0, disaster: 10.5 };
@@ -267,6 +278,8 @@ const GREEN_HOLD_S = 3;
 const HAIR_COLOURS = [0x1a1210, 0x8a6a48, 0x5a3a22, 0x6b4528, 0x1c1c1f, 0x241a14, 0xb8955a, 0xc9c3b8, 0xa83a1e];
 const CREW_HAIRS = ["braids-tied-back", "short", "swept-side-part", "curly-fringe", "short-greying-temples", "swept-back", "short-curls", "buzz", "ponytail", "bun", "bald"];
 const FACIAL = ["none", "none", "none", "light-stubble", "stubble", "heavy-stubble", "short-beard", "moustache"];
+const ROLES = ["Front jack", "Rear jack", "Gunner FL", "Gunner FR", "Gunner RL", "Gunner RR", "Lollipop"];
+const STANCES = ["stands, walks the jack in", "stands, swings the jack in", "crouches", "crouches", "crouches", "crouches", "stands, steps aside"];
 
 // ---------- small maths ----------
 const lerp = (a, b, t) => a + (b - a) * t;
@@ -374,7 +387,7 @@ const FACIAL_HAIR = {
 };
 /**
  * A head pivoted at the neck, built at the driver's 0.3 m radius and scaled
- * to `radius`: the kit's face with the headgear of the version's kit.
+ * to `radius`: the kit's face, with a headset when `kit.headgear` asks.
  */
 function makeHead(face, kit, radius) {
   const neck = new THREE.Group();
@@ -409,23 +422,18 @@ function makeHead(face, kit, radius) {
     }
   }
   if (face.glasses) {
-    for (const s of [-1, 1]) {
-      const rim = part(g, new THREE.TorusGeometry(0.085, 0.012, 4, 8), C.carbon, [s * spread, 0.04, 0.3]);
-      rim.rotation.y = 0;
-    }
+    for (const s of [-1, 1]) part(g, new THREE.TorusGeometry(0.085, 0.012, 4, 8), C.carbon, [s * spread, 0.04, 0.3]);
     part(g, box(0.06, 0.012, 0.012), C.carbon, [0, 0.05, 0.3]);
     for (const s of [-1, 1]) part(g, box(0.012, 0.012, 0.26), C.carbon, [s * 0.28, 0.06, 0.17]);
   }
-  const hairy = kit.headgear !== "helmet" && face.hair && HAIR[face.hair];
-  if (hairy) HAIR[face.hair](g, face.hairColour);
+  if (face.hair && HAIR[face.hair]) HAIR[face.hair](g, face.hairColour);
   if (face.facialHair === "moustache") part(g, box(0.16, 0.035, 0.03), face.hairColour, [0, -0.065, 0.29]);
   else if (FACIAL_HAIR[face.facialHair]) {
     const [r, keep] = FACIAL_HAIR[face.facialHair];
     part(g, shell(r, keep), face.hairColour);
   }
   if (kit.headgear === "headset") {
-    const band = part(g, new THREE.TorusGeometry(0.335, 0.02, 4, 12, Math.PI), C.carbon, [0, 0.0, -0.02]);
-    band.rotation.y = 0;
+    part(g, new THREE.TorusGeometry(0.335, 0.02, 4, 12, Math.PI), C.carbon, [0, 0.0, -0.02]);
     for (const s of [-1, 1]) {
       const cup = part(g, new THREE.CylinderGeometry(0.09, 0.09, 0.06, 8), C.carbon, [s * 0.315, -0.02, -0.02]);
       cup.rotation.z = Math.PI / 2;
@@ -434,27 +442,16 @@ function makeHead(face, kit, radius) {
     mic.rotation.y = -0.5;
     ball(g, 0.025, C.carbon, [0.14, -0.12, 0.24]);
   }
-  if (kit.headgear === "helmet") {
-    part(g, shell(0.345, (p) => p.y > -0.62 && !(p.z > 0.3 && p.y < 0.55 && p.y > -0.55)), kit.colour);
-    part(g, box(0.1, 0.03, 0.5), C.white, [0, 0.35, -0.02]);
-    const visor = part(g, box(0.5, 0.1, 0.07), 0x2a2f38, [0, 0.31, 0.25], { transparent: true, opacity: 0.75 });
-    visor.rotation.x = -0.6;
-  }
-  if (kit.headgear === "cap") {
-    part(g, shell(0.335, (p) => p.y > 0.08 && !(p.z > 0.5 && p.y < 0.35)), kit.colour);
-    const peak = part(g, box(0.26, 0.02, 0.18), kit.colour, [0, 0.15, 0.37]);
-    peak.rotation.x = 0.2;
-  }
   return neck;
 }
 
-/** The cast of ten a pit box's crews are drawn from, seeded by `slot`, with no hair style twice. */
+/** The crew of seven a pit box draws from a seed of `slot`, with no hair style twice. */
 function roster(slot) {
   const rnd = mulberry(slot * 7919 + 17);
   const hairs = [...CREW_HAIRS];
   const skins = Object.values(SKIN);
   const people = [];
-  for (let i = 0; i < 10; i += 1) {
+  for (let i = 0; i < ROLES.length; i += 1) {
     const hair = hairs.splice(Math.floor(rnd() * hairs.length), 1)[0];
     const mouths = ["line", "smile", "grin", "open"];
     people.push({
@@ -489,13 +486,9 @@ const POSES = {
   crouchHandUp: { lean: 0.3, headPitch: -0.3, headYaw: 0, shL: 0.95, rollL: -0.2, elL: -0.5, shR: 3.0, rollR: 0.25, elR: -0.1, hipL: 1.5, kneeL: -1.55, hipR: 1.5, kneeR: -1.55 },
   jack: { lean: 0.35, headPitch: -0.2, headYaw: 0, shL: 0.95, rollL: -0.15, elL: -0.3, shR: 0.95, rollR: 0.15, elR: -0.3, hipL: 0.15, kneeL: -0.2, hipR: 0.15, kneeR: -0.2 },
   jackPush: { lean: 0.75, headPitch: -0.3, headYaw: 0, shL: 0.35, rollL: -0.15, elL: -0.1, shR: 0.35, rollR: 0.15, elR: -0.1, hipL: 0.5, kneeL: -0.6, hipR: 0.5, kneeR: -0.6 },
-  armsUp: { lean: -0.1, headPitch: -0.2, headYaw: 0, shL: 2.9, rollL: -0.35, elL: -0.2, shR: 2.9, rollR: 0.35, elR: -0.2, hipL: 0, kneeL: 0, hipR: 0, kneeR: 0 },
   dismay: { lean: -0.15, headPitch: -0.3, headYaw: 0, shL: 2.4, rollL: -0.8, elL: -0.9, shR: 2.4, rollR: 0.8, elR: -0.9, hipL: 0, kneeL: 0, hipR: 0, kneeR: 0 },
-  holdChest: { lean: 0.05, headPitch: 0, headYaw: 0, shL: 0.9, rollL: -0.25, elL: -1.2, shR: 0.9, rollR: 0.25, elR: -1.2, hipL: 0, kneeL: 0, hipR: 0, kneeR: 0 },
-  holdHigh: { lean: -0.05, headPitch: -0.25, headYaw: 0, shL: 2.6, rollL: -0.2, elL: -0.3, shR: 2.6, rollR: 0.2, elR: -0.3, hipL: 0, kneeL: 0, hipR: 0, kneeR: 0 },
   holdPole: { lean: 0, headPitch: 0, headYaw: 0, shL: 0.1, rollL: -0.12, elL: -0.15, shR: 1.2, rollR: 0.15, elR: -1.1, hipL: 0, kneeL: 0, hipR: 0, kneeR: 0 },
   raisePole: { lean: -0.08, headPitch: -0.2, headYaw: 0, shL: 0.1, rollL: -0.12, elL: -0.15, shR: 2.9, rollR: 0.25, elR: -0.1, hipL: 0, kneeL: 0, hipR: 0, kneeR: 0 },
-  point: { lean: 0.1, headPitch: 0, headYaw: 0, shL: 0.1, rollL: -0.12, elL: -0.15, shR: 1.55, rollR: 0.1, elR: 0, hipL: 0.1, kneeL: -0.1, hipR: -0.1, kneeR: 0 },
 };
 class Rig {
   constructor(face, kit, colours) {
@@ -560,12 +553,12 @@ class Rig {
     this.torso.add(this.props);
   }
   place(x, z, yaw) { this.pos.set(x, 0, z); this.at.copy(this.pos); this.yaw = yaw; this.goalYaw = yaw; }
-  /** Where to be, which way to face and what to do; `blend` mixes a second pose in. */
+  /** Where to be, which way to face and what to do; `headYaw` and `headPitch` override the pose's. */
   set(x, z, yaw, pose, opts = {}) {
     this.at.set(x, 0, z);
     this.goalYaw = yaw;
-    const a = POSES[pose], b = opts.blendWith ? POSES[opts.blendWith] : null;
-    for (const k of Object.keys(a)) this.goal[k] = b ? lerp(a[k], b[k], opts.blend ?? 0) : a[k];
+    const a = POSES[pose];
+    for (const k of Object.keys(a)) this.goal[k] = a[k];
     if (opts.headYaw !== undefined) this.goal.headYaw = opts.headYaw;
     if (opts.headPitch !== undefined) this.goal.headPitch = opts.headPitch;
     this.judder = opts.judder ?? 0;
@@ -624,8 +617,9 @@ function makeGun(colour) {
   const socket = part(g, new THREE.CylinderGeometry(0.035, 0.035, 0.12, 6), C.steel, [0, 0, 0.31]);
   socket.rotation.x = Math.PI / 2;
   part(g, box(0.04, 0.12, 0.05), colour, [0, -0.08, 0.04]);
-  part(g, box(0.02, 0.02, 0.3), C.steel, [0, -0.13, -0.1]);
+  const inlet = part(g, box(0.02, 0.02, 0.2), C.steel, [0, -0.13, -0.08]);
   g.spin = socket;
+  g.inlet = inlet;
   return g;
 }
 function makeJack(colour) {
@@ -682,30 +676,6 @@ function makeLollipop() {
   g.add(stop, go);
   return g;
 }
-/** A board on a pole, STOP the way its holder faces and GO on the back. */
-function makeBoard() {
-  const g = new THREE.Group();
-  part(g, box(0.04, 0.9, 0.04), C.steel, [0, 0.45, 0]);
-  part(g, box(0.9, 0.5, 0.03), C.carbon, [0, 1.1, 0]);
-  const stop = new THREE.Mesh(new THREE.PlaneGeometry(0.86, 0.46), signMaterial("STOP", "#c81d25", "#ffffff"));
-  stop.position.set(0, 1.1, 0.017);
-  const go = new THREE.Mesh(new THREE.PlaneGeometry(0.86, 0.46), signMaterial("GO", "#3ddc84", "#111111"));
-  go.position.set(0, 1.1, -0.017); go.rotation.y = Math.PI;
-  g.add(stop, go);
-  return g;
-}
-/** A handheld light paddle with one lamp, red through the stop and green at the tick. */
-function makePaddle() {
-  const g = new THREE.Group();
-  part(g, box(0.04, 0.35, 0.04), C.carbon, [0, 0.17, 0]);
-  part(g, box(0.34, 0.4, 0.04), C.carbonShade, [0, 0.55, 0]);
-  const lamp = new THREE.Mesh(new THREE.CircleGeometry(0.12, 12), new THREE.MeshBasicMaterial({ color: C.lampOff }));
-  lamp.position.set(0, 0.6, -0.022); lamp.rotation.y = Math.PI;
-  const lamp2 = lamp.clone(); lamp2.position.z = 0.022; lamp2.rotation.y = 0;
-  g.add(lamp, lamp2);
-  g.lamps = [lamp, lamp2];
-  return g;
-}
 function makeWheel(r, w, worn) {
   const g = new THREE.Group();
   const tyre = part(g, new THREE.CylinderGeometry(r, r, w, 8), worn ? C.wornTyre : C.tyre, [0, 0, 0]);
@@ -751,7 +721,10 @@ function makeKart(slot) {
   return { body, wheels };
 }
 
-// ---------- the pit box, as the View draws it ----------
+// ---------- the pit box, as the View draws it, plus the boom the air lines hang from ----------
+const BOOM_Y = 4.8;
+const REEL_X = 1.2;
+const HOSE_POINTS = 7;
 function makeBox(scene, slot) {
   const key = LIVERIES[slot].key;
   const floor = part(scene, new THREE.PlaneGeometry(60, 60), C.asphalt, [0, 0, 0]);
@@ -772,6 +745,13 @@ function makeBox(scene, slot) {
   green.position.set(0, 2.2 - 0.51, -0.18);
   gantry.add(red, green);
   scene.add(gantry);
+  // The boom from the building's face across the box, with a reel over each side of the kart.
+  part(scene, box(7.2, 0.1, 0.1), C.carbon, [1.55, BOOM_Y, 0]);
+  part(scene, box(0.1, 0.1, 1.6), C.carbon, [-1.9, BOOM_Y, 0]);
+  for (const s of [-1, 1]) {
+    const reel = part(scene, new THREE.CylinderGeometry(0.14, 0.14, 0.12, 10), C.carbonShade, [s * REEL_X, BOOM_Y - 0.17, 0]);
+    reel.rotation.z = Math.PI / 2;
+  }
   // The pit building behind the apron and the pit wall on the lane side.
   part(scene, box(2, 6, 24), C.riser, [6.2, 3, 0]);
   part(scene, box(0.1, 4, 4), key, [5.15, 2, 0]);
@@ -786,14 +766,10 @@ function makeBox(scene, slot) {
   return { red, green };
 }
 
-// ---------- the versions ----------
-const VARIANTS = {
-  A: { kit: (slot) => ({ headgear: "cap", colour: LIVERIES[slot].key }), people: [0, 1, 2, 3, 9], roles: ["Front jack", "Rear jack", "Gunner left", "Gunner right", "Chief, board"], stances: ["stands", "stands", "crouches, sprints", "crouches, sprints", "stands"] },
-  B: { kit: () => ({ headgear: "headset" }), people: [0, 1, 2, 3, 4, 5, 6], roles: ["Front jack", "Rear jack", "Gunner FL", "Gunner FR", "Gunner RL", "Gunner RR", "Lollipop"], stances: ["stands", "stands", "crouches", "crouches", "crouches", "crouches", "stands"] },
-  C: { kit: (slot) => ({ headgear: "helmet", colour: LIVERIES[slot].key }), people: [0, 1, 2, 3, 4, 5, 7, 8, 9], roles: ["Front jack", "Rear jack", "Gunner FL", "Gunner FR", "Gunner RL", "Gunner RR", "Carrier left", "Carrier right", "Chief, paddle"], stances: ["stands", "stands", "crouches", "crouches", "crouches", "crouches", "stands, crouches", "stands, crouches", "stands"] },
-};
+// ---------- the stop's beats ----------
 const APPROACH_S = 1.8;
 const MARK_S = APPROACH_S + GUIDE_S;
+const RUN_OUT_S = APPROACH_S - 0.9;
 const GUNNER_X = 0.6 + 0.5;
 const ROW_X = 2.6, ROW_PITCH = 0.7;
 const rowSpot = (i, n) => ({ x: ROW_X, z: (i - (n - 1) / 2) * ROW_PITCH, yaw: -Math.PI / 2 });
@@ -804,19 +780,14 @@ function schedule(tier) {
   const T = TIERS[tier];
   const f = Math.min(1, T / 2.65);
   const k = (x) => x * f;
-  const s = {
+  return {
     T, tier, mark: MARK_S, go: MARK_S + T, reset: MARK_S + T + GREEN_HOLD_S, loop: MARK_S + T + GREEN_HOLD_S + 3.2,
     jackUp: [0, k(0.4)], gunOff: [k(0.25), k(0.85)], wheelOff: [k(0.85), k(1.25)], wheelOn: [k(1.25), k(1.65)], gunOn: [k(1.65), k(2.15)],
     done: k(2.15), jackDown: [T - 0.3, T - 0.05],
     // The act of the roll, past a clean stop's longest.
     act: CLEAN_LONGEST_S, stuckUntil: T - 0.5, swarmAt: CLEAN_LONGEST_S + 0.25,
     fail: CLEAN_LONGEST_S, rejack: [T - 3.0, T - 2.6], redo: [T - 2.5, T - 1.1],
-    // Version A: one gunner per side, front wheel then rear.
-    cycle: (w, b) => ({ gunOff: [k(0.1 + w), k(0.4 + w)], wheelOff: [k(0.4 + w), k(0.6 + w)], wheelOn: [k(0.6 + w), k(0.8 + w)], gunOn: [k(0.8 + w), k(1.1 + w)], done: k(1.1 + w) }),
   };
-  s.cycles = [s.cycle(0.05), s.cycle(1.35)];
-  s.cycles[0].done = k(1.15); s.cycles[1].done = k(2.45);
-  return s;
 }
 
 /** The segments the timeline strip shows. */
@@ -832,13 +803,326 @@ function segments(s) {
   return out;
 }
 
+// ---------- the DSP kit (sound-effects.html, build.py): sample arrays at the shipped SFX rate ----------
+const RATE = 22050;
+const TAU = Math.PI * 2;
+const sec = (n) => Math.max(0, Math.round(n * RATE));
+const WAVES = {
+  sine: (p) => Math.sin(p),
+  square: (p) => (Math.sin(p) >= 0 ? 1 : -1),
+  triangle: (p) => (2 / Math.PI) * Math.asin(Math.sin(p)),
+  saw: (p) => ((p % TAU) / Math.PI) - 1,
+  pulse: (p) => ((p % TAU) / TAU < 0.25 ? 1 : -1),
+};
+/** A seeded uniform(-1, 1) source (mulberry32), as build.py's rng. */
+function rng(seed) {
+  let a = (seed * 2654435761) >>> 0;
+  return () => {
+    a = (a + 0x6d2b79f5) >>> 0;
+    let t = a;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return (((t ^ (t >>> 14)) >>> 0) / 4294967296) * 2 - 1;
+  };
+}
+/** A note of `length` seconds; the pitch glides to `sweepTo` if given, linearly or exponentially. */
+function tone({ freq, length, wave = "sine", decay = 6, gain = 0.5, sweepTo = null, attack = 0, curve = "linear" }) {
+  const n = sec(length);
+  const out = new Float32Array(n);
+  const fn = WAVES[wave];
+  let phase = 0;
+  for (let i = 0; i < n; i++) {
+    const t = i / RATE;
+    const u = n > 0 ? i / n : 0;
+    const f = sweepTo === null ? freq : curve === "exp" ? freq * Math.pow(sweepTo / freq, u) : freq + (sweepTo - freq) * u;
+    phase += (TAU * f) / RATE;
+    const a = attack > 0 ? Math.min(1, t / attack) : 1;
+    out[i] = gain * a * Math.exp(-decay * t) * fn(phase);
+  }
+  return out;
+}
+function noise({ length, decay = 8, gain = 0.5, seed = 1, attack = 0 }) {
+  const n = sec(length);
+  const out = new Float32Array(n);
+  const next = rng(seed);
+  for (let i = 0; i < n; i++) {
+    const t = i / RATE;
+    const a = attack > 0 ? Math.min(1, t / attack) : 1;
+    out[i] = gain * a * Math.exp(-decay * t) * next();
+  }
+  return out;
+}
+const silence = (length) => new Float32Array(sec(length));
+function mix(...parts) {
+  const out = new Float32Array(Math.max(0, ...parts.map((p) => p.length)));
+  for (const part of parts) for (let i = 0; i < part.length; i++) out[i] += part[i];
+  return out;
+}
+function concat(...parts) {
+  const out = new Float32Array(parts.reduce((n, p) => n + p.length, 0));
+  let at = 0;
+  for (const part of parts) { out.set(part, at); at += part.length; }
+  return out;
+}
+function scale(samples, gain) {
+  const out = new Float32Array(samples.length);
+  for (let i = 0; i < samples.length; i++) out[i] = samples[i] * gain;
+  return out;
+}
+/** Multiply by `fn(t)` for t in seconds, for envelopes and slow modulation. */
+function envelope(samples, fn) {
+  const out = new Float32Array(samples.length);
+  for (let i = 0; i < samples.length; i++) out[i] = samples[i] * fn(i / RATE);
+  return out;
+}
+/** Amplitude chop at `hz`: a tremolo of `depth` (1 gates fully) with a raised-cosine shape. */
+function chop(samples, hz, depth) {
+  return envelope(samples, (t) => 1 - depth * 0.5 * (1 - Math.cos(TAU * hz * t)));
+}
+/** One-pole lowpass; `passes` stacks it for a steeper slope. */
+function lowpass(samples, cutoff, passes = 1) {
+  let out = samples;
+  for (let p = 0; p < passes; p++) {
+    const next = new Float32Array(out.length);
+    const dt = 1 / RATE;
+    const rc = 1 / (TAU * cutoff);
+    const a = dt / (rc + dt);
+    let y = 0;
+    for (let i = 0; i < out.length; i++) { y += a * (out[i] - y); next[i] = y; }
+    out = next;
+  }
+  return out;
+}
+function highpass(samples, cutoff, passes = 1) {
+  let out = samples;
+  for (let p = 0; p < passes; p++) {
+    const next = new Float32Array(out.length);
+    const dt = 1 / RATE;
+    const rc = 1 / (TAU * cutoff);
+    const a = rc / (rc + dt);
+    let y = 0;
+    let x1 = 0;
+    for (let i = 0; i < out.length; i++) { y = a * (y + out[i] - x1); x1 = out[i]; next[i] = y; }
+    out = next;
+  }
+  return out;
+}
+function bandpass(samples, centre, width, passes = 2) {
+  const lo = Math.max(20, centre - width / 2);
+  const hi = Math.max(lo + 20, centre + width / 2);
+  return highpass(lowpass(samples, hi, passes), lo, passes);
+}
+/** Random short bursts of noise at about `perSecond`, for crackle and crunch. */
+function pops({ length, perSecond, pop = 0.02, decay = 80, gain = 0.6, seed = 7 }) {
+  const n = sec(length);
+  const out = new Float32Array(n);
+  const next = rng(seed);
+  const burst = rng(seed + 1);
+  const gap = RATE / perSecond;
+  let at = Math.abs(next()) * gap;
+  while (at < n) {
+    const start = Math.round(at);
+    const len = sec(pop);
+    const g = gain * (0.5 + 0.5 * Math.abs(next()));
+    for (let i = 0; i < len && start + i < n; i++) out[start + i] += g * Math.exp(-decay * (i / RATE)) * burst();
+    at += gap * (0.5 + Math.abs(next()));
+  }
+  return out;
+}
+/** Add `samples` into `out` from `at` seconds, dropping what runs past its end. */
+function place(out, at, samples, gain = 1) {
+  const start = sec(at);
+  for (let i = 0; i < samples.length && start + i < out.length; i++) out[start + i] += samples[i] * gain;
+  return out;
+}
+/** Fade the last `seconds` out linearly, so a cut-off tail does not click. */
+function release(samples, seconds) {
+  const out = Float32Array.from(samples);
+  const n = Math.min(out.length, sec(seconds));
+  for (let i = 0; i < n; i++) out[out.length - n + i] *= 1 - i / n;
+  return out;
+}
+/** Peak-normalise to `peak` when the render overshoots it; anything past 1 clips on output. */
+function tame(samples, peak = 0.95) {
+  let max = 0;
+  for (let i = 0; i < samples.length; i++) max = Math.max(max, Math.abs(samples[i]));
+  return max > peak ? scale(samples, peak / max) : samples;
+}
+
+// ---------- the cues: one render per beat; the shipped three are build.py's synthesis ----------
+/** Rattle: a run of short bright bursts of bandpassed noise, a wheel gun hammering a nut off and on. */
+function wheelGun({ bursts = 16, every = 0.05, burst = 0.035, centre = 2600, width = 1800, gain = 0.5, seed = 5 } = {}) {
+  const out = silence(bursts * every + 0.1);
+  for (let i = 0; i < bursts; i += 1) place(out, i * every, bandpass(noise({ length: burst, decay: 50, gain: 1, seed: seed + i }), centre, width), gain);
+  return release(out, 0.03);
+}
+/** Thud: a low sine knock falling in pitch under a click of noise, the kart dropping off the jacks. */
+function jackDrop({ thud = 95, length = 0.22, gain = 0.6, seed = 9 } = {}) {
+  return mix(tone({ freq: thud, length, decay: 16, gain, sweepTo: 45, curve: "exp" }), noise({ length: 0.04, decay: 80, gain: 0.35, seed }));
+}
+/** Two rising pulse notes, spaced apart: the radio's call to come in for tyres. */
+function boxChime({ low = 659, high = 988, length = 0.12, decay = 8, gain = 0.35 } = {}) {
+  return concat(tone({ freq: low, length, wave: "pulse", decay, gain }), silence(0.06), tone({ freq: high, length: length * 1.5, wave: "pulse", decay, gain }));
+}
+/** A metal clack: a bright click of noise over a short knock. */
+function clack(seed, pitch = 1) {
+  return mix(bandpass(noise({ length: 0.05, decay: 60, gain: 0.9, seed }), 1800, 1600), tone({ freq: 170 * pitch, length: 0.08, decay: 40, gain: 0.4, sweepTo: 90 * pitch, curve: "exp" }));
+}
+/** Pump: two clacks of the lever a beat apart, then the ram's creak rising as the kart comes up. */
+function jackLift({ pitch = 1, seed = 31 } = {}) {
+  const out = silence(0.7);
+  place(out, 0, clack(seed, pitch));
+  place(out, 0.2, clack(seed + 1, pitch));
+  place(out, 0.28, lowpass(tone({ freq: 70 * pitch, length: 0.35, wave: "saw", decay: 6, gain: 0.6, sweepTo: 140 * pitch }), 450), 0.8);
+  return release(out, 0.05);
+}
+/** Thump and roll: the worn wheel's rubber hitting the apron, then rolling away in a slow wobble. */
+function wheelOff({ seed = 41 } = {}) {
+  return mix(
+    lowpass(noise({ length: 0.14, decay: 28, gain: 1.0, seed }), 500, 2),
+    tone({ freq: 120, length: 0.2, decay: 18, gain: 0.5, sweepTo: 60, curve: "exp" }),
+    concat(silence(0.15), chop(lowpass(noise({ length: 0.8, decay: 3.5, gain: 0.8, seed: seed + 1 }), 320, 2), 9, 0.7)),
+  );
+}
+/** Clonk: the fresh wheel seated on the hub, a short square knock with a click on top. */
+function wheelOn({ seed = 51 } = {}) {
+  return mix(lowpass(tone({ freq: 240, length: 0.14, wave: "square", decay: 26, gain: 0.35, sweepTo: 150, curve: "exp" }), 900), noise({ length: 0.03, decay: 90, gain: 0.5, seed }));
+}
+/** Stall: the gun's bursts in stutters that will not take, a labouring grind between them. */
+function gunStall({ seed = 60 } = {}) {
+  const out = silence(1.3);
+  [0, 0.05, 0.1, 0.42, 0.47, 0.82, 0.87, 0.92, 0.97].forEach((at, i) => place(out, at, bandpass(noise({ length: 0.045, decay: 45, gain: 1, seed: seed + i }), 2300 - i * 50, 1800), 0.5));
+  place(out, 0.15, lowpass(chop(tone({ freq: 95, length: 0.25, wave: "saw", decay: 4, gain: 0.45 }), 28, 1), 500));
+  place(out, 0.55, lowpass(chop(tone({ freq: 85, length: 0.25, wave: "saw", decay: 4, gain: 0.45 }), 28, 1), 500));
+  return release(out, 0.04);
+}
+/** Clang and drop: the jack's lever ringing, the nose hitting the ground harder than a jack drop, a rattle of loose parts. */
+function jackFail({ seed = 91 } = {}) {
+  return mix(
+    tone({ freq: 1180, length: 0.3, wave: "triangle", decay: 10, gain: 0.25 }),
+    tone({ freq: 1770, length: 0.25, wave: "triangle", decay: 14, gain: 0.12 }),
+    concat(silence(0.12), jackDrop({ thud: 80, length: 0.36, gain: 0.7, seed })),
+    concat(silence(0.18), lowpass(pops({ length: 0.4, perSecond: 30, pop: 0.015, decay: 100, gain: 0.5, seed: seed + 1 }), 1500)),
+  );
+}
+/** Whoosh and clack: the disc swinging round and hitting its stop. */
+function lollipopSpin({ seed = 71 } = {}) {
+  const out = silence(0.5);
+  place(out, 0, envelope(bandpass(noise({ length: 0.36, decay: 0, gain: 0.9, seed }), 1000, 1000), (t) => Math.sin(Math.PI * Math.min(1, t / 0.36))));
+  place(out, 0.34, clack(seed + 1, 1.6), 0.6);
+  return release(out, 0.04);
+}
+/** The box chime's answer: the same two pulse notes a fourth up, the radio's go. */
+function releaseChime({ low = 988, high = 1319, length = 0.12, decay = 8, gain = 0.35 } = {}) {
+  return boxChime({ low, high, length, decay, gain });
+}
+/** Boots: a patter of soft lowpassed pops, the crew running on concrete. */
+function boots({ length = 0.9, seed = 21 } = {}) {
+  return release(lowpass(pops({ length, perSecond: 16, pop: 0.025, decay: 90, gain: 0.6, seed }), 700, 2), 0.1);
+}
+/** Stand-in for the engine loop: a tyre chirp under a sawtooth rev climbing out of the box. */
+function launch({ seed = 81 } = {}) {
+  return mix(bandpass(noise({ length: 0.25, decay: 10, gain: 0.5, seed }), 1800, 1200), lowpass(tone({ freq: 55, length: 1.1, wave: "saw", decay: 1.6, gain: 0.55, sweepTo: 240, curve: "exp" }), 1100));
+}
+
+const CUES = {
+  "box-chime": { name: "Box chime", status: "ships", render: boxChime, recipe: "Pulse E5 then B5, 0.12 and 0.18 s, 0.06 s apart.", beat: "The call: the crew runs out on it, a lap before this stage.", who: "Radio" },
+  "boots": { name: "Boots", status: "new", render: boots, recipe: "Pops at 16 a second, 0.9 s, lowpassed at 700 Hz twice.", beat: "Run out to the box, and the walk back after the hold.", who: "All seven" },
+  "jack-lift": { name: "Jack lift", status: "new", render: jackLift, recipe: "Two clacks 0.2 s apart (noise 1.8 kHz band over a 170 to 90 Hz knock), then a 70 to 140 Hz saw creak under 450 Hz.", beat: "The lever pumped twice; the rear jack a hair lower and 0.07 s later.", who: "Front jack, rear jack" },
+  "wheel-gun": { name: "Wheel gun", status: "ships", render: wheelGun, recipe: "16 bursts of 2.6 kHz noise 0.05 s apart; 10 bursts for the nuts on.", beat: "Nuts off at 0.25 and nuts on at 1.65; left then right 0.04 s later.", who: "Gunners" },
+  "wheel-off": { name: "Wheel off", status: "new", render: wheelOff, recipe: "Lowpassed thump with a 120 to 60 Hz knock, then 0.8 s of 320 Hz rumble chopped at 9 Hz as it rolls.", beat: "The worn wheel pulled and shoved behind the gunner, 0.12 s into wheels off.", who: "Gunners" },
+  "wheel-on": { name: "Wheel on", status: "new", render: wheelOn, recipe: "Square 240 to 150 Hz under 900 Hz, 0.14 s, with a click of noise.", beat: "The fresh wheel seated, 0.08 s before wheels on ends.", who: "Gunners" },
+  "lollipop-spin": { name: "Lollipop spin", status: "new", render: lollipopSpin, recipe: "A 1 kHz band of noise swelling over 0.36 s, then a high clack as the disc hits its stop.", beat: "STOP turned to GO, 0.6 s before the tick.", who: "Lollipop" },
+  "jack-drop": { name: "Jack drop", status: "ships", render: jackDrop, recipe: "Sine 95 to 45 Hz over 0.22 s under a click of noise; the rear at 85 Hz 0.07 s later.", beat: "The kart dropped on the last beat before the tick.", who: "Front jack, rear jack" },
+  "release-chime": { name: "Release chime", status: "new", render: releaseChime, recipe: "The box chime a fourth up: pulse B5 then E6.", beat: "The tick of green: the lollipop lifts, the gantry goes green.", who: "Radio" },
+  "launch": { name: "Launch (stand-in)", status: "engine", render: launch, recipe: "A 1.8 kHz chirp over a 55 to 240 Hz saw rev, 1.1 s; the engine loop's job in the game.", beat: "The kart leaving under its own power, 0.1 s after the tick.", who: "Kart" },
+  "gun-stall": { name: "Gun stall", status: "new", render: gunStall, recipe: "Bursts in stutters of 3, 2 and 4 with the band dropping, a 95 Hz saw grind chopped at 28 Hz between them.", beat: "A botched roll: the rear-left nut stuck from 3.0 s, every 1.3 s until it frees at T−0.8.", who: "Gunner RL" },
+  "jack-fail": { name: "Jack fail", status: "new", render: jackFail, recipe: "Triangle 1180 and 1770 Hz ringing, a heavier jack drop at 80 Hz 0.12 s in, a rattle of pops under 1.5 kHz.", beat: "A disaster: the front jack lets go at 3.0 s and the nose drops.", who: "Front jack" },
+};
+// The stage's level per cue over its render: the shipped wheel gun peaks at 0.13, far under the jack drop's 0.82.
+const LEVEL = { "wheel-gun": 2.5, boots: 1.3 };
+const CUE_ORDER = ["box-chime", "boots", "jack-lift", "wheel-gun", "wheel-off", "wheel-on", "lollipop-spin", "jack-drop", "release-chime", "launch", "gun-stall", "jack-fail"];
+
+/** Every cue the loop fires for a schedule: loop time, cue, pan to the gunner's side, gain and render params. */
+function cueEvents(s) {
+  const m = s.mark, ev = [];
+  const add = (at, id, opts = {}) => ev.push({ at, id, pan: 0, gain: 1, params: {}, ...opts });
+  const both = (at, id, params = {}) => {
+    add(at, id, { pan: -0.5, gain: 0.8, params });
+    add(at + 0.04, id, { pan: 0.5, gain: 0.8, params: { ...params, seed: (params.seed ?? 5) + 7, ...(id === "wheel-gun" ? { centre: 2400 } : {}) } });
+  };
+  add(0, "box-chime", { gain: 0.7 });
+  add(RUN_OUT_S, "boots");
+  add(m + s.jackUp[0], "jack-lift");
+  add(m + s.jackUp[0] + 0.07, "jack-lift", { params: { pitch: 0.92, seed: 35 }, gain: 0.8 });
+  both(m + s.gunOff[0], "wheel-gun");
+  both(m + s.wheelOff[0] + 0.12, "wheel-off", { seed: 41 });
+  both(m + s.wheelOn[1] - 0.08, "wheel-on", { seed: 51 });
+  both(m + s.gunOn[0], "wheel-gun", { bursts: 10 });
+  if (s.tier === "slow") add(m + s.act, "wheel-gun", { pan: -0.5, gain: 0.8, params: { bursts: 6 } });
+  if (s.tier === "botched") {
+    for (let at = s.act; at < s.stuckUntil - 0.6; at += 1.3) add(m + at, "gun-stall", { pan: -0.5, gain: 0.8 });
+    add(m + s.swarmAt, "boots", { params: { length: 0.5, seed: 23 } });
+    add(m + s.stuckUntil - 0.3, "wheel-gun", { pan: -0.5, gain: 0.8, params: { bursts: 6 } });
+  }
+  if (s.tier === "disaster") {
+    add(m + s.fail, "jack-fail");
+    add(m + s.rejack[0], "jack-lift");
+    both(m + s.redo[0], "wheel-gun", { bursts: 8 });
+    both(m + s.redo[0] + 0.82, "wheel-on", { seed: 53 });
+    both(m + s.redo[0] + 0.9, "wheel-gun", { bursts: 8, seed: 20 });
+  }
+  add(s.go - 0.6, "lollipop-spin");
+  add(s.go - 0.05, "jack-drop");
+  add(s.go + 0.02, "jack-drop", { params: { thud: 85, seed: 10 }, gain: 0.8 });
+  add(s.go, "release-chime");
+  add(s.go + 0.1, "launch", { gain: 0.6 });
+  add(s.reset, "boots", { params: { seed: 22 } });
+  return ev.sort((a, b) => a.at - b.at);
+}
+
+/** The page's player: renders a cue once per parameter set and plays it panned through a master gain. */
+class Sound {
+  constructor() { this.ctx = null; this.buffers = new Map(); this.half = false; }
+  /** Needs a user gesture: the picker's Sound button or a cue's Play button. */
+  enable() {
+    if (!this.ctx) {
+      this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+      this.master = this.ctx.createGain();
+      this.master.gain.value = 0.8;
+      this.master.connect(this.ctx.destination);
+    }
+    if (this.ctx.state === "suspended") this.ctx.resume();
+  }
+  samples(id, params = {}) {
+    const key = `${id}|${JSON.stringify(params)}`;
+    if (!this.buffers.has(key)) this.buffers.set(key, tame(CUES[id].render(params)));
+    return this.buffers.get(key);
+  }
+  play(id, { gain = 1, pan = 0, params = {} } = {}) {
+    if (!this.ctx) return;
+    const samples = this.samples(id, params);
+    const buffer = this.ctx.createBuffer(1, samples.length, RATE);
+    buffer.copyToChannel(samples, 0);
+    const source = this.ctx.createBufferSource();
+    source.buffer = buffer;
+    source.playbackRate.value = this.half ? 0.5 : 1;
+    const g = this.ctx.createGain();
+    g.gain.value = gain * (LEVEL[id] ?? 1);
+    let tail = g;
+    if (this.ctx.createStereoPanner) { const p = this.ctx.createStereoPanner(); p.pan.value = pan; g.connect(p); tail = p; }
+    source.connect(g);
+    tail.connect(this.master);
+    source.start();
+  }
+}
+
 class Stage {
-  constructor(article, variantKey) {
+  constructor(article) {
     this.article = article;
-    this.key = variantKey;
-    this.variant = VARIANTS[variantKey];
     this.canvas = article.querySelector("canvas");
     this.clockEl = article.querySelector(".clock");
+    this.cueEl = article.querySelector(".cue");
     this.timelineEl = article.querySelector(".timeline");
     this.rosterEl = article.querySelector(".roster");
     this.renderer = new THREE.WebGLRenderer({ canvas: this.canvas, antialias: true });
@@ -848,7 +1132,7 @@ class Stage {
     this.controls.enabled = false;
     this.controls.target.set(0, 0.6, 0.5);
     this.scene = null;
-    this.rosterEl.innerHTML = this.variant.roles.map((r, i) => `<span><b>${i + 1}</b> ${r}: ${this.variant.stances[i]}</span>`).join("");
+    this.rosterEl.innerHTML = ROLES.map((r, i) => `<span><b>${i + 1}</b> ${r}: ${STANCES[i]}</span>`).join("");
     new ResizeObserver(() => this.resize()).observe(this.canvas);
     this.resize();
   }
@@ -876,42 +1160,50 @@ class Stage {
     this.scene.add(this.kart.body);
     for (const w of this.kart.wheels) this.scene.add(w.old, w.fresh);
     const people = roster(slot);
-    const kit = this.variant.kit(slot);
     const l = LIVERIES[slot];
-    const colours = { suit: l.key, stripe: this.key === "C" ? l.accent : C.white, glove: this.key === "A" ? people[0].skin : C.glove };
-    this.rigs = this.variant.people.map((p, i) => {
-      const rig = new Rig(people[p], kit, { ...colours, glove: this.key === "A" ? people[p].skin : C.glove });
-      const spot = rowSpot(i, this.variant.people.length);
+    const colours = { suit: l.key, stripe: C.white, glove: C.glove };
+    this.rigs = people.map((p, i) => {
+      const rig = new Rig(p, { headgear: "headset" }, colours);
+      const spot = rowSpot(i, people.length);
       rig.place(spot.x, spot.z, spot.yaw);
       this.scene.add(rig.root);
       return rig;
     });
-    // Props: the gunners' guns in their hands, two jacks on the apron, the version's sign.
+    // Props: the gunners' guns in their hands on air lines from the boom, two jacks, the lollipop.
     this.guns = [];
-    for (const i of this.gunnerIndices()) {
+    this.hoses = [];
+    for (const i of [2, 3, 4, 5]) {
       const gun = makeGun(l.key);
       gun.position.set(0.1, 0.1, 0.42);
       gun.rig = this.rigs[i];
       this.rigs[i].props.add(gun);
       this.guns.push(gun);
+      const geometry = new THREE.BufferGeometry();
+      geometry.setAttribute("position", new THREE.Float32BufferAttribute(new Float32Array(HOSE_POINTS * 3), 3));
+      const hose = new THREE.Line(geometry, new THREE.LineBasicMaterial({ color: C.hose }));
+      hose.frustumCulled = false;
+      hose.reel = new THREE.Vector3(Math.sign(CORNERS[i - 2].x) * REEL_X, BOOM_Y - 0.17, 0);
+      hose.gun = gun;
+      this.scene.add(hose);
+      this.hoses.push(hose);
     }
-    this.carried = [true, true, false, false];
     this.frontJack = makeJack(C.jackRed);
     this.rearJack = makeJack(C.jackRed);
     this.rearJack.rotation.y = Math.PI;
     this.scene.add(this.frontJack, this.rearJack);
-    if (this.key === "B") { this.sign = makeLollipop(); this.sign.position.set(0.32, -0.25, 0.3); this.rigs[6].props.add(this.sign); }
-    if (this.key === "A") { this.sign = makeBoard(); this.sign.position.set(0, 0.55, 0.15); this.rigs[4].props.add(this.sign); }
-    if (this.key === "C") { this.sign = makePaddle(); this.sign.position.set(0.3, 0.2, 0.3); this.rigs[8].props.add(this.sign); }
+    this.sign = makeLollipop();
+    this.sign.position.set(0.32, -0.25, 0.3);
+    this.rigs[6].props.add(this.sign);
     this.timelineEl.innerHTML = "";
   }
-  gunnerIndices() { return this.key === "A" ? [2, 3] : [2, 3, 4, 5]; }
-  drawTimeline(s) {
+  drawTimeline(s, events) {
     const segs = segments(s);
-    this.timelineEl.innerHTML = segs.map(([label, a, b, cls]) => `<span class="${cls ?? ""}" style="left:${(a / s.loop) * 100}%;width:${((b - a) / s.loop) * 100}%">${label}</span>`).join("") + `<div class="head"></div>`;
+    this.timelineEl.innerHTML = segs.map(([label, a, b, cls]) => `<span class="${cls ?? ""}" style="left:${(a / s.loop) * 100}%;width:${((b - a) / s.loop) * 100}%">${label}</span>`).join("")
+      + events.map((e) => `<i title="${CUES[e.id].name}" style="left:${(e.at / s.loop) * 100}%"></i>`).join("")
+      + `<div class="head"></div>`;
     this.head = this.timelineEl.querySelector(".head");
   }
-  /** Everything at loop time `t`: the kart, the lamps, the wheels and the crew's goals. */
+  /** Everything at loop time `t`: the kart, the lamps, the jacks, the wheels, the air lines and the crew's goals. */
   act(t, s, dt, clock) {
     const onMark = t - s.mark;
     // The kart: in on the guide, lifted by the jacks, off at the tick of green.
@@ -935,85 +1227,94 @@ class Stage {
     const LIFT = 0.16;
     this.kart.body.position.set(0, (front + rear) * LIFT * 0.5, z);
     this.kart.body.rotation.x = Math.atan2((rear - front) * LIFT, 1.04);
-    this.kart.body.head.rotation.y = t >= s.go - 0.6 ? 0 : Math.sin(clock * 0.8) * 0.3;
+    // The driver's eyes: on the lollipop through the stop, straight ahead from the spin.
+    const onSign = t >= APPROACH_S && t < s.go - 0.5;
+    this.kart.body.head.rotation.y = lerp(this.kart.body.head.rotation.y, onSign ? 0.28 : 0, 1 - Math.exp(-dt * 8));
+    this.kart.body.head.rotation.x = lerp(this.kart.body.head.rotation.x, onSign ? -0.3 : 0, 1 - Math.exp(-dt * 8));
     // The lamps: red from the guide to the tick, green for the hold after it.
     const red = between(t, APPROACH_S, s.go), green = between(t, s.go, s.go + GREEN_HOLD_S);
     this.lamps.red.material.color.setHex(red ? C.red : C.lampOff);
     this.lamps.green.material.color.setHex(green ? C.green : C.lampOff);
-    // The jacks: handle pumped to lift, flipped up to drop, dragged clear as the kart goes.
+    // The jacks: the front walked in on the guide, the rear swung in behind the kart's tail;
+    // the handle pumped to lift, flipped up to drop, the jack dragged clear as the kart goes.
     const pump = (p) => (p >= 1 ? 0.1 : 0.6 - Math.abs(Math.sin(p * Math.PI * 2)) * 0.5);
     const clear = ramp(t, s.go - 0.35, s.go + 0.2);
-    this.frontJack.position.set(0.9 * clear, 0, 1.3 + 0.3 * clear);
+    const frontIn = ramp(t, APPROACH_S - 0.2, s.mark - 0.1), rearIn = ramp(t, s.mark - 0.25, s.mark + 0.05);
+    const parked = t >= s.reset + 1.2 || t < RUN_OUT_S;
+    const frontGoal = parked ? [ROW_X + 0.8, 3.2] : [0.9 * clear, lerp(2.5, 1.3, ease(frontIn)) + 0.3 * clear];
+    const rearGoal = parked ? [ROW_X + 0.8, -3.2] : [lerp(1.0, 0, ease(rearIn)), lerp(-2.0, -1.3, ease(rearIn)) - 0.4 * clear];
+    const roll = dt > 0 ? 1 - Math.exp(-dt * 8) : 1;
+    this.frontJack.position.lerp(new THREE.Vector3(frontGoal[0], 0, frontGoal[1]), roll);
+    this.rearJack.position.lerp(new THREE.Vector3(rearGoal[0], 0, rearGoal[1]), roll);
     this.frontJack.handle.rotation.x = -(frontFailed ? 0.9 : t < s.mark ? 0.6 : down < 1 ? 0.8 : pump(front));
-    this.rearJack.position.set(0, 0, -1.3 - 0.4 * clear);
     this.rearJack.handle.rotation.x = -(t < s.mark ? 0.6 : down < 1 ? 0.8 : pump(rear));
-    // The wheels: worn ones on the hubs until pulled, fresh ones staged or carried until pushed.
+    // The wheels: worn ones on the hubs until pulled, fresh ones staged on the apron side until pushed.
     const wheelWorld = (c) => this.kart.body.localToWorld(new THREE.Vector3(c.x, c.r, c.z));
     const spin = (v / 0.28) * dt;
-    const corners = this.cornerBeats(s);
     CORNERS.forEach((c, i) => {
-      const w = this.kart.wheels[i], beats = corners[i], side = Math.sign(c.x);
-      const off = ramp(onMark, beats.wheelOff[0], beats.wheelOff[1]), on = ramp(onMark, beats.wheelOn[0], beats.wheelOn[1]);
+      const w = this.kart.wheels[i], side = Math.sign(c.x);
+      const off = ramp(onMark, s.wheelOff[0], s.wheelOff[1]), on = ramp(onMark, s.wheelOn[0], s.wheelOn[1]);
       const hub = wheelWorld(c);
       w.old.visible = !hidden && t < s.loop - 0.5;
       if (off === 0) { w.old.position.copy(hub); w.old.rotation.x -= spin; }
       else {
-        const roll = ramp(onMark, beats.wheelOff[1], beats.wheelOff[1] + 1.2);
+        const roll = ramp(onMark, s.wheelOff[1], s.wheelOff[1] + 1.2);
         w.old.position.set(lerp(hub.x, side * 1.55, ease(off)), lerp(hub.y, c.r, ease(off)), c.z - roll * 1.9);
         w.old.rotation.x += roll < 1 ? -dt * 6 : 0;
       }
-      const staged = this.stagedSpot(i, c, side);
+      const staged = new THREE.Vector3(side * 1.75, c.r, c.z - 0.1);
       w.fresh.visible = !hidden;
       if (on === 0) { w.fresh.position.copy(staged); }
       else { w.fresh.position.lerpVectors(staged, hub, ease(on)); }
       if (on >= 1 && t >= s.go) { w.fresh.position.copy(hub); w.fresh.rotation.x -= spin; }
     });
-    this.sign.visible = true;
-    this.crew(t, s, onMark, clock, { front, rear, frontFailed, corners });
+    this.crew(t, s, onMark, clock, { front, rear, frontFailed });
     for (const rig of this.rigs) rig.update(dt, clock);
     for (const gun of this.guns) gun.spin.rotation.y += dt * 40 * gun.rig.judder;
+    // The air lines: reel to gun with a sag, laid out after the rigs have moved.
+    this.scene.updateMatrixWorld();
+    const end = new THREE.Vector3(), p = new THREE.Vector3();
+    for (const hose of this.hoses) {
+      hose.gun.inlet.getWorldPosition(end);
+      const at = hose.geometry.getAttribute("position");
+      for (let k = 0; k < HOSE_POINTS; k += 1) {
+        const u = k / (HOSE_POINTS - 1);
+        p.lerpVectors(hose.reel, end, u);
+        p.y -= 0.8 * 4 * u * (1 - u);
+        at.setXYZ(k, p.x, p.y, p.z);
+      }
+      at.needsUpdate = true;
+    }
     this.clockEl.dataset.tier = s.tier;
     this.clockEl.querySelector("b").textContent = `${Math.max(0, Math.min(onMark, s.T)).toFixed(1)} s`;
     this.clockEl.querySelector("span").textContent = t < s.mark ? "Guide" : t < s.go ? `On the mark, ${s.tier}` : "Let go";
     if (this.head) this.head.style.left = `${(t / s.loop) * 100}%`;
   }
-  /** Where a corner's fresh wheel waits before it goes on. */
-  stagedSpot(i, c, side) {
-    if (this.key === "C") {
-      if (this.carried[i]) return this.rigs[side < 0 ? 6 : 7].torso.localToWorld(new THREE.Vector3(0, 0.25, 0.4));
-      return new THREE.Vector3(side * 1.95, c.r, c.z);
-    }
-    return new THREE.Vector3(side * 1.75, c.r, c.z - 0.1);
-  }
-  cornerBeats(s) {
-    if (this.key === "A") return [s.cycles[0], s.cycles[0], s.cycles[1], s.cycles[1]];
-    return [s, s, s, s];
-  }
   /** The crew's goals: who is where, facing what, in which pose. */
   crew(t, s, onMark, clock, state) {
     const n = this.rigs.length;
     const row = (i) => { const r = rowSpot(i, n); this.rigs[i].set(r.x, r.z, r.yaw, "stand"); };
-    const runningOut = t < APPROACH_S - 0.9;
-    const goingBack = t >= s.reset;
-    if (runningOut || goingBack) { this.rigs.forEach((_, i) => row(i)); if (this.key === "C") this.carried = [true, true, false, false]; return; }
+    if (t < RUN_OUT_S || t >= s.reset) { this.rigs.forEach((_, i) => row(i)); return; }
     const leaving = t >= s.go;
     const act = s.tier !== "record" && s.tier !== "clean" && onMark >= s.act;
     const disaster = s.tier === "disaster" && act && onMark < s.rejack[0];
-    // Jacks: at the lever through the lift, pushing on each pump, a step aside at the tick.
-    const jackPose = (lift, failed) => (failed ? "dismay" : lift > 0 && lift < 1 ? "jackPush" : "jack");
+    // Jacks: behind the lever as it rolls in, pushing on each pump, a step aside at the tick.
+    const jackPose = (lift) => (lift > 0 && lift < 1 ? "jackPush" : "jack");
     if (disaster) this.rigs[0].set(0.4, 3.3, Math.PI, "dismay", { headYaw: Math.sin(clock * 6) * 0.4 });
     else if (leaving) this.rigs[0].set(1.3, 2.4, Math.PI, "stand", { headYaw: -0.6 });
-    else this.rigs[0].set(0, 2.35, Math.PI, jackPose(state.front, false), { judder: 0 });
-    this.rigs[1].set(0, leaving ? -2.6 : -2.35, 0, leaving ? "stand" : jackPose(state.rear, false));
-    // Gunners.
-    const gunner = (i, corner, beats, opts = {}) => {
+    else this.rigs[0].set(this.frontJack.position.x, this.frontJack.position.z + 1.05, Math.PI, jackPose(state.front));
+    if (leaving) this.rigs[1].set(0, -2.6, 0, "stand");
+    // A step to the building's side of the lever, so the chase camera keeps the kart's tail.
+    else this.rigs[1].set(this.rearJack.position.x + 0.35, this.rearJack.position.z - 1.05, 0, jackPose(state.rear));
+    // Gunners: crouched at the hub, the pose from the beat, the gun juddering on the nut.
+    const gunner = (i, corner, opts = {}) => {
       const c = CORNERS[corner], side = Math.sign(c.x);
       const x = opts.x ?? side * GUNNER_X, z = opts.z ?? c.z, yaw = opts.yaw ?? faceKart(x);
       let pose = "crouch", judder = 0;
-      if (between(onMark, beats.gunOff[0], beats.gunOff[1]) || between(onMark, beats.gunOn[0], beats.gunOn[1])) judder = 1;
-      else if (between(onMark, beats.wheelOff[0], beats.wheelOff[1])) pose = "pull";
-      else if (between(onMark, beats.wheelOn[0], beats.wheelOn[1])) pose = "push";
-      else if (onMark >= beats.done) pose = "crouchHandUp";
+      if (between(onMark, s.gunOff[0], s.gunOff[1]) || between(onMark, s.gunOn[0], s.gunOn[1])) judder = 1;
+      else if (between(onMark, s.wheelOff[0], s.wheelOff[1])) pose = "pull";
+      else if (between(onMark, s.wheelOn[0], s.wheelOn[1])) pose = "push";
+      else if (onMark >= s.done) pose = "crouchHandUp";
       if (opts.pose) pose = opts.pose;
       if (opts.judder !== undefined) judder = opts.judder;
       this.rigs[i].set(x, z, yaw, pose, { judder, headYaw: opts.headYaw ?? 0 });
@@ -1022,104 +1323,41 @@ class Stage {
       const c = CORNERS[corner], side = Math.sign(c.x);
       this.rigs[i].set(side * (GUNNER_X + 0.5), c.z, faceKart(side), "stand", { headYaw: side > 0 ? 0.9 : -0.9 });
     };
-    if (this.key === "A") {
-      // Two gunners, each the front wheel of a side then the rear.
-      for (const [i, side] of [[2, -1], [3, 1]]) {
-        const first = side < 0 ? 0 : 1, second = side < 0 ? 2 : 3;
-        const corner = onMark < s.cycles[0].done + 0.1 ? first : second;
-        const beats = corner === first ? s.cycles[0] : s.cycles[1];
-        if (leaving) standOff(i, corner);
-        else if (disaster) standOff(i, corner);
-        else if (act && s.tier === "slow" && side < 0) gunner(i, 2, beats, { pose: onMark < s.stuckUntil ? "crouch" : "crouchHandUp", judder: onMark < s.stuckUntil ? 1 : 0 });
-        else if (act && s.tier === "botched") {
-          if (side < 0) gunner(i, 2, beats, { pose: onMark < s.stuckUntil ? "crouch" : "crouchHandUp", judder: onMark < s.stuckUntil ? 1 : 0 });
-          else if (onMark >= s.swarmAt) gunner(i, 2, beats, { x: -GUNNER_X, z: CORNERS[2].z - 0.5, yaw: Math.PI / 2 + 0.5, pose: onMark < s.stuckUntil ? "crouch" : "crouchHandUp", judder: onMark < s.stuckUntil ? 0.6 : 0 });
-          else gunner(i, corner, beats);
-        }
-        else if (s.tier === "disaster" && act) gunner(i, corner, s.cycles[1], { pose: onMark < s.redo[1] ? "crouch" : "crouchHandUp", judder: between(onMark, s.redo[0], s.redo[1]) ? 1 : 0 });
-        else gunner(i, corner, beats);
+    const stuck = (i) => gunner(i, 2, { pose: onMark < s.stuckUntil ? "crouch" : "crouchHandUp", judder: onMark < s.stuckUntil ? 1 : 0 });
+    for (let corner = 0; corner < 4; corner += 1) {
+      const i = 2 + corner;
+      if (leaving || disaster) standOff(i, corner);
+      else if (act && s.tier === "slow") { if (corner === 2) stuck(i); else gunner(i, corner); }
+      else if (act && s.tier === "botched") {
+        if (corner === 2) stuck(i);
+        else if (onMark >= s.swarmAt) {
+          const spots = [[-GUNNER_X, CORNERS[2].z - 0.5, Math.PI / 2 + 0.6], [-GUNNER_X - 0.55, CORNERS[2].z, Math.PI / 2], [-GUNNER_X, CORNERS[2].z + 0.5, Math.PI / 2 - 0.6]];
+          const [x, z, yaw] = spots[corner > 2 ? corner - 1 : corner];
+          gunner(i, 2, { x, z, yaw, pose: onMark < s.stuckUntil ? (corner === 3 ? "crouch" : "push") : "crouchHandUp", judder: onMark < s.stuckUntil && corner === 3 ? 0.7 : 0 });
+        } else gunner(i, corner);
       }
-      // The chief: ahead of the nose on the building's side, board overhead, swung to GO at the tick.
-      const chief = this.rigs[4];
-      const swing = ramp(t, s.go - 0.35, s.go + 0.05);
-      if (act && s.tier === "botched" && onMark >= s.swarmAt && !leaving) chief.set(-1.9, -0.2, Math.PI / 2, "point", { headYaw: 0.2 });
-      else chief.set(1.1, 3.2, Math.PI, "holdHigh", { headYaw: leaving ? 0.5 : 0 });
-      // STOP stays toward the lane whatever way the chief is turned, so the driver never reads GO early.
-      this.sign.rotation.y = Math.PI - chief.yaw + swing * Math.PI + (leaving ? Math.sin(clock * 10) * 0.15 : 0);
-      this.sign.rotation.z = leaving ? Math.sin(clock * 8) * 0.25 : 0;
+      else if (s.tier === "disaster" && act) {
+        // The front wheels again: nuts off, the wheel pulled and pushed back, nuts on.
+        const phase = onMark - s.redo[0];
+        let pose = "crouchHandUp", judder = 0;
+        if (corner < 2 && onMark < s.redo[1]) {
+          pose = phase < 0 ? "crouch" : phase < 0.5 ? "crouch" : phase < 0.7 ? "pull" : phase < 0.9 ? "push" : "crouch";
+          judder = (phase >= 0 && phase < 0.5) || phase >= 0.9 ? 1 : 0;
+        }
+        gunner(i, corner, { pose, judder });
+      }
+      else gunner(i, corner);
     }
-    if (this.key === "B") {
-      for (let corner = 0; corner < 4; corner += 1) {
-        const i = 2 + corner;
-        if (leaving) standOff(i, corner);
-        else if (disaster) standOff(i, corner);
-        else if (act && s.tier === "slow") {
-          if (corner === 2) gunner(i, 2, s, { pose: onMark < s.stuckUntil ? "crouch" : "crouchHandUp", judder: onMark < s.stuckUntil ? 1 : 0 });
-          else gunner(i, corner, s);
-        }
-        else if (act && s.tier === "botched") {
-          if (corner === 2) gunner(i, 2, s, { pose: onMark < s.stuckUntil ? "crouch" : "crouchHandUp", judder: onMark < s.stuckUntil ? 1 : 0 });
-          else if (onMark >= s.swarmAt) {
-            const spots = [[-GUNNER_X, CORNERS[2].z - 0.5, Math.PI / 2 + 0.6], [-GUNNER_X - 0.55, CORNERS[2].z, Math.PI / 2], [-GUNNER_X, CORNERS[2].z + 0.5, Math.PI / 2 - 0.6]];
-            const [x, z, yaw] = spots[corner > 2 ? corner - 1 : corner];
-            gunner(i, 2, s, { x, z, yaw, pose: onMark < s.stuckUntil ? (corner === 3 ? "crouch" : "push") : "crouchHandUp", judder: onMark < s.stuckUntil && corner === 3 ? 0.7 : 0 });
-          } else gunner(i, corner, s);
-        }
-        else if (s.tier === "disaster" && act) {
-          const redo = corner < 2;
-          gunner(i, corner, s, { pose: redo ? (onMark < s.redo[1] ? "crouch" : "crouchHandUp") : "crouchHandUp", judder: redo && between(onMark, s.redo[0], s.redo[1]) ? 1 : 0 });
-        }
-        else gunner(i, corner, s);
-      }
-      // The lollipop: off the nose on the building's side, STOP to the driver, spun then lifted.
-      const holder = this.rigs[6];
-      const spun = ramp(t, s.go - 0.6, s.go - 0.2), up = ramp(t, s.go, s.go + 0.3);
-      if (t >= s.go - 0.05) holder.set(1.35, 2.9, Math.PI + 0.3, "raisePole", { headYaw: -0.4 });
-      else holder.set(0.75, 2.9, Math.PI, "holdPole", { headPitch: 0.1 });
-      this.sign.rotation.y = Math.PI - holder.yaw + spun * Math.PI;
-      this.sign.position.set(0.32, -0.25 + up * 0.7, 0.3 - up * 0.2);
-      this.sign.rotation.x = -up * 0.4;
-    }
-    if (this.key === "C") {
-      for (let corner = 0; corner < 4; corner += 1) {
-        const i = 2 + corner;
-        if (leaving) standOff(i, corner);
-        else if (disaster) standOff(i, corner);
-        else if (act && s.tier === "slow" && corner === 2) gunner(i, 2, s, { pose: onMark < s.stuckUntil ? "crouch" : "crouchHandUp", judder: onMark < s.stuckUntil ? 1 : 0 });
-        else if (act && s.tier === "botched") {
-          if (corner === 2) gunner(i, 2, s, { pose: onMark < s.stuckUntil ? "crouch" : "crouchHandUp", judder: onMark < s.stuckUntil ? 1 : 0 });
-          else if (onMark >= s.swarmAt && corner === 3) gunner(i, 2, s, { x: -GUNNER_X, z: CORNERS[2].z - 0.55, yaw: Math.PI / 2 + 0.6, pose: onMark < s.stuckUntil ? "crouch" : "crouchHandUp", judder: onMark < s.stuckUntil ? 0.7 : 0 });
-          else gunner(i, corner, s);
-        }
-        else if (s.tier === "disaster" && act) {
-          const redo = corner < 2;
-          gunner(i, corner, s, { pose: redo ? (onMark < s.redo[1] ? "crouch" : "crouchHandUp") : "crouchHandUp", judder: redo && between(onMark, s.redo[0], s.redo[1]) ? 1 : 0 });
-        }
-        else gunner(i, corner, s);
-      }
-      // Carriers: a fresh wheel at the chest between the two wheels of a side, down to pull and push.
-      this.carried = this.carried ?? [true, true, false, false];
-      for (const [i, side] of [[6, -1], [7, 1]]) {
-        const frontCorner = side < 0 ? 0 : 1, rearCorner = side < 0 ? 2 : 3;
-        const x = side * (GUNNER_X + 0.75);
-        const busy = between(onMark, s.wheelOff[0] - 0.15, s.wheelOn[1] + 0.1);
-        if (leaving) this.rigs[i].set(side * (GUNNER_X + 1.1), 0, faceKart(side), "holdChest", { headYaw: side > 0 ? 0.9 : -0.9 });
-        else if (disaster) this.rigs[i].set(side * (GUNNER_X + 1.1), 0, faceKart(side), "stand", { headYaw: side > 0 ? 0.9 : -0.9 });
-        else if (act && (s.tier === "botched" || s.tier === "slow") && side < 0) this.rigs[i].set(-GUNNER_X - 0.1, CORNERS[2].z + 0.55, Math.PI / 2 - 0.6, onMark < s.stuckUntil ? "crouch" : "crouchHandUp");
-        else if (act && s.tier === "botched" && side > 0 && onMark >= s.swarmAt) this.rigs[i].set(-GUNNER_X - 0.6, CORNERS[2].z - 0.1, Math.PI / 2, "stand", { headPitch: 0.4 });
-        else if (busy) this.rigs[i].set(x, CORNERS[frontCorner].z, faceKart(side), between(onMark, s.wheelOff[0], s.wheelOff[1]) ? "pull" : "push");
-        else this.rigs[i].set(x, 0, faceKart(side), "holdChest");
-        // The front corners' fresh wheels are in the carriers' hands until they are on.
-        this.carried[frontCorner] = onMark < s.wheelOn[1];
-      }
-      // The chief beside the gantry: paddle red through the stop, green and raised at the tick.
-      const chief = this.rigs[8];
-      const up = ramp(t, s.go, s.go + 0.3);
-      chief.set(2.1, 2.0, Math.PI - 0.6, t >= s.go ? "raisePole" : "holdPole", { headYaw: -0.2 });
-      this.sign.position.set(0.3, 0.2 + up * 0.8, 0.3 - up * 0.15);
-      const lamp = t >= s.go && t < s.go + GREEN_HOLD_S ? C.green : t >= APPROACH_S && t < s.go ? C.red : C.lampOff;
-      for (const l of this.sign.lamps) l.material.color.setHex(lamp);
-    }
+    // The lollipop: off the nose on the building's side, STOP to the driver, a look down the
+    // lane a second before the tick, spun then lifted, the holder stepping aside.
+    const holder = this.rigs[6];
+    const spun = ramp(t, s.go - 0.6, s.go - 0.2), up = ramp(t, s.go, s.go + 0.3);
+    const laneCheck = between(t, s.go - 1.0, s.go - 0.55);
+    if (t >= s.go - 0.05) holder.set(1.35, 2.9, Math.PI + 0.3, "raisePole", { headYaw: -0.4 });
+    else holder.set(0.75, 2.9, Math.PI, "holdPole", { headPitch: laneCheck ? -0.1 : 0.1, headYaw: laneCheck ? 0.8 : 0 });
+    this.sign.rotation.y = Math.PI - holder.yaw + spun * Math.PI;
+    this.sign.position.set(0.32, -0.25 + up * 0.7, 0.3 - up * 0.2);
+    this.sign.rotation.x = -up * 0.4;
   }
   render() { if (this.scene) this.renderer.render(this.scene, this.camera); }
 }
@@ -1131,14 +1369,14 @@ class Faces {
     this.labels = labels;
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
     this.renderer.setPixelRatio(Math.min(2, window.devicePixelRatio));
-    this.camera = new THREE.OrthographicCamera(-5.5, 5.5, 0.75, -0.75, 0.1, 50);
+    this.camera = new THREE.OrthographicCamera(-4, 4, 0.75, -0.75, 0.1, 50);
     this.camera.position.set(0, 0, 10);
     this.camera.lookAt(0, 0, 0);
     new ResizeObserver(() => this.resize()).observe(canvas);
     this.resize();
   }
   resize() {
-    const w = this.canvas.clientWidth || 880, h = this.canvas.clientHeight || 192;
+    const w = this.canvas.clientWidth || 880, h = this.canvas.clientHeight || 165;
     this.renderer.setSize(w, h, false);
   }
   build(slot) {
@@ -1149,16 +1387,15 @@ class Faces {
     sun.position.set(-3, 5, 6);
     this.scene.add(sun);
     const people = roster(slot);
-    const kit = { headgear: "none" };
     const l = LIVERIES[slot];
-    this.heads = [makeHead(driverFace(slot), kit, 0.3), ...people.map((p) => makeHead(p, kit, 0.3))];
+    this.heads = [makeHead(driverFace(slot), { headgear: "none" }, 0.3), ...people.map((p) => makeHead(p, { headgear: "headset" }, 0.3))];
     this.heads.forEach((h, i) => {
-      h.position.set(-5 + i, -0.3, 0);
+      h.position.set(-3.5 + i, -0.3, 0);
       this.scene.add(h);
-      part(this.scene, box(0.6, 0.2, 0.3), i === 0 ? l.primary : l.key, [-5 + i, -0.4, 0]);
-      part(this.scene, box(0.3, 0.06, 0.2), i === 0 ? l.accent : C.white, [-5 + i, -0.29, 0.06]);
+      part(this.scene, box(0.6, 0.2, 0.3), i === 0 ? l.primary : l.key, [-3.5 + i, -0.4, 0]);
+      part(this.scene, box(0.3, 0.06, 0.2), i === 0 ? l.accent : C.white, [-3.5 + i, -0.29, 0.06]);
     });
-    this.labels.innerHTML = ["Driver", ...people.map((p, i) => `${i + 1} ${p.hair.replace(/-/g, " ")}`)].map((t) => `<span>${t}</span>`).join("");
+    this.labels.innerHTML = ["Driver", ...people.map((p, i) => `${i + 1} ${ROLES[i]}<br>${p.hair.replace(/-/g, " ")}`)].map((t) => `<span>${t}</span>`).join("");
   }
   render(clock) {
     if (!this.scene) return;
@@ -1167,19 +1404,49 @@ class Faces {
   }
 }
 
+// ---------- the cue table ----------
+function drawWave(canvas, samples) {
+  const w = (canvas.width = 288), h = (canvas.height = 52);
+  const ctx = canvas.getContext("2d");
+  ctx.clearRect(0, 0, w, h);
+  ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue("--wave").trim() || "#1b1d22";
+  const per = Math.max(1, Math.floor(samples.length / w));
+  for (let x = 0; x < w; x++) {
+    let peak = 0;
+    for (let i = x * per; i < (x + 1) * per && i < samples.length; i++) peak = Math.max(peak, Math.abs(samples[i]));
+    const bar = Math.max(1, peak * (h - 2));
+    ctx.fillRect(x, (h - bar) / 2, 1, bar);
+  }
+}
+function cueTable(sound, events) {
+  const host = document.getElementById("cue-rows");
+  const s = schedule("clean");
+  host.innerHTML = CUE_ORDER.map((id) => {
+    const cue = CUES[id];
+    const first = events.find((e) => e.id === id);
+    const at = first ? (first.at < s.mark ? `${first.at.toFixed(1)} s` : `+${(first.at - s.mark).toFixed(2)} s`) : "roll";
+    const status = { ships: "ships", new: "new", engine: "engine loop" }[cue.status];
+    return `<tr data-cue="${id}"><td class="when">${at}</td><td><div>${cue.beat}</div><div class="recipe">${cue.who}</div></td><td><span class="name">${cue.name}</span><span class="status ${cue.status}">${status}</span><canvas class="wave" aria-hidden="true"></canvas></td><td class="recipe">${cue.recipe}</td><td><button type="button" class="play" aria-label="Play ${cue.name}">Play</button></td></tr>`;
+  }).join("");
+  for (const row of host.querySelectorAll("tr")) {
+    const id = row.dataset.cue;
+    drawWave(row.querySelector("canvas"), sound.samples(id));
+    row.querySelector("button").addEventListener("click", () => { sound.enable(); sound.play(id); });
+  }
+}
+
 // ---------- the page ----------
 async function main() {
   try { await document.fonts.load('bold 100px "Silkscreen"'); } catch { /* the sign falls back to monospace */ }
-  const state = { slot: 0, tier: "clean", camera: "chase", playing: true, half: false };
-  const stages = [...document.querySelectorAll(".variant")].map((a) => new Stage(a, a.dataset.variant));
+  const state = { slot: 0, tier: "clean", camera: "chase", playing: true, half: false, sound: false };
+  const stage = new Stage(document.getElementById("variant-b"));
   const faces = new Faces(document.getElementById("faces"), document.getElementById("face-labels"));
+  const sound = new Sound();
   let sched = schedule(state.tier);
-  let loopT = 0, last = performance.now(), clock = 0;
-  const rebuild = () => {
-    for (const st of stages) { st.build(state.slot); st.drawTimeline(sched); st.setCamera(state.camera); }
-    faces.build(state.slot);
-    loopT = 0;
-  };
+  let events = cueEvents(sched);
+  let loopT = 0, prevT = 0, last = performance.now(), clock = 0;
+  const retime = () => { sched = schedule(state.tier); events = cueEvents(sched); stage.drawTimeline(sched, events); loopT = 0; prevT = 0; };
+  const rebuild = () => { stage.build(state.slot); stage.setCamera(state.camera); faces.build(state.slot); retime(); };
   const picker = (group, items, current, onPick) => {
     const host = document.querySelector(`.picker [data-pick="${group}"]`);
     for (const [value, label, dot] of items) {
@@ -1196,24 +1463,53 @@ async function main() {
     }
   };
   picker("livery", LIVERIES.map((l, i) => [String(i), l.name, `#${l.key.toString(16).padStart(6, "0")}`]), "0", (v) => { state.slot = Number(v); rebuild(); });
-  picker("tier", Object.keys(TIERS).map((k) => [k, `${k[0].toUpperCase()}${k.slice(1)} ${TIERS[k].toFixed(1)} s`]), state.tier, (v) => { state.tier = v; sched = schedule(v); for (const st of stages) st.drawTimeline(sched); loopT = 0; });
-  picker("camera", [["chase", "Chase"], ["side", "Side"], ["above", "Above"], ["orbit", "Orbit"]], state.camera, (v) => { state.camera = v; for (const st of stages) st.setCamera(v); });
+  picker("tier", Object.keys(TIERS).map((k) => [k, `${k[0].toUpperCase()}${k.slice(1)} ${TIERS[k].toFixed(1)} s`]), state.tier, (v) => { state.tier = v; retime(); });
+  picker("camera", [["chase", "Chase"], ["side", "Side"], ["above", "Above"], ["orbit", "Orbit"]], state.camera, (v) => { state.camera = v; stage.setCamera(v); });
   const play = document.getElementById("play");
   play.addEventListener("click", () => { state.playing = !state.playing; play.textContent = state.playing ? "Pause" : "Play"; play.setAttribute("aria-pressed", String(state.playing)); });
   const slow = document.getElementById("slow");
-  slow.addEventListener("click", () => { state.half = !state.half; slow.setAttribute("aria-pressed", String(state.half)); });
+  slow.addEventListener("click", () => { state.half = !state.half; sound.half = state.half; slow.setAttribute("aria-pressed", String(state.half)); });
+  const soundButton = document.getElementById("sound");
+  soundButton.addEventListener("click", () => {
+    state.sound = !state.sound;
+    if (state.sound) sound.enable();
+    soundButton.textContent = state.sound ? "Sound on" : "Sound off";
+    soundButton.setAttribute("aria-pressed", String(state.sound));
+  });
+  cueTable(sound, cueEvents(schedule("clean")));
   rebuild();
-  // For the smoke script: jump the loop to a time.
-  window.pitMockup = { seek: (t) => { loopT = t; }, at: () => loopT };
+  // The cues the loop clock crossed since the last frame, wrapping with the loop; a seek fires none.
+  let cueTimer = 0;
+  const fire = (from, to) => {
+    for (const e of events) {
+      if (!(e.at > from && e.at <= to)) continue;
+      if (state.sound) sound.play(e.id, e);
+      stage.cueEl.textContent = CUES[e.id].name;
+      stage.cueEl.classList.add("lit");
+      cueTimer = 0.9;
+    }
+  };
+  // For the smoke script: jump the loop to a time, read it, and render every cue.
+  window.pitMockup = {
+    seek: (t) => { loopT = t; prevT = t; },
+    at: () => loopT,
+    cues: () => Object.fromEntries(CUE_ORDER.map((id) => { const x = sound.samples(id); let peak = 0, finite = true; for (const v of x) { peak = Math.max(peak, Math.abs(v)); finite = finite && Number.isFinite(v); } return [id, { seconds: x.length / RATE, peak, finite }]; })),
+    events: () => events.map((e) => [e.at, e.id]),
+  };
   const frame = (now) => {
     let dt = Math.min(0.05, (now - last) / 1000);
     last = now;
     if (!state.playing) dt = 0;
     if (state.half) dt *= 0.5;
     clock += dt;
+    prevT = loopT;
     loopT += dt;
-    if (loopT >= sched.loop) loopT -= sched.loop;
-    for (const st of stages) { st.act(loopT, sched, dt, clock); st.render(); }
+    if (loopT >= sched.loop) { loopT -= sched.loop; fire(prevT, sched.loop + 1); fire(-1, loopT); }
+    else fire(prevT, loopT);
+    cueTimer -= dt;
+    if (cueTimer <= 0) stage.cueEl.classList.remove("lit");
+    stage.act(loopT, sched, dt, clock);
+    stage.render();
     faces.render(clock);
     requestAnimationFrame(frame);
   };
