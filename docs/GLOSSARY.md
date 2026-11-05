@@ -649,7 +649,7 @@ Instrument panel's tyre gauge shows it on the local kart drawn from above,
 its tyres green above 60%, yellow above 30% and red at 30% and below, read rounded up so
 0% means truly gone (ADR 0080). With Tyres Off it holds at 100%. Avoid: tyre
 wear, for the number. As it falls it costs speed and grip by ADR 0080's tables,
-steepest from the cliff at 30%; under that a kart trails light tyre smoke and
+as ADR 0087 steepens them, steepest from the cliff at 30%; under that a kart trails light tyre smoke and
 lays darker tyre marks.
 
 ### wash-out
