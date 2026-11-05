@@ -13,6 +13,7 @@ use common::{
 use sim::bot::{calls_for_the_pits, saves_its_tyres, PitReading};
 use sim::tuning::{
     BotPitCall, BOT_LEVELS, BOT_TYRE_LOSS_S_PER_LAP, COUNTDOWN_S, PIT_LIMIT_M_PER_S,
+    TYRE_LIFE_NEW_PERCENT,
 };
 use sim::{step, BotLevel, Item, ItemSlot, RaceEvent, State, Surface, Track, Tyres};
 
@@ -547,6 +548,36 @@ fn lap_time_held_at(course: fn() -> Track, life: f32, seeds: std::ops::Range<u64
         .map(|lap| lap.join().expect("the race ran"))
         .sum::<f32>()
         / count
+}
+
+/// A lone bot's first lap of the oval with its tyres held at `life` every tick.
+fn first_lap_held_at(life: f32) -> f32 {
+    let mut state =
+        started(State::with_tyres(SEED, 0, 1, oval(), BotLevel::Ace, Tyres::On).with_laps(3));
+    for _ in 0..ticks(180.0) {
+        state.adopt_tyre_life(0, life);
+        state = step(state, &[], DT);
+        let lapped = state.events().iter().find_map(|event| match event {
+            RaceEvent::LapCompleted { lap_time_s, .. } => Some(*lap_time_s),
+            _ => None,
+        });
+        if let Some(lap_time_s) = lapped {
+            return lap_time_s;
+        }
+    }
+    panic!("the bot never finished a lap");
+}
+
+/// The seam the lap costs are measured at: a bot's kart drives on the life
+/// it is handed, and worn right out it laps slower than on new tyres.
+#[test]
+fn a_bot_held_on_worn_out_tyres_laps_slower_than_one_held_on_new() {
+    let worn_out = first_lap_held_at(0.0);
+    let new = first_lap_held_at(TYRE_LIFE_NEW_PERCENT);
+    assert!(
+        new < worn_out,
+        "{new} s on new tyres, {worn_out} s worn out"
+    );
 }
 
 /// The seconds a lap costs at each life of `BOT_TYRE_LOSS_S_PER_LAP`, measured
