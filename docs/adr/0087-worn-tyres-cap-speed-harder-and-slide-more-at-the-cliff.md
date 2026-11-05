@@ -101,9 +101,10 @@ off Monarch's last bend. `docs/mockups/tyre-wear-and-pit-lane.html` keeps ADR
   0% in a pack, after a stint of 40% a lap in traffic, finishes 60 s behind a
   clean winner. Pro and Basic hold, every three-lap cell holds, and grass
   peaks at 35 on Monarch. An Ace that stops on the last lap under 20% instead
-  of 10% trims those to 37 and 28, not enough, so it is not taken. What gives
-  here is the maintainer's: the cap at 0%, the Ace's reading of its wear in a
-  pack, or the end cap ADR 0085 left alone.
+  of 10% trims those to 37 and 28, not enough, so it is not taken. The
+  maintainer keeps the cap and takes the two cells into the playtest; whether
+  the Ace's reading of its wear in a pack or the end cap ADR 0085 left alone
+  gives afterwards waits on it.
 - The three Tyres On replay fixtures are re-recorded; Tyres Off fixtures hash
   as before, since their life never wears.
 - Nothing drawn changes: the gauge bands and the speed readout already show it.
