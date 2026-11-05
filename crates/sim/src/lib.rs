@@ -1289,6 +1289,13 @@ impl State {
         }
     }
 
+    /// The kart in `slot` takes on `life` percent of tyre life from the next
+    /// tick, as it would a snapshot's word: the seam the bots' lap costs are
+    /// measured at, a bot held at one life a lap at a time (ADR 0087).
+    pub fn adopt_tyre_life(&mut self, slot: usize, life: f32) {
+        self.karts[slot].handling.adopt_tyre_life(life);
+    }
+
     /// Whether the end of the race waits on the kart in `slot`: a human's
     /// kart its human drives, or in a race with no humans any kart. Its
     /// finish starts the cap, and while it races the race stays open.

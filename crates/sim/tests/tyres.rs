@@ -6,11 +6,12 @@ mod common;
 
 use common::{
     follow_centreline, landed, oval, oval_with_boxes_under, started, steer_toward, tap, throttle,
-    ticks, track, with_slot_at, DT, FIGURE_EIGHT, SEED,
+    ticks, track, with_slot_at, without_coins, DT, FIGURE_EIGHT, OVAL, SEED,
 };
 
 use sim::tuning::{
-    TOP_SPEED_M_PER_S, TYRE_LIFE_NEW_PERCENT, TYRE_TOP_SPEED_FACTORS, TYRE_WEAR_SPIN_OUT_PERCENT,
+    TOP_SPEED_M_PER_S, TYRE_LIFE_CLIFF_PERCENT, TYRE_LIFE_NEW_PERCENT, TYRE_TOP_SPEED_FACTORS,
+    TYRE_WEAR_SPIN_OUT_PERCENT,
 };
 use sim::{
     step, BotLevel, Item, KartInput, KartReadout, Prediction, RaceEvent, State, Track, Tyres,
@@ -367,4 +368,35 @@ fn a_prediction_leaves_wear_from_another_kart_to_the_snapshots() {
         touching.kart_readout().tyre_life,
         alone.kart_readout().tyre_life
     );
+}
+
+/// The fastest a lone kart on the oval goes over a lap under no boost, with
+/// its tyres held at `life` every tick, as the speed readout shows it (ADR 0087).
+fn speed_cap_at_life_km_per_h(life_percent: f32) -> u32 {
+    let mut state = started(on(track(&without_coins(OVAL)), 1));
+    let mut fastest = 0.0_f32;
+    for _ in 0..ticks(180.0) {
+        state.adopt_tyre_life(0, life_percent);
+        let input = follow_centreline(&state, 0);
+        let free = state.kart_readouts()[0].boost_s.is_none();
+        state = step(state, &[input], DT);
+        let kart = state.kart_readouts()[0];
+        if free && kart.boost_s.is_none() {
+            fastest = fastest.max(kart.speed);
+        }
+        let lapped = state
+            .events()
+            .iter()
+            .any(|event| matches!(event, RaceEvent::LapCompleted { .. }));
+        if lapped {
+            return (fastest * 3.6).round() as u32;
+        }
+    }
+    panic!("the kart never finished a lap");
+}
+
+#[test]
+fn a_kart_at_the_cliff_caps_at_95_km_per_h_and_one_worn_out_at_76() {
+    assert_eq!(speed_cap_at_life_km_per_h(TYRE_LIFE_CLIFF_PERCENT), 95);
+    assert_eq!(speed_cap_at_life_km_per_h(0.0), 76);
 }

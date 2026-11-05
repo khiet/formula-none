@@ -1666,7 +1666,8 @@ mod tests {
             let gained = after_a_second(life, 0.0, FULL_THROTTLE);
             let expected = flat_out * TYRE_ACCELERATION_FACTORS[at];
             assert!((gained - expected).abs() < 1e-2, "at {life}%: {gained}");
-            let shed = 25.0 - after_a_second(life, 25.0, brake);
+            // From under every life's cap, so the cap sheds none of it.
+            let shed = 20.0 - after_a_second(life, 20.0, brake);
             let expected = full_brake * TYRE_BRAKING_FACTORS[at];
             assert!((shed - expected).abs() < 1e-2, "at {life}%: {shed}");
         }
@@ -1738,16 +1739,24 @@ mod tests {
 
     #[test]
     fn wash_out_slides_wide_of_the_corner_and_no_further_than_the_table() {
-        // Full lock at the speed each life tops out at is past the full load.
-        for at in [2, 3] {
-            let life = TYRE_LIFE_COLUMNS_PERCENT[at];
-            let most = TYRE_WASH_OUT_MOST_RAD[at];
-            let flat_out = TOP_SPEED_M_PER_S * TYRE_TOP_SPEED_FACTORS[at];
-            let right = slid_after_a_second(life, flat_out, 1.0);
-            let left = slid_after_a_second(life, flat_out, -1.0);
-            assert!((right - most).abs() < 1e-3, "at {life}%: {right}");
-            assert!((left + most).abs() < 1e-3, "at {life}%: {left}");
-        }
+        // Full lock at the speed the cliff tops out at is past the full load;
+        // worn right out, the cap holds the load short of it, so the kart
+        // slides most of the table's last column and never more.
+        let cliff = TYRE_LIFE_COLUMNS_PERCENT[2];
+        let most = TYRE_WASH_OUT_MOST_RAD[2];
+        let flat_out = TOP_SPEED_M_PER_S * TYRE_TOP_SPEED_FACTORS[2];
+        let right = slid_after_a_second(cliff, flat_out, 1.0);
+        let left = slid_after_a_second(cliff, flat_out, -1.0);
+        assert!((right - most).abs() < 1e-3, "at {cliff}%: {right}");
+        assert!((left + most).abs() < 1e-3, "at {cliff}%: {left}");
+
+        let gone = TYRE_LIFE_COLUMNS_PERCENT[3];
+        let most = TYRE_WASH_OUT_MOST_RAD[3];
+        let flat_out = TOP_SPEED_M_PER_S * TYRE_TOP_SPEED_FACTORS[3];
+        let right = slid_after_a_second(gone, flat_out, 1.0);
+        let left = slid_after_a_second(gone, flat_out, -1.0);
+        assert!(most / 2.0 < right && right < most, "at {gone}%: {right}");
+        assert!(-most < left && left < -most / 2.0, "at {gone}%: {left}");
     }
 
     #[test]
@@ -1775,10 +1784,15 @@ mod tests {
         ticks(&mut handling, lock, 30);
         assert!(handling.wash_out_rad != 0.0);
 
+        // The deepest slide lets go within a hop, before the kart lands.
         let mut in_the_air = handling.clone();
-        ticks(&mut in_the_air, KartInput { hop: true, ..lock }, 15);
+        let hop = KartInput { hop: true, ..lock };
+        tick(&mut in_the_air, hop);
+        while in_the_air.wash_out_rad != 0.0 {
+            assert!(in_the_air.airborne());
+            tick(&mut in_the_air, hop);
+        }
         assert!(in_the_air.airborne());
-        assert_eq!(in_the_air.wash_out_rad, 0.0);
 
         handling.respawn(Vec3::NEG_Z);
         assert_eq!(handling.wash_out_rad, 0.0);

@@ -8,11 +8,13 @@ mod common;
 
 use common::{
     bell_deer, goldstone, monarch, oval, quiet_bell_deer, started, ticks, track, with_slot_at,
-    with_slot_on_lane, BELL_DEER, DT, GOLDSTONE, MONARCH, SEED,
+    with_slot_on_lane, without_item_boxes, BELL_DEER, DT, GOLDSTONE, MONARCH, SEED,
 };
 use sim::bot::{calls_for_the_pits, saves_its_tyres, PitReading};
-use sim::tuning::{BotPitCall, BOT_LEVELS, COUNTDOWN_S, PIT_LIMIT_M_PER_S};
-use sim::{step, BotLevel, Item, ItemSlot, State, Surface, Track, Tyres};
+use sim::tuning::{
+    BotPitCall, BOT_LEVELS, BOT_TYRE_LOSS_S_PER_LAP, COUNTDOWN_S, PIT_LIMIT_M_PER_S,
+};
+use sim::{step, BotLevel, Item, ItemSlot, RaceEvent, State, Surface, Track, Tyres};
 
 /// A course by name, built afresh for each race.
 type Course = (&'static str, fn() -> Track);
@@ -367,6 +369,31 @@ fn a_lone_ace_bot_saves_its_way_to_the_flag_with_no_stop() {
     );
 }
 
+/// Three laps is the Sprint ADR 0083 kept a managing no-stop viable at, and
+/// ADR 0087's steeper factors keep it so: a lone Ace bot gets round every
+/// course with a lane on the tyres it started on.
+#[test]
+fn a_lone_ace_bot_runs_three_laps_of_every_lane_course_without_a_stop() {
+    for (name, course) in LANES {
+        let mut state =
+            started(State::with_tyres(SEED, 0, 1, course(), BotLevel::Ace, Tyres::On).with_laps(3));
+        for _ in 0..ticks(3.0 * 120.0) {
+            state = step(state, &[], DT);
+            if state.standings()[0].finish_time_s.is_some() {
+                break;
+            }
+        }
+        let kart = state.kart_readouts()[0];
+        assert!(state.standings()[0].finish_time_s.is_some(), "{name}");
+        assert_eq!(kart.stops, 0, "{name}");
+        assert!(
+            kart.tyre_life > 0.0,
+            "{name}: it reached the flag on {}",
+            kart.tyre_life
+        );
+    }
+}
+
 /// Most seeds' read of the first lap lands a lone bot within reach here, not all,
 /// so any of a handful will do.
 #[test]
@@ -490,14 +517,97 @@ fn in_200_races_of_eight_bots_on_tyres_on_the_field_gets_round() {
     assert!(refused.is_empty(), "{}", refused.join("\n"));
 }
 
+/// The mean of a lone Ace bot's second and third laps on `course` with its tyres
+/// held at `life` every tick, over `seeds`: nothing but the tyres moves the lap.
+fn lap_time_held_at(course: fn() -> Track, life: f32, seeds: std::ops::Range<u64>) -> f32 {
+    let count = (seeds.end - seeds.start) as f32;
+    let laps: Vec<_> = seeds
+        .map(|seed| {
+            std::thread::spawn(move || {
+                let mut state = started(
+                    State::with_tyres(seed, 0, 1, course(), BotLevel::Ace, Tyres::On).with_laps(3),
+                );
+                let mut timed = Vec::new();
+                while matches!(state.phase(), sim::Phase::Racing { .. }) {
+                    state.adopt_tyre_life(0, life);
+                    state = step(state, &[], DT);
+                    timed.extend(state.events().iter().filter_map(|event| match event {
+                        RaceEvent::LapCompleted {
+                            lap, lap_time_s, ..
+                        } if *lap >= 2 => Some(*lap_time_s),
+                        _ => None,
+                    }));
+                }
+                assert_eq!(timed.len(), 2, "seed {seed} at {life}%: {timed:?}");
+                timed.iter().sum::<f32>() / 2.0
+            })
+        })
+        .collect();
+    laps.into_iter()
+        .map(|lap| lap.join().expect("the race ran"))
+        .sum::<f32>()
+        / count
+}
+
+/// The seconds a lap costs at each life of `BOT_TYRE_LOSS_S_PER_LAP`, measured
+/// by a lone Ace bot held at that life on each course with a lane, raced without
+/// the lane and its item boxes (ADR 0087). The rows are the mean over the three
+/// courses, and each must sit within a second of it; the printout is the table to
+/// paste when they do not. Too slow for a debug build; run it with
+/// `cargo test --release -p sim --test bot_pits -- --ignored --nocapture measured`.
+#[test]
+#[ignore]
+fn the_lap_costs_an_ace_bot_weighs_are_measured_on_the_courses_with_a_lane() {
+    fn bell_deer_bare() -> Track {
+        track(&without_item_boxes(&without_its_lane_sidecar(BELL_DEER)))
+    }
+    fn goldstone_bare() -> Track {
+        track(&without_item_boxes(&without_its_lane_sidecar(GOLDSTONE)))
+    }
+    fn monarch_bare() -> Track {
+        track(&without_item_boxes(&without_its_lane_sidecar(MONARCH)))
+    }
+    let bare: [Course; 3] = [
+        ("Bell Deer", bell_deer_bare),
+        ("Goldstone", goldstone_bare),
+        ("Monarch", monarch_bare),
+    ];
+    let new = BOT_TYRE_LOSS_S_PER_LAP[0][0];
+    let mut off = Vec::new();
+    let mut rows = Vec::new();
+    for [life, in_the_table] in BOT_TYRE_LOSS_S_PER_LAP {
+        let costs: Vec<(&str, f32)> = bare
+            .iter()
+            .map(|&(name, course)| {
+                let on_new = lap_time_held_at(course, new, 0..4);
+                (name, lap_time_held_at(course, life, 0..4) - on_new)
+            })
+            .collect();
+        let mean = costs.iter().map(|(_, cost)| cost).sum::<f32>() / costs.len() as f32;
+        println!("{life:>5}%: {mean:5.1} s a lap, {costs:?}");
+        rows.push(format!("    [{life:.1}, {mean:.1}],"));
+        if (mean - in_the_table).abs() > 1.0 {
+            off.push(format!(
+                "{life}%: {in_the_table} s in the table, {mean:.1} s measured"
+            ));
+        }
+    }
+    println!("{}", rows.join("\n"));
+    assert!(off.is_empty(), "{}", off.join("\n"));
+}
+
 /// The sidecar's course without its lane, for a race nobody can stop in.
 fn without_its_lane(sidecar: &str) -> Track {
+    track(&without_its_lane_sidecar(sidecar))
+}
+
+fn without_its_lane_sidecar(sidecar: &str) -> String {
     let mut parsed: serde_json::Value = serde_json::from_str(sidecar).expect("valid JSON");
     parsed
         .as_object_mut()
         .expect("an object")
         .remove("pit_lane");
-    track(&parsed.to_string())
+    parsed.to_string()
 }
 
 /// The mean winning time over `seeds` of Ace bots on five laps.

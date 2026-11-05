@@ -447,22 +447,29 @@ pub const TYRE_LIFE_CLIFF_PERCENT: f32 = 30.0;
 pub const TYRE_LIFE_COLUMNS_PERCENT: [f32; 4] =
     [TYRE_LIFE_NEW_PERCENT, 60.0, TYRE_LIFE_CLIFF_PERCENT, 0.0];
 /// What those lives leave of the top speed cap, the steering rate, the
-/// acceleration and the braking.
-pub const TYRE_TOP_SPEED_FACTORS: [f32; 4] = [1.0, 0.99, 0.96, 0.86];
+/// acceleration and the braking. The cap falls steeply enough to read on
+/// the speedo before the gauge turns red (ADR 0087). The steering rate
+/// stays ADR 0080's: a bot shares it, and bots on a steeper one wore to 0%
+/// and then fell past the race's end cap and off Monarch's last bend.
+pub const TYRE_TOP_SPEED_FACTORS: [f32; 4] = [1.0, 0.97, 0.88, 0.70];
 pub const TYRE_STEER_RATE_FACTORS: [f32; 4] = [1.0, 0.97, 0.88, 0.65];
 pub const TYRE_ACCELERATION_FACTORS: [f32; 4] = [1.0, 0.97, 0.88, 0.70];
 pub const TYRE_BRAKING_FACTORS: [f32; 4] = [1.0, 0.98, 0.90, 0.75];
 /// The most, in radians, those lives let the line of travel slide wide of
-/// the facing.
-pub const TYRE_WASH_OUT_MOST_RAD: [f32; 4] = [0.0, 0.0, 0.05, 0.15];
+/// the facing. Held at 0% where a bot, which does not foresee the slide,
+/// still makes the turn into the pit lane at its approach speed (ADR 0087).
+pub const TYRE_WASH_OUT_MOST_RAD: [f32; 4] = [0.0, 0.0, 0.10, 0.15];
 /// A worn kart holds its line up to this speed times yaw rate, in m/s^2, and
 /// slides all the worn tyres allow from the full load. Full lock flat out
-/// is about 22.5 at 0% and 31 at 30%, so at any life past the cliff it slides
-/// as far as the table says, and a gentle steer never slides.
+/// is about 26.5 at 30% and 20.5 at 0%, where the worn cap holds the load
+/// short of the full one, so past the cliff it slides as far as the table
+/// says and worn right out most of it; the lane's approach at 20 m/s on
+/// tyres worn right out loads 19.9, and a gentle steer never slides.
 pub const TYRE_WASH_OUT_LIMIT_M_PER_S2: f32 = 16.0;
 pub const TYRE_WASH_OUT_FULL_M_PER_S2: f32 = 22.0;
 /// How fast a slide builds and lets go, so a keyed steer, all or nothing,
-/// bends the line rather than kinking it: the deepest in a quarter second.
+/// bends the line rather than kinking it: the deepest in a quarter second,
+/// and a hop's airtime lets the deepest go.
 pub const TYRE_WASH_OUT_RATE_RAD_PER_S: f32 = 0.6;
 /// Life lost per second rolling on the ground.
 pub const TYRE_WEAR_ROLLING_PER_S: f32 = 0.06;
@@ -686,20 +693,21 @@ pub const BOT_PIT_APPROACH_M_PER_S: f32 = 20.0;
 pub const BOT_PIT_LEAST_STINT_LAPS: f32 = 0.25;
 /// Seconds an Ace bot reckons a whole stop costs (ADR 0081).
 pub const BOT_PIT_STOP_COST_S: f32 = 8.0;
-/// `[tyre life, seconds a lap lost at it]`, new tyres first: the model's lap
-/// costs (`docs/mockups/tyre-wear-and-pit-lane.html`), which an Ace bot's
-/// projection weighs a stop against.
+/// `[tyre life, seconds a lap lost at it]`, new tyres first: the lap costs an
+/// Ace bot's projection weighs a stop against, measured by a lone Ace bot held
+/// at each life on the courses with a lane (ADR 0087). The sim's ignored
+/// measurement test refuses a row a second off what it measures.
 pub const BOT_TYRE_LOSS_S_PER_LAP: [[f32; 2]; 7] = [
     [100.0, 0.0],
-    [60.0, 0.6],
-    [40.0, 2.0],
-    [30.0, 2.7],
-    [20.0, 5.0],
-    [10.0, 7.5],
+    [60.0, 0.3],
+    [40.0, 4.6],
+    [30.0, 5.0],
+    [20.0, 8.1],
+    [10.0, 15.0],
     [0.0, BOT_TYRE_LOSS_WORN_OUT_S_PER_LAP],
 ];
 /// The table's last row: seconds a lap lost on tyres worn right out.
-pub const BOT_TYRE_LOSS_WORN_OUT_S_PER_LAP: f32 = 10.6;
+pub const BOT_TYRE_LOSS_WORN_OUT_S_PER_LAP: f32 = 17.4;
 
 /// How long a bot that rolled the boost holds the throttle before Go:
 /// midway through the full boost's window, clear of both edges.
@@ -985,7 +993,33 @@ const _: () = {
     assert!(TYRE_WASH_OUT_MOST_RAD[0] == 0.0);
     assert!(TYRE_WASH_OUT_MOST_RAD[3] < DRIFT_SLIP_ANGLE_RAD);
     assert!(TYRE_WASH_OUT_LIMIT_M_PER_S2 < TYRE_WASH_OUT_FULL_M_PER_S2);
+    // Full lock flat out on tyres worn right out loads them past the limit,
+    // so a kart worn right out still slides; the cap keeps it under the full
+    // load, so ADR 0087's bots make the lane's turn at their approach speed.
+    {
+        let flat_out = TOP_SPEED_M_PER_S * TYRE_TOP_SPEED_FACTORS[3];
+        let full_lock_rad_per_s = (STEER_RATE_LOW_SPEED_RAD_PER_S
+            - (STEER_RATE_LOW_SPEED_RAD_PER_S - STEER_RATE_TOP_SPEED_RAD_PER_S)
+                * TYRE_TOP_SPEED_FACTORS[3])
+            * TYRE_STEER_RATE_FACTORS[3];
+        assert!(TYRE_WASH_OUT_LIMIT_M_PER_S2 < flat_out * full_lock_rad_per_s);
+        assert!(flat_out * full_lock_rad_per_s < TYRE_WASH_OUT_FULL_M_PER_S2);
+    }
     assert!(0.0 < TYRE_WASH_OUT_RATE_RAD_PER_S);
+    // The lap costs run from new tyres, costing nothing, down to worn out,
+    // costing the most, so a life between two rows reads between them.
+    {
+        assert!(BOT_TYRE_LOSS_S_PER_LAP[0][0] == TYRE_LIFE_NEW_PERCENT);
+        assert!(BOT_TYRE_LOSS_S_PER_LAP[0][1] == 0.0);
+        let mut row = 1;
+        while row < BOT_TYRE_LOSS_S_PER_LAP.len() {
+            assert!(BOT_TYRE_LOSS_S_PER_LAP[row][0] < BOT_TYRE_LOSS_S_PER_LAP[row - 1][0]);
+            assert!(BOT_TYRE_LOSS_S_PER_LAP[row][1] >= BOT_TYRE_LOSS_S_PER_LAP[row - 1][1]);
+            row += 1;
+        }
+        assert!(BOT_TYRE_LOSS_S_PER_LAP[BOT_TYRE_LOSS_S_PER_LAP.len() - 1][0] == 0.0);
+    }
+    assert!(TYRE_WASH_OUT_MOST_RAD[3] <= TYRE_WASH_OUT_RATE_RAD_PER_S * HOP_AIRTIME_S);
     assert!(DRIFT_ENTRY_SPEED_FRACTION < TYRE_TOP_SPEED_FACTORS[3]);
     assert!(SLIPSTREAM_LEADER_SPEED_FRACTION < TYRE_TOP_SPEED_FACTORS[3]);
     assert!(OFF_TRACK_SPEED_FACTOR < TYRE_TOP_SPEED_FACTORS[3]);
