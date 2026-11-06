@@ -7,9 +7,10 @@ Straight, then Copse, the Maggotts and Becketts esses and Chapel, the Hangar
 Straight to Stowe, and Vale and Club back onto the grid. The ground is an old
 airfield, so there is no elevation; the lap is about speed and the esses.
 The scenery: the pits white inside the start straight, between Club and
-Abbey as Silverstone's are, with the grandstands across from them, hoardings round Luffield, Copse, Becketts and
-Stowe, the gantry over the line, a row of airfield hangars outside the
-Hangar Straight, and the display jets' flypast over them. The layout is docs/mockups/silverstone-course.html's.
+Abbey as Silverstone's are, with the grandstands across from them,
+hoardings round Luffield, Copse, Becketts and Stowe, the gantry over the
+line, a row of airfield hangars outside the Hangar Straight, and the display
+jets' flypast over them. The layout is docs/mockups/silverstone-course.html's.
 """
 
 from ..layout import (

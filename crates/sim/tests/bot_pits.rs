@@ -506,9 +506,9 @@ fn over_five_laps_a_levels_bots_do_not_all_pit_on_one_lap() {
 }
 
 /// The most karts of 1600, 200 races of eight, the end cap may catch over three
-/// laps and over five, and that may touch grass in a sweep. ADR 0085 has why these are not zero: the
-/// cap stays as ADR 0083 left it, and a kart launched over a wall lands where it
-/// lands, as it did before bots pitted.
+/// laps and over five, and that may touch grass in a sweep. ADR 0085 has why
+/// these are not zero: the cap stays as ADR 0083 left it, and a kart launched
+/// over a wall lands where it lands, as it did before bots pitted.
 const CAPPED_OVER_THREE_LAPS: usize = 4;
 const CAPPED_OVER_FIVE_LAPS: usize = 24;
 const ON_GRASS: usize = 40;
@@ -771,7 +771,7 @@ fn called_in_a_bot_short_of_the_lanes_first_point_reads_no_turn_there() {
     let towards = course.point_at(fork - 19.0);
     let call_yaw = f32::atan2(on_the_call[0] - towards[0], on_the_call[2] - towards[2]);
     let mut memory = sim::bot::Memory::default();
-    let mut look = |position: [f32; 3], yaw: f32| {
+    let mut drive_from = |position: [f32; 3], yaw: f32| {
         let state = started(State::with_tyres(
             SEED,
             0,
@@ -796,7 +796,7 @@ fn called_in_a_bot_short_of_the_lanes_first_point_reads_no_turn_there() {
             DT,
         )
     };
-    look(on_the_call, call_yaw);
-    let input = look(short, yaw);
+    drive_from(on_the_call, call_yaw);
+    let input = drive_from(short, yaw);
     assert_eq!(input.brake, 0.0, "{input:?}");
 }

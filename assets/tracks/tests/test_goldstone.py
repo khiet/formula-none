@@ -1,6 +1,7 @@
 """Goldstone, the course after Silverstone, checked without Blender: the lap
 docs/mockups/silverstone-course.html decided, flat and with no ramp; the
-pit building drawn white inside the Hamilton Straight, facing the grid; and the row of airfield hangars outside the Hangar Straight, each a
+pit building drawn white inside the Hamilton Straight, facing the grid;
+and the row of airfield hangars outside the Hangar Straight, each a
 barrel-roofed shed with its door toward the track, every footprint keeping
 the 8 m rule; and the display jets' formation over the hangars, flying
 against the race and keeping 30 m over every road its pass crosses.
@@ -60,8 +61,7 @@ def faces_right(face) -> bool:
 def faces_left(face) -> bool:
     """Whether a face given as (along, left of, up) points left: toward the track from a
     prop that stands right of it."""
-    (a0, _, c0), (a1, _, c1), (a2, _, c2) = face[:3]
-    return (c1 - c0) * (a2 - a0) - (a1 - a0) * (c2 - c0) > 0.0
+    return not faces_right(face)
 
 
 def family(geometry, prefix: str):
