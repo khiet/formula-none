@@ -256,6 +256,25 @@ def release(samples, seconds):
     return envelope(samples, lambda t: min(1.0, (end - t) / seconds))
 
 
+def pops(length, per_second, pop=0.02, decay=80, gain=0.6, seed=7):
+    """Random short bursts of noise at about `per_second`, for crackle and crunch."""
+    n = sec(length)
+    out = [0.0] * n
+    draw = rng(seed)
+    burst = rng(seed + 1)
+    gap = RATE / per_second
+    at = abs(draw()) * gap
+    while at < n:
+        start = math.floor(at + 0.5)
+        g = gain * (0.5 + 0.5 * abs(draw()))
+        for i in range(sec(pop)):
+            if start + i >= n:
+                break
+            out[start + i] += g * math.exp(-decay * (i / RATE)) * burst()
+        at += gap * (0.5 + abs(draw()))
+    return out
+
+
 # ---------------------------------------------------------------------------
 # The picks, parameters as the page names them.
 # ---------------------------------------------------------------------------
@@ -383,6 +402,95 @@ def jack_drop(thud=95, length=0.22, gain=0.6, seed=9):
         tone(thud, length, sine, decay=16, gain=gain, sweep_to=45, curve="exp"),
         noise(0.04, decay=80, gain=0.35, seed=seed),
     )
+
+
+# The stop's other beats, picked on `docs/mockups/pit-crew-animations.html`
+# ("The sounds of the stop"), each fired from the beat its pose reads.
+
+# Every wheel gun is raised by this over its render: at the page's gain it
+# peaks near 0.13, far under the chimes' 0.35.
+WHEEL_GUN_LEVEL = 2.5
+# The crew's boots, raised as the page plays them.
+BOOTS_LEVEL = 1.3
+
+
+def clack(seed, pitch=1.0):
+    """A metal clack: a bright click of noise over a short knock."""
+    return mix(
+        bandpass(noise(0.05, decay=60, gain=0.9, seed=seed), 1800, 1600),
+        tone(170 * pitch, 0.08, sine, decay=40, gain=0.4, sweep_to=90 * pitch, curve="exp"),
+    )
+
+
+def jack_lift(pitch=1.0, seed=31):
+    """Pump: two clacks of the lever a beat apart, then the ram's creak rising as the kart comes up."""
+    out = silence(0.7)
+    place(out, 0, clack(seed, pitch))
+    place(out, 0.2, clack(seed + 1, pitch))
+    creak = tone(70 * pitch, 0.35, saw, decay=6, gain=0.6, sweep_to=140 * pitch)
+    place(out, 0.28, lowpass(creak, 450), 0.8)
+    return release(out, 0.05)
+
+
+def wheel_off(seed=41):
+    """Thump and roll: the worn wheel's rubber hitting the apron, then rolling away in a slow wobble."""
+    roll = chop(lowpass(noise(0.8, decay=3.5, gain=0.8, seed=seed + 1), 320, 2), 9, 0.7)
+    return mix(
+        lowpass(noise(0.14, decay=28, gain=1.0, seed=seed), 500, 2),
+        tone(120, 0.2, sine, decay=18, gain=0.5, sweep_to=60, curve="exp"),
+        concat(silence(0.15), roll),
+    )
+
+
+def wheel_on(seed=51):
+    """Clonk: the fresh wheel seated on the hub, a short square knock with a click on top."""
+    return mix(
+        lowpass(tone(240, 0.14, square, decay=26, gain=0.35, sweep_to=150, curve="exp"), 900),
+        noise(0.03, decay=90, gain=0.5, seed=seed),
+    )
+
+
+def gun_stall(seed=60):
+    """Stall: the gun's bursts in stutters that will not take, a labouring grind between them."""
+    out = silence(1.3)
+    for i, at in enumerate([0, 0.05, 0.1, 0.42, 0.47, 0.82, 0.87, 0.92, 0.97]):
+        burst = noise(0.045, decay=45, gain=1.0, seed=seed + i)
+        place(out, at, bandpass(burst, 2300 - i * 50, 1800), 0.5)
+    for at, freq in [(0.15, 95), (0.55, 85)]:
+        grind = chop(tone(freq, 0.25, saw, decay=4, gain=0.45), 28, 1)
+        place(out, at, lowpass(grind, 500))
+    return release(out, 0.04)
+
+
+def jack_fail(seed=91):
+    """Clang and drop: the jack's lever ringing, the nose hitting the ground harder than a jack drop, a rattle of loose parts."""
+    rattle = pops(0.4, 30, pop=0.015, decay=100, gain=0.5, seed=seed + 1)
+    return mix(
+        tone(1180, 0.3, triangle, decay=10, gain=0.25),
+        tone(1770, 0.25, triangle, decay=14, gain=0.12),
+        concat(silence(0.12), jack_drop(thud=80, length=0.36, gain=0.7, seed=seed)),
+        concat(silence(0.18), lowpass(rattle, 1500)),
+    )
+
+
+def lollipop_spin(seed=71):
+    """Whoosh and clack: the disc swinging round and hitting its stop."""
+    out = silence(0.5)
+    whoosh = bandpass(noise(0.36, decay=0, gain=0.9, seed=seed), 1000, 1000)
+    place(out, 0, envelope(whoosh, lambda t: math.sin(math.pi * min(1.0, t / 0.36))))
+    place(out, 0.34, clack(seed + 1, 1.6), 0.6)
+    return release(out, 0.04)
+
+
+def release_chime(low=988, high=1319, length=0.12, decay=8, gain=0.35):
+    """The box chime's answer: the same two pulse notes a fourth up, the radio's go."""
+    return box_chime(low, high, length, decay, gain)
+
+
+def boots(length=0.9, seed=21):
+    """Boots: a patter of soft lowpassed pops, the crew running on concrete."""
+    patter = pops(length, 16, pop=0.025, decay=90, gain=0.6, seed=seed)
+    return release(lowpass(patter, 700, 2), 0.1)
 
 
 def grass(speed, centre=1200, width=800, swish_hz=8, depth=0.5, gain=0.4):
@@ -607,10 +715,24 @@ def sfx():
     write("tier-chime", tame(tier_chime()))
     # The BOX call (ADR 0080), as tyre life first falls to the cliff.
     write("box-chime", tame(box_chime()))
-    # The stop (ADR 0082): the crew's wheel guns as the kart lands on its
-    # mark, and the jack's drop as it is let go.
-    write("wheel-gun", tame(wheel_gun()))
+    # The stop (ADR 0082), a cue on each beat: the crew's boots on the
+    # catch, the jacks up on the mark, the guns off, each wheel off and on,
+    # the guns on in a shorter run, the sign's spin and on green the jack's
+    # drop and the radio's go. The tier's act has the gun's stall, the
+    # jack's failure, a short run as a stuck nut frees and the redo's runs.
+    write("boots", scale(tame(boots()), BOOTS_LEVEL))
+    write("jack-lift", tame(jack_lift()))
+    write("wheel-gun", scale(tame(wheel_gun()), WHEEL_GUN_LEVEL))
+    write("wheel-off", tame(wheel_off()))
+    write("wheel-on", tame(wheel_on()))
+    write("wheel-gun-on", scale(tame(wheel_gun(bursts=10)), WHEEL_GUN_LEVEL))
+    write("lollipop-spin", tame(lollipop_spin()))
     write("jack-drop", tame(jack_drop()))
+    write("release-chime", tame(release_chime()))
+    write("gun-stall", tame(gun_stall()))
+    write("jack-fail", tame(jack_fail()))
+    write("wheel-gun-act", scale(tame(wheel_gun(bursts=6)), WHEEL_GUN_LEVEL))
+    write("wheel-gun-redo", scale(tame(wheel_gun(bursts=8)), WHEEL_GUN_LEVEL))
     write("boost-pad", tame(boost_pad()))
     write("wrong-way", tame(wrong_way()))
     # In place of the lap as the kart finishes.

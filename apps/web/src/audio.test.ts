@@ -21,8 +21,7 @@ import { DEFAULT_AUDIO_SETTINGS } from "./audio-settings";
 
 const TOP_SPEED = 30;
 const STILL: SoundReading = {
-  stopping: false,
-  onTheMark: false,
+  stop: null,
   speed: 0,
   airborne: false,
   miniTurbo: null,
@@ -358,17 +357,18 @@ describe("preloading and the autoplay rule", () => {
         STAR_MUSIC_URL,
       ]),
     );
-    expect(fetched).toHaveLength(30);
+    // 25 SFX and the 11 the stop's beats added, 3 loops and 2 music files.
+    expect(fetched).toHaveLength(41);
     await settled();
     expect(contexts).toHaveLength(0);
     await audio.unlock();
     expect(contexts).toHaveLength(1);
     expect(context().resumes).toBe(1);
     // Decoded once, from the bytes already fetched, so the first play is not late.
-    expect(context().decoded).toHaveLength(30);
+    expect(context().decoded).toHaveLength(41);
     await audio.unlock();
     expect(contexts).toHaveLength(1);
-    expect(context().decoded).toHaveLength(30);
+    expect(context().decoded).toHaveLength(41);
   });
 
   it("resumes a context the browser suspended on a later gesture", async () => {
@@ -632,6 +632,50 @@ describe("the SFX", () => {
     expect(played("hop")).toBe(1);
   });
 
+  it("plays each beat of the stop from its own file, and none with the SFX toggle off", async () => {
+    const STOP_CUES: readonly SoundCue[] = [
+      "boots",
+      "jackLift",
+      "wheelGun",
+      "wheelOff",
+      "wheelOn",
+      "wheelGunOn",
+      "lollipopSpin",
+      "jackDrop",
+      "releaseChime",
+      "gunStall",
+      "jackFail",
+      "wheelGunAct",
+      "wheelGunRedo",
+    ];
+    /** A botched stop and a disaster, stepped a tenth at a time: between them every one of the stop's cues. */
+    const throughTheStop = (race: ReturnType<Harness["audio"]["race"]>) => {
+      for (const [tier, stationaryS] of [
+        ["botched", 6],
+        ["disaster", 10],
+      ] as const) {
+        race.update(STILL);
+        for (let tenth = -5; tenth < stationaryS * 10; tenth += 1) {
+          race.update({ ...STILL, stop: { tier, stationaryS, clock: tenth / 10, actFromS: 3 } });
+        }
+        race.update(STILL);
+      }
+    };
+    const silenced = harness({ ...DEFAULT_AUDIO_SETTINGS, sfx: false });
+    await silenced.audio.unlock();
+    const quiet = silenced.audio.race();
+    quiet.start();
+    throughTheStop(quiet);
+    for (const cue of STOP_CUES) expect(silenced.played(cue), cue).toBe(0);
+
+    const { audio, played } = harness();
+    await audio.unlock();
+    const race = audio.race();
+    race.start();
+    throughTheStop(race);
+    for (const cue of STOP_CUES) expect(played(cue), cue).toBeGreaterThan(0);
+  });
+
   it("plays nothing after the race is stopped", async () => {
     const { audio, played } = harness();
     await audio.unlock();
@@ -779,7 +823,7 @@ describe("a sound that fails to load", () => {
     await audio.unlock();
     const context = contexts[0];
     if (context === undefined) throw new Error("no context was made");
-    expect(context.decoded).toHaveLength(28);
+    expect(context.decoded).toHaveLength(39);
     const race = audio.race();
     race.start();
     race.update(STILL);

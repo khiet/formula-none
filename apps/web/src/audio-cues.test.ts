@@ -5,21 +5,24 @@ import {
   hornBlasts,
   loopPlayback,
   SOUND_AWAY_LOWPASS_HZ,
+  type SoundCue,
   type SoundReading,
   soundCues,
   soundLoops,
   soundReading,
   starMusic,
 } from "./audio-cues";
-import type { KartReadout, Phase, Standing } from "./bridge";
+import type { KartReadout, Phase, Standing, Stop, StopTier } from "./bridge";
 import { reelFrame } from "./item-reel";
 import { kartReadout } from "./kart-readout-fixture";
 import { raceReadout } from "./race-readout-fixture";
 import { EMPTY_SLOT, type ItemSlot, type RaceCount } from "./race-run";
 
+/** A clean stop's longest, the sim's `STOP_CLEAN_S`. */
+const CLEAN_STOP_S = 3;
+
 const STILL: SoundReading = {
-  stopping: false,
-  onTheMark: false,
+  stop: null,
   speed: 0,
   airborne: false,
   miniTurbo: null,
@@ -288,12 +291,12 @@ describe("soundCues", () => {
     const race = raceReadout({
       karts: [kartReadout({ slipstream: { tow: { leftS: 1 } }, speed: 34.5 })],
     });
-    const reading = soundReading(race, 0);
+    const reading = soundReading(race, 0, CLEAN_STOP_S);
     expect(reading.boostSeconds).toBeNull();
     expect(reading.towed).toBe(true);
-    expect(soundCues(soundReading(raceReadout({ karts: [kartReadout()] }), 0), reading)).toEqual([
-      "slipstream",
-    ]);
+    expect(
+      soundCues(soundReading(raceReadout({ karts: [kartReadout()] }), 0, CLEAN_STOP_S), reading),
+    ).toEqual(["slipstream"]);
   });
 
   it("plays the air horn in place of the item fire as a horn leaves the slot, once", () => {
@@ -452,13 +455,18 @@ describe("soundReading", () => {
   const racing: Phase = { kind: "racing", elapsedSeconds: 5, capLeftSeconds: null };
   /** The reading of the one kart of a race at `kart` on `standing` holding `itemSlot`. */
   const read = (kart: KartReadout, standing: Standing, itemSlot: ItemSlot, phase: Phase) =>
-    soundReading(raceReadout({ karts: [kart], standings: [standing], itemSlot, phase }), 0);
+    soundReading(
+      raceReadout({ karts: [kart], standings: [standing], itemSlot, phase }),
+      0,
+      CLEAN_STOP_S,
+    );
 
   it("reads the own kart's stop from its readout", () => {
     const stop = { tier: "clean", stationaryS: 2.6, guideLeftS: 0.2, stationarySoFarS: 0 } as const;
-    expect(read({ ...kart, stop }, standing, EMPTY_SLOT, racing)).toMatchObject({
-      stopping: true,
-      onTheMark: false,
+    const heard = { tier: "clean", stationaryS: 2.6, actFromS: CLEAN_STOP_S };
+    expect(read({ ...kart, stop }, standing, EMPTY_SLOT, racing).stop).toEqual({
+      ...heard,
+      clock: -0.2,
     });
     expect(
       read(
@@ -466,12 +474,9 @@ describe("soundReading", () => {
         standing,
         EMPTY_SLOT,
         racing,
-      ),
-    ).toMatchObject({ stopping: true, onTheMark: true });
-    expect(read(kart, standing, EMPTY_SLOT, racing)).toMatchObject({
-      stopping: false,
-      onTheMark: false,
-    });
+      ).stop,
+    ).toEqual({ ...heard, clock: 1 });
+    expect(read(kart, standing, EMPTY_SLOT, racing).stop).toBeNull();
   });
 
   it("takes the kart's speed, hop, charge and spin from the transform and the lap from the standing", () => {
@@ -497,8 +502,7 @@ describe("soundReading", () => {
       starSeconds: null,
       towed: false,
       boxCall: false,
-      stopping: false,
-      onTheMark: false,
+      stop: null,
       nearestStar: null,
       blasts: [],
       incomingDroneMetres: null,
@@ -514,15 +518,17 @@ describe("soundReading", () => {
       karts: [own, far, near, off],
       standings: [standing, standing, standing, standing],
     });
-    expect(soundReading(race, 0)).toMatchObject({
+    expect(soundReading(race, 0, CLEAN_STOP_S)).toMatchObject({
       starSeconds: 2,
       nearestStar: { kart: 2, seconds: 1.5, metres: 12 },
     });
-    expect(soundReading(race, 3)).toMatchObject({
+    expect(soundReading(race, 3, CLEAN_STOP_S)).toMatchObject({
       starSeconds: null,
       nearestStar: { kart: 0, seconds: 2, metres: Math.hypot(1, 1) },
     });
-    expect(soundReading(raceReadout({ karts: [off, off] }), 0).nearestStar).toBeNull();
+    expect(
+      soundReading(raceReadout({ karts: [off, off] }), 0, CLEAN_STOP_S).nearestStar,
+    ).toBeNull();
   });
 
   it("takes the other karts' blasts by distance, never the own kart's, and the nearest drone chasing the own kart", () => {
@@ -541,15 +547,15 @@ describe("soundReading", () => {
         { position: [0, 0, -5], owner: 0, target: 1 },
       ],
     });
-    expect(soundReading(race, 0)).toMatchObject({
+    expect(soundReading(race, 0, CLEAN_STOP_S)).toMatchObject({
       blasts: [{ id: 2, kart: 1, metres: 50 }],
       incomingDroneMetres: 20,
     });
-    expect(soundReading(race, 1)).toMatchObject({
+    expect(soundReading(race, 1, CLEAN_STOP_S)).toMatchObject({
       blasts: [{ id: 1, kart: 0, metres: 30 }],
       incomingDroneMetres: Math.hypot(30, 5),
     });
-    expect(soundReading(raceReadout({ karts: [own] }), 0)).toMatchObject({
+    expect(soundReading(raceReadout({ karts: [own] }), 0, CLEAN_STOP_S)).toMatchObject({
       blasts: [],
       incomingDroneMetres: null,
     });
@@ -641,12 +647,142 @@ describe("the BOX chime", () => {
 });
 
 describe("the stop's sounds", () => {
-  it("rattles the wheel guns as the kart lands on its mark and drops the jack as the stop ends", () => {
-    const guided = { ...STILL, stopping: true, onTheMark: false };
-    const onTheMark = { ...STILL, stopping: true, onTheMark: true };
-    expect(soundCues(STILL, guided)).toEqual([]);
-    expect(soundCues(guided, onTheMark)).toEqual(["wheelGun"]);
-    expect(soundCues(onTheMark, onTheMark)).toEqual([]);
-    expect(soundCues(onTheMark, STILL)).toEqual(["jackDrop"]);
+  const TICK_S = 1 / 60;
+  const GUIDE_S = 0.5;
+  const stopping = (stop: Stop | null, kart = 0): SoundReading =>
+    soundReading(
+      raceReadout({
+        karts: [0, 1].map((slot) => kartReadout(slot === kart ? { stop } : {})),
+      }),
+      0,
+      CLEAN_STOP_S,
+    );
+  const guided = (tier: StopTier, stationaryS: number, guideLeftS: number): Stop => ({
+    tier,
+    stationaryS,
+    guideLeftS,
+    stationarySoFarS: 0,
+  });
+  const onMark = (tier: StopTier, stationaryS: number, stationarySoFarS: number): Stop => ({
+    tier,
+    stationaryS,
+    guideLeftS: 0,
+    stationarySoFarS,
+  });
+
+  /**
+   * Every cue a stop of `tier` lasting `stationaryS` sounds, stepped a tick
+   * at a time from the tick before the catch to the tick after green, with
+   * the stop clock of the tick that sounded it: green's is `stationaryS`.
+   */
+  function heardThrough(tier: StopTier, stationaryS: number): [SoundCue, number][] {
+    const readings: [SoundReading, number][] = [[stopping(null), -GUIDE_S - TICK_S]];
+    for (let left = GUIDE_S; left > 1e-9; left -= TICK_S) {
+      readings.push([stopping(guided(tier, stationaryS, left)), -left]);
+    }
+    for (let tick = 0; tick * TICK_S < stationaryS; tick += 1) {
+      readings.push([stopping(onMark(tier, stationaryS, tick * TICK_S)), tick * TICK_S]);
+    }
+    readings.push([stopping(null), stationaryS]);
+    const heard: [SoundCue, number][] = [];
+    readings.forEach(([reading, clock], i) => {
+      for (const cue of soundCues(readings[i - 1]?.[0], reading)) heard.push([cue, clock]);
+    });
+    return heard;
+  }
+
+  /** `heard` is `expected` in order, each cue on the first tick at or past its beat. */
+  function expectBeats(heard: [SoundCue, number][], expected: [SoundCue, number][]) {
+    expect(heard.map(([cue]) => cue)).toEqual(expected.map(([cue]) => cue));
+    heard.forEach(([, clock], i) => {
+      const at = expected[i]?.[1] ?? Number.NaN;
+      expect(clock).toBeGreaterThanOrEqual(at - 1e-6);
+      expect(clock).toBeLessThan(at + TICK_S);
+    });
+  }
+
+  const BEATS_ON_THE_MARK: [SoundCue, number][] = [
+    ["jackLift", 0],
+    ["wheelGun", 0.25],
+    ["wheelOff", 0.85],
+    ["wheelOn", 1.25],
+    ["wheelGunOn", 1.65],
+  ];
+
+  it("sounds each beat of a clean stop once, on its tick: boots on the catch and the jack and the go on green", () => {
+    expectBeats(heardThrough("clean", 2.65), [
+      ["boots", -GUIDE_S],
+      ...BEATS_ON_THE_MARK,
+      ["lollipopSpin", 2.05],
+      ["jackDrop", 2.65],
+      ["releaseChime", 2.65],
+    ]);
+  });
+
+  it("plays a record stop's beats faster, scaled by its stationary time", () => {
+    const scale = 2 / 2.65;
+    expectBeats(heardThrough("record", 2), [
+      ["boots", -GUIDE_S],
+      ...BEATS_ON_THE_MARK.map(([cue, at]): [SoundCue, number] => [cue, at * scale]),
+      ["lollipopSpin", 1.4],
+      ["jackDrop", 2],
+      ["releaseChime", 2],
+    ]);
+  });
+
+  it("puts a short run of the gun on a slow stop's stubborn nut as its act starts", () => {
+    expectBeats(heardThrough("slow", 4), [
+      ["boots", -GUIDE_S],
+      ...BEATS_ON_THE_MARK,
+      ["wheelGunAct", CLEAN_STOP_S],
+      ["lollipopSpin", 3.4],
+      ["jackDrop", 4],
+      ["releaseChime", 4],
+    ]);
+  });
+
+  it("stalls a botched stop's gun every 1.3 s, runs the swarm in and frees the nut with a short run", () => {
+    expectBeats(heardThrough("botched", 6), [
+      ["boots", -GUIDE_S],
+      ...BEATS_ON_THE_MARK,
+      ["gunStall", CLEAN_STOP_S],
+      ["boots", CLEAN_STOP_S + 0.25],
+      ["gunStall", CLEAN_STOP_S + 1.3],
+      // The run ends as the nut frees, half a second before green.
+      ["wheelGunAct", 6 - 0.5 - 0.3],
+      ["lollipopSpin", 5.4],
+      ["jackDrop", 6],
+      ["releaseChime", 6],
+    ]);
+  });
+
+  it("drops a disaster's jack, pumps it back up and redoes the corner", () => {
+    expectBeats(heardThrough("disaster", 10), [
+      ["boots", -GUIDE_S],
+      ...BEATS_ON_THE_MARK,
+      ["jackFail", CLEAN_STOP_S],
+      ["jackLift", 7],
+      ["wheelGunRedo", 7.5],
+      ["wheelOn", 8.2],
+      ["wheelGunRedo", 8.4],
+      ["lollipopSpin", 9.4],
+      ["jackDrop", 10],
+      ["releaseChime", 10],
+    ]);
+  });
+
+  it("sounds no beat a seek or a reconnect passes, and no boots for a stop first read on its mark", () => {
+    const at = (clock: number) => stopping(onMark("clean", 2.65, clock));
+    expect(soundCues(at(0.1), at(1.5))).toEqual([]);
+    expect(soundCues(at(1.5), at(0.1))).toEqual([]);
+    expect(soundCues(undefined, at(0.3))).toEqual([]);
+    expect(soundCues(stopping(null), at(0.3))).toEqual([]);
+    expect(soundCues(at(0.24), at(0.26))).toEqual(["wheelGun"]);
+  });
+
+  it("hears only the own kart's stop", () => {
+    const rival = stopping(guided("clean", 2.65, GUIDE_S), 1);
+    expect(rival.stop).toBeNull();
+    expect(soundCues(stopping(null), rival)).toEqual([]);
   });
 });
