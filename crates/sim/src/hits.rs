@@ -1,7 +1,7 @@
 //! Which items spin out which karts. `step` asks once a tick, after the
-//! karts have moved, and the Air Horn asks at its fire; each answer is the
-//! hits to apply, in order, with the items it uses up already gone from the
-//! lists it was handed. Who an item spares is one rule, [`fate`]: a star
+//! karts have moved, and the Air Horn asks at its fire; each answer is a
+//! [`Resolution`]: the hits to apply, in order, and the items to despawn.
+//! Who an item spares is one rule, [`fate`]: a star
 //! kart (ADR 0075), a kart already spun out, a kart on the lane's safe
 //! ground (ADR 0081), which the runaway wheel ignores, and a kart the
 //! wheel's current pass has already hit.
@@ -80,6 +80,43 @@ pub(crate) struct Hit {
     pub(crate) source: Source,
 }
 
+/// The items a resolution uses up, by index into the lists it was handed.
+/// The caller applies them to those same lists, unchanged since.
+#[derive(Debug)]
+pub(crate) struct Despawns {
+    hazards: Vec<bool>,
+    projectiles: Vec<bool>,
+}
+
+impl Despawns {
+    fn none(hazards: usize, projectiles: usize) -> Self {
+        Self {
+            hazards: vec![false; hazards],
+            projectiles: vec![false; projectiles],
+        }
+    }
+
+    /// Take every item used up out of its list, keeping the rest in order.
+    pub(crate) fn apply(
+        &self,
+        hazards: &mut Vec<PlacedHazard>,
+        projectiles: &mut Vec<FlyingProjectile>,
+    ) {
+        let mut used_up = self.hazards.iter();
+        hazards.retain(|_| !used_up.next().expect("one flag a hazard"));
+        let mut used_up = self.projectiles.iter();
+        projectiles.retain(|_| !used_up.next().expect("one flag a projectile"));
+    }
+}
+
+/// What a resolution asks of the race: the karts to spin out, in order, and
+/// the items to despawn.
+#[derive(Debug)]
+pub(crate) struct Resolution {
+    pub(crate) hits: Vec<Hit>,
+    pub(crate) despawns: Despawns,
+}
+
 /// An item that has reached a kart, as [`fate`] judges it.
 #[derive(Debug, Clone, Copy)]
 enum Reaching {
@@ -149,11 +186,12 @@ fn fate(target: &Target, item: Reaching) -> Fate {
     }
 }
 
-/// The index of the hazard the kart in `slot` trails, if any.
-fn shield(hazards: &[PlacedHazard], slot: usize) -> Option<usize> {
-    hazards
-        .iter()
-        .position(|placed| placed.hazard.held && placed.hazard.owner == slot)
+/// The index of the hazard the kart in `slot` trails, if any, passing over
+/// those already used up.
+fn shield(hazards: &[PlacedHazard], used_up: &[bool], slot: usize) -> Option<usize> {
+    hazards.iter().zip(used_up).position(|(placed, &used_up)| {
+        !used_up && placed.hazard.held && placed.hazard.owner == slot
+    })
 }
 
 /// The tick's hits from every item but the Air Horn, in the order to apply
@@ -162,17 +200,19 @@ fn shield(hazards: &[PlacedHazard], slot: usize) -> Option<usize> {
 /// whether each holds the item button, `wheels` each rolling pass of the
 /// runaway wheel and where it is. On the way the held hazards trail their
 /// owners, the dropped ones age, the projectiles fly one tick of `dt`
-/// seconds, and every item used up leaves its list.
+/// seconds, in place; the items used up stay in their lists for the caller
+/// to despawn.
 pub(crate) fn resolve(
     track: &Track,
     mut targets: Vec<Target>,
     holds: &[bool],
     wheels: &[(u32, [f32; 3])],
-    hazards: &mut Vec<PlacedHazard>,
-    projectiles: &mut Vec<FlyingProjectile>,
+    hazards: &mut [PlacedHazard],
+    projectiles: &mut [FlyingProjectile],
     dt: f32,
-) -> Vec<Hit> {
+) -> Resolution {
     let mut hits = Vec::new();
+    let mut despawns = Despawns::none(hazards.len(), projectiles.len());
     let mut hit = |targets: &mut [Target], kart: usize, source: Source| {
         targets[kart].spun_out = true;
         if let Source::Wheel(pass) = source {
@@ -215,17 +255,24 @@ pub(crate) fn resolve(
     // A dropped hazard ages away; one still lying there spins out the first
     // kart to reach it, its owner included once the owner has got clear of
     // it, and is used up.
-    hazards.retain_mut(|placed| {
+    for (placed, used_up) in hazards.iter_mut().zip(&mut despawns.hazards) {
         // No hazard lands in the lane: one let go over it is gone.
         if track.in_pit_lane(placed.hazard.position) {
-            return false;
+            *used_up = true;
+            continue;
         }
         if !placed.hazard.held {
             placed.lifetime_left_s -= dt;
             if placed.lifetime_left_s <= 0.0 {
-                return false;
+                *used_up = true;
+                continue;
             }
         }
+        let item = if placed.hazard.held {
+            Reaching::HeldHazard
+        } else {
+            Reaching::DroppedHazard
+        };
         for slot in 0..targets.len() {
             let reached = targets[slot].reaches(placed.hazard.position, HAZARD_RADIUS_M);
             if slot == placed.hazard.owner && !placed.clear_of_owner {
@@ -235,20 +282,15 @@ pub(crate) fn resolve(
             if !reached {
                 continue;
             }
-            let item = if placed.hazard.held {
-                Reaching::HeldHazard
-            } else {
-                Reaching::DroppedHazard
-            };
             match fate(&targets[slot], item) {
                 Fate::Passes => continue,
                 Fate::Hit => hit(&mut targets, slot, Source::Hazard(placed.hazard.owner)),
                 Fate::UsedUp | Fate::Shielded => {}
             }
-            return false;
+            *used_up = true;
+            break;
         }
-        true
-    });
+    }
     // A rolling wheel spins out every kart it reaches, once a pass.
     for &(pass, position) in wheels {
         for slot in 0..targets.len() {
@@ -262,18 +304,18 @@ pub(crate) fn resolve(
     // A projectile flies after its target and is used up on reaching the
     // kart: on a hazard the kart trails, which goes with it, else on the
     // kart itself.
-    projectiles.retain_mut(|flying| {
+    for (flying, used_up) in projectiles.iter_mut().zip(&mut despawns.projectiles) {
         let slot = flying.projectile.target;
         fly(flying, track, targets[slot].translation, dt);
-        let trailed = shield(hazards, slot);
+        let trailed = shield(hazards, &despawns.hazards, slot);
         let item = Reaching::Projectile {
             reached: targets[slot].reaches(flying.projectile.position, HOMING_RADIUS_M),
             shielded: trailed.is_some(),
         };
         match fate(&targets[slot], item) {
-            Fate::Passes => return true,
+            Fate::Passes => continue,
             Fate::Shielded => {
-                hazards.remove(trailed.expect("only a trailed hazard shields"));
+                despawns.hazards[trailed.expect("only a trailed hazard shields")] = true;
             }
             Fate::Hit => hit(
                 &mut targets,
@@ -282,9 +324,9 @@ pub(crate) fn resolve(
             ),
             Fate::UsedUp => {}
         }
-        false
-    });
-    hits
+        *used_up = true;
+    }
+    Resolution { hits, despawns }
 }
 
 /// The Air Horn's blast as its reach is judged (ADR 0076): from `centre`,
@@ -343,17 +385,18 @@ impl HornBlast {
         &self,
         firer: usize,
         targets: &[Target],
-        hazards: &mut Vec<PlacedHazard>,
-        projectiles: &mut Vec<FlyingProjectile>,
-    ) -> Vec<Hit> {
+        hazards: &[PlacedHazard],
+        projectiles: &[FlyingProjectile],
+    ) -> Resolution {
         let mut hits = Vec::new();
+        let mut despawns = Despawns::none(hazards.len(), projectiles.len());
         for (slot, target) in targets.iter().enumerate() {
             if slot == firer
                 || !self.reaches_kart(target.translation, &target.rotation, target.progress)
             {
                 continue;
             }
-            let trailed = shield(hazards, slot);
+            let trailed = shield(hazards, &despawns.hazards, slot);
             let item = Reaching::Horn {
                 shielded: trailed.is_some(),
             };
@@ -363,17 +406,19 @@ impl HornBlast {
                     source: Source::Horn(firer),
                 }),
                 Fate::Shielded => {
-                    hazards.remove(trailed.expect("only a trailed hazard shields"));
+                    despawns.hazards[trailed.expect("only a trailed hazard shields")] = true;
                 }
                 Fate::Passes | Fate::UsedUp => {}
             }
         }
-        hazards.retain(|placed| {
-            placed.hazard.held || !self.reaches_point(placed.hazard.position, placed.progress)
-        });
-        projectiles
-            .retain(|flying| !self.reaches_point(flying.projectile.position, flying.progress));
-        hits
+        for (placed, used_up) in hazards.iter().zip(&mut despawns.hazards) {
+            *used_up |=
+                !placed.hazard.held && self.reaches_point(placed.hazard.position, placed.progress);
+        }
+        for (flying, used_up) in projectiles.iter().zip(&mut despawns.projectiles) {
+            *used_up = self.reaches_point(flying.projectile.position, flying.progress);
+        }
+        Resolution { hits, despawns }
     }
 }
 
@@ -535,7 +580,20 @@ mod tests {
         wheels: &[(u32, [f32; 3])],
     ) -> Vec<Hit> {
         let holds = vec![true; targets.len()];
-        resolve(&oval(), targets, &holds, wheels, hazards, projectiles, DT)
+        let resolution = resolve(&oval(), targets, &holds, wheels, hazards, projectiles, DT);
+        resolution.despawns.apply(hazards, projectiles);
+        resolution.hits
+    }
+
+    /// The horn's hits from slot 0, with the items it uses up despawned.
+    fn blown(
+        targets: &[Target],
+        hazards: &mut Vec<PlacedHazard>,
+        projectiles: &mut Vec<FlyingProjectile>,
+    ) -> Vec<Hit> {
+        let resolution = blast().resolve(0, targets, hazards, projectiles);
+        resolution.despawns.apply(hazards, projectiles);
+        resolution.hits
     }
 
     #[test]
@@ -570,6 +628,28 @@ mod tests {
         let hits = resolved(targets, &mut hazards, &mut Vec::new(), &[]);
         assert_eq!(hits, vec![hit(0, Source::Hazard(1))]);
         assert!(hazards.is_empty());
+    }
+
+    #[test]
+    fn the_items_used_up_wait_in_their_lists_for_the_caller_to_despawn() {
+        let targets = vec![kart(0.0), kart(20.0), kart(40.0)];
+        let mut hazards = vec![dropped(2, at(&targets[0])), dropped(2, [0.0, 0.0, 99.0])];
+        let mut projectiles = vec![chasing(1, &targets, 2)];
+        let holds = vec![true; targets.len()];
+        let resolution = resolve(
+            &oval(),
+            targets,
+            &holds,
+            &[],
+            &mut hazards,
+            &mut projectiles,
+            DT,
+        );
+        assert_eq!((hazards.len(), projectiles.len()), (2, 1));
+        resolution.despawns.apply(&mut hazards, &mut projectiles);
+        assert_eq!(hazards.len(), 1);
+        assert_eq!(hazards[0].hazard.position, [0.0, 0.0, 99.0]);
+        assert!(projectiles.is_empty());
     }
 
     #[test]
@@ -690,7 +770,7 @@ mod tests {
     #[test]
     fn the_horn_spins_out_only_the_ordinary_karts_in_reach() {
         let targets = round_the_horn();
-        let hits = blast().resolve(0, &targets, &mut Vec::new(), &mut Vec::new());
+        let hits = blown(&targets, &mut Vec::new(), &mut Vec::new());
         assert_eq!(hits, vec![hit(1, Source::Horn(0))]);
     }
 
@@ -698,7 +778,7 @@ mod tests {
     fn a_trailed_hazard_takes_the_horn_and_a_spared_kart_keeps_its_own() {
         let targets = round_the_horn();
         let mut hazards = vec![trailed_by(1, &targets), trailed_by(2, &targets)];
-        let hits = blast().resolve(0, &targets, &mut hazards, &mut Vec::new());
+        let hits = blown(&targets, &mut hazards, &mut Vec::new());
         assert!(hits.is_empty());
         assert_eq!(hazards.len(), 1);
         assert_eq!(hazards[0].hazard.owner, 2);

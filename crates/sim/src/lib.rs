@@ -46,7 +46,7 @@ pub use wheel::{wheel, Wheel};
 
 use handling::{Freeze, Handling, Situation};
 pub(crate) use hits::HornBlast;
-use hits::{Hit, Source, Target};
+use hits::{Resolution, Source, Target};
 
 use rand_chacha::rand_core::{Rng, SeedableRng};
 use rand_chacha::ChaCha8Rng;
@@ -1635,9 +1635,10 @@ impl State {
         Target::of(kart, &self.physics.bodies[kart.body], in_pit_lane)
     }
 
-    /// Spin out each kart `hits` names, in order.
-    fn apply(&mut self, hits: &[Hit]) {
-        for hit in hits {
+    /// Spin out each kart `resolution` hits, in order, then despawn the
+    /// items it used up.
+    fn apply(&mut self, resolution: &Resolution) {
+        for hit in &resolution.hits {
             let kart = &mut self.karts[hit.kart];
             let body = &mut self.physics.bodies[kart.body];
             spin_out(kart, body, hit.kart, hit.source.by(), &mut self.events);
@@ -1645,6 +1646,9 @@ impl State {
                 kart.wheel_pass_hit = pass;
             }
         }
+        resolution
+            .despawns
+            .apply(&mut self.hazards, &mut self.projectiles);
     }
 
     /// The Air Horn's blast from the kart in `firer`, at the fire (ADR
@@ -1658,8 +1662,8 @@ impl State {
         let targets: Vec<Target> = (0..self.karts.len())
             .map(|slot| self.target(slot, in_pit_lane[slot]))
             .collect();
-        let hits = blast.resolve(firer, &targets, &mut self.hazards, &mut self.projectiles);
-        self.apply(&hits);
+        let resolution = blast.resolve(firer, &targets, &self.hazards, &self.projectiles);
+        self.apply(&resolution);
     }
 
     /// Take the item box `item_box` for the kart in `slot` and start the
@@ -2162,7 +2166,7 @@ pub fn step(mut state: State, inputs: &[KartInput], dt: f32) -> State {
             .collect(),
         None => Vec::new(),
     };
-    let hits = hits::resolve(
+    let resolution = hits::resolve(
         &state.track,
         targets,
         &holds,
@@ -2171,7 +2175,7 @@ pub fn step(mut state: State, inputs: &[KartInput], dt: f32) -> State {
         &mut state.projectiles,
         dt,
     );
-    state.apply(&hits);
+    state.apply(&resolution);
     // Places are read once every kart has moved, so two karts finishing on
     // the same tick are placed by their finish times, as the standings are.
     if !finished_this_tick.is_empty() {
