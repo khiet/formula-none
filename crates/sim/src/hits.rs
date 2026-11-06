@@ -596,16 +596,20 @@ mod tests {
     }
 
     #[test]
-    fn the_wheel_spins_out_a_kart_once_a_pass() {
+    fn the_wheel_spins_out_a_kart_once_a_pass_on_the_lane_or_off_it() {
         let mut targets = spared_trio();
         targets[0].wheel_pass_hit = PASS - 1;
         targets.push(Target {
             wheel_pass_hit: PASS,
             ..kart(80.0)
         });
-        let wheels: Vec<_> = [0, 1, 2, 4].map(|slot| (PASS, at(&targets[slot]))).to_vec();
+        let wheels: Vec<_> = (0..5).map(|slot| (PASS, at(&targets[slot]))).collect();
         let hits = resolved(targets, &mut Vec::new(), &mut Vec::new(), &wheels);
-        assert_eq!(hits, vec![hit(0, Source::Wheel(PASS))]);
+        // The wheel is no item, so the lane kart in slot 3 is hit too.
+        assert_eq!(
+            hits,
+            vec![hit(0, Source::Wheel(PASS)), hit(3, Source::Wheel(PASS))]
+        );
     }
 
     #[test]
