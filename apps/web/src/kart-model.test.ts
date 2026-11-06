@@ -36,10 +36,18 @@ function model(): Group {
     part("facial-hair-short-beard", hair),
     part("facial-hair-stubble", hair),
     part("earrings", paint("Gold")),
+    part("brows-level", hair),
+    part("brows-knit", hair),
+    part("nose-button", paint(DRIVER_MATERIALS.skin)),
+    part("nose-broad", paint(DRIVER_MATERIALS.skin)),
+    part("mouth-smile", paint("Mouth")),
+    part("mouth-line", paint("Mouth")),
+    part("glasses", paint("Carbon")),
+    part("headset", paint("Carbon")),
   );
   root.add(
     part("body", primary),
-    part("nose", primary),
+    part("nose-cone", primary),
     part("sidepod", paint(LIVERY_MATERIALS.secondary)),
     part("wing", paint(LIVERY_MATERIALS.accent)),
     part("wheel-front-left", new MeshStandardMaterial({ name: "Tyre", color: 0x202020 })),
@@ -63,7 +71,7 @@ describe("dressing a kart", () => {
     const notte = livery(1);
     const kart = dressKart(model(), notte);
     expect(colourOf(kart, "body")).toBe(notte.primary);
-    expect(colourOf(kart, "nose")).toBe(notte.primary);
+    expect(colourOf(kart, "nose-cone")).toBe(notte.primary);
     expect(colourOf(kart, "sidepod")).toBe(notte.secondary);
     expect(colourOf(kart, "wing")).toBe(notte.accent);
     expect(colourOf(kart, "wheel-front-left")).toBe(0x202020);
@@ -77,7 +85,7 @@ describe("dressing a kart", () => {
     expect(colourOf(kart, "facial-hair-short-beard")).toBe(rosso.driver.hairColour);
   });
 
-  it("shows only the slot's driver's hair, facial hair and earrings", () => {
+  it("shows only the slot's driver's hair, facial hair, earrings, brows, nose and mouth, and never the crew's headset", () => {
     const shown = (kart: Object3D) =>
       [
         "hair-braids-tied-back",
@@ -86,21 +94,40 @@ describe("dressing a kart", () => {
         "facial-hair-short-beard",
         "facial-hair-stubble",
         "earrings",
+        "brows-level",
+        "brows-knit",
+        "nose-button",
+        "nose-broad",
+        "mouth-smile",
+        "mouth-line",
+        "glasses",
+        "headset",
       ].filter((name) => kart.getObjectByName(name)?.visible);
     const source = model();
-    // Rosso's driver: braids tied back, a short beard and earrings.
+    // Rosso's driver: braids tied back, a short beard and earrings, level brows and a smile.
     expect(shown(dressKart(source, livery(0)))).toEqual([
       "hair-braids-tied-back",
       "facial-hair-short-beard",
       "earrings",
+      "brows-level",
+      "nose-button",
+      "mouth-smile",
     ]);
     // Verde's: short with greying temples and stubble, no earrings.
     expect(shown(dressKart(source, livery(4)))).toEqual([
       "hair-short-greying-temples",
       "facial-hair-stubble",
+      "brows-knit",
+      "nose-broad",
+      "mouth-smile",
     ]);
     // Titanio's: short and clean-shaven, so no facial hair shows at all.
-    expect(shown(dressKart(source, livery(7)))).toEqual(["hair-short"]);
+    expect(shown(dressKart(source, livery(7)))).toEqual([
+      "hair-short",
+      "brows-knit",
+      "nose-broad",
+      "mouth-line",
+    ]);
   });
 
   it("gives each kart its own paint, so eight karts from one model wear eight liveries", () => {
@@ -111,7 +138,7 @@ describe("dressing a kart", () => {
     expect(colourOf(papaya, "body")).toBe(livery(3).primary);
     expect(colourOf(source, "body")).toBe(0x808080);
     // Meshes sharing a livery material share the kart's copy of it.
-    expect(materialOf(rosso, "body")).toBe(materialOf(rosso, "nose"));
+    expect(materialOf(rosso, "body")).toBe(materialOf(rosso, "nose-cone"));
     // The unpainted parts are the kart's own too, so a star lights one kart.
     expect(materialOf(rosso, "wheel-front-left")).not.toBe(materialOf(papaya, "wheel-front-left"));
     expect(colourOf(rosso, "wheel-front-left")).toBe(0x202020);

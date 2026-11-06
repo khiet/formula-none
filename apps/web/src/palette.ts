@@ -126,6 +126,7 @@ export const KART_PAINT = {
   irises: 0x211712,
   gold: 0xdba833,
   grey: 0xa8a8ad,
+  mouth: 0x6a1e22,
 } as const;
 
 /**

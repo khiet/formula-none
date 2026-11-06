@@ -142,7 +142,7 @@ const FINISH_BANNER = "FINISH";
 export const CONNECTION_LOST_BANNER = "Connection lost: reconnecting";
 
 /** The family name the panel's styles ask for; the face is registered by `loadInstrumentFont`. */
-const INSTRUMENT_FONT_FAMILY = "Kenney Mini Square";
+export const INSTRUMENT_FONT_FAMILY = "Kenney Mini Square";
 
 let instrumentFont: Promise<void> | undefined;
 

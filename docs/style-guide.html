@@ -70,6 +70,7 @@
     --irises-lt: color-mix(in srgb, var(--irises) 72%, white); --irises-dk: color-mix(in srgb, var(--irises) 66%, black);
     --gold-lt: color-mix(in srgb, var(--gold) 72%, white); --gold-dk: color-mix(in srgb, var(--gold) 66%, black);
     --grey-lt: color-mix(in srgb, var(--grey) 72%, white); --grey-dk: color-mix(in srgb, var(--grey) 66%, black);
+    --mouth-lt: color-mix(in srgb, var(--mouth) 72%, white); --mouth-dk: color-mix(in srgb, var(--mouth) 66%, black);
   }
   /* Each wheel turns about its axle, which the generated data gives in viewBox units. */
   .lv .wheel { transform-box: view-box; }
@@ -391,7 +392,7 @@
         </div>
         <dl class="spec"><dt>Size</dt><dd>Inside the sim's 1.2 x 1.8 m box</dd><dt>Decided</dt><dd><a href="adr/0034-chibi-low-poly-art.md">ADR 0034</a>, <a href="adr/0035-livery-palette.md">0035</a>, <a href="adr/0036-drivers-race-bare-headed.md">0036</a></dd></dl>
         <div class="notes">
-          <p>Built from primitives: tub, sidepods, wings, halo at chin height, octagon wheels with three spokes, one flat material per palette colour. The side view is the poster kart: <code>kart.glb</code> projected side on by <code>pnpm generate:poster</code> (<a href="adr/0052-poster-kart-generated-from-kart-glb.md">ADR 0052</a>), so a change to the build cannot leave it behind.</p>
+          <p>Built from primitives: tub, sidepods, wings, halo at chin height, octagon wheels with three spokes, one flat material per palette colour. The driver's head carries every face part as a node of its own under <code>head</code>, shown or hidden per face: eleven hair styles, five facial hairs and a moustache, earrings, three brows (<code>level</code>, <code>knit</code>, <code>worried</code>) in the hair's colour, two noses (<code>button</code>, <code>broad</code>) in skin, four mouths (<code>line</code>, <code>smile</code>, <code>grin</code>, <code>open</code>) in <code>KART_PAINT.mouth</code> <code>#6a1e22</code>, round <code>carbon</code> glasses, and the pit crew's <code>carbon</code> headset, a band over the crown, a cup over each ear and a mic boom to the mouth. Every driver wears a brow, a nose and a mouth; no driver wears glasses or the headset. The side view is the poster kart: <code>kart.glb</code> projected side on by <code>pnpm generate:poster</code> (<a href="adr/0052-poster-kart-generated-from-kart-glb.md">ADR 0052</a>), so a change to the build cannot leave it behind.</p>
           <p class="dont"><b>Don't</b> add a helmet, a race number, a name on the wing or a tyre stripe: the base mockup had all four and the ADRs removed them.</p>
         </div>
       </article>
@@ -404,7 +405,7 @@
       </article>
 
       <article class="asset wide">
-        <header><h3>The drivers</h3><code>apps/web/src/livery.ts, hair-* and facial-hair-* parts in assets/karts/build.py</code></header>
+        <header><h3>The drivers</h3><code>apps/web/src/livery.ts, hair-*, facial-hair-*, brows-*, nose-* and mouth-* parts in assets/karts/build.py</code></header>
         <div class="grid8" id="drivers"></div>
         <dl class="spec"><dt>Decided</dt><dd><a href="adr/0035-livery-palette.md">ADR 0035</a>, <a href="adr/0036-drivers-race-bare-headed.md">0036</a></dd></dl>
         <div class="notes">
@@ -666,10 +667,11 @@
       <article class="asset">
         <header><h3>Pit box, light and crew</h3><code>apps/web/src/pit-box-meshes.ts</code></header>
         <div class="compare"><figure><figcaption>Seen from above, a kart on its mark</figcaption><div class="stage flat" data-draw="pitBox"></div></figure></div>
-        <dl class="spec"><dt>Size</dt><dd>A mark 0.5 m clear of the kart's box all round in 0.2 m lines; a 2.2 m gantry; six crew 1 m tall; drawn within 160 m of the camera</dd><dt>Decided</dt><dd><a href="adr/0081-a-pit-lane-to-drive-with-an-automatic-limiter.md">ADR 0081</a>, <a href="adr/0082-the-stop-is-rolled-from-the-seed.md">ADR 0082</a></dd></dl>
+        <dl class="spec"><dt>Size</dt><dd>A mark 0.5 m clear of the kart's box all round in 0.2 m lines; a 2.2 m gantry; a boom 4.8 m up; seven crew about 1.4 m tall, each 0.92 to 1.08 of that; drawn within 160 m of the camera</dd><dt>Decided</dt><dd><a href="adr/0081-a-pit-lane-to-drive-with-an-automatic-limiter.md">ADR 0081</a>, <a href="adr/0082-the-stop-is-rolled-from-the-seed.md">ADR 0082</a>, <a href="mockups/pit-crew-animations.html">the lollipop crew mockup</a></dd></dl>
         <div class="notes">
-          <p>Each slot's pit box is where the sidecar puts it, 1.75 m onto the apron, facing down the lane: its mark painted in the slot's key colour, <code>crowd-0</code> to <code>crowd-7</code> like the garage door behind it, a <code>carbon</code> <code>#2b2e33</code> gantry at the mark's front corner on the building's side, the right on every course, with two lamps, and six chibi crew in overalls of the same key under white helmets, flat-shaded and instanced across the eight boxes. Idle, the crew waits in a row 2.6 m toward the building from the mark, bobbing. While the slot's kart stands on its mark four gunners kneel at its wheels and judder, and a jack stands off each end. The light reads <code>POSTER_RED</code> <code>#e8333b</code> through the stop and <code>GO_GREEN</code> <code>#6fe8a6</code> for 3 s as the kart is let go, both unlit so they glow, and dark otherwise.</p>
-          <p>Everything reads the kart readout's stop: the sim rolls it and guides the kart, and nothing drawn here enters the sim. Once a clean stop's 3 s are up the crew acts the roll out, as the mockup has it: on a slow stop one gunner stays at the rear left wheel and the rest go back to the row; on a botched stop all four swarm that wheel; on a disaster the gunners go back and the jacks stand off, the kart waiting. The crews are drawn only while the camera is within 160 m of a pit box, so a race round the rest of the course never draws forty-eight figures nobody can see.</p>
+          <p>Each slot's pit box is where the sidecar puts it, 1.75 m onto the apron, facing down the lane: its mark painted in the slot's key colour, <code>crowd-0</code> to <code>crowd-7</code> like the garage door behind it, a <code>carbon</code> <code>#2b2e33</code> gantry at the mark's front corner on the building's side, the right on every course, with two lamps, and a <code>carbon</code> boom 4.8 m up from the building's face across the box, above the chase camera's frame, with a reel over each side of the kart. The light reads <code>POSTER_RED</code> <code>#e8333b</code> through the stop and <code>GO_GREEN</code> <code>#6fe8a6</code> for 3 s as the kart is let go, both unlit so they glow, and dark otherwise.</p>
+          <p>The lollipop crew of seven, chibi bodies in overalls of the slot's key with a white chest stripe, a <code>carbon</code> belt, white gloves and dark boots, built in code and instanced across the eight boxes, one instanced mesh per kind of part. Every head is the driver's head from <code>kart.glb</code> at 0.26 m, its face drawn per box from a seed of the slot (<code>crew-roster.ts</code>): eleven hair styles with none twice, five skins, nine hair colours, the facial hairs and the moustache, the brows, noses and mouths, now and then glasses or earrings, and everyone's headset over the hair. The jobs: a jack at each end on a <code>carbon</code> trolley with a <code>POSTER_RED</code> ram and a steel lever, a gunner crouched at every wheel with a <code>carbon</code> gun on a <code>carbon</code> air line that sags from the boom's reel, and a holder off the nose on the building's side with a 0.34 m sign on a 1.3 m pole: STOP in white on <code>POSTER_RED</code> toward the driver, GO in <code>INK</code> on <code>GO_GREEN</code> on the back, both set in the Kenney pixel face.</p>
+          <p>Everything reads the kart readout's stop: the sim rolls it and guides the kart, and nothing drawn here enters the sim. Idle, the crew waits in a row 2.6 m toward the building from the mark. On the catch it runs out; on the mark the jacks lift the kart 0.16 m, the front a beat ahead, and the gunners work the beats of <code>STOP_BEATS</code> (<code>stop-beats.ts</code>): nuts off, wheel off, wheel on, nuts on, hand up, scaled down for a record stop. The driver looks to the sign; the holder looks down the lane a second before green, the sign spins to GO, the holder steps aside before the tick and lifts the sign on it, the jacks are dragged clear and the gunners stand off. Past a clean stop's 3 s the crew acts the roll out: on a slow stop the rear lane-side gunner stays on a stuck nut; on a botched stop the other three run round the tail and swarm that wheel; on a disaster the front jack drops the nose, the crew stands off, and the front wheels are done again once it is pumped back up. Three seconds after green the crew walks back to its row. The crews are drawn only while the camera is within 160 m of a pit box.</p>
           <p class="dont"><b>Don't</b> draw a kart in a pit box the sim has not put there, and don't let the crew's act hurry or hold the kart: the panel's clock and the light are the sim's word on green.</p>
         </div>
       </article>
@@ -992,17 +994,17 @@
 <script>
 (() => {
   const hex = (n) => "#" + n.toString(16).padStart(6, "0");
-  const SKIN = { deepBrown: 0x74492f, fair: 0xe5bb98, olive: 0xc48a5f };
+  const SKIN = { deepBrown: 0x74492f, fair: 0xe5bb98, olive: 0xc48a5f, tan: 0xb87a52, dark: 0x4e2f1d };
   // Copied from apps/web/src/livery.ts; repo-checks holds them to it.
   const LIVERIES = [
-    { name: "Rosso", after: "Ferrari", key: 0xd00a12, p: 0xd00a12, s: 0x141414, a: 0xffd400, d: { skin: SKIN.deepBrown, hair: "braids-tied-back", hc: 0x1a1210, fh: "short-beard", ear: true } },
-    { name: "Notte", after: "Red Bull", key: 0x1f3fb0, p: 0x16224d, s: 0xe2172b, a: 0xffc72c, d: { skin: SKIN.fair, hair: "short", hc: 0x8a6a48, fh: "light-stubble", ear: false } },
-    { name: "Argento", after: "Mercedes", key: 0xc8ccd0, p: 0xbfc5cb, s: 0x16181b, a: 0x00a19c, d: { skin: SKIN.fair, hair: "swept-side-part", hc: 0x5a3a22, fh: "none", ear: false } },
-    { name: "Papaya", after: "McLaren", key: 0xff7a00, p: 0xff7a00, s: 0x1e1e24, a: 0x3ec3f5, d: { skin: SKIN.fair, hair: "curly-fringe", hc: 0x6b4528, fh: "none", ear: false } },
-    { name: "Verde", after: "Aston Martin", key: 0x00665a, p: 0x00594f, s: 0x101614, a: 0xcedc00, d: { skin: SKIN.olive, hair: "short-greying-temples", hc: 0x1c1c1f, fh: "stubble", ear: false } },
-    { name: "Cobalto", after: "Williams", key: 0x37bedd, p: 0x0a2a5c, s: 0x37bedd, a: 0xffffff, d: { skin: SKIN.olive, hair: "swept-back", hc: 0x1c1c1f, fh: "heavy-stubble", ear: false } },
-    { name: "Rosa", after: "Alpine", key: 0xf282b4, p: 0xf282b4, s: 0x0b5ab0, a: 0xffffff, d: { skin: SKIN.fair, hair: "short-curls", hc: 0x241a14, fh: "stubble", ear: false } },
-    { name: "Titanio", after: "Audi", key: 0x2a2a2e, p: 0x2a2a2e, s: 0x9ea3a8, a: 0xf50537, d: { skin: SKIN.fair, hair: "short", hc: 0xb8955a, fh: "none", ear: false } },
+    { name: "Rosso", after: "Ferrari", key: 0xd00a12, p: 0xd00a12, s: 0x141414, a: 0xffd400, d: { skin: SKIN.deepBrown, hair: "braids-tied-back", hc: 0x1a1210, fh: "short-beard", ear: true, br: "level", no: "button", mo: "smile" } },
+    { name: "Notte", after: "Red Bull", key: 0x1f3fb0, p: 0x16224d, s: 0xe2172b, a: 0xffc72c, d: { skin: SKIN.fair, hair: "short", hc: 0x8a6a48, fh: "light-stubble", ear: false, br: "knit", no: "button", mo: "line" } },
+    { name: "Argento", after: "Mercedes", key: 0xc8ccd0, p: 0xbfc5cb, s: 0x16181b, a: 0x00a19c, d: { skin: SKIN.fair, hair: "swept-side-part", hc: 0x5a3a22, fh: "none", ear: false, br: "level", no: "button", mo: "grin" } },
+    { name: "Papaya", after: "McLaren", key: 0xff7a00, p: 0xff7a00, s: 0x1e1e24, a: 0x3ec3f5, d: { skin: SKIN.fair, hair: "curly-fringe", hc: 0x6b4528, fh: "none", ear: false, br: "worried", no: "button", mo: "grin" } },
+    { name: "Verde", after: "Aston Martin", key: 0x00665a, p: 0x00594f, s: 0x101614, a: 0xcedc00, d: { skin: SKIN.olive, hair: "short-greying-temples", hc: 0x1c1c1f, fh: "stubble", ear: false, br: "knit", no: "broad", mo: "smile" } },
+    { name: "Cobalto", after: "Williams", key: 0x37bedd, p: 0x0a2a5c, s: 0x37bedd, a: 0xffffff, d: { skin: SKIN.olive, hair: "swept-back", hc: 0x1c1c1f, fh: "heavy-stubble", ear: false, br: "level", no: "broad", mo: "smile" } },
+    { name: "Rosa", after: "Alpine", key: 0xf282b4, p: 0xf282b4, s: 0x0b5ab0, a: 0xffffff, d: { skin: SKIN.fair, hair: "short-curls", hc: 0x241a14, fh: "stubble", ear: false, br: "worried", no: "button", mo: "line" } },
+    { name: "Titanio", after: "Audi", key: 0x2a2a2e, p: 0x2a2a2e, s: 0x9ea3a8, a: 0xf50537, d: { skin: SKIN.fair, hair: "short", hc: 0xb8955a, fh: "none", ear: false, br: "knit", no: "broad", mo: "line" } },
   ];
   const GOLD_FIXED = "#dba833";
   const GREY_FIXED = "#a8a8ad";
@@ -1043,10 +1045,10 @@
 
   // The poster kart (apps/web/src/poster.ts): kart.glb projected side on by `pnpm generate:poster` into
   // docs/kart-side.js (ADR 0052), painted by custom property and dressed in the driver's parts alone.
-  const KART_TOKENS = { Primary: "p", Secondary: "s", Accent: "a", Skin: "sk", Hair: "hair", Tyre: "tyre", Rim: "rim", Carbon: "carbon", Whites: "whites", Irises: "irises", Gold: "gold", Grey: "grey" };
+  const KART_TOKENS = { Primary: "p", Secondary: "s", Accent: "a", Skin: "sk", Hair: "hair", Tyre: "tyre", Rim: "rim", Carbon: "carbon", Whites: "whites", Irises: "irises", Gold: "gold", Grey: "grey", Mouth: "mouth" };
   const KART_TONES = { lit: "-lt", mid: "", shaded: "-dk" };
-  const wornParts = (d) => new Set([`hair-${d.hair}`, `facial-hair-${d.fh}`, ...(d.ear ? ["earrings"] : [])]);
-  const optionalPart = (node) => node.startsWith("hair-") || node.startsWith("facial-hair-") || node === "earrings";
+  const wornParts = (d) => new Set([`hair-${d.hair}`, `facial-hair-${d.fh}`, `brows-${d.br}`, `nose-${d.no}`, `mouth-${d.mo}`, ...(d.ear ? ["earrings"] : [])]);
+  const optionalPart = (node) => ["hair-", "facial-hair-", "brows-", "nose-", "mouth-"].some((kind) => node.startsWith(kind)) || ["earrings", "glasses", "headset"].includes(node);
   const sideCar = (d, label = "Chibi low-poly car, side view") => {
     const worn = wornParts(d);
     let body = "", run;
@@ -1401,19 +1403,23 @@
   };
 
   // A pit box in plan at 20 px to the metre: the mark in slot 2's key round a kart on it, the
-  // gantry's lamps at its front right, and the crew at work, four at the wheels and two on the jacks.
+  // gantry's lamps at its front right, and the crew at work: four at the wheels, a jack behind
+  // each end's trolley and the holder off the nose on the building's side with the sign.
   draw.pitBox = () => {
     const m = 20, road = "#6b6b78", key = hex(LIVERIES[2].key), carbon = "#2b2e33", white = "#f7f7f2";
     const cx = 150, cz = 60, w = 1.2 * m, l = 2.0 * m, clear = 0.5 * m, line = 0.2 * m;
     const crew = (x, z, r) => `<circle cx="${cx + x * m}" cy="${cz + z * m}" r="${r}" fill="${key}"/><circle cx="${cx + x * m}" cy="${cz + z * m}" r="${r * 0.55}" fill="${white}"/>`;
-    return `<svg viewBox="0 0 320 120" role="img" aria-label="A pit box seen from above: a painted mark round a kart, a gantry light at its front right corner and six crew at its wheels and ends">
+    return `<svg viewBox="0 0 320 120" role="img" aria-label="A pit box seen from above: a painted mark round a kart, a gantry light at its front right corner, a gunner at each wheel, a jack at each end and a sign holder off the nose">
       <rect width="320" height="120" fill="${road}"/>
       <rect x="${cx - w / 2 - clear}" y="${cz - l / 2 - clear}" width="${w + 2 * clear}" height="${l + 2 * clear}" fill="none" stroke="${key}" stroke-width="${line}"/>
       <rect x="${cx - w / 2}" y="${cz - l / 2}" width="${w}" height="${l}" rx="3" fill="${carbon}"/>
       <rect x="${cx + w / 2 + clear + 2}" y="${cz - l / 2 - clear - 10}" width="8" height="14" fill="${carbon}"/>
       <rect x="${cx + w / 2 + clear + 3}" y="${cz - l / 2 - clear - 9}" width="6" height="5" fill="#e8333b"/>
       <rect x="${cx + w / 2 + clear + 3}" y="${cz - l / 2 - clear - 3}" width="6" height="5" fill="#1b1d21"/>
-      ${crew(-1.1, -1, 6)}${crew(1.1, -1, 6)}${crew(-1.1, 1, 6)}${crew(1.1, 1, 6)}${crew(0, -1.9, 7)}${crew(0, 1.9, 7)}
+      <rect x="${cx - 0.17 * m}" y="${cz - 1.55 * m}" width="${0.34 * m}" height="${0.5 * m}" fill="${carbon}"/>
+      <rect x="${cx + 0.35 * m - 0.17 * m}" y="${cz + 1.05 * m}" width="${0.34 * m}" height="${0.5 * m}" fill="${carbon}"/>
+      ${crew(-1.1, -0.52, 6)}${crew(1.1, -0.52, 6)}${crew(-1.1, 0.52, 6)}${crew(1.1, 0.52, 6)}${crew(0, -2.35, 7)}${crew(0.35, 2.35, 7)}${crew(0.75, -2.9, 7)}
+      <circle cx="${cx + 0.95 * m}" cy="${cz - 2.75 * m}" r="${0.34 * m}" fill="#c81d25" stroke="${carbon}" stroke-width="1.5"/>
     </svg>`;
   };
 
@@ -2003,6 +2009,7 @@
       { token: "KART_PAINT.irises", hex: 0x211712, role: "The irises, one colour for every driver" },
       { token: "KART_PAINT.gold", hex: 0xdba833, role: "The earrings" },
       { token: "KART_PAINT.grey", hex: 0xa8a8ad, role: "Greying temples" },
+      { token: "KART_PAINT.mouth", hex: 0x6a1e22, role: "Every mouth, the drivers' and the pit crew's" },
     ]],
     ["Poster, apps/web/index.html", [
       { hex: 0xc81d25, role: "Poster red: the backdrop" },

@@ -56,6 +56,7 @@ import { sceneryMotion } from "./scenery-motion";
 import { createSparkEmitter, createSparkParticles } from "./sparks";
 import { spinOutAngle } from "./spin";
 import { createStarSparkles, starShine } from "./star-shine";
+import { DRIVER_LOOK_RAD, driverLook, kartLift } from "./stop-beats";
 import {
   additiveMaterial,
   exhaustFlameMesh,
@@ -361,7 +362,12 @@ export async function createRaceView(
 
   const drawnCoins = coinMeshes(coins);
   world.add(drawnCoins.mesh);
-  const pits = pitBoxMeshes(pitBoxes, kartSize, { cleanStopSeconds: tuning.cleanStopSeconds });
+  const kartHead = kartModel.scene.getObjectByName("head");
+  if (kartHead === undefined) throw new Error("kart.glb carries the driver's head");
+  const pits = pitBoxMeshes(pitBoxes, kartSize, {
+    cleanStopSeconds: tuning.cleanStopSeconds,
+    head: kartHead,
+  });
   world.add(pits.mesh);
   const spray = coinSpray();
   world.add(spray.mesh);
@@ -399,6 +405,8 @@ export async function createRaceView(
   const target = new Vector3();
   const spin = new Quaternion();
   const up = new Vector3(0, 1, 0);
+  /** The kart's own +X: a positive turn about it lifts the nose, along -Z. */
+  const sideways = new Vector3(1, 0, 0);
   return {
     update(race, pose, frameSeconds) {
       const { karts: readouts, itemBoxesPresent, coinsPresent, hazards, projectiles } = race;
@@ -423,9 +431,17 @@ export async function createRaceView(
         sway.last = readout;
         if (head !== undefined) {
           head.rotation.z = sway.state.roll;
+          // On the mark the driver's eyes are on the lollipop, off the nose on the building's side.
+          head.rotation.y =
+            -(pitBoxes[slot]?.buildingSide ?? 1) * DRIVER_LOOK_RAD * driverLook(readout.stop);
         }
         kart.position.set(...readout.position);
         kart.quaternion.set(...readout.rotation);
+        const onJacks = kartLift(readout.stop, tuning.cleanStopSeconds, kartSize.length);
+        if (onJacks.liftM > 0) {
+          kart.position.y += onJacks.liftM;
+          kart.quaternion.multiply(spin.setFromAxisAngle(sideways, onJacks.pitch));
+        }
         if (readout.spinOutS !== null) {
           kart.quaternion.multiply(
             spin.setFromAxisAngle(up, spinOutAngle(readout.spinOutS, tuning.spinOutSeconds)),

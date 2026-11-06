@@ -55,9 +55,12 @@ Instrument panel.
 
 ### pit crew
 
-The six figures at a pit box who change a kart's tyres. Presentation only:
-how long they take is the stop's roll. The View draws them, with the pit
-box's light, from the kart readout, and only near the camera.
+The seven figures at a pit box who change a kart's tyres: a jack at each
+end, a gunner at every wheel and the lollipop, the holder of the sign that
+spins from STOP to GO on green. Each wears the driver's head with a face of
+their own under a headset. Presentation only: how long they take is the
+stop's roll. The View draws them, with the pit box's light, from the kart
+readout, and only near the camera.
 
 ### stop
 

@@ -12,9 +12,12 @@ the View's fit is close to a unit scale. Three materials, `Primary`,
 (apps/web/src/kart-model.ts, ADR 0035), and two, `Skin` and `Hair`, take the
 slot's driver; the rest keep the colours set here. Every hair style and
 facial hair in apps/web/src/livery.ts is a part of its own, `hair-<style>`
-and `facial-hair-<kind>`, beside `earrings`, for the View to show the
-driver's and hide the rest. They are children of `head`, the driver's head
-pivoted at the neck, which the View rolls for the head sway. The result, `kart.glb`, carries no texture and
+and `facial-hair-<kind>`, beside `earrings`, and so is every brow, nose and
+mouth of a face, `brows-<kind>`, `nose-<kind>` and `mouth-<kind>`, with
+`glasses` and the crew's `headset`, for the View to show the face's and hide
+the rest. They are children of `head`, the driver's head pivoted at the
+neck, which the View rolls for the head sway; the pit crew wears the same
+head (apps/web/src/pit-box-meshes.ts). The result, `kart.glb`, carries no texture and
 is committed; CI has no Blender.
 """
 
@@ -46,6 +49,7 @@ FIXED = {
     "Irises": (0.13, 0.09, 0.07),
     "Gold": (0.86, 0.66, 0.2),
     "Grey": (0.66, 0.66, 0.68),
+    "Mouth": (0.416, 0.118, 0.133),
 }
 
 # The one shared head: about 0.6 m across, its centre low enough that the
@@ -108,9 +112,15 @@ class Part:
         size: tuple[float, float, float],
         front_scale: tuple[float, float] = (1.0, 1.0),
         front_drop: float = 0.0,
+        turn: float = 0.0,
     ) -> None:
-        """A box, its front end (+Y) scaled in width and height by `front_scale` and lowered by `front_drop`."""
+        """
+        A box, its front end (+Y) scaled in width and height by `front_scale`
+        and lowered by `front_drop`, then turned `turn` radians about the
+        forward axis through its centre: a positive turn lowers its +X end.
+        """
         verts = bmesh.ops.create_cube(self.bm, size=1.0)["verts"]
+        spin = Matrix.Rotation(turn, 3, "Y")
         for vert in verts:
             vert.co.x *= size[0]
             vert.co.y *= size[1]
@@ -118,7 +128,7 @@ class Part:
             if vert.co.y > 0:
                 vert.co.x *= front_scale[0]
                 vert.co.z = vert.co.z * front_scale[1] - front_drop
-            vert.co += Vector(centre)
+            vert.co = spin @ vert.co + Vector(centre)
         self._paint(verts, material)
 
     def cylinder(
@@ -140,6 +150,20 @@ class Part:
     def bar(self, material: str, a: tuple[float, float, float], b: tuple[float, float, float], radius: float) -> None:
         start, end = Vector(a), Vector(b)
         self.cylinder(material, tuple((start + end) / 2), end - start, radius, (end - start).length, 6)
+
+    def ring(
+        self, material: str, centre: tuple[float, float, float], radius: float, thickness: float, arc: float, axis: str
+    ) -> None:
+        """An octagonal hoop of bars round `axis` through `centre`, from straight up through `arc` radians."""
+        segments = max(2, round(8 * arc / (2 * math.pi)))
+        points = []
+        for k in range(segments + 1):
+            angle = arc * k / segments - (arc / 2 if arc < 2 * math.pi else 0)
+            up, across = radius * math.cos(angle), radius * math.sin(angle)
+            offset = (across, 0, up) if axis == "Y" else (0, across, up)
+            points.append(tuple(c + o for c, o in zip(centre, offset)))
+        for a, b in zip(points, points[1:]):
+            self.bar(material, a, b, thickness)
 
     def ball(self, material: str, centre: tuple[float, float, float], radius: float) -> None:
         # Octagonal like the wheels, so a ball is a polygon, not a smooth dome.
@@ -311,6 +335,26 @@ def braids_tied_back(part: Part) -> None:
         part.ball("Hair", (0, HEAD.y - 0.3 - 0.03 * k, HEAD.z + z), 0.075)
 
 
+def buzz(part: Part) -> None:
+    cap(part, 0.305)
+
+
+def ponytail(part: Part) -> None:
+    cap(part)
+    for k in range(3):
+        part.ball("Hair", (0, HEAD.y - 0.3, HEAD.z - 0.02 - 0.11 * k), 0.07)
+
+
+def bun(part: Part) -> None:
+    cap(part)
+    part.ball("Hair", (0, HEAD.y - 0.2, HEAD.z + 0.24), 0.1)
+
+
+def bald(part: Part) -> None:
+    """A fringe of hair round the back and the sides, the crown bare."""
+    part.head_shell("Hair", 0.315, lambda p: -0.6 < p.z < 0.6 and p.y < 0.2)
+
+
 # Every hair style in livery.ts, the materials its part wears, and how it is built.
 HAIR_STYLES: dict[str, tuple[list[str], Callable[[Part], None]]] = {
     "braids-tied-back": (["Hair"], braids_tied_back),
@@ -321,6 +365,10 @@ HAIR_STYLES: dict[str, tuple[list[str], Callable[[Part], None]]] = {
     "short-greying-temples": (["Hair", "Grey"], short_greying_temples),
     "swept-back": (["Hair"], swept_back),
     "short-curls": (["Hair"], short_curls),
+    "buzz": (["Hair"], buzz),
+    "ponytail": (["Hair"], ponytail),
+    "bun": (["Hair"], bun),
+    "bald": (["Hair"], bald),
 }
 
 
@@ -343,6 +391,79 @@ def facial_hair_parts(head: bpy.types.Object) -> None:
         part = Part(["Hair"])
         part.head_shell("Hair", radius, keep)
         part.finish(f"facial-hair-{name}", head, NECK)
+    moustache = Part(["Hair"])
+    moustache.box("Hair", (0, HEAD.y + 0.25, HEAD.z - 0.065), (0.16, 0.03, 0.035))
+    moustache.finish("facial-hair-moustache", head, NECK)
+
+
+# The face's features, in front of the face's forward flat, which slopes back
+# from the eyes to the jaw: this far forward of the head's centre at each height.
+NOSE_FORWARD = 0.272
+MOUTH_FORWARD = 0.235
+
+
+def brows_parts(head: bpy.types.Object) -> None:
+    """One part per brow kind in livery.ts, in the hair's colour over each eye, its outer end raised or lowered."""
+    for name, outer_up in {"level": 0.0, "knit": 0.25, "worried": -0.2}.items():
+        part = Part(["Hair"])
+        for side in (-1, 1):
+            part.box("Hair", (side * 0.1, HEAD.y + 0.275, HEAD.z + 0.14), (0.12, 0.03, 0.028), turn=-side * outer_up)
+        part.finish(f"brows-{name}", head, NECK)
+
+
+def nose_parts(head: bpy.types.Object) -> None:
+    for name, (width, height) in {"button": (0.05, 0.05), "broad": (0.075, 0.07)}.items():
+        part = Part(["Skin"])
+        part.box("Skin", (0, HEAD.y + NOSE_FORWARD, HEAD.z - 0.03), (width, 0.04, height))
+        part.finish(f"nose-{name}", head, NECK)
+
+
+def mouth_parts(head: bpy.types.Object) -> None:
+    """One part per mouth kind in livery.ts, under the nose and clear of every beard."""
+    at = (0, HEAD.y + MOUTH_FORWARD, HEAD.z - 0.1)
+    line = Part(["Mouth"])
+    line.box("Mouth", at, (0.11, 0.03, 0.02))
+    line.finish("mouth-line", head, NECK)
+    shut = Part(["Mouth"])
+    shut.box("Mouth", at, (0.08, 0.03, 0.055))
+    shut.finish("mouth-open", head, NECK)
+    for name in ("smile", "grin"):
+        part = Part(["Mouth", "Whites"])
+        part.box("Mouth", (0, at[1], at[2] - 0.01), (0.066, 0.03, 0.02))
+        for side in (-1, 1):
+            # The corners turned up at their outer ends.
+            part.box("Mouth", (side * 0.046, at[1] - 0.005, at[2] + 0.008), (0.035, 0.03, 0.02), turn=-side * 0.6)
+        if name == "grin":
+            part.box("Whites", (0, at[1] + 0.012, at[2] + 0.004), (0.055, 0.01, 0.022))
+        part.finish(f"mouth-{name}", head, NECK)
+
+
+def glasses(head: bpy.types.Object) -> None:
+    """Round frames in front of the eyes, a bridge between them and arms back to the ears."""
+    part = Part(["Carbon"])
+    front = HEAD.y + 0.3
+    for side in (-1, 1):
+        part.ring("Carbon", (side * 0.09, front, HEAD.z + 0.04), 0.085, 0.012, 2 * math.pi, "Y")
+        part.bar("Carbon", (side * 0.175, front, HEAD.z + 0.06), (side * 0.29, HEAD.y + 0.04, HEAD.z + 0.06), 0.012)
+    part.bar("Carbon", (-0.01, front, HEAD.z + 0.05), (0.01, front, HEAD.z + 0.05), 0.012)
+    part.finish("glasses", head, NECK)
+
+
+def headset(head: bpy.types.Object) -> None:
+    """
+    The pit crew's: a band over the crown from ear to ear, a cup over each
+    ear and a mic boom from the right cup to the corner of the mouth. It
+    sits over any hair style without hiding it.
+    """
+    part = Part(["Carbon"])
+    centre = (0, HEAD.y - 0.02, HEAD.z)
+    part.ring("Carbon", centre, 0.335, 0.02, math.pi, "Y")
+    for side in (-1, 1):
+        part.cylinder("Carbon", (side * 0.315, HEAD.y - 0.02, HEAD.z - 0.02), Vector((1, 0, 0)), 0.09, 0.06, 8)
+    mic = (0.12, HEAD.y + MOUTH_FORWARD, HEAD.z - 0.11)
+    part.bar("Carbon", (0.3, HEAD.y + 0.02, HEAD.z - 0.08), mic, 0.0075)
+    part.ball("Carbon", mic, 0.025)
+    part.finish("headset", head, NECK)
 
 
 def earrings(head: bpy.types.Object) -> None:
@@ -389,6 +510,11 @@ def build() -> None:
     hair_parts(driver)
     facial_hair_parts(driver)
     earrings(driver)
+    brows_parts(driver)
+    nose_parts(driver)
+    mouth_parts(driver)
+    glasses(driver)
+    headset(driver)
     bpy.ops.export_scene.gltf(
         filepath=str(OUTPUT),
         export_format="GLB",

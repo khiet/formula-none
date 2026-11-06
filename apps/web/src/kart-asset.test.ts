@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { loadBridge } from "./bridge";
+import { FACE_PARTS } from "./driver-parts";
 import { type GltfJson, gltfJson } from "./gltf-json";
 import { DRIVER_MATERIALS, fitKart, LIVERY_MATERIALS } from "./kart-model";
 import { FACIAL_HAIRS, HAIRS } from "./livery";
@@ -98,18 +99,7 @@ describe("the exported kart", () => {
     expect((kart.materials ?? []).map(({ name }) => name)).not.toContain("Helmet");
   });
 
-  it("carries a part for every hair style, every facial hair and the earrings, for the View to pick from", () => {
-    const names = kart.nodes.map(({ name }) => name);
-    for (const hair of HAIRS) {
-      expect(names).toContain(`hair-${hair}`);
-    }
-    for (const facialHair of FACIAL_HAIRS.filter((facialHair) => facialHair !== "none")) {
-      expect(names).toContain(`facial-hair-${facialHair}`);
-    }
-    expect(names).toContain("earrings");
-  });
-
-  it("carries the driver's head as a node of its own, wearing every hair, facial hair and the earrings, for the View to roll", () => {
+  it("carries the driver's head as a node of its own, wearing every face part, for the View to roll and the crew to wear", () => {
     const head = kart.nodes.find(({ name }) => name === "head");
     expect(head?.rotation).toBeUndefined();
     const worn = (head?.children ?? []).map((child) => kart.nodes[child]?.name);
@@ -119,7 +109,12 @@ describe("the exported kart", () => {
     for (const facialHair of FACIAL_HAIRS.filter((facialHair) => facialHair !== "none")) {
       expect(worn).toContain(`facial-hair-${facialHair}`);
     }
-    expect(worn).toContain("earrings");
+    for (const part of FACE_PARTS) {
+      expect(worn).toContain(part);
+      // Each part has geometry to draw.
+      const node = kart.nodes.find(({ name }) => name === part);
+      expect(node?.mesh).toBeDefined();
+    }
   });
 
   it("pivots the head at the neck: on the kart's centreline, under the chin", () => {

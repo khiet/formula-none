@@ -62,9 +62,12 @@ interface LiveryCopy {
   hairColour: number;
   facialHair: string;
   earrings: boolean;
+  brows: string;
+  nose: string;
+  mouth: string;
 }
 
-/** A livery match whose groups run name, key, primary, secondary, accent, skin, hair, hair colour, facial hair, earrings. */
+/** A livery match whose groups run name, key, primary, secondary, accent, skin, hair, hair colour, facial hair, earrings, brows, nose, mouth. */
 function toLivery([
   ,
   name = "",
@@ -77,6 +80,9 @@ function toLivery([
   hairColour,
   facialHair = "",
   earrings,
+  brows = "",
+  nose = "",
+  mouth = "",
 ]: RegExpExecArray): LiveryCopy {
   return {
     name,
@@ -89,6 +95,9 @@ function toLivery([
     hairColour: Number(hairColour),
     facialHair,
     earrings: earrings === "true",
+    brows,
+    nose,
+    mouth,
   };
 }
 
@@ -96,7 +105,7 @@ function codeLiveries(): LiveryCopy[] {
   const source = readRepoFile("apps/web/src/livery.ts");
   return [
     ...source.matchAll(
-      /name: "(\w+)",\s+key: (0x\w+),\s+primary: (0x\w+),\s+secondary: (0x\w+),\s+accent: (0x\w+),\s+driver: \{\s+name: "[^"]+",\s+skin: SKIN\.(\w+),\s+hair: "([\w-]+)",\s+hairColour: (0x\w+),\s+facialHair: "([\w-]+)",\s+earrings: (true|false),/g,
+      /name: "(\w+)",\s+key: (0x\w+),\s+primary: (0x\w+),\s+secondary: (0x\w+),\s+accent: (0x\w+),\s+driver: \{\s+name: "[^"]+",\s+skin: SKINS\.(\w+),\s+hair: "([\w-]+)",\s+hairColour: (0x\w+),\s+facialHair: "([\w-]+)",\s+earrings: (true|false),\s+brows: "(\w+)",\s+nose: "(\w+)",\s+mouth: "(\w+)",/g,
     ),
   ].map(toLivery);
 }
@@ -104,12 +113,16 @@ function codeLiveries(): LiveryCopy[] {
 function guideLiveries(): LiveryCopy[] {
   return [
     ...guide.matchAll(
-      /\{ name: "(\w+)", after: "[^"]+", key: (0x\w+), p: (0x\w+), s: (0x\w+), a: (0x\w+), d: \{ skin: SKIN\.(\w+), hair: "([\w-]+)", hc: (0x\w+), fh: "([\w-]+)", ear: (true|false) \} \}/g,
+      /\{ name: "(\w+)", after: "[^"]+", key: (0x\w+), p: (0x\w+), s: (0x\w+), a: (0x\w+), d: \{ skin: SKIN\.(\w+), hair: "([\w-]+)", hc: (0x\w+), fh: "([\w-]+)", ear: (true|false), br: "(\w+)", no: "(\w+)", mo: "(\w+)" \} \}/g,
     ),
   ].map(toLivery);
 }
 
-const skinTones = (source: string) => source.match(/const SKIN = (\{[^}]+\})/)?.[1];
+/** The skin tones `source` names, as `name: 0x...` pairs, however they are laid out. */
+const skinTones = (source: string) =>
+  [
+    ...(source.match(/const SKINS? = \{([^}]+)\}/)?.[1] ?? "").matchAll(/(\w+): (0x[0-9a-f]+)/g),
+  ].map(([, name, hex]) => `${name}: ${hex}`);
 
 describe("the style guide", () => {
   it("shows every palette.ts colour with the code's values", () => {
@@ -122,7 +135,9 @@ describe("the style guide", () => {
     const code = codeLiveries();
     expect(code).toHaveLength(8);
     expect(guideLiveries()).toEqual(code);
-    expect(skinTones(guide)).toBe(skinTones(readRepoFile("apps/web/src/livery.ts")));
+    const tones = skinTones(readRepoFile("apps/web/src/livery.ts"));
+    expect(tones.length).toBeGreaterThan(0);
+    expect(skinTones(guide)).toEqual(tones);
   });
 
   // The guide cites ADRs by relative link from docs/.
