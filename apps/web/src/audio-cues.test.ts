@@ -21,6 +21,7 @@ import { EMPTY_SLOT, type ItemSlot, type RaceCount } from "./race-run";
 
 /** A clean stop's longest, the sim's `STOP_CLEAN_S`. */
 const CLEAN_STOP_S = 3;
+const TUNING = { stopCleanS: CLEAN_STOP_S };
 
 const STILL: SoundReading = {
   stop: null,
@@ -292,11 +293,11 @@ describe("soundCues", () => {
     const race = raceReadout({
       karts: [kartReadout({ slipstream: { tow: { leftS: 1 } }, speed: 34.5 })],
     });
-    const reading = soundReading(race, 0, CLEAN_STOP_S);
+    const reading = soundReading(race, 0, TUNING);
     expect(reading.boostSeconds).toBeNull();
     expect(reading.towed).toBe(true);
     expect(
-      soundCues(soundReading(raceReadout({ karts: [kartReadout()] }), 0, CLEAN_STOP_S), reading),
+      soundCues(soundReading(raceReadout({ karts: [kartReadout()] }), 0, TUNING), reading),
     ).toEqual(["slipstream"]);
   });
 
@@ -456,11 +457,7 @@ describe("soundReading", () => {
   const racing: Phase = { kind: "racing", elapsedSeconds: 5, capLeftSeconds: null };
   /** The reading of the one kart of a race at `kart` on `standing` holding `itemSlot`. */
   const read = (kart: KartReadout, standing: Standing, itemSlot: ItemSlot, phase: Phase) =>
-    soundReading(
-      raceReadout({ karts: [kart], standings: [standing], itemSlot, phase }),
-      0,
-      CLEAN_STOP_S,
-    );
+    soundReading(raceReadout({ karts: [kart], standings: [standing], itemSlot, phase }), 0, TUNING);
 
   it("reads the own kart's stop from its readout", () => {
     const stop = { tier: "clean", stationaryS: 2.6, guideLeftS: 0.2, stationarySoFarS: 0 } as const;
@@ -519,17 +516,15 @@ describe("soundReading", () => {
       karts: [own, far, near, off],
       standings: [standing, standing, standing, standing],
     });
-    expect(soundReading(race, 0, CLEAN_STOP_S)).toMatchObject({
+    expect(soundReading(race, 0, TUNING)).toMatchObject({
       starSeconds: 2,
       nearestStar: { kart: 2, seconds: 1.5, metres: 12 },
     });
-    expect(soundReading(race, 3, CLEAN_STOP_S)).toMatchObject({
+    expect(soundReading(race, 3, TUNING)).toMatchObject({
       starSeconds: null,
       nearestStar: { kart: 0, seconds: 2, metres: Math.hypot(1, 1) },
     });
-    expect(
-      soundReading(raceReadout({ karts: [off, off] }), 0, CLEAN_STOP_S).nearestStar,
-    ).toBeNull();
+    expect(soundReading(raceReadout({ karts: [off, off] }), 0, TUNING).nearestStar).toBeNull();
   });
 
   it("takes the other karts' blasts by distance, never the own kart's, and the nearest drone chasing the own kart", () => {
@@ -548,15 +543,15 @@ describe("soundReading", () => {
         { position: [0, 0, -5], owner: 0, target: 1 },
       ],
     });
-    expect(soundReading(race, 0, CLEAN_STOP_S)).toMatchObject({
+    expect(soundReading(race, 0, TUNING)).toMatchObject({
       blasts: [{ id: 2, kart: 1, metres: 50 }],
       incomingDroneMetres: 20,
     });
-    expect(soundReading(race, 1, CLEAN_STOP_S)).toMatchObject({
+    expect(soundReading(race, 1, TUNING)).toMatchObject({
       blasts: [{ id: 1, kart: 0, metres: 30 }],
       incomingDroneMetres: Math.hypot(30, 5),
     });
-    expect(soundReading(raceReadout({ karts: [own] }), 0, CLEAN_STOP_S)).toMatchObject({
+    expect(soundReading(raceReadout({ karts: [own] }), 0, TUNING)).toMatchObject({
       blasts: [],
       incomingDroneMetres: null,
     });
@@ -656,7 +651,7 @@ describe("the stop's sounds", () => {
         karts: [0, 1].map((slot) => kartReadout(slot === kart ? { stop } : {})),
       }),
       0,
-      CLEAN_STOP_S,
+      TUNING,
     );
   const guided = (tier: StopTier, stationaryS: number, guideLeftS: number): Stop => ({
     tier,

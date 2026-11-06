@@ -8,12 +8,16 @@ import {
   type Race,
   type Wheel,
 } from "./bridge";
+import { webTransportTimeoutMs } from "./connection";
 import { dustTell } from "./dust";
 import type { Input, Snapshot } from "./generated/protocol";
 import { IDLE_INPUT } from "./input";
 import { START_LIGHTS } from "./instrument-panel";
 import { type SimKartReadout, simKartReadout } from "./kart-readout-fixture";
+import { nicknameChars } from "./nickname";
+import { pingTiming } from "./ping";
 import { landedItem } from "./race-run";
+import { reconnectTiming } from "./reconnect";
 
 // The real wasm build, loaded from bytes because the default loader fetches
 // the module URL and fetch rejects file: URLs in Node. `pnpm build:bridge`
@@ -133,11 +137,12 @@ describe("race phase", () => {
 describe("bridge wrapper", () => {
   it("reports the sim's 60 Hz tick rate, its kart box and the runaway wheel's reach", async () => {
     const bridge = await loadBridge(wasm);
-    expect(bridge.ticksPerSecond).toBe(60);
-    expect(bridge.kartSize.width).toBeCloseTo(1.2);
-    expect(bridge.kartSize.height).toBeCloseTo(0.6);
-    expect(bridge.kartSize.length).toBeCloseTo(1.8);
-    expect(bridge.runawayWheelRadiusMetres).toBeCloseTo(1.2);
+    expect(bridge.tuning.ticksPerSecond).toBe(60);
+    const [width, height, length] = bridge.tuning.kartSizeM;
+    expect(width).toBeCloseTo(1.2);
+    expect(height).toBeCloseTo(0.6);
+    expect(length).toBeCloseTo(1.8);
+    expect(bridge.tuning.wheelRadiusM).toBeCloseTo(1.2);
   });
 
   it("steps each kart by its own input and reports transforms in grid order", async () => {
@@ -166,21 +171,20 @@ describe("bridge wrapper", () => {
 
   it("answers the countdown: one second per start light the panel draws", async () => {
     const bridge = await loadBridge(wasm);
-    expect(bridge.countdownSeconds).toBe(START_LIGHTS);
+    expect(bridge.tuning.countdownS).toBe(START_LIGHTS);
   });
 
   it("reads the chase camera's tuning from the sim: top speed, pull-back, shake and boost kick", async () => {
     const bridge = await loadBridge(wasm);
-    expect(bridge.cameraTuning).toEqual({
-      topSpeedMetresPerSecond: 30,
-      pullBackMetres: 1,
-      shakeSeconds: expect.closeTo(0.3, 5),
-      shakeAmplitudeMetres: expect.any(Number),
-      fieldOfViewDegrees: 60,
-      boostKick: expect.closeTo(0.12, 5),
-      boostKickEaseSeconds: expect.closeTo(0.3, 5),
+    expect(bridge.tuning).toMatchObject({
+      topSpeedMPerS: 30,
+      cameraPullBackM: 1,
+      cameraShakeS: expect.closeTo(0.3, 5),
+      cameraFieldOfViewDeg: 60,
+      cameraBoostKick: expect.closeTo(0.12, 5),
+      cameraBoostKickEaseS: expect.closeTo(0.3, 5),
     });
-    expect(bridge.cameraTuning.shakeAmplitudeMetres).toBeGreaterThan(0);
+    expect(bridge.tuning.cameraShakeAmplitudeM).toBeGreaterThan(0);
   });
 
   it("reports the surface under a kart that steers off the asphalt", async () => {
@@ -205,15 +209,15 @@ describe("bridge wrapper", () => {
     expect(bridge.encodeClientMessage({ ping: { nonce: 42 } })).toEqual(new Uint8Array([0, 42]));
     expect(bridge.decodeServerMessage(new Uint8Array([0, 42]))).toEqual({ pong: { nonce: 42 } });
     expect(() => bridge.decodeServerMessage(new Uint8Array([0xff, 0xff]))).toThrow(/malformed/);
-    expect(bridge.webTransportTimeoutMs).toBe(3_000);
-    expect(bridge.pingTiming).toEqual({ timeoutMs: 5_000, resendMs: 500 });
-    expect(bridge.reconnectTiming).toEqual({ silenceMs: 2_000, retryMs: 1_000 });
+    expect(webTransportTimeoutMs(bridge.tuning)).toBe(3_000);
+    expect(pingTiming(bridge.tuning)).toEqual({ timeoutMs: 5_000, resendMs: 500 });
+    expect(reconnectTiming(bridge.tuning)).toEqual({ silenceMs: 2_000, retryMs: 1_000 });
   });
 
   it("reports the room's tuned bounds for the Title Scene to validate against", async () => {
     const bridge = await loadBridge(wasm);
-    expect(bridge.nicknameChars).toEqual({ min: 2, max: 12 });
-    expect(bridge.roomCodeLength).toBe(4);
+    expect(nicknameChars(bridge.tuning)).toEqual({ min: 2, max: 12 });
+    expect(bridge.tuning.roomCodeLength).toBe(4);
   });
 
   it("rejects a sidecar the sim cannot race on with the sim's reason", async () => {
@@ -313,10 +317,10 @@ describe("bridge wrapper", () => {
 
   it("fills the grid behind the human with bots that drive themselves", async () => {
     const bridge = await loadBridge(wasm);
-    expect(bridge.kartsPerRace).toBe(8);
+    expect(bridge.tuning.kartsPerRace).toBe(8);
     // A seed that rolls no bot the start boost, so none shoves the idle human.
     const race = started(
-      bridge.createRace(181n, 1, bridge.kartsPerRace - 1, OVAL, {
+      bridge.createRace(181n, 1, bridge.tuning.kartsPerRace - 1, OVAL, {
         level: "basic",
         tyres: "off",
         laps: 3,
@@ -423,17 +427,17 @@ describe("the pit lane", () => {
 describe("picks", () => {
   it("offers what the sim's tuning offers, and starts a fresh creator on Tyres On", async () => {
     const bridge = await loadBridge(wasm);
-    expect(bridge.pickChoices).toEqual({
+    expect(bridge.tuning.pickChoices).toEqual({
       level: ["basic", "pro", "ace"],
       tyres: ["off", "on"],
       laps: [3, 5],
     });
-    expect(bridge.freshPicks).toEqual({ level: "basic", tyres: "on", laps: 3 });
+    expect(bridge.tuning.freshPicks).toEqual({ level: "basic", tyres: "on", laps: 3 });
   });
 
   it("refuses picks no creator can make, at the race and at the prediction alike", async () => {
     const bridge = await loadBridge(wasm);
-    const fresh = bridge.freshPicks;
+    const fresh = bridge.tuning.freshPicks;
     // Picks the types rule out, as a stale caller could send.
     const unoffered: [unknown, RegExp][] = [
       [{ ...fresh, level: "wild" }, /wild/],
@@ -600,7 +604,7 @@ describe("prediction", () => {
 
   it("takes the spin-out a snapshot says the own kart is in and counts it down", async () => {
     const bridge = await loadBridge(wasm);
-    expect(bridge.spinOutSeconds).toBe(1);
+    expect(bridge.tuning.spinOutS).toBe(1);
     const prediction = bridge.createPrediction(7n, 0, OVAL, {
       level: "basic",
       tyres: "off",
@@ -731,8 +735,8 @@ describe("prediction", () => {
 describe("items", () => {
   it("reports the empty slot, the track's boxes and the tuned respawn", async () => {
     const bridge = await loadBridge(wasm);
-    expect(bridge.itemBoxRespawnSeconds).toBe(3);
-    expect(bridge.predictedFireTimeoutSeconds).toBe(1);
+    expect(bridge.tuning.itemBoxRespawnS).toBe(3);
+    expect(bridge.tuning.predictedFireTimeoutS).toBe(1);
     const race = bridge.createRace(7n, 1, 0, OVAL, { level: "basic", tyres: "off", laps: 3 });
     expect(race.kartReadouts()[0]?.itemSlot).toBe("empty");
     const boxes = race.itemBoxes();
@@ -741,12 +745,12 @@ describe("items", () => {
     expect(race.itemBoxesPresent()).toEqual(Array<boolean>(8).fill(true));
     expect(race.hazards()).toEqual([]);
     expect(race.projectiles()).toEqual([]);
-    expect(bridge.hazardDropDistanceMetres).toBe(1);
+    expect(bridge.tuning.hazardDropDistanceM).toBe(1);
   });
 
   it("reports each box a kart takes on the step it takes it, the one that rolls and the one that gives nothing", async () => {
     const bridge = await loadBridge(wasm);
-    expect(bridge.itemRollSeconds).toBe(2.5);
+    expect(bridge.tuning.itemRollS).toBe(2.5);
     const sidecar = JSON.parse(OVAL) as {
       spawn_grid: { position: [number, number, number] }[];
       item_boxes: { position: [number, number, number]; yaw: number }[];
@@ -780,11 +784,11 @@ describe("items", () => {
 
   it("reports the track's coins, a kart taking the one under it at Go and carrying it", async () => {
     const bridge = await loadBridge(wasm);
-    expect(bridge.coinCap).toBe(10);
-    expect(bridge.coinRespawnSeconds).toBe(3);
-    expect(bridge.coinTopSpeeds).toHaveLength(11);
-    expect(bridge.coinTopSpeeds[0]).toBeCloseTo(30);
-    expect(bridge.coinTopSpeeds[10]).toBeCloseTo(33);
+    expect(bridge.tuning.coinCap).toBe(10);
+    expect(bridge.tuning.coinRespawnS).toBe(3);
+    expect(bridge.tuning.coinTopSpeedsMPerS).toHaveLength(11);
+    expect(bridge.tuning.coinTopSpeedsMPerS[0]).toBeCloseTo(30);
+    expect(bridge.tuning.coinTopSpeedsMPerS[10]).toBeCloseTo(33);
     const sidecar = JSON.parse(OVAL) as {
       spawn_grid: { position: [number, number, number] }[];
       coins: { position: [number, number, number]; yaw: number }[];
@@ -824,7 +828,7 @@ describe("items", () => {
     };
     sidecar.item_boxes.push({ position: sidecar.spawn_grid[1]?.position ?? [0, 0, 0], yaw: 0 });
     const boxed = JSON.stringify(sidecar);
-    const tick = 1 / bridge.ticksPerSecond;
+    const tick = 1 / bridge.tuning.ticksPerSecond;
     const fire: KartInput = { ...IDLE_INPUT, useItem: true };
     let fired = false;
     for (let seed = 0n; seed < 50n && !fired; seed++) {

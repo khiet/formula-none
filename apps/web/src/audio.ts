@@ -77,6 +77,7 @@ import {
   engineVoice,
 } from "./audio-engine";
 import type { AudioSettings } from "./audio-settings";
+import type { Tuning } from "./bridge";
 
 export const SOUND_URLS: Readonly<Record<SoundCue, string>> = {
   countdownBeep: countdownBeepUrl,
@@ -180,10 +181,12 @@ export interface SoundContext {
 
 export interface AudioOptions {
   readonly settings: AudioSettings;
-  /** The sim's top speed, which the engine's gear bands and the loops' swell are scaled to. */
-  readonly topSpeedMetresPerSecond: number;
-  /** How long a star's run lasts, which the star music is rendered to and joined against. */
-  readonly starRunSeconds: number;
+  /**
+   * The sim's top speed, which the engine's gear bands and the loops' swell
+   * are scaled to, and how long a star's run lasts, which the star music is
+   * rendered to and joined against.
+   */
+  readonly tuning: Pick<Tuning, "topSpeedMPerS" | "starS">;
   /** Fetch one sound file's bytes; called for every file at creation. */
   fetchBytes(url: string): Promise<ArrayBuffer>;
   /** Make the AudioContext; called by `unlock` inside a user gesture, again only if it threw. */
@@ -341,11 +344,7 @@ export function createAudio(options: AudioOptions): Audio {
       });
     },
     race() {
-      const race = new LiveRace(
-        options.topSpeedMetresPerSecond,
-        options.starRunSeconds,
-        () => settings,
-      );
+      const race = new LiveRace(options.tuning.topSpeedMPerS, options.tuning.starS, () => settings);
       return {
         start() {
           live?.stop();

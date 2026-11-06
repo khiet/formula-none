@@ -8,6 +8,7 @@ import type {
   Prediction,
   Projectile,
   Race,
+  Tuning,
   Wheel,
 } from "./bridge";
 import { fakeConnection, jsonCodec, TOKEN } from "./fake-connection";
@@ -81,17 +82,22 @@ function prediction(): FakePrediction {
   return made;
 }
 
-const bridge = {
+// The tuning a server race reads; the rest of the generated `Tuning` it never touches.
+const tuning: Partial<Tuning> = {
   ticksPerSecond: TICKS_PER_SECOND,
-  countdownSeconds: COUNTDOWN_S,
+  countdownS: COUNTDOWN_S,
   kartsPerRace: KARTS,
-  itemBoxRespawnSeconds: ITEM_BOX_RESPAWN_S,
-  itemRollSeconds: ITEM_ROLL_S,
-  coinRespawnSeconds: COIN_RESPAWN_S,
-  predictedFireTimeoutSeconds: PREDICTED_FIRE_TIMEOUT_S,
-  hazardDropDistanceMetres: HAZARD_DROP_DISTANCE_M,
-  spinOutSeconds: 1,
-  kartSize: { width: 1.2, height: KART_HEIGHT_M, length: 1.8 },
+  itemBoxRespawnS: ITEM_BOX_RESPAWN_S,
+  itemRollS: ITEM_ROLL_S,
+  coinRespawnS: COIN_RESPAWN_S,
+  predictedFireTimeoutS: PREDICTED_FIRE_TIMEOUT_S,
+  hazardDropDistanceM: HAZARD_DROP_DISTANCE_M,
+  spinOutS: 1,
+  kartSizeM: [1.2, KART_HEIGHT_M, 1.8],
+};
+
+const bridge = {
+  tuning,
   createRace: () =>
     ({
       kartReadouts: () => Array<KartReadout>(KARTS).fill(GRID_TRANSFORM),

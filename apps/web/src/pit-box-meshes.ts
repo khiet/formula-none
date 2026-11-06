@@ -35,7 +35,7 @@ import {
   SRGBColorSpace,
   Vector3,
 } from "three";
-import type { KartReadout, KartSize } from "./bridge";
+import type { KartReadout, KartSize, Tuning } from "./bridge";
 import { CREW_PER_BOX, crewRoster } from "./crew-roster";
 import {
   type CrewWork,
@@ -100,12 +100,15 @@ const BOOT = CARBON.shaded;
 const STEEL = GREYS.dark;
 const JACK_RED = POSTER_RED.mid;
 
-/** What the View reads of the stop's tuning, and the head every crew member wears. */
+/**
+ * What the pit boxes read of the stop's tuning: a clean stop's longest, past
+ * which the crew acts the roll out, and the guide onto the mark, which the
+ * crew runs out at the start of.
+ */
+export type PitBoxTuning = Pick<Tuning, "stopCleanS" | "pitBoxGuideS">;
+
+/** The head every crew member wears. */
 export interface PitBoxOptions {
-  /** The longest a clean stop lasts: past it the crew acts the roll out. */
-  readonly cleanStopSeconds: number;
-  /** How long the guide onto the mark takes: the crew runs out as it starts. */
-  readonly guideSeconds: number;
   /**
    * kart.glb's `head` node, with every face part under it: each crew
    * member's head is its geometry, instanced, with only their face's parts.
@@ -272,6 +275,7 @@ function signFace(word: string, background: number, ink: number): Material {
 export function pitBoxMeshes(
   pitBoxes: readonly PitBox[],
   kartSize: KartSize,
+  tuning: PitBoxTuning,
   options: PitBoxOptions,
 ): PitBoxMeshes {
   const mesh = new Group();
@@ -521,7 +525,7 @@ export function pitBoxMeshes(
         // The stop clock: the kart's own through its stop, run on from green after it.
         let secondsOnMark = 0;
         if (stop !== null) {
-          pitBox.work = crewWork(stop, options.cleanStopSeconds, options.guideSeconds);
+          pitBox.work = crewWork(stop, tuning.stopCleanS, tuning.pitBoxGuideS);
           secondsOnMark = stopClock(stop);
         } else if (pitBox.work !== null && pitBox.letGoAt !== null) {
           secondsOnMark = pitBox.greenAt + (clockSeconds - pitBox.letGoAt);
@@ -530,7 +534,7 @@ export function pitBoxMeshes(
           pitBox.work = null;
         }
         const work = pitBox.work;
-        const lift = kartOnJacks(stop, options.cleanStopSeconds);
+        const lift = kartOnJacks(stop, tuning.stopCleanS);
         pitBox.frame.getWorldPosition(world);
         const near = world.distanceTo(cameraAt) <= PIT_DRAW_RANGE_M;
         pitBox.boom.visible = near;

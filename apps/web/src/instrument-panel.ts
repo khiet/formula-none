@@ -1,5 +1,5 @@
 import instrumentFontUrl from "../../../assets/fonts/kenney/Kenney Mini Square.ttf?url";
-import type { Phase, Standing, Stop, StopTier } from "./bridge";
+import type { Phase, Standing, Stop, StopTier, Tuning } from "./bridge";
 import { type CourseMapSetup, createCourseMap } from "./course-map";
 import { droneWarned, incomingDroneMetres } from "./drone-warning";
 import {
@@ -337,7 +337,7 @@ export function createInstrumentPanel(
     tyrePercent.textContent = `${percent}%`;
     tyre.dataset.tyreWear = tyreWearBand(percent);
   };
-  showTyres(tuning.tyreLifeNew);
+  showTyres(tuning.tyreLifeNewPercent);
   // Beside the gauge whose red it warns of. "BOX" only ever means this radio
   // call: an item box is never shortened to it (ADR 0081).
   const boxPlate = instrument("box-call", "BOX");
@@ -547,7 +547,7 @@ export function createInstrumentPanel(
       const starS = local.starS;
       ring.style.display = starS === null ? "none" : "";
       if (starS !== null) {
-        const left = Math.min(Math.max(starS / tuning.starSeconds, 0), 1);
+        const left = Math.min(Math.max(starS / tuning.starS, 0), 1);
         ringStroke.setAttribute("stroke-dasharray", `${RING_LENGTH * left} ${RING_LENGTH}`);
         ringStroke.setAttribute("stroke", hexCss(reducedMotion ? RING_STILL : starColour(starS)));
       }
@@ -680,10 +680,9 @@ const ITEM_NAMES: Readonly<Record<Item, string>> = {
   horn: "Air Horn",
 };
 
-/** What the panel reads of the sim's tuning: the speed cluster's, and how long a star's run lasts. */
-export interface PanelTuning extends SpeedClusterTuning {
-  readonly starSeconds: number;
-}
+/** What the panel reads of the sim's tuning: the speed cluster's, the coin cap, new tyres' life and how long a star's run lasts. */
+export type PanelTuning = SpeedClusterTuning &
+  Pick<Tuning, "coinCap" | "tyreLifeNewPercent" | "starS">;
 /** How far the landed ball's glow reaches, in CSS pixels. */
 const BALL_GLOW_PX = 5;
 /** The ring is drawn in a fixed square of units and scaled by CSS. */

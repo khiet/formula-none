@@ -71,7 +71,7 @@ describe("replay determinism", () => {
 
   it("hashes every 60th tick, as the fixtures were recorded", async () => {
     const bridge = await loadBridge(wasm);
-    expect(bridge.replayHashIntervalTicks).toBe(60);
+    expect(bridge.tuning.replayHashIntervalTicks).toBe(60);
   });
 });
 
@@ -95,9 +95,9 @@ describe("replay recorder", () => {
     const hashes: bigint[] = [];
     for (let tick = 1; tick <= 150; tick++) {
       const input = tick <= 100 ? THROTTLE : TURN;
-      race.step([input], 1 / bridge.ticksPerSecond);
+      race.step([input], 1 / bridge.tuning.ticksPerSecond);
       recorder.record([input]);
-      if (tick % bridge.replayHashIntervalTicks === 0) {
+      if (tick % bridge.tuning.replayHashIntervalTicks === 0) {
         hashes.push(race.stateHash());
       }
     }
@@ -142,7 +142,7 @@ describe("replay recorder", () => {
       [THROTTLE, THROTTLE],
       [HOP, THROTTLE],
     ]) {
-      race.step(inputs, 1 / bridge.ticksPerSecond);
+      race.step(inputs, 1 / bridge.tuning.ticksPerSecond);
       recorder.record(inputs);
     }
     const file = JSON.parse(recorder.toJSON()) as ReplayFile;
@@ -168,7 +168,7 @@ describe("replay recorder", () => {
       race,
     );
     for (let tick = 1; tick <= 120; tick++) {
-      race.step([THROTTLE], 1 / bridge.ticksPerSecond);
+      race.step([THROTTLE], 1 / bridge.tuning.ticksPerSecond);
       recorder.record([THROTTLE]);
     }
     const file = JSON.parse(recorder.toJSON()) as ReplayFile;
@@ -187,7 +187,7 @@ describe("replay recorder", () => {
       alone,
     );
     for (let tick = 1; tick <= 120; tick++) {
-      alone.step([THROTTLE], 1 / bridge.ticksPerSecond);
+      alone.step([THROTTLE], 1 / bridge.tuning.ticksPerSecond);
       aloneRecorder.record([THROTTLE]);
     }
     expect((JSON.parse(aloneRecorder.toJSON()) as ReplayFile).hashes).not.toEqual(file.hashes);
@@ -207,9 +207,9 @@ describe("replay recorder", () => {
     );
     const hashes: bigint[] = [];
     for (let tick = 1; tick <= 300; tick++) {
-      race.step([THROTTLE], 1 / bridge.ticksPerSecond);
+      race.step([THROTTLE], 1 / bridge.tuning.ticksPerSecond);
       recorder.record([THROTTLE]);
-      if (tick % bridge.replayHashIntervalTicks === 0) hashes.push(race.stateHash());
+      if (tick % bridge.tuning.replayHashIntervalTicks === 0) hashes.push(race.stateHash());
     }
     const json = recorder.toJSON();
     expect((JSON.parse(json) as ReplayFile).tyres).toBe("on");
@@ -230,9 +230,9 @@ describe("replay recorder", () => {
     );
     const hashes: bigint[] = [];
     for (let tick = 1; tick <= 300; tick++) {
-      race.step([THROTTLE], 1 / bridge.ticksPerSecond);
+      race.step([THROTTLE], 1 / bridge.tuning.ticksPerSecond);
       recorder.record([THROTTLE]);
-      if (tick % bridge.replayHashIntervalTicks === 0) hashes.push(race.stateHash());
+      if (tick % bridge.tuning.replayHashIntervalTicks === 0) hashes.push(race.stateHash());
     }
     const json = recorder.toJSON();
     expect((JSON.parse(json) as ReplayFile).laps).toBe(5);
@@ -283,7 +283,7 @@ describe("the bot level in a recording", () => {
     const idle = IDLE_INPUT;
     // Ten seconds: well past Go, where the levels' bots part.
     for (let tick = 1; tick <= 600; tick++) {
-      race.step([idle], 1 / bridge.ticksPerSecond);
+      race.step([idle], 1 / bridge.tuning.ticksPerSecond);
       recorder.record([idle]);
     }
     const json = recorder.toJSON();

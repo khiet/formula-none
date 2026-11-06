@@ -2,7 +2,9 @@
 
 ## Status
 
-Accepted (2026-10-23). Widens the scope of ADR 0014.
+Accepted (2026-10-23). Widens the scope of ADR 0014. ADR 0094 supersedes
+the consequence that the bridge grows one getter per camera value: the
+client reads the camera's tuning by its generated name.
 
 ## Context
 

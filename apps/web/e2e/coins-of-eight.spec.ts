@@ -74,7 +74,7 @@ function watch(page: Page, bridge: Awaited<ReturnType<typeof loadBridge>>): Seen
 test("eight tabs agree on every kart's coins and on every loss", async ({ browser }) => {
   const bridge = await loadBridge(readFileSync(WASM));
   const line = centreline();
-  const TABS = bridge.kartsPerRace;
+  const TABS = bridge.tuning.kartsPerRace;
   const contexts: BrowserContext[] = [];
   const pages: Page[] = [];
   for (let tab = 0; tab < TABS; tab++) {
@@ -105,7 +105,9 @@ test("eight tabs agree on every kart's coins and on every loss", async ({ browse
   await creator.getByRole("button", { name: "Start" }).click();
   for (const page of pages) {
     await expect(page.locator("#instrument-panel")).toBeVisible({ timeout: 60_000 });
-    await expect(page.locator('[data-instrument="coins"]')).toHaveText(`x00 / ${bridge.coinCap}`);
+    await expect(page.locator('[data-instrument="coins"]')).toHaveText(
+      `x00 / ${bridge.tuning.coinCap}`,
+    );
   }
 
   // Sample each tab's coin count beside the count its own newest snapshot gives.
@@ -139,7 +141,7 @@ test("eight tabs agree on every kart's coins and on every loss", async ({ browse
   // A count that disagrees with its tab's own kart on two samples in a row;
   // one alone may straddle a snapshot.
   const stuck: string[] = [];
-  const reads = (own: number) => `x${String(own).padStart(2, "0")} / ${bridge.coinCap}`;
+  const reads = (own: number) => `x${String(own).padStart(2, "0")} / ${bridge.tuning.coinCap}`;
   for (let tab = 0; tab < TABS; tab++) {
     const mine = samples.filter((sample) => sample.tab === tab && sample.own !== undefined);
     for (let index = 1; index < mine.length; index++) {

@@ -56,7 +56,8 @@ export function createServerRace(
   if (localKart < 0) {
     throw new RangeError(`slot ${localSlot} is not on the grid ${countdown.grid.join(",")}`);
   }
-  const kartCount = bridge.kartsPerRace;
+  const kartCount = bridge.tuning.kartsPerRace;
+  const [, kartHeight] = bridge.tuning.kartSizeM;
   // Never stepped: it stands the karts on the grid until the first snapshot.
   const track = bridge.createRace(
     countdown.seed,
@@ -74,7 +75,7 @@ export function createServerRace(
   let results: readonly FinalStanding[] | undefined;
   /** Whether the server has said the race ended: the outro runs until the results. */
   let ended = false;
-  const ticks = (seconds: number) => Math.round(seconds * bridge.ticksPerSecond);
+  const ticks = (seconds: number) => Math.round(seconds * bridge.tuning.ticksPerSecond);
   /** The item the server says the local kart holds, landed and ready to fire. */
   let heldItem: Item | null = null;
   /**
@@ -104,7 +105,7 @@ export function createServerRace(
   const coinTicksLeft: number[] = Array<number>(coins.length).fill(0);
   /** Ticks until each box the server reported picked up is back; 0 while it is there. */
   const boxTicksLeft: number[] = Array<number>(boxes.length).fill(0);
-  const blasts = blastLedger(bridge.ticksPerSecond);
+  const blasts = blastLedger(bridge.tuning.ticksPerSecond);
 
   /** The shortest stop each kart was seen to end between snapshots; the results say for sure. */
   const bestStopSeen: (number | null)[] = Array<number | null>(kartCount).fill(null);
@@ -131,7 +132,7 @@ export function createServerRace(
       landingTicksLeft = ticks(ITEM_LANDING_FLASH_S);
     } else if (!slotHeardOf) {
       heldItem = landed;
-      const rolling = slot === undefined ? null : rollingOf(slot, bridge.itemRollSeconds);
+      const rolling = slot === undefined ? null : rollingOf(slot, bridge.tuning.itemRollS);
       rollingItem = rolling?.item ?? null;
       rolledTicks = rolling === null ? 0 : ticks(rolling.elapsedS);
     }
@@ -150,7 +151,7 @@ export function createServerRace(
     } else if ("itemPicked" in kind) {
       const { kart, item, itemBox } = kind.itemPicked;
       if (itemBox < boxTicksLeft.length) {
-        boxTicksLeft[itemBox] = ticks(bridge.itemBoxRespawnSeconds);
+        boxTicksLeft[itemBox] = ticks(bridge.tuning.itemBoxRespawnS);
       }
       // A null item is a box taken by a kart whose slot is full: the box
       // goes, the slot does not change. An item rolls until a snapshot
@@ -164,7 +165,7 @@ export function createServerRace(
     } else if ("coinPicked" in kind) {
       const { coin } = kind.coinPicked;
       if (coin < coinTicksLeft.length) {
-        coinTicksLeft[coin] = ticks(bridge.coinRespawnSeconds);
+        coinTicksLeft[coin] = ticks(bridge.tuning.coinRespawnS);
       }
     } else if ("itemFired" in kind) {
       const { kart, item } = kind.itemFired;
@@ -233,7 +234,7 @@ export function createServerRace(
         ? hazard
         : {
             ...hazard,
-            position: behind(holder, bridge.hazardDropDistanceMetres, bridge.kartSize.height),
+            position: behind(holder, bridge.tuning.hazardDropDistanceM, kartHeight),
           };
     });
   };
@@ -246,7 +247,7 @@ export function createServerRace(
       const sequence = client.sendInput(input);
       prediction.tick(quantiseInput(input, sequence));
       if (input.useItem && heldItem !== null && predictedFireTicksLeft === 0) {
-        predictedFireTicksLeft = ticks(bridge.predictedFireTimeoutSeconds);
+        predictedFireTicksLeft = ticks(bridge.tuning.predictedFireTimeoutS);
       } else {
         predictedFireTicksLeft = Math.max(predictedFireTicksLeft - 1, 0);
       }
@@ -275,8 +276,11 @@ export function createServerRace(
               : {
                   item: rollingItem,
                   // Held at the roll's end until the snapshot that lands it.
-                  elapsedS: Math.min(rolledTicks / bridge.ticksPerSecond, bridge.itemRollSeconds),
-                  rollS: bridge.itemRollSeconds,
+                  elapsedS: Math.min(
+                    rolledTicks / bridge.tuning.ticksPerSecond,
+                    bridge.tuning.itemRollS,
+                  ),
+                  rollS: bridge.tuning.itemRollS,
                 },
           firing: predictedFireTicksLeft > 0 || flashTicksLeft > 0,
           landing: landingTicksLeft > 0,

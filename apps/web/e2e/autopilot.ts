@@ -162,7 +162,7 @@ export function autopilot(page: Page, bridge: Bridge, line: Centreline): Autopil
         if (mine === undefined) return;
         // Throttle before the start window would stall the kart.
         const { tick } = message.snapshot;
-        const countingDown = tick < bridge.countdownSeconds * bridge.ticksPerSecond;
+        const countingDown = tick < bridge.tuning.countdownS * bridge.tuning.ticksPerSecond;
         let next: Controls = countingDown
           ? { steer: 0, throttle: false, reverse: false }
           : decide(line, mine);

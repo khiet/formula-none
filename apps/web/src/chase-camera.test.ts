@@ -1,18 +1,18 @@
 import { describe, expect, it } from "vitest";
-import type { CameraTuning, KartReadout } from "./bridge";
-import { createChaseCamera, fieldOfView } from "./chase-camera";
+import type { KartReadout } from "./bridge";
+import { type CameraTuning, createChaseCamera, fieldOfView } from "./chase-camera";
 import { kartReadout, yawed } from "./kart-readout-fixture";
 
 const FRAME_S = 1 / 60;
 /** A fixture of tuned values; in the app the camera reads the live ones from the bridge. */
 const TUNING: CameraTuning = {
-  topSpeedMetresPerSecond: 30,
-  pullBackMetres: 1,
-  shakeSeconds: 0.3,
-  shakeAmplitudeMetres: 0.15,
-  fieldOfViewDegrees: 60,
-  boostKick: 0.12,
-  boostKickEaseSeconds: 0.3,
+  topSpeedMPerS: 30,
+  cameraPullBackM: 1,
+  cameraShakeS: 0.3,
+  cameraShakeAmplitudeM: 0.15,
+  cameraFieldOfViewDeg: 60,
+  cameraBoostKick: 0.12,
+  cameraBoostKickEaseS: 0.3,
 };
 
 /** A kart at `position` turned `yaw` radians about +Y from its -Z facing. */
@@ -123,8 +123,8 @@ describe("the chase camera", () => {
       if (thrown > 1e-3) shakenFrames += 1;
     }
     expect(shakenFrames).toBeGreaterThanOrEqual(15);
-    expect(furthest).toBeGreaterThan(TUNING.shakeAmplitudeMetres / 4);
-    expect(furthest).toBeLessThanOrEqual(TUNING.shakeAmplitudeMetres * Math.sqrt(3) + 1e-9);
+    expect(furthest).toBeGreaterThan(TUNING.cameraShakeAmplitudeM / 4);
+    expect(furthest).toBeLessThanOrEqual(TUNING.cameraShakeAmplitudeM * Math.sqrt(3) + 1e-9);
     const settled = camera.update(kart(0, [0, 0.3, 0], { spinOutS: 0.6 }), FRAME_S);
     expectClose(settled.position, rest.position, 9);
     expectClose(settled.target, rest.target, 9);

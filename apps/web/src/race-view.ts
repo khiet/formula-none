@@ -20,7 +20,7 @@ import {
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { CSS2DObject, CSS2DRenderer } from "three/addons/renderers/CSS2DRenderer.js";
 import { WebGPURenderer } from "three/webgpu";
-import type { Coin, ItemBox, KartReadout, KartSize, Projectile, Wheel } from "./bridge";
+import type { Coin, ItemBox, KartReadout, KartSize, Projectile, Tuning, Wheel } from "./bridge";
 import type { CameraPose } from "./chase-camera";
 import { coinMeshes, coinSpray } from "./coin-meshes";
 import { createDustEmitter } from "./dust";
@@ -50,7 +50,7 @@ import { hexCss, livery } from "./livery";
 import type { Point } from "./low-poly-svg";
 import { HAZARD_ORANGE, plate, tonesOf, writePalette } from "./palette";
 import { createParticles } from "./particles";
-import { pitBoxMeshes } from "./pit-box-meshes";
+import { type PitBoxTuning, pitBoxMeshes } from "./pit-box-meshes";
 import { BLAST_S, type Blast, type RaceReadout } from "./race-run";
 import { sceneryMotion } from "./scenery-motion";
 import { createSparkEmitter, createSparkParticles } from "./sparks";
@@ -168,19 +168,21 @@ export interface ViewAssets {
   readonly kartGltfUrl: string;
 }
 
-/** What the View reads of the sim's tuning. */
-export interface ViewTuning {
-  readonly spinOutSeconds: number;
-  readonly runawayWheelRadiusMetres: number;
-  readonly hornRadiusMetres: number;
-  readonly slipstreamChargeSeconds: number;
-  /** A percentage of tyre life: below it a kart's tyre marks darken and its tyres smoke. */
-  readonly tyreLifeCliff: number;
-  /** The longest a clean stop lasts: past it a pit crew acts the roll out. */
-  readonly cleanStopSeconds: number;
-  /** How long the guide onto a pit box's mark takes: the pit crew runs out as it starts. */
-  readonly pitBoxGuideSeconds: number;
-}
+/**
+ * What the View reads of the sim's tuning: the karts on the grid and their
+ * box, and every tuned length, reach and life a mechanic's Feedback is drawn to.
+ */
+export type ViewTuning = PitBoxTuning &
+  Pick<
+    Tuning,
+    | "kartsPerRace"
+    | "kartSizeM"
+    | "spinOutS"
+    | "wheelRadiusM"
+    | "hornRadiusM"
+    | "slipstreamChargeS"
+    | "tyreLifeCliffPercent"
+  >;
 
 /**
  * The Race Scene's View: the track's glTF, the kart's glTF once per slot in
@@ -197,25 +199,23 @@ export interface ViewTuning {
  * tyre marks under a drift, darker off worn tyres, light smoke off them too, sparks once a tier has charged, drifting or
  * holding for the rocket start, dust on the run-off and at the wheels of a
  * stalled kart, a spun-out kart turned about its axis over
- * `tuning.spinOutSeconds`, a shadow disc on the track under every kart so a
+ * `tuning.spinOutS`, a shadow disc on the track under every kart so a
  * hop's height reads against the ground, a flame at the exhaust of every
  * boosting kart, a spray of the coins a kart's spin-out cost it as its
  * count falls and, round the own kart alone, wind lines while it boosts.
- * At each wheel crossing a runaway wheel `tuning.runawayWheelRadiusMetres` in size rolls
+ * At each wheel crossing a runaway wheel `tuning.wheelRadiusM` in size rolls
  * where the readout has it, burning, its flames off its back, trailing
  * smoke, kicking up dust where it lands and striking sparks off each wall
  * it rebounds from, the marshal sits with his tea or waves his hazard
  * flags as the wheel has it, and the post's beacon is lit while the flag
  * is up.
- * At each horn blast a flat orange ring grows to `tuning.hornRadiusMetres`, the blast's
+ * At each horn blast a flat orange ring grows to `tuning.hornRadiusM`, the blast's
  * reach, and fades.
  * `labelsFor` names the karts to label and where, from the frame's readouts. Picks WebGPU when the
  * browser has it and WebGL otherwise.
  */
 export async function createRaceView(
   container: HTMLElement,
-  kartCount: number,
-  kartSize: KartSize,
   assets: ViewAssets,
   itemBoxes: readonly ItemBox[],
   coins: readonly Coin[],
@@ -224,6 +224,9 @@ export async function createRaceView(
   labelsFor: (karts: readonly KartReadout[]) => readonly KartLabel[],
   viewer: ViewerOptions,
 ): Promise<RaceView> {
+  const kartCount = tuning.kartsPerRace;
+  const [width, height, length] = tuning.kartSizeM;
+  const kartSize: KartSize = { width, height, length };
   const renderer = new WebGPURenderer({ antialias: true });
   await renderer.init();
   renderer.setPixelRatio(window.devicePixelRatio);
@@ -281,7 +284,9 @@ export async function createRaceView(
     return { model, kart, wheels, head, sway, halo, haloMaterial, shining: false, spunOut: false };
   });
 
-  const tyreMarks = createTyreMarks(kartCount, kartSize, { wornBelow: tuning.tyreLifeCliff });
+  const tyreMarks = createTyreMarks(kartCount, kartSize, {
+    wornBelow: tuning.tyreLifeCliffPercent,
+  });
   const marks = tyreMarkMesh(tyreMarks);
   const sparks = createSparkParticles(kartCount);
   // Each kart's emitter remembers its tier, so a tier's burst is the kart's own.
@@ -313,7 +318,7 @@ export async function createRaceView(
   const wind = createWindParticles();
   const windLines = createWindLines(wind, kartSize, {
     reducedMotion: viewer.reducedMotion,
-    chargeSeconds: tuning.slipstreamChargeSeconds,
+    chargeSeconds: tuning.slipstreamChargeS,
   });
   /** How brightly the wind lines show this frame, from the own kart's boost or tow left. */
   let windBrightness = 0;
@@ -330,13 +335,10 @@ export async function createRaceView(
   // One each, so a kart's slow trickle of worn smoke is its own and never
   // lands on the next kart to ask.
   const dustEmitters = Array.from({ length: kartCount }, () =>
-    createDustEmitter(dust, kartSize, tuning.tyreLifeCliff),
+    createDustEmitter(dust, kartSize, tuning.tyreLifeCliffPercent),
   );
   // The wheel's smoke shares the dust's pool and mesh: puffs that spread and fade.
-  const wheelTells = createWheelTellEmitter(
-    { dust, smoke: dust, sparks },
-    tuning.runawayWheelRadiusMetres,
-  );
+  const wheelTells = createWheelTellEmitter({ dust, smoke: dust, sparks }, tuning.wheelRadiusM);
   const dustMesh = particleMesh(
     dust,
     new SphereGeometry(0.5, 6, 4),
@@ -366,11 +368,7 @@ export async function createRaceView(
   world.add(drawnCoins.mesh);
   const kartHead = kartModel.scene.getObjectByName("head");
   if (kartHead === undefined) throw new Error("kart.glb carries the driver's head");
-  const pits = pitBoxMeshes(pitBoxes, kartSize, {
-    cleanStopSeconds: tuning.cleanStopSeconds,
-    guideSeconds: tuning.pitBoxGuideSeconds,
-    head: kartHead,
-  });
+  const pits = pitBoxMeshes(pitBoxes, kartSize, tuning, { head: kartHead });
   world.add(pits.mesh);
   const spray = coinSpray();
   world.add(spray.mesh);
@@ -380,8 +378,8 @@ export async function createRaceView(
 
   const cones = meshPool(world, hazardConeMesh(), 0);
   const drones = homingDrones(world);
-  const rings = hornRings(world, tuning.hornRadiusMetres, surface, kartSize.height);
-  const runaways = runawayWheels(world, track.scene, tuning.runawayWheelRadiusMetres);
+  const rings = hornRings(world, tuning.hornRadiusM, surface, kartSize.height);
+  const runaways = runawayWheels(world, track.scene, tuning.wheelRadiusM);
   const motion = sceneryMotion(track.scene);
 
   const labels = Array.from({ length: kartCount }, (_, slot) => {
@@ -440,14 +438,14 @@ export async function createRaceView(
         }
         kart.position.set(...readout.position);
         kart.quaternion.set(...readout.rotation);
-        const onJacks = kartLift(readout.stop, tuning.cleanStopSeconds, kartSize.length);
+        const onJacks = kartLift(readout.stop, tuning.stopCleanS, kartSize.length);
         if (onJacks.liftM > 0) {
           kart.position.y += onJacks.liftM;
           kart.quaternion.multiply(spin.setFromAxisAngle(sideways, onJacks.pitch));
         }
         if (readout.spinOutS !== null) {
           kart.quaternion.multiply(
-            spin.setFromAxisAngle(up, spinOutAngle(readout.spinOutS, tuning.spinOutSeconds)),
+            spin.setFromAxisAngle(up, spinOutAngle(readout.spinOutS, tuning.spinOutS)),
           );
         }
         sparkEmitters[slot]?.emit(readout, frameSeconds, countingDown);

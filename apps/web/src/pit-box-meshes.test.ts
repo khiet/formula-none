@@ -65,7 +65,8 @@ function head(): Group {
   return root;
 }
 
-const OPTIONS = { cleanStopSeconds: 3, guideSeconds: 0.5, head: head() };
+const TUNING = { stopCleanS: 3, pitBoxGuideS: 0.5 };
+const OPTIONS = { head: head() };
 
 function stopping(
   guideLeftS: number,
@@ -133,7 +134,7 @@ describe("the pit light", () => {
 
 describe("the pit boxes", () => {
   it("paints each box's mark in its slot's key colour round a kart's footprint, with a gantry light and a boom over it", () => {
-    const pits = pitBoxMeshes(BOXES, KART, OPTIONS);
+    const pits = pitBoxMeshes(BOXES, KART, TUNING, OPTIONS);
     pits.mesh.updateMatrixWorld(true);
     BOXES.forEach((box, slot) => {
       const frame = pits.mesh.getObjectByName(`pitBox${slot}`);
@@ -157,7 +158,7 @@ describe("the pit boxes", () => {
   });
 
   it("lights the box red through its kart's stop and green as the kart is let go", () => {
-    const pits = pitBoxMeshes(BOXES, KART, OPTIONS);
+    const pits = pitBoxMeshes(BOXES, KART, TUNING, OPTIONS);
     const off = LAMP_OFF.mid;
     pits.show([kartReadout(), kartReadout()], AT_THE_BOXES, 0.1);
     expect(lamp(pits, 0, "red").color.getHex()).toBe(off);
@@ -174,7 +175,7 @@ describe("the pit boxes", () => {
   });
 
   it("draws seven crew per box in the slot's overalls, waiting in a row on the building's side", () => {
-    const pits = pitBoxMeshes(BOXES, KART, OPTIONS);
+    const pits = pitBoxMeshes(BOXES, KART, TUNING, OPTIONS);
     const suit = instanced(pits, "crewSuit");
     pits.show([kartReadout(), kartReadout()], AT_THE_BOXES, 0.1);
     BOXES.forEach((_, slot) => {
@@ -192,7 +193,7 @@ describe("the pit boxes", () => {
   });
 
   it("gives each crew member the roster's face under a headset", () => {
-    const pits = pitBoxMeshes(BOXES, KART, OPTIONS);
+    const pits = pitBoxMeshes(BOXES, KART, TUNING, OPTIONS);
     pits.show([kartReadout(), kartReadout()], AT_THE_BOXES, 0.1);
     BOXES.forEach((_, slot) => {
       crewRoster(slot).forEach((face, member) => {
@@ -220,7 +221,7 @@ describe("the pit boxes", () => {
   });
 
   it("runs the crew out on the catch: a gunner at every wheel, a jack off each end, the holder off the nose", () => {
-    const pits = pitBoxMeshes(BOXES, KART, OPTIONS);
+    const pits = pitBoxMeshes(BOXES, KART, TUNING, OPTIONS);
     pits.show([stopping(0, 0.6), kartReadout()], AT_THE_BOXES, 0.1);
     const crew = crewAt(pits, 0);
     for (const member of GUNNERS) expect(atAWheel(crew[member] ?? null)).toBe(true);
@@ -234,7 +235,7 @@ describe("the pit boxes", () => {
   });
 
   it("acts the roll out past a clean stop's time: one gunner stays on, four swarm a wheel, or all stand off", () => {
-    const pits = pitBoxMeshes(BOXES, KART, OPTIONS);
+    const pits = pitBoxMeshes(BOXES, KART, TUNING, OPTIONS);
     const atWheels = () => GUNNERS.filter((member) => atAWheel(crewAt(pits, 0)[member] ?? null));
     pits.show([stopping(0, 3.2, "slow", 3.8), kartReadout()], AT_THE_BOXES, 0.1);
     expect(atWheels()).toHaveLength(4);
@@ -246,7 +247,7 @@ describe("the pit boxes", () => {
   });
 
   it("hangs an air line from the boom to every gun", () => {
-    const pits = pitBoxMeshes(BOXES, KART, OPTIONS);
+    const pits = pitBoxMeshes(BOXES, KART, TUNING, OPTIONS);
     pits.show([stopping(0, 1), kartReadout()], AT_THE_BOXES, 0.1);
     const lines = pits.mesh.getObjectByName("airLines");
     if (!(lines instanceof LineSegments)) throw new Error("the air lines are line segments");
@@ -261,7 +262,7 @@ describe("the pit boxes", () => {
   });
 
   it("draws no crew while the camera is out of range of the lane", () => {
-    const pits = pitBoxMeshes(BOXES, KART, OPTIONS);
+    const pits = pitBoxMeshes(BOXES, KART, TUNING, OPTIONS);
     pits.show([stopping(0, 1), kartReadout()], FAR_AWAY, 0.1);
     expect(crewAt(pits, 0).every((member) => member === null)).toBe(true);
     expect(partPieces(pits, "headset").every((piece) => !drawn(piece, 0))).toBe(true);

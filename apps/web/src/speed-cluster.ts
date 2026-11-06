@@ -5,6 +5,7 @@
 // only and live here rather than in the sim's tuning (ADR 0014). The coin
 // cap and the top speed on each count of coins are the sim's, passed in.
 
+import type { Tuning } from "./bridge";
 import { kmPerHour } from "./format";
 
 /** 1 to 6, N while the speed shows as 0 km/h, R while reversing. */
@@ -21,15 +22,8 @@ export interface Drivetrain {
 /** What one shift light shows: unlit, or its third's colour as on an F1 wheel. */
 export type ShiftLight = "off" | "green" | "red" | "blue";
 
-/** The sim's tuning the cluster reads (ADR 0014): its top speeds in m/s and its coins. */
-export interface SpeedClusterTuning {
-  /** The top speed on each count of coins carried, from none to the cap. */
-  readonly coinTopSpeeds: readonly number[];
-  /** The most coins a kart carries. */
-  readonly coinCap: number;
-  /** The life of new tyres, as a percentage. */
-  readonly tyreLifeNew: number;
-}
+/** The sim's tuning the cluster reads (ADR 0014): its top speed in m/s on each count of coins. */
+export type SpeedClusterTuning = Pick<Tuning, "coinTopSpeedsMPerS">;
 
 /** How much life the tyres read as having: green, yellow or red. */
 export type TyreWearBand = "good" | "warn" | "bad";
@@ -97,7 +91,7 @@ export function tyreWearBand(percent: number): TyreWearBand {
  * gears stretch to it so the limiter still means a boost.
  */
 export function coinTopSpeed(tuning: SpeedClusterTuning, coins: number): number {
-  const speeds = tuning.coinTopSpeeds;
+  const speeds = tuning.coinTopSpeedsMPerS;
   return speeds[Math.min(Math.max(coins, 0), speeds.length - 1)] ?? 0;
 }
 

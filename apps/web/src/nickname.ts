@@ -2,9 +2,22 @@
 // visits, validated against the sim's tuned bounds as the bridge reports
 // them (ADR 0014).
 
-import type { NicknameChars } from "./bridge";
+import type { Tuning } from "./bridge";
 
 const STORAGE_KEY = "nickname";
+
+/** Bounds on a nickname's length in characters, inclusive. */
+export interface NicknameChars {
+  readonly min: number;
+  readonly max: number;
+}
+
+/** The sim's nickname bounds as the Title Scene checks them. */
+export function nicknameChars(
+  tuning: Pick<Tuning, "nicknameMinChars" | "nicknameMaxChars">,
+): NicknameChars {
+  return { min: tuning.nicknameMinChars, max: tuning.nicknameMaxChars };
+}
 
 export type NicknameCheck =
   | { readonly ok: true; readonly nickname: string }

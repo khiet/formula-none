@@ -31,7 +31,7 @@ test("eight tabs complete a race on Bell Deer", async ({ browser }) => {
   const bridge = await loadBridge(readFileSync(WASM));
   const line = centreline();
   // One tab per kart on the grid, so no bot races.
-  const TABS = bridge.kartsPerRace;
+  const TABS = bridge.tuning.kartsPerRace;
   const contexts: BrowserContext[] = [];
   const pages: Page[] = [];
   for (let tab = 0; tab < TABS; tab++) {
@@ -67,7 +67,7 @@ test("eight tabs complete a race on Bell Deer", async ({ browser }) => {
   // every tab reaches the results with every kart placed.
   await expect
     .poll(() => driver.laps(), { timeout: 720_000, intervals: [2_000] })
-    .toBeGreaterThanOrEqual(bridge.freshPicks.laps);
+    .toBeGreaterThanOrEqual(bridge.tuning.freshPicks.laps);
   for (const page of pages) {
     await expect(page.locator("#results-scene")).toBeVisible({ timeout: 300_000 });
     await expect(page.locator("li[data-result]")).toHaveCount(TABS);

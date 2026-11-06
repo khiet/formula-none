@@ -1,5 +1,15 @@
-import type { MessageCodec, PingTiming } from "./bridge";
+import type { MessageCodec, Tuning } from "./bridge";
 import type { Connection } from "./connection";
+
+export interface PingTiming {
+  readonly timeoutMs: number;
+  readonly resendMs: number;
+}
+
+/** How long a Ping waits for its Pong, and how often it is sent again meanwhile, from the sim's seconds. */
+export function pingTiming(tuning: Pick<Tuning, "pingTimeoutS" | "pingResendS">): PingTiming {
+  return { timeoutMs: tuning.pingTimeoutS * 1000, resendMs: tuning.pingResendS * 1000 };
+}
 
 /** The Pong `bytes` carry, or null for bytes that are anything else. */
 function pongNonce(codec: MessageCodec, bytes: Uint8Array): number | null {

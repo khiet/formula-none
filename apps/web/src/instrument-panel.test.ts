@@ -8,6 +8,7 @@ import {
   itemReadout,
   lampsLit,
   lapReadouts,
+  type PanelTuning,
   phaseReadout,
   STOP_TIME_HOLD_S,
   stopPlateTones,
@@ -48,11 +49,14 @@ function at(position: readonly [number, number, number]): KartReadout {
 
 // The sim's tuned top speeds, which the speed cluster's gears are cut from:
 // 30 m/s on no coins, each of the ten at most adding 1% of it.
-const TUNING = {
-  coinTopSpeeds: Array.from({ length: 11 }, (_, coins) => 30 * (1 + coins * 0.01)),
+const TUNING: PanelTuning = {
+  coinTopSpeedsMPerS: Array.from(
+    { length: 11 },
+    (_, coins) => 30 * (1 + coins * 0.01),
+  ) as PanelTuning["coinTopSpeedsMPerS"],
   coinCap: 10,
-  tyreLifeNew: 100,
-  starSeconds: 6,
+  tyreLifeNewPercent: 100,
+  starS: 6,
 };
 
 const nameOf = (kart: number) => (kart === course.ownKart ? "You" : `Kart ${kart + 1}`);

@@ -42,7 +42,7 @@ export interface Segment {
  * Record `race`, which was created from `seed` on `track` with `bots` bot
  * karts, run as `picks` say, from its first tick. Consecutive ticks with the same inputs share a
  * segment, and the race's hash is kept at every
- * `bridge.replayHashIntervalTicks`th tick.
+ * `bridge.tuning.replayHashIntervalTicks`th tick.
  */
 export function recordReplay(
   bridge: Bridge,
@@ -73,7 +73,7 @@ export function recordReplay(
         segments.push({ ticks: 1, inputs: copy });
       }
       ticks += 1;
-      if (ticks % bridge.replayHashIntervalTicks === 0) {
+      if (ticks % bridge.tuning.replayHashIntervalTicks === 0) {
         hashes.push(race.stateHash().toString(16).padStart(16, "0"));
       }
     },

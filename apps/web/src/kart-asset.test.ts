@@ -167,7 +167,9 @@ describe("the exported kart", () => {
   );
 
   it("fills the sim's box footprint once fitted, without overhanging it", async () => {
-    const { kartSize } = await loadBridge(wasm);
+    const { tuning } = await loadBridge(wasm);
+    const [boxWidth, boxHeight, boxLength] = tuning.kartSizeM;
+    const kartSize = { width: boxWidth, height: boxHeight, length: boxLength };
     const { min, max } = bounds(kart);
     const fit = fitKart({ min, max }, kartSize);
     const width = (max[0] - min[0]) * fit.scale;

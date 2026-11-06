@@ -1,5 +1,17 @@
-import type { CameraTuning, KartReadout } from "./bridge";
+import type { KartReadout, Tuning } from "./bridge";
 import { shortestTurn, yawOf } from "./kart-frame";
+
+/** What the chase camera reads of the sim's tuning (ADR 0020): the speed its pull-back is scaled to, the hit's shake and the boost's kick. */
+export type CameraTuning = Pick<
+  Tuning,
+  | "topSpeedMPerS"
+  | "cameraPullBackM"
+  | "cameraShakeS"
+  | "cameraShakeAmplitudeM"
+  | "cameraFieldOfViewDeg"
+  | "cameraBoostKick"
+  | "cameraBoostKickEaseS"
+>;
 
 /** Where the Race View's camera sits and what it looks at, in world metres. */
 export interface CameraPose {
@@ -82,7 +94,7 @@ export function createChaseCamera(
   /** Whether the kart was spun out last frame; a spin-out beginning is the hit. */
   let wasSpunOut: boolean | undefined;
   /** Seconds into the shake, or past its end when there is none. */
-  let shakeAge = tuning.shakeSeconds;
+  let shakeAge = tuning.cameraShakeS;
   return {
     update(kart, dtSeconds, lookingBehind = false) {
       const kartYaw = yawOf(kart.rotation);
@@ -106,7 +118,7 @@ export function createChaseCamera(
       if (spunOut && wasSpunOut === false) {
         shakeAge = 0;
       } else {
-        shakeAge = Math.min(shakeAge + dtSeconds, tuning.shakeSeconds);
+        shakeAge = Math.min(shakeAge + dtSeconds, tuning.cameraShakeS);
       }
       wasSpunOut = spunOut;
       const [sx, sy, sz] = shake(shakeAge, tuning);
@@ -114,8 +126,7 @@ export function createChaseCamera(
       // The pull-back follows speed alone, so a boost past top speed pulls
       // back past the tuned metre; the boost itself is felt as the kick.
       const pullBack =
-        BEHIND_M +
-        (Math.max(kart.speed, 0) / tuning.topSpeedMetresPerSecond) * tuning.pullBackMetres;
+        BEHIND_M + (Math.max(kart.speed, 0) / tuning.topSpeedMPerS) * tuning.cameraPullBackM;
       // Positive is toward the kart's back; looking behind flips both, so
       // the camera sits ahead of the kart and looks behind it.
       const facing = lookingBehind ? -1 : 1;
@@ -154,10 +165,10 @@ export function fieldOfView(
   reducedMotion = false,
 ): number {
   if (boostS === null || reducedMotion) {
-    return tuning.fieldOfViewDegrees;
+    return tuning.cameraFieldOfViewDeg;
   }
-  const ease = Math.min(Math.max(boostS, 0) / tuning.boostKickEaseSeconds, 1);
-  return tuning.fieldOfViewDegrees * (1 + tuning.boostKick * ease);
+  const ease = Math.min(Math.max(boostS, 0) / tuning.cameraBoostKickEaseS, 1);
+  return tuning.cameraFieldOfViewDeg * (1 + tuning.cameraBoostKick * ease);
 }
 
 /**
@@ -166,10 +177,10 @@ export function fieldOfView(
  * nothing after. No randomness, so a test can hold the pose exactly.
  */
 function shake(age: number, tuning: CameraTuning): readonly [number, number, number] {
-  if (age >= tuning.shakeSeconds) {
+  if (age >= tuning.cameraShakeS) {
     return [0, 0, 0];
   }
-  const envelope = tuning.shakeAmplitudeMetres * (1 - age / tuning.shakeSeconds);
+  const envelope = tuning.cameraShakeAmplitudeM * (1 - age / tuning.cameraShakeS);
   // Cosines, so the first frame of the shake is already thrown.
   return [
     envelope * Math.cos(2 * Math.PI * SHAKE_HZ[0] * age),

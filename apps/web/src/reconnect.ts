@@ -9,9 +9,23 @@
 // server frees the seat of a connection that drops, so giving up a quiet
 // one to rejoin would cost the seat.
 
-import type { ReconnectTiming } from "./bridge";
+import type { Tuning } from "./bridge";
 import type { Connection } from "./connection";
 import { RefusedError, type RoomClient, type Unsubscribe } from "./room-client";
+
+export interface ReconnectTiming {
+  /** Silence from the server mid-race that counts as a lost connection. */
+  readonly silenceMs: number;
+  /** The wait after a failed reconnect before the next try. */
+  readonly retryMs: number;
+}
+
+/** When a race's connection counts as lost, and how often it is tried again, from the sim's seconds. */
+export function reconnectTiming(
+  tuning: Pick<Tuning, "connectionSilenceS" | "reconnectRetryS">,
+): ReconnectTiming {
+  return { silenceMs: tuning.connectionSilenceS * 1000, retryMs: tuning.reconnectRetryS * 1000 };
+}
 
 /** Why the race's connection is gone for good. */
 export type Gone =
