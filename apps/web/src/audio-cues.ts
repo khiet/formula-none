@@ -314,16 +314,12 @@ export function soundCues(before: SoundReading | undefined, after: SoundReading)
   return cues;
 }
 
-/**
- * A step of the stop clock longer than this is a seek, as a reconciliation
- * or a rejoin makes, and sounds none of the beats it passes; a frame's
- * step, even a slow frame's, is well under it.
- */
+/** A step of the stop clock longer than this is a seek and sounds none of the beats it passes; a slow frame's step is well under it. */
 const STOP_SEEK_S = 0.25;
 
 /** The gun stall repeats this often while a botched stop's nut will not come. */
 const GUN_STALL_EVERY_S = 1.3;
-/** A stall starts only this long before the nut frees, so none is cut off by the swarm's gun. */
+/** No stall starts within this long of the nut freeing, as on the pit crew page. */
 const GUN_STALL_LAST_S = 0.6;
 /** The act's short run on a stuck nut lasts this long; a botched stop's ends as the nut frees. */
 const WHEEL_GUN_ACT_S = 0.3;
@@ -332,7 +328,6 @@ const WHEEL_OFF_INTO_S = 0.12;
 /** A fresh wheel clunks home this long before its beat ends, as it seats. */
 const WHEEL_ON_BEFORE_S = 0.08;
 
-/** A cue on the stop clock. */
 interface StopCue {
   readonly at: number;
   readonly cue: SoundCue;
