@@ -193,13 +193,16 @@ TREE_SPACING_M = 5.0
 # the outside of a corner, and a tall thing nearer would stand between it
 # and the kart.
 PROP_WALL_CLEARANCE_M = 8.0
-# The pit building's first door from its middle, by default: the doors run
-# forward from the line, where the grid's chase cameras look.
+# The pit building's doors, one per livery at this pitch, middle to middle.
+PITS_DOOR_PITCH_M = 5.5
+# The first door's middle from the building's middle, by default: a building
+# centred on the line has its doors run forward from it, where the grid's
+# chase cameras look.
 PITS_DOOR_FIRST_M = 2.75
-# The first door from the building's middle that centres all eight, 5.5 m
-# apart, on it: for a lane whose exit line comes too soon after the building's
-# middle for the doors to run forward from there.
-PITS_DOORS_CENTRED_M = -19.25
+# The first door's middle that centres them all on the building: for a lane
+# whose exit line comes too soon after the building's middle for the doors to
+# run forward from there.
+PITS_DOORS_CENTRED_M = -(len(CROWD_KEYS) - 1) * PITS_DOOR_PITCH_M / 2.0
 # A span, the arch, is held to the span rule instead: its underside keeps
 # the gantry's height over the asphalt and its feet only have to stand on
 # grass, so they keep no set distance from the wall.

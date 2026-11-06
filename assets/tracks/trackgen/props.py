@@ -34,6 +34,7 @@ from .layout import (
     GRASS_MARGIN_M,
     HOARDING_TEXT_PROUD_M,
     PITS_DOOR_FIRST_M,
+    PITS_DOOR_PITCH_M,
     PROP_WALL_CLEARANCE_M,
     SCENERY_LIFT_M,
     SPAN_FOOT_CLEARANCE_M,
@@ -157,7 +158,6 @@ PITS_HEIGHT_M = 6.0
 PITS_PARAPET_M = 0.6
 PITS_DOOR_WIDTH_M = 4.0
 PITS_DOOR_HEIGHT_M = 4.0
-PITS_DOOR_PITCH_M = 5.5
 PITS_DOOR_PROUD_M = 0.05
 PITS_DOOR_BAND_M = 0.5
 """The lit band across the top of a door."""
@@ -974,9 +974,9 @@ def arch(layout: Layout, prop: Prop, number: int, still: ByMaterial) -> tuple[li
 def pits(layout: Layout, prop: Prop, number: int, still: ByMaterial) -> tuple[list[SceneryMesh], list[Lettering]]:
     """The pit building at `prop`, `prop.length` long along the track with its front face
     toward it: stand-riser walls toned against stand plinth under a stand-plinth parapet and
-    a lit roof, a door for each livery on the front face, forward along the track from the
-    lane's `door_first` in the crowd's order, so every grid slot faces them, each in its key colour with a lit band
-    along its top, and a still flag on a carbon pole over each door, the flags in the same
+    a lit roof, a door for each livery on the front face, forward along the track from
+    the lane's `door_first` in the crowd's order, so every grid slot faces them, each in
+    its key colour with a lit band along its top, and a still flag on a carbon pole over each door, the flags in the same
     colours the other way round, as the style guide's card has them. No number and no kart:
     the doors are colours only. A `white` building, Goldstone's, has wall-white walls over beam
     shade under a beam-top parapet instead. It faces the track from either side."""

@@ -146,7 +146,7 @@ LAYOUT = Layout(
     # Mirabeau turns right, so the descent's outside is the left.
     wheel_crossings=[WheelCrossing(seg("casino-descent").s_mid, outside=1)],
     elevation=[climb],
-    # Right of the start straight, as Monaco's lane is (ADR 0087). The fork
+    # Right of the start straight, as Monaco's lane is (ADR 0088). The fork
     # leaves on the noghes flick, after Anthony Noghes, and the merge ends at
     # Sainte Devote, not past it as Monaco's does: a lane can fit inside neither
     # corner's 13-14 m radius. 120 m between the lines (ADR 0081), the doors
