@@ -200,9 +200,9 @@ impl Interpolation {
 }
 
 /// The kart `share` of the way from `from` to `to`, `ticks` apart: its
-/// transform and velocity between the two, and the rest, its boost and
-/// hop included, `from`'s. A kart put somewhere new is at `from`
-/// until `to`.
+/// transform, velocity and speed between the two, whether it is in the pit
+/// lane as the nearer of the two has it, and the rest, its boost and hop
+/// included, `from`'s. A kart put somewhere new is at `from` until `to`.
 fn between(from: &KartReadout, to: &KartReadout, ticks: u32, share: f32) -> KartReadout {
     let moved = Vec3::from(from.position).distance(Vec3::from(to.position));
     let share = if moved > ticks as f32 * INTERPOLATION_TELEPORT_M_PER_TICK {
@@ -217,12 +217,14 @@ fn between(from: &KartReadout, to: &KartReadout, ticks: u32, share: f32) -> Kart
     let velocity = Vec3::from(from.velocity).lerp(Vec3::from(to.velocity), share);
     let rotation = rotation.to_array();
     let velocity = velocity.to_array();
+    let speed = from.speed + (to.speed - from.speed) * share;
+    let nearer = if share < 0.5 { from } else { to };
     KartReadout {
         position: position.to_array(),
         rotation,
-        speed: KartReadout::facing_speed(rotation, velocity),
+        speed,
         velocity,
-        in_pit_lane: false,
+        in_pit_lane: nearer.in_pit_lane,
         ..*from
     }
 }

@@ -509,7 +509,7 @@ fn a_fired_boost_gives_the_tuned_speed_for_the_tuned_time() {
         }]
     );
     assert_eq!(slot(&state, 0), ItemSlot::Empty);
-    assert_eq!(state.kart_readouts()[0].boost_tier, MiniTurbo::Red);
+    assert_eq!(state.kart_readouts()[0].boost_tier(), MiniTurbo::Red);
     let mut boosted_ticks = 0;
     while (state.kart_readouts()[0].speed - boosted).abs() < 1e-3 {
         boosted_ticks += 1;

@@ -1,8 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { fakeConnection, jsonCodec, TOKEN } from "./fake-connection";
-import type { Event, KartSnapshot, Room, Snapshot } from "./generated/protocol";
+import type { Event, Room, Snapshot } from "./generated/protocol";
 import { PROTOCOL_VERSION } from "./generated/protocol";
 import { IDLE_INPUT } from "./input";
+import { snapshotKart } from "./kart-readout-fixture";
 import { joinRoom, quantiseInput, RefusedError, refusalMessage, rejoinRoom } from "./room-client";
 
 const codec = jsonCodec;
@@ -157,30 +158,7 @@ describe("joinRoom", () => {
   });
 });
 
-const KART: KartSnapshot = {
-  position: [0, 0.3, 0],
-  rotation: [0, 0, 0, 1],
-  velocity: [0, 0, 0],
-  bump: null,
-  drift: null,
-  racePosition: 1,
-  lap: 1,
-  checkpoint: 0,
-  splineProgress: 0,
-  wrongWay: false,
-  itemSlot: "empty",
-  coins: 0,
-  tyreLife: 100,
-  spinOutS: null,
-  airborne: false,
-  start: "clean",
-  stallS: null,
-  boost: null,
-  starS: null,
-  slipstream: null,
-  stop: null,
-  stops: 0,
-};
+const KART = snapshotKart({ position: [0, 0.3, 0] });
 
 function snapshot(tick: number, events: Event[] = []): Snapshot {
   return {

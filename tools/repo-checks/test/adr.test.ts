@@ -94,6 +94,7 @@ const DECISION_SLUGS = [
   "worn-tyres-cap-speed-harder-and-slide-more-at-the-cliff",
   "monarchs-pit-lane-moves-to-the-real-side",
   "goldstones-pit-lane-moves-to-the-real-side",
+  "the-wire-carries-the-kart-readout",
 ];
 
 const expectedFiles = DECISION_SLUGS.map(

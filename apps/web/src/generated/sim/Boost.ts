@@ -4,8 +4,4 @@ import type { BoostTier } from "./BoostTier";
 /**
  * A boost under way: the seconds it has left and the tier it burns in.
  */
-export type BoostSnapshot = { 
-/**
- * Seconds of boost left.
- */
-leftS: number, tier: BoostTier, };
+export type Boost = { leftS: number, tier: BoostTier, };

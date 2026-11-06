@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { KartReadout, KartSize, MiniTurbo } from "./bridge";
-import type { Start } from "./generated/protocol";
+import type { Start } from "./generated/sim";
 import { kartReadout } from "./kart-readout-fixture";
 import { createParticles, type Particle } from "./particles";
 import { createSparkEmitter, createSparkParticles, sparkTell } from "./sparks";

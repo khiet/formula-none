@@ -125,8 +125,8 @@ fn a_fired_star_kicks_the_kart_then_raises_its_top_speed_for_the_tuned_time() {
     assert!((fired.star_s.expect("on a run") - (STAR_S - DT)).abs() < 1e-5);
     // The kick is the boost item's factor for its own short time.
     assert_eq!(fired.speed, ITEM_BOOST_FACTOR * TOP_SPEED_M_PER_S);
-    assert!((fired.boost_s.expect("the kick") - (STAR_KICK_S - DT)).abs() < 1e-5);
-    assert_eq!(fired.boost_tier, MiniTurbo::Red);
+    assert!((fired.boost_s().expect("the kick") - (STAR_KICK_S - DT)).abs() < 1e-5);
+    assert_eq!(fired.boost_tier(), MiniTurbo::Red);
 
     // Once the kick is spent the kart settles to the raised cap and holds it
     // for the rest of the run, then falls back under the tuned top speed.
@@ -166,7 +166,7 @@ fn a_fired_star_kicks_the_kart_then_raises_its_top_speed_for_the_tuned_time() {
     }
     let kart = state.kart_readouts()[HOLDER];
     assert!(
-        kart.speed <= TOP_SPEED_M_PER_S || kart.boost_s.is_some(),
+        kart.speed <= TOP_SPEED_M_PER_S || kart.boost_s().is_some(),
         "back under the tuned top speed: {} m/s",
         kart.speed
     );
@@ -221,19 +221,22 @@ fn a_mini_turbo_during_a_run_does_not_end_it() {
     for _ in 0..ticks(1.0) {
         state = step(state, &holder(hold_wide), DT);
         drifted |= state.kart_readouts()[HOLDER].drift.is_some();
-        if state.kart_readouts()[HOLDER].mini_turbo == MiniTurbo::Orange {
+        if state.kart_readouts()[HOLDER].mini_turbo() == MiniTurbo::Orange {
             break;
         }
     }
     assert!(drifted, "the landing started a drift");
-    assert_eq!(state.kart_readouts()[HOLDER].mini_turbo, MiniTurbo::Orange);
+    assert_eq!(
+        state.kart_readouts()[HOLDER].mini_turbo(),
+        MiniTurbo::Orange
+    );
 
     let state = step(state, &holder(throttle()), DT);
 
     let kart = state.kart_readouts()[HOLDER];
     assert_eq!(kart.drift, None, "released");
-    assert_eq!(kart.boost_tier, MiniTurbo::Orange);
-    assert!(kart.boost_s.is_some(), "the release boosts");
+    assert_eq!(kart.boost_tier(), MiniTurbo::Orange);
+    assert!(kart.boost_s().is_some(), "the release boosts");
     assert_eq!(kart.speed, MINI_TURBO_BOOST_FACTOR * TOP_SPEED_M_PER_S);
     let left = kart.star_s.expect("the run goes on under the boost");
     assert!(left > STAR_S - 2.0, "{left} s left");
@@ -253,12 +256,13 @@ fn a_boost_pad_during_a_run_sets_its_own_speed_then_the_kart_settles_back_to_the
         state = step(state, &holder(input), DT);
         let kart = state.kart_readouts()[HOLDER];
         assert!(kart.star_s.is_some(), "the run goes on");
-        if kart.position[2] > pad_z + 2.0 || kart.boost_s.is_some_and(|_| kart.position[2] > pad_z)
+        if kart.position[2] > pad_z + 2.0
+            || kart.boost_s().is_some_and(|_| kart.position[2] > pad_z)
         {
             continue;
         }
         let pad_speed = BOOST_PAD_FACTOR * TOP_SPEED_M_PER_S;
-        if kart.boost_s.is_some() {
+        if kart.boost_s().is_some() {
             assert!(
                 (kart.speed - pad_speed).abs() < 1e-3,
                 "the pad sets its own speed: {}",
@@ -401,7 +405,7 @@ fn a_second_star_puts_the_timer_back_to_the_tuned_time_without_adding_and_kicks_
             (left - (STAR_S - DT)).abs() < 1e-5,
             "back to the start, not added to: {left} s"
         );
-        assert!((kart.boost_s.expect("the kick again") - (STAR_KICK_S - DT)).abs() < 1e-5);
+        assert!((kart.boost_s().expect("the kick again") - (STAR_KICK_S - DT)).abs() < 1e-5);
         return;
     }
 }
@@ -427,7 +431,7 @@ fn a_star_kart_spins_out_the_kart_it_touches_and_passes_through_at_full_speed() 
     for _ in 0..ticks(2.5) {
         state = step(state, &holder(throttle()), DT);
         let kart = state.kart_readouts()[HOLDER];
-        if kart.boost_s.is_none() {
+        if kart.boost_s().is_none() {
             slowest_after_the_kick = slowest_after_the_kick.min(kart.speed);
         }
         hits.extend(spun_out(&state));

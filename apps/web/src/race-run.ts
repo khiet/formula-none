@@ -9,7 +9,7 @@ import type {
   Standing,
   Wheel,
 } from "./bridge";
-import type { Item } from "./generated/protocol";
+import type { Item } from "./generated/sim";
 import type { ReplayRecorder } from "./replay";
 
 /**

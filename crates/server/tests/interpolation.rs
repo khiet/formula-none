@@ -39,7 +39,7 @@ fn client_tick(
             held.insert(snapshot.tick);
             interpolation.push(
                 snapshot.tick,
-                snapshot.karts.iter().map(KartReadout::from).collect(),
+                snapshot.karts.clone(),
                 projectiles(&snapshot),
             );
         }

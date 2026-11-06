@@ -7,13 +7,12 @@ use std::collections::BTreeMap;
 use std::time::Duration;
 
 use protocol::{
-    ClientMessage, Event, EventKind, FinalStanding, Input, KartSnapshot, PlayerState,
-    ServerMessage, Snapshot,
+    ClientMessage, Event, EventKind, FinalStanding, Input, PlayerState, ServerMessage, Snapshot,
 };
 use server::fake_transport::Client;
 use server::room::Started;
 use sim::tuning::{BOT_LOOKAHEAD_M, BOT_START_HOLD_S, COUNTDOWN_S, TICKS_PER_SECOND};
-use sim::{KartInput, Phase, Projectile, Track};
+use sim::{KartInput, KartReadout, Phase, Projectile, Track};
 
 /// Every one of `players` joins `code`, in order, and readies; once the
 /// first sees them all ready it starts the race. Returns each one's
@@ -123,7 +122,7 @@ pub fn assert_no_bot_rocket_starts(snapshot: &Snapshot, humans: usize) {
         assert!(
             snapshot.karts[humans..]
                 .iter()
-                .all(|kart| kart.start == protocol::Start::Clean),
+                .all(|kart| kart.start == sim::Start::Clean),
             "a bot rolled a rocket start; the seed must roll none"
         );
     }
@@ -131,7 +130,7 @@ pub fn assert_no_bot_rocket_starts(snapshot: &Snapshot, humans: usize) {
 
 /// Full throttle along the bots' line, the tuned distance right of the
 /// centreline, from where the snapshot has the kart.
-pub fn follow_the_line(track: &Track, kart: &KartSnapshot) -> KartInput {
+pub fn follow_the_line(track: &Track, kart: &KartReadout) -> KartInput {
     const RIGHT_OF_CENTRE_M: f32 = 2.5;
     let progress = kart.spline_progress;
     let ahead = track.point_at(progress + BOT_LOOKAHEAD_M);

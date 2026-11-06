@@ -1088,6 +1088,7 @@ const _: () = {
 /// them over in one call, decoded into the generated TypeScript type
 /// (ADR 0026). Each field is the constant of the same name.
 #[derive(Debug, Clone, Copy, PartialEq, serde::Serialize, ts_rs::TS)]
+#[ts(export_to = "../sim/")]
 #[serde(rename_all = "camelCase")]
 pub struct Tuning {
     pub ticks_per_second: u32,

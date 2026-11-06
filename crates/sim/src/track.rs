@@ -46,6 +46,7 @@ fn turn_rate(point_at: impl Fn(f32) -> [f32; 3], at: f32) -> f32 {
 /// What is under a point on the track. Five of these are exported as tagged
 /// meshes; `OutOfWorld` is the answer when nothing lies below a point.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize, TS)]
+#[ts(export_to = "../sim/")]
 #[serde(rename_all = "snake_case")]
 pub enum Surface {
     Asphalt,

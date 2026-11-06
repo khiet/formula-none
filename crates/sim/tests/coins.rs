@@ -262,7 +262,7 @@ fn a_boost_multiplies_on_top_of_the_coins() {
     let boosted = loop {
         state = step(state, &[throttle()], DT);
         let kart = state.kart_readouts()[0];
-        if kart.boost_s.is_some() {
+        if kart.boost_s().is_some() {
             break kart;
         }
         assert!(

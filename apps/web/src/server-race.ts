@@ -16,7 +16,8 @@
 // where that kart is drawn as the event arrives, for the blast's time.
 
 import type { Bridge, Hazard, KartReadout, Phase, Standing } from "./bridge";
-import type { FinalStanding, Item, Snapshot } from "./generated/protocol";
+import type { FinalStanding, Snapshot } from "./generated/protocol";
+import type { Item } from "./generated/sim";
 import {
   blastLedger,
   ITEM_FIRE_FLASH_S,

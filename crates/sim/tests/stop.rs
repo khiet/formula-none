@@ -139,7 +139,7 @@ fn a_kart_on_tyres_on_is_taken_onto_its_mark_at_the_catch_and_let_go_on_green_wi
     assert_eq!(last.tyre_life, TYRE_LIFE_NEW_PERCENT, "new tyres on green");
     assert_eq!(last.position, on_the_mark.position, "let go where it stood");
     assert_eq!(last.speed, 0.0, "at rest on green");
-    assert_eq!(last.boost_s, None);
+    assert_eq!(last.boost_s(), None);
 }
 
 #[test]

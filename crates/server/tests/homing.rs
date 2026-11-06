@@ -16,9 +16,10 @@ use common::{
     assert_no_bot_rocket_starts, follow_the_line, race_together, seconds, wire, with_rocket_start,
     Heard,
 };
-use protocol::{Event, EventKind, Item, ItemSlot, ProjectileSnapshot, Snapshot};
+use protocol::{Event, EventKind, ProjectileSnapshot, Snapshot};
 use server::fake_transport::{Conditions, Harness};
 use sim::tuning::{COUNTDOWN_S, SPIN_OUT_S, TICKS_PER_SECOND};
+use sim::{Item, ItemSlot};
 use sim::{Phase, Track};
 
 const OVAL: &str = include_str!("../../../assets/tracks/oval/oval.track.json");

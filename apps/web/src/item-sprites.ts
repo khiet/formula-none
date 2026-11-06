@@ -1,4 +1,4 @@
-import type { Item } from "./generated/protocol";
+import type { Item } from "./generated/sim";
 import { hexCss } from "./livery";
 import { group, line, ngon, type Point, polygon, rectangle, SVG_NS, svg } from "./low-poly-svg";
 import {

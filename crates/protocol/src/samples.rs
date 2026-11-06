@@ -6,12 +6,13 @@
 //! until it has one.
 
 use crate::{
-    BoostSnapshot, BoostTier, ClientMessage, DriftDirection, DriftSnapshot, Event, EventKind,
-    FinalStanding, HazardSnapshot, Input, Item, ItemSlot, KartSnapshot, Player, PlayerState,
-    ProjectileSnapshot, Refusal, Room, RoomState, ServerMessage, SlipstreamSnapshot, Snapshot,
-    Start, StopSnapshot, StopTier, PROTOCOL_VERSION,
+    ClientMessage, Event, EventKind, FinalStanding, HazardSnapshot, Input, Player, PlayerState,
+    ProjectileSnapshot, Refusal, Room, RoomState, ServerMessage, Snapshot, PROTOCOL_VERSION,
 };
-use sim::{BotLevel, Tyres};
+use sim::{
+    Boost, BoostTier, BotLevel, Drift, DriftDirection, Item, ItemSlot, KartReadout, Slipstream,
+    Start, Stop, StopTier, Tyres,
+};
 
 /// Every [`ClientMessage`] variant once.
 pub fn client() -> Vec<ClientMessage> {
@@ -136,7 +137,7 @@ pub fn room() -> Room {
 
 /// A busy moment two minutes into a race with eight karts: two drifting,
 /// two boosting, five holding items, one of them a star, all but the last
-/// carrying coins, one spun out, one just bumped, one on a star's run, one in the air, two of fifteen coins taken, a
+/// carrying coins, one spun out, one just bumped, one on a star's run, one in the air, one stopped in its pit box on the pit lane, two of fifteen coins taken, a
 /// hazard trailed behind a kart, a projectile in flight, and every kind of
 /// event since the previous snapshot. The byte budget in ADR 0010 is
 /// measured against this.
@@ -144,12 +145,13 @@ pub fn snapshot() -> Snapshot {
     let karts = (0..8u8)
         .map(|slot| {
             let along = f32::from(slot) * 7.5;
-            KartSnapshot {
+            KartReadout {
                 position: [12.5 + along, 0.3, -40.0 - along * 0.5],
                 rotation: [0.0, 0.3826834, 0.0, 0.9238795],
+                speed: 29.5,
                 velocity: [21.0, 0.0, -21.0],
                 bump: (slot == 3).then_some([-2.5, 0.0, -2.5]),
-                drift: (slot % 4 == 1).then_some(DriftSnapshot {
+                drift: (slot % 4 == 1).then_some(Drift {
                     direction: if slot < 4 {
                         DriftDirection::Left
                     } else {
@@ -157,11 +159,6 @@ pub fn snapshot() -> Snapshot {
                     },
                     charge_s: 0.75,
                 }),
-                race_position: slot + 1,
-                lap: 2,
-                checkpoint: 11 - slot,
-                spline_progress: 640.0 - along * 10.0,
-                wrong_way: slot == 5,
                 item_slot: match slot % 4 {
                     0 => ItemSlot::Held(Item::Hazard),
                     1 => ItemSlot::Empty,
@@ -172,23 +169,24 @@ pub fn snapshot() -> Snapshot {
                     _ if slot == 7 => ItemSlot::Held(Item::Star),
                     _ => ItemSlot::Held(Item::Boost),
                 },
-                coins: 7 - slot.min(7),
+                coins: 7 - u32::from(slot.min(7)),
                 tyre_life: 100.0 - f32::from(slot) * 12.5,
                 spin_out_s: (slot == 6).then_some(0.5),
                 airborne: slot == 0,
-                start: match slot % 4 {
-                    0 => Start::Clean,
-                    1 => Start::WeakBoost,
-                    2 => Start::FullBoost,
-                    _ => Start::Stall,
-                },
-                stall_s: (slot == 7).then_some(1.2),
+                in_pit_lane: slot == 4,
+                stop: (slot == 4).then_some(Stop {
+                    tier: StopTier::Slow,
+                    stationary_s: 3.7,
+                    guide_left_s: 0.0,
+                    stationary_so_far_s: 1.25,
+                }),
+                stops: u32::from(slot == 4 || slot == 6),
                 boost: match slot {
-                    2 => Some(BoostSnapshot {
+                    2 => Some(Boost {
                         left_s: 0.4,
                         tier: BoostTier::Orange,
                     }),
-                    4 => Some(BoostSnapshot {
+                    4 => Some(Boost {
                         left_s: 1.1,
                         tier: BoostTier::Red,
                     }),
@@ -196,17 +194,22 @@ pub fn snapshot() -> Snapshot {
                 },
                 star_s: (slot == 5).then_some(4.5),
                 slipstream: match slot {
-                    1 => Some(SlipstreamSnapshot::Charging { s: 0.35 }),
-                    3 => Some(SlipstreamSnapshot::Tow { left_s: 0.8 }),
+                    1 => Some(Slipstream::Charging { s: 0.35 }),
+                    3 => Some(Slipstream::Tow { left_s: 0.8 }),
                     _ => None,
                 },
-                stop: (slot == 4).then_some(StopSnapshot {
-                    tier: StopTier::Slow,
-                    stationary_s: 3.7,
-                    guide_left_s: 0.0,
-                    stationary_so_far_s: 1.25,
-                }),
-                stops: u8::from(slot == 4 || slot == 6),
+                start: match slot % 4 {
+                    0 => Start::Clean,
+                    1 => Start::WeakBoost,
+                    2 => Start::FullBoost,
+                    _ => Start::Stall,
+                },
+                stall_s: (slot == 7).then_some(1.2),
+                race_position: u32::from(slot) + 1,
+                lap: 2,
+                checkpoint: 11 - u32::from(slot),
+                spline_progress: 640.0 - along * 10.0,
+                wrong_way: slot == 5,
             }
         })
         .collect();

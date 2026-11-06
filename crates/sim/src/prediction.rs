@@ -555,7 +555,7 @@ fn agrees(record: &KartRecord, kart: &KartReadout, racing: bool) -> bool {
         && slipstream_agrees(record.kart.handling.slipstream(), kart.slipstream)
         && (!racing || record.kart.start == kart.start)
         && record.kart.lap() == kart.lap
-        && record.kart.checkpoint == kart.checkpoint
+        && record.kart.checkpoint == kart.checkpoint as usize
 }
 
 /// Whether the snapshot's stop is the record's: none, or the same roll with

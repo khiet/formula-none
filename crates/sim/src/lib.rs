@@ -85,19 +85,21 @@ pub struct KartInput {
 /// of the kart and what a prediction's kart adopts from one. Y is up and a
 /// kart with identity rotation faces -Z, matching Three.js.
 ///
-/// The transform, `position` and `rotation`, crosses the wasm seam as a
-/// flat buffer (ADR 0003); the rest is serialised in the shape of the
-/// generated TypeScript type (ADR 0026).
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, TS)]
+/// The wire carries it as it is, so each fact is a field once and a
+/// reading worked out from other fields is a method (ADR 0090). Its serde
+/// shape is the generated TypeScript type; the transform also crosses the
+/// wasm seam as a flat buffer for the View (ADR 0003).
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export_to = "../sim/")]
 #[serde(rename_all = "camelCase")]
 pub struct KartReadout {
     /// Metres.
-    #[serde(skip)]
     pub position: [f32; 3],
     /// A unit quaternion `[x, y, z, w]`.
-    #[serde(skip)]
     pub rotation: [f32; 4],
-    /// Metres per second along the kart's facing; negative when backing up.
+    /// Metres per second along the kart's travel, as its handling drives
+    /// it; negative when backing up. Not worked out from `velocity`, which
+    /// also holds the bump and a drift's slip.
     pub speed: f32,
     /// The body's velocity in metres per second: the speed along the
     /// travel, which a drift slips from the facing, and the vertical motion
@@ -111,9 +113,6 @@ pub struct KartReadout {
     pub bump: Option<[f32; 3]>,
     /// The drift the kart is in; `None` when it is not drifting.
     pub drift: Option<Drift>,
-    /// The tier the drift has charged, the sparks' tell; `MiniTurbo::None`
-    /// out of a drift.
-    pub mini_turbo: MiniTurbo,
     pub item_slot: ItemSlot,
     /// The coins the kart carries, from 0 to a full purse; each raises its
     /// forward top speed by the tuned factor.
@@ -129,8 +128,7 @@ pub struct KartReadout {
     /// snapshot has it.
     pub airborne: bool,
     /// Whether the kart is on the pit limiter, between a pit lane's lines
-    /// (ADR 0081); the gear slot's PIT. Only the sim that steps the kart
-    /// reports it: a snapshot does not carry it.
+    /// (ADR 0081); the gear slot's PIT.
     pub in_pit_lane: bool,
     /// The kart's stop in its pit box, while it is in one (ADR 0082): guided
     /// onto its mark and held there, dead to every control and touching
@@ -141,17 +139,14 @@ pub struct KartReadout {
     /// roll (ADR 0082). A snapshot carries it so a prediction that joined
     /// after a stop rolls the next one as the server does.
     pub stops: u32,
-    /// Seconds of boost left, while a mini-turbo, boost pad, item or start
-    /// boost holds the kart over top speed; the release's tell.
-    pub boost_s: Option<f32>,
+    /// The boost holding the kart over top speed, while a mini-turbo,
+    /// boost pad, item or start boost does; the release's and the flame's
+    /// tell.
+    pub boost: Option<Boost>,
     /// Seconds of a star's run left, while the kart has one: faster, immune
     /// and spinning out every kart it touches. The shine's tell, and what
     /// every client works the rainbow's phase out from.
     pub star_s: Option<f32>,
-    /// The tier the boost burns in, the flame's: orange for an orange
-    /// release or a weak rocket start, red for every other boost;
-    /// `MiniTurbo::None` while not boosting.
-    pub boost_tier: MiniTurbo,
     /// The slipstream the kart is in: charging in another's wake, or towed
     /// to a raised top speed cap; `None` out of both. The wind lines' tell
     /// for the own kart, and what a prediction's kart adopts from a
@@ -167,8 +162,9 @@ pub struct KartReadout {
     pub race_position: u32,
     /// The lap the kart is on, from 1, as [`Standing::lap`] counts it.
     pub lap: u32,
-    /// The last checkpoint crossed in order; 0 is the start line.
-    pub checkpoint: usize,
+    /// The last checkpoint crossed in order; 0 is the start line. A `u32`,
+    /// not the sim's `usize`, so it reaches JavaScript as a number.
+    pub checkpoint: u32,
     /// Metres along the centreline from the start line.
     pub spline_progress: f32,
     /// The wrong-way warning is up.
@@ -176,16 +172,94 @@ pub struct KartReadout {
 }
 
 impl KartReadout {
-    /// The speed along the facing of a kart turned by `rotation` and moving
-    /// at `velocity`: what a kart only a snapshot speaks for is reported as
-    /// going.
-    pub fn facing_speed(rotation: [f32; 4], velocity: [f32; 3]) -> f32 {
-        Vec3::from(velocity).dot(Rotation::from_array(rotation) * Vec3::NEG_Z)
+    /// The tier the drift has charged, the sparks' tell; `MiniTurbo::None`
+    /// out of a drift.
+    pub fn mini_turbo(&self) -> MiniTurbo {
+        MiniTurbo::of(self.drift)
+    }
+
+    /// Seconds of boost left, while boosting.
+    pub fn boost_s(&self) -> Option<f32> {
+        self.boost.map(|boost| boost.left_s)
+    }
+
+    /// The tier the boost burns in as a mini-turbo tier; `MiniTurbo::None`
+    /// while not boosting.
+    pub fn boost_tier(&self) -> MiniTurbo {
+        self.boost
+            .map_or(MiniTurbo::None, |boost| boost.tier.into())
+    }
+
+    /// The readings the bridge hands JavaScript beside the readout: those
+    /// worked out from it, and `surface`, the surface under the kart.
+    pub fn readings(&self, surface: Surface) -> KartReadings {
+        KartReadings {
+            surface,
+            mini_turbo: self.mini_turbo(),
+            boost_s: self.boost_s(),
+            boost_tier: self.boost_tier(),
+        }
     }
 }
 
+/// A boost under way: the seconds it has left and the tier it burns in.
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export_to = "../sim/")]
+#[serde(rename_all = "camelCase")]
+pub struct Boost {
+    pub left_s: f32,
+    pub tier: BoostTier,
+}
+
+/// The tier a boost burns in, the flame's: orange for an orange release or
+/// a weak rocket start, red for every other boost.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export_to = "../sim/")]
+#[serde(rename_all = "camelCase")]
+pub enum BoostTier {
+    Orange,
+    Red,
+}
+
+impl BoostTier {
+    /// The tier a boost given in mini-turbo tier `tier` burns in: only an
+    /// orange one burns orange.
+    fn of(tier: MiniTurbo) -> Self {
+        match tier {
+            MiniTurbo::Orange => Self::Orange,
+            MiniTurbo::Red | MiniTurbo::None => Self::Red,
+        }
+    }
+}
+
+impl From<BoostTier> for MiniTurbo {
+    fn from(tier: BoostTier) -> Self {
+        match tier {
+            BoostTier::Orange => Self::Orange,
+            BoostTier::Red => Self::Red,
+        }
+    }
+}
+
+/// What the bridge hands JavaScript beside each [`KartReadout`]: the
+/// readings worked out from it, which the wire does not carry, and the
+/// surface under the kart. The web app merges the two into one value.
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, TS)]
+#[ts(export_to = "../sim/")]
+#[serde(rename_all = "camelCase")]
+pub struct KartReadings {
+    pub surface: Surface,
+    /// See [`KartReadout::mini_turbo`].
+    pub mini_turbo: MiniTurbo,
+    /// See [`KartReadout::boost_s`].
+    pub boost_s: Option<f32>,
+    /// See [`KartReadout::boost_tier`].
+    pub boost_tier: MiniTurbo,
+}
+
 /// The items a kart can hold: what an item box rolls.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, TS)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export_to = "../sim/")]
 #[serde(rename_all = "camelCase")]
 pub enum Item {
     /// A burst of speed: the tuned factor on top speed for the tuned time.
@@ -258,7 +332,8 @@ struct PlacedHazard {
 /// What a kart's one item slot holds. A box taken into an empty slot
 /// starts a roll that lands the item `ITEM_ROLL_S` later; the roll counts
 /// as full, so nothing fires and no box rolls until it lands.
-#[derive(Debug, Clone, Copy, Default, PartialEq, Serialize, TS)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export_to = "../sim/")]
 #[serde(rename_all = "camelCase", rename_all_fields = "camelCase")]
 pub enum ItemSlot {
     #[default]
@@ -272,7 +347,8 @@ pub enum ItemSlot {
 /// Where a kart stands with the slipstream (GLOSSARY): in another kart's
 /// wake short of the charge, or towed. A tagged enum across the seams, as
 /// `ItemSlot` is (ADR 0026).
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, TS)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export_to = "../sim/")]
 #[serde(rename_all = "camelCase", rename_all_fields = "camelCase")]
 pub enum Slipstream {
     /// In a wake for `s` seconds so far, short of the charge.
@@ -357,7 +433,8 @@ impl Item {
 }
 
 /// Which way a drift turns the kart. Fixed by the steer at the hop.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, TS)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export_to = "../sim/")]
 #[serde(rename_all = "camelCase")]
 pub enum DriftDirection {
     Left,
@@ -387,7 +464,8 @@ impl DriftDirection {
 
 /// A drift under way: its direction and how long it has been held, which
 /// is what the mini-turbo tier is read from.
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, TS)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export_to = "../sim/")]
 #[serde(rename_all = "camelCase")]
 pub struct Drift {
     pub direction: DriftDirection,
@@ -412,6 +490,7 @@ impl Drift {
 
 /// The mini-turbo tiers a drift charges through, in order.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, TS)]
+#[ts(export_to = "../sim/")]
 #[serde(rename_all = "camelCase")]
 pub enum MiniTurbo {
     None,
@@ -533,7 +612,8 @@ impl Phase {
 /// tier the throttle hold so far has reached, so the tiers come as the hold
 /// lengthens and a hold that has tipped into a stall reads as one; from Go
 /// the verdict.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, TS)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export_to = "../sim/")]
 #[serde(rename_all = "camelCase")]
 pub enum Start {
     /// No hold, or one under the weak edge: a plain start.
@@ -579,6 +659,7 @@ impl Start {
 /// what race position is ordered by. One per kart from [`State::standings`],
 /// serialised in the shape of the generated TypeScript type (ADR 0026).
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, TS)]
+#[ts(export_to = "../sim/")]
 #[serde(rename_all = "camelCase")]
 pub struct Standing {
     /// Race position, 1 for the leader. Finishers first in finishing order,
@@ -790,7 +871,6 @@ impl Kart {
                 (bump != Vec3::ZERO).then_some(bump.to_array())
             },
             drift: self.handling.drift(),
-            mini_turbo: MiniTurbo::of(self.handling.drift()),
             item_slot: self.item_slot,
             coins: self.coins,
             tyre_life: self.handling.tyre_life(),
@@ -799,15 +879,17 @@ impl Kart {
             in_pit_lane: track.in_pit_lane(body.translation().to_array()),
             stop: self.stop,
             stops: self.stops,
-            boost_s: self.handling.boost_s(),
-            boost_tier: self.handling.boost_tier(),
+            boost: self.handling.boost_s().map(|left_s| Boost {
+                left_s,
+                tier: BoostTier::of(self.handling.boost_tier()),
+            }),
             slipstream: self.handling.slipstream(),
             star_s: self.starring().then_some(self.star_left_s),
             start: self.start,
             stall_s: (self.stall_left_s > 0.0).then_some(self.stall_left_s),
             race_position: standing.position,
             lap: standing.lap,
-            checkpoint: standing.checkpoint,
+            checkpoint: standing.checkpoint as u32,
             spline_progress: standing.spline_progress,
             wrong_way: standing.wrong_way,
         }
@@ -857,7 +939,7 @@ impl Kart {
         if self.lap() != readout.lap {
             self.laps_completed = readout.lap.saturating_sub(1);
         }
-        self.checkpoint = readout.checkpoint;
+        self.checkpoint = readout.checkpoint as usize;
         self.spline_progress = readout.spline_progress;
     }
 }

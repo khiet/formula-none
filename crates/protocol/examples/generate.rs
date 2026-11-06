@@ -2,7 +2,7 @@
 //! type through ts-rs, the protocol version, an index, and the sample
 //! messages as bytes next to their JSON for Vitest (ADR 0004). Beside it,
 //! the sim's types the bridge hands over as JavaScript values: the kart
-//! readout, the surface under a kart, the standing, the tuning, the bot
+//! readout and its readings, the surface under a kart, the standing, the tuning, the bot
 //! level and the Tyres pick (ADR 0026).
 //!
 //! `pnpm generate:protocol` runs this; CI runs it and fails on a diff
@@ -16,7 +16,7 @@
 use protocol::{encode, samples, ClientMessage, ServerMessage, PROTOCOL_VERSION};
 use serde::Serialize;
 use sim::tuning::Tuning;
-use sim::{BotLevel, KartReadout, Standing, Surface, Tyres};
+use sim::{BotLevel, KartReadings, KartReadout, Standing, Surface, Tyres};
 use std::error::Error;
 use std::path::{Path, PathBuf};
 use std::{env, fs};
@@ -30,7 +30,10 @@ fn main() -> Result<(), Box<dyn Error>> {
         .nth(1)
         .map_or_else(default_out_dir, PathBuf::from);
 
+    // Both first: a protocol type exports the sim types it holds into the
+    // sim directory, where the protocol's files import them from.
     let protocol_dir = replaced(&out_dir.join("protocol"))?;
+    let sim_dir = replaced(&out_dir.join("sim"))?;
     let cfg = Config::new().with_out_dir(&protocol_dir);
     ClientMessage::export_all(&cfg)?;
     ServerMessage::export_all(&cfg)?;
@@ -47,9 +50,9 @@ fn main() -> Result<(), Box<dyn Error>> {
         )?,
     )?;
 
-    let sim_dir = replaced(&out_dir.join("sim"))?;
     let cfg = Config::new().with_out_dir(&sim_dir);
     BotLevel::export_all(&cfg)?;
+    KartReadings::export_all(&cfg)?;
     KartReadout::export_all(&cfg)?;
     Standing::export_all(&cfg)?;
     Surface::export_all(&cfg)?;

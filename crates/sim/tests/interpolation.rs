@@ -3,10 +3,11 @@
 //! held where the earlier snapshot had one the later no longer carries,
 //! and not drawn before the snapshot that first carries one; a kart moved
 //! further than a kart drives, which is drawn in one move; and a kart's
-//! boost and hop, as the earlier snapshot has them.
+//! boost and hop, as the earlier snapshot has them, and whether it is in
+//! the pit lane, as the nearer snapshot has it.
 
 use sim::tuning::{INTERPOLATION_TELEPORT_M_PER_TICK, SNAPSHOTS_PER_SECOND, TICKS_PER_SECOND};
-use sim::{Interpolation, ItemSlot, KartReadout, MiniTurbo, Projectile, Start};
+use sim::{Boost, BoostTier, Interpolation, ItemSlot, KartReadout, MiniTurbo, Projectile, Start};
 
 const TICKS_PER_SNAPSHOT: u32 = TICKS_PER_SECOND / SNAPSHOTS_PER_SECOND;
 
@@ -27,7 +28,6 @@ fn kart_at(x: f32) -> KartReadout {
         velocity: [0.0; 3],
         bump: None,
         drift: None,
-        mini_turbo: MiniTurbo::None,
         item_slot: ItemSlot::Empty,
         coins: 0,
         tyre_life: 100.0,
@@ -37,8 +37,7 @@ fn kart_at(x: f32) -> KartReadout {
         in_pit_lane: false,
         stop: None,
         stops: 0,
-        boost_s: None,
-        boost_tier: MiniTurbo::None,
+        boost: None,
         slipstream: None,
         start: Start::Clean,
         stall_s: None,
@@ -190,16 +189,18 @@ fn a_kart_boosting_in_the_earlier_snapshot_is_drawn_boosting_in_its_tier() {
     let interpolation = drawing_snapshots_between_the_second_and_third(6, |tick| {
         let boost_s = 1.0 - tick as f32 / TICKS_PER_SECOND as f32;
         let kart = KartReadout {
-            boost_s: Some(boost_s),
-            boost_tier: MiniTurbo::Orange,
+            boost: Some(Boost {
+                left_s: boost_s,
+                tier: BoostTier::Orange,
+            }),
             ..kart_at(0.0)
         };
         (vec![kart], Vec::new())
     });
     let drawn = interpolation.kart_readouts()[0];
     let earlier = 1.0 - TICKS_PER_SNAPSHOT as f32 / TICKS_PER_SECOND as f32;
-    assert_eq!(drawn.boost_s, Some(earlier));
-    assert_eq!(drawn.boost_tier, MiniTurbo::Orange);
+    assert_eq!(drawn.boost_s(), Some(earlier));
+    assert_eq!(drawn.boost_tier(), MiniTurbo::Orange);
 }
 
 #[test]
@@ -215,4 +216,31 @@ fn a_kart_is_drawn_in_the_air_as_the_earlier_snapshot_has_it() {
     };
     assert!(hopping_at(TICKS_PER_SNAPSHOT).kart_readouts()[0].airborne);
     assert!(!hopping_at(2 * TICKS_PER_SNAPSHOT).kart_readouts()[0].airborne);
+}
+
+#[test]
+fn a_kart_is_drawn_in_the_pit_lane_as_the_nearer_snapshot_has_it() {
+    // In the lane in the second snapshot only, then from the third on.
+    let entering_at = |lane_from: u32, lane_until: u32| {
+        drawing_snapshots_between_the_second_and_third(6, move |tick| {
+            let kart = KartReadout {
+                in_pit_lane: (lane_from..lane_until).contains(&tick),
+                ..kart_at(0.0)
+            };
+            (vec![kart], Vec::new())
+        })
+    };
+    let second = TICKS_PER_SNAPSHOT;
+    let third = 2 * TICKS_PER_SNAPSHOT;
+    assert!(entering_at(second, third).kart_readouts()[0].in_pit_lane);
+    assert!(!entering_at(third, u32::MAX).kart_readouts()[0].in_pit_lane);
+
+    let mut nearer_the_third = entering_at(third, u32::MAX);
+    while nearer_the_third
+        .render_tick()
+        .is_some_and(|render| render < third as f32 - 0.5)
+    {
+        nearer_the_third.advance();
+    }
+    assert!(nearer_the_third.kart_readouts()[0].in_pit_lane);
 }

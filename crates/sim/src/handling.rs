@@ -41,6 +41,7 @@ const BUMP_SPENT_M_PER_S: f32 = 0.01;
 /// was before there were tyres to manage, and what a kept room or a replay
 /// without a pick comes back as, whatever a later default becomes (ADR 0083).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize, TS)]
+#[ts(export_to = "../sim/")]
 #[serde(rename_all = "kebab-case")]
 pub enum Tyres {
     #[default]

@@ -102,7 +102,7 @@ fn karts_spawn_on_the_spawn_grid_in_slot_order_at_rest_on_asphalt() {
         );
         assert_eq!(kart.spin_out_s, None, "karts spawn out of a spin-out");
         assert!(!kart.airborne, "karts spawn on the ground");
-        assert_eq!(kart.boost_s, None, "karts spawn without a boost");
+        assert_eq!(kart.boost_s(), None, "karts spawn without a boost");
     }
 }
 
@@ -164,7 +164,7 @@ fn the_readouts_report_a_drift_its_direction_tier_and_charge_as_the_sim_does() {
     let (kart, _) = race.kart_readouts()[0];
     let drift = kart.drift.expect("the bridge's race is drifting");
     assert_eq!(drift.direction, DriftDirection::Left);
-    assert_eq!(kart.mini_turbo, MiniTurbo::Orange);
+    assert_eq!(kart.mini_turbo(), MiniTurbo::Orange);
     assert!(!kart.airborne, "landed into the drift");
     assert_eq!(race.kart_readouts(), sims_readouts(&state));
 }

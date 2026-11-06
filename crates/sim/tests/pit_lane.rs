@@ -133,7 +133,7 @@ fn a_boost_brought_in_ends_at_the_line_and_a_star_gets_no_more_than_the_limit() 
         let kart = state.kart_readouts()[0];
         assert!(kart.in_pit_lane, "tick {tick}");
         assert_at_most_the_limit(&kart);
-        assert_eq!(kart.boost_s, None, "the boost is off in the lane");
+        assert_eq!(kart.boost_s(), None, "the boost is off in the lane");
     }
 
     // A pad short of the line: the boost is burning as the kart comes over it.
@@ -158,7 +158,7 @@ fn a_boost_brought_in_ends_at_the_line_and_a_star_gets_no_more_than_the_limit() 
             assert_at_most_the_limit(&kart);
             in_lane_ticks += 1;
         }
-        was_boosted = kart.boost_s.is_some();
+        was_boosted = kart.boost_s().is_some();
     }
     assert!(boosted_at_the_line, "the boost reached the line");
 

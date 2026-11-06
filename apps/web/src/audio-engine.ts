@@ -9,7 +9,7 @@
 // were tuned by ear on the iteration page under `docs/mockups`, which the
 // ADR names as the record; retune there first.
 
-import type { Start } from "./generated/protocol";
+import type { Start } from "./generated/sim";
 
 /** The rig as the page carries it. `limiter` caps the revs; the chop runs while they sit over 1, or while a full grid rev forces it. */
 export const ENGINE = {

@@ -229,10 +229,10 @@ fn a_kart_on_tyres_at_zero_finishes_a_lap_under_the_worn_top_speed() {
         let input = follow_centreline(&state, 0);
         // A boost sets its own speed, and the circles end in a mini-turbo:
         // only a tick with no boost at either end answers to the cap.
-        let free = state.kart_readouts()[0].boost_s.is_none();
+        let free = state.kart_readouts()[0].boost_s().is_none();
         state = step(state, &[input], DT);
         let kart = state.kart_readouts()[0];
-        if free && kart.boost_s.is_none() {
+        if free && kart.boost_s().is_none() {
             fastest = fastest.max(kart.speed);
         }
         let lapped = state
@@ -378,10 +378,10 @@ fn speed_cap_at_life_km_per_h(life_percent: f32) -> u32 {
     for _ in 0..ticks(180.0) {
         state.adopt_tyre_life(0, life_percent);
         let input = follow_centreline(&state, 0);
-        let free = state.kart_readouts()[0].boost_s.is_none();
+        let free = state.kart_readouts()[0].boost_s().is_none();
         state = step(state, &[input], DT);
         let kart = state.kart_readouts()[0];
-        if free && kart.boost_s.is_none() {
+        if free && kart.boost_s().is_none() {
             fastest = fastest.max(kart.speed);
         }
         let lapped = state

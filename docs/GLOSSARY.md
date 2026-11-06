@@ -155,7 +155,8 @@ second.
 
 The server's authoritative state of every kart at a tick, sent at 30 Hz
 together with the input sequence applied at that tick per client and the
-events since the previous snapshot.
+events since the previous snapshot. Its per-kart part is the kart readout,
+as the server's sim reads it (ADR 0090).
 
 ### checkpoint
 
@@ -180,13 +181,13 @@ seconds triggers the wrong-way warning.
 ### kart readout
 
 What the sim says of one kart at a tick: its transform, speed and
-velocity, drift and mini-turbo tier, item slot, the coins it carries,
-spin-out, hop, boost, slipstream, rocket start and stall, and its place in
-the race.
-The sim reports one per kart every tick; a snapshot carries all of it but
-whether the kart is in the pit lane, which is read from where it stands; a
-prediction's kart adopts the snapshot's but for the boost and the hop, which
-it keeps its own. The View, the Instrument panel and
+velocity, drift and the mini-turbo tier it has charged, item slot, the coins
+it carries, spin-out, hop, pit lane, boost, slipstream, rocket start and
+stall, and its place in the race.
+The sim reports one per kart every tick, and a snapshot carries it as it
+is; a reading worked out from others, such as the mini-turbo tier, is not
+carried but worked out again (ADR 0090). A prediction's kart adopts the
+snapshot's but for the boost and the hop, which it keeps its own. The View, the Instrument panel and
 the bots read it. Not a snapshot, which is the server's message about
 every kart.
 
