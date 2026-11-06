@@ -19,6 +19,7 @@ from ..layout import (
     Hoardings,
     ItemRow,
     Kerb,
+    PITS_DOORS_CENTRED_M,
     Layout,
     PitLane,
     Prop,
@@ -35,6 +36,9 @@ KERB_INSIDE_M = 4.9
 # Left of the centreline, where every tyre wall stands clear of the bots' line.
 TYRE_WALL_LEFT_M = 4.5
 CREST_HEIGHT_M = 8.0
+# Where the pits' middle stands: far enough on that its back keeps the 8 m rule
+# from the second pool chicane's wall behind it.
+PITS_S = 34.0
 # The harbour quay's outer edge, counter-clockwise, in metres east and north
 # of the harbour prop's place: the north edge behind the harbour straight's
 # stands, the west edge behind the pool's, then the quay and Rascasse.
@@ -121,8 +125,8 @@ LAYOUT = Layout(
     ],
     boost_pads=[
         BoostPad(seg("tunnel").s_mid),
-        # On the fork's far side, where a kart called in for the pit lane has crossed
-        # past it and no boost throws it at the pit wall.
+        # Left of the centreline, away from the fork on the right, so a kart called
+        # in for the pit lane passes it by and no boost throws it at the pit wall.
         BoostPad(seg("pit-bend").s_start, offset=3.0),
     ],
     # Ten on the centreline, down the start straight and the harbour; five
@@ -142,12 +146,20 @@ LAYOUT = Layout(
     # Mirabeau turns right, so the descent's outside is the left.
     wheel_crossings=[WheelCrossing(seg("casino-descent").s_mid, outside=1)],
     elevation=[climb],
-    # Left of the start straight, the one side with room behind a 2 m run-off:
-    # right of it lie the stands and the harbour. The fork leaves on the
-    # noghes flick's own lean, where the pit bend turns the road away, and the
-    # merge ends short of Sainte Devote, where the climb starts. 120 m between
-    # the lines (ADR 0081).
-    pit_lane=PitLane(side=1, s_fork=-78.0, s_entry=-53.0, s_exit=67.0, s_merge=92.0),
+    # Right of the start straight, as Monaco's lane is (ADR 0088). The fork
+    # leaves on the noghes flick, after Anthony Noghes, and the merge ends at
+    # Sainte Devote, not past it as Monaco's does: a lane can fit inside neither
+    # corner's 13-14 m radius. 120 m between the lines (ADR 0081), the doors
+    # centred on the building so every pit box is short of the exit line.
+    pit_lane=PitLane(
+        side=-1,
+        s_fork=-75.0,
+        s_entry=-50.0,
+        s_exit=70.0,
+        s_merge=93.0,
+        s_building=PITS_S,
+        door_first=PITS_DOORS_CENTRED_M,
+    ),
     decor=Decor(
         hoardings=[
             Hoardings(("casino",), side=-1),
@@ -156,14 +168,14 @@ LAYOUT = Layout(
             Hoardings(("rascasse",), side=1),
         ],
         grandstands=[
-            Grandstands(("grid", "start"), side=-1),
+            Grandstands(("grid", "start"), side=1),
             Grandstands(("harbour",), side=1),
             Grandstands(("pool-straight", "pool-2-right"), side=1),
         ],
         gantry=True,
         props=[
             # Across the straight from the stands, its front 1 m behind the lane's wall.
-            Prop("pits", Spot(s=0.0, offset=22.0), length=90.0),
+            Prop("pits", Spot(s=PITS_S, offset=-22.0), length=90.0),
             # The basin outside the harbour straight, the pool and the quay: behind the
             # stands beside the first two, then close round the quay and Rascasse, the
             # 8 m rule's width from their walls.
