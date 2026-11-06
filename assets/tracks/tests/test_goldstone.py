@@ -1,7 +1,6 @@
 """Goldstone, the course after Silverstone, checked without Blender: the lap
 docs/mockups/silverstone-course.html decided, flat and with no ramp; the
-pit building drawn long and white outside the Hamilton Straight, facing the
-grid; and the row of airfield hangars outside the Hangar Straight, each a
+pit building drawn white inside the Hamilton Straight, facing the grid; and the row of airfield hangars outside the Hangar Straight, each a
 barrel-roofed shed with its door toward the track, every footprint keeping
 the 8 m rule; and the display jets' formation over the hangars, flying
 against the race and keeping 30 m over every road its pass crosses.
@@ -58,6 +57,13 @@ def faces_right(face) -> bool:
     return (c1 - c0) * (a2 - a0) - (a1 - a0) * (c2 - c0) < 0.0
 
 
+def faces_left(face) -> bool:
+    """Whether a face given as (along, left of, up) points left: toward the track from a
+    prop that stands right of it."""
+    (a0, _, c0), (a1, _, c1), (a2, _, c2) = face[:3]
+    return (c1 - c0) * (a2 - a0) - (a1 - a0) * (c2 - c0) > 0.0
+
+
 def family(geometry, prefix: str):
     return {p.name: p for p in geometry.scenery if p.name.startswith(f"{prefix}.")}
 
@@ -108,15 +114,15 @@ class WhitePits(unittest.TestCase):
         along, left = across_track(self.layout, self.prop.at.s, v[0], v[1])
         return along, left, v[2] - self.ground
 
-    def test_it_stands_outside_the_hamilton_straight_longer_than_bell_deers(self) -> None:
+    def test_it_stands_inside_the_hamilton_straight_between_club_and_abbey(self) -> None:
+        lap = self.layout.path.length
         self.assertLess(self.prop.at.s + self.prop.length / 2.0, self.layout.path.segment("abbey").s_mid)
-        self.assertGreater(self.prop.at.offset, self.layout.runoff_half_width, "left of the track, on the outside")
-        (bell_deer,) = [p for p in load("bell-deer").decor.props if p.kind == "pits"]
-        self.assertGreater(self.prop.length, bell_deer.length)
+        self.assertGreater(self.prop.at.s - self.prop.length / 2.0, self.layout.path.segment("club").s_mid - lap)
+        self.assertLess(self.prop.at.offset, -self.layout.runoff_half_width, "right of the track, on the inside")
         vertices = [self.frame(v) for piece in self.pieces.values() for v in piece.mesh[0]]
         self.assertAlmostEqual(min(a for a, _, _ in vertices), -self.prop.length / 2.0)
         self.assertAlmostEqual(max(a for a, _, _ in vertices), self.prop.length / 2.0)
-        self.assertGreaterEqual(min(b for _, b, _ in vertices), self.prop.at.offset - PITS_DEPTH_M / 2.0 - PITS_DOOR_PROUD_M - 1e-6)
+        self.assertLessEqual(max(b for _, b, _ in vertices), self.prop.at.offset + PITS_DEPTH_M / 2.0 + PITS_DOOR_PROUD_M + 1e-6)
 
     def test_its_walls_are_wall_white_over_beam_shade(self) -> None:
         names = set(self.pieces)
@@ -128,24 +134,24 @@ class WhitePits(unittest.TestCase):
         self.assertTrue(faces)
         self.assertFalse(any(faces_up_and_toward_the_sun(f) for f in faces))
 
-    def test_its_doors_face_the_track_and_run_forward_from_the_line(self) -> None:
-        front = self.prop.at.offset - PITS_DEPTH_M / 2.0 - PITS_DOOR_PROUD_M
+    def test_its_doors_face_the_track_centred_on_it(self) -> None:
+        front = self.prop.at.offset + PITS_DEPTH_M / 2.0 + PITS_DOOR_PROUD_M
         centres = []
         for slot in range(len(CROWD_KEYS)):
             piece = self.pieces[f"{PITS}.crowd-{slot}"]
             (door,) = [f for f in piece.mesh[1] if min(piece.mesh[0][v][2] for v in f) - self.ground < 1e-6]
             panel = [piece.mesh[0][v] for v in door]
             self.assertEqual({round(self.frame(v)[1], 3) for v in panel}, {round(front, 3)})
-            self.assertTrue(faces_right([self.frame(v) for v in panel]), f"door {slot} faces the track")
+            self.assertTrue(faces_left([self.frame(v) for v in panel]), f"door {slot} faces the track")
             centres.append(sum(self.frame(v)[0] for v in panel) / len(panel))
-        self.assertGreater(centres[0], 0.0)
+        self.assertAlmostEqual(centres[0] + centres[-1], 0.0, places=6)
         self.assertEqual(centres, sorted(centres))
 
     def test_its_flags_face_the_track(self) -> None:
         for slot in range(len(CROWD_KEYS)):
             piece = self.pieces[f"{PITS}.crowd-{slot}"]
             (flag,) = [f for f in piece.mesh[1] if min(piece.mesh[0][v][2] for v in f) - self.ground > 1.0]
-            self.assertTrue(faces_right([self.frame(piece.mesh[0][v]) for v in flag]), f"flag {slot} faces the track")
+            self.assertTrue(faces_left([self.frame(piece.mesh[0][v]) for v in flag]), f"flag {slot} faces the track")
 
 
 class Hangars(unittest.TestCase):

@@ -6,8 +6,8 @@ to Brooklands and the long right of Luffield, past Woodcote onto the National
 Straight, then Copse, the Maggotts and Becketts esses and Chapel, the Hangar
 Straight to Stowe, and Vale and Club back onto the grid. The ground is an old
 airfield, so there is no elevation; the lap is about speed and the esses.
-The scenery: the pits long and white outside the start straight with the
-grandstands across from them, hoardings round Luffield, Copse, Becketts and
+The scenery: the pits white inside the start straight, between Club and
+Abbey as Silverstone's are, with the grandstands across from them, hoardings round Luffield, Copse, Becketts and
 Stowe, the gantry over the line, a row of airfield hangars outside the
 Hangar Straight, and the display jets' flypast over them. The layout is docs/mockups/silverstone-course.html's.
 """
@@ -24,6 +24,7 @@ from ..layout import (
     Spot,
     CoinLine,
     PitLane,
+    PITS_DOORS_CENTRED_M,
     TyreWall,
     WheelCrossing,
 )
@@ -33,8 +34,9 @@ from ..path import Turtle
 KERB_INSIDE_M = 4.9
 # Left of the centreline, where every tyre wall stands clear of the bots' line.
 TYRE_WALL_LEFT_M = 4.5
-# Where the pits' middle stands: the first door 2.75 m past this, the last 41.25 m.
-PITS_S = -20.0
+# Where the pits' middle stands, its doors centred on it: the longest building
+# the infield between Club and Abbey holds by the 8 m rule stands here.
+PITS_S = -6.0
 
 path = (
     Turtle(x=0.0, y=0.0, heading_deg=52.5)
@@ -110,10 +112,19 @@ LAYOUT = Layout(
     # Vale turns left, so the approach's outside is the right.
     wheel_crossings=[WheelCrossing(seg("vale-approach").s_mid, outside=-1)],
     elevation=[],
-    # Outside the Hamilton Straight, where the pits stand: 30 m of fork round
-    # the outside of Club, past the line round the outside of Abbey, and the
-    # merge inside Farm, which leans a kart back that way (ADR 0081).
-    pit_lane=PitLane(side=1, s_fork=-90.0, s_entry=-60.0, s_exit=60.0, s_merge=90.0, s_building=PITS_S),
+    # Right of the Hamilton Straight, as Silverstone's lane is (ADR 0089): the
+    # fork at Club's start and the sweep round its inside, where a bot called in
+    # slows for the lane's turn; past the line round the inside of Abbey, and
+    # the merge on the run to Village. 140 m between the lines (ADR 0081).
+    pit_lane=PitLane(
+        side=-1,
+        s_fork=-108.0,
+        s_entry=-52.0,
+        s_exit=92.0,
+        s_merge=115.0,
+        s_building=PITS_S,
+        door_first=PITS_DOORS_CENTRED_M,
+    ),
     decor=Decor(
         hoardings=[
             Hoardings(("luffield",), side=1),
@@ -122,22 +133,19 @@ LAYOUT = Layout(
             Hoardings(("stowe",), side=1),
         ],
         grandstands=[
-            # Inside the Hamilton Straight: the pits stand outside it, facing the grid.
-            Grandstands(("grid", "start"), side=-1),
+            # Outside the Hamilton Straight: the pits stand inside it, facing the grid.
+            Grandstands(("grid", "start"), side=1),
             Grandstands(("luffield",), side=-1),
             Grandstands(("copse-exit",), side=-1),
             Grandstands(("vale-approach",), side=1),
         ],
         gantry=True,
-        # The pits drawn long and white outside the Hamilton Straight, a nod to
-        # the Wing; the infield between Club and Abbey is too tight for a
-        # building that clears both by the 8 m rule. A row of five airfield
-        # hangars outside the Hangar Straight, fronts 21 m from the
-        # centreline as the pits' are. The pits stand back along the grid so
-        # every door is on the straight, short of Abbey, with its pit box in
-        # front of it.
+        # The pits drawn white inside the Hamilton Straight, a nod to the Wing,
+        # 70 m so they keep the 8 m rule from Club and Abbey (ADR 0089). A row
+        # of five airfield hangars outside the Hangar Straight, fronts 21 m
+        # from the centreline as the pits' are.
         props=[
-            Prop("pits", Spot(s=PITS_S, offset=26.0), length=120.0, white=True),
+            Prop("pits", Spot(s=PITS_S, offset=-26.0), length=70.0, white=True),
             Prop("hangars", Spot(s=seg("hangar").s_mid, offset=33.0), length=110.0),
             # The display jets' flypast over the hangars, against the race so drivers on the
             # straight see them coming.

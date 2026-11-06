@@ -2,7 +2,8 @@
 
 ## Status
 
-Accepted (2026-10-31).
+Accepted (2026-10-31). ADR 0089 supersedes its pits outside the Hamilton
+Straight at 120 m.
 
 ## Context
 

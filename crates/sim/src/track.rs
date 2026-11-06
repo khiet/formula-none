@@ -308,6 +308,28 @@ impl PitLane {
             .is_some_and(|metres| (self.entry_m..=self.exit_m).contains(&metres))
     }
 
+    /// How sharply the path turns `metres` along it, in radians per metre of
+    /// travel either way: read the way the centreline's turns are, so a
+    /// bot slows for the lane's road as it does for the course's. Near either
+    /// end it reads the turn a window in, since past the end there is no road
+    /// to turn and a direction there would come out of nothing.
+    pub(crate) fn sharpness_at(&self, metres: f32) -> f32 {
+        let metres = metres.clamp(
+            CURVATURE_WINDOW_M,
+            (self.length_m() - CURVATURE_WINDOW_M).max(CURVATURE_WINDOW_M),
+        );
+        let direction = |at: f32| {
+            let behind = self.point_at(at - CURVATURE_WINDOW_M / 2.0);
+            let ahead = self.point_at(at + CURVATURE_WINDOW_M / 2.0);
+            let (dx, dz) = (ahead[0] - behind[0], ahead[2] - behind[2]);
+            let length = libm::sqrtf(dx * dx + dz * dz).max(f32::EPSILON);
+            [dx / length, dz / length]
+        };
+        let [ax, az] = direction(metres - CURVATURE_WINDOW_M / 2.0);
+        let [bx, bz] = direction(metres + CURVATURE_WINDOW_M / 2.0);
+        libm::fabsf(libm::atan2f(ax * bz - az * bx, ax * bx + az * bz)) / CURVATURE_WINDOW_M
+    }
+
     /// The point `metres` along the path, held to its two ends.
     pub fn point_at(&self, metres: f32) -> [f32; 3] {
         let index = self

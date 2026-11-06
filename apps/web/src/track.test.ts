@@ -103,7 +103,7 @@ describe("reading a sidecar's pit lane", () => {
     const sides = (name: string) =>
       new Set(pitLaneOf(sidecar(name))?.pitBoxes.map((box) => box.buildingSide));
     expect(sides("bell-deer")).toEqual(new Set([1]));
-    expect(sides("goldstone")).toEqual(new Set([-1]));
+    expect(sides("goldstone")).toEqual(new Set([1]));
     expect(sides("monarch")).toEqual(new Set([1]));
   });
 

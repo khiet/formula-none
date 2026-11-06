@@ -426,7 +426,44 @@ fn a_bot_driven_through_the_countdown_does_not_back_off_the_line() {
     }
 }
 
-/// Every race of the sweep across `seeds`, one thread each.
+/// A number from the environment variable `name`, or `default` when it is unset.
+fn from_env(name: &str, default: u64) -> u64 {
+    std::env::var(name).map_or(default, |value| {
+        value
+            .parse()
+            .unwrap_or_else(|_| panic!("{name} must be a whole number, not {value:?}"))
+    })
+}
+
+/// Races the sweeps run at once across every test, `SWEEP_THREADS` or 4, so a
+/// sweep leaves the rest of the machine usable.
+fn sweep_threads() -> usize {
+    from_env("SWEEP_THREADS", 4).max(1) as usize
+}
+
+/// The races running now, held under `sweep_threads` by `on_a_sweep_thread`.
+static RUNNING: (std::sync::Mutex<usize>, std::sync::Condvar) =
+    (std::sync::Mutex::new(0), std::sync::Condvar::new());
+
+/// `job` on a thread of its own, which waits for a free sweep slot first.
+fn on_a_sweep_thread<T: Send + 'static>(
+    job: impl FnOnce() -> T + Send + 'static,
+) -> std::thread::JoinHandle<T> {
+    std::thread::spawn(move || {
+        let (running, freed) = &RUNNING;
+        let mut count = freed
+            .wait_while(running.lock().unwrap(), |count| *count >= sweep_threads())
+            .unwrap();
+        *count += 1;
+        drop(count);
+        let done = job();
+        *running.lock().unwrap() -= 1;
+        freed.notify_one();
+        done
+    })
+}
+
+/// Every race of the sweep across `seeds`, a few at a time.
 fn sweep(
     seeds: std::ops::Range<u64>,
     course: fn() -> Track,
@@ -434,9 +471,7 @@ fn sweep(
     laps: u32,
 ) -> Vec<(u64, Raced)> {
     let races: Vec<_> = seeds
-        .map(|seed| {
-            std::thread::spawn(move || (seed, race(seed, course(), level, Tyres::On, laps)))
-        })
+        .map(|seed| on_a_sweep_thread(move || (seed, race(seed, course(), level, Tyres::On, laps))))
         .collect();
     races
         .into_iter()
@@ -470,27 +505,39 @@ fn over_five_laps_a_levels_bots_do_not_all_pit_on_one_lap() {
     }
 }
 
-/// The most karts of 1600 the end cap may catch over three laps and over five,
-/// and that may touch grass in a sweep. ADR 0085 has why these are not zero: the
+/// The most karts of 1600, 200 races of eight, the end cap may catch over three
+/// laps and over five, and that may touch grass in a sweep. ADR 0085 has why these are not zero: the
 /// cap stays as ADR 0083 left it, and a kart launched over a wall lands where it
 /// lands, as it did before bots pitted.
 const CAPPED_OVER_THREE_LAPS: usize = 4;
 const CAPPED_OVER_FIVE_LAPS: usize = 24;
 const ON_GRASS: usize = 40;
-/// Races of eight in which a kart may end short of the final lap, in a sweep.
+/// Races of eight, of 200, in which a kart may end short of the final lap.
 const SHORT_OF_THE_FINAL_LAP: usize = 2;
+/// The races of eight the budgets above are set over.
+const BUDGET_RACES: u64 = 200;
+
+/// A budget set over `BUDGET_RACES` scaled to a sweep of `races`, rounded up.
+fn scaled(budget: usize, races: u64) -> usize {
+    (budget as u64 * races).div_ceil(BUDGET_RACES) as usize
+}
 
 /// Every bot gets round every course at every level on Tyres On, within the
-/// budgets above. Too slow for a debug build; run with
-/// `cargo test --release -p sim --test bot_pits -- --ignored --nocapture` (about 15 minutes).
+/// budgets above scaled to the sweep. Too slow for a debug build; run with
+/// `cargo test --release -p sim --test bot_pits -- --ignored --nocapture field_gets_round`.
+/// It races `SWEEP_SEEDS` seeds, 40 by default, enough to show a rate that
+/// doubles; compare a change against main on the same seeds. `SWEEP_SEEDS=200`
+/// is for setting the budgets again, and takes about 15 minutes on every core
+/// with `SWEEP_THREADS` raised to match.
 #[test]
 #[ignore]
-fn in_200_races_of_eight_bots_on_tyres_on_the_field_gets_round() {
+fn in_a_sweep_of_eight_bots_on_tyres_on_the_field_gets_round() {
+    let seeds = from_env("SWEEP_SEEDS", 40);
     let mut refused = Vec::new();
     for (name, course) in COURSES {
         for level in BotLevel::ALL {
             for laps in [3, 5] {
-                let races = sweep(0..200, course, level, laps);
+                let races = sweep(0..seeds, course, level, laps);
                 let count = |of: &dyn Fn(&Raced) -> usize| -> usize {
                     races.iter().map(|(_, raced)| of(raced)).sum()
                 };
@@ -502,12 +549,18 @@ fn in_200_races_of_eight_bots_on_tyres_on_the_field_gets_round() {
                     "{name} {level:?} {laps} laps: {capped} capped, {short} short, {on_grass} on grass, of {} karts",
                     races.len() * 8
                 );
-                let most_capped = if laps == 3 {
-                    CAPPED_OVER_THREE_LAPS
-                } else {
-                    CAPPED_OVER_FIVE_LAPS
-                };
-                if capped > most_capped || on_grass > ON_GRASS || short > SHORT_OF_THE_FINAL_LAP {
+                let most_capped = scaled(
+                    if laps == 3 {
+                        CAPPED_OVER_THREE_LAPS
+                    } else {
+                        CAPPED_OVER_FIVE_LAPS
+                    },
+                    seeds,
+                );
+                if capped > most_capped
+                    || on_grass > scaled(ON_GRASS, seeds)
+                    || short > scaled(SHORT_OF_THE_FINAL_LAP, seeds)
+                {
                     refused.push(format!(
                         "{name} {level:?} {laps} laps: {capped} capped, {short} short, {on_grass} on grass"
                     ));
@@ -524,7 +577,7 @@ fn lap_time_held_at(course: fn() -> Track, life: f32, seeds: std::ops::Range<u64
     let count = (seeds.end - seeds.start) as f32;
     let laps: Vec<_> = seeds
         .map(|seed| {
-            std::thread::spawn(move || {
+            on_a_sweep_thread(move || {
                 let mut state = started(
                     State::with_tyres(seed, 0, 1, course(), BotLevel::Ace, Tyres::On).with_laps(3),
                 );
@@ -649,7 +702,7 @@ fn without_its_lane_sidecar(sidecar: &str) -> String {
 fn ace_winning_time(course: fn() -> Track, seeds: std::ops::Range<u64>) -> f32 {
     let races: Vec<_> = seeds
         .map(|seed| {
-            std::thread::spawn(move || {
+            on_a_sweep_thread(move || {
                 let mut state = started(
                     State::with_tyres(seed, 0, 8, course(), BotLevel::Ace, Tyres::On).with_laps(5),
                 );
@@ -697,4 +750,46 @@ fn over_five_laps_a_field_that_can_stop_wins_sooner_than_one_that_cannot() {
             "{name}: {stopping} s with a lane, {staying_out} s without"
         );
     }
+}
+
+/// The slowest a lone Pro bot goes from its pit call to the entry line on
+/// `course`, its tyres held at 20% so it calls at the first fork.
+fn slowest_on_the_way_in(course: Track) -> f32 {
+    let fork = course.pit_lane_fork().expect("a lane");
+    let lap = course.spline_length();
+    let mut state =
+        started(State::with_tyres(SEED, 0, 1, course, BotLevel::Pro, Tyres::On).with_laps(3));
+    let mut slowest = f32::INFINITY;
+    for _ in 0..ticks(120.0) {
+        state.adopt_tyre_life(0, 20.0);
+        state = step(state, &[], DT);
+        let kart = state.kart_readouts()[0];
+        if state
+            .track()
+            .pit_lane()
+            .is_some_and(|lane| lane.limits(kart.position))
+        {
+            return slowest;
+        }
+        let to_fork = (fork - state.standings()[0].spline_progress).rem_euclid(lap);
+        if to_fork <= sim::tuning::BOT_PIT_CALL_FROM_M || lap - to_fork < 30.0 {
+            slowest = slowest.min(kart.speed);
+        }
+    }
+    panic!("the bot never reached the entry line");
+}
+
+#[test]
+fn called_in_at_monarchs_gentle_fork_a_bot_keeps_the_pit_limit_or_more() {
+    let slowest = slowest_on_the_way_in(monarch());
+    assert!(slowest >= PIT_LIMIT_M_PER_S, "{slowest} m/s");
+}
+
+#[test]
+fn called_in_inside_club_a_bot_slows_below_its_approach_for_goldstones_lane() {
+    let slowest = slowest_on_the_way_in(goldstone());
+    assert!(
+        slowest < sim::tuning::BOT_PIT_APPROACH_M_PER_S - 2.0,
+        "{slowest} m/s"
+    );
 }
