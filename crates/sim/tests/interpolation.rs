@@ -3,8 +3,8 @@
 //! held where the earlier snapshot had one the later no longer carries,
 //! and not drawn before the snapshot that first carries one; a kart moved
 //! further than a kart drives, which is drawn in one move; and a kart's
-//! boost and hop, as the earlier snapshot has them, and whether it is in
-//! the pit lane, as the nearer snapshot has it.
+//! boost and hop, as the earlier snapshot has them, its speed between the
+//! two, and whether it is in the pit lane, as the nearer snapshot has it.
 
 use sim::tuning::{INTERPOLATION_TELEPORT_M_PER_TICK, SNAPSHOTS_PER_SECOND, TICKS_PER_SECOND};
 use sim::{Boost, BoostTier, Interpolation, ItemSlot, KartReadout, MiniTurbo, Projectile, Start};
@@ -243,4 +243,25 @@ fn a_kart_is_drawn_in_the_pit_lane_as_the_nearer_snapshot_has_it() {
         nearer_the_third.advance();
     }
     assert!(nearer_the_third.kart_readouts()[0].in_pit_lane);
+}
+
+#[test]
+fn a_kart_is_drawn_at_a_speed_between_the_snapshots_speeds() {
+    // Gaining a metre per second a snapshot, the server's speed as the wire
+    // carries it, not the velocity along the facing, which stays zero.
+    let interpolation = drawing_snapshots_between_the_second_and_third(6, |tick| {
+        let kart = KartReadout {
+            speed: 10.0 + tick as f32 / TICKS_PER_SNAPSHOT as f32,
+            ..kart_at(0.0)
+        };
+        (vec![kart], Vec::new())
+    });
+    let render = interpolation.render_tick().unwrap();
+    let drawn = interpolation.kart_readouts()[0];
+    let expected = 10.0 + render / TICKS_PER_SNAPSHOT as f32;
+    assert!(
+        (drawn.speed - expected).abs() < 1e-4,
+        "drawn at {} m/s for a clock at {render}",
+        drawn.speed
+    );
 }
