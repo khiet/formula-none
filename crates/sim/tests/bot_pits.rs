@@ -118,6 +118,11 @@ fn an_ace_bot_that_saving_gets_to_the_flag_stays_out_where_pushing_would_stop() 
     let close = reading(60.0, Some(20.0), 2);
     assert!(saves_its_tyres(call, close));
     assert!(!calls_for_the_pits(call, close));
+    // Pushing would wear past the cliff by the next lane, at 25; saving keeps
+    // it on about 32 at the flag, so the cliff does not call it in either.
+    let last_lap = reading(45.0, Some(20.0), 1);
+    assert!(saves_its_tyres(call, last_lap));
+    assert!(!calls_for_the_pits(call, last_lap));
 }
 
 #[test]
