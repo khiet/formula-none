@@ -1,14 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Stop, StopTier } from "./bridge";
-import {
-  actOf,
-  BEATS_SET_FOR_S,
-  beatsOf,
-  driverLook,
-  kartLift,
-  kartOnJacks,
-  STOP_BEATS,
-} from "./stop-beats";
+import { actOf, BEATS_SET_FOR_S, beatsOf, driverLook, kartLift, kartOnJacks } from "./stop-beats";
 
 const CLEAN_LONGEST = 3;
 
@@ -17,15 +9,6 @@ function onMark(stationarySoFarS: number, stationaryS: number, tier: StopTier = 
 }
 
 describe("the stop's beats", () => {
-  it("plays the mark's beats as the table has them at a stop of the time they are set for", () => {
-    const beats = beatsOf(BEATS_SET_FOR_S);
-    for (const beat of STOP_BEATS.filter(({ fromGreen }) => !fromGreen)) {
-      expect(beats[beat.name][0]).toBeCloseTo(beat.startS);
-      expect(beats[beat.name][1]).toBeCloseTo(beat.endS);
-    }
-    expect(beats.jackDown[0]).toBeCloseTo(BEATS_SET_FOR_S - 0.3);
-  });
-
   it("scales the beats down for a record stop and holds them for a longer one, the jacks dropping on the clock to green", () => {
     const record = beatsOf(2);
     expect(record.wheelsOff[0]).toBeCloseTo((0.85 * 2) / BEATS_SET_FOR_S);

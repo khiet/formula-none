@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from "vitest";
+import { FACE_PARTS } from "./driver-parts";
 import side from "./generated/kart/side.json";
 import { FACIAL_HAIRS, HAIRS, hexCss, LIVERIES, livery } from "./livery";
 import { KART_PAINT } from "./palette";
@@ -18,6 +19,7 @@ describe("the generated poster kart", () => {
       expect(nodes).toContain(`facial-hair-${facialHair}`);
     }
     expect(nodes).toContain("earrings");
+    for (const part of FACE_PARTS) expect(nodes).toContain(part);
     // Every hair style and the earrings show side on; a stubble may lie wholly on the chin's forward flat.
     const drawn = new Set(side.paths.map(({ node }) => node));
     for (const hair of HAIRS) expect(drawn).toContain(`hair-${hair}`);
@@ -75,6 +77,11 @@ describe("kartSide", () => {
     expect(nodes(rosso)).toContain("facial-hair-short-beard");
     expect(nodes(rosso)).toContain("earrings");
     expect(nodes(rosso)).not.toContain("hair-short");
+    for (const part of ["brows-level", "nose-button", "mouth-smile"])
+      expect(nodes(rosso)).toContain(part);
+    for (const part of ["brows-knit", "nose-broad", "mouth-grin", "glasses", "headset"]) {
+      expect(nodes(rosso)).not.toContain(part);
+    }
     const argento = kartSide(livery(2));
     expect(nodes(argento)).toContain("hair-swept-side-part");
     expect([...nodes(argento)].filter((node) => node?.startsWith("facial-hair-"))).toEqual([]);

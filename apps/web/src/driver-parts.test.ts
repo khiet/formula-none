@@ -19,7 +19,7 @@ describe("the parts a face wears", () => {
     }
   });
 
-  it("puts a crew face's headset over any hair style, the hair still worn", () => {
+  it("puts the headset over any hair style, the rest of the face as it is", () => {
     const [face] = crewRoster(0);
     if (face === undefined) throw new Error("a crew");
     for (const hair of HAIRS) {
@@ -27,12 +27,8 @@ describe("the parts a face wears", () => {
       expect(worn).toContain("headset");
       expect(worn).toContain(`hair-${hair}`);
     }
-  });
-
-  it("dresses a driver's face alike on the kart and under a headset, but for the headset", () => {
     const { driver } = livery(0);
-    const bare = partsOf(driver);
-    const crewed = partsOf(driver, "headset");
-    expect([...crewed].filter((part) => part !== "headset").sort()).toEqual([...bare].sort());
+    const crewed = [...partsOf(driver, "headset")].filter((part) => part !== "headset");
+    expect(crewed.sort()).toEqual([...partsOf(driver)].sort());
   });
 });

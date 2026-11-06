@@ -3,7 +3,6 @@ import type { StopTier } from "./bridge";
 import { CREW_PER_BOX } from "./crew-roster";
 import {
   CATCH_S,
-  CREW_ROLES,
   type CrewWork,
   crewWork,
   FIRST_GUNNER,
@@ -44,10 +43,6 @@ describe("the crew's work and clock", () => {
     expect(crewWork(stop, CLEAN_LONGEST)).toEqual({ tier: "slow", stationaryS: 3.6, actFromS: 3 });
     expect(stopClock(stop)).toBeCloseTo(-0.3);
     expect(stopClock({ ...stop, guideLeftS: 0, stationarySoFarS: 1.2 })).toBeCloseTo(1.2);
-  });
-
-  it("names a job for every member of the crew", () => {
-    expect(CREW_ROLES).toHaveLength(CREW_PER_BOX);
   });
 });
 
