@@ -93,6 +93,7 @@ const DECISION_SLUGS = [
   "ace-bots-save-their-tyres-when-that-reaches-the-flag",
   "worn-tyres-cap-speed-harder-and-slide-more-at-the-cliff",
   "monarchs-pit-lane-moves-to-the-real-side",
+  "goldstones-pit-lane-moves-to-the-real-side",
 ];
 
 const expectedFiles = DECISION_SLUGS.map(

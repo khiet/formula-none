@@ -9,7 +9,8 @@ out", now read to the next lane and not the flag. Adds a drift floor to what
 ADR 0078 varies by level. The numbers below come from
 bots racing `crates/sim/tests/bot_pits.rs`; nobody has played them yet. ADR 0086
 supersedes its Ace call where saving its tyres reaches the flag. ADR 0088
-supersedes its placing of Monarch's lane left of the start straight.
+supersedes its placing of Monarch's lane left of the start straight, and ADR
+0089 its placing of Goldstone's.
 
 ## Context
 

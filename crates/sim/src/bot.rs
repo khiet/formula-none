@@ -366,7 +366,7 @@ pub fn drive(
     let grip = TyreGrip::at(kart.tyre_life);
     // Between the lines the limiter holds the speed, and the corners read
     // off the centreline are not on this road. Called in, it slows to make the
-    // fork.
+    // fork and for the lane's own turns, which inside a corner are tighter.
     let target_speed = if track.in_pit_lane(kart.position) {
         f32::INFINITY
     } else {
@@ -376,7 +376,13 @@ pub fn drive(
             grip,
         );
         if memory.pit_called {
-            for_the_corners.min(BOT_PIT_APPROACH_M_PER_S)
+            let for_the_lane = sharpest_on_the_lane(track, kart, &standings[slot], grip)
+                .map_or(f32::INFINITY, |sharpness| {
+                    corner_speed(profile, sharpness, grip)
+                });
+            for_the_corners
+                .min(BOT_PIT_APPROACH_M_PER_S)
+                .min(for_the_lane)
         } else {
             for_the_corners
         }
@@ -829,16 +835,42 @@ fn pursuit_steer(kart: &KartReadout, target: [f32; 2]) -> f32 {
 /// Worn tyres stretch the horizon: they brake less, for a corner they must
 /// take slower.
 fn sharpest_ahead(track: &Track, progress: f32, speed: f32, grip: TyreGrip) -> f32 {
+    braking_horizon(speed, grip)
+        .map(|ahead| track.curvature_at(progress + ahead).abs())
+        .fold(0.0, f32::max)
+}
+
+/// Metres ahead, every corner sample, out to as far as a kart at `speed` on
+/// tyres of `grip` needs to see a corner coming.
+fn braking_horizon(speed: f32, grip: TyreGrip) -> impl Iterator<Item = f32> {
     let horizon_s = BOT_BRAKE_HORIZON_S / (grip.braking * grip.steer_rate);
     let horizon = (speed * horizon_s).max(BOT_LOOKAHEAD_M);
     let samples = (horizon / BOT_CORNER_SAMPLE_M) as usize;
-    (0..=samples)
-        .map(|sample| {
-            track
-                .curvature_at(progress + sample as f32 * BOT_CORNER_SAMPLE_M)
-                .abs()
-        })
-        .fold(0.0, f32::max)
+    (0..=samples).map(|sample| sample as f32 * BOT_CORNER_SAMPLE_M)
+}
+
+/// The sharpest turn of the lane's road within the braking horizon of a kart
+/// headed for it, read from where the kart stands on the road or, short of
+/// the fork, from that far short of the road's start; `None` on a course
+/// without a lane. A fork inside a corner turns tighter than the corner.
+fn sharpest_on_the_lane(
+    track: &Track,
+    kart: &KartReadout,
+    standing: &Standing,
+    grip: TyreGrip,
+) -> Option<f32> {
+    let lane = track.pit_lane()?;
+    let from = match lane.reading(kart.position) {
+        Some(metres) => metres,
+        None => -metres_to_the_fork(track, standing)?,
+    };
+    Some(
+        braking_horizon(kart.speed, grip)
+            .map(|ahead| from + ahead)
+            .filter(|&metres| metres >= 0.0)
+            .map(|metres| lane.sharpness_at(metres))
+            .fold(0.0, f32::max),
+    )
 }
 
 /// The speed a bot aims for through a turn of `curvature`: the profile's

@@ -1,8 +1,8 @@
 """The pit lanes checked without Blender (ADR 0081): each forks off its start
-straight on the side ADR 0088 gives it, past the pit wall and clear of the pit
-building and the trees, with no boost pad or coin on the road a kart called in
-crosses to reach it, and every checkpoint along it reaches across it. The oval
-has none.
+straight on the right, the side the real circuits put them (ADRs 0088 and
+0089), past the pit wall and clear of the pit building and the trees, with no
+boost pad or coin on the road a kart called in crosses to reach it, and every
+checkpoint along it reaches across it. The oval has none.
 
     python3 -I -m unittest discover -s assets/tracks/tests -t assets/tracks
 """
@@ -53,7 +53,7 @@ class ThePitLane:
         return pits
 
     def test_it_runs_on_its_side_of_the_start_straight(self) -> None:
-        """The right, the real circuit's side, wherever the lane fits there (ADR 0088)."""
+        """The right, the real circuit's side (ADRs 0088 and 0089)."""
         self.assertEqual(self.side, self.SIDE)
         for x, y, _ in self.pit_lane.path:
             s = nearest_sample(self.layout, x, y).s
@@ -215,8 +215,6 @@ class PitLaneOnBellDeer(ThePitLane, unittest.TestCase):
 
 class PitLaneOnGoldstone(ThePitLane, unittest.TestCase):
     NAME = "goldstone"
-    # Left, outside Club and Abbey: a lane inside Club turns tighter than a bot called in can follow.
-    SIDE = 1
 
 
 class PitLaneOnMonarch(ThePitLane, unittest.TestCase):

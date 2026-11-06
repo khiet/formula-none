@@ -20,6 +20,29 @@ pub const SIDECAR_VERSION: u32 = 1;
 /// narrower than any corner, so a corner reads at full strength.
 const CURVATURE_WINDOW_M: f32 = 4.0;
 
+/// The unit direction of travel along a road `point_at` lays out, at `at`
+/// metres along it, as `[x, z]`: the chord across the curvature window
+/// centred there, so a polyline vertex does not read as a kink.
+fn direction(point_at: impl Fn(f32) -> [f32; 3], at: f32) -> [f32; 2] {
+    let behind = point_at(at - CURVATURE_WINDOW_M / 2.0);
+    let ahead = point_at(at + CURVATURE_WINDOW_M / 2.0);
+    let (dx, dz) = (ahead[0] - behind[0], ahead[2] - behind[2]);
+    let length = libm::sqrtf(dx * dx + dz * dz).max(f32::EPSILON);
+    [dx / length, dz / length]
+}
+
+/// How sharply that road turns at `at`, in radians per metre: positive
+/// turning left, seen from above.
+fn turn_rate(point_at: impl Fn(f32) -> [f32; 3], at: f32) -> f32 {
+    let [ax, az] = direction(&point_at, at - CURVATURE_WINDOW_M / 2.0);
+    let [bx, bz] = direction(&point_at, at + CURVATURE_WINDOW_M / 2.0);
+    // Facing -Z, left is -X, so a left turn swings the direction's cross
+    // product negative.
+    let cross = ax * bz - az * bx;
+    let dot = ax * bx + az * bz;
+    -libm::atan2f(cross, dot) / CURVATURE_WINDOW_M
+}
+
 /// What is under a point on the track. Five of these are exported as tagged
 /// meshes; `OutOfWorld` is the answer when nothing lies below a point.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize, TS)]
@@ -306,6 +329,18 @@ impl PitLane {
     pub fn limits(&self, point: [f32; 3]) -> bool {
         self.reading(point)
             .is_some_and(|metres| (self.entry_m..=self.exit_m).contains(&metres))
+    }
+
+    /// How sharply the path turns `metres` along it, in radians per metre of
+    /// travel either way, read as the centreline's turns are. Near either end
+    /// it reads the turn a window in: past an end the chord has no length, and
+    /// a direction read from it is noise.
+    pub(crate) fn sharpness_at(&self, metres: f32) -> f32 {
+        let metres = metres.clamp(
+            CURVATURE_WINDOW_M,
+            (self.length_m() - CURVATURE_WINDOW_M).max(CURVATURE_WINDOW_M),
+        );
+        libm::fabsf(turn_rate(|at| self.point_at(at), metres))
     }
 
     /// The point `metres` along the path, held to its two ends.
@@ -620,11 +655,7 @@ impl Track {
     /// `[x, z]`: the chord across the curvature window centred there, so a
     /// polyline vertex does not read as a kink.
     pub fn direction_at(&self, progress: f32) -> [f32; 2] {
-        let behind = self.point_at(progress - CURVATURE_WINDOW_M / 2.0);
-        let ahead = self.point_at(progress + CURVATURE_WINDOW_M / 2.0);
-        let (dx, dz) = (ahead[0] - behind[0], ahead[2] - behind[2]);
-        let length = libm::sqrtf(dx * dx + dz * dz).max(f32::EPSILON);
-        [dx / length, dz / length]
+        direction(|at| self.point_at(at), progress)
     }
 
     /// How sharply the centreline turns at `progress`, in radians per metre
@@ -632,13 +663,7 @@ impl Track {
     /// negative turning right, zero on a straight. The reciprocal is the
     /// turn's radius.
     pub fn curvature_at(&self, progress: f32) -> f32 {
-        let [ax, az] = self.direction_at(progress - CURVATURE_WINDOW_M / 2.0);
-        let [bx, bz] = self.direction_at(progress + CURVATURE_WINDOW_M / 2.0);
-        // Facing -Z, left is -X, so a left turn swings the direction's cross
-        // product negative.
-        let cross = ax * bz - az * bx;
-        let dot = ax * bx + az * bz;
-        -libm::atan2f(cross, dot) / CURVATURE_WINDOW_M
+        turn_rate(|at| self.point_at(at), progress)
     }
 
     /// Gates in lap order; the first is the start line.

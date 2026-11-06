@@ -4,6 +4,7 @@
 
 Accepted (2026-11-06). Supersedes ADR 0085's placing of Monarch's lane left of
 its start straight; the rest of ADR 0085 stands, Goldstone's placing with it.
+ADR 0089 supersedes its keeping of Goldstone's lane on the left.
 
 ## Context
 
