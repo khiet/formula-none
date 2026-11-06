@@ -357,7 +357,7 @@ describe("preloading and the autoplay rule", () => {
         STAR_MUSIC_URL,
       ]),
     );
-    // 25 SFX and the 11 the stop's beats added, 3 loops and 2 music files.
+    // 36 SFX, 3 loops and 2 music files.
     expect(fetched).toHaveLength(41);
     await settled();
     expect(contexts).toHaveLength(0);

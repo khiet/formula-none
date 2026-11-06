@@ -327,6 +327,10 @@ const GUN_STALL_EVERY_S = 1.3;
 const GUN_STALL_LAST_S = 0.6;
 /** The act's short run on a stuck nut lasts this long; a botched stop's ends as the nut frees. */
 const WHEEL_GUN_ACT_S = 0.3;
+/** A worn wheel thumps down this far into its beat, once pulled clear of the hub. */
+const WHEEL_OFF_INTO_S = 0.12;
+/** A fresh wheel clunks home this long before its beat ends, as it seats. */
+const WHEEL_ON_BEFORE_S = 0.08;
 
 /** A cue on the stop clock. */
 interface StopCue {
@@ -347,8 +351,8 @@ function stopCues(stop: HeardStop): StopCue[] {
   const cues: StopCue[] = [
     { at: beats.jackUp[0], cue: "jackLift" },
     { at: beats.gunsOff[0], cue: "wheelGun" },
-    { at: beats.wheelsOff[0], cue: "wheelOff" },
-    { at: beats.wheelsOn[0], cue: "wheelOn" },
+    { at: beats.wheelsOff[0] + WHEEL_OFF_INTO_S, cue: "wheelOff" },
+    { at: beats.wheelsOn[1] - WHEEL_ON_BEFORE_S, cue: "wheelOn" },
     { at: beats.gunsOn[0], cue: "wheelGunOn" },
     { at: stop.stationaryS + RELEASE.spin[0], cue: "lollipopSpin" },
   ];
@@ -370,7 +374,7 @@ function stopCues(stop: HeardStop): StopCue[] {
       { at: act.failAt, cue: "jackFail" },
       { at: act.rejack[0], cue: "jackLift" },
       { at: redo, cue: "wheelGunRedo" },
-      { at: redo + REDO_STEPS_S[1], cue: "wheelOn" },
+      { at: redo + REDO_STEPS_S[2] - WHEEL_ON_BEFORE_S, cue: "wheelOn" },
       { at: redo + REDO_STEPS_S[2], cue: "wheelGunRedo" },
     );
   }
@@ -381,17 +385,33 @@ function stopCues(stop: HeardStop): StopCue[] {
  * The stop's cues from `before` to `after`, the own kart's stop at each:
  * the boots as it is caught onto the guide, each beat the clock steps
  * across, and the jack's drop and the release chime as it is let go on
- * green. A seek past a beat, or a stop first read on its mark, sounds none.
+ * green. A seek past a beat or past green, or a stop first read on its
+ * mark, sounds none.
  */
 function stopBeatCues(before: HeardStop | null, after: HeardStop | null): SoundCue[] {
   if (before === null && after !== null) return after.clock < 0 ? ["boots"] : [];
-  if (before !== null && after === null) return ["jackDrop", "releaseChime"];
+  if (before !== null && after === null) {
+    return before.stationaryS - before.clock <= STOP_SEEK_S ? ["jackDrop", "releaseChime"] : [];
+  }
   if (before === null || after === null) return [];
   const step = after.clock - before.clock;
   if (step <= 0 || step > STOP_SEEK_S || after.stationaryS !== before.stationaryS) return [];
   return stopCues(after)
     .filter(({ at }) => before.clock < at && at <= after.clock)
     .map(({ cue }) => cue);
+}
+
+/**
+ * The reading the next frame's cues compare against, after `after`: itself,
+ * but for a stop clock a correction steps back, which holds at the furthest
+ * `before` reached, so a beat already heard does not sound again as the
+ * clock comes forward over it.
+ */
+export function heardOnward(before: SoundReading | undefined, after: SoundReading): SoundReading {
+  const held = before?.stop;
+  const stop = after.stop;
+  if (held == null || stop === null || stop.stationaryS !== held.stationaryS) return after;
+  return stop.clock < held.clock ? { ...after, stop: { ...stop, clock: held.clock } } : after;
 }
 
 /**

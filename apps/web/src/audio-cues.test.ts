@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   distanceLevel,
   droneBeep,
+  heardOnward,
   hornBlasts,
   loopPlayback,
   SOUND_AWAY_LOWPASS_HZ,
@@ -704,8 +705,8 @@ describe("the stop's sounds", () => {
   const BEATS_ON_THE_MARK: [SoundCue, number][] = [
     ["jackLift", 0],
     ["wheelGun", 0.25],
-    ["wheelOff", 0.85],
-    ["wheelOn", 1.25],
+    ["wheelOff", 0.97],
+    ["wheelOn", 1.57],
     ["wheelGunOn", 1.65],
   ];
 
@@ -723,7 +724,12 @@ describe("the stop's sounds", () => {
     const scale = 2 / 2.65;
     expectBeats(heardThrough("record", 2), [
       ["boots", -GUIDE_S],
-      ...BEATS_ON_THE_MARK.map(([cue, at]): [SoundCue, number] => [cue, at * scale]),
+      // The beats scale; a wheel's thump and clunk keep their offsets into them.
+      ["jackLift", 0],
+      ["wheelGun", 0.25 * scale],
+      ["wheelOff", 0.85 * scale + 0.12],
+      ["wheelOn", 1.65 * scale - 0.08],
+      ["wheelGunOn", 1.65 * scale],
       ["lollipopSpin", 1.4],
       ["jackDrop", 2],
       ["releaseChime", 2],
@@ -763,7 +769,7 @@ describe("the stop's sounds", () => {
       ["jackFail", CLEAN_STOP_S],
       ["jackLift", 7],
       ["wheelGunRedo", 7.5],
-      ["wheelOn", 8.2],
+      ["wheelOn", 8.32],
       ["wheelGunRedo", 8.4],
       ["lollipopSpin", 9.4],
       ["jackDrop", 10],
@@ -778,6 +784,21 @@ describe("the stop's sounds", () => {
     expect(soundCues(undefined, at(0.3))).toEqual([]);
     expect(soundCues(stopping(null), at(0.3))).toEqual([]);
     expect(soundCues(at(0.24), at(0.26))).toEqual(["wheelGun"]);
+    // Past green: the stop readout gone from a clock far short of it.
+    expect(soundCues(at(0.1), stopping(null))).toEqual([]);
+    expect(soundCues(at(2.64), stopping(null))).toEqual(["jackDrop", "releaseChime"]);
+  });
+
+  it("sounds a beat once when a correction steps the clock back over it", () => {
+    const at = (clock: number) => stopping(onMark("clean", 2.65, clock));
+    let last: SoundReading | undefined;
+    const heard: SoundCue[] = [];
+    for (const clock of [0.24, 0.26, 0.1, 0.24, 0.26, 0.3]) {
+      const reading = at(clock);
+      heard.push(...soundCues(last, reading));
+      last = heardOnward(last, reading);
+    }
+    expect(heard).toEqual(["wheelGun"]);
   });
 
   it("hears only the own kart's stop", () => {

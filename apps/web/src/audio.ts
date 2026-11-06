@@ -56,6 +56,7 @@ import {
   type DroneBeep,
   distanceLevel,
   droneBeep,
+  heardOnward,
   hornBlasts,
   loopPlayback,
   SOUND_AWAY_LOWPASS_HZ,
@@ -465,7 +466,7 @@ class LiveRace {
     if (!this.racing) return;
     const before = this.#last;
     const cues = soundCues(before, reading);
-    this.#last = reading;
+    this.#last = heardOnward(before, reading);
     const sounds = this.#sounds;
     if (sounds === undefined) return;
     this.#engineState = this.#stepEngine(sounds, reading);
