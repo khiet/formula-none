@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import type { StopTier } from "./bridge";
 import { CREW_PER_BOX } from "./crew-roster";
 import {
-  CATCH_S,
   type CrewWork,
   crewWork,
   FIRST_GUNNER,
@@ -16,7 +15,7 @@ import {
   stopClock,
   WORK_ENDS_S,
 } from "./crew-stance";
-import { beatsOf } from "./stop-beats";
+import { actOf, beatsOf } from "./stop-beats";
 
 const CLEAN_LONGEST = 3;
 /** The sim's kart, half of it each way from the mark's middle. */
@@ -27,8 +26,11 @@ const BODY_HALF_WIDTH = 0.2;
 const JACK_HALF_WIDTH = 0.17;
 const GUNNERS = [0, 1, 2, 3].map((corner) => FIRST_GUNNER + corner);
 
+const GUIDE = 0.5;
+const CATCH_S = -GUIDE;
+
 function work(stationaryS: number, tier: StopTier = "clean"): CrewWork {
-  return { tier, stationaryS, actFromS: CLEAN_LONGEST };
+  return { tier, stationaryS, actFromS: CLEAN_LONGEST, catchS: CATCH_S };
 }
 
 const at = (member: number, w: CrewWork | null, t: number): Stance => stance(member, w, t);
@@ -38,9 +40,14 @@ const atAWheel = ({ x, z }: Stance) =>
 
 describe("the crew's work and clock", () => {
   it("works the kart's stop from the catch, with its stop clock negative through the guide", () => {
-    expect(crewWork(null, CLEAN_LONGEST)).toBeNull();
+    expect(crewWork(null, CLEAN_LONGEST, GUIDE)).toBeNull();
     const stop = { tier: "slow" as const, stationaryS: 3.6, guideLeftS: 0.3, stationarySoFarS: 0 };
-    expect(crewWork(stop, CLEAN_LONGEST)).toEqual({ tier: "slow", stationaryS: 3.6, actFromS: 3 });
+    expect(crewWork(stop, CLEAN_LONGEST, GUIDE)).toEqual({
+      tier: "slow",
+      stationaryS: 3.6,
+      actFromS: 3,
+      catchS: -0.5,
+    });
     expect(stopClock(stop)).toBeCloseTo(-0.3);
     expect(stopClock({ ...stop, guideLeftS: 0, stationarySoFarS: 1.2 })).toBeCloseTo(1.2);
   });
@@ -163,6 +170,8 @@ describe("the crew's stance", () => {
       expect(at(FIRST_GUNNER + corner, stop, 3.2).pose).toBe("handUp");
     }
     expect(at(FIRST_GUNNER + 2, stop, 3.5).pose).toBe("handUp");
+    // The shortest slow stop still shows the stall, briefly.
+    expect(at(FIRST_GUNNER + 2, work(3.1, "slow"), 3.04)).toMatchObject({ judder: 1 });
   });
 
   it("swarms the stuck wheel through a botched stop's act, the building side's gunners round the tail", () => {
@@ -193,7 +202,9 @@ describe("the crew's stance", () => {
       expect(off.pose).toBe("stand");
     }
     expect(at(FRONT_JACK, stop, 7.8).z).toBeCloseTo(at(FRONT_JACK, stop, 1).z, 1);
-    const [redoFrom] = [8];
+    const act = actOf("disaster", 10.5, CLEAN_LONGEST);
+    if (act?.kind !== "disaster") throw new Error("a disaster's act");
+    const [redoFrom] = act.redo;
     expect(at(FIRST_GUNNER, stop, redoFrom + 0.2)).toMatchObject({ pose: "crouch", judder: 1 });
     expect(at(FIRST_GUNNER, stop, redoFrom + 0.6).pose).toBe("pull");
     expect(at(FIRST_GUNNER + 1, stop, redoFrom + 0.8).pose).toBe("push");

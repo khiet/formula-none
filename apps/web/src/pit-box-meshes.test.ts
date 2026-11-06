@@ -13,20 +13,19 @@ import {
 } from "three";
 import { describe, expect, it } from "vitest";
 import type { KartReadout, KartSize, StopTier } from "./bridge";
-import { crewRoster } from "./crew-roster";
+import { CREW_PER_BOX, crewRoster } from "./crew-roster";
 import { FACE_PARTS } from "./driver-parts";
 import { kartReadout } from "./kart-readout-fixture";
 import { livery } from "./livery";
 import { GO_GREEN, LAMP_OFF, POSTER_RED } from "./palette";
 import {
   BOOM_HEIGHT_M,
-  CREW_PER_BOX,
-  GREEN_HOLD_S,
   PIT_DRAW_RANGE_M,
   type PitBoxMeshes,
   pitBoxMeshes,
   pitLight,
 } from "./pit-box-meshes";
+import { GREEN_HOLD_S } from "./stop-beats";
 import type { PitBox } from "./track";
 
 const KART: KartSize = { width: 1.2, height: 0.6, length: 1.8 };
@@ -66,7 +65,7 @@ function head(): Group {
   return root;
 }
 
-const OPTIONS = { cleanStopSeconds: 3, head: head() };
+const OPTIONS = { cleanStopSeconds: 3, guideSeconds: 0.5, head: head() };
 
 function stopping(
   guideLeftS: number,
@@ -266,7 +265,9 @@ describe("the pit boxes", () => {
     pits.show([stopping(0, 1), kartReadout()], FAR_AWAY, 0.1);
     expect(crewAt(pits, 0).every((member) => member === null)).toBe(true);
     expect(partPieces(pits, "headset").every((piece) => !drawn(piece, 0))).toBe(true);
+    expect(pits.mesh.getObjectByName("pitBox0")?.getObjectByName("boom")?.visible).toBe(false);
     pits.show([stopping(0, 1), kartReadout()], AT_THE_BOXES, 0.1);
     expect(crewAt(pits, 0).every((member) => member !== null)).toBe(true);
+    expect(pits.mesh.getObjectByName("pitBox0")?.getObjectByName("boom")?.visible).toBe(true);
   });
 });

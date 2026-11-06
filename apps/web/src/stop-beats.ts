@@ -83,10 +83,12 @@ export type Act =
 export const REDO_STEPS_S = [0.5, 0.7, 0.9] as const;
 
 export function actOf(tier: StopTier, stationaryS: number, actFromS: number): Act | null {
-  const freed = stationaryS - 0.5;
+  // Freed half a second before green, or half way through a short act, so every slow stop shows its stall.
+  const freed =
+    stationaryS - 0.5 > actFromS ? stationaryS - 0.5 : actFromS + (stationaryS - actFromS) / 2;
   switch (tier) {
     case "slow":
-      return freed > actFromS ? { kind: "slow", stall: [actFromS, freed] } : null;
+      return { kind: "slow", stall: [actFromS, freed] };
     case "botched":
       return { kind: "botched", stall: [actFromS, freed], swarmAt: actFromS + 0.25 };
     case "disaster":
@@ -121,8 +123,9 @@ export const CREW_BACK_S = 2.5;
 /** The jacks lift the kart this far. */
 export const KART_LIFT_M = 0.16;
 
-const clamp01 = (x: number) => Math.min(1, Math.max(0, x));
-const ramp = (t: number, from: number, to: number) => clamp01((t - from) / (to - from));
+export const clamp01 = (x: number) => Math.min(1, Math.max(0, x));
+/** 0 before `from`, 1 after `to`, and linear between. */
+export const ramp = (t: number, from: number, to: number) => clamp01((t - from) / (to - from));
 
 /**
  * How far each end of the kart is up on its jack, 0 on the ground and 1 at

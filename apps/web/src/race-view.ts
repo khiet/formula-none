@@ -178,6 +178,8 @@ export interface ViewTuning {
   readonly tyreLifeCliff: number;
   /** The longest a clean stop lasts: past it a pit crew acts the roll out. */
   readonly cleanStopSeconds: number;
+  /** How long the guide onto a pit box's mark takes: the pit crew runs out as it starts. */
+  readonly pitBoxGuideSeconds: number;
 }
 
 /**
@@ -366,6 +368,7 @@ export async function createRaceView(
   if (kartHead === undefined) throw new Error("kart.glb carries the driver's head");
   const pits = pitBoxMeshes(pitBoxes, kartSize, {
     cleanStopSeconds: tuning.cleanStopSeconds,
+    guideSeconds: tuning.pitBoxGuideSeconds,
     head: kartHead,
   });
   world.add(pits.mesh);

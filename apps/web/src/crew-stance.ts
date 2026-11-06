@@ -12,7 +12,16 @@
 
 import type { Stop, StopTier } from "./bridge";
 import { CREW_PER_BOX } from "./crew-roster";
-import { actOf, beatsOf, CREW_BACK_S, GREEN_HOLD_S, REDO_STEPS_S, RELEASE } from "./stop-beats";
+import {
+  actOf,
+  beatsOf,
+  CREW_BACK_S,
+  clamp01,
+  GREEN_HOLD_S,
+  REDO_STEPS_S,
+  RELEASE,
+  ramp,
+} from "./stop-beats";
 
 /** A member's job, by member index. */
 export const CREW_ROLES = [
@@ -171,12 +180,23 @@ export interface CrewWork {
   readonly stationaryS: number;
   /** A clean stop's longest: the tier's act starts here. */
   readonly actFromS: number;
+  /** The stop clock at the catch, the tick the kart is taken onto its guide: the crew runs out here. */
+  readonly catchS: number;
 }
 
-/** The crew's work for `stop`, its kart's stop, or null for none. */
-export function crewWork(stop: Stop | null, cleanStopSeconds: number): CrewWork | null {
+/** The crew's work for `stop`, its kart's stop, or null for none; the guide onto the mark takes `guideSeconds`. */
+export function crewWork(
+  stop: Stop | null,
+  cleanStopSeconds: number,
+  guideSeconds: number,
+): CrewWork | null {
   if (stop === null) return null;
-  return { tier: stop.tier, stationaryS: stop.stationaryS, actFromS: cleanStopSeconds };
+  return {
+    tier: stop.tier,
+    stationaryS: stop.stationaryS,
+    actFromS: cleanStopSeconds,
+    catchS: -guideSeconds,
+  };
 }
 
 /**
@@ -187,9 +207,6 @@ export function crewWork(stop: Stop | null, cleanStopSeconds: number): CrewWork 
 export function stopClock(stop: Stop): number {
   return stop.guideLeftS > 0 ? -stop.guideLeftS : stop.stationarySoFarS;
 }
-
-/** The stop clock at the catch, the tick the kart is taken onto its guide: `PIT_BOX_GUIDE_S` before the mark. */
-export const CATCH_S = -0.5;
 
 /** The crew is done with a stop, and back in its row, this long after green. */
 export const WORK_ENDS_S = GREEN_HOLD_S + CREW_BACK_S;
@@ -269,8 +286,6 @@ interface State {
   readonly headPitch: number;
 }
 
-const clamp01 = (x: number) => Math.min(1, Math.max(0, x));
-const ramp = (t: number, from: number, to: number) => clamp01((t - from) / (to - from));
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 function turn(from: number, to: number, t: number): number {
   const delta = Math.atan2(Math.sin(to - from), Math.cos(to - from));
@@ -370,6 +385,12 @@ function then(
   return { ...key, at: arrival(from, after) };
 }
 
+/** The walk back to the row once the hold after green is over. */
+function walkBack(member: number, work: CrewWork): Key {
+  const back = work.stationaryS + GREEN_HOLD_S;
+  return { ...rowSpot(member), at: back, by: back + WALK_BACK_S };
+}
+
 function rowSpot(member: number): Key {
   const slot = ROW_SLOT[member] ?? member;
   return {
@@ -399,18 +420,19 @@ function jackKeys(end: "front" | "rear", work: CrewWork): Key[] {
   const [dropFrom] = beatsOf(green).jackDown;
   // Dragged out from under the dropping kart, clear of its path just after green.
   const clear = { at: dropFrom - 0.15, by: green + 0.05 };
-  const back = { at: green + GREEN_HOLD_S, by: green + GREEN_HOLD_S + WALK_BACK_S };
+  const { at: backAt, by: backBy } = walkBack(member, work);
+  const back = { at: backAt, by: backBy };
   if (end === "front") {
     return [
       parked,
-      { at: CATCH_S, by: -0.05, ...FRONT_JACK_UNDER, yaw: Math.PI },
+      { at: work.catchS, by: -0.05, ...FRONT_JACK_UNDER, yaw: Math.PI },
       { ...clear, x: -0.9, z: 1.6, yaw: Math.PI },
       { ...back, x: parked.x, z: parked.z, yaw: parked.yaw },
     ];
   }
   return [
     parked,
-    { at: CATCH_S, by: -0.2, ...REAR_JACK_WAITS, yaw: 0 },
+    { at: work.catchS, by: -0.2, ...REAR_JACK_WAITS, yaw: 0 },
     { at: -0.15, by: 0.1, ...REAR_JACK_UNDER },
     { ...clear, ...REAR_JACK_UNDER, z: -1.75 },
     { ...back, x: parked.x, z: parked.z, yaw: parked.yaw },
@@ -419,7 +441,7 @@ function jackKeys(end: "front" | "rear", work: CrewWork): Key[] {
 
 /** Where a pit box's front or rear jack trolley is, `t` on the stop clock of `work`, or parked for no work. */
 export function jackPlace(end: "front" | "rear", work: CrewWork | null, t: number): Place {
-  const keys = jackKeys(end, work ?? { tier: "clean", stationaryS: 0, actFromS: 0 });
+  const keys = jackKeys(end, work ?? { tier: "clean", stationaryS: 0, actFromS: 0, catchS: 0 });
   const { x, z, yaw } = perform(work === null ? keys.slice(0, 1) : keys, t);
   return { x, z, yaw };
 }
@@ -453,8 +475,7 @@ function jackMemberKeys(end: "front" | "rear", work: CrewWork): Key[] {
   }
   const dragged = working(jack[jack.length - 2] as Key, "jack");
   keys.push(still(dragged, green + 0.05, { pose: "stand", headYaw: end === "front" ? -0.6 : 0 }));
-  const row = rowSpot(member);
-  keys.push({ ...row, at: green + GREEN_HOLD_S, by: green + GREEN_HOLD_S + WALK_BACK_S });
+  keys.push(walkBack(member, work));
   return keys.sort((a, b) => a.at - b.at);
 }
 
@@ -477,10 +498,10 @@ function gunnerKeys(corner: number, work: CrewWork): Key[] {
   // The rear lane-side gunner goes round the nose, ahead of the kart on its guide.
   const run = { ...hub, pose: "crouch" as const };
   if (corner === 2) {
-    const round = { at: CATCH_S, x: 0, z: 1.6, yaw: 0, pose: "stand" as const };
+    const round = { at: work.catchS, x: 0, z: 1.6, yaw: 0, pose: "stand" as const };
     keys.push(round, then(row, round, run));
   } else {
-    keys.push({ at: CATCH_S, ...run });
+    keys.push({ at: work.catchS, ...run });
   }
   keys.push(
     at(beats.gunsOff[0], "crouch", 1),
@@ -557,7 +578,7 @@ function gunnerKeys(corner: number, work: CrewWork): Key[] {
     headYaw: standOff.x > 0 ? 0.9 : -0.9,
     speed: STEP_M_PER_S,
   });
-  keys.push({ ...row, at: green + GREEN_HOLD_S, by: green + GREEN_HOLD_S + WALK_BACK_S });
+  keys.push(walkBack(member, work));
   return keys;
 }
 
@@ -568,7 +589,7 @@ function holderKeys(work: CrewWork): Key[] {
   const row = rowSpot(LOLLIPOP);
   const keys: Key[] = [
     row,
-    { at: CATCH_S, ...holding },
+    { at: work.catchS, ...holding },
     { at: green + checkFrom, ...holding, headYaw: 0.8, headPitch: -0.1 },
     { at: green + checkTo, ...holding },
     {
@@ -579,7 +600,7 @@ function holderKeys(work: CrewWork): Key[] {
       headYaw: -0.4,
       speed: STEP_M_PER_S,
     },
-    { ...row, at: green + GREEN_HOLD_S, by: green + GREEN_HOLD_S + WALK_BACK_S },
+    walkBack(LOLLIPOP, work),
   ];
   return keys.sort((a, b) => a.at - b.at);
 }

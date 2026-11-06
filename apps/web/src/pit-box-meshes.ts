@@ -38,7 +38,6 @@ import {
 import type { KartReadout, KartSize } from "./bridge";
 import { CREW_PER_BOX, crewRoster } from "./crew-roster";
 import {
-  CREW_ROLES,
   type CrewWork,
   crewWork,
   FIRST_GUNNER,
@@ -57,8 +56,6 @@ import { livery } from "./livery";
 import { CARBON, GO_GREEN, GREYS, INK, LAMP_OFF, POSTER_RED, VALUE_WHITE, WHITE } from "./palette";
 import { GREEN_HOLD_S, KART_LIFT_M, kartOnJacks } from "./stop-beats";
 import type { PitBox } from "./track";
-
-export { CREW_PER_BOX, GREEN_HOLD_S };
 
 /** The crews are drawn while the camera is within this of a pit box. */
 export const PIT_DRAW_RANGE_M = 160;
@@ -107,6 +104,8 @@ const JACK_RED = POSTER_RED.mid;
 export interface PitBoxOptions {
   /** The longest a clean stop lasts: past it the crew acts the roll out. */
   readonly cleanStopSeconds: number;
+  /** How long the guide onto the mark takes: the crew runs out as it starts. */
+  readonly guideSeconds: number;
   /**
    * kart.glb's `head` node, with every face part under it: each crew
    * member's head is its geometry, instanced, with only their face's parts.
@@ -152,6 +151,21 @@ export function pitLight(
 function lambert(colour: number): MeshLambertMaterial {
   return new MeshLambertMaterial({ color: colour, flatShading: true });
 }
+
+/**
+ * A yaw in the pit box's own terms, 0 facing the nose and a quarter turn
+ * the building, as Three turns about the pit box frame's +Y.
+ */
+function frameYaw(buildingSide: 1 | -1, yaw: number): number {
+  return Math.atan2(buildingSide * Math.sin(yaw), -Math.cos(yaw));
+}
+
+/**
+ * Where each part of a box's kit sits among its instances, boxes and drums
+ * apart: each gun has two of each, each jack five boxes and two drums.
+ */
+const KIT_BOXES = { guns: 0, jacks: 8, pole: 18, count: 19 } as const;
+const KIT_DRUMS = { guns: 0, jackWheels: 8, disc: 12, count: 13 } as const;
 
 /** One kind of part, instanced across every crew or every box, coloured per instance. */
 interface Batch {
@@ -281,8 +295,8 @@ export function pitBoxMeshes(
   const trim = batch("crewTrim", unitBox, tinted(), figures, 4);
   const heads = headPieces(options.head, figures);
   // The kit: four guns, two jacks and a lollipop per box.
-  const kitBoxes = batch("pitKitBoxes", unitBox, tinted(), boxes, 4 * 2 + 2 * 5 + 1);
-  const kitDrums = batch("pitKitDrums", unitDrum, tinted(), boxes, 4 * 2 + 2 * 2 + 1);
+  const kitBoxes = batch("pitKitBoxes", unitBox, tinted(), boxes, KIT_BOXES.count);
+  const kitDrums = batch("pitKitDrums", unitDrum, tinted(), boxes, KIT_DRUMS.count);
   const signDisc = new CircleGeometry(0.32, 16);
   const stopFace = batch(
     "signStop",
@@ -386,7 +400,7 @@ export function pitBoxMeshes(
         set(piece.batch, figure, 0, piece.paint === "skin" ? face.skin : face.hairColour);
       }
     });
-    // The kit's colours, in the order `show` places its parts.
+    // The kit's colours, in the order of `KIT_BOXES` and `KIT_DRUMS`.
     const boxColours = [
       ...Array.from({ length: 4 }, () => [key, STEEL]).flat(),
       ...Array.from({ length: 2 }, () => [CARBON.mid, JACK_RED, JACK_RED, STEEL, JACK_RED]).flat(),
@@ -405,6 +419,7 @@ export function pitBoxMeshes(
     });
     return {
       frame,
+      boom,
       buildingSide: pitBox.buildingSide,
       worn: roster.map((face) => partsOf(face, "headset")),
       heights: roster.map((face) => face.height),
@@ -441,7 +456,7 @@ export function pitBoxMeshes(
   const headScale = new Matrix4().makeScale(CREW_HEAD_SHARE, CREW_HEAD_SHARE, CREW_HEAD_SHARE);
   let clockSeconds = 0;
 
-  /** `out` = `parent` × translate × rotate. */
+  /** `out` = `parent` * translate * rotate. */
   const joint = (
     out: Matrix4,
     parent: Matrix4,
@@ -484,16 +499,7 @@ export function pitBoxMeshes(
     x: number,
     z: number,
     yaw: number,
-  ) =>
-    joint(
-      out,
-      frame,
-      buildingSide * x,
-      0,
-      -z,
-      0,
-      Math.atan2(buildingSide * Math.sin(yaw), -Math.cos(yaw)),
-    );
+  ) => joint(out, frame, buildingSide * x, 0, -z, 0, frameYaw(buildingSide, yaw));
 
   return {
     mesh,
@@ -514,7 +520,7 @@ export function pitBoxMeshes(
         // The stop clock: the kart's own through its stop, run on from green after it.
         let secondsOnMark = 0;
         if (stop !== null) {
-          pitBox.work = crewWork(stop, options.cleanStopSeconds);
+          pitBox.work = crewWork(stop, options.cleanStopSeconds, options.guideSeconds);
           secondsOnMark = stopClock(stop);
         } else if (pitBox.work !== null && pitBox.letGoAt !== null) {
           secondsOnMark = pitBox.greenAt + (clockSeconds - pitBox.letGoAt);
@@ -526,6 +532,7 @@ export function pitBoxMeshes(
         const lift = kartOnJacks(stop, options.cleanStopSeconds);
         pitBox.frame.getWorldPosition(world);
         const near = world.distanceTo(cameraAt) <= PIT_DRAW_RANGE_M;
+        pitBox.boom.visible = near;
         const frame = pitBox.frame.matrix;
         const side = pitBox.buildingSide;
         const hoseBase = slot * 4 * (HOSE_POINTS - 1) * 2 * 3;
@@ -622,11 +629,32 @@ export function pitBoxMeshes(
             // The gun in both hands in front of the chest, on its air line from the boom.
             joint(gun, torso, 0.1, 0.1, 0.42);
             joint(kit, gun, 0, 0, 0.1, Math.PI / 2);
-            part(kitDrums, slot, gunner * 2, kit, [0, 0, 0], [0.05, 0.3, 0.05]);
+            part(kitDrums, slot, KIT_DRUMS.guns + gunner * 2, kit, [0, 0, 0], [0.05, 0.3, 0.05]);
             joint(kit, gun, 0, 0, 0.31, Math.PI / 2);
-            part(kitDrums, slot, gunner * 2 + 1, kit, [0, 0, 0], [0.035, 0.12, 0.035]);
-            part(kitBoxes, slot, gunner * 2, gun, [0, -0.08, 0.04], [0.04, 0.12, 0.05]);
-            part(kitBoxes, slot, gunner * 2 + 1, gun, [0, -0.13, -0.08], [0.02, 0.02, 0.2]);
+            part(
+              kitDrums,
+              slot,
+              KIT_DRUMS.guns + gunner * 2 + 1,
+              kit,
+              [0, 0, 0],
+              [0.035, 0.12, 0.035],
+            );
+            part(
+              kitBoxes,
+              slot,
+              KIT_BOXES.guns + gunner * 2,
+              gun,
+              [0, -0.08, 0.04],
+              [0.04, 0.12, 0.05],
+            );
+            part(
+              kitBoxes,
+              slot,
+              KIT_BOXES.guns + gunner * 2 + 1,
+              gun,
+              [0, -0.13, -0.08],
+              [0.02, 0.02, 0.2],
+            );
             point.set(0, -0.13, -0.18).applyMatrix4(gun);
             const reelSide = gunner % 2 === 0 ? -1 : 1;
             reel
@@ -648,7 +676,7 @@ export function pitBoxMeshes(
             const sign = lollipopSign(work, secondsOnMark);
             point.set(0.32, 0.25 + sign.lifted * 0.7, 0.3 - sign.lifted * 0.2).applyMatrix4(root);
             const facing = Math.PI + sign.spun * Math.PI;
-            const turned = Math.atan2(side * Math.sin(facing), -Math.cos(facing));
+            const turned = frameYaw(side, facing);
             joint(
               kit,
               scratch.identity(),
@@ -659,9 +687,9 @@ export function pitBoxMeshes(
               (pitBoxes[slot]?.yaw ?? 0) + turned,
             );
             kit.multiply(scratch.makeRotationX(-sign.lifted * 0.4));
-            part(kitBoxes, slot, 18, kit, [0, 0.65, 0], [0.04, 1.3, 0.04]);
+            part(kitBoxes, slot, KIT_BOXES.pole, kit, [0, 0.65, 0], [0.04, 1.3, 0.04]);
             joint(gun, kit, 0, 1.5, 0, Math.PI / 2);
-            part(kitDrums, slot, 12, gun, [0, 0, 0], [0.34, 0.03, 0.34]);
+            part(kitDrums, slot, KIT_DRUMS.disc, gun, [0, 0, 0], [0.34, 0.03, 0.34]);
             joint(gun, kit, 0, 1.5, 0.017);
             stopFace.mesh.setMatrixAt(slot, gun);
             joint(gun, kit, 0, 1.5, -0.017, 0, Math.PI);
@@ -681,13 +709,20 @@ export function pitBoxMeshes(
                   ? 0.1
                   : 0.8;
           place(kit, frame, side, jack.x, jack.z, jack.yaw);
-          const boxAt = 8 + index * 5;
+          const boxAt = KIT_BOXES.jacks + index * 5;
           part(kitBoxes, slot, boxAt, kit, [0, 0.06, 0], [0.34, 0.08, 0.5]);
           part(kitBoxes, slot, boxAt + 1, kit, [0, 0.14, 0.1], [0.1, 0.12, 0.3]);
           part(kitBoxes, slot, boxAt + 2, kit, [0, 0.2 + up * KART_LIFT_M, 0.3], [0.2, 0.04, 0.16]);
           for (const wheel of [0, 1]) {
             joint(gun, kit, (wheel * 2 - 1) * 0.2, 0.06, -0.18, 0, 0, Math.PI / 2);
-            part(kitDrums, slot, 8 + index * 2 + wheel, gun, [0, 0, 0], [0.06, 0.05, 0.06]);
+            part(
+              kitDrums,
+              slot,
+              KIT_DRUMS.jackWheels + index * 2 + wheel,
+              gun,
+              [0, 0, 0],
+              [0.06, 0.05, 0.06],
+            );
           }
           joint(gun, kit, 0, 0.16, -0.12, lever);
           part(kitBoxes, slot, boxAt + 3, gun, [0, 0, -0.5], [0.05, 0.05, 1]);
@@ -701,6 +736,3 @@ export function pitBoxMeshes(
     },
   };
 }
-
-/** The crew's jobs, in member order, for the style guide and the tests to name. */
-export { CREW_ROLES };

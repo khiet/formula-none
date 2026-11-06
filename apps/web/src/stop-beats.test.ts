@@ -23,6 +23,9 @@ describe("the stop's beats", () => {
     expect(actOf("clean", 2.9, CLEAN_LONGEST)).toBeNull();
     expect(actOf("record", 2, CLEAN_LONGEST)).toBeNull();
     expect(actOf("slow", 3.8, CLEAN_LONGEST)).toEqual({ kind: "slow", stall: [3, 3.3] });
+    // A slow stop too short to free the nut half a second before green frees it half way through its act.
+    const short = actOf("slow", 3.2, CLEAN_LONGEST);
+    expect(short?.kind === "slow" && short.stall[1]).toBeCloseTo(3.1);
     expect(actOf("botched", 6, CLEAN_LONGEST)).toEqual({
       kind: "botched",
       stall: [3, 5.5],

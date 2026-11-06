@@ -98,6 +98,7 @@ export async function createRaceScene(
         slipstreamChargeSeconds: bridge.slipstreamChargeSeconds,
         tyreLifeCliff: bridge.tyreLifeCliff,
         cleanStopSeconds: bridge.cleanStopSeconds,
+        pitBoxGuideSeconds: bridge.pitBoxGuideSeconds,
       },
       (karts) => kartLabels(karts, run.localKart, name),
       { localKart: run.localKart, reducedMotion },

@@ -26,7 +26,11 @@ tyreLifeCliffPercent: number,
 /**
  * The longest a clean stop lasts: past it the crew shows what went wrong (ADR 0082).
  */
-stopCleanS: number, coinsLostPerSpinOut: number, coinHalfLengthM: number, coinHalfWidthM: number, coinRespawnS: number, hazardDropDistanceM: number, spinOutS: number, 
+stopCleanS: number, 
+/**
+ * How long the guide onto the mark takes: the pit crew runs out at its start.
+ */
+pitBoxGuideS: number, coinsLostPerSpinOut: number, coinHalfLengthM: number, coinHalfWidthM: number, coinRespawnS: number, hazardDropDistanceM: number, spinOutS: number, 
 /**
  * How long a star's run lasts, which the Instrument panel's ring counts
  * down and the star music is joined against.
