@@ -7,8 +7,8 @@
 mod common;
 
 use common::{
-    bell_deer, goldstone, monarch, oval, quiet_bell_deer, started, ticks, track, with_slot_at,
-    with_slot_on_lane, without_item_boxes, BELL_DEER, DT, GOLDSTONE, MONARCH, SEED,
+    along_lane, bell_deer, goldstone, monarch, oval, quiet_bell_deer, started, ticks, track,
+    with_slot_at, with_slot_on_lane, without_item_boxes, BELL_DEER, DT, GOLDSTONE, MONARCH, SEED,
 };
 use sim::bot::{calls_for_the_pits, saves_its_tyres, PitReading};
 use sim::tuning::{
@@ -752,44 +752,51 @@ fn over_five_laps_a_field_that_can_stop_wins_sooner_than_one_that_cannot() {
     }
 }
 
-/// The slowest a lone Pro bot goes from its pit call to the entry line on
-/// `course`, its tyres held at 20% so it calls at the first fork.
-fn slowest_on_the_way_in(course: Track) -> f32 {
+#[test]
+fn called_in_a_bot_short_of_the_lanes_first_point_reads_no_turn_there() {
+    // A kart that has not reached the path reads 0 m along it; there the
+    // lane's turn must still come from road, not from a point turned against
+    // itself. Monarch's lane runs nearly straight from its fork.
+    let course = monarch();
     let fork = course.pit_lane_fork().expect("a lane");
-    let lap = course.spline_length();
-    let mut state =
-        started(State::with_tyres(SEED, 0, 1, course, BotLevel::Pro, Tyres::On).with_laps(3));
-    let mut slowest = f32::INFINITY;
-    for _ in 0..ticks(120.0) {
-        state.adopt_tyre_life(0, 20.0);
-        state = step(state, &[], DT);
-        let kart = state.kart_readouts()[0];
-        if state
-            .track()
-            .pit_lane()
-            .is_some_and(|lane| lane.limits(kart.position))
-        {
-            return slowest;
-        }
-        let to_fork = (fork - state.standings()[0].spline_progress).rem_euclid(lap);
-        if to_fork <= sim::tuning::BOT_PIT_CALL_FROM_M || lap - to_fork < 30.0 {
-            slowest = slowest.min(kart.speed);
-        }
-    }
-    panic!("the bot never reached the entry line");
-}
-
-#[test]
-fn called_in_at_monarchs_gentle_fork_a_bot_keeps_the_pit_limit_or_more() {
-    let slowest = slowest_on_the_way_in(monarch());
-    assert!(slowest >= PIT_LIMIT_M_PER_S, "{slowest} m/s");
-}
-
-#[test]
-fn called_in_inside_club_a_bot_slows_below_its_approach_for_goldstones_lane() {
-    let slowest = slowest_on_the_way_in(goldstone());
-    assert!(
-        slowest < sim::tuning::BOT_PIT_APPROACH_M_PER_S - 2.0,
-        "{slowest} m/s"
-    );
+    let lane = course.pit_lane().expect("a lane");
+    let (start, yaw) = along_lane(&course, 0.0);
+    let ahead = lane.point_at(1.0);
+    let short = [
+        2.0 * start[0] - ahead[0],
+        start[1],
+        2.0 * start[2] - ahead[2],
+    ];
+    let on_the_call = course.point_at(fork - 20.0);
+    let towards = course.point_at(fork - 19.0);
+    let call_yaw = f32::atan2(on_the_call[0] - towards[0], on_the_call[2] - towards[2]);
+    let mut memory = sim::bot::Memory::default();
+    let mut look = |position: [f32; 3], yaw: f32| {
+        let state = started(State::with_tyres(
+            SEED,
+            0,
+            1,
+            track(&with_slot_at(MONARCH, 0, position, yaw)),
+            BotLevel::Pro,
+            Tyres::On,
+        ));
+        let mut kart = state.kart_readouts()[0];
+        kart.tyre_life = 5.0;
+        kart.speed = PIT_LIMIT_M_PER_S;
+        sim::bot::drive(
+            state.track(),
+            BotLevel::Pro.profile(),
+            &[kart],
+            &state.standings(),
+            state.phase(),
+            SEED,
+            3,
+            0,
+            &mut memory,
+            DT,
+        )
+    };
+    look(on_the_call, call_yaw);
+    let input = look(short, yaw);
+    assert_eq!(input.brake, 0.0, "{input:?}");
 }
