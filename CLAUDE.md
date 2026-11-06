@@ -93,10 +93,20 @@ the poster kart diff, Biome, typecheck, Vitest, the web build, the Playwright sm
 replay determinism job that reruns the fixtures under `assets/replays`
 natively and in wasm, and the arm64 build of the Docker image (ADR 0074).
 
-`pnpm check` (about 6 minutes) runs the same checks locally in that order,
-apart from the image build, and is the suite to run before opening a PR. Its
-e2e step sets `CI=1`, so it starts fresh servers and fails fast if a stale one
-already holds port 8080 or 5173.
+CI is the gate. Before pushing, run only what the change can break:
+
+- Rust: `cargo clippy --all-targets -- -D warnings` and `cargo nextest run`
+- Sim, bridge or protocol: also `pnpm build:bridge` and `pnpm generate:protocol`,
+  and commit any change to the generated output
+- Web: `pnpm lint`, `pnpm -r typecheck` and `pnpm test`
+- A Playwright flow you changed: run that spec alone with
+  `npx playwright test <spec>` from `apps/web`, since `pnpm test:e2e` runs
+  every spec
+
+`pnpm check` runs the same checks in that order, apart from the replay
+determinism job and the image build. Keep it for changes that cut across the
+stack or for reproducing a CI failure. Its e2e step sets `CI=1`, so it starts
+fresh servers and fails fast if a stale one already holds port 8080 or 5173.
 
 ## Working here
 
