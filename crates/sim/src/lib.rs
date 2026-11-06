@@ -713,7 +713,7 @@ pub struct State {
     /// a bot may drive one for a while (see [`State::hand_to_bot`]).
     humans: usize,
     /// The creator's picks. Fixed for the race, not part of what a tick
-    /// changes, so not hashed; what they change in the karts is.
+    /// changes, so not hashed.
     picks: Picks,
     physics: Physics,
     phase: Phase,
