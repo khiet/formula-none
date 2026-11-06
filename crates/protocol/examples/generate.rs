@@ -2,8 +2,8 @@
 //! type through ts-rs, the protocol version, an index, and the sample
 //! messages as bytes next to their JSON for Vitest (ADR 0004). Beside it,
 //! the sim's types the bridge hands over as JavaScript values: the kart
-//! readout and its readings, the surface under a kart, the standing, the tuning, the bot
-//! level and the Tyres pick (ADR 0026).
+//! readout and its readings, the surface under a kart, the standing, the
+//! tuning, the bot level and the Tyres pick (ADR 0026).
 //!
 //! `pnpm generate:protocol` runs this; CI runs it and fails on a diff
 //! against the committed output. Each output directory is replaced whole,

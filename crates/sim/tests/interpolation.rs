@@ -220,7 +220,7 @@ fn a_kart_is_drawn_in_the_air_as_the_earlier_snapshot_has_it() {
 
 #[test]
 fn a_kart_is_drawn_in_the_pit_lane_as_the_nearer_snapshot_has_it() {
-    // In the lane in the second snapshot only, then from the third on.
+    // In the lane on the snapshots from tick `lane_from` until `lane_until`.
     let entering_at = |lane_from: u32, lane_until: u32| {
         drawing_snapshots_between_the_second_and_third(6, move |tick| {
             let kart = KartReadout {
