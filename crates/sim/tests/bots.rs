@@ -252,7 +252,7 @@ fn the_rubber_band_hurries_a_bot_far_behind_and_slows_one_far_ahead_within_the_t
         } else {
             since_drift_s + DT
         };
-        if since_drift_s > MINI_TURBO_RED_BOOST_S + DT && bot.boost_s.is_none() {
+        if since_drift_s > MINI_TURBO_RED_BOOST_S + DT && bot.boost_s().is_none() {
             if behind {
                 fastest_behind = fastest_behind.max(bot.speed);
             } else {

@@ -5,7 +5,7 @@
 // the roll has run: the panel scrolls by it and the audio clicks on each
 // change, so the two never drift apart.
 
-import type { Item } from "./generated/protocol";
+import type { Item } from "./generated/sim";
 
 /** Each icon on the strip is the next of these after the one above it, so no two in a row match. */
 const REEL_ORDER: readonly Item[] = ["boost", "hazard", "homing", "star", "horn"];

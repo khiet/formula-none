@@ -32,6 +32,7 @@ use ts_rs::TS;
 /// profile of the same name in [`BOT_LEVELS`]. Ace above Pro is the racing
 /// sense: a pro drives for a living, an ace wins.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize, TS)]
+#[ts(export_to = "../sim/")]
 #[serde(rename_all = "kebab-case")]
 pub enum BotLevel {
     /// Lifts for corners, waits on an item, and the rubber band slows it

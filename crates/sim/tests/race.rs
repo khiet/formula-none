@@ -169,7 +169,7 @@ fn a_hold_from_the_first_half_of_the_fourth_light_through_go_gives_the_full_boos
         let state = throttle_through_go(hold_s);
         assert_eq!(state.kart_readouts()[0].start, Start::FullBoost);
         let state = step(state, &[throttle()], DT);
-        assert_eq!(state.kart_readouts()[0].boost_tier, MiniTurbo::Red);
+        assert_eq!(state.kart_readouts()[0].boost_tier(), MiniTurbo::Red);
         assert_eq!(
             state.kart_readouts()[0].speed,
             TOP_SPEED_M_PER_S * START_BOOST_FACTOR,
@@ -195,7 +195,7 @@ fn a_hold_from_the_second_half_of_the_fourth_light_through_go_gives_the_weak_boo
         let state = throttle_through_go(hold_s);
         assert_eq!(state.kart_readouts()[0].start, Start::WeakBoost);
         let state = step(state, &[throttle()], DT);
-        assert_eq!(state.kart_readouts()[0].boost_tier, MiniTurbo::Orange);
+        assert_eq!(state.kart_readouts()[0].boost_tier(), MiniTurbo::Orange);
         assert_eq!(
             state.kart_readouts()[0].speed,
             TOP_SPEED_M_PER_S * START_WEAK_BOOST_FACTOR,

@@ -12,8 +12,7 @@ use std::time::Duration;
 
 use common::{drive_to_results, seconds, speed, Raced};
 use protocol::{
-    ClientMessage, Event, EventKind, Input, ItemSlot, PlayerState, RoomState, ServerMessage,
-    Snapshot,
+    ClientMessage, Event, EventKind, Input, PlayerState, RoomState, ServerMessage, Snapshot,
 };
 use server::fake_transport::{Client, Conditions, Harness, TRACK};
 use server::room::Started;
@@ -21,6 +20,7 @@ use sim::tuning::{
     BOT_START_HOLD_S, COUNTDOWN_S, INPUT_QUEUE_MAX_TICKS, INPUT_QUEUE_START_TICKS, KARTS_PER_RACE,
     RACE_OUTRO_S, SNAPSHOTS_PER_SECOND, TICKS_PER_SECOND,
 };
+use sim::ItemSlot;
 
 const TICKS_PER_SNAPSHOT: u32 = TICKS_PER_SECOND / SNAPSHOTS_PER_SECOND;
 /// The sidecar of the track the harness races, for what the track holds.

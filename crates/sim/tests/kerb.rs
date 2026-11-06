@@ -145,7 +145,7 @@ fn a_kart_drifting_across_the_kerb_lands_with_no_drift_and_no_mini_turbo_however
     inputs.extend(vec![throttle(); ticks(1.0)]);
     let clear = readouts_over(&[], &inputs);
     let reach = ticks(ACCELERATION_TO_TOP_S) + 1 + charged;
-    assert_eq!(clear[reach].mini_turbo, MiniTurbo::Red, "charged to red");
+    assert_eq!(clear[reach].mini_turbo(), MiniTurbo::Red, "charged to red");
     // Centred a little way along the drift's path, which curves right: the
     // kerb lies along the kart's travel where it will be, its near end
     // reached after `reach`.
@@ -158,22 +158,27 @@ fn a_kart_drifting_across_the_kerb_lands_with_no_drift_and_no_mini_turbo_however
     let over = readouts_over(&[kerb], &inputs);
     let (first, count) = airtime(&over, reach).expect("the kerb launched the kart");
     assert!(over[first - 1].drift.is_some(), "drifting onto the kerb");
-    assert_eq!(over[first - 1].mini_turbo, MiniTurbo::Red);
+    assert_eq!(over[first - 1].mini_turbo(), MiniTurbo::Red);
     assert!((ticks(HOP_AIRTIME_S)..=ticks(HOP_AIRTIME_S) + 1).contains(&count));
     for readout in &over[first..first + count] {
         assert_eq!(readout.drift, None, "the drift ends at the launch");
-        assert_eq!(readout.mini_turbo, MiniTurbo::None, "no sparks in the air");
+        assert_eq!(
+            readout.mini_turbo(),
+            MiniTurbo::None,
+            "no sparks in the air"
+        );
     }
     for readout in &over[first + count..] {
         assert_eq!(readout.drift, None, "lands with no drift");
         assert_eq!(
-            readout.boost_s, None,
+            readout.boost_s(),
+            None,
             "and no mini-turbo, nor on the release"
         );
     }
     let released = clear[reach..]
         .iter()
-        .any(|r| r.boost_tier == MiniTurbo::Red);
+        .any(|r| r.boost_tier() == MiniTurbo::Red);
     assert!(
         released,
         "without the kerb the same inputs release a red boost"

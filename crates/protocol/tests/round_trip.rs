@@ -3,7 +3,9 @@
 //! generated TypeScript is checked against in Vitest, which also holds them
 //! to one per variant of the generated unions.
 
-use protocol::{decode, encode, samples, ClientMessage, DecodeError, Room, ServerMessage};
+use protocol::{
+    decode, encode, samples, ClientMessage, DecodeError, Room, ServerMessage, Snapshot,
+};
 use sim::tuning::LAP_CHOICES;
 use sim::{BotLevel, Tyres};
 
@@ -110,4 +112,21 @@ fn a_room_and_a_countdown_round_trip_at_every_bot_level() {
         let decoded: ServerMessage = decode(&encode(&countdown)).unwrap();
         assert_eq!(decoded, countdown);
     }
+}
+
+#[test]
+fn a_kart_on_the_pit_lane_is_still_on_it_after_the_trip() {
+    let mut snapshot = samples::snapshot();
+    for (slot, kart) in snapshot.karts.iter_mut().enumerate() {
+        kart.in_pit_lane = slot % 2 == 0;
+    }
+    let message = ServerMessage::Snapshot(snapshot);
+    let ServerMessage::Snapshot(Snapshot { karts, .. }) = decode(&encode(&message)).unwrap() else {
+        panic!("a snapshot decodes as a snapshot");
+    };
+    let in_lane: Vec<bool> = karts.iter().map(|kart| kart.in_pit_lane).collect();
+    assert_eq!(
+        in_lane,
+        [true, false, true, false, true, false, true, false]
+    );
 }

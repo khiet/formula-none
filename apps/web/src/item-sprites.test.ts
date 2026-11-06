@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from "vitest";
-import type { Item } from "./generated/protocol";
+import type { Item } from "./generated/sim";
 import { itemSprite } from "./item-sprites";
 import { hexCss } from "./livery";
 import { STAR_RAINBOW, STAR_TILES } from "./star-shine";

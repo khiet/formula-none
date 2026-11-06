@@ -392,12 +392,12 @@ fn a_boost_pad_during_a_tow_fires_and_the_kart_settles_back_to_the_towed_cap() {
         state = step(state, &[throttle(), throttle()], DT);
         let follower = state.kart_readouts()[FOLLOWER];
         assert!(towed(&state, FOLLOWER), "left the wake at tick {tick}");
-        if let (None, Some(left)) = (boosted_at, follower.boost_s) {
+        if let (None, Some(left)) = (boosted_at, follower.boost_s()) {
             boosted_at = Some(tick);
             assert_eq!(follower.speed, BOOST_PAD_FACTOR * TOP_SPEED_M_PER_S);
             assert!((left - (BOOST_PAD_S - DT)).abs() < 1e-5);
         }
-        if boosted_at.is_some() && follower.boost_s.is_none() {
+        if boosted_at.is_some() && follower.boost_s().is_none() {
             // The boost's last tick still sets its speed; the cap takes
             // over on the next.
             state = step(state, &[throttle(), throttle()], DT);
@@ -454,7 +454,7 @@ fn a_red_mini_turbo_during_a_tow_fires_and_the_kart_settles_back_to_the_towed_ca
                 };
             }
             if !self.released {
-                if readout.mini_turbo == MiniTurbo::Red {
+                if readout.mini_turbo() == MiniTurbo::Red {
                     self.released = true;
                 } else {
                     return KartInput {
@@ -491,11 +491,11 @@ fn a_red_mini_turbo_during_a_tow_fires_and_the_kart_settles_back_to_the_towed_ca
             assert_eq!(state.kart_readouts()[LEADER].coins, 10);
             assert_eq!(last.drift, None);
             assert_eq!(last.speed, MINI_TURBO_BOOST_FACTOR * TOP_SPEED_M_PER_S);
-            let left = last.boost_s.expect("the boost");
+            let left = last.boost_s().expect("the boost");
             assert!((left - (MINI_TURBO_RED_BOOST_S - DT)).abs() < 1e-5);
             assert!(towed(&state, LAST));
         }
-        if released_at.is_some() && boost_ended_at.is_none() && last.boost_s.is_none() {
+        if released_at.is_some() && boost_ended_at.is_none() && last.boost_s().is_none() {
             boost_ended_at = Some(tick);
             continue;
         }

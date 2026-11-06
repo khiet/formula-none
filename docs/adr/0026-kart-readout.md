@@ -4,7 +4,9 @@
 
 Accepted (2026-10-25). Supersedes the consequence of ADR 0003 that a value
 the renderer needs extends the flat buffer, and the one-way rule of
-ADR 0006 where it kept protocol off sim.
+ADR 0006 where it kept protocol off sim. The consequence that a field the
+snapshot should carry is added to `KartSnapshot`, and the one `From` each
+way for the kart, are superseded by ADR 0090.
 
 ## Context
 

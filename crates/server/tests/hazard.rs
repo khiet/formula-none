@@ -10,9 +10,10 @@ mod common;
 use std::time::Duration;
 
 use common::{follow_the_line, race_together, seconds, speed, wire, Heard};
-use protocol::{Event, EventKind, Item, ItemSlot, Snapshot};
+use protocol::{Event, EventKind, Snapshot};
 use server::fake_transport::{Conditions, Harness};
 use sim::tuning::{COUNTDOWN_S, SPIN_OUT_S, TICKS_PER_SECOND};
+use sim::{Item, ItemSlot};
 use sim::{KartInput, Track};
 
 const OVAL: &str = include_str!("../../../assets/tracks/oval/oval.track.json");

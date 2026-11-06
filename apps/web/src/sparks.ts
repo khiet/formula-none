@@ -1,5 +1,5 @@
 import type { KartReadout, KartSize, MiniTurbo } from "./bridge";
-import type { Start } from "./generated/protocol";
+import type { Start } from "./generated/sim";
 import { rearWheel, rotate, type Side, type Vec3 } from "./kart-frame";
 import { createParticles, type Particles } from "./particles";
 

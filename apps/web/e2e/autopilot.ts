@@ -1,7 +1,8 @@
 import { readFileSync } from "node:fs";
 import type { Page } from "@playwright/test";
 import type { Bridge } from "../src/bridge";
-import type { KartSnapshot, ServerMessage } from "../src/generated/protocol";
+import type { ServerMessage } from "../src/generated/protocol";
+import type { KartReadout as SimKartReadout } from "../src/generated/sim";
 
 // An autopilot for a tab's kart: it reads where the kart stands from the
 // snapshots on the page's own WebSocket, decoded through the bridge, and
@@ -73,7 +74,7 @@ const STALL_TICKS = 60;
 const REVERSE_TICKS = 60;
 
 /** Where to steer and whether to keep the throttle, from the kart's snapshot. */
-export function decide(line: Centreline, kart: KartSnapshot): Controls {
+export function decide(line: Centreline, kart: SimKartReadout): Controls {
   const progress = kart.splineProgress;
   const ahead = line.pointAt(progress + LOOKAHEAD_M);
   const further = line.pointAt(progress + LOOKAHEAD_M + 1);
@@ -109,14 +110,14 @@ export function decide(line: Centreline, kart: KartSnapshot): Controls {
 export interface Autopilot {
   laps(): number;
   /** The newest snapshot of the kart and the decision taken on it. */
-  last(): { kart: KartSnapshot; controls: Controls } | undefined;
+  last(): { kart: SimKartReadout; controls: Controls } | undefined;
 }
 
 export function autopilot(page: Page, bridge: Bridge, line: Centreline): Autopilot {
   let slot = -1;
   let kart = -1;
   let laps = 0;
-  let last: { kart: KartSnapshot; controls: Controls } | undefined;
+  let last: { kart: SimKartReadout; controls: Controls } | undefined;
   let stalledTicks = 0;
   let reversingUntil = 0;
   const keys: Controls = { steer: 0, throttle: false, reverse: false };

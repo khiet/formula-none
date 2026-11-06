@@ -18,7 +18,7 @@ use sim::bot::{self, Memory};
 use sim::tuning::{
     COUNTDOWN_S, KART_HALF_LENGTH_M, RECONCILIATION_VISIBLE_CORRECTION_M, TICKS_PER_SECOND,
 };
-use sim::{BotLevel, Interpolation, KartInput, KartReadout, Prediction, Track};
+use sim::{BotLevel, Interpolation, KartInput, Prediction, Track};
 
 const OVAL: &str = include_str!("../../../assets/tracks/oval/oval.track.json");
 const TICK: Duration = Duration::from_nanos(1_000_000_000 / TICKS_PER_SECOND as u64);
@@ -82,7 +82,7 @@ async fn at_a_100_ms_round_trip_and_2_percent_loss_the_own_kart_is_corrected_out
                 newest_tick = newest_tick.max(snapshot.tick);
                 interpolation.push(
                     snapshot.tick,
-                    snapshot.karts.iter().map(KartReadout::from).collect(),
+                    snapshot.karts.clone(),
                     projectiles(&snapshot),
                 );
                 // A hit is the server's alone: the snapshot that brings its
@@ -98,7 +98,7 @@ async fn at_a_100_ms_round_trip_and_2_percent_loss_the_own_kart_is_corrected_out
                 let moved = prediction.reconcile(
                     snapshot.tick,
                     snapshot.acknowledged[kart],
-                    &KartReadout::from(&snapshot.karts[kart]),
+                    &snapshot.karts[kart],
                 );
                 let after_a_hit =
                     hit_tick.is_some_and(|hit| snapshot.tick <= hit + HIT_AFTERMATH_TICKS);
@@ -227,14 +227,10 @@ async fn driving_into_another_kart_never_predicts_the_own_kart_visibly_past_wher
                 }
                 interpolation.push(
                     snapshot.tick,
-                    snapshot.karts.iter().map(KartReadout::from).collect(),
+                    snapshot.karts.clone(),
                     projectiles(&snapshot),
                 );
-                prediction.reconcile(
-                    snapshot.tick,
-                    acknowledged,
-                    &KartReadout::from(&snapshot.karts[kart]),
-                );
+                prediction.reconcile(snapshot.tick, acknowledged, &snapshot.karts[kart]);
             }
         }
         sequence += 1;

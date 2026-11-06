@@ -4,17 +4,17 @@
 //! field can be added without moving the budget, and so the budget still
 //! catches a field that does not belong.
 
-use protocol::{
-    encode, samples, ClientMessage, Input, ItemSlot, ServerMessage, SlipstreamSnapshot, Snapshot,
-};
+use protocol::{encode, samples, ClientMessage, Input, ServerMessage, Snapshot};
+use sim::{ItemSlot, Slipstream, Start};
 
 /// The budget is "roughly" this many bytes.
 const INPUT_BUDGET: usize = 8;
 /// ADR 0010 estimated 400; its Outcome records the busy sample at 505
 /// bytes once the hazards and the projectiles rode along, at 629 once the
 /// bump and the star's run did, and at 720 once the tyres, the stops and the
-/// hop did, and holds it there.
-const SNAPSHOT_BUDGET: usize = 600;
+/// hop did. ADR 0090 records it at 760 once the kart crossed as its readout,
+/// its speed and the pit lane with it, and holds it there.
+const SNAPSHOT_BUDGET: usize = 640;
 
 /// A quarter either way.
 fn within_tolerance(size: usize, budget: usize) -> bool {
@@ -33,7 +33,7 @@ fn an_input_message_is_roughly_eight_bytes() {
 }
 
 #[test]
-fn a_snapshot_for_eight_karts_is_roughly_five_hundred_bytes() {
+fn a_snapshot_for_eight_karts_is_within_its_budget() {
     let snapshot = samples::snapshot();
     assert_eq!(snapshot.karts.len(), 8);
     let size = encode(&ServerMessage::Snapshot(snapshot)).len();
@@ -68,13 +68,11 @@ fn the_snapshot_sample_is_a_busy_mid_race_moment() {
     assert!(karts.iter().any(|kart| kart.star_s.is_some()));
     assert!(karts
         .iter()
-        .any(|kart| matches!(kart.slipstream, Some(SlipstreamSnapshot::Charging { .. }))));
+        .any(|kart| matches!(kart.slipstream, Some(Slipstream::Charging { .. }))));
     assert!(karts
         .iter()
-        .any(|kart| matches!(kart.slipstream, Some(SlipstreamSnapshot::Tow { .. }))));
-    assert!(karts
-        .iter()
-        .any(|kart| kart.start != protocol::Start::Clean));
+        .any(|kart| matches!(kart.slipstream, Some(Slipstream::Tow { .. }))));
+    assert!(karts.iter().any(|kart| kart.start != Start::Clean));
     assert!(!events.is_empty());
     assert!(!hazards.is_empty());
     assert!(!projectiles.is_empty());

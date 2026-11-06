@@ -265,7 +265,7 @@ fn just_landed_right() -> State {
 /// `held` ticks of charge with the stick centred.
 fn boost_after_ticks(held: usize) -> Option<f32> {
     let charged = run(just_landed_right(), vec![hold_right(); held]);
-    only_kart(&step(charged, &[throttle()], DT)).boost_s
+    only_kart(&step(charged, &[throttle()], DT)).boost_s()
 }
 
 #[test]
@@ -306,9 +306,9 @@ fn assert_boosts_for(charge_s: f32, boost_s: f32, tier: MiniTurbo) {
         None,
         "the release ends the drift"
     );
-    assert_boost_of(only_kart(&released).boost_s, boost_s);
+    assert_boost_of(only_kart(&released).boost_s(), boost_s);
     assert_eq!(
-        only_kart(&released).boost_tier,
+        only_kart(&released).boost_tier(),
         tier,
         "the boost burns in the tier the drift charged"
     );
@@ -326,8 +326,8 @@ fn assert_boosts_for(charge_s: f32, boost_s: f32, tier: MiniTurbo) {
         released_after(charge_s),
         vec![throttle(); ticks(boost_s) + 3],
     );
-    assert_eq!(only_kart(&over).boost_s, None, "the boost has run out");
-    assert_eq!(only_kart(&over).boost_tier, MiniTurbo::None);
+    assert_eq!(only_kart(&over).boost_s(), None, "the boost has run out");
+    assert_eq!(only_kart(&over).boost_tier(), MiniTurbo::None);
     let speed = measured_speed(over, throttle());
     assert!(
         speed <= TOP_SPEED_M_PER_S + 0.01,
@@ -443,7 +443,7 @@ fn a_brake_drift_held_under_the_entry_speed_ends_with_no_boost_even_with_the_thr
     assert!(kart.speed < DRIFT_ENTRY_SPEED_FRACTION * TOP_SPEED_M_PER_S);
     assert_eq!(kart.drift, None, "under the entry speed");
     let released = step(held_too_long, &[throttle()], DT);
-    assert_eq!(only_kart(&released).boost_s, None, "the charge is lost");
+    assert_eq!(only_kart(&released).boost_s(), None, "the charge is lost");
 }
 
 #[test]

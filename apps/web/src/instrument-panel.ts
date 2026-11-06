@@ -11,7 +11,7 @@ import {
   ordinalParts,
   speedParts,
 } from "./format";
-import type { Item } from "./generated/protocol";
+import type { Item } from "./generated/sim";
 import { reelFrame, reelStrip } from "./item-reel";
 import { itemSprite } from "./item-sprites";
 import { hexCss, type Livery, livery as liveryOf } from "./livery";

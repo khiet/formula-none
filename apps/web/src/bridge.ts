@@ -15,9 +15,9 @@ import init, {
 import type { ClientMessage, Input, ServerMessage, Snapshot } from "./generated/protocol";
 import type {
   BotLevel,
+  KartReadings,
   KartReadout as SimKartReadout,
   Standing,
-  Surface,
   Tuning,
   Tyres,
 } from "./generated/sim";
@@ -58,16 +58,17 @@ export interface KartSize {
 
 /**
  * What the View and the Instrument panel read per kart: the sim's kart
- * readout (GLOSSARY), its transform in metres and as a unit quaternion
- * [x, y, z, w], and the surface under it. Y up; identity rotation faces -Z.
- * The generated type documents the rest; a field the sim adds to the
- * readout reaches here without a change to this module.
+ * readout (GLOSSARY) with its transform from the flat buffer, in metres and
+ * as a unit quaternion [x, y, z, w], and the readings the sim works out
+ * from it, the surface under it among them. Y up; identity rotation faces
+ * -Z. The generated types document the rest; a field the sim adds to
+ * either reaches here without a change to this module.
  */
-export type KartReadout = SimKartReadout & {
-  readonly position: readonly [number, number, number];
-  readonly rotation: readonly [number, number, number, number];
-  readonly surface: Surface;
-};
+export type KartReadout = Omit<SimKartReadout, "position" | "rotation"> &
+  KartReadings & {
+    readonly position: readonly [number, number, number];
+    readonly rotation: readonly [number, number, number, number];
+  };
 
 /** Where an item box stands on the track: metres, and a yaw about +Y, zero facing -Z. */
 export interface ItemBox {
@@ -412,8 +413,8 @@ const FLOATS_PER_PHASE = 3;
 /** Phase codes in the phase buffer, in the sim's order. */
 const PHASES = ["countdown", "racing", "outro", "finished"] as const;
 
-/** One kart's readout less its transform, and the surface under it, as the bridge pairs them. */
-type ReadoutPair = [SimKartReadout, Surface];
+/** One kart's readout and its readings, as the bridge pairs them. */
+type ReadoutPair = [SimKartReadout, KartReadings];
 
 /**
  * Load the wasm module once. Pass `wasm` bytes when there is no document
@@ -705,14 +706,14 @@ function readoutsFrom(transforms: Float32Array, pairs: readonly ReadoutPair[]): 
       `transform buffer has ${transforms.length} floats for ${pairs.length} karts`,
     );
   }
-  return pairs.map(([readout, surface], slot) => {
+  return pairs.map(([readout, readings], slot) => {
     const read = (offset: number): number =>
       transforms[slot * FLOATS_PER_TRANSFORM + offset] as number;
     return {
       ...readout,
+      ...readings,
       position: [read(0), read(1), read(2)],
       rotation: [read(3), read(4), read(5), read(6)],
-      surface,
     };
   });
 }

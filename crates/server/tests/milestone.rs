@@ -10,10 +10,11 @@ use std::collections::BTreeSet;
 use std::time::Duration;
 
 use common::{follow_the_line, race_together, seconds, wire, Heard};
-use protocol::{EventKind, Item, ItemSlot};
+use protocol::EventKind;
 use server::fake_transport::{Conditions, Harness};
 use sim::tuning::{COUNTDOWN_S, KARTS_PER_RACE, TICKS_PER_SECOND};
 use sim::Track;
+use sim::{Item, ItemSlot};
 
 const OVAL: &str = include_str!("../../../assets/tracks/oval/oval.track.json");
 const TICK: Duration = Duration::from_nanos(1_000_000_000 / TICKS_PER_SECOND as u64);

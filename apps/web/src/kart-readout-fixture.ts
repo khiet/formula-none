@@ -1,10 +1,13 @@
 import type { KartReadout } from "./bridge";
+import type { KartReadout as SimKartReadout } from "./generated/sim";
+
+export type { SimKartReadout };
 
 /**
  * A kart for a test to vary, built on the bridge's one readout type: at
  * rest at the origin on the asphalt, facing -Z, first on lap 1 and out of
- * every mechanic. A field the sim adds to the readout gets its default here
- * and nowhere else.
+ * every mechanic. A field the sim adds to the readout or its readings gets
+ * its default here and nowhere else.
  */
 export const RESTING_KART: KartReadout = Object.freeze({
   position: Object.freeze([0, 0, 0]) as readonly [number, number, number],
@@ -23,6 +26,7 @@ export const RESTING_KART: KartReadout = Object.freeze({
   inPitLane: false,
   stop: null,
   stops: 0,
+  boost: null,
   boostS: null,
   boostTier: "none",
   starS: null,
@@ -39,6 +43,15 @@ export const RESTING_KART: KartReadout = Object.freeze({
 /** The resting kart with `overrides`. */
 export function kartReadout(overrides: Partial<KartReadout> = {}): KartReadout {
   return Object.freeze({ ...RESTING_KART, ...overrides });
+}
+
+/**
+ * The resting kart as a snapshot carries it, with `overrides`: the sim's
+ * readout without the readings the bridge works out beside it.
+ */
+export function simKartReadout(overrides: Partial<SimKartReadout> = {}): SimKartReadout {
+  const { surface, miniTurbo, boostS, boostTier, position, rotation, ...readout } = RESTING_KART;
+  return { ...readout, position: [...position], rotation: [...rotation], ...overrides };
 }
 
 /** The rotation that turns a kart `yaw` radians about +Y from its -Z facing. */

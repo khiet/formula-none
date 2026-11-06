@@ -19,7 +19,7 @@
 import type { KartReadout, MiniTurbo, Stop, StopTier, Surface } from "./bridge";
 import { stopClock } from "./crew-stance";
 import { DRONE_WARNING_M, droneWarned, incomingDroneMetres } from "./drone-warning";
-import type { Item, Start } from "./generated/protocol";
+import type { Item, Start } from "./generated/sim";
 import { reelFrame } from "./item-reel";
 import { groundDistance } from "./kart-frame";
 import { type RaceCount, type RaceReadout, raceCount } from "./race-run";

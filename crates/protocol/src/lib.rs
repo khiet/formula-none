@@ -12,16 +12,17 @@
 //! The same serde definitions give the messages their JavaScript shape in
 //! the bridge, so a TypeScript value of a generated type is a message.
 //!
-//! Every wire type that stands for a sim type converts to it and from it
-//! here, with `From`, so the server and the bridge share one translation
-//! each way (ADR 0026).
+//! A kart crosses as the sim's own readout (ADR 0090), and an item as the
+//! sim's own item. Every other wire type that stands for a sim type
+//! converts to it and from it here, with `From`, so the server and the
+//! bridge share one translation each way (ADR 0026).
 
 mod conversions;
 pub mod samples;
 
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
-use sim::{BotLevel, Tyres};
+use sim::{BotLevel, Item, KartReadout, Tyres};
 use std::fmt;
 use ts_rs::TS;
 
@@ -29,7 +30,7 @@ use ts_rs::TS;
 /// [`ClientMessage::Join`] and the server refuses a mismatch with
 /// [`Refusal::VersionMismatch`] (ADR 0013). The generator exports it next to
 /// the types, so the web app reads the same constant.
-pub const PROTOCOL_VERSION: u16 = 25;
+pub const PROTOCOL_VERSION: u16 = 26;
 
 /// What a client sends the server.
 #[derive(Serialize, Deserialize, TS, Debug, Clone, PartialEq)]
@@ -272,8 +273,8 @@ pub struct Snapshot {
     /// server applies one sequence a tick, so the client knows the tick
     /// each later input meets (ADR 0019).
     pub acknowledged: Vec<u32>,
-    /// One per kart in grid order.
-    pub karts: Vec<KartSnapshot>,
+    /// One per kart in grid order, as the server's sim reads it (ADR 0090).
+    pub karts: Vec<KartReadout>,
     /// Since the previous snapshot, and repeated in the next two; the id
     /// de-duplicates a repeat (ADR 0011).
     pub events: Vec<Event>,
@@ -314,179 +315,6 @@ pub struct HazardSnapshot {
     pub owner: u8,
     /// Whether that kart still trails it, so it moves with the kart.
     pub held: bool,
-}
-
-/// One kart's state in a snapshot. Metres, seconds and metres per second;
-/// Y up; the rotation is a unit quaternion [x, y, z, w].
-#[derive(Serialize, Deserialize, TS, Debug, Clone, PartialEq)]
-#[serde(rename_all = "camelCase")]
-pub struct KartSnapshot {
-    pub position: [f32; 3],
-    pub rotation: [f32; 4],
-    pub velocity: [f32; 3],
-    /// The bump the kart carries from a touch, while it carries one: the
-    /// part of its velocity that is not its own driving, so a prediction
-    /// rewound to this snapshot carries the server's bump, not its own.
-    pub bump: Option<[f32; 3]>,
-    /// The drift under way, if any.
-    pub drift: Option<DriftSnapshot>,
-    /// Race position from 1, as the sim orders it.
-    pub race_position: u8,
-    /// The lap the kart is on, from 1.
-    pub lap: u8,
-    /// The last checkpoint crossed in order; 0 is the start line.
-    pub checkpoint: u8,
-    /// Distance along the centreline.
-    pub spline_progress: f32,
-    /// The wrong-way warning is up for this kart.
-    pub wrong_way: bool,
-    pub item_slot: ItemSlot,
-    /// The coins the kart carries. A client's prediction takes its count
-    /// from here, never collecting one itself.
-    pub coins: u8,
-    /// How much life the kart's tyres have left, as a percentage. A
-    /// client's prediction wears its own and takes wear it could not know
-    /// of from here (ADR 0080).
-    pub tyre_life: f32,
-    /// Seconds of spin-out left, while the kart is spun out.
-    pub spin_out_s: Option<f32>,
-    /// Whether the kart is in the air, which stops a rival's worn smoke.
-    pub airborne: bool,
-    /// The kart's rocket start: during the countdown the tier its throttle
-    /// hold so far has reached, and from Go the verdict.
-    pub start: Start,
-    /// Seconds of stall left, while the kart is stalled at Go.
-    pub stall_s: Option<f32>,
-    /// The boost under way, if any.
-    pub boost: Option<BoostSnapshot>,
-    /// Seconds of a star's run left, while the kart has one. Every client
-    /// works the shine's phase out from it, so they all agree.
-    pub star_s: Option<f32>,
-    /// The slipstream the kart is in, if any. Only the server judges the
-    /// wake, so a client's prediction takes its kart's charge and tow from
-    /// here (ADR 0077).
-    pub slipstream: Option<SlipstreamSnapshot>,
-    /// The kart's stop in its pit box, while it is in one (ADR 0082). A
-    /// client's prediction rolls its own from the seed and takes the
-    /// server's word on a rewind.
-    pub stop: Option<StopSnapshot>,
-    /// Stops the kart has made, which seed its next roll; a client's
-    /// prediction takes the count from here.
-    pub stops: u8,
-}
-
-/// A stop in a pit box under way: the roll and its two clocks.
-#[derive(Serialize, Deserialize, TS, Debug, Clone, Copy, PartialEq)]
-#[serde(rename_all = "camelCase")]
-pub struct StopSnapshot {
-    pub tier: StopTier,
-    /// The stationary time rolled: seconds from the mark to green.
-    pub stationary_s: f32,
-    /// Seconds of the guide onto the mark left; zero on the mark.
-    pub guide_left_s: f32,
-    /// Seconds stood on the mark so far, which reaches `stationary_s` at green.
-    pub stationary_so_far_s: f32,
-}
-
-/// How a stop's roll went, in the order of the roll's table.
-#[derive(Serialize, Deserialize, TS, Debug, Clone, Copy, PartialEq, Eq)]
-#[serde(rename_all = "camelCase")]
-pub enum StopTier {
-    Record,
-    Clean,
-    Slow,
-    Botched,
-    Disaster,
-}
-
-/// Where a kart stands with the slipstream: in another kart's wake short
-/// of the charge, or towed.
-#[derive(Serialize, Deserialize, TS, Debug, Clone, Copy, PartialEq)]
-#[serde(rename_all = "camelCase", rename_all_fields = "camelCase")]
-pub enum SlipstreamSnapshot {
-    /// In a wake for `s` seconds so far, short of the charge.
-    Charging { s: f32 },
-    /// Towed, with `left_s` seconds of tow left: put back to the full
-    /// tuned time every tick the kart is in a wake with a full charge,
-    /// running down every other tick.
-    Tow { left_s: f32 },
-}
-
-/// A boost under way: the seconds it has left and the tier it burns in.
-#[derive(Serialize, Deserialize, TS, Debug, Clone, Copy, PartialEq)]
-#[serde(rename_all = "camelCase")]
-pub struct BoostSnapshot {
-    /// Seconds of boost left.
-    pub left_s: f32,
-    pub tier: BoostTier,
-}
-
-/// The tier a boost burns in: orange for an orange release or a weak
-/// rocket start, red for every other boost.
-#[derive(Serialize, Deserialize, TS, Debug, Clone, Copy, PartialEq, Eq)]
-#[serde(rename_all = "camelCase")]
-pub enum BoostTier {
-    Orange,
-    Red,
-}
-
-/// What a kart's rocket start comes to, in tier order.
-#[derive(Serialize, Deserialize, TS, Debug, Clone, Copy, PartialEq, Eq)]
-#[serde(rename_all = "camelCase")]
-pub enum Start {
-    Clean,
-    WeakBoost,
-    FullBoost,
-    Stall,
-}
-
-/// A drift under way: its direction, fixed at the hop, and the seconds it
-/// has been held, which is what the mini-turbo tier is read from.
-#[derive(Serialize, Deserialize, TS, Debug, Clone, Copy, PartialEq)]
-#[serde(rename_all = "camelCase")]
-pub struct DriftSnapshot {
-    pub direction: DriftDirection,
-    pub charge_s: f32,
-}
-
-/// Which way a drift turns the kart.
-#[derive(Serialize, Deserialize, TS, Debug, Clone, Copy, PartialEq, Eq)]
-#[serde(rename_all = "camelCase")]
-pub enum DriftDirection {
-    Left,
-    Right,
-}
-
-/// The items a kart can hold.
-#[derive(Serialize, Deserialize, TS, Debug, Clone, Copy, PartialEq, Eq)]
-#[serde(rename_all = "camelCase")]
-pub enum Item {
-    /// A burst of speed.
-    Boost,
-    /// Dropped behind the kart; spins out whoever hits it.
-    Hazard,
-    /// Follows the track to the kart ahead and spins it out.
-    Homing,
-    /// A run of speed and immunity that spins out every kart it touches.
-    Star,
-    /// One blast round the kart that spins out the karts in reach and
-    /// uses up the hazards and projectiles in reach.
-    Horn,
-}
-
-/// What a kart's item slot holds. A box into an empty slot starts a roll;
-/// until it lands the slot is full and nothing fires.
-#[derive(Serialize, Deserialize, TS, Debug, Clone, Copy, PartialEq)]
-#[serde(rename_all = "camelCase", rename_all_fields = "camelCase")]
-pub enum ItemSlot {
-    Empty,
-    /// Rolling into `item`, which lands in `roll_left_s` seconds.
-    Rolling {
-        item: Item,
-        roll_left_s: f32,
-    },
-    /// Holding `item`, ready to fire.
-    Held(Item),
 }
 
 /// Something that happened on the server between two snapshots. Clients

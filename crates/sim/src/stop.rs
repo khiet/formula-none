@@ -5,7 +5,7 @@
 //! prediction and a replay roll the same stop and nothing is drawn from
 //! the race's item generator. Pure chance: the driver only waits for green.
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
 use crate::hash;
@@ -13,7 +13,8 @@ use crate::tuning::{STOP_ROLL_CHANCES, STOP_ROLL_STATIONARY_S};
 
 /// How a stop went, in the order of the roll's table: what its time says
 /// and what colours the final time on the Instrument panel.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, TS)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export_to = "../sim/")]
 #[serde(rename_all = "camelCase")]
 pub enum StopTier {
     /// Everything clicks.
@@ -49,7 +50,8 @@ impl StopTier {
 
 /// A kart's stop in its pit box, as the readout carries it: from the tick
 /// the kart is taken onto its mark to the tick of green.
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, TS)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export_to = "../sim/")]
 #[serde(rename_all = "camelCase")]
 pub struct Stop {
     /// The roll's tier, which the stationary time was drawn in.

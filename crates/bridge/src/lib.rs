@@ -2,9 +2,10 @@
 //!
 //! The web app talks to [`Race`] and [`Prediction`]: create a race on a
 //! track, step it with one flat buffer of inputs, read the karts'
-//! transforms as one flat buffer and the rest of their readouts as values
-//! of the generated `KartReadout` type; or predict the player's own kart in
-//! a room's race from the inputs it sends and the snapshots it receives.
+//! transforms as one flat buffer and their readouts as values of the
+//! generated `KartReadout` type, each beside its `KartReadings`; or
+//! predict the player's own kart in a room's race from the inputs it sends
+//! and the snapshots it receives.
 //! The transforms Three.js reads every frame cross the wasm boundary once
 //! per tick instead of once per kart per field (ADR 0003); everything else
 //! rides typed (ADR 0026).
@@ -14,8 +15,8 @@ use serde::de::DeserializeOwned;
 use serde::Serialize;
 use sim::tuning::LAP_CHOICES;
 use sim::{
-    BotLevel, Item, KartInput, KartReadout, Phase, Projectile, RaceEvent, Replay, Standing, State,
-    Surface, Track, Tyres, Wheel,
+    BotLevel, Item, KartInput, KartReadings, KartReadout, Phase, Projectile, RaceEvent, Replay,
+    Standing, State, Surface, Track, Tyres, Wheel,
 };
 use wasm_bindgen::prelude::*;
 
@@ -216,12 +217,12 @@ impl Race {
         transform_floats(&self.state().kart_readouts())
     }
 
-    /// One `[readout, surface]` pair per kart in grid order, as values of
-    /// the generated `KartReadout` and `Surface` types: the readout less
-    /// the transform, and the surface under the kart.
+    /// One `[readout, readings]` pair per kart in grid order, as values of
+    /// the generated `KartReadout` and `KartReadings` types: the readout,
+    /// and what is worked out from it with the surface under the kart.
     #[wasm_bindgen(js_name = kart_readouts)]
     pub fn kart_readouts_js(&self) -> Result<JsValue, String> {
-        to_js(&self.kart_readouts())
+        to_js(&with_readings(self.kart_readouts()))
     }
 
     /// One standing per kart in grid order, as values of the generated
@@ -465,12 +466,10 @@ impl Prediction {
         };
         self.interpolation.push(
             snapshot.tick,
-            snapshot.karts.iter().map(KartReadout::from).collect(),
+            snapshot.karts.clone(),
             snapshot.projectiles.iter().map(Projectile::from).collect(),
         );
-        Ok(self
-            .inner
-            .reconcile(snapshot.tick, acknowledged, &KartReadout::from(own)))
+        Ok(self.inner.reconcile(snapshot.tick, acknowledged, own))
     }
 
     /// The kart as it is drawn, in the floats `Race::kart_transforms`
@@ -483,7 +482,7 @@ impl Prediction {
     /// each kart.
     #[wasm_bindgen(js_name = kart_readout)]
     pub fn kart_readout_js(&self) -> Result<JsValue, String> {
-        to_js(&self.kart_readout())
+        to_js(&with_readings([self.kart_readout()])[0])
     }
 
     /// Every kart where the interpolation draws it, in grid order, in the
@@ -497,7 +496,7 @@ impl Prediction {
     /// `Race::kart_readouts` gives; empty before the first snapshot.
     #[wasm_bindgen(js_name = interpolated_kart_readouts)]
     pub fn interpolated_kart_readouts_js(&self) -> Result<JsValue, String> {
-        to_js(&self.interpolated_kart_readouts())
+        to_js(&with_readings(self.interpolated_kart_readouts()))
     }
 
     /// Every projectile in flight where the interpolation draws it, in
@@ -549,6 +548,16 @@ impl Prediction {
             .map(|kart| (kart, self.inner.surface_at(kart.position)))
             .collect()
     }
+}
+
+/// Each readout beside its readings, as the `*_js` readouts hand them over.
+fn with_readings(
+    karts: impl IntoIterator<Item = (KartReadout, Surface)>,
+) -> Vec<(KartReadout, KartReadings)> {
+    karts
+        .into_iter()
+        .map(|(kart, surface)| (kart, kart.readings(surface)))
+        .collect()
 }
 
 /// The transforms of `karts`, `FLOATS_PER_TRANSFORM` floats each.

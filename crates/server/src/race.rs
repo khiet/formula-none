@@ -8,8 +8,7 @@
 use std::collections::{BTreeMap, VecDeque};
 
 use protocol::{
-    Event, EventKind, FinalStanding, HazardSnapshot, Input, KartSnapshot, ProjectileSnapshot,
-    Snapshot,
+    Event, EventKind, FinalStanding, HazardSnapshot, Input, ProjectileSnapshot, Snapshot,
 };
 use sim::tuning::{
     CONNECTION_SILENCE_S, INPUT_QUEUE_MAX_TICKS, INPUT_QUEUE_START_TICKS, KARTS_PER_RACE,
@@ -276,11 +275,7 @@ impl Race {
             .collect();
         self.repeated.push_front(std::mem::take(&mut self.pending));
         self.repeated.truncate(SNAPSHOT_EVENT_REPEATS);
-        let karts: Vec<KartSnapshot> = state
-            .kart_readouts()
-            .iter()
-            .map(KartSnapshot::from)
-            .collect();
+        let karts = state.kart_readouts();
         let hazards = state.hazards().iter().map(HazardSnapshot::from).collect();
         let projectiles = state
             .projectiles()

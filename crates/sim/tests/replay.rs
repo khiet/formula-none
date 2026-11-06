@@ -440,7 +440,7 @@ fn the_fixture_set_exercises_kart_contact_off_track_walls_every_track_both_mini_
                     // it paid is the one it showed the tick before, since
                     // the release tick adds no charge.
                     if let (Some(drift), None, Some(_)) =
-                        (before[slot].drift, kart.drift, kart.boost_s)
+                        (before[slot].drift, kart.drift, kart.boost_s())
                     {
                         released_orange |= drift.mini_turbo() == MiniTurbo::Orange;
                         released_red |= drift.mini_turbo() == MiniTurbo::Red;
@@ -450,7 +450,7 @@ fn the_fixture_set_exercises_kart_contact_off_track_walls_every_track_both_mini_
                         && kart.airborne
                         && !segment.inputs.get(slot).is_some_and(|input| input.hop)
                         && state.track().on_a_kerb(before[slot].position);
-                    rocket_started |= go && kart.boost_s.is_some();
+                    rocket_started |= go && kart.boost_s().is_some();
                     stalled |= go && kart.stall_s.is_some();
                     // Only a wall takes most of a lone kart's speed in one
                     // tick while the throttle is held and the kart stays
