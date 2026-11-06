@@ -16,7 +16,8 @@ use crate::tuning::{
     DRIFT_TURN_STEER_RANGE, ITEM_BOOST_FACTOR, KART_HALF_LENGTH_M, KART_HALF_WIDTH_M,
     KERB_HALF_LENGTH_M, KERB_HALF_WIDTH_M, REVERSE_TOP_SPEED_M_PER_S,
     STEER_RATE_LOW_SPEED_RAD_PER_S, STEER_RATE_TOP_SPEED_RAD_PER_S, TOP_SPEED_M_PER_S,
-    TYRE_LIFE_NEW_PERCENT, WHEEL_LANDING_SPREAD_M, WHEEL_RADIUS_M, WHEEL_WARNING_S,
+    TYRE_LIFE_CLIFF_PERCENT, TYRE_LIFE_NEW_PERCENT, WHEEL_LANDING_SPREAD_M, WHEEL_RADIUS_M,
+    WHEEL_WARNING_S,
 };
 use crate::wheel::{pass_not_over, pass_start_s, Path};
 use crate::{
@@ -126,13 +127,11 @@ pub struct PitReading {
 }
 
 /// Whether a bot on `call` drops its drifts on `reading` (ADR 0086): pushing
-/// would end under the life it wants at the flag, and saving would not. Over a
-/// race too long for that, the stop is the plan.
+/// would end under the cliff at the flag, and saving would not. Over a race
+/// too long for that, the stop is the plan.
 pub fn saves_its_tyres(call: BotPitCall, reading: PitReading) -> bool {
     let BotPitCall::Projected {
-        flag_life,
         saving_wear_fraction,
-        ..
     } = call
     else {
         return false;
@@ -140,37 +139,32 @@ pub fn saves_its_tyres(call: BotPitCall, reading: PitReading) -> bool {
     let laps = reading.laps_to_go as f32;
     reading.wear_per_lap.is_some_and(|wear| {
         reading.laps_to_go > 0
-            && reading.life - wear * laps < flag_life
-            && reading.life - wear * saving_wear_fraction * laps >= flag_life
+            && reading.life - wear * laps < TYRE_LIFE_CLIFF_PERCENT
+            && reading.life - wear * saving_wear_fraction * laps >= TYRE_LIFE_CLIFF_PERCENT
     })
 }
 
 /// Whether a bot on `call` comes in on `reading` (ADR 0081). A stop with the
-/// flag at the line ahead buys nothing at any level, nor does one for a bot
-/// that saving its tyres gets to the flag.
+/// flag at the line ahead buys nothing at any level.
 pub fn calls_for_the_pits(call: BotPitCall, reading: PitReading) -> bool {
     let PitReading {
         life,
         wear_per_lap,
         laps_to_go,
     } = reading;
-    if laps_to_go == 0 || saves_its_tyres(call, reading) {
+    if laps_to_go == 0 {
+        return false;
+    }
+    if past_the_cliff_by_the_next_lane(call, reading) {
+        return true;
+    }
+    if saves_its_tyres(call, reading) {
         return false;
     }
     match call {
-        BotPitCall::AtLife { life: at } => life <= at,
-        BotPitCall::AtLifeOrBeforeItRunsOut { life: at } => {
-            life <= at || wear_per_lap.is_some_and(|wear| life - wear <= 0.0)
-        }
-        BotPitCall::Projected {
-            flag_life,
-            last_lap_life,
-            ..
-        } => wear_per_lap.is_some_and(|wear| {
-            if life - wear * laps_to_go as f32 >= flag_life {
-                return false;
-            }
-            if laps_to_go == 1 && life >= last_lap_life {
+        BotPitCall::ByTheCliff => false,
+        BotPitCall::Projected { .. } => wear_per_lap.is_some_and(|wear| {
+            if life - wear * laps_to_go as f32 >= TYRE_LIFE_CLIFF_PERCENT {
                 return false;
             }
             let now = BOT_PIT_STOP_COST_S + stint_loss_s(TYRE_LIFE_NEW_PERCENT, wear, laps_to_go);
@@ -184,6 +178,22 @@ pub fn calls_for_the_pits(call: BotPitCall, reading: PitReading) -> bool {
             now < stint_loss_s(life, wear, laps_to_go) && now <= later
         }),
     }
+}
+
+/// Whether a bot on `reading` is at the cliff, or would wear past it by the
+/// next lane at the rate it is wearing, its drifts dropped if it saves its
+/// tyres (ADR 0095).
+fn past_the_cliff_by_the_next_lane(call: BotPitCall, reading: PitReading) -> bool {
+    let rate = match call {
+        BotPitCall::Projected {
+            saving_wear_fraction,
+        } if saves_its_tyres(call, reading) => saving_wear_fraction,
+        _ => 1.0,
+    };
+    reading.life <= TYRE_LIFE_CLIFF_PERCENT
+        || reading
+            .wear_per_lap
+            .is_some_and(|wear| reading.life - wear * rate < TYRE_LIFE_CLIFF_PERCENT)
 }
 
 /// The seconds worn tyres cost over `laps` from `life`, wearing `wear` a lap,

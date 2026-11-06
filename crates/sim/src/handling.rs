@@ -572,7 +572,10 @@ impl Handling {
         self.on_boost_pad = on_boost_pad;
         if self.boost_left_s > 0.0 {
             self.boost_left_s -= dt;
-            self.speed = TOP_SPEED_M_PER_S * situation.coin_factor * self.boost_factor;
+            // A boost runs at its factor of the worn cap, so worn tyres cost
+            // a boost as much as they cost the kart's own top speed.
+            self.speed =
+                TOP_SPEED_M_PER_S * situation.coin_factor * self.boost_factor * grip.top_speed;
         }
         // The limiter beats every cap and boost above; it holds the kart to
         // the limit outright, as the off-track cap does, and spends a boost
@@ -828,7 +831,7 @@ impl Handling {
 /// from before there were tyres.
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct TyreGrip {
-    /// Multiplies the cap on the kart's speed; a boost sets its own.
+    /// Multiplies the cap on the kart's speed and the speed a boost sets.
     pub(crate) top_speed: f32,
     /// Multiplies the rate full lock turns at.
     pub(crate) steer_rate: f32,
@@ -1021,7 +1024,7 @@ pub(crate) fn steer_rate(speed: f32, steer_factor: f32) -> f32 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::tuning::{ACCELERATION_TO_TOP_S, BRAKE_TO_STOP_S};
+    use crate::tuning::{ACCELERATION_TO_TOP_S, BRAKE_TO_STOP_S, TYRE_LIFE_CLIFF_PERCENT};
     use crate::tuning::{
         ITEM_BOOST_FACTOR, ITEM_BOOST_S, KART_BUMP_RESTITUTION, KART_BUMP_SPEED_LOSS,
         MINI_TURBO_ORANGE_BOOST_S, MINI_TURBO_ORANGE_CHARGE_S, MINI_TURBO_RED_BOOST_S,
@@ -1652,9 +1655,12 @@ mod tests {
             let gained = after_a_second(life, 0.0, FULL_THROTTLE);
             let expected = flat_out * TYRE_ACCELERATION_FACTORS[at];
             assert!((gained - expected).abs() < 1e-2, "at {life}%: {gained}");
-            // From under every life's cap, so the cap sheds none of it.
-            let shed = 20.0 - after_a_second(life, 20.0, brake);
-            let expected = full_brake * TYRE_BRAKING_FACTORS[at];
+            // Half a second from under every life's cap, so the cap sheds
+            // none of it and the kart is still moving.
+            let mut braking = on_life(life, 11.0);
+            ticks(&mut braking, brake, TICKS_PER_SECOND / 2);
+            let shed = 11.0 - braking.speed;
+            let expected = full_brake * TYRE_BRAKING_FACTORS[at] / 2.0;
             assert!((shed - expected).abs() < 1e-2, "at {life}%: {shed}");
         }
     }
@@ -1666,7 +1672,8 @@ mod tests {
             ..KartInput::default()
         };
         let turning = |life| {
-            on_life(life, 20.0)
+            // Under every life's cap, so each turns at the same speed.
+            on_life(life, 10.0)
                 .tick(&lock, Freeze::Free, asphalt(), TICK_S)
                 .yaw_rate
         };
@@ -1681,11 +1688,57 @@ mod tests {
     fn a_mini_turbo_charges_in_the_same_ticks_on_worn_tyres() {
         let red = tick_charge_reaches(MINI_TURBO_RED_CHARGE_S);
         let mut handling = drifting_right();
-        handling.tyre_life = 0.0;
+        handling.tyre_life = TYRE_LIFE_CLIFF_PERCENT;
         ticks(&mut handling, hop_right(), red - 1);
         assert_eq!(MiniTurbo::of(handling.drift), MiniTurbo::Orange);
         tick(&mut handling, hop_right());
         assert_eq!(MiniTurbo::of(handling.drift), MiniTurbo::Red);
+    }
+
+    #[test]
+    fn a_mini_turbo_on_worn_tyres_pays_its_factor_of_the_worn_cap() {
+        let red = tick_charge_reaches(MINI_TURBO_RED_CHARGE_S);
+        let mut handling = drifting_right();
+        handling.tyre_life = TYRE_LIFE_CLIFF_PERCENT;
+        ticks(&mut handling, hop_right(), red);
+
+        tick(&mut handling, FULL_THROTTLE);
+
+        assert!(handling.boost_s().is_some());
+        let worn_cap = TOP_SPEED_M_PER_S * TYRE_TOP_SPEED_FACTORS[2];
+        let paid = worn_cap * MINI_TURBO_BOOST_FACTOR;
+        assert!((handling.speed - paid).abs() < 1e-4, "{}", handling.speed);
+    }
+
+    #[test]
+    fn a_boost_pad_on_worn_tyres_pays_its_factor_of_the_worn_cap() {
+        let on_pad = Situation {
+            boost_pad: true,
+            ..asphalt()
+        };
+        for (at, life) in TYRE_LIFE_COLUMNS_PERCENT.into_iter().enumerate() {
+            let mut handling = on_life(life, 10.0);
+
+            handling.tick(&FULL_THROTTLE, Freeze::Free, on_pad, TICK_S);
+
+            let worn_cap = TOP_SPEED_M_PER_S * TYRE_TOP_SPEED_FACTORS[at];
+            let paid = worn_cap * BOOST_PAD_FACTOR;
+            assert!(
+                (handling.speed - paid).abs() < 1e-4,
+                "at {life}%: {}",
+                handling.speed
+            );
+        }
+    }
+
+    #[test]
+    fn a_kart_worn_right_out_is_too_slow_to_drift() {
+        let mut handling = drifting_right();
+        handling.tyre_life = 0.0;
+
+        ticks(&mut handling, hop_right(), TICKS_PER_SECOND * 3);
+
+        assert_eq!(handling.drift, None);
     }
 
     /// The angle, signed as a slip is, between where a kart held at `steer`

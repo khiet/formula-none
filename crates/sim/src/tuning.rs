@@ -463,26 +463,27 @@ pub const TYRE_LIFE_CLIFF_PERCENT: f32 = 30.0;
 pub const TYRE_LIFE_COLUMNS_PERCENT: [f32; 4] =
     [TYRE_LIFE_NEW_PERCENT, 60.0, TYRE_LIFE_CLIFF_PERCENT, 0.0];
 /// What those lives leave of the top speed cap, the steering rate, the
-/// acceleration and the braking. The cap falls steeply enough to read on
-/// the speedo before the gauge turns red (ADR 0087). The steering rate
-/// stays ADR 0080's: a bot shares it, and bots on a steeper one wore to 0%
-/// and then fell past the race's end cap and onto Monarch's grass.
-pub const TYRE_TOP_SPEED_FACTORS: [f32; 4] = [1.0, 0.97, 0.88, 0.70];
+/// acceleration and the braking. The cap and the acceleration lose twice ADR
+/// 0087's share, so a kart worn right out runs under the pit limit and is
+/// too slow to drift or tow (ADR 0095); a boost runs at its factor of the
+/// worn cap. The steering rate stays ADR 0080's: a bot shares it, and bots
+/// on a steeper one wore to 0% and then fell past the race's end cap and
+/// onto Monarch's grass.
+pub const TYRE_TOP_SPEED_FACTORS: [f32; 4] = [1.0, 0.94, 0.76, 0.40];
 pub const TYRE_STEER_RATE_FACTORS: [f32; 4] = [1.0, 0.97, 0.88, 0.65];
-pub const TYRE_ACCELERATION_FACTORS: [f32; 4] = [1.0, 0.97, 0.88, 0.70];
+pub const TYRE_ACCELERATION_FACTORS: [f32; 4] = [1.0, 0.94, 0.76, 0.40];
 pub const TYRE_BRAKING_FACTORS: [f32; 4] = [1.0, 0.98, 0.90, 0.75];
 /// The most, in radians, those lives let the line of travel slide wide of
 /// the facing. Held at 0% where a bot, which does not foresee the slide,
-/// still makes the turn into the pit lane at its approach speed (ADR 0087).
+/// still makes the turn into the pit lane (ADR 0087).
 pub const TYRE_WASH_OUT_MOST_RAD: [f32; 4] = [0.0, 0.0, 0.10, 0.15];
 /// A worn kart holds its line up to this speed times yaw rate, in m/s^2, and
 /// slides all the worn tyres allow from the full load. Full lock flat out
-/// is about 30.7 at 30% and 20.5 at 0%, where the worn cap holds the load
+/// is about 28.9 at 30% and 14.0 at 0%, where the worn cap holds the load
 /// short of the full one, so past the cliff it slides as far as the table
-/// says and worn right out most of it; the lane's approach at 20 m/s on
-/// tyres worn right out loads 19.9, and a gentle steer never slides.
-pub const TYRE_WASH_OUT_LIMIT_M_PER_S2: f32 = 16.0;
-pub const TYRE_WASH_OUT_FULL_M_PER_S2: f32 = 22.0;
+/// says and worn right out most of it (ADR 0095); a gentle steer never slides.
+pub const TYRE_WASH_OUT_LIMIT_M_PER_S2: f32 = 12.0;
+pub const TYRE_WASH_OUT_FULL_M_PER_S2: f32 = 15.0;
 /// How fast a slide builds and lets go, so a keyed steer, all or nothing,
 /// bends the line rather than kinking it: the deepest in a quarter second,
 /// and a hop's airtime lets the deepest go.
@@ -711,43 +712,38 @@ pub const BOT_PIT_LEAST_STINT_LAPS: f32 = 0.25;
 pub const BOT_PIT_STOP_COST_S: f32 = 8.0;
 /// `[tyre life, seconds a lap lost at it]`, new tyres first: the lap costs an
 /// Ace bot's projection weighs a stop against, measured by a lone Ace bot held
-/// at each life on the courses with a lane (ADR 0087). The sim's ignored
+/// at each life on the courses with a lane (ADR 0087, ADR 0095). The sim's ignored
 /// measurement test refuses a row a second off what it measures.
 pub const BOT_TYRE_LOSS_S_PER_LAP: [[f32; 2]; 7] = [
     [100.0, 0.0],
-    [60.0, 0.3],
-    [40.0, 4.6],
-    [30.0, 5.0],
-    [20.0, 8.1],
-    [10.0, 15.0],
+    [60.0, 1.8],
+    [40.0, 5.3],
+    [30.0, 10.2],
+    [20.0, 20.7],
+    [10.0, 32.5],
     [0.0, BOT_TYRE_LOSS_WORN_OUT_S_PER_LAP],
 ];
 /// The table's last row: seconds a lap lost on tyres worn right out.
-pub const BOT_TYRE_LOSS_WORN_OUT_S_PER_LAP: f32 = 17.4;
+pub const BOT_TYRE_LOSS_WORN_OUT_S_PER_LAP: f32 = 69.1;
 
 /// How long a bot that rolled the boost holds the throttle before Go:
 /// midway through the full boost's window, clear of both edges.
 pub const BOT_START_HOLD_S: f32 = (START_FULL_BOOST_HOLD_S + START_STALL_HOLD_S) / 2.0;
 
 /// When a bot calls itself in for new tyres (ADR 0081), read at each lane
-/// approach with a lap or more to go.
+/// approach with a lap or more to go. Every level comes in at the cliff, or
+/// before its life would wear past the cliff by the next lane, since a lap
+/// past it costs more than a stop (ADR 0095).
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum BotPitCall {
-    /// Its life is `life` percent or less; it often overstays and lives with it.
-    AtLife { life: f32 },
-    /// Its life is `life` percent or less, or would run out before the next
-    /// lane, a lap on.
-    AtLifeOrBeforeItRunsOut { life: f32 },
-    /// Its life, carried to the flag at the rate it has worn so far, ends under
-    /// `flag_life`, and stopping now costs less time than staying out or
-    /// stopping on any later lap. Only under `last_lap_life` for the last lap.
-    /// Where pushing ends under `flag_life` and wearing `saving_wear_fraction` of its
-    /// rate would not, it stays out and drops its drifts (ADR 0086).
-    Projected {
-        flag_life: f32,
-        last_lap_life: f32,
-        saving_wear_fraction: f32,
-    },
+    /// Only by the cliff.
+    ByTheCliff,
+    /// By the cliff, or sooner where its life, carried to the flag at the rate
+    /// it has worn so far, ends under the cliff and stopping now costs less
+    /// time than staying out or stopping on any later lap. Where pushing ends
+    /// under the cliff and wearing `saving_wear_fraction` of its rate would
+    /// not, it stays out and drops its drifts (ADR 0086).
+    Projected { saving_wear_fraction: f32 },
 }
 
 /// The bot constants that vary by bot level (ADR 0078): how hard a bot
@@ -776,7 +772,7 @@ pub struct BotProfile {
 /// is the lever: an Ace bot ahead of every human is never slowed.
 pub const BOT_LEVELS: [BotProfile; 3] = [
     BotProfile {
-        pit_call: BotPitCall::AtLife { life: 25.0 },
+        pit_call: BotPitCall::ByTheCliff,
         drift_floor_life: 0.0,
         corner_speed_fraction: BOT_CORNER_SPEED_FRACTION,
         rubber_band_min_factor: BOT_RUBBER_BAND_MIN_FACTOR,
@@ -785,7 +781,7 @@ pub const BOT_LEVELS: [BotProfile; 3] = [
         start_boost_chance: BOT_START_BOOST_CHANCE,
     },
     BotProfile {
-        pit_call: BotPitCall::AtLifeOrBeforeItRunsOut { life: 30.0 },
+        pit_call: BotPitCall::ByTheCliff,
         drift_floor_life: 30.0,
         corner_speed_fraction: 0.92,
         rubber_band_min_factor: 0.96,
@@ -795,8 +791,6 @@ pub const BOT_LEVELS: [BotProfile; 3] = [
     },
     BotProfile {
         pit_call: BotPitCall::Projected {
-            flag_life: 15.0,
-            last_lap_life: 10.0,
             saving_wear_fraction: 0.67,
         },
         drift_floor_life: 0.0,
@@ -982,8 +976,9 @@ const _: () = {
     assert!(TYRE_WEAR_BUMP_MIN_PERCENT <= TYRE_WEAR_BUMP_MAX_PERCENT);
     assert!(TYRE_WEAR_SPIN_OUT_PERCENT < TYRE_LIFE_NEW_PERCENT);
     // New tyres cost nothing, wear only ever costs more, and no factor gives
-    // back more than new tyres have. A worn kart can still drift, tow a rival
-    // and outrun the run-off, and its slide stays under a drift's.
+    // back more than new tyres have. A worn kart's slide stays under a
+    // drift's. Worn right out it may be too slow to drift or tow and no
+    // faster than the run-off allows (ADR 0095).
     {
         let tables = [
             TYRE_TOP_SPEED_FACTORS,
@@ -1011,7 +1006,7 @@ const _: () = {
     assert!(TYRE_WASH_OUT_LIMIT_M_PER_S2 < TYRE_WASH_OUT_FULL_M_PER_S2);
     // Full lock flat out on tyres worn right out loads them past the limit,
     // so a kart worn right out still slides; the cap keeps it under the full
-    // load, so ADR 0087's bots make the lane's turn at their approach speed.
+    // load, so it slides most of the table's last column and never all.
     {
         let flat_out = TOP_SPEED_M_PER_S * TYRE_TOP_SPEED_FACTORS[3];
         let full_lock_rad_per_s = (STEER_RATE_LOW_SPEED_RAD_PER_S
@@ -1037,9 +1032,6 @@ const _: () = {
         }
         assert!(BOT_TYRE_LOSS_S_PER_LAP[BOT_TYRE_LOSS_S_PER_LAP.len() - 1][0] == 0.0);
     }
-    assert!(DRIFT_ENTRY_SPEED_FRACTION < TYRE_TOP_SPEED_FACTORS[3]);
-    assert!(SLIPSTREAM_LEADER_SPEED_FRACTION < TYRE_TOP_SPEED_FACTORS[3]);
-    assert!(OFF_TRACK_SPEED_FACTOR < TYRE_TOP_SPEED_FACTORS[3]);
     // The wire carries the count in a byte.
     assert!(COIN_CAP <= u8::MAX as u32);
     assert!(0.0 < COIN_HALF_LENGTH_M && 0.0 < COIN_HALF_WIDTH_M && 0.0 < COIN_RESPAWN_S);

@@ -27,8 +27,8 @@ How hard a race's bots drive: Basic, Pro or Ace, one of the picks on the
 Title Scene, fixed for the room as the course is and shown on the Room
 Scene. Basic is the bots as they were before there was a pick. The level
 varies a bot's corner speed, its rubber band's lower bound, its item use
-delay, its rocket start chance, when it calls itself in for the pit lane and
-when it drops its drifts, on worn tyres or to save them for the flag, nothing
+delay, its rocket start chance, whether it calls itself in for the pit lane
+sooner than the cliff, which every level stops by, and when it drops its drifts, on worn tyres or to save them for the flag, nothing
 else; it changes how the bots drive, not how many there are. A replay carries it.
 
 ### laps
@@ -664,7 +664,8 @@ Instrument panel's tyre gauge shows it on the local kart drawn from above,
 its tyres green above 60%, yellow above 30% and red at 30% and below, read rounded up so
 0% means truly gone (ADR 0080). With Tyres Off it holds at 100%. Avoid: tyre
 wear, for the number. As it falls it costs speed and grip by ADR 0080's tables,
-as ADR 0087 steepens them, steepest from the cliff at 30%; under that a kart trails light tyre smoke and
+as ADR 0087 and ADR 0095 steepen them, steepest from the cliff at 30%; a boost
+runs at its share of the worn cap. Under the cliff a kart trails light tyre smoke and
 lays darker tyre marks.
 
 ### wash-out

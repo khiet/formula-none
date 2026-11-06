@@ -9,7 +9,8 @@ cliff; its steering rate, acceleration and braking rows, its wear rates as ADR
 model's lap costs an Ace bot weighs (ADR 0085) with measured ones, which ADR 0086
 deferred to this retune. This is the first result of the playtest ADR 0085 and
 ADR 0086 are pending; the numbers below come from bots racing
-`crates/sim/tests/bot_pits.rs`.
+`crates/sim/tests/bot_pits.rs`. ADR 0095 supersedes its top speed cap, its wash-out
+loads and its measured lap costs.
 
 ## Context
 

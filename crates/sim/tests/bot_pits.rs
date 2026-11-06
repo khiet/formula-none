@@ -13,7 +13,7 @@ use common::{
 use sim::bot::{calls_for_the_pits, saves_its_tyres, PitReading};
 use sim::tuning::{
     BotPitCall, BOT_LEVELS, BOT_TYRE_LOSS_S_PER_LAP, COUNTDOWN_S, PIT_LIMIT_M_PER_S,
-    TYRE_LIFE_NEW_PERCENT,
+    TYRE_LIFE_CLIFF_PERCENT, TYRE_LIFE_NEW_PERCENT,
 };
 use sim::Picks;
 use sim::{step, BotLevel, Item, ItemSlot, RaceEvent, State, Surface, Track, Tyres};
@@ -47,30 +47,35 @@ fn level_call(level: BotLevel) -> BotPitCall {
 }
 
 #[test]
-fn a_basic_bot_calls_at_25_percent_with_a_lap_or_more_to_go() {
-    let call = level_call(BotLevel::Basic);
-    assert!(calls_for_the_pits(call, reading(25.0, None, 1)));
-    assert!(!calls_for_the_pits(call, reading(26.0, Some(50.0), 3)));
-    assert!(
-        !calls_for_the_pits(call, reading(5.0, None, 0)),
-        "the flag is at the line ahead"
-    );
-}
-
-#[test]
-fn a_pro_bot_calls_at_30_percent_or_when_life_would_not_reach_the_next_lane() {
-    let call = level_call(BotLevel::Pro);
-    assert!(calls_for_the_pits(call, reading(30.0, Some(10.0), 2)));
-    assert!(!calls_for_the_pits(call, reading(45.0, Some(30.0), 4)));
-    assert!(calls_for_the_pits(call, reading(40.0, Some(45.0), 2)));
-    assert!(!calls_for_the_pits(call, reading(5.0, Some(45.0), 0)));
+fn every_level_comes_in_by_the_cliff_with_a_lap_or_more_to_go() {
+    for level in BotLevel::ALL {
+        let call = level_call(level);
+        assert!(
+            calls_for_the_pits(call, reading(30.0, None, 1)),
+            "{level:?}"
+        );
+        // 20 a lap from 45 ends the next lap on 25, past the cliff.
+        assert!(
+            calls_for_the_pits(call, reading(45.0, Some(20.0), 3)),
+            "{level:?}"
+        );
+        assert!(
+            !calls_for_the_pits(call, reading(60.0, Some(20.0), 1)),
+            "{level:?}"
+        );
+        assert!(
+            !calls_for_the_pits(call, reading(5.0, None, 0)),
+            "{level:?}: the flag is at the line ahead"
+        );
+    }
 }
 
 #[test]
 fn an_ace_bot_stays_out_when_its_tyres_reach_the_flag_at_the_races_count() {
     let call = level_call(BotLevel::Ace);
-    // 25 a lap from 55: over one lap more it ends on 30, and stays out; over
-    // two it ends on 5, and a stop now pays, with no later lap left to wait for.
+    // 25 a lap from 55: over one lap more it ends on the cliff, and stays out;
+    // over two it ends on 5, and a stop now pays, with no later lap left to
+    // wait for.
     assert!(!calls_for_the_pits(call, reading(55.0, Some(25.0), 1)));
     assert!(calls_for_the_pits(call, reading(30.0, Some(25.0), 2)));
 }
@@ -85,14 +90,6 @@ fn an_ace_bot_holds_for_the_stop_that_saves_the_most_time() {
 }
 
 #[test]
-fn an_ace_bot_stops_for_the_last_lap_only_under_10_percent() {
-    let call = level_call(BotLevel::Ace);
-    assert!(!calls_for_the_pits(call, reading(12.0, Some(30.0), 1)));
-    assert!(calls_for_the_pits(call, reading(9.0, Some(30.0), 1)));
-    assert!(!calls_for_the_pits(call, reading(9.0, Some(30.0), 0)));
-}
-
-#[test]
 fn an_ace_bot_projects_nothing_from_no_stint() {
     let call = level_call(BotLevel::Ace);
     assert!(!calls_for_the_pits(call, reading(40.0, None, 4)));
@@ -101,15 +98,15 @@ fn an_ace_bot_projects_nothing_from_no_stint() {
 #[test]
 fn an_ace_bot_saves_its_tyres_only_when_saving_is_what_reaches_the_flag() {
     let call = level_call(BotLevel::Ace);
-    // 20 a lap from 50 over two: pushing ends on 10, saving a third ends on 23.
-    assert!(saves_its_tyres(call, reading(50.0, Some(20.0), 2)));
-    // Pushing already ends on 30.
+    // 20 a lap from 60 over two: pushing ends on 20, saving a third ends on 33.
+    assert!(saves_its_tyres(call, reading(60.0, Some(20.0), 2)));
+    // Pushing already ends on the cliff.
     assert!(!saves_its_tyres(call, reading(70.0, Some(20.0), 2)));
-    // Even saving ends on 3.
-    assert!(!saves_its_tyres(call, reading(30.0, Some(20.0), 2)));
-    assert!(!saves_its_tyres(call, reading(50.0, None, 2)));
+    // Even saving ends on 23.
+    assert!(!saves_its_tyres(call, reading(50.0, Some(20.0), 2)));
+    assert!(!saves_its_tyres(call, reading(60.0, None, 2)));
     assert!(
-        !saves_its_tyres(call, reading(5.0, Some(20.0), 0)),
+        !saves_its_tyres(call, reading(35.0, Some(20.0), 0)),
         "the flag is at the line ahead"
     );
 }
@@ -117,8 +114,8 @@ fn an_ace_bot_saves_its_tyres_only_when_saving_is_what_reaches_the_flag() {
 #[test]
 fn an_ace_bot_that_saving_gets_to_the_flag_stays_out_where_pushing_would_stop() {
     let call = level_call(BotLevel::Ace);
-    // Pushing ends on 1 and a stop pays; saving ends on about 15.5.
-    let close = reading(45.0, Some(22.0), 2);
+    // Pushing ends on 20 and a stop pays; saving ends on about 33.
+    let close = reading(60.0, Some(20.0), 2);
     assert!(saves_its_tyres(call, close));
     assert!(!calls_for_the_pits(call, close));
 }
@@ -128,7 +125,7 @@ fn only_an_ace_bot_saves_its_tyres() {
     for level in [BotLevel::Basic, BotLevel::Pro] {
         assert!(!saves_its_tyres(
             level_call(level),
-            reading(50.0, Some(20.0), 2)
+            reading(60.0, Some(20.0), 2)
         ));
     }
 }
@@ -371,15 +368,15 @@ fn an_ace_bot_saving_its_tyres_drops_its_drifts_until_it_reads_otherwise() {
         BotLevel::Ace,
     );
     let corner = lone_bot_at(hairpin, BotLevel::Ace);
-    assert!(look(&corner, 68.0).hop, "nothing read yet");
-    look(&approach, 68.0);
-    assert!(!look(&corner, 68.0).hop, "saving reaches the flag");
+    assert!(look(&corner, 74.0).hop, "nothing read yet");
+    look(&approach, 74.0);
+    assert!(!look(&corner, 74.0).hop, "saving reaches the flag");
     look(&approach, 95.0);
     assert!(look(&corner, 95.0).hop, "pushing reaches the flag");
 }
 
-/// On Bell Deer four laps is where a lone Ace bot's clean 25% a lap falls short
-/// pushing and reaches the flag saving; three never needs it and five wants a stop.
+/// On Bell Deer three laps is where a lone Ace bot's clean 25% a lap ends past
+/// the cliff pushing and reaches the flag above it saving; four wants a stop.
 #[test]
 fn a_lone_ace_bot_saves_its_way_to_the_flag_with_no_stop() {
     let mut state = started(State::with_picks(
@@ -390,10 +387,10 @@ fn a_lone_ace_bot_saves_its_way_to_the_flag_with_no_stop() {
         Picks {
             level: BotLevel::Ace,
             tyres: Tyres::On,
-            laps: 4,
+            laps: 3,
         },
     ));
-    for _ in 0..ticks(4.0 * 120.0) {
+    for _ in 0..ticks(3.0 * 120.0) {
         state = step(state, &[], DT);
         if state.standings()[0].finish_time_s.is_some() {
             break;
@@ -403,7 +400,7 @@ fn a_lone_ace_bot_saves_its_way_to_the_flag_with_no_stop() {
     assert!(state.standings()[0].finish_time_s.is_some());
     assert_eq!(kart.stops, 0);
     assert!(
-        kart.tyre_life >= 15.0,
+        kart.tyre_life >= TYRE_LIFE_CLIFF_PERCENT,
         "it reached the flag on {}",
         kart.tyre_life
     );
@@ -544,8 +541,16 @@ fn over_five_laps_a_levels_bots_do_not_all_pit_on_one_lap() {
                 firsts.len() == 8 && firsts.iter().all(|&lap| lap == firsts[0])
             });
             let bunched = bunched.count();
+            // Bell Deer's fork comes early in the lap, and a Basic pack wears
+            // past the cliff by the second lap's fork almost to a kart, so its
+            // first stops bunch there (ADR 0095).
+            let most = if name == "Bell Deer" && level == BotLevel::Basic {
+                races.len() / 2
+            } else {
+                races.len() / 5
+            };
             assert!(
-                bunched <= races.len() / 5,
+                bunched <= most,
                 "{name} {level:?}: all eight on one lap in {bunched} of {} races",
                 races.len()
             );
