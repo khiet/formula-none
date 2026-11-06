@@ -1,5 +1,5 @@
 """The pit lanes checked without Blender (ADR 0081): each forks off its start
-straight on the side ADR 0087 gives it, past the pit wall and clear of the pit building and the trees, and
+straight on the side ADR 0088 gives it, past the pit wall and clear of the pit building and the trees, and
 every checkpoint along it reaches across it. The oval has none.
 
     python3 -I -m unittest discover -s assets/tracks/tests -t assets/tracks
@@ -12,7 +12,7 @@ import unittest
 
 from tests.test_props import across_track
 from tests.test_tyre_walls import left_of_centre
-from trackgen.layout import WALL_THICKNESS_M, build
+from trackgen.layout import GRASS_DROP_M, WALL_THICKNESS_M, build
 from trackgen.layouts import load
 from trackgen.pit_lane import LANE_WIDTH_M
 from trackgen.props import PITS_DEPTH_M, PITS_DOOR_PITCH_M, trees
@@ -51,7 +51,7 @@ class ThePitLane:
         return pits
 
     def test_it_runs_on_its_side_of_the_start_straight(self) -> None:
-        """The real circuit's side, the right, where the lane fits (ADR 0087)."""
+        """The real circuit's side, the right, where the lane fits (ADR 0088)."""
         self.assertEqual(self.side, self.SIDE)
         for x, y, _ in self.pit_lane.path:
             s = nearest_sample(self.layout, x, y).s
@@ -179,6 +179,16 @@ class ThePitLane:
             self.assertAlmostEqual(along_the_building, door, delta=0.5, msg=f"slot {slot}'s door")
             past_entry = (s - self.lane.s_entry) % self.layout.path.length
             self.assertLess(past_entry, self.lane.s_exit - self.lane.s_entry, f"slot {slot} between the lines")
+
+    def test_each_door_of_the_building_stands_where_its_pit_box_lines_up(self) -> None:
+        building = self.building()
+        for slot in range(8):
+            (piece,) = [p for p in self.geometry.scenery if p.name == f"Prop.pits.crowd-{slot}"]
+            vertices, faces = piece.mesh
+            # The colour's mesh holds a door and a flag; the door is the face that reaches the ground.
+            (door,) = [f for f in faces if min(vertices[v][2] for v in f) < -GRASS_DROP_M + 1e-6]
+            along = sum(across_track(self.layout, building.at.s, *vertices[v][:2])[0] for v in door) / len(door)
+            self.assertAlmostEqual(along, self.lane.door_first + slot * PITS_DOOR_PITCH_M, places=3, msg=f"door {slot}")
 
     def test_no_tree_stands_on_the_lane(self) -> None:
         for tree in trees(self.layout):
