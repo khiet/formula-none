@@ -13,10 +13,9 @@
 use protocol::{ClientMessage, Input, ServerMessage, Snapshot};
 use serde::de::DeserializeOwned;
 use serde::Serialize;
-use sim::tuning::LAP_CHOICES;
 use sim::{
-    BotLevel, Item, KartInput, KartReadings, KartReadout, Phase, Projectile, RaceEvent, Replay,
-    Standing, State, Surface, Track, Tyres, Wheel,
+    Item, KartInput, KartReadings, KartReadout, Phase, Picks, Projectile, RaceEvent, Replay,
+    Standing, State, Surface, Track, Wheel,
 };
 use wasm_bindgen::prelude::*;
 
@@ -123,46 +122,30 @@ pub struct Race {
     state: Option<State>,
 }
 
-/// `laps` when a creator could pick it, or why not.
-fn offered_laps(laps: u32) -> Result<u32, String> {
-    if LAP_CHOICES.contains(&laps) {
-        Ok(laps)
-    } else {
-        Err(format!("no race of {laps} laps"))
-    }
+/// `picks`, a value of the generated `Picks` type, or why it is not one.
+fn picks_from_js(picks: JsValue) -> Result<Picks, String> {
+    serde_wasm_bindgen::from_value(picks).map_err(|error| error.to_string())
 }
 
-/// The Tyres pick spelled `name` on the wire, or why there is none.
-fn tyres_named(name: &str) -> Result<Tyres, String> {
-    Tyres::from_name(name).ok_or_else(|| format!("no Tyres pick called {name:?}"))
+/// `picks` when a creator could make them, or why not.
+fn offered(picks: Picks) -> Result<Picks, String> {
+    picks
+        .offered()
+        .map_err(|unoffered| format!("no race of {unoffered}"))
 }
 
-#[wasm_bindgen]
 impl Race {
-    /// A fresh race from `seed` on the track described by `sidecar` (the JSON
-    /// exported next to the track's glTF) with `human_count` karts on the
-    /// front of its spawn grid and `bot_count` bot-driven karts on the slots
-    /// behind them, driving at `bot_level`, spelled as the wire does
-    /// (`basic`, `pro`, `ace`), with the Tyres pick `tyres` (`off`, `on`), over
-    /// `laps` laps.
-    /// Fails when the sidecar is unusable or has fewer spawn slots than the
-    /// karts, or the level or a pick is unknown; the reason is a plain string
-    /// so the same code runs in native tests.
-    #[wasm_bindgen(constructor)]
-    pub fn new(
+    /// As [`Race::new`], with the picks already decoded, so native tests
+    /// can build one: no `JsValue` exists off wasm.
+    pub fn with_picks(
         seed: u64,
         human_count: usize,
         bot_count: usize,
         sidecar: &str,
-        bot_level: &str,
-        tyres: &str,
-        laps: u32,
+        picks: Picks,
     ) -> Result<Race, String> {
         let track = Track::from_sidecar(sidecar).map_err(|error| error.to_string())?;
-        let bot_level = BotLevel::from_name(bot_level)
-            .ok_or_else(|| format!("no bot level called {bot_level:?}"))?;
-        let tyres = tyres_named(tyres)?;
-        let laps = offered_laps(laps)?;
+        let picks = offered(picks)?;
         let kart_count = human_count + bot_count;
         if kart_count > track.spawn_grid().len() {
             return Err(format!(
@@ -172,11 +155,35 @@ impl Race {
             ));
         }
         Ok(Self {
-            state: Some(
-                State::with_tyres(seed, human_count, bot_count, track, bot_level, tyres)
-                    .with_laps(laps),
-            ),
+            state: Some(State::with_picks(
+                seed,
+                human_count,
+                bot_count,
+                track,
+                picks,
+            )),
         })
+    }
+}
+
+#[wasm_bindgen]
+impl Race {
+    /// A fresh race from `seed` on the track described by `sidecar` (the JSON
+    /// exported next to the track's glTF) with `human_count` karts on the
+    /// front of its spawn grid and `bot_count` bot-driven karts on the slots
+    /// behind them, run as `picks`, a value of the generated `Picks` type,
+    /// says. Fails when the sidecar is unusable or has fewer spawn slots
+    /// than the karts, or the picks are not ones a creator can make; the
+    /// reason is a plain string.
+    #[wasm_bindgen(constructor)]
+    pub fn new(
+        seed: u64,
+        human_count: usize,
+        bot_count: usize,
+        sidecar: &str,
+        picks: JsValue,
+    ) -> Result<Race, String> {
+        Self::with_picks(seed, human_count, bot_count, sidecar, picks_from_js(picks)?)
     }
 
     /// Advance one tick of `dt` seconds. `inputs` holds six floats per human
@@ -401,27 +408,17 @@ pub struct Prediction {
     interpolation: sim::Interpolation,
 }
 
-#[wasm_bindgen]
 impl Prediction {
-    /// The kart on grid slot `kart` of the race from `seed` on the track
-    /// described by `sidecar`, at the top of its countdown, its bot at
-    /// `bot_level` (spelled as the wire does) once it has finished, with
-    /// the Tyres pick `tyres`, over `laps`. Fails when the sidecar is
-    /// unusable, its grid has no such slot or the level or a pick is unknown.
-    #[wasm_bindgen(constructor)]
-    pub fn new(
+    /// As [`Prediction::new`], with the picks already decoded, so native
+    /// tests can build one.
+    pub fn with_picks(
         seed: u64,
         kart: usize,
         sidecar: &str,
-        bot_level: &str,
-        tyres: &str,
-        laps: u32,
+        picks: Picks,
     ) -> Result<Prediction, String> {
         let track = Track::from_sidecar(sidecar).map_err(|error| error.to_string())?;
-        let bot_level = BotLevel::from_name(bot_level)
-            .ok_or_else(|| format!("no bot level called {bot_level:?}"))?;
-        let tyres = tyres_named(tyres)?;
-        let laps = offered_laps(laps)?;
+        let picks = offered(picks)?;
         if kart >= track.spawn_grid().len() {
             return Err(format!(
                 "kart {kart} but {} has {} spawn slots",
@@ -430,9 +427,27 @@ impl Prediction {
             ));
         }
         Ok(Self {
-            inner: sim::Prediction::with_tyres(seed, kart, track, bot_level, tyres).with_laps(laps),
+            inner: sim::Prediction::new(seed, kart, track, picks),
             interpolation: sim::Interpolation::new(),
         })
+    }
+}
+
+#[wasm_bindgen]
+impl Prediction {
+    /// The kart on grid slot `kart` of the race from `seed` on the track
+    /// described by `sidecar`, at the top of its countdown, run as `picks`,
+    /// a value of the generated `Picks` type, says. Fails when the sidecar
+    /// is unusable, its grid has no such slot or the picks are not ones a
+    /// creator can make.
+    #[wasm_bindgen(constructor)]
+    pub fn new(
+        seed: u64,
+        kart: usize,
+        sidecar: &str,
+        picks: JsValue,
+    ) -> Result<Prediction, String> {
+        Self::with_picks(seed, kart, sidecar, picks_from_js(picks)?)
     }
 
     /// Predict one tick from `input`, a value of the generated `Input` type

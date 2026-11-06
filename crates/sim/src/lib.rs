@@ -26,6 +26,7 @@ mod handling;
 mod hash;
 mod hits;
 pub mod interpolation;
+mod picks;
 pub mod prediction;
 pub mod replay;
 mod stop;
@@ -36,6 +37,7 @@ mod wheel;
 pub use bot::BotLevel;
 pub use handling::Tyres;
 pub use interpolation::Interpolation;
+pub use picks::{PickChoices, Picks, UnofferedPick};
 pub use prediction::Prediction;
 pub use replay::{Replay, ReplayError, Segment};
 pub use stop::{stop_roll, Stop, StopTier};
@@ -710,9 +712,9 @@ pub struct State {
     /// The first this many `karts` are humans'; fixed for the race, though
     /// a bot may drive one for a while (see [`State::hand_to_bot`]).
     humans: usize,
-    /// How hard the bots drive (ADR 0078). Fixed for the race, not part of
-    /// what a tick changes, so not hashed.
-    bot_level: BotLevel,
+    /// The creator's picks. Fixed for the race, not part of what a tick
+    /// changes, so not hashed; what they change in the karts is.
+    picks: Picks,
     physics: Physics,
     phase: Phase,
     /// What the last tick changed that the players are told about. Not
@@ -1059,8 +1061,8 @@ use tuning::{
     START_WEAK_BOOST_FACTOR, START_WEAK_BOOST_HOLD_S, START_WEAK_BOOST_S,
 };
 use tuning::{
-    DEFAULT_LAPS, GRAVITY_M_PER_S2, GROUND_CONTACT_M, KART_EDGE_RADIUS_M, KART_HALF_HEIGHT_M,
-    KART_HALF_LENGTH_M, KART_HALF_WIDTH_M, TOP_SPEED_M_PER_S,
+    GRAVITY_M_PER_S2, GROUND_CONTACT_M, KART_EDGE_RADIUS_M, KART_HALF_HEIGHT_M, KART_HALF_LENGTH_M,
+    KART_HALF_WIDTH_M, TOP_SPEED_M_PER_S,
 };
 use tuning::{
     HAZARD_DROP_DISTANCE_M, HAZARD_LIFETIME_S, ITEM_BOOST_FACTOR, ITEM_BOOST_S,
@@ -1101,27 +1103,24 @@ impl State {
     /// grid, in slot order, at the top of its countdown. `kart_count` must
     /// not exceed the track's spawn slots.
     pub fn new(seed: u64, kart_count: usize, track: Track) -> Self {
-        Self::with_bots(seed, kart_count, 0, track, BotLevel::Basic)
+        Self::with_picks(seed, kart_count, 0, track, Picks::default())
+    }
+
+    /// As [`State::with_picks`], every pick but the bot level as before
+    /// there were picks.
+    pub fn with_bots(seed: u64, humans: usize, bots: usize, track: Track, level: BotLevel) -> Self {
+        let picks = Picks {
+            level,
+            ..Picks::default()
+        };
+        Self::with_picks(seed, humans, bots, track, picks)
     }
 
     /// A fresh race on `track` with `humans` karts on the front of its spawn
-    /// grid and `bots` karts on the slots behind them, driving at `level`,
-    /// at the top of its countdown. Together they must not exceed the
-    /// track's spawn slots.
-    pub fn with_bots(seed: u64, humans: usize, bots: usize, track: Track, level: BotLevel) -> Self {
-        Self::with_tyres(seed, humans, bots, track, level, Tyres::Off)
-    }
-
-    /// As [`State::with_bots`], the creator's pick of `tyres` in force
-    /// (ADR 0083).
-    pub fn with_tyres(
-        seed: u64,
-        humans: usize,
-        bots: usize,
-        track: Track,
-        level: BotLevel,
-        tyres: Tyres,
-    ) -> Self {
+    /// grid and `bots` karts on the slots behind them, run as `picks` says,
+    /// at the top of its countdown. Together the karts must not exceed the
+    /// track's spawn slots. `picks` must be offered ([`Picks::offered`]).
+    pub fn with_picks(seed: u64, humans: usize, bots: usize, track: Track, picks: Picks) -> Self {
         let kart_count = humans + bots;
         assert!(
             kart_count <= track.spawn_grid().len(),
@@ -1129,21 +1128,19 @@ impl State {
             kart_count,
             track.spawn_grid().len()
         );
-        Self::on_spawn_slots(seed, humans, 0..kart_count, track, level, tyres)
+        Self::on_spawn_slots(seed, humans, 0..kart_count, track, picks)
     }
 
     /// A fresh race with one kart on each of `slots` of the spawn grid, in
-    /// order, the first `humans` of them human and the bots driving at
-    /// `level` and the tyres as `tyres` says, at the top of its countdown.
-    /// Each bot kart's rocket start is rolled here, in slot order, so the
-    /// seed decides it.
+    /// order, the first `humans` of them human, run as `picks` says, at the
+    /// top of its countdown. Each bot kart's rocket start is rolled here, in
+    /// slot order, so the seed decides it.
     fn on_spawn_slots(
         seed: u64,
         humans: usize,
         slots: Range<usize>,
         track: Track,
-        level: BotLevel,
-        tyres: Tyres,
+        picks: Picks,
     ) -> Self {
         let mut rng = ChaCha8Rng::seed_from_u64(seed);
         let mut physics = Physics::new();
@@ -1181,21 +1178,21 @@ impl State {
                     body,
                     &mut physics.bodies,
                 );
-                let bot_start_hold_s = if index >= humans && rolls_the_start_boost(&mut rng, level)
-                {
-                    BOT_START_HOLD_S
-                } else {
-                    0.0
-                };
+                let bot_start_hold_s =
+                    if index >= humans && rolls_the_start_boost(&mut rng, picks.level) {
+                        BOT_START_HOLD_S
+                    } else {
+                        0.0
+                    };
                 Kart {
                     body,
                     collider,
                     bot: (index >= humans).then_some(bot::Memory::default()),
-                    handling: Handling::new(tyres),
+                    handling: Handling::new(picks.tyres),
                     off_course_s: 0.0,
                     wrong_way_s: 0.0,
                     laps_completed: 0,
-                    race_laps: DEFAULT_LAPS,
+                    race_laps: picks.laps,
                     checkpoint: 0,
                     spline_progress: track.progress_at(slot.position),
                     lap_time_s: 0.0,
@@ -1229,7 +1226,7 @@ impl State {
             hazards: Vec::new(),
             projectiles: Vec::new(),
             final_positions: None,
-            bot_level: level,
+            picks,
             wakes_judged: true,
             track,
             karts,
@@ -1242,26 +1239,9 @@ impl State {
         }
     }
 
-    /// This race, run over the creator\'s pick of `laps` (ADR 0084). A race
-    /// runs [`DEFAULT_LAPS`] until told otherwise. Call this before the first
-    /// step: a kart that has already finished stays finished.
-    pub fn with_laps(mut self, laps: u32) -> Self {
-        for kart in &mut self.karts {
-            kart.race_laps = laps;
-        }
-        self
-    }
-
-    /// How hard the bots drive (ADR 0078).
-    pub fn bot_level(&self) -> BotLevel {
-        self.bot_level
-    }
-
-    /// Whether the race's tyres wear: the creator's pick, fixed for the race.
-    pub fn tyres(&self) -> Tyres {
-        self.karts
-            .first()
-            .map_or(Tyres::Off, |kart| kart.handling.tyres())
+    /// The creator's picks the race runs as, fixed for the race.
+    pub fn picks(&self) -> Picks {
+        self.picks
     }
 
     pub fn track(&self) -> &Track {
@@ -1428,7 +1408,7 @@ impl State {
             .min_by(|a, b| a.abs().total_cmp(&b.abs()))
             .expect("a race with humans has a nearest one");
         let fraction = (ahead_of_nearest / BOT_RUBBER_BAND_RANGE_M).clamp(-1.0, 1.0);
-        let profile = self.bot_level.profile();
+        let profile = self.picks.level.profile();
         if fraction > 0.0 {
             1.0 - fraction * (1.0 - profile.rubber_band_min_factor)
         } else {
@@ -1755,7 +1735,7 @@ pub fn step(mut state: State, inputs: &[KartInput], dt: f32) -> State {
         let clock = state.phase;
         let seed = state.seed;
         let track = &state.track;
-        let profile = state.bot_level.profile();
+        let profile = state.picks.level.profile();
         state
             .karts
             .iter_mut()

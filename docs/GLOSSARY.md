@@ -23,7 +23,7 @@ humans. How hard they drive is the room's bot level.
 
 ### bot level
 
-How hard a race's bots drive: Basic, Pro or Ace, the creator's pick on the
+How hard a race's bots drive: Basic, Pro or Ace, one of the picks on the
 Title Scene, fixed for the room as the course is and shown on the Room
 Scene. Basic is the bots as they were before there was a pick. The level
 varies a bot's corner speed, its rubber band's lower bound, its item use
@@ -33,8 +33,18 @@ else; it changes how the bots drive, not how many there are. A replay carries it
 
 ### laps
 
-How long a race runs, the creator's pick: 3 or 5, fixed for the room
+How long a race runs, one of the picks: 3 or 5, fixed for the room
 (ADR 0084).
+
+### picks
+
+The creator's choices of how a race runs, made on the Title Scene under the
+flags and fixed for the room: the bot level, Tyres and the laps. They travel
+as one value, from the Title Scene to the sim, on the wire, in the room and
+in a replay (ADR 0091). A field missing from a kept room or a replay reads as
+the race was before there was that pick. The course is picked beside them
+but is not one of them: it is also the room's route. Avoid: race settings,
+options.
 
 ### pit lane
 
@@ -414,8 +424,9 @@ bodies it cannot push.
 
 ### replay
 
-A race as `{seed, track, bots, level, inputs[]}`: enough to rerun it
-anywhere, the bots at the bot level it names.
+A race as `{seed, track, bots, picks, inputs[]}`, the picks written as
+fields of the file's own: enough to rerun it anywhere, as the picks it
+names.
 Inputs are run-length encoded into segments, one input per human kart in
 grid order for a run of ticks; the bots drive themselves from the seed. A
 replay committed under `assets/replays` with the state hashes it reported is
@@ -671,7 +682,7 @@ lane, so it stays down until one exists, nor on the final lap (ADR 0080).
 
 ### Tyres
 
-Whether a race's tyres wear: On or Off, the creator's pick on the Title Scene,
+Whether a race's tyres wear: On or Off, one of the picks on the Title Scene,
 fixed for the room as the course is and shown on the Room Scene (ADR 0083). Off
 is the race as it was before there was tyre life, and what a kept room or a
 replay without a pick is. A replay carries it.

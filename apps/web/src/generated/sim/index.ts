@@ -9,6 +9,8 @@ export type { ItemSlot } from "./ItemSlot";
 export type { KartReadings } from "./KartReadings";
 export type { KartReadout } from "./KartReadout";
 export type { MiniTurbo } from "./MiniTurbo";
+export type { PickChoices } from "./PickChoices";
+export type { Picks } from "./Picks";
 export type { Slipstream } from "./Slipstream";
 export type { Standing } from "./Standing";
 export type { Start } from "./Start";

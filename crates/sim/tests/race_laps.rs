@@ -4,12 +4,22 @@
 mod common;
 
 use common::{oval, started, ticks, DT, SEED};
+use sim::Picks;
 use sim::{step, BotLevel, Prediction, Standing, State};
 
 /// A lone bot's standing as it finishes a race on the oval over `laps`,
 /// or fails the test when it has not after ninety seconds a lap.
 fn standing_at_the_finish(laps: u32) -> Standing {
-    let mut state = started(State::with_bots(SEED, 0, 1, oval(), BotLevel::Basic).with_laps(laps));
+    let mut state = started(State::with_picks(
+        SEED,
+        0,
+        1,
+        oval(),
+        Picks {
+            laps,
+            ..Picks::default()
+        },
+    ));
     for _ in 0..ticks(laps as f32 * 90.0) {
         state = step(state, &[], DT);
         if state.standings()[0].finish_time_s.is_some() {
@@ -39,7 +49,15 @@ fn a_race_of_five_laps_finishes_a_kart_on_its_fifth() {
 /// its kart on lap 4.
 fn predicted_lap_after_a_snapshot_on_lap_four(laps: u32) -> u32 {
     let server = State::with_bots(SEED, 1, 0, oval(), BotLevel::Basic);
-    let mut prediction = Prediction::new(SEED, 0, oval(), BotLevel::Basic).with_laps(laps);
+    let mut prediction = Prediction::new(
+        SEED,
+        0,
+        oval(),
+        Picks {
+            laps,
+            ..Picks::default()
+        },
+    );
     prediction.tick(1, Default::default(), &[]);
     let mut reading = server.kart_readouts()[0];
     reading.lap = 4;

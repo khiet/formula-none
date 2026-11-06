@@ -15,6 +15,7 @@ use sim::tuning::{
     BotPitCall, BOT_LEVELS, BOT_TYRE_LOSS_S_PER_LAP, COUNTDOWN_S, PIT_LIMIT_M_PER_S,
     TYRE_LIFE_NEW_PERCENT,
 };
+use sim::Picks;
 use sim::{step, BotLevel, Item, ItemSlot, RaceEvent, State, Surface, Track, Tyres};
 
 /// A course by name, built afresh for each race.
@@ -142,7 +143,13 @@ struct Raced {
 }
 
 fn race(seed: u64, course: Track, level: BotLevel, tyres: Tyres, laps: u32) -> Raced {
-    let mut state = started(State::with_tyres(seed, 0, 8, course, level, tyres).with_laps(laps));
+    let mut state = started(State::with_picks(
+        seed,
+        0,
+        8,
+        course,
+        Picks { level, tyres, laps },
+    ));
     let mut raced = Raced {
         stop_laps: vec![Vec::new(); 8],
         finished: vec![false; 8],
@@ -173,7 +180,17 @@ fn lone_five_laps(course: Track, level: BotLevel) -> (u32, Option<f32>) {
 }
 
 fn lone_five_laps_from(seed: u64, course: Track, level: BotLevel) -> (u32, Option<f32>) {
-    let mut state = started(State::with_tyres(seed, 0, 1, course, level, Tyres::On).with_laps(5));
+    let mut state = started(State::with_picks(
+        seed,
+        0,
+        1,
+        course,
+        Picks {
+            level,
+            tyres: Tyres::On,
+            laps: 5,
+        },
+    ));
     for _ in 0..ticks(5.0 * 120.0) {
         state = step(state, &[], DT);
         if state.standings()[0].finish_time_s.is_some() {
@@ -206,7 +223,17 @@ fn a_lone_ace_bot_takes_bell_deers_lane_and_finishes() {
 
 #[test]
 fn a_bot_on_tyres_off_never_takes_the_lane() {
-    let mut state = started(State::with_bots(SEED, 0, 1, goldstone(), BotLevel::Ace).with_laps(3));
+    let mut state = started(State::with_picks(
+        SEED,
+        0,
+        1,
+        goldstone(),
+        Picks {
+            level: BotLevel::Ace,
+            laps: 3,
+            ..Picks::default()
+        },
+    ));
     for _ in 0..ticks(3.0 * 120.0) {
         state = step(state, &[], DT);
         assert!(!state.kart_readouts()[0].in_pit_lane);
@@ -252,13 +279,16 @@ fn lone_bot_at(progress: impl FnOnce(&Track) -> f32, level: BotLevel) -> State {
     let ahead = course.point_at(at + 1.0);
     let yaw = f32::atan2(here[0] - ahead[0], here[2] - ahead[2]);
     let sidecar = with_slot_at(&quiet_bell_deer(), 0, here, yaw);
-    started(State::with_tyres(
+    started(State::with_picks(
         SEED,
         0,
         1,
         track(&sidecar),
-        level,
-        Tyres::On,
+        Picks {
+            level,
+            tyres: Tyres::On,
+            ..Picks::default()
+        },
     ))
 }
 
@@ -352,8 +382,17 @@ fn an_ace_bot_saving_its_tyres_drops_its_drifts_until_it_reads_otherwise() {
 /// pushing and reaches the flag saving; three never needs it and five wants a stop.
 #[test]
 fn a_lone_ace_bot_saves_its_way_to_the_flag_with_no_stop() {
-    let mut state =
-        started(State::with_tyres(SEED, 0, 1, bell_deer(), BotLevel::Ace, Tyres::On).with_laps(4));
+    let mut state = started(State::with_picks(
+        SEED,
+        0,
+        1,
+        bell_deer(),
+        Picks {
+            level: BotLevel::Ace,
+            tyres: Tyres::On,
+            laps: 4,
+        },
+    ));
     for _ in 0..ticks(4.0 * 120.0) {
         state = step(state, &[], DT);
         if state.standings()[0].finish_time_s.is_some() {
@@ -376,8 +415,17 @@ fn a_lone_ace_bot_saves_its_way_to_the_flag_with_no_stop() {
 #[test]
 fn a_lone_ace_bot_runs_three_laps_of_every_lane_course_without_a_stop() {
     for (name, course) in LANES {
-        let mut state =
-            started(State::with_tyres(SEED, 0, 1, course(), BotLevel::Ace, Tyres::On).with_laps(3));
+        let mut state = started(State::with_picks(
+            SEED,
+            0,
+            1,
+            course(),
+            Picks {
+                level: BotLevel::Ace,
+                tyres: Tyres::On,
+                laps: 3,
+            },
+        ));
         for _ in 0..ticks(3.0 * 120.0) {
             state = step(state, &[], DT);
             if state.standings()[0].finish_time_s.is_some() {
@@ -407,7 +455,7 @@ fn a_lone_ace_bot_can_save_its_way_through_five_laps_of_goldstone() {
 
 #[test]
 fn a_bot_driven_through_the_countdown_does_not_back_off_the_line() {
-    let state = State::with_tyres(SEED, 1, 0, oval(), BotLevel::Basic, Tyres::Off);
+    let state = State::with_picks(SEED, 1, 0, oval(), Picks::default());
     let mut memory = sim::bot::Memory::default();
     for _ in 0..ticks(COUNTDOWN_S) {
         let input = sim::bot::drive(
@@ -578,9 +626,17 @@ fn lap_time_held_at(course: fn() -> Track, life: f32, seeds: std::ops::Range<u64
     let laps: Vec<_> = seeds
         .map(|seed| {
             on_a_sweep_thread(move || {
-                let mut state = started(
-                    State::with_tyres(seed, 0, 1, course(), BotLevel::Ace, Tyres::On).with_laps(3),
-                );
+                let mut state = started(State::with_picks(
+                    seed,
+                    0,
+                    1,
+                    course(),
+                    Picks {
+                        level: BotLevel::Ace,
+                        tyres: Tyres::On,
+                        laps: 3,
+                    },
+                ));
                 let mut timed = Vec::new();
                 while matches!(state.phase(), sim::Phase::Racing { .. }) {
                     state.adopt_tyre_life(0, life);
@@ -605,8 +661,17 @@ fn lap_time_held_at(course: fn() -> Track, life: f32, seeds: std::ops::Range<u64
 
 /// A lone bot's first lap of the oval with its tyres held at `life` every tick.
 fn first_lap_held_at(life: f32) -> f32 {
-    let mut state =
-        started(State::with_tyres(SEED, 0, 1, oval(), BotLevel::Ace, Tyres::On).with_laps(3));
+    let mut state = started(State::with_picks(
+        SEED,
+        0,
+        1,
+        oval(),
+        Picks {
+            level: BotLevel::Ace,
+            tyres: Tyres::On,
+            laps: 3,
+        },
+    ));
     for _ in 0..ticks(180.0) {
         state.adopt_tyre_life(0, life);
         state = step(state, &[], DT);
@@ -703,9 +768,17 @@ fn ace_winning_time(course: fn() -> Track, seeds: std::ops::Range<u64>) -> f32 {
     let races: Vec<_> = seeds
         .map(|seed| {
             on_a_sweep_thread(move || {
-                let mut state = started(
-                    State::with_tyres(seed, 0, 8, course(), BotLevel::Ace, Tyres::On).with_laps(5),
-                );
+                let mut state = started(State::with_picks(
+                    seed,
+                    0,
+                    8,
+                    course(),
+                    Picks {
+                        level: BotLevel::Ace,
+                        tyres: Tyres::On,
+                        laps: 5,
+                    },
+                ));
                 while matches!(state.phase(), sim::Phase::Racing { .. }) {
                     state = step(state, &[], DT);
                 }
@@ -772,13 +845,16 @@ fn called_in_a_bot_short_of_the_lanes_first_point_reads_no_turn_there() {
     let call_yaw = f32::atan2(on_the_call[0] - towards[0], on_the_call[2] - towards[2]);
     let mut memory = sim::bot::Memory::default();
     let mut drive_from = |position: [f32; 3], yaw: f32| {
-        let state = started(State::with_tyres(
+        let state = started(State::with_picks(
             SEED,
             0,
             1,
             track(&with_slot_at(MONARCH, 0, position, yaw)),
-            BotLevel::Pro,
-            Tyres::On,
+            Picks {
+                level: BotLevel::Pro,
+                tyres: Tyres::On,
+                ..Picks::default()
+            },
         ));
         let mut kart = state.kart_readouts()[0];
         kart.tyre_life = 5.0;

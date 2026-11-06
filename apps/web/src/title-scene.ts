@@ -3,12 +3,13 @@ import type { NicknameChars } from "./bridge";
 import { button } from "./controls";
 import { type CourseChoice, createCoursePreview } from "./course-preview";
 import { flag } from "./flags";
-import type { BotLevel, Tyres } from "./generated/sim";
+import type { PickChoices, Picks } from "./generated/sim";
 import { livery } from "./livery";
 import { validateNickname } from "./nickname";
+import { PICK_ROWS, type PickRow, pickOffer } from "./picks";
 import { backdrop, kartSide } from "./poster";
 import { normaliseCode } from "./room-link";
-import { BOT_LEVELS, type Course, type LapChoices, TYRES_CHOICES } from "./track";
+import type { Course } from "./track";
 
 export interface TitleScene {
   /** Show a message to the player, such as why a join was refused. */
@@ -27,12 +28,8 @@ export interface TitleHandlers {
   audio(settings: AudioSettings): void;
   /** The player picked this course, for the next Create room or Solo race. */
   course(course: Course): void;
-  /** The player picked this bot level, for the next Create room or Solo race. */
-  botLevel(level: BotLevel): void;
-  /** The player picked this for the tyres, for the next Create room or Solo race. */
-  tyres(tyres: Tyres): void;
-  /** The player picked these laps, for the next Create room or Solo race. */
-  laps(laps: number): void;
+  /** The player changed a pick under the flags, for the next Create room or Solo race; every pick as it now stands. */
+  picks(picks: Picks): void;
 }
 
 export interface TitleOptions {
@@ -50,31 +47,21 @@ export interface TitleOptions {
   readonly courses: readonly CourseChoice[];
   /** The course picked when the Scene opens, one of `courses`. */
   readonly course: Course;
-  /** The bot level picked when the Scene opens. */
-  readonly botLevel: BotLevel;
-  /** The Tyres pick when the Scene opens. */
-  readonly tyres: Tyres;
-  /** The laps picked when the Scene opens. */
-  readonly laps: number;
-  /** The laps to pick from. */
-  readonly lapChoices: LapChoices;
+  /** The picks when the Scene opens. */
+  readonly picks: Picks;
+  /** What each pick can be, a tile per value. */
+  readonly pickChoices: PickChoices;
   /** Whether the player asks for reduced motion, which holds the preview's lap dot still. */
   readonly reducedMotion: () => boolean;
 }
 
-/** A pick under the flags: a heading, a tile per choice and a line describing the one picked. */
-function pickRow<Value extends string>(row: {
-  readonly name: string;
-  readonly heading: string;
-  readonly choices: readonly {
-    readonly value: Value;
-    readonly name: string;
-    /** The line under the tiles, in the course blurb's voice, after "Name: "; none draws no line. */
-    readonly blurb?: string;
-  }[];
-  readonly picked: Value;
-  onPick(value: Value): void;
-}): HTMLElement {
+/** A pick under the flags: a heading, a tile per value and a line describing the one picked. */
+function pickRow<Value extends string | number>(
+  row: PickRow<Value>,
+  values: readonly Value[],
+  picked: Value,
+  onPick: (value: Value) => void,
+): HTMLElement {
   const fieldset = document.createElement("fieldset");
   fieldset.className = "bots";
   fieldset.setAttribute("aria-label", row.heading);
@@ -83,27 +70,29 @@ function pickRow<Value extends string>(row: {
   const tiles = document.createElement("div");
   tiles.className = "bot-tiles";
   const blurb = document.createElement("p");
-  blurb.dataset[`${row.name}Blurb`] = "";
-  const line = (choice: { name: string; blurb?: string }) =>
-    choice.blurb === undefined ? "" : `${choice.name}: ${choice.blurb}.`;
-  for (const choice of row.choices) {
+  blurb.dataset[`${row.key}Blurb`] = "";
+  const line = (value: Value) => {
+    const caption = row.caption(value);
+    return caption.blurb === undefined ? "" : `${caption.name}: ${caption.blurb}.`;
+  };
+  for (const value of values) {
     const radio = document.createElement("input");
     radio.type = "radio";
-    radio.name = row.name;
-    radio.value = choice.value;
-    radio.checked = choice.value === row.picked;
+    radio.name = row.key;
+    radio.value = String(value);
+    radio.checked = value === picked;
     radio.addEventListener("change", () => {
-      blurb.textContent = line(choice);
-      row.onPick(choice.value);
+      blurb.textContent = line(value);
+      onPick(value);
     });
     const caption = document.createElement("span");
     caption.className = "flag-name";
-    caption.textContent = choice.name;
+    caption.textContent = row.caption(value).name;
     const tile = document.createElement("label");
     tile.className = "flag-tile bot-tile";
     tile.append(radio, caption);
     tiles.append(tile);
-    if (radio.checked) blurb.textContent = line(choice);
+    if (radio.checked) blurb.textContent = line(value);
   }
   fieldset.append(heading, tiles);
   if (blurb.textContent !== "") fieldset.append(blurb);
@@ -115,9 +104,8 @@ function pickRow<Value extends string>(row: {
  * ways in: create a room, join one by code, or race alone, with the three
  * audio toggles (ADR 0025) under them; beside them, the course a created
  * room or a solo race runs (ADR 0061), as a flag per course and a preview
- * of the one picked, with the bot level (ADR 0078) and the Tyres pick
- * (ADR 0083) under the flags as a tile per choice and a line describing
- * the one picked. The nickname and
+ * of the one picked, with the creator's picks under the flags, each as a
+ * tile per value and a line describing the one picked. The nickname and
  * the code are checked here, so the handlers only ever see valid ones; a
  * refusal from the server comes back through `message`. Every control is
  * addressable by its name, the flags as radios named `course` with the
@@ -268,7 +256,7 @@ export function createTitleScene(
   flags.className = "flags";
   flags.setAttribute("aria-label", "Course");
   const preview = createCoursePreview({
-    laps: options.laps,
+    laps: options.picks.laps,
     reducedMotion: options.reducedMotion,
   });
   for (const choice of options.courses) {
@@ -291,33 +279,19 @@ export function createTitleScene(
     if (radio.checked) preview.show(choice);
   }
   // Each pick is a radio group of its own, styled as the flag tiles are.
-  const bots = pickRow({
-    name: "bots",
-    heading: "Bots",
-    choices: BOT_LEVELS.map(({ level, name, blurb }) => ({ value: level, name, blurb })),
-    picked: options.botLevel,
-    onPick: handlers.botLevel,
-  });
-  const tyres = pickRow({
-    name: "tyres",
-    heading: "Tyres",
-    choices: TYRES_CHOICES.map(({ tyres, name, blurb }) => ({ value: tyres, name, blurb })),
-    picked: options.tyres,
-    onPick: handlers.tyres,
-  });
+  let picked = options.picks;
+  const offer = pickOffer(options.pickChoices);
+  const pickTiles = <Pick extends keyof Picks>(pick: Pick) => {
+    return pickRow(PICK_ROWS[pick], offer[pick].values, picked[pick], (value) => {
+      const laps = picked.laps;
+      picked = { ...picked, [pick]: value };
+      if (picked.laps !== laps) preview.laps(picked.laps);
+      handlers.picks(picked);
+    });
+  };
   const picks = document.createElement("div");
   picks.className = "picks";
-  const laps = pickRow({
-    name: "laps",
-    heading: "Laps",
-    choices: options.lapChoices.map((choice) => ({ value: String(choice), name: String(choice) })),
-    picked: String(options.laps),
-    onPick(picked) {
-      preview.laps(Number(picked));
-      handlers.laps(Number(picked));
-    },
-  });
-  picks.append(bots, tyres, laps);
+  picks.append(...(Object.keys(PICK_ROWS) as (keyof Picks)[]).map((pick) => pickTiles(pick)));
   const courseColumn = document.createElement("div");
   courseColumn.className = "course";
   courseColumn.append(courseHeading, flags, picks, preview.element);

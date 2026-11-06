@@ -9,10 +9,7 @@ import monarchSidecar from "../../../assets/tracks/monarch/monarch.track.json?ur
 import ovalGltf from "../../../assets/tracks/oval/oval.glb?url";
 import ovalSidecar from "../../../assets/tracks/oval/oval.track.json?url";
 
-import type { BotLevel, Tyres } from "./generated/sim";
-
-/** The laps a creator can pick from, the default first (ADR 0084). */
-export type LapChoices = readonly [number, number];
+import type { Picks } from "./generated/sim";
 
 export type TrackName = "bell-deer" | "goldstone" | "monarch" | "oval";
 
@@ -120,113 +117,61 @@ export function saveCoursePick(storage: Storage, course: Course): void {
   remember(storage, COURSE_STORAGE_KEY, course.track);
 }
 
-/** A bot level as the Title Scene offers it: its caption and the line describing the pick. */
-export interface BotLevelChoice {
-  readonly level: BotLevel;
-  readonly name: string;
-  /** How the bots drive at this level, in the course blurb's voice, after "Name: ". */
-  readonly blurb: string;
+/**
+ * What a creator is offered of each pick: the key it is remembered and asked
+ * for under, and the values it can take. Every pick is read and written
+ * through this, so one added to the sim's `Picks` needs nothing here.
+ */
+export type PickOffer = {
+  readonly [Pick in keyof Picks]: { readonly key: string; readonly values: readonly Picks[Pick][] };
+};
+
+/** Every pick's name, in `offer`'s order. */
+function pickNames(offer: PickOffer): (keyof Picks)[] {
+  return Object.keys(offer) as (keyof Picks)[];
 }
 
-/** The three levels in the Title Scene's order, Basic first (ADR 0078). */
-export const BOT_LEVELS: readonly BotLevelChoice[] = [
-  { level: "basic", name: "Basic", blurb: "lift for corners, hold an item, wait for you" },
-  { level: "pro", name: "Pro", blurb: "carry speed, fire sooner, wait less" },
-  { level: "ace", name: "Ace", blurb: "corner flat out, fire on sight, never wait for you" },
-];
-
-const DEFAULT_BOT_LEVEL: BotLevel = "basic";
-const BOT_LEVEL_STORAGE_KEY = "bots";
-
-export function isBotLevel(name: string): name is BotLevel {
-  return BOT_LEVELS.some((choice) => choice.level === name);
-}
-
-/** The bot level picked last time, kept beside the course pick; Basic when unsaved, unreadable or no level. */
-export function loadBotLevel(storage: Storage): BotLevel {
-  const saved = remembered(storage, BOT_LEVEL_STORAGE_KEY);
-  return saved !== null && isBotLevel(saved) ? saved : DEFAULT_BOT_LEVEL;
-}
-
-export function saveBotLevel(storage: Storage, level: BotLevel): void {
-  remember(storage, BOT_LEVEL_STORAGE_KEY, level);
+/** The value of `pick` spelled `text`, when a creator is offered it; storage and the query string hold text. */
+function offered<Pick extends keyof Picks>(
+  offer: PickOffer,
+  pick: Pick,
+  text: string | null,
+): Picks[Pick] | undefined {
+  const values: readonly Picks[Pick][] = offer[pick].values;
+  return values.find((value) => String(value) === text);
 }
 
 /**
- * The bot level the page's query string asks for (`?bots=ace`), so a smoke
- * run can load any level into a solo race beside `?track=`; `undefined` for
- * none or an unknown one.
+ * The picks made last time, kept beside the course pick, each under its own
+ * key; `fresh`'s for any unsaved, unreadable or no longer offered.
  */
-export function botLevelFromSearch(search: string): BotLevel | undefined {
-  const requested = new URLSearchParams(search).get("bots");
-  return requested !== null && isBotLevel(requested) ? requested : undefined;
+export function loadPicks(storage: Storage, offer: PickOffer, fresh: Picks): Picks {
+  const picks: Partial<Record<keyof Picks, unknown>> = {};
+  for (const pick of pickNames(offer)) {
+    picks[pick] = offered(offer, pick, remembered(storage, offer[pick].key)) ?? fresh[pick];
+  }
+  // Every pick of `offer` was set above, and the offer names every pick.
+  return picks as Picks;
 }
 
-const LAPS_STORAGE_KEY = "laps";
-
-/** `text` as a lap count when a creator can pick it. */
-function offeredLaps(text: string | null, choices: LapChoices): number | undefined {
-  const laps = Number(text);
-  return choices.includes(laps) ? laps : undefined;
-}
-
-/** The laps picked last time, kept beside the course pick; the first choice when unsaved, unreadable or no pick (ADR 0084). */
-export function loadLaps(storage: Storage, choices: LapChoices): number {
-  return offeredLaps(remembered(storage, LAPS_STORAGE_KEY), choices) ?? choices[0];
-}
-
-export function saveLaps(storage: Storage, laps: number): void {
-  remember(storage, LAPS_STORAGE_KEY, String(laps));
+export function savePicks(storage: Storage, offer: PickOffer, picks: Picks): void {
+  for (const pick of pickNames(offer)) remember(storage, offer[pick].key, String(picks[pick]));
 }
 
 /**
- * The laps the page's query string asks for (`?laps=5`), so a smoke run can
- * load either into a solo race beside `?track=`; `undefined` for none or a
- * count nobody can pick.
+ * The picks the page's query string asks for under their keys (`?bots=ace`,
+ * `?tyres=on`, `?laps=5`), so a smoke run can load any into a solo race
+ * beside `?track=`; one asked for as nothing a creator is offered is left out.
  */
-export function lapsFromSearch(search: string, choices: LapChoices): number | undefined {
-  return offeredLaps(new URLSearchParams(search).get("laps"), choices);
-}
-
-/** A Tyres pick as the Title Scene offers it: its caption and the line describing it. */
-export interface TyresChoice {
-  readonly tyres: Tyres;
-  readonly name: string;
-  /** What the pick means for the race, in the course blurb's voice, after "Name: ". */
-  readonly blurb: string;
-}
-
-/** The picks in the Title Scene's order, Off first (ADR 0083). */
-export const TYRES_CHOICES: readonly TyresChoice[] = [
-  { tyres: "off", name: "Off", blurb: "they last the race" },
-  { tyres: "on", name: "On", blurb: "driving wears them" },
-];
-
-const DEFAULT_TYRES: Tyres = "on";
-const TYRES_STORAGE_KEY = "tyres";
-
-export function isTyres(name: string): name is Tyres {
-  return TYRES_CHOICES.some((choice) => choice.tyres === name);
-}
-
-/** The Tyres pick made last time, kept beside the course pick; On when unsaved, unreadable or no pick (ADR 0083). */
-export function loadTyres(storage: Storage): Tyres {
-  const saved = remembered(storage, TYRES_STORAGE_KEY);
-  return saved !== null && isTyres(saved) ? saved : DEFAULT_TYRES;
-}
-
-export function saveTyres(storage: Storage, tyres: Tyres): void {
-  remember(storage, TYRES_STORAGE_KEY, tyres);
-}
-
-/**
- * The Tyres pick the page's query string asks for (`?tyres=on`), so a smoke
- * run can load either into a solo race beside `?track=`; `undefined` for
- * none or an unknown one.
- */
-export function tyresFromSearch(search: string): Tyres | undefined {
-  const requested = new URLSearchParams(search).get("tyres");
-  return requested !== null && isTyres(requested) ? requested : undefined;
+export function picksFromSearch(search: string, offer: PickOffer): Partial<Picks> {
+  const params = new URLSearchParams(search);
+  const picks: Partial<Record<keyof Picks, unknown>> = {};
+  for (const pick of pickNames(offer)) {
+    const value = offered(offer, pick, params.get(offer[pick].key));
+    if (value !== undefined) picks[pick] = value;
+  }
+  // Each value set above is one `offer` holds for its pick.
+  return picks as Partial<Picks>;
 }
 
 /**

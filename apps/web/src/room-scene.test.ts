@@ -8,9 +8,7 @@ import { COURSES, type WorldPoint } from "./track";
 const ROOM: Room = {
   code: "BXQF",
   track: "goldstone",
-  botLevel: "pro",
-  tyres: "off",
-  laps: 3,
+  picks: { level: "pro", tyres: "off", laps: 3 },
   state: "open",
   players: [
     { slot: 0, nickname: "khiet", livery: 0, state: "unready", creator: true },

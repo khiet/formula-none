@@ -95,6 +95,7 @@ const DECISION_SLUGS = [
   "monarchs-pit-lane-moves-to-the-real-side",
   "goldstones-pit-lane-moves-to-the-real-side",
   "the-wire-carries-the-kart-readout",
+  "the-creators-picks-travel-as-one-value",
 ];
 
 const expectedFiles = DECISION_SLUGS.map(

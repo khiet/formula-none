@@ -19,6 +19,7 @@ use sim::tuning::{
     KART_HALF_LENGTH_M, MINI_TURBO_BOOST_FACTOR, OFF_TRACK_SPEED_FACTOR, STAR_KICK_S, STAR_S,
     STAR_TOP_SPEED_FACTOR, TOP_SPEED_M_PER_S, WHEEL_FIRST_PASS_S,
 };
+use sim::Picks;
 use sim::{
     step, BotLevel, Item, ItemSlot, KartInput, MiniTurbo, Phase, Prediction, RaceEvent, State,
     Surface, Track,
@@ -829,7 +830,7 @@ fn the_prediction_passes_through_a_star_kart_the_snapshots_draw_and_adopts_the_s
     let mut sidecar = with_slot_at(OVAL, 0, [28.0, 0.0, 4.0], 0.0);
     sidecar = with_slot_at(&sidecar, 1, [28.0, 0.0, -6.0], 0.0);
     let course = track(&sidecar);
-    let mut prediction = Prediction::new(SEED, 0, course.clone(), BotLevel::Basic);
+    let mut prediction = Prediction::new(SEED, 0, course.clone(), Picks::default());
     let mut standing = started(State::new(SEED, 2, course)).kart_readouts();
     standing[1].star_s = Some(5.0);
     let countdown = ticks(sim::tuning::COUNTDOWN_S) as u32;

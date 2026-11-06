@@ -15,9 +15,8 @@
 
 use protocol::{Player, PlayerState, Refusal, Room, RoomState, PROTOCOL_VERSION};
 use serde::{Deserialize, Serialize};
-use sim::tuning::DEFAULT_LAPS;
 use sim::tuning::{NICKNAME_MAX_CHARS, ROOM_PLAYERS_MAX};
-use sim::{BotLevel, Tyres};
+use sim::{BotLevel, Picks};
 
 /// The room as the server holds it: the view every player gets plus the
 /// order players joined in, which creator handover follows.
@@ -26,12 +25,8 @@ pub struct HostedRoom {
     code: String,
     /// The track the room's races run on.
     track: &'static str,
-    /// How hard the room's bots drive (ADR 0078).
-    bot_level: BotLevel,
-    /// Whether the room's tyres wear (ADR 0083).
-    tyres: Tyres,
-    /// How many laps the room's races run (ADR 0083).
-    laps: u32,
+    /// The creator's picks, fixed for the room.
+    picks: Picks,
     state: RoomState,
     /// One entry per slot; `None` is a free seat.
     seats: Vec<Option<Seat>>,
@@ -55,11 +50,6 @@ struct Seat {
     waiting: Option<PlayerState>,
 }
 
-/// A room kept before there was a pick.
-fn default_laps() -> u32 {
-    DEFAULT_LAPS
-}
-
 /// A room as it is written to disk between races (ADR 0005): everything
 /// [`HostedRoom`] holds, the seats' tokens included, so the players rejoin
 /// the room a restart brought back with the tokens they kept.
@@ -67,16 +57,15 @@ fn default_laps() -> u32 {
 pub struct KeptRoom {
     pub code: String,
     pub track: String,
-    /// A room kept before there was a level comes back at Basic (ADR 0053).
-    #[serde(default)]
-    pub bot_level: BotLevel,
-    /// A room kept before there was a pick comes back Off, whatever the
-    /// default has become, so what was raced stays what it was (ADR 0083).
-    #[serde(default)]
-    pub tyres: Tyres,
-    /// A room kept before there was a pick comes back at three laps (ADR 0084).
-    #[serde(default = "default_laps")]
-    pub laps: u32,
+    /// Written as fields of the room's own. A room kept before a pick
+    /// existed comes back as [`Picks::default`] has it, whatever a creator
+    /// is now offered first, so what was raced stays what it was (ADR 0053).
+    #[serde(flatten)]
+    pub picks: Picks,
+    /// The level as rooms kept it before the picks were one value, which
+    /// wins over `picks` when there; never written.
+    #[serde(default, skip_serializing)]
+    bot_level: Option<BotLevel>,
     pub state: RoomState,
     seats: Vec<Option<Seat>>,
     joins: u64,
@@ -102,29 +91,18 @@ pub enum Left {
 pub struct Started {
     pub seed: u64,
     pub track: String,
-    pub bot_level: BotLevel,
-    pub tyres: Tyres,
-    pub laps: u32,
+    pub picks: Picks,
     pub grid: Vec<u8>,
 }
 
 impl HostedRoom {
     /// An Open room with every seat free, racing `track`, one of
-    /// [`crate::tracks`], against bots at `bot_level`, the tyres as `tyres`
-    /// says, over `laps`.
-    pub fn open(
-        code: String,
-        track: &'static str,
-        bot_level: BotLevel,
-        tyres: Tyres,
-        laps: u32,
-    ) -> Self {
+    /// [`crate::tracks`], run as `picks` says.
+    pub fn open(code: String, track: &'static str, picks: Picks) -> Self {
         Self {
             code,
             track,
-            bot_level,
-            tyres,
-            laps,
+            picks,
             state: RoomState::Open,
             seats: vec![None; ROOM_PLAYERS_MAX],
             joins: 0,
@@ -154,9 +132,8 @@ impl HostedRoom {
         KeptRoom {
             code: self.code.clone(),
             track: self.track.to_owned(),
-            bot_level: self.bot_level,
-            tyres: self.tyres,
-            laps: self.laps,
+            picks: self.picks,
+            bot_level: None,
             state: self.state,
             seats,
             joins: self.joins,
@@ -182,9 +159,10 @@ impl HostedRoom {
         Self {
             code: kept.code,
             track,
-            bot_level: kept.bot_level,
-            tyres: kept.tyres,
-            laps: kept.laps,
+            picks: Picks {
+                level: kept.bot_level.unwrap_or(kept.picks.level),
+                ..kept.picks
+            },
             state: kept.state,
             seats,
             joins: kept.joins,
@@ -214,9 +192,7 @@ impl HostedRoom {
         Room {
             code: self.code.clone(),
             track: self.track.to_owned(),
-            bot_level: self.bot_level,
-            tyres: self.tyres,
-            laps: self.laps,
+            picks: self.picks,
             state: self.state,
             players: self.players().cloned().collect(),
         }
@@ -373,9 +349,7 @@ impl HostedRoom {
         Some(Started {
             seed,
             track: self.track.to_owned(),
-            bot_level: self.bot_level,
-            tyres: self.tyres,
-            laps: self.laps,
+            picks: self.picks,
             grid: self.players().map(|player| player.slot).collect(),
         })
     }

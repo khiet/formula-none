@@ -55,22 +55,6 @@ impl BotLevel {
     pub fn profile(self) -> &'static BotProfile {
         &BOT_LEVELS[self as usize]
     }
-
-    /// The level as the wire spells it: `basic`, `pro` or `ace`.
-    pub fn name(self) -> &'static str {
-        match self {
-            Self::Basic => "basic",
-            Self::Pro => "pro",
-            Self::Ace => "ace",
-        }
-    }
-
-    /// The level spelled `name` on the wire, or `None` for any other
-    /// spelling, so a caller that takes the level as text refuses an
-    /// unknown one rather than racing Basic.
-    pub fn from_name(name: &str) -> Option<Self> {
-        Self::ALL.into_iter().find(|level| level.name() == name)
-    }
 }
 
 /// What a bot carries from one tick to the next: how long it has been

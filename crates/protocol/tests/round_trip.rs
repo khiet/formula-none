@@ -6,8 +6,8 @@
 use protocol::{
     decode, encode, samples, ClientMessage, DecodeError, Room, ServerMessage, Snapshot,
 };
-use sim::tuning::LAP_CHOICES;
-use sim::{BotLevel, Tyres};
+use sim::tuning::PICK_CHOICES;
+use sim::Picks;
 
 #[test]
 fn every_client_message_round_trips() {
@@ -45,34 +45,24 @@ fn garbage_is_rejected() {
     assert!(result.is_err(), "{result:?}");
 }
 
-#[test]
-fn a_room_and_a_countdown_round_trip_at_every_lap_choice() {
-    for laps in LAP_CHOICES {
-        let room = ServerMessage::Room(Room {
-            laps,
-            ..samples::room()
-        });
-        let decoded: ServerMessage = decode(&encode(&room)).unwrap();
-        assert_eq!(decoded, room);
-
-        let countdown = ServerMessage::Countdown {
-            seed: 7,
-            track: "oval".to_owned(),
-            bot_level: BotLevel::Basic,
-            tyres: Tyres::Off,
-            laps,
-            grid: vec![0],
-        };
-        let decoded: ServerMessage = decode(&encode(&countdown)).unwrap();
-        assert_eq!(decoded, countdown);
+/// Every set of picks a creator can make.
+fn every_offered_picks() -> Vec<Picks> {
+    let mut every = Vec::new();
+    for level in PICK_CHOICES.level {
+        for tyres in PICK_CHOICES.tyres {
+            for laps in PICK_CHOICES.laps {
+                every.push(Picks { level, tyres, laps });
+            }
+        }
     }
+    every
 }
 
 #[test]
-fn a_room_and_a_countdown_round_trip_at_every_tyres_pick() {
-    for tyres in Tyres::ALL {
+fn a_room_and_a_countdown_round_trip_at_every_offered_picks() {
+    for picks in every_offered_picks() {
         let room = ServerMessage::Room(Room {
-            tyres,
+            picks,
             ..samples::room()
         });
         let decoded: ServerMessage = decode(&encode(&room)).unwrap();
@@ -81,32 +71,7 @@ fn a_room_and_a_countdown_round_trip_at_every_tyres_pick() {
         let countdown = ServerMessage::Countdown {
             seed: 7,
             track: "oval".to_owned(),
-            bot_level: BotLevel::Basic,
-            tyres,
-            laps: 3,
-            grid: vec![0],
-        };
-        let decoded: ServerMessage = decode(&encode(&countdown)).unwrap();
-        assert_eq!(decoded, countdown);
-    }
-}
-
-#[test]
-fn a_room_and_a_countdown_round_trip_at_every_bot_level() {
-    for level in BotLevel::ALL {
-        let room = ServerMessage::Room(Room {
-            bot_level: level,
-            ..samples::room()
-        });
-        let decoded: ServerMessage = decode(&encode(&room)).unwrap();
-        assert_eq!(decoded, room);
-
-        let countdown = ServerMessage::Countdown {
-            seed: 7,
-            track: "oval".to_owned(),
-            bot_level: level,
-            tyres: Tyres::Off,
-            laps: 3,
+            picks,
             grid: vec![0],
         };
         let decoded: ServerMessage = decode(&encode(&countdown)).unwrap();
