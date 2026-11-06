@@ -2,8 +2,9 @@
 //! karts have moved, and the Air Horn asks at its fire; each answer is the
 //! hits to apply, in order, with the items it uses up already gone from the
 //! lists it was handed. Who an item spares is one rule, [`fate`]: a star
-//! kart, a kart already spun out, a kart on the lane's safe ground (ADR
-//! 0081) and a kart this pass of the runaway wheel has hit (ADRs 0075, 0076).
+//! kart (ADR 0075), a kart already spun out, a kart on the lane's safe
+//! ground (ADR 0081), which the runaway wheel ignores, and a kart the
+//! wheel's current pass has already hit.
 
 use super::{at_centreline_height, behind, FlyingProjectile, Kart, PlacedHazard, Track};
 use crate::tuning::{
