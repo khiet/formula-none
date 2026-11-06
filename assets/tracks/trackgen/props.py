@@ -33,6 +33,7 @@ from .layout import (
     GRASS_DROP_M,
     GRASS_MARGIN_M,
     HOARDING_TEXT_PROUD_M,
+    PITS_DOOR_FIRST_M,
     PROP_WALL_CLEARANCE_M,
     SCENERY_LIFT_M,
     SPAN_FOOT_CLEARANCE_M,
@@ -147,9 +148,9 @@ ARCH_ABUTMENT_BAND_M = 0.4
 
 # The pit building, the card in three dimensions: a flat-roofed block the
 # layout's prop gives the length of, its front face toward the track, with
-# the parapet the top of its walls and a door for each livery from the line
-# forward, where the grid's chase cameras look, under a flag on a pole set
-# back from the front edge of the roof.
+# the parapet the top of its walls and a door for each livery from where the
+# lane's `door_first` puts the first, under a flag on a pole set back from the
+# front edge of the roof.
 PITS_DEPTH_M = 10.0
 PITS_HEIGHT_M = 6.0
 """To the roof."""
@@ -157,8 +158,6 @@ PITS_PARAPET_M = 0.6
 PITS_DOOR_WIDTH_M = 4.0
 PITS_DOOR_HEIGHT_M = 4.0
 PITS_DOOR_PITCH_M = 5.5
-PITS_DOOR_FIRST_M = 2.75
-"""From the line forward to the first door's middle; the rest follow at the pitch."""
 PITS_DOOR_PROUD_M = 0.05
 PITS_DOOR_BAND_M = 0.5
 """The lit band across the top of a door."""
@@ -975,8 +974,8 @@ def arch(layout: Layout, prop: Prop, number: int, still: ByMaterial) -> tuple[li
 def pits(layout: Layout, prop: Prop, number: int, still: ByMaterial) -> tuple[list[SceneryMesh], list[Lettering]]:
     """The pit building at `prop`, `prop.length` long along the track with its front face
     toward it: stand-riser walls toned against stand plinth under a stand-plinth parapet and
-    a lit roof, a door for each livery on the front face from the line forward in the
-    crowd's order, so every grid slot faces them, each in its key colour with a lit band
+    a lit roof, a door for each livery on the front face, forward along the track from the
+    lane's `door_first` in the crowd's order, so every grid slot faces them, each in its key colour with a lit band
     along its top, and a still flag on a carbon pole over each door, the flags in the same
     colours the other way round, as the style guide's card has them. No number and no kart:
     the doors are colours only. A `white` building, Goldstone's, has wall-white walls over beam
@@ -999,9 +998,10 @@ def pits(layout: Layout, prop: Prop, number: int, still: ByMaterial) -> tuple[li
     def at(a: float, b: float, c: float) -> mesh.Vertex:
         return (x + a * along[0] + b * across[0], y + a * along[1] + b * across[1], ground + c)
 
+    first = layout.pit_lane.door_first if layout.pit_lane else PITS_DOOR_FIRST_M
     slots = len(CROWD_KEYS)
     for slot in range(slots):
-        middle = PITS_DOOR_FIRST_M + slot * PITS_DOOR_PITCH_M
+        middle = first + slot * PITS_DOOR_PITCH_M
         a0, a1 = middle - PITS_DOOR_WIDTH_M / 2.0, middle + PITS_DOOR_WIDTH_M / 2.0
         b = front + PITS_DOOR_PROUD_M
         band = PITS_DOOR_HEIGHT_M - PITS_DOOR_BAND_M

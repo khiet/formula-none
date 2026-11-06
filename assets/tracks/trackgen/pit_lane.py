@@ -172,7 +172,7 @@ def outer_face(layout: Layout) -> float:
 def data(layout: Layout) -> PitLaneData:
     """The lane as the sidecar has it: its path, its lines and a pit box in front of each door."""
     # `props` imports `layout`, so it is imported here.
-    from .props import PITS_DOOR_FIRST_M, PITS_DOOR_PITCH_M
+    from .props import PITS_DOOR_PITCH_M
 
     lane = layout.pit_lane
     edges = _Lane(layout)
@@ -184,7 +184,7 @@ def data(layout: Layout) -> PitLaneData:
         half_width=half,
         entry=edges.place(lane.s_entry, edges.centre(lane.s_entry), half),
         exit=edges.place(lane.s_exit, edges.centre(lane.s_exit), half),
-        pit_boxes=[edges.place(lane.s_building + PITS_DOOR_FIRST_M + k * PITS_DOOR_PITCH_M, apron) for k in range(PIT_BOXES)],
+        pit_boxes=[edges.place(lane.s_building + lane.door_first + k * PITS_DOOR_PITCH_M, apron) for k in range(PIT_BOXES)],
     )
 
 

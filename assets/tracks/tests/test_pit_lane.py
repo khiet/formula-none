@@ -1,5 +1,5 @@
 """The pit lanes checked without Blender (ADR 0081): each forks off its start
-straight, past the pit wall and clear of the pit building and the trees, and
+straight on the side ADR 0087 gives it, past the pit wall and clear of the pit building and the trees, and
 every checkpoint along it reaches across it. The oval has none.
 
     python3 -I -m unittest discover -s assets/tracks/tests -t assets/tracks
@@ -15,7 +15,7 @@ from tests.test_tyre_walls import left_of_centre
 from trackgen.layout import WALL_THICKNESS_M, build
 from trackgen.layouts import load
 from trackgen.pit_lane import LANE_WIDTH_M
-from trackgen.props import PITS_DEPTH_M, PITS_DOOR_FIRST_M, PITS_DOOR_PITCH_M, trees
+from trackgen.props import PITS_DEPTH_M, PITS_DOOR_PITCH_M, trees
 
 LANE_LENGTH_M = {"bell-deer": 130.0, "goldstone": 140.0, "monarch": 120.0}
 """ADR 0081's lanes, line to line along the path, which set the cost of a stop. Bell Deer's
@@ -36,7 +36,8 @@ class ThePitLane:
     """What every course's lane promises; a subclass names the course."""
 
     NAME = ""
-    WALL_ON_ITS_SIDE = ""
+    SIDE = -1
+    WALL_ON_ITS_SIDE = "WallRight"
 
     def setUp(self) -> None:
         self.layout = load(self.NAME)
@@ -48,6 +49,25 @@ class ThePitLane:
     def building(self):
         (pits,) = [prop for prop in self.layout.decor.props if prop.kind == "pits"]
         return pits
+
+    def test_it_runs_on_its_side_of_the_start_straight(self) -> None:
+        """The real circuit's side, the right, where the lane fits (ADR 0087)."""
+        self.assertEqual(self.side, self.SIDE)
+        for x, y, _ in self.pit_lane.path:
+            s = nearest_sample(self.layout, x, y).s
+            self.assertGreater(self.SIDE * left_of_centre(self.layout, x, y, s), self.layout.asphalt_half_width)
+
+    def test_no_corner_it_runs_inside_folds_its_outer_wall(self) -> None:
+        """Past a corner's centre the wall would turn back on itself: every point of it
+        stands as far from the road as it was built at, so nearer no other bit of road."""
+        far = self.layout.runoff_half_width + WALL_THICKNESS_M + LANE_WIDTH_M + WALL_THICKNESS_M
+        indices = self.layout.path.indices_between(self.lane.s_fork, self.lane.s_merge)
+        for (x, y, _), index in zip(surface(self.geometry, "WallPitLane").mesh[0], indices):
+            sample = self.layout.path.samples[index]
+            built = math.dist((x, y), (sample.x, sample.y))
+            self.assertLessEqual(built, far + 1e-6)
+            nearest = min(math.dist((x, y), (q.x, q.y)) for q in self.layout.path.samples)
+            self.assertAlmostEqual(nearest, built, delta=0.05, msg=f"at s={sample.s}")
 
     def test_the_lines_are_about_the_length_adr_0081_costs_a_stop_by(self) -> None:
         path = self.pit_lane.path
@@ -155,8 +175,10 @@ class ThePitLane:
             self.assertGreater(offset, wall + LANE_WIDTH_M / 2.0)
             self.assertLess(offset, wall + LANE_WIDTH_M)
             along_the_building = (box.x - centre[0]) * forward[0] + (box.y - centre[1]) * forward[1]
-            door = PITS_DOOR_FIRST_M + slot * PITS_DOOR_PITCH_M
+            door = self.lane.door_first + slot * PITS_DOOR_PITCH_M
             self.assertAlmostEqual(along_the_building, door, delta=0.5, msg=f"slot {slot}'s door")
+            past_entry = (s - self.lane.s_entry) % self.layout.path.length
+            self.assertLess(past_entry, self.lane.s_exit - self.lane.s_entry, f"slot {slot} between the lines")
 
     def test_no_tree_stands_on_the_lane(self) -> None:
         for tree in trees(self.layout):
@@ -166,17 +188,17 @@ class ThePitLane:
 
 class PitLaneOnBellDeer(ThePitLane, unittest.TestCase):
     NAME = "bell-deer"
-    WALL_ON_ITS_SIDE = "WallRight"
 
 
 class PitLaneOnGoldstone(ThePitLane, unittest.TestCase):
     NAME = "goldstone"
+    # Left, outside Club and Abbey: a lane inside Club turns tighter than a bot called in can follow.
+    SIDE = 1
     WALL_ON_ITS_SIDE = "WallLeft"
 
 
 class PitLaneOnMonarch(ThePitLane, unittest.TestCase):
     NAME = "monarch"
-    WALL_ON_ITS_SIDE = "WallLeft"
 
     def test_the_building_keeps_clear_of_every_other_road(self) -> None:
         building = self.building()

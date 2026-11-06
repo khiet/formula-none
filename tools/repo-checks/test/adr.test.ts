@@ -92,6 +92,7 @@ const DECISION_SLUGS = [
   "the-first-tyre-retune-from-bot-races",
   "ace-bots-save-their-tyres-when-that-reaches-the-flag",
   "worn-tyres-cap-speed-harder-and-slide-more-at-the-cliff",
+  "monarchs-pit-lane-moves-to-the-real-side",
 ];
 
 const expectedFiles = DECISION_SLUGS.map(

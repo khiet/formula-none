@@ -193,6 +193,13 @@ TREE_SPACING_M = 5.0
 # the outside of a corner, and a tall thing nearer would stand between it
 # and the kart.
 PROP_WALL_CLEARANCE_M = 8.0
+# The pit building's first door from its middle, by default: the doors run
+# forward from the line, where the grid's chase cameras look.
+PITS_DOOR_FIRST_M = 2.75
+# The first door from the building's middle that centres all eight, 5.5 m
+# apart, on it: for a lane whose exit line comes too soon after the building's
+# middle for the doors to run forward from there.
+PITS_DOORS_CENTRED_M = -19.25
 # A span, the arch, is held to the span rule instead: its underside keeps
 # the gantry's height over the asphalt and its feet only have to stand on
 # grass, so they keep no set distance from the wall.
@@ -396,7 +403,9 @@ class PitLane:
     forks off the run-off at `s_fork`, the pit limiter holds from `s_entry` to `s_exit` (ADR
     0081) and it is back on the run-off at `s_merge`. `s_fork` and `s_entry` may be negative,
     behind the start line. `s_building` is the pit building's middle, the prop's `Spot.s`, which
-    the pit boxes line up on; props never reach the sidecar, so the layout says it twice."""
+    the pit boxes line up on; props never reach the sidecar, so the layout says it twice.
+    `door_first` is the first door's middle, in metres on from `s_building`, the rest following
+    at the pitch, so it says where both the building's doors and the pit boxes stand."""
 
     side: int
     s_fork: float
@@ -404,6 +413,7 @@ class PitLane:
     s_exit: float
     s_merge: float
     s_building: float = 0.0
+    door_first: float = PITS_DOOR_FIRST_M
 
 
 @dataclass

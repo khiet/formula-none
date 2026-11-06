@@ -31,7 +31,7 @@ following the centreline and its elevation, so a kart can leave the asphalt
 but never the course and no corner can be cut (ADR 0022). A layout declares
 no walls. The checkpoints are evenly spaced and reach the walls' outer faces
 (ADR 0079), or the far wall's along a pit lane. A layout's `PitLane(side, s_fork,
-s_entry, s_exit, s_merge, s_building)` gets a lane from the shared builder in
+s_entry, s_exit, s_merge, s_building, door_first)` gets a lane from the shared builder in
 `trackgen/pit_lane.py`: its asphalt and walls, painted lines, and the sidecar's
 optional `pit_lane`. The layouts are checked without Blender, with the tests beside
 them:
