@@ -24,6 +24,7 @@
 pub mod bot;
 mod handling;
 mod hash;
+mod hits;
 pub mod interpolation;
 pub mod prediction;
 pub mod replay;
@@ -44,6 +45,8 @@ pub use track::{
 pub use wheel::{wheel, Wheel};
 
 use handling::{Freeze, Handling, Situation};
+pub(crate) use hits::HornBlast;
+use hits::{Hit, Source, Target};
 
 use rand_chacha::rand_core::{Rng, SeedableRng};
 use rand_chacha::ChaCha8Rng;
@@ -1044,6 +1047,7 @@ struct Physics {
 }
 
 use tuning::BOT_RUBBER_BAND_RANGE_M;
+use tuning::HOMING_WITHOUT_TARGET_IS_WASTED;
 use tuning::{
     coin_factor, COINS_LOST_PER_SPIN_OUT, COIN_CAP, COIN_HALF_LENGTH_M, COIN_HALF_WIDTH_M,
     COIN_RESPAWN_S,
@@ -1059,16 +1063,11 @@ use tuning::{
     KART_HALF_LENGTH_M, KART_HALF_WIDTH_M, TOP_SPEED_M_PER_S,
 };
 use tuning::{
-    HAZARD_DROP_DISTANCE_M, HAZARD_LIFETIME_S, HAZARD_RADIUS_M, ITEM_BOOST_FACTOR, ITEM_BOOST_S,
+    HAZARD_DROP_DISTANCE_M, HAZARD_LIFETIME_S, ITEM_BOOST_FACTOR, ITEM_BOOST_S,
     ITEM_BOX_HALF_LENGTH_M, ITEM_BOX_HALF_WIDTH_M, ITEM_BOX_RESPAWN_S, ITEM_ROLL_PERCENT,
-    ITEM_ROLL_S, ITEM_ROLL_WEIGHTS, SPIN_OUT_S, STAR_HIT_RADIUS_M, STAR_KICK_FACTOR, STAR_KICK_S,
-    STAR_S, STAR_TOP_SPEED_FACTOR, WHEEL_RADIUS_M,
+    ITEM_ROLL_S, ITEM_ROLL_WEIGHTS, SPIN_OUT_S, STAR_KICK_FACTOR, STAR_KICK_S, STAR_S,
+    STAR_TOP_SPEED_FACTOR,
 };
-use tuning::{
-    HOMING_LOCK_RANGE_M, HOMING_LOOKAHEAD_M, HOMING_RADIUS_M, HOMING_SPEED_FACTOR,
-    HOMING_WITHOUT_TARGET_IS_WASTED,
-};
-use tuning::{HORN_PROGRESS_WINDOW_M, HORN_RADIUS_M};
 use tuning::{
     KART_BUMP_RESTITUTION, KART_BUMP_SPEED_LOSS, TYRE_WALL_RESTITUTION, TYRE_WALL_SPEED_LOSS,
 };
@@ -1630,6 +1629,39 @@ impl State {
         self.track.in_pit_lane(at.to_array())
     }
 
+    /// The kart in `slot` as an item judges it, `in_pit_lane` or not.
+    fn target(&self, slot: usize, in_pit_lane: bool) -> Target {
+        let kart = &self.karts[slot];
+        Target::of(kart, &self.physics.bodies[kart.body], in_pit_lane)
+    }
+
+    /// Spin out each kart `hits` names, in order.
+    fn apply(&mut self, hits: &[Hit]) {
+        for hit in hits {
+            let kart = &mut self.karts[hit.kart];
+            let body = &mut self.physics.bodies[kart.body];
+            spin_out(kart, body, hit.kart, hit.source.by(), &mut self.events);
+            if let Source::Wheel(pass) = hit.source {
+                kart.wheel_pass_hit = pass;
+            }
+        }
+    }
+
+    /// The Air Horn's blast from the kart in `firer`, at the fire (ADR
+    /// 0076), with `in_pit_lane` saying who stands on the lane.
+    fn blast_horn(&mut self, firer: usize, in_pit_lane: &[bool]) {
+        let blast = HornBlast::new(
+            &self.track,
+            self.physics.bodies[self.karts[firer].body].translation(),
+            self.karts[firer].spline_progress,
+        );
+        let targets: Vec<Target> = (0..self.karts.len())
+            .map(|slot| self.target(slot, in_pit_lane[slot]))
+            .collect();
+        let hits = blast.resolve(firer, &targets, &mut self.hazards, &mut self.projectiles);
+        self.apply(&hits);
+    }
+
     /// Take the item box `item_box` for the kart in `slot` and start the
     /// box's respawn clock. An empty slot starts rolling an item drawn by
     /// the kart's race position as of `standings`; a slot rolling or
@@ -1810,7 +1842,7 @@ pub fn step(mut state: State, inputs: &[KartInput], dt: f32) -> State {
                 kart.handling
                     .boost(STAR_KICK_S, STAR_KICK_FACTOR, MiniTurbo::Red);
             }
-            Item::Horn => blast_horn(&mut state, slot),
+            Item::Horn => state.blast_horn(slot, &in_pit_lane),
         }
     }
     // Rolls run down after the fires, so a press on the tick a roll lands
@@ -2116,175 +2148,30 @@ pub fn step(mut state: State, inputs: &[KartInput], dt: f32) -> State {
     let in_pit_lane: Vec<bool> = (0..state.karts.len())
         .map(|slot| state.in_pit_lane(slot))
         .collect();
-    // A star kart spins out every kart whose box its centre reaches, bar
-    // one already spun out and another star kart, which it bumps as usual,
-    // and passes through at full speed. The spin-out ends a hold on a
-    // hazard, which is left where it is: the hazard shields nobody from a
-    // star.
-    for star in 0..state.karts.len() {
-        if !state.karts[star].starring() || in_pit_lane[star] {
-            continue;
-        }
-        let centre = state.physics.bodies[state.karts[star].body]
-            .translation()
-            .to_array();
-        for (slot, (kart, hold)) in state.karts.iter_mut().zip(&mut holds).enumerate() {
-            if slot == star || kart.starring() || kart.spun_out() || in_pit_lane[slot] {
-                continue;
-            }
-            let body = &mut state.physics.bodies[kart.body];
-            if !reaches(
-                body.translation(),
-                body.rotation(),
-                centre,
-                STAR_HIT_RADIUS_M,
-            ) {
-                continue;
-            }
-            spin_out(kart, body, slot, Some(star), &mut state.events);
-            *hold = false;
-        }
-    }
-    // A held hazard trails its owner to where the owner ended the tick;
-    // letting go of the button, or losing the controls, leaves it there.
-    for placed in &mut state.hazards {
-        if !placed.hazard.held {
-            continue;
-        }
-        let owner = &state.karts[placed.hazard.owner];
-        if holds[placed.hazard.owner] {
-            let body = &state.physics.bodies[owner.body];
-            placed.hazard.position = behind(body.translation(), body.rotation());
-            placed.progress = owner.spline_progress;
-        } else {
-            placed.hazard.held = false;
-        }
-    }
-    // A dropped hazard ages away; one still lying there spins out the first
-    // kart to reach it, its owner included once the owner has got clear of
-    // it, and is used up. A kart already spun out hits nothing more. A star
-    // kart uses a dropped hazard up and drives on; a held one it passes,
-    // whoever trails it, since a hazard shields nobody from a star and the
-    // hit drops it where it is.
-    let mut hazards = std::mem::take(&mut state.hazards);
-    hazards.retain_mut(|placed| {
-        // No hazard lands in the lane: one let go over it is gone.
-        if state.track.in_pit_lane(placed.hazard.position) {
-            return false;
-        }
-        if !placed.hazard.held {
-            placed.lifetime_left_s -= dt;
-            if placed.lifetime_left_s <= 0.0 {
-                return false;
-            }
-        }
-        for (slot, kart) in state.karts.iter_mut().enumerate() {
-            let body = &mut state.physics.bodies[kart.body];
-            let reached = reaches(
-                body.translation(),
-                body.rotation(),
-                placed.hazard.position,
-                HAZARD_RADIUS_M,
-            );
-            if slot == placed.hazard.owner && !placed.clear_of_owner {
-                placed.clear_of_owner = !reached;
-                continue;
-            }
-            if !reached || kart.spun_out() || in_pit_lane[slot] {
-                continue;
-            }
-            if kart.starring() {
-                if placed.hazard.held {
-                    continue;
-                }
-                return false;
-            }
-            spin_out(
-                kart,
-                body,
-                slot,
-                Some(placed.hazard.owner),
-                &mut state.events,
-            );
-            return false;
-        }
-        true
-    });
-    state.hazards = hazards;
-    // A rolling wheel spins out every kart it reaches, once a pass: a kart
-    // already spun out, or hit by this pass, is passed by, and a star kart
-    // passes through it, the wheel rolling on.
-    if let Some(elapsed_s) = elapsed_s {
-        for crossing in 0..state.track.wheel_crossings().len() {
-            let Wheel::Rolling { pass, position, .. } =
-                wheel(&state.track, crossing, state.seed, elapsed_s)
-            else {
-                continue;
-            };
-            for (slot, kart) in state.karts.iter_mut().enumerate() {
-                let body = &mut state.physics.bodies[kart.body];
-                let reached = reaches(
-                    body.translation(),
-                    body.rotation(),
-                    position,
-                    WHEEL_RADIUS_M,
-                );
-                if !reached || kart.spun_out() || kart.starring() || kart.wheel_pass_hit == pass {
-                    continue;
-                }
-                spin_out(kart, body, slot, None, &mut state.events);
-                kart.wheel_pass_hit = pass;
-            }
-        }
-    }
-    // A projectile flies after its target and is used up on reaching the
-    // kart: on a hazard the kart trails, which goes with it, else on the
-    // kart itself, which spins out unless it already is. On a star kart it
-    // is used up to no effect, the trailed hazard kept, and looks for no
-    // new target.
-    let mut projectiles = std::mem::take(&mut state.projectiles);
-    projectiles.retain_mut(|flying| {
-        // A projectile gives up on a kart that has reached the lane.
-        if in_pit_lane[flying.projectile.target] {
-            return false;
-        }
-        let target = &mut state.karts[flying.projectile.target];
-        let body = &mut state.physics.bodies[target.body];
-        fly(flying, &state.track, body.translation(), dt);
-        let projectile = flying.projectile;
-        if !reaches(
-            body.translation(),
-            body.rotation(),
-            projectile.position,
-            HOMING_RADIUS_M,
-        ) {
-            return true;
-        }
-        if target.starring() {
-            return false;
-        }
-        let shield = state
-            .hazards
-            .iter()
-            .position(|placed| placed.hazard.held && placed.hazard.owner == projectile.target);
-        match shield {
-            Some(index) => {
-                state.hazards.remove(index);
-            }
-            None if !target.spun_out() => {
-                spin_out(
-                    target,
-                    body,
-                    projectile.target,
-                    Some(projectile.owner),
-                    &mut state.events,
-                );
-            }
-            None => {}
-        }
-        false
-    });
-    state.projectiles = projectiles;
+    let targets = (0..state.karts.len())
+        .map(|slot| state.target(slot, in_pit_lane[slot]))
+        .collect();
+    let wheels: Vec<(u32, [f32; 3])> = match elapsed_s {
+        Some(elapsed_s) => (0..state.track.wheel_crossings().len())
+            .filter_map(
+                |crossing| match wheel(&state.track, crossing, state.seed, elapsed_s) {
+                    Wheel::Rolling { pass, position, .. } => Some((pass, position)),
+                    _ => None,
+                },
+            )
+            .collect(),
+        None => Vec::new(),
+    };
+    let hits = hits::resolve(
+        &state.track,
+        targets,
+        &holds,
+        &wheels,
+        &mut state.hazards,
+        &mut state.projectiles,
+        dt,
+    );
+    state.apply(&hits);
     // Places are read once every kart has moved, so two karts finishing on
     // the same tick are placed by their finish times, as the standings are.
     if !finished_this_tick.is_empty() {
@@ -2705,20 +2592,6 @@ fn behind(translation: Vec3, rotation: &Rotation) -> [f32; 3] {
     (translation + rear * HAZARD_DROP_DISTANCE_M - Vec3::Y * KART_HALF_HEIGHT_M).to_array()
 }
 
-/// Whether a kart standing at `translation` facing `rotation` reaches a
-/// hazard or a projectile centred at `point`: the point lies within
-/// `radius` of the kart's collision box, seen from above.
-fn reaches(translation: Vec3, rotation: &Rotation, point: [f32; 3], radius: f32) -> bool {
-    let local = rotation.inverse() * (Vec3::from(point) - translation);
-    let nearest = Vec3::new(
-        local.x.clamp(-KART_HALF_WIDTH_M, KART_HALF_WIDTH_M),
-        0.0,
-        local.z.clamp(-KART_HALF_LENGTH_M, KART_HALF_LENGTH_M),
-    );
-    let (dx, dz) = (local.x - nearest.x, local.z - nearest.z);
-    dx * dx + dz * dz <= radius * radius
-}
-
 /// The kart next ahead of the one in `slot` by race position, as
 /// `standings` has it; `None` when that kart leads.
 fn kart_ahead(standings: &[Standing], slot: usize) -> Option<usize> {
@@ -2733,30 +2606,6 @@ fn at_centreline_height(track: &Track, point: Vec3, last: f32) -> ([f32; 3], f32
     let progress = track.progress_near(point.to_array(), last);
     let height = track.point_at(progress)[1];
     ([point.x, height, point.z], progress)
-}
-
-/// Fly the projectile one tick of `dt` seconds at the tuned speed: along
-/// the centreline, steering for the point the tuned lookahead ahead of
-/// where it is, until its target at `target` is within the tuned lock
-/// range, then straight at the target. Seen from above; the height is the
-/// centreline's where it ends up.
-fn fly(flying: &mut FlyingProjectile, track: &Track, target: Vec3, dt: f32) {
-    let here = Vec3::from(flying.projectile.position);
-    let to_target = Vec3::new(target.x - here.x, 0.0, target.z - here.z);
-    let aim = if to_target.length() <= HOMING_LOCK_RANGE_M {
-        to_target
-    } else {
-        let ahead = track.point_at(flying.progress + HOMING_LOOKAHEAD_M);
-        Vec3::new(ahead[0] - here.x, 0.0, ahead[2] - here.z)
-    };
-    let reach = HOMING_SPEED_FACTOR * TOP_SPEED_M_PER_S * dt;
-    let moved = if aim.length() <= reach {
-        aim
-    } else {
-        aim.normalize() * reach
-    };
-    (flying.projectile.position, flying.progress) =
-        at_centreline_height(track, here + moved, flying.progress);
 }
 
 /// Stop the kart in `slot` where it is and start its spin-out, `by` the
@@ -2786,106 +2635,6 @@ fn spin_out(
     body.set_linvel(Vec3::ZERO, true);
     body.set_angvel(Vec3::ZERO, true);
     body.lock_translations(true, true);
-}
-
-/// How far apart two spline progress readings are the shorter way round a
-/// lap of `lap` metres.
-fn progress_gap(lap: f32, a: f32, b: f32) -> f32 {
-    let gap = (a - b).rem_euclid(lap);
-    gap.min(lap - gap)
-}
-
-/// The Air Horn's blast as its reach is judged (ADR 0076): from `centre`,
-/// the firing kart's, at spline `progress` on a lap of `lap` metres. In
-/// reach is within the tuned radius of the centre, seen from above, and
-/// within the tuned window of spline progress the shorter way round the
-/// lap, which keeps distance alone from reaching through a crossover or
-/// across the barrier between two sections of road.
-pub(crate) struct HornBlast {
-    lap: f32,
-    centre: Vec3,
-    progress: f32,
-}
-
-impl HornBlast {
-    pub(crate) fn new(track: &Track, centre: Vec3, progress: f32) -> Self {
-        Self {
-            lap: track.spline_length(),
-            centre,
-            progress,
-        }
-    }
-
-    fn within_window(&self, progress: f32) -> bool {
-        progress_gap(self.lap, self.progress, progress) <= HORN_PROGRESS_WINDOW_M
-    }
-
-    /// Whether the blast reaches a kart standing at `translation` facing
-    /// `rotation` with spline `progress`: its collision box within the
-    /// radius, as every hit is judged. The bot fires its horn by this test.
-    pub(crate) fn reaches_kart(
-        &self,
-        translation: Vec3,
-        rotation: &Rotation,
-        progress: f32,
-    ) -> bool {
-        self.within_window(progress)
-            && reaches(translation, rotation, self.centre.to_array(), HORN_RADIUS_M)
-    }
-
-    /// Whether the blast reaches a hazard or a projectile centred at
-    /// `point` with spline `progress`.
-    fn reaches_point(&self, point: [f32; 3], progress: f32) -> bool {
-        let (dx, dz) = (point[0] - self.centre.x, point[2] - self.centre.z);
-        self.within_window(progress) && dx * dx + dz * dz <= HORN_RADIUS_M * HORN_RADIUS_M
-    }
-}
-
-/// The Air Horn's blast from the kart in `firer`, at the fire (ADR 0076).
-/// Every other kart in reach spins out, `SpunOut { by: Some(firer) }`,
-/// unless it trails a hazard, which is used up in its place as a
-/// projectile's hit uses it, or is a star kart or already spun out, which
-/// the blast leaves alone, trailed hazard and all. Every hazard lying on
-/// the road in reach is used up, the firer's own included; one the firer
-/// trails stays. Every projectile in reach is used up, whoever it chases.
-/// The runaway wheel, the item boxes and the coins are not touched.
-fn blast_horn(state: &mut State, firer: usize) {
-    let blast = HornBlast::new(
-        &state.track,
-        state.physics.bodies[state.karts[firer].body].translation(),
-        state.karts[firer].spline_progress,
-    );
-    for slot in 0..state.karts.len() {
-        // The lane is safe ground, whatever reaches across the pit wall.
-        if state.in_pit_lane(slot) {
-            continue;
-        }
-        let kart = &mut state.karts[slot];
-        let body = &mut state.physics.bodies[kart.body];
-        if slot == firer
-            || kart.spun_out()
-            || kart.starring()
-            || !blast.reaches_kart(body.translation(), body.rotation(), kart.spline_progress)
-        {
-            continue;
-        }
-        let shield = state
-            .hazards
-            .iter()
-            .position(|placed| placed.hazard.held && placed.hazard.owner == slot);
-        match shield {
-            Some(index) => {
-                state.hazards.remove(index);
-            }
-            None => spin_out(kart, body, slot, Some(firer), &mut state.events),
-        }
-    }
-    state.hazards.retain(|placed| {
-        placed.hazard.held || !blast.reaches_point(placed.hazard.position, placed.progress)
-    });
-    state
-        .projectiles
-        .retain(|flying| !blast.reaches_point(flying.projectile.position, flying.progress));
 }
 
 impl Physics {
