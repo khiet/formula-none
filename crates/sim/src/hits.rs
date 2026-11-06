@@ -437,8 +437,8 @@ mod tests {
             .expect("the oval loads")
     }
 
-    /// An ordinary kart facing -Z at `x` along a line, each kart 20 m from
-    /// the next so no item reaches two.
+    /// An ordinary kart facing -Z at `x` along a line. Tests space karts
+    /// 20 m apart so no item reaches two.
     fn kart(x: f32) -> Target {
         Target {
             translation: Vec3::new(x, 0.3, 0.0),
