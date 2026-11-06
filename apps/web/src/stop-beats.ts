@@ -1,8 +1,7 @@
 // The beats of a stop in a pit box (ADR 0082), on the stop clock: seconds
 // since the kart stood on its mark, negative through the guide onto it and
 // past the stationary time after green. The crew's stance and the kart on
-// its jacks read them here, and so will the stop's sound cues, so a pose and
-// its sound never part. Presentation only: the sim rolls the stop and
+// its jacks read them here. Presentation only: the sim rolls the stop and
 // nothing here enters it.
 
 import type { Stop, StopTier } from "./bridge";
@@ -117,7 +116,7 @@ export const RELEASE = {
   eyesAhead: -0.5,
 } as const;
 
-/** The crew walks back to its row this long after the hold, and is back by this. */
+/** The crew is back in its row this long after the hold ends. */
 export const CREW_BACK_S = 2.5;
 
 /** The jacks lift the kart this far. */

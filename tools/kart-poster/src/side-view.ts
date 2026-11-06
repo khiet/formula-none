@@ -41,7 +41,7 @@ const sameFace = (a: Face, b: Face) =>
 /** The wheels turn as `.wheel` groups, so each is drawn whole, every face of it, hidden at rest or not. */
 const moving = (node: string) => node.startsWith("wheel-");
 
-/** The kinds of face part a face wears one of at most, by the prefix of their node names. */
+/** The kinds of face part a face wears at most one of, by the prefix of their node names. */
 const KINDS = ["hair-", "facial-hair-", "brows-", "nose-", "mouth-"];
 
 /** The parts a face may or may not wear; everything else is always drawn. */

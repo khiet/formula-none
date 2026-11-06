@@ -456,7 +456,7 @@ function jackMemberKeys(end: "front" | "rear", work: CrewWork): Key[] {
   const jack = jackKeys(end, work);
   const working = (key: Key, pose: Pose): Key => ({ ...key, ...behind(key), pose });
   const keys: Key[] = [rowSpot(member)];
-  // Every move of the jack is the member's, a lever's length behind it.
+  // The member follows each move of the jack, a lever's length behind it.
   for (const key of jack.slice(1, -1)) keys.push(working(key, "jack"));
   const under = keys[keys.length - 2] as Key;
   keys.push(still(under, upFrom + lag, { pose: "jackPush" }));

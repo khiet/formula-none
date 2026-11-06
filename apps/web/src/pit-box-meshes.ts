@@ -162,7 +162,8 @@ function frameYaw(buildingSide: 1 | -1, yaw: number): number {
 
 /**
  * Where each part of a box's kit sits among its instances, boxes and drums
- * apart: each gun has two of each, each jack five boxes and two drums.
+ * apart: each gun has two of each, each jack five boxes and two drums, the
+ * lollipop one of each.
  */
 const KIT_BOXES = { guns: 0, jacks: 8, pole: 18, count: 19 } as const;
 const KIT_DRUMS = { guns: 0, jackWheels: 8, disc: 12, count: 13 } as const;
@@ -234,7 +235,7 @@ function headPieces(head: Object3D, figures: number): HeadPiece[] {
   return pieces;
 }
 
-/** A sign face: its word in the Instrument panel's pixel face, once the face is loaded. */
+/** A sign face: its word in the Instrument panel's pixel face, redrawn once the face has loaded. */
 function signFace(word: string, background: number, ink: number): Material {
   const material = new MeshLambertMaterial({ color: background });
   if (typeof document === "undefined") return material;
@@ -626,7 +627,7 @@ export function pitBoxMeshes(
           }
           const gunner = member - FIRST_GUNNER;
           if (gunner >= 0 && gunner < 4) {
-            // The gun in both hands in front of the chest, on its air line from the boom.
+            // The gun in front of the chest, on its air line from the boom.
             joint(gun, torso, 0.1, 0.1, 0.42);
             joint(kit, gun, 0, 0, 0.1, Math.PI / 2);
             part(kitDrums, slot, KIT_DRUMS.guns + gunner * 2, kit, [0, 0, 0], [0.05, 0.3, 0.05]);

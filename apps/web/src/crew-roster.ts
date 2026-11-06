@@ -25,7 +25,7 @@ export const CREW_HEIGHT_RANGE = [0.92, 1.08] as const;
 const HAIR_COLOURS = [
   0x1a1210, 0x8a6a48, 0x5a3a22, 0x6b4528, 0x1c1c1f, 0x241a14, 0xb8955a, 0xc9c3b8, 0xa83a1e,
 ];
-/** Most of the crew is clean-shaven. */
+/** Weighted toward clean-shaven. */
 const FACIAL_POOL: readonly FacialHair[] = ["none", "none", ...FACIAL_HAIRS];
 
 /** mulberry32: a small seeded uniform [0, 1) source. */

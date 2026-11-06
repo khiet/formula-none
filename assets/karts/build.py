@@ -154,7 +154,7 @@ class Part:
     def ring(
         self, material: str, centre: tuple[float, float, float], radius: float, thickness: float, arc: float, axis: str
     ) -> None:
-        """An octagonal hoop of bars round `axis` through `centre`, from straight up through `arc` radians."""
+        """An octagonal hoop of bars round `axis` through `centre`: an arc of `arc` radians centred on straight up."""
         segments = max(2, round(8 * arc / (2 * math.pi)))
         points = []
         for k in range(segments + 1):
