@@ -16,7 +16,7 @@
 // crew's sounds fire as the stop clock crosses the beats the crew's poses
 // read, so none plays for a movement the player cannot see.
 
-import type { KartReadout, MiniTurbo, Stop, StopTier, Surface } from "./bridge";
+import type { KartReadout, MiniTurbo, Stop, StopTier, Surface, Tuning } from "./bridge";
 import { stopClock } from "./crew-stance";
 import { DRONE_WARNING_M, droneWarned, incomingDroneMetres } from "./drone-warning";
 import type { Item, Start } from "./generated/sim";
@@ -145,14 +145,14 @@ export interface NearestStar {
 
 /**
  * The reading of `kart`, the own kart, from its readout and standing in
- * `race`, the item slot and the phase, with `cleanStopSeconds` a clean
- * stop's longest from the sim's tuning and `boxCall` whether the BOX call
+ * `race`, the item slot and the phase, with `tuning.stopCleanS` a clean
+ * stop's longest and `boxCall` whether the BOX call
  * shows. Throws when `race` has no such kart.
  */
 export function soundReading(
   race: RaceReadout,
   kart: number,
-  cleanStopSeconds: number,
+  tuning: Pick<Tuning, "stopCleanS">,
   boxCall = false,
 ): SoundReading {
   const readout = race.karts[kart];
@@ -186,7 +186,7 @@ export function soundReading(
     starSeconds: readout.starS,
     towed: readout.slipstream !== null && "tow" in readout.slipstream,
     boxCall,
-    stop: heardStop(readout.stop, cleanStopSeconds),
+    stop: heardStop(readout.stop, tuning.stopCleanS),
     nearestStar: nearestStar(race.karts, kart),
     blasts: race.blasts
       .filter((blast) => blast.kart !== kart)

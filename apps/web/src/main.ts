@@ -1,16 +1,16 @@
 import { createAudio } from "./audio";
 import { loadAudioSettings, saveAudioSettings } from "./audio-settings";
 import { type Bridge, loadBridge, type Picks } from "./bridge";
-import { connect, serverUrls } from "./connection";
+import { connect, serverUrls, webTransportTimeoutMs } from "./connection";
 import type { CourseChoice } from "./course-preview";
 import { type InstrumentPanel, loadInstrumentFont } from "./instrument-panel";
 import { localRaceRun } from "./local-race";
-import { loadNickname, saveNickname } from "./nickname";
+import { loadNickname, nicknameChars, saveNickname } from "./nickname";
 import { pickOffer } from "./picks";
-import { ping } from "./ping";
+import { ping, pingTiming } from "./ping";
 import type { RaceRun } from "./race-run";
 import { createRaceScene } from "./race-scene";
-import { type Gone, keepConnected, type RaceLink } from "./reconnect";
+import { type Gone, keepConnected, type RaceLink, reconnectTiming } from "./reconnect";
 import { createResultsScene, type RaceResults, resultsRows } from "./results-scene";
 import { type Countdown, RefusedError, type RoomClient } from "./room-client";
 import { roomFromSearch, roomLink, roomSearch } from "./room-link";
@@ -70,10 +70,10 @@ function reportConnection(bridge: Bridge): ConnectionReadout {
     try {
       const connection = await connect({
         ...serverUrls(window.location),
-        webTransportTimeoutMs: bridge.webTransportTimeoutMs,
+        webTransportTimeoutMs: webTransportTimeoutMs(bridge.tuning),
       });
       const nonce = Math.floor(Math.random() * 0x1_0000_0000);
-      const rtt = await ping(connection, bridge, nonce, bridge.pingTiming);
+      const rtt = await ping(connection, bridge, nonce, pingTiming(bridge.tuning));
       report(`${connection.transport} ${Math.round(rtt)} ms`);
       connection.closed.then(() => report("offline"));
     } catch (error) {
@@ -218,8 +218,7 @@ async function main(container: HTMLElement): Promise<void> {
   let audioSettings = loadAudioSettings(window.localStorage);
   const audio = createAudio({
     settings: audioSettings,
-    topSpeedMetresPerSecond: bridge.cameraTuning.topSpeedMetresPerSecond,
-    starRunSeconds: bridge.starSeconds,
+    tuning: bridge.tuning,
     fetchBytes,
     createContext: () => new AudioContext(),
   });
@@ -230,8 +229,8 @@ async function main(container: HTMLElement): Promise<void> {
     window.addEventListener(gesture, unlockAudio);
   }
   let course = loadCoursePick(window.localStorage);
-  const offer = pickOffer(bridge.pickChoices);
-  let picks = loadPicks(window.localStorage, offer, bridge.freshPicks);
+  const offer = pickOffer(bridge.tuning.pickChoices);
+  let picks = loadPicks(window.localStorage, offer, bridge.tuning.freshPicks);
   // A tester's `?track=` and picks (`?bots=`, `?tyres=`, `?laps=`) win over the picks made, so a solo race can run any track, the oval included, as any picks.
   const trackOverride = trackFromSearch(window.location.search);
   const picksOverride = picksFromSearch(window.location.search, offer);
@@ -242,7 +241,7 @@ async function main(container: HTMLElement): Promise<void> {
   const connectToServer = () =>
     connect({
       ...serverUrls(window.location),
-      webTransportTimeoutMs: bridge.webTransportTimeoutMs,
+      webTransportTimeoutMs: webTransportTimeoutMs(bridge.tuning),
     });
 
   const mountTitle = ({ message = "", code = "" }: TitleStep) => {
@@ -254,12 +253,12 @@ async function main(container: HTMLElement): Promise<void> {
         code,
         message,
         audio: audioSettings,
-        nicknameChars: bridge.nicknameChars,
-        roomCodeLength: bridge.roomCodeLength,
+        nicknameChars: nicknameChars(bridge.tuning),
+        roomCodeLength: bridge.tuning.roomCodeLength,
         courses,
         course,
         picks,
-        pickChoices: bridge.pickChoices,
+        pickChoices: bridge.tuning.pickChoices,
         reducedMotion,
       },
       {
@@ -334,7 +333,7 @@ async function main(container: HTMLElement): Promise<void> {
         slot: client.slot,
         room: client.room,
         link: roomLink(window.location, client.room.code),
-        capacity: bridge.kartsPerRace,
+        capacity: bridge.tuning.kartsPerRace,
         courses,
         reducedMotion,
       },
@@ -354,7 +353,7 @@ async function main(container: HTMLElement): Promise<void> {
     // Silence is not watched here: between races a dropped connection
     // frees the seat, so a rejoin over a merely quiet one would lose it.
     const link = keepConnected(client, {
-      timing: bridge.reconnectTiming,
+      timing: reconnectTiming(bridge.tuning),
       connect: connectToServer,
       silence: false,
     });
@@ -389,7 +388,7 @@ async function main(container: HTMLElement): Promise<void> {
     const nickname = (kart: number) =>
       players.find((player) => player.slot === countdown.grid[kart])?.nickname;
     const link = keepConnected(client, {
-      timing: bridge.reconnectTiming,
+      timing: reconnectTiming(bridge.tuning),
       connect: connectToServer,
     });
     return mountRace(

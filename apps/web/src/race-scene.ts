@@ -55,7 +55,8 @@ export async function createRaceScene(
   nickname: (kart: number) => string | undefined,
   audio: RaceAudio,
 ): Promise<RaceScene> {
-  const tickSeconds = 1 / bridge.ticksPerSecond;
+  const { tuning } = bridge;
+  const tickSeconds = 1 / tuning.ticksPerSecond;
   const isBot = (kart: number): boolean => kart >= run.humanCount;
   const name = (kart: number): string =>
     kartName({ localKart: run.localKart, isBot, nickname }, kart);
@@ -85,48 +86,35 @@ export async function createRaceScene(
   const [view] = await Promise.all([
     createRaceView(
       container,
-      bridge.kartsPerRace,
-      bridge.kartSize,
       { trackGltfUrl: track.gltfUrl, kartGltfUrl: KART_GLTF_URL },
       run.itemBoxes(),
       run.coins(),
       pitLane?.pitBoxes ?? [],
-      {
-        spinOutSeconds: bridge.spinOutSeconds,
-        runawayWheelRadiusMetres: bridge.runawayWheelRadiusMetres,
-        hornRadiusMetres: bridge.hornRadiusMetres,
-        slipstreamChargeSeconds: bridge.slipstreamChargeSeconds,
-        tyreLifeCliff: bridge.tyreLifeCliff,
-        cleanStopSeconds: bridge.cleanStopSeconds,
-        pitBoxGuideSeconds: bridge.pitBoxGuideSeconds,
-      },
+      tuning,
       (karts) => kartLabels(karts, run.localKart, name),
       { localKart: run.localKart, reducedMotion },
     ),
     loadInstrumentFont(),
   ]);
-  const camera = createChaseCamera(bridge.cameraTuning, { reducedMotion });
+  const camera = createChaseCamera(tuning, { reducedMotion });
   const panel = createInstrumentPanel(
     container,
     run.laps,
-    { centreline, pitLane: pitLane?.path, kartCount: bridge.kartsPerRace, ownKart: run.localKart },
-    {
-      coinTopSpeeds: bridge.coinTopSpeeds,
-      coinCap: bridge.coinCap,
-      tyreLifeNew: bridge.tyreLifeNew,
-      starSeconds: bridge.starSeconds,
-    },
+    { centreline, pitLane: pitLane?.path, kartCount: tuning.kartsPerRace, ownKart: run.localKart },
+    tuning,
     name,
     livery(run.localKart),
     { reducedMotion },
   );
 
-  const boxCall = createBoxCall({
-    // A course with a lane has a pit box to come in to (ADR 0082).
-    pitLane: pitLane !== undefined,
-    lapsPerRace: run.laps,
-    cliff: bridge.tyreLifeCliff,
-  });
+  const boxCall = createBoxCall(
+    {
+      // A course with a lane has a pit box to come in to (ADR 0082).
+      pitLane: pitLane !== undefined,
+      lapsPerRace: run.laps,
+    },
+    tuning,
+  );
 
   const present = (frameSeconds: number) => {
     const readout = run.readout();
@@ -138,7 +126,7 @@ export async function createRaceScene(
       panel.update(readout);
       const called = boxCall.update(local.tyreLife, standing.lap, frameSeconds);
       panel.boxCall(called);
-      audio.update(soundReading(readout, run.localKart, bridge.cleanStopSeconds, called));
+      audio.update(soundReading(readout, run.localKart, tuning, called));
     }
   };
   audio.start();

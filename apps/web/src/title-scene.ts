@@ -1,11 +1,10 @@
 import type { AudioSettings } from "./audio-settings";
-import type { NicknameChars } from "./bridge";
 import { button } from "./controls";
 import { type CourseChoice, createCoursePreview } from "./course-preview";
 import { flag } from "./flags";
 import type { PickChoices, Picks } from "./generated/sim";
 import { livery } from "./livery";
-import { validateNickname } from "./nickname";
+import { type NicknameChars, validateNickname } from "./nickname";
 import { PICK_ROWS, type PickRow, pickOffer } from "./picks";
 import { backdrop, kartSide } from "./poster";
 import { normaliseCode } from "./room-link";

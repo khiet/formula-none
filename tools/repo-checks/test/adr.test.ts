@@ -98,6 +98,7 @@ const DECISION_SLUGS = [
   "the-creators-picks-travel-as-one-value",
   "each-feedback-keeps-the-reading-it-diffs",
   "step-reads-the-kart-s-place-where-it-needs-it",
+  "the-client-reads-the-sims-tuning-by-its-generated-name",
 ];
 
 const expectedFiles = DECISION_SLUGS.map(

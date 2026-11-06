@@ -15,7 +15,6 @@ import init, {
 import type { ClientMessage, Input, ServerMessage, Snapshot } from "./generated/protocol";
 import type {
   KartReadings,
-  PickChoices,
   Picks,
   KartReadout as SimKartReadout,
   Standing,
@@ -33,6 +32,7 @@ export type {
   Stop,
   StopTier,
   Surface,
+  Tuning,
   Tyres,
 } from "./generated/sim";
 
@@ -245,24 +245,6 @@ export interface Prediction {
   correctionsPerSecond(): number;
 }
 
-export interface PingTiming {
-  readonly timeoutMs: number;
-  readonly resendMs: number;
-}
-
-export interface ReconnectTiming {
-  /** Silence from the server mid-race that counts as a lost connection. */
-  readonly silenceMs: number;
-  /** The wait after a failed reconnect before the next try. */
-  readonly retryMs: number;
-}
-
-/** Bounds on a nickname's length in characters, inclusive. */
-export interface NicknameChars {
-  readonly min: number;
-  readonly max: number;
-}
-
 /**
  * The protocol's messages as the bridge carries them across the wasm
  * boundary: a value of a generated type in, the postcard bytes out, and back
@@ -279,78 +261,17 @@ export interface MessageCodec {
   decodeServerMessage(bytes: Uint8Array): ServerMessage;
 }
 
-/** What the chase camera reads from the sim's tuning (ADR 0020): the speed its pull-back is scaled to, the hit's shake and the boost's kick. */
-export interface CameraTuning {
-  readonly topSpeedMetresPerSecond: number;
-  /** How much further back the camera sits at top speed than at a standstill. */
-  readonly pullBackMetres: number;
-  /** How long the camera shakes after the own kart is hit. */
-  readonly shakeSeconds: number;
-  /** How far the shake throws the camera as it starts. */
-  readonly shakeAmplitudeMetres: number;
-  /** The field of view off a boost, in degrees, vertically. */
-  readonly fieldOfViewDegrees: number;
-  /** The share the field of view widens by on a boost. */
-  readonly boostKick: number;
-  /** Seconds of boost left over which the kick eases back to nothing. */
-  readonly boostKickEaseSeconds: number;
-}
-
 export interface Bridge extends MessageCodec {
   /**
    * The protocol version this wasm build speaks; the same constant the
    * generated types export (ADR 0013).
    */
   readonly protocolVersion: number;
-  /** The sim's fixed tick rate; `step` is meant to be called this often with dt = 1 / rate. */
-  readonly ticksPerSecond: number;
-  /** The kart's box, read from the sim's tuning so the View never repeats it (ADR 0014). */
-  readonly kartSize: KartSize;
-  /** What a creator can pick from, each list in the Title Scene's order, from the sim's tuning (ADR 0014). */
-  readonly pickChoices: PickChoices;
-  /** The picks a creator starts from before picking anything, from the sim's tuning. */
-  readonly freshPicks: Picks;
-  /** Seconds the karts are held on the grid before Go (ADR 0014). */
-  readonly countdownSeconds: number;
-  /** Seconds a picked-up item box is gone before it is back (ADR 0014). */
-  readonly itemBoxRespawnSeconds: number;
-  /** Seconds a box's item rolls in the slot before it lands (ADR 0070), which the reel runs over. */
-  readonly itemRollSeconds: number;
-  /** The top speed in m/s on each count of coins a kart carries, from none to the cap (ADR 0055). */
-  readonly coinTopSpeeds: readonly number[];
-  /** The most coins a kart carries, the coin count's cap (ADR 0056). */
-  readonly coinCap: number;
-  /** The life of new tyres, as a percentage (ADR 0080). */
-  readonly tyreLifeNew: number;
-  /** The life, as a percentage, from which a kart shows wear and the BOX call comes. */
-  readonly tyreLifeCliff: number;
-  /** The longest a clean stop lasts (ADR 0082); past it a pit crew acts the roll out. */
-  readonly cleanStopSeconds: number;
-  /** How long the guide onto a pit box's mark takes (ADR 0081); the crew runs out as it starts. */
-  readonly pitBoxGuideSeconds: number;
-  /** Seconds a picked-up coin is gone before it is back (ADR 0055). */
-  readonly coinRespawnSeconds: number;
-  /** How long a fire predicted from a press shows before the server is taken not to have fired (ADR 0014). */
-  readonly predictedFireTimeoutSeconds: number;
-  /** Metres behind a kart a trailed hazard rides (ADR 0014). */
-  readonly hazardDropDistanceMetres: number;
-  /** How long a spin-out lasts (ADR 0014), which the spin animation runs once over. */
-  readonly spinOutSeconds: number;
-  /** How long a star's run lasts (ADR 0075), which the panel's ring counts down and the star music is joined against. */
-  readonly starSeconds: number;
-  /** How long a wake takes to charge (ADR 0077), which the wind lines build over. */
-  readonly slipstreamChargeSeconds: number;
-  /** How far the Air Horn's blast reaches, which the View's ring grows to. */
-  readonly hornRadiusMetres: number;
-  /** The runaway wheel's reach (ADR 0014), which the View draws as its radius. */
-  readonly runawayWheelRadiusMetres: number;
-  /** The chase camera's pull-back and shake, from the sim's tuning (ADR 0020). */
-  readonly cameraTuning: CameraTuning;
   /**
-   * Karts on the grid, from the sim's tuning; bots fill the slots the humans
-   * leave (ADR 0014).
+   * The sim's tuning as `tuning.rs` names it (ADR 0026); every reader takes
+   * the fields it needs by their generated names.
    */
-  readonly kartsPerRace: number;
+  readonly tuning: Tuning;
   /**
    * A race on the track described by `sidecar` (the JSON exported next to its
    * glTF) with `humanCount` karts on the front of its spawn grid and
@@ -374,25 +295,13 @@ export interface Bridge extends MessageCodec {
    * picks are not ones a creator can make.
    */
   createPrediction(seed: bigint, kart: number, sidecar: string, picks: Picks): Prediction;
-  /** A replay's hashes are kept every this many ticks. */
-  readonly replayHashIntervalTicks: number;
   /**
    * Rerun a replay (the JSON the sim's `replay` module documents) in wasm on
    * the track described by `sidecar` and report the state hash at every
-   * `replayHashIntervalTicks`th tick. Throws, with the sim's reason, when the
+   * `tuning.replayHashIntervalTicks`th tick. Throws, with the sim's reason, when the
    * replay is unreadable or the sidecar is not the replay's track.
    */
   replayHashes(replay: string, sidecar: string): bigint[];
-  /** How long WebTransport may take to connect before the WebSocket fallback (ADR 0011). */
-  readonly webTransportTimeoutMs: number;
-  /** How long a Ping waits for its Pong, and how often it is sent again meanwhile. */
-  readonly pingTiming: PingTiming;
-  /** When a race's connection counts as lost, and how often it is tried again (ADR 0012). */
-  readonly reconnectTiming: ReconnectTiming;
-  /** How long a nickname may be, from the sim's tuning (ADR 0014). */
-  readonly nicknameChars: NicknameChars;
-  /** Letters in a room code (ADR 0012). */
-  readonly roomCodeLength: number;
 }
 
 // Buffer layouts the bridge crate documents on Race::step, Race::kart_transforms
@@ -418,41 +327,9 @@ type ReadoutPair = [SimKartReadout, KartReadings];
 export async function loadBridge(wasm?: BufferSource): Promise<Bridge> {
   await init(wasm === undefined ? undefined : { module_or_path: wasm });
   const tuned = rethrown(() => tuning() as Tuning);
-  const [width, height, length] = tuned.kartSizeM;
   return {
     protocolVersion: protocol_version(),
-    ticksPerSecond: tuned.ticksPerSecond,
-    kartSize: { width, height, length },
-    pickChoices: tuned.pickChoices,
-    freshPicks: tuned.freshPicks,
-    countdownSeconds: tuned.countdownS,
-    itemBoxRespawnSeconds: tuned.itemBoxRespawnS,
-    itemRollSeconds: tuned.itemRollS,
-    coinTopSpeeds: tuned.coinTopSpeedsMPerS,
-    coinCap: tuned.coinCap,
-    tyreLifeNew: tuned.tyreLifeNewPercent,
-    tyreLifeCliff: tuned.tyreLifeCliffPercent,
-    cleanStopSeconds: tuned.stopCleanS,
-    pitBoxGuideSeconds: tuned.pitBoxGuideS,
-    coinRespawnSeconds: tuned.coinRespawnS,
-    predictedFireTimeoutSeconds: tuned.predictedFireTimeoutS,
-    hazardDropDistanceMetres: tuned.hazardDropDistanceM,
-    spinOutSeconds: tuned.spinOutS,
-    starSeconds: tuned.starS,
-    slipstreamChargeSeconds: tuned.slipstreamChargeS,
-    hornRadiusMetres: tuned.hornRadiusM,
-    runawayWheelRadiusMetres: tuned.wheelRadiusM,
-    cameraTuning: {
-      topSpeedMetresPerSecond: tuned.topSpeedMPerS,
-      pullBackMetres: tuned.cameraPullBackM,
-      shakeSeconds: tuned.cameraShakeS,
-      shakeAmplitudeMetres: tuned.cameraShakeAmplitudeM,
-      fieldOfViewDegrees: tuned.cameraFieldOfViewDeg,
-      boostKick: tuned.cameraBoostKick,
-      boostKickEaseSeconds: tuned.cameraBoostKickEaseS,
-    },
-    kartsPerRace: tuned.kartsPerRace,
-    replayHashIntervalTicks: tuned.replayHashIntervalTicks,
+    tuning: tuned,
     createRace(seed, humanCount, botCount, sidecar, picks) {
       return new BridgedRace(
         rethrown(() => new WasmRace(seed, humanCount, botCount, sidecar, picks)),
@@ -469,14 +346,6 @@ export async function loadBridge(wasm?: BufferSource): Promise<Bridge> {
     replayHashes(replay, sidecar) {
       return Array.from(rethrown(() => replay_hashes(replay, sidecar)));
     },
-    webTransportTimeoutMs: tuned.webtransportConnectTimeoutS * 1000,
-    pingTiming: { timeoutMs: tuned.pingTimeoutS * 1000, resendMs: tuned.pingResendS * 1000 },
-    reconnectTiming: {
-      silenceMs: tuned.connectionSilenceS * 1000,
-      retryMs: tuned.reconnectRetryS * 1000,
-    },
-    nicknameChars: { min: tuned.nicknameMinChars, max: tuned.nicknameMaxChars },
-    roomCodeLength: tuned.roomCodeLength,
     encodeClientMessage(message) {
       return rethrown(() => encode_client_message(message));
     },

@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import type { Tuning } from "./bridge";
 import {
   coinCount,
   coinTopSpeed,
@@ -13,9 +14,10 @@ const TOP_SPEED = 30;
 // The sim's tuned coins: ten at most, each worth 1% of top speed.
 const COIN_CAP = 10;
 const TUNING = {
-  coinTopSpeeds: Array.from({ length: COIN_CAP + 1 }, (_, coins) => TOP_SPEED * (1 + coins * 0.01)),
-  coinCap: COIN_CAP,
-  tyreLifeNew: 100,
+  coinTopSpeedsMPerS: Array.from(
+    { length: COIN_CAP + 1 },
+    (_, coins) => TOP_SPEED * (1 + coins * 0.01),
+  ) as Tuning["coinTopSpeedsMPerS"],
 };
 
 describe("the gear", () => {

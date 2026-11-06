@@ -33,7 +33,7 @@ function thrown(
   const lines = createWindLines(
     particles,
     SIZE,
-    { reducedMotion, chargeSeconds: 1 },
+    { reducedMotion, slipstreamChargeS: 1 },
     fixedRandom(),
   );
   for (let frame = 0; frame < frames; frame++) {
@@ -62,7 +62,7 @@ describe("wind lines", () => {
 
   it("carries every line past the kart within its life, even from a standstill", () => {
     const particles = createWindParticles();
-    const lines = createWindLines(particles, SIZE, { chargeSeconds: 1 }, fixedRandom());
+    const lines = createWindLines(particles, SIZE, { slipstreamChargeS: 1 }, fixedRandom());
     lines.emit(kartReadout({ boostS: 1, speed: 0 }), FRAME_S);
     for (let frame = 0; frame < 26; frame++) {
       particles.update(FRAME_S);

@@ -6,6 +6,8 @@
 // stream of length-prefixed frames; over WebSocket both ride the socket.
 // Callers see one `Connection`; `transport` says which.
 
+import type { Tuning } from "./bridge";
+
 export type Transport = "webtransport" | "websocket";
 
 /** Which delivery a message gets; the WebSocket fallback gives both the same. */
@@ -68,6 +70,11 @@ export interface ConnectOptions {
   readonly webSocketUrl: string;
   /** How long WebTransport may take to become ready before the fallback. */
   readonly webTransportTimeoutMs: number;
+}
+
+/** The sim's WebTransport connect timeout (ADR 0011), in the milliseconds `connect` waits. */
+export function webTransportTimeoutMs(tuning: Pick<Tuning, "webtransportConnectTimeoutS">): number {
+  return tuning.webtransportConnectTimeoutS * 1000;
 }
 
 /** Bytes of the length prefix on each frame of the reliable stream. */

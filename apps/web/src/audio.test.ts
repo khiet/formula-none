@@ -258,8 +258,7 @@ function harness(settings = DEFAULT_AUDIO_SETTINGS): Harness {
   const contexts: FakeContext[] = [];
   const audio = createAudio({
     settings,
-    topSpeedMetresPerSecond: TOP_SPEED,
-    starRunSeconds: STAR_RUN_S,
+    tuning: { topSpeedMPerS: TOP_SPEED, starS: STAR_RUN_S },
     fetchBytes(url) {
       fetched.push(url);
       return Promise.resolve(bytesOf(url));
@@ -806,8 +805,7 @@ describe("a sound that fails to load", () => {
     const missing = [SOUND_URLS.hop, LOOP_URLS.driftSkid];
     const audio = createAudio({
       settings: DEFAULT_AUDIO_SETTINGS,
-      topSpeedMetresPerSecond: TOP_SPEED,
-      starRunSeconds: STAR_RUN_S,
+      tuning: { topSpeedMPerS: TOP_SPEED, starS: STAR_RUN_S },
       fetchBytes(url) {
         fetched.push(url);
         return missing.includes(url)

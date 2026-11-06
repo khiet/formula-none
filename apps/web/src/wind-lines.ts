@@ -7,7 +7,7 @@
 // show their boosts by the flame and their tows by nothing. Presentation
 // only, decided from the own kart's readout.
 
-import type { KartReadout, KartSize } from "./bridge";
+import type { KartReadout, KartSize, Tuning } from "./bridge";
 import type { Slipstream } from "./generated/sim/Slipstream";
 import { rotate, toWorld, type Vec3 } from "./kart-frame";
 import { createParticles, type Particles } from "./particles";
@@ -93,11 +93,10 @@ export function windRate(
   return WIND_LEAST_RATE_PER_S * Math.min(Math.max(kart.slipstream.charging.s, 0) / chargeS, 1);
 }
 
-export interface WindLinesOptions {
+/** `slipstreamChargeS` is the sim's seconds a wake takes to charge, which the charge's rate climbs over (ADR 0014). */
+export interface WindLinesOptions extends Pick<Tuning, "slipstreamChargeS"> {
   /** The viewer asked for less motion: far fewer lines. */
   readonly reducedMotion?: boolean;
-  /** Seconds a wake takes to charge, which the charge's rate climbs over: the sim's tuned value, from the bridge (ADR 0014). */
-  readonly chargeSeconds: number;
 }
 
 export interface WindLines {
@@ -123,7 +122,7 @@ export function createWindLines(
   random: () => number = Math.random,
 ): WindLines {
   const share = options.reducedMotion === true ? WIND_REDUCED_SHARE : 1;
-  const chargeS = options.chargeSeconds;
+  const chargeS = options.slipstreamChargeS;
   let owed = 0;
   const position: Vec3 = [0, 0, 0];
   const velocity: Vec3 = [0, 0, 0];
