@@ -260,30 +260,31 @@ async fn a_room_created_without_picks_races_the_fresh_ones() {
 }
 
 #[tokio::test]
-async fn a_room_created_missing_a_pick_races_it_as_before_there_was_one() {
-    let (app, rooms, _stop) = app();
-    let (status, body) = create(app, Body::from(r#"{ "picks": { "laps": 5 } }"#)).await;
-    assert_eq!(status, StatusCode::CREATED);
-    let room = rooms.view(body["code"].as_str().unwrap()).unwrap();
-    assert_eq!(
-        room.picks,
-        Picks {
-            laps: 5,
-            ..Picks::default()
-        }
-    );
-}
-
-#[tokio::test]
 async fn a_room_at_a_pick_nobody_can_make_is_refused_and_not_opened() {
     for picks in [
-        r#"{ "laps": 4 }"#,
-        r#"{ "tyres": "slick" }"#,
-        r#"{ "level": "wild" }"#,
+        r#"{ "level": "basic", "tyres": "off", "laps": 4 }"#,
+        r#"{ "level": "basic", "tyres": "slick", "laps": 3 }"#,
+        r#"{ "level": "wild", "tyres": "off", "laps": 3 }"#,
     ] {
         let (app, rooms, _stop) = app();
         let (status, _) = create(app, Body::from(format!(r#"{{ "picks": {picks} }}"#))).await;
         assert_eq!(status, StatusCode::BAD_REQUEST, "{picks}");
         assert!(rooms.codes().is_empty(), "{picks}: {:?}", rooms.codes());
+    }
+}
+
+#[tokio::test]
+async fn a_create_missing_a_pick_or_naming_more_is_refused_and_not_opened() {
+    for body in [
+        // A pick left out would race as before there was one, not as picked.
+        r#"{ "picks": { "level": "ace", "laps": 5 } }"#,
+        r#"{ "picks": { "level": "ace", "tyres": "on", "laps": 5, "weather": "rain" } }"#,
+        // A page from before the picks were one value.
+        r#"{ "track": "goldstone", "botLevel": "ace", "tyres": "on", "laps": 5 }"#,
+    ] {
+        let (app, rooms, _stop) = app();
+        let (status, _) = create(app, Body::from(body)).await;
+        assert_eq!(status, StatusCode::BAD_REQUEST, "{body}");
+        assert!(rooms.codes().is_empty(), "{body}: {:?}", rooms.codes());
     }
 }

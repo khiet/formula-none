@@ -27,9 +27,10 @@ fourth would do it again.
 - `State`, `Prediction`, a replay, the bridge's race and prediction, the
   wire's `Room` and `Countdown`, the server's room and its race take the one
   value. No pick crosses the wasm seam as a string.
-- `POST /api/rooms` takes `{ track, picks }`. No `picks` is `FRESH_PICKS`; a
-  pick missing from `picks` is as `Picks::default` has it; a pick no creator
-  can make is a 400 and no room opens.
+- `POST /api/rooms` takes `{ track, picks }`. No `picks` is `FRESH_PICKS`.
+  An unknown field, a `picks` missing a pick or naming more, or a pick no
+  creator can make is a 400 and no room opens, so a page loaded before this
+  is refused rather than raced on picks its creator never made.
 - A replay and a kept room write the picks as fields of their own, so the
   replay format and the fixtures' hashes do not change, and a file without a
   pick reads it as `Picks::default`. A room kept before this keeps its level

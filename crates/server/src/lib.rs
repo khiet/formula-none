@@ -57,13 +57,35 @@ struct CreatedRoom {
 /// What a create may ask for: the track the room races, fixed for the
 /// room (ADR 0061), and the creator's picks, fixed likewise. A create with
 /// no body, or one naming no track, races the server's default; one naming
-/// no picks races [`FRESH_PICKS`], and one missing a pick races it as
-/// [`Picks::default`] has it. An unknown pick is refused rather than raced.
+/// no picks races [`FRESH_PICKS`]. An unknown field, a pick missing from
+/// `picks` or one no creator can make is refused rather than raced, so a
+/// page from before the picks were one value cannot open a room on picks
+/// its creator never made.
 #[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct CreateRoom {
     track: Option<String>,
-    picks: Option<Picks>,
+    picks: Option<serde_json::Map<String, serde_json::Value>>,
+}
+
+/// `picks` as a create names them, when it names every pick and nothing
+/// else. [`Picks`] reads a missing pick as before there was one, which suits
+/// a kept room but not a creator's choice.
+fn every_pick(picks: serde_json::Map<String, serde_json::Value>) -> Option<Picks> {
+    let serde_json::Value::Object(every) =
+        serde_json::to_value(Picks::default()).expect("picks are JSON-encodable")
+    else {
+        unreachable!("picks encode as an object");
+    };
+    let named = |map: &serde_json::Map<String, serde_json::Value>| {
+        map.keys()
+            .cloned()
+            .collect::<std::collections::BTreeSet<_>>()
+    };
+    if named(&picks) != named(&every) {
+        return None;
+    }
+    serde_json::from_value(serde_json::Value::Object(picks)).ok()
 }
 
 /// The body is read as JSON whatever its content type says, so a create
@@ -86,11 +108,12 @@ async fn create_room(
         None => None,
         Some(track) => Some(tracks::known(&track).ok_or(StatusCode::BAD_REQUEST)?),
     };
-    let picks = request
-        .picks
-        .unwrap_or(FRESH_PICKS)
-        .offered()
-        .map_err(|_| StatusCode::BAD_REQUEST)?;
+    let picks = match request.picks {
+        None => FRESH_PICKS,
+        Some(picks) => every_pick(picks).ok_or(StatusCode::BAD_REQUEST)?,
+    }
+    .offered()
+    .map_err(|_| StatusCode::BAD_REQUEST)?;
     let code = state
         .rooms
         .create_with(track, picks, forwarded_address(&headers))
