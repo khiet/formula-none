@@ -102,8 +102,8 @@ const JACK_RED = POSTER_RED.mid;
 
 /**
  * What the pit boxes read of the stop's tuning: a clean stop's longest, past
- * which the crew acts the roll out, and the guide onto the mark, which the
- * crew runs out at the start of.
+ * which the crew acts the roll out, and the guide onto the mark, as whose
+ * start the crew runs out.
  */
 export type PitBoxTuning = Pick<Tuning, "stopCleanS" | "pitBoxGuideS">;
 

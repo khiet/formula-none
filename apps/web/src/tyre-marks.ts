@@ -27,7 +27,7 @@ export interface TyreMarks {
   readonly capacity: number;
 }
 
-/** The sim's cliff, as tyre life under which a kart lays darker marks; none by default. */
+/** `tyreLifeCliffPercent` is the sim's cliff: a kart under it lays darker marks. Without it none do. */
 export interface TyreMarkOptions extends Partial<Pick<Tuning, "tyreLifeCliffPercent">> {
   /** Seconds a mark takes to fade away. */
   readonly lifetimeSeconds?: number;

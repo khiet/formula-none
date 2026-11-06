@@ -93,7 +93,7 @@ export function windRate(
   return WIND_LEAST_RATE_PER_S * Math.min(Math.max(kart.slipstream.charging.s, 0) / chargeS, 1);
 }
 
-/** The sim's seconds a wake takes to charge, which the charge's rate climbs over (ADR 0014). */
+/** `slipstreamChargeS` is the sim's seconds a wake takes to charge, which the charge's rate climbs over (ADR 0014). */
 export interface WindLinesOptions extends Pick<Tuning, "slipstreamChargeS"> {
   /** The viewer asked for less motion: far fewer lines. */
   readonly reducedMotion?: boolean;
