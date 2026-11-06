@@ -10,9 +10,9 @@ use common::{
     LANE_LOOK_AHEAD_M, SEED,
 };
 use sim::tuning::{HAZARD_DROP_DISTANCE_M, PIT_LIMIT_M_PER_S, TYRE_WEAR_ROLLING_PER_S};
+use sim::Picks;
 use sim::{
-    step, BotLevel, Item, ItemSlot, KartInput, KartReadout, RaceEvent, State, Track, TrackError,
-    Tyres,
+    step, Item, ItemSlot, KartInput, KartReadout, RaceEvent, State, Track, TrackError, Tyres,
 };
 
 /// Metres short of the fork that a staged kart starts from, on the centreline.
@@ -50,13 +50,15 @@ fn assert_at_most_the_limit(kart: &KartReadout) {
 }
 
 fn race_on(sidecar: &str, karts: usize, tyres: Tyres) -> State {
-    started(State::with_tyres(
+    started(State::with_picks(
         SEED,
         karts,
         0,
         track(sidecar),
-        BotLevel::Basic,
-        tyres,
+        Picks {
+            tyres,
+            ..Picks::default()
+        },
     ))
 }
 

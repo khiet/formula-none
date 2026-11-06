@@ -3,7 +3,7 @@
 ## Status
 
 Accepted (2026-11-04). Supersedes ADR 0083's `Sprint` and `Grand Prix`: the
-counts, the default and the rest of that record stand.
+counts, the default and the rest of that record stand. ADR 0091 supersedes how it carries the pick: `POST /api/rooms`, the wire's `Room` and `Countdown` and the kept room take the picks as one value.
 
 ## Context
 

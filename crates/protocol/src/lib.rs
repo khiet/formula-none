@@ -22,7 +22,7 @@ pub mod samples;
 
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
-use sim::{BotLevel, Item, KartReadout, Tyres};
+use sim::{Item, KartReadout, Picks};
 use std::fmt;
 use ts_rs::TS;
 
@@ -30,7 +30,7 @@ use ts_rs::TS;
 /// [`ClientMessage::Join`] and the server refuses a mismatch with
 /// [`Refusal::VersionMismatch`] (ADR 0013). The generator exports it next to
 /// the types, so the web app reads the same constant.
-pub const PROTOCOL_VERSION: u16 = 26;
+pub const PROTOCOL_VERSION: u16 = 27;
 
 /// What a client sends the server.
 #[derive(Serialize, Deserialize, TS, Debug, Clone, PartialEq)]
@@ -140,19 +140,13 @@ pub enum ServerMessage {
     /// this track and runs the countdown in it (ADR 0002). `grid` is the
     /// room slot of each human kart in grid order, so a kart index in a
     /// snapshot or an event names a player through it; the karts behind
-    /// the humans, up to the race's grid, are bots, driving at `bot_level`
-    /// (ADR 0078), so a replay recorded from the client reruns the
-    /// server's race.
+    /// the humans, up to the race's grid, are bots. `picks` are the room's,
+    /// so the client's prediction, its Instrument panel and a replay
+    /// recorded from it run the server's race.
     Countdown {
         seed: u64,
         track: String,
-        bot_level: BotLevel,
-        /// Whether the tyres wear (ADR 0083), so the client's prediction
-        /// and a replay recorded from it run the server's race.
-        tyres: Tyres,
-        /// How many laps the race runs (ADR 0084), so the client's Instrument
-        /// panel and prediction count the server's race.
-        laps: u32,
+        picks: Picks,
         grid: Vec<u8>,
     },
     /// The authoritative state at a tick, on a datagram at the snapshot rate
@@ -206,15 +200,9 @@ pub struct Room {
     /// The track every race in the room runs on, picked by the creator at
     /// the create and fixed for the room (ADR 0061).
     pub track: String,
-    /// How hard the room's bots drive, picked by the creator at the create
-    /// and fixed for the room as the track is (ADR 0078).
-    pub bot_level: BotLevel,
-    /// Whether the room's tyres wear, picked by the creator at the create
-    /// and fixed for the room as the track is (ADR 0083).
-    pub tyres: Tyres,
-    /// How many laps the room's races run, picked by the creator at the
-    /// create and fixed for the room as the track is (ADR 0083).
-    pub laps: u32,
+    /// The creator's picks at the create, fixed for the room as the track
+    /// is (ADR 0078, ADR 0083, ADR 0084).
+    pub picks: Picks,
     pub state: RoomState,
     /// In slot order. A joiner takes the lowest free slot, so a room nobody
     /// has left lists its players in join order.

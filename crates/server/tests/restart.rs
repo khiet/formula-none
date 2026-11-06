@@ -13,7 +13,7 @@ use common::{drive_to_results, race_together};
 use protocol::{ClientMessage, PlayerState, Refusal, Room, RoomState, ServerMessage};
 use server::fake_transport::{Client, Conditions, Harness};
 use sim::tuning::{RESTORED_SEAT_GRACE_S, ROOM_CLOSE_AFTER_EMPTY_S};
-use sim::{BotLevel, Tyres};
+use sim::{BotLevel, Picks, Tyres};
 
 /// Two players in an Open room, both Ready, as a room stands while its
 /// creator reaches for Start. Returns the code and the clients in slot
@@ -390,10 +390,10 @@ async fn a_restored_room_nobody_returns_to_closes_and_stays_gone() {
     );
 }
 
-#[tokio::test(start_paused = true)]
-async fn a_room_kept_before_bot_levels_existed_comes_back_at_basic() {
+/// The room `kept` describes, as a player rejoining it after a restart sees it.
+async fn rejoined_after_a_restart(kept: &str) -> protocol::Room {
     let dir = tempfile::tempdir().unwrap();
-    std::fs::write(dir.path().join("WXYZ.json"), KEPT_FILE).unwrap();
+    std::fs::write(dir.path().join("WXYZ.json"), kept).unwrap();
 
     let mut after = Harness::kept_in(Conditions::PERFECT, dir.path());
     let mut client = after.connect();
@@ -401,90 +401,45 @@ async fn a_room_kept_before_bot_levels_existed_comes_back_at_basic() {
         .rejoin("WXYZ", "0123456789abcdef0123456789abcdef")
         .await
         .unwrap();
-    assert_eq!(room.bot_level, BotLevel::Basic);
+    room
 }
 
 #[tokio::test(start_paused = true)]
-async fn a_room_kept_before_the_tyres_pick_comes_back_off() {
-    let dir = tempfile::tempdir().unwrap();
-    std::fs::write(dir.path().join("WXYZ.json"), KEPT_FILE).unwrap();
-
-    let mut after = Harness::kept_in(Conditions::PERFECT, dir.path());
-    let mut client = after.connect();
-    let (_, room) = client
-        .rejoin("WXYZ", "0123456789abcdef0123456789abcdef")
-        .await
-        .unwrap();
-    assert_eq!(room.tyres, Tyres::Off);
+async fn a_room_kept_before_the_picks_comes_back_as_before_there_were_any() {
+    let room = rejoined_after_a_restart(KEPT_FILE).await;
+    assert_eq!(room.picks, Picks::default());
 }
 
 #[tokio::test(start_paused = true)]
-async fn a_room_kept_before_the_laps_pick_comes_back_at_three() {
-    let dir = tempfile::tempdir().unwrap();
-    std::fs::write(dir.path().join("WXYZ.json"), KEPT_FILE).unwrap();
-
-    let mut after = Harness::kept_in(Conditions::PERFECT, dir.path());
-    let mut client = after.connect();
-    let (_, room) = client
-        .rejoin("WXYZ", "0123456789abcdef0123456789abcdef")
-        .await
-        .unwrap();
-    assert_eq!(room.laps, 3);
+async fn a_room_kept_with_picks_comes_back_with_them() {
+    let room = rejoined_after_a_restart(&KEPT_FILE.replace(
+        "\"track\":\"oval\"",
+        "\"track\":\"oval\",\"level\":\"ace\",\"tyres\":\"on\",\"laps\":5",
+    ))
+    .await;
+    assert_eq!(
+        room.picks,
+        Picks {
+            level: BotLevel::Ace,
+            tyres: Tyres::On,
+            laps: 5,
+        }
+    );
 }
 
 #[tokio::test(start_paused = true)]
-async fn a_room_kept_at_five_laps_comes_back_at_them() {
-    let dir = tempfile::tempdir().unwrap();
-    std::fs::write(
-        dir.path().join("WXYZ.json"),
-        KEPT_FILE.replace("\"track\":\"oval\"", "\"track\":\"oval\",\"laps\":5"),
-    )
-    .unwrap();
-
-    let mut after = Harness::kept_in(Conditions::PERFECT, dir.path());
-    let mut client = after.connect();
-    let (_, room) = client
-        .rejoin("WXYZ", "0123456789abcdef0123456789abcdef")
-        .await
-        .unwrap();
-    assert_eq!(room.laps, 5);
-}
-
-#[tokio::test(start_paused = true)]
-async fn a_room_kept_with_tyres_on_comes_back_on() {
-    let dir = tempfile::tempdir().unwrap();
-    std::fs::write(
-        dir.path().join("WXYZ.json"),
-        KEPT_FILE.replace("\"track\":\"oval\"", "\"track\":\"oval\",\"tyres\":\"on\""),
-    )
-    .unwrap();
-
-    let mut after = Harness::kept_in(Conditions::PERFECT, dir.path());
-    let mut client = after.connect();
-    let (_, room) = client
-        .rejoin("WXYZ", "0123456789abcdef0123456789abcdef")
-        .await
-        .unwrap();
-    assert_eq!(room.tyres, Tyres::On);
-}
-
-#[tokio::test(start_paused = true)]
-async fn a_room_kept_at_a_bot_level_comes_back_at_it() {
-    let dir = tempfile::tempdir().unwrap();
-    std::fs::write(
-        dir.path().join("WXYZ.json"),
-        KEPT_FILE.replace(
-            "\"track\":\"oval\"",
-            "\"track\":\"oval\",\"bot_level\":\"ace\"",
-        ),
-    )
-    .unwrap();
-
-    let mut after = Harness::kept_in(Conditions::PERFECT, dir.path());
-    let mut client = after.connect();
-    let (_, room) = client
-        .rejoin("WXYZ", "0123456789abcdef0123456789abcdef")
-        .await
-        .unwrap();
-    assert_eq!(room.bot_level, BotLevel::Ace);
+async fn a_room_kept_before_the_picks_were_one_value_keeps_its_bot_level() {
+    let room = rejoined_after_a_restart(&KEPT_FILE.replace(
+        "\"track\":\"oval\"",
+        "\"track\":\"oval\",\"bot_level\":\"ace\",\"tyres\":\"on\"",
+    ))
+    .await;
+    assert_eq!(
+        room.picks,
+        Picks {
+            level: BotLevel::Ace,
+            tyres: Tyres::On,
+            ..Picks::default()
+        }
+    );
 }

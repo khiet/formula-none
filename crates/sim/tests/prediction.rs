@@ -22,6 +22,7 @@ use sim::tuning::{
     RECONCILIATION_VISIBLE_CORRECTION_M, SNAPSHOTS_PER_SECOND, START_FULL_BOOST_HOLD_S,
     TICKS_PER_SECOND, TOP_SPEED_M_PER_S,
 };
+use sim::Picks;
 use sim::{
     step, BotLevel, ItemSlot, KartInput, KartReadout, Phase, Prediction, Start, State, Track,
 };
@@ -134,13 +135,7 @@ fn race_drawing(
     mut others: impl FnMut(u32) -> Vec<KartInput>,
     draws_others: bool,
 ) -> Run {
-    let mut prediction = Prediction::with_tyres(
-        SEED,
-        0,
-        server.track().clone(),
-        server.bot_level(),
-        server.tyres(),
-    );
+    let mut prediction = Prediction::new(SEED, 0, server.track().clone(), server.picks());
     let mut history = vec![server.kart_readouts()];
     let mut inputs_in_flight: VecDeque<(u32, u32, KartInput)> = VecDeque::new();
     let mut snapshots_in_flight: VecDeque<InFlight> = VecDeque::new();
@@ -265,7 +260,7 @@ fn a_coin_the_servers_kart_takes_is_corrected_by_less_than_a_player_can_see() {
 /// A prediction on the grid, its countdown under way and its inputs
 /// acknowledged by a snapshot that agreed.
 fn on_the_grid() -> (Prediction, KartReadout) {
-    let mut prediction = Prediction::new(SEED, 0, oval(), BotLevel::Basic);
+    let mut prediction = Prediction::new(SEED, 0, oval(), Picks::default());
     for sequence in 1..=10 {
         prediction.tick(sequence, KartInput::default(), &[]);
     }
@@ -391,7 +386,7 @@ fn the_prediction_takes_no_box_and_fills_its_slot_from_the_snapshots_alone() {
     // the prediction's kart stands on it through Go with an empty slot.
     let track = track(&with_boxes_under(&without_item_boxes(OVAL), [0]));
     let mut server = State::new(SEED, 1, track.clone());
-    let mut prediction = Prediction::new(SEED, 0, track, BotLevel::Basic);
+    let mut prediction = Prediction::new(SEED, 0, track, Picks::default());
     let mut sequence = 0;
     while !matches!(server.phase(), Phase::Racing { .. }) {
         server = step(server, &[KartInput::default()], DT);
@@ -444,7 +439,7 @@ fn the_prediction_takes_no_coin_and_adopts_the_snapshots_count() {
     let sidecar = with_coins_at(&without_coins(OVAL), [slot_position(OVAL, 0)]);
     let track = track(&sidecar);
     let mut server = State::new(SEED, 1, track.clone());
-    let mut prediction = Prediction::new(SEED, 0, track, BotLevel::Basic);
+    let mut prediction = Prediction::new(SEED, 0, track, Picks::default());
     let mut sequence = 0;
     while !matches!(server.phase(), Phase::Racing { .. }) {
         server = step(server, &[KartInput::default()], DT);
@@ -887,7 +882,7 @@ fn a_kart_alone_never_charges_even_with_a_kart_drawn_ahead_of_it() {
     // which the prediction stands in its race as a kinematic body; the
     // wake is the server's to judge, so the own kart never charges off it.
     let course = track(&without_coins(&without_item_boxes(OVAL)));
-    let mut prediction = Prediction::new(SEED, 0, course.clone(), BotLevel::Basic);
+    let mut prediction = Prediction::new(SEED, 0, course.clone(), Picks::default());
     let mut drawn = common::started(State::new(SEED, 2, course)).kart_readouts();
     let countdown = common::ticks(sim::tuning::COUNTDOWN_S) as u32;
     let throttle = KartInput {
@@ -1053,7 +1048,16 @@ fn the_prediction_and_the_server_agree_on_the_tick_of_green_with_no_correction()
     let base = quiet_bell_deer();
     let lane = track(&base).pit_lane().expect("a lane").clone();
     let sidecar = with_slot_on_lane(&base, 0, lane.pit_box_m(0) - PIT_BOX_CATCH_M - 20.0);
-    let server = State::with_tyres(SEED, 1, 0, track(&sidecar), BotLevel::Basic, Tyres::On);
+    let server = State::with_picks(
+        SEED,
+        1,
+        0,
+        track(&sidecar),
+        Picks {
+            tyres: Tyres::On,
+            ..Picks::default()
+        },
+    );
     let (_, stationary_s) = stop_roll(SEED, 0, 0);
     let ticks = seconds(sim::tuning::COUNTDOWN_S + 4.0 + PIT_BOX_GUIDE_S + stationary_s);
     let run = race_with(
@@ -1114,7 +1118,16 @@ fn the_prediction_passes_through_a_kart_on_its_mark_as_the_server_does_without_a
     let sidecar = with_pit_box_at(&base, 0, lane.exit_m() - 3.0);
     let sidecar = with_slot_on_lane(&sidecar, 1, lane.pit_box_m(1) - PIT_BOX_CATCH_M - 1.0);
     let sidecar = with_slot_on_lane(&sidecar, 0, lane.pit_box_m(1) - 35.0);
-    let server = State::with_tyres(SEED, 2, 0, track(&sidecar), BotLevel::Basic, Tyres::On);
+    let server = State::with_picks(
+        SEED,
+        2,
+        0,
+        track(&sidecar),
+        Picks {
+            tyres: Tyres::On,
+            ..Picks::default()
+        },
+    );
     let driver = |prediction: &Prediction, _: u32| {
         let kart = prediction.kart_readout();
         let past = lane
@@ -1183,13 +1196,29 @@ fn a_prediction_that_joins_after_a_stop_takes_the_count_and_rolls_the_next_stop_
     let lane = track(&base).pit_lane().expect("a lane").clone();
     let sidecar = with_slot_on_lane(&base, 0, lane.pit_box_m(0) - PIT_BOX_CATCH_M - 20.0);
     let course = track(&sidecar);
-    let mut prediction =
-        Prediction::with_tyres(SEED, 0, course.clone(), BotLevel::Basic, Tyres::On);
+    let mut prediction = Prediction::new(
+        SEED,
+        0,
+        course.clone(),
+        Picks {
+            tyres: Tyres::On,
+            ..Picks::default()
+        },
+    );
     for sequence in 1..=10 {
         prediction.tick(sequence, KartInput::default(), &[]);
     }
-    let mut grid =
-        State::with_tyres(SEED, 1, 0, course, BotLevel::Basic, Tyres::On).kart_readouts()[0];
+    let mut grid = State::with_picks(
+        SEED,
+        1,
+        0,
+        course,
+        Picks {
+            tyres: Tyres::On,
+            ..Picks::default()
+        },
+    )
+    .kart_readouts()[0];
     grid.stops = 1;
     prediction.reconcile(10, 4, &grid);
     assert_eq!(

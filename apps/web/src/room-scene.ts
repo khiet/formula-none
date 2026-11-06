@@ -1,9 +1,10 @@
 import { button } from "./controls";
 import { type CourseChoice, type CoursePreview, createCoursePreview } from "./course-preview";
 import type { Player, Room } from "./generated/protocol";
+import type { Picks } from "./generated/sim";
 import { livery } from "./livery";
+import { PICK_ROWS } from "./picks";
 import { backdrop, kartSide } from "./poster";
-import { BOT_LEVELS, TYRES_CHOICES } from "./track";
 
 export interface RoomScene {
   /** Show the room as it now stands. */
@@ -71,6 +72,12 @@ export function roomStatus(state: Room["state"], everyoneReady: boolean, creator
 }
 
 /** A "You" or "Creator" badge; the parentheses are hidden, so the row's text still reads "(you)". */
+/** A pick's line under the course card, as the Title Scene heads and captions it: "Bots: Ace". */
+function label<Pick extends keyof Picks>(pick: Pick, picks: Picks): string {
+  const row = PICK_ROWS[pick];
+  return `${row.heading}: ${row.caption(picks[pick]).name}`;
+}
+
 function badge(name: string): HTMLSpanElement {
   const element = document.createElement("span");
   element.dataset.badge = name;
@@ -139,21 +146,22 @@ export function createRoomScene(
   let preview: CoursePreview | undefined;
   let card: HTMLElement | undefined;
   if (choice !== undefined) {
-    preview = createCoursePreview({ laps: view.room.laps, reducedMotion: view.reducedMotion });
+    preview = createCoursePreview({
+      laps: view.room.picks.laps,
+      reducedMotion: view.reducedMotion,
+    });
     preview.show(choice);
     const bots = document.createElement("p");
     bots.className = "room-pick";
     bots.dataset.roomBots = "";
-    const level = BOT_LEVELS.find((level) => level.level === view.room.botLevel);
-    bots.textContent = `Bots: ${level?.name ?? view.room.botLevel}`;
+    bots.textContent = label("level", view.room.picks);
     card = document.createElement("div");
     card.className = "course";
     card.dataset.roomCourse = "";
     const tyres = document.createElement("p");
     tyres.className = "room-pick";
     tyres.dataset.roomTyres = "";
-    const pick = TYRES_CHOICES.find((choice) => choice.tyres === view.room.tyres);
-    tyres.textContent = `Tyres: ${pick?.name ?? view.room.tyres}`;
+    tyres.textContent = label("tyres", view.room.picks);
     card.append(preview.element, bots, tyres);
   }
 

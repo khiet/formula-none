@@ -15,9 +15,9 @@ use sim::tuning::{
     KART_HALF_LENGTH_M, PIT_BOX_CATCH_M, PIT_BOX_GUIDE_S, PIT_LIMIT_M_PER_S, STOP_ROLL_CHANCES,
     STOP_ROLL_STATIONARY_S, TYRE_LIFE_NEW_PERCENT,
 };
+use sim::Picks;
 use sim::{
-    step, stop_roll, BotLevel, Item, KartInput, KartReadout, RaceEvent, State, Stop, StopTier,
-    Track, Tyres,
+    step, stop_roll, Item, KartInput, KartReadout, RaceEvent, State, Stop, StopTier, Track, Tyres,
 };
 
 /// Where a kart starts on the lane: on the limiter, short of the first catch.
@@ -25,7 +25,16 @@ const START_M: f32 = 40.0;
 
 /// A race of `karts` humans on `sidecar`, past its countdown.
 fn race_on(sidecar: &str, karts: usize, tyres: Tyres) -> State {
-    let mut state = State::with_tyres(SEED, karts, 0, track(sidecar), BotLevel::Basic, tyres);
+    let mut state = State::with_picks(
+        SEED,
+        karts,
+        0,
+        track(sidecar),
+        Picks {
+            tyres,
+            ..Picks::default()
+        },
+    );
     while !matches!(state.phase(), sim::Phase::Racing { .. }) {
         state = step(state, &vec![KartInput::default(); karts], DT);
     }

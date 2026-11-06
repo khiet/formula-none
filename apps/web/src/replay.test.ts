@@ -83,8 +83,15 @@ describe("replay recorder", () => {
   it("records a browser session as a replay the wasm runner reproduces", async () => {
     const bridge = await loadBridge(wasm);
     const oval = sidecar("oval");
-    const race = bridge.createRace(9n, 1, 0, oval, "basic", "off", 3);
-    const recorder = recordReplay(bridge, 9n, "oval", 0, "basic", "off", 3, race);
+    const race = bridge.createRace(9n, 1, 0, oval, { level: "basic", tyres: "off", laps: 3 });
+    const recorder = recordReplay(
+      bridge,
+      9n,
+      "oval",
+      0,
+      { level: "basic", tyres: "off", laps: 3 },
+      race,
+    );
     const hashes: bigint[] = [];
     for (let tick = 1; tick <= 150; tick++) {
       const input = tick <= 100 ? THROTTLE : TURN;
@@ -115,8 +122,19 @@ describe("replay recorder", () => {
 
   it("starts a new segment when any one kart's input changes, buttons included", async () => {
     const bridge = await loadBridge(wasm);
-    const race = bridge.createRace(9n, 2, 0, sidecar("oval"), "basic", "off", 3);
-    const recorder = recordReplay(bridge, 9n, "oval", 0, "basic", "off", 3, race);
+    const race = bridge.createRace(9n, 2, 0, sidecar("oval"), {
+      level: "basic",
+      tyres: "off",
+      laps: 3,
+    });
+    const recorder = recordReplay(
+      bridge,
+      9n,
+      "oval",
+      0,
+      { level: "basic", tyres: "off", laps: 3 },
+      race,
+    );
     for (const inputs of [
       [THROTTLE, THROTTLE],
       [THROTTLE, THROTTLE],
@@ -140,8 +158,15 @@ describe("replay recorder", () => {
   it("records the bots' count and only the humans' inputs, and the wasm runner reruns the bots", async () => {
     const bridge = await loadBridge(wasm);
     const oval = sidecar("oval");
-    const race = bridge.createRace(9n, 1, 2, oval, "basic", "off", 3);
-    const recorder = recordReplay(bridge, 9n, "oval", 2, "basic", "off", 3, race);
+    const race = bridge.createRace(9n, 1, 2, oval, { level: "basic", tyres: "off", laps: 3 });
+    const recorder = recordReplay(
+      bridge,
+      9n,
+      "oval",
+      2,
+      { level: "basic", tyres: "off", laps: 3 },
+      race,
+    );
     for (let tick = 1; tick <= 120; tick++) {
       race.step([THROTTLE], 1 / bridge.ticksPerSecond);
       recorder.record([THROTTLE]);
@@ -152,8 +177,15 @@ describe("replay recorder", () => {
     expect(file.hashes).toHaveLength(2);
     expect(bridge.replayHashes(recorder.toJSON(), oval)).toEqual(file.hashes.map(hashFromHex));
     // The hashes are the race's with its bots, not a race of the human alone.
-    const alone = bridge.createRace(9n, 1, 0, oval, "basic", "off", 3);
-    const aloneRecorder = recordReplay(bridge, 9n, "oval", 0, "basic", "off", 3, alone);
+    const alone = bridge.createRace(9n, 1, 0, oval, { level: "basic", tyres: "off", laps: 3 });
+    const aloneRecorder = recordReplay(
+      bridge,
+      9n,
+      "oval",
+      0,
+      { level: "basic", tyres: "off", laps: 3 },
+      alone,
+    );
     for (let tick = 1; tick <= 120; tick++) {
       alone.step([THROTTLE], 1 / bridge.ticksPerSecond);
       aloneRecorder.record([THROTTLE]);
@@ -164,8 +196,15 @@ describe("replay recorder", () => {
   it("records the Tyres pick, so a race on On reruns as one", async () => {
     const bridge = await loadBridge(wasm);
     const oval = sidecar("oval");
-    const race = bridge.createRace(9n, 1, 0, oval, "basic", "on", 3);
-    const recorder = recordReplay(bridge, 9n, "oval", 0, "basic", "on", 3, race);
+    const race = bridge.createRace(9n, 1, 0, oval, { level: "basic", tyres: "on", laps: 3 });
+    const recorder = recordReplay(
+      bridge,
+      9n,
+      "oval",
+      0,
+      { level: "basic", tyres: "on", laps: 3 },
+      race,
+    );
     const hashes: bigint[] = [];
     for (let tick = 1; tick <= 300; tick++) {
       race.step([THROTTLE], 1 / bridge.ticksPerSecond);
@@ -180,8 +219,15 @@ describe("replay recorder", () => {
   it("names the laps, so five laps rerun as five", async () => {
     const bridge = await loadBridge(wasm);
     const oval = sidecar("oval");
-    const race = bridge.createRace(9n, 1, 0, oval, "basic", "off", 5);
-    const recorder = recordReplay(bridge, 9n, "oval", 0, "basic", "off", 5, race);
+    const race = bridge.createRace(9n, 1, 0, oval, { level: "basic", tyres: "off", laps: 5 });
+    const recorder = recordReplay(
+      bridge,
+      9n,
+      "oval",
+      0,
+      { level: "basic", tyres: "off", laps: 5 },
+      race,
+    );
     const hashes: bigint[] = [];
     for (let tick = 1; tick <= 300; tick++) {
       race.step([THROTTLE], 1 / bridge.ticksPerSecond);
@@ -201,10 +247,8 @@ describe("replay recorder", () => {
       seed,
       "oval",
       0,
-      "basic",
-      "off",
-      3,
-      bridge.createRace(seed, 1, 0, sidecar("oval"), "basic", "off", 3),
+      { level: "basic", tyres: "off", laps: 3 },
+      bridge.createRace(seed, 1, 0, sidecar("oval"), { level: "basic", tyres: "off", laps: 3 }),
     );
     expect((JSON.parse(recorder.toJSON()) as ReplayFile).seed).toBe("18446744073709551615");
   });
@@ -216,10 +260,8 @@ describe("replay recorder", () => {
       1n,
       "oval",
       0,
-      "basic",
-      "off",
-      3,
-      bridge.createRace(1n, 1, 0, sidecar("oval"), "basic", "off", 3),
+      { level: "basic", tyres: "off", laps: 3 },
+      bridge.createRace(1n, 1, 0, sidecar("oval"), { level: "basic", tyres: "off", laps: 3 }),
     );
     expect(JSON.parse(recorder.toJSON())).toMatchObject({ segments: [], hashes: [] });
   });
@@ -229,8 +271,15 @@ describe("the bot level in a recording", () => {
   it("is written with the bots and reruns them at it", async () => {
     const bridge = await loadBridge(wasm);
     const oval = sidecar("oval");
-    const race = bridge.createRace(7n, 1, 1, oval, "ace", "off", 3);
-    const recorder = recordReplay(bridge, 7n, "oval", 1, "ace", "off", 3, race);
+    const race = bridge.createRace(7n, 1, 1, oval, { level: "ace", tyres: "off", laps: 3 });
+    const recorder = recordReplay(
+      bridge,
+      7n,
+      "oval",
+      1,
+      { level: "ace", tyres: "off", laps: 3 },
+      race,
+    );
     const idle = IDLE_INPUT;
     // Ten seconds: well past Go, where the levels' bots part.
     for (let tick = 1; tick <= 600; tick++) {

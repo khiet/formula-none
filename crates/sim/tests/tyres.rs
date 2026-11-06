@@ -13,12 +13,20 @@ use sim::tuning::{
     TOP_SPEED_M_PER_S, TYRE_LIFE_CLIFF_PERCENT, TYRE_LIFE_NEW_PERCENT, TYRE_TOP_SPEED_FACTORS,
     TYRE_WEAR_SPIN_OUT_PERCENT,
 };
-use sim::{
-    step, BotLevel, Item, KartInput, KartReadout, Prediction, RaceEvent, State, Track, Tyres,
-};
+use sim::Picks;
+use sim::{step, Item, KartInput, KartReadout, Prediction, RaceEvent, State, Track, Tyres};
 
 fn on(track: Track, karts: usize) -> State {
-    State::with_tyres(SEED, karts, 0, track, BotLevel::Basic, Tyres::On)
+    State::with_picks(
+        SEED,
+        karts,
+        0,
+        track,
+        Picks {
+            tyres: Tyres::On,
+            ..Picks::default()
+        },
+    )
 }
 
 fn life(state: &State, kart: usize) -> f32 {
@@ -72,13 +80,15 @@ fn a_kart_that_drifts_a_lap_ends_it_on_less_life_than_one_that_lifts() {
 /// that kart out.
 fn hazard_ahead_of_kart_one() -> State {
     for seed in 0.. {
-        let state = started(State::with_tyres(
+        let state = started(State::with_picks(
             seed,
             2,
             0,
             oval_with_boxes_under(0..2),
-            BotLevel::Basic,
-            Tyres::On,
+            Picks {
+                tyres: Tyres::On,
+                ..Picks::default()
+            },
         ));
         let state = step(state, &[KartInput::default(); 2], DT);
         let rolled = state.events().iter().any(|event| {
@@ -273,7 +283,16 @@ fn a_kart_worn_by_a_race_on_the_same_inputs_falls_behind_one_with_tyres_off() {
 #[test]
 fn tyre_life_enters_the_hash_only_with_tyres_on() {
     let run = |tyres: Tyres| {
-        let mut state = State::with_tyres(SEED, 1, 0, oval(), BotLevel::Basic, tyres);
+        let mut state = State::with_picks(
+            SEED,
+            1,
+            0,
+            oval(),
+            Picks {
+                tyres,
+                ..Picks::default()
+            },
+        );
         for _ in 0..ticks(5.0) {
             state = step(state, &[throttle()], DT);
         }
@@ -290,7 +309,15 @@ fn tyre_life_enters_the_hash_only_with_tyres_on() {
 /// A prediction of the only kart beside the server's race of it, past Go.
 fn predicted_beside_the_server() -> (Prediction, State, u32) {
     let mut server = on(oval(), 1);
-    let mut prediction = Prediction::with_tyres(SEED, 0, oval(), BotLevel::Basic, Tyres::On);
+    let mut prediction = Prediction::new(
+        SEED,
+        0,
+        oval(),
+        Picks {
+            tyres: Tyres::On,
+            ..Picks::default()
+        },
+    );
     let mut sequence = 0;
     for _ in 0..ticks(6.0) {
         sequence += 1;

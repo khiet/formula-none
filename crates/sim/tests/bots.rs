@@ -14,6 +14,7 @@ use sim::tuning::{
     BOT_STALL_SPEED_M_PER_S, BOT_START_HOLD_S, COUNTDOWN_S, DEFAULT_LAPS, MINI_TURBO_RED_BOOST_S,
     TOP_SPEED_M_PER_S,
 };
+use sim::Picks;
 use sim::{step, BotLevel, KartInput, KartReadout, Phase, State, Surface, Track, Tyres};
 
 /// Step `state` for `seconds` with every human idle.
@@ -750,7 +751,13 @@ fn short_of_the_final_lap(
     tyres: Tyres,
     laps: u32,
 ) -> Vec<(usize, u32)> {
-    let mut state = started(State::with_tyres(seed, 0, 8, course, level, tyres).with_laps(laps));
+    let mut state = started(State::with_picks(
+        seed,
+        0,
+        8,
+        course,
+        Picks { level, tyres, laps },
+    ));
     while matches!(state.phase(), Phase::Racing { .. }) {
         state = step(state, &[], DT);
     }
@@ -764,7 +771,16 @@ fn short_of_the_final_lap(
 
 #[test]
 fn eight_bots_race_five_laps_of_the_oval_and_every_one_finishes() {
-    let mut state = started(State::with_bots(SEED, 0, 8, oval(), BotLevel::Basic).with_laps(5));
+    let mut state = started(State::with_picks(
+        SEED,
+        0,
+        8,
+        oval(),
+        Picks {
+            laps: 5,
+            ..Picks::default()
+        },
+    ));
     while matches!(state.phase(), Phase::Racing { .. }) {
         state = step(state, &[], DT);
     }

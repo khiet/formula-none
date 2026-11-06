@@ -10,8 +10,8 @@ use crate::{
     ProjectileSnapshot, Refusal, Room, RoomState, ServerMessage, Snapshot, PROTOCOL_VERSION,
 };
 use sim::{
-    Boost, BoostTier, BotLevel, Drift, DriftDirection, Item, ItemSlot, KartReadout, Slipstream,
-    Start, Stop, StopTier, Tyres,
+    Boost, BoostTier, BotLevel, Drift, DriftDirection, Item, ItemSlot, KartReadout, Picks,
+    Slipstream, Start, Stop, StopTier, Tyres,
 };
 
 /// Every [`ClientMessage`] variant once.
@@ -56,9 +56,11 @@ pub fn server() -> Vec<ServerMessage> {
         ServerMessage::Countdown {
             seed: 0x0123_4567_89ab_cdef,
             track: "bell-deer".to_owned(),
-            bot_level: BotLevel::Ace,
-            tyres: Tyres::On,
-            laps: 5,
+            picks: Picks {
+                level: BotLevel::Ace,
+                tyres: Tyres::On,
+                laps: 5,
+            },
             grid: vec![0, 1],
         },
         ServerMessage::Snapshot(snapshot()),
@@ -112,9 +114,11 @@ pub fn room() -> Room {
     Room {
         code: "BXQF".to_owned(),
         track: "goldstone".to_owned(),
-        bot_level: BotLevel::Pro,
-        tyres: Tyres::On,
-        laps: 5,
+        picks: Picks {
+            level: BotLevel::Pro,
+            tyres: Tyres::On,
+            laps: 5,
+        },
         state: RoomState::Open,
         players: vec![
             Player {

@@ -11,6 +11,7 @@ use common::{
 };
 
 use sim::tuning::{KART_HALF_LENGTH_M, REPLAY_HASH_INTERVAL_TICKS};
+use sim::Picks;
 use sim::{
     step, BotLevel, KartInput, MiniTurbo, Phase, RaceEvent, Replay, Segment, State, Surface, Track,
     Tyres,
@@ -291,9 +292,7 @@ fn replay_of(track: &str, segments: Vec<Segment>) -> Replay {
         seed: 7,
         track: track.to_owned(),
         bots: 0,
-        level: BotLevel::Basic,
-        tyres: Tyres::Off,
-        laps: 3,
+        picks: Picks::default(),
         segments,
         hashes: Vec::new(),
     }
@@ -381,8 +380,7 @@ fn every_committed_fixture_replays_to_the_hashes_it_was_recorded_with() {
 fn the_fixture_set_exercises_kart_contact_off_track_walls_every_track_both_mini_turbos_a_rocket_start_a_stall_the_kerb_the_wheel_coins_a_stop_and_ace_bots(
 ) {
     let mut tracks = std::collections::BTreeSet::new();
-    let mut levels = std::collections::BTreeSet::new();
-    let mut tyres = std::collections::BTreeSet::new();
+    let mut picks = Vec::new();
     let mut surfaces = std::collections::HashSet::new();
     let mut closest_karts = f32::MAX;
     let mut held_by_a_wall = false;
@@ -400,18 +398,15 @@ fn the_fixture_set_exercises_kart_contact_off_track_walls_every_track_both_mini_
     let mut bot_stopped_in_a_pit_box = false;
     for (_, replay) in fixtures() {
         tracks.insert(replay.track.clone());
-        levels.insert(replay.level.name());
-        tyres.insert(replay.tyres.name());
+        picks.push(replay.picks);
         // The race the fixture records: the same inputs on another pick drive elsewhere.
-        let mut state = State::with_tyres(
+        let mut state = State::with_picks(
             replay.seed,
             replay.human_count(),
             replay.bots,
             sidecar(&replay.track),
-            replay.level,
-            replay.tyres,
-        )
-        .with_laps(replay.laps);
+            replay.picks,
+        );
         for segment in &replay.segments {
             for _ in 0..segment.ticks {
                 let before = state.kart_readouts();
@@ -483,12 +478,12 @@ fn the_fixture_set_exercises_kart_contact_off_track_walls_every_track_both_mini_
         "every track"
     );
     assert!(
-        levels.contains("ace"),
-        "no fixture races Ace bots, so a retune of Ace could pass the gate: {levels:?}"
+        picks.iter().any(|picks| picks.level == BotLevel::Ace),
+        "no fixture races Ace bots, so a retune of Ace could pass the gate: {picks:?}"
     );
     assert!(
-        tyres.contains("on"),
-        "no fixture wears its tyres, so a retune of wear could pass the gate: {tyres:?}"
+        picks.iter().any(|picks| picks.tyres == Tyres::On),
+        "no fixture wears its tyres, so a retune of wear could pass the gate: {picks:?}"
     );
     for surface in [Surface::Asphalt, Surface::Sand] {
         assert!(
@@ -538,9 +533,7 @@ fn a_replay_with_bots_reruns_them_from_the_seed_and_carries_their_count() {
         seed: 7,
         track: "oval".to_owned(),
         bots,
-        level: BotLevel::Basic,
-        tyres: Tyres::Off,
-        laps: 3,
+        picks: Picks::default(),
         segments: vec![held(120, 1)],
         hashes: Vec::new(),
     }
@@ -583,7 +576,10 @@ fn a_replay_recorded_before_bots_existed_has_none() {
 
 #[test]
 fn a_replay_recorded_before_bot_levels_existed_runs_its_bots_at_basic() {
-    assert_eq!(Replay::from_json(REPLAY).unwrap().level, BotLevel::Basic);
+    assert_eq!(
+        Replay::from_json(REPLAY).unwrap().picks.level,
+        BotLevel::Basic
+    );
 }
 
 /// A lone bot's replay on the oval, long enough to take it past its fifth lap,
@@ -601,7 +597,7 @@ fn lone_bot_replay(laps: Option<u32>) -> Replay {
 #[test]
 fn a_replay_without_laps_runs_three() {
     let replay = lone_bot_replay(None);
-    assert_eq!(replay.laps, 3);
+    assert_eq!(replay.picks.laps, 3);
     let hashes = replay.run(sidecar("oval")).unwrap();
 
     // The same race by hand, every hash held to it, finishing on its third lap.
@@ -620,7 +616,7 @@ fn a_replay_without_laps_runs_three() {
 #[test]
 fn a_replay_carries_its_laps_through_the_json_and_reruns_it() {
     let replay = lone_bot_replay(Some(5));
-    assert_eq!(replay.laps, 5);
+    assert_eq!(replay.picks.laps, 5);
     assert_eq!(Replay::from_json(&replay.to_json()).unwrap(), replay);
     assert_ne!(
         replay.run(sidecar("oval")).unwrap(),
@@ -639,7 +635,7 @@ fn a_replay_of_laps_nobody_can_pick_is_refused() {
 
 #[test]
 fn a_replay_recorded_before_the_tyres_pick_races_off() {
-    assert_eq!(Replay::from_json(REPLAY).unwrap().tyres, Tyres::Off);
+    assert_eq!(Replay::from_json(REPLAY).unwrap().picks.tyres, Tyres::Off);
 }
 
 #[test]
@@ -648,9 +644,10 @@ fn a_replay_carries_its_tyres_pick_and_reruns_with_it() {
         seed: 7,
         track: "oval".to_owned(),
         bots: 0,
-        level: BotLevel::Basic,
-        tyres,
-        laps: 3,
+        picks: Picks {
+            tyres,
+            ..Picks::default()
+        },
         segments: vec![Segment {
             ticks: 600,
             inputs: vec![throttle()],
@@ -660,7 +657,7 @@ fn a_replay_carries_its_tyres_pick_and_reruns_with_it() {
     let json = at(Tyres::On).to_json();
     assert!(json.contains("\"tyres\": \"on\""), "{json}");
     let replay = Replay::from_json(&json).unwrap();
-    assert_eq!(replay.tyres, Tyres::On);
+    assert_eq!(replay.picks.tyres, Tyres::On);
 
     assert_ne!(
         replay.run(oval()).unwrap(),
@@ -675,9 +672,10 @@ fn a_replay_carries_its_bot_level_and_reruns_its_bots_at_it() {
         seed: 7,
         track: "oval".to_owned(),
         bots: 1,
-        level: BotLevel::Ace,
-        tyres: Tyres::Off,
-        laps: 3,
+        picks: Picks {
+            level: BotLevel::Ace,
+            ..Picks::default()
+        },
         // Ten seconds: well past Go, where the levels' bots part.
         segments: vec![held(600, 1)],
         hashes: Vec::new(),
@@ -685,7 +683,7 @@ fn a_replay_carries_its_bot_level_and_reruns_its_bots_at_it() {
     .to_json();
     assert!(json.contains("\"level\": \"ace\""), "{json}");
     let replay = Replay::from_json(&json).unwrap();
-    assert_eq!(replay.level, BotLevel::Ace);
+    assert_eq!(replay.picks.level, BotLevel::Ace);
 
     let hashes = replay.run(oval()).expect("the replay runs at its level");
     let mut ace = State::with_bots(7, 1, 1, oval(), BotLevel::Ace);

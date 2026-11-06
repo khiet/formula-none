@@ -2,6 +2,9 @@
 //! Tuning a value means editing this file and nothing else; no other module
 //! may hard-code a number that belongs here. Initial values are the PRD's.
 
+use crate::picks::{PickChoices, Picks};
+use crate::{BotLevel, Tyres};
+
 // Rates. Every rule is written per tick; frame rate never enters the sim.
 
 /// Fixed sim rate on both client and server.
@@ -132,6 +135,19 @@ pub const DEFAULT_LAPS: u32 = 3;
 /// The laps a creator can pick from, the default first. Five is long enough
 /// that one stop beats none (ADR 0083).
 pub const LAP_CHOICES: [u32; 2] = [DEFAULT_LAPS, 5];
+/// Every pick a creator can make, each list in the Title Scene's order.
+pub const PICK_CHOICES: PickChoices = PickChoices {
+    level: BotLevel::ALL,
+    tyres: Tyres::ALL,
+    laps: LAP_CHOICES,
+};
+/// The picks a creator starts from before picking anything, and what a
+/// create that names none races (ADR 0078, ADR 0083, ADR 0084).
+pub const FRESH_PICKS: Picks = Picks {
+    level: BotLevel::Basic,
+    tyres: Tyres::On,
+    laps: DEFAULT_LAPS,
+};
 /// Seconds the karts are held on the grid before Go: the start lights, one
 /// a second, all five out at Go. The Instrument panel always draws five
 /// lamps, so this must stay one second per lamp.
@@ -1092,7 +1108,8 @@ const _: () = {
 #[serde(rename_all = "camelCase")]
 pub struct Tuning {
     pub ticks_per_second: u32,
-    pub lap_choices: [u32; 2],
+    pub pick_choices: PickChoices,
+    pub fresh_picks: Picks,
     pub karts_per_race: usize,
     /// The kart's width, height and length, so the View draws the box the
     /// sim collides with.
@@ -1148,7 +1165,8 @@ pub struct Tuning {
 
 pub const TUNING: Tuning = Tuning {
     ticks_per_second: TICKS_PER_SECOND,
-    lap_choices: LAP_CHOICES,
+    pick_choices: PICK_CHOICES,
+    fresh_picks: FRESH_PICKS,
     karts_per_race: KARTS_PER_RACE,
     kart_size_m: [
         2.0 * KART_HALF_WIDTH_M,

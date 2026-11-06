@@ -26,8 +26,7 @@ use crate::room::Started;
 use crate::rooms::Rooms;
 use crate::session::{self, Channels};
 use crate::Shutdown;
-use sim::tuning::DEFAULT_LAPS;
-use sim::{BotLevel, Tyres};
+use sim::Picks;
 
 /// What the fake network does to every message, in each direction.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -128,32 +127,17 @@ impl Harness {
         self.captured.text()
     }
 
-    /// What `POST /api/rooms` does: a new room's code, its bots at Basic.
+    /// What `POST /api/rooms` does: a new room's code, every pick as
+    /// before there were picks.
     pub fn create_room(&self) -> String {
-        self.create_room_at(BotLevel::Basic)
+        self.create_room_with(Picks::default())
     }
 
-    /// What `POST /api/rooms` with a `botLevel` does: a new room's code,
-    /// its bots at `bot_level`.
-    pub fn create_room_at(&self, bot_level: BotLevel) -> String {
+    /// What `POST /api/rooms` with `picks` does: a new room's code, its
+    /// races run as `picks` says.
+    pub fn create_room_with(&self, picks: Picks) -> String {
         self.rooms
-            .create_with(None, bot_level, Tyres::Off, DEFAULT_LAPS, None)
-            .expect("the harness stays under the cap")
-    }
-
-    /// What `POST /api/rooms` with a `tyres` does: a new room's code, its
-    /// tyres as `tyres` says and its bots at Basic.
-    pub fn create_room_with_tyres(&self, tyres: Tyres) -> String {
-        self.rooms
-            .create_with(None, BotLevel::Basic, tyres, DEFAULT_LAPS, None)
-            .expect("the harness stays under the cap")
-    }
-
-    /// What `POST /api/rooms` with a `laps` does: a new room's code,
-    /// its races over `laps`, its bots at Basic and its tyres Off.
-    pub fn create_room_of_laps(&self, laps: u32) -> String {
-        self.rooms
-            .create_with(None, BotLevel::Basic, Tyres::Off, laps, None)
+            .create_with(None, picks, None)
             .expect("the harness stays under the cap")
     }
 
@@ -368,16 +352,12 @@ impl Client {
             ServerMessage::Countdown {
                 seed,
                 track,
-                bot_level,
-                tyres,
-                laps,
+                picks,
                 grid,
             } => Some(Started {
                 seed,
                 track,
-                bot_level,
-                tyres,
-                laps,
+                picks,
                 grid,
             }),
             _ => None,

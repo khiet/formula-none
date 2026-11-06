@@ -11,9 +11,7 @@ const codec = jsonCodec;
 const ROOM: Room = {
   code: "BXQF",
   track: "goldstone",
-  botLevel: "basic",
-  tyres: "off",
-  laps: 3,
+  picks: { level: "basic", tyres: "off", laps: 3 },
   state: "open",
   players: [
     { slot: 0, nickname: "khiet", livery: 0, state: "unready", creator: true },
@@ -78,18 +76,14 @@ describe("joinRoom", () => {
       countdown: {
         seed: 42 as unknown as bigint,
         track: "bell-deer",
-        botLevel: "basic",
-        tyres: "off",
-        laps: 3,
+        picks: { level: "basic", tyres: "off", laps: 3 },
         grid: [0, 1],
       },
     });
     expect(countdown).toEqual({
       seed: 42n,
       track: "bell-deer",
-      botLevel: "basic",
-      tyres: "off",
-      laps: 3,
+      picks: { level: "basic", tyres: "off", laps: 3 },
       grid: [0, 1],
     });
 
@@ -186,9 +180,7 @@ describe("the race side of the room client", () => {
       countdown: {
         seed: 1 as unknown as bigint,
         track: "bell-deer",
-        botLevel: "basic",
-        tyres: "off",
-        laps: 3,
+        picks: { level: "basic", tyres: "off", laps: 3 },
         grid: [0, 1],
       },
     });
@@ -208,9 +200,7 @@ describe("the race side of the room client", () => {
       countdown: {
         seed: 2 as unknown as bigint,
         track: "bell-deer",
-        botLevel: "basic",
-        tyres: "off",
-        laps: 3,
+        picks: { level: "basic", tyres: "off", laps: 3 },
         grid: [0, 1],
       },
     });
@@ -280,9 +270,7 @@ describe("the race side of the room client", () => {
       countdown: {
         seed: 2 as unknown as bigint,
         track: "bell-deer",
-        botLevel: "basic",
-        tyres: "off",
-        laps: 3,
+        picks: { level: "basic", tyres: "off", laps: 3 },
         grid: [0, 1],
       },
     });
@@ -295,9 +283,7 @@ describe("taking the seat back (ADR 0012)", () => {
   const COUNTDOWN = {
     seed: SEED,
     track: "bell-deer",
-    botLevel: "basic" as const,
-    tyres: "off" as const,
-    laps: 3,
+    picks: { level: "basic" as const, tyres: "off" as const, laps: 3 },
     grid: [0, 1],
   };
 

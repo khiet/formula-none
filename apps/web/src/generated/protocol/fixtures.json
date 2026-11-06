@@ -20,7 +20,7 @@
       "name": "join",
       "bytes": [
         1,
-        26,
+        27,
         4,
         66,
         88,
@@ -37,7 +37,7 @@
         "join": {
           "nickname": "khiet",
           "room": "BXQF",
-          "version": 26
+          "version": 27
         }
       }
     },
@@ -103,7 +103,7 @@
       "name": "rejoin",
       "bytes": [
         7,
-        26,
+        27,
         4,
         66,
         88,
@@ -147,7 +147,7 @@
         "rejoin": {
           "room": "BXQF",
           "token": "0123456789abcdef0123456789abcdef",
-          "version": 26
+          "version": 27
         }
       }
     },
@@ -276,9 +276,12 @@
       "message": {
         "joined": {
           "room": {
-            "botLevel": "pro",
             "code": "BXQF",
-            "laps": 5,
+            "picks": {
+              "laps": 5,
+              "level": "pro",
+              "tyres": "on"
+            },
             "players": [
               {
                 "creator": true,
@@ -296,8 +299,7 @@
               }
             ],
             "state": "open",
-            "track": "goldstone",
-            "tyres": "on"
+            "track": "goldstone"
           },
           "slot": 1,
           "token": "0123456789abcdef0123456789abcdef"
@@ -309,12 +311,12 @@
       "bytes": [
         2,
         3,
-        26
+        27
       ],
       "message": {
         "refused": {
           "versionMismatch": {
-            "server": 26
+            "server": 27
           }
         }
       }
@@ -364,9 +366,12 @@
       ],
       "message": {
         "room": {
-          "botLevel": "pro",
           "code": "BXQF",
-          "laps": 5,
+          "picks": {
+            "laps": 5,
+            "level": "pro",
+            "tyres": "on"
+          },
           "players": [
             {
               "creator": true,
@@ -384,8 +389,7 @@
             }
           ],
           "state": "open",
-          "track": "goldstone",
-          "tyres": "on"
+          "track": "goldstone"
         }
       }
     },
@@ -421,15 +425,17 @@
       ],
       "message": {
         "countdown": {
-          "botLevel": "ace",
           "grid": [
             0,
             1
           ],
-          "laps": 5,
+          "picks": {
+            "laps": 5,
+            "level": "ace",
+            "tyres": "on"
+          },
           "seed": 81985529216486895,
-          "track": "bell-deer",
-          "tyres": "on"
+          "track": "bell-deer"
         }
       }
     },

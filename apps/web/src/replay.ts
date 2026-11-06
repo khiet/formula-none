@@ -2,7 +2,7 @@
 // format is the sim's: crates/sim/src/replay.rs documents it and the native
 // and wasm runners both read it. Drop a recording into assets/replays and
 // both halves of the determinism gate pick it up.
-import type { BotLevel, Bridge, KartInput, Race, Tyres } from "./bridge";
+import type { Bridge, KartInput, Picks, Race } from "./bridge";
 import type { TrackName } from "./track";
 
 export interface ReplayRecorder {
@@ -13,8 +13,12 @@ export interface ReplayRecorder {
   toJSON(): string;
 }
 
-/** The fixture file's shape; the sim reads the seed and the hashes as u64. */
-export interface ReplayFile {
+/**
+ * The fixture file's shape; the sim reads the seed and the hashes as u64. The
+ * picks are fields of the file's own; a replay without one reruns it as
+ * before there was a pick.
+ */
+export interface ReplayFile extends Picks {
   readonly version: 1;
   /** Decimal, as a string: a JSON number cannot carry every u64. */
   readonly seed: string;
@@ -24,12 +28,6 @@ export interface ReplayFile {
    * segments carry no input for them.
    */
   readonly bots: number;
-  /** How hard the bots drove (ADR 0078); a replay without one reruns at Basic. */
-  readonly level: BotLevel;
-  /** Whether the tyres wore (ADR 0083); a replay without a pick reruns Off. */
-  readonly tyres: Tyres;
-  /** How many laps the race ran (ADR 0084); a replay without a count reruns three. */
-  readonly laps: number;
   readonly segments: readonly Segment[];
   /** 16 hex digits each. */
   readonly hashes: readonly string[];
@@ -42,7 +40,7 @@ export interface Segment {
 
 /**
  * Record `race`, which was created from `seed` on `track` with `bots` bot
- * karts at `level`, the tyres as `tyres` says and over `laps`, from its first tick. Consecutive ticks with the same inputs share a
+ * karts, run as `picks` say, from its first tick. Consecutive ticks with the same inputs share a
  * segment, and the race's hash is kept at every
  * `bridge.replayHashIntervalTicks`th tick.
  */
@@ -51,9 +49,7 @@ export function recordReplay(
   seed: bigint,
   track: TrackName,
   bots: number,
-  level: BotLevel,
-  tyres: Tyres,
-  laps: number,
+  picks: Picks,
   race: Race,
 ): ReplayRecorder {
   const segments: { ticks: number; inputs: KartInput[] }[] = [];
@@ -87,9 +83,7 @@ export function recordReplay(
         seed: seed.toString(),
         track,
         bots,
-        level,
-        tyres,
-        laps,
+        ...picks,
         segments,
         hashes,
       };

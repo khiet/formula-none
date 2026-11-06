@@ -52,21 +52,6 @@ pub enum Tyres {
 impl Tyres {
     /// Every pick, Off first.
     pub const ALL: [Self; 2] = [Self::Off, Self::On];
-
-    /// The pick as the wire spells it: `off` or `on`.
-    pub fn name(self) -> &'static str {
-        match self {
-            Self::Off => "off",
-            Self::On => "on",
-        }
-    }
-
-    /// The pick spelled `name` on the wire, or `None` for any other
-    /// spelling, so a caller that takes the pick as text refuses an unknown
-    /// one rather than racing Off.
-    pub fn from_name(name: &str) -> Option<Self> {
-        Self::ALL.into_iter().find(|tyres| tyres.name() == name)
-    }
 }
 
 /// One kart's handling: its speed and everything that bends it.

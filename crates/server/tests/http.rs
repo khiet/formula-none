@@ -7,10 +7,10 @@ use http_body_util::BodyExt;
 use protocol::RoomState;
 use serde_json::Value;
 use sim::tuning::{
-    ROOMS_MAX, ROOM_CLOSE_AFTER_EMPTY_S, ROOM_CODE_ALPHABET, ROOM_CODE_LENGTH,
+    FRESH_PICKS, ROOMS_MAX, ROOM_CLOSE_AFTER_EMPTY_S, ROOM_CODE_ALPHABET, ROOM_CODE_LENGTH,
     ROOM_CREATES_PER_ADDRESS_MAX, ROOM_CREATE_WINDOW_S,
 };
-use sim::{BotLevel, Tyres};
+use sim::{BotLevel, Picks, Tyres};
 use std::time::Duration;
 use tower::ServiceExt;
 
@@ -229,88 +229,62 @@ async fn a_body_is_read_whatever_its_content_type_and_one_naming_no_track_races_
 }
 
 #[tokio::test]
-async fn a_room_created_at_five_laps_races_them() {
-    let (app, rooms, _stop) = app();
-    let (status, body) = create(app, Body::from(r#"{ "track": "goldstone", "laps": 5 }"#)).await;
-    assert_eq!(status, StatusCode::CREATED);
-    let room = rooms.view(body["code"].as_str().unwrap()).unwrap();
-    assert_eq!(room.laps, 5);
-}
-
-#[tokio::test]
-async fn a_room_created_without_laps_races_three() {
-    let (app, rooms, _stop) = app();
-    let (status, body) = create(app, Body::from(r#"{ "track": "goldstone" }"#)).await;
-    assert_eq!(status, StatusCode::CREATED);
-    let room = rooms.view(body["code"].as_str().unwrap()).unwrap();
-    assert_eq!(room.laps, 3);
-}
-
-#[tokio::test]
-async fn a_room_of_laps_nobody_can_pick_is_refused_and_not_opened() {
-    let (app, rooms, _stop) = app();
-    let (status, _) = create(app, Body::from(r#"{ "laps": 4 }"#)).await;
-    assert_eq!(status, StatusCode::BAD_REQUEST);
-    assert!(rooms.codes().is_empty(), "{:?}", rooms.codes());
-}
-
-#[tokio::test]
-async fn a_room_created_with_tyres_on_races_them() {
+async fn a_room_created_with_picks_races_them() {
     let (app, rooms, _stop) = app();
     let (status, body) = create(
         app,
-        Body::from(r#"{ "track": "goldstone", "tyres": "on" }"#),
+        Body::from(
+            r#"{ "track": "goldstone", "picks": { "level": "ace", "tyres": "off", "laps": 5 } }"#,
+        ),
     )
     .await;
     assert_eq!(status, StatusCode::CREATED);
     let room = rooms.view(body["code"].as_str().unwrap()).unwrap();
-    assert_eq!(room.tyres, Tyres::On);
+    assert_eq!(
+        room.picks,
+        Picks {
+            level: BotLevel::Ace,
+            tyres: Tyres::Off,
+            laps: 5,
+        }
+    );
 }
 
 #[tokio::test]
-async fn a_room_created_without_a_tyres_pick_races_on() {
+async fn a_room_created_without_picks_races_the_fresh_ones() {
     let (app, rooms, _stop) = app();
     let (status, body) = create(app, Body::from(r#"{ "track": "goldstone" }"#)).await;
     assert_eq!(status, StatusCode::CREATED);
     let room = rooms.view(body["code"].as_str().unwrap()).unwrap();
-    assert_eq!(room.tyres, Tyres::On);
+    assert_eq!(room.picks, FRESH_PICKS);
 }
 
 #[tokio::test]
-async fn a_room_at_an_unknown_tyres_pick_is_refused_and_not_opened() {
-    let (app, rooms, _stop) = app();
-    let (status, _) = create(app, Body::from(r#"{ "tyres": "slick" }"#)).await;
-    assert_eq!(status, StatusCode::BAD_REQUEST);
-    assert!(rooms.codes().is_empty(), "{:?}", rooms.codes());
+async fn a_room_at_a_pick_nobody_can_make_is_refused_and_not_opened() {
+    for picks in [
+        r#"{ "level": "basic", "tyres": "off", "laps": 4 }"#,
+        r#"{ "level": "basic", "tyres": "slick", "laps": 3 }"#,
+        r#"{ "level": "wild", "tyres": "off", "laps": 3 }"#,
+    ] {
+        let (app, rooms, _stop) = app();
+        let (status, _) = create(app, Body::from(format!(r#"{{ "picks": {picks} }}"#))).await;
+        assert_eq!(status, StatusCode::BAD_REQUEST, "{picks}");
+        assert!(rooms.codes().is_empty(), "{picks}: {:?}", rooms.codes());
+    }
 }
 
 #[tokio::test]
-async fn a_room_created_at_a_bot_level_races_it_and_its_countdown_says_so() {
-    let (app, rooms, _stop) = app();
-    let (status, body) = create(
-        app,
-        Body::from(r#"{ "track": "goldstone", "botLevel": "ace" }"#),
-    )
-    .await;
-    assert_eq!(status, StatusCode::CREATED);
-    let code = body["code"].as_str().unwrap().to_owned();
-    let room = rooms.view(&code).unwrap();
-    assert_eq!(room.bot_level, BotLevel::Ace);
-}
-
-#[tokio::test]
-async fn a_room_created_without_a_bot_level_races_basic() {
-    let (app, rooms, _stop) = app();
-    let (status, body) = create(app, Body::from(r#"{ "track": "goldstone" }"#)).await;
-    assert_eq!(status, StatusCode::CREATED);
-    let room = rooms.view(body["code"].as_str().unwrap()).unwrap();
-    assert_eq!(room.bot_level, BotLevel::Basic);
-}
-
-#[tokio::test]
-async fn a_room_at_an_unknown_bot_level_is_refused_and_not_opened() {
-    let (app, rooms, _stop) = app();
-    let (status, _) = create(app, Body::from(r#"{ "botLevel": "wild" }"#)).await;
-    assert_eq!(status, StatusCode::BAD_REQUEST);
-    assert!(rooms.codes().is_empty(), "{:?}", rooms.codes());
+async fn a_create_missing_a_pick_or_naming_more_is_refused_and_not_opened() {
+    for body in [
+        // A pick left out would race as before there was one, not as picked.
+        r#"{ "picks": { "level": "ace", "laps": 5 } }"#,
+        r#"{ "picks": { "level": "ace", "tyres": "on", "laps": 5, "weather": "rain" } }"#,
+        // A page from before the picks were one value.
+        r#"{ "track": "goldstone", "botLevel": "ace", "tyres": "on", "laps": 5 }"#,
+    ] {
+        let (app, rooms, _stop) = app();
+        let (status, _) = create(app, Body::from(body)).await;
+        assert_eq!(status, StatusCode::BAD_REQUEST, "{body}");
+        assert!(rooms.codes().is_empty(), "{body}: {:?}", rooms.codes());
+    }
 }

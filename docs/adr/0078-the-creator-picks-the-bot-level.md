@@ -4,7 +4,7 @@
 
 Accepted (2026-11-03). Extends ADR 0002's bots and ADR 0061's pick on the
 Title Scene; the bot constants it varies stay in the tuning module (ADR
-0014).
+0014). ADR 0091 supersedes how it carries the pick: `POST /api/rooms`, the wire's `Room` and `Countdown` and the kept room take the picks as one value.
 
 ## Context
 

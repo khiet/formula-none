@@ -1,24 +1,19 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
+import type { Picks } from "./generated/sim";
+import { pickOffer } from "./picks";
 import {
-  BOT_LEVELS,
-  botLevelFromSearch,
   COURSES,
   centrelineOf,
   DEFAULT_TRACK,
-  lapsFromSearch,
-  loadBotLevel,
   loadCoursePick,
-  loadLaps,
-  loadTyres,
+  loadPicks,
+  picksFromSearch,
   pitLaneOf,
-  saveBotLevel,
   saveCoursePick,
-  saveLaps,
-  saveTyres,
+  savePicks,
   selectTrack,
   TRACKS,
-  tyresFromSearch,
 } from "./track";
 
 describe("track selection from the query string", () => {
@@ -166,82 +161,56 @@ describe("the remembered course", () => {
   });
 });
 
-describe("the remembered bot level", () => {
-  it("is Basic until saved, then what was saved", () => {
+// The offer as the Title Scene makes it, from the sim's choices.
+const OFFER = pickOffer({ level: ["basic", "pro", "ace"], tyres: ["off", "on"], laps: [3, 5] });
+const FRESH: Picks = { level: "basic", tyres: "on", laps: 3 };
+
+describe("the remembered picks", () => {
+  it("are the fresh ones until saved, then what was saved", () => {
     const store = storage();
-    expect(loadBotLevel(store)).toBe("basic");
-    saveBotLevel(store, "ace");
-    expect(loadBotLevel(store)).toBe("ace");
+    expect(loadPicks(store, OFFER, FRESH)).toEqual(FRESH);
+    const picked: Picks = { level: "ace", tyres: "off", laps: 5 };
+    savePicks(store, OFFER, picked);
+    expect(loadPicks(store, OFFER, FRESH)).toEqual(picked);
   });
 
-  it("falls back to Basic for a saved level that is none, and for storage that refuses", () => {
+  it("are kept one key a pick, the keys the query string asks by", () => {
+    const store = storage();
+    savePicks(store, OFFER, { level: "pro", tyres: "off", laps: 5 });
+    expect([store.getItem("bots"), store.getItem("tyres"), store.getItem("laps")]).toEqual([
+      "pro",
+      "off",
+      "5",
+    ]);
+  });
+
+  it("fall back pick by pick to the fresh one for a saved value no creator is offered", () => {
     const store = storage();
     store.setItem("bots", "wild");
-    expect(loadBotLevel(store)).toBe("basic");
-    const blocked = storage(true);
-    expect(loadBotLevel(blocked)).toBe("basic");
-    expect(() => saveBotLevel(blocked, "pro")).not.toThrow();
-  });
-
-  it("describes every level in order, Basic first, for the Title Scene's row", () => {
-    expect(BOT_LEVELS.map((level) => level.level)).toEqual(["basic", "pro", "ace"]);
-    expect(BOT_LEVELS.map((level) => level.name)).toEqual(["Basic", "Pro", "Ace"]);
-    for (const level of BOT_LEVELS) expect(level.blurb).toMatch(/\S/);
-  });
-});
-
-describe("the laps pick", () => {
-  it("is the first choice until picked, and remembered once it is", () => {
-    const store = storage();
-    expect(loadLaps(store, [3, 5])).toBe(3);
-    saveLaps(store, 5);
-    expect(loadLaps(store, [3, 5])).toBe(5);
-  });
-
-  it("reads anything else saved as the first choice", () => {
-    const store = storage();
+    store.setItem("tyres", "off");
     store.setItem("laps", "4");
-    expect(loadLaps(store, [3, 5])).toBe(3);
+    expect(loadPicks(store, OFFER, FRESH)).toEqual({ ...FRESH, tyres: "off" });
   });
 
-  it("reads ?laps= for a solo race and ignores anything else", () => {
-    expect(lapsFromSearch("?laps=5", [3, 5])).toBe(5);
-    expect(lapsFromSearch("?track=oval&laps=3", [3, 5])).toBe(3);
-    expect(lapsFromSearch("?laps=4", [3, 5])).toBeUndefined();
-    expect(lapsFromSearch("", [3, 5])).toBeUndefined();
-  });
-});
-
-describe("the Tyres pick", () => {
-  it("is On until saved, then what was saved", () => {
-    const store = storage();
-    expect(loadTyres(store)).toBe("on");
-    saveTyres(store, "off");
-    expect(loadTyres(store)).toBe("off");
-  });
-
-  it("falls back to On for a saved pick that is none, and for storage that refuses", () => {
-    const store = storage();
-    store.setItem("tyres", "slick");
-    expect(loadTyres(store)).toBe("on");
+  it("are the fresh ones from storage that refuses, and saving to it is let be", () => {
     const blocked = storage(true);
-    expect(loadTyres(blocked)).toBe("on");
-    expect(() => saveTyres(blocked, "off")).not.toThrow();
-  });
-
-  it("reads ?tyres= for a solo race and ignores anything else", () => {
-    expect(tyresFromSearch("?tyres=on")).toBe("on");
-    expect(tyresFromSearch("?track=oval&tyres=off")).toBe("off");
-    expect(tyresFromSearch("?tyres=slick")).toBeUndefined();
-    expect(tyresFromSearch("")).toBeUndefined();
+    expect(loadPicks(blocked, OFFER, FRESH)).toEqual(FRESH);
+    expect(() => savePicks(blocked, OFFER, FRESH)).not.toThrow();
   });
 });
 
-describe("bot level from the query string", () => {
-  it("reads ?bots= for a solo race and ignores anything else", () => {
-    expect(botLevelFromSearch("?bots=ace")).toBe("ace");
-    expect(botLevelFromSearch("?track=oval&bots=pro")).toBe("pro");
-    expect(botLevelFromSearch("?bots=wild")).toBeUndefined();
-    expect(botLevelFromSearch("")).toBeUndefined();
+describe("picks from the query string", () => {
+  it("reads ?bots=, ?tyres= and ?laps= for a solo race beside ?track=", () => {
+    expect(picksFromSearch("?track=oval&bots=ace&tyres=off&laps=5", OFFER)).toEqual({
+      level: "ace",
+      tyres: "off",
+      laps: 5,
+    });
+    expect(picksFromSearch("?bots=pro", OFFER)).toEqual({ level: "pro" });
+  });
+
+  it("leaves out a pick asked for as nothing a creator is offered, and any not asked for", () => {
+    expect(picksFromSearch("?bots=wild&tyres=slick&laps=4", OFFER)).toEqual({});
+    expect(picksFromSearch("", OFFER)).toEqual({});
   });
 });

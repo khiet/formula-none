@@ -39,8 +39,7 @@ use crate::metrics::Metrics;
 use crate::race::{Race, TICK_S};
 use crate::room::{HostedRoom, Left, Started};
 use crate::{tracks, Shutdown};
-use sim::tuning::DEFAULT_LAPS;
-use sim::{BotLevel, Tyres};
+use sim::Picks;
 
 /// Every room on this server. Cheap to clone; every clone is the same
 /// registry.
@@ -337,15 +336,16 @@ impl Rooms {
     /// Open a room on the registry's own track for no particular address,
     /// as [`Self::create_with`] does.
     pub fn create(&self) -> Result<String, CreateRefused> {
-        self.create_with(None, BotLevel::Basic, Tyres::Off, DEFAULT_LAPS, None)
+        self.create_with(None, Picks::default(), None)
     }
 
     /// Open a room racing `track`, one of [`crate::tracks`], or the
-    /// registry's own track when `None`, against bots at `bot_level`, the
-    /// tyres as `tyres` says and over `laps`, under a fresh code and hand the code back; the HTTP
-    /// create endpoint is this. The room starts empty, so its closing clock is already running:
-    /// a code nobody joins expires like one everybody left. Must run inside
-    /// a tokio runtime, which spawns the room's task.
+    /// registry's own track when `None`, run as `picks` says, under a fresh
+    /// code and hand the code back; the HTTP create endpoint is this.
+    /// `picks` must be offered ([`Picks::offered`]). The room starts empty,
+    /// so its closing clock is already running: a code nobody joins expires
+    /// like one everybody left. Must run inside a tokio runtime, which
+    /// spawns the room's task.
     ///
     /// `address` is who is asking, counted against the per-address limit;
     /// `None` is a caller inside the server's network, which only the cap
@@ -354,9 +354,7 @@ impl Rooms {
     pub fn create_with(
         &self,
         track: Option<&'static str>,
-        bot_level: BotLevel,
-        tyres: Tyres,
-        laps: u32,
+        picks: Picks,
         address: Option<IpAddr>,
     ) -> Result<String, CreateRefused> {
         let track = track.unwrap_or(self.track);
@@ -368,14 +366,12 @@ impl Rooms {
                 break code;
             }
         };
-        let room = HostedRoom::open(code.clone(), track, bot_level, tyres, laps);
+        let room = HostedRoom::open(code.clone(), track, picks);
         self.log
             .event("room_created")
             .room(&code)
             .with("track", track)
-            .with("bot_level", bot_level.name())
-            .with("tyres", tyres.name())
-            .with("laps", laps)
+            .with("picks", picks)
             .emit();
         self.spawn(&mut registry, room, false);
         Ok(code)
@@ -861,8 +857,8 @@ async fn run(
                             let id = connections.next().expect("connection ids never run out");
                             let countdown = running.as_mut().map(|running| {
                                 running.race.hand_back(slot);
-                                let Started { seed, track, bot_level, tyres, laps, grid } = running.started.clone();
-                                ServerMessage::Countdown { seed, track, bot_level, tyres, laps, grid }
+                                let Started { seed, track, picks, grid } = running.started.clone();
+                                ServerMessage::Countdown { seed, track, picks, grid }
                             });
                             let connection = Connection::new(id, outbound);
                             let new = connection.outbound.clone();
@@ -912,18 +908,14 @@ async fn run(
                                     .slot(slot)
                                     .with("seed", started.seed)
                                     .with("track", &started.track)
-                                    .with("bot_level", started.bot_level.name())
-                                    .with("tyres", started.tyres.name())
-                                    .with("laps", started.laps)
+                                    .with("picks", started.picks)
                                     .with("grid", &started.grid)
                                     .emit();
                                 running = Some(Running::start(
                                     Race::new(
                                         started.seed,
                                         track,
-                                        started.bot_level,
-                                        started.tyres,
-                                        started.laps,
+                                        started.picks,
                                         started.grid.clone(),
                                         room.next_event_id(),
                                     ),
@@ -934,9 +926,7 @@ async fn run(
                                     &ServerMessage::Countdown {
                                         seed: started.seed,
                                         track: started.track,
-                                        bot_level: started.bot_level,
-                                        tyres: started.tyres,
-                                        laps: started.laps,
+                                        picks: started.picks,
                                         grid: started.grid,
                                     },
                                     None,

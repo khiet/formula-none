@@ -10,8 +10,8 @@ use axum::routing::{get, post};
 use axum::{Json, Router};
 use rooms::CreateRefused;
 use serde::{Deserialize, Serialize};
-use sim::tuning::{DEFAULT_LAPS, LAP_CHOICES};
-use sim::{BotLevel, Tyres};
+use sim::tuning::FRESH_PICKS;
+use sim::Picks;
 use std::net::IpAddr;
 use tokio::net::TcpListener;
 use tokio::sync::watch;
@@ -55,18 +55,37 @@ struct CreatedRoom {
 }
 
 /// What a create may ask for: the track the room races, fixed for the
-/// room (ADR 0061), and how hard its bots drive, fixed likewise (ADR
-/// 0078). A create with no body, or one naming no track, races the
-/// server's default; one naming no level races Basic. So too the Tyres
-/// pick, fixed likewise (ADR 0083), On when it names none. The level and
-/// the pick are read as text so an unknown one is refused rather than raced.
+/// room (ADR 0061), and the creator's picks, fixed likewise. A create with
+/// no body, or one naming no track, races the server's default; one naming
+/// no picks races [`FRESH_PICKS`]. An unknown field, a pick missing from
+/// `picks` or one no creator can make is refused rather than raced, so a
+/// page from before the picks were one value cannot open a room on picks
+/// its creator never made.
 #[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct CreateRoom {
     track: Option<String>,
-    bot_level: Option<String>,
-    tyres: Option<String>,
-    laps: Option<u32>,
+    picks: Option<serde_json::Map<String, serde_json::Value>>,
+}
+
+/// `picks` as a create names them, when it names every pick and nothing
+/// else. [`Picks`] reads a missing pick as before there was one, which suits
+/// a kept room but not a creator's choice.
+fn every_pick(picks: serde_json::Map<String, serde_json::Value>) -> Option<Picks> {
+    let serde_json::Value::Object(every) =
+        serde_json::to_value(Picks::default()).expect("picks are JSON-encodable")
+    else {
+        unreachable!("picks encode as an object");
+    };
+    let named = |map: &serde_json::Map<String, serde_json::Value>| {
+        map.keys()
+            .cloned()
+            .collect::<std::collections::BTreeSet<_>>()
+    };
+    if named(&picks) != named(&every) {
+        return None;
+    }
+    serde_json::from_value(serde_json::Value::Object(picks)).ok()
 }
 
 /// The body is read as JSON whatever its content type says, so a create
@@ -80,9 +99,7 @@ async fn create_room(
     let request = if body.is_empty() {
         CreateRoom {
             track: None,
-            bot_level: None,
-            tyres: None,
-            laps: None,
+            picks: None,
         }
     } else {
         serde_json::from_slice(&body).map_err(|_| StatusCode::BAD_REQUEST)?
@@ -91,22 +108,15 @@ async fn create_room(
         None => None,
         Some(track) => Some(tracks::known(&track).ok_or(StatusCode::BAD_REQUEST)?),
     };
-    let bot_level = match request.bot_level {
-        None => BotLevel::Basic,
-        Some(level) => BotLevel::from_name(&level).ok_or(StatusCode::BAD_REQUEST)?,
-    };
-    let tyres = match request.tyres {
-        None => Tyres::On,
-        Some(tyres) => Tyres::from_name(&tyres).ok_or(StatusCode::BAD_REQUEST)?,
-    };
-    let laps = match request.laps {
-        None => DEFAULT_LAPS,
-        Some(laps) if LAP_CHOICES.contains(&laps) => laps,
-        Some(_) => return Err(StatusCode::BAD_REQUEST),
-    };
+    let picks = match request.picks {
+        None => FRESH_PICKS,
+        Some(picks) => every_pick(picks).ok_or(StatusCode::BAD_REQUEST)?,
+    }
+    .offered()
+    .map_err(|_| StatusCode::BAD_REQUEST)?;
     let code = state
         .rooms
-        .create_with(track, bot_level, tyres, laps, forwarded_address(&headers))
+        .create_with(track, picks, forwarded_address(&headers))
         .map_err(|refused| match refused {
             // The client tells these two apart for the Title Scene's message.
             CreateRefused::Full => StatusCode::SERVICE_UNAVAILABLE,

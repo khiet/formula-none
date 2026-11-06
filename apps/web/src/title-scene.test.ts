@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from "vitest";
 import { type AudioSettings, DEFAULT_AUDIO_SETTINGS } from "./audio-settings";
-import type { BotLevel, Tyres } from "./generated/sim";
+import type { Picks } from "./generated/sim";
 import { hexCss, livery } from "./livery";
 import { createTitleScene, type TitleHandlers, type TitleOptions } from "./title-scene";
 import { COURSES, type Course, type WorldPoint } from "./track";
@@ -24,10 +24,8 @@ const OPTIONS: TitleOptions = {
   roomCodeLength: 4,
   courses: COURSES.map((course) => ({ course, centreline: SQUARE })),
   course: BELL_DEER,
-  botLevel: "basic",
-  tyres: "off",
-  laps: 3,
-  lapChoices: [3, 5],
+  picks: { level: "basic", tyres: "off", laps: 3 },
+  pickChoices: { level: ["basic", "pro", "ace"], tyres: ["off", "on"], laps: [3, 5] },
   reducedMotion: () => true,
 };
 
@@ -37,9 +35,7 @@ interface Calls {
   races: number;
   audio: AudioSettings[];
   courses: Course[];
-  botLevels: BotLevel[];
-  tyres: Tyres[];
-  laps: number[];
+  picks: Picks[];
 }
 
 function scene(options: Partial<TitleOptions> = {}) {
@@ -51,9 +47,7 @@ function scene(options: Partial<TitleOptions> = {}) {
     races: 0,
     audio: [],
     courses: [],
-    botLevels: [],
-    tyres: [],
-    laps: [],
+    picks: [],
   };
   const handlers: TitleHandlers = {
     create: (nickname) => calls.created.push(nickname),
@@ -63,9 +57,7 @@ function scene(options: Partial<TitleOptions> = {}) {
     },
     audio: (settings) => calls.audio.push(settings),
     course: (course) => calls.courses.push(course),
-    botLevel: (level) => calls.botLevels.push(level),
-    tyres: (tyres) => calls.tyres.push(tyres),
-    laps: (laps) => calls.laps.push(laps),
+    picks: (picks) => calls.picks.push(picks),
   };
   const title = createTitleScene(container, { ...OPTIONS, ...options }, handlers);
   const input = (name: string) => {
@@ -209,7 +201,7 @@ describe("Title Scene", () => {
   });
 
   it("offers the laps beside the Tyres with the saved count picked, counts them on the card and reports each change", () => {
-    const { container, calls } = scene({ laps: 3 });
+    const { container, calls } = scene({ picks: { ...OPTIONS.picks, laps: 3 } });
     const radios = Array.from(
       container.querySelectorAll<HTMLInputElement>("input[type=radio][name=laps]"),
     );
@@ -221,11 +213,11 @@ describe("Title Scene", () => {
     expect(laps()).toBe("3");
     radios[1]?.click();
     expect(laps()).toBe("5");
-    expect(calls.laps).toEqual([5]);
+    expect(calls.picks).toEqual([{ ...OPTIONS.picks, laps: 5 }]);
   });
 
   it("opens the card on the saved laps, and keeps them when the course changes", () => {
-    const { container } = scene({ laps: 5 });
+    const { container } = scene({ picks: { ...OPTIONS.picks, laps: 5 } });
     const laps = () => lapsOnTheCard(container);
     expect(laps()).toBe("5");
     container.querySelector<HTMLInputElement>("input[name=course]:not(:checked)")?.click();
@@ -233,7 +225,7 @@ describe("Title Scene", () => {
   });
 
   it("offers the Tyres picks beside the bots with the saved one picked, describes the pick and reports each change", () => {
-    const { container, calls } = scene({ tyres: "off" });
+    const { container, calls } = scene({ picks: { ...OPTIONS.picks, tyres: "off" } });
     const radios = Array.from(
       container.querySelectorAll<HTMLInputElement>("input[type=radio][name=tyres]"),
     );
@@ -244,11 +236,12 @@ describe("Title Scene", () => {
     expect(blurb()).toMatch(/^Off: /);
     radios[1]?.click();
     expect(blurb()).toMatch(/^On: /);
-    expect(calls.tyres).toEqual(["on"]);
+    expect(calls.picks).toEqual([{ ...OPTIONS.picks, tyres: "on" }]);
   });
 
   it("offers the three bot levels under the flags with the saved one picked, describes the pick and reports each change", () => {
-    const { container, calls } = scene({ botLevel: "pro" });
+    const picks: Picks = { ...OPTIONS.picks, level: "pro" };
+    const { container, calls } = scene({ picks });
     const radios = Array.from(
       container.querySelectorAll<HTMLInputElement>("input[type=radio][name=bots]"),
     );
@@ -263,6 +256,24 @@ describe("Title Scene", () => {
     const [, , ace] = radios;
     ace?.click();
     expect(blurb()).toMatch(/^Ace: /);
-    expect(calls.botLevels).toEqual(["ace"]);
+    expect(calls.picks).toEqual([{ ...picks, level: "ace" }]);
+  });
+
+  it("reports every pick as it stands after each change, the earlier changes kept", () => {
+    const { input, calls } = scene();
+    const radio = (name: string, value: string) => {
+      const picked = input(name)
+        .closest(".picks")
+        ?.querySelector<HTMLInputElement>(`input[name=${name}][value="${value}"]`);
+      picked?.click();
+    };
+    radio("laps", "5");
+    radio("tyres", "on");
+    radio("bots", "ace");
+    expect(calls.picks).toEqual([
+      { level: "basic", tyres: "off", laps: 5 },
+      { level: "basic", tyres: "on", laps: 5 },
+      { level: "ace", tyres: "on", laps: 5 },
+    ]);
   });
 });

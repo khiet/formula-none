@@ -10,7 +10,8 @@ mod common;
 use common::{started, ticks, track, with_slot_at, BUMP_SPENT_S, DT, OVAL, SEED};
 
 use sim::tuning::{KART_BUMP_SPEED_LOSS, KART_HALF_LENGTH_M, KART_HALF_WIDTH_M, TOP_SPEED_M_PER_S};
-use sim::{step, BotLevel, KartInput, KartReadout, Prediction, State, Track};
+use sim::Picks;
+use sim::{step, KartInput, KartReadout, Prediction, State, Track};
 
 /// Centres this far apart along the column are nose to tail.
 const NOSE_TO_TAIL_M: f32 = 2.0 * KART_HALF_LENGTH_M;
@@ -242,7 +243,7 @@ fn the_prediction_bounces_the_own_kart_off_a_kart_the_snapshots_draw() {
     // The own kart at full throttle; the snapshots draw another kart
     // standing 10 m up its column.
     let track = oval_with_slots(&[([28.0, 0.0, 4.0], 0.0), ([28.0, 0.0, -6.0], 0.0)]);
-    let mut prediction = Prediction::new(SEED, 0, track.clone(), BotLevel::Basic);
+    let mut prediction = Prediction::new(SEED, 0, track.clone(), Picks::default());
     let standing = started(State::new(SEED, 2, track)).kart_readouts();
     // Idle through the countdown, for a clean start, then full throttle.
     let countdown = ticks(sim::tuning::COUNTDOWN_S) as u32;
@@ -289,7 +290,7 @@ fn a_correction_during_a_bump_keeps_the_own_karts_speed_and_recoil() {
     // column, as above; the tick after the touch a snapshot puts it a
     // hand's width aside, so the prediction rewinds to the snapshot.
     let track = oval_with_slots(&[([28.0, 0.0, 4.0], 0.0), ([28.0, 0.0, -6.0], 0.0)]);
-    let mut prediction = Prediction::new(SEED, 0, track.clone(), BotLevel::Basic);
+    let mut prediction = Prediction::new(SEED, 0, track.clone(), Picks::default());
     let standing = started(State::new(SEED, 2, track)).kart_readouts();
     let countdown = ticks(sim::tuning::COUNTDOWN_S) as u32;
     let drive = |sequence: u32| {

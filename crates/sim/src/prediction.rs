@@ -63,10 +63,9 @@ use crate::tuning::{
     COUNTDOWN_S, KART_HALF_LENGTH_M, RACE_OUTRO_S, RECONCILIATION_BLEND_TICKS,
     RECONCILIATION_TOLERANCE_M, RECONCILIATION_TYRE_LIFE_TOLERANCE_PERCENT, TICK_S,
 };
-use crate::BotLevel;
 use crate::{
     bot, clock_after, kart_collider, kart_groups, step, ItemSlot, Kart, KartInput, KartReadout,
-    Phase, Slipstream, Standing, State, Stop, Surface, Track, Tyres, Wheel,
+    Phase, Picks, Slipstream, Standing, State, Stop, Surface, Track, Wheel,
 };
 
 /// The phase a prediction holds once the server's race has ended: the top
@@ -171,30 +170,18 @@ impl Blend {
 
 impl Prediction {
     /// The kart on grid slot `kart` of a race from `seed` on `track`, at the
-    /// top of its countdown, driven by a bot at `level` once it has
-    /// finished, as the server's is (ADR 0078). `kart` must be a slot of
-    /// the track's grid.
-    pub fn new(seed: u64, kart: usize, track: Track, level: BotLevel) -> Self {
-        Self::with_tyres(seed, kart, track, level, Tyres::Off)
-    }
-
-    /// This prediction, of a race over the creator's pick of `laps`, so
-    /// the lap it holds agrees with the snapshots' past the third
-    /// (ADR 0084). Call this before the first tick.
-    pub fn with_laps(mut self, laps: u32) -> Self {
-        self.state = self.state.take().map(|state| state.with_laps(laps));
-        self
-    }
-
-    /// As [`Prediction::new`], with the creator's pick of `tyres`, so the
-    /// kart wears its own tyres from its own inputs as the server's does.
-    pub fn with_tyres(seed: u64, kart: usize, track: Track, level: BotLevel, tyres: Tyres) -> Self {
+    /// top of its countdown, run as `picks` says, as the server's is: a bot
+    /// at the picked level drives it once it has finished (ADR 0078), it
+    /// wears its tyres from its own inputs (ADR 0083) and it counts the
+    /// picked laps (ADR 0084). `kart` must be a slot of the track's grid and
+    /// `picks` offered ([`crate::Picks::offered`]).
+    pub fn new(seed: u64, kart: usize, track: Track, picks: Picks) -> Self {
         assert!(
             kart < track.spawn_grid().len(),
             "kart {kart} but the track has {} spawn slots",
             track.spawn_grid().len()
         );
-        let mut state = State::on_spawn_slots(seed, 1, kart..kart + 1, track, level, tyres);
+        let mut state = State::on_spawn_slots(seed, 1, kart..kart + 1, track, picks);
         // A box's roll is the server's: its RNG serves every kart's pickups
         // in the order they happen, which this race of one cannot follow.
         // So the boxes are never here to pick up, and the slot holds only
