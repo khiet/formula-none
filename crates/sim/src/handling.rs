@@ -1705,7 +1705,7 @@ mod tests {
         tick(&mut handling, FULL_THROTTLE);
 
         assert!(handling.boost_s().is_some());
-        let worn_cap = TOP_SPEED_M_PER_S * TYRE_TOP_SPEED_FACTORS[2];
+        let worn_cap = TOP_SPEED_M_PER_S * TyreGrip::at(TYRE_LIFE_CLIFF_PERCENT).top_speed;
         let paid = worn_cap * MINI_TURBO_BOOST_FACTOR;
         assert!((handling.speed - paid).abs() < 1e-4, "{}", handling.speed);
     }

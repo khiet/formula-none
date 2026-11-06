@@ -6,7 +6,8 @@ Accepted (2026-11-03). Replaces the glossary's "no pit lane to drive",
 which was only ever a description of the prop: ADR 0050 does not decide it.
 Extends ADR 0079, whose checkpoints must also reach across a lane. The
 specification and its evidence are in
-`docs/mockups/tyre-wear-and-pit-lane.html`.
+`docs/mockups/tyre-wear-and-pit-lane.html`. ADR 0095 supersedes every
+level's pit call with a call by the cliff.
 
 ## Context
 

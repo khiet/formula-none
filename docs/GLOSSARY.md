@@ -25,11 +25,11 @@ humans. How hard they drive is the room's bot level.
 
 How hard a race's bots drive: Basic, Pro or Ace, one of the picks on the
 Title Scene, fixed for the room as the course is and shown on the Room
-Scene. Basic is the bots as they were before there was a pick. The level
+Scene. Basic drives as the bots did before there was a pick. The level
 varies a bot's corner speed, its rubber band's lower bound, its item use
 delay, its rocket start chance, whether it calls itself in for the pit lane
-sooner than the cliff, which every level stops by, and when it drops its drifts, on worn tyres or to save them for the flag, nothing
-else; it changes how the bots drive, not how many there are. A replay carries it.
+sooner than the cliff, which every level stops by, and when it drops its
+drifts, on worn tyres or to save them for the flag, nothing else; it changes how the bots drive, not how many there are. A replay carries it.
 
 ### laps
 

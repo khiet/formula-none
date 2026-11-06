@@ -6,7 +6,8 @@ Accepted (2026-11-04), pending the maintainer's playtest. Builds what ADR 0085
 left out, the mockup's Ace that "manages when a no-stop race works", and supersedes
 ADR 0085's Ace call where saving reaches the flag: that bot stays out even if a
 stop would pay. The rest of ADR 0085 stands. The numbers below come from bots racing; nobody has played them
-yet, and ADR 0085's retune has not been played either.
+yet, and ADR 0085's retune has not been played either. ADR 0095 supersedes
+its 15% at the flag with the cliff.
 
 ## Context
 

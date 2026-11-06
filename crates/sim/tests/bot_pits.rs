@@ -86,7 +86,9 @@ fn an_ace_bot_holds_for_the_stop_that_saves_the_most_time() {
     // Four laps to go at 25 a lap from 75: new tyres now would run out by the
     // flag; a lap on they reach it with life left.
     assert!(!calls_for_the_pits(call, reading(75.0, Some(25.0), 4)));
-    assert!(calls_for_the_pits(call, reading(50.0, Some(25.0), 3)));
+    // Three to go at 20 a lap from 55: the next lane is above the cliff, but
+    // staying out ends on 5, and no later lap's stop costs less than now.
+    assert!(calls_for_the_pits(call, reading(55.0, Some(20.0), 3)));
 }
 
 #[test]

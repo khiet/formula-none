@@ -155,10 +155,11 @@ pub fn calls_for_the_pits(call: BotPitCall, reading: PitReading) -> bool {
     if laps_to_go == 0 {
         return false;
     }
-    if past_the_cliff_by_the_next_lane(call, reading) {
+    let saving = saves_its_tyres(call, reading);
+    if past_the_cliff_by_the_next_lane(call, reading, saving) {
         return true;
     }
-    if saves_its_tyres(call, reading) {
+    if saving {
         return false;
     }
     match call {
@@ -181,13 +182,13 @@ pub fn calls_for_the_pits(call: BotPitCall, reading: PitReading) -> bool {
 }
 
 /// Whether a bot on `reading` is at the cliff, or would wear past it by the
-/// next lane at the rate it is wearing, its drifts dropped if it saves its
-/// tyres (ADR 0095).
-fn past_the_cliff_by_the_next_lane(call: BotPitCall, reading: PitReading) -> bool {
+/// next lane at the rate it is wearing, its drifts dropped while `saving`
+/// (ADR 0095).
+fn past_the_cliff_by_the_next_lane(call: BotPitCall, reading: PitReading, saving: bool) -> bool {
     let rate = match call {
         BotPitCall::Projected {
             saving_wear_fraction,
-        } if saves_its_tyres(call, reading) => saving_wear_fraction,
+        } if saving => saving_wear_fraction,
         _ => 1.0,
     };
     reading.life <= TYRE_LIFE_CLIFF_PERCENT
