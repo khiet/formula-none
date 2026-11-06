@@ -13,6 +13,7 @@
 
 import airHornUrl from "../../../assets/audio/air-horn.wav?url";
 import boostPadUrl from "../../../assets/audio/boost-pad.wav?url";
+import bootsUrl from "../../../assets/audio/boots.wav?url";
 import boxChimeUrl from "../../../assets/audio/box-chime.wav?url";
 import coinLossUrl from "../../../assets/audio/coin-loss.wav?url";
 import coinPickupUrl from "../../../assets/audio/coin-pickup.wav?url";
@@ -22,6 +23,7 @@ import droneBeepUrl from "../../../assets/audio/drone-beep.wav?url";
 import finishUrl from "../../../assets/audio/finish.wav?url";
 import goUrl from "../../../assets/audio/go.wav?url";
 import grassUrl from "../../../assets/audio/grass.wav?url";
+import gunStallUrl from "../../../assets/audio/gun-stall.wav?url";
 import hitUrl from "../../../assets/audio/hit.wav?url";
 import hopUrl from "../../../assets/audio/hop.wav?url";
 import itemFireUrl from "../../../assets/audio/item-fire.wav?url";
@@ -29,9 +31,13 @@ import itemPickupUrl from "../../../assets/audio/item-pickup.wav?url";
 import itemRollTickUrl from "../../../assets/audio/item-roll-tick.wav?url";
 import itemRolledUrl from "../../../assets/audio/item-rolled.wav?url";
 import jackDropUrl from "../../../assets/audio/jack-drop.wav?url";
+import jackFailUrl from "../../../assets/audio/jack-fail.wav?url";
+import jackLiftUrl from "../../../assets/audio/jack-lift.wav?url";
 import lapUrl from "../../../assets/audio/lap.wav?url";
+import lollipopSpinUrl from "../../../assets/audio/lollipop-spin.wav?url";
 import miniTurboUrl from "../../../assets/audio/mini-turbo.wav?url";
 import musicUrl from "../../../assets/audio/music-loop.wav?url";
+import releaseChimeUrl from "../../../assets/audio/release-chime.wav?url";
 import sandUrl from "../../../assets/audio/sand.wav?url";
 import slipstreamUrl from "../../../assets/audio/slipstream.wav?url";
 import sputterUrl from "../../../assets/audio/sputter.wav?url";
@@ -40,11 +46,17 @@ import starFireUrl from "../../../assets/audio/star-fire.wav?url";
 import starMusicUrl from "../../../assets/audio/star-music.wav?url";
 import tierChimeUrl from "../../../assets/audio/tier-chime.wav?url";
 import wheelGunUrl from "../../../assets/audio/wheel-gun.wav?url";
+import wheelGunActUrl from "../../../assets/audio/wheel-gun-act.wav?url";
+import wheelGunOnUrl from "../../../assets/audio/wheel-gun-on.wav?url";
+import wheelGunRedoUrl from "../../../assets/audio/wheel-gun-redo.wav?url";
+import wheelOffUrl from "../../../assets/audio/wheel-off.wav?url";
+import wheelOnUrl from "../../../assets/audio/wheel-on.wav?url";
 import wrongWayUrl from "../../../assets/audio/wrong-way.wav?url";
 import {
   type DroneBeep,
   distanceLevel,
   droneBeep,
+  heardOnward,
   hornBlasts,
   loopPlayback,
   SOUND_AWAY_LOWPASS_HZ,
@@ -90,8 +102,19 @@ export const SOUND_URLS: Readonly<Record<SoundCue, string>> = {
   droneBeep: droneBeepUrl,
   slipstream: slipstreamUrl,
   boxChime: boxChimeUrl,
+  boots: bootsUrl,
+  jackLift: jackLiftUrl,
   wheelGun: wheelGunUrl,
+  wheelOff: wheelOffUrl,
+  wheelOn: wheelOnUrl,
+  wheelGunOn: wheelGunOnUrl,
+  lollipopSpin: lollipopSpinUrl,
   jackDrop: jackDropUrl,
+  releaseChime: releaseChimeUrl,
+  gunStall: gunStallUrl,
+  jackFail: jackFailUrl,
+  wheelGunAct: wheelGunActUrl,
+  wheelGunRedo: wheelGunRedoUrl,
 };
 export const LOOP_URLS: Readonly<Record<SoundLoop, string>> = {
   driftSkid: driftSkidUrl,
@@ -443,7 +466,7 @@ class LiveRace {
     if (!this.racing) return;
     const before = this.#last;
     const cues = soundCues(before, reading);
-    this.#last = reading;
+    this.#last = heardOnward(before, reading);
     const sounds = this.#sounds;
     if (sounds === undefined) return;
     this.#engineState = this.#stepEngine(sounds, reading);

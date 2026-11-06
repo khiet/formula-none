@@ -12,15 +12,18 @@
 // drone chasing the own kart is within the warning's reach, faster and
 // higher as it closes, from the distance the reading carries. The
 // slipstream's whoosh (ADR 0077) is the own kart's tow taking, an edge
-// like the rest, as are the pit crew's wheel guns as the own kart lands on
-// its mark and the jack's drop as its stop ends (ADR 0082).
+// like the rest. So is each beat of the own kart's stop (ADR 0082): the
+// crew's sounds fire as the stop clock crosses the beats the crew's poses
+// read, so none plays for a movement the player cannot see.
 
-import type { KartReadout, MiniTurbo, Surface } from "./bridge";
+import type { KartReadout, MiniTurbo, Stop, StopTier, Surface } from "./bridge";
+import { stopClock } from "./crew-stance";
 import { DRONE_WARNING_M, droneWarned, incomingDroneMetres } from "./drone-warning";
 import type { Item, Start } from "./generated/protocol";
 import { reelFrame } from "./item-reel";
 import { groundDistance } from "./kart-frame";
 import { type RaceCount, type RaceReadout, raceCount } from "./race-run";
+import { actOf, beatsOf, REDO_STEPS_S, RELEASE } from "./stop-beats";
 
 /** The sounds a race fires, each from the change that calls for it. */
 export type SoundCue =
@@ -47,8 +50,19 @@ export type SoundCue =
   | "droneBeep"
   | "slipstream"
   | "boxChime"
+  | "boots"
+  | "jackLift"
   | "wheelGun"
-  | "jackDrop";
+  | "wheelOff"
+  | "wheelOn"
+  | "wheelGunOn"
+  | "lollipopSpin"
+  | "jackDrop"
+  | "releaseChime"
+  | "gunStall"
+  | "jackFail"
+  | "wheelGunAct"
+  | "wheelGunRedo";
 
 /** The sounds that run while a state holds: the drift skid and the two run-off surfaces. */
 export type SoundLoop = "driftSkid" | "grass" | "sand";
@@ -91,16 +105,24 @@ export interface SoundReading {
   readonly towed: boolean;
   /** Whether the BOX call is showing; the chime sounds as it comes up. */
   readonly boxCall: boolean;
-  /** Whether the own kart is in its pit box for a stop (ADR 0082); the jack drops as the stop ends. */
-  readonly stopping: boolean;
-  /** Whether it stands on its mark with the crew at work; the wheel guns rattle as it lands there. */
-  readonly onTheMark: boolean;
+  /** The own kart's stop in its pit box (ADR 0082); null while it has none. */
+  readonly stop: HeardStop | null;
   /** The nearest other kart on a star run, by distance; null while none is. */
   readonly nearestStar: NearestStar | null;
   /** The other karts' horn blasts under way, by distance; never the own kart's, whose fire the slot sounds. */
   readonly blasts: readonly HeardBlast[];
   /** Metres to the nearest homing projectile chasing the own kart; null while none is. */
   readonly incomingDroneMetres: number | null;
+}
+
+/** The own kart's stop, as its crew's sounds read it. */
+export interface HeardStop {
+  readonly tier: StopTier;
+  readonly stationaryS: number;
+  /** The stop clock: negative through the guide onto the mark, the seconds on it after. */
+  readonly clock: number;
+  /** A clean stop's longest, where the tier's act starts. */
+  readonly actFromS: number;
 }
 
 /** Another kart's horn blast, as the own kart hears it. */
@@ -123,10 +145,16 @@ export interface NearestStar {
 
 /**
  * The reading of `kart`, the own kart, from its readout and standing in
- * `race`, the item slot and the phase, with `boxCall` whether the BOX call
+ * `race`, the item slot and the phase, with `cleanStopSeconds` a clean
+ * stop's longest from the sim's tuning and `boxCall` whether the BOX call
  * shows. Throws when `race` has no such kart.
  */
-export function soundReading(race: RaceReadout, kart: number, boxCall = false): SoundReading {
+export function soundReading(
+  race: RaceReadout,
+  kart: number,
+  cleanStopSeconds: number,
+  boxCall = false,
+): SoundReading {
   const readout = race.karts[kart];
   const standing = race.standings[kart];
   if (readout === undefined || standing === undefined) {
@@ -158,8 +186,7 @@ export function soundReading(race: RaceReadout, kart: number, boxCall = false): 
     starSeconds: readout.starS,
     towed: readout.slipstream !== null && "tow" in readout.slipstream,
     boxCall,
-    stopping: readout.stop !== null,
-    onTheMark: readout.stop !== null && readout.stop.guideLeftS <= 0,
+    stop: heardStop(readout.stop, cleanStopSeconds),
     nearestStar: nearestStar(race.karts, kart),
     blasts: race.blasts
       .filter((blast) => blast.kart !== kart)
@@ -170,6 +197,11 @@ export function soundReading(race: RaceReadout, kart: number, boxCall = false): 
       })),
     incomingDroneMetres: incomingDroneMetres(race.projectiles, kart, readout),
   };
+}
+
+function heardStop(stop: Stop | null, actFromS: number): HeardStop | null {
+  if (stop === null) return null;
+  return { tier: stop.tier, stationaryS: stop.stationaryS, clock: stopClock(stop), actFromS };
 }
 
 /** The nearest kart but `kart` that is on a star run, or null while none is. */
@@ -226,7 +258,9 @@ export const STAR_RESTART_RISE_S = 0.5;
  * way as its flag raises; the star's end as the run runs out, unless the
  * finish ended it; the slipstream as a tow takes, and nothing as it holds,
  * is re-armed or runs out (ADR 0077); the BOX chime as its call comes up
- * (ADR 0080); the finish as the kart finishes,
+ * (ADR 0080); the crew's boots as the own kart is caught for its stop,
+ * each of its beats as the stop clock crosses it (`stopCues`), and the
+ * jack's drop and the radio's go as it is let go; the finish as the kart finishes,
  * else the lap as the count rises. Nothing else from the first reading.
  */
 export function soundCues(before: SoundReading | undefined, after: SoundReading): SoundCue[] {
@@ -274,11 +308,105 @@ export function soundCues(before: SoundReading | undefined, after: SoundReading)
   }
   if (!before.towed && after.towed) cues.push("slipstream");
   if (!before.boxCall && after.boxCall) cues.push("boxChime");
-  if (!before.onTheMark && after.onTheMark) cues.push("wheelGun");
-  if (before.stopping && !after.stopping) cues.push("jackDrop");
+  cues.push(...stopBeatCues(before.stop, after.stop));
   if (finishedNow) cues.push("finish");
   else if (after.lap > before.lap) cues.push("lap");
   return cues;
+}
+
+/** A step of the stop clock longer than this is a seek and sounds none of the beats it passes; a slow frame's step is well under it. */
+const STOP_SEEK_S = 0.25;
+
+/** The gun stall repeats this often while a botched stop's nut will not come. */
+const GUN_STALL_EVERY_S = 1.3;
+/** No stall starts within this long of the nut freeing, as on the pit crew page. */
+const GUN_STALL_LAST_S = 0.6;
+/** The act's short run on a stuck nut lasts this long; a botched stop's ends as the nut frees. */
+const WHEEL_GUN_ACT_S = 0.3;
+/** A worn wheel thumps down this far into its beat, once pulled clear of the hub. */
+const WHEEL_OFF_INTO_S = 0.12;
+/** A fresh wheel clunks home this long before its beat ends, as it seats. */
+const WHEEL_ON_BEFORE_S = 0.08;
+
+interface StopCue {
+  readonly at: number;
+  readonly cue: SoundCue;
+}
+
+/**
+ * The cues of `stop`'s beats on the mark, by the stop clock, in order: the
+ * jacks up, the guns off, a wheel off and on, the guns on, and the sign's
+ * spin before green; then the tier's act from the same table as the
+ * crew's poses: a slow stop's gun on the stubborn nut, a botched one's
+ * stalls, the swarm's boots and the gun as the nut frees, a disaster's
+ * failed jack, its rejack and the corner's redo.
+ */
+function stopCues(stop: HeardStop): StopCue[] {
+  const beats = beatsOf(stop.stationaryS);
+  const cues: StopCue[] = [
+    { at: beats.jackUp[0], cue: "jackLift" },
+    { at: beats.gunsOff[0], cue: "wheelGun" },
+    { at: beats.wheelsOff[0] + WHEEL_OFF_INTO_S, cue: "wheelOff" },
+    { at: beats.wheelsOn[1] - WHEEL_ON_BEFORE_S, cue: "wheelOn" },
+    { at: beats.gunsOn[0], cue: "wheelGunOn" },
+    { at: stop.stationaryS + RELEASE.spin[0], cue: "lollipopSpin" },
+  ];
+  const act = actOf(stop.tier, stop.stationaryS, stop.actFromS);
+  if (act?.kind === "slow") cues.push({ at: act.stall[0], cue: "wheelGunAct" });
+  if (act?.kind === "botched") {
+    const [stuck, freed] = act.stall;
+    for (let at = stuck; at < freed - GUN_STALL_LAST_S; at += GUN_STALL_EVERY_S) {
+      cues.push({ at, cue: "gunStall" });
+    }
+    cues.push(
+      { at: act.swarmAt, cue: "boots" },
+      { at: freed - WHEEL_GUN_ACT_S, cue: "wheelGunAct" },
+    );
+  }
+  if (act?.kind === "disaster") {
+    const redo = act.redo[0];
+    cues.push(
+      { at: act.failAt, cue: "jackFail" },
+      { at: act.rejack[0], cue: "jackLift" },
+      { at: redo, cue: "wheelGunRedo" },
+      { at: redo + REDO_STEPS_S[2] - WHEEL_ON_BEFORE_S, cue: "wheelOn" },
+      { at: redo + REDO_STEPS_S[2], cue: "wheelGunRedo" },
+    );
+  }
+  return cues.sort((a, b) => a.at - b.at);
+}
+
+/**
+ * The stop's cues from `before` to `after`, the own kart's stop at each:
+ * the boots as it is caught onto the guide, each beat the clock steps
+ * across, and the jack's drop and the release chime as it is let go on
+ * green. A seek past a beat or past green, or a stop first read on its
+ * mark, sounds none.
+ */
+function stopBeatCues(before: HeardStop | null, after: HeardStop | null): SoundCue[] {
+  if (before === null && after !== null) return after.clock < 0 ? ["boots"] : [];
+  if (before !== null && after === null) {
+    return before.stationaryS - before.clock <= STOP_SEEK_S ? ["jackDrop", "releaseChime"] : [];
+  }
+  if (before === null || after === null) return [];
+  const step = after.clock - before.clock;
+  if (step <= 0 || step > STOP_SEEK_S || after.stationaryS !== before.stationaryS) return [];
+  return stopCues(after)
+    .filter(({ at }) => before.clock < at && at <= after.clock)
+    .map(({ cue }) => cue);
+}
+
+/**
+ * The reading the next frame's cues compare against, after `after`: itself,
+ * but for a stop clock a correction steps back, which holds at the furthest
+ * `before` reached, so a beat already heard does not sound again as the
+ * clock comes forward over it.
+ */
+export function heardOnward(before: SoundReading | undefined, after: SoundReading): SoundReading {
+  const held = before?.stop;
+  const stop = after.stop;
+  if (held == null || stop === null || stop.stationaryS !== held.stationaryS) return after;
+  return stop.clock < held.clock ? { ...after, stop: { ...stop, clock: held.clock } } : after;
 }
 
 /**

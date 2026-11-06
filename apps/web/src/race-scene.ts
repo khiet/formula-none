@@ -138,7 +138,7 @@ export async function createRaceScene(
       panel.update(readout);
       const called = boxCall.update(local.tyreLife, standing.lap, frameSeconds);
       panel.boxCall(called);
-      audio.update(soundReading(readout, run.localKart, called));
+      audio.update(soundReading(readout, run.localKart, bridge.cleanStopSeconds, called));
     }
   };
   audio.start();
