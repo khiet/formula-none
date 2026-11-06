@@ -40,9 +40,6 @@ impl Target {
         }
     }
 
-    /// Whether the kart reaches a hazard or a projectile centred at
-    /// `point`: the point lies within `radius` of its collision box, seen
-    /// from above.
     fn reaches(&self, point: [f32; 3], radius: f32) -> bool {
         reaches(self.translation, &self.rotation, point, radius)
     }
@@ -267,14 +264,15 @@ pub(crate) fn resolve(
     projectiles.retain_mut(|flying| {
         let slot = flying.projectile.target;
         fly(flying, track, targets[slot].translation, dt);
+        let trailed = shield(hazards, slot);
         let item = Reaching::Projectile {
             reached: targets[slot].reaches(flying.projectile.position, HOMING_RADIUS_M),
-            shielded: shield(hazards, slot).is_some(),
+            shielded: trailed.is_some(),
         };
         match fate(&targets[slot], item) {
             Fate::Passes => return true,
             Fate::Shielded => {
-                hazards.remove(shield(hazards, slot).expect("the shield was just found"));
+                hazards.remove(trailed.expect("only a trailed hazard shields"));
             }
             Fate::Hit => hit(
                 &mut targets,
@@ -354,8 +352,9 @@ impl HornBlast {
             {
                 continue;
             }
+            let trailed = shield(hazards, slot);
             let item = Reaching::Horn {
-                shielded: shield(hazards, slot).is_some(),
+                shielded: trailed.is_some(),
             };
             match fate(target, item) {
                 Fate::Hit => hits.push(Hit {
@@ -363,7 +362,7 @@ impl HornBlast {
                     source: Source::Horn(firer),
                 }),
                 Fate::Shielded => {
-                    hazards.remove(shield(hazards, slot).expect("the shield was just found"));
+                    hazards.remove(trailed.expect("only a trailed hazard shields"));
                 }
                 Fate::Passes | Fate::UsedUp => {}
             }
@@ -437,7 +436,7 @@ mod tests {
             .expect("the oval loads")
     }
 
-    /// An ordinary kart facing +Z at `x` along a line, each kart 20 m from
+    /// An ordinary kart facing -Z at `x` along a line, each kart 20 m from
     /// the next so no item reaches two.
     fn kart(x: f32) -> Target {
         Target {
