@@ -976,8 +976,8 @@ def pits(layout: Layout, prop: Prop, number: int, still: ByMaterial) -> tuple[li
     toward it: stand-riser walls toned against stand plinth under a stand-plinth parapet and
     a lit roof, a door for each livery on the front face, forward along the track from
     the lane's `door_first` in the crowd's order, so every grid slot faces them, each in
-    its key colour with a lit band along its top, and a still flag on a carbon pole over each door, the flags in the same
-    colours the other way round, as the style guide's card has them. No number and no kart:
+    its key colour with a lit band along its top, and a still flag on a carbon pole over
+    each door, the flags in the same colours the other way round, as the style guide's card has them. No number and no kart:
     the doors are colours only. A `white` building, Goldstone's, has wall-white walls over beam
     shade under a beam-top parapet instead. It faces the track from either side."""
     (plan,) = _pits_footprint(layout, prop)

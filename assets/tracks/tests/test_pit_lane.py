@@ -1,7 +1,8 @@
 """The pit lanes checked without Blender (ADR 0081): each forks off its start
 straight on the side ADR 0088 gives it, past the pit wall and clear of the pit
-building, the trees and the boost pads short of it, and every checkpoint along it reaches
-across it. The oval has none.
+building and the trees, with no boost pad or coin on the road a kart called in
+crosses to reach it, and every checkpoint along it reaches across it. The oval
+has none.
 
     python3 -I -m unittest discover -s assets/tracks/tests -t assets/tracks
 """
