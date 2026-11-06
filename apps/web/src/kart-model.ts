@@ -7,7 +7,7 @@
 import { type Material, Mesh, MeshStandardMaterial, type Object3D } from "three";
 import kartGltf from "../../../assets/karts/kart.glb?url";
 import type { KartSize } from "./bridge";
-import { DRIVER_PARTS, partsOf } from "./driver-parts";
+import { FACE_PARTS, partsOf } from "./driver-parts";
 import type { Livery } from "./livery";
 import { mixColour } from "./star-shine";
 
@@ -90,7 +90,7 @@ export function dressKart(model: Object3D, livery: Livery): Object3D {
   const worn = partsOf(livery.driver);
   const own = new Map<Material, Material>();
   kart.traverse((object) => {
-    if (DRIVER_PARTS.has(object.name)) {
+    if (FACE_PARTS.has(object.name)) {
       object.visible = worn.has(object.name);
     }
     if (!(object instanceof Mesh) || Array.isArray(object.material)) {

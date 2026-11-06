@@ -1110,6 +1110,8 @@ pub struct Tuning {
     pub tyre_life_cliff_percent: f32,
     /// The longest a clean stop lasts: past it the crew shows what went wrong (ADR 0082).
     pub stop_clean_s: f32,
+    /// How long the guide onto the mark takes: the pit crew runs out at its start.
+    pub pit_box_guide_s: f32,
     pub coins_lost_per_spin_out: u32,
     pub coin_half_length_m: f32,
     pub coin_half_width_m: f32,
@@ -1162,6 +1164,7 @@ pub const TUNING: Tuning = Tuning {
     tyre_life_new_percent: TYRE_LIFE_NEW_PERCENT,
     tyre_life_cliff_percent: TYRE_LIFE_CLIFF_PERCENT,
     stop_clean_s: STOP_ROLL_STATIONARY_S[1][1],
+    pit_box_guide_s: PIT_BOX_GUIDE_S,
     coins_lost_per_spin_out: COINS_LOST_PER_SPIN_OUT,
     coin_half_length_m: COIN_HALF_LENGTH_M,
     coin_half_width_m: COIN_HALF_WIDTH_M,

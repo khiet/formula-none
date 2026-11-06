@@ -41,17 +41,22 @@ const sameFace = (a: Face, b: Face) =>
 /** The wheels turn as `.wheel` groups, so each is drawn whole, every face of it, hidden at rest or not. */
 const moving = (node: string) => node.startsWith("wheel-");
 
-/** The parts a driver may or may not wear; everything else is always drawn. */
-const optional = (node: string) =>
-  node.startsWith("hair-") || node.startsWith("facial-hair-") || node === "earrings";
+/** The kinds of face part a face wears at most one of, by the prefix of their node names. */
+const KINDS = ["hair-", "facial-hair-", "brows-", "nose-", "mouth-"];
 
-/** Two hair styles, or two facial hairs, are never worn together, so neither hides the other. */
+/** The parts a face may or may not wear; everything else is always drawn. */
+const optional = (node: string) =>
+  KINDS.some((kind) => node.startsWith(kind)) ||
+  node === "earrings" ||
+  node === "glasses" ||
+  node === "headset";
+
+/** The kind of face part `node` is, or the node itself for a part of its own kind. */
+const kindOf = (node: string) => KINDS.find((kind) => node.startsWith(kind)) ?? node;
+
+/** Two parts of one kind, two hair styles say, are never worn together, so neither hides the other. */
 const together = (a: string, b: string) =>
-  a === b ||
-  !(
-    (a.startsWith("hair-") && b.startsWith("hair-")) ||
-    (a.startsWith("facial-hair-") && b.startsWith("facial-hair-"))
-  );
+  a === b || kindOf(a) !== kindOf(b) || !optional(a) || !optional(b);
 
 /** The poster kart's side view of `model`. */
 export function sideView(model: Model): SideView {

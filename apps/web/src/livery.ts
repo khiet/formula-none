@@ -8,7 +8,7 @@
 
 export const LIVERIES = 8;
 
-/** How a driver's hair is cut, on the one shared head every kart carries. */
+/** How a face's hair is cut, on the one shared head every kart and every pit crew member carries. */
 export const HAIRS = [
   "braids-tied-back",
   "short",
@@ -17,6 +17,10 @@ export const HAIRS = [
   "short-greying-temples",
   "swept-back",
   "short-curls",
+  "buzz",
+  "ponytail",
+  "bun",
+  "bald",
 ] as const;
 export type Hair = (typeof HAIRS)[number];
 
@@ -26,23 +30,54 @@ export const FACIAL_HAIRS = [
   "stubble",
   "heavy-stubble",
   "short-beard",
+  "moustache",
 ] as const;
 export type FacialHair = (typeof FACIAL_HAIRS)[number];
 
+/** The brows' angle: level, outer ends raised, or outer ends lowered. */
+export const BROWS = ["level", "knit", "worried"] as const;
+export type Brows = (typeof BROWS)[number];
+
+export const NOSES = ["button", "broad"] as const;
+export type Nose = (typeof NOSES)[number];
+
+export const MOUTHS = ["line", "smile", "grin", "open"] as const;
+export type Mouth = (typeof MOUTHS)[number];
+
+/** The skin tones a face is drawn in, sRGB. */
+export const SKINS = {
+  deepBrown: 0x74492f,
+  fair: 0xe5bb98,
+  olive: 0xc48a5f,
+  tan: 0xb87a52,
+  dark: 0x4e2f1d,
+} as const;
+
 /**
- * A slot's driver: a friendly caricature of the team's best-known driver
- * under a parody name, told apart only by what swaps on the shared head.
- * The kart shows the head bare (ADR 0036); the name shows nowhere.
+ * A face on the one shared head: what swaps on it and the colours it is
+ * painted in. A driver's and every pit crew member's.
  */
-export interface Driver {
-  readonly name: string;
+export interface Face {
   /** sRGB, as a Three colour takes it. */
   readonly skin: number;
   readonly hair: Hair;
-  /** sRGB. */
+  /** sRGB; the brows take it too. */
   readonly hairColour: number;
   readonly facialHair: FacialHair;
   readonly earrings: boolean;
+  readonly brows: Brows;
+  readonly nose: Nose;
+  readonly mouth: Mouth;
+  readonly glasses: boolean;
+}
+
+/**
+ * A slot's driver: a friendly caricature of the team's best-known driver
+ * under a parody name, told apart only by their face. The kart shows the
+ * head bare (ADR 0036); the name shows nowhere.
+ */
+export interface Driver extends Face {
+  readonly name: string;
 }
 
 /** Every colour is sRGB, as a Three colour takes it. */
@@ -57,8 +92,6 @@ export interface Livery {
   readonly driver: Driver;
 }
 
-const SKIN = { deepBrown: 0x74492f, fair: 0xe5bb98, olive: 0xc48a5f } as const;
-
 const PALETTE: readonly Livery[] = [
   // After Ferrari.
   {
@@ -69,11 +102,15 @@ const PALETTE: readonly Livery[] = [
     accent: 0xffd400,
     driver: {
       name: "Louis Hamiltoon",
-      skin: SKIN.deepBrown,
+      skin: SKINS.deepBrown,
       hair: "braids-tied-back",
       hairColour: 0x1a1210,
       facialHair: "short-beard",
       earrings: true,
+      brows: "level",
+      nose: "button",
+      mouth: "smile",
+      glasses: false,
     },
   },
   // After Red Bull.
@@ -85,11 +122,15 @@ const PALETTE: readonly Livery[] = [
     accent: 0xffc72c,
     driver: {
       name: "Max Verstoppen",
-      skin: SKIN.fair,
+      skin: SKINS.fair,
       hair: "short",
       hairColour: 0x8a6a48,
       facialHair: "light-stubble",
       earrings: false,
+      brows: "knit",
+      nose: "button",
+      mouth: "line",
+      glasses: false,
     },
   },
   // After Mercedes.
@@ -101,11 +142,15 @@ const PALETTE: readonly Livery[] = [
     accent: 0x00a19c,
     driver: {
       name: "Georgie Rustle",
-      skin: SKIN.fair,
+      skin: SKINS.fair,
       hair: "swept-side-part",
       hairColour: 0x5a3a22,
       facialHair: "none",
       earrings: false,
+      brows: "level",
+      nose: "button",
+      mouth: "grin",
+      glasses: false,
     },
   },
   // After McLaren.
@@ -117,11 +162,15 @@ const PALETTE: readonly Livery[] = [
     accent: 0x3ec3f5,
     driver: {
       name: "Lando Nourish",
-      skin: SKIN.fair,
+      skin: SKINS.fair,
       hair: "curly-fringe",
       hairColour: 0x6b4528,
       facialHair: "none",
       earrings: false,
+      brows: "worried",
+      nose: "button",
+      mouth: "grin",
+      glasses: false,
     },
   },
   // After Aston Martin.
@@ -133,11 +182,15 @@ const PALETTE: readonly Livery[] = [
     accent: 0xcedc00,
     driver: {
       name: "Fernando Alonsno",
-      skin: SKIN.olive,
+      skin: SKINS.olive,
       hair: "short-greying-temples",
       hairColour: 0x1c1c1f,
       facialHair: "stubble",
       earrings: false,
+      brows: "knit",
+      nose: "broad",
+      mouth: "smile",
+      glasses: false,
     },
   },
   // After Williams.
@@ -149,11 +202,15 @@ const PALETTE: readonly Livery[] = [
     accent: 0xffffff,
     driver: {
       name: "Carlos Saintz",
-      skin: SKIN.olive,
+      skin: SKINS.olive,
       hair: "swept-back",
       hairColour: 0x1c1c1f,
       facialHair: "heavy-stubble",
       earrings: false,
+      brows: "level",
+      nose: "broad",
+      mouth: "smile",
+      glasses: false,
     },
   },
   // After Alpine.
@@ -165,11 +222,15 @@ const PALETTE: readonly Livery[] = [
     accent: 0xffffff,
     driver: {
       name: "Pierre Gassly",
-      skin: SKIN.fair,
+      skin: SKINS.fair,
       hair: "short-curls",
       hairColour: 0x241a14,
       facialHair: "stubble",
       earrings: false,
+      brows: "worried",
+      nose: "button",
+      mouth: "line",
+      glasses: false,
     },
   },
   // After Audi.
@@ -181,11 +242,15 @@ const PALETTE: readonly Livery[] = [
     accent: 0xf50537,
     driver: {
       name: "Nico Hulkenbird",
-      skin: SKIN.fair,
+      skin: SKINS.fair,
       hair: "short",
       hairColour: 0xb8955a,
       facialHair: "none",
       earrings: false,
+      brows: "knit",
+      nose: "broad",
+      mouth: "line",
+      glasses: false,
     },
   },
 ];

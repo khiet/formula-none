@@ -2,7 +2,7 @@
 // rays and chequered bands behind them, and the kart side on. All of it is
 // decoration, hidden from assistive technology; index.html styles it.
 
-import { DRIVER_PARTS, partsOf } from "./driver-parts";
+import { FACE_PARTS, partsOf } from "./driver-parts";
 import side from "./generated/kart/side.json";
 import { hexCss, type Livery } from "./livery";
 import { KART_PAINT } from "./palette";
@@ -46,7 +46,7 @@ export function kartSide({ primary, secondary, accent, driver }: Livery): SVGSVG
   let body = "";
   let run: string | undefined;
   for (const path of side.paths) {
-    if (DRIVER_PARTS.has(path.node) && !worn.has(path.node)) continue;
+    if (FACE_PARTS.has(path.node) && !worn.has(path.node)) continue;
     if (path.node !== run) {
       if (run !== undefined) body += "</g>";
       run = path.node;
