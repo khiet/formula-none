@@ -423,7 +423,7 @@ fn speed_cap_at_life_km_per_h(life_percent: f32) -> u32 {
 }
 
 #[test]
-fn a_kart_at_the_cliff_caps_at_95_km_per_h_and_one_worn_out_at_76() {
-    assert_eq!(speed_cap_at_life_km_per_h(TYRE_LIFE_CLIFF_PERCENT), 95);
-    assert_eq!(speed_cap_at_life_km_per_h(0.0), 76);
+fn a_kart_at_the_cliff_caps_at_82_km_per_h_and_one_worn_out_at_43() {
+    assert_eq!(speed_cap_at_life_km_per_h(TYRE_LIFE_CLIFF_PERCENT), 82);
+    assert_eq!(speed_cap_at_life_km_per_h(0.0), 43);
 }
