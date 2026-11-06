@@ -754,9 +754,9 @@ fn over_five_laps_a_field_that_can_stop_wins_sooner_than_one_that_cannot() {
 
 #[test]
 fn called_in_a_bot_short_of_the_lanes_first_point_reads_no_turn_there() {
-    // A kart that has not reached the path reads 0 m along it; there the
-    // lane's turn must still come from road, not from a point turned against
-    // itself. Monarch's lane runs nearly straight from its fork.
+    // A kart short of the path reads 0 m along it, where the turn must be read
+    // from the road ahead and not from a chord of no length. Monarch's lane
+    // runs nearly straight from its fork, so nothing there calls for the brake.
     let course = monarch();
     let fork = course.pit_lane_fork().expect("a lane");
     let lane = course.pit_lane().expect("a lane");

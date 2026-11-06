@@ -35,8 +35,8 @@ from ..path import Turtle
 KERB_INSIDE_M = 4.9
 # Left of the centreline, where every tyre wall stands clear of the bots' line.
 TYRE_WALL_LEFT_M = 4.5
-# Where the pits' middle stands, its doors centred on it: the longest building
-# the infield between Club and Abbey holds by the 8 m rule stands here.
+# Where the pits' middle stands, its doors centred on it: here a 70 m building
+# keeps the 8 m rule from every wall in the infield between Club and Abbey.
 PITS_S = -6.0
 
 path = (
@@ -142,7 +142,7 @@ LAYOUT = Layout(
         ],
         gantry=True,
         # The pits drawn white inside the Hamilton Straight, a nod to the Wing,
-        # 70 m so they keep the 8 m rule from Club and Abbey (ADR 0089). A row
+        # 70 m so they keep the 8 m rule (ADR 0089). A row
         # of five airfield hangars outside the Hangar Straight, fronts 21 m
         # from the centreline as the pits' are.
         props=[

@@ -332,10 +332,9 @@ impl PitLane {
     }
 
     /// How sharply the path turns `metres` along it, in radians per metre of
-    /// travel either way: read the way the centreline's turns are, so a
-    /// bot slows for the lane's road as it does for the course's. Near either
-    /// end it reads the turn a window in, since past the end there is no road
-    /// to turn and a direction there would come out of nothing.
+    /// travel either way, read as the centreline's turns are. Near either end
+    /// it reads the turn a window in: past an end the chord has no length, and
+    /// a direction read from it is noise.
     pub(crate) fn sharpness_at(&self, metres: f32) -> f32 {
         let metres = metres.clamp(
             CURVATURE_WINDOW_M,

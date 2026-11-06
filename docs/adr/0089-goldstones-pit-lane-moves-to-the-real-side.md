@@ -41,8 +41,8 @@ A layout change was weighed: a Club of 30 to 35 m radius gives the sweep a 17 to
   road, or from as far short of the road's start as it is short of the fork.
 - Goldstone's pit building moves right of the straight, between Club and Abbey,
   70 m long with its middle 6 m short of the line and its doors centred on it.
-  There it keeps the 8 m rule with 8.5 m of grass to the nearest wall; no
-  longer building does. It stays white. The grid's stands move left, across from it.
+  There it keeps the 8 m rule with 8.5 m of grass to the nearest wall; a
+  building much longer would not, 74 m keeping only 7.9 m wherever it stands. It stays white. The grid's stands move left, across from it.
 
 ## Consequences
 
