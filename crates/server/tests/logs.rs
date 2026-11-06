@@ -120,6 +120,11 @@ async fn a_races_lines_carry_the_tick() {
     assert_eq!(race_started[0]["room"], code);
     assert_eq!(race_started[0]["seed"], started[0].seed);
     assert_eq!(race_started[0]["track"], "oval");
+    assert_eq!(
+        race_started[0]["picks"],
+        serde_json::to_value(started[0].picks).unwrap(),
+        "the picks are one field, as the room holds them"
+    );
 
     let go = lines_of(&lines, "race_go");
     assert_eq!(go.len(), 1);
