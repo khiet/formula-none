@@ -6,7 +6,7 @@ Accepted (2026-11-03). Supersedes ADR 0054's one lap count for every race;
 its three laps stay as the Sprint. Extends ADR 0061's and ADR 0078's picks
 on the Title Scene. The specification and its evidence are in
 `docs/mockups/tyre-wear-and-pit-lane.html`. ADR 0084 supersedes its names for
-the race distance: the pick is the laps, 3 or 5.
+the race distance: the pick is the laps, 3 or 5. ADR 0091 supersedes how it carries the pick: `POST /api/rooms`, the wire's `Room` and `Countdown` and the kept room take the picks as one value.
 
 ## Context
 

@@ -45,6 +45,6 @@ fourth would do it again.
   in the tuning, a row on the Title Scene and a line on the Room Scene. The
   bridge, the wire, the room and the browser's storage carry it as they are.
 - The wire's bytes do not change: postcard writes a struct's fields in order
-  and names none, and the picks sit where their fields did. The protocol
-  version stays.
+  and names none, and the picks sit where their fields did. The decoded
+  messages' shape does, so `PROTOCOL_VERSION` goes to 27 (ADR 0013).
 - The server logs the picks as one `picks` field.

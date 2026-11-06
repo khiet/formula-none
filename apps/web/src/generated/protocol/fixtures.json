@@ -20,7 +20,7 @@
       "name": "join",
       "bytes": [
         1,
-        26,
+        27,
         4,
         66,
         88,
@@ -37,7 +37,7 @@
         "join": {
           "nickname": "khiet",
           "room": "BXQF",
-          "version": 26
+          "version": 27
         }
       }
     },
@@ -103,7 +103,7 @@
       "name": "rejoin",
       "bytes": [
         7,
-        26,
+        27,
         4,
         66,
         88,
@@ -147,7 +147,7 @@
         "rejoin": {
           "room": "BXQF",
           "token": "0123456789abcdef0123456789abcdef",
-          "version": 26
+          "version": 27
         }
       }
     },
@@ -311,12 +311,12 @@
       "bytes": [
         2,
         3,
-        26
+        27
       ],
       "message": {
         "refused": {
           "versionMismatch": {
-            "server": 26
+            "server": 27
           }
         }
       }
