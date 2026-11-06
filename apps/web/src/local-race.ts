@@ -38,23 +38,24 @@ export function localRaceRun(
   picks: Picks,
   setup: RaceSetup = SOLO_RACE,
 ): RaceRun {
+  const { tuning } = bridge;
   if (setup.localKart < 0 || setup.localKart >= setup.humanCount) {
     throw new RangeError(`local kart ${setup.localKart} is not one of ${setup.humanCount} humans`);
   }
-  const botCount = bridge.tuning.kartsPerRace - setup.humanCount;
+  const botCount = tuning.kartsPerRace - setup.humanCount;
   const race = bridge.createRace(setup.seed, setup.humanCount, botCount, sidecar, picks);
   const replay = recordReplay(bridge, setup.seed, track, botCount, picks, race);
   const inputs: KartInput[] = Array<KartInput>(setup.humanCount).fill(IDLE_INPUT);
   const boxes = race.itemBoxes();
   const coins = race.coins();
   const slot = () => race.kartReadouts()[setup.localKart]?.itemSlot ?? "empty";
-  const ticks = (seconds: number) => Math.round(seconds * bridge.tuning.ticksPerSecond);
+  const ticks = (seconds: number) => Math.round(seconds * tuning.ticksPerSecond);
   let boxesTaken = 0;
   // The only way an item leaves the slot here is the fire, which the sim
   // applies the tick it is pressed; the slot shows it for the flash.
   let flashTicksLeft = 0;
   let landingTicksLeft = 0;
-  const blasts = blastLedger(bridge.tuning.ticksPerSecond);
+  const blasts = blastLedger(tuning.ticksPerSecond);
   return {
     humanCount: setup.humanCount,
     localKart: setup.localKart,
@@ -71,7 +72,7 @@ export function localRaceRun(
           ? ticks(ITEM_FIRE_FLASH_S)
           : Math.max(flashTicksLeft - 1, 0);
       landingTicksLeft =
-        rollingOf(before, bridge.tuning.itemRollS) !== null && landedItem(after) !== null
+        rollingOf(before, tuning.itemRollS) !== null && landedItem(after) !== null
           ? ticks(ITEM_LANDING_FLASH_S)
           : Math.max(landingTicksLeft - 1, 0);
       blasts.tick();
@@ -91,7 +92,7 @@ export function localRaceRun(
         phase: race.phase(),
         itemSlot: {
           item: landedItem(own),
-          rolling: rollingOf(own, bridge.tuning.itemRollS),
+          rolling: rollingOf(own, tuning.itemRollS),
           firing: flashTicksLeft > 0,
           landing: landingTicksLeft > 0,
           boxesTaken,

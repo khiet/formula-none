@@ -1,4 +1,4 @@
-import type { KartReadout, KartSize } from "./bridge";
+import type { KartReadout, KartSize, Tuning } from "./bridge";
 import { rearWheel, type Side, type Vec3 } from "./kart-frame";
 
 /** One stretch of rubber on the road: a tyre's print from one laid point to the next. */
@@ -27,13 +27,12 @@ export interface TyreMarks {
   readonly capacity: number;
 }
 
-export interface TyreMarkOptions {
+/** The sim's cliff, as tyre life under which a kart lays darker marks; none by default. */
+export interface TyreMarkOptions extends Partial<Pick<Tuning, "tyreLifeCliffPercent">> {
   /** Seconds a mark takes to fade away. */
   readonly lifetimeSeconds?: number;
   /** Marks kept per wheel; past that the oldest in the store goes. */
   readonly capacityPerWheel?: number;
-  /** A kart with its tyre life under this lays darker marks. */
-  readonly wornBelow?: number;
 }
 
 /**
@@ -73,7 +72,7 @@ export function createTyreMarks(
   const ages = new Float32Array(capacity).fill(lifetime);
   /** How dark each mark was laid, fresh. */
   const fresh = new Float32Array(capacity).fill(1);
-  const wornBelow = options.wornBelow ?? 0;
+  const wornBelow = options.tyreLifeCliffPercent ?? 0;
   /** The slot the next mark goes in: the oldest once the store has filled. */
   let head = 0;
   /** Where each wheel's trail ends while it drifts, or NaN when it does not. */

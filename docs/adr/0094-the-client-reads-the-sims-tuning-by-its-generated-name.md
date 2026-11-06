@@ -9,9 +9,9 @@ and the rest of ADR 0020 stand.
 ## Context
 
 ADR 0026 hands the browser the sim's tuning in one call, decoded into the
-generated `Tuning`. The bridge then copied 36 of its fields onto the
-`Bridge`, 29 under a new name (`stopCleanS` as `cleanStopSeconds`,
-`cameraShakeS` as `shakeSeconds`), and each consumer declared its own shape
+generated `Tuning`. The bridge then copied 38 of its fields onto the
+`Bridge`, 31 under a new name or unit (`stopCleanS` as `cleanStopSeconds`,
+`cameraShakeS` as `shakeSeconds`, `pingTimeoutS` in milliseconds), and each consumer declared its own shape
 of the renamed fields, which the Race Scene built by hand. A tuned value the
 client read was named three times: in `tuning.rs`, in the bridge's rename
 and in each consumer's shape. The kart readout's generated names

@@ -285,7 +285,7 @@ export async function createRaceView(
   });
 
   const tyreMarks = createTyreMarks(kartCount, kartSize, {
-    wornBelow: tuning.tyreLifeCliffPercent,
+    tyreLifeCliffPercent: tuning.tyreLifeCliffPercent,
   });
   const marks = tyreMarkMesh(tyreMarks);
   const sparks = createSparkParticles(kartCount);
@@ -318,7 +318,7 @@ export async function createRaceView(
   const wind = createWindParticles();
   const windLines = createWindLines(wind, kartSize, {
     reducedMotion: viewer.reducedMotion,
-    chargeSeconds: tuning.slipstreamChargeS,
+    slipstreamChargeS: tuning.slipstreamChargeS,
   });
   /** How brightly the wind lines show this frame, from the own kart's boost or tow left. */
   let windBrightness = 0;

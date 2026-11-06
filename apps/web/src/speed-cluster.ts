@@ -2,8 +2,8 @@
 // lights read off the kart's speed against the top speed its coins raise,
 // the coin count (ADR 0056) and the tyre gauge. None of it is a rule; the
 // sim has no gearbox and no tyre wear, so the gearing constants are display
-// only and live here rather than in the sim's tuning (ADR 0014). The coin
-// cap and the top speed on each count of coins are the sim's, passed in.
+// only and live here rather than in the sim's tuning (ADR 0014). The top
+// speed on each count of coins is the sim's, passed in.
 
 import type { Tuning } from "./bridge";
 import { kmPerHour } from "./format";
