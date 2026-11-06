@@ -1,7 +1,7 @@
 import type { KartReadout } from "./bridge";
-import type { KartReadout as SnapshotKart } from "./generated/sim";
+import type { KartReadout as SimKartReadout } from "./generated/sim";
 
-export type { SnapshotKart };
+export type { SimKartReadout };
 
 /**
  * A kart for a test to vary, built on the bridge's one readout type: at
@@ -49,7 +49,7 @@ export function kartReadout(overrides: Partial<KartReadout> = {}): KartReadout {
  * The resting kart as a snapshot carries it, with `overrides`: the sim's
  * readout without the readings the bridge works out beside it.
  */
-export function snapshotKart(overrides: Partial<SnapshotKart> = {}): SnapshotKart {
+export function simKartReadout(overrides: Partial<SimKartReadout> = {}): SimKartReadout {
   const { surface, miniTurbo, boostS, boostTier, position, rotation, ...readout } = RESTING_KART;
   return { ...readout, position: [...position], rotation: [...rotation], ...overrides };
 }

@@ -3,8 +3,9 @@
 //! The web app talks to [`Race`] and [`Prediction`]: create a race on a
 //! track, step it with one flat buffer of inputs, read the karts'
 //! transforms as one flat buffer and their readouts as values of the
-//! generated `KartReadout` type, each beside its `KartReadings`; or predict the player's own kart in
-//! a room's race from the inputs it sends and the snapshots it receives.
+//! generated `KartReadout` type, each beside its `KartReadings`; or
+//! predict the player's own kart in a room's race from the inputs it sends
+//! and the snapshots it receives.
 //! The transforms Three.js reads every frame cross the wasm boundary once
 //! per tick instead of once per kart per field (ADR 0003); everything else
 //! rides typed (ADR 0026).

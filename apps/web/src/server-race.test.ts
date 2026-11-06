@@ -22,7 +22,7 @@ import type {
 } from "./generated/protocol";
 import type { Item } from "./generated/sim";
 import { IDLE_INPUT } from "./input";
-import { kartReadout, type SnapshotKart, snapshotKart } from "./kart-readout-fixture";
+import { kartReadout, type SimKartReadout, simKartReadout } from "./kart-readout-fixture";
 import { BLAST_S, EMPTY_SLOT, ITEM_FIRE_FLASH_S, ITEM_LANDING_FLASH_S } from "./race-run";
 import {
   type Countdown,
@@ -231,7 +231,7 @@ const COUNTDOWN: Countdown = {
   grid: [0, 1],
 };
 
-const KART = snapshotKart({
+const KART = simKartReadout({
   position: [10, 0.3, -20],
   velocity: [0, 0, -12],
   racePosition: 3,
@@ -242,7 +242,7 @@ const KART = snapshotKart({
 
 function snapshot(
   tick: number,
-  karts: Partial<SnapshotKart>[] = [],
+  karts: Partial<SimKartReadout>[] = [],
   hazards: HazardSnapshot[] = [],
   coinsPresent: boolean[] = Array<boolean>(COINS).fill(true),
 ): Snapshot {
@@ -425,7 +425,7 @@ describe("createServerRace", () => {
     kind: { itemFired: { kart, item: "boost" } },
   });
   /** A snapshot of the local kart's slot, kart 0's. */
-  const slotSnapshot = (tick: number, itemSlot: SnapshotKart["itemSlot"]) =>
+  const slotSnapshot = (tick: number, itemSlot: SimKartReadout["itemSlot"]) =>
     snapshot(tick, [{ itemSlot }]);
   /** The server's pickup for the local kart and a snapshot showing the boost landed. */
   const pickedAndLanded = (client: FakeClient, id: number) => {

@@ -5,7 +5,7 @@ import { dustTell } from "./dust";
 import type { Input, Snapshot } from "./generated/protocol";
 import { IDLE_INPUT } from "./input";
 import { START_LIGHTS } from "./instrument-panel";
-import { type SnapshotKart, snapshotKart } from "./kart-readout-fixture";
+import { type SimKartReadout, simKartReadout } from "./kart-readout-fixture";
 import { landedItem } from "./race-run";
 
 // The real wasm build, loaded from bytes because the default loader fetches
@@ -468,7 +468,7 @@ describe("prediction", () => {
     while (prediction.phase().kind === "countdown") prediction.tick(wire(IDLE_INPUT, ++last));
     for (let raced = 1; raced < 60; raced++) prediction.tick(wire(IDLE_INPUT, ++last));
     const [x, y, z] = prediction.kartReadout().position;
-    const aside = snapshotKart({ position: [x + 1, y, z] });
+    const aside = simKartReadout({ position: [x + 1, y, z] });
     const snapshot: Snapshot = {
       tick: last - 6,
       acknowledged: [last - 10],
@@ -502,7 +502,7 @@ describe("prediction", () => {
       prediction.tick(wire(IDLE_INPUT, sequence));
     }
     const [x, y, z] = prediction.kartReadout().position;
-    const holding = snapshotKart({ position: [x, y, z], itemSlot: { held: "homing" } });
+    const holding = simKartReadout({ position: [x, y, z], itemSlot: { held: "homing" } });
     prediction.reconcile({
       tick: 10,
       acknowledged: [4],
@@ -526,7 +526,7 @@ describe("prediction", () => {
     }
     expect(prediction.kartReadout().spinOutS).toBeNull();
     const [x, y, z] = prediction.kartReadout().position;
-    const spun = snapshotKart({ position: [x, y, z], spinOutS: 0.5 });
+    const spun = simKartReadout({ position: [x, y, z], spinOutS: 0.5 });
     prediction.reconcile({
       tick: COUNTDOWN_TICKS + 54,
       acknowledged: [COUNTDOWN_TICKS + 50],
@@ -550,7 +550,7 @@ describe("prediction", () => {
         tick: 2,
         acknowledged: [0],
         karts: [
-          snapshotKart({
+          simKartReadout({
             position: [...prediction.kartReadout().position],
             speed: 20,
             velocity: [0, 0, -20],
@@ -580,8 +580,8 @@ describe("prediction", () => {
     for (let sequence = 1; sequence <= COUNTDOWN_TICKS + 60; sequence++) {
       prediction.tick(wire(IDLE_INPUT, sequence));
     }
-    const kart = (position: [number, number, number], boost: SnapshotKart["boost"]) =>
-      snapshotKart({ position, boost });
+    const kart = (position: [number, number, number], boost: SimKartReadout["boost"]) =>
+      simKartReadout({ position, boost });
     const [x, y, z] = prediction.kartReadout().position;
     prediction.reconcile({
       tick: COUNTDOWN_TICKS + 54,
@@ -609,7 +609,7 @@ describe("prediction", () => {
     expect(prediction.kartReadout()).toMatchObject({ start: "clean", stallS: null });
     const [x, y, z] = prediction.kartReadout().position;
     const kart = (position: [number, number, number], stallS: number) =>
-      snapshotKart({ position, start: "stall", stallS });
+      simKartReadout({ position, start: "stall", stallS });
     prediction.reconcile({
       tick: COUNTDOWN_TICKS + 54,
       acknowledged: [COUNTDOWN_TICKS + 50, 0],
@@ -750,7 +750,7 @@ describe("items", () => {
     const snapshot = (tick: number, x: number): Snapshot => ({
       tick,
       acknowledged: [0],
-      karts: [snapshotKart({ position: [28, 0.3, 4] })],
+      karts: [simKartReadout({ position: [28, 0.3, 4] })],
       events: [],
       hazards: [],
       projectiles: [{ position: [x, 0, -10], owner: 1, target: 0 }],

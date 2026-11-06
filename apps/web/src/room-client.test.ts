@@ -3,7 +3,7 @@ import { fakeConnection, jsonCodec, TOKEN } from "./fake-connection";
 import type { Event, Room, Snapshot } from "./generated/protocol";
 import { PROTOCOL_VERSION } from "./generated/protocol";
 import { IDLE_INPUT } from "./input";
-import { snapshotKart } from "./kart-readout-fixture";
+import { simKartReadout } from "./kart-readout-fixture";
 import { joinRoom, quantiseInput, RefusedError, refusalMessage, rejoinRoom } from "./room-client";
 
 const codec = jsonCodec;
@@ -158,7 +158,7 @@ describe("joinRoom", () => {
   });
 });
 
-const KART = snapshotKart({ position: [0, 0.3, 0] });
+const KART = simKartReadout({ position: [0, 0.3, 0] });
 
 function snapshot(tick: number, events: Event[] = []): Snapshot {
   return {
