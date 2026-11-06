@@ -73,9 +73,8 @@ fn every_level_comes_in_by_the_cliff_with_a_lap_or_more_to_go() {
 #[test]
 fn an_ace_bot_stays_out_when_its_tyres_reach_the_flag_at_the_races_count() {
     let call = level_call(BotLevel::Ace);
-    // 25 a lap from 55: over one lap more it ends on the cliff, and stays out;
-    // over two it ends on 5, and a stop now pays, with no later lap left to
-    // wait for.
+    // 25 a lap from 55 over one lap more ends on the cliff, and it stays out;
+    // at the cliff with two to go, it stops.
     assert!(!calls_for_the_pits(call, reading(55.0, Some(25.0), 1)));
     assert!(calls_for_the_pits(call, reading(30.0, Some(25.0), 2)));
 }
@@ -87,7 +86,7 @@ fn an_ace_bot_holds_for_the_stop_that_saves_the_most_time() {
     // flag; a lap on they reach it with life left.
     assert!(!calls_for_the_pits(call, reading(75.0, Some(25.0), 4)));
     // Three to go at 20 a lap from 55: the next lane is above the cliff, but
-    // staying out ends on 5, and no later lap's stop costs less than now.
+    // staying out wears the tyres out, and no later lap's stop costs less.
     assert!(calls_for_the_pits(call, reading(55.0, Some(20.0), 3)));
 }
 

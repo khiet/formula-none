@@ -464,9 +464,9 @@ pub const TYRE_LIFE_COLUMNS_PERCENT: [f32; 4] =
     [TYRE_LIFE_NEW_PERCENT, 60.0, TYRE_LIFE_CLIFF_PERCENT, 0.0];
 /// What those lives leave of the top speed cap, the steering rate, the
 /// acceleration and the braking. The cap and the acceleration lose twice ADR
-/// 0087's share, so a kart worn right out runs under the pit limit and is
-/// too slow to drift or tow (ADR 0095); a boost runs at its factor of the
-/// worn cap. The steering rate stays ADR 0080's: a bot shares it, and bots
+/// 0087's share, so a kart worn right out runs under the pit limit and,
+/// with no coins, is too slow to drift or tow (ADR 0095); a boost runs at
+/// its factor of the worn cap. The steering rate stays ADR 0080's: a bot shares it, and bots
 /// on a steeper one wore to 0% and then fell past the race's end cap and
 /// onto Monarch's grass.
 pub const TYRE_TOP_SPEED_FACTORS: [f32; 4] = [1.0, 0.94, 0.76, 0.40];
