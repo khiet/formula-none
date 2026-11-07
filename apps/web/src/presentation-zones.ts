@@ -110,12 +110,12 @@ function smoothstep(x: number): number {
   return x * x * (3 - 2 * x);
 }
 
-/** A lap's length along `centreline` over the ground, closing the loop back to the line, as the sim measures spline progress. */
+/** A lap's length along `centreline`, climbs included, closing the loop back to the line, as the sim measures spline progress. */
 export function courseLength(centreline: readonly WorldPoint[]): number {
   let metres = 0;
-  centreline.forEach(([x, , z], i) => {
-    const [nextX, , nextZ] = centreline[(i + 1) % centreline.length] ?? [x, 0, z];
-    metres += Math.hypot(nextX - x, nextZ - z);
+  centreline.forEach(([x, y, z], i) => {
+    const [nextX, nextY, nextZ] = centreline[(i + 1) % centreline.length] ?? [x, y, z];
+    metres += Math.hypot(nextX - x, nextY - y, nextZ - z);
   });
   return metres;
 }
