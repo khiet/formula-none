@@ -53,6 +53,7 @@ from trackgen.props import (
     HELICOPTER_TEXT_SIZE_M,
     QUAY_HEIGHT_M,
     QUAY_WIDTH_M,
+    SPRAY_SPREAD,
     YACHT_OFF_QUAY_M,
     Footprint,
     footprints,
@@ -853,7 +854,7 @@ class Spray(unittest.TestCase):
                 self.assertEqual(segment_at(self.layout, pivot.x, pivot.y), "quay")
                 self.assertLess(min(math.dist((pivot.x, pivot.y), (q.x, q.y)) for q in self.layout.path.samples), 21.0)
 
-    def test_each_rises_over_3_m_and_leans_toward_the_track_inside_the_harbours_footprint(self) -> None:
+    def test_each_rises_over_3_m_and_leans_toward_the_track_inside_the_harbours_footprint_at_its_widest(self) -> None:
         for burst in self.bursts:
             pivot = burst.pivot
             vertices = burst.mesh[0]
@@ -863,8 +864,16 @@ class Spray(unittest.TestCase):
                 self.assertAlmostEqual(min(z for *_, z in vertices), pivot.z)
                 nearest = min(self.layout.path.samples, key=lambda q: math.dist((q.x, q.y), (pivot.x, pivot.y)))
                 self.assertLess(math.dist(top[:2], (nearest.x, nearest.y)), math.dist((pivot.x, pivot.y), (nearest.x, nearest.y)))
+                # At its widest too: the View spreads it about its foot as it falls.
+                wide = 1.0 + SPRAY_SPREAD
                 for v in vertices:
-                    self.assertLessEqual(self.harbour.distance(v[0], v[1]), 1e-9)
+                    spread = (pivot.x + wide * (v[0] - pivot.x), pivot.y + wide * (v[1] - pivot.y))
+                    self.assertLessEqual(self.harbour.distance(*spread), 1e-9)
+
+    def test_the_mirror_of_its_spread_matches_the_client(self) -> None:
+        match = re.search(r"export const SPRAY_SPREAD = ([0-9.]+);", SCENERY_MOTION_TS.read_text())
+        self.assertIsNotNone(match)
+        self.assertEqual(float(match.group(1)), SPRAY_SPREAD)
 
     def test_it_is_painted_in_spray_from_the_palette(self) -> None:
         self.assertEqual(materials_used(self.bursts), {"spray"})

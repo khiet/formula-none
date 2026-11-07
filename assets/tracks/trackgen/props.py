@@ -355,9 +355,13 @@ YACHT_WINDOW_PROUD_M = 0.03
 # lap sees the side away from the sun, which any toned white turns grey.
 SPRAY_PITCH_M = 6.0
 SPRAY_PLUMES = ((0.0, 4.5, 1.6), (-1.9, 3.2, 1.3), (1.8, 3.6, 1.3))
-SPRAY_ACROSS_M = 0.8
+SPRAY_ACROSS_M = 0.6
 SPRAY_SIDES = 6
 SPRAY_LEAN_M = 0.6
+SPRAY_SPREAD = 0.5
+"""How much wider a burst grows as it falls, the View's `SPRAY_SPREAD` in
+`apps/web/src/scenery-motion.ts`, which the track tests hold it to: a burst
+is placed so its plumes stay over the quay at their widest."""
 
 # The casino, Monarch's grand house outside Casino Square: a stucco block
 # under a copper hip roof, a square tower at each front corner under a copper
@@ -1480,9 +1484,14 @@ def _spray(layout: Layout, prop: Prop, number: int, outer: list[tuple[float, flo
             heading = math.atan2(sample.y - foot[1], sample.x - foot[0])
             toward = (math.cos(heading), math.sin(heading))
             along = (-toward[1], toward[0])
-            # A burst whose plumes would reach past the quay's outer edge, as at a corner, is dropped.
+            # A burst whose plumes would reach past the quay's outer edge at their widest, as at a
+            # corner, is dropped. The View spreads a burst about its foot.
+            wide = 1.0 + SPRAY_SPREAD
             reach = [
-                (foot[0] + offset * along[0] + r * toward[0] + q * along[0], foot[1] + offset * along[1] + r * toward[1] + q * along[1])
+                (
+                    foot[0] + wide * (offset * along[0] + r * toward[0] + q * along[0]),
+                    foot[1] + wide * (offset * along[1] + r * toward[1] + q * along[1]),
+                )
                 for offset, _, radius in SPRAY_PLUMES
                 for r, q in ((SPRAY_ACROSS_M, 0.0), (-SPRAY_ACROSS_M, 0.0), (0.0, radius), (0.0, -radius), (SPRAY_LEAN_M, 0.0))
             ]

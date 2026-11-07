@@ -56,8 +56,12 @@ export const SPRAY_BURST_MS = 1_200;
  * export's numbering, the lap's order, so the wave runs the way the karts do.
  */
 export const SPRAY_STAGGER_MS = 100;
-/** How much wider than at rest a burst has spread by the end of its fall. */
-const SPRAY_SPREAD = 0.5;
+/**
+ * How much wider than at rest a burst has spread by the end of its fall. The
+ * track export places bursts so their full spread stays over the quay, and
+ * the track tests hold its `SPRAY_SPREAD` to this.
+ */
+export const SPRAY_SPREAD = 0.5;
 
 /**
  * The axis a rim turns about, in its node's own frame: the track builder
