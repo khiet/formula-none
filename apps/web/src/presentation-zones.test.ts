@@ -157,6 +157,37 @@ describe("Bell Deer's bridge, seen twice", () => {
   });
 });
 
+describe("Goldstone's hangar shell", () => {
+  const zones = presentationZonesOf("goldstone");
+  const lap = courseLength(centrelineOf(sidecar("goldstone")));
+  const at = (s: number) => presentationBlend(zones, s, lap);
+  // The shell's ends, the Hangar Straight's start and Stowe's, from the layout.
+  const SHELL_FROM_S = 895.76;
+  const SHELL_TO_S = 955.76;
+  const STRAIGHT_FROM_S = 837.89;
+  const STOWE_S = 1013.63;
+
+  it("is shaded and echoing under the roof, with no lamps", () => {
+    const under = at((SHELL_FROM_S + SHELL_TO_S) / 2);
+    expect(under.light).toBeLessThan(0.85);
+    expect(under.light).toBeGreaterThan(0.5);
+    expect(under.echo).toBeGreaterThan(0.5);
+    expect(under.lampGlow).toBe(0);
+  });
+
+  it("is the open sky down the straight before it and into Stowe after it", () => {
+    expect(at(STRAIGHT_FROM_S)).toEqual(OPEN_SKY);
+    expect(at(STOWE_S)).toEqual(OPEN_SKY);
+    expect(at(10)).toEqual(OPEN_SKY);
+  });
+
+  it("changes the light by no more than a step a metre, so the exit is no flash", () => {
+    for (let s = STRAIGHT_FROM_S; s < STOWE_S; s++) {
+      expect(Math.abs(at(s + 1).light - at(s).light)).toBeLessThan(0.05);
+    }
+  });
+});
+
 describe("Monarch's tunnel to the harbour", () => {
   const zones = presentationZonesOf("monarch");
   const lap = courseLength(centrelineOf(sidecar("monarch")));

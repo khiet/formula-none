@@ -129,11 +129,12 @@ or 5 m of another, so the same layout exports the same trees and no tree
 is placed by hand. Pines are two six-sided cones, round trees and
 cherries eight-facet lumps, each in a lit and a shade tone on a
 four-sided trunk, flat on the grass. The Circuit Wheel, the arch over
-Dunlop, the pit building, the airship and Monarch's harbour, casino, blocks
-and pool are props too: a tree keeps its canopy out of a prop's footprint, and a tall
+Dunlop, the pit building, the airship, Goldstone's hangar shell and control
+tower and Monarch's harbour, casino, blocks and pool are props too: a tree keeps its canopy out of a prop's footprint, and a tall
 prop keeps 8 m of grass from every wall. A span is held to the span rule instead: the arch's underside
 keeps the gantry's 7 m over the asphalt and its feet stand on grass
-beyond the walls. The airship has no footprint: it circles its `Prop`'s
+beyond the walls, and so does the hangar shell's roof, its sides and its
+parked aircraft. The airship has no footprint: it circles its `Prop`'s
 `at` at its `radius`, `height` metres over the grass, and keeps 30 m over
 every road under its circle. The parts the View moves, the wheel's rim
 and its sixteen gondolas, the airship's hull and the harbour's spray, carry a `Pivot`, so

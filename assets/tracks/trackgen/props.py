@@ -8,7 +8,10 @@ own, pivoted where the View turns them. The arch: a giant tyre spanning
 Dunlop, lettered with its sponsor on both faces. The pit building: a row
 of garages beside the start straight, a door and a flag in each livery's
 key colour, which the grid faces through the countdown. The hangars: a row
-of barrel-roofed sheds outside Goldstone's Hangar Straight. The airship: a
+of barrel-roofed sheds outside Goldstone's Hangar Straight. The hangar
+shell: the open hangar over that straight, steel ribs under its roof and
+light aircraft parked inside. The control tower: Goldstone's landmark where
+the Wellington Straight points. The airship: a
 twelve-sided hull circling high over the infield, a node of its own the
 View flies round its circle, its sponsor riding on both flanks. The
 helicopter: Monarch's red-and-white helicopter circling the harbour, a body
@@ -186,6 +189,65 @@ HANGAR_ROOF_FACETS = 6
 HANGAR_DOOR_WIDTH_M = 12.0
 HANGAR_DOOR_HEIGHT_M = 5.0
 HANGAR_DOOR_PROUD_M = 0.05
+
+# The hangar shell, the hangar the Hangar Straight drives through: an
+# open-ended shed over the road along the layout's prop, a side wall on the
+# grass beyond each of the track's walls and a barrel roof between them, on
+# a circle through both eaves and the ridge. Steel portal frames at a pitch
+# hang their ribs under its dark underside, so they flash past overhead,
+# and stand their legs inside the sides. The right side stands far out, so
+# light aircraft park on the floor between it and the track's wall. A span:
+# its roof keeps the span rule over the road and its sides and aircraft
+# only stand on grass. The shell is built square to the spot's heading, so
+# the layout stands it on a straight.
+HANGAR_SHELL_LEFT_M = 14.0
+"""From the centreline to the left side's inside face."""
+HANGAR_SHELL_RIGHT_M = 30.0
+"""From the centreline to the right side's inside face."""
+HANGAR_SHELL_WALL_M = 0.4
+HANGAR_SHELL_EAVES_M = 8.5
+"""From the grass to the roof's underside at the sides."""
+HANGAR_SHELL_RIDGE_M = 11.5
+HANGAR_SHELL_ROOF_M = 0.3
+"""The roof's thickness, underside to skin."""
+HANGAR_SHELL_ROOF_FACETS = 12
+HANGAR_SHELL_FRAME_PITCH_M = 6.0
+"""About this far apart, frame to frame, the first and last at the ends."""
+HANGAR_SHELL_FRAME_M = 0.4
+"""A frame's section along the track, and its legs' depth across it."""
+HANGAR_SHELL_RIB_M = 0.6
+"""How far a rib hangs under the underside."""
+# The parked aircraft: light aircraft nose to the track, each a fuselage
+# box, a low wing, a tailplane and a fin, this far apart along the shell
+# either side of its middle, the noses this far out from the wall. All of
+# one stays under 3 m tall, so it keeps no 8 m from the wall.
+HANGAR_SHELL_AIRCRAFT_AT_M = (-15.0, 15.0)
+HANGAR_SHELL_AIRCRAFT_NOSE_M = 4.0
+AIRCRAFT_LENGTH_M = 8.0
+AIRCRAFT_BODY = (1.2, 0.5, 1.7)
+"""Width, and the bottom and top over the grass."""
+AIRCRAFT_WING = (10.0, 1.6, 3.2, 0.9, 1.05)
+"""Span, from and to behind the nose, bottom and top."""
+AIRCRAFT_TAIL = (3.6, 1.0, 1.6, 1.7)
+"""The tailplane's span, its chord at the tail, bottom and top."""
+AIRCRAFT_FIN = (1.2, 2.9)
+"""The fin's chord at the tail's top and its tip over the grass."""
+AIRCRAFT_CANOPY = (1.0, 1.4, 2.8, 2.2)
+"""Width, from and to behind the nose, and top."""
+
+# The control tower, Goldstone's landmark at the end of the Wellington
+# Straight: a square shaft under a wider glazed cab, a mast with a red and
+# white beacon over it, the cab's front toward the straight.
+TOWER_SHAFT_M = 5.0
+TOWER_SHAFT_TOP_M = 20.0
+TOWER_CAB_M = 9.0
+TOWER_CAB_SILL_M = 0.6
+TOWER_CAB_GLASS_M = 2.8
+TOWER_CAB_TOP_M = 24.0
+TOWER_MAST_M = 0.3
+TOWER_MAST_BANDS = 4
+TOWER_MAST_BAND_M = 1.0
+TOWER_BEACON_M = 0.7
 
 # The airship, the card in three dimensions: a hull of `AIRSHIP_SIDES` flat
 # sides round its axis, swelling from the nose to a cylinder amidships and
@@ -764,6 +826,46 @@ def _hangars_footprint(layout: Layout, prop: Prop) -> list[Footprint]:
     return [_row_footprint(layout, prop, HANGAR_DEPTH_M, "the hangars need a length")]
 
 
+def _hangar_shell_footprints(layout: Layout, prop: Prop) -> list[Footprint]:
+    """The shell's two sides and each parked aircraft's plan: a span's feet, and aircraft too
+    low for the 8 m rule, so each only has to stand on grass."""
+    x, y, heading = locate(layout, prop.at)
+    if prop.length is None:
+        raise ValueError("the hangar shell needs a length")
+    left = (-math.sin(heading), math.cos(heading))
+    along = (math.cos(heading), math.sin(heading))
+
+    def plan(a: float, b: float, half_along: float, half_across: float) -> Footprint:
+        return Footprint(
+            prop.kind,
+            x + a * along[0] + b * left[0],
+            y + a * along[1] + b * left[1],
+            SPAN_FOOT_CLEARANCE_M,
+            heading=heading,
+            half_along=half_along,
+            half_across=half_across,
+        )
+
+    half = prop.length / 2.0
+    sides = [
+        plan(0.0, side * (inside + HANGAR_SHELL_WALL_M / 2.0), half, HANGAR_SHELL_WALL_M / 2.0)
+        for side, inside in ((1.0, HANGAR_SHELL_LEFT_M), (-1.0, HANGAR_SHELL_RIGHT_M))
+    ]
+    nose = layout.runoff_half_width + WALL_THICKNESS_M + HANGAR_SHELL_AIRCRAFT_NOSE_M
+    aircraft = [
+        plan(a, -(nose + AIRCRAFT_LENGTH_M / 2.0), AIRCRAFT_WING[0] / 2.0, AIRCRAFT_LENGTH_M / 2.0)
+        for a in HANGAR_SHELL_AIRCRAFT_AT_M
+    ]
+    return sides + aircraft
+
+
+def _tower_footprint(layout: Layout, prop: Prop) -> list[Footprint]:
+    """The cab's plan, which overhangs the shaft on every side."""
+    x, y, heading = locate(layout, prop.at)
+    half = TOWER_CAB_M / 2.0
+    return [Footprint(prop.kind, x, y, PROP_WALL_CLEARANCE_M, heading=heading, half_along=half, half_across=half)]
+
+
 def _row_footprint(layout: Layout, prop: Prop, depth: float, missing: str) -> Footprint:
     """The plan of a prop that runs `prop.length` along the track, `depth` deep across it."""
     x, y, heading = locate(layout, prop.at)
@@ -814,6 +916,8 @@ FOOTPRINTS: dict[str, Callable[[Layout, Prop], list[Footprint]]] = {
     "arch": _arch_footprints,
     "pits": _pits_footprint,
     "hangars": _hangars_footprint,
+    "hangar-shell": _hangar_shell_footprints,
+    "control-tower": _tower_footprint,
     "airship": _no_footprint,
     "helicopter": _no_footprint,
     "jets": _no_footprint,
@@ -1155,6 +1259,134 @@ def hangars(layout: Layout, prop: Prop, number: int, still: ByMaterial) -> tuple
         d = HANGAR_DOOR_WIDTH_M / 2.0
         door = [at(middle - d, b, 0.0), at(middle + d, b, 0.0), at(middle + d, b, HANGAR_DOOR_HEIGHT_M), at(middle - d, b, HANGAR_DOOR_HEIGHT_M)]
         still.add("carbon", (_outward(door, hub), [(0, 1, 2, 3)]))
+    return [], []
+
+
+def hangar_shell(layout: Layout, prop: Prop, number: int, still: ByMaterial) -> tuple[list[SceneryMesh], list[Lettering]]:
+    """The hangar shell at `prop`, `prop.length` long over the road and open at both ends: a
+    side on the grass beyond each wall, toned stand riser over stand plinth, the barrel
+    roof's skin in beam top lit over beam shade, its underside and its ends in carbon shade,
+    and a steel frame in wall white about every `HANGAR_SHELL_FRAME_PITCH_M`, a rib under
+    the underside on two legs inside the sides. Its parked aircraft stand on the floor right
+    of the track. No lettering."""
+    x, y, heading = locate(layout, prop.at)
+    if prop.length is None:
+        raise ValueError("the hangar shell needs a length")
+    ground = -GRASS_DROP_M
+    origin = (x, y, ground)
+    along = (math.cos(heading), math.sin(heading), 0.0)
+    left = (-math.sin(heading), math.cos(heading), 0.0)
+
+    def at(a: float, b: float, c: float) -> mesh.Vertex:
+        """`a` metres along the track from the spot, `b` left of it and `c` up from the grass."""
+        return (x + a * along[0] + b * left[0], y + a * along[1] + b * left[1], ground + c)
+
+    half = prop.length / 2.0
+    low, high = -HANGAR_SHELL_RIGHT_M, HANGAR_SHELL_LEFT_M
+    middle, reach = (low + high) / 2.0, (high - low) / 2.0
+    # The underside's arc, right side to left: a circle through both eaves and the ridge.
+    rise = HANGAR_SHELL_RIDGE_M - HANGAR_SHELL_EAVES_M
+    radius = (reach * reach + rise * rise) / (2.0 * rise)
+    sweep = math.asin(reach / radius)
+    profile = [
+        (middle + radius * math.sin(t), HANGAR_SHELL_RIDGE_M - radius + radius * math.cos(t))
+        for t in (-sweep + 2.0 * sweep * k / HANGAR_SHELL_ROOF_FACETS for k in range(HANGAR_SHELL_ROOF_FACETS + 1))
+    ]
+    above, below = at(0.0, middle, 1000.0), at(0.0, middle, -1000.0)
+    facets = list(zip(profile, profile[1:]))
+    roof = HANGAR_SHELL_ROOF_M
+    for (b0, z0), (b1, z1) in facets:
+        under = [at(-half, b0, z0), at(half, b0, z0), at(half, b1, z1), at(-half, b1, z1)]
+        still.add("carbon-shade", (_outward(under, above), [(0, 1, 2, 3)]))
+        skin = [at(-half, b0, z0 + roof), at(half, b0, z0 + roof), at(half, b1, z1 + roof), at(-half, b1, z1 + roof)]
+        still.add(*_toned("beam-top", _outward(skin, below), "beam-shade"))
+        for a in (-half, half):
+            end = [at(a, b0, z0), at(a, b1, z1), at(a, b1, z1 + roof), at(a, b0, z0 + roof)]
+            still.add("carbon-shade", (_outward(end, at(0.0, middle, z0)), [(0, 1, 2, 3)]))
+    for b in ((high, high + HANGAR_SHELL_WALL_M), (low - HANGAR_SHELL_WALL_M, low)):
+        side = _block(origin, along, left, (-half, half), b, (0.0, HANGAR_SHELL_EAVES_M + roof))
+        _sides(side, "stand-riser", still, shade="stand-plinth", top=True)
+    # The frames, the first and last flush with the ends.
+    width = HANGAR_SHELL_FRAME_M
+    count = max(2, round(prop.length / HANGAR_SHELL_FRAME_PITCH_M) + 1)
+    for k in range(count):
+        a_mid = -half + width / 2.0 + k * (prop.length - width) / (count - 1)
+        a0, a1 = a_mid - width / 2.0, a_mid + width / 2.0
+        for (b0, z0), (b1, z1) in facets:
+            drop0, drop1 = z0 - HANGAR_SHELL_RIB_M, z1 - HANGAR_SHELL_RIB_M
+            foot = [at(a0, b0, drop0), at(a1, b0, drop0), at(a1, b1, drop1), at(a0, b1, drop1)]
+            still.add("wall", (_outward(foot, above), [(0, 1, 2, 3)]))
+            for a in (a0, a1):
+                web = [at(a, b0, z0), at(a, b1, z1), at(a, b1, drop1), at(a, b0, drop0)]
+                still.add("wall", (_outward(web, at(a_mid, middle, z0)), [(0, 1, 2, 3)]))
+        for b in ((high - width, high), (low, low + width)):
+            _sides(_block(origin, along, left, (a0, a1), b, (0.0, HANGAR_SHELL_EAVES_M)), "wall", still)
+    nose = layout.runoff_half_width + WALL_THICKNESS_M + HANGAR_SHELL_AIRCRAFT_NOSE_M
+    for a in HANGAR_SHELL_AIRCRAFT_AT_M:
+        _aircraft(still, origin, along, left, a, -nose)
+    return [], []
+
+
+def _aircraft(still: ByMaterial, origin: mesh.Vertex, along: mesh.Vertex, left: mesh.Vertex, a: float, nose: float) -> None:
+    """A light aircraft parked at `a` along the frame, its nose at `nose` across it and its
+    tail further out, so it points at the track from its right: a wall-white fuselage and
+    low wing, a kerb-red tailplane and fin, and a carbon canopy."""
+    toward = 1.0 if nose < 0.0 else -1.0
+    tail = nose - toward * AIRCRAFT_LENGTH_M
+
+    def span(near: float, far: float) -> tuple[float, float]:
+        """Across the frame from `near` to `far` metres behind the nose."""
+        return tuple(sorted((nose - toward * near, nose - toward * far)))
+
+    def box(width: float, behind: tuple[float, float], height: tuple[float, float], material: str) -> None:
+        _sides(_block(origin, along, left, (a - width / 2.0, a + width / 2.0), span(*behind), height), material, still, top=True)
+
+    body_width, body_bottom, body_top = AIRCRAFT_BODY
+    box(body_width, (0.0, AIRCRAFT_LENGTH_M), (body_bottom, body_top), "wall")
+    wing_span, wing_from, wing_to, wing_bottom, wing_top = AIRCRAFT_WING
+    box(wing_span, (wing_from, wing_to), (wing_bottom, wing_top), "wall")
+    tail_span, tail_chord, tail_bottom, tail_top = AIRCRAFT_TAIL
+    box(tail_span, (AIRCRAFT_LENGTH_M - tail_chord, AIRCRAFT_LENGTH_M), (tail_bottom, tail_top), "kerb-red")
+    canopy_width, canopy_from, canopy_to, canopy_top = AIRCRAFT_CANOPY
+    box(canopy_width, (canopy_from, canopy_to), (body_top, canopy_top), "carbon")
+
+    def point(b: float, c: float) -> mesh.Vertex:
+        return (origin[0] + a * along[0] + b * left[0], origin[1] + a * along[1] + b * left[1], origin[2] + c)
+
+    fin_chord, fin_tip = AIRCRAFT_FIN
+    fin = [point(tail, body_top), point(tail + toward * fin_chord, body_top), point(tail, fin_tip)]
+    # Upright in the plane along the fuselage, one face for each side.
+    still.add("kerb-red", (fin, [(0, 1, 2)]))
+    still.add("kerb-red", (list(reversed(fin)), [(0, 1, 2)]))
+
+
+def control_tower(layout: Layout, prop: Prop, number: int, still: ByMaterial) -> tuple[list[SceneryMesh], list[Lettering]]:
+    """The control tower at `prop`: a square shaft toned stand riser over stand plinth, under a
+    wider cab of a wall-white sill and roof band round carbon glazing, its overhang's
+    underside in beam shade, and a mast banded kerb red and kerb white to a kerb-red beacon.
+    No lettering."""
+    x, y, heading = locate(layout, prop.at)
+    origin = (x, y, -GRASS_DROP_M)
+    along = (math.cos(heading), math.sin(heading), 0.0)
+    left = (-math.sin(heading), math.cos(heading), 0.0)
+
+    def square(side: float, c: tuple[float, float]) -> dict[str, mesh.Mesh]:
+        return _block(origin, along, left, (-side / 2.0, side / 2.0), (-side / 2.0, side / 2.0), c)
+
+    _sides(square(TOWER_SHAFT_M, (0.0, TOWER_SHAFT_TOP_M)), "stand-riser", still, shade="stand-plinth")
+    sill_top = TOWER_SHAFT_TOP_M + TOWER_CAB_SILL_M
+    glass_top = sill_top + TOWER_CAB_GLASS_M
+    sill = square(TOWER_CAB_M, (TOWER_SHAFT_TOP_M, sill_top))
+    _sides(sill, "wall", still)
+    vertices, (face,) = sill["z0"]
+    still.add("beam-shade", ([vertices[i] for i in face], [(0, 1, 2, 3)]))
+    _sides(square(TOWER_CAB_M, (sill_top, glass_top)), "carbon", still)
+    _sides(square(TOWER_CAB_M, (glass_top, TOWER_CAB_TOP_M)), "wall", still, top=True)
+    for k in range(TOWER_MAST_BANDS):
+        bottom = TOWER_CAB_TOP_M + k * TOWER_MAST_BAND_M
+        _sides(square(TOWER_MAST_M, (bottom, bottom + TOWER_MAST_BAND_M)), "kerb-red" if k % 2 else "kerb-white", still)
+    mast_top = TOWER_CAB_TOP_M + TOWER_MAST_BANDS * TOWER_MAST_BAND_M
+    _sides(square(TOWER_BEACON_M, (mast_top, mast_top + TOWER_BEACON_M)), "kerb-red", still, top=True)
     return [], []
 
 
@@ -1852,6 +2084,8 @@ PROP_BUILDERS: dict[str, Callable[[Layout, Prop, int, ByMaterial], tuple[list[Sc
     "arch": arch,
     "pits": pits,
     "hangars": hangars,
+    "hangar-shell": hangar_shell,
+    "control-tower": control_tower,
     "airship": airship,
     "helicopter": helicopter,
     "jets": jets,
