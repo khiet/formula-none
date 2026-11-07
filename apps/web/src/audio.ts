@@ -607,7 +607,7 @@ class LiveRace {
     sounds: Sounds,
     wanted: StarMusic | null,
     cues: readonly SoundCue[],
-    race: LoopPlayback,
+    raceMusic: LoopPlayback,
   ): void {
     const now = sounds.context.currentTime;
     const running = this.#star;
@@ -650,11 +650,11 @@ class LiveRace {
     // further along, not from the start; the final lap's lift (ADR 0100)
     // changes its tempo and level, never its place.
     this.#musicLevel?.gain.setTargetAtTime(
-      wanted?.kart === null ? 0 : race.gain,
+      wanted?.kart === null ? 0 : raceMusic.gain,
       now,
       MUSIC_FADE_S,
     );
-    this.#music?.playbackRate.setTargetAtTime(race.rate, now, MUSIC_FADE_S);
+    this.#music?.playbackRate.setTargetAtTime(raceMusic.rate, now, MUSIC_FADE_S);
   }
 
   stop(): void {

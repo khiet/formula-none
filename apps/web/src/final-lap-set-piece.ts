@@ -23,7 +23,7 @@ import { createParticles } from "./particles";
 import { particleMesh } from "./tell-meshes";
 import type { TrackName } from "./track";
 
-export const FINAL_LAP_TEXT = "FINAL LAP";
+const FINAL_LAP_TEXT = "FINAL LAP";
 
 /**
  * Each course's landmark the fireworks go up over, by the nodes it is
@@ -112,7 +112,9 @@ export function finalLapSetPiece(
     update(on, frameSeconds) {
       boards.show(on);
       if (on && site !== null) {
-        untilShell -= frameSeconds;
+        // One shell's gap at most to catch up, so a tab back from the
+        // background sends one shell, not a volley the pool cannot hold.
+        untilShell = Math.max(untilShell - frameSeconds, -gap);
         while (untilShell <= 0) {
           burst(
             stars,

@@ -34,8 +34,8 @@ export function finalLapBlend(blend: PresentationBlend, on: boolean): Presentati
 
 /**
  * The race music's lift on the final lap: a tempo change rather than a stem
- * of its own, so the loop keeps its place and needs no second file. About a
- * semitone up and 8% faster, and louder over the crowd.
+ * of its own, so the loop keeps its place and needs no second file: 8%
+ * faster, a semitone and a third up, and louder over the crowd.
  */
 const FINAL_LAP_MUSIC: LoopPlayback = { rate: 1.08, gain: 1.3 };
 const RACE_MUSIC: LoopPlayback = { rate: 1, gain: 1 };

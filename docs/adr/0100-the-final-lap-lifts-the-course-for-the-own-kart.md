@@ -36,7 +36,7 @@ the music lifts.
   louder than any stand's presentation zone (ADR 0098) and wherever the
   kart is.
 - The music lifts by a tempo change, not a new stem: the race music loop
-  plays 8% faster, about a semitone up, and 1.3 times as loud, gliding in
+  plays 8% faster, a semitone and a third up, and 1.3 times as loud, gliding in
   and back out at the finish without losing its place. No new audio file.
 
 ## Consequences
