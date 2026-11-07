@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  ambiencePlayback,
   distanceLevel,
   droneBeep,
   heardOnward,
@@ -16,6 +17,7 @@ import {
 import type { KartReadout, Phase, Standing, Stop, StopTier } from "./bridge";
 import { reelFrame } from "./item-reel";
 import { kartReadout } from "./kart-readout-fixture";
+import { OPEN_SKY } from "./presentation-zones";
 import { raceReadout } from "./race-readout-fixture";
 import { EMPTY_SLOT, type ItemSlot, type RaceCount } from "./race-run";
 
@@ -49,6 +51,7 @@ const STILL: SoundReading = {
   nearestStar: null,
   blasts: [],
   incomingDroneMetres: null,
+  presentation: OPEN_SKY,
 };
 
 describe("soundCues", () => {
@@ -402,6 +405,29 @@ describe("soundLoops", () => {
   });
 });
 
+describe("the ambience loops", () => {
+  const inZone = (harbour: number, crowd: number): SoundReading => ({
+    ...STILL,
+    presentation: { ...OPEN_SKY, ambience: { harbour }, crowd },
+  });
+
+  it("runs the harbour and the crowd while the zone brings them up, and neither in the open", () => {
+    expect(soundLoops(inZone(0.5, 0))).toEqual(new Set(["harbour"]));
+    expect(soundLoops(inZone(0, 0.5))).toEqual(new Set(["crowd"]));
+    expect(soundLoops(inZone(1, 0.6))).toEqual(new Set(["harbour", "crowd"]));
+    expect(soundLoops(STILL)).toEqual(new Set());
+  });
+
+  it("levels each by the zone's blend and never pitches it with speed", () => {
+    const half = ambiencePlayback("harbour", inZone(0.5, 0).presentation);
+    const whole = ambiencePlayback("harbour", inZone(1, 0).presentation);
+    expect(half.gain).toBeCloseTo(whole.gain / 2, 6);
+    expect(whole.rate).toBe(1);
+    expect(ambiencePlayback("crowd", inZone(0, 0.6).presentation).gain).toBeGreaterThan(0);
+    expect(ambiencePlayback("crowd", OPEN_SKY).gain).toBe(0);
+  });
+});
+
 describe("loopPlayback", () => {
   it("pitches the skid by its band's centre at the kart's speed over its centre as rendered, clamped", () => {
     expect(loopPlayback("driftSkid", 15, 30).rate).toBeCloseTo(1, 6);
@@ -504,7 +530,14 @@ describe("soundReading", () => {
       nearestStar: null,
       blasts: [],
       incomingDroneMetres: null,
+      presentation: OPEN_SKY,
     });
+  });
+
+  it("carries the presentation zone's blend where the kart is", () => {
+    const tunnel = { ...OPEN_SKY, light: 0.45, echo: 1, lampGlow: 0.8 };
+    const race = raceReadout({ karts: [kart], standings: [standing], phase: racing });
+    expect(soundReading(race, 0, TUNING, false, tunnel).presentation).toEqual(tunnel);
   });
 
   it("takes the own run's seconds, and the nearest other star kart by distance", () => {

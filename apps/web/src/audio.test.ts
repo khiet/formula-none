@@ -8,6 +8,7 @@ import {
   type SoundBuffer,
   type SoundBufferSource,
   type SoundContext,
+  type SoundDelay,
   type SoundFilter,
   type SoundGain,
   type SoundNode,
@@ -18,6 +19,7 @@ import {
 import type { SoundCue, SoundLoop, SoundReading } from "./audio-cues";
 import { ENGINE, engineBandEdges, FULL_THROTTLE_SECONDS_TO_TOP } from "./audio-engine";
 import { DEFAULT_AUDIO_SETTINGS } from "./audio-settings";
+import { OPEN_SKY } from "./presentation-zones";
 
 const TOP_SPEED = 30;
 const STILL: SoundReading = {
@@ -46,6 +48,7 @@ const STILL: SoundReading = {
   nearestStar: null,
   blasts: [],
   incomingDroneMetres: null,
+  presentation: OPEN_SKY,
 };
 const STAR_RUN_S = 6;
 
@@ -113,6 +116,10 @@ interface FakeGain extends SoundGain, FakeNode {
   readonly gain: ReturnType<typeof param>;
 }
 
+interface FakeDelay extends SoundDelay, FakeNode {
+  readonly delayTime: ReturnType<typeof param>;
+}
+
 /** The slice of Web Audio the game uses, recording what was made of it. */
 interface FakeContext extends SoundContext {
   currentTime: number;
@@ -122,6 +129,7 @@ interface FakeContext extends SoundContext {
   readonly filters: FakeFilter[];
   readonly sources: FakeSource[];
   readonly gains: FakeGain[];
+  readonly delays: FakeDelay[];
   resumes: number;
 }
 
@@ -137,6 +145,7 @@ function fakeContext(): FakeContext {
     filters: [],
     sources: [],
     gains: [],
+    delays: [],
     resumes: 0,
     resume() {
       this.resumes += 1;
@@ -199,6 +208,11 @@ function fakeContext(): FakeContext {
       this.sources.push(source);
       return source;
     },
+    createDelay() {
+      const delay: FakeDelay = { ...node(), delayTime: param(0) };
+      this.delays.push(delay);
+      return delay;
+    },
   };
   return context;
 }
@@ -242,6 +256,8 @@ interface Harness {
   limiterDepth(): FakeGain;
   /** The gain the crackle bursts open past the filter. */
   crackleGain(): FakeGain;
+  /** The gain the engine's level is sent into its echo's delay through. */
+  echoSend(): FakeGain;
   music(): FakeSource[];
   /** The sources made for the star music's file, started or not. */
   starMusic(): FakeSource[];
@@ -334,6 +350,16 @@ function harness(settings = DEFAULT_AUDIO_SETTINGS): Harness {
       if (source === undefined) throw new Error("no engine noise");
       return gainOf(source);
     },
+    echoSend() {
+      const level = engineLevel();
+      const send = context().gains.find(
+        (candidate) =>
+          level.connectedTo.includes(candidate) &&
+          context().delays.some((delay) => candidate.connectedTo.includes(delay)),
+      );
+      if (send === undefined) throw new Error("no echo send");
+      return send;
+    },
     music: () => sourcesOf(MUSIC_URL),
     starMusic: () => sourcesOf(STAR_MUSIC_URL),
     loops: (loop) => sourcesOf(LOOP_URLS[loop]),
@@ -356,18 +382,18 @@ describe("preloading and the autoplay rule", () => {
         STAR_MUSIC_URL,
       ]),
     );
-    // 36 SFX, 3 loops and 2 music files.
-    expect(fetched).toHaveLength(41);
+    // 36 SFX, 5 loops and 2 music files.
+    expect(fetched).toHaveLength(43);
     await settled();
     expect(contexts).toHaveLength(0);
     await audio.unlock();
     expect(contexts).toHaveLength(1);
     expect(context().resumes).toBe(1);
     // Decoded once, from the bytes already fetched, so the first play is not late.
-    expect(context().decoded).toHaveLength(41);
+    expect(context().decoded).toHaveLength(43);
     await audio.unlock();
     expect(contexts).toHaveLength(1);
-    expect(context().decoded).toHaveLength(41);
+    expect(context().decoded).toHaveLength(43);
   });
 
   it("resumes a context the browser suspended on a later gesture", async () => {
@@ -406,6 +432,27 @@ describe("the engine", () => {
     for (const oscillator of context().oscillators) expect(oscillator.stopped).toBe(1);
     expect(noise()[0]?.stopped).toBe(1);
     expect(saws()[0]?.connectedTo).toHaveLength(0);
+  });
+
+  it("echoes in a zone that sends it, gliding in and out, and is dry in the open", async () => {
+    const { audio, echoSend, engineGain, context } = harness();
+    await audio.unlock();
+    const race = audio.race();
+    race.start();
+    race.update(STILL);
+    expect(echoSend().gain.value).toBe(0);
+    const delay = context().delays[0];
+    // The delay rings into the engine's gain beside the dry level.
+    expect(delay?.connectedTo).toContain(engineGain());
+    expect(delay?.delayTime.value).toBeGreaterThan(0);
+    race.update({ ...STILL, presentation: { ...OPEN_SKY, echo: 1 } });
+    const inside = echoSend().gain.value;
+    expect(inside).toBeGreaterThan(0);
+    race.update({ ...STILL, presentation: { ...OPEN_SKY, echo: 0.5 } });
+    expect(echoSend().gain.value).toBeCloseTo(inside / 2, 6);
+    race.update(STILL);
+    expect(echoSend().gain.value).toBe(0);
+    expect(echoSend().gain.targets).toHaveLength(4);
   });
 
   it("is muted by its toggle at once and unmuted again", async () => {
@@ -692,6 +739,8 @@ describe("the loops", () => {
     ["driftSkid", { drifting: true, miniTurbo: "none" }],
     ["grass", { surface: "grass" }],
     ["sand", { surface: "sand" }],
+    ["harbour", { presentation: { ...OPEN_SKY, ambience: { harbour: 1 } } }],
+    ["crowd", { presentation: { ...OPEN_SKY, crowd: 0.6 } }],
   ];
 
   it.each(LOOPS)(
@@ -821,7 +870,7 @@ describe("a sound that fails to load", () => {
     await audio.unlock();
     const context = contexts[0];
     if (context === undefined) throw new Error("no context was made");
-    expect(context.decoded).toHaveLength(39);
+    expect(context.decoded).toHaveLength(41);
     const race = audio.race();
     race.start();
     race.update(STILL);

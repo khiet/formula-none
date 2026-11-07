@@ -713,6 +713,17 @@ the own kart.
 Everything the player sees and hears that is not a rule: meshes, materials,
 particles, camera motion, audio. Presentation never changes sim state.
 
+### presentation zone
+
+A stretch of a course, by spline progress, where the View's light and the
+audio's ambience and crowd change for the own kart: it eases in, holds and
+eases out between four edges, and may run over the start line. Keyed by
+spline progress, never by position, so at Bell Deer's bridge the leg the
+kart is on decides. Monarch has two: the tunnel, darker, with the engine
+echoing and the lamps' warm light passing over, and the harbour after it,
+brighter, with the water and the stand's crowd. A client table per course
+(ADR 0098); Presentation only, so it changes neither grip nor timing.
+
 ### Feedback
 
 A piece of Presentation tied to one mechanic so the mechanic has a visible or

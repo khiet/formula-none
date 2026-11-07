@@ -22,6 +22,7 @@ import { DRONE_WARNING_M, droneWarned, incomingDroneMetres } from "./drone-warni
 import type { Item, Start } from "./generated/sim";
 import { reelFrame } from "./item-reel";
 import { groundDistance } from "./kart-frame";
+import { OPEN_SKY, type PresentationBlend } from "./presentation-zones";
 import { type RaceCount, type RaceReadout, raceCount } from "./race-run";
 import { actOf, beatsOf, REDO_STEPS_S, RELEASE } from "./stop-beats";
 
@@ -64,8 +65,12 @@ export type SoundCue =
   | "wheelGunAct"
   | "wheelGunRedo";
 
-/** The sounds that run while a state holds: the drift skid and the two run-off surfaces. */
-export type SoundLoop = "driftSkid" | "grass" | "sand";
+/** The loops that run while a state of the kart holds: the drift skid and the two run-off surfaces. */
+export type SpeedLoop = "driftSkid" | "grass" | "sand";
+/** The loops a presentation zone brings up (ADR 0098): the harbour's water and a stand's crowd. */
+export type AmbienceLoop = "harbour" | "crowd";
+/** The sounds that run while a state holds. */
+export type SoundLoop = SpeedLoop | AmbienceLoop;
 
 /**
  * What the own kart sounds like at one moment. The item is the slot's,
@@ -113,6 +118,8 @@ export interface SoundReading {
   readonly blasts: readonly HeardBlast[];
   /** Metres to the nearest homing projectile chasing the own kart; null while none is. */
   readonly incomingDroneMetres: number | null;
+  /** The presentation zone's blend where the own kart is (ADR 0098): the engine's echo and the ambience's levels. */
+  readonly presentation: PresentationBlend;
 }
 
 /** The own kart's stop, as its crew's sounds read it. */
@@ -146,14 +153,15 @@ export interface NearestStar {
 /**
  * The reading of `kart`, the own kart, from its readout and standing in
  * `race`, the item slot and the phase, with `tuning.stopCleanS` a clean
- * stop's longest and `boxCall` whether the BOX call
- * shows. Throws when `race` has no such kart.
+ * stop's longest, `boxCall` whether the BOX call shows and `presentation`
+ * the zone's blend where the kart is. Throws when `race` has no such kart.
  */
 export function soundReading(
   race: RaceReadout,
   kart: number,
   tuning: Pick<Tuning, "stopCleanS">,
   boxCall = false,
+  presentation: PresentationBlend = OPEN_SKY,
 ): SoundReading {
   const readout = race.karts[kart];
   const standing = race.standings[kart];
@@ -196,6 +204,7 @@ export function soundReading(
         metres: groundDistance({ position: blast.position }, readout),
       })),
     incomingDroneMetres: incomingDroneMetres(race.projectiles, kart, readout),
+    presentation,
   };
 }
 
@@ -514,6 +523,8 @@ export function soundLoops(reading: SoundReading): ReadonlySet<SoundLoop> {
   if (reading.drifting) loops.add("driftSkid");
   if (reading.surface === "grass") loops.add("grass");
   if (reading.surface === "sand") loops.add("sand");
+  if (reading.presentation.ambience.harbour > 0) loops.add("harbour");
+  if (reading.presentation.crowd > 0) loops.add("crowd");
   return loops;
 }
 
@@ -538,7 +549,7 @@ interface LoopCurve {
   centreHz(speed: number): number;
   swell(fraction: number): number;
 }
-const LOOP_CURVES: Readonly<Record<SoundLoop, LoopCurve>> = {
+const LOOP_CURVES: Readonly<Record<SpeedLoop, LoopCurve>> = {
   driftSkid: {
     renderedSpeed: 15,
     centreHz: (speed) => 600 + 20 * speed,
@@ -569,7 +580,7 @@ const LOOP_MAX_SPEED_FRACTION = 1.5;
  * The rate and gain `loop` plays at for `speed`, forward or backing up,
  * against `topSpeed`; both are 1 at the speed the file was rendered at.
  */
-export function loopPlayback(loop: SoundLoop, speed: number, topSpeed: number): LoopPlayback {
+export function loopPlayback(loop: SpeedLoop, speed: number, topSpeed: number): LoopPlayback {
   const curve = LOOP_CURVES[loop];
   const rate = curve.centreHz(Math.abs(speed)) / curve.centreHz(curve.renderedSpeed);
   const fraction = (at: number) => Math.min(Math.abs(at) / topSpeed, LOOP_MAX_SPEED_FRACTION);
@@ -577,4 +588,25 @@ export function loopPlayback(loop: SoundLoop, speed: number, topSpeed: number): 
     rate: Math.min(Math.max(rate, LOOP_RATE_MIN), LOOP_RATE_MAX),
     gain: curve.swell(fraction(speed)) / curve.swell(fraction(curve.renderedSpeed)),
   };
+}
+
+/**
+ * Each ambience loop's gain at a zone's whole level: under the engine and
+ * the SFX, so the place is heard without hiding a cue. Presentation, so not
+ * the sim's to tune.
+ */
+const AMBIENCE_GAINS: Readonly<Record<AmbienceLoop, number>> = {
+  harbour: 0.35,
+  crowd: 0.3,
+};
+
+/** How `loop` plays in `blend`: never pitched, its gain the zone's level for it. */
+export function ambiencePlayback(loop: AmbienceLoop, blend: PresentationBlend): LoopPlayback {
+  const level = loop === "harbour" ? blend.ambience.harbour : blend.crowd;
+  return { rate: 1, gain: AMBIENCE_GAINS[loop] * level };
+}
+
+/** Whether `loop` follows a zone rather than the kart's speed. */
+export function isAmbience(loop: SoundLoop): loop is AmbienceLoop {
+  return loop === "harbour" || loop === "crowd";
 }

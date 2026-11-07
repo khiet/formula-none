@@ -14,6 +14,7 @@ import { kartLabels } from "./kart-labels";
 import { KART_GLTF_URL } from "./kart-model";
 import { keyboardKartInput } from "./keyboard";
 import { livery } from "./livery";
+import { courseLength, presentationBlend, presentationZonesOf } from "./presentation-zones";
 import type { RaceRun } from "./race-run";
 import { createRaceView } from "./race-view";
 import { downloadReplay } from "./replay";
@@ -127,6 +128,10 @@ export async function createRaceScene(
     tuning,
   );
 
+  // The course's presentation zones (ADR 0098), by the own kart's progress.
+  const zones = presentationZonesOf(track.name);
+  const lapLength = courseLength(centreline);
+
   const present = (frameSeconds: number) => {
     const readout = run.readout();
     const local = readout.karts[run.localKart];
@@ -134,6 +139,8 @@ export async function createRaceScene(
     if (local && standing) {
       const pose = camera.update(local, frameSeconds, input.lookingBehind());
       view.update(readout, pose, frameSeconds);
+      const blend = presentationBlend(zones, standing.splineProgress, lapLength);
+      view.presentation(blend);
       panel.update(readout);
       const called = boxCall.update({
         tyreLife: local.tyreLife,
@@ -142,7 +149,7 @@ export async function createRaceScene(
         inPitLane: local.inPitLane,
       });
       panel.boxCall(called);
-      audio.update(soundReading(readout, run.localKart, tuning, called));
+      audio.update(soundReading(readout, run.localKart, tuning, called, blend));
     }
   };
   audio.start();

@@ -102,6 +102,7 @@ const DECISION_SLUGS = [
   "worn-tyres-cap-speed-and-acceleration-twice-as-hard",
   "the-box-call-comes-as-the-kart-nears-the-pit-lane",
   "pickups-and-pads-set-up-the-next-fight",
+  "presentation-zones-change-light-and-sound-by-spline-progress",
 ];
 
 const expectedFiles = DECISION_SLUGS.map(

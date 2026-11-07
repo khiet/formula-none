@@ -603,10 +603,12 @@
 
       <article class="asset">
         <header><h3>Tunnel</h3><code>assets/tracks/trackgen/layout.py tunnels, Tunnel in layout.py, assets/tracks/build.py</code></header>
-        <div class="compare"><figure><figcaption>Monarch's tunnel from the road at its mouth</figcaption><div class="stage flat" data-draw="tunnel"></div></figure></div>
-        <dl class="spec"><dt>Size</dt><dd>About 150 m of the tunnel bend; roof underside 6 m over the road, 0.6 m thick; sides 0.6 m thick; a 1.6 m by 0.3 m lamp every 12 m, 4.4 m up</dd><dt>Decided</dt><dd><a href="adr/0064-monarch-joins-the-courses.md">ADR 0064</a></dd></dl>
+        <div class="compare"><figure><figcaption>Monarch's tunnel from the road at its mouth</figcaption><div class="stage flat" data-draw="tunnel"></div></figure><figure><figcaption>The presentation zones' light from Portier to Tabac: dark under the roof, the lamps passing, then the harbour's reveal</figcaption><div class="stage flat" data-draw="tunnelZones"></div></figure></div>
+        <dl class="spec"><dt>Size</dt><dd>About 150 m of the tunnel bend; roof underside 6 m over the road, 0.6 m thick; sides 0.6 m thick; a 1.6 m by 0.3 m lamp every 12 m, 4.4 m up</dd><dt>Light</dt><dd>The tunnel zone at 0.45 of the sky's light, in over 10 m either side of the mouth's portal, out from 10 m short of the exit's to <code>chicane-in</code>; the harbour zone at 1.15, in from the exit portal to <code>harbour</code>, out by the end of <code>tabac</code>. A warm point light in <code>lamp</code> 4.4 m over the own kart swells from half to whole under each lamp</dd><dt>Decided</dt><dd><a href="adr/0064-monarch-joins-the-courses.md">ADR 0064</a>, <a href="adr/0098-presentation-zones-change-light-and-sound-by-spline-progress.md">ADR 0098</a></dd></dl>
         <div class="notes">
           <p>A roof over the road from 10 m past the tunnel mouth to 15 m short of the chicane, so both portals stand on the flat. A side stands against the back of each wall from the grass to the top of the roof, in <code>beam-shade</code> <code>#9aa0a8</code>; the roof's underside is <code>carbon-shade</code> <code>#1c1c1e</code>, its top and both portal faces <code>carbon</code> <code>#2b2e33</code>. The underside clears the chase camera, which rides 3.2 m over its kart, so the view never cuts through it. Along each side's inside, a lamp every 12 m in <code>lamp</code> <code>#ffd98a</code>, the one track material that emits, so it reads lit however little sun reaches under the roof. Scenery only: the walls under it hold the karts.</p>
+          <p>Two presentation zones light the run through it, by the own kart's spline progress (<code>apps/web/src/presentation-zones.ts</code>): under the roof the sun and ambient fall to 0.45 of the sky's and the ambient warms toward <code>lamp</code> as the lamps' light passes over the kart; out of the exit portal, through the chicane, the light rises past the sky's own to 1.15 along the harbour, and eases back by Tabac's exit. Every edge eases, so the exit is a reveal, not a flash.</p>
+          <p class="dont"><b>Don't</b> let the lamps' glow fall to nothing between lamps: at speed a lamp passes more than twice a second, and a light that goes on and off that fast strobes.</p>
           <p class="dont"><b>Don't</b> lower the roof toward the road: the chase camera rides above the kart, and a roof under it would cut through the view.</p>
         </div>
       </article>
@@ -1308,6 +1310,31 @@
       ${lamps}
       ${poly([at(-9.1, 6), at(9.1, 6), at(9.1, 6.6), at(-9.1, 6.6)], carbon)}
       ${poly([at(-9.1, 0), at(-8.5, 0), at(-8.5, 6), at(-9.1, 6)], carbon)}${poly([at(8.5, 0), at(9.1, 0), at(9.1, 6), at(8.5, 6)], carbon)}</svg>`;
+  };
+  // The light the zones give from Portier to Tabac's exit, as presentation-zones.ts blends it:
+  // the sky's light scale as a line over the lap, the lamps' glow as warm bars under the roof.
+  draw.tunnelZones = () => {
+    const lamp = rgb([1.0, 0.851, 0.541]), roof = rgb([0.11, 0.11, 0.118]), sky = "#cfe8f5", harbour = "#7fb7d9";
+    const from = 620, to = 1000, left = 16, right = 304, top = 16, bottom = 118;
+    const x = (m) => left + ((m - from) / (to - from)) * (right - left);
+    const y = (light) => bottom - ((light - 0.3) / 0.95) * (bottom - top);
+    const ease = (u) => u * u * (3 - 2 * u);
+    const weight = (s, a, b, c, d) => (s <= a || s >= d ? 0 : s < b ? ease((s - a) / (b - a)) : s <= c ? 1 : ease((d - s) / (d - c)));
+    const roofFrom = 678.6, roofTo = 826.07;
+    const light = (s) => (1 - 0.55 * weight(s, roofFrom - 10, roofFrom + 10, roofTo - 10, 841.07)) * (1 + 0.15 * weight(s, roofTo, 884.79, 953.79, 969.81));
+    let line = "";
+    for (let s = from; s <= to; s += 2) line += `${s === from ? "M" : "L"}${x(s).toFixed(1)} ${y(light(s)).toFixed(1)}`;
+    let lamps = "";
+    for (let s = roofFrom + 6; s < roofTo; s += 12) lamps += `<rect x="${(x(s) - 1.5).toFixed(1)}" y="${bottom + 4}" width="3" height="8" fill="${lamp}"/>`;
+    const label = (m, text) => `<text x="${x(m).toFixed(1)}" y="146" font-size="8" text-anchor="middle" fill="#3a3f47">${text}</text>`;
+    return `<svg viewBox="0 0 320 150" role="img" aria-label="The light along Monarch from Portier to Tabac: it falls to under half in the tunnel, where warm lamps pass every 12 m, then rises past the sky's own along the harbour">
+      <rect width="320" height="150" fill="#f4f6f8"/>
+      <rect x="${x(roofFrom).toFixed(1)}" y="${top}" width="${(x(roofTo) - x(roofFrom)).toFixed(1)}" height="${bottom - top}" fill="${roof}" opacity="0.12"/>
+      <rect x="${x(884.79).toFixed(1)}" y="${top}" width="${(x(953.79) - x(884.79)).toFixed(1)}" height="${bottom - top}" fill="${harbour}" opacity="0.25"/>
+      <line x1="${left}" x2="${right}" y1="${y(1)}" y2="${y(1)}" stroke="${sky}" stroke-width="2"/>
+      <rect x="${left}" y="${bottom + 4}" width="${right - left}" height="8" fill="${roof}" opacity="0.08"/>${lamps}
+      <path d="${line}" fill="none" stroke="#2b2e33" stroke-width="2"/>
+      ${label(645, "portier")}${label(752, "tunnel")}${label(862, "chicane")}${label(919, "harbour")}${label(985, "tabac")}</svg>`;
   };
   // The woods' trees from the side, as the export builds them: a facet is lit when it faces up and
   // not away from the sun on the left, else it takes the colour's shade tone, two thirds of it.

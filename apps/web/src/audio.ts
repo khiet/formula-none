@@ -18,12 +18,14 @@ import boxChimeUrl from "../../../assets/audio/box-chime.wav?url";
 import coinLossUrl from "../../../assets/audio/coin-loss.wav?url";
 import coinPickupUrl from "../../../assets/audio/coin-pickup.wav?url";
 import countdownBeepUrl from "../../../assets/audio/countdown-beep.wav?url";
+import crowdUrl from "../../../assets/audio/crowd.wav?url";
 import driftSkidUrl from "../../../assets/audio/drift-skid.wav?url";
 import droneBeepUrl from "../../../assets/audio/drone-beep.wav?url";
 import finishUrl from "../../../assets/audio/finish.wav?url";
 import goUrl from "../../../assets/audio/go.wav?url";
 import grassUrl from "../../../assets/audio/grass.wav?url";
 import gunStallUrl from "../../../assets/audio/gun-stall.wav?url";
+import harbourUrl from "../../../assets/audio/harbour.wav?url";
 import hitUrl from "../../../assets/audio/hit.wav?url";
 import hopUrl from "../../../assets/audio/hop.wav?url";
 import itemFireUrl from "../../../assets/audio/item-fire.wav?url";
@@ -53,11 +55,14 @@ import wheelOffUrl from "../../../assets/audio/wheel-off.wav?url";
 import wheelOnUrl from "../../../assets/audio/wheel-on.wav?url";
 import wrongWayUrl from "../../../assets/audio/wrong-way.wav?url";
 import {
+  ambiencePlayback,
   type DroneBeep,
   distanceLevel,
   droneBeep,
   heardOnward,
   hornBlasts,
+  isAmbience,
+  type LoopPlayback,
   loopPlayback,
   SOUND_AWAY_LOWPASS_HZ,
   type SoundCue,
@@ -121,6 +126,8 @@ export const LOOP_URLS: Readonly<Record<SoundLoop, string>> = {
   driftSkid: driftSkidUrl,
   grass: grassUrl,
   sand: sandUrl,
+  harbour: harbourUrl,
+  crowd: crowdUrl,
 };
 export const MUSIC_URL: string = musicUrl;
 /** The star music, as long as a run, in place of the race music through the own run. */
@@ -165,6 +172,9 @@ export interface SoundBufferSource extends SoundNode {
   start(when?: number, offset?: number): void;
   stop(when?: number): void;
 }
+export interface SoundDelay extends SoundNode {
+  readonly delayTime: SoundParam;
+}
 export interface SoundContext {
   readonly currentTime: number;
   readonly sampleRate: number;
@@ -177,6 +187,7 @@ export interface SoundContext {
   createGain(): SoundGain;
   createBiquadFilter(): SoundFilter;
   createBufferSource(): SoundBufferSource;
+  createDelay(maxDelayTime?: number): SoundDelay;
 }
 
 export interface AudioOptions {
@@ -469,9 +480,13 @@ class LiveRace {
     const sounds = this.#sounds;
     if (sounds === undefined) return;
     this.#engineState = this.#stepEngine(sounds, reading);
-    this.#engine?.follow(engineVoice(this.#engineState), this.#engineState.shift);
+    this.#engine?.follow(
+      engineVoice(this.#engineState),
+      this.#engineState.shift,
+      reading.presentation.echo,
+    );
     const sfx = this.#settings().sfx;
-    this.#runLoops(sounds, sfx ? soundLoops(reading) : new Set(), reading.speed);
+    this.#runLoops(sounds, sfx ? soundLoops(reading) : new Set(), reading);
     this.#runStar(sounds, sfx ? starMusic(reading, this.#starRunSeconds) : null, cues);
     if (!sfx) return;
     for (const cue of cues) {
@@ -528,8 +543,8 @@ class LiveRace {
     shot.start();
   }
 
-  /** Stop the loops not in `wanted`, start the ones not running, and glide every one to `speed`. */
-  #runLoops(sounds: Sounds, wanted: ReadonlySet<SoundLoop>, speed: number): void {
+  /** Stop the loops not in `wanted`, start the ones not running, and glide every one to `reading`'s speed or zone. */
+  #runLoops(sounds: Sounds, wanted: ReadonlySet<SoundLoop>, reading: SoundReading | null): void {
     for (const [loop, running] of this.#loops) {
       if (wanted.has(loop)) continue;
       running.source.stop();
@@ -539,7 +554,8 @@ class LiveRace {
     }
     const now = sounds.context.currentTime;
     for (const loop of wanted) {
-      const playback = loopPlayback(loop, speed, this.#topSpeed);
+      if (reading === null) continue;
+      const playback = this.#playback(loop, reading);
       const running = this.#loops.get(loop);
       if (running !== undefined) {
         running.source.playbackRate.setTargetAtTime(playback.rate, now, GLIDE_S);
@@ -559,6 +575,12 @@ class LiveRace {
       source.start();
       this.#loops.set(loop, { source, gain });
     }
+  }
+
+  #playback(loop: SoundLoop, reading: SoundReading): LoopPlayback {
+    return isAmbience(loop)
+      ? ambiencePlayback(loop, reading.presentation)
+      : loopPlayback(loop, reading.speed, this.#topSpeed);
   }
 
   /**
@@ -621,7 +643,7 @@ class LiveRace {
       this.#star.gain.disconnect();
       this.#star = undefined;
     }
-    if (this.#sounds !== undefined) this.#runLoops(this.#sounds, new Set(), 0);
+    if (this.#sounds !== undefined) this.#runLoops(this.#sounds, new Set(), null);
     this.#engine?.stop();
     this.#engine = undefined;
     this.#engineState = undefined;
@@ -648,6 +670,16 @@ const CRACKLE_FALL_S = 0.006;
 const CRACKLE_GAP_MIN_S = 0.03;
 const CRACKLE_GAP_SPREAD_S = 0.25;
 const CRACKLE_GAP_OVERRUN_S = 0.2;
+/**
+ * The engine's echo in a zone that sends it (ADR 0098): a short slap off
+ * close walls, fed back into itself to ring, and the share of the engine
+ * sent into it at the zone's whole echo, which also makes the engine louder.
+ */
+const ECHO_DELAY_S = 0.09;
+const ECHO_FEEDBACK = 0.4;
+const ECHO_SEND = 0.7;
+/** The echo comes in and goes out over about half a second, so a portal never cuts it. */
+const ECHO_GLIDE_S = 0.15;
 
 /**
  * The engine's nodes (ADR 0025): two detuned sawtooths, a square sub an
@@ -669,6 +701,7 @@ class EngineGraph {
   readonly #level: SoundGain;
   readonly #limiterDepth: SoundGain;
   readonly #crackle: SoundGain;
+  readonly #echoSend: SoundGain;
   readonly #nodes: SoundNode[] = [];
   /** The level is left alone while an upshift's cut runs, and the note while a downshift's blip holds. */
   #cutUntil = 0;
@@ -693,6 +726,15 @@ class EngineGraph {
       return node;
     };
     this.#level = gain(voice.level, out);
+    // The echo: the level's output into a delay that rings through its
+    // feedback, out beside the dry engine; silent until a zone sends it.
+    const delay = context.createDelay(ECHO_DELAY_S);
+    delay.delayTime.value = ECHO_DELAY_S;
+    delay.connect(out);
+    delay.connect(gain(ECHO_FEEDBACK, delay));
+    this.#nodes.push(delay);
+    this.#echoSend = gain(0, delay);
+    this.#level.connect(this.#echoSend);
     this.#filter = context.createBiquadFilter();
     this.#filter.type = "lowpass";
     this.#filter.Q.value = FILTER_Q;
@@ -724,9 +766,14 @@ class EngineGraph {
     this.#noise.start();
   }
 
-  /** Glide every node to `voice`; cut the level on an upshift, blip the note on a downshift, and fire a crackle burst when one is due. */
-  follow(voice: EngineVoice, shift: EngineState["shift"]): void {
+  /**
+   * Glide every node to `voice` and the echo to `echo`, the zone's 0 to 1;
+   * cut the level on an upshift, blip the note on a downshift, and fire a
+   * crackle burst when one is due.
+   */
+  follow(voice: EngineVoice, shift: EngineState["shift"], echo: number): void {
     const now = this.#context.currentTime;
+    this.#echoSend.gain.setTargetAtTime(echo * ECHO_SEND, now, ECHO_GLIDE_S);
     if (shift === "down") {
       this.#blipUntil = now + BLIP_S;
       this.#note(voice.noteHz * (1 + ENGINE.downshiftBlip), now);
