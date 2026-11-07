@@ -39,6 +39,14 @@ LEG_REACH_M = 60.0
 MIN_SPAN_M = 28.0
 
 
+def face_normal(vertices, face) -> tuple[float, float, float]:
+    """The face's unnormalised normal, the way its winding points."""
+    a, b, c = (vertices[i] for i in face[:3])
+    u = [b[i] - a[i] for i in range(3)]
+    v = [c[i] - a[i] for i in range(3)]
+    return u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0]
+
+
 def bell_deer():
     layout = load("bell-deer")
     return layout, build(layout), layout.decor.bridges[0]
@@ -165,10 +173,7 @@ class Deck(unittest.TestCase):
             (piece,) = [p for p in geometry.scenery if p.name == name]
             vertices, faces = piece.mesh
             for face in faces:
-                a, b, c = (vertices[i] for i in face[:3])
-                u = [b[i] - a[i] for i in range(3)]
-                v = [c[i] - a[i] for i in range(3)]
-                normal = (u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0])
+                normal = face_normal(vertices, face)
                 with self.subTest(name=name, face=face):
                     if abs(normal[2]) > abs(normal[0]) + abs(normal[1]):
                         self.assertLess(normal[2], 0.0)
@@ -189,10 +194,7 @@ class Deck(unittest.TestCase):
         # Where each downward face, a girder's foot, lies along the underpass, to the metre.
         feet = set()
         for face in faces:
-            a, b, c = (vertices[i] for i in face[:3])
-            u = [b[i] - a[i] for i in range(3)]
-            v = [c[i] - a[i] for i in range(3)]
-            normal = (u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0])
+            normal = face_normal(vertices, face)
             if normal[2] >= -(abs(normal[0]) + abs(normal[1])):
                 continue
             x = sum(vertices[i][0] for i in face) / len(face)

@@ -1247,11 +1247,11 @@ def bridges(layout: Layout, height: list[float]) -> list[SceneryMesh]:
     ground = -GRASS_DROP_M
     parts = ByMaterial("Bridge")
 
-    def rail(indices: list[int], side: float, lift: float | None = None) -> list[mesh.Vertex]:
-        """`side` times the wall's outer foot from the centreline, at the road's level or at `lift`
-        metres under it, or on the grass when `lift` is None."""
+    def rail(indices: list[int], share: float, lift: float | None = None) -> list[mesh.Vertex]:
+        """`share` of the way from the centreline to the wall's outer foot, left when positive, at
+        the road's level or at `lift` metres under it, or on the grass when `lift` is None."""
         return [
-            (*path.samples[i].offset(side * edge), ground if lift is None else height[i] - GRASS_DROP_M - lift)
+            (*path.samples[i].offset(share * edge), ground if lift is None else height[i] - GRASS_DROP_M - lift)
             for i in indices
         ]
 
