@@ -50,6 +50,7 @@ const STILL: SoundReading = {
   incomingDroneMetres: null,
   presentation: OPEN_SKY,
   flypastCuedMs: null,
+  finalLap: false,
 };
 const STAR_RUN_S = 6;
 
@@ -920,6 +921,26 @@ describe("the music loop", () => {
     expect(music()).toHaveLength(2);
     race.stop();
     expect(music()[1]?.stopped).toBe(1);
+  });
+
+  it("plays faster and louder through the own kart's final lap, and as rendered after", async () => {
+    const harnessed = harness();
+    const { audio, music, gainOf } = harnessed;
+    await audio.unlock();
+    const race = audio.race();
+    race.start();
+    race.update(STILL);
+    const loop = music()[0] as FakeSource;
+    expect(loop.playbackRate.value).toBe(1);
+    expect(gainOf(loop).gain.value).toBe(1);
+    race.update({ ...STILL, finalLap: true });
+    expect(loop.playbackRate.value).toBeGreaterThan(1);
+    expect(gainOf(loop).gain.value).toBeGreaterThan(1);
+    race.update({ ...STILL, finished: true });
+    expect(loop.playbackRate.value).toBe(1);
+    expect(gainOf(loop).gain.value).toBe(1);
+    // The loop was lifted, never restarted.
+    expect(music()).toHaveLength(1);
   });
 });
 

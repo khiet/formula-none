@@ -53,6 +53,7 @@ const STILL: SoundReading = {
   incomingDroneMetres: null,
   presentation: OPEN_SKY,
   flypastCuedMs: null,
+  finalLap: false,
 };
 
 describe("soundCues", () => {
@@ -542,6 +543,7 @@ describe("soundReading", () => {
       incomingDroneMetres: null,
       presentation: OPEN_SKY,
       flypastCuedMs: null,
+      finalLap: false,
     });
   });
 
@@ -555,6 +557,12 @@ describe("soundReading", () => {
     const race = raceReadout({ karts: [kart], standings: [standing], phase: racing });
     expect(soundReading(race, 0, TUNING).flypastCuedMs).toBeNull();
     expect(soundReading(race, 0, TUNING, false, OPEN_SKY, 9_500).flypastCuedMs).toBe(9_500);
+  });
+
+  it("carries whether the kart is on its last lap", () => {
+    const race = raceReadout({ karts: [kart], standings: [standing], phase: racing });
+    expect(soundReading(race, 0, TUNING).finalLap).toBe(false);
+    expect(soundReading(race, 0, TUNING, false, OPEN_SKY, null, true).finalLap).toBe(true);
   });
 
   it("takes the own run's seconds, and the nearest other star kart by distance", () => {

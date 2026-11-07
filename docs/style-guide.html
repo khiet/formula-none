@@ -592,6 +592,17 @@
       </article>
 
       <article class="asset">
+        <header><h3>Final lap</h3><code>apps/web/src/final-lap-set-piece.ts</code></header>
+        <div class="compare"><figure><figcaption>The gantry through the own kart's last lap</figcaption><div class="stage" data-draw="finalLapGantry"></div></figure><figure><figcaption>Fireworks over the landmark: the Circuit Wheel, the hangars, the harbour</figcaption><div class="stage flat" data-draw="fireworks"></div></figure></div>
+        <dl class="spec"><dt>Size</dt><dd>The board covers the gantry's chequer, end to end and both rows, 0.03 m proud of each face; shells burst 12 to 26 m over the landmark, 48 stars each 2 m thick flying out at about 20 m/s and burning out in 1.8 s</dd><dt>Decided</dt><dd><a href="adr/0100-the-final-lap-lifts-the-course-for-the-own-kart.md">ADR 0100</a>, card X2 of <a href="mockups/course-excitement.html">the course-excitement picks</a></dd></dl>
+        <div class="notes">
+          <p>From the first tick of the own kart's last lap to its finish, a board over the chequer on both faces of the gantry's beam reads FINAL LAP: <code>carbon</code> <code>#2b2e33</code> between two <code>POSTER_RED</code> <code>#c81d25</code> bands, the words in <code>VALUE_WHITE</code> <code>#ffffff</code> in the Instrument panel's pixel face, twice along a beam wider than twelve times its height so each half of the road reads one. Unlit, so it glows whatever the sun does, like the pit box lights. It is hidden the rest of the race.</p>
+          <p>Fireworks go up over the course's landmark for the same lap: a shell every 0.5 s, a third as often when the viewer asks for less motion, bursting into streaking stars that cool as they fall, one colour a shell in turn: <code>POSTER_RED</code> <code>#e8333b</code>, <code>COIN_GOLD</code> <code>#ffd23f</code>, <code>SHIFT_BLUE</code> <code>#8aa8ff</code>, <code>GO_GREEN</code> <code>#6fe8a6</code> and <code>VALUE_WHITE</code>. They draw solid and unlit, thinning as they burn out: additive stars wash out to white against the daylight sky. The oval has neither a gantry nor a landmark and shows neither; its crowd and music still lift.</p>
+          <p class="dont"><b>Don't</b> put the board anywhere but the gantry, or fire shells over the road: they stay over the landmark, out of the driving sight line.</p>
+        </div>
+      </article>
+
+      <article class="asset">
         <header><h3>Bridge</h3><code>assets/tracks/trackgen/layout.py bridges</code></header>
         <div class="compare"><figure><figcaption>Bell Deer's back straight over the underpass, from the side</figcaption><div class="stage flat" data-draw="bridge"></div></figure><figure><figcaption>The underside from the underpass, looking up: five girders under the recessed soffit</figcaption><div class="stage flat" data-draw="bridgeUnderside"></div></figure></div>
         <dl class="spec"><dt>Size</dt><dd>Deck 5 m up and 1 m thick, span 30 m, embankment 110 m along the raised leg; five girders 1.2 m wide, their feet at the deck's full 1 m, the soffit 0.5 m up between them</dd><dt>Light</dt><dd>The underpass zone at 0.55 of the sky's light with the engine's whole echo, in over 12.5 m to 2.5 m inside the deck's edge and out the same way; the deck zone at 1.12, in from the foot of the embankment to 20 m short of the crest, out by its far foot</dd><dt>Decided</dt><dd><a href="adr/0047-suzuqa-patch.md">ADR 0047</a>, <a href="adr/0098-presentation-zones-change-light-and-sound-by-spline-progress.md">ADR 0098</a></dd></dl>
@@ -2047,6 +2058,35 @@
       <polygon points="22,40 34,40 34,138 22,138" fill="#3a3e45"/><polygon points="28,40 34,40 34,138 28,138" fill="#25282d"/>
       <polygon points="206,40 218,40 218,138 206,138" fill="#3a3e45"/><polygon points="212,40 218,40 218,138 212,138" fill="#25282d"/>
       ${poly([[22, 40], [218, 40], [212, 34], [28, 34]], "#c9ced5")}<rect x="22" y="40" width="196" height="24" fill="#f0f0f0"/>${cq}<rect x="22" y="60" width="196" height="4" fill="#9aa0a8"/></svg>`;
+  };
+
+  // The gantry through the final lap: the board over the chequer (final-lap-set-piece.ts).
+  draw.finalLapGantry = () => `<svg viewBox="0 0 240 160" role="img" aria-label="The start gantry with a board reading FINAL LAP over its chequer">
+      <ellipse cx="120" cy="142" rx="104" ry="5" fill="rgba(0,0,0,.15)"/>
+      <polygon points="22,40 34,40 34,138 22,138" fill="#3a3e45"/><polygon points="28,40 34,40 34,138 28,138" fill="#25282d"/>
+      <polygon points="206,40 218,40 218,138 206,138" fill="#3a3e45"/><polygon points="212,40 218,40 218,138 212,138" fill="#25282d"/>
+      ${poly([[22, 40], [218, 40], [212, 34], [28, 34]], "#c9ced5")}<rect x="22" y="40" width="196" height="24" fill="#f0f0f0"/>
+      <rect x="32" y="46" width="176" height="14" fill="#2b2e33"/><rect x="32" y="46" width="176" height="1.7" fill="#c81d25"/><rect x="32" y="58.3" width="176" height="1.7" fill="#c81d25"/>
+      <text x="76" y="56.4" fill="#ffffff" font-family="Kenney Mini Square, monospace" font-size="8.7" text-anchor="middle">FINAL LAP</text><text x="164" y="56.4" fill="#ffffff" font-family="Kenney Mini Square, monospace" font-size="8.7" text-anchor="middle">FINAL LAP</text>
+      <rect x="22" y="60" width="196" height="4" fill="#9aa0a8"/></svg>`;
+
+  // Fireworks over a landmark: shells of streaking stars, one colour each (final-lap-set-piece.ts).
+  draw.fireworks = () => {
+    const shell = (cx, cy, r, colour, cooled) => {
+      let out = "";
+      for (let i = 0; i < 16; i++) {
+        const a = (i / 16) * Math.PI * 2;
+        const x1 = cx + Math.cos(a) * r * 0.35, y1 = cy + Math.sin(a) * r * 0.35;
+        const x2 = cx + Math.cos(a) * r, y2 = cy + Math.sin(a) * r + r * 0.18;
+        out += `<line x1="${x1.toFixed(1)}" y1="${y1.toFixed(1)}" x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}" stroke="${i % 3 ? colour : cooled}" stroke-width="1.6" stroke-linecap="round"/>`;
+      }
+      return out;
+    };
+    return `<svg viewBox="0 0 240 160" role="img" aria-label="Fireworks bursting in red, gold, blue and green over a Ferris wheel">
+      <rect width="240" height="160" fill="#1b1d21"/>
+      ${shell(70, 40, 26, "#e8333b", "#8f141a")}${shell(150, 30, 22, "#ffd23f", "#c81d25")}${shell(195, 58, 18, "#8aa8ff", "#2f4fc4")}${shell(110, 70, 16, "#6fe8a6", "#23a35e")}
+      <circle cx="120" cy="122" r="30" fill="none" stroke="#c9ced5" stroke-width="3"/><line x1="120" y1="122" x2="104" y2="156" stroke="#9aa0a8" stroke-width="3"/><line x1="120" y1="122" x2="136" y2="156" stroke="#9aa0a8" stroke-width="3"/>
+      <rect x="0" y="154" width="240" height="6" fill="#3a3e45"/></svg>`;
   };
 
   // The tyre gauge's kart: your car from above (instrument-panel.ts).

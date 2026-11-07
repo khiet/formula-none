@@ -3,6 +3,7 @@ import { soundReading } from "./audio-cues";
 import { createBoxCall } from "./box-call";
 import type { Bridge, PitLaneFork } from "./bridge";
 import { createChaseCamera } from "./chase-camera";
+import { finalLap, finalLapBlend } from "./final-lap";
 import { gamepadKartInput } from "./gamepad";
 import { combinedKartInput } from "./input";
 import {
@@ -102,7 +103,7 @@ export async function createRaceScene(
   const [view] = await Promise.all([
     createRaceView(
       container,
-      { trackGltfUrl: track.gltfUrl, kartGltfUrl: KART_GLTF_URL },
+      { trackName: track.name, trackGltfUrl: track.gltfUrl, kartGltfUrl: KART_GLTF_URL },
       run.itemBoxes(),
       run.coins(),
       pitLane?.pitBoxes ?? [],
@@ -142,8 +143,14 @@ export async function createRaceScene(
     if (local && standing) {
       const pose = camera.update(local, frameSeconds, input.lookingBehind());
       const flypastCuedMs = flypast.update(performance.now(), standing.splineProgress);
+      // The final lap lifts the course for the own kart alone (ADR 0100).
+      const onFinalLap = finalLap(readout, run.localKart, run.laps);
+      view.finalLap(onFinalLap);
       view.update(readout, pose, frameSeconds, flypastCuedMs);
-      const blend = presentationBlend(zones, standing.splineProgress, lapLength);
+      const blend = finalLapBlend(
+        presentationBlend(zones, standing.splineProgress, lapLength),
+        onFinalLap,
+      );
       view.presentation(blend);
       panel.update(readout);
       const called = boxCall.update({
@@ -153,7 +160,9 @@ export async function createRaceScene(
         inPitLane: local.inPitLane,
       });
       panel.boxCall(called);
-      audio.update(soundReading(readout, run.localKart, tuning, called, blend, flypastCuedMs));
+      audio.update(
+        soundReading(readout, run.localKart, tuning, called, blend, flypastCuedMs, onFinalLap),
+      );
     }
   };
   audio.start();
