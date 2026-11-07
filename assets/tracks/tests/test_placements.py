@@ -29,14 +29,15 @@ BOOSTED_SPEED_M_PER_S = (
     * tuning_constant("TOP_SPEED_M_PER_S")
     * (1.0 + tuning_count("COIN_CAP") * tuning_constant("COIN_TOP_SPEED_FACTOR"))
 )
-GRAVITY_M_PER_S2 = 9.81
+# The sim keeps gravity negative, pulling down its +Y.
+GRAVITY_M_PER_S2 = -tuning_constant("GRAVITY_M_PER_S2")
 
 
 def segment_at(layout, s: float):
     return next(seg for seg in layout.path.segments if seg.s_start <= s < seg.s_end)
 
 
-def pad_across(layout, pad) -> tuple[float, float]:
+def pad_across(pad) -> tuple[float, float]:
     """The metres left of the centreline that `pad`'s plate spans, right edge first."""
     return pad.offset - PAD_HALF_WIDTH_M, pad.offset + PAD_HALF_WIDTH_M
 
@@ -80,7 +81,7 @@ class Goldstone(unittest.TestCase):
     def test_the_hangar_straights_pad_covers_the_right_half_and_leaves_the_left_for_the_tow(self) -> None:
         hangar = self.seg("hangar")
         (pad,) = [p for p in self.layout.boost_pads if hangar.s_start <= p.s < hangar.s_end]
-        right, left = pad_across(self.layout, pad)
+        right, left = pad_across(pad)
         self.assertLessEqual(left, 0.0, "the left half is clear")
         self.assertGreaterEqual(right, -self.layout.asphalt_half_width)
         self.assertLess(self.seg("stowe").turn, 0, "Stowe turns right, so the braking line runs on the left")
@@ -107,7 +108,7 @@ class Monarch(unittest.TestCase):
         layout = load("monarch")
         tunnel = layout.path.segment("tunnel")
         (pad,) = [p for p in layout.boost_pads if tunnel.s_start <= p.s < tunnel.s_end]
-        right, left = pad_across(layout, pad)
+        right, left = pad_across(pad)
         self.assertGreaterEqual(right, 0.0, "the right half is clear")
         self.assertLessEqual(left, layout.asphalt_half_width)
         self.assertGreater(layout.path.segment("chicane-in").turn, 0, "the chicane opens left, so the pad's side is its inside")
@@ -150,7 +151,7 @@ class EveryCourse(unittest.TestCase):
             geometry = build(layout)
             for pad, placed in zip(layout.boost_pads, geometry.boost_pads, strict=True):
                 with self.subTest(name, s=round(pad.s)):
-                    right, left = pad_across(layout, pad)
+                    right, left = pad_across(pad)
                     self.assertGreaterEqual(right, -layout.asphalt_half_width)
                     self.assertLessEqual(left, layout.asphalt_half_width)
                     self.assertAlmostEqual(left_of_centre(layout, placed.x, placed.y, pad.s), pad.offset, places=3)

@@ -10,6 +10,9 @@ use sim::{step, BotLevel, ItemSlot, Phase, RaceEvent, State, Track};
 
 /// Tighter than this radius, the centreline is a corner.
 const CORNER_RADIUS_M: f32 = 100.0;
+/// A box this near a row's middle along the lap stands in that row: a row's
+/// boxes stand side by side across the road.
+const ROW_REACH_M: f32 = 2.0;
 /// Long enough for every bot to pass the row with an empty slot at least once.
 const RACE_S: f32 = 70.0;
 
@@ -17,7 +20,9 @@ const RACE_S: f32 = 70.0;
 /// the spline progress of the first corner past it.
 fn row_and_next_corner(track: &Track, row_progress: f32) -> (Vec<usize>, f32) {
     let boxes: Vec<usize> = (0..track.item_boxes().len())
-        .filter(|&b| (track.progress_at(track.item_boxes()[b].position) - row_progress).abs() < 2.0)
+        .filter(|&b| {
+            (track.progress_at(track.item_boxes()[b].position) - row_progress).abs() < ROW_REACH_M
+        })
         .collect();
     assert_eq!(boxes.len(), 4, "a row of four boxes at {row_progress} m");
     let mut corner = row_progress;

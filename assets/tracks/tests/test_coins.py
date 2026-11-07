@@ -89,7 +89,7 @@ class Coins(unittest.TestCase):
                 self.assertGreaterEqual(on_line, COIN_CAP)
                 self.assertGreater(off_line, 0, "some reward a wider line")
 
-    def test_every_line_runs_along_a_straight_or_marks_a_corner_with_one_coin_and_no_box_row_shares_it(self) -> None:
+    def test_every_line_runs_along_a_straight_or_is_a_lone_corner_coin_off_any_box_rows_segment(self) -> None:
         for name in NAMES:
             layout = load(name)
             for line in layout.coin_lines:

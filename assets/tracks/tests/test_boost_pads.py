@@ -19,7 +19,7 @@ TUNING_RS = Path(__file__).resolve().parents[3] / "crates" / "sim" / "src" / "tu
 
 
 def tuning_constant(name: str) -> float:
-    match = re.search(rf"pub const {name}: f32 = ([0-9.]+);", TUNING_RS.read_text())
+    match = re.search(rf"pub const {name}: f32 = (-?[0-9.]+);", TUNING_RS.read_text())
     if match is None:
         raise AssertionError(f"{name} is not an f32 constant in {TUNING_RS}")
     return float(match.group(1))
