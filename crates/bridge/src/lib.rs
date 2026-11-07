@@ -51,6 +51,19 @@ pub fn replay_hashes(replay: &str, sidecar: &str) -> Result<Vec<u64>, String> {
     replay.run(track).map_err(|error| error.to_string())
 }
 
+/// Where the pit lane forks off the course described by `sidecar`: its
+/// spline progress then the course's spline length, both in metres, or an
+/// empty buffer on a course without a pit lane. Fails, with the sim's
+/// reason, when the sidecar is unusable.
+#[wasm_bindgen]
+pub fn pit_lane_fork(sidecar: &str) -> Result<Vec<f32>, String> {
+    let track = Track::from_sidecar(sidecar).map_err(|error| error.to_string())?;
+    Ok(track
+        .pit_lane_fork()
+        .map(|fork| vec![fork, track.spline_length()])
+        .unwrap_or_default())
+}
+
 /// The protocol version this build speaks (ADR 0013). The generated
 /// `PROTOCOL_VERSION` is the same constant; the web app checks they agree.
 #[wasm_bindgen]

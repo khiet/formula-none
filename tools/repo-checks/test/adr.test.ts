@@ -100,6 +100,7 @@ const DECISION_SLUGS = [
   "step-reads-the-kart-s-place-where-it-needs-it",
   "the-client-reads-the-sims-tuning-by-its-generated-name",
   "worn-tyres-cap-speed-and-acceleration-twice-as-hard",
+  "the-box-call-comes-as-the-kart-nears-the-pit-lane",
 ];
 
 const expectedFiles = DECISION_SLUGS.map(

@@ -1,7 +1,7 @@
 import type { RaceAudio } from "./audio";
 import { soundReading } from "./audio-cues";
 import { createBoxCall } from "./box-call";
-import type { Bridge } from "./bridge";
+import type { Bridge, PitLaneFork } from "./bridge";
 import { createChaseCamera } from "./chase-camera";
 import { gamepadKartInput } from "./gamepad";
 import { combinedKartInput } from "./input";
@@ -19,6 +19,20 @@ import { createRaceView } from "./race-view";
 import { downloadReplay } from "./replay";
 import { kartName, type RaceResults } from "./results-scene";
 import type { PitLaneLayout, TrackFiles, WorldPoint } from "./track";
+
+/** The course's pit lane as the Scene draws it, with where it forks off the course. */
+export type RacePitLane = PitLaneLayout & { readonly fork: PitLaneFork };
+
+/**
+ * The lane `layout` as the Scene reads it, forking off at `fork`; the sim
+ * finds a fork on every course with a lane, so either missing means none.
+ */
+export function racePitLane(
+  layout: PitLaneLayout | undefined,
+  fork: PitLaneFork | undefined,
+): RacePitLane | undefined {
+  return layout === undefined || fork === undefined ? undefined : { ...layout, fork };
+}
 
 /** Ticks run per frame at most, so a stalled tab catches up instead of spiralling. */
 const MAX_TICKS_PER_FRAME = 5;
@@ -50,7 +64,7 @@ export async function createRaceScene(
   bridge: Bridge,
   track: TrackFiles,
   centreline: readonly WorldPoint[],
-  pitLane: PitLaneLayout | undefined,
+  pitLane: RacePitLane | undefined,
   run: RaceRun,
   nickname: (kart: number) => string | undefined,
   audio: RaceAudio,
@@ -108,11 +122,8 @@ export async function createRaceScene(
   );
 
   const boxCall = createBoxCall(
-    {
-      // A course with a lane has a pit box to come in to (ADR 0082).
-      pitLane: pitLane !== undefined,
-      lapsPerRace: run.laps,
-    },
+    // Only a course with a lane has a pit box to come in to (ADR 0082).
+    { fork: pitLane?.fork, lapsPerRace: run.laps },
     tuning,
   );
 
@@ -124,7 +135,12 @@ export async function createRaceScene(
       const pose = camera.update(local, frameSeconds, input.lookingBehind());
       view.update(readout, pose, frameSeconds);
       panel.update(readout);
-      const called = boxCall.update(local.tyreLife, standing.lap, frameSeconds);
+      const called = boxCall.update({
+        tyreLife: local.tyreLife,
+        lap: standing.lap,
+        splineProgress: standing.splineProgress,
+        inPitLane: local.inPitLane,
+      });
       panel.boxCall(called);
       audio.update(soundReading(readout, run.localKart, tuning, called));
     }

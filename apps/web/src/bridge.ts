@@ -6,6 +6,7 @@ import init, {
   decode_server_message,
   encode_client_message,
   encode_server_message,
+  pit_lane_fork,
   protocol_version,
   replay_hashes,
   tuning,
@@ -71,6 +72,15 @@ export type KartReadout = Omit<SimKartReadout, "position" | "rotation"> &
     readonly position: readonly [number, number, number];
     readonly rotation: readonly [number, number, number, number];
   };
+
+/**
+ * Where a course's pit lane forks off it: the fork's spline progress and
+ * the course's spline length, both in metres.
+ */
+export interface PitLaneFork {
+  readonly splineProgress: number;
+  readonly splineLength: number;
+}
 
 /** Where an item box stands on the track: metres, and a yaw about +Y, zero facing -Z. */
 export interface ItemBox {
@@ -302,6 +312,12 @@ export interface Bridge extends MessageCodec {
    * replay is unreadable or the sidecar is not the replay's track.
    */
   replayHashes(replay: string, sidecar: string): bigint[];
+  /**
+   * Where the pit lane forks off the course described by `sidecar`;
+   * `undefined` on a course without a pit lane. Throws, with the sim's
+   * reason, when the sidecar is unusable.
+   */
+  pitLaneFork(sidecar: string): PitLaneFork | undefined;
 }
 
 // Buffer layouts the bridge crate documents on Race::step, Race::kart_transforms
@@ -345,6 +361,12 @@ export async function loadBridge(wasm?: BufferSource): Promise<Bridge> {
     },
     replayHashes(replay, sidecar) {
       return Array.from(rethrown(() => replay_hashes(replay, sidecar)));
+    },
+    pitLaneFork(sidecar) {
+      const [splineProgress, splineLength] = rethrown(() => pit_lane_fork(sidecar));
+      return splineProgress === undefined || splineLength === undefined
+        ? undefined
+        : { splineProgress, splineLength };
     },
     encodeClientMessage(message) {
       return rethrown(() => encode_client_message(message));

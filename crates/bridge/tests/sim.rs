@@ -324,6 +324,19 @@ fn replay_hashes_runs_a_replay_json_on_a_sidecar_and_reports_the_sims_hashes() {
 }
 
 #[test]
+fn pit_lane_fork_is_the_tracks_fork_and_spline_length_or_empty_without_a_lane() {
+    const BELL_DEER: &str = include_str!("../../../assets/tracks/bell-deer/bell-deer.track.json");
+    let track = Track::from_sidecar(BELL_DEER).unwrap();
+    let fork = track.pit_lane_fork().expect("Bell Deer has a pit lane");
+    assert_eq!(
+        bridge::pit_lane_fork(BELL_DEER),
+        Ok(vec![fork, track.spline_length()])
+    );
+    assert_eq!(bridge::pit_lane_fork(OVAL), Ok(vec![]));
+    assert!(bridge::pit_lane_fork("{}").is_err());
+}
+
+#[test]
 fn bots_fill_the_slots_behind_the_humans_and_step_takes_only_the_humans_inputs() {
     // A seed that rolls neither bot the start boost, so both pass the idle
     // human instead of shoving it along.

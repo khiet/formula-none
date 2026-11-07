@@ -677,9 +677,10 @@ It builds over a few ticks, with no random twitch (ADR 0080).
 
 ### BOX call
 
-The radio's call to come in for tyres: a plate beside the tyre gauge and a
-chime, for 2 s, as tyre life first falls to 30%. Not on a course without a pit
-lane, so it stays down until one exists, nor on the final lap (ADR 0080).
+The radio's call to come in for tyres: `BOX BOX` on a plate beside the tyre
+gauge and a chime, from 120 m to 15 m short of the pit lane's fork while tyre
+life is at 30% or below, every lap the kart stays out. Down in the pit lane,
+and not on a course without one nor on the final lap (ADR 0096).
 
 ### Tyres
 
