@@ -5,7 +5,6 @@ import {
   AIRSHIP_CIRCUIT_MS,
   flypastCueOf,
   flypastTimer,
-  GOLDSTONE_CHAPEL_M,
   HELICOPTER_CIRCLE_M,
   HELICOPTER_CIRCUIT_MS,
   HELICOPTER_DIP_DEG,
@@ -416,8 +415,7 @@ describe("the display jets' flypast", () => {
   }
 
   it("is cued at the start of Goldstone's Chapel and nowhere else", () => {
-    expect(flypastCueOf("goldstone")).toBe(GOLDSTONE_CHAPEL_M);
-    expect(GOLDSTONE_CHAPEL_M).toBeCloseTo(CHAPEL_M, 2);
+    expect(flypastCueOf("goldstone")).toBeCloseTo(CHAPEL_M, 2);
     for (const course of ["bell-deer", "monarch", "oval"] as const) {
       expect(flypastCueOf(course)).toBeNull();
     }
