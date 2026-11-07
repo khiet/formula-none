@@ -23,6 +23,7 @@ from pathlib import Path
 
 from tests.test_props import (
     across_track,
+    edge_of,
     build_materials,
     faces_up_and_toward_the_sun,
     footprint_clearance,
@@ -379,9 +380,9 @@ class HangarShell(unittest.TestCase):
             with self.subTest(foot=foot):
                 self.assertEqual(foot.clearance, SPAN_FOOT_CLEARANCE_M)
                 self.assertGreater(footprint_clearance(self.layout, foot), 0.0, "on grass")
-        for (pits,) in [[f for f in footprints(self.layout) if f.kind == "hangars"]]:
-            for foot in feet:
-                self.assertGreater(pits.distance(foot.x, foot.y), foot.half_across, "clear of the hangars' row")
+        (row,) = [f for f in footprints(self.layout) if f.kind == "hangars"]
+        for foot in feet:
+            self.assertGreater(min(row.distance(x, y) for x, y in edge_of(foot)), 0.0, "clear of the hangars' row")
 
     def test_its_roof_keeps_the_span_rule_and_clears_a_boosted_chase_camera_by_2_m(self) -> None:
         asphalt = self.layout.asphalt_half_width
@@ -423,6 +424,10 @@ class HangarShell(unittest.TestCase):
             self.assertLess(b, -self.walls)
             self.assertGreater(b, -HANGAR_SHELL_RIGHT_M)
             self.assertLessEqual(c + GRASS_DROP_M, LOW_PROP_M)
+        # Nose to the track: each canopy nearer the wall than its tail's fin.
+        canopy = sum(b for f in self.faces("carbon") for _, b, _ in f) / sum(len(f) for f in self.faces("carbon"))
+        fin = sum(b for f in self.faces("kerb-red") for _, b, _ in f) / sum(len(f) for f in self.faces("kerb-red"))
+        self.assertGreater(canopy, fin + 4.0)
 
     def test_its_exit_frames_stowe_from_inside(self) -> None:
         sample = self.layout.path.at(self.prop.at.s)
@@ -505,11 +510,16 @@ class ControlTower(unittest.TestCase):
     def test_a_glazed_cab_overhangs_a_narrower_shaft_under_a_banded_mast(self) -> None:
         def reach(material: str) -> float:
             piece = self.pieces[f"{TOWER}.{material}"]
-            return max(max(abs(v[0] - self.x), abs(v[1] - self.y)) for v in piece.mesh[0])
+            # In the tower's own frame, square to the way its cab faces.
+            cos, sin = math.cos(self.prop.at.heading), math.sin(self.prop.at.heading)
+            return max(
+                max(abs((v[0] - self.x) * cos + (v[1] - self.y) * sin), abs(-(v[0] - self.x) * sin + (v[1] - self.y) * cos))
+                for v in piece.mesh[0]
+            )
 
-        self.assertAlmostEqual(reach("stand-riser"), TOWER_SHAFT_M / 2.0, delta=TOWER_SHAFT_M * 0.3)
-        self.assertAlmostEqual(reach("carbon"), TOWER_CAB_M / 2.0, delta=TOWER_CAB_M * 0.3)
-        self.assertGreater(reach("carbon"), reach("stand-riser") + 1.0)
+        self.assertAlmostEqual(reach("stand-riser"), TOWER_SHAFT_M / 2.0)
+        self.assertAlmostEqual(reach("carbon"), TOWER_CAB_M / 2.0)
+        self.assertGreater(TOWER_CAB_M, TOWER_SHAFT_M + 2.0, "the cab overhangs the shaft")
         glass = [v[2] + GRASS_DROP_M for v in self.pieces[f"{TOWER}.carbon"].mesh[0]]
         self.assertGreaterEqual(min(glass), TOWER_SHAFT_TOP_M)
         self.assertLessEqual(max(glass), TOWER_CAB_TOP_M)
