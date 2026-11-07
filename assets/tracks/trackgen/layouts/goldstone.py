@@ -72,6 +72,12 @@ path = (
 )
 
 seg = path.segment
+# The row on the Stowe exit, 15 m past the corner: the bots that wait for the
+# wheel stop short of its crossing, never back here.
+VALE_ROW_S = seg("vale-approach").s_start + 15.0
+# A Becketts exit coin stands this far short of its corner's end, out wide.
+BECKETTS_EXIT_M = 4.0
+BECKETTS_COIN_M = 4.0
 
 LAYOUT = Layout(
     name="goldstone",
@@ -85,29 +91,37 @@ LAYOUT = Layout(
         TyreWall(seg("luffield").s_mid + 10.0, offset=TYRE_WALL_LEFT_M),
         TyreWall(seg("stowe").s_mid, offset=TYRE_WALL_LEFT_M),
     ],
+    # A row about every third of the lap, each placed so a bot that takes it
+    # at racing speed holds its item before the next corner (ADR 0097). The
+    # last stands on the Stowe exit, short of the queue for the wheel, so its
+    # item lands before Vale.
     item_rows=[
         ItemRow(seg("wellington").s_mid),
-        ItemRow(seg("national").s_mid),
         ItemRow(seg("copse-exit").s_mid),
+        ItemRow(VALE_ROW_S),
     ],
     boost_pads=[
         BoostPad(seg("abbey-exit").s_mid, offset=3.0),
-        BoostPad(seg("hangar").s_start + 40.0),
+        # Right of the centreline, so the left half stays clear for the tow and
+        # the braking line into Stowe, a right-hander: a pad or a tow, not both.
+        BoostPad(seg("hangar").s_start + 40.0, offset=-3.0),
     ],
     # Ten on the centreline, off the grid and down the Hangar Straight past
-    # its boost pad, so a clean lap takes a full set; three off it, out
-    # wide on the run to Vale for a wider entry, short of the wheel's
-    # crossing.
+    # its boost pad, so a clean lap takes a full set; three off it, one on
+    # the outside of each Becketts exit, marking the line that links the
+    # drifts.
     coin_lines=[
         CoinLine(seg("start").s_start + 10.0, count=5),
         CoinLine(seg("hangar").s_mid + 30.0, count=5),
-        CoinLine(seg("vale-approach").s_start + 12.0, count=3, offset=-4.0),
+        CoinLine(seg("becketts-right").s_end - BECKETTS_EXIT_M, count=1, offset=BECKETTS_COIN_M),
+        CoinLine(seg("becketts-left").s_end - BECKETTS_EXIT_M, count=1, offset=-BECKETTS_COIN_M),
+        CoinLine(seg("becketts").s_end - BECKETTS_EXIT_M, count=1, offset=BECKETTS_COIN_M),
     ],
+    # Only the first of the Becketts kerbs: the two after it cancelled the
+    # drifts that link the esses (ADR 0097).
     kerbs=[
         Kerb(seg("the-loop").s_mid, offset=KERB_INSIDE_M),
         Kerb(seg("becketts-right").s_mid, offset=-KERB_INSIDE_M),
-        Kerb(seg("becketts-left").s_mid, offset=KERB_INSIDE_M),
-        Kerb(seg("becketts").s_mid, offset=-KERB_INSIDE_M),
         Kerb(seg("vale").s_mid, offset=KERB_INSIDE_M),
     ],
     # Vale turns left, so the approach's outside is the right.

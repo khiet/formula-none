@@ -1,5 +1,5 @@
-"""Coins placed where a kart collects them, checked without Blender: every line along a straight
-no box row uses, every coin's rectangle on the asphalt, clear of every item box, boost pad and grid slot, enough on the centreline for a
+"""Coins placed where a kart collects them, checked without Blender: every line along a straight,
+or a lone coin marking a corner, on a segment no box row uses, every coin's rectangle on the asphalt, clear of every item box, boost pad and grid slot, enough on the centreline for a
 clean lap to collect a full purse, and about ten to twelve on the oval, thirteen on Goldstone and fifteen on Bell
 Deer and Monarch.
 
@@ -89,14 +89,15 @@ class Coins(unittest.TestCase):
                 self.assertGreaterEqual(on_line, COIN_CAP)
                 self.assertGreater(off_line, 0, "some reward a wider line")
 
-    def test_every_line_runs_along_a_straight_no_box_row_uses(self) -> None:
+    def test_every_line_runs_along_a_straight_or_marks_a_corner_with_one_coin_and_no_box_row_shares_it(self) -> None:
         for name in NAMES:
             layout = load(name)
             for line in layout.coin_lines:
                 with self.subTest(name, s=round(line.s), offset=line.offset):
                     first, last = line.s - HALF_LENGTH_M, line.s + (line.count - 1) * COIN_LINE_SPACING_M + HALF_LENGTH_M
                     segment = next(seg for seg in layout.path.segments if seg.s_start <= line.s < seg.s_end)
-                    self.assertEqual(segment.turn, 0, f"{segment.name} is a curve")
+                    if line.count > 1:
+                        self.assertEqual(segment.turn, 0, f"{segment.name} is a curve")
                     self.assertLessEqual(segment.s_start, first)
                     self.assertLessEqual(last, segment.s_end, f"runs off the end of {segment.name}")
                     rows = [row.s for row in layout.item_rows if segment.s_start <= row.s < segment.s_end]

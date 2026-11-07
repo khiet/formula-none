@@ -91,6 +91,8 @@ RAMP_LENGTH_M = 12.0
 back = path.segment("back-straight")
 hairpin = path.segment("hairpin")
 ramp_start = back.s_start + 14.0
+# The back straight's row, this far along it.
+BACK_STRAIGHT_ROW_M = 80.0
 # The road's climb over the bridge, which the embankment stands under.
 bridge_hill = Hill(
     BRIDGE_BACK_STRAIGHT_S - BRIDGE_HILL_HALF_LENGTH_M,
@@ -115,7 +117,9 @@ LAYOUT = Layout(
     item_rows=[
         ItemRow(path.segment("esses-run").s_mid),
         ItemRow(path.segment("degner-link").s_mid),
-        ItemRow(back.s_end - 15.0),
+        # Past where a kart boosted off the ramp with a full purse lands, and
+        # clear of the bridge, so the item lands before 130R (ADR 0097).
+        ItemRow(back.s_start + BACK_STRAIGHT_ROW_M),
     ],
     boost_pads=[
         BoostPad(path.segment("dunlop-rise").s_mid),
@@ -124,12 +128,14 @@ LAYOUT = Layout(
     # Ten on the centreline, down the start straight and through the
     # underpass short of the wheel's crossing, so a clean lap takes a full
     # set; five off it, out wide before turn 2 and between the Spoon's two
-    # curves, for a wider entry.
+    # curves, for a wider line.
     coin_lines=[
         CoinLine(path.segment("start").s_start + 10.0, count=5),
         CoinLine(path.segment("underpass").s_start + 6.0, count=5),
         CoinLine(path.segment("turn-2-approach").s_start + 6.0, count=2, offset=-4.0),
-        CoinLine(path.segment("spoon-link").s_start + 6.0, count=3, offset=4.0),
+        # Out wide between the Spoon's apexes, so the shorter inside line stays
+        # clear and away from spoon-2's tyre wall.
+        CoinLine(path.segment("spoon-link").s_start + 6.0, count=3, offset=-4.0),
     ],
     kerbs=[
         Kerb(path.segment("esses-3").s_mid, offset=KERB_INSIDE_M),

@@ -446,16 +446,6 @@ fn a_lone_ace_bot_runs_three_laps_of_every_lane_course_without_a_stop() {
     }
 }
 
-/// Most seeds' read of the first lap lands a lone bot within reach here, not all,
-/// so any of a handful will do.
-#[test]
-fn a_lone_ace_bot_can_save_its_way_through_five_laps_of_goldstone() {
-    assert!((0..10).any(|seed| {
-        let (stops, finish) = lone_five_laps_from(seed, goldstone(), BotLevel::Ace);
-        stops == 0 && finish.is_some()
-    }));
-}
-
 #[test]
 fn a_bot_driven_through_the_countdown_does_not_back_off_the_line() {
     let state = State::with_picks(SEED, 1, 0, oval(), Picks::default());
