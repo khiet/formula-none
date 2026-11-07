@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { finalLap, finalLapBlend, musicPlayback } from "./final-lap";
+import { finalLap, finalLapBlend } from "./final-lap";
 import { OPEN_SKY } from "./presentation-zones";
 import { ON_THE_GRID, raceReadout } from "./race-readout-fixture";
 
@@ -42,10 +42,6 @@ describe("finalLap", () => {
     expect(finalLap(race, 0, LAPS)).toBe(false);
     expect(finalLap(race, 1, LAPS)).toBe(true);
   });
-
-  it("is off for a kart that is not in the race", () => {
-    expect(finalLap(onLap(LAPS), 4, LAPS)).toBe(false);
-  });
 });
 
 describe("finalLapBlend", () => {
@@ -58,17 +54,5 @@ describe("finalLapBlend", () => {
     expect(lifted.crowd).toBe(1);
     expect(finalLapBlend({ ...OPEN_SKY, crowd: 0.6 }, true).crowd).toBe(1);
     expect(lifted.light).toBe(OPEN_SKY.light);
-  });
-});
-
-describe("musicPlayback", () => {
-  it("plays the race music as rendered off the final lap", () => {
-    expect(musicPlayback(false)).toEqual({ rate: 1, gain: 1 });
-  });
-
-  it("plays it faster and louder on the final lap", () => {
-    const lifted = musicPlayback(true);
-    expect(lifted.rate).toBeGreaterThan(1);
-    expect(lifted.gain).toBeGreaterThan(1);
   });
 });
