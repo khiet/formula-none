@@ -16,10 +16,9 @@ import { START_LIGHTS } from "./instrument-panel";
 import { type SimKartReadout, simKartReadout } from "./kart-readout-fixture";
 import { nicknameChars } from "./nickname";
 import { pingTiming } from "./ping";
-import { courseLength } from "./presentation-zones";
 import { landedItem } from "./race-run";
 import { reconnectTiming } from "./reconnect";
-import { centrelineOf } from "./track";
+import { centrelineOf, courseLength } from "./track";
 
 // The real wasm build, loaded from bytes because the default loader fetches
 // the module URL and fetch rejects file: URLs in Node. `pnpm build:bridge`

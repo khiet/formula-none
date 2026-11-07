@@ -4,7 +4,7 @@
 // leg the kart is on decides. Presentation only: the sim never reads a zone,
 // so a zone changes neither grip nor timing.
 
-import type { TrackName, WorldPoint } from "./track";
+import type { TrackName } from "./track";
 
 /** The ambient beds a zone can bring up, each a loop the audio levels by the blend. */
 export type AmbienceBed = "harbour";
@@ -78,7 +78,9 @@ export function presentationBlend(
     light *= 1 + weight * (zone.light - 1);
     echo = Math.max(echo, weight * zone.echo);
     if (zone.lamps !== null) {
-      const phase = wrap(splineProgress - zone.lamps.firstAt, zone.lamps.spacing);
+      // Along the lap from the first lamp, so the swell runs on over the line.
+      const along = wrap(splineProgress - zone.lamps.firstAt, splineLength);
+      const phase = wrap(along, zone.lamps.spacing);
       const swell = 0.5 + 0.5 * Math.cos((2 * Math.PI * phase) / zone.lamps.spacing);
       lampGlow = Math.max(lampGlow, weight * (LAMP_GLOW_BETWEEN + (1 - LAMP_GLOW_BETWEEN) * swell));
     }
@@ -110,16 +112,6 @@ function smoothstep(x: number): number {
   return x * x * (3 - 2 * x);
 }
 
-/** A lap's length along `centreline`, climbs included, closing the loop back to the line, as the sim measures spline progress. */
-export function courseLength(centreline: readonly WorldPoint[]): number {
-  let metres = 0;
-  centreline.forEach(([x, y, z], i) => {
-    const [nextX, nextY, nextZ] = centreline[(i + 1) % centreline.length] ?? [x, y, z];
-    metres += Math.hypot(nextX - x, nextY - y, nextZ - z);
-  });
-  return metres;
-}
-
 // Monarch's edges, in metres from the line, are its layout's
 // (assets/tracks/trackgen/layouts/monarch.py): a change there moves them here.
 /** The tunnel's roof, 10 m past the mouth to 15 m short of the chicane. */
@@ -143,7 +135,7 @@ const ZONES: Readonly<Record<TrackName, readonly PresentationZone[]>> = {
   monarch: [
     {
       // Dark, echoing and lit by its lamps; the dark comes in across the
-      // mouth's portal and lifts across the exit's, a car's length or two each side.
+      // mouth's portal and lifts across the exit's, a kart's length or two each side.
       from: MONARCH_ROOF_FROM_M - PORTAL_EASE_M,
       fullFrom: MONARCH_ROOF_FROM_M + PORTAL_EASE_M,
       fullTo: MONARCH_ROOF_TO_M - PORTAL_EASE_M,

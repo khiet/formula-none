@@ -543,8 +543,8 @@ class LiveRace {
     shot.start();
   }
 
-  /** Stop the loops not in `wanted`, start the ones not running, and glide every one to `reading`'s speed or zone. */
-  #runLoops(sounds: Sounds, wanted: ReadonlySet<SoundLoop>, reading: SoundReading | null): void {
+  /** Stop the loops not in `wanted`. */
+  #stopLoops(wanted: ReadonlySet<SoundLoop>): void {
     for (const [loop, running] of this.#loops) {
       if (wanted.has(loop)) continue;
       running.source.stop();
@@ -552,9 +552,13 @@ class LiveRace {
       running.gain.disconnect();
       this.#loops.delete(loop);
     }
+  }
+
+  /** Stop the loops not in `wanted`, start the ones not running, and glide every one to `reading`'s speed or zone. */
+  #runLoops(sounds: Sounds, wanted: ReadonlySet<SoundLoop>, reading: SoundReading): void {
+    this.#stopLoops(wanted);
     const now = sounds.context.currentTime;
     for (const loop of wanted) {
-      if (reading === null) continue;
       const playback = this.#playback(loop, reading);
       const running = this.#loops.get(loop);
       if (running !== undefined) {
@@ -643,7 +647,7 @@ class LiveRace {
       this.#star.gain.disconnect();
       this.#star = undefined;
     }
-    if (this.#sounds !== undefined) this.#runLoops(this.#sounds, new Set(), null);
+    this.#stopLoops(new Set());
     this.#engine?.stop();
     this.#engine = undefined;
     this.#engineState = undefined;

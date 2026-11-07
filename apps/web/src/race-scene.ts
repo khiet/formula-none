@@ -14,12 +14,12 @@ import { kartLabels } from "./kart-labels";
 import { KART_GLTF_URL } from "./kart-model";
 import { keyboardKartInput } from "./keyboard";
 import { livery } from "./livery";
-import { courseLength, presentationBlend, presentationZonesOf } from "./presentation-zones";
+import { presentationBlend, presentationZonesOf } from "./presentation-zones";
 import type { RaceRun } from "./race-run";
 import { createRaceView } from "./race-view";
 import { downloadReplay } from "./replay";
 import { kartName, type RaceResults } from "./results-scene";
-import type { PitLaneLayout, TrackFiles, WorldPoint } from "./track";
+import { courseLength, type PitLaneLayout, type TrackFiles, type WorldPoint } from "./track";
 
 /** The course's pit lane as the Scene draws it, with where it forks off the course. */
 export type RacePitLane = PitLaneLayout & { readonly fork: PitLaneFork };

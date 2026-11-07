@@ -1,13 +1,12 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
-  courseLength,
   OPEN_SKY,
   type PresentationZone,
   presentationBlend,
   presentationZonesOf,
 } from "./presentation-zones";
-import { centrelineOf } from "./track";
+import { centrelineOf, courseLength } from "./track";
 
 const LAP_M = 1000;
 
@@ -97,6 +96,20 @@ describe("a presentation zone's blend", () => {
     expect(between).toBeLessThan(under);
     expect(blendAt([lamps], 50).lampGlow).toBe(0);
   });
+
+  it("swells on from lamp to lamp over the start line, whatever the lap's length", () => {
+    const overTheLine: PresentationZone = {
+      ...DIM,
+      from: 960,
+      fullFrom: 980,
+      fullTo: 20,
+      to: 40,
+      lamps: { firstAt: 990, spacing: 12 },
+    };
+    const before = presentationBlend([overTheLine], 999.99, LAP_M).lampGlow;
+    const after = presentationBlend([overTheLine], 0, LAP_M).lampGlow;
+    expect(after).toBeCloseTo(before, 2);
+  });
 });
 
 describe("Bell Deer's crossing", () => {
@@ -163,8 +176,10 @@ describe("Monarch's tunnel to the harbour", () => {
       expect(Math.abs(at(s + 1).light - at(s).light)).toBeLessThan(0.05);
     }
   });
+});
 
-  it("sets no zone on a course without one", () => {
+describe("a course without a zone", () => {
+  it("sets none", () => {
     expect(presentationZonesOf("oval")).toEqual([]);
   });
 });

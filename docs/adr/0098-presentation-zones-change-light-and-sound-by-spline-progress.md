@@ -42,10 +42,15 @@ bridge puts two legs of the lap at one place on the ground.
     `chicane-in`. Light at 0.45 of the sky's, the engine's whole echo and
     the lamps every 12 m from half a spacing under the roof, as the layout
     hangs them.
+    The dark follows the roof, not the whole of `tunnel-entry`, so the road
+    is never dim under open sky.
   - **the harbour**: in from the roof's end to the start of `harbour`,
     held along it and out by the end of `tabac`. Light at 1.15 of the
     sky's, the harbour bed whole and the crowd at 0.6 for the harbour's
     grandstand.
+    It starts at the roof's end, inside `tunnel`, so the bright rises as
+    the dark lifts, and eases out over `tabac` rather than cutting off at
+    the end of `harbour`.
 - The View scales its sun and ambient light by the blend's light, warms the
   ambient towards the lamps' colour by their glow, and hangs a warm point
   light at the lamps' height over the own kart, as bright as their glow.
