@@ -72,8 +72,8 @@ path = (
 )
 
 seg = path.segment
-# The row on the Stowe exit, 15 m past the corner: the bots that wait for the
-# wheel stop short of its crossing, never back here.
+# The row on the Stowe exit, 15 m past the corner and over 20 m short of the
+# wheel's hazard zone.
 VALE_ROW_S = seg("vale-approach").s_start + 15.0
 # A Becketts exit coin stands this far short of its corner's end, out wide.
 BECKETTS_EXIT_M = 4.0
@@ -93,8 +93,8 @@ LAYOUT = Layout(
     ],
     # A row about every third of the lap, each placed so a bot that takes it
     # at racing speed holds its item before the next corner (ADR 0097). The
-    # last stands on the Stowe exit, short of the queue for the wheel, so its
-    # item lands before Vale.
+    # last stands on the Stowe exit, short of the wheel, since past it no row
+    # lands before Vale.
     item_rows=[
         ItemRow(seg("wellington").s_mid),
         ItemRow(seg("copse-exit").s_mid),

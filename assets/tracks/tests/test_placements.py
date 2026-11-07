@@ -75,7 +75,6 @@ class Goldstone(unittest.TestCase):
         row = max(self.layout.item_rows, key=lambda r: r.s)
         self.assertEqual(segment_at(self.layout, row.s).name, "vale-approach")
         self.assertLess(row.s - self.seg("vale-approach").s_start, 20.0, "just past Stowe")
-        # Clear by more than a queue of karts waiting for the wheel.
         self.assertGreater(crossing.s - HAZARD_HALF_DEPTH_M - (row.s + BOX_HALF_LENGTH_M), 20.0)
 
     def test_the_hangar_straights_pad_covers_the_right_half_and_leaves_the_left_for_the_tow(self) -> None:

@@ -29,10 +29,9 @@ G1, G2, G3, M1, B1, B4 and X1 of `docs/mockups/course-excitement.html`.
   exit, 15 m into `vale-approach` (1109 m). The card asked for 25 m past the
   wheel's crossing, but no spot past the hazard zone lands a roll before
   Vale: from the first clear spot an Ace bot reaches Vale in 1.5 s. On the
-  Stowe exit the slowest landing is 2.8 s from the row, and the row stands
-  more than 20 m short of the hazard zone. Bots waiting for the wheel stop
-  no further back than 1135 m, which is clear of the row. The gaps between
-  rows read 386, 432 and 505 m, against 280, 106 and 937 m before.
+  Stowe exit the fastest bot reaches Vale 2.8 s after the row, past the
+  2.5 s roll, and the row stands more than 20 m short of the hazard zone.
+  The gaps between rows read 386, 432 and 505 m, against 280, 106 and 937 m before.
 - **Goldstone's Hangar Straight pad** moves 3 m right, covering the right
   half of the road. The left half stays clear for the tow and the braking
   line into Stowe, a right-hander.
@@ -54,8 +53,8 @@ G1, G2, G3, M1, B1, B4 and X1 of `docs/mockups/course-excitement.html`.
 - **Bell Deer's back-straight row** moves to 80 m along the straight
   (997 m), not the card's 60 m. A kart boosted off the ramp is airborne
   until about 982 m, and one with a full purse lands by 991 m. The row is
-  clear of the bridge (ADR 0047), and the slowest bot that rolls from it
-  holds its item 3.5 s before 130R.
+  clear of the bridge (ADR 0047), and the fastest bot reaches 130R about
+  3.5 s after the row, an item in hand for a second or more.
 - **Bell Deer's Spoon coins** move from 4 m left to 4 m right on the link
   between the apexes: the wide line through the double apex, away from
   `spoon-2`'s tyre wall. The shorter inside line stays clear.
