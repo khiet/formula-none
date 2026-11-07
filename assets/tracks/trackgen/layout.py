@@ -211,9 +211,9 @@ PITS_DOOR_FIRST_M = 2.75
 # whose exit line comes too soon after the building's middle for the doors to
 # run forward from there.
 PITS_DOORS_CENTRED_M = -(len(CROWD_KEYS) - 1) * PITS_DOOR_PITCH_M / 2.0
-# A span, the arch or the hangar shell, is held to the span rule instead: its underside keeps
-# the gantry's height over the asphalt and its feet only have to stand on
-# grass, so they keep no set distance from the wall.
+# A span, the arch or the hangar shell, is held to the span rule instead:
+# its underside keeps the gantry's height over the asphalt and its feet
+# only have to stand on grass, so they keep no set distance from the wall.
 SPAN_FOOT_CLEARANCE_M = 0.0
 
 # The eight-slot spawn grid: two staggered columns of four, pole in front on

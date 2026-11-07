@@ -21,9 +21,14 @@ import unittest
 from dataclasses import replace
 from pathlib import Path
 
+from tests.test_boost_pads import tuning_constant
+from tests.test_bridge import triangles_of, unhidden
+from tests.test_monarch import WEB_SRC, camera_at, chase_camera_behind_m, half_field_of_view
 from tests.test_props import (
     across_track,
     edge_of,
+    faces_left,
+    faces_right,
     build_materials,
     faces_up_and_toward_the_sun,
     footprint_clearance,
@@ -75,26 +80,11 @@ PITS = "Prop.pits"
 HANGARS = "Prop.hangars"
 SHELL = "Prop.hangar-shell"
 TOWER = "Prop.control-tower"
-WEB_SRC = Path(__file__).resolve().parents[3] / "apps" / "web" / "src"
 PRESENTATION_ZONES_TS = WEB_SRC / "presentation-zones.ts"
-TUNING_RS = Path(__file__).resolve().parents[3] / "crates" / "sim" / "src" / "tuning.rs"
 # Under 3 m tall, a prop keeps no 8 m from the wall: the chase camera sees over it.
 LOW_PROP_M = 3.0
 JETS = "Prop.jets.1"
 SCENERY_MOTION_TS = Path(__file__).resolve().parents[3] / "apps" / "web" / "src" / "scenery-motion.ts"
-
-
-def faces_right(face) -> bool:
-    """Whether a face given as (along, left of, up) points right: toward the track from a
-    prop that stands left of it."""
-    (a0, _, c0), (a1, _, c1), (a2, _, c2) = face[:3]
-    return (c1 - c0) * (a2 - a0) - (a1 - a0) * (c2 - c0) < 0.0
-
-
-def faces_left(face) -> bool:
-    """Whether a face given as (along, left of, up) points left: toward the track from a
-    prop that stands right of it."""
-    return not faces_right(face)
 
 
 def family(geometry, prefix: str):
@@ -271,51 +261,6 @@ class Hangars(unittest.TestCase):
         self.assertTrue(10 * count <= faces <= 16 * count, faces)
 
 
-def camera_at(sample) -> tuple[float, float]:
-    # test_monarch imports from this module, so its helpers are imported when called.
-    from tests.test_monarch import camera_at
-
-    return camera_at(sample)
-
-
-def chase_camera_behind_m() -> float:
-    from tests.test_monarch import chase_camera_behind_m
-
-    return chase_camera_behind_m()
-
-
-def half_field_of_view() -> float:
-    from tests.test_monarch import half_field_of_view
-
-    return half_field_of_view()
-
-
-def ray_hits_triangle(origin, target, a, b, c) -> bool:
-    from tests.test_bridge import ray_hits_triangle
-
-    return ray_hits_triangle(origin, target, a, b, c)
-
-
-def tuning(name: str) -> float:
-    match = re.search(rf"pub const {name}: f32 = ([0-9.]+);", TUNING_RS.read_text())
-    assert match is not None, name
-    return float(match.group(1))
-
-
-def triangles_of(geometry, skip: str = ""):
-    """Every still scenery triangle, but for pieces named from `skip`: pivoted pieces are in
-    their own frames, and fly or turn over the course."""
-    found = []
-    for piece in geometry.scenery:
-        if piece.pivot is not None or (skip and piece.name.startswith(skip)):
-            continue
-        vertices, faces = piece.mesh
-        for face in faces:
-            for k in range(1, len(face) - 1):
-                found.append((piece.name, vertices[face[0]], vertices[face[k]], vertices[face[k + 1]]))
-    return found
-
-
 def clusters(values, gap: float) -> list[float]:
     """The middles of the runs of sorted `values` no more than `gap` apart."""
     runs: list[list[float]] = []
@@ -325,17 +270,6 @@ def clusters(values, gap: float) -> list[float]:
         else:
             runs.append([value])
     return [(run[0] + run[-1]) / 2.0 for run in runs]
-
-
-def unhidden(test: unittest.TestCase, triangles, camera, target) -> None:
-    low_x, high_x = sorted((camera[0], target[0]))
-    low_y, high_y = sorted((camera[1], target[1]))
-    for name, a, b, c in triangles:
-        if max(a[0], b[0], c[0]) < low_x or min(a[0], b[0], c[0]) > high_x:
-            continue
-        if max(a[1], b[1], c[1]) < low_y or min(a[1], b[1], c[1]) > high_y:
-            continue
-        test.assertFalse(ray_hits_triangle(camera, target, a, b, c), name)
 
 
 class HangarShell(unittest.TestCase):
@@ -392,9 +326,9 @@ class HangarShell(unittest.TestCase):
             self.assertGreaterEqual(c, GANTRY_TOP_M if abs(b) <= asphalt else GANTRY_TOP_M - GANTRY_BEAM_HEIGHT_M, (b, c))
         # Off a boost pad the camera pulls back past its tuned metre and shakes on a hit; it
         # rides at its height over the flat road wherever the kart is between the walls.
-        boosted = chase_camera_behind_m() + tuning("BOOST_PAD_FACTOR") * tuning("CAMERA_PULL_BACK_M")
+        boosted = chase_camera_behind_m() + tuning_constant("BOOST_PAD_FACTOR") * tuning_constant("CAMERA_PULL_BACK_M")
         self.assertLess(boosted, self.prop.length / 4.0, "a boosted camera rides under the ribs most of the way")
-        camera = CHASE_CAMERA_ABOVE_M + tuning("CAMERA_SHAKE_AMPLITUDE_M")
+        camera = CHASE_CAMERA_ABOVE_M + tuning_constant("CAMERA_SHAKE_AMPLITUDE_M")
         self.assertGreaterEqual(min(c for _, c in over_the_road) - camera, 2.0)
 
     def test_steel_ribs_cross_overhead_at_a_pitch_under_its_dark_underside(self) -> None:

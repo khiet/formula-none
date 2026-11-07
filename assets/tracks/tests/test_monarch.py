@@ -19,8 +19,7 @@ from pathlib import Path
 
 from dataclasses import replace
 
-from tests.test_goldstone import faces_right
-from tests.test_props import across_track, build_materials, faces_by_material, faces_up_and_toward_the_sun, footprint_clearance, materials_used
+from tests.test_props import across_track, build_materials, faces_by_material, faces_right, faces_up_and_toward_the_sun, footprint_clearance, materials_used
 from trackgen.layout import (
     CHASE_CAMERA_ABOVE_M,
     GRANDSTAND_CANOPY_BOTTOM_M,

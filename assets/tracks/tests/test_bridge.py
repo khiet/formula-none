@@ -230,6 +230,32 @@ def ray_hits_triangle(origin, target, a, b, c) -> bool:
     return 1e-4 < sum(e2[i] * q[i] for i in range(3)) / det < 1.0 - 1e-3
 
 
+def triangles_of(geometry, skip: str = ""):
+    """Every still scenery triangle, but for pieces named from `skip`: pivoted pieces are in
+    their own frames, and fly or turn over the course."""
+    found = []
+    for piece in geometry.scenery:
+        if piece.pivot is not None or (skip and piece.name.startswith(skip)):
+            continue
+        vertices, faces = piece.mesh
+        for face in faces:
+            for k in range(1, len(face) - 1):
+                found.append((piece.name, vertices[face[0]], vertices[face[k]], vertices[face[k + 1]]))
+    return found
+
+
+def unhidden(test: unittest.TestCase, triangles, camera, target) -> None:
+    """Asserts no triangle crosses the sight line from `camera` to `target`."""
+    low_x, high_x = sorted((camera[0], target[0]))
+    low_y, high_y = sorted((camera[1], target[1]))
+    for name, a, b, c in triangles:
+        if max(a[0], b[0], c[0]) < low_x or min(a[0], b[0], c[0]) > high_x:
+            continue
+        if max(a[1], b[1], c[1]) < low_y or min(a[1], b[1], c[1]) > high_y:
+            continue
+        test.assertFalse(ray_hits_triangle(camera, target, a, b, c), name)
+
+
 class Landmark(unittest.TestCase):
     """The back straight runs at the Circuit Wheel the lap passed after the start, so the
     deck's view ends on it."""
@@ -260,26 +286,11 @@ class Landmark(unittest.TestCase):
     def test_nothing_stands_between_a_chase_camera_on_the_back_straight_and_the_wheel(self) -> None:
         # Pivoted pieces are in their own frames, so skip them: the wheel's rim and gondolas, and the
         # airship, which flies 45 m up, above every sight line here.
-        triangles = []
-        for piece in self.geometry.scenery:
-            if piece.pivot is not None or piece.name.startswith("Prop.circuit-wheel"):
-                continue
-            vertices, faces = piece.mesh
-            for face in faces:
-                for k in range(1, len(face) - 1):
-                    triangles.append((piece.name, vertices[face[0]], vertices[face[k]], vertices[face[k + 1]]))
+        triangles = triangles_of(self.geometry, skip="Prop.circuit-wheel")
         for sample, camera in self.cameras:
             for target in self.targets:
-                low_x, high_x = sorted((camera[0], target[0]))
-                low_y, high_y = sorted((camera[1], target[1]))
-                for name, a, b, c in triangles:
-                    if max(a[0], b[0], c[0]) < low_x or min(a[0], b[0], c[0]) > high_x:
-                        continue
-                    if max(a[1], b[1], c[1]) < low_y or min(a[1], b[1], c[1]) > high_y:
-                        continue
-                    with self.subTest(s=sample.s, target=target[2]):
-                        self.assertFalse(ray_hits_triangle(camera, target, a, b, c), name)
-
+                with self.subTest(s=sample.s, target=target[2]):
+                    unhidden(self, triangles, camera, target)
 
 if __name__ == "__main__":
     unittest.main()
