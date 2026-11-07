@@ -9,8 +9,8 @@
 // under the SFX toggle, and so does the star music (ADR 0075): the own run's
 // in place of the race music, which fades out and keeps its place, else the
 // nearest other star kart's by distance; the race music plays faster and
-// louder through the own kart's last lap (ADR 0100). Presentation: it reads the own
-// kart's readings and changes no sim state.
+// louder through the own kart's last lap (ADR 0100). Presentation: it
+// reads the own kart's readings and changes no sim state.
 
 import airHornUrl from "../../../assets/audio/air-horn.wav?url";
 import boostPadUrl from "../../../assets/audio/boost-pad.wav?url";

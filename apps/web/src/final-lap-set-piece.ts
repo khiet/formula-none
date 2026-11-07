@@ -65,7 +65,7 @@ const FIREWORK_GRAVITY = 5;
 const FIREWORK_DRAG_PER_S = 1.2;
 /** Seconds of flight a star's streak spans. */
 const FIREWORK_STRETCH_S = 0.12;
-/** The shells' colours, each cooling to its shade: the palette's brightest. */
+/** Each shell's colour and the one it cools to, from the palette's brightest. */
 const SHELL_COLOURS: readonly (readonly [number, number])[] = [
   [POSTER_RED.lit, POSTER_RED.shaded],
   [COIN_GOLD, POSTER_RED.mid],
