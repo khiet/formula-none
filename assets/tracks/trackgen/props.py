@@ -396,7 +396,8 @@ CASINO_WINDOW_ROWS = ((1.5, 5.0), (7.0, 10.5))
 CASINO_PANEL_PROUD_M = 0.05
 
 # A block of hotels or flats, Monarch's town: `BLOCK_DEPTH_M` deep, its front
-# toward the track, `Prop.length` along it and `Prop.height` tall. One on a
+# toward the track from a spot or to the left of a world place's heading,
+# `Prop.length` along it and `Prop.height` tall. One on a
 # spot on the lap stands on a terrace up to the road's height there, as the
 # casino does (ADR 0065), so blocks up the climb step up the hill with it.
 # Its shape and wall colour follow its number, so neighbours differ. A shape
@@ -1530,7 +1531,7 @@ def _nearest_on_outline(outline: Sequence[tuple[float, float]], x: float, y: flo
 
 
 def block(layout: Layout, prop: Prop, number: int, still: ByMaterial) -> tuple[list[SceneryMesh], list[Lettering]]:
-    """A block of hotels or flats at `prop`, its front toward the track: on a spot on the lap, a
+    """A block of hotels or flats at `prop`, its front as `_facing_frame` turns it: on a spot on the lap, a
     stand-plinth terrace under beam-top paving up to the road's height there, and on it the
     boxes of its shape, walls toned in its colour under beam-top roofs, the hipped shape's
     roof in tiles toned against their shade, and a carbon band of windows across each storey
