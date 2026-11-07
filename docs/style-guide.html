@@ -685,7 +685,28 @@
         <dl class="spec"><dt>Size</dt><dd>Five sheds 18 m wide, 24 m deep, 6 m to the eaves and 10 m to the ridge at a 22 m pitch, a 12 m by 5 m door each; 11 faces a shed</dd><dt>Decided</dt><dd><a href="adr/0060-goldstone-joins-the-courses.md">ADR 0060</a></dd></dl>
         <div class="notes">
           <p>Goldstone stands on an old airfield, and a row of airfield hangars outside the Hangar Straight says so. The layout gives the row a spot and a length, 110 m from the straight's middle, fronts 21 m left of the centreline, as far out as the pits' are on the right; as many sheds as the length holds stand at the pitch, the row centred on its spot. Each is a box to the eaves under a barrel roof of six flat facets on a circle through both eaves and the ridge, its gable end toward the track. Walls and gables in <code>stand-riser</code> <code>#d7dbe0</code> where the sun reaches and <code>stand-plinth</code> <code>#b4bac2</code> elsewhere; the roof's facets in <code>beam-top</code> <code>#c9ced5</code> lit over <code>beam-shade</code> <code>#9aa0a8</code>; a <code>carbon</code> <code>#2b2e33</code> door, the dark of an open hangar, in each front gable. Scenery only, held to the 8 m rule.</p>
-          <p class="dont"><b>Don't</b> letter a hangar or park an aircraft in one: the row carries no sponsor, and the sim knows nothing of it.</p>
+          <p class="dont"><b>Don't</b> letter a hangar or park an aircraft in one: the row carries no sponsor, and the sim knows nothing of it. Aircraft park only in the hangar shell.</p>
+        </div>
+      </article>
+
+      <article class="asset">
+        <header><h3>Hangar shell</h3><code>assets/tracks/trackgen/props.py hangar_shell, Prop.length in layout.py</code></header>
+        <div class="compare"><figure><figcaption>From the Hangar Straight, looking through it toward the exit and Stowe</figcaption><div class="stage" data-draw="hangarShell"></div></figure></div>
+        <dl class="spec"><dt>Size</dt><dd>60 m along the straight; sides 14 m left and 30 m right of the centreline, 0.4 m thick; underside 8.5 m at the eaves and 11.5 m at the ridge, a 0.3 m roof; eleven frames about 6 m apart, each rib hanging 0.6 m; two aircraft 8 m long with a 10 m span, under 3 m tall; about 590 faces</dd><dt>Decided</dt><dd><a href="https://github.com/khiet/formula-none/issues/327">Issue 327</a>, <a href="adr/0098-presentation-zones-change-light-and-sound-by-spline-progress.md">ADR 0098</a></dd></dl>
+        <div class="notes">
+          <p>The Hangar Straight drives through one open hangar, beside the middle shed of the row. The shell spans the road like the arch: a side on the grass beyond each wall, toned <code>stand-riser</code> <code>#d7dbe0</code> over <code>stand-plinth</code> <code>#b4bac2</code>, and a barrel roof of twelve facets on a circle through both eaves and the ridge, its skin in <code>beam-top</code> <code>#c9ced5</code> lit over <code>beam-shade</code> <code>#9aa0a8</code>. The underside and the roof's edges at both open ends are <code>carbon-shade</code> <code>#1c1c1e</code>, so the steel frames, <code>wall</code> <code>#f0f0f0</code> ribs under it on legs inside the sides, flash past overhead against the dark. The right side stands far out, and two light aircraft park on the floor there, noses to the track: a <code>wall</code> fuselage and low wing, a <code>kerb-red</code> <code>#d63b2e</code> tailplane and fin and a <code>carbon</code> <code>#2b2e33</code> canopy. The exit ends 58 m short of Stowe, so the bright opening frames the corner and its braking is in the open. Under the roof its presentation zone takes the light to 0.7 and sends the engine's echo, easing over 8 m either side of each end.</p>
+          <p>Held to the span rule: the ribs keep the gantry's 7 m over the asphalt, and at their lowest stand over 2 m above a chase camera pulled back by a boost. Nothing under the span rule's height stands inside the walls; the sides and the aircraft only stand on grass.</p>
+          <p class="dont"><b>Don't</b> close an end, light the underside or put anything over the road below the ribs: the exit's bright and the ribs' flash are the point, and the sim knows nothing of the shell.</p>
+        </div>
+      </article>
+
+      <article class="asset">
+        <header><h3>Control tower</h3><code>assets/tracks/trackgen/props.py control_tower, TOWER in layouts/goldstone.py</code></header>
+        <div class="compare"><figure><figcaption>From the Wellington Straight, the cab's front</figcaption><div class="stage" data-draw="controlTower"></div></figure></div>
+        <dl class="spec"><dt>Size</dt><dd>A 5 m square shaft to 20 m, a 9 m square cab to 24 m, a 0.3 m mast in four 1 m bands and a 0.7 m beacon, 28.7 m in all; about 40 faces</dd><dt>Decided</dt><dd><a href="https://github.com/khiet/formula-none/issues/327">Issue 327</a></dd></dl>
+        <div class="notes">
+          <p>The Wellington Straight points at Goldstone's control tower, 90 m past its end on its line, beyond Brooklands and Luffield, so the straight has a destination and the next corner is seen coming. A square shaft toned <code>stand-riser</code> over <code>stand-plinth</code> under a wider cab: a <code>wall</code> sill and roof band round <code>carbon</code> glazing, the overhang's underside in <code>beam-shade</code>; over it a mast banded <code>kerb-white</code> <code>#f5f5f5</code> and <code>kerb-red</code> to a <code>kerb-red</code> beacon. Held to the 8 m rule; the track tests keep its cab in every chase camera's view down the straight with nothing in between.</p>
+          <p class="dont"><b>Don't</b> letter it or stand anything on the sight line from the straight: it is a silhouette, and anything in front of it takes away the straight's end.</p>
         </div>
       </article>
 
@@ -1538,6 +1559,49 @@
     return `<svg viewBox="0 0 240 160" role="img" aria-label="Three airfield hangars: grey barrel-roofed sheds with dark doors in their gables">
       <rect y="${g}" width="240" height="20" fill="#5cb04a"/>
       ${sheds}
+    </svg>`;
+  };
+  // The hangar shell from the road at 5 px to the metre at its mouth, looking down it to the
+  // exit: the dark underside and the sides' insides receding to the bright opening, a white
+  // rib every frame, smaller with distance, and the near aircraft beyond the right wall.
+  draw.hangarShell = () => {
+    const m = 5, g = 140, riser = "#d7dbe0", plinth = "#b4bac2", shade = "#1c1c1e", wall = "#f0f0f0", red = "#d63b2e", carbon = "#2b2e33", asphalt = "#6b6b78", sky = "#eaf3fb";
+    const x = (b) => 120 - (b + 8) * m, z = (c) => g - c * m;
+    const low = -30, high = 14, mid = (low + high) / 2, reach = (high - low) / 2, eaves = 8.5, ridge = 11.5, rise = ridge - eaves;
+    const r = (reach * reach + rise * rise) / (2 * rise), sweep = Math.asin(reach / r);
+    const arc = [...Array(13).keys()].map((k) => { const t = -sweep + (2 * sweep * k) / 12; return [mid + r * Math.sin(t), ridge - r + r * Math.cos(t)]; });
+    // Toward the eye's point on the centreline, 1.5 m up: a frame `d` metres in is drawn at 6 / (6 + d).
+    const eye = [x(0), z(1.5)];
+    const at = ([px, py], s) => [eye[0] + s * (px - eye[0]), eye[1] + s * (py - eye[1])];
+    const outline = (s, lift = 0) => [[x(high), z(0)], [x(high), z(eaves + lift)], ...arc.slice().reverse().map(([b, c]) => [x(b), z(c + lift)]), [x(low), z(eaves + lift)], [x(low), z(0)]].map((p) => at(p, s));
+    const far = 6 / 66;
+    const exit = poly(outline(far), sky);
+    const inside = poly([...outline(1), ...outline(far).reverse()], shade);
+    const floors = [[low, -12.5], [12.5, high]].map(([b0, b1]) => poly([at([x(b0), z(0)], 1), at([x(b1), z(0)], 1), at([x(b1), z(0)], far), at([x(b0), z(0)], far)], "#4f8f40")).join("");
+    const road = poly([at([x(-6), z(0)], 1), at([x(6), z(0)], 1), at([x(6), z(0)], far), at([x(-6), z(0)], far)], asphalt);
+    const ribs = [...Array(11).keys()].map((k) => {
+      const s = 6 / (6 + 6 * k);
+      return `<polyline points="${P(outline(s, -0.3))}" fill="none" stroke="${wall}" stroke-width="${Math.max(0.6, 2 * s)}"/>`;
+    }).join("");
+    const front = poly([[x(low - 0.4), z(0)], [x(low - 0.4), z(eaves + 0.3)], ...arc.map(([b, c]) => [x(b), z(c + 0.3)]), [x(high + 0.4), z(eaves + 0.3)], [x(high + 0.4), z(0)], [x(high), z(0)], [x(high), z(eaves)], ...arc.slice().reverse().map(([b, c]) => [x(b), z(c)]), [x(low), z(eaves)], [x(low), z(0)]], plinth);
+    // The near aircraft 15 m in, nose on: wing, fuselage, canopy and fin.
+    const s = 6 / 21, a = (b, c) => at([x(b), z(c)], s);
+    const plane = poly([a(-16.5, 0.9), a(-26.5, 0.9), a(-26.5, 1.05), a(-16.5, 1.05)], wall) + poly([a(-20.9, 0.5), a(-22.1, 0.5), a(-22.1, 1.7), a(-20.9, 1.7)], wall) + poly([a(-21, 1.7), a(-22, 1.7), a(-22, 2.2), a(-21, 2.2)], carbon) + poly([a(-21.4, 1.7), a(-21.6, 1.7), a(-21.5, 2.9)], red);
+    return `<svg viewBox="0 0 240 160" role="img" aria-label="The hangar shell from the road: white steel ribs under a dark barrel roof receding to a bright exit, a light aircraft parked right of the track">
+      <rect width="240" height="${g}" fill="${sky}"/><rect y="${g}" width="240" height="20" fill="#5cb04a"/>
+      ${exit}${inside}${floors}${road}${ribs}${plane}${front}
+      <rect x="${x(high + 0.4)}" y="${z(eaves + 0.3)}" width="${0.4 * m}" height="${(eaves + 0.3) * m}" fill="${riser}"/>
+    </svg>`;
+  };
+  // The control tower face on at 5 px to the metre: the shaft, the cab's sill, glazing and
+  // roof band, the overhang's underside and the banded mast to its beacon.
+  draw.controlTower = () => {
+    const m = 5, g = 152, cx = 120, riser = "#d7dbe0", wall = "#f0f0f0", carbon = "#2b2e33", shade = "#9aa0a8", red = "#d63b2e", white = "#f5f5f5";
+    const box = (w, c0, c1, fill) => `<rect x="${cx - (w / 2) * m}" y="${g - c1 * m}" width="${w * m}" height="${(c1 - c0) * m}" fill="${fill}"/>`;
+    const bands = [0, 1, 2, 3].map((k) => box(0.3, 24 + k, 25 + k, k % 2 ? red : white)).join("");
+    return `<svg viewBox="0 0 240 160" role="img" aria-label="The control tower: a grey square shaft under a wider cab with dark glazing, and a red and white mast with a red beacon">
+      <rect y="${g}" width="240" height="8" fill="#5cb04a"/>
+      ${box(5, 0, 20, riser)}${box(9, 19.85, 20, shade)}${box(9, 20, 20.6, wall)}${box(9, 20.6, 23.4, carbon)}${box(9, 23.4, 24, wall)}${bands}${box(0.7, 28, 28.7, red)}
     </svg>`;
   };
   // The airship side on at 8 px to the metre, nose to the right, as the export leaves it: the

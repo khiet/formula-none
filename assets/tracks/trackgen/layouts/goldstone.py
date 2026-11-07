@@ -9,9 +9,13 @@ airfield, so there is no elevation; the lap is about speed and the esses.
 The scenery: the pits white inside the start straight, between Club and
 Abbey as Silverstone's are, with the grandstands across from them,
 hoardings round Luffield, Copse, Becketts and Stowe, the gantry over the
-line, a row of airfield hangars outside the Hangar Straight, and the display
-jets' flypast over them. The layout is docs/mockups/silverstone-course.html's.
+line, a row of airfield hangars outside the Hangar Straight with an open
+hangar the road drives through beside them, the display jets' flypast over
+them, and a control tower where the Wellington Straight points. The layout
+is docs/mockups/silverstone-course.html's.
 """
+
+import math
 
 from ..layout import (
     BoostPad,
@@ -28,6 +32,7 @@ from ..layout import (
     PITS_DOORS_CENTRED_M,
     TyreWall,
     WheelCrossing,
+    World,
 )
 from ..path import Turtle
 
@@ -75,6 +80,19 @@ seg = path.segment
 # The row on the Stowe exit, 15 m past the corner and over 20 m short of the
 # wheel's hazard zone.
 VALE_ROW_S = seg("vale-approach").s_start + 15.0
+# The hangar shell over the middle of the Hangar Straight, its exit over 50 m
+# short of Stowe so the braking line is in the open.
+HANGAR_SHELL_LENGTH_M = 60.0
+# The control tower stands this far past the Wellington Straight's end, on
+# its line: past Brooklands and Luffield, so it ends the straight's view.
+TOWER_BEYOND_WELLINGTON_M = 90.0
+_wellington_end = path.at(seg("wellington").s_end)
+TOWER = World(
+    _wellington_end.x + TOWER_BEYOND_WELLINGTON_M * math.cos(_wellington_end.heading),
+    _wellington_end.y + TOWER_BEYOND_WELLINGTON_M * math.sin(_wellington_end.heading),
+    # The cab's front back up the straight.
+    _wellington_end.heading + math.pi,
+)
 # A Becketts exit coin stands this far short of its corner's end, out wide.
 BECKETTS_EXIT_M = 4.0
 BECKETTS_COIN_M = 4.0
@@ -158,10 +176,13 @@ LAYOUT = Layout(
         # The pits drawn white inside the Hamilton Straight, a nod to the Wing,
         # 70 m so they keep the 8 m rule (ADR 0089). A row
         # of five airfield hangars outside the Hangar Straight, fronts 21 m
-        # from the centreline as the pits' are.
+        # from the centreline as the pits' are, and the hangar shell over the
+        # road beside the middle one.
         props=[
             Prop("pits", Spot(s=PITS_S, offset=-26.0), length=70.0, white=True),
             Prop("hangars", Spot(s=seg("hangar").s_mid, offset=33.0), length=110.0),
+            Prop("hangar-shell", Spot(s=seg("hangar").s_mid), length=HANGAR_SHELL_LENGTH_M),
+            Prop("control-tower", TOWER),
             # The display jets' flypast over the hangars, against the race so drivers on the
             # straight see them coming.
             Prop("jets", Spot(s=seg("hangar").s_mid, offset=33.0), length=600.0, height=30.0),

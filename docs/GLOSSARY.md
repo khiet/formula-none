@@ -531,6 +531,22 @@ The row of five airfield hangars outside Goldstone's Hangar Straight: a
 prop of barrel-roofed sheds, each with a dark door in the gable toward the
 track, held to the 8 m rule like the pit building (ADR 0060).
 
+### hangar shell
+
+The open hangar Goldstone's Hangar Straight drives through, beside the
+middle of the hangars' row: a prop that spans the road like the arch, a
+side on the grass beyond each wall and a barrel roof between them, steel
+ribs at a 6 m pitch under its dark underside, and two light aircraft
+parked on its floor right of the track. Held to the span rule; its
+presentation zone shades the light and echoes the engine under it.
+
+### control tower
+
+Goldstone's landmark where the Wellington Straight points, past Brooklands
+and Luffield: a prop of a square shaft under a wider glazed cab and a
+banded mast, held to the 8 m rule and kept in every chase camera's view
+down the straight.
+
 ### airship
 
 The SLIPSTREAM AIRWAYS airship over Bell Deer's east infield: a prop
@@ -739,7 +755,8 @@ kart is on decides. Monarch has two: the tunnel, darker, with the engine
 echoing and the lamps' warm light passing over, and the harbour after it,
 brighter, with the water and the stand's crowd. Bell Deer has one on each
 leg of its bridge: under the deck on the underpass, darker and echoing, and
-up the embankment over it, brighter. A client table per course
+up the embankment over it, brighter. Goldstone has one under its hangar
+shell, shaded and echoing. A client table per course
 (ADR 0098); Presentation only, so it changes neither grip nor timing.
 
 ### Feedback

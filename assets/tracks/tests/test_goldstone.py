@@ -3,8 +3,12 @@ docs/mockups/silverstone-course.html decided, flat and with no ramp; the
 pit building drawn white inside the Hamilton Straight, facing the grid;
 and the row of airfield hangars outside the Hangar Straight, each a
 barrel-roofed shed with its door toward the track, every footprint keeping
-the 8 m rule; and the display jets' formation over the hangars, flying
-against the race and keeping 30 m over every road its pass crosses.
+the 8 m rule; the hangar shell the straight drives through, its sides and
+parked aircraft beyond the walls, its ribs overhead clear of a boosted
+chase camera and its exit framing Stowe; the control tower that ends the
+Wellington Straight's view; and the display jets' formation over the
+hangars, flying against the race and keeping 30 m over every road its pass
+crosses.
 
     python3 -I -m unittest discover -s assets/tracks/tests -t assets/tracks
 """
@@ -17,14 +21,34 @@ import unittest
 from dataclasses import replace
 from pathlib import Path
 
+from tests.test_boost_pads import tuning_constant
+from tests.test_bridge import triangles_of, unhidden
+from tests.test_monarch import WEB_SRC, camera_at, chase_camera_behind_m, half_field_of_view
 from tests.test_props import (
     across_track,
+    edge_of,
+    faces_left,
+    faces_right,
     build_materials,
     faces_up_and_toward_the_sun,
     footprint_clearance,
     materials_used,
 )
-from trackgen.layout import CROWD_KEYS, GRASS_DROP_M, PROP_WALL_CLEARANCE_M, Prop, Spot, World, build
+from trackgen.layout import (
+    CHASE_CAMERA_ABOVE_M,
+    CROWD_KEYS,
+    GANTRY_BEAM_HEIGHT_M,
+    GANTRY_TOP_M,
+    GRASS_DROP_M,
+    PROP_WALL_CLEARANCE_M,
+    SPAN_FOOT_CLEARANCE_M,
+    WALL_THICKNESS_M,
+    Prop,
+    Spot,
+    World,
+    build,
+    locate,
+)
 from trackgen.layouts import load
 from trackgen.props import (
     HANGAR_DEPTH_M,
@@ -32,6 +56,9 @@ from trackgen.props import (
     HANGAR_EAVES_M,
     HANGAR_PITCH_M,
     HANGAR_RIDGE_M,
+    HANGAR_SHELL_EAVES_M,
+    HANGAR_SHELL_FRAME_PITCH_M,
+    HANGAR_SHELL_RIGHT_M,
     HANGAR_WIDTH_M,
     JET_LENGTH_M,
     JETS_CLEARANCE_M,
@@ -40,6 +67,10 @@ from trackgen.props import (
     JETS_SMOKE,
     PITS_DEPTH_M,
     PITS_DOOR_PROUD_M,
+    TOWER_CAB_M,
+    TOWER_CAB_TOP_M,
+    TOWER_SHAFT_M,
+    TOWER_SHAFT_TOP_M,
     footprints,
 )
 from trackgen.path import elevation
@@ -47,21 +78,13 @@ from trackgen.path import elevation
 NAME = "goldstone"
 PITS = "Prop.pits"
 HANGARS = "Prop.hangars"
+SHELL = "Prop.hangar-shell"
+TOWER = "Prop.control-tower"
+PRESENTATION_ZONES_TS = WEB_SRC / "presentation-zones.ts"
+# Under 3 m tall, a prop keeps no 8 m from the wall: the chase camera sees over it.
+LOW_PROP_M = 3.0
 JETS = "Prop.jets.1"
 SCENERY_MOTION_TS = Path(__file__).resolve().parents[3] / "apps" / "web" / "src" / "scenery-motion.ts"
-
-
-def faces_right(face) -> bool:
-    """Whether a face given as (along, left of, up) points right: toward the track from a
-    prop that stands left of it."""
-    (a0, _, c0), (a1, _, c1), (a2, _, c2) = face[:3]
-    return (c1 - c0) * (a2 - a0) - (a1 - a0) * (c2 - c0) < 0.0
-
-
-def faces_left(face) -> bool:
-    """Whether a face given as (along, left of, up) points left: toward the track from a
-    prop that stands right of it."""
-    return not faces_right(face)
 
 
 def family(geometry, prefix: str):
@@ -90,10 +113,10 @@ class Lap(unittest.TestCase):
         self.assertEqual(self.layout.elevation, [])
         self.assertEqual(self.layout.decor.bridges, [])
 
-    def test_every_footprint_keeps_8_m_of_grass_from_every_wall(self) -> None:
+    def test_every_tall_footprint_keeps_8_m_of_grass_from_every_wall(self) -> None:
         found = footprints(self.layout)
-        self.assertEqual({f.kind for f in found}, {"pits", "hangars"})
-        for footprint in found:
+        self.assertEqual({f.kind for f in found}, {"pits", "hangars", "hangar-shell", "control-tower"})
+        for footprint in (f for f in found if f.kind != "hangar-shell"):
             with self.subTest(footprint=footprint):
                 self.assertEqual(footprint.clearance, PROP_WALL_CLEARANCE_M)
                 self.assertGreaterEqual(footprint_clearance(self.layout, footprint), PROP_WALL_CLEARANCE_M - 1e-9)
@@ -236,6 +259,213 @@ class Hangars(unittest.TestCase):
         faces = sum(len(piece.mesh[1]) for piece in self.pieces.values())
         count = len(self.pieces[f"{HANGARS}.carbon"].mesh[1])
         self.assertTrue(10 * count <= faces <= 16 * count, faces)
+
+
+def clusters(values, gap: float) -> list[float]:
+    """The middles of the runs of sorted `values` no more than `gap` apart."""
+    runs: list[list[float]] = []
+    for value in sorted(values):
+        if runs and value - runs[-1][-1] <= gap:
+            runs[-1].append(value)
+        else:
+            runs.append([value])
+    return [(run[0] + run[-1]) / 2.0 for run in runs]
+
+
+class HangarShell(unittest.TestCase):
+    def setUp(self) -> None:
+        self.layout = load(NAME)
+        (self.prop,) = [p for p in self.layout.decor.props if p.kind == "hangar-shell"]
+        self.geometry = build(self.layout)
+        self.pieces = family(self.geometry, SHELL)
+        self.straight = self.layout.path.segment("hangar")
+        self.walls = self.layout.runoff_half_width + WALL_THICKNESS_M
+        self.vertices = [self.frame(v) for piece in self.pieces.values() for v in piece.mesh[0]]
+
+    def frame(self, v):
+        """A vertex as (along the track from the shell's middle, left of the centreline, up from the road)."""
+        along, left = across_track(self.layout, self.prop.at.s, v[0], v[1])
+        return along, left, v[2]
+
+    def faces(self, material: str):
+        piece = self.pieces[f"{SHELL}.{material}"]
+        return [[self.frame(piece.mesh[0][i]) for i in f] for f in piece.mesh[1]]
+
+    def test_it_spans_the_middle_of_the_hangar_straight_well_short_of_stowe(self) -> None:
+        self.assertEqual(self.straight.turn, 0)
+        self.assertAlmostEqual(self.prop.at.s, self.straight.s_mid)
+        self.assertEqual(self.prop.at.offset, 0.0)
+        half = self.prop.length / 2.0
+        self.assertAlmostEqual(min(a for a, _, _ in self.vertices), -half)
+        self.assertAlmostEqual(max(a for a, _, _ in self.vertices), half)
+        self.assertGreaterEqual(self.straight.s_end - (self.prop.at.s + half), 50.0, "Stowe's braking in the open")
+        self.assertGreater(max(b for _, b, _ in self.vertices), self.walls)
+        self.assertLess(min(b for _, b, _ in self.vertices), -self.walls)
+
+    def test_everything_under_the_roof_stands_on_grass_beyond_the_walls(self) -> None:
+        """Its sides, its frames' legs and the aircraft: nothing below the span rule's height
+        stands over the road or the run-off."""
+        for along, left, up in self.vertices:
+            if up < GANTRY_TOP_M - GANTRY_BEAM_HEIGHT_M:
+                self.assertGreater(abs(left), self.walls, (along, left, up))
+        feet = [f for f in footprints(self.layout) if f.kind == "hangar-shell"]
+        self.assertEqual(len(feet), 4, "two sides and two aircraft")
+        for foot in feet:
+            with self.subTest(foot=foot):
+                self.assertEqual(foot.clearance, SPAN_FOOT_CLEARANCE_M)
+                self.assertGreater(footprint_clearance(self.layout, foot), 0.0, "on grass")
+        (row,) = [f for f in footprints(self.layout) if f.kind == "hangars"]
+        for foot in feet:
+            self.assertGreater(min(row.distance(x, y) for x, y in edge_of(foot)), 0.0, "clear of the hangars' row")
+
+    def test_its_roof_keeps_the_span_rule_and_clears_a_boosted_chase_camera_by_2_m(self) -> None:
+        asphalt = self.layout.asphalt_half_width
+        over_the_road = [(b, c) for _, b, c in self.vertices if abs(b) <= self.walls]
+        self.assertTrue(over_the_road, "the roof spans the road")
+        for b, c in over_the_road:
+            self.assertGreaterEqual(c, GANTRY_TOP_M if abs(b) <= asphalt else GANTRY_TOP_M - GANTRY_BEAM_HEIGHT_M, (b, c))
+        # Off a boost pad the camera pulls back past its tuned metre and shakes on a hit; it
+        # rides at its height over the flat road wherever the kart is between the walls.
+        boosted = chase_camera_behind_m() + tuning_constant("BOOST_PAD_FACTOR") * tuning_constant("CAMERA_PULL_BACK_M")
+        self.assertLess(boosted, self.prop.length / 4.0, "a boosted camera rides under the ribs most of the way")
+        camera = CHASE_CAMERA_ABOVE_M + tuning_constant("CAMERA_SHAKE_AMPLITUDE_M")
+        self.assertGreaterEqual(min(c for _, c in over_the_road) - camera, 2.0)
+
+    def test_steel_ribs_cross_overhead_at_a_pitch_under_its_dark_underside(self) -> None:
+        overhead = [f for f in self.faces("wall") if all(abs(b) <= self.walls and c > HANGAR_SHELL_EAVES_M / 2.0 for _, b, c in f)]
+        middles = clusters((sum(a for a, _, _ in f) / len(f) for f in overhead), gap=1.0)
+        self.assertGreaterEqual(len(middles), 8)
+        gaps = [b - a for a, b in zip(middles, middles[1:])]
+        self.assertTrue(all(abs(g - HANGAR_SHELL_FRAME_PITCH_M) < 0.5 for g in gaps), gaps)
+        # The underside's facets, not the roof's edges in the end planes.
+        underside = [f for f in self.faces("carbon-shade") if len({round(a, 6) for a, _, _ in f}) > 1]
+        self.assertTrue(underside)
+        for f in underside:
+            (a0, b0, c0), (a1, b1, c1), (a2, b2, c2) = f[:3]
+            u, w = (a1 - a0, b1 - b0, c1 - c0), (a2 - a0, b2 - b0, c2 - c0)
+            self.assertLess(u[0] * w[1] - u[1] * w[0], 0.0, "faces down at the road")
+        # Each rib hangs below the underside over it.
+        lowest_rib = min(c for f in overhead for _, _, c in f)
+        lowest_under = min(c for f in underside for _, b, c in f if abs(b) <= self.walls)
+        self.assertLess(lowest_rib, lowest_under)
+
+    def test_light_aircraft_park_low_on_the_floor_right_of_the_track(self) -> None:
+        fins = self.faces("kerb-red") + self.faces("carbon")
+        middles = clusters((sum(a for a, _, _ in f) / len(f) for f in fins), gap=5.0)
+        self.assertEqual(len(middles), 2, "two aircraft")
+        aircraft = [v for f in fins for v in f]
+        for _, b, c in aircraft:
+            self.assertLess(b, -self.walls)
+            self.assertGreater(b, -HANGAR_SHELL_RIGHT_M)
+            self.assertLessEqual(c + GRASS_DROP_M, LOW_PROP_M)
+        # Nose to the track: each canopy nearer the wall than its tail's fin.
+        canopy = sum(b for f in self.faces("carbon") for _, b, _ in f) / sum(len(f) for f in self.faces("carbon"))
+        fin = sum(b for f in self.faces("kerb-red") for _, b, _ in f) / sum(len(f) for f in self.faces("kerb-red"))
+        self.assertGreater(canopy, fin + 4.0)
+
+    def test_its_exit_frames_stowe_from_inside(self) -> None:
+        sample = self.layout.path.at(self.prop.at.s)
+        cx, cy = camera_at(sample)
+        camera = (cx, cy, CHASE_CAMERA_ABOVE_M)
+        stowe = self.layout.path.segment("stowe")
+        shell = triangles_of(self.geometry)
+        shell = [t for t in shell if t[0].startswith(f"{SHELL}.")]
+        half = half_field_of_view()
+        for s in (stowe.s_start, stowe.s_start + 15.0):
+            point = self.layout.path.at(s)
+            target = (point.x, point.y, 1.0)
+            with self.subTest(s=s):
+                off = math.atan2(point.y - cy, point.x - cx) - sample.heading
+                self.assertLess(abs((off + math.pi) % math.tau - math.pi), half)
+                unhidden(self, shell, camera, target)
+
+    def test_the_zones_mirror_of_its_ends_matches_the_client(self) -> None:
+        source = PRESENTATION_ZONES_TS.read_text()
+        for name, s in (("FROM", self.prop.at.s - self.prop.length / 2.0), ("TO", self.prop.at.s + self.prop.length / 2.0)):
+            found = re.search(rf"const GOLDSTONE_SHELL_{name}_M = ([0-9.]+);", source)
+            self.assertIsNotNone(found, name)
+            self.assertAlmostEqual(float(found.group(1)), s, delta=0.01)
+
+    def test_it_paints_from_the_palette_and_letters_nothing(self) -> None:
+        self.assertTrue(materials_used(self.pieces.values()) <= build_materials())
+        self.assertFalse(any(t.name.startswith(f"{SHELL}.") for t in self.geometry.lettering))
+
+    def test_it_refuses_a_layout_that_gives_no_length(self) -> None:
+        short = replace(self.layout, decor=replace(self.layout.decor, props=[Prop("hangar-shell", Spot(s=900.0))]))
+        with self.assertRaises(ValueError):
+            build(short)
+
+    def test_it_costs_about_600_faces(self) -> None:
+        faces = sum(len(piece.mesh[1]) for piece in self.pieces.values())
+        self.assertTrue(500 <= faces <= 700, faces)
+
+
+class ControlTower(unittest.TestCase):
+    """The Wellington Straight runs at the control tower, so its view ends on it."""
+
+    def setUp(self) -> None:
+        self.layout = load(NAME)
+        (self.prop,) = [p for p in self.layout.decor.props if p.kind == "control-tower"]
+        self.geometry = build(self.layout)
+        self.pieces = family(self.geometry, TOWER)
+        self.x, self.y, _ = locate(self.layout, self.prop.at)
+        ground = -GRASS_DROP_M
+        # The cab's middle and its roof, where the straight looks.
+        self.targets = [(self.x, self.y, ground + (TOWER_SHAFT_TOP_M + TOWER_CAB_TOP_M) / 2.0), (self.x, self.y, ground + TOWER_CAB_TOP_M)]
+        segment = self.layout.path.segment("wellington")
+        self.end = self.layout.path.at(segment.s_end)
+        self.cameras = []
+        for i in self.layout.path.indices_between(segment.s_start, segment.s_end)[::10]:
+            sample = self.layout.path.samples[i]
+            self.cameras.append((sample, (*camera_at(sample), CHASE_CAMERA_ABOVE_M)))
+
+    def test_it_stands_on_the_straights_line_past_brooklands_and_faces_back_up_it(self) -> None:
+        dx, dy = self.x - self.end.x, self.y - self.end.y
+        along = dx * math.cos(self.end.heading) + dy * math.sin(self.end.heading)
+        across = -dx * math.sin(self.end.heading) + dy * math.cos(self.end.heading)
+        self.assertAlmostEqual(across, 0.0)
+        self.assertTrue(60.0 <= along <= 120.0, along)
+        self.assertAlmostEqual(math.cos(self.prop.at.heading - self.end.heading), -1.0)
+
+    def test_it_is_in_every_chase_cameras_view_down_the_wellington_straight(self) -> None:
+        half = half_field_of_view()
+        for sample, (cx, cy, _) in self.cameras:
+            off = math.atan2(self.y - cy, self.x - cx) - sample.heading
+            with self.subTest(s=sample.s):
+                self.assertLess(abs((off + math.pi) % math.tau - math.pi), half / 2.0)
+
+    def test_nothing_stands_between_a_chase_camera_on_the_straight_and_its_cab(self) -> None:
+        triangles = triangles_of(self.geometry, skip=f"{TOWER}.")
+        for sample, camera in self.cameras:
+            for target in self.targets:
+                with self.subTest(s=sample.s, target=target[2]):
+                    unhidden(self, triangles, camera, target)
+
+    def test_a_glazed_cab_overhangs_a_narrower_shaft_under_a_banded_mast(self) -> None:
+        def reach(material: str) -> float:
+            piece = self.pieces[f"{TOWER}.{material}"]
+            # In the tower's own frame, square to the way its cab faces.
+            cos, sin = math.cos(self.prop.at.heading), math.sin(self.prop.at.heading)
+            return max(
+                max(abs((v[0] - self.x) * cos + (v[1] - self.y) * sin), abs(-(v[0] - self.x) * sin + (v[1] - self.y) * cos))
+                for v in piece.mesh[0]
+            )
+
+        self.assertAlmostEqual(reach("stand-riser"), TOWER_SHAFT_M / 2.0)
+        self.assertAlmostEqual(reach("carbon"), TOWER_CAB_M / 2.0)
+        self.assertGreater(TOWER_CAB_M, TOWER_SHAFT_M + 2.0, "the cab overhangs the shaft")
+        glass = [v[2] + GRASS_DROP_M for v in self.pieces[f"{TOWER}.carbon"].mesh[0]]
+        self.assertGreaterEqual(min(glass), TOWER_SHAFT_TOP_M)
+        self.assertLessEqual(max(glass), TOWER_CAB_TOP_M)
+        top = max(v[2] for piece in self.pieces.values() for v in piece.mesh[0]) + GRASS_DROP_M
+        self.assertGreater(top, TOWER_CAB_TOP_M + 3.0, "the mast over the cab")
+        self.assertIn(f"{TOWER}.kerb-white", self.pieces)
+        self.assertTrue(materials_used(self.pieces.values()) <= build_materials())
+        self.assertFalse(any(t.name.startswith(f"{TOWER}.") for t in self.geometry.lettering))
+
+    def test_it_costs_about_40_faces(self) -> None:
+        faces = sum(len(piece.mesh[1]) for piece in self.pieces.values())
+        self.assertTrue(30 <= faces <= 60, faces)
 
 
 class DisplayJets(unittest.TestCase):

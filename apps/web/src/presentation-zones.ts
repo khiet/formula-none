@@ -149,6 +149,15 @@ const DECK_EDGE_FULL_M = 2.5;
 /** How far either side of the crest the deck's bright holds. */
 const DECK_CREST_HOLD_M = 20;
 
+// Goldstone's edges, in metres from the line, are its layout's
+// (assets/tracks/trackgen/layouts/goldstone.py): the hangar shell's ends,
+// half its length either side of the Hangar Straight's middle. The track
+// tests hold them to the layout.
+const GOLDSTONE_SHELL_FROM_M = 895.76;
+const GOLDSTONE_SHELL_TO_M = 955.76;
+/** How far either side of an open end the shade eases. */
+const SHELL_END_EASE_M = 8;
+
 const ZONES: Readonly<Record<TrackName, readonly PresentationZone[]>> = {
   "bell-deer": [
     {
@@ -179,7 +188,21 @@ const ZONES: Readonly<Record<TrackName, readonly PresentationZone[]>> = {
       crowd: 0,
     },
   ],
-  goldstone: [],
+  goldstone: [
+    {
+      // Under the hangar shell: shade and the engine's echo off the roof,
+      // lighter than a tunnel since both ends stand open.
+      from: GOLDSTONE_SHELL_FROM_M - SHELL_END_EASE_M,
+      fullFrom: GOLDSTONE_SHELL_FROM_M + SHELL_END_EASE_M,
+      fullTo: GOLDSTONE_SHELL_TO_M - SHELL_END_EASE_M,
+      to: GOLDSTONE_SHELL_TO_M + SHELL_END_EASE_M,
+      light: 0.7,
+      echo: 0.8,
+      lamps: null,
+      ambience: NO_AMBIENCE,
+      crowd: 0,
+    },
+  ],
   monarch: [
     {
       // Dark, echoing and lit by its lamps; the dark comes in across the

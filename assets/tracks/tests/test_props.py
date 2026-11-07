@@ -135,6 +135,19 @@ def pieces_of_family(family: str):
     return found
 
 
+def faces_right(face) -> bool:
+    """Whether a face given as (along, left of, up) points right: toward the track from a
+    prop that stands left of it."""
+    (a0, _, c0), (a1, _, c1), (a2, _, c2) = face[:3]
+    return (c1 - c0) * (a2 - a0) - (a1 - a0) * (c2 - c0) < 0.0
+
+
+def faces_left(face) -> bool:
+    """Whether a face given as (along, left of, up) points left: toward the track from a
+    prop that stands right of it."""
+    return not faces_right(face)
+
+
 def across_track(layout, s: float, x: float, y: float) -> tuple[float, float]:
     """A point as (along, left of) the centreline's frame at `s`, in metres."""
     sample = layout.path.at(s % layout.path.length)
