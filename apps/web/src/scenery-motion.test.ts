@@ -392,8 +392,8 @@ describe("the display jets' flypast", () => {
 
   /**
    * Drive the own kart at `speed` from `fromM` for `seconds`, a 60 Hz frame
-   * at a time from `startMs`, cueing and posing the jets each frame, and
-   * report the formation when the kart passes `watchM`.
+   * at a time from `startMs`, cueing and posing the jets each frame and
+   * handing `onFrame` the kart's progress and the clock after each.
    */
   function drive(
     motion: ReturnType<typeof sceneryMotion>,
@@ -429,7 +429,6 @@ describe("the display jets' flypast", () => {
     drive(motion, flypast, { fromM: 500, speed: 30, seconds: 12, startMs: 1_000 }, (progress) => {
       if (progress < CHAPEL_M) expect(formation.visible, `${progress} m`).toBe(false);
     });
-    // The cue is this run's crossing; the pass then flies to its schedule.
     const cuedMs = flypast.update(20_000, 900);
     expect(cuedMs).not.toBeNull();
     const startMs = (cuedMs as number) + JETS_OVERHEAD_MS - JETS_PASS_MS / 2;
@@ -474,7 +473,7 @@ describe("the display jets' flypast", () => {
     const flypast = flypastTimer(CHAPEL_M, LAP_M);
     const passes: number[] = [];
     let wasVisible = false;
-    // Two laps and a bit at 28 m/s from the line, over the line between them.
+    // Two laps at 28 m/s from the line, over the line between them.
     drive(
       motion,
       flypast,
