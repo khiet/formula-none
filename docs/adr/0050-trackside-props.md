@@ -3,7 +3,9 @@
 ## Status
 
 Accepted (2026-10-29). Its rule that every prop stands flat at the grass's
-level is superseded for a prop on a terrace by ADR 0065.
+level is superseded for a prop on a terrace by ADR 0065. Its rule that a moving
+prop moves from the View's own clock is superseded for the display jets by
+ADR 0099.
 
 ## Context
 

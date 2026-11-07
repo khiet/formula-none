@@ -52,6 +52,7 @@ const STILL: SoundReading = {
   blasts: [],
   incomingDroneMetres: null,
   presentation: OPEN_SKY,
+  flypastCuedMs: null,
 };
 
 describe("soundCues", () => {
@@ -288,6 +289,15 @@ describe("soundCues", () => {
     expect(soundCues(STILL, towed)).toEqual(["slipstream"]);
     expect(soundCues(towed, towed)).toEqual([]);
     expect(soundCues(towed, STILL)).toEqual([]);
+  });
+
+  it("swells the flypast once as each cue comes, and never for the cue it already heard", () => {
+    const cued = { ...STILL, flypastCuedMs: 12_000 };
+    expect(soundCues(STILL, cued)).toEqual(["flypast"]);
+    expect(soundCues(cued, cued)).toEqual([]);
+    expect(soundCues(cued, { ...STILL, flypastCuedMs: 58_000 })).toEqual(["flypast"]);
+    // A cue already under way as the race's sounds start is not heard late.
+    expect(soundCues(undefined, cued)).toEqual([]);
   });
 
   it("plays no boost pad for a tow, which is not a boost", () => {
@@ -531,6 +541,7 @@ describe("soundReading", () => {
       blasts: [],
       incomingDroneMetres: null,
       presentation: OPEN_SKY,
+      flypastCuedMs: null,
     });
   });
 
@@ -538,6 +549,12 @@ describe("soundReading", () => {
     const tunnel = { ...OPEN_SKY, light: 0.45, echo: 1, lampGlow: 0.8 };
     const race = raceReadout({ karts: [kart], standings: [standing], phase: racing });
     expect(soundReading(race, 0, TUNING, false, tunnel).presentation).toEqual(tunnel);
+  });
+
+  it("carries the jets' latest cue", () => {
+    const race = raceReadout({ karts: [kart], standings: [standing], phase: racing });
+    expect(soundReading(race, 0, TUNING).flypastCuedMs).toBeNull();
+    expect(soundReading(race, 0, TUNING, false, OPEN_SKY, 9_500).flypastCuedMs).toBe(9_500);
   });
 
   it("takes the own run's seconds, and the nearest other star kart by distance", () => {

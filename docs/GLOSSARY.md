@@ -573,9 +573,11 @@ The three red jets over Goldstone's hangars: a prop that flies, like the
 airship, so it has no footprint. The whole formation, each jet's smoke
 ribbon included, is one node in the glTF with its origin at the leader's
 nose, which the View flies nose first along a 600 m pass over the hangars,
-its flypast, every 30 s from its own clock, against the race, in 6 s,
-and hides between passes. Its lowest point keeps 20 m over every road under the pass
-(ADR 0050).
+its flypast, against the race, in 6 s, and hides between passes. Each
+pass is cued as the own kart reaches Chapel, so the formation is over the
+hangars as the kart runs down the Hangar Straight, with a roar that swells
+to it. Its lowest point keeps 20 m over every road under the pass
+(ADR 0050, ADR 0099).
 
 ### harbour
 

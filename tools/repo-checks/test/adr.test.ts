@@ -103,6 +103,7 @@ const DECISION_SLUGS = [
   "the-box-call-comes-as-the-kart-nears-the-pit-lane",
   "pickups-and-pads-set-up-the-next-fight",
   "presentation-zones-change-light-and-sound-by-spline-progress",
+  "the-display-jets-meet-the-own-kart",
 ];
 
 const expectedFiles = DECISION_SLUGS.map(

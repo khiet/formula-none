@@ -538,6 +538,15 @@ class DisplayJets(unittest.TestCase):
         self.assertIsNotNone(found)
         self.assertEqual(float(found.group(1).replace("_", "")), self.prop.length)
 
+    def test_the_client_cues_its_pass_at_the_start_of_chapel(self) -> None:
+        source = SCENERY_MOTION_TS.read_text()
+        found = re.search(r"export const GOLDSTONE_CHAPEL_M = ([0-9_.]+);", source)
+        self.assertIsNotNone(found)
+        chapel = self.layout.path.segment("chapel")
+        self.assertAlmostEqual(float(found.group(1).replace("_", "")), chapel.s_start, delta=0.01)
+        # The pass's middle over the Hangar Straight's, where the cue's timing aims it.
+        self.assertAlmostEqual(self.prop.at.s, self.layout.path.segment("hangar").s_mid)
+
     def test_it_never_flies_under_20_m_over_any_road_its_pass_crosses_ribbons_included(self) -> None:
         lowest = min(v[2] for v in self.formation.mesh[0])
         self.assertLess(lowest, self.pivot.z - 4.5, "the lowest wingman's ribbon")

@@ -161,9 +161,15 @@ export interface RaceView {
    * into its turn, and at each
    * wheel crossing the rolling wheel with its tells, the marshal posed
    * for it, the beacon lit and the hazard zone flashing while the flag is
-   * up, and the wheel waiting on the wall through the warning.
+   * up, and the wheel waiting on the wall through the warning; the display
+   * jets fly the pass their latest cue, `flypastCuedMs`, set (ADR 0099).
    */
-  update(race: RaceReadout, camera: CameraPose, frameSeconds: number): void;
+  update(
+    race: RaceReadout,
+    camera: CameraPose,
+    frameSeconds: number,
+    flypastCuedMs: number | null,
+  ): void;
   /**
    * Light the world for the presentation zone the own kart is in (ADR
    * 0098): the sky's light scaled by `blend.light` and the tunnel's warm
@@ -434,7 +440,7 @@ export async function createRaceView(
   /** The kart's own +X: a positive turn about it lifts the nose, along -Z. */
   const sideways = new Vector3(1, 0, 0);
   return {
-    update(race, pose, frameSeconds) {
+    update(race, pose, frameSeconds, flypastCuedMs) {
       const { karts: readouts, itemBoxesPresent, coinsPresent, hazards, projectiles } = race;
       const countingDown = race.phase.kind === "countdown";
       clockSeconds += frameSeconds;
@@ -533,7 +539,7 @@ export async function createRaceView(
       drones.show(projectiles, (projectile) => readouts[projectile.target]?.position, frameSeconds);
       rings.show(race.blasts);
       runaways.show(race.wheels, frameSeconds);
-      motion.update(performance.now());
+      motion.update(performance.now(), flypastCuedMs);
       for (const label of labels) {
         label.visible = false;
       }
