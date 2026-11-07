@@ -69,7 +69,7 @@ describe("a presentation zone's blend", () => {
     expect(blendAt([DIM], 150 - LAP_M)).toEqual(blendAt([DIM], 150));
   });
 
-  it("dims each zone's light over the next where two overlap, and keeps the loudest of the rest", () => {
+  it("multiplies the light where two zones overlap and keeps the louder of the rest", () => {
     const bright: PresentationZone = {
       ...DIM,
       from: 170,
