@@ -456,15 +456,15 @@ describe("the display jets' flypast", () => {
       const { track, formation } = trackWithJets();
       const motion = sceneryMotion(track);
       const flypast = flypastTimer(CHAPEL_M, LAP_M);
-      let overMiddle: number | null = null;
+      const offMiddle: number[] = [];
       drive(motion, flypast, { fromM: 780, speed, seconds: 8, startMs: 0 }, (progress) => {
-        if (overMiddle === null && progress >= STRAIGHT_MIDDLE_M) {
+        if (offMiddle.length === 0 && progress >= STRAIGHT_MIDDLE_M) {
           expect(formation.visible, `${speed} m/s`).toBe(true);
-          overMiddle = formation.position.distanceTo(JETS_AT_REST);
+          offMiddle.push(formation.position.distanceTo(JETS_AT_REST));
         }
       });
-      expect(overMiddle, `${speed} m/s`).not.toBeNull();
-      expect(overMiddle as unknown as number, `${speed} m/s`).toBeLessThan(HANGARS_HALF_M);
+      expect(offMiddle, `${speed} m/s`).toHaveLength(1);
+      expect(offMiddle[0], `${speed} m/s`).toBeLessThan(HANGARS_HALF_M);
     }
   });
 

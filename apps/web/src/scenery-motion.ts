@@ -52,10 +52,15 @@ export const JETS_PASS_MS = 6_000;
  * Milliseconds from the cue to the formation over the middle of its pass:
  * a kart at 25 to 30 m/s out of Chapel runs the 109 m to the Hangar
  * Straight's middle in 3.6 to 4.4 s, so the formation is within the
- * hangars' 110 m row as it gets there. The pass starts half a pass sooner,
- * a second after the cue, as the kart leaves Chapel.
+ * hangars' 110 m row as it gets there. A kart off that pace, boosted off
+ * the straight's pad or on worn tyres, meets it off the row's middle. The
+ * pass starts half a pass sooner, a second after the cue, as the kart
+ * leaves Chapel.
  */
 export const JETS_OVERHEAD_MS = 4_000;
+/** Milliseconds from a cue to its pass starting and to its pass ending. */
+const JETS_PASS_FROM_MS = JETS_OVERHEAD_MS - JETS_PASS_MS / 2;
+const JETS_PASS_TO_MS = JETS_OVERHEAD_MS + JETS_PASS_MS / 2;
 /**
  * The start of Goldstone's `chapel`, in metres of spline progress from the
  * line, the layout's (`assets/tracks/trackgen/layouts/goldstone.py`); the
@@ -138,7 +143,7 @@ export function flypastTimer(cueM: number | null, lapM: number): FlypastTimer {
       const step = wrap(splineProgress - before, lapM);
       const toCue = wrap(cueM - before, lapM);
       const crossed = step < lapM / 2 && toCue > 0 && toCue <= step;
-      const inFlight = cuedMs !== null && nowMs - cuedMs < JETS_OVERHEAD_MS + JETS_PASS_MS / 2;
+      const inFlight = cuedMs !== null && nowMs - cuedMs < JETS_PASS_TO_MS;
       if (crossed && !inFlight) cuedMs = nowMs;
       return cuedMs;
     },
@@ -320,8 +325,7 @@ export function sceneryMotion(track: Object3D): SceneryMotion {
         spin.setFromAxisAngle(axis, ((nowMs % turnMs) / turnMs) * Math.PI * 2);
         node.quaternion.copy(rest).multiply(spin);
       }
-      const intoPass =
-        flypastCuedMs === null ? -1 : nowMs - (flypastCuedMs + JETS_OVERHEAD_MS - JETS_PASS_MS / 2);
+      const intoPass = flypastCuedMs === null ? -1 : nowMs - (flypastCuedMs + JETS_PASS_FROM_MS);
       const flying = intoPass >= 0 && intoPass < JETS_PASS_MS;
       const flown = (intoPass / JETS_PASS_MS - 0.5) * JETS_PASS_M;
       for (const { node, middle, nose } of flypasts) {
