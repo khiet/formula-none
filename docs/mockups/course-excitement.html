@@ -1,0 +1,453 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Course Excitement Picks</title>
+<style>
+:root {
+  --bg: #eef0f3; --fg: #1b1d22; --muted: #5b6170; --rule: #cfd3db;
+  --card: #ffffff; --chip-bg: #f4f5f7; --accent: #c81d25; --gold: #a77a12;
+  --good: #1f8a4c; --warn: #b4560f; --both: #2a5bd7;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #15171a; --fg: #ece7d8; --muted: #9a9fab; --rule: #2c3036;
+    --card: #1e2126; --chip-bg: #262a30; --accent: #ff5a5f; --gold: #e0b54a;
+    --good: #4cc483; --warn: #f08c3a; --both: #7aa2ff;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #15171a; --fg: #ece7d8; --muted: #9a9fab; --rule: #2c3036;
+  --card: #1e2126; --chip-bg: #262a30; --accent: #ff5a5f; --gold: #e0b54a;
+  --good: #4cc483; --warn: #f08c3a; --both: #7aa2ff;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--fg);
+  font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+main { max-width: 1040px; margin: 0 auto; padding: 24px 16px 120px; }
+h1 { font-size: 28px; margin: 0 0 4px; }
+h2 { font-size: 20px; margin: 36px 0 8px; border-bottom: 2px solid var(--rule); padding-bottom: 4px; }
+h3 { font-size: 16px; margin: 0; }
+p.lead { color: var(--muted); margin: 0 0 16px; max-width: 70ch; }
+.box { background: var(--card); border: 1px solid var(--rule); border-radius: 10px; padding: 14px 16px; margin: 12px 0; }
+table { border-collapse: collapse; width: 100%; font-size: 14px; }
+th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--rule); vertical-align: top; }
+th { color: var(--muted); font-weight: 600; }
+.tabs { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 4px; position: sticky; top: 0; background: var(--bg); padding: 8px 0; z-index: 2; }
+.tabs button { border: 1px solid var(--rule); background: var(--card); color: var(--fg); border-radius: 999px; padding: 5px 12px; cursor: pointer; font: inherit; font-size: 14px; }
+.tabs button[aria-pressed="true"] { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+.card { background: var(--card); border: 1px solid var(--rule); border-radius: 10px; padding: 12px 14px; margin: 10px 0; display: grid; grid-template-columns: 28px 1fr; gap: 4px 10px; }
+.card.picked { border-color: var(--good); box-shadow: 0 0 0 1px var(--good) inset; }
+.card input[type=checkbox] { width: 20px; height: 20px; margin: 2px 0 0; accent-color: var(--good); cursor: pointer; }
+.card .body { min-width: 0; }
+.meta { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 6px; }
+.chip { font-size: 12px; background: var(--chip-bg); border: 1px solid var(--rule); border-radius: 6px; padding: 1px 7px; color: var(--muted); white-space: nowrap; }
+.chip.cost-S { color: var(--good); } .chip.cost-M { color: var(--gold); } .chip.cost-L { color: var(--warn); }
+.chip.src-both { color: var(--both); font-weight: 600; }
+.chip.src-pi, .chip.src-claude { font-weight: 600; }
+.chip.contested { color: var(--accent); font-weight: 600; }
+dl { display: grid; grid-template-columns: max-content 1fr; gap: 2px 10px; margin: 0; font-size: 14px; }
+dt { color: var(--muted); }
+dd { margin: 0; }
+.dissent { margin-top: 6px; font-size: 14px; border-left: 3px solid var(--accent); padding-left: 8px; }
+code { font: 13px ui-monospace, SFMono-Regular, Menlo, monospace; background: var(--chip-bg); padding: 0 4px; border-radius: 4px; }
+.bar { position: fixed; left: 0; right: 0; bottom: 0; background: var(--card); border-top: 1px solid var(--rule); padding: 10px 16px; display: flex; gap: 10px; align-items: center; justify-content: center; flex-wrap: wrap; z-index: 3; }
+.bar button { font: inherit; border-radius: 8px; border: 1px solid var(--fg); background: var(--fg); color: var(--bg); padding: 6px 14px; cursor: pointer; }
+.bar button.ghost { background: transparent; color: var(--fg); }
+textarea { width: 100%; min-height: 70px; font: inherit; background: var(--card); color: var(--fg); border: 1px solid var(--rule); border-radius: 8px; padding: 8px; }
+ol li, ul li { margin: 3px 0; }
+@media (max-width: 600px) { dl { grid-template-columns: 1fr; } dt { margin-top: 4px; } }
+</style>
+</head>
+<body>
+<main>
+<h1>Course Excitement Picks</h1>
+<p class="lead">What to add to Bell Deer, Goldstone and Monarch so each lap races and looks more like a Mario Kart course, without giving up the walled course (ADR 0022) or the F1 theme. Two analyses are merged here: mine and pi's (gpt-6-astra, read-only, same brief). Tick what you want built, add notes, then press <b>Copy picks</b> and paste them back to me.</p>
+
+<div class="box">
+<h3>The diagnosis</h3>
+<ul>
+<li><b>All three courses run on one recipe:</b> 12 m asphalt, three rows of four item boxes, two boost pads, one runaway wheel crossing, ten coins on the centreline. What changes is the outline, not the racing.</li>
+<li><b>The rewards sit on the default line.</b> Centred pads and centreline coins mean there is rarely a choice between two lines, which is the core of Mario Kart course design.</li>
+<li><b>Items arrive unevenly.</b> Goldstone goes 937 m (71% of the lap) between its <code>copse-exit</code> row and its <code>wellington</code> row; its other two rows are only 106 m apart. An item rolls for 2.5 s, so a row just before a corner gives nothing for that corner. (Checked against the layouts and <code>ITEM_ROLL_S</code>.)</li>
+<li><b>The scenery stands beside the road; the road never goes through it.</b> Mario Kart laps move through contrasting spaces (terminal, apron, open sky; street, tunnel, harbour). Here the light, sound and enclosure stay the same all lap.</li>
+<li><b>Goldstone's Becketts kerbs cancel the drift</b> that should make the esses fun: four sausage kerbs in a row turn a rhythm section into an avoidance exercise.</li>
+</ul>
+</div>
+
+<div class="box">
+<h3>What Mario Kart does that we borrow (principles, not its courses or art)</h3>
+<table>
+<tr><th>Pattern</th><th>Mario Kart example</th><th>Our version</th></tr>
+<tr><td>Two lines, each with a trade-off</td><td>Dash panels and coins on the riskier line (MK8 Deluxe)</td><td>Offset pads and coin lines inside the walls, no shortcut</td></tr>
+<tr><td>Pickups placed before the fight</td><td>Item rows ahead of the contested section</td><td>Rows placed by travel time so the roll lands before the corner</td></tr>
+<tr><td>Contrasting spaces in one lap</td><td>Sunshine Airport, Toad Harbor, Wild Woods</td><td>Drive-through hangar, tunnel-to-harbour reveal, bridge underpass</td></tr>
+<tr><td>Landmarks that point the way</td><td>MK World's "landmarks" and "banked parts", per Nintendo's Ask the Developer</td><td>A strong silhouette at the end of each long straight</td></tr>
+<tr><td>Optional mastery</td><td>Tricks off ramps; MK World's Charge Jump, Rail Ride, Wall Ride</td><td>A trick boost on the existing ramp first; wall riding only as a big bet</td></tr>
+<tr><td>A world that moves around you</td><td>Aircraft, trams, crowds</td><td>Airshow timed to the Hangar Straight, Monarch's crane, the coaster</td></tr>
+<tr><td>The race builds to the last lap</td><td>Final-lap music and crowd</td><td>A final-lap set piece on every course</td></tr>
+</table>
+</div>
+
+<div class="box">
+<h3>How pi and I differ</h3>
+<p style="margin:0">We agree on the quick wins and on keeping the walls. Pi is more cautious: it would not add jumps to Goldstone or Monarch, new moving hazards, rain or wall riding until the cheap changes have been played. I think one shared, deterministic set piece per course is what makes a Mario Kart course memorable. Those items are marked <span class="chip contested">contested</span> with pi's objection under each one, and they sit in their own tier so you can decide one by one.</p>
+</div>
+
+<div class="tabs" role="toolbar" aria-label="Filter by course">
+  <button data-f="all" aria-pressed="true">All</button>
+  <button data-f="bell">Bell Deer</button>
+  <button data-f="gold">Goldstone</button>
+  <button data-f="mon">Monarch</button>
+  <button data-f="cross">Every course</button>
+  <button data-f="picked">My picks</button>
+</div>
+
+<div id="tiers"></div>
+
+<h2>Things not to do</h2>
+<div class="box">
+<ol>
+<li><b>No shortcuts through gaps in the walls.</b> ADR 0022 settled it after play; every line choice here stays inside the walls and the checkpoint order. (Both)</li>
+<li><b>No second runaway wheel on a course.</b> More crossings make queues, not excitement; the bot sweeps already showed bunching. (Both)</li>
+<li><b>No tyre walls back inside the Grand Hotel hairpin.</b> ADR 0064 records the lost laps. (pi)</li>
+<li><b>No anti-gravity or gliding.</b> Camera, physics, checkpoint and reconciliation work for something that fights the F1 theme. (Both)</li>
+<li><b>No density for its own sake.</b> More rows of the same hoardings and trees hide the landmarks; strong silhouettes and gaps do more. (Both)</li>
+<li><b>No spectacle at a pit fork or merge.</b> No boost, launch or moving object where a kart chooses the pit lane. (pi)</li>
+<li><b>No optional line that is always faster.</b> Then it is just the new default line. (Both)</li>
+<li><b>Do not treat scenery as cover from items.</b> The homing projectile follows spline progress; a tunnel wall does not stop it. (pi)</li>
+</ol>
+</div>
+
+<h2>Notes for me</h2>
+<textarea id="notes" placeholder="Anything to change, combine or drop..."></textarea>
+<textarea id="out" hidden readonly aria-label="Picks to copy" style="margin-top:8px"></textarea>
+
+<h2>Sources</h2>
+<div class="box" style="font-size:14px">
+<ul>
+<li>Repo: <code>assets/tracks/trackgen/layouts/</code>, <code>assets/tracks/README.md</code>, <code>docs/GLOSSARY.md</code>, ADRs 0022, 0041 to 0047, 0050, 0064, 0079, 0081, <code>crates/sim/src/tuning.rs</code>.</li>
+<li><a href="https://www.nintendo.com/us/whatsnew/ask-the-developer-vol-18-mario-kart-world-part-4">Nintendo, Ask the Developer Vol. 18: Mario Kart World, Part 4</a> (landmarks, banked parts, Rail Ride and Wall Ride).</li>
+<li><a href="https://www.gamesradar.com/platforms/nintendo-switch-2/mario-kart-world-interview-kosuke-yabuki">GamesRadar interview with Kosuke Yabuki</a> (guard rails and cliff walls as optional routes).</li>
+<li><a href="https://nintendosoup.com/mario-kart-worlds-rail-ride-and-wall-ride-were-inspired-by-extreme-sports/">Nintendo Soup: Rail Ride and Wall Ride make straight roads more fun</a>.</li>
+<li><a href="https://www.avclub.com/mario-kart-world-speedrunning-skips-shortcuts">AV Club on World's wall-ride routes</a>; <a href="https://www.kartkrew.org/rr-manual/manual/features/">Kart Krew course features</a> (the space behind an item row is the most dangerous on the track).</li>
+<li>pi's sources: <a href="https://www.nintendo.com/us/gaming-systems/switch-2/featured-games/mario-kart-world/world/">Nintendo: World environments</a>, <a href="https://www.nintendo.com/us/gaming-systems/switch-2/featured-games/mario-kart-world/items-and-techniques/">items and techniques</a>.</li>
+<li>Course comparisons with specific MK8 Deluxe tracks are design analysis from knowledge of the games, not quotes.</li>
+</ul>
+</div>
+</main>
+
+<div class="bar">
+  <span id="count">0 picked</span>
+  <button id="copy">Copy picks</button>
+  <button id="clear" class="ghost">Clear</button>
+</div>
+
+<script>
+// Each recommendation: id, tier, course (bell|gold|mon|cross), title, where,
+// what, pattern, why, cost (S|M|L), constraints, src (both|claude|pi), dissent.
+const TIERS = [
+  ["t1", "Tier 1: quick wins with the systems we have", "Layout edits and pad, coin and row moves. Each fixes something measurable. Both analyses would start here."],
+  ["t2", "Tier 2: one strong identity per course", "Mostly Presentation: scenery, light and sound that make each course a place. No new rules in the sim."],
+  ["t3", "Tier 3: new gameplay, once tier 1 has been played", "New sim or pipeline work, worth it only if the cheap changes leave the section thin."],
+  ["t4", "Tier 4: big bets (contested)", "The Mario Kart signature moves. I recommend at most one or two; pi recommends none yet. Read the objection under each."],
+];
+const R = [
+  // Tier 1
+  { id: "G1", tier: "t1", course: "gold", src: "both", cost: "S",
+    title: "Goldstone: move the National row to late Vale approach",
+    where: "<code>national</code> row to <code>vale-approach</code>, about 25 m past the wheel's crossing",
+    what: "Keep the <code>wellington</code> and <code>copse-exit</code> rows; move the third so the gaps become about 386 / 492 / 445 m instead of 280 / 106 / 937 m.",
+    pattern: "Regular replenishment ahead of each fight.",
+    why: "The last third of the lap, Becketts to the line, finally has item play. Same box count.",
+    constraints: "Clear of the hazard zone and the queue for the wheel. Bot sweep for traffic after the crossing." },
+  { id: "G2", tier: "t1", course: "gold", src: "both", cost: "S",
+    title: "Goldstone: Hangar Straight boost or tow",
+    where: "<code>hangar</code> into <code>stowe</code>",
+    what: "Offset the centred boost pad 3 m to one half of the road; the other half stays clear for the slipstream and a braking line into Stowe.",
+    pattern: "Two lines, two different rewards.",
+    why: "The kart behind chooses: stay in the wake for the tow, or pull out for the pad. A DRS-style duel from mechanics we already have.",
+    constraints: "Check the pad line does not win every time. Slipstream stays server-side as now." },
+  { id: "B1", tier: "t1", course: "bell", src: "pi", cost: "S",
+    title: "Bell Deer: move the back-straight row upstream",
+    where: "<code>back-straight</code>, about 60 m from its start instead of 15 m from its end, past the ramp's landing",
+    what: "The item lands before 130R instead of after the chicane.",
+    pattern: "An item that sets up the next encounter.",
+    why: "Spend it over the bridge, save it for the chicane or defend through 130R. Shrinks the 607 m gap.",
+    constraints: "Clear of the landing at full boosted speed and of the bridge crossing (ADR 0047)." },
+  { id: "M1", tier: "t1", course: "mon", src: "both", cost: "S",
+    title: "Monarch: offset the tunnel pad",
+    where: "<code>tunnel</code> into <code>chicane-in</code>",
+    what: "Pad on one half of the road; the other half is the slipstream and the safe chicane entry.",
+    pattern: "A boost line that costs you the next corner's entry.",
+    why: "The only real overtaking chance on Monarch becomes a choice, fed by the <code>tunnel-entry</code> row.",
+    constraints: "Pick the side by driving it. 2 m run-off makes a boosted wall touch harsh; leave road to correct." },
+  { id: "G3", tier: "t1", course: "gold", src: "both", cost: "S",
+    title: "Goldstone: let Becketts flow",
+    where: "<code>maggotts</code> to <code>chapel</code>",
+    what: "Drop or move one or two of the four sausage kerbs; put three off-centre coins on the exits as targets.",
+    pattern: "A repeatable drift rhythm, coins marking the skilled line.",
+    why: "Linked mini-turbos instead of a run of drift cancels. With Tyres On, drifting there also costs tyre life: a real trade.",
+    constraints: "Confirm bots drift more, not just steer around differently. Keep a calm line for new players." },
+  { id: "B4", tier: "t1", course: "bell", src: "pi", cost: "S",
+    title: "Bell Deer: Spoon coin line wide, time line inside",
+    where: "<code>spoon-entry</code> to <code>spoon-2</code>",
+    what: "Redraw the three off-centre coins along a wider line through the double apex; the shorter inside line stays clear.",
+    pattern: "Coin-guided optional line.",
+    why: "A kart refilling coins after a spin-out goes wide; a full kart goes tight. Two entry positions onto the back straight mean a pass or a defence.",
+    constraints: "Both lines on asphalt, clear of the <code>spoon-2</code> tyre wall." },
+  { id: "X1", tier: "t1", course: "cross", src: "pi", cost: "S",
+    title: "Every course: place encounters by travel time",
+    where: "Bell Deer <code>back-straight</code>, Goldstone <code>vale-approach</code>, Monarch <code>tunnel-entry</code>",
+    what: "For each section, write down pickup, decision, challenge, recovery, measured in seconds at racing speed (boosts, worn tyres, braking), not metres.",
+    pattern: "Mario Kart's set-up and pay-off rhythm.",
+    why: "Stops rows that land after the corner and rewards that come after the interesting part.",
+    constraints: "Use real drives or bot traces." },
+
+  // Tier 2
+  { id: "B2", tier: "t2", course: "bell", src: "both", cost: "S",
+    title: "Bell Deer: cherry-lined esses that read the rhythm",
+    where: "<code>esses-run</code> to <code>dunlop</code>, ending at the arch",
+    what: "Group the cherry row by bend, with gaps that reveal the next turn and then the arch. Simple left-right chevron boards outside each bend.",
+    pattern: "Wild Woods framing; readable corner sequences.",
+    why: "The opening sector gets an identity and teaches its own rhythm.",
+    constraints: "Reuses woods and the arch. Keep sight lines and the kerb visible; chevrons must not look like pads or hazard paint." },
+  { id: "B3", tier: "t2", course: "bell", src: "both", cost: "M",
+    title: "Bell Deer: the bridge seen twice",
+    where: "<code>underpass</code> and the deck on <code>back-straight</code>",
+    what: "Underpass: dark underside, echo on the engine sound. Deck: a clear wide view back over the woods and the Circuit Wheel you passed.",
+    pattern: "Compression then release; a connected world.",
+    why: "The figure eight becomes something felt, not just a shape on the course map.",
+    constraints: "Presentation only, no collision near the crossing; marshal and wheel stay readable." },
+  { id: "B6", tier: "t2", course: "bell", src: "claude", cost: "M",
+    title: "Bell Deer: a roller coaster racing the back straight",
+    where: "Outside <code>back-straight</code>, beside the Circuit Wheel's theme-park side",
+    what: "A low-poly coaster whose train runs beside the straight, timed from the race clock so every screen sees it level with the leader at the start of lap 1.",
+    pattern: "Something moving alongside you at speed.",
+    why: "Suzuka's fairground made into the course's landmark; pairs with the Circuit Wheel.",
+    constraints: "Presentation only, no collision; keep clear of the bridge and the camera clearance rule." },
+  { id: "G4", tier: "t2", course: "gold", src: "pi", cost: "M",
+    title: "Goldstone: drive through an open hangar",
+    where: "Middle of <code>hangar</code>, well before Stowe's braking",
+    what: "An open-ended shell over the road: steel ribs overhead, parked aircraft beyond the walls, a bright exit framing Stowe.",
+    pattern: "Racing through the theme, as Sunshine Airport does.",
+    why: "Ribs flashing past add the sense of speed without adding speed. The airfield is around you, not beside you.",
+    constraints: "Road, walls and sidecar unchanged; supports outside the walls; roof clears the chase camera." },
+  { id: "G5", tier: "t2", course: "gold", src: "both", cost: "M",
+    title: "Goldstone: the flypast meets the race",
+    where: "<code>chapel</code> to <code>stowe</code>",
+    what: "Time the display jets from the race clock so the formation is seen from Chapel and passes over the hangar on every lap the leader reaches it; an audio swell with it.",
+    pattern: "Big background event on the course's theme.",
+    why: "Today the jets run on a 30 s View cycle, so you can miss them. Timed, it is the moment everyone remembers.",
+    constraints: "Presentation only; derive the timing from the race clock, do not send transforms. No jet wash." },
+  { id: "M2", tier: "t2", course: "mon", src: "both", cost: "M",
+    title: "Monarch: tunnel to harbour reveal",
+    where: "<code>tunnel-entry</code> to <code>harbour</code>",
+    what: "Warm lamp rhythm and a darker, echoing tunnel, then the bright harbour on exit.",
+    pattern: "Enclosed space opening into a wide one.",
+    why: "The signature Monaco moment: dark, loud, fast, then the yachts.",
+    constraints: "Karts, drones and the chicane stay readable; no strobing or blinding flash; blend by spline progress." },
+  { id: "M3", tier: "t2", course: "mon", src: "both", cost: "M",
+    title: "Monarch: a skyline, a real pool, waves on the quay",
+    where: "Behind <code>beau-rivage</code> and <code>casino-approach</code>; <code>harbour</code>, <code>tabac</code>, <code>pool-straight</code>, <code>quay</code>",
+    what: "A small family of terraced hotel and apartment blocks on the hillside; a visible pool beside the pool chicanes; spray from waves over the quay wall now and then.",
+    pattern: "Toad Harbor's lived-in streets.",
+    why: "Monarch becomes a town, not a circuit with four props. The pool names the pool section.",
+    constraints: "Presentation only; silhouettes, not hundreds of unique buildings; nothing hides the next corner." },
+  { id: "M4", tier: "t2", course: "mon", src: "pi", cost: "M",
+    title: "Monarch: Grand Hotel as a spectator bowl",
+    where: "<code>hairpin-approach</code> to <code>hairpin-exit</code>",
+    what: "Hotel terraces and stands outside the hairpin with a crowd swell as karts turn.",
+    pattern: "Staging round a slow, famous corner.",
+    why: "The slowest corner feels the most important, without being harder.",
+    constraints: "No tyre walls inside (ADR 0064); no collision; camera clear through the turn." },
+  { id: "M6", tier: "t2", course: "mon", src: "claude", cost: "S",
+    title: "Monarch: the recovery crane",
+    where: "Over the run-off at <code>mirabeau</code> or <code>rascasse</code>",
+    what: "A trackside crane that now and then lifts a broken-down kart up and over the wall, as Monaco's marshals do.",
+    pattern: "Moving set piece above the road.",
+    why: "Instantly reads as Monaco and as F1, and it is just an animation.",
+    constraints: "Presentation only; the hanging kart never over the asphalt; not near the wheel's crossing." },
+  { id: "X2", tier: "t2", course: "cross", src: "claude", cost: "S",
+    title: "Every course: a final-lap set piece",
+    where: "Start line and the last sector",
+    what: "On the leader's last lap: the gantry boards read FINAL LAP, the crowd rises, fireworks over the Circuit Wheel, the hangars or the harbour, the music lifts.",
+    pattern: "Mario Kart's final-lap music and crowd.",
+    why: "Races build to a climax instead of ending flat.",
+    constraints: "Presentation from the snapshot's lap count; style guide entry for the boards." },
+  { id: "X3", tier: "t2", course: "cross", src: "both", cost: "S",
+    title: "Every course: a landmark at the end of each long straight",
+    where: "Bell Deer <code>back-straight</code> (Circuit Wheel or coaster), Goldstone <code>wellington</code> and <code>hangar</code>, Monarch <code>beau-rivage</code> (casino dome)",
+    what: "Line up one tall, recognisable silhouette where the straight points, so you see the next corner coming.",
+    pattern: "MK World's landmarks, per Nintendo's interview.",
+    why: "Orients players and gives each straight a destination.",
+    constraints: "Strong shapes and gaps, not more clutter; camera clearance rule." },
+  { id: "X4", tier: "t2", course: "cross", src: "pi", cost: "M",
+    title: "Every course: presentation zones",
+    where: "Bell Deer <code>underpass</code>, Goldstone <code>hangar</code>, Monarch <code>tunnel</code> and <code>harbour</code>",
+    what: "One reusable way to change light, ambient sound and crowd by spline progress. Powers B3, G4, M2.",
+    pattern: "Contrasting spaces in one lap.",
+    why: "Build it once, use it on every course.",
+    constraints: "Never changes grip or timing; careful at Bell Deer's crossing where two legs share a place." },
+
+  // Tier 3
+  { id: "B5", tier: "t3", course: "bell", src: "both", cost: "L",
+    title: "Bell Deer: an optional launch with a trick boost",
+    where: "Early <code>back-straight</code>, the existing ramp after <code>spoon-2</code>",
+    what: "Make the ramp one side of the road with a flat line beside it. A hop pressed on the lip earns a small boost on landing.",
+    pattern: "Mario Kart's ramp tricks.",
+    why: "Spoon's exit becomes a skill to master and a choice: air and boost, or the ground and the tow.",
+    constraints: "Pipeline work for a ramp across half the road; airborne checkpoints, landing at boosted speed, bots, native and wasm replays.",
+    dissent: "pi: build the half-width ramp first and leave the trick boost for later, so one change is judged at a time." },
+  { id: "M5", tier: "t3", course: "mon", src: "pi", cost: "L",
+    title: "Monarch: a wider pocket by the harbour",
+    where: "Late <code>harbour</code> into <code>tabac</code>",
+    what: "The asphalt widens from 12 m to about 15 m for a short stretch and tapers back before the pool.",
+    pattern: "Wide encounter spaces between tight ones.",
+    why: "Turns a tunnel-exit tow into a pass; the tight sections feel tighter by contrast.",
+    constraints: "Needs width per segment across meshes, walls, checkpoints and bots; supersedes ADR 0064's uniform width. Try after M1." },
+  { id: "M7", tier: "t3", course: "mon", src: "claude", cost: "M",
+    title: "Monarch: the casino jackpot",
+    where: "<code>casino</code> crest",
+    what: "On a fixed race-clock cycle, the casino's sign lights JACKPOT and a short line of coins appears across the road at the crest, gone after a few seconds.",
+    pattern: "A timed reward worth fighting for.",
+    why: "A reason to be first over the crest, and a glamorous Monarch moment.",
+    constraints: "Deterministic from the race clock and seed, like the wheel; a server event per pickup as coins have now; bots ignore it at first." },
+  { id: "X5", tier: "t3", course: "cross", src: "pi", cost: "M",
+    title: "Every course: bots that use the optional lines",
+    where: "<code>spoon-link</code>, <code>hangar</code>, <code>tunnel</code>",
+    what: "Bots weigh pad, tow and coin lines from what they can see, deterministically.",
+    pattern: "Lines are only interesting if rivals use them too.",
+    why: "Otherwise the new lines are a human-only trick against a centreline procession.",
+    constraints: "Bots still finish and bots use the line well are separate acceptance checks." },
+
+  // Tier 4
+  { id: "X6", tier: "t4", course: "cross", src: "claude", cost: "L", contested: true,
+    title: "Every course: rain arrives on a set lap",
+    where: "Whole course, from a lap the seed picks",
+    what: "Clouds roll in, the road darkens and sprays; grip drops and worn tyres wash out sooner. The pit lane suddenly matters.",
+    pattern: "MK World's weather; F1's most exciting races.",
+    why: "Changes the race mid-way, the way Coconut Mall or MK World change between laps, and it uses the tyre system you just built.",
+    constraints: "Grip change in the sim, deterministic by lap; spray visibility; bots slow for it; replay fixtures.",
+    dissent: "pi: not in the first pass. It tangles grip with tyre life and risks unreadable failures in an eight-kart pack; fixed atmosphere is far cheaper." },
+  { id: "X7", tier: "t4", course: "cross", src: "claude", cost: "L", contested: true,
+    title: "Every course: wall ride",
+    where: "Monarch's streets and tunnel first; then the walls on every course",
+    what: "Hop into a wall at an angle and ride along it for a moment, leaving with a small boost.",
+    pattern: "MK World's Wall Ride.",
+    why: "Our courses are walled the whole way round; turning the walls from a penalty into a tool is the biggest change in feel available.",
+    constraints: "New movement state, camera, collision, bots and reconciliation; must never pass a wall.",
+    dissent: "pi: do not start with Rail Ride or Wall Ride; borrow World's optional-mastery idea through cheaper lines first." },
+  { id: "G6", tier: "t4", course: "gold", src: "claude", cost: "M", contested: true,
+    title: "Goldstone: an aircraft taxis across the apron",
+    where: "Replaces the runaway wheel on <code>vale-approach</code>; a taxiway crossing",
+    what: "The marshal's flags and the hazard zone stay; a small aircraft rolls across on the wheel's cycle instead of the wheel.",
+    pattern: "Sunshine Airport's aircraft.",
+    why: "The same rule, now in the course's theme.",
+    constraints: "Reuses the wheel's cycle and zone. A swap, not a second hazard.",
+    dissent: "pi: do not make aircraft gameplay; today's fliers are Presentation on a View clock. (A swap of the wheel, not an extra hazard, meets its other objection.)" },
+  { id: "G7", tier: "t4", course: "gold", src: "claude", cost: "M", contested: true,
+    title: "Goldstone: crosswind on the Hangar Straight",
+    where: "<code>hangar</code>",
+    what: "A windsock shows a gust coming; on a race-clock cycle a gust pushes karts gently sideways.",
+    pattern: "Environment that changes the line.",
+    why: "An airfield is windy; it makes the straight active.",
+    constraints: "Small lateral force in the sim, deterministic; readable warning.",
+    dissent: "pi: no pushing karts with the environment; it is a new gameplay system for a straight that G2 already makes interesting." },
+  { id: "M8", tier: "t4", course: "mon", src: "claude", cost: "S", contested: true,
+    title: "Monarch: go light over Casino Square",
+    where: "<code>casino</code> crest",
+    what: "Sharpen the crest so a fast kart goes briefly airborne, as F1 cars go light there.",
+    pattern: "Small airtime moment.",
+    why: "A thrill at the top of the climb with no new object.",
+    constraints: "Elevation tweak and re-export; landing before <code>casino-descent</code> and the wheel; replays.",
+    dissent: "pi: no jumps on Goldstone or Monarch for parity; Bell Deer should own airtime, and a street circuit lands against a wall (as the layout's own note says)." },
+];
+
+const COURSE = { bell: "Bell Deer", gold: "Goldstone", mon: "Monarch", cross: "Every course" };
+const SRC = { both: "Both agree", claude: "Claude", pi: "pi" };
+const KEY = "course-excitement-picks-v1";
+let state = { picked: {}, notes: "" };
+try { state = Object.assign(state, JSON.parse(localStorage.getItem(KEY) || "{}")); } catch (e) {}
+function save() { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {} }
+
+const tiers = document.getElementById("tiers");
+for (const [tid, title, blurb] of TIERS) {
+  const sec = document.createElement("section");
+  sec.dataset.tier = tid;
+  sec.innerHTML = `<h2>${title}</h2><p class="lead">${blurb}</p>`;
+  for (const r of R.filter(x => x.tier === tid)) {
+    const c = document.createElement("label");
+    c.className = "card"; c.dataset.course = r.course; c.dataset.id = r.id;
+    c.innerHTML = `<input type="checkbox" ${state.picked[r.id] ? "checked" : ""}>
+      <div class="body">
+        <h3>${r.id}. ${r.title}</h3>
+        <div class="meta">
+          <span class="chip">${COURSE[r.course]}</span>
+          <span class="chip cost-${r.cost}">Cost ${r.cost}</span>
+          <span class="chip src-${r.src}">${SRC[r.src]}</span>
+          ${r.contested ? '<span class="chip contested">contested</span>' : ""}
+        </div>
+        <dl>
+          <dt>Where</dt><dd>${r.where}</dd>
+          <dt>What</dt><dd>${r.what}</dd>
+          <dt>Borrows</dt><dd>${r.pattern}</dd>
+          <dt>Why</dt><dd>${r.why}</dd>
+          <dt>Constraints</dt><dd>${r.constraints}</dd>
+        </dl>
+        ${r.dissent ? `<div class="dissent">${r.dissent}</div>` : ""}
+      </div>`;
+    const box = c.querySelector("input");
+    c.classList.toggle("picked", box.checked);
+    box.addEventListener("change", () => {
+      state.picked[r.id] = box.checked; if (!box.checked) delete state.picked[r.id];
+      c.classList.toggle("picked", box.checked); save(); count(); applyFilter();
+    });
+    sec.appendChild(c);
+  }
+  tiers.appendChild(sec);
+}
+
+let filter = "all";
+function applyFilter() {
+  for (const c of document.querySelectorAll(".card")) {
+    const show = filter === "all" || (filter === "picked" ? !!state.picked[c.dataset.id] : c.dataset.course === filter);
+    c.style.display = show ? "" : "none";
+  }
+  for (const s of document.querySelectorAll("section[data-tier]")) {
+    s.style.display = [...s.querySelectorAll(".card")].some(c => c.style.display !== "none") ? "" : "none";
+  }
+}
+for (const b of document.querySelectorAll(".tabs button")) {
+  b.addEventListener("click", () => {
+    filter = b.dataset.f;
+    for (const o of document.querySelectorAll(".tabs button")) o.setAttribute("aria-pressed", String(o === b));
+    applyFilter();
+  });
+}
+function count() { document.getElementById("count").textContent = `${Object.keys(state.picked).length} picked`; }
+count();
+
+const notes = document.getElementById("notes");
+notes.value = state.notes || "";
+notes.addEventListener("input", () => { state.notes = notes.value; save(); });
+
+const strip = s => s.replace(/<[^>]+>/g, "");
+document.getElementById("copy").addEventListener("click", async () => {
+  const picks = R.filter(r => state.picked[r.id]);
+  let out = "Course excitement picks:\n" + (picks.length ? picks.map(r => `- ${r.id} ${strip(r.title)} (${r.cost})`).join("\n") : "- none");
+  if (state.notes.trim()) out += "\n\nNotes:\n" + state.notes.trim();
+  const btn = document.getElementById("copy");
+  try { await navigator.clipboard.writeText(out); btn.textContent = "Copied"; }
+  catch (e) { const o = document.getElementById("out"); o.hidden = false; o.value = out; o.select(); btn.textContent = "Copy it from the box above"; }
+  setTimeout(() => (btn.textContent = "Copy picks"), 2000);
+});
+document.getElementById("clear").addEventListener("click", () => {
+  state.picked = {}; save(); count();
+  for (const c of document.querySelectorAll(".card")) { c.querySelector("input").checked = false; c.classList.remove("picked"); }
+  applyFilter();
+});
+</script>
+</body>
+</html>
