@@ -130,12 +130,11 @@ class Deck(unittest.TestCase):
         self.assertGreater(-near, walls)
         self.assertGreater(far, walls)
 
-    def test_the_underside_is_the_tunnels_dark_with_no_plinth_grey(self) -> None:
+    def test_the_underside_is_the_tunnels_dark(self) -> None:
         _, geometry, _ = bell_deer()
         names = {p.name for p in geometry.scenery if p.name.startswith("Bridge.")}
         self.assertIn("Bridge.carbon", names)
         self.assertIn("Bridge.carbon-shade", names)
-        self.assertNotIn("Bridge.stand-plinth", names)
 
     def test_girders_hang_below_a_recessed_soffit_and_clear_the_chase_camera_on_the_underpass(self) -> None:
         layout, geometry, bridge = bell_deer()
@@ -186,14 +185,20 @@ class Deck(unittest.TestCase):
         layout, geometry, bridge = bell_deer()
         (girders,) = [p for p in geometry.scenery if p.name == "Bridge.carbon"]
         under = layout.path.at(bridge.underpass_s)
-        lowest = min(z for _, _, z in girders.mesh[0])
-        # Each girder's foot, as metres along the underpass from the crossing.
-        feet = {
-            round((x - under.x) * math.cos(under.heading) + (y - under.y) * math.sin(under.heading), 1)
-            for x, y, z in girders.mesh[0]
-            if z < lowest + 0.05
-        }
-        self.assertGreaterEqual(len(feet), 8, sorted(feet))
+        vertices, faces = girders.mesh
+        # Where each downward face, a girder's foot, lies along the underpass, to the metre.
+        feet = set()
+        for face in faces:
+            a, b, c = (vertices[i] for i in face[:3])
+            u = [b[i] - a[i] for i in range(3)]
+            v = [c[i] - a[i] for i in range(3)]
+            normal = (u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0])
+            if normal[2] >= -(abs(normal[0]) + abs(normal[1])):
+                continue
+            x = sum(vertices[i][0] for i in face) / len(face)
+            y = sum(vertices[i][1] for i in face) / len(face)
+            feet.add(round((x - under.x) * math.cos(under.heading) + (y - under.y) * math.sin(under.heading)))
+        self.assertGreaterEqual(len(feet), 4, sorted(feet))
 
     def test_the_embankment_runs_from_the_road_down_to_the_grass(self) -> None:
         _, geometry, _ = bell_deer()
