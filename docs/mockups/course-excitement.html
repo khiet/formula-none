@@ -46,6 +46,8 @@ th { color: var(--muted); font-weight: 600; }
 .chip.cost-S { color: var(--good); } .chip.cost-M { color: var(--gold); } .chip.cost-L { color: var(--warn); }
 .chip.src-both { color: var(--both); font-weight: 600; }
 .chip.src-pi, .chip.src-claude { font-weight: 600; }
+.chip.decision { color: var(--fg); font-weight: 700; }
+.chip.decision.skipped { color: var(--muted); text-decoration: line-through; }
 .chip.contested { color: var(--accent); font-weight: 600; }
 dl { display: grid; grid-template-columns: max-content 1fr; gap: 2px 10px; margin: 0; font-size: 14px; }
 dt { color: var(--muted); }
@@ -63,7 +65,7 @@ ol li, ul li { margin: 3px 0; }
 <body>
 <main>
 <h1>Course Excitement Picks</h1>
-<p class="lead">What to add to Bell Deer, Goldstone and Monarch so each lap races and looks more like a Mario Kart course, without giving up the walled course (ADR 0022) or the F1 theme. Two analyses are merged here: mine and pi's (gpt-6-astra, read-only, same brief). Tick what you want built, add notes, then press <b>Copy picks</b> and paste them back to me.</p>
+<p class="lead">What to add to Bell Deer, Goldstone and Monarch so each lap races and looks more like a Mario Kart course, without giving up the walled course (ADR 0022) or the F1 theme. Two analyses are merged here: mine and pi's (gpt-6-astra, read-only, same brief). Each card carries the decision taken on 2026-11-07 (Ticketed, Skipped, Deferred); the parent issue lists the tickets.</p>
 
 <div class="box">
 <h3>The diagnosis</h3>
@@ -365,6 +367,10 @@ const R = [
     dissent: "pi: no jumps on Goldstone or Monarch for parity; Bell Deer should own airtime, and a street circuit lands against a wall (as the layout's own note says)." },
 ];
 
+// The call made on 2026-11-07, after the picks: what was ticketed and what was not.
+const DECISION = { G1: "Ticketed", G2: "Ticketed", M1: "Ticketed", G3: "Ticketed", B1: "Ticketed", B4: "Ticketed",
+  X1: "Ticketed", B3: "Ticketed", G4: "Ticketed", G5: "Ticketed", M2: "Ticketed", M3: "Ticketed", X4: "Ticketed",
+  X2: "Ticketed", X3: "Ticketed", B5: "Ticketed", X6: "Design first", G6: "Deferred: a wheel swap only" };
 const COURSE = { bell: "Bell Deer", gold: "Goldstone", mon: "Monarch", cross: "Every course" };
 const SRC = { both: "Both agree", claude: "Claude", pi: "pi" };
 const KEY = "course-excitement-picks-v1";
@@ -388,6 +394,7 @@ for (const [tid, title, blurb] of TIERS) {
           <span class="chip cost-${r.cost}">Cost ${r.cost}</span>
           <span class="chip src-${r.src}">${SRC[r.src]}</span>
           ${r.contested ? '<span class="chip contested">contested</span>' : ""}
+          <span class="chip decision${DECISION[r.id] ? "" : " skipped"}">${DECISION[r.id] || "Skipped"}</span>
         </div>
         <dl>
           <dt>Where</dt><dd>${r.where}</dd>
