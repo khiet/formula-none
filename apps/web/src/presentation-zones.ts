@@ -165,7 +165,7 @@ const ZONES: Readonly<Record<TrackName, readonly PresentationZone[]>> = {
       crowd: 0,
     },
     {
-      // Over it a minute later: brighter than the course's own sky up the
+      // Over it later in the lap: brighter than the course's own sky up the
       // embankment, brightest across the crest, where the woods and the
       // Circuit Wheel open out ahead.
       from: BELL_DEER_BACK_STRAIGHT_M - BELL_DEER_EMBANKMENT_HALF_M,

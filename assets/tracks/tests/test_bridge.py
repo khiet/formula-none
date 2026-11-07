@@ -258,7 +258,8 @@ class Landmark(unittest.TestCase):
                 self.assertLess(abs((off + math.pi) % math.tau - math.pi), half / 2.0)
 
     def test_nothing_stands_between_a_chase_camera_on_the_back_straight_and_the_wheel(self) -> None:
-        # Pivoted pieces are in their own frames; the wheel's own and the fliers' never block it.
+        # Pivoted pieces are in their own frames, so skip them: the wheel's rim and gondolas, and the
+        # airship, which flies 45 m up, above every sight line here.
         triangles = []
         for piece in self.geometry.scenery:
             if piece.pivot is not None or piece.name.startswith("Prop.circuit-wheel"):
