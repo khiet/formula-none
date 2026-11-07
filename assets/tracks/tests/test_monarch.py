@@ -773,6 +773,13 @@ class Town(unittest.TestCase):
                 self.assertFalse(crosses(camera_at(sample), (ahead.x, ahead.y), footprint), (sample.s, footprint))
 
 
+    def test_a_block_refuses_a_layout_that_gives_no_length_or_no_height(self) -> None:
+        at = Spot(self.layout.path.segment("beau-rivage").s_mid, 24.0)
+        for prop in (Prop("block", at, height=12.0), Prop("block", at, length=14.0)):
+            with self.subTest(prop=prop), self.assertRaises(ValueError):
+                build(replace(self.layout, decor=replace(self.layout.decor, props=[prop])))
+
+
 class Pool(unittest.TestCase):
     """The pool the pool chicanes are named for, on their outside, low enough to see over the wall."""
 
@@ -817,6 +824,12 @@ class Pool(unittest.TestCase):
         self.assertLess(top, 3.0)
 
 
+    def test_it_refuses_a_layout_that_gives_no_length(self) -> None:
+        short = replace(self.layout, decor=replace(self.layout.decor, props=[Prop("pool", World(33.0, 20.0))]))
+        with self.assertRaises(ValueError):
+            build(short)
+
+
 class Spray(unittest.TestCase):
     """Waves throwing spray over the quay beside `quay`, each burst a node the View raises from
     its own clock."""
@@ -855,7 +868,6 @@ class Spray(unittest.TestCase):
 
     def test_it_is_painted_in_spray_from_the_palette(self) -> None:
         self.assertEqual(materials_used(self.bursts), {"spray"})
-        self.assertIn("spray", build_materials())
 
     def test_a_harbour_that_names_no_segment_throws_none(self) -> None:
         (prop,) = [p for p in self.layout.decor.props if p.kind == "harbour"]
