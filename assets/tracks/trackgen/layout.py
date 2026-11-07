@@ -167,6 +167,14 @@ MARSHAL_LAMP_BELOW_TOP_M = 0.3
 # each of the underpass's walls.
 BRIDGE_DECK_THICKNESS_M = 1.0
 BRIDGE_SPAN_CLEARANCE_M = 2.0
+# The deck's underside, in the tunnel's dark: girders this wide along the
+# raised leg, the outer two flush with the deck's sides, their feet at the
+# deck's full thickness, and a soffit this far up into the deck between
+# them. The feet stay where a flat underside would be, so the girders take
+# nothing from the chase camera's clearance under the deck.
+BRIDGE_GIRDERS = 5
+BRIDGE_GIRDER_WIDTH_M = 1.2
+BRIDGE_SOFFIT_RECESS_M = 0.5
 # A tunnel: a side standing against the back of each wall from the grass to
 # the roof, the roof spanning between them, and a row of lamps along each
 # side's inside face. The chase camera rides `ABOVE_M` over its kart in
@@ -1233,17 +1241,17 @@ def bridge_half_span(layout: Layout, bridge: Bridge) -> float:
 
 def bridges(layout: Layout, height: list[float]) -> list[SceneryMesh]:
     """Each bridge's embankment, down from the raised road's walls to the grass, its two abutments
-    and the deck between them, with an underside over the underpass."""
+    and the deck between them, with girders under a recessed soffit over the underpass."""
     path = layout.path
     edge = layout.runoff_half_width + WALL_THICKNESS_M
     ground = -GRASS_DROP_M
     parts = ByMaterial("Bridge")
 
-    def rail(indices: list[int], side: int, lift: float | None = None) -> list[mesh.Vertex]:
-        """The outer foot of the wall on `side`, at the road's level or at `lift` metres under it,
-        or on the grass when `lift` is None."""
+    def rail(indices: list[int], share: float, lift: float | None = None) -> list[mesh.Vertex]:
+        """`share` of the way from the centreline to the wall's outer foot, left when positive, at
+        the road's level or at `lift` metres under it, or on the grass when `lift` is None."""
         return [
-            (*path.samples[i].offset(side * edge), ground if lift is None else height[i] - GRASS_DROP_M - lift)
+            (*path.samples[i].offset(share * edge), ground if lift is None else height[i] - GRASS_DROP_M - lift)
             for i in indices
         ]
 
@@ -1268,10 +1276,22 @@ def bridges(layout: Layout, height: list[float]) -> list[SceneryMesh]:
         for side in (1, -1):
             top, under = rail(span, side, 0.0), rail(span, side, BRIDGE_DECK_THICKNESS_M)
             parts.add("wall", mesh.ribbon(top, under, closed=False) if side == 1 else mesh.ribbon(under, top, closed=False))
-        parts.add(
-            "stand-plinth",
-            mesh.ribbon(rail(span, -1, BRIDGE_DECK_THICKNESS_M), rail(span, 1, BRIDGE_DECK_THICKNESS_M), closed=False),
-        )
+        # Each girder's edges, as shares of the way from the centreline to a side; a ribbon from
+        # a lower share to a higher faces down, and a side from the foot to the soffit faces up
+        # the shares.
+        soffit = BRIDGE_DECK_THICKNESS_M - BRIDGE_SOFFIT_RECESS_M
+        width = BRIDGE_GIRDER_WIDTH_M / edge
+        pitch = (2.0 - width) / (BRIDGE_GIRDERS - 1)
+        girders = [(-1.0 + k * pitch, -1.0 + k * pitch + width) for k in range(BRIDGE_GIRDERS)]
+        for (_, near), (far, _) in zip(girders, girders[1:]):
+            parts.add("carbon-shade", mesh.ribbon(rail(span, near, soffit), rail(span, far, soffit), closed=False))
+        for k, (low, high) in enumerate(girders):
+            parts.add("carbon", mesh.ribbon(rail(span, low, BRIDGE_DECK_THICKNESS_M), rail(span, high, BRIDGE_DECK_THICKNESS_M), closed=False))
+            # The outer girders' outer faces are the deck's sides.
+            if k > 0:
+                parts.add("carbon", mesh.ribbon(rail(span, low, soffit), rail(span, low, BRIDGE_DECK_THICKNESS_M), closed=False))
+            if k < BRIDGE_GIRDERS - 1:
+                parts.add("carbon", mesh.ribbon(rail(span, high, BRIDGE_DECK_THICKNESS_M), rail(span, high, soffit), closed=False))
     return parts.scenery()
 
 

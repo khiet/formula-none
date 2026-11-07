@@ -129,8 +129,56 @@ const PORTAL_EASE_M = 10;
 
 const NO_AMBIENCE = { harbour: 0 } as const;
 
+// Bell Deer's edges, in metres from the line, are its layout's
+// (assets/tracks/trackgen/layouts/bell_deer.py): a change there moves them here.
+/** `BRIDGE_UNDERPASS_S`, where the underpass passes under the deck. */
+const BELL_DEER_UNDERPASS_M = 573.8;
+/** `BRIDGE_BACK_STRAIGHT_S`, where the back straight passes over the underpass. */
+const BELL_DEER_BACK_STRAIGHT_M = 1020.7;
+/**
+ * Half the deck's width along the underpass, which it crosses square: the
+ * run-off's half width and a wall (`runoff_half_width + WALL_THICKNESS_M`).
+ */
+const BELL_DEER_DECK_HALF_WIDTH_M = 12.5;
+/** `BRIDGE_HILL_HALF_LENGTH_M`, the embankment's climb either side of the crest. */
+const BELL_DEER_EMBANKMENT_HALF_M = 55;
+/** How far short of the deck's edge the underside's dark eases in, and past it out. */
+const DECK_EDGE_EASE_M = 12.5;
+/** How far inside the deck's edge the underside is wholly dark. */
+const DECK_EDGE_FULL_M = 2.5;
+/** How far either side of the crest the deck's bright holds. */
+const DECK_CREST_HOLD_M = 20;
+
 const ZONES: Readonly<Record<TrackName, readonly PresentationZone[]>> = {
-  "bell-deer": [],
+  "bell-deer": [
+    {
+      // Under the deck: dark and echoing from just short of its edge, all
+      // light again before the runaway wheel's crossing.
+      from: BELL_DEER_UNDERPASS_M - BELL_DEER_DECK_HALF_WIDTH_M - DECK_EDGE_EASE_M,
+      fullFrom: BELL_DEER_UNDERPASS_M - BELL_DEER_DECK_HALF_WIDTH_M + DECK_EDGE_FULL_M,
+      fullTo: BELL_DEER_UNDERPASS_M + BELL_DEER_DECK_HALF_WIDTH_M - DECK_EDGE_FULL_M,
+      to: BELL_DEER_UNDERPASS_M + BELL_DEER_DECK_HALF_WIDTH_M + DECK_EDGE_EASE_M,
+      light: 0.55,
+      echo: 1,
+      lamps: null,
+      ambience: NO_AMBIENCE,
+      crowd: 0,
+    },
+    {
+      // Over it later in the lap: brighter than the course's own sky up the
+      // embankment, brightest across the crest, where the woods and the
+      // Circuit Wheel open out ahead.
+      from: BELL_DEER_BACK_STRAIGHT_M - BELL_DEER_EMBANKMENT_HALF_M,
+      fullFrom: BELL_DEER_BACK_STRAIGHT_M - DECK_CREST_HOLD_M,
+      fullTo: BELL_DEER_BACK_STRAIGHT_M + DECK_CREST_HOLD_M,
+      to: BELL_DEER_BACK_STRAIGHT_M + BELL_DEER_EMBANKMENT_HALF_M,
+      light: 1.12,
+      echo: 0,
+      lamps: null,
+      ambience: NO_AMBIENCE,
+      crowd: 0,
+    },
+  ],
   goldstone: [],
   monarch: [
     {

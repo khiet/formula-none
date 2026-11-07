@@ -112,23 +112,48 @@ describe("a presentation zone's blend", () => {
   });
 });
 
-describe("Bell Deer's crossing", () => {
-  // Where the back straight passes over the underpass, metres along each
-  // leg (BRIDGE_UNDERPASS_S and BRIDGE_BACK_STRAIGHT_S in the layout).
-  const UNDERPASS_S = 573.8;
-  const BACK_STRAIGHT_S = 1020.7;
-  const underTheBridge: PresentationZone = {
-    ...DIM,
-    from: UNDERPASS_S - 20,
-    fullFrom: UNDERPASS_S - 5,
-    fullTo: UNDERPASS_S + 5,
-    to: UNDERPASS_S + 20,
-  };
+describe("Bell Deer's bridge, seen twice", () => {
+  const zones = presentationZonesOf("bell-deer");
   const lap = courseLength(centrelineOf(sidecar("bell-deer")));
+  const at = (s: number) => presentationBlend(zones, s, lap);
+  // Where the back straight passes over the underpass, metres along each
+  // leg, the embankment's ends on the back straight and the runaway wheel's
+  // crossing, from the layout.
+  const UNDERPASS_S = 573.8;
+  const DECK_S = 1020.7;
+  const EMBANKMENT_FROM_S = 965.7;
+  const EMBANKMENT_TO_S = 1075.7;
+  const WHEEL_CROSSING_S = 601.8;
 
-  it("dims the leg under the bridge and leaves the leg over it in the open, at the one place", () => {
-    expect(presentationBlend([underTheBridge], UNDERPASS_S, lap).light).toBeCloseTo(0.5);
-    expect(presentationBlend([underTheBridge], BACK_STRAIGHT_S, lap)).toEqual(OPEN_SKY);
+  it("closes in, dark and echoing, under the deck on the underpass", () => {
+    const under = at(UNDERPASS_S);
+    expect(under.light).toBeLessThan(0.7);
+    expect(under.echo).toBeCloseTo(1);
+    expect(under.lampGlow).toBe(0);
+  });
+
+  it("opens out bright and quiet on the deck, at the same place in plan", () => {
+    const deck = at(DECK_S);
+    expect(deck.light).toBeGreaterThan(1);
+    expect(deck.echo).toBe(0);
+  });
+
+  it("is the open sky before the climb, after it and at the runaway wheel's crossing", () => {
+    expect(at(EMBANKMENT_FROM_S)).toEqual(OPEN_SKY);
+    expect(at(EMBANKMENT_TO_S)).toEqual(OPEN_SKY);
+    expect(at(WHEEL_CROSSING_S)).toEqual(OPEN_SKY);
+    expect(at(10)).toEqual(OPEN_SKY);
+  });
+
+  it("changes the light by no more than a step a metre on either leg", () => {
+    for (const [from, to] of [
+      [UNDERPASS_S - 40, UNDERPASS_S + 40],
+      [EMBANKMENT_FROM_S, EMBANKMENT_TO_S],
+    ] as const) {
+      for (let s = from; s < to; s++) {
+        expect(Math.abs(at(s + 1).light - at(s).light)).toBeLessThan(0.05);
+      }
+    }
   });
 });
 
