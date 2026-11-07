@@ -135,7 +135,7 @@ const ZONES: Readonly<Record<TrackName, readonly PresentationZone[]>> = {
   monarch: [
     {
       // Dark, echoing and lit by its lamps; the dark comes in across the
-      // mouth's portal and lifts across the exit's, a kart's length or two each side.
+      // mouth's portal and lifts across the exit's.
       from: MONARCH_ROOF_FROM_M - PORTAL_EASE_M,
       fullFrom: MONARCH_ROOF_FROM_M + PORTAL_EASE_M,
       fullTo: MONARCH_ROOF_TO_M - PORTAL_EASE_M,

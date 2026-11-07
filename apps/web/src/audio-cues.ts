@@ -590,11 +590,7 @@ export function loopPlayback(loop: SpeedLoop, speed: number, topSpeed: number): 
   };
 }
 
-/**
- * Each ambience loop's gain at a zone's whole level: under the engine and
- * the SFX, so the place is heard without hiding a cue. Presentation, so not
- * the sim's to tune.
- */
+/** Each ambience loop's gain at a zone's whole level. Presentation, so not the sim's to tune. */
 const AMBIENCE_GAINS: Readonly<Record<AmbienceLoop, number>> = {
   harbour: 0.35,
   crowd: 0.3,

@@ -85,7 +85,6 @@ const LAMP_COLOUR = new Color().setRGB(1.0, 0.851, 0.541);
 /** The lamps' light hangs at their height over the own kart and reaches the karts round it. */
 const LAMP_HEIGHT_M = 4.4;
 const LAMP_REACH_M = 14;
-/** Under a lamp: about as bright on the kart's top as the open sky's ambient. */
 const LAMP_INTENSITY = 20;
 /** How far the lamps warm the ambient at their glow's peak. */
 const LAMP_AMBIENT_TINT = 0.35;
