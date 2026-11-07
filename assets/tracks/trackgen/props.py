@@ -16,9 +16,11 @@ node the View flies and dips with two rotor nodes it turns under it, its
 sponsor riding on both cabin flanks. The display jets: Goldstone's three red
 jets in an arrowhead, each trailing a smoke ribbon, one node the View flies
 past over the hangars. The harbour:
-Monarch's basin of water inside a quay, yachts moored along it. The casino:
-Monarch's grand house outside Casino Square, on a terrace level with the
-crest."""
+Monarch's basin of water inside a quay, yachts moored along it, and spray
+the View throws over its quay now and then. The casino: Monarch's grand
+house outside Casino Square, on a terrace level with the crest. The blocks:
+Monarch's terraced hotels and flats on the hillside behind the climb and
+round the harbour. The pool: the one the pool chicanes are named for."""
 
 from __future__ import annotations
 
@@ -340,6 +342,23 @@ YACHT_WINDOW_BAND = (0.35, 0.8)
 """The cabin's window band, from and to as shares of its height."""
 YACHT_WINDOW_PROUD_M = 0.03
 
+# Spray thrown over the quay beside each lap segment the harbour's `spray`
+# names: a burst every `SPRAY_PITCH_M` of that segment, on the coping's
+# middle line nearest the lap there, each a node the View raises and drops
+# from its own clock. A burst is plumes of `SPRAY_SIDES` facets, each (along
+# the quay from the burst's middle, tall, half as long along the quay at its
+# foot), `SPRAY_ACROSS_M` either side of the coping's middle across it, their
+# tips leaning `SPRAY_LEAN_M` toward the track: over the quay, not into the
+# sea. Long along the quay, the plumes run together into a breaking crest. A
+# plume's foot and lean stay inside the quay's outer edge, so the spray keeps
+# the harbour's 8 m rule. It is the palette's `spray`, lit from within: the
+# lap sees the side away from the sun, which any toned white turns grey.
+SPRAY_PITCH_M = 6.0
+SPRAY_PLUMES = ((0.0, 4.5, 1.6), (-1.9, 3.2, 1.3), (1.8, 3.6, 1.3))
+SPRAY_ACROSS_M = 0.8
+SPRAY_SIDES = 6
+SPRAY_LEAN_M = 0.6
+
 # The casino, Monarch's grand house outside Casino Square: a stucco block
 # under a copper hip roof, a square tower at each front corner under a copper
 # pyramid, and a copper dome on an eight-sided drum over the door, standing on
@@ -371,6 +390,53 @@ CASINO_WINDOWS_AT_M = (4.5, 8.5, 12.5)
 CASINO_WINDOW_ROWS = ((1.5, 5.0), (7.0, 10.5))
 """Each row's sill and head."""
 CASINO_PANEL_PROUD_M = 0.05
+
+# A block of hotels or flats, Monarch's town: `BLOCK_DEPTH_M` deep, its front
+# toward the track, `Prop.length` along it and `Prop.height` tall. One on a
+# spot on the lap stands on a terrace up to the road's height there, as the
+# casino does (ADR 0065), so blocks up the climb step up the hill with it.
+# Its shape and wall colour follow its number, so neighbours differ. A shape
+# is boxes, each (inset from both ends as a share of the length, from and to
+# as shares of the depth back from the front, from and to as shares of the
+# height), the last box of `hipped` carrying a hip roof up to the full height.
+# Every box's top is a flat roof; a band of dark windows crosses each storey
+# of every front the boxes before it leave in view.
+BLOCK_DEPTH_M = 14.0
+BLOCK_SHAPES: tuple[tuple[str, tuple[tuple[float, float, float, float, float], ...]], ...] = (
+    # Three steps up the hill, a roof terrace on each.
+    ("terraced", ((0.0, 0.0, 1.0 / 3.0, 0.0, 0.5), (0.0, 1.0 / 3.0, 2.0 / 3.0, 0.0, 0.75), (0.0, 2.0 / 3.0, 1.0, 0.0, 1.0))),
+    # A slab with a penthouse set back on its roof.
+    ("slab", ((0.0, 0.0, 1.0, 0.0, 0.8), (0.25, 0.3, 1.0, 0.8, 1.0))),
+    # A villa under a tiled hip roof.
+    ("hipped", ((0.0, 0.0, 1.0, 0.0, 0.7),)),
+)
+BLOCK_WALLS = (("stucco", "stucco-shade"), ("wall", "beam-shade"), ("stand-riser", "stand-plinth"))
+"""Each wall colour's lit and shade tones, in the order the blocks take them."""
+BLOCK_ROOF = ("kerb-red", "stand-canopy-shade")
+"""The hip roof's tiles, lit and shaded, the grandstand canopies' red."""
+BLOCK_STOREY_M = 3.0
+BLOCK_WINDOW_BAND = (1.0, 2.0)
+"""Each storey's band of windows, sill and head over its floor."""
+BLOCK_WINDOW_INSET_M = 1.5
+"""From each end of a front to its windows."""
+BLOCK_PANEL_PROUD_M = 0.05
+
+# The pool, beside Monarch's pool chicanes: a sheet of water `POOL_DEPTH_M`
+# deep and `Prop.length` long, inside a deck `POOL_DECK_M` wide raised
+# `POOL_DECK_HEIGHT_M` over the grass, the water `POOL_WATER_DOWN_M` under
+# the deck so the lip reads, `POOL_LANES` lanes marked along it, and a
+# parasol at each of `POOL_PARASOLS_AT` shares of the length on the back
+# deck. Nothing on it stands 3 m tall, so it hides nothing over the wall.
+POOL_DEPTH_M = 12.0
+POOL_DECK_M = 2.0
+POOL_DECK_HEIGHT_M = 0.4
+POOL_WATER_DOWN_M = 0.15
+POOL_LANES = 4
+POOL_LANE_LINE_M = 0.2
+POOL_PARASOLS_AT = (0.2, 0.5, 0.8)
+POOL_PARASOL = (0.08, 2.0, 0.85, 2.6)
+"""The pole's half width, the canopy's rim height and radius, and its apex height."""
+POOL_PARASOL_SIDES = 6
 
 
 @dataclass(frozen=True)
@@ -719,6 +785,16 @@ def _casino_footprint(layout: Layout, prop: Prop) -> list[Footprint]:
     return [Footprint(prop.kind, x, y, PROP_WALL_CLEARANCE_M, heading=heading, half_along=CASINO_LENGTH_M / 2.0, half_across=CASINO_DEPTH_M / 2.0)]
 
 
+def _block_footprint(layout: Layout, prop: Prop) -> list[Footprint]:
+    if prop.height is None:
+        raise ValueError("a block needs a height")
+    return [_row_footprint(layout, prop, BLOCK_DEPTH_M, "a block needs a length")]
+
+
+def _pool_footprint(layout: Layout, prop: Prop) -> list[Footprint]:
+    return [_row_footprint(layout, prop, POOL_DEPTH_M, "the pool needs a length")]
+
+
 def _facing_frame(prop: Prop, heading: float) -> tuple[mesh.Vertex, mesh.Vertex]:
     """The (along, across) axes of a prop that runs along the track, `across` pointing from
     the prop toward the track whichever side it stands on, so its front face is +across."""
@@ -738,6 +814,8 @@ FOOTPRINTS: dict[str, Callable[[Layout, Prop], list[Footprint]]] = {
     "jets": _no_footprint,
     "harbour": _harbour_footprint,
     "casino": _casino_footprint,
+    "block": _block_footprint,
+    "pool": _pool_footprint,
 }
 
 
@@ -1378,6 +1456,185 @@ def harbour(layout: Layout, prop: Prop, number: int, still: ByMaterial) -> tuple
                 continue
             moored.append(hull)
             _yacht(still, (*stern, sea), inward, size)
+    return _spray(layout, prop, number, outer, top), []
+
+
+def _spray(layout: Layout, prop: Prop, number: int, outer: list[tuple[float, float]], top: float) -> list[SceneryMesh]:
+    """The harbour's bursts of spray, `Prop.harbour.<number>.spray.<k>` numbered from one in the
+    lap's order, each pivoted at its foot on the coping with its local x toward the track."""
+    coping = _inset(outer, QUAY_WIDTH_M / 2.0)
+    bursts: list[SceneryMesh] = []
+    feet: list[tuple[float, float]] = []
+    for name in prop.spray:
+        segment = layout.path.segment(name)
+        s = segment.s_start + SPRAY_PITCH_M / 2.0
+        while s < segment.s_end:
+            sample = layout.path.at(s)
+            s += SPRAY_PITCH_M
+            foot = _nearest_on_outline(coping, sample.x, sample.y)
+            nearest = min(layout.path.samples, key=lambda q: math.dist((q.x, q.y), foot))
+            if not segment.s_start <= nearest.s <= segment.s_end:
+                continue
+            if any(math.dist(foot, other) < SPRAY_PITCH_M / 2.0 for other in feet):
+                continue
+            heading = math.atan2(sample.y - foot[1], sample.x - foot[0])
+            toward = (math.cos(heading), math.sin(heading))
+            along = (-toward[1], toward[0])
+            # A burst whose plumes would reach past the quay's outer edge, as at a corner, is dropped.
+            reach = [
+                (foot[0] + offset * along[0] + r * toward[0] + q * along[0], foot[1] + offset * along[1] + r * toward[1] + q * along[1])
+                for offset, _, radius in SPRAY_PLUMES
+                for r, q in ((SPRAY_ACROSS_M, 0.0), (-SPRAY_ACROSS_M, 0.0), (0.0, radius), (0.0, -radius), (SPRAY_LEAN_M, 0.0))
+            ]
+            if not all(_inside(outer, x, y) for x, y in reach):
+                continue
+            feet.append(foot)
+            node = Node(f"Prop.harbour.{number}.spray.{len(feet)}", Pivot(*foot, top, heading))
+            for offset, tall, radius in SPRAY_PLUMES:
+                middle = (foot[0] + offset * along[0], foot[1] + offset * along[1])
+                ring = [
+                    (
+                        middle[0] + SPRAY_ACROSS_M * math.cos(a) * toward[0] + radius * math.sin(a) * along[0],
+                        middle[1] + SPRAY_ACROSS_M * math.cos(a) * toward[1] + radius * math.sin(a) * along[1],
+                        top,
+                    )
+                    for a in (math.tau * k / SPRAY_SIDES for k in range(SPRAY_SIDES))
+                ]
+                tip = (middle[0] + SPRAY_LEAN_M * toward[0], middle[1] + SPRAY_LEAN_M * toward[1], top + tall)
+                centre = (middle[0], middle[1], top + tall / 3.0)
+                for k in range(SPRAY_SIDES):
+                    node.add("spray", (_outward([ring[k], ring[(k + 1) % SPRAY_SIDES], tip], centre), [(0, 1, 2)]))
+            bursts.append(node.scenery())
+    return bursts
+
+
+def _nearest_on_outline(outline: Sequence[tuple[float, float]], x: float, y: float) -> tuple[float, float]:
+    """The point on the closed outline's edges nearest (`x`, `y`)."""
+    best, found = math.inf, (x, y)
+    for (ax, ay), (bx, by) in zip(outline, [*outline[1:], outline[0]]):
+        dx, dy = bx - ax, by - ay
+        t = max(0.0, min(1.0, ((x - ax) * dx + (y - ay) * dy) / (dx * dx + dy * dy)))
+        point = (ax + t * dx, ay + t * dy)
+        if math.dist((x, y), point) < best:
+            best, found = math.dist((x, y), point), point
+    return found
+
+
+def block(layout: Layout, prop: Prop, number: int, still: ByMaterial) -> tuple[list[SceneryMesh], list[Lettering]]:
+    """A block of hotels or flats at `prop`, its front toward the track: on a spot on the lap, a
+    stand-plinth terrace under beam-top paving up to the road's height there, and on it the
+    boxes of its shape, walls toned in its colour under beam-top roofs, the hipped shape's
+    roof in tiles toned against their shade, and a carbon band of windows across each storey
+    of each front in view. No lettering."""
+    (plan,) = _block_footprint(layout, prop)
+    assert prop.height is not None and prop.length is not None
+    grass = -GRASS_DROP_M
+    road = elevation(layout.elevation, prop.at.s) if isinstance(prop.at, Spot) else 0.0
+    ground = road + grass
+    along, across = _facing_frame(prop, plan.heading)
+    half, front = plan.half_along, plan.half_across
+    if road > 0.0:
+        terrace = _block((plan.x, plan.y, grass), along, across, (-half, half), (-front, front), (0.0, road))
+        _sides(terrace, "stand-plinth", still)
+        vertices, (face,) = terrace["z1"]
+        still.add("beam-top", ([vertices[i] for i in face], [(0, 1, 2, 3)]))
+    origin = (plan.x, plan.y, ground)
+
+    def at(a: float, b: float, c: float) -> mesh.Vertex:
+        return (plan.x + a * along[0] + b * across[0], plan.y + a * along[1] + b * across[1], ground + c)
+
+    shape, boxes = BLOCK_SHAPES[(number - 1) % len(BLOCK_SHAPES)]
+    lit, shade = BLOCK_WALLS[(number - 1) % len(BLOCK_WALLS)]
+    depth, height = 2.0 * front, prop.height
+    for k, (inset, d0, d1, h0, h1) in enumerate(boxes):
+        a = (-half + inset * 2.0 * half, half - inset * 2.0 * half)
+        b = (front - d1 * depth, front - d0 * depth)
+        c = (h0 * height, h1 * height)
+        box = _block(origin, along, across, a, b, c)
+        _sides(box, lit, still, shade=shade)
+        if shape == "hipped" and k == len(boxes) - 1:
+            _hip_roof(still, at, a, b, c[1], height)
+        else:
+            vertices, (face,) = box["z1"]
+            still.add("beam-top", ([vertices[i] for i in face], [(0, 1, 2, 3)]))
+        # The windows, from the top of whatever stands in front of this front.
+        shown = max([e[4] * height for e in boxes[:k] if e[2] <= d0] + [c[0]])
+        floor = c[0]
+        while floor + BLOCK_WINDOW_BAND[1] <= c[1] - 0.5:
+            sill, head = floor + BLOCK_WINDOW_BAND[0], floor + BLOCK_WINDOW_BAND[1]
+            floor += BLOCK_STOREY_M
+            if sill < shown:
+                continue
+            a0, a1 = a[0] + BLOCK_WINDOW_INSET_M, a[1] - BLOCK_WINDOW_INSET_M
+            proud = b[1] + BLOCK_PANEL_PROUD_M
+            band = [at(a0, proud, sill), at(a1, proud, sill), at(a1, proud, head), at(a0, proud, head)]
+            still.add("carbon", (_outward(band, at((a0 + a1) / 2.0, b[0], (sill + head) / 2.0)), [(0, 1, 2, 3)]))
+    return [], []
+
+
+def _hip_roof(still: ByMaterial, at: Callable[[float, float, float], mesh.Vertex], a: tuple[float, float], b: tuple[float, float], eaves: float, ridge: float) -> None:
+    """A hip roof over the box spanning `a` along and `b` across from `eaves` up to a ridge
+    along the middle at `ridge`, inset from each end by half the depth, or a point when the box
+    is no longer than deep."""
+    middle_a, middle_b = (a[0] + a[1]) / 2.0, (b[0] + b[1]) / 2.0
+    inset = max(0.0, (a[1] - a[0]) / 2.0 - (b[1] - b[0]) / 2.0)
+    left, right = at(middle_a - inset, middle_b, ridge), at(middle_a + inset, middle_b, ridge)
+    corners = [at(a[0], b[0], eaves), at(a[1], b[0], eaves), at(a[1], b[1], eaves), at(a[0], b[1], eaves)]
+    hub = at(middle_a, middle_b, eaves)
+    back_left, back_right, front_right, front_left = corners
+    tiles, tiles_shade = BLOCK_ROOF
+    faces = [[back_left, back_right, right, left], [front_right, front_left, left, right], [back_right, front_right, right], [front_left, back_left, left]]
+    for face in faces:
+        if inset == 0.0 and len(face) == 4:
+            face = [face[0], face[1], face[2]]
+        still.add(*_toned(tiles, _outward(face, hub), tiles_shade))
+
+
+def pool(layout: Layout, prop: Prop, number: int, still: ByMaterial) -> tuple[list[SceneryMesh], list[Lettering]]:
+    """The pool at `prop`, its long side toward the track: a beam-top deck over stand-plinth
+    sides round a sheet of `water` sunk under it, white lane lines along the water, and carbon
+    poled parasols in kerb red and kerb white along the back deck. No lettering."""
+    (plan,) = _pool_footprint(layout, prop)
+    grass = -GRASS_DROP_M
+    along, across = _facing_frame(prop, plan.heading)
+    half, front = plan.half_along, plan.half_across
+    origin = (plan.x, plan.y, grass)
+
+    def at(a: float, b: float, c: float) -> mesh.Vertex:
+        return (plan.x + a * along[0] + b * across[0], plan.y + a * along[1] + b * across[1], grass + c)
+
+    deck, water = POOL_DECK_HEIGHT_M, POOL_DECK_HEIGHT_M - POOL_WATER_DOWN_M
+    _sides(_block(origin, along, across, (-half, half), (-front, front), (0.0, deck)), "stand-plinth", still)
+    wa, wb = half - POOL_DECK_M, front - POOL_DECK_M
+    outer = [at(-half, -front, deck), at(half, -front, deck), at(half, front, deck), at(-half, front, deck)]
+    inner = [at(-wa, -wb, deck), at(wa, -wb, deck), at(wa, wb, deck), at(-wa, wb, deck)]
+    up = (0.0, 0.0, 1.0)
+    for k in range(4):
+        j = (k + 1) % 4
+        still.add("beam-top", mesh.quad_facing(outer[k], outer[j], inner[j], inner[k], up))
+        # The basin's side, from the deck's edge down to the water, facing into the pool.
+        low = [(x, y, grass + water) for x, y, _ in (inner[k], inner[j])]
+        inward = (plan.x - (inner[k][0] + inner[j][0]) / 2.0, plan.y - (inner[k][1] + inner[j][1]) / 2.0, 0.0)
+        still.add("beam-top", mesh.quad_facing(inner[k], inner[j], low[1], low[0], inward))
+    still.add("water", mesh.quad_facing(at(-wa, -wb, water), at(wa, -wb, water), at(wa, wb, water), at(-wa, wb, water), up))
+    lane = 2.0 * wb / POOL_LANES
+    line = water + SCENERY_LIFT_M
+    for k in range(1, POOL_LANES):
+        b = -wb + k * lane
+        h = POOL_LANE_LINE_M / 2.0
+        still.add("wall", mesh.quad_facing(at(-wa + 1.0, b - h, line), at(wa - 1.0, b - h, line), at(wa - 1.0, b + h, line), at(-wa + 1.0, b + h, line), up))
+    pole, rim, radius, apex = POOL_PARASOL
+    back = -front + POOL_DECK_M / 2.0
+    for k, share in enumerate(POOL_PARASOLS_AT):
+        a = -half + share * 2.0 * half
+        stick = _block(origin, along, across, (a - pole, a + pole), (back - pole, back + pole), (deck, rim))
+        _sides(stick, "carbon", still)
+        colour = ("kerb-red", "kerb-white")[k % 2]
+        ring = [at(a + radius * math.cos(t), back + radius * math.sin(t), rim) for t in (math.tau * i / POOL_PARASOL_SIDES for i in range(POOL_PARASOL_SIDES))]
+        tip, centre = at(a, back, apex), at(a, back, rim)
+        for i in range(POOL_PARASOL_SIDES):
+            still.add(colour, (_outward([ring[i], ring[(i + 1) % POOL_PARASOL_SIDES], tip], centre), [(0, 1, 2)]))
+            still.add(colour, (_outward([ring[(i + 1) % POOL_PARASOL_SIDES], ring[i], centre], tip), [(0, 1, 2)]))
     return [], []
 
 
@@ -1590,4 +1847,6 @@ PROP_BUILDERS: dict[str, Callable[[Layout, Prop, int, ByMaterial], tuple[list[Sc
     "jets": jets,
     "harbour": harbour,
     "casino": casino,
+    "block": block,
+    "pool": pool,
 }

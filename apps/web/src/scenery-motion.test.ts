@@ -11,6 +11,9 @@ import {
   JETS_PASS_M,
   JETS_PASS_MS,
   JETS_PERIOD_MS,
+  SPRAY_BURST_MS,
+  SPRAY_PERIOD_MS,
+  SPRAY_STAGGER_MS,
   sceneryMotion,
   WHEEL_TURN_MS,
 } from "./scenery-motion";
@@ -427,5 +430,106 @@ describe("the display jets' flypast", () => {
     expect(travel.dot(HANGAR_STRAIGHT_RACE)).toBeCloseTo(-1, 6);
     expect(travel.dot(noseOf(formation))).toBeCloseTo(1, 6);
     expect(formation.quaternion.equals(rest)).toBe(true);
+  });
+});
+
+/**
+ * A track with the harbour's spray as the loader hands it over: `count`
+ * bursts along the quay, each a node at its foot turned toward the track,
+ * named as the export names them with the dots dropped.
+ */
+function trackWithSpray(count: number): { track: Object3D; bursts: Object3D[] } {
+  const track = new Group();
+  const bursts = Array.from({ length: count }, (_, index) => {
+    const burst = new Group();
+    burst.name = `Propharbour1spray${index + 1}`;
+    burst.position.set(60, 0.56, 30 + 6 * index);
+    burst.quaternion.setFromAxisAngle(UP, 3);
+    track.add(burst);
+    return burst;
+  });
+  return { track, bursts };
+}
+
+describe("the quay's spray", () => {
+  /** When burst `k`, from one, starts in the first period. */
+  const start = (k: number) => (k - 1) * SPRAY_STAGGER_MS;
+
+  it("shows each burst only through its own 1.2 s of every 8 s", () => {
+    const { track, bursts } = trackWithSpray(3);
+    const motion = sceneryMotion(track);
+    const [, second] = bursts;
+    for (const period of [0, 1, 25]) {
+      const begins = period * SPRAY_PERIOD_MS + start(2);
+      for (const nowMs of [
+        begins + 10,
+        begins + SPRAY_BURST_MS / 2,
+        begins + SPRAY_BURST_MS - 10,
+      ]) {
+        motion.update(nowMs);
+        expect(second?.visible, `${nowMs} ms`).toBe(true);
+      }
+      for (const nowMs of [
+        begins - 10,
+        begins + SPRAY_BURST_MS + 10,
+        begins + SPRAY_PERIOD_MS / 2,
+      ]) {
+        motion.update(nowMs);
+        expect(second?.visible, `${nowMs} ms`).toBe(false);
+      }
+    }
+    expect(SPRAY_PERIOD_MS).toBe(8_000);
+    expect(SPRAY_BURST_MS).toBe(1_200);
+  });
+
+  it("runs along the quay in the lap's order, each burst a stagger after the one before", () => {
+    const { track, bursts } = trackWithSpray(4);
+    const motion = sceneryMotion(track);
+    for (let k = 1; k <= bursts.length; k += 1) {
+      motion.update(start(k) + 1);
+      expect(
+        bursts.slice(0, k).every((burst) => burst.visible),
+        `burst ${k}`,
+      ).toBe(true);
+      expect(
+        bursts.slice(k).some((burst) => burst.visible),
+        `burst ${k}`,
+      ).toBe(false);
+    }
+    expect(SPRAY_STAGGER_MS * bursts.length).toBeLessThan(SPRAY_BURST_MS);
+  });
+
+  it("rises to its full height halfway through a burst and falls, spreading as it falls", () => {
+    const { track, bursts } = trackWithSpray(1);
+    const [burst] = bursts;
+    const motion = sceneryMotion(track);
+    const at = (share: number) => {
+      motion.update(share * SPRAY_BURST_MS);
+      return burst?.scale.clone() ?? new Vector3();
+    };
+    const rising = at(0.25);
+    const full = at(0.5);
+    const falling = at(0.75);
+    expect(full.y).toBeCloseTo(1, 6);
+    expect(rising.y).toBeLessThan(full.y);
+    expect(falling.y).toBeLessThan(full.y);
+    expect(falling.x).toBeGreaterThan(rising.x);
+    expect(falling.z).toBeCloseTo(falling.x, 6);
+  });
+
+  it("never moves or turns a burst off its foot", () => {
+    const { track, bursts } = trackWithSpray(2);
+    const rest = bursts.map((burst) => ({
+      position: burst.position.clone(),
+      quaternion: burst.quaternion.clone(),
+    }));
+    const motion = sceneryMotion(track);
+    for (const nowMs of [0, 300, 900, 5_000]) {
+      motion.update(nowMs);
+      bursts.forEach((burst, index) => {
+        expect(burst.position.equals(rest[index]?.position ?? new Vector3())).toBe(true);
+        expect(burst.quaternion.equals(rest[index]?.quaternion ?? new Quaternion())).toBe(true);
+      });
+    }
   });
 });

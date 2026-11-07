@@ -150,7 +150,13 @@ basin inside a `Prop`'s `outline`, its water a hair over the grass inside
 a raised quay, its yachts moored along the quays near the lap, any that
 would touch another or the quay dropped; the casino stands on a terrace up
 to the road's height at its spot, so it is level with Casino Square's crest
-(ADR 0065).
+(ADR 0065). Monarch's town is `block` props, hotels and flats whose
+shape and wall colour follow their number, on terraces up the climb and on the
+grass round the harbour; its `pool` lies outside the pool chicanes; and the
+harbour's `spray` names the lap segments whose stretch of quay throws spray,
+each burst a node `Prop.harbour.<n>.spray.<k>` the View raises from its own
+clock. The rows on Beau Rivage keep out of the chase cameras' sight lines to
+the casino's dome, and no block or pool hides the road ahead of one.
 Original names only; nothing may resemble a real sponsor, a Nintendo
 character or circuit (ADR 0007), and no kart carries a sponsor (ADR 0038).
 

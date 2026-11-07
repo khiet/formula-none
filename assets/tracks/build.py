@@ -98,6 +98,9 @@ MATERIALS = {
     "stucco-shade": (0.638, 0.601, 0.517),
     "copper": (0.388, 0.682, 0.592),
     "copper-shade": (0.259, 0.455, 0.395),
+    # Monarch's quay spray: a cold white, lit from within, since the lap only
+    # ever sees the side of it away from the sun.
+    "spray": (0.92, 0.96, 1.0),
 }
 # The crowd in the stands, one material per livery's key colour, and the lit
 # tone of each, the key mixed this far toward white, for the band across the
@@ -121,7 +124,7 @@ MATERIALS.update(
         for ground in ("asphalt", "sand")
     }
 )
-EMISSIVE = frozenset({"lamp"})
+EMISSIVE = frozenset({"lamp", "spray"})
 # Deep enough for the lettering to read as a letter from the track and no
 # deeper: every millimetre is more faces on every board.
 TEXT_EXTRUDE_M = 0.03
@@ -150,7 +153,8 @@ def material(name: str) -> bpy.types.Material:
     bsdf.inputs["Roughness"].default_value = 0.9
     if name in EMISSIVE:
         # The glTF exporter writes this as the material's emissive colour, so the
-        # lamp reads lit however little of the sun reaches under the roof.
+        # lamp reads lit however little of the sun reaches under the roof, and
+        # the spray white from its shaded side.
         bsdf.inputs["Emission Color"].default_value = bsdf.inputs["Base Color"].default_value
         bsdf.inputs["Emission Strength"].default_value = 1.0
     mat.diffuse_color = (*srgb, 1.0)

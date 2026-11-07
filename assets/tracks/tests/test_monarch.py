@@ -33,6 +33,7 @@ from trackgen.layout import (
     TUNNEL_ROOF_M,
     WALL_THICKNESS_M,
     Prop,
+    Spot,
     Tunnel,
     World,
     along_outside,
@@ -40,6 +41,8 @@ from trackgen.layout import (
 )
 from trackgen.layouts import load
 from trackgen.props import (
+    BLOCK_DEPTH_M,
+    CASINO_DOME_TOP_M,
     HELICOPTER_CABIN_WIDTH_M,
     HELICOPTER_CLEARANCE_M,
     HELICOPTER_DIP_DEG,
@@ -48,7 +51,10 @@ from trackgen.props import (
     HELICOPTER_SKIDS,
     HELICOPTER_TAIL_BLADE,
     HELICOPTER_TEXT_SIZE_M,
+    QUAY_HEIGHT_M,
+    QUAY_WIDTH_M,
     YACHT_OFF_QUAY_M,
+    Footprint,
     footprints,
 )
 from trackgen.sponsors import HELICOPTER_SPONSOR, SPONSORS
@@ -61,6 +67,7 @@ CASINO = "Prop.casino"
 HELICOPTER = "Prop.helicopter.1"
 WEB_SRC = Path(__file__).resolve().parents[3] / "apps" / "web" / "src"
 CHASE_CAMERA_TS = WEB_SRC / "chase-camera.ts"
+TUNING_RS = Path(__file__).resolve().parents[3] / "crates" / "sim" / "src" / "tuning.rs"
 SCENERY_MOTION_TS = WEB_SRC / "scenery-motion.ts"
 
 
@@ -220,7 +227,7 @@ class Props(unittest.TestCase):
 
     def test_every_footprint_keeps_8_m_of_grass_from_every_wall(self) -> None:
         found = footprints(self.layout)
-        self.assertEqual({f.kind for f in found}, {"pits", "harbour", "casino"})
+        self.assertEqual({f.kind for f in found}, {"pits", "harbour", "casino", "block", "pool"})
         for footprint in found:
             with self.subTest(footprint=footprint):
                 self.assertEqual(footprint.clearance, PROP_WALL_CLEARANCE_M)
@@ -576,6 +583,285 @@ class Helicopter(unittest.TestCase):
     def test_the_helicopter_costs_about_80_faces(self) -> None:
         faces = sum(len(p.mesh[1]) for p in self.pieces.values())
         self.assertTrue(70 <= faces <= 100, faces)
+
+
+def chase_camera_behind_m() -> float:
+    match = re.search(r"const BEHIND_M = ([0-9.]+);", CHASE_CAMERA_TS.read_text())
+    assert match is not None
+    return float(match.group(1))
+
+
+def half_field_of_view() -> float:
+    """Half the chase camera's horizontal field of view, in radians, on a 16:9 screen: the
+    tuned vertical field of view widened by the aspect."""
+    match = re.search(r"pub const CAMERA_FIELD_OF_VIEW_DEG: f32 = ([0-9.]+);", TUNING_RS.read_text())
+    assert match is not None
+    return math.atan(math.tan(math.radians(float(match.group(1))) / 2.0) * 16.0 / 9.0)
+
+
+def camera_at(sample) -> tuple[float, float]:
+    """In plan, where the chase camera rides behind a kart at `sample`."""
+    behind = chase_camera_behind_m()
+    return sample.x - behind * math.cos(sample.heading), sample.y - behind * math.sin(sample.heading)
+
+
+def corners_of(footprint: Footprint) -> list[tuple[float, float]]:
+    cos, sin = math.cos(footprint.heading), math.sin(footprint.heading)
+    a, b = footprint.half_along, footprint.half_across
+    return [(footprint.x + p * cos - q * sin, footprint.y + p * sin + q * cos) for p, q in ((-a, -b), (a, -b), (a, b), (-a, b))]
+
+
+def crosses(a, b, footprint: Footprint) -> bool:
+    """Whether the sight line from `a` to `b`, in plan, passes over the footprint."""
+    if footprint.distance(*a) <= 0.0 or footprint.distance(*b) <= 0.0:
+        return True
+
+    def side(p, q, r) -> float:
+        return (q[0] - p[0]) * (r[1] - p[1]) - (q[1] - p[1]) * (r[0] - p[0])
+
+    corners = corners_of(footprint)
+    for c, d in zip(corners, corners[1:] + corners[:1]):
+        if (side(a, b, c) > 0.0) != (side(a, b, d) > 0.0) and (side(c, d, a) > 0.0) != (side(c, d, b) > 0.0):
+            return True
+    return False
+
+
+def segment_at(layout, x: float, y: float) -> str:
+    """The name of the lap segment nearest the point."""
+    nearest = min(layout.path.samples, key=lambda q: math.dist((q.x, q.y), (x, y)))
+    return next(seg.name for seg in layout.path.segments if seg.s_start <= nearest.s <= seg.s_end)
+
+
+def inside_footprint(footprint: Footprint, v) -> bool:
+    return footprint.distance(v[0], v[1]) <= 1e-6
+
+
+def outward_in_plan(face) -> tuple[float, float]:
+    a, b, c = face[0], face[1], face[2]
+    u = (b[0] - a[0], b[1] - a[1], b[2] - a[2])
+    v = (c[0] - a[0], c[1] - a[1], c[2] - a[2])
+    return u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2]
+
+
+class Town(unittest.TestCase):
+    """Terraced blocks of hotels and flats on the hillside behind the climb, framing the casino
+    at its top, and round the harbour."""
+
+    def setUp(self) -> None:
+        self.layout = load(NAME)
+        self.geometry = build(self.layout)
+        self.blocks = [f for f in footprints(self.layout) if f.kind == "block"]
+        self.props = [p for p in self.layout.decor.props if p.kind == "block"]
+        self.pieces = family(self.geometry, "Prop.block")
+        casino = family(self.geometry, CASINO)
+        (casino_prop,) = [p for p in self.layout.decor.props if p.kind == "casino"]
+        terrace = elevation(self.layout.elevation, casino_prop.at.s) - GRASS_DROP_M
+        (self.dome,) = {(round(x, 6), round(y, 6)) for x, y, z in vertices_of(casino.values()) if abs(z - terrace - CASINO_DOME_TOP_M) < 1e-9}
+
+    def block_vertices(self, footprint: Footprint, material: str | None = None):
+        return [v for name, p in self.pieces.items() if material in (None, name.split(".")[-1]) for v in p.mesh[0] if inside_footprint(footprint, v)]
+
+    def test_they_stand_behind_the_climb_and_round_the_harbour(self) -> None:
+        (harbour,) = [f for f in footprints(self.layout) if f.kind == "harbour"]
+        climb = [f for f in self.blocks if segment_at(self.layout, f.x, f.y) in ("beau-rivage", "massenet", "casino-approach")]
+        # Fronts on the quay's edge, never on the water.
+        shore = [f for f in self.blocks if 0.0 < min(harbour.distance(x, y) for x, y in corners_of(f)) < 3.0]
+        self.assertGreaterEqual(len(climb), 12)
+        self.assertGreaterEqual(len(shore), 6)
+        self.assertEqual(len(climb) + len(shore), len(self.blocks), "nowhere else")
+        approach = {segment_at(self.layout, f.x, f.y) for f in climb}
+        self.assertIn("beau-rivage", approach)
+        self.assertIn("casino-approach", approach)
+
+    def test_the_climbs_blocks_stand_on_terraces_at_the_roads_height_and_the_shores_on_the_grass(self) -> None:
+        for prop, footprint in zip(self.props, self.blocks):
+            with self.subTest(prop=prop):
+                road = elevation(self.layout.elevation, prop.at.s) if isinstance(prop.at, Spot) else 0.0
+                walls = [v for m in ("stucco", "stucco-shade", "wall", "beam-shade", "stand-riser") for v in self.block_vertices(footprint, m)]
+                self.assertTrue(walls)
+                self.assertAlmostEqual(min(z for *_, z in walls), road - GRASS_DROP_M)
+                self.assertAlmostEqual(max(z for *_, z in self.block_vertices(footprint)), road - GRASS_DROP_M + prop.height)
+                if road > 0.0:
+                    plinth = self.block_vertices(footprint, "stand-plinth")
+                    self.assertAlmostEqual(min(z for *_, z in plinth), -GRASS_DROP_M, msg="a terrace from the grass")
+
+    def test_they_rise_up_the_hillside_away_from_the_climb(self) -> None:
+        climb = [(p, f) for p, f in zip(self.props, self.blocks) if isinstance(p.at, Spot) and segment_at(self.layout, f.x, f.y) == "beau-rivage"]
+        near = [p.height for p, _ in climb if abs(p.at.offset) < 30.0]
+        far = [p.height for p, _ in climb if abs(p.at.offset) > 50.0]
+        self.assertTrue(near and far)
+        self.assertLess(max(near), min(far))
+
+    def test_they_come_in_three_silhouettes_and_three_wall_colours(self) -> None:
+        silhouettes = set()
+        for prop, footprint in zip(self.props, self.blocks):
+            roofs = self.block_vertices(footprint, "beam-top") + self.block_vertices(footprint, "kerb-red") + self.block_vertices(footprint, "stand-canopy-shade")
+            base = max(z for *_, z in self.block_vertices(footprint)) - prop.height
+            silhouettes.add(tuple(sorted({round((z - base) / prop.height, 2) for *_, z in roofs if z > base + 1.0})))
+        self.assertGreaterEqual(len(silhouettes), 3, silhouettes)
+        walls = {name.split(".")[-1] for name in self.pieces} & {"stucco", "wall", "stand-riser"}
+        self.assertEqual(walls, {"stucco", "wall", "stand-riser"})
+
+    def test_their_windows_face_the_track_or_on_the_shore_the_water(self) -> None:
+        (windows,) = [p for name, p in self.pieces.items() if name.endswith(".carbon")]
+        (harbour,) = [f for f in footprints(self.layout) if f.kind == "harbour"]
+        vertices, faces = windows.mesh
+        for prop, footprint in zip(self.props, self.blocks):
+            toward = (-math.sin(footprint.heading), math.cos(footprint.heading))
+            if isinstance(prop.at, Spot):
+                # Toward the lap at the spot it hangs on.
+                spot = self.layout.path.at(prop.at.s)
+                to_front = (spot.x - footprint.x, spot.y - footprint.y)
+            else:
+                step = BLOCK_DEPTH_M
+                nearer = harbour.distance(footprint.x + step * toward[0], footprint.y + step * toward[1]) < harbour.distance(footprint.x - step * toward[0], footprint.y - step * toward[1])
+                to_front = toward if nearer else (-toward[0], -toward[1])
+            front = toward if toward[0] * to_front[0] + toward[1] * to_front[1] > 0.0 else (-toward[0], -toward[1])
+            # The windows stand just proud of the front, outside the plan.
+            mine = [[vertices[i] for i in f] for f in faces if footprint.distance(*vertices[f[0]][:2]) < 0.5]
+            with self.subTest(footprint=footprint):
+                self.assertGreaterEqual(len(mine), 2, "a band of windows a storey")
+                for face in mine:
+                    n = outward_in_plan(face)
+                    self.assertGreater(n[0] * front[0] + n[1] * front[1], 0.0)
+
+    def dome_sightings(self):
+        """Every chase camera on the climb with the casino's dome in its field of view, and its
+        sight line to the dome."""
+        half = half_field_of_view()
+        for name in ("beau-rivage", "massenet", "casino-approach"):
+            segment = self.layout.path.segment(name)
+            for i in self.layout.path.indices_between(segment.s_start, segment.s_end):
+                sample = self.layout.path.samples[i]
+                camera = camera_at(sample)
+                off = math.atan2(self.dome[1] - camera[1], self.dome[0] - camera[0]) - sample.heading
+                if abs((off + math.pi) % math.tau - math.pi) < half:
+                    yield name, sample, camera
+
+    def test_the_casinos_dome_is_in_view_up_the_first_of_beau_rivage_and_all_of_casino_approach(self) -> None:
+        seen = list(self.dome_sightings())
+        beau_rivage = [q.s for name, q, _ in seen if name == "beau-rivage"]
+        segment = self.layout.path.segment("beau-rivage")
+        self.assertAlmostEqual(min(beau_rivage), segment.s_start, delta=2.0)
+        self.assertGreater(max(beau_rivage) - min(beau_rivage), 60.0)
+        approach = self.layout.path.segment("casino-approach")
+        approach_seen = [q.s for name, q, _ in seen if name == "casino-approach"]
+        self.assertEqual(len(approach_seen), len(self.layout.path.indices_between(approach.s_start, approach.s_end)))
+
+    def test_no_block_stands_between_a_chase_camera_on_the_climb_and_the_casinos_dome(self) -> None:
+        for name, sample, camera in self.dome_sightings():
+            for footprint in self.blocks:
+                self.assertFalse(crosses(camera, self.dome, footprint), (name, sample.s, footprint))
+
+    def test_blocks_frame_the_dome_from_both_sides_of_the_sight_line_up_beau_rivage(self) -> None:
+        start = camera_at(self.layout.path.at(self.layout.path.segment("beau-rivage").s_start))
+        dx, dy = self.dome[0] - start[0], self.dome[1] - start[1]
+        reach = math.hypot(dx, dy)
+        sides = set()
+        for footprint in self.blocks:
+            along = ((footprint.x - start[0]) * dx + (footprint.y - start[1]) * dy) / reach
+            if 0.0 < along < reach:
+                sides.add(math.copysign(1.0, dx * (footprint.y - start[1]) - dy * (footprint.x - start[0])))
+        self.assertEqual(sides, {1.0, -1.0})
+
+    def test_no_block_or_pool_hides_the_road_25_m_ahead_of_any_chase_camera(self) -> None:
+        held = [f for f in footprints(self.layout) if f.kind in ("block", "pool")]
+        path = self.layout.path
+        for sample in path.samples:
+            ahead = path.at((sample.s + 25.0) % path.length)
+            for footprint in held:
+                self.assertFalse(crosses(camera_at(sample), (ahead.x, ahead.y), footprint), (sample.s, footprint))
+
+
+class Pool(unittest.TestCase):
+    """The pool the pool chicanes are named for, on their outside, low enough to see over the wall."""
+
+    def setUp(self) -> None:
+        self.layout = load(NAME)
+        (self.footprint,) = [f for f in footprints(self.layout) if f.kind == "pool"]
+        self.pieces = family(build(self.layout), "Prop.pool")
+        self.water = self.pieces["Prop.pool.water"]
+
+    def test_it_lies_outside_the_pool_chicanes_close_behind_their_wall(self) -> None:
+        edge = [p for p in corners_of(self.footprint)]
+        self.assertIn(segment_at(self.layout, self.footprint.x, self.footprint.y), ("pool-1-left", "pool-1-right", "pool-straight", "pool-2-right", "pool-2-left"))
+        segment = self.layout.path.segment("pool-straight")
+        _, left = across_track(self.layout, segment.s_mid, self.footprint.x, self.footprint.y)
+        self.assertLess(left, 0.0, "right of the lap, away from the harbour and the stands")
+        wall = self.layout.runoff_half_width + WALL_THICKNESS_M
+        nearest = min(math.dist(p, (q.x, q.y)) for p in edge for q in self.layout.path.samples) - wall
+        self.assertLess(nearest, PROP_WALL_CLEARANCE_M + 3.0, "close enough to read from the road")
+
+    def test_its_water_lies_flat_over_the_grass_inside_a_deck(self) -> None:
+        heights = {round(z, 6) for *_, z in self.water.mesh[0]}
+        self.assertEqual(len(heights), 1, "flat")
+        (water,) = heights
+        self.assertGreater(water, -GRASS_DROP_M)
+        deck = vertices_of([self.pieces["Prop.pool.beam-top"]])
+        self.assertGreater(max(z for *_, z in deck), water)
+        xs, ys = [v[0] for v in self.water.mesh[0]], [v[1] for v in self.water.mesh[0]]
+        self.assertTrue(min(v[0] for v in deck) < min(xs) and max(v[0] for v in deck) > max(xs))
+        self.assertTrue(min(v[1] for v in deck) < min(ys) and max(v[1] for v in deck) > max(ys))
+        for v in vertices_of(self.pieces.values()):
+            self.assertTrue(inside_footprint(self.footprint, v), v)
+
+    def test_lane_lines_run_its_length_on_the_water(self) -> None:
+        (water,) = {z for *_, z in self.water.mesh[0]}
+        lanes = self.pieces["Prop.pool.wall"]
+        _, faces = lanes.mesh
+        self.assertGreaterEqual(len(faces), 3)
+        self.assertTrue(all(water < z < water + 0.05 for *_, z in lanes.mesh[0]))
+
+    def test_nothing_on_it_stands_taller_than_a_parasol(self) -> None:
+        top = max(z for *_, z in vertices_of(self.pieces.values()))
+        self.assertLess(top, 3.0)
+
+
+class Spray(unittest.TestCase):
+    """Waves throwing spray over the quay beside `quay`, each burst a node the View raises from
+    its own clock."""
+
+    def setUp(self) -> None:
+        self.layout = load(NAME)
+        (self.harbour,) = [f for f in footprints(self.layout) if f.kind == "harbour"]
+        self.bursts = [p for p in build(self.layout).scenery if p.name.startswith(f"{HARBOUR}.1.spray.")]
+        self.sea = -GRASS_DROP_M + 0.01
+
+    def test_bursts_are_numbered_nodes_on_the_quays_coping_beside_quay(self) -> None:
+        self.assertGreaterEqual(len(self.bursts), 5)
+        self.assertEqual([p.name for p in self.bursts], [f"{HARBOUR}.1.spray.{k}" for k in range(1, len(self.bursts) + 1)])
+        for burst in self.bursts:
+            pivot = burst.pivot
+            with self.subTest(burst=burst.name):
+                self.assertIsNone(pivot.parent)
+                self.assertAlmostEqual(pivot.z, self.sea + QUAY_HEIGHT_M)
+                depth = -self.harbour.distance(pivot.x, pivot.y)
+                self.assertTrue(0.0 < depth < QUAY_WIDTH_M, "on the coping")
+                self.assertEqual(segment_at(self.layout, pivot.x, pivot.y), "quay")
+                self.assertLess(min(math.dist((pivot.x, pivot.y), (q.x, q.y)) for q in self.layout.path.samples), 21.0)
+
+    def test_each_rises_over_3_m_and_leans_toward_the_track_inside_the_harbours_footprint(self) -> None:
+        for burst in self.bursts:
+            pivot = burst.pivot
+            vertices = burst.mesh[0]
+            top = max(vertices, key=lambda v: v[2])
+            with self.subTest(burst=burst.name):
+                self.assertGreater(top[2] - pivot.z, 3.0)
+                self.assertAlmostEqual(min(z for *_, z in vertices), pivot.z)
+                nearest = min(self.layout.path.samples, key=lambda q: math.dist((q.x, q.y), (pivot.x, pivot.y)))
+                self.assertLess(math.dist(top[:2], (nearest.x, nearest.y)), math.dist((pivot.x, pivot.y), (nearest.x, nearest.y)))
+                for v in vertices:
+                    self.assertLessEqual(self.harbour.distance(v[0], v[1]), 1e-9)
+
+    def test_it_is_painted_in_spray_from_the_palette(self) -> None:
+        self.assertEqual(materials_used(self.bursts), {"spray"})
+        self.assertIn("spray", build_materials())
+
+    def test_a_harbour_that_names_no_segment_throws_none(self) -> None:
+        (prop,) = [p for p in self.layout.decor.props if p.kind == "harbour"]
+        calm = [replace(prop, spray=()) if p is prop else p for p in self.layout.decor.props]
+        geometry = build(replace(self.layout, decor=replace(self.layout.decor, props=calm)))
+        self.assertFalse(any(".spray." in p.name for p in geometry.scenery))
 
 
 if __name__ == "__main__":
