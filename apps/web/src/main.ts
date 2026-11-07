@@ -9,7 +9,7 @@ import { loadNickname, nicknameChars, saveNickname } from "./nickname";
 import { pickOffer } from "./picks";
 import { ping, pingTiming } from "./ping";
 import type { RaceRun } from "./race-run";
-import { createRaceScene } from "./race-scene";
+import { createRaceScene, racePitLane } from "./race-scene";
 import { type Gone, keepConnected, type RaceLink, reconnectTiming } from "./reconnect";
 import { createResultsScene, type RaceResults, resultsRows } from "./results-scene";
 import { type Countdown, RefusedError, type RoomClient } from "./room-client";
@@ -431,7 +431,7 @@ async function main(container: HTMLElement): Promise<void> {
       bridge,
       track,
       centrelineOf(sidecar),
-      pitLaneOf(sidecar),
+      racePitLane(pitLaneOf(sidecar), bridge.pitLaneFork(sidecar)),
       run,
       nickname,
       audio.race(),

@@ -364,7 +364,7 @@ describe("the speed cluster on the page", () => {
   it("shows the BOX plate only while the call shows", () => {
     const { find, panel } = mount();
     const plate = find("box-call");
-    expect(plate?.textContent).toBe("BOX");
+    expect(plate?.textContent).toBe("BOX BOX");
     expect(plate?.hidden).toBe(true);
     panel.boxCall(true);
     expect(plate?.hidden).toBe(false);

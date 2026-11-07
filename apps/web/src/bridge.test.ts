@@ -422,6 +422,16 @@ describe("the pit lane", () => {
     );
     expect(race.kartReadouts().map((kart) => kart.inPitLane)).toEqual([true, false]);
   });
+
+  it("reports where the lane forks off within the lap, and no fork on a course without a lane", async () => {
+    const bridge = await loadBridge(wasm);
+    const fork = bridge.pitLaneFork(BELL_DEER);
+    expect(fork?.splineLength).toBeGreaterThan(0);
+    expect(fork?.splineProgress).toBeGreaterThanOrEqual(0);
+    expect(fork?.splineProgress).toBeLessThan(fork?.splineLength ?? 0);
+    expect(bridge.pitLaneFork(OVAL)).toBeUndefined();
+    expect(() => bridge.pitLaneFork("{}")).toThrow();
+  });
 });
 
 describe("picks", () => {

@@ -338,9 +338,10 @@ export function createInstrumentPanel(
     tyre.dataset.tyreWear = tyreWearBand(percent);
   };
   showTyres(tuning.tyreLifeNewPercent);
-  // Beside the gauge whose red it warns of. "BOX" only ever means this radio
-  // call: an item box is never shortened to it (ADR 0081).
-  const boxPlate = instrument("box-call", "BOX");
+  // Beside the tyre gauge. "BOX" only ever means this radio call: an item
+  // box is never shortened to it (ADR 0081). The call ends as the kart
+  // enters the pit lane, so it never shares this spot with the STOP plate.
+  const boxPlate = instrument("box-call", "BOX BOX");
   plate(boxPlate, POSTER_RED);
   boxPlate.hidden = true;
   // The stop readout (ADR 0082): the crew's clock counting up on a carbon

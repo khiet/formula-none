@@ -8,7 +8,8 @@ their rule stand. The specification and its evidence are in
 `docs/mockups/tyre-wear-and-pit-lane.html`. ADR 0085 supersedes its rates for
 drifting and a spin-out. ADR 0087 supersedes its factors for the top speed
 cap and the wash-out at the cliff, and the model's lap costs. ADR 0095
-supersedes its acceleration row.
+supersedes its acceleration row. ADR 0096 supersedes its BOX plate and
+chime at the cliff with a call as the kart nears the pit lane.
 
 ## Context
 
