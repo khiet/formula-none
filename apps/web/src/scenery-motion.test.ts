@@ -3,14 +3,16 @@ import { describe, expect, it } from "vitest";
 import {
   AIRSHIP_CIRCLE_M,
   AIRSHIP_CIRCUIT_MS,
+  flypastCueOf,
+  flypastTimer,
   HELICOPTER_CIRCLE_M,
   HELICOPTER_CIRCUIT_MS,
   HELICOPTER_DIP_DEG,
   HELICOPTER_MAIN_ROTOR_TURNS_PER_S,
   HELICOPTER_TAIL_ROTOR_TURNS_PER_S,
+  JETS_OVERHEAD_MS,
   JETS_PASS_M,
   JETS_PASS_MS,
-  JETS_PERIOD_MS,
   SPRAY_BURST_MS,
   SPRAY_PERIOD_MS,
   SPRAY_STAGGER_MS,
@@ -381,48 +383,144 @@ describe("the display jets' flypast", () => {
   /** Where the leader's nose should be `metres` along the pass from its middle. */
   const along = (rest: Quaternion, metres: number) =>
     new Vector3(1, 0, 0).applyQuaternion(rest).multiplyScalar(metres).add(JETS_AT_REST);
+  /** Goldstone's lap and the progress of Chapel's start and the Hangar Straight's middle, the layout's. */
+  const LAP_M = 1323.39;
+  const CHAPEL_M = 816.79;
+  const STRAIGHT_MIDDLE_M = 925.76;
+  /** Half the hangars' row, the layout's 110 m: the stretch "over the hangars". */
+  const HANGARS_HALF_M = 55;
 
-  it("flies the 600 m pass in 6 s, centred over the hangars, every 30 s", () => {
+  /**
+   * Drive the own kart at `speed` from `fromM` for `seconds`, a 60 Hz frame
+   * at a time from `startMs`, cueing and posing the jets each frame and
+   * handing `onFrame` the kart's progress and the clock after each.
+   */
+  function drive(
+    motion: ReturnType<typeof sceneryMotion>,
+    flypast: ReturnType<typeof flypastTimer>,
+    {
+      fromM,
+      speed,
+      seconds,
+      startMs,
+    }: { fromM: number; speed: number; seconds: number; startMs: number },
+    onFrame: (progress: number, nowMs: number) => void = () => {},
+  ) {
+    for (let frame = 0; frame <= seconds * 60; frame++) {
+      const nowMs = startMs + (frame * 1000) / 60;
+      const progress = (fromM + (speed * frame) / 60) % LAP_M;
+      motion.update(nowMs, flypast.update(nowMs, progress));
+      onFrame(progress, nowMs);
+    }
+  }
+
+  it("is cued at the start of Goldstone's Chapel and nowhere else", () => {
+    expect(flypastCueOf("goldstone")).toBeCloseTo(CHAPEL_M, 2);
+    for (const course of ["bell-deer", "monarch", "oval"] as const) {
+      expect(flypastCueOf(course)).toBeNull();
+    }
+  });
+
+  it("stays hidden until the own kart reaches Chapel, then comes at it from Stowe", () => {
     const { track, formation } = trackWithJets();
     const rest = formation.quaternion.clone();
     const motion = sceneryMotion(track);
-    for (const period of [0, 1, 37]) {
-      const start = period * JETS_PERIOD_MS;
-      for (const [nowMs, metres] of [
-        [start, -300],
-        [start + 1500, -150],
-        [start + 3000, 0],
-        [start + 4500, 150],
-        [start + 5900, 290],
-      ] as const) {
-        motion.update(nowMs);
-        expect(formation.visible, `${nowMs} ms`).toBe(true);
-        expect(formation.position.distanceTo(along(rest, metres)), `${nowMs} ms`).toBeCloseTo(0, 4);
-      }
+    const flypast = flypastTimer(CHAPEL_M, LAP_M);
+    drive(motion, flypast, { fromM: 500, speed: 30, seconds: 12, startMs: 1_000 }, (progress) => {
+      if (progress < CHAPEL_M) expect(formation.visible, `${progress} m`).toBe(false);
+    });
+    const cuedMs = flypast.update(20_000, 900);
+    expect(cuedMs).not.toBeNull();
+    const startMs = (cuedMs as number) + JETS_OVERHEAD_MS - JETS_PASS_MS / 2;
+    for (const [nowMs, metres] of [
+      [startMs, -300],
+      [startMs + 1500, -150],
+      [startMs + 3000, 0],
+      [startMs + 4500, 150],
+      [startMs + 5900, 290],
+    ] as const) {
+      motion.update(nowMs, cuedMs);
+      expect(formation.visible, `${nowMs} ms`).toBe(true);
+      expect(formation.position.distanceTo(along(rest, metres)), `${nowMs} ms`).toBeCloseTo(0, 4);
     }
+    motion.update(startMs + JETS_PASS_MS + 1, cuedMs);
+    expect(formation.visible).toBe(false);
     expect(JETS_PASS_M).toBe(600);
     expect(JETS_PASS_MS).toBe(6_000);
-    expect(JETS_PERIOD_MS).toBe(30_000);
   });
 
-  it("hides the formation between passes and shows it again at the next", () => {
+  it("puts the formation over the hangars as the kart runs the middle of the straight", () => {
+    // From top speed down to a kart still gathering it out of Chapel.
+    for (const speed of [30, 27, 25]) {
+      const { track, formation } = trackWithJets();
+      const motion = sceneryMotion(track);
+      const flypast = flypastTimer(CHAPEL_M, LAP_M);
+      const offMiddle: number[] = [];
+      drive(motion, flypast, { fromM: 780, speed, seconds: 8, startMs: 0 }, (progress) => {
+        if (offMiddle.length === 0 && progress >= STRAIGHT_MIDDLE_M) {
+          expect(formation.visible, `${speed} m/s`).toBe(true);
+          offMiddle.push(formation.position.distanceTo(JETS_AT_REST));
+        }
+      });
+      expect(offMiddle, `${speed} m/s`).toHaveLength(1);
+      expect(offMiddle[0], `${speed} m/s`).toBeLessThan(HANGARS_HALF_M);
+    }
+  });
+
+  it("flies a second pass on the second lap", () => {
     const { track, formation } = trackWithJets();
     const motion = sceneryMotion(track);
-    for (const nowMs of [JETS_PASS_MS, 15_000, JETS_PERIOD_MS - 1, 2 * JETS_PERIOD_MS + 7_000]) {
-      motion.update(nowMs);
-      expect(formation.visible, `${nowMs} ms`).toBe(false);
-    }
-    motion.update(JETS_PERIOD_MS + 10);
-    expect(formation.visible).toBe(true);
+    const flypast = flypastTimer(CHAPEL_M, LAP_M);
+    const passes: number[] = [];
+    let wasVisible = false;
+    // Two laps at 28 m/s from the line, over the line between them.
+    drive(
+      motion,
+      flypast,
+      { fromM: 0, speed: 28, seconds: (2 * LAP_M) / 28, startMs: 0 },
+      (_, nowMs) => {
+        if (formation.visible && !wasVisible) passes.push(nowMs);
+        wasVisible = formation.visible;
+      },
+    );
+    expect(passes).toHaveLength(2);
+    expect((passes[1] as number) - (passes[0] as number)).toBeCloseTo((LAP_M / 28) * 1000, -2);
+  });
+
+  it("is not cued by a kart that stays short of Chapel, nor by a lap's wrap over the line", () => {
+    const flypast = flypastTimer(CHAPEL_M, LAP_M);
+    expect(flypast.update(0, CHAPEL_M - 1)).toBeNull();
+    expect(flypast.update(16, CHAPEL_M - 0.5)).toBeNull();
+    const overTheLine = flypastTimer(CHAPEL_M, LAP_M);
+    expect(overTheLine.update(0, LAP_M - 0.2)).toBeNull();
+    expect(overTheLine.update(16, 0.3)).toBeNull();
+    // Put back short of the cue, as a reset would: a step back, never a crossing.
+    const putBack = flypastTimer(CHAPEL_M, LAP_M);
+    expect(putBack.update(0, CHAPEL_M + 10)).toBeNull();
+    expect(putBack.update(16, CHAPEL_M - 5)).toBeNull();
+    const none = flypastTimer(null, LAP_M);
+    expect(none.update(0, CHAPEL_M - 1)).toBeNull();
+    expect(none.update(16, CHAPEL_M + 1)).toBeNull();
+  });
+
+  it("does not cue again while a pass is in flight", () => {
+    const flypast = flypastTimer(CHAPEL_M, LAP_M);
+    flypast.update(0, CHAPEL_M - 0.5);
+    const first = flypast.update(16, CHAPEL_M + 0.5);
+    expect(first).toBe(16);
+    // Back over the cue and forward again, as a kart spun round in Chapel would.
+    flypast.update(32, CHAPEL_M - 0.5);
+    expect(flypast.update(48, CHAPEL_M + 0.5)).toBe(16);
   });
 
   it("flies nose first against the race and never turns", () => {
     const { track, formation } = trackWithJets();
     const rest = formation.quaternion.clone();
     const motion = sceneryMotion(track);
-    motion.update(1000);
+    const startMs = JETS_OVERHEAD_MS - JETS_PASS_MS / 2;
+    motion.update(startMs + 1000, 0);
     const before = formation.position.clone();
-    motion.update(1100);
+    motion.update(startMs + 1100, 0);
     const travel = formation.position.clone().sub(before);
     // 100 m/s: 10 m in a tenth of a second.
     expect(travel.length()).toBeCloseTo(10, 4);

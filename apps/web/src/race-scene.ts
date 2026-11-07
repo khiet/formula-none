@@ -19,6 +19,7 @@ import type { RaceRun } from "./race-run";
 import { createRaceView } from "./race-view";
 import { downloadReplay } from "./replay";
 import { kartName, type RaceResults } from "./results-scene";
+import { flypastCueOf, flypastTimer } from "./scenery-motion";
 import { courseLength, type PitLaneLayout, type TrackFiles, type WorldPoint } from "./track";
 
 /** The course's pit lane as the Scene draws it, with where it forks off the course. */
@@ -131,6 +132,8 @@ export async function createRaceScene(
   // The course's presentation zones (ADR 0098), by the own kart's progress.
   const zones = presentationZonesOf(track.name);
   const lapLength = courseLength(centreline);
+  // The display jets' pass, cued by the own kart's progress (ADR 0099).
+  const flypast = flypastTimer(flypastCueOf(track.name), lapLength);
 
   const present = (frameSeconds: number) => {
     const readout = run.readout();
@@ -138,7 +141,8 @@ export async function createRaceScene(
     const standing = readout.standings[run.localKart];
     if (local && standing) {
       const pose = camera.update(local, frameSeconds, input.lookingBehind());
-      view.update(readout, pose, frameSeconds);
+      const flypastCuedMs = flypast.update(performance.now(), standing.splineProgress);
+      view.update(readout, pose, frameSeconds, flypastCuedMs);
       const blend = presentationBlend(zones, standing.splineProgress, lapLength);
       view.presentation(blend);
       panel.update(readout);
@@ -149,7 +153,7 @@ export async function createRaceScene(
         inPitLane: local.inPitLane,
       });
       panel.boxCall(called);
-      audio.update(soundReading(readout, run.localKart, tuning, called, blend));
+      audio.update(soundReading(readout, run.localKart, tuning, called, blend, flypastCuedMs));
     }
   };
   audio.start();

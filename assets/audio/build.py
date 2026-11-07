@@ -655,6 +655,42 @@ def slipstream(length=0.3, seed=21):
     return scale(tame(release(air, 0.03)), SLIPSTREAM_LEVEL)
 
 
+# The display jets' flypast (ADR 0099), from the cue as the own kart reaches
+# Chapel: the formation is overhead `JETS_OVERHEAD_MS` after it, so the roar
+# peaks there, and it is gone a little after the pass ends.
+FLYPAST_OVERHEAD_S = 4.0
+FLYPAST_S = 7.5
+# Under the cues' tamed peak, so the swell sits behind the engine and the race.
+FLYPAST_LEVEL = 0.6
+
+
+def flypast(seed=131):
+    """A jet roar swelling in from afar to overhead, then dropping in pitch as it goes, as a Doppler fall does."""
+    roar = noise(FLYPAST_S, decay=0.0, gain=1.0, seed=seed)
+    bright = highpass(lowpass(roar, 3200, passes=2), 500)
+    dull = lowpass(roar, 900, passes=2)
+
+    def coming(t):
+        # Rises slowly from afar, fastest in the last second before overhead,
+        # and hands over to the dull roar within a few tenths after it.
+        if t <= FLYPAST_OVERHEAD_S:
+            return (t / FLYPAST_OVERHEAD_S) ** 3
+        return math.exp(-8.0 * (t - FLYPAST_OVERHEAD_S))
+
+    def going(t):
+        if t <= FLYPAST_OVERHEAD_S:
+            return 0.0
+        past = t - FLYPAST_OVERHEAD_S
+        return (1.0 - math.exp(-10.0 * past)) * math.exp(-1.6 * past)
+
+    whine = tone(
+        1500, FLYPAST_S - FLYPAST_OVERHEAD_S, triangle, decay=1.6, gain=0.18, sweep_to=700, attack=0.1, curve="exp"
+    )
+    out = mix(envelope(bright, coming), scale(envelope(dull, going), 1.6))
+    place(out, FLYPAST_OVERHEAD_S, whine)
+    return scale(tame(release(out, 0.3)), FLYPAST_LEVEL)
+
+
 def finish(beep=880, high=1320, length=0.1, hold=0.5, gain=0.3):
     """Chequered: two pulse beeps at one pitch and a third higher, then a square chord."""
     return concat(
@@ -776,6 +812,7 @@ def sfx():
     write("drone-beep", drone_beep())
     # The slipstream's whoosh (ADR 0077), as the own kart's tow takes.
     write("slipstream", slipstream())
+    write("flypast", flypast())
     # Loops: 1.5 s, crossfaded to loop without a click, at LOOP_SPEED.
     write("drift-skid", tame(drift_skid(LOOP_SPEED)))
     write("grass", tame(grass(LOOP_SPEED)))

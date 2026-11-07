@@ -22,6 +22,7 @@ import crowdUrl from "../../../assets/audio/crowd.wav?url";
 import driftSkidUrl from "../../../assets/audio/drift-skid.wav?url";
 import droneBeepUrl from "../../../assets/audio/drone-beep.wav?url";
 import finishUrl from "../../../assets/audio/finish.wav?url";
+import flypastUrl from "../../../assets/audio/flypast.wav?url";
 import goUrl from "../../../assets/audio/go.wav?url";
 import grassUrl from "../../../assets/audio/grass.wav?url";
 import gunStallUrl from "../../../assets/audio/gun-stall.wav?url";
@@ -107,6 +108,7 @@ export const SOUND_URLS: Readonly<Record<SoundCue, string>> = {
   airHorn: airHornUrl,
   droneBeep: droneBeepUrl,
   slipstream: slipstreamUrl,
+  flypast: flypastUrl,
   boxChime: boxChimeUrl,
   boots: bootsUrl,
   jackLift: jackLiftUrl,

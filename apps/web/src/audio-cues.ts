@@ -50,6 +50,7 @@ export type SoundCue =
   | "airHorn"
   | "droneBeep"
   | "slipstream"
+  | "flypast"
   | "boxChime"
   | "boots"
   | "jackLift"
@@ -120,6 +121,8 @@ export interface SoundReading {
   readonly incomingDroneMetres: number | null;
   /** The presentation zone's blend where the own kart is (ADR 0098): the engine's echo and the ambience's levels. */
   readonly presentation: PresentationBlend;
+  /** The wall clock of the display jets' latest cue (ADR 0099); null before the first. */
+  readonly flypastCuedMs: number | null;
 }
 
 /** The own kart's stop, as its crew's sounds read it. */
@@ -162,6 +165,7 @@ export function soundReading(
   tuning: Pick<Tuning, "stopCleanS">,
   boxCall = false,
   presentation: PresentationBlend = OPEN_SKY,
+  flypastCuedMs: number | null = null,
 ): SoundReading {
   const readout = race.karts[kart];
   const standing = race.standings[kart];
@@ -205,6 +209,7 @@ export function soundReading(
       })),
     incomingDroneMetres: incomingDroneMetres(race.projectiles, kart, readout),
     presentation,
+    flypastCuedMs,
   };
 }
 
@@ -266,7 +271,8 @@ export const STAR_RESTART_RISE_S = 0.5;
  * as the coins it cost fall; the sputter as a stall begins; the wrong
  * way as its flag raises; the star's end as the run runs out, unless the
  * finish ended it; the slipstream as a tow takes, and nothing as it holds,
- * is re-armed or runs out (ADR 0077); the BOX chime as its call comes up
+ * is re-armed or runs out (ADR 0077); the jets' swell as each of their
+ * cues comes (ADR 0099); the BOX chime as its call comes up
  * (ADR 0080); the crew's boots as the own kart is caught for its stop,
  * each of its beats as the stop clock crosses it (`stopCues`), and the
  * jack's drop and the radio's go as it is let go; the finish as the kart finishes,
@@ -316,6 +322,9 @@ export function soundCues(before: SoundReading | undefined, after: SoundReading)
     cues.push("starEnd");
   }
   if (!before.towed && after.towed) cues.push("slipstream");
+  if (after.flypastCuedMs !== null && after.flypastCuedMs !== before.flypastCuedMs) {
+    cues.push("flypast");
+  }
   if (!before.boxCall && after.boxCall) cues.push("boxChime");
   cues.push(...stopBeatCues(before.stop, after.stop));
   if (finishedNow) cues.push("finish");
