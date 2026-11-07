@@ -7,7 +7,7 @@ const RULES = { fork: { splineProgress: FORK, splineLength: SPLINE_LENGTH }, lap
 const TUNING = { tyreLifeCliffPercent: 30 };
 const WORN = 25;
 
-/** The own kart `metres` short of the fork on `lap`, out of the pit lane. */
+/** The own kart `metres` short of the fork: worn, on lap 1 and out of the pit lane unless `overrides` say otherwise. */
 function shortOfFork(metres: number, overrides: Partial<BoxCallKart> = {}): BoxCallKart {
   return { tyreLife: WORN, lap: 1, splineProgress: FORK - metres, inPitLane: false, ...overrides };
 }
@@ -94,7 +94,7 @@ describe("the BOX call", () => {
       call.update({ tyreLife: WORN, lap, splineProgress, inPitLane: false });
     expect(at(SPLINE_LENGTH - 80, 1)).toBe(false);
     expect(at(SPLINE_LENGTH - 60, 1)).toBe(true);
-    // Over the line the lap counts on, and the fork's call carries on.
+    // Crossing the line counts a lap, but the fork ahead is the same one, so the call stays up.
     expect(at(10, 2)).toBe(true);
     expect(at(SPLINE_LENGTH - 60, 1)).toBe(true);
     expect(at(10, 2)).toBe(true);
