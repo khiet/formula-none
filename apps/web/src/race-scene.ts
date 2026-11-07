@@ -122,7 +122,7 @@ export async function createRaceScene(
   );
 
   const boxCall = createBoxCall(
-    // A course with a lane has a pit box to come in to (ADR 0082).
+    // Only a course with a lane has a pit box to come in to (ADR 0082).
     { fork: pitLane?.fork, lapsPerRace: run.laps },
     tuning,
   );

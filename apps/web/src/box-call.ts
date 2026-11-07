@@ -34,18 +34,17 @@ export interface BoxCall {
 
 /**
  * The radio call to come in for tyres: shows while the own kart, at or below
- * the tuned cliff and out of the pit lane, closes on the fork from 120 m to
- * 15 m, every lap but the final one. It opens at most once for each pass of
- * the fork, so a reconciliation that moves progress or life back over an edge
- * neither reopens it nor sounds the chime again.
+ * the tuned cliff, out of the pit lane and short of the final lap, is between
+ * `BOX_CALL_FROM_M` and `BOX_CALL_UNTIL_M` short of the fork. It opens at most
+ * once for each pass of the fork, so a reconciliation that moves progress or
+ * life back over an edge neither reopens it nor sounds the chime again.
  */
 export function createBoxCall(
   rules: BoxCallRules,
   tuning: Pick<Tuning, "tyreLifeCliffPercent">,
 ): BoxCall {
   const { fork } = rules;
-  // The lap on which the kart reaches the fork the open call is for, and the
-  // last one a call opened for.
+  // The lap on which the kart reaches the fork the last call opened for.
   let calledFor: number | undefined;
   let showing = false;
   return {
@@ -54,15 +53,15 @@ export function createBoxCall(
       const metres = metresToTheFork(fork, kart.splineProgress);
       // A fork just past the line from here is the next lap's.
       const forkLap = kart.splineProgress <= fork.splineProgress ? kart.lap : kart.lap + 1;
-      const inWindow = metres <= BOX_CALL_FROM_M && metres > BOX_CALL_UNTIL_M && !kart.inPitLane;
+      const holds =
+        metres <= BOX_CALL_FROM_M &&
+        metres > BOX_CALL_UNTIL_M &&
+        !kart.inPitLane &&
+        kart.lap < rules.lapsPerRace &&
+        kart.tyreLife <= tuning.tyreLifeCliffPercent;
       if (showing) {
-        showing = inWindow && forkLap === calledFor;
-      } else if (
-        inWindow &&
-        forkLap !== calledFor &&
-        forkLap < rules.lapsPerRace &&
-        kart.tyreLife <= tuning.tyreLifeCliffPercent
-      ) {
+        showing = holds && forkLap === calledFor;
+      } else if (holds && forkLap !== calledFor) {
         showing = true;
         calledFor = forkLap;
       }

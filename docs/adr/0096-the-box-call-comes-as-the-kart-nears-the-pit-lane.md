@@ -26,7 +26,7 @@ they could act on.
     measure it: about 4 s at top speed to hear the call and move across,
     and nothing where there is no longer room to get across;
   - it is not in the pit lane;
-  - the lap on which it reaches the fork is not the final lap.
+  - it is not on the final lap.
 - The call opens at most once for each pass of the fork, so a
   reconciliation that moves progress or life back over an edge neither
   reopens it nor sounds the chime again. If life falls to the cliff inside
