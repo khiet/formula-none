@@ -3,7 +3,9 @@
 ## Status
 
 Accepted (2026-10-31). ADR 0089 supersedes its pits outside the Hamilton
-Straight at 120 m.
+Straight at 120 m. ADR 0097 supersedes its five sausage kerbs, its three
+coins out wide on the run to Vale, and the places of the National
+Straight's box row and the Hangar Straight's boost pad.
 
 ## Context
 

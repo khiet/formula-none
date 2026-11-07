@@ -79,10 +79,10 @@ class Lap(unittest.TestCase):
         area = sum(x0 * y1 - x1 * y0 for (x0, y0), (x1, y1) in zip(points, points[1:] + points[:1])) / 2.0
         self.assertLess(area, 0.0, "clockwise")
 
-    def test_it_lays_what_the_mockup_placed(self) -> None:
+    def test_it_lays_its_boxes_pads_kerbs_checkpoints_and_grid(self) -> None:
         g = self.geometry
         counts = (len(g.item_boxes), len(g.boost_pads), len(g.kerbs), len(g.checkpoints), len(g.spawn_grid))
-        self.assertEqual(counts, (12, 2, 5, 15, 8))
+        self.assertEqual(counts, (12, 2, 3, 15, 8))
         self.assertEqual(self.layout.asphalt_half_width, 6.0)
         self.assertEqual(self.layout.runoff_width, 6.0)
 

@@ -2,7 +2,8 @@
 
 ## Status
 
-Accepted (2026-10-31).
+Accepted (2026-10-31). ADR 0097 supersedes the place of the tunnel's boost
+pad.
 
 ## Context
 

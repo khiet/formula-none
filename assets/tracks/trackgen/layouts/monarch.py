@@ -124,7 +124,11 @@ LAYOUT = Layout(
         ItemRow(seg("quay").s_mid),
     ],
     boost_pads=[
-        BoostPad(seg("tunnel").s_mid),
+        # Left of the centreline: the outside of the tunnel's bend and the
+        # inside of the chicane's left-hander, so the boost costs the chicane's
+        # entry, and the right half is the tow and the safe line in. The left
+        # leaves a boosted kart the most road short of the wall (ADR 0097).
+        BoostPad(seg("tunnel").s_mid, offset=3.0),
         # Left of the centreline, away from the fork on the right, so a kart called
         # in for the pit lane passes it by and no boost throws it at the pit wall.
         BoostPad(seg("pit-bend").s_start, offset=3.0),
