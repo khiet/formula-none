@@ -737,7 +737,9 @@ eases out between four edges, and may run over the start line. Keyed by
 spline progress, never by position, so at Bell Deer's bridge the leg the
 kart is on decides. Monarch has two: the tunnel, darker, with the engine
 echoing and the lamps' warm light passing over, and the harbour after it,
-brighter, with the water and the stand's crowd. A client table per course
+brighter, with the water and the stand's crowd. Bell Deer has one on each
+leg of its bridge: under the deck on the underpass, darker and echoing, and
+up the embankment over it, brighter. A client table per course
 (ADR 0098); Presentation only, so it changes neither grip nor timing.
 
 ### Feedback

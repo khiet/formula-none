@@ -593,11 +593,12 @@
 
       <article class="asset">
         <header><h3>Bridge</h3><code>assets/tracks/trackgen/layout.py bridges</code></header>
-        <div class="compare"><figure><figcaption>Bell Deer's back straight over the underpass, from the side</figcaption><div class="stage flat" data-draw="bridge"></div></figure></div>
-        <dl class="spec"><dt>Size</dt><dd>Deck 5 m up and 1 m thick, span 30 m, embankment 110 m along the raised leg</dd><dt>Decided</dt><dd><a href="adr/0047-suzuqa-patch.md">ADR 0047</a></dd></dl>
+        <div class="compare"><figure><figcaption>Bell Deer's back straight over the underpass, from the side</figcaption><div class="stage flat" data-draw="bridge"></div></figure><figure><figcaption>The underside from the underpass, looking up: five girders under the recessed soffit</figcaption><div class="stage flat" data-draw="bridgeUnderside"></div></figure></div>
+        <dl class="spec"><dt>Size</dt><dd>Deck 5 m up and 1 m thick, span 30 m, embankment 110 m along the raised leg; five girders 1.2 m wide, their feet at the deck's full 1 m, the soffit 0.5 m up between them</dd><dt>Light</dt><dd>The underpass zone at 0.55 of the sky's light with the engine's whole echo, in over 12.5 m to 2.5 m inside the deck's edge and out the same way; the deck zone at 1.12, in from the foot of the embankment to 20 m short of the crest, out by its far foot</dd><dt>Decided</dt><dd><a href="adr/0047-suzuqa-patch.md">ADR 0047</a>, <a href="adr/0098-presentation-zones-change-light-and-sound-by-spline-progress.md">ADR 0098</a></dd></dl>
         <div class="notes">
-          <p>Where a course crosses itself. The raised leg rides a grass embankment that falls straight from the foot of its walls to the ground, cut by a span over the leg beneath: a white abutment closes each end of the embankment, and the deck between them has white sides and an underside in the stands' plinth grey. The road, its sand and its walls climb with the leg, so the walls are the deck's parapets. Scenery only: the karts ride the raised leg's own surfaces.</p>
-          <p class="dont"><b>Don't</b> narrow the span to the road beneath: the underpass's walls stand clear of both abutments, so a kart under the deck never sees a wall end in a face.</p>
+          <p>Where a course crosses itself. The raised leg rides a grass embankment that falls straight from the foot of its walls to the ground, cut by a span over the leg beneath: a white abutment closes each end of the embankment, and the deck between them has white sides and an underside in the tunnel's dark: five girders in <code>carbon</code> <code>#2b2e33</code> run the span, the outer two flush with the sides, under a soffit in <code>carbon-shade</code> <code>#1c1c1e</code> recessed 0.5 m up into the deck between them. The girders' feet stay where a flat underside would be, so they take nothing from the chase camera's clearance on the underpass. The road, its sand and its walls climb with the leg, so the walls are the deck's parapets. Scenery only: the karts ride the raised leg's own surfaces.</p>
+          <p>The bridge is seen twice a lap, by two presentation zones (<code>apps/web/src/presentation-zones.ts</code>) keyed by spline progress, so the leg the own kart is on decides at the one place: under the deck the light falls to 0.55 of the sky's and the engine echoes; a minute later, up the embankment over it, the light rises past the sky's own to 1.12 across the crest, where the woods and the Circuit Wheel open out ahead. Both are the open sky again before the runaway wheel's crossing and at the embankment's feet.</p>
+          <p class="dont"><b>Don't</b> narrow the span to the road beneath: the underpass's walls stand clear of both abutments, so a kart under the deck never sees a wall end in a face. Don't hang the girders lower to make them deeper, and don't stand anything on the deck or beside the back straight that rises into the sight line to the Circuit Wheel: the track tests cast it from every chase camera down the straight.</p>
         </div>
       </article>
 
@@ -628,7 +629,7 @@
         <div class="compare"><figure><figcaption>From the start straight, the rim a sixteenth of a turn on</figcaption><div class="stage" data-draw="circuitWheel"></div></figure></div>
         <dl class="spec"><dt>Size</dt><dd>24 m across, hub 14 m up, legs 17 m apart at the feet; 418 faces</dd><dt>Decided</dt><dd><a href="adr/0050-trackside-props.md">ADR 0050</a></dd></dl>
         <div class="notes">
-          <p>A Ferris wheel outside the first curve, 34 m left of the centreline, where the start straight points. A sixteen-sided rim of box section with a set of spokes either side of the hub, in <code>wall</code> <code>#f0f0f0</code> where a face looks up and toward the sun and <code>beam-shade</code> <code>#9aa0a8</code> elsewhere; an eight-sided hub carried on two carbon A-frames with a brace at 6 m. Sixteen six-sided gondolas hang 0.4 m under the rim's corners, two in each of the crowd's key colours in slot order, on carbon hangers, so the wheel matches the stands. The rim and each gondola are nodes of their own in the glTF, <code>Prop.circuit-wheel.1.rim</code> and its children <code>.gondola.1</code> to <code>.16</code>, each with its origin at its pivot; the View turns the rim once every 90 s from its own clock and turns every gondola back by the same angle, so each hangs level. It carries no name.</p>
+          <p>A Ferris wheel outside the first curve, 34 m left of the centreline, where the start straight points; it is also the landmark the back straight runs at, in every chase camera's view from the foot of the straight to 130R, 5 to 12 degrees right of the road, unhidden from its hub up. A sixteen-sided rim of box section with a set of spokes either side of the hub, in <code>wall</code> <code>#f0f0f0</code> where a face looks up and toward the sun and <code>beam-shade</code> <code>#9aa0a8</code> elsewhere; an eight-sided hub carried on two carbon A-frames with a brace at 6 m. Sixteen six-sided gondolas hang 0.4 m under the rim's corners, two in each of the crowd's key colours in slot order, on carbon hangers, so the wheel matches the stands. The rim and each gondola are nodes of their own in the glTF, <code>Prop.circuit-wheel.1.rim</code> and its children <code>.gondola.1</code> to <code>.16</code>, each with its origin at its pivot; the View turns the rim once every 90 s from its own clock and turns every gondola back by the same angle, so each hangs level. It carries no name.</p>
           <p class="dont"><b>Don't</b> letter it, and don't put it inside the lap: the chase camera at turn 2 would clip the legs. A prop stands 8 m clear of every wall.</p>
         </div>
       </article>
@@ -1300,7 +1301,7 @@
   // The bridge from the side of the raised leg: the embankment's 110 m hill, 5 m at its crest,
   // drawn 2.5 px a metre along and 12 up, with the span over the underpass in the middle.
   draw.bridge = () => {
-    const grass = rgb([0.36, 0.69, 0.29]), wall = rgb([0.94, 0.94, 0.94]), under = rgb([0.706, 0.729, 0.761]);
+    const grass = rgb([0.36, 0.69, 0.29]), wall = rgb([0.94, 0.94, 0.94]), under = rgb([0.169, 0.18, 0.2]);
     const asphalt = rgb([0.42, 0.42, 0.47]), sand = rgb([0.91, 0.78, 0.45]);
     const ground = 128, x = (m) => 22 + m * 2.5, y = (m) => ground - m * 12;
     const h = (m) => 2.5 * (1 - Math.cos((2 * Math.PI * m) / 110));
@@ -1317,6 +1318,18 @@
       ${poly([[x(40) - 2, y(h(40))], [x(40), y(h(40))], [x(40), ground], [x(40) - 2, ground]], wall)}${poly([[x(70), y(h(70))], [x(70) + 2, y(h(70))], [x(70) + 2, ground], [x(70), ground]], wall)}
       ${poly([...deck, ...deckUnder], wall)}${poly([...deckUnder, ...deckUnder.map(([px, py]) => [px, py + 2]).reverse()], under)}
       ${poly([...parapet, ...parapet.map(([px, py]) => [px, py - 12]).reverse()], `color-mix(in srgb, ${wall} 88%, black)`)}</svg>`;
+  };
+  // The bridge's underside from the underpass, looking straight up, 10 px a metre: the deck's
+  // 25 m across the page, the soffit between five girders that run the span, and the underpass's
+  // road beneath, edge on, along the page.
+  draw.bridgeUnderside = () => {
+    const carbon = rgb([0.169, 0.18, 0.2]), soffit = rgb([0.11, 0.11, 0.118]), wall = rgb([0.94, 0.94, 0.94]);
+    const left = 35, top = 15, span = 120, width = 250, girder = 12, pitch = (width - girder) / 4;
+    const girders = [0, 1, 2, 3, 4].map((k) => `<rect x="${left + k * pitch}" y="${top}" width="${girder}" height="${span}" fill="${carbon}"/>`).join("");
+    return `<svg viewBox="0 0 320 150" role="img" aria-label="The bridge's underside from below: five dark girders run the span under a darker recessed soffit, with white sides at the deck's edges">
+      <rect width="320" height="150" fill="#cfe8f5"/>
+      <rect x="${left}" y="${top}" width="${width}" height="${span}" fill="${soffit}"/>${girders}
+      <rect x="${left - 3}" y="${top}" width="3" height="${span}" fill="${wall}"/><rect x="${left + width}" y="${top}" width="3" height="${span}" fill="${wall}"/></svg>`;
   };
   // The tunnel from the road at its mouth, 13 px a metre at the portal: the walls and sand either
   // side of the asphalt, the sides and roof receding to the bend, and the lamps along each side.

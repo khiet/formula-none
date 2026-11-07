@@ -129,8 +129,48 @@ const PORTAL_EASE_M = 10;
 
 const NO_AMBIENCE = { harbour: 0 } as const;
 
+// Bell Deer's edges, in metres from the line, are its layout's
+// (assets/tracks/trackgen/layouts/bell_deer.py): a change there moves them here.
+/** `BRIDGE_UNDERPASS_S` and `BRIDGE_BACK_STRAIGHT_S`, where each leg passes the other. */
+const BELL_DEER_UNDERPASS_M = 573.8;
+const BELL_DEER_DECK_M = 1020.7;
+/** Half the deck's width along the underpass, which it crosses square: the road, its sand and its walls. */
+const BELL_DEER_DECK_HALF_WIDTH_M = 12.5;
+/** `BRIDGE_HILL_HALF_LENGTH_M`, the embankment's climb either side of the crest. */
+const BELL_DEER_EMBANKMENT_HALF_M = 55;
+/** How far either side of the deck's edge the underside's dark eases in. */
+const DECK_EDGE_EASE_M = 12.5;
+
 const ZONES: Readonly<Record<TrackName, readonly PresentationZone[]>> = {
-  "bell-deer": [],
+  "bell-deer": [
+    {
+      // Under the deck: dark and echoing from just short of its edge, all
+      // light again before the runaway wheel's crossing.
+      from: BELL_DEER_UNDERPASS_M - BELL_DEER_DECK_HALF_WIDTH_M - DECK_EDGE_EASE_M,
+      fullFrom: BELL_DEER_UNDERPASS_M - BELL_DEER_DECK_HALF_WIDTH_M + 2.5,
+      fullTo: BELL_DEER_UNDERPASS_M + BELL_DEER_DECK_HALF_WIDTH_M - 2.5,
+      to: BELL_DEER_UNDERPASS_M + BELL_DEER_DECK_HALF_WIDTH_M + DECK_EDGE_EASE_M,
+      light: 0.55,
+      echo: 1,
+      lamps: null,
+      ambience: NO_AMBIENCE,
+      crowd: 0,
+    },
+    {
+      // Over it a minute later: brighter than the course's own sky up the
+      // embankment, brightest across the crest, where the woods and the
+      // Circuit Wheel open out ahead.
+      from: BELL_DEER_DECK_M - BELL_DEER_EMBANKMENT_HALF_M,
+      fullFrom: BELL_DEER_DECK_M - 20,
+      fullTo: BELL_DEER_DECK_M + 20,
+      to: BELL_DEER_DECK_M + BELL_DEER_EMBANKMENT_HALF_M,
+      light: 1.12,
+      echo: 0,
+      lamps: null,
+      ambience: NO_AMBIENCE,
+      crowd: 0,
+    },
+  ],
   goldstone: [],
   monarch: [
     {
