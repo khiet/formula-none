@@ -719,6 +719,36 @@
       </article>
 
       <article class="asset">
+        <header><h3>Town blocks</h3><code>assets/tracks/trackgen/props.py block, layouts/monarch.py</code></header>
+        <div class="compare"><figure><figcaption>The three shapes from the road, in their order: terraced, slab, hipped</figcaption><div class="stage" data-draw="blocks"></div></figure></div>
+        <dl class="spec"><dt>Size</dt><dd>14 m deep, 12 to 20 m along the front, 10 to 19 m tall over the ground or terrace they stand on; 15 up the climb and 8 round the harbour, 411 faces in all</dd><dt>Decided</dt><dd><a href="adr/0050-trackside-props.md">ADR 0050</a>, <a href="adr/0065-a-prop-beside-a-hill-stands-on-a-terrace.md">ADR 0065</a></dd></dl>
+        <div class="notes">
+          <p>Monarch's town: hotels and flats in rows stepping up the hillside behind Beau Rivage, taller the further they stand from the road, either side of the Casino approach, and round the harbour's far quays with their fronts to the water. The layout places each with its length and height; its shape and wall colour follow its number, so neighbours differ. <b>Terraced</b> is three boxes stepping up the hill to a half, three quarters and all of the height, a roof terrace on each; <b>slab</b> runs the full depth to four fifths of it with a penthouse set back on the roof; <b>hipped</b> is a villa to seven tenths under a tiled hip roof in <code>kerb-red</code> <code>#d63b2e</code> lit over <code>stand-canopy-shade</code>, the grandstand canopies' red. Walls cycle <code>stucco</code> <code>#f4e6c6</code>, <code>wall</code> <code>#f0f0f0</code> and <code>stand-riser</code>, each toned against its shade (<code>stucco-shade</code>, <code>beam-shade</code>, <code>stand-plinth</code>); flat roofs are <code>beam-top</code> <code>#c9ced5</code>. A band of <code>carbon</code> <code>#2b2e33</code> windows crosses each 3 m storey of every front in view, just proud of it, toward the track. A block on the climb stands on a <code>stand-plinth</code> terrace up to the road's height at its spot, as the casino does. The rows on Beau Rivage leave a wedge open from every chase camera on the climb to the casino's dome while the dome is in its field of view, so the blocks frame the casino from both sides of it; none stands where it would hide the road 25 m ahead of any chase camera. Scenery only, held to the 8 m rule.</p>
+          <p class="dont"><b>Don't</b> letter a block, light its windows or put one in the wedge to the casino: the casino is the climb's landmark.</p>
+        </div>
+      </article>
+
+      <article class="asset">
+        <header><h3>Pool</h3><code>assets/tracks/trackgen/props.py pool, layouts/monarch.py</code></header>
+        <div class="compare"><figure><figcaption>From above, the pool chicanes off the right edge</figcaption><div class="stage" data-draw="pool"></div></figure></div>
+        <dl class="spec"><dt>Size</dt><dd>30 m by 12 m; the deck 2 m wide and 0.4 m over the grass, the water 0.15 m under it; parasols 2.6 m tall; 64 faces</dd><dt>Decided</dt><dd><a href="adr/0050-trackside-props.md">ADR 0050</a></dd></dl>
+        <div class="notes">
+          <p>The pool the pool chicanes are named for, on their outside, between their wall and the pits' back, its long side toward them. A <code>beam-top</code> <code>#c9ced5</code> deck over <code>stand-plinth</code> <code>#b4bac2</code> sides rings a sheet of <code>water</code> <code>#2a6fb0</code> sunk under it so the lip reads; three <code>wall</code> <code>#f0f0f0</code> lane lines run its length, marking four lanes; three parasols on carbon poles stand on the back deck, <code>kerb-red</code> and <code>kerb-white</code> by turns. Nothing on it reaches 3 m, so the water shows over the wall. Scenery only, held to the 8 m rule.</p>
+          <p class="dont"><b>Don't</b> put a swimmer or a diving board in it: nothing in it moves, and nothing on it stands tall enough to hide the chicanes.</p>
+        </div>
+      </article>
+
+      <article class="asset">
+        <header><h3>Quay spray</h3><code>assets/tracks/trackgen/props.py harbour, Prop.spray in layout.py, apps/web/src/scenery-motion.ts</code></header>
+        <div class="compare"><figure><figcaption>One burst from the road, rising, at its height and falling</figcaption><div class="stage" data-draw="spray"></div></figure></div>
+        <dl class="spec"><dt>Size</dt><dd>A burst every 6 m of <code>quay</code> on the coping's middle line, 6 bursts; three six-faceted plumes 4.5, 3.6 and 3.2 m tall, 3.2, 2.6 and 2.6 m long along the quay and 1.2 m across it, tips leaning 0.6 m toward the track; 108 faces</dd><dt>Decided</dt><dd><a href="adr/0050-trackside-props.md">ADR 0050</a></dd></dl>
+        <div class="notes">
+          <p>Waves breaking over the harbour's quay beside the lap's <code>quay</code>, which the layout names in the harbour's <code>spray</code>. Each burst is a node <code>Prop.harbour.1.spray.&lt;k&gt;</code>, numbered in the lap's order, its origin at its foot on the coping and its local x toward the track: a tall plume between two shorter ones, each long along the quay so they run together into a breaking crest, in <code>spray</code> <code>#ebf5ff</code>, a cold white the export makes emissive as it does <code>lamp</code>: the lap only ever sees the side away from the sun, which turns any lit white grey. A burst whose plumes would reach past the quay's outer edge at their widest, spread as the View spreads them, as at a corner, is dropped, so the spray keeps the harbour's 8 m rule. Every 8 s, from its own clock, the View raises each burst from its foot to its full height and drops it again in 1.2 s, spreading it half as wide again as it falls, each 0.1 s after the one before so the wave runs the way the karts do; between bursts it is hidden. Two clients see the waves at different times and a stalled client's spray hangs.</p>
+          <p class="dont"><b>Don't</b> throw spray over the road or wet the karts: it is Presentation only, and never leaves the quay.</p>
+        </div>
+      </article>
+
+      <article class="asset">
         <header><h3>Helicopter</h3><code>assets/tracks/trackgen/props.py helicopter, layouts/monarch.py, apps/web/src/scenery-motion.ts</code></header>
         <div class="compare"><figure><figcaption>Side on, as the export leaves it, nose to the right</figcaption><div class="stage" data-draw="helicopter"></div></figure></div>
         <dl class="spec"><dt>Size</dt><dd>12.9 m from the nose to the fin's tip, a cabin 6 m long, 3.4 m tall and 2.2 m wide, an 11 m main rotor and a 2.1 m tail rotor; the nose 40 m up round a circle of 100 m radius; 83 faces and the lettering</dd><dt>Decided</dt><dd><a href="adr/0050-trackside-props.md">ADR 0050</a>, <a href="adr/0038-sponsors-on-the-scenery-only.md">ADR 0038</a>, <a href="mockups/sky-objects.html">the sky-objects mockup</a></dd></dl>
@@ -1568,6 +1598,63 @@
   // the lit flank of the cabin and boom, the kerb-red stripe and fin, the carbon glass, mast,
   // skids and struts, the main rotor's blades edge on, the tail rotor's disc beyond the fin,
   // and the name centred 3 m back from the nose.
+  // The three block shapes front on at 4.5 px to the metre, 15 m tall, 16 m long: the stucco
+  // terraced block's three steps, the white slab and its penthouse, the stand-riser villa under
+  // its red hip roof, each with a band of dark windows a storey.
+  draw.blocks = () => {
+    const m = 4.5, g = 150, carbon = "#2b2e33", top = "#c9ced5", red = "#d63b2e";
+    const bands = (x0, x1, from, to) => {
+      let out = "";
+      for (let floor = 0; floor + 2 <= to - 0.5; floor += 3) {
+        if (floor + 1 >= from) out += `<rect x="${x0 + 1.5 * m}" y="${g - (floor + 2) * m}" width="${(x1 - x0) - 3 * m}" height="${m}" fill="${carbon}"/>`;
+      }
+      return out;
+    };
+    const box = (x0, w, h0, h1, fill) => `<rect x="${x0}" y="${g - h1 * m}" width="${w * m}" height="${(h1 - h0) * m}" fill="${fill}"/><rect x="${x0}" y="${g - h1 * m}" width="${w * m}" height="2" fill="${top}"/>`;
+    const terraced = box(6, 16, 0, 15, "#f4e6c6") + bands(6, 6 + 16 * m, 11.25, 15) + box(6, 16, 0, 11.25, "#f4e6c6") + bands(6, 6 + 16 * m, 7.5, 11.25) + box(6, 16, 0, 7.5, "#f4e6c6") + bands(6, 6 + 16 * m, 0, 7.5);
+    const slab = box(84 + 4 * m, 8, 12, 15, "#f0f0f0") + bands(84 + 4 * m, 84 + 12 * m, 12, 15) + box(84, 16, 0, 12, "#f0f0f0") + bands(84, 84 + 16 * m, 0, 12);
+    const vx = 162;
+    const villa = `<rect x="${vx}" y="${g - 10.5 * m}" width="${16 * m}" height="${10.5 * m}" fill="#d7dbe0"/>` + poly([[vx, g - 10.5 * m], [vx + 7 * m, g - 15 * m], [vx + 9 * m, g - 15 * m], [vx + 16 * m, g - 10.5 * m]], red) + bands(vx, vx + 16 * m, 0, 10.5);
+    return `<svg viewBox="0 0 240 160" role="img" aria-label="Three town blocks: a cream block stepping up in three terraces, a white slab with a penthouse, a pale villa under a red hip roof, each with bands of dark windows">
+      ${terraced}${slab}${villa}
+      <rect y="${g}" width="240" height="10" fill="#b4bac2"/>
+    </svg>`;
+  };
+  // The pool from above at 6 px to the metre: the deck round the water, three lane lines, and
+  // the three parasols on the back deck, the chicanes' side to the right.
+  draw.pool = () => {
+    const m = 6, x0 = 30, y0 = 44, deck = "#c9ced5", water = "#2a6fb0", wall = "#f0f0f0";
+    let lanes = "";
+    for (const k of [1, 2, 3]) lanes += `<rect x="${x0 + 3 * m}" y="${y0 + (2 + 2 * k) * m - 0.6}" width="${24 * m}" height="1.2" fill="${wall}"/>`;
+    let parasols = "";
+    for (const [k, share] of [0.2, 0.5, 0.8].entries()) parasols += `<circle cx="${x0 + share * 30 * m}" cy="${y0 + m}" r="${0.85 * m}" fill="${k % 2 ? "#f5f5f5" : "#d63b2e"}"/>`;
+    return `<svg viewBox="0 0 240 160" role="img" aria-label="The pool from above: a grey deck round blue water marked in four lanes by white lines, red and white parasols along the back">
+      <rect width="240" height="160" fill="#5cb04a"/>
+      <rect x="${x0}" y="${y0}" width="${30 * m}" height="${12 * m}" fill="${deck}"/>
+      <rect x="${x0 + 2 * m}" y="${y0 + 2 * m}" width="${26 * m}" height="${8 * m}" fill="${water}"/>
+      ${lanes}${parasols}
+    </svg>`;
+  };
+  // One burst side on at 8 px to the metre, three times over: a fifth, half and four fifths of
+  // the way through its rise and fall, on the coping, the track to the right.
+  draw.spray = () => {
+    const m = 8, g = 130, spray = "#ebf5ff";
+    let out = "";
+    // Seen from the track, so a plume's length along the quay is its width here.
+    for (const [cx, share] of [[40, 0.2], [120, 0.5], [200, 0.8]]) {
+      const rise = Math.sin(Math.PI * share), spread = 1 + 0.5 * share;
+      for (const [off, tall, radius] of [[-1.9, 3.2, 1.3], [1.8, 3.6, 1.3], [0, 4.5, 1.6]]) {
+        const x = cx + off * m * spread, r = radius * m * spread;
+        out += poly([[x - r, g], [x + r, g], [x, g - tall * rise * m]], spray);
+      }
+    }
+    return `<svg viewBox="0 0 240 160" role="img" aria-label="A burst of white spray over the quay: three plumes leaning toward the track, low as it rises, tall at its height, lower and wider as it falls">
+      <rect width="240" height="${g}" fill="#2a6fb0"/>
+      ${out}
+      <rect y="${g}" width="240" height="4" fill="#c9ced5"/>
+      <rect y="${g + 4}" width="240" height="26" fill="#b4bac2"/>
+    </svg>`;
+  };
   draw.helicopter = () => {
     const m = 14, nose = 200, floor = 112, wall = "#f0f0f0", kerbRed = "#d63b2e", carbon = "#2b2e33", ink = "#cc2929";
     const at = ([s, u]) => [nose - s * m, floor - u * m];

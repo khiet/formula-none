@@ -129,14 +129,14 @@ or 5 m of another, so the same layout exports the same trees and no tree
 is placed by hand. Pines are two six-sided cones, round trees and
 cherries eight-facet lumps, each in a lit and a shade tone on a
 four-sided trunk, flat on the grass. The Circuit Wheel, the arch over
-Dunlop, the pit building, the airship and Monarch's harbour and casino are
-props too: a tree keeps its canopy out of a prop's footprint, and a tall
+Dunlop, the pit building, the airship and Monarch's harbour, casino, blocks
+and pool are props too: a tree keeps its canopy out of a prop's footprint, and a tall
 prop keeps 8 m of grass from every wall. A span is held to the span rule instead: the arch's underside
 keeps the gantry's 7 m over the asphalt and its feet stand on grass
 beyond the walls. The airship has no footprint: it circles its `Prop`'s
 `at` at its `radius`, `height` metres over the grass, and keeps 30 m over
 every road under its circle. The parts the View moves, the wheel's rim
-and its sixteen gondolas and the airship's hull, carry a `Pivot`, so
+and its sixteen gondolas, the airship's hull and the harbour's spray, carry a `Pivot`, so
 `build.py` exports each as a node of its own with its origin there
 (`Prop.circuit-wheel.1.rim` and its children `.gondola.1` to `.16`;
 `Prop.airship.1.hull` at the nose), and `apps/web/src/scenery-motion.ts`
@@ -150,7 +150,13 @@ basin inside a `Prop`'s `outline`, its water a hair over the grass inside
 a raised quay, its yachts moored along the quays near the lap, any that
 would touch another or the quay dropped; the casino stands on a terrace up
 to the road's height at its spot, so it is level with Casino Square's crest
-(ADR 0065).
+(ADR 0065). Monarch's town is `block` props, hotels and flats whose
+shape and wall colour follow their number, on terraces up the climb and on the
+grass round the harbour; its `pool` lies outside the pool chicanes; and the
+harbour's `spray` names the lap segments whose stretch of quay throws spray,
+each burst a node `Prop.harbour.<n>.spray.<k>` the View raises from its own
+clock. The rows on Beau Rivage keep out of the chase cameras' sight lines to
+the casino's dome, and no block or pool hides the road ahead of one.
 Original names only; nothing may resemble a real sponsor, a Nintendo
 character or circuit (ADR 0007), and no kart carries a sponsor (ADR 0038).
 

@@ -566,7 +566,9 @@ and hides between passes. Its lowest point keeps 20 m over every road under the 
 Monarch's basin of sea water outside the harbour straight and the pool,
 close behind their stands, and round the quay and Rascasse: a prop of flat
 water a hair over the grass inside a raised stone quay, with yachts moored
-stern-to along the quays near the lap. Nothing in it moves, and it is held to the 8 m rule (ADR 0050).
+stern-to along the quays near the lap. The yachts and the water stay still;
+only its spray moves, bursts the View raises over the quay beside `quay` now
+and then from its own clock. It is held to the 8 m rule (ADR 0050).
 
 ### casino
 
@@ -575,6 +577,20 @@ stucco under copper roofs, two towers and a dome, standing on a terrace that
 rises from the grass to the road's height there, its dark door and windows
 toward the track. It carries no name, and it is held to the 8 m rule (ADRs
 0050, 0065).
+
+### block
+
+A prop of Monarch's town: a hotel or block of flats, terraced, a slab or a
+hipped villa by its number, its windows toward the track. Up the climb it
+stands on a terrace at the road's height and keeps out of the chase
+cameras' sight line to the casino; round the harbour it stands on the grass
+facing the water. It is held to the 8 m rule (ADRs 0050, 0065).
+
+### pool
+
+The pool beside Monarch's pool chicanes, on their outside: a prop of water
+inside a low deck with lane lines and parasols, nothing on it 3 m tall. It
+is held to the 8 m rule (ADR 0050).
 
 ### tyre wall
 

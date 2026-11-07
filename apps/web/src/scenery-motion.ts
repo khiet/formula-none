@@ -47,6 +47,21 @@ export const JETS_PASS_M = 600;
 export const JETS_PASS_MS = 6_000;
 /** Milliseconds from the start of one pass to the next; the formation is hidden in between. */
 export const JETS_PERIOD_MS = 30_000;
+/** Milliseconds from one wave breaking over the quay to the next. */
+export const SPRAY_PERIOD_MS = 8_000;
+/** Milliseconds a burst of spray takes to rise and fall; it is hidden the rest of the period. */
+export const SPRAY_BURST_MS = 1_200;
+/**
+ * Milliseconds from one burst's start to the next along the quay, in the
+ * export's numbering, the lap's order, so the wave runs the way the karts do.
+ */
+export const SPRAY_STAGGER_MS = 100;
+/**
+ * How much wider than at rest a burst has spread by the end of its fall. The
+ * track export places bursts so their full spread stays over the quay, and
+ * the track tests hold its `SPRAY_SPREAD` to this.
+ */
+export const SPRAY_SPREAD = 0.5;
 
 /**
  * The axis a rim turns about, in its node's own frame: the track builder
@@ -120,6 +135,13 @@ interface Flypast {
   readonly nose: Vector3;
 }
 
+/** A burst of spray on the quay, the `index`th from zero along it. */
+interface Burst {
+  readonly node: Object3D;
+  readonly index: number;
+  readonly rest: Vector3;
+}
+
 /** A node that spins about its own `axis` at `turnsPerS` from where the export left it. */
 interface Spinner {
   readonly node: Object3D;
@@ -154,14 +176,24 @@ const SPINNING: readonly { node: RegExp; axis: Vector3; turnsPerS: number }[] = 
  * `.main-rotor` and `.tail-rotor` spin about their own mast and axle. Each
  * `Prop.jets.<n>.formation`: once per `JETS_PERIOD_MS` it flies nose first
  * along `JETS_PASS_M` centred where the export left it, in `JETS_PASS_MS`,
- * without turning, and is hidden for the rest of the period.
+ * without turning, and is hidden for the rest of the period. Each
+ * `Prop.harbour.<n>.spray.<k>`: once per `SPRAY_PERIOD_MS`, starting
+ * `SPRAY_STAGGER_MS` after burst `k - 1`, it rises from its foot to the
+ * height the export left it and falls again in `SPRAY_BURST_MS`, spreading
+ * as it falls, and is hidden for the rest of the period.
  */
 export function sceneryMotion(track: Object3D): SceneryMotion {
   const wheels: CircuitWheel[] = [];
   const fliers: Flier[] = [];
   const spinners: Spinner[] = [];
   const flypasts: Flypast[] = [];
+  const bursts: Burst[] = [];
   track.traverse((node) => {
+    const spray = /^Prop\.?harbour\.?\d+\.?spray\.?(\d+)$/.exec(node.name);
+    if (spray !== null) {
+      bursts.push({ node, index: Number(spray[1]) - 1, rest: node.scale.clone() });
+      return;
+    }
     if (/^Prop\.?circuit-wheel\.?\d+\.?rim$/.test(node.name)) {
       const gondolas = node.children
         .filter((child) => /^Prop\.?circuit-wheel\.?\d+\.?gondola\.?\d+$/.test(child.name))
@@ -229,6 +261,19 @@ export function sceneryMotion(track: Object3D): SceneryMotion {
       for (const { node, middle, nose } of flypasts) {
         node.visible = flying;
         if (flying) node.position.copy(nose).multiplyScalar(flown).add(middle);
+      }
+      for (const { node, index, rest } of bursts) {
+        const into =
+          (((nowMs - index * SPRAY_STAGGER_MS) % SPRAY_PERIOD_MS) + SPRAY_PERIOD_MS) %
+          SPRAY_PERIOD_MS;
+        node.visible = into < SPRAY_BURST_MS;
+        if (node.visible) {
+          const share = into / SPRAY_BURST_MS;
+          // Never quite flat: a zero scale leaves the renderer no normals to light it by.
+          const rise = Math.max(Math.sin(Math.PI * share), 0.01);
+          const spread = 1 + SPRAY_SPREAD * share;
+          node.scale.set(rest.x * spread, rest.y * rise, rest.z * spread);
+        }
       }
     },
   };

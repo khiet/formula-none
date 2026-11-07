@@ -11,6 +11,8 @@ there is no ramp, since one on a street circuit lands against a wall. The
 layout is docs/mockups/monaco-course.html's.
 """
 
+import math
+
 from ..layout import (
     BoostPad,
     CoinLine,
@@ -58,6 +60,48 @@ HARBOUR_OUTLINE = (
 # The casino's middle, this far left of the centreline, puts its front 10 m
 # behind the wall, past the 8 m rule.
 CASINO_LEFT_M = 28.5
+# The town's blocks on the hillside behind the climb, in rows stepping up
+# away from it: each as (segment, share of it, metres left of the
+# centreline, length, height). Every front keeps the 8 m rule; the rows on
+# Beau Rivage leave a wedge open from the climb's chase cameras to the
+# casino's dome, so the blocks frame it, and the two on each side of the
+# Casino approach line the road up to it.
+CLIMB_ROWS = (
+    # Behind the foot of Beau Rivage, west of the wedge.
+    ("beau-rivage", 0.05, 24.0, 16.0, 11.0),
+    ("beau-rivage", 0.03, 42.0, 18.0, 15.0),
+    ("beau-rivage", 0.14, 42.0, 14.0, 14.0),
+    ("beau-rivage", 0.04, 60.0, 20.0, 19.0),
+    ("beau-rivage", 0.15, 62.0, 14.0, 18.0),
+    # Behind the top of Beau Rivage, east of it, between the climb and the casino.
+    ("beau-rivage", 0.72, 24.0, 14.0, 10.0),
+    ("beau-rivage", 0.81, 24.0, 14.0, 12.0),
+    ("beau-rivage", 0.92, 24.0, 14.0, 11.0),
+    ("beau-rivage", 0.84, 42.0, 14.0, 15.0),
+    ("beau-rivage", 0.94, 42.0, 12.0, 14.0),
+    ("beau-rivage", 0.93, 60.0, 14.0, 18.0),
+    # Either side of the Casino approach.
+    ("casino-approach", 0.2, 24.0, 16.0, 12.0),
+    ("casino-approach", 0.65, 24.0, 16.0, 14.0),
+    ("casino-approach", 0.2, -24.0, 18.0, 13.0),
+    ("casino-approach", 0.7, -24.0, 16.0, 11.0),
+)
+# Round the harbour's far quays, fronts to the water: (x, y, heading, length,
+# height) in the world, the heading's left the front.
+SHORE_BLOCKS = (
+    (258.0, -60.0, math.pi / 2.0, 20.0, 16.0),
+    (258.0, -30.0, math.pi / 2.0, 16.0, 12.0),
+    (258.0, 0.0, math.pi / 2.0, 18.0, 18.0),
+    (258.0, 30.0, math.pi / 2.0, 16.0, 13.0),
+    (120.0, -133.0, 0.0, 18.0, 14.0),
+    (150.0, -133.0, 0.0, 16.0, 11.0),
+    (180.0, -133.0, 0.0, 20.0, 17.0),
+    (210.0, -133.0, 0.0, 16.0, 12.0),
+)
+# The pool, west of the pool chicanes between their wall and the pits' back,
+# its long side toward them along the start straight's heading.
+POOL_AT = World(33.0, 20.0, math.radians(98.0) - math.pi)
+POOL_LENGTH_M = 30.0
 # The roof starts past the tunnel mouth and ends short of the chicane, so
 # both portals stand on the flat.
 TUNNEL_PAST_MOUTH_M = 10.0
@@ -183,13 +227,20 @@ LAYOUT = Layout(
             # The basin outside the harbour straight, the pool and the quay: behind the
             # stands beside the first two, then close round the quay and Rascasse, the
             # 8 m rule's width from their walls.
-            Prop("harbour", World(150.0, -30.0), outline=HARBOUR_OUTLINE),
+            # Waves throw spray over its quay beside the lap's quay.
+            Prop("harbour", World(150.0, -30.0), outline=HARBOUR_OUTLINE, spray=("quay",)),
             # Outside Casino Square at the crest, a right-hander, so on the left.
             Prop("casino", Spot(seg("casino").s_mid, offset=CASINO_LEFT_M)),
             # Circling over the basin and within about 20 m of the casino. 40 m up, since
             # the road climbs to 8 m at the crest under it and the skids keep 30 m over
             # every road.
             Prop("helicopter", World(170.0, 120.0), radius=100.0, height=40.0),
+            *(
+                Prop("block", Spot(seg(name).s_start + share * seg(name).length, offset), length=length, height=height)
+                for name, share, offset, length, height in CLIMB_ROWS
+            ),
+            *(Prop("block", World(x, y, heading), length=length, height=height) for x, y, heading, length, height in SHORE_BLOCKS),
+            Prop("pool", POOL_AT, length=POOL_LENGTH_M),
         ],
         tunnels=[
             Tunnel(

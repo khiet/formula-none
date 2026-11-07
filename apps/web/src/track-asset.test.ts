@@ -429,10 +429,14 @@ describe("Goldstone's display jets", () => {
 });
 
 describe("glowing materials", () => {
-  it.each(TRACK_NAMES)("%s glows only in the tunnel's lamps, if it has a tunnel", (name) => {
-    const glowing = (track(name).materials ?? [])
-      .filter(({ emissiveFactor }) => emissiveFactor?.some((channel) => channel > 0))
-      .map((material) => material.name);
-    expect(glowing).toEqual(name === "monarch" ? ["lamp"] : []);
-  });
+  it.each(TRACK_NAMES)(
+    "%s glows only in the tunnel's lamps and the quay's spray, if it has them",
+    (name) => {
+      const glowing = (track(name).materials ?? [])
+        .filter(({ emissiveFactor }) => emissiveFactor?.some((channel) => channel > 0))
+        .map((material) => material.name)
+        .sort();
+      expect(glowing).toEqual(name === "monarch" ? ["lamp", "spray"] : []);
+    },
+  );
 });
