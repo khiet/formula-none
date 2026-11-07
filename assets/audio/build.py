@@ -511,6 +511,33 @@ def sand(speed, grit_hz=1800, grit=0.35, scrape_hz=40, rumble=0.35, gain=0.6):
     )
 
 
+# The presentation zones' ambience (ADR 0098): eight-second beds, so the loop
+# is not heard over a straight, each swell a whole number of cycles in the
+# loop. The game levels them by the zone's blend and never pitches them.
+AMBIENCE_S = 8.0
+
+
+def harbour(swell_hz=0.25, gain=0.5, seed=101):
+    """Water slapping on the quay, swelling twice a loop, and two gulls calling over it."""
+    water = noise(AMBIENCE_S + 0.05, decay=0, gain=gain, seed=seed)
+    slap = envelope(
+        scale(lowpass(water, 500, 2), 3),
+        lambda t: 0.55 + 0.45 * math.sin(TAU * swell_hz * t),
+    )
+    out = mix(slap, silence(AMBIENCE_S + 0.05))
+    for at, high in [(1.3, 1900), (1.62, 1750), (5.4, 2100)]:
+        cry = tone(high, 0.22, triangle, decay=6, gain=0.12, sweep_to=high * 0.7, curve="exp")
+        place(out, at, cry)
+    return loopable(out)
+
+
+def crowd(swell_hz=0.125, gain=0.5, seed=111):
+    """A grandstand's murmur: a voice band of noise, a slow swell and a ripple of chatter."""
+    bed = noise(AMBIENCE_S + 0.05, decay=0, gain=gain, seed=seed)
+    murmur = chop(scale(bandpass(bed, 700, 900), 3), 6, 0.25)
+    return loopable(envelope(murmur, lambda t: 0.7 + 0.3 * math.sin(TAU * swell_hz * t)))
+
+
 def boost_pad(root=880, rise=1.12, length=0.35, click=0.7, gain=0.25):
     """Push to pass: a crisp click then a sine chord sliding up a tone."""
     return mix(
@@ -753,6 +780,8 @@ def sfx():
     write("drift-skid", tame(drift_skid(LOOP_SPEED)))
     write("grass", tame(grass(LOOP_SPEED)))
     write("sand", tame(sand(LOOP_SPEED)))
+    write("harbour", tame(harbour()))
+    write("crowd", tame(crowd()))
     write("hit", hit())
     # As long as the stall (`START_STALL_S`).
     write("sputter", sputter(2.0))

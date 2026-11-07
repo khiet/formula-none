@@ -222,6 +222,16 @@ export function centrelineOf(sidecar: string): readonly WorldPoint[] {
   return centreline as WorldPoint[];
 }
 
+/** A lap's length along `centreline`, climbs included, closing the loop back to the line, as the sim measures spline progress. */
+export function courseLength(centreline: readonly WorldPoint[]): number {
+  let metres = 0;
+  centreline.forEach(([x, y, z], i) => {
+    const [nextX, nextY, nextZ] = centreline[(i + 1) % centreline.length] ?? [x, y, z];
+    metres += Math.hypot(nextX - x, nextY - y, nextZ - z);
+  });
+  return metres;
+}
+
 /** A pit box (ADR 0081): where its slot's kart stands for a stop, and a yaw about +Y, zero facing -Z, down the lane. */
 export interface PitBox {
   readonly position: WorldPoint;

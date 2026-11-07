@@ -11,6 +11,7 @@ import {
   MeshBasicMaterial,
   type Object3D,
   PerspectiveCamera,
+  PointLight,
   Quaternion,
   RingGeometry,
   SphereGeometry,
@@ -51,6 +52,7 @@ import type { Point } from "./low-poly-svg";
 import { HAZARD_ORANGE, plate, tonesOf, writePalette } from "./palette";
 import { createParticles } from "./particles";
 import { type PitBoxTuning, pitBoxMeshes } from "./pit-box-meshes";
+import type { PresentationBlend } from "./presentation-zones";
 import { BLAST_S, type Blast, type RaceReadout } from "./race-run";
 import { sceneryMotion } from "./scenery-motion";
 import { createSparkEmitter, createSparkParticles } from "./sparks";
@@ -73,6 +75,19 @@ import { createWindLines, createWindParticles, windFade } from "./wind-lines";
 
 /** Far enough to see across Bell Deer, about 430 m by 270 m, from any point on it. */
 const CAMERA_FAR_M = 1000;
+
+/** The course's own light, which a presentation zone scales (ADR 0098). */
+const SUN_INTENSITY = 2;
+const AMBIENT_INTENSITY = 0.6;
+const WHITE = new Color(0xffffff);
+/** The tunnel lamps' warm, the track's `lamp` material (assets/tracks/build.py). */
+const LAMP_COLOUR = new Color().setRGB(1.0, 0.851, 0.541);
+/** The lamps' light hangs at their height over the own kart and reaches the karts round it. */
+const LAMP_HEIGHT_M = 4.4;
+const LAMP_REACH_M = 14;
+const LAMP_INTENSITY = 20;
+/** How far the lamps warm the ambient at their glow's peak. */
+const LAMP_AMBIENT_TINT = 0.35;
 /**
  * Puffs live at once across the grid: eight karts' worth through their
  * life and a runaway wheel's smoke trail, with room over. A pool full
@@ -149,6 +164,12 @@ export interface RaceView {
    * up, and the wheel waiting on the wall through the warning.
    */
   update(race: RaceReadout, camera: CameraPose, frameSeconds: number): void;
+  /**
+   * Light the world for the presentation zone the own kart is in (ADR
+   * 0098): the sky's light scaled by `blend.light` and the tunnel's warm
+   * lamps over the own kart by `blend.lampGlow`, as of the last `update`.
+   */
+  presentation(blend: PresentationBlend): void;
   render(): void;
   /** Take the canvas off the page and free the renderer. */
   dispose(): void;
@@ -257,9 +278,13 @@ export async function createRaceView(
   ]);
   world.add(track.scene);
 
-  const sun = new DirectionalLight(0xffffff, 2);
+  const sun = new DirectionalLight(0xffffff, SUN_INTENSITY);
   sun.position.set(20, 40, 10);
-  world.add(sun, new AmbientLight(0xffffff, 0.6));
+  const ambient = new AmbientLight(0xffffff, AMBIENT_INTENSITY);
+  // The tunnel's lamps on the own kart: dark in the open sky.
+  const lampLight = new PointLight(LAMP_COLOUR, 0, LAMP_REACH_M, 2);
+  world.add(sun, ambient, lampLight);
+  let ownPosition: readonly [number, number, number] | undefined;
 
   const box = new Box3().setFromObject(kartModel.scene);
   const fit = fitKart({ min: box.min.toArray(), max: box.max.toArray() }, kartSize);
@@ -483,6 +508,7 @@ export async function createRaceView(
       const own = readouts[viewer.localKart];
       if (own !== undefined) {
         windLines.emit(own, frameSeconds);
+        ownPosition = own.position;
       }
       wheelTells.emit(race.wheels, frameSeconds);
       windBrightness = windFade(own?.boostS ?? null, own?.slipstream ?? null);
@@ -542,6 +568,16 @@ export async function createRaceView(
     render: () => {
       renderer.render(world, camera);
       labelRenderer.render(world, camera);
+    },
+    presentation(blend) {
+      sun.intensity = SUN_INTENSITY * blend.light;
+      ambient.intensity = AMBIENT_INTENSITY * blend.light;
+      ambient.color.copy(WHITE).lerp(LAMP_COLOUR, blend.lampGlow * LAMP_AMBIENT_TINT);
+      lampLight.intensity = LAMP_INTENSITY * blend.lampGlow;
+      if (ownPosition !== undefined) {
+        const [x, y, z] = ownPosition;
+        lampLight.position.set(x, y + LAMP_HEIGHT_M, z);
+      }
     },
     dispose() {
       window.removeEventListener("resize", resize);

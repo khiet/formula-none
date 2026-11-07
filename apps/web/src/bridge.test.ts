@@ -18,6 +18,7 @@ import { nicknameChars } from "./nickname";
 import { pingTiming } from "./ping";
 import { landedItem } from "./race-run";
 import { reconnectTiming } from "./reconnect";
+import { centrelineOf, courseLength } from "./track";
 
 // The real wasm build, loaded from bytes because the default loader fetches
 // the module URL and fetch rejects file: URLs in Node. `pnpm build:bridge`
@@ -432,6 +433,19 @@ describe("the pit lane", () => {
     expect(bridge.pitLaneFork(OVAL)).toBeUndefined();
     expect(() => bridge.pitLaneFork("{}")).toThrow();
   });
+
+  it.each(["bell-deer", "goldstone", "monarch"])(
+    "measures %s's lap as the client's presentation zones do, so a zone wraps at the sim's line",
+    async (name) => {
+      const bridge = await loadBridge(wasm);
+      const sidecar = readFileSync(
+        new URL(`../../../assets/tracks/${name}/${name}.track.json`, import.meta.url),
+        "utf8",
+      );
+      const fork = bridge.pitLaneFork(sidecar);
+      expect(courseLength(centrelineOf(sidecar))).toBeCloseTo(fork?.splineLength ?? 0, 0);
+    },
+  );
 });
 
 describe("picks", () => {
