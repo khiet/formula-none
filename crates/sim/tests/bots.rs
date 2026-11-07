@@ -15,7 +15,7 @@ use sim::tuning::{
     TOP_SPEED_M_PER_S,
 };
 use sim::Picks;
-use sim::{step, BotLevel, KartInput, KartReadout, Phase, State, Surface, Track, Tyres};
+use sim::{step, BotLevel, KartInput, KartReadout, MiniTurbo, Phase, State, Surface, Track, Tyres};
 
 /// Step `state` for `seconds` with every human idle.
 fn idle_humans(mut state: State, humans: usize, seconds: f32) -> State {
@@ -176,6 +176,42 @@ fn a_bot_drifts_through_the_hairpin_of_bell_deer_on_every_lap() {
     assert!(
         drifted_in.iter().flatten().all(|&drifted| drifted),
         "drifted per lap per hairpin: {drifted_in:?}"
+    );
+}
+
+/// Goldstone's Maggotts and Becketts esses, Maggotts' start to Chapel's end,
+/// as `assets/tracks/trackgen/layouts/goldstone.py` lays them.
+const BECKETTS_M: std::ops::Range<f32> = 717.7..837.9;
+
+#[test]
+fn a_bot_links_a_mini_turbo_through_becketts_on_every_lap() {
+    let laps = DEFAULT_LAPS as usize;
+    let mut state = started(State::with_bots(SEED, 0, 1, goldstone(), BotLevel::Basic));
+    let mut released_in = vec![false; laps];
+    let mut before = state.kart_readouts()[0];
+    for _ in 0..ticks(laps as f32 * 75.0) {
+        state = step(state, &[], DT);
+        let standing = state.standings()[0];
+        if standing.laps_completed as usize >= laps {
+            break;
+        }
+        let kart = state.kart_readouts()[0];
+        let charged = before
+            .drift
+            .is_some_and(|drift| drift.mini_turbo() != MiniTurbo::None);
+        if charged
+            && kart.drift.is_none()
+            && kart.boost.is_some()
+            && BECKETTS_M.contains(&standing.spline_progress)
+        {
+            released_in[standing.laps_completed as usize] = true;
+        }
+        before = kart;
+    }
+    assert_eq!(state.standings()[0].laps_completed as usize, laps);
+    assert!(
+        released_in.iter().all(|&released| released),
+        "released a mini-turbo in Becketts per lap: {released_in:?}"
     );
 }
 
