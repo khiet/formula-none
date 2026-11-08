@@ -107,6 +107,7 @@ const bridge = {
       coins: () =>
         Array.from({ length: COINS }, (_, coin) => ({ position: [coin, 0, -40], yaw: 0 })),
       coinsPresent: () => Array<boolean>(COINS).fill(true),
+      rainBeganTick: null,
     }) as unknown as Race,
   createPrediction(
     _seed: bigint,
@@ -183,7 +184,7 @@ function fakeClient(): FakeClient {
     room: {
       code: "BXQF",
       track: "bell-deer",
-      picks: { level: "basic", tyres: "off", laps: 3 },
+      picks: { level: "basic", tyres: "off", laps: 3, weather: "dry" },
       state: "racing",
       players: [],
     },
@@ -225,7 +226,7 @@ function fakeClient(): FakeClient {
 const COUNTDOWN: Countdown = {
   seed: 7n,
   track: "bell-deer",
-  picks: { level: "basic", tyres: "off", laps: 3 },
+  picks: { level: "basic", tyres: "off", laps: 3, weather: "dry" },
   grid: [0, 1],
 };
 
@@ -252,6 +253,7 @@ function snapshot(
     hazards,
     projectiles: [],
     coinsPresent,
+    rainBeganTick: null,
   };
 }
 
@@ -591,7 +593,7 @@ describe("createServerRace", () => {
     const room: Room = {
       code: "BXQF",
       track: "bell-deer",
-      picks: { level: "basic", tyres: "off", laps: 3 },
+      picks: { level: "basic", tyres: "off", laps: 3, weather: "dry" },
       state: "racing",
       players: [],
     };

@@ -281,6 +281,7 @@ impl Race {
             hazards,
             projectiles,
             coins_present: state.coins_present(),
+            rain_began_tick: state.rain_began_tick(),
         }
     }
 }

@@ -2,7 +2,7 @@
 // labels them: a heading per pick and a caption per value. What the values
 // are and which a fresh creator starts from is the sim's (`PickChoices`,
 // `Picks`); this only names them.
-import type { BotLevel, PickChoices, Picks, Tyres } from "./generated/sim";
+import type { BotLevel, PickChoices, Picks, Tyres, Weather } from "./generated/sim";
 import type { PickOffer } from "./track";
 
 /** A value as the Title Scene shows it: its tile's caption and the line describing the pick. */
@@ -34,11 +34,17 @@ const TYRES: Readonly<Record<Tyres, PickCaption>> = {
   on: { name: "On", blurb: "driving wears them" },
 };
 
-/** Every pick in the Title Scene's order, under the flags (ADR 0078, ADR 0083, ADR 0084). */
+const WEATHER: Readonly<Record<Weather, PickCaption>> = {
+  dry: { name: "Dry", blurb: "it stays dry" },
+  rain: { name: "Rain", blurb: "grip falls mid-race" },
+};
+
+/** Every pick in the Title Scene's order, under the flags (ADR 0078, ADR 0083, ADR 0084, ADR 0103). */
 export const PICK_ROWS: { readonly [Pick in keyof Picks]: PickRow<Picks[Pick]> } = {
   level: { key: "bots", heading: "Bots", caption: (level) => LEVELS[level] },
   tyres: { key: "tyres", heading: "Tyres", caption: (tyres) => TYRES[tyres] },
   laps: { key: "laps", heading: "Laps", caption: (laps) => ({ name: String(laps) }) },
+  weather: { key: "weather", heading: "Weather", caption: (weather) => WEATHER[weather] },
 };
 
 /** What a creator is offered of each pick: its row's key and the sim's `choices`. */
@@ -47,5 +53,6 @@ export function pickOffer(choices: PickChoices): PickOffer {
     level: { key: PICK_ROWS.level.key, values: choices.level },
     tyres: { key: PICK_ROWS.tyres.key, values: choices.tyres },
     laps: { key: PICK_ROWS.laps.key, values: choices.laps },
+    weather: { key: PICK_ROWS.weather.key, values: choices.weather },
   };
 }

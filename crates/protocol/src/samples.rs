@@ -11,7 +11,7 @@ use crate::{
 };
 use sim::{
     Boost, BoostTier, BotLevel, Drift, DriftDirection, Item, ItemSlot, KartReadout, Picks,
-    Slipstream, Start, Stop, StopTier, Tyres,
+    Slipstream, Start, Stop, StopTier, Tyres, Weather,
 };
 
 /// Every [`ClientMessage`] variant once.
@@ -60,6 +60,7 @@ pub fn server() -> Vec<ServerMessage> {
                 level: BotLevel::Ace,
                 tyres: Tyres::On,
                 laps: 5,
+                weather: Weather::Rain,
             },
             grid: vec![0, 1],
         },
@@ -118,6 +119,7 @@ pub fn room() -> Room {
             level: BotLevel::Pro,
             tyres: Tyres::On,
             laps: 5,
+            weather: Weather::Rain,
         },
         state: RoomState::Open,
         players: vec![
@@ -235,6 +237,7 @@ pub fn snapshot() -> Snapshot {
             target: 2,
         }],
         coins_present: (0..15).map(|coin| coin != 4 && coin != 9).collect(),
+        rain_began_tick: Some(6000),
     }
 }
 

@@ -3,6 +3,7 @@
 //! may hard-code a number that belongs here. Initial values are the PRD's.
 
 use crate::picks::{PickChoices, Picks};
+use crate::weather::Weather;
 use crate::{BotLevel, Tyres};
 
 // Rates. Every rule is written per tick; frame rate never enters the sim.
@@ -140,6 +141,7 @@ pub const PICK_CHOICES: PickChoices = PickChoices {
     level: BotLevel::ALL,
     tyres: Tyres::ALL,
     laps: LAP_CHOICES,
+    weather: Weather::ALL,
 };
 /// The picks a creator starts from before picking anything, and what a
 /// create that names none races (ADR 0078, ADR 0083, ADR 0084).
@@ -147,6 +149,8 @@ pub const FRESH_PICKS: Picks = Picks {
     level: BotLevel::Basic,
     tyres: Tyres::On,
     laps: DEFAULT_LAPS,
+    // Until rain has been played (ADR 0103).
+    weather: Weather::Dry,
 };
 /// Seconds the karts are held on the grid before Go: the start lights, one
 /// a second, all five out at Go. The Instrument panel always draws five
@@ -497,6 +501,21 @@ pub const TYRE_WASH_OUT_FULL_M_PER_S2: f32 = 15.0;
 /// bends the line rather than kinking it: the deepest in a quarter second,
 /// and a hop's airtime lets the deepest go.
 pub const TYRE_WASH_OUT_RATE_RAD_PER_S: f32 = 0.6;
+/// Seconds rain takes to wet the track from the tick it begins; it then holds
+/// to the flag (ADR 0103).
+pub const RAIN_WETTING_S: f32 = 20.0;
+pub const RAIN_WETTING_TICKS: u32 = (RAIN_WETTING_S * TICKS_PER_SECOND as f32) as u32;
+/// What a fully wet track multiplies the tyres' grip by; a wet track scales
+/// each in a straight line from 1. The top speed, wear rates and mini-turbo
+/// charge take no factor, so the speed readout and the tyre gauge keep their
+/// meaning (ADR 0103).
+pub const RAIN_STEER_RATE_FACTOR: f32 = 0.92;
+pub const RAIN_ACCELERATION_FACTOR: f32 = 0.92;
+pub const RAIN_BRAKING_FACTOR: f32 = 0.80;
+/// The slide a fully wet track adds at any life, and the most tyres on any
+/// life then slide in the wet: what a hop's airtime can let go (ADR 0087).
+pub const RAIN_WASH_OUT_ADDED_RAD: f32 = 0.05;
+pub const RAIN_WASH_OUT_MOST_RAD: f32 = 0.18;
 /// Life lost per second rolling on the ground.
 pub const TYRE_WEAR_ROLLING_PER_S: f32 = 0.06;
 /// Life lost per second cornering at [`TYRE_WEAR_CORNERING_REFERENCE_M_PER_S2`];
@@ -1033,6 +1052,14 @@ const _: () = {
     assert!(0.0 < TYRE_WASH_OUT_RATE_RAD_PER_S);
     // A hop's airtime lets the deepest slide go, so a kart lands on its line.
     assert!(TYRE_WASH_OUT_MOST_RAD[3] <= TYRE_WASH_OUT_RATE_RAD_PER_S * HOP_AIRTIME_S);
+    assert!(RAIN_WASH_OUT_MOST_RAD <= TYRE_WASH_OUT_RATE_RAD_PER_S * HOP_AIRTIME_S);
+    assert!(TYRE_WASH_OUT_MOST_RAD[3] <= RAIN_WASH_OUT_MOST_RAD);
+    assert!(RAIN_WASH_OUT_MOST_RAD < DRIFT_SLIP_ANGLE_RAD);
+    assert!(0.0 < RAIN_WASH_OUT_ADDED_RAD);
+    assert!(is_whole_ticks(RAIN_WETTING_S) && 0 < RAIN_WETTING_TICKS);
+    assert!(0.0 < RAIN_STEER_RATE_FACTOR && RAIN_STEER_RATE_FACTOR <= 1.0);
+    assert!(0.0 < RAIN_ACCELERATION_FACTOR && RAIN_ACCELERATION_FACTOR <= 1.0);
+    assert!(0.0 < RAIN_BRAKING_FACTOR && RAIN_BRAKING_FACTOR <= 1.0);
     // The lap costs run from new tyres, costing nothing, down to worn out,
     // costing the most, so a life between two rows reads between them.
     {

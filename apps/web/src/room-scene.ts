@@ -162,7 +162,11 @@ export function createRoomScene(
     tyres.className = "room-pick";
     tyres.dataset.roomTyres = "";
     tyres.textContent = label("tyres", view.room.picks);
-    card.append(preview.element, bots, tyres);
+    const weather = document.createElement("p");
+    weather.className = "room-pick";
+    weather.dataset.roomWeather = "";
+    weather.textContent = label("weather", view.room.picks);
+    card.append(preview.element, bots, tyres, weather);
   }
 
   const link = document.createElement("a");

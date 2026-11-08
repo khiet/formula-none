@@ -94,6 +94,12 @@ impl Memory {
         self.held_for_the_wheel
     }
 
+    /// Whether the bot has called itself in and has yet to reach the end of
+    /// the lane or miss its fork.
+    pub fn pit_called(&self) -> bool {
+        self.pit_called
+    }
+
     /// The timers, for the hash.
     pub(crate) fn timers(&self) -> [f32; 4] {
         [
@@ -323,7 +329,8 @@ fn pit_lane_target(
 /// every kart's readouts and the race clock as of the last tick, and the
 /// race's seed, which decides the runaway wheel's path, updating what it
 /// remembers. `profile`, the race's bot level's, sets how hard it drives;
-/// `laps`, the race's count, is what its pit call projects to.
+/// `laps`, the race's count, is what its pit call projects to; `wetness`, as
+/// the race has it, what its steering and braking are read at.
 // Each argument is a separate thing any observer of the race can read.
 #[allow(clippy::too_many_arguments)]
 pub fn drive(
@@ -336,6 +343,7 @@ pub fn drive(
     laps: u32,
     slot: usize,
     memory: &mut Memory,
+    wetness: f32,
     dt: f32,
 ) -> KartInput {
     let kart = &karts[slot];
@@ -359,7 +367,7 @@ pub fn drive(
         return KartInput::default();
     }
     let lane_target = pit_lane_target(track, kart, &standings[slot], memory.pit_called);
-    let grip = TyreGrip::at(kart.tyre_life);
+    let grip = TyreGrip::at(kart.tyre_life).wet(wetness);
     // Between the lines the limiter holds the speed, and the corners read
     // off the centreline are not on this road. Called in, it slows to make the
     // fork and for the lane's own turns, which inside a corner are tighter.
@@ -388,7 +396,7 @@ pub fn drive(
     let starring = kart.star_s.is_some();
     let waiting = match clock {
         Phase::Racing { elapsed_s, .. } if !starring => {
-            waits_for_a_wheel(track, kart, target_speed, seed, elapsed_s, dt)
+            waits_for_a_wheel(track, kart, target_speed, seed, elapsed_s, wetness, dt)
         }
         _ => false,
     };
@@ -413,7 +421,7 @@ pub fn drive(
             BOT_LINE_RIGHT_OF_CENTRE_M,
         ),
     };
-    let mut steer = pursuit_steer(kart, target);
+    let mut steer = pursuit_steer(kart, target, wetness);
 
     // Stalled for the tuned time, the bot backs up for the tuned time with
     // its nose swinging toward the target, then drives on.
@@ -540,7 +548,16 @@ pub fn drive(
                     speed: ITEM_BOOST_FACTOR * TOP_SPEED_M_PER_S * coin_factor(kart.coins),
                     ..*kart
                 };
-                waiting || waits_for_a_wheel(track, &boosted, boosted.speed, seed, elapsed_s, dt)
+                waiting
+                    || waits_for_a_wheel(
+                        track,
+                        &boosted,
+                        boosted.speed,
+                        seed,
+                        elapsed_s,
+                        wetness,
+                        dt,
+                    )
             }
             _ => false,
         };
@@ -647,6 +664,7 @@ fn waits_for_a_wheel(
     target_speed: f32,
     seed: u64,
     elapsed_s: f32,
+    wetness: f32,
     dt: f32,
 ) -> bool {
     // Along the track the wheel reaches a kart this far either side of its
@@ -655,8 +673,8 @@ fn waits_for_a_wheel(
     let across_reach = KART_HALF_WIDTH_M + WHEEL_RADIUS_M;
     let speed = kart.speed.max(0.0);
     let top_speed = target_speed.max(speed);
-    let flat_out =
-        TOP_SPEED_M_PER_S / ACCELERATION_TO_TOP_S * TyreGrip::at(kart.tyre_life).acceleration;
+    let flat_out = TOP_SPEED_M_PER_S / ACCELERATION_TO_TOP_S
+        * TyreGrip::at(kart.tyre_life).wet(wetness).acceleration;
     let setting_off = flat_out * BOT_WHEEL_SET_OFF_FRACTION;
     // How far along the kart is `after_s` from now, from `from` metres per
     // second, gaining `gain` metres per second each second up to the speed
@@ -805,7 +823,7 @@ fn pass_point(track: &Track, progress: f32, position: [f32; 3]) -> [f32; 2] {
 /// rate at the kart's speed follows the arc from its travel to the target.
 /// In a drift the travel sits outside the nose by the slip angle, and the
 /// lock is mapped to the trim the steer has over the drift's own turn.
-fn pursuit_steer(kart: &KartReadout, target: [f32; 2]) -> f32 {
+fn pursuit_steer(kart: &KartReadout, target: [f32; 2], wetness: f32) -> f32 {
     let slip = kart.drift.map_or(0.0, |drift| {
         drift.direction.steer_sign() * DRIFT_SLIP_ANGLE_RAD
     });
@@ -819,7 +837,7 @@ fn pursuit_steer(kart: &KartReadout, target: [f32; 2]) -> f32 {
     // curvature 2 sin(angle) / distance; the yaw rate for it is that times
     // the speed, and the lock is the yaw rate over the rate full lock gives.
     let curvature = 2.0 * rightward / distance;
-    let factor = TyreGrip::at(kart.tyre_life).steer_rate;
+    let factor = TyreGrip::at(kart.tyre_life).wet(wetness).steer_rate;
     let lock = kart.speed.abs() * curvature / crate::handling::steer_rate(kart.speed, factor);
     match kart.drift {
         None => lock.clamp(-1.0, 1.0),

@@ -48,7 +48,7 @@ comes up all round the lap and the race music plays faster and louder
 ### picks
 
 The creator's choices of how a race runs, made on the Title Scene under the
-flags and fixed for the room: the bot level, Tyres and the laps. They travel
+flags and fixed for the room: the bot level, Tyres, the laps and Weather. They travel
 as one value, from the Title Scene to the sim, on the wire, in the room and
 in a replay (ADR 0091). A field missing from a kept room or a replay reads as
 the race was before there was that pick. The course is picked beside them
@@ -748,6 +748,26 @@ Whether a race's tyres wear: On or Off, one of the picks on the Title Scene,
 fixed for the room as the course is and shown on the Room Scene (ADR 0083). Off
 is the race as it was before there was tyre life, and what a kept room or a
 replay without a pick is. A replay carries it.
+
+### Weather
+
+Whether rain comes in a race: Dry or Rain, one of the picks on the Title Scene,
+fixed for the room as the course is and shown on the Room Scene (ADR 0103). Dry
+is the race as it was before there was weather, and what a kept room or a replay
+without a pick is. A replay carries it.
+
+### rain
+
+What Rain brings: from the first tick any kart starts the lap the seed picks,
+the whole field's grip falls with the wetness and stays down to the flag. It
+never touches the top speed, the wear rates or the mini-turbo charge, and there
+is no wet tyre (ADR 0103).
+
+### wetness
+
+How wet the track is, from 0 at the tick the rain began to 1 twenty seconds on,
+then held; it scales one row of grip factors on top of the tyres'. The sim holds
+the tick it began and the snapshot carries it to the prediction.
 
 ### race readout
 

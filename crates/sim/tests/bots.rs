@@ -14,8 +14,8 @@ use sim::tuning::{
     BOT_STALL_SPEED_M_PER_S, BOT_START_HOLD_S, COUNTDOWN_S, DEFAULT_LAPS, MINI_TURBO_RED_BOOST_S,
     TOP_SPEED_M_PER_S,
 };
-use sim::Picks;
 use sim::{step, BotLevel, KartInput, KartReadout, MiniTurbo, Phase, State, Surface, Track, Tyres};
+use sim::{Picks, Weather};
 
 /// Step `state` for `seconds` with every human idle.
 fn idle_humans(mut state: State, humans: usize, seconds: f32) -> State {
@@ -792,7 +792,12 @@ fn short_of_the_final_lap(
         0,
         8,
         course,
-        Picks { level, tyres, laps },
+        Picks {
+            level,
+            tyres,
+            laps,
+            weather: Weather::Dry,
+        },
     ));
     while matches!(state.phase(), Phase::Racing { .. }) {
         state = step(state, &[], DT);
@@ -876,6 +881,7 @@ fn a_bot_brakes_on_worn_tyres_for_corners_it_would_take_on_new_ones() {
             DEFAULT_LAPS,
             0,
             &mut sim::bot::Memory::default(),
+            0.0,
             DT,
         );
         input.brake > 0.0

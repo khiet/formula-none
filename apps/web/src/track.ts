@@ -160,7 +160,7 @@ export function savePicks(storage: Storage, offer: PickOffer, picks: Picks): voi
 
 /**
  * The picks the page's query string asks for under their keys (`?bots=ace`,
- * `?tyres=on`, `?laps=5`), so a smoke run can load any into a solo race
+ * `?tyres=on`, `?laps=5`, `?weather=rain`), so a smoke run can load any into a solo race
  * beside `?track=`; one asked for as nothing a creator is offered is left out.
  */
 export function picksFromSearch(search: string, offer: PickOffer): Partial<Picks> {

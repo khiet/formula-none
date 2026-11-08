@@ -11,11 +11,11 @@ use common::{
 };
 
 use sim::tuning::{KART_HALF_LENGTH_M, REPLAY_HASH_INTERVAL_TICKS};
-use sim::Picks;
 use sim::{
     step, BotLevel, KartInput, MiniTurbo, Phase, RaceEvent, Replay, Segment, State, Surface, Track,
     Tyres,
 };
+use sim::{Picks, Weather};
 
 fn race(seed: u64, kart_count: usize) -> State {
     State::new(seed, kart_count, oval())
@@ -496,6 +496,10 @@ fn the_fixture_set_exercises_kart_contact_off_track_walls_every_track_both_mini_
         "no fixture races Ace bots, so a retune of Ace could pass the gate: {picks:?}"
     );
     assert!(
+        picks.iter().any(|picks| picks.weather == Weather::Rain),
+        "no fixture races in the rain"
+    );
+    assert!(
         picks.iter().any(|picks| picks.tyres == Tyres::On),
         "no fixture wears its tyres, so a retune of wear could pass the gate: {picks:?}"
     );
@@ -680,6 +684,39 @@ fn a_replay_carries_its_tyres_pick_and_reruns_with_it() {
         replay.run(oval()).unwrap(),
         at(Tyres::Off).run(oval()).unwrap(),
         "tyre life enters the hash"
+    );
+}
+
+#[test]
+fn a_replay_recorded_before_the_weather_pick_races_dry() {
+    assert_eq!(
+        Replay::from_json(REPLAY).unwrap().picks.weather,
+        Weather::Dry
+    );
+}
+
+#[test]
+fn a_replay_carries_its_weather_pick_and_reruns_with_it() {
+    // A bot, to reach lap 2, which this seed picks: an idle human never would.
+    let at = |weather: Weather| Replay {
+        seed: 5,
+        track: "oval".to_owned(),
+        bots: 1,
+        picks: Picks {
+            weather,
+            ..Picks::default()
+        },
+        segments: vec![held(3000, 1)],
+        hashes: Vec::new(),
+    };
+    let json = at(Weather::Rain).to_json();
+    assert!(json.contains("\"weather\": \"rain\""), "{json}");
+    let replay = Replay::from_json(&json).unwrap();
+    assert_eq!(replay.picks.weather, Weather::Rain);
+    assert_ne!(
+        replay.run(oval()).unwrap(),
+        at(Weather::Dry).run(oval()).unwrap(),
+        "the rain enters the hash"
     );
 }
 

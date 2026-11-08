@@ -31,6 +31,15 @@ test("the picked Tyres are remembered across a reload", async ({ page }) => {
   await expect(page.getByRole("radio", { name: "Off", exact: true })).toBeChecked();
 });
 
+test("the picked Weather is remembered across a reload, Dry until picked", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.getByRole("radio", { name: "Dry", exact: true })).toBeChecked();
+  await page.locator(".bot-tile", { hasText: "Rain" }).click();
+  await expect(page.getByRole("radio", { name: "Rain", exact: true })).toBeChecked();
+  await page.reload();
+  await expect(page.getByRole("radio", { name: "Rain", exact: true })).toBeChecked();
+});
+
 for (const [status, refusal] of [
   [503, "The server is full; try again later"],
   [429, "Too many new rooms from here; try again shortly"],

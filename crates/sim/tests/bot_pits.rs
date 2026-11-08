@@ -16,7 +16,9 @@ use sim::tuning::{
     TYRE_LIFE_CLIFF_PERCENT, TYRE_LIFE_NEW_PERCENT,
 };
 use sim::Picks;
-use sim::{step, BotLevel, Item, ItemSlot, RaceEvent, State, Surface, Track, Tyres};
+use sim::{
+    rain_lap, step, BotLevel, Item, ItemSlot, RaceEvent, State, Surface, Track, Tyres, Weather,
+};
 
 /// A course by name, built afresh for each race.
 type Course = (&'static str, fn() -> Track);
@@ -143,23 +145,44 @@ struct Raced {
     finished: Vec<bool>,
     grass_ticks: Vec<u32>,
     shortest_lap: u32,
+    /// Pit calls let go without the kart ever standing in the lane.
+    missed_forks: usize,
 }
 
 fn race(seed: u64, course: Track, level: BotLevel, tyres: Tyres, laps: u32) -> Raced {
+    race_in(seed, course, level, tyres, laps, Weather::Dry)
+}
+
+fn race_in(
+    seed: u64,
+    course: Track,
+    level: BotLevel,
+    tyres: Tyres,
+    laps: u32,
+    weather: Weather,
+) -> Raced {
     let mut state = started(State::with_picks(
         seed,
         0,
         8,
         course,
-        Picks { level, tyres, laps },
+        Picks {
+            level,
+            tyres,
+            laps,
+            weather,
+        },
     ));
     let mut raced = Raced {
         stop_laps: vec![Vec::new(); 8],
         finished: vec![false; 8],
         grass_ticks: vec![0; 8],
         shortest_lap: 0,
+        missed_forks: 0,
     };
     let mut stops = [0; 8];
+    let mut called = [false; 8];
+    let mut in_the_lane = [false; 8];
     while matches!(state.phase(), sim::Phase::Racing { .. }) {
         state = step(state, &[], DT);
         let readouts = state.kart_readouts();
@@ -171,6 +194,13 @@ fn race(seed: u64, course: Track, level: BotLevel, tyres: Tyres, laps: u32) -> R
             }
             raced.grass_ticks[slot] += u32::from(state.kart_surface(slot) == Surface::Grass);
             raced.finished[slot] = standings[slot].finish_time_s.is_some();
+            let calling = state.bot_pit_called(slot);
+            in_the_lane[slot] |= calling && state.track().in_pit_lane(readouts[slot].position);
+            if called[slot] && !calling {
+                raced.missed_forks += usize::from(!in_the_lane[slot]);
+                in_the_lane[slot] = false;
+            }
+            called[slot] = calling;
         }
         raced.shortest_lap = standings.iter().map(|s| s.lap).min().unwrap_or(0);
     }
@@ -192,6 +222,7 @@ fn lone_five_laps_from(seed: u64, course: Track, level: BotLevel) -> (u32, Optio
             level,
             tyres: Tyres::On,
             laps: 5,
+            weather: Weather::Dry,
         },
     ));
     for _ in 0..ticks(5.0 * 120.0) {
@@ -311,6 +342,7 @@ fn asks(state: &State, level: BotLevel, life: f32, item: ItemSlot) -> sim::KartI
         3,
         0,
         &mut sim::bot::Memory::default(),
+        0.0,
         DT,
     )
 }
@@ -366,6 +398,7 @@ fn an_ace_bot_saving_its_tyres_drops_its_drifts_until_it_reads_otherwise() {
             3,
             0,
             &mut memory,
+            0.0,
             DT,
         )
     };
@@ -394,6 +427,7 @@ fn a_lone_ace_bot_saves_its_way_to_the_flag_with_no_stop() {
             level: BotLevel::Ace,
             tyres: Tyres::On,
             laps: 3,
+            weather: Weather::Dry,
         },
     ));
     for _ in 0..ticks(3.0 * 120.0) {
@@ -427,6 +461,7 @@ fn a_lone_ace_bot_runs_three_laps_of_every_lane_course_without_a_stop() {
                 level: BotLevel::Ace,
                 tyres: Tyres::On,
                 laps: 3,
+                weather: Weather::Dry,
             },
         ));
         for _ in 0..ticks(3.0 * 120.0) {
@@ -461,6 +496,7 @@ fn a_bot_driven_through_the_countdown_does_not_back_off_the_line() {
             3,
             0,
             &mut memory,
+            0.0,
             DT,
         );
         assert_eq!(input.brake, 0.0);
@@ -620,6 +656,68 @@ fn in_a_sweep_of_eight_bots_on_tyres_on_the_field_gets_round() {
     assert!(refused.is_empty(), "{}", refused.join("\n"));
 }
 
+/// What the maintainer decides rain's factors or `RACE_END_CAP_S` from (ADR
+/// 0103): karts past the end cap, karts on grass and missed pit lane forks, for
+/// every course, Bell Deer's ramp among them, level and race length, on Tyres On
+/// and Off, dry against rain on each lap the seeds pick. It reports and refuses
+/// nothing. Too slow for a debug build; run with
+/// `cargo test --release -p sim --test bot_pits -- --ignored --nocapture rain_sweep`.
+/// `SWEEP_SEEDS` is 40 by default, with `SWEEP_THREADS` as above.
+#[test]
+#[ignore]
+fn rain_sweep_reports_the_end_cap_grass_and_missed_forks() {
+    let seeds = from_env("SWEEP_SEEDS", 40);
+    println!("course,level,laps,tyres,weather,rain_lap,races,karts,past_cap,on_grass,missed_forks");
+    for (name, course) in COURSES {
+        for level in BotLevel::ALL {
+            for laps in [3, 5] {
+                for tyres in Tyres::ALL {
+                    let raced = |weather: Weather| -> Vec<(u64, Raced)> {
+                        let races: Vec<_> = (0..seeds)
+                            .map(|seed| {
+                                on_a_sweep_thread(move || {
+                                    (seed, race_in(seed, course(), level, tyres, laps, weather))
+                                })
+                            })
+                            .collect();
+                        races
+                            .into_iter()
+                            .map(|race| race.join().expect("the race ran"))
+                            .collect()
+                    };
+                    let report = |weather: &str, lap: &str, races: &[&Raced]| {
+                        let past_cap: usize = races
+                            .iter()
+                            .map(|raced| raced.finished.iter().filter(|&&done| !done).count())
+                            .sum();
+                        let on_grass: usize = races
+                            .iter()
+                            .map(|raced| raced.grass_ticks.iter().filter(|&&t| t > 0).count())
+                            .sum();
+                        let missed: usize = races.iter().map(|raced| raced.missed_forks).sum();
+                        println!(
+                            "{name},{level:?},{laps},{tyres:?},{weather},{lap},{},{},{past_cap},{on_grass},{missed}",
+                            races.len(),
+                            races.len() * 8,
+                        );
+                    };
+                    let dry = raced(Weather::Dry);
+                    report("dry", "-", &dry.iter().map(|(_, r)| r).collect::<Vec<_>>());
+                    let rain = raced(Weather::Rain);
+                    for lap in 2..=laps.saturating_sub(1).max(3) {
+                        let on_lap: Vec<&Raced> = rain
+                            .iter()
+                            .filter(|(seed, _)| rain_lap(*seed, laps) == lap)
+                            .map(|(_, raced)| raced)
+                            .collect();
+                        report("rain", &lap.to_string(), &on_lap);
+                    }
+                }
+            }
+        }
+    }
+}
+
 /// The mean of a lone Ace bot's second and third laps on `course` with its tyres
 /// held at `life` every tick, over `seeds`: nothing but the tyres moves the lap.
 fn lap_time_held_at(course: fn() -> Track, life: f32, seeds: std::ops::Range<u64>) -> f32 {
@@ -636,6 +734,7 @@ fn lap_time_held_at(course: fn() -> Track, life: f32, seeds: std::ops::Range<u64
                         level: BotLevel::Ace,
                         tyres: Tyres::On,
                         laps: 3,
+                        weather: Weather::Dry,
                     },
                 ));
                 let mut timed = Vec::new();
@@ -671,6 +770,7 @@ fn first_lap_held_at(life: f32) -> f32 {
             level: BotLevel::Ace,
             tyres: Tyres::On,
             laps: 3,
+            weather: Weather::Dry,
         },
     ));
     for _ in 0..ticks(180.0) {
@@ -778,6 +878,7 @@ fn ace_winning_time(course: fn() -> Track, seeds: std::ops::Range<u64>) -> f32 {
                         level: BotLevel::Ace,
                         tyres: Tyres::On,
                         laps: 5,
+                        weather: Weather::Dry,
                     },
                 ));
                 while matches!(state.phase(), sim::Phase::Racing { .. }) {
@@ -870,6 +971,7 @@ fn called_in_a_bot_short_of_the_lanes_first_point_reads_no_turn_there() {
             3,
             0,
             &mut memory,
+            0.0,
             DT,
         )
     };

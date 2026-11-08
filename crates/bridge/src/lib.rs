@@ -497,6 +497,9 @@ impl Prediction {
             snapshot.karts.clone(),
             snapshot.projectiles.iter().map(Projectile::from).collect(),
         );
+        if let Some(began) = snapshot.rain_began_tick {
+            self.inner.adopt_rain_began_tick(began);
+        }
         Ok(self.inner.reconcile(snapshot.tick, acknowledged, own))
     }
 

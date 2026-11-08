@@ -5,13 +5,13 @@
 //! a replay without any of them naming it.
 
 use crate::tuning::{DEFAULT_LAPS, PICK_CHOICES};
-use crate::{BotLevel, Tyres};
+use crate::{BotLevel, Tyres, Weather};
 use serde::{Deserialize, Serialize};
 use std::fmt;
 use ts_rs::TS;
 
-/// The bot level (ADR 0078), the Tyres pick (ADR 0083) and the laps
-/// (ADR 0084). A field left out of a value read back, a kept room or a
+/// The bot level (ADR 0078), the Tyres pick (ADR 0083), the laps (ADR 0084)
+/// and the weather (ADR 0103). A field left out of a value read back, a kept room or a
 /// replay from before its pick existed, takes [`Picks::default`]: the race
 /// as it was before there was a pick, whatever a creator is now offered
 /// first.
@@ -22,6 +22,7 @@ pub struct Picks {
     pub level: BotLevel,
     pub tyres: Tyres,
     pub laps: u32,
+    pub weather: Weather,
 }
 
 impl Default for Picks {
@@ -30,6 +31,7 @@ impl Default for Picks {
             level: BotLevel::Basic,
             tyres: Tyres::Off,
             laps: DEFAULT_LAPS,
+            weather: Weather::Dry,
         }
     }
 }
@@ -71,4 +73,5 @@ pub struct PickChoices {
     pub level: [BotLevel; 3],
     pub tyres: [Tyres; 2],
     pub laps: [u32; 2],
+    pub weather: [Weather; 2],
 }

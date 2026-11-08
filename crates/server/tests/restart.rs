@@ -423,6 +423,8 @@ async fn a_room_kept_with_picks_comes_back_with_them() {
             level: BotLevel::Ace,
             tyres: Tyres::On,
             laps: 5,
+            // The kept file names no weather: a kept room with no pick is Dry.
+            weather: sim::Weather::Dry,
         }
     );
 }

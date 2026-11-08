@@ -83,13 +83,18 @@ describe("replay recorder", () => {
   it("records a browser session as a replay the wasm runner reproduces", async () => {
     const bridge = await loadBridge(wasm);
     const oval = sidecar("oval");
-    const race = bridge.createRace(9n, 1, 0, oval, { level: "basic", tyres: "off", laps: 3 });
+    const race = bridge.createRace(9n, 1, 0, oval, {
+      level: "basic",
+      tyres: "off",
+      laps: 3,
+      weather: "dry",
+    });
     const recorder = recordReplay(
       bridge,
       9n,
       "oval",
       0,
-      { level: "basic", tyres: "off", laps: 3 },
+      { level: "basic", tyres: "off", laps: 3, weather: "dry" },
       race,
     );
     const hashes: bigint[] = [];
@@ -126,13 +131,14 @@ describe("replay recorder", () => {
       level: "basic",
       tyres: "off",
       laps: 3,
+      weather: "dry",
     });
     const recorder = recordReplay(
       bridge,
       9n,
       "oval",
       0,
-      { level: "basic", tyres: "off", laps: 3 },
+      { level: "basic", tyres: "off", laps: 3, weather: "dry" },
       race,
     );
     for (const inputs of [
@@ -158,13 +164,18 @@ describe("replay recorder", () => {
   it("records the bots' count and only the humans' inputs, and the wasm runner reruns the bots", async () => {
     const bridge = await loadBridge(wasm);
     const oval = sidecar("oval");
-    const race = bridge.createRace(9n, 1, 2, oval, { level: "basic", tyres: "off", laps: 3 });
+    const race = bridge.createRace(9n, 1, 2, oval, {
+      level: "basic",
+      tyres: "off",
+      laps: 3,
+      weather: "dry",
+    });
     const recorder = recordReplay(
       bridge,
       9n,
       "oval",
       2,
-      { level: "basic", tyres: "off", laps: 3 },
+      { level: "basic", tyres: "off", laps: 3, weather: "dry" },
       race,
     );
     for (let tick = 1; tick <= 120; tick++) {
@@ -177,13 +188,18 @@ describe("replay recorder", () => {
     expect(file.hashes).toHaveLength(2);
     expect(bridge.replayHashes(recorder.toJSON(), oval)).toEqual(file.hashes.map(hashFromHex));
     // The hashes are the race's with its bots, not a race of the human alone.
-    const alone = bridge.createRace(9n, 1, 0, oval, { level: "basic", tyres: "off", laps: 3 });
+    const alone = bridge.createRace(9n, 1, 0, oval, {
+      level: "basic",
+      tyres: "off",
+      laps: 3,
+      weather: "dry",
+    });
     const aloneRecorder = recordReplay(
       bridge,
       9n,
       "oval",
       0,
-      { level: "basic", tyres: "off", laps: 3 },
+      { level: "basic", tyres: "off", laps: 3, weather: "dry" },
       alone,
     );
     for (let tick = 1; tick <= 120; tick++) {
@@ -196,13 +212,18 @@ describe("replay recorder", () => {
   it("records the Tyres pick, so a race on On reruns as one", async () => {
     const bridge = await loadBridge(wasm);
     const oval = sidecar("oval");
-    const race = bridge.createRace(9n, 1, 0, oval, { level: "basic", tyres: "on", laps: 3 });
+    const race = bridge.createRace(9n, 1, 0, oval, {
+      level: "basic",
+      tyres: "on",
+      laps: 3,
+      weather: "dry",
+    });
     const recorder = recordReplay(
       bridge,
       9n,
       "oval",
       0,
-      { level: "basic", tyres: "on", laps: 3 },
+      { level: "basic", tyres: "on", laps: 3, weather: "dry" },
       race,
     );
     const hashes: bigint[] = [];
@@ -219,13 +240,18 @@ describe("replay recorder", () => {
   it("names the laps, so five laps rerun as five", async () => {
     const bridge = await loadBridge(wasm);
     const oval = sidecar("oval");
-    const race = bridge.createRace(9n, 1, 0, oval, { level: "basic", tyres: "off", laps: 5 });
+    const race = bridge.createRace(9n, 1, 0, oval, {
+      level: "basic",
+      tyres: "off",
+      laps: 5,
+      weather: "dry",
+    });
     const recorder = recordReplay(
       bridge,
       9n,
       "oval",
       0,
-      { level: "basic", tyres: "off", laps: 5 },
+      { level: "basic", tyres: "off", laps: 5, weather: "dry" },
       race,
     );
     const hashes: bigint[] = [];
@@ -247,8 +273,13 @@ describe("replay recorder", () => {
       seed,
       "oval",
       0,
-      { level: "basic", tyres: "off", laps: 3 },
-      bridge.createRace(seed, 1, 0, sidecar("oval"), { level: "basic", tyres: "off", laps: 3 }),
+      { level: "basic", tyres: "off", laps: 3, weather: "dry" },
+      bridge.createRace(seed, 1, 0, sidecar("oval"), {
+        level: "basic",
+        tyres: "off",
+        laps: 3,
+        weather: "dry",
+      }),
     );
     expect((JSON.parse(recorder.toJSON()) as ReplayFile).seed).toBe("18446744073709551615");
   });
@@ -260,8 +291,13 @@ describe("replay recorder", () => {
       1n,
       "oval",
       0,
-      { level: "basic", tyres: "off", laps: 3 },
-      bridge.createRace(1n, 1, 0, sidecar("oval"), { level: "basic", tyres: "off", laps: 3 }),
+      { level: "basic", tyres: "off", laps: 3, weather: "dry" },
+      bridge.createRace(1n, 1, 0, sidecar("oval"), {
+        level: "basic",
+        tyres: "off",
+        laps: 3,
+        weather: "dry",
+      }),
     );
     expect(JSON.parse(recorder.toJSON())).toMatchObject({ segments: [], hashes: [] });
   });
@@ -271,13 +307,18 @@ describe("the bot level in a recording", () => {
   it("is written with the bots and reruns them at it", async () => {
     const bridge = await loadBridge(wasm);
     const oval = sidecar("oval");
-    const race = bridge.createRace(7n, 1, 1, oval, { level: "ace", tyres: "off", laps: 3 });
+    const race = bridge.createRace(7n, 1, 1, oval, {
+      level: "ace",
+      tyres: "off",
+      laps: 3,
+      weather: "dry",
+    });
     const recorder = recordReplay(
       bridge,
       7n,
       "oval",
       1,
-      { level: "ace", tyres: "off", laps: 3 },
+      { level: "ace", tyres: "off", laps: 3, weather: "dry" },
       race,
     );
     const idle = IDLE_INPUT;
