@@ -72,6 +72,12 @@ spinOutS: number | null,
  */
 airborne: boolean, 
 /**
+ * Whether the kart is in the air with a trick earned, which the landing
+ * pays in a boost (ADR 0102): the driver's flourish and its sound. A
+ * snapshot carries it, and a prediction's kart adopts it.
+ */
+trick: boolean, 
+/**
  * Whether the kart is on the pit limiter, between a pit lane's lines
  * (ADR 0081); the gear slot's PIT.
  */

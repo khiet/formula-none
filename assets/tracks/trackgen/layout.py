@@ -4,7 +4,7 @@ builder that turns it into meshes and placements for Blender."""
 from __future__ import annotations
 
 from collections.abc import Iterator
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import TYPE_CHECKING
 
 import math
@@ -549,6 +549,7 @@ class TrackGeometry:
     wheel_crossings: list[Placement] = field(default_factory=list)
     coins: list[Placement] = field(default_factory=list)
     pit_lane: PitLaneData | None = None
+    ramp_lips: list[Placement] = field(default_factory=list)
 
 
 def build(layout: Layout) -> TrackGeometry:
@@ -653,6 +654,14 @@ def build(layout: Layout) -> TrackGeometry:
     coins = [
         place(line.s + k * COIN_LINE_SPACING_M, line.offset) for line in layout.coin_lines for k in range(line.count)
     ]
+    # At the height of the lip's top edge, across the ramp's bounds: the sim judges a trick by them.
+    ramp_lips = [
+        replace(
+            place(ramp.s_end, (ramp.left + ramp.right) / 2.0, half_width=(ramp.left - ramp.right) / 2.0),
+            z=elevation(layout.elevation, ramp.s_end) + ramp.height,
+        )
+        for ramp in layout.ramps
+    ]
     # Wall to wall: the run-off's edges, where the walls stand.
     wheel_crossings = [
         place(crossing.s, half_width=runoff, hazard_half_depth=HAZARD_HALF_DEPTH_M)
@@ -683,6 +692,7 @@ def build(layout: Layout) -> TrackGeometry:
         wheel_crossings,
         coins,
         pit_lane.data(layout) if lane is not None else None,
+        ramp_lips,
     )
 
 

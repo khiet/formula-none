@@ -16,8 +16,8 @@ scene follows these conventions:
 - A curve object named `Centreline`, one closed POLY or BEZIER spline, run
   in the direction of travel starting at the start line.
 - Collections `Checkpoints`, `ItemBoxes`, `BoostPads`, `Coins`, `Kerbs`,
-  `WheelCrossings` and `SpawnGrid` hold empties ordered by name. An empty
-  faces along its local +Y; checkpoints and wheel crossings carry a
+  `RampLips`, `WheelCrossings` and `SpawnGrid` hold empties ordered by name. An empty
+  faces along its local +Y; checkpoints, ramp lips and wheel crossings carry a
   `half_width` custom property, and wheel crossings a `hazard_half_depth_m`.
 
 Blender is Z up; the sidecar is written in the glTF frame (Y up, -Z
@@ -50,11 +50,12 @@ PLACEMENT_COLLECTIONS = {
     "boost_pads": "BoostPads",
     "coins": "Coins",
     "kerbs": "Kerbs",
+    "ramp_lips": "RampLips",
     "wheel_crossings": "WheelCrossings",
     "spawn_grid": "SpawnGrid",
 }
 # The placements that reach to either side of their centre.
-HALF_WIDTH_COLLECTIONS = {"checkpoints", "wheel_crossings"}
+HALF_WIDTH_COLLECTIONS = {"checkpoints", "ramp_lips", "wheel_crossings"}
 # The placements whose hazard zone reaches along the track either side of them.
 HAZARD_COLLECTIONS = {"wheel_crossings"}
 # Millimetres are plenty for a greybox and keep the sidecar diffable.

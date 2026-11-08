@@ -9,7 +9,10 @@ use common::{
     OVAL, SEED,
 };
 
-use sim::tuning::{KART_HALF_HEIGHT_M, KART_HALF_LENGTH_M, WHEEL_LANDING_SPREAD_M, WHEEL_RADIUS_M};
+use sim::tuning::{
+    KART_HALF_HEIGHT_M, KART_HALF_LENGTH_M, TOP_SPEED_M_PER_S, WHEEL_LANDING_SPREAD_M,
+    WHEEL_RADIUS_M,
+};
 use sim::{step, KartInput, KartReadout, State, Surface, Track, TrackError};
 
 /// Nearest centreline index to a point, for ordering things along the lap.
@@ -724,4 +727,26 @@ fn direction_and_curvature_follow_the_centreline_with_a_left_turn_positive() {
         (sharpest_right + 1.0 / 12.0).abs() < 0.01,
         "a right turn reads negative: {sharpest_right}"
     );
+}
+
+/// A ramp's window (ADR 0102) is the kart's own time to the lip: a slow kart's
+/// is shorter in metres, and one backing up to the lip is not closing on it at
+/// all. It is over the lip's height, so a kart on the road under the high end
+/// is not in it.
+#[test]
+fn the_trick_window_is_in_seconds_at_the_speed_closing_on_the_lip() {
+    let base = bell_deer();
+    // layouts/bell_deer.py: 44 m along `back-straight`, 3 m left of the line.
+    let lip = 916.63 + 44.0;
+    let short_of_the_lip = lip - 2.0;
+    let [x, _, z] = base.point_at(short_of_the_lip);
+    let [dx, dz] = base.direction_at(short_of_the_lip);
+    let (x, z) = (x + dz * 3.0, z - dx * 3.0);
+    let closing = |speed: f32| [dx * speed, 0.0, dz * speed];
+    let on_the_slope = [x, 0.6, z];
+    assert!(base.in_a_trick_window(on_the_slope, closing(TOP_SPEED_M_PER_S)));
+    assert!(!base.in_a_trick_window(on_the_slope, closing(10.0)));
+    assert!(!base.in_a_trick_window(on_the_slope, closing(-TOP_SPEED_M_PER_S)));
+    let under_the_high_end = [x, 0.25, z];
+    assert!(!base.in_a_trick_window(under_the_high_end, closing(TOP_SPEED_M_PER_S)));
 }

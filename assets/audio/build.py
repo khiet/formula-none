@@ -304,6 +304,14 @@ def hop(click=0.06, from_hz=450, to_hz=1400, length=0.1, gain=0.45):
     )
 
 
+def trick(freqs=(784, 1175, 1568), step=0.05, ring=0.18, gain=0.32):
+    """Flourish: a quick rising run of triangle notes, the last left to ring."""
+    return concat(
+        *[tone(freq, step, triangle, decay=10, gain=gain) for freq in freqs[:-1]],
+        tone(freqs[-1], ring, triangle, decay=9, gain=gain),
+    )
+
+
 def mini_turbo(from_hz=150, to_hz=1100, length=0.35, hiss=0.4, gain=0.35):
     """Blow-off: a turbo blow-off hiss under an exponential sawtooth rise."""
     return mix(
@@ -763,6 +771,7 @@ def sfx():
     write("countdown-beep", tame(countdown_beep()))
     write("go", tame(go()))
     write("hop", tame(hop()))
+    write("trick", tame(trick()))
     write("mini-turbo", tame(mini_turbo()))
     # On every box the kart takes, then a click on each step of the slot's
     # reel and the arpeggio as the item lands (ADR 0070).

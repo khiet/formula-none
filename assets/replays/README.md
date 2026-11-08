@@ -78,7 +78,10 @@ written the same way: four karts from the grid through the first curve
 and turn 2, one of them cutting across turn 2's sand. `bell-deer-ramp-launch.replay.json`
 was written by the sim tests' line follower, steering held six ticks at a time in eighths:
 round the lap to Spoon, across to the left half over the pad, off the ramp's lip and three
-seconds on (ADR 0101). `oval-rocket-start.replay.json` and
+seconds on (ADR 0101). `bell-deer-ramp-trick.replay.json` is the same drive with the hop
+pressed three ticks into the flight, and `bell-deer-ace-bots-trick.replay.json` seven Ace bots
+round the lap with an idle human, seed 6 for the one traffic puts on the ramp's half to trick
+(ADR 0102). `oval-rocket-start.replay.json` and
 `oval-stall.replay.json` were written by hand for the start: the throttle
 held from the first half of the fourth light through Go, and from the top of the
 countdown. `goldstone-lap-with-bots.replay.json` was written by the sim tests'

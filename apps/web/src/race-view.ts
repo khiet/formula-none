@@ -69,6 +69,7 @@ import {
 } from "./tell-meshes";
 import type { PitBox, TrackName } from "./track";
 import { trackProbe } from "./track-probe";
+import { flourishAfter, flourishTurn, NO_FLOURISH } from "./trick-flourish";
 import { createTyreMarks } from "./tyre-marks";
 import { kartWheels } from "./wheel-spin";
 import { createWheelTellEmitter, wheelBack } from "./wheel-tells";
@@ -321,7 +322,18 @@ export async function createRaceView(
     const halo = new Mesh(new SphereGeometry(STAR_HALO_RADIUS_M, 12, 8), haloMaterial);
     halo.visible = false;
     kart.add(halo);
-    return { model, kart, wheels, head, sway, halo, haloMaterial, shining: false, spunOut: false };
+    return {
+      model,
+      kart,
+      wheels,
+      head,
+      sway,
+      flourish: NO_FLOURISH,
+      halo,
+      haloMaterial,
+      shining: false,
+      spunOut: false,
+    };
   });
 
   const tyreMarks = createTyreMarks(kartCount, kartSize, {
@@ -474,11 +486,13 @@ export async function createRaceView(
         wheels.turn(readout.speed, frameSeconds);
         sway.state = swayHead(sway.state, sway.last, readout, frameSeconds);
         sway.last = readout;
+        drawn.flourish = flourishAfter(drawn.flourish, readout.trick, frameSeconds);
         if (head !== undefined) {
           head.rotation.z = sway.state.roll;
           // On the mark the driver's eyes are on the lollipop, off the nose on the building's side.
           head.rotation.y =
-            -(pitBoxes[slot]?.buildingSide ?? 1) * DRIVER_LOOK_RAD * driverLook(readout.stop);
+            -(pitBoxes[slot]?.buildingSide ?? 1) * DRIVER_LOOK_RAD * driverLook(readout.stop) +
+            (viewer.reducedMotion ? 0 : flourishTurn(drawn.flourish));
         }
         kart.position.set(...readout.position);
         kart.quaternion.set(...readout.rotation);

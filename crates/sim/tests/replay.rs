@@ -374,7 +374,8 @@ fn every_committed_fixture_replays_to_the_hashes_it_was_recorded_with() {
 /// and another into red (the cornering rules), and a rocket start
 /// boosting at Go and another stalling there (the start rule), a coin
 /// taken and coins lost to a spin-out (the coin rules), a kart launched off
-/// a ramp (the slope in the asphalt's mesh). A fixture
+/// a ramp (the slope in the asphalt's mesh), a trick off its lip by a human
+/// and by an Ace bot. A fixture
 /// that only drives up a straight would pass on a sim with most of its
 /// rules broken.
 #[test]
@@ -391,6 +392,8 @@ fn the_fixture_set_exercises_kart_contact_off_track_walls_every_track_both_mini_
     let mut stalled = false;
     let mut launched_by_a_kerb = false;
     let mut launched_off_a_ramp = false;
+    let mut human_tricked = false;
+    let mut bot_tricked = false;
     let mut hit_by_the_wheel = false;
     let mut took_a_coin = false;
     let mut lost_coins = false;
@@ -454,6 +457,8 @@ fn the_fixture_set_exercises_kart_contact_off_track_walls_every_track_both_mini_
                         && kart.boost_s().is_some()
                         && replay.track == "bell-deer"
                         && (960.0..965.0).contains(&state.standings()[slot].spline_progress);
+                    human_tricked |= kart.trick && slot < replay.human_count();
+                    bot_tricked |= kart.trick && slot >= replay.human_count();
                     rocket_started |= go && kart.boost_s().is_some();
                     stalled |= go && kart.stall_s.is_some();
                     // Only a wall takes most of a lone kart's speed in one
@@ -507,6 +512,8 @@ fn the_fixture_set_exercises_kart_contact_off_track_walls_every_track_both_mini_
     assert!(stalled, "no fixture stalls at Go");
     assert!(launched_by_a_kerb, "no fixture is launched by a kerb");
     assert!(launched_off_a_ramp, "no fixture flies off a ramp");
+    assert!(human_tricked, "no fixture tricks off a ramp's lip");
+    assert!(bot_tricked, "no fixture has a bot trick off a ramp's lip");
     assert!(hit_by_the_wheel, "no fixture is hit by the runaway wheel");
     assert!(took_a_coin, "no fixture takes a coin");
     assert!(lost_coins, "no fixture loses coins to a spin-out");

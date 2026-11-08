@@ -178,6 +178,7 @@ pub fn snapshot() -> Snapshot {
                 tyre_life: 100.0 - f32::from(slot) * 12.5,
                 spin_out_s: (slot == 6).then_some(0.5),
                 airborne: slot == 0,
+                trick: slot == 0,
                 in_pit_lane: slot == 4,
                 stop: (slot == 4).then_some(Stop {
                     tier: StopTier::Slow,

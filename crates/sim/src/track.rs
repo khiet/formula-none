@@ -5,7 +5,9 @@
 //! Everything is in the glTF frame the renderer uses: metres, Y up, a kart
 //! with yaw zero faces -Z, and yaw grows counter-clockwise seen from above.
 
-use crate::tuning::{KARTS_PER_RACE, PROGRESS_WINDOW_M, WHEEL_PERIOD_S, WHEEL_WARNING_S};
+use crate::tuning::{
+    KARTS_PER_RACE, PROGRESS_WINDOW_M, TRICK_EARLY_S, TRICK_LATE_S, WHEEL_PERIOD_S, WHEEL_WARNING_S,
+};
 use rapier3d::prelude::{SharedShape, TriMeshFlags, Vec3};
 use serde::{Deserialize, Serialize};
 use std::fmt;
@@ -364,6 +366,37 @@ impl PitLane {
     }
 }
 
+/// The top edge of a ramp (GLOSSARY: ramp), where a hop earns a trick: a
+/// point at the middle of the edge at its height, the way off it, and how far
+/// either side of the point it reaches.
+#[derive(Debug, Clone, Copy, PartialEq, Deserialize)]
+pub struct RampLip {
+    pub position: [f32; 3],
+    pub yaw: f32,
+    pub half_width: f32,
+}
+
+impl RampLip {
+    /// Whether a kart's centre at `point` moving at `velocity` is within the
+    /// trick's window of this lip (ADR 0102). Above the edge's height, so a
+    /// kart on the flat under the high end is not on it, and across its
+    /// reach, closing on it in the way off; the tuned times are the kart's
+    /// own at that closing speed.
+    fn trick_window(&self, point: [f32; 3], velocity: [f32; 3]) -> bool {
+        let at = Placement {
+            position: self.position,
+            yaw: self.yaw,
+        };
+        let (ahead, across) = at.local(point);
+        let (sin, cos) = libm::sincosf(self.yaw);
+        let closing = -velocity[0] * sin - velocity[2] * cos;
+        closing > 0.0
+            && point[1] >= self.position[1]
+            && across.abs() <= self.half_width
+            && (-TRICK_EARLY_S * closing..=TRICK_LATE_S * closing).contains(&ahead)
+    }
+}
+
 #[derive(Deserialize)]
 struct Sidecar {
     version: u32,
@@ -374,6 +407,7 @@ struct Sidecar {
     boost_pads: Vec<Placement>,
     coins: Vec<Placement>,
     kerbs: Vec<Placement>,
+    ramp_lips: Vec<RampLip>,
     wheel_crossings: Vec<WheelCrossing>,
     spawn_grid: Vec<Placement>,
     /// A course without one has no pits (ADR 0081).
@@ -394,6 +428,7 @@ pub struct Track {
     coins: Vec<Placement>,
     /// Sausage kerbs (GLOSSARY).
     kerbs: Vec<Placement>,
+    ramp_lips: Vec<RampLip>,
     /// Where the runaway wheel (GLOSSARY) crosses the track.
     wheel_crossings: Vec<WheelCrossing>,
     spawn_grid: Vec<Placement>,
@@ -562,6 +597,7 @@ impl Track {
             boost_pads: sidecar.boost_pads,
             coins: sidecar.coins,
             kerbs: sidecar.kerbs,
+            ramp_lips: sidecar.ramp_lips,
             wheel_crossings: sidecar.wheel_crossings,
             spawn_grid: sidecar.spawn_grid,
             pit_lane,
@@ -692,6 +728,14 @@ impl Track {
         self.boost_pads
             .iter()
             .any(|pad| pad.covers(point, BOOST_PAD_HALF_LENGTH_M, BOOST_PAD_HALF_WIDTH_M))
+    }
+
+    /// Whether a kart's centre at `point` moving at `velocity` is within the
+    /// trick's window of a ramp's lip (ADR 0102).
+    pub fn in_a_trick_window(&self, point: [f32; 3], velocity: [f32; 3]) -> bool {
+        self.ramp_lips
+            .iter()
+            .any(|lip| lip.trick_window(point, velocity))
     }
 
     /// The coins a kart collects, in the sidecar's order.

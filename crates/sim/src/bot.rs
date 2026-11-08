@@ -478,6 +478,13 @@ pub fn drive(
             drifting_corner
         }
     };
+    // A level that tricks presses as the window opens, the first tick the
+    // lip is in reach. The hop puts it in the air, so the press is that tick's.
+    let hop = hop
+        || (profile.tricks
+            && kart.drift.is_none()
+            && !kart.airborne
+            && track.in_a_trick_window(kart.position, kart.velocity));
 
     let (throttle, brake) = if kart.speed > target_speed {
         (0.0, 1.0)

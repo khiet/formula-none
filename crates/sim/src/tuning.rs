@@ -242,6 +242,15 @@ pub const KERB_HALF_LENGTH_M: f32 = 4.0;
 pub const KERB_HALF_WIDTH_M: f32 = 0.5;
 /// The share of a kart's speed the kerb's launch leaves it.
 pub const KERB_SPEED_KEEP: f32 = 0.85;
+/// A trick (ADR 0102): a hop pressed no more than this long before the kart
+/// reaches a ramp's lip, at the speed it is closing on it. In seconds and not
+/// metres, so a boosted kart's window is no shorter to press than a slow one's.
+pub const TRICK_EARLY_S: f32 = 0.1;
+/// And no more than this long after it has passed the lip, in the air.
+pub const TRICK_LATE_S: f32 = 0.1;
+/// The boost a trick pays on landing: an orange mini-turbo's.
+pub const TRICK_BOOST_S: f32 = MINI_TURBO_ORANGE_BOOST_S;
+pub const TRICK_BOOST_FACTOR: f32 = MINI_TURBO_BOOST_FACTOR;
 /// The runaway wheel (GLOSSARY) makes a pass over its crossing once every
 /// period, each pass rolling in from the other wall from the last, the
 /// first starting at `WHEEL_FIRST_PASS_S` on the race clock so the
@@ -763,6 +772,8 @@ pub struct BotProfile {
     pub rubber_band_max_factor: f32,
     pub item_use_delay_s: f32,
     pub start_boost_chance: f32,
+    /// Whether a bot on a ramp's lip presses for a trick (ADR 0102).
+    pub tricks: bool,
 }
 
 /// The profile of each bot level, indexed by `BotLevel` in its order:
@@ -779,6 +790,7 @@ pub const BOT_LEVELS: [BotProfile; 3] = [
         rubber_band_max_factor: BOT_RUBBER_BAND_MAX_FACTOR,
         item_use_delay_s: BOT_ITEM_USE_DELAY_S,
         start_boost_chance: BOT_START_BOOST_CHANCE,
+        tricks: false,
     },
     BotProfile {
         pit_call: BotPitCall::ByTheCliff,
@@ -788,6 +800,7 @@ pub const BOT_LEVELS: [BotProfile; 3] = [
         rubber_band_max_factor: BOT_RUBBER_BAND_MAX_FACTOR,
         item_use_delay_s: 1.0,
         start_boost_chance: 0.8,
+        tricks: false,
     },
     BotProfile {
         pit_call: BotPitCall::Projected {
@@ -799,6 +812,7 @@ pub const BOT_LEVELS: [BotProfile; 3] = [
         rubber_band_max_factor: BOT_RUBBER_BAND_MAX_FACTOR,
         item_use_delay_s: 0.0,
         start_boost_chance: 1.0,
+        tricks: true,
     },
 ];
 
