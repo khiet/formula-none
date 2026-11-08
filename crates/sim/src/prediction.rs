@@ -306,6 +306,7 @@ impl Prediction {
         let state = self.state_mut();
         state.restore(&record);
         state.phase = phase;
+        state.tick = snapshot_tick;
         self.tick = snapshot_tick;
         let anchor = &mut self.entries[0];
         anchor.tick = snapshot_tick;

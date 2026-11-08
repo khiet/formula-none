@@ -17,7 +17,8 @@ use sim::tuning::{
 };
 use sim::Picks;
 use sim::{
-    rain_lap, step, BotLevel, Item, ItemSlot, RaceEvent, State, Surface, Track, Tyres, Weather,
+    rain_lap, rain_laps, step, BotLevel, Item, ItemSlot, RaceEvent, State, Surface, Track, Tyres,
+    Weather,
 };
 
 /// A course by name, built afresh for each race.
@@ -704,7 +705,7 @@ fn rain_sweep_reports_the_end_cap_grass_and_missed_forks() {
                     let dry = raced(Weather::Dry);
                     report("dry", "-", &dry.iter().map(|(_, r)| r).collect::<Vec<_>>());
                     let rain = raced(Weather::Rain);
-                    for lap in 2..=laps.saturating_sub(1).max(3) {
+                    for lap in rain_laps(laps) {
                         let on_lap: Vec<&Raced> = rain
                             .iter()
                             .filter(|(seed, _)| rain_lap(*seed, laps) == lap)

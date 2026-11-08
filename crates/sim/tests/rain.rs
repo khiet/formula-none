@@ -63,7 +63,6 @@ fn the_seed_picks_lap_2_to_the_lap_before_the_last_or_2_or_3_of_three() {
     };
     assert_eq!(laps_of(3), [2, 3]);
     assert_eq!(laps_of(5), [2, 3, 4]);
-    assert_eq!(rain_lap(SEED, 5), rain_lap(SEED, 5), "the seed decides it");
 }
 
 #[test]

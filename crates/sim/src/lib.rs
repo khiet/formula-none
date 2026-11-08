@@ -45,7 +45,7 @@ pub use stop::{stop_roll, Stop, StopTier};
 pub use track::{
     Checkpoint, PitLane, Placement, Surface, SurfaceMesh, Track, TrackError, WheelCrossing,
 };
-pub use weather::{rain_lap, Weather};
+pub use weather::{rain_lap, rain_laps, Weather};
 pub use wheel::{wheel, Wheel};
 
 use handling::{Freeze, Handling, Situation};

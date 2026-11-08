@@ -501,6 +501,11 @@ pub const TYRE_WASH_OUT_FULL_M_PER_S2: f32 = 15.0;
 /// bends the line rather than kinking it: the deepest in a quarter second,
 /// and a hop's airtime lets the deepest go.
 pub const TYRE_WASH_OUT_RATE_RAD_PER_S: f32 = 0.6;
+/// The laps the seed picks the rain's from: this one to the lap before the
+/// last, and never fewer than up to the next, or a three-lap race would have
+/// one lap to choose from (ADR 0103).
+pub const RAIN_FIRST_LAP: u32 = 2;
+pub const RAIN_LAST_LAP_AT_LEAST: u32 = 3;
 /// Seconds rain takes to wet the track from the tick it begins; it then holds
 /// to the flag (ADR 0103).
 pub const RAIN_WETTING_S: f32 = 20.0;

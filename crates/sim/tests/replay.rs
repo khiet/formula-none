@@ -395,6 +395,7 @@ fn the_fixture_set_exercises_kart_contact_off_track_walls_every_track_both_mini_
     let mut human_tricked = false;
     let mut bot_tricked = false;
     let mut hit_by_the_wheel = false;
+    let mut fully_wet = false;
     let mut took_a_coin = false;
     let mut lost_coins = false;
     let mut towed = false;
@@ -418,6 +419,7 @@ fn the_fixture_set_exercises_kart_contact_off_track_walls_every_track_both_mini_
                 let counting_down = matches!(state.phase(), Phase::Countdown { .. });
                 state = step(state, &segment.inputs, DT);
                 let go = counting_down && matches!(state.phase(), Phase::Racing { .. });
+                fully_wet |= state.wetness() == 1.0;
                 hit_by_the_wheel |= state
                     .events()
                     .iter()
@@ -495,10 +497,7 @@ fn the_fixture_set_exercises_kart_contact_off_track_walls_every_track_both_mini_
         picks.iter().any(|picks| picks.level == BotLevel::Ace),
         "no fixture races Ace bots, so a retune of Ace could pass the gate: {picks:?}"
     );
-    assert!(
-        picks.iter().any(|picks| picks.weather == Weather::Rain),
-        "no fixture races in the rain"
-    );
+    assert!(fully_wet, "no fixture races on to a fully wet track");
     assert!(
         picks.iter().any(|picks| picks.tyres == Tyres::On),
         "no fixture wears its tyres, so a retune of wear could pass the gate: {picks:?}"

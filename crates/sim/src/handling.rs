@@ -1948,20 +1948,21 @@ mod tests {
         };
         let flat_out = TOP_SPEED_M_PER_S / ACCELERATION_TO_TOP_S;
         let full_brake = TOP_SPEED_M_PER_S / BRAKE_TO_STOP_S;
-        // Fully wet, half wet: the tuned 0.92 and 0.80, and halfway from 1.
-        for (wetness, steering_and_throttle, braking) in [(1.0, 0.92, 0.80), (0.5, 0.96, 0.90)] {
+        for wetness in [1.0, 0.5] {
+            // In a straight line from 1 at dry to the tuned factor at fully wet.
+            let at = |factor: f32| 1.0 - (1.0 - factor) * wetness;
             let mut gaining = going(0.0);
             for _ in 0..TICKS_PER_SECOND {
                 gaining.tick(&FULL_THROTTLE, Freeze::Free, wet(wetness), TICK_S);
             }
-            let expected = flat_out * steering_and_throttle;
+            let expected = flat_out * at(RAIN_ACCELERATION_FACTOR);
             assert!((gaining.speed - expected).abs() < 1e-2, "{}", gaining.speed);
 
             let mut braked = going(11.0);
             for _ in 0..TICKS_PER_SECOND / 2 {
                 braked.tick(&brake, Freeze::Free, wet(wetness), TICK_S);
             }
-            let expected = full_brake * braking / 2.0;
+            let expected = full_brake * at(RAIN_BRAKING_FACTOR) / 2.0;
             assert!((11.0 - braked.speed - expected).abs() < 1e-2);
 
             let dry = going(10.0)
@@ -1970,7 +1971,7 @@ mod tests {
             let turning = going(10.0)
                 .tick(&lock, Freeze::Free, wet(wetness), TICK_S)
                 .yaw_rate;
-            assert!((turning / dry - steering_and_throttle).abs() < 1e-3);
+            assert!((turning / dry - at(RAIN_STEER_RATE_FACTOR)).abs() < 1e-3);
         }
     }
 
@@ -1992,12 +1993,19 @@ mod tests {
 
     #[test]
     fn a_wet_track_adds_to_the_slide_at_any_life_up_to_the_most_a_hop_lets_go() {
-        // Life in the tuned columns: new, the cliff and worn right out.
-        let most = |life: f32| TyreGrip::at(life).wet(1.0).most_wash_out_rad;
-        assert!((most(100.0) - 0.05).abs() < 1e-6);
-        assert!((most(30.0) - 0.15).abs() < 1e-6);
-        assert!((most(0.0) - 0.18).abs() < 1e-6, "0.15 + 0.05, capped");
-        assert_eq!(TyreGrip::at(0.0).wet(0.0).most_wash_out_rad, 0.15);
+        let most = |at: usize| {
+            TyreGrip::at(TYRE_LIFE_COLUMNS_PERCENT[at])
+                .wet(1.0)
+                .most_wash_out_rad
+        };
+        let added = |at: usize| TYRE_WASH_OUT_MOST_RAD[at] + RAIN_WASH_OUT_ADDED_RAD;
+        assert!((most(0) - added(0)).abs() < 1e-6, "on new tyres");
+        assert!((most(2) - added(2)).abs() < 1e-6, "at the cliff");
+        assert!(
+            added(3) > RAIN_WASH_OUT_MOST_RAD,
+            "worn out would pass the most"
+        );
+        assert!((most(3) - RAIN_WASH_OUT_MOST_RAD).abs() < 1e-6);
 
         // New tyres on Tyres Off, flat out on full lock, slide once it is wet.
         let mut handling = Handling::new(Tyres::Off);
@@ -2010,7 +2018,7 @@ mod tests {
             handling.tick(&input, Freeze::Free, wet(1.0), TICK_S);
         }
         assert!(
-            (handling.wash_out_rad - 0.05).abs() < 1e-3,
+            (handling.wash_out_rad - RAIN_WASH_OUT_ADDED_RAD).abs() < 1e-3,
             "{}",
             handling.wash_out_rad
         );
