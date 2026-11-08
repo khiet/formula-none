@@ -1737,7 +1737,7 @@ pub fn step(mut state: State, inputs: &[KartInput], dt: f32) -> State {
     if !matches!(state.phase, Phase::Finished) {
         state.tick += 1;
     }
-    // Every kart drives this tick on the wet the last one left.
+    // Read once, so every kart drives this tick on the same wet.
     let wetness = state.wetness();
     // The race clock of a racing tick; `None` through the outro.
     let elapsed_s = match state.phase {
