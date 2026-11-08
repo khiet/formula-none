@@ -118,8 +118,8 @@ pub(crate) struct Handling {
     /// Whether a hop on a ramp's lip has earned a trick the landing has yet
     /// to pay (ADR 0102).
     trick: bool,
-    /// Whether the flight under way began with a hop, however long its
-    /// airtime is run out: that hop was its one try at a trick.
+    /// Whether the flight under way began with a hop or a kerb's launch, even
+    /// once its airtime has run out: a hop is a flight's one try at a trick.
     hopped_into_flight: bool,
     /// Seconds of boost left; zero or less when not boosting.
     boost_left_s: f32,
@@ -442,8 +442,7 @@ impl Handling {
     /// `wearing` are left out: every tick writes them before anything reads
     /// them. The tyres are left out on Off, where nothing changes them, so
     /// a race on Off hashes as one recorded before there were tyres; a trick
-    /// counts only while one is earned, so a race without one hashes as one
-    /// recorded before there were tricks.
+    /// counts only while one is earned.
     pub(crate) fn hash(&self, hasher: &mut Fnv1a) {
         use std::hash::Hasher;
         hasher.write_f32(self.speed);

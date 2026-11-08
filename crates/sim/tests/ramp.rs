@@ -207,8 +207,8 @@ fn early_ticks() -> i32 {
 fn late_ticks() -> i32 {
     ticks(TRICK_LATE_S) as i32
 }
-/// A press further from the lip than the window, seen at the pad's boosted
-/// speed. Half as long again, since a slope's run reads short in ticks.
+/// A press short of the window at the pad's boosted speed. Half as long again,
+/// since a tick on the slope covers less spline progress than the kart moves.
 fn too_early_tick() -> i32 {
     -early_ticks() * 3 / 2
 }
