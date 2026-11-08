@@ -53,7 +53,7 @@ fn on_the_run_up(right_of_centre: f32) -> State {
     started(State::new(SEED, 1, track(&sidecar)))
 }
 
-/// What a kart did from the run-up until it landed or passed the bridge's foot.
+/// What a kart did from the run-up until it landed or ran 80 m past the lip.
 #[derive(Debug, Default)]
 struct Run {
     boosted: bool,

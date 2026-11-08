@@ -784,7 +784,7 @@ def ramp_markings(layout: Layout) -> list[SceneryMesh]:
         def on_road(offset: float) -> list[mesh.Vertex]:
             return [(*sample.offset(offset), elevation(layout.elevation, sample.s)) for sample in samples]
 
-        # Proud of the wedge's sides, as the slope's stripes are of its top.
+        # Proud of where the slope's sides stand, as its stripes are of its top.
         left, right = ramp.left + SCENERY_LIFT_M, ramp.right - SCENERY_LIFT_M
         ribbons = {
             "L": mesh.ribbon(on_slope(ramp.left), on_slope(ramp.left - KERB_WIDTH_M), closed=False),

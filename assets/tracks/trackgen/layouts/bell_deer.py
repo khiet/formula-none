@@ -92,7 +92,7 @@ RAMP_LENGTH_M = 8.0
 
 back = path.segment("back-straight")
 hairpin = path.segment("hairpin")
-# Past the checkpoint a kart would otherwise be in the air over.
+# Lip past a checkpoint, so a kart lands before the next one (ADR 0101).
 ramp_start = back.s_start + 36.0
 # The back straight's row, this far along it.
 BACK_STRAIGHT_ROW_M = 80.0
