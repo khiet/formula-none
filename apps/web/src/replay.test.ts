@@ -115,6 +115,7 @@ describe("replay recorder", () => {
     expect(file.bots).toBe(0);
     expect(file.level).toBe("basic");
     expect(file.tyres).toBe("off");
+    expect(file.weather).toBe("dry");
     // Consecutive identical inputs are one segment.
     expect(file.segments).toEqual([
       { ticks: 100, inputs: [THROTTLE] },
