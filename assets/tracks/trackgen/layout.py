@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING
 import math
 
 from . import mesh
-from .path import SAMPLE_STEP_M, Feature, Path, elevation
+from .path import SAMPLE_STEP_M, Feature, Path, Ramp, elevation
 from .sponsors import SPONSORS
 
 if TYPE_CHECKING:
@@ -445,6 +445,7 @@ class Layout:
     kerbs: list[Kerb] = field(default_factory=list)
     wheel_crossings: list[WheelCrossing] = field(default_factory=list)
     elevation: list[Feature] = field(default_factory=list)
+    ramps: list[Ramp] = field(default_factory=list)
     decor: Decor = field(default_factory=Decor)
     pit_lane: PitLane | None = None
 
@@ -567,14 +568,11 @@ def build(layout: Layout) -> TrackGeometry:
     asphalt_uvs = [(0.0, sample.s) for sample in path.samples] + [
         (1.0, sample.s) for sample in path.samples
     ]
+    asphalt = mesh.ribbon(rail(half), rail(-half), closed=True)
+    for ramp in layout.ramps:
+        asphalt, asphalt_uvs = ramp_in_the_asphalt(layout, ramp, asphalt, asphalt_uvs)
     surfaces = [
-        SurfaceMesh(
-            "Asphalt",
-            ASPHALT,
-            ASPHALT,
-            mesh.ribbon(rail(half), rail(-half), closed=True),
-            uvs=asphalt_uvs,
-        ),
+        SurfaceMesh("Asphalt", ASPHALT, ASPHALT, asphalt, uvs=asphalt_uvs),
         SurfaceMesh(
             "SandLeft", SAND, SAND, mesh.ribbon(rail(runoff, GRASS_DROP_M), rail(half), closed=True)
         ),
@@ -607,8 +605,8 @@ def build(layout: Layout) -> TrackGeometry:
         surfaces += pit_lane.surfaces(layout)
 
     # Track limits: a wall along each edge of the run-off the whole way
-    # round, standing on the sand's outer edge so it follows the hill and
-    # the ramp with the track. A kart can go off the asphalt but never off
+    # round, standing on the sand's outer edge so it follows the hill with
+    # the track. A kart can go off the asphalt but never off
     # the course, so no corner can be cut (ADR 0022). A pit lane's side has
     # its own walls, with the gaps the lane comes and goes by.
     for name, side in (("WallLeft", 1), ("WallRight", -1)):
@@ -688,10 +686,145 @@ def build(layout: Layout) -> TrackGeometry:
     )
 
 
+def ramp_stations(layout: Layout, ramp: Ramp) -> tuple[list[int], list[float]]:
+    """The centreline samples a ramp spans and its rise at each, from nothing at the foot to its
+    full height at the lip, whichever samples lie nearest its two ends."""
+    half = layout.asphalt_half_width
+    if not -half <= ramp.right < ramp.left <= half:
+        raise ValueError(f"a ramp from {ramp.right} to {ramp.left} m is not on {half} m of asphalt")
+    indices = layout.path.indices_between(ramp.s_start, ramp.s_end)
+    first, last = (layout.path.samples[i].s for i in (indices[0], indices[-1]))
+    return indices, [ramp.height * (layout.path.samples[i].s - first) / (last - first) for i in indices]
+
+
+def ramp_in_the_asphalt(
+    layout: Layout,
+    ramp: Ramp,
+    asphalt: mesh.Mesh,
+    uvs: list[tuple[float, float]],
+) -> tuple[mesh.Mesh, list[tuple[float, float]]]:
+    """The asphalt ribbon with a ramp's stretch rebuilt so the slope rises out of it.
+
+    In the one mesh, sharing vertices along the foot, because the sim smooths a seam only between
+    a mesh's own triangles: a wedge laid on the road as a mesh of its own throws a kart off the
+    edge of its foot. For the same reason the slope has no faces for its sides or lip, which catch
+    a kart on the road beside them and stop it dead, nor road beneath it, which takes the lift off
+    its launch: the sim's ramp is the slope alone, and `ramp_markings` draws the rest. A kart that
+    comes in from the side rides up it, or under its high end, and is never held.
+    """
+    half = layout.asphalt_half_width
+    path = layout.path
+    vertices, faces = list(asphalt[0]), list(asphalt[1])
+    uvs = list(uvs)
+    count = len(path.samples)
+    indices, rise = ramp_stations(layout, ramp)
+    first, last = indices[0], indices[-1]
+
+    def add(index: int, offset: float, up: float) -> int:
+        sample = path.samples[index]
+        vertices.append((*sample.offset(offset), elevation(layout.elevation, sample.s) + up))
+        uvs.append(((half - offset) / (2.0 * half), sample.s))
+        return len(vertices) - 1
+
+    # Left to right across the asphalt: the ribbon's own rails, with one more
+    # at each ramp edge inside them. The foot's slope is the road's own row.
+    stops = [half] + [offset for offset in (ramp.left, ramp.right) if abs(offset) < half] + [-half]
+
+    def road_vertex(index: int, offset: float) -> int:
+        return index if offset == half else count + index
+
+    road = {
+        i: {o: road_vertex(i, o) if abs(o) == half else add(i, o, 0.0) for o in stops} for i in indices
+    }
+    slope = {
+        i: {o: add(i, o, up) if up > 0.0 else road[i][o] for o in (ramp.left, ramp.right)}
+        for i, up in zip(indices, rise)
+    }
+
+    # The ribbon's quads from the row before the foot through the lip's row go.
+    def ribbon_quad(i: int) -> mesh.Face:
+        j = (i + 1) % count
+        return (i, count + i, count + j, j)
+
+    before, after = (first - 1) % count, (last + 1) % count
+    gone = {ribbon_quad((before + k) % count) for k in range(len(indices) + 1)}
+    faces = [face for face in faces if face not in gone]
+
+    # Onto the foot's row and on from the lip's, each split where the ramp's edges run.
+    row = [road[first][o] for o in stops]
+    faces.append((before, count + before, row[-1]))
+    faces += [(before, right, left) for left, right in zip(row, row[1:])]
+    row = [road[last][o] for o in stops]
+    faces += [(left, right, after) for left, right in zip(row, row[1:])]
+    faces.append((row[-1], count + after, after))
+
+    for here, on in zip(indices, indices[1:]):
+        faces.append((slope[here][ramp.left], slope[here][ramp.right], slope[on][ramp.right], slope[on][ramp.left]))
+        # The flat road beside the slope.
+        for left, right in zip(stops, stops[1:]):
+            if left != ramp.left:
+                faces.append((road[here][left], road[here][right], road[on][right], road[on][left]))
+    return (vertices, faces), uvs
+
+
+def ramp_markings(layout: Layout) -> list[SceneryMesh]:
+    """Kerb stripes down both edges of a ramp's slope and its sides and a white lip, so a driver
+    tells the ramp's half of the road from the flat half in time to choose."""
+    result: list[SceneryMesh] = []
+    for number, ramp in enumerate(layout.ramps):
+        indices, rise = ramp_stations(layout, ramp)
+        samples = [layout.path.samples[i] for i in indices]
+
+        def on_slope(offset: float, lift: float = SCENERY_LIFT_M) -> list[mesh.Vertex]:
+            return [
+                (*sample.offset(offset), elevation(layout.elevation, sample.s) + h + lift)
+                for sample, h in zip(samples, rise)
+            ]
+
+        def on_road(offset: float) -> list[mesh.Vertex]:
+            return [(*sample.offset(offset), elevation(layout.elevation, sample.s)) for sample in samples]
+
+        # Proud of the wedge's sides, as the slope's stripes are of its top.
+        left, right = ramp.left + SCENERY_LIFT_M, ramp.right - SCENERY_LIFT_M
+        ribbons = {
+            "L": mesh.ribbon(on_slope(ramp.left), on_slope(ramp.left - KERB_WIDTH_M), closed=False),
+            "R": mesh.ribbon(on_slope(ramp.right + KERB_WIDTH_M), on_slope(ramp.right), closed=False),
+            "side.L": mesh.ribbon(on_road(left), on_slope(left, 0.0), closed=False),
+            "side.R": mesh.ribbon(on_slope(right, 0.0), on_road(right), closed=False),
+        }
+        for label, ribbon in ribbons.items():
+            red, white = mesh.striped(ribbon, KERB_STRIPE_SAMPLES)
+            result.append(SceneryMesh(f"Ramp.{number:02d}.{label}.red", "kerb-red", red))
+            result.append(SceneryMesh(f"Ramp.{number:02d}.{label}.white", "kerb-white", white))
+        last = samples[-1]
+        ground = elevation(layout.elevation, last.s)
+        ahead = (last.left_normal[1], -last.left_normal[0], 0.0)
+        along = (ahead[0] * SCENERY_LIFT_M, ahead[1] * SCENERY_LIFT_M)
+
+        def on_lip(offset: float, z: float) -> mesh.Vertex:
+            x, y = last.offset(offset)
+            return (x + along[0], y + along[1], z)
+
+        result.append(
+            SceneryMesh(
+                f"Ramp.{number:02d}.lip",
+                "kerb-white",
+                mesh.quad_facing(
+                    on_lip(ramp.left, ground + rise[-1]),
+                    on_lip(ramp.right, ground + rise[-1]),
+                    on_lip(ramp.right, ground),
+                    on_lip(ramp.left, ground),
+                    ahead,
+                ),
+            )
+        )
+    return result
+
+
 def decorate(layout: Layout, height: list[float]) -> tuple[list[SceneryMesh], list[Lettering]]:
     """The scenery: kerbs on every corner, the start line, and what the layout's decor asks for."""
     scenery = kerbs(layout, height) + start_line(layout) + boost_pads(layout) + tyre_stacks(layout)
-    scenery += sausage_kerbs(layout) + hazard_zones(layout) + marshal_posts(layout)
+    scenery += sausage_kerbs(layout) + hazard_zones(layout) + marshal_posts(layout) + ramp_markings(layout)
     if layout.pit_lane is not None:
         from . import pit_lane
 

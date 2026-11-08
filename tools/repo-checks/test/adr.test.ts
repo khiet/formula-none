@@ -105,6 +105,7 @@ const DECISION_SLUGS = [
   "presentation-zones-change-light-and-sound-by-spline-progress",
   "the-display-jets-meet-the-own-kart",
   "the-final-lap-lifts-the-course-for-the-own-kart",
+  "a-ramp-is-a-slope-across-part-of-the-road",
 ];
 
 const expectedFiles = DECISION_SLUGS.map(

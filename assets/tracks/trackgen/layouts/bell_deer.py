@@ -6,8 +6,8 @@ then the 200R, the double-apex Spoon and the back straight, which climbs
 over the bridge before 130R, the chicane and the final curve. Tyre walls
 stand outside turn 2 and inside the hairpin and Spoon's second apex, sausage kerbs
 inside esses 3 and the chicane, the runaway wheel crosses the run from the
-bridge to the hairpin, its marshal post on the outside, and the jump sits at
-Spoon's exit. The scenery: grandstands along the outside of the start
+bridge to the hairpin, its marshal post on the outside, and a ramp on the
+left half of the road at Spoon's exit, a pad leading into it and the right half flat. The scenery: grandstands along the outside of the start
 straight and the hairpin exit, hoardings round Spoon, 130R and the final
 curve, the gantry over the line, the bridge where the course crosses
 itself, woods along the back section, the Circuit Wheel outside the
@@ -85,12 +85,14 @@ BRIDGE_UNDERPASS_S = 573.8
 BRIDGE_BACK_STRAIGHT_S = 1020.7
 BRIDGE_DECK_HEIGHT_M = 5.0
 BRIDGE_HILL_HALF_LENGTH_M = 55.0
-RAMP_HEIGHT_M = 1.5
-RAMP_LENGTH_M = 12.0
+# Low enough that a kart off the pad lands while its boost still runs (ADR 0101).
+RAMP_HEIGHT_M = 0.5
+RAMP_LENGTH_M = 8.0
 
 back = path.segment("back-straight")
 hairpin = path.segment("hairpin")
-ramp_start = back.s_start + 14.0
+# Past the checkpoint a kart would otherwise be in the air over.
+ramp_start = back.s_start + 36.0
 # The back straight's row, this far along it.
 BACK_STRAIGHT_ROW_M = 80.0
 # The road's climb over the bridge, which the embankment stands under.
@@ -124,6 +126,8 @@ LAYOUT = Layout(
     boost_pads=[
         BoostPad(path.segment("dunlop-rise").s_mid),
         BoostPad(path.segment("hairpin-exit").s_mid, offset=3.0),
+        # The run-up to the ramp, on its half of the road.
+        BoostPad(ramp_start - 2.0, offset=3.0),
     ],
     # Ten on the centreline, down the start straight and through the
     # underpass short of the wheel's crossing, so a clean lap takes a full
@@ -143,10 +147,10 @@ LAYOUT = Layout(
     ],
     # The hairpin turns left, so its outside is the right.
     wheel_crossings=[WheelCrossing(BRIDGE_UNDERPASS_S + 28.0, outside=-1)],
-    elevation=[
-        Ramp(ramp_start, ramp_start + RAMP_LENGTH_M, RAMP_HEIGHT_M),
-        bridge_hill,
-    ],
+    elevation=[bridge_hill],
+    # The inside of Spoon's exit: a left-hander's exit runs out to the right,
+    # along the flat half, and the bots' line stays there too.
+    ramps=[Ramp(ramp_start, ramp_start + RAMP_LENGTH_M, RAMP_HEIGHT_M, right=0.0, left=6.0)],
     # 30 m of fork each end, inside curves that already lean a kart that way,
     # and 140 m between the lines (ADR 0081).
     pit_lane=PitLane(side=-1, s_fork=-80.0, s_entry=-50.0, s_exit=90.0, s_merge=120.0),

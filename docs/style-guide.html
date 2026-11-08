@@ -561,6 +561,13 @@
       </article>
 
       <article class="asset">
+        <header><h3>Ramp</h3><code>assets/tracks/trackgen/layout.py ramp_in_the_asphalt, ramp_markings, Ramp in path.py</code></header>
+        <div class="compare"><figure><figcaption>From above, on the left half with its pad</figcaption><div class="stage flat" data-draw="ramp"></div></figure></div>
+        <dl class="spec"><dt>Size</dt><dd>Bell Deer's: 6 m wide, 8 m long, 0.5 m at the lip. Stripes 0.6 m wide.</dd><dt>Decided</dt><dd><a href="adr/0101-a-ramp-is-a-slope-across-part-of-the-road.md">ADR 0101</a></dd></dl>
+        <div class="notes"><p>An asphalt slope on one part of the road, with the flat line beside it. Kerb stripes run down both its edges and its sides, and its lip is white, so a driver tells the ramp's half in time to choose. The sides and lip are drawn and never collided with: a kart only ever meets the slope.</p></div>
+      </article>
+
+      <article class="asset">
         <header><h3>Start line</h3><code>assets/tracks/trackgen/layout.py</code></header>
         <div class="compare"><figure><figcaption>Two rows of 1 m chequers across the asphalt</figcaption><div class="stage flat" data-draw="startLine"></div></figure></div>
         <dl class="spec"><dt>Size</dt><dd>1 m squares, two rows</dd></dl>
@@ -2013,6 +2020,15 @@
   // Top-down: the track runs up the page, the pad's rectangle spans 6 m of its width.
   const padGround = (inner) => `<svg viewBox="0 0 200 160" role="img" aria-label="Boost pad on asphalt from above">
     <rect width="200" height="160" fill="#6b6b78"/><rect x="0" width="10" height="160" fill="#e8c773"/><rect x="190" width="10" height="160" fill="#e8c773"/>${inner}</svg>`;
+  // Up the page, as the pad's: the slope on the left half, the pad leading into its foot.
+  draw.ramp = () => {
+    const stripes = (x) => Array.from({ length: 5 }, (_, k) => `<rect x="${x}" y="${16 + k * 14}" width="7" height="14" fill="${k % 2 ? "#ffffff" : "#c8322b"}"/>`).join("");
+    return `<svg viewBox="0 0 200 160" role="img" aria-label="Ramp on the left half of the road from above, a boost pad leading into it">
+      <rect width="200" height="160" fill="#6b6b78"/><rect x="0" width="10" height="160" fill="#e8c773"/><rect x="190" width="10" height="160" fill="#e8c773"/>
+      <rect x="10" y="12" width="90" height="74" fill="#7a7a88"/><rect x="10" y="12" width="90" height="4" fill="#ffffff"/>${stripes(10)}${stripes(93)}
+      <rect x="10" y="86" width="90" height="48" fill="#2b2e33"/>
+      ${poly([[30, 118], [55, 104], [80, 118], [80, 126], [55, 112], [30, 126]], "#ff8800")}${poly([[30, 104], [55, 90], [80, 104], [80, 112], [55, 98], [30, 112]], "#ff8800")}</svg>`;
+  };
   draw.pad = () => {
     const chevron = (y) => poly([[66, y + 18], [100, y], [134, y + 18], [134, y + 28], [100, y + 10], [66, y + 28]], "#ff8800") + poly([[100, y + 10], [134, y + 28], [134, y + 24], [100, y + 6]], "#c45f00");
     return padGround(`<rect x="46" y="46" width="108" height="72" fill="#2b2e33"/><rect x="46" y="46" width="108" height="4" fill="#3a3e45"/><rect x="46" y="114" width="108" height="4" fill="#1c1c1e"/>

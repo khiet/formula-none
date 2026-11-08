@@ -234,6 +234,13 @@ is steering above 40 percent of top speed. It lands once the airtime has run
 out and the kart is back on the road, later where the road falls away under
 it; a press in the air does not hop again.
 
+### ramp
+
+A slope laid across part of the road, bounded in metres left of the centreline,
+that drops away at its lip so a kart flies off it. The road beside it stays
+flat, so a ramp is a choice of line. Not an elevation feature, which lifts the
+whole road, walls included.
+
 ### drift
 
 Sliding through a corner after a hop. The drift direction is fixed at the hop;

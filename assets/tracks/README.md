@@ -46,8 +46,9 @@ The Blender source of a track is a Python layout, `trackgen/layouts/<name>.py`,
 so it diffs and reviews like code. A layout lays the centreline turtle-style
 from straights and arcs, then hangs everything else on it by arc length:
 asphalt and run-off widths, tyre walls (`TyreWall(s, offset)`, metres
-left of the centreline), elevation (hills and the jump ramp),
-checkpoint count, item box rows, boost pads and lines of coins
+left of the centreline), elevation (hills, which lift the whole road),
+ramps (`Ramp(s_start, s_end, height, right, left)`, a slope on part of the
+asphalt with the road flat beside it, ADR 0101), checkpoint count, item box rows, boost pads and lines of coins
 (`CoinLine(s, count, offset)`, the coins a kart collects, four metres
 apart along the track), and its decor:
 which segments get sponsor hoardings and grandstands, whether the
@@ -112,7 +113,7 @@ reader to keep in step with `export.py`.
 Flat colours in the 16-bit kart racer's key, one material per surface and
 per piece of scenery, no textures: the palette is `MATERIALS` in
 `build.py`. The scenery is the generator's kerbs on every corner, the
-start line's checkers, a carbon plate with orange chevrons on each boost
+start line's checkers, a ramp's kerb stripes, white lip and striped sides, a carbon plate with orange chevrons on each boost
 pad and a striped yellow capsule on each sausage kerb, each sized to the
 sim's rectangle, a white marshal post with an orange lamp on the outside
 run-off beside each wheel crossing, plus what a layout's decor asks for: hoardings with the

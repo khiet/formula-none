@@ -111,6 +111,7 @@ class Lap(unittest.TestCase):
 
     def test_it_is_flat_with_no_ramp_or_bridge(self) -> None:
         self.assertEqual(self.layout.elevation, [])
+        self.assertEqual(self.layout.ramps, [])
         self.assertEqual(self.layout.decor.bridges, [])
 
     def test_every_tall_footprint_keeps_8_m_of_grass_from_every_wall(self) -> None:

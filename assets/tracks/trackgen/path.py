@@ -211,14 +211,18 @@ class Hill(Feature):
 
 
 @dataclass(frozen=True)
-class Ramp(Feature):
-    """A straight climb from `s_start` to `s_end` that drops away at the lip, so karts fly off it."""
+class Ramp:
+    """A wedge laid on one part of the road, not a feature of the centreline: between `right` and
+    `left` metres left of it, a straight climb from `s_start` to `height` metres at `s_end`, which
+    drops away at the lip so karts fly off it. The road beside and under it stays as it was."""
 
     s_start: float
     s_end: float
     height: float
+    right: float
+    left: float
 
-    def height_at(self, s: float) -> float:
-        if not self.s_start <= s <= self.s_end:
+    def height_at(self, s: float, offset: float) -> float:
+        if not (self.s_start <= s <= self.s_end and self.right <= offset <= self.left):
             return 0.0
         return self.height * (s - self.s_start) / (self.s_end - self.s_start)
