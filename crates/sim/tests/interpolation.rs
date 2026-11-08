@@ -210,7 +210,6 @@ fn a_kart_is_drawn_in_the_air_as_the_earlier_snapshot_has_it() {
         drawing_snapshots_between_the_second_and_third(6, move |tick| {
             let kart = KartReadout {
                 airborne: tick == hop_tick,
-                trick: false,
                 ..kart_at(0.0)
             };
             (vec![kart], Vec::new())

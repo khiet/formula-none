@@ -28,8 +28,9 @@ Title Scene, fixed for the room as the course is and shown on the Room
 Scene. Basic drives as the bots did before there was a pick. The level
 varies a bot's corner speed, its rubber band's lower bound, its item use
 delay, its rocket start chance, whether it calls itself in for the pit lane
-sooner than the cliff, which every level stops by, and when it drops its
-drifts, on worn tyres or to save them for the flag, nothing else; it changes how the bots drive, not how many there are. A replay carries it.
+sooner than the cliff, which every level stops by, when it drops its
+drifts, on worn tyres or to save them for the flag, and whether it presses for
+a trick, nothing else; it changes how the bots drive, not how many there are. A replay carries it.
 
 ### laps
 
@@ -200,7 +201,7 @@ seconds triggers the wrong-way warning.
 
 What the sim says of one kart at a tick: its transform, speed and
 velocity, drift and the mini-turbo tier it has charged, item slot, the coins
-it carries, spin-out, hop, pit lane, boost, slipstream, rocket start and
+it carries, spin-out, hop, trick, pit lane, boost, slipstream, rocket start and
 stall, and its place in the race.
 The sim reports one per kart every tick, and a snapshot carries it as it
 is; a reading worked out from others, such as the mini-turbo tier, is not
@@ -248,7 +249,8 @@ the kart's own speed, on the ramp's half and off the top of the slope. The
 press hops the kart off the slope or, once it is falling off the lip, only
 counts. The landing pays a small boost, the orange mini-turbo's; a boost
 under way with more speed left in it stays. A drift's charge is left as it was.
-Ace bots trick (ADR 0102).
+Ace bots trick. Its tell is the flourish, the driver's head spun one whole turn
+about the neck (ADR 0102).
 
 ### drift
 
@@ -791,7 +793,8 @@ A piece of Presentation tied to one mechanic so the mechanic has a visible or
 audible tell: tyre marks on drift, sparks on mini-turbo charge, a dust puff
 off-track, a spin animation on spin-out, beeps on the countdown and sparks
 on a rocket start's charge, a sputter and dust at the wheels on its stall,
-a shadow disc on the road under each kart so a hop's height reads, and on
+a shadow disc on the road under each kart so a hop's height reads, the
+driver's flourish on a trick, and on
 every boost a flame at the exhaust and, for the own kart, wind lines and a
 wider field of view; and on the runaway wheel, flames off its back, a smoke
 trail, dust where it lands and sparks off each wall it rebounds from; and

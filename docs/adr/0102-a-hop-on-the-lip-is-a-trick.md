@@ -2,7 +2,8 @@
 
 ## Status
 
-Accepted (2026-11-08). Takes up the trick boost ADR 0101 left waiting.
+Accepted (2026-11-08). Takes up the trick boost ADR 0101 left waiting, and adds
+whether it tricks to what ADR 0078's bot levels vary.
 
 ## Context
 
@@ -16,18 +17,20 @@ it and the View to show it.
 - **The sidecar carries each ramp's lip**, as `ramp_lips`: the middle of its top
   edge at that edge's height, the way off it and how far it reaches across. The
   sim needs no other word of the ramp; its slope stays in the asphalt's mesh
-  (ADR 0101). A course without a ramp has none.
+  (ADR 0101). A course without a ramp has an empty list.
 - **The window is in seconds, 0.1 either side of the lip**, at the speed the
   kart closes on it, so a boosted kart's is no shorter to press than a slow
   one's. At the pad's 42 m/s that opens about 4 m up the slope. It is judged at
   the press, from where the kart is: across the lip's reach, closing on it, and
-  with its centre over the lip's height, which the slope's top half and the
-  flight clear and the flat road under the high end does not.
+  with its centre over the lip's height, which the slope's top 4.8 m and the
+  flight clear and the flat road under the high end does not. That height caps
+  the early side for a kart past 48 m/s, which no boost reaches.
 - **A press counts when it hops or falls.** On the ground it hops as any press
   does. Past the lip the kart is falling and a press in the air does not hop
-  again, so there it only counts. A press in a hop's own airtime does not, so
-  mashing the button gets one try. A fresh press is needed, as for a hop, so one
-  held through the lip earns nothing.
+  again, so there it only counts. A press in a flight that began with a hop does
+  not, even after the hop's airtime has run out, so mashing the button gets one
+  try. A fresh press is needed, as for a hop, so one held through the lip earns
+  nothing.
 - **The landing pays**, on the first grounded tick: the orange mini-turbo's
   1.3 for 0.6 s, burning orange. A boost under way with more speed left in it
   (seconds over factor above one) stays, so a trick never costs a kart that
@@ -43,9 +46,10 @@ it and the View to show it.
   kart's sound for its own. A prediction adopts the server's word and rewinds on
   a disagreement, since the two can judge a press at the window's edge a tick
   apart.
-- **The state hash counts a trick only while one is earned**, so no fixture
-  without a trick was re-recorded. `bell-deer-ramp-trick` and
-  `bell-deer-ace-bots-trick` carry one through the determinism gate.
+- **The state hash counts a trick only while one is earned**, so a race without
+  one hashes as it did, but for a hop's fall past its airtime, which a later press
+  reads: `monarch-lap-with-bots` is re-recorded for that. `bell-deer-ramp-trick` and `bell-deer-ace-bots-trick`
+  carry one through the determinism gate.
 - **The View** turns the driver's head one whole turn about the neck in 0.35 s,
   by the clock, so a trick earned late still ends facing forward; none under
   reduced motion. A rising run of notes sounds at the press, and the landing's
@@ -53,7 +57,7 @@ it and the View to show it.
 
 ## Consequences
 
-- An early press lands further off than a late one, since the hop's launch
-  replaces the slope's climb: about 0.8 s of flight against 0.4 s. It still
-  pays, and the extra air is the trade.
+- A press anywhere in the window lands the kart within a metre of where no press
+  does, off the pad: the hop's launch adds little to the slope's climb. The
+  choice is when to press, not how far to fly.
 - Any ramp a later layout adds works the same with no change to the sim.

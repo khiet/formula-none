@@ -118,6 +118,9 @@ pub(crate) struct Handling {
     /// Whether a hop on a ramp's lip has earned a trick the landing has yet
     /// to pay (ADR 0102).
     trick: bool,
+    /// Whether the flight under way began with a hop, however long its
+    /// airtime is run out: that hop was its one try at a trick.
+    hopped_into_flight: bool,
     /// Seconds of boost left; zero or less when not boosting.
     boost_left_s: f32,
     /// Top speed multiplier while boosting: whichever boost started last.
@@ -219,6 +222,7 @@ impl Handling {
             drift: None,
             on_boost_pad: false,
             trick: false,
+            hopped_into_flight: false,
             on_kerb: false,
             boost_left_s: 0.0,
             boost_factor: 1.0,
@@ -396,6 +400,7 @@ impl Handling {
         self.on_boost_pad = false;
         self.on_kerb = false;
         self.trick = false;
+        self.hopped_into_flight = false;
         self.boost_left_s = 0.0;
         self.slipstream_charge_ticks = 0;
         self.tow_left_s = 0.0;
@@ -452,6 +457,11 @@ impl Handling {
         hasher.write_u8(u8::from(self.on_kerb));
         if self.trick {
             hasher.write_u8(1);
+        }
+        // In a hop's airtime `airtime_left_s` already says this, and on the
+        // ground it is false; only a fall that outlasts the airtime needs it.
+        if self.hopped_into_flight && self.airborne() && self.airtime_left_s <= 0.0 {
+            hasher.write_u8(2);
         }
         hasher.write_f32(self.boost_left_s);
         hasher.write_f32(self.boost_factor);
@@ -511,6 +521,7 @@ impl Handling {
             // drift under way ends there unreleased: its charge is lost. A
             // boost ends too, or it would hold the speed the launch takes.
             self.airtime_left_s = HOP_AIRTIME_S;
+            self.hopped_into_flight = true;
             self.hop_direction = None;
             self.drift = None;
             self.boost_left_s = 0.0;
@@ -526,9 +537,12 @@ impl Handling {
                 self.drift = self.landing_drift(input);
                 self.hop_direction = None;
             }
-            if !self.airborne() && self.trick {
-                self.trick = false;
-                self.pay_trick();
+            if !self.airborne() {
+                self.hopped_into_flight = false;
+                if self.trick {
+                    self.trick = false;
+                    self.pay_trick();
+                }
             }
         } else if let Some(drift) = &mut self.drift {
             if input.hop && fast_enough_to_drift(self.speed) {
@@ -547,13 +561,15 @@ impl Handling {
             self.airtime_left_s = HOP_AIRTIME_S;
             self.hop_direction = DriftDirection::from_steer(input.steer);
             vertical = hop_launch_speed();
+            self.hopped_into_flight = true;
             hopped = true;
         }
         self.hop_was_held = input.hop;
         // A trick is a press that hops off the lip or comes in the fall off
-        // it. A press in a hop's airtime is not one, so mashing the button
-        // gets one try, and it leaves a drift in the fall as it was.
-        let falling = !situation.on_the_ground && self.airtime_left_s <= 0.0;
+        // it. A press in a flight that began with a hop is not one, so mashing
+        // the button gets one try, and a press leaves a drift in the fall as
+        // it was.
+        let falling = !situation.on_the_ground && !self.hopped_into_flight;
         if pressed && situation.trick_window && (hopped || falling) {
             self.trick = true;
         }
@@ -855,9 +871,9 @@ impl Handling {
     /// A trick's boost on landing, unless a boost under way has more speed
     /// left in it than the trick would give: a trick never costs the kart.
     fn pay_trick(&mut self) {
-        let left_in = |seconds: f32, factor: f32| seconds * (factor - 1.0);
-        if left_in(self.boost_left_s, self.boost_factor)
-            < left_in(TRICK_BOOST_S, TRICK_BOOST_FACTOR)
+        let speed_left = |seconds: f32, factor: f32| seconds * (factor - 1.0);
+        if speed_left(self.boost_left_s, self.boost_factor)
+            < speed_left(TRICK_BOOST_S, TRICK_BOOST_FACTOR)
         {
             self.boost(TRICK_BOOST_S, TRICK_BOOST_FACTOR, MiniTurbo::Orange);
         }

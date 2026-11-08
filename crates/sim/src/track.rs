@@ -407,8 +407,6 @@ struct Sidecar {
     boost_pads: Vec<Placement>,
     coins: Vec<Placement>,
     kerbs: Vec<Placement>,
-    /// A course without a ramp has none.
-    #[serde(default)]
     ramp_lips: Vec<RampLip>,
     wheel_crossings: Vec<WheelCrossing>,
     spawn_grid: Vec<Placement>,

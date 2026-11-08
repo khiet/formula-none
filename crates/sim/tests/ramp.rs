@@ -10,7 +10,9 @@ use common::{
     without_wheel_crossings, BELL_DEER, DT, SEED,
 };
 
-use sim::tuning::{TOP_SPEED_M_PER_S, TRICK_BOOST_FACTOR, TRICK_BOOST_S};
+use sim::tuning::{
+    TOP_SPEED_M_PER_S, TRICK_BOOST_FACTOR, TRICK_BOOST_S, TRICK_EARLY_S, TRICK_LATE_S,
+};
 use sim::{step, BoostTier, BotLevel, KartInput, KartReadout, State};
 
 /// `back-straight` starts this far into the lap (layouts/bell_deer.py); the
@@ -198,11 +200,18 @@ fn eight_bots_finish_whichever_half_of_the_road_the_traffic_gives_them() {
     assert!(up_the_slope > 0, "some bot took the ramp");
 }
 
-/// Ticks either side of the kart reaching the lip that a press stays inside
-/// and falls outside the window, at the pad's boosted speed.
-const INSIDE_THE_WINDOW_TICKS: [i32; 5] = [-5, -2, 0, 2, 5];
-const TOO_EARLY_TICKS: i32 = -14;
-const TOO_LATE_TICKS: i32 = 14;
+/// The tuned window in ticks, either side of the kart reaching the lip.
+fn early_ticks() -> i32 {
+    ticks(TRICK_EARLY_S) as i32
+}
+fn late_ticks() -> i32 {
+    ticks(TRICK_LATE_S) as i32
+}
+/// A press further from the lip than the window, seen at the pad's boosted
+/// speed. Half as long again, since a slope's run reads short in ticks.
+fn too_early_tick() -> i32 {
+    -early_ticks() * 3 / 2
+}
 
 /// A run up the ramp's side and four seconds on, one readout a tick, with the
 /// hop held as `hop` says of each tick counted from the first past the lip.
@@ -248,7 +257,7 @@ fn pressed_at(tick: i32) -> impl Fn(i32) -> bool {
 
 #[test]
 fn a_hop_on_the_lip_earns_a_trick_that_boosts_the_landing() {
-    for press in INSIDE_THE_WINDOW_TICKS {
+    for press in [-early_ticks(), -2, 0, 2, late_ticks() - 1] {
         let readouts = flight(RAMP_SIDE_RIGHT_OF_CENTRE_M, pressed_at(press));
         assert!(
             readouts.iter().any(|kart| kart.trick),
@@ -268,7 +277,7 @@ fn a_hop_on_the_lip_earns_a_trick_that_boosts_the_landing() {
 
 #[test]
 fn a_hop_too_early_or_too_late_or_none_earns_nothing() {
-    for press in [TOO_EARLY_TICKS, TOO_LATE_TICKS, i32::MAX] {
+    for press in [too_early_tick(), late_ticks(), i32::MAX] {
         let readouts = flight(RAMP_SIDE_RIGHT_OF_CENTRE_M, pressed_at(press));
         assert!(
             readouts.iter().all(|kart| !kart.trick),
@@ -284,37 +293,25 @@ fn a_hop_too_early_or_too_late_or_none_earns_nothing() {
     }
 }
 
-/// The window is the kart's own time to the lip: a slow kart's is shorter in
-/// metres, and one backing up to the lip is not closing on it at all. It is
-/// over the lip's height, so a kart on the road under the high end is not in it.
+/// A hop is one try: mashing the button in its flight never earns the trick
+/// the first press missed, in the hop's airtime or in the fall that outlasts it.
 #[test]
-fn the_trick_window_is_in_seconds_at_the_speed_closing_on_the_lip() {
-    let base = track(BELL_DEER);
-    let [dx, dz] = base.direction_at(LIP_M);
-    let [x, _, z] = beside_the_line(LIP_M - 2.0, RAMP_SIDE_RIGHT_OF_CENTRE_M);
-    let on_the_slope = [x, 0.6, z];
-    let closing = |speed: f32| [dx * speed, 0.0, dz * speed];
-    assert!(base.in_a_trick_window(on_the_slope, closing(TOP_SPEED_M_PER_S)));
-    assert!(!base.in_a_trick_window(on_the_slope, closing(10.0)));
-    assert!(!base.in_a_trick_window(on_the_slope, closing(-TOP_SPEED_M_PER_S)));
-    let under_the_high_end = [x, 0.25, z];
-    assert!(!base.in_a_trick_window(under_the_high_end, closing(TOP_SPEED_M_PER_S)));
-}
-
-/// A hop's airtime is one try: mashing the button through it never earns the
-/// trick the first press missed.
-#[test]
-fn a_press_in_a_hops_airtime_earns_nothing() {
-    let readouts = flight(RAMP_SIDE_RIGHT_OF_CENTRE_M, |from_the_lip| {
-        from_the_lip == TOO_EARLY_TICKS || from_the_lip == 0
-    });
-    assert!(readouts.iter().all(|kart| !kart.trick));
+fn a_second_press_in_a_hops_flight_earns_nothing() {
+    for (hop, again) in [(too_early_tick(), 0), (-14, 4), (-18, 0)] {
+        let readouts = flight(RAMP_SIDE_RIGHT_OF_CENTRE_M, |from_the_lip| {
+            from_the_lip == hop || from_the_lip == again
+        });
+        assert!(
+            readouts.iter().all(|kart| !kart.trick),
+            "a hop at {hop} and a press at {again}"
+        );
+    }
 }
 
 #[test]
 fn a_hop_held_through_the_lip_earns_nothing() {
     let readouts = flight(RAMP_SIDE_RIGHT_OF_CENTRE_M, |from_the_lip| {
-        from_the_lip >= TOO_EARLY_TICKS
+        from_the_lip >= too_early_tick()
     });
     assert!(readouts.iter().all(|kart| !kart.trick));
 }

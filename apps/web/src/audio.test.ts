@@ -385,7 +385,7 @@ describe("preloading and the autoplay rule", () => {
         STAR_MUSIC_URL,
       ]),
     );
-    // 37 SFX, 5 loops and 2 music files.
+    // 38 SFX, 5 loops and 2 music files.
     expect(fetched).toHaveLength(45);
     await settled();
     expect(contexts).toHaveLength(0);
