@@ -306,6 +306,7 @@ impl Prediction {
         let state = self.state_mut();
         state.restore(&record);
         state.phase = phase;
+        // The rain is read on the server's ticks, and this rewinds them.
         state.tick = snapshot_tick;
         self.tick = snapshot_tick;
         let anchor = &mut self.entries[0];
@@ -425,8 +426,6 @@ impl Prediction {
             .take()
             .expect("state is only absent during a step");
         let mut state = state;
-        // A rewind goes back in ticks, and the rain is read on the server's.
-        state.tick = self.tick;
         if self.ended {
             // A rewind puts back a kart from before the end, without its bot.
             state.karts[0].bot.get_or_insert_with(bot::Memory::default);
