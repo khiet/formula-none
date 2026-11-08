@@ -75,7 +75,10 @@ written by a scripted follower too, on Tyres On: a lap of the centreline, then d
 the lane through the start gate, a stop in its pit box, and on round the course;
 it pins the stop's roll and its two clocks (ADR 0082). `bell-deer-first-corners.replay.json` was
 written the same way: four karts from the grid through the first curve
-and turn 2, one of them cutting across turn 2's sand. `oval-rocket-start.replay.json` and
+and turn 2, one of them cutting across turn 2's sand. `bell-deer-ramp-launch.replay.json`
+was written by the sim tests' line follower, steering held six ticks at a time in eighths:
+round the lap to Spoon, across to the left half over the pad, off the ramp's lip and three
+seconds on (ADR 0101). `oval-rocket-start.replay.json` and
 `oval-stall.replay.json` were written by hand for the start: the throttle
 held from the first half of the fourth light through Go, and from the top of the
 countdown. `goldstone-lap-with-bots.replay.json` was written by the sim tests'

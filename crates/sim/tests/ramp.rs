@@ -171,14 +171,8 @@ fn a_kart_cutting_in_under_the_high_end_runs_on_unheld() {
 #[test]
 fn eight_bots_finish_whichever_half_of_the_road_the_traffic_gives_them() {
     let mut up_the_slope = 0;
-    for seed in 0..2 {
-        let mut state = started(State::with_bots(
-            seed,
-            0,
-            8,
-            track(BELL_DEER),
-            BotLevel::Ace,
-        ));
+    for level in [BotLevel::Basic, BotLevel::Pro, BotLevel::Ace] {
+        let mut state = started(State::with_bots(SEED, 0, 8, track(BELL_DEER), level));
         for _ in 0..ticks(240.0) {
             state = step(state, &[], DT);
             let standings = state.standings();
@@ -197,7 +191,7 @@ fn eight_bots_finish_whichever_half_of_the_road_the_traffic_gives_them() {
         let standings = state.standings();
         assert!(
             standings.iter().all(|kart| kart.finish_time_s.is_some()),
-            "seed {seed}: {standings:?}"
+            "{level:?}: {standings:?}"
         );
     }
     assert!(up_the_slope > 0, "some bot took the ramp");

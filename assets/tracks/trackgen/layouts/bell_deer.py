@@ -7,7 +7,8 @@ over the bridge before 130R, the chicane and the final curve. Tyre walls
 stand outside turn 2 and inside the hairpin and Spoon's second apex, sausage kerbs
 inside esses 3 and the chicane, the runaway wheel crosses the run from the
 bridge to the hairpin, its marshal post on the outside, and a ramp on the
-left half of the road at Spoon's exit, a pad leading into it and the right half flat. The scenery: grandstands along the outside of the start
+left half of the road at Spoon's exit, a pad leading into it and the right
+half flat. The scenery: grandstands along the outside of the start
 straight and the hairpin exit, hoardings round Spoon, 130R and the final
 curve, the gantry over the line, the bridge where the course crosses
 itself, woods along the back section, the Circuit Wheel outside the

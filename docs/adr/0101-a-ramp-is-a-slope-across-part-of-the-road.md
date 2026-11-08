@@ -2,7 +2,9 @@
 
 ## Status
 
-Accepted (2026-11-08).
+Accepted (2026-11-08). Supersedes ADR 0022's walls that follow the ramp, which
+now stand on the flat, and ADR 0097's airborne and full-purse figures for the
+back straight, which came off the old ramp; its row stays past every landing.
 
 ## Context
 
@@ -10,8 +12,8 @@ Bell Deer's jump at Spoon's exit spanned the whole road: an elevation feature
 along the centreline lifted the asphalt, the sand and both walls together, so
 every kart jumped and the exit held no choice. Card B5 of
 `docs/mockups/course-excitement.html` asks for a ramp on one side with a flat
-line beside it, and a boost on its approach: air on one side, the ground and
-the tow on the other. A layout's elevation can only say how high the road is
+line beside it, and issue 330 for a boost on its approach: air on one side, the
+ground and the tow on the other. A layout's elevation can only say how high the road is
 at a spline progress, so a ramp bounded across the road needed a shape of its
 own.
 
@@ -30,9 +32,10 @@ own.
   (2.3 m/s to none), so it has neither. Measured through `step`.
 - **Its sides and lip are scenery**, with kerb stripes down the slope's edges
   and sides, so the driver reads the ramp's half in time to choose. A kart
-  cutting in from the side rides up the slope, or under its high end on the
-  grass 5 cm below the road, and is never held. The slope's underside is that
-  much open.
+  cutting in from the side rides up the slope, or under its last 1.6 m on the
+  grass 5 cm below the road, and is never held. There it reads grass, so it
+  drops to the off-track cap for those few ticks: the cost of driving into the
+  ramp's high end.
 - **Bell Deer's ramp** takes the left half, the inside of `spoon-2`'s exit,
   with a boost pad on that half leading into its foot; the exit's natural line
   runs out to the flat right half. It moves from 14 m to 36 m along
@@ -60,4 +63,5 @@ own.
   ramp; the airtime is bound to the pad's 1 s until a rule keeps a boost in the
   air.
 - Bell Deer's replays are re-recorded; each run's laps, coins and stops came out
-  as they did on the old ramp.
+  as they did on the old ramp, and `bell-deer-ramp-launch` joins them, so the
+  determinism gate covers a launch off the slope.

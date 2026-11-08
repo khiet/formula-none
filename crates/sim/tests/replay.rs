@@ -373,7 +373,8 @@ fn every_committed_fixture_replays_to_the_hashes_it_was_recorded_with() {
 /// by a wall (the track colliders), every track, a drift released into orange
 /// and another into red (the cornering rules), and a rocket start
 /// boosting at Go and another stalling there (the start rule), a coin
-/// taken and coins lost to a spin-out (the coin rules). A fixture
+/// taken and coins lost to a spin-out (the coin rules), a kart launched off
+/// a ramp (the slope in the asphalt's mesh). A fixture
 /// that only drives up a straight would pass on a sim with most of its
 /// rules broken.
 #[test]
@@ -389,6 +390,7 @@ fn the_fixture_set_exercises_kart_contact_off_track_walls_every_track_both_mini_
     let mut rocket_started = false;
     let mut stalled = false;
     let mut launched_by_a_kerb = false;
+    let mut launched_off_a_ramp = false;
     let mut hit_by_the_wheel = false;
     let mut took_a_coin = false;
     let mut lost_coins = false;
@@ -445,6 +447,13 @@ fn the_fixture_set_exercises_kart_contact_off_track_walls_every_track_both_mini_
                         && kart.airborne
                         && !segment.inputs.get(slot).is_some_and(|input| input.hop)
                         && state.track().on_a_kerb(before[slot].position);
+                    // Off the ground past the lip of Bell Deer's ramp, on the
+                    // boost of the pad leading into it (layouts/bell_deer.py).
+                    launched_off_a_ramp |= !before[slot].airborne
+                        && kart.airborne
+                        && kart.boost_s().is_some()
+                        && replay.track == "bell-deer"
+                        && (960.0..965.0).contains(&state.standings()[slot].spline_progress);
                     rocket_started |= go && kart.boost_s().is_some();
                     stalled |= go && kart.stall_s.is_some();
                     // Only a wall takes most of a lone kart's speed in one
@@ -497,6 +506,7 @@ fn the_fixture_set_exercises_kart_contact_off_track_walls_every_track_both_mini_
     assert!(rocket_started, "no fixture boosts at Go");
     assert!(stalled, "no fixture stalls at Go");
     assert!(launched_by_a_kerb, "no fixture is launched by a kerb");
+    assert!(launched_off_a_ramp, "no fixture flies off a ramp");
     assert!(hit_by_the_wheel, "no fixture is hit by the runaway wheel");
     assert!(took_a_coin, "no fixture takes a coin");
     assert!(lost_coins, "no fixture loses coins to a spin-out");

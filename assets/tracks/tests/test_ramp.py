@@ -7,13 +7,14 @@ line beside it; and the walls and centreline, which never rise for it.
 
 from __future__ import annotations
 
+import dataclasses
 import math
 import unittest
 
 from tests.test_boost_pads import tuning_constant
 from trackgen.layout import WALL_HEIGHT_M, Layout, build
 from trackgen.layouts import load
-from trackgen.path import Ramp, Turtle
+from trackgen.path import Ramp
 
 PAD_HALF_LENGTH_M = tuning_constant("BOOST_PAD_HALF_LENGTH_M")
 PAD_HALF_WIDTH_M = tuning_constant("BOOST_PAD_HALF_WIDTH_M")
@@ -136,37 +137,23 @@ class BellDeersRamp(unittest.TestCase):
 
 class RampBounds(unittest.TestCase):
     def layout_with(self, ramp: Ramp) -> Layout:
-        path = (
-            Turtle(x=0.0, y=0.0, heading_deg=0.0)
-            .straight("a", 200.0)
-            .arc("b", 50.0, 180.0)
-            .straight("c", 200.0)
-            .arc("d", 50.0, 180.0)
-            .close("e")
-        )
-        return Layout(
-            name="test",
-            path=path,
-            asphalt_half_width=6.0,
-            runoff_width=6.0,
-            checkpoint_count=4,
-            tyre_walls=[],
-            item_rows=[],
-            boost_pads=[],
-            ramps=[ramp],
-        )
+        # 10 to 20 m along the oval is on its front straight.
+        return dataclasses.replace(load("oval"), ramps=[ramp])
 
     def test_a_ramp_past_the_asphalts_edge_is_refused(self) -> None:
+        layout = self.layout_with(Ramp(10.0, 20.0, 1.0, right=0.0, left=7.0))
         with self.assertRaises(ValueError):
-            build(self.layout_with(Ramp(10.0, 20.0, 1.0, right=0.0, left=7.0)))
+            build(layout)
 
-    def test_height_is_zero_outside_its_bounds(self) -> None:
+    def test_a_ramp_inside_the_asphalt_leaves_the_road_flat_either_side(self) -> None:
         ramp = Ramp(10.0, 20.0, 1.0, right=-2.0, left=2.0)
-        self.assertEqual(ramp.height_at(15.0, 2.5), 0.0)
-        self.assertEqual(ramp.height_at(15.0, -2.5), 0.0)
-        self.assertEqual(ramp.height_at(9.0, 0.0), 0.0)
-        self.assertEqual(ramp.height_at(21.0, 0.0), 0.0)
-        self.assertEqual(ramp.height_at(15.0, 0.0), 0.5)
+        layout = self.layout_with(ramp)
+        geometry = build(layout)
+        (asphalt,) = [s for s in geometry.surfaces if s.name == "Asphalt"]
+        self.assertEqual(len(asphalt.uvs), len(asphalt.mesh[0]))
+        self.assertAlmostEqual(road_height(geometry, layout.path.at(15.0).offset(0.0)), 0.5, delta=0.01)
+        for offset in (3.0, -3.0):
+            self.assertAlmostEqual(road_height(geometry, layout.path.at(15.0).offset(offset)), 0.0, delta=0.01)
 
 
 if __name__ == "__main__":

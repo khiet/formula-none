@@ -707,10 +707,10 @@ def ramp_in_the_asphalt(
 
     In the one mesh, sharing vertices along the foot, because the sim smooths a seam only between
     a mesh's own triangles: a wedge laid on the road as a mesh of its own throws a kart off the
-    edge of its foot. For the same reason the slope has no faces for its sides or lip, which catch
-    a kart on the road beside them and stop it dead, nor road beneath it, which takes the lift off
-    its launch: the sim's ramp is the slope alone, and `ramp_markings` draws the rest. A kart that
-    comes in from the side rides up it, or under its high end, and is never held.
+    edge of its foot. The slope has no faces for its sides or lip, which catch a kart on the road
+    beside them and stop it dead, nor road beneath it, which takes the lift off its launch: the
+    sim's ramp is the slope alone, and `ramp_markings` draws the rest. A kart that comes in from
+    the side rides up it, or runs under its high end on the grass there, and is never held.
     """
     half = layout.asphalt_half_width
     path = layout.path
