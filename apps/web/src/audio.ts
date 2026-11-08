@@ -49,6 +49,7 @@ import starEndUrl from "../../../assets/audio/star-end.wav?url";
 import starFireUrl from "../../../assets/audio/star-fire.wav?url";
 import starMusicUrl from "../../../assets/audio/star-music.wav?url";
 import tierChimeUrl from "../../../assets/audio/tier-chime.wav?url";
+import trickUrl from "../../../assets/audio/trick.wav?url";
 import wheelGunUrl from "../../../assets/audio/wheel-gun.wav?url";
 import wheelGunActUrl from "../../../assets/audio/wheel-gun-act.wav?url";
 import wheelGunOnUrl from "../../../assets/audio/wheel-gun-on.wav?url";
@@ -91,6 +92,7 @@ export const SOUND_URLS: Readonly<Record<SoundCue, string>> = {
   countdownBeep: countdownBeepUrl,
   go: goUrl,
   hop: hopUrl,
+  trick: trickUrl,
   miniTurbo: miniTurboUrl,
   itemPickup: itemPickupUrl,
   itemRollTick: itemRollTickUrl,

@@ -34,6 +34,7 @@ fn kart_at(x: f32) -> KartReadout {
         spin_out_s: None,
         star_s: None,
         airborne: false,
+        trick: false,
         in_pit_lane: false,
         stop: None,
         stops: 0,
@@ -209,6 +210,7 @@ fn a_kart_is_drawn_in_the_air_as_the_earlier_snapshot_has_it() {
         drawing_snapshots_between_the_second_and_third(6, move |tick| {
             let kart = KartReadout {
                 airborne: tick == hop_tick,
+                trick: false,
                 ..kart_at(0.0)
             };
             (vec![kart], Vec::new())

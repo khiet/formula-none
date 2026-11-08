@@ -68,6 +68,17 @@ class BellDeersRamp(unittest.TestCase):
     def height(self, s: float, offset: float) -> float:
         return road_height(self.geometry, self.layout.path.at(s).offset(offset))
 
+    def test_the_lip_the_sidecar_carries_spans_the_ramp_at_its_top_edge(self) -> None:
+        ramp = self.ramp
+        (lip,) = self.geometry.ramp_lips
+        sample = self.layout.path.at(ramp.s_end)
+        self.assertEqual(lip.half_width, (ramp.left - ramp.right) / 2.0)
+        self.assertEqual(lip.heading, sample.heading)
+        self.assertAlmostEqual(lip.z, self.height(ramp.s_end - 0.1, 3.0), delta=0.02)
+        x, y = sample.offset((ramp.left + ramp.right) / 2.0)
+        self.assertAlmostEqual(lip.x, x)
+        self.assertAlmostEqual(lip.y, y)
+
     def test_the_surface_climbs_on_the_ramps_side_and_stays_flat_on_the_other(self) -> None:
         ramp = self.ramp
         middle = (ramp.s_start + ramp.s_end) / 2.0

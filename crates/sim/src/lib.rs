@@ -132,6 +132,10 @@ pub struct KartReadout {
     /// carries it, so an interpolated kart is in the air as the earlier
     /// snapshot has it.
     pub airborne: bool,
+    /// Whether the kart is in the air with a trick earned, which the landing
+    /// pays in a boost (ADR 0102): the driver's flourish and its sound. A
+    /// snapshot carries it, and a prediction's kart adopts it.
+    pub trick: bool,
     /// Whether the kart is on the pit limiter, between a pit lane's lines
     /// (ADR 0081); the gear slot's PIT.
     pub in_pit_lane: bool,
@@ -881,6 +885,7 @@ impl Kart {
             tyre_life: self.handling.tyre_life(),
             spin_out_s: self.spun_out().then_some(self.spin_out_left_s),
             airborne: self.handling.airborne(),
+            trick: self.handling.trick(),
             in_pit_lane: track.in_pit_lane(body.translation().to_array()),
             stop: self.stop,
             stops: self.stops,
@@ -921,6 +926,7 @@ impl Kart {
         self.item_slot = readout.item_slot;
         self.coins = readout.coins;
         self.handling.adopt_slipstream(readout.slipstream);
+        self.handling.adopt_trick(readout.trick);
         // A spin-out the readout does not have is a hit the server never
         // made, which in a prediction is only ever the wheel's: the pass
         // that made it may still hit the kart where the server has it.
@@ -1921,6 +1927,9 @@ pub fn step(mut state: State, inputs: &[KartInput], dt: f32) -> State {
                 on_the_ground: state.physics.kart_on_the_ground(position),
                 boost_pad: state.track.on_a_boost_pad(position),
                 kerb: state.track.on_a_kerb(position),
+                trick_window: state
+                    .track
+                    .in_a_trick_window(position, body.linvel().to_array()),
                 coin_factor: state.karts[slot].coin_factor(),
                 // A star's run raises the cap on top of the coins and the
                 // rubber band, so the brake still works under it.

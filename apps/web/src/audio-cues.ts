@@ -31,6 +31,7 @@ export type SoundCue =
   | "countdownBeep"
   | "go"
   | "hop"
+  | "trick"
   | "miniTurbo"
   | "itemPickup"
   | "itemRollTick"
@@ -81,6 +82,8 @@ export type SoundLoop = SpeedLoop | AmbienceLoop;
 export interface SoundReading {
   readonly speed: number;
   readonly airborne: boolean;
+  /** Whether a trick waits for the landing; it sounds as the press earns it, the landing's boost as a pad's. */
+  readonly trick: boolean;
   /** The tier the drift under way has charged; null off a drift. */
   readonly miniTurbo: MiniTurbo | null;
   readonly item: Item | null;
@@ -180,6 +183,7 @@ export function soundReading(
   return {
     speed: readout.speed,
     airborne: readout.airborne,
+    trick: readout.trick,
     miniTurbo: readout.drift !== null ? readout.miniTurbo : null,
     item: itemSlot.item,
     coins: readout.coins,
@@ -291,6 +295,7 @@ export function soundCues(before: SoundReading | undefined, after: SoundReading)
   }
   if (before === undefined) return cues;
   if (!before.airborne && after.airborne) cues.push("hop");
+  if (!before.trick && after.trick) cues.push("trick");
   const charged = before.miniTurbo !== null && CHARGED.includes(before.miniTurbo);
   const boostBegan =
     after.boostSeconds !== null &&

@@ -1245,3 +1245,21 @@ fn a_prediction_that_joins_after_a_stop_takes_the_count_and_rolls_the_next_stop_
         "the second stop rolls apart from the first"
     );
 }
+
+/// The server may judge a press against a ramp's lip otherwise than the
+/// client did, a tick apart at the window's edge: its word stands, or the own
+/// kart would land without the boost its server's kart has.
+#[test]
+fn the_snapshots_word_on_a_trick_is_adopted() {
+    let mut prediction = Prediction::new(SEED, 0, track(OVAL), Picks::default());
+    for sequence in 1..=3 {
+        prediction.tick(sequence, KartInput::default(), &[]);
+    }
+    assert!(!prediction.kart_readout().trick);
+    let server = KartReadout {
+        trick: true,
+        ..prediction.kart_readout()
+    };
+    prediction.reconcile(4, 3, &server);
+    assert!(prediction.kart_readout().trick);
+}

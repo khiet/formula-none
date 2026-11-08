@@ -540,6 +540,7 @@ fn agrees(record: &KartRecord, kart: &KartReadout, racing: bool) -> bool {
         && stop_agrees(record.kart.stop, kart.stop)
         && record.kart.stops == kart.stops
         && slipstream_agrees(record.kart.handling.slipstream(), kart.slipstream)
+        && record.kart.handling.trick() == kart.trick
         && (!racing || record.kart.start == kart.start)
         && record.kart.lap() == kart.lap
         && record.kart.checkpoint == kart.checkpoint as usize

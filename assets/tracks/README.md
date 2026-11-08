@@ -91,13 +91,14 @@ blender my-track.blend --background --python assets/tracks/export.py -- my-track
   direction of travel, starting at the start line. Spline progress is
   distance along it.
 - Collections `Checkpoints`, `ItemBoxes`, `BoostPads`, `Coins`, `Kerbs`,
-  `WheelCrossings`, `SpawnGrid`: empties ordered by name, facing along their
+  `RampLips`, `WheelCrossings`, `SpawnGrid`: empties ordered by name, facing along their
   local +Y, each written to the sidecar list of the same name (`coins` for
   the coins a kart collects; `kerbs` for
   the sausage kerbs, `wheel_crossings` for where the runaway wheel crosses,
-  each centred on the centreline and facing along the track). Checkpoints
-  and wheel crossings carry a `half_width` custom property: a crossing's
-  reaches wall to wall.
+  each centred on the centreline and facing along the track; `ramp_lips` for
+  the top edge of each ramp, which the sim judges a trick by, ADR 0102).
+  Checkpoints, ramp lips and wheel crossings carry a `half_width` custom
+  property: a crossing's reaches wall to wall.
 - Optional, for a pit lane: a poly curve named `PitLanePath` with a `half_width`
   custom property, collection `PitLines` holding the entry and exit empties, in
   that name order, with `half_width`, and collection `PitBoxes` holding eight.

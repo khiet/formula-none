@@ -241,6 +241,15 @@ that drops away at its lip so a kart flies off it. The road beside it stays
 flat, so a ramp is a choice of line. Not an elevation feature, which lifts the
 whole road, walls included.
 
+### trick
+
+A hop pressed as a kart leaves a ramp's lip: within 0.1 s either side of it, by
+the kart's own speed, on the ramp's half and off the top of the slope. The
+press hops the kart off the slope or, once it is falling off the lip, only
+counts. The landing pays a small boost, the orange mini-turbo's; a boost
+under way with more speed left in it stays. A drift's charge is left as it was.
+Ace bots trick (ADR 0102).
+
 ### drift
 
 Sliding through a corner after a hop. The drift direction is fixed at the hop;

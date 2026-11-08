@@ -29,6 +29,7 @@ const STILL: SoundReading = {
   stop: null,
   speed: 0,
   airborne: false,
+  trick: false,
   miniTurbo: null,
   item: null,
   coins: 0,
@@ -75,6 +76,14 @@ describe("soundCues", () => {
     expect(soundCues(at("go"), at("go"))).toEqual([]);
     expect(soundCues(at("go"), at(null))).toEqual([]);
     expect(soundCues(at(null), at(null))).toEqual([]);
+  });
+
+  it("sounds the trick as the press earns it, once, and not as the landing pays it", () => {
+    const flying = { ...STILL, airborne: true };
+    const earned = { ...flying, trick: true };
+    expect(soundCues(flying, earned)).toEqual(["trick"]);
+    expect(soundCues(earned, earned)).toEqual([]);
+    expect(soundCues(earned, { ...STILL, boostSeconds: 0.6 })).toEqual(["boostPad"]);
   });
 
   it("plays the hop as the kart leaves the ground, not while it is up or as it lands", () => {
@@ -518,6 +527,7 @@ describe("soundReading", () => {
     expect(read(kart, standing, EMPTY_SLOT, racing)).toEqual({
       speed: 12,
       airborne: true,
+      trick: false,
       miniTurbo: "orange",
       item: null,
       coins: 3,

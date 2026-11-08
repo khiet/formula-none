@@ -324,6 +324,7 @@ def populate(geometry: TrackGeometry) -> None:
         "BoostPads": ("BoostPad", geometry.boost_pads),
         "Coins": ("Coin", geometry.coins),
         "Kerbs": ("Kerb", geometry.kerbs),
+        "RampLips": ("RampLip", geometry.ramp_lips),
         "WheelCrossings": ("WheelCrossing", geometry.wheel_crossings),
         "SpawnGrid": ("Spawn", geometry.spawn_grid),
     }
