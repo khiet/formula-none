@@ -284,6 +284,23 @@ fn a_hop_too_early_or_too_late_or_none_earns_nothing() {
     }
 }
 
+/// The window is the kart's own time to the lip: a slow kart's is shorter in
+/// metres, and one backing up to the lip is not closing on it at all. It is
+/// over the lip's height, so a kart on the road under the high end is not in it.
+#[test]
+fn the_trick_window_is_in_seconds_at_the_speed_closing_on_the_lip() {
+    let base = track(BELL_DEER);
+    let [dx, dz] = base.direction_at(LIP_M);
+    let [x, _, z] = beside_the_line(LIP_M - 2.0, RAMP_SIDE_RIGHT_OF_CENTRE_M);
+    let on_the_slope = [x, 0.6, z];
+    let closing = |speed: f32| [dx * speed, 0.0, dz * speed];
+    assert!(base.in_a_trick_window(on_the_slope, closing(TOP_SPEED_M_PER_S)));
+    assert!(!base.in_a_trick_window(on_the_slope, closing(10.0)));
+    assert!(!base.in_a_trick_window(on_the_slope, closing(-TOP_SPEED_M_PER_S)));
+    let under_the_high_end = [x, 0.25, z];
+    assert!(!base.in_a_trick_window(under_the_high_end, closing(TOP_SPEED_M_PER_S)));
+}
+
 /// A hop's airtime is one try: mashing the button through it never earns the
 /// trick the first press missed.
 #[test]
@@ -306,36 +323,6 @@ fn a_hop_held_through_the_lip_earns_nothing() {
 fn a_hop_on_the_flat_half_beside_the_lip_earns_nothing() {
     let readouts = flight(FLAT_SIDE_RIGHT_OF_CENTRE_M, pressed_at(0));
     assert!(readouts.iter().all(|kart| !kart.trick));
-}
-
-/// Under the slope's high end the kart is across the lip but below it.
-#[test]
-fn a_hop_under_the_high_end_earns_nothing() {
-    let base = track(BELL_DEER);
-    let [dx, dz] = base.direction_at(LIP_M);
-    let mut state = on_the_run_up(FLAT_SIDE_RIGHT_OF_CENTRE_M);
-    let mut earned = false;
-    for _ in 0..ticks(10.0) {
-        let progress = state.standings()[0].spline_progress;
-        if progress > LIP_M + 5.0 {
-            break;
-        }
-        let right = if progress < LIP_M - 10.0 {
-            FLAT_SIDE_RIGHT_OF_CENTRE_M
-        } else {
-            RAMP_SIDE_RIGHT_OF_CENTRE_M
-        };
-        let ahead = base.point_at(progress + 8.0);
-        let input = KartInput {
-            hop: (LIP_M - 0.8..LIP_M).contains(&progress),
-            ..steer_toward(&state, 0, [ahead[0] - dz * right, ahead[2] + dx * right])
-        };
-        state = step(state, &[input], DT);
-        earned |= only_kart(&state).trick;
-    }
-    let progress = state.standings()[0].spline_progress;
-    assert!(progress > LIP_M, "it got under the lip: {progress}");
-    assert!(!earned);
 }
 
 /// A drift carried off the lip, let go and pressed again in the fall, earns

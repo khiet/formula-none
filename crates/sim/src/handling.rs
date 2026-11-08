@@ -1081,8 +1081,8 @@ mod tests {
     };
     use crate::MiniTurbo;
 
-    /// Airborne off a lip, with a press on it and the landing a tick later.
-    fn tricked_and_landed(handling: &mut Handling) {
+    /// A press in the fall off a ramp's lip.
+    fn earn_a_trick(handling: &mut Handling) {
         let off_the_lip = Situation {
             on_the_ground: false,
             trick_window: true,
@@ -1093,16 +1093,15 @@ mod tests {
             ..KartInput::default()
         };
         handling.tick(&press, Freeze::Free, off_the_lip, TICK_S);
-        assert!(handling.trick(), "the press in the fall earned it");
-        handling.tick(&KartInput::default(), Freeze::Free, asphalt(), TICK_S);
-        assert!(!handling.trick(), "the landing paid it");
+        assert!(handling.trick());
     }
 
     #[test]
     fn a_tricks_boost_takes_over_a_boost_with_less_speed_left_in_it() {
         let mut handling = going(TOP_SPEED_M_PER_S);
         handling.boost(0.2, BOOST_PAD_FACTOR, MiniTurbo::Red);
-        tricked_and_landed(&mut handling);
+        earn_a_trick(&mut handling);
+        tick(&mut handling, KartInput::default());
         assert_eq!(handling.boost_tier(), MiniTurbo::Orange);
     }
 
@@ -1110,7 +1109,8 @@ mod tests {
     fn a_trick_leaves_a_boost_with_more_speed_left_in_it() {
         let mut handling = going(TOP_SPEED_M_PER_S);
         handling.boost(ITEM_BOOST_S, ITEM_BOOST_FACTOR, MiniTurbo::Red);
-        tricked_and_landed(&mut handling);
+        earn_a_trick(&mut handling);
+        tick(&mut handling, KartInput::default());
         assert_eq!(handling.boost_tier(), MiniTurbo::Red);
         assert_eq!(handling.speed(), TOP_SPEED_M_PER_S * ITEM_BOOST_FACTOR);
     }
@@ -1118,18 +1118,9 @@ mod tests {
     #[test]
     fn a_spin_out_in_the_air_loses_the_trick() {
         let mut handling = going(TOP_SPEED_M_PER_S);
-        let off_the_lip = Situation {
-            on_the_ground: false,
-            trick_window: true,
-            ..asphalt()
-        };
-        let press = KartInput {
-            hop: true,
-            ..KartInput::default()
-        };
-        handling.tick(&press, Freeze::Free, off_the_lip, TICK_S);
+        earn_a_trick(&mut handling);
         handling.stop();
-        handling.tick(&KartInput::default(), Freeze::Free, asphalt(), TICK_S);
+        tick(&mut handling, KartInput::default());
         assert_eq!(handling.boost_s(), None);
     }
 
