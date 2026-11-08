@@ -123,6 +123,8 @@ export interface SoundReading {
   readonly presentation: PresentationBlend;
   /** The wall clock of the display jets' latest cue (ADR 0099); null before the first. */
   readonly flypastCuedMs: number | null;
+  /** Whether the own kart is on its last lap (ADR 0100): the race music lifts. */
+  readonly finalLap: boolean;
 }
 
 /** The own kart's stop, as its crew's sounds read it. */
@@ -156,8 +158,9 @@ export interface NearestStar {
 /**
  * The reading of `kart`, the own kart, from its readout and standing in
  * `race`, the item slot and the phase, with `tuning.stopCleanS` a clean
- * stop's longest, `boxCall` whether the BOX call shows and `presentation`
- * the zone's blend where the kart is. Throws when `race` has no such kart.
+ * stop's longest, `boxCall` whether the BOX call shows, `presentation`
+ * the zone's blend where the kart is and `finalLap` whether the kart is on
+ * its last lap. Throws when `race` has no such kart.
  */
 export function soundReading(
   race: RaceReadout,
@@ -166,6 +169,7 @@ export function soundReading(
   boxCall = false,
   presentation: PresentationBlend = OPEN_SKY,
   flypastCuedMs: number | null = null,
+  finalLap = false,
 ): SoundReading {
   const readout = race.karts[kart];
   const standing = race.standings[kart];
@@ -210,6 +214,7 @@ export function soundReading(
     incomingDroneMetres: incomingDroneMetres(race.projectiles, kart, readout),
     presentation,
     flypastCuedMs,
+    finalLap,
   };
 }
 

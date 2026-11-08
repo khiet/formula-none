@@ -8,8 +8,9 @@
 // source for the music, each behind the gain its toggle sets; the loops sit
 // under the SFX toggle, and so does the star music (ADR 0075): the own run's
 // in place of the race music, which fades out and keeps its place, else the
-// nearest other star kart's by distance. Presentation: it reads the own
-// kart's readings and changes no sim state.
+// nearest other star kart's by distance; the race music plays faster and
+// louder through the own kart's last lap (ADR 0100). Presentation: it
+// reads the own kart's readings and changes no sim state.
 
 import airHornUrl from "../../../assets/audio/air-horn.wav?url";
 import boostPadUrl from "../../../assets/audio/boost-pad.wav?url";
@@ -84,6 +85,7 @@ import {
 } from "./audio-engine";
 import type { AudioSettings } from "./audio-settings";
 import type { Tuning } from "./bridge";
+import { musicPlayback } from "./final-lap";
 
 export const SOUND_URLS: Readonly<Record<SoundCue, string>> = {
   countdownBeep: countdownBeepUrl,
@@ -489,7 +491,12 @@ class LiveRace {
     );
     const sfx = this.#settings().sfx;
     this.#runLoops(sounds, sfx ? soundLoops(reading) : new Set(), reading);
-    this.#runStar(sounds, sfx ? starMusic(reading, this.#starRunSeconds) : null, cues);
+    this.#runStar(
+      sounds,
+      sfx ? starMusic(reading, this.#starRunSeconds) : null,
+      cues,
+      musicPlayback(reading.finalLap),
+    );
     if (!sfx) return;
     for (const cue of cues) {
       const buffer = sounds.sfx[cue];
@@ -596,7 +603,12 @@ class LiveRace {
    * or another kart's, joined at its point in the run and faded by
    * distance, the race music untouched. Fading out what no longer plays.
    */
-  #runStar(sounds: Sounds, wanted: StarMusic | null, cues: readonly SoundCue[]): void {
+  #runStar(
+    sounds: Sounds,
+    wanted: StarMusic | null,
+    cues: readonly SoundCue[],
+    raceMusic: LoopPlayback,
+  ): void {
     const now = sounds.context.currentTime;
     const running = this.#star;
     // A second star puts the run back to its start: the own kart's is its
@@ -635,8 +647,14 @@ class LiveRace {
       this.#star.secondsIn = wanted.secondsIn;
     }
     // The race music keeps its place while silent, so it comes back
-    // further along, not from the start.
-    this.#musicLevel?.gain.setTargetAtTime(wanted?.kart === null ? 0 : 1, now, MUSIC_FADE_S);
+    // further along, not from the start; the final lap's lift (ADR 0100)
+    // changes its tempo and level, never its place.
+    this.#musicLevel?.gain.setTargetAtTime(
+      wanted?.kart === null ? 0 : raceMusic.gain,
+      now,
+      MUSIC_FADE_S,
+    );
+    this.#music?.playbackRate.setTargetAtTime(raceMusic.rate, now, MUSIC_FADE_S);
   }
 
   stop(): void {

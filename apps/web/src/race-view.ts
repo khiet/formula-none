@@ -26,6 +26,7 @@ import type { CameraPose } from "./chase-camera";
 import { coinMeshes, coinSpray } from "./coin-meshes";
 import { createDustEmitter } from "./dust";
 import { createExhaustFlames } from "./exhaust-flame";
+import { finalLapSetPiece } from "./final-lap-set-piece";
 import { hazardZones } from "./hazard-zone";
 import { HEAD_LEVEL, type HeadSway, swayHead } from "./head-sway";
 import { type DroneFlight, flyDrones } from "./homing-drones";
@@ -66,7 +67,7 @@ import {
   shadowDiscMesh,
   tyreMarkMesh,
 } from "./tell-meshes";
-import type { PitBox } from "./track";
+import type { PitBox, TrackName } from "./track";
 import { trackProbe } from "./track-probe";
 import { createTyreMarks } from "./tyre-marks";
 import { kartWheels } from "./wheel-spin";
@@ -176,6 +177,12 @@ export interface RaceView {
    * lamps over the own kart by `blend.lampGlow`, as of the last `update`.
    */
   presentation(blend: PresentationBlend): void;
+  /**
+   * Whether the own kart is on its last lap (ADR 0100): the gantry reads
+   * FINAL LAP and fireworks go up over the course's landmark from the next
+   * `update`, until it is off again.
+   */
+  finalLap(on: boolean): void;
   render(): void;
   /** Take the canvas off the page and free the renderer. */
   dispose(): void;
@@ -191,6 +198,8 @@ export interface ViewerOptions {
 
 /** The glTF files the View draws: the track and the kart every slot is a copy of. */
 export interface ViewAssets {
+  /** Which course the track is: its landmark is where the final lap's fireworks go up. */
+  readonly trackName: TrackName;
   readonly trackGltfUrl: string;
   readonly kartGltfUrl: string;
 }
@@ -395,6 +404,10 @@ export async function createRaceView(
   const boxes = itemBoxMeshes(itemBoxes);
   world.add(boxes.mesh);
 
+  const setPiece = finalLapSetPiece(track.scene, assets.trackName, viewer.reducedMotion);
+  world.add(...setPiece.objects);
+  let onFinalLap = false;
+
   const drawnCoins = coinMeshes(coins);
   world.add(drawnCoins.mesh);
   const kartHead = kartModel.scene.getObjectByName("head");
@@ -540,6 +553,7 @@ export async function createRaceView(
       rings.show(race.blasts);
       runaways.show(race.wheels, frameSeconds);
       motion.update(performance.now(), flypastCuedMs);
+      setPiece.update(onFinalLap, frameSeconds);
       for (const label of labels) {
         label.visible = false;
       }
@@ -584,6 +598,9 @@ export async function createRaceView(
         const [x, y, z] = ownPosition;
         lampLight.position.set(x, y + LAMP_HEIGHT_M, z);
       }
+    },
+    finalLap(on) {
+      onFinalLap = on;
     },
     dispose() {
       window.removeEventListener("resize", resize);

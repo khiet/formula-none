@@ -36,6 +36,14 @@ drifts, on worn tyres or to save them for the flag, nothing else; it changes how
 How long a race runs, one of the picks: 3 or 5, fixed for the room
 (ADR 0084).
 
+### final lap
+
+The own kart's last lap of the race's laps, from its first tick to the
+kart's finish. Through it the course lifts for that kart alone: the gantry
+reads FINAL LAP, fireworks go up over the course's landmark, the crowd
+comes up all round the lap and the race music plays faster and louder
+(ADR 0100).
+
 ### picks
 
 The creator's choices of how a race runs, made on the Title Scene under the
