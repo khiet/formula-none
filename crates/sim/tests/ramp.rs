@@ -23,6 +23,9 @@ const LIP_M: f32 = BACK_STRAIGHT_M + 44.0;
 const RUN_UP_M: f32 = BACK_STRAIGHT_M - 8.0;
 const RAMP_SIDE_RIGHT_OF_CENTRE_M: f32 = -3.0;
 const FLAT_SIDE_RIGHT_OF_CENTRE_M: f32 = 3.0;
+/// More than the slope gives a boosted kart and less than a kart caught on an
+/// edge of the mesh is thrown at, 7 m/s or more.
+const MOST_CLIMB_M_PER_S: f32 = 6.0;
 
 /// The world point `right_of_centre` metres right of the centreline at `metres`.
 fn beside_the_line(metres: f32, right_of_centre: f32) -> [f32; 3] {
@@ -58,6 +61,7 @@ struct Run {
     /// Spline progress and speed on the tick it came back to the ground.
     landed: Option<(f32, f32)>,
     passed_the_lip: bool,
+    fastest_climb: f32,
 }
 
 fn up_the_straight(right_of_centre: f32) -> Run {
@@ -69,6 +73,7 @@ fn up_the_straight(right_of_centre: f32) -> Run {
         let kart = only_kart(&state);
         let progress = state.standings()[0].spline_progress;
         run.passed_the_lip |= progress > LIP_M;
+        run.fastest_climb = run.fastest_climb.max(kart.velocity[1]);
         run.boosted |= (PAD_BACK_M..LIP_M).contains(&progress) && kart.boost.is_some();
         // Past the settling on the spawn, which starts it a little above the road.
         if progress < PAD_BACK_M {
@@ -94,7 +99,8 @@ fn a_kart_on_the_ramps_side_flies_and_lands_boosted_before_the_next_checkpoint()
     let run = up_the_straight(RAMP_SIDE_RIGHT_OF_CENTRE_M);
     assert!(run.boosted, "the pad on the run-up boosts it: {run:?}");
     let took_off = run.took_off_at.expect("it leaves the ground");
-    assert!(took_off > FOOT_M, "off the ramp, not before it: {run:?}");
+    assert!(took_off > LIP_M, "off the lip, not the foot: {run:?}");
+    assert!(run.fastest_climb < MOST_CLIMB_M_PER_S, "{run:?}");
     let (landed, speed) = run.landed.expect("it lands");
     let checkpoints = track(BELL_DEER).checkpoint_progress().to_vec();
     let next = checkpoints
@@ -117,6 +123,10 @@ fn a_kart_on_the_flat_side_never_leaves_the_ground_or_meets_the_pad() {
 fn a_kart_straddling_the_ramps_edge_is_not_stopped_by_it() {
     let run = up_the_straight(0.0);
     assert!(run.passed_the_lip, "{run:?}");
+    assert!(
+        run.fastest_climb < MOST_CLIMB_M_PER_S,
+        "not thrown: {run:?}"
+    );
 }
 
 /// Cutting in from the flat half under the slope's high end, where the slope's
@@ -153,7 +163,7 @@ fn a_kart_cutting_in_under_the_high_end_runs_on_unheld() {
         "it runs on past the lip: {progress}"
     );
     assert!(slowest > 0.5 * TOP_SPEED_M_PER_S, "not held: {slowest}");
-    assert!(most_climb < 6.0, "not thrown: {most_climb}");
+    assert!(most_climb < MOST_CLIMB_M_PER_S, "not thrown: {most_climb}");
 }
 
 /// Bots run the flat half (`BOT_LINE_RIGHT_OF_CENTRE_M`), and traffic puts some

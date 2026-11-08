@@ -91,13 +91,6 @@ class BellDeersRamp(unittest.TestCase):
         self.assertEqual(pad.offset - PAD_HALF_WIDTH_M, ramp.right)
         self.assertEqual(pad.offset + PAD_HALF_WIDTH_M, ramp.left)
 
-    def test_it_takes_off_past_a_checkpoint_with_room_to_land_short_of_the_next(self) -> None:
-        length = self.layout.path.length
-        checkpoints = [k * length / self.layout.checkpoint_count for k in range(self.layout.checkpoint_count)]
-        ahead = min(s for s in checkpoints if s > self.ramp.s_end)
-        # Further than the fastest flight off it: the row's test holds that one.
-        self.assertGreater(ahead - self.ramp.s_end, 60.0)
-
     def test_the_walls_and_the_centreline_do_not_rise_for_it(self) -> None:
         ramp = self.ramp
         foot = self.layout.path.at(ramp.s_start)
@@ -135,19 +128,6 @@ class BellDeersRamp(unittest.TestCase):
                 seen += 1
                 self.assertGreater(normal(a, b, c)[2], 0.0)
         self.assertGreater(seen, 0)
-
-    def test_the_foot_shares_its_vertices_with_the_road_behind_it(self) -> None:
-        (asphalt,) = [s for s in self.geometry.surfaces if s.name == "Asphalt"]
-        vertices, faces = asphalt.mesh
-        foot = self.layout.path.at(self.ramp.s_start)
-        edge = foot.offset(self.ramp.right)
-        at_edge = [
-            i
-            for i, v in enumerate(vertices)
-            if math.isclose(v[0], edge[0], abs_tol=1e-6) and math.isclose(v[1], edge[1], abs_tol=1e-6)
-        ]
-        self.assertEqual(len(at_edge), 1, "the slope's foot and the road's row are one vertex")
-        self.assertGreater(sum(at_edge[0] in face for face in faces), 2)
 
     def test_the_tyre_marks_map_covers_every_vertex(self) -> None:
         (asphalt,) = [s for s in self.geometry.surfaces if s.name == "Asphalt"]
