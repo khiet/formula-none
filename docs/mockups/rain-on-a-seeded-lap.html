@@ -102,7 +102,7 @@ button:focus-visible, input:focus-visible, summary:focus-visible, a:focus-visibl
   </div>
   <div class="call">
     <h3>A wet tyre would rarely be a choice</h3>
-    <p>Packs already stop <span data-sum="sprintStops"></span> times a kart over three laps in the dry on courses with a lane. Most karts would collect a wet tyre at a stop they were making anyway. The mild level costs about 2.9 s a lap on new tyres and a stop about 8 s (ADR 0081), so two wet laps do not repay an extra stop.</p>
+    <p>Packs already stop <span data-sum="sprintStops"></span> times a kart over three laps in the dry on courses with a lane. Most karts would collect a wet tyre at a stop they were making anyway. An extra stop is a closer call: the mild level costs about 2.9 s a lap on new tyres, a noisy mean of -1.4 to +5.4 s across the courses, and a stop about 8 s (ADR 0081), so two wet laps barely repay it and four repay about 11.6 s before traffic.</p>
   </div>
   <div class="call">
     <h3>Heavy grip loss overruns the end cap</h3>
@@ -126,12 +126,12 @@ button:focus-visible, input:focus-visible, summary:focus-visible, a:focus-visibl
       <tr><td>Rough cost</td><td>Small to medium, client only.</td><td class="pick">Medium: the sim, a pick, the client and a sweep.</td><td>Large.</td></tr>
     </tbody>
   </table></div>
-  <p class="note">Dropping rain stays open. The case for it is pi's: fixed atmosphere is cheaper, and ADRs 0085 and 0095 are still recorded as pending the maintainer's playtest. Whichever version is chosen, the build should wait for that playtest, since B and C both sit on top of the tyre tune.</p>
+  <p class="note">Dropping rain was the other outcome. The case for it is pi's: fixed atmosphere is cheaper, and ADRs 0085 and 0095 are still recorded as pending the maintainer's playtest. The build waits for that playtest, since B sits on top of the tyre tune.</p>
 </section>
 
 <section>
   <h2>How it reads in a pack</h2>
-  <p>The sky, road and streaks are the same in all three versions. The open question is spray: enough to say the road is wet, without hiding karts, item boxes or hazards. Drag the wetness and compare the spray levels.</p>
+  <p>The sky, road and streaks are the same in all three versions. The risk is spray: enough to say the road is wet, without hiding karts, item boxes or hazards. Drag the wetness and compare the spray levels.</p>
   <figure>
     <canvas id="pack" width="880" height="500" role="img" aria-label="A sketch of eight karts seen from the chase camera, with sky, road and spray changing with wetness"></canvas>
     <div class="controls">
@@ -146,13 +146,13 @@ button:focus-visible, input:focus-visible, summary:focus-visible, a:focus-visibl
     </div>
     <figcaption>A hand-drawn sketch, not the game's renderer. The orange kart trails the worn-tyre smoke of ADR 0080, which spray must not be mistaken for; the dark disc on the left is the runaway wheel. The real check is a staged eight-kart race in the build.</figcaption>
   </figure>
-  <h3>Proposed rules for the look</h3>
+  <h3>Rules for the look</h3>
   <ul>
     <li><strong>Spray budget:</strong> a low plume at each kart's rear wheels, no higher than the top of the wheels and about two kart lengths long. Rear wings, helmets and liveries stay visible through a pack.</li>
     <li><strong>Always on top:</strong> item boxes, the runaway wheel, drones and worn-tyre smoke stay readable. Spray is pale and low, smoke dark and rising.</li>
     <li><strong>Road:</strong> darker asphalt and a soft sheen under each kart. Kerbs, white lines and boost pads keep their colours.</li>
     <li><strong>Sky:</strong> grey with the sun's light scaled down, using the View's existing light scale (ADR 0098). No lightning or flashes.</li>
-    <li><strong>Roofs:</strong> streaks stop under Monarch's tunnel and Goldstone's hangar through presentation zones. Grip stays wet there, since the sim never reads a zone.</li>
+    <li><strong>Roofs:</strong> streaks stop under Monarch's tunnel, Goldstone's hangar and Bell Deer's bridge through presentation zones, which follow the own kart. Grip stays wet there, since the sim never reads a zone.</li>
     <li><strong>Less motion:</strong> a viewer who asks for less motion gets fewer streaks, as the fireworks do.</li>
     <li><strong>Sound:</strong> a rain bed under the SFX toggle, levelled by wetness and never pitched.</li>
   </ul>
@@ -160,11 +160,11 @@ button:focus-visible, input:focus-visible, summary:focus-visible, a:focus-visibl
 
 <section>
   <h2>When it arrives</h2>
-  <p>The seed picks the lap from a hash, drawing nothing from the sim's random stream, as a stop's roll does (ADR 0082). Rain comes on lap 2 or later, so the field has spread, and up to the lap before the last, except that a Sprint can also take its last lap, since it has only two to choose from.</p>
+  <p>The seed picks the lap from a hash, drawing nothing from the sim's random stream, as a stop's roll does (ADR 0082). Rain comes on lap 2 or later, so the field has spread, and up to the lap before the last, except that a 3-lap race can also take its last lap, since it would otherwise have one to choose from. There a stop cannot pay, and on the oval the race ends before the ramp does.</p>
   <div class="panel">
     <div class="seg" id="distance">
-      <button type="button" data-v="3" aria-pressed="true">SPRINT, 3 LAPS</button>
-      <button type="button" data-v="5" aria-pressed="false">GRAND PRIX, 5 LAPS</button>
+      <button type="button" data-v="3" aria-pressed="true">3 LAPS</button>
+      <button type="button" data-v="5" aria-pressed="false">5 LAPS</button>
       <button type="button" id="roll">ROLL A SEED</button>
     </div>
     <div class="laps" id="laps"></div>
@@ -174,8 +174,8 @@ button:focus-visible, input:focus-visible, summary:focus-visible, a:focus-visibl
     <li><strong>Trigger:</strong> the first tick any kart starts the picked lap, so the whole field gets wet together. Every screen sees one sky.</li>
     <li><strong>Warning:</strong> the clouds gather over the leader's last quarter of the lap before. They only change the look.</li>
     <li><strong>Ramp:</strong> wetness climbs from 0 to 1 over 20 s, then holds to the flag. It never dries; a second change is a later decision.</li>
-    <li><strong>Network:</strong> the server's state holds the tick the rain began and the snapshot carries it, as the prediction takes other race facts from the snapshot. A snapshot's 100 ms on a 20 s ramp is 0.5% of the wet, too little to feel.</li>
-    <li><strong>The pick:</strong> Weather, Dry or Rain, chosen by the creator with the other picks (ADR 0083). A kept room or replay with no pick is Dry and hashes as it does today. It starts on Dry until it has been played.</li>
+    <li><strong>Network:</strong> the server's state holds the tick the rain began and the snapshot carries it, as the prediction takes other race facts from the snapshot. Learning it a tenth of a second late on a 20 s ramp is 0.5% of the wet, too little to feel.</li>
+    <li><strong>The pick:</strong> Weather, Dry or Rain, chosen by the creator with the other picks (ADR 0083), carried with them as one value (ADR 0091). A kept room or replay with no pick is Dry and hashes as it does today. It starts on Dry until it has been played.</li>
   </ul>
 </section>
 
@@ -188,11 +188,11 @@ button:focus-visible, input:focus-visible, summary:focus-visible, a:focus-visibl
       <tr><td>Steering rate</td><td class="n pick">x 0.92</td><td class="n">x 0.80</td></tr>
       <tr><td>Acceleration</td><td class="n pick">x 0.92</td><td class="n">x 0.80</td></tr>
       <tr><td>Braking</td><td class="n pick">x 0.80</td><td class="n">x 0.65</td></tr>
-      <tr><td>Wash-out, added at any life</td><td class="n pick">+ 0.05 rad</td><td class="n">+ 0.10 rad</td></tr>
+      <tr><td>Wash-out, added at any life</td><td class="n pick">+ 0.05 rad, to 0.18 at most</td><td class="n">+ 0.10 rad</td></tr>
       <tr><td>Top speed cap, wear rates, mini-turbo charge</td><td class="n pick">unchanged</td><td class="n">unchanged</td></tr>
     </tbody>
   </table></div>
-  <p>New tyres slide a little in the wet, and worn tyres slide most. At the mild level a kart at 0% life can slide 0.20 rad, under the drift's 0.30. Bots keep today's rules, including the pit call; the Ace's table of lap costs stays dry, so it will underrate a stop in the wet.</p>
+  <p>Flat out on full lock at the mild level, a kart slides 0.05 rad on new tyres and 0.15 at the cliff, and reaches the 0.18 cap near 5% life. That cap is the most a hop's airtime lets go (ADR 0087), under the drift's 0.30. At 0% it slides less than in the dry, about 0.06 against 0.10, since the slower steering loads the tyres less. Bots keep today's rules, including the pit call; the Ace's table of lap costs stays dry, so it will underrate a stop in the wet.</p>
 </section>
 
 <section>
@@ -209,7 +209,7 @@ button:focus-visible, input:focus-visible, summary:focus-visible, a:focus-visibl
   <h3>What the trial did not measure</h3>
   <ul>
     <li>Whether bots miss the pit lane fork. A slide of 0.15 rad or more has carried them past it before (ADR 0087), and worn wet tyres now reach that. The build's sweep must count missed lanes.</li>
-    <li>Tyres Off packs, the 20 s ramp, and any kart on wets: version C's numbers are arithmetic, not races.</li>
+    <li>Tyres Off packs, the 20 s ramp, rain on the other seeded laps (only lap 2 of 3 and lap 3 of 5 were raced), and any kart on wets: version C's numbers are arithmetic, not races.</li>
     <li>How it feels on a keyboard, where steering is all or nothing. Only a playtest answers that.</li>
   </ul>
 </section>
@@ -289,13 +289,13 @@ const NAMES = { bell: "Bell Deer", gold: "Goldstone", monarch: "Monarch", oval: 
 const cell = (course, level, laps, wet) => PACK.find((r) => r.course === course && r.level === level && r.laps === laps && r.wet === wet);
 const signed = (n) => (n >= 0 ? "+" : "") + n.toFixed(1);
 const mean = (rows, of) => rows.reduce((sum, r) => sum + of(r), 0) / rows.length;
-const lane = (r) => r.course !== "oval";
+const hasPitLane = (r) => r.course !== "oval";
 
-// Every figure in the findings is computed from the raw rows above, so prose and table cannot disagree.
+// The stop and end cap figures in the findings come from the raw rows above, so prose and table cannot disagree on them.
 const sums = {
-  ace5stops: mean(PACK.filter((r) => lane(r) && r.level === "Ace" && r.laps === 5 && r.wet === "dry"), (r) => r.after).toFixed(2),
-  ace5stopsMid: mean(PACK.filter((r) => lane(r) && r.level === "Ace" && r.laps === 5 && r.wet === "mid"), (r) => r.after).toFixed(2),
-  sprintStops: mean(PACK.filter((r) => lane(r) && r.laps === 3 && r.wet === "dry"), (r) => r.stops).toFixed(1),
+  ace5stops: mean(PACK.filter((r) => hasPitLane(r) && r.level === "Ace" && r.laps === 5 && r.wet === "dry"), (r) => r.after).toFixed(2),
+  ace5stopsMid: mean(PACK.filter((r) => hasPitLane(r) && r.level === "Ace" && r.laps === 5 && r.wet === "mid"), (r) => r.after).toFixed(2),
+  sprintStops: mean(PACK.filter((r) => hasPitLane(r) && r.laps === 3 && r.wet === "dry"), (r) => r.stops).toFixed(1),
   capDry: PACK.filter((r) => r.laps === 5 && r.wet === "dry").reduce((s, r) => s + r.capped, 0),
   capMid: PACK.filter((r) => r.laps === 5 && r.wet === "mid").reduce((s, r) => s + r.capped, 0),
   capHeavy: PACK.filter((r) => r.laps === 5 && r.wet === "heavy").reduce((s, r) => s + r.capped, 0),
@@ -345,7 +345,7 @@ function drawLaps() {
     html += `<div class="lap" data-state="${state}"><b>LAP ${lap}</b><span>${words}</span></div>`;
   }
   document.getElementById("laps").innerHTML = html;
-  document.getElementById("seedline").textContent = `Seed ${seed}: rain on lap ${rain} of ${laps}. The lap rule is the proposal; the hash here only stands in for the sim's.`;
+  document.getElementById("seedline").textContent = `Seed ${seed}: rain on lap ${rain} of ${laps}. The hash here only stands in for the sim's.`;
 }
 document.querySelectorAll("#distance [data-v]").forEach((button) => button.addEventListener("click", () => {
   laps = +button.dataset.v;
@@ -415,11 +415,11 @@ function drawSpray(k, wet, time) {
     const lift = (i * 37 % 11) / 11;
     ctx.fillStyle = `rgba(232,238,244,${alpha * wet * (1 - phase * 0.7)})`;
     ctx.beginPath();
-    ctx.arc(x(p, u, side, lift, spread), p.y - u * tall * lift + u * phase * 0.3, u * (0.07 + phase * 0.16 * (spray === 1 ? 1 : 1.6)), 0, 7);
+    ctx.arc(plumeX(p, u, side, lift, spread), p.y - u * tall * lift + u * phase * 0.3, u * (0.07 + phase * 0.16 * (spray === 1 ? 1 : 1.6)), 0, 7);
     ctx.fill();
   }
 }
-function x(p, u, side, lift, spread) { return p.x + u * side + u * spread * (lift - 0.5); }
+function plumeX(p, u, side, lift, spread) { return p.x + u * side + u * spread * (lift - 0.5); }
 function drawSmoke(k, time) {
   const p = project(k.depth, k.lane), u = p.s * 150;
   for (let i = 0; i < 9; i++) {
