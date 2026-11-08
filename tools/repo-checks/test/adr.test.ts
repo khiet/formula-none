@@ -107,6 +107,7 @@ const DECISION_SLUGS = [
   "the-final-lap-lifts-the-course-for-the-own-kart",
   "a-ramp-is-a-slope-across-part-of-the-road",
   "a-hop-on-the-lip-is-a-trick",
+  "rain-changes-grip-on-a-lap-the-seed-picks",
 ];
 
 const expectedFiles = DECISION_SLUGS.map(
