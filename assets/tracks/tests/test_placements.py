@@ -46,7 +46,7 @@ def landing_s(layout, ramp: Ramp, speed: float) -> float:
     """Where a kart that leaves `ramp`'s lip at `speed` up its slope comes down on the road."""
     slope = math.atan2(ramp.height, ramp.s_end - ramp.s_start)
     along, up = speed * math.cos(slope), speed * math.sin(slope)
-    lip = elevation(layout.elevation, ramp.s_end - 1e-6)
+    lip = elevation(layout.elevation, ramp.s_end) + ramp.height
     t = 0.0
     while True:
         t += 0.001
@@ -119,7 +119,7 @@ class BellDeer(unittest.TestCase):
 
     def test_the_back_straights_row_stands_past_where_a_boosted_kart_lands_off_the_ramp(self) -> None:
         back = self.layout.path.segment("back-straight")
-        (ramp,) = [f for f in self.layout.elevation if isinstance(f, Ramp)]
+        (ramp,) = self.layout.ramps
         (row,) = [r for r in self.layout.item_rows if back.s_start <= r.s < back.s_end]
         lands = landing_s(self.layout, ramp, BOOSTED_SPEED_M_PER_S)
         self.assertGreater(row.s - BOX_HALF_LENGTH_M, lands)

@@ -3,6 +3,9 @@
   "seed": "3",
   "track": "bell-deer",
   "bots": 0,
+  "level": "basic",
+  "tyres": "off",
+  "laps": 3,
   "segments": [
     {
       "ticks": 300,
@@ -3114,12 +3117,12 @@
     }
   ],
   "hashes": [
-    "4ee9a3109f6d5807",
-    "ce300b3e4b46133b",
-    "42e2fe6e13864381",
-    "27cf14f80973bbaf",
-    "e5ff2d7868842f8e",
-    "90647c83f8945e2c",
+    "e1a79d92b9b518cc",
+    "db656b5d406c22c0",
+    "10d3cc6763a08222",
+    "cbec43fe9356c1c4",
+    "ea8993ec7351e13d",
+    "dac435c04b3138fd",
     "b08f9f5c7f1db816",
     "26a856bd952f430c",
     "1660170e20cb94f4",

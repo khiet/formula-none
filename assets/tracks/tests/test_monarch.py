@@ -58,7 +58,7 @@ from trackgen.props import (
     footprints,
 )
 from trackgen.sponsors import HELICOPTER_SPONSOR, SPONSORS
-from trackgen.path import Hill, Ramp, elevation
+from trackgen.path import Hill, elevation
 
 NAME = "monarch"
 TUNNEL = "Tunnel."
@@ -94,7 +94,7 @@ class Lap(unittest.TestCase):
     def test_one_8_m_crest_from_sainte_devote_to_the_tunnel_mouth_tops_out_in_casino_square(self) -> None:
         (hill,) = self.layout.elevation
         self.assertIsInstance(hill, Hill)
-        self.assertNotIsInstance(hill, Ramp)
+        self.assertEqual(self.layout.ramps, [])
         seg = self.layout.path.segment
         self.assertEqual(hill.s_start, seg("sainte-devote").s_start)
         self.assertEqual(hill.s_end, seg("tunnel-entry").s_end)

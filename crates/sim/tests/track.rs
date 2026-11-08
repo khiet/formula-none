@@ -43,7 +43,7 @@ fn bell_deer_carries_the_whole_layout() {
     assert_eq!(track.name(), "bell-deer");
     assert_eq!(track.checkpoints().len(), 15);
     assert_eq!(track.item_boxes().len(), 12);
-    assert_eq!(track.boost_pads().len(), 2);
+    assert_eq!(track.boost_pads().len(), 3);
     assert_eq!(track.kerbs().len(), 2);
     assert_eq!(track.spawn_grid().len(), 8);
     assert!(
