@@ -43,6 +43,7 @@ describe("localRaceRun's item slot", () => {
       level: "basic",
       tyres: "off",
       laps: 3,
+      weather: "dry",
     });
     started(run);
     expect(run.readout().itemSlot).toEqual(EMPTY_SLOT);
@@ -81,6 +82,7 @@ describe("localRaceRun's item slot", () => {
       level: "basic",
       tyres: "off",
       laps: 3,
+      weather: "dry",
     });
     started(run);
     run.tick(IDLE_INPUT, DT);
@@ -99,6 +101,7 @@ describe("localRaceRun's item slot", () => {
       level: "basic",
       tyres: "off",
       laps: 3,
+      weather: "dry",
     });
     started(run);
     run.tick(IDLE_INPUT, DT);
@@ -120,7 +123,7 @@ describe("localRaceRun's horn blasts", () => {
         bridge,
         "oval",
         boxesUnderTheGrid(1),
-        { level: "basic", tyres: "off", laps: 3 },
+        { level: "basic", tyres: "off", laps: 3, weather: "dry" },
         {
           seed,
           humanCount: 1,
@@ -147,12 +150,14 @@ describe("localRaceRun's horn blasts", () => {
 describe("localRaceRun's laps", () => {
   it("counts the race's laps for the panel", async () => {
     const bridge = await loadBridge(wasm);
-    expect(localRaceRun(bridge, "oval", OVAL, { level: "basic", tyres: "off", laps: 3 }).laps).toBe(
-      3,
-    );
-    expect(localRaceRun(bridge, "oval", OVAL, { level: "basic", tyres: "off", laps: 5 }).laps).toBe(
-      5,
-    );
+    expect(
+      localRaceRun(bridge, "oval", OVAL, { level: "basic", tyres: "off", laps: 3, weather: "dry" })
+        .laps,
+    ).toBe(3);
+    expect(
+      localRaceRun(bridge, "oval", OVAL, { level: "basic", tyres: "off", laps: 5, weather: "dry" })
+        .laps,
+    ).toBe(5);
   });
 });
 
@@ -160,7 +165,12 @@ describe("localRaceRun's tyres", () => {
   it("wears the local kart's tyres on On, and leaves them new on Off", async () => {
     const bridge = await loadBridge(wasm);
     const drive = (tyres: Tyres) => {
-      const run = localRaceRun(bridge, "oval", OVAL, { level: "basic", tyres: tyres, laps: 3 });
+      const run = localRaceRun(bridge, "oval", OVAL, {
+        level: "basic",
+        tyres: tyres,
+        laps: 3,
+        weather: "dry",
+      });
       started(run);
       for (let tick = 0; tick < 120; tick++) run.tick({ ...IDLE_INPUT, throttle: 1 }, DT);
       return run.readout().karts[0]?.tyreLife;

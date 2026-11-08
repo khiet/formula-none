@@ -194,6 +194,9 @@ impl Prediction {
         // wake's edge would differ from the server's. The slipstream is
         // the snapshots' word, carried on between them.
         state.wakes_judged = false;
+        // So is the rain: this race of one cannot tell when the first kart
+        // started the lap. Learning it a snapshot late is too little to feel.
+        state.rain_lap = None;
         let spawn = Entry {
             sequence: 0,
             tick: 0,
@@ -303,6 +306,8 @@ impl Prediction {
         let state = self.state_mut();
         state.restore(&record);
         state.phase = phase;
+        // The rain is read on the server's ticks, and this rewinds them.
+        state.tick = snapshot_tick;
         self.tick = snapshot_tick;
         let anchor = &mut self.entries[0];
         anchor.tick = snapshot_tick;
@@ -330,6 +335,17 @@ impl Prediction {
             self.corrections += 1;
         }
         moved
+    }
+
+    /// Take a snapshot's word on the tick the rain began, before reconciling
+    /// with that snapshot so a rewind replays its inputs on the wet.
+    pub fn adopt_rain_began_tick(&mut self, began: u32) {
+        self.state_mut().rain_began_tick = Some(began);
+    }
+
+    /// How wet the track is at the predicted kart's tick, from 0 to 1.
+    pub fn wetness(&self) -> f32 {
+        self.state().wetness()
     }
 
     /// The kart as it is drawn: where the prediction has it, less what is

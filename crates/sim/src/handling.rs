@@ -19,16 +19,18 @@ use crate::hash::Fnv1a;
 use crate::tuning::{
     BOOST_PAD_FACTOR, BOOST_PAD_S, DRIFT_ENTRY_SPEED_FRACTION, GRAVITY_M_PER_S2, HOP_AIRTIME_S,
     KART_BUMP_DECAY_S, KART_BUMP_MIN_M_PER_S, KERB_SPEED_KEEP, MINI_TURBO_BOOST_FACTOR,
-    OFF_TRACK_SPEED_FACTOR, PIT_LIMIT_M_PER_S, SLIPSTREAM_CHARGE_TICKS,
-    SLIPSTREAM_TOP_SPEED_FACTOR, SLIPSTREAM_TOW_S, TICK_S, TOP_SPEED_M_PER_S, TRICK_BOOST_FACTOR,
-    TRICK_BOOST_S, TYRE_ACCELERATION_FACTORS, TYRE_BRAKING_FACTORS, TYRE_LIFE_COLUMNS_PERCENT,
-    TYRE_LIFE_NEW_PERCENT, TYRE_STEER_RATE_FACTORS, TYRE_TOP_SPEED_FACTORS,
-    TYRE_WASH_OUT_FULL_M_PER_S2, TYRE_WASH_OUT_LIMIT_M_PER_S2, TYRE_WASH_OUT_MOST_RAD,
-    TYRE_WASH_OUT_RATE_RAD_PER_S, TYRE_WEAR_BRAKING_PER_S, TYRE_WEAR_BUMP_MAX_PERCENT,
-    TYRE_WEAR_BUMP_MIN_PERCENT, TYRE_WEAR_BUMP_PER_M_PER_S, TYRE_WEAR_CORNERING_PER_S,
-    TYRE_WEAR_CORNERING_REFERENCE_M_PER_S2, TYRE_WEAR_DRIFT_PER_S, TYRE_WEAR_KERB_PERCENT,
-    TYRE_WEAR_MINI_TURBO_PERCENT, TYRE_WEAR_OFF_TRACK_PER_S, TYRE_WEAR_ROLLING_PER_S,
-    TYRE_WEAR_SPIN_OUT_PERCENT, TYRE_WEAR_WALL_PER_S,
+    OFF_TRACK_SPEED_FACTOR, PIT_LIMIT_M_PER_S, RAIN_ACCELERATION_FACTOR, RAIN_BRAKING_FACTOR,
+    RAIN_STEER_RATE_FACTOR, RAIN_WASH_OUT_ADDED_RAD, RAIN_WASH_OUT_MOST_RAD,
+    SLIPSTREAM_CHARGE_TICKS, SLIPSTREAM_TOP_SPEED_FACTOR, SLIPSTREAM_TOW_S, TICK_S,
+    TOP_SPEED_M_PER_S, TRICK_BOOST_FACTOR, TRICK_BOOST_S, TYRE_ACCELERATION_FACTORS,
+    TYRE_BRAKING_FACTORS, TYRE_LIFE_COLUMNS_PERCENT, TYRE_LIFE_NEW_PERCENT,
+    TYRE_STEER_RATE_FACTORS, TYRE_TOP_SPEED_FACTORS, TYRE_WASH_OUT_FULL_M_PER_S2,
+    TYRE_WASH_OUT_LIMIT_M_PER_S2, TYRE_WASH_OUT_MOST_RAD, TYRE_WASH_OUT_RATE_RAD_PER_S,
+    TYRE_WEAR_BRAKING_PER_S, TYRE_WEAR_BUMP_MAX_PERCENT, TYRE_WEAR_BUMP_MIN_PERCENT,
+    TYRE_WEAR_BUMP_PER_M_PER_S, TYRE_WEAR_CORNERING_PER_S, TYRE_WEAR_CORNERING_REFERENCE_M_PER_S2,
+    TYRE_WEAR_DRIFT_PER_S, TYRE_WEAR_KERB_PERCENT, TYRE_WEAR_MINI_TURBO_PERCENT,
+    TYRE_WEAR_OFF_TRACK_PER_S, TYRE_WEAR_ROLLING_PER_S, TYRE_WEAR_SPIN_OUT_PERCENT,
+    TYRE_WEAR_WALL_PER_S,
 };
 use crate::{Drift, DriftDirection, KartInput, MiniTurbo, Slipstream, Surface};
 
@@ -191,6 +193,8 @@ pub(crate) struct Situation {
     /// (ADR 0081): held to the limit, whatever raised its cap or boosts it,
     /// and worn only by rolling.
     pub(crate) pit_lane: bool,
+    /// How wet the race is, from 0 to 1 (ADR 0103).
+    pub(crate) wetness: f32,
 }
 
 /// What the handling sends the body off with for the solver.
@@ -442,7 +446,8 @@ impl Handling {
     /// `wearing` are left out: every tick writes them before anything reads
     /// them. The tyres are left out on Off, where nothing changes them, so
     /// a race on Off hashes as one recorded before there were tyres; a trick
-    /// counts only while one is earned.
+    /// counts only while one is earned, and on Off a slide only once rain has
+    /// started one.
     pub(crate) fn hash(&self, hasher: &mut Fnv1a) {
         use std::hash::Hasher;
         hasher.write_f32(self.speed);
@@ -482,6 +487,8 @@ impl Handling {
                 hasher.write_u8(u8::from(touch.this_tick));
                 hasher.write_f32(touch.wear_paid);
             }
+        } else if self.wash_out_rad != 0.0 {
+            hasher.write_f32(self.wash_out_rad);
         }
     }
 
@@ -506,7 +513,7 @@ impl Handling {
             goes_on
         });
         // The life this tick starts on; what it wears counts from the next.
-        let grip = TyreGrip::at(self.tyre_life);
+        let grip = TyreGrip::at(self.tyre_life).wet(situation.wetness);
         let mut released = false;
         let mut vertical = situation.vertical_m_per_s;
         let was_airborne = self.airborne();
@@ -918,6 +925,21 @@ impl TyreGrip {
             most_wash_out_rad: across(TYRE_WASH_OUT_MOST_RAD),
         }
     }
+
+    /// This grip on a track `wetness` wet (ADR 0103). At 0 every factor
+    /// multiplies by exactly 1 and the slide adds exactly nothing, so a dry
+    /// race drives bit for bit as one from before there was rain.
+    pub(crate) fn wet(self, wetness: f32) -> Self {
+        let scaled = |factor: f32| 1.0 + (factor - 1.0) * wetness;
+        Self {
+            top_speed: self.top_speed,
+            steer_rate: self.steer_rate * scaled(RAIN_STEER_RATE_FACTOR),
+            acceleration: self.acceleration * scaled(RAIN_ACCELERATION_FACTOR),
+            braking: self.braking * scaled(RAIN_BRAKING_FACTOR),
+            most_wash_out_rad: (self.most_wash_out_rad + RAIN_WASH_OUT_ADDED_RAD * wetness)
+                .min(RAIN_WASH_OUT_MOST_RAD),
+        }
+    }
 }
 
 /// `column`, one value per life in `TYRE_LIFE_COLUMNS_PERCENT`, read at `life`
@@ -1142,6 +1164,7 @@ mod tests {
     /// Flat asphalt with no pad, facing -Z, at the tuned top speed.
     fn asphalt() -> Situation {
         Situation {
+            wetness: 0.0,
             rotation: Rotation::IDENTITY,
             vertical_m_per_s: 0.0,
             surface: Surface::Asphalt,
@@ -1904,6 +1927,130 @@ mod tests {
         let left = slid_after_a_second(gone, flat_out, -1.0);
         assert!(most / 2.0 < right && right < most, "at {gone}%: {right}");
         assert!(-most < left && left < -most / 2.0, "at {gone}%: {left}");
+    }
+
+    fn wet(wetness: f32) -> Situation {
+        Situation {
+            wetness,
+            ..asphalt()
+        }
+    }
+
+    #[test]
+    fn a_wet_track_scales_the_ramps_and_the_steering_rate_from_1() {
+        let lock = KartInput {
+            steer: 1.0,
+            ..KartInput::default()
+        };
+        let brake = KartInput {
+            brake: 1.0,
+            ..KartInput::default()
+        };
+        let flat_out = TOP_SPEED_M_PER_S / ACCELERATION_TO_TOP_S;
+        let full_brake = TOP_SPEED_M_PER_S / BRAKE_TO_STOP_S;
+        for wetness in [1.0, 0.5] {
+            // In a straight line from 1 at dry to the tuned factor at fully wet.
+            let at = |factor: f32| 1.0 - (1.0 - factor) * wetness;
+            let mut gaining = going(0.0);
+            for _ in 0..TICKS_PER_SECOND {
+                gaining.tick(&FULL_THROTTLE, Freeze::Free, wet(wetness), TICK_S);
+            }
+            let expected = flat_out * at(RAIN_ACCELERATION_FACTOR);
+            assert!((gaining.speed - expected).abs() < 1e-2, "{}", gaining.speed);
+
+            let mut braked = going(11.0);
+            for _ in 0..TICKS_PER_SECOND / 2 {
+                braked.tick(&brake, Freeze::Free, wet(wetness), TICK_S);
+            }
+            let expected = full_brake * at(RAIN_BRAKING_FACTOR) / 2.0;
+            assert!((11.0 - braked.speed - expected).abs() < 1e-2);
+
+            let dry = going(10.0)
+                .tick(&lock, Freeze::Free, asphalt(), TICK_S)
+                .yaw_rate;
+            let turning = going(10.0)
+                .tick(&lock, Freeze::Free, wet(wetness), TICK_S)
+                .yaw_rate;
+            assert!((turning / dry - at(RAIN_STEER_RATE_FACTOR)).abs() < 1e-3);
+        }
+    }
+
+    #[test]
+    fn a_wet_track_leaves_the_top_speed_and_the_mini_turbo_charge_alone() {
+        let mut flat_out = going(TOP_SPEED_M_PER_S);
+        for _ in 0..TICKS_PER_SECOND {
+            flat_out.tick(&FULL_THROTTLE, Freeze::Free, wet(1.0), TICK_S);
+        }
+        assert_eq!(flat_out.speed, TOP_SPEED_M_PER_S);
+
+        let red = tick_charge_reaches(MINI_TURBO_RED_CHARGE_S);
+        let mut drifting = drifting_right();
+        for _ in 0..red {
+            drifting.tick(&hop_right(), Freeze::Free, wet(1.0), TICK_S);
+        }
+        assert_eq!(MiniTurbo::of(drifting.drift), MiniTurbo::Red);
+    }
+
+    #[test]
+    fn a_wet_track_adds_to_the_slide_at_any_life_up_to_the_most_a_hop_lets_go() {
+        let most = |at: usize| {
+            TyreGrip::at(TYRE_LIFE_COLUMNS_PERCENT[at])
+                .wet(1.0)
+                .most_wash_out_rad
+        };
+        let added = |at: usize| TYRE_WASH_OUT_MOST_RAD[at] + RAIN_WASH_OUT_ADDED_RAD;
+        assert!((most(0) - added(0)).abs() < 1e-6, "on new tyres");
+        assert!((most(2) - added(2)).abs() < 1e-6, "at the cliff");
+        assert!(
+            added(3) > RAIN_WASH_OUT_MOST_RAD,
+            "worn out would pass the most"
+        );
+        assert!((most(3) - RAIN_WASH_OUT_MOST_RAD).abs() < 1e-6);
+
+        // New tyres on Tyres Off, flat out on full lock, slide once it is wet.
+        let mut handling = Handling::new(Tyres::Off);
+        handling.speed = TOP_SPEED_M_PER_S;
+        let input = KartInput {
+            steer: 1.0,
+            ..FULL_THROTTLE
+        };
+        for _ in 0..TICKS_PER_SECOND {
+            handling.tick(&input, Freeze::Free, wet(1.0), TICK_S);
+        }
+        assert!(
+            (handling.wash_out_rad - RAIN_WASH_OUT_ADDED_RAD).abs() < 1e-3,
+            "{}",
+            handling.wash_out_rad
+        );
+    }
+
+    #[test]
+    fn on_tyres_off_a_slide_enters_the_hash_only_once_there_is_one() {
+        use std::hash::Hasher;
+        let hashed = |handling: &Handling| {
+            let mut hasher = Fnv1a::new();
+            handling.hash(&mut hasher);
+            hasher.finish()
+        };
+        let mut sliding = Handling::new(Tyres::Off);
+        let dry = hashed(&sliding);
+        sliding.wash_out_rad = 0.01;
+        assert_ne!(hashed(&sliding), dry);
+    }
+
+    #[test]
+    fn a_track_with_no_wet_on_it_leaves_grip_bit_for_bit() {
+        for life in [100.0, 62.5, 30.0, 12.0, 0.0] {
+            let (dry, wet) = (TyreGrip::at(life), TyreGrip::at(life).wet(0.0));
+            assert_eq!(dry.top_speed.to_bits(), wet.top_speed.to_bits());
+            assert_eq!(dry.steer_rate.to_bits(), wet.steer_rate.to_bits());
+            assert_eq!(dry.acceleration.to_bits(), wet.acceleration.to_bits());
+            assert_eq!(dry.braking.to_bits(), wet.braking.to_bits());
+            assert_eq!(
+                dry.most_wash_out_rad.to_bits(),
+                wet.most_wash_out_rad.to_bits()
+            );
+        }
     }
 
     #[test]

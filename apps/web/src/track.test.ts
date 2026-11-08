@@ -162,21 +162,26 @@ describe("the remembered course", () => {
 });
 
 // The offer as the Title Scene makes it, from the sim's choices.
-const OFFER = pickOffer({ level: ["basic", "pro", "ace"], tyres: ["off", "on"], laps: [3, 5] });
-const FRESH: Picks = { level: "basic", tyres: "on", laps: 3 };
+const OFFER = pickOffer({
+  level: ["basic", "pro", "ace"],
+  tyres: ["off", "on"],
+  laps: [3, 5],
+  weather: ["dry", "rain"],
+});
+const FRESH: Picks = { level: "basic", tyres: "on", laps: 3, weather: "dry" };
 
 describe("the remembered picks", () => {
   it("are the fresh ones until saved, then what was saved", () => {
     const store = storage();
     expect(loadPicks(store, OFFER, FRESH)).toEqual(FRESH);
-    const picked: Picks = { level: "ace", tyres: "off", laps: 5 };
+    const picked: Picks = { level: "ace", tyres: "off", laps: 5, weather: "dry" };
     savePicks(store, OFFER, picked);
     expect(loadPicks(store, OFFER, FRESH)).toEqual(picked);
   });
 
   it("are kept one key a pick, the keys the query string asks by", () => {
     const store = storage();
-    savePicks(store, OFFER, { level: "pro", tyres: "off", laps: 5 });
+    savePicks(store, OFFER, { level: "pro", tyres: "off", laps: 5, weather: "dry" });
     expect([store.getItem("bots"), store.getItem("tyres"), store.getItem("laps")]).toEqual([
       "pro",
       "off",
@@ -200,17 +205,18 @@ describe("the remembered picks", () => {
 });
 
 describe("picks from the query string", () => {
-  it("reads ?bots=, ?tyres= and ?laps= for a solo race beside ?track=", () => {
-    expect(picksFromSearch("?track=oval&bots=ace&tyres=off&laps=5", OFFER)).toEqual({
+  it("reads ?bots=, ?tyres=, ?laps= and ?weather= for a solo race beside ?track=", () => {
+    expect(picksFromSearch("?track=oval&bots=ace&tyres=off&laps=5&weather=rain", OFFER)).toEqual({
       level: "ace",
       tyres: "off",
       laps: 5,
+      weather: "rain",
     });
     expect(picksFromSearch("?bots=pro", OFFER)).toEqual({ level: "pro" });
   });
 
   it("leaves out a pick asked for as nothing a creator is offered, and any not asked for", () => {
-    expect(picksFromSearch("?bots=wild&tyres=slick&laps=4", OFFER)).toEqual({});
+    expect(picksFromSearch("?bots=wild&tyres=slick&laps=4&weather=snow", OFFER)).toEqual({});
     expect(picksFromSearch("", OFFER)).toEqual({});
   });
 });

@@ -23,7 +23,7 @@ function storage(initial: Record<string, string> = {}): Storage {
 const ROOM: Room = {
   code: "BXQF",
   track: "goldstone",
-  picks: { level: "basic", tyres: "off", laps: 3 },
+  picks: { level: "basic", tyres: "off", laps: 3, weather: "dry" },
   state: "open",
   players: [
     { slot: 0, nickname: "khiet", livery: 0, state: "unready", creator: true },
@@ -136,7 +136,7 @@ describe("taking a seat in a room", () => {
         countdown: {
           seed: 7 as unknown as bigint,
           track: "bell-deer",
-          picks: { level: "basic", tyres: "off", laps: 3 },
+          picks: { level: "basic", tyres: "off", laps: 3, weather: "dry" },
           grid: [0, 1],
         },
       });
@@ -147,7 +147,7 @@ describe("taking a seat in a room", () => {
       countdown: {
         seed: 7n,
         track: "bell-deer",
-        picks: { level: "basic", tyres: "off", laps: 3 },
+        picks: { level: "basic", tyres: "off", laps: 3, weather: "dry" },
         grid: [0, 1],
       },
     });

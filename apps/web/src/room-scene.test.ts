@@ -8,7 +8,7 @@ import { COURSES, type WorldPoint } from "./track";
 const ROOM: Room = {
   code: "BXQF",
   track: "goldstone",
-  picks: { level: "pro", tyres: "off", laps: 3 },
+  picks: { level: "pro", tyres: "off", laps: 3, weather: "dry" },
   state: "open",
   players: [
     { slot: 0, nickname: "khiet", livery: 0, state: "unready", creator: true },
@@ -113,6 +113,7 @@ describe("Room Scene", () => {
     const card = container.querySelector("[data-room-course]");
     expect(card?.querySelector("[data-room-bots]")?.textContent).toBe("Bots: Pro");
     expect(card?.querySelector("[data-room-tyres]")?.textContent).toBe("Tyres: Off");
+    expect(card?.querySelector("[data-room-weather]")?.textContent).toBe("Weather: Dry");
     expect(card?.querySelector("input, button")).toBeNull();
   });
 

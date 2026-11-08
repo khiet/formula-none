@@ -234,7 +234,7 @@ async fn a_room_created_with_picks_races_them() {
     let (status, body) = create(
         app,
         Body::from(
-            r#"{ "track": "goldstone", "picks": { "level": "ace", "tyres": "off", "laps": 5 } }"#,
+            r#"{ "track": "goldstone", "picks": { "level": "ace", "tyres": "off", "laps": 5, "weather": "rain" } }"#,
         ),
     )
     .await;
@@ -246,6 +246,7 @@ async fn a_room_created_with_picks_races_them() {
             level: BotLevel::Ace,
             tyres: Tyres::Off,
             laps: 5,
+            weather: sim::Weather::Rain,
         }
     );
 }
@@ -262,9 +263,10 @@ async fn a_room_created_without_picks_races_the_fresh_ones() {
 #[tokio::test]
 async fn a_room_at_a_pick_nobody_can_make_is_refused_and_not_opened() {
     for picks in [
-        r#"{ "level": "basic", "tyres": "off", "laps": 4 }"#,
-        r#"{ "level": "basic", "tyres": "slick", "laps": 3 }"#,
-        r#"{ "level": "wild", "tyres": "off", "laps": 3 }"#,
+        r#"{ "level": "basic", "tyres": "off", "laps": 4, "weather": "dry" }"#,
+        r#"{ "level": "basic", "tyres": "slick", "laps": 3, "weather": "dry" }"#,
+        r#"{ "level": "wild", "tyres": "off", "laps": 3, "weather": "dry" }"#,
+        r#"{ "level": "basic", "tyres": "off", "laps": 3, "weather": "snow" }"#,
     ] {
         let (app, rooms, _stop) = app();
         let (status, _) = create(app, Body::from(format!(r#"{{ "picks": {picks} }}"#))).await;
@@ -277,8 +279,8 @@ async fn a_room_at_a_pick_nobody_can_make_is_refused_and_not_opened() {
 async fn a_create_missing_a_pick_or_naming_more_is_refused_and_not_opened() {
     for body in [
         // A pick left out would race as before there was one, not as picked.
-        r#"{ "picks": { "level": "ace", "laps": 5 } }"#,
-        r#"{ "picks": { "level": "ace", "tyres": "on", "laps": 5, "weather": "rain" } }"#,
+        r#"{ "picks": { "level": "ace", "laps": 5, "weather": "dry" } }"#,
+        r#"{ "picks": { "level": "ace", "tyres": "on", "laps": 5, "weather": "rain", "mirror": true } }"#,
         // A page from before the picks were one value.
         r#"{ "track": "goldstone", "botLevel": "ace", "tyres": "on", "laps": 5 }"#,
     ] {

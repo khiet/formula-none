@@ -409,6 +409,7 @@ async fn a_room_created_with_picks_shows_them_and_its_countdown_carries_them() {
         level: BotLevel::Pro,
         tyres: Tyres::On,
         laps: 5,
+        weather: sim::Weather::Rain,
     };
     let mut harness = Harness::new(Conditions::PERFECT);
     let code = harness.create_room_with(picks);

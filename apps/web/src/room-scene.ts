@@ -78,6 +78,15 @@ function label<Pick extends keyof Picks>(pick: Pick, picks: Picks): string {
   return `${row.heading}: ${row.caption(picks[pick]).name}`;
 }
 
+/** A pick's read-only line under the course card, found by its `hook` data attribute. */
+function pickLine(hook: string, pick: keyof Picks, picks: Picks): HTMLParagraphElement {
+  const line = document.createElement("p");
+  line.className = "room-pick";
+  line.dataset[hook] = "";
+  line.textContent = label(pick, picks);
+  return line;
+}
+
 function badge(name: string): HTMLSpanElement {
   const element = document.createElement("span");
   element.dataset.badge = name;
@@ -151,18 +160,15 @@ export function createRoomScene(
       reducedMotion: view.reducedMotion,
     });
     preview.show(choice);
-    const bots = document.createElement("p");
-    bots.className = "room-pick";
-    bots.dataset.roomBots = "";
-    bots.textContent = label("level", view.room.picks);
     card = document.createElement("div");
     card.className = "course";
     card.dataset.roomCourse = "";
-    const tyres = document.createElement("p");
-    tyres.className = "room-pick";
-    tyres.dataset.roomTyres = "";
-    tyres.textContent = label("tyres", view.room.picks);
-    card.append(preview.element, bots, tyres);
+    card.append(
+      preview.element,
+      pickLine("roomBots", "level", view.room.picks),
+      pickLine("roomTyres", "tyres", view.room.picks),
+      pickLine("roomWeather", "weather", view.room.picks),
+    );
   }
 
   const link = document.createElement("a");

@@ -32,6 +32,7 @@ pub mod replay;
 mod stop;
 pub mod track;
 pub mod tuning;
+mod weather;
 mod wheel;
 
 pub use bot::BotLevel;
@@ -44,6 +45,7 @@ pub use stop::{stop_roll, Stop, StopTier};
 pub use track::{
     Checkpoint, PitLane, Placement, Surface, SurfaceMesh, Track, TrackError, WheelCrossing,
 };
+pub use weather::{rain_lap, rain_laps, Weather};
 pub use wheel::{wheel, Wheel};
 
 use handling::{Freeze, Handling, Situation};
@@ -742,6 +744,16 @@ pub struct State {
     /// 100 ms behind, so it cannot: there the slipstream is the snapshots'
     /// word (ADR 0077). Fixed for the race, so not hashed.
     wakes_judged: bool,
+    /// Ticks stepped so far, the server's tick numbers. Hashed only while it
+    /// rains, the one time a later tick reads it.
+    tick: u32,
+    /// The lap that begins the rain when a kart starts it; `None` in a dry
+    /// race, and in a prediction's, whose lone kart cannot say when the first
+    /// kart got there (ADR 0103). Fixed for the race, so not hashed.
+    rain_lap: Option<u32>,
+    /// The tick the rain began; `None` until it has, so a dry race hashes as
+    /// one from before there was weather.
+    rain_began_tick: Option<u32>,
 }
 
 #[derive(Clone)]
@@ -1234,6 +1246,9 @@ impl State {
             final_positions: None,
             picks,
             wakes_judged: true,
+            tick: 0,
+            rain_lap: (picks.weather == Weather::Rain).then(|| rain_lap(seed, picks.laps)),
+            rain_began_tick: None,
             track,
             karts,
             humans,
@@ -1243,6 +1258,18 @@ impl State {
             },
             events: Vec::new(),
         }
+    }
+
+    /// The tick the rain began, on the server's tick numbers; `None` until it
+    /// has, and in a dry race always.
+    pub fn rain_began_tick(&self) -> Option<u32> {
+        self.rain_began_tick
+    }
+
+    /// How wet the track is, from 0 to 1, as of the last tick.
+    pub fn wetness(&self) -> f32 {
+        self.rain_began_tick
+            .map_or(0.0, |began| weather::wetness(began, self.tick))
     }
 
     /// The creator's picks the race runs as, fixed for the race.
@@ -1295,6 +1322,14 @@ impl State {
         self.karts[slot]
             .bot
             .is_some_and(|memory| memory.held_for_the_wheel())
+    }
+
+    /// Whether the bot in `slot` has called itself in to the pits; never for
+    /// a human's kart.
+    pub fn bot_pit_called(&self, slot: usize) -> bool {
+        self.karts[slot]
+            .bot
+            .is_some_and(|memory| memory.pit_called())
     }
 
     /// Whether each of the track's item boxes, in the track's order, is
@@ -1468,6 +1503,10 @@ impl State {
             for &position in positions {
                 hasher.write_u32(position);
             }
+        }
+        if let Some(began) = self.rain_began_tick {
+            hasher.write_u32(began);
+            hasher.write_u32(self.tick);
         }
         hasher.write_u64(self.seed);
         hasher.write(&self.rng.get_seed());
@@ -1695,6 +1734,11 @@ impl State {
 pub fn step(mut state: State, inputs: &[KartInput], dt: f32) -> State {
     assert_eq!(inputs.len(), state.humans, "one input per human kart");
     state.events.clear();
+    if !matches!(state.phase, Phase::Finished) {
+        state.tick += 1;
+    }
+    // Read once, so every kart drives this tick on the same wet.
+    let wetness = state.wetness();
     // The race clock of a racing tick; `None` through the outro.
     let elapsed_s = match state.phase {
         Phase::Finished => return state,
@@ -1757,6 +1801,7 @@ pub fn step(mut state: State, inputs: &[KartInput], dt: f32) -> State {
                     kart.race_laps,
                     slot,
                     memory,
+                    wetness,
                     dt,
                 ),
                 None => inputs[slot],
@@ -1943,6 +1988,7 @@ pub fn step(mut state: State, inputs: &[KartInput], dt: f32) -> State {
                     },
                 starring: state.karts[slot].starring(),
                 pit_lane: in_pit_lane[slot],
+                wetness,
             }
         })
         .collect();
@@ -2133,6 +2179,18 @@ pub fn step(mut state: State, inputs: &[KartInput], dt: f32) -> State {
                     kart.bot.get_or_insert_with(bot::Memory::default);
                     kart.star_left_s = 0.0;
                 }
+            }
+        }
+    }
+    // The whole field gets wet together, from the first kart to start the lap.
+    if state.rain_began_tick.is_none() {
+        if let Some(lap) = state.rain_lap {
+            if state
+                .karts
+                .iter()
+                .any(|kart| kart.laps_completed + 1 >= lap)
+            {
+                state.rain_began_tick = Some(state.tick);
             }
         }
     }

@@ -94,6 +94,7 @@ fn race_on(track: Track, ticks: u32, lost: impl Fn(u32) -> bool) -> Run {
                 sim::tuning::DEFAULT_LAPS,
                 0,
                 &mut memory,
+                0.0,
                 DT,
             );
             // A hand holds the item button past the tick it goes down, so a
@@ -729,6 +730,7 @@ fn a_finished_kart_is_predicted_driven_by_its_bot_at_the_races_level_not_by_the_
                     sim::tuning::DEFAULT_LAPS,
                     0,
                     &mut memory,
+                    0.0,
                     DT,
                 )
             },

@@ -30,7 +30,7 @@ use ts_rs::TS;
 /// [`ClientMessage::Join`] and the server refuses a mismatch with
 /// [`Refusal::VersionMismatch`] (ADR 0013). The generator exports it next to
 /// the types, so the web app reads the same constant.
-pub const PROTOCOL_VERSION: u16 = 28;
+pub const PROTOCOL_VERSION: u16 = 29;
 
 /// What a client sends the server.
 #[derive(Serialize, Deserialize, TS, Debug, Clone, PartialEq)]
@@ -274,6 +274,9 @@ pub struct Snapshot {
     /// Whether each of the track's coins, in the sidecar's order, is there
     /// to pick up at this tick.
     pub coins_present: Vec<bool>,
+    /// The tick the rain began; `None` until it has, and in a dry race
+    /// always. The prediction takes its wetness from this (ADR 0103).
+    pub rain_began_tick: Option<u32>,
 }
 
 /// A homing projectile in flight: where it is, whose it is and which kart

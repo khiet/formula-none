@@ -10,7 +10,7 @@ const TIMING = { silenceMs: 2_000, retryMs: 1_000 };
 const ROOM: Room = {
   code: "BXQF",
   track: "bell-deer",
-  picks: { level: "basic", tyres: "off", laps: 3 },
+  picks: { level: "basic", tyres: "off", laps: 3, weather: "dry" },
   state: "racing",
   players: [{ slot: 0, nickname: "ada", livery: 0, state: "racing", creator: true }],
 };
@@ -24,6 +24,7 @@ const SNAPSHOT: ServerMessage = {
     hazards: [],
     projectiles: [],
     coinsPresent: [],
+    rainBeganTick: null,
   },
 };
 

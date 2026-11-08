@@ -51,7 +51,14 @@ fn every_offered_picks() -> Vec<Picks> {
     for level in PICK_CHOICES.level {
         for tyres in PICK_CHOICES.tyres {
             for laps in PICK_CHOICES.laps {
-                every.push(Picks { level, tyres, laps });
+                for weather in PICK_CHOICES.weather {
+                    every.push(Picks {
+                        level,
+                        tyres,
+                        laps,
+                        weather,
+                    });
+                }
             }
         }
     }

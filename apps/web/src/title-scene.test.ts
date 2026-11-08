@@ -24,8 +24,13 @@ const OPTIONS: TitleOptions = {
   roomCodeLength: 4,
   courses: COURSES.map((course) => ({ course, centreline: SQUARE })),
   course: BELL_DEER,
-  picks: { level: "basic", tyres: "off", laps: 3 },
-  pickChoices: { level: ["basic", "pro", "ace"], tyres: ["off", "on"], laps: [3, 5] },
+  picks: { level: "basic", tyres: "off", laps: 3, weather: "dry" },
+  pickChoices: {
+    level: ["basic", "pro", "ace"],
+    tyres: ["off", "on"],
+    laps: [3, 5],
+    weather: ["dry", "rain"],
+  },
   reducedMotion: () => true,
 };
 
@@ -239,6 +244,21 @@ describe("Title Scene", () => {
     expect(calls.picks).toEqual([{ ...OPTIONS.picks, tyres: "on" }]);
   });
 
+  it("offers the Weather picks with the saved one picked, describes the pick and reports each change", () => {
+    const { container, calls } = scene({ picks: { ...OPTIONS.picks, weather: "dry" } });
+    const radios = Array.from(
+      container.querySelectorAll<HTMLInputElement>("input[type=radio][name=weather]"),
+    );
+    expect(radios.map((radio) => radio.value)).toEqual(["dry", "rain"]);
+    expect(radios.map((radio) => radio.checked)).toEqual([true, false]);
+    expect(radios.map((radio) => radio.labels?.[0]?.textContent)).toEqual(["Dry", "Rain"]);
+    const blurb = () => container.querySelector("[data-weather-blurb]")?.textContent ?? "";
+    expect(blurb()).toMatch(/^Dry: /);
+    radios[1]?.click();
+    expect(blurb()).toMatch(/^Rain: /);
+    expect(calls.picks).toEqual([{ ...OPTIONS.picks, weather: "rain" }]);
+  });
+
   it("offers the three bot levels under the flags with the saved one picked, describes the pick and reports each change", () => {
     const picks: Picks = { ...OPTIONS.picks, level: "pro" };
     const { container, calls } = scene({ picks });
@@ -271,9 +291,9 @@ describe("Title Scene", () => {
     radio("tyres", "on");
     radio("bots", "ace");
     expect(calls.picks).toEqual([
-      { level: "basic", tyres: "off", laps: 5 },
-      { level: "basic", tyres: "on", laps: 5 },
-      { level: "ace", tyres: "on", laps: 5 },
+      { level: "basic", tyres: "off", laps: 5, weather: "dry" },
+      { level: "basic", tyres: "on", laps: 5, weather: "dry" },
+      { level: "ace", tyres: "on", laps: 5, weather: "dry" },
     ]);
   });
 });

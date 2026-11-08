@@ -19,3 +19,4 @@ export type { StopTier } from "./StopTier";
 export type { Surface } from "./Surface";
 export type { Tuning } from "./Tuning";
 export type { Tyres } from "./Tyres";
+export type { Weather } from "./Weather";

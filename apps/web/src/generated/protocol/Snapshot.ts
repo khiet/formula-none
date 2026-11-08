@@ -38,4 +38,9 @@ projectiles: Array<ProjectileSnapshot>,
  * Whether each of the track's coins, in the sidecar's order, is there
  * to pick up at this tick.
  */
-coinsPresent: Array<boolean>, };
+coinsPresent: Array<boolean>, 
+/**
+ * The tick the rain began; `None` until it has, and in a dry race
+ * always. The prediction takes its wetness from this (ADR 0103).
+ */
+rainBeganTick: number | null, };
