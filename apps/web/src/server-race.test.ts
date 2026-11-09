@@ -71,6 +71,7 @@ interface FakePrediction extends Prediction {
   projectiles: Projectile[];
   rolling: Wheel[];
   ended: boolean;
+  wet: number;
 }
 
 let predictions: FakePrediction[] = [];
@@ -96,8 +97,12 @@ const tuning: Partial<Tuning> = {
   kartSizeM: [1.2, KART_HEIGHT_M, 1.8],
 };
 
+/** Picked by the fake from the laps alone, so a test can tell it came through. */
+const FAKE_RAIN_LAP = (laps: number) => laps - 1;
+
 const bridge = {
   tuning,
+  rainLap: (_seed: bigint, laps: number) => FAKE_RAIN_LAP(laps),
   createRace: () =>
     ({
       kartReadouts: () => Array<KartReadout>(KARTS).fill(GRID_TRANSFORM),
@@ -126,6 +131,10 @@ const bridge = {
       projectiles: [],
       rolling: [],
       ended: false,
+      wet: 0,
+      wetness() {
+        return this.wet;
+      },
       tick(input) {
         this.inputs.push(input);
       },
@@ -279,6 +288,22 @@ describe("createServerRace", () => {
     const fiveLaps = { ...COUNTDOWN, picks: { ...COUNTDOWN.picks, laps: 5 } };
     expect(createServerRace(bridge, fakeClient(), fiveLaps, 0, "{}").laps).toBe(5);
     expect(prediction().laps).toBe(5);
+  });
+
+  it("rains on the Countdown's seed and picks: no lap in the dry, and the prediction's wetness", () => {
+    const dry = createServerRace(bridge, fakeClient(), COUNTDOWN, 0, "{}");
+    expect(dry.rainLap).toBeNull();
+    const rain = createServerRace(
+      bridge,
+      fakeClient(),
+      { ...COUNTDOWN, picks: { ...COUNTDOWN.picks, laps: 5, weather: "rain" } },
+      0,
+      "{}",
+    );
+    expect(rain.rainLap).toBe(FAKE_RAIN_LAP(5));
+    expect(rain.readout().wetness).toBe(0);
+    prediction().wet = 0.25;
+    expect(rain.readout().wetness).toBe(0.25);
   });
 
   it("predicts the own kart under the room's Tyres pick, as the Countdown says", () => {

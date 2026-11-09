@@ -8,6 +8,7 @@ import init, {
   encode_server_message,
   pit_lane_fork,
   protocol_version,
+  rain_lap,
   replay_hashes,
   tuning,
   Prediction as WasmPrediction,
@@ -170,6 +171,8 @@ export interface Race {
   standings(): Standing[];
   /** Where the race is, as of the last step. */
   phase(): Phase;
+  /** How wet the track is as of the last step, from 0 to 1. */
+  wetness(): number;
   /** The track's item boxes, in the sidecar's order; fixed for the race. */
   itemBoxes(): ItemBox[];
   /** Whether each item box, in the same order, is there to pick up as of the last step. */
@@ -245,6 +248,8 @@ export interface Prediction {
    * the kart that the server's outro would not.
    */
   endRace(): void;
+  /** How wet the track is at the predicted kart's tick, from 0 to 1. */
+  wetness(): number;
   /**
    * The race clock at the predicted kart's tick: the countdown the
    * player's inputs meet on the server. Never finished; the server's
@@ -305,6 +310,8 @@ export interface Bridge extends MessageCodec {
    * picks are not ones a creator can make.
    */
   createPrediction(seed: bigint, kart: number, sidecar: string, picks: Picks): Prediction;
+  /** The lap the rain begins on in a race of `laps` from `seed`, on every client alike. */
+  rainLap(seed: bigint, laps: number): number;
   /**
    * Rerun a replay (the JSON the sim's `replay` module documents) in wasm on
    * the track described by `sidecar` and report the state hash at every
@@ -353,6 +360,7 @@ export async function loadBridge(wasm?: BufferSource): Promise<Bridge> {
         humanCount + botCount,
       );
     },
+    rainLap: (seed, laps) => rain_lap(seed, laps),
     createPrediction(seed, kart, sidecar, picks) {
       return new BridgedPrediction(
         rethrown(() => new WasmPrediction(seed, kart, sidecar, picks)),
@@ -435,6 +443,10 @@ class BridgedRace implements Race {
 
   phase(): Phase {
     return phaseFrom(this.#race.phase());
+  }
+
+  wetness(): number {
+    return this.#race.wetness();
   }
 
   itemBoxes(): ItemBox[] {
@@ -549,6 +561,10 @@ class BridgedPrediction implements Prediction {
 
   phase(): Phase {
     return phaseFrom(this.#prediction.phase());
+  }
+
+  wetness(): number {
+    return this.#prediction.wetness();
   }
 
   correctionsPerSecond(): number {

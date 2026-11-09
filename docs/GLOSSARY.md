@@ -761,7 +761,30 @@ without a pick is. A replay carries it.
 What Rain brings: from the first tick any kart starts the lap the seed picks,
 the whole field's grip falls with the wetness and stays down to the flag. It
 never touches the top speed, the wear rates or the mini-turbo charge, and there
-is no wet tyre (ADR 0103).
+is no wet tyre (ADR 0103). Clouds gather over the leader's last quarter of the
+lap before, changing only the look, and the look then follows the wetness on
+every screen: the sky greys through the View's light scale, the asphalt darkens
+with a soft sheen while kerbs, white lines and boost pads keep their colours,
+spray and streaks fall, a RAIN plate shows as it arrives and a rain bed plays
+under the SFX toggle.
+
+### spray
+
+The low pale plume at a wet kart's rear wheels: no higher than their tops and
+about two kart lengths long, so wings, helmets and liveries stay visible through
+a pack. It thickens with the wetness and comes only off moving tyres on the road.
+Not the coins a spin-out sprays, and not worn tyres' darker, rising smoke.
+
+### streaks
+
+The rain falling round the camera, thrown ahead of it. A roof stops them through
+presentation zones, though the grip stays wet there, and a viewer who asks for
+less motion gets fewer.
+
+### rain bed
+
+The rain's sound: a loop under the SFX toggle, levelled by the wetness and never
+pitched, the same under a roof.
 
 ### wetness
 
@@ -773,8 +796,8 @@ the tick it began and the snapshot carries it to the prediction.
 
 What the Race Scene reads of a race once a frame, as of the last tick:
 every kart readout and standing, the phase, the local kart's item slot, the
-item boxes and the coins there to pick up, the hazards and the projectiles.
-A solo race reports it from the sim in the browser and a room's race from
+item boxes and the coins there to pick up, the hazards, the projectiles and the
+wetness. A solo race reports it from the sim in the browser and a room's race from
 the server's snapshots and events; the View, the Instrument panel and the
 audio each read the one readout. Not a snapshot, which is the server's message.
 
@@ -804,8 +827,9 @@ echoing and the lamps' warm light passing over, and the harbour after it,
 brighter, with the water and the stand's crowd. Bell Deer has one on each
 leg of its bridge: under the deck on the underpass, darker and echoing, and
 up the embankment over it, brighter. Goldstone has one under its hangar
-shell, shaded and echoing. A client table per course
-(ADR 0098); Presentation only, so it changes neither grip nor timing.
+shell, shaded and echoing. The three that pass under something also hold a
+roof, which stops the rain's streaks. A client table per course (ADR 0098);
+Presentation only, so it changes neither grip nor timing.
 
 ### Feedback
 

@@ -361,6 +361,20 @@ describe("the speed cluster on the page", () => {
     expect(find("coins")?.textContent).toBe("x07 / 10");
   });
 
+  it("shows the RAIN plate as the rain arrives, and only then", () => {
+    const { find, panel } = mount();
+    const plate = find("rain");
+    expect(plate?.textContent).toBe("RAIN");
+    expect(plate?.hidden).toBe(true);
+    const wet = (wetness: number) => ({ ...race(ON_THE_GRID, EMPTY_SLOT), wetness });
+    panel.update(wet(0.1));
+    expect(plate?.hidden).toBe(false);
+    panel.update(wet(0.6));
+    expect(plate?.hidden).toBe(true);
+    panel.update(wet(0));
+    expect(plate?.hidden).toBe(true);
+  });
+
   it("shows the BOX plate only while the call shows", () => {
     const { find, panel } = mount();
     const plate = find("box-call");

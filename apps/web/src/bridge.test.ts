@@ -610,6 +610,42 @@ describe("prediction", () => {
     expect(prediction.correctionsPerSecond()).toBe(0);
   });
 
+  it("reports the wet of a snapshot's rain, climbing from its tick over the tuned time", async () => {
+    const bridge = await loadBridge(wasm);
+    const prediction = bridge.createPrediction(7n, 0, OVAL, {
+      level: "basic",
+      tyres: "off",
+      laps: 3,
+      weather: "rain",
+    });
+    expect(prediction.wetness()).toBe(0);
+    const halfWay = (bridge.tuning.rainWettingS / 2) * bridge.tuning.ticksPerSecond;
+    let last = 0;
+    while (last < halfWay) prediction.tick(wire(IDLE_INPUT, ++last));
+    prediction.reconcile({
+      tick: last,
+      acknowledged: [0],
+      karts: [simKartReadout()],
+      events: [],
+      hazards: [],
+      projectiles: [],
+      coinsPresent: [],
+      rainBeganTick: 0,
+    });
+    // Half the tuned time on from the tick it began: half the climb.
+    expect(prediction.wetness()).toBeCloseTo(0.5, 2);
+  });
+
+  it("gives every client the same rain lap for a seed, within the laps the race has", async () => {
+    const bridge = await loadBridge(wasm);
+    for (const seed of [1n, 2n, 3n, 4n, 5n, 6n, 7n, 8n]) {
+      const lap = bridge.rainLap(seed, 5);
+      expect(lap).toBe(bridge.rainLap(seed, 5));
+      expect(lap).toBeGreaterThanOrEqual(2);
+      expect(lap).toBeLessThanOrEqual(4);
+    }
+  });
+
   it("takes the wet from a snapshot's rain, which slows the predicted kart", async () => {
     const bridge = await loadBridge(wasm);
     const speedAfter = (rainBeganTick: number | null) => {

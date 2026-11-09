@@ -1163,6 +1163,8 @@ pub struct Tuning {
     pub tyre_life_new_percent: f32,
     /// The life from which a kart shows wear and the BOX call can sound.
     pub tyre_life_cliff_percent: f32,
+    /// Seconds rain takes to wet the track from the tick it begins (ADR 0103).
+    pub rain_wetting_s: f32,
     /// The longest a clean stop lasts: past it the crew shows what went wrong (ADR 0082).
     pub stop_clean_s: f32,
     /// How long the guide onto the mark takes: the pit crew runs out at its start.
@@ -1219,6 +1221,7 @@ pub const TUNING: Tuning = Tuning {
     coin_cap: COIN_CAP,
     tyre_life_new_percent: TYRE_LIFE_NEW_PERCENT,
     tyre_life_cliff_percent: TYRE_LIFE_CLIFF_PERCENT,
+    rain_wetting_s: RAIN_WETTING_S,
     stop_clean_s: STOP_ROLL_STATIONARY_S[1][1],
     pit_box_guide_s: PIT_BOX_GUIDE_S,
     coins_lost_per_spin_out: COINS_LOST_PER_SPIN_OUT,

@@ -138,6 +138,8 @@ export interface RaceReadout {
   readonly wheels: readonly Wheel[];
   /** The horn blasts under way, every kart's, oldest first. */
   readonly blasts: readonly Blast[];
+  /** How wet the track is, from 0 to 1 (ADR 0103); 0 until the rain begins and always in a dry race. */
+  readonly wetness: number;
 }
 
 /**
@@ -151,6 +153,8 @@ export interface RaceRun {
   readonly localKart: number;
   /** The laps that finish this race (ADR 0083). */
   readonly laps: number;
+  /** The lap the seed picks for the rain, which the clouds gather ahead of (ADR 0103); null when Dry is picked. */
+  readonly rainLap: number | null;
   /** One tick of `dt` seconds with the local player's input: stepped here, or sent to the server. */
   tick(input: KartInput, dt: number): void;
   /** The race as of the last tick. */

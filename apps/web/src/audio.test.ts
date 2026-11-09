@@ -52,6 +52,7 @@ const STILL: SoundReading = {
   presentation: OPEN_SKY,
   flypastCuedMs: null,
   finalLap: false,
+  wetness: 0,
 };
 const STAR_RUN_S = 6;
 
@@ -385,18 +386,18 @@ describe("preloading and the autoplay rule", () => {
         STAR_MUSIC_URL,
       ]),
     );
-    // 38 SFX, 5 loops and 2 music files.
-    expect(fetched).toHaveLength(45);
+    // 38 SFX, 6 loops and 2 music files.
+    expect(fetched).toHaveLength(46);
     await settled();
     expect(contexts).toHaveLength(0);
     await audio.unlock();
     expect(contexts).toHaveLength(1);
     expect(context().resumes).toBe(1);
     // Decoded once, from the bytes already fetched, so the first play is not late.
-    expect(context().decoded).toHaveLength(45);
+    expect(context().decoded).toHaveLength(46);
     await audio.unlock();
     expect(contexts).toHaveLength(1);
-    expect(context().decoded).toHaveLength(45);
+    expect(context().decoded).toHaveLength(46);
   });
 
   it("resumes a context the browser suspended on a later gesture", async () => {
@@ -738,6 +739,32 @@ describe("the SFX", () => {
   });
 });
 
+describe("the rain bed", () => {
+  it("is silenced with the SFX toggle, though the track stays wet", async () => {
+    const { audio, loops } = harness();
+    await audio.unlock();
+    const race = audio.race();
+    race.start();
+    race.update({ ...STILL, wetness: 1 });
+    expect(loops("rain")).toHaveLength(1);
+    audio.settings({ ...DEFAULT_AUDIO_SETTINGS, sfx: false });
+    race.update({ ...STILL, wetness: 1 });
+    expect(loops("rain")[0]?.stopped).toBe(1);
+  });
+
+  it("holds its pitch at any speed and level", async () => {
+    const { audio, loops } = harness();
+    await audio.unlock();
+    const race = audio.race();
+    race.start();
+    race.update({ ...STILL, wetness: 0.1, speed: 2 });
+    race.update({ ...STILL, wetness: 1, speed: 40 });
+    const source = loops("rain")[0];
+    expect(source?.playbackRate.value).toBe(1);
+    expect(source?.playbackRate.targets.every((target) => target === 1)).toBe(true);
+  });
+});
+
 describe("the loops", () => {
   const LOOPS: readonly [SoundLoop, Partial<SoundReading>][] = [
     ["driftSkid", { drifting: true, miniTurbo: "none" }],
@@ -745,6 +772,7 @@ describe("the loops", () => {
     ["sand", { surface: "sand" }],
     ["harbour", { presentation: { ...OPEN_SKY, ambience: { harbour: 1 } } }],
     ["crowd", { presentation: { ...OPEN_SKY, crowd: 0.6 } }],
+    ["rain", { wetness: 0.5 }],
   ];
 
   it.each(LOOPS)(
@@ -874,7 +902,7 @@ describe("a sound that fails to load", () => {
     await audio.unlock();
     const context = contexts[0];
     if (context === undefined) throw new Error("no context was made");
-    expect(context.decoded).toHaveLength(43);
+    expect(context.decoded).toHaveLength(44);
     const race = audio.race();
     race.start();
     race.update(STILL);

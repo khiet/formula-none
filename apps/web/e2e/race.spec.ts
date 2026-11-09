@@ -92,3 +92,16 @@ test("holding the brake at a standstill backs the kart up", async ({ page }) => 
   await expect(page.locator('[data-instrument="gear"]')).toHaveText("R", { timeout: 5_000 });
   await page.keyboard.up("ArrowDown");
 });
+
+test("a rain race shows the RAIN plate as the bots start the rain's lap, then takes it down", async ({
+  page,
+}) => {
+  // The own kart idles while the bots lap the oval; a CI runner steps the sim far slower than real time.
+  test.setTimeout(300_000);
+  await startRace(page, "/?track=oval&weather=rain");
+  const plate = page.locator('[data-instrument="rain"]');
+  await expect(plate).toHaveText("RAIN");
+  await expect(plate).toBeHidden();
+  await expect(plate).toBeVisible({ timeout: 200_000 });
+  await expect(plate).toBeHidden({ timeout: 60_000 });
+});

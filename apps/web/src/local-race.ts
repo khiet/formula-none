@@ -60,6 +60,7 @@ export function localRaceRun(
     humanCount: setup.humanCount,
     localKart: setup.localKart,
     laps: picks.laps,
+    rainLap: picks.weather === "rain" ? bridge.rainLap(setup.seed, picks.laps) : null,
     tick(input, dt) {
       inputs[setup.localKart] = input;
       const before = slot();
@@ -103,6 +104,7 @@ export function localRaceRun(
         projectiles: race.projectiles(),
         wheels: race.wheels(),
         blasts: blasts.blasts(),
+        wetness: race.wetness(),
       };
     },
     itemBoxes: () => boxes,
