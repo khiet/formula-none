@@ -149,7 +149,7 @@ pub const FRESH_PICKS: Picks = Picks {
     level: BotLevel::Basic,
     tyres: Tyres::On,
     laps: DEFAULT_LAPS,
-    // Until rain has been played (ADR 0103).
+    // Until rooms have played Rain (ADR 0104).
     weather: Weather::Dry,
 };
 /// Seconds the karts are held on the grid before Go: the start lights, one
