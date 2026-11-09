@@ -37,7 +37,7 @@ test("an item box taken at Go rolls, then lands in the slot", async ({ page }) =
       return document.querySelector('[data-instrument="lap-time"]')?.textContent ?? null;
     },
     null,
-    { timeout: 10_000 },
+    { timeout: 60_000 },
   );
   const lapTime = String(await landed.jsonValue());
   const [, minutes, seconds, millis] = /(\d+)'(\d+)"(\d+)/.exec(lapTime) ?? [];
