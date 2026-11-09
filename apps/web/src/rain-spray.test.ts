@@ -6,6 +6,8 @@ import { createRainSpray, createSprayParticles } from "./rain-spray";
 
 const SIZE: KartSize = { width: 1.2, height: 0.6, length: 1.8 };
 const CENTRE_Y = SIZE.height / 2;
+/** How far up the sim's box the tops of kart.glb's rear wheels stand as the View fits it. */
+const WHEEL_TOP_OF_BOX = 0.86;
 const FLAT_OUT = kartReadout({ position: [0, CENTRE_Y, 0], speed: 30, surface: "asphalt" });
 
 /** A second of a kart driving down -Z at its speed, the pool moving with it. */
@@ -51,7 +53,7 @@ describe("the spray off a kart's rear wheels", () => {
     const z = drive(particles, FLAT_OUT, 1);
     const seen = looked(particles, z);
     expect(seen.count).toBeGreaterThan(0);
-    expect(seen.highestTop).toBeLessThanOrEqual(SIZE.height);
+    expect(seen.highestTop).toBeLessThanOrEqual(SIZE.height * WHEEL_TOP_OF_BOX);
     expect(seen.lowest).toBeGreaterThanOrEqual(0);
   });
 

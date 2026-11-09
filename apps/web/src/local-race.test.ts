@@ -208,9 +208,9 @@ describe("localRaceRun's rain", () => {
     }
     expect(leader()).toBe(lap);
 
-    // A second on is a twentieth of the twenty-second climb.
+    // A second on is that share of the tuned climb.
     const from = run.readout().wetness;
     for (let tick = 0; tick < 60; tick++) run.tick(IDLE_INPUT, DT);
-    expect(run.readout().wetness - from).toBeCloseTo(1 / 20, 3);
+    expect(run.readout().wetness - from).toBeCloseTo(1 / bridge.tuning.rainWettingS, 3);
   });
 });

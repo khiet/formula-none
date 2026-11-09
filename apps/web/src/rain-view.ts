@@ -24,7 +24,6 @@ import { createRainSpray, createSprayParticles } from "./rain-spray";
 import { createRainStreakParticles, createRainStreaks } from "./rain-streaks";
 import { particleMesh } from "./tell-meshes";
 
-/** The sky wholly overcast. */
 const OVERCAST_SKY = 0x8d97a3;
 /** The track's material for the road: kerbs, lines and boost pads have their own, and keep their colours. */
 const ROAD_MATERIAL = "asphalt";
@@ -37,10 +36,10 @@ const SPRAY_OPACITY = 0.2;
 const SPRAY_FADE_SHARE = 0.5;
 const STREAK_OPACITY = 0.4;
 /**
- * The sheen: a low light ahead of the camera, which the wet road's low roughness
- * catches toward the horizon. It lights only faces the camera cannot see, so
- * nothing else on the road changes colour, and it never moves but with the
- * camera, so it never flashes.
+ * The sheen: a low dim light ahead of the camera, which the wet road's low
+ * roughness catches toward the horizon. So low and dim it adds next to nothing to
+ * what it lights head on or from above, so kerbs, lines and pads keep their
+ * colours, and it moves only with the camera, so it never flashes.
  */
 const SHEEN_INTENSITY = 0.3;
 const SHEEN_AHEAD_M = 100;

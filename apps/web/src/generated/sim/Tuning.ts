@@ -26,6 +26,10 @@ coinTopSpeedsMPerS: [number, number, number, number, number, number, number, num
  */
 tyreLifeCliffPercent: number, 
 /**
+ * Seconds rain takes to wet the track from the tick it begins (ADR 0103).
+ */
+rainWettingS: number, 
+/**
  * The longest a clean stop lasts: past it the crew shows what went wrong (ADR 0082).
  */
 stopCleanS: number, 

@@ -637,7 +637,7 @@
       <article class="asset">
         <header><h3>Rain</h3><code>apps/web/src/rain-view.ts, rain-look.ts, rain-spray.ts, rain-streaks.ts</code></header>
         <div class="compare"><figure><figcaption>A pack on the same road, dry and wholly wet</figcaption><div class="stage flat" data-draw="rain"></div></figure></div>
-        <dl class="spec"><dt>Sky</dt><dd>Background <code>#87ceeb</code> to <code>#8d97a3</code>; sun and ambient to 0.68 of the sky's light</dd><dt>Road</dt><dd><code>asphalt</code> at 0.55 of its colour, roughness 0.45, with a low light 100 m ahead of the camera for the sheen</dd><dt>Spray</dt><dd><code>#e8eef4</code> at 0.2 opacity, 70 puffs a second a kart fully wet, 0.4 s; to 88% of the wheel's height and two kart lengths back</dd><dt>Streaks</dt><dd><code>#dfe7ef</code> at 0.4 opacity, 260 a second, 78 under reduced motion, falling at 24 m/s</dd><dt>Clouds</dt><dd>22 faceted lumps in <code>#6f7883</code>, 320 to 580 m off and 70 to 140 m up</dd><dt>Decided</dt><dd><a href="adr/0103-rain-changes-grip-on-a-lap-the-seed-picks.md">ADR 0103</a></dd></dl>
+        <dl class="spec"><dt>Sky</dt><dd>Background <code>#87ceeb</code> to <code>#8d97a3</code>; sun and ambient to 0.68 of the sky's light</dd><dt>Road</dt><dd><code>asphalt</code> at 0.55 of its colour, roughness 0.45, with a low light 100 m ahead of the camera for the sheen</dd><dt>Spray</dt><dd><code>#e8eef4</code> at 0.2 opacity, 70 puffs a second a kart fully wet, 0.4 s; to 78% of the box's height, under the wheels' tops at 86%, and two kart lengths back</dd><dt>Streaks</dt><dd><code>#dfe7ef</code> at 0.4 opacity, 260 a second, 78 under reduced motion, falling at 24 m/s</dd><dt>Clouds</dt><dd>22 faceted lumps in <code>#6f7883</code>, 320 to 580 m off and 70 to 140 m up</dd><dt>Decided</dt><dd><a href="adr/0103-rain-changes-grip-on-a-lap-the-seed-picks.md">ADR 0103</a></dd></dl>
         <div class="notes">
           <p>Clouds gather on the skyline over the leader's last quarter of the lap before the rain's, greying the sky by half and changing nothing else. From the tick the rain begins everything follows the wetness, so every screen gets the same rain: the rest of the grey, the road, the spray and the streaks over its twenty seconds. A rain bed plays under the SFX toggle, levelled by the wetness and never pitched.</p>
           <p>The road's material alone changes, so kerbs, white lines and boost pads keep their colours. Streaks are thrown past what the camera covers in their life, so none falls by the lens. They stop under Monarch's tunnel, Goldstone's hangar and Bell Deer's bridge through the presentation zones, which follow the own kart; the grip stays wet there, and so do the road and the spray.</p>
@@ -895,7 +895,7 @@
         <header><h3>RAIN plate</h3><code>apps/web/src/instrument-panel.ts</code></header>
         <div class="compare"><figure><figcaption>As the rain arrives</figcaption><div class="view"><div class="hud hud-row" data-draw="rainPlate"></div></div></figure></div>
         <dl class="spec"><dt>Decided</dt><dd><a href="adr/0103-rain-changes-grip-on-a-lap-the-seed-picks.md">ADR 0103</a></dd></dl>
-        <div class="notes"><p>RAIN in white on a <code>SHIFT_BLUE</code> plate off the cluster's right edge, over the BOX plate's spot so the two can show together. It shows for the first quarter of the wetness's climb, five seconds, and not again: a viewer who rejoins later never sees it.</p></div>
+        <div class="notes"><p>RAIN in white on a <code>SHIFT_BLUE</code> plate off the cluster's right edge, over the spot the BOX and STOP plates take, so it can show with either. It shows for the first quarter of the wetness's climb, five seconds, and not again: a viewer who rejoins later never sees it.</p></div>
       </article>
 
       <article class="asset">
@@ -1415,13 +1415,11 @@
       ${poly([at(-9.1, 6), at(9.1, 6), at(9.1, 6.6), at(-9.1, 6.6)], carbon)}
       ${poly([at(-9.1, 0), at(-8.5, 0), at(-8.5, 6), at(-9.1, 6)], carbon)}${poly([at(8.5, 0), at(9.1, 0), at(9.1, 6), at(8.5, 6)], carbon)}</svg>`;
   };
-  // The light the zones give from Portier to Tabac's exit, as presentation-zones.ts blends it:
-  // the sky's light scale as a line over the lap, the lamps' glow as warm bars under the roof.
   // The same road dry and wet: a kart from the chase camera, its plume no higher than its wheels.
   draw.rain = () => {
     const half = (x, sky, road, wet) => {
       const kart = (cx, cy, k) => `<rect x="${cx - 13 * k}" y="${cy - 4 * k}" width="${26 * k}" height="${8 * k}" fill="#2b2e33"/><rect x="${cx - 8 * k}" y="${cy - 16 * k}" width="${16 * k}" height="${12 * k}" fill="#c81d25"/><rect x="${cx - 13 * k}" y="${cy - 20 * k}" width="${26 * k}" height="${4 * k}" fill="#e0b54a"/><circle cx="${cx}" cy="${cy - 26 * k}" r="${6 * k}" fill="#6b4a2f"/>`;
-      const plume = (cx, cy, k) => wet ? [-1, 1].flatMap((side) => [0, 1, 2, 3].map((i) => `<circle cx="${cx + side * (12 + i * 2) * k}" cy="${cy + (3 + i * 5) * k}" r="${(3 + i) * k}" fill="#e8eef4" opacity="0.45"/>`)).join("") : "";
+      const plume = (cx, cy, k) => wet ? [-1, 1].flatMap((side) => [0, 1, 2, 3].map((i) => `<circle cx="${cx + side * (12 + i * 2) * k}" cy="${cy + (3 + i * 5) * k}" r="${(3 + i) * k}" fill="#e8eef4" opacity="0.2"/>`)).join("") : "";
       const streaks = wet ? [14, 42, 66, 94, 118, 142].map((sx, i) => `<line x1="${x + sx}" y1="${6 + (i * 17) % 40}" x2="${x + sx - 1}" y2="${22 + (i * 17) % 40}" stroke="#dfe7ef" stroke-width="1"/>`).join("") : "";
       return `<rect x="${x}" width="158" height="58" fill="${sky}"/><rect x="${x}" y="58" width="158" height="92" fill="#ebc86b"/>
         <polygon points="${x + 70},58 ${x + 88},58 ${x + 158},150 ${x},150" fill="#d8262c"/><polygon points="${x + 72},58 ${x + 86},58 ${x + 148},150 ${x + 10},150" fill="${road}"/>
@@ -1432,6 +1430,8 @@
       ${half(0, "#87ceeb", "#6b6b78", false)}${half(162, "#8d97a3", "#3b3b42", true)}</svg>`;
   };
 
+  // The light the zones give from Portier to Tabac's exit, as presentation-zones.ts blends it:
+  // the sky's light scale as a line over the lap, the lamps' glow as warm bars under the roof.
   draw.tunnelZones = () => {
     const lamp = rgb([1.0, 0.851, 0.541]), roof = rgb([0.11, 0.11, 0.118]), sky = "#cfe8f5", harbour = "#7fb7d9";
     const from = 620, to = 1000, left = 16, right = 304, top = 16, bottom = 118;
@@ -2243,7 +2243,7 @@
       { token: "SIGNAL_GREEN", tones: [0x8ee88e, 0x5ad15a, 0x3a9a3a], role: "Shift lights' first third, the tyre gauge above 60%" },
       { token: "SIGNAL_YELLOW", tones: [0xf9da7e, 0xf5c542, 0xb08a22], role: "The tyre gauge above 30%" },
       { token: "SIGNAL_RED", tones: [0xff7a6e, 0xe8483a, 0xa8261b], role: "Shift lights' second third, the tyre gauge at 30% and below" },
-      { token: "SHIFT_BLUE", tones: [0x8aa8ff, 0x4f7dff, 0x2f4fc4], role: "Shift lights' last third, the limiter" },
+      { token: "SHIFT_BLUE", tones: [0x8aa8ff, 0x4f7dff, 0x2f4fc4], role: "Shift lights' last third, the limiter, the RAIN plate" },
       { token: "HAZARD_ORANGE", tones: [0xff7a4d, 0xff5522, 0xc73c14], role: "Danger only: the hazard cone, wrong way, the homing drone's motors" },
       { token: "POSTER_RED", tones: [0xe8333b, 0xc81d25, 0x8f141a], role: "The connection banner, the start lights, the homing drone's canopy" },
       { token: "GO_GREEN", tones: [0x6fe8a6, 0x3ddc84, 0x23a35e], role: "GO" },

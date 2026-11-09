@@ -346,7 +346,7 @@ export function createInstrumentPanel(
   const boxPlate = instrument("box-call", "BOX BOX");
   plate(boxPlate, POSTER_RED);
   boxPlate.hidden = true;
-  // Over the BOX plate's spot, so the rain's arrival can call a stop as it shows (ADR 0103).
+  // Over the BOX and STOP plates' spot, so rain arriving through a call or a stop hides neither (ADR 0103).
   const rainPlate = instrument("rain", "RAIN");
   plate(rainPlate, SHIFT_BLUE);
   rainPlate.hidden = true;

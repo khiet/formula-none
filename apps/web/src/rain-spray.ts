@@ -15,14 +15,14 @@ const SPRAY_LIFETIME_S = 0.4;
 const SPRAY_CAPACITY_PER_KART = 34;
 /** How much of its birth size a puff gains per second. */
 const SPRAY_GROWTH_PER_S = 1;
-/** A puff is born this share of the wheel's height across, sitting on the road. */
+/** A puff is born this share of the kart's height across, sitting on the road. */
 const SPRAY_BIRTH_SHARE = 0.4;
 /**
- * A puff rises this share of the wheel's height per second. With the birth
- * size and growth above, the top of a puff at its death is 88% of the way up
- * the wheel, inside the budget.
+ * A puff rises this share of the kart's height per second. With the birth size
+ * and growth above, the top of a puff at its death is 78% of the way up the box,
+ * under the tops of kart.glb's rear wheels at 86%: the budget.
  */
-const SPRAY_RISE_SHARE_PER_S = 1;
+const SPRAY_RISE_SHARE_PER_S = 0.75;
 /** How far behind its wheel a puff ends, in kart lengths. */
 const SPRAY_TRAIL_LENGTHS = 2;
 /** How fast a puff spreads off its wheel, outward. */

@@ -55,7 +55,7 @@ import { createParticles } from "./particles";
 import { type PitBoxTuning, pitBoxMeshes } from "./pit-box-meshes";
 import type { PresentationBlend } from "./presentation-zones";
 import { BLAST_S, type Blast, type RaceReadout } from "./race-run";
-import type { RainLook } from "./rain-look";
+import { type RainLook, rainLook } from "./rain-look";
 import { createRainView } from "./rain-view";
 import { sceneryMotion } from "./scenery-motion";
 import { createSparkEmitter, createSparkParticles } from "./sparks";
@@ -429,7 +429,7 @@ export async function createRaceView(
   let onFinalLap = false;
 
   const rain = createRainView(world, track.scene, kartCount, kartSize, viewer);
-  let rainNow: RainLook = { clouds: 0, wetness: 0, overcast: 0, streaks: 0 };
+  let rainNow = rainLook(0, 0, 0);
 
   const drawnCoins = coinMeshes(coins);
   world.add(drawnCoins.mesh);

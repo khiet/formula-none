@@ -13,7 +13,7 @@ const CLOUD_GATHER_SHARE = 0.25;
 const CLOUD_OVERCAST = 0.5;
 /** What the sky's light is scaled by, wholly overcast. No flash ever lifts it. */
 const OVERCAST_LIGHT = 0.68;
-/** The RAIN plate shows through this much of the wetness's climb: five of its twenty seconds. */
+/** The RAIN plate shows through this share of the wetness's climb. */
 const PLATE_WETNESS = 0.25;
 
 /**
@@ -46,22 +46,22 @@ export interface RainLook {
   readonly wetness: number;
   /** How grey the sky is, 0 to 1. */
   readonly overcast: number;
-  /** How hard the streaks fall where the own kart is, 0 to 1. */
+  /** How hard the rain reaches the own kart, 0 to 1: the streaks and the road's gleam follow this. */
   readonly streaks: number;
 }
 
 /**
  * The look at `wetness` under `clouds`, with `roof` how far over the own kart a
- * roof is. A roof stops the streaks and nothing else: the road is as wet under
- * it, as the grip is. In the wet the clouds are up whatever `clouds` says, as a
+ * roof is. A roof stops the streaks and the road's gleam, which mirrors the sky;
+ * the road is as dark under it and the spray as thick, as the grip is as low. In the wet the clouds are up whatever `clouds` says, as a
  * client that rejoins mid-rain never saw them gather.
  */
 export function rainLook(wetness: number, clouds: number, roof: number): RainLook {
-  const up = wetness > 0 ? 1 : clouds;
+  const gathered = wetness > 0 ? 1 : clouds;
   return {
-    clouds: up,
+    clouds: gathered,
     wetness,
-    overcast: up * CLOUD_OVERCAST + wetness * (1 - CLOUD_OVERCAST),
+    overcast: gathered * CLOUD_OVERCAST + wetness * (1 - CLOUD_OVERCAST),
     streaks: wetness * (1 - roof),
   };
 }

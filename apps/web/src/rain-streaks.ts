@@ -30,7 +30,6 @@ const STREAK_ABOVE_MAX_M = 13;
 /** The most emission a frame can owe, so a stalled tab does not throw a sheet of it. */
 const MAX_OWED_S = 0.1;
 
-/** The pool the streaks are thrown into. */
 export function createRainStreakParticles(): Particles {
   return createParticles({ capacity: STREAK_CAPACITY, stretchSeconds: STREAK_STRETCH_S });
 }
@@ -41,8 +40,8 @@ export interface RainStreaks {
    * facing `forward`, a level unit vector, and moving at `speed` metres per second.
    */
   emit(
-    at: readonly number[],
-    forward: readonly number[],
+    at: Readonly<Vec3>,
+    forward: Readonly<Vec3>,
     speed: number,
     level: number,
     dtSeconds: number,
@@ -67,7 +66,7 @@ export function createRainStreaks(
   };
   const between = (least: number, most: number) => least + random() * (most - least);
   return {
-    emit([x = 0, y = 0, z = 0], [fx = 0, , fz = 0], speed, level, dtSeconds) {
+    emit([x, y, z], [fx, , fz], speed, level, dtSeconds) {
       if (level <= 0) {
         owed = 0;
         return;
