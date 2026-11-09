@@ -1,6 +1,6 @@
 // The spray off wet tyres (ADR 0103): a low pale plume at each kart's rear
 // wheels. Its budget is what keeps a pack readable: no puff rises past the top
-// of the wheels and none trails more than two kart lengths, so wings, helmets,
+// of the wheels and the plume trails about two kart lengths, so wings, helmets,
 // liveries and everything else on the road stay in sight through it.
 // Presentation only, from the readouts and the wetness.
 
@@ -51,7 +51,7 @@ export interface RainSpray {
 /**
  * Throws a kart's plume into `particles`, thicker as the track wets. Each puff
  * is carried along with the kart less a closing speed that takes it the trail's
- * length over its life, so the plume is that long however fast the kart goes.
+ * length over its life, so a boost does not stretch the plume and a slow kart's is shorter.
  * One emitter a kart, as each carries its own fraction of a puff. `random` is
  * Math.random's shape. Nothing is allocated per frame.
  */
