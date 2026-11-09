@@ -179,3 +179,38 @@ describe("localRaceRun's tyres", () => {
     expect(drive("off")).toBe(100);
   });
 });
+
+describe("localRaceRun's rain", () => {
+  const picks = { level: "basic", tyres: "off", laps: 3 } as const;
+
+  it("has no rain lap and stays dry when Dry is picked", async () => {
+    const bridge = await loadBridge(wasm);
+    const run = localRaceRun(bridge, "oval", OVAL, { ...picks, weather: "dry" });
+    started(run);
+    for (let tick = 0; tick < 60; tick++) run.tick(IDLE_INPUT, DT);
+    expect(run.rainLap).toBeNull();
+    expect(run.readout().wetness).toBe(0);
+  });
+
+  it("names the seed's lap, and is wet from the first kart starting it", async () => {
+    const bridge = await loadBridge(wasm);
+    const run = localRaceRun(bridge, "oval", OVAL, { ...picks, weather: "rain" });
+    const lap = run.rainLap;
+    expect(lap === 2 || lap === 3).toBe(true);
+    started(run);
+    expect(run.readout().wetness).toBe(0);
+
+    // The bots lap the oval while the idle human stands on the grid.
+    const leader = () => Math.max(...run.readout().standings.map((standing) => standing.lap));
+    while (run.readout().wetness === 0) {
+      expect(leader()).toBeLessThanOrEqual(lap ?? 0);
+      run.tick(IDLE_INPUT, DT);
+    }
+    expect(leader()).toBe(lap);
+
+    // A second on is a twentieth of the twenty-second climb.
+    const from = run.readout().wetness;
+    for (let tick = 0; tick < 60; tick++) run.tick(IDLE_INPUT, DT);
+    expect(run.readout().wetness - from).toBeCloseTo(1 / 20, 3);
+  });
+});

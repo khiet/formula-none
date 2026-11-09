@@ -39,6 +39,7 @@ import {
   LABEL_GREY,
   POSTER_RED,
   plate,
+  SHIFT_BLUE,
   SIGNAL_YELLOW,
   type Tones,
   tonesOf,
@@ -48,6 +49,7 @@ import {
   writeTones,
 } from "./palette";
 import { type ItemSlot, type RaceReadout, raceCount } from "./race-run";
+import { rainPlateShowing } from "./rain-look";
 import {
   coinCount,
   coinTopSpeed,
@@ -344,6 +346,10 @@ export function createInstrumentPanel(
   const boxPlate = instrument("box-call", "BOX BOX");
   plate(boxPlate, POSTER_RED);
   boxPlate.hidden = true;
+  // Over the BOX plate's spot, so the rain's arrival can call a stop as it shows (ADR 0103).
+  const rainPlate = instrument("rain", "RAIN");
+  plate(rainPlate, SHIFT_BLUE);
+  rainPlate.hidden = true;
   // The stop readout (ADR 0082): the crew's clock counting up on a carbon
   // plate while the kart is in its pit box, then the final time on a plate
   // in the roll's colour, held a few seconds after green.
@@ -382,7 +388,7 @@ export function createInstrumentPanel(
   const coins = instrument("coins");
   coins.append(coinIcon());
   const coinValue = part(coins, "coinCount");
-  cluster.append(coins, gear, speed, tyre, boxPlate, stopPlate);
+  cluster.append(coins, gear, speed, tyre, boxPlate, rainPlate, stopPlate);
   const showSpeed = (metresPerSecond: number, carried: number, inPitLane: boolean) => {
     const topSpeed = coinTopSpeed(tuning, carried);
     const reading = drivetrain(metresPerSecond, topSpeed);
@@ -494,6 +500,7 @@ export function createInstrumentPanel(
       showTyres(local.tyreLife);
       showStop(local.stop, race.phase.kind === "racing" ? race.phase.elapsedSeconds : null);
       surface.textContent = local.surface;
+      rainPlate.hidden = !rainPlateShowing(race.wetness);
       const held = itemReadout(slot);
       // Firing lights the plate, and so does a landing, once.
       const litPlate = held.state === "firing" || (slot.landing && !reducedMotion);

@@ -244,6 +244,10 @@ export function createServerRace(
     humanCount,
     localKart,
     laps: countdown.picks.laps,
+    rainLap:
+      countdown.picks.weather === "rain"
+        ? bridge.rainLap(countdown.seed, countdown.picks.laps)
+        : null,
     tick(input) {
       const sequence = client.sendInput(input);
       prediction.tick(quantiseInput(input, sequence));
@@ -294,6 +298,7 @@ export function createServerRace(
         projectiles: prediction.interpolatedProjectiles(),
         wheels: prediction.wheels(),
         blasts: blasts.blasts(),
+        wetness: prediction.wetness(),
       };
     },
     itemBoxes: () => boxes,

@@ -64,6 +64,12 @@ pub fn pit_lane_fork(sidecar: &str) -> Result<Vec<f32>, String> {
         .unwrap_or_default())
 }
 
+/// The lap the rain begins on in a race of `laps` from `seed` (ADR 0103).
+#[wasm_bindgen]
+pub fn rain_lap(seed: u64, laps: u32) -> u32 {
+    sim::rain_lap(seed, laps)
+}
+
 /// The protocol version this build speaks (ADR 0013). The generated
 /// `PROTOCOL_VERSION` is the same constant; the web app checks they agree.
 #[wasm_bindgen]
@@ -375,6 +381,11 @@ impl Race {
         phase_floats(self.state().phase()).to_vec()
     }
 
+    /// How wet the track is as of the last step, from 0 to 1 (ADR 0103).
+    pub fn wetness(&self) -> f32 {
+        self.state().wetness()
+    }
+
     /// `sim::State::hash` of the race as of the last step: everything that
     /// influences future ticks, bit-identical across platforms. A recording
     /// keeps it at every `sim::tuning::REPLAY_HASH_INTERVAL_TICKS`th tick.
@@ -555,6 +566,11 @@ impl Prediction {
     /// the race.
     pub fn phase(&self) -> Vec<f32> {
         phase_floats(self.inner.phase()).to_vec()
+    }
+
+    /// How wet the track is at the predicted kart's tick, from 0 to 1.
+    pub fn wetness(&self) -> f32 {
+        self.inner.wetness()
     }
 
     /// Snapshots that moved the predicted kart further than rounding, over

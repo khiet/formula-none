@@ -6,6 +6,7 @@ import {
   heardOnward,
   hornBlasts,
   loopPlayback,
+  rainBedPlayback,
   SOUND_AWAY_LOWPASS_HZ,
   type SoundCue,
   type SoundReading,
@@ -55,6 +56,7 @@ const STILL: SoundReading = {
   presentation: OPEN_SKY,
   flypastCuedMs: null,
   finalLap: false,
+  wetness: 0,
 };
 
 describe("soundCues", () => {
@@ -425,6 +427,27 @@ describe("soundLoops", () => {
   });
 });
 
+describe("the rain bed", () => {
+  it("runs from the first of the wet and not in the dry", () => {
+    expect(soundLoops(STILL).has("rain")).toBe(false);
+    expect(soundLoops({ ...STILL, wetness: 0.01 }).has("rain")).toBe(true);
+  });
+
+  it("levels by the wetness and is never pitched, under a roof or not", () => {
+    const half = rainBedPlayback(0.5);
+    const whole = rainBedPlayback(1);
+    expect(whole.gain).toBeGreaterThan(0);
+    expect(half.gain).toBeCloseTo(whole.gain / 2, 6);
+    expect(half.rate).toBe(1);
+    expect(whole.rate).toBe(1);
+  });
+
+  it("reads the wetness from the race", () => {
+    const race = raceReadout({ wetness: 0.3 });
+    expect(soundReading(race, 0, TUNING).wetness).toBe(0.3);
+  });
+});
+
 describe("the ambience loops", () => {
   const inZone = (harbour: number, crowd: number): SoundReading => ({
     ...STILL,
@@ -554,6 +577,7 @@ describe("soundReading", () => {
       presentation: OPEN_SKY,
       flypastCuedMs: null,
       finalLap: false,
+      wetness: 0,
     });
   });
 

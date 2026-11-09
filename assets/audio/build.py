@@ -546,6 +546,14 @@ def crowd(swell_hz=0.125, gain=0.5, seed=111):
     return loopable(envelope(murmur, lambda t: 0.7 + 0.3 * math.sin(TAU * swell_hz * t)))
 
 
+def rain(gain=0.5, seed=121):
+    """Rain on a track: a steady hiss over a soft low wash, with no swell a gust would hear."""
+    water = noise(AMBIENCE_S + 0.05, decay=0, gain=gain, seed=seed)
+    wash = scale(lowpass(water, 700, 1), 1.2)
+    hiss = scale(bandpass(water, 5000, 4000), 2)
+    return loopable(mix(wash, hiss))
+
+
 def boost_pad(root=880, rise=1.12, length=0.35, click=0.7, gain=0.25):
     """Push to pass: a crisp click then a sine chord sliding up a tone."""
     return mix(
@@ -828,6 +836,8 @@ def sfx():
     write("sand", tame(sand(LOOP_SPEED)))
     write("harbour", tame(harbour()))
     write("crowd", tame(crowd()))
+    # The rain's bed (ADR 0103), as the harbour and the crowd: levelled and never pitched.
+    write("rain", tame(rain()))
     write("hit", hit())
     # As long as the stall (`START_STALL_S`).
     write("sputter", sputter(2.0))

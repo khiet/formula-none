@@ -34,6 +34,7 @@ export function raceReadout(overrides: Partial<RaceReadout> = {}): RaceReadout {
     projectiles: [],
     wheels: [],
     blasts: [],
+    wetness: 0,
     ...overrides,
   };
 }

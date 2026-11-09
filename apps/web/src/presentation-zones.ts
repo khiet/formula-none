@@ -29,6 +29,8 @@ export interface PresentationZone {
   readonly ambience: Readonly<Record<AmbienceBed, number>>;
   /** The crowd's level when wholly in, 0 to 1. */
   readonly crowd: number;
+  /** How far a roof shuts out the rain's streaks when wholly in, 0 to 1 (ADR 0103). */
+  readonly roof: number;
 }
 
 /** What the View and the audio are given for one frame of the own kart. */
@@ -40,6 +42,8 @@ export interface PresentationBlend {
   readonly lampGlow: number;
   readonly ambience: Readonly<Record<AmbienceBed, number>>;
   readonly crowd: number;
+  /** How far a roof is over the own kart, 0 to 1: the streaks stop, and the grip stays wet. */
+  readonly roof: number;
 }
 
 /** Outside every zone: the course's own light and no ambience. */
@@ -49,6 +53,7 @@ export const OPEN_SKY: PresentationBlend = {
   lampGlow: 0,
   ambience: { harbour: 0 },
   crowd: 0,
+  roof: 0,
 };
 
 /** The lamps' glow between two lamps, as a share of the glow under one. */
@@ -70,6 +75,7 @@ export function presentationBlend(
   let lampGlow = 0;
   let harbour = 0;
   let crowd = 0;
+  let roof = 0;
   let touched = false;
   for (const zone of zones) {
     const weight = weightOf(zone, splineProgress, splineLength);
@@ -86,8 +92,9 @@ export function presentationBlend(
     }
     harbour = Math.max(harbour, weight * zone.ambience.harbour);
     crowd = Math.max(crowd, weight * zone.crowd);
+    roof = Math.max(roof, weight * zone.roof);
   }
-  return touched ? { light, echo, lampGlow, ambience: { harbour }, crowd } : OPEN_SKY;
+  return touched ? { light, echo, lampGlow, ambience: { harbour }, crowd, roof } : OPEN_SKY;
 }
 
 /** How far into `zone` the kart is at `s`: 0 outside, 1 wholly in, eased between. */
@@ -172,6 +179,7 @@ const ZONES: Readonly<Record<TrackName, readonly PresentationZone[]>> = {
       lamps: null,
       ambience: NO_AMBIENCE,
       crowd: 0,
+      roof: 1,
     },
     {
       // Over it later in the lap: brighter than the course's own sky up the
@@ -186,6 +194,7 @@ const ZONES: Readonly<Record<TrackName, readonly PresentationZone[]>> = {
       lamps: null,
       ambience: NO_AMBIENCE,
       crowd: 0,
+      roof: 0,
     },
   ],
   goldstone: [
@@ -201,6 +210,7 @@ const ZONES: Readonly<Record<TrackName, readonly PresentationZone[]>> = {
       lamps: null,
       ambience: NO_AMBIENCE,
       crowd: 0,
+      roof: 1,
     },
   ],
   monarch: [
@@ -219,6 +229,7 @@ const ZONES: Readonly<Record<TrackName, readonly PresentationZone[]>> = {
       },
       ambience: NO_AMBIENCE,
       crowd: 0,
+      roof: 1,
     },
     {
       // The release: brighter than the course's own sky from the exit
@@ -233,6 +244,7 @@ const ZONES: Readonly<Record<TrackName, readonly PresentationZone[]>> = {
       lamps: null,
       ambience: { harbour: 1 },
       crowd: 0.6,
+      roof: 0,
     },
   ],
   oval: [],

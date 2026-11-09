@@ -18,6 +18,7 @@ import { livery } from "./livery";
 import { presentationBlend, presentationZonesOf } from "./presentation-zones";
 import type { RaceRun } from "./race-run";
 import { createRaceView } from "./race-view";
+import { cloudCover, rainBlend, rainLook } from "./rain-look";
 import { downloadReplay } from "./replay";
 import { kartName, type RaceResults } from "./results-scene";
 import { flypastCueOf, flypastTimer } from "./scenery-motion";
@@ -146,12 +147,19 @@ export async function createRaceScene(
       // The final lap lifts the course for the own kart alone (ADR 0100).
       const onFinalLap = finalLap(readout, run.localKart, run.laps);
       view.finalLap(onFinalLap);
-      view.update(readout, pose, frameSeconds, flypastCuedMs);
       const blend = finalLapBlend(
         presentationBlend(zones, standing.splineProgress, lapLength),
         onFinalLap,
       );
-      view.presentation(blend);
+      // The rain's look, the same on every screen but for the roof over the own kart (ADR 0103).
+      const rain = rainLook(
+        readout.wetness,
+        cloudCover(readout.standings, run.rainLap, lapLength),
+        blend.roof,
+      );
+      view.rain(rain);
+      view.update(readout, pose, frameSeconds, flypastCuedMs);
+      view.presentation(rainBlend(blend, rain));
       panel.update(readout);
       const called = boxCall.update({
         tyreLife: local.tyreLife,

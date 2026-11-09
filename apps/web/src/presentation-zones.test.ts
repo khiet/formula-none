@@ -6,7 +6,7 @@ import {
   presentationBlend,
   presentationZonesOf,
 } from "./presentation-zones";
-import { centrelineOf, courseLength } from "./track";
+import { centrelineOf, courseLength, type TrackName } from "./track";
 
 const LAP_M = 1000;
 
@@ -20,6 +20,7 @@ const DIM: PresentationZone = {
   echo: 1,
   lamps: null,
   ambience: { harbour: 0 },
+  roof: 0,
   crowd: 0,
 };
 
@@ -246,3 +247,30 @@ function sidecar(name: string): string {
     "utf8",
   );
 }
+
+describe("the roof over the own kart", () => {
+  const roofed = (track: TrackName, splineProgress: number) =>
+    presentationBlend(presentationZonesOf(track), splineProgress, 2000).roof;
+
+  it("is none in the open and on a course with no zones", () => {
+    expect(OPEN_SKY.roof).toBe(0);
+    expect(roofed("oval", 100)).toBe(0);
+  });
+
+  it("is whole under Monarch's tunnel, Goldstone's hangar and Bell Deer's bridge", () => {
+    expect(roofed("monarch", 750)).toBe(1);
+    expect(roofed("goldstone", 925)).toBe(1);
+    expect(roofed("bell-deer", 573.8)).toBe(1);
+  });
+
+  it("is none on the bright stretches that lift out of them", () => {
+    expect(roofed("monarch", 920)).toBe(0);
+    expect(roofed("bell-deer", 1020.7)).toBe(0);
+  });
+
+  it("eases in across a portal, so the streaks thin rather than cut", () => {
+    const portal = roofed("monarch", 678.6);
+    expect(portal).toBeGreaterThan(0);
+    expect(portal).toBeLessThan(1);
+  });
+});

@@ -71,8 +71,8 @@ export type SoundCue =
 export type SpeedLoop = "driftSkid" | "grass" | "sand";
 /** The loops a presentation zone brings up (ADR 0098): the harbour's water and a stand's crowd. */
 export type AmbienceLoop = "harbour" | "crowd";
-/** The sounds that run while a state holds. */
-export type SoundLoop = SpeedLoop | AmbienceLoop;
+/** The sounds that run while a state holds, with the rain's bed (ADR 0103). */
+export type SoundLoop = SpeedLoop | AmbienceLoop | "rain";
 
 /**
  * What the own kart sounds like at one moment. The item is the slot's,
@@ -128,6 +128,8 @@ export interface SoundReading {
   readonly flypastCuedMs: number | null;
   /** Whether the own kart is on its last lap (ADR 0100): the race music lifts. */
   readonly finalLap: boolean;
+  /** How wet the track is, 0 to 1 (ADR 0103): the rain's bed follows it. */
+  readonly wetness: number;
 }
 
 /** The own kart's stop, as its crew's sounds read it. */
@@ -219,6 +221,7 @@ export function soundReading(
     presentation,
     flypastCuedMs,
     finalLap,
+    wetness: race.wetness,
   };
 }
 
@@ -544,6 +547,7 @@ export function soundLoops(reading: SoundReading): ReadonlySet<SoundLoop> {
   if (reading.surface === "sand") loops.add("sand");
   if (reading.presentation.ambience.harbour > 0) loops.add("harbour");
   if (reading.presentation.crowd > 0) loops.add("crowd");
+  if (reading.wetness > 0) loops.add("rain");
   return loops;
 }
 
@@ -619,6 +623,14 @@ const AMBIENCE_GAINS: Readonly<Record<AmbienceLoop, number>> = {
 export function ambiencePlayback(loop: AmbienceLoop, blend: PresentationBlend): LoopPlayback {
   const level = loop === "harbour" ? blend.ambience.harbour : blend.crowd;
   return { rate: 1, gain: AMBIENCE_GAINS[loop] * level };
+}
+
+/** The rain's bed at a fully wet track, under the SFX level. Presentation, so not the sim's to tune. */
+const RAIN_BED_GAIN = 0.4;
+
+/** How the rain's bed plays at `wetness`: levelled by it and never pitched, the same under a roof. */
+export function rainBedPlayback(wetness: number): LoopPlayback {
+  return { rate: 1, gain: RAIN_BED_GAIN * wetness };
 }
 
 /** Whether `loop` follows a zone rather than the kart's speed. */

@@ -176,6 +176,7 @@
   .t-flash { --t-lt: #ffffff; --t: #fff6cf; --t-dk: #f8e39a; }
   .t-white { --t-lt: #ffffff; --t: #eef0f2; --t-dk: #cfd2d6; color: var(--g-ink); text-shadow: none; }
   .t-red { --t-lt: #e8333b; --t: #c81d25; --t-dk: #8f141a; }
+  .t-blue { --t-lt: #8aa8ff; --t: #4f7dff; --t-dk: #2f4fc4; }
   .t-orange { --t-lt: #ff7a4d; --t: #ff5522; --t-dk: #c73c14; }
   .t-lamp-off { --t-lt: #2b2e33; --t: #1b1d21; --t-dk: #111214; }
   .t-go { --t-lt: #6fe8a6; --t: #3ddc84; --t-dk: #23a35e; color: var(--g-ink); text-shadow: 0.1em 0.1em 0 rgb(255 255 255 / 0.5); }
@@ -634,6 +635,18 @@
       </article>
 
       <article class="asset">
+        <header><h3>Rain</h3><code>apps/web/src/rain-view.ts, rain-look.ts, rain-spray.ts, rain-streaks.ts</code></header>
+        <div class="compare"><figure><figcaption>A pack on the same road, dry and wholly wet</figcaption><div class="stage flat" data-draw="rain"></div></figure></div>
+        <dl class="spec"><dt>Sky</dt><dd>Background <code>#87ceeb</code> to <code>#8d97a3</code>; sun and ambient to 0.68 of the sky's light</dd><dt>Road</dt><dd><code>asphalt</code> at 0.55 of its colour, roughness 0.45, with a low light 100 m ahead of the camera for the sheen</dd><dt>Spray</dt><dd><code>#e8eef4</code> at 0.2 opacity, 70 puffs a second a kart fully wet, 0.4 s; to 88% of the wheel's height and two kart lengths back</dd><dt>Streaks</dt><dd><code>#dfe7ef</code> at 0.4 opacity, 260 a second, 78 under reduced motion, falling at 24 m/s</dd><dt>Clouds</dt><dd>22 faceted lumps in <code>#6f7883</code>, 320 to 580 m off and 70 to 140 m up</dd><dt>Decided</dt><dd><a href="adr/0103-rain-changes-grip-on-a-lap-the-seed-picks.md">ADR 0103</a></dd></dl>
+        <div class="notes">
+          <p>Clouds gather on the skyline over the leader's last quarter of the lap before the rain's, greying the sky by half and changing nothing else. From the tick the rain begins everything follows the wetness, so every screen gets the same rain: the rest of the grey, the road, the spray and the streaks over its twenty seconds. A rain bed plays under the SFX toggle, levelled by the wetness and never pitched.</p>
+          <p>The road's material alone changes, so kerbs, white lines and boost pads keep their colours. Streaks are thrown past what the camera covers in their life, so none falls by the lens. They stop under Monarch's tunnel, Goldstone's hangar and Bell Deer's bridge through the presentation zones, which follow the own kart; the grip stays wet there, and so do the road and the spray.</p>
+          <p>The spray's budget comes from a hand-drawn sketch and was checked on a staged eight-kart pack: wings, helmets, liveries, item boxes, the runaway wheel, drones and worn tyres' smoke all read through it.</p>
+          <p class="dont"><b>Don't</b> flash the light or draw lightning, raise the spray past the wheels' tops, or colour the plume dark: worn tyres' smoke is the dark one that rises.</p>
+        </div>
+      </article>
+
+      <article class="asset">
         <header><h3>Woods</h3><code>assets/tracks/trackgen/props.py, Wood in layout.py</code></header>
         <div class="compare"><figure><figcaption>A pine, a round tree, a young one and a cherry</figcaption><div class="stage" data-draw="woods"></div></figure></div>
         <dl class="spec"><dt>Size</dt><dd>Pines 7 m, round trees 5 m, young ones 3 m, cherries 5 m; canopies 4.5 m across, round ones 4 m and young ones 2.2 m</dd><dt>Decided</dt><dd><a href="adr/0050-trackside-props.md">ADR 0050</a></dd></dl>
@@ -879,6 +892,13 @@
       </article>
 
       <article class="asset">
+        <header><h3>RAIN plate</h3><code>apps/web/src/instrument-panel.ts</code></header>
+        <div class="compare"><figure><figcaption>As the rain arrives</figcaption><div class="view"><div class="hud hud-row" data-draw="rainPlate"></div></div></figure></div>
+        <dl class="spec"><dt>Decided</dt><dd><a href="adr/0103-rain-changes-grip-on-a-lap-the-seed-picks.md">ADR 0103</a></dd></dl>
+        <div class="notes"><p>RAIN in white on a <code>SHIFT_BLUE</code> plate off the cluster's right edge, over the BOX plate's spot so the two can show together. It shows for the first quarter of the wetness's climb, five seconds, and not again: a viewer who rejoins later never sees it.</p></div>
+      </article>
+
+      <article class="asset">
         <header><h3>Course map</h3><code>apps/web/src/course-map.ts</code></header>
         <div class="compare">
           <figure><figcaption>Bell Deer</figcaption><div class="view dark follows lv" data-draw="map" data-track="bell-deer"></div></figure>
@@ -989,7 +1009,7 @@
           <p>Under the flags, the bots: a "Bots" heading and a tile per level, Basic, Pro and Ace (a radio group named <code>bots</code>), the flag tile with its caption in the flag's place, picked gold and lifted, the arrows moving between them. One line on an ink plate describes the picked level in the blurb's voice: "Ace: corner flat out, fire on sight, never wait for you." One pick covers Create room and Solo race, and it is remembered beside the course pick (ADR 0078).</p>
           <p>Beside the bots, the Tyres pick, drawn the same way: a "Tyres" heading, tiles Off and On (a radio group named <code>tyres</code>) and one line on an ink plate, "On: driving wears them." On is the default; one pick covers Create room and Solo race, and it is remembered beside the course pick (ADR 0083).</p>
           <p>Beside the Tyres, the laps, drawn the same way without the line: a "Laps" heading and tiles 3 and 5 (a radio group named <code>laps</code>). 3 is the default; one pick covers Create room and Solo race, it is remembered beside the course pick, and the card's Laps number follows it (ADR 0084).</p>
-          <p>Beside the laps, the Weather pick, drawn as the Tyres are: a "Weather" heading, tiles Dry and Rain (a radio group named <code>weather</code>) and one line on an ink plate, "Rain: grip falls mid-race." Dry is the default until rain has been played; one pick covers Create room and Solo race, and it is remembered beside the course pick (ADR 0103). Rain draws nothing yet in a race: the look follows in its own issue.</p>
+          <p>Beside the laps, the Weather pick, drawn as the Tyres are: a "Weather" heading, tiles Dry and Rain (a radio group named <code>weather</code>) and one line on an ink plate, "Rain: grip falls mid-race." Dry is the default until rain has been played; one pick covers Create room and Solo race, and it is remembered beside the course pick (ADR 0103). What Rain draws in a race is under Rain, with the world.</p>
           <p>The flags are the real ones in their own colours: Japan's at 3:2, and the Union Flag and Monaco's red over white cropped from 2:1 and 5:4 to the tile's 3:2. Monaco's red is <code>FLAG_MC_RED</code> <code>#ce1126</code>.</p>
           <p>Go green marks the one primary action on a poster; poster gold marks the others.</p>
           <p>Why a create or a join came back to the Title reads as a line of text in the way-in column: "The server is full; try again later" past the room cap, "Too many new rooms from here; try again shortly" past the address's limit (ADR 0073).</p>
@@ -1397,6 +1417,21 @@
   };
   // The light the zones give from Portier to Tabac's exit, as presentation-zones.ts blends it:
   // the sky's light scale as a line over the lap, the lamps' glow as warm bars under the roof.
+  // The same road dry and wet: a kart from the chase camera, its plume no higher than its wheels.
+  draw.rain = () => {
+    const half = (x, sky, road, wet) => {
+      const kart = (cx, cy, k) => `<rect x="${cx - 13 * k}" y="${cy - 4 * k}" width="${26 * k}" height="${8 * k}" fill="#2b2e33"/><rect x="${cx - 8 * k}" y="${cy - 16 * k}" width="${16 * k}" height="${12 * k}" fill="#c81d25"/><rect x="${cx - 13 * k}" y="${cy - 20 * k}" width="${26 * k}" height="${4 * k}" fill="#e0b54a"/><circle cx="${cx}" cy="${cy - 26 * k}" r="${6 * k}" fill="#6b4a2f"/>`;
+      const plume = (cx, cy, k) => wet ? [-1, 1].flatMap((side) => [0, 1, 2, 3].map((i) => `<circle cx="${cx + side * (12 + i * 2) * k}" cy="${cy + (3 + i * 5) * k}" r="${(3 + i) * k}" fill="#e8eef4" opacity="0.45"/>`)).join("") : "";
+      const streaks = wet ? [14, 42, 66, 94, 118, 142].map((sx, i) => `<line x1="${x + sx}" y1="${6 + (i * 17) % 40}" x2="${x + sx - 1}" y2="${22 + (i * 17) % 40}" stroke="#dfe7ef" stroke-width="1"/>`).join("") : "";
+      return `<rect x="${x}" width="158" height="58" fill="${sky}"/><rect x="${x}" y="58" width="158" height="92" fill="#ebc86b"/>
+        <polygon points="${x + 70},58 ${x + 88},58 ${x + 158},150 ${x},150" fill="#d8262c"/><polygon points="${x + 72},58 ${x + 86},58 ${x + 148},150 ${x + 10},150" fill="${road}"/>
+        ${wet ? `<polygon points="${x + 75},58 ${x + 83},58 ${x + 100},110 ${x + 58},110" fill="#d6e2ee" opacity="0.28"/>` : ""}
+        ${kart(x + 92, 92, 0.55)}${plume(x + 92, 92, 0.55)}${kart(x + 66, 124, 1)}${plume(x + 66, 124, 1)}${streaks}`;
+    };
+    return `<svg viewBox="0 0 320 150" role="img" aria-label="Karts on a road, on the left under a blue sky on grey asphalt, on the right under a grey sky on dark asphalt with a pale sheen, a low plume at each kart's rear wheels and thin falling streaks">
+      ${half(0, "#87ceeb", "#6b6b78", false)}${half(162, "#8d97a3", "#3b3b42", true)}</svg>`;
+  };
+
   draw.tunnelZones = () => {
     const lamp = rgb([1.0, 0.851, 0.541]), roof = rgb([0.11, 0.11, 0.118]), sky = "#cfe8f5", harbour = "#7fb7d9";
     const from = 620, to = 1000, left = 16, right = 304, top = 16, bottom = 118;
@@ -2322,6 +2357,7 @@
   document.getElementById("clusters").innerHTML = cluster(4, 87, 7, false, 4) + cluster(6, 122, 12, true, 7) + cluster("PIT", 54, 3, false, 2);
   // The stop readout: the crew's clock on carbon, then a clean stop's final time on white.
   const stopPlate = (tone, text, ink) => `<span class="pl"><span class="pf ${tone}" style="padding:0.2em 0.5em;display:inline-flex;gap:0.5em;align-items:baseline${ink ? ";color:#111111;text-shadow:none" : ""}"><span style="font-size:0.7em;${ink ? "color:#111111" : "color:var(--label)"}">STOP</span>${text}</span></span>`;
+  draw.rainPlate = () => `<span class="pl"><span class="pf t-blue" style="padding:0.2em 0.5em">RAIN</span></span>`;
   draw.stopReadout = () => stopPlate("t-carbon", "1.4 s", false) + stopPlate("t-white", "2.6 s", true);
 
   // A flag folded once, lit on the left half; chequered once its lap is done.

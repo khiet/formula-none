@@ -41,6 +41,7 @@ import lapUrl from "../../../assets/audio/lap.wav?url";
 import lollipopSpinUrl from "../../../assets/audio/lollipop-spin.wav?url";
 import miniTurboUrl from "../../../assets/audio/mini-turbo.wav?url";
 import musicUrl from "../../../assets/audio/music-loop.wav?url";
+import rainUrl from "../../../assets/audio/rain.wav?url";
 import releaseChimeUrl from "../../../assets/audio/release-chime.wav?url";
 import sandUrl from "../../../assets/audio/sand.wav?url";
 import slipstreamUrl from "../../../assets/audio/slipstream.wav?url";
@@ -67,6 +68,7 @@ import {
   isAmbience,
   type LoopPlayback,
   loopPlayback,
+  rainBedPlayback,
   SOUND_AWAY_LOWPASS_HZ,
   type SoundCue,
   type SoundLoop,
@@ -134,6 +136,7 @@ export const LOOP_URLS: Readonly<Record<SoundLoop, string>> = {
   sand: sandUrl,
   harbour: harbourUrl,
   crowd: crowdUrl,
+  rain: rainUrl,
 };
 export const MUSIC_URL: string = musicUrl;
 /** The star music, as long as a run, in place of the race music through the own run. */
@@ -593,6 +596,7 @@ class LiveRace {
   }
 
   #playback(loop: SoundLoop, reading: SoundReading): LoopPlayback {
+    if (loop === "rain") return rainBedPlayback(reading.wetness);
     return isAmbience(loop)
       ? ambiencePlayback(loop, reading.presentation)
       : loopPlayback(loop, reading.speed, this.#topSpeed);

@@ -55,6 +55,8 @@ import { createParticles } from "./particles";
 import { type PitBoxTuning, pitBoxMeshes } from "./pit-box-meshes";
 import type { PresentationBlend } from "./presentation-zones";
 import { BLAST_S, type Blast, type RaceReadout } from "./race-run";
+import type { RainLook } from "./rain-look";
+import { createRainView } from "./rain-view";
 import { sceneryMotion } from "./scenery-motion";
 import { createSparkEmitter, createSparkParticles } from "./sparks";
 import { spinOutAngle } from "./spin";
@@ -184,6 +186,12 @@ export interface RaceView {
    * `update`, until it is off again.
    */
   finalLap(on: boolean): void;
+  /**
+   * The rain's look (ADR 0103): the clouds, the sky's grey, the road, the
+   * spray and the streaks follow it from the next `update`. The light its
+   * overcast scales comes through `presentation`.
+   */
+  rain(look: RainLook): void;
   render(): void;
   /** Take the canvas off the page and free the renderer. */
   dispose(): void;
@@ -420,6 +428,9 @@ export async function createRaceView(
   world.add(...setPiece.objects);
   let onFinalLap = false;
 
+  const rain = createRainView(world, track.scene, kartCount, kartSize, viewer);
+  let rainNow: RainLook = { clouds: 0, wetness: 0, overcast: 0, streaks: 0 };
+
   const drawnCoins = coinMeshes(coins);
   world.add(drawnCoins.mesh);
   const kartHead = kartModel.scene.getObjectByName("head");
@@ -568,6 +579,7 @@ export async function createRaceView(
       runaways.show(race.wheels, frameSeconds);
       motion.update(performance.now(), flypastCuedMs);
       setPiece.update(onFinalLap, frameSeconds);
+      rain.update(rainNow, readouts, pose, frameSeconds);
       for (const label of labels) {
         label.visible = false;
       }
@@ -615,6 +627,9 @@ export async function createRaceView(
     },
     finalLap(on) {
       onFinalLap = on;
+    },
+    rain(look) {
+      rainNow = look;
     },
     dispose() {
       window.removeEventListener("resize", resize);
