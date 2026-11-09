@@ -700,8 +700,17 @@ banner, the start lights over the View and the course map. Reads state; never dr
 
 A readout's chamfered backing on the Instrument panel: a lit, a mid and a
 shaded band of one colour, over the ink drop, with no outline (ADR 0037).
-Carbon for most readouts, the local kart's primary for the position, the
-item box gold for the item slot, a kart's key colour for its label.
+Carbon for most readouts, the item box gold for the item slot, a kart's key
+colour for its label. The timing tower is one carbon plate with the position
+in the local kart's primary as a band set into its top; the hairlines between
+its rows are rules, not an outline (ADR 0105).
+
+### timing tower
+
+The Instrument panel's top-left stack as one plate, as a broadcast draws it:
+the position band at the top, then the lap, time and best rows sharing a label
+column, with one straight right edge. 26 HUD units wide on every race, so the
+lap row holds five lap flags (ADR 0105).
 
 ### gear
 
@@ -720,8 +729,8 @@ Decorative: the gear and the speed are the text.
 
 How much life a kart's tyres have left, as a percentage: 100% is new and 0%
 is gone. It falls as the kart is driven and only a stop raises it. The
-Instrument panel's tyre gauge shows it on the local kart drawn from above,
-its tyres green above 60%, yellow above 30% and red at 30% and below, read rounded up so
+Instrument panel's tyre gauge shows it on the local kart seen from behind
+(ADR 0105), its tyres green above 60%, yellow above 30% and red at 30% and below, read rounded up so
 0% means truly gone (ADR 0080). With Tyres Off it holds at 100%. Avoid: tyre
 wear, for the number. As it falls it costs speed and grip by ADR 0080's tables,
 as ADR 0087 and ADR 0095 steepen them, steepest from the cliff at 30%; a boost

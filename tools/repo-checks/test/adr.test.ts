@@ -109,6 +109,7 @@ const DECISION_SLUGS = [
   "a-hop-on-the-lip-is-a-trick",
   "rain-changes-grip-on-a-lap-the-seed-picks",
   "rain-keeps-its-starting-grip-and-dry-stays-the-default",
+  "the-timing-tower-the-coin-pile-and-the-kart-from-behind",
 ];
 
 const expectedFiles = DECISION_SLUGS.map(
