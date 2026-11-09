@@ -108,6 +108,7 @@ const DECISION_SLUGS = [
   "a-ramp-is-a-slope-across-part-of-the-road",
   "a-hop-on-the-lip-is-a-trick",
   "rain-changes-grip-on-a-lap-the-seed-picks",
+  "rain-keeps-its-starting-grip-and-dry-stays-the-default",
 ];
 
 const expectedFiles = DECISION_SLUGS.map(
