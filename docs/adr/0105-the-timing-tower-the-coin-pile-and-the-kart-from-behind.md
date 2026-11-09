@@ -3,19 +3,21 @@
 ## Status
 
 Accepted (2026-11-09). Supersedes ADR 0037's separate carbon plates for the
-stack and its tyre gauge drawn from above, and ADR 0056's coin readout,
+stack and its tyre gauge drawn from above, makes a rule inside a plate an
+exception to its no-outline rule, and supersedes ADR 0056's coin readout,
 `x07 / 10`. What those records decide otherwise stands: plates, type, the
 gear, the item slot, the course map, the ink drop and the coin rule. Records a
 design only; the build follows in its own issue.
 
 ## Context
 
-The top-left stack is four objects: the position plate in the livery and three
-carbon plates, lap, time and best, each sized to its text. Four drops and four
-right edges draw a ragged outline down the left of the View. Under it, the
-speed cluster reads the coins as `x07 / 10`, a times sign borrowed from an item
-count, a zero-padded figure and the cap as a fraction, and the tyre gauge draws
-the own kart from above, a view of the car the race never shows.
+The top-left stack holds four plates above the item slot: the position plate in
+the livery and three carbon plates, lap, time and best, each sized to its text.
+Four drops and four right edges draw a ragged outline down the left of the
+View. Under it, the speed cluster reads the coins as `x07 / 10`, a times sign
+borrowed from an item count, a zero-padded figure and the cap as a fraction,
+and the tyre gauge draws the local kart from above, a view of the car the race
+never shows.
 
 Two mockups weigh three takes each, in the panel's palette, chamfer and type,
 with the rest of the panel as it ships:
@@ -43,8 +45,9 @@ the coin readout's text says now that it draws its cap.
   lap row holds five lap flags, the most a race can have (ADR 0084). Its width
   does not change with the room's laps.
 - **The hairlines between the tower's rows are rules, not outlines.** A rule
-  divides one plate's rows inside it; ADR 0037's rule forbids a line around a
-  plate or a glyph, and still stands.
+  divides one plate's rows inside it. ADR 0037's "No outline anywhere on the
+  panel" stands for every edge of a plate and every glyph; a rule inside a plate
+  is the one exception.
 - **The coins are a pile beside the gear**: coins on edge stacked in a column
   at the speed cluster's left, one per coin carried, the empty slots up to the
   cap as faint lines, and the count above the pile. The gear plate moves right
@@ -52,7 +55,7 @@ the coin readout's text says now that it draws its cap.
 - **The coin readout's text is the count**, `7`, with no times sign, padding
   or fraction. The empty slots show the cap, and the readout's accessible name
   says both, as in `7 of 10 coins`.
-- **The tyre gauge is the own kart from behind**, as the chase camera sees it:
+- **The tyre gauge is the local kart from behind**, as the chase camera sees it:
   the rear wing across the top, the two big rear tyres either side toned by
   ADR 0080's bands, the driver's head over the tub, in the livery. The
   percentage stays beside it.

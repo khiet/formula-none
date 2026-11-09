@@ -14,7 +14,8 @@ homing projectile is a camera quad drone that tilts into its turns.
 Its snail in the slot is superseded by ADR 0058: the boost character is a
 podium champagne bottle.
 Its separate carbon plates for the stack and its tyre gauge drawn from above
-are superseded by ADR 0105: a timing tower and the kart from behind.
+are superseded by ADR 0105: a timing tower and the kart from behind. ADR
+0105 also makes a rule between a plate's rows an exception to no outline.
 
 ## Context
 
