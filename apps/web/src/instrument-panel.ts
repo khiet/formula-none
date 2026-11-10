@@ -390,9 +390,8 @@ export function createInstrumentPanel(
       stopShownUntil = null;
     }
   };
-  // The coin pile (ADR 0105): the count over a column of slots, one per coin
-  // the cap allows. Its name carries the cap the slots draw, so the slots stay
-  // out of the accessibility tree.
+  // The coin pile (ADR 0105). Its accessible name carries the cap the slots
+  // draw, so the slots stay out of the accessibility tree.
   const coins = instrument("coins");
   coins.setAttribute("role", "img");
   const coinValue = part(coins, "coinCount");

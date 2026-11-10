@@ -461,9 +461,8 @@
         padding: 0.2em 0.5em;
         font-size: calc(var(--hud) * 2.6);
       }
-      /* The coin pile: the count over a column of coins on edge, one slot per
-         coin the cap allows. Empty slots keep a held coin's height so the
-         cluster holds still as the pile rises and falls. */
+      /* The coin pile (ADR 0105). Empty slots keep a held coin's height so
+         the cluster holds still as the pile rises and falls. */
       [data-instrument="coins"] {
         grid-area: coins;
         align-self: end;
