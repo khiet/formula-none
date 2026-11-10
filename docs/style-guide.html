@@ -206,7 +206,7 @@
   .coins { grid-area: coins; align-self: end; display: grid; justify-items: center; gap: calc(var(--hud) * 0.5); margin-right: calc(var(--hud) * 0.4); font-size: calc(var(--hud) * 2.6); }
   .coins .slots { display: grid; gap: calc(var(--hud) * 0.28); filter: drop-shadow(calc(var(--hud) * 0.3) calc(var(--hud) * 0.3) 0 rgb(17 17 17 / 0.55)); }
   .coins .slots i { display: block; width: calc(var(--hud) * 3.6); height: calc(var(--hud) * 0.85); clip-path: polygon(8% 0, 92% 0, 100% 50%, 92% 100%, 8% 100%, 0 50%); background: linear-gradient(transparent 32%, rgb(27 29 33 / 0.6) 32% 68%, transparent 68%); }
-  .coins .slots i.held { background: linear-gradient(#f8e39a 0 40%, #ffd23f 40% 75%, #b8860b 75%); }
+  .coins .slots i[data-held="true"] { background: linear-gradient(#f8e39a 0 40%, #ffd23f 40% 75%, #b8860b 75%); }
   .tyre { grid-area: tyre; display: flex; align-items: center; gap: calc(var(--hud) * 1); font-size: calc(var(--hud) * 2.2); }
   .tyre svg, .tyre-big svg { width: calc(var(--hud) * 3.6); height: auto; filter: drop-shadow(calc(var(--hud) * 0.3) calc(var(--hud) * 0.3) 0 rgb(17 17 17 / 0.55)); }
   .tyre-big svg { width: 4.6rem; }
@@ -2361,7 +2361,7 @@
   const hexLights = (lit, limiter) => `<svg class="lights" viewBox="0 0 156 14" aria-hidden="true">${Array.from({ length: 12 }, (_, i) =>
     facets(6, 6.5 + i * 13, 7, 6.2, TONES[limiter ? "blue" : i < lit ? ["green", "red", "blue"][Math.floor((i * 3) / 12)] : "off"])).join("")}</svg>`;
   // The pile fills from the bottom: the slots run top to bottom, so the last ones hold.
-  const pile = (coins) => `<div class="coins" role="img" aria-label="${coins} of 10 coins"><span>${coins}</span><span class="slots">${Array.from({ length: 10 }, (_, i) => `<i${i >= 10 - coins ? ' class="held"' : ""}></i>`).join("")}</span></div>`;
+  const pile = (coins) => `<div class="coins" role="img" aria-label="${coins} of 10 coins"><span>${coins}</span><span class="slots">${Array.from({ length: 10 }, (_, i) => `<i data-held="${i >= 10 - coins}"></i>`).join("")}</span></div>`;
   const cluster = (gear, kmh, lit, limiter, coins) => `<div class="cluster">${pile(coins)}${hexLights(lit, limiter)}<span class="pl"><span class="pf ${limiter || gear === "PIT" ? "t-white" : "t-carbon"} gear${gear === "PIT" ? " pit" : ""}">${gear}</span></span><div class="speed"><b>${kmh}</b><span class="lab">KM/H</span></div><div class="tyre lv follows">${topCar(Array(4).fill("green"))}<span>100%</span></div></div>`;
   document.getElementById("clusters").innerHTML = cluster(4, 87, 7, false, 0) + cluster(6, 122, 12, true, 7) + cluster("PIT", 54, 3, false, 10);
   // The stop readout: the crew's clock on carbon, then a clean stop's final time on white.
