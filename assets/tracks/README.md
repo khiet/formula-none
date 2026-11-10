@@ -45,7 +45,11 @@ pnpm test:tracks
 The Blender source of a track is a Python layout, `trackgen/layouts/<name>.py`,
 so it diffs and reviews like code. A layout lays the centreline turtle-style
 from straights and arcs, then hangs everything else on it by arc length:
-asphalt and run-off widths, tyre walls (`TyreWall(s, offset)`, metres
+asphalt and run-off widths (the asphalt's default half width, with
+`half_widths` naming segments narrowed or widened from it and `Taper(s_start,
+s_end)`s joining them linearly so the edge never steps; the run-off and walls
+follow the local edge, and the export refuses a width change under a tunnel,
+bridge, ramp, pit lane or wheel crossing's hazard zone, ADR 0106), tyre walls (`TyreWall(s, offset)`, metres
 left of the centreline), elevation (hills, which lift the whole road),
 ramps (`Ramp(s_start, s_end, height, right, left)`, a slope on part of the
 asphalt with the road flat beside it, ADR 0101), checkpoint count, item box rows, boost pads and lines of coins

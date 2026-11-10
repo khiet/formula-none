@@ -59,7 +59,7 @@ class _Lane:
         self.layout = layout
         self.lane = layout.pit_lane
         self.path = layout.path
-        # The lane's span is one width end to end: `uniform_widths` holds it to that.
+        # The lane's span is one width end to end: `refuse_width_changes` holds it to that.
         self.asphalt = layout.half_width_at(self.lane.s_fork)
         self.runoff = layout.runoff_half_width_at(self.lane.s_fork)
         self.wall_back = self.runoff + WALL_THICKNESS_M
@@ -168,7 +168,7 @@ def surfaces(layout: Layout) -> list[SurfaceMesh]:
 
 def outer_face(layout: Layout) -> float:
     """How far from the centreline the lane's outer wall reaches, where a checkpoint along it must."""
-    return layout.runoff_half_width_at(layout.pit_lane.s_fork) + WALL_THICKNESS_M + LANE_WIDTH_M + WALL_THICKNESS_M
+    return layout.wall_back_at(layout.pit_lane.s_fork) + LANE_WIDTH_M + WALL_THICKNESS_M
 
 
 def data(layout: Layout) -> PitLaneData:

@@ -54,6 +54,5 @@ width, so this is the track generator's alone.
 - `monarch-lap-with-bots` is re-recorded on the narrowed road.
 - No other course's export changed: a layout without overrides reads its
   default everywhere.
-- A width change wider than a half metre or a taper shorter than 15 m makes
-  the edge steeper than any Monarch has; nothing forbids it, but the tests
-  hold Monarch's steepest to 0.1 m of half width per metre.
+- Nothing in the generator limits how steeply a taper closes the road; the
+  tests hold Monarch's to 0.1 m of half width per metre at most.

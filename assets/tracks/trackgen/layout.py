@@ -469,7 +469,8 @@ class Layout:
 
     @property
     def runoff_half_width(self) -> float:
-        """The default's: where a layout narrows, `runoff_half_width_at` is the wall's place."""
+        """The default's, wider than anywhere a layout narrows: a clearance measured from it is a
+        safe overestimate, but where the wall stands is `runoff_half_width_at`."""
         return self.asphalt_half_width + self.runoff_width
 
     def half_width_at(self, s: float) -> float:
@@ -488,6 +489,10 @@ class Layout:
 
     def runoff_half_width_at(self, s: float) -> float:
         return self.half_width_at(s) + self.runoff_width
+
+    def wall_back_at(self, s: float) -> float:
+        """From the centreline to the back of the wall at `s`."""
+        return self.runoff_half_width_at(s) + WALL_THICKNESS_M
 
     def _segment_half_width(self, s: float, before: bool) -> float:
         """The half width of the segment at `s`; on a boundary, the one ending there when `before`,
@@ -608,7 +613,7 @@ class TrackGeometry:
     ramp_lips: list[Placement] = field(default_factory=list)
 
 
-def uniform_widths(layout: Layout) -> None:
+def refuse_width_changes(layout: Layout) -> None:
     """Refuse a layout that changes its width under what is built to one width: a tunnel, a
     bridge, a ramp, a pit lane or a wheel crossing's hazard zone."""
     spans = [(f"tunnel at {t.s_start}", t.s_start, t.s_end) for t in layout.decor.tunnels]
@@ -626,7 +631,7 @@ def uniform_widths(layout: Layout) -> None:
 
 
 def build(layout: Layout) -> TrackGeometry:
-    uniform_widths(layout)
+    refuse_width_changes(layout)
     path = layout.path
     height = [elevation(layout.elevation, sample.s) for sample in path.samples]
 
@@ -717,7 +722,7 @@ def build(layout: Layout) -> TrackGeometry:
         s = path.at(s).s
         if lane is not None and (s - lane.s_fork) % path.length <= lane.s_merge - lane.s_fork:
             return pit_lane.outer_face(layout)
-        return layout.runoff_half_width_at(s) + WALL_THICKNESS_M
+        return layout.wall_back_at(s)
 
     # Evenly spaced from the start line, each reaching the walls' outer faces,
     # so a kart between the walls or in the air over one crosses every one in
@@ -1255,7 +1260,7 @@ def along_outside(
     s = s_start + spacing / 2.0
     while s + spacing / 2.0 <= s_end:
         sample = path.at(s)
-        x, y = sample.offset(side * (layout.runoff_half_width_at(sample.s) + WALL_THICKNESS_M + setback))
+        x, y = sample.offset(side * (layout.wall_back_at(sample.s) + setback))
         nx, ny = sample.left_normal
         # Towards the track: against the left normal on the left, with it on the right.
         facing = math.atan2(-side * ny, -side * nx)
@@ -1456,7 +1461,7 @@ def bridge_half_span(layout: Layout, bridge: Bridge) -> float:
     however squarely the legs cross."""
     deck = layout.path.at(bridge.deck_s)
     under = layout.path.at(bridge.underpass_s)
-    clear = layout.runoff_half_width_at(bridge.underpass_s) + WALL_THICKNESS_M + BRIDGE_SPAN_CLEARANCE_M
+    clear = layout.wall_back_at(bridge.underpass_s) + BRIDGE_SPAN_CLEARANCE_M
     return clear / abs(math.sin(deck.heading - under.heading))
 
 
@@ -1476,8 +1481,8 @@ def bridges(layout: Layout, height: list[float]) -> list[SceneryMesh]:
         ]
 
     for bridge in layout.decor.bridges:
-        # The raised leg is one width end to end: `uniform_widths` holds it to that.
-        edge = layout.runoff_half_width_at(bridge.deck_s) + WALL_THICKNESS_M
+        # The raised leg is one width end to end: `refuse_width_changes` holds it to that.
+        edge = layout.wall_back_at(bridge.deck_s)
         half_span = bridge_half_span(layout, bridge)
         # The span's ends land on samples, outward so it is never narrower than asked.
         span_start = path.index_at(bridge.deck_s - half_span - SAMPLE_STEP_M / 2.0)
@@ -1530,8 +1535,8 @@ def tunnels(layout: Layout, height: list[float]) -> list[SceneryMesh]:
 
     for tunnel in layout.decor.tunnels:
         # A hair off the wall's back, so the side never shares its plane; one width end to end,
-        # since `uniform_widths` holds the tunnel to that.
-        inside = layout.runoff_half_width_at(tunnel.s_start) + WALL_THICKNESS_M + SCENERY_LIFT_M
+        # since `refuse_width_changes` holds the tunnel to that.
+        inside = layout.wall_back_at(tunnel.s_start) + SCENERY_LIFT_M
         outside = inside + TUNNEL_SIDE_THICKNESS_M
         indices = path.indices_between(tunnel.s_start, tunnel.s_end)
         for side in (1, -1):
