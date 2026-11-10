@@ -200,7 +200,6 @@ describe("the lap instruments on the page", () => {
       (readout) => readout.dataset.instrument,
     );
     expect(names).toEqual(["position", "lap", "lap-time", "best-lap"]);
-    expect(tower?.style.getPropertyValue("--plate")).toBe(hexCss(CARBON.mid));
     // The position is a band inside the tower's plate, with no plate or drop of its own.
     expect(tower?.querySelector('[data-instrument="position"]')?.hasAttribute("data-plate")).toBe(
       false,

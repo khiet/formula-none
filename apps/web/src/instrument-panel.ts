@@ -502,7 +502,7 @@ export function createInstrumentPanel(
       printLabelled(lapTime, readouts.lapTime);
       printLabelled(bestLap, readouts.bestLap);
       // An unset best prints its dashes in the label grey.
-      bestLap.toggleAttribute("data-set", standing.bestLapS !== null);
+      bestLap.toggleAttribute("data-set", readouts.bestLap.value !== NO_LAP_TIME);
       wrongWay.textContent = readouts.wrongWay;
       wrongWay.hidden = readouts.wrongWay === "";
       showSpeed(local.speed, local.coins, local.inPitLane);
