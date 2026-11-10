@@ -504,6 +504,11 @@ describe("the speed cluster on the page", () => {
     expect(find("tyre")?.dataset.tyreWear).toBe("good");
   });
 
+  it("draws the own kart from behind, so only its two rear tyres take the band's tone", () => {
+    const { find } = mount();
+    expect(find("tyre")?.querySelectorAll("[data-tyre-corner]")).toHaveLength(2);
+  });
+
   it.each([
     [100, "100%", "good"],
     [60.2, "61%", "good"],
@@ -993,6 +998,7 @@ describe("the panel in the local kart's livery", () => {
         hexCss(paint.primary),
         hexCss(paint.secondary),
         hexCss(paint.accent),
+        hexCss(paint.driver.hairColour),
       ]),
     );
     expect(tyre).not.toContain(hexCss(livery(other).primary));
