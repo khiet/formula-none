@@ -112,8 +112,8 @@ TUNNEL_SHORT_OF_EXIT_M = 15.0
 # The road narrows from its 12 m toward Monaco's own, about 7.5 m at its tightest
 # (ADR 0106): 9 m from Mirabeau to the hairpin's exit and at Rascasse, 8 m round
 # the Grand Hotel hairpin, and 10 m at Mirabeau Bas, where a boosted kart at 9 m
-# cleared the wall and flew past Portier's checkpoint. Each narrowing tapers in
-# over this much of the road before it.
+# cleared the wall and flew past Portier's checkpoint. The descent and the quay
+# narrow over this much of the road before Mirabeau and Rascasse.
 NARROW_HALF_WIDTH_M = 4.5
 HAIRPIN_HALF_WIDTH_M = 4.0
 MIRABEAU_BAS_HALF_WIDTH_M = 5.0

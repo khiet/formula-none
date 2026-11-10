@@ -469,8 +469,8 @@ class Layout:
 
     @property
     def runoff_half_width(self) -> float:
-        """The default's, wider than anywhere a layout narrows: a clearance measured from it is a
-        safe overestimate, but where the wall stands is `runoff_half_width_at`."""
+        """The default's: a clearance measured from it is safe only where every override narrows,
+        and the wall itself stands at `runoff_half_width_at`."""
         return self.asphalt_half_width + self.runoff_width
 
     def half_width_at(self, s: float) -> float:

@@ -34,7 +34,7 @@ COIN_HALF_WIDTH_M = tuning_constant("COIN_HALF_WIDTH_M")
 KERB_HALF_WIDTH_M = tuning_constant("KERB_HALF_WIDTH_M")
 
 # Monarch's narrowed corners: Mirabeau to Mirabeau Bas, the hairpin narrowest, and Rascasse.
-# Mirabeau Bas is the bot gate's: at 9 m a boosted kart cleared its wall.
+# Mirabeau Bas is wider because at 9 m a boosted bot cleared its wall.
 MIRABEAU_TO_MIRABEAU_BAS = {
     "mirabeau": 4.5,
     "mirabeau-kink": 4.5,
