@@ -875,10 +875,9 @@ function tyreBlock(parent: Element, x: number, y: number, width: number, height:
 
 /**
  * The own kart from behind for the tyre gauge, as the chase camera sees it
- * (ADR 0105): the rear wing in secondary across the top with accent
- * endplates, the two rear tyres either side, the tub in primary lit on the
- * left with the accent stripe, and the halo round the driver's hair above
- * it. Decorative: the gauge's percentage is the text.
+ * (ADR 0105), in its livery with the driver's hair. Only the rears show and
+ * carry the band's tone; tyre life is one number, so the hidden fronts lose
+ * nothing. Decorative: the gauge's percentage is the text.
  */
 function kartFromBehind(paint: Livery): SVGSVGElement {
   const kart = svg("0 0 72 58");
