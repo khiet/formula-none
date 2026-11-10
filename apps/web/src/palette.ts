@@ -20,7 +20,7 @@ export const INK = 0x111111;
 export const VALUE_WHITE = 0xffffff;
 export const LABEL_GREY = 0xc9ced5;
 
-/** The stack, the gear, FINISH and the standings: the colour of the kart's floor. */
+/** The timing tower, the gear, FINISH and the standings: the colour of the kart's floor. */
 export const CARBON: Tones = { lit: 0x4a4f57, mid: 0x2b2e33, shaded: 0x1b1d21 };
 /** The item box and its slot, the one gold in the game besides the posters'. */
 export const ITEM_BOX_GOLD: Tones = { lit: 0xf8e39a, mid: 0xe0b54a, shaded: 0xc99a2e };

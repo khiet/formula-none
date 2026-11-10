@@ -187,6 +187,11 @@
   .line.small { font-size: calc(var(--hud) * 1.7); }
   .line svg { width: 1.3em; height: 1.3em; display: block; }
   .flags { display: flex; gap: 0.25em; }
+  /* The timing tower: one carbon plate, 26 units wide; the position a livery band in its top, the rows on a shared label column with hairline rules. */
+  .tower { display: grid; gap: 0; box-sizing: border-box; width: calc(var(--hud) * 26); padding: calc(var(--hud) * 0.6); align-items: stretch; }
+  .tower .band { justify-content: center; margin-bottom: calc(var(--hud) * 0.4); }
+  .tower .row { display: grid; grid-template-columns: calc(var(--hud) * 5.6) 1fr; align-items: center; gap: calc(var(--hud) * 1.3); padding: calc(var(--hud) * 0.7) calc(var(--hud) * 0.6); white-space: nowrap; border-top: 1px solid rgb(255 255 255 / 0.1); }
+  .tower .row.small:not(.set) > :last-child { color: #c9ced5; }
   .slot { --c: calc(var(--hud) * 2.2); width: calc(var(--hud) * 9.9); height: calc(var(--hud) * 9.9); justify-content: center; padding: 0; }
   .slot svg { width: 88%; height: auto; }
   /* The reel: one slot-high cell per character, scrolled up through the plate. */
@@ -832,9 +837,10 @@
     <div class="cards">
       <article class="asset">
         <header><h3>Position, laps, times</h3><code>apps/web/src/instrument-panel.ts, format.ts</code></header>
-        <div class="compare"><figure><figcaption>Top left</figcaption><div class="view"><div class="hud stack lv follows" id="stack"></div></div></figure></div>
-        <dl class="spec"><dt>Decided</dt><dd><a href="adr/0037-instrument-panel-in-chibi-low-poly.md">ADR 0037</a>; notation from <a href="adr/0023-hud-language.md">0023</a></dd></dl>
-        <div class="notes"><p>The position on a plate in your livery's primary, shaded like the car's nose; laps, time and best on carbon plates, the colour of the car's floor. A flag per lap of the race, three or five (ADR 0084), folded like a low-poly flag, in your livery's accent until that lap is done, then chequered.</p></div>
+        <div class="compare"><figure><figcaption>Top left: lap 3 of 3 with no best yet; lap 4 of 5 with a best set</figcaption><div class="view"><div class="hud hud-row lv follows" id="stack" style="align-items:start"></div></div></figure></div>
+        <dl class="spec"><dt>Decided</dt><dd><a href="adr/0105-the-timing-tower-the-coin-pile-and-the-kart-from-behind.md">ADR 0105</a>, plates by <a href="adr/0037-instrument-panel-in-chibi-low-poly.md">0037</a>, notation from <a href="adr/0023-hud-language.md">0023</a>; the pick in <a href="mockups/stats-stack-variations.html">the stack mockup</a>, take 1</dd></dl>
+        <div class="notes"><p>A timing tower: one carbon plate, the colour of the car's floor, with one straight right edge and one drop, 26 HUD units wide on every race. The position is a band in your livery's primary, shaded like the car's nose, set into its top with no drop of its own. Under it LAP, TIME and BEST share a label column, so the values line up, with a hairline rule, white at 10%, between each row; the rule divides the plate's rows and is the one line inside a plate the panel draws. A flag per lap of the race, three or five (ADR 0084), folded like a low-poly flag, in your livery's accent until that lap is done, then chequered; five fill the lap row. The best row is smaller, its value in the label grey until there is a best lap, then white. Once you finish the lap row goes and the tower shortens, with the item slot under it.</p>
+          <p class="dont"><b>Don't</b> size the tower to the race's laps or its text, or give the position back its own plate.</p></div>
       </article>
 
       <article class="asset wide">
@@ -2364,10 +2370,12 @@
   const lapFlag = (done) => `<svg viewBox="0 0 14 14" aria-hidden="true"><rect x="1" y="1" width="1.4" height="12.5" fill="#e3e6ea"/>
     ${poly([[2.4, 1], [8, 2.2], [8, 8.4], [2.4, 7.2]], done ? "url(#cq2)" : "var(--a-lt)")}${poly([[8, 2.2], [13.4, 1], [13.4, 7.2], [8, 8.4]], done ? "url(#cq2)" : "var(--a)")}
     ${done ? poly([[8, 2.2], [13.4, 1], [13.4, 7.2], [8, 8.4]], "rgb(0 0 0 / 0.28)") : ""}</svg>`;
-  document.getElementById("stack").innerHTML = `<span class="pl"><span class="pf t-livery posp">1<small>ST</small></span></span>
-    <span class="pl"><span class="pf t-carbon line"><span class="lab">LAP</span><span class="flags">${lapFlag(true)}${lapFlag(true)}${lapFlag(false)}</span></span></span>
-    <span class="pl"><span class="pf t-carbon line"><span class="lab">TIME</span>0'27"304</span></span>
-    <span class="pl"><span class="pf t-carbon line small"><span class="lab">BEST</span>-'--"---</span></span>`;
+  const tower = (place, suffix, done, laps, time, best) => `<span class="pl"><span class="pf t-carbon tower">
+    <span class="pf t-livery posp band">${place}<small>${suffix}</small></span>
+    <span class="row line"><span class="lab">LAP</span><span class="flags">${Array.from({ length: laps }, (_, i) => lapFlag(i < done)).join("")}</span></span>
+    <span class="row line"><span class="lab">TIME</span><span>${time}</span></span>
+    <span class="row line small${best ? " set" : ""}"><span class="lab">BEST</span><span>${best ?? `-'--"---`}</span></span></span></span>`;
+  document.getElementById("stack").innerHTML = tower(1, "ST", 2, 3, `0'27"304`, null) + tower(5, "TH", 3, 5, `0'31"072`, `0'44"910`);
 
   const chip = (k) => `<span class="chip3"><i style="background:${hex(LIVERIES[k].p)}"></i><i style="background:${hex(LIVERIES[k].s)}"></i><i style="background:${hex(LIVERIES[k].a)}"></i></span>`;
   document.getElementById("standings").innerHTML = [0, 3, 1].map((k, i) => `<li><span class="pl"><span class="pf ${i === 0 ? "t-gold" : "t-carbon"}"><b>${["1ST", "2ND", "3RD"][i]}</b>${chip(k)}${NICKS[k]}<span style="margin-left:auto">${["1'20\"000", "1'21\"204", "1'22\"318"][i]}</span></span></span></li>`).join("");

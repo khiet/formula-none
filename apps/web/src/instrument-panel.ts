@@ -113,8 +113,8 @@ export interface LabelledReadout {
 export interface LapReadouts {
   /** The position as a large numeral and a small suffix. */
   readonly position: OrdinalParts;
-  /** The lap count as text, which the panel keeps for assistive technology behind the flags. */
-  readonly lap: string;
+  /** The lap count: the label shows, and the value is kept for assistive technology behind the flags. */
+  readonly lap: LabelledReadout;
   /** How many of the race's laps are behind the kart: one checkered flag each. */
   readonly lapsCompleted: number;
   readonly lapTime: LabelledReadout;
@@ -218,15 +218,23 @@ export function createInstrumentPanel(
     return span;
   };
 
+  // The timing tower (ADR 0105): one carbon plate whose rows are the
+  // position's band in the livery, then lap, time and best sharing a label
+  // column. Only the tower is a plate, so it alone drops ink.
+  const tower = document.createElement("div");
+  tower.dataset.tower = "";
+  plate(tower, CARBON);
   const position = instrument("position");
-  plate(position, tonesOf(paint.primary));
+  position.dataset.band = "";
+  writeTones(position, "plate", tonesOf(paint.primary));
   const numeral = part(position, "numeral");
   const suffix = part(position, "suffix");
 
   // The lap count stays as text for assistive technology; the flags that
   // show it are decorative, one per lap of the race.
   const lap = instrument("lap");
-  plate(lap, CARBON);
+  const lapLabel = part(lap, "label");
+  lap.append(" ");
   const lapText = part(lap, "lapText");
   const flagRow = part(lap, "flags");
   flagRow.setAttribute("aria-hidden", "true");
@@ -237,9 +245,8 @@ export function createInstrumentPanel(
   });
 
   const lapTime = instrument("lap-time");
-  plate(lapTime, CARBON);
   const bestLap = instrument("best-lap");
-  plate(bestLap, CARBON);
+  tower.append(position, lap, lapTime, bestLap);
   const wrongWay = instrument("wrong-way");
   plate(wrongWay, HAZARD_ORANGE);
   wrongWay.hidden = true;
@@ -425,7 +432,7 @@ export function createInstrumentPanel(
   greybox.append(surface, " ", connection);
   const stack = document.createElement("div");
   stack.dataset.stack = "";
-  stack.append(position, lap, lapTime, bestLap, itemWithRing);
+  stack.append(tower, itemWithRing);
   const courseMap = createCourseMap(course);
   panel.append(
     stack,
@@ -487,12 +494,15 @@ export function createInstrumentPanel(
       const readouts = lapReadouts(standing, lapsPerRace);
       numeral.textContent = readouts.position.numeral;
       suffix.textContent = readouts.position.suffix;
-      lapText.textContent = readouts.lap;
+      lapLabel.textContent = readouts.lap.label;
+      lapText.textContent = readouts.lap.value;
       flags.forEach((flag, index) => {
         flag.dataset.flag = index < readouts.lapsCompleted ? "done" : "todo";
       });
       printLabelled(lapTime, readouts.lapTime);
       printLabelled(bestLap, readouts.bestLap);
+      // An unset best prints its dashes in the label grey.
+      bestLap.toggleAttribute("data-set", standing.bestLapS !== null);
       wrongWay.textContent = readouts.wrongWay;
       wrongWay.hidden = readouts.wrongWay === "";
       showSpeed(local.speed, local.coins, local.inPitLane);
@@ -634,7 +644,7 @@ export function lapReadouts(standing: Standing, lapsPerRace: number): LapReadout
       : lapsPerRace;
   return {
     position: ordinalParts(standing.position),
-    lap: `Lap ${standing.lap}/${lapsPerRace}`,
+    lap: { label: "Lap", value: `${standing.lap}/${lapsPerRace}` },
     lapsCompleted,
     lapTime: { label: "Time", value: formatLapTime(standing.lapTimeS) },
     bestLap: {
