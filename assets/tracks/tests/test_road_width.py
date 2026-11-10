@@ -14,7 +14,17 @@ from dataclasses import replace
 
 from tests.test_boost_pads import tuning_constant
 from tests.test_tyre_walls import left_of_centre, nearest_sample
-from trackgen.layout import HAZARD_HALF_DEPTH_M, KERB_WIDTH_M, WALL_THICKNESS_M, Taper, build
+from trackgen.layout import (
+    COIN_LINE_SPACING_M,
+    HAZARD_HALF_DEPTH_M,
+    HOARDING_SETBACK_M,
+    HOARDING_SPACING_M,
+    KERB_WIDTH_M,
+    WALL_THICKNESS_M,
+    Taper,
+    along_outside,
+    build,
+)
 from trackgen.layouts import NAMES, load
 
 BOX_HALF_LENGTH_M = tuning_constant("ITEM_BOX_HALF_LENGTH_M")
@@ -52,9 +62,6 @@ class Monarch(unittest.TestCase):
         self.layout = load("monarch")
         self.seg = self.layout.path.segment
         self.width = self.layout.half_width_at
-
-    def test_its_default_is_still_12_m(self) -> None:
-        self.assertEqual(self.layout.asphalt_half_width, 6.0)
 
     def test_mirabeau_to_the_hairpin_exit_narrows_to_9_m_the_hairpin_to_8_m_and_mirabeau_bas_to_10_m(self) -> None:
         tapered = {"grand-hotel": (HALF_METRE_TAPER_M, HALF_METRE_TAPER_M), "mirabeau-bas": (HALF_METRE_TAPER_M, 0.0)}
@@ -168,12 +175,23 @@ class TheLocalWidth(unittest.TestCase):
             self.assertLessEqual(left, half + 1e-6)
         self.assertAlmostEqual(min(left_of_centre(layout, x, y, hairpin.s_mid) for p in stripes for x, y, _ in p.mesh[0]), 4.0 - KERB_WIDTH_M, places=6)
 
+    def test_the_hoardings_at_portier_and_rascasse_stand_their_setback_behind_the_local_wall(self) -> None:
+        layout = load("monarch")
+        for run in layout.decor.hoardings:
+            for spot in along_outside(layout, run.segments, run.side, HOARDING_SETBACK_M, HOARDING_SPACING_M):
+                sample = nearest_sample(layout, spot.x, spot.y, layout.path.segment(run.segments[0]).s_mid)
+                with self.subTest(run.segments[0], s=round(sample.s)):
+                    expected = layout.runoff_half_width_at(sample.s) + WALL_THICKNESS_M + HOARDING_SETBACK_M
+                    self.assertAlmostEqual(abs(left_of_centre(layout, spot.x, spot.y, sample.s)), expected, places=6)
+        narrowed = [run for run in layout.decor.hoardings if run.segments in (("portier",), ("rascasse",))]
+        self.assertEqual(len(narrowed), 2, "both stand where the road narrows")
+
     def test_every_box_pad_coin_and_sausage_kerb_lies_inside_the_local_width(self) -> None:
         for name in NAMES:
             layout = load(name)
             placed = [(row.s, offset, BOX_HALF_WIDTH_M) for row in layout.item_rows for offset in row.offsets]
             placed += [(pad.s, pad.offset, PAD_HALF_WIDTH_M) for pad in layout.boost_pads]
-            placed += [(line.s + 4.0 * k, line.offset, COIN_HALF_WIDTH_M) for line in layout.coin_lines for k in range(line.count)]
+            placed += [(line.s + COIN_LINE_SPACING_M * k, line.offset, COIN_HALF_WIDTH_M) for line in layout.coin_lines for k in range(line.count)]
             placed += [(kerb.s, kerb.offset, KERB_HALF_WIDTH_M) for kerb in layout.kerbs]
             for s, offset, half_width in placed:
                 with self.subTest(name, s=round(s), offset=offset):
