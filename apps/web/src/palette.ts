@@ -149,6 +149,8 @@ const PROPERTIES: Readonly<Record<string, number | Tones>> = {
   label: LABEL_GREY,
   carbon: CARBON,
   gold: ITEM_BOX_GOLD,
+  coin: COIN_GOLD,
+  "coin-rim": COIN_RIM,
   firing: FIRING,
   white: WHITE,
   green: SIGNAL_GREEN,

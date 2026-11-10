@@ -338,13 +338,13 @@ describe("the finish on the page", () => {
 });
 
 describe("the speed cluster on the page", () => {
-  const mount = () => {
+  const mount = (tuning: PanelTuning = TUNING) => {
     const container = document.createElement("div");
     const panel = createInstrumentPanel(
       container,
       3,
       course,
-      TUNING,
+      tuning,
       nameOf,
       livery(course.ownKart),
     );
@@ -385,7 +385,7 @@ describe("the speed cluster on the page", () => {
     const { find, drive } = mount();
     expect(find("speed")?.textContent).toBe("0 km/h");
     expect(find("gear")?.textContent).toBe("N");
-    expect(find("coins")?.textContent).toBe("x00 / 10");
+    expect(find("coins")?.textContent).toBe("0");
     drive(23.6);
     expect(find("speed")?.textContent).toBe("85 km/h");
     expect(find("gear")?.textContent).toBe("5");
@@ -396,12 +396,35 @@ describe("the speed cluster on the page", () => {
 
   it("reads the coins the own kart carries, rising as it takes them and falling on a spin-out", () => {
     const { find, drive } = mount();
+    const coins = find("coins");
+    expect(coins?.getAttribute("role")).toBe("img");
+    expect(coins?.getAttribute("aria-label")).toBe("0 of 10 coins");
     drive(20, 7);
-    expect(find("coins")?.textContent).toBe("x07 / 10");
+    expect(coins?.textContent).toBe("7");
+    expect(coins?.getAttribute("aria-label")).toBe("7 of 10 coins");
     drive(20, 10);
-    expect(find("coins")?.textContent).toBe("x10 / 10");
+    expect(coins?.textContent).toBe("10");
+    expect(coins?.getAttribute("aria-label")).toBe("10 of 10 coins");
     drive(5, 7);
-    expect(find("coins")?.textContent).toBe("x07 / 10");
+    expect(coins?.textContent).toBe("7");
+    expect(coins?.getAttribute("aria-label")).toBe("7 of 10 coins");
+  });
+
+  it("piles the coins from the bottom, with a slot for each up to the cap", () => {
+    const { find, drive } = mount({ ...TUNING, coinCap: 6 });
+    // Slots run top to bottom on the page, so a pile filling from the bottom holds the last ones.
+    const held = () =>
+      [...(find("coins")?.querySelectorAll<HTMLElement>("[data-coin-slot]") ?? [])].map(
+        (slot) => slot.dataset.held,
+      );
+    expect(held()).toEqual(Array(6).fill("false"));
+    drive(20, 2);
+    expect(held()).toEqual(["false", "false", "false", "false", "true", "true"]);
+    drive(20, 6);
+    expect(held()).toEqual(Array(6).fill("true"));
+    expect(find("coins")?.getAttribute("aria-label")).toBe("6 of 6 coins");
+    drive(5, 3);
+    expect(held()).toEqual(["false", "false", "false", "true", "true", "true"]);
   });
 
   it("shows the RAIN plate as the rain arrives, and only then", () => {
@@ -505,13 +528,12 @@ describe("the speed cluster on the page", () => {
     expect(find("gear")?.dataset.limiter).toBe("false");
   });
 
-  it("hides the shift lights, the kart icon and the coin icon from assistive technology", () => {
+  it("hides the shift lights and the kart icon from assistive technology", () => {
     const { container, find } = mount();
     const lights = container.querySelector("[data-shift-lights]");
     expect(lights?.getAttribute("aria-hidden")).toBe("true");
     expect(lights?.children).toHaveLength(12);
     expect(find("tyre")?.querySelector("svg")?.getAttribute("aria-hidden")).toBe("true");
-    expect(find("coins")?.querySelector("svg")?.getAttribute("aria-hidden")).toBe("true");
   });
 
   it("lights the shift lights with the revs and marks the limiter on the gear so it can flash", () => {

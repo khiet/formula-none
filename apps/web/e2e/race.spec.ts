@@ -17,7 +17,11 @@ for (const [name, url, throttleKey] of [
     const surface = page.locator('[data-instrument="surface"]');
     await expect(speed).toHaveText("0 km/h");
     await expect(page.locator('[data-instrument="gear"]')).toHaveText("N");
-    await expect(page.locator('[data-instrument="coins"]')).toHaveText("x00 / 10");
+    await expect(page.locator('[data-instrument="coins"]')).toHaveText("0");
+    await expect(page.locator('[data-instrument="coins"]')).toHaveAttribute(
+      "aria-label",
+      "0 of 10 coins",
+    );
     await expect(surface).toHaveText("asphalt");
     // The Instrument panel's lap readouts come from the sim: on lap one, the
     // lap clock running and no best lap yet, and last once the seven bots
