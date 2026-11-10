@@ -162,7 +162,7 @@ class ThePitLane:
                 self.assertAlmostEqual(checkpoint.half_width, outer_face)
                 along_the_lane += 1
             else:
-                self.assertAlmostEqual(checkpoint.half_width, self.layout.runoff_half_width + WALL_THICKNESS_M)
+                self.assertAlmostEqual(checkpoint.half_width, self.layout.runoff_half_width_at(s) + WALL_THICKNESS_M)
         self.assertGreaterEqual(along_the_lane, 2, "the start gate and one past the building")
 
     def test_each_of_the_eight_pit_boxes_stands_on_the_apron_in_front_of_its_door(self) -> None:

@@ -5,7 +5,9 @@ Beau Rivage to Massenet and Casino Square, down to Mirabeau, round the
 Grand Hotel hairpin, Mirabeau Bas and Portier, through the tunnel to the
 chicane, along the harbour to Tabac, the two swimming pool chicanes, the
 quay, La Rascasse and Anthony Noghes. The run-off is a 2 m strip, so the
-walls stand close as they do in the streets. The road climbs 8 m from
+walls stand close as they do in the streets. The road is 12 m wide but for
+Mirabeau to Mirabeau Bas and La Rascasse, narrowed toward Monaco's own,
+with the run-off and the walls following its edge in. The road climbs 8 m from
 Sainte Devote to its crest at Casino Square and falls again by the tunnel;
 there is no ramp, since one on a street circuit lands against a wall. The
 layout is docs/mockups/monaco-course.html's.
@@ -26,6 +28,7 @@ from ..layout import (
     PitLane,
     Prop,
     Spot,
+    Taper,
     Tunnel,
     TyreWall,
     WheelCrossing,
@@ -106,6 +109,18 @@ POOL_LENGTH_M = 30.0
 # both portals stand on the flat.
 TUNNEL_PAST_MOUTH_M = 10.0
 TUNNEL_SHORT_OF_EXIT_M = 15.0
+# The road narrows from its 12 m toward Monaco's own, about 7.5 m at its tightest
+# (ADR 0106): 9 m from Mirabeau to the hairpin's exit and at Rascasse, 8 m round
+# the Grand Hotel hairpin, and 10 m at Mirabeau Bas, where a boosted kart at 9 m
+# cleared the wall and flew past Portier's checkpoint. Each narrowing tapers in
+# over this much of the road before it.
+NARROW_HALF_WIDTH_M = 4.5
+HAIRPIN_HALF_WIDTH_M = 4.0
+MIRABEAU_BAS_HALF_WIDTH_M = 5.0
+TAPER_IN_M = 15.0
+# The hairpin closes the last half metre over its own first and last few metres,
+# and Mirabeau Bas opens its half metre over its first few.
+HALF_METRE_TAPER_M = 5.0
 
 path = (
     Turtle(x=0.0, y=0.0, heading_deg=98.0)
@@ -155,6 +170,25 @@ LAYOUT = Layout(
     path=path,
     asphalt_half_width=6.0,
     runoff_width=2.0,
+    half_widths={
+        **{
+            name: NARROW_HALF_WIDTH_M
+            for name in ("mirabeau", "mirabeau-kink", "hairpin-approach", "hairpin-exit", "rascasse")
+        },
+        "grand-hotel": HAIRPIN_HALF_WIDTH_M,
+        "mirabeau-bas": MIRABEAU_BAS_HALF_WIDTH_M,
+    },
+    tapers=[
+        # In after the wheel crossing, out over Portier so the tunnel entry's box row has the full width.
+        Taper(seg("casino-descent").s_end - TAPER_IN_M, seg("mirabeau").s_start),
+        Taper(seg("grand-hotel").s_start, seg("grand-hotel").s_start + HALF_METRE_TAPER_M),
+        Taper(seg("grand-hotel").s_end - HALF_METRE_TAPER_M, seg("grand-hotel").s_end),
+        Taper(seg("mirabeau-bas").s_start, seg("mirabeau-bas").s_start + HALF_METRE_TAPER_M),
+        Taper(seg("portier-approach").s_start, seg("tunnel-entry").s_start),
+        # In after the quay's box row, out down the exit straight, well before the pit lane's fork.
+        Taper(seg("quay").s_end - TAPER_IN_M, seg("rascasse").s_start),
+        Taper(seg("rascasse-exit").s_start, seg("rascasse-exit").s_end),
+    ],
     checkpoint_count=15,
     tyre_walls=[
         # Outside Sainte Devote: a right-hander's inside is on the bots' line.

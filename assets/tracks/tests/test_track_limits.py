@@ -27,7 +27,7 @@ def wall_bases(layout) -> dict[tuple[float, float], float]:
 
 
 def edge(sample, layout, side: int) -> tuple[float, float]:
-    x, y = sample.offset(side * layout.runoff_half_width)
+    x, y = sample.offset(side * layout.runoff_half_width_at(sample.s))
     return round(x, 3), round(y, 3)
 
 
@@ -101,7 +101,7 @@ class Checkpoints(unittest.TestCase):
                     self.assertAlmostEqual(checkpoint.x, expected.x, places=6)
                     self.assertAlmostEqual(checkpoint.y, expected.y, places=6)
                     # At least: test_pit_lane holds those along a lane to reaching across it.
-                    self.assertGreaterEqual(checkpoint.half_width, layout.runoff_half_width + WALL_THICKNESS_M)
+                    self.assertGreaterEqual(checkpoint.half_width, layout.runoff_half_width_at(expected.s) + WALL_THICKNESS_M)
 
     def test_the_oval_has_twelve_and_every_course_fifteen(self) -> None:
         for name, count in (("oval", 12), ("bell-deer", 15), ("goldstone", 15), ("monarch", 15)):

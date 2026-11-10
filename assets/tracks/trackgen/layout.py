@@ -431,6 +431,16 @@ class PitLane:
     door_first: float = PITS_DOOR_FIRST_M
 
 
+@dataclass(frozen=True)
+class Taper:
+    """The asphalt's half width changing linearly in s from `s_start` to `s_end`: from the width
+    of the segment ending at or holding `s_start` to that of the segment starting at or holding
+    `s_end`, so the edge never steps. A taper overrides the segments it lies over."""
+
+    s_start: float
+    s_end: float
+
+
 @dataclass
 class Layout:
     name: str
@@ -448,10 +458,56 @@ class Layout:
     ramps: list[Ramp] = field(default_factory=list)
     decor: Decor = field(default_factory=Decor)
     pit_lane: PitLane | None = None
+    half_widths: dict[str, float] = field(default_factory=dict)
+    """The asphalt's half width over the segments so named, where it is not `asphalt_half_width`.
+    The run-off keeps `runoff_width` beyond the local edge, so the walls follow it in."""
+    tapers: list[Taper] = field(default_factory=list)
+
+    def __post_init__(self) -> None:
+        for name in self.half_widths:
+            self.path.segment(name)
 
     @property
     def runoff_half_width(self) -> float:
+        """The default's: where a layout narrows, `runoff_half_width_at` is the wall's place."""
         return self.asphalt_half_width + self.runoff_width
+
+    def half_width_at(self, s: float) -> float:
+        """The asphalt's half width at arc length `s`, which may wrap around the loop."""
+        if not self.half_widths:
+            return self.asphalt_half_width
+        length = self.path.length
+        for taper in self.tapers:
+            span = (taper.s_end - taper.s_start) % length
+            into = (s - taper.s_start) % length
+            if into <= span:
+                before = self._segment_half_width(taper.s_start, before=True)
+                after = self._segment_half_width(taper.s_end, before=False)
+                return before + (after - before) * into / span
+        return self._segment_half_width(s, before=False)
+
+    def runoff_half_width_at(self, s: float) -> float:
+        return self.half_width_at(s) + self.runoff_width
+
+    def _segment_half_width(self, s: float, before: bool) -> float:
+        """The half width of the segment at `s`; on a boundary, the one ending there when `before`,
+        else the one starting there."""
+        length = self.path.length
+        s %= length
+        if before and s == 0.0:
+            s = length
+        for segment in self.path.segments:
+            inside = segment.s_start < s <= segment.s_end if before else segment.s_start <= s < segment.s_end
+            if inside:
+                return self.half_widths.get(segment.name, self.asphalt_half_width)
+        return self.asphalt_half_width
+
+    def width_is_uniform(self, s_start: float, s_end: float) -> bool:
+        """Whether the half width holds from `s_start` to `s_end`, wrapping past the start line."""
+        span = (s_end - s_start) % self.path.length
+        steps = max(1, math.ceil(span / SAMPLE_STEP_M))
+        widths = {self.half_width_at(s_start + span * k / steps) for k in range(steps + 1)}
+        return len(widths) == 1
 
 
 @dataclass(frozen=True)
@@ -552,33 +608,53 @@ class TrackGeometry:
     ramp_lips: list[Placement] = field(default_factory=list)
 
 
+def uniform_widths(layout: Layout) -> None:
+    """Refuse a layout that changes its width under what is built to one width: a tunnel, a
+    bridge, a ramp, a pit lane or a wheel crossing's hazard zone."""
+    spans = [(f"tunnel at {t.s_start}", t.s_start, t.s_end) for t in layout.decor.tunnels]
+    spans += [(f"bridge at {b.deck_s}", b.s_start, b.s_end) for b in layout.decor.bridges]
+    spans += [(f"ramp at {r.s_start}", r.s_start, r.s_end) for r in layout.ramps]
+    spans += [
+        (f"wheel crossing at {c.s}", c.s - HAZARD_HALF_DEPTH_M, c.s + HAZARD_HALF_DEPTH_M)
+        for c in layout.wheel_crossings
+    ]
+    if layout.pit_lane is not None:
+        spans.append(("pit lane", layout.pit_lane.s_fork, layout.pit_lane.s_merge))
+    for what, s_start, s_end in spans:
+        if not layout.width_is_uniform(s_start, s_end):
+            raise ValueError(f"{layout.name}: the road's width changes under the {what}")
+
+
 def build(layout: Layout) -> TrackGeometry:
+    uniform_widths(layout)
     path = layout.path
     height = [elevation(layout.elevation, sample.s) for sample in path.samples]
 
-    def rail(offset: float, drop: float = 0.0) -> list[mesh.Vertex]:
+    halves = [layout.half_width_at(sample.s) for sample in path.samples]
+
+    def rail(side: int, beyond: float = 0.0, drop: float = 0.0) -> list[mesh.Vertex]:
+        """Along the lap on `side` (1 left, -1 right), `beyond` metres out from the local edge of the asphalt."""
         return [
-            (*sample.offset(offset), h - drop)
-            for sample, h in zip(path.samples, height)
+            (*sample.offset(side * (half + beyond)), h - drop)
+            for sample, half, h in zip(path.samples, halves, height)
         ]
 
-    half = layout.asphalt_half_width
-    runoff = layout.runoff_half_width
+    runoff = layout.runoff_width
     # Across the asphalt from its left edge, and along it in metres of arc
     # length, so a tyre mark laid in these coordinates lands where the kart was.
     asphalt_uvs = [(0.0, sample.s) for sample in path.samples] + [
         (1.0, sample.s) for sample in path.samples
     ]
-    asphalt = mesh.ribbon(rail(half), rail(-half), closed=True)
+    asphalt = mesh.ribbon(rail(1), rail(-1), closed=True)
     for ramp in layout.ramps:
         asphalt, asphalt_uvs = ramp_in_the_asphalt(layout, ramp, asphalt, asphalt_uvs)
     surfaces = [
         SurfaceMesh("Asphalt", ASPHALT, ASPHALT, asphalt, uvs=asphalt_uvs),
         SurfaceMesh(
-            "SandLeft", SAND, SAND, mesh.ribbon(rail(runoff, GRASS_DROP_M), rail(half), closed=True)
+            "SandLeft", SAND, SAND, mesh.ribbon(rail(1, runoff, GRASS_DROP_M), rail(1), closed=True)
         ),
         SurfaceMesh(
-            "SandRight", SAND, SAND, mesh.ribbon(rail(-half), rail(-runoff, GRASS_DROP_M), closed=True)
+            "SandRight", SAND, SAND, mesh.ribbon(rail(-1), rail(-1, runoff, GRASS_DROP_M), closed=True)
         ),
     ]
     min_x, min_y, max_x, max_y = path.bounds()
@@ -613,8 +689,8 @@ def build(layout: Layout) -> TrackGeometry:
     for name, side in (("WallLeft", 1), ("WallRight", -1)):
         if lane is not None and side == lane.side:
             continue
-        inner = rail(side * runoff, GRASS_DROP_M)
-        outer = rail(side * (runoff + WALL_THICKNESS_M), GRASS_DROP_M)
+        inner = rail(side, runoff, GRASS_DROP_M)
+        outer = rail(side, runoff + WALL_THICKNESS_M, GRASS_DROP_M)
         surfaces.append(
             SurfaceMesh(name, WALL, WALL, mesh.box_rail(inner, outer, WALL_HEIGHT_M, closed=True))
         )
@@ -636,10 +712,12 @@ def build(layout: Layout) -> TrackGeometry:
 
     def checkpoint_reach(s: float) -> float:
         """To the walls' outer faces, or along a pit lane to its outer wall's, on both sides as
-        every checkpoint is (ADR 0079): a lap through the pits crosses these too."""
+        every checkpoint is (ADR 0079): a lap through the pits crosses these too. Read at the
+        sample the checkpoint snaps to, where a taper's width is the wall's."""
+        s = path.at(s).s
         if lane is not None and (s - lane.s_fork) % path.length <= lane.s_merge - lane.s_fork:
             return pit_lane.outer_face(layout)
-        return runoff + WALL_THICKNESS_M
+        return layout.runoff_half_width_at(s) + WALL_THICKNESS_M
 
     # Evenly spaced from the start line, each reaching the walls' outer faces,
     # so a kart between the walls or in the air over one crosses every one in
@@ -664,7 +742,7 @@ def build(layout: Layout) -> TrackGeometry:
     ]
     # Wall to wall: the run-off's edges, where the walls stand.
     wheel_crossings = [
-        place(crossing.s, half_width=runoff, hazard_half_depth=HAZARD_HALF_DEPTH_M)
+        place(crossing.s, half_width=layout.runoff_half_width_at(crossing.s), hazard_half_depth=HAZARD_HALF_DEPTH_M)
         for crossing in layout.wheel_crossings
     ]
     spawn_grid = [
@@ -699,7 +777,7 @@ def build(layout: Layout) -> TrackGeometry:
 def ramp_stations(layout: Layout, ramp: Ramp) -> tuple[list[int], list[float]]:
     """The centreline samples a ramp spans and its rise at each, from nothing at the foot to its
     full height at the lip, whichever samples lie nearest its two ends."""
-    half = layout.asphalt_half_width
+    half = layout.half_width_at(ramp.s_start)
     if not -half <= ramp.right < ramp.left <= half:
         raise ValueError(f"a ramp from {ramp.right} to {ramp.left} m is not on {half} m of asphalt")
     indices = layout.path.indices_between(ramp.s_start, ramp.s_end)
@@ -722,7 +800,7 @@ def ramp_in_the_asphalt(
     sim's ramp is the slope alone, and `ramp_markings` draws the rest. A kart that comes in from
     the side rides up it, or runs under its high end on the grass there, and is never held.
     """
-    half = layout.asphalt_half_width
+    half = layout.half_width_at(ramp.s_start)
     path = layout.path
     vertices, faces = list(asphalt[0]), list(asphalt[1])
     uvs = list(uvs)
@@ -856,7 +934,6 @@ def decorate(layout: Layout, height: list[float]) -> tuple[list[SceneryMesh], li
 def kerbs(layout: Layout, height: list[float]) -> list[SceneryMesh]:
     """Red-and-white stripes along both edges of the asphalt through every corner."""
     path = layout.path
-    half = layout.asphalt_half_width
 
     def lifted(index: int, offset: float) -> mesh.Vertex:
         sample = path.samples[index]
@@ -868,8 +945,9 @@ def kerbs(layout: Layout, height: list[float]) -> list[SceneryMesh]:
             continue
         indices = path.indices_between(segment.s_start, segment.s_end)
         for side, label in ((1, "L"), (-1, "R")):
-            outer = [lifted(i, side * half) for i in indices]
-            inner = [lifted(i, side * (half - KERB_WIDTH_M)) for i in indices]
+            halves = [layout.half_width_at(path.samples[i].s) for i in indices]
+            outer = [lifted(i, side * half) for i, half in zip(indices, halves)]
+            inner = [lifted(i, side * (half - KERB_WIDTH_M)) for i, half in zip(indices, halves)]
             left, right = (outer, inner) if side == 1 else (inner, outer)
             red, white = mesh.striped(mesh.ribbon(left, right, closed=False), KERB_STRIPE_SAMPLES)
             result.append(SceneryMesh(f"Kerb.{segment.name}.{label}.red", "kerb-red", red))
@@ -923,7 +1001,7 @@ def tyre_stacks(layout: Layout) -> list[SceneryMesh]:
 def start_line(layout: Layout) -> list[SceneryMesh]:
     """Checkers across the asphalt from the start line forward."""
     line = layout.path.at(0.0)
-    half = layout.asphalt_half_width
+    half = layout.half_width_at(0.0)
     forward = (math.cos(line.heading), math.sin(line.heading))
     z = elevation(layout.elevation, 0.0) + SCENERY_LIFT_M
 
@@ -1061,9 +1139,9 @@ def sausage_kerbs(layout: Layout) -> list[SceneryMesh]:
 def hazard_zones(layout: Layout) -> list[SceneryMesh]:
     """Paint over each wheel crossing, wall to wall and `HAZARD_HALF_DEPTH_M` either side: chevrons across
     each end, a tint between, on the asphalt and the sand falling to the walls alike."""
-    half, runoff = layout.asphalt_half_width, layout.runoff_half_width
     result: list[SceneryMesh] = []
     for number, crossing in enumerate(layout.wheel_crossings):
+        half, runoff = layout.half_width_at(crossing.s), layout.runoff_half_width_at(crossing.s)
         sample = layout.path.at(crossing.s)
         cos, sin = math.cos(sample.heading), math.sin(sample.heading)
 
@@ -1120,7 +1198,7 @@ def marshal_posts(layout: Layout) -> list[SceneryMesh]:
         # A run-off too narrow for the usual setback has the post in its
         # middle, so it always stands inside the wall.
         into = min(MARSHAL_POST_INTO_RUNOFF_M, layout.runoff_width / 2.0)
-        offset = crossing.outside * (layout.asphalt_half_width + into)
+        offset = crossing.outside * (layout.half_width_at(sample.s) + into)
         x, y = sample.offset(offset)
         cos, sin = math.cos(sample.heading), math.sin(sample.heading)
         ground = elevation(layout.elevation, sample.s) - GRASS_DROP_M
@@ -1174,11 +1252,10 @@ def along_outside(
     s_end = path.segment(segments[-1]).s_end
     if s_end < s_start:
         s_end += path.length
-    offset = side * (layout.runoff_half_width + WALL_THICKNESS_M + setback)
     s = s_start + spacing / 2.0
     while s + spacing / 2.0 <= s_end:
         sample = path.at(s)
-        x, y = sample.offset(offset)
+        x, y = sample.offset(side * (layout.runoff_half_width_at(sample.s) + WALL_THICKNESS_M + setback))
         nx, ny = sample.left_normal
         # Towards the track: against the left normal on the left, with it on the right.
         facing = math.atan2(-side * ny, -side * nx)
@@ -1334,7 +1411,7 @@ def gantry(layout: Layout) -> list[SceneryMesh]:
         return mesh.cuboid(corner)
 
     parts = ByMaterial("Gantry")
-    span = layout.asphalt_half_width + GANTRY_BEYOND_ASPHALT_M
+    span = layout.half_width_at(sample.s) + GANTRY_BEYOND_ASPHALT_M
     half_depth = GANTRY_PILLAR_M / 2.0
     beam_bottom = GANTRY_TOP_M - GANTRY_BEAM_HEIGHT_M
     # The pillars stand on the sand's lowest edge so they never float on its slope.
@@ -1379,7 +1456,7 @@ def bridge_half_span(layout: Layout, bridge: Bridge) -> float:
     however squarely the legs cross."""
     deck = layout.path.at(bridge.deck_s)
     under = layout.path.at(bridge.underpass_s)
-    clear = layout.runoff_half_width + WALL_THICKNESS_M + BRIDGE_SPAN_CLEARANCE_M
+    clear = layout.runoff_half_width_at(bridge.underpass_s) + WALL_THICKNESS_M + BRIDGE_SPAN_CLEARANCE_M
     return clear / abs(math.sin(deck.heading - under.heading))
 
 
@@ -1387,7 +1464,6 @@ def bridges(layout: Layout, height: list[float]) -> list[SceneryMesh]:
     """Each bridge's embankment, down from the raised road's walls to the grass, its two abutments
     and the deck between them, with girders under a recessed soffit over the underpass."""
     path = layout.path
-    edge = layout.runoff_half_width + WALL_THICKNESS_M
     ground = -GRASS_DROP_M
     parts = ByMaterial("Bridge")
 
@@ -1400,6 +1476,8 @@ def bridges(layout: Layout, height: list[float]) -> list[SceneryMesh]:
         ]
 
     for bridge in layout.decor.bridges:
+        # The raised leg is one width end to end: `uniform_widths` holds it to that.
+        edge = layout.runoff_half_width_at(bridge.deck_s) + WALL_THICKNESS_M
         half_span = bridge_half_span(layout, bridge)
         # The span's ends land on samples, outward so it is never narrower than asked.
         span_start = path.index_at(bridge.deck_s - half_span - SAMPLE_STEP_M / 2.0)
@@ -1444,9 +1522,6 @@ def tunnels(layout: Layout, height: list[float]) -> list[SceneryMesh]:
     of the roof, the roof between them with its underside at `TUNNEL_ROOF_M` over the road, its
     two portal faces, and a lamp every `TUNNEL_LAMP_SPACING_M` along each side's inside."""
     path = layout.path
-    # A hair off the wall's back, so the side never shares its plane.
-    inside = layout.runoff_half_width + WALL_THICKNESS_M + SCENERY_LIFT_M
-    outside = inside + TUNNEL_SIDE_THICKNESS_M
     roof_top = TUNNEL_ROOF_M + TUNNEL_ROOF_THICKNESS_M
     parts = ByMaterial("Tunnel")
 
@@ -1454,6 +1529,10 @@ def tunnels(layout: Layout, height: list[float]) -> list[SceneryMesh]:
         return [(*path.samples[i].offset(offset), height[i] + up) for i in indices]
 
     for tunnel in layout.decor.tunnels:
+        # A hair off the wall's back, so the side never shares its plane; one width end to end,
+        # since `uniform_widths` holds the tunnel to that.
+        inside = layout.runoff_half_width_at(tunnel.s_start) + WALL_THICKNESS_M + SCENERY_LIFT_M
+        outside = inside + TUNNEL_SIDE_THICKNESS_M
         indices = path.indices_between(tunnel.s_start, tunnel.s_end)
         for side in (1, -1):
             parts.add(
