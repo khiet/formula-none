@@ -208,8 +208,8 @@
   .coins .slots i { display: block; width: calc(var(--hud) * 3.6); height: calc(var(--hud) * 0.85); clip-path: polygon(8% 0, 92% 0, 100% 50%, 92% 100%, 8% 100%, 0 50%); background: linear-gradient(transparent 32%, rgb(27 29 33 / 0.6) 32% 68%, transparent 68%); }
   .coins .slots i[data-held="true"] { background: linear-gradient(#f8e39a 0 40%, #ffd23f 40% 75%, #b8860b 75%); }
   .tyre { grid-area: tyre; display: flex; align-items: center; gap: calc(var(--hud) * 1); font-size: calc(var(--hud) * 2.2); }
-  .tyre svg, .tyre-big svg { width: calc(var(--hud) * 3.6); height: auto; filter: drop-shadow(calc(var(--hud) * 0.3) calc(var(--hud) * 0.3) 0 rgb(17 17 17 / 0.55)); }
-  .tyre-big svg { width: 4.6rem; }
+  .tyre svg, .tyre-big svg { width: calc(var(--hud) * 4.2); height: auto; filter: drop-shadow(calc(var(--hud) * 0.3) calc(var(--hud) * 0.3) 0 rgb(17 17 17 / 0.55)); }
+  .tyre-big svg { width: 5.4rem; }
   .lamp { --c: 29.3%; width: calc(var(--hud) * 5); height: calc(var(--hud) * 5); padding: 0; }
   .go-plate { font-size: calc(var(--hud) * 6); padding: 0.3em 0.45em; }
   .finish { font-size: calc(var(--hud) * 7); padding: 0.25em 0.35em; gap: 0.35em; }
@@ -343,7 +343,7 @@
           <li>Readouts sit on faceted plates: chamfered corners, a lit, a mid and a shaded band of one colour, and the posters' hard ink drop. No outline.</li>
           <li>White values, grey labels, a 0.1 em ink drop under each, in the pixel face.</li>
           <li>Your readouts wear your livery: the position plate in primary, flags and hubs in accent. Other karts show in their key colour.</li>
-          <li>Polygons, not pixels: shift lights are hexagons, map markers octagons, the tyre gauge is your car from above with your driver's hair.</li>
+          <li>Polygons, not pixels: shift lights are hexagons, map markers octagons, the tyre gauge is your car from behind with your driver's hair.</li>
           <li>The item characters are the View's meshes drawn flat, so the slot and the road show one cone, one drone, one champagne bottle.</li>
           <li>Sized in HUD units, <code>max(0.55rem, 1.5vmin)</code>, so the panel scales with the window and still reads in a small one. Blinks hold steady under reduced motion.</li>
         </ul>
@@ -887,9 +887,9 @@
 
       <article class="asset">
         <header><h3>Tyre gauge kart</h3><code>apps/web/src/instrument-panel.ts</code></header>
-        <div class="compare"><figure><figcaption>Your car from above</figcaption><div class="view"><div class="hud tyre-big follows lv" data-draw="tyreGauge"></div></div></figure></div>
-        <dl class="spec"><dt>Decided</dt><dd><a href="adr/0031-speed-cluster.md">ADR 0031</a>, <a href="adr/0037-instrument-panel-in-chibi-low-poly.md">0037</a>, read live by <a href="adr/0080-tyres-wear-and-the-gauge-reads-their-life.md">0080</a></dd></dl>
-        <div class="notes"><p>Front and rear wings in secondary, the tub and sidepods in primary lit on the left, the accent stripe, the halo, and your driver's hair in the cockpit. Rears bigger than fronts, each tyre a faceted block in its wear colour: green above 60%, yellow above 30%, red at 30% and below. Beside it the kart's tyre life, rounded up so 0% means truly gone; the race opens at 100%, green, and with Tyres Off it holds there. With Tyres On it falls through the bands as the kart is driven.</p><p>The BOX plate sits off the cluster's right edge, level with the gauge: <code>BOX BOX</code> in white on <code>POSTER_RED</code>, with a chime, from 120 m to 15 m short of the pit lane's fork while life is at 30% or below. Every lap the kart stays out worn, down as it enters the pit lane, and not on the final lap nor a course without a pit lane.</p></div>
+        <div class="compare"><figure><figcaption>Your car from behind, new</figcaption><div class="view"><div class="hud tyre-big follows lv" data-draw="tyreGauge"></div></div></figure><figure><figcaption>Worn, above 30%</figcaption><div class="view"><div class="hud tyre-big follows lv" data-draw="tyreGaugeWarn"></div></div></figure><figure><figcaption>At 30% and below</figcaption><div class="view"><div class="hud tyre-big follows lv" data-draw="tyreGaugeBad"></div></div></figure></div>
+        <dl class="spec"><dt>Decided</dt><dd><a href="adr/0031-speed-cluster.md">ADR 0031</a>, <a href="adr/0037-instrument-panel-in-chibi-low-poly.md">0037</a>, read live by <a href="adr/0080-tyres-wear-and-the-gauge-reads-their-life.md">0080</a>, from behind by <a href="adr/0105-the-timing-tower-the-coin-pile-and-the-kart-from-behind.md">0105</a></dd></dl>
+        <div class="notes"><p>Your car from behind, as the chase camera sees it: the rear wing in secondary across the top with accent endplates, the tub in primary lit on the left with the accent stripe, the halo, and your driver's hair above the tub. The two rear tyres either side, each a faceted block in its wear colour; tyre life is one number, so the hidden fronts lose nothing: green above 60%, yellow above 30%, red at 30% and below. Beside it the kart's tyre life, rounded up so 0% means truly gone; the race opens at 100%, green, and with Tyres Off it holds there. With Tyres On it falls through the bands as the kart is driven.</p><p>The BOX plate sits off the cluster's right edge, level with the gauge: <code>BOX BOX</code> in white on <code>POSTER_RED</code>, with a chime, from 120 m to 15 m short of the pit lane's fork while life is at 30% or below. Every lap the kart stays out worn, down as it enters the pit lane, and not on the final lap nor a course without a pit lane.</p></div>
       </article>
 
       <article class="asset">
@@ -2150,36 +2150,36 @@
       <rect x="0" y="154" width="240" height="6" fill="#3a3e45"/></svg>`;
   };
 
-  // The tyre gauge's kart: your car from above (instrument-panel.ts).
+  // The tyre gauge's kart: your car from behind (instrument-panel.ts).
   // Lit, mid and shaded tones per signal colour, for anything faceted on the panel.
   const TONES = {
     green: ["#8ee88e", "#5ad15a", "#3a9a3a"], yellow: ["#f9da7e", "#f5c542", "#b08a22"], red: ["#ff7a6e", "#e8483a", "#a8261b"], blue: ["#8aa8ff", "#4f7dff", "#2f4fc4"],
     off: ["#4a4f57", "#2b2e33", "#1b1d21"], white: ["#ffffff", "#eef0f2", "#cfd2d6"],
   };
   const keyTones = (key) => [`color-mix(in srgb, ${key} 72%, white)`, key, `color-mix(in srgb, ${key} 66%, black)`];
-  // A tyre seen from above: chamfered block, lit on the left like everything under the View's sun.
-  const tyreTop = (corner, x, y, w, h, tones) => {
+  // A tyre block: chamfered, lit on the left like everything under the View's sun.
+  const tyreBlock = (corner, x, y, w, h, tones) => {
     const c = 2;
     return `<g data-tyre-corner="${corner}">${poly([[x + c, y], [x + w - c, y], [x + w, y + c], [x + w, y + h - c], [x + w - c, y + h], [x + c, y + h], [x, y + h - c], [x, y + c]], tones[1])}` +
       `${poly([[x + c, y], [x + w * 0.34, y], [x + w * 0.34, y + h], [x + c, y + h], [x, y + h - c], [x, y + c]], tones[0])}${poly([[x + w * 0.7, y], [x + w - c, y], [x + w, y + c], [x + w, y + h - c], [x + w - c, y + h], [x + w * 0.7, y + h]], tones[2])}</g>`;
   };
-  // Your car from above: the side view's parts in plan, rears bigger, your driver's hair in the cockpit.
-  const topCar = (wear = ["green", "green", "green", "green"]) => `<svg viewBox="0 0 60 92" role="img" aria-label="Your car from above">
-    <line x1="22" y1="22" x2="12" y2="22" stroke="#222" stroke-width="1.5"/><line x1="38" y1="22" x2="48" y2="22" stroke="#222" stroke-width="1.5"/>
-    <line x1="20" y1="70" x2="12" y2="70" stroke="#222" stroke-width="1.5"/><line x1="40" y1="70" x2="48" y2="70" stroke="#222" stroke-width="1.5"/>
-    ${tyreTop("front-left", 2, 14, 11, 17, TONES[wear[0]])}${tyreTop("front-right", 47, 14, 11, 17, TONES[wear[1]])}
-    ${tyreTop("rear-left", 0, 58, 13, 24, TONES[wear[2]])}${tyreTop("rear-right", 47, 58, 13, 24, TONES[wear[3]])}
-    ${poly([[18, 40], [42, 40], [45, 64], [38, 76], [22, 76], [15, 64]], "var(--p)")}${poly([[18, 40], [30, 40], [30, 76], [22, 76], [15, 64]], "var(--p-lt)")}${poly([[38, 52], [42, 40], [45, 64], [38, 76]], "var(--p-dk)")}
-    ${poly([[26, 6], [34, 6], [37, 42], [23, 42]], "var(--p)")}${poly([[26, 6], [30, 6], [30, 42], [23, 42]], "var(--p-lt)")}
-    ${poly([[29, 8], [31, 8], [31, 78], [29, 78]], "var(--a)")}
-    ${poly([[6, 4], [54, 4], [54, 11], [6, 11]], "var(--s)")}${poly([[6, 4], [54, 4], [54, 6.5], [6, 6.5]], "color-mix(in srgb, var(--s) 72%, white)")}${poly([[4, 3], [7, 3], [7, 12], [4, 12]], "var(--a)")}${poly([[53, 3], [56, 3], [56, 12], [53, 12]], "var(--a)")}
-    ${poly(ngon(6, 30, 51, 8), "#1b1d21")}${facets(8, 30, 52, 5.6, ["var(--hair-lt)", "var(--hair)", "var(--hair-dk)"])}
-    <polyline points="22.5,55 23.5,45 30,41.5 36.5,45 37.5,55" stroke="#1a1a1a" stroke-width="2" fill="none" stroke-linejoin="round"/>
-    ${poly([[24, 66], [36, 66], [34, 82], [26, 82]], "var(--p-dk)")}
-    ${poly([[8, 80], [52, 80], [52, 89], [8, 89]], "var(--s)")}${poly([[8, 80], [52, 80], [52, 83], [8, 83]], "color-mix(in srgb, var(--s) 72%, white)")}${poly([[6, 79], [9, 79], [9, 90], [6, 90]], "var(--a)")}${poly([[51, 79], [54, 79], [54, 90], [51, 90]], "var(--a)")}
+  // Your car from behind, as the chase camera sees it: the rear wing across the top, the two rears either side
+  // in the wear band's colour, the tub lit on the left, your driver's hair inside the halo.
+  const backCar = (band = "green") => `<svg viewBox="0 0 72 58" role="img" aria-label="Your car from behind">
+    ${tyreBlock("rear-left", 2, 22, 14, 30, TONES[band])}${tyreBlock("rear-right", 56, 22, 14, 30, TONES[band])}
+    ${poly([[14, 40], [58, 40], [58, 44], [14, 44]], "#1b1d21")}
+    ${poly([[20, 30], [52, 30], [56, 52], [16, 52]], "var(--p)")}${poly([[20, 30], [36, 30], [36, 52], [16, 52]], "var(--p-lt)")}${poly([[36, 30], [52, 30], [56, 52], [36, 52]], "var(--p-dk)")}
+    ${poly([[24, 44], [48, 44], [48, 52], [24, 52]], "color-mix(in srgb, var(--s) 66%, black)")}${poly([[34, 30], [38, 30], [38, 52], [34, 52]], "var(--a)")}
+    ${poly([[28, 30], [44, 30], [42, 20], [30, 20]], "var(--p-dk)")}
+    <polyline points="27,22 29,14 36,11 43,14 45,22" stroke="#1a1a1a" stroke-width="2.2" fill="none" stroke-linejoin="round"/>
+    ${facets(8, 36, 18, 5.2, ["var(--hair-lt)", "var(--hair)", "var(--hair-dk)"])}
+    ${poly([[34, 8], [38, 8], [38, 20], [34, 20]], "#1b1d21")}
+    ${poly([[6, 2], [66, 2], [66, 10], [6, 10]], "var(--s)")}${poly([[6, 2], [66, 2], [66, 4.5], [6, 4.5]], "color-mix(in srgb, var(--s) 72%, white)")}${poly([[3, 0], [7, 0], [7, 13], [3, 13]], "var(--a)")}${poly([[65, 0], [69, 0], [69, 13], [65, 13]], "var(--a)")}
   </svg>`;
-  // The gauge on new tyres, as a race opens and as Tyres Off holds it.
-  draw.tyreGauge = () => `${topCar(Array(4).fill("green"))}<span>100%</span>`;
+  // The gauge in each band: new tyres as a race opens and as Tyres Off holds it, then worn and nearly gone.
+  draw.tyreGauge = () => `${backCar("green")}<span>100%</span>`;
+  draw.tyreGaugeWarn = () => `${backCar("yellow")}<span>45%</span>`;
+  draw.tyreGaugeBad = () => `${backCar("red")}<span>12%</span>`;
 
   // Real centrelines from the sidecars, projected the way course-map.ts projects them.
   const TRACKS = {
@@ -2362,7 +2362,7 @@
     facets(6, 6.5 + i * 13, 7, 6.2, TONES[limiter ? "blue" : i < lit ? ["green", "red", "blue"][Math.floor((i * 3) / 12)] : "off"])).join("")}</svg>`;
   // The pile fills from the bottom: the slots run top to bottom, so the last ones hold.
   const pile = (coins) => `<div class="coins" role="img" aria-label="${coins} of 10 coins"><span>${coins}</span><span class="slots">${Array.from({ length: 10 }, (_, i) => `<i data-held="${i >= 10 - coins}"></i>`).join("")}</span></div>`;
-  const cluster = (gear, kmh, lit, limiter, coins) => `<div class="cluster">${pile(coins)}${hexLights(lit, limiter)}<span class="pl"><span class="pf ${limiter || gear === "PIT" ? "t-white" : "t-carbon"} gear${gear === "PIT" ? " pit" : ""}">${gear}</span></span><div class="speed"><b>${kmh}</b><span class="lab">KM/H</span></div><div class="tyre lv follows">${topCar(Array(4).fill("green"))}<span>100%</span></div></div>`;
+  const cluster = (gear, kmh, lit, limiter, coins) => `<div class="cluster">${pile(coins)}${hexLights(lit, limiter)}<span class="pl"><span class="pf ${limiter || gear === "PIT" ? "t-white" : "t-carbon"} gear${gear === "PIT" ? " pit" : ""}">${gear}</span></span><div class="speed"><b>${kmh}</b><span class="lab">KM/H</span></div><div class="tyre lv follows">${backCar("green")}<span>100%</span></div></div>`;
   document.getElementById("clusters").innerHTML = cluster(4, 87, 7, false, 0) + cluster(6, 122, 12, true, 7) + cluster("PIT", 54, 3, false, 10);
   // The stop readout: the crew's clock on carbon, then a clean stop's final time on white.
   const stopPlate = (tone, text, ink) => `<span class="pl"><span class="pf ${tone}" style="padding:0.2em 0.5em;display:inline-flex;gap:0.5em;align-items:baseline${ink ? ";color:#111111;text-shadow:none" : ""}"><span style="font-size:0.7em;${ink ? "color:#111111" : "color:var(--label)"}">STOP</span>${text}</span></span>`;

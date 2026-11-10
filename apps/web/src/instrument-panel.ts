@@ -15,17 +15,7 @@ import type { Item } from "./generated/sim";
 import { reelFrame, reelStrip } from "./item-reel";
 import { itemSprite } from "./item-sprites";
 import { hexCss, type Livery, livery as liveryOf } from "./livery";
-import {
-  facetted,
-  group,
-  line,
-  ngon,
-  type Point,
-  polygon,
-  rectangle,
-  SVG_NS,
-  svg,
-} from "./low-poly-svg";
+import { facetted, group, ngon, type Point, polygon, rectangle, SVG_NS, svg } from "./low-poly-svg";
 import {
   CARBON,
   DRONE_EYE,
@@ -318,7 +308,7 @@ export function createInstrumentPanel(
   standingsList.dataset.instrument = "standings";
   standingsList.hidden = true;
   // The speed cluster (ADR 0031): the gear, speed, coins and tyres stay as
-  // text; the shift lights, the coin pile's slots and the kart from above
+  // text; the shift lights, the coin pile's slots and the kart from behind
   // are decorative.
   const cluster = document.createElement("div");
   cluster.dataset.cluster = "";
@@ -337,7 +327,7 @@ export function createInstrumentPanel(
   speed.append(" ");
   const speedUnit = part(speed, "speedUnit");
   const tyre = instrument("tyre");
-  tyre.append(kartFromAbove(paint));
+  tyre.append(kartFromBehind(paint));
   const tyrePercent = part(tyre, "tyrePercent");
   const showTyres = (tyreLife: number) => {
     const percent = tyreLifePercent(tyreLife);
@@ -833,11 +823,11 @@ function paletteChip(paint: Livery): HTMLElement {
 }
 
 /**
- * A tyre seen from above at `x`, `y`, `width` by `height`: a chamfered
- * block lit on the left, marked `data-tyre-corner` so the panel's styles
+ * A tyre block at `x`, `y`, `width` by `height`: chamfered and lit on
+ * the left, marked `data-tyre-corner` so the panel's styles
  * tone it by the tyre gauge's band.
  */
-function tyreFromAbove(parent: Element, x: number, y: number, width: number, height: number): void {
+function tyreBlock(parent: Element, x: number, y: number, width: number, height: number): void {
   const tyre = group(parent);
   tyre.dataset.tyreCorner = "";
   const c = 2;
@@ -884,108 +874,73 @@ function tyreFromAbove(parent: Element, x: number, y: number, width: number, hei
 }
 
 /**
- * The own kart from above for the tyre gauge (ADR 0037): wings in
- * secondary, tub and sidepods in primary lit on the left, the accent
- * stripe, the halo and the driver's hair in the cockpit, the rears bigger
- * than the fronts. Decorative: the gauge's percentage is the text.
+ * The own kart from behind for the tyre gauge, as the chase camera sees it
+ * (ADR 0105), in its livery with the driver's hair. Only the rears show and
+ * carry the band's tone; tyre life is one number, so the hidden fronts lose
+ * nothing. Decorative: the gauge's percentage is the text.
  */
-function kartFromAbove(paint: Livery): SVGSVGElement {
-  const kart = svg("0 0 60 92");
+function kartFromBehind(paint: Livery): SVGSVGElement {
+  const kart = svg("0 0 72 58");
   const primary = tonesOf(paint.primary);
   const secondary = tonesOf(paint.secondary);
   const accent = paint.accent;
-  for (const [x1, x2, y] of [
-    [22, 12, 22],
-    [38, 48, 22],
-    [20, 12, 70],
-    [40, 48, 70],
-  ] as const) {
-    line(kart, [x1, y], [x2, y], CARBON.shaded, 1.5);
-  }
-  tyreFromAbove(kart, 2, 14, 11, 17);
-  tyreFromAbove(kart, 47, 14, 11, 17);
-  tyreFromAbove(kart, 0, 58, 13, 24);
-  tyreFromAbove(kart, 47, 58, 13, 24);
+  tyreBlock(kart, 2, 22, 14, 30);
+  tyreBlock(kart, 56, 22, 14, 30);
+  polygon(kart, rectangle(14, 40, 58, 44), CARBON.shaded);
   polygon(
     kart,
     [
-      [18, 40],
-      [42, 40],
-      [45, 64],
-      [38, 76],
-      [22, 76],
-      [15, 64],
+      [20, 30],
+      [52, 30],
+      [56, 52],
+      [16, 52],
     ],
     primary.mid,
   );
   polygon(
     kart,
     [
-      [18, 40],
-      [30, 40],
-      [30, 76],
-      [22, 76],
-      [15, 64],
+      [20, 30],
+      [36, 30],
+      [36, 52],
+      [16, 52],
     ],
     primary.lit,
   );
   polygon(
     kart,
     [
-      [38, 52],
-      [42, 40],
-      [45, 64],
-      [38, 76],
+      [36, 30],
+      [52, 30],
+      [56, 52],
+      [36, 52],
     ],
     primary.shaded,
   );
+  polygon(kart, rectangle(24, 44, 48, 52), secondary.shaded);
+  polygon(kart, rectangle(34, 30, 38, 52), accent);
   polygon(
     kart,
     [
-      [26, 6],
-      [34, 6],
-      [37, 42],
-      [23, 42],
+      [28, 30],
+      [44, 30],
+      [42, 20],
+      [30, 20],
     ],
-    primary.mid,
+    primary.shaded,
   );
-  polygon(
-    kart,
-    [
-      [26, 6],
-      [30, 6],
-      [30, 42],
-      [23, 42],
-    ],
-    primary.lit,
-  );
-  polygon(kart, rectangle(29, 8, 31, 78), accent);
-  polygon(kart, rectangle(6, 4, 54, 11), secondary.mid);
-  polygon(kart, rectangle(6, 4, 54, 6.5), secondary.lit);
-  polygon(kart, rectangle(4, 3, 7, 12), accent);
-  polygon(kart, rectangle(53, 3, 56, 12), accent);
-  polygon(kart, ngon(6, 30, 51, 8), CARBON.shaded);
-  facetted(kart, 8, 30, 52, 5.6, tonesOf(paint.driver.hairColour));
   const halo = document.createElementNS(SVG_NS, "polyline");
-  halo.setAttribute("points", "22.5,55 23.5,45 30,41.5 36.5,45 37.5,55");
+  halo.setAttribute("points", "27,22 29,14 36,11 43,14 45,22");
   halo.setAttribute("stroke", hexCss(INK));
-  halo.setAttribute("stroke-width", "2");
+  halo.setAttribute("stroke-width", "2.2");
   halo.setAttribute("stroke-linejoin", "round");
   halo.setAttribute("fill", "none");
   kart.append(halo);
-  polygon(
-    kart,
-    [
-      [24, 66],
-      [36, 66],
-      [34, 82],
-      [26, 82],
-    ],
-    primary.shaded,
-  );
-  polygon(kart, rectangle(8, 80, 52, 89), secondary.mid);
-  polygon(kart, rectangle(8, 80, 52, 83), secondary.lit);
-  polygon(kart, rectangle(6, 79, 9, 90), accent);
-  polygon(kart, rectangle(51, 79, 54, 90), accent);
+  facetted(kart, 8, 36, 18, 5.2, tonesOf(paint.driver.hairColour));
+  polygon(kart, rectangle(34, 8, 38, 20), CARBON.shaded);
+  polygon(kart, rectangle(6, 2, 66, 10), secondary.mid);
+  polygon(kart, rectangle(6, 2, 66, 4.5), secondary.lit);
+  polygon(kart, rectangle(3, 0, 7, 13), accent);
+  polygon(kart, rectangle(65, 0, 69, 13), accent);
   return kart;
 }
