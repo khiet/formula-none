@@ -700,8 +700,19 @@ banner, the start lights over the View and the course map. Reads state; never dr
 
 A readout's chamfered backing on the Instrument panel: a lit, a mid and a
 shaded band of one colour, over the ink drop, with no outline (ADR 0037).
-Carbon for most readouts, the local kart's primary for the position, the
-item box gold for the item slot, a kart's key colour for its label.
+Carbon for most readouts, the item box gold for the item slot, a kart's key
+colour for its label, and the local kart's primary for the position. Once
+ADR 0105 is built, the position becomes a band inside the timing tower's
+plate rather than a plate of its own.
+
+### timing tower
+
+The position, lap, time and best above the item slot as one carbon plate, as a
+broadcast draws them: the position as a band in the local kart's primary at the
+top, then the lap, time and best rows sharing a label column, with hairline
+rules between the rows and one straight right edge. 26 HUD units wide on every
+race, so the lap row holds five lap flags. Chosen by ADR 0105 and not yet
+built: the panel still draws four separate plates.
 
 ### gear
 
