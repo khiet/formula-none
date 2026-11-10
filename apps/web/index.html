@@ -68,7 +68,8 @@
             color-mix(in srgb, var(--ink) 55%, transparent)
         );
       }
-      [data-plate]::before {
+      [data-plate]::before,
+      [data-tower] [data-band]::before {
         content: "";
         position: absolute;
         inset: 0;
@@ -114,9 +115,29 @@
         gap: calc(var(--hud) * 1.3);
         justify-items: start;
       }
-      [data-instrument="position"] {
+      /*
+       * The timing tower (ADR 0105): one carbon plate, 26 HUD units wide on
+       * every race so the lap row holds five flags, the most a race has. The
+       * position is a band in the livery set into its top; the rows under it
+       * share a label column sized in HUD units, so the smaller best row's
+       * value lines up with the time's. The band draws with the plate's rule
+       * and inherits the tower's chamfer. The hairlines between the rows are
+       * the one line ADR 0105 allows inside a plate.
+       */
+      #instrument-panel [data-tower] {
+        display: grid;
         gap: 0;
+        box-sizing: border-box;
+        width: calc(var(--hud) * 26);
+        padding: calc(var(--hud) * 0.6);
+      }
+      [data-tower] [data-band] {
+        position: relative;
+        isolation: isolate;
+        display: flex;
+        justify-content: center;
         padding: 0.12em 0.3em;
+        margin-bottom: calc(var(--hud) * 0.4);
         font-size: calc(var(--hud) * 5.6);
       }
       [data-instrument="position"] [data-suffix] {
@@ -124,12 +145,23 @@
         margin-top: 0.3em;
         font-size: 0.4em;
       }
-      [data-instrument="lap"],
-      [data-instrument="lap-time"] {
+      [data-tower] [data-instrument="lap"],
+      [data-tower] [data-instrument="lap-time"],
+      [data-tower] [data-instrument="best-lap"] {
+        display: grid;
+        grid-template-columns: calc(var(--hud) * 5.6) 1fr;
+        align-items: center;
+        gap: calc(var(--hud) * 1.3);
+        padding: calc(var(--hud) * 0.7) calc(var(--hud) * 0.6);
         font-size: calc(var(--hud) * 2.2);
+        white-space: nowrap;
+        border-top: 1px solid color-mix(in srgb, var(--value) 10%, transparent);
       }
-      [data-instrument="best-lap"] {
+      [data-tower] [data-instrument="best-lap"] {
         font-size: calc(var(--hud) * 1.7);
+      }
+      [data-instrument="best-lap"]:not([data-set]) > :not([data-label]) {
+        color: var(--label);
       }
       /* One cell per figure, the face's digit advance, so the clocks keep their width. */
       [data-instrument="lap-time"] [data-figure],
@@ -152,12 +184,6 @@
         display: flex;
         align-items: center;
         gap: 0.25em;
-      }
-      [data-flags]::before {
-        content: "LAP";
-        margin-right: 0.35em;
-        color: var(--label);
-        font-size: 0.75em;
       }
       [data-flag] {
         display: block;

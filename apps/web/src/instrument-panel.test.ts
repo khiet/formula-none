@@ -81,7 +81,7 @@ describe("lap readouts", () => {
   it("shows the grid as first on lap one of three with the clocks blank", () => {
     expect(lapReadouts(ON_THE_GRID, 3)).toEqual({
       position: { numeral: "1", suffix: "st" },
-      lap: "Lap 1/3",
+      lap: { label: "Lap", value: "1/3" },
       lapsCompleted: 0,
       lapTime: { label: "Time", value: `0'00"000` },
       bestLap: { label: "Best", value: `-'--"---` },
@@ -100,7 +100,7 @@ describe("lap readouts", () => {
       3,
     );
     expect(readouts.position).toEqual({ numeral: "3", suffix: "rd" });
-    expect(readouts.lap).toBe("Lap 2/3");
+    expect(readouts.lap).toEqual({ label: "Lap", value: "2/3" });
     expect(readouts.lapsCompleted).toBe(1);
     expect(readouts.lapTime).toEqual({ label: "Time", value: `1'15"457` });
     expect(readouts.bestLap).toEqual({ label: "Best", value: `0'15"000` });
@@ -190,6 +190,47 @@ describe("the lap instruments on the page", () => {
     expect(countdown?.textContent).toBe("GO");
     at({ kind: "racing", elapsedSeconds: 1, capLeftSeconds: null });
     expect(countdown?.hidden).toBe(true);
+  });
+
+  it("set the position, lap, time and best in one carbon tower above the item slot", () => {
+    const container = document.createElement("div");
+    createInstrumentPanel(container, 3, course, TUNING, nameOf, livery(course.ownKart));
+    const tower = container.querySelector<HTMLElement>("[data-tower]");
+    const names = [...(tower?.querySelectorAll<HTMLElement>("[data-instrument]") ?? [])].map(
+      (readout) => readout.dataset.instrument,
+    );
+    expect(names).toEqual(["position", "lap", "lap-time", "best-lap"]);
+    // The position is a band inside the tower's plate, with no plate or drop of its own.
+    expect(tower?.querySelector('[data-instrument="position"]')?.hasAttribute("data-plate")).toBe(
+      false,
+    );
+    const slot = container.querySelector('[data-instrument="item"]');
+    expect(tower?.contains(slot ?? null)).toBe(false);
+    expect(
+      slot && tower ? tower.compareDocumentPosition(slot) & Node.DOCUMENT_POSITION_FOLLOWING : 0,
+    ).toBeTruthy();
+  });
+
+  it("label the lap row in the label column beside the time and best", () => {
+    const { panel, find } = mount();
+    panel.update(race(ON_THE_GRID, { ...EMPTY_SLOT, item: null, firing: false }));
+    const labels = ["lap", "lap-time", "best-lap"].map(
+      (name) => find(name)?.querySelector("[data-label]")?.textContent,
+    );
+    expect(labels).toEqual(["Lap", "Time", "Best"]);
+  });
+
+  it("mark the best row set only once the kart has a best lap", () => {
+    const { panel, find } = mount();
+    panel.update(race(ON_THE_GRID, { ...EMPTY_SLOT, item: null, firing: false }));
+    expect(find("best-lap")?.hasAttribute("data-set")).toBe(false);
+    panel.update(
+      race(
+        { ...ON_THE_GRID, lap: 2, bestLapS: 44.91 },
+        { ...EMPTY_SLOT, item: null, firing: false },
+      ),
+    );
+    expect(find("best-lap")?.hasAttribute("data-set")).toBe(true);
   });
 
   it("print the clocks with their label words in the text", () => {
@@ -282,6 +323,8 @@ describe("the finish on the page", () => {
     expect(find("finish")?.hidden).toBe(false);
     expect(find("finish")?.textContent).toBe("FINISH 2nd");
     expect(find("lap")?.hidden).toBe(true);
+    // The tower shortens by the lap row and keeps the rest.
+    for (const name of ["position", "lap-time", "best-lap"]) expect(find(name)?.hidden).toBe(false);
     expect(find("standings")?.hidden).toBe(false);
     expect(rows()).toEqual([`1st Kart 1 0'50"000`, `2nd You 0'52"250`]);
     // The own row is the one picked out: on the item box's gold.
@@ -911,7 +954,7 @@ describe("the panel in the local kart's livery", () => {
   it.each([
     [0, 3],
     [3, 0],
-  ])("paints slot %i's position plate, lap flags and tyre gauge, not slot %i's", (slot, other) => {
+  ])("paints slot %i's position band, lap flags and tyre gauge, not slot %i's", (slot, other) => {
     const paint = livery(slot);
     const container = document.createElement("div");
     createInstrumentPanel(container, 3, course, TUNING, nameOf, paint);
