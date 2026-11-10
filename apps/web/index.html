@@ -120,7 +120,9 @@
        * every race so the lap row holds five flags, the most a race has. The
        * position is a band in the livery set into its top; the rows under it
        * share a label column sized in HUD units, so the smaller best row's
-       * value lines up with the time's. Hairline rules divide the rows.
+       * value lines up with the time's. The band draws with the plate's rule
+       * and inherits the tower's chamfer. The hairlines between the rows are
+       * the one line ADR 0105 allows inside a plate.
        */
       #instrument-panel [data-tower] {
         display: grid;
