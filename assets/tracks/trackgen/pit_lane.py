@@ -59,8 +59,9 @@ class _Lane:
         self.layout = layout
         self.lane = layout.pit_lane
         self.path = layout.path
-        self.asphalt = layout.asphalt_half_width
-        self.runoff = layout.runoff_half_width
+        # The lane's span is one width end to end: `refuse_width_changes` holds it to that.
+        self.asphalt = layout.half_width_at(self.lane.s_fork)
+        self.runoff = layout.runoff_half_width_at(self.lane.s_fork)
         self.wall_back = self.runoff + WALL_THICKNESS_M
         self.indices = self.path.indices_between(self.lane.s_fork, self.lane.s_merge)
 
@@ -116,10 +117,11 @@ class _Lane:
         )
 
 
-def _wall_rail(layout: Layout, indices: list[int], side: int, offset: float) -> list[mesh.Vertex]:
+def _wall_rail(layout: Layout, indices: list[int], side: int, beyond: float) -> list[mesh.Vertex]:
+    """`beyond` metres out from the local edge of the run-off on `side`."""
     return [
         (
-            *layout.path.samples[i].offset(side * offset),
+            *layout.path.samples[i].offset(side * (layout.runoff_half_width_at(layout.path.samples[i].s) + beyond)),
             elevation(layout.elevation, layout.path.samples[i].s) - GRASS_DROP_M,
         )
         for i in indices
@@ -129,8 +131,8 @@ def _wall_rail(layout: Layout, indices: list[int], side: int, offset: float) -> 
 def _wall(layout: Layout, name: str, s_start: float, s_end: float, side: int) -> SurfaceMesh:
     """The run-off's wall on `side` from `s_start` to `s_end`, its ends open."""
     indices = layout.path.indices_between(s_start, s_end)
-    inner = _wall_rail(layout, indices, side, layout.runoff_half_width)
-    outer = _wall_rail(layout, indices, side, layout.runoff_half_width + WALL_THICKNESS_M)
+    inner = _wall_rail(layout, indices, side, 0.0)
+    outer = _wall_rail(layout, indices, side, WALL_THICKNESS_M)
     return SurfaceMesh(name, WALL, WALL, mesh.box_rail(inner, outer, WALL_HEIGHT_M))
 
 
@@ -166,7 +168,7 @@ def surfaces(layout: Layout) -> list[SurfaceMesh]:
 
 def outer_face(layout: Layout) -> float:
     """How far from the centreline the lane's outer wall reaches, where a checkpoint along it must."""
-    return layout.runoff_half_width + WALL_THICKNESS_M + LANE_WIDTH_M + WALL_THICKNESS_M
+    return layout.wall_back_at(layout.pit_lane.s_fork) + LANE_WIDTH_M + WALL_THICKNESS_M
 
 
 def data(layout: Layout) -> PitLaneData:

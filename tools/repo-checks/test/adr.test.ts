@@ -110,6 +110,7 @@ const DECISION_SLUGS = [
   "rain-changes-grip-on-a-lap-the-seed-picks",
   "rain-keeps-its-starting-grip-and-dry-stays-the-default",
   "the-timing-tower-the-coin-pile-and-the-kart-from-behind",
+  "monarch-narrows-at-the-hairpin-and-rascasse",
 ];
 
 const expectedFiles = DECISION_SLUGS.map(
