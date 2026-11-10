@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Tuning } from "./bridge";
 import {
-  coinCount,
   coinTopSpeed,
   drivetrain,
   shiftLights,
@@ -113,14 +112,6 @@ describe("the shift lights", () => {
 
   it("all turn blue on the limiter", () => {
     expect(shiftLights(drivetrain(42, TOP_SPEED))).toEqual(Array(12).fill("blue"));
-  });
-});
-
-describe("the coin count", () => {
-  it("reads the coins carried as two digits over the most a kart carries", () => {
-    expect(coinCount(0, COIN_CAP)).toBe("x00 / 10");
-    expect(coinCount(7, COIN_CAP)).toBe("x07 / 10");
-    expect(coinCount(10, COIN_CAP)).toBe("x10 / 10");
   });
 });
 

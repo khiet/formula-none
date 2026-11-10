@@ -153,7 +153,7 @@
 
   /* The Instrument panel's own rules, copied from apps/web/index.html at one HUD unit. */
   .hud-row { display: flex; flex-wrap: wrap; gap: 1.2rem; align-items: center; justify-content: center; }
-  .cluster { display: grid; grid-template-areas: "coins coins" "lights lights" "gear speed" "gear tyre"; column-gap: calc(var(--hud) * 1.4); row-gap: calc(var(--hud) * 0.9); align-items: end; }
+  .cluster { display: grid; grid-template-areas: "coins lights lights" "coins gear speed" "coins gear tyre"; column-gap: calc(var(--hud) * 1.4); row-gap: calc(var(--hud) * 0.9); align-items: end; }
   .speed { grid-area: speed; display: flex; align-items: baseline; gap: calc(var(--hud) * 0.8); }
   .speed b { font-weight: normal; font-size: calc(var(--hud) * 5.2); }
   .speed span { font-size: calc(var(--hud) * 1.8); color: #fff; }
@@ -203,8 +203,10 @@
   .gear { --c: calc(var(--hud) * 1.6); font-size: calc(var(--hud) * 7); width: 1.2em; height: 1.35em; justify-content: center; padding: 0; }
   .gear.pit { width: calc(var(--hud) * 8.4); height: calc(var(--hud) * 9.45); font-size: calc(var(--hud) * 3.4); }
   .cluster > .pl { grid-area: gear; }
-  .coins { grid-area: coins; display: flex; align-items: center; gap: calc(var(--hud) * 1); font-size: calc(var(--hud) * 2.6); }
-  .coins svg { width: calc(var(--hud) * 2.8); height: auto; filter: drop-shadow(calc(var(--hud) * 0.3) calc(var(--hud) * 0.3) 0 rgb(17 17 17 / 0.55)); }
+  .coins { grid-area: coins; align-self: end; display: grid; justify-items: center; gap: calc(var(--hud) * 0.5); margin-right: calc(var(--hud) * 0.4); font-size: calc(var(--hud) * 2.6); }
+  .coins .slots { display: grid; gap: calc(var(--hud) * 0.28); filter: drop-shadow(calc(var(--hud) * 0.3) calc(var(--hud) * 0.3) 0 rgb(17 17 17 / 0.55)); }
+  .coins .slots i { display: block; width: calc(var(--hud) * 3.6); height: calc(var(--hud) * 0.85); clip-path: polygon(8% 0, 92% 0, 100% 50%, 92% 100%, 8% 100%, 0 50%); background: linear-gradient(transparent 32%, rgb(27 29 33 / 0.6) 32% 68%, transparent 68%); }
+  .coins .slots i.held { background: linear-gradient(#f8e39a 0 40%, #ffd23f 40% 75%, #b8860b 75%); }
   .tyre { grid-area: tyre; display: flex; align-items: center; gap: calc(var(--hud) * 1); font-size: calc(var(--hud) * 2.2); }
   .tyre svg, .tyre-big svg { width: calc(var(--hud) * 3.6); height: auto; filter: drop-shadow(calc(var(--hud) * 0.3) calc(var(--hud) * 0.3) 0 rgb(17 17 17 / 0.55)); }
   .tyre-big svg { width: 4.6rem; }
@@ -878,9 +880,9 @@
 
       <article class="asset wide">
         <header><h3>Speed cluster</h3><code>apps/web/src/speed-cluster.ts, instrument-panel.ts</code></header>
-        <div class="compare"><figure><figcaption>4th at 87 km/h on four coins, on the limiter on seven, and in the pit lane</figcaption><div class="view"><div class="hud hud-row" id="clusters"></div></div></figure></div>
-        <dl class="spec"><dt>Decided</dt><dd><a href="adr/0031-speed-cluster.md">ADR 0031</a>, drawn by <a href="adr/0037-instrument-panel-in-chibi-low-poly.md">0037</a>, coins by <a href="adr/0056-coins-replace-the-tyre-pickup.md">0056</a></dd></dl>
-        <div class="notes"><p>The coin count over the lights: a poster gold octagon in its rim's darker gold, and the coins you carry as two digits over the most you can, <code>x07 / 10</code>, reading <code>x00 / 10</code> at the lights. Twelve hexagon shift lights, each a lit, mid and shaded facet like the wheel hubs, in green, red and blue thirds. The gear on a carbon plate, white on the limiter; in the pit lane the slot reads PIT, steady white in smaller type, with the speed held at 54 km/h; km/h and the tyre gauge beside it. The six gears share out the top speed your coins raise, 1% a coin, so 6th tops out at 108 km/h on none and 119 km/h on ten, and the limiter still means a boost.</p></div>
+        <div class="compare"><figure><figcaption>4th at 87 km/h on no coins, on the limiter on seven, and in the pit lane on ten</figcaption><div class="view"><div class="hud hud-row" id="clusters"></div></div></figure></div>
+        <dl class="spec"><dt>Decided</dt><dd><a href="adr/0031-speed-cluster.md">ADR 0031</a>, drawn by <a href="adr/0037-instrument-panel-in-chibi-low-poly.md">0037</a>, coins by <a href="adr/0056-coins-replace-the-tyre-pickup.md">0056</a>, the pile by <a href="adr/0105-the-timing-tower-the-coin-pile-and-the-kart-from-behind.md">0105</a></dd></dl>
+        <div class="notes"><p>The coin pile down the cluster's left: coins on edge stacked in a column from the bottom, one per coin you carry, each a flat hexagon banded <code>ITEM_BOX_GOLD.lit</code> <code>#f8e39a</code> over <code>COIN_GOLD</code> <code>#ffd23f</code> over <code>COIN_RIM</code> <code>#b8860b</code>; the empty slots up to the cap, ten, are faint carbon lines of the same height, so the cluster holds still as the pile rises and falls. The count sits above it, <code>7</code>, reading <code>0</code> at the lights, and assistive technology hears <code>7 of 10 coins</code>. Twelve hexagon shift lights, each a lit, mid and shaded facet like the wheel hubs, in green, red and blue thirds. The gear on a carbon plate, white on the limiter; in the pit lane the slot reads PIT, steady white in smaller type, with the speed held at 54 km/h; km/h and the tyre gauge beside it. The six gears share out the top speed your coins raise, 1% a coin, so 6th tops out at 108 km/h on none and 119 km/h on ten, and the limiter still means a boost.</p></div>
       </article>
 
       <article class="asset">
@@ -2358,9 +2360,10 @@
   document.getElementById("star").innerHTML = starRing + stops;
   const hexLights = (lit, limiter) => `<svg class="lights" viewBox="0 0 156 14" aria-hidden="true">${Array.from({ length: 12 }, (_, i) =>
     facets(6, 6.5 + i * 13, 7, 6.2, TONES[limiter ? "blue" : i < lit ? ["green", "red", "blue"][Math.floor((i * 3) / 12)] : "off"])).join("")}</svg>`;
-  const coinIcon = `<svg viewBox="0 0 100 100" aria-hidden="true"><polygon points="50,6 81,18 94,50 81,82 50,94 19,82 6,50 19,18" fill="#ffd23f" stroke="#b8860b" stroke-width="8"/></svg>`;
-  const cluster = (gear, kmh, lit, limiter, coins) => `<div class="cluster"><div class="coins">${coinIcon}<span>x${String(coins).padStart(2, "0")} / 10</span></div>${hexLights(lit, limiter)}<span class="pl"><span class="pf ${limiter || gear === "PIT" ? "t-white" : "t-carbon"} gear${gear === "PIT" ? " pit" : ""}">${gear}</span></span><div class="speed"><b>${kmh}</b><span class="lab">KM/H</span></div><div class="tyre lv follows">${topCar(Array(4).fill("green"))}<span>100%</span></div></div>`;
-  document.getElementById("clusters").innerHTML = cluster(4, 87, 7, false, 4) + cluster(6, 122, 12, true, 7) + cluster("PIT", 54, 3, false, 2);
+  // The pile fills from the bottom: the slots run top to bottom, so the last ones hold.
+  const pile = (coins) => `<div class="coins" role="img" aria-label="${coins} of 10 coins"><span>${coins}</span><span class="slots">${Array.from({ length: 10 }, (_, i) => `<i${i >= 10 - coins ? ' class="held"' : ""}></i>`).join("")}</span></div>`;
+  const cluster = (gear, kmh, lit, limiter, coins) => `<div class="cluster">${pile(coins)}${hexLights(lit, limiter)}<span class="pl"><span class="pf ${limiter || gear === "PIT" ? "t-white" : "t-carbon"} gear${gear === "PIT" ? " pit" : ""}">${gear}</span></span><div class="speed"><b>${kmh}</b><span class="lab">KM/H</span></div><div class="tyre lv follows">${topCar(Array(4).fill("green"))}<span>100%</span></div></div>`;
+  document.getElementById("clusters").innerHTML = cluster(4, 87, 7, false, 0) + cluster(6, 122, 12, true, 7) + cluster("PIT", 54, 3, false, 10);
   // The stop readout: the crew's clock on carbon, then a clean stop's final time on white.
   const stopPlate = (tone, text, ink) => `<span class="pl"><span class="pf ${tone}" style="padding:0.2em 0.5em;display:inline-flex;gap:0.5em;align-items:baseline${ink ? ";color:#111111;text-shadow:none" : ""}"><span style="font-size:0.7em;${ink ? "color:#111111" : "color:var(--label)"}">STOP</span>${text}</span></span>`;
   draw.rainPlate = () => `<span class="pl"><span class="pf t-blue" style="padding:0.2em 0.5em">RAIN</span></span>`;

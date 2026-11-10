@@ -28,8 +28,6 @@ import {
 } from "./low-poly-svg";
 import {
   CARBON,
-  COIN_GOLD,
-  COIN_RIM,
   DRONE_EYE,
   FIRING,
   GO_GREEN,
@@ -51,7 +49,6 @@ import {
 import { type ItemSlot, type RaceReadout, raceCount } from "./race-run";
 import { rainPlateShowing } from "./rain-look";
 import {
-  coinCount,
   coinTopSpeed,
   drivetrain,
   type SpeedClusterTuning,
@@ -321,7 +318,8 @@ export function createInstrumentPanel(
   standingsList.dataset.instrument = "standings";
   standingsList.hidden = true;
   // The speed cluster (ADR 0031): the gear, speed, coins and tyres stay as
-  // text; the shift lights, the coin and the kart from above are decorative.
+  // text; the shift lights, the coin pile's slots and the kart from above
+  // are decorative.
   const cluster = document.createElement("div");
   cluster.dataset.cluster = "";
   const lightRow = svg(`0 0 ${SHIFT_LIGHT_PITCH * 12} 14`);
@@ -392,9 +390,19 @@ export function createInstrumentPanel(
       stopShownUntil = null;
     }
   };
+  // The coin pile (ADR 0105): the count over a column of slots, one per coin
+  // the cap allows. Its name carries the cap the slots draw, so the slots stay
+  // out of the accessibility tree.
   const coins = instrument("coins");
-  coins.append(coinIcon());
+  coins.setAttribute("role", "img");
   const coinValue = part(coins, "coinCount");
+  const coinSlots = part(coins, "coinSlots");
+  const slots = Array.from({ length: tuning.coinCap }, () => {
+    const slot = document.createElement("i");
+    slot.dataset.coinSlot = "";
+    coinSlots.append(slot);
+    return slot;
+  });
   cluster.append(coins, gear, speed, tyre, boxPlate, rainPlate, stopPlate);
   const showSpeed = (metresPerSecond: number, carried: number, inPitLane: boolean) => {
     const topSpeed = coinTopSpeed(tuning, carried);
@@ -417,7 +425,12 @@ export function createInstrumentPanel(
     speedUnit.textContent = parts.unit;
   };
   const showCoins = (carried: number) => {
-    coinValue.textContent = coinCount(carried, tuning.coinCap);
+    coinValue.textContent = String(carried);
+    coins.setAttribute("aria-label", `${carried} of ${tuning.coinCap} coins`);
+    // The pile grows upward: the slots run top to bottom, so the last ones hold.
+    slots.forEach((slot, index) => {
+      slot.dataset.held = String(index >= slots.length - carried);
+    });
   };
   // Every kart starts the race with no coins.
   showSpeed(0, 0, false);
@@ -869,30 +882,6 @@ function tyreFromAbove(parent: Element, x: number, y: number, width: number, hei
   for (const [points, tone] of faces) {
     polygon(tyre, points).dataset.tone = String(tone);
   }
-}
-
-/** The coin's octagon as the mockup draws it, a vertex up, on a 100-unit square. */
-const COIN_OCTAGON: readonly Point[] = [
-  [50, 6],
-  [81, 18],
-  [94, 50],
-  [81, 82],
-  [50, 94],
-  [19, 82],
-  [6, 50],
-  [19, 18],
-];
-
-/**
- * The coin for the coin count (ADR 0056): the track's coin face on, a poster
- * gold octagon in its rim's darker gold. Decorative: the count is the text.
- */
-function coinIcon(): SVGSVGElement {
-  const coin = svg("0 0 100 100");
-  const face = polygon(coin, COIN_OCTAGON, COIN_GOLD);
-  face.setAttribute("stroke", hexCss(COIN_RIM));
-  face.setAttribute("stroke-width", "8");
-  return coin;
 }
 
 /**

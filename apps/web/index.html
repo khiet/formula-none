@@ -305,16 +305,16 @@
       }
       /*
        * The speed cluster (ADR 0031), bottom-left opposite the course map:
-       * the coin count over the shift lights, the gear on its plate under
-       * them, km/h beside it and the tyre gauge under that.
+       * the coin pile down its left (ADR 0105), the shift lights, the gear
+       * on its plate under them, km/h beside it and the tyre gauge under that.
        */
       #instrument-panel [data-cluster] {
         position: absolute;
         left: calc(var(--hud) * 2);
         bottom: calc(var(--hud) * 2);
         display: grid;
-        grid-template-areas: "coins coins" "lights lights" "gear speed" "gear tyre";
-        grid-template-columns: auto auto;
+        grid-template-areas: "coins lights lights" "coins gear speed" "coins gear tyre";
+        grid-template-columns: auto auto auto;
         column-gap: calc(var(--hud) * 1.4);
         row-gap: calc(var(--hud) * 0.9);
         align-items: end;
@@ -461,18 +461,42 @@
         padding: 0.2em 0.5em;
         font-size: calc(var(--hud) * 2.6);
       }
+      /* The coin pile: the count over a column of coins on edge, one slot per
+         coin the cap allows. Empty slots keep a held coin's height so the
+         cluster holds still as the pile rises and falls. */
       [data-instrument="coins"] {
         grid-area: coins;
-        display: flex;
-        align-items: center;
-        gap: calc(var(--hud) * 1);
+        align-self: end;
+        display: grid;
+        justify-items: center;
+        gap: calc(var(--hud) * 0.5);
+        margin-right: calc(var(--hud) * 0.4);
         font-size: calc(var(--hud) * 2.6);
       }
-      [data-instrument="coins"] svg {
-        width: calc(var(--hud) * 2.8);
+      [data-coin-slots] {
+        display: grid;
+        gap: calc(var(--hud) * 0.28);
         filter: drop-shadow(
           calc(var(--hud) * 0.3) calc(var(--hud) * 0.3) 0
             color-mix(in srgb, var(--ink) 55%, transparent)
+        );
+      }
+      [data-coin-slot] {
+        display: block;
+        width: calc(var(--hud) * 3.6);
+        height: calc(var(--hud) * 0.85);
+        clip-path: polygon(8% 0, 92% 0, 100% 50%, 92% 100%, 8% 100%, 0 50%);
+        background: linear-gradient(
+          transparent 32%,
+          color-mix(in srgb, var(--carbon-shaded) 60%, transparent) 32% 68%,
+          transparent 68%
+        );
+      }
+      [data-coin-slot][data-held="true"] {
+        background: linear-gradient(
+          var(--gold-lit) 0 40%,
+          var(--coin) 40% 75%,
+          var(--coin-rim) 75%
         );
       }
       /* Greybox readouts: a dim line of their own, top-right, clear of the course map and the countdown (ADR 0031). */

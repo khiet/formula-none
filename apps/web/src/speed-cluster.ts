@@ -94,8 +94,3 @@ export function coinTopSpeed(tuning: SpeedClusterTuning, coins: number): number 
   const speeds = tuning.coinTopSpeedsMPerS;
   return speeds[Math.min(Math.max(coins, 0), speeds.length - 1)] ?? 0;
 }
-
-/** The coin count as the panel prints it: the coins carried in two digits over the cap. */
-export function coinCount(coins: number, cap: number): string {
-  return `x${String(coins).padStart(2, "0")} / ${cap}`;
-}
