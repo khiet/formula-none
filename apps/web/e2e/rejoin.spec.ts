@@ -48,8 +48,10 @@ test("closing the tab mid-race and reopening the room's link rejoins the same ka
   const reopened = await context.newPage();
   await reopened.goto(`/?room=${code}`);
   // Straight into the race under way, with no Title refusing a mid-race join.
+  // The track loads beside the friend's race, two browsers sharing a
+  // software-rendering runner, so the wait matches the countdown's.
   await expect(reopened.locator('[data-instrument="lap"]')).toHaveText("Lap 1/3", {
-    timeout: 30_000,
+    timeout: 60_000,
   });
   await expect(reopened.locator("#title-scene")).toHaveCount(0);
   await expect(reopened.locator('[data-instrument="connection-banner"]')).toBeHidden();
